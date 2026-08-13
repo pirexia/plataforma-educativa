@@ -8,9 +8,9 @@
 ## Estado actual
 
 **Fase**: 0 — Cimientos
-**Paso activo**: 0.1 pendiente (inicializar repositorio). 0.2 y 0.10 en curso.
-**Rama**: —
-**Última sesión anterior**: cambio de entorno a WSL2 (`ADR-030`), módulo `REQ-TRAN` ampliado y reubicado a fase 2 (`ADR-031`), nuevo módulo `REQ-SEED`. Requisitos a 3.0.0.
+**Paso activo**: 0.1 y 0.2 cerrados. 0.3 en curso (falta `api`, `web` y servicio de PDF). 0.10 sigue abierto.
+**Rama**: `chore/cierre-fase0-repo-claude-code` (colgada de `develop`, sin mergear)
+**Última sesión**: cierre de 0.1, 0.2 y avance de 0.3. Ver `Trabajo en curso`.
 
 ---
 
@@ -40,21 +40,12 @@
 
 ---
 
-**Última sesión**: guía de puesta en marcha del entorno (`docs/SETUP-ENTORNO.md`) y presentación comercial en `marketing/`. Nombre de marca pendiente de decidir.
-
 ## Trabajo en curso
 
-- `.claude/agents/` — 9 subagentes definidos con modelo asignado
-- `.claude/skills/` — 5 skills propias: aislamiento-tenant, modulo-nuevo, migracion-segura, i18n-cuatro-idiomas, cierre-de-sesion
-- `.claude/settings.json` — permisos con denegación de operaciones destructivas y lectura de secretos
-- `docs/SETUP-CLAUDE-CODE.md` — plugins, MCP y orden de instalación
-- `README.md`, `docs/modulos/_PLANTILLA/` (5 ficheros) y `docs/adr/README.md`
-- `docs/adr/ADR-028` y `ADR-029` en fichero propio
-- **10 skills propias** en `.claude/skills/`
-- `CHANGELOG.md` con el versionado de todos los documentos
-- MCP decididos: GitHub y Context7 ahora; Boost, Playwright y PostgreSQL conforme avance el plan
-- **Entorno cambiado a WSL2** en equipo personal (Ryzen 7, 16 GB, SSD 512 GB). La VM RHEL/VMware queda descartada para desarrollo y disponible como preproducción si la titularidad resulta adecuada.
-- Pendiente: montar WSL2 con Podman y perfil reducido, instalación real de plugins y MCP, y lista de comprobación de `docs/SETUP-CLAUDE-CODE.md` sección 7
+- **0.1 cerrado**: `LICENSE` propietaria (titular provisional: Andrés Matías López, pendiente de `OPEN-07`), `.gitignore` con patrones de Python, eliminado `SKILL.md` suelto de la raíz.
+- **0.2 cerrado**: MCP de GitHub y Context7 conectados y verificados con las 4 pruebas de `docs/SETUP-ENTORNO.md` §7.4 (issue de prueba #1 creado y cerrado). Plugin `laravel/agent-skills` instalado. 9 agentes con modelo correcto, 10 skills.
+- **0.3 en curso**: Podman, red externa `plataforma-net` y `.wslconfig` ya estaban operativos de una sesión previa. `compose.yaml` nuevo con perfil reducido: `postgres` + `redis` arrancan por defecto y probados en `healthy`; `minio` detrás de `--profile full`. `SYSADMIN.md` creado (v0.1.0). Falta: `api` y `web` (pasos 0.4/0.5), servicio de PDF (motor sin decidir, ver 1.17).
+- MCP pendientes: Boost tras 0.4, Playwright tras 0.5, PostgreSQL tras 0.8.
 
 ---
 
@@ -73,10 +64,15 @@
 
 ## Problemas abiertos
 
-_Ninguno._
+| ID | Descripción | Severidad |
+|----|-------------|-----------|
+| P-01 | El subagente `spec-writer` está bien definido en `.claude/agents/spec-writer.md` (modelo Opus) pero no aparece en la lista de subagentes disponibles de la sesión. Anomalía del entorno de Claude Code, no del repositorio. Revisar al empezar la próxima sesión; si persiste, investigar registro de agentes. | Media |
 
 ---
 
 ## Siguiente paso concreto
 
-Seguir `docs/SETUP-ENTORNO.md` de principio a fin: monta WSL2, Podman, Claude Code y el repositorio con ramas `main` y `develop`, volcar los ficheros ya preparados (`CLAUDE.md`, `memory.md`, `.gitignore`, `.claude/`, `docs/`) y hacer el primer commit. Después, verificar el paso 0.2 con la lista de comprobación de `docs/SETUP-CLAUDE-CODE.md`.
+1. Mergear `chore/cierre-fase0-repo-claude-code` a `develop` (tests no aplica todavía, no hay código de aplicación) y borrar la rama.
+2. Retomar 0.3: decidir el motor de renderizado PDF (o posponerlo explícitamente a 1.17) y dejarlo dicho en un ADR si se decide ahora.
+3. Empezar 0.4 (esqueleto de la API Laravel), que es lo que permite completar `api` en `compose.yaml`.
+4. Comprobar si `spec-writer` (P-01) sigue sin aparecer en `/agents`.

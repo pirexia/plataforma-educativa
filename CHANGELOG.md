@@ -6,6 +6,26 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-08-13 · Cierre de pasos 0.1, 0.2 y 0.3
+
+### Nuevo: `LICENSE`
+Propietaria, todos los derechos reservados. Titularidad jurídica definitiva pendiente de `OPEN-07`.
+
+### Limpieza de 0.1
+- Eliminado `SKILL.md` suelto en la raíz, duplicado de `.claude/skills/aislamiento-tenant/SKILL.md`.
+- `.gitignore`: añadidos patrones de Python (`__pycache__/`, `*.pyc`, entornos virtuales) para `seed/`.
+
+### `docs/SETUP-ENTORNO.md` → 1.3.0
+Alta del MCP de GitHub con gestión segura del token (tres ámbitos de configuración, detección de token en claro en `~/.claude.json`), y cuatro pruebas de verificación del paso 0.2, incluida la prueba negativa de la Regla 0.
+
+### Cierre de 0.2
+Verificado con las cuatro pruebas de `docs/SETUP-ENTORNO.md` §7.4: MCP de GitHub confirmado creando y cerrando un issue de prueba. Pendiente sin resolver: `spec-writer` no aparece en la lista de subagentes disponibles de esta sesión pese a estar bien definido en `.claude/agents/spec-writer.md`.
+
+### Nuevo: `compose.yaml`, `.env.example`, `SYSADMIN.md` → 0.1.0
+Paso 0.3: perfil reducido (`postgres` + `redis` por defecto, `minio` tras `--profile full`), red externa `plataforma-net` sin destruir (`ADR-028`). Verificado arrancando ambos contenedores en estado `healthy`. `api`, `web` y el servicio de PDF quedan fuera a propósito: los dos primeros por los pasos 0.4/0.5, el tercero por no tener motor decidido.
+
+---
+
 ## 2026-08-12 · Tarde
 
 ### `.gitignore` → corrección

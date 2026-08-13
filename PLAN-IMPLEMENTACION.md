@@ -32,14 +32,17 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 
 > Objetivo: repositorio, entorno y esqueleto multi-tenant funcionando. Sin esto, todo lo demás genera deuda.
 
-- [ ] **0.1 · Repositorio y estructura** [HAIKU]
+- [x] **0.1 · Repositorio y estructura** [HAIKU]
   Inicializar monorepo, ramas `main` y `develop`, `.gitignore`, estructura de directorios, `CLAUDE.md`, `memory.md`, licencia, `README.md` inicial. Primer commit.
+  Cerrado 2026-08-13: `LICENSE` propietaria añadida, `.gitignore` con patrones de Python, limpieza de fichero suelto.
 
-- [~] **0.2 · Configuración de Claude Code** [OPUS]
+- [x] **0.2 · Configuración de Claude Code** [OPUS]
   Subagentes, skills propias y permisos **ya preparados** en `.claude/`. Guía en `docs/SETUP-CLAUDE-CODE.md`. Queda ejecutar la instalación de plugins y MCP y pasar la lista de comprobación de la sección 7 de esa guía.
+  Cerrado 2026-08-13: MCP de GitHub y Context7 conectados y verificados (issue de prueba #1 creado y cerrado), plugin `laravel/agent-skills` instalado. **Pendiente sin resolver**: el subagente `spec-writer` no aparece en la lista de subagentes disponibles de la sesión pese a estar bien definido — anomalía del entorno, no del repositorio.
 
-- [ ] **0.3 · Entorno de desarrollo en WSL2** [SONNET]
+- [~] **0.3 · Entorno de desarrollo en WSL2** [SONNET]
   Distribución en WSL2, Podman, `compose.yaml` con api, web, PostgreSQL, Redis, MinIO y servicio de PDF. Límite de memoria en `.wslconfig` (10-11 GB) y **perfil reducido** que levante solo lo imprescindible. Proyecto en el sistema de ficheros de Linux, nunca en `/mnt/c`. Documentar en `SYSADMIN.md`. Ver `ADR-030`.
+  Avance 2026-08-13: Podman, red externa `plataforma-net` y `.wslconfig` ya estaban operativos. `compose.yaml` creado con perfil reducido (`postgres`+`redis` por defecto, `minio` tras `--profile full`); ambos contenedores probados y en estado `healthy`. `SYSADMIN.md` creado. **Queda pendiente**: `api` y `web` (entran en 0.4/0.5) y el servicio de PDF (motor sin decidir, ver 1.17).
 
 - [ ] **0.4 · Esqueleto de la API** [SONNET]
   Laravel instalado, estructura modular por bounded contexts, autoload de módulos, healthcheck, OpenAPI vacío, Pest configurado.

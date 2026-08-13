@@ -1,0 +1,69 @@
+name: plataforma-educativa
+
+# Perfil reducido (ADR-030): por defecto solo PostgreSQL y Redis.
+# MinIO se levanta a demanda con: podman compose --profile full up -d
+#
+# api y web se incorporan en los pasos 0.4 y 0.5, cuando exista código que
+# construir. El servicio de renderizado PDF queda pendiente de elegir motor
+# concreto (ver paso 1.17); no se define aquí para no fijar una dependencia
+# sin decisión documentada.
+
+networks:
+  default:
+    name: plataforma-net
+    external: true
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+
+services:
+  postgres:
+    image: docker.io/library/postgres:17
+    container_name: plataforma-postgres
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-plataforma}
+      POSTGRES_USER: ${POSTGRES_USER:-plataforma}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD en .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data:Z
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-plataforma}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: docker.io/library/redis:7-alpine
+    container_name: plataforma-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data:Z
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: docker.io/minio/minio:latest
+    container_name: plataforma-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    env_file: .env
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?falta MINIO_ROOT_USER en .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?falta MINIO_ROOT_PASSWORD en .env}
+    volumes:
+      - minio-data:/data:Z
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    profiles: ["full"]

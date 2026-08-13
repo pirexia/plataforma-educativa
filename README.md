@@ -4,8 +4,8 @@ SaaS para la gestión integral de centros educativos. Segmento inicial: **centro
 
 | Campo | Valor |
 |-------|-------|
-| **Versión del documento** | 2.1.0 |
-| **Fecha** | 2026-08-11 |
+| **Versión del documento** | 2.2.0 |
+| **Fecha** | 2026-08-13 |
 | **Estado del proyecto** | Fase 0 · cimientos. No hay código de aplicación todavía |
 
 ---
@@ -26,13 +26,14 @@ Excepción: en el **primer ciclo de Infantil (0-3) en régimen privado** sí som
 | **`memory.md`** | Estado entre sesiones: dónde estamos y qué toca | Al arrancar cada sesión |
 | **`PLAN-IMPLEMENTACION.md`** | Pasos de ejecución, dimensionados a sesiones de 5 h | Al arrancar cada sesión |
 | **`ARCHITECTURE.md`** | Stack, estructura, despliegue, dimensionado de hardware | Antes de tocar arquitectura |
+| **`SYSADMIN.md`** | Entorno de desarrollo, `compose.yaml`, operación | Antes de tocar infraestructura |
 | **`docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`** | Fuente de verdad funcional. 53 módulos, 32 ADR | Al empezar un módulo |
 | **`docs/SETUP-ENTORNO.md`** | **Puesta en marcha completa**: WSL2, Podman, Claude Code, repositorio | Antes que nada |
 | **`docs/SETUP-CLAUDE-CODE.md`** | Plugins, MCP, subagentes y skills | Al configurar el entorno |
 | **`seed/README.md`** | Generador de datos sintéticos | Para probar con volumen |
 | **`marketing/`** | Presentación comercial | Para hablar con centros |
 
-Pendientes de crear (paso 0.13): `SECURITY.md`, `PRIVACY.md`, `SYSADMIN.md`, `RUNBOOK.md`, `CHANGELOG.md`, `CONTRIBUTING.md`.
+Pendientes de crear (paso 0.13): `SECURITY.md`, `PRIVACY.md`, `RUNBOOK.md`, `CONTRIBUTING.md`.
 
 ---
 
@@ -69,14 +70,14 @@ Lista completa: sección 0.5 del documento de requisitos (`INV-001` a `INV-015`)
 
 | Documento | Versión |
 |-----------|---------|
-| `README.md` | 2.1.0 |
+| `README.md` | 2.2.0 |
 | `CLAUDE.md` | 2.0.0 |
 | `ARCHITECTURE.md` | 2.0.0 |
 | `PLAN-IMPLEMENTACION.md` | 2.2.0 |
 | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | 3.1.0 |
 | `docs/SETUP-CLAUDE-CODE.md` | 1.2.0 |
-
-| `docs/SETUP-ENTORNO.md` | 1.1.0 |
+| `docs/SETUP-ENTORNO.md` | 1.3.0 |
+| `SYSADMIN.md` | 0.1.0 |
 
 Historial completo en `CHANGELOG.md`.
 
