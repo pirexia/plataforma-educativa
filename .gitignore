@@ -1,0 +1,86 @@
+# ---- Dependencias ----
+/vendor/
+/node_modules/
+apps/*/vendor/
+apps/*/node_modules/
+
+# ---- Builds y artefactos ----
+/dist/
+/build/
+apps/web/dist/
+apps/api/public/build/
+apps/api/public/hot
+apps/api/bootstrap/cache/*.php
+*.tsbuildinfo
+
+# ---- Entorno y secretos ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+auth.json
+
+# ---- Datos: NUNCA en el repositorio ----
+*.sql
+*.dump
+*.sqlite
+*.sqlite3
+/backups/
+/exports/
+/imports/
+**/datos-reales/
+**/gqdalya-export/
+
+# ---- Almacenamiento y logs ----
+apps/api/storage/*.key
+apps/api/storage/app/public/
+apps/api/storage/framework/cache/
+apps/api/storage/framework/sessions/
+apps/api/storage/framework/views/
+apps/api/storage/logs/
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# ---- Tests y cobertura ----
+/coverage/
+.phpunit.result.cache
+.phpunit.cache/
+playwright-report/
+test-results/
+
+# ---- Infraestructura ----
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/*.tfvars
+!infra/terraform/*.tfvars.example
+infra/compose/**/data/
+kubeconfig*
+
+# ---- Editores y sistema ----
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.shared.json
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# ---- Datos sintéticos generados (se regeneran con la semilla) ----
+seed/salida/
+
+# ---- Marketing: subir .pptx y .pdf finales; ignorar solo lo intermedio ----
+marketing/slide-*.jpg
+marketing/node_modules/
+marketing/build/
+
+# ---- Claude Code ----
+.claude/settings.local.json
+.claude/cache/

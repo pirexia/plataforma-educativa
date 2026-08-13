@@ -1,0 +1,146 @@
+# CHANGELOG
+
+Historial de la documentación del proyecto. Cuando exista código, este fichero recogerá también las versiones de la aplicación.
+
+Formato: versionado semántico por documento. Mayor = cambio que invalida decisiones previas. Menor = contenido nuevo. Parche = correcciones.
+
+---
+
+## 2026-08-12 · Tarde
+
+### `.gitignore` → corrección
+- **Excluía `marketing/*.pdf`**, lo que habría dejado fuera del repositorio la propia presentación comercial. Ahora solo se ignoran los renders intermedios (`slide-*.jpg`) y `build/`.
+
+### Nuevo: `docs/SETUP-ENTORNO.md` → 1.1.0
+Guía completa de puesta en marcha: WSL2 con límite de recursos, claves SSH, GitHub, Podman con red externa, Node, PHP, Claude Code, repositorio con ramas protegidas, plugins y MCP. Con lista de comprobación y problemas frecuentes.
+- **1.1.0**: punto 6.3 reescrito con el árbol completo de los 53 ficheros, tabla de qué no se sube y verificación de recuento.
+
+### Nuevo: `marketing/`
+Presentación comercial de 15 diapositivas. Nombre de marca **provisional**.
+
+### `PLAN-IMPLEMENTACION.md` → 2.2.0
+- Paso **0.10f** (presentación comercial) marcado como completado.
+- Nuevo paso **0.11b**: web publicitaria.
+- Nuevo paso **0.11c**: identidad de marca, bloqueante de la web.
+
+### `README.md` → 2.1.0
+- Índice ampliado con la guía de entorno, el generador y marketing.
+
+---
+
+## 2026-08-12
+
+### `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` → 3.1.0
+- **`ADR-032`**: fuente única de autorizaciones de recogida de menores. El concepto estaba definido dos veces —en `REQ-PRL-004` (fase 3) y en `REQ-TRAN-005` (fase 2)— con listas separadas que podían divergir.
+- Nuevo **`REQ-FAM-UNIT-005`**: lista maestra de personas autorizadas, con foto y documento, en fase 1.
+- `REQ-PRL-004` reducido al proceso operativo de entrega y **adelantado a fase 1**.
+- `REQ-TRAN-005` pasa a consumir la lista maestra.
+
+### `PLAN-IMPLEMENTACION.md` → 2.1.0
+- Nuevo paso **1.14b**, marcado como crítico.
+
+### Skills
+- `datos-personales` → 1.1.0: sección de autorizaciones de recogida.
+
+### `seed/`
+- Generador de datos sintéticos ejecutable, con verificador. Tres centros generados.
+- Autorizaciones de recogida trasladadas de la suscripción de transporte a la unidad familiar.
+
+---
+
+## 2026-08-11 · Tarde
+
+### `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` → 3.0.0
+
+Versión mayor: cambia el entorno de trabajo y se reordena una fase.
+
+- **`REQ-TRAN` (transporte escolar) reescrito**: de 3 requisitos genéricos a 12. Reubicado de COULD/fase 4 a **SHOULD/fase 2** (`ADR-031`). Incorpora autorizaciones de recogida, registro de subida y bajada con alerta de discrepancia, acompañante de ruta, certificación negativa del RCDS con bloqueo, empresa como encargado de tratamiento e integración en la factura mensual.
+- **Nuevo módulo `REQ-SEED`** (datos de demostración), MUST de fase 1: tres centros ficticios de régimen distinto, entre 300 y 1.200 alumnos, plantilla completa de personal, convención de datos sintéticos y bloqueo en producción.
+- `ADR-030`: entorno de desarrollo en WSL2 y separación respecto al alojamiento.
+- `ADR-031`: alcance y fase del transporte escolar.
+- Cerrada `OPEN-06` (titularidad de la infraestructura). Abierta **`OPEN-11`**: dónde se aloja el piloto.
+- Total: **53 módulos, 31 ADR**.
+
+### `CLAUDE.md` → 2.0.0
+- Desarrollo en WSL2 con perfil reducido.
+- **Prohibición explícita de datos reales en desarrollo**, sin excepción.
+- Convención de datos sintéticos de `REQ-SEED-005`.
+
+### `ARCHITECTURE.md` → 2.0.0
+- Etapa E0 pasa a WSL2; nueva etapa E0b para el piloto.
+- Tabla de recursos de desarrollo con límite de `.wslconfig` y perfil reducido.
+- Advertencia de que las mediciones de rendimiento en el equipo personal son orientativas.
+
+### `PLAN-IMPLEMENTACION.md` → 2.0.0
+- Paso 0.3 reescrito para WSL2.
+- Paso 0.10 pasa a ser la decisión de alojamiento del piloto (`OPEN-11`).
+- Nuevo paso **1.15b**: generador de datos de demostración.
+- `REQ-TRAN` movido a fase 2, inmediatamente después del módulo económico.
+- Fase 1: 17 módulos.
+
+### `README.md` → 2.0.0
+- Regla 0: ningún dato real en desarrollo.
+- Tabla de versiones y bloqueantes actualizados.
+
+---
+
+## 2026-08-11 · Mañana
+
+### `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` → 2.6.0
+- `ADR-028`: topología de red y dependencias entre contenedores.
+- `ADR-029`: identificador público ULID y convenciones de tipos en PostgreSQL.
+- Ambos en fichero propio, estrenando la regla de `ADR-026`.
+- Nuevas decisiones abiertas `OPEN-06` a `OPEN-10`.
+
+### `CLAUDE.md` → 1.2.0
+- Podman en lugar de Docker.
+- Reglas de red y dependencias de contenedores.
+- Convenciones de esquema de `ADR-029`.
+- ADR `001`-`027` canónicos en la sección 18; del `028` en adelante, fichero propio.
+
+### `ARCHITECTURE.md` → 1.2.0
+- `ADR-027`: Podman sobre RHEL 10 en VM VMware.
+- `ADR-028`: red y dependencias.
+- Sección 4.3 de red entre contenedores.
+- Tabla de dimensionado para host único.
+
+### `PLAN-IMPLEMENTACION.md` → 1.1.0
+- Corregido el conteo de módulos de fase 1: son 16, no 9. Estimación revisada a 6-8 meses.
+- Nuevos pasos 0.10b a 0.10e: dominio y DNS, correo transaccional, destino de copias, staging.
+- Nuevos pasos 0.12 (marco legal del proveedor) y 0.13 (plantillas de documentación).
+
+### `docs/SETUP-CLAUDE-CODE.md` → 1.2.0
+- Evaluación de MCP: se adopta Context7; se descartan Filesystem, Laravel Codebase MCP y Figma; se aplazan Sentry y Kubernetes.
+- Restricción de solo lectura y fuera de producción para el MCP de PostgreSQL.
+- Adopción de `timescale/pg-aiguide`.
+- 10 skills propias y regla de contención.
+
+### `README.md` → 1.1.0
+- Creado como punto de entrada e índice.
+- Tabla de versiones de documentos.
+
+### Skills
+| Skill | Versión |
+|-------|---------|
+| `aislamiento-tenant` | 1.0.0 |
+| `contenedores-y-red` | 1.0.0 |
+| `migracion-segura` | 1.0.0 |
+| `postgres-rendimiento` | 1.1.0 (convenciones de `ADR-029`) |
+| `depuracion` | 1.0.0 |
+| `permisos-y-roles` | 1.0.0 |
+| `datos-personales` | 1.0.0 |
+| `modulo-nuevo` | 1.0.0 |
+| `i18n-cuatro-idiomas` | 1.0.0 |
+| `cierre-de-sesion` | 1.0.0 |
+
+---
+
+## Anterior
+
+- **2.5.0** · Stack cerrado: Laravel + Vue 3/TS + PostgreSQL. `ADR-023` a `ADR-026`. Cerradas `OPEN-01` a `OPEN-05`.
+- **2.4.0** · MFA por rol, módulo de copias de seguridad, despliegue sin interrupción.
+- **2.3.0** · Backoffice de Super Administrador.
+- **2.2.0** · Primer ciclo de Infantil 0-3, régimen por etapa, cuatro idiomas.
+- **2.1.0** · Segmento concertados de Madrid, posicionamiento frente a Raíces.
+- **2.0.0** · Reorganización para implementación asistida por IA. 22 módulos nuevos.
+- **1.2.0** y anteriores · Versiones iniciales del documento de requisitos.

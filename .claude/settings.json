@@ -1,0 +1,47 @@
+{
+  "$comment": "Configuración compartida del proyecto. Lo personal va en settings.local.json, que está en .gitignore. Verifica el esquema soportado por tu versión de Claude Code antes de ampliarlo.",
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(php artisan test:*)",
+      "Bash(./vendor/bin/pest:*)",
+      "Bash(./vendor/bin/pint:*)",
+      "Bash(./vendor/bin/phpstan:*)",
+      "Bash(npm run test:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run build:*)",
+      "Bash(podman ps:*)",
+      "Bash(podman images:*)",
+      "Bash(podman compose ps:*)",
+      "Bash(podman compose logs:*)",
+      "Bash(podman logs:*)",
+      "Bash(systemctl status:*)"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(git merge:*)",
+      "Bash(php artisan migrate:*)",
+      "Bash(podman compose down:*)",
+      "Bash(podman network rm:*)",
+      "Bash(podman system prune:*)"
+    ],
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(php artisan migrate:fresh:*)",
+      "Bash(php artisan db:wipe:*)",
+      "Bash(podman volume rm:*)",
+      "Bash(podman system reset:*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/secrets/**)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)"
+    ]
+  }
+}
