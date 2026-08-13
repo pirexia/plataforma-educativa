@@ -40,16 +40,17 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
   Subagentes, skills propias y permisos **ya preparados** en `.claude/`. Guía en `docs/SETUP-CLAUDE-CODE.md`. Queda ejecutar la instalación de plugins y MCP y pasar la lista de comprobación de la sección 7 de esa guía.
   Cerrado 2026-08-13: MCP de GitHub y Context7 conectados y verificados (issue de prueba #1 creado y cerrado), plugin `laravel/agent-skills` instalado. **Pendiente sin resolver**: el subagente `spec-writer` no aparece en la lista de subagentes disponibles de la sesión pese a estar bien definido — anomalía del entorno, no del repositorio.
 
-- [~] **0.3 · Entorno de desarrollo en WSL2** [SONNET]
+- [x] **0.3 · Entorno de desarrollo en WSL2** [SONNET]
   Distribución en WSL2, Podman, `compose.yaml` con api, web, PostgreSQL, Redis, MinIO y servicio de PDF. Límite de memoria en `.wslconfig` (10-11 GB) y **perfil reducido** que levante solo lo imprescindible. Proyecto en el sistema de ficheros de Linux, nunca en `/mnt/c`. Documentar en `SYSADMIN.md`. Ver `ADR-030`.
-  Avance 2026-08-13: Podman, red externa `plataforma-net` y `.wslconfig` ya estaban operativos. `compose.yaml` creado con perfil reducido (`postgres`+`redis`+`api` por defecto, `minio` tras `--profile full`); los tres contenedores probados y en estado `healthy`. `SYSADMIN.md` creado. **Queda pendiente**: `web` (entra en 0.5) y el servicio de PDF (motor sin decidir, ver 1.17).
+  Cerrado 2026-08-14: Podman, red externa `plataforma-net` y `.wslconfig` ya estaban operativos. `compose.yaml` con perfil reducido (`postgres`+`redis`+`api`+`web` por defecto, `minio` tras `--profile full`); los cuatro contenedores probados y en estado `healthy`. `SYSADMIN.md` actualizado. **Pendiente a propósito**: el servicio de PDF (motor sin decidir, ver 1.17).
 
 - [x] **0.4 · Esqueleto de la API** [SONNET]
   Laravel instalado, estructura modular por bounded contexts, autoload de módulos, healthcheck, OpenAPI vacío, Pest configurado.
   Cerrado 2026-08-13: Laravel 13 en `apps/api`, `app/Modules/` con autodescubrimiento de `ServiceProvider` por convención (`App\Support\Modules\ModuleServiceProviderDiscovery`, con test), `GET /api/health`, `openapi.yaml` con ese endpoint documentado, Pest (4 tests, 8 aserciones) y Larastan nivel 6 en verde. Contenedorizado: `infra/containers/api/Containerfile`, servicio `api` en `compose.yaml`, conexión real a PostgreSQL verificada desde dentro del contenedor. Sin módulos de negocio todavía (`app/Modules/` vacío hasta 1.1).
 
-- [ ] **0.5 · Esqueleto del frontend** [SONNET]
+- [x] **0.5 · Esqueleto del frontend** [SONNET]
   Vue 3 + TS + Vite, Tailwind, shadcn-vue inicializado, enrutado, layout base, cliente de API con manejo de errores, Vitest y Playwright configurados.
+  Cerrado 2026-08-14: Vue 3 + TS + Vite en `apps/web`. Tailwind v4 + shadcn-vue inicializados (tema con variables CSS, sin fuente de Google Fonts por privacidad), `vue-router`, `AppLayout` + `HomeView`, `src/modules/` (espejo de la API, vacío hasta 1.1). Cliente API propio (`src/api/client.ts`, sin librería externa) con `ApiError` tipado, probado contra `GET /api/health` real. ESLint + Prettier, Vitest (4 tests) y Playwright (1 test e2e contra el servidor de verdad) en verde — el e2e requirió que el usuario instalara las librerías del sistema del navegador con `sudo` (no accesible desde la sesión). Contenedorizado igual que `api`: `infra/containers/web/Containerfile`, servicio `web` en `compose.yaml`.
 
 - [ ] **0.6 · CI/CD** [SONNET]
   GitHub Actions: build, tests, lint, análisis estático, escaneo de dependencias. Bloqueo de merge si algo falla. Renovate configurado.

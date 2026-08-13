@@ -4,9 +4,9 @@ SaaS para la gestión integral de centros educativos. Segmento inicial: **centro
 
 | Campo | Valor |
 |-------|-------|
-| **Versión del documento** | 2.3.0 |
-| **Fecha** | 2026-08-13 |
-| **Estado del proyecto** | Fase 0 · cimientos. Esqueleto de la API (`apps/api`, Laravel) en pie; frontend aún por empezar |
+| **Versión del documento** | 2.4.0 |
+| **Fecha** | 2026-08-14 |
+| **Estado del proyecto** | Fase 0 · cimientos. Esqueletos de API (`apps/api`, Laravel) y frontend (`apps/web`, Vue 3) en pie, contenedorizados. Pasos 0.1-0.5 cerrados |
 
 ---
 
@@ -70,7 +70,7 @@ Lista completa: sección 0.5 del documento de requisitos (`INV-001` a `INV-015`)
 
 | Documento | Versión |
 |-----------|---------|
-| `README.md` | 2.3.0 |
+| `README.md` | 2.4.0 |
 | `CLAUDE.md` | 2.0.0 |
 | `ARCHITECTURE.md` | 2.0.0 |
 | `PLAN-IMPLEMENTACION.md` | 2.2.0 |

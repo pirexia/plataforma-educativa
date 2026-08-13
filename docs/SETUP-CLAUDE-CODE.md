@@ -150,10 +150,12 @@ Delegar en subagente no es solo economía de cuota: mantiene limpio el contexto 
 2. Configurar el MCP de GitHub y verificar creación de issues
 3. Verificar que los 9 subagentes aparecen en `/agents`
 4. Verificar que las 10 skills se activan en el contexto esperado
-5. Tras el paso 0.4, añadir Laravel Boost
-6. Tras el paso 0.5, añadir Playwright
+5. Tras el paso 0.4, añadir Laravel Boost ✅ 2026-08-14
+6. Tras el paso 0.5, añadir Playwright ✅ 2026-08-14
 7. Tras el paso 0.8, añadir el MCP de PostgreSQL
 8. Antes del cierre de fase 1, evaluar HawkScan
+
+> **Laravel Boost y Playwright** quedan declarados en `.mcp.json` (raíz del repo, versionado: no llevan secretos). Boost se instaló con `composer require laravel/boost --dev` en `apps/api` y `php artisan boost:install --mcp --no-interaction`; el instalador escribió el comando con `wsl.exe`, que sobra porque Claude Code ya corre dentro de WSL2 — se corrigió a mano. Un servidor MCP nuevo en `.mcp.json` no se activa en una sesión ya abierta: hace falta reconectar o abrir una sesión nueva (con el aviso de confianza del proyecto la primera vez).
 
 ---
 

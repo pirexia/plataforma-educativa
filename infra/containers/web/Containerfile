@@ -1,0 +1,15 @@
+# Desarrollo: servidor de Vite con recarga en caliente. El código se monta
+# como volumen desde apps/web/ (ver compose.yaml); esta imagen solo aporta
+# el runtime. La imagen de producción (build estático servido por Traefik/
+# nginx) se define cuando exista destino de despliegue (0.10).
+
+FROM docker.io/library/node:24-bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+EXPOSE 5173
+
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]

@@ -8,9 +8,9 @@
 ## Estado actual
 
 **Fase**: 0 — Cimientos
-**Paso activo**: 0.1, 0.2 y 0.4 cerrados. 0.3 en curso (falta `web` y servicio de PDF). 0.10 sigue abierto.
-**Rama**: `feature/0.4-esqueleto-api-laravel` (colgada de `develop`, sin mergear)
-**Última sesión**: cierre de 0.1 y 0.2, avance de 0.3, cierre de 0.4 (esqueleto Laravel). Ver `Trabajo en curso`.
+**Paso activo**: 0.1, 0.2, 0.3, 0.4 y 0.5 cerrados. 0.10 sigue abierto.
+**Rama**: `feature/0.5-esqueleto-frontend-vue` (colgada de `develop`, sin mergear)
+**Última sesión**: cierre de 0.3 (contenedor `web`), cierre de 0.5 (esqueleto Vue), MCP de Laravel Boost y Playwright añadidos. Ver `Trabajo en curso`.
 
 ---
 
@@ -44,10 +44,11 @@
 
 - **0.1 cerrado**: `LICENSE` propietaria (titular provisional: Andrés Matías López, pendiente de `OPEN-07`), `.gitignore` con patrones de Python, eliminado `SKILL.md` suelto de la raíz.
 - **0.2 cerrado**: MCP de GitHub y Context7 conectados y verificados con las 4 pruebas de `docs/SETUP-ENTORNO.md` §7.4 (issue de prueba #1 creado y cerrado). Plugin `laravel/agent-skills` instalado. 9 agentes con modelo correcto, 10 skills.
-- **0.3 en curso**: Podman, red externa `plataforma-net` y `.wslconfig` ya estaban operativos de una sesión previa. `compose.yaml` con perfil reducido: `postgres` + `redis` + `api` arrancan por defecto y probados en `healthy`; `minio` detrás de `--profile full`. `SYSADMIN.md` creado (v0.2.0). Falta: `web` (paso 0.5), servicio de PDF (motor sin decidir, ver 1.17).
+- **0.3 cerrado**: Podman, red externa `plataforma-net` y `.wslconfig` ya estaban operativos de una sesión previa. `compose.yaml` con perfil reducido: `postgres` + `redis` + `api` + `web` arrancan por defecto y probados en `healthy`; `minio` detrás de `--profile full`. `SYSADMIN.md` v0.3.0. Pendiente a propósito: servicio de PDF (motor sin decidir, ver 1.17).
 - **0.4 cerrado**: Laravel 13 en `apps/api` (PHP 8.4). `app/Modules/<Modulo>/{Domain,Application,Infrastructure,Http}` con autodescubrimiento de `ServiceProvider` (`App\Support\Modules\ModuleServiceProviderDiscovery`), sin módulos reales todavía. `GET /api/health` documentado en `openapi.yaml`. Pest (4 tests) y Larastan nivel 6 en verde. Contenedorizado (`infra/containers/api/Containerfile`), conexión a PostgreSQL verificada desde dentro del contenedor. `routes/web.php` vaciado y `resources/views/welcome.blade.php` eliminada: backend puramente API (`INV-006`), la SPA de `apps/web` es el único cliente web.
-- **Bug propio detectado y corregido en la sesión**: el `Containerfile` inicial purgaba `libpq-dev`/`libzip-dev` con `--auto-remove` tras compilar las extensiones, lo que también se llevaba `libpq.so.5`/`libzip.so.4` (dependencias en tiempo de ejecución) y dejaba `pdo_pgsql`/`zip` sin cargar. El healthcheck no lo detectó porque no toca la base de datos — lo encontré al probar `php artisan db:show` dentro del contenedor. Corregido no purgando las `-dev` (imagen de desarrollo, no de producción).
-- Siguiente MCP: Laravel Boost (ya hay algo que leer tras 0.4). Playwright tras 0.5, PostgreSQL tras 0.8.
+- **Bug propio detectado y corregido (0.4)**: el `Containerfile` inicial purgaba `libpq-dev`/`libzip-dev` con `--auto-remove` tras compilar las extensiones, lo que también se llevaba `libpq.so.5`/`libzip.so.4` (dependencias en tiempo de ejecución) y dejaba `pdo_pgsql`/`zip` sin cargar. El healthcheck no lo detectó porque no toca la base de datos — lo encontré al probar `php artisan db:show` dentro del contenedor. Corregido no purgando las `-dev` (imagen de desarrollo, no de producción).
+- **0.5 cerrado**: Vue 3 + TS + Vite en `apps/web` (`npm create vite`, no `create-vue`: su instalador interactivo se colgó consumiendo CPU al 100% con `yes ""` — proceso matado a mano, ver P-02). Tailwind v4 + shadcn-vue inicializados con `--defaults --yes`; quitado el `@import` a Google Fonts que trae la plantilla por defecto (llamada a un tercero desde cada carga, cuestión de privacidad con un producto que trata datos de menores). `vue-router`, `AppLayout` + `HomeView` que consume `GET /api/health` de verdad. Cliente API propio en `src/api/client.ts` (fetch nativo, sin librería), con `credentials: 'include'` ya previsto para la cookie de sesión de `ADR-025`. ESLint (flat config) + Prettier, Vitest (4 tests) y Playwright (1 e2e) en verde. Contenedorizado igual que `api` (`infra/containers/web/Containerfile`, mismo `node_modules` del host montado por volumen).
+- **MCP añadidos**: Laravel Boost (`composer require laravel/boost --dev` + `php artisan boost:install --mcp --no-interaction`) y Playwright (`@playwright/mcp`), declarados en `.mcp.json` de la raíz (versionado, sin secretos). El instalador de Boost escribió el comando envuelto en `wsl.exe`, que sobra porque ya corremos dentro de WSL2 — corregido a mano a `php apps/api/artisan boost:mcp`. **No van a estar disponibles como herramientas hasta que se abra una sesión nueva** (un MCP añadido a mitad de sesión no se carga solo). PostgreSQL MCP pendiente de 0.8.
 
 ---
 
@@ -69,13 +70,14 @@
 | ID | Descripción | Severidad |
 |----|-------------|-----------|
 | P-01 | El subagente `spec-writer` está bien definido en `.claude/agents/spec-writer.md` (modelo Opus) pero no aparece en la lista de subagentes disponibles de la sesión. Anomalía del entorno de Claude Code, no del repositorio. Revisar al empezar la próxima sesión; si persiste, investigar registro de agentes. | Media |
+| P-02 | `npm create vue@latest -- --typescript --router ...` no respeta sus propios flags: sigue pidiendo el nombre del paquete de forma interactiva. Intentar automatizarlo con `yes "" \| npm create vue@latest ...` cuelga el proceso al 100% de CPU en vez de fallar limpio. Usar `npm create vite@latest <dir> -- --template vue-ts` y añadir router/Tailwind/shadcn-vue/Vitest/Playwright/ESLint a mano (lo que se hizo en 0.5) evita el problema. No usar `create-vue` en `apps/web` sin resolver esto primero. | Baja |
 
 ---
 
 ## Siguiente paso concreto
 
-1. Mergear `feature/0.4-esqueleto-api-laravel` a `develop` (tests y lint en verde) y borrar la rama.
-2. Añadir MCP de Laravel Boost (ya hay aplicación real que leer).
-3. Paso 0.5: esqueleto del frontend (Vue 3 + TS + Vite + shadcn-vue) en `apps/web`, que es lo único que falta para que `compose.yaml` tenga el perfil reducido completo.
+1. Mergear `feature/0.5-esqueleto-frontend-vue` a `develop` (tests, lint y build en verde en `apps/api` y `apps/web`) y borrar la rama.
+2. Abrir una sesión nueva de Claude Code para que carguen los MCP de Laravel Boost y Playwright (P-02 no aplica aquí: es simplemente que un `.mcp.json` nuevo no se activa a mitad de sesión) y pasar la comprobación de la sección 7 de `docs/SETUP-CLAUDE-CODE.md` para estos dos.
+3. Paso 0.6: CI/CD (GitHub Actions con build, tests, lint, análisis estático y escaneo de dependencias para `apps/api` y `apps/web`; Renovate).
 4. Decidir el motor de renderizado PDF (o posponerlo explícitamente a 1.17) antes de que haga falta en 1.17.
 5. Comprobar si `spec-writer` (P-01) sigue sin aparecer en `/agents`.

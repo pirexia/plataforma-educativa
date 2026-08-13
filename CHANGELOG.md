@@ -6,6 +6,25 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-08-14 · Cierre de 0.3 y 0.5, MCP de Boost y Playwright
+
+### Nuevo: `apps/web` (Vue 3 + TypeScript + Vite)
+- Tailwind v4 + shadcn-vue inicializados (tema con variables CSS, sin la fuente de Google que trae la plantilla por defecto: llamada a un tercero en cada carga, cuestión de privacidad en un producto que trata datos de menores).
+- `vue-router`, `AppLayout` + `HomeView`, `src/modules/` (espejo de `apps/api/app/Modules/`, vacío hasta 1.1).
+- Cliente API propio (`src/api/client.ts`, `fetch` nativo sin librería) con `ApiError` tipado y `credentials: 'include'` ya previsto para la cookie de sesión (`ADR-025`).
+- ESLint (flat config) + Prettier, Vitest (4 tests) y Playwright (1 e2e, verificado contra el servidor real) en verde.
+
+### `compose.yaml` → 0.3.0
+Servicio `web` añadido al perfil reducido (`infra/containers/web/Containerfile`), que queda con `postgres`+`redis`+`api`+`web` por defecto.
+
+### `.mcp.json` (nuevo, raíz del repo)
+Laravel Boost (`laravel/boost` en `apps/api`, `php artisan boost:install --mcp`) y Playwright (`@playwright/mcp`). El instalador de Boost escribió el comando envuelto en `wsl.exe`; corregido a mano porque Claude Code ya corre dentro de WSL2.
+
+### `SYSADMIN.md` → 0.3.0
+Documentado el servicio `web` y por qué `VITE_API_URL` no se sobrescribe dentro del contenedor (quien hace la petición es el navegador de Windows, no el contenedor).
+
+---
+
 ## 2026-08-13 · Tarde · Cierre de 0.4
 
 ### Nuevo: `apps/api` (Laravel 13, PHP 8.4)
