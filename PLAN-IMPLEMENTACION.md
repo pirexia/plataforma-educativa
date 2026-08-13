@@ -52,8 +52,9 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
   Vue 3 + TS + Vite, Tailwind, shadcn-vue inicializado, enrutado, layout base, cliente de API con manejo de errores, Vitest y Playwright configurados.
   Cerrado 2026-08-14: Vue 3 + TS + Vite en `apps/web`. Tailwind v4 + shadcn-vue inicializados (tema con variables CSS, sin fuente de Google Fonts por privacidad), `vue-router`, `AppLayout` + `HomeView`, `src/modules/` (espejo de la API, vacío hasta 1.1). Cliente API propio (`src/api/client.ts`, sin librería externa) con `ApiError` tipado, probado contra `GET /api/health` real. ESLint + Prettier, Vitest (4 tests) y Playwright (1 test e2e contra el servidor de verdad) en verde — el e2e requirió que el usuario instalara las librerías del sistema del navegador con `sudo` (no accesible desde la sesión). Contenedorizado igual que `api`: `infra/containers/web/Containerfile`, servicio `web` en `compose.yaml`.
 
-- [~] **0.6 · CI/CD** [SONNET]
+- [x] **0.6 · CI/CD** [SONNET]
   GitHub Actions: build, tests, lint, análisis estático, escaneo de dependencias. Bloqueo de merge si algo falla. Renovate configurado.
+  Cerrado 2026-08-14: `ci-api.yml` (Pest, Pint, Larastan sobre PHP 8.4), `ci-web.yml` (ESLint, vue-tsc+build, Vitest, Playwright), `dependency-scan.yml` (Trivy, no `dependency-review-action`: el repo es privado y ese action requiere GitHub Advanced Security, no disponible en cuenta personal). `renovate.json` listo, pendiente de instalar la GitHub App. **Bloqueo de merge todavía no activo**: falta configurar *branch protection* en GitHub con los seis checks como *required status checks* (no automatizable desde una sesión de Claude Code). Ver `SYSADMIN.md` §4 y PR #4.
 
 - [ ] **0.7 · Núcleo multi-tenant** [OPUS + SONNET] ⚠️ *paso crítico*
   Resolución de tenant por subdominio, scope global obligatorio en el ORM, RLS en PostgreSQL como segunda barrera, y **tests automáticos de aislamiento** que fallen si un tenant alcanza datos de otro. `INV-001`, `RNF-MANT-006`.
