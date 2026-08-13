@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.3.0** · 2026-08-14
+> **Versión 0.4.0** · 2026-08-14
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`); el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
@@ -93,7 +93,26 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:5173/
 
 ---
 
-## 4. Pendiente de documentar aquí
+## 4. CI/CD (GitHub Actions)
+
+Tres workflows en `.github/workflows/`, disparados por `push`/`pull_request` sobre `develop` y `main`, cada uno filtrado por ruta para no ejecutar la API en cambios solo de `apps/web` ni viceversa:
+
+| Workflow | Jobs | Qué cubre |
+|----------|------|-----------|
+| `ci-api.yml` | `test`, `lint`, `static-analysis` | Pest (`composer test`), Pint (`composer lint`), Larastan nivel 6 (`composer analyse`). PHP 8.4, sin contenedor: runner nativo con `shivammathur/setup-php`. Los tests usan SQLite en memoria (`phpunit.xml`), no requieren PostgreSQL en CI. |
+| `ci-web.yml` | `lint`, `typecheck-build`, `test`, `e2e` | ESLint, `vue-tsc -b` + build de Vite, Vitest, Playwright (Chromium, instalado con `--with-deps` en el propio job). El test e2e no depende de la API real: `HomeView` degrada a un mensaje de error visible si la petición falla, que es lo que el test comprueba. |
+| `dependency-scan.yml` | `trivy` | `aquasecurity/trivy-action` escanea `composer.lock` y `package-lock.json` en modo filesystem. Falla en severidad `HIGH`/`CRITICAL` con corrección disponible (`ignore-unfixed: true`). |
+
+**Por qué Trivy y no `actions/dependency-review-action`**: se probó primero ese action nativo de GitHub, pero falla con *"Dependency review is not supported on this repository"* — el repo es privado y ese action necesita GitHub Advanced Security, que en una cuenta personal (no Enterprise) no se puede activar aunque se pague aparte. Trivy corre en el propio job sin depender de ninguna funcionalidad de plan de GitHub, y sin subir SARIF al tab Security (esa subida también está gateada por GHAS en repos privados).
+
+**Pendiente de configurar manualmente** (no automatizable desde una sesión de Claude Code, requiere al propietario del repositorio):
+
+1. **Branch protection** en `develop` y `main`: marcar como *required status checks* los jobs `test`, `lint`, `static-analysis` (API), `lint`, `typecheck-build`, `test`, `e2e` (Web) y `trivy`. Sin esto los workflows se ejecutan pero no bloquean el merge.
+2. **Dependabot alerts**: activar en Settings → Security → *Dependabot alerts* para ver vulnerabilidades en dependencias ya mezcladas (Trivy en CI solo escanea lo que hay en cada PR en el momento de ejecutarse, no vigila el repo de forma continua).
+3. **Renovate**: instalar la GitHub App desde `github.com/apps/renovate` sobre este repositorio. La configuración ya está en `renovate.json` (raíz): agrupa por `apps/api`/`apps/web`, ejecución semanal los lunes, sin automerge, alertas de vulnerabilidad con prioridad inmediata.
+4. **Permiso de lectura de checks para el conector MCP de GitHub**: el PAT de grano fino usado por el `github` MCP de Claude Code (`claude mcp get github`) no tiene permiso de "Checks"/"Commit statuses", así que Claude Code no puede leer el resultado de estos workflows por API (`403`). Añadir esos dos permisos de solo lectura al token en https://github.com/settings/personal-access-tokens.
+
+## 5. Pendiente de documentar aquí
 
 - Alojamiento del piloto y producción (`OPEN-11`, bloqueante de H0).
 - Quadlet/systemd para producción (`infra/`), cuando exista destino.

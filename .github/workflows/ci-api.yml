@@ -1,0 +1,85 @@
+name: CI · API
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "apps/api/**"
+      - ".github/workflows/ci-api.yml"
+  push:
+    branches: [develop, main]
+    paths:
+      - "apps/api/**"
+      - ".github/workflows/ci-api.yml"
+
+defaults:
+  run:
+    working-directory: apps/api
+
+jobs:
+  test:
+    name: Tests (Pest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis
+          coverage: none
+
+      - uses: actions/cache@v4
+        with:
+          path: apps/api/vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('apps/api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - run: composer install --no-interaction --prefer-dist --no-progress
+
+      - run: cp .env.example .env
+      - run: php artisan key:generate
+
+      - run: composer test
+
+  lint:
+    name: Lint (Pint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          coverage: none
+
+      - uses: actions/cache@v4
+        with:
+          path: apps/api/vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('apps/api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - run: composer install --no-interaction --prefer-dist --no-progress
+
+      - run: composer lint
+
+  static-analysis:
+    name: Análisis estático (Larastan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          coverage: none
+
+      - uses: actions/cache@v4
+        with:
+          path: apps/api/vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('apps/api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - run: composer install --no-interaction --prefer-dist --no-progress
+
+      - run: composer analyse

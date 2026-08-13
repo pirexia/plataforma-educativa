@@ -8,9 +8,9 @@
 ## Estado actual
 
 **Fase**: 0 — Cimientos
-**Paso activo**: 0.1, 0.2, 0.3, 0.4 y 0.5 cerrados. 0.10 sigue abierto.
-**Rama**: `feature/0.5-esqueleto-frontend-vue` (colgada de `develop`, sin mergear)
-**Última sesión**: cierre de 0.3 (contenedor `web`), cierre de 0.5 (esqueleto Vue), MCP de Laravel Boost y Playwright añadidos. Ver `Trabajo en curso`.
+**Paso activo**: 0.1-0.5 cerrados. Arrancando **0.6 · CI/CD**. 0.10 sigue abierto.
+**Rama**: `develop` (sin rama de feature abierta; `feature/0.5-esqueleto-frontend-vue` ya se mergeó y se borró)
+**Última sesión**: sesión nueva abierta para que cargaran los MCP de Laravel Boost y Playwright. `laravel-boost` fallaba al conectar (`-32000: Connection closed`); corregido y documentado en issue #2. `develop` va 6 commits por delante de `origin/develop`, sin `push`. Ver `Trabajo en curso`.
 
 ---
 
@@ -48,7 +48,9 @@
 - **0.4 cerrado**: Laravel 13 en `apps/api` (PHP 8.4). `app/Modules/<Modulo>/{Domain,Application,Infrastructure,Http}` con autodescubrimiento de `ServiceProvider` (`App\Support\Modules\ModuleServiceProviderDiscovery`), sin módulos reales todavía. `GET /api/health` documentado en `openapi.yaml`. Pest (4 tests) y Larastan nivel 6 en verde. Contenedorizado (`infra/containers/api/Containerfile`), conexión a PostgreSQL verificada desde dentro del contenedor. `routes/web.php` vaciado y `resources/views/welcome.blade.php` eliminada: backend puramente API (`INV-006`), la SPA de `apps/web` es el único cliente web.
 - **Bug propio detectado y corregido (0.4)**: el `Containerfile` inicial purgaba `libpq-dev`/`libzip-dev` con `--auto-remove` tras compilar las extensiones, lo que también se llevaba `libpq.so.5`/`libzip.so.4` (dependencias en tiempo de ejecución) y dejaba `pdo_pgsql`/`zip` sin cargar. El healthcheck no lo detectó porque no toca la base de datos — lo encontré al probar `php artisan db:show` dentro del contenedor. Corregido no purgando las `-dev` (imagen de desarrollo, no de producción).
 - **0.5 cerrado**: Vue 3 + TS + Vite en `apps/web` (`npm create vite`, no `create-vue`: su instalador interactivo se colgó consumiendo CPU al 100% con `yes ""` — proceso matado a mano, ver P-02). Tailwind v4 + shadcn-vue inicializados con `--defaults --yes`; quitado el `@import` a Google Fonts que trae la plantilla por defecto (llamada a un tercero desde cada carga, cuestión de privacidad con un producto que trata datos de menores). `vue-router`, `AppLayout` + `HomeView` que consume `GET /api/health` de verdad. Cliente API propio en `src/api/client.ts` (fetch nativo, sin librería), con `credentials: 'include'` ya previsto para la cookie de sesión de `ADR-025`. ESLint (flat config) + Prettier, Vitest (4 tests) y Playwright (1 e2e) en verde. Contenedorizado igual que `api` (`infra/containers/web/Containerfile`, mismo `node_modules` del host montado por volumen).
-- **MCP añadidos**: Laravel Boost (`composer require laravel/boost --dev` + `php artisan boost:install --mcp --no-interaction`) y Playwright (`@playwright/mcp`), declarados en `.mcp.json` de la raíz (versionado, sin secretos). El instalador de Boost escribió el comando envuelto en `wsl.exe`, que sobra porque ya corremos dentro de WSL2 — corregido a mano a `php apps/api/artisan boost:mcp`. **No van a estar disponibles como herramientas hasta que se abra una sesión nueva** (un MCP añadido a mitad de sesión no se carga solo). PostgreSQL MCP pendiente de 0.8.
+- **MCP añadidos**: Laravel Boost (`composer require laravel/boost --dev` + `php artisan boost:install --mcp --no-interaction`) y Playwright (`@playwright/mcp`), declarados en `.mcp.json` de la raíz (versionado, sin secretos). PostgreSQL MCP pendiente de 0.8.
+- **Bug propio detectado y corregido (sesión nueva, post-0.5)**: `laravel-boost` seguía sin conectar (`-32000: Connection closed`) al abrir la sesión nueva prevista para cargarlo. La ruta relativa `apps/api/artisan` en `.mcp.json` solo resuelve si el proceso de Claude Code arranca con cwd en la raíz del repo; esta sesión abrió en `docs/`, así que PHP fallaba con `Could not open input file`. `${CLAUDE_PROJECT_DIR}` no está disponible para expansión en `.mcp.json` en la versión instalada (2.1.231, confirmado por el propio diagnóstico de `claude mcp list`). Corregido envolviendo el comando en `sh -c 'cd "$(git rev-parse --show-toplevel)" && exec php apps/api/artisan boost:mcp'`, portable y sin rutas absolutas de un usuario concreto. Documentado en issue #2 (cerrado), commit `548df67` mergeado a `develop` en `c1160a6`. Verificado con `claude mcp list`: los seis MCP (GitHub, Context7, Playwright, Laravel Boost, MyInvestor, Google Drive) conectan.
+- **P-01 posiblemente resuelto**: en esta sesión `spec-writer` sí aparece en la lista de subagentes disponibles. Pendiente confirmar en una sesión futura que no fue un efecto puntual antes de cerrar el problema abierto.
 
 ---
 
@@ -76,8 +78,11 @@
 
 ## Siguiente paso concreto
 
-1. Mergear `feature/0.5-esqueleto-frontend-vue` a `develop` (tests, lint y build en verde en `apps/api` y `apps/web`) y borrar la rama.
-2. Abrir una sesión nueva de Claude Code para que carguen los MCP de Laravel Boost y Playwright (P-02 no aplica aquí: es simplemente que un `.mcp.json` nuevo no se activa a mitad de sesión) y pasar la comprobación de la sección 7 de `docs/SETUP-CLAUDE-CODE.md` para estos dos.
-3. Paso 0.6: CI/CD (GitHub Actions con build, tests, lint, análisis estático y escaneo de dependencias para `apps/api` y `apps/web`; Renovate).
-4. Decidir el motor de renderizado PDF (o posponerlo explícitamente a 1.17) antes de que haga falta en 1.17.
-5. Comprobar si `spec-writer` (P-01) sigue sin aparecer en `/agents`.
+1. **Paso 0.6 en curso**: PR #4 (`feature/0.6-cicd-github-actions` → `develop`). El token MCP de `github` no tiene permiso de Checks/Commit statuses (`403` en `get_check_runs`/`get_status` — no es una GitHub App, es un PAT de grano fino, ver `claude mcp get github`; falta añadirle esos dos permisos en https://github.com/settings/personal-access-tokens), así que la verificación de los checks depende de que el usuario pegue el log. Dos rondas de fallos ya corregidas:
+   - `Tests e2e (Playwright)`: `Timed out waiting 60000ms from config.webServer` — Vite escuchaba en `localhost` sin `--host` explícito (resolución IPv4/IPv6 ambigua entre entornos). Corregido fijando `--host 127.0.0.1` en `apps/web/playwright.config.ts` (commit `b0f8c73`).
+   - `Dependency review`: `dependency-review-action` no funciona en este repo — es privado y ese action requiere GitHub Advanced Security, no disponible en cuenta personal no Enterprise. Sustituido por `aquasecurity/trivy-action` (modo filesystem, sin subir SARIF) en `dependency-scan.yml` (commit `c46d4cb`).
+   - **Bug propio**: el commit `c46d4cb` borró `dependency-review.yml` del árbol de trabajo (`rm`) pero el `git add` posterior solo incluyó los ficheros nuevos/modificados, no el borrado — el fichero seguía trackeado y GitHub lo siguió ejecutando, fallando siempre. Corregido en `352abe2` (`git add` del borrado). Lección: tras un `rm` fuera de `Edit`/`Write`, comprobar `git status` completo (no solo los ficheros que uno cree haber tocado) antes de dar el commit por bueno.
+   Pendiente: que el usuario confirme si con estos fixes los seis jobs pasan. Si sí: mergear el PR, borrar la rama, marcar 0.6 `[x]` en `PLAN-IMPLEMENTACION.md` con fecha. Si falla algo más, seguir en la misma rama.
+2. Configurar a mano en GitHub (no automatizable desde una sesión de Claude Code, ver `SYSADMIN.md` §4): branch protection en `develop`/`main` con los checks de CI como *required*, activar Dependabot alerts, instalar la GitHub App de Renovate.
+3. Decidir el motor de renderizado PDF (o posponerlo explícitamente a 1.17) antes de que haga falta en 1.17.
+4. Confirmar en una sesión futura si `spec-writer` (P-01) sigue apareciendo en `/agents` de forma estable.

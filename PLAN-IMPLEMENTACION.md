@@ -52,7 +52,7 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
   Vue 3 + TS + Vite, Tailwind, shadcn-vue inicializado, enrutado, layout base, cliente de API con manejo de errores, Vitest y Playwright configurados.
   Cerrado 2026-08-14: Vue 3 + TS + Vite en `apps/web`. Tailwind v4 + shadcn-vue inicializados (tema con variables CSS, sin fuente de Google Fonts por privacidad), `vue-router`, `AppLayout` + `HomeView`, `src/modules/` (espejo de la API, vacío hasta 1.1). Cliente API propio (`src/api/client.ts`, sin librería externa) con `ApiError` tipado, probado contra `GET /api/health` real. ESLint + Prettier, Vitest (4 tests) y Playwright (1 test e2e contra el servidor de verdad) en verde — el e2e requirió que el usuario instalara las librerías del sistema del navegador con `sudo` (no accesible desde la sesión). Contenedorizado igual que `api`: `infra/containers/web/Containerfile`, servicio `web` en `compose.yaml`.
 
-- [ ] **0.6 · CI/CD** [SONNET]
+- [~] **0.6 · CI/CD** [SONNET]
   GitHub Actions: build, tests, lint, análisis estático, escaneo de dependencias. Bloqueo de merge si algo falla. Renovate configurado.
 
 - [ ] **0.7 · Núcleo multi-tenant** [OPUS + SONNET] ⚠️ *paso crítico*

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Europe/Madrid",
+  "schedule": ["before 6am on monday"],
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "labels": ["dependencies"],
+  "automerge": false,
+  "vulnerabilityAlerts": {
+    "schedule": ["at any time"],
+    "labels": ["dependencies", "security"]
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"]
+  },
+  "packageRules": [
+    {
+      "matchFileNames": ["apps/api/**"],
+      "groupName": "api dependencies (composer)",
+      "commitMessageSuffix": "[apps/api]"
+    },
+    {
+      "matchFileNames": ["apps/web/**"],
+      "groupName": "web dependencies (npm)",
+      "commitMessageSuffix": "[apps/web]"
+    }
+  ]
+}
