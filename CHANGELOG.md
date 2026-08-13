@@ -6,6 +6,23 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-08-13 · Tarde · Cierre de 0.4
+
+### Nuevo: `apps/api` (Laravel 13, PHP 8.4)
+Primer código de aplicación del repositorio.
+- `app/Modules/` con la convención de bounded context (`Domain`, `Application`, `Infrastructure`, `Http`, `INV-007`) y autodescubrimiento de `ServiceProvider` vía `App\Support\Modules\ModuleServiceProviderDiscovery`, sin registro manual en `bootstrap/providers.php`. Vacío hasta el paso 1.1.
+- `GET /api/health`, documentado en `apps/api/openapi.yaml`.
+- Pest configurado (4 tests, 8 aserciones) y Larastan nivel 6, ambos en verde.
+- `routes/web.php` vaciado y `resources/views/welcome.blade.php` eliminada: backend puramente API (`INV-006`).
+
+### `compose.yaml` → 0.2.0
+Servicio `api` añadido al perfil reducido (`infra/containers/api/Containerfile`). Corregido un fallo propio de la imagen: purgar `libpq-dev`/`libzip-dev` con `--auto-remove` tras compilar las extensiones se llevaba las librerías compartidas en tiempo de ejecución (`libpq.so.5`, `libzip.so.4`) y `pdo_pgsql`/`zip` dejaban de cargar; el healthcheck no lo detectaba porque no toca la base de datos.
+
+### `SYSADMIN.md` → 0.2.0
+Documentado el servicio `api`: puerto, montaje de volumen, variables de entorno sobrescritas para resolución de nombres dentro de la red de contenedores.
+
+---
+
 ## 2026-08-13 · Cierre de pasos 0.1, 0.2 y 0.3
 
 ### Nuevo: `LICENSE`

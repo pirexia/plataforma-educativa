@@ -1,0 +1,39 @@
+openapi: 3.1.0
+info:
+  title: Plataforma de Gestión Educativa — API
+  version: 0.1.0
+  description: >
+    Fuente de verdad funcional: docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md.
+    API-first (INV-006): todo endpoint existe aquí antes que en la SPA.
+servers:
+  - url: http://localhost:8000
+    description: Desarrollo local
+
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      summary: Estado de la API
+      description: Comprobación de vida sin autenticación. No expone datos de negocio.
+      tags: [Plataforma]
+      responses:
+        '200':
+          description: La API responde
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, version, timestamp]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  version:
+                    type: string
+                    example: 0.1.0
+                  timestamp:
+                    type: string
+                    format: date-time
+
+# Los endpoints de negocio se documentan aquí conforme cada módulo los
+# implementa (paso 1.1 en adelante), bajo el prefijo /api/v1.

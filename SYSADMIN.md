@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.1.0** · 2026-08-13
+> **Versión 0.2.0** · 2026-08-13
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`); el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
@@ -51,7 +51,10 @@ Vive en la raíz del repositorio. Perfil reducido por defecto (`ADR-030`): solo 
 |----------|--------|------------------------|
 | `postgres` (17) | por defecto | `127.0.0.1:5432` |
 | `redis` (7) | por defecto | `127.0.0.1:6379` |
+| `api` (Laravel, PHP 8.4) | por defecto | `127.0.0.1:8000` |
 | `minio` | `full` | `127.0.0.1:9000` (API), `127.0.0.1:9001` (consola) |
+
+`api` monta `apps/api/` como volumen (código en vivo, sin rebuild para cada cambio) y usa `apps/api/.env`, con `DB_HOST` y `REDIS_HOST` sobreescritos a los nombres de servicio (`postgres`, `redis`) porque dentro de la red de contenedores no valen `127.0.0.1`. Para Artisan desde el host (`php artisan migrate`, etc.) el `.env` sigue apuntando a `127.0.0.1` con los puertos publicados.
 
 ```bash
 # Arranque diario
@@ -70,18 +73,19 @@ podman compose stop
 Credenciales en `.env` (gitignored), a partir de `.env.example`.
 
 **Pendiente, a propósito:**
-- `api` y `web` se añaden en los pasos 0.4 y 0.5, cuando exista código que construir.
+- `web` se añade en el paso 0.5, cuando exista código que construir.
 - El servicio de renderizado HTML→PDF no está definido todavía: falta decidir el motor concreto (ver paso 1.17 del plan). No se ha fijado una dependencia sin esa decisión.
-- Workers de Horizon se añaden junto con `api`.
+- Workers de Horizon se añaden cuando haya colas reales que procesar (a partir de 1.1).
 
 ---
 
 ## 3. Comprobación rápida
 
 ```bash
-podman compose ps                                    # postgres y redis "healthy"
+podman compose ps                                    # postgres, redis y api "healthy"
 podman exec plataforma-postgres pg_isready -U plataforma
 podman exec plataforma-redis redis-cli ping
+curl -s http://127.0.0.1:8000/api/health
 ```
 
 ---

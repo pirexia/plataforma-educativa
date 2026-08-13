@@ -42,10 +42,11 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 
 - [~] **0.3 · Entorno de desarrollo en WSL2** [SONNET]
   Distribución en WSL2, Podman, `compose.yaml` con api, web, PostgreSQL, Redis, MinIO y servicio de PDF. Límite de memoria en `.wslconfig` (10-11 GB) y **perfil reducido** que levante solo lo imprescindible. Proyecto en el sistema de ficheros de Linux, nunca en `/mnt/c`. Documentar en `SYSADMIN.md`. Ver `ADR-030`.
-  Avance 2026-08-13: Podman, red externa `plataforma-net` y `.wslconfig` ya estaban operativos. `compose.yaml` creado con perfil reducido (`postgres`+`redis` por defecto, `minio` tras `--profile full`); ambos contenedores probados y en estado `healthy`. `SYSADMIN.md` creado. **Queda pendiente**: `api` y `web` (entran en 0.4/0.5) y el servicio de PDF (motor sin decidir, ver 1.17).
+  Avance 2026-08-13: Podman, red externa `plataforma-net` y `.wslconfig` ya estaban operativos. `compose.yaml` creado con perfil reducido (`postgres`+`redis`+`api` por defecto, `minio` tras `--profile full`); los tres contenedores probados y en estado `healthy`. `SYSADMIN.md` creado. **Queda pendiente**: `web` (entra en 0.5) y el servicio de PDF (motor sin decidir, ver 1.17).
 
-- [ ] **0.4 · Esqueleto de la API** [SONNET]
+- [x] **0.4 · Esqueleto de la API** [SONNET]
   Laravel instalado, estructura modular por bounded contexts, autoload de módulos, healthcheck, OpenAPI vacío, Pest configurado.
+  Cerrado 2026-08-13: Laravel 13 en `apps/api`, `app/Modules/` con autodescubrimiento de `ServiceProvider` por convención (`App\Support\Modules\ModuleServiceProviderDiscovery`, con test), `GET /api/health`, `openapi.yaml` con ese endpoint documentado, Pest (4 tests, 8 aserciones) y Larastan nivel 6 en verde. Contenedorizado: `infra/containers/api/Containerfile`, servicio `api` en `compose.yaml`, conexión real a PostgreSQL verificada desde dentro del contenedor. Sin módulos de negocio todavía (`app/Modules/` vacío hasta 1.1).
 
 - [ ] **0.5 · Esqueleto del frontend** [SONNET]
   Vue 3 + TS + Vite, Tailwind, shadcn-vue inicializado, enrutado, layout base, cliente de API con manejo de errores, Vitest y Playwright configurados.

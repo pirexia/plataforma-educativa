@@ -8,9 +8,9 @@
 ## Estado actual
 
 **Fase**: 0 — Cimientos
-**Paso activo**: 0.1 y 0.2 cerrados. 0.3 en curso (falta `api`, `web` y servicio de PDF). 0.10 sigue abierto.
-**Rama**: `chore/cierre-fase0-repo-claude-code` (colgada de `develop`, sin mergear)
-**Última sesión**: cierre de 0.1, 0.2 y avance de 0.3. Ver `Trabajo en curso`.
+**Paso activo**: 0.1, 0.2 y 0.4 cerrados. 0.3 en curso (falta `web` y servicio de PDF). 0.10 sigue abierto.
+**Rama**: `feature/0.4-esqueleto-api-laravel` (colgada de `develop`, sin mergear)
+**Última sesión**: cierre de 0.1 y 0.2, avance de 0.3, cierre de 0.4 (esqueleto Laravel). Ver `Trabajo en curso`.
 
 ---
 
@@ -44,8 +44,10 @@
 
 - **0.1 cerrado**: `LICENSE` propietaria (titular provisional: Andrés Matías López, pendiente de `OPEN-07`), `.gitignore` con patrones de Python, eliminado `SKILL.md` suelto de la raíz.
 - **0.2 cerrado**: MCP de GitHub y Context7 conectados y verificados con las 4 pruebas de `docs/SETUP-ENTORNO.md` §7.4 (issue de prueba #1 creado y cerrado). Plugin `laravel/agent-skills` instalado. 9 agentes con modelo correcto, 10 skills.
-- **0.3 en curso**: Podman, red externa `plataforma-net` y `.wslconfig` ya estaban operativos de una sesión previa. `compose.yaml` nuevo con perfil reducido: `postgres` + `redis` arrancan por defecto y probados en `healthy`; `minio` detrás de `--profile full`. `SYSADMIN.md` creado (v0.1.0). Falta: `api` y `web` (pasos 0.4/0.5), servicio de PDF (motor sin decidir, ver 1.17).
-- MCP pendientes: Boost tras 0.4, Playwright tras 0.5, PostgreSQL tras 0.8.
+- **0.3 en curso**: Podman, red externa `plataforma-net` y `.wslconfig` ya estaban operativos de una sesión previa. `compose.yaml` con perfil reducido: `postgres` + `redis` + `api` arrancan por defecto y probados en `healthy`; `minio` detrás de `--profile full`. `SYSADMIN.md` creado (v0.2.0). Falta: `web` (paso 0.5), servicio de PDF (motor sin decidir, ver 1.17).
+- **0.4 cerrado**: Laravel 13 en `apps/api` (PHP 8.4). `app/Modules/<Modulo>/{Domain,Application,Infrastructure,Http}` con autodescubrimiento de `ServiceProvider` (`App\Support\Modules\ModuleServiceProviderDiscovery`), sin módulos reales todavía. `GET /api/health` documentado en `openapi.yaml`. Pest (4 tests) y Larastan nivel 6 en verde. Contenedorizado (`infra/containers/api/Containerfile`), conexión a PostgreSQL verificada desde dentro del contenedor. `routes/web.php` vaciado y `resources/views/welcome.blade.php` eliminada: backend puramente API (`INV-006`), la SPA de `apps/web` es el único cliente web.
+- **Bug propio detectado y corregido en la sesión**: el `Containerfile` inicial purgaba `libpq-dev`/`libzip-dev` con `--auto-remove` tras compilar las extensiones, lo que también se llevaba `libpq.so.5`/`libzip.so.4` (dependencias en tiempo de ejecución) y dejaba `pdo_pgsql`/`zip` sin cargar. El healthcheck no lo detectó porque no toca la base de datos — lo encontré al probar `php artisan db:show` dentro del contenedor. Corregido no purgando las `-dev` (imagen de desarrollo, no de producción).
+- Siguiente MCP: Laravel Boost (ya hay algo que leer tras 0.4). Playwright tras 0.5, PostgreSQL tras 0.8.
 
 ---
 
@@ -72,7 +74,8 @@
 
 ## Siguiente paso concreto
 
-1. Mergear `chore/cierre-fase0-repo-claude-code` a `develop` (tests no aplica todavía, no hay código de aplicación) y borrar la rama.
-2. Retomar 0.3: decidir el motor de renderizado PDF (o posponerlo explícitamente a 1.17) y dejarlo dicho en un ADR si se decide ahora.
-3. Empezar 0.4 (esqueleto de la API Laravel), que es lo que permite completar `api` en `compose.yaml`.
-4. Comprobar si `spec-writer` (P-01) sigue sin aparecer en `/agents`.
+1. Mergear `feature/0.4-esqueleto-api-laravel` a `develop` (tests y lint en verde) y borrar la rama.
+2. Añadir MCP de Laravel Boost (ya hay aplicación real que leer).
+3. Paso 0.5: esqueleto del frontend (Vue 3 + TS + Vite + shadcn-vue) en `apps/web`, que es lo único que falta para que `compose.yaml` tenga el perfil reducido completo.
+4. Decidir el motor de renderizado PDF (o posponerlo explícitamente a 1.17) antes de que haga falta en 1.17.
+5. Comprobar si `spec-writer` (P-01) sigue sin aparecer en `/agents`.

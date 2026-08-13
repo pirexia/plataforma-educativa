@@ -1,0 +1,25 @@
+# Desarrollo: PHP con servidor embebido de Artisan. El código se monta como
+# volumen desde apps/api/ (ver compose.yaml); esta imagen solo aporta el
+# runtime y las extensiones. La imagen de producción (multi-stage con
+# php-fpm y OPcache) se define cuando exista destino de despliegue (0.10).
+
+FROM docker.io/library/php:8.4-cli-bookworm
+
+# Nota: no se purgan las -dev tras compilar. Un intento anterior con
+# "apt-get purge --auto-remove" se llevó por delante libpq.so.5 y
+# libzip.so.4 (dependencias de las -dev), y pdo_pgsql/zip dejaban de
+# cargar en tiempo de ejecución sin que el healthcheck lo detectara
+# (no toca la base de datos). Imagen de desarrollo: prima la sencillez
+# correcta sobre el tamaño.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq-dev libzip-dev libicu-dev libonig-dev curl \
+    && docker-php-ext-install pdo_pgsql pgsql zip intl mbstring \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /var/www/html
+
+EXPOSE 8000
+
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]

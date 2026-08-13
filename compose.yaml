@@ -1,12 +1,12 @@
 name: plataforma-educativa
 
-# Perfil reducido (ADR-030): por defecto solo PostgreSQL y Redis.
+# Perfil reducido (ADR-030): por defecto PostgreSQL, Redis y api.
 # MinIO se levanta a demanda con: podman compose --profile full up -d
 #
-# api y web se incorporan en los pasos 0.4 y 0.5, cuando exista código que
-# construir. El servicio de renderizado PDF queda pendiente de elegir motor
-# concreto (ver paso 1.17); no se define aquí para no fijar una dependencia
-# sin decisión documentada.
+# web se incorpora en el paso 0.5, cuando exista código que construir. El
+# servicio de renderizado PDF queda pendiente de elegir motor concreto (ver
+# paso 1.17); no se define aquí para no fijar una dependencia sin decisión
+# documentada.
 
 networks:
   default:
@@ -51,6 +51,29 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  api:
+    build:
+      context: infra/containers/api
+    container_name: plataforma-api
+    restart: unless-stopped
+    env_file: apps/api/.env
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+    volumes:
+      - ./apps/api:/var/www/html:Z
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
 
   minio:
     image: docker.io/minio/minio:latest
