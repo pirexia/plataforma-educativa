@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.3.0** · 2026-08-14
+> **Versión 0.4.0** · 2026-08-14
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`); el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
@@ -93,7 +93,23 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:5173/
 
 ---
 
-## 4. Pendiente de documentar aquí
+## 4. CI/CD (GitHub Actions)
+
+Tres workflows en `.github/workflows/`, disparados por `push`/`pull_request` sobre `develop` y `main`, cada uno filtrado por ruta para no ejecutar la API en cambios solo de `apps/web` ni viceversa:
+
+| Workflow | Jobs | Qué cubre |
+|----------|------|-----------|
+| `ci-api.yml` | `test`, `lint`, `static-analysis` | Pest (`composer test`), Pint (`composer lint`), Larastan nivel 6 (`composer analyse`). PHP 8.4, sin contenedor: runner nativo con `shivammathur/setup-php`. Los tests usan SQLite en memoria (`phpunit.xml`), no requieren PostgreSQL en CI. |
+| `ci-web.yml` | `lint`, `typecheck-build`, `test`, `e2e` | ESLint, `vue-tsc -b` + build de Vite, Vitest, Playwright (Chromium, instalado con `--with-deps` en el propio job). El test e2e no depende de la API real: `HomeView` degrada a un mensaje de error visible si la petición falla, que es lo que el test comprueba. |
+| `dependency-review.yml` | `dependency-review` | `actions/dependency-review-action` sobre el diff de cada PR, contra la base de datos de asesorías de GitHub (la misma que usa Dependabot). Falla en severidad `high` o superior. |
+
+**Pendiente de configurar manualmente** (no automatizable desde una sesión de Claude Code, requiere al propietario del repositorio):
+
+1. **Branch protection** en `develop` y `main`: marcar como *required status checks* los jobs `test`, `lint`, `static-analysis` (API), `lint`, `typecheck-build`, `test`, `e2e` (Web) y `dependency-review`. Sin esto los workflows se ejecutan pero no bloquean el merge.
+2. **Dependabot alerts**: activar en Settings → Security → *Dependabot alerts* para ver vulnerabilidades en dependencias ya mezcladas (el workflow de arriba solo cubre las que entran en un PR nuevo).
+3. **Renovate**: instalar la GitHub App desde `github.com/apps/renovate` sobre este repositorio. La configuración ya está en `renovate.json` (raíz): agrupa por `apps/api`/`apps/web`, ejecución semanal los lunes, sin automerge, alertas de vulnerabilidad con prioridad inmediata.
+
+## 5. Pendiente de documentar aquí
 
 - Alojamiento del piloto y producción (`OPEN-11`, bloqueante de H0).
 - Quadlet/systemd para producción (`infra/`), cuando exista destino.
