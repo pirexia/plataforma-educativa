@@ -3,6 +3,10 @@
 /node_modules/
 apps/*/vendor/
 apps/*/node_modules/
+__pycache__/
+*.pyc
+.venv/
+seed/venv/
 
 # ---- Builds y artefactos ----
 /dist/
@@ -84,3 +88,6 @@ marketing/build/
 # ---- Claude Code ----
 .claude/settings.local.json
 .claude/cache/
+# .mcp.json SÍ se versiona: usa ${VARIABLE}, nunca el valor del token.
+# Si alguna vez contiene un secreto literal, descoméntalo de inmediato:
+# .mcp.json
