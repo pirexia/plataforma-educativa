@@ -78,7 +78,7 @@
 
 ## Siguiente paso concreto
 
-1. Paso 0.6: CI/CD (GitHub Actions con build, tests, lint, análisis estático y escaneo de dependencias para `apps/api` y `apps/web`; Renovate). **En curso.**
-2. Decidir el motor de renderizado PDF (o posponerlo explícitamente a 1.17) antes de que haga falta en 1.17.
-3. Confirmar en una sesión futura si `spec-writer` (P-01) sigue apareciendo en `/agents` de forma estable.
-4. Valorar hacer `git push` de los commits acumulados en `develop` (6 por delante de `origin/develop` a fecha de esta sesión) — pendiente de que el usuario lo pida explícitamente.
+1. **Paso 0.6 en curso**: PR #4 (`feature/0.6-cicd-github-actions` → `develop`) abierto con `ci-api.yml`, `ci-web.yml`, `dependency-review.yml` y `renovate.json`. Todo verificado en local (lint/analyse/test en verde en `apps/api` y `apps/web`, YAML válido, `renovate-config-validator` en verde) pero **sin verificar todavía en un runner real de GitHub Actions**: el token del MCP de GitHub conectado no tiene permiso para leer checks (`403` en `get_check_runs` y `get_status`). Pendiente: que el usuario mire https://github.com/pirexia/plataforma-educativa/pull/4 y confirme si los tres workflows pasan. Si pasan: mergear el PR, borrar la rama, marcar 0.6 `[x]` en `PLAN-IMPLEMENTACION.md` con fecha. Si falla algo: corregir en la misma rama.
+2. Configurar a mano en GitHub (no automatizable desde una sesión de Claude Code, ver `SYSADMIN.md` §4): branch protection en `develop`/`main` con los checks de CI como *required*, activar Dependabot alerts, instalar la GitHub App de Renovate.
+3. Decidir el motor de renderizado PDF (o posponerlo explícitamente a 1.17) antes de que haga falta en 1.17.
+4. Confirmar en una sesión futura si `spec-writer` (P-01) sigue apareciendo en `/agents` de forma estable.
