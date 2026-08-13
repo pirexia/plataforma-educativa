@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "laravel-boost": {
-      "command": "php",
-      "args": ["apps/api/artisan", "boost:mcp"]
+      "command": "sh",
+      "args": ["-c", "cd \"$(git rev-parse --show-toplevel)\" && exec php apps/api/artisan boost:mcp"]
     },
     "playwright": {
       "command": "npx",
