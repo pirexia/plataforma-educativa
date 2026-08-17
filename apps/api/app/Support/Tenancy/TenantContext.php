@@ -17,6 +17,8 @@ final class TenantContext
 {
     private ?int $tenantId = null;
 
+    private bool $platformMode = false;
+
     private readonly string $basePrefix;
 
     public function __construct()
@@ -70,6 +72,33 @@ final class TenantContext
     public function hasTenant(): bool
     {
         return $this->tenantId !== null;
+    }
+
+    /**
+     * ADR-033 §4: la única puerta sancionada para leer entre tenants desde
+     * código de negocio. TenantModel deja de aplicar TenantScope y cambia
+     * de conexión a pgsql_platform (BYPASSRLS) mientras dure el closure —
+     * no una bandera que cualquier ruta de código pueda activar sola, sino
+     * un rol de base de datos distinto con credenciales propias.
+     *
+     * Pendiente (0.8/REQ-BO): dejar rastro en el registro de auditoría de
+     * plataforma (`admin_action_logs`), que todavía no existe.
+     */
+    public function runAsPlatform(Closure $callback): mixed
+    {
+        $wasPlatformMode = $this->platformMode;
+        $this->platformMode = true;
+
+        try {
+            return $callback();
+        } finally {
+            $this->platformMode = $wasPlatformMode;
+        }
+    }
+
+    public function isPlatformMode(): bool
+    {
+        return $this->platformMode;
     }
 
     /**
