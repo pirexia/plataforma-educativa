@@ -17,6 +17,12 @@ use InvalidArgumentException;
  * ambiente ya sea el propietario (cierto dentro de una migración real
  * ejecutada con --database=pgsql_owner, falso en cualquier otro contexto
  * que reutilice este helper, como un fixture de test).
+ *
+ * Añade también los campos de auditoría que exige la skill
+ * migracion-segura (created_at/updated_at/deleted_at): $columns no debe
+ * volver a llamar a timestampsTz()/softDeletesTz(), ya están aquí.
+ * created_by/updated_by quedan fuera a propósito — todavía no hay modelo
+ * de actor (usuario/persona) estable con el que enlazarlos; los añade 0.8.
  */
 final class TenantMigration
 {
@@ -29,6 +35,9 @@ final class TenantMigration
             $blueprint->foreignId('tenant_id');
 
             $columns($blueprint);
+
+            $blueprint->timestampsTz();
+            $blueprint->softDeletesTz();
 
             // Clave foránea compuesta (ADR-033 §6): RLS no protege la
             // integridad referencial, la comprobación de un FK la ejecuta

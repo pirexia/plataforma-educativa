@@ -17,7 +17,8 @@ beforeEach(function (): void {
 
     TenantMigration::tenantTable('tenant_migration_probes', function ($table): void {
         $table->text('name');
-        $table->timestampsTz();
+        // Sin timestampsTz() aquí: tenantTable() ya lo añade (y también
+        // softDeletesTz()), ver TenantMigration.php.
     });
 });
 
