@@ -43,6 +43,16 @@ final class TenantContext
     /**
      * Guarda el tenant anterior, entra en el nuevo, ejecuta y restaura
      * siempre el anterior — incluso si el closure lanza una excepción.
+     *
+     * Aviso real, no hipotético (encontrado escribiendo los tests de
+     * 0.7.7): si el closure termina en `SomeJob::dispatch(...)` como
+     * expresión de retorno (`fn () => SomeJob::dispatch(...)`), el envío
+     * a la cola ocurre en el __destruct() de PendingDispatch de Laravel, y
+     * ese destructor no llega a ejecutarse hasta DESPUÉS del `finally` de
+     * este método — el job se etiqueta con el tenant restaurado, no con
+     * el que se acaba de fijar. Dentro de runFor()/eachTenant(), despacha
+     * siempre como sentencia suelta (`function () { SomeJob::dispatch(...); }`),
+     * nunca como valor de retorno del closure.
      */
     public function runFor(int $tenantId, Closure $callback): mixed
     {
