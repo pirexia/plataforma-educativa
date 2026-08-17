@@ -87,3 +87,17 @@ test('el prefijo de caché cambia con el tenant y aísla las claves', function (
     Cache::forget('saludo');
     $context->leave();
 });
+
+test('rateLimitKey() incluye el tenant y falla en cerrado sin uno activo', function (): void {
+    $context = app(TenantContext::class);
+
+    expect(fn () => $context->rateLimitKey('api'))->toThrow(TenantContextMissing::class);
+
+    $context->enter(55);
+    expect($context->rateLimitKey('api'))->toBe('t55:api');
+
+    $context->enter(56);
+    expect($context->rateLimitKey('api'))->toBe('t56:api');
+
+    $context->leave();
+});

@@ -85,6 +85,20 @@ final class TenantContext
     }
 
     /**
+     * ADR-033 §9: toda clave de limitación de tasa incluye el tenant, para
+     * que agotar el límite de uno no afecte a los demás. Los valores
+     * numéricos de los límites son configurables por tenant (RMT-005,
+     * REQ-BO-003) y no existen todavía — esto es solo la clave, no una
+     * política. Falla en cerrado: sin tenant activo no hay clave "genérica"
+     * que perdonar; decide el llamador si combinarlo con la IP para
+     * limitadores que deban aplicar antes de resolver tenant.
+     */
+    public function rateLimitKey(string $suffix): string
+    {
+        return "t{$this->tenantId()}:{$suffix}";
+    }
+
+    /**
      * ADR-033 §4: la única puerta sancionada para leer entre tenants desde
      * código de negocio. TenantModel deja de aplicar TenantScope y cambia
      * de conexión a pgsql_platform (BYPASSRLS) mientras dure el closure —

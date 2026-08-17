@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Support\Tenancy\TenantContext;
+use App\Support\Tenancy\TenantStorage;
 use Illuminate\Database\Events\ConnectionEstablished;
 use Illuminate\Queue\Events\JobExceptionOccurred;
 use Illuminate\Queue\Events\JobFailed;
@@ -23,6 +24,7 @@ class TenancyServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(TenantContext::class);
+        $this->app->singleton(TenantStorage::class);
     }
 
     public function boot(): void
