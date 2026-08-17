@@ -20,6 +20,20 @@ abstract class TestCase extends BaseTestCase
 {
     use DatabaseTransactions;
 
+    /**
+     * Deliberadamente solo pgsql (plataforma_app): es la conexión con la
+     * que trabaja el código de negocio real y la que tiene que quedar
+     * limpia entre tests. pgsql_owner (migraciones) y pgsql_platform
+     * (Tenant, backoffice) son sesiones aparte a propósito (ADR-033 §5) —
+     * envolverlas también en esta transacción las dejaría invisibles para
+     * pgsql dentro del mismo test: PostgreSQL no deja ver escrituras sin
+     * comprometer entre sesiones distintas, aunque ambas estén "en curso".
+     * Los tests que crean datos por pgsql_platform (p. ej. Tenant) son
+     * responsables de limpiar lo que comprometan de verdad; ver
+     * tests/Feature/Tenancy/TenantTest.php.
+     */
+    protected $connectionsToTransact = ['pgsql'];
+
     private static bool $migrated = false;
 
     protected function setUp(): void
