@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| Versión | 2.0.1 |
+| Versión | 2.0.2 |
 | Fecha | 2026-08-11 |
 | Estado | Propuesta cerrada, pendiente de ratificación |
 | Documento de requisitos | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` |
@@ -147,8 +147,8 @@ Reglas derivadas de `ADR-028`, que resuelven dos fallos ya sufridos en despliegu
 
 - **Frontera única**: la API es el único punto donde se aplica la autorización. La SPA oculta opciones, no protege nada (`INV-002`).
 - **Sesión por cookie** `httpOnly`, `Secure`, `SameSite=Lax` con CSRF, misma raíz de dominio. Prohibido JWT en almacenamiento del navegador (`ADR-025`).
-- **Resolución de tenant por subdominio** en middleware previo a cualquier acceso a datos (`ADR-014`).
-- **Aislamiento de tenant** con scope global en el ORM más seguridad a nivel de fila en PostgreSQL como segunda barrera. Tests automáticos de acceso cruzado en cada pipeline (`RNF-MANT-006`).
+- **Resolución de tenant por subdominio** en middleware previo a cualquier acceso a datos (`ADR-014`, implementado en `App\Http\Middleware\ResolveTenant`).
+- **Aislamiento de tenant**: seguridad a nivel de fila en PostgreSQL (`FORCE ROW LEVEL SECURITY`) como **barrera primaria** — cubre SQL crudo, informes y acceso administrativo, no solo el ORM. El scope global de Eloquent (`App\Support\Tenancy\TenantModel`) es una capa de ergonomía secundaria: rellena `tenant_id` al crear y da semántica 404, pero RLS sigue en pie si se desactiva. Detalle completo de la implementación (tres roles de base de datos, claves foráneas compuestas, colas y caché conscientes de tenant) en `ADR-033`. Tests automáticos de acceso cruzado en cada pipeline (`RNF-MANT-006`, `tests/Feature/Tenancy/`).
 - Datos de categoría especial en tablas separadas y cifradas a nivel de campo.
 - Backoffice de plataforma en **dominio y aplicación separados**, con MFA obligatorio y lista blanca de IP (`REQ-BO-007`).
 
