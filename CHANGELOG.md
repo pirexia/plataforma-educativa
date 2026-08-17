@@ -6,6 +6,22 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-08-17 · Corrección de coherencia: `ADR-024`/`ADR-027`/`ADR-030`
+
+### `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` → 3.1.1
+Al preparar el diseño de 0.7 se detectó que la sección 18 (fuente de verdad canónica de `ADR-001` a `ADR-027`, `CLAUDE.md` §6.3) tenía la entrada de `ADR-024` desactualizada — seguía diciendo "Docker Compose sobre VPS europeo" sin reflejar que `ADR-027` lo sustituyó — y que **`ADR-027` no aparecía en ningún sitio del documento**, pese a ser canónico ahí por numeración. Añadida la entrada de `ADR-027` y anotada en ambas la cadena de sustituciones real: `ADR-024` → `ADR-027` (host inicial: VM RHEL 10/VMware, no VPS) → `ADR-030` (sustituye a `ADR-027` para la etapa de desarrollo E0: WSL2 en equipo personal; la VM VMware queda como candidata a preproducción).
+
+### `ARCHITECTURE.md` → 2.0.1
+Las entradas de `ADR-024` y `ADR-027` en el apéndice de ADR contradecían a la tabla de §4.2 del mismo documento (que ya reflejaba correctamente WSL2 en E0 desde el cierre de `ADR-030`). Sincronizadas ambas entradas con la cadena de sustituciones.
+
+### `README.md` → 2.4.1
+La fila "Host inicial: VM VMware" de la tabla de stack contradecía directamente a la fila "Desarrollo: WSL2 en equipo personal" dos filas por encima. Sustituida por "Alojamiento del piloto: pendiente de decidir (`OPEN-11`)".
+
+### `memory.md`
+Nota añadida en la fila de `ADR-027` de la tabla de decisiones señalando la sustitución por `ADR-030` en desarrollo.
+
+---
+
 ## 2026-08-14 · Cierre de 0.3 y 0.5, MCP de Boost y Playwright
 
 ### Nuevo: `apps/web` (Vue 3 + TypeScript + Vite)

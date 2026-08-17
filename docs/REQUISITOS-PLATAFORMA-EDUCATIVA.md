@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Versión** | 3.1.0 |
+| **Versión** | 3.1.1 |
 | **Fecha** | 2026-08-11 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
@@ -3194,9 +3194,14 @@ Infraestructura, CI/CD, entornos, esqueleto multi-tenant, modelo de datos núcle
 **Consecuencia**: la rejilla de horarios (`REQ-ACAD-002`) se construye a medida con CSS Grid. Si se evalúa una librería de calendario, revisar la licencia de las vistas de recursos antes de adoptarla.
 
 ### ADR-024 · Evolución de la infraestructura
-**Decisión**: Docker Compose sobre VPS europeo en las etapas iniciales; Kubernetes gestionado a partir de 3-5 centros. **No se implementa multi-cloud activo-activo.** 
+**Decisión**: contenedores sobre un único host en las etapas iniciales; Kubernetes gestionado a partir de 3-5 centros. **No se implementa multi-cloud activo-activo.** **Actualizado por `ADR-027`**: el host inicial no es un VPS de proveedor público, sino una VM propia. `ADR-027` queda a su vez **sustituido para la etapa de desarrollo (E0) por `ADR-030`**: el host de desarrollo es WSL2 en equipo personal.
 **Motivo**: adoptar Kubernetes antes de tener producto consume en operaciones semanas que hacen falta en desarrollo. Replicar activo-activo entre proveedores multiplica coste y complejidad para un beneficio que el SLA no exige: multi-AZ dentro de un proveedor ya cubre el 99,9%. 
 **Consecuencia**: `RARQ-INF-006` se cumple a partir de la etapa E2. La protección frente a la dependencia de proveedor es la **portabilidad** (contenedores, infraestructura como código, sin servicios propietarios) más copias replicadas en un segundo proveedor, no la operación simultánea.
+
+### ADR-027 · Plataforma de contenedores y host inicial
+**Decisión**: el host inicial es una **VM RHEL 10 sobre VMware** (4 vCPU, 16 GB, 160 GB), con **Podman** como runtime de contenedores. Ficheros `compose.yaml` estándar, ejecutados con `podman compose` en desarrollo y convertidos a unidades **Quadlet/systemd** antes de alojar datos reales. **Sustituido para la etapa de desarrollo (E0) por `ADR-030`**: el host de desarrollo pasa a ser WSL2 en el equipo personal; la VM VMware queda disponible como posible entorno de preproducción si su titularidad resulta adecuada (`OPEN-06`).
+**Motivo**: RHEL 10 no distribuye Docker y Docker CE no está soportado en esa plataforma. Podman es el runtime nativo, integra con systemd y SELinux, y permite mantener los mismos ficheros de composición entre desarrollo y producción.
+**Consecuencia**: el host no instala PHP, Node ni PostgreSQL: solo ejecuta contenedores. SELinux permanece en `enforcing` y los volúmenes se montan con `:Z`. Las imágenes se construyen en CI y el host solo las descarga.
 
 ### ADR-025 · Autenticación de la SPA
 **Decisión**: sesión por cookie `httpOnly`, `Secure`, `SameSite` con CSRF, bajo el mismo dominio raíz. **Prohibido almacenar JWT en `localStorage` o `sessionStorage`.** 
@@ -3219,6 +3224,7 @@ Del `028` en adelante, cada decisión vive en `docs/adr/` (`ADR-026`).
 | `ADR-030` | Entorno de desarrollo en WSL2 y separación respecto al alojamiento |
 | `ADR-031` | Alcance y fase del módulo de transporte escolar |
 | `ADR-032` | Fuente única de autorizaciones de recogida de menores |
+| `ADR-033` | Implementación del aislamiento multi-tenant en Laravel y PostgreSQL (concreta `ADR-001` y `ADR-014`) |
 
 ### Decisiones abiertas vivas
 

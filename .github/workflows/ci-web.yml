@@ -3,14 +3,8 @@ name: CI · Web
 on:
   pull_request:
     branches: [develop, main]
-    paths:
-      - "apps/web/**"
-      - ".github/workflows/ci-web.yml"
   push:
     branches: [develop, main]
-    paths:
-      - "apps/web/**"
-      - ".github/workflows/ci-web.yml"
 
 defaults:
   run:
