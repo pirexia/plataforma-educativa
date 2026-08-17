@@ -124,6 +124,29 @@ El script es idempotente (vuelve a ejecutarse sin duplicar roles ni romper permi
 
 **Verificación**: `podman exec plataforma-postgres psql -U plataforma -d plataforma -c '\du'` debe mostrar los tres roles sin `Superuser`, y solo `plataforma_platform` con `Bypass RLS`.
 
+### Base de datos de test
+
+`infra/containers/postgres/init/02-tenancy-test-db.sh` crea además `plataforma_test` (mismo clúster, mismos roles — son objetos de clúster, no de una base concreta) y le aplica el mismo `01-tenancy.sql`. Automático en volumen nuevo; en uno existente, a mano una vez:
+
+```bash
+podman exec -i plataforma-postgres psql -v ON_ERROR_STOP=1 --username plataforma --dbname plataforma \
+  -v test_db="plataforma_test" -v owner="plataforma" <<'EOF'
+SELECT format('CREATE DATABASE %I OWNER %I', :'test_db', :'owner')
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = :'test_db') \gexec
+EOF
+
+podman exec -i plataforma-postgres psql -v ON_ERROR_STOP=1 --username plataforma --dbname plataforma_test \
+  -v owner_password="$TENANCY_OWNER_PASSWORD" -v app_password="$TENANCY_APP_PASSWORD" \
+  -v platform_password="$TENANCY_PLATFORM_PASSWORD" -v dbname="plataforma_test" \
+  < infra/containers/postgres/init/01-tenancy.sql
+```
+
+`apps/api/phpunit.xml` (ADR-033 §10) apunta `DB_DATABASE` a `plataforma_test` con `force="true"` en todas sus variables de entorno — **imprescindible**: PHPUnit sin `force` no sobreescribe una variable que ya exista como entorno real del proceso, y `apps/api/.env` (vía `env_file` en `compose.yaml`) ya define todas estas claves. Sin `force`, la suite entera es un no-op silencioso que corre contra la base de datos de desarrollo real — así estuvo desde el paso 0.4 hasta que se detectó en 0.7. Además, `force="true"` solo actualiza `$_ENV`/`getenv()`, no `$_SERVER` (que es lo que Laravel mira primero), así que `apps/api/tests/bootstrap.php` sincroniza ambos antes de que la aplicación arranque.
+
+Las migraciones de test corren una vez por proceso vía la conexión `pgsql_owner` (`Tests\TestCase::setUp()`); cada test va envuelto en una transacción sobre `pgsql` (rol `plataforma_app`, el mismo que usa la API real) con `DatabaseTransactions`, no `RefreshDatabase`. Correr los tests como `plataforma_app` y no como `plataforma_owner` importa: si faltara un `GRANT` que la API necesita de verdad, un test que corriera como el propietario no lo detectaría.
+
+`CACHE_STORE=redis` en los tests (no `array`): el prefijo de caché por tenant se aplica reconstruyendo el store con `Cache::forgetDriver()`, y el store `array` pierde todo su contenido en cada reconstrucción (es un array en memoria de la instancia, no un backend compartido), así que un test de aislamiento de caché sobre `array` daría verde sin haber probado nada. `REDIS_CACHE_DB=2` en tests, distinto del `1` de desarrollo, para no compartir claves.
+
 ---
 
 ## 3. Comprobación rápida

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
-         bootstrap="vendor/autoload.php"
+         bootstrap="tests/bootstrap.php"
          colors="true"
 >
     <testsuites>
@@ -18,19 +18,49 @@
         </include>
     </source>
     <php>
-        <env name="APP_ENV" value="testing"/>
-        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
-        <env name="BCRYPT_ROUNDS" value="4"/>
-        <env name="BROADCAST_CONNECTION" value="null"/>
-        <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
-        <env name="DB_URL" value=""/>
-        <env name="MAIL_MAILER" value="array"/>
-        <env name="QUEUE_CONNECTION" value="sync"/>
-        <env name="SESSION_DRIVER" value="array"/>
-        <env name="PULSE_ENABLED" value="false"/>
-        <env name="TELESCOPE_ENABLED" value="false"/>
-        <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <!--
+            force="true" en todas: sin él, PHPUnit NO sobreescribe una
+            variable que ya exista como entorno real del proceso, y
+            apps/api/.env (vía env_file en compose.yaml) define todas estas
+            claves como entorno real del contenedor. Sin force, este bloque
+            entero era un no-op silencioso desde el paso 0.4 — los tests
+            llevaban corriendo contra la base de datos de desarrollo real,
+            no contra SQLite como se documentó (hallazgo del paso 0.7,
+            severidad media, ver memory.md).
+        -->
+        <env name="APP_ENV" value="testing" force="true"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file" force="true"/>
+        <env name="BCRYPT_ROUNDS" value="4" force="true"/>
+        <env name="BROADCAST_CONNECTION" value="null" force="true"/>
+        <!--
+            redis, no array: el prefijo de caché por tenant (ADR-033 §9) se
+            aplica reconstruyendo el store con Cache::forgetDriver(). El
+            store "array" pierde todo su contenido en cada reconstrucción
+            (es un array en memoria ligado a la instancia del objeto, no un
+            backend compartido), así que con "array" cualquier test de
+            aislamiento de caché da verde sin haber probado nada. REDIS_CACHE_DB
+            distinto del de desarrollo (1) para no compartir claves.
+        -->
+        <env name="CACHE_STORE" value="redis" force="true"/>
+        <env name="REDIS_CACHE_DB" value="2" force="true"/>
+        <!--
+            ADR-033 §10: PostgreSQL real, no SQLite — RLS es la barrera
+            primaria y SQLite no la tiene, así que un test de aislamiento
+            sobre SQLite daría verde con las políticas ausentes.
+            Host/puerto/usuario/contraseña de las tres conexiones (pgsql,
+            pgsql_owner, pgsql_platform) NO se fijan aquí: vienen de
+            apps/api/.env (o de las variables de entorno reales en CI), que
+            ya tiene los tres roles de ADR-033 provisionados. Aquí solo se
+            cambia la base de datos, para no tocar la de desarrollo.
+        -->
+        <env name="DB_CONNECTION" value="pgsql" force="true"/>
+        <env name="DB_DATABASE" value="plataforma_test" force="true"/>
+        <env name="DB_URL" value="" force="true"/>
+        <env name="MAIL_MAILER" value="array" force="true"/>
+        <env name="QUEUE_CONNECTION" value="sync" force="true"/>
+        <env name="SESSION_DRIVER" value="array" force="true"/>
+        <env name="PULSE_ENABLED" value="false" force="true"/>
+        <env name="TELESCOPE_ENABLED" value="false" force="true"/>
+        <env name="NIGHTWATCH_ENABLED" value="false" force="true"/>
     </php>
 </phpunit>

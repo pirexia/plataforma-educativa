@@ -14,6 +14,42 @@ jobs:
   test:
     name: Tests (Pest)
     runs-on: ubuntu-latest
+    # ADR-033 §10: PostgreSQL real, no SQLite. RLS es la barrera primaria y
+    # SQLite no la tiene: un test de aislamiento sobre SQLite daría verde
+    # con las políticas ausentes.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: plataforma_test
+          POSTGRES_USER: plataforma
+          POSTGRES_PASSWORD: ci-postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U plataforma"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USERNAME: plataforma_app
+      DB_PASSWORD: ci-tenancy-app
+      DB_OWNER_USERNAME: plataforma_owner
+      DB_OWNER_PASSWORD: ci-tenancy-owner
+      DB_PLATFORM_USERNAME: plataforma_platform
+      DB_PLATFORM_PASSWORD: ci-tenancy-platform
+      REDIS_HOST: 127.0.0.1
     steps:
       - uses: actions/checkout@v4
 
@@ -33,6 +69,23 @@ jobs:
 
       - run: cp .env.example .env
       - run: php artisan key:generate
+
+      # El servicio postgres arranca antes del checkout, así que no puede
+      # montar infra/containers/postgres/init como docker-entrypoint-initdb.d
+      # (ver SYSADMIN.md §2b): se aplica el mismo script a mano, ya con el
+      # repositorio disponible. Contraseñas fijas de CI, sin relación con
+      # ningún secreto: la base es efímera y se destruye al terminar el job.
+      - name: Provisionar esquema y roles de tenancy (ADR-033)
+        env:
+          PGPASSWORD: ci-postgres
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          psql -h 127.0.0.1 -U plataforma -d plataforma_test \
+            -v owner_password=ci-tenancy-owner \
+            -v app_password=ci-tenancy-app \
+            -v platform_password=ci-tenancy-platform \
+            -v dbname=plataforma_test \
+            -f infra/containers/postgres/init/01-tenancy.sql
 
       - run: composer test
 
