@@ -8,9 +8,9 @@
 ## Estado actual
 
 **Fase**: 0 — Cimientos
-**Paso activo**: 0.1-0.6 cerrados. Siguiente: 0.7 (núcleo multi-tenant, paso crítico) o el resto de 0.10x según prioridad. 0.10 sigue abierto.
-**Rama**: `chore/cierre-0.6-cicd` (colgada de `develop`, solo actualiza `PLAN-IMPLEMENTACION.md`/`memory.md` tras el cierre de 0.6)
-**Última sesión**: arreglado el MCP de `laravel-boost` (issue #2) y cerrado el paso **0.6 · CI/CD** (PR #4 mergeado a `develop`). Ver `Trabajo en curso`.
+**Paso activo**: 0.1-0.6 cerrados. **0.7 (núcleo multi-tenant, paso crítico) en curso**: fase de diseño delegada al subagente `architect` (Opus), resultado pendiente.
+**Rama**: `develop` (limpia, sincronizada con `origin/develop`; `chore/cierre-0.6-cicd` ya está mezclada, ver commit `8b4c790`)
+**Última sesión (2026-08-17)**: punto de control de arranque. Confirmado que `spec-writer` sigue apareciendo de forma estable en la lista de subagentes (P-01 cerrado, ver `Problemas abiertos`). Delegado el diseño de 0.7 al subagente `architect` en segundo plano: resolución de tenant por subdominio, scope global obligatorio en Eloquent, RLS en PostgreSQL, estrategia de tests de aislamiento y ADR si procede. Aviso de modelo: la sesión principal corre en Sonnet; la fase de diseño de 0.7 requería Opus, así que se delegó en vez de cambiar de modelo la sesión (usuario eligió esta opción).
 
 ---
 
@@ -52,6 +52,7 @@
 - **Bug propio detectado y corregido (sesión nueva, post-0.5)**: `laravel-boost` seguía sin conectar (`-32000: Connection closed`) al abrir la sesión nueva prevista para cargarlo. La ruta relativa `apps/api/artisan` en `.mcp.json` solo resuelve si el proceso de Claude Code arranca con cwd en la raíz del repo; esta sesión abrió en `docs/`, así que PHP fallaba con `Could not open input file`. `${CLAUDE_PROJECT_DIR}` no está disponible para expansión en `.mcp.json` en la versión instalada (2.1.231, confirmado por el propio diagnóstico de `claude mcp list`). Corregido envolviendo el comando en `sh -c 'cd "$(git rev-parse --show-toplevel)" && exec php apps/api/artisan boost:mcp'`, portable y sin rutas absolutas de un usuario concreto. Documentado en issue #2 (cerrado), commit `548df67` mergeado a `develop` en `c1160a6`. Verificado con `claude mcp list`: los seis MCP (GitHub, Context7, Playwright, Laravel Boost, MyInvestor, Google Drive) conectan.
 - **P-01 posiblemente resuelto**: en esta sesión `spec-writer` sí aparece en la lista de subagentes disponibles. Pendiente confirmar en una sesión futura que no fue un efecto puntual antes de cerrar el problema abierto.
 - **0.6 cerrado** (PR #4 mergeado a `develop` en `aa34d35`): `ci-api.yml` (Pest/Pint/Larastan sobre PHP 8.4, runner nativo, sin contenedor), `ci-web.yml` (ESLint/vue-tsc+build/Vitest/Playwright), `dependency-scan.yml` (Trivy filesystem, sin subir SARIF). Corregido de paso `apps/api/composer.json` (`^8.3` → `^8.4`, issue #3). `renovate.json` listo, App sin instalar todavía. Dos bugs encontrados y corregidos en el propio proceso: (1) el e2e de Playwright fallaba en el runner con timeout de `webServer` porque Vite escuchaba en `localhost` sin `--host` explícito (ambigüedad IPv4/IPv6 entre entornos) — fijado `--host 127.0.0.1` en `playwright.config.ts`; (2) `actions/dependency-review-action` no es viable en este repo (privado, sin GitHub Advanced Security disponible en cuenta personal) — sustituido por Trivy. Además, error propio de proceso: un `rm` fuera de `Edit`/`Write` se me olvidó stagear (`git add` solo cubrió los ficheros que creía haber tocado), dejando el workflow viejo trackeado y ejecutándose igualmente — corregido revisando `git status` completo. **Pendiente**: activar *branch protection* en GitHub con los seis checks como *required status checks* (bloqueo de merge real, no automatizable desde Claude Code) — ver `SYSADMIN.md` §4.
+- **0.7 en curso**: subagente `architect` (Opus) lanzado en segundo plano para diseñar resolución de tenant por subdominio, scope global obligatorio en Eloquent, RLS en PostgreSQL, mitigación de fugas por caché/colas compartidas, estrategia de tests de aislamiento en Pest, y ADR nuevo si procede (revisando antes qué de ADR-028 a ADR-032 ya tiene fichero propio en `/docs/adr/`). Sin resultado todavía en el momento de este commit.
 
 ---
 
@@ -72,14 +73,12 @@
 
 | ID | Descripción | Severidad |
 |----|-------------|-----------|
-| P-01 | El subagente `spec-writer` está bien definido en `.claude/agents/spec-writer.md` (modelo Opus) pero no aparece en la lista de subagentes disponibles de la sesión. Anomalía del entorno de Claude Code, no del repositorio. Revisar al empezar la próxima sesión; si persiste, investigar registro de agentes. | Media |
 | P-02 | `npm create vue@latest -- --typescript --router ...` no respeta sus propios flags: sigue pidiendo el nombre del paquete de forma interactiva. Intentar automatizarlo con `yes "" \| npm create vue@latest ...` cuelga el proceso al 100% de CPU en vez de fallar limpio. Usar `npm create vite@latest <dir> -- --template vue-ts` y añadir router/Tailwind/shadcn-vue/Vitest/Playwright/ESLint a mano (lo que se hizo en 0.5) evita el problema. No usar `create-vue` en `apps/web` sin resolver esto primero. | Baja |
 
 ---
 
 ## Siguiente paso concreto
 
-1. **0.6 cerrado.** Configurar a mano en GitHub (no automatizable desde una sesión de Claude Code, ver `SYSADMIN.md` §4): **branch protection en `develop`/`main` con los seis checks de CI como *required status checks*** (sin esto los workflows corren pero no bloquean el merge — es lo único que falta para que "bloqueo de merge si algo falla" sea real), activar Dependabot alerts, instalar la GitHub App de Renovate. También falta el permiso "Checks: Read-only" en el PAT de grano fino del conector `github` (`claude mcp get github`): "Commit statuses" ya se añadió y funciona, pero `get_check_runs` sigue devolviendo `403` — revisar que ambos permisos, no solo uno, queden marcados y guardados en https://github.com/settings/personal-access-tokens.
-2. Paso 0.7: núcleo multi-tenant (⚠️ paso crítico, `[OPUS + SONNET]`) — resolución de tenant por subdominio, scope global en el ORM, RLS en PostgreSQL, tests automáticos de aislamiento. Requiere Opus para el diseño antes de implementar.
+1. **Recoger el resultado del subagente `architect`** sobre el diseño de 0.7 (lanzado 2026-08-17, en segundo plano): revisar el/los ADR nuevo(s) en `/docs/adr/` si los ha creado, y el plan de implementación paso a paso que entregue. A partir de ahí, implementar en Sonnet (sesión principal o subagente `implementer`): middleware de resolución de tenant, base model/trait con scope global obligatorio, migraciones y políticas RLS, tests de aislamiento en Pest.
+2. Configurar a mano en GitHub (no automatizable desde una sesión de Claude Code, ver `SYSADMIN.md` §4): **branch protection en `develop`/`main` con los seis checks de CI como *required status checks*** (sin esto los workflows corren pero no bloquean el merge), activar Dependabot alerts, instalar la GitHub App de Renovate. También falta el permiso "Checks: Read-only" en el PAT de grano fino del conector `github` (`claude mcp get github`): "Commit statuses" ya se añadió y funciona, pero `get_check_runs` sigue devolviendo `403` — revisar que ambos permisos, no solo uno, queden marcados y guardados en https://github.com/settings/personal-access-tokens.
 3. Decidir el motor de renderizado PDF (o posponerlo explícitamente a 1.17) antes de que haga falta en 1.17.
-4. Confirmar en una sesión futura si `spec-writer` (P-01) sigue apareciendo en `/agents` de forma estable.
