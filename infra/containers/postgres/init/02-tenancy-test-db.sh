@@ -26,4 +26,4 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$TEST_DB" \
     -v app_password="$TENANCY_APP_PASSWORD" \
     -v platform_password="$TENANCY_PLATFORM_PASSWORD" \
     -v dbname="$TEST_DB" \
-    -f "$(dirname "$0")/01-tenancy.sql"
+    -f "$(dirname "$0")/01-tenancy.sql.tpl"

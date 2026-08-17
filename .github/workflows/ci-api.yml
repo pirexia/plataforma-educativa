@@ -85,7 +85,7 @@ jobs:
             -v app_password=ci-tenancy-app \
             -v platform_password=ci-tenancy-platform \
             -v dbname=plataforma_test \
-            -f infra/containers/postgres/init/01-tenancy.sql
+            -f infra/containers/postgres/init/01-tenancy.sql.tpl
 
       - run: composer test
 

@@ -85,7 +85,7 @@ Credenciales en `.env` (gitignored), a partir de `.env.example`.
 
 El aislamiento multi-tenant (paso 0.7) necesita, además de la base de datos, un esquema `app`, una función auxiliar y **tres roles de PostgreSQL** que no crea Laravel: son objetos de clúster, no del ORM.
 
-`infra/containers/postgres/init/01-tenancy.sh` + `01-tenancy.sql` los provisionan. La imagen oficial de `postgres` ejecuta automáticamente cualquier script en `docker-entrypoint-initdb.d/` (montado ahí por `compose.yaml`) **solo cuando el volumen se inicializa por primera vez**. En un volumen ya existente (el caso normal al añadir esto a un entorno en marcha) hay que aplicarlo a mano una vez:
+`infra/containers/postgres/init/01-tenancy.sh` + `01-tenancy.sql.tpl` los provisionan. La imagen oficial de `postgres` ejecuta automáticamente cualquier script en `docker-entrypoint-initdb.d/` (montado ahí por `compose.yaml`) **solo cuando el volumen se inicializa por primera vez**. En un volumen ya existente (el caso normal al añadir esto a un entorno en marcha) hay que aplicarlo a mano una vez:
 
 ```bash
 podman exec -i plataforma-postgres psql -v ON_ERROR_STOP=1 \
@@ -94,7 +94,7 @@ podman exec -i plataforma-postgres psql -v ON_ERROR_STOP=1 \
   -v app_password="$TENANCY_APP_PASSWORD" \
   -v platform_password="$TENANCY_PLATFORM_PASSWORD" \
   -v dbname="$POSTGRES_DB" \
-  < infra/containers/postgres/init/01-tenancy.sql
+  < infra/containers/postgres/init/01-tenancy.sql.tpl
 
 # Y, si ya había tablas creadas por el rol bootstrap (típico la primera vez):
 podman exec -i plataforma-postgres psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<'EOF'
@@ -126,7 +126,7 @@ El script es idempotente (vuelve a ejecutarse sin duplicar roles ni romper permi
 
 ### Base de datos de test
 
-`infra/containers/postgres/init/02-tenancy-test-db.sh` crea además `plataforma_test` (mismo clúster, mismos roles — son objetos de clúster, no de una base concreta) y le aplica el mismo `01-tenancy.sql`. Automático en volumen nuevo; en uno existente, a mano una vez:
+`infra/containers/postgres/init/02-tenancy-test-db.sh` crea además `plataforma_test` (mismo clúster, mismos roles — son objetos de clúster, no de una base concreta) y le aplica el mismo `01-tenancy.sql.tpl`. Automático en volumen nuevo; en uno existente, a mano una vez:
 
 ```bash
 podman exec -i plataforma-postgres psql -v ON_ERROR_STOP=1 --username plataforma --dbname plataforma \
@@ -138,7 +138,7 @@ EOF
 podman exec -i plataforma-postgres psql -v ON_ERROR_STOP=1 --username plataforma --dbname plataforma_test \
   -v owner_password="$TENANCY_OWNER_PASSWORD" -v app_password="$TENANCY_APP_PASSWORD" \
   -v platform_password="$TENANCY_PLATFORM_PASSWORD" -v dbname="plataforma_test" \
-  < infra/containers/postgres/init/01-tenancy.sql
+  < infra/containers/postgres/init/01-tenancy.sql.tpl
 ```
 
 `apps/api/phpunit.xml` (ADR-033 §10) apunta `DB_DATABASE` a `plataforma_test` con `force="true"` en todas sus variables de entorno — **imprescindible**: PHPUnit sin `force` no sobreescribe una variable que ya exista como entorno real del proceso, y `apps/api/.env` (vía `env_file` en `compose.yaml`) ya define todas estas claves. Sin `force`, la suite entera es un no-op silencioso que corre contra la base de datos de desarrollo real — así estuvo desde el paso 0.4 hasta que se detectó en 0.7. Además, `force="true"` solo actualiza `$_ENV`/`getenv()`, no `$_SERVER` (que es lo que Laravel mira primero), así que `apps/api/tests/bootstrap.php` sincroniza ambos antes de que la aplicación arranque.
