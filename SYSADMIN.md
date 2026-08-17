@@ -81,6 +81,74 @@ Credenciales en `.env` (gitignored), a partir de `.env.example`.
 
 ---
 
+## 2b. Provisión de tenancy (`ADR-033`)
+
+El aislamiento multi-tenant (paso 0.7) necesita, además de la base de datos, un esquema `app`, una función auxiliar y **tres roles de PostgreSQL** que no crea Laravel: son objetos de clúster, no del ORM.
+
+`infra/containers/postgres/init/01-tenancy.sh` + `01-tenancy.sql.tpl` los provisionan. La imagen oficial de `postgres` ejecuta automáticamente cualquier script en `docker-entrypoint-initdb.d/` (montado ahí por `compose.yaml`) **solo cuando el volumen se inicializa por primera vez**. En un volumen ya existente (el caso normal al añadir esto a un entorno en marcha) hay que aplicarlo a mano una vez:
+
+```bash
+podman exec -i plataforma-postgres psql -v ON_ERROR_STOP=1 \
+  --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
+  -v owner_password="$TENANCY_OWNER_PASSWORD" \
+  -v app_password="$TENANCY_APP_PASSWORD" \
+  -v platform_password="$TENANCY_PLATFORM_PASSWORD" \
+  -v dbname="$POSTGRES_DB" \
+  < infra/containers/postgres/init/01-tenancy.sql.tpl
+
+# Y, si ya había tablas creadas por el rol bootstrap (típico la primera vez):
+podman exec -i plataforma-postgres psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<'EOF'
+DO $$
+DECLARE r RECORD;
+BEGIN
+    FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+        EXECUTE format('ALTER TABLE public.%I OWNER TO plataforma_owner', r.tablename);
+    END LOOP;
+    FOR r IN SELECT sequencename FROM pg_sequences WHERE schemaname = 'public' LOOP
+        EXECUTE format('ALTER SEQUENCE public.%I OWNER TO plataforma_owner', r.sequencename);
+    END LOOP;
+END
+$$;
+EOF
+```
+
+El script es idempotente (vuelve a ejecutarse sin duplicar roles ni romper permisos), así que también sirve como comprobación de que todo sigue como debería.
+
+| Rol | Uso | Atributos |
+|-----|-----|-----------|
+| `plataforma_owner` | Propietario de las tablas. Ejecuta las migraciones (`php artisan migrate --database=pgsql_owner`) | Sin `SUPERUSER`, sujeto a sus propias políticas RLS por `FORCE` |
+| `plataforma_app` | Runtime de la API y de los workers (conexión `pgsql`, la que usa Laravel por defecto) | Sin `SUPERUSER`, **sin `BYPASSRLS`** |
+| `plataforma_platform` | Backoffice y mantenimiento entre tenants (conexión `pgsql_platform`) | `BYPASSRLS`, credenciales propias |
+
+`POSTGRES_USER` (`plataforma`, superusuario de la imagen oficial) queda **solo** para tareas de arranque del contenedor: no lo usa la aplicación.
+
+**Verificación**: `podman exec plataforma-postgres psql -U plataforma -d plataforma -c '\du'` debe mostrar los tres roles sin `Superuser`, y solo `plataforma_platform` con `Bypass RLS`.
+
+### Base de datos de test
+
+`infra/containers/postgres/init/02-tenancy-test-db.sh` crea además `plataforma_test` (mismo clúster, mismos roles — son objetos de clúster, no de una base concreta) y le aplica el mismo `01-tenancy.sql.tpl`. Automático en volumen nuevo; en uno existente, a mano una vez:
+
+```bash
+podman exec -i plataforma-postgres psql -v ON_ERROR_STOP=1 --username plataforma --dbname plataforma \
+  -v test_db="plataforma_test" -v owner="plataforma" <<'EOF'
+SELECT format('CREATE DATABASE %I OWNER %I', :'test_db', :'owner')
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = :'test_db') \gexec
+EOF
+
+podman exec -i plataforma-postgres psql -v ON_ERROR_STOP=1 --username plataforma --dbname plataforma_test \
+  -v owner_password="$TENANCY_OWNER_PASSWORD" -v app_password="$TENANCY_APP_PASSWORD" \
+  -v platform_password="$TENANCY_PLATFORM_PASSWORD" -v dbname="plataforma_test" \
+  < infra/containers/postgres/init/01-tenancy.sql.tpl
+```
+
+`apps/api/phpunit.xml` (ADR-033 §10) apunta `DB_DATABASE` a `plataforma_test` con `force="true"` en todas sus variables de entorno — **imprescindible**: PHPUnit sin `force` no sobreescribe una variable que ya exista como entorno real del proceso, y `apps/api/.env` (vía `env_file` en `compose.yaml`) ya define todas estas claves. Sin `force`, la suite entera es un no-op silencioso que corre contra la base de datos de desarrollo real — así estuvo desde el paso 0.4 hasta que se detectó en 0.7. Además, `force="true"` solo actualiza `$_ENV`/`getenv()`, no `$_SERVER` (que es lo que Laravel mira primero), así que `apps/api/tests/bootstrap.php` sincroniza ambos antes de que la aplicación arranque.
+
+Las migraciones de test corren una vez por proceso vía la conexión `pgsql_owner` (`Tests\TestCase::setUp()`); cada test va envuelto en una transacción sobre `pgsql` (rol `plataforma_app`, el mismo que usa la API real) con `DatabaseTransactions`, no `RefreshDatabase`. Correr los tests como `plataforma_app` y no como `plataforma_owner` importa: si faltara un `GRANT` que la API necesita de verdad, un test que corriera como el propietario no lo detectaría.
+
+`CACHE_STORE=redis` en los tests (no `array`): el prefijo de caché por tenant se aplica reconstruyendo el store con `Cache::forgetDriver()`, y el store `array` pierde todo su contenido en cada reconstrucción (es un array en memoria de la instancia, no un backend compartido), así que un test de aislamiento de caché sobre `array` daría verde sin haber probado nada. `REDIS_CACHE_DB=2` en tests, distinto del `1` de desarrollo, para no compartir claves.
+
+---
+
 ## 3. Comprobación rápida
 
 ```bash

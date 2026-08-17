@@ -27,8 +27,12 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-plataforma}
       POSTGRES_USER: ${POSTGRES_USER:-plataforma}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD en .env}
+      TENANCY_OWNER_PASSWORD: ${TENANCY_OWNER_PASSWORD:?falta TENANCY_OWNER_PASSWORD en .env}
+      TENANCY_APP_PASSWORD: ${TENANCY_APP_PASSWORD:?falta TENANCY_APP_PASSWORD en .env}
+      TENANCY_PLATFORM_PASSWORD: ${TENANCY_PLATFORM_PASSWORD:?falta TENANCY_PLATFORM_PASSWORD en .env}
     volumes:
       - postgres-data:/var/lib/postgresql/data:Z
+      - ./infra/containers/postgres/init:/docker-entrypoint-initdb.d:Z,ro
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
@@ -60,6 +64,10 @@ services:
     environment:
       DB_HOST: postgres
       REDIS_HOST: redis
+      # ADR-014: sin dominio real todavía (OPEN-08, bloqueante). Valor de
+      # desarrollo para poder probar la resolución de tenant por subdominio
+      # con curl -H "Host: <slug>.plataforma.test" sin depender de DNS.
+      TENANCY_BASE_DOMAIN: plataforma.test
     volumes:
       - ./apps/api:/var/www/html:Z
     ports:

@@ -22,4 +22,14 @@ WORKDIR /var/www/html
 
 EXPOSE 8000
 
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+# --no-reload: sin él, ServeCommand filtra las variables de entorno del
+# proceso hijo a una lista blanca fija (APP_ENV, PATH, XDEBUG_*...) que NO
+# incluye DB_HOST, REDIS_HOST ni ninguna variable propia (TENANCY_*,
+# DB_OWNER_*, DB_PLATFORM_*): el hijo cae entonces a leer apps/api/.env tal
+# cual, con DB_HOST/REDIS_HOST en 127.0.0.1 (correcto para Artisan desde el
+# host, incorrecto dentro del contenedor, donde hay que usar el nombre del
+# servicio). Encontrado en el paso 0.7 al fallar /api/health con 500 vacío
+# y sin log — el "reload on .env change" de --no-reload es una
+# conveniencia de desarrollo en el host, no algo que tenga sentido dentro
+# de un contenedor donde el entorno real ya lo fija compose.yaml.
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000", "--no-reload"]

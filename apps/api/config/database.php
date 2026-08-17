@@ -84,6 +84,8 @@ return [
             ]) : [],
         ],
 
+        // Runtime de la API y de los workers (ADR-033 §5). Rol plataforma_app,
+        // sin BYPASSRLS: es la conexión que de verdad queda sujeta a RLS.
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DB_URL'),
@@ -92,6 +94,40 @@ return [
             'database' => env('DB_DATABASE', 'laravel'),
             'username' => env('DB_USERNAME', 'root'),
             'password' => env('DB_PASSWORD', ''),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
+        // Migraciones (ADR-033 §5). Rol plataforma_owner: propietario de las
+        // tablas, sin SUPERUSER, sujeto a sus propias políticas por FORCE.
+        // php artisan migrate --database=pgsql_owner
+        'pgsql_owner' => [
+            'driver' => 'pgsql',
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '5432'),
+            'database' => env('DB_DATABASE', 'laravel'),
+            'username' => env('DB_OWNER_USERNAME', 'plataforma_owner'),
+            'password' => env('DB_OWNER_PASSWORD', ''),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
+        // Backoffice y mantenimiento entre tenants (ADR-033 §5). Rol
+        // plataforma_platform, BYPASSRLS: nunca usar para servir peticiones
+        // de un tenant. TenantContext::runAsPlatform() es la única puerta.
+        'pgsql_platform' => [
+            'driver' => 'pgsql',
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '5432'),
+            'database' => env('DB_DATABASE', 'laravel'),
+            'username' => env('DB_PLATFORM_USERNAME', 'plataforma_platform'),
+            'password' => env('DB_PLATFORM_PASSWORD', ''),
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,

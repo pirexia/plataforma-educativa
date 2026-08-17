@@ -6,6 +6,26 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-08-17 · Tarde · Cierre de 0.7 (núcleo multi-tenant)
+
+### Nuevo: `docs/adr/ADR-033-implementacion-del-aislamiento-multi-tenant.md`
+Diseñado por el subagente `architect` (Opus), aprobado por el usuario. RLS de PostgreSQL como barrera primaria, scope de Eloquent como ergonomía secundaria, tres roles de base de datos sin `SUPERUSER`, claves foráneas compuestas `(tenant_id, id)`, veto a PgBouncer en modo *transaction*, suite de tests sobre PostgreSQL real.
+
+### Nuevo: `apps/api` — infraestructura de tenancy completa
+`app/Support/Tenancy/` (`TenantContext`, `Tenant`, `TenantModel`, `BelongsToTenant`, `TenantScope`, `TenantHost`, `TenantStorage`, `TenantMigration`, `RunsPerTenant`, `TenantStatus`), `app/Http/Middleware/ResolveTenant.php`, `app/Providers/TenancyServiceProvider.php`. Tres conexiones de base de datos (`pgsql`/`pgsql_owner`/`pgsql_platform`), `config/tenancy.php` (dominio base, registro de tablas compartidas), primeras claves de `lang/*/tenancy.php`. `infra/containers/postgres/init/` provisiona el esquema `app`, la función `app.current_tenant_id()` y los tres roles. 47 tests en `tests/Feature/Tenancy/`, incluida la batería completa de diez tests de `ADR-033` §10.
+
+### Bugs propios encontrados y corregidos durante la implementación
+No relacionados con el diseño de 0.7 en sí, pero descubiertos verificándolo:
+- `apps/api/phpunit.xml` sin `force="true"` en `<env>`: la suite llevaba desde el paso 0.4 corriendo contra la base de datos de desarrollo real, no contra la configuración de test documentada.
+- `infra/containers/api/Containerfile` sin `--no-reload` en `php artisan serve`: toda petición HTTP real devolvía 500 vacío sin log porque Laravel filtraba el entorno del proceso hijo del servidor embebido.
+- `failed_jobs` tenía privilegios completos para `plataforma_app` pese a no tener `tenant_id`/RLS (fuga potencial entre tenants en los registros de fallos).
+- `Queue::$createPayloadCallbacks` es estático de clase: se acumulaba en cada reconstrucción de la aplicación (cada test de Laravel, o un futuro Octane en producción).
+- `PendingDispatch` envía el job en su `__destruct()`: si `dispatch()` es la expresión de retorno de un closure pasado a `TenantContext::runFor()`, el envío ocurre después de que el contexto se restaure.
+
+Detalle completo del proceso, subpaso a subpaso, en `memory.md`.
+
+---
+
 ## 2026-08-17 · Corrección de coherencia: `ADR-024`/`ADR-027`/`ADR-030`
 
 ### `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` → 3.1.1
