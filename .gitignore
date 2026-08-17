@@ -37,6 +37,8 @@ auth.json
 /backups/
 /exports/
 /imports/
+# Excepción: scripts de esquema versionados (no volcados de datos), ADR-033
+!/infra/containers/postgres/init/*.sql
 **/datos-reales/
 **/gqdalya-export/
 

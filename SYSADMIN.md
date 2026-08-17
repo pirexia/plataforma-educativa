@@ -81,6 +81,51 @@ Credenciales en `.env` (gitignored), a partir de `.env.example`.
 
 ---
 
+## 2b. Provisión de tenancy (`ADR-033`)
+
+El aislamiento multi-tenant (paso 0.7) necesita, además de la base de datos, un esquema `app`, una función auxiliar y **tres roles de PostgreSQL** que no crea Laravel: son objetos de clúster, no del ORM.
+
+`infra/containers/postgres/init/01-tenancy.sh` + `01-tenancy.sql` los provisionan. La imagen oficial de `postgres` ejecuta automáticamente cualquier script en `docker-entrypoint-initdb.d/` (montado ahí por `compose.yaml`) **solo cuando el volumen se inicializa por primera vez**. En un volumen ya existente (el caso normal al añadir esto a un entorno en marcha) hay que aplicarlo a mano una vez:
+
+```bash
+podman exec -i plataforma-postgres psql -v ON_ERROR_STOP=1 \
+  --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
+  -v owner_password="$TENANCY_OWNER_PASSWORD" \
+  -v app_password="$TENANCY_APP_PASSWORD" \
+  -v platform_password="$TENANCY_PLATFORM_PASSWORD" \
+  -v dbname="$POSTGRES_DB" \
+  < infra/containers/postgres/init/01-tenancy.sql
+
+# Y, si ya había tablas creadas por el rol bootstrap (típico la primera vez):
+podman exec -i plataforma-postgres psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<'EOF'
+DO $$
+DECLARE r RECORD;
+BEGIN
+    FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+        EXECUTE format('ALTER TABLE public.%I OWNER TO plataforma_owner', r.tablename);
+    END LOOP;
+    FOR r IN SELECT sequencename FROM pg_sequences WHERE schemaname = 'public' LOOP
+        EXECUTE format('ALTER SEQUENCE public.%I OWNER TO plataforma_owner', r.sequencename);
+    END LOOP;
+END
+$$;
+EOF
+```
+
+El script es idempotente (vuelve a ejecutarse sin duplicar roles ni romper permisos), así que también sirve como comprobación de que todo sigue como debería.
+
+| Rol | Uso | Atributos |
+|-----|-----|-----------|
+| `plataforma_owner` | Propietario de las tablas. Ejecuta las migraciones (`php artisan migrate --database=pgsql_owner`) | Sin `SUPERUSER`, sujeto a sus propias políticas RLS por `FORCE` |
+| `plataforma_app` | Runtime de la API y de los workers (conexión `pgsql`, la que usa Laravel por defecto) | Sin `SUPERUSER`, **sin `BYPASSRLS`** |
+| `plataforma_platform` | Backoffice y mantenimiento entre tenants (conexión `pgsql_platform`) | `BYPASSRLS`, credenciales propias |
+
+`POSTGRES_USER` (`plataforma`, superusuario de la imagen oficial) queda **solo** para tareas de arranque del contenedor: no lo usa la aplicación.
+
+**Verificación**: `podman exec plataforma-postgres psql -U plataforma -d plataforma -c '\du'` debe mostrar los tres roles sin `Superuser`, y solo `plataforma_platform` con `Bypass RLS`.
+
+---
+
 ## 3. Comprobación rápida
 
 ```bash
