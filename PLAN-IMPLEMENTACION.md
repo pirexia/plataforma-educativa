@@ -54,7 +54,7 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 
 - [x] **0.6 · CI/CD** [SONNET]
   GitHub Actions: build, tests, lint, análisis estático, escaneo de dependencias. Bloqueo de merge si algo falla. Renovate configurado.
-  Cerrado 2026-08-14: `ci-api.yml` (Pest, Pint, Larastan sobre PHP 8.4), `ci-web.yml` (ESLint, vue-tsc+build, Vitest, Playwright), `dependency-scan.yml` (Trivy, no `dependency-review-action`: el repo es privado y ese action requiere GitHub Advanced Security, no disponible en cuenta personal). `renovate.json` listo, pendiente de instalar la GitHub App. **Bloqueo de merge todavía no activo**: falta configurar *branch protection* en GitHub con los seis checks como *required status checks* (no automatizable desde una sesión de Claude Code). Ver `SYSADMIN.md` §4 y PR #4.
+  Cerrado 2026-08-14: `ci-api.yml` (Pest, Pint, Larastan sobre PHP 8.4), `ci-web.yml` (ESLint, vue-tsc+build, Vitest, Playwright), `dependency-scan.yml` (Trivy, no `dependency-review-action`: el repo es privado y ese action requiere GitHub Advanced Security, no disponible en cuenta personal). `renovate.json` listo, pendiente de instalar la GitHub App. **Bloqueo de merge todavía no activo**: falta configurar *branch protection* en GitHub con los ocho checks (3 de `ci-api.yml` + 4 de `ci-web.yml` + 1 de `dependency-scan.yml`) como *required status checks* (no automatizable desde una sesión de Claude Code). Ver `SYSADMIN.md` §4 y PR #4.
 
 - [ ] **0.7 · Núcleo multi-tenant** [OPUS + SONNET] ⚠️ *paso crítico*
   Resolución de tenant por subdominio, scope global obligatorio en el ORM, RLS en PostgreSQL como segunda barrera, y **tests automáticos de aislamiento** que fallen si un tenant alcanza datos de otro. `INV-001`, `RNF-MANT-006`.
