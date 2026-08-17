@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| Versión | 2.0.0 |
+| Versión | 2.0.1 |
 | Fecha | 2026-08-11 |
 | Estado | Propuesta cerrada, pendiente de ratificación |
 | Documento de requisitos | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` |
@@ -263,7 +263,7 @@ En AWS, vigilar el **NAT Gateway**: cuesta más que una instancia pequeña y sue
 **Consecuencia**: prohibido introducir una segunda librería de componentes. La rejilla de horarios (`REQ-ACAD-002`) se construye a medida con CSS Grid; si se evalúa una librería de calendario, revisar antes la licencia de las vistas de recursos.
 
 ### ADR-024 · Evolución de la infraestructura
-**Decisión**: contenedores sobre un único host en E0-E1; Kubernetes gestionado a partir de 3-5 centros. Sin multi-cloud activo-activo. **Actualizado por `ADR-027`**: el host de E0 es una VM RHEL 10 sobre VMware, no un VPS de proveedor público. 
+**Decisión**: contenedores sobre un único host en E0-E1; Kubernetes gestionado a partir de 3-5 centros. Sin multi-cloud activo-activo. **Actualizado por `ADR-027`**: el host inicial es una VM RHEL 10 sobre VMware, no un VPS de proveedor público. `ADR-027` queda a su vez **sustituido para la etapa de desarrollo (E0) por `ADR-030`**: el host de desarrollo es WSL2 en equipo personal (ver tabla de §4.2); la VM VMware queda como candidata a entorno de preproducción.
 **Motivo**: adoptar Kubernetes antes de tener producto consume semanas de operación que hacen falta en desarrollo. La aplicación stateless hace el salto barato cuando toque. 
 **Consecuencia**: `RARQ-INF-006` se cumple a partir de la etapa E2. La portabilidad, no la redundancia simultánea, es la protección frente a la dependencia de proveedor.
 
@@ -273,9 +273,11 @@ En AWS, vigilar el **NAT Gateway**: cuesta más que una instancia pequeña y sue
 **Consecuencia**: la SPA se sirve bajo el mismo dominio raíz que la API por subdominio. Los clientes móviles y de terceros usan tokens de API con ámbito limitado, no la sesión web.
 
 ### ADR-027 · Plataforma de contenedores y host inicial
-**Decisión**: el host de la etapa E0 es una **VM RHEL 10 sobre VMware** (4 vCPU, 16 GB, 160 GB), con **Podman** como runtime de contenedores. Se mantienen ficheros `compose.yaml` estándar, ejecutados con `podman compose` en desarrollo y convertidos a unidades **Quadlet/systemd** antes de alojar datos reales. 
+**Decisión**: el host inicial es una **VM RHEL 10 sobre VMware** (4 vCPU, 16 GB, 160 GB), con **Podman** como runtime de contenedores. Se mantienen ficheros `compose.yaml` estándar, ejecutados con `podman compose` en desarrollo y convertidos a unidades **Quadlet/systemd** antes de alojar datos reales. **Sustituido para la etapa de desarrollo (E0) por `ADR-030`**: ver más abajo.
 **Motivo**: RHEL 10 no distribuye Docker y Docker CE no está soportado en esa plataforma. Podman es el runtime nativo, integra con systemd y SELinux, y permite mantener los mismos ficheros de composición. Quadlet aporta arranque ordenado, dependencias y reinicio automático, que en un host único sustituyen a lo que en Kubernetes daría el orquestador. 
-**Consecuencia**: sustituye la referencia a VPS de proveedor público de `ADR-024` para la etapa E0. El host no instala PHP, Node ni PostgreSQL: solo ejecuta contenedores. SELinux permanece en `enforcing` y los volúmenes se montan con `:Z`. Las imágenes se construyen en CI y el host solo las descarga.
+**Consecuencia**: sustituye la referencia a VPS de proveedor público de `ADR-024` para el host inicial. El host no instala PHP, Node ni PostgreSQL: solo ejecuta contenedores. SELinux permanece en `enforcing` y los volúmenes se montan con `:Z`. Las imágenes se construyen en CI y el host solo las descarga.
+
+**Estado tras `ADR-030` (`docs/adr/ADR-030-entorno-de-desarrollo-en-wsl2.md`)**: para la etapa **E0** (desarrollo), este ADR queda sustituido — el host de desarrollo es WSL2 en el equipo personal del desarrollador, no esta VM (ver tabla de §4.2). La VM VMware sigue vigente como candidata a entorno de **preproducción o piloto (E0b)** si su titularidad resulta adecuada.
 
 **Riesgo abierto**: si la infraestructura VMware no es de titularidad propia, hay que resolver la titularidad del entorno y la figura de encargado de tratamiento **antes** de alojar datos de alumnos. Ver `OPEN-06`.
 

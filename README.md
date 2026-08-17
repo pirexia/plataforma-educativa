@@ -4,8 +4,8 @@ SaaS para la gestión integral de centros educativos. Segmento inicial: **centro
 
 | Campo | Valor |
 |-------|-------|
-| **Versión del documento** | 2.4.0 |
-| **Fecha** | 2026-08-14 |
+| **Versión del documento** | 2.4.1 |
+| **Fecha** | 2026-08-17 |
 | **Estado del proyecto** | Fase 0 · cimientos. Esqueletos de API (`apps/api`, Laravel) y frontend (`apps/web`, Vue 3) en pie, contenedorizados. Pasos 0.1-0.5 cerrados |
 
 ---
@@ -49,7 +49,7 @@ Pendientes de crear (paso 0.13): `SECURITY.md`, `PRIVACY.md`, `RUNBOOK.md`, `CON
 | Contenedores | Podman |
 | Desarrollo | WSL2 en equipo personal · solo datos sintéticos |
 | Identificadores | `bigint` interno + `public_id` ULID en API y URLs |
-| Host inicial | VM VMware: 4 vCPU / 16 GB / 160 GB |
+| Alojamiento del piloto | Pendiente de decidir (`OPEN-11`). VM VMware (4 vCPU / 16 GB / 160 GB) disponible como candidata si su titularidad resulta adecuada (`ADR-027`/`ADR-030`) |
 
 ---
 
