@@ -35,12 +35,9 @@ class Tenant extends Model
         'status',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'status' => TenantStatus::class,
-        ];
-    }
+    protected $casts = [
+        'status' => TenantStatus::class,
+    ];
 
     public static function findBySlug(string $slug): ?self
     {

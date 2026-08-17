@@ -64,6 +64,10 @@ services:
     environment:
       DB_HOST: postgres
       REDIS_HOST: redis
+      # ADR-014: sin dominio real todavía (OPEN-08, bloqueante). Valor de
+      # desarrollo para poder probar la resolución de tenant por subdominio
+      # con curl -H "Host: <slug>.plataforma.test" sin depender de DNS.
+      TENANCY_BASE_DOMAIN: plataforma.test
     volumes:
       - ./apps/api:/var/www/html:Z
     ports:
