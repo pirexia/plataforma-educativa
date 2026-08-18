@@ -105,7 +105,7 @@ Y termina, cuando aplica, con **criterios de aceptación** verificables (formato
 |----|------------|
 | `INV-001` | **Aislamiento de tenant**: toda consulta a datos de negocio debe estar filtrada por `tenant_id` a nivel de framework (global scope / row-level security), nunca solo en el controlador. Un fallo aquí es un incidente de seguridad crítico. |
 | `INV-002` | **Autorización en cada endpoint**: ningún endpoint responde sin verificar `permiso × recurso × ámbito` del usuario autenticado (ver sección 11). Denegar por defecto. |
-| `INV-003` | **Auditoría**: toda operación de creación, modificación o borrado sobre entidades de negocio genera un registro de auditoría inmutable (quién, qué, cuándo, IP, user-agent, valores antes/después). |
+| `INV-003` | **Auditoría**: toda operación de creación, modificación o borrado sobre entidades de negocio genera un registro de auditoría inmutable (quién, qué, cuándo, IP, user-agent, valores antes/después). Los valores antes/después se registran **salvo en los atributos clasificados como no registrables por `ADR-035`** (identificadores personales, categoría especial, secretos y valores sobredimensionados), de los que se registra el atributo pero no su valor. |
 | `INV-004` | **Soft delete**: las entidades críticas no se borran físicamente; se marcan como eliminadas. El borrado físico solo ocurre en los flujos GDPR de derecho al olvido. |
 | `INV-005` | **Campos de auditoría**: toda tabla de negocio incluye `created_at`, `updated_at`, `deleted_at`, `created_by`, `updated_by`. |
 | `INV-006` | **API-first**: toda funcionalidad accesible por interfaz debe existir antes como endpoint de API documentado (OpenAPI). La UI es un cliente más. |
@@ -3226,10 +3226,13 @@ Del `028` en adelante, cada decisión vive en `docs/adr/` (`ADR-026`).
 | `ADR-032` | Fuente única de autorizaciones de recogida de menores |
 | `ADR-033` | Implementación del aislamiento multi-tenant en Laravel y PostgreSQL (concreta `ADR-001` y `ADR-014`) |
 | `ADR-034` | Modelo de datos núcleo: `Person`/`User`, `Role`/`Permission`, `AuditLog`, `AcademicYear` y `ModuleSubscription` (concreta la sección 16; amplía `ADR-033 §7`) |
+| `ADR-035` | Datos personales en el registro de auditoría frente al derecho de supresión (**resuelve `OPEN-12`**; concreta `ADR-004` sobre `audit_logs` y acota `INV-003`) |
 
 ### Decisiones abiertas vivas
 
 `OPEN-01` a `OPEN-05` cerradas.
+
+`OPEN-12` **cerrada por `ADR-035`** (2026-08-18): el derecho de supresión no se ejerce dentro de `audit_logs`. Se elige la primera de las tres opciones que dejó abiertas `ADR-034` —no escribir en `changes` el valor de los atributos identificativos— con clasificación por modelo y fallo en cerrado, y la supresión se completa por **retención** (purga de la fila entera al vencer el plazo de `REQ-CORE-005`). Se descartan el cifrado por sujeto con destrucción de clave y la redacción dirigida. La inmutabilidad de `audit_logs` se mantiene sin excepciones y ningún rol adquiere `UPDATE`. Desbloquea el paso 0.9.
 
 | ID | Pregunta | Bloquea |
 |----|----------|---------|
@@ -3239,7 +3242,6 @@ Del `028` en adelante, cada decisión vive en `docs/adr/` (`ADR-026`).
 | `OPEN-09` | Proveedor de correo transaccional. | `REQ-AUTH`, `REQ-COM` |
 | `OPEN-10` | Proveedor de almacenamiento de objetos para copias, distinto del host. | `REQ-BKP` |
 | `OPEN-11` | **Dónde se aloja el piloto.** El desarrollo pasa a WSL2 en equipo personal (`ADR-030`), que no puede alojar datos reales bajo ningún concepto. Decidir antes de que llegue el centro, no después. | Hito H0 |
-| `OPEN-12` | **Datos personales ya escritos en `audit_logs.changes` frente al derecho de supresión.** `ADR-004` no resuelve el choque entre una tabla append-only e inmutable y la anonimización irreversible. Tres opciones abiertas en `ADR-034`: excluir los atributos identificativos, cifrado por sujeto con destrucción de clave, o redacción dirigida y auditada. | Datos reales (`REQ-PRIV-006`) |
 | `OPEN-13` | **Lista definitiva de columnas de `Person` y su base legal por campo.** `ADR-034` fija un mínimo por minimización y deja fuera fotografía, sexo, nacionalidad y dirección postal hasta que exista el catálogo de bases legales. | `REQ-PRIV-006`, paso 1.1 |
 
 Bloqueante de mayor prioridad: el hito **H0** (`ADR-019`), conseguir el centro piloto y sus ficheros de exportación.
