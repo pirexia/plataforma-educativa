@@ -1,15 +1,54 @@
-# Desarrollo: servidor de Vite con recarga en caliente. El código se monta
-# como volumen desde apps/web/ (ver compose.yaml); esta imagen solo aporta
-# el runtime. La imagen de producción (build estático servido por Traefik/
-# nginx) se define cuando exista destino de despliegue (0.10).
+# Multi-etapa (ADR-037 §3.2/§3.4): el contenedor de producción es nginx
+# sirviendo únicamente los ficheros estáticos de la SPA ya compilada.
+# Ninguna directiva proxy_pass en ningún fichero de este directorio — CI lo
+# comprueba con un grep (ADR-037 §3.4). Sin esa directiva no hay relación
+# web → api, que es justo el acoplamiento que ADR-028 elimina.
+#
+#   base   → runtime Node (compartida)
+#     ├─ dev   → servidor de Vite con recarga en caliente, código por bind mount
+#     └─ build → npm run build con VITE_API_URL=/api
+#          └─ prod → nginx sirviendo solo estáticos
 
-FROM docker.io/library/node:24-bookworm-slim
+FROM docker.io/library/node:24-bookworm-slim AS base
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
+# ---------------------------------------------------------------------------
+FROM base AS dev
+
 EXPOSE 5173
 
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+
+# ---------------------------------------------------------------------------
+FROM base AS build
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+
+# ADR-037 §3.3: URL relativa, nunca absoluta, horneada en el bundle en
+# tiempo de compilación. La SPA y la API se sirven bajo el mismo origen a
+# través de Traefik (ADR-028 §1), así que /api es correcto en staging, en
+# producción y en el banco de pruebas local — sin recompilar entre ellos.
+# Es lo que permite que la misma imagen probada en staging sea, bit a bit,
+# la que va a producción.
+ENV VITE_API_URL=/api
+RUN npm run build
+
+# ---------------------------------------------------------------------------
+FROM docker.io/library/nginx:1-alpine AS prod
+
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY infra/containers/web/nginx.conf /etc/nginx/conf.d/default.conf
+
+# Sin HEALTHCHECK aquí por la misma razón que en el Containerfile de api:
+# podman lo ignora en formato OCI. El chequeo real lo llevan las unidades
+# Quadlet (HealthCmd=) y compose.prodlike.yaml.
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
