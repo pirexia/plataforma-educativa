@@ -4,6 +4,10 @@
 # comprueba con un grep (ADR-037 §3.4). Sin esa directiva no hay relación
 # web → api, que es justo el acoplamiento que ADR-028 elimina.
 #
+# Contexto de construcción: la RAÍZ del repositorio, no apps/web — la
+# etapa prod necesita infra/containers/web/nginx.conf, fuera de apps/web.
+# (`podman build -f infra/containers/web/Containerfile .`)
+#
 #   base   → runtime Node (compartida)
 #     ├─ dev   → servidor de Vite con recarga en caliente, código por bind mount
 #     └─ build → npm run build con VITE_API_URL=/api
@@ -26,10 +30,10 @@ CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
 # ---------------------------------------------------------------------------
 FROM base AS build
 
-COPY package.json package-lock.json ./
+COPY apps/web/package.json apps/web/package-lock.json ./
 RUN npm ci
 
-COPY . .
+COPY apps/web/. .
 
 # ADR-037 §3.3: URL relativa, nunca absoluta, horneada en el bundle en
 # tiempo de compilación. La SPA y la API se sirven bajo el mismo origen a

@@ -132,7 +132,9 @@ jobs:
 
       - uses: docker/build-push-action@v6
         with:
-          context: apps/web
+          # Raíz del repo, no apps/web: la etapa prod necesita
+          # infra/containers/web/nginx.conf, fuera de apps/web.
+          context: .
           file: infra/containers/web/Containerfile
           target: prod
           platforms: linux/amd64
