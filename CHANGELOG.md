@@ -6,6 +6,16 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-08-18 · Cierre automático de sesión por límite de cuota
+
+### `CLAUDE.md` → 2.1.0
+El cierre de sesión por poca cuota (§3) dejaba de disparar hasta que el usuario avisara. Ahora se dispara solo, en cuanto el sistema emite el aviso de "usage limit approaching": termina el paso en curso, comitea/pushea, actualiza `memory.md`/`PLAN-IMPLEMENTACION.md`, y programa la vuelta. Mecanismo detallado en el skill `cierre-de-sesion`.
+
+### `cierre-de-sesion` → 1.1.0
+Nueva sección "Cierre automático por límite de cuota": no hay herramienta para consultar el porcentaje de cuota ni la hora de reset (hay que preguntársela al usuario si no se sabe); `ScheduleWakeup` programa la vuelta, encadenando tramos de máximo una hora si el reset queda más lejos.
+
+---
+
 ## 2026-08-18 · Cierre de 0.13 (plantillas de documentación)
 
 ### Nuevo: `SECURITY.md`, `PRIVACY.md`, `RUNBOOK.md`, `CONTRIBUTING.md`

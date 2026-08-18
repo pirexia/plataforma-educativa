@@ -216,7 +216,7 @@ Reglas de obligado cumplimiento en toda unidad:
 
 - **`Wants=` + `After=`. Nunca `Requires=` ni `BindsTo=`** entre servicios de aplicación (`ADR-028 §3`).
 - **Ninguna IP escrita a mano.** Referencias por nombre de servicio (`ADR-028 §4`).
-- **`HealthCmd=` en toda unidad, más `Notify=healthy`**: con esa directiva systemd considera la unidad arrancada cuando el chequeo pasa, no cuando el proceso existe. Es la implementación literal de `ADR-028` (Consecuencias) y de `RARQ-DEP-008`.
+- **`HealthCmd=` en toda unidad, más `Notify=healthy`**: con esa directiva systemd considera la unidad arrancada cuando el chequeo pasa, no cuando el proceso existe. Es la implementación literal de la mitad de `RARQ-DEP-008` que exige "sondas de vida y de disponibilidad" — la otra mitad, "reversión automática si las sondas fallan", no está cubierta aquí: con una sola réplica (§6.4) no hay a qué revertir. Queda pendiente de `0.10e`, cuando exista la segunda réplica.
 - **Volúmenes con `:Z`** (`ADR-027`).
 
 Detalle que merece constar: `api@` se relaciona con `plataforma-migrate.service` mediante `Wants=`+`After=`, **no** `Requires=`. Parece temerario —¿arrancar la API antes de migrar?— y no lo es: `RARQ-DEP-003` obliga a migraciones *expand/contract*, es decir, el esquema anterior siempre es compatible con el código nuevo. **Es expand/contract lo que permite que el acoplamiento sea flojo.** Si alguna vez hiciera falta `Requires=` aquí, sería la señal de que se ha colado una migración destructiva.
@@ -403,3 +403,21 @@ Añadir a la descripción de `0.10d`: **la custodia de `APP_KEY` separada de la 
 Añadir a la tabla «ADR en fichero propio» de la sección 18 de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`:
 
 > | `ADR-037` | Portabilidad del despliegue: imágenes inmutables, unidades Quadlet y gestión de secretos (**concreta `ADR-027` y `ADR-028`; enmienda la línea de `compose.yaml` de producción de `ADR-030`**) |
+
+---
+
+## 13. Motivo
+
+*(Añadida tras revisión de `doc-reviewer`: `ADR-033`/`034`/`035` tienen una sección `## Motivo` de nivel superior, distinta de cada decisión de detalle. Este ADR no la tenía — el motivo estaba repartido dentro de §3-§7, junto a cada decisión concreta, que es donde sigue estando el detalle. Esta sección sintetiza el hilo común; no repite los argumentos ya dados, los referencia. Se añade al final y no entre "Decisión" y "Consecuencias" —posición que tendría en la plantilla de `docs/adr/README.md`— para no renumerar las secciones 9-12, ya referenciadas por número desde `PLAN-IMPLEMENTACION.md` y `memory.md` en el momento de escribir esto.)*
+
+Un solo criterio decide las siete piezas de este ADR (§3-§7), aunque cada una se argumente por separado: **construir hoy solo lo que no depende del proveedor, y hacerlo de forma que cueste lo mismo mantenerlo si el proveedor tarda un mes o un año en decidirse.**
+
+De ahí se derivan todas las decisiones concretas, no al revés:
+
+- **Producción es Quadlet, no `compose`, porque `ADR-027` ya lo había decidido** (§3) — este ADR no inventa esa dirección, la hace ejecutable. Inventar una alternativa nueva habría sido la opción más cara, no la más simple.
+- **FrankenPHP en modo clásico, nunca modo *worker*** (§4): se elige el extremo que no exige auditar el código en busca de estado compartido, porque hoy nadie tiene tiempo de hacer esa auditoría y una fuga de estado entre peticiones es, en multi-tenant, una fuga entre tenants (`INV-001`). Rendimiento se sacrifica a propósito; seguridad, no.
+- **GHCR, `EnvironmentFile=`, sin gestor de secretos externo, sin Ansible** (§5, §7): en cada una de estas decisiones se descarta la opción más sofisticada a favor de la que un operador en solitario puede mantener correcta durante tres años sin ayuda. No es economía de esfuerzo por pereza: es que un mecanismo elegante que se degrada por falta de mantenimiento es peor que uno aburrido que se sigue ejecutando igual el día 1.000.
+- **Una réplica ahora, la plantilla lista para dos** (§6.4): la complejidad que protege a cero usuarios se aplaza, no se descarta — la plantilla ya escrita es lo que hace que aplazarla cueste un comando, no un rediseño.
+- **Todo lo anterior se verifica en WSL2 antes de que exista VPS** (§6.5, §8): porque la alternativa —escribirlo y no probarlo hasta que haya un host real— traslada el riesgo de un fallo de sintaxis o de topología al primer despliegue con datos reales, que es el peor momento posible para descubrirlo.
+
+El criterio de reversibilidad de `ADR-033`/`ADR-034` se aplica igual aquí (§10, "Reversibilidad" no tiene tabla propia en este ADR, pero el principio es el mismo en cada sección): donde había que elegir entre una opción más potente y una más simple, se eligió la simple siempre que revertirla a la potente costara poco — una plantilla Quadlet ya escrita, un `Containerfile` que cambia de runtime sin tocar código de aplicación, un fichero de secretos que se sustituye por un gestor externo el día que haga falta. Ninguna de las decisiones de este ADR cierra una puerta; todas la dejan más barata de abrir después que de haber empezado por ella.

@@ -20,6 +20,18 @@ El plan es Pro, con límite de 5 horas. El trabajo se corta sin aviso. **El esta
 - Actualiza `memory.md` tras cada hito, no al final.
 - Si detectas que queda poca cuota, **avisa y cierra ordenadamente** en lugar de empezar algo nuevo.
 
+## Cierre automático por límite de cuota
+
+No hay herramienta que consulte el porcentaje de cuota consumida ni la hora de reset. La única señal disponible es **reactiva**: un aviso del propio sistema tipo "usage limit approaching" inyectado en la conversación. En cuanto aparezca, **no esperes a que el usuario lo pida** — actúa igual que en un cierre de sesión normal, con dos añadidos:
+
+1. Termina el paso atómico en curso (el commit o la revisión que tengas entre manos). No empieces uno nuevo.
+2. Ejecuta el cierre completo de la sección "Al cerrar" de más abajo: commit, push, `memory.md`, `PLAN-IMPLEMENTACION.md`, repositorio en verde.
+3. **Programa la vuelta con `ScheduleWakeup`**:
+   - Si no sabes la hora de reset de la cuota, **pregúntasela al usuario** — no la asumas ni la calcules, no hay forma de obtenerla por herramienta.
+   - `ScheduleWakeup` admite como máximo 1 hora por llamada. Si el reset queda más lejos, no lo fuerces con un valor mayor: encadena avisos de una hora en una hora (cada aviso, al dispararse, si todavía no ha llegado la hora de reset, programa el siguiente tramo) hasta alcanzarla. No es sondeo — es un único objetivo final repartido en tramos, no una comprobación repetida de "¿ya está listo?".
+   - El `prompt` del aviso debe bastar para retomar sin releer nada: qué paso estaba en curso, en qué rama, y el siguiente subpaso concreto.
+4. Informa al usuario de que has cerrado por límite de cuota y de cuándo volverás, antes de que la sesión termine de responder.
+
 ## Al cerrar
 
 1. Commit y push de todo lo funcional.
