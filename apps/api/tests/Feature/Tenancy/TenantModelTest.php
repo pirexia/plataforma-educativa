@@ -3,6 +3,7 @@
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use App\Support\Tenancy\TenantContextMissing;
+use App\Support\Tenancy\TenantMigration;
 use App\Support\Tenancy\TenantModel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -32,20 +33,14 @@ beforeEach(function (): void {
         return;
     }
 
-    Schema::connection('pgsql_owner')->create('tenant_model_probes', function ($table): void {
-        $table->id();
-        $table->foreignId('tenant_id');
+    // Vía TenantMigration::tenantTable() (no Schema::create a mano, como
+    // antes de ADR-034 §6): así la tabla lleva created_by/updated_by y
+    // deleted_at, que TenantModel exige desde 0.8.9 (SoftDeletes,
+    // RecordsAuthorship) a cualquier modelo que lo extienda, este probe
+    // incluido.
+    TenantMigration::tenantTable('tenant_model_probes', function ($table): void {
         $table->text('name');
-        $table->timestampsTz();
     });
-
-    DB::connection('pgsql_owner')->statement('ALTER TABLE tenant_model_probes ENABLE ROW LEVEL SECURITY');
-    DB::connection('pgsql_owner')->statement('ALTER TABLE tenant_model_probes FORCE ROW LEVEL SECURITY');
-    DB::connection('pgsql_owner')->statement(<<<'SQL'
-        CREATE POLICY tenant_isolation ON tenant_model_probes
-            USING      (tenant_id = app.current_tenant_id())
-            WITH CHECK (tenant_id = app.current_tenant_id())
-        SQL);
 });
 
 afterEach(function (): void {

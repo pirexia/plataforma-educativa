@@ -65,4 +65,18 @@ return [
 
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Modelos con borrado físico permitido (ADR-034 §6)
+    |--------------------------------------------------------------------------
+    |
+    | TenantModel usa SoftDeletes por defecto (INV-004): un delete() borra
+    | lógicamente, nunca la fila. Un modelo que de verdad necesite borrado
+    | físico se registra aquí explícitamente, por FQCN — vacío por ahora,
+    | ninguno lo necesita todavía.
+    |
+    */
+
+    'hard_delete_models' => [],
+
 ];

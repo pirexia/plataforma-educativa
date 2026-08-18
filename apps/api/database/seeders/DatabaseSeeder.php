@@ -17,8 +17,10 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
+        // ADR-034 §1: User es de tenant (necesita TenantContext::enter()
+        // activo) y person_id es NOT NULL — UserFactory ya crea la persona
+        // de paso. Semilla real de desarrollo pendiente de REQ-SEED.
         User::factory()->create([
-            'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
     }
