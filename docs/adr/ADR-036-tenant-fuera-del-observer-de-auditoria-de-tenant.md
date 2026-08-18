@@ -54,7 +54,7 @@ El resto de la tabla de `§8` (`Person`, `User`, `AcademicYear`, `Role`, `Module
 
 **En contra, y se asume**
 
-- **El ciclo de vida de `Tenant` no tiene auditoría en ningún sitio hasta el paso 1.6.** Una suspensión, reactivación o cambio de `slug` de un centro no deja rastro hoy. Es la limitación central de este ADR; se documenta explícitamente en vez de dejarla como vacío silencioso, y se abre issue de seguimiento en GitHub referenciando este ADR y el paso 1.6.
+- **El ciclo de vida de `Tenant` no tiene auditoría en ningún sitio hasta el paso 1.6.** Una suspensión, reactivación o cambio de `slug` de un centro no deja rastro hoy. Es la limitación central de este ADR; se documenta explícitamente en vez de dejarla como vacío silencioso, con [issue #27](https://github.com/pirexia/plataforma-educativa/issues/27) de seguimiento referenciando este ADR y el paso 1.6.
 - **`ADR-035 §8` queda con una fila incorrecta si se lee sin este ADR al lado.** Es el precio de la regla de inmutabilidad de ADR (`docs/adr/README.md`): no se edita, se sustituye. Cualquiera que lea `ADR-035 §8` sobre `Tenant` debe encontrar la referencia a este documento — se añade una nota en el índice de la sección 18 de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`, siguiendo el mismo patrón que el cierre de `OPEN-12`.
 
 **Reversibilidad**: alta. Cuando 1.6 diseñe `admin_action_logs`, esta decisión se sustituye por otra que declare cómo `Tenant` se audita ahí — no hay dato escrito bajo la decisión anterior que limpiar, porque la decisión anterior nunca llegó a implementarse.
@@ -67,4 +67,4 @@ El resto de la tabla de `§8` (`Person`, `User`, `AcademicYear`, `Role`, `Module
 
 ## Preguntas abiertas
 
-Ninguna que bloquee 0.9. Queda anotado para el paso **1.6**: diseñar `admin_action_logs` y cubrir en ella el ciclo de vida de `Tenant` (alta, suspensión, reactivación, cambio de `slug`, baja), con su propio actor de plataforma y su propia retención (`REQ-BO-007`).
+Ninguna que bloquee 0.9. Queda anotado para el paso **1.6**: diseñar `admin_action_logs` y cubrir en ella el ciclo de vida de `Tenant` (alta, suspensión, reactivación, cambio de `slug`, baja), con su propio actor de plataforma y su propia retención (`REQ-BO-007`). Seguimiento: [issue #27](https://github.com/pirexia/plataforma-educativa/issues/27).
