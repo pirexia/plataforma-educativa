@@ -45,20 +45,38 @@ return [
         // imprescindible (ver la migración que aprovisiona cada una).
         'platform' => ['failed_jobs'],
 
-        // Fuera del sistema de tenancy por completo.
+        // Fuera del sistema de tenancy por completo: sin tenant_id.
+        // `users` salió de aquí en 0.8.4: ADR-034 la rehace con tenant_id y
+        // RLS, ya no es la tabla provisional del starter kit.
+        // `password_reset_tokens` también salió en 0.8.4 (ADR-034 §8): tiene
+        // tenant_id, RLS y política propia, aunque su PK sea compuesta
+        // (tenant_id, email) en vez de id+tenant_id como tenantTable() — el
+        // test de esquema de 0.7.11 la exige RLS por tener tenant_id, no
+        // por estar en este registro.
         'framework' => [
             'migrations', 'job_batches', 'cache', 'cache_locks', 'jobs',
-            'sessions', 'password_reset_tokens',
-            // Pendiente de 0.8 (modelo de datos núcleo): users es del
-            // starter kit de Laravel, todavía sin tenant_id. Categoría
-            // temporal, no una de las cuatro reales de ADR-033 §7 —
-            // quitar de aquí en cuanto 0.8 la rehaga.
-            'users',
+            'sessions',
         ],
 
-        // Solo lectura, sin tenant_id, GRANT SELECT. Ninguno todavía.
-        'reference' => [],
+        // Solo lectura para plataforma_app, sin tenant_id. Catálogo de
+        // plataforma materializado desde el código por el comando
+        // idempotente de 0.8.11 (ADR-034 §2, §7) — nunca a mano.
+        'reference' => ['permissions', 'modules'],
 
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Modelos con borrado físico permitido (ADR-034 §6)
+    |--------------------------------------------------------------------------
+    |
+    | TenantModel usa SoftDeletes por defecto (INV-004): un delete() borra
+    | lógicamente, nunca la fila. Un modelo que de verdad necesite borrado
+    | físico se registra aquí explícitamente, por FQCN — vacío por ahora,
+    | ninguno lo necesita todavía.
+    |
+    */
+
+    'hard_delete_models' => [],
 
 ];

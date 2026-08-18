@@ -3225,6 +3225,7 @@ Del `028` en adelante, cada decisión vive en `docs/adr/` (`ADR-026`).
 | `ADR-031` | Alcance y fase del módulo de transporte escolar |
 | `ADR-032` | Fuente única de autorizaciones de recogida de menores |
 | `ADR-033` | Implementación del aislamiento multi-tenant en Laravel y PostgreSQL (concreta `ADR-001` y `ADR-014`) |
+| `ADR-034` | Modelo de datos núcleo: `Person`/`User`, `Role`/`Permission`, `AuditLog`, `AcademicYear` y `ModuleSubscription` (concreta la sección 16; amplía `ADR-033 §7`) |
 
 ### Decisiones abiertas vivas
 
@@ -3238,6 +3239,8 @@ Del `028` en adelante, cada decisión vive en `docs/adr/` (`ADR-026`).
 | `OPEN-09` | Proveedor de correo transaccional. | `REQ-AUTH`, `REQ-COM` |
 | `OPEN-10` | Proveedor de almacenamiento de objetos para copias, distinto del host. | `REQ-BKP` |
 | `OPEN-11` | **Dónde se aloja el piloto.** El desarrollo pasa a WSL2 en equipo personal (`ADR-030`), que no puede alojar datos reales bajo ningún concepto. Decidir antes de que llegue el centro, no después. | Hito H0 |
+| `OPEN-12` | **Datos personales ya escritos en `audit_logs.changes` frente al derecho de supresión.** `ADR-004` no resuelve el choque entre una tabla append-only e inmutable y la anonimización irreversible. Tres opciones abiertas en `ADR-034`: excluir los atributos identificativos, cifrado por sujeto con destrucción de clave, o redacción dirigida y auditada. | Datos reales (`REQ-PRIV-006`) |
+| `OPEN-13` | **Lista definitiva de columnas de `Person` y su base legal por campo.** `ADR-034` fija un mínimo por minimización y deja fuera fotografía, sexo, nacionalidad y dirección postal hasta que exista el catálogo de bases legales. | `REQ-PRIV-006`, paso 1.1 |
 
 Bloqueante de mayor prioridad: el hito **H0** (`ADR-019`), conseguir el centro piloto y sus ficheros de exportación.
 

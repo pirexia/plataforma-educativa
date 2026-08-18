@@ -6,6 +6,24 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-08-18 · Cierre de 0.8 (modelo de datos núcleo)
+
+### Nuevo: `docs/adr/ADR-034-modelo-de-datos-nucleo.md`
+Diseñado por el subagente `architect` (Opus). `Person`/`User` como identidad y credencial separadas; esquema completo de `Role`/`Permission` desde ahora con el resolutor granular diferido a 1.5; `AuditLog` polimórfica append-only con redacción por modelo; `AcademicYear` con `academic_year_id` obligatorio-o-ausente, nunca nullable; `ModuleSubscription` con catálogo de módulos materializado desde el código. Dos preguntas abiertas sin resolver a propósito (`OPEN-12`, supresión frente a auditoría inmutable; `OPEN-13`, columnas definitivas de `Person`), ninguna bloqueante de 0.8.
+
+### Nuevo: `apps/api` — siete tablas del núcleo, modelos y comando de sincronización
+`academic_years`, `people`, `users` (rehecha), `roles`/`role_user`, `permissions`/`permission_role`, `modules`/`module_subscriptions`, `audit_logs`. `TenantMigration` gana `tenantTableAppendOnly()` y `tenantForeignId()`. `TenantModel` gana `SoftDeletes` y `RecordsAuthorship`; nuevo `AppendOnlyModel`. Modelos `Person`, `User`, `Role`, `Permission`, `AcademicYear`, `ModuleSubscription`, `AuditLog`, con *morph map* forzado. Comando `platform:sync-registry`, idempotente. 91 tests en `tests/Feature/Core/` y `tests/Feature/Tenancy/` (44 nuevos), incluida una batería de invariantes de esquema generales (no hardcodeadas por tabla) que ampliá la de `ADR-033` §10.
+
+### Corregido
+- **Seguridad, severidad Alta**: `password_reset_tokens` del starter kit de Laravel usaba `email` como clave primaria global — con `users.email` único *por tenant*, un token del centro A servía para la cuenta homónima del centro B (toma de control de cuenta entre tenants). Ahora clave primaria compuesta `(tenant_id, email)`.
+- **Seguridad, severidad Alta** ([#17](https://github.com/pirexia/plataforma-educativa/issues/17)): las tablas append-only solo revocaban `UPDATE, DELETE` a `plataforma_app`; `plataforma_platform` (BYPASSRLS) conservaba privilegio completo, vaciando la garantía de inmutabilidad de `audit_logs` para la conexión de backoffice. Revocado también para `plataforma_platform`.
+- **Severidad Media** ([#16](https://github.com/pirexia/plataforma-educativa/issues/16)): `tenants.slug` (0.7) con índice único no parcial — un tenant dado de baja bloqueaba su slug para siempre.
+
+### Bugs propios encontrados y corregidos durante la implementación
+Detalle completo, subpaso a subpaso, en `docs/historial/0.8-modelo-de-datos-nucleo.md`.
+
+---
+
 ## 2026-08-17 · Tarde · Cierre de 0.7 (núcleo multi-tenant)
 
 ### Nuevo: `docs/adr/ADR-033-implementacion-del-aislamiento-multi-tenant.md`
