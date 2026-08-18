@@ -3228,6 +3228,7 @@ Del `028` en adelante, cada decisión vive en `docs/adr/` (`ADR-026`).
 | `ADR-034` | Modelo de datos núcleo: `Person`/`User`, `Role`/`Permission`, `AuditLog`, `AcademicYear` y `ModuleSubscription` (concreta la sección 16; amplía `ADR-033 §7`) |
 | `ADR-035` | Datos personales en el registro de auditoría frente al derecho de supresión (**resuelve `OPEN-12`**; concreta `ADR-004` sobre `audit_logs` y acota `INV-003`) |
 | `ADR-036` | `Tenant` queda fuera del *observer* de auditoría de tenant (**sustituye la fila `Tenant` de `ADR-035 §8`**; su ciclo de vida se audita en `admin_action_logs`, paso 1.6) |
+| `ADR-037` | Portabilidad del despliegue: imágenes inmutables, unidades Quadlet y gestión de secretos (**concreta `ADR-027` y `ADR-028`; enmienda las líneas de `compose.yaml` en producción de `ADR-030`**) |
 
 ### Decisiones abiertas vivas
 
