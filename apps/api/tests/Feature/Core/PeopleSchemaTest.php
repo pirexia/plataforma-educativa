@@ -77,6 +77,20 @@ test('dos personas sin documento informado conviven en el mismo tenant', functio
     expect($count)->toBe(2);
 });
 
+test('documento y tipo van emparejados: no se puede informar uno sin el otro', function (): void {
+    // Issue #20: sin este CHECK, dos personas con document_type NULL y el
+    // mismo document_number no chocaban contra el índice único parcial
+    // (PostgreSQL trata cada NULL de document_type como distinto). El
+    // CHECK hace inconstruible el caso: si hay document_number, tiene que
+    // haber document_type, así que ya no puede quedar NULL en el hueco
+    // que rompía la unicidad.
+    $tenant = Tenant::factory()->create();
+    $context = app(TenantContext::class);
+    $context->enter($tenant->id);
+
+    expect(fn () => insertPerson('Sin tipo', null, '00000000X'))->toThrow(QueryException::class);
+});
+
 test('tras borrado lógico, el mismo documento puede volver a darse de alta', function (): void {
     $tenant = Tenant::factory()->create();
     $context = app(TenantContext::class);

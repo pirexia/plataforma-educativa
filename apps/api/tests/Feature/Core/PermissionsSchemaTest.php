@@ -18,6 +18,14 @@ test('plataforma_app no puede escribir en permissions', function (): void {
     ]))->toThrow(QueryException::class);
 });
 
+// Issue #19: plataforma_platform (BYPASSRLS) también tiene que quedar fuera,
+// no solo plataforma_app.
+test('plataforma_platform no puede escribir en permissions', function (): void {
+    expect(fn () => DB::connection('pgsql_platform')->table('permissions')->insert([
+        'code' => 'alumnado.ver-platform', 'resource' => 'alumnado', 'action' => 'ver', 'module_code' => 'REQ-ALUM',
+    ]))->toThrow(QueryException::class);
+});
+
 test('plataforma_owner sí puede materializar el catálogo de permissions', function (): void {
     DB::connection('pgsql_owner')->table('permissions')->insert([
         'code' => 'alumnado.ver-test', 'resource' => 'alumnado', 'action' => 'ver', 'module_code' => 'REQ-ALUM',

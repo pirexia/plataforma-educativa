@@ -98,19 +98,25 @@ test('toda columna *_id de una tabla de tenant tiene FK compuesta con tenant_id'
 });
 
 // (d) Las tablas de referencia (config('tenancy.shared_tables.reference'))
-// no tienen privilegios de escritura para plataforma_app.
-test('las tablas de referencia no tienen privilegios de escritura para plataforma_app', function (): void {
+// no tienen privilegios de escritura para ningún rol de aplicación.
+// Issue #19: la versión original solo comprobaba plataforma_app, el mismo
+// punto ciego que dejó pasar el hallazgo Alta de audit_logs (issue #17) —
+// plataforma_platform (BYPASSRLS) es justo la conexión que más falta hace
+// comprobar, no la que se puede dar por descontada.
+test('las tablas de referencia no tienen privilegios de escritura para ningún rol de aplicación', function (): void {
     $referenceTables = config('tenancy.shared_tables.reference');
 
     expect($referenceTables)->not->toBeEmpty();
 
     foreach ($referenceTables as $table) {
-        $grants = DB::select(<<<'SQL'
-            SELECT privilege_type FROM information_schema.role_table_grants
-            WHERE table_schema = 'public' AND table_name = ? AND grantee = 'plataforma_app'
-              AND privilege_type IN ('INSERT', 'UPDATE', 'DELETE')
-            SQL, [$table]);
+        foreach (['plataforma_app', 'plataforma_platform'] as $role) {
+            $grants = DB::select(<<<'SQL'
+                SELECT privilege_type FROM information_schema.role_table_grants
+                WHERE table_schema = 'public' AND table_name = ? AND grantee = ?
+                  AND privilege_type IN ('INSERT', 'UPDATE', 'DELETE')
+                SQL, [$table, $role]);
 
-        expect($grants)->toBeEmpty("tabla de referencia `{$table}`: plataforma_app tiene privilegios de escritura");
+            expect($grants)->toBeEmpty("tabla de referencia `{$table}`: {$role} tiene privilegios de escritura");
+        }
     }
 });

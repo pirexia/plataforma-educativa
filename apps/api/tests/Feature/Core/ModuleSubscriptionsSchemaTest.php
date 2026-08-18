@@ -18,6 +18,14 @@ test('plataforma_app no puede escribir en modules', function (): void {
     ]))->toThrow(QueryException::class);
 });
 
+// Issue #19: plataforma_platform (BYPASSRLS) también tiene que quedar fuera,
+// no solo plataforma_app.
+test('plataforma_platform no puede escribir en modules', function (): void {
+    expect(fn () => DB::connection('pgsql_platform')->table('modules')->insert([
+        'code' => 'REQ-ALUM-PLATFORM', 'name_key' => 'modules.alumnado', 'phase' => '1',
+    ]))->toThrow(QueryException::class);
+});
+
 test('ausencia de fila en module_subscriptions se lee como módulo desactivado', function (): void {
     $tenant = Tenant::factory()->create();
     $context = app(TenantContext::class);
