@@ -38,11 +38,11 @@ Acceso, rectificación, supresión, portabilidad y oposición. **Pendiente de `O
 
 Mínimo legal por tipo de dato y catálogo completo: responsabilidad de `REQ-PRIV-006` (no implementado todavía). Casos ya conocidos que necesitarán tratamiento específico:
 
-- **Auditoría** (`audit_logs`): retención mínima de 2 años (`REQ-CORE-005`), pero append-only e inmutable por diseño — en conflicto sin resolver con el derecho de supresión cuando una fila de auditoría contiene un identificador personal. Ver **pregunta abierta `OPEN-12`** más abajo.
+- **Auditoría** (`audit_logs`): retención mínima de 2 años (`REQ-CORE-005`), append-only e inmutable por diseño. El conflicto con el derecho de supresión sobre identificadores personales queda resuelto por `ADR-035`: no se escribe su valor en `changes` (se redacta desde el origen, por política de modelo), así que no hay nada que suprimir dentro de la fila; la supresión se completa por vencimiento del plazo de retención. La purga automática en sí es responsabilidad de `REQ-PRIV-006`, todavía sin implementar. Detalle completo en `docs/adr/ADR-035-datos-personales-en-el-registro-de-auditoria.md`.
 - **RCDS** (Registro Central de Delincuentes Sexuales, verificación obligatoria de personal en contacto con menores): plazo y base legal específicos de la normativa vigente, catalogar en `REQ-PRIV-006`.
 
 ## 6. Preguntas abiertas
 
-- **`OPEN-12`**: qué ocurre con un dato personal ya escrito en `audit_logs.changes` cuando su titular ejerce el derecho de supresión — la inmutabilidad de la auditoría y la anonimización irreversible son, en el caso general, incompatibles. Tres opciones planteadas en `ADR-034` §"Preguntas abiertas", ninguna elegida todavía. No bloquea el desarrollo actual; sí bloquea la entrada del primer dato real.
+- **`OPEN-12`** — **cerrada por `ADR-035`**: el derecho de supresión no se ejerce dentro de `audit_logs`; se evita que entre en la fila cualquier valor identificativo (ver sección 5) y la supresión se completa por retención. Queda pendiente de `REQ-PRIV-006` la ejecución real de la purga por vencimiento de plazo, exigible antes del primer dato real.
 - **`OPEN-13`**: lista definitiva de columnas de `Person` y su base legal por campo, responsabilidad de `REQ-PRIV-006`.
 - **`OPEN-07`**: entidad jurídica, encargado de tratamiento y DPO — bloquea las secciones 3 y 4 de este documento y la entrada de cualquier dato real.
