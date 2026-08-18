@@ -22,12 +22,18 @@ El plan es Pro, con límite de 5 horas. El trabajo se corta sin aviso. **El esta
 
 ## Cierre automático por límite de cuota
 
-No hay herramienta que consulte el porcentaje de cuota consumida ni la hora de reset. La única señal disponible es **reactiva**: un aviso del propio sistema tipo "usage limit approaching" inyectado en la conversación. En cuanto aparezca, **no esperes a que el usuario lo pida** — actúa igual que en un cierre de sesión normal, con dos añadidos:
+No hay herramienta que consulte el porcentaje de cuota consumida. La única señal disponible es **reactiva**: un aviso del propio sistema inyectado en la conversación. Hay al menos dos avisos distintos observados:
+
+- Un aviso de aproximación, sin hora de reset (visto literalmente como *"Usage limit approaching. Checkpoint now..."*).
+- Según fuentes de terceros (no confirmado en documentación oficial de Anthropic, ver `feedback_cierre_automatico_por_cuota.md`), el aviso de **límite alcanzado** sí incluiría la hora: `"...resets 3:45pm"` (ventana de 5h, formato `resets HH:MMam/pm`) o `"...resets Mon 12:00am"` (semanal, formato `resets DAY HH:MMam/pm`).
+
+En cuanto aparezca cualquiera de los dos, **no esperes a que el usuario lo pida** — actúa igual que en un cierre de sesión normal, con dos añadidos:
 
 1. Termina el paso atómico en curso (el commit o la revisión que tengas entre manos). No empieces uno nuevo.
 2. Ejecuta el cierre completo de la sección "Al cerrar" de más abajo: commit, push, `memory.md`, `PLAN-IMPLEMENTACION.md`, repositorio en verde.
 3. **Programa la vuelta con `ScheduleWakeup`**:
-   - Si no sabes la hora de reset de la cuota, **pregúntasela al usuario** — no la asumas ni la calcules, no hay forma de obtenerla por herramienta.
+   - **Primero intenta extraer la hora de reset del propio texto del aviso**, con los patrones `resets (\d{1,2}):(\d{2})(am|pm)` (5h) o `resets (\w{3}) (\d{1,2}):(\d{2})(am|pm)` (semanal). Si el aviso la trae y coincide con el patrón, úsala.
+   - Si el aviso no trae hora de reset (como el de aproximación) o no coincide con el patrón, **pregúntasela al usuario** — no la asumas ni la calcules.
    - `ScheduleWakeup` admite como máximo 1 hora por llamada. Si el reset queda más lejos, no lo fuerces con un valor mayor: encadena avisos de una hora en una hora (cada aviso, al dispararse, si todavía no ha llegado la hora de reset, programa el siguiente tramo) hasta alcanzarla. No es sondeo — es un único objetivo final repartido en tramos, no una comprobación repetida de "¿ya está listo?".
    - El `prompt` del aviso debe bastar para retomar sin releer nada: qué paso estaba en curso, en qué rama, y el siguiente subpaso concreto.
 4. Informa al usuario de que has cerrado por límite de cuota y de cuándo volverás, antes de que la sesión termine de responder.
