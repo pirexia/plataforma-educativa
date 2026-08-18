@@ -25,6 +25,11 @@ jobs:
 
       - run: npm ci
       - run: npm run lint
+      # INV-009 (paso 0.9): mismo job que ESLint a propósito, no uno nuevo
+      # — el nombre del job ("Lint (ESLint)") es uno de los ocho checks
+      # obligatorios de branch protection en GitHub; añadir un job nuevo
+      # exigiría también añadirlo allí a mano (ver SYSADMIN.md §4).
+      - run: npm run lint:i18n
 
   typecheck-build:
     name: Typecheck y build (vue-tsc + Vite)

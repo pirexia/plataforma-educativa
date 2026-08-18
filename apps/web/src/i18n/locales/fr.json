@@ -1,0 +1,14 @@
+{
+  "layout": {
+    "title": "Plateforme de gestion éducative"
+  },
+  "home": {
+    "title": "État de l'API",
+    "checking": "Vérification…",
+    "retry": "Vérifier à nouveau",
+    "status": "{status} · version {version} · {timestamp}",
+    "error": {
+      "unexpected": "Erreur inattendue"
+    }
+  }
+}

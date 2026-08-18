@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\ResolveTenant;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -14,6 +15,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // INV-013: antes que nada, en los dos grupos — a diferencia de
+        // ResolveTenant, request_id no depende de tenant y tiene que
+        // existir incluso en /api/health.
+        $middleware->prependToGroup('web', AssignRequestId::class);
+        $middleware->prependToGroup('api', AssignRequestId::class);
+
         // ADR-014/ADR-033 §2: primero del grupo web, antes de sesión. El
         // grupo api NO lo lleva global a propósito: /api/health (fuera de
         // v1, usado por el healthcheck del contenedor) tiene que responder

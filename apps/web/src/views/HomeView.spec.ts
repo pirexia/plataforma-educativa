@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import HomeView from './HomeView.vue'
+import { i18n } from '@/i18n'
 
 vi.mock('@/api/client', () => ({
   apiFetch: vi.fn().mockResolvedValue({
@@ -13,7 +14,7 @@ vi.mock('@/api/client', () => ({
 
 describe('HomeView', () => {
   it('muestra el estado de la API tras cargar', async () => {
-    const wrapper = mount(HomeView)
+    const wrapper = mount(HomeView, { global: { plugins: [i18n] } })
     await flushPromises()
 
     expect(wrapper.text()).toContain('ok')

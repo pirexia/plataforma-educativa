@@ -149,6 +149,14 @@ Las migraciones de test corren una vez por proceso vía la conexión `pgsql_owne
 
 ---
 
+## 2c. Variables de entorno propias de la aplicación
+
+Más allá de credenciales de base de datos/Redis (`.env.example`), la aplicación tiene variables de configuración propias que un operador podría necesitar tocar:
+
+| Variable | Por defecto | Fichero | Para qué |
+|----------|-------------|---------|----------|
+| `AUDIT_MAX_VALUE_LENGTH` | `256` | `apps/api/config/audit.php` | Tope de caracteres (sobre el valor codificado en JSON) que un valor de `audit_logs.changes` puede alcanzar antes de redactarse como `oversized` (`ADR-035` §5). Nunca se trunca: o entra entero, o no entra. Subirlo aumenta el tamaño medio de fila de la tabla más grande del sistema; bajarlo redacta más agresivamente. Sin necesidad de reiniciar más que el propio proceso PHP (config cacheable estándar de Laravel). |
+
 ## 3. Comprobación rápida
 
 ```bash
@@ -167,8 +175,8 @@ Tres workflows en `.github/workflows/`, disparados por `push`/`pull_request` sob
 
 | Workflow | Jobs (nombre mostrado en GitHub) | Qué cubre |
 |----------|------|-----------|
-| `ci-api.yml` | `Tests (Pest)`, `Lint (Pint)`, `Análisis estático (Larastan)` | Pest (`composer test`), Pint (`composer lint`), Larastan nivel 6 (`composer analyse`). PHP 8.4, sin contenedor: runner nativo con `shivammathur/setup-php`. Los tests usan SQLite en memoria (`phpunit.xml`), no requieren PostgreSQL en CI. |
-| `ci-web.yml` | `Lint (ESLint)`, `Typecheck y build (vue-tsc + Vite)`, `Tests unitarios (Vitest)`, `Tests e2e (Playwright)` | ESLint, `vue-tsc -b` + build de Vite, Vitest, Playwright (Chromium, instalado con `--with-deps` en el propio job). El test e2e no depende de la API real: `HomeView` degrada a un mensaje de error visible si la petición falla, que es lo que el test comprueba. |
+| `ci-api.yml` | `Tests (Pest)`, `Lint (Pint)`, `Análisis estático (Larastan)` | Pest (`composer test`), Pint (`composer lint`), Larastan nivel 6 (`composer analyse`). PHP 8.4, sin contenedor: runner nativo con `shivammathur/setup-php`. Los tests corren contra **PostgreSQL 17 real** como *service* del job, aprovisionado con el mismo script de roles/RLS que desarrollo (`infra/containers/postgres/init/01-tenancy.sql.tpl`) — no SQLite: `ADR-033` §10 exige que la batería de aislamiento se ejecute contra RLS de verdad, que SQLite no tiene. |
+| `ci-web.yml` | `Lint (ESLint)`, `Typecheck y build (vue-tsc + Vite)`, `Tests unitarios (Vitest)`, `Tests e2e (Playwright)` | ESLint + comprobación de literales sin traducir (`INV-009`, `npm run lint:i18n`, mismo job a propósito — ver comentario en `ci-web.yml`), `vue-tsc -b` + build de Vite, Vitest, Playwright (Chromium, instalado con `--with-deps` en el propio job). El test e2e no depende de la API real: `HomeView` degrada a un mensaje de error visible si la petición falla, que es lo que el test comprueba. |
 | `dependency-scan.yml` | `Trivy (composer.lock, package-lock.json)` | `aquasecurity/trivy-action` escanea `composer.lock` y `package-lock.json` en modo filesystem. Falla en severidad `HIGH`/`CRITICAL` con corrección disponible (`ignore-unfixed: true`). |
 
 **Por qué Trivy y no `actions/dependency-review-action`**: se probó primero ese action nativo de GitHub, pero falla con *"Dependency review is not supported on this repository"* — el repo es privado y ese action necesita GitHub Advanced Security, que en una cuenta personal (no Enterprise) no se puede activar aunque se pague aparte. Trivy corre en el propio job sin depender de ninguna funcionalidad de plan de GitHub, y sin subir SARIF al tab Security (esa subida también está gateada por GHAS en repos privados).

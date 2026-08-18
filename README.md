@@ -28,6 +28,7 @@ Excepción: en el **primer ciclo de Infantil (0-3) en régimen privado** sí som
 | **`ARCHITECTURE.md`** | Stack, estructura, despliegue, dimensionado de hardware | Antes de tocar arquitectura |
 | **`SYSADMIN.md`** | Entorno de desarrollo, `compose.yaml`, operación | Antes de tocar infraestructura |
 | **`docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`** | Fuente de verdad funcional. 53 módulos, 32 ADR | Al empezar un módulo |
+| **`docs/i18n.md`** | Convención de internacionalización, backend y frontend (`ADR-021`/`INV-009`) | Antes de escribir cualquier texto visible |
 | **`docs/SETUP-ENTORNO.md`** | **Puesta en marcha completa**: WSL2, Podman, Claude Code, repositorio | Antes que nada |
 | **`docs/SETUP-CLAUDE-CODE.md`** | Plugins, MCP, subagentes y skills | Al configurar el entorno |
 | **`seed/README.md`** | Generador de datos sintéticos | Para probar con volumen |
