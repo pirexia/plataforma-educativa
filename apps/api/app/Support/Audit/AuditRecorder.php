@@ -26,7 +26,24 @@ final class AuditRecorder
      */
     public function record(Model&Auditable $model, string $event, array $rawChanges = []): void
     {
-        if (! app(TenantContext::class)->hasTenant()) {
+        $tenantContext = app(TenantContext::class);
+
+        if ($tenantContext->isPlatformMode()) {
+            // TenantContext::runAsPlatform() no limpia tenantId(): un
+            // futuro uso que combine "tenant activo" + "modo plataforma"
+            // (hoy no ocurre, ver AuditRecorderTest) escribiría con el
+            // tenant_id equivocado o violaría el NOT NULL si no hay
+            // ninguno. Falla en cerrado: este mecanismo es para
+            // audit_logs (tabla de tenant); el rastro de una operación de
+            // plataforma es cosa de admin_action_logs (ADR-033 §7,
+            // pendiente de 1.6), no de aquí.
+            throw new RuntimeException(
+                'AuditRecorder no escribe en modo plataforma (TenantContext::runAsPlatform()); '.
+                'el rastro de esa operación corresponde a admin_action_logs, no a audit_logs.'
+            );
+        }
+
+        if (! $tenantContext->hasTenant()) {
             // audit_logs es tabla de tenant (ADR-034 §3): sin contexto no
             // hay a qué tenant_id escribir. No ocurre hoy con los 5
             // modelos del núcleo (todos exigen tenant activo para

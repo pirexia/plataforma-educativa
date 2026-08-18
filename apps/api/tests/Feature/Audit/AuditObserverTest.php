@@ -153,3 +153,18 @@ test('tras anonimizar una persona, ninguna fila de audit_logs referida a ella co
             ->not->toContain('600777666');
     }
 });
+
+// Hallazgo Media de la revisión independiente de 0.9 (security-reviewer):
+// AuditRecorder no se protegía si isPlatformMode() y hasTenant() coinciden
+// (TenantContext::runAsPlatform() no limpia tenantId()). No ocurre hoy con
+// ningún consumidor real, pero es el hueco que se activaría en cuanto
+// exista el primero. Falla en cerrado: lanza en vez de escribir con
+// tenant_id potencialmente equivocado.
+test('el observer no escribe en audit_logs mientras TenantContext está en modo plataforma', function (): void {
+    $person = Person::factory()->create();
+
+    app(TenantContext::class)->runAsPlatform(function () use ($person): void {
+        expect(fn () => $person->update(['contact_phone' => '600111222']))
+            ->toThrow(RuntimeException::class, 'modo plataforma');
+    });
+});

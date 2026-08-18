@@ -1,6 +1,63 @@
 # REQ-CORE · Modelo de datos
 
-> Cubre `audit_logs` (registro automático desde el paso 0.9, esquema fijado en `ADR-034` §3, política de valores en `ADR-035`). El resto de entidades núcleo (`Person`, `User`, `Role`, `Permission`, `AcademicYear`, `ModuleSubscription`) se documentaron en el cierre de 0.8 (`docs/historial/0.8-modelo-de-datos-nucleo.md`); este fichero no las repite.
+> Cubre `audit_logs` (registro automático desde el paso 0.9, esquema fijado en `ADR-034` §3, política de valores en `ADR-035`/`ADR-036`). El resto de entidades núcleo (`Person`, `User`, `Role`, `Permission`, `AcademicYear`, `ModuleSubscription`) se documentaron en el cierre de 0.8 (`docs/historial/0.8-modelo-de-datos-nucleo.md`); este fichero no las repite.
+
+> **Solo `datos.md`, a propósito.** `REQ-CORE` como módulo con endpoints y permisos propios (`funcional.md`/`api.md`/`permisos.md`/`operacion.md`, `CLAUDE.md §6`) no se cierra en 0.9 ni en 0.8: 0.9 solo añade infraestructura transversal (el *observer* de auditoría) sin superficie HTTP nueva. Esos cuatro documentos se completan en el paso **1.1**, cuando `REQ-CORE` exponga de verdad tenants y usuarios como módulo con endpoints. Dejarlos vacíos ahora sería inventar contenido sobre una API que no existe todavía (`CLAUDE.md §11`).
+
+## Entidades
+
+`audit_logs` es la única tabla que introduce 0.9 (append-only, `tenantTableAppendOnly()`, `ADR-034 §3`):
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `id`, `tenant_id` | `bigint` | No | De `tenantTableAppendOnly()` |
+| `public_id` | ULID | No | `ADR-029` |
+| `occurred_at` | `TIMESTAMPTZ` | No | Momento del hecho, no de la escritura |
+| `actor_user_id` | `bigint` | Sí | FK compuesta `(tenant_id, actor_user_id) → users` |
+| `actor_type` | `text` + `CHECK` | No | `user`, `system`, `console`, `import`, `platform` |
+| `auditable_type` | `text` | No | Alias del *morph map*, nunca el FQCN de PHP |
+| `auditable_id` | `bigint` | No | Clave interna del sujeto auditado; sin FK, es polimórfica |
+| `auditable_public_id` | ULID | Sí | Permite listar sin *join* y sobrevive a la purga de la entidad |
+| `event` | `text` + `CHECK` | No | `created`, `updated`, `deleted`, `restored`, `read`, `exported` |
+| `changes` | `jsonb` | Sí | Solo atributos modificados, con redacción — ver más abajo |
+| `ip_address` | `inet` | Sí | Del actor, no del sujeto |
+| `user_agent` | `text` | Sí | |
+| `request_id` | `text` | Sí | `INV-013` |
+| `context` | `jsonb` | Sí | Extensión por módulo sin migrar; solo identificadores y códigos, nunca valores de atributos |
+
+## Relaciones
+
+Polimórfica, sin clave foránea hacia el sujeto (`auditable_type`/`auditable_id` se resuelven en aplicación, no en base de datos — la fila debe sobrevivir a la purga física de la entidad auditada):
+
+```mermaid
+erDiagram
+    audit_logs }o--o| users : "actor_user_id (FK compuesta, nullable)"
+    audit_logs }o..o{ people : "auditable (polimórfica, sin FK)"
+    audit_logs }o..o{ users : "auditable (polimórfica, sin FK)"
+```
+
+## Índices
+
+Los tres de `ADR-034 §3`, todos con `tenant_id` primero (`RDB`, RLS):
+
+| Índice | Consulta que lo necesita |
+|--------|---------------------------|
+| `(tenant_id, occurred_at DESC)` | Pantalla de auditoría general de `REQ-CORE-005`, orden cronológico inverso |
+| `(tenant_id, auditable_type, auditable_id, occurred_at DESC)` | Historial de una entidad concreta ("¿qué le pasó a este alumno?") |
+| `(tenant_id, actor_user_id, occurred_at DESC)` | Historial de un actor concreto ("¿qué hizo este usuario?") |
+
+Sin GIN sobre `changes`: se añade cuando exista una consulta real que lo pida (`ADR-034 §3`).
+
+## Checklist obligatorio
+
+- [x] `tenant_id` presente e indexado como primera columna de las tres consultas frecuentes
+- [ ] `academic_year_id` — no aplica: la auditoría no depende del curso académico
+- [x] `created_at`/`updated_at`/`deleted_at`/`created_by`/`updated_by` — no aplica en su forma estándar: la tabla es *append-only* (`tenantTableAppendOnly()`), `occurred_at` sustituye a `created_at` y no hay `updated_at`/`deleted_at` posibles por diseño
+- [x] Claves foráneas y restricciones declaradas en base de datos (FK compuesta de `actor_user_id`, `CHECK` de `actor_type`/`event`)
+- [ ] Importes en enteros de céntimos — no aplica, sin importes
+- [x] Fechas en UTC (`TIMESTAMPTZ`)
+- [x] Datos de categoría especial en tabla separada y cifrada — por diseño, `changes` nunca contiene su valor (política `Redacted`), no hace falta tabla separada para esta tabla en concreto
+- [ ] Particionado evaluado — evaluado y diferido a propósito (`ADR-034 §3`: disparador de revisión a 50M filas o purga que exceda ventana de mantenimiento)
 
 ## `audit_logs.changes`: formato exacto
 
@@ -43,7 +100,7 @@ Todo modelo auditable implementa `App\Support\Audit\Auditable` y declara `auditV
 | `Selective` | Solo se registra el valor de `auditRecordedAttributes()`; el resto se redacta como `identifier` | `Person` (`locale`, `deleted_at`, `created_by`, `updated_by`), `User` (`status`, `email_verified_at`, `deleted_at`, `created_by`, `updated_by`) |
 | `Redacted` | Nunca se registra ningún valor | Ningún modelo del núcleo todavía — reservada a categoría especial (salud, NEAE, convivencia), que llega con sus propios módulos |
 
-`Tenant` y `Permission`/`Module` **no son auditables en 0.9** (ver `docs/historial/0.9-auditoria-i18n.md`, "Problemas abiertos"): `Tenant` es una entidad de plataforma sin `tenant_id` propio, y `audit_logs` es una tabla de tenant — su auditoría corresponde a `admin_action_logs` (paso 1.6, `ADR-033` §7), no a este mecanismo. `Permission`/`Module` son catálogos de referencia gestionados por `platform:sync-registry`, fuera del ámbito de auditoría por tenant.
+`Tenant` y `Permission`/`Module` **no son auditables en 0.9** (`docs/adr/ADR-036-tenant-fuera-del-observer-de-auditoria-de-tenant.md`, que sustituye la fila `Tenant` de `ADR-035 §8`): `Tenant` es una entidad de plataforma sin `tenant_id` propio, y `audit_logs` es una tabla de tenant — su auditoría corresponde a `admin_action_logs` (paso 1.6, `ADR-033` §7), no a este mecanismo. `Permission`/`Module` son catálogos de referencia gestionados por `platform:sync-registry`, fuera del ámbito de auditoría por tenant.
 
 ## Columnas estructurales excluidas de `changes`
 

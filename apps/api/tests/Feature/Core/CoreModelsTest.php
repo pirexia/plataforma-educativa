@@ -29,7 +29,9 @@ test('todo modelo de tenant núcleo está en el morph map', function (): void {
 
 // ADR-035 §11 test 6: impide la erosión modelo a modelo. Todo modelo del
 // morph map implementa Auditable, y el conjunto Full es exactamente el
-// declarado en ADR-035 §8 — añadir un modelo a Full exige tocar este test.
+// vigente tras ADR-036 (que sustituye la fila `Tenant` de ADR-035 §8:
+// Tenant no entra en este morph map, vive en la conexión de plataforma) —
+// añadir un modelo a Full exige tocar este test.
 test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR-035 §8', function (): void {
     $map = Relation::morphMap();
 
