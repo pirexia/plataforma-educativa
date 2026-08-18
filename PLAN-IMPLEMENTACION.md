@@ -97,8 +97,9 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 - [ ] **0.12 · Marco legal del proveedor** ⚠️ *no técnico, bloqueante antes de datos reales*
   Titularidad de la infraestructura (`OPEN-06`), entidad que firma con el centro, **contrato de encargado de tratamiento** en el que tú eres el encargado y el colegio el responsable, y política de privacidad. Sin esto no se puede alojar ni un solo alumno real.
 
-- [ ] **0.13 · Plantillas de documentación** [HAIKU]
+- [x] **0.13 · Plantillas de documentación** [HAIKU]
   Crear `docs/modulos/_PLANTILLA/` y los documentos raíz que exige la sección 15: `README.md`, `SECURITY.md`, `PRIVACY.md`, `RUNBOOK.md`, `CHANGELOG.md`, `CONTRIBUTING.md`.
+  Cerrado 2026-08-18: `docs/modulos/_PLANTILLA/` ya existía desde 0.1 (los cinco ficheros). Creados los cuatro documentos raíz que faltaban: `SECURITY.md` (arquitectura de seguridad ya implementada, reporte de vulnerabilidades vía GitHub Security Advisories mientras no haya dominio propio), `PRIVACY.md` (esqueleto de RAT — varias secciones deliberadamente sin rellenar hasta `OPEN-07`, entidad jurídica), `RUNBOOK.md` (solo cubre desarrollo en WSL2; guardias y copias de seguridad marcadas como no aplicables hasta `OPEN-11`/`OPEN-10`), `CONTRIBUTING.md` (flujo Git, revisión de código y estilo, extraído de `CLAUDE.md`). Ninguno inventa contenido bloqueado por una decisión abierta (`CLAUDE.md` §0/§11): donde falta una decisión externa, la sección queda marcada como pendiente, no rellenada. `README.md` actualizado (mapa de documentos y tabla de versiones).
 
 **Salida de fase 0**: aislamiento multi-tenant verificado por tests, pipeline en verde, entorno desplegado.
 

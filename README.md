@@ -32,8 +32,10 @@ Excepción: en el **primer ciclo de Infantil (0-3) en régimen privado** sí som
 | **`docs/SETUP-CLAUDE-CODE.md`** | Plugins, MCP, subagentes y skills | Al configurar el entorno |
 | **`seed/README.md`** | Generador de datos sintéticos | Para probar con volumen |
 | **`marketing/`** | Presentación comercial | Para hablar con centros |
-
-Pendientes de crear (paso 0.13): `SECURITY.md`, `PRIVACY.md`, `RUNBOOK.md`, `CONTRIBUTING.md`.
+| **`SECURITY.md`** | Arquitectura de seguridad, reporte de vulnerabilidades | Antes de tocar autenticación o permisos |
+| **`PRIVACY.md`** | Tratamientos, bases legales, retención (base del RAT) | Antes de modelar cualquier dato de personas |
+| **`RUNBOOK.md`** | Procedimientos operativos ante incidencias | Cuando algo falla |
+| **`CONTRIBUTING.md`** | Estilo de código, flujo Git, revisión de código | Antes del primer commit |
 
 ---
 
@@ -78,6 +80,10 @@ Lista completa: sección 0.5 del documento de requisitos (`INV-001` a `INV-015`)
 | `docs/SETUP-CLAUDE-CODE.md` | 1.2.0 |
 | `docs/SETUP-ENTORNO.md` | 1.3.0 |
 | `SYSADMIN.md` | 0.1.0 |
+| `SECURITY.md` | 0.1.0 |
+| `PRIVACY.md` | 0.1.0 |
+| `RUNBOOK.md` | 0.1.0 |
+| `CONTRIBUTING.md` | 0.1.0 |
 
 Historial completo en `CHANGELOG.md`.
 
