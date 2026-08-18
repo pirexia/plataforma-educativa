@@ -149,6 +149,14 @@ Las migraciones de test corren una vez por proceso vía la conexión `pgsql_owne
 
 ---
 
+## 2c. Variables de entorno propias de la aplicación
+
+Más allá de credenciales de base de datos/Redis (`.env.example`), la aplicación tiene variables de configuración propias que un operador podría necesitar tocar:
+
+| Variable | Por defecto | Fichero | Para qué |
+|----------|-------------|---------|----------|
+| `AUDIT_MAX_VALUE_LENGTH` | `256` | `apps/api/config/audit.php` | Tope de caracteres (sobre el valor codificado en JSON) que un valor de `audit_logs.changes` puede alcanzar antes de redactarse como `oversized` (`ADR-035` §5). Nunca se trunca: o entra entero, o no entra. Subirlo aumenta el tamaño medio de fila de la tabla más grande del sistema; bajarlo redacta más agresivamente. Sin necesidad de reiniciar más que el propio proceso PHP (config cacheable estándar de Laravel). |
+
 ## 3. Comprobación rápida
 
 ```bash
