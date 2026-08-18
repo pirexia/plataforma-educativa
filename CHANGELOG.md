@@ -17,6 +17,9 @@ Nueva sección "Cierre automático por límite de cuota": no hay herramienta par
 ### `CLAUDE.md` → 2.1.1 y `cierre-de-sesion` → 1.1.1
 Investigado (subagente `claude-code-guide`) si el propio aviso de límite trae la hora de reset. Según fuentes de terceros, no confirmadas en documentación oficial de Anthropic, el aviso de **límite alcanzado** (distinto del de aproximación visto en esta sesión, que no la trae) sí la incluiría: `"...resets 3:45pm"` (5h) / `"...resets Mon 12:00am"` (semanal). Añadidos los patrones de extracción como primer intento; si no coinciden, se sigue preguntando al usuario.
 
+### `CLAUDE.md` → 2.1.2 y `cierre-de-sesion` → 1.1.2
+Corrección tras confirmación real del usuario (app Android): la hora de reset la muestra el **cliente**, en una tarjeta de interfaz propia, no un texto que llegue al modelo. Retirados los patrones de extracción de la versión anterior (no aplicables); la regla vuelve a ser preguntar siempre, salvo que el usuario ya la haya dado en la conversación.
+
 ---
 
 ## 2026-08-18 · Cierre de 0.13 (plantillas de documentación)

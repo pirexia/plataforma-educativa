@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.1.1** · 2026-08-18 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.1.2** · 2026-08-18 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -76,7 +76,7 @@ Frases prohibidas: "¡Excelente idea!", "Tienes toda la razón" como apertura re
 3. Actualiza `PLAN-IMPLEMENTACION.md` marcando el progreso.
 4. Deja el repositorio en estado compilable y con tests en verde.
 
-**Este cierre no espera a que lo pidas.** En cuanto el propio sistema avise de que la cuota se agota (aviso de "usage limit approaching" u otro equivalente), ejecútalo sin que haga falta que lo digas tú: termina el paso atómico en curso (no empieces uno nuevo), aplica los cuatro puntos anteriores, y programa un aviso para retomar cuando la cuota se restaure (intenta extraer la hora del propio aviso si la trae; si no, pregúntala — no hay herramienta que la consulte). Mecanismo y patrones concretos en el skill `cierre-de-sesion`.
+**Este cierre no espera a que lo pidas.** En cuanto el propio sistema avise de que la cuota se agota (aviso de "usage limit approaching" u otro equivalente), ejecútalo sin que haga falta que lo digas tú: termina el paso atómico en curso (no empieces uno nuevo), aplica los cuatro puntos anteriores, y programa un aviso para retomar cuando la cuota se restaure. La hora de reset **no está en tu contexto** (la app cliente la muestra en su propia interfaz, no como texto de sistema): pregúntasela al usuario, salvo que ya te la haya dado en la conversación. Mecanismo concreto en el skill `cierre-de-sesion`.
 
 ---
 
