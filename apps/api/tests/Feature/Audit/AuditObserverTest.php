@@ -2,6 +2,7 @@
 
 use App\Models\AuditLog;
 use App\Models\Person;
+use App\Models\User;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 
@@ -78,6 +79,35 @@ test('un delete y un restore no duplican fila y registran deleted_at correctamen
     expect($deletedLog->changes['deleted_at']['from'])->toBeNull()
         ->and($deletedLog->changes['deleted_at']['to'])->not->toBeNull()
         ->and($restoredLog->changes['deleted_at']['to'])->toBeNull();
+});
+
+// Regla 1 de ADR-035 §4 sobre el modelo real, no un doble: password y
+// remember_token nunca en claro, ni siquiera con el patrón global —
+// User los redacta por estar fuera de auditRecordedAttributes()
+// (Selective), y el patrón global los redactaría igualmente si no lo
+// estuvieran.
+test('un cambio de password/remember_token/email en User nunca se registra en claro', function (): void {
+    $user = User::factory()->create(['email' => 'antes@example.com']);
+
+    $user->forceFill([
+        'password' => bcrypt('un-secreto-nuevo'),
+        'remember_token' => 'un-token-nuevo',
+        'email' => 'despues@example.com',
+    ])->save();
+
+    $log = AuditLog::where('auditable_id', $user->id)->where('event', 'updated')->latest('id')->first();
+
+    expect($log)->not->toBeNull()
+        ->and($log->changes['password'])->toEqual(['redacted' => 'secret'])
+        ->and($log->changes['remember_token'])->toEqual(['redacted' => 'secret'])
+        ->and($log->changes['email'])->toEqual(['redacted' => 'identifier', 'from_empty' => false, 'to_empty' => false]);
+
+    $encoded = json_encode($log->changes);
+    expect($encoded)
+        ->not->toContain('un-secreto-nuevo')
+        ->not->toContain('un-token-nuevo')
+        ->not->toContain('antes@example.com')
+        ->not->toContain('despues@example.com');
 });
 
 // ADR-035 §11 test 7: la propiedad legal, no el mecanismo.
