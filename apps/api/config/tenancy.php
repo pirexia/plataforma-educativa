@@ -61,7 +61,7 @@ return [
         // Solo lectura para plataforma_app, sin tenant_id. Catálogo de
         // plataforma materializado desde el código por el comando
         // idempotente de 0.8.11 (ADR-034 §2, §7) — nunca a mano.
-        'reference' => ['permissions'],
+        'reference' => ['permissions', 'modules'],
 
     ],
 
