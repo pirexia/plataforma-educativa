@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { useT } from '@/i18n'
 import { Button } from '@/components/ui/button'
 import { apiFetch, ApiError } from '@/api/client'
 
@@ -10,7 +10,7 @@ interface HealthResponse {
   timestamp: string
 }
 
-const { t } = useI18n()
+const t = useT()
 
 const health = ref<HealthResponse | null>(null)
 const error = ref<string | null>(null)

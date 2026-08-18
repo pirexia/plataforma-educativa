@@ -1,4 +1,4 @@
-import { createI18n } from 'vue-i18n'
+import { createI18n, useI18n, type Composer } from 'vue-i18n'
 import es from './locales/es.json'
 import en from './locales/en.json'
 import de from './locales/de.json'
@@ -60,4 +60,18 @@ export function setLocale(locale: SupportedLocale): void {
   i18n.global.locale.value = locale
   persistLocale(locale)
   document.documentElement.lang = locale
+}
+
+/**
+ * Único punto de contacto de un componente con `vue-i18n` (`RNF-MANT-007`,
+ * `CLAUDE.md §1`: toda dependencia externa se envuelve tras una interfaz
+ * propia). No reimplementa el *composable* — sería reescribir `vue-i18n`
+ * entero para una envoltura sin valor — pero sí es el único sitio del que
+ * un componente importa: si la librería se sustituyera, este fichero es
+ * el único que cambiaría, ningún componente lo notaría.
+ */
+export function useT(): Composer['t'] {
+  const { t } = useI18n()
+
+  return t
 }
