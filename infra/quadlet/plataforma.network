@@ -1,0 +1,11 @@
+# ADR-028 §2: red externa, subred fija, no se destruye. systemd la crea si
+# no existe y NO la destruye al parar la unidad — sigue siendo compatible
+# con esa regla siempre que ninguna operación documentada haga
+# "systemctl stop plataforma-network" (ver RUNBOOK.md).
+
+[Network]
+NetworkName=plataforma-net
+Subnet=10.89.10.0/24
+
+[Install]
+WantedBy=default.target

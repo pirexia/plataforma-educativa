@@ -1,0 +1,42 @@
+# Único punto de entrada (ADR-028 §1/§4). Descubre contenedores por el
+# socket de Podman en vez de una IP cacheada — así una recreación de api@
+# o web no rompe el enrutado.
+#
+# ADR-037 §6.3: socket montado en solo lectura, Podman rootless, mientras
+# no haya datos reales. Antes del primer dato real hace falta un proxy de
+# socket que filtre a los métodos de solo lectura (0.10e, no esta unidad).
+#
+# Sin TLS todavía: certificado comodín bloqueado por OPEN-08 (0.10b).
+# Solo HTTP hasta entonces — documentado, no un olvido.
+
+[Unit]
+Description=Traefik — proxy inverso, único punto de entrada
+After=plataforma-network.service
+Wants=plataforma-network.service
+
+[Container]
+Image=docker.io/library/traefik:v3
+ContainerName=plataforma-traefik
+Network=plataforma.network
+PublishPort=80:80
+Volume=%t/podman/podman.sock:/var/run/docker.sock:ro,Z
+Exec=--providers.docker=true \
+    --providers.docker.endpoint=unix:///var/run/docker.sock \
+    --providers.docker.exposedbydefault=false \
+    --providers.docker.network=plataforma-net \
+    --entrypoints.web.address=:80 \
+    --ping=true \
+    --api.dashboard=false \
+    --log.level=INFO
+HealthCmd=traefik healthcheck --ping || exit 1
+HealthInterval=10s
+HealthTimeout=3s
+HealthRetries=5
+HealthStartPeriod=5s
+Notify=healthy
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,25 @@
+# ADR-037 §6.2: oneshot, ejecuta `artisan migrate --force` una vez por
+# despliegue, no una por réplica de api@. api@ se relaciona con esta
+# unidad mediante Wants=+After=, nunca Requires= — expand/contract
+# (RARQ-DEP-003) es lo que permite ese acoplamiento flojo: el esquema
+# anterior siempre es compatible con el código nuevo, así que no hace
+# falta bloquear el arranque de la API a que termine la migración.
+#
+# El tag de la imagen lo sustituye install.sh con un sed de una línea al
+# desplegar (Quadlet no expande variables de entorno en Image=).
+
+[Unit]
+Description=Migraciones de base de datos — una vez por despliegue
+After=plataforma-network.service postgres.service
+Wants=plataforma-network.service postgres.service
+
+[Container]
+Image=ghcr.io/pirexia/plataforma-api:__TAG__
+ContainerName=plataforma-migrate
+Network=plataforma.network
+EnvironmentFile=/etc/plataforma/plataforma.env
+Exec=php artisan migrate --force
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
