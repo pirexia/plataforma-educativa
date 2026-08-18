@@ -6,6 +6,8 @@ use App\Models\ModuleSubscription;
 use App\Models\Person;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\Audit\Auditable;
+use App\Support\Audit\AuditValuePolicy;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -23,6 +25,28 @@ test('todo modelo de tenant núcleo está en el morph map', function (): void {
     foreach ([Person::class, User::class, Role::class, AcademicYear::class, ModuleSubscription::class] as $class) {
         expect(in_array($class, $map, true))->toBeTrue("{$class} no está en el morph map (ADR-034 §3)");
     }
+});
+
+// ADR-035 §11 test 6: impide la erosión modelo a modelo. Todo modelo del
+// morph map implementa Auditable, y el conjunto Full es exactamente el
+// declarado en ADR-035 §8 — añadir un modelo a Full exige tocar este test.
+test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR-035 §8', function (): void {
+    $map = Relation::morphMap();
+
+    $fullPolicyModels = [];
+
+    foreach ($map as $class) {
+        expect(is_a($class, Auditable::class, true))
+            ->toBeTrue("{$class} está en el morph map pero no implementa Auditable (ADR-035 §2)");
+
+        if ((new $class)->auditValuePolicy() === AuditValuePolicy::Full) {
+            $fullPolicyModels[] = $class;
+        }
+    }
+
+    expect($fullPolicyModels)->toEqualCanonicalizing([
+        AcademicYear::class, Role::class, ModuleSubscription::class,
+    ]);
 });
 
 test('Person y User se relacionan y HasPublicId rellena public_id', function (): void {
