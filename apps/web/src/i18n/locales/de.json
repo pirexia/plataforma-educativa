@@ -1,0 +1,14 @@
+{
+  "layout": {
+    "title": "Plattform für Bildungsmanagement"
+  },
+  "home": {
+    "title": "API-Status",
+    "checking": "Wird geprüft…",
+    "retry": "Erneut prüfen",
+    "status": "{status} · Version {version} · {timestamp}",
+    "error": {
+      "unexpected": "Unerwarteter Fehler"
+    }
+  }
+}

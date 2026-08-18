@@ -9,6 +9,10 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:5173',
     trace: 'on-first-retry',
+    // ADR-021: es-ES es el idioma por defecto de la interfaz. Sin esto el
+    // locale del navegador lo decide el runner (en-US en CI) y el e2e
+    // dejaría de validar el idioma por defecto real.
+    locale: 'es-ES',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {

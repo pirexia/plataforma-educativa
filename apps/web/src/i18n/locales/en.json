@@ -1,0 +1,14 @@
+{
+  "layout": {
+    "title": "Educational Management Platform"
+  },
+  "home": {
+    "title": "API status",
+    "checking": "Checking…",
+    "retry": "Check again",
+    "status": "{status} · version {version} · {timestamp}",
+    "error": {
+      "unexpected": "Unexpected error"
+    }
+  }
+}
