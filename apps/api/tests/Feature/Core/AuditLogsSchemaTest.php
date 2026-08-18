@@ -61,6 +61,24 @@ test('DELETE es rechazado por el motor, no por convención de aplicación', func
     // Sin leave() aquí a propósito (ver TenantTest.php).
 });
 
+// Hallazgo propio de revisión de seguridad: plataforma_platform (BYPASSRLS,
+// ADR-033 §5) es la conexión con más probabilidad de tocar estas filas por
+// error en un futuro script de mantenimiento entre tenants — el REVOKE
+// tiene que cubrirla también, no solo plataforma_app.
+test('plataforma_platform tampoco puede UPDATE ni DELETE en audit_logs', function (): void {
+    $tenant = Tenant::factory()->create();
+    $context = app(TenantContext::class);
+    $context->enter($tenant->id);
+    $id = insertAuditLog();
+    $context->leave();
+
+    expect(fn () => DB::connection('pgsql_platform')->table('audit_logs')->where('id', $id)->update(['event' => 'updated']))
+        ->toThrow(QueryException::class);
+
+    expect(fn () => DB::connection('pgsql_platform')->table('audit_logs')->where('id', $id)->delete())
+        ->toThrow(QueryException::class);
+});
+
 test('actor_type solo admite los valores del CHECK', function (): void {
     $tenant = Tenant::factory()->create();
     $context = app(TenantContext::class);

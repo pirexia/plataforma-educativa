@@ -95,7 +95,15 @@ final class TenantMigration
 
         self::applyTenantDefaultsAndRls($table);
 
-        DB::connection('pgsql_owner')->statement("REVOKE UPDATE, DELETE ON {$table} FROM plataforma_app");
+        // De los dos roles, no solo plataforma_app: plataforma_platform
+        // tiene BYPASSRLS (ADR-033 §5) y es la conexión que más fácil
+        // tocaría estas tablas por error en un futuro script de
+        // mantenimiento entre tenants. "Inmutabilidad forzada en el motor"
+        // no lo es si un camino de escritura se queda sin revocar
+        // (hallazgo propio de revisión, ver `docs/historial/0.8-modelo-de-datos-nucleo.md`).
+        DB::connection('pgsql_owner')->statement(
+            "REVOKE UPDATE, DELETE ON {$table} FROM plataforma_app, plataforma_platform"
+        );
     }
 
     /**
