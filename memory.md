@@ -7,9 +7,11 @@
 
 ## Estado actual
 
-**Fase**: 0 — Cimientos
-**Paso activo**: 0.1-0.9b y 0.13 cerrados y mezclados a `develop`. Siguiente: la serie `0.10`-`0.10e`, bloqueada por decisiones de negocio del usuario (`OPEN-11`/`OPEN-08`/`OPEN-09`/`OPEN-10`) — ver `Siguiente paso concreto`.
+**Fase**: 0 cerrada en la práctica (lo pendiente de `0.10`-`0.12` es negocio, no código — ver abajo). **Empieza Fase 1**, bloque A.
+**Paso activo**: **1.1 · `REQ-CORE`: tenants y usuarios** `[OPUS + SONNET]`, sin empezar — es el siguiente paso concreto, ver esa sección para el arranque exacto (no es mecánico, requiere `spec-writer` primero).
 **Rama**: `develop` local limpia y sincronizada. Sin ramas de trabajo ni *worktrees* abiertos.
+
+**Decisiones de la serie `0.10`-`0.10e`, recogidas punto a punto con el usuario (2026-08-19), ninguna bloquea seguir desarrollando en local**: `0.10` → dirección decidida, **VPS Linux europeo**, proveedor concreto todavía sin elegir. `0.10b` → pendiente de `0.11c` (nombre de marca, sin decidir). `0.10c` (correo transaccional) → pendiente. `0.10d` (destino de copias) → pendiente. `0.10e` (staging) → pendiente de `0.10`. No hacer falta re-preguntar todo esto salvo que el usuario traiga una decisión nueva.
 
 **Última sesión (2026-08-18/19)**: cerrado **0.9b · Portabilidad del despliegue**, pedido explícitamente por el usuario fuera de plan: seguir desarrollando en WSL2, pero dejar preparado lo necesario para instalar en *staging*/producción sobre un VPS genérico sin decidir todavía el proveedor (`OPEN-11` sigue abierta). `architect` redactó `ADR-037`: `compose.yaml` solo desarrollo; producción/*staging* solo **Quadlet** (paridad por `Containerfile` multi-etapa); imágenes en **GHCR** (plan Free confirmado por el usuario, retención desde el primer commit); **FrankenPHP modo clásico** (sin Octane/*worker*, por `INV-001`); secretos por `EnvironmentFile=`. Implementado por un `fork` en *worktree* aislado, con un corte real por límite de cuota a mitad de trabajo (primera vez que se disparó el cierre automático de `CLAUDE.md §3`) y retomado tras el reset sin pérdida. Revisión independiente (`security-reviewer`/`doc-reviewer`) encontró 7 hallazgos Media, todos corregidos por la orquestadora directamente, y 4 Baja diferidos a propósito (issues [#37](https://github.com/pirexia/plataforma-educativa/issues/37)/[#38](https://github.com/pirexia/plataforma-educativa/issues/38)/[#40](https://github.com/pirexia/plataforma-educativa/issues/40)). Detalle completo en `docs/historial/0.9b-portabilidad-despliegue.md`.
 
@@ -54,6 +56,8 @@
 - **`ADR-035` + 0.9 cerrados**: registro de auditoría (`AuditChangeBuilder`, política de redacción por modelo) e i18n de 4 idiomas. `ADR-036` corrige la exclusión de `Tenant` del mecanismo. Detalle completo en `docs/historial/0.9-auditoria-i18n.md`.
 - **`ADR-037` + 0.9b cerrados**: portabilidad del despliegue. Ver `Estado actual` y `docs/historial/0.9b-portabilidad-despliegue.md`.
 - **Problema de entorno sin resolver**: `.claude/settings.json` bloquea `Read(./.env.*)` de forma más amplia de lo previsto (también `.env.example`). Avisar si una sesión futura necesita tocar un `.env.example`.
+- **MCP de Playwright corregido** (2026-08-19): pedía el canal "chrome" (Google Chrome), no instalado y no instalable sin `sudo` interactivo en esta sesión. `.mcp.json` ahora fuerza `--browser=chromium`, que el propio proyecto ya trae instalado (Playwright de test de `apps/web`). Si una sesión futura ve el mismo error de canal, comprobar que esta configuración sigue vigente antes de investigar de nuevo.
+- **Captura del frontend actual enviada al usuario** (2026-08-19): `AppLayout`+`HomeView` funcionando de verdad contra `GET /api/health`, con i18n. Nada de negocio todavía — eso es 1.1 en adelante.
 
 ---
 
@@ -88,6 +92,19 @@
 
 ## Siguiente paso concreto
 
-1. **La serie `0.10`-`0.10e`** son en su mayoría decisiones de negocio (proveedor VPS, dominio/DNS, correo transaccional, destino de copias) — preguntar al usuario si tiene alguna ya tomada antes de proponer nada. `0.10e` ya no es "levantar staging desde cero": es instanciar sobre el host real lo que dejó escrito y probado `0.9b` (`docs/historial/0.9b-portabilidad-despliegue.md`).
+1. **Arrancar 1.1 · `REQ-CORE`: tenants y usuarios.** El usuario ya confirmó explícitamente empezar aquí (2026-08-19). **`PLAN-IMPLEMENTACION.md` no tiene texto de alcance para este paso** (solo el título, a diferencia de todos los demás pasos de fase 1) — hay que fijarlo antes de escribir código, no asumirlo.
+
+   `REQ-CORE` en `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` (sección 5.1, línea ~438) tiene **ocho** sub-requisitos (`REQ-CORE-001` a `008`): gestión de tenants, panel de admin del tenant, gestión de usuarios, roles/permisos, logs de auditoría, i18n, notificaciones del sistema, dashboard. **La mayoría ya está cubierta en otro sitio** — no dejar que 1.1 los reabra ni los duplique:
+   - `REQ-CORE-004` (roles/permisos granulares) → esquema ya existe desde 0.8, el resolutor granular es **1.5**, paso propio.
+   - `REQ-CORE-005` (auditoría) → mecanismo completo ya implementado en **0.9** (`ADR-035`/`ADR-036`).
+   - `REQ-CORE-006` (i18n) → infraestructura ya implementada en **0.9** (`docs/i18n.md`); lo que queda aquí, si acaso, es el panel de gestión de traducciones para el Administrador de Centro, no el mecanismo.
+   - `REQ-CORE-007` (notificaciones) → probablemente **1.19** (`REQ-COM`), a confirmar con `spec-writer`.
+   - `REQ-CORE-008` (dashboard/zona de cliente) → probablemente **1.8** (layout y dashboards por rol), a confirmar.
+   - `REQ-CORE-001` (alta/baja/suspensión de tenants por el Super Administrador) → probablemente **1.6** (`REQ-BO`, backoffice), a confirmar — `Tenant` como modelo ya existe desde 0.7, falta el CRUD/UI de gestión.
+
+   Lo que con más seguridad es el núcleo real de 1.1: **`REQ-CORE-002`** (panel de admin del propio tenant: usuarios/roles del centro, branding, parámetros académicos) y **`REQ-CORE-003`** (CRUD de usuarios del sistema: alta/baja/modificación, importación CSV, invitación por email, idioma preferido — `Person`/`User` como modelos ya existen desde 0.8, falta la funcionalidad de aplicación).
+
+   **No decidas tú este alcance — es trabajo de `spec-writer` (Opus)**, siguiendo el skill `modulo-nuevo` (invócalo primero para la estructura de carpetas/documentación). Dale al `spec-writer` este mismo desglose (qué ya existe, qué está deferido y a qué paso) para que no vuelva a decidir lo ya decidido, y que produzca la especificación funcional/técnica de `docs/modulos/REQ-CORE/` (completando lo que ya dejó a medias 0.9: solo tiene `datos.md`, con una nota explícita de que `funcional`/`api`/`permisos`/`operacion` esperaban a que el módulo tuviera endpoints de verdad — ese momento es ahora). Tras la especificación, implementación con `implementer`/`fork` (Sonnet), como en pasos anteriores.
+
 2. Decidir el motor de renderizado PDF (o posponerlo explícitamente a 1.17) antes de que haga falta ahí.
 3. Los issues de `Problemas abiertos` no bloquean nada del trabajo actual; están correctamente diferidos a los pasos donde existe el código que los necesita (1.2/1.5/1.6/`REQ-BO-001`/`0.10d`).
