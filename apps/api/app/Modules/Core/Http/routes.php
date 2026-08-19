@@ -8,3 +8,20 @@
 //
 // Se va ampliando subpaso a subpaso conforme se implementan los
 // controladores (ver docs/modulos/REQ-CORE/api.md).
+
+use App\Modules\Core\Http\Controllers\TenantController;
+use App\Modules\Core\Http\Controllers\TenantSettingsController;
+use Illuminate\Support\Facades\Route;
+
+// api.md §2. GET /tenant/branding es el único endpoint sin autenticación
+// del módulo (funcional.md §4.8): sin middleware `permission`, resuelto
+// solo por host.
+Route::get('/tenant/branding', [TenantController::class, 'branding'])->name('core.tenant.branding');
+
+Route::get('/tenant', [TenantController::class, 'show'])
+    ->middleware('permission:configuracion.leer')
+    ->name('core.tenant.show');
+
+Route::get('/tenant/settings', [TenantSettingsController::class, 'show'])
+    ->middleware('permission:configuracion.leer')
+    ->name('core.tenant-settings.show');
