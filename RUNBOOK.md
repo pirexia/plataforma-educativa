@@ -51,6 +51,70 @@ Parar el merge. Documentar el hallazgo como issue de GitHub con severidad, fiche
 
 **No aplica todavía.** No hay entorno de producción, no hay usuarios reales, no hay SLA que cumplir. Esta sección se escribe cuando exista alojamiento del piloto (`OPEN-11`) y el primer centro real.
 
+## 3b. Despliegue y reversión (`ADR-037`)
+
+Escrito, y probado **en parte** en WSL2 — ver `SYSADMIN.md §6` para el detalle exacto de qué está verificado y qué no. La topología completa (red, cinco servicios, imágenes `prod` reales) y las tres pruebas de resiliencia obligatorias se ejecutaron de verdad con `compose.prodlike.yaml` (`SYSADMIN.md §6.4`). El ciclo de vida por unidades Quadlet reales (`install.sh`, `systemctl --user`) **no se ha podido ejecutar en este host concreto**: `~/.config/containers` pertenece a `root`, un problema de permisos preexistente sin relación con este paso (`SYSADMIN.md §6.3`) — se corrige con un `sudo chown` que esta sesión no puede ejecutar sin contraseña interactiva.
+
+### 3b.1 Generar el fichero de secretos
+
+`ADR-037 §7.2`: se genera, nunca se escribe a mano.
+
+```bash
+# Producción/staging real (systemd de sistema):
+sudo install -d -m 0755 /etc/plataforma
+sudo install -m 0600 -o root -g root infra/quadlet/plataforma.env.example /etc/plataforma/plataforma.env
+# Rellenar cada valor vacío con:
+openssl rand -base64 32
+# APP_KEY tiene su propio generador — no uses openssl para esta:
+php artisan key:generate --show
+
+# Prueba en WSL2 (systemd --user), ruta equivalente:
+install -d -m 0755 ~/.config/plataforma
+install -m 0600 infra/quadlet/plataforma.env.example ~/.config/plataforma/plataforma.env
+```
+
+**Los pares `TENANCY_*_PASSWORD`/`DB_*_PASSWORD` no son secretos independientes — son el mismo valor visto por dos consumidores** (el script de aprovisionamiento de PostgreSQL crea el rol con `TENANCY_APP_PASSWORD`; Laravel se conecta con `DB_PASSWORD`; tienen que coincidir carácter a carácter). Genera **una vez** por rol y copia el mismo valor a los dos nombres de variable — tres llamadas a `openssl rand`, no seis:
+
+```bash
+APP_PW=$(openssl rand -base64 32)       # TENANCY_APP_PASSWORD y DB_PASSWORD
+OWNER_PW=$(openssl rand -base64 32)     # TENANCY_OWNER_PASSWORD y DB_OWNER_PASSWORD
+PLATFORM_PW=$(openssl rand -base64 32)  # TENANCY_PLATFORM_PASSWORD y DB_PLATFORM_PASSWORD
+```
+
+Bug propio encontrado probando este procedimiento (0.9b.5, `compose.prodlike.yaml`): la primera versión de `plataforma.env.example` no tenía `DB_CONNECTION`/`DB_DATABASE`/`DB_USERNAME`/`DB_PASSWORD` ni los pares `DB_OWNER_*`/`DB_PLATFORM_*` — sin `DB_CONNECTION=pgsql`, Laravel cae a SQLite por defecto (`config/database.php`), y la imagen `prod` no lleva ni `database.sqlite` ni `.env`, así que el fallo habría sido un arranque roto, no una degradación silenciosa — pero sigue siendo un despliegue que no funciona. Corregido en la plantilla.
+
+`APP_KEY` se copia además a un sitio distinto de la copia de la base de datos (`ADR-037 §7.2` punto 4, obligatorio antes de `0.10d`) — sin ella, los datos de categoría especial cifrados son irrecuperables aunque la base de datos se restaure.
+
+### 3b.2 Desplegar una versión
+
+```bash
+./infra/install.sh <tag>              # producción/staging real, systemd de sistema
+./infra/install.sh <tag> --user       # WSL2, systemd de usuario
+```
+
+`<tag>` es siempre una versión exacta (`X.Y.Z` en producción, `sha-<7>` o `develop` en *staging*) — nunca `latest` (`ADR-037 §5.2`). El script sustituye el *tag* en las unidades y recarga systemd; no arranca nada por sí solo.
+
+**Escrito, no ejecutado de extremo a extremo en este host** (`SYSADMIN.md §6.3`): `install.sh --user` requiere escribir en `~/.config/containers/systemd/`, bloqueado por el propietario incorrecto del directorio. La lógica que sí se ha ejercido — sustitución de `__TAG__`, generación de unidades systemd válidas a partir de estos ficheros — está verificada por separado (`SYSADMIN.md §6.1`); lo que falta es la instalación automática en este directorio concreto, no el contenido de las unidades.
+
+### 3b.3 Reversión
+
+Mismo mecanismo que el despliegue: bajar el *tag* a la versión anterior y reiniciar la unidad.
+
+```bash
+./infra/install.sh <tag-anterior> --user
+systemctl --user restart api@1.service web.service
+```
+
+Es una operación de segundos porque cada versión es una imagen inmutable en GHCR referenciada por *tag* exacto (`ADR-037 §5.2`) — no hay migración de imagen que deshacer, solo qué proceso arranca. Las migraciones de base de datos son *expand/contract* (`RARQ-DEP-003`): el esquema de la versión anterior sigue siendo compatible, así que revertir el código no exige revertir el esquema.
+
+**No probado de extremo a extremo por el mismo bloqueo de permisos que 3b.2.** Lo que sí se probó de verdad y ejercita el mismo mecanismo de fondo (sustituir la imagen que corre un contenedor sin romper el enrutado): la prueba C de `SYSADMIN.md §6.4` recreó el contenedor de la API con una nueva instancia y Traefik enrutó a la IP nueva sin intervención manual — es la misma propiedad que hace segura una reversión, aplicada a una recreación en vez de a un cambio de *tag*.
+
+### 3b.4 Notas operativas de las unidades Quadlet
+
+- **Nunca `systemctl stop plataforma.network`** salvo desmantelamiento completo: es la misma regla que `podman compose down` en desarrollo (`ADR-028 §2`), aplicada a la unidad de red de Quadlet.
+- La segunda réplica de la API (`api@2`) existe como plantilla ya escrita pero **no se activa** hasta que haya tráfico real (`ADR-037 §6.4`): `systemctl --user enable --now api@2.service` cuando corresponda, sin cambios de fichero.
+- El proxy de socket delante de Traefik (`ADR-037 §6.3`) es una tarea de `0.10e`, no de hoy: mientras tanto el socket de Podman está montado de solo lectura y el entorno no tiene datos reales.
+
 ## 4. Copias de seguridad y recuperación
 
 **No aplica todavía.** El módulo `REQ-BKP` (copias de seguridad, restauración granular en cuatro niveles, copia inmutable) no está implementado, y el proveedor de almacenamiento de copias distinto del host sigue sin decidir (`OPEN-10`). No hay nada que respaldar en un entorno sin datos reales.

@@ -1,0 +1,129 @@
+# Banco de pruebas local de la topología de producción (ADR-037 §3.2
+# punto 4). NO ES UN ENTORNO: no se ejecuta a diario, no sustituye a las
+# unidades Quadlet de infra/quadlet/ (esas son las que de verdad se
+# despliegan). Su único propósito es verificar en WSL2, sin VPS, que:
+#
+#   - las imágenes "prod" (construidas aquí en local con `podman build
+#     --target prod`, no descargadas de GHCR) arrancan de verdad;
+#   - Traefik enruta /api/* a la API y /* a la SPA;
+#   - la SPA compilada con VITE_API_URL=/api habla con la API por el
+#     mismo origen, sin CORS, exactamente como en staging/producción.
+#
+# Uso:
+#   podman build --target prod -t plataforma-api:prodlike -f infra/containers/api/Containerfile apps/api
+#   podman build --target prod -t plataforma-web:prodlike -f infra/containers/web/Containerfile apps/web
+#   podman compose -f infra/compose/compose.prodlike.yaml up -d
+#   curl http://127.0.0.1:8080/api/health
+#   podman compose -f infra/compose/compose.prodlike.yaml down
+
+name: plataforma-prodlike
+
+networks:
+  default:
+    name: plataforma-prodlike-net
+
+volumes:
+  prodlike-postgres-data:
+
+services:
+  postgres:
+    image: docker.io/library/postgres:17
+    environment:
+      POSTGRES_DB: plataforma
+      POSTGRES_USER: plataforma
+      POSTGRES_PASSWORD: prodlike-solo-para-verificacion-local
+      TENANCY_OWNER_PASSWORD: prodlike-owner
+      TENANCY_APP_PASSWORD: prodlike-app
+      TENANCY_PLATFORM_PASSWORD: prodlike-platform
+    volumes:
+      - prodlike-postgres-data:/var/lib/postgresql/data:Z
+      - ../containers/postgres/init:/docker-entrypoint-initdb.d:Z,ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U plataforma"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: docker.io/library/redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    image: plataforma-api:prodlike
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: base64:0000000000000000000000000000000000000000=
+      # DB_CONNECTION es obligatoria: config/database.php cae a sqlite por
+      # defecto si falta, y la imagen prod no lleva database.sqlite ni
+      # .env (bug propio encontrado probando este banco de pruebas).
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_DATABASE: plataforma
+      DB_USERNAME: plataforma_app
+      DB_PASSWORD: prodlike-app
+      DB_OWNER_USERNAME: plataforma_owner
+      DB_OWNER_PASSWORD: prodlike-owner
+      DB_PLATFORM_USERNAME: plataforma_platform
+      DB_PLATFORM_PASSWORD: prodlike-platform
+      REDIS_HOST: redis
+      LOG_CHANNEL: stderr
+      TENANCY_BASE_DOMAIN: plataforma.test
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.api.rule: "PathPrefix(`/api`)"
+      traefik.http.routers.api.priority: "10"
+      traefik.http.services.api.loadbalancer.server.port: "8000"
+
+  web:
+    image: plataforma-web:prodlike
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.web.rule: "PathPrefix(`/`)"
+      traefik.http.routers.web.priority: "1"
+      traefik.http.services.web.loadbalancer.server.port: "80"
+
+  traefik:
+    image: docker.io/library/traefik:v3
+    command:
+      - --providers.docker=true
+      - --providers.docker.endpoint=unix:///var/run/docker.sock
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --ping=true
+      - --api.dashboard=false
+    volumes:
+      # Solo lectura, igual que en la unidad Quadlet real (ADR-037 §6.3).
+      # XDG_RUNTIME_DIR, no $UID: UID es una variable de shell, no de
+      # entorno exportada — podman compose no la ve.
+      - ${XDG_RUNTIME_DIR}/podman/podman.sock:/var/run/docker.sock:ro,Z
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      - api
+      - web
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
