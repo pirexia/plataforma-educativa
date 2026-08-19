@@ -1,9 +1,11 @@
 <?php
 
 use App\Models\Role;
+use App\Models\User;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 
 afterEach(function (): void {
     DB::connection('pgsql_platform')->table('tenants')->delete();
@@ -40,6 +42,10 @@ test('CA-CORE-041: modificar o borrar un rol del sistema no tiene ruta disponibl
     test()->actingAs($admin)
         ->patchJson(coreApiUrl($tenant->slug, "/roles/{$role->public_id}"), ['name' => 'Cambiado'])
         ->assertStatus(405);
+
+    test()->actingAs($admin)
+        ->deleteJson(coreApiUrl($tenant->slug, "/roles/{$role->public_id}"))
+        ->assertStatus(405);
 });
 
 // CA-CORE-043
@@ -62,7 +68,7 @@ test('CA-CORE-043: asignar a un usuario un rol de otro tenant falla y no crea la
         ->assertStatus(422);
 
     app(TenantContext::class)->runFor($tenantA->id, function () use ($targetUser): void {
-        $user = App\Models\User::where('public_id', $targetUser)->firstOrFail();
+        $user = User::where('public_id', $targetUser)->firstOrFail();
         expect($user->roles)->toBeEmpty();
     });
 });
@@ -93,7 +99,7 @@ test('PUT /users/{id}/roles reemplaza el conjunto y emite UserRolesChanged', fun
 test('CA-CORE-060: un tenant sin fila de suscripción para un módulo obtiene 403 al usar EnsureModuleEnabled', function (): void {
     [$tenant] = provisionCoreTenant('modules-060');
 
-    \Illuminate\Support\Facades\Route::middleware(['resolve-tenant', 'resolve-locale', 'module-enabled:acad-test-060'])
+    Route::middleware(['resolve-tenant', 'resolve-locale', 'module-enabled:acad-test-060'])
         ->get('/api/v1/_test/probe-060', fn () => response()->json(['ok' => true]));
 
     test()->get('http://'.$tenant->slug.'.'.config('tenancy.base_domain').'/api/v1/_test/probe-060')
