@@ -13,8 +13,17 @@ use Illuminate\Support\Facades\DB;
 
 // (a) Toda restricción única sobre una tabla con deleted_at es parcial,
 // salvo UNIQUE (tenant_id, id) y UNIQUE (public_id) — las dos únicas no
-// parciales que ADR-034 §6 acepta explícitamente.
+// parciales que ADR-034 §6 acepta explícitamente, más las excepciones
+// nombradas de datos.md §A.8 (paso 1.1): un token de invitación no se
+// reutiliza jamás (igual que public_id) y una clave de idempotencia no
+// tiene borrado lógico, se purga físicamente — ambas deliberadamente
+// totales, documentadas en el propio datos.md, no un descuido.
 test('toda restricción única sobre tabla con borrado lógico es parcial, salvo las dos excepciones de ADR-034 §6', function (): void {
+    $namedExceptions = [
+        'user_invitations_tenant_token_unique',
+        'idempotency_keys_tenant_endpoint_key_unique',
+    ];
+
     $tablesWithDeletedAt = collect(DB::select(<<<'SQL'
         SELECT DISTINCT table_name FROM information_schema.columns
         WHERE table_schema = 'public' AND column_name = 'deleted_at'
@@ -22,7 +31,7 @@ test('toda restricción única sobre tabla con borrado lógico es parcial, salvo
 
     foreach ($tablesWithDeletedAt as $table) {
         $uniqueIndexes = DB::select(
-            "SELECT indexdef FROM pg_indexes WHERE schemaname = 'public' AND tablename = ? AND indexdef ILIKE '%UNIQUE%'",
+            "SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'public' AND tablename = ? AND indexdef ILIKE '%UNIQUE%'",
             [$table]
         );
 
@@ -31,13 +40,14 @@ test('toda restricción única sobre tabla con borrado lógico es parcial, salvo
             $isPartial = str_contains($def, ' WHERE ');
             $isTenantIdException = str_contains($def, '(tenant_id, id)');
             $isPublicIdException = str_contains($def, '(public_id)');
+            $isNamedException = in_array($index->indexname, $namedExceptions, true);
             // La propia PK bigint (id): tenantTable()/tenantTableAppendOnly()
             // la crean siempre, nunca se reutiliza aunque haya borrado
             // lógico — es el destino de la FK compuesta, no algo que ADR-034
             // §6 pida hacer parcial.
             $isPrimaryKeyException = str_contains($def, '_pkey ') && str_ends_with($def, '(id)');
 
-            expect($isPartial || $isTenantIdException || $isPublicIdException || $isPrimaryKeyException)
+            expect($isPartial || $isTenantIdException || $isPublicIdException || $isPrimaryKeyException || $isNamedException)
                 ->toBeTrue("tabla `{$table}`: índice único no parcial fuera de las excepciones — {$def}");
         }
     }

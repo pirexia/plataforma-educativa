@@ -1,0 +1,79 @@
+<?php
+
+namespace App\Modules\Core\Infrastructure;
+
+use App\Modules\Core\Domain\Models\DataExport;
+use App\Modules\Core\Domain\Models\TenantSetting;
+use App\Modules\Core\Domain\Models\UserImport;
+use App\Modules\Core\Domain\Models\UserInvitation;
+use App\Modules\Core\Domain\TenantSettingsReader;
+use App\Support\Modules\DeclaresModuleRegistry;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\ServiceProvider;
+
+/**
+ * ADR-034 §2, §5, §7: descubierto por ModuleServiceProviderDiscovery
+ * (convención de ruta y namespace), sin registro a mano en
+ * bootstrap/providers.php. Declara el catálogo de permisos de
+ * permisos.md §2 para que `platform:sync-registry` los materialice.
+ */
+class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegistry
+{
+    public function register(): void
+    {
+        $this->app->singleton(TenantSettingsCache::class);
+        $this->app->bind(TenantSettingsReader::class, EloquentTenantSettingsReader::class);
+    }
+
+    public function boot(): void
+    {
+        $this->loadMigrationsFrom(app_path('Modules/Core/Database/migrations'));
+
+        // merge=true (por defecto): se suma al morph map de AppServiceProvider,
+        // no lo sustituye — cada módulo registra el suyo (INV-007).
+        Relation::enforceMorphMap([
+            'tenant_setting' => TenantSetting::class,
+            'user_invitation' => UserInvitation::class,
+            'user_import' => UserImport::class,
+            'data_export' => DataExport::class,
+        ]);
+    }
+
+    public function moduleDescriptor(): array
+    {
+        return [
+            'code' => 'core',
+            'name_key' => 'modules.core.name',
+            'phase' => '1',
+        ];
+    }
+
+    public function declaredPermissions(): array
+    {
+        $resourceActions = [
+            'usuario' => ['leer', 'crear', 'actualizar', 'eliminar', 'importar', 'exportar'],
+            'invitacion' => ['leer', 'crear', 'eliminar'],
+            'asignacion_rol' => ['leer', 'crear', 'eliminar'],
+            'rol' => ['leer'],
+            'permiso' => ['leer'],
+            'configuracion' => ['leer', 'actualizar'],
+            'modulo' => ['leer', 'actualizar'],
+            'auditoria' => ['leer', 'exportar'],
+        ];
+
+        $permissions = [];
+
+        foreach ($resourceActions as $resource => $actions) {
+            foreach ($actions as $action) {
+                $permissions[] = [
+                    'code' => "{$resource}.{$action}",
+                    'resource' => $resource,
+                    'action' => $action,
+                    'is_special_category' => false,
+                ];
+            }
+        }
+
+        return $permissions;
+    }
+}

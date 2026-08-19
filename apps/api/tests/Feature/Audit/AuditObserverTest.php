@@ -55,7 +55,7 @@ test('un created de Person no escribe ningún valor identificativo', function ()
 
     // locale sí está en la lista de inclusión de Person (ADR-035 §8): se
     // registra en claro, no es un identificador.
-    expect($log->changes['locale'])->toEqual(['from' => null, 'to' => 'es']);
+    expect($log->changes['locale'])->toEqual(['from' => null, 'to' => 'es-ES']);
 
     $encoded = json_encode($log->changes);
     expect($encoded)->not->toContain('22222222J')->not->toContain('600111222');

@@ -8,6 +8,7 @@ use App\Models\Person;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -25,6 +26,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // ADR-038 §3.1: el recurso individual va desnudo, la colección
+        // envuelta en {data, meta} (JsonResource::collection() lo sigue
+        // envolviendo aparte). Una vez para todo el proyecto, no a
+        // criterio de cada módulo.
+        JsonResource::withoutWrapping();
+
         // ADR-034 §3: alias estable en audit_logs.auditable_type, nunca el
         // FQCN de PHP — un módulo renombrado (ADR-002) no debe dejar
         // huérfano el histórico de auditoría. enforceMorphMap() (no

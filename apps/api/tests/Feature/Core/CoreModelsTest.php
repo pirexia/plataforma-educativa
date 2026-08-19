@@ -6,6 +6,7 @@ use App\Models\ModuleSubscription;
 use App\Models\Person;
 use App\Models\Role;
 use App\Models\User;
+use App\Modules\Core\Domain\Models\DataExport;
 use App\Support\Audit\Auditable;
 use App\Support\Audit\AuditValuePolicy;
 use App\Support\Tenancy\Tenant;
@@ -31,7 +32,8 @@ test('todo modelo de tenant núcleo está en el morph map', function (): void {
 // morph map implementa Auditable, y el conjunto Full es exactamente el
 // vigente tras ADR-036 (que sustituye la fila `Tenant` de ADR-035 §8:
 // Tenant no entra en este morph map, vive en la conexión de plataforma) —
-// añadir un modelo a Full exige tocar este test.
+// añadir un modelo a Full exige tocar este test. DataExport (datos.md
+// §A.4, paso 1.1) se suma en Full: no contiene datos personales.
 test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR-035 §8', function (): void {
     $map = Relation::morphMap();
 
@@ -47,7 +49,7 @@ test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR
     }
 
     expect($fullPolicyModels)->toEqualCanonicalizing([
-        AcademicYear::class, Role::class, ModuleSubscription::class,
+        AcademicYear::class, Role::class, ModuleSubscription::class, DataExport::class,
     ]);
 });
 

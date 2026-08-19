@@ -9,6 +9,8 @@ use App\Support\Audit\RecordsAuditTrail;
 use App\Support\Database\HasPublicId;
 use App\Support\Tenancy\TenantModel;
 use Database\Factories\UserFactory;
+use Illuminate\Auth\Authenticatable;
+use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,12 +18,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Notifications\Notifiable;
 
 /**
- * ADR-034 §1: la credencial, no la identidad — esa es Person. Extiende
- * TenantModel, no Authenticatable: implementar el contrato
- * Illuminate\Contracts\Auth\Authenticatable sobre esta base (guards,
- * remember-token, proveedor de config/auth.php) es tarea de REQ-AUTH
- * (1.2), no de 0.8. Hasta entonces no hay ningún flujo de login real que
- * lo necesite.
+ * ADR-034 §1: la credencial, no la identidad — esa es Person.
+ *
+ * Implementa Authenticatable (paso 1.1, `REQ-CORE`, api.md §1: "en 1.1 los
+ * tests autentican con actingAs()") — el contrato mínimo que exige el
+ * guard `web` de config/auth.php y el propio helper de test de Laravel.
+ * Esto NO adelanta REQ-AUTH (1.2): no hay ninguna ruta de login, ningún
+ * flujo de credenciales, ni política de contraseñas aquí. Es la pieza de
+ * infraestructura que hace que `actingAs()` funcione en los tests de este
+ * módulo, tal como la especificación ya asumía que sería posible.
  *
  * ADR-035 §8: Selective. `email` se redacta como `identifier` (se asume la
  * pérdida de diff — 1.2 la cubre como evento de seguridad, ver ADR-035
@@ -30,8 +35,9 @@ use Illuminate\Notifications\Notifiable;
  */
 #[Fillable(['person_id', 'email', 'password', 'status'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends TenantModel implements Auditable
+class User extends TenantModel implements Auditable, AuthenticatableContract
 {
+    use Authenticatable;
     use HasAuditableAttributes;
 
     /** @use HasFactory<UserFactory> */
