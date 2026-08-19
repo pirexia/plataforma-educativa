@@ -129,3 +129,54 @@ test('un fondo de login en SVG se rechaza con 415: login-background no admite SV
         ->call('PUT', coreApiUrl($tenant->slug, '/tenant/settings/assets/login-background'), [], [], ['file' => $file])
         ->assertStatus(415);
 });
+
+// Issue #53 (hallazgo de security-reviewer, INV-001): PUT/DELETE .../assets/{kind}
+// no reciben un identificador ajeno en la ruta (operan sobre la configuración
+// del propio tenant resuelto por host), así que el aislamiento a comprobar es
+// que la clave de objeto y la fila de tenant_settings de un tenant no se ven
+// alteradas ni expuestas por la subida de otro tenant.
+test('el logo de un tenant no se ve afectado por la subida de otro tenant y queda bajo su propio prefijo', function (): void {
+    [$tenantA, $adminA] = provisionCoreTenant('branding-tenant-a');
+    [$tenantB, $adminB] = provisionCoreTenant('branding-tenant-b');
+
+    $fileA = UploadedFile::fake()->createWithContent('logo.png', corePngBytes());
+    test()->actingAs($adminA)
+        ->call('PUT', coreApiUrl($tenantA->slug, '/tenant/settings/assets/logo'), [], [], ['file' => $fileA])
+        ->assertOk();
+
+    $keyA = app(TenantContext::class)->runFor(
+        $tenantA->id,
+        fn () => TenantSetting::query()->first()->logo_object_key,
+    );
+
+    $fileB = UploadedFile::fake()->createWithContent('logo.png', corePngBytes());
+    test()->actingAs($adminB)
+        ->call('PUT', coreApiUrl($tenantB->slug, '/tenant/settings/assets/logo'), [], [], ['file' => $fileB])
+        ->assertOk();
+
+    $keyAAfterB = app(TenantContext::class)->runFor(
+        $tenantA->id,
+        fn () => TenantSetting::query()->first()->logo_object_key,
+    );
+    $keyB = app(TenantContext::class)->runFor(
+        $tenantB->id,
+        fn () => TenantSetting::query()->first()->logo_object_key,
+    );
+
+    expect($keyAAfterB)->toBe($keyA)
+        ->and($keyA)->toStartWith("tenants/{$tenantA->public_id}/branding/logo/")
+        ->and($keyB)->toStartWith("tenants/{$tenantB->public_id}/branding/logo/")
+        ->and($keyB)->not->toBe($keyA);
+
+    // La borrada de B no debe tocar la configuración de A.
+    test()->actingAs($adminB)
+        ->deleteJson(coreApiUrl($tenantB->slug, '/tenant/settings/assets/logo'))
+        ->assertNoContent();
+
+    $keyAAfterBDelete = app(TenantContext::class)->runFor(
+        $tenantA->id,
+        fn () => TenantSetting::query()->first()->logo_object_key,
+    );
+
+    expect($keyAAfterBDelete)->toBe($keyA);
+});

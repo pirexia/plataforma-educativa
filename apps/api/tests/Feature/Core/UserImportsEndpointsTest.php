@@ -223,6 +223,39 @@ test('un lote no ejecutado se puede descartar; uno ejecutado no', function (): v
         ->assertStatus(409);
 });
 
+// Issue #53 (hallazgo de security-reviewer, CA-CORE-073/INV-001): un
+// administrador del tenant A, autenticado en su propio host, que pide
+// por public_id un lote de importación del tenant B recibe 404 (nunca
+// 403: no se confirma la existencia del recurso ajeno) en show, execute
+// y destroy — mismo patrón que el CA-CORE-073 ya existente para /users.
+test('un lote de importación de otro tenant devuelve 404 en show, execute y destroy', function (): void {
+    [$tenantA, $adminA] = provisionCoreTenant('import-tenant-a');
+    [$tenantB, $adminB] = provisionCoreTenant('import-tenant-b');
+
+    $file = UploadedFile::fake()->createWithContent('personal.csv', coreImportCsv());
+    $store = test()->actingAs($adminB)
+        ->call('POST', coreApiUrl($tenantB->slug, '/user-imports'), [], [], ['file' => $file])
+        ->assertStatus(202);
+
+    $foreignImportId = $store->json('public_id');
+
+    test()->actingAs($adminA)
+        ->getJson(coreApiUrl($tenantA->slug, "/user-imports/{$foreignImportId}"))
+        ->assertStatus(404);
+
+    test()->actingAs($adminA)
+        ->postJson(
+            coreApiUrl($tenantA->slug, "/user-imports/{$foreignImportId}/execute"),
+            [],
+            ['Idempotency-Key' => (string) Str::ulid()],
+        )
+        ->assertStatus(404);
+
+    test()->actingAs($adminA)
+        ->deleteJson(coreApiUrl($tenantA->slug, "/user-imports/{$foreignImportId}"))
+        ->assertStatus(404);
+});
+
 test('sin usuario.importar, POST /user-imports devuelve 403', function (): void {
     [$tenant] = provisionCoreTenant('import-403');
     $docente = app(TenantContext::class)->runFor($tenant->id, function () {

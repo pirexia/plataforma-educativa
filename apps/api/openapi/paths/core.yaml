@@ -141,6 +141,11 @@ paths:
                   url: { type: string, format: uri }
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
         '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404':
+          description: "`kind` fuera de {logo, favicon, login-background}."
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
         '413':
           description: Excede el tamaño máximo del tipo de activo.
           content:

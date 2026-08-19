@@ -116,7 +116,7 @@ Actualización parcial. Se aceptan los grupos `regional`, `fiscal` y `branding` 
 - **Permiso**: `configuracion` · `actualizar` · `todos`
 - **Validación** (`RSEC-OWASP-012`, `RN-CORE-18`): tipo real por contenido; `logo` acepta `image/svg+xml`, `image/png`, `image/webp` (≤ 1 MB); `favicon` acepta `image/png`, `image/x-icon`, `image/svg+xml` (≤ 256 KB); `login-background` acepta `image/jpeg`, `image/png`, `image/webp` (≤ 3 MB, SVG **no** admitido). SVG saneado antes de almacenar.
 - **Respuesta 200**: `{ "kind": "logo", "url": "https://.../signed?..." }`
-- **Errores**: 401, 403, 413 (excede tamaño), 415 (tipo no admitido), 422 (tipo real distinto del declarado o SVG irreparable)
+- **Errores**: 401, 403, 404 (`kind` fuera de `{logo, favicon, login-background}`), 413 (excede tamaño), 415 (tipo no admitido), 422 (tipo real distinto del declarado o SVG irreparable)
 
 ### `DELETE /api/v1/tenant/settings/assets/{kind}`
 
@@ -376,7 +376,7 @@ Revoca. La fila se conserva con `revoked_at` (no se borra: es traza).
       "users_count": 2
     }
   ],
-  "meta": { "current_page": 1, "per_page": 25, "total": 17, "last_page": 1 }
+  "meta": { "current_page": 1, "per_page": 25, "total": 16, "last_page": 1 }
 }
 ```
 
@@ -485,7 +485,8 @@ email;given_name;family_name_1;family_name_2;document_type;document_number;birth
 ### `GET /api/v1/user-imports` · `GET /api/v1/user-imports/{public_id}`
 
 - **Permiso**: `usuario` · `importar` · `todos`
-- **Respuesta 200**
+- **`GET /user-imports` — Respuesta 200**: colección paginada por página (`ADR-038 §4.3`, catálogo de entidades), envuelta en `{"data": [...], "meta": {...}}`, cada elemento con la forma del objeto de abajo.
+- **`GET /user-imports/{public_id}` — Respuesta 200**: el recurso **desnudo** (`ADR-038 §3.1`), sin envoltura:
 
 ```json
 {

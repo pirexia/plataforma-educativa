@@ -334,7 +334,7 @@ Se autoriza por identidad (el sujeto es el propio usuario autenticado), **no por
 | `UserEmailChanged` | Cambio del correo de acceso | `REQ-AUTH` (1.2) |
 | `InvitationIssued` | Emisión o reenvío | `REQ-COM` (1.19), que sustituirá el envío directo de 1.1 |
 | `InvitationRevoked` | Revocación o caducidad | — |
-| `TenantSettingsUpdated` | Cambio de configuración del centro | Invalidación de caché; `REQ-CALIF`/`REQ-ECON` (moneda, idioma de documentos) |
+| `TenantSettingsUpdated` | `PATCH /tenant/settings` (idioma, zona horaria, moneda, comunidad autónoma, datos fiscales o colores). **No** se emite desde `PUT`/`DELETE .../assets/{kind}`: aunque también modifican `tenant_settings` (las claves de objeto de branding), sus únicos consumidores previstos (`REQ-CALIF`/`REQ-ECON`) no necesitan enterarse de un cambio de logo — esos endpoints solo invalidan la caché directamente | Invalidación de caché; `REQ-CALIF`/`REQ-ECON` (moneda, idioma de documentos) |
 | `UserImportCompleted` | Fin de una importación | `REQ-ONB` (1.24) |
 
 Interfaces públicas que `REQ-CORE` expone en su `Domain` para que otros módulos las consuman sin acoplarse:
@@ -409,7 +409,7 @@ Verificables, cada uno con test que referencia su ID (`INV-015`).
 ### Roles y permisos (`REQ-CORE-004`, parte de 1.1)
 
 - **`CA-CORE-040`** · *Dado* un tenant recién aprovisionado, *cuando* se listan sus roles, *entonces* existen los 16 roles predefinidos de la sección 11.1 (todos salvo `super_administrador`, que no es fila de `roles` — `permisos.md` §4.5) con `is_system = true` y `name_key` informado (`name` nulo).
-- **`CA-CORE-041`** · *Dado* un rol del sistema, *cuando* se intenta modificarlo o borrarlo, *entonces* `403` — en 1.1 los roles son solo lectura (`RN-CORE-16`, §1.3).
+- **`CA-CORE-041`** · *Dado* un rol del sistema, *cuando* se intenta modificarlo o borrarlo, *entonces* `405` — en 1.1 no existe ninguna ruta `PATCH`/`DELETE` sobre `/roles/{id}` (solo lectura, `RN-CORE-16`, §1.3): Laravel responde `405` automáticamente a un método sin ruta registrada sobre una URI que sí resuelve, sin necesidad de un middleware de permiso que lo bloquee explícitamente.
 - **`CA-CORE-042`** · *Dado* un tenant aprovisionado, *cuando* se inspeccionan sus filas de `permission_role`, *entonces* **ninguna** tiene un `scope` distinto de `todos` (`RN-CORE-22`, §1.3).
 - **`CA-CORE-043`** · *Dado* un usuario del tenant A, *cuando* se intenta asignarle un rol cuyo `public_id` pertenece al tenant B, *entonces* la operación falla y no se crea la fila `role_user` (`INV-001`).
 
