@@ -92,3 +92,72 @@ test('GET /tenant devuelve la identidad del centro sin la clave interna', functi
         ->assertJsonPath('status', 'activo')
         ->assertJsonMissing(['id']);
 });
+
+// CA-CORE-002
+test('CA-CORE-002: PATCH /tenant/settings con default_locale fuera de active_locales devuelve 422 y no modifica nada', function (): void {
+    [$tenant, $admin] = provisionCoreTenant('settings-patch-002');
+
+    $response = test()->actingAs($admin)
+        ->patchJson(coreApiUrl($tenant->slug, '/tenant/settings'), [
+            'regional' => ['default_locale' => 'de'],
+        ])
+        ->assertStatus(422);
+
+    expect($response->json('type'))->toBe('urn:pge:error:validation');
+
+    test()->actingAs($admin)
+        ->get(coreApiUrl($tenant->slug, '/tenant/settings'))
+        ->assertJsonPath('regional.default_locale', 'es-ES');
+});
+
+// CA-CORE-003
+test('CA-CORE-003: PATCH /tenant/settings con paleta de contraste insuficiente devuelve 422 con ratio y mínimo, sin guardar', function (): void {
+    [$tenant, $admin] = provisionCoreTenant('settings-patch-003');
+
+    // Dos grises casi idénticos: contraste ~1:1, muy por debajo de 4.5:1.
+    $response = test()->actingAs($admin)
+        ->patchJson(coreApiUrl($tenant->slug, '/tenant/settings'), [
+            'branding' => ['color_primary' => '#777777', 'color_secondary' => '#787878'],
+        ])
+        ->assertStatus(422);
+
+    $response->assertJsonPath('type', 'urn:pge:error:validation');
+    $errorParams = $response->json('errors.branding.0.params');
+    expect($errorParams['required'])->toBe(4.5)
+        ->and($errorParams['ratio'])->toBeLessThan(4.5);
+
+    test()->actingAs($admin)
+        ->get(coreApiUrl($tenant->slug, '/tenant/settings'))
+        ->assertJsonPath('branding.color_primary', null);
+});
+
+// CA-CORE-004
+test('CA-CORE-004: un cambio válido de configuración se audita y la caché se invalida', function (): void {
+    [$tenant, $admin] = provisionCoreTenant('settings-patch-004');
+
+    // Precalienta la caché de configuración (RN-CORE-17: debe invalidarse
+    // en la escritura, no seguir sirviendo el valor viejo).
+    test()->actingAs($admin)->get(coreApiUrl($tenant->slug, '/tenant/settings'));
+
+    $response = test()->actingAs($admin)
+        ->patchJson(coreApiUrl($tenant->slug, '/tenant/settings'), [
+            'regional' => ['timezone' => 'Europe/Berlin'],
+        ])
+        ->assertOk();
+
+    $response->assertJsonPath('regional.timezone', 'Europe/Berlin')
+        // Fusión en profundidad (ADR-038 §9.2 regla 4): currency no se toca.
+        ->assertJsonPath('regional.currency', 'EUR');
+
+    test()->actingAs($admin)
+        ->get(coreApiUrl($tenant->slug, '/tenant/settings'))
+        ->assertJsonPath('regional.timezone', 'Europe/Berlin');
+
+    $log = app(TenantContext::class)->runFor(
+        $tenant->id,
+        fn () => App\Models\AuditLog::where('auditable_type', 'tenant_setting')->where('event', 'updated')->latest('id')->first(),
+    );
+
+    expect($log)->not->toBeNull()
+        ->and($log->changes['timezone'])->toEqual(['from' => 'Europe/Madrid', 'to' => 'Europe/Berlin']);
+});

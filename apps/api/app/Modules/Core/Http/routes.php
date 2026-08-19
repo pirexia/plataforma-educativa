@@ -25,3 +25,7 @@ Route::get('/tenant', [TenantController::class, 'show'])
 Route::get('/tenant/settings', [TenantSettingsController::class, 'show'])
     ->middleware('permission:configuracion.leer')
     ->name('core.tenant-settings.show');
+
+Route::patch('/tenant/settings', [TenantSettingsController::class, 'update'])
+    ->middleware('permission:configuracion.actualizar')
+    ->name('core.tenant-settings.update');
