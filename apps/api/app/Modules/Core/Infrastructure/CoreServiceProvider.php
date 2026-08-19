@@ -7,6 +7,7 @@ use App\Modules\Core\Domain\Models\TenantSetting;
 use App\Modules\Core\Domain\Models\UserImport;
 use App\Modules\Core\Domain\Models\UserInvitation;
 use App\Modules\Core\Domain\TenantSettingsReader;
+use App\Modules\Core\Infrastructure\Console\ProvisionTenantDefaultsCommand;
 use App\Support\Modules\DeclaresModuleRegistry;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
@@ -28,6 +29,7 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
     public function boot(): void
     {
         $this->loadMigrationsFrom(app_path('Modules/Core/Database/migrations'));
+        $this->loadViewsFrom(app_path('Modules/Core/Infrastructure/resources/views'), 'core');
 
         // merge=true (por defecto): se suma al morph map de AppServiceProvider,
         // no lo sustituye — cada módulo registra el suyo (INV-007).
@@ -37,13 +39,32 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             'user_import' => UserImport::class,
             'data_export' => DataExport::class,
         ]);
+
+        $this->forceDocumentValidationInProduction();
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([ProvisionTenantDefaultsCommand::class]);
+        }
+    }
+
+    /**
+     * OPEN-CORE-06, decisión (b): producción fuerza
+     * `core.documents.validate_check_digit` a `true` sin excepción, en
+     * código — no basta con documentarlo. Cualquier valor de entorno que
+     * lo desactive en producción se ignora aquí, no se respeta.
+     */
+    private function forceDocumentValidationInProduction(): void
+    {
+        if ($this->app->environment('production')) {
+            config(['core.documents.validate_check_digit' => true]);
+        }
     }
 
     public function moduleDescriptor(): array
     {
         return [
             'code' => 'core',
-            'name_key' => 'modules.core.name',
+            'name_key' => 'modules.core',
             'phase' => '1',
         ];
     }

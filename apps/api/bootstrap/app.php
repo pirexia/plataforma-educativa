@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Middleware\AssignRequestId;
+use App\Http\Middleware\EnsureModuleEnabled;
+use App\Http\Middleware\RequirePermission;
 use App\Http\Middleware\ResolveApiLocale;
 use App\Http\Middleware\ResolveTenant;
 use App\Support\Api\ProblemResponseFactory;
@@ -33,6 +35,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'resolve-tenant' => ResolveTenant::class,
             'resolve-locale' => ResolveApiLocale::class,
+            'permission' => RequirePermission::class,
+            'module-enabled' => EnsureModuleEnabled::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
