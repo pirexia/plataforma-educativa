@@ -19,6 +19,7 @@ use App\Modules\Core\Http\Controllers\RolesController;
 use App\Modules\Core\Http\Controllers\TenantController;
 use App\Modules\Core\Http\Controllers\TenantSettingsAssetsController;
 use App\Modules\Core\Http\Controllers\TenantSettingsController;
+use App\Modules\Core\Http\Controllers\UserImportsController;
 use App\Modules\Core\Http\Controllers\UserRolesController;
 use App\Modules\Core\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
@@ -124,6 +125,30 @@ Route::get('/modules', [ModulesController::class, 'index'])
 Route::patch('/module-subscriptions/{publicId}', [ModulesController::class, 'updateSettings'])
     ->middleware('permission:modulo.actualizar')
     ->name('core.module-subscriptions.update');
+
+// api.md §7. Esquema de columnas fijo, dos fases (funcional.md §4.4).
+// `execute` es el primer y único consumidor de `Idempotency-Key` en 1.1
+// (ADR-038 §8): `idempotent:user-imports.execute` es el identificador
+// estable del endpoint que exige ADR-038 §8.3, no la ruta con parámetros.
+Route::get('/user-imports', [UserImportsController::class, 'index'])
+    ->middleware('permission:usuario.importar')
+    ->name('core.user-imports.index');
+
+Route::post('/user-imports', [UserImportsController::class, 'store'])
+    ->middleware('permission:usuario.importar')
+    ->name('core.user-imports.store');
+
+Route::get('/user-imports/{publicId}', [UserImportsController::class, 'show'])
+    ->middleware('permission:usuario.importar')
+    ->name('core.user-imports.show');
+
+Route::post('/user-imports/{publicId}/execute', [UserImportsController::class, 'execute'])
+    ->middleware(['permission:usuario.importar', 'idempotent:user-imports.execute'])
+    ->name('core.user-imports.execute');
+
+Route::delete('/user-imports/{publicId}', [UserImportsController::class, 'destroy'])
+    ->middleware('permission:usuario.importar')
+    ->name('core.user-imports.destroy');
 
 Route::get('/audit-logs', [AuditLogsController::class, 'index'])
     ->middleware('permission:auditoria.leer')

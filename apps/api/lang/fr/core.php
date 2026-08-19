@@ -38,6 +38,8 @@ return [
         'pdf_export_not_available' => 'L\'export PDF n\'est pas encore disponible ; utilisez CSV.',
         'export_not_ready' => 'L\'export est encore en cours de génération ; réessayez dans quelques minutes.',
         'export_failed' => 'La génération de cet export a échoué.',
+        'import_not_validated' => 'Le lot doit être validé avant de pouvoir être exécuté.',
+        'import_already_executed' => 'Ce lot a déjà été exécuté ou est en cours d\'exécution et ne peut pas être écarté.',
     ],
 
     'idempotency' => [
@@ -45,5 +47,14 @@ return [
         'malformed' => 'L\'en-tête Idempotency-Key doit être un ULID.',
         'body_mismatch' => 'La même clé d\'idempotence a été utilisée avec un contenu différent.',
         'in_progress' => 'La même clé d\'idempotence est encore en cours de traitement.',
+    ],
+
+    'import' => [
+        'campo_obligatorio_vacio' => 'La colonne « :column » est obligatoire et vide.',
+        'formato_invalido' => 'La valeur de la colonne « :column » n\'a pas un format valide.',
+        'duplicado_en_fichero' => 'La valeur de la colonne « :column » apparaît plus d\'une fois dans le fichier.',
+        'duplicado_en_base_de_datos' => 'La valeur de la colonne « :column » appartient déjà à une autre personne ou un autre utilisateur de l\'établissement.',
+        'idioma_no_activo' => 'La langue indiquée n\'est pas active pour cet établissement.',
+        'rol_no_encontrado' => 'Un des rôles indiqués n\'existe pas dans cet établissement.',
     ],
 ];

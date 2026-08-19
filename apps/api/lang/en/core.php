@@ -38,6 +38,8 @@ return [
         'pdf_export_not_available' => 'PDF export is not available yet; use CSV.',
         'export_not_ready' => 'The export is still being generated; try again in a few minutes.',
         'export_failed' => 'The generation of this export has failed.',
+        'import_not_validated' => 'The batch must be validated before it can be executed.',
+        'import_already_executed' => 'This batch has already been executed or is being executed and cannot be discarded.',
     ],
 
     'idempotency' => [
@@ -45,5 +47,14 @@ return [
         'malformed' => 'The Idempotency-Key header must be a ULID.',
         'body_mismatch' => 'The same idempotency key was used with a different body.',
         'in_progress' => 'The same idempotency key is still being processed.',
+    ],
+
+    'import' => [
+        'campo_obligatorio_vacio' => 'The ":column" column is required and is empty.',
+        'formato_invalido' => 'The value of the ":column" column has an invalid format.',
+        'duplicado_en_fichero' => 'The value of the ":column" column appears more than once in the file.',
+        'duplicado_en_base_de_datos' => 'The value of the ":column" column already belongs to another person or user of the school.',
+        'idioma_no_activo' => 'The given language is not active for this school.',
+        'rol_no_encontrado' => 'One of the given roles does not exist in this school.',
     ],
 ];

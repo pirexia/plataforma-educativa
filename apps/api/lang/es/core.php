@@ -41,6 +41,8 @@ return [
         'pdf_export_not_available' => 'La exportación a PDF todavía no está disponible; usa CSV.',
         'export_not_ready' => 'La exportación todavía se está generando; inténtalo de nuevo en unos minutos.',
         'export_failed' => 'La generación de esta exportación ha fallado.',
+        'import_not_validated' => 'El lote debe estar validado antes de ejecutarse.',
+        'import_already_executed' => 'Este lote ya se ha ejecutado o se está ejecutando y no se puede descartar.',
     ],
 
     'idempotency' => [
@@ -48,5 +50,14 @@ return [
         'malformed' => 'La cabecera Idempotency-Key debe ser un ULID.',
         'body_mismatch' => 'La misma clave de idempotencia se ha usado con un cuerpo distinto.',
         'in_progress' => 'La misma clave de idempotencia está siendo procesada todavía.',
+    ],
+
+    'import' => [
+        'campo_obligatorio_vacio' => 'La columna «:column» es obligatoria y está vacía.',
+        'formato_invalido' => 'El valor de la columna «:column» no tiene un formato válido.',
+        'duplicado_en_fichero' => 'El valor de la columna «:column» aparece más de una vez en el fichero.',
+        'duplicado_en_base_de_datos' => 'El valor de la columna «:column» ya pertenece a otra persona o usuario del centro.',
+        'idioma_no_activo' => 'El idioma indicado no está activo en este centro.',
+        'rol_no_encontrado' => 'Uno de los roles indicados no existe en este centro.',
     ],
 ];

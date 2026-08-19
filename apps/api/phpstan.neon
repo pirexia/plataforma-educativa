@@ -6,5 +6,3 @@ parameters:
         - app
         - routes
     level: 6
-    excludePaths:
-        - app/Modules/*/Domain/**  # vacío hasta el paso 1.1

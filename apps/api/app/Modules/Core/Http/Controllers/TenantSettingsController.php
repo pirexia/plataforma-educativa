@@ -3,11 +3,13 @@
 namespace App\Modules\Core\Http\Controllers;
 
 use App\Modules\Core\Application\ContrastRatioCalculator;
+use App\Modules\Core\Domain\Events\TenantSettingsUpdated;
 use App\Modules\Core\Domain\Models\TenantSetting;
 use App\Modules\Core\Http\Requests\PatchTenantSettingsRequest;
 use App\Modules\Core\Http\Resources\TenantSettingsResource;
 use App\Modules\Core\Infrastructure\TenantSettingsCache;
 use App\Support\Api\ValidationErrorBag;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Routing\Controller;
 
 /**
@@ -53,6 +55,8 @@ class TenantSettingsController extends Controller
         $settings->save();
 
         $this->cache->forget();
+
+        event(new TenantSettingsUpdated(app(TenantContext::class)->tenantId()));
 
         return new TenantSettingsResource($settings->refresh());
     }

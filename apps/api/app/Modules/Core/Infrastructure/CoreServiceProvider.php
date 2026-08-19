@@ -3,13 +3,16 @@
 namespace App\Modules\Core\Infrastructure;
 
 use App\Modules\Core\Domain\AuditQuery;
+use App\Modules\Core\Domain\BulkUserImporter;
 use App\Modules\Core\Domain\ExportRequestService;
 use App\Modules\Core\Domain\Models\DataExport;
 use App\Modules\Core\Domain\Models\TenantSetting;
 use App\Modules\Core\Domain\Models\UserImport;
 use App\Modules\Core\Domain\Models\UserInvitation;
 use App\Modules\Core\Domain\TenantSettingsReader;
+use App\Modules\Core\Domain\UserDirectory;
 use App\Modules\Core\Infrastructure\Console\ProvisionTenantDefaultsCommand;
+use App\Modules\Core\Infrastructure\Console\PurgeCoreMaintenanceCommand;
 use App\Support\Modules\DeclaresModuleRegistry;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
@@ -28,6 +31,8 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         $this->app->bind(TenantSettingsReader::class, EloquentTenantSettingsReader::class);
         $this->app->bind(AuditQuery::class, EloquentAuditQuery::class);
         $this->app->bind(ExportRequestService::class, EloquentExportRequestService::class);
+        $this->app->bind(BulkUserImporter::class, EloquentBulkUserImporter::class);
+        $this->app->bind(UserDirectory::class, EloquentUserDirectory::class);
     }
 
     public function boot(): void
@@ -47,7 +52,7 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         $this->forceDocumentValidationInProduction();
 
         if ($this->app->runningInConsole()) {
-            $this->commands([ProvisionTenantDefaultsCommand::class]);
+            $this->commands([ProvisionTenantDefaultsCommand::class, PurgeCoreMaintenanceCommand::class]);
         }
     }
 

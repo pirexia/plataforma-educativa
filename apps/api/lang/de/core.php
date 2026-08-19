@@ -38,6 +38,8 @@ return [
         'pdf_export_not_available' => 'Der PDF-Export ist noch nicht verfügbar; verwende CSV.',
         'export_not_ready' => 'Der Export wird noch erstellt; versuche es in ein paar Minuten erneut.',
         'export_failed' => 'Die Erstellung dieses Exports ist fehlgeschlagen.',
+        'import_not_validated' => 'Der Stapel muss validiert sein, bevor er ausgeführt werden kann.',
+        'import_already_executed' => 'Dieser Stapel wurde bereits ausgeführt oder wird gerade ausgeführt und kann nicht verworfen werden.',
     ],
 
     'idempotency' => [
@@ -45,5 +47,14 @@ return [
         'malformed' => 'Der Header Idempotency-Key muss eine ULID sein.',
         'body_mismatch' => 'Derselbe Idempotenzschlüssel wurde mit einem anderen Inhalt verwendet.',
         'in_progress' => 'Derselbe Idempotenzschlüssel wird noch verarbeitet.',
+    ],
+
+    'import' => [
+        'campo_obligatorio_vacio' => 'Die Spalte „:column" ist erforderlich und leer.',
+        'formato_invalido' => 'Der Wert der Spalte „:column" hat kein gültiges Format.',
+        'duplicado_en_fichero' => 'Der Wert der Spalte „:column" kommt mehr als einmal in der Datei vor.',
+        'duplicado_en_base_de_datos' => 'Der Wert der Spalte „:column" gehört bereits zu einer anderen Person oder einem anderen Benutzer der Schule.',
+        'idioma_no_activo' => 'Die angegebene Sprache ist für diese Schule nicht aktiv.',
+        'rol_no_encontrado' => 'Eine der angegebenen Rollen existiert in dieser Schule nicht.',
     ],
 ];
