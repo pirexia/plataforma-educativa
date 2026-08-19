@@ -9,6 +9,7 @@
 // Se va ampliando subpaso a subpaso conforme se implementan los
 // controladores (ver docs/modulos/REQ-CORE/api.md).
 
+use App\Modules\Core\Http\Controllers\InvitationsController;
 use App\Modules\Core\Http\Controllers\MeController;
 use App\Modules\Core\Http\Controllers\TenantController;
 use App\Modules\Core\Http\Controllers\TenantSettingsController;
@@ -64,3 +65,15 @@ Route::post('/users/{publicId}/restore', [UsersController::class, 'restore'])
 Route::post('/users/{publicId}/status', [UsersController::class, 'updateStatus'])
     ->middleware('permission:usuario.actualizar')
     ->name('core.users.status');
+
+Route::get('/invitations', [InvitationsController::class, 'index'])
+    ->middleware('permission:invitacion.leer')
+    ->name('core.invitations.index');
+
+Route::post('/users/{publicId}/invitations', [InvitationsController::class, 'store'])
+    ->middleware('permission:invitacion.crear')
+    ->name('core.invitations.store');
+
+Route::delete('/invitations/{publicId}', [InvitationsController::class, 'destroy'])
+    ->middleware('permission:invitacion.eliminar')
+    ->name('core.invitations.destroy');

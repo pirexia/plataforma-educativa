@@ -30,6 +30,7 @@ return [
         'cannot_modify_self' => 'Vous ne pouvez pas effectuer cette action sur votre propre compte.',
         'last_school_administrator' => 'Il doit toujours exister au moins un administrateur d\'établissement actif.',
         'invitation_requires_pending_user' => 'Seul un utilisateur au statut « en attente » peut être invité.',
+        'invitation_already_accepted' => 'Cette invitation a déjà été acceptée et ne peut pas être révoquée.',
         'enabled_not_editable' => 'L\'état d\'activation du module ne peut pas être modifié par cette voie.',
         'import_unknown_header' => 'L\'en-tête du fichier ne correspond pas au format attendu.',
     ],

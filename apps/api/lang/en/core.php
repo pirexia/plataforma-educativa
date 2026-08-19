@@ -30,6 +30,7 @@ return [
         'cannot_modify_self' => 'You cannot perform this action on your own account.',
         'last_school_administrator' => 'There must always be at least one active School Administrator.',
         'invitation_requires_pending_user' => 'Only a user in pending status can be invited.',
+        'invitation_already_accepted' => 'This invitation has already been accepted and cannot be revoked.',
         'enabled_not_editable' => 'The module\'s enabled state cannot be changed through this endpoint.',
         'import_unknown_header' => 'The file header does not match the expected format.',
     ],

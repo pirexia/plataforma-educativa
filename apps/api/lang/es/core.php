@@ -33,6 +33,7 @@ return [
         'cannot_modify_self' => 'No puedes realizar esta acción sobre tu propia cuenta.',
         'last_school_administrator' => 'Debe existir al menos un Administrador de Centro activo en todo momento.',
         'invitation_requires_pending_user' => 'Solo se puede invitar a un usuario en estado pendiente.',
+        'invitation_already_accepted' => 'Esta invitación ya ha sido aceptada y no se puede revocar.',
         'enabled_not_editable' => 'El estado de activación del módulo no se puede modificar por esta vía.',
         'import_unknown_header' => 'La cabecera del fichero no coincide con el formato esperado.',
     ],

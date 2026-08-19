@@ -30,6 +30,7 @@ return [
         'cannot_modify_self' => 'Du kannst diese Aktion nicht auf dein eigenes Konto anwenden.',
         'last_school_administrator' => 'Es muss jederzeit mindestens eine aktive Schulverwaltung geben.',
         'invitation_requires_pending_user' => 'Nur ein Benutzer im Status „ausstehend" kann eingeladen werden.',
+        'invitation_already_accepted' => 'Diese Einladung wurde bereits angenommen und kann nicht widerrufen werden.',
         'enabled_not_editable' => 'Der Aktivierungsstatus des Moduls kann über diesen Weg nicht geändert werden.',
         'import_unknown_header' => 'Die Dateikopfzeile entspricht nicht dem erwarteten Format.',
     ],
