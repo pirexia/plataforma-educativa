@@ -6,6 +6,26 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-08-19 · Cierre de 0.9b (portabilidad del despliegue)
+
+### Nuevo: Containerfiles multi-etapa, `build-images.yml`, `infra/quadlet/`
+Implementa `ADR-037`. `infra/containers/{api,web}/Containerfile` con etapas `base`/`dev`/`build`/`prod` (FrankenPHP en modo clásico para la API, nginx solo de estáticos para la SPA). `.github/workflows/build-images.yml`: publica en GHCR con etiquetado por `sha`/`develop`/`vX.Y.Z`, retención desde el primer commit, guarda `proxy_pass`, `quadlet-lint`, y gate de CI en verde para tags de versión. Diez unidades Quadlet en `infra/quadlet/` conformes a `ADR-028`. Banco de pruebas local `infra/compose/compose.prodlike.yaml`, instalador `infra/install.sh`, convención de secretos por `EnvironmentFile=` (dos ficheros: `plataforma.env.example` para la API, `plataforma-postgres.env.example` para PostgreSQL).
+
+Las tres pruebas obligatorias de `ARCHITECTURE.md §4.3` verificadas de verdad en WSL2 con `compose.prodlike.yaml` (el arranque nativo con `systemctl --user` quedó bloqueado por un problema de permisos preexistente del host, documentado en `SYSADMIN.md §6.2` sin forzarlo).
+
+### Corregido
+- **Severidad Media** (revisión independiente de `doc-reviewer`): `build-images.yml` no exigía CI en verde para tags de versión pese a que `ADR-037 §5.3` lo fija como obligatorio. Añadido el job `require-ci-green`.
+- **Severidad Media** (`doc-reviewer`): `plataforma.env.example` se anunciaba como plantilla completa y le faltaban `APP_URL`/`APP_NAME` — ambas usadas por Laravel con valores por defecto silenciosos (`http://localhost`, `"Laravel"`).
+- **Severidad Media** (`doc-reviewer`): numeración rota en `SYSADMIN.md §6` (dos secciones "6.3", ninguna "6.2"). Renumerado y corregidas las referencias cruzadas en `RUNBOOK.md`.
+- **Severidad Media** (`doc-reviewer`): `infra/install.sh` recomendaba `enable --now` sobre `plataforma-migrate.service`, una unidad sin sección `[Install]` — corregido a `start`.
+- **Severidad Media** ([#35](https://github.com/pirexia/plataforma-educativa/issues/35), `security-reviewer`): sin `.containerignore` en los contextos de construcción — construir la imagen `prod` localmente desde un árbol de desarrollo real copiaría `.env`/claves/`vendor` a la imagen. Añadidos `apps/api/.containerignore` y `.containerignore` (raíz).
+- **Severidad Media** ([#36](https://github.com/pirexia/plataforma-educativa/issues/36), `security-reviewer`): `postgres.container` recibía el `EnvironmentFile` completo de la API (`APP_KEY`, `DB_*_PASSWORD`) cuando solo necesita sus propias credenciales de arranque. Separado en `plataforma-postgres.env.example`.
+
+### Diferido a propósito (issues abiertos, severidad Baja, `CLAUDE.md §5`)
+[#37](https://github.com/pirexia/plataforma-educativa/issues/37) Redis sin autenticación · [#38](https://github.com/pirexia/plataforma-educativa/issues/38) `minio-data.volume` huérfano hasta `0.10d` · [#39](https://github.com/pirexia/plataforma-educativa/issues/39) (resuelto en este cierre, ver arriba) · [#40](https://github.com/pirexia/plataforma-educativa/issues/40) sin escaneo de vulnerabilidades a nivel de imagen del SO.
+
+---
+
 ## 2026-08-18 · Cierre automático de sesión por límite de cuota
 
 ### `CLAUDE.md` → 2.1.0

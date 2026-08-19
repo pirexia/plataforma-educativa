@@ -191,6 +191,64 @@ Tres workflows en `.github/workflows/`, disparados por `push`/`pull_request` sob
 ## 5. Pendiente de documentar aquí
 
 - Alojamiento del piloto y producción (`OPEN-11`, bloqueante de H0).
-- Quadlet/systemd para producción (`infra/`), cuando exista destino.
 - Procedimiento de copia de seguridad (`REQ-BKP`, paso 1.26).
-- Procedimiento de reversión de despliegue (sección 9 de `CLAUDE.md`).
+
+## 6. Portabilidad del despliegue (`ADR-037`, paso `0.9b`)
+
+**No se espera ya a que exista destino** (`OPEN-11`). Lo que sigue está escrito y, salvo que se diga explícitamente lo contrario, **probado de verdad en WSL2**, no simulado — `CLAUDE.md §0` prohíbe declarar probado lo que no se ha verificado.
+
+### 6.1 Qué existe
+
+| Pieza | Dónde | Estado |
+|-------|-------|--------|
+| `Containerfile` multi-etapa de `api` (FrankenPHP, modo clásico) | `infra/containers/api/Containerfile` | Construido de verdad (`podman build --target prod`), imagen arranca |
+| `Containerfile` multi-etapa de `web` (nginx de estáticos, sin `proxy_pass`) | `infra/containers/web/Containerfile` | Construido de verdad, imagen arranca |
+| Publicación de imágenes en GHCR | `.github/workflows/build-images.yml` | Escrito, con retención desde el primer commit (`ADR-037 §5.1`). **No verificado de extremo a extremo**: requiere un `push` real a `develop` o un PR, que esta sesión de implementación no puede disparar por sí misma |
+| Unidades Quadlet (`plataforma.network`, `postgres`/`redis`/`api@`/`web`/`traefik`, `plataforma-migrate`) | `infra/quadlet/` | Validación en seco correcta con **ambos** generadores (`podman-system-generator` y `podman-user-generator`, `-dryrun`): las 10 unidades generan systemd válido sin errores, `ExecStart=`/`Wants=`/`After=`/`HealthCmd=` correctos. **Arranque real automático desde `~/.config/containers/systemd/` NO verificado en este host** — ver §6.2, bloqueado por un problema de permisos preexistente, no por las unidades |
+| Topología completa (red, `postgres`/`redis`/`api`/`web`/`traefik`, imágenes `prod` reales) | `infra/compose/compose.prodlike.yaml` | **Arrancada de verdad** (`podman compose up -d`) y usada para ejecutar las tres pruebas obligatorias de `ARCHITECTURE.md §4.3` — ver §6.3, las tres pasaron |
+| Instalador (sustitución de *tag*, `daemon-reload`) | `infra/install.sh` | Escrito; la parte de sustitución de `__TAG__` y copia de ficheros es lógica simple ya ejercida a mano durante la prueba de generación. El flujo completo con `--user` no se pudo ejecutar por el mismo bloqueo de §6.2 |
+| Convención de secretos (`EnvironmentFile=`, plantilla sin valores) | `infra/quadlet/plataforma.env.example`, `RUNBOOK.md §3b.1` | Escrita y **corregida tras un bug propio real** (ver §6.4): sin `DB_CONNECTION=pgsql` explícito, Laravel cae a SQLite por defecto — descubierto al conectar la API de verdad contra PostgreSQL en `compose.prodlike.yaml`, no en teoría |
+| Procedimiento de despliegue y de reversión | `RUNBOOK.md §3b` | Escrito. La reversión (bajar *tag*, reiniciar unidad) no se pudo probar en una unidad Quadlet real por el bloqueo de §6.2, pero es equivalente a lo ya verificado en las pruebas de resiliencia (recrear un contenedor con una imagen distinta sin romper el enrutado, §6.3 prueba C) |
+
+### 6.2 Bloqueante de entorno: `~/.config/containers` con propietario incorrecto
+
+**No es un fallo de las unidades Quadlet ni de `install.sh`.** En este host, `~/.config/containers` pertenece a `root:root` (`drwxr-xr-x`), probablemente por un `sudo` anterior no relacionado con este paso — el usuario normal no tiene permiso de escritura para crear `~/.config/containers/systemd/`, que es donde Quadlet busca las unidades por defecto en modo `--user`.
+
+Comprobado que no es un problema de las unidades: `systemctl --user set-environment QUADLET_UNIT_DIRS=...` seguido de `daemon-reload` **no** hace que el generador real recoja el directorio alternativo (los generadores de systemd se invocan con un entorno propio, no heredan `set-environment`) — solo funciona invocando el binario del generador a mano con la variable en el propio comando, que es como se hizo la validación en seco de §6.1.
+
+**Sin acceso a `sudo` interactivo desde esta sesión** (`sudo -n true` falla: pide contraseña), así que no se ha podido corregir. Comando de corrección, para ejecutar manualmente:
+
+```bash
+sudo chown -R "$USER:$USER" ~/.config/containers
+```
+
+Tras corregirlo, `infra/install.sh <tag> --user` debería funcionar tal cual está escrito. **No se ha vuelto a intentar el arranque automático después de este hallazgo** porque corregir permisos del sistema con `sudo` está fuera del alcance de lo que una sesión de implementación debe hacer sin que se le pida explícitamente.
+
+### 6.3 Las tres pruebas obligatorias de `ARCHITECTURE.md §4.3` — resultado real
+
+Ejecutadas contra `compose.prodlike.yaml` con las imágenes `prod` reales (no simulado, no las imágenes de desarrollo):
+
+| # | Prueba | Resultado |
+|---|--------|-----------|
+| A | Reiniciar la API sin que caiga el frontend | **Pasa.** `podman restart` sobre el contenedor de la API; `web` siguió respondiendo `200` durante todo el reinicio, sin interrupción |
+| B | Reiniciar PostgreSQL y que la API reconecte sola | **Pasa, verificado con una consulta real a la base de datos** (`php artisan db:show` desde el contenedor de la API, que nunca se reinició), no con el *endpoint* `/api/health` — se descubrió que ese *endpoint* no toca la base de datos en absoluto, así que reutilizarlo aquí habría sido una verificación falsa |
+| C | Recrear la API y que Traefik siga enrutando | **Pasa.** `podman rm -f` + recreación con `podman compose up -d api`; la IP del contenedor cambió (confirmado, `10.89.0.5` tras recrear); Traefik enrutó a la IP nueva sin ninguna intervención manual, por descubrimiento vía el socket de Podman (`ADR-028 §4`) |
+
+Las tres se ejecutaron en ese orden, sobre la misma pila levantada una sola vez, sin reiniciar nada entre pruebas salvo lo que cada prueba pedía.
+
+### 6.4 Bug propio encontrado y corregido: `DB_CONNECTION` ausente
+
+Al conectar la imagen `prod` real de la API contra PostgreSQL por primera vez (preparando la prueba B), `php artisan db:show` falló con un error de SQLite (`database.sqlite` no existe). `apps/api/config/database.php` usa `env('DB_CONNECTION', 'sqlite')` — sin la variable, Laravel asume SQLite por defecto, y la imagen `prod` no lleva ni `.env` ni `database.sqlite`. `infra/quadlet/plataforma.env.example` (la plantilla real de producción) tenía el mismo hueco: le faltaban `DB_CONNECTION`, `DB_DATABASE`, `DB_USERNAME`/`DB_PASSWORD` y los pares `DB_OWNER_*`/`DB_PLATFORM_*` de los tres roles de `ADR-033`. Corregido en la plantilla y en `compose.prodlike.yaml`; documentada además la relación obligatoria entre `TENANCY_*_PASSWORD` (los crea el aprovisionamiento de PostgreSQL) y `DB_*_PASSWORD` (los usa Laravel para conectar) — son el mismo secreto, no dos independientes, y generarlos por separado habría roto la conexión (`RUNBOOK.md §3b.1`).
+
+### 6.5 Qué NO se puede verificar en WSL2, y queda escrito sin probar
+
+`ADR-037 §6.5` punto 3, literal:
+
+- **SELinux en `enforcing`**: WSL2 no lo tiene. Las etiquetas `:Z` de los volúmenes están escritas en todas las unidades, pero no se ha probado que SELinux las respete de verdad en el host de destino.
+- **`loginctl enable-linger` y arranque en el arranque real del sistema**: en WSL2 el usuario ya está "siempre activo" al abrir una sesión; no hay equivalente real a un reinicio de servidor sin login.
+- **TLS con certificado comodín**: bloqueado por `OPEN-08` (dominio y DNS, paso `0.10b`). La unidad de Traefik sirve solo HTTP hoy.
+- **Cifras de rendimiento de cualquier tipo**: `ADR-030` ya advierte que las mediciones en este equipo son orientativas, no concluyentes.
+
+### 6.6 Riesgo de cuota de GHCR (`ADR-037 §5.1`)
+
+Plan de GitHub de este repositorio: **Free** (confirmado por el propietario el 2026-08-18, no asumido). Límite aproximado para paquetes privados: del orden de 500 MB de almacenamiento y 1 GB/mes de transferencia — **cifra exacta a reconfirmar en `docs.github.com`**, puede cambiar. La política de retención de `build-images.yml` (10 últimas versiones `sha-` de `develop`, todas las `vX.Y.Z` conservadas siempre) está activa desde el primer commit del workflow, no como mejora posterior. Si la cuota resultara insuficiente en la práctica, la salida documentada en el ADR es un registro propio (`registry:2`) en el VPS cuando exista, sin cambios en la aplicación.

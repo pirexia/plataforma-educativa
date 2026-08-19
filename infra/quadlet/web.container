@@ -1,0 +1,29 @@
+# nginx de estáticos (ADR-037 §3.4): sin proxy_pass, sin relación hacia
+# la API. Sirve solo la SPA compilada.
+
+[Unit]
+Description=Frontend — SPA estática
+After=plataforma-network.service
+Wants=plataforma-network.service
+
+[Container]
+Image=ghcr.io/pirexia/plataforma-web:__TAG__
+ContainerName=plataforma-web
+Network=plataforma.network
+HealthCmd=curl -f http://localhost:80/ || exit 1
+HealthInterval=10s
+HealthTimeout=3s
+HealthRetries=10
+HealthStartPeriod=5s
+Notify=healthy
+
+Label=traefik.enable=true
+Label=traefik.http.routers.plataforma-web.rule=PathPrefix(`/`)
+Label=traefik.http.routers.plataforma-web.priority=1
+Label=traefik.http.services.plataforma-web.loadbalancer.server.port=80
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

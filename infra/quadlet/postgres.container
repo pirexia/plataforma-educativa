@@ -1,0 +1,33 @@
+# Dato, no aplicación: sin plantilla, una sola instancia siempre.
+
+[Unit]
+Description=PostgreSQL — datos de tenant y plataforma
+After=plataforma-network.service
+Wants=plataforma-network.service
+
+[Container]
+Image=docker.io/library/postgres:17
+ContainerName=plataforma-postgres
+Network=plataforma.network
+Volume=postgres-data.volume:/var/lib/postgresql/data:Z
+# Scripts de aprovisionamiento de tenancy (roles, RLS) — install.sh los
+# copia desde infra/containers/postgres/init/ del repositorio a esta ruta
+# del host (RUNBOOK.md). No se versiona un host path en el propio repo.
+Volume=/opt/plataforma/postgres-init:/docker-entrypoint-initdb.d:Z,ro
+# Fichero propio, no el de la API (issue #36, hallazgo de
+# security-reviewer sobre 0.9b): este proceso solo necesita sus propias
+# credenciales de arranque, no APP_KEY ni las contraseñas de conexión de
+# Laravel.
+EnvironmentFile=/etc/plataforma/plataforma-postgres.env
+HealthCmd=pg_isready -U plataforma
+HealthInterval=5s
+HealthTimeout=3s
+HealthRetries=10
+HealthStartPeriod=10s
+Notify=healthy
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

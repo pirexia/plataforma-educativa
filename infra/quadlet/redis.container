@@ -1,0 +1,21 @@
+[Unit]
+Description=Redis — caché y colas
+After=plataforma-network.service
+Wants=plataforma-network.service
+
+[Container]
+Image=docker.io/library/redis:7-alpine
+ContainerName=plataforma-redis
+Network=plataforma.network
+Volume=redis-data.volume:/data:Z
+HealthCmd=redis-cli ping
+HealthInterval=5s
+HealthTimeout=3s
+HealthRetries=10
+Notify=healthy
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

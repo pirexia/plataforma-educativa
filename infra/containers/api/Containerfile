@@ -1,35 +1,79 @@
-# Desarrollo: PHP con servidor embebido de Artisan. El código se monta como
-# volumen desde apps/api/ (ver compose.yaml); esta imagen solo aporta el
-# runtime y las extensiones. La imagen de producción (multi-stage con
-# php-fpm y OPcache) se define cuando exista destino de despliegue (0.10).
+# Multi-etapa (ADR-037 §3.2): una única definición de imagen para dev y
+# producción. La paridad entre entornos la garantiza este fichero, no
+# compose.yaml/Quadlet por separado — una extensión de PHP que falte aquí
+# falla en los dos sitios a la vez, no en uno silenciosamente.
+#
+#   base   → runtime + extensiones (compartida)
+#     ├─ dev   → + herramientas de desarrollo, código por bind mount (compose.yaml)
+#     └─ build → composer install --no-dev, código copiado
+#          └─ prod → FrankenPHP en modo clásico, sin herramientas de compilación
 
-FROM docker.io/library/php:8.4-cli-bookworm
+FROM dunglas/frankenphp:1-php8.4-bookworm AS base
 
-# Nota: no se purgan las -dev tras compilar. Un intento anterior con
-# "apt-get purge --auto-remove" se llevó por delante libpq.so.5 y
-# libzip.so.4 (dependencias de las -dev), y pdo_pgsql/zip dejaban de
-# cargar en tiempo de ejecución sin que el healthcheck lo detectara
-# (no toca la base de datos). Imagen de desarrollo: prima la sencillez
-# correcta sobre el tamaño.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        libpq-dev libzip-dev libicu-dev libonig-dev curl \
-    && docker-php-ext-install pdo_pgsql pgsql zip intl mbstring \
-    && pecl install redis \
-    && docker-php-ext-enable redis \
-    && rm -rf /var/lib/apt/lists/*
+# install-php-extensions viene ya en la imagen de FrankenPHP (mismo
+# mecanismo que docker-php-ext-install, pero resuelve dependencias de
+# compilación solo). No se purgan las -dev por la misma razón documentada
+# en el Containerfile de desarrollo original: un intento anterior con
+# --auto-remove se llevó libpq.so.5/libzip.so.4 en tiempo de ejecución.
+RUN install-php-extensions pdo_pgsql pgsql zip intl mbstring redis opcache
 
 WORKDIR /var/www/html
+
+# ---------------------------------------------------------------------------
+FROM base AS dev
+
+# Herramientas de desarrollo: Composer para instalar dependencias desde el
+# host (el código vive en el bind mount, no aquí). Servidor embebido de
+# Artisan, igual que la imagen de desarrollo anterior a 0.9b.
+COPY --from=docker.io/library/composer:2 /usr/bin/composer /usr/bin/composer
 
 EXPOSE 8000
 
 # --no-reload: sin él, ServeCommand filtra las variables de entorno del
-# proceso hijo a una lista blanca fija (APP_ENV, PATH, XDEBUG_*...) que NO
-# incluye DB_HOST, REDIS_HOST ni ninguna variable propia (TENANCY_*,
-# DB_OWNER_*, DB_PLATFORM_*): el hijo cae entonces a leer apps/api/.env tal
-# cual, con DB_HOST/REDIS_HOST en 127.0.0.1 (correcto para Artisan desde el
-# host, incorrecto dentro del contenedor, donde hay que usar el nombre del
-# servicio). Encontrado en el paso 0.7 al fallar /api/health con 500 vacío
-# y sin log — el "reload on .env change" de --no-reload es una
-# conveniencia de desarrollo en el host, no algo que tenga sentido dentro
-# de un contenedor donde el entorno real ya lo fija compose.yaml.
+# proceso hijo a una lista blanca fija que no incluye DB_HOST/REDIS_HOST ni
+# las variables TENANCY_*/DB_OWNER_*/DB_PLATFORM_* — el hijo cae a leer
+# apps/api/.env tal cual, con valores de host en vez de nombre de servicio.
+# Encontrado en el paso 0.7 (500 vacío sin log).
 CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000", "--no-reload"]
+
+# ---------------------------------------------------------------------------
+FROM base AS build
+
+COPY --from=docker.io/library/composer:2 /usr/bin/composer /usr/bin/composer
+
+COPY composer.json composer.lock ./
+RUN composer install \
+        --no-dev --no-scripts --no-interaction --prefer-dist \
+        --optimize-autoloader --no-progress
+
+COPY . .
+
+# post-autoload-dump ejecuta artisan package:discover, que necesita el
+# código de la aplicación ya presente — por eso el COPY . . va antes.
+RUN composer dump-autoload --optimize --no-dev --no-interaction
+
+# ---------------------------------------------------------------------------
+FROM base AS prod
+
+COPY --from=build /var/www/html /var/www/html
+
+# storage/ y bootstrap/cache/ son los únicos directorios en los que Laravel
+# escribe en tiempo de ejecución (logs, caché de vistas compiladas, sesión
+# de archivo si se usara). www-data es el usuario con el que corre
+# FrankenPHP por defecto en esta imagen base.
+RUN chown -R www-data:www-data storage bootstrap/cache
+
+# Sin HEALTHCHECK aquí: podman lo ignora en formato OCI (el por defecto de
+# "podman build" — se descubrió construyendo esta imagen) y sería
+# redundante de todos modos. El chequeo de salud real lo llevan las
+# unidades Quadlet (HealthCmd=, ADR-037 §6.2) y compose.prodlike.yaml en
+# el banco de pruebas local — la orquestación, no la imagen.
+EXPOSE 8000
+
+USER www-data
+
+# Modo clásico (ADR-037 §4): una petición, un ciclo de vida completo de la
+# aplicación. Sin Octane, sin modo worker — frankenphp php-server es el
+# subcomando que sirve un árbol de documentos como php-fpm+nginx clásico,
+# sin persistir la aplicación en memoria entre peticiones.
+CMD ["frankenphp", "php-server", "--listen", ":8000", "--root", "/var/www/html/public"]

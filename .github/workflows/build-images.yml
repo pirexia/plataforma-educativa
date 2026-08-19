@@ -1,0 +1,208 @@
+name: Imágenes y despliegue
+
+# Fichero nuevo, no ampliación de ci-api.yml/ci-web.yml (ADR-037 §5.3):
+# esos dos son (o serán, SYSADMIN.md §4) required status checks. Meter
+# aquí un job que publica y que no debe ejecutarse en un PR obligaría a
+# un job condicional que unas veces corre y otras no, y GitHub no
+# considera aprobado un check requerido que no se dispara — la misma
+# trampa que ya costó los filtros paths: (SYSADMIN.md §4).
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+    tags: ["v*"]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_API: ${{ github.repository_owner }}/plataforma-api
+  IMAGE_WEB: ${{ github.repository_owner }}/plataforma-web
+
+jobs:
+  # ADR-037 §3.4: guarda barata contra la única forma en que el
+  # acoplamiento web→api podría colarse de vuelta.
+  guard-no-proxy-pass:
+    name: Guarda — sin proxy_pass en infra/containers/web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Comprobar ausencia de proxy_pass
+        run: |
+          if grep -r "proxy_pass" infra/containers/web/; then
+            echo "::error::proxy_pass encontrado bajo infra/containers/web/ — ADR-037 §3.4 lo prohíbe: el frontend no hace de proxy hacia la API."
+            exit 1
+          fi
+          echo "Sin proxy_pass. Correcto."
+
+  # ADR-037 §6.5 punto 1: validación en seco de las unidades Quadlet, sin
+  # necesitar un host real. Un fichero mal escrito falla el PR aquí, no en
+  # el primer despliegue.
+  quadlet-lint:
+    name: Lint de unidades Quadlet
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/podman/stable:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generar unidades systemd en seco
+        run: |
+          mkdir -p /tmp/quadlet-out
+          /usr/lib/systemd/system-generators/podman-system-generator \
+            -dryrun \
+            -v \
+            /tmp/quadlet-out /tmp/quadlet-out /tmp/quadlet-out < /dev/null
+        env:
+          QUADLET_UNIT_DIRS: ${{ github.workspace }}/infra/quadlet
+
+  # ADR-037 §5.3: "para los tags de versión sí se exige CI en verde,
+  # porque ahí el artefacto va a un entorno con datos reales". No re-corre
+  # los tests (eso ya lo hicieron ci-api.yml/ci-web.yml al hacer push a
+  # main), solo comprueba que el commit ya los pasó. Hallazgo de la
+  # revisión independiente de doc-reviewer sobre 0.9b: faltaba este gate.
+  require-ci-green:
+    name: Exigir CI en verde antes de publicar una versión
+    runs-on: ubuntu-latest
+    permissions:
+      checks: read
+    steps:
+      - name: Comprobar check runs del commit (solo en tags v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha="${{ github.sha }}"
+          runs=$(gh api "repos/${{ github.repository }}/commits/$sha/check-runs" --jq '.check_runs')
+          count=$(echo "$runs" | jq 'length')
+
+          if [ "$count" -eq 0 ]; then
+            echo "::error::No hay check runs para $sha — ci-api.yml/ci-web.yml no llegaron a ejecutarse sobre este commit. No se puede publicar una versión sin CI."
+            exit 1
+          fi
+
+          pending=$(echo "$runs" | jq '[.[] | select(.status != "completed")] | length')
+          failed=$(echo "$runs" | jq '[.[] | select(.conclusion != null and .conclusion != "success" and .conclusion != "neutral")] | length')
+
+          if [ "$pending" -gt 0 ] || [ "$failed" -gt 0 ]; then
+            echo "::error::CI no está en verde para $sha (pendientes: $pending, fallidos: $failed). ADR-037 §5.3 exige CI en verde antes de publicar una versión."
+            exit 1
+          fi
+
+          echo "CI en verde para $sha ($count check runs completados)."
+      - name: No aplica (no es un tag de versión)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: echo "Push a develop, no tag de versión — este gate solo aplica a vX.Y.Z (ADR-037 §5.3)."
+
+  build-api:
+    name: Construir plataforma-api
+    runs-on: ubuntu-latest
+    needs: [guard-no-proxy-pass, require-ci-green]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Metadatos y etiquetas
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_API }}
+          tags: |
+            type=sha,format=short,prefix=sha-
+            type=raw,value=develop,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+
+      # No se publica en pull_request (ADR-037 §5.2): se construye para
+      # verificar que el Containerfile no está roto, sin gastar cuota de
+      # GHCR (plan Free, verificado en 0.9b.1).
+      - name: Login en GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: apps/api
+          file: infra/containers/api/Containerfile
+          target: prod
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+  build-web:
+    name: Construir plataforma-web
+    runs-on: ubuntu-latest
+    needs: [guard-no-proxy-pass, require-ci-green]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Metadatos y etiquetas
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_WEB }}
+          tags: |
+            type=sha,format=short,prefix=sha-
+            type=raw,value=develop,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+
+      - name: Login en GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          # Raíz del repo, no apps/web: la etapa prod necesita
+          # infra/containers/web/nginx.conf, fuera de apps/web.
+          context: .
+          file: infra/containers/web/Containerfile
+          target: prod
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+  # ADR-037 §5.1: política de retención desde el primer commit del
+  # workflow, no "para después" — el plan Free de GHCR da del orden de
+  # 500 MB para paquetes privados (verificado en 0.9b.1, cifra exacta a
+  # confirmar en docs.github.com si cambia). N=10 sha- de develop: cubre
+  # dos semanas largas al ritmo de commits de este proyecto sin acumular
+  # sin límite. Todos los vX.Y.Z se conservan siempre (ignore-versions).
+  prune-old-images:
+    name: Purgar imágenes antiguas de develop
+    runs-on: ubuntu-latest
+    needs: [build-api, build-web]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    permissions:
+      packages: write
+    strategy:
+      matrix:
+        package: [plataforma-api, plataforma-web]
+    steps:
+      - name: Purgar sha- antiguos, conservar todo vX.Y.Z
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ matrix.package }}
+          package-type: container
+          min-versions-to-keep: 10
+          ignore-versions: "^v?\\d+\\.\\d+\\.\\d+$"

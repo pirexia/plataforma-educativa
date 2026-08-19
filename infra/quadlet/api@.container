@@ -1,0 +1,41 @@
+# Unidad plantilla (ADR-037 §6.2): instanciable como api@1, api@2. Una
+# sola instancia habilitada hasta que exista tráfico real (§6.4) — pasar a
+# dos es "systemctl --user enable --now api@2" sobre esta misma unidad, no
+# un rediseño.
+#
+# Se relaciona con plataforma-migrate.service mediante Wants=+After=, no
+# Requires=: expand/contract (RARQ-DEP-003) permite que la API arranque
+# antes de que termine la migración sin romper nada, porque el esquema
+# anterior sigue siendo compatible con el código nuevo.
+
+[Unit]
+Description=API Laravel — instancia %i
+After=plataforma-network.service postgres.service redis.service plataforma-migrate.service
+Wants=plataforma-network.service postgres.service redis.service plataforma-migrate.service
+
+[Container]
+Image=ghcr.io/pirexia/plataforma-api:__TAG__
+ContainerName=plataforma-api-%i
+Network=plataforma.network
+EnvironmentFile=/etc/plataforma/plataforma.env
+HealthCmd=curl -f http://localhost:8000/api/health || exit 1
+HealthInterval=10s
+HealthTimeout=3s
+HealthRetries=10
+HealthStartPeriod=10s
+Notify=healthy
+
+# Traefik descubre por el socket de Podman (ADR-028 §4), no por IP fija.
+# /api tiene más caracteres que / (web.container): gana por especificidad
+# incluso sin fijar Priority=, pero se deja explícito para no depender de
+# ese comportamiento por defecto si Traefik cambia de versión.
+Label=traefik.enable=true
+Label=traefik.http.routers.plataforma-api.rule=PathPrefix(`/api`)
+Label=traefik.http.routers.plataforma-api.priority=10
+Label=traefik.http.services.plataforma-api.loadbalancer.server.port=8000
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target
