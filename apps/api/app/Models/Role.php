@@ -9,6 +9,7 @@ use App\Support\Audit\RecordsAuditTrail;
 use App\Support\Database\HasPublicId;
 use App\Support\Tenancy\TenantModel;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * ADR-034 §2: esquema completo desde 0.8, resolutor de permisos en 1.5.
@@ -55,5 +56,13 @@ class Role extends TenantModel implements Auditable
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'role_user');
+    }
+
+    /**
+     * @return HasMany<PermissionRole, $this>
+     */
+    public function permissionGrants(): HasMany
+    {
+        return $this->hasMany(PermissionRole::class);
     }
 }

@@ -11,8 +11,12 @@
 
 use App\Modules\Core\Http\Controllers\InvitationsController;
 use App\Modules\Core\Http\Controllers\MeController;
+use App\Modules\Core\Http\Controllers\ModulesController;
+use App\Modules\Core\Http\Controllers\PermissionsController;
+use App\Modules\Core\Http\Controllers\RolesController;
 use App\Modules\Core\Http\Controllers\TenantController;
 use App\Modules\Core\Http\Controllers\TenantSettingsController;
+use App\Modules\Core\Http\Controllers\UserRolesController;
 use App\Modules\Core\Http\Controllers\UsersController;
 use Illuminate\Support\Facades\Route;
 
@@ -77,3 +81,31 @@ Route::post('/users/{publicId}/invitations', [InvitationsController::class, 'sto
 Route::delete('/invitations/{publicId}', [InvitationsController::class, 'destroy'])
     ->middleware('permission:invitacion.eliminar')
     ->name('core.invitations.destroy');
+
+Route::get('/roles', [RolesController::class, 'index'])
+    ->middleware('permission:rol.leer')
+    ->name('core.roles.index');
+
+Route::get('/roles/{publicId}', [RolesController::class, 'show'])
+    ->middleware('permission:rol.leer')
+    ->name('core.roles.show');
+
+Route::get('/permissions', [PermissionsController::class, 'index'])
+    ->middleware('permission:permiso.leer')
+    ->name('core.permissions.index');
+
+Route::get('/users/{publicId}/roles', [UserRolesController::class, 'index'])
+    ->middleware('permission:asignacion_rol.leer')
+    ->name('core.user-roles.index');
+
+Route::put('/users/{publicId}/roles', [UserRolesController::class, 'replace'])
+    ->middleware('permission:asignacion_rol.crear')
+    ->name('core.user-roles.replace');
+
+Route::get('/modules', [ModulesController::class, 'index'])
+    ->middleware('permission:modulo.leer')
+    ->name('core.modules.index');
+
+Route::patch('/module-subscriptions/{publicId}', [ModulesController::class, 'updateSettings'])
+    ->middleware('permission:modulo.actualizar')
+    ->name('core.module-subscriptions.update');
