@@ -33,6 +33,11 @@ return [
         'invitation_already_accepted' => 'Cette invitation a déjà été acceptée et ne peut pas être révoquée.',
         'enabled_not_editable' => 'L\'état d\'activation du module ne peut pas être modifié par cette voie.',
         'import_unknown_header' => 'L\'en-tête du fichier ne correspond pas au format attendu.',
+        'cursor_invalid' => 'Le curseur de pagination n\'est pas valide pour cette requête.',
+        'export_range_too_large' => 'La plage demandée dépasse la limite de lignes autorisée ; réduisez-la et réessayez.',
+        'pdf_export_not_available' => 'L\'export PDF n\'est pas encore disponible ; utilisez CSV.',
+        'export_not_ready' => 'L\'export est encore en cours de génération ; réessayez dans quelques minutes.',
+        'export_failed' => 'La génération de cet export a échoué.',
     ],
 
     'idempotency' => [

@@ -33,6 +33,11 @@ return [
         'invitation_already_accepted' => 'This invitation has already been accepted and cannot be revoked.',
         'enabled_not_editable' => 'The module\'s enabled state cannot be changed through this endpoint.',
         'import_unknown_header' => 'The file header does not match the expected format.',
+        'cursor_invalid' => 'The pagination cursor is not valid for this query.',
+        'export_range_too_large' => 'The requested range exceeds the allowed row limit; narrow it and try again.',
+        'pdf_export_not_available' => 'PDF export is not available yet; use CSV.',
+        'export_not_ready' => 'The export is still being generated; try again in a few minutes.',
+        'export_failed' => 'The generation of this export has failed.',
     ],
 
     'idempotency' => [

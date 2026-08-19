@@ -33,6 +33,11 @@ return [
         'invitation_already_accepted' => 'Diese Einladung wurde bereits angenommen und kann nicht widerrufen werden.',
         'enabled_not_editable' => 'Der Aktivierungsstatus des Moduls kann über diesen Weg nicht geändert werden.',
         'import_unknown_header' => 'Die Dateikopfzeile entspricht nicht dem erwarteten Format.',
+        'cursor_invalid' => 'Der Paginierungs-Cursor ist für diese Abfrage nicht gültig.',
+        'export_range_too_large' => 'Der angeforderte Bereich überschreitet das zulässige Zeilenlimit; grenze ihn ein und versuche es erneut.',
+        'pdf_export_not_available' => 'Der PDF-Export ist noch nicht verfügbar; verwende CSV.',
+        'export_not_ready' => 'Der Export wird noch erstellt; versuche es in ein paar Minuten erneut.',
+        'export_failed' => 'Die Erstellung dieses Exports ist fehlgeschlagen.',
     ],
 
     'idempotency' => [

@@ -9,6 +9,8 @@
 // Se va ampliando subpaso a subpaso conforme se implementan los
 // controladores (ver docs/modulos/REQ-CORE/api.md).
 
+use App\Modules\Core\Http\Controllers\AuditLogsController;
+use App\Modules\Core\Http\Controllers\DataExportsController;
 use App\Modules\Core\Http\Controllers\InvitationsController;
 use App\Modules\Core\Http\Controllers\MeController;
 use App\Modules\Core\Http\Controllers\ModulesController;
@@ -109,3 +111,20 @@ Route::get('/modules', [ModulesController::class, 'index'])
 Route::patch('/module-subscriptions/{publicId}', [ModulesController::class, 'updateSettings'])
     ->middleware('permission:modulo.actualizar')
     ->name('core.module-subscriptions.update');
+
+Route::get('/audit-logs', [AuditLogsController::class, 'index'])
+    ->middleware('permission:auditoria.leer')
+    ->name('core.audit-logs.index');
+
+Route::post('/audit-logs/exports', [AuditLogsController::class, 'storeExport'])
+    ->middleware('permission:auditoria.exportar')
+    ->name('core.audit-logs.exports');
+
+// api.md §8: "el permiso del recurso exportado" — en 1.1 el único `kind`
+// es `audit_logs`, así que se fija auditoria.exportar aquí. Cuando otro
+// módulo use ExportRequestService con un `kind` propio, este middleware
+// tendrá que resolverse por `kind`, no antes: no hay un segundo caso
+// todavía con el que acertar el diseño (funcional.md §7).
+Route::get('/data-exports/{publicId}', [DataExportsController::class, 'show'])
+    ->middleware('permission:auditoria.exportar')
+    ->name('core.data-exports.show');

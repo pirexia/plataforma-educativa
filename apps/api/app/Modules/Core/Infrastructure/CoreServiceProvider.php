@@ -2,6 +2,8 @@
 
 namespace App\Modules\Core\Infrastructure;
 
+use App\Modules\Core\Domain\AuditQuery;
+use App\Modules\Core\Domain\ExportRequestService;
 use App\Modules\Core\Domain\Models\DataExport;
 use App\Modules\Core\Domain\Models\TenantSetting;
 use App\Modules\Core\Domain\Models\UserImport;
@@ -24,6 +26,8 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
     {
         $this->app->singleton(TenantSettingsCache::class);
         $this->app->bind(TenantSettingsReader::class, EloquentTenantSettingsReader::class);
+        $this->app->bind(AuditQuery::class, EloquentAuditQuery::class);
+        $this->app->bind(ExportRequestService::class, EloquentExportRequestService::class);
     }
 
     public function boot(): void

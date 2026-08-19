@@ -36,6 +36,11 @@ return [
         'invitation_already_accepted' => 'Esta invitación ya ha sido aceptada y no se puede revocar.',
         'enabled_not_editable' => 'El estado de activación del módulo no se puede modificar por esta vía.',
         'import_unknown_header' => 'La cabecera del fichero no coincide con el formato esperado.',
+        'cursor_invalid' => 'El cursor de paginación no es válido para esta consulta.',
+        'export_range_too_large' => 'El rango solicitado supera el límite de filas permitido; acótalo e inténtalo de nuevo.',
+        'pdf_export_not_available' => 'La exportación a PDF todavía no está disponible; usa CSV.',
+        'export_not_ready' => 'La exportación todavía se está generando; inténtalo de nuevo en unos minutos.',
+        'export_failed' => 'La generación de esta exportación ha fallado.',
     ],
 
     'idempotency' => [
