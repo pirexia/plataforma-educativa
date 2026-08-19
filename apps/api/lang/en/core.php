@@ -26,6 +26,7 @@ return [
         'file_type_mismatch' => 'The file\'s real type does not match the declared one.',
         'svg_unrepairable' => 'The SVG cannot be safely sanitized.',
         'empty_string_not_allowed' => 'To clear this field, send null instead of an empty string.',
+        'query_boolean_invalid' => 'The value must be "true" or "false".',
         'cannot_modify_self' => 'You cannot perform this action on your own account.',
         'last_school_administrator' => 'There must always be at least one active School Administrator.',
         'invitation_requires_pending_user' => 'Only a user in pending status can be invited.',

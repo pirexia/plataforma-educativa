@@ -26,6 +26,7 @@ return [
         'file_type_mismatch' => 'Der tatsächliche Dateityp stimmt nicht mit dem angegebenen überein.',
         'svg_unrepairable' => 'Das SVG kann nicht sicher bereinigt werden.',
         'empty_string_not_allowed' => 'Um dieses Feld zu leeren, sende null anstelle einer leeren Zeichenkette.',
+        'query_boolean_invalid' => 'Der Wert muss „true" oder „false" sein.',
         'cannot_modify_self' => 'Du kannst diese Aktion nicht auf dein eigenes Konto anwenden.',
         'last_school_administrator' => 'Es muss jederzeit mindestens eine aktive Schulverwaltung geben.',
         'invitation_requires_pending_user' => 'Nur ein Benutzer im Status „ausstehend" kann eingeladen werden.',
