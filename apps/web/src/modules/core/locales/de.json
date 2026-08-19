@@ -1,0 +1,33 @@
+{
+  "core": {
+    "user": {
+      "status": {
+        "pendiente": "Ausstehend",
+        "activo": "Aktiv",
+        "inactivo": "Inaktiv"
+      }
+    },
+    "invitation": {
+      "status": {
+        "vigente": "Gültig",
+        "caducada": "Abgelaufen",
+        "revocada": "Widerrufen",
+        "aceptada": "Angenommen"
+      }
+    },
+    "userImport": {
+      "status": {
+        "subido": "Hochgeladen",
+        "validando": "Wird geprüft",
+        "validado": "Geprüft",
+        "fallido": "Fehlgeschlagen",
+        "ejecutando": "Wird ausgeführt",
+        "completado": "Abgeschlossen"
+      }
+    },
+    "module": {
+      "enabled": "Aktiviert",
+      "disabled": "Deaktiviert"
+    }
+  }
+}

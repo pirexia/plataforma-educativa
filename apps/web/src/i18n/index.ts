@@ -3,6 +3,10 @@ import es from './locales/es.json'
 import en from './locales/en.json'
 import de from './locales/de.json'
 import fr from './locales/fr.json'
+import coreEs from '@/modules/core/locales/es.json'
+import coreEn from '@/modules/core/locales/en.json'
+import coreDe from '@/modules/core/locales/de.json'
+import coreFr from '@/modules/core/locales/fr.json'
 
 /**
  * ADR-021/INV-009: es (por defecto), en, de, fr. `es` es el único
@@ -49,11 +53,22 @@ export function persistLocale(locale: SupportedLocale): void {
   window.localStorage.setItem(STORAGE_KEY, locale)
 }
 
+/**
+ * Cada módulo aporta su propio `locales/{es,en,de,fr}.json`
+ * (funcional.md §1.11 de REQ-CORE); este es el único punto donde se
+ * ensamblan en el catálogo global de `vue-i18n`, bajo su propio espacio
+ * de nombres (`core`) para que no colisione con el de otro módulo.
+ */
 export const i18n = createI18n({
   legacy: false,
   locale: resolveInitialLocale(),
   fallbackLocale: DEFAULT_LOCALE,
-  messages: { es, en, de, fr },
+  messages: {
+    es: { ...es, ...coreEs },
+    en: { ...en, ...coreEn },
+    de: { ...de, ...coreDe },
+    fr: { ...fr, ...coreFr },
+  },
 })
 
 export function setLocale(locale: SupportedLocale): void {
