@@ -51,5 +51,10 @@ $SYSTEMCTL daemon-reload
 echo "Unidades instaladas. Arrancar con, por ejemplo:"
 echo "  $SYSTEMCTL enable --now plataforma.network"
 echo "  $SYSTEMCTL enable --now postgres.service redis.service"
-echo "  $SYSTEMCTL enable --now plataforma-migrate.service"
+# plataforma-migrate.container es un oneshot sin sección [Install]: se
+# ejecuta una vez por despliegue, no se habilita para el arranque del
+# sistema (hallazgo de la revisión independiente de doc-reviewer sobre
+# 0.9b — "enable" sobre esta unidad es un no-op sin efecto, y habilitarla
+# sería semánticamente incorrecto: no debe correr en cada reinicio).
+echo "  $SYSTEMCTL start plataforma-migrate.service"
 echo "  $SYSTEMCTL enable --now api@1.service web.service traefik.service"

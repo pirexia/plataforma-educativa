@@ -204,13 +204,13 @@ Tres workflows en `.github/workflows/`, disparados por `push`/`pull_request` sob
 | `Containerfile` multi-etapa de `api` (FrankenPHP, modo clásico) | `infra/containers/api/Containerfile` | Construido de verdad (`podman build --target prod`), imagen arranca |
 | `Containerfile` multi-etapa de `web` (nginx de estáticos, sin `proxy_pass`) | `infra/containers/web/Containerfile` | Construido de verdad, imagen arranca |
 | Publicación de imágenes en GHCR | `.github/workflows/build-images.yml` | Escrito, con retención desde el primer commit (`ADR-037 §5.1`). **No verificado de extremo a extremo**: requiere un `push` real a `develop` o un PR, que esta sesión de implementación no puede disparar por sí misma |
-| Unidades Quadlet (`plataforma.network`, `postgres`/`redis`/`api@`/`web`/`traefik`, `plataforma-migrate`) | `infra/quadlet/` | Validación en seco correcta con **ambos** generadores (`podman-system-generator` y `podman-user-generator`, `-dryrun`): las 10 unidades generan systemd válido sin errores, `ExecStart=`/`Wants=`/`After=`/`HealthCmd=` correctos. **Arranque real automático desde `~/.config/containers/systemd/` NO verificado en este host** — ver §6.3, bloqueado por un problema de permisos preexistente, no por las unidades |
-| Topología completa (red, `postgres`/`redis`/`api`/`web`/`traefik`, imágenes `prod` reales) | `infra/compose/compose.prodlike.yaml` | **Arrancada de verdad** (`podman compose up -d`) y usada para ejecutar las tres pruebas obligatorias de `ARCHITECTURE.md §4.3` — ver §6.4, las tres pasaron |
-| Instalador (sustitución de *tag*, `daemon-reload`) | `infra/install.sh` | Escrito; la parte de sustitución de `__TAG__` y copia de ficheros es lógica simple ya ejercida a mano durante la prueba de generación. El flujo completo con `--user` no se pudo ejecutar por el mismo bloqueo de §6.3 |
-| Convención de secretos (`EnvironmentFile=`, plantilla sin valores) | `infra/quadlet/plataforma.env.example`, `RUNBOOK.md §3b.1` | Escrita y **corregida tras un bug propio real** (ver §6.5): sin `DB_CONNECTION=pgsql` explícito, Laravel cae a SQLite por defecto — descubierto al conectar la API de verdad contra PostgreSQL en `compose.prodlike.yaml`, no en teoría |
-| Procedimiento de despliegue y de reversión | `RUNBOOK.md §3b` | Escrito. La reversión (bajar *tag*, reiniciar unidad) no se pudo probar en una unidad Quadlet real por el bloqueo de §6.3, pero es equivalente a lo ya verificado en las pruebas de resiliencia (recrear un contenedor con una imagen distinta sin romper el enrutado, §6.4 prueba C) |
+| Unidades Quadlet (`plataforma.network`, `postgres`/`redis`/`api@`/`web`/`traefik`, `plataforma-migrate`) | `infra/quadlet/` | Validación en seco correcta con **ambos** generadores (`podman-system-generator` y `podman-user-generator`, `-dryrun`): las 10 unidades generan systemd válido sin errores, `ExecStart=`/`Wants=`/`After=`/`HealthCmd=` correctos. **Arranque real automático desde `~/.config/containers/systemd/` NO verificado en este host** — ver §6.2, bloqueado por un problema de permisos preexistente, no por las unidades |
+| Topología completa (red, `postgres`/`redis`/`api`/`web`/`traefik`, imágenes `prod` reales) | `infra/compose/compose.prodlike.yaml` | **Arrancada de verdad** (`podman compose up -d`) y usada para ejecutar las tres pruebas obligatorias de `ARCHITECTURE.md §4.3` — ver §6.3, las tres pasaron |
+| Instalador (sustitución de *tag*, `daemon-reload`) | `infra/install.sh` | Escrito; la parte de sustitución de `__TAG__` y copia de ficheros es lógica simple ya ejercida a mano durante la prueba de generación. El flujo completo con `--user` no se pudo ejecutar por el mismo bloqueo de §6.2 |
+| Convención de secretos (`EnvironmentFile=`, plantilla sin valores) | `infra/quadlet/plataforma.env.example`, `RUNBOOK.md §3b.1` | Escrita y **corregida tras un bug propio real** (ver §6.4): sin `DB_CONNECTION=pgsql` explícito, Laravel cae a SQLite por defecto — descubierto al conectar la API de verdad contra PostgreSQL en `compose.prodlike.yaml`, no en teoría |
+| Procedimiento de despliegue y de reversión | `RUNBOOK.md §3b` | Escrito. La reversión (bajar *tag*, reiniciar unidad) no se pudo probar en una unidad Quadlet real por el bloqueo de §6.2, pero es equivalente a lo ya verificado en las pruebas de resiliencia (recrear un contenedor con una imagen distinta sin romper el enrutado, §6.3 prueba C) |
 
-### 6.3 Bloqueante de entorno: `~/.config/containers` con propietario incorrecto
+### 6.2 Bloqueante de entorno: `~/.config/containers` con propietario incorrecto
 
 **No es un fallo de las unidades Quadlet ni de `install.sh`.** En este host, `~/.config/containers` pertenece a `root:root` (`drwxr-xr-x`), probablemente por un `sudo` anterior no relacionado con este paso — el usuario normal no tiene permiso de escritura para crear `~/.config/containers/systemd/`, que es donde Quadlet busca las unidades por defecto en modo `--user`.
 
@@ -224,7 +224,7 @@ sudo chown -R "$USER:$USER" ~/.config/containers
 
 Tras corregirlo, `infra/install.sh <tag> --user` debería funcionar tal cual está escrito. **No se ha vuelto a intentar el arranque automático después de este hallazgo** porque corregir permisos del sistema con `sudo` está fuera del alcance de lo que una sesión de implementación debe hacer sin que se le pida explícitamente.
 
-### 6.4 Las tres pruebas obligatorias de `ARCHITECTURE.md §4.3` — resultado real
+### 6.3 Las tres pruebas obligatorias de `ARCHITECTURE.md §4.3` — resultado real
 
 Ejecutadas contra `compose.prodlike.yaml` con las imágenes `prod` reales (no simulado, no las imágenes de desarrollo):
 
@@ -236,11 +236,11 @@ Ejecutadas contra `compose.prodlike.yaml` con las imágenes `prod` reales (no si
 
 Las tres se ejecutaron en ese orden, sobre la misma pila levantada una sola vez, sin reiniciar nada entre pruebas salvo lo que cada prueba pedía.
 
-### 6.5 Bug propio encontrado y corregido: `DB_CONNECTION` ausente
+### 6.4 Bug propio encontrado y corregido: `DB_CONNECTION` ausente
 
 Al conectar la imagen `prod` real de la API contra PostgreSQL por primera vez (preparando la prueba B), `php artisan db:show` falló con un error de SQLite (`database.sqlite` no existe). `apps/api/config/database.php` usa `env('DB_CONNECTION', 'sqlite')` — sin la variable, Laravel asume SQLite por defecto, y la imagen `prod` no lleva ni `.env` ni `database.sqlite`. `infra/quadlet/plataforma.env.example` (la plantilla real de producción) tenía el mismo hueco: le faltaban `DB_CONNECTION`, `DB_DATABASE`, `DB_USERNAME`/`DB_PASSWORD` y los pares `DB_OWNER_*`/`DB_PLATFORM_*` de los tres roles de `ADR-033`. Corregido en la plantilla y en `compose.prodlike.yaml`; documentada además la relación obligatoria entre `TENANCY_*_PASSWORD` (los crea el aprovisionamiento de PostgreSQL) y `DB_*_PASSWORD` (los usa Laravel para conectar) — son el mismo secreto, no dos independientes, y generarlos por separado habría roto la conexión (`RUNBOOK.md §3b.1`).
 
-### 6.6 Qué NO se puede verificar en WSL2, y queda escrito sin probar
+### 6.5 Qué NO se puede verificar en WSL2, y queda escrito sin probar
 
 `ADR-037 §6.5` punto 3, literal:
 
@@ -249,6 +249,6 @@ Al conectar la imagen `prod` real de la API contra PostgreSQL por primera vez (p
 - **TLS con certificado comodín**: bloqueado por `OPEN-08` (dominio y DNS, paso `0.10b`). La unidad de Traefik sirve solo HTTP hoy.
 - **Cifras de rendimiento de cualquier tipo**: `ADR-030` ya advierte que las mediciones en este equipo son orientativas, no concluyentes.
 
-### 6.3 Riesgo de cuota de GHCR (`ADR-037 §5.1`)
+### 6.6 Riesgo de cuota de GHCR (`ADR-037 §5.1`)
 
 Plan de GitHub de este repositorio: **Free** (confirmado por el propietario el 2026-08-18, no asumido). Límite aproximado para paquetes privados: del orden de 500 MB de almacenamiento y 1 GB/mes de transferencia — **cifra exacta a reconfirmar en `docs.github.com`**, puede cambiar. La política de retención de `build-images.yml` (10 últimas versiones `sha-` de `develop`, todas las `vX.Y.Z` conservadas siempre) está activa desde el primer commit del workflow, no como mejora posterior. Si la cuota resultara insuficiente en la práctica, la salida documentada en el ADR es un registro propio (`registry:2`) en el VPS cuando exista, sin cambios en la aplicación.

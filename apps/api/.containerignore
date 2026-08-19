@@ -1,0 +1,30 @@
+# Hallazgo Media de la revisión independiente de security-reviewer sobre
+# 0.9b (issue #35): la etapa `build` del Containerfile hace `COPY . .`
+# sobre este directorio (contexto de construcción de la imagen prod, ver
+# infra/containers/api/Containerfile). Sin este fichero, construir la
+# imagen prod localmente — que es justo lo que hace
+# infra/compose/compose.prodlike.yaml — desde un árbol de desarrollo real
+# copiaría .env, claves de storage/ y vendor/ dentro de la imagen.
+#
+# El pipeline de publicación real (build-images.yml) no está afectado por
+# este riesgo: hace checkout limpio de un commit versionado, así que estos
+# ficheros no existen ahí de todos modos. Este fichero es una defensa en
+# profundidad para el uso local, no una corrección de un fallo activo.
+
+.env
+.env.*
+!.env.example
+storage/*.key
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+.phpunit.cache
+.phpunit.result.cache
+auth.json
+node_modules
+vendor
+.git
+.idea
+.vscode
+tests

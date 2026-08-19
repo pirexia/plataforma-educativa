@@ -53,16 +53,17 @@ Parar el merge. Documentar el hallazgo como issue de GitHub con severidad, fiche
 
 ## 3b. Despliegue y reversión (`ADR-037`)
 
-Escrito, y probado **en parte** en WSL2 — ver `SYSADMIN.md §6` para el detalle exacto de qué está verificado y qué no. La topología completa (red, cinco servicios, imágenes `prod` reales) y las tres pruebas de resiliencia obligatorias se ejecutaron de verdad con `compose.prodlike.yaml` (`SYSADMIN.md §6.4`). El ciclo de vida por unidades Quadlet reales (`install.sh`, `systemctl --user`) **no se ha podido ejecutar en este host concreto**: `~/.config/containers` pertenece a `root`, un problema de permisos preexistente sin relación con este paso (`SYSADMIN.md §6.3`) — se corrige con un `sudo chown` que esta sesión no puede ejecutar sin contraseña interactiva.
+Escrito, y probado **en parte** en WSL2 — ver `SYSADMIN.md §6` para el detalle exacto de qué está verificado y qué no. La topología completa (red, cinco servicios, imágenes `prod` reales) y las tres pruebas de resiliencia obligatorias se ejecutaron de verdad con `compose.prodlike.yaml` (`SYSADMIN.md §6.3`). El ciclo de vida por unidades Quadlet reales (`install.sh`, `systemctl --user`) **no se ha podido ejecutar en este host concreto**: `~/.config/containers` pertenece a `root`, un problema de permisos preexistente sin relación con este paso (`SYSADMIN.md §6.2`) — se corrige con un `sudo chown` que esta sesión no puede ejecutar sin contraseña interactiva.
 
 ### 3b.1 Generar el fichero de secretos
 
-`ADR-037 §7.2`: se genera, nunca se escribe a mano.
+`ADR-037 §7.2`: se genera, nunca se escribe a mano. **Dos ficheros, no uno** (issue #36, hallazgo de la revisión independiente de security-reviewer sobre 0.9b): `postgres.container` no debe ver `APP_KEY` ni las contraseñas de conexión de Laravel, así que tiene su propio fichero más pequeño.
 
 ```bash
 # Producción/staging real (systemd de sistema):
 sudo install -d -m 0755 /etc/plataforma
 sudo install -m 0600 -o root -g root infra/quadlet/plataforma.env.example /etc/plataforma/plataforma.env
+sudo install -m 0600 -o root -g root infra/quadlet/plataforma-postgres.env.example /etc/plataforma/plataforma-postgres.env
 # Rellenar cada valor vacío con:
 openssl rand -base64 32
 # APP_KEY tiene su propio generador — no uses openssl para esta:
@@ -71,9 +72,10 @@ php artisan key:generate --show
 # Prueba en WSL2 (systemd --user), ruta equivalente:
 install -d -m 0755 ~/.config/plataforma
 install -m 0600 infra/quadlet/plataforma.env.example ~/.config/plataforma/plataforma.env
+install -m 0600 infra/quadlet/plataforma-postgres.env.example ~/.config/plataforma/plataforma-postgres.env
 ```
 
-**Los pares `TENANCY_*_PASSWORD`/`DB_*_PASSWORD` no son secretos independientes — son el mismo valor visto por dos consumidores** (el script de aprovisionamiento de PostgreSQL crea el rol con `TENANCY_APP_PASSWORD`; Laravel se conecta con `DB_PASSWORD`; tienen que coincidir carácter a carácter). Genera **una vez** por rol y copia el mismo valor a los dos nombres de variable — tres llamadas a `openssl rand`, no seis:
+**Los pares `TENANCY_*_PASSWORD`/`DB_*_PASSWORD` no son secretos independientes — son el mismo valor visto por dos consumidores, en dos ficheros distintos** (el script de aprovisionamiento de PostgreSQL crea el rol con `TENANCY_APP_PASSWORD` en `plataforma-postgres.env`; Laravel se conecta con `DB_PASSWORD` en `plataforma.env`; tienen que coincidir carácter a carácter entre los dos ficheros). Genera **una vez** por rol y copia el mismo valor al nombre de variable correspondiente en cada fichero — tres llamadas a `openssl rand`, no seis:
 
 ```bash
 APP_PW=$(openssl rand -base64 32)       # TENANCY_APP_PASSWORD y DB_PASSWORD
@@ -94,7 +96,7 @@ Bug propio encontrado probando este procedimiento (0.9b.5, `compose.prodlike.yam
 
 `<tag>` es siempre una versión exacta (`X.Y.Z` en producción, `sha-<7>` o `develop` en *staging*) — nunca `latest` (`ADR-037 §5.2`). El script sustituye el *tag* en las unidades y recarga systemd; no arranca nada por sí solo.
 
-**Escrito, no ejecutado de extremo a extremo en este host** (`SYSADMIN.md §6.3`): `install.sh --user` requiere escribir en `~/.config/containers/systemd/`, bloqueado por el propietario incorrecto del directorio. La lógica que sí se ha ejercido — sustitución de `__TAG__`, generación de unidades systemd válidas a partir de estos ficheros — está verificada por separado (`SYSADMIN.md §6.1`); lo que falta es la instalación automática en este directorio concreto, no el contenido de las unidades.
+**Escrito, no ejecutado de extremo a extremo en este host** (`SYSADMIN.md §6.2`): `install.sh --user` requiere escribir en `~/.config/containers/systemd/`, bloqueado por el propietario incorrecto del directorio. La lógica que sí se ha ejercido — sustitución de `__TAG__`, generación de unidades systemd válidas a partir de estos ficheros — está verificada por separado (`SYSADMIN.md §6.1`); lo que falta es la instalación automática en este directorio concreto, no el contenido de las unidades.
 
 ### 3b.3 Reversión
 
@@ -107,7 +109,7 @@ systemctl --user restart api@1.service web.service
 
 Es una operación de segundos porque cada versión es una imagen inmutable en GHCR referenciada por *tag* exacto (`ADR-037 §5.2`) — no hay migración de imagen que deshacer, solo qué proceso arranca. Las migraciones de base de datos son *expand/contract* (`RARQ-DEP-003`): el esquema de la versión anterior sigue siendo compatible, así que revertir el código no exige revertir el esquema.
 
-**No probado de extremo a extremo por el mismo bloqueo de permisos que 3b.2.** Lo que sí se probó de verdad y ejercita el mismo mecanismo de fondo (sustituir la imagen que corre un contenedor sin romper el enrutado): la prueba C de `SYSADMIN.md §6.4` recreó el contenedor de la API con una nueva instancia y Traefik enrutó a la IP nueva sin intervención manual — es la misma propiedad que hace segura una reversión, aplicada a una recreación en vez de a un cambio de *tag*.
+**No probado de extremo a extremo por el mismo bloqueo de permisos que 3b.2.** Lo que sí se probó de verdad y ejercita el mismo mecanismo de fondo (sustituir la imagen que corre un contenedor sin romper el enrutado): la prueba C de `SYSADMIN.md §6.3` recreó el contenedor de la API con una nueva instancia y Traefik enrutó a la IP nueva sin intervención manual — es la misma propiedad que hace segura una reversión, aplicada a una recreación en vez de a un cambio de *tag*.
 
 ### 3b.4 Notas operativas de las unidades Quadlet
 
