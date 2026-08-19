@@ -72,14 +72,14 @@ final class ApiException extends RuntimeException
         return new self(410, 'gone');
     }
 
-    public static function payloadTooLarge(): self
+    public static function payloadTooLarge(?string $detailKey = null, array $detailParams = []): self
     {
-        return new self(413, 'payload-too-large');
+        return new self(413, 'payload-too-large', $detailKey, $detailParams);
     }
 
-    public static function unsupportedMediaType(): self
+    public static function unsupportedMediaType(?string $detailKey = null, array $detailParams = []): self
     {
-        return new self(415, 'unsupported-media-type');
+        return new self(415, 'unsupported-media-type', $detailKey, $detailParams);
     }
 
     /**

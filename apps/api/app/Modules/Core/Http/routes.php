@@ -17,6 +17,7 @@ use App\Modules\Core\Http\Controllers\ModulesController;
 use App\Modules\Core\Http\Controllers\PermissionsController;
 use App\Modules\Core\Http\Controllers\RolesController;
 use App\Modules\Core\Http\Controllers\TenantController;
+use App\Modules\Core\Http\Controllers\TenantSettingsAssetsController;
 use App\Modules\Core\Http\Controllers\TenantSettingsController;
 use App\Modules\Core\Http\Controllers\UserRolesController;
 use App\Modules\Core\Http\Controllers\UsersController;
@@ -38,6 +39,18 @@ Route::get('/tenant/settings', [TenantSettingsController::class, 'show'])
 Route::patch('/tenant/settings', [TenantSettingsController::class, 'update'])
     ->middleware('permission:configuracion.actualizar')
     ->name('core.tenant-settings.update');
+
+// api.md §2.2/§2.3. {kind} ∈ {logo, favicon, login-background}; un valor
+// fuera de ese conjunto se resuelve a 404 dentro del controlador
+// (BrandingAssetKind::tryFrom), no aquí, para que el mensaje de error
+// pase por ApiException como cualquier otro (ADR-038 §6).
+Route::put('/tenant/settings/assets/{kind}', [TenantSettingsAssetsController::class, 'update'])
+    ->middleware('permission:configuracion.actualizar')
+    ->name('core.tenant-settings.assets.update');
+
+Route::delete('/tenant/settings/assets/{kind}', [TenantSettingsAssetsController::class, 'destroy'])
+    ->middleware('permission:configuracion.actualizar')
+    ->name('core.tenant-settings.assets.destroy');
 
 // api.md §3. /me: autoservicio por identidad, no por permiso
 // (funcional.md §4.9, permisos.md §5) — sin middleware `permission`.
