@@ -7,9 +7,9 @@
 
 ## Estado actual
 
-**Fase**: 0 cerrada en la práctica (lo pendiente de `0.10`-`0.12` es negocio, no código — ver abajo). **Empieza Fase 1**, bloque A.
-**Paso activo**: **1.1 · `REQ-CORE`: tenants y usuarios** `[OPUS + SONNET]`, sin empezar — es el siguiente paso concreto, ver esa sección para el arranque exacto (no es mecánico, requiere `spec-writer` primero).
-**Rama**: `develop` local limpia y sincronizada. Sin ramas de trabajo ni *worktrees* abiertos.
+**Fase**: 0 cerrada en la práctica (lo pendiente de `0.10`-`0.12` es negocio, no código — ver abajo). **Fase 1, bloque A, en curso.**
+**Paso activo**: **1.1 · `REQ-CORE`: tenants y usuarios** `[OPUS + SONNET]`. **Especificación aprobada** (2026-08-19) en `docs/modulos/REQ-CORE/{funcional,api,permisos,operacion,datos}.md` (`spec-writer`, Opus). **`ADR-038` (convenciones de API REST) publicado** por `architect` (`docs/adr/ADR-038-convenciones-api-rest.md`), `api.md`/`datos.md` ya actualizados con sus correcciones. **Nada bloquea ya la implementación** — `implementer` lanzado al cerrar esta entrada. Ver "Siguiente paso concreto" para el resumen completo de decisiones.
+**Rama**: `develop` local limpia y sincronizada. Sin ramas de trabajo ni *worktrees* abiertos — **ninguna implementación ha empezado todavía**, todo lo de esta sesión es documentación (spec + ADR) e issues.
 
 **Decisiones de la serie `0.10`-`0.10e`, recogidas punto a punto con el usuario (2026-08-19), ninguna bloquea seguir desarrollando en local**: `0.10` → dirección decidida, **VPS Linux europeo**, proveedor concreto todavía sin elegir. `0.10b` → pendiente de `0.11c` (nombre de marca, sin decidir). `0.10c` (correo transaccional) → pendiente. `0.10d` (destino de copias) → pendiente. `0.10e` (staging) → pendiente de `0.10`. No hacer falta re-preguntar todo esto salvo que el usuario traiga una decisión nueva.
 
@@ -92,19 +92,13 @@
 
 ## Siguiente paso concreto
 
-1. **Arrancar 1.1 · `REQ-CORE`: tenants y usuarios.** El usuario ya confirmó explícitamente empezar aquí (2026-08-19). **`PLAN-IMPLEMENTACION.md` no tiene texto de alcance para este paso** (solo el título, a diferencia de todos los demás pasos de fase 1) — hay que fijarlo antes de escribir código, no asumirlo.
-
-   `REQ-CORE` en `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` (sección 5.1, línea ~438) tiene **ocho** sub-requisitos (`REQ-CORE-001` a `008`): gestión de tenants, panel de admin del tenant, gestión de usuarios, roles/permisos, logs de auditoría, i18n, notificaciones del sistema, dashboard. **La mayoría ya está cubierta en otro sitio** — no dejar que 1.1 los reabra ni los duplique:
-   - `REQ-CORE-004` (roles/permisos granulares) → esquema ya existe desde 0.8, el resolutor granular es **1.5**, paso propio.
-   - `REQ-CORE-005` (auditoría) → mecanismo completo ya implementado en **0.9** (`ADR-035`/`ADR-036`).
-   - `REQ-CORE-006` (i18n) → infraestructura ya implementada en **0.9** (`docs/i18n.md`); lo que queda aquí, si acaso, es el panel de gestión de traducciones para el Administrador de Centro, no el mecanismo.
-   - `REQ-CORE-007` (notificaciones) → probablemente **1.19** (`REQ-COM`), a confirmar con `spec-writer`.
-   - `REQ-CORE-008` (dashboard/zona de cliente) → probablemente **1.8** (layout y dashboards por rol), a confirmar.
-   - `REQ-CORE-001` (alta/baja/suspensión de tenants por el Super Administrador) → probablemente **1.6** (`REQ-BO`, backoffice), a confirmar — `Tenant` como modelo ya existe desde 0.7, falta el CRUD/UI de gestión.
-
-   Lo que con más seguridad es el núcleo real de 1.1: **`REQ-CORE-002`** (panel de admin del propio tenant: usuarios/roles del centro, branding, parámetros académicos) y **`REQ-CORE-003`** (CRUD de usuarios del sistema: alta/baja/modificación, importación CSV, invitación por email, idioma preferido — `Person`/`User` como modelos ya existen desde 0.8, falta la funcionalidad de aplicación).
-
-   **No decidas tú este alcance — es trabajo de `spec-writer` (Opus)**, siguiendo el skill `modulo-nuevo` (invócalo primero para la estructura de carpetas/documentación). Dale al `spec-writer` este mismo desglose (qué ya existe, qué está deferido y a qué paso) para que no vuelva a decidir lo ya decidido, y que produzca la especificación funcional/técnica de `docs/modulos/REQ-CORE/` (completando lo que ya dejó a medias 0.9: solo tiene `datos.md`, con una nota explícita de que `funcional`/`api`/`permisos`/`operacion` esperaban a que el módulo tuviera endpoints de verdad — ese momento es ahora). Tras la especificación, implementación con `implementer`/`fork` (Sonnet), como en pasos anteriores.
-
-2. Decidir el motor de renderizado PDF (o posponerlo explícitamente a 1.17) antes de que haga falta ahí.
-3. Los issues de `Problemas abiertos` no bloquean nada del trabajo actual; están correctamente diferidos a los pasos donde existe el código que los necesita (1.2/1.5/1.6/`REQ-BO-001`/`0.10d`).
+1. **Comprobar que `docs/adr/ADR-038-convenciones-api-rest.md` está publicado** (encargado a `architect` al cierre de esta entrada). Si el ADR corrige algo de la propuesta de `docs/modulos/REQ-CORE/api.md` §9, actualizar `api.md` antes de seguir. Referenciarlo desde la sección 18 de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` si `architect` no lo dejó hecho.
+2. **Lanzar `implementer`/`fork` (Sonnet)** con la especificación ya aprobada de `docs/modulos/REQ-CORE/{funcional,api,permisos,operacion,datos}.md`. Resumen de lo que hay que implementar (detalle completo en `funcional.md`):
+   - Cuatro tablas nuevas, aditivas: `tenant_settings`, `user_invitations`, `user_imports`, `data_exports`.
+   - CRUD de usuarios con baja lógica, invitaciones (emisión/reenvío/revocación, token solo hash), importación CSV en dos fases (validar sin escribir → ejecutar con `Idempotency-Key`), asignación de roles (solo lectura de catálogo, resolutor provisional ignora `scope` — **todo permiso se siembra con ámbito `todos`**, ver `permisos.md` §5), configuración del centro con validación de contraste WCAG en la paleta, subida de activos de marca con saneado de SVG, `GET /tenant/branding` público, `/me` autoservicio, consulta+exportación CSV de auditoría, `EnsureModuleEnabled` (`RMOD-009`), comando `tenant:provision-defaults` (siembra los 17 roles + primer admin).
+   - **1.1 es solo API, sin pantallas** (decisión aprobada, `OPEN-CORE-02`): nada en `views/`/`components/` de `apps/web/src/modules/core/`, solo `api/`/`types/`/`locales/`. Las pantallas se construyen en el paso 1.8.
+   - Validación de dígito de control de DNI/NIE: conmutador por entorno, **forzado a validar en producción**, desactivado en dev/test para que 1.15b (`REQ-SEED`) pueda sembrar documentos inválidos a propósito (`OPEN-CORE-06`, decisión (b)).
+   - Tras implementar: `security-reviewer`/`doc-reviewer` como subagentes independientes (no solo autorrevisión del fork), como en 0.8/0.9/0.9b.
+3. **Cuatro issues abiertos durante la especificación de 1.1, ninguno bloquea la implementación**: [#44](https://github.com/pirexia/plataforma-educativa/issues/44) (Media, contradicción `REQ-CORE-002`/`RMOD-002` sobre quién activa módulos — ADR al arrancar 1.6), [#45](https://github.com/pirexia/plataforma-educativa/issues/45) (Media, sin análisis antivirus de ficheros subidos, `RSEC-OWASP-012` — candidato paso 1.27), [#46](https://github.com/pirexia/plataforma-educativa/issues/46) (Baja, `locale` por defecto `'es'` vs `es-ES` — se unifica en `es-ES` al implementar 1.1), [#47](https://github.com/pirexia/plataforma-educativa/issues/47) (Media, dos bugs reales en `apps/web/src/api/client.ts` detectados por `architect` al escribir `ADR-038` — **ya corregidos** en esta sesión, pendiente de commit y de cerrar el issue enlazándolo).
+4. Decidir el motor de renderizado PDF (o posponerlo explícitamente a 1.17) antes de que haga falta ahí.
+5. Los issues previos de `Problemas abiertos` no bloquean nada del trabajo actual; están correctamente diferidos a los pasos donde existe el código que los necesita (1.2/1.5/1.6/`REQ-BO-001`/`0.10d`).
