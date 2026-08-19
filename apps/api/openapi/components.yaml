@@ -1,0 +1,392 @@
+# ADR-038 §12.2. Único sitio donde se define el esquema Problem (§6),
+# PageMeta/CursorMeta (§4), los parámetros comunes (page, per_page,
+# cursor, limit, sort, q, Idempotency-Key) y el formato ulid. Un módulo
+# que redefina cualquiera de esto en vez de referenciarlo con $ref es un
+# fallo de revisión visible en el diff (ADR-038 §12.2).
+
+components:
+  schemas:
+    Problem:
+      type: object
+      description: RFC 9457 application/problem+json (ADR-038 §6).
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          description: URN estable del catálogo cerrado de ADR-038 §6.2.
+          example: "urn:pge:error:validation"
+        title:
+          type: string
+          example: "Los datos enviados no son válidos"
+        status:
+          type: integer
+          example: 422
+        detail:
+          type: string
+          nullable: true
+        instance:
+          type: string
+          nullable: true
+          description: Ruta de la petición, sin parámetros de consulta.
+        request_id:
+          type: string
+          format: ulid
+          nullable: true
+        errors:
+          type: object
+          nullable: true
+          description: Por campo, lista de {code, message, params} ya traducido (ADR-038 §6.3).
+          additionalProperties:
+            type: array
+            items:
+              type: object
+              required: [code, message]
+              properties:
+                code:
+                  type: string
+                  example: "core.validation.locale_not_active"
+                message:
+                  type: string
+                params:
+                  type: object
+                  additionalProperties: true
+
+    PageMeta:
+      type: object
+      description: Metadatos de paginación por página (ADR-038 §4.3). Catálogos de entidades.
+      required: [current_page, per_page, total, last_page]
+      properties:
+        current_page: { type: integer, minimum: 1 }
+        per_page: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+        last_page: { type: integer, minimum: 0 }
+
+    CursorMeta:
+      type: object
+      description: Metadatos de paginación por cursor (ADR-038 §4.4). Flujos de eventos append-only.
+      required: [has_more]
+      properties:
+        next_cursor:
+          type: string
+          nullable: true
+          description: Opaco y cifrado (AES-256-GCM). Nunca base64 legible.
+        has_more:
+          type: boolean
+
+    Person:
+      type: object
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        given_name: { type: string }
+        family_name_1: { type: string }
+        family_name_2: { type: string, nullable: true }
+        contact_email: { type: string, format: email, nullable: true }
+        contact_phone: { type: string, nullable: true }
+        document_type: { type: string, nullable: true }
+        document_number: { type: string, nullable: true }
+        birth_date: { type: string, format: date, nullable: true }
+        locale: { $ref: '#/components/schemas/Locale' }
+
+    RoleSummary:
+      type: object
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string }
+        name: { type: string }
+
+    User:
+      type: object
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        email: { type: string, format: email }
+        status:
+          type: string
+          enum: [pendiente, activo, inactivo]
+          description: Enumerado extensible (ADR-038 §7.3).
+        person: { $ref: '#/components/schemas/Person' }
+        roles:
+          type: array
+          items: { $ref: '#/components/schemas/RoleSummary' }
+        email_verified_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time, nullable: true }
+
+    Invitation:
+      type: object
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        user:
+          type: object
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            email: { type: string, format: email }
+        status:
+          type: string
+          enum: [vigente, caducada, revocada, aceptada]
+        expires_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        accepted_at: { type: string, format: date-time, nullable: true }
+        revoked_at: { type: string, format: date-time, nullable: true }
+
+    Role:
+      type: object
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string }
+        name: { type: string }
+        is_system: { type: boolean }
+        mfa_required: { type: boolean }
+        special_data_access: { type: boolean }
+        users_count: { type: integer }
+        permissions:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              resource: { type: string }
+              action: { type: string }
+              effect: { type: string, enum: [allow, deny] }
+              scope: { type: string }
+
+    Permission:
+      type: object
+      properties:
+        code: { type: string }
+        resource: { type: string }
+        action: { type: string }
+        module_code: { type: string }
+        is_special_category: { type: boolean }
+        retired_at: { type: string, format: date-time, nullable: true }
+
+    ModuleSubscription:
+      type: object
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        module_code: { type: string }
+        name: { type: string }
+        phase: { type: string }
+        enabled: { type: boolean }
+        enabled_at: { type: string, format: date-time, nullable: true }
+        disabled_at: { type: string, format: date-time, nullable: true }
+        settings: { type: object, additionalProperties: true }
+
+    TenantSettings:
+      type: object
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        regional:
+          type: object
+          properties:
+            default_locale: { $ref: '#/components/schemas/Locale' }
+            active_locales:
+              type: array
+              items: { $ref: '#/components/schemas/Locale' }
+            timezone: { type: string }
+            currency: { type: string }
+            autonomous_community: { type: string, nullable: true }
+        fiscal:
+          type: object
+          properties:
+            legal_name: { type: string, nullable: true }
+            tax_id: { type: string, nullable: true }
+            address: { type: string, nullable: true }
+            postal_code: { type: string, nullable: true }
+            city: { type: string, nullable: true }
+            province: { type: string, nullable: true }
+            country_code: { type: string, nullable: true }
+        branding:
+          type: object
+          properties:
+            color_primary: { type: string, nullable: true }
+            color_secondary: { type: string, nullable: true }
+            logo_url: { type: string, format: uri, nullable: true }
+            favicon_url: { type: string, format: uri, nullable: true }
+            login_background_url: { type: string, format: uri, nullable: true }
+        updated_at: { type: string, format: date-time }
+
+    TenantBranding:
+      type: object
+      description: "Único endpoint sin autenticación del módulo (funcional.md §4.8). No devuelve nada más que esto."
+      properties:
+        name: { type: string }
+        color_primary: { type: string, nullable: true }
+        color_secondary: { type: string, nullable: true }
+        logo_url: { type: string, format: uri, nullable: true }
+        favicon_url: { type: string, format: uri, nullable: true }
+        login_background_url: { type: string, format: uri, nullable: true }
+        default_locale: { $ref: '#/components/schemas/Locale' }
+        active_locales:
+          type: array
+          items: { $ref: '#/components/schemas/Locale' }
+
+    AuditLog:
+      type: object
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        occurred_at: { type: string, format: date-time }
+        actor:
+          type: object
+          nullable: true
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            display_name: { type: string }
+        actor_type:
+          type: string
+          enum: [user, system, console, import, platform]
+        auditable_type: { type: string }
+        auditable_public_id: { $ref: '#/components/schemas/PublicId' }
+        event:
+          type: string
+          enum: [created, updated, deleted, restored, read, exported]
+        changes: { type: object, nullable: true, additionalProperties: true }
+        ip_address: { type: string, nullable: true }
+        user_agent: { type: string, nullable: true }
+        request_id: { type: string, format: ulid, nullable: true }
+
+    DataExport:
+      type: object
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        kind: { type: string }
+        status:
+          type: string
+          enum: [pendiente, generando, completada, fallida]
+        row_count: { type: integer, nullable: true }
+        download_url: { type: string, format: uri, nullable: true }
+        expires_at: { type: string, format: date-time }
+
+    UserImportErrorEntry:
+      type: object
+      properties:
+        line: { type: integer }
+        column: { type: string }
+        code: { type: string }
+        message: { type: string }
+
+    UserImport:
+      type: object
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        original_filename: { type: string }
+        status:
+          type: string
+          enum: [subido, validando, validado, fallido, ejecutando, completado]
+        row_count: { type: integer, nullable: true }
+        error_count: { type: integer, nullable: true }
+        created_count: { type: integer, nullable: true }
+        error_summary:
+          type: array
+          nullable: true
+          items: { $ref: '#/components/schemas/UserImportErrorEntry' }
+        report_url: { type: string, format: uri, nullable: true }
+        validated_at: { type: string, format: date-time, nullable: true }
+        executed_at: { type: string, format: date-time, nullable: true }
+
+    PublicId:
+      type: string
+      format: ulid
+      description: ADR-029. Nunca la clave interna bigint.
+      example: "01J8ZZZZZZZZZZZZZZZZZZZZZZ"
+
+    Locale:
+      type: string
+      enum: [es-ES, en, de, fr]
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PerPageParam:
+      name: per_page
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+    CursorParam:
+      name: cursor
+      in: query
+      description: Opaco y cifrado, emitido por una respuesta anterior. ADR-038 §4.4.
+      schema: { type: string }
+    LimitParam:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    SortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente. Lista blanca cerrada por endpoint (ADR-038 §5.3).
+      schema: { type: string }
+    QParam:
+      name: q
+      in: query
+      description: Búsqueda de texto libre. Campos sobre los que busca declarados por endpoint.
+      schema: { type: string }
+    IdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: ULID generado por el cliente (ADR-038 §8).
+      schema: { type: string, format: ulid }
+
+  headers:
+    XRequestId:
+      description: Generado siempre por el servidor (INV-013). Un valor entrante del cliente se ignora.
+      schema: { type: string, format: ulid }
+    ContentLanguage:
+      description: Idioma resuelto de la respuesta (ADR-038 §11).
+      schema: { $ref: '#/components/schemas/Locale' }
+    IdempotencyReplayed:
+      description: Presente y "true" cuando la respuesta es la repetición de una ejecución anterior (ADR-038 §8.2).
+      schema: { type: string, enum: ["true"] }
+    RetryAfter:
+      description: Segundos a esperar antes de reintentar (429/503).
+      schema: { type: integer }
+
+  responses:
+    Unauthenticated:
+      description: Sin sesión válida (401).
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Autenticado, sin el permiso requerido (403).
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Inexistente o de otro tenant (404). Nunca confirma la existencia de un recurso ajeno.
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    ValidationError:
+      description: Validación de cuerpo o de parámetros (422).
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: Regla de negocio o transición de estado inválida (409).
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: pge_session
+      description: >
+        Cookie de sesión httpOnly/Secure/SameSite con CSRF (ADR-025). El
+        flujo de login lo entrega 1.2; en 1.1 los tests autentican con
+        actingAs(). Documentado aquí como contrato del cliente, no como
+        implementación disponible todavía.

@@ -5,10 +5,32 @@ info:
   description: >
     Fuente de verdad funcional: docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md.
     API-first (INV-006): todo endpoint existe aquí antes que en la SPA.
+    Convenciones transversales: docs/adr/ADR-038-convenciones-api-rest.md.
 servers:
   - url: http://localhost:8000
     description: Desarrollo local
 
+tags:
+  - name: Plataforma
+  - name: Core / Tenant
+  - name: Core / Usuarios
+  - name: Core / Invitaciones
+  - name: Core / Roles
+  - name: Core / Módulos
+  - name: Core / Importación
+  - name: Core / Auditoría
+  - name: Core / Autoservicio
+
+# ADR-038 §12.2: componentes compartidos (Problem, PageMeta, CursorMeta,
+# parámetros comunes) en un fichero propio, referenciados por $ref desde
+# cada módulo — nunca redefinidos.
+components:
+  $ref: "openapi/components.yaml#/components"
+
+# Cada ruta es un $ref de Path Item Object hacia el fichero del módulo
+# correspondiente (ADR-038 §12.2: "$ref entre ficheros hermanos, sin paso
+# de empaquetado"). Añadir un módulo nuevo es añadir sus entradas aquí,
+# nunca escribir la ruta dos veces.
 paths:
   /api/health:
     get:
@@ -16,6 +38,7 @@ paths:
       summary: Estado de la API
       description: Comprobación de vida sin autenticación. No expone datos de negocio.
       tags: [Plataforma]
+      security: []
       responses:
         '200':
           description: La API responde
@@ -35,5 +58,55 @@ paths:
                     type: string
                     format: date-time
 
-# Los endpoints de negocio se documentan aquí conforme cada módulo los
-# implementa (paso 1.1 en adelante), bajo el prefijo /api/v1.
+  # REQ-CORE (paso 1.1) — apps/api/openapi/paths/core.yaml
+  /api/v1/tenant:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1tenant"
+  /api/v1/tenant/branding:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1tenant~1branding"
+  /api/v1/tenant/settings:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1tenant~1settings"
+  /api/v1/tenant/settings/assets/{kind}:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1tenant~1settings~1assets~1{kind}"
+  /api/v1/me:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1me"
+  /api/v1/users:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1users"
+  /api/v1/users/{publicId}:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1users~1{publicId}"
+  /api/v1/users/{publicId}/restore:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1users~1{publicId}~1restore"
+  /api/v1/users/{publicId}/status:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1users~1{publicId}~1status"
+  /api/v1/invitations:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1invitations"
+  /api/v1/users/{publicId}/invitations:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1users~1{publicId}~1invitations"
+  /api/v1/invitations/{publicId}:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1invitations~1{publicId}"
+  /api/v1/roles:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1roles"
+  /api/v1/roles/{publicId}:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1roles~1{publicId}"
+  /api/v1/permissions:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1permissions"
+  /api/v1/users/{publicId}/roles:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1users~1{publicId}~1roles"
+  /api/v1/modules:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1modules"
+  /api/v1/module-subscriptions/{publicId}:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1module-subscriptions~1{publicId}"
+  /api/v1/user-imports:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1user-imports"
+  /api/v1/user-imports/{publicId}:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1user-imports~1{publicId}"
+  /api/v1/user-imports/{publicId}/execute:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1user-imports~1{publicId}~1execute"
+  /api/v1/audit-logs:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1audit-logs"
+  /api/v1/audit-logs/exports:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1audit-logs~1exports"
+  /api/v1/data-exports/{publicId}:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1data-exports~1{publicId}"
+
+  # Los endpoints de los módulos siguientes se añaden aquí conforme se
+  # implementan, cada uno con su propio apps/api/openapi/paths/<modulo>.yaml.

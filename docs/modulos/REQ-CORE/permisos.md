@@ -84,7 +84,7 @@ Los **ámbitos** son los de `RPERM-004`: `todos`, `propios`, `departamento`, `gr
 
 ## 4. Asignación en los roles predefinidos
 
-Los 17 roles de la sección 11.1 se siembran en el aprovisionamiento del tenant (`funcional.md` §4.7) con `is_system = true` y `name_key = 'roles.{code}'`.
+La sección 11.1 enumera 17 roles, pero solo **16** se siembran como fila de `roles` en el aprovisionamiento del tenant (`funcional.md` §4.7) con `is_system = true` y `name_key = 'roles.{code}'`: `super_administrador` no es uno de ellos (§4.5). Confirmado por el usuario, issue [#48](https://github.com/pirexia/plataforma-educativa/issues/48).
 
 ### 4.1 Permisos de `REQ-CORE` por rol
 
