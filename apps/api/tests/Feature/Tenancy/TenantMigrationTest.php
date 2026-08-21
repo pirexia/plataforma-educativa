@@ -67,10 +67,15 @@ test('tenant_id tiene DEFAULT app.current_tenant_id() y (tenant_id, id) es únic
     ))->toBeTrue();
 });
 
-// ADR-034 §6/§7 (0.8.1): created_by/updated_by nullable en toda tabla de
-// tenant, sin FK hasta que `users` tenga tenant_id (aquí no lo tiene
-// todavía: el `users` provisional del starter kit no lo lleva).
-test('tenantTable() añade created_by y updated_by, nullable y sin FK antes de 0.8.4', function (): void {
+// ADR-034 §6/§7: created_by/updated_by nullable en toda tabla de tenant.
+// Antes de que existiera la migración 0.8.4 (rebuild_users_table), `users`
+// no tenía `tenant_id` y tenantTable() omitía la FK compuesta — esa ventana
+// solo existió durante la ejecución histórica incremental de 0.7/0.8 y no es
+// reproducible con el conjunto completo de migraciones: `users.tenant_id`
+// siempre existe antes de que corra este test (issue #55), así que
+// tenantTable() SÍ añade la FK. Se prueba el comportamiento actual y
+// correcto, no la ventana histórica ya cerrada.
+test('tenantTable() añade created_by y updated_by, nullable, con FK compuesta hacia users', function (): void {
     $columns = collect(Schema::connection('pgsql_owner')->getColumns('tenant_migration_probes'));
 
     $createdBy = $columns->firstWhere('name', 'created_by');
@@ -86,7 +91,7 @@ test('tenantTable() añade created_by y updated_by, nullable y sin FK antes de 0
         WHERE conrelid = 'tenant_migration_probes'::regclass AND contype = 'f'
         SQL))->pluck('conname');
 
-    expect($fkNames->contains(fn (string $name) => str_contains($name, 'created_by')))->toBeFalse();
+    expect($fkNames->contains(fn (string $name) => str_contains($name, 'created_by')))->toBeTrue();
 });
 
 test('tenantTableAppendOnly() crea la tabla sin deleted_at y revoca UPDATE/DELETE a plataforma_app', function (): void {

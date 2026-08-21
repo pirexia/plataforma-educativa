@@ -1,11 +1,17 @@
 <?php
 
 use App\Http\Middleware\AssignRequestId;
+use App\Http\Middleware\EnsureModuleEnabled;
+use App\Http\Middleware\RequireIdempotencyKey;
+use App\Http\Middleware\RequirePermission;
+use App\Http\Middleware\ResolveApiLocale;
 use App\Http\Middleware\ResolveTenant;
+use App\Support\Api\ProblemResponseFactory;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -27,10 +33,28 @@ return Application::configure(basePath: dirname(__DIR__))
         // sin tenant. Las rutas de negocio van bajo /api/v1, que sí lo
         // aplica explícitamente (ver routes/api.php).
         $middleware->prependToGroup('web', ResolveTenant::class);
-        $middleware->alias(['resolve-tenant' => ResolveTenant::class]);
+        $middleware->alias([
+            'resolve-tenant' => ResolveTenant::class,
+            'resolve-locale' => ResolveApiLocale::class,
+            'permission' => RequirePermission::class,
+            'module-enabled' => EnsureModuleEnabled::class,
+            'idempotent' => RequireIdempotencyKey::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // ADR-038 §6: toda respuesta 4xx/5xx de /api/* es application/
+        // problem+json, sin excepción. shouldRenderJsonWhen() ya decide
+        // CUÁNDO se sirve JSON; este render() decide la FORMA de ese JSON,
+        // en vez del array {message, errors} por defecto de Laravel.
+        $exceptions->render(function (Throwable $e, Request $request): ?Response {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return ProblemResponseFactory::render($e, $request);
+        });
     })->create();

@@ -1,0 +1,33 @@
+{
+  "core": {
+    "user": {
+      "status": {
+        "pendiente": "Pendiente",
+        "activo": "Activo",
+        "inactivo": "Inactivo"
+      }
+    },
+    "invitation": {
+      "status": {
+        "vigente": "Vigente",
+        "caducada": "Caducada",
+        "revocada": "Revocada",
+        "aceptada": "Aceptada"
+      }
+    },
+    "userImport": {
+      "status": {
+        "subido": "Subido",
+        "validando": "Validando",
+        "validado": "Validado",
+        "fallido": "Fallido",
+        "ejecutando": "Ejecutando",
+        "completado": "Completado"
+      }
+    },
+    "module": {
+      "enabled": "Activo",
+      "disabled": "Desactivado"
+    }
+  }
+}

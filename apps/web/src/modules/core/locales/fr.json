@@ -1,0 +1,33 @@
+{
+  "core": {
+    "user": {
+      "status": {
+        "pendiente": "En attente",
+        "activo": "Actif",
+        "inactivo": "Inactif"
+      }
+    },
+    "invitation": {
+      "status": {
+        "vigente": "Valide",
+        "caducada": "Expirée",
+        "revocada": "Révoquée",
+        "aceptada": "Acceptée"
+      }
+    },
+    "userImport": {
+      "status": {
+        "subido": "Téléversé",
+        "validando": "En cours de validation",
+        "validado": "Validé",
+        "fallido": "Échoué",
+        "ejecutando": "En cours d'exécution",
+        "completado": "Terminé"
+      }
+    },
+    "module": {
+      "enabled": "Activé",
+      "disabled": "Désactivé"
+    }
+  }
+}

@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Model;
  * (retired_at cumple ese papel a su manera: nunca se borra una fila).
  * Escritura reservada al comando de 0.8.11 (REVOKE en la migración, no
  * solo en este modelo).
+ *
+ * @mixin IdeHelperPermission
  */
 class Permission extends Model
 {

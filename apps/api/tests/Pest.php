@@ -44,7 +44,52 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * REQ-CORE (paso 1.1). ADR-014/ADR-033 §2: toda ruta de negocio resuelve
+ * tenant por host, así que un test HTTP de un endpoint de `/api/v1`
+ * siempre pide una URL con el subdominio del tenant, nunca "localhost".
+ */
+function coreApiUrl(string $slug, string $path): string
 {
-    // ..
+    return 'http://'.$slug.'.'.config('tenancy.base_domain').'/api/v1'.$path;
+}
+
+/**
+ * Aprovisiona un tenant completo (`tenant:provision-defaults`, funcional.md
+ * §4.7) para los tests HTTP de REQ-CORE: siembra los 16 roles, sus
+ * permisos y el primer Administrador de Centro. Requiere
+ * `platform:sync-registry` (permission_role.permission_code es FK de
+ * `permissions`) — se ejecuta aquí, no en cada test.
+ *
+ * @return array{0: \App\Support\Tenancy\Tenant, 1: \App\Models\User}
+ */
+function provisionCoreTenant(?string $slug = null): array
+{
+    test()->artisan('platform:sync-registry')->run();
+
+    $tenant = \App\Support\Tenancy\Tenant::factory()->create($slug !== null ? ['slug' => $slug] : []);
+
+    // phpunit.xml fuerza CACHE_STORE=redis para los tests (a propósito:
+    // así se prueba el aislamiento real de prefijo de tenant, ADR-033 §9,
+    // que el driver 'array' no ejercitaría). Redis sobrevive entre
+    // invocaciones del proceso — a diferencia de 'array' — así que un
+    // slug reutilizado en ejecuciones sucesivas dentro de los 60s de TTL
+    // de ResolveTenant leería el tenant_id de una tanda anterior ya
+    // borrada. Mismo motivo y mismo remedio que
+    // tests/Feature/Tenancy/ResolveTenantMiddlewareTest.php.
+    \Illuminate\Support\Facades\Cache::forget("tenant-resolution:{$tenant->slug}");
+
+    app(\App\Modules\Core\Application\ProvisionTenantDefaults::class)->provision(
+        $tenant,
+        'admin@example.com',
+        'Ana',
+        'Perez',
+    );
+
+    $admin = app(\App\Support\Tenancy\TenantContext::class)->runFor(
+        $tenant->id,
+        fn () => \App\Models\User::query()->where('email', 'admin@example.com')->firstOrFail(),
+    );
+
+    return [$tenant, $admin];
 }

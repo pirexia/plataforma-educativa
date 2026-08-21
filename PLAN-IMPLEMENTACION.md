@@ -116,7 +116,8 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 
 ### Bloque A · Identidad y acceso
 
-- [ ] **1.1 · `REQ-CORE`: tenants y usuarios** [OPUS + SONNET]
+- [x] **1.1 · `REQ-CORE`: tenants y usuarios** [OPUS + SONNET]
+  Cerrado 2026-08-22: API completa (configuración de centro, usuarios, invitaciones, importación masiva con idempotencia, roles/permisos/módulos de solo lectura, auditoría+exportación, activos de marca), sin pantallas (`OPEN-CORE-02`, se completan en 1.8). 76 `CA-CORE-*` con test, 183/183 en verde. `ADR-038` (convenciones REST) escrito antes de implementar. Revisión independiente (`security-reviewer`/`doc-reviewer`) sin hallazgos Alto/Crítico. De paso, arreglado un hueco de herramienta preexistente desde 0.7 (Larastan no veía el esquema real, issue #51) — PHPStan pasa a estar realmente limpio en todo el proyecto. Detalle completo en `memory.md`.
 - [ ] **1.2 · `REQ-AUTH`: autenticación local y sesiones** [SONNET]
   Cookie de sesión con CSRF (`ADR-025`), política de contraseñas, bloqueo por intentos, recuperación.
 - [ ] **1.3 · `REQ-AUTH`: MFA con obligatoriedad por rol** [SONNET]

@@ -17,20 +17,24 @@ export class ApiError extends Error {
   }
 }
 
-const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
+const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1'
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response
 
+  const isFormData = init.body instanceof FormData
+
+  const headers: HeadersInit = {
+    Accept: 'application/problem+json, application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+    ...init.headers,
+  }
+
   try {
     response = await fetch(`${baseUrl}${path}`, {
-      credentials: 'include',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        ...init.headers,
-      },
       ...init,
+      credentials: 'include',
+      headers,
     })
   } catch (cause) {
     throw new ApiError('No se pudo contactar con la API', 0, cause)

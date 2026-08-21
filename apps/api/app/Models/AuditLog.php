@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Support\Database\HasPublicId;
 use App\Support\Tenancy\AppendOnlyModel;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
@@ -12,6 +13,8 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * automático desde el ciclo de vida del ORM (con la lista de redacción
  * por modelo) lo escribe el paso 0.9 — este modelo solo fija el esquema y
  * la relación polimórfica.
+ *
+ * @mixin IdeHelperAuditLog
  */
 class AuditLog extends AppendOnlyModel
 {
@@ -44,5 +47,17 @@ class AuditLog extends AppendOnlyModel
     public function auditable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    /**
+     * api.md §8: `actor.display_name` se resuelve por FK en el momento
+     * de la consulta, nunca desde una copia desnormalizada (ADR-034 §3)
+     * — si la persona se anonimiza, aquí aparece anonimizada.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function actor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'actor_user_id');
     }
 }

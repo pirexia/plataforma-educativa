@@ -1,0 +1,980 @@
+# REQ-CORE (paso 1.1). Convenciones transversales en
+# docs/adr/ADR-038-convenciones-api-rest.md — este fichero no las repite,
+# solo las aplica. Todos los endpoints bajo /api/v1, referenciados desde
+# apps/api/openapi.yaml. Contrato completo en docs/modulos/REQ-CORE/api.md.
+
+paths:
+  /api/v1/tenant:
+    get:
+      operationId: getTenant
+      summary: Identidad del centro (solo lectura)
+      tags: [Core / Tenant]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Identidad del centro
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  public_id: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                  slug: { type: string }
+                  name: { type: string }
+                  status: { type: string, enum: [activo, suspendido, eliminado] }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+
+  /api/v1/tenant/branding:
+    get:
+      operationId: getTenantBranding
+      summary: Branding público previo a la sesión (único endpoint sin autenticación)
+      tags: [Core / Tenant]
+      security: []
+      responses:
+        '200':
+          description: Nombre, colores, activos e idiomas del centro. Regla no negociable — no devuelve nada más.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/TenantBranding' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '429':
+          description: Limitado por IP (endpoint anónimo y enumerable por subdominio).
+          headers:
+            Retry-After: { $ref: '../components.yaml#/components/headers/RetryAfter' }
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/tenant/settings:
+    get:
+      operationId: getTenantSettings
+      summary: Configuración del centro
+      tags: [Core / Tenant]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Configuración del propio centro
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/TenantSettings' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+    patch:
+      operationId: updateTenantSettings
+      summary: Actualización parcial de la configuración del centro
+      description: >
+        Semántica de fusión de ADR-038 §9.2. Grupos regional/fiscal/branding
+        (sin activos, que van por PUT/DELETE .../assets/{kind}).
+      tags: [Core / Tenant]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                regional:
+                  type: object
+                  properties:
+                    default_locale: { $ref: '../components.yaml#/components/schemas/Locale' }
+                    active_locales:
+                      type: array
+                      items: { $ref: '../components.yaml#/components/schemas/Locale' }
+                    timezone: { type: string }
+                    currency: { type: string }
+                    autonomous_community: { type: string }
+                fiscal:
+                  type: object
+                  additionalProperties: true
+                branding:
+                  type: object
+                  properties:
+                    color_primary: { type: string, pattern: '^#[0-9A-Fa-f]{6}$' }
+                    color_secondary: { type: string, pattern: '^#[0-9A-Fa-f]{6}$' }
+      responses:
+        '200':
+          description: Configuración resultante, completa
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/TenantSettings' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/tenant/settings/assets/{kind}:
+    parameters:
+      - name: kind
+        in: path
+        required: true
+        schema: { type: string, enum: [logo, favicon, login-background] }
+    put:
+      operationId: putTenantSettingsAsset
+      summary: Sube o reemplaza un activo de marca
+      description: >
+        RSEC-OWASP-012/RN-CORE-18: tipo real por contenido, nunca por
+        extensión ni Content-Type declarado. SVG saneado antes de
+        almacenar. El activo anterior no se borra en la petición (purga
+        diferida 24h, PurgeOrphanBrandingAssets).
+      tags: [Core / Tenant]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '200':
+          description: Activo almacenado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  kind: { type: string, enum: [logo, favicon, login-background] }
+                  url: { type: string, format: uri }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404':
+          description: "`kind` fuera de {logo, favicon, login-background}."
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '413':
+          description: Excede el tamaño máximo del tipo de activo.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '415':
+          description: Tipo real no admitido para este tipo de activo.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '422':
+          description: Tipo real distinto del declarado, o SVG irreparable.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+    delete:
+      operationId: deleteTenantSettingsAsset
+      summary: Retira un activo de marca
+      tags: [Core / Tenant]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204': { description: Retirado }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+
+  /api/v1/me:
+    get:
+      operationId: getMe
+      summary: Perfil propio (autoservicio, autorizado por identidad)
+      tags: [Core / Autoservicio]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Usuario autenticado, con roles y permisos efectivos
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/User' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+    patch:
+      operationId: updateMe
+      summary: Actualiza idioma preferido y datos de contacto propios
+      description: Campos distintos de person.locale/contact_email/contact_phone se ignoran silenciosamente (CA-CORE-018).
+      tags: [Core / Autoservicio]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                person:
+                  type: object
+                  properties:
+                    locale: { $ref: '../components.yaml#/components/schemas/Locale' }
+                    contact_email: { type: string, format: email }
+                    contact_phone: { type: string }
+      responses:
+        '200':
+          description: Usuario actualizado
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/User' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/users:
+    get:
+      operationId: listUsers
+      summary: Lista los usuarios del centro
+      tags: [Core / Usuarios]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/QParam' }
+        - name: status
+          in: query
+          description: Valores separados por coma (ADR-038 §5.2)
+          schema: { type: string, example: "activo,inactivo" }
+        - name: role
+          in: query
+          description: ULID de rol, valores separados por coma
+          schema: { type: string }
+        - name: locale
+          in: query
+          schema: { $ref: '../components.yaml#/components/schemas/Locale' }
+        - name: include_deleted
+          in: query
+          description: Requiere además usuario.eliminar. ADR-038 §5.2 (true/false).
+          schema: { type: boolean, default: false }
+        - { $ref: '../components.yaml#/components/parameters/SortParam' }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de usuarios
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/User' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createUser
+      summary: Crea un usuario del centro
+      tags: [Core / Usuarios]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, person]
+              properties:
+                email: { type: string, format: email }
+                person:
+                  type: object
+                  required: [given_name, family_name_1]
+                  properties:
+                    given_name: { type: string }
+                    family_name_1: { type: string }
+                    family_name_2: { type: string }
+                    birth_date: { type: string, format: date }
+                    document_type: { type: string }
+                    document_number: { type: string }
+                    contact_email: { type: string, format: email }
+                    contact_phone: { type: string }
+                    locale: { $ref: '../components.yaml#/components/schemas/Locale' }
+                role_ids:
+                  type: array
+                  items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                send_invitation: { type: boolean, default: true }
+      responses:
+        '201':
+          description: Usuario creado, con invitation si se emitió
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '../components.yaml#/components/schemas/User'
+                  - type: object
+                    properties:
+                      invitation:
+                        type: object
+                        nullable: true
+                        properties:
+                          public_id: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                          expires_at: { type: string, format: date-time }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/users/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getUser
+      summary: Detalle de un usuario
+      tags: [Core / Usuarios]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Usuario
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/User' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: updateUser
+      summary: Actualiza email y/o datos de la persona
+      tags: [Core / Usuarios]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string, format: email }
+                person: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Usuario actualizado
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/User' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    delete:
+      operationId: deleteUser
+      summary: Baja lógica de un usuario
+      tags: [Core / Usuarios]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204': { description: Dado de baja }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: Es el propio solicitante, o el último Administrador de Centro vivo.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/users/{publicId}/restore:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: restoreUser
+      summary: Restaura un usuario dado de baja lógica
+      tags: [Core / Usuarios]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Usuario restaurado (status inactivo)
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/User' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: Su correo o documento los ocupa ya un registro vivo.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/users/{publicId}/status:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: updateUserStatus
+      summary: Alta/baja administrativa entre activo e inactivo
+      tags: [Core / Usuarios]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [activo, inactivo] }
+      responses:
+        '200':
+          description: Usuario con el nuevo estado
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/User' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: Transición no permitida, dejaría sin Administrador de Centro, o es el propio solicitante.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/invitations:
+    get:
+      operationId: listInvitations
+      summary: Lista las invitaciones del centro
+      tags: [Core / Invitaciones]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [vigente, caducada, revocada, aceptada] }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de invitaciones
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/Invitation' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+
+  /api/v1/users/{publicId}/invitations:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: issueInvitation
+      summary: Emite o reemite la invitación de un usuario pendiente
+      description: Revoca la invitación viva anterior (RN-CORE-09).
+      tags: [Core / Invitaciones]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '201':
+          description: Invitación emitida (sin token)
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Invitation' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: El usuario no está en estado pendiente.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '429':
+          description: Límite de reenvíos por usuario y hora.
+          headers:
+            Retry-After: { $ref: '../components.yaml#/components/headers/RetryAfter' }
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/invitations/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    delete:
+      operationId: revokeInvitation
+      summary: Revoca una invitación
+      tags: [Core / Invitaciones]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204': { description: Revocada }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: La invitación ya está aceptada.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/roles:
+    get:
+      operationId: listRoles
+      summary: Lista los roles del centro (predefinidos y personalizados)
+      description: >
+        Solo lectura en 1.1 (CA-CORE-041): no existe ninguna ruta PATCH ni
+        DELETE sobre este recurso — Laravel responde 405 automáticamente
+        a cualquier método sin ruta registrada sobre una URI que sí
+        resuelve. La escritura de roles es 1.5.
+      tags: [Core / Roles]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de roles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/Role' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+
+  /api/v1/roles/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getRole
+      summary: Detalle de un rol, con sus concesiones
+      description: Solo lectura en 1.1 (CA-CORE-041) — ver la nota de GET /roles.
+      tags: [Core / Roles]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Rol con permissions
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Role' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+
+  /api/v1/permissions:
+    get:
+      operationId: listPermissions
+      summary: Catálogo de permisos de la plataforma
+      tags: [Core / Roles]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: module_code
+          in: query
+          schema: { type: string }
+        - name: resource
+          in: query
+          schema: { type: string }
+        - name: include_retired
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Catálogo de permisos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/Permission' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+
+  /api/v1/users/{publicId}/roles:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: listUserRoles
+      summary: Roles asignados a un usuario
+      tags: [Core / Roles]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Roles del usuario
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/RoleSummary' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    put:
+      operationId: replaceUserRoles
+      summary: Reemplaza el conjunto completo de roles del usuario
+      description: Idempotente por construcción. No genera un segundo registro de auditoría si no hubo cambio efectivo.
+      tags: [Core / Roles]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role_ids]
+              properties:
+                role_ids:
+                  type: array
+                  items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+      responses:
+        '200':
+          description: Roles resultantes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/RoleSummary' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403':
+          description: Algún rol concede un permiso que el solicitante no posee (RPERM-013).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: Retiraría el último administrador_centro, o el solicitante se modifica a sí mismo.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/modules:
+    get:
+      operationId: listModules
+      summary: Suscripciones del tenant a los módulos del catálogo
+      tags: [Core / Módulos]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Suscripciones del propio tenant
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/ModuleSubscription' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+
+  /api/v1/module-subscriptions/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    patch:
+      operationId: updateModuleSubscriptionSettings
+      summary: Actualiza únicamente la configuración de una suscripción
+      description: "`enabled` no es modificable por esta vía en 1.1 (OPEN-CORE-03)."
+      tags: [Core / Módulos]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                settings: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Suscripción actualizada
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/ModuleSubscription' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422':
+          description: El cuerpo incluye "enabled".
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/user-imports:
+    get:
+      operationId: listUserImports
+      summary: Lista los lotes de importación de usuarios
+      tags: [Core / Importación]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de importaciones
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/UserImport' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+    post:
+      operationId: createUserImport
+      summary: Sube un fichero CSV y dispara su validación en cola
+      description: >
+        Esquema de columnas fijo (api.md §7): email;given_name;family_name_1;
+        family_name_2;document_type;document_number;birth_date;contact_email;
+        contact_phone;locale;roles. La validación (fase 1) nunca escribe
+        (RN-CORE-20).
+      tags: [Core / Importación]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary, description: "text/csv, ≤ 10 MB, ≤ 20 000 filas" }
+                send_invitations: { type: boolean, default: true }
+      responses:
+        '202':
+          description: Lote subido, en cola de validación
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/UserImport' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '413':
+          description: Excede el tamaño máximo (10 MB).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '415':
+          description: Tipo real no admitido.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/user-imports/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getUserImport
+      summary: Estado de un lote de importación
+      tags: [Core / Importación]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Lote de importación
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/UserImport' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    delete:
+      operationId: deleteUserImport
+      summary: Descarta un lote no ejecutado
+      tags: [Core / Importación]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204':
+          description: Descartado, ficheros borrados del bucket
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: Ya está ejecutado o ejecutándose.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/user-imports/{publicId}/execute:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: executeUserImport
+      summary: Ejecuta un lote ya validado
+      description: >
+        Primer y único consumidor de Idempotency-Key en 1.1 (ADR-038 §8).
+        Cada fila válida se crea en su propia transacción; un fallo
+        aislado no tumba el lote.
+      tags: [Core / Importación]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/IdempotencyKeyHeader' }
+      responses:
+        '202':
+          description: Ejecución en curso (o repetición de una anterior, con Idempotency-Replayed)
+          headers:
+            Idempotency-Replayed: { $ref: '../components.yaml#/components/headers/IdempotencyReplayed' }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/UserImport' }
+        '400':
+          description: Idempotency-Key ausente o con formato distinto de ULID.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: Estado distinto de "validado"; o misma clave con cuerpo distinto; o misma clave en curso.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/audit-logs:
+    get:
+      operationId: listAuditLogs
+      summary: Consulta filtrada del registro de auditoría (paginación por cursor)
+      tags: [Core / Auditoría]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+        - name: actor_id
+          in: query
+          schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: actor_type
+          in: query
+          schema: { type: string, enum: [user, system, console, import, platform] }
+        - name: event
+          in: query
+          description: Repetible, separado por comas.
+          schema: { type: string }
+        - name: auditable_type
+          in: query
+          description: Alias del morph map, repetible.
+          schema: { type: string }
+        - name: auditable_id
+          in: query
+          schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: module
+          in: query
+          schema: { type: string }
+        - { $ref: '../components.yaml#/components/parameters/CursorParam' }
+        - { $ref: '../components.yaml#/components/parameters/LimitParam' }
+      responses:
+        '200':
+          description: Página de eventos de auditoría, orden occurred_at DESC
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/AuditLog' }
+                  meta: { $ref: '../components.yaml#/components/schemas/CursorMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '422':
+          description: Rango excesivo o cursor inválido.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/audit-logs/exports:
+    post:
+      operationId: exportAuditLogs
+      summary: Solicita una exportación asíncrona del registro filtrado
+      tags: [Core / Auditoría]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [format]
+              properties:
+                format: { type: string, enum: [csv, pdf], description: "pdf diferido a 1.17" }
+                from: { type: string, format: date-time }
+                to: { type: string, format: date-time }
+                event:
+                  type: array
+                  items: { type: string }
+                auditable_type:
+                  type: array
+                  items: { type: string }
+      responses:
+        '202':
+          description: Solicitud aceptada, generación en cola
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  public_id: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                  status: { type: string, enum: [pendiente, generando, completada, fallida] }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '422':
+          description: Rango supera el límite de filas, o format es pdf.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/data-exports/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getDataExport
+      summary: Estado y descarga de una exportación (primitiva compartida)
+      description: Solo el solicitante puede descargarla, además del permiso del recurso exportado.
+      tags: [Core / Auditoría]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Exportación
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/DataExport' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: Todavía no está completada.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '410':
+          description: Ya venció.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }

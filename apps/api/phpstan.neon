@@ -6,5 +6,15 @@ parameters:
         - app
         - routes
     level: 6
-    excludePaths:
-        - app/Modules/*/Domain/**  # vacío hasta el paso 1.1
+
+    # Issue #51: el escáner de migraciones de Larastan busca
+    # `$table->string('columna')` literal dentro de `Schema::create(...)` y
+    # nunca ve las columnas reales, porque este proyecto las declara vía
+    # `App\Support\Tenancy\TenantMigration::tenantTable()`/
+    # `tenantTableAppendOnly()`. `scanFiles` le da a Larastan el
+    # `_ide_helper_models.php` generado por `barryvdh/laravel-ide-helper`
+    # (introspección contra la base de datos real, con las migraciones ya
+    # aplicadas) como fuente de las propiedades mágicas de cada modelo.
+    # Regenerar tras cualquier migración nueva: ver CONTRIBUTING.md §3.1.
+    scanFiles:
+        - _ide_helper_models.php

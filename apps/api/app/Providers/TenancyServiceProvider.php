@@ -68,21 +68,48 @@ class TenancyServiceProvider extends ServiceProvider
             return ['tenant_id' => $context->hasTenant() ? $context->tenantId() : null];
         });
 
-        Event::listen(function (JobProcessing $event): void {
+        // Pila de contextos previos, no un simple "leave()" (hallazgo
+        // propio, severidad Alta, corregido en la misma sesión —
+        // REQ-CORE-1.1, primer job de negocio real del proyecto,
+        // SendInvitationEmail): con QUEUE_CONNECTION=sync (forzado en
+        // phpunit.xml para tests, y opción real de despliegue) un job se
+        // ejecuta en línea dentro de la propia petición HTTP que lo
+        // despachó. Un "leave()" incondicional al terminar el job vaciaba
+        // el contexto de tenant para el RESTO de esa petición —
+        // exactamente lo que un worker real (sin contexto ambiente que
+        // preservar) necesita, pero lo contrario de lo que necesita una
+        // petición HTTP que sigue usando datos de tenant después de
+        // despachar. Guardar y restaurar el contexto anterior (en vez de
+        // limpiarlo sin más) sirve a los dos casos: un worker real no
+        // tiene contexto previo (se restaura a "sin tenant", igual que
+        // antes) y una petición síncrona recupera el suyo.
+        $previousContexts = [];
+
+        Event::listen(function (JobProcessing $event) use (&$previousContexts): void {
+            $context = $this->app->make(TenantContext::class);
+            $previousContexts[] = $context->hasTenant() ? $context->tenantId() : null;
+
             $tenantId = $event->job->payload()['tenant_id'] ?? null;
 
             if (is_int($tenantId)) {
-                $this->app->make(TenantContext::class)->enter($tenantId);
+                $context->enter($tenantId);
             }
         });
 
-        $leaveAfterJob = function (): void {
-            $this->app->make(TenantContext::class)->leave();
+        $restorePreviousContext = function () use (&$previousContexts): void {
+            $context = $this->app->make(TenantContext::class);
+            $previous = array_pop($previousContexts);
+
+            if ($previous === null) {
+                $context->leave();
+            } else {
+                $context->enter($previous);
+            }
         };
 
-        Event::listen(JobProcessed::class, $leaveAfterJob);
-        Event::listen(JobFailed::class, $leaveAfterJob);
-        Event::listen(JobExceptionOccurred::class, $leaveAfterJob);
+        Event::listen(JobProcessed::class, $restorePreviousContext);
+        Event::listen(JobFailed::class, $restorePreviousContext);
+        Event::listen(JobExceptionOccurred::class, $restorePreviousContext);
 
         // Preferimos un worker caído a un job que arranca con el tenant de
         // la iteración anterior porque algo se saltó la salida.

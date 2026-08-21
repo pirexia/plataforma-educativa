@@ -22,7 +22,7 @@ class PersonFactory extends Factory
             'family_name_1' => fake()->lastName(),
             'family_name_2' => fake()->lastName(),
             'contact_email' => fake()->unique()->safeEmail(),
-            'locale' => 'es',
+            'locale' => 'es-ES',
         ];
     }
 }

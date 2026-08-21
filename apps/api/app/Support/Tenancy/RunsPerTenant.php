@@ -14,9 +14,8 @@ use Closure;
  * callback, nunca como su valor de retorno — ver el aviso en
  * TenantContext::runFor().
  */
-// Sin consumidor en app/ todavía: app/Modules/ está vacío hasta 1.1.
-// Verificado por test (RunsPerTenantTest), no código muerto.
-// @phpstan-ignore trait.unused
+// Consumido desde 1.1 por PurgeCoreMaintenanceCommand (operacion.md §4).
+// Verificado también por test (RunsPerTenantTest).
 trait RunsPerTenant
 {
     protected function eachTenant(Closure $callback): void
