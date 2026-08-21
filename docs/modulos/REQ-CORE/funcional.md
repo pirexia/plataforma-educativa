@@ -6,7 +6,7 @@
 | Prioridad | MUST |
 | Fase | 1 · Bloque A · **paso 1.1** |
 | Depende de | 0.7 (aislamiento multi-tenant, `ADR-033`), 0.8 (modelo de datos núcleo, `ADR-034`), 0.9 (auditoría `ADR-035`/`ADR-036`, i18n) |
-| Estado | **PROPUESTO** — pendiente de aprobación antes de implementar |
+| Estado | **IMPLEMENTADO** — API completa, revisión independiente hecha, sin pantallas (`OPEN-CORE-02`, se completan en 1.8) |
 | Módulo (código) | `core` · `apps/api/app/Modules/Core` · `apps/web/src/modules/core` |
 
 > Fuente de verdad: sección 5.1 de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` (`REQ-CORE-001` a `REQ-CORE-008`). Este documento **no** reabre lo decidido en `ADR-033`, `ADR-034`, `ADR-035` ni `ADR-036`.
