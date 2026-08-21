@@ -33,6 +33,8 @@ use Illuminate\Notifications\Notifiable;
  * pérdida de diff — 1.2 la cubre como evento de seguridad, ver ADR-035
  * §8); `password`/`remember_token` los redacta la regla 1 (patrón global
  * de secretos), sin necesidad de declararlos aquí.
+ *
+ * @mixin IdeHelperUser
  */
 #[Fillable(['person_id', 'email', 'password', 'status'])]
 #[Hidden(['password', 'remember_token'])]

@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * datos.md §A.4. Full: no contiene datos personales, solo qué se pidió,
  * cuándo y por quién. Primitiva compartida (ExportRequestService,
  * INV-007) — otros módulos la usan por interfaz, no importando esta clase.
+ *
+ * @mixin IdeHelperDataExport
  */
 class DataExport extends TenantModel implements Auditable
 {

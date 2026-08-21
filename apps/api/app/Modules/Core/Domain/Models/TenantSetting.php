@@ -14,6 +14,8 @@ use App\Support\Tenancy\TenantModel;
  * fiscales (razón social, NIF, dirección) porque en un centro que sea
  * persona física o sociedad unipersonal son datos personales; las claves
  * de objeto de branding quedan fuera por no aportar nada legible.
+ *
+ * @mixin IdeHelperTenantSetting
  */
 class TenantSetting extends TenantModel implements Auditable
 {

@@ -49,6 +49,17 @@ Reglas que el linter no puede verificar por sí solo:
 
 Lista completa de invariantes: sección 0.5 de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
+### 3.1. Regenerar `_ide_helper_models.php` tras una migración nueva
+
+Larastan infiere las propiedades mágicas de un modelo Eloquent escaneando `Schema::create(...)` de forma estática, pero este proyecto declara las columnas de tenant vía `App\Support\Tenancy\TenantMigration::tenantTable()`/`tenantTableAppendOnly()` (issue [#51](https://github.com/pirexia/plataforma-educativa/issues/51)), que el escáner nunca ve. La solución es `barryvdh/laravel-ide-helper` (dependencia solo de desarrollo):
+
+1. Tras crear o modificar una migración y aplicarla en desarrollo (`php artisan migrate --database=pgsql_owner`), regenera el fichero:
+   ```
+   php artisan ide-helper:models --nowrite
+   ```
+2. **Nunca uses `--write` ni `--write-mixin`**: `--write` duplica el docblock completo en cada modelo (diverge del esquema real en cuanto alguien lo edita a mano); `--write-mixin` reescribe el docblock *entero* del modelo con su propio serializador y puede corromper texto existente (ocurrió en la práctica: partió "0..1" en "0." / ".1" en un comentario de `Person.php`). El fichero generado (`_ide_helper_models.php`, en la raíz de `apps/api`) se **commitea tal cual** — es la única forma de que Larastan lo use sin depender de una base de datos en CI (el job `static-analysis` de `ci-api.yml` no tiene servicio de PostgreSQL). Riesgo aceptado: si alguien migra sin regenerar, el fichero queda desincronizado hasta el siguiente `phpstan analyse` local que lo note — no hay comprobación automática de esa divergencia todavía.
+3. Cada modelo real lleva una línea `@mixin IdeHelperNombreDelModelo` en su propio docblock (footprint mínimo, escrito a mano una vez por modelo — no lo genera `--write-mixin`, ver punto 2). Es lo único que hace que PHPStan conecte las propiedades del fichero generado con la clase real: sin ese `@mixin`, `scanFiles: [_ide_helper_models.php]` en `phpstan.neon` no tiene ningún efecto (los `class IdeHelperX {}` quedan sueltos, sin relación con `App\Models\X`). Un modelo nuevo necesita esa línea añadida a mano una vez; el contenido de sus propiedades se regenera solo.
+
 ## 4. Abrir un módulo nuevo
 
 1. El módulo tiene que existir como `REQ-XXX` en `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`. No se inventan requisitos.

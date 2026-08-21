@@ -16,6 +16,8 @@ use App\Support\Tenancy\TenantModel;
  * el test de esquema de 0.8.10, no por este modelo).
  *
  * ADR-035 §8: Full — sin datos personales.
+ *
+ * @mixin IdeHelperAcademicYear
  */
 class AcademicYear extends TenantModel implements Auditable
 {

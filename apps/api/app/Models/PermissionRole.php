@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * auditoría propia en 1.1 — en este paso solo la siembra
  * `tenant:provision-defaults`, no hay escritura de usuario que auditar
  * todavía (1.5 la traerá junto con el resolutor completo).
+ *
+ * @mixin IdeHelperPermissionRole
  */
 class PermissionRole extends TenantModel
 {

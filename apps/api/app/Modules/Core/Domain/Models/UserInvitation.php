@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * datos.md §A.2. Selective: `token_hash` lo redacta automáticamente el
  * patrón global `*token*` de config('audit.secret_attribute_patterns') —
  * no hace falta declararlo aquí.
+ *
+ * @mixin IdeHelperUserInvitation
  */
 class UserInvitation extends TenantModel implements Auditable
 {

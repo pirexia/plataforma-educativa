@@ -22,6 +22,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * inclusión — dato de mayor volumen personal del sistema (el `created` de
  * cada alumno/tutor/empleado escribe su identidad completa si no se
  * clasifica).
+ *
+ * @mixin IdeHelperPerson
  */
 class Person extends TenantModel implements Auditable
 {

@@ -13,6 +13,8 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * automático desde el ciclo de vida del ORM (con la lista de redacción
  * por modelo) lo escribe el paso 0.9 — este modelo solo fija el esquema y
  * la relación polimórfica.
+ *
+ * @mixin IdeHelperAuditLog
  */
 class AuditLog extends AppendOnlyModel
 {

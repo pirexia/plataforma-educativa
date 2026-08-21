@@ -17,6 +17,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * lea todavía (RPERM-014, RPERM-015).
  *
  * ADR-035 §8: Full — `name` es contenido del centro, no dato personal.
+ *
+ * @mixin IdeHelperRole
  */
 class Role extends TenantModel implements Auditable
 {

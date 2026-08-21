@@ -16,6 +16,8 @@ use App\Support\Tenancy\TenantModel;
  *
  * ADR-035 §8: Full — `settings` queda acotado por el tope de tamaño de
  * config('audit.max_value_length'), no por clasificación.
+ *
+ * @mixin IdeHelperModuleSubscription
  */
 class ModuleSubscription extends TenantModel implements Auditable
 {

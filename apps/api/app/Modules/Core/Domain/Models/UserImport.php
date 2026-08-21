@@ -13,6 +13,8 @@ use App\Support\Tenancy\TenantModel;
  * datos.md §A.3. Selective: `original_filename`, las claves de objeto y
  * `error_summary` se redactan como `identifier` — pueden contener nombres
  * de fichero o fragmentos identificativos de personal del centro.
+ *
+ * @mixin IdeHelperUserImport
  */
 class UserImport extends TenantModel implements Auditable
 {

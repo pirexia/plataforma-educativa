@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Model;
  * ADR-034 §5, §7: catálogo de plataforma, no dato del tenant. Mismo
  * patrón que Permission: sin tenant_id, sin RLS, escritura reservada al
  * comando `platform:sync-registry` (REVOKE en la migración de 0.8.7).
+ *
+ * @mixin IdeHelperModule
  */
 class Module extends Model
 {

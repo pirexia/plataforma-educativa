@@ -18,6 +18,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * tenant activo. La política RLS de la tabla sigue ahí como red de
  * seguridad para el día en que algo la consulte por la conexión pgsql: en
  * ese caso solo vería su propia fila, nunca las de otro tenant.
+ *
+ * @mixin IdeHelperTenant
  */
 class Tenant extends Model
 {

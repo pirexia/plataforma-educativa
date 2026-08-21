@@ -18,6 +18,8 @@ use App\Support\Tenancy\TenantModel;
  * original la creó bajo el namespace de Core por ser 1.1 su primer y único
  * consumidor; se traslada ahora, antes de que un segundo módulo la
  * importe desde el sitio equivocado (`INV-007`).
+ *
+ * @mixin IdeHelperIdempotencyKey
  */
 class IdempotencyKey extends TenantModel
 {
