@@ -38,6 +38,9 @@ final class ContrastRatioCalculator
         return 0.2126 * $r + 0.7152 * $g + 0.0722 * $b;
     }
 
+    /**
+     * @return array{float, float, float}
+     */
     private function channels(string $hex): array
     {
         $hex = ltrim($hex, '#');

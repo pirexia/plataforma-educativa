@@ -17,13 +17,13 @@ final class EloquentUserDirectory implements UserDirectory
         }
 
         $person = $user->person;
-        $displayName = trim(($person?->given_name ?? '').' '.($person?->family_name_1 ?? ''));
+        $displayName = trim(($person->given_name ?? '').' '.($person->family_name_1 ?? ''));
 
         return new UserDirectoryEntry(
             publicId: $user->public_id,
             email: $user->email,
             displayName: $displayName !== '' ? $displayName : $user->email,
-            preferredLocale: $person?->locale ?? 'es-ES',
+            preferredLocale: $person->locale ?? 'es-ES',
         );
     }
 }

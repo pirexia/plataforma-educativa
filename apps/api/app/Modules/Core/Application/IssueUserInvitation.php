@@ -41,12 +41,12 @@ final class IssueUserInvitation
             'expires_at' => now()->addDays($ttlDays),
         ]);
 
-        $locale = $user->person?->locale ?? $this->settings->defaultLocale();
+        $locale = $user->person->locale ?? $this->settings->defaultLocale();
 
         SendInvitationEmail::dispatch(
             rawToken: $rawToken,
             recipientEmail: $user->email,
-            recipientGivenName: $user->person?->given_name ?? '',
+            recipientGivenName: $user->person->given_name ?? '',
             recipientLocale: $locale,
             tenantName: $tenantName,
             tenantSlug: $tenantSlug,

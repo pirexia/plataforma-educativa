@@ -43,6 +43,8 @@ final class ValidationErrorBag
     }
 
     /**
+     * @param  array<string, string|int|float>  $detailParams
+     *
      * @throws ApiException si se acumuló al menos un error
      */
     public function throwIfAny(?string $detailKey = null, array $detailParams = []): void

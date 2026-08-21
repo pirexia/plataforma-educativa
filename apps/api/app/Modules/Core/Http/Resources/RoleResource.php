@@ -32,8 +32,8 @@ class RoleResource extends JsonResource
         if ($this->relationLoaded('permissionGrants')) {
             $data['permissions'] = $this->permissionGrants->map(fn ($grant) => [
                 'code' => $grant->permission_code,
-                'resource' => $grant->permission?->resource,
-                'action' => $grant->permission?->action,
+                'resource' => $grant->permission->resource,
+                'action' => $grant->permission->action,
                 'effect' => $grant->effect,
                 'scope' => $grant->scope,
             ])->all();

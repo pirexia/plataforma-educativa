@@ -30,10 +30,10 @@ class ModulesController extends Controller
                 'module_code' => $module->code,
                 'name' => __($module->name_key),
                 'phase' => $module->phase,
-                'enabled' => $subscription?->enabled ?? false,
+                'enabled' => $subscription->enabled ?? false,
                 'enabled_at' => $subscription?->enabled_at,
                 'disabled_at' => $subscription?->disabled_at,
-                'settings' => $subscription?->settings ?? [],
+                'settings' => $subscription->settings ?? [],
             ];
         });
 

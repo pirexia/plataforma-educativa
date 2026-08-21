@@ -2,8 +2,8 @@
 
 namespace App\Support\Api;
 
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Validator;
 
 /**
  * ADR-038 §6.3: convierte un `Illuminate\Validation\Validator` fallido a la
@@ -12,6 +12,14 @@ use Illuminate\Validation\Validator;
  * depende del texto traducido); `message` es el texto ya traducido que el
  * propio Validator resolvió desde lang/{locale}/validation.php; `params`
  * son los parámetros de la regla, normalizados con nombre.
+ *
+ * Tipado por el contrato (`Illuminate\Contracts\Validation\Validator`), no
+ * por la clase concreta: ambos puntos de llamada (`ApiFormRequest::
+ * failedValidation()`, `ProblemResponseFactory::classify()` sobre
+ * `ValidationException::$validator`) ya reciben el contrato de Laravel, y
+ * este método solo usa `failed()`/`errors()`, ambos declarados en él —
+ * exigir la clase concreta era una restricción de tipo innecesaria
+ * (hallazgo de `phpstan analyse`, issue #51).
  */
 final class ValidationErrorFormatter
 {

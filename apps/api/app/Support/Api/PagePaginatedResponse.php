@@ -15,6 +15,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 final class PagePaginatedResponse
 {
     /**
+     * @param  LengthAwarePaginator<int, mixed>  $paginator
      * @param  class-string<JsonResource>  $resourceClass
      */
     public static function make(LengthAwarePaginator $paginator, string $resourceClass): JsonResponse

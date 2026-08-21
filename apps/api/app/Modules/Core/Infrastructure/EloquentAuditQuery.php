@@ -7,6 +7,7 @@ use App\Modules\Core\Application\CursorCodec;
 use App\Modules\Core\Domain\AuditQuery;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 /**
  * api.md §8: orden `(occurred_at DESC, id DESC)`, paginación por cursor
@@ -28,6 +29,9 @@ final class EloquentAuditQuery implements AuditQuery
         private readonly TenantContext $tenantContext,
     ) {}
 
+    /**
+     * @return array{logs: Collection<int, AuditLog>, next_cursor: ?string, has_more: bool}
+     */
     public function search(array $filters, ?string $cursor, int $limit): array
     {
         $fingerprint = $this->cursorCodec->fingerprint($filters);
@@ -66,6 +70,7 @@ final class EloquentAuditQuery implements AuditQuery
 
     /**
      * @param  array<string, mixed>  $filters
+     * @return Builder<AuditLog>
      */
     private function baseQuery(array $filters): Builder
     {

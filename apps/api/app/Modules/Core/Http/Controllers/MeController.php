@@ -23,6 +23,9 @@ class MeController extends Controller
         private readonly PermissionResolver $permissions,
     ) {}
 
+    /**
+     * @return array<string, mixed>
+     */
     public function show(Request $request): array
     {
         $user = $this->currentUser($request);
@@ -56,6 +59,8 @@ class MeController extends Controller
      * silencio (CA-CORE-018) — por eso no hay `email`/`status`/`roles`
      * en `rules()`: no están, así que `$request->validated()` nunca los
      * contiene, aunque el cliente los envíe.
+     *
+     * @return array<string, mixed>
      */
     public function update(Request $request): array
     {

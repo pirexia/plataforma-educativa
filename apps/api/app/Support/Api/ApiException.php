@@ -18,6 +18,7 @@ use RuntimeException;
 final class ApiException extends RuntimeException
 {
     /**
+     * @param  array<string, string|int|float>  $detailParams
      * @param  array<string, list<array{code: string, message: string, params?: array<string, mixed>}>>  $errors
      * @param  array<string, string>  $headers
      */
@@ -32,6 +33,9 @@ final class ApiException extends RuntimeException
         parent::__construct($type);
     }
 
+    /**
+     * @param  array<string, string|int|float>  $detailParams
+     */
     public static function malformed(?string $detailKey = null, array $detailParams = []): self
     {
         return new self(400, 'malformed', $detailKey, $detailParams);
@@ -42,6 +46,9 @@ final class ApiException extends RuntimeException
         return new self(401, 'unauthenticated');
     }
 
+    /**
+     * @param  array<string, string|int|float>  $detailParams
+     */
     public static function forbidden(?string $detailKey = null, array $detailParams = []): self
     {
         return new self(403, 'forbidden', $detailKey, $detailParams);
@@ -62,6 +69,9 @@ final class ApiException extends RuntimeException
         return new self(405, 'method-not-allowed');
     }
 
+    /**
+     * @param  array<string, string|int|float>  $detailParams
+     */
     public static function conflict(string $detailKey, array $detailParams = []): self
     {
         return new self(409, 'conflict', $detailKey, $detailParams);
@@ -72,11 +82,17 @@ final class ApiException extends RuntimeException
         return new self(410, 'gone');
     }
 
+    /**
+     * @param  array<string, string|int|float>  $detailParams
+     */
     public static function payloadTooLarge(?string $detailKey = null, array $detailParams = []): self
     {
         return new self(413, 'payload-too-large', $detailKey, $detailParams);
     }
 
+    /**
+     * @param  array<string, string|int|float>  $detailParams
+     */
     public static function unsupportedMediaType(?string $detailKey = null, array $detailParams = []): self
     {
         return new self(415, 'unsupported-media-type', $detailKey, $detailParams);
@@ -84,6 +100,7 @@ final class ApiException extends RuntimeException
 
     /**
      * @param  array<string, list<array{code: string, message: string, params?: array<string, mixed>}>>  $errors
+     * @param  array<string, string|int|float>  $detailParams
      */
     public static function validation(array $errors, ?string $detailKey = null, array $detailParams = []): self
     {

@@ -16,6 +16,9 @@ class StoreUserRequest extends ApiFormRequest
         return true;
     }
 
+    /**
+     * @return array<string, array<int, mixed>>
+     */
     public function rules(): array
     {
         return [

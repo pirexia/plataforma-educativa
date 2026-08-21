@@ -128,6 +128,9 @@ final class ProblemResponseFactory
         return [500, 'internal', self::resolveDetail('internal', null, []), [], []];
     }
 
+    /**
+     * @param  array<string, string|int|float>  $detailParams
+     */
     private static function resolveDetail(string $type, ?string $detailKey, array $detailParams): ?string
     {
         if ($detailKey !== null) {
