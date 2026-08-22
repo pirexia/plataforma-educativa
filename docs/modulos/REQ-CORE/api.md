@@ -350,7 +350,7 @@ Revoca. La fila se conserva con `revoked_at` (no se borra: es traza).
 - **Respuesta 204**
 - **Errores**: `409` si ya está aceptada; 401, 403, 404
 
-> **Fuera de 1.1**: el canje (`POST /invitations/{token}/accept`, que fija la contraseña y activa al usuario) pertenece a `REQ-AUTH-001`, paso 1.2. El contrato del token está fijado en `funcional.md` §4.3 para que 1.2 no lo reinvente.
+> **Fuera de 1.1**: el canje (`POST /api/v1/auth/invitation-redemptions`, con el token en el cuerpo — nunca en la ruta, para que no acabe en logs de proxy, historial ni `Referer` — que fija la contraseña y activa al usuario) pertenece a `REQ-AUTH-001`, paso 1.2. El contrato del token está fijado en `funcional.md` §4.3 para que 1.2 no lo reinvente. Corregido el 2026-08-22 (`REQ-AUTH/funcional.md OPEN-AUTH-08`): la forma `POST /invitations/{token}/accept` era una nota orientativa de 1.1, nunca implementada, y quedaba en contradicción con la especificación vinculante de 1.2.
 
 ---
 

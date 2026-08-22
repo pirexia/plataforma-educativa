@@ -118,11 +118,15 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 
 - [x] **1.1 · `REQ-CORE`: tenants y usuarios** [OPUS + SONNET]
   Cerrado 2026-08-22: API completa (configuración de centro, usuarios, invitaciones, importación masiva con idempotencia, roles/permisos/módulos de solo lectura, auditoría+exportación, activos de marca), sin pantallas (`OPEN-CORE-02`, se completan en 1.8). 76 `CA-CORE-*` con test, 183/183 en verde. `ADR-038` (convenciones REST) escrito antes de implementar. Revisión independiente (`security-reviewer`/`doc-reviewer`) sin hallazgos Alto/Crítico. De paso, arreglado un hueco de herramienta preexistente desde 0.7 (Larastan no veía el esquema real, issue #51) — PHPStan pasa a estar realmente limpio en todo el proyecto. Detalle completo en `memory.md`.
-- [ ] **1.2 · `REQ-AUTH`: autenticación local y sesiones** [SONNET]
-  Cookie de sesión con CSRF (`ADR-025`), política de contraseñas, bloqueo por intentos, recuperación.
+- [~] **1.2 · `REQ-AUTH`: autenticación local y sesiones** [SONNET]
+  Cookie de sesión con CSRF (`ADR-025`), política de contraseñas, bloqueo por intentos, recuperación, expiración por inactividad configurable (`REQ-AUTH-005` punto 1). **No incluye** panel de sesiones activas, cierre remoto ni detección de nuevo dispositivo — ver `1.2b`. **Especificación aprobada 2026-08-22** (`docs/modulos/REQ-AUTH/`, `ADR-039`), implementación sin empezar — ver `memory.md`.
+- [ ] **1.2b · `REQ-AUTH-005`: panel de sesiones activas, cierre remoto y detección de dispositivo** [SONNET]
+  Puntos 2-4 de `REQ-AUTH-005`, diferidos de `1.2` (issue [#59](https://github.com/pirexia/plataforma-educativa/issues/59), 2026-08-22): listado de sesiones activas por usuario, revocación individual/total, detección y alerta de login desde nuevo dispositivo/ubicación. Requiere modelo de datos propio (metadatos de dispositivo/IP).
 - [ ] **1.3 · `REQ-AUTH`: MFA con obligatoriedad por rol** [SONNET]
   TOTP, códigos de respaldo, atributo `mfa_obligatorio` en la entidad rol, período de gracia, resolución restrictiva en multi-rol.
 - [ ] **1.4 · `REQ-AUTH`: login con Google y fusión de cuentas** [SONNET]
+- [ ] **1.4b · `REQ-AUTH-004`: SSO institucional (SAML 2.0 / OIDC)** [OPUS + SONNET]
+  Añadido al plan (issue [#58](https://github.com/pirexia/plataforma-educativa/issues/58), 2026-08-22): requisito MUST de fase 1 sin paso asignado hasta ahora. SAML 2.0 + OIDC (Azure AD/Entra ID, Google Workspace), mapeo de atributos, *just-in-time provisioning*. Etiquetado OPUS+SONNET: valorar con `architect` el impacto en el modelo de identidad cerrado en 1.1.
 - [ ] **1.5 · Permisos granulares** [OPUS + SONNET] ⚠️ *paso crítico*
   Matriz recurso × acción × ámbito, roles personalizados, denegación por defecto, vista previa de permisos efectivos. Sección 11.
 - [ ] **1.6 · `REQ-BO`: backoffice de superadmin** [SONNET]
