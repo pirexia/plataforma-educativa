@@ -28,7 +28,7 @@ class TenantSetting extends TenantModel implements Auditable
     /** @var array<int, string> */
     protected array $auditRecordedAttributes = [
         'default_locale', 'active_locales', 'timezone', 'currency', 'autonomous_community',
-        'color_primary', 'color_secondary', 'deleted_at', 'created_by', 'updated_by',
+        'color_primary', 'color_secondary', 'session_timeout_minutes', 'deleted_at', 'created_by', 'updated_by',
     ];
 
     /** @var array<int, string> */
@@ -57,6 +57,8 @@ class TenantSetting extends TenantModel implements Auditable
         'logo_object_key',
         'favicon_object_key',
         'login_background_object_key',
+        // REQ-AUTH/datos.md §A.4 (REQ-AUTH-005 punto 1).
+        'session_timeout_minutes',
     ];
 
     protected $casts = [

@@ -234,12 +234,14 @@ components:
             display_name: { type: string }
         actor_type:
           type: string
-          enum: [user, system, console, import, platform]
+          description: "Enumerado extensible (ADR-038 §7.3). 'anonymous' añadido por ADR-039 (REQ-AUTH)."
+          enum: [user, system, console, import, platform, anonymous]
         auditable_type: { type: string }
         auditable_public_id: { $ref: '#/components/schemas/PublicId' }
         event:
           type: string
-          enum: [created, updated, deleted, restored, read, exported]
+          description: "Enumerado extensible (ADR-038 §7.3). login/logout/password_reset_requested añadidos por ADR-039 (REQ-AUTH)."
+          enum: [created, updated, deleted, restored, read, exported, login, logout, password_reset_requested]
         changes: { type: object, nullable: true, additionalProperties: true }
         ip_address: { type: string, nullable: true }
         user_agent: { type: string, nullable: true }

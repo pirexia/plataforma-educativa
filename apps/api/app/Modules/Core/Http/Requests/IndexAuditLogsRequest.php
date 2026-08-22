@@ -24,7 +24,9 @@ class IndexAuditLogsRequest extends ApiFormRequest
             'from' => ['sometimes', 'date'],
             'to' => ['sometimes', 'date'],
             'actor_id' => ['sometimes', 'string', 'ulid'],
-            'actor_type' => ['sometimes', Rule::in(['user', 'system', 'console', 'import', 'platform'])],
+            // ADR-039 §4.1: 'anonymous' se añade al vocabulario para
+            // password_reset_requested (petición sin sesión, OPEN-AUTH-12).
+            'actor_type' => ['sometimes', Rule::in(['user', 'system', 'console', 'import', 'platform', 'anonymous'])],
             'event' => ['sometimes', 'string'],
             'auditable_type' => ['sometimes', 'string'],
             'auditable_id' => ['sometimes', 'string', 'ulid'],

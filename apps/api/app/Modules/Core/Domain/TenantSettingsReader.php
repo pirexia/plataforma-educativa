@@ -17,4 +17,10 @@ interface TenantSettingsReader
     public function timezone(): string;
 
     public function currency(): string;
+
+    /**
+     * REQ-AUTH/funcional.md §8.1, §1.4. Minutos de inactividad tras los
+     * que la sesión expira (REQ-AUTH-005 punto 1).
+     */
+    public function sessionTimeoutMinutes(): int;
 }

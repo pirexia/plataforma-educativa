@@ -59,6 +59,15 @@
         <env name="MAIL_MAILER" value="array" force="true"/>
         <env name="QUEUE_CONNECTION" value="sync" force="true"/>
         <env name="SESSION_DRIVER" value="array" force="true"/>
+        <!--
+            REQ-AUTH (1.2), CA-AUTH-052: la guarda de arranque de
+            SessionEnvironmentGuard aborta si SESSION_LIFETIME es menor que
+            AUTH_SESSION_TIMEOUT_MAX_MINUTES (480 por defecto). Sin este
+            valor, TODA la suite fallaría al arrancar, no solo los tests de
+            REQ-AUTH — la guarda corre en todos los entornos.
+        -->
+        <env name="SESSION_LIFETIME" value="480" force="true"/>
+        <env name="SESSION_DOMAIN" value="" force="true"/>
         <env name="TENANCY_BASE_DOMAIN" value="plataforma.test" force="true"/>
         <env name="PULSE_ENABLED" value="false" force="true"/>
         <env name="TELESCOPE_ENABLED" value="false" force="true"/>

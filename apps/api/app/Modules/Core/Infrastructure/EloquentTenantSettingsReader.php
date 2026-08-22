@@ -29,4 +29,9 @@ final class EloquentTenantSettingsReader implements TenantSettingsReader
     {
         return $this->cache->get()['currency'];
     }
+
+    public function sessionTimeoutMinutes(): int
+    {
+        return (int) $this->cache->get()['session_timeout_minutes'];
+    }
 }

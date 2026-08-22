@@ -55,6 +55,8 @@ final class ProvisionTenantDefaults
         'configuracion.leer', 'configuracion.actualizar',
         'modulo.leer', 'modulo.actualizar',
         'auditoria.leer', 'auditoria.exportar',
+        // REQ-AUTH/permisos.md §5: solo administrador_centro (§5.1).
+        'bloqueo_cuenta.leer', 'bloqueo_cuenta.eliminar',
     ];
 
     /** @var array<string, list<string>> */

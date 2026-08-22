@@ -5,6 +5,7 @@ namespace App\Modules\Core\Infrastructure;
 use App\Modules\Core\Domain\AuditQuery;
 use App\Modules\Core\Domain\BulkUserImporter;
 use App\Modules\Core\Domain\ExportRequestService;
+use App\Modules\Core\Domain\InvitationRedeemer;
 use App\Modules\Core\Domain\Models\DataExport;
 use App\Modules\Core\Domain\Models\TenantSetting;
 use App\Modules\Core\Domain\Models\UserImport;
@@ -33,6 +34,7 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         $this->app->bind(ExportRequestService::class, EloquentExportRequestService::class);
         $this->app->bind(BulkUserImporter::class, EloquentBulkUserImporter::class);
         $this->app->bind(UserDirectory::class, EloquentUserDirectory::class);
+        $this->app->bind(InvitationRedeemer::class, EloquentInvitationRedeemer::class);
     }
 
     public function boot(): void
