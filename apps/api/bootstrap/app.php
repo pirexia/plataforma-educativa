@@ -1,16 +1,22 @@
 <?php
 
 use App\Http\Middleware\AssignRequestId;
+use App\Http\Middleware\EnforceSessionIdleTimeout;
 use App\Http\Middleware\EnsureModuleEnabled;
 use App\Http\Middleware\RequireIdempotencyKey;
 use App\Http\Middleware\RequirePermission;
 use App\Http\Middleware\ResolveApiLocale;
 use App\Http\Middleware\ResolveTenant;
+use App\Http\Middleware\VerifySessionTenant;
 use App\Support\Api\ProblemResponseFactory;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\StartSession;
 use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -39,6 +45,20 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => RequirePermission::class,
             'module-enabled' => EnsureModuleEnabled::class,
             'idempotent' => RequireIdempotencyKey::class,
+            // REQ-AUTH (1.2), api.md §8: cookie de sesión + CSRF bajo
+            // /api/v1. EncryptCookies no está en la tabla de api.md §8,
+            // pero es imprescindible para que el propio mecanismo de
+            // Laravel funcione: sin ella, ni la cookie de sesión ni la
+            // cookie XSRF-TOKEN viajan cifradas, y PreventRequestForgery
+            // (alias 'csrf') intenta descifrar la cabecera X-XSRF-TOKEN
+            // igualmente — el CSRF fallaría siempre. Añadida y documentada
+            // aquí (ver también docs/modulos/REQ-AUTH/api.md §8).
+            'encrypt-cookies' => EncryptCookies::class,
+            'add-queued-cookies' => AddQueuedCookiesToResponse::class,
+            'start-session' => StartSession::class,
+            'csrf' => ValidateCsrfToken::class,
+            'verify-session-tenant' => VerifySessionTenant::class,
+            'session-idle-timeout' => EnforceSessionIdleTimeout::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
