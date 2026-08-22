@@ -46,6 +46,7 @@ class TenantSettingsController extends Controller
             ...$this->regionalUpdates($request, $settings),
             ...$this->fiscalUpdates($request),
             ...$this->brandingUpdates($request, $settings, $errors),
+            ...$this->securityUpdates($request),
         ];
 
         $this->validateLocaleConsistency($request, $settings, $updates, $errors);
@@ -69,6 +70,10 @@ class TenantSettingsController extends Controller
             'timezone' => 'Europe/Madrid',
             'currency' => 'EUR',
             'fiscal_country_code' => 'ES',
+            // REQ-AUTH/datos.md §A.4: mismo valor que el DEFAULT de la
+            // columna (30), no una lectura de config('auth-local...') —
+            // ver TenantSettingsCache::DEFAULTS, mismo criterio.
+            'session_timeout_minutes' => 30,
         ]);
     }
 
@@ -169,6 +174,23 @@ class TenantSettingsController extends Controller
                 'core.validation.default_locale_not_active',
             );
         }
+    }
+
+    /**
+     * REQ-AUTH/api.md §6, RN-AUTH-30. Escalar, sin validación de negocio
+     * adicional: el rango 5-480 ya lo exige `PatchTenantSettingsRequest`
+     * (regla de forma, no de negocio — no hay nada que comprobar contra
+     * otro campo).
+     *
+     * @return array<string, mixed>
+     */
+    private function securityUpdates(PatchTenantSettingsRequest $request): array
+    {
+        $map = [
+            'security.session_timeout_minutes' => 'session_timeout_minutes',
+        ];
+
+        return $this->collectPresent($request, $map);
     }
 
     /**

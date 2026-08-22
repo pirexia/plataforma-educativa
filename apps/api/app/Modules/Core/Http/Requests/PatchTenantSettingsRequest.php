@@ -51,6 +51,12 @@ class PatchTenantSettingsRequest extends ApiFormRequest
             'branding' => ['sometimes', 'array'],
             'branding.color_primary' => ['sometimes', 'nullable', new NotEmptyString, 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'branding.color_secondary' => ['sometimes', 'nullable', new NotEmptyString, 'regex:/^#[0-9A-Fa-f]{6}$/'],
+
+            // REQ-AUTH/api.md §6, RN-AUTH-30: escalar NOT NULL — ausente
+            // no toca el campo, null es 422 (regla 2 de ADR-038 §9.2: la
+            // columna no admite NULL, así que no hay forma de "vaciarlo").
+            'security' => ['sometimes', 'array'],
+            'security.session_timeout_minutes' => ['sometimes', 'integer', 'between:5,480'],
         ];
     }
 }
