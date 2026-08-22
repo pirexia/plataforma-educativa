@@ -68,6 +68,17 @@ services:
       # desarrollo para poder probar la resolución de tenant por subdominio
       # con curl -H "Host: <slug>.plataforma.test" sin depender de DNS.
       TENANCY_BASE_DOMAIN: plataforma.test
+      # REQ-AUTH (1.2), RN-AUTH-30: SessionEnvironmentGuard exige
+      # SESSION_LIFETIME >= AUTH_SESSION_TIMEOUT_MAX_MINUTES (480 por
+      # defecto) en TODOS los entornos. apps/api/.env traía 120 (valor de
+      # partida del starter kit), lo que tumbaba la aplicación entera al
+      # arrancar cualquier proveedor — incidencia real de esta sesión,
+      # corregida aquí como parche temporal porque .env no es editable
+      # desde esta sesión (bloqueo de permisos). TODO: mover este valor a
+      # apps/api/.env y retirarlo de aquí — `environment:` en este fichero
+      # es solo para wiring de infraestructura (ver DB_HOST/REDIS_HOST/
+      # TENANCY_BASE_DOMAIN de arriba), no para configuración de aplicación.
+      SESSION_LIFETIME: "480"
     volumes:
       - ./apps/api:/var/www/html:Z
     ports:
