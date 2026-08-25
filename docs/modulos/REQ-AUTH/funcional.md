@@ -1175,13 +1175,15 @@ Se anotan para que la revisión no las eche en falta:
 
 ## B.14 ¿Se aprueba esta especificación?
 
-**Pendiente.** No se implementa nada de la Parte B hasta que el usuario responda. Lo que hace falta decidir, en orden de impacto:
+**Aprobada por el usuario el 2026-08-25.** Decisiones tomadas, las cinco según la opción recomendada por esta especificación:
 
-1. **`OPEN-AUTH-13`** — ¿se cierra 1.2b entregando el punto 4 solo como «nuevo dispositivo», con `RN-AUTH-47` escrito, o la ubicación es condición para cerrarlo? Y en su caso, ¿qué familia de solución? **Condiciona el alcance del paso.**
-2. **`OPEN-AUTH-14`** — clasificación de la cookie `pge_device` en protección de datos. **Condiciona si el mecanismo de detección es viable tal como está diseñado.**
-3. **`OPEN-AUTH-15`** — dónde vive el cierre de `OPEN-AUTH-10` (`tenant_id` y RLS en `sessions`): ¿aquí, en un paso propio, o sigue abierta?
-4. **`OPEN-AUTH-16`** — ¿se acepta la fila de auditoría duplicada por login, o se amplía el mecanismo de 0.9 con un ADR corto?
-5. **`OPEN-AUTH-17`** — ¿dependencia de terceros para interpretar el `User-Agent`, o análisis propio mínimo?
+1. **`OPEN-AUTH-13`** — El punto 4 de `REQ-AUTH-005` se cierra en 1.2b **solo como «dispositivo nuevo»** (`RN-AUTH-47`), sin geolocalización por IP. La ubicación queda pospuesta a un paso futuro, con su propio proveedor y ADR cuando exista.
+2. **`OPEN-AUTH-14`** — La cookie `pge_device` se acepta como **cookie técnica exenta de consentimiento**, tal como la diseña `§B.6.2`. Se refleja en `PRIVACY.md` y en el inventario de cookies sin cambios de diseño.
+3. **`OPEN-AUTH-15`** — `OPEN-AUTH-10` (`tenant_id` y RLS en `sessions`) **no se cierra en 1.2b**. Queda como **paso propio de endurecimiento futuro**, con su ADR y pruebas cuando se aborde — issue de seguimiento a crear.
+4. **`OPEN-AUTH-16`** — Se **amplía el mecanismo de auditoría de 0.9** con una exclusión explícita por modelo para la creación de `UserSession` vía login (evita la fila `created` duplicada junto al evento `login` de `ADR-039`). Requiere ADR corto — `ADR-040`, a redactar por `architect` antes de implementar.
+5. **`OPEN-AUTH-17`** — **Análisis propio mínimo** con expresiones regulares para interpretar el `User-Agent` (familia de navegador, familia de SO, móvil/escritorio). Sin dependencia externa nueva.
+
+Con esto, `1.2b` pasa a implementación en `feature/REQ-AUTH-005-1.2b-sesiones-activas`.
 
 Y una confirmación de alcance, por si no se comparte lo que doy por decidido: **la pantalla `/cuenta/sesiones` entra** y **ningún administrador ve ni cierra sesiones ajenas**.
 
