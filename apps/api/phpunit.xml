@@ -30,6 +30,17 @@
         -->
         <env name="APP_ENV" value="testing" force="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file" force="true"/>
+        <!--
+            REQ-AUTH (1.2), RN-AUTH-03: "coste bcrypt mínimo 12... nunca en
+            claro", sin excepción de entorno documentada (a diferencia de
+            SESSION_SECURE_COOKIE, que sí la tiene para desarrollo local).
+            config/hashing.php ya no lee BCRYPT_ROUNDS (línea histórica,
+            ahora sin efecto: ver su comentario) sino AUTH_BCRYPT_ROUNDS,
+            que se deja SIN forzar aquí a propósito — que la suite hashee a
+            coste 12 real es lo que hace fiable CA-AUTH-022 y el test de
+            PasswordPolicyEnvironmentGuard (operacion.md §2.1), aunque sea
+            más lento (200-400 ms por operación, operacion.md §8).
+        -->
         <env name="BCRYPT_ROUNDS" value="4" force="true"/>
         <env name="BROADCAST_CONNECTION" value="null" force="true"/>
         <!--

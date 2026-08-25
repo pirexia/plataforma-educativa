@@ -44,6 +44,12 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         // solo producción — CA-AUTH-001.
         app(SessionEnvironmentGuard::class)->verify();
 
+        // operacion.md §2.1, RN-AUTH-01/RN-AUTH-03: la documentación ya
+        // prometía esta guarda ("rechaza cualquier valor por debajo de
+        // 12"); no existía en código — hallazgo al escribir la suite de
+        // tests de 1.2.
+        app(PasswordPolicyEnvironmentGuard::class)->verify();
+
         if ($this->app->runningInConsole()) {
             $this->commands([
                 PurgeAuthMaintenanceCommand::class,
