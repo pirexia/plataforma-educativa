@@ -8,40 +8,6 @@ const router = createRouter({
       name: 'home',
       component: () => import('@/views/HomeView.vue'),
     },
-    // REQ-AUTH (1.2), funcional.md §1.6: rutas exactas de las seis
-    // pantallas. Las cinco primeras son públicas, sin `AppLayout`; la
-    // sexta exige sesión (comprobada por la propia vista, no por un
-    // guard de router — no hay estado de sesión global hasta 1.8).
-    {
-      path: '/entrar',
-      name: 'login',
-      component: () => import('@/modules/auth/views/LoginView.vue'),
-    },
-    {
-      path: '/activar/:token',
-      name: 'invitation-redemption',
-      component: () => import('@/modules/auth/views/InvitationRedemptionView.vue'),
-    },
-    {
-      path: '/recuperar',
-      name: 'password-reset-request',
-      component: () => import('@/modules/auth/views/PasswordResetRequestView.vue'),
-    },
-    {
-      path: '/restablecer/:token',
-      name: 'password-reset',
-      component: () => import('@/modules/auth/views/PasswordResetView.vue'),
-    },
-    {
-      path: '/desbloquear/:token',
-      name: 'account-unlock',
-      component: () => import('@/modules/auth/views/AccountUnlockView.vue'),
-    },
-    {
-      path: '/cuenta/contrasena',
-      name: 'password-change',
-      component: () => import('@/modules/auth/views/PasswordChangeView.vue'),
-    },
   ],
 })
 
