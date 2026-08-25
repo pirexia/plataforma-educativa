@@ -13,6 +13,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
 
 /**
@@ -85,7 +86,7 @@ class SendNewDeviceLoginEmail implements ShouldQueue
     }
 
     /**
-     * @return array{0: \Illuminate\Support\Carbon, 1: mixed, 2: string}
+     * @return array{0: Carbon, 1: mixed, 2: string}
      */
     private function fallbackFromDevice(): array
     {

@@ -1,6 +1,9 @@
 <?php
 
 use App\Models\AuditLog;
+use App\Models\Person;
+use App\Models\User;
+use App\Models\UserStatus;
 use App\Modules\Auth\Domain\Models\UserSession;
 use App\Modules\Auth\Domain\SessionEndReason;
 use App\Modules\Auth\Infrastructure\Jobs\SendPasswordResetEmail;
@@ -80,11 +83,11 @@ test('CA-AUTH-101b: cambiar la contraseña en autoservicio cierra las demás ses
 test('CA-AUTH-101c: dar de baja al usuario (REQ-CORE) cierra sus sesiones con baja_usuario', function (): void {
     [$tenant, $admin] = provisionCoreTenant('life-101c');
     $victim = app(TenantContext::class)->runFor($tenant->id, function () {
-        $person = \App\Models\Person::factory()->create();
+        $person = Person::factory()->create();
 
-        return \App\Models\User::factory()->for($person)->create([
+        return User::factory()->for($person)->create([
             'password' => 'Cl4v3-Correcta-2026!',
-            'status' => \App\Models\UserStatus::Activo,
+            'status' => UserStatus::Activo,
         ]);
     });
 

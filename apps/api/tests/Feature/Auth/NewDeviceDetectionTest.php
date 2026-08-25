@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\Person;
+use App\Models\User;
+use App\Models\UserStatus;
 use App\Modules\Auth\Domain\Models\UserKnownDevice;
 use App\Modules\Auth\Domain\Models\UserSession;
 use App\Modules\Auth\Infrastructure\Jobs\SendNewDeviceLoginEmail;
@@ -88,12 +91,12 @@ test('CA-AUTH-095: la cookie de dispositivo del usuario A presentada por el usua
     [$tenant, $userA, $passwordA] = provisionActiveUser('dev-095', ['email' => 'usuario-a@example.com']);
     $rawPasswordB = 'Cl4v3-Correcta-2026!';
     $userB = app(TenantContext::class)->runFor($tenant->id, function () use ($rawPasswordB) {
-        $person = \App\Models\Person::factory()->create();
+        $person = Person::factory()->create();
 
-        return \App\Models\User::factory()->for($person)->create([
+        return User::factory()->for($person)->create([
             'email' => 'usuario-b@example.com',
             'password' => $rawPasswordB,
-            'status' => \App\Models\UserStatus::Activo,
+            'status' => UserStatus::Activo,
         ]);
     });
     $passwordB = $rawPasswordB;

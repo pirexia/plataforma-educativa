@@ -4,6 +4,7 @@ namespace App\Modules\Auth\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Carbon;
 
 /**
  * api.md §B.2, `GET /auth/sessions`. El recurso se construye en el
@@ -14,7 +15,10 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * identificador de sesión, el *payload*, ni material de la cookie de
  * dispositivo (`RN-AUTH-40`, `CA-AUTH-083`).
  *
- * @mixin array{public_id: string, current: bool, started_at: \Illuminate\Support\Carbon, last_activity_at: \Illuminate\Support\Carbon, ip_address: ?string, client: array{browser: string, platform: string, device_type: string}, location: ?string, device_known: bool}
+ * Forma de `$this->resource`: array{public_id: string, current: bool,
+ * started_at: Carbon, last_activity_at: Carbon, ip_address: ?string,
+ * client: array{browser: string, platform: string, device_type: string},
+ * location: ?string, device_known: bool}.
  */
 class UserSessionResource extends JsonResource
 {
