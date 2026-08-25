@@ -1027,14 +1027,7 @@ Las tres de §8.1, sin cambios. `TenantSettingsReader` y `UserDirectory` no nece
 
 **Ninguna llamada manual a `AuditRecorder`.** `ADR-039 §4.5` restringe la escritura manual a sus tres valores, y 1.2b no la usa: es el resultado que hay que perseguir, no una limitación que sortear.
 
-**Lo que sí hay que vigilar, y es la parte incómoda.** El *observer* de 0.9 engancha `created` **siempre**, sin forma de excluirlo por modelo. Con `UserSession` auditada, **cada login escribiría dos filas en `audit_logs`**: el `login` de `ADR-039` y un `created` sobre `UserSession` que no dice nada que el `login` no diga ya —mismo actor, mismo momento, misma IP, mismo `request_id`—. Duplicar el evento más voluminoso del sistema en la tabla que `REQ-CORE-005` obliga a conservar **dos años**, y que `ADR-034 §3` ya vigila por si hay que particionarla, es un coste real a cambio de cero información.
-
-Las dos salidas, y ninguna es mía:
-
-- **(a) Aceptarlo.** Coste cero de implementación, cumple `INV-003` sin discusión. Duplica el volumen del mayor generador de filas de auditoría del producto.
-- **(b) Dar al mecanismo de 0.9 una exclusión explícita por modelo** (del tipo «esta entidad no audita `created`, porque el hecho ya se registra con su propio evento»), con su test. Es tocar un mecanismo transversal a los 53 módulos, o sea, `CLAUDE.md §6.3`: **ADR**.
-
-`OPEN-AUTH-16`, con recomendación. **Por defecto se implementa (a)**, para que la decisión no bloquee el paso; si se aprueba (b), el cambio es de una línea en el modelo.
+**`OPEN-AUTH-16`, resuelta por `ADR-040`.** El *observer* de 0.9 enganchaba `created` **siempre**, sin forma de excluirlo por modelo. Con `UserSession` auditada tal cual, cada login habría escrito dos filas en `audit_logs`: el `login` de `ADR-039` y un `created` sobre `UserSession` que no decía nada que el `login` no dijera ya —mismo actor, mismo momento, misma IP, mismo `request_id`—. `ADR-040` amplía el mecanismo de 0.9 con una exclusión declarativa por modelo y evento (`Auditable::auditExcludedEvents()`); `UserSession` declara `['created']`. El resto de su ciclo de vida —revocación, las siete razones de cierre de `§B.4.6`, borrado lógico— se sigue auditando entero por el observer, sin ninguna llamada manual (`CA-AUTH-102`). `UserKnownDevice` no declara ninguna exclusión: su alta (`created`) y el aviso al titular (`updated`) se auditan sin condiciones.
 
 ---
 
@@ -1145,13 +1138,9 @@ Lo que hay que decidir, con las tres opciones sobre la mesa:
 
 **Recomendación**: la tercera, y que 1.2b **no** la asuma. Pero la decisión de dónde vive ese trabajo, y si se hace, es del usuario.
 
-### `OPEN-AUTH-16` · El *observer* de auditoría no sabe excluir `created`, y eso duplica una fila por cada login
+### `OPEN-AUTH-16` · **Resuelta por `ADR-040`** — el *observer* de auditoría no sabía excluir `created`, y eso duplicaba una fila por cada login
 
-Detallada en `§B.10`. Con `UserSession` auditada, cada acceso escribe dos filas en `audit_logs` —el `login` de `ADR-039` y un `created` que no aporta nada— en una tabla con dos años de retención que `ADR-034 §3` ya vigila por volumen.
-
-Las dos salidas están en `§B.10`. **Recomendación: (b)**, dar al mecanismo de 0.9 una exclusión explícita por modelo, con ADR corto y test — porque la alternativa no es «un poco más de volumen», es duplicar el mayor generador de filas de auditoría del producto para siempre. Pero es un mecanismo transversal a 53 módulos y `CLAUDE.md §6.3` dice quién decide eso, y no soy yo.
-
-**No bloquea**: el camino por defecto es (a), cumple `INV-003` y el cambio a (b) es de una línea en el modelo.
+Detallada en `§B.10`, ahora resuelta. `ADR-040` amplía el mecanismo de 0.9 con `Auditable::auditExcludedEvents()`; `UserSession` declara `['created']`, con test de arquitectura que fija que es la única exclusión del repositorio (`ADR-040 §4.4`).
 
 ### `OPEN-AUTH-17` · ¿Dependencia nueva para interpretar el `User-Agent`?
 

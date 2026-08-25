@@ -330,7 +330,7 @@ Restricciones e índices:
 - `ip_address` y `user_agent` se redactan como `identifier`: son datos personales, y en el caso del `User-Agent` también un vector de huella.
 - `location_label` se redactaría como `identifier` el día que deje de ser `NULL`. Se declara desde ya para no depender de que alguien se acuerde al resolver `OPEN-AUTH-13`.
 
-**Sobre el evento `created`**: con esta política, cada login escribiría además una fila `created` que no aporta nada sobre el `login` de `ADR-039`. Es `OPEN-AUTH-16` (`funcional.md §B.10`), y **no cambia este esquema** decida lo que decida.
+**Sobre el evento `created`**: `UserSession` declara `auditExcludedEvents(): ['created']` (`ADR-040 §4.1`/`§4.3`) — el nacimiento de la fila, siempre dentro de la transacción del login (`§B.4.1`), ya lo registra el evento `login` sobre `User` (`ADR-039`). No cambia nada de este esquema: la exclusión vive en el modelo, no en la tabla ni en su política de redacción.
 
 ---
 

@@ -108,6 +108,18 @@ Todo modelo auditable implementa `App\Support\Audit\Auditable` y declara `auditV
 
 `Tenant` y `Permission`/`Module` **no son auditables en 0.9** (`docs/adr/ADR-036-tenant-fuera-del-observer-de-auditoria-de-tenant.md`, que sustituye la fila `Tenant` de `ADR-035 §8`): `Tenant` es una entidad de plataforma sin `tenant_id` propio, y `audit_logs` es una tabla de tenant — su auditoría corresponde a `admin_action_logs` (paso 1.6, `ADR-033` §7), no a este mecanismo. `Permission`/`Module` son catálogos de referencia gestionados por `platform:sync-registry`, fuera del ámbito de auditoría por tenant.
 
+## Exclusión declarativa de un evento automático por modelo (`ADR-040`, desde 1.2b)
+
+El mecanismo automático admite una cuarta declaración, además de las tres de arriba: `Auditable::auditExcludedEvents(): array`, que devuelve los eventos del ciclo de vida (`created`/`updated`/`deleted`/`restored`) que ese modelo **no** registra por el camino automático, porque el hecho ya queda registrado en `audit_logs` por otro camino, con su propio `event`, su propio actor y su propio instante. `HasAuditableAttributes` lo implementa por defecto devolviendo `[]`: **ningún modelo existente cambia de comportamiento** salvo el que declare explícitamente lo contrario.
+
+Es la excepción, no una opción de configuración libre — `ADR-040 §4.5` exige, para que un modelo futuro pueda excluir algo, demostrar las tres cosas siguientes en un ADR corto que cite `ADR-040`:
+
+1. Que el hecho excluido queda registrado en `audit_logs` por otro camino, con su propio `event`.
+2. Que ese otro camino es el **único** productor del hecho, verificado en código y fijado con un test.
+3. Que el ahorro es de volumen material, no cosmético.
+
+La única exclusión vigente en el producto es `UserSession` (`REQ-AUTH-005`, 1.2b): declara `auditExcludedEvents(): ['created']`, porque su alta ocurre siempre dentro de la transacción del login y ese hecho ya lo registra el evento `login` sobre `User` (`ADR-039`). Un test de arquitectura (`ADR-040 §4.4`) fija que es la única exclusión declarada en todo el repositorio — si un módulo futuro añade una segunda, ese test falla y obliga a pasar por el procedimiento de arriba.
+
 ## Columnas estructurales excluidas de `changes`
 
 `id`, `tenant_id` y `public_id` nunca aparecen dentro de `changes`, aunque estén "sucios" en el momento del evento: ya están representados en las columnas propias de la fila (`auditable_id`, el `tenant_id` de la propia fila de `audit_logs`, `auditable_public_id`). Incluirlos añadiría entradas `redacted: identifier` sin ninguna información nueva.
