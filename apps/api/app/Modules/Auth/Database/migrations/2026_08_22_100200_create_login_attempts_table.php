@@ -26,7 +26,14 @@ return new class extends Migration
             // es NOT NULL siempre (ADR-034 §4), así que se declara a mano.
             $table->unsignedBigInteger('user_id')->nullable();
             $table->text('outcome');
-            $table->timestampTz('attempted_at');
+            // Precisión de microsegundo, no el 0 (entero) por defecto de
+            // timestampTz(): la consulta caliente de datos.md §A.7 ordena
+            // por esta columna para contar fallos consecutivos desde el
+            // último éxito, y varios intentos por segundo — el propio
+            // patrón que RN-AUTH-14 quiere detectar — colisionarían en el
+            // mismo segundo con precisión 0. Ver LoginAttemptRecorder::
+            // consecutiveFailures(), que además desempata por `id`.
+            $table->timestampTz('attempted_at', 6);
             $table->ipAddress('ip_address')->nullable();
             $table->text('user_agent')->nullable();
             $table->text('request_id')->nullable();

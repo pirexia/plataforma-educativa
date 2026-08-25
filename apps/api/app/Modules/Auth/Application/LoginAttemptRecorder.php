@@ -79,9 +79,19 @@ final class LoginAttemptRecorder
      */
     private function consecutiveFailures(string $email): int
     {
+        // Desempate por `id` (bigint autoincremental, orden de inserción
+        // real): dos filas pueden compartir `attempted_at` aunque la
+        // columna tenga precisión de microsegundo (RN-AUTH-14 existe
+        // precisamente para varios intentos por segundo), y sin un
+        // segundo criterio ORDER BY, PostgreSQL no garantiza qué fila
+        // empatada devuelve primero — se detectó escribiendo esta suite:
+        // sin el desempate, un `exito` que compartiera segundo con los
+        // fallos siguientes podía no cortar el recuento, bloqueando una
+        // cuenta que RN-AUTH-14 dice que debía seguir a cero.
         $recent = LoginAttempt::query()
             ->where('email', $email)
             ->orderByDesc('attempted_at')
+            ->orderByDesc('id')
             ->limit(50)
             ->get(['outcome']);
 
