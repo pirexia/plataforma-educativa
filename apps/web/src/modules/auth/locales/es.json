@@ -65,6 +65,35 @@
       "submit": "Guardar contraseña nueva",
       "submitting": "Guardando…",
       "success": "Tu contraseña se ha actualizado."
+    },
+    "sessions": {
+      "title": "Mis sesiones activas",
+      "intro": "Estos son los dispositivos con sesión iniciada en tu cuenta. Puedes cerrar cualquiera que no reconozcas.",
+      "loading": "Cargando tus sesiones…",
+      "columnDevice": "Dispositivo",
+      "columnStarted": "Inicio",
+      "columnLastActivity": "Última actividad",
+      "columnIp": "Dirección IP",
+      "columnActions": "Acciones",
+      "current": "Esta sesión",
+      "deviceUnknownBadge": "Dispositivo no reconocido",
+      "revoke": "Cerrar sesión",
+      "revoking": "Cerrando…",
+      "confirmRevoke": "¿Cerrar esta sesión?",
+      "confirmRevokeCurrent": "Vas a cerrar esta misma sesión. Tendrás que volver a iniciar sesión.",
+      "confirmYes": "Sí, cerrar",
+      "confirmCancel": "Cancelar",
+      "revokeOthers": "Cerrar todas las demás sesiones",
+      "confirmRevokeOthers": "¿Cerrar todas las demás sesiones? Seguirás conectado en esta.",
+      "revokeOthersSuccess": "Se han cerrado las demás sesiones.",
+      "revokedSuccess": "Sesión cerrada.",
+      "deviceType": {
+        "escritorio": "Escritorio",
+        "movil": "Móvil",
+        "tableta": "Tableta",
+        "bot": "Bot",
+        "desconocido": "Desconocido"
+      }
     }
   }
 }

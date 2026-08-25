@@ -65,6 +65,35 @@
       "submit": "Neues Passwort speichern",
       "submitting": "Wird gespeichert…",
       "success": "Dein Passwort wurde aktualisiert."
+    },
+    "sessions": {
+      "title": "Meine aktiven Sitzungen",
+      "intro": "Das sind die Geräte, auf denen dein Konto gerade angemeldet ist. Du kannst jede Sitzung schließen, die du nicht erkennst.",
+      "loading": "Deine Sitzungen werden geladen…",
+      "columnDevice": "Gerät",
+      "columnStarted": "Beginn",
+      "columnLastActivity": "Letzte Aktivität",
+      "columnIp": "IP-Adresse",
+      "columnActions": "Aktionen",
+      "current": "Diese Sitzung",
+      "deviceUnknownBadge": "Nicht erkanntes Gerät",
+      "revoke": "Sitzung beenden",
+      "revoking": "Wird beendet…",
+      "confirmRevoke": "Diese Sitzung beenden?",
+      "confirmRevokeCurrent": "Du beendest gerade diese Sitzung. Du musst dich danach erneut anmelden.",
+      "confirmYes": "Ja, beenden",
+      "confirmCancel": "Abbrechen",
+      "revokeOthers": "Alle anderen Sitzungen beenden",
+      "confirmRevokeOthers": "Alle anderen Sitzungen beenden? Diese Sitzung bleibt bestehen.",
+      "revokeOthersSuccess": "Die anderen Sitzungen wurden beendet.",
+      "revokedSuccess": "Sitzung beendet.",
+      "deviceType": {
+        "escritorio": "Desktop",
+        "movil": "Mobil",
+        "tableta": "Tablet",
+        "bot": "Bot",
+        "desconocido": "Unbekannt"
+      }
     }
   }
 }

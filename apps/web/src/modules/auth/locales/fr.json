@@ -65,6 +65,35 @@
       "submit": "Enregistrer le nouveau mot de passe",
       "submitting": "Enregistrement en cours…",
       "success": "Votre mot de passe a été mis à jour."
+    },
+    "sessions": {
+      "title": "Mes sessions actives",
+      "intro": "Voici les appareils actuellement connectés à votre compte. Vous pouvez fermer ceux que vous ne reconnaissez pas.",
+      "loading": "Chargement de vos sessions…",
+      "columnDevice": "Appareil",
+      "columnStarted": "Début",
+      "columnLastActivity": "Dernière activité",
+      "columnIp": "Adresse IP",
+      "columnActions": "Actions",
+      "current": "Cette session",
+      "deviceUnknownBadge": "Appareil non reconnu",
+      "revoke": "Fermer la session",
+      "revoking": "Fermeture…",
+      "confirmRevoke": "Fermer cette session ?",
+      "confirmRevokeCurrent": "Vous allez fermer cette session, celle que vous utilisez en ce moment. Vous devrez vous reconnecter.",
+      "confirmYes": "Oui, fermer",
+      "confirmCancel": "Annuler",
+      "revokeOthers": "Fermer toutes les autres sessions",
+      "confirmRevokeOthers": "Fermer toutes les autres sessions ? Vous resterez connecté ici.",
+      "revokeOthersSuccess": "Les autres sessions ont été fermées.",
+      "revokedSuccess": "Session fermée.",
+      "deviceType": {
+        "escritorio": "Ordinateur",
+        "movil": "Mobile",
+        "tableta": "Tablette",
+        "bot": "Robot",
+        "desconocido": "Inconnu"
+      }
     }
   }
 }
