@@ -12,21 +12,12 @@
 export class ApiError extends Error {
   readonly status: number
   readonly body: unknown
-  /**
-   * REQ-AUTH (1.2), api.md §9.2: `429`/`503` llevan `Retry-After`. Antes
-   * de este módulo ningún consumidor necesitaba cabeceras de respuesta,
-   * así que `ApiError` no las exponía; se añaden aquí (framework
-   * compartido, no específico de un módulo) en vez de duplicar
-   * `apiFetch` dentro de `modules/auth`.
-   */
-  readonly headers: Headers
 
-  constructor(message: string, status: number, body: unknown, headers: Headers = new Headers()) {
+  constructor(message: string, status: number, body: unknown) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.body = body
-    this.headers = headers
   }
 }
 
@@ -79,12 +70,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   const body = await response.json().catch(() => null)
 
   if (!response.ok) {
-    throw new ApiError(
-      `La API respondió ${response.status}`,
-      response.status,
-      body,
-      response.headers,
-    )
+    throw new ApiError(`La API respondió ${response.status}`, response.status, body)
   }
 
   return body as T

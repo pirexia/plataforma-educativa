@@ -76,6 +76,7 @@ Ninguna de estas operaciones ocurre en el ciclo de petición HTTP.
 | `auth-maintenance` | `PurgeExpiredPasswordResetTokens` | Programado, diario | — |
 | `auth-maintenance` | `PurgeUnlockTokens` | Programado, diario | — |
 | `auth-maintenance` | `PurgeLoginAttempts` | Programado, diario | — |
+| `auth-maintenance` | `CloseExpiredLockouts` | Programado, **cada 5 minutos** | — |
 
 Reglas de los trabajos, heredadas de `ADR-033 §8` y de lo aprendido en 1.1:
 
@@ -95,6 +96,8 @@ Reglas de los trabajos, heredadas de `ADR-033 §8` y de lo aprendido en 1.1:
 | `PurgeLoginAttempts` | Filas de `login_attempts` con más de `AUTH_LOGIN_ATTEMPT_RETENTION_DAYS` | Correo e IP son datos personales; 90 días (`datos.md §A.9`) |
 
 **Ninguna toca `audit_logs`**: su retención es `REQ-PRIV-006` (`OPEN-CORE-11`).
+
+`CloseExpiredLockouts` no es una purga (no borra ni redacta nada): cierra como `caducidad` los bloqueos vencidos que el camino de login no haya cerrado ya de forma perezosa (`funcional.md §4.4`, `RN-AUTH-38`). Se lista aquí porque comparte cola y mecanismo con las purgas, con periodicidad distinta a propósito (cada 5 minutos, no diaria: un bloqueo vencido sin cerrar ocupa el hueco del índice único parcial de `RN-AUTH-17`).
 
 ---
 
