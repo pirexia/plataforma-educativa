@@ -44,23 +44,9 @@ afterEach(function (): void {
     Cache::flush();
 });
 
-// sessionCookieValue(), withSessionCookie() y resetSessionState() viven en
-// tests/Pest.php (compartidas con NewDeviceDetectionTest.php y
-// SessionLifecycleTest.php).
-
-function loginFor(string $slug, string $email, string $password, ?string $userAgent = null)
-{
-    resetSessionState();
-
-    $request = test();
-
-    if ($userAgent !== null) {
-        $request = $request->withHeader('User-Agent', $userAgent);
-    }
-
-    return $request->postJson(coreApiUrl($slug, '/auth/session'), ['email' => $email, 'password' => $password])
-        ->assertOk();
-}
+// sessionCookieValue(), withSessionCookie(), resetSessionState() y
+// loginFor() viven en tests/Pest.php (compartidas con
+// NewDeviceDetectionTest.php y SessionLifecycleTest.php).
 
 // CA-AUTH-080, RN-AUTH-39, RN-AUTH-05
 test('CA-AUTH-080: un login correcto crea exactamente una fila viva en user_sessions con el identificador posterior a la regeneración', function (): void {

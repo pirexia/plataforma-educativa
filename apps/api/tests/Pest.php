@@ -190,3 +190,22 @@ function withSessionCookie(string $cookieValue)
 
     return test()->withCredentials()->withUnencryptedCookie(config('session.cookie'), $cookieValue);
 }
+
+/**
+ * Login real por HTTP (1.2b). `resetSessionState()` primero, para que un
+ * login posterior en el mismo test no herede el `Guard`/`Store` de uno
+ * anterior (ver `resetSessionState()`).
+ */
+function loginFor(string $slug, string $email, string $password, ?string $userAgent = null)
+{
+    resetSessionState();
+
+    $request = test();
+
+    if ($userAgent !== null) {
+        $request = $request->withHeader('User-Agent', $userAgent);
+    }
+
+    return $request->postJson(coreApiUrl($slug, '/auth/session'), ['email' => $email, 'password' => $password])
+        ->assertOk();
+}

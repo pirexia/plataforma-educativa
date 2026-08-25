@@ -22,11 +22,18 @@ final class RegexClientDescriber implements ClientDescriber
             return new ClientDescription('desconocido', 'desconocido', ClientDeviceType::Desconocido);
         }
 
-        return new ClientDescription(
-            $this->browser($userAgent),
-            $this->platform($userAgent),
-            $this->deviceType($userAgent),
-        );
+        $browser = $this->browser($userAgent);
+        $platform = $this->platform($userAgent);
+
+        // funcional.md §B.6.4: un `User-Agent` no vacío pero irreconocible
+        // (ni navegador ni plataforma coinciden con nada) produce
+        // "desconocido" en los tres campos, no un "escritorio" por
+        // defecto — la ausencia de reconocimiento es la misma en los tres.
+        if ($browser === 'desconocido' && $platform === 'desconocido') {
+            return new ClientDescription('desconocido', 'desconocido', ClientDeviceType::Desconocido);
+        }
+
+        return new ClientDescription($browser, $platform, $this->deviceType($userAgent));
     }
 
     private function browser(string $userAgent): string
