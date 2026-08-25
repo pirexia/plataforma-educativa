@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Core\Application\ProvisionTenantDefaults;
 use App\Modules\Core\Domain\Models\TenantSetting;
 use App\Modules\Core\Domain\Models\UserInvitation;
+use App\Modules\Core\Infrastructure\Mail\InvitationMail;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
@@ -139,5 +140,5 @@ test('el primer Administrador de Centro queda pendiente, con contraseña no util
             ->and($invitation->user_id)->toBe($user->id);
     });
 
-    Mail::assertSent(App\Modules\Core\Infrastructure\Mail\InvitationMail::class);
+    Mail::assertSent(InvitationMail::class);
 });

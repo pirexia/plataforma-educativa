@@ -1,6 +1,13 @@
 <?php
 
+use App\Models\Person;
+use App\Models\User;
+use App\Models\UserStatus;
+use App\Modules\Core\Application\ProvisionTenantDefaults;
+use App\Support\Tenancy\Tenant;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 /*
@@ -61,13 +68,13 @@ function coreApiUrl(string $slug, string $path): string
  * `platform:sync-registry` (permission_role.permission_code es FK de
  * `permissions`) — se ejecuta aquí, no en cada test.
  *
- * @return array{0: \App\Support\Tenancy\Tenant, 1: \App\Models\User}
+ * @return array{0: Tenant, 1: User}
  */
 function provisionCoreTenant(?string $slug = null): array
 {
     test()->artisan('platform:sync-registry')->run();
 
-    $tenant = \App\Support\Tenancy\Tenant::factory()->create($slug !== null ? ['slug' => $slug] : []);
+    $tenant = Tenant::factory()->create($slug !== null ? ['slug' => $slug] : []);
 
     // phpunit.xml fuerza CACHE_STORE=redis para los tests (a propósito:
     // así se prueba el aislamiento real de prefijo de tenant, ADR-033 §9,
@@ -77,18 +84,18 @@ function provisionCoreTenant(?string $slug = null): array
     // de ResolveTenant leería el tenant_id de una tanda anterior ya
     // borrada. Mismo motivo y mismo remedio que
     // tests/Feature/Tenancy/ResolveTenantMiddlewareTest.php.
-    \Illuminate\Support\Facades\Cache::forget("tenant-resolution:{$tenant->slug}");
+    Cache::forget("tenant-resolution:{$tenant->slug}");
 
-    app(\App\Modules\Core\Application\ProvisionTenantDefaults::class)->provision(
+    app(ProvisionTenantDefaults::class)->provision(
         $tenant,
         'admin@example.com',
         'Ana',
         'Perez',
     );
 
-    $admin = app(\App\Support\Tenancy\TenantContext::class)->runFor(
+    $admin = app(TenantContext::class)->runFor(
         $tenant->id,
-        fn () => \App\Models\User::query()->where('email', 'admin@example.com')->firstOrFail(),
+        fn () => User::query()->where('email', 'admin@example.com')->firstOrFail(),
     );
 
     return [$tenant, $admin];
@@ -108,28 +115,28 @@ function provisionCoreTenant(?string $slug = null): array
  * permiso.
  *
  * @param  array<string, mixed>  $userAttrs  Sobrescribe atributos de User;
- *                                            'raw_password' fija la
- *                                            contraseña en claro devuelta.
+ *                                           'raw_password' fija la
+ *                                           contraseña en claro devuelta.
  * @param  array<string, mixed>  $personAttrs
- * @return array{0: \App\Support\Tenancy\Tenant, 1: \App\Models\User, 2: string}
+ * @return array{0: Tenant, 1: User, 2: string}
  */
 function provisionActiveUser(?string $slug = null, array $userAttrs = [], array $personAttrs = []): array
 {
-    $tenant = \App\Support\Tenancy\Tenant::factory()->create($slug !== null ? ['slug' => $slug] : []);
+    $tenant = Tenant::factory()->create($slug !== null ? ['slug' => $slug] : []);
 
     // Mismo motivo que provisionCoreTenant(): CACHE_STORE=redis en tests
     // (ADR-033 §9) sobrevive entre invocaciones del proceso.
-    \Illuminate\Support\Facades\Cache::forget("tenant-resolution:{$tenant->slug}");
+    Cache::forget("tenant-resolution:{$tenant->slug}");
 
     $rawPassword = $userAttrs['raw_password'] ?? 'Cl4v3-Correcta-2026!';
     unset($userAttrs['raw_password']);
 
-    $user = app(\App\Support\Tenancy\TenantContext::class)->runFor($tenant->id, function () use ($userAttrs, $personAttrs, $rawPassword) {
-        $person = \App\Models\Person::factory()->create($personAttrs);
+    $user = app(TenantContext::class)->runFor($tenant->id, function () use ($userAttrs, $personAttrs, $rawPassword) {
+        $person = Person::factory()->create($personAttrs);
 
-        return \App\Models\User::factory()->for($person)->create([
+        return User::factory()->for($person)->create([
             'password' => $rawPassword,
-            'status' => \App\Models\UserStatus::Activo,
+            'status' => UserStatus::Activo,
             ...$userAttrs,
         ]);
     });

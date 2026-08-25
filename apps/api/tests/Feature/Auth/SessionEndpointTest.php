@@ -2,9 +2,9 @@
 
 use App\Models\User;
 use App\Models\UserStatus;
+use App\Modules\Auth\Domain\Models\AccountLockout;
 use App\Modules\Auth\Domain\Models\LoginAttempt;
 use App\Support\Tenancy\TenantContext;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -180,7 +180,7 @@ test('CA-AUTH-015: una contraseña correcta sobre un usuario inactivo no cuenta 
     }
 
     app(TenantContext::class)->runFor($tenant->id, function () {
-        expect(\App\Modules\Auth\Domain\Models\AccountLockout::query()->whereNull('unlocked_at')->count())->toBe(0);
+        expect(AccountLockout::query()->whereNull('unlocked_at')->count())->toBe(0);
     });
 
     // Sexto intento: sigue siendo 401 genérico, no 423.

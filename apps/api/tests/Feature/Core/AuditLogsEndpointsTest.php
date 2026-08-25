@@ -1,5 +1,9 @@
 <?php
 
+use App\Models\AuditLog;
+use App\Models\Person;
+use App\Models\Role;
+use App\Models\User;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -39,9 +43,9 @@ test('CA-CORE-050: GET /audit-logs devuelve solo registros del propio tenant, or
 test('CA-CORE-051: sin auditoria.leer, GET /audit-logs devuelve 403', function (): void {
     [$tenant] = provisionCoreTenant('audit-051');
     $secretaria = app(TenantContext::class)->runFor($tenant->id, function () {
-        $person = App\Models\Person::factory()->create(['contact_email' => 's@example.com']);
-        $user = App\Models\User::factory()->for($person)->create(['email' => 's@example.com']);
-        $role = App\Models\Role::where('code', 'secretaria')->firstOrFail();
+        $person = Person::factory()->create(['contact_email' => 's@example.com']);
+        $user = User::factory()->for($person)->create(['email' => 's@example.com']);
+        $role = Role::where('code', 'secretaria')->firstOrFail();
         $user->roles()->attach($role->id);
 
         return $user;
@@ -91,7 +95,7 @@ test('CA-CORE-053/054: solicitar una exportación la audita como exported, se ge
     expect($exportId)->not->toBeNull();
 
     app(TenantContext::class)->runFor($tenant->id, function () use ($exportId): void {
-        $log = App\Models\AuditLog::where('auditable_public_id', $exportId)->where('event', 'exported')->first();
+        $log = AuditLog::where('auditable_public_id', $exportId)->where('event', 'exported')->first();
         expect($log)->not->toBeNull();
     });
 

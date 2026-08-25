@@ -1,8 +1,10 @@
 <?php
 
+use App\Models\PermissionRole;
 use App\Models\Person;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +19,7 @@ afterEach(function (): void {
     Cache::flush();
 });
 
-function attachRole(App\Support\Tenancy\Tenant $tenant, string $email, string $roleCode): User
+function attachRole(Tenant $tenant, string $email, string $roleCode): User
 {
     return app(TenantContext::class)->runFor($tenant->id, function () use ($email, $roleCode) {
         $person = Person::factory()->create(['contact_email' => $email]);
@@ -138,7 +140,7 @@ test('CA-CORE-015: dar de baja al único Administrador de Centro vivo devuelve 4
     $other = attachRole($tenant, 'otro-admin@example.com', 'docente');
 
     app(TenantContext::class)->runFor($tenant->id, function () use ($other): void {
-        \App\Models\PermissionRole::create([
+        PermissionRole::create([
             'role_id' => $other->roles()->first()->id,
             'permission_code' => 'usuario.eliminar',
             'effect' => 'allow',
@@ -172,10 +174,10 @@ test('CA-CORE-017: no se puede asignar al crear un rol con permisos que el solic
     // usuario.crear y asignacion_rol.crear directamente y se comprueba que
     // aun así no puede conceder administrador_centro (que sí tiene
     // auditoria.leer, permiso que secretaria no posee).
-    app(TenantContext::class)->runFor($tenant->id, function () use ($secretaria): void {
+    app(TenantContext::class)->runFor($tenant->id, function (): void {
         $role = Role::where('code', 'secretaria')->firstOrFail();
-        \App\Models\PermissionRole::create(['role_id' => $role->id, 'permission_code' => 'usuario.crear', 'effect' => 'allow', 'scope' => 'todos']);
-        \App\Models\PermissionRole::create(['role_id' => $role->id, 'permission_code' => 'asignacion_rol.crear', 'effect' => 'allow', 'scope' => 'todos']);
+        PermissionRole::create(['role_id' => $role->id, 'permission_code' => 'usuario.crear', 'effect' => 'allow', 'scope' => 'todos']);
+        PermissionRole::create(['role_id' => $role->id, 'permission_code' => 'asignacion_rol.crear', 'effect' => 'allow', 'scope' => 'todos']);
     });
 
     $adminCentroRole = app(TenantContext::class)->runFor($tenant->id, fn () => Role::where('code', 'administrador_centro')->firstOrFail());

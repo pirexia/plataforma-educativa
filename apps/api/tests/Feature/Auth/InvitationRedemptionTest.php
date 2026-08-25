@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\AuditLog;
+use App\Models\Person;
 use App\Models\User;
 use App\Models\UserStatus;
 use App\Modules\Auth\Domain\Models\AccountLockout;
@@ -13,6 +15,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 
 // funcional.md §4.1, api.md §3. Canje de la invitación de REQ-CORE.
 
@@ -30,7 +33,7 @@ function issuePendingInvitation(Tenant $tenant, array $userAttrs = []): array
     Queue::fake();
 
     $user = app(TenantContext::class)->runFor($tenant->id, function () use ($userAttrs) {
-        $person = \App\Models\Person::factory()->create();
+        $person = Person::factory()->create();
 
         return User::factory()->for($person)->create([
             'status' => UserStatus::Pendiente,
@@ -166,7 +169,7 @@ test('CA-AUTH-043: el token en claro no aparece en ninguna fila de auditoría tr
         expect($invitation->token_hash)->toBe(hash('sha256', $rawToken))
             ->and($invitation->token_hash)->not->toBe($rawToken);
 
-        $logs = \App\Models\AuditLog::query()->get();
+        $logs = AuditLog::query()->get();
         foreach ($logs as $log) {
             expect(json_encode($log->getAttributes()))->not->toContain($rawToken);
         }
@@ -198,7 +201,7 @@ test('CA-AUTH-045: canjear la invitación neutraliza un bloqueo vivo y un token 
 
 // CA-AUTH-020, RN-AUTH-01, INV-010: política de contraseñas, en el canje.
 test('CA-AUTH-020: cada violación de la política de contraseñas responde 422 con su code y no fija ninguna contraseña', function (string $password, string $expectedCode) {
-    [$tenant] = provisionActiveUser('inv-020-'.\Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(6)));
+    [$tenant] = provisionActiveUser('inv-020-'.Str::lower(Str::random(6)));
     [$user, $rawToken] = issuePendingInvitation($tenant);
 
     $response = test()->postJson(coreApiUrl($tenant->slug, '/auth/invitation-redemptions'), [

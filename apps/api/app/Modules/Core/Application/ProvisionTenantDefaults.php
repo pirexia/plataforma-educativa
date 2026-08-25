@@ -2,8 +2,8 @@
 
 namespace App\Modules\Core\Application;
 
-use App\Models\Person;
 use App\Models\PermissionRole;
+use App\Models\Person;
 use App\Models\Role;
 use App\Models\User;
 use App\Modules\Core\Domain\Events\UserCreated;

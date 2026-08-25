@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\AuditLog;
+use App\Models\Person;
+use App\Models\User;
 use App\Modules\Core\Domain\Models\UserInvitation;
 use App\Modules\Core\Infrastructure\Mail\InvitationMail;
 use App\Support\Tenancy\TenantContext;
@@ -36,8 +39,8 @@ test('CA-CORE-020: emitir la invitación de un usuario pendiente crea fila con c
 
     Mail::assertSent(InvitationMail::class);
 
-    app(TenantContext::class)->runFor($tenant->id, function () use ($userId): void {
-        $log = App\Models\AuditLog::where('auditable_type', 'user_invitation')->where('event', 'created')->latest('id')->first();
+    app(TenantContext::class)->runFor($tenant->id, function (): void {
+        $log = AuditLog::where('auditable_type', 'user_invitation')->where('event', 'created')->latest('id')->first();
         expect($log)->not->toBeNull()
             // RN-CORE-19: el patrón global *token* redacta la columna
             // como "secret" — solo se comprueba el VALOR (nunca el
@@ -95,8 +98,8 @@ test('CA-CORE-023: invitar a un usuario activo devuelve 409', function (): void 
     [$tenant, $admin] = provisionCoreTenant('inv-023');
 
     $activeUser = app(TenantContext::class)->runFor($tenant->id, function () {
-        $person = App\Models\Person::factory()->create(['contact_email' => 'ya-activo@example.com']);
-        $user = App\Models\User::factory()->for($person)->create(['email' => 'ya-activo@example.com', 'status' => 'activo']);
+        $person = Person::factory()->create(['contact_email' => 'ya-activo@example.com']);
+        $user = User::factory()->for($person)->create(['email' => 'ya-activo@example.com', 'status' => 'activo']);
 
         return $user;
     });

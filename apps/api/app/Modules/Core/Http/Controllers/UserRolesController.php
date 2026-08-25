@@ -14,6 +14,7 @@ use App\Support\Authorization\PermissionResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -84,9 +85,9 @@ class UserRolesController extends Controller
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, Role>  $roles
+     * @param  Collection<int, Role>  $roles
      */
-    private function assertActorCanGrant(User $actor, \Illuminate\Support\Collection $roles): void
+    private function assertActorCanGrant(User $actor, Collection $roles): void
     {
         $actorPermissions = $this->permissions->effectivePermissionCodes($actor);
 

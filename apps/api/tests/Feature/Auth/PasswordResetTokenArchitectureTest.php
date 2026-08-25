@@ -1,5 +1,8 @@
 <?php
 
+use App\Modules\Auth\Domain\PasswordResetTokenRepository;
+use App\Modules\Auth\Infrastructure\DatabasePasswordResetTokenRepository;
+
 // funcional.md §7.2 punto 4, CA-AUTH-034, issue #18: el PasswordBroker de
 // Laravel es email-céntrico y busca sin predicado de tenant explícito
 // (RN-AUTH-07) — prohibido por test de arquitectura, no solo por
@@ -38,8 +41,8 @@ test('CA-AUTH-034: config/auth.php propio del proyecto no declara la clave passw
 // interfaz propia sin pasar por el broker — lo verifica indirectamente
 // PasswordResetEndpointTest.php al ejercitar el flujo HTTP real.
 test('DatabasePasswordResetTokenRepository implementa la interfaz propia del módulo, no el contrato del framework', function (): void {
-    $implements = (new ReflectionClass(\App\Modules\Auth\Infrastructure\DatabasePasswordResetTokenRepository::class))
-        ->implementsInterface(\App\Modules\Auth\Domain\PasswordResetTokenRepository::class);
+    $implements = (new ReflectionClass(DatabasePasswordResetTokenRepository::class))
+        ->implementsInterface(PasswordResetTokenRepository::class);
 
     expect($implements)->toBeTrue();
 });

@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Auth\Domain\Models\LoginAttempt;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use App\Support\Tenancy\TenantMigration;
@@ -147,7 +148,7 @@ test('los modelos Eloquent de app/Modules extienden TenantModel', function (): v
         // BelongsToTenant que TenantModel — RLS y el scope de tenant
         // siguen aplicando (RN-AUTH-06/07), es un allowlist deliberado y
         // documentado, no un descuido.
-        \App\Modules\Auth\Domain\Models\LoginAttempt::class,
+        LoginAttempt::class,
     ];
 
     $modulesPath = base_path('app/Modules');

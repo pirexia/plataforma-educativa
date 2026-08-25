@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\AuditLog;
 use App\Models\Person;
 use App\Models\Role;
 use App\Models\User;
@@ -268,7 +269,7 @@ test('CA-AUTH-030: un Administrador de Centro desbloquea con DELETE /account-loc
         expect($lockout->unlock_reason)->toBe(UnlockReason::Administrador)
             ->and($lockout->unlocked_by)->toBe($admin->id);
 
-        $log = \App\Models\AuditLog::where('auditable_type', 'account_lockout')
+        $log = AuditLog::where('auditable_type', 'account_lockout')
             ->where('event', 'updated')->latest('id')->first();
         expect($log)->not->toBeNull();
     });
