@@ -16,3 +16,12 @@ Artisan::command('inspire', function () {
 // (`ADR-037`), nunca en el de la API.
 Schedule::command('core:purge-maintenance')->daily();
 Schedule::job(new PurgeExpiredIdempotencyKeys)->daily();
+
+// REQ-AUTH 1.2, operacion.md §4. `auth:close-expired-lockouts` no es
+// diaria como el resto: RN-AUTH-38 la quiere frecuente porque un bloqueo
+// vencido y sin cerrar ocupa el hueco del índice único parcial de
+// RN-AUTH-17 hasta que algo lo cierre (el propio login lo cierra
+// perezosamente, esto es el consolidador para los que nadie vuelva a
+// tocar).
+Schedule::command('auth:purge-maintenance')->daily();
+Schedule::command('auth:close-expired-lockouts')->everyFiveMinutes();
