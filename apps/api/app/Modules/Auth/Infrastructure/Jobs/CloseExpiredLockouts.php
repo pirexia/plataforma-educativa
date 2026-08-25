@@ -16,12 +16,10 @@ use Illuminate\Queue\SerializesModels;
  * este trabajo cierra los que nadie ha vuelto a tocar, para que no ocupen
  * el hueco del índice único de RN-AUTH-17 indefinidamente.
  *
- * Hallazgo propio (severidad Baja, documentado en la entrega de la
- * sesión): funcional.md §4.4 remite a "operacion.md §4" para la
- * programación de este trabajo, pero la tabla de operacion.md §4 no lo
- * lista — se programa aquí con la periodicidad que el propio funcional.md
- * describe ("cada pocos minutos"), y se abre issue documentando la
- * omisión para que operacion.md se corrija.
+ * Hallazgo propio Baja, corregido en la misma sesión: funcional.md §4.4
+ * remitía a "operacion.md §4" para la programación de este trabajo, pero
+ * la tabla de operacion.md §4 no lo listaba — añadido a esa tabla (y a
+ * routes/console.php, cada 5 minutos, no diario como el resto).
  */
 class CloseExpiredLockouts implements ShouldQueue
 {
