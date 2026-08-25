@@ -4,12 +4,14 @@
 |-------|-------|
 | Código | `REQ-AUTH` |
 | Prioridad | MUST |
-| Fase | 1 · Bloque A · **paso 1.2** |
+| Fase | 1 · Bloque A · **pasos 1.2 y 1.2b** |
 | Depende de | 1.1 (`REQ-CORE`: usuarios, invitaciones, `tenant_settings`, `GET /tenant/branding`), 0.7 (`ADR-033`), 0.8 (`ADR-034`), 0.9 (auditoría `ADR-035`/`ADR-036`, i18n) |
 | Estado | **APROBADO** el 2026-08-22 (§14). Único trabajo previo a implementar: `ADR-039`, en redacción por `architect` |
 | Módulo (código) | `auth` · `apps/api/app/Modules/Auth` · `apps/web/src/modules/auth` |
 
 > Fuente de verdad: sección 5.2 de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` (`REQ-AUTH-001` a `REQ-AUTH-005`). Este documento **no** reabre lo decidido en `ADR-014`, `ADR-025`, `ADR-029`, `ADR-033`, `ADR-034`, `ADR-035`, `ADR-036` ni `ADR-038`, ni el alcance del paso 1.2 fijado con el usuario el 2026-08-22.
+>
+> **Estructura del documento**: las secciones **§0 a §14** son el paso **1.2**, cerrado y mezclado el 2026-08-25 (`docs/historial/1.2-auth-local-sesiones.md`). No se reescriben: son el registro de lo decidido y lo construido. La **Parte B** (`§B.0` en adelante, al final) es el paso **1.2b** — puntos 2, 3 y 4 de `REQ-AUTH-005`, diferidos en el issue [#59](https://github.com/pirexia/plataforma-educativa/issues/59) —, y **está pendiente de aprobación** (`§B.14`). La numeración de la Parte B es independiente para no desplazar las referencias cruzadas ya escritas a §1-§14 desde este y otros documentos, mismo criterio que `api.md §5b`.
 
 ---
 
@@ -681,3 +683,506 @@ Confirmada también la resolución de **#18** (§7: repositorio propio, `Passwor
 Las demás (`OPEN-AUTH-04`, `-07`, `-09`, `-10`, `-11`) llevan recomendación, no bloquean, y siguen abiertas tal como se documentaron — no se han reabierto ni resuelto en esta aprobación.
 
 **Siguiente paso**: implementación (rama `feature/REQ-1.2-auth-local-sesiones`), incluida la actualización de `ADR-039` con el `CHECK` de `actor_type`.
+
+---
+---
+
+# Parte B · Paso 1.2b · Panel de sesiones, cierre remoto y detección de dispositivo
+
+| Campo | Valor |
+|-------|-------|
+| Paso | **1.2b** · Fase 1 · Bloque A |
+| Requisito | `REQ-AUTH-005`, **puntos 2, 3 y 4** (el punto 1 se cerró en 1.2, §4.6) |
+| Origen | Issue [#59](https://github.com/pirexia/plataforma-educativa/issues/59), diferimiento acordado con el usuario el 2026-08-22 |
+| Depende de | **1.2** (cerrado 2026-08-25, PR [#76](https://github.com/pirexia/plataforma-educativa/pull/76)) |
+| Estado | **PROPUESTA · pendiente de aprobación** (`§B.14`) |
+| Módulo | `auth` — **ampliación**, no módulo nuevo. Mismo *bounded context*, mismo `AuthServiceProvider`, mismas rutas |
+
+> Los tres sub-requisitos, literales: *«Cierre de sesión en todos los dispositivos» · «Visualización de sesiones activas con posibilidad de revocarlas» · «Detección de login desde nuevo dispositivo/ubicación con alerta al usuario»*.
+
+---
+
+## B.0 Antes de nada: dependencias no implementadas y decisiones que no son mías
+
+`CLAUDE.md §0` obliga a decirlo antes de continuar, no al final.
+
+| Dependencia | Estado | Qué bloquea exactamente |
+|-------------|--------|-------------------------|
+| **1.2** | **Cerrado** | Ninguna. Es la única dependencia dura, y está satisfecha: `sessions` con driver `database`, `SessionRevoker`, `AuditRecorder` con vocabulario `ADR-039`, cola `auth-mail` y las tres plantillas de correo ya existen |
+| **`0.10c` · Proveedor de correo transaccional** (`OPEN-09`, `OPEN-AUTH-07`) | **Pendiente** | La alerta del punto 4 es un correo. **No bloquea implementar ni probar** (los tests comprueban que el trabajo se encola, misma convención que 1.1 y 1.2). **Sí bloquea declarar operable el punto 4**: sin entrega de correo, la detección funciona y nadie se entera, que es exactamente igual de inútil que no detectar nada. Es una degradación menos grave que la de 1.2 —aquí no deja a nadie fuera del sistema— pero anula el valor del sub-requisito |
+| **Fuente de geolocalización por IP** | **No existe decisión en el proyecto** | Bloquea la mitad **«ubicación»** del punto 4. `OPEN-AUTH-13`. No la resuelvo yo y no invento proveedor (`CLAUDE.md §11`). Consecuencia honesta en `§B.7`: **1.2b entrega el punto 4 solo en su mitad «nuevo dispositivo»**, y eso hay que escribirlo en el cierre del paso, no declararlo completo |
+| **Mecanismo de auditoría de 0.9** | Existe, pero no sabe excluir el evento `created` de un modelo concreto | `OPEN-AUTH-16`. No bloquea: hay un camino por defecto que cumple `INV-003` sin tocar nada (`§B.10`) |
+| **`1.5` · Permisos granulares** | Posterior | **No afecta**: 1.2b no declara ningún permiso nuevo (`permisos.md §B.1`). Es la consecuencia de que todo lo que entra sea autoservicio |
+| **`1.3` · MFA**, **`1.6` · Backoffice**, **`REQ-COM` (1.19)** | Posteriores | Fuera de alcance. `§B.9` fija los puntos de extensión para que ninguno tenga que rehacer lo de aquí |
+
+**Ninguna impide redactar ni implementar 1.2b.** Dos impiden cerrarlo como completo: `0.10c` (operabilidad de la alerta) y `OPEN-AUTH-13` (mitad «ubicación» del punto 4).
+
+---
+
+## B.1 Alcance del paso 1.2b
+
+### B.1.1 Entra
+
+| Sub-requisito | Qué parte |
+|---------------|-----------|
+| `REQ-AUTH-005` punto 3 | **Listado de las sesiones activas del propio usuario**, con dispositivo, IP, momento de inicio y última actividad, y marca de cuál es la sesión desde la que se consulta. **Revocación individual** de cualquiera de ellas, incluida la actual |
+| `REQ-AUTH-005` punto 2 | **Cierre de sesión en todos los dispositivos**: en un solo endpoint, con dos ámbitos — «todos los demás» (el que usa el panel) y «todos, incluida esta» (el que pide el requisito literalmente) |
+| `REQ-AUTH-005` punto 4 | **Detección de acceso desde un dispositivo no reconocido**, con **alerta por correo** al titular. Criterio de «nuevo» en `§B.6`. **La mitad «ubicación» no entra** (`§B.7`, `OPEN-AUTH-13`) |
+| **Modelo de datos propio** | Dos tablas de tenant nuevas, `user_sessions` y `user_known_devices` (`datos.md §B.1`, `§B.2`). **La tabla `sessions` del framework no se toca** (`§B.2.2`) |
+| **Cookie de dispositivo** | `pge_device`: opaca, host-only, `httpOnly`, sin ningún dato personal dentro (`§B.6.2`, `RN-AUTH-45`) |
+| **Una pantalla más** | `/cuenta/sesiones`, con sesión, sin navegación — misma categoría que `/cuenta/contrasena` de 1.2 (`§B.11`) |
+| **Una guarda de arranque** | `SESSION_DRIVER` distinto de `database` aborta el arranque (`RN-AUTH-49`). Hoy la revocación **degrada en silencio** a no hacer nada con cualquier otro driver, y a partir de 1.2b eso deja de ser un detalle interno para ser una función que el usuario ve y cree que funciona (`§B.2.1`, punto 4) |
+
+### B.1.2 No entra
+
+| Fuera | Dónde va | Motivo |
+|-------|----------|--------|
+| **Geolocalización por IP** y, con ella, la mitad «nueva ubicación» del punto 4 | Sin paso asignado | `OPEN-AUTH-13`: no hay fuente decidida y no se inventa una. `§B.7` |
+| **Huella de navegador por JavaScript** (*canvas*, fuentes, WebGL, `navigator.*`) | **En ningún paso** | Decisión razonada, no omisión: `§B.6.3` |
+| **Ver o revocar las sesiones de otro usuario** | 1.5 (rol personalizado) / 1.6 (soporte) | `permisos.md §B.2`. `REQ-AUTH-005` dice «sesiones activas *del usuario*». La palanca del administrador ya existe y es la baja del usuario (`CA-AUTH-076`) |
+| **Historial de accesos del centro** (pantalla sobre `login_attempts`) | 1.6 / `REQ-BO` | No lo pide `REQ-AUTH-005`, y `permisos.md §6` ya advirtió que esa pantalla es un registro de la jornada laboral de la plantilla y necesita su propia decisión de permisos. `login_attempts` sigue **sin `public_id`** (`datos.md §A.1`) |
+| **Nombrar o «confiar» dispositivos** («este es mi portátil», «no volver a preguntar») | Sin paso asignado | No está en el requisito. La confianza de dispositivo tiene sentido cuando hay un segundo factor que saltarse, es decir, en **1.3**, y decidirla antes sería fijar la política de MFA desde aquí |
+| **Notificación en la aplicación** (campana, bandeja) | `REQ-COM` (1.19) | 1.2b usa el canal que existe, igual que 1.2 hizo con el aviso de bloqueo. `§B.9` |
+| **Límite de sesiones simultáneas por usuario** | Sin paso asignado | No lo pide ningún requisito. Inventarlo sería `CLAUDE.md §11` |
+| **`tenant_id` y RLS en `sessions`** (`OPEN-AUTH-10`) | Pendiente de decisión | `§B.2.2` y `OPEN-AUTH-15`. **1.2b no lo necesita** para funcionar, y hacerlo es una modificación de una tabla de framework que amplía `ADR-034 §8` — eso es un ADR, no una línea de esta especificación |
+
+---
+
+## B.2 Frontera con lo cerrado en 1.2
+
+### B.2.1 Qué toca 1.2b de lo ya construido
+
+Cinco cosas. Se listan aquí para que la revisión no las descubra en el diff:
+
+1. **`SessionRevoker` cambia de firma.** Hoy es `revokeAllForUser(User $user, ?string $exceptSessionId = null): void` y solo borra filas de `sessions`. A partir de 1.2b tiene que **cerrar además la fila de `user_sessions`** con la razón que corresponda, y la razón la sabe quien llama, no el revocador. Firma nueva en `§B.8.3`. Es una interfaz **propia del módulo** (§8.4), así que cambiarla no rompe `INV-007`; sí obliga a tocar el consumidor de `REQ-CORE` (el *listener* de `UserDeactivated`), que pasa a indicar `baja_usuario`.
+2. **`SessionController::store()` gana efectos** — crear la fila de `user_sessions`, resolver el dispositivo y, si es nuevo, registrarlo y encolar la alerta. Todo **después** de `session()->regenerate()`, porque el identificador que hay que guardar es el nuevo (`RN-AUTH-32`), y **después** de `AuditRecorder::record($user, 'login')`, para no alterar el orden que `ADR-039 §4.5` fijó y que ya costó un issue de regresión (#63).
+3. **`SessionController::destroy()` gana un efecto** — cerrar la fila propia con `end_reason = 'logout'`, **antes** de `session()->invalidate()`, por el mismo motivo de orden que `ADR-039 §4.5` da para el registro de `logout`.
+4. **`SessionEnvironmentGuard` gana una comprobación**: `SESSION_DRIVER` debe ser `database`. `operacion.md §2.2` ya lo exigía **en prosa**, pero no hay guarda que lo verifique, y `DatabaseSessionRevoker` está escrito para no hacer nada con cualquier otro driver (`if (config('session.driver') !== 'database') { return; }`). Mientras la revocación era un efecto colateral interno del cambio de contraseña, eso era una degradación silenciosa aceptable. Cuando la revocación es un botón que el usuario pulsa y que le responde `204`, deja de serlo: el sistema le diría que ha cerrado una sesión que sigue abierta. **Un requisito de configuración que no tiene guarda no es un requisito, es una esperanza** — es el mismo argumento con el que 1.2 puso guarda a `SESSION_DOMAIN` (§6.2) en vez de confiar en el valor por defecto.
+5. **`EnforceSessionIdleTimeout` y `VerifySessionTenant` ganan un efecto**: al invalidar una sesión, cerrar su fila con `inactividad` y `tenant_incoherente` respectivamente. Sin esto el panel mostraría como vivas sesiones que ya no lo están hasta que pasara la tarea de `§B.4.7`.
+
+### B.2.2 Qué **no** toca, y por qué
+
+**La tabla `sessions` del framework no se modifica.** Ni columnas nuevas, ni `tenant_id`, ni RLS, ni salida de `config/tenancy.php → shared_tables.framework`. Tres motivos, en orden de peso:
+
+1. **El identificador de una sesión es una credencial portadora.** `sessions.id` es exactamente el valor que lleva la cookie una vez descifrada: quien lo tiene, es esa sesión. Un panel de sesiones necesita un identificador **público** con el que revocar, y `ADR-029` ya obliga a que sea un `public_id` ULID. Poner ese `public_id` en `sessions` significaría poner al lado de la credencial la clave con la que se la nombra en la API, y cualquier fuga futura de esa tabla —la que `OPEN-AUTH-10` describe— pasaría de exponer *payloads* a exponer también el mapa de qué fila corresponde a qué recurso de la API. Una tabla complementaria en el módulo mantiene separados el secreto y el nombre público.
+2. **`sessions` la escribe el `DatabaseSessionHandler` de Laravel, no nosotros.** Sus columnas son su contrato, y el identificador de fila **se regenera en cada login** (`Store::regenerate()` destruye la fila y crea otra). Colgar metadatos de negocio de una fila que el framework destruye y recrea por su cuenta es construir sobre un detalle de implementación de una dependencia, que es justo lo que `RNF-MANT-007` manda envolver, no abrazar.
+3. **`INV-007` aplicado hacia el framework.** `sessions` no es de `REQ-AUTH`: es del framework, compartida y declarada así desde 0.7. Las dos tablas nuevas sí son del módulo, con `tenant_id`, RLS `FORCE` y política estándar desde la primera línea, por `TenantMigration` (`ADR-033 §6`).
+
+**Lo que esto no resuelve, y hay que decirlo**: `OPEN-AUTH-10` sigue abierta exactamente igual. Una inyección SQL en cualquier punto del sistema seguiría leyendo los *payloads* de sesión de todos los tenants, porque `sessions` sigue sin RLS. 1.2b **no empeora** esa situación —no añade ni un dato personal más a esa tabla— pero tampoco la arregla, y la recomendación de `OPEN-AUTH-10` era arreglarla en este paso. Se replantea, con la información nueva, en `OPEN-AUTH-15`.
+
+**Tampoco se reabre** nada de: `ADR-025` (cookie de sesión, prohibido JWT en el navegador), la cookie *host-only* de §6, `RN-AUTH-21` (la sesión nace solo del login), `RN-AUTH-22`/`RN-AUTH-36` (revocación al fijar contraseña) ni la expiración por inactividad de §4.6.
+
+---
+
+## B.3 Actores
+
+| Actor | Qué hace en 1.2b |
+|-------|------------------|
+| **Cualquier usuario del centro** | Ve sus sesiones activas, revoca una, revoca todas las demás, revoca todas. Recibe la alerta de acceso desde dispositivo no reconocido. **Todo por identidad, ninguna por permiso** |
+| **Administrador de Centro** | **Nada nuevo.** Sus dos permisos siguen siendo `bloqueo_cuenta.leer`/`bloqueo_cuenta.eliminar`, y su palanca sobre las sesiones de otro sigue siendo dar de baja al usuario (`CA-AUTH-076`) |
+| **Dirección / Secretaría / resto** | Nada salvo su propio panel |
+| **Super Administrador · Soporte de plataforma** | **Ninguna operación.** 1.6 |
+| **Operador de sistemas** | Despliegue, la guarda nueva de `SESSION_DRIVER` y dos tareas programadas (`operacion.md §B.3`) |
+
+---
+
+## B.4 Flujos
+
+### B.4.1 Registro de la sesión en el login
+
+Amplía §4.2 punto 6, sin alterar su orden.
+
+1. Tras `regenerate()`, `Auth::login()` y el registro de auditoría `login` que ya existen, el servicio de sesión:
+   1. Lee de la petición la IP, la cabecera `User-Agent` y la cookie `pge_device` si viene.
+   2. Deriva la **descripción de cliente** (navegador, plataforma, tipo de dispositivo) del `User-Agent` (`§B.6.4`). Es texto para mostrar, no criterio de decisión.
+   3. Resuelve el dispositivo (`§B.4.5`), lo que puede crear una fila en `user_known_devices` y encolar la alerta.
+   4. Crea la fila de `user_sessions` con el identificador de sesión **nuevo**, `started_at`, la IP, el `User-Agent`, la descripción de cliente y la referencia al dispositivo si la hay.
+2. Todo dentro de la **misma transacción** que el resto del login. Si algo de esto falla, el login falla: una sesión que existe y no aparece en el panel es peor que no poder entrar, porque es invisible precisamente para la pantalla construida para verla.
+3. La alerta se **encola**, nunca se envía en la petición (`INV-012`). El login no puede depender de la latencia del proveedor de correo — es el endpoint cuyo p95 ya vigila `operacion.md §8`.
+
+**No hay fila de `user_sessions` para las sesiones anónimas.** `GET /auth/csrf-cookie` crea una fila en `sessions` con `user_id` nulo; no es la sesión de nadie y no aparece en ningún panel.
+
+### B.4.2 Listado de mis sesiones activas (`REQ-AUTH-005` punto 3)
+
+1. `GET /api/v1/auth/sessions`, con sesión válida. **Sin permiso**: por identidad del portador de la cookie, igual que el logout, `/me` y el cambio de contraseña.
+2. El servidor devuelve las filas de `user_sessions` del **usuario autenticado** con `ended_at IS NULL`, ordenadas por `started_at` descendente.
+3. Para cada una comprueba que su identificador **sigue existiendo en `sessions`**. Si no existe —el recolector del framework la retiró, o la borró un camino que no cerró la fila—, la fila se cierra en el acto como `caducidad` y **no se devuelve**. Es el mismo cierre perezoso con el que §4.4 trata los bloqueos vencidos, y por el mismo motivo: una tarea programada que corre cada pocos minutos no puede ser lo único que mantiene coherente lo que el usuario ve ahora mismo.
+4. Exactamente una de las filas devueltas lleva `current: true`: aquella cuyo identificador de sesión coincide con el de la petición en curso. Si ninguna coincide —caso imposible salvo defecto— la respuesta sigue siendo válida y el hecho se registra en el log de aplicación; **no** se inventa una marca.
+5. **Nunca se devuelve el identificador de sesión, ni el *payload*, ni el valor de la cookie de dispositivo.** El único identificador que sale es el `public_id` (`RN-AUTH-40`).
+
+### B.4.3 Revocación de una sesión concreta (`REQ-AUTH-005` punto 3)
+
+1. `DELETE /api/v1/auth/sessions/{public_id}`, con sesión válida y CSRF.
+2. Se busca la fila por `(tenant_id, public_id)` **y `user_id` del solicitante**. No encontrada, de otro usuario o de otro tenant ⇒ `404`, con cuerpo idéntico en los tres casos (`ADR-038 §6.4`, `RN-AUTH-41`). Nunca `403`: decir «existe pero no es tuya» es decir que existe.
+3. Ya cerrada ⇒ `409`. Mismo criterio que `DELETE /account-lockouts/{public_id}` sobre un bloqueo ya levantado.
+4. En **una transacción**: se borra la fila de `sessions` y se cierra la de `user_sessions` con `ended_at`, `end_reason = 'revocada_usuario'` y `ended_by` = el propio usuario.
+5. **El efecto es inmediato y no depende de ningún *middleware* nuevo**: sin fila en `sessions`, la siguiente petición de ese navegador no encuentra sesión y responde `401`. No hace falta una comprobación de revocación por petición, y no se añade: una comprobación más en la cadena de `api.md §8` es un coste en todas las peticiones del sistema para resolver un caso que el borrado ya resuelve.
+6. Respuesta `204`.
+7. **Revocar la sesión actual está permitido** y equivale a un logout: se destruye la sesión, se caduca la cookie y se cierra la fila con `revocada_usuario`. Se permite a propósito en vez de responder `409`, porque en el panel «cerrar esta sesión» es lo que un usuario espera poder hacer, y obligarle a distinguir entre dos botones que hacen lo mismo es una barrera artificial. La respuesta sigue siendo `204`; la SPA, que sabe cuál marcó como `current`, redirige al login.
+
+### B.4.4 Cierre de sesión en todos los dispositivos (`REQ-AUTH-005` punto 2)
+
+1. `DELETE /api/v1/auth/sessions`, con sesión válida y CSRF, con un parámetro `scope` opcional:
+   - **`others`** (por defecto): cierra todas las sesiones del usuario **salvo la actual**. Es el botón del panel y el caso que se usa el 99 % de las veces —«me dejé la sesión abierta en el ordenador del aula»—, y hacerlo el valor por defecto significa que una llamada mal formada nunca expulsa al usuario de su propio navegador.
+   - **`all`**: cierra **todas, incluida la actual**. Es el punto 2 del requisito leído literalmente.
+2. En una transacción: se borran las filas de `sessions` correspondientes y se cierran las de `user_sessions` con `end_reason = 'revocada_usuario'` y `ended_by` = el propio usuario.
+3. Con `scope=all` se destruye además la sesión en curso y se caduca su cookie, exactamente como el logout.
+4. Respuesta `204` en ambos casos, incluso si no había ninguna otra sesión que cerrar. Cerrar un conjunto vacío no es un error, por el mismo argumento con el que §4.3 hizo idempotente el logout.
+5. **Esto no es lo mismo que `RN-AUTH-22`.** El restablecimiento de contraseña revoca todas las sesiones como **medida de contención automática**; esto es una **acción deliberada del usuario**. Comparten mecanismo y no comparten razón, y por eso `end_reason` las distingue: quien mire la traza dentro de un mes tiene que poder saber si el usuario cerró sus sesiones o si se las cerró el sistema.
+
+### B.4.5 Detección de acceso desde dispositivo no reconocido (`REQ-AUTH-005` punto 4)
+
+Ocurre dentro del login (`§B.4.1`, paso 1.3), después de que la credencial ya se haya verificado. **Nunca antes**: un intento fallido no debe registrar dispositivo ni disparar alerta, o el propio mecanismo de alerta se convierte en un amplificador de correo dirigido contra un usuario.
+
+1. Si la petición trae cookie `pge_device`, se busca en `user_known_devices` una fila viva de ese `(tenant_id, user_id)` cuyo `device_token_hash` sea el SHA-256 del valor de la cookie.
+   - **Encontrada** ⇒ dispositivo **conocido**. Se actualizan `last_seen_at`, `last_ip_address` y el contador. **No se alerta.** Fin.
+   - **No encontrada** ⇒ dispositivo **nuevo** (el valor de la cookie no corresponde a nada nuestro: cookie de otro usuario, de otro tenant, caducada en servidor o manipulada). Se continúa en el punto 2.
+2. Si no trae cookie, o el punto 1 no encontró nada, es un **acceso desde dispositivo no reconocido**:
+   1. Se genera un valor nuevo de 32 bytes y se **emite la cookie** `pge_device` (`§B.6.2`).
+   2. Se crea la fila de `user_known_devices` con su hash, `first_seen_at`, la descripción de cliente y la IP.
+   3. Se **encola** la alerta al titular (`INV-012`), salvo que el tope de `RN-AUTH-46` esté agotado.
+   4. Se informa `alerted_at` en la fila del dispositivo.
+3. La alerta dice: que se ha iniciado sesión desde un dispositivo que no se había visto antes en esa cuenta, cuándo, desde qué IP y con qué descripción de cliente; y qué hacer si no fue el titular — revisar sus sesiones y cambiar la contraseña. **Sin enlace accionable sin sesión** (`RN-AUTH-50`): el único enlace es la ruta `/cuenta/sesiones` de la SPA, que exige entrar. Un correo de seguridad que trae un enlace que hace algo con solo pulsarlo es un correo de *phishing* escrito por nosotros.
+4. **El primer acceso de una cuenta recién activada también alerta.** Se consideró exceptuarlo —«acaba de canjear su invitación, claro que es nuevo»— y se descarta: el canje **no** inicia sesión (`RN-AUTH-21`), así que entre la activación y el primer login puede haber pasado cualquier cosa, incluido que la contraseña se fijara desde un correo interceptado. Ese primer correo, además, enseña al usuario que el sistema le avisa, que es información útil el día que el aviso no sea esperado.
+
+### B.4.6 Cierre de sesión por otras vías: las siete razones
+
+Toda sesión que deja de estar viva cierra su fila con una razón, y las razones son exactamente estas. **No hay una octava**, y el enumerado no se amplía por analogía: el issue [#61](https://github.com/pirexia/plataforma-educativa/issues/61) es el recordatorio de lo que pasa cuando se reutiliza un valor por no tener el correcto.
+
+| `end_reason` | Quién lo produce | Nota |
+|--------------|------------------|------|
+| `logout` | `DELETE /auth/session` (§4.3) | La salida ordinaria |
+| `revocada_usuario` | `DELETE /auth/sessions/{public_id}` y `DELETE /auth/sessions` | `ended_by` informado siempre, y es el propio titular |
+| `inactividad` | `EnforceSessionIdleTimeout` (§4.6) | El punto 1 de `REQ-AUTH-005`, ya cerrado en 1.2 |
+| `caducidad` | El cierre perezoso de `§B.4.2` y la tarea de `§B.4.7` | La fila de `sessions` ya no existe: la retiró el recolector del framework |
+| `cambio_credencial` | Restablecimiento (`RN-AUTH-22`) y cambio auto-servicio (`RN-AUTH-36`) | Contención automática, no acción del usuario sobre la sesión |
+| `baja_usuario` | Evento `UserDeactivated` de `REQ-CORE` (§8.2) | `ended_by` es el administrador que dio de baja, si el evento lo transporta; `NULL` si no |
+| `tenant_incoherente` | `VerifySessionTenant` (`RN-AUTH-31`) | Es un hecho de seguridad, no una salida normal, y merece un valor propio para poder contarlo (`operacion.md §B.5`) |
+
+### B.4.7 Coherencia entre `sessions` y `user_sessions`
+
+Las dos tablas pueden desincronizarse en una sola dirección: la fila de `sessions` desaparece sin que nadie cierre la de `user_sessions`. Ocurre con el recolector de sesiones del framework (`gc`, gobernado por `SESSION_LIFETIME`) y con cualquier vaciado manual de la tabla, incluido el que `operacion.md §10` obliga a hacer al restaurar una copia.
+
+Se resuelve con los dos mecanismos que 1.2 ya usó para los bloqueos vencidos, por el mismo motivo:
+
+- **Cierre perezoso** en el listado (`§B.4.2`, paso 3): lo que el usuario ve está siempre al día, sin depender de ninguna tarea.
+- **`CloseOrphanedUserSessions`**, tarea programada cada 15 minutos (`operacion.md §B.3`), que cierra como `caducidad` las filas vivas cuyo identificador ya no está en `sessions`. Recoge lo que nadie vuelva a mirar.
+
+La dirección contraria —fila en `sessions` sin fila viva en `user_sessions`— **no es un desajuste**: son las sesiones anónimas de `GET /auth/csrf-cookie`, que no pertenecen a nadie.
+
+---
+
+## B.5 Reglas de negocio nuevas
+
+Continúan la numeración de §5. Las 38 anteriores siguen en vigor sin cambios.
+
+| ID | Regla |
+|----|-------|
+| **Sesiones** | |
+| `RN-AUTH-39` | Todo login correcto crea **exactamente una** fila viva en `user_sessions`, en la misma transacción y con el identificador de sesión **posterior** a la regeneración de `RN-AUTH-32`. Hay como mucho una fila viva por identificador de sesión y tenant, garantizado por índice único parcial y no por comprobación de aplicación. |
+| `RN-AUTH-40` | El identificador que sale por la API es **siempre** el `public_id` ULID de `user_sessions`. El identificador de sesión del framework —que es la credencial portadora— **no aparece nunca** en una respuesta, en un registro de auditoría, en un log de aplicación ni en un *payload* de trabajo encolado. |
+| `RN-AUTH-41` | Un usuario solo ve y revoca **sus propias** sesiones. Se autoriza por identidad del portador de la cookie, nunca por permiso con ámbito (`permisos.md §5.6`, regla 2). Una sesión de otro usuario o de otro tenant responde `404`, jamás `403`. |
+| `RN-AUTH-42` | Revocar una sesión **borra su fila de `sessions`** y cierra la de `user_sessions` en la misma transacción. El efecto es inmediato por desaparición de la sesión, no por una bandera que algún camino futuro pueda dejar de comprobar. |
+| `RN-AUTH-43` | `DELETE /auth/sessions` cierra **todas menos la actual** por defecto, y todas —incluida la actual— con `scope=all`. El valor por defecto es el que no expulsa a quien llama. |
+| `RN-AUTH-44` | Toda fila de `user_sessions` que deja de estar viva lleva `ended_at` y una de las **siete** razones de `§B.4.6`. Un cierre sin razón es un defecto, y la restricción `CHECK ((ended_at IS NULL) = (end_reason IS NULL))` lo impide en el motor. |
+| `RN-AUTH-49` | `SESSION_DRIVER` distinto de `database` **aborta el arranque de la aplicación**, en todos los entornos. Con cualquier otro driver la revocación no tiene nada que borrar y respondería `204` sin haber cerrado nada (`§B.2.1`, punto 4). |
+| **Dispositivo y alerta** | |
+| `RN-AUTH-45` | La cookie `pge_device` es **opaca** (32 bytes de un generador criptográfico), `httpOnly`, `Secure`, `SameSite=Lax` y **host-only**, con vida de 365 días. **No contiene ningún dato personal, ni el usuario, ni el tenant, ni nada derivado de ellos**, y de ella se persiste **solo el hash SHA-256**, igual que cualquier otro token del módulo (`RN-AUTH-09`). |
+| `RN-AUTH-46` | Un acceso es **desde dispositivo nuevo** si, y solo si, la petición no presenta una cookie `pge_device` cuyo hash corresponda a un dispositivo vivo de ese `(tenant_id, user_id)`. Ni el `User-Agent`, ni la IP, ni ningún dato derivado de ellos participan en esa decisión (`§B.6`). Un acceso desde dispositivo nuevo registra el dispositivo y **encola una alerta**, con un tope de `AUTH_NEW_DEVICE_ALERTS_PER_DAY` alertas por usuario y día natural. |
+| `RN-AUTH-47` | En 1.2b **no existe el concepto «nueva ubicación»**. La IP se guarda y se muestra como información descriptiva; no participa en ninguna decisión. El punto 4 de `REQ-AUTH-005` queda cumplido **solo en su mitad «nuevo dispositivo»** hasta que se resuelva `OPEN-AUTH-13`, y así debe declararse al cerrar el paso (`CLAUDE.md §0`). |
+| `RN-AUTH-50` | La alerta de dispositivo nuevo **no lleva ningún enlace accionable sin sesión**, igual que el aviso de contraseña cambiada de 1.2. Es un aviso, no un mecanismo. |
+| `RN-AUTH-51` | Ni la detección de dispositivo ni el panel usan **huella de navegador** de ningún tipo (`§B.6.3`). El único identificador de dispositivo es la cookie de `RN-AUTH-45`. |
+| **Datos personales** | |
+| `RN-AUTH-48` | Toda fila de `user_sessions` y de `user_known_devices` cuelga de un `user_id` real por clave foránea compuesta. A diferencia de `login_attempts` y `account_lockouts` —que se llevan por correo y sobreviven a la anonimización (`datos.md §A.9`)—, **estas dos se borran con la persona** en el flujo de supresión de `ADR-004`, sin excepción ni compensación por retención. |
+
+---
+
+## B.6 Qué es «un dispositivo nuevo»: el criterio, y por qué es ese
+
+Es la decisión de diseño con más consecuencias del paso, así que va entera y con sus alternativas.
+
+### B.6.1 El criterio
+
+> **Un acceso viene de un dispositivo nuevo cuando la petición no presenta una cookie `pge_device` cuyo hash corresponda a un dispositivo ya registrado para esa cuenta en ese centro.**
+
+Nada más. Ni ventana de tiempo, ni umbrales, ni comparación de cadenas.
+
+Lo que se gana con un criterio tan estrecho:
+
+- **Es verificable.** Un criterio con umbrales («mismo navegador, distinta IP, más de 30 días») produce una función que nadie puede probar de verdad, porque cada combinación es un caso.
+- **No hay falso negativo por actualización.** El criterio evidente —comparar el `User-Agent`— convierte cada actualización de Chrome en un «dispositivo nuevo» para toda la plantilla del centro a la vez. Un aviso que llega el mismo día a trescientas personas por un motivo que no es real es un aviso que nadie volverá a leer, y ese es el modo de fallo que **destruye** el sub-requisito: no avisar de más, sino conseguir que el aviso deje de significar algo.
+- **Falla en la dirección segura.** Un navegador que borra cookies, un modo privado o un equipo nuevo producen un aviso de más. Un aviso de más es una molestia; un aviso de menos es un acceso no detectado.
+
+Lo que se pierde, dicho sin adornos:
+
+- **Quien borra cookies recibe un aviso en cada acceso.** Acotado por el tope de `RN-AUTH-46`, no eliminado.
+- **Un atacante que además roba la cookie `pge_device` no dispara el aviso.** Pero para tener esa cookie ya necesita acceso al navegador de la víctima, y con acceso al navegador tiene la sesión entera sin necesidad de la contraseña. La detección de dispositivo nuevo nunca ha defendido de ese caso, ni aquí ni en ningún otro producto.
+- **No detecta el acceso desde otro dispositivo del propio usuario reconocido como suyo.** Correcto: eso es exactamente lo que no hay que avisar.
+
+### B.6.2 La cookie `pge_device`
+
+| Atributo | Valor | Motivo |
+|----------|-------|--------|
+| Nombre | `pge_device` | |
+| Valor | 32 bytes de `random_bytes()` en hexadecimal | Mismo formato que los tres tokens de 1.2 (`RN-AUTH-09`) |
+| `HttpOnly` | sí | Ningún JavaScript necesita leerla, y que no pueda leerla la saca del alcance de un XSS |
+| `Secure` | sí, con la misma excepción de desarrollo local que la cookie de sesión | |
+| `SameSite` | `Lax` | Mismo argumento de `RN-AUTH-27` |
+| `Domain` | **ausente** — host-only | Consecuencia de primer orden: **un dispositivo conocido en `centroa.dominio` no lo es en `centrob.dominio`**. Es `RN-AUTH-08` aplicado al dispositivo, y sale gratis del mismo atributo que ya protege la sesión (§6) |
+| Vida | 365 días | |
+| Cifrado | sí, el que `EncryptCookies` aplica a todas | Innecesario (el valor ya es opaco) e inofensivo. **No se añade a la lista de excepciones** de ese *middleware* |
+| Persistencia | **solo el SHA-256**, en `user_known_devices.device_token_hash` | `RN-AUTH-09`. Y el nombre de la columna encaja con el patrón `*token*` de `config('audit.secret_attribute_patterns')`, así que la auditoría lo redacta como `secret` sin que nadie lo declare |
+
+**La cookie se emite en el login, nunca antes.** No se emite en `GET /auth/csrf-cookie` ni en ninguna petición anónima: una cookie persistente de identificación de navegador puesta a cualquiera que abra la página es una cookie de seguimiento, no de seguridad, aunque el contenido sea idéntico. Emitirla solo tras una autenticación correcta es lo que la ata a la finalidad de proteger esa cuenta.
+
+**Clasificación en protección de datos.** Es una cookie técnica de seguridad, ligada a un servicio que el usuario ha solicitado explícitamente (proteger su cuenta y avisarle de accesos que no reconozca), sin perfilado y sin cesión a terceros. Esa es la lectura que sostiene su exención de consentimiento, pero **la clasificación formal y su reflejo en `PRIVACY.md` y en `REQ-PRIV` no la decide esta especificación**: `OPEN-AUTH-14`.
+
+### B.6.3 Por qué **no** hay huella de navegador
+
+Se descarta explícitamente, y no por dificultad técnica:
+
+- Una huella por JavaScript (*canvas*, fuentes instaladas, WebGL, resolución, `navigator.*`) es **tecnología de seguimiento**. Identifica el navegador aunque el usuario borre todo, que es precisamente lo que hace que sea eficaz y también lo que la saca de cualquier exención de consentimiento razonable.
+- El producto trata datos de **menores** (`INV-008`). Introducir un identificador persistente e imborrable en el navegador de un alumno para mejorar la precisión de un aviso de acceso es desproporcionado por cualquier lectura del principio de minimización, y sería el tipo de decisión que aparece en una evaluación de impacto como hallazgo.
+- Rompería `RSEC-OWASP-005` en la práctica: las bibliotecas de huella que valen algo se cargan desde un CDN, y la CSP estricta del proyecto no lo permite.
+
+Si algún día la precisión del criterio resulta insuficiente **con el problema medido delante**, la respuesta correcta es el segundo factor de 1.3, no la huella.
+
+### B.6.4 El `User-Agent`: para qué sí sirve
+
+Se guarda crudo (truncado a 1024 caracteres) y se deriva de él una descripción legible —navegador, plataforma, tipo de dispositivo— con un único fin: **que el usuario reconozca la fila del panel**. «Chrome en Windows, escritorio» le dice si esa sesión es suya; un `User-Agent` completo, no.
+
+Derivar esa descripción con un mínimo de acierto exige o bien una dependencia de terceros (una biblioteca de detección de dispositivo, con su tabla de firmas mantenida) o bien un análisis propio deliberadamente pobre. `CLAUDE.md §1` exige justificar toda dependencia nueva y envolverla tras interfaz propia (`RNF-MANT-007`), y la decisión entre las dos opciones **no la tomo yo**: `OPEN-AUTH-17`. En cualquiera de los dos casos:
+
+- La derivación vive tras una interfaz propia del módulo (`ClientDescriber`), y lo que se persiste es su **resultado**, no la biblioteca.
+- Un `User-Agent` irreconocible produce `desconocido` en los tres campos y **no es un error**: la fila del panel sigue valiendo, porque lleva la IP y la hora.
+- **La descripción no participa nunca en la decisión de `RN-AUTH-46`.** Si mañana se cambia de biblioteca, ningún usuario recibe una avalancha de avisos, porque la decisión no depende de ella. Ese aislamiento es el motivo real de separar descripción y criterio.
+
+---
+
+## B.7 «Nueva ubicación»: qué se puede afirmar y qué no
+
+`REQ-AUTH-005` punto 4 dice «nuevo dispositivo/ubicación». La ubicación no se puede derivar de una petición HTTP: hace falta traducir la IP a un lugar, y eso exige una **fuente de datos de geolocalización**, que el proyecto **no tiene decidida**.
+
+Lo que 1.2b hace, que es lo único honesto que puede hacer:
+
+1. **Guarda la IP** de cada sesión y la del último uso de cada dispositivo (`inet`, tipo nativo, igual que `login_attempts`).
+2. **La muestra** en el panel y en la alerta.
+3. **Deja el hueco preparado sin llenarlo**: `user_sessions.location_label` existe, es `NULL` siempre en 1.2b, y hay una interfaz `IpGeolocator` con implementación nula que devuelve «desconocida». No es una columna «por si acaso» de las que prohíbe `ADR-034 OPEN-13` —el requisito la pide expresamente—, pero **sí hay que decidir si nace ahora o cuando se resuelva `OPEN-AUTH-13`**; se propone que nazca ahora porque añadirla después sobre una tabla con datos es igual de fácil, y tenerla vacía deja escrito en el esquema que el requisito está a medias.
+4. **Declara el punto 4 cumplido a medias** (`RN-AUTH-47`). No se marca como terminado en `PLAN-IMPLEMENTACION.md` sin esa salvedad escrita.
+
+Las dos familias de solución y lo que implica cada una están en `OPEN-AUTH-13`, sin recomendación de proveedor concreto: no es una decisión técnica menor, es una decisión de tratamiento de datos personales.
+
+---
+
+## B.8 Interacción con otros módulos
+
+`INV-007` sigue rigiendo: nada de importar código interno.
+
+### B.8.1 Interfaces que consume
+
+Las tres de §8.1, sin cambios. `TenantSettingsReader` y `UserDirectory` no necesitan ampliarse: 1.2b no lee ninguna configuración de centro nueva.
+
+### B.8.2 Eventos
+
+| Evento | Dirección | Qué cambia |
+|--------|-----------|------------|
+| `UserDeactivated` (de `REQ-CORE`) | Consumido | Sigue revocando las sesiones; ahora además cierra las filas con `baja_usuario` |
+| `UserEmailChanged` (de `REQ-CORE`) | Consumido | **Sin cambios**: cambiar el correo de acceso no invalida sesiones ni dispositivos, porque no cambia quién es la persona. Se anota porque la pregunta surge sola al leer §8.2 |
+| `UserLoggedIn` (publicado en 1.2) | Publicado | 1.2 lo declaró con **1.2b como consumidor previsto para la detección de nuevo dispositivo**. **No se consume.** La detección ocurre dentro de la transacción del login (`§B.4.1`), porque tiene que emitir una cookie en **esa** respuesta HTTP, y un consumidor de evento —síncrono o encolado— no puede tocar la respuesta. El evento sigue publicándose para `REQ-BI`; simplemente no es el mecanismo de esto. Es una previsión de 1.2 que la especificación de 1.2b corrige, y conviene que quede escrito en vez de que se descubra al implementar |
+| `UserLoggedOut` (publicado en 1.2) | Publicado | Igual: el cierre de la fila ocurre en el propio camino, no por evento |
+| `SessionRevoked` | **Nuevo, publicado** | Una sesión revocada por su titular. Consumidor previsto: `REQ-COM` (1.19) y `REQ-BI` |
+| `NewDeviceDetected` | **Nuevo, publicado** | Acceso desde dispositivo no reconocido. Consumidor previsto: `REQ-COM` (1.19), que sustituirá el envío directo de correo de 1.2b igual que sustituirá el de `AccountLocked` |
+
+### B.8.3 Interfaces que expone
+
+| Interfaz | Cambio |
+|----------|--------|
+| `SessionRevoker` | **Firma nueva**: la razón del cierre pasa a ser un parámetro obligatorio, y aparece la revocación de una sesión concreta. Conceptualmente: `revokeAllForUser(User, SessionEndReason, ?string $exceptSessionId)` y `revokeSession(UserSession, SessionEndReason, ?User $revokedBy)`. Es interfaz propia del módulo; el único consumidor externo es el *listener* de `UserDeactivated`, que pasa `baja_usuario` |
+| `UserSessionDirectory` | **Nueva.** Consultar las sesiones vivas de un usuario. La consumirá **1.6** (soporte de plataforma) y, si alguna vez se aprueba, la vista de administración que `permisos.md §B.2` deja fuera. Se expone desde ya para que ese paso no tenga que abrir el modelo del módulo |
+| `PasswordPolicy`, `AccountLockService` | Sin cambios |
+
+---
+
+## B.9 Puntos de extensión
+
+- **MFA (1.3)**: si 1.3 regenera el identificador de sesión al superar el segundo factor —lo normal—, tiene que **actualizar `user_sessions.session_id`** en el mismo acto, o la fila quedará huérfana y la tarea de `§B.4.7` la cerrará como `caducidad` mientras la sesión sigue viva. Es la única trampa que 1.2b le deja a 1.3, y por eso está escrita aquí. La otra mitad es agradable: la cookie `pge_device` es exactamente el mecanismo sobre el que 1.3 podrá construir «no volver a pedir el código en este dispositivo» si se decide tenerlo; 1.2b **no** lo decide (`§B.1.2`).
+- **Backoffice (1.6)**: consume `UserSessionDirectory`. Toda capacidad de ver o cerrar sesiones ajenas se decide allí, con su propio permiso y su propio registro, nunca ampliando por analogía lo de aquí.
+- **`REQ-COM` (1.19)**: consume `NewDeviceDetected` y `SessionRevoked` y sustituye el envío directo de correo. Es el mismo camino que 1.2 dejó escrito para `AccountLocked`.
+- **`OPEN-AUTH-13` resuelta**: rellenar `IpGeolocator` y `location_label`. Ni un endpoint ni una tabla cambian.
+
+---
+
+## B.10 Auditoría (`INV-003`)
+
+**1.2b no necesita ampliar `ADR-039`, y esto es una conclusión, no una suposición.**
+
+`ADR-039 §5.3` fija la carga de la prueba para quien quiera un valor nuevo de `event`: demostrar que el hecho **no** es CRUD sobre ninguna entidad. Aquí ocurre lo contrario, y por el mismo motivo que `AccountLockout` en §10.1: los dos hechos que hay que registrar **son** operaciones sobre entidades reales, porque el modelo de datos de `datos.md §B.1`/`§B.2` las modela como entidades en vez de como eventos sueltos.
+
+| Hecho | Cómo queda registrado | Mecanismo |
+|-------|------------------------|-----------|
+| El usuario revoca una sesión | `updated` sobre `UserSession` con `ended_at`, `end_reason` y `ended_by` | *Observer* de 0.9, sin código |
+| Se registra un dispositivo nuevo para una cuenta | `created` sobre `UserKnownDevice` | *Observer* de 0.9, sin código |
+| Se avisa al titular | `updated` sobre `UserKnownDevice` con `alerted_at` | *Observer* de 0.9, sin código |
+| El acceso en sí | `login` sobre `User` | Ya existe desde 1.2 (`ADR-039`) |
+
+**Ninguna llamada manual a `AuditRecorder`.** `ADR-039 §4.5` restringe la escritura manual a sus tres valores, y 1.2b no la usa: es el resultado que hay que perseguir, no una limitación que sortear.
+
+**Lo que sí hay que vigilar, y es la parte incómoda.** El *observer* de 0.9 engancha `created` **siempre**, sin forma de excluirlo por modelo. Con `UserSession` auditada, **cada login escribiría dos filas en `audit_logs`**: el `login` de `ADR-039` y un `created` sobre `UserSession` que no dice nada que el `login` no diga ya —mismo actor, mismo momento, misma IP, mismo `request_id`—. Duplicar el evento más voluminoso del sistema en la tabla que `REQ-CORE-005` obliga a conservar **dos años**, y que `ADR-034 §3` ya vigila por si hay que particionarla, es un coste real a cambio de cero información.
+
+Las dos salidas, y ninguna es mía:
+
+- **(a) Aceptarlo.** Coste cero de implementación, cumple `INV-003` sin discusión. Duplica el volumen del mayor generador de filas de auditoría del producto.
+- **(b) Dar al mecanismo de 0.9 una exclusión explícita por modelo** (del tipo «esta entidad no audita `created`, porque el hecho ya se registra con su propio evento»), con su test. Es tocar un mecanismo transversal a los 53 módulos, o sea, `CLAUDE.md §6.3`: **ADR**.
+
+`OPEN-AUTH-16`, con recomendación. **Por defecto se implementa (a)**, para que la decisión no bloquee el paso; si se aprueba (b), el cambio es de una línea en el modelo.
+
+---
+
+## B.11 Interfaz de usuario
+
+**Una pantalla más**, en `apps/web/src/modules/auth/views/`, siguiendo la decisión ya tomada en `OPEN-AUTH-01` y su argumento:
+
+| Ruta de la SPA | Pantalla | Sesión |
+|----------------|----------|--------|
+| `/cuenta/sesiones` | Mis sesiones activas | **Sí** |
+
+Es de la misma categoría que `/cuenta/contrasena`: **formulario aislado, sin navegación**, así que no depende del *layout* de 1.8 ni del *design system* de 1.7, y construirla ahora no adelanta trabajo de ningún paso posterior. Sin ella, el punto 3 del requisito —cuya primera palabra es «visualización»— queda entregado como un `GET` que ningún ser humano puede ejercer.
+
+Obligaciones, las mismas de §1.6 y sin excepción por ser austera:
+
+- **Cuatro idiomas** (`INV-009`), aquí ya con el idioma preferido del usuario, que existe porque hay sesión.
+- **WCAG 2.2 AA** (`RNF-UX-002`). Es una tabla con acciones destructivas: la confirmación tiene que ser alcanzable y anunciable por teclado y lector de pantalla, no un icono sin nombre.
+- **Confirmación explícita** antes de revocar, y **una advertencia distinta** cuando la fila que se va a revocar es la actual («vas a cerrar esta misma sesión»).
+- **Ningún dato de sesión en `localStorage`/`sessionStorage`** (`RN-AUTH-28`), tampoco el listado.
+- Los enumerados (`end_reason`, tipo de dispositivo) se traducen **por catálogo en el cliente**, nunca cambiando el valor que devuelve la API (`ADR-038 §3.2`, `api.md §9.5`).
+
+**Sin branding de tenant** en esta pantalla, a diferencia de las cinco públicas de §1.6: hay sesión, y el branding de las pantallas con sesión es asunto del *design system* de 1.7 y del *layout* de 1.8, no de este paso.
+
+---
+
+## B.12 Criterios de aceptación
+
+Verificables, cada uno con test que referencia su ID (`INV-015`). Bloque `080-103`, sin solaparse con los de 1.2.
+
+### Registro de sesión (`REQ-AUTH-005` puntos 2-3)
+
+- **`CA-AUTH-080`** · *Dado* un login correcto, *cuando* termina, *entonces* existe exactamente una fila viva en `user_sessions` de ese tenant y ese usuario, con el identificador de sesión **posterior** a la regeneración, con `started_at`, IP y `User-Agent`, y **sin** contraseña, token ni fragmento de ninguno (`RN-AUTH-39`, `RN-AUTH-05`).
+- **`CA-AUTH-081`** · *Dado* `GET /auth/csrf-cookie` sin login posterior, *cuando* se inspecciona la base de datos, *entonces* hay fila en `sessions` y **ninguna** en `user_sessions` (`§B.4.1`).
+- **`CA-AUTH-082`** · *Dado* un usuario con tres sesiones abiertas en tres clientes distintos, *cuando* llama a `GET /auth/sessions` desde una de ellas, *entonces* recibe las tres, **solo las suyas**, y **exactamente una** lleva `current: true` — la que hace la petición (`RN-AUTH-41`, `§B.4.2`).
+- **`CA-AUTH-083`** · *Dado* cualquier respuesta de `GET /auth/sessions`, *cuando* se inspecciona, *entonces* **no** contiene el identificador de sesión del framework, ni el *payload*, ni el valor ni el hash de la cookie `pge_device` (`RN-AUTH-40`).
+- **`CA-AUTH-084`** · *Dado* una fila viva de `user_sessions` cuya fila de `sessions` ya no existe, *cuando* el usuario lista sus sesiones, *entonces* esa fila **no** aparece y queda cerrada como `caducidad` sin que haya corrido ninguna tarea programada (`§B.4.2` punto 3).
+
+### Revocación (`REQ-AUTH-005` puntos 2-3)
+
+- **`CA-AUTH-085`** · *Dado* dos sesiones del mismo usuario, *cuando* desde la primera se hace `DELETE /auth/sessions/{public_id}` sobre la segunda, *entonces* `204`, la fila de `sessions` de la segunda desaparece, su fila de `user_sessions` queda con `ended_at`, `end_reason = 'revocada_usuario'` y `ended_by` informado, **la petición siguiente con la cookie de la segunda responde `401`**, y la primera sigue funcionando (`RN-AUTH-42`).
+- **`CA-AUTH-086`** · *Dado* la sesión actual, *cuando* se revoca a sí misma por su `public_id`, *entonces* `204`, la cookie queda caducada y la petición siguiente responde `401` (`§B.4.3` punto 7).
+- **`CA-AUTH-087`** · *Dado* el `public_id` de una sesión **de otro usuario del mismo tenant** y el de una **de otro tenant**, *cuando* se intentan revocar, *entonces* los dos responden `404` con **cuerpo idéntico**, y ninguna de las dos sesiones se cierra (`RN-AUTH-41`, `INV-001`, `ADR-038 §6.4`).
+- **`CA-AUTH-088`** · *Dado* una sesión ya cerrada, *cuando* se vuelve a revocar, *entonces* `409` (`§B.4.3` punto 3).
+- **`CA-AUTH-089`** · *Dado* tres sesiones del mismo usuario, *cuando* se llama a `DELETE /auth/sessions` sin parámetros, *entonces* `204`, las **otras dos** quedan cerradas como `revocada_usuario` y **la actual sigue viva** (`RN-AUTH-43`).
+- **`CA-AUTH-090`** · *Dado* lo mismo con `scope=all`, *entonces* las tres quedan cerradas y la petición siguiente con la cookie actual responde `401` (`RN-AUTH-43`, `REQ-AUTH-005` punto 2 literal).
+- **`CA-AUTH-091`** · *Dado* un usuario con **una sola** sesión, *cuando* llama a `DELETE /auth/sessions` sin parámetros, *entonces* `204` y su sesión sigue viva (`§B.4.4` punto 4).
+- **`CA-AUTH-092`** · *Dado* los tres endpoints de sesiones, *cuando* se llaman **sin sesión**, *entonces* `401`; *cuando* los dos `DELETE` se llaman sin token CSRF válido, *entonces* `419`/`403` y **no se cierra ninguna sesión** (`RN-AUTH-29`, `INV-002`).
+
+### Detección de dispositivo (`REQ-AUTH-005` punto 4)
+
+- **`CA-AUTH-093`** · *Dado* un usuario que inicia sesión **sin cookie `pge_device`**, *cuando* termina el login, *entonces* la respuesta emite la cookie con `HttpOnly`, `SameSite=Lax`, **sin atributo `Domain`**, existe una fila en `user_known_devices` con el **hash** del valor (nunca el valor), y se **encola** la alerta (`RN-AUTH-45`, `RN-AUTH-46`, `INV-012`).
+- **`CA-AUTH-094`** · *Dado* el mismo usuario en el mismo navegador, *cuando* vuelve a iniciar sesión **presentando la cookie**, *entonces* **no** se crea ningún dispositivo nuevo, **no se encola ninguna alerta**, y `last_seen_at` y el contador quedan actualizados (`RN-AUTH-46`).
+- **`CA-AUTH-095`** · *Dado* una cookie `pge_device` válida del **usuario A**, *cuando* el **usuario B** del mismo tenant inicia sesión presentándola, *entonces* para B es un dispositivo nuevo, se le alerta, y el dispositivo de A **no se modifica** (`§B.4.5` punto 1).
+- **`CA-AUTH-096`** · *Dado* una cookie `pge_device` obtenida en `tenanta.{base}`, *cuando* se presenta en `tenantb.{base}`, *entonces* el navegador **ni siquiera la envía** (host-only) y, forzada en la petición, produce un dispositivo nuevo en el tenant B sin tocar nada del A (`RN-AUTH-08`, `RN-AUTH-45`, `INV-001`).
+- **`CA-AUTH-097`** · *Dado* un `User-Agent` completamente irreconocible, *cuando* se inicia sesión, *entonces* el login **funciona**, la fila se crea con la descripción `desconocido` y la detección de dispositivo se comporta igual que con un `User-Agent` conocido (`§B.6.4`).
+- **`CA-AUTH-098`** · *Dado* un usuario que inicia sesión `AUTH_NEW_DEVICE_ALERTS_PER_DAY + 2` veces sin cookie en el mismo día, *entonces* se registran todos los dispositivos pero se encolan **como mucho** el número configurado de alertas (`RN-AUTH-46`).
+- **`CA-AUTH-099`** · *Dado* un intento de login **fallido** desde un dispositivo desconocido, *entonces* **no** se registra dispositivo, **no** se encola alerta y **no** se crea fila de `user_sessions` (`§B.4.5`, encabezado).
+- **`CA-AUTH-100`** · *Dado* la alerta de dispositivo nuevo, *cuando* se revisa, *entonces* existe en `es-ES`, `en`, `de` y `fr`, va en el idioma preferido del destinatario, y **no contiene ningún enlace que ejecute una acción sin sesión** (`RN-AUTH-50`, `INV-009`).
+
+### Cierre por otras vías, auditoría y datos
+
+- **`CA-AUTH-101`** · *Dado* un usuario con tres sesiones, *cuando* (a) restablece su contraseña, (b) la cambia desde `/cuenta/contrasena`, (c) `REQ-CORE` lo da de baja y (d) su sesión expira por inactividad, *entonces* en cada caso las filas de `user_sessions` afectadas quedan cerradas con `cambio_credencial`, `cambio_credencial` **salvo la actual**, `baja_usuario` e `inactividad` respectivamente (`RN-AUTH-22`, `RN-AUTH-36`, `RN-AUTH-44`, `§B.4.6`).
+- **`CA-AUTH-102`** · *Dado* una revocación por el usuario y un alta de dispositivo nuevo, *cuando* se consulta `audit_logs`, *entonces* existe un `updated` sobre `UserSession` con `ended_at`/`end_reason`/`ended_by` y un `created` sobre `UserKnownDevice`, **ninguno escrito por llamada manual**, y en ninguna fila aparece el identificador de sesión ni el hash del dispositivo sin redactar (`INV-003`, `ADR-035`, `ADR-039 §4.5`).
+- **`CA-AUTH-103`** · *Dado* `SESSION_DRIVER` distinto de `database`, *cuando* arranca la aplicación, *entonces* falla con un mensaje que remite a `funcional.md §B.2.1`, en todos los entornos (`RN-AUTH-49`).
+
+---
+
+## B.13 Preguntas abiertas
+
+Cinco, todas explícitas y **ninguna resuelta aquí**. Dos condicionan el alcance real de lo que se entrega; tres son decisiones de fondo que no me corresponden.
+
+### `OPEN-AUTH-13` · No hay fuente de geolocalización por IP, y sin ella el punto 4 queda a medias
+
+`REQ-AUTH-005` punto 4 pide detectar login desde nuevo dispositivo **o ubicación**. La ubicación exige traducir una IP a un lugar y **el proyecto no tiene ninguna fuente decidida** — no aparece en `memory.md`, ni en ningún ADR, ni en las decisiones abiertas de infraestructura. **No invento una** (`CLAUDE.md §11`).
+
+Las dos familias de solución, con lo que cada una arrastra:
+
+| Familia | Cómo funciona | Lo que hay que aceptar |
+|---------|---------------|------------------------|
+| **Base de datos local**, embebida en la imagen o montada como volumen | La API traduce la IP sin salir a la red | **Ninguna IP de ningún usuario sale del sistema**: no hay encargado de tratamiento, no hay transferencia internacional, no hay dependencia de disponibilidad. A cambio: hay que **actualizar el fichero periódicamente** (procedimiento en `SYSADMIN.md`, tamaño en la imagen, licencia del fichero) y la precisión es de ciudad/región, no más |
+| **Servicio externo por API** | La API consulta a un tercero en cada resolución | **Cada IP de cada usuario del centro se envía a un tercero.** Eso es un encargado de tratamiento con su contrato (art. 28 RGPD), probablemente una transferencia internacional que analizar, una entrada en el registro de actividades, y una dependencia externa en el camino del login que hay que degradar con cuidado. Más preciso y mucho más caro en obligaciones |
+
+**Lo que hace falta decidir**: (1) si el punto 4 se entrega solo como «nuevo dispositivo» y la ubicación queda como paso posterior —que es lo que esta especificación asume y declara (`RN-AUTH-47`)—, o si es condición para cerrar 1.2b; (2) en su caso, cuál de las dos familias; (3) el proveedor concreto, que además necesita ADR por ser dependencia externa nueva (`CLAUDE.md §1`).
+
+**Sin recomendación de proveedor.** Sí una observación que sirve para decidir: si el criterio de dispositivo de `§B.6.1` funciona, la ubicación aporta poco a la detección y mucho al mensaje («desde Madrid» es más reconocible para el usuario que «desde 88.1.2.3»). Es decir, su valor es más de **usabilidad del aviso** que de seguridad, y eso debería pesar frente a las obligaciones que arrastra la segunda familia.
+
+### `OPEN-AUTH-14` · Clasificación de la cookie `pge_device` en protección de datos
+
+`§B.6.2` la construye como cookie técnica de seguridad: opaca, sin dato personal, emitida solo tras autenticación correcta, con la única finalidad de avisar al titular de accesos que no reconoce. Esa es la lectura que sostiene su **exención de consentimiento**, y es la lectura habitual para las cookies de seguridad centradas en el usuario.
+
+**No la doy por buena yo.** Hace falta: confirmarla, reflejarla en `PRIVACY.md` y en el inventario de cookies, y decidir si `REQ-PRIV` tiene que recogerla como tratamiento propio en el registro de actividades. Es relevante porque **la plataforma trata datos de menores** (`INV-008`) y el listón de proporcionalidad es más alto que en un producto de adultos.
+
+Si la respuesta fuera que **sí requiere consentimiento**, la consecuencia hay que verla de frente: una detección de dispositivo que solo funciona para quien acepta una cookie no protege a quien no la acepta, y habría que decidir si el punto 4 se entrega igualmente o se replantea.
+
+### `OPEN-AUTH-15` · `sessions` sin `tenant_id` ni RLS: ¿se cierra `OPEN-AUTH-10` en 1.2b o se mantiene abierta?
+
+`OPEN-AUTH-10` recomendaba que la columna `tenant_id`, la RLS y la salida de `sessions` de `shared_tables.framework` **llegaran con 1.2b**, «junto con el panel que los usa». Con el diseño de `§B.2.2`, ese razonamiento ya no se sostiene tal cual: **el panel no las usa**. `user_sessions` es una tabla de tenant con RLS desde su primera línea, y el aislamiento del listado y de la revocación lo garantiza ella.
+
+Lo que sigue igual: `sessions` guarda *payloads* de sesión de todos los tenants sin RLS, y una inyección SQL en cualquier punto del sistema los alcanzaría todos.
+
+Lo que hay que decidir, con las tres opciones sobre la mesa:
+
+| Opción | Consecuencia |
+|--------|--------------|
+| **Mantener `OPEN-AUTH-10` abierta**, sin paso asignado | El riesgo documentado sigue vivo indefinidamente. La mitigación real (`RSEC-OWASP-001`, consultas parametrizadas) sigue siendo la única |
+| **Cerrarla en 1.2b** | Amplía `ADR-034 §8` ⇒ **ADR nuevo**. Y no es trivial: la RLS `FORCE` sobre `sessions` afecta al `DatabaseSessionHandler` del framework —lectura, escritura y **recolección de basura**, que pasaría a recoger solo las filas del tenant en curso— y a todo camino que toque la tabla sin contexto de tenant. Es tocar el mecanismo de sesión del framework para cerrar un riesgo que no es el que abre este paso |
+| **Cerrarla en un paso propio de endurecimiento**, con su ADR y sus pruebas | Ni retrasa 1.2b ni deja el riesgo sin dueño |
+
+**Recomendación**: la tercera, y que 1.2b **no** la asuma. Pero la decisión de dónde vive ese trabajo, y si se hace, es del usuario.
+
+### `OPEN-AUTH-16` · El *observer* de auditoría no sabe excluir `created`, y eso duplica una fila por cada login
+
+Detallada en `§B.10`. Con `UserSession` auditada, cada acceso escribe dos filas en `audit_logs` —el `login` de `ADR-039` y un `created` que no aporta nada— en una tabla con dos años de retención que `ADR-034 §3` ya vigila por volumen.
+
+Las dos salidas están en `§B.10`. **Recomendación: (b)**, dar al mecanismo de 0.9 una exclusión explícita por modelo, con ADR corto y test — porque la alternativa no es «un poco más de volumen», es duplicar el mayor generador de filas de auditoría del producto para siempre. Pero es un mecanismo transversal a 53 módulos y `CLAUDE.md §6.3` dice quién decide eso, y no soy yo.
+
+**No bloquea**: el camino por defecto es (a), cumple `INV-003` y el cambio a (b) es de una línea en el modelo.
+
+### `OPEN-AUTH-17` · ¿Dependencia nueva para interpretar el `User-Agent`?
+
+`§B.6.4`. Para que la fila del panel diga «Chrome en Windows» y no un `User-Agent` de doscientos caracteres hace falta interpretarlo. Las opciones:
+
+| Opción | A favor | En contra |
+|--------|---------|-----------|
+| **Biblioteca de detección de dispositivo** | Acierta, y su tabla de firmas la mantiene otro | Dependencia nueva ⇒ `CLAUDE.md §1`: justificar mantenimiento activo, licencia y frecuencia de *releases*, envolverla tras interfaz propia (`RNF-MANT-007`) y meterla en el escaneo de dependencias de cada PR |
+| **Análisis propio mínimo** (media docena de expresiones regulares: familia de navegador, familia de sistema, móvil/escritorio) | Sin dependencia, sin superficie | Se equivoca con lo raro, y envejece: cada cambio de formato de `User-Agent` lo degrada en silencio |
+
+**No decido**. Sí acoto el daño de equivocarse: por `§B.6.4`, la descripción **no participa en ninguna decisión**, así que un análisis pobre produce una etiqueta fea en una pantalla, nunca un aviso de más ni de menos. Con esa red, la opción sin dependencia es más defendible de lo que parece — pero la elección es del usuario.
+
+### Nota: dos cosas que **no** dejo como pregunta abierta, y por qué
+
+Se anotan para que la revisión no las eche en falta:
+
+- **La pantalla `/cuenta/sesiones` entra** (`§B.11`). No es una decisión nueva: `OPEN-AUTH-01` ya la tomó para esta categoría de pantalla —con sesión, sin navegación, sin dependencia de 1.7 ni de 1.8— y la primera palabra del sub-requisito es «visualización». Reabrirla sería preguntar dos veces lo mismo.
+- **Ningún administrador ve ni cierra sesiones ajenas** (`§B.1.2`, `permisos.md §B.2`). `REQ-AUTH-005` dice «del usuario», y `CLAUDE.md §11` prohíbe inventar requisitos. Si el usuario quiere esa capacidad, es un requisito nuevo con su decisión de permisos, y su sitio natural es 1.5 (rol personalizado) o 1.6 (soporte), no este paso.
+
+---
+
+## B.14 ¿Se aprueba esta especificación?
+
+**Pendiente.** No se implementa nada de la Parte B hasta que el usuario responda. Lo que hace falta decidir, en orden de impacto:
+
+1. **`OPEN-AUTH-13`** — ¿se cierra 1.2b entregando el punto 4 solo como «nuevo dispositivo», con `RN-AUTH-47` escrito, o la ubicación es condición para cerrarlo? Y en su caso, ¿qué familia de solución? **Condiciona el alcance del paso.**
+2. **`OPEN-AUTH-14`** — clasificación de la cookie `pge_device` en protección de datos. **Condiciona si el mecanismo de detección es viable tal como está diseñado.**
+3. **`OPEN-AUTH-15`** — dónde vive el cierre de `OPEN-AUTH-10` (`tenant_id` y RLS en `sessions`): ¿aquí, en un paso propio, o sigue abierta?
+4. **`OPEN-AUTH-16`** — ¿se acepta la fila de auditoría duplicada por login, o se amplía el mecanismo de 0.9 con un ADR corto?
+5. **`OPEN-AUTH-17`** — ¿dependencia de terceros para interpretar el `User-Agent`, o análisis propio mínimo?
+
+Y una confirmación de alcance, por si no se comparte lo que doy por decidido: **la pantalla `/cuenta/sesiones` entra** y **ningún administrador ve ni cierra sesiones ajenas**.
+
+Ninguna de las cinco impide **redactar**; `OPEN-AUTH-13` y `OPEN-AUTH-14` sí condicionan qué se puede declarar terminado.
