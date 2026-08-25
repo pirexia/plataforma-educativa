@@ -2,8 +2,8 @@
 
 namespace App\Modules\Core\Application;
 
-use App\Models\Person;
 use App\Models\PermissionRole;
+use App\Models\Person;
 use App\Models\Role;
 use App\Models\User;
 use App\Modules\Core\Domain\Events\UserCreated;
@@ -55,6 +55,8 @@ final class ProvisionTenantDefaults
         'configuracion.leer', 'configuracion.actualizar',
         'modulo.leer', 'modulo.actualizar',
         'auditoria.leer', 'auditoria.exportar',
+        // REQ-AUTH/permisos.md §5: solo administrador_centro (§5.1).
+        'bloqueo_cuenta.leer', 'bloqueo_cuenta.eliminar',
     ];
 
     /** @var array<string, list<string>> */

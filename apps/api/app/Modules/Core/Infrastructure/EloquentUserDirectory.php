@@ -26,4 +26,13 @@ final class EloquentUserDirectory implements UserDirectory
             preferredLocale: $person->locale ?? 'es-ES',
         );
     }
+
+    /**
+     * REQ-AUTH/funcional.md §8.1. RN-AUTH-06: la búsqueda ya es por el
+     * tenant activo (RLS + *scope* de `TenantModel`), nunca global.
+     */
+    public function findActiveByEmail(string $email): ?User
+    {
+        return User::query()->with('person')->where('email', $email)->first();
+    }
 }

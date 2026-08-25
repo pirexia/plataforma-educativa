@@ -3230,6 +3230,7 @@ Del `028` en adelante, cada decisión vive en `docs/adr/` (`ADR-026`).
 | `ADR-036` | `Tenant` queda fuera del *observer* de auditoría de tenant (**sustituye la fila `Tenant` de `ADR-035 §8`**; su ciclo de vida se audita en `admin_action_logs`, paso 1.6) |
 | `ADR-037` | Portabilidad del despliegue: imágenes inmutables, unidades Quadlet y gestión de secretos (**concreta `ADR-027` y `ADR-028`; enmienda las líneas de `compose.yaml` en producción de `ADR-030`**) |
 | `ADR-038` | Convenciones de la API REST: envoltura, paginación, filtrado y orden, formato de error, versionado, idempotencia y semántica de `PATCH`/`PUT` (**resuelve `OPEN-CORE-09`**; concreta `INV-006`, `INV-009`, `INV-011` e `INV-013`; **matiza `ADR-029`** en el cursor cifrado y **precisa el índice de `audit_logs` de `ADR-034 §3`**). Aplicable a los 53 módulos |
+| `ADR-039` | Vocabulario de `audit_logs.event` y eventos de autenticación: `login`, `logout` y `password_reset_requested`, más `actor_type = 'anonymous'` para peticiones sin sesión (**resuelve `OPEN-AUTH-02` y `OPEN-AUTH-12`**; **amplía los `CHECK` cerrados de `ADR-034 §3`**, `event` de seis a nueve valores y `actor_type` de cinco a seis; concreta `INV-003` e `INV-013`; ratifica `ADR-035 §7`). Aplicable a los 53 módulos |
 
 ### Decisiones abiertas vivas
 

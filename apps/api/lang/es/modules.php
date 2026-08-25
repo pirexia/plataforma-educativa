@@ -4,4 +4,5 @@
 
 return [
     'core' => 'Núcleo de la plataforma',
+    'auth' => 'Autenticación y sesiones',
 ];

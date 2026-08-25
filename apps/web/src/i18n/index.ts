@@ -7,6 +7,10 @@ import coreEs from '@/modules/core/locales/es.json'
 import coreEn from '@/modules/core/locales/en.json'
 import coreDe from '@/modules/core/locales/de.json'
 import coreFr from '@/modules/core/locales/fr.json'
+import authEs from '@/modules/auth/locales/es.json'
+import authEn from '@/modules/auth/locales/en.json'
+import authDe from '@/modules/auth/locales/de.json'
+import authFr from '@/modules/auth/locales/fr.json'
 
 /**
  * ADR-021/INV-009: es (por defecto), en, de, fr. `es` es el único
@@ -18,6 +22,22 @@ export const SUPPORTED_LOCALES = ['es', 'en', 'de', 'fr'] as const
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number]
 
 export const DEFAULT_LOCALE: SupportedLocale = 'es'
+
+/**
+ * REQ-AUTH (1.2): el vocabulario de idioma del dominio —
+ * `tenant_settings.default_locale`/`active_locales`, `Person.locale`
+ * (ADR-021: `'es-ES' | 'en' | 'de' | 'fr'`)— no coincide con el código de
+ * `vue-i18n` para el español (`'es'`, no `'es-ES'`). Único punto de
+ * conversión entre ambos vocabularios; nace aquí porque es el primer
+ * consumidor que necesita cruzar el idioma de un recurso de la API con el
+ * catálogo de mensajes de la SPA (branding público, antes de que haya
+ * sesión de la que leer `person.locale`).
+ */
+export type DomainLocale = 'es-ES' | 'en' | 'de' | 'fr'
+
+export function localeFromDomain(value: DomainLocale): SupportedLocale {
+  return value === 'es-ES' ? 'es' : value
+}
 
 const STORAGE_KEY = 'plataforma.locale'
 
@@ -64,10 +84,10 @@ export const i18n = createI18n({
   locale: resolveInitialLocale(),
   fallbackLocale: DEFAULT_LOCALE,
   messages: {
-    es: { ...es, ...coreEs },
-    en: { ...en, ...coreEn },
-    de: { ...de, ...coreDe },
-    fr: { ...fr, ...coreFr },
+    es: { ...es, ...coreEs, ...authEs },
+    en: { ...en, ...coreEn, ...authEn },
+    de: { ...de, ...coreDe, ...authDe },
+    fr: { ...fr, ...coreFr, ...authFr },
   },
 })
 

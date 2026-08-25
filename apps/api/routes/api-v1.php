@@ -5,3 +5,4 @@
 // conforme se implementen (paso 1.1 en adelante).
 
 require base_path('app/Modules/Core/Http/routes.php');
+require base_path('app/Modules/Auth/Http/routes.php');

@@ -1,5 +1,9 @@
 <?php
 
+use App\Models\AuditLog;
+use App\Models\Person;
+use App\Models\Role;
+use App\Models\User;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -49,10 +53,10 @@ test('CA-CORE-070: autenticado sin el permiso configuracion.leer, GET /tenant/se
     [$tenant, $admin] = provisionCoreTenant('settings-403');
 
     // docente no tiene ningún permiso de REQ-CORE (permisos.md §4.1).
-    $docente = app(TenantContext::class)->runFor($tenant->id, function () use ($admin) {
-        $person = App\Models\Person::factory()->create(['contact_email' => 'docente@example.com']);
-        $user = App\Models\User::factory()->for($person)->create(['email' => 'docente@example.com']);
-        $role = App\Models\Role::where('code', 'docente')->firstOrFail();
+    $docente = app(TenantContext::class)->runFor($tenant->id, function () {
+        $person = Person::factory()->create(['contact_email' => 'docente@example.com']);
+        $user = User::factory()->for($person)->create(['email' => 'docente@example.com']);
+        $role = Role::where('code', 'docente')->firstOrFail();
         $user->roles()->attach($role->id);
 
         return $user;
@@ -155,7 +159,7 @@ test('CA-CORE-004: un cambio válido de configuración se audita y la caché se 
 
     $log = app(TenantContext::class)->runFor(
         $tenant->id,
-        fn () => App\Models\AuditLog::where('auditable_type', 'tenant_setting')->where('event', 'updated')->latest('id')->first(),
+        fn () => AuditLog::where('auditable_type', 'tenant_setting')->where('event', 'updated')->latest('id')->first(),
     );
 
     expect($log)->not->toBeNull()

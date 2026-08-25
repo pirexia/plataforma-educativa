@@ -96,6 +96,14 @@ components:
 
     User:
       type: object
+      description: >
+        Forma exacta de UserProfilePresenter::present() — compartida por
+        GET /me (REQ-CORE) y POST /auth/session (REQ-AUTH, api.md §2.6.6):
+        misma respuesta para que la SPA no encadene una segunda petición
+        tras el login. Corregido en 1.2 (issue detectado al redactar este
+        fichero): la versión anterior listaba email_verified_at/created_at/
+        updated_at/deleted_at, que el presentador nunca devuelve, y le
+        faltaba permissions, que sí devuelve siempre.
       properties:
         public_id: { $ref: '#/components/schemas/PublicId' }
         email: { type: string, format: email }
@@ -107,10 +115,10 @@ components:
         roles:
           type: array
           items: { $ref: '#/components/schemas/RoleSummary' }
-        email_verified_at: { type: string, format: date-time, nullable: true }
-        created_at: { type: string, format: date-time }
-        updated_at: { type: string, format: date-time }
-        deleted_at: { type: string, format: date-time, nullable: true }
+        permissions:
+          type: array
+          description: Códigos de permiso efectivos del usuario autenticado.
+          items: { type: string }
 
     Invitation:
       type: object
@@ -204,6 +212,15 @@ components:
             logo_url: { type: string, format: uri, nullable: true }
             favicon_url: { type: string, format: uri, nullable: true }
             login_background_url: { type: string, format: uri, nullable: true }
+        security:
+          type: object
+          description: REQ-AUTH/api.md §6 (REQ-AUTH-005 punto 1). No es un recurso nuevo, grupo añadido en 1.2.
+          properties:
+            session_timeout_minutes:
+              type: integer
+              minimum: 5
+              maximum: 480
+              description: RN-AUTH-30. Por defecto 30.
         updated_at: { type: string, format: date-time }
 
     TenantBranding:
@@ -234,12 +251,14 @@ components:
             display_name: { type: string }
         actor_type:
           type: string
-          enum: [user, system, console, import, platform]
+          description: "Enumerado extensible (ADR-038 §7.3). 'anonymous' añadido por ADR-039 (REQ-AUTH)."
+          enum: [user, system, console, import, platform, anonymous]
         auditable_type: { type: string }
         auditable_public_id: { $ref: '#/components/schemas/PublicId' }
         event:
           type: string
-          enum: [created, updated, deleted, restored, read, exported]
+          description: "Enumerado extensible (ADR-038 §7.3). login/logout/password_reset_requested añadidos por ADR-039 (REQ-AUTH)."
+          enum: [created, updated, deleted, restored, read, exported, login, logout, password_reset_requested]
         changes: { type: object, nullable: true, additionalProperties: true }
         ip_address: { type: string, nullable: true }
         user_agent: { type: string, nullable: true }
@@ -283,6 +302,32 @@ components:
         report_url: { type: string, format: uri, nullable: true }
         validated_at: { type: string, format: date-time, nullable: true }
         executed_at: { type: string, format: date-time, nullable: true }
+
+    AccountLockout:
+      type: object
+      description: REQ-AUTH/api.md §5. Bloqueo de cuenta por intentos fallidos consecutivos.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        email: { type: string, format: email }
+        user:
+          type: object
+          nullable: true
+          description: "null en un bloqueo fantasma (RN-AUTH-15, correo sin cuenta)."
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            email: { type: string, format: email }
+        status:
+          type: string
+          description: Derivado, no una columna.
+          enum: [vigente, levantado]
+        failed_count: { type: integer }
+        locked_at: { type: string, format: date-time }
+        unlocked_at: { type: string, format: date-time, nullable: true }
+        unlocked_by:
+          type: string
+          format: ulid
+          nullable: true
+          description: public_id de quien desbloqueó, o null (caducidad/correo, RN-AUTH-18).
 
     PublicId:
       type: string
@@ -379,14 +424,45 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+    Gone:
+      description: >
+        Recurso ya no disponible (410). REQ-AUTH: token de invitación,
+        restablecimiento o desbloqueo inexistente, caducado, revocado, ya
+        usado o de otro tenant — cuerpo idéntico en todos los casos
+        (funcional.md §4.7).
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Locked:
+      description: >
+        Cuenta bloqueada por intentos fallidos (423, REQ-AUTH-001).
+        Respuesta idéntica exista o no la cuenta detrás del correo
+        (RN-AUTH-15, api.md §1.1).
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    TooManyRequests:
+      description: Límite de tasa excedido (429). operacion.md §6, ADR-038 §6.5.
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+        Retry-After: { $ref: '#/components/headers/RetryAfter' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
 
   securitySchemes:
     SessionCookie:
       type: apiKey
       in: cookie
-      name: pge_session
+      name: plataforma-de-gestion-educativa-session
       description: >
-        Cookie de sesión httpOnly/Secure/SameSite con CSRF (ADR-025). El
-        flujo de login lo entrega 1.2; en 1.1 los tests autentican con
-        actingAs(). Documentado aquí como contrato del cliente, no como
-        implementación disponible todavía.
+        Cookie de sesión httpOnly/Secure/SameSite=Lax, host-only (sin
+        atributo Domain — issue #8, RN-AUTH-26), con CSRF vía cabecera
+        X-XSRF-TOKEN (ADR-025). Entregada por REQ-AUTH (1.2):
+        POST /auth/session la establece, DELETE /auth/session la revoca.
+        Nombre real de config('session.cookie') — depende de APP_NAME,
+        verificar si ese valor cambia en despliegue.

@@ -2,11 +2,12 @@
 
 namespace App\Modules\Core\Application;
 
-use App\Models\Person;
 use App\Models\PermissionRole;
+use App\Models\Person;
 use App\Models\Role;
 use App\Models\User;
 use App\Modules\Core\Domain\Events\UserCreated;
+use App\Modules\Core\Domain\Models\UserInvitation;
 use App\Modules\Core\Domain\TenantSettingsReader;
 use App\Support\Api\ApiException;
 use App\Support\Api\ValidationErrorBag;
@@ -34,7 +35,7 @@ final class CreateUser
 
     /**
      * @param  array<string, mixed>  $data  ya validado en forma por StoreUserRequest
-     * @return array{user: User, invitation: ?\App\Modules\Core\Domain\Models\UserInvitation}
+     * @return array{user: User, invitation: ?UserInvitation}
      */
     public function create(array $data, User $actor): array
     {

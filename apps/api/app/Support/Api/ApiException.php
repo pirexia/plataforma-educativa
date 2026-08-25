@@ -83,6 +83,16 @@ final class ApiException extends RuntimeException
     }
 
     /**
+     * REQ-AUTH/api.md §1.1: cuenta bloqueada por intentos fallidos
+     * (`REQ-AUTH-001`). 423, no 401/403 — el cliente necesita distinguir
+     * "bloqueada" de "credenciales incorrectas" sin analizar texto.
+     */
+    public static function accountLocked(): self
+    {
+        return new self(423, 'account-locked');
+    }
+
+    /**
      * @param  array<string, string|int|float>  $detailParams
      */
     public static function payloadTooLarge(?string $detailKey = null, array $detailParams = []): self

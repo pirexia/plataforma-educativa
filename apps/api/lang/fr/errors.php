@@ -18,6 +18,7 @@ return [
         'too-many-requests' => 'Trop de requêtes',
         'internal' => 'Erreur interne du serveur',
         'unavailable' => 'Service temporairement indisponible',
+        'account-locked' => 'Compte verrouillé',
     ],
 
     'detail' => [
@@ -29,5 +30,6 @@ return [
         'validation' => 'Merci de vérifier les champs indiqués.',
         'internal' => 'Une erreur inattendue s\'est produite. Conservez l\'identifiant de la requête si vous contactez le support.',
         'unavailable' => 'Le service est temporairement indisponible. Merci de réessayer dans quelques minutes.',
+        'account-locked' => 'Ce compte est temporairement verrouillé après trop de tentatives échouées. Consultez votre e-mail ou réessayez plus tard.',
     ],
 ];

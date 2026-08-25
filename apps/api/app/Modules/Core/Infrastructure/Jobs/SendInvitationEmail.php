@@ -4,6 +4,7 @@ namespace App\Modules\Core\Infrastructure\Jobs;
 
 use App\Modules\Core\Infrastructure\Mail\InvitationMail;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -14,14 +15,16 @@ use Illuminate\Support\Facades\Mail;
  * operacion.md §4: cola `core-mail`, 5 reintentos con retroceso
  * exponencial (1 min a 30 min). INV-012: nunca se envía en la petición
  * HTTP. El token en claro solo existe en este payload y en el correo
- * generado — nunca se escribe en base de datos (RN-CORE-19).
+ * generado — nunca se escribe en base de datos (RN-CORE-19). Issue #75:
+ * `ShouldBeEncrypted` cifra el payload completo (con `APP_KEY`), también
+ * el que queda en `failed_jobs` si se agotan los 5 reintentos.
  *
  * El contexto de tenant lo entra/sale automáticamente
  * TenancyServiceProvider::registerTenantAwareQueues() (ADR-033 §8) a
  * partir del `tenant_id` que Queue::createPayloadUsing() ya estampó al
  * despachar: este job no lo gestiona a mano.
  */
-class SendInvitationEmail implements ShouldQueue
+class SendInvitationEmail implements ShouldBeEncrypted, ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;

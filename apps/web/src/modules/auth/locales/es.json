@@ -1,0 +1,70 @@
+{
+  "auth": {
+    "passwordPolicy": {
+      "hint": "Mínimo 12 caracteres, con una mayúscula, una minúscula, un dígito y un símbolo (máximo 72 caracteres)."
+    },
+    "fields": {
+      "email": "Correo electrónico",
+      "password": "Contraseña",
+      "newPassword": "Contraseña nueva",
+      "newPasswordConfirmation": "Confirma la contraseña nueva",
+      "currentPassword": "Contraseña actual"
+    },
+    "common": {
+      "unexpectedError": "No se ha podido contactar con el servidor. Inténtalo de nuevo.",
+      "tooManyRequests": "Demasiados intentos. Inténtalo de nuevo más tarde.",
+      "tooManyRequestsWithSeconds": "Demasiados intentos. Inténtalo de nuevo en {seconds} segundos.",
+      "accountLocked": "Esta cuenta está bloqueada temporalmente por varios intentos fallidos. Si la cuenta existe, se ha enviado un correo con un enlace de desbloqueo."
+    },
+    "login": {
+      "title": "Iniciar sesión",
+      "submit": "Entrar",
+      "submitting": "Entrando…",
+      "invalidCredentials": "El correo electrónico o la contraseña no son correctos.",
+      "pendingHint": "¿Todavía no has activado tu cuenta? Revisa el correo de invitación que recibiste.",
+      "forgotPassword": "¿Has olvidado tu contraseña?",
+      "activatedBanner": "Tu cuenta se ha activado. Ya puedes iniciar sesión.",
+      "resetBanner": "Tu contraseña se ha restablecido. Inicia sesión con la nueva contraseña."
+    },
+    "activation": {
+      "title": "Activa tu cuenta",
+      "intro": "Elige una contraseña para completar tu alta.",
+      "submit": "Activar cuenta",
+      "submitting": "Activando…",
+      "invalidToken": "Este enlace de activación no es válido o ha caducado.",
+      "backToLogin": "Volver a iniciar sesión"
+    },
+    "passwordResetRequest": {
+      "title": "Recuperar contraseña",
+      "intro": "Escribe tu correo electrónico y, si existe una cuenta con ese correo, te enviaremos un enlace para restablecer la contraseña.",
+      "submit": "Enviar enlace",
+      "submitting": "Enviando…",
+      "success": "Si existe una cuenta con ese correo, te hemos enviado un enlace para restablecer la contraseña.",
+      "backToLogin": "Volver a iniciar sesión"
+    },
+    "passwordReset": {
+      "title": "Restablecer contraseña",
+      "intro": "Elige tu nueva contraseña.",
+      "submit": "Restablecer contraseña",
+      "submitting": "Restableciendo…",
+      "invalidToken": "Este enlace de restablecimiento no es válido o ha caducado.",
+      "requestNew": "Solicitar un enlace nuevo"
+    },
+    "accountUnlock": {
+      "title": "Desbloquear cuenta",
+      "intro": "Pulsa el botón para desbloquear tu cuenta ahora, sin esperar a que se levante el bloqueo automáticamente.",
+      "submit": "Desbloquear cuenta ahora",
+      "submitting": "Desbloqueando…",
+      "success": "Tu cuenta ha sido desbloqueada. Ya puedes iniciar sesión.",
+      "invalidToken": "Este enlace de desbloqueo no es válido o ha caducado.",
+      "goToLogin": "Ir a iniciar sesión"
+    },
+    "passwordChange": {
+      "title": "Cambiar contraseña",
+      "intro": "Introduce tu contraseña actual y la nueva.",
+      "submit": "Guardar contraseña nueva",
+      "submitting": "Guardando…",
+      "success": "Tu contraseña se ha actualizado."
+    }
+  }
+}

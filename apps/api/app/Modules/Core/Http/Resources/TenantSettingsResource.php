@@ -48,6 +48,11 @@ class TenantSettingsResource extends JsonResource
                 'favicon_url' => $signer->sign($this->favicon_object_key),
                 'login_background_url' => $signer->sign($this->login_background_object_key),
             ],
+            // REQ-AUTH/api.md §6 (REQ-AUTH-005 punto 1). No es un endpoint
+            // nuevo: mismo recurso de 1.1, grupo añadido en 1.2.
+            'security' => [
+                'session_timeout_minutes' => $this->session_timeout_minutes,
+            ],
             'updated_at' => $this->updated_at,
         ];
     }

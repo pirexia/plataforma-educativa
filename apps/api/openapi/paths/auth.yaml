@@ -1,0 +1,275 @@
+# REQ-AUTH (paso 1.2). Convenciones transversales en
+# docs/adr/ADR-038-convenciones-api-rest.md — este fichero no las repite,
+# solo las aplica. Todos los endpoints bajo /api/v1, referenciados desde
+# apps/api/openapi.yaml. Contrato completo en docs/modulos/REQ-AUTH/api.md.
+#
+# api.md §7: nueve endpoints, seis anónimos — la mayor superficie anónima
+# del producto. Todos llevan límite de tasa (operacion.md §6).
+
+paths:
+  /api/v1/auth/csrf-cookie:
+    get:
+      operationId: getAuthCsrfCookie
+      summary: Semilla de la cookie CSRF para el arranque en frío de la SPA
+      description: >
+        Equivalente propio de /sanctum/csrf-cookie, sin la dependencia
+        (funcional.md §4.7). Deja la cookie XSRF-TOKEN (legible por
+        JavaScript, por diseño) y, si no existía, la cookie de sesión
+        anónima.
+      tags: [Auth / Sesión]
+      security: []
+      responses:
+        '204':
+          description: Sin cuerpo. Cookies dejadas en la respuesta.
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/auth/session:
+    post:
+      operationId: createAuthSession
+      summary: Login local — único camino que crea una sesión (RN-AUTH-21)
+      description: >
+        funcional.md §4.2. Orden de comprobación: límite de tasa, bloqueo
+        (RN-AUTH-16, sin verificar contraseña), credencial, estado
+        (RN-AUTH-23). Respuesta indistinguible entre correo inexistente,
+        contraseña incorrecta, usuario pendiente e inactivo (funcional.md
+        §4.7).
+      tags: [Auth / Sesión]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: Mismo recurso que GET /me. Cookie de sesión con identificador regenerado (RN-AUTH-32).
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/User' }
+        '401':
+          description: Credenciales incorrectas, correo inexistente, usuario pendiente o inactivo — cuerpo idéntico (CA-AUTH-011).
+          headers:
+            X-Request-Id: { $ref: '../components.yaml#/components/headers/XRequestId' }
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '423': { $ref: '../components.yaml#/components/responses/Locked' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+        '503':
+          description: Tenant suspendido (ResolveTenant).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+    delete:
+      operationId: deleteAuthSession
+      summary: Logout — idempotente a propósito
+      description: >
+        Invalida la sesión, regenera el token CSRF, caduca la cookie.
+        Sin 401 deliberadamente (CA-AUTH-017): cerrar una sesión que ya
+        no existe no es un error.
+      tags: [Auth / Sesión]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204':
+          description: Sesión cerrada (o ya no existía — mismo resultado).
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/auth/invitation-redemptions:
+    post:
+      operationId: createInvitationRedemption
+      summary: Canje de invitación — fija la contraseña y activa la cuenta
+      description: >
+        funcional.md §4.1. Contrato del token fijado por
+        REQ-CORE/funcional.md §4.3 (issue de documentación #60 corregido:
+        REQ-CORE/api.md ya no anticipa el token en la ruta). No inicia
+        sesión (RN-AUTH-21).
+      tags: [Auth / Canje]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password, password_confirmation]
+              properties:
+                token: { type: string, description: "Token en claro, nunca en la ruta (funcional.md §4.7)." }
+                password: { type: string }
+                password_confirmation: { type: string }
+      responses:
+        '204':
+          description: Cuenta activada. La SPA redirige al login.
+        '410': { $ref: '../components.yaml#/components/responses/Gone' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/auth/password-reset-requests:
+    post:
+      operationId: createPasswordResetRequest
+      summary: Solicita el restablecimiento de contraseña
+      description: >
+        funcional.md §4.5 fase 1. RN-AUTH-10: 202 siempre, exista o no la
+        cuenta, esté activa o no. Efecto real solo si hay usuario vivo y
+        activo con ese correo.
+      tags: [Auth / Recuperación]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '202':
+          description: Siempre, sin cuerpo. No confirma ni niega la existencia de la cuenta.
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/auth/password-resets:
+    post:
+      operationId: createPasswordReset
+      summary: Restablece la contraseña con el token recibido por correo
+      description: >
+        funcional.md §4.5 fase 2. Sin correo en el cuerpo: la búsqueda es
+        por token. Revoca todas las sesiones activas del usuario
+        (RN-AUTH-22). No inicia sesión.
+      tags: [Auth / Recuperación]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password, password_confirmation]
+              properties:
+                token: { type: string }
+                password: { type: string }
+                password_confirmation: { type: string }
+      responses:
+        '204':
+          description: Contraseña restablecida.
+        '410': { $ref: '../components.yaml#/components/responses/Gone' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/auth/account-unlocks:
+    post:
+      operationId: createAccountUnlock
+      summary: Desbloqueo de cuenta por el propio titular (token del correo de aviso)
+      description: funcional.md §4.4. Un solo uso, caducidad 24h configurable (RN-AUTH-13). La fila se conserva (RN-AUTH-18).
+      tags: [Auth / Bloqueo]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        '204':
+          description: Bloqueo levantado.
+        '410': { $ref: '../components.yaml#/components/responses/Gone' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/auth/password-changes:
+    post:
+      operationId: createPasswordChange
+      summary: Cambio de contraseña por el propio usuario autenticado
+      description: >
+        funcional.md §4.8 (OPEN-AUTH-05, aprobado 2026-08-22). Sin
+        permiso: se autoriza por identidad del portador de la cookie.
+        La contraseña actual incorrecta cuenta hacia el mismo bloqueo
+        que el login (funcional.md §4.8 punto 4). Revoca las demás
+        sesiones, conserva la actual (RN-AUTH-36).
+      tags: [Auth / Sesión]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, password, password_confirmation]
+              properties:
+                current_password: { type: string }
+                password: { type: string }
+                password_confirmation: { type: string }
+      responses:
+        '204':
+          description: Contraseña cambiada.
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '423': { $ref: '../components.yaml#/components/responses/Locked' }
+
+  /api/v1/account-lockouts:
+    get:
+      operationId: listAccountLockouts
+      summary: Cuentas bloqueadas del centro
+      description: Único listado del módulo. permisos.md §3 — bloqueo_cuenta.leer.
+      tags: [Auth / Bloqueo]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: status
+          in: query
+          description: "vigente|levantado, varios separados por coma. Por defecto vigente (ADR-038 §5.2)."
+          schema: { type: string }
+        - $ref: '../components.yaml#/components/parameters/QParam'
+        - name: sort
+          in: query
+          description: "locked_at|-locked_at. Por defecto -locked_at."
+          schema: { type: string, enum: [locked_at, -locked_at] }
+        - $ref: '../components.yaml#/components/parameters/PageParam'
+        - $ref: '../components.yaml#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: Colección paginada por página (catálogo acotado, no tabla de alto crecimiento).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/AccountLockout' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/account-lockouts/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    delete:
+      operationId: deleteAccountLockout
+      summary: Desbloqueo por administrador
+      description: >
+        No borra la fila — describe la desaparición del bloqueo, no de
+        la traza (RN-AUTH-18, mismo criterio que DELETE
+        /invitations/{id} de REQ-CORE). permisos.md §3 —
+        bloqueo_cuenta.eliminar.
+      tags: [Auth / Bloqueo]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204':
+          description: Bloqueo levantado, unlock_reason=administrador, unlocked_by informado.
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }

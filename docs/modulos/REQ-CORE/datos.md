@@ -20,11 +20,11 @@
 | `public_id` | ULID | No | `ADR-029` |
 | `occurred_at` | `TIMESTAMPTZ` | No | Momento del hecho, no de la escritura |
 | `actor_user_id` | `bigint` | Sí | FK compuesta `(tenant_id, actor_user_id) → users` |
-| `actor_type` | `text` + `CHECK` | No | `user`, `system`, `console`, `import`, `platform` |
+| `actor_type` | `text` + `CHECK` | No | `user`, `system`, `console`, `import`, `platform`, `anonymous` (`ADR-039`, `REQ-AUTH` 1.2: peticiones sin sesión, p. ej. `password_reset_requested`) |
 | `auditable_type` | `text` | No | Alias del *morph map*, nunca el FQCN de PHP |
 | `auditable_id` | `bigint` | No | Clave interna del sujeto auditado; sin FK, es polimórfica |
 | `auditable_public_id` | ULID | Sí | Permite listar sin *join* y sobrevive a la purga de la entidad |
-| `event` | `text` + `CHECK` | No | `created`, `updated`, `deleted`, `restored`, `read`, `exported` |
+| `event` | `text` + `CHECK` | No | `created`, `updated`, `deleted`, `restored`, `read`, `exported`, `login`, `logout`, `password_reset_requested` (los tres últimos, `ADR-039`, `REQ-AUTH` 1.2 — describen el hecho, nunca un verbo CRUD que no le corresponde) |
 | `changes` | `jsonb` | Sí | Solo atributos modificados, con redacción — ver más abajo |
 | `ip_address` | `inet` | Sí | Del actor, no del sujeto |
 | `user_agent` | `text` | Sí | |

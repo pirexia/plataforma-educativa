@@ -18,6 +18,7 @@ return [
         'too-many-requests' => 'Zu viele Anfragen',
         'internal' => 'Interner Serverfehler',
         'unavailable' => 'Dienst vorübergehend nicht verfügbar',
+        'account-locked' => 'Konto gesperrt',
     ],
 
     'detail' => [
@@ -29,5 +30,6 @@ return [
         'validation' => 'Bitte überprüfe die angegebenen Felder.',
         'internal' => 'Ein unerwarteter Fehler ist aufgetreten. Notiere die Anfrage-ID, falls du den Support kontaktierst.',
         'unavailable' => 'Der Dienst ist vorübergehend nicht verfügbar. Bitte versuche es in ein paar Minuten erneut.',
+        'account-locked' => 'Dieses Konto ist wegen zu vieler fehlgeschlagener Versuche vorübergehend gesperrt. Prüfe deine E-Mails oder versuche es später erneut.',
     ],
 ];

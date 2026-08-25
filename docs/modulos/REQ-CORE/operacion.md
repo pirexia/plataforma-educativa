@@ -77,6 +77,7 @@ Reglas transversales de los trabajos:
 - **Todo trabajo lleva su `tenant_id` explícito y establece el contexto de tenant al arrancar.** Un trabajo sin contexto de tenant no ve nada (RLS falla en cerrado, `ADR-033 §3`), que es el comportamiento correcto pero produce un fallo confuso. El contexto se fija, no se hereda.
 - **Todo trabajo registra su actividad con `actor_type` adecuado**: `import` para los de importación, `system` para los de mantenimiento, `user` cuando el actor original es identificable (invitación).
 - **Los trabajos programados de purga se ejecutan por tenant**, no en una pasada global sin contexto.
+- **`SendInvitationEmail` implementa `ShouldBeEncrypted`** (issue [#75](https://github.com/pirexia/plataforma-educativa/issues/75), mismo hallazgo que [#73](https://github.com/pirexia/plataforma-educativa/issues/73) de `REQ-AUTH`): el token de activación en claro que lleva en su *payload* viaja y se almacena cifrado con `APP_KEY`, también si el trabajo agota sus 5 reintentos y cae en `failed_jobs`. `queue:prune-failed --hours=24` (`REQ-AUTH`, `routes/console.php`) es la segunda capa, y cubre esta cola también — no es específica de `auth-mail`.
 - El *scheduler* corre en su propio contenedor, no en el de la API (`ADR-037`).
 
 ### Trabajos de purga: qué borran

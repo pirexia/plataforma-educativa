@@ -18,12 +18,18 @@ use Illuminate\Support\Facades\Cache;
  */
 final class TenantSettingsCache
 {
-    /** @var array{default_locale: string, active_locales: list<string>, timezone: string, currency: string, autonomous_community: ?string, legal_name: ?string, tax_id: ?string, fiscal_address: ?string, fiscal_postal_code: ?string, fiscal_city: ?string, fiscal_province: ?string, fiscal_country_code: ?string, color_primary: ?string, color_secondary: ?string, logo_object_key: ?string, favicon_object_key: ?string, login_background_object_key: ?string} */
+    /** @var array{default_locale: string, active_locales: list<string>, timezone: string, currency: string, session_timeout_minutes: int, autonomous_community: ?string, legal_name: ?string, tax_id: ?string, fiscal_address: ?string, fiscal_postal_code: ?string, fiscal_city: ?string, fiscal_province: ?string, fiscal_country_code: ?string, color_primary: ?string, color_secondary: ?string, logo_object_key: ?string, favicon_object_key: ?string, login_background_object_key: ?string} */
     private const DEFAULTS = [
         'default_locale' => 'es-ES',
         'active_locales' => ['es-ES'],
         'timezone' => 'Europe/Madrid',
         'currency' => 'EUR',
+        // REQ-AUTH/datos.md §A.4. No se lee de config('auth-local...')
+        // aquí: este valor por defecto solo aplica ANTES de que
+        // tenant:provision-defaults exista una fila, y debe coincidir con
+        // el DEFAULT de la columna (30), no con una variable de entorno
+        // que podría cambiar sin tocar el esquema.
+        'session_timeout_minutes' => 30,
         'autonomous_community' => null,
         'legal_name' => null,
         'tax_id' => null,

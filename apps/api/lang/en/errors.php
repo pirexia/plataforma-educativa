@@ -18,6 +18,7 @@ return [
         'too-many-requests' => 'Too many requests',
         'internal' => 'Internal server error',
         'unavailable' => 'Service temporarily unavailable',
+        'account-locked' => 'Account locked',
     ],
 
     'detail' => [
@@ -29,5 +30,6 @@ return [
         'validation' => 'Please review the indicated fields.',
         'internal' => 'An unexpected error occurred. Keep the request identifier if you contact support.',
         'unavailable' => 'The service is temporarily unavailable. Please try again in a few minutes.',
+        'account-locked' => 'This account is temporarily locked after too many failed attempts. Check your email or try again later.',
     ],
 ];

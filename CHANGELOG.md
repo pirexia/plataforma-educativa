@@ -6,6 +6,49 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-08-25 · 1.2 (`REQ-AUTH`: autenticación local y sesiones) — sesión cerrada por límite de cuota, **rama sin mezclar**
+
+> **No es un cierre de paso.** `PLAN-IMPLEMENTACION.md` mantiene 1.2 en `[~]`. Recogido aquí para que el historial no tenga un hueco de una sesión completa de trabajo real; ver `memory.md` para el estado exacto y cómo retomar.
+
+### Nuevo: backend y frontend completos de `REQ-AUTH` (10 endpoints, 6 pantallas)
+Migraciones, dominio, infraestructura y capa HTTP de los 10 endpoints (login, logout, activación de cuenta, recuperación/restablecimiento/cambio de contraseña, desbloqueo de cuenta, `me`). Cliente TS (`api`/`types`/`i18n`/composables) y las 6 pantallas públicas correspondientes en `apps/web`, enrutadas. OpenAPI (`apps/api/openapi/paths/auth.yaml`) con paridad 1:1 contra `route:list`. Especificación aprobada previamente (`docs/modulos/REQ-AUTH/`, `ADR-039`).
+
+### Corregido
+- **Severidad Crítica** ([#62](https://github.com/pirexia/plataforma-educativa/issues/62)): `SessionEnvironmentGuard` (nuevo, corre en todos los entornos) tumbaba `plataforma-api` porque `apps/api/.env` traía `SESSION_LIFETIME=120` (valor del starter kit) frente al mínimo de 480 que exige `REQ-AUTH`. Parcheado en `compose.yaml`, pendiente de trasladar a `.env` real. Documentado en `SYSADMIN.md §2c`/`RUNBOOK.md §2.2`.
+- **Severidad Alta** ([#63](https://github.com/pirexia/plataforma-educativa/issues/63)): `login` se auditaba con `actor_type='anonymous'` porque `AuditRecorder::record()` corría antes de `Auth::login()`.
+- **Severidad Alta** ([#67](https://github.com/pirexia/plataforma-educativa/issues/67)): colisión entre *worktrees* de subagentes trabajando la misma rama revirtió parte de un commit del frontend; detectada y corregida por el propio subagente.
+- **Severidad Media** ([#64](https://github.com/pirexia/plataforma-educativa/issues/64)): `actingAs()` no fijaba `pge_tenant_id`; `VerifySessionTenant` (nuevo en 1.2) rompía los ~20 ficheros de test de 1.1. Corregido sobrescribiendo `actingAs()` en `Tests\TestCase`, sin tocar tests de `REQ-CORE`.
+- **Severidad Media** ([#66](https://github.com/pirexia/plataforma-educativa/issues/66)): faltaba la guarda de arranque de `AUTH_PASSWORD_MIN_LENGTH`/`AUTH_BCRYPT_ROUNDS ≥ 12` que `operacion.md` ya documentaba como existente.
+- **Severidad Media** ([#68](https://github.com/pirexia/plataforma-educativa/issues/68), issue real #68 de GitHub): faltaba `apps/api/config/cors.php` — sin él, Laravel aplicaba `allowed_origins: ['*']`/`supports_credentials: false`, incompatible con `credentials: 'include'` (usado en todas las peticiones desde `client.ts`). Nuevo fichero con orígenes explícitos vía `CORS_ALLOWED_ORIGINS` (`SYSADMIN.md §2c`).
+
+### Diferido a propósito (issues abiertos)
+[#60](https://github.com/pirexia/plataforma-educativa/issues/60) `ValidationErrorFormatter` antepone "core." fuera de su módulo · [#61](https://github.com/pirexia/plataforma-educativa/issues/61) reutilización de `UnlockReason::Correo` a falta de un 4º valor · [#65](https://github.com/pirexia/plataforma-educativa/issues/65) manuales de usuario sin las pantallas nuevas · [#69](https://github.com/pirexia/plataforma-educativa/issues/69) `CA-AUTH-060`-`063` sin test automatizado.
+
+### Encontrado en revisión posterior de documentación (2026-08-25, misma fecha)
+- **Severidad Alta** ([#71](https://github.com/pirexia/plataforma-educativa/issues/71)): la verificación "de extremo a extremo con `curl`" que registra `memory.md` golpeó directamente el host de tenant correcto, no el camino real del navegador — `apps/web/.env` fija `VITE_API_URL=http://localhost:8000/api/v1` (host plano, sin subdominio de tenant), y `TenantHost::slugFrom()` exige un host que termine en `.{TENANCY_BASE_DOMAIN}` (`plataforma.test`). Resultado: **hoy, entrar en `http://localhost:5173/entrar` desde un navegador y enviar el formulario devuelve 404**, aunque el backend de `REQ-AUTH` es correcto (confirmado repitiendo la misma petición con el host de tenant real: pasa de 404 a 419 CSRF, el siguiente paso esperado sin cookie previa). No corregido: requiere una decisión de desarrollo (¿fijar `demo.plataforma.test` en `compose.yaml` + entrada en el `hosts` de Windows, o derivar el host de la API de `window.location` en la SPA?) que no se ha tomado todavía.
+
+### Pendiente antes de poder marcar 1.2 como cerrado (`[x]` en `PLAN-IMPLEMENTACION.md`)
+6 tests fallando solo en conjunto (`InvitationRedemptionTest` ×5, `UserImportsEndpointsTest` ×1 — pasan en solitario, contaminación entre tests sin diagnosticar), revisión independiente `security-reviewer`/`doc-reviewer` (obligatoria, no hecha), issue #71 de arriba, PR y mezcla a `develop`. Detalle completo y siguiente paso concreto en `memory.md`.
+
+---
+
+## 2026-08-22 · Cierre de 1.1 (`REQ-CORE`: tenants y usuarios)
+
+### Nuevo: API completa de tenants y usuarios
+Configuración de centro, usuarios, invitaciones, importación masiva con idempotencia (`RequireIdempotencyKey`, `ADR-038 §8`), roles/permisos/módulos de solo lectura, auditoría+exportación, activos de marca (validación de tipo real por contenido, saneado de SVG). Sin pantallas todavía (`OPEN-CORE-02`, se completan en 1.8). `ADR-038` (convenciones REST) escrito antes de implementar. 76 `CA-CORE-*` con test propio, 183/183 en verde. OpenAPI completo (`components.yaml` + `paths/core.yaml`, 33 operaciones), cliente TS (`apps/web/src/modules/core/`). Mezclado a `develop` vía PR [#56](https://github.com/pirexia/plataforma-educativa/pull/56) (*squash*, commit `d32e4e9`).
+
+### Corregido
+- **Severidad Alta**: fallo preexistente de `TenancyServiceProvider` ([#49](https://github.com/pirexia/plataforma-educativa/issues/49)) que vaciaba el contexto de tenant tras cualquier *job* con `QUEUE_CONNECTION=sync`.
+- **Severidad Media** (revisión independiente `security-reviewer`/`doc-reviewer`): [#53](https://github.com/pirexia/plataforma-educativa/issues/53) faltaban tests de aislamiento cruzado entre tenants para `/user-imports/*` y `assets/{kind}`; cinco hallazgos de coherencia de documentación (ejemplo: `"total": 17` en vez de 16 tras corregir [#48](https://github.com/pirexia/plataforma-educativa/issues/48)).
+- **Severidad Media** ([#50](https://github.com/pirexia/plataforma-educativa/issues/50)): `IdempotencyKey` estaba fuera de su bounded context (`App\Models` en vez de `App\Modules\Core\...`).
+- **Severidad Media** ([#51](https://github.com/pirexia/plataforma-educativa/issues/51)): Larastan no reconocía las columnas reales de los modelos de tenant (`phpstan analyse` 234→0 con `barryvdh/laravel-ide-helper` + `@mixin` en los 15 modelos).
+- **Severidad Media** ([#55](https://github.com/pirexia/plataforma-educativa/issues/55)): `TenantMigrationTest` fallaba en una base de datos recién provisionada; reescrito para probar el comportamiento correcto.
+- **Diferido a 1.2 a propósito** ([#18](https://github.com/pirexia/plataforma-educativa/issues/18)): falta un `PasswordBrokerRepository` propio con tenant en la recuperación de contraseña.
+
+`security-reviewer` no encontró hallazgos Crítico/Alto. Nota honesta pendiente: no se pudo verificar el resultado de `ci-api.yml`/`ci-web.yml` sobre el PR antes de mezclar (el token de `gh` de esta sesión no tenía permiso para leer *check runs*, 403) — se mezcló confiando en la verificación local exhaustiva. Detalle completo, subpaso a subpaso, en `docs/historial/1.1-core-tenants-usuarios.md`.
+
+---
+
 ## 2026-08-19 · Cierre de 0.9b (portabilidad del despliegue)
 
 ### Nuevo: Containerfiles multi-etapa, `build-images.yml`, `infra/quadlet/`

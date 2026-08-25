@@ -5,8 +5,8 @@ namespace App\Modules\Core\Http\Controllers;
 use App\Models\User;
 use App\Modules\Core\Domain\TenantSettingsReader;
 use App\Support\Api\ApiException;
+use App\Support\Api\UserProfilePresenter;
 use App\Support\Api\ValidationErrorBag;
-use App\Support\Authorization\PermissionResolver;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
@@ -20,7 +20,7 @@ class MeController extends Controller
 {
     public function __construct(
         private readonly TenantSettingsReader $settings,
-        private readonly PermissionResolver $permissions,
+        private readonly UserProfilePresenter $presenter,
     ) {}
 
     /**
@@ -28,29 +28,7 @@ class MeController extends Controller
      */
     public function show(Request $request): array
     {
-        $user = $this->currentUser($request);
-        $user->loadMissing(['person', 'roles']);
-
-        return [
-            'public_id' => $user->public_id,
-            'email' => $user->email,
-            'status' => $user->status->value,
-            'person' => [
-                'public_id' => $user->person->public_id,
-                'given_name' => $user->person->given_name,
-                'family_name_1' => $user->person->family_name_1,
-                'family_name_2' => $user->person->family_name_2,
-                'contact_email' => $user->person->contact_email,
-                'contact_phone' => $user->person->contact_phone,
-                'locale' => $user->person->locale,
-            ],
-            'roles' => $user->roles->map(fn ($role) => [
-                'public_id' => $role->public_id,
-                'code' => $role->code,
-                'name' => $role->name ?? __($role->name_key),
-            ])->all(),
-            'permissions' => $this->permissions->effectivePermissionCodes($user),
-        ];
+        return $this->presenter->present($this->currentUser($request));
     }
 
     /**
