@@ -1,0 +1,70 @@
+{
+  "auth": {
+    "passwordPolicy": {
+      "hint": "Au moins 12 caractères, avec une majuscule, une minuscule, un chiffre et un symbole (72 caractères maximum)."
+    },
+    "fields": {
+      "email": "Adresse e-mail",
+      "password": "Mot de passe",
+      "newPassword": "Nouveau mot de passe",
+      "newPasswordConfirmation": "Confirmez le nouveau mot de passe",
+      "currentPassword": "Mot de passe actuel"
+    },
+    "common": {
+      "unexpectedError": "Impossible de contacter le serveur. Veuillez réessayer.",
+      "tooManyRequests": "Trop de tentatives. Veuillez réessayer plus tard.",
+      "tooManyRequestsWithSeconds": "Trop de tentatives. Veuillez réessayer dans {seconds} secondes.",
+      "accountLocked": "Ce compte est temporairement bloqué après plusieurs tentatives infructueuses. Si le compte existe, un e-mail avec un lien de déblocage a été envoyé."
+    },
+    "login": {
+      "title": "Connexion",
+      "submit": "Se connecter",
+      "submitting": "Connexion en cours…",
+      "invalidCredentials": "L'adresse e-mail ou le mot de passe est incorrect.",
+      "pendingHint": "Vous n'avez pas encore activé votre compte ? Consultez l'e-mail d'invitation que vous avez reçu.",
+      "forgotPassword": "Mot de passe oublié ?",
+      "activatedBanner": "Votre compte a été activé. Vous pouvez maintenant vous connecter.",
+      "resetBanner": "Votre mot de passe a été réinitialisé. Connectez-vous avec le nouveau mot de passe."
+    },
+    "activation": {
+      "title": "Activez votre compte",
+      "intro": "Choisissez un mot de passe pour terminer votre inscription.",
+      "submit": "Activer le compte",
+      "submitting": "Activation en cours…",
+      "invalidToken": "Ce lien d'activation n'est pas valide ou a expiré.",
+      "backToLogin": "Retour à la connexion"
+    },
+    "passwordResetRequest": {
+      "title": "Récupérer le mot de passe",
+      "intro": "Saisissez votre adresse e-mail et, si un compte existe avec cette adresse, nous vous enverrons un lien pour réinitialiser le mot de passe.",
+      "submit": "Envoyer le lien",
+      "submitting": "Envoi en cours…",
+      "success": "Si un compte existe avec cette adresse, nous vous avons envoyé un lien pour réinitialiser le mot de passe.",
+      "backToLogin": "Retour à la connexion"
+    },
+    "passwordReset": {
+      "title": "Réinitialiser le mot de passe",
+      "intro": "Choisissez votre nouveau mot de passe.",
+      "submit": "Réinitialiser le mot de passe",
+      "submitting": "Réinitialisation en cours…",
+      "invalidToken": "Ce lien de réinitialisation n'est pas valide ou a expiré.",
+      "requestNew": "Demander un nouveau lien"
+    },
+    "accountUnlock": {
+      "title": "Débloquer le compte",
+      "intro": "Appuyez sur le bouton pour débloquer votre compte maintenant, sans attendre la levée automatique du blocage.",
+      "submit": "Débloquer le compte maintenant",
+      "submitting": "Déblocage en cours…",
+      "success": "Votre compte a été débloqué. Vous pouvez maintenant vous connecter.",
+      "invalidToken": "Ce lien de déblocage n'est pas valide ou a expiré.",
+      "goToLogin": "Aller à la connexion"
+    },
+    "passwordChange": {
+      "title": "Changer le mot de passe",
+      "intro": "Saisissez votre mot de passe actuel et le nouveau.",
+      "submit": "Enregistrer le nouveau mot de passe",
+      "submitting": "Enregistrement en cours…",
+      "success": "Votre mot de passe a été mis à jour."
+    }
+  }
+}
