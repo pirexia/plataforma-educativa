@@ -93,3 +93,46 @@ function provisionCoreTenant(?string $slug = null): array
 
     return [$tenant, $admin];
 }
+
+/**
+ * REQ-AUTH (paso 1.2), permisos.md §1: "REQ-AUTH es, casi entero, un
+ * módulo sin permisos" — siete de nueve endpoints son anónimos o se
+ * autorizan por identidad/posesión de token. Para esos, sembrar los 16
+ * roles de `provisionCoreTenant()` es trabajo innecesario que ralentiza
+ * la suite sin cubrir nada nuevo. Crea un tenant + un usuario `activo`
+ * con contraseña conocida y válida contra la política (RN-AUTH-01),
+ * sin `platform:sync-registry` ni roles.
+ *
+ * Usa `provisionCoreTenant()` en su lugar para los dos endpoints de
+ * `bloqueo_cuenta` (`GET`/`DELETE /account-lockouts`), que sí exigen
+ * permiso.
+ *
+ * @param  array<string, mixed>  $userAttrs  Sobrescribe atributos de User;
+ *                                            'raw_password' fija la
+ *                                            contraseña en claro devuelta.
+ * @param  array<string, mixed>  $personAttrs
+ * @return array{0: \App\Support\Tenancy\Tenant, 1: \App\Models\User, 2: string}
+ */
+function provisionActiveUser(?string $slug = null, array $userAttrs = [], array $personAttrs = []): array
+{
+    $tenant = \App\Support\Tenancy\Tenant::factory()->create($slug !== null ? ['slug' => $slug] : []);
+
+    // Mismo motivo que provisionCoreTenant(): CACHE_STORE=redis en tests
+    // (ADR-033 §9) sobrevive entre invocaciones del proceso.
+    \Illuminate\Support\Facades\Cache::forget("tenant-resolution:{$tenant->slug}");
+
+    $rawPassword = $userAttrs['raw_password'] ?? 'Cl4v3-Correcta-2026!';
+    unset($userAttrs['raw_password']);
+
+    $user = app(\App\Support\Tenancy\TenantContext::class)->runFor($tenant->id, function () use ($userAttrs, $personAttrs, $rawPassword) {
+        $person = \App\Models\Person::factory()->create($personAttrs);
+
+        return \App\Models\User::factory()->for($person)->create([
+            'password' => $rawPassword,
+            'status' => \App\Models\UserStatus::Activo,
+            ...$userAttrs,
+        ]);
+    });
+
+    return [$tenant, $user, $rawPassword];
+}
