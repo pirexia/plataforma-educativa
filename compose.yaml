@@ -68,6 +68,14 @@ services:
       # desarrollo para poder probar la resolución de tenant por subdominio
       # con curl -H "Host: <slug>.plataforma.test" sin depender de DNS.
       TENANCY_BASE_DOMAIN: plataforma.test
+      # Issue #71: la SPA debe servirse desde el mismo host que la API
+      # (demo.plataforma.test) para que document.cookie pueda leer
+      # XSRF-TOKEN — una cookie fijada por un host no es legible desde la
+      # página de otro, el puerto no importa pero el host sí. Por eso el
+      # origen permitido ya no es localhost:5173 sino el mismo host con el
+      # puerto de Vite. Requiere "127.0.0.1 demo.plataforma.test" en el
+      # hosts de Windows (documentado en SYSADMIN.md §2c).
+      CORS_ALLOWED_ORIGINS: "http://demo.plataforma.test:5173"
       # REQ-AUTH (1.2), RN-AUTH-30: SessionEnvironmentGuard exige
       # SESSION_LIFETIME >= AUTH_SESSION_TIMEOUT_MAX_MINUTES (480 por
       # defecto) en TODOS los entornos. apps/api/.env traía 120 (valor de
