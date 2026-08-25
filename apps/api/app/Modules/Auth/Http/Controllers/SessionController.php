@@ -56,6 +56,12 @@ class SessionController extends Controller
 
         Auth::guard('web')->login($user);
 
+        // ADR-039 §4.5/§4.6: se registra DESPUÉS de Auth::login() para que
+        // AuditActor::resolveType() resuelva 'user' (actor ya autenticado),
+        // no 'anonymous'. Issue de regresión: LoginService lo hacía antes
+        // de esta línea y escribía la fila con el actor equivocado.
+        $this->auditRecorder->record($user, 'login');
+
         $request->session()->put('pge_tenant_id', $this->tenantContext->tenantId());
         $request->session()->put('pge_last_activity_at', now()->timestamp);
 

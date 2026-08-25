@@ -6,7 +6,6 @@ use App\Models\User;
 use App\Models\UserStatus;
 use App\Modules\Auth\Domain\AccountLockService;
 use App\Support\Api\ApiException;
-use App\Support\Audit\AuditRecorder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -31,7 +30,6 @@ final class LoginService
     public function __construct(
         private readonly AccountLockService $lockService,
         private readonly LoginAttemptRecorder $attempts,
-        private readonly AuditRecorder $auditRecorder,
     ) {}
 
     /**
@@ -82,8 +80,12 @@ final class LoginService
             $user->save();
         }
 
+        // ADR-039 §4.5/§4.6: el registro de auditoría de 'login' exige un
+        // actor ya autenticado (`AuditActor::resolveType()` debe resolver
+        // 'user', no 'anonymous'), así que se escribe en el controlador
+        // DESPUÉS de `Auth::guard('web')->login($user)`, no aquí — este
+        // servicio solo decide si el login es válido.
         $this->attempts->recordSuccess($normalizedEmail, $user);
-        $this->auditRecorder->record($user, 'login');
 
         return $user;
     }
