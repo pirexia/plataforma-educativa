@@ -234,6 +234,25 @@ test('CA-AUTH-074: el límite de tasa por (tenant, email) en login responde 429 
         ->and($response->json('type'))->toBe('urn:pge:error:too-many-requests');
 });
 
+// Issue #74: GET /auth/csrf-cookie era el único de los 6 endpoints
+// anónimos sin límite de tasa — el bucket ya existía en auth-local.php
+// pero SessionController::csrfCookie() nunca lo invocaba. Cada llamada
+// abre una sesión nueva sin autenticación: sin límite era un vector de
+// agotamiento de recursos.
+test('el límite de tasa por IP en GET /auth/csrf-cookie responde 429 con Retry-After', function (): void {
+    [$tenant] = provisionActiveUser('sess-csrf-074');
+    $max = (int) config('auth-local.rate_limits.csrf_cookie_ip.max');
+
+    for ($i = 0; $i < $max; $i++) {
+        test()->getJson(coreApiUrl($tenant->slug, '/auth/csrf-cookie'))->assertNoContent();
+    }
+
+    $response = test()->getJson(coreApiUrl($tenant->slug, '/auth/csrf-cookie'))->assertStatus(429);
+
+    expect($response->headers->has('Retry-After'))->toBeTrue()
+        ->and($response->json('type'))->toBe('urn:pge:error:too-many-requests');
+});
+
 // CA-AUTH-005: se fuerza environment='local' para que PreventRequestForgery
 // deje de saltarse la comprobación por runningUnitTests() (Illuminate\
 // Foundation\Http\Middleware\PreventRequestForgery::runningUnitTests()

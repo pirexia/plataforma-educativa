@@ -4,6 +4,7 @@ namespace App\Modules\Auth\Infrastructure\Jobs;
 
 use App\Modules\Auth\Infrastructure\Mail\PasswordResetMail;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -14,9 +15,12 @@ use Illuminate\Support\Facades\Mail;
  * operacion.md §4: cola `auth-mail`, 5 reintentos, retroceso exponencial
  * (1 min a 30 min). INV-012: nunca se envía en la petición HTTP. El token
  * en claro solo existe en este *payload* y en el correo generado
- * (RN-AUTH-09) — nunca se escribe en base de datos.
+ * (RN-AUTH-09) — nunca se escribe en base de datos. Issue #73:
+ * `ShouldBeEncrypted` cifra el `payload` completo (con `APP_KEY`), también
+ * el que queda en `failed_jobs` si se agotan los 5 reintentos — sin esto,
+ * un token de un solo uso quedaba en texto plano indefinidamente.
  */
-class SendPasswordResetEmail implements ShouldQueue
+class SendPasswordResetEmail implements ShouldBeEncrypted, ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;

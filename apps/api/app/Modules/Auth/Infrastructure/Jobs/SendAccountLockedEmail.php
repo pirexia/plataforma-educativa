@@ -4,6 +4,7 @@ namespace App\Modules\Auth\Infrastructure\Jobs;
 
 use App\Modules\Auth\Infrastructure\Mail\AccountLockedMail;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -14,9 +15,12 @@ use Illuminate\Support\Facades\Mail;
 /**
  * operacion.md §4. Solo se despacha cuando el bloqueo corresponde a una
  * cuenta real (funcional.md §4.4, RN-AUTH-15): un correo inexistente no
- * genera ningún trabajo.
+ * genera ningún trabajo. Issue #73: `ShouldBeEncrypted` cifra el `payload`
+ * completo (con `APP_KEY`), también el que queda en `failed_jobs` si se
+ * agotan los 5 reintentos — sin esto, el token de desbloqueo quedaba en
+ * texto plano indefinidamente.
  */
-class SendAccountLockedEmail implements ShouldQueue
+class SendAccountLockedEmail implements ShouldBeEncrypted, ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;

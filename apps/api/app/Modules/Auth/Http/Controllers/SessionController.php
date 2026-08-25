@@ -31,9 +31,15 @@ class SessionController extends Controller
     /**
      * §4.7: equivalente propio de `/sanctum/csrf-cookie`. La cookie
      * `XSRF-TOKEN` la deja el middleware `csrf` del grupo, no este método.
+     * Issue #74: es el único de los 6 endpoints anónimos que abre sesión
+     * (inserta en `sessions`) sin límite de tasa — el *bucket*
+     * `csrf_cookie_ip` ya existía en `auth-local.php` pero nunca se
+     * invocaba.
      */
-    public function csrfCookie(): Response
+    public function csrfCookie(Request $request): Response
     {
+        $this->rateLimits->hit('csrf_cookie_ip', (string) $request->ip());
+
         return response()->noContent();
     }
 
