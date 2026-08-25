@@ -3,6 +3,7 @@
 namespace App\Modules\Core\Domain;
 
 use App\Models\User;
+use App\Support\Api\ApiException;
 
 /**
  * REQ-AUTH/funcional.md §8.1, §4.1. Interfaz pública para que REQ-AUTH
@@ -19,8 +20,8 @@ interface InvitationRedeemer
      * asociado. **No toca `users`**: password, status y
      * email_verified_at son responsabilidad del llamador (RN-AUTH-20).
      *
-     * @throws \App\Support\Api\ApiException `gone()` si el token no es
-     *                                       válido en el tenant activo.
+     * @throws ApiException `gone()` si el token no es
+     *                      válido en el tenant activo.
      */
     public function redeem(string $token): User;
 }

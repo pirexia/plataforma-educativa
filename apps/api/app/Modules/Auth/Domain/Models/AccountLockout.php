@@ -11,6 +11,7 @@ use App\Support\Audit\RecordsAuditTrail;
 use App\Support\Database\HasPublicId;
 use App\Support\Tenancy\TenantModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * datos.md §A.2. Selective: `email` se redacta como `identifier` (dato
@@ -94,7 +95,7 @@ class AccountLockout extends TenantModel implements Auditable
         return $this->isLive() && now()->greaterThanOrEqualTo($this->expiresAt());
     }
 
-    public function expiresAt(): \Illuminate\Support\Carbon
+    public function expiresAt(): Carbon
     {
         return $this->locked_at->clone()->addMinutes((int) config('auth-local.lockout_minutes'));
     }

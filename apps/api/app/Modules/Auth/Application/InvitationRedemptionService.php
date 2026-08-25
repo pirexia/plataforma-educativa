@@ -7,6 +7,7 @@ use App\Modules\Auth\Domain\AccountLockService;
 use App\Modules\Auth\Domain\PasswordResetTokenRepository;
 use App\Modules\Auth\Domain\UnlockReason;
 use App\Modules\Core\Domain\InvitationRedeemer;
+use App\Support\Api\ApiException;
 use App\Support\Api\ValidationErrorBag;
 use Illuminate\Support\Facades\DB;
 
@@ -27,10 +28,10 @@ final class InvitationRedemptionService
     ) {}
 
     /**
-     * @throws \App\Support\Api\ApiException gone() si el token no es
-     *                                       válido, validation() si la
-     *                                       contraseña incumple la
-     *                                       política
+     * @throws ApiException gone() si el token no es
+     *                      válido, validation() si la
+     *                      contraseña incumple la
+     *                      política
      */
     public function redeem(string $token, string $password): void
     {

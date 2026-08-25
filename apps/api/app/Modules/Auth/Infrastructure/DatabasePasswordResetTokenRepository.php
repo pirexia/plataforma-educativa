@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Auth\Domain\PasswordResetToken;
 use App\Modules\Auth\Domain\PasswordResetTokenRepository;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -63,7 +64,7 @@ final class DatabasePasswordResetTokenRepository implements PasswordResetTokenRe
             return null;
         }
 
-        return new PasswordResetToken(email: $row->email, expiresAt: \Illuminate\Support\Carbon::parse($row->expires_at));
+        return new PasswordResetToken(email: $row->email, expiresAt: Carbon::parse($row->expires_at));
     }
 
     public function consume(PasswordResetToken $token): void
