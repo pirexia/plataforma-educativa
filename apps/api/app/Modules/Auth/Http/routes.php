@@ -4,7 +4,7 @@
 // apps/api/openapi/paths/auth.yaml. Requerido desde routes/api-v1.php, ya
 // dentro del grupo con la cadena de middleware de sesión (api.md §8).
 //
-// api.md §7: nueve endpoints, seis anónimos. Ninguno lleva `module-enabled`
+// api.md §7: diez endpoints, seis anónimos. Ninguno lleva `module-enabled`
 // (REQ-AUTH no es desactivable, RN-AUTH-35, CA-AUTH-078).
 
 use App\Modules\Auth\Http\Controllers\AccountLockoutsController;

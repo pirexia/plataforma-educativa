@@ -348,12 +348,13 @@ Cambia con 1.2 y hay que fijar el orden, porque un intercambio de dos posiciones
 |---|--------------|-------------|
 | 1 | `AssignRequestId` | `INV-013`. Antes que nada, para que hasta un `404` de tenant tenga `request_id` |
 | 2 | `ResolveTenant` | `ADR-033 §2`: **antes de sesión y de autenticación**, y antes de cualquier acceso a datos |
-| 3 | `AddQueuedCookiesToResponse` | Framework |
-| 4 | `StartSession` | **Nuevo en 1.2.** Después del tenant: la sesión pertenece a un tenant ya resuelto |
-| 5 | `ValidateCsrfToken` | **Nuevo en 1.2.** Después de la sesión, que es de donde sale el token |
-| 6 | `VerifySessionTenant` | **Nuevo en 1.2.** `RN-AUTH-31`: el `tenant_id` del *payload* frente al resuelto por host. Discrepancia ⇒ sesión invalidada, `401` y auditoría |
-| 7 | `EnforceSessionIdleTimeout` | **Nuevo en 1.2.** `REQ-AUTH-005` punto 1. Después de la reverificación: no tiene sentido refrescar la actividad de una sesión que se va a invalidar |
-| 8 | `ResolveApiLocale` | **Se mueve en 1.2.** Hoy corre en la posición 3 y por tanto `$request->user()` siempre le devuelve `null`: el paso 1 de `ADR-038 §11` no se aplica nunca fuera de los tests con `actingAs()`. Ver `funcional.md §1.4` punto 4 y `CA-AUTH-075` |
+| 3 | `EncryptCookies` | **Nuevo en 1.2** (framework, imprescindible aunque no era necesaria antes de la cookie de sesión). Antes de leer o escribir cualquier cookie cifrada — sin ella, ni la cookie de sesión ni `XSRF-TOKEN` funcionan, y el CSRF fallaría siempre |
+| 4 | `AddQueuedCookiesToResponse` | Framework |
+| 5 | `StartSession` | **Nuevo en 1.2.** Después del tenant: la sesión pertenece a un tenant ya resuelto |
+| 6 | `ValidateCsrfToken` | **Nuevo en 1.2.** Después de la sesión, que es de donde sale el token |
+| 7 | `VerifySessionTenant` | **Nuevo en 1.2.** `RN-AUTH-31`: el `tenant_id` del *payload* frente al resuelto por host. Discrepancia ⇒ sesión invalidada, `401` y auditoría |
+| 8 | `EnforceSessionIdleTimeout` | **Nuevo en 1.2.** `REQ-AUTH-005` punto 1. Después de la reverificación: no tiene sentido refrescar la actividad de una sesión que se va a invalidar |
+| 9 | `ResolveApiLocale` | **Se mueve en 1.2.** Hoy corre en la posición 3 y por tanto `$request->user()` siempre le devuelve `null`: el paso 1 de `ADR-038 §11` no se aplica nunca fuera de los tests con `actingAs()`. Ver `funcional.md §1.4` punto 4 y `CA-AUTH-075` |
 
 `/api/health` (fuera de `v1`) **no** entra en esta cadena: el *healthcheck* del contenedor no tiene subdominio de tenant y debe responder sin sesión. Es el comportamiento actual y no cambia.
 

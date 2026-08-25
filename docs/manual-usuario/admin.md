@@ -1,6 +1,22 @@
 # Manual de administración
 
-> Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre solo lo que ya tiene código detrás: el registro de auditoría (paso 0.9). El resto de secciones del manual de Administrador de Centro (usuarios, roles, módulos contratados) llegan con `REQ-BO` (paso 1.6) y `REQ-CORE` (1.1).
+> Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre lo que ya tiene código detrás: el registro de auditoría (paso 0.9) y las cuentas bloqueadas y el tiempo de sesión (paso 1.2). El resto de secciones del manual de Administrador de Centro (usuarios, roles, módulos contratados) llegan con `REQ-BO` (paso 1.6) y las pantallas restantes de `REQ-CORE` (1.1, `OPEN-CORE-02`, con 1.8).
+
+## Cuentas bloqueadas
+
+### Qué es
+
+Tras 5 intentos fallidos de inicio de sesión seguidos, el sistema bloquea la cuenta automáticamente durante 15 minutos (por defecto) para frenar un ataque por fuerza bruta. La persona recibe un correo con un enlace propio para desbloquearla antes de que pase ese tiempo. Como administrador del centro, también puedes desbloquearla tú directamente, sin esperar a que la propia persona lo haga ni a que pasen los 15 minutos.
+
+### Cómo consultarlas y desbloquear una cuenta
+
+El listado de cuentas bloqueadas se filtra por estado (vigente o ya levantado) y se puede buscar por correo. Cada fila muestra desde cuándo está bloqueada, cuántos intentos fallidos la provocaron, y si ya se levantó, cómo (por la propia persona, por caducidad del plazo, o por un administrador). Levantar un bloqueo desde aquí tiene efecto inmediato: la persona puede volver a intentar iniciar sesión con su contraseña de siempre en el momento en que lo haces, sin esperar ningún correo.
+
+## Tiempo de sesión del centro
+
+### Qué es
+
+Cuánto tiempo puede estar una persona sin actividad en la aplicación antes de que su sesión se cierre sola por seguridad (entre 5 minutos y 8 horas). Es un valor único para todo el centro, no por persona ni por rol: se configura junto con el resto de opciones de seguridad del centro, y se aplica a toda sesión nueva que se abra después del cambio — no cierra de golpe las que ya estaban abiertas con el valor anterior.
 
 ## Registro de auditoría
 
