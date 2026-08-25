@@ -30,7 +30,9 @@ test('GET /roles devuelve los 16 roles predefinidos y GET /roles/{id} sus permis
         ->getJson(coreApiUrl($tenant->slug, "/roles/{$adminRole['public_id']}"))
         ->assertOk();
 
-    expect($detail->json('permissions'))->toHaveCount(20);
+    // 20 de REQ-CORE + 2 de REQ-AUTH (bloqueo_cuenta.leer/eliminar,
+    // permisos.md §5 — solo administrador_centro los recibe).
+    expect($detail->json('permissions'))->toHaveCount(22);
 });
 
 // CA-CORE-041

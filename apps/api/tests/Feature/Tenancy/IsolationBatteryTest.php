@@ -140,7 +140,15 @@ test('withoutGlobalScope no aparece en app/Modules fuera de la lista de excepcio
 // comprueba por reflexión, con el mismo espíritu de "falla si algo se
 // escapa" que pedía el ADR.
 test('los modelos Eloquent de app/Modules extienden TenantModel', function (): void {
-    $allowlist = []; // ningún modelo compartido registrado todavía.
+    $allowlist = [
+        // REQ-AUTH/datos.md §A.1 (paso 1.2): tabla de tenant append-only
+        // (sin deleted_at/created_by/updated_by, RN-AUTH-05). Extiende
+        // AppendOnlyModel, no TenantModel, pero usa el mismo trait
+        // BelongsToTenant que TenantModel — RLS y el scope de tenant
+        // siguen aplicando (RN-AUTH-06/07), es un allowlist deliberado y
+        // documentado, no un descuido.
+        \App\Modules\Auth\Domain\Models\LoginAttempt::class,
+    ];
 
     $modulesPath = base_path('app/Modules');
     $checked = 0;
