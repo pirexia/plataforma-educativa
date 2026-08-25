@@ -36,7 +36,8 @@ podman compose logs -f <servicio>
 1. `podman compose logs <servicio>` primero, no adivinar.
 2. Comprobar que la red `plataforma-net` existe: `podman network ls`.
 3. Ver `docs/historial/0.7-nucleo-multitenant.md` y `docs/historial/0.8-modelo-de-datos-nucleo.md` — catálogo de bugs de entorno ya encontrados y su solución (deadlocks de test entre conexiones, `.env`/`storage/` ausentes en un *worktree* nuevo, purga agresiva de paquetes `-dev` en el `Containerfile`, etc.). No repetir un diagnóstico ya hecho.
-4. Para cualquier otro síntoma: skill `depuracion` (método de diagnóstico y catálogo de fallos característicos del stack).
+4. **`api` sano un momento y `500`/`unhealthy` al siguiente, sin haber tocado nada del servicio a propósito** (issue [#62](https://github.com/pirexia/plataforma-educativa/issues/62), 2026-08-22): revisar `apps/api/.env` — `SESSION_LIFETIME` debe ser `>= AUTH_SESSION_TIMEOUT_MAX_MINUTES` (`SYSADMIN.md §2c`) desde `REQ-AUTH` (1.2). El código se interpreta por petición (sin *build*), así que un `git pull`/*merge* que traiga 1.2 sin ese valor ajustado tumba el contenedor en la siguiente petición. Si `podman rm`/`--force-recreate` falla con *"has dependent containers"* (acoplamiento `web` → `api` vía `depends_on`), no forzar más: `podman-compose down && podman-compose up -d` recrea la pila completa sin tocar la red externa (`external: true`) ni el volumen `postgres-data`.
+5. Para cualquier otro síntoma: skill `depuracion` (método de diagnóstico y catálogo de fallos característicos del stack).
 
 ### 2.3 Si CI falla en un PR
 
