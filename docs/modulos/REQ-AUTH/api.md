@@ -261,6 +261,41 @@ Desbloqueo por administrador.
 
 ---
 
+## 5b. Cambio de contraseña auto-servicio (`OPEN-AUTH-05`, aprobado)
+
+> Sección añadida al implementar (2026-08-22): faltaba en el resumen de §7 y en el cuerpo de este documento pese a estar aprobada y descrita en `funcional.md §4.8` — incoherencia de documentación detectada y corregida en la misma sesión (`CLAUDE.md §6.6`). Numerada `5b` para no desplazar las referencias cruzadas ya escritas a §6-§11 en este y otros documentos del módulo (mismo criterio que `1.2b`/`1.4b` en `PLAN-IMPLEMENTACION.md`).
+
+### `POST /api/v1/auth/password-changes`
+
+Cambio de contraseña por el propio usuario ya autenticado. No está en `REQ-AUTH-001`; entra por decisión del usuario del 2026-08-22 al resolver `OPEN-AUTH-05` (`funcional.md §4.8`).
+
+- **Permiso**: ninguno declarado — **por identidad**, igual que el logout y `GET /me`.
+- **Cabeceras**: `X-XSRF-TOKEN` obligatoria; sesión válida
+- **Cuerpo**
+
+```json
+{
+  "current_password": "···",
+  "password": "···",
+  "password_confirmation": "···"
+}
+```
+
+- **Efectos, en una transacción**: fija la contraseña nueva y **revoca todas las sesiones del usuario salvo la actual** (`RN-AUTH-36`) — a diferencia del restablecimiento de §4, que las revoca todas. Encola el correo «tu contraseña ha cambiado», sin enlace accionable (`operacion.md §5`).
+- **Respuesta 204**
+- **Errores**
+
+| Estado | `type` | Cuándo |
+|--------|--------|--------|
+| `401` | `urn:pge:error:unauthenticated` | Sin sesión |
+| `422` | `urn:pge:error:validation` | Contraseña actual incorrecta (**no** `401`: la sesión sigue siendo válida, funcional.md §4.8 punto 3), contraseña nueva que incumple la política, o igual a la actual |
+| `423` | `urn:pge:error:account-locked` | Los fallos de contraseña actual cuentan hacia el mismo bloqueo que el login (funcional.md §4.8 punto 4); si ya está bloqueada, `423` |
+
+- **Auditoría**: `updated` sobre `User` con `password` redactado como `secret`, por el *observer* de 0.9. Sin evento nuevo: no depende de `ADR-039`.
+- **Idempotencia**: no procede — un reintento con la misma contraseña actual (ya cambiada) fallaría con `422`, que es el comportamiento correcto.
+
+---
+
 ## 6. Ampliación de un endpoint de `REQ-CORE`
 
 ### `GET` / `PATCH /api/v1/tenant/settings` — grupo `security`
@@ -297,10 +332,11 @@ Bajar el timeout **no expulsa retroactivamente** a las sesiones que ya llevaban 
 | `POST /api/v1/auth/password-reset-requests` | Anónimo | — | 202 |
 | `POST /api/v1/auth/password-resets` | Token en cuerpo | — | 204 |
 | `POST /api/v1/auth/account-unlocks` | Token en cuerpo | — | 204 |
+| `POST /api/v1/auth/password-changes` | Sesión (por identidad) | — | 204 |
 | `GET /api/v1/account-lockouts` | Sesión | `bloqueo_cuenta.leer` | 200 |
 | `DELETE /api/v1/account-lockouts/{public_id}` | Sesión | `bloqueo_cuenta.eliminar` | 204 |
 
-**Nueve endpoints, seis de ellos anónimos.** Es la mayor superficie anónima de todo el producto —hasta ahora solo existía `GET /tenant/branding`— y por eso los seis llevan límite de tasa obligatorio (`operacion.md §6`) y respuesta indistinguible (`funcional.md §4.7`). Cualquier endpoint anónimo que se añada a este módulo en el futuro debe justificarse en la revisión de seguridad igual que se justificó `GET /tenant/branding` en 1.1.
+**Diez endpoints, seis de ellos anónimos** (corregido: la cuenta original de "nueve" se fijó antes de aprobarse `OPEN-AUTH-05`, §5b, que añadió `password-changes` sin actualizar este resumen — ver la nota de §5b). Los seis anónimos son la mayor superficie del producto —hasta ahora solo existía `GET /tenant/branding`— y por eso llevan límite de tasa obligatorio (`operacion.md §6`) y respuesta indistinguible (`funcional.md §4.7`). Cualquier endpoint anónimo que se añada a este módulo en el futuro debe justificarse en la revisión de seguridad igual que se justificó `GET /tenant/branding` en 1.1.
 
 ---
 
@@ -337,7 +373,7 @@ Ratificadas en `ADR-038`. Solo lo no obvio:
 
 ### 9.3 Sin `Idempotency-Key` en ningún endpoint
 
-`ADR-038 §8.1` da el criterio: la cabecera es obligatoria donde un reintento duplicaría un efecto irreversible o cobrable. Ninguno de los nueve endpoints cumple eso. Un login repetido es un login; un canje repetido devuelve `410`; un restablecimiento repetido devuelve `410`; una solicitud de recuperación repetida sustituye el token anterior. **Añadir la cabecera aquí sería ceremonia sin efecto**, y la disciplina de `INV-011` se erosiona más rápido exigiéndola donde no hace falta que no exigiéndola donde sí.
+`ADR-038 §8.1` da el criterio: la cabecera es obligatoria donde un reintento duplicaría un efecto irreversible o cobrable. Ninguno de los diez endpoints cumple eso. Un login repetido es un login; un canje repetido devuelve `410`; un restablecimiento repetido devuelve `410`; una solicitud de recuperación repetida sustituye el token anterior; un cambio de contraseña repetido con la misma "actual" (ya sustituida) falla con `422`, que es el comportamiento correcto, no un duplicado silencioso. **Añadir la cabecera aquí sería ceremonia sin efecto**, y la disciplina de `INV-011` se erosiona más rápido exigiéndola donde no hace falta que no exigiéndola donde sí.
 
 ### 9.4 `PATCH` de `tenant/settings`
 

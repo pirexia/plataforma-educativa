@@ -10,7 +10,7 @@
 
 **`REQ-AUTH` es, casi entero, un módulo sin permisos.**
 
-De sus nueve endpoints (`api.md §7`), **siete no llevan ninguno**: seis son anónimos por diseño —no puede haber permiso donde todavía no hay usuario que autorizar— y uno se autoriza por identidad del portador de la cookie.
+De sus diez endpoints (`api.md §7`; corregido — la especificación original decía nueve, antes de aprobarse `OPEN-AUTH-05`), **ocho no llevan ninguno**: seis son anónimos por diseño —no puede haber permiso donde todavía no hay usuario que autorizar— y dos se autorizan por identidad del portador de la cookie (`DELETE /auth/session` y `POST /auth/password-changes`).
 
 Eso no relaja `INV-002`, lo desplaza: en este módulo la denegación por defecto **no** la aplica el resolutor de permisos, sino tres mecanismos concretos que hay que verificar uno a uno porque no hay un *middleware* que los cubra:
 
@@ -18,7 +18,7 @@ Eso no relaja `INV-002`, lo desplaza: en este módulo la denegación por defecto
 |-----------|-------|----------------|
 | **Posesión de un token de un solo uso** | Canje, restablecimiento, desbloqueo por correo | Solo quien recibió el correo puede ejecutar la acción. El token es de 32 bytes, se persiste solo como hash, se busca por `(tenant_id, hash)` y muere al usarse |
 | **Verificación de credencial** | Login | Es el propio acto de autorización |
-| **Identidad del portador** | Logout | Cierra la sesión de la cookie presentada, **nunca** una identificada por parámetro |
+| **Identidad del portador** | Logout, cambio de contraseña | Actúa sobre la cookie presentada, **nunca** sobre un sujeto identificado por parámetro |
 
 Y una regla estructural que sostiene a las tres: **el `tenant_id` sale siempre del host** (`ADR-033 §2`), nunca del cuerpo. Un token del tenant A presentado en el host del tenant B no encuentra nada, porque la consulta lleva el tenant en el `WHERE` (`RN-AUTH-06`, `RN-AUTH-07`).
 
@@ -58,6 +58,7 @@ Los **ámbitos** son los de `RPERM-004`. En 1.2 **solo se usa `todos`**: §5.6.
 | `POST /auth/password-reset-requests` | Anónimo. Exigir permiso implicaría estar dentro, que es justo lo que no puede hacer quien olvidó la contraseña |
 | `POST /auth/password-resets` | Anónimo. Autorizado por posesión del token |
 | `POST /auth/account-unlocks` | Anónimo. Autorizado por posesión del token; su titular está bloqueado y no puede autenticarse |
+| `POST /auth/password-changes` | Por identidad del portador de la cookie, igual que el logout y `GET /me` de `REQ-CORE`. `OPEN-AUTH-05`, `api.md §5b` |
 
 **No se declara `bloqueo_cuenta.crear`.** Los bloqueos los crea el sistema al quinto fallo, nunca una persona. Declarar el permiso sugeriría que existe una forma de bloquear a alguien a mano, y no la hay ni la pide ningún requisito. Es el mismo criterio con el que `REQ-CORE/permisos.md §3` dejó `auditoria` sin `crear`/`actualizar`/`eliminar`.
 
@@ -156,7 +157,7 @@ Comprobaciones que ningún permiso cubre y que hay que implementar explícitamen
 | Regla | Dónde | Efecto |
 |-------|-------|--------|
 | **Posesión del token** es la autorización de tres endpoints | Canje, restablecimiento, desbloqueo | Token inválido, caducado, usado o **de otro tenant** ⇒ `410` con cuerpo idéntico |
-| `RN-AUTH-06` — el `tenant_id` sale del host, jamás del cuerpo | Los nueve endpoints | Un `tenant_id` en un `FormRequest` de este módulo es un fallo de revisión (`ADR-033 §2`) |
+| `RN-AUTH-06` — el `tenant_id` sale del host, jamás del cuerpo | Los diez endpoints | Un `tenant_id` en un `FormRequest` de este módulo es un fallo de revisión (`ADR-033 §2`) |
 | `RN-AUTH-07` — predicado de tenant **explícito** además de RLS | Repositorio de tokens de restablecimiento, bloqueos, intentos | Issue [#18](https://github.com/pirexia/plataforma-educativa/issues/18): RLS es la segunda barrera, no la única |
 | `RN-AUTH-16` — bloqueo antes que credencial | Login | Con bloqueo vivo se responde `423` **sin comprobar la contraseña**. Comprobarla primero filtraría, por tiempo de respuesta, si era correcta |
 | `RN-AUTH-23` — solo `activo` inicia sesión | Login | `pendiente` e `inactivo` reciben el `401` genérico, indistinguible |

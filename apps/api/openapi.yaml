@@ -20,6 +20,10 @@ tags:
   - name: Core / Importación
   - name: Core / Auditoría
   - name: Core / Autoservicio
+  - name: Auth / Sesión
+  - name: Auth / Canje
+  - name: Auth / Recuperación
+  - name: Auth / Bloqueo
 
 # ADR-038 §12.2: componentes compartidos (Problem, PageMeta, CursorMeta,
 # parámetros comunes) en un fichero propio, referenciados por $ref desde
@@ -107,6 +111,26 @@ paths:
     $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1audit-logs~1exports"
   /api/v1/data-exports/{publicId}:
     $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1data-exports~1{publicId}"
+
+  # REQ-AUTH (paso 1.2). apps/api/openapi/paths/auth.yaml.
+  /api/v1/auth/csrf-cookie:
+    $ref: "openapi/paths/auth.yaml#/paths/~1api~1v1~1auth~1csrf-cookie"
+  /api/v1/auth/session:
+    $ref: "openapi/paths/auth.yaml#/paths/~1api~1v1~1auth~1session"
+  /api/v1/auth/invitation-redemptions:
+    $ref: "openapi/paths/auth.yaml#/paths/~1api~1v1~1auth~1invitation-redemptions"
+  /api/v1/auth/password-reset-requests:
+    $ref: "openapi/paths/auth.yaml#/paths/~1api~1v1~1auth~1password-reset-requests"
+  /api/v1/auth/password-resets:
+    $ref: "openapi/paths/auth.yaml#/paths/~1api~1v1~1auth~1password-resets"
+  /api/v1/auth/account-unlocks:
+    $ref: "openapi/paths/auth.yaml#/paths/~1api~1v1~1auth~1account-unlocks"
+  /api/v1/auth/password-changes:
+    $ref: "openapi/paths/auth.yaml#/paths/~1api~1v1~1auth~1password-changes"
+  /api/v1/account-lockouts:
+    $ref: "openapi/paths/auth.yaml#/paths/~1api~1v1~1account-lockouts"
+  /api/v1/account-lockouts/{publicId}:
+    $ref: "openapi/paths/auth.yaml#/paths/~1api~1v1~1account-lockouts~1{publicId}"
 
   # Los endpoints de los módulos siguientes se añaden aquí conforme se
   # implementan, cada uno con su propio apps/api/openapi/paths/<modulo>.yaml.
