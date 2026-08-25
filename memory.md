@@ -7,7 +7,16 @@
 
 ## Estado actual
 
-**Fase**: 0 cerrada en la práctica (lo pendiente de `0.10`-`0.12` es negocio, no código — ver "Bloqueantes"). **Fase 1, bloque A: 1.1 y 1.2 cerrados y mezclados. Próximo candidato natural: `1.2b` (panel de sesiones activas, issue #59), a confirmar con el usuario al empezar la sesión.**
+**Fase**: 0 cerrada en la práctica (lo pendiente de `0.10`-`0.12` es negocio, no código — ver "Bloqueantes"). **Fase 1, bloque A: 1.1 y 1.2 cerrados y mezclados. `1.2b` en curso: especificación escrita, pendiente de aprobación del usuario antes de implementar (ver más abajo).**
+
+**1.2b · `REQ-AUTH-005` puntos 2-4: sesiones activas, cierre remoto y detección de dispositivo — ESPECIFICACIÓN ESCRITA, PENDIENTE DE APROBACIÓN** (2026-08-25). Rama `feature/REQ-AUTH-005-1.2b-sesiones-activas` (push a origin, commit `367e51d`), colgada de `develop`. `spec-writer` amplió los cinco ficheros de `docs/modulos/REQ-AUTH/` con una Parte B (`§B.n`). Diseño: tabla de tenant propia `user_sessions` con RLS desde el primer día (no se toca `sessions` del framework), tabla `user_known_devices`, cookie técnica `pge_device` (host-only, sin huella de navegador ni `User-Agent` en la decisión de "dispositivo nuevo"), cero permisos nuevos (autorización por identidad: cada usuario solo ve/revoca las suyas), cero eventos de auditoría nuevos en `ADR-039`. **No se implementa nada hasta que el usuario resuelva `funcional.md §B.14`** (5 preguntas, `docs/modulos/REQ-AUTH/funcional.md §B.13`):
+- `OPEN-AUTH-13` (bloquea alcance): sin fuente de geolocalización por IP decidida en el proyecto, el punto 4 del requisito ("ubicación") queda a medias. Dos familias de solución descritas (BD local vs. servicio externo), sin proveedor ni recomendación — condiciona si 1.2b se cierra entregando solo "dispositivo nuevo" o si la ubicación es condición de cierre.
+- `OPEN-AUTH-14` (bloquea viabilidad del diseño): clasificación de la cookie `pge_device` en protección de datos — ¿cookie técnica exenta de consentimiento, o no? Relevante por `INV-008` (menores).
+- `OPEN-AUTH-15`: dónde se cierra `OPEN-AUTH-10` (`tenant_id`+RLS en `sessions` del framework) — recomendación del spec: paso propio de endurecimiento, no aquí.
+- `OPEN-AUTH-16`: el *observer* de auditoría de 0.9 no excluye `created`, duplicaría una fila por cada login en `user_sessions` — recomendación: ADR corto que le dé exclusión explícita por modelo.
+- `OPEN-AUTH-17`: ¿dependencia externa para interpretar el `User-Agent` en pantalla, o análisis propio mínimo con regex? Sin decidir, sin riesgo (la descripción no participa en ninguna decisión de seguridad).
+
+**Siguiente paso concreto de 1.2b**: al arrancar la próxima sesión, **presentar estas 5 preguntas al usuario antes de tocar código** (no asumir respuestas, `CLAUDE.md §11`). Con las respuestas, actualizar `funcional.md §B.14` a aprobado y pasar a implementación en la misma rama `feature/REQ-AUTH-005-1.2b-sesiones-activas` (mismo patrón que 1.2: spec y código en la misma rama, un único PR al cerrar).
 **1.2 · `REQ-AUTH`: autenticación local y sesiones — CERRADO Y MEZCLADO** (2026-08-22/25). PR [#76](https://github.com/pirexia/plataforma-educativa/pull/76) (*squash*, commit `0d34587`). Revisión independiente (`security-reviewer`/`doc-reviewer`) con 2 hallazgos Alta de seguridad y 7 Media de documentación, todos corregidos antes de mezclar. Detalle completo en `docs/historial/1.2-auth-local-sesiones.md`.
 **1.1 · `REQ-CORE`: tenants y usuarios — CERRADO Y MEZCLADO** (2026-08-21/22). PR [#56](https://github.com/pirexia/plataforma-educativa/pull/56). Detalle completo en `docs/historial/1.1-core-tenants-usuarios.md`.
 **Rama**: `develop`, limpia y sincronizada con `origin`. Sin rama de trabajo abierta. Los tres *worktrees* huérfanos de subagentes de sesiones anteriores se limpiaron al cerrar 1.2 (ramas y directorios borrados).
@@ -94,7 +103,7 @@
 | [#45](https://github.com/pirexia/plataforma-educativa/issues/45) | Sin análisis antivirus de ficheros subidos (`RSEC-OWASP-012`). Candidato 1.27. | Media |
 | [#52](https://github.com/pirexia/plataforma-educativa/issues/52) | Ficheros preexistentes sin `pint --test` limpio (cosmético). | Baja |
 | [#58](https://github.com/pirexia/plataforma-educativa/issues/58) | SSO institucional (SAML/OIDC) sin paso asignado hasta `1.4b`. | Planificación |
-| [#59](https://github.com/pirexia/plataforma-educativa/issues/59) | Resto de `REQ-AUTH-005` (panel de sesiones activas, cierre remoto, nuevo dispositivo), diferido a `1.2b`. | Planificación |
+| [#59](https://github.com/pirexia/plataforma-educativa/issues/59) | Resto de `REQ-AUTH-005` (panel de sesiones activas, cierre remoto, nuevo dispositivo). **En curso en `1.2b`**: especificación escrita (`docs/modulos/REQ-AUTH/*.md §B`), pendiente de aprobación del usuario (5 preguntas abiertas, ver arriba). | Planificación |
 | [#60](https://github.com/pirexia/plataforma-educativa/issues/60) | `ValidationErrorFormatter` antepone "core." al `code` de cualquier módulo. Requiere decisión con `architect`. | Media |
 | [#61](https://github.com/pirexia/plataforma-educativa/issues/61) | Levantar un bloqueo desde canje/restablecimiento reutiliza `UnlockReason::Correo` a falta de un 4º valor en el enumerado aprobado. Decisión razonada, documentada. | Baja |
 | [#65](https://github.com/pirexia/plataforma-educativa/issues/65) | Manuales de usuario no-`admin` (5) sin las pantallas de acceso de 1.2. Ninguno existe todavía. Candidato natural 1.8. | Baja |
@@ -105,8 +114,8 @@
 
 ## Siguiente paso concreto
 
-**1.1 y 1.2 cerrados y mezclados. No hay rama de trabajo abierta.**
+**Rama abierta: `feature/REQ-AUTH-005-1.2b-sesiones-activas`, colgada de `develop`, empujada a `origin` (commit `367e51d`).** Working tree limpio, todo commiteado.
 
-1. **Al empezar la próxima sesión**: confirmar con el usuario si toca `1.2b` (`REQ-AUTH-005` restante, panel de sesiones activas — candidato natural, issue #59 ya lo deja preparado) o si prefiere adelantar otro paso del plan.
+1. **Al empezar la próxima sesión, antes de tocar código**: presentar al usuario las 5 preguntas abiertas de `docs/modulos/REQ-AUTH/funcional.md §B.13` (`OPEN-AUTH-13` a `OPEN-AUTH-17`, resumidas arriba en "Estado actual"). No asumir respuestas (`CLAUDE.md §11`). Con las respuestas, marcar `§B.14` como aprobado (editar el propio fichero) y pasar a implementación en la misma rama.
 2. **Requisito de entorno para probar login en desarrollo** (issue #71, no bloquea código nuevo): `apps/web/vite.config.ts` y `compose.yaml` ya están configurados para servir la SPA desde `demo.plataforma.test:5173`. Cualquier sesión nueva que necesite probarlo en un navegador real necesita `127.0.0.1 demo.plataforma.test` en el `hosts` de **Windows** (no el de WSL2) — si no está, recordárselo al usuario, no volver a diagnosticarlo desde cero.
 3. **Nota de entorno, sigue aplicando**: `.env` no editable desde esta sesión (bloqueo de permisos). Variables inline en cada `Bash`, `podman exec <servicio> printenv`. `SESSION_LIFETIME=480`, `CORS_ALLOWED_ORIGINS` y `VITE_API_URL` siguen parcheados en `compose.yaml` en vez de en sus `.env` respectivos — trasladarlos si algún día `.env` es editable desde la sesión.
