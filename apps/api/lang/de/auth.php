@@ -16,6 +16,7 @@ return [
         ],
         'current_password_incorrect' => 'Das aktuelle Passwort ist falsch.',
         'lockout_already_unlocked' => 'Diese Sperre wurde bereits aufgehoben.',
+        'session_already_closed' => 'Diese Sitzung ist bereits geschlossen.',
     ],
 
     'mail' => [
@@ -39,6 +40,16 @@ return [
             'greeting' => 'Hallo :name.',
             'body' => 'Dein Passwort bei :tenant wurde soeben geändert.',
             'warning' => 'Wenn du das nicht warst, wende dich umgehend an die Verwaltung deiner Schule.',
+        ],
+        'new_device_login' => [
+            'subject' => 'Neue Anmeldung bei deinem Konto auf :tenant',
+            'greeting' => 'Hallo :name.',
+            'body' => 'Bei deinem Konto auf :tenant hat sich am :time ein Gerät angemeldet, das wir vorher noch nicht gesehen haben.',
+            'detail' => 'Details zur Anmeldung: :client, von der IP-Adresse :ip.',
+            'location_line' => 'Ungefährer Standort: :location.',
+            'what_to_do' => 'Wenn du das warst, musst du nichts weiter tun. Wenn du diese Anmeldung nicht erkennst, überprüfe deine aktiven Sitzungen und ändere dein Passwort so schnell wie möglich.',
+            'cta' => 'Meine aktiven Sitzungen überprüfen',
+            'unknown_client' => 'ein unbekanntes Gerät',
         ],
     ],
 

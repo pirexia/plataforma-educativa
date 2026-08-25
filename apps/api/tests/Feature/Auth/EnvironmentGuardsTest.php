@@ -19,6 +19,7 @@ afterEach(function (): void {
         'session.partitioned' => false,
         'session.secure' => null,
         'session.lifetime' => 480,
+        'session.driver' => 'database',
         'auth-local.session_timeout_max_minutes' => 480,
         'auth-local.password_min_length' => 12,
         'hashing.bcrypt.rounds' => 12,
@@ -88,6 +89,21 @@ test('CA-AUTH-052: SESSION_LIFETIME menor que AUTH_SESSION_TIMEOUT_MAX_MINUTES a
 
 test('CA-AUTH-052: SESSION_LIFETIME igual al máximo no aborta el arranque', function (): void {
     config(['session.lifetime' => 480, 'auth-local.session_timeout_max_minutes' => 480]);
+
+    expect(fn () => (new SessionEnvironmentGuard)->verify())->not->toThrow(RuntimeException::class);
+});
+
+// CA-AUTH-103, RN-AUTH-49 (1.2b): sin guarda, la revocación no tendría
+// nada que borrar y respondería 204 sin haber cerrado nada realmente.
+test('CA-AUTH-103: SESSION_DRIVER distinto de "database" aborta el arranque, en todos los entornos', function (): void {
+    config(['session.driver' => 'array']);
+
+    expect(fn () => (new SessionEnvironmentGuard)->verify())
+        ->toThrow(RuntimeException::class, 'SESSION_DRIVER');
+});
+
+test('SESSION_DRIVER=database no aborta el arranque', function (): void {
+    config(['session.driver' => 'database']);
 
     expect(fn () => (new SessionEnvironmentGuard)->verify())->not->toThrow(RuntimeException::class);
 });

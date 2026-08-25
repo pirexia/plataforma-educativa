@@ -14,6 +14,7 @@ use App\Modules\Auth\Http\Controllers\PasswordChangesController;
 use App\Modules\Auth\Http\Controllers\PasswordResetRequestsController;
 use App\Modules\Auth\Http\Controllers\PasswordResetsController;
 use App\Modules\Auth\Http\Controllers\SessionController;
+use App\Modules\Auth\Http\Controllers\UserSessionsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/auth/csrf-cookie', [SessionController::class, 'csrfCookie'])->name('auth.csrf-cookie');
@@ -43,3 +44,15 @@ Route::get('/account-lockouts', [AccountLockoutsController::class, 'index'])
 Route::delete('/account-lockouts/{publicId}', [AccountLockoutsController::class, 'destroy'])
     ->middleware('permission:bloqueo_cuenta.eliminar')
     ->name('auth.account-lockouts.destroy');
+
+// 1.2b, api.md §B.1-§B.5: REQ-AUTH-005 puntos 2-3. Los tres, por
+// identidad, sin permiso — igual que /auth/session y
+// /auth/password-changes. Sin `module-enabled` (CA-AUTH-078).
+Route::get('/auth/sessions', [UserSessionsController::class, 'index'])
+    ->name('auth.sessions.index');
+
+Route::delete('/auth/sessions/{publicId}', [UserSessionsController::class, 'destroy'])
+    ->name('auth.sessions.destroy');
+
+Route::delete('/auth/sessions', [UserSessionsController::class, 'destroyAll'])
+    ->name('auth.sessions.destroy-all');

@@ -3,6 +3,7 @@
 namespace App\Modules\Auth\Application;
 
 use App\Models\User;
+use App\Modules\Auth\Domain\SessionEndReason;
 use App\Modules\Auth\Domain\SessionRevoker;
 use App\Modules\Auth\Infrastructure\Jobs\SendPasswordChangedEmail;
 use App\Support\Api\ApiException;
@@ -57,7 +58,7 @@ final class PasswordChangeService
             $user->password = $newPassword;
             $user->save();
 
-            $this->sessionRevoker->revokeAllForUser($user, $currentSessionId);
+            $this->sessionRevoker->revokeAllForUser($user, SessionEndReason::CambioCredencial, $currentSessionId);
         });
 
         $tenant = Tenant::query()->find($this->tenantContext->tenantId());

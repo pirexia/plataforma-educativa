@@ -40,6 +40,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Sesiones activas y dispositivos (1.2b, REQ-AUTH-005 puntos 2-4)
+    |--------------------------------------------------------------------------
+    |
+    | operacion.md §B.2. AUTH_NEW_DEVICE_ALERTS_PER_DAY: número puesto sin
+    | medición (operacion.md §B.2), a revisar con REQ-SEED (1.15b).
+    |
+    */
+    'device_cookie_ttl_days' => (int) env('AUTH_DEVICE_COOKIE_TTL_DAYS', 365),
+    'new_device_alerts_per_day' => (int) env('AUTH_NEW_DEVICE_ALERTS_PER_DAY', 5),
+    'user_session_retention_days' => (int) env('AUTH_USER_SESSION_RETENTION_DAYS', 90),
+    'known_device_retention_days' => (int) env('AUTH_KNOWN_DEVICE_RETENTION_DAYS', 365),
+    'user_agent_max_length' => (int) env('AUTH_USER_AGENT_MAX_LENGTH', 1024),
+
+    /*
+    |--------------------------------------------------------------------------
     | Política de contraseñas (RN-AUTH-01, RN-AUTH-02, RN-AUTH-03)
     |--------------------------------------------------------------------------
     |

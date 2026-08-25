@@ -3,6 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Modules\Auth\Domain\Models\UserSession;
+use App\Modules\Auth\Domain\SessionEndReason;
 use App\Support\Api\ApiException;
 use App\Support\Audit\AuditRecorder;
 use App\Support\Tenancy\TenantContext;
@@ -48,6 +50,16 @@ class VerifySessionTenant
         // deja de existir — y ADR-039 no define un evento propio para esta
         // discrepancia.
         $this->auditRecorder->record($user, 'logout');
+
+        // funcional.md §B.4.6, RN-AUTH-31, RN-AUTH-44: 'tenant_incoherente'
+        // es la única razón de cierre que no ocurre en operación normal
+        // (operacion.md §B.5) — cualquier valor distinto de cero es un
+        // incidente.
+        UserSession::query()
+            ->where('session_id', $request->session()->getId())
+            ->whereNull('ended_at')
+            ->first()
+            ?->close(SessionEndReason::TenantIncoherente);
 
         Auth::guard('web')->logout();
         $request->session()->invalidate();

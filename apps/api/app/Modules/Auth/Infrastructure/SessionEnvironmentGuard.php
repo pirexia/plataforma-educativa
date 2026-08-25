@@ -22,6 +22,25 @@ final class SessionEnvironmentGuard
         $this->assertPartitionedRequiresSameSiteNone();
         $this->assertSecureInProduction();
         $this->assertLifetimeCoversTenantMaximum();
+        $this->assertSessionDriverIsDatabase();
+    }
+
+    /**
+     * funcional.md §B.2.1 punto 4, RN-AUTH-49, CA-AUTH-103. Con cualquier
+     * otro driver la revocación no tiene fila que borrar y respondería
+     * `204` sin haber cerrado nada — un requisito de configuración sin
+     * guarda no es un requisito, es una esperanza (mismo argumento que
+     * `assertDomainIsEmpty()`).
+     */
+    private function assertSessionDriverIsDatabase(): void
+    {
+        if (config('session.driver') !== 'database') {
+            throw new RuntimeException(
+                'SESSION_DRIVER debe ser "database" en todos los entornos: con cualquier otro valor, '.
+                'el panel de sesiones activas y su revocación no tendrían nada que borrar '.
+                '(docs/modulos/REQ-AUTH/funcional.md §B.2.1).'
+            );
+        }
     }
 
     /**

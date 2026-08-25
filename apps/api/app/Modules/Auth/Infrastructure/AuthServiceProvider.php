@@ -3,15 +3,24 @@
 namespace App\Modules\Auth\Infrastructure;
 
 use App\Modules\Auth\Domain\AccountLockService;
+use App\Modules\Auth\Domain\ClientDescriber;
+use App\Modules\Auth\Domain\IpGeolocator;
 use App\Modules\Auth\Domain\Models\AccountLockout;
+use App\Modules\Auth\Domain\Models\UserKnownDevice;
+use App\Modules\Auth\Domain\Models\UserSession;
 use App\Modules\Auth\Domain\PasswordPolicy;
 use App\Modules\Auth\Domain\PasswordResetTokenRepository;
 use App\Modules\Auth\Domain\SessionRevoker;
+use App\Modules\Auth\Domain\UserSessionDirectory;
 use App\Modules\Auth\Infrastructure\Console\CloseExpiredLockoutsCommand;
+use App\Modules\Auth\Infrastructure\Console\CloseOrphanedUserSessionsCommand;
 use App\Modules\Auth\Infrastructure\Console\GrantLockoutPermissionsCommand;
 use App\Modules\Auth\Infrastructure\Console\PurgeAuthMaintenanceCommand;
+use App\Modules\Auth\Infrastructure\Listeners\RevokeSessionsOnUserDeactivated;
+use App\Modules\Core\Domain\Events\UserDeactivated;
 use App\Support\Modules\DeclaresModuleRegistry;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -28,6 +37,11 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         $this->app->bind(PasswordPolicy::class, ConfigPasswordPolicy::class);
         $this->app->bind(SessionRevoker::class, DatabaseSessionRevoker::class);
         $this->app->bind(AccountLockService::class, EloquentAccountLockService::class);
+        // OPEN-AUTH-17 aprobada: análisis propio con regex, sin dependencia externa.
+        $this->app->bind(ClientDescriber::class, RegexClientDescriber::class);
+        // OPEN-AUTH-13 sin resolver: siempre "desconocida" (funcional.md §B.7).
+        $this->app->bind(IpGeolocator::class, NullIpGeolocator::class);
+        $this->app->bind(UserSessionDirectory::class, EloquentUserSessionDirectory::class);
     }
 
     public function boot(): void
@@ -38,6 +52,8 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         // merge=true: se suma al morph map de AppServiceProvider (INV-007).
         Relation::enforceMorphMap([
             'account_lockout' => AccountLockout::class,
+            'user_session' => UserSession::class,
+            'user_known_device' => UserKnownDevice::class,
         ]);
 
         // funcional.md §6.2, issue #8: guarda en todos los entornos, no
@@ -50,10 +66,16 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         // tests de 1.2.
         app(PasswordPolicyEnvironmentGuard::class)->verify();
 
+        // funcional.md §B.2.1 punto 1, §8.2 (1.2b): consumidor de
+        // UserDeactivated (REQ-CORE). No existía como listener hasta
+        // 1.2b — ver el comentario de la propia clase.
+        Event::listen(UserDeactivated::class, RevokeSessionsOnUserDeactivated::class);
+
         if ($this->app->runningInConsole()) {
             $this->commands([
                 PurgeAuthMaintenanceCommand::class,
                 CloseExpiredLockoutsCommand::class,
+                CloseOrphanedUserSessionsCommand::class,
                 GrantLockoutPermissionsCommand::class,
             ]);
         }

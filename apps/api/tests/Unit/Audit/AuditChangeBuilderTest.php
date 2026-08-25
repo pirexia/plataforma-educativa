@@ -36,6 +36,13 @@ function fakeAuditable(
         {
             return $this->secrets;
         }
+
+        // ADR-040 §4.1: cuarto método del contrato. Sin exclusiones en
+        // este doble de pruebas — el builder no depende de él.
+        public function auditExcludedEvents(): array
+        {
+            return [];
+        }
     };
 }
 

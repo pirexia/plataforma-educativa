@@ -16,6 +16,7 @@ return [
         ],
         'current_password_incorrect' => 'Le mot de passe actuel est incorrect.',
         'lockout_already_unlocked' => 'Ce verrouillage a déjà été levé.',
+        'session_already_closed' => 'Cette session est déjà fermée.',
     ],
 
     'mail' => [
@@ -39,6 +40,16 @@ return [
             'greeting' => 'Bonjour :name.',
             'body' => 'Votre mot de passe sur :tenant vient d\'être modifié.',
             'warning' => 'Si ce n\'était pas vous, contactez au plus vite l\'administration de votre établissement.',
+        ],
+        'new_device_login' => [
+            'subject' => 'Nouvelle connexion à votre compte sur :tenant',
+            'greeting' => 'Bonjour :name.',
+            'body' => 'Une connexion à votre compte sur :tenant a eu lieu depuis un appareil que nous n\'avions pas encore vu, le :time.',
+            'detail' => 'Détails de la connexion : :client, depuis l\'adresse IP :ip.',
+            'location_line' => 'Localisation approximative : :location.',
+            'what_to_do' => 'Si c\'était vous, vous n\'avez rien d\'autre à faire. Si vous ne reconnaissez pas cette connexion, vérifiez vos sessions actives et changez votre mot de passe dès que possible.',
+            'cta' => 'Vérifier mes sessions actives',
+            'unknown_client' => 'un appareil inconnu',
         ],
     ],
 

@@ -69,7 +69,17 @@
         <env name="DB_URL" value="" force="true"/>
         <env name="MAIL_MAILER" value="array" force="true"/>
         <env name="QUEUE_CONNECTION" value="sync" force="true"/>
-        <env name="SESSION_DRIVER" value="array" force="true"/>
+        <!--
+            1.2b, RN-AUTH-49: SessionEnvironmentGuard aborta el arranque de
+            TODA la aplicación (no solo de REQ-AUTH) con cualquier driver
+            distinto de "database", en todos los entornos — incluida la
+            suite de tests. Antes de 1.2b era "array" (sesión en memoria,
+            sin fila persistida); algún test que necesitaba una fila real
+            en `sessions` lo sobreescribía él mismo con config(). A partir
+            de 1.2b el valor por defecto tiene que ser "database" o
+            ningún test arranca la aplicación.
+        -->
+        <env name="SESSION_DRIVER" value="database" force="true"/>
         <!--
             REQ-AUTH (1.2), CA-AUTH-052: la guarda de arranque de
             SessionEnvironmentGuard aborta si SESSION_LIFETIME es menor que

@@ -143,3 +143,50 @@ function provisionActiveUser(?string $slug = null, array $userAttrs = [], array 
 
     return [$tenant, $user, $rawPassword];
 }
+
+/**
+ * 1.2b (issue #82, severidad Media — ver memory.md/docs/historial). El
+ * `Store` de sesión ('session', 'session.store') y los `Guard` de
+ * autenticación se cachean como singletons del contenedor durante todo
+ * el proceso de test — `Illuminate\Session\SessionServiceProvider`
+ * registra 'session.store' aparte de `SessionManager::$drivers`, y
+ * `AuthManager::createSessionDriver()` resuelve el guard contra ESE
+ * binding. Sin este reseteo, una llamada HTTP posterior en el MISMO test
+ * (otro login, otra cookie, o incluso una `Model::factory()->create()`
+ * fuera de una petición HTTP que dispare `RecordsAuthorship`) puede leer
+ * el actor autenticado de una petición anterior en vez de la actual —
+ * verificado con instrumentación directa antes de escribir los tests de
+ * 1.2b. En producción esto no ocurre: cada petición PHP-FPM es un
+ * proceso nuevo. Llamar antes de cualquier segunda petición/identidad
+ * dentro del mismo test que dependa de sesión o de `Auth::user()`.
+ */
+function resetSessionState(): void
+{
+    app('session')->forgetDrivers();
+    app()->forgetInstance('session.store');
+    app('auth')->forgetGuards();
+}
+
+/**
+ * Valor RAW (ya cifrado) de la cookie de sesión de una respuesta —
+ * `Set-Cookie` tal cual, listo para reenviar con `withSessionCookie()`.
+ */
+function sessionCookieValue($response): string
+{
+    return $response->getCookie(config('session.cookie'), false)->getValue();
+}
+
+/**
+ * Adjunta una cookie de sesión YA CIFRADA (de un `Set-Cookie` anterior) a
+ * la siguiente llamada del cliente de test. `MakesHttpRequests::json()`
+ * (usado por `postJson()`/`getJson()`/`deleteJson()`) descarta TODAS las
+ * cookies salvo que se llame antes a `withCredentials()`, y `withCookie()`
+ * cifraría de nuevo un valor que ya viene cifrado — `withUnencryptedCookie()`
+ * lo envía tal cual, que es lo correcto aquí.
+ */
+function withSessionCookie(string $cookieValue)
+{
+    resetSessionState();
+
+    return test()->withCredentials()->withUnencryptedCookie(config('session.cookie'), $cookieValue);
+}

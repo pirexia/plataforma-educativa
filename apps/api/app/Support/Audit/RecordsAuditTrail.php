@@ -26,6 +26,15 @@ trait RecordsAuditTrail
     protected static function bootRecordsAuditTrail(): void
     {
         static::created(function (Model&Auditable $model): void {
+            // ADR-040 §4.2: el filtro va aquí, en el enganche automático, y
+            // nunca dentro de AuditRecorder — ese también es el camino de
+            // la escritura manual de ADR-039 §4.5 (login/logout/
+            // password_reset_requested), y una llamada explícita no puede
+            // desaparecer en silencio por una declaración de otro modelo.
+            if (in_array('created', $model->auditExcludedEvents(), true)) {
+                return;
+            }
+
             app(AuditRecorder::class)->record($model, 'created', self::auditDirtyAsRawChanges($model));
         });
 
