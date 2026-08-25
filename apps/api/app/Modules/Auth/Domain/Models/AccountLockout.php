@@ -20,6 +20,8 @@ use Illuminate\Support\Carbon;
  * La creación de la fila es un evento `created` y el desbloqueo un
  * `updated`, ambos por el *observer* de 0.9 — ningún código de este
  * módulo llama a AuditRecorder para bloqueo/desbloqueo (funcional.md §10.1).
+ *
+ * @mixin IdeHelperAccountLockout
  */
 class AccountLockout extends TenantModel implements Auditable
 {

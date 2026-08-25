@@ -12,6 +12,8 @@ use App\Support\Tenancy\AppendOnlyModel;
  * propósito: registrarla en audit_logs duplicaría cada fila y, en un
  * ataque de fuerza bruta, inundaría la tabla de dos años de retención
  * (funcional.md §10.2, datos.md §A.1).
+ *
+ * @mixin IdeHelperLoginAttempt
  */
 class LoginAttempt extends AppendOnlyModel
 {

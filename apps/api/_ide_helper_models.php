@@ -565,6 +565,7 @@ namespace App\Modules\Core\Domain\Models{
  * @property string|null $logo_object_key
  * @property string|null $favicon_object_key
  * @property string|null $login_background_object_key
+ * @property int $session_timeout_minutes
  * @property int|null $created_by
  * @property int|null $updated_by
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -594,6 +595,7 @@ namespace App\Modules\Core\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting whereLoginBackgroundObjectKey($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting whereLogoObjectKey($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting whereSessionTimeoutMinutes($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting whereTaxId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting whereTenantId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting whereTimezone($value)
@@ -748,3 +750,90 @@ namespace App\Support\Tenancy{
 	class IdeHelperTenant {}
 }
 
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §A.2. Selective: `email` se redacta como `identifier`;
+ * `unlock_token_hash` lo redacta el patrón global `*token*` sin
+ * declararlo. La fila se conserva tras el desbloqueo (RN-AUTH-18).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property string $email
+ * @property int|null $user_id
+ * @property int $failed_count
+ * @property \Illuminate\Support\Carbon $locked_at
+ * @property string|null $unlock_token_hash
+ * @property \Illuminate\Support\Carbon|null $unlock_token_expires_at
+ * @property \Illuminate\Support\Carbon|null $unlocked_at
+ * @property int|null $unlocked_by
+ * @property \App\Modules\Auth\Domain\UnlockReason|null $unlock_reason
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Models\User|null $unlockedByUser
+ * @property-read \App\Models\User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereEmail($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereFailedCount($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereLockedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUnlockReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUnlockTokenExpiresAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUnlockTokenHash($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUnlockedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUnlockedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperAccountLockout {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §A.1. Append-only: sin created_at/updated_at (usa
+ * attempted_at), sin borrado lógico. No implementa Auditable a propósito
+ * (funcional.md §10.2).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $email
+ * @property int|null $user_id
+ * @property \App\Modules\Auth\Domain\LoginOutcome $outcome
+ * @property \Illuminate\Support\Carbon $attempted_at
+ * @property string|null $ip_address
+ * @property string|null $user_agent
+ * @property string|null $request_id
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereAttemptedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereEmail($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereIpAddress($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereOutcome($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereRequestId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereUserAgent($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereUserId($value)
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperLoginAttempt {}
+}

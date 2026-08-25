@@ -69,8 +69,10 @@ final class EloquentAccountLockService implements AccountLockService
 
         // RN-AUTH-15: sin cuenta detrás no hay a quién avisar — el
         // bloqueo fantasma no produce ninguna señal distinta hacia quien
-        // lo provocó.
-        if ($user !== null && $unlockToken !== null) {
+        // lo provocó. $unlockToken es siempre no nulo cuando $user lo es
+        // (se asignan juntos arriba); PHPStan lo demuestra por flujo, así
+        // que la comprobación explícita de $unlockToken sería redundante.
+        if ($user !== null) {
             $tenant = Tenant::query()->find($this->tenantContext->tenantId());
             $locale = $user->person->locale ?? 'es-ES';
             $lockoutMinutes = (int) config('auth-local.lockout_minutes');

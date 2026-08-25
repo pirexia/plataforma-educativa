@@ -37,6 +37,9 @@ class SessionController extends Controller
         return response()->noContent();
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function store(StoreSessionRequest $request): array
     {
         $email = $this->loginService->normalize($request->string('email')->value());
