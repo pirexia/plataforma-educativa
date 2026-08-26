@@ -1817,7 +1817,7 @@ Verificables, cada uno con test que referencia su ID (`INV-015`). Bloque `104-14
 
 ## C.14 Preguntas abiertas
 
-Nueve. **Ninguna resuelta aquí.** Dos condicionan qué se puede declarar terminado, dos son dependencias externas nuevas, y el resto son decisiones de producto o de alcance que no me corresponden.
+Nueve. **Todas resueltas por el usuario el 2026-08-26** (ver `C.16`). Se conserva el argumento original de cada una para que la decisión se entienda con su coste, no solo con su resultado.
 
 ### `OPEN-AUTH-18` · No hay proveedor de SMS, y sin él `REQ-AUTH-003` queda cumplido en dos de sus tres métodos
 
@@ -1825,11 +1825,15 @@ Verificado en todo el repositorio: no hay proveedor, ni ADR, ni paso en el plan,
 
 **Recomendación**: entregar 1.3 con TOTP y correo, dejar el hueco de `sms` cerrado con guarda, y **declarar explícitamente al cerrar el paso** que el método SMS no está implementado — igual que 1.2b declaró la mitad de `REQ-AUTH-005` punto 4 con `RN-AUTH-47`. Si el usuario quiere SMS, es un paso propio que empieza por **elegir proveedor** (con contrato de encargado de tratamiento y datos en la UE, `OPEN-07`) y por **verificar el número en el alta**.
 
+**Decisión (2026-08-26)**: se acepta la recomendación. `sms` cerrado con guarda en 1.3; al cerrar el paso se declara `REQ-AUTH-003` cumplido en dos de sus tres métodos.
+
 ### `OPEN-AUTH-19` · Dependencia nueva: librería TOTP en el backend
 
 RFC 6238 son treinta líneas y **cuatro formas silenciosas de equivocarse**: base32 mal decodificado, ventana de tolerancia mal calculada, comparación no constante y contador derivado del huso horario local en vez de UTC. Ninguna falla en las pruebas: fallan en producción, con códigos que a veces valen.
 
 **Recomendación**: usar una librería mantenida en vez de escribirlo. El candidato natural en este ecosistema es `pragmarx/google2fa` (la que usa el andamiaje oficial del framework), **envuelta tras una interfaz propia** (`RNF-MANT-007`, `MfaVerifier` de `§C.9.2`). Pero introducir una dependencia exige comprobar mantenimiento activo, licencia y frecuencia de *releases* (`CLAUDE.md §1`), y **eso es una decisión, no un trámite**. No la tomo yo.
+
+**Decisión (2026-08-26)**: aprobado `pragmarx/google2fa`, envuelto tras `MfaVerifier`. La comprobación formal de mantenimiento/licencia/*releases* de `CLAUDE.md §1` se hace en el ADR previo a implementar (`§C.0.2`, subagente `architect`), no queda satisfecha por esta sola aprobación de producto.
 
 ### `OPEN-AUTH-20` · Dependencia nueva: generador de QR en el frontend
 
@@ -1837,11 +1841,15 @@ El servidor devuelve la URI `otpauth`; alguien tiene que dibujarla. Las opciones
 
 **Recomendación**: librería en la SPA, envuelta tras un componente propio. La tercera opción es tentadora por no añadir nada, pero transcribir 32 caracteres a mano en un móvil es donde se pierde a la mitad de los usuarios que iban a activar MFA voluntariamente. Misma comprobación de `CLAUDE.md §1` que la anterior.
 
+**Decisión (2026-08-26)**: aprobada la librería QR en la SPA, envuelta tras un componente propio. Igual que `OPEN-AUTH-19`, la elección concreta y su comprobación de `CLAUDE.md §1` se cierran en el ADR previo a implementar.
+
 ### `OPEN-AUTH-21` · El punto de corte con 1.5: `rol.actualizar` y `PATCH /roles/{public_id}` acotado
 
 `§C.2` decide que 1.3 entrega la escritura del atributo, que el permiso es `rol.actualizar` declarado en el catálogo de `REQ-CORE`, y que el `PATCH` acepta un solo campo hasta que 1.5 lo amplíe. **El argumento de por qué no puede esperar está en `§C.2.1` y es operativo**: sin él, hacer efectivo `mfa_required` deja a todos los tenants con dos roles obligados y sin interruptor durante dos pasos del plan.
 
 **Lo que necesita confirmación del usuario** es que acepta que 1.3 toque el catálogo de permisos y el controlador de `REQ-CORE`. Si prefiere que no, la alternativa coherente es **no hacer efectivo `mfa_required` hasta 1.5** y entregar en 1.3 solo el MFA voluntario — que es una entrega perfectamente útil, pero deja `REQ-AUTH-003` a medias en su parte más citada.
+
+**Decisión (2026-08-26)**: aprobado. 1.3 declara `rol.actualizar` en `CoreServiceProvider::declaredPermissions()` y entrega `PATCH /api/v1/roles/{public_id}` acotado a `mfa_required`.
 
 ### `OPEN-AUTH-22` · Desde cuándo cuenta el período de gracia
 
@@ -1851,6 +1859,8 @@ El servidor devuelve la URI `otpauth`; alguien tiene que dibujarla. Las opciones
 
 **La alternativa** (contar desde el primer acceso posterior a la obligación) garantiza que todo el mundo vea los siete avisos, y a cambio permite aplazar indefinidamente no entrando, y hace que el administrador no tenga una fecha determinista que enseñar en la pantalla de cumplimiento. **Recomiendo la decidida**; la decisión es del usuario.
 
+**Decisión (2026-08-26)**: confirmado. El período de gracia cuenta desde que empieza la obligación, con el coste asumido descrito arriba (usuarios inactivos no ven avisos).
+
 ### `OPEN-AUTH-23` · ¿Puede un administrador de centro quitarse a sí mismo la obligación?
 
 `REQ-AUTH-003` recomienda MFA obligatorio para administración de centro, pero **recomendación no es cerrojo**, y no dice nada sobre editarlo uno mismo. Tal como está especificado, un administrador puede poner `mfa_required = false` en `administrador_centro` —que es su propio rol— y desactivarse el segundo factor.
@@ -1859,6 +1869,8 @@ El servidor devuelve la URI `otpauth`; alguien tiene que dibujarla. Las opciones
 **Argumento en contra**: convierte la obligatoriedad del rol más peligroso del tenant en algo que el propio interesado apaga, y contradice el espíritu de `REQ-BO-007` (que para el backoffice sí dice «sin conmutador»).
 
 **Recomendación**: permitirlo, con auditoría reforzada y un aviso explícito en la pantalla de 1.5, y **revisarlo cuando 1.6 traiga el backoffice**, que es donde `REQ-BO-007` obliga a resolver la misma pregunta un nivel más arriba. No la decido.
+
+**Decisión (2026-08-26)**: aprobado permitirlo, con auditoría reforzada. Reabrir la pregunta al llegar 1.6 (`REQ-BO-007`).
 
 ### `OPEN-AUTH-24` · El tamaño del paso: ¿se parte 1.3 como se partió 1.2?
 
@@ -1871,17 +1883,23 @@ El servidor devuelve la URI `otpauth`; alguien tiene que dibujarla. Las opciones
 
 **Recomendación**: partirlo. El precedente de 1.2/1.2b existe precisamente por esto. La decisión es del usuario.
 
+**Decisión (2026-08-26)**: aprobado partir en `1.3`/`1.3b` con la línea de corte propuesta. `PLAN-IMPLEMENTACION.md` actualizado en consecuencia.
+
 ### `OPEN-AUTH-25` · El correo como segundo factor: ¿se ofrece?
 
 `§C.8` explica lo que protege (contraseña filtrada: bien) y lo que no (compromiso del buzón: nada, porque la recuperación de contraseña va al mismo sitio).
 
 **Recomendación**: ofrecerlo, **desactivado por defecto**, con `totp` no desactivable. Excluir del MFA a quien no tiene teléfono con aplicación de autenticación es peor que darle un factor imperfecto. Pero es una decisión de producto y de riesgo del centro, no mía.
 
+**Decisión (2026-08-26)**: aprobado ofrecerlo, desactivado por defecto. Este método se implementa en `1.3b`, no en `1.3` (ver `OPEN-AUTH-24`).
+
 ### `OPEN-AUTH-26` · Los secretos TOTP son el primer dato de usuario que se pierde si se pierde `APP_KEY`
 
 Hasta hoy, `APP_KEY` cifraba el *payload* de sesión y los cursores de paginación: cosas regenerables. **A partir de 1.3 cifra credenciales de usuario.** Perder la clave, o restaurar una copia de base de datos sin ella, significa que **todos los factores TOTP del sistema dejan de verificar** y hay que restablecer el MFA de todo el mundo a mano.
 
 `ADR-037 §7.2` punto 4 ya obliga a custodiar `APP_KEY` **separada** de la copia de la base de datos, y `0.10d` lo recoge. Lo que esta especificación aporta es que **eso deja de ser una buena práctica y pasa a ser un requisito de recuperación con consecuencia visible**. No es una pregunta técnica sino de operación: hay que confirmar que `0.10d` se resuelve con esa condición antes de que entre el primer dato real. `operacion.md §C.10` lo recoge.
+
+**Decisión (2026-08-26)**: confirmado por el usuario. No bloquea 1.3; queda anotado como condición de cierre de `0.10d` en `PLAN-IMPLEMENTACION.md` y `memory.md`.
 
 ### Lo que **no** dejo como pregunta abierta, y por qué
 
@@ -1894,19 +1912,19 @@ Hasta hoy, `APP_KEY` cifraba el *payload* de sesión y los cursores de paginaci�
 
 ## C.15 ¿Se aprueba esta especificación?
 
-**No paso a implementación sin respuesta.** Lo que hace falta decidir, en orden de impacto:
+**Sí, aprobada por el usuario el 2026-08-26.** Las nueve preguntas de `§C.14` llevan su decisión anotada junto al argumento. Resumen:
 
-1. **`OPEN-AUTH-24`** — ¿se parte el paso en 1.3 / 1.3b? Es lo primero, porque cambia todo lo demás.
-2. **`OPEN-AUTH-21`** — ¿1.3 puede tocar el catálogo de permisos y el controlador de roles de `REQ-CORE` para entregar el interruptor de `mfa_required`? Si la respuesta es no, hay que decidir si `mfa_required` se hace efectivo en 1.3 o se espera a 1.5.
-3. **`OPEN-AUTH-19`** y **`OPEN-AUTH-20`** — las dos dependencias nuevas. Sin decisión no hay TOTP verificable ni QR.
-4. **`OPEN-AUTH-18`** y **`OPEN-AUTH-25`** — qué métodos se entregan de verdad.
-5. **`OPEN-AUTH-22`** y **`OPEN-AUTH-23`** — las dos decisiones de política de cumplimiento.
-6. **`OPEN-AUTH-26`** — confirmar que `0.10d` incorpora la custodia separada de `APP_KEY` con esta consecuencia.
+1. **`OPEN-AUTH-24`** → se parte en `1.3`/`1.3b`, con la línea de corte propuesta.
+2. **`OPEN-AUTH-21`** → sí, `1.3` toca `REQ-CORE` (`rol.actualizar` + `PATCH /roles/{public_id}` acotado).
+3. **`OPEN-AUTH-19`/`20`** → aprobadas `pragmarx/google2fa` (backend) y una librería de QR en la SPA (frontend), ambas envueltas tras interfaz propia. Comprobación formal de `CLAUDE.md §1` pendiente del ADR previo a implementar (`§C.16`).
+4. **`OPEN-AUTH-18`** → `sms` cerrado con guarda en `1.3`, sin proveedor. **`OPEN-AUTH-25`** → correo como segundo factor sí se ofrece, desactivado por defecto, pero se implementa en `1.3b`.
+5. **`OPEN-AUTH-22`** → gracia cuenta desde que empieza la obligación. **`OPEN-AUTH-23`** → un administrador de centro puede autoeditarse la obligación, con auditoría reforzada.
+6. **`OPEN-AUTH-26`** → confirmado; condición de cierre de `0.10d`, no bloquea `1.3`.
 
-Y tres confirmaciones de alcance, por si no se comparte lo que doy por decidido:
+Confirmadas también las tres asunciones de alcance que no se listaban como pregunta: pantalla de administración fuera de `1.3` (API sí, UI en 1.5/1.8), `RPERM-006` (herencia al clonar) queda pendiente hasta 1.5, y los tres avisos al titular de `§C.4.13` entran.
 
-- **La pantalla de administración no entra** (rol, cumplimiento, restablecimiento, excepciones): entra la API, la interfaz es 1.5/1.8.
-- **`RPERM-006` (herencia al clonar) queda declarado pendiente**, no cumplido: no hay clonación de roles hasta 1.5.
-- **Los tres avisos al titular de `§C.4.13` entran**, como extensión del patrón de `SendPasswordChangedEmail` y no como requisito nuevo.
+## C.16 Alcance de `1.3` tras la partición, y siguiente paso
 
-`OPEN-AUTH-18`, `OPEN-AUTH-19` y `OPEN-AUTH-20` **impiden implementar**. `OPEN-AUTH-21`, `OPEN-AUTH-22`, `OPEN-AUTH-23`, `OPEN-AUTH-24` y `OPEN-AUTH-25` **cambian el alcance**. `OPEN-AUTH-26` no bloquea el código pero sí condiciona qué se puede declarar listo para datos reales.
+Con `OPEN-AUTH-24` resuelto, el alcance de **esta rama** (`feature/REQ-AUTH-003-1.3-mfa-obligatorio-por-rol`) queda acotado a: alta/verificación TOTP, códigos de respaldo, login en dos pasos, `MfaPolicy` (obligatoriedad por rol, resolución multi-rol), período de gracia y muro de sesión restringida, `PATCH /roles/{public_id}` acotado a `mfa_required`, vista previa de usuarios afectados y estado de cumplimiento, y restablecimiento de MFA por el administrador. **`1.3b`** (rama nueva cuando le toque turno) se queda con: método de correo como segundo factor, excepciones temporales nominales, y la pantalla de administración si `1.5` se retrasa.
+
+**Antes de implementar**: `OPEN-AUTH-19`/`20` aprobaron la *dirección* (qué tipo de dependencia), no la comprobación formal de mantenimiento/licencia/*releases* que exige `CLAUDE.md §1` para `pragmarx/google2fa` y la librería de QR. Esa comprobación, envuelta en un ADR, es tarea de `architect` (Opus) y va **antes** que `implementer` — mismo patrón que `ADR-040` en `1.2b`.
