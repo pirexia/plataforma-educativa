@@ -44,22 +44,52 @@ class VerifySessionTenant
             return $next($request);
         }
 
-        // Se registra antes de destruir la sesión (ADR-039 §4.5): después,
-        // Auth::id() ya no resuelve nada y la fila quedaría sin actor. Se
-        // audita como 'logout': es el efecto observable real — la sesión
-        // deja de existir — y ADR-039 no define un evento propio para esta
-        // discrepancia.
-        $this->auditRecorder->record($user, 'logout');
+        // Hallazgo propio de la revisión de seguridad de 1.2b: el
+        // registro de auditoría y el cierre de la fila de `user_sessions`
+        // tienen que escribirse bajo el tenant REAL de la sesión
+        // ($sessionTenantId), no bajo el tenant resuelto por host de esta
+        // petición ($this->tenantContext->tenantId()). `BelongsToTenant`
+        // asigna `tenant_id` desde el `TenantContext` ACTIVO al crear la
+        // fila (el mismo `app.tenant_id` que aplica `TenantScope` en
+        // lectura). Sin este `runFor()`:
+        //   - `AuditLog::create()` insertaba con `tenant_id` = tenant del
+        //     host pero `actor_user_id` = usuario de OTRO tenant,
+        //     violando la FK compuesta `audit_logs_actor_fk (tenant_id,
+        //     actor_user_id) -> users (tenant_id, id)` — la petición
+        //     terminaba en 500 en vez de 401.
+        //   - Esa excepción interrumpía el método ANTES de
+        //     `Auth::guard('web')->logout()`/`session()->invalidate()`:
+        //     la sesión discrepante quedaba viva pese al aviso de
+        //     incoherencia.
+        //   - Y aunque `AuditLog::create()` no hubiera reventado, la
+        //     consulta de `UserSession` (filtrada por `TenantScope` al
+        //     tenant del host) nunca encontraba la fila real, así que
+        //     nunca se cerraba con `TenantIncoherente` (RN-AUTH-44): el
+        //     contador de incidentes de `operacion.md §B.5` se quedaba
+        //     siempre a cero.
+        if (is_int($sessionTenantId)) {
+            $sessionId = $request->session()->getId();
 
-        // funcional.md §B.4.6, RN-AUTH-31, RN-AUTH-44: 'tenant_incoherente'
-        // es la única razón de cierre que no ocurre en operación normal
-        // (operacion.md §B.5) — cualquier valor distinto de cero es un
-        // incidente.
-        UserSession::query()
-            ->where('session_id', $request->session()->getId())
-            ->whereNull('ended_at')
-            ->first()
-            ?->close(SessionEndReason::TenantIncoherente);
+            $this->tenantContext->runFor($sessionTenantId, function () use ($user, $sessionId): void {
+                // Se registra antes de destruir la sesión (ADR-039 §4.5):
+                // después, Auth::id() ya no resuelve nada y la fila
+                // quedaría sin actor. Se audita como 'logout': es el
+                // efecto observable real — la sesión deja de existir — y
+                // ADR-039 no define un evento propio para esta
+                // discrepancia.
+                $this->auditRecorder->record($user, 'logout');
+
+                // funcional.md §B.4.6, RN-AUTH-31, RN-AUTH-44:
+                // 'tenant_incoherente' es la única razón de cierre que no
+                // ocurre en operación normal (operacion.md §B.5) —
+                // cualquier valor distinto de cero es un incidente.
+                UserSession::query()
+                    ->where('session_id', $sessionId)
+                    ->whereNull('ended_at')
+                    ->first()
+                    ?->close(SessionEndReason::TenantIncoherente);
+            });
+        }
 
         Auth::guard('web')->logout();
         $request->session()->invalidate();

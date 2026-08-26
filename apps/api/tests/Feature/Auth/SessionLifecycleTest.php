@@ -125,6 +125,60 @@ test('CA-AUTH-101d: la expiración por inactividad cierra la sesión con inactiv
     });
 });
 
+// Hallazgo propio de la revisión de seguridad de 1.2b (RN-AUTH-31,
+// RN-AUTH-44). En tráfico real esta rama de VerifySessionTenant es una
+// SEGUNDA barrera: mientras `TenantScope` (User extends TenantModel) siga
+// vigente, `Auth::user()` nunca resuelve a un usuario de OTRO tenant que
+// el resuelto por host — así que la discrepancia con un usuario YA
+// resuelto solo se da si esa barrera falla alguna vez, que es exactamente
+// lo que esta reverificación existe para blindar (ADR-033 §2). `actingAs()`
+// (como ya hace `CA-AUTH-101c`) es la única forma de fijar el `Guard` sin
+// pasar por esa comprobación, y es la manera de ejercitar esta rama sin
+// depender de que `TenantScope`/RLS fallen de verdad.
+//
+// Antes del fix: `AuditLog::create()` escribía con `tenant_id` = tenant
+// del host pero `actor_user_id` = usuario de OTRO tenant, violando la FK
+// compuesta `audit_logs_actor_fk` — la petición terminaba en un 500 sin
+// controlar (no en el 401 documentado) y la excepción interrumpía el
+// método ANTES de invalidar la sesión, que quedaba viva.
+test('RN-AUTH-31/RN-AUTH-44: una discrepancia de tenant responde 401 (no 500), y audita/cierra bajo el tenant real de la sesión', function (): void {
+    [$tenantA, $userA, $passwordA] = provisionActiveUser('life-mismatch-a');
+    [$tenantB] = provisionActiveUser('life-mismatch-b');
+
+    // Sesión real de userA bajo tenant A: la fila de user_sessions que la
+    // reverificación tiene que encontrar y cerrar.
+    loginFor($tenantA->slug, $userA->email, $passwordA);
+
+    $sessionPublicId = app(TenantContext::class)->runFor(
+        $tenantA->id,
+        fn () => UserSession::query()->where('user_id', $userA->id)->firstOrFail()->public_id,
+    );
+
+    resetSessionState();
+
+    // actingAs() fija el Guard directamente (sin pasar por TenantScope) y,
+    // vía el override de TestCase, escribe pge_tenant_id = tenantA->id en
+    // sesión — el mismo estado observable que produciría un fallo real de
+    // TenantScope/RLS. La petición va contra el host de tenant B.
+    test()->actingAs($userA)
+        ->getJson(coreApiUrl($tenantB->slug, '/me'))
+        ->assertStatus(401);
+
+    app(TenantContext::class)->runFor($tenantA->id, function () use ($userA, $sessionPublicId): void {
+        $session = UserSession::query()->where('public_id', $sessionPublicId)->firstOrFail();
+        expect($session->ended_at)->not->toBeNull()
+            ->and($session->end_reason)->toBe(SessionEndReason::TenantIncoherente);
+
+        expect(
+            AuditLog::query()
+                ->where('auditable_type', 'user')
+                ->where('event', 'logout')
+                ->where('actor_user_id', $userA->id)
+                ->exists()
+        )->toBeTrue();
+    });
+});
+
 // CA-AUTH-102, INV-003, ADR-035, ADR-039 §4.5, ADR-040 §6 (revocación individual)
 test('CA-AUTH-102a: revocar una sesión individualmente queda auditada con session_id redactado', function (): void {
     [$tenant, $user, $password] = provisionActiveUser('life-102a');
