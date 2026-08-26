@@ -53,6 +53,24 @@ class UserSessionsController extends Controller
 
         $currentSessionId = $request->session()->getId();
 
+        // api.md §B.2: "device_known dice si esa sesión venía de un
+        // dispositivo YA reconocido" — no basta con que la fila tenga
+        // known_device_id (eso es cierto para TODAS las sesiones con
+        // cookie admitida, incluida la que acaba de crear el dispositivo).
+        // La sesión que dio de alta el dispositivo es, por construcción,
+        // la de `id` más bajo entre las que comparten ese
+        // known_device_id (funcional.md §B.4.5): esa, y solo esa, es la
+        // que corresponde al aviso de dispositivo nuevo.
+        $knownDeviceIds = $liveSessions->pluck('known_device_id')->filter()->unique()->values();
+
+        $firstSessionIdByDevice = $knownDeviceIds->isEmpty()
+            ? collect()
+            : UserSession::query()
+                ->whereIn('known_device_id', $knownDeviceIds)
+                ->selectRaw('known_device_id, MIN(id) as first_session_id')
+                ->groupBy('known_device_id')
+                ->pluck('first_session_id', 'known_device_id');
+
         $rows = [];
 
         foreach ($liveSessions as $session) {
@@ -63,6 +81,9 @@ class UserSessionsController extends Controller
 
                 continue;
             }
+
+            $isFirstSessionOnDevice = $session->known_device_id !== null
+                && (int) $firstSessionIdByDevice->get($session->known_device_id) === $session->id;
 
             $rows[] = [
                 'public_id' => $session->public_id,
@@ -77,7 +98,7 @@ class UserSessionsController extends Controller
                 ],
                 // RN-AUTH-47, OPEN-AUTH-13: siempre null en 1.2b.
                 'location' => $session->location_label,
-                'device_known' => $session->known_device_id !== null,
+                'device_known' => $session->known_device_id !== null && ! $isFirstSessionOnDevice,
             ];
         }
 

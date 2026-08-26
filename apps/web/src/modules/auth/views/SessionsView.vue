@@ -58,6 +58,26 @@ function deviceTypeLabel(type: UserSessionSummary['client']['device_type']): str
   return t(`auth.sessions.deviceType.${type}`)
 }
 
+/**
+ * Un único nodo de texto para las etiquetas de la fila (tipo de
+ * dispositivo + insignias), en vez de `<span>` contiguos: el formateador
+ * del proyecto colapsa el espacio en blanco entre elementos en línea
+ * consecutivos, y dos insignias a la vez quedaban pegadas sin separador.
+ */
+function deviceSummary(session: UserSessionSummary): string {
+  const parts = [deviceTypeLabel(session.client.device_type)]
+
+  if (session.current) {
+    parts.push(t('auth.sessions.current'))
+  }
+
+  if (!session.device_known) {
+    parts.push(t('auth.sessions.deviceUnknownBadge'))
+  }
+
+  return parts.join(' · ')
+}
+
 async function loadSessions(): Promise<void> {
   loading.value = true
   errorMessage.value = null
@@ -275,13 +295,7 @@ async function confirmRevokeOthers(): Promise<void> {
               >
                 <td class="py-2 pr-3">
                   <div>{{ deviceLabel(session) }}</div>
-                  <div class="text-muted-foreground text-xs">
-                    {{ deviceTypeLabel(session.client.device_type) }}
-                    <span v-if="session.current">· {{ t('auth.sessions.current') }}</span>
-                    <span v-if="!session.device_known"
-                      >· {{ t('auth.sessions.deviceUnknownBadge') }}</span
-                    >
-                  </div>
+                  <div class="text-muted-foreground text-xs">{{ deviceSummary(session) }}</div>
                 </td>
                 <td class="py-2 pr-3">{{ formatDate(session.started_at) }}</td>
                 <td class="py-2 pr-3">{{ formatDate(session.last_activity_at) }}</td>

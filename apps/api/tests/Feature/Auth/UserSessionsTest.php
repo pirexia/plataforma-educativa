@@ -419,3 +419,37 @@ test('CA-AUTH-092: los tres endpoints sin sesión responden 401; los DELETE sin 
         expect(UserSession::query()->where('user_id', $user->id)->whereNull('ended_at')->count())->toBe(1);
     });
 });
+
+// api.md §B.2: "device_known dice si esa sesión venía de un dispositivo
+// YA reconocido" — no basta con que la fila tenga known_device_id (eso
+// es cierto también para la sesión que acaba de crear el dispositivo).
+// Hallazgo propio (verificación en navegador real, issue #85): la
+// primera versión de esta lectura devolvía `known_device_id !== null`,
+// que es `true` en TODAS las sesiones con cookie admitida, incluida la
+// que disparó el aviso de dispositivo nuevo.
+test('api.md §B.2: device_known es false en la sesión que crea el dispositivo y true en la siguiente desde el mismo', function (): void {
+    [$tenant, $user, $password] = provisionActiveUser('sess-devknown');
+
+    $first = loginFor($tenant->slug, $user->email, $password);
+    $deviceCookie = $first->getCookie('pge_device', false)->getValue();
+    $cookie1 = sessionCookieValue($first);
+
+    $listing1 = withSessionCookie($cookie1)
+        ->getJson(coreApiUrl($tenant->slug, '/auth/sessions'))
+        ->assertOk();
+    expect($listing1->json('data.0.device_known'))->toBeFalse();
+
+    resetSessionState();
+    $second = test()->withCredentials()->withUnencryptedCookie('pge_device', $deviceCookie)
+        ->postJson(coreApiUrl($tenant->slug, '/auth/session'), ['email' => $user->email, 'password' => $password])
+        ->assertOk();
+    $cookie2 = sessionCookieValue($second);
+
+    $listing2 = withSessionCookie($cookie2)
+        ->getJson(coreApiUrl($tenant->slug, '/auth/sessions'))
+        ->assertOk();
+    $rows = collect($listing2->json('data'));
+
+    expect($rows->firstWhere('current', false)['device_known'])->toBeFalse();
+    expect($rows->firstWhere('current', true)['device_known'])->toBeTrue();
+});

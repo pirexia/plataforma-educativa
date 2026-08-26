@@ -91,6 +91,9 @@ marketing/build/
 .claude/settings.local.json
 .claude/cache/
 .claude/worktrees/
+# Artefactos de verificación manual con el MCP de Playwright (capturas,
+# logs de consola, snapshots de accesibilidad) — de trabajo, no de repo.
+.playwright-mcp/
 # .mcp.json SÍ se versiona: usa ${VARIABLE}, nunca el valor del token.
 # Si alguna vez contiene un secreto literal, descoméntalo de inmediato:
 # .mcp.json
