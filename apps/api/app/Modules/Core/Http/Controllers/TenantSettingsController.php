@@ -210,6 +210,9 @@ class TenantSettingsController extends Controller
      * datos.md §C.7.2 es el cerrojo final, pero fallar aquí primero da un
      * 422 legible en vez de una excepción de base de datos.
      */
+    /**
+     * @param  array<string, mixed>  $updates
+     */
     private function validateMfaAllowedMethods(array $updates, ValidationErrorBag $errors): void
     {
         if (! array_key_exists('mfa_allowed_methods', $updates)) {

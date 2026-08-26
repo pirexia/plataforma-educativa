@@ -483,6 +483,529 @@ namespace App\Models{
 	class IdeHelperUser {}
 }
 
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §A.2. Selective: `email` se redacta como `identifier` (dato
+ * personal directo, mismo criterio que `users.email`); `unlock_token_hash`
+ * lo redacta automáticamente el patrón global `*token*` sin declararlo.
+ *
+ * La creación de la fila es un evento `created` y el desbloqueo un
+ * `updated`, ambos por el *observer* de 0.9 — ningún código de este
+ * módulo llama a AuditRecorder para bloqueo/desbloqueo (funcional.md §10.1).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property string $email
+ * @property int|null $user_id
+ * @property int $failed_count
+ * @property \Illuminate\Support\Carbon $locked_at
+ * @property string|null $unlock_token_hash
+ * @property \Illuminate\Support\Carbon|null $unlock_token_expires_at
+ * @property \Illuminate\Support\Carbon|null $unlocked_at
+ * @property int|null $unlocked_by
+ * @property \App\Modules\Auth\Domain\UnlockReason|null $unlock_reason
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Models\User|null $unlockedByUser
+ * @property-read \App\Models\User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereEmail($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereFailedCount($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereLockedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUnlockReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUnlockTokenExpiresAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUnlockTokenHash($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUnlockedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUnlockedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperAccountLockout {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §A.1. Append-only: sin created_at/updated_at (usa
+ * attempted_at), sin borrado lógico (INV-004 no aplica: un registro de
+ * seguridad append-only no se "revierte"). No implementa Auditable a
+ * propósito: registrarla en audit_logs duplicaría cada fila y, en un
+ * ataque de fuerza bruta, inundaría la tabla de dos años de retención
+ * (funcional.md §10.2, datos.md §A.1).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $email
+ * @property int|null $user_id
+ * @property \App\Modules\Auth\Domain\LoginOutcome $outcome
+ * @property \Illuminate\Support\Carbon $attempted_at
+ * @property string|null $ip_address
+ * @property string|null $user_agent
+ * @property string|null $request_id
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereAttemptedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereEmail($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereIpAddress($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereOutcome($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereRequestId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereUserAgent($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereUserId($value)
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperLoginAttempt {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §C.4. **No implementa `Auditable`, a propósito**: es un
+ * artefacto transitorio de cinco minutos, mismo trato que
+ * `password_reset_tokens` (`§A.5`). Registrar su creación y su consumo
+ * escribiría dos filas de `audit_logs` por cada login con MFA para decir
+ * algo que el evento `login` ya dice mejor y una sola vez (funcional.md
+ * §C.10). El intento fallido va a `login_attempts`, no aquí.
+ *
+ * `session_id` **nunca sale por la API** (RN-AUTH-40) y es la única
+ * credencial que autoriza el desafío (RN-AUTH-53): se busca siempre por
+ * `(tenant_id, session_id)`, nunca por `public_id`.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $user_id
+ * @property string $session_id
+ * @property \App\Modules\Auth\Domain\MfaMethod $method
+ * @property string|null $code_hash
+ * @property \Illuminate\Support\Carbon|null $code_expires_at
+ * @property \Illuminate\Support\Carbon $expires_at
+ * @property int $attempts
+ * @property int $deliveries
+ * @property \Illuminate\Support\Carbon|null $consumed_at
+ * @property string|null $ip_address
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Models\User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge whereAttempts($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge whereCodeExpiresAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge whereCodeHash($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge whereConsumedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge whereDeliveries($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge whereExpiresAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge whereIpAddress($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge whereMethod($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge whereSessionId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperMfaChallenge {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §C.2. Un solo tipo de fila para el alta provisional
+ * (`confirmed_at NULL`) y para el factor confirmado — la misma entidad en
+ * un estado anterior, igual que una invitación no aceptada en `REQ-CORE`.
+ *
+ * Selective: `secret_encrypted` se declara secreto explícitamente además
+ * de encajar en el patrón global `*secret*` (mismo argumento que `§B.2`
+ * con `session_id`: depender solo de una coincidencia de nombre es
+ * depender de una coincidencia). `last_used_step`/`last_used_at` no se
+ * registran: cambian en cada login y no dicen nada que `login` no diga ya.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $user_id
+ * @property \App\Modules\Auth\Domain\MfaMethod $method
+ * @property string|null $secret_encrypted
+ * @property int|null $last_used_step
+ * @property \Illuminate\Support\Carbon|null $confirmed_at
+ * @property \Illuminate\Support\Carbon|null $expires_at
+ * @property int $confirmation_attempts
+ * @property \Illuminate\Support\Carbon|null $last_used_at
+ * @property bool $is_preferred
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Models\User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereConfirmationAttempts($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereConfirmedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereExpiresAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereIsPreferred($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereLastUsedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereLastUsedStep($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereMethod($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereSecretEncrypted($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperMfaFactor {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §C.3. Sin `public_id`: no se expone individualmente por
+ * ninguna API. Cuelga del usuario y no del factor (funcional.md §C.4.5).
+ *
+ * Selective: `code_hash` se declara secreto explícitamente, además de
+ * encajar en el patrón global `*recovery_code*` — un hash SHA-256 de un
+ * valor de ~50 bits es material atacable por fuerza bruta si se filtra, y
+ * `audit_logs` es exportable a CSV (`REQ-CORE-005`).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property int $user_id
+ * @property string $code_hash
+ * @property \Illuminate\Support\Carbon|null $used_at
+ * @property string|null $used_ip
+ * @property string $batch_id
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Models\User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode whereBatchId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode whereCodeHash($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode whereUsedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode whereUsedIp($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperMfaRecoveryCode {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §C.6.1. Traza *append-only* del restablecimiento de MFA por el
+ * administrador (RN-AUTH-66). `reason` se registra **con valor, a
+ * propósito** — es exactamente la información que `REQ-AUTH-003` exige
+ * conservar y `ADR-035` redactaría si viviera solo en `audit_logs.changes`.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property int $user_id
+ * @property string $reason
+ * @property int $factors_removed
+ * @property int $performed_by
+ * @property \Illuminate\Support\Carbon $performed_at
+ * @property string|null $request_id
+ * @property-read \App\Models\User|null $performedByUser
+ * @property-read \App\Models\User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaReset newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaReset newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaReset query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaReset whereFactorsRemoved($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaReset whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaReset wherePerformedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaReset wherePerformedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaReset whereReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaReset whereRequestId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaReset whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaReset whereUserId($value)
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperMfaReset {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §B.1. Selective: `device_token_hash` lo redacta automáticamente
+ * el patrón global `*token*` sin declararlo; `last_ip_address` se redacta
+ * como `identifier` por no estar en la lista de inclusión (paso 3 de
+ * `AuditChangeBuilder`). Sin `public_id` (§B.1): ningún endpoint de 1.2b
+ * devuelve un dispositivo como recurso propio, viaja dentro de la sesión.
+ *
+ * El alta (`created`) y el aviso (`updated` con `alerted_at`) quedan
+ * auditados sin ninguna llamada manual (funcional.md §B.10) — a diferencia
+ * de `UserSession`, este modelo no declara `auditExcludedEvents()`.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property int $user_id
+ * @property string $device_token_hash
+ * @property \Illuminate\Support\Carbon $first_seen_at
+ * @property \Illuminate\Support\Carbon $last_seen_at
+ * @property int $login_count
+ * @property string|null $label
+ * @property string|null $last_ip_address
+ * @property \Illuminate\Support\Carbon|null $alerted_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Models\User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereAlertedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereDeviceTokenHash($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereFirstSeenAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereLabel($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereLastIpAddress($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereLastSeenAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereLoginCount($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperUserKnownDevice {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §C.6. Excepción temporal nominal (RN-AUTH-68): `expires_at` es
+ * `NOT NULL` en el esquema — "no existe la exención permanente" no es una
+ * validación de aplicación, la garantiza el motor.
+ *
+ * Full: `reason` es contenido del centro sobre otra persona, no dato
+ * personal en sí (`ADR-035 §8`, mismo criterio que `roles.name`), aunque
+ * pueda contener información sensible según lo que se escriba
+ * (datos.md §C.11, punto 1) — el manual de administración debe advertirlo.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $user_id
+ * @property string $reason
+ * @property \Illuminate\Support\Carbon $expires_at
+ * @property int $granted_by
+ * @property \Illuminate\Support\Carbon|null $revoked_at
+ * @property int|null $revoked_by
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Models\User|null $grantedByUser
+ * @property-read \App\Models\User|null $revokedByUser
+ * @property-read \App\Models\User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption whereExpiresAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption whereGrantedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption whereReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption whereRevokedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption whereRevokedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperUserMfaExemption {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §C.5. Una fila por período de obligación (RN-AUTH-65): cumplir
+ * cierra la fila (`resolved_at`), volver a quedar sin factor abre otra
+ * con plazo completo. Sin `public_id`: no se expone individualmente.
+ *
+ * Full: sin ningún dato personal más allá de la relación con el usuario.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property int $user_id
+ * @property \Illuminate\Support\Carbon $obligated_since
+ * @property \Illuminate\Support\Carbon $grace_deadline_at
+ * @property \Illuminate\Support\Carbon|null $resolved_at
+ * @property string $trigger
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Models\User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation whereGraceDeadlineAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation whereObligatedSince($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation whereResolvedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation whereTrigger($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperUserMfaObligation {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §B.2. Complementaria de `sessions` del framework
+ * (funcional.md §B.2.2): `session_id` es la credencial portadora del
+ * navegador y NUNCA sale por la API, por eso se declara explícitamente
+ * como secreto — no lo cubre ningún patrón automático de
+ * `config('audit.secret_attribute_patterns')` (no contiene "token" ni
+ * "password" ni "secret"). `ip_address`/`user_agent`/`location_label` se
+ * redactan como `identifier` por no estar en la lista de inclusión.
+ *
+ * `auditExcludedEvents(): ['created']` — ADR-040 §4.3: el nacimiento de
+ * la fila, siempre dentro de la transacción del login (funcional.md
+ * §B.4.1), ya lo registra el evento `login` sobre `User` (ADR-039). El
+ * resto del ciclo de vida (revocación, los siete cierres de §B.4.6,
+ * borrado lógico) se sigue auditando entero por el mecanismo automático.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $user_id
+ * @property string $session_id
+ * @property \Illuminate\Support\Carbon $started_at
+ * @property string|null $ip_address
+ * @property string|null $user_agent
+ * @property string|null $client_browser
+ * @property string|null $client_platform
+ * @property \App\Modules\Auth\Domain\ClientDeviceType|null $client_device_type
+ * @property string|null $location_label
+ * @property int|null $known_device_id
+ * @property \Illuminate\Support\Carbon|null $ended_at
+ * @property \App\Modules\Auth\Domain\SessionEndReason|null $end_reason
+ * @property int|null $ended_by
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Models\User|null $endedByUser
+ * @property-read \App\Modules\Auth\Domain\Models\UserKnownDevice|null $knownDevice
+ * @property-read \App\Models\User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereClientBrowser($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereClientDeviceType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereClientPlatform($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereEndReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereEndedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereEndedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereIpAddress($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereKnownDeviceId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereLocationLabel($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereSessionId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereStartedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereUserAgent($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperUserSession {}
+}
+
 namespace App\Modules\Core\Domain\Models{
 /**
  * datos.md §A.4. Full: no contiene datos personales, solo qué se pidió,
@@ -565,12 +1088,14 @@ namespace App\Modules\Core\Domain\Models{
  * @property string|null $logo_object_key
  * @property string|null $favicon_object_key
  * @property string|null $login_background_object_key
- * @property int $session_timeout_minutes
  * @property int|null $created_by
  * @property int|null $updated_by
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property int $session_timeout_minutes
+ * @property array<array-key, mixed> $mfa_allowed_methods
+ * @property int $mfa_grace_period_days
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting onlyTrashed()
@@ -594,6 +1119,8 @@ namespace App\Modules\Core\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting whereLegalName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting whereLoginBackgroundObjectKey($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting whereLogoObjectKey($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting whereMfaAllowedMethods($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting whereMfaGracePeriodDays($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting wherePublicId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting whereSessionTimeoutMinutes($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting whereTaxId($value)
@@ -750,204 +1277,3 @@ namespace App\Support\Tenancy{
 	class IdeHelperTenant {}
 }
 
-
-namespace App\Modules\Auth\Domain\Models{
-/**
- * datos.md §A.2. Selective: `email` se redacta como `identifier`;
- * `unlock_token_hash` lo redacta el patrón global `*token*` sin
- * declararlo. La fila se conserva tras el desbloqueo (RN-AUTH-18).
- *
- * @property int $id
- * @property int $tenant_id
- * @property string $public_id
- * @property string $email
- * @property int|null $user_id
- * @property int $failed_count
- * @property \Illuminate\Support\Carbon $locked_at
- * @property string|null $unlock_token_hash
- * @property \Illuminate\Support\Carbon|null $unlock_token_expires_at
- * @property \Illuminate\Support\Carbon|null $unlocked_at
- * @property int|null $unlocked_by
- * @property \App\Modules\Auth\Domain\UnlockReason|null $unlock_reason
- * @property int|null $created_by
- * @property int|null $updated_by
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property \Illuminate\Support\Carbon|null $deleted_at
- * @property-read \App\Models\User|null $unlockedByUser
- * @property-read \App\Models\User|null $user
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout onlyTrashed()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereCreatedBy($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereDeletedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereEmail($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereFailedCount($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereLockedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout wherePublicId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereTenantId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUnlockReason($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUnlockTokenExpiresAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUnlockTokenHash($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUnlockedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUnlockedBy($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUpdatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUpdatedBy($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUserId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout withTrashed(bool $withTrashed = true)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout withoutTrashed()
- * @mixin \Eloquent
- */
-	#[\AllowDynamicProperties]
-	class IdeHelperAccountLockout {}
-}
-
-namespace App\Modules\Auth\Domain\Models{
-/**
- * datos.md §A.1. Append-only: sin created_at/updated_at (usa
- * attempted_at), sin borrado lógico. No implementa Auditable a propósito
- * (funcional.md §10.2).
- *
- * @property int $id
- * @property int $tenant_id
- * @property string $email
- * @property int|null $user_id
- * @property \App\Modules\Auth\Domain\LoginOutcome $outcome
- * @property \Illuminate\Support\Carbon $attempted_at
- * @property string|null $ip_address
- * @property string|null $user_agent
- * @property string|null $request_id
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereAttemptedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereEmail($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereIpAddress($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereOutcome($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereRequestId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereTenantId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereUserAgent($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereUserId($value)
- * @mixin \Eloquent
- */
-	#[\AllowDynamicProperties]
-	class IdeHelperLoginAttempt {}
-}
-
-
-namespace App\Modules\Auth\Domain\Models{
-/**
- * datos.md §B.1 (1.2b). Selective: `device_token_hash` lo redacta el
- * patrón global `*token*`; `last_ip_address` se redacta como
- * `identifier`. Sin `public_id`: no se expone como recurso propio.
- *
- * @property int $id
- * @property int $tenant_id
- * @property int $user_id
- * @property string $device_token_hash
- * @property \Illuminate\Support\Carbon $first_seen_at
- * @property \Illuminate\Support\Carbon $last_seen_at
- * @property int $login_count
- * @property string|null $label
- * @property string|null $last_ip_address
- * @property \Illuminate\Support\Carbon|null $alerted_at
- * @property int|null $created_by
- * @property int|null $updated_by
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property \Illuminate\Support\Carbon|null $deleted_at
- * @property-read \App\Models\User $user
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice onlyTrashed()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereAlertedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereCreatedBy($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereDeletedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereDeviceTokenHash($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereFirstSeenAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereLabel($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereLastIpAddress($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereLastSeenAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereLoginCount($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereTenantId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereUpdatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereUpdatedBy($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereUserId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice withTrashed(bool $withTrashed = true)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice withoutTrashed()
- * @mixin \Eloquent
- */
-	#[\AllowDynamicProperties]
-	class IdeHelperUserKnownDevice {}
-}
-
-namespace App\Modules\Auth\Domain\Models{
-/**
- * datos.md §B.2 (1.2b). Complementaria de `sessions` del framework.
- * `session_id` es la credencial portadora, declarada como secreto a mano
- * (auditSecretAttributes) — ningún patrón automático la cubre.
- * auditExcludedEvents(): ['created'] (ADR-040 §4.3).
- *
- * @property int $id
- * @property int $tenant_id
- * @property string $public_id
- * @property int $user_id
- * @property string $session_id
- * @property \Illuminate\Support\Carbon $started_at
- * @property string|null $ip_address
- * @property string|null $user_agent
- * @property string|null $client_browser
- * @property string|null $client_platform
- * @property \App\Modules\Auth\Domain\ClientDeviceType|null $client_device_type
- * @property string|null $location_label
- * @property int|null $known_device_id
- * @property \Illuminate\Support\Carbon|null $ended_at
- * @property \App\Modules\Auth\Domain\SessionEndReason|null $end_reason
- * @property int|null $ended_by
- * @property int|null $created_by
- * @property int|null $updated_by
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property \Illuminate\Support\Carbon|null $deleted_at
- * @property-read \App\Models\User|null $endedByUser
- * @property-read \App\Modules\Auth\Domain\Models\UserKnownDevice|null $knownDevice
- * @property-read \App\Models\User $user
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession onlyTrashed()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereClientBrowser($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereClientDeviceType($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereClientPlatform($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereCreatedBy($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereDeletedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereEndReason($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereEndedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereEndedBy($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereIpAddress($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereKnownDeviceId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereLocationLabel($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession wherePublicId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereSessionId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereStartedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereTenantId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereUpdatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereUpdatedBy($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereUserAgent($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereUserId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession withTrashed(bool $withTrashed = true)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession withoutTrashed()
- * @mixin \Eloquent
- */
-	#[\AllowDynamicProperties]
-	class IdeHelperUserSession {}
-}

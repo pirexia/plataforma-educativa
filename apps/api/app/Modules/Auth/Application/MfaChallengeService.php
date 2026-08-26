@@ -68,6 +68,9 @@ final class MfaChallengeService
      * `POST /auth/mfa-challenges`, `§C.4.4.1`. No reinicia intentos ni
      * caducidad (`RN-AUTH-54`).
      *
+     *
+     * @return array<string, mixed>
+     *
      * @throws ApiException gone() (410), validation() (422)
      */
     public function changeMethod(Request $request, MfaMethod $newMethod): array
@@ -222,7 +225,11 @@ final class MfaChallengeService
 
         $totp = $factors->firstWhere('method', MfaMethod::Totp);
 
-        return $totp?->method ?? $factors->first()->method;
+        if ($totp !== null) {
+            return $totp->method;
+        }
+
+        return $factors->first()->method;
     }
 
     /**
