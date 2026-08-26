@@ -26,6 +26,12 @@ Schedule::job(new PurgeExpiredIdempotencyKeys)->daily();
 Schedule::command('auth:purge-maintenance')->daily();
 Schedule::command('auth:close-expired-lockouts')->everyFiveMinutes();
 
+// 1.2b, funcional.md §B.4.7, operacion.md §B.3.1/§B.6: consolidador de
+// user_sessions huérfanas, cada 15 minutos (no cada 5 como los bloqueos:
+// una sesión huérfana no ocupa ningún hueco de índice único, el listado
+// ya la cierra perezosamente en cuanto alguien mira).
+Schedule::command('auth:close-orphaned-sessions')->everyFifteenMinutes();
+
 // Issue #73: sin esto, un job de correo de REQ-AUTH que agota sus 5
 // reintentos (SendPasswordResetEmail/SendAccountLockedEmail, con un token
 // de un solo uso en el payload) se queda en failed_jobs sin fecha de

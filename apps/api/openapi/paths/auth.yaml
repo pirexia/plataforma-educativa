@@ -1,10 +1,12 @@
-# REQ-AUTH (paso 1.2). Convenciones transversales en
+# REQ-AUTH (paso 1.2, ampliado en 1.2b). Convenciones transversales en
 # docs/adr/ADR-038-convenciones-api-rest.md — este fichero no las repite,
 # solo las aplica. Todos los endpoints bajo /api/v1, referenciados desde
 # apps/api/openapi.yaml. Contrato completo en docs/modulos/REQ-AUTH/api.md.
 #
-# api.md §7: nueve endpoints, seis anónimos — la mayor superficie anónima
-# del producto. Todos llevan límite de tasa (operacion.md §6).
+# api.md §7/§B.5: trece endpoints, seis anónimos — la mayor superficie
+# anónima del producto no crece con 1.2b. Todos llevan límite de tasa
+# (operacion.md §6), salvo los tres de /auth/sessions (api.md §B.1: sesión
+# obligatoria, así que no amplían la superficie anónima que defender).
 
 paths:
   /api/v1/auth/csrf-cookie:
@@ -273,3 +275,101 @@ paths:
         '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+
+  /api/v1/auth/sessions:
+    get:
+      operationId: listAuthSessions
+      summary: Mis sesiones activas (1.2b, REQ-AUTH-005 punto 3)
+      description: >
+        api.md §B.2. Sin permiso — por identidad del portador de la
+        cookie (RN-AUTH-41), igual que /auth/session y
+        /auth/password-changes. Solo las sesiones del usuario
+        autenticado; no admite parámetro de usuario. Cierra
+        perezosamente, como única escritura de este GET, las filas cuya
+        sesión ya no existe en el framework (CA-AUTH-084).
+      tags: [Auth / Sesión]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: sort
+          in: query
+          description: "started_at|-started_at|last_activity_at|-last_activity_at. Por defecto -last_activity_at."
+          schema: { type: string, enum: [started_at, -started_at, last_activity_at, -last_activity_at] }
+        - $ref: '../components.yaml#/components/parameters/PageParam'
+        - $ref: '../components.yaml#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: Colección paginada por página (unidades de sesiones por usuario, no tabla de alto crecimiento).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/UserSession' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    delete:
+      operationId: deleteAuthSessions
+      summary: Cierre de sesión en todos los dispositivos (1.2b, REQ-AUTH-005 punto 2)
+      description: >
+        api.md §B.4. Sin permiso — por identidad. Un solo endpoint con
+        un parámetro de ámbito, en vez de dos llamadas del cliente, para
+        que el cierre sea atómico (RN-AUTH-43).
+      tags: [Auth / Sesión]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: scope
+          in: query
+          description: >
+            others (por defecto): cierra todas salvo la actual. all:
+            cierra todas, incluida la actual — es el punto 2 del
+            requisito leído literalmente. El valor por defecto es el
+            que no expulsa a quien llama.
+          schema: { type: string, enum: [others, all], default: others }
+      responses:
+        '204':
+          description: Cerradas (o no había ninguna que cerrar — mismo resultado, CA-AUTH-091).
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '403':
+          description: Token CSRF ausente o inválido.
+        '419':
+          description: Token CSRF ausente o inválido.
+
+  /api/v1/auth/sessions/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    delete:
+      operationId: deleteAuthSession
+      summary: Revocar una sesión concreta (1.2b, REQ-AUTH-005 punto 3)
+      description: >
+        api.md §B.3. Sin permiso — por identidad; la comprobación de
+        propiedad va en la consulta (RN-AUTH-41), nunca en un `if`
+        posterior. Revocar la sesión actual está permitido y equivale a
+        un logout (CA-AUTH-086). El efecto es inmediato: se borra la
+        fila de `sessions`, sin depender de ningún middleware nuevo.
+      tags: [Auth / Sesión]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204':
+          description: Sesión revocada.
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '404':
+          description: >
+            Inexistente, de otro usuario del mismo tenant o de otro
+            tenant — cuerpo idéntico en los tres casos (RN-AUTH-41,
+            ADR-038 §6.4, CA-AUTH-087). Nunca 403: eso confirmaría que
+            el recurso existe.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '403':
+          description: Token CSRF ausente o inválido.
+        '419':
+          description: Token CSRF ausente o inválido.

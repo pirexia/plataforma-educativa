@@ -65,6 +65,35 @@
       "submit": "Save new password",
       "submitting": "Saving…",
       "success": "Your password has been updated."
+    },
+    "sessions": {
+      "title": "My active sessions",
+      "intro": "These are the devices currently signed in to your account. You can close any you don't recognise.",
+      "loading": "Loading your sessions…",
+      "columnDevice": "Device",
+      "columnStarted": "Started",
+      "columnLastActivity": "Last activity",
+      "columnIp": "IP address",
+      "columnActions": "Actions",
+      "current": "This session",
+      "deviceUnknownBadge": "Unrecognised device",
+      "revoke": "Sign out",
+      "revoking": "Signing out…",
+      "confirmRevoke": "Sign out of this session?",
+      "confirmRevokeCurrent": "You're about to sign out of this very session. You'll need to sign in again.",
+      "confirmYes": "Yes, sign out",
+      "confirmCancel": "Cancel",
+      "revokeOthers": "Sign out of all other sessions",
+      "confirmRevokeOthers": "Sign out of all other sessions? You'll stay signed in here.",
+      "revokeOthersSuccess": "The other sessions have been closed.",
+      "revokedSuccess": "Session closed.",
+      "deviceType": {
+        "escritorio": "Desktop",
+        "movil": "Mobile",
+        "tableta": "Tablet",
+        "bot": "Bot",
+        "desconocido": "Unknown"
+      }
     }
   }
 }

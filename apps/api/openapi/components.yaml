@@ -329,6 +329,34 @@ components:
           nullable: true
           description: public_id de quien desbloqueó, o null (caducidad/correo, RN-AUTH-18).
 
+    UserSession:
+      type: object
+      description: >
+        REQ-AUTH/api.md §B.2 (1.2b). Una sesión activa del usuario
+        autenticado. Nunca lleva el identificador de sesión del framework
+        ni material de la cookie de dispositivo (RN-AUTH-40).
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        current:
+          type: boolean
+          description: true en la sesión desde la que se hace la petición. Exactamente una fila lo lleva.
+        started_at: { type: string, format: date-time }
+        last_activity_at: { type: string, format: date-time }
+        ip_address: { type: string, nullable: true, description: IP completa del propio titular, sin enmascarar. }
+        client:
+          type: object
+          properties:
+            browser: { type: string, description: "'desconocido' si el User-Agent es irreconocible." }
+            platform: { type: string }
+            device_type: { type: string, enum: [escritorio, movil, tableta, bot, desconocido] }
+        location:
+          type: string
+          nullable: true
+          description: Siempre null en 1.2b (RN-AUTH-47, OPEN-AUTH-13). No es un error ni un campo ausente.
+        device_known:
+          type: boolean
+          description: Si esta sesión venía de un dispositivo ya reconocido para la cuenta.
+
     PublicId:
       type: string
       format: ulid

@@ -5,6 +5,7 @@ namespace App\Modules\Auth\Application;
 use App\Models\User;
 use App\Modules\Auth\Domain\AccountLockService;
 use App\Modules\Auth\Domain\PasswordResetTokenRepository;
+use App\Modules\Auth\Domain\SessionEndReason;
 use App\Modules\Auth\Domain\SessionRevoker;
 use App\Modules\Auth\Domain\UnlockReason;
 use App\Support\Api\ApiException;
@@ -58,7 +59,7 @@ final class PasswordResetService
                 $this->lockService->lift($lockout, UnlockReason::Correo, null);
             }
 
-            $this->sessionRevoker->revokeAllForUser($user);
+            $this->sessionRevoker->revokeAllForUser($user, SessionEndReason::CambioCredencial);
         });
     }
 }

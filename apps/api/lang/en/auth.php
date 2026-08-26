@@ -16,6 +16,7 @@ return [
         ],
         'current_password_incorrect' => 'The current password is incorrect.',
         'lockout_already_unlocked' => 'This lockout has already been lifted.',
+        'session_already_closed' => 'This session is already closed.',
     ],
 
     'mail' => [
@@ -39,6 +40,16 @@ return [
             'greeting' => 'Hello, :name.',
             'body' => 'Your password at :tenant has just been changed.',
             'warning' => 'If this was not you, contact your school administration as soon as possible.',
+        ],
+        'new_device_login' => [
+            'subject' => 'New sign-in to your account at :tenant',
+            'greeting' => 'Hello, :name.',
+            'body' => 'Your account at :tenant was just accessed from a device we had not seen before, on :time.',
+            'detail' => 'Sign-in details: :client, from IP address :ip.',
+            'location_line' => 'Approximate location: :location.',
+            'what_to_do' => 'If this was you, there is nothing else to do. If you do not recognise this sign-in, review your active sessions and change your password as soon as possible.',
+            'cta' => 'Review my active sessions',
+            'unknown_client' => 'an unknown device',
         ],
     ],
 

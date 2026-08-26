@@ -24,4 +24,16 @@ trait HasAuditableAttributes
     {
         return $this->auditSecretAttributes;
     }
+
+    /**
+     * ADR-040 §4.1: cuerpo literal `[]`, no una propiedad del modelo — los
+     * modelos existentes no declaran nada y no cambian de comportamiento.
+     * Solo `UserSession` sobrescribe este método (ADR-040 §4.3).
+     *
+     * @return array<int, string>
+     */
+    public function auditExcludedEvents(): array
+    {
+        return [];
+    }
 }

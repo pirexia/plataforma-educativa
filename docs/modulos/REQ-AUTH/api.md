@@ -1,5 +1,7 @@
 # REQ-AUTH · API
 
+> **Estructura**: las secciones **§1 a §11** son el paso **1.2**, cerrado el 2026-08-25. La **Parte B** (`§B.1` en adelante) es el paso **1.2b** (`funcional.md` Parte B), **pendiente de aprobación**.
+
 > Alcance: paso **1.2**. La frontera de qué entra y qué no está en `funcional.md §1`. Prefijo `/api/v1`, resolución de tenant por host antes de cualquier consulta (`ADR-033 §2`).
 >
 > Convenciones transversales de **`ADR-038`**: envoltura, paginación, filtrado, formato de error, versionado, idempotencia y semántica de `PATCH`/`PUT`. Este documento no las repite; señala solo dónde este módulo las usa de forma menos obvia (§9).
@@ -97,7 +99,7 @@ Logout. Invalida la sesión, borra su fila de `sessions`, regenera el token CSRF
 - **Errores**: 429; `403`/`419` por CSRF
 - **Sin `401`**, deliberadamente: cerrar una sesión que ya no existe **no es un error** (`CA-AUTH-017`). Devolver `401` obligaría a la SPA a tratar como fallo el caso más normal del mundo —pulsar «salir» con la sesión ya expirada— y a envolverlo en un `try/catch` que oculta fallos de verdad.
 
-> **Fuera de 1.2**: `GET /auth/sessions` (listado de sesiones activas) y `DELETE /auth/sessions` (cierre en todos los dispositivos) son `REQ-AUTH-005` puntos 2-3, paso **1.2b** ([#59](https://github.com/pirexia/plataforma-educativa/issues/59)).
+> **Fuera de 1.2**: `GET /auth/sessions` (listado de sesiones activas) y `DELETE /auth/sessions` (cierre en todos los dispositivos) son `REQ-AUTH-005` puntos 2-3, paso **1.2b** ([#59](https://github.com/pirexia/plataforma-educativa/issues/59)). **Especificados en la Parte B de este documento** (`§B.2` a `§B.4`).
 
 ---
 
@@ -393,3 +395,199 @@ Emitidos y consumidos: `funcional.md §8`. Ninguno se expone por API en 1.2.
 ## 11. Webhooks
 
 Ninguno. La notificación saliente de eventos de seguridad hacia sistemas de terceros no está requerida en `REQ-AUTH` y sería, además, una decisión con implicaciones de protección de datos propias.
+
+---
+---
+
+# Parte B · Paso 1.2b · API
+
+> Alcance: paso **1.2b** (`funcional.md` Parte B). **Tres endpoints nuevos**, todos bajo `/api/v1/auth/sessions`, todos **por identidad del portador de la cookie** y **ninguno con permiso declarado**.
+>
+> Mismas convenciones transversales de `ADR-038` que la Parte A; este documento solo señala dónde 1.2b las usa de forma menos obvia (`§B.7`).
+>
+> **Estado**: propuesta, pendiente de `funcional.md §B.14`.
+
+---
+
+## B.1 Reglas generales: qué cambia respecto de §1
+
+Casi nada, y eso es señal de que el paso encaja donde debe. Solo tres líneas de la tabla de §1 se leen distinto:
+
+| Aspecto | 1.2b |
+|---------|------|
+| Autorización | Los tres endpoints son **por identidad**, como `DELETE /auth/session` y `POST /auth/password-changes`. **Ningún permiso nuevo** (`permisos.md §B.1`). El `401` sin sesión lo lanza el controlador con `ApiException::unauthenticated()`, que es el patrón que ya sigue `PasswordChangesController` |
+| Aislamiento | Además de RLS y del *scope* de tenant, **el `user_id` del solicitante entra en el `WHERE`** (`RN-AUTH-41`). Una sesión de otro usuario del mismo tenant responde `404` exactamente igual que una de otro tenant: la comprobación de propiedad no es una capa de autorización aparte, es parte de la consulta |
+| Límite de tasa | **Ninguno nuevo.** Los tres exigen sesión, así que no amplían la superficie anónima que `operacion.md §6` defiende. Los `429` que puedan aparecer son los del limitador global, no de un *bucket* propio |
+| Módulo desactivado | Igual que la Parte A: **ninguna ruta lleva `module-enabled`** (`CA-AUTH-078` cubre también estas tres) |
+| OpenAPI | Los tres, en `apps/api/openapi/paths/auth.yaml`, antes del merge (`CLAUDE.md §10`) |
+
+### B.1.1 Tipos de error: **1.2b no añade ninguno**
+
+1.2 tuvo que ampliar el catálogo cerrado de `ADR-038 §6.2` con `urn:pge:error:account-locked`, y lo justificó. **1.2b no amplía nada**: los cuatro estados que usa —`401`, `404`, `409`, `422`— ya tienen su `type` y su método en `App\Support\Api\ApiException` (`unauthenticated()`, `notFound()`, `conflict()`, `validation()`).
+
+Se dice en voz alta porque la tentación era un `urn:pge:error:session-already-closed` para el `409`. No hace falta: `ADR-038 §6.3` ya obliga a que el cuerpo lleve `detail` traducido, y el cliente que llama a este endpoint sabe qué estaba intentando hacer. Un `type` propio se justifica cuando el cliente necesita **ramificar** sin analizar texto —que es lo que pasaba con «cuenta bloqueada» frente a «credenciales incorrectas»—, y aquí no hay dos pantallas que distinguir.
+
+---
+
+## B.2 `GET /api/v1/auth/sessions` — mis sesiones activas (`REQ-AUTH-005` punto 3)
+
+Las sesiones vivas del **usuario autenticado**. No admite parámetro de usuario, ni existe forma de pedir las de otro (`RN-AUTH-41`).
+
+- **Permiso**: ninguno declarado — **por identidad**.
+- **Cabeceras**: sesión válida. Sin `X-XSRF-TOKEN` (es `GET`).
+- **Parámetros de consulta**
+
+| Parámetro | Tipo | Nota |
+|-----------|------|------|
+| `sort` | `started_at\|-started_at\|last_activity_at\|-last_activity_at` | Por defecto `-last_activity_at` |
+| `page`, `per_page` | int | Por defecto 25, máximo 100 |
+
+  **No hay filtro `status`.** El recurso son las sesiones **activas**; una sesión cerrada no es un estado de este listado, es una fila que dejó de pertenecer a él. Añadir `?status=cerradas` convertiría el panel en un historial de accesos, que es lo que `funcional.md §B.1.2` deja fuera del paso y lo que `permisos.md §6` advirtió que necesita su propia decisión de permisos.
+
+- **Respuesta 200**
+
+```json
+{
+  "data": [
+    {
+      "public_id": "01J8...",
+      "current": true,
+      "started_at": "2026-08-25T08:03:11Z",
+      "last_activity_at": "2026-08-25T09:41:02Z",
+      "ip_address": "88.1.2.3",
+      "client": {
+        "browser": "Chrome",
+        "platform": "Windows",
+        "device_type": "escritorio"
+      },
+      "location": null,
+      "device_known": true
+    }
+  ],
+  "meta": { "current_page": 1, "per_page": 25, "total": 3, "last_page": 1 }
+}
+```
+
+Notas sobre el recurso, todas con consecuencia:
+
+- **`current`** es derivado, no una columna: `true` en la fila cuyo `session_id` coincide con el de la petición en curso. **Exactamente una** fila lo lleva (`CA-AUTH-082`). Es lo que permite a la SPA avisar antes de que alguien cierre su propia sesión sin darse cuenta.
+- **`last_activity_at`** no sale de `user_sessions`: se lee de `sessions.last_activity` uniendo por el identificador de sesión (`datos.md §B.2`, «sin columna de última actividad»). Es la única razón por la que el listado toca la tabla del framework, y la toca **solo para leer**.
+- **`ip_address`** se devuelve **completa**, no enmascarada. Es la IP del propio titular, mostrada solo a él, y enmascararla («88.1.2.\*») destruiría justo la información que le permite decir «esa no es mi conexión». Consecuencia que hay que aceptar: quien secuestre una sesión ve el historial de IP de las demás sesiones de esa persona. Es estrictamente menos de lo que ya obtiene con la sesión secuestrada.
+- **`location`** es **siempre `null` en 1.2b** (`RN-AUTH-47`, `OPEN-AUTH-13`). Se devuelve el campo en vez de omitirlo para que el cliente no tenga que cambiar de forma cuando se resuelva la pregunta abierta; el cliente debe tratar `null` como «desconocida» y no pintar nada, nunca como un error.
+- **`device_known`** dice si esa sesión venía de un dispositivo ya reconocido. Es lo que da sentido a la fila para el usuario: una sesión con `device_known: false` es exactamente aquella de la que se le avisó por correo.
+- **`client.device_type`** es un enumerado en el idioma del dominio del código (`ADR-038 §3.2`): `escritorio`, `movil`, `tableta`, `bot`, `desconocido`. Lo traduce el cliente por catálogo, y **debe tener rama por defecto** (`ADR-038 §7.3`): un valor que no conozca se muestra en crudo, nunca rompe la tabla.
+- **No aparecen, en ningún caso**: el identificador de sesión, el *payload*, el valor o el hash de la cookie `pge_device`, ni el `User-Agent` crudo. El `User-Agent` se omite a propósito aunque esté en la tabla: es ruido para el usuario y una huella para quien lea la respuesta (`RN-AUTH-40`, `CA-AUTH-083`).
+
+- **Efecto colateral**: el listado **cierra perezosamente** las filas cuya sesión ya no existe en `sessions` (`funcional.md §B.4.2` punto 3). Es la única escritura de un `GET` en todo el módulo, y se anota aquí porque una revisión razonable la señalaría: es reconciliación de estado propio, no una acción del usuario, y sigue el precedente exacto del cierre perezoso de bloqueos vencidos de `funcional.md §4.4`.
+
+- **Errores**: `401` (sin sesión), `422` (parámetro de consulta inválido)
+- **Paginación**: por página, no por cursor (`ADR-038 §4.2`): un usuario tiene unidades de sesiones, no una tabla de alto crecimiento
+- **Idempotencia**: no procede (es `GET`)
+
+---
+
+## B.3 `DELETE /api/v1/auth/sessions/{public_id}` — revocar una sesión (`REQ-AUTH-005` punto 3)
+
+- **Permiso**: ninguno declarado — **por identidad**. La comprobación de propiedad va **en la consulta**, no en un `if` posterior.
+- **Cabeceras**: sesión válida; `X-XSRF-TOKEN` obligatoria (`RN-AUTH-29`)
+- **Efecto, en una transacción**: se borra la fila de `sessions` y se cierra la de `user_sessions` con `ended_at`, `end_reason = 'revocada_usuario'` y `ended_by` = el solicitante. **La fila se conserva**, igual que la de un bloqueo levantado (`RN-AUTH-18`): `DELETE` describe la desaparición de **la sesión**, no la de la fila.
+- **Respuesta 204**
+- **Errores**
+
+| Estado | `type` | Cuándo |
+|--------|--------|--------|
+| `401` | `urn:pge:error:unauthenticated` | Sin sesión |
+| `404` | `urn:pge:error:not-found` | Inexistente, **de otro usuario del mismo tenant**, o **de otro tenant**. **Cuerpo idéntico en los tres casos** (`RN-AUTH-41`, `ADR-038 §6.4`, `CA-AUTH-087`) |
+| `409` | `urn:pge:error:conflict` | La sesión ya estaba cerrada |
+| `403`/`419` | | Token CSRF ausente o inválido |
+
+**Por qué `404` y no `403` cuando la sesión es de otro usuario del mismo tenant.** `ADR-038 §6.4` lo fija para recursos de otro tenant, y aquí se extiende dentro del mismo tenant por el mismo motivo: `403` significa «existe, pero no puedes», y eso convierte el endpoint en un oráculo con el que un usuario del centro podría comprobar si un `public_id` corresponde a una sesión viva de otra persona. `404` no dice nada.
+
+**Revocar la sesión actual está permitido** (`funcional.md §B.4.3` punto 7): responde `204`, destruye la sesión y caduca la cookie, como el logout. No es un caso especial en el contrato; sí lo es en la SPA, que sabe cuál marcó `current` y redirige al login.
+
+- **Idempotencia**: no procede. Un segundo `DELETE` sobre la misma sesión responde `409`, que es el comportamiento correcto y no un duplicado silencioso — mismo criterio que §9.3
+
+---
+
+## B.4 `DELETE /api/v1/auth/sessions` — cierre en todos los dispositivos (`REQ-AUTH-005` punto 2)
+
+- **Permiso**: ninguno declarado — **por identidad**.
+- **Cabeceras**: sesión válida; `X-XSRF-TOKEN` obligatoria
+- **Parámetros de consulta**
+
+| Parámetro | Tipo | Por defecto | Efecto |
+|-----------|------|-------------|--------|
+| `scope` | `others\|all` | **`others`** | `others`: cierra todas **salvo la actual**. `all`: cierra **todas, incluida la actual** |
+
+- **Efecto, en una transacción**: se borran las filas de `sessions` correspondientes y se cierran las de `user_sessions` con `end_reason = 'revocada_usuario'` y `ended_by` = el solicitante. Con `scope=all` se destruye además la sesión en curso y se caduca su cookie.
+- **Respuesta 204**, también cuando no había ninguna otra sesión que cerrar (`CA-AUTH-091`). Cerrar un conjunto vacío no es un error, por el mismo argumento con el que §2 hizo idempotente el logout.
+- **Errores**: `401`; `422` si `scope` no es uno de los dos valores; `403`/`419` por CSRF
+- **Idempotencia**: no procede
+
+**Por qué el ámbito va en un parámetro de consulta y no en dos endpoints.** Se consideraron las tres formas:
+
+| Forma | Por qué no, o por qué sí |
+|-------|--------------------------|
+| **Dos llamadas del cliente**: `DELETE /auth/sessions` (las demás) + `DELETE /auth/session` (logout) | Funciona y no inventa semántica. Pero deja el punto 2 del requisito —«cierre de sesión en todos los dispositivos»— sin un endpoint que lo cumpla, repartido entre dos y sin atomicidad. Un cliente que haga la primera y falle en la segunda deja al usuario creyendo que cerró todo |
+| **Endpoint aparte** (`POST /auth/session-purges` o similar) | Un recurso nuevo para expresar un adverbio. `ADR-038` no premia eso |
+| **`scope` en la cadena de consulta** ✔ | Una sola operación, atómica, con el requisito cumplido literalmente. Y el valor por defecto es el que **no** expulsa a quien llama: un cliente que se olvide del parámetro nunca se echa a sí mismo del sistema (`RN-AUTH-43`) |
+
+Un parámetro de consulta que modifica el alcance de un `DELETE` es poco habitual, y por eso se argumenta en vez de darse por bueno. La alternativa —cuerpo en un `DELETE`— está desaconsejada y no se usa en ningún endpoint del producto.
+
+---
+
+## B.5 Superficie del módulo tras 1.2b
+
+Amplía la tabla de §7, que sigue siendo el resumen correcto del paso 1.2.
+
+| Método y ruta | Auth | Permiso | Éxito |
+|---------------|------|---------|-------|
+| `GET /api/v1/auth/sessions` | Sesión (por identidad) | — | 200 |
+| `DELETE /api/v1/auth/sessions/{public_id}` | Sesión (por identidad) | — | 204 |
+| `DELETE /api/v1/auth/sessions` | Sesión (por identidad) | — | 204 |
+
+**Trece endpoints en total, seis anónimos.** El número de endpoints anónimos **no cambia**, y es el dato relevante: 1.2b crece la superficie del módulo un 30 % sin añadir ni un endpoint a la superficie que hay que defender sin usuario. Cualquier endpoint anónimo que se añada a este módulo en el futuro sigue teniendo que justificarse en la revisión de seguridad (§7).
+
+---
+
+## B.6 Cadena de *middleware* y cookies
+
+**La cadena de §8 no cambia.** Ni un *middleware* nuevo, ni un cambio de orden. Merece decirse porque la alternativa evidente —comprobar en cada petición si la sesión ha sido revocada— habría añadido una posición a una cadena que atraviesa **todas** las peticiones del producto; el diseño de `RN-AUTH-42` (borrar la fila de `sessions`) la hace innecesaria.
+
+**Una cookie nueva en las respuestas del módulo**, y solo en la del login:
+
+| Cookie | Cuándo se emite | Atributos |
+|--------|-----------------|-----------|
+| `pge_device` | En la respuesta `200` de `POST /auth/session`, **solo** cuando el dispositivo no se reconoce | `HttpOnly`, `Secure`, `SameSite=Lax`, **sin `Domain`** (host-only), 365 días (`RN-AUTH-45`) |
+
+**No se emite en ninguna respuesta anónima**, y en particular **no** en `GET /auth/csrf-cookie` (`funcional.md §B.6.2`). Un identificador persistente de navegador entregado antes de autenticarse es una cookie de seguimiento, no de seguridad.
+
+**No se añade a las excepciones de `EncryptCookies`**: va cifrada como todas, aunque su valor ya sea opaco.
+
+---
+
+## B.7 Convenciones transversales: dónde 1.2b se aparta o matiza
+
+### B.7.1 Un `GET` que escribe
+
+`GET /auth/sessions` cierra filas caducadas al pasar (`§B.2`). No es un `GET` que cambie el estado observable por el cliente —el resultado es idéntico con o sin ese efecto—, sino reconciliación de estado interno, y por eso no rompe la semántica de `ADR-038`. Se documenta porque es la única de todo el módulo y una revisión razonable la señalaría.
+
+### B.7.2 Sin `Idempotency-Key`, otra vez
+
+`ADR-038 §8.1`, mismo criterio de §9.3: la cabecera es obligatoria donde un reintento duplicaría un efecto irreversible o cobrable. Revocar una sesión ya revocada responde `409`; revocar un conjunto vacío responde `204`. Ninguno de los dos es un duplicado silencioso.
+
+### B.7.3 `null` no es un error
+
+`location` viaja como `null` en todas las respuestas de 1.2b. El cliente **no** debe tratarlo como fallo ni como campo ausente: es el hueco declarado de `OPEN-AUTH-13`. Se anota porque es exactamente el tipo de contrato que un cliente escrito con prisa convierte en un `Cannot read property of null`.
+
+### B.7.4 Enumerados
+
+`end_reason` y `client.device_type` son cadenas en minúsculas con `_`, en el idioma del dominio del código (`ADR-038 §3.2`, §9.5). `end_reason` **no se expone en 1.2b** —el listado solo devuelve sesiones vivas—, pero está en el contrato de datos y lo consumirá 1.6.
+
+---
+
+## B.8 Eventos de dominio y webhooks
+
+Dos eventos nuevos publicados, `SessionRevoked` y `NewDeviceDetected` (`funcional.md §B.8.2`). **Ninguno se expone por API**, igual que los siete de §10.
+
+**Webhooks: ninguno**, por el mismo motivo de §11 y con un agravante propio: notificar a un tercero que una persona ha iniciado sesión desde un dispositivo nuevo es enviarle un dato de comportamiento, no un evento de negocio.

@@ -42,6 +42,14 @@ const router = createRouter({
       name: 'password-change',
       component: () => import('@/modules/auth/views/PasswordChangeView.vue'),
     },
+    // 1.2b, funcional.md §B.11: misma categoría que /cuenta/contrasena —
+    // con sesión, sin navegación, sin depender del layout de 1.8 ni del
+    // design system de 1.7.
+    {
+      path: '/cuenta/sesiones',
+      name: 'sessions',
+      component: () => import('@/modules/auth/views/SessionsView.vue'),
+    },
   ],
 })
 

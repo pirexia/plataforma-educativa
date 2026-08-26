@@ -22,6 +22,14 @@ Este documento describe el **marco de diseño ya decidido** para cuando exista t
 | Datos de menores | Base legal y consentimiento del tutor registrados para todo dato de un menor, no asumidos | `INV-008` |
 | Datos de prueba nunca reales | Bajo ningún concepto, ni una exportación del centro ni una copia de producción para depurar | `ADR-030` |
 
+### 2.1 Inventario de cookies propias
+
+| Cookie | Módulo / paso | Finalidad | Clasificación |
+|--------|----------------|-----------|----------------|
+| `pge_device` | `REQ-AUTH-005` (1.2b) | Reconocer el navegador de un usuario ya autenticado para avisarle de accesos desde un dispositivo no reconocido (detección de dispositivo nuevo). Opaca, sin dato personal alguno dentro, emitida **solo** tras una autenticación correcta, de solo el titular de la cuenta. | **Cookie técnica de seguridad, exenta de consentimiento** (`funcional.md §B.6.2`, decisión del usuario en `funcional.md §B.14` punto 2, `OPEN-AUTH-14`). No hay perfilado ni cesión a terceros. Vida 365 días (`AUTH_DEVICE_COOKIE_TTL_DAYS`), `httpOnly`, `Secure`, `SameSite=Lax`, *host-only*. |
+
+**Pendiente**: catalogar aquí, con el mismo criterio, la cookie de sesión y `XSRF-TOKEN` de `REQ-AUTH` (paso 1.2, `ADR-025`) — no se hizo al cerrar 1.2 y esta tabla nace con 1.2b porque es la primera vez que `OPEN-AUTH-14` obliga a que exista. Completar antes de que `REQ-PRIV` decida si alguna necesita entrada propia en el RAT de §3.
+
 ## 3. Registro de Actividades de Tratamiento (RAT) — plantilla
 
 Se completa cuando exista entidad jurídica responsable del tratamiento (`OPEN-07`). Estructura prevista:

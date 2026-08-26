@@ -19,6 +19,7 @@ return [
         ],
         'current_password_incorrect' => 'La contraseña actual no es correcta.',
         'lockout_already_unlocked' => 'Este bloqueo ya está levantado.',
+        'session_already_closed' => 'Esta sesión ya está cerrada.',
     ],
 
     'mail' => [
@@ -42,6 +43,16 @@ return [
             'greeting' => 'Hola, :name.',
             'body' => 'Tu contraseña de acceso a :tenant se acaba de cambiar.',
             'warning' => 'Si no has sido tú, contacta cuanto antes con la administración de tu centro.',
+        ],
+        'new_device_login' => [
+            'subject' => 'Nuevo acceso a tu cuenta en :tenant',
+            'greeting' => 'Hola, :name.',
+            'body' => 'Se ha iniciado sesión en tu cuenta de :tenant desde un dispositivo que no habíamos visto antes, el :time.',
+            'detail' => 'Detalles del acceso: :client, desde la IP :ip.',
+            'location_line' => 'Ubicación aproximada: :location.',
+            'what_to_do' => 'Si has sido tú, no tienes que hacer nada más. Si no reconoces este acceso, revisa tus sesiones activas y cambia tu contraseña cuanto antes.',
+            'cta' => 'Revisar mis sesiones activas',
+            'unknown_client' => 'un dispositivo desconocido',
         ],
     ],
 

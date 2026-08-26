@@ -837,3 +837,117 @@ namespace App\Modules\Auth\Domain\Models{
 	#[\AllowDynamicProperties]
 	class IdeHelperLoginAttempt {}
 }
+
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §B.1 (1.2b). Selective: `device_token_hash` lo redacta el
+ * patrón global `*token*`; `last_ip_address` se redacta como
+ * `identifier`. Sin `public_id`: no se expone como recurso propio.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property int $user_id
+ * @property string $device_token_hash
+ * @property \Illuminate\Support\Carbon $first_seen_at
+ * @property \Illuminate\Support\Carbon $last_seen_at
+ * @property int $login_count
+ * @property string|null $label
+ * @property string|null $last_ip_address
+ * @property \Illuminate\Support\Carbon|null $alerted_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereAlertedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereDeviceTokenHash($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereFirstSeenAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereLabel($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereLastIpAddress($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereLastSeenAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereLoginCount($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperUserKnownDevice {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §B.2 (1.2b). Complementaria de `sessions` del framework.
+ * `session_id` es la credencial portadora, declarada como secreto a mano
+ * (auditSecretAttributes) — ningún patrón automático la cubre.
+ * auditExcludedEvents(): ['created'] (ADR-040 §4.3).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $user_id
+ * @property string $session_id
+ * @property \Illuminate\Support\Carbon $started_at
+ * @property string|null $ip_address
+ * @property string|null $user_agent
+ * @property string|null $client_browser
+ * @property string|null $client_platform
+ * @property \App\Modules\Auth\Domain\ClientDeviceType|null $client_device_type
+ * @property string|null $location_label
+ * @property int|null $known_device_id
+ * @property \Illuminate\Support\Carbon|null $ended_at
+ * @property \App\Modules\Auth\Domain\SessionEndReason|null $end_reason
+ * @property int|null $ended_by
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Models\User|null $endedByUser
+ * @property-read \App\Modules\Auth\Domain\Models\UserKnownDevice|null $knownDevice
+ * @property-read \App\Models\User $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereClientBrowser($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereClientDeviceType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereClientPlatform($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereEndReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereEndedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereEndedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereIpAddress($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereKnownDeviceId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereLocationLabel($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereSessionId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereStartedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereUserAgent($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperUserSession {}
+}

@@ -156,12 +156,12 @@ function provisionActiveUser(?string $slug = null, array $userAttrs = [], array 
  * `Model::factory()->create()` fuera de una petición HTTP que dispare
  * `RecordsAuthorship`) puede leer el actor autenticado de una petición
  * anterior en vez de la actual — verificado con instrumentación
- * directa (DB::listen, logging de `session()->getId()`) durante 1.2b
- * (issue #82), al escribir tests que necesitaban distinguir varias
- * sesiones simultáneas del mismo usuario. En producción esto no ocurre:
- * cada petición PHP-FPM es un proceso nuevo. Llamar antes de cualquier
- * segunda petición/identidad dentro del mismo test que dependa de
- * sesión o de `Auth::user()`.
+ * directa (DB::listen, logging de `session()->getId()`) durante la
+ * implementación de 1.2b, al escribir tests que necesitaban distinguir
+ * varias sesiones simultáneas del mismo usuario. En producción esto no
+ * ocurre: cada petición PHP-FPM es un proceso nuevo. Llamar antes de
+ * cualquier segunda petición/identidad dentro del mismo test que
+ * dependa de sesión o de `Auth::user()`.
  */
 function resetSessionState(): void
 {
@@ -194,4 +194,23 @@ function withSessionCookie(string $cookieValue)
     resetSessionState();
 
     return test()->withCredentials()->withUnencryptedCookie(config('session.cookie'), $cookieValue);
+}
+
+/**
+ * Login real por HTTP (1.2b). `resetSessionState()` primero, para que un
+ * login posterior en el mismo test no herede el `Guard`/`Store` de uno
+ * anterior (ver `resetSessionState()`).
+ */
+function loginFor(string $slug, string $email, string $password, ?string $userAgent = null)
+{
+    resetSessionState();
+
+    $request = test();
+
+    if ($userAgent !== null) {
+        $request = $request->withHeader('User-Agent', $userAgent);
+    }
+
+    return $request->postJson(coreApiUrl($slug, '/auth/session'), ['email' => $email, 'password' => $password])
+        ->assertOk();
 }
