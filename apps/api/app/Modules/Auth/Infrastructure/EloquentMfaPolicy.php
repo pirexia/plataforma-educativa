@@ -4,12 +4,12 @@ namespace App\Modules\Auth\Infrastructure;
 
 use App\Models\User;
 use App\Modules\Auth\Domain\Events\MfaObligationStarted;
-use App\Modules\Auth\Domain\Models\MfaFactor;
-use App\Modules\Auth\Domain\Models\UserMfaExemption;
-use App\Modules\Auth\Domain\Models\UserMfaObligation;
 use App\Modules\Auth\Domain\MfaObligation;
 use App\Modules\Auth\Domain\MfaObligationTrigger;
 use App\Modules\Auth\Domain\MfaPolicy;
+use App\Modules\Auth\Domain\Models\MfaFactor;
+use App\Modules\Auth\Domain\Models\UserMfaExemption;
+use App\Modules\Auth\Domain\Models\UserMfaObligation;
 use App\Modules\Core\Domain\TenantSettingsReader;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
@@ -164,7 +164,7 @@ final class EloquentMfaPolicy implements MfaPolicy
         });
     }
 
-    private function hasLiveExemption(User $user): bool
+    public function hasLiveExemption(User $user): bool
     {
         return UserMfaExemption::query()
             ->where('user_id', $user->id)

@@ -50,6 +50,7 @@ class TenantSettingsController extends Controller
         ];
 
         $this->validateLocaleConsistency($request, $settings, $updates, $errors);
+        $this->validateMfaAllowedMethods($updates, $errors);
         $errors->throwIfAny();
 
         $settings->fill($updates);
@@ -192,9 +193,47 @@ class TenantSettingsController extends Controller
     {
         $map = [
             'security.session_timeout_minutes' => 'session_timeout_minutes',
+            // REQ-AUTH/funcional.md §C.4.12 (1.3): mismo grupo, mismo
+            // permiso (configuracion.actualizar) que session_timeout_minutes
+            // (permisos.md §4.1).
+            'security.mfa_allowed_methods' => 'mfa_allowed_methods',
+            'security.mfa_grace_period_days' => 'mfa_grace_period_days',
         ];
 
         return $this->collectPresent($request, $map);
+    }
+
+    /**
+     * REQ-AUTH/funcional.md §C.4.12, RN-AUTH-69, CA-AUTH-134 (1.3). Regla
+     * de negocio (INV-010): `PatchTenantSettingsRequest` solo comprueba
+     * forma (array no vacío de valores del enumerado). El `CHECK` de
+     * datos.md §C.7.2 es el cerrojo final, pero fallar aquí primero da un
+     * 422 legible en vez de una excepción de base de datos.
+     */
+    private function validateMfaAllowedMethods(array $updates, ValidationErrorBag $errors): void
+    {
+        if (! array_key_exists('mfa_allowed_methods', $updates)) {
+            return;
+        }
+
+        /** @var list<string> $methods */
+        $methods = $updates['mfa_allowed_methods'];
+
+        if (! in_array('totp', $methods, true)) {
+            $errors->add(
+                'security.mfa_allowed_methods',
+                'core.validation.mfa_allowed_methods_requires_totp',
+                'core.validation.mfa_allowed_methods_requires_totp',
+            );
+        }
+
+        if (in_array('sms', $methods, true)) {
+            $errors->add(
+                'security.mfa_allowed_methods',
+                'core.validation.mfa_allowed_methods_sms_unavailable',
+                'core.validation.mfa_allowed_methods_sms_unavailable',
+            );
+        }
     }
 
     /**

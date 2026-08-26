@@ -20,6 +20,9 @@ Route::get('/health', HealthController::class)->name('api.health');
 //   7. verify-session-tenant — RN-AUTH-31: tenant_id del payload vs. host
 //   8. session-idle-timeout  — después de la reverificación
 //   9. resolve-locale        — movido: ahora corre con $request->user() ya resuelto
+//  10. require-mfa-enrollment — REQ-AUTH-003 (1.3), funcional.md §C.4.9: el
+//      muro de alta. Después de resolve-locale para que su propio 403 ya
+//      salga traducido; sin efecto sobre peticiones sin sesión.
 Route::prefix('v1')->middleware([
     'resolve-tenant',
     'encrypt-cookies',
@@ -29,6 +32,7 @@ Route::prefix('v1')->middleware([
     'verify-session-tenant',
     'session-idle-timeout',
     'resolve-locale',
+    'require-mfa-enrollment',
 ])->group(function (): void {
     require base_path('routes/api-v1.php');
 });

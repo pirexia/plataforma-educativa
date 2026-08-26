@@ -27,6 +27,14 @@ interface MfaPolicy
     public function hasUsableFactor(User $user): bool;
 
     /**
+     * `§C.4.7` punto 1. Usada directamente por `EloquentMfaComplianceDirectory`
+     * para la vista previa (`CA-AUTH-136`): una excepción viva exime
+     * también en la hipótesis de un `mfa_required` que aún no se ha
+     * guardado — es del usuario, no del rol que se está previsualizando.
+     */
+    public function hasLiveExemption(User $user): bool;
+
+    /**
      * Códigos de los roles vivos del usuario que llevan `mfa_required = true`
      * (RPERM-007, RN-AUTH-62). Vacío si ninguno.
      *

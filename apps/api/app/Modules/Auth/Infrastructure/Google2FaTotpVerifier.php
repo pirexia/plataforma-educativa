@@ -59,7 +59,7 @@ final class Google2FaTotpVerifier implements MfaVerifier, TotpProvisioner
         // que guardar en last_used_step (RN-AUTH-58).
         $result = $this->engine->verifyKeyNewer($secret, $code, $lastUsedStep, $window);
 
-        if (false === $result) {
+        if ($result === false) {
             return null;
         }
 

@@ -86,7 +86,13 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             'usuario' => ['leer', 'crear', 'actualizar', 'eliminar', 'importar', 'exportar'],
             'invitacion' => ['leer', 'crear', 'eliminar'],
             'asignacion_rol' => ['leer', 'crear', 'eliminar'],
-            'rol' => ['leer'],
+            // REQ-AUTH/funcional.md §C.2.2, §C.16 (1.3): 'actualizar' se
+            // añade aquí, no en AuthServiceProvider — el recurso 'rol' es
+            // de REQ-CORE, se gobierna con el permiso de ese recurso
+            // (mismo criterio que 'configuracion.actualizar' en 1.2,
+            // permisos.md §4.1), aunque quien lo use en 1.3 sea el
+            // PATCH acotado a mfa_required.
+            'rol' => ['leer', 'actualizar'],
             'permiso' => ['leer'],
             'configuracion' => ['leer', 'actualizar'],
             'modulo' => ['leer', 'actualizar'],

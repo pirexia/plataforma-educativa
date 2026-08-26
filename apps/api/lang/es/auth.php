@@ -20,6 +20,11 @@ return [
         'current_password_incorrect' => 'La contraseña actual no es correcta.',
         'lockout_already_unlocked' => 'Este bloqueo ya está levantado.',
         'session_already_closed' => 'Esta sesión ya está cerrada.',
+        // REQ-AUTH-003 (1.3), funcional.md §C.
+        'mfa_factor_already_confirmed' => 'Ya tienes un factor confirmado de este método.',
+        'mfa_method_not_available' => 'Este método de verificación no está disponible en este centro.',
+        'mfa_code_invalid' => 'El código no es correcto.',
+        'mfa_factor_required_by_role' => 'No puedes desactivar tu último factor: alguno de tus roles exige la verificación en dos pasos.',
     ],
 
     'mail' => [
@@ -43,6 +48,27 @@ return [
             'greeting' => 'Hola, :name.',
             'body' => 'Tu contraseña de acceso a :tenant se acaba de cambiar.',
             'warning' => 'Si no has sido tú, contacta cuanto antes con la administración de tu centro.',
+        ],
+        // REQ-AUTH-003 (1.3), funcional.md §C.4.13: tres avisos, sin
+        // enlace accionable (RN-AUTH-50).
+        'mfa_factor_activated' => [
+            'subject' => 'Se ha activado la verificación en dos pasos en :tenant',
+            'greeting' => 'Hola, :name.',
+            'body' => 'Se acaba de activar un nuevo factor de verificación en dos pasos en tu cuenta de :tenant.',
+            'warning' => 'Si no has sido tú, contacta cuanto antes con la administración de tu centro.',
+        ],
+        'mfa_factor_removed' => [
+            'subject' => 'Se ha desactivado la verificación en dos pasos en :tenant',
+            'greeting' => 'Hola, :name.',
+            'body_by_self' => 'Se acaba de desactivar un factor de verificación en dos pasos en tu cuenta de :tenant.',
+            'body_by_admin' => 'Un administrador de :tenant ha restablecido la verificación en dos pasos de tu cuenta: tus factores y códigos de respaldo anteriores ya no son válidos.',
+            'warning' => 'Si no has sido tú, contacta cuanto antes con la administración de tu centro.',
+        ],
+        'recovery_code_used' => [
+            'subject' => 'Se ha usado un código de respaldo en :tenant',
+            'greeting' => 'Hola, :name.',
+            'body' => 'Se ha usado uno de tus códigos de respaldo para acceder a tu cuenta de :tenant en lugar de tu segundo factor habitual.',
+            'warning' => 'Si no has sido tú, contacta cuanto antes con la administración de tu centro y revisa tus sesiones activas.',
         ],
         'new_device_login' => [
             'subject' => 'Nuevo acceso a tu cuenta en :tenant',

@@ -57,6 +57,14 @@ class PatchTenantSettingsRequest extends ApiFormRequest
             // columna no admite NULL, así que no hay forma de "vaciarlo").
             'security' => ['sometimes', 'array'],
             'security.session_timeout_minutes' => ['sometimes', 'integer', 'between:5,480'],
+            // REQ-AUTH/funcional.md §C.4.12, RN-AUTH-69 (1.3). Reglas de
+            // forma únicamente: "siempre totp, nunca sms" es negocio
+            // (TenantSettingsController::validateMfaAllowedMethods()) y
+            // además lo garantiza el CHECK del motor (datos.md §C.7.2) como
+            // último cerrojo.
+            'security.mfa_allowed_methods' => ['sometimes', 'array', 'min:1'],
+            'security.mfa_allowed_methods.*' => ['string', Rule::in(['totp', 'email', 'sms'])],
+            'security.mfa_grace_period_days' => ['sometimes', 'integer', 'between:1,90'],
         ];
     }
 }

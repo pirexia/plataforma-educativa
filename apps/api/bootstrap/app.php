@@ -4,6 +4,7 @@ use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\EnforceSessionIdleTimeout;
 use App\Http\Middleware\EnsureModuleEnabled;
 use App\Http\Middleware\RequireIdempotencyKey;
+use App\Http\Middleware\RequireMfaEnrollment;
 use App\Http\Middleware\RequirePermission;
 use App\Http\Middleware\ResolveApiLocale;
 use App\Http\Middleware\ResolveTenant;
@@ -57,6 +58,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'csrf' => ValidateCsrfToken::class,
             'verify-session-tenant' => VerifySessionTenant::class,
             'session-idle-timeout' => EnforceSessionIdleTimeout::class,
+            // REQ-AUTH-003 (1.3), funcional.md §C.4.9: el muro de alta.
+            'require-mfa-enrollment' => RequireMfaEnrollment::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

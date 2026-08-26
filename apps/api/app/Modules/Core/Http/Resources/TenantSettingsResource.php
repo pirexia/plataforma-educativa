@@ -50,8 +50,12 @@ class TenantSettingsResource extends JsonResource
             ],
             // REQ-AUTH/api.md §6 (REQ-AUTH-005 punto 1). No es un endpoint
             // nuevo: mismo recurso de 1.1, grupo añadido en 1.2.
+            // REQ-AUTH/funcional.md §C.4.12, RN-AUTH-69 (1.3): mismo
+            // grupo, mismo permiso (configuracion.actualizar).
             'security' => [
                 'session_timeout_minutes' => $this->session_timeout_minutes,
+                'mfa_allowed_methods' => $this->mfa_allowed_methods,
+                'mfa_grace_period_days' => $this->mfa_grace_period_days,
             ],
             'updated_at' => $this->updated_at,
         ];
