@@ -132,7 +132,7 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 - [ ] **1.5 · Permisos granulares** [OPUS + SONNET] ⚠️ *paso crítico*
   Matriz recurso × acción × ámbito, roles personalizados, denegación por defecto, vista previa de permisos efectivos. Sección 11.
 - [ ] **1.6 · `REQ-BO`: backoffice de superadmin** [SONNET]
-  Aplicación y dominio separados, ciclo de vida de tenants, matriz de módulos, MFA obligatorio, doble autorización para acciones destructivas.
+  Aplicación y dominio separados, ciclo de vida de tenants, matriz de módulos, MFA obligatorio, doble autorización para acciones destructivas. **No incluye** cuota de tenant por espacio/miembros activos (issue [#79](https://github.com/pirexia/plataforma-educativa/issues/79)) — decisión del usuario 2026-08-25: sin modelo comercial de planes/tiers todavía, queda fuera del alcance inicial y se aborda en un paso propio posterior (candidato `1.6b`) cuando exista esa decisión.
 
 ### Bloque B · Design system y navegación
 
@@ -208,6 +208,10 @@ Orden recomendado: económico primero (`FIN` → `BEC` → `TRAN`), porque es el
 
 El transporte va inmediatamente después de `FIN` porque comparte la línea de facturación, y **antes** que el resto porque incluye control de acceso de menores: autorizaciones de recogida, restricciones de custodia y alerta de subida sin bajada.
 
+`REQ-DOC-002` (firma digital) incorpora el concepto de **apoderado/firmante autorizado** — qué tipos de documento requieren firma de un representante legal del centro y quiénes lo son (issue [#82](https://github.com/pirexia/plataforma-educativa/issues/82), decisión del usuario 2026-08-25 al perfilar el módulo de asociaciones de `1.2b`). General para el núcleo, no acotado a un módulo. Sin diseño todavía — para `architect`/`spec-writer` cuando le toque turno a `REQ-DOC`.
+
+`REQ-API`/`REQ-DOC` evalúan una **integración opcional con Google Workspace (Drive)** como repositorio documental del centro (issue [#80](https://github.com/pirexia/plataforma-educativa/issues/80)) — `REQ-API-003` ya contemplaba un conector de Google Workspace, así que no es alcance nuevo, solo un uso más concreto. El usuario lo pensará con más calma antes de especificar; sin decisión de diseño tomada.
+
 **Salida**: pentest externo sin vulnerabilidades críticas ni altas. Go-live comercial.
 
 ---
@@ -215,6 +219,8 @@ El transporte va inmediatamente después de `FIN` porque comparte la línea de f
 # FASE 3 · Servicios y diferenciación
 
 `REQ-EXTRA` · `REQ-COMED` · `REQ-ACOG` · `REQ-LIB` · `REQ-SHOP` · `REQ-WEB` · `REQ-NOM` · `REQ-ESP` · `REQ-PROV` · `REQ-GOB` · `REQ-ENC` · `REQ-VIDEO` · apps móviles con Capacitor.
+
+`REQ-GOB-004` (AMPA y asociaciones) se generaliza a un módulo de **varias asociaciones internas por tenant**, con roles propios y administración delegada (el admin del centro crea la asociación y asigna su administrador, pero no gestiona su contenido interno) — issue [#78](https://github.com/pirexia/plataforma-educativa/issues/78), alcance cerrado con el usuario 2026-08-25: núcleo común (documentación + actas + calendario + roles + admin delegado) y cuotas de socio/firma electrónica como extensiones opcionales por asociación, reutilizando `REQ-FIN`/`REQ-DOC`. Investigación de mercado hecha (sin precedente para el modelo de administración delegada — a diseñar desde cero). El usuario decidió **no adelantarlo** de Fase 3 (sin el motivo operativo diario que sí justificó adelantar `1.14b`). Pendiente de `spec-writer`/`architect` cuando le toque turno.
 
 # FASE 4 · Ampliación
 
