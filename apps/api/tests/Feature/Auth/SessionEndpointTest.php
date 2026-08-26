@@ -18,6 +18,12 @@ afterEach(function (): void {
 
 // CA-AUTH-010
 test('CA-AUTH-010: login correcto responde 200 con el mismo recurso que GET /me, sin hash ni token', function (): void {
+    // Issue #83: el driver 'array' forzado por phpunit.xml vive en la
+    // instancia del store, que resetSessionState() olvida a propósito
+    // entre peticiones simuladas — con 'array' el segundo request nunca
+    // vería la sesión de verdad. 'database' persiste de verdad entre
+    // peticiones, como en producción (mismo motivo que CA-AUTH-016).
+    config(['session.driver' => 'database']);
     [$tenant, $user, $password] = provisionActiveUser('sess-010');
 
     $login = test()->postJson(coreApiUrl($tenant->slug, '/auth/session'), [
@@ -29,9 +35,9 @@ test('CA-AUTH-010: login correcto responde 200 con el mismo recurso que GET /me,
         ->and($login->json())->not->toHaveKey('token')
         ->and(json_encode($login->json()))->not->toContain('$2y$');
 
-    $sessionCookie = $login->getCookie(config('session.cookie'), false)->getValue();
+    $sessionCookie = sessionCookieValue($login);
 
-    $me = test()->withCookie(config('session.cookie'), $sessionCookie)
+    $me = withSessionCookie($sessionCookie)
         ->getJson(coreApiUrl($tenant->slug, '/me'))
         ->assertOk();
 
@@ -40,18 +46,31 @@ test('CA-AUTH-010: login correcto responde 200 con el mismo recurso que GET /me,
 
 // CA-AUTH-004
 test('CA-AUTH-004: el identificador de sesión se regenera en el login (fijación de sesión)', function (): void {
+    // Issue #83: ver comentario equivalente en CA-AUTH-010 / CA-AUTH-016 —
+    // 'array' no sobrevive al resetSessionState() entre las dos peticiones
+    // de este test.
+    config(['session.driver' => 'database']);
     [$tenant, $user, $password] = provisionActiveUser('sess-004');
 
     $anonymous = test()->getJson(coreApiUrl($tenant->slug, '/auth/csrf-cookie'))->assertNoContent();
-    $beforeCookie = $anonymous->getCookie(config('session.cookie'), false)->getValue();
+    $beforeCookie = sessionCookieValue($anonymous);
+    // Issue #83 (verificación adicional): el valor CIFRADO de la cookie
+    // (sessionCookieValue, usado para reenviarla) lleva un IV aleatorio
+    // distinto en cada respuesta, así que dos cifrados del MISMO
+    // identificador de sesión ya son distintos entre sí en bruto. Comparar
+    // los valores en bruto no detectaría una regresión real en la
+    // regeneración de sesión (CA-AUTH-004 pasaría "por casualidad" siempre,
+    // igual que con el patrón roto que corrige este issue). Hay que
+    // descifrar y comparar el identificador de sesión real.
+    $beforeSessionId = $anonymous->getCookie(config('session.cookie'))->getValue();
 
-    $login = test()->withCookie(config('session.cookie'), $beforeCookie)
+    $login = withSessionCookie($beforeCookie)
         ->postJson(coreApiUrl($tenant->slug, '/auth/session'), ['email' => $user->email, 'password' => $password])
         ->assertOk();
 
-    $afterCookie = $login->getCookie(config('session.cookie'), false)->getValue();
+    $afterSessionId = $login->getCookie(config('session.cookie'))->getValue();
 
-    expect($afterCookie)->not->toBe($beforeCookie);
+    expect($afterSessionId)->not->toBe($beforeSessionId);
 });
 
 // CA-AUTH-003
@@ -197,13 +216,13 @@ test('CA-AUTH-016: logout invalida la sesión y una petición posterior con la m
     $login = test()->postJson(coreApiUrl($tenant->slug, '/auth/session'), [
         'email' => $user->email, 'password' => $password,
     ])->assertOk();
-    $cookie = $login->getCookie(config('session.cookie'), false)->getValue();
+    $cookie = sessionCookieValue($login);
 
-    test()->withCookie(config('session.cookie'), $cookie)
+    withSessionCookie($cookie)
         ->deleteJson(coreApiUrl($tenant->slug, '/auth/session'))
         ->assertNoContent();
 
-    test()->withCookie(config('session.cookie'), $cookie)
+    withSessionCookie($cookie)
         ->getJson(coreApiUrl($tenant->slug, '/me'))
         ->assertStatus(401);
 });
