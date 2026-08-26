@@ -30,12 +30,24 @@ class MaterializeMfaObligationsForRole implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct()
-    {
+    /**
+     * Hallazgo propio: un *listener* `ShouldQueue` no admite inyección de
+     * dependencias por parámetros extra de `handle()` — a diferencia de un
+     * *listener* síncrono resuelto por el contenedor, `CallQueuedListener`
+     * lo deserializa de la cola y llama `handle($event)` con un único
+     * argumento; cualquier parámetro adicional revienta con
+     * `ArgumentCountError` en cuanto la cola es de verdad asíncrona (o,
+     * como en los tests, `QUEUE_CONNECTION=sync`, que pasa por el mismo
+     * camino). Las dependencias van al constructor, como en cualquier
+     * otra clase resuelta por el contenedor.
+     */
+    public function __construct(
+        private readonly MfaPolicy $policy,
+    ) {
         $this->onQueue('auth-maintenance');
     }
 
-    public function handle(RoleMfaRequirementChanged $event, MfaPolicy $policy): void
+    public function handle(RoleMfaRequirementChanged $event): void
     {
         $role = Role::query()->where('public_id', $event->rolePublicId)->first();
 
@@ -43,9 +55,9 @@ class MaterializeMfaObligationsForRole implements ShouldQueue
             return;
         }
 
-        $role->users()->chunkById(200, function ($users) use ($policy): void {
+        $role->users()->chunkById(200, function ($users): void {
             foreach ($users as $user) {
-                $policy->materialize($user, MfaObligationTrigger::RolModificado);
+                $this->policy->materialize($user, MfaObligationTrigger::RolModificado);
             }
         });
     }

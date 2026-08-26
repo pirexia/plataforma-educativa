@@ -30,14 +30,23 @@ class ReconcileMfaAllowedMethodsChange implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct()
-    {
+    /**
+     * Hallazgo propio (ver `MaterializeMfaObligationsForRole`, mismo
+     * fallo): un *listener* `ShouldQueue` no admite inyección por
+     * parámetros extra de `handle()` — `ArgumentCountError` en cuanto la
+     * cola procesa de verdad (incluido `QUEUE_CONNECTION=sync`). Las
+     * dependencias van al constructor.
+     */
+    public function __construct(
+        private readonly TenantSettingsReader $settings,
+        private readonly MfaPolicy $policy,
+    ) {
         $this->onQueue('auth-maintenance');
     }
 
-    public function handle(TenantSettingsUpdated $event, TenantSettingsReader $settings, MfaPolicy $policy): void
+    public function handle(TenantSettingsUpdated $event): void
     {
-        $allowed = $settings->mfaAllowedMethods();
+        $allowed = $this->settings->mfaAllowedMethods();
 
         $affectedUserIds = MfaFactor::query()
             ->whereNotNull('confirmed_at')
@@ -51,14 +60,14 @@ class ReconcileMfaAllowedMethodsChange implements ShouldQueue
 
         User::query()
             ->whereIn('id', $affectedUserIds)
-            ->chunkById(200, function ($users) use ($policy): void {
+            ->chunkById(200, function ($users): void {
                 foreach ($users as $user) {
                     // materialize() ya comprueba hasUsableFactor() con los
                     // métodos permitidos ACTUALES: si al usuario le queda
                     // otro factor confirmado de un método sí admitido, no
                     // hace nada — solo abre obligación quien se quedó sin
                     // ninguno utilizable.
-                    $policy->materialize($user, MfaObligationTrigger::MetodoRetirado);
+                    $this->policy->materialize($user, MfaObligationTrigger::MetodoRetirado);
                 }
             });
     }

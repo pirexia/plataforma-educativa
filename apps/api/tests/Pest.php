@@ -3,11 +3,14 @@
 use App\Models\Person;
 use App\Models\User;
 use App\Models\UserStatus;
+use App\Modules\Auth\Domain\MfaMethod;
+use App\Modules\Auth\Domain\Models\MfaFactor;
 use App\Modules\Core\Application\ProvisionTenantDefaults;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use PragmaRX\Google2FA\Google2FA;
 use Tests\TestCase;
 
 /*
@@ -168,6 +171,35 @@ function resetSessionState(): void
     app('session')->forgetDrivers();
     app()->forgetInstance('session.store');
     app('auth')->forgetGuards();
+
+    // REQ-AUTH-003 (1.3), hallazgo propio: `withSessionCookie()` (más
+    // abajo) deja la cookie adjunta en `$this->defaultCookies`/
+    // `unencryptedCookies` del propio TestCase — Laravel no la olvida
+    // sola entre peticiones (`withCookie()`/`withUnencryptedCookie()`
+    // mutan esas propiedades, no hay `withoutCookies()` público). Sin
+    // este reseteo, un test que abre varios desafíos de MFA en sesiones
+    // "anónimas" sucesivas (un bucle de intentos fallidos, por ejemplo)
+    // en realidad reenvía la cookie de la ÚLTIMA sesión ya autenticada
+    // o con desafío, y el segundo intento choca con el índice único
+    // `mfa_challenges_tenant_session_live_unique` en vez de abrir un
+    // desafío nuevo de verdad — un fallo silencioso y confuso (una
+    // `UniqueConstraintViolationException` de 500, no el 401/202 que el
+    // test espera). Sin propiedad pública para limpiarlas: Reflection,
+    // solo en infraestructura de test.
+    // test() devuelve Pest\Support\HigherOrderTapProxy, no el TestCase de
+    // PHPUnit — reflejar el proxy ve sus propias propiedades (ninguna
+    // coincide con 'defaultCookies'), así que la comprobación hasProperty()
+    // callaba en silencio sin limpiar nada. El TestCase real es ->target.
+    $testCase = test()->target;
+    $class = new ReflectionClass($testCase);
+
+    foreach (['defaultCookies', 'unencryptedCookies'] as $property) {
+        if ($class->hasProperty($property)) {
+            $prop = $class->getProperty($property);
+            $prop->setAccessible(true);
+            $prop->setValue($testCase, []);
+        }
+    }
 }
 
 /**
@@ -213,4 +245,70 @@ function loginFor(string $slug, string $email, string $password, ?string $userAg
 
     return $request->postJson(coreApiUrl($slug, '/auth/session'), ['email' => $email, 'password' => $password])
         ->assertOk();
+}
+
+/**
+ * REQ-AUTH-003 (1.3). Crea un factor TOTP ya confirmado para `$user`
+ * directamente (sin pasar por el flujo de alta HTTP), dentro del
+ * contexto del tenant indicado (RLS). Devuelve el secreto en base32 para
+ * poder generar códigos válidos con `currentTotpCode()`.
+ */
+function createConfirmedTotpFactor(Tenant $tenant, User $user, bool $preferred = false): string
+{
+    $secret = (new Google2FA)->generateSecretKey(32);
+
+    app(TenantContext::class)->runFor($tenant->id, function () use ($user, $secret, $preferred): void {
+        MfaFactor::create([
+            'user_id' => $user->id,
+            'method' => MfaMethod::Totp,
+            'secret_encrypted' => $secret,
+            'confirmed_at' => now(),
+            'is_preferred' => $preferred,
+        ]);
+    });
+
+    return $secret;
+}
+
+/**
+ * Código TOTP válido para el instante actual, a partir de un secreto en
+ * base32 (`ADR-041`: mismo motor que `Google2FaTotpVerifier`).
+ */
+function currentTotpCode(string $secret): string
+{
+    return (new Google2FA)->getCurrentOtp($secret);
+}
+
+/**
+ * REQ-AUTH-003 (1.3). Login completo en dos pasos con un factor TOTP ya
+ * confirmado (`createConfirmedTotpFactor()`): paso 1 (202, sin cookie
+ * reutilizable todavía) + paso 2 con el código correcto. Devuelve la
+ * respuesta final (200, con la cookie de sesión YA autenticada/regenerada
+ * — `sessionCookieValue()` sobre ella da la cookie válida para peticiones
+ * posteriores). `resetSessionState()` primero, igual que `loginFor()`.
+ */
+function loginWithTotpFor(string $slug, string $email, string $password, string $secret)
+{
+    $challenge = openMfaChallengeFor($slug, $email, $password);
+
+    return withSessionCookie(sessionCookieValue($challenge))
+        ->postJson(coreApiUrl($slug, '/auth/mfa-verifications'), ['code' => currentTotpCode($secret)])
+        ->assertOk();
+}
+
+/**
+ * REQ-AUTH-003 (1.3). Paso 1 del login en dos pasos (`§C.4.4`): abre el
+ * desafío y devuelve la respuesta `202` — `sessionCookieValue()` sobre
+ * ella da la cookie de la sesión ANÓNIMA a la que el desafío está ligado
+ * (RN-AUTH-53), imprescindible para el paso 2 (`POST /auth/mfa-challenges`
+ * o `POST /auth/mfa-verifications`): sin reenviarla, el paso 2 llega con
+ * una sesión anónima distinta y responde `410` (desafío "inexistente").
+ */
+function openMfaChallengeFor(string $slug, string $email, string $password)
+{
+    resetSessionState();
+
+    return test()->postJson(coreApiUrl($slug, '/auth/session'), [
+        'email' => $email, 'password' => $password,
+    ])->assertStatus(202);
 }

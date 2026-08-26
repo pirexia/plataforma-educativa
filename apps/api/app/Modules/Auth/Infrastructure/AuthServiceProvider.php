@@ -9,7 +9,12 @@ use App\Modules\Auth\Domain\MfaComplianceDirectory;
 use App\Modules\Auth\Domain\MfaPolicy;
 use App\Modules\Auth\Domain\MfaVerifier;
 use App\Modules\Auth\Domain\Models\AccountLockout;
+use App\Modules\Auth\Domain\Models\MfaFactor;
+use App\Modules\Auth\Domain\Models\MfaRecoveryCode;
+use App\Modules\Auth\Domain\Models\MfaReset as MfaResetModel;
 use App\Modules\Auth\Domain\Models\UserKnownDevice;
+use App\Modules\Auth\Domain\Models\UserMfaExemption;
+use App\Modules\Auth\Domain\Models\UserMfaObligation;
 use App\Modules\Auth\Domain\Models\UserSession;
 use App\Modules\Auth\Domain\PasswordPolicy;
 use App\Modules\Auth\Domain\PasswordResetTokenRepository;
@@ -57,10 +62,19 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         $this->app->bind(MfaVerifier::class, Google2FaTotpVerifier::class);
         $this->app->bind(TotpProvisioner::class, Google2FaTotpVerifier::class);
 
-        // funcional.md §C.4.7 último párrafo: memoiza por instancia, nunca
-        // entre peticiones — scoped() da una instancia por petición HTTP
-        // (o por job de cola, reiniciada en cada uno).
+        // funcional.md §C.4.7 último párrafo, RN-AUTH-62: memoiza por
+        // instancia, nunca entre peticiones. scoped() por sí solo NO lo
+        // garantiza: fuera de Octane, Laravel no vacía sus instancias
+        // scoped en ningún punto del ciclo de vida — en PHP-FPM/FrankenPHP
+        // "modo clásico" (ADR-037) da igual, cada petición es un proceso
+        // nuevo, pero en un worker de larga vida (Octane, si se adoptara
+        // algún día) o dentro de una suite de tests (varias peticiones
+        // HTTP simuladas en el mismo proceso, `Kernel::terminate()` de por
+        // medio) la memoización sobreviviría entre peticiones y violaría
+        // la invariante escrita — hallazgo propio, `CA-AUTH-130/131`.
+        // `terminating()` es el mismo enganche que Octane usa para esto.
         $this->app->scoped(MfaPolicy::class, EloquentMfaPolicy::class);
+        $this->app->terminating(fn () => $this->app->forgetScopedInstances());
 
         $this->app->bind(MfaComplianceDirectory::class, EloquentMfaComplianceDirectory::class);
     }
@@ -75,6 +89,18 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             'account_lockout' => AccountLockout::class,
             'user_session' => UserSession::class,
             'user_known_device' => UserKnownDevice::class,
+            // REQ-AUTH-003 (1.3), datos.md §C.2-§C.6. Hallazgo propio: sin
+            // esto, cualquier escritura sobre uno de estos cinco modelos
+            // Auditable lanzaba RuntimeException en AuditRecorder — "no
+            // está en el morph map" — es decir, dar de alta/confirmar/
+            // borrar un factor, generar/consumir códigos de respaldo,
+            // restablecer MFA o conceder/revocar una excepción estaban
+            // rotos en cuanto el observer intentaba auditar el evento.
+            'mfa_factor' => MfaFactor::class,
+            'mfa_recovery_code' => MfaRecoveryCode::class,
+            'mfa_reset' => MfaResetModel::class,
+            'user_mfa_obligation' => UserMfaObligation::class,
+            'user_mfa_exemption' => UserMfaExemption::class,
         ]);
 
         // funcional.md §6.2, issue #8: guarda en todos los entornos, no

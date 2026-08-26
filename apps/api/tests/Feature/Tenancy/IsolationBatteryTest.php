@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Auth\Domain\Models\LoginAttempt;
+use App\Modules\Auth\Domain\Models\MfaReset;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use App\Support\Tenancy\TenantMigration;
@@ -149,6 +150,9 @@ test('los modelos Eloquent de app/Modules extienden TenantModel', function (): v
         // siguen aplicando (RN-AUTH-06/07), es un allowlist deliberado y
         // documentado, no un descuido.
         LoginAttempt::class,
+        // REQ-AUTH/datos.md §C.6.1 (paso 1.3): mismo motivo — traza
+        // append-only del restablecimiento de MFA por el administrador.
+        MfaReset::class,
     ];
 
     $modulesPath = base_path('app/Modules');
