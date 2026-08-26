@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Cache;
  */
 final class TenantSettingsCache
 {
-    /** @var array{default_locale: string, active_locales: list<string>, timezone: string, currency: string, session_timeout_minutes: int, autonomous_community: ?string, legal_name: ?string, tax_id: ?string, fiscal_address: ?string, fiscal_postal_code: ?string, fiscal_city: ?string, fiscal_province: ?string, fiscal_country_code: ?string, color_primary: ?string, color_secondary: ?string, logo_object_key: ?string, favicon_object_key: ?string, login_background_object_key: ?string} */
+    /** @var array{default_locale: string, active_locales: list<string>, timezone: string, currency: string, session_timeout_minutes: int, mfa_allowed_methods: list<string>, mfa_grace_period_days: int, autonomous_community: ?string, legal_name: ?string, tax_id: ?string, fiscal_address: ?string, fiscal_postal_code: ?string, fiscal_city: ?string, fiscal_province: ?string, fiscal_country_code: ?string, color_primary: ?string, color_secondary: ?string, logo_object_key: ?string, favicon_object_key: ?string, login_background_object_key: ?string} */
     private const DEFAULTS = [
         'default_locale' => 'es-ES',
         'active_locales' => ['es-ES'],
@@ -30,6 +30,10 @@ final class TenantSettingsCache
         // el DEFAULT de la columna (30), no con una variable de entorno
         // que podría cambiar sin tocar el esquema.
         'session_timeout_minutes' => 30,
+        // REQ-AUTH/datos.md §C.7.2. Mismo criterio: coincide con el
+        // DEFAULT de la columna, no con env().
+        'mfa_allowed_methods' => ['totp'],
+        'mfa_grace_period_days' => 7,
         'autonomous_community' => null,
         'legal_name' => null,
         'tax_id' => null,

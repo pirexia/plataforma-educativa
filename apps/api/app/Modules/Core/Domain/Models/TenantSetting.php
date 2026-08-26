@@ -28,7 +28,11 @@ class TenantSetting extends TenantModel implements Auditable
     /** @var array<int, string> */
     protected array $auditRecordedAttributes = [
         'default_locale', 'active_locales', 'timezone', 'currency', 'autonomous_community',
-        'color_primary', 'color_secondary', 'session_timeout_minutes', 'deleted_at', 'created_by', 'updated_by',
+        'color_primary', 'color_secondary', 'session_timeout_minutes',
+        // REQ-AUTH/datos.md §C.7.2 (1.3): configuración del tenant, no
+        // dato personal.
+        'mfa_allowed_methods', 'mfa_grace_period_days',
+        'deleted_at', 'created_by', 'updated_by',
     ];
 
     /** @var array<int, string> */
@@ -59,9 +63,13 @@ class TenantSetting extends TenantModel implements Auditable
         'login_background_object_key',
         // REQ-AUTH/datos.md §A.4 (REQ-AUTH-005 punto 1).
         'session_timeout_minutes',
+        // REQ-AUTH/datos.md §C.7.2 (REQ-AUTH-003, 1.3).
+        'mfa_allowed_methods',
+        'mfa_grace_period_days',
     ];
 
     protected $casts = [
         'active_locales' => 'array',
+        'mfa_allowed_methods' => 'array',
     ];
 }

@@ -74,6 +74,10 @@ class TenantSettingsController extends Controller
             // columna (30), no una lectura de config('auth-local...') —
             // ver TenantSettingsCache::DEFAULTS, mismo criterio.
             'session_timeout_minutes' => 30,
+            // REQ-AUTH/datos.md §C.7.2: ídem, mismo valor que el DEFAULT
+            // de las dos columnas.
+            'mfa_allowed_methods' => ['totp'],
+            'mfa_grace_period_days' => 7,
         ]);
     }
 

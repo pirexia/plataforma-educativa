@@ -15,6 +15,13 @@ use Illuminate\Support\Str;
  * estado. `SessionController` es quien abre la sesión HTTP de verdad
  * (regenerar identificador, guardar payload) — este servicio solo decide
  * si el login es válido y dejarlo dicho en `login_attempts`/`audit_logs`.
+ *
+ * RN-AUTH-63 (1.3): este método **no** registra el `exito` de
+ * `login_attempts` — verificar la contraseña ya no es "haber entrado": con
+ * el login en dos pasos (`funcional.md §C.4.4`), una contraseña correcta
+ * puede desembocar en un desafío de segundo factor sin crear sesión
+ * ninguna. Quien llama decide si abre un desafío o crea la sesión, y es
+ * ese punto —`AuthenticatedSessionEstablisher`— quien registra el éxito.
  */
 final class LoginService
 {
@@ -85,7 +92,11 @@ final class LoginService
         // 'user', no 'anonymous'), así que se escribe en el controlador
         // DESPUÉS de `Auth::guard('web')->login($user)`, no aquí — este
         // servicio solo decide si el login es válido.
-        $this->attempts->recordSuccess($normalizedEmail, $user);
+        //
+        // RN-AUTH-63: `recordSuccess()` YA NO se llama aquí (regresión
+        // corregida en 1.3, funcional.md §C.4.4.2) — se llama únicamente
+        // cuando la sesión se crea de verdad, en
+        // AuthenticatedSessionEstablisher::establish().
 
         return $user;
     }
