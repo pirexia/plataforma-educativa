@@ -399,3 +399,253 @@ Amplía §10, y **una de sus notas cambia de consecuencia**:
 - **`sessions` sigue sin restaurarse** (§10), y ahora hay que añadir la consecuencia sobre este paso: al vaciarla, **todas las filas vivas de `user_sessions` quedan huérfanas a la vez**. `CloseOrphanedUserSessions` las cerrará como `caducidad` en el siguiente ciclo, y el panel dirá la verdad desde el primer momento gracias al cierre perezoso. **No hay que borrar `user_sessions` a mano tras restaurar**, y conviene que esté escrito en el procedimiento de 1.26 porque el impulso natural es hacerlo.
 - **Una restauración a un punto anterior resucita sesiones revocadas.** §10 ya avisaba de que resucita contraseñas antiguas; el equivalente aquí es que una sesión que el usuario cerró deliberadamente —quizá porque sospechaba de ella— vuelve a constar como viva en `user_sessions`. Como `sessions` se vacía, **el acceso real no vuelve**: la fila resucitada se cierra como `caducidad` sin que nadie pueda usarla. Es el resultado correcto, y merece estar escrito para que nadie lo interprete como un fallo al leer el panel después de restaurar.
 - **Nada que copiar fuera de la base de datos**: este módulo sigue sin escribir ficheros.
+
+---
+---
+
+# Parte C · Paso 1.3 · Operación (`REQ-AUTH-003`)
+
+> **Estructura**: §1-§11 son 1.2 (cerrado). §B.1-§B.9 son 1.2b (cerrado). Esta **Parte C** es el paso **1.3**, **pendiente de aprobación** (`funcional.md §C.15`).
+
+---
+
+## C.1 Comportamiento con el módulo activo o inactivo
+
+Sin cambios: **`REQ-AUTH` no es desactivable** (`RN-AUTH-35`) y ninguna ruta de este paso lleva `module-enabled` (`CA-AUTH-145`).
+
+Lo que sí hay que decir es qué pasa **con el MFA desactivado en un tenant**, que es distinto: un tenant cuyos roles tienen todos `mfa_required = false` y cuyos usuarios no han activado nada funciona **exactamente como en 1.2b**. El login es de un paso, `POST /auth/session` responde `200`, y ninguna de las seis tablas nuevas recibe una sola fila. **El coste de este paso para quien no lo usa es una consulta `EXISTS` por login**, servida por un índice que ya existe.
+
+---
+
+## C.2 Variables de entorno
+
+### C.2.1 Propias del paso
+
+| Variable | Uso | Valor en desarrollo |
+|----------|-----|---------------------|
+| `AUTH_MFA_CHALLENGE_TTL_MINUTES` | Vida del desafío de segundo factor (`RN-AUTH-54`) | `5` |
+| `AUTH_MFA_MAX_ATTEMPTS` | Intentos por desafío y por alta antes de matarlo (`RN-AUTH-54`, `RN-AUTH-59`) | `5` |
+| `AUTH_MFA_ENROLLMENT_TTL_MINUTES` | Vida de un alta sin confirmar (`RN-AUTH-59`) | `10` |
+| `AUTH_MFA_CODE_TTL_MINUTES` | Vida del código entregado por correo | `10` |
+| `AUTH_MFA_MAX_DELIVERIES` | Reenvíos por desafío (`funcional.md §C.4.4.1`) | `3` |
+| `AUTH_MFA_RECOVERY_CODE_COUNT` | Códigos de respaldo por juego (`funcional.md §C.4.3`) | `10` |
+| `AUTH_MFA_TOTP_WINDOW` | Pasos de tolerancia a cada lado (`RN-AUTH-58`) | `1` |
+| `AUTH_MFA_GRACE_DEFAULT_DAYS` | Valor por defecto de `tenant_settings.mfa_grace_period_days` en el aprovisionamiento | `7` |
+| `AUTH_MFA_MAX_EXEMPTION_DAYS` | Tope de la caducidad de una excepción (`RN-AUTH-68`) | `90` |
+| `AUTH_MFA_FACTOR_PURGE_DAYS` | Retención de factores borrados lógicamente (`datos.md §C.11`) | `30` |
+| `AUTH_MFA_CHALLENGE_RETENTION_HOURS` | Retención de desafíos consumidos | `24` |
+| `AUTH_RATE_LIMIT_MFA_*` | Los tres límites de `§C.6` | Ver `§C.6` |
+
+**Ninguna es un secreto.** `AUTH_MFA_TOTP_WINDOW` tiene guarda de arranque: un valor por encima de `2` amplía la ventana de validez de un código a más de dos minutos y medio y convierte un código capturado en utilizable; la aplicación aborta.
+
+**No hay ninguna variable de proveedor de SMS**, y es deliberado: no existe proveedor (`funcional.md §C.7`). Añadir `SMS_DRIVER=null` «para dejarlo preparado» es inventar una decisión que no se ha tomado.
+
+### C.2.2 La variable que hay que custodiar de otra forma a partir de este paso: `APP_KEY`
+
+No es nueva. **Lo que cambia es lo que cifra.**
+
+Hasta 1.2b, `APP_KEY` cifraba el *payload* de sesión y los cursores de paginación: cosas regenerables cuyo pérdida obliga a volver a entrar y nada más. **A partir de 1.3 cifra credenciales de usuario** (`user_mfa_factors.secret_encrypted`, `datos.md §C.2`).
+
+Consecuencia, dicha entera:
+
+> Perder `APP_KEY`, o restaurar una copia de la base de datos con una clave distinta, **inutiliza todos los factores TOTP del sistema a la vez**. Nadie con MFA puede entrar. Hay que restablecer el MFA de todo el mundo a mano — y quien tiene que hacerlo es un administrador cuyo rol también exige MFA, así que **tampoco puede entrar**. La salida es intervención directa sobre la base de datos.
+
+`ADR-037 §7.2` punto 4 ya obliga a custodiar `APP_KEY` **separada** de la copia de la base de datos, y `0.10d` lo recoge. **Este paso convierte esa obligación en un requisito de recuperación con consecuencia catastrófica y no en una buena práctica**, y hay que reflejarlo en `SYSADMIN.md` y en `RUNBOOK.md` con esas palabras. `OPEN-AUTH-26`.
+
+### C.2.3 De sesión: sin cambios, con una consecuencia nueva
+
+Las ocho guardas de §2.2 siguen en vigor sin modificación. Una de ellas gana peso:
+
+- **`SESSION_DRIVER=database`** (`RN-AUTH-49`, guarda de arranque desde 1.2b): ahora además es lo que sostiene el desafío. `mfa_challenges` se busca por `session_id` (`RN-AUTH-53`), y con un *driver* de cookie no habría sesión servidor contra la que ligarlo.
+
+---
+
+## C.3 Servicios externos y degradación
+
+| Servicio | Uso nuevo en 1.3 | Si no responde |
+|----------|------------------|----------------|
+| **PostgreSQL** | Factores, desafíos, obligaciones | Sin degradación posible ni deseable, igual que en §3 |
+| **Redis** | Colas, caché y **los tres límites de tasa nuevos** | **El límite no degrada a «sin límite»**: si el almacén del limitador no responde, el endpoint responde `503`. Regla de §3, y aquí es más importante: un limitador abierto sobre `POST /auth/mfa-verifications` es una ventana de fuerza bruta contra seis dígitos |
+| **Correo transaccional** | **Método «código por correo»** y los tres avisos de `funcional.md §C.4.13` | Hereda íntegra la degradación de §3 y `OPEN-AUTH-07`: depende de `0.10c`, **sin decidir**. Consecuencia propia y grave: **un usuario cuyo único factor es el correo no puede entrar mientras el correo no salga.** Es el argumento operativo, además del de seguridad de `funcional.md §C.8`, para que `totp` no sea desactivable (`RN-AUTH-69`) |
+| **SMS** | **Ninguno.** No hay proveedor | No aplica. La guarda de `mfa_allowed_methods` impide llegar a este caso (`RN-AUTH-69`) |
+| **S3 / MinIO** | **No se usa.** Este módulo sigue sin escribir ficheros | — |
+
+**Sin dependencia de tiempo externo, y hay que decirlo porque TOTP invita a pensar lo contrario.** La verificación usa el reloj del servidor. **No se consulta ningún servicio NTP desde la aplicación**: el reloj lo mantiene el sistema operativo del contenedor, y eso es responsabilidad de `SYSADMIN.md`, no de este módulo. Lo que sí es responsabilidad de este documento es dejar escrito el síntoma: **si el reloj del servidor se desvía más de 30 segundos, empiezan a fallar códigos correctos de forma intermitente** (`§C.9`).
+
+---
+
+## C.4 Colas y trabajos (`INV-012`)
+
+| Cola | Trabajo | Disparo | Reintentos |
+|------|---------|---------|------------|
+| `auth-mail` | `SendMfaChallengeCodeEmail` | Apertura o reenvío de un desafío por correo | **3**, retroceso **corto** (10 s → 60 s) |
+| `auth-mail` | `SendMfaEnrollmentCodeEmail` | Alta de un factor por correo | 3, mismo retroceso |
+| `auth-mail` | `SendMfaEnabledEmail` | Confirmación de un factor | 3 |
+| `auth-mail` | `SendMfaDisabledEmail` | Desactivación por el usuario o restablecimiento por el administrador | 5 |
+| `auth-mail` | `SendRecoveryCodeUsedEmail` | Login superado con código de respaldo | 5 |
+| `auth-maintenance` | `MaterializeMfaObligations` | Tras `PATCH /roles` con `mfa_required = true`, **y** programado cada hora | 3 |
+| `auth-maintenance` | `ReopenExpiredMfaExemptions` | Programado, **cada hora** | — |
+| `auth-maintenance` | `PurgeMfaChallenges` | Programado, diario | — |
+| `auth-maintenance` | `PurgeMfaEnrollments` | Programado, diario | — |
+| `auth-maintenance` | `PurgeMfaFactors` | Programado, diario | — |
+
+**El retroceso de los dos primeros es corto a propósito, y es la única desviación de la política de §4.** Los correos de §4 (recuperación, bloqueo) tienen tokens de 60 minutos y 24 horas: un reintento a los 30 minutos sigue sirviendo. **Un código de segundo factor vive 10 minutos y el desafío 5.** Un reintento con el retroceso exponencial de §4 entregaría el código cuando ya no vale, y el usuario recibiría un correo inútil que además le confundiría. Tres intentos en un minuto y medio o nada.
+
+**Ninguno de los cinco trabajos de correo lleva el código en claro fuera de lo imprescindible**, y **los dos que sí lo llevan implementan `ShouldBeEncrypted`** (issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73)), igual que `SendPasswordResetEmail` y `SendAccountLockedEmail`. Es el mismo patrón de «token en el *payload*» y la misma solución; `queue:prune-failed --hours=24` sigue siendo la segunda capa.
+
+**Los tres avisos (`Enabled`, `Disabled`, `RecoveryCodeUsed`) no llevan token, código ni enlace accionable** (`RN-AUTH-50`). Son la única defensa del titular ante un cambio que no hizo él.
+
+Reglas heredadas que siguen aplicando sin excepción: contexto de tenant por el mecanismo de framework (`ADR-033 §8`), purgas **por tenant** con `RunsPerTenant`, *scheduler* en su propio contenedor (`ADR-037`).
+
+### C.4.1 Qué hace cada tarea de mantenimiento
+
+| Trabajo | Qué hace | Base |
+|---------|----------|------|
+| `MaterializeMfaObligations` | Crea la fila de `user_mfa_obligations` de los usuarios que han pasado a estar obligados y **no** tienen una abierta. **Idempotente**, garantizado por el índice único parcial de `datos.md §C.5` y no por comprobación de aplicación | `RN-AUTH-65`. Se despacha tras el `PATCH` **y** se programa cada hora, porque el disparo directo puede fallar y el plazo de gracia no puede depender de que un trabajo no se pierda |
+| `ReopenExpiredMfaExemptions` | Reabre la obligación de los usuarios cuya excepción ha caducado, con **plazo completo** | `funcional.md §C.4.11` punto 4. Cada hora y no a diario: una excepción que caduca a las 9:00 no debería dejar a alguien sin exigencia hasta la madrugada |
+| `PurgeMfaChallenges` | Borra desafíos con más de `AUTH_MFA_CHALLENGE_RETENTION_HOURS` | Artefacto transitorio. **Un día y no cinco minutos**: es lo que permite responder «¿por qué no pudo entrar ayer?» |
+| `PurgeMfaEnrollments` | Borra **físicamente** las filas de `user_mfa_factors` sin confirmar y vencidas | **Contienen un secreto cifrado que ya no sirve.** Minimización: material de credencial sin finalidad |
+| `PurgeMfaFactors` | Borra **físicamente** las filas borradas lógicamente hace más de `AUTH_MFA_FACTOR_PURGE_DAYS` | `datos.md §C.11`. **Es la única tabla del producto donde el borrado lógico de `INV-004` conserva una credencial viva**, y por eso tiene plazo corto y propio |
+
+**Ninguna toca `audit_logs`** (retención de `REQ-PRIV-006`) **ni `mfa_resets`** (traza permanente, *append-only*).
+
+**Ninguna necesita el rol propietario**, a diferencia de `PurgeLoginAttempts` (§4): las cinco tablas ordinarias no son *append-only*. **`mfa_resets` sí lo es**, y por eso **no tiene purga**: su única salida es el flujo de supresión de la persona, que corre con el rol propietario (`datos.md §C.11`).
+
+---
+
+## C.5 Correos que emite el módulo
+
+**Ocho tras 1.3** (tres de 1.2, uno de 1.2b, cuatro nuevos… y son cinco los trabajos porque el de alta y el de desafío comparten plantilla en dos variantes). Todos en los cuatro idiomas de `ADR-021` (`INV-009`, `CA-AUTH-144`) y en el idioma preferido del destinatario.
+
+| Correo | Contenido | Enlace |
+|--------|-----------|--------|
+| Código de segundo factor (login) | El código y **cuántos minutos vale**. Aviso de «si no has intentado entrar, cambia tu contraseña» | **Ninguno** |
+| Código de alta de factor | Ídem, con el contexto de que se está activando | **Ninguno** |
+| Segundo factor activado | Qué método, cuándo, y qué hacer si no fue el titular | **Ninguno** |
+| Segundo factor desactivado o restablecido | Ídem, **y quién lo hizo** si fue un administrador. En el restablecimiento **no se incluye el motivo**: es texto escrito para el registro interno, no para el afectado | **Ninguno** |
+| Código de respaldo usado | Cuándo y desde qué IP aproximada | **Ninguno** |
+
+Reglas comunes, ampliando §5:
+
+- **Ningún correo de este paso lleva enlace accionable** (`RN-AUTH-50`). Ni uno. El aviso de «tu MFA se ha desactivado» con un botón «no fui yo» sería un endpoint anónimo que revierte una credencial: exactamente lo que no se puede tener.
+- **El código nunca va en el asunto.** Un asunto es lo que se ve en la notificación de la pantalla de bloqueo del teléfono, en la vista previa del cliente de correo y en el registro del servidor intermedio.
+- **Ninguno revela si la cuenta existe a quien no es su titular**: los cinco solo se envían cuando hay cuenta y factor detrás.
+- Remitente y dominio dependen de `0.10c` (**pendiente**). En desarrollo, *mailer* `log`; los tests comprueban que el trabajo **se encola**, no que el correo llega (convención de 1.1).
+
+---
+
+## C.6 Límites de tasa
+
+Es, otra vez, la defensa activa de la superficie que este paso abre. Amplía §6.
+
+| Endpoint | Límite | Clave |
+|----------|--------|-------|
+| `POST /auth/mfa-verifications` | **10 / min** | IP |
+| `POST /auth/mfa-verifications` | **5 / min** | `(tenant_id, session_id)` |
+| `POST /auth/mfa-challenges` | **3 / 10 min** | `(tenant_id, session_id)` |
+| `POST /auth/mfa-enrollments` | 10 / hora | `(tenant_id, user_id)` |
+| `POST /auth/mfa-recovery-codes` | 5 / hora | `(tenant_id, user_id)` |
+| `POST /mfa-resets` | 20 / hora | `(tenant_id, user_id del administrador)` |
+
+- **Toda clave incluye el `tenant_id`** (`ADR-033 §9`). Sin cambios respecto de §6.
+- **El límite de verificación se lleva por sesión y no por correo**, a diferencia del de login. El correo no está disponible en el paso 2 sin ir a buscarlo, y la sesión es la clave natural: **es lo que identifica el desafío** (`RN-AUTH-53`).
+- **El límite de tasa no sustituye al tope de intentos del desafío ni al bloqueo de cuenta.** Son tres cosas con tres propósitos: el límite defiende el servidor y se olvida; el tope de `AUTH_MFA_MAX_ATTEMPTS` mata **ese** desafío; el bloqueo de `RN-AUTH-14` defiende **la cuenta** y persiste (`funcional.md §C.4.4.2`). Quitar cualquiera de los tres deja un hueco distinto.
+- **`429` siempre con `Retry-After`** (`ADR-038 §6.5`).
+- El punto ciego de §6 —un centro entero detrás de una IP de salida— **empeora en este paso**: si 25 alumnos entran a las 9:00 y todos tienen MFA, son 25 logins **más** 25 verificaciones por la misma IP. El límite por IP de la verificación es 10/min, y se alcanzaría. **Hay que medirlo con `REQ-SEED` (1.15b) antes de fijar el número definitivo**, y la salida probable es que el límite por sesión sea el que defienda y el de IP sea holgado, porque la sesión ya es un identificador que un atacante no puede multiplicar sin coste.
+
+---
+
+## C.7 Caché
+
+**Ninguna nueva, y esa es la decisión.**
+
+`MfaPolicy::resolve()` se ejecuta en cada petición autenticada y consulta `role_user ⋈ roles`, `user_mfa_factors`, `user_mfa_exemptions` y `user_mfa_obligations`. La tentación de cachearlo con un TTL corto es evidente y **se rechaza** (`RN-AUTH-62`): un rol puede cambiar, una excepción revocarse y un factor darse de alta en la petición anterior, y una caché de cinco minutos convertiría las tres cosas en «efectivo dentro de un rato». **En un control de acceso eso es un fallo, no una optimización.**
+
+Lo que sí se hace es **cachear por petición** (memoización en el contenedor de servicios), para que las tres o cuatro veces que se consulte dentro de la misma petición no sean tres o cuatro consultas.
+
+Si la medición con `REQ-SEED` demostrara que el coste importa, la salida correcta **no** es una caché con TTL: es materializar la obligación en una columna del usuario invalidada por evento, que es un cambio de modelo con su propio ADR. No se anticipa (`ADR-034 OPEN-13`).
+
+`TenantSettingsCache` (1.1) sí sirve `mfa_allowed_methods` y `mfa_grace_period_days` como el resto de la configuración, con su invalidación ya existente.
+
+---
+
+## C.8 Métricas y alertas
+
+Amplía §8. Las que este paso obliga a mirar:
+
+| Métrica | Por qué |
+|---------|---------|
+| **Verificaciones de segundo factor fallidas por minuto** | Es la señal de un ataque contra códigos. Un pico sin pico equivalente de logins fallidos significa que alguien **ya tiene contraseñas** |
+| **Ratio de desafíos abiertos / desafíos consumidos con éxito** | Si cae, algo está roto: el correo no sale, el reloj se ha desviado, o la SPA perdió el paso 2 |
+| **Bloqueos de cuenta con `outcome` predominante `segundo_factor_invalido`** | Distingue «nos atacan» de «hay un problema de reloj o de entrega». Es lo que justifica haber separado los dos `outcome` en `datos.md §C.7.1` |
+| **Usuarios `past_deadline`** por tenant | Personas que ya están contra el muro. Si crece, alguien activó una obligación sin avisar |
+| **Restablecimientos de MFA por administrador y por semana** | Un ritmo alto es, o un problema de usabilidad, o ingeniería social. Las dos cosas hay que verlas |
+| **Latencia diferencial entre el `401` y el `202` de `POST /auth/session`** | `funcional.md §C.6.3` lo dio por despreciable frente a bcrypt de coste 12. **Es una suposición y hay que medirla**, no darla por buena |
+
+Alerta que este paso añade a la guardia: **cero desafíos consumidos con éxito durante más de N minutos en horario lectivo** mientras siguen abriéndose. Es el síntoma de «nadie puede entrar» y no lo detecta ninguna alerta de las de §8, que miran errores y no ausencias de éxito.
+
+---
+
+## C.9 Problemas conocidos y diagnóstico
+
+Amplía §9. Los característicos de este paso, con su síntoma real:
+
+| Síntoma | Causa probable | Comprobación |
+|---------|----------------|--------------|
+| **Códigos TOTP correctos que fallan de forma intermitente, para todo el mundo** | **El reloj del servidor se ha desviado.** Es la causa número uno y no se parece a un fallo de código: unos códigos valen y otros no, según el momento del paso de 30 s | `date -u` en el contenedor de la API contra una fuente fiable. Desviación > 30 s ⇒ es esto |
+| Códigos que fallan **para un solo usuario** | El reloj **de su dispositivo**. La pantalla debe decírselo tras el segundo fallo (`funcional.md §C.4.4.2`) | Su factor tiene `last_used_at` antiguo o `NULL` |
+| **El bloqueo por intentos nunca dispara** contra fallos de segundo factor | `recordSuccess()` sigue llamándose al verificar la contraseña. **Es la regresión de `RN-AUTH-63`** | `login_attempts` con filas `exito` **sin** que exista la fila de `user_sessions` correspondiente. `CA-AUTH-124` es el test que lo caza |
+| El usuario entra pero «se le olvida» que pasó el MFA y se lo vuelve a pedir | El desafío se consumió y la sesión no se regeneró en el orden correcto, o `user_sessions` quedó con el `session_id` anterior | La trampa que `§B.9` anotó. `CA-AUTH-118` lo verifica |
+| **Todos los factores TOTP dejan de verificar a la vez** | **`APP_KEY` cambió o se restauró una copia sin ella** (`§C.2.2`). No es un fallo de código y no tiene arreglo desde la aplicación | Descifrar `secret_encrypted` de cualquier fila falla. **Es el escenario de `OPEN-AUTH-26`** |
+| Un usuario obligado no ve ningún aviso y aparece contra el muro de golpe | No entró durante el plazo de gracia. **Es el comportamiento decidido**, no un fallo (`OPEN-AUTH-22`) | Su fila de `user_mfa_obligations` tiene `obligated_since` de hace más de 7 días y él no tiene `login_attempts` en ese rango |
+| **`DELETE /auth/mfa-factors` responde `422` diciendo que falta la contraseña, y sí se envió** | Un intermediario descartó el cuerpo del `DELETE` (`api.md §C.8.3`) | Reproducir con `curl` directo contra la API, saltando Traefik. Si ahí funciona, es el proxy |
+| Un administrador no puede entrar y tampoco restablecerse | **Es la regla, no un fallo** (`RN-AUTH-67`). Necesita otro administrador | Procedimiento de `§C.11` |
+
+**Y la trampa de §9 que sigue aplicando**, repetida porque este paso la roza: la marca de última actividad se lee del *payload*, **nunca** de `sessions.last_activity`.
+
+---
+
+## C.10 Impacto en copias de seguridad y restauración
+
+Amplía §10 y `§B.9`, y **cambia una conclusión**.
+
+- **`APP_KEY` deja de ser opcional en el plan de recuperación.** Una copia de la base de datos **sin** la clave, o con una distinta, restaura un sistema en el que **nadie con MFA puede entrar** (`§C.2.2`). `ADR-037 §7.2` punto 4 y `0.10d` tienen que recogerlo con esas palabras, y el procedimiento de restauración de 1.26 tiene que verificar la clave **antes** de dar la restauración por buena, no después.
+- **Las seis tablas entran en la copia general sin nada especial**, salvo `mfa_challenges`, que **puede excluirse**: son desafíos de cinco minutos y ninguno sigue vivo tras una restauración.
+- **`user_mfa_factors` es la tabla más crítica del módulo para restaurar.** Perderla es perder los segundos factores de todo el centro, con el mismo efecto que perder `APP_KEY`. **Nunca se excluye.**
+- **Una restauración a un punto anterior resucita factores desactivados.** §10 avisaba de que resucita contraseñas antiguas; el equivalente aquí es peor: **un factor que un usuario desactivó porque perdió el dispositivo vuelve a estar activo**, y esa persona no puede entrar. Y a diferencia de las sesiones de `§B.9` —donde `sessions` se vacía y el acceso real no vuelve—, **aquí sí vuelve el efecto**: el factor resucitado es plenamente funcional. **El procedimiento de restauración de 1.26 tiene que incluir un repaso de los restablecimientos de MFA posteriores al punto restaurado** (`mfa_resets` da exactamente esa lista, con motivo y fecha) para rehacerlos.
+- **Una restauración también resucita obligaciones ya cumplidas y excepciones ya revocadas.** Es menos grave —se corrige solo en la siguiente evaluación de `MfaPolicy` si el factor existe— pero una excepción revocada que vuelve significa que alguien deja de estar obligado sin que nadie lo decida. Repasar `user_mfa_exemptions` con `revoked_at` posterior al punto restaurado.
+- **Nada que copiar fuera de la base de datos**: este módulo sigue sin escribir ficheros. **Salvo `APP_KEY`**, que no es un fichero de este módulo pero sin la cual la copia de este módulo no vale.
+
+---
+
+## C.11 Despliegue
+
+Amplía §11 y `§B.6`. **Este es el paso con el despliegue más delicado del módulo hasta ahora**, y no por las migraciones.
+
+### C.11.1 El día del despliegue, dos roles de todos los tenants pasan a estar obligados
+
+`ProvisionTenantDefaults` sembró `mfa_required = true` en `administrador_centro` y `soporte_plataforma` desde 1.1, y **hasta hoy nadie lo comprobaba** (`permisos.md §5.4`). En cuanto 1.3 esté en producción:
+
+1. Todos los administradores de centro de todos los tenants quedan obligados, con **siete días de gracia** contados desde la primera evaluación.
+2. Ninguno lo ha pedido: el valor lo puso la siembra, no una decisión del centro.
+
+**Qué hay que hacer, y no es opcional:**
+
+- **Avisar antes.** No es un cambio que se despliega un viernes por la tarde.
+- **Comprobar que cada tenant tiene más de un administrador de centro** antes de que venza el plazo. Un centro con un solo administrador que pierda el dispositivo y los códigos **no tiene salida por la aplicación** (`RN-AUTH-67`), y la única vía es intervención directa sobre la base de datos.
+- **Verificar que el `PATCH` de roles funciona en producción el mismo día**, porque es el único interruptor. Es el argumento operativo entero de `funcional.md §C.2.1`.
+
+### C.11.2 Orden y reversión
+
+- **Ocho migraciones, *expand* puro** (`datos.md §C.10`). La migración precede al despliegue.
+- **La única con riesgo de bloqueo real es la del `CHECK` de `login_attempts`**, que es la tabla más grande del módulo: si tiene volumen en el momento del despliegue, `NOT VALID` más `VALIDATE CONSTRAINT` posterior.
+- **La versión anterior sigue funcionando contra el esquema nuevo**: no conoce las tablas, no escribe los `outcome` nuevos y las columnas de `tenant_settings` tienen valor por defecto. **Un despliegue escalonado con réplicas de las dos versiones funciona**: la antigua hace login de un paso, la nueva de dos, y ningún usuario queda en un estado imposible — lo peor que le pasa a alguien es que un login le pida el segundo factor y el siguiente no.
+- **Los *workers* deben procesar trabajos encolados por la versión anterior** (`CLAUDE.md §9`): los cinco trabajos nuevos no existen en la anterior, así que el problema no se da en esa dirección. En la contraria —revertir la aplicación con trabajos nuevos en cola— los cinco fallarían por clase inexistente. **`queue:prune-failed --hours=24` limita el daño**, y el procedimiento de reversión tiene que drenar `auth-mail` antes de revertir.
+- **Reversión**: limpia para siete de las ocho migraciones. La del `CHECK` de `login_attempts` **falla si ya se escribió alguna fila con los valores nuevos**, exactamente como la de `ADR-039 §4.6` y por el mismo motivo (*append-only*, sin `DELETE`). En la práctica es de un solo sentido; **revertir la aplicación no exige revertir esa migración**, y es lo que se hará.
+- **Reversión de la aplicación con factores ya dados de alta**: la versión anterior ignora `user_mfa_factors` y hace login de un paso. **Los usuarios que activaron MFA dejan de tener segundo factor sin que nadie se lo diga.** No se pierde nada —las filas siguen ahí y vuelven a valer al desplegar de nuevo—, pero es una **degradación silenciosa de seguridad** y tiene que estar escrita en el procedimiento de reversión de `RUNBOOK.md`, no descubrirse.
+
+### C.11.3 Lo que hay que verificar en el entorno real y no se puede verificar en WSL2
+
+- **La entrega de los correos de código**, que depende de `0.10c` (`OPEN-AUTH-07`, `OPEN-09`).
+- **Que el cuerpo del `DELETE` llega a través de Traefik** (`api.md §C.8.3`).
+- **Que el reloj del contenedor de la API está sincronizado** y se mantiene así (`§C.9`). Es lo que más se parece a una dependencia externa de este paso, y no tiene test.

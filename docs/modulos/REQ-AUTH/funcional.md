@@ -1177,3 +1177,736 @@ Con esto, `1.2b` pasa a implementación en `feature/REQ-AUTH-005-1.2b-sesiones-a
 Y una confirmación de alcance, por si no se comparte lo que doy por decidido: **la pantalla `/cuenta/sesiones` entra** y **ningún administrador ve ni cierra sesiones ajenas**.
 
 Ninguna de las cinco impide **redactar**; `OPEN-AUTH-13` y `OPEN-AUTH-14` sí condicionan qué se puede declarar terminado.
+
+---
+---
+
+# Parte C · Paso 1.3 · Autenticación multifactor (`REQ-AUTH-003`)
+
+> **Estructura**: §1 a §14 son el paso **1.2** (cerrado 2026-08-25). §B.1 a §B.14 son el paso **1.2b** (cerrado 2026-08-26). Esta **Parte C** (`§C.1` en adelante) es el paso **1.3**, **pendiente de aprobación**.
+>
+> Numeración: se sigue el criterio de 1.2b. Las secciones planas de 1.2 y las `§B.n` de 1.2b **no se tocan**, para no romper las referencias cruzadas que hay en `datos.md`, `api.md`, `permisos.md`, `operacion.md`, el código, los tests y tres ADR. Las reglas de negocio continúan la serie única (`RN-AUTH-52` en adelante), los criterios de aceptación también (`CA-AUTH-104` en adelante) y las preguntas abiertas también (`OPEN-AUTH-18` en adelante).
+>
+> Fuente: `REQ-AUTH-003` (sección 5.2 del documento de requisitos), `RPERM-014`, `RPERM-005`/`RPERM-006`/`RPERM-007` (sección 11.2) y `REQ-BO-007` (solo como frontera).
+
+---
+
+## C.0 Antes de nada: la colisión de orden con 1.5, y qué existe hoy de verdad
+
+`REQ-AUTH-003` dice que `mfa_obligatorio` es *«editable por el Administrador de Centro **desde el editor de roles**»*, que existe *«tanto en los roles predefinidos como en los **roles personalizados** que cree el administrador (`RPERM-005`)»*, que *«al clonar un rol se hereda el valor del rol origen (`RPERM-006`)»* y que hay *«vista previa **en el editor de roles**»*.
+
+**El editor de roles es el paso 1.5, y 1.5 va después de 1.3 en el plan.** Eso no es una suposición: `PLAN-IMPLEMENTACION.md` lo sitúa como *«1.5 · Permisos granulares [OPUS + SONNET] ⚠️ paso crítico»*, después de `1.3` y `1.4`. Antes de escribir nada he comprobado en el código qué existe hoy, porque la respuesta cambia por completo si el atributo no estuviera:
+
+| Hecho verificado | Dónde | Consecuencia |
+|------------------|-------|--------------|
+| **`roles.mfa_required` ya existe en el esquema**, `boolean NOT NULL DEFAULT false` | `database/migrations/2026_08_18_100400_create_roles_table.php`, línea 24 | 1.3 **no crea la columna**. `RPERM-014` está satisfecho a nivel de datos desde 0.8 |
+| **Ya está sembrado con valor real**: `true` en `administrador_centro` y `soporte_plataforma`, `false` en los otros 14 | `ProvisionTenantDefaults::ROLE_ATTRIBUTES` | Hay tenants con la marca puesta **que hoy nada comprueba** (`permisos.md §5.4` lo dice literalmente) |
+| **Ya se expone de solo lectura** en `GET /roles` y `GET /roles/{public_id}` | `RoleResource::toArray()` | La lectura del atributo no hay que inventarla |
+| **La entidad `Role` ya admite roles personalizados por tenant**: `is_system`, `name_key` (predefinido, traducible) *xor* `name` (literal del centro), único parcial `(tenant_id, code)` | Misma migración, `roles_name_source_check` | El esquema de `RPERM-005` está puesto. Lo que no existe es **quién escribe** esas filas |
+| **No hay ninguna escritura de roles**: `RolesController` solo tiene `index()` y `show()`, y su propio comentario dice *«Solo lectura en 1.1 — la escritura de roles y concesiones es 1.5»* | `app/Modules/Core/Http/Controllers/RolesController.php` | No hay creación, ni clonación, ni edición de roles. Tampoco `rol.actualizar` en el catálogo de permisos de `REQ-CORE` (solo `rol.leer`) |
+| **El resolutor de permisos sigue siendo el provisional**: lee `effect`, ignora `scope` | `ADR-034 §2`, `permisos.md §5.6` | Sin cambios en 1.3. Todo lo que este paso siembre lleva `scope = 'todos'` |
+| `config('audit.secret_attribute_patterns')` **ya incluye `*totp*` y `*recovery_code*`** desde 0.9 | `config/audit.php` | La redacción automática de auditoría ya cubre los nombres de columna de este paso. No es casualidad: 0.9 lo anticipó |
+
+**Conclusión: 1.3 no está bloqueado por 1.5.** Lo que 1.5 aporta y aquí falta es *la interfaz de edición de roles* y *la creación/clonación de roles personalizados*, no el atributo ni su semántica. El punto de corte exacto se decide en `§C.2`, y no se esconde: se escribe, igual que 1.2 escribió que dejaba `REQ-AUTH-005` puntos 2-4 fuera y por qué.
+
+### C.0.1 Dependencias no implementadas que sí condicionan el alcance
+
+| Dependencia | Estado | Qué condiciona |
+|-------------|--------|----------------|
+| **Proveedor de SMS** | **No existe ninguno decidido en el proyecto.** No hay entrada en `PLAN-IMPLEMENTACION.md`, ni bloqueante en `memory.md`, ni variable de entorno, ni ADR. La única pieza que sí existe es el destino: `people.contact_phone` (nullable, **sin verificar**) | **El método SMS no se puede entregar en 1.3.** Se especifica su hueco y se prohíbe activarlo; no se inventa proveedor (`OPEN-AUTH-18`). Mismo trato que la geolocalización por IP en 1.2b (`OPEN-AUTH-13`) |
+| **Correo transaccional** (`0.10c` / `OPEN-09`) | Pendiente. `OPEN-AUTH-07` ya lo declaró bloqueante **operativo** de este módulo en 1.2 | El método «código por correo» hereda exactamente la misma degradación que la recuperación de contraseña: en desarrollo va al *mailer* `log`, en producción no funciona hasta que `0.10c` se resuelva. **No añade una dependencia nueva**: usa la que el módulo ya tiene |
+| **`1.5` (editor de roles y roles personalizados)** | No implementado, posterior en el plan | Ver `§C.2`. No bloquea |
+| **`1.6` (`REQ-BO`)** | No implementado | `REQ-BO-007` («MFA obligatorio para todo administrador de plataforma, sin excepción y sin conmutador») es **suyo**, no de 1.3. `platform_admins` ni siquiera existe todavía (`permisos.md §5.3`) |
+| **`1.7`/`1.8` (design system, layout)** | No implementados | Las pantallas de 1.3 siguen el mismo patrón de 1.2/1.2b: autónomas, sin `AppLayout`, sin depender del design system (`§C.11`) |
+| **Librería TOTP en el backend** | No hay ninguna en `composer.json` | Dependencia nueva ⇒ `CLAUDE.md §1`. `OPEN-AUTH-19` |
+| **Generador de QR en el frontend** | No hay ninguno en `package.json` | Dependencia nueva ⇒ `CLAUDE.md §1`. `OPEN-AUTH-20` |
+
+### C.0.2 Contradicciones detectadas
+
+**Ninguna entre requisitos.** Se han comprobado una a una las afirmaciones de `REQ-AUTH-003` contra `RPERM-005`/`006`/`007`/`014`, `REQ-BO-007`, `RSEC-OWASP-002` y las invariantes de la sección 0.5, y son coherentes entre sí.
+
+Lo que sí hay es **una colisión de orden en el plan de implementación** (`§C.0`) y **tres huecos que el requisito deja sin fijar** y que no puedo rellenar yo sin inventar:
+
+1. **Desde cuándo se cuenta el período de gracia.** El requisito dice *«al activarse la obligatoriedad, el usuario dispone de un período de gracia»*. «Activarse» tiene tres disparadores distintos (el rol cambia, el rol se asigna a un usuario nuevo, el tenant restringe métodos y deja al usuario sin factor válido) y el requisito no distingue. `§C.4.8` toma una decisión razonada y `OPEN-AUTH-22` la deja explícita.
+2. **Cuántos códigos de respaldo y de qué forma.** El requisito no dice número ni formato. `§C.4.3` fija un valor por defecto configurable y lo argumenta.
+3. **Si un administrador de centro puede quitarse a sí mismo la obligación.** El requisito recomienda MFA obligatorio para administración de centro, pero recomendación no es cerrojo, y no dice nada de la autoedición. `OPEN-AUTH-23`.
+
+Ninguno de los tres impide redactar. Los tres condicionan qué se implementa, y por eso están escritos aquí y no descubiertos a mitad de la implementación.
+
+---
+
+## C.1 Alcance del paso 1.3
+
+### C.1.1 Entra
+
+1. **Alta voluntaria de MFA por el propio usuario, para cualquier rol** (`REQ-AUTH-003`, primer y segundo punto): personal, familias y estudiantes, sin excepción de perfil.
+2. **Método TOTP** (RFC 6238), completo: alta con secreto provisional, código QR y clave en texto, **confirmación con un código válido antes de activar**, verificación en el login, tolerancia de desfase de reloj y protección contra reutilización del mismo código.
+3. **Método «código por correo»**, sobre la infraestructura de correo que el módulo ya tiene. Desactivado por defecto en el tenant (`§C.4.12`), con su debilidad escrita en voz alta (`§C.8`).
+4. **Método SMS: solo el hueco.** El valor existe en el enumerado y en la configuración del tenant, y **una guarda impide activarlo** mientras no haya proveedor (`§C.7`, `OPEN-AUTH-18`).
+5. **Códigos de respaldo** de un solo uso: generación al confirmar el primer factor, regeneración bajo demanda, consumo verificable e irreversible.
+6. **Login en dos pasos**: `POST /auth/session` deja de crear siempre la sesión. Si hay segundo factor exigible, abre un **desafío** y no autentica a nadie (`§C.6`).
+7. **Obligatoriedad por rol efectiva**: resolución más restrictiva en usuarios con varios roles (`RPERM-007`), período de gracia configurable con avisos, y **sesión restringida** («muro de alta») al agotarse.
+8. **Edición de `mfa_required`** por el Administrador de Centro, acotada al atributo (`§C.2`).
+9. **Vista previa de usuarios afectados** antes de guardar, y **estado de cumplimiento** consultable (obligados, inscritos, pendientes) — el requisito pide las dos cosas y se resuelven con el mismo endpoint.
+10. **Restablecimiento de MFA por el administrador**, con motivo obligatorio, auditoría y notificación al usuario.
+11. **Excepción temporal nominal**, con motivo y caducidad obligatoria. **No existe la exención permanente**, y el esquema lo impide (`NOT NULL` en la caducidad).
+12. **Restricción de métodos por el tenant**.
+13. **Pantallas** del segundo paso del login, del muro de alta y de autoservicio (`§C.11`).
+14. **Auditoría** de todo lo anterior (`INV-003`), **sin ampliar el vocabulario de `audit_logs`** (`§C.10`).
+
+### C.1.2 No entra, y por qué
+
+| Fuera | Por qué |
+|-------|---------|
+| **Editor de roles personalizados: creación, clonación, edición de nombre y permisos** | Es `1.5` íntegro. 1.3 escribe **un solo atributo** de un rol que ya existe (`§C.2`) |
+| **Herencia de `mfa_required` al clonar (`RPERM-006`)** | **No hay clonación de roles todavía.** Es una regla *sobre una operación que no existe*. Se deja escrita como contrato para 1.5 (`§C.12`) y se declara pendiente, no cumplida. Especificarla aquí sería especificar 1.5 |
+| **Ámbitos de permiso distintos de `todos`** | El resolutor sigue ignorando `scope` (`permisos.md §5.6`). Sembrar otro ámbito hoy es un fallo de control de acceso silencioso |
+| **MFA del backoffice de plataforma** (`REQ-BO-007`) | `1.6`. `platform_admins` no existe |
+| **Reautenticación con segundo factor para operaciones sensibles** (*step-up*) | No está en `REQ-AUTH-003`. `REQ-BO-007` lo pide **para el backoffice**, que es 1.6. Inventarlo aquí es inventar requisitos |
+| **«No volver a pedir el código en este dispositivo»** | `RN-AUTH-45` obliga a decidirlo explícitamente y no heredarlo de 1.2b: **se decide que no**. No está en el requisito, y convierte una cookie de 365 días en un salto permanente del segundo factor. Si se quiere, es un paso propio con su propia caducidad y su propia revocación |
+| **MFA en el canje de invitación, en el restablecimiento y en el desbloqueo** | Ninguno de los tres crea sesión (`RN-AUTH-21`). No hay nada que proteger con un segundo factor donde no se entra |
+| **WebAuthn / claves de seguridad / notificaciones push** | No están en `REQ-AUTH-003`. El requisito enumera tres métodos y son esos tres |
+| **Pantalla de administración de `mfa_required` y del cumplimiento** | La **API entra**; la pantalla la monta 1.5/1.8 junto al editor de roles. Mismo criterio con el que 1.1 dejó todas sus pantallas para 1.8 (`OPEN-CORE-02`) |
+
+### C.1.3 El tamaño de este paso, dicho antes de empezar
+
+1.2 entregó 2 tablas nuevas, 2 modificaciones y 10 endpoints. 1.2b entregó 2 tablas y 3 endpoints. **1.3, tal como lo pide el requisito, son 6 tablas nuevas, 2 modificaciones de tablas existentes, 13 endpoints nuevos en este módulo más 1 en `REQ-CORE`, 3 endpoints modificados, 3 pantallas y 2 dependencias externas nuevas.** Es entre dos y tres veces cualquiera de los dos anteriores, y el plan lo dimensiona como *una* sesión.
+
+No lo parto por mi cuenta —el alcance lo fija el usuario— pero sí dejo la línea de corte trazada y el argumento hecho, en `OPEN-AUTH-24`. El precedente es exacto: 1.2 se partió en 1.2/1.2b por esto mismo, con issue [#59](https://github.com/pirexia/plataforma-educativa/issues/59).
+
+---
+
+## C.2 El punto de corte con 1.5, decidido
+
+**Decisión: 1.3 hace efectivo el atributo y entrega su escritura acotada. 1.5 hereda el editor completo.** En concreto:
+
+| Pieza | Paso | Motivo |
+|-------|------|--------|
+| Columna `roles.mfa_required` | **Ya hecha (0.8)** | Existe y está sembrada |
+| Lectura del atributo en `GET /roles` | **Ya hecha (1.1)** | `RoleResource` |
+| **Resolución multi-rol más restrictiva** (`RPERM-007`) | **1.3** | Es lógica de autenticación, no de edición de roles. Sin ella el atributo no significa nada |
+| **Cumplimiento**: gracia, avisos, muro de alta | **1.3** | Ídem |
+| **`PATCH /api/v1/roles/{public_id}` aceptando *solo* `mfa_required`** | **1.3** | Ver abajo |
+| Permiso `rol.actualizar` en el catálogo de `REQ-CORE` | **1.3** | Ver abajo |
+| **Vista previa de usuarios afectados** (endpoint) | **1.3** | El requisito la pide junto al cambio; es una consulta de `REQ-AUTH`, no del editor |
+| Pantalla del editor de roles que consume ese `PATCH` y esa vista previa | **1.5** | Es la interfaz que 1.5 construye |
+| Creación de roles personalizados (`RPERM-005`) | **1.5** | Sin cambios |
+| **Clonación con herencia de `mfa_required`** (`RPERM-006`) | **1.5** | La operación no existe. `§C.12` deja el contrato escrito |
+| Edición del resto de atributos de un rol y de sus concesiones | **1.5** | Sin cambios |
+| Resolutor granular de permisos con ámbitos | **1.5** | `ADR-034 §2`, sin cambios |
+
+### C.2.1 Por qué 1.3 **tiene** que entregar la escritura del atributo, y no puede esperar a 1.5
+
+Es el punto en el que me planto, y el argumento es operativo, no estético:
+
+**Hoy hay dos roles sembrados con `mfa_required = true` que nada comprueba** (`permisos.md §5.4` lo dejó escrito precisamente para que no sorprendiera). El día que 1.3 haga efectivo el atributo, **`administrador_centro` y `soporte_plataforma` de todos los tenants existentes pasan a MFA obligatorio de golpe**. Si además no hay forma de cambiar el atributo hasta 1.5 —dos pasos después, y 1.5 está etiquetado *paso crítico*, es decir, largo— entonces durante todo ese tiempo:
+
+- un centro cuyo administrador pierde el móvil y los códigos de respaldo depende de que otro administrador exista y le haga un restablecimiento; si solo hay uno, **el centro se queda sin administración** y la única salida es tocar la base de datos a mano;
+- un centro que necesite desactivar la obligación por un problema real (un administrador sin dispositivo compatible) no tiene ningún mecanismo, ni siquiera la excepción temporal, porque la excepción es nominal y no resuelve un rol entero;
+- y el requisito dice literalmente *«editable por el Administrador de Centro»*: entregar la obligatoriedad sin su interruptor no es una entrega parcial, es una entrega **con un cerrojo puesto y sin llave**.
+
+Entregar solo el `PATCH` acotado cuesta un método de controlador, una regla de validación y una entrada en el catálogo de permisos. La alternativa cuesta un procedimiento manual sobre producción escrito en `RUNBOOK.md`. No es un empate.
+
+### C.2.2 Por qué `PATCH /roles/{public_id}` acotado, y no un endpoint propio
+
+La tentación es `PATCH /api/v1/roles/{public_id}/mfa-requirement` o, peor, un endpoint de `REQ-AUTH` sobre un recurso de `REQ-CORE`. Se descartan las dos:
+
+- **Un sub-recurso** habría que retirarlo en 1.5 cuando el `PATCH` general lo absorba, y retirar un endpoint publicado es exactamente el ciclo *expand/contract* de `CLAUDE.md §9` aplicado a la API, con dos versiones de convivencia, por un atributo. Absurdo.
+- **Un endpoint de `REQ-AUTH` sobre `roles`** rompe la propiedad del recurso: `roles` es de `REQ-CORE` (`INV-007`). El día que 1.5 escriba su editor tendría dos módulos escribiendo la misma tabla por dos rutas distintas.
+
+Lo que se hace es: **`REQ-CORE` gana el método `update` en su propio `RolesController`, y en 1.3 ese método acepta exactamente un campo.** Cualquier otro campo en el cuerpo responde `422` (`ADR-038 §8`, semántica de `PATCH`). En 1.5 el mismo método admite el resto sin cambiar de ruta, sin cambiar de permiso y sin romper ningún cliente. Es *expand* puro sobre la superficie HTTP.
+
+El permiso es **`rol.actualizar`**, declarado en `CoreServiceProvider::declaredPermissions()` (donde `rol` ya vive, hoy solo con `leer`) y concedido a `administrador_centro`. Es el mismo criterio con el que 1.2 gobernó `session_timeout_minutes` con `configuracion.actualizar` en vez de inventar `sesion.actualizar` (`permisos.md §4.1`): **el atributo vive en un recurso ajeno y se gobierna con el permiso de ese recurso.** La diferencia con 1.2 es que allí el permiso ya existía y aquí hay que declararlo; es una línea en la lista de `REQ-CORE`, no un mecanismo nuevo. Queda anotado en `OPEN-AUTH-21` por si el usuario prefiere que esa línea la escriba 1.5.
+
+### C.2.3 Qué queda declarado como **no cumplido** al cerrar 1.3
+
+Con el mismo carácter con el que 1.2b declaró que `REQ-AUTH-005` punto 4 quedaba cumplido a medias (`RN-AUTH-47`):
+
+- **`RPERM-006` (herencia al clonar) queda pendiente.** No hay clonación. Al cerrar 1.3 no se puede afirmar que esté implementado.
+- **`REQ-AUTH-003`, método SMS: no entregado** (`§C.7`).
+- **`REQ-AUTH-003`, «desde el editor de roles»: entregada la API, no la pantalla.** El administrador puede cambiar el atributo por API; la interfaz llega con 1.5.
+
+---
+
+## C.3 Actores
+
+| Actor | Qué puede hacer en 1.3 |
+|-------|------------------------|
+| **Cualquier usuario autenticado** (personal, familia, estudiante) | Ver su estado de MFA, dar de alta un factor, confirmarlo, generar y regenerar sus códigos de respaldo, y desactivar su factor **si ningún rol suyo lo exige** |
+| **Usuario en proceso de login** | Superar el segundo factor del desafío abierto por su contraseña. **No está autenticado** mientras tanto (`§C.6`) |
+| **Usuario obligado y no inscrito** | Dentro de la gracia: todo lo normal, con aviso. Agotada: **solo** dar de alta su factor o salir (`§C.4.9`) |
+| **Administrador de Centro** | Cambiar `mfa_required` de un rol, ver la vista previa y el cumplimiento, restablecer el MFA de un usuario, y conceder/revocar excepciones temporales |
+| **Administrador de plataforma** | **Nada aquí.** `REQ-BO-007` es 1.6 |
+| **Sistema** | Evaluar la obligación en cada acceso, materializar el plazo de gracia, purgar desafíos y altas caducadas |
+
+---
+
+## C.4 Flujos
+
+### C.4.1 Alta de un factor TOTP (`REQ-AUTH-003`, activación voluntaria)
+
+1. El usuario, **autenticado**, abre `/cuenta/seguridad` y pide dar de alta TOTP.
+2. `POST /api/v1/auth/mfa-enrollments` con `{"method": "totp"}`. El servidor comprueba que `totp` está entre los métodos que el tenant admite (`§C.4.12`) y que el usuario no tiene ya un factor confirmado de ese método.
+3. Se genera un **secreto aleatorio de 20 bytes** de un generador criptográfico, se guarda **cifrado** (`RN-AUTH-55`) en una fila de `user_mfa_factors` con `confirmed_at = NULL` y `expires_at = ahora + AUTH_MFA_ENROLLMENT_TTL_MINUTES` (10 por defecto).
+4. La respuesta `201` devuelve, **una sola vez**: el `public_id` del alta, el secreto en base32 **en texto** y la URI `otpauth://totp/...`. **No devuelve una imagen**: el QR lo pinta la SPA a partir de la URI (`OPEN-AUTH-20`).
+   - El secreto en texto **no es un extra**: es el único camino para quien no puede escanear un código con la cámara. Sin él la pantalla no cumple WCAG 2.2 AA (`CLAUDE.md §10`), y con él el requisito de «Google Authenticator, Authy, Microsoft Authenticator» se cumple en los tres, que aceptan entrada manual.
+5. El usuario introduce un código de 6 dígitos de su aplicación.
+6. `POST /api/v1/auth/mfa-factors` con `{"enrollment": "<public_id>", "code": "123456"}`.
+7. El servidor verifica el código contra el secreto del alta, con la ventana de `RN-AUTH-58`. **Si falla, el factor no se activa** y el intento cuenta contra el tope del alta (`RN-AUTH-59`).
+8. Si acierta, **en una transacción**: `confirmed_at = ahora`, `expires_at = NULL`, y —si el usuario no tenía ningún factor confirmado antes— se generan sus **códigos de respaldo** (`§C.4.3`).
+9. La respuesta `201` devuelve el factor y, **solo si se han generado**, la lista de códigos de respaldo **en claro**. Es la única vez que salen del servidor.
+10. Se encola el aviso «se ha activado un segundo factor en tu cuenta» (`§C.4.13`).
+11. El *observer* de 0.9 audita el `created` sobre `MfaFactor` con el secreto redactado (`§C.10`).
+
+**Por qué la confirmación es obligatoria y no basta con «he escaneado el QR».** Un factor activado sin comprobar que el usuario puede producir un código deja cuentas cerradas por su propio dueño: si la aplicación no guardó el secreto, si el reloj del teléfono está desfasado o si se escaneó otro QR, el usuario descubre el problema en el siguiente login, ya bloqueado. El paso 7 es lo que convierte el alta en reversible.
+
+### C.4.2 Alta de un factor «código por correo»
+
+Igual que `§C.4.1`, con dos diferencias:
+
+- En el paso 3 no hay secreto: se genera un **código de 6 dígitos**, se guarda **solo su hash SHA-256** (`RN-AUTH-09`) con `expires_at = ahora + AUTH_MFA_CODE_TTL_MINUTES` (10 por defecto) y **se encola** el correo (`INV-012`) al `users.email` del titular, en su idioma (`INV-009`).
+- La respuesta `201` **no devuelve nada verificable**: solo el `public_id` del alta y el destino enmascarado (`a···z@e···e.com`). Devolver el código haría el segundo factor decorativo.
+
+El destino **es siempre `users.email`**, el correo de acceso, y no `people.contact_email`. Son campos distintos y el segundo es de contacto, editable por más caminos: usarlo convertiría un cambio de dato de contacto en un cambio de credencial.
+
+### C.4.3 Códigos de respaldo (`REQ-AUTH-003`)
+
+1. Se generan **al confirmar el primer factor** del usuario y solo entonces. Regenerar es un acto explícito.
+2. **`AUTH_MFA_RECOVERY_CODE_COUNT` códigos, 10 por defecto**, de **10 caracteres** de un alfabeto sin ambigüedades visuales (Crockford base32 sin `I`, `L`, `O`, `U`), agrupados `XXXXX-XXXXX` para poder leerlos en voz alta y transcribirlos. Diez códigos de diez caracteres son ~50 bits cada uno: adivinarlos no es un ataque viable, y el número no lo fija el requisito, así que es configurable y su valor por defecto está argumentado aquí y no escondido en el código.
+3. Se persiste **solo el hash SHA-256** de cada uno, una fila por código (`datos.md §C.3`). No un `jsonb` con la lista: una fila por código es lo que permite marcar el consumo individualmente, indexar la búsqueda y auditar cuál se gastó.
+   - **SHA-256 y no bcrypt**, a diferencia de la contraseña (`RN-AUTH-03`): un código de respaldo es un token de alta entropía generado por el servidor, exactamente como los de invitación, restablecimiento y desbloqueo, que `RN-AUTH-09` ya guarda como SHA-256. Además, bcrypt obligaría a verificar contra los diez hashes en cada intento —diez operaciones deliberadamente lentas por petición— y eso es un amplificador de denegación de servicio, no una mejora.
+4. `POST /api/v1/auth/mfa-recovery-codes` regenera: **en una transacción**, borra las filas anteriores (usadas y sin usar) y crea el conjunto nuevo. Exige la **contraseña actual** en el cuerpo, por el mismo motivo que el cambio de contraseña de §4.8: una sesión secuestrada no puede fabricarse un juego de credenciales de repuesto.
+5. Los códigos en claro salen **una sola vez**, en la respuesta que los genera. No hay ningún endpoint que los vuelva a mostrar, y no existe forma de recuperarlos: eso es lo que significa guardar solo el hash, y la pantalla tiene que decirlo antes de que el usuario cierre el diálogo.
+6. Consumir un código lo marca `used_at` y **no lo borra**: la traza de que se usó un código de respaldo es información de seguridad, y `REQ-AUTH-003` exige auditarla explícitamente.
+7. **Quedarse sin códigos no bloquea nada**: el factor sigue funcionando. `GET /auth/mfa` devuelve cuántos quedan sin usar para que la pantalla avise.
+
+### C.4.4 Login en dos pasos (`REQ-AUTH-003`, `RN-AUTH-21`)
+
+Es el flujo que 1.2 dejó preparado en §9: *«`POST /auth/session` es el único camino que crea sesión. 1.3 lo parte en dos.»* Aquí está partido.
+
+**Paso 1 — credencial.** Idéntico a §4.2 hasta el punto 5 incluido: límite de tasa, comprobación de bloqueo, verificación de credencial, comprobación de estado. Nada de eso cambia.
+
+**A partir de ahí**, con la credencial ya verificada y el usuario `activo`, se evalúa `MfaPolicy::resolve($user)` (`§C.4.7`):
+
+| Situación | Qué ocurre |
+|-----------|------------|
+| El usuario **tiene al menos un factor confirmado y utilizable** | Se abre un **desafío** y se responde `202`. **No se crea sesión autenticada** (`§C.6`) |
+| El usuario **no tiene factor** y **no está obligado** | Login normal: `200`, exactamente el comportamiento de 1.2 |
+| El usuario **no tiene factor**, **está obligado** y **está dentro de la gracia** | Login normal: `200`, con el plazo en el recurso de perfil para que la pantalla avise (`§C.4.8`) |
+| El usuario **no tiene factor**, **está obligado** y **la gracia ha vencido** | Login **restringido**: `200`, sesión creada, pero solo alcanzan los endpoints de `§C.4.9` |
+| El usuario tiene una **excepción temporal viva** | Se trata como no obligado mientras dure (`§C.4.11`) |
+
+**Apertura del desafío** (primera fila):
+
+1. Se crea una fila en `mfa_challenges` con el `user_id`, el `session_id` **actual** (el de la sesión anónima que la SPA ya tiene por la cookie CSRF), el método elegido, `expires_at = ahora + AUTH_MFA_CHALLENGE_TTL_MINUTES` (5 por defecto) y `attempts = 0`.
+2. El método elegido es el **preferido** del usuario si lo hay, y si no, el único que tenga; con varios, TOTP gana (no requiere entrega). El usuario puede cambiarlo con `POST /auth/mfa-challenges` (`§C.4.4.1`).
+3. Si el método requiere entrega (correo), se genera el código, se guarda su hash y **se encola** el envío.
+4. Se escribe una fila en `login_attempts` con `outcome = 'pendiente_segundo_factor'` (`§C.4.4.2`).
+5. Respuesta **`202`** con el recurso del desafío: método en curso, métodos alternativos disponibles, destino enmascarado si procede, `expires_at`, y si el usuario tiene códigos de respaldo sin usar. **Sin ningún token**: la única credencial del desafío es la cookie de sesión que el navegador ya lleva (`§C.6`).
+
+**Paso 2 — segundo factor.**
+
+6. `POST /api/v1/auth/mfa-verifications` con `{"code": "123456"}` o `{"recovery_code": "XXXXX-XXXXX"}`, con CSRF (`RN-AUTH-29`).
+7. El servidor busca el desafío **vivo, no consumido y ligado al `session_id` de la petición**. Si no existe, ha caducado o ya se consumió ⇒ `410`, cuerpo idéntico en los tres casos (§4.7).
+8. Verifica el código:
+   - **TOTP**: contra el secreto descifrado, ventana de `RN-AUTH-58`, comparación en tiempo constante, y rechazo si el paso de tiempo ya se consumió (`RN-AUTH-58`).
+   - **Correo**: contra el hash del código entregado, comparación en tiempo constante.
+   - **Código de respaldo**: búsqueda por `(tenant_id, user_id, sha256(código))` sobre filas sin usar.
+9. **Fallo**: `attempts + 1`, fila en `login_attempts` con `outcome = 'segundo_factor_invalido'`, incremento del contador de fallos consecutivos de `(tenant_id, email)` — el **mismo** contador del bloqueo de `RN-AUTH-14` (`§C.4.4.2`) — y respuesta `401` genérica. Alcanzado `AUTH_MFA_MAX_ATTEMPTS` (5), el desafío queda consumido y hay que volver a empezar por la contraseña.
+10. **Acierto**, en este orden exacto y en una transacción:
+    1. Se marca el desafío `consumed_at`, y el código de respaldo `used_at` si fue eso lo que se usó.
+    2. Se actualiza `last_used_at` y, en TOTP, `last_used_step` del factor.
+    3. `$request->session()->regenerate()` (`RN-AUTH-32`).
+    4. `Auth::guard('web')->login($user)`.
+    5. `AuditRecorder::record($user, 'login')` — **después** de `login()`, o el actor sale `anonymous` (`ADR-039 §4.5`).
+    6. `pge_tenant_id` y `pge_last_activity_at` en el *payload*.
+    7. Registro en `user_sessions` con el `session_id` **posterior** a la regeneración, y detección de dispositivo (`§B.4.1`). **Esta es la trampa que `§B.9` dejó anotada y aquí queda resuelta: el registro se hace después de regenerar, igual que en 1.2b, y como la fila nace ya con el identificador definitivo no hay ninguna que actualizar.**
+    8. Fila en `login_attempts` con `outcome = 'exito'`, que es lo que **pone a cero** el contador de fallos consecutivos.
+    9. Si se usó un código de respaldo, se encola el aviso al titular (`§C.4.13`).
+11. Respuesta `200` con **el mismo recurso que `GET /me`**, igual que el login de un paso.
+
+#### C.4.4.1 Cambiar de método o reenviar el código
+
+`POST /api/v1/auth/mfa-challenges` con `{"method": "email"}` sobre un desafío vivo: cambia el método en curso, genera y encola un código nuevo, **no reinicia el contador de intentos** y **no prolonga la caducidad del desafío**. Límite propio de reenvíos (`operacion.md §C.6`).
+
+Que el reenvío no reinicie ni el contador ni el plazo es deliberado: si lo hiciera, un atacante con la contraseña tendría intentos infinitos sin más coste que pulsar «reenviar».
+
+#### C.4.4.2 Los fallos de segundo factor alimentan el mismo bloqueo, y el éxito de contraseña ya no lo pone a cero
+
+**Es la regla con más consecuencias de este paso y el error más fácil de cometer.**
+
+Hoy `LoginService::attempt()` llama a `$this->attempts->recordSuccess()` en cuanto la contraseña es correcta y el usuario está activo. Con el login en dos pasos, dejarlo así abre un agujero:
+
+> Un atacante que ya tiene la contraseña correcta reenvía el paso 1 antes de cada intento de segundo factor. Cada paso 1 registra un `exito` que **pone a cero el contador de fallos consecutivos**, y el bloqueo de cinco intentos de `RN-AUTH-14` **nunca dispara**. El atacante obtiene intentos ilimitados contra un código de seis dígitos.
+
+Por eso:
+
+1. **`recordSuccess()` se mueve al final del paso 2**, y solo se llama cuando la sesión se ha creado de verdad. Un login completo es lo único que pone el contador a cero (`RN-AUTH-63`).
+2. El paso 1 superado pero pendiente de segundo factor escribe `outcome = 'pendiente_segundo_factor'`, que **no toca el contador**.
+3. Cada fallo de segundo factor escribe `outcome = 'segundo_factor_invalido'` y **sí incrementa** el contador, exactamente igual que un fallo de contraseña.
+
+**Por qué el mismo contador y no uno separado.** La alternativa razonable es un cerrojo propio del segundo factor, y se descarta por dos motivos: (a) reutilizar `account_lockouts` mantiene una sola respuesta `423` y una sola entidad que el administrador ya sabe listar y levantar, en vez de dos mecanismos con dos pantallas; (b) **no abre ningún vector de denegación de servicio nuevo**, porque para llegar al segundo factor hay que haber acertado la contraseña, y quien no la acierta ya podía provocar el bloqueo por la vía de 1.2 (`RN-AUTH-15`, bloqueo fantasma incluido).
+
+El coste que sí tiene, y hay que aceptarlo con los ojos abiertos: **un usuario con el reloj del móvil desfasado agota cinco intentos y bloquea su cuenta 15 minutos**. Se mitiga con la ventana de desfase de `RN-AUTH-58` (±1 paso, ±30 s) y con que la pantalla diga explícitamente «comprueba la hora de tu dispositivo» tras el segundo fallo, no con relajar el contador.
+
+### C.4.5 Uso de un código de respaldo
+
+Es el paso 2 con `{"recovery_code": ...}` en vez de `{"code": ...}`. Tres reglas propias:
+
+1. **Un código de respaldo vale para cualquier método**: es precisamente el camino de quien no tiene acceso a su factor.
+2. **Se consume aunque el login se interrumpa después.** Se marca `used_at` en la misma transacción que crea la sesión; si esa transacción falla, no se consume. Lo que no se hace es «reservarlo» y devolverlo: un código medio usado es un código reutilizable.
+3. **Su uso se audita y se notifica al titular** (`REQ-AUTH-003`, «uso de código de respaldo queda auditado»). El aviso es la única señal que tiene alguien de que otro entró con un código que él guardaba en un cajón.
+
+### C.4.6 Desactivación por el propio usuario
+
+1. `DELETE /api/v1/auth/mfa-factors/{public_id}`, con sesión, CSRF y **contraseña actual en el cuerpo** (mismo argumento que `§C.4.3` punto 4).
+2. **Si algún rol del usuario exige MFA y no tiene excepción viva ⇒ `409`.** Es literal del requisito: *«Un usuario nunca puede desactivar su MFA si alguno de sus roles lo exige»* (`RN-AUTH-61`).
+3. Si era su **último** factor confirmado, se borran también sus códigos de respaldo: no protegen nada y son material de credencial vivo.
+4. Se encola el aviso al titular.
+5. Borrado **lógico** (`INV-004`): la fila conserva `deleted_at` y el *observer* audita el `deleted`. El secreto sigue cifrado en la fila borrada hasta que la purga la retire (`datos.md §C.7`).
+
+### C.4.7 Obligatoriedad: cómo se resuelve (`RPERM-007`, `RPERM-014`)
+
+`MfaPolicy::resolve(User $user): MfaObligation` es la **única** función del sistema que decide si alguien está obligado. Su resultado es una de tres cosas: `NoObligado`, `EnGracia(deadline)` o `Exigible`.
+
+El cálculo, en este orden:
+
+1. **¿Tiene una excepción temporal viva?** (`user_mfa_exemptions`, `expires_at > ahora`, `revoked_at IS NULL`) ⇒ `NoObligado`.
+2. **¿Alguno de sus roles vivos tiene `mfa_required = true`?** Si ninguno ⇒ `NoObligado`.
+   - **Este es el «criterio más restrictivo» de `RPERM-007`, y es un `OR`, no un `AND`**: basta un rol. Se implementa como una sola consulta con `EXISTS` sobre `role_user ⋈ roles`, con el predicado de tenant explícito (`RN-AUTH-07`), **no** cargando los roles en memoria y recorriéndolos — una colección cargada puede venir de una relación mal filtrada.
+   - Es coherente con la resolución de permisos de `RPERM-007` («deny sobrescribe allow») sin ser la misma regla: allí el valor restrictivo es la denegación; aquí, la exigencia.
+3. **¿Tiene un factor confirmado y utilizable** (método permitido hoy por el tenant, `§C.4.12`)**?** Si sí ⇒ `NoObligado` — está cumpliendo.
+4. Si no, se materializa o se lee su fila de `user_mfa_obligations` y se compara `grace_deadline_at` con ahora ⇒ `EnGracia` o `Exigible`.
+
+**El resultado se cachea por petición, nunca entre peticiones.** Un rol puede cambiar, una excepción puede revocarse y un factor puede darse de alta en la petición anterior; una caché con TTL convertiría cualquiera de las tres en «efectivo dentro de cinco minutos», y en un control de acceso eso es un fallo, no una optimización.
+
+### C.4.8 Período de gracia: cuándo empieza y qué pasa mientras
+
+**El plazo empieza cuando empieza la obligación, no en el primer acceso posterior.** La obligación empieza en el primer instante en que `MfaPolicy` evalúa a ese usuario como obligado sin factor y no encuentra fila en `user_mfa_obligations`: en ese momento se crea la fila con `obligated_since = ahora` y `grace_deadline_at = ahora + tenant_settings.mfa_grace_period_days` (**7 por defecto**, literal del requisito).
+
+Los tres disparadores que el requisito no distingue quedan cubiertos por el mismo mecanismo, sin código por caso:
+
+| Disparador | Qué pasa |
+|------------|----------|
+| El administrador pone `mfa_required = true` en un rol | Un trabajo encolado (`operacion.md §C.4`) materializa la fila de los usuarios afectados **en ese momento**, sin esperar a que entren |
+| Se asigna ese rol a un usuario nuevo | La fila se materializa en su siguiente evaluación (login o petición autenticada) |
+| El tenant restringe métodos y el factor del usuario deja de ser utilizable | Ídem: `MfaPolicy` deja de verle factor válido, y la fila se materializa o se reabre |
+
+**Qué ve el usuario mientras dura**: el recurso de perfil (`GET /me` y la respuesta del login) lleva un bloque `mfa` con `obligated`, `enrolled`, `grace_deadline_at` y `days_remaining`. La pantalla pinta un aviso **en cada acceso** con el plazo restante y un enlace a `/cuenta/seguridad`. Eso es *«avisos en cada acceso»* del requisito, y se resuelve con el recurso que la SPA ya pide, sin endpoint nuevo y sin correo.
+
+**Qué pasa al vencer**: `§C.4.9`.
+
+**Qué pasa si el usuario cumple**: al confirmar su primer factor se cierra la fila (`resolved_at`). Si más tarde vuelve a quedar sin factor, se abre una fila **nueva** con plazo completo: el historial de obligaciones queda, no se sobrescribe.
+
+**Sin correo de aviso de inicio de obligación.** El requisito pide avisos «en cada acceso», que es lo que se entrega. Añadir un envío masivo a todos los usuarios de un rol cada vez que un administrador pulsa un interruptor es una decisión de producto con coste real (`0.10c` sin resolver, `RMT-005` limita envíos por tenant) y no está pedida.
+
+### C.4.9 Sesión restringida: el muro de alta
+
+Cuando `MfaPolicy` devuelve `Exigible`, el usuario **sí obtiene sesión** —restringida— y no un rechazo. Es contraintuitivo y hay que argumentarlo: **para dar de alta un factor hay que estar autenticado**. Un usuario obligado y sin factor al que se le niega la sesión no tiene ningún camino hacia el alta, y el requisito pide justo lo contrario: *«el login desemboca en una pantalla de alta de MFA de la que no se puede salir sin completar el registro»*. Desembocar en una pantalla exige haber entrado.
+
+La restricción la aplica el *middleware* `RequireMfaEnrollment`, en la cadena del grupo `/api/v1`, **después** de `VerifySessionTenant` y de la comprobación de inactividad:
+
+- **Permitido**: `GET /me`, `GET /auth/mfa`, `POST /auth/mfa-enrollments`, `POST /auth/mfa-factors`, `DELETE /auth/session`, `GET /auth/csrf-cookie`, y los endpoints públicos de marca e idioma que la pantalla necesita para pintarse.
+- **Todo lo demás**: `403` con el tipo nuevo `urn:pge:error:mfa-enrollment-required` (`api.md §C.1.1`).
+
+Reglas del muro:
+
+1. **La lista es una lista blanca, no negra** (`INV-002`). Un endpoint nuevo de cualquier módulo queda bloqueado por defecto, que es el comportamiento correcto.
+2. **`DELETE /auth/session` está siempre permitido.** Un muro del que no se puede salir ni cerrando sesión es un secuestro, no un control.
+3. **`POST /auth/password-changes` no está permitido**, y merece decirse: el usuario obligado puede completar su alta o irse, no reorganizar su cuenta.
+4. **La sesión no se destruye al vencer el plazo a mitad de trabajo.** El *middleware* evalúa en cada petición autenticada, así que un usuario en gracia que cruza la medianoche del vencimiento recibe el `403` en su siguiente petición y la SPA lo lleva al muro. **Se le pierde lo que estuviera escribiendo**, y no hay forma de evitarlo del todo; se mitiga porque el aviso lleva siete días apareciendo en cada acceso.
+5. **El muro no exime del segundo factor de nadie más.** Un usuario con factor confirmado nunca pasa por aquí: pasa por `§C.4.4`.
+
+### C.4.10 Restablecimiento por el administrador (`REQ-AUTH-003`)
+
+1. `POST /api/v1/mfa-resets` con `{"user": "<public_id>", "reason": "..."}`, permiso `mfa.eliminar`.
+2. **`reason` es obligatorio** y tiene longitud mínima (`RN-AUTH-66`). No es burocracia: es lo único que queda escrito de por qué se devolvió el acceso a una cuenta protegida.
+3. **La «verificación previa de identidad» del requisito es un procedimiento humano, no una llamada HTTP.** No se modela como una casilla «he verificado la identidad», porque una casilla obligatoria que siempre se marca no verifica nada y además da cobertura documental a quien no verificó. Lo que se hace es: el motivo obligatorio queda auditado con nombre del administrador, el titular recibe una notificación que no se puede desactivar, y el procedimiento (qué se considera verificación aceptable en un centro) se documenta en `operacion.md §C.9` y en el manual de administración.
+4. Efecto, en una transacción: se borran **lógicamente** todos los factores del usuario, se borran sus códigos de respaldo, **se revocan todas sus sesiones** con `end_reason = 'cambio_credencial'`, y si sigue obligado se abre una obligación nueva con plazo de gracia completo.
+   - **`cambio_credencial` y no un valor nuevo**: un segundo factor **es** una credencial, y el valor existente describe con exactitud lo que pasó. Esto **no** es el caso del issue [#61](https://github.com/pirexia/plataforma-educativa/issues/61) —allí se reutilizó un valor que no correspondía por no tener el correcto—; aquí el valor correcto ya está en el `CHECK`. Ampliar el enumerado de siete a ocho para no reutilizar un valor que encaja sería el error contrario.
+5. Se **encola** la notificación al usuario afectado (`INV-012`), en su idioma, **sin enlace accionable** (mismo criterio que `RN-AUTH-50`).
+6. El *observer* audita los `deleted`; el motivo viaja en el registro del restablecimiento (`§C.10`).
+7. **Un administrador no puede restablecerse a sí mismo** (`RN-AUTH-67`). Si pudiera, `mfa.eliminar` sería un botón de «quítame el segundo factor» y toda la obligatoriedad de `REQ-AUTH-003` se caería por ahí. La salida para un administrador que pierde su factor y sus códigos es otro administrador — y si no hay otro, es un procedimiento operativo documentado, no un endpoint.
+
+### C.4.11 Excepción temporal nominal (`REQ-AUTH-003`)
+
+1. `POST /api/v1/mfa-exemptions` con `{"user": ..., "reason": ..., "expires_at": ...}`, permiso `exencion_mfa.crear`.
+2. **`expires_at` es obligatorio** y como máximo `AUTH_MFA_MAX_EXEMPTION_DAYS` (90 por defecto) en el futuro. *«No existe la exención permanente»* es literal del requisito, y lo garantiza el esquema (`NOT NULL` + `CHECK`), no una validación de aplicación.
+3. Mientras vive, `MfaPolicy` devuelve `NoObligado` (`§C.4.7`, paso 1). Consecuencia que hay que aceptar y escribir: **durante la excepción el usuario también puede desactivar su factor**, porque no está obligado. Es exactamente para lo que sirve una excepción («usuario sin dispositivo compatible»), y ocultarlo detrás de una regla adicional daría una excepción que no exceptúa.
+4. Al caducar o revocarse, la obligación vuelve **con plazo de gracia completo**, no con el remanente del anterior.
+5. `DELETE /api/v1/mfa-exemptions/{public_id}` la revoca antes de tiempo (`exencion_mfa.eliminar`). La fila se conserva con `revoked_at`/`revoked_by`: es traza, como un bloqueo levantado.
+6. Todo el ciclo lo audita el *observer* sin código propio, porque **la excepción es una entidad**, no un evento (`§C.10`).
+
+### C.4.12 Métodos que el tenant admite (`REQ-AUTH-003`)
+
+1. `tenant_settings.mfa_allowed_methods`, `jsonb`, valor por defecto **`["totp"]`**.
+2. Se edita en `PATCH /tenant/settings`, grupo `security`, con `configuracion.actualizar` — el mismo sitio y el mismo permiso que `session_timeout_minutes` (`api.md §6`), por el argumento de `permisos.md §4.1`.
+3. **`totp` no se puede quitar** (`RN-AUTH-69`). Es el único método sin dependencia externa y el único que funciona para alguien sin buzón alcanzable; un tenant que se quedara solo con `email` y perdiera el correo transaccional dejaría a todos sus usuarios obligados sin ninguna forma de cumplir.
+4. **`sms` no se puede poner** mientras no haya proveedor configurado (`§C.7`). Guarda de aplicación con `422` y mensaje explícito, no un fallo silencioso en el primer envío.
+5. **Quitar un método invalida los factores existentes de ese método**: dejan de ser utilizables en el login y dejan de contar como cumplimiento, con lo que sus titulares vuelven a estar obligados **con plazo de gracia completo** (`§C.4.8`). La alternativa —dejarlos funcionando— convierte la restricción en un letrero decorativo.
+6. Por defecto, `["totp"]` significa que **el correo como segundo factor está desactivado salvo que el centro lo active a propósito**, habiendo leído lo que protege y lo que no (`§C.8`).
+
+### C.4.13 Avisos al titular
+
+Tres, todos encolados (`INV-012`), en los cuatro idiomas (`INV-009`) y **sin enlace accionable** (`RN-AUTH-50`):
+
+| Cuándo | Por qué |
+|--------|---------|
+| Se activa un segundo factor | Si no fue el titular, alguien con su contraseña acaba de echar el cerrojo desde dentro. Es la señal más urgente del módulo |
+| Se desactiva un segundo factor, o el administrador lo restablece | El requisito exige la notificación del restablecimiento; la desactivación es la misma situación con otro actor |
+| Se usa un código de respaldo para entrar | Es el único aviso de que alguien entró sin el factor |
+
+**Estos tres avisos son una extensión del patrón que este módulo ya fijó** con `SendPasswordChangedEmail` (§4.8, punto 7), no un requisito nuevo: el segundo y el tercero los pide `REQ-AUTH-003` de forma explícita o casi; el primero es la misma defensa aplicada al mismo tipo de hecho. Se dice aquí para que la revisión no lo tome por invención (`CLAUDE.md §11`) y para que el usuario pueda rechazarlo si no lo comparte.
+
+---
+
+## C.5 Reglas de negocio nuevas
+
+Continúan la numeración de §5 y §B.5. Las 51 anteriores siguen en vigor sin cambios, con **una precisión** sobre `RN-AUTH-14` que introduce `RN-AUTH-63`.
+
+| ID | Regla |
+|----|-------|
+| **Sesión y segundo factor** | |
+| `RN-AUTH-52` | **Un usuario con segundo factor exigible no está autenticado hasta superarlo.** Entre el paso 1 y el paso 2 no se llama a `Auth::login()`, no se escribe `pge_tenant_id` en el *payload*, no se crea fila en `user_sessions` y ninguna petición a ningún endpoint del producto se considera autenticada. La única cosa que existe es una fila de `mfa_challenges` y la sesión **anónima** que ya había (`§C.6`). |
+| `RN-AUTH-53` | El desafío se liga al `session_id` de la petición que lo abrió y **solo es verificable desde esa misma sesión**. No se emite ningún token, identificador ni cabecera que permita completarlo desde otro cliente. Un `public_id` de desafío presentado desde otra sesión responde `410`, igual que uno inexistente. |
+| `RN-AUTH-54` | El desafío caduca a los `AUTH_MFA_CHALLENGE_TTL_MINUTES` (5 por defecto), muere al consumirse y muere al agotar `AUTH_MFA_MAX_ATTEMPTS` (5). Reenviar el código **no** prolonga la caducidad ni reinicia los intentos (`§C.4.4.1`). |
+| **Secretos y códigos** | |
+| `RN-AUTH-55` | El secreto TOTP se almacena **cifrado con `APP_KEY`** (cast `encrypted` del framework), nunca en claro y nunca hasheado — hay que poder recuperarlo para verificar. Sale del servidor **una sola vez**, en la respuesta del alta, y ninguna otra respuesta, registro de auditoría, log ni *payload* de trabajo encolado lo contiene. |
+| `RN-AUTH-56` | Los códigos de respaldo y los códigos entregados por correo o SMS se persisten **solo como hash SHA-256** (`RN-AUTH-09`). Los de respaldo salen en claro **una vez**, al generarse; los entregados, nunca. |
+| `RN-AUTH-57` | Un código de respaldo es de **un solo uso**, garantizado por `used_at` comprobado y escrito **en la misma transacción** que crea la sesión. La fila **no se borra** al consumirse: la traza es información de seguridad. |
+| `RN-AUTH-58` | La verificación TOTP admite **±1 paso de 30 segundos** (ventana de 3 pasos) y **rechaza un paso ya consumido** por ese factor (`last_used_step`). Sin lo segundo, un código capturado sirve durante 90 segundos. Toda comparación de código, de cualquier método, es en **tiempo constante**. |
+| `RN-AUTH-59` | Un alta sin confirmar caduca a los `AUTH_MFA_ENROLLMENT_TTL_MINUTES` (10 por defecto) y admite como mucho `AUTH_MFA_MAX_ATTEMPTS` intentos de confirmación. **Un factor no confirmado no protege, no cumple la obligación y no aparece como factor** en ninguna respuesta. |
+| `RN-AUTH-60` | Regenerar códigos de respaldo y desactivar un factor exigen la **contraseña actual** en el cuerpo. Dar de alta un factor no. |
+| **Obligatoriedad** | |
+| `RN-AUTH-61` | Un usuario **no puede desactivar** su último factor utilizable si `MfaPolicy` lo declara obligado y no tiene excepción viva ⇒ `409`. Literal de `REQ-AUTH-003`. |
+| `RN-AUTH-62` | La obligación se resuelve **solo** en `MfaPolicy::resolve()`, con una consulta `EXISTS` sobre `role_user ⋈ roles` con predicado de tenant explícito. **Basta un rol con `mfa_required = true`** (`RPERM-007`, criterio más restrictivo). Ningún otro punto del código decide esto, y el resultado **no se cachea entre peticiones**. |
+| `RN-AUTH-63` | **El contador de fallos consecutivos de `RN-AUTH-14` se pone a cero solo con un login completo**, nunca con un paso 1 superado. Un paso 1 pendiente de segundo factor escribe `outcome = 'pendiente_segundo_factor'` y no lo toca. Es la corrección explícita del comportamiento de 1.2, donde `recordSuccess()` se llamaba al verificar la contraseña (`§C.4.4.2`). |
+| `RN-AUTH-64` | Un fallo de segundo factor —código o código de respaldo— **incrementa el mismo contador** que un fallo de contraseña y puede provocar el bloqueo de `RN-AUTH-14`. Se registra con `outcome = 'segundo_factor_invalido'`, distinto de `credenciales_invalidas`, para poder separarlos en telemetría. |
+| `RN-AUTH-65` | El plazo de gracia empieza **cuando empieza la obligación**, no en el primer acceso posterior, y se materializa en `user_mfa_obligations` la primera vez que se evalúa. Su duración es `tenant_settings.mfa_grace_period_days` (7 por defecto). Al cumplir se cierra la fila; una obligación nueva abre una fila nueva con plazo completo, sin sobrescribir la anterior. |
+| **Administración** | |
+| `RN-AUTH-66` | El restablecimiento de MFA y la excepción temporal exigen **motivo** de al menos 10 caracteres, quedan auditados con el administrador que los ejecutó y **notifican al usuario afectado**. Sin motivo no hay operación (`422`). |
+| `RN-AUTH-67` | **Nadie restablece su propio MFA**, tenga el permiso que tenga (`403`), ni se concede a sí mismo una excepción. Sin esta regla, `mfa.eliminar` es un interruptor de apagado de la obligatoriedad. |
+| `RN-AUTH-68` | La excepción temporal lleva **caducidad obligatoria**, como máximo `AUTH_MFA_MAX_EXEMPTION_DAYS` (90) en el futuro, garantizada por `NOT NULL` y `CHECK` en el motor. **No existe la exención permanente.** |
+| `RN-AUTH-69` | `tenant_settings.mfa_allowed_methods` es un array no vacío que **siempre contiene `totp`**, y **no admite `sms`** mientras no haya proveedor configurado. Quitar un método deja de admitir sus factores en el login y reabre la obligación de sus titulares con plazo completo. |
+| `RN-AUTH-70` | `roles.mfa_required` solo se escribe por `PATCH /api/v1/roles/{public_id}` con permiso `rol.actualizar`. En 1.3 ese endpoint **no acepta ningún otro campo**: cualquier otra clave en el cuerpo responde `422`. |
+| **Transversales** | |
+| `RN-AUTH-71` | La cookie `pge_device` **no salta ningún control de segundo factor**, ni total ni parcialmente. Decisión explícita de este paso, exigida por `RN-AUTH-45`: un dispositivo reconocido sirve para no alertar, y para nada más. |
+| `RN-AUTH-72` | Ninguna respuesta anónima nueva revela si una cuenta existe, si tiene MFA o cuál. El `202` del desafío solo lo obtiene quien ya acertó la contraseña (`§C.6.2`), y el `410` es idéntico para desafío inexistente, caducado, consumido y de otra sesión. |
+| `RN-AUTH-73` | Ningún endpoint de este paso admite un `user_id` en el cuerpo salvo los **dos de administración** (`POST /mfa-resets`, `POST /mfa-exemptions`), que lo reciben como `public_id` y lo resuelven con predicado de tenant explícito. El autoservicio actúa **siempre** sobre el portador de la cookie (`permisos.md §C.4`). |
+| `RN-AUTH-74` | El vocabulario de `audit_logs` **no se amplía** en este paso. Todo lo auditable de 1.3 es creación, modificación o borrado de una entidad real (`§C.10`). |
+
+---
+
+## C.6 Por qué el login parcial no crea sesión autenticada
+
+Es la decisión de seguridad del paso y va con sus alternativas, como `§B.6` hizo con la detección de dispositivo.
+
+### C.6.1 Qué existe entre el paso 1 y el paso 2
+
+Exactamente dos cosas:
+
+1. **La sesión anónima que ya había.** La SPA obtiene la cookie CSRF antes de enviar el formulario (`§4.7`), y eso inserta una fila en `sessions` sin `user_id`. Es la misma sesión anónima que 1.2b ya describió: *«`GET /auth/csrf-cookie` sin login posterior ⇒ hay fila en `sessions` y **ninguna** en `user_sessions`»* (`CA-AUTH-081`). No se crea nada nuevo.
+2. **Una fila en `mfa_challenges`** ligada a ese `session_id`.
+
+Lo que **no** existe: `Auth::id()` sigue devolviendo `null`, el *payload* no tiene `pge_tenant_id`, no hay fila en `user_sessions`, y ningún *middleware* de autorización ve un usuario. **Un endpoint del producto llamado en ese estado responde `401` como cualquier petición anónima**, sin excepciones ni listas.
+
+### C.6.2 Las tres alternativas, y por qué esta
+
+| Opción | Por qué no |
+|--------|------------|
+| **Autenticar y marcar la sesión como «pendiente de MFA»** | Es la forma más común de equivocarse. Basta con que **un solo** camino —un *middleware* nuevo, un comando, un endpoint de otro módulo, un `Auth::user()` en un *listener*— no compruebe la marca para que el segundo factor no exista. `INV-002` dice denegar por defecto, y una sesión autenticada con una bandera restrictiva es lo contrario: permitir por defecto y restringir en cada sitio que se acuerde |
+| **Emitir un token de desafío al cliente** (cabecera, cuerpo o `localStorage`) | Crea una credencial portadora nueva que no existía, con su propio robo, su propio almacenamiento en el navegador y su propia caducidad. `ADR-025` prohíbe expresamente tokens de sesión en el almacenamiento del navegador, y aunque este no fuera «de sesión», la SPA tendría que guardarlo en algún sitio entre las dos peticiones |
+| **Estado solo en el *payload* de la sesión, sin tabla** | Es lo que hace el andamiaje estándar del framework, y para TOTP puro bastaría. No basta aquí: el método por correo exige guardar el hash del código entregado, su caducidad y el contador de reenvíos, y eso es estado del servidor con vida propia. Tener dos mecanismos distintos según el método —*payload* para TOTP, tabla para el resto— es peor que tener uno |
+
+**La elegida** —tabla, ligada a la sesión, sin token— tiene las tres propiedades que importan: la credencial que autoriza el paso 2 es **la cookie de sesión que el navegador ya tiene** (`httpOnly`, `Secure`, host-only, con CSRF), no hay ningún objeto nuevo que robar, y el estado pendiente es una fila que se puede consultar, purgar y auditar en vez de un campo escondido en un *payload* serializado.
+
+### C.6.3 Qué revela el `202`, y a quién
+
+El `202` dice «esta cuenta existe, está activa y tiene segundo factor». **Solo lo recibe quien ha acertado la contraseña**, así que no es un oráculo de enumeración: quien acierta la contraseña ya sabía que la cuenta existe. Las respuestas de `§4.7` siguen intactas para todos los demás casos, y una contraseña incorrecta sigue devolviendo el `401` genérico sin decir nada del MFA.
+
+Lo que sí hay que cuidar, y por eso está escrito: **el `202` no debe llegar antes que el `401` en tiempo observable**. Abrir el desafío hace trabajo (insertar una fila, quizá encolar un correo) que un login fallido no hace. La diferencia es de milisegundos frente a una comparación bcrypt de coste 12, que domina el tiempo de respuesta; se acepta y se anota en `operacion.md §C.8` como cosa a medir, no como cosa a suponer.
+
+---
+
+## C.7 SMS: por qué el tercer método no se entrega
+
+`REQ-AUTH-003` enumera tres métodos. **Se entregan dos.**
+
+**No hay proveedor de SMS decidido en el proyecto.** Verificado: no aparece en `PLAN-IMPLEMENTACION.md` (ni siquiera en los pasos de infraestructura pendientes `0.10b`-`0.10e`), no hay bloqueante en `memory.md`, no hay ADR, no hay variable de entorno, no hay dependencia en `composer.json`. La única pieza que existe es el destino: `people.contact_phone`, nullable y **sin ningún flujo de verificación**.
+
+Y hay un segundo problema, independiente del proveedor, que conviene ver antes de contratar nada: **un número de teléfono sin verificar no es un segundo factor**. `contact_phone` es un dato de contacto que entra por importación masiva, por invitación y por edición administrativa. Enviar un código a un número que nadie ha comprobado que pertenezca al titular convierte el segundo factor en «quien controle el campo de teléfono controla la cuenta». Cualquier entrega de SMS que se implemente tendrá que verificar el número en el alta, exactamente igual que `§C.4.2` verifica el correo entregando un código.
+
+**Qué hace 1.3, entonces**: el valor `sms` existe en el `CHECK` de método (`datos.md §C.2`) y en el enumerado de `mfa_allowed_methods`, y **una guarda impide activarlo** (`RN-AUTH-69`). Nada más. No se escribe un adaptador vacío, no se elige proveedor y no se inventa una variable de entorno para uno que no existe.
+
+Es el mismo trato que 1.2b dio a la geolocalización por IP (`OPEN-AUTH-13`, `RN-AUTH-47`), y con la misma consecuencia: **al cerrar 1.3 hay que declarar que `REQ-AUTH-003` queda cumplido en dos de sus tres métodos**, no darlo por terminado (`CLAUDE.md §0`). `OPEN-AUTH-18`.
+
+---
+
+## C.8 El correo como segundo factor: qué protege y qué no
+
+Se entrega porque el requisito lo pide, **desactivado por defecto** y con esto escrito, porque un centro que lo active debe saber lo que está activando:
+
+- **Contra qué protege**: contra una contraseña filtrada, reutilizada o adivinada. Es la amenaza más frecuente con diferencia, y contra ella funciona.
+- **Contra qué no protege**: contra el compromiso del buzón. Y aquí hay una circularidad que no se puede disimular: **la recuperación de contraseña de este mismo módulo también va a ese buzón** (§4.5). Quien controla el correo puede restablecer la contraseña *y* recibir el segundo factor. Frente a esa amenaza concreta, el correo como segundo factor **no añade nada**.
+- **TOTP sí lo hace**, porque el secreto está en el dispositivo y no viaja.
+
+Por eso el valor por defecto de `mfa_allowed_methods` es `["totp"]` y no `["totp","email"]`, y por eso `totp` no se puede quitar (`RN-AUTH-69`). El correo está disponible para el centro que lo necesite —hay personas sin teléfono con aplicación de autenticación, y excluirlas del MFA es peor que darles un factor imperfecto—, pero como decisión consciente del centro y no como valor de fábrica. `OPEN-AUTH-25` lo deja a confirmación del usuario, porque es una decisión de producto y no mía.
+
+---
+
+## C.9 Interacción con otros módulos
+
+### C.9.1 Interfaces que consume
+
+| Interfaz | De | Para qué |
+|----------|----|----|
+| `UserProfilePresenter` | `App\Support` | El recurso de perfil gana un bloque `mfa` (`§C.4.8`). Lo consumen `GET /me` (`REQ-CORE`) y el login (`REQ-AUTH`) sin que ninguno importe código del otro (`INV-007`) |
+| `TenantSettingsReader` | `REQ-CORE` | `mfa_allowed_methods`, `mfa_grace_period_days` |
+| `UserDirectory` | `REQ-CORE` | Resolver el `public_id` de usuario en los dos endpoints de administración |
+| `SessionRevoker` | `REQ-AUTH` (1.2) | Revocar sesiones en el restablecimiento |
+| `AuditRecorder` | `App\Support` | Solo para `login`; nada nuevo (`§C.10`) |
+
+### C.9.2 Interfaces que expone
+
+| Interfaz | Para quién |
+|----------|------------|
+| `MfaPolicy` | El *middleware* del muro, el login, y **1.6** cuando `REQ-BO-007` necesite la obligación sin conmutador del backoffice |
+| `MfaComplianceDirectory` | La vista previa y el estado de cumplimiento. **1.5** lo consume desde el editor de roles sin importar nada interno de `REQ-AUTH` |
+| `MfaVerifier` | El verificador de código de un método. Es el punto donde entra un adaptador de SMS el día que exista, y donde entraría WebAuthn si algún día se pide |
+
+### C.9.3 Eventos publicados
+
+`MfaFactorConfirmed`, `MfaFactorRemoved`, `MfaReset`, `MfaObligationStarted`, `RecoveryCodeUsed`. Ninguno se expone por API. Los consume el propio módulo para encolar los avisos de `§C.4.13`, y **`REQ-COM` (1.19) los sustituirá** por su canal, igual que hará con `AccountLocked` y `NewDeviceDetected`.
+
+---
+
+## C.10 Auditoría (`INV-003`)
+
+**1.3 no amplía el vocabulario de `audit_logs`, y esa es la conclusión importante de esta sección.**
+
+`ADR-039 §5.3` fijó la carga de la prueba: quien quiera un evento nuevo debe demostrar que el hecho **no es CRUD sobre ninguna entidad**, y avisó de que *«casi siempre lo será — el precedente de `AccountLockout` lo enseña — y entonces la respuesta correcta es modelar la entidad, no ampliar el vocabulario»*. Aplicado hecho por hecho:
+
+| Hecho | Cómo queda registrado | Evento |
+|-------|------------------------|--------|
+| Alta de un factor (provisional) | `created` sobre `MfaFactor` con `confirmed_at NULL` | `created` |
+| Confirmación del factor | `updated` sobre `MfaFactor` con `confirmed_at` | `updated` |
+| Desactivación por el usuario | `deleted` sobre `MfaFactor` | `deleted` |
+| Restablecimiento por el administrador | `deleted` sobre cada `MfaFactor` + `created` sobre `MfaReset` con el motivo y el administrador | `deleted`, `created` |
+| Generación y regeneración de códigos | `created`/`deleted` sobre `MfaRecoveryCode` | `created`, `deleted` |
+| **Uso** de un código de respaldo | `updated` sobre `MfaRecoveryCode` con `used_at` | `updated` |
+| Cambio de `mfa_required` en un rol | `updated` sobre `Role` con el valor anterior y el nuevo | `updated` |
+| Concesión y revocación de excepción | `created`/`updated` sobre `MfaExemption` | `created`, `updated` |
+| Inicio de obligación y su cierre | `created`/`updated` sobre `MfaObligation` | `created`, `updated` |
+| Cambio de `mfa_allowed_methods` | `updated` sobre `TenantSetting` | `updated` |
+| **Acceso consumado con segundo factor** | `login` sobre `User`, **el mismo de `ADR-039`** | `login` |
+| **Fallo de segundo factor** | `login_attempts`, **no** `audit_logs` | — |
+
+Los dos últimos merecen el detalle:
+
+- **No hay un evento «mfa_verificado» ni «mfa_fallido».** Un login con dos pasos sigue siendo **un** acceso consumado, y `ADR-039 §4.3` es explícito: `login` registra accesos consumados, no intentos. Escribir dos filas por un login duplicaría el registro y rompería la correlación por `request_id`. Si hace falta saber *cómo* entró alguien, la respuesta está en `login_attempts` correlacionada por `request_id`, que es exactamente para lo que `ADR-039 §4.3` la dejó.
+- **Los fallos de segundo factor van a `login_attempts`**, por los dos mismos motivos independientes de `funcional.md §10.2`: `audit_logs.auditable_id` es `NOT NULL` (aunque aquí sí hay usuario, el argumento de volumen se mantiene) y un ataque contra un código de seis dígitos inunda una tabla con dos años de retención.
+
+**Redacción (`ADR-035`)**: `user_mfa_factors.secret_encrypted` encaja en el patrón `*secret*` de `config('audit.secret_attribute_patterns')` y `user_mfa_recovery_codes.code_hash` en `*recovery_code*`, los dos ya presentes desde 0.9. **Aun así se declaran explícitamente en `auditSecretAttributes()`**, por la misma razón por la que `§B.2` obligó a declarar `session_id` a mano: depender de que un patrón global siga cubriendo un nombre de columna que alguien puede renombrar en un refactor es depender de una coincidencia. El detalle por modelo está en `datos.md §C.2`-`§C.6`.
+
+**Exclusiones (`ADR-040`)**: **ninguna**. Ninguna entidad de este paso se crea dentro de la transacción de un hecho ya auditado por otro evento, que era el supuesto de `UserSession`.
+
+---
+
+## C.11 Interfaz de usuario
+
+Mismo criterio que 1.2 y 1.2b: **1.3 sí entrega pantallas**, autónomas, sin `AppLayout`, sin depender del design system de 1.7 ni del layout de 1.8, reutilizando `PublicAuthShell` donde encaja.
+
+| Ruta | Qué es | Estado |
+|------|--------|--------|
+| `/entrar` | **Modificada**: al recibir `202` cambia al formulario del segundo factor, sin salir de la ruta ni perder el contexto | Pública |
+| `/entrar` (paso 2) | Código de 6 dígitos, enlace «usar un código de respaldo», selector de método si hay más de uno, botón de reenvío con su cuenta atrás | Pública |
+| `/cuenta/seguridad` | Autoservicio: estado, alta con QR **y clave en texto**, confirmación, códigos de respaldo, desactivación | Con sesión |
+| `/cuenta/seguridad/obligatorio` | El muro de `§C.4.9`: la misma alta, sin navegación, con el motivo explicado y **con «cerrar sesión» siempre visible** | Con sesión restringida |
+
+**Sin pantalla de administración** (rol, cumplimiento, restablecimiento, excepciones): la API entra, la interfaz la monta 1.5 junto al editor de roles y 1.8 con el resto del panel. Mismo criterio con el que 1.1 dejó todas sus pantallas fuera (`OPEN-CORE-02`).
+
+Reglas de accesibilidad que este paso no puede saltarse (WCAG 2.2 AA, `CLAUDE.md §10`):
+
+- El QR **nunca es la única forma de dar de alta**: la clave en base32 está siempre visible y es seleccionable (`§C.4.1`, punto 4).
+- El QR lleva alternativa textual que **no** contiene el secreto (un `alt` con el secreto lo pondría en el árbol de accesibilidad y en cualquier captura de lector de pantalla).
+- Los códigos de respaldo se muestran en un bloque copiable y descargable **como texto seleccionable**, no como imagen.
+- El campo del código admite pegado y autocompletado (`autocomplete="one-time-code"`), y el foco entra en él al pasar al paso 2.
+- Los cuatro idiomas, sin literal en el código (`INV-009`).
+
+---
+
+## C.12 Puntos de extensión
+
+- **1.4 / 1.4b (Google y SSO)**: un login federado que termina en sesión pasa por el **mismo** `MfaPolicy`. La decisión de si un proveedor externo que ya hizo MFA exime del nuestro **no se toma aquí** y no se hereda: es de 1.4b, con su ADR.
+- **1.5 (editor de roles)**: consume `PATCH /roles/{public_id}` (ampliándolo, sin cambiar de ruta) y `MfaComplianceDirectory` para la vista previa. **Y hereda `RPERM-006`**: al clonar un rol, `mfa_required` se copia del origen. Queda escrito aquí como contrato, no implementado (`§C.2.3`).
+- **1.6 (`REQ-BO`)**: `REQ-BO-007` exige MFA sin conmutador para el backoffice. Consume `MfaPolicy` y **no** replica su lógica; lo que añade es que su respuesta no dependa de ningún atributo editable.
+- **1.19 (`REQ-COM`)**: sustituye los tres avisos de `§C.4.13` por su canal.
+- **Cuando exista proveedor de SMS**: se implementa un `MfaVerifier` más y se levanta la guarda de `RN-AUTH-69`. **Ni un endpoint ni una tabla cambian** — el hueco ya está.
+- **Reautenticación con segundo factor para operaciones sensibles**: cuando se pida, el desafío de `mfa_challenges` es el mecanismo, con un `purpose` distinto de `login`. La columna **no se añade hoy** (`ADR-034 OPEN-13`: no se anticipan columnas).
+
+---
+
+## C.13 Criterios de aceptación
+
+Verificables, cada uno con test que referencia su ID (`INV-015`). Bloque `104-145`, sin solaparse con los de 1.2 (`001-079`) ni 1.2b (`080-103`).
+
+### Alta y confirmación de factor (`REQ-AUTH-003`)
+
+- **`CA-AUTH-104`** · *Dado* un usuario autenticado sin MFA, *cuando* llama a `POST /auth/mfa-enrollments` con `totp`, *entonces* recibe `201` con secreto en base32 y URI `otpauth`, existe una fila de `user_mfa_factors` con `confirmed_at IS NULL` y `expires_at` informado, y **`GET /auth/mfa` sigue diciendo que no tiene ningún factor** (`RN-AUTH-59`).
+- **`CA-AUTH-105`** · *Dado* ese alta, *cuando* se confirma con un código válido, *entonces* `201`, `confirmed_at` informado, `expires_at` a `NULL`, y la respuesta incluye **exactamente** `AUTH_MFA_RECOVERY_CODE_COUNT` códigos de respaldo en claro (`§C.4.1`, `§C.4.3`).
+- **`CA-AUTH-106`** · *Dado* ese alta, *cuando* se confirma con un código **inválido**, *entonces* `422`, el factor **no** queda confirmado, y al quinto intento el alta queda muerta y hay que empezar de nuevo (`RN-AUTH-59`).
+- **`CA-AUTH-107`** · *Dado* un alta con `expires_at` vencido, *cuando* se intenta confirmar, *entonces* `410` con el mismo cuerpo que un alta inexistente (`RN-AUTH-59`, §4.7).
+- **`CA-AUTH-108`** · *Dado* la fila de `user_mfa_factors`, *cuando* se lee la columna del secreto directamente en la base de datos, *entonces* **no** contiene el valor en base32 en claro, y descifrarla con `APP_KEY` sí lo devuelve (`RN-AUTH-55`).
+- **`CA-AUTH-109`** · *Dado* un usuario **con** factor confirmado, *cuando* consulta `GET /auth/mfa`, `GET /me` o cualquier otra respuesta del producto, *entonces* **en ninguna** aparece el secreto, ni el hash de ningún código de respaldo, ni un código en claro (`RN-AUTH-55`, `RN-AUTH-56`).
+- **`CA-AUTH-110`** · *Dado* un tenant cuyo `mfa_allowed_methods` es `["totp"]`, *cuando* un usuario intenta dar de alta el método `email`, *entonces* `422` y no se crea ninguna fila (`RN-AUTH-69`).
+
+### Códigos de respaldo
+
+- **`CA-AUTH-111`** · *Dado* un usuario con códigos de respaldo, *cuando* usa uno para entrar, *entonces* el login se completa, ese código queda con `used_at` informado, **no se borra la fila**, y un segundo intento con el mismo código responde `401` (`RN-AUTH-57`).
+- **`CA-AUTH-112`** · *Dado* la regeneración, *cuando* se llama con la contraseña correcta, *entonces* `201` con un conjunto nuevo, **todas** las filas anteriores desaparecen (usadas incluidas) y ninguno de los códigos anteriores vuelve a funcionar (`§C.4.3`).
+- **`CA-AUTH-113`** · *Dado* la regeneración y la desactivación de factor, *cuando* se llaman **sin** la contraseña actual o con una incorrecta, *entonces* `422` y no cambia nada (`RN-AUTH-60`).
+- **`CA-AUTH-114`** · *Dado* un usuario que agota todos sus códigos de respaldo, *cuando* inicia sesión con su factor, *entonces* entra con normalidad y `GET /auth/mfa` informa de que le quedan `0` (`§C.4.3` punto 7).
+
+### Login en dos pasos (`REQ-AUTH-003`, `RN-AUTH-21`)
+
+- **`CA-AUTH-115`** · *Dado* un usuario con factor confirmado, *cuando* envía credenciales correctas a `POST /auth/session`, *entonces* recibe **`202`** con el desafío, **`Auth::id()` es `null`**, no hay fila en `user_sessions`, el *payload* de sesión no tiene `pge_tenant_id`, y **cualquier endpoint autenticado responde `401`** en ese estado (`RN-AUTH-52`).
+- **`CA-AUTH-116`** · *Dado* ese `202`, *cuando* se inspecciona la respuesta, *entonces* **no** contiene ningún token, ni el `session_id`, ni el secreto, ni el código entregado (`RN-AUTH-53`, `RN-AUTH-56`).
+- **`CA-AUTH-117`** · *Dado* un desafío abierto en la sesión A, *cuando* se intenta verificar desde la sesión B —incluso con su `public_id`—, *entonces* `410` con el **mismo cuerpo** que un desafío inexistente (`RN-AUTH-53`, `RN-AUTH-72`).
+- **`CA-AUTH-118`** · *Dado* un desafío válido, *cuando* se verifica con el código correcto, *entonces* `200` con el recurso de `/me`, el identificador de sesión **regenerado**, fila en `user_sessions` con **ese** identificador nuevo, y una sola fila `login` en `audit_logs` con `actor_type = 'user'` (`§C.4.4` punto 10, `ADR-039 §4.5`, `§B.9`).
+- **`CA-AUTH-119`** · *Dado* un desafío, *cuando* pasan más de `AUTH_MFA_CHALLENGE_TTL_MINUTES`, *entonces* la verificación responde `410` y hay que volver a empezar por la contraseña (`RN-AUTH-54`).
+- **`CA-AUTH-120`** · *Dado* un desafío, *cuando* se reenvía el código, *entonces* **ni el contador de intentos ni `expires_at` cambian** (`RN-AUTH-54`, `§C.4.4.1`).
+- **`CA-AUTH-121`** · *Dado* un código TOTP ya usado, *cuando* se reenvía dentro de la misma ventana de validez, *entonces* se rechaza (`RN-AUTH-58`).
+- **`CA-AUTH-122`** · *Dado* un usuario **sin** MFA y **sin** obligación, *cuando* inicia sesión, *entonces* recibe `200` y todo se comporta **exactamente** como en 1.2 — el flujo de un solo paso no cambia para nadie (`§C.4.4`).
+
+### Bloqueo y telemetría (`§C.4.4.2`)
+
+- **`CA-AUTH-123`** · *Dado* un usuario con MFA, *cuando* repite cinco veces «contraseña correcta + segundo factor incorrecto», *entonces* la cuenta queda **bloqueada** y el sexto intento de login responde `423` sin llegar al segundo factor (`RN-AUTH-63`, `RN-AUTH-64`).
+- **`CA-AUTH-124`** · *Dado* ese escenario, *cuando* se inspecciona `login_attempts`, *entonces* hay cinco filas `pendiente_segundo_factor` y cinco `segundo_factor_invalido`, y **ninguna** `exito` (`RN-AUTH-63`).
+- **`CA-AUTH-125`** · *Dado* cuatro fallos de segundo factor seguidos de un login **completo**, *cuando* se falla una vez más después, *entonces* la cuenta **no** se bloquea: el contador se puso a cero con el login completo (`RN-AUTH-63`).
+
+### Obligatoriedad y gracia (`RPERM-007`, `RPERM-014`)
+
+- **`CA-AUTH-126`** · *Dado* un usuario con dos roles, uno con `mfa_required = true` y otro con `false`, *entonces* `MfaPolicy` lo declara **obligado** (`RN-AUTH-62`).
+- **`CA-AUTH-127`** · *Dado* un administrador que pone `mfa_required = true` en un rol, *cuando* se consulta a los usuarios afectados, *entonces* cada uno tiene una fila de `user_mfa_obligations` con `grace_deadline_at = obligated_since + mfa_grace_period_days` y `GET /me` devuelve `days_remaining` (`RN-AUTH-65`).
+- **`CA-AUTH-128`** · *Dado* un usuario obligado **dentro** de la gracia, *cuando* inicia sesión, *entonces* `200`, sesión **completa**, y todos los endpoints del producto le responden con normalidad (`§C.4.8`).
+- **`CA-AUTH-129`** · *Dado* un usuario obligado con la gracia **vencida**, *cuando* inicia sesión, *entonces* `200` con sesión **restringida**: `GET /me`, `GET /auth/mfa`, los dos de alta y `DELETE /auth/session` responden con normalidad, y **cualquier otro** endpoint responde `403 urn:pge:error:mfa-enrollment-required` (`§C.4.9`).
+- **`CA-AUTH-130`** · *Dado* un usuario **en sesión activa** cuya gracia vence a mitad, *cuando* hace la siguiente petición, *entonces* recibe el `403` del muro **sin que su sesión se destruya**, y puede completar el alta y seguir trabajando sin volver a introducir la contraseña (`§C.4.9` punto 4).
+- **`CA-AUTH-131`** · *Dado* ese mismo usuario en el muro, *cuando* confirma su factor, *entonces* la petición siguiente a cualquier endpoint responde con normalidad, sin cerrar ni regenerar la sesión (`§C.4.9`).
+- **`CA-AUTH-132`** · *Dado* un usuario obligado con factor confirmado, *cuando* intenta desactivarlo, *entonces* `409` y el factor sigue activo (`RN-AUTH-61`).
+- **`CA-AUTH-133`** · *Dado* un tenant que quita `email` de `mfa_allowed_methods`, *cuando* un usuario cuyo único factor era `email` intenta iniciar sesión, *entonces* **no** se le abre desafío por ese método, se le trata como no inscrito, y se le abre una obligación nueva con plazo completo si algún rol suyo lo exige (`RN-AUTH-69`).
+- **`CA-AUTH-134`** · *Dado* cualquier configuración, *cuando* se intenta guardar `mfa_allowed_methods` sin `totp`, o incluyendo `sms`, *entonces* `422` en los dos casos (`RN-AUTH-69`).
+
+### Administración
+
+- **`CA-AUTH-135`** · *Dado* un administrador con `rol.actualizar`, *cuando* llama a `PATCH /roles/{public_id}` con `{"mfa_required": true}`, *entonces* `200`; *cuando* incluye cualquier otro campo, *entonces* `422` y **nada cambia** (`RN-AUTH-70`).
+- **`CA-AUTH-136`** · *Dado* `GET /mfa-compliance?role={public_id}&mfa_required=true`, *cuando* se llama, *entonces* devuelve el número de usuarios que **quedarían** obligados **sin haber modificado nada**, y una segunda llamada al estado real lo confirma (`REQ-AUTH-003`, vista previa).
+- **`CA-AUTH-137`** · *Dado* `POST /mfa-resets` **sin `reason`** o con un motivo de menos de 10 caracteres, *entonces* `422`; con motivo válido, *entonces* `204`, todos los factores del usuario borrados lógicamente, sus códigos borrados, **todas sus sesiones cerradas con `end_reason = 'cambio_credencial'`**, notificación **encolada** y fila de auditoría con el administrador y el motivo (`RN-AUTH-66`, `§C.4.10`).
+- **`CA-AUTH-138`** · *Dado* un administrador con `mfa.eliminar`, *cuando* intenta restablecer **su propio** MFA o concederse **su propia** excepción, *entonces* `403` en los dos casos (`RN-AUTH-67`).
+- **`CA-AUTH-139`** · *Dado* `POST /mfa-exemptions` sin `expires_at`, o con una fecha a más de `AUTH_MFA_MAX_EXEMPTION_DAYS`, *entonces* `422`; con una válida, *entonces* el usuario deja de estar obligado mientras dura y vuelve a estarlo **con plazo completo** al caducar (`RN-AUTH-68`, `§C.4.11`).
+- **`CA-AUTH-140`** · *Dado* los cinco endpoints de administración de este paso, *cuando* se llaman **sin sesión** ⇒ `401`; **sin el permiso** ⇒ `403`; sobre un usuario, rol o excepción **de otro tenant** ⇒ `404` con cuerpo idéntico; y **sin CSRF** en las escrituras ⇒ `419`/`403` (`INV-002`, `RN-AUTH-29`, `ADR-038 §6.4`).
+
+### Transversales
+
+- **`CA-AUTH-141`** · *Dado* una cookie `pge_device` de un dispositivo reconocido, *cuando* el usuario con MFA inicia sesión desde él, *entonces* **se le pide el segundo factor igual** (`RN-AUTH-71`, `RN-AUTH-45`).
+- **`CA-AUTH-142`** · *Dado* todo el ciclo de vida de MFA de un usuario, *cuando* se consulta `audit_logs`, *entonces* existen las filas de `§C.10`, **ninguna con un `event` fuera de los nueve de `ADR-039`**, y en ninguna aparece el secreto ni el hash de un código sin redactar (`RN-AUTH-74`, `ADR-035`).
+- **`CA-AUTH-143`** · *Dado* un factor, un desafío, un código de respaldo y una excepción **de otro tenant**, *cuando* se intentan usar o consultar desde el host del tenant propio, *entonces* ninguno es alcanzable y la respuesta es idéntica a la de un recurso inexistente (`INV-001`, `RN-AUTH-06`, `RN-AUTH-08`).
+- **`CA-AUTH-144`** · *Dado* los cuatro correos del módulo tras 1.3, *cuando* se revisan, *entonces* existen en `es-ES`, `en`, `de` y `fr`, van en el idioma del destinatario, y **ninguno contiene un enlace que ejecute una acción sin sesión** ni el código en el asunto (`INV-009`, `RN-AUTH-50`).
+- **`CA-AUTH-145`** · *Dado* las rutas nuevas de este paso, *cuando* se inspecciona el enrutado, *entonces* **ninguna lleva el *middleware* `module-enabled`** (`RN-AUTH-35`, `CA-AUTH-078`).
+
+---
+
+## C.14 Preguntas abiertas
+
+Nueve. **Ninguna resuelta aquí.** Dos condicionan qué se puede declarar terminado, dos son dependencias externas nuevas, y el resto son decisiones de producto o de alcance que no me corresponden.
+
+### `OPEN-AUTH-18` · No hay proveedor de SMS, y sin él `REQ-AUTH-003` queda cumplido en dos de sus tres métodos
+
+Verificado en todo el repositorio: no hay proveedor, ni ADR, ni paso en el plan, ni variable, ni dependencia. Y el destino (`people.contact_phone`) está **sin verificar**, lo que añade un problema propio (`§C.7`).
+
+**Recomendación**: entregar 1.3 con TOTP y correo, dejar el hueco de `sms` cerrado con guarda, y **declarar explícitamente al cerrar el paso** que el método SMS no está implementado — igual que 1.2b declaró la mitad de `REQ-AUTH-005` punto 4 con `RN-AUTH-47`. Si el usuario quiere SMS, es un paso propio que empieza por **elegir proveedor** (con contrato de encargado de tratamiento y datos en la UE, `OPEN-07`) y por **verificar el número en el alta**.
+
+### `OPEN-AUTH-19` · Dependencia nueva: librería TOTP en el backend
+
+RFC 6238 son treinta líneas y **cuatro formas silenciosas de equivocarse**: base32 mal decodificado, ventana de tolerancia mal calculada, comparación no constante y contador derivado del huso horario local en vez de UTC. Ninguna falla en las pruebas: fallan en producción, con códigos que a veces valen.
+
+**Recomendación**: usar una librería mantenida en vez de escribirlo. El candidato natural en este ecosistema es `pragmarx/google2fa` (la que usa el andamiaje oficial del framework), **envuelta tras una interfaz propia** (`RNF-MANT-007`, `MfaVerifier` de `§C.9.2`). Pero introducir una dependencia exige comprobar mantenimiento activo, licencia y frecuencia de *releases* (`CLAUDE.md §1`), y **eso es una decisión, no un trámite**. No la tomo yo.
+
+### `OPEN-AUTH-20` · Dependencia nueva: generador de QR en el frontend
+
+El servidor devuelve la URI `otpauth`; alguien tiene que dibujarla. Las opciones son una librería de QR en la SPA, generar el SVG en el servidor (otra dependencia, esta vez en PHP), o **no dibujar QR** y entregar solo la clave en texto.
+
+**Recomendación**: librería en la SPA, envuelta tras un componente propio. La tercera opción es tentadora por no añadir nada, pero transcribir 32 caracteres a mano en un móvil es donde se pierde a la mitad de los usuarios que iban a activar MFA voluntariamente. Misma comprobación de `CLAUDE.md §1` que la anterior.
+
+### `OPEN-AUTH-21` · El punto de corte con 1.5: `rol.actualizar` y `PATCH /roles/{public_id}` acotado
+
+`§C.2` decide que 1.3 entrega la escritura del atributo, que el permiso es `rol.actualizar` declarado en el catálogo de `REQ-CORE`, y que el `PATCH` acepta un solo campo hasta que 1.5 lo amplíe. **El argumento de por qué no puede esperar está en `§C.2.1` y es operativo**: sin él, hacer efectivo `mfa_required` deja a todos los tenants con dos roles obligados y sin interruptor durante dos pasos del plan.
+
+**Lo que necesita confirmación del usuario** es que acepta que 1.3 toque el catálogo de permisos y el controlador de `REQ-CORE`. Si prefiere que no, la alternativa coherente es **no hacer efectivo `mfa_required` hasta 1.5** y entregar en 1.3 solo el MFA voluntario — que es una entrega perfectamente útil, pero deja `REQ-AUTH-003` a medias en su parte más citada.
+
+### `OPEN-AUTH-22` · Desde cuándo cuenta el período de gracia
+
+`§C.4.8` decide: **desde que empieza la obligación**, no desde el primer acceso posterior.
+
+**El coste de esa decisión**, dicho entero: un usuario de baja, de vacaciones o simplemente inactivo durante esos siete días **no ve ni un solo aviso** y se encuentra el muro en su siguiente entrada. Completar el alta ahí mismo es exactamente lo que el requisito quiere, así que no es un fallo — pero es una experiencia distinta de la que sugiere «avisos en cada acceso».
+
+**La alternativa** (contar desde el primer acceso posterior a la obligación) garantiza que todo el mundo vea los siete avisos, y a cambio permite aplazar indefinidamente no entrando, y hace que el administrador no tenga una fecha determinista que enseñar en la pantalla de cumplimiento. **Recomiendo la decidida**; la decisión es del usuario.
+
+### `OPEN-AUTH-23` · ¿Puede un administrador de centro quitarse a sí mismo la obligación?
+
+`REQ-AUTH-003` recomienda MFA obligatorio para administración de centro, pero **recomendación no es cerrojo**, y no dice nada sobre editarlo uno mismo. Tal como está especificado, un administrador puede poner `mfa_required = false` en `administrador_centro` —que es su propio rol— y desactivarse el segundo factor.
+
+**Argumento a favor de permitirlo**: es su centro, el requisito lo hace editable, y prohibirlo obliga a un procedimiento manual el día que haya un problema real.
+**Argumento en contra**: convierte la obligatoriedad del rol más peligroso del tenant en algo que el propio interesado apaga, y contradice el espíritu de `REQ-BO-007` (que para el backoffice sí dice «sin conmutador»).
+
+**Recomendación**: permitirlo, con auditoría reforzada y un aviso explícito en la pantalla de 1.5, y **revisarlo cuando 1.6 traiga el backoffice**, que es donde `REQ-BO-007` obliga a resolver la misma pregunta un nivel más arriba. No la decido.
+
+### `OPEN-AUTH-24` · El tamaño del paso: ¿se parte 1.3 como se partió 1.2?
+
+6 tablas, 2 modificaciones de esquema, 14 endpoints nuevos (13 aquí, 1 en `REQ-CORE`), 3 pantallas y 2 dependencias externas (`§C.1.3`). Es entre dos y tres veces 1.2 o 1.2b, y el plan lo dimensiona como una sesión.
+
+**La línea de corte natural**, si se parte:
+
+- **1.3** — TOTP, códigos de respaldo, autoservicio, login en dos pasos, `MfaPolicy`, gracia y muro, `PATCH /roles` acotado, vista previa y cumplimiento, **restablecimiento por el administrador**. Es el mínimo coherente: sin restablecimiento, un usuario que pierde el móvil y los códigos queda fuera de una cuenta obligada sin salida.
+- **1.3b** — método por correo, excepciones temporales nominales, y la pantalla de administración si 1.5 se retrasa.
+
+**Recomendación**: partirlo. El precedente de 1.2/1.2b existe precisamente por esto. La decisión es del usuario.
+
+### `OPEN-AUTH-25` · El correo como segundo factor: ¿se ofrece?
+
+`§C.8` explica lo que protege (contraseña filtrada: bien) y lo que no (compromiso del buzón: nada, porque la recuperación de contraseña va al mismo sitio).
+
+**Recomendación**: ofrecerlo, **desactivado por defecto**, con `totp` no desactivable. Excluir del MFA a quien no tiene teléfono con aplicación de autenticación es peor que darle un factor imperfecto. Pero es una decisión de producto y de riesgo del centro, no mía.
+
+### `OPEN-AUTH-26` · Los secretos TOTP son el primer dato de usuario que se pierde si se pierde `APP_KEY`
+
+Hasta hoy, `APP_KEY` cifraba el *payload* de sesión y los cursores de paginación: cosas regenerables. **A partir de 1.3 cifra credenciales de usuario.** Perder la clave, o restaurar una copia de base de datos sin ella, significa que **todos los factores TOTP del sistema dejan de verificar** y hay que restablecer el MFA de todo el mundo a mano.
+
+`ADR-037 §7.2` punto 4 ya obliga a custodiar `APP_KEY` **separada** de la copia de la base de datos, y `0.10d` lo recoge. Lo que esta especificación aporta es que **eso deja de ser una buena práctica y pasa a ser un requisito de recuperación con consecuencia visible**. No es una pregunta técnica sino de operación: hay que confirmar que `0.10d` se resuelve con esa condición antes de que entre el primer dato real. `operacion.md §C.10` lo recoge.
+
+### Lo que **no** dejo como pregunta abierta, y por qué
+
+- **Que el login parcial no cree sesión autenticada** (`§C.6`). Es un requisito de seguridad, no una preferencia. Las alternativas están evaluadas y descartadas con motivo.
+- **Que la cookie `pge_device` no salte el segundo factor** (`RN-AUTH-71`). `RN-AUTH-45` obligaba a decidirlo explícitamente; está decidido, y lo contrario no está en ningún requisito.
+- **Que los fallos de segundo factor alimenten el bloqueo existente** (`§C.4.4.2`). La alternativa (contador propio) no aporta seguridad y duplica un mecanismo. Lo que sí es innegociable es `RN-AUTH-63`: sin él el segundo factor es decorativo.
+- **Que no se amplíe el vocabulario de `audit_logs`** (`§C.10`). `ADR-039 §5.3` fija la carga de la prueba y este paso no la levanta: todo lo suyo es CRUD sobre entidades reales.
+
+---
+
+## C.15 ¿Se aprueba esta especificación?
+
+**No paso a implementación sin respuesta.** Lo que hace falta decidir, en orden de impacto:
+
+1. **`OPEN-AUTH-24`** — ¿se parte el paso en 1.3 / 1.3b? Es lo primero, porque cambia todo lo demás.
+2. **`OPEN-AUTH-21`** — ¿1.3 puede tocar el catálogo de permisos y el controlador de roles de `REQ-CORE` para entregar el interruptor de `mfa_required`? Si la respuesta es no, hay que decidir si `mfa_required` se hace efectivo en 1.3 o se espera a 1.5.
+3. **`OPEN-AUTH-19`** y **`OPEN-AUTH-20`** — las dos dependencias nuevas. Sin decisión no hay TOTP verificable ni QR.
+4. **`OPEN-AUTH-18`** y **`OPEN-AUTH-25`** — qué métodos se entregan de verdad.
+5. **`OPEN-AUTH-22`** y **`OPEN-AUTH-23`** — las dos decisiones de política de cumplimiento.
+6. **`OPEN-AUTH-26`** — confirmar que `0.10d` incorpora la custodia separada de `APP_KEY` con esta consecuencia.
+
+Y tres confirmaciones de alcance, por si no se comparte lo que doy por decidido:
+
+- **La pantalla de administración no entra** (rol, cumplimiento, restablecimiento, excepciones): entra la API, la interfaz es 1.5/1.8.
+- **`RPERM-006` (herencia al clonar) queda declarado pendiente**, no cumplido: no hay clonación de roles hasta 1.5.
+- **Los tres avisos al titular de `§C.4.13` entran**, como extensión del patrón de `SendPasswordChangedEmail` y no como requisito nuevo.
+
+`OPEN-AUTH-18`, `OPEN-AUTH-19` y `OPEN-AUTH-20` **impiden implementar**. `OPEN-AUTH-21`, `OPEN-AUTH-22`, `OPEN-AUTH-23`, `OPEN-AUTH-24` y `OPEN-AUTH-25` **cambian el alcance**. `OPEN-AUTH-26` no bloquea el código pero sí condiciona qué se puede declarar listo para datos reales.
