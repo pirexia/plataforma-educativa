@@ -14,7 +14,7 @@
  * RN-AUTH-28: ningún dato de sesión en `localStorage`/`sessionStorage` —
  * todo el estado vive en variables reactivas de este componente.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
@@ -38,6 +38,34 @@ const revokingId = ref<string | null>(null)
 
 const confirmingOthers = ref(false)
 const revokingOthers = ref(false)
+
+// Gestión de foco (WCAG 2.2 AA, 2.4.3/2.4.7): el botón que abre la
+// confirmación desaparece del DOM, y el navegador no mueve el foco a
+// ningún sitio por su cuenta — sin esto, quien navega por teclado o con
+// lector de pantalla pierde su posición en la página. Se guardan
+// referencias a los contenedores (no a <Button>, un componente cuyo
+// `ref` no reenvía necesariamente el nodo DOM) para enfocar el primer
+// botón real que contienen.
+const rowTriggerEls = new Map<string, HTMLElement>()
+const rowConfirmEls = new Map<string, HTMLElement>()
+const othersTriggerEl = ref<HTMLElement | null>(null)
+const othersConfirmEl = ref<HTMLElement | null>(null)
+
+function setRowTriggerEl(publicId: string, el: Element | null): void {
+  if (el instanceof HTMLElement) {
+    rowTriggerEls.set(publicId, el)
+  }
+}
+
+function setRowConfirmEl(publicId: string, el: Element | null): void {
+  if (el instanceof HTMLElement) {
+    rowConfirmEls.set(publicId, el)
+  }
+}
+
+function focusFirstButton(el: HTMLElement | null | undefined): void {
+  el?.querySelector<HTMLButtonElement>('button')?.focus()
+}
 
 const hasOtherSessions = computed(() => sessions.value.some((s) => !s.current))
 
@@ -113,15 +141,18 @@ onMounted(async () => {
   }
 })
 
-function askRevoke(session: UserSessionSummary): void {
+async function askRevoke(session: UserSessionSummary): Promise<void> {
   errorMessage.value = null
   statusMessage.value = null
   confirmingOthers.value = false
   confirmingId.value = session.public_id
+  await nextTick()
+  focusFirstButton(rowConfirmEls.get(session.public_id))
 }
 
-function cancelRevoke(): void {
+function cancelRevoke(publicId: string): void {
   confirmingId.value = null
+  void nextTick(() => focusFirstButton(rowTriggerEls.get(publicId)))
 }
 
 async function confirmRevoke(session: UserSessionSummary): Promise<void> {
@@ -169,15 +200,18 @@ async function confirmRevoke(session: UserSessionSummary): Promise<void> {
   }
 }
 
-function askRevokeOthers(): void {
+async function askRevokeOthers(): Promise<void> {
   errorMessage.value = null
   statusMessage.value = null
   confirmingId.value = null
   confirmingOthers.value = true
+  await nextTick()
+  focusFirstButton(othersConfirmEl.value)
 }
 
 function cancelRevokeOthers(): void {
   confirmingOthers.value = false
+  void nextTick(() => focusFirstButton(othersTriggerEl.value))
 }
 
 async function confirmRevokeOthers(): Promise<void> {
@@ -233,16 +267,17 @@ async function confirmRevokeOthers(): Promise<void> {
 
       <template v-else>
         <div class="mb-4 flex justify-end">
-          <Button
-            v-if="!confirmingOthers"
-            type="button"
-            variant="outline"
-            :disabled="!hasOtherSessions"
-            @click="askRevokeOthers"
-          >
-            {{ t('auth.sessions.revokeOthers') }}
-          </Button>
-          <div v-else class="flex flex-col items-end gap-2">
+          <div v-if="!confirmingOthers" ref="othersTriggerEl">
+            <Button
+              type="button"
+              variant="outline"
+              :disabled="!hasOtherSessions"
+              @click="askRevokeOthers"
+            >
+              {{ t('auth.sessions.revokeOthers') }}
+            </Button>
+          </div>
+          <div v-else ref="othersConfirmEl" class="flex flex-col items-end gap-2">
             <p role="alert" class="text-sm">{{ t('auth.sessions.confirmRevokeOthers') }}</p>
             <div class="flex gap-2">
               <Button
@@ -301,51 +336,57 @@ async function confirmRevokeOthers(): Promise<void> {
                 <td class="py-2 pr-3">{{ formatDate(session.last_activity_at) }}</td>
                 <td class="py-2 pr-3">{{ session.ip_address ?? '—' }}</td>
                 <td class="py-2">
-                  <template v-if="confirmingId === session.public_id">
-                    <div class="flex flex-col items-start gap-2">
-                      <p role="alert" class="text-sm">
-                        {{
-                          session.current
-                            ? t('auth.sessions.confirmRevokeCurrent')
-                            : t('auth.sessions.confirmRevoke')
-                        }}
-                      </p>
-                      <div class="flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          :disabled="revokingId === session.public_id"
-                          @click="cancelRevoke"
-                        >
-                          {{ t('auth.sessions.confirmCancel') }}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          :disabled="revokingId === session.public_id"
-                          @click="confirmRevoke(session)"
-                        >
-                          {{
-                            revokingId === session.public_id
-                              ? t('auth.sessions.revoking')
-                              : t('auth.sessions.confirmYes')
-                          }}
-                        </Button>
-                      </div>
-                    </div>
-                  </template>
-                  <Button
-                    v-else
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    :aria-label="`${t('auth.sessions.revoke')} — ${deviceLabel(session)}`"
-                    @click="askRevoke(session)"
+                  <div
+                    v-if="confirmingId === session.public_id"
+                    :ref="(el) => setRowConfirmEl(session.public_id, el as Element | null)"
+                    class="flex flex-col items-start gap-2"
                   >
-                    {{ t('auth.sessions.revoke') }}
-                  </Button>
+                    <p role="alert" class="text-sm">
+                      {{
+                        session.current
+                          ? t('auth.sessions.confirmRevokeCurrent')
+                          : t('auth.sessions.confirmRevoke')
+                      }}
+                    </p>
+                    <div class="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        :disabled="revokingId === session.public_id"
+                        @click="cancelRevoke(session.public_id)"
+                      >
+                        {{ t('auth.sessions.confirmCancel') }}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        :disabled="revokingId === session.public_id"
+                        @click="confirmRevoke(session)"
+                      >
+                        {{
+                          revokingId === session.public_id
+                            ? t('auth.sessions.revoking')
+                            : t('auth.sessions.confirmYes')
+                        }}
+                      </Button>
+                    </div>
+                  </div>
+                  <div
+                    v-else
+                    :ref="(el) => setRowTriggerEl(session.public_id, el as Element | null)"
+                  >
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      :aria-label="`${t('auth.sessions.revoke')} — ${deviceLabel(session)}`"
+                      @click="askRevoke(session)"
+                    >
+                      {{ t('auth.sessions.revoke') }}
+                    </Button>
+                  </div>
                 </td>
               </tr>
             </tbody>

@@ -7,6 +7,7 @@ use App\Models\UserStatus;
 use App\Modules\Auth\Domain\Models\UserSession;
 use App\Modules\Auth\Domain\SessionEndReason;
 use App\Modules\Auth\Infrastructure\Jobs\SendPasswordResetEmail;
+use App\Support\Audit\AuditChangeBuilder;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Carbon;
@@ -159,6 +160,27 @@ test('CA-AUTH-102a: revocar una sesión individualmente queda auditada con sessi
             expect($raw)->not->toContain($sessionId);
         }
     });
+});
+
+// datos.md §B.2: "session_id se declara en auditSecretAttributes,
+// explícitamente... es el punto que la revisión de seguridad debe
+// comprobar línea a línea". Comprobación directa del mecanismo real
+// (no un patrón automático: `session_id` no contiene "token" ni
+// "password" ni "secret") — si algún día se retira la declaración, este
+// test falla incluso aunque `session_id` no llegue a estar "dirty" en
+// ningún flujo de producción real.
+test('ADR-040/datos.md §B.2: session_id se redacta como secreto vía AuditChangeBuilder, no por un patrón automático', function (): void {
+    // Instancia no persistida: AuditChangeBuilder solo necesita un
+    // Auditable con su política y sus secretos declarados, no una fila
+    // real — deliberado, para no depender de tenant/login en este test.
+    $session = new UserSession;
+
+    expect($session->auditSecretAttributes())->toContain('session_id');
+
+    $builder = app(AuditChangeBuilder::class);
+    $result = $builder->build($session, ['session_id' => ['id-antiguo', 'id-nuevo']]);
+
+    expect($result['session_id'])->toBe(['redacted' => 'secret']);
 });
 
 // ADR-040 §6 (la trampa de la revocación masiva): DELETE /auth/sessions
