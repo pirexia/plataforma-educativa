@@ -146,22 +146,34 @@ test('RN-AUTH-31/RN-AUTH-44: una discrepancia de tenant responde 401 (no 500), y
     [$tenantB] = provisionActiveUser('life-mismatch-b');
 
     // Sesión real de userA bajo tenant A: la fila de user_sessions que la
-    // reverificación tiene que encontrar y cerrar.
-    loginFor($tenantA->slug, $userA->email, $passwordA);
+    // reverificación tiene que encontrar y cerrar. Se guarda la cookie
+    // real para que StartSession RESUMA exactamente esta sesión en la
+    // petición siguiente: session()->getId() consultado fuera de una
+    // petición real despachada nunca coincide con el id que StartSession
+    // genera para esa petición si no hay cookie — sin cookie real, cada
+    // getJson() de prueba obtiene un id de sesión nuevo, desconectado del
+    // de este login, y la reverificación nunca encontraba la fila que
+    // cerrar (encontrado verificando este test).
+    $login = loginFor($tenantA->slug, $userA->email, $passwordA);
+    $cookie = sessionCookieValue($login);
 
     $sessionPublicId = app(TenantContext::class)->runFor(
         $tenantA->id,
         fn () => UserSession::query()->where('user_id', $userA->id)->firstOrFail()->public_id,
     );
 
+    // Cookie real de tenant A (para que la sesión resumida sea la real,
+    // con su session_id real) + actingAs() (para forzar que Auth::user()
+    // resuelva a userA pese al tenant del host — TenantScope impide que
+    // esto ocurra por sí solo con una sesión real, que es justo el fallo
+    // hipotético de TenantScope/RLS que esta reverificación cubre como
+    // defensa en profundidad). resetSessionState() va ANTES de
+    // actingAs(): actingAs() no puede seguirse de un reseteo, porque
+    // resetSessionState() olvida los guards y anularía su override.
     resetSessionState();
-
-    // actingAs() fija el Guard directamente (sin pasar por TenantScope) y,
-    // vía el override de TestCase, escribe pge_tenant_id = tenantA->id en
-    // sesión — el mismo estado observable que produciría un fallo real de
-    // TenantScope/RLS. La petición va contra el host de tenant B.
-    test()->actingAs($userA)
-        ->getJson(coreApiUrl($tenantB->slug, '/me'))
+    test()->withCredentials()->withUnencryptedCookie(config('session.cookie'), $cookie);
+    test()->actingAs($userA);
+    test()->getJson(coreApiUrl($tenantB->slug, '/me'))
         ->assertStatus(401);
 
     app(TenantContext::class)->runFor($tenantA->id, function () use ($userA, $sessionPublicId): void {

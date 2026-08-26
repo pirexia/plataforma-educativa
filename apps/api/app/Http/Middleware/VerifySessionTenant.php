@@ -88,10 +88,25 @@ class VerifySessionTenant
                     ->whereNull('ended_at')
                     ->first()
                     ?->close(SessionEndReason::TenantIncoherente);
+
+                // `Auth::guard('web')->logout()` también tiene que
+                // ejecutarse aquí dentro, no después: si hay "remember
+                // me" activo, cicla `remember_token` con un `User::save()`
+                // que el observer de auditoría de 0.9 audita igual que
+                // cualquier otro `updated` — y ese `User` pertenece al
+                // tenant REAL de la sesión, no al tenant resuelto por
+                // host. Ejecutarlo fuera de este `runFor()` reproduce
+                // exactamente la misma violación de la FK compuesta
+                // `audit_logs_actor_fk` que este método existe para
+                // evitar, solo que disparada por el propio logout en vez
+                // de por el registro explícito de arriba — encontrado
+                // verificando este fix, no hipotético.
+                Auth::guard('web')->logout();
             });
+        } else {
+            Auth::guard('web')->logout();
         }
 
-        Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
