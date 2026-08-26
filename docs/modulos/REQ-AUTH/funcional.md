@@ -1218,8 +1218,8 @@ Ninguna de las cinco impide **redactar**; `OPEN-AUTH-13` y `OPEN-AUTH-14` sí co
 | **`1.5` (editor de roles y roles personalizados)** | No implementado, posterior en el plan | Ver `§C.2`. No bloquea |
 | **`1.6` (`REQ-BO`)** | No implementado | `REQ-BO-007` («MFA obligatorio para todo administrador de plataforma, sin excepción y sin conmutador») es **suyo**, no de 1.3. `platform_admins` ni siquiera existe todavía (`permisos.md §5.3`) |
 | **`1.7`/`1.8` (design system, layout)** | No implementados | Las pantallas de 1.3 siguen el mismo patrón de 1.2/1.2b: autónomas, sin `AppLayout`, sin depender del design system (`§C.11`) |
-| **Librería TOTP en el backend** | No hay ninguna en `composer.json` | Dependencia nueva ⇒ `CLAUDE.md §1`. `OPEN-AUTH-19` |
-| **Generador de QR en el frontend** | No hay ninguno en `package.json` | Dependencia nueva ⇒ `CLAUDE.md §1`. `OPEN-AUTH-20` |
+| **Librería TOTP en el backend** | No hay ninguna en `composer.json` | Dependencia nueva ⇒ `CLAUDE.md §1`. `OPEN-AUTH-19`, **cerrada por `ADR-041`**: `pragmarx/google2fa` `^9.1` |
+| **Generador de QR en el frontend** | No hay ninguno en `package.json` | Dependencia nueva ⇒ `CLAUDE.md §1`. `OPEN-AUTH-20`, **cerrada por `ADR-041`**: `uqr` `^0.1.3` (`qrcode` rechazada) |
 
 ### C.0.2 Contradicciones detectadas
 
@@ -1835,6 +1835,8 @@ RFC 6238 son treinta líneas y **cuatro formas silenciosas de equivocarse**: bas
 
 **Decisión (2026-08-26)**: aprobado `pragmarx/google2fa`, envuelto tras `MfaVerifier`. La comprobación formal de mantenimiento/licencia/*releases* de `CLAUDE.md §1` se hace en el ADR previo a implementar (`§C.0.2`, subagente `architect`), no queda satisfecha por esta sola aprobación de producto.
 
+**Cerrada por `ADR-041`** (2026-08-26): comprobación superada. `pragmarx/google2fa` `^9.1` (mínimo `v9.1.0`, MIT, última *release* 2026-08-15), tras `MfaVerifier` (verificación, firma intacta de `§C.9.2`) y `TotpProvisioner` (secreto y URI `otpauth`), con adaptador único `Google2FaTotpVerifier`. Descartada `spomky-labs/otphp` porque su `verify()` devuelve un booleano y no el paso de tiempo validado, lo que obligaría a reimplementar la ventana para cumplir `RN-AUTH-58`. Descartados también `google2fa-laravel` y `google2fa-qrcode`.
+
 ### `OPEN-AUTH-20` · Dependencia nueva: generador de QR en el frontend
 
 El servidor devuelve la URI `otpauth`; alguien tiene que dibujarla. Las opciones son una librería de QR en la SPA, generar el SVG en el servidor (otra dependencia, esta vez en PHP), o **no dibujar QR** y entregar solo la clave en texto.
@@ -1842,6 +1844,8 @@ El servidor devuelve la URI `otpauth`; alguien tiene que dibujarla. Las opciones
 **Recomendación**: librería en la SPA, envuelta tras un componente propio. La tercera opción es tentadora por no añadir nada, pero transcribir 32 caracteres a mano en un móvil es donde se pierde a la mitad de los usuarios que iban a activar MFA voluntariamente. Misma comprobación de `CLAUDE.md §1` que la anterior.
 
 **Decisión (2026-08-26)**: aprobada la librería QR en la SPA, envuelta tras un componente propio. Igual que `OPEN-AUTH-19`, la elección concreta y su comprobación de `CLAUDE.md §1` se cierran en el ADR previo a implementar.
+
+**Cerrada por `ADR-041`** (2026-08-26): **`qrcode` (node-qrcode) rechazada** — sin *release* desde 2024-08-05, sin *commits* desde 2024-08-23, 125 *issues* abiertas, `yargs@15` en ejecución y sin tipos propios: incumple «mantenimiento activo» de `CLAUDE.md §1`. Se aprueba **`uqr` `^0.1.3`** (MIT, cero dependencias, tipos nativos), usada **solo** como codificador (`encode()` → `boolean[][]`, nunca `renderSVG()`), tras el componente propio `apps/web/src/components/QrCode.vue`, que construye el `<svg role="img">` en plantilla para poder cumplir la alternativa textual sin secreto de `§C.11`.
 
 ### `OPEN-AUTH-21` · El punto de corte con 1.5: `rol.actualizar` y `PATCH /roles/{public_id}` acotado
 
@@ -1928,3 +1932,5 @@ Confirmadas también las tres asunciones de alcance que no se listaban como preg
 Con `OPEN-AUTH-24` resuelto, el alcance de **esta rama** (`feature/REQ-AUTH-003-1.3-mfa-obligatorio-por-rol`) queda acotado a: alta/verificación TOTP, códigos de respaldo, login en dos pasos, `MfaPolicy` (obligatoriedad por rol, resolución multi-rol), período de gracia y muro de sesión restringida, `PATCH /roles/{public_id}` acotado a `mfa_required`, vista previa de usuarios afectados y estado de cumplimiento, y restablecimiento de MFA por el administrador. **`1.3b`** (rama nueva cuando le toque turno) se queda con: método de correo como segundo factor, excepciones temporales nominales, y la pantalla de administración si `1.5` se retrasa.
 
 **Antes de implementar**: `OPEN-AUTH-19`/`20` aprobaron la *dirección* (qué tipo de dependencia), no la comprobación formal de mantenimiento/licencia/*releases* que exige `CLAUDE.md §1` para `pragmarx/google2fa` y la librería de QR. Esa comprobación, envuelta en un ADR, es tarea de `architect` (Opus) y va **antes** que `implementer` — mismo patrón que `ADR-040` en `1.2b`.
+
+**Hecha: `ADR-041`** (2026-08-26). Aprobadas `pragmarx/google2fa` `^9.1` (backend) y `uqr` `^0.1.3` (SPA); **rechazada `qrcode` (node-qrcode)** por mantenimiento parado. El ADR fija además los envoltorios que `implementer` debe crear: `App\Modules\Auth\Domain\MfaVerifier` y `TotpProvisioner`, con adaptador único `App\Modules\Auth\Infrastructure\Google2FaTotpVerifier`; y `apps/web/src/components/QrCode.vue`. Con esto, `1.3` no tiene nada pendiente antes de implementar.
