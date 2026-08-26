@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.1.2** · 2026-08-18 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.2.0** · 2026-08-26 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -77,6 +77,8 @@ Frases prohibidas: "¡Excelente idea!", "Tienes toda la razón" como apertura re
 4. Deja el repositorio en estado compilable y con tests en verde.
 
 **Este cierre no espera a que lo pidas.** En cuanto el propio sistema avise de que la cuota se agota (aviso de "usage limit approaching" u otro equivalente), ejecútalo sin que haga falta que lo digas tú: termina el paso atómico en curso (no empieces uno nuevo), aplica los cuatro puntos anteriores, y programa un aviso para retomar cuando la cuota se restaure. La hora de reset **no está en tu contexto** (la app cliente la muestra en su propia interfaz, no como texto de sistema): pregúntasela al usuario, salvo que ya te la haya dado en la conversación. Mecanismo concreto en el skill `cierre-de-sesion`.
+
+**Cierre también entre pasos del plan, no solo por cuota.** Salvo que el usuario diga explícitamente lo contrario en esa sesión, al terminar un paso de `PLAN-IMPLEMENTACION.md` (especificación aprobada e implementada, revisión hecha, mezclado) aplica este mismo cierre completo **antes** de empezar el paso siguiente, y déjalo dicho en `memory.md`. Es una decisión de higiene de contexto, no de cuota: no encadenes varios pasos del plan dentro de la misma sesión por defecto — reiniciar entre pasos mantiene el contexto principal centrado en uno solo.
 
 ---
 
