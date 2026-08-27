@@ -192,6 +192,105 @@
       "recoveryCodeLabel": "Recovery code",
       "invalidCode": "The code isn't correct.",
       "expired": "Verification has expired. Sign in again."
+    },
+    "mfaAdmin": {
+      "title": "MFA administration",
+      "loadingRoles": "Loading roles…",
+      "roleLabel": "Role",
+      "rolePlaceholder": "Choose a role",
+      "forbidden": "You don't have permission for this action.",
+      "compliance": {
+        "title": "Compliance",
+        "chooseRoleHint": "Choose a role to see its compliance.",
+        "total": "Total",
+        "enrolled": "Enrolled",
+        "obligated": "Obligated",
+        "inGrace": "In grace",
+        "enforced": "Overdue",
+        "exempt": "Exempt",
+        "filterLegend": "Filter by state",
+        "state": {
+          "obligated": "Obligated",
+          "enrolled": "Enrolled",
+          "pending": "Pending",
+          "past_deadline": "Overdue",
+          "exempt": "Exempt"
+        },
+        "loading": "Loading users…",
+        "columnUser": "User",
+        "columnState": "State",
+        "columnGraceDeadline": "Grace deadline",
+        "columnMethods": "Enrolled methods",
+        "columnRoles": "Roles requiring it",
+        "columnActions": "Actions",
+        "empty": "No one to show with this filter.",
+        "resetAction": "Reset",
+        "previousPage": "Previous",
+        "nextPage": "Next",
+        "pageIndicator": "Page {page} of {lastPage}"
+      },
+      "roleRequirement": {
+        "title": "Requirement by role",
+        "currentlyRequired": "The «{role}» role requires the second factor today.",
+        "currentlyNotRequired": "The «{role}» role doesn't require the second factor today.",
+        "previewDisable": "Preview: stop requiring it",
+        "previewEnable": "Preview: start requiring it",
+        "previewNotice": "This is a simulation: nothing has been saved yet.",
+        "impactDisable": "This change would stop requiring it for {count} users.",
+        "impactEnable": "This change will require it for {count} more users.",
+        "applying": "Applying…",
+        "confirm": "Confirm the change",
+        "cancel": "Cancel",
+        "applied": "Role requirement updated."
+      },
+      "reset": {
+        "title": "MFA reset",
+        "reasonLabel": "Reason (10 characters minimum)",
+        "reasonWarning": "The reason is recorded in the audit log and only readable by those with permission to view it. Don't write health data.",
+        "effectWarning": "All of this person's active sessions will be closed and they will be notified.",
+        "reasonTooShort": "The reason must be at least 10 characters.",
+        "userNotFound": "That user could not be found.",
+        "submitting": "Resetting…",
+        "submit": "Reset MFA",
+        "success": "MFA for {name} has been reset."
+      },
+      "exemptions": {
+        "title": "Temporary exemptions",
+        "grantAction": "Grant exemption",
+        "reasonLabel": "Reason (10 characters minimum)",
+        "expiresLabel": "Expires on",
+        "maxDaysHint": "The allowed limit is {days} days from today.",
+        "reasonWarning": "The reason is recorded in the audit log and only readable by those with permission to view it. Don't write health data.",
+        "granting": "Granting…",
+        "confirmGrant": "Grant",
+        "cancel": "Cancel",
+        "alreadyLive": "This person already has a live exemption.",
+        "filterLegend": "Filter by state",
+        "filterAll": "All",
+        "state": {
+          "live": "Live",
+          "expired": "Expired",
+          "revoked": "Revoked"
+        },
+        "loading": "Loading exemptions…",
+        "columnUser": "User",
+        "columnState": "State",
+        "columnReason": "Reason",
+        "columnExpiresAt": "Expires",
+        "columnGrantedBy": "Granted by",
+        "columnActions": "Actions",
+        "empty": "No exemptions with this filter.",
+        "revokeAction": "Revoke",
+        "confirmRevoke": "Revoke this exemption?",
+        "confirmYes": "Yes, revoke"
+      },
+      "userPicker": {
+        "label": "Search user",
+        "placeholder": "Name or email address",
+        "loading": "Loading users…",
+        "noMatches": "No matches.",
+        "change": "Change"
+      }
     }
   }
 }

@@ -192,6 +192,105 @@
       "recoveryCodeLabel": "Wiederherstellungscode",
       "invalidCode": "Der Code ist nicht korrekt.",
       "expired": "Die Bestätigung ist abgelaufen. Melde dich erneut an."
+    },
+    "mfaAdmin": {
+      "title": "MFA-Verwaltung",
+      "loadingRoles": "Rollen werden geladen…",
+      "roleLabel": "Rolle",
+      "rolePlaceholder": "Rolle wählen",
+      "forbidden": "Du hast keine Berechtigung für diese Aktion.",
+      "compliance": {
+        "title": "Erfüllungsstand",
+        "chooseRoleHint": "Wähle eine Rolle, um ihren Erfüllungsstand zu sehen.",
+        "total": "Gesamt",
+        "enrolled": "Registriert",
+        "obligated": "Verpflichtet",
+        "inGrace": "In der Frist",
+        "enforced": "Überfällig",
+        "exempt": "Befreit",
+        "filterLegend": "Nach Status filtern",
+        "state": {
+          "obligated": "Verpflichtet",
+          "enrolled": "Registriert",
+          "pending": "Ausstehend",
+          "past_deadline": "Überfällig",
+          "exempt": "Befreit"
+        },
+        "loading": "Nutzer werden geladen…",
+        "columnUser": "Nutzer",
+        "columnState": "Status",
+        "columnGraceDeadline": "Ablauf der Frist",
+        "columnMethods": "Registrierte Methoden",
+        "columnRoles": "Rollen, die es verlangen",
+        "columnActions": "Aktionen",
+        "empty": "Niemand mit diesem Filter.",
+        "resetAction": "Zurücksetzen",
+        "previousPage": "Zurück",
+        "nextPage": "Weiter",
+        "pageIndicator": "Seite {page} von {lastPage}"
+      },
+      "roleRequirement": {
+        "title": "Pflicht nach Rolle",
+        "currentlyRequired": "Die Rolle „{role}“ verlangt heute den zweiten Faktor.",
+        "currentlyNotRequired": "Die Rolle „{role}“ verlangt heute nicht den zweiten Faktor.",
+        "previewDisable": "Vorschau: nicht mehr verlangen",
+        "previewEnable": "Vorschau: ab jetzt verlangen",
+        "previewNotice": "Dies ist eine Simulation: Es wurde noch nichts gespeichert.",
+        "impactDisable": "Diese Änderung würde es für {count} Nutzer nicht mehr verlangen.",
+        "impactEnable": "Diese Änderung wird es für {count} weitere Nutzer verlangen.",
+        "applying": "Wird angewendet…",
+        "confirm": "Änderung bestätigen",
+        "cancel": "Abbrechen",
+        "applied": "Rollenpflicht aktualisiert."
+      },
+      "reset": {
+        "title": "MFA zurücksetzen",
+        "reasonLabel": "Grund (mindestens 10 Zeichen)",
+        "reasonWarning": "Der Grund wird im Prüfprotokoll gespeichert und ist nur für Berechtigte lesbar. Schreibe keine Gesundheitsdaten hinein.",
+        "effectWarning": "Alle aktiven Sitzungen dieser Person werden beendet, und sie wird benachrichtigt.",
+        "reasonTooShort": "Der Grund muss mindestens 10 Zeichen haben.",
+        "userNotFound": "Dieser Nutzer wurde nicht gefunden.",
+        "submitting": "Wird zurückgesetzt…",
+        "submit": "MFA zurücksetzen",
+        "success": "MFA von {name} wurde zurückgesetzt."
+      },
+      "exemptions": {
+        "title": "Temporäre Ausnahmen",
+        "grantAction": "Ausnahme gewähren",
+        "reasonLabel": "Grund (mindestens 10 Zeichen)",
+        "expiresLabel": "Läuft ab am",
+        "maxDaysHint": "Die zulässige Obergrenze sind {days} Tage ab heute.",
+        "reasonWarning": "Der Grund wird im Prüfprotokoll gespeichert und ist nur für Berechtigte lesbar. Schreibe keine Gesundheitsdaten hinein.",
+        "granting": "Wird gewährt…",
+        "confirmGrant": "Gewähren",
+        "cancel": "Abbrechen",
+        "alreadyLive": "Diese Person hat bereits eine aktive Ausnahme.",
+        "filterLegend": "Nach Status filtern",
+        "filterAll": "Alle",
+        "state": {
+          "live": "Aktiv",
+          "expired": "Abgelaufen",
+          "revoked": "Widerrufen"
+        },
+        "loading": "Ausnahmen werden geladen…",
+        "columnUser": "Nutzer",
+        "columnState": "Status",
+        "columnReason": "Grund",
+        "columnExpiresAt": "Läuft ab",
+        "columnGrantedBy": "Gewährt von",
+        "columnActions": "Aktionen",
+        "empty": "Keine Ausnahmen mit diesem Filter.",
+        "revokeAction": "Widerrufen",
+        "confirmRevoke": "Diese Ausnahme widerrufen?",
+        "confirmYes": "Ja, widerrufen"
+      },
+      "userPicker": {
+        "label": "Nutzer suchen",
+        "placeholder": "Name oder E-Mail-Adresse",
+        "loading": "Nutzer werden geladen…",
+        "noMatches": "Keine Treffer.",
+        "change": "Ändern"
+      }
     }
   }
 }

@@ -1,6 +1,6 @@
 # Manual de administración
 
-> Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre lo que ya tiene código detrás: el registro de auditoría (paso 0.9), las cuentas bloqueadas y el tiempo de sesión (paso 1.2), la autenticación en dos pasos por rol (paso 1.3), y el correo como segundo factor y las excepciones temporales (paso 1.3b). La pantalla mínima de administración de MFA (`/administracion/mfa`) de 1.3b está pendiente de construir a fecha de este documento; el resto de secciones del manual de Administrador de Centro (usuarios, roles, módulos contratados) llegan con `REQ-BO` (paso 1.6) y las pantallas restantes de `REQ-CORE` (1.1, `OPEN-CORE-02`, con 1.8).
+> Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre lo que ya tiene código detrás: el registro de auditoría (paso 0.9), las cuentas bloqueadas y el tiempo de sesión (paso 1.2), la autenticación en dos pasos por rol (paso 1.3), y el correo como segundo factor, las excepciones temporales y la pantalla mínima de administración de MFA (paso 1.3b). El resto de secciones del manual de Administrador de Centro (usuarios, roles, módulos contratados) llegan con `REQ-BO` (paso 1.6) y las pantallas restantes de `REQ-CORE` (1.1, `OPEN-CORE-02`, con 1.8).
 
 ## Cuentas bloqueadas
 
@@ -23,6 +23,8 @@ Cuánto tiempo puede estar una persona sin actividad en la aplicación antes de 
 ### Qué es
 
 La autenticación en dos pasos (o «segundo factor», MFA) añade, además de la contraseña, un código de un solo uso: uno que cambia cada 30 segundos y que solo genera la aplicación de autenticación del propio dispositivo de la persona, o —si tu centro lo activa— un código de 6 dígitos que se envía por correo a la dirección de acceso. Como administrador del centro puedes hacerla obligatoria para determinados roles, consultar quién la tiene activada y quién no, restablecerla cuando alguien pierde el acceso a su dispositivo, y conceder excepciones temporales a quien no pueda cumplirla todavía.
+
+Todo lo de esta sección —consultar cumplimiento, activar la obligatoriedad por rol, restablecer y conceder o revocar excepciones— se gestiona desde una única pantalla, `/administracion/mfa`. Es una pantalla provisional y mínima: no tiene editor de roles ni matriz de permisos (eso llega con `1.5`), y solo la ven quienes tienen los permisos de cada acción concreta — si te falta alguno, la propia pantalla te lo dice al intentarlo, en vez de ocultarte la opción sin explicación.
 
 **Antes de activar el correo como segundo factor, ten en cuenta esto:** un código por correo protege menos que la aplicación de autenticación, porque si el buzón de alguien está comprometido, su segundo factor también lo está — y es el mismo buzón al que va la recuperación de contraseña. Actívalo solo si de verdad hay personas en tu centro sin un teléfono compatible con la aplicación de autenticación; no lo actives «por si acaso» ni como alternativa cómoda a la aplicación. El segundo factor de la aplicación de autenticación **no se puede desactivar** para el centro entero: siempre estará disponible, se active o no el correo.
 

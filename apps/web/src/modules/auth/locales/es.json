@@ -192,6 +192,105 @@
       "recoveryCodeLabel": "Código de respaldo",
       "invalidCode": "El código no es correcto.",
       "expired": "La verificación ha caducado. Vuelve a iniciar sesión."
+    },
+    "mfaAdmin": {
+      "title": "Administración de MFA",
+      "loadingRoles": "Cargando roles…",
+      "roleLabel": "Rol",
+      "rolePlaceholder": "Elige un rol",
+      "forbidden": "No tienes permiso para esta acción.",
+      "compliance": {
+        "title": "Cumplimiento",
+        "chooseRoleHint": "Elige un rol para ver su cumplimiento.",
+        "total": "Total",
+        "enrolled": "Inscritos",
+        "obligated": "Obligados",
+        "inGrace": "En gracia",
+        "enforced": "Vencidos",
+        "exempt": "Exentos",
+        "filterLegend": "Filtrar por estado",
+        "state": {
+          "obligated": "Obligado",
+          "enrolled": "Inscrito",
+          "pending": "Pendiente",
+          "past_deadline": "Vencido",
+          "exempt": "Exento"
+        },
+        "loading": "Cargando usuarios…",
+        "columnUser": "Usuario",
+        "columnState": "Estado",
+        "columnGraceDeadline": "Plazo de gracia",
+        "columnMethods": "Métodos inscritos",
+        "columnRoles": "Roles que lo exigen",
+        "columnActions": "Acciones",
+        "empty": "Nadie que mostrar con este filtro.",
+        "resetAction": "Restablecer",
+        "previousPage": "Anterior",
+        "nextPage": "Siguiente",
+        "pageIndicator": "Página {page} de {lastPage}"
+      },
+      "roleRequirement": {
+        "title": "Obligatoriedad por rol",
+        "currentlyRequired": "El rol «{role}» exige hoy el segundo factor.",
+        "currentlyNotRequired": "El rol «{role}» no exige hoy el segundo factor.",
+        "previewDisable": "Vista previa: dejar de exigirlo",
+        "previewEnable": "Vista previa: empezar a exigirlo",
+        "previewNotice": "Esto es una simulación: todavía no se ha guardado nada.",
+        "impactDisable": "Este cambio dejaría de obligar a {count} usuarios.",
+        "impactEnable": "Este cambio obligará a {count} usuarios más.",
+        "applying": "Aplicando…",
+        "confirm": "Confirmar el cambio",
+        "cancel": "Cancelar",
+        "applied": "Obligatoriedad del rol actualizada."
+      },
+      "reset": {
+        "title": "Restablecimiento de MFA",
+        "reasonLabel": "Motivo (mínimo 10 caracteres)",
+        "reasonWarning": "El motivo queda registrado en la auditoría y solo lo puede leer quien tenga permiso para verla. No escribas datos de salud.",
+        "effectWarning": "Se cerrarán todas las sesiones activas de esta persona y se le notificará.",
+        "reasonTooShort": "El motivo debe tener al menos 10 caracteres.",
+        "userNotFound": "No se ha encontrado a ese usuario.",
+        "submitting": "Restableciendo…",
+        "submit": "Restablecer MFA",
+        "success": "MFA de {name} restablecido."
+      },
+      "exemptions": {
+        "title": "Excepciones temporales",
+        "grantAction": "Conceder excepción",
+        "reasonLabel": "Motivo (mínimo 10 caracteres)",
+        "expiresLabel": "Caduca el",
+        "maxDaysHint": "El tope permitido es de {days} días desde hoy.",
+        "reasonWarning": "El motivo queda registrado en la auditoría y solo lo puede leer quien tenga permiso para verla. No escribas datos de salud.",
+        "granting": "Concediendo…",
+        "confirmGrant": "Conceder",
+        "cancel": "Cancelar",
+        "alreadyLive": "Esta persona ya tiene una excepción viva.",
+        "filterLegend": "Filtrar por estado",
+        "filterAll": "Todas",
+        "state": {
+          "live": "Viva",
+          "expired": "Caducada",
+          "revoked": "Revocada"
+        },
+        "loading": "Cargando excepciones…",
+        "columnUser": "Usuario",
+        "columnState": "Estado",
+        "columnReason": "Motivo",
+        "columnExpiresAt": "Caduca",
+        "columnGrantedBy": "Concedida por",
+        "columnActions": "Acciones",
+        "empty": "No hay excepciones con este filtro.",
+        "revokeAction": "Revocar",
+        "confirmRevoke": "¿Revocar esta excepción?",
+        "confirmYes": "Sí, revocar"
+      },
+      "userPicker": {
+        "label": "Buscar usuario",
+        "placeholder": "Nombre o correo electrónico",
+        "loading": "Cargando usuarios…",
+        "noMatches": "Sin coincidencias.",
+        "change": "Cambiar"
+      }
     }
   }
 }

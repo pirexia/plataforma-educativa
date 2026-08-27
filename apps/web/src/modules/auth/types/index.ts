@@ -15,6 +15,12 @@
 
 export type PublicId = string
 
+// Pieza 3 de 1.3b (`/administracion/mfa`): tipos propios en su propio
+// fichero (cumplimiento, excepciones desde la pantalla de administración
+// — distinto del uso de autoservicio de arriba), reexportados aquí para
+// que el resto del módulo siga importando desde `../types` sin más rutas.
+export * from './administration'
+
 /**
  * api.md §2, funcional.md §4.2 punto 6.6: el mismo recurso que `GET /me`
  * de `REQ-CORE`, ensamblado por `App\Support\Api\UserProfilePresenter` —
