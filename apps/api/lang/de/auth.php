@@ -22,6 +22,8 @@ return [
         'mfa_code_invalid' => 'Der Code ist nicht korrekt.',
         'mfa_factor_required_by_role' => 'Du kannst deinen letzten Faktor nicht deaktivieren: eine deiner Rollen erfordert die zweistufige Verifizierung.',
         'mfa_exemption_already_live' => 'Dieser Benutzer hat bereits eine gültige MFA-Ausnahme.',
+        'mfa_exemption_self' => 'Du kannst dir selbst keine MFA-Ausnahme gewähren.',
+        'mfa_reset_self' => 'Du kannst dein eigenes MFA nicht zurücksetzen.',
     ],
 
     'mail' => [

@@ -22,6 +22,8 @@ return [
         'mfa_code_invalid' => 'The code is not correct.',
         'mfa_factor_required_by_role' => 'You cannot disable your last factor: one of your roles requires two-step verification.',
         'mfa_exemption_already_live' => 'This user already has a live MFA exemption.',
+        'mfa_exemption_self' => 'You cannot grant yourself an MFA exemption.',
+        'mfa_reset_self' => 'You cannot reset your own MFA.',
     ],
 
     'mail' => [

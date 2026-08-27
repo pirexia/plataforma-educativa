@@ -27,6 +27,10 @@ return [
         'mfa_factor_required_by_role' => 'No puedes desactivar tu último factor: alguno de tus roles exige la verificación en dos pasos.',
         // REQ-AUTH-003 (1.3b), funcional.md §D.4.6, RN-AUTH-81.
         'mfa_exemption_already_live' => 'Este usuario ya tiene una excepción de MFA vigente.',
+        // RN-AUTH-81/RN-AUTH-67, api.md §D.4/§C.5: distinto del 403 genérico
+        // por falta de permiso — se distingue en el mensaje.
+        'mfa_exemption_self' => 'No puedes concederte una excepción de MFA a ti mismo.',
+        'mfa_reset_self' => 'No puedes restablecer tu propio MFA.',
     ],
 
     'mail' => [

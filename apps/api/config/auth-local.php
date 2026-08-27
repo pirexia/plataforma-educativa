@@ -115,6 +115,11 @@ return [
         'max_exemption_days' => (int) env('AUTH_MFA_MAX_EXEMPTION_DAYS', 90),
         'factor_purge_days' => (int) env('AUTH_MFA_FACTOR_PURGE_DAYS', 30),
         'challenge_retention_hours' => (int) env('AUTH_MFA_CHALLENGE_RETENTION_HOURS', 24),
+        // REQ-AUTH-003 (1.3b), operacion.md §D.2.1, funcional.md §D.4.9.
+        // Ventana hacia atrás de ReopenExpiredMfaExemptions: adelanta el
+        // trabajo que MfaPolicy::resolve() haría de todas formas en la
+        // siguiente petición del titular, no es la única garantía.
+        'exemption_reopen_window_hours' => (int) env('AUTH_MFA_EXEMPTION_REOPEN_WINDOW_HOURS', 48),
     ],
 
 ];

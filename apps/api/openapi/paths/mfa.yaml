@@ -365,3 +365,114 @@ paths:
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
         '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/mfa-exemptions:
+    post:
+      operationId: createMfaExemption
+      summary: Concede una excepción temporal nominal a la obligatoriedad de MFA
+      description: >
+        funcional.md §D.4.6, RN-AUTH-81/RN-AUTH-82 (1.3b). Cierra la
+        obligación abierta del usuario en la misma transacción — si
+        estaba contra el muro, deja de estarlo en su siguiente petición.
+        Nadie se concede una excepción a sí mismo. Permiso
+        `exencion_mfa.crear`.
+      tags: [Auth / MFA]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user, reason, expires_at]
+              properties:
+                user: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                reason: { type: string, minLength: 10, maxLength: 1000 }
+                expires_at: { type: string, format: date-time, description: Futura y como mucho AUTH_MFA_MAX_EXEMPTION_DAYS (90) por delante. }
+      responses:
+        '201':
+          description: Excepción concedida.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/MfaExemption' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403':
+          description: >
+            Sin `exencion_mfa.crear` (Forbidden genérico), o el
+            administrador intenta concederse la excepción a sí mismo
+            (RN-AUTH-81) — mismo estado, mensaje distinto (api.md §D.4).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: El usuario ya tiene una excepción viva (RN-AUTH-81).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+    get:
+      operationId: listMfaExemptions
+      summary: Lista las excepciones temporales del centro
+      description: >
+        funcional.md §D.4.7. Se solapa a propósito con
+        `GET /mfa-compliance/users?state=exempt`: este trae `reason` y
+        `granted_by`, aquel no. Permiso `exencion_mfa.leer`.
+      tags: [Auth / MFA]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: state
+          in: query
+          description: live|expired|revoked, varios separados por coma (ADR-038 §5.2).
+          schema: { type: string }
+        - name: user
+          in: query
+          description: public_id del usuario, para ver solo sus excepciones.
+          schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - $ref: '../components.yaml#/components/parameters/PageParam'
+        - $ref: '../components.yaml#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: Colección paginada — las vivas primero, luego por concesión descendente.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/MfaExemption' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/mfa-exemptions/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    delete:
+      operationId: deleteMfaExemption
+      summary: Revoca una excepción antes de su caducidad
+      description: >
+        funcional.md §D.4.8, RN-AUTH-83. No borra: escribe
+        `revoked_at`/`revoked_by` y conserva la fila (la auditoría
+        registra un `updated`, no un `deleted`) y reabre la obligación
+        con plazo de gracia completo si el usuario sigue reuniendo las
+        condiciones. Un administrador sí puede revocar la suya propia.
+        Permiso `exencion_mfa.eliminar`. Sin cuerpo.
+      tags: [Auth / MFA]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204':
+          description: Excepción revocada.
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404':
+          description: Excepción inexistente, de otro tenant o ya revocada — cuerpo idéntico en los tres casos (RN-AUTH-83).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }

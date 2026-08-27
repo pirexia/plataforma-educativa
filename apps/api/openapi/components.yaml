@@ -525,6 +525,44 @@ components:
         users_enforced: { type: integer }
         users_exempt: { type: integer }
 
+    MfaExemption:
+      type: object
+      description: >
+        REQ-AUTH-003 (1.3b), funcional.md §D.4.6-§D.4.8, api.md §D.4.
+        Recurso común a los tres endpoints de `/mfa-exemptions`. `state`
+        es derivado (nunca una columna): `live` (`revoked_at` nulo y
+        `expires_at` futuro), `expired` (`revoked_at` nulo y `expires_at`
+        pasado), `revoked` (`revoked_at` informado).
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        user:
+          type: object
+          description: Solo campos públicos — nunca secretos ni estado de factores.
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            given_name: { type: string }
+            family_name_1: { type: string }
+            family_name_2: { type: string }
+            email: { type: string }
+        reason: { type: string }
+        expires_at: { type: string, format: date-time }
+        state: { type: string, enum: [live, expired, revoked] }
+        granted_by:
+          type: object
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            given_name: { type: string }
+            family_name_1: { type: string }
+        granted_at: { type: string, format: date-time, description: 'created_at renombrado: cuándo se concedió.' }
+        revoked_by:
+          type: object
+          nullable: true
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            given_name: { type: string }
+            family_name_1: { type: string }
+        revoked_at: { type: string, format: date-time, nullable: true }
+
     MfaComplianceUserRow:
       type: object
       description: >

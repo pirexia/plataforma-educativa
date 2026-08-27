@@ -123,12 +123,12 @@ test('CA-AUTH-137: POST /mfa-resets exige motivo de al menos 10 caracteres y bor
 });
 
 // CA-AUTH-138, RN-AUTH-67
-test('CA-AUTH-138: un administrador no puede restablecer su propio MFA', function (): void {
+test('CA-AUTH-138: un administrador no puede restablecer su propio MFA, y el mensaje se distingue del 403 genérico de permiso', function (): void {
     Queue::fake();
     [$tenant, $admin] = provisionCoreTenant('mfa-138');
     createConfirmedTotpFactor($tenant, $admin);
 
-    test()->actingAs($admin)
+    $selfReset = test()->actingAs($admin)
         ->postJson(coreApiUrl($tenant->slug, '/mfa-resets'), [
             'user' => $admin->public_id,
             'reason' => 'Intento de autorrestablecimiento, debe rechazarse.',
@@ -138,6 +138,24 @@ test('CA-AUTH-138: un administrador no puede restablecer su propio MFA', functio
     app(TenantContext::class)->runFor($tenant->id, function () use ($admin): void {
         expect(MfaFactor::query()->where('user_id', $admin->id)->whereNotNull('confirmed_at')->exists())->toBeTrue();
     });
+
+    // issue #115: distinto del 403 genérico de RequirePermission — mismo
+    // criterio que api.md §C.5 exige y que antes no se cumplía. Un
+    // usuario sin ningún rol/permiso, en el mismo tenant, da el 403
+    // genérico de comparación.
+    $bareUser = app(TenantContext::class)->runFor($tenant->id, function (): User {
+        $person = Person::factory()->create();
+
+        return User::factory()->for($person)->create(['status' => UserStatus::Activo]);
+    });
+
+    $noPermission = test()->actingAs($bareUser)
+        ->getJson(coreApiUrl($tenant->slug, '/mfa-compliance?role=x'))
+        ->assertStatus(403);
+
+    expect($selfReset->json('detail'))
+        ->not->toBe($noPermission->json('detail'))
+        ->and($selfReset->json('detail'))->toBe(__('auth.validation.mfa_reset_self'));
 });
 
 // CA-AUTH-140
