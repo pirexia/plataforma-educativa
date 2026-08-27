@@ -99,6 +99,13 @@ Route::get('/mfa-compliance', [MfaComplianceController::class, 'index'])
     ->middleware('permission:mfa.leer')
     ->name('auth.mfa-compliance.index');
 
+// api.md §C.5. Restaurado en 1.3 el 2026-08-27 (decisión del usuario,
+// corrige un recorte no autorizado a `1.3b`). Mismo permiso que el
+// agregado (`§C.6.1` de permisos.md): no es `usuario.leer`.
+Route::get('/mfa-compliance/users', [MfaComplianceController::class, 'users'])
+    ->middleware('permission:mfa.leer')
+    ->name('auth.mfa-compliance.users');
+
 Route::post('/mfa-resets', [MfaResetsController::class, 'store'])
     ->middleware('permission:mfa.eliminar')
     ->name('auth.mfa-resets.store');

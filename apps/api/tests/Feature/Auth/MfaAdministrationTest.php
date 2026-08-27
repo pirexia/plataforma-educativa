@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Models\UserStatus;
 use App\Modules\Auth\Domain\Models\MfaFactor;
 use App\Modules\Auth\Domain\Models\MfaReset;
+use App\Modules\Auth\Domain\Models\UserMfaExemption;
+use App\Modules\Auth\Domain\Models\UserMfaObligation;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -221,6 +223,207 @@ test('CA-AUTH-143: un factor, un desafío y un código de respaldo de otro tenan
     withSessionCookie(sessionCookieValue($loginB))
         ->deleteJson(coreApiUrl($tenantB->slug, "/auth/mfa-factors/{$factorPublicIdA}"), ['current_password' => $passwordB])
         ->assertStatus(404);
+});
+
+// REQ-AUTH-003 (1.3), api.md §C.5. GET /mfa-compliance/users, restaurado
+// el 2026-08-27 (decisión del usuario, corrige un recorte no autorizado
+// de un subagente anterior a `1.3b` — funcional.md §C.16). Sin CA
+// numerado propio: CA-AUTH-136 solo cubre el agregado por rol.
+test('REQ-AUTH-003: GET /mfa-compliance/users clasifica a cada usuario y excluye a quien es irrelevante', function (): void {
+    Queue::fake();
+    [$tenant, $admin] = provisionCoreTenant('mfa-users-1');
+
+    $context = app(TenantContext::class);
+
+    $roleCode = $context->runFor($tenant->id, function () use ($admin) {
+        $role = Role::create(['code' => 'rol-obligado-users', 'name' => 'Rol obligado', 'is_system' => false, 'mfa_required' => true]);
+
+        // Pendiente: gracia todavía viva.
+        $pending = User::factory()->for(Person::factory()->create())->create(['status' => UserStatus::Activo, 'email' => 'pending@example.com']);
+        $pending->roles()->attach($role->id);
+        UserMfaObligation::create([
+            'user_id' => $pending->id,
+            'obligated_since' => now()->subDay(),
+            'grace_deadline_at' => now()->addDays(6),
+            'trigger' => 'rol_asignado',
+        ]);
+
+        // Vencido: gracia ya pasada.
+        $pastDeadline = User::factory()->for(Person::factory()->create())->create(['status' => UserStatus::Activo, 'email' => 'past-deadline@example.com']);
+        $pastDeadline->roles()->attach($role->id);
+        UserMfaObligation::create([
+            'user_id' => $pastDeadline->id,
+            'obligated_since' => now()->subDays(10),
+            'grace_deadline_at' => now()->subDay(),
+            'trigger' => 'rol_asignado',
+        ]);
+
+        // Exento: excepción viva.
+        $exempt = User::factory()->for(Person::factory()->create())->create(['status' => UserStatus::Activo, 'email' => 'exempt@example.com']);
+        $exempt->roles()->attach($role->id);
+        UserMfaExemption::create([
+            'user_id' => $exempt->id,
+            'reason' => 'Perdió el dispositivo y está de baja médica esta semana.',
+            'expires_at' => now()->addDays(15),
+            'granted_by' => $admin->id,
+        ]);
+
+        // Irrelevante: ningún rol lo obliga, sin factor, sin excepción —
+        // no debe aparecer en el listado.
+        $irrelevant = User::factory()->for(Person::factory()->create())->create(['status' => UserStatus::Activo, 'email' => 'irrelevant@example.com']);
+
+        return $role->code;
+    });
+
+    // Inscrito: factor TOTP confirmado, sin pertenecer al rol obligado.
+    $enrolled = $context->runFor($tenant->id, function () {
+        $person = Person::factory()->create();
+
+        return User::factory()->for($person)->create(['status' => UserStatus::Activo, 'email' => 'enrolled@example.com']);
+    });
+    createConfirmedTotpFactor($tenant, $enrolled);
+
+    $response = test()->actingAs($admin)
+        ->getJson(coreApiUrl($tenant->slug, '/mfa-compliance/users'))
+        ->assertOk();
+
+    $byEmail = collect($response->json('data'))->keyBy(fn ($row) => $row['user']['email']);
+
+    // `administrador_centro` también lleva `mfa_required = true` por
+    // defecto (ProvisionTenantDefaults) y el propio admin de la prueba no
+    // tiene factor: aparece como una fila más ("pending", obligación
+    // materializada al vuelo por MfaPolicy::resolve() — mismo efecto ya
+    // aceptado en current()/preview()). Se excluye aquí para no mezclar
+    // el ruido del fixture con las cinco filas que este test construye
+    // a propósito.
+    expect($byEmail->has('admin@example.com'))->toBeTrue();
+    $byEmail = $byEmail->except(['admin@example.com']);
+
+    expect($byEmail)->toHaveCount(4)
+        ->and($byEmail->has('irrelevant@example.com'))->toBeFalse();
+
+    expect($byEmail['pending@example.com']['state'])->toBe('pending')
+        ->and($byEmail['pending@example.com']['grace_deadline_at'])->not->toBeNull()
+        ->and($byEmail['pending@example.com']['required_by_roles'])->toBe([$roleCode])
+        ->and($byEmail['pending@example.com']['enrolled_methods'])->toBe([]);
+
+    expect($byEmail['past-deadline@example.com']['state'])->toBe('past_deadline')
+        ->and($byEmail['past-deadline@example.com']['grace_deadline_at'])->not->toBeNull();
+
+    expect($byEmail['exempt@example.com']['state'])->toBe('exempt')
+        ->and($byEmail['exempt@example.com']['grace_deadline_at'])->toBeNull();
+
+    expect($byEmail['enrolled@example.com']['state'])->toBe('enrolled')
+        ->and($byEmail['enrolled@example.com']['enrolled_methods'])->toBe(['totp'])
+        ->and($byEmail['enrolled@example.com']['grace_deadline_at'])->toBeNull();
+
+    // user solo lleva campos públicos: nunca secretos, hashes ni
+    // recuento de códigos de respaldo (permisos.md §C.6.1).
+    $userFields = array_keys($byEmail['enrolled@example.com']['user']);
+    expect($userFields)->toEqualCanonicalizing(['public_id', 'given_name', 'family_name_1', 'family_name_2', 'email']);
+    foreach ($response->json('data') as $row) {
+        expect($row)->not->toHaveKey('secret')
+            ->and($row)->not->toHaveKey('secret_encrypted')
+            ->and($row)->not->toHaveKey('recovery_codes')
+            ->and($row)->not->toHaveKey('recovery_codes_remaining');
+    }
+
+    // total = 5: las cuatro filas del fixture más la del propio admin.
+    expect($response->json('meta'))->toMatchArray(['current_page' => 1, 'per_page' => 25, 'total' => 5, 'last_page' => 1]);
+});
+
+// REQ-AUTH-003 (1.3), api.md §C.5. El filtro `state`, incluido el alias
+// `obligated` sobre pending+past_deadline (MfaComplianceUserRow).
+test('REQ-AUTH-003: GET /mfa-compliance/users filtra por state, incluido el alias obligated', function (): void {
+    Queue::fake();
+    [$tenant, $admin] = provisionCoreTenant('mfa-users-2');
+    $context = app(TenantContext::class);
+
+    // administrador_centro también lleva mfa_required = true por defecto
+    // (ProvisionTenantDefaults): se le da un factor para que quede
+    // "enrolled" y no contamine el filtro `obligated` de este test.
+    createConfirmedTotpFactor($tenant, $admin);
+
+    $context->runFor($tenant->id, function () {
+        $role = Role::create(['code' => 'rol-obligado-filtro', 'name' => 'Rol obligado', 'is_system' => false, 'mfa_required' => true]);
+
+        $pending = User::factory()->for(Person::factory()->create())->create(['status' => UserStatus::Activo, 'email' => 'f-pending@example.com']);
+        $pending->roles()->attach($role->id);
+        UserMfaObligation::create([
+            'user_id' => $pending->id, 'obligated_since' => now()->subDay(),
+            'grace_deadline_at' => now()->addDays(6), 'trigger' => 'rol_asignado',
+        ]);
+
+        $pastDeadline = User::factory()->for(Person::factory()->create())->create(['status' => UserStatus::Activo, 'email' => 'f-past@example.com']);
+        $pastDeadline->roles()->attach($role->id);
+        UserMfaObligation::create([
+            'user_id' => $pastDeadline->id, 'obligated_since' => now()->subDays(10),
+            'grace_deadline_at' => now()->subDay(), 'trigger' => 'rol_asignado',
+        ]);
+    });
+
+    $enrolled = $context->runFor($tenant->id, fn () => User::factory()->for(Person::factory()->create())->create(['status' => UserStatus::Activo, 'email' => 'f-enrolled@example.com']));
+    createConfirmedTotpFactor($tenant, $enrolled);
+
+    $obligated = test()->actingAs($admin)
+        ->getJson(coreApiUrl($tenant->slug, '/mfa-compliance/users?state=obligated'))
+        ->assertOk();
+
+    expect(collect($obligated->json('data'))->pluck('user.email')->sort()->values()->all())
+        ->toBe(['f-past@example.com', 'f-pending@example.com']);
+
+    $enrolledOnly = test()->actingAs($admin)
+        ->getJson(coreApiUrl($tenant->slug, '/mfa-compliance/users?state=enrolled'))
+        ->assertOk();
+
+    expect(collect($enrolledOnly->json('data'))->pluck('user.email')->sort()->values()->all())
+        ->toBe(['admin@example.com', 'f-enrolled@example.com']);
+
+    test()->actingAs($admin)
+        ->getJson(coreApiUrl($tenant->slug, '/mfa-compliance/users?state=no-existe'))
+        ->assertStatus(422);
+});
+
+// REQ-AUTH-003 (1.3). Mismo criterio que CA-AUTH-140 para el agregado:
+// sesión, permiso mfa.leer (no usuario.leer) y aislamiento de tenant.
+test('REQ-AUTH-003: GET /mfa-compliance/users exige sesión, mfa.leer, y aísla por tenant', function (): void {
+    Queue::fake();
+    [$tenantA, $adminA] = provisionCoreTenant('mfa-users-3-a');
+    [$tenantB, $adminB] = provisionCoreTenant('mfa-users-3-b');
+
+    $userA = app(TenantContext::class)->runFor($tenantA->id, fn () => User::factory()->for(Person::factory()->create())->create(['status' => UserStatus::Activo, 'email' => 'aislado@example.com']));
+    createConfirmedTotpFactor($tenantA, $userA);
+
+    $sinPermiso = app(TenantContext::class)->runFor($tenantA->id, function (): User {
+        $role = Role::where('code', 'docente')->firstOrFail();
+        $person = Person::factory()->create(['contact_email' => 'sin-permiso-users@example.com']);
+        $user = User::factory()->for($person)->create(['email' => 'sin-permiso-users@example.com', 'status' => UserStatus::Activo]);
+        $user->roles()->attach($role->id);
+
+        return $user;
+    });
+
+    // 401: sin sesión.
+    test()->getJson(coreApiUrl($tenantA->slug, '/mfa-compliance/users'))->assertStatus(401);
+
+    // 403: autenticado sin mfa.leer.
+    test()->actingAs($sinPermiso)
+        ->getJson(coreApiUrl($tenantA->slug, '/mfa-compliance/users'))
+        ->assertStatus(403);
+
+    // Aislamiento: el admin del tenant B no ve al usuario inscrito de A.
+    $fromB = test()->actingAs($adminB)
+        ->getJson(coreApiUrl($tenantB->slug, '/mfa-compliance/users'))
+        ->assertOk();
+
+    expect(collect($fromB->json('data'))->pluck('user.email'))->not->toContain('aislado@example.com');
+
+    // El admin de A sí lo ve.
+    $fromA = test()->actingAs($adminA)
+        ->getJson(coreApiUrl($tenantA->slug, '/mfa-compliance/users'))
+        ->assertOk();
+
+    expect(collect($fromA->json('data'))->pluck('user.email'))->toContain('aislado@example.com');
 });
 
 // CA-AUTH-145, RN-AUTH-35
