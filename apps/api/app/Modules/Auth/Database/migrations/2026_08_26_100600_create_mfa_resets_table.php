@@ -21,17 +21,12 @@ return new class extends Migration
             TenantMigration::tenantForeignId($table, 'user_id', 'users');
             $table->text('reason');
             $table->smallInteger('factors_removed');
-            $table->unsignedBigInteger('performed_by');
+            TenantMigration::tenantForeignId($table, 'performed_by', 'users');
             $table->timestampTz('performed_at');
             $table->text('request_id')->nullable();
         });
 
         $owner = DB::connection('pgsql_owner');
-
-        $owner->statement(
-            'ALTER TABLE mfa_resets ADD CONSTRAINT mfa_resets_performed_by_fkey '.
-            'FOREIGN KEY (tenant_id, performed_by) REFERENCES users (tenant_id, id)'
-        );
 
         $owner->statement(
             'CREATE INDEX mfa_resets_tenant_user_performed_idx ON mfa_resets (tenant_id, user_id, performed_at DESC)'

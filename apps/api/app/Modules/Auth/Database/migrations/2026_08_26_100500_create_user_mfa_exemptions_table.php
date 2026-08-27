@@ -19,17 +19,13 @@ return new class extends Migration
             TenantMigration::tenantForeignId($table, 'user_id', 'users');
             $table->text('reason');
             $table->timestampTz('expires_at');
-            $table->unsignedBigInteger('granted_by');
+            TenantMigration::tenantForeignId($table, 'granted_by', 'users');
             $table->timestampTz('revoked_at')->nullable();
             $table->unsignedBigInteger('revoked_by')->nullable();
         });
 
         $owner = DB::connection('pgsql_owner');
 
-        $owner->statement(
-            'ALTER TABLE user_mfa_exemptions ADD CONSTRAINT user_mfa_exemptions_granted_by_fkey '.
-            'FOREIGN KEY (tenant_id, granted_by) REFERENCES users (tenant_id, id)'
-        );
         $owner->statement(
             'ALTER TABLE user_mfa_exemptions ADD CONSTRAINT user_mfa_exemptions_revoked_by_fkey '.
             'FOREIGN KEY (tenant_id, revoked_by) REFERENCES users (tenant_id, id)'
