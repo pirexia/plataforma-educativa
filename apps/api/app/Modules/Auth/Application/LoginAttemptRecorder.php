@@ -10,11 +10,17 @@ use App\Support\Http\RequestId;
 use Illuminate\Support\Facades\Request as RequestFacade;
 
 /**
- * funcional.md §4.2, §4.4, §4.8, datos.md §A.7. Compartido por el login
- * (§4.2) y por el cambio de contraseña auto-servicio (§4.8 punto 4): en
- * ambos, un fallo de credencial cuenta hacia el mismo bloqueo de
+ * funcional.md §4.2, §4.4, §4.8, §C.4.4.2, datos.md §A.7. Compartido por
+ * el login (§4.2) y por el cambio de contraseña auto-servicio (§4.8 punto
+ * 4): en ambos, un fallo de credencial cuenta hacia el mismo bloqueo de
  * `(tenant_id, email)`, dejarlo sin contar en uno de los dos sería un
  * rodeo trivial al límite de cinco intentos.
+ *
+ * RN-AUTH-63 (1.3): `recordSuccess()` ya **no** se llama al verificar la
+ * contraseña — `LoginService::attempt()` no la invoca. Solo se llama
+ * cuando la sesión se ha creado de verdad (`AuthenticatedSessionEstablisher`),
+ * para que repetir el paso 1 antes de cada intento de segundo factor no dé
+ * intentos ilimitados contra el código.
  */
 final class LoginAttemptRecorder
 {
@@ -22,9 +28,40 @@ final class LoginAttemptRecorder
         private readonly AccountLockService $lockService,
     ) {}
 
+    /**
+     * RN-AUTH-63: llamar **solo** cuando la sesión se ha creado de verdad
+     * — es lo único que pone el contador de fallos consecutivos a cero.
+     */
     public function recordSuccess(string $email, User $user): void
     {
         $this->write($email, $user, LoginOutcome::Exito);
+    }
+
+    /**
+     * funcional.md §C.4.4 punto 4, RN-AUTH-63: contraseña correcta, se
+     * abre un desafío de segundo factor. No cuenta hacia el bloqueo y,
+     * sobre todo, no lo pone a cero.
+     */
+    public function recordPendingSecondFactor(string $email, User $user): void
+    {
+        $this->write($email, $user, LoginOutcome::PendienteSegundoFactor);
+    }
+
+    /**
+     * RN-AUTH-64: un fallo de segundo factor —código o código de
+     * respaldo— incrementa el **mismo** contador que un fallo de
+     * contraseña y puede provocar el bloqueo de RN-AUTH-14.
+     */
+    public function recordSecondFactorInvalid(string $email, User $user): void
+    {
+        $this->write($email, $user, LoginOutcome::SegundoFactorInvalido);
+
+        $consecutiveFailures = $this->consecutiveFailures($email);
+        $maxAttempts = (int) config('auth-local.max_login_attempts');
+
+        if ($consecutiveFailures >= $maxAttempts) {
+            $this->lockService->lock($email, $user, $consecutiveFailures);
+        }
     }
 
     /**
@@ -102,7 +139,12 @@ final class LoginAttemptRecorder
                 break;
             }
 
-            if ($attempt->outcome === LoginOutcome::CredencialesInvalidas) {
+            // RN-AUTH-64: un fallo de segundo factor cuenta exactamente
+            // igual que un fallo de contraseña. `PendienteSegundoFactor`,
+            // `EstadoNoActivo` y `CuentaBloqueada` no cuentan ni cortan el
+            // recuento (RN-AUTH-63).
+            if ($attempt->outcome === LoginOutcome::CredencialesInvalidas
+                || $attempt->outcome === LoginOutcome::SegundoFactorInvalido) {
                 $count++;
             }
         }

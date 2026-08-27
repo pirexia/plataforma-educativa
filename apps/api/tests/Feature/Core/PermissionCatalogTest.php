@@ -4,10 +4,11 @@ use App\Models\Permission;
 use Illuminate\Support\Facades\DB;
 
 // permisos.md §2, §9: tras `platform:sync-registry`, `permissions`
-// contiene exactamente los 20 códigos declarados por CoreServiceProvider,
+// contiene exactamente los 21 códigos declarados por CoreServiceProvider
+// (20 de 1.1 + rol.actualizar, REQ-AUTH-003/1.3, funcional.md §C.2.2),
 // con module_code = 'core', ninguno marcado retired_at.
 
-test('platform:sync-registry materializa exactamente los 20 permisos de permisos.md §2 para el módulo core', function (): void {
+test('platform:sync-registry materializa exactamente los 21 permisos de permisos.md §2 para el módulo core', function (): void {
     $this->artisan('platform:sync-registry')->run();
 
     $codes = Permission::query()->where('module_code', 'core')->pluck('code')->sort()->values()->all();
@@ -19,7 +20,7 @@ test('platform:sync-registry materializa exactamente los 20 permisos de permisos
         'invitacion.crear', 'invitacion.eliminar', 'invitacion.leer',
         'modulo.actualizar', 'modulo.leer',
         'permiso.leer',
-        'rol.leer',
+        'rol.actualizar', 'rol.leer',
         'usuario.actualizar', 'usuario.crear', 'usuario.eliminar', 'usuario.exportar', 'usuario.importar', 'usuario.leer',
     ]);
 

@@ -5,6 +5,7 @@
  */
 export * from './accountUnlocks'
 export * from './invitationRedemptions'
+export * from './mfa'
 export * from './passwordChanges'
 export * from './passwordResetRequests'
 export * from './passwordResets'

@@ -83,6 +83,38 @@ return [
         'password_reset_request_email' => ['max' => (int) env('AUTH_RATE_LIMIT_RESET_REQUEST_EMAIL_MAX', 3), 'decay' => 3600],
         'token_endpoints_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_TOKEN_ENDPOINTS_IP_MAX', 10), 'decay' => 3600],
         'csrf_cookie_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_CSRF_COOKIE_IP_MAX', 60), 'decay' => 60],
+        // REQ-AUTH-003 (1.3), operacion.md §C.6.
+        'mfa_verification_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_VERIFICATION_IP_MAX', 10), 'decay' => 60],
+        'mfa_verification_session' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_VERIFICATION_SESSION_MAX', 5), 'decay' => 60],
+        'mfa_challenge_session' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_CHALLENGE_SESSION_MAX', 3), 'decay' => 600],
+        'mfa_enrollment_user' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_ENROLLMENT_USER_MAX', 10), 'decay' => 3600],
+        'mfa_recovery_codes_user' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_RECOVERY_CODES_USER_MAX', 5), 'decay' => 3600],
+        'mfa_resets_admin' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_RESETS_ADMIN_MAX', 20), 'decay' => 3600],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | MFA — TOTP, códigos de respaldo, desafío del login en dos pasos
+    | (REQ-AUTH-003, 1.3)
+    |--------------------------------------------------------------------------
+    |
+    | operacion.md §C.2.1. Ninguna es un secreto. `totp_window` tiene guarda
+    | de arranque en AuthServiceProvider: un valor por encima de 2 amplía la
+    | ventana de validez de un código a más de dos minutos y medio.
+    |
+    */
+    'mfa' => [
+        'challenge_ttl_minutes' => (int) env('AUTH_MFA_CHALLENGE_TTL_MINUTES', 5),
+        'max_attempts' => (int) env('AUTH_MFA_MAX_ATTEMPTS', 5),
+        'enrollment_ttl_minutes' => (int) env('AUTH_MFA_ENROLLMENT_TTL_MINUTES', 10),
+        'code_ttl_minutes' => (int) env('AUTH_MFA_CODE_TTL_MINUTES', 10),
+        'max_deliveries' => (int) env('AUTH_MFA_MAX_DELIVERIES', 3),
+        'recovery_code_count' => (int) env('AUTH_MFA_RECOVERY_CODE_COUNT', 10),
+        'totp_window' => (int) env('AUTH_MFA_TOTP_WINDOW', 1),
+        'grace_default_days' => (int) env('AUTH_MFA_GRACE_DEFAULT_DAYS', 7),
+        'max_exemption_days' => (int) env('AUTH_MFA_MAX_EXEMPTION_DAYS', 90),
+        'factor_purge_days' => (int) env('AUTH_MFA_FACTOR_PURGE_DAYS', 30),
+        'challenge_retention_hours' => (int) env('AUTH_MFA_CHALLENGE_RETENTION_HOURS', 24),
     ],
 
 ];

@@ -94,6 +94,86 @@
         "bot": "Bot",
         "desconocido": "Desconocido"
       }
+    },
+    "mfa": {
+      "method": {
+        "totp": "Aplicación de autenticación",
+        "email": "Correo electrónico",
+        "sms": "SMS"
+      },
+      "enrollment": {
+        "intro": "Añade una aplicación de autenticación (Google Authenticator, Authy, Microsoft Authenticator u otra compatible) como segundo factor de acceso.",
+        "start": "Activar aplicación de autenticación",
+        "starting": "Preparando el alta…",
+        "scanIntro": "Escanea este código con tu aplicación de autenticación, o introduce la clave a mano si no puedes usar la cámara.",
+        "qrLabel": "Código QR para dar de alta el segundo factor en tu aplicación de autenticación",
+        "secretLabel": "Clave para introducir a mano",
+        "secretHint": "Úsala si no puedes escanear el código QR. Funciona igual en cualquier aplicación compatible.",
+        "expired": "Este alta ha caducado. Vuelve a empezar.",
+        "expiresIn": "Caduca en {time}",
+        "codeLabel": "Código de 6 dígitos de tu aplicación",
+        "confirm": "Confirmar código",
+        "confirming": "Confirmando…",
+        "cancel": "Cancelar",
+        "notAllowed": "Este método no está disponible en tu centro.",
+        "activatedTitle": "Segundo factor activado."
+      },
+      "recoveryCodes": {
+        "title": "Códigos de respaldo",
+        "onceWarning": "Estos códigos solo se muestran una vez. Guárdalos en un lugar seguro: son la única forma de entrar si pierdes el acceso a tu aplicación de autenticación.",
+        "copy": "Copiar",
+        "download": "Descargar",
+        "acknowledge": "He guardado estos códigos en un lugar seguro.",
+        "continue": "Continuar",
+        "remaining": "Te quedan {count} códigos de respaldo sin usar.",
+        "regenerate": "Generar nuevos códigos de respaldo",
+        "confirmRegenerate": "Los códigos actuales dejarán de funcionar. Confirma tu contraseña para generar un juego nuevo."
+      },
+      "security": {
+        "title": "Seguridad de la cuenta",
+        "intro": "Gestiona el segundo factor de acceso de tu cuenta.",
+        "loading": "Cargando tu estado de seguridad…",
+        "enrollSuccess": "Segundo factor activado.",
+        "factorRemoved": "Segundo factor desactivado.",
+        "factorRequiredGeneric": "No puedes desactivar tu último factor: al menos uno de tus roles exige un segundo factor.",
+        "wrongPassword": "La contraseña actual no es correcta.",
+        "graceBanner": "Tu rol exige un segundo factor de acceso. Te quedan {days} días para activarlo.",
+        "factorsTitle": "Tus factores activos",
+        "noFactors": "Todavía no tienes ningún segundo factor activo.",
+        "preferred": "preferido",
+        "confirmedAt": "Activado el {date}",
+        "deactivate": "Desactivar",
+        "confirmDeactivate": "¿Desactivar este segundo factor? Necesitas confirmar tu contraseña actual.",
+        "deactivating": "Desactivando…",
+        "confirmYes": "Confirmar",
+        "confirmCancel": "Cancelar",
+        "recoveryCodesRegenerated": "Se ha generado un juego nuevo de códigos de respaldo.",
+        "logout": "Cerrar sesión"
+      },
+      "wall": {
+        "title": "Activa tu segundo factor",
+        "reason": "Tu rol exige un segundo factor de acceso y el plazo para activarlo ha vencido. Complétalo para continuar; no puedes acceder al resto de la plataforma hasta hacerlo.",
+        "completed": "Segundo factor activado. Ya puedes continuar.",
+        "continue": "Continuar",
+        "logout": "Cerrar sesión"
+      }
+    },
+    "mfaChallenge": {
+      "title": "Verifica tu identidad",
+      "intro": "Introduce el código de tu aplicación de autenticación para completar el inicio de sesión.",
+      "methodSelectorLabel": "Método del segundo factor",
+      "codeLabel": "Código de 6 dígitos",
+      "clockHint": "Si el código sigue fallando, comprueba la hora de tu dispositivo.",
+      "expiresIn": "Este código caduca en {time}",
+      "submit": "Verificar",
+      "submitting": "Verificando…",
+      "resend": "Reenviar código",
+      "resending": "Reenviando…",
+      "useRecoveryCode": "Usar un código de respaldo",
+      "useCodeInstead": "Usar el código de la aplicación en su lugar",
+      "recoveryCodeLabel": "Código de respaldo",
+      "invalidCode": "El código no es correcto.",
+      "expired": "La verificación ha caducado. Vuelve a iniciar sesión."
     }
   }
 }

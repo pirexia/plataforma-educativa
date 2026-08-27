@@ -94,6 +94,18 @@ paths:
                   properties:
                     color_primary: { type: string, pattern: '^#[0-9A-Fa-f]{6}$' }
                     color_secondary: { type: string, pattern: '^#[0-9A-Fa-f]{6}$' }
+                security:
+                  type: object
+                  description: >
+                    REQ-AUTH/api.md §6 (RN-AUTH-30, paso 1.2) y
+                    REQ-AUTH/funcional.md §C.4.12 (RN-AUTH-69, paso 1.3).
+                  properties:
+                    session_timeout_minutes: { type: integer, minimum: 5, maximum: 480 }
+                    mfa_allowed_methods:
+                      type: array
+                      items: { type: string, enum: [totp, email, sms] }
+                      description: Siempre contiene totp; nunca sms (CA-AUTH-134).
+                    mfa_grace_period_days: { type: integer, minimum: 1, maximum: 90 }
       responses:
         '200':
           description: Configuración resultante, completa
@@ -559,6 +571,37 @@ paths:
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
         '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: patchRole
+      summary: Cambia mfa_required de un rol (REQ-AUTH-003, 1.3)
+      description: >
+        REQ-AUTH/funcional.md §C.2.2, §C.16, RN-AUTH-70. Acotado a
+        **exactamente** `mfa_required` en 1.3 — cualquier otra clave en
+        el cuerpo responde 422 sin cambiar nada (CA-AUTH-135). El editor
+        completo de roles (1.5) ampliará este mismo método sobre la
+        misma ruta y el mismo permiso — expand puro (ADR-038 §8), sin
+        romper ningún cliente de 1.3. Permiso `rol.actualizar`.
+      tags: [Core / Roles]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mfa_required]
+              properties:
+                mfa_required: { type: boolean }
+      responses:
+        '200':
+          description: Rol actualizado.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Role' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
 
   /api/v1/permissions:
     get:

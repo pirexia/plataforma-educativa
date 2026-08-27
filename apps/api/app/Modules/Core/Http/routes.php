@@ -106,6 +106,13 @@ Route::get('/roles/{publicId}', [RolesController::class, 'show'])
     ->middleware('permission:rol.leer')
     ->name('core.roles.show');
 
+// REQ-AUTH/funcional.md §C.2.2, §C.16 (1.3): acotado a mfa_required
+// (RN-AUTH-70). El editor completo de roles llega en 1.5, sobre la misma
+// ruta y el mismo permiso (expand puro sobre la superficie HTTP).
+Route::patch('/roles/{publicId}', [RolesController::class, 'update'])
+    ->middleware('permission:rol.actualizar')
+    ->name('core.roles.update');
+
 Route::get('/permissions', [PermissionsController::class, 'index'])
     ->middleware('permission:permiso.leer')
     ->name('core.permissions.index');

@@ -94,6 +94,86 @@
         "bot": "Bot",
         "desconocido": "Unbekannt"
       }
+    },
+    "mfa": {
+      "method": {
+        "totp": "Authenticator-App",
+        "email": "E-Mail",
+        "sms": "SMS"
+      },
+      "enrollment": {
+        "intro": "Füge eine Authenticator-App (Google Authenticator, Authy, Microsoft Authenticator oder eine andere kompatible App) als zweiten Anmeldefaktor hinzu.",
+        "start": "Authenticator-App aktivieren",
+        "starting": "Registrierung wird vorbereitet…",
+        "scanIntro": "Scanne diesen Code mit deiner Authenticator-App oder gib den Schlüssel manuell ein, falls du die Kamera nicht nutzen kannst.",
+        "qrLabel": "QR-Code zur Registrierung des zweiten Faktors in deiner Authenticator-App",
+        "secretLabel": "Schlüssel zur manuellen Eingabe",
+        "secretHint": "Nutze ihn, wenn du den QR-Code nicht scannen kannst. Er funktioniert in jeder kompatiblen App gleich.",
+        "expired": "Diese Registrierung ist abgelaufen. Beginne erneut.",
+        "expiresIn": "Läuft ab in {time}",
+        "codeLabel": "6-stelliger Code aus deiner App",
+        "confirm": "Code bestätigen",
+        "confirming": "Wird bestätigt…",
+        "cancel": "Abbrechen",
+        "notAllowed": "Diese Methode ist an deinem Standort nicht verfügbar.",
+        "activatedTitle": "Zweiter Faktor aktiviert."
+      },
+      "recoveryCodes": {
+        "title": "Wiederherstellungscodes",
+        "onceWarning": "Diese Codes werden nur einmal angezeigt. Bewahre sie an einem sicheren Ort auf: Sie sind der einzige Weg zum Zugang, falls du den Zugriff auf deine Authenticator-App verlierst.",
+        "copy": "Kopieren",
+        "download": "Herunterladen",
+        "acknowledge": "Ich habe diese Codes an einem sicheren Ort gespeichert.",
+        "continue": "Weiter",
+        "remaining": "Dir bleiben noch {count} unbenutzte Wiederherstellungscodes.",
+        "regenerate": "Neue Wiederherstellungscodes erzeugen",
+        "confirmRegenerate": "Die aktuellen Codes funktionieren danach nicht mehr. Bestätige dein Passwort, um einen neuen Satz zu erzeugen."
+      },
+      "security": {
+        "title": "Kontosicherheit",
+        "intro": "Verwalte den zweiten Anmeldefaktor deines Kontos.",
+        "loading": "Dein Sicherheitsstatus wird geladen…",
+        "enrollSuccess": "Zweiter Faktor aktiviert.",
+        "factorRemoved": "Zweiter Faktor deaktiviert.",
+        "factorRequiredGeneric": "Du kannst deinen letzten Faktor nicht deaktivieren: Mindestens eine deiner Rollen erfordert einen zweiten Faktor.",
+        "wrongPassword": "Das aktuelle Passwort ist nicht korrekt.",
+        "graceBanner": "Deine Rolle erfordert einen zweiten Anmeldefaktor. Dir bleiben noch {days} Tage, um ihn zu aktivieren.",
+        "factorsTitle": "Deine aktiven Faktoren",
+        "noFactors": "Du hast noch keinen aktiven zweiten Faktor.",
+        "preferred": "bevorzugt",
+        "confirmedAt": "Aktiviert am {date}",
+        "deactivate": "Deaktivieren",
+        "confirmDeactivate": "Diesen zweiten Faktor deaktivieren? Du musst dein aktuelles Passwort bestätigen.",
+        "deactivating": "Wird deaktiviert…",
+        "confirmYes": "Bestätigen",
+        "confirmCancel": "Abbrechen",
+        "recoveryCodesRegenerated": "Ein neuer Satz Wiederherstellungscodes wurde erzeugt.",
+        "logout": "Abmelden"
+      },
+      "wall": {
+        "title": "Aktiviere deinen zweiten Faktor",
+        "reason": "Deine Rolle erfordert einen zweiten Anmeldefaktor, und die Frist zur Aktivierung ist abgelaufen. Schließe sie ab, um fortzufahren; du hast bis dahin keinen Zugriff auf den Rest der Plattform.",
+        "completed": "Zweiter Faktor aktiviert. Du kannst jetzt fortfahren.",
+        "continue": "Weiter",
+        "logout": "Abmelden"
+      }
+    },
+    "mfaChallenge": {
+      "title": "Bestätige deine Identität",
+      "intro": "Gib den Code aus deiner Authenticator-App ein, um die Anmeldung abzuschließen.",
+      "methodSelectorLabel": "Methode des zweiten Faktors",
+      "codeLabel": "6-stelliger Code",
+      "clockHint": "Falls der Code weiterhin fehlschlägt, prüfe die Uhrzeit deines Geräts.",
+      "expiresIn": "Dieser Code läuft ab in {time}",
+      "submit": "Bestätigen",
+      "submitting": "Wird geprüft…",
+      "resend": "Code erneut senden",
+      "resending": "Wird erneut gesendet…",
+      "useRecoveryCode": "Wiederherstellungscode verwenden",
+      "useCodeInstead": "Stattdessen den App-Code verwenden",
+      "recoveryCodeLabel": "Wiederherstellungscode",
+      "invalidCode": "Der Code ist nicht korrekt.",
+      "expired": "Die Bestätigung ist abgelaufen. Melde dich erneut an."
     }
   }
 }

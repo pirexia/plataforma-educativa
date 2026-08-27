@@ -51,12 +51,16 @@ final class ProvisionTenantDefaults
         'usuario.leer', 'usuario.crear', 'usuario.actualizar', 'usuario.eliminar', 'usuario.importar', 'usuario.exportar',
         'invitacion.leer', 'invitacion.crear', 'invitacion.eliminar',
         'asignacion_rol.leer', 'asignacion_rol.crear', 'asignacion_rol.eliminar',
-        'rol.leer', 'permiso.leer',
+        // REQ-AUTH/funcional.md §C.2.2, §C.16 (1.3): 'rol.actualizar' es
+        // el permiso de PATCH /roles/{public_id} acotado a mfa_required.
+        'rol.leer', 'rol.actualizar', 'permiso.leer',
         'configuracion.leer', 'configuracion.actualizar',
         'modulo.leer', 'modulo.actualizar',
         'auditoria.leer', 'auditoria.exportar',
         // REQ-AUTH/permisos.md §5: solo administrador_centro (§5.1).
         'bloqueo_cuenta.leer', 'bloqueo_cuenta.eliminar',
+        // REQ-AUTH/funcional.md §C.4.10, §C.1.1 punto 9 (1.3).
+        'mfa.leer', 'mfa.eliminar',
     ];
 
     /** @var array<string, list<string>> */

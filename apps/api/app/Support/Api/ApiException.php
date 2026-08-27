@@ -59,6 +59,16 @@ final class ApiException extends RuntimeException
         return new self(403, 'module-disabled');
     }
 
+    /**
+     * REQ-AUTH/funcional.md §C.4.9, `api.md §C.1.1`. El muro de alta:
+     * usuario obligado a MFA, sin factor, gracia vencida —
+     * `RequireMfaEnrollment` es el único emisor.
+     */
+    public static function mfaEnrollmentRequired(): self
+    {
+        return new self(403, 'mfa-enrollment-required');
+    }
+
     public static function notFound(): self
     {
         return new self(404, 'not-found');

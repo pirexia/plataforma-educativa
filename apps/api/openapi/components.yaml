@@ -119,6 +119,17 @@ components:
           type: array
           description: Códigos de permiso efectivos del usuario autenticado.
           items: { type: string }
+        mfa:
+          type: object
+          description: >
+            REQ-AUTH-003 (1.3), funcional.md §C.4.8: "avisos en cada
+            acceso" sin endpoint nuevo. Ampliación aditiva (ADR-038 §7.3).
+          properties:
+            enrolled: { type: boolean, description: Tiene al menos un factor confirmado y utilizable. }
+            obligated: { type: boolean }
+            enforced: { type: boolean, description: Obligado y gracia vencida (el muro se aplicará). }
+            grace_deadline_at: { type: string, format: date-time, nullable: true }
+            days_remaining: { type: integer, nullable: true }
 
     Invitation:
       type: object
@@ -221,6 +232,19 @@ components:
               minimum: 5
               maximum: 480
               description: RN-AUTH-30. Por defecto 30.
+            mfa_allowed_methods:
+              type: array
+              description: >
+                REQ-AUTH-003 (1.3), funcional.md §C.4.12, RN-AUTH-69.
+                Siempre contiene totp; nunca sms (sin proveedor, §C.7).
+              items: { type: string, enum: [totp, email, sms] }
+              default: [totp]
+            mfa_grace_period_days:
+              type: integer
+              minimum: 1
+              maximum: 90
+              default: 7
+              description: RN-AUTH-65.
         updated_at: { type: string, format: date-time }
 
     TenantBranding:
@@ -356,6 +380,136 @@ components:
         device_known:
           type: boolean
           description: Si esta sesión venía de un dispositivo ya reconocido para la cuenta.
+
+    MfaEnrollment:
+      type: object
+      description: >
+        REQ-AUTH-003 (1.3), funcional.md §C.4.1 punto 4. Respuesta de
+        `POST /auth/mfa-enrollments`. secret/otpauth_uri salen del
+        servidor UNA SOLA VEZ (RN-AUTH-55) — ninguna otra respuesta los
+        repite.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        method: { type: string, enum: [totp] }
+        secret:
+          type: string
+          description: Base32, para introducción manual si no se puede escanear el QR (§C.11, WCAG 2.2 AA).
+        otpauth_uri:
+          type: string
+          description: URI otpauth:// completa — la SPA la pinta como QR con uqr, nunca la reconstruye.
+        expires_at: { type: string, format: date-time, description: RN-AUTH-59, 10 minutos por defecto. }
+
+    MfaFactor:
+      type: object
+      description: Nunca incluye el secreto ni ningún hash (RN-AUTH-55/56).
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        method: { type: string, enum: [totp, email, sms] }
+        is_preferred: { type: boolean }
+        confirmed_at: { type: string, format: date-time }
+        last_used_at: { type: string, format: date-time, nullable: true }
+
+    MfaFactorConfirmation:
+      type: object
+      description: Respuesta de `POST /auth/mfa-factors`.
+      properties:
+        factor: { $ref: '#/components/schemas/MfaFactor' }
+        recovery_codes:
+          type: array
+          nullable: true
+          description: >
+            Solo cuando se han generado — el primer factor confirmado del
+            usuario (§C.4.1 punto 9). En claro, una sola vez (RN-AUTH-56).
+          items: { type: string, example: "A3F7K-9QRT2" }
+
+    MfaStatus:
+      type: object
+      description: Respuesta de `GET /auth/mfa` — estado completo del propio usuario.
+      properties:
+        factors:
+          type: array
+          items: { $ref: '#/components/schemas/MfaFactor' }
+        unused_recovery_codes_count: { type: integer }
+        mfa:
+          type: object
+          properties:
+            enrolled: { type: boolean }
+            obligated: { type: boolean }
+            enforced: { type: boolean }
+            grace_deadline_at: { type: string, format: date-time, nullable: true }
+            days_remaining: { type: integer, nullable: true }
+
+    MfaChallenge:
+      type: object
+      description: >
+        REQ-AUTH-003 (1.3), funcional.md §C.4.4/§C.6. Respuesta 202 del
+        paso 1 del login y de POST /auth/mfa-challenges. Nunca lleva
+        token, session_id ni secreto (RN-AUTH-53/56) — la única
+        credencial es la cookie de sesión que el cliente ya tiene.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        method: { type: string, enum: [totp, email, sms] }
+        available_methods:
+          type: array
+          items: { type: string, enum: [totp, email, sms] }
+        expires_at: { type: string, format: date-time, description: RN-AUTH-54, 5 minutos por defecto. }
+        has_unused_recovery_codes: { type: boolean }
+
+    MfaComplianceSummary:
+      type: object
+      description: >
+        REQ-AUTH-003 (1.3), funcional.md §C.1.1 punto 9. Respuesta de
+        `GET /mfa-compliance` — vista previa hipotética (preview=true,
+        sin escribir nada) o estado real (preview=false) del mismo rol.
+      properties:
+        role:
+          type: object
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            code: { type: string }
+        mfa_required: { type: boolean }
+        preview: { type: boolean }
+        users_total: { type: integer }
+        users_enrolled: { type: integer }
+        users_obligated: { type: integer }
+        users_in_grace: { type: integer }
+        users_enforced: { type: integer }
+        users_exempt: { type: integer }
+
+    MfaComplianceUserRow:
+      type: object
+      description: >
+        REQ-AUTH-003 (1.3), api.md §C.5. Fila de
+        `GET /mfa-compliance/users` — restaurado en 1.3 el 2026-08-27.
+        `user` lleva solo campos públicos; nunca secretos, hashes ni
+        recuento de códigos de respaldo restantes (permisos.md §C.6.1).
+      properties:
+        user:
+          type: object
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            given_name: { type: string, nullable: true }
+            family_name_1: { type: string, nullable: true }
+            family_name_2: { type: string, nullable: true }
+            email: { type: string, format: email }
+        state:
+          type: string
+          description: >
+            Valor de la fila — nunca literalmente "obligated" (ese es
+            solo un alias de filtro sobre pending+past_deadline).
+          enum: [enrolled, exempt, pending, past_deadline]
+        grace_deadline_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Solo informado en pending/past_deadline.
+        enrolled_methods:
+          type: array
+          items: { type: string, enum: [totp, email, sms] }
+        required_by_roles:
+          type: array
+          items: { type: string }
+          description: code de los roles vivos del usuario que exigen MFA.
 
     PublicId:
       type: string

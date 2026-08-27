@@ -6,6 +6,9 @@ use App\Models\ModuleSubscription;
 use App\Models\Person;
 use App\Models\Role;
 use App\Models\User;
+use App\Modules\Auth\Domain\Models\MfaReset;
+use App\Modules\Auth\Domain\Models\UserMfaExemption;
+use App\Modules\Auth\Domain\Models\UserMfaObligation;
 use App\Modules\Core\Domain\Models\DataExport;
 use App\Support\Audit\Auditable;
 use App\Support\Audit\AuditValuePolicy;
@@ -34,6 +37,11 @@ test('todo modelo de tenant núcleo está en el morph map', function (): void {
 // Tenant no entra en este morph map, vive en la conexión de plataforma) —
 // añadir un modelo a Full exige tocar este test. DataExport (datos.md
 // §A.4, paso 1.1) se suma en Full: no contiene datos personales.
+// MfaReset/UserMfaObligation/UserMfaExemption (REQ-AUTH-003, 1.3,
+// datos.md §C.5/§C.6/§C.6.1) se suman en Full: sin datos personales más
+// allá de la relación con el usuario (MfaReset.reason es la única
+// excepción y es contenido, no dato personal, mismo criterio que
+// roles.name — ADR-035 §8).
 test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR-035 §8', function (): void {
     $map = Relation::morphMap();
 
@@ -50,6 +58,7 @@ test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR
 
     expect($fullPolicyModels)->toEqualCanonicalizing([
         AcademicYear::class, Role::class, ModuleSubscription::class, DataExport::class,
+        MfaReset::class, UserMfaObligation::class, UserMfaExemption::class,
     ]);
 });
 

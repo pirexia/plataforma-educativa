@@ -58,6 +58,7 @@ services:
   api:
     build:
       context: infra/containers/api
+      target: dev
     container_name: plataforma-api
     restart: unless-stopped
     env_file: apps/api/.env
@@ -104,6 +105,7 @@ services:
   web:
     build:
       context: infra/containers/web
+      target: dev
     container_name: plataforma-web
     restart: unless-stopped
     env_file: apps/web/.env

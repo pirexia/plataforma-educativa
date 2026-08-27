@@ -14,17 +14,20 @@ use Illuminate\Support\Facades\DB;
 // (a) Toda restricción única sobre una tabla con deleted_at es parcial,
 // salvo UNIQUE (tenant_id, id) y UNIQUE (public_id) — las dos únicas no
 // parciales que ADR-034 §6 acepta explícitamente, más las excepciones
-// nombradas de datos.md §A.8 (paso 1.1) y REQ-AUTH/datos.md §A.2 (paso
-// 1.2): un token de invitación no se reutiliza jamás (igual que
-// public_id), una clave de idempotencia no tiene borrado lógico (se purga
-// físicamente), y un token de desbloqueo de cuenta tampoco se reutiliza
-// jamás — las tres deliberadamente totales, documentadas en su propio
-// datos.md, no un descuido.
+// nombradas de datos.md §A.8 (paso 1.1), REQ-AUTH/datos.md §A.2 (paso
+// 1.2) y REQ-AUTH/datos.md §C.3 (paso 1.3): un token de invitación no se
+// reutiliza jamás (igual que public_id), una clave de idempotencia no
+// tiene borrado lógico (se purga físicamente), un token de desbloqueo de
+// cuenta tampoco se reutiliza jamás, y un código de respaldo MFA
+// tampoco — ni siquiera tras su propio borrado lógico (§C.4.3 punto 3:
+// "un código no se reutiliza jamás") — las cuatro deliberadamente
+// totales, documentadas en su propio datos.md, no un descuido.
 test('toda restricción única sobre tabla con borrado lógico es parcial, salvo las dos excepciones de ADR-034 §6', function (): void {
     $namedExceptions = [
         'user_invitations_tenant_token_unique',
         'idempotency_keys_tenant_endpoint_key_unique',
         'account_lockouts_tenant_unlock_token_hash_unique',
+        'user_mfa_recovery_codes_tenant_hash_unique',
     ];
 
     $tablesWithDeletedAt = collect(DB::select(<<<'SQL'

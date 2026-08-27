@@ -17,6 +17,10 @@ return [
         'current_password_incorrect' => 'Das aktuelle Passwort ist falsch.',
         'lockout_already_unlocked' => 'Diese Sperre wurde bereits aufgehoben.',
         'session_already_closed' => 'Diese Sitzung ist bereits geschlossen.',
+        'mfa_factor_already_confirmed' => 'Du hast bereits einen bestätigten Faktor für diese Methode.',
+        'mfa_method_not_available' => 'Diese Verifizierungsmethode ist an dieser Schule nicht verfügbar.',
+        'mfa_code_invalid' => 'Der Code ist nicht korrekt.',
+        'mfa_factor_required_by_role' => 'Du kannst deinen letzten Faktor nicht deaktivieren: eine deiner Rollen erfordert die zweistufige Verifizierung.',
     ],
 
     'mail' => [
@@ -40,6 +44,25 @@ return [
             'greeting' => 'Hallo :name.',
             'body' => 'Dein Passwort bei :tenant wurde soeben geändert.',
             'warning' => 'Wenn du das nicht warst, wende dich umgehend an die Verwaltung deiner Schule.',
+        ],
+        'mfa_factor_activated' => [
+            'subject' => 'Die zweistufige Verifizierung wurde bei :tenant aktiviert',
+            'greeting' => 'Hallo :name.',
+            'body' => 'In deinem Konto bei :tenant wurde soeben ein neuer Faktor für die zweistufige Verifizierung aktiviert.',
+            'warning' => 'Wenn du das nicht warst, wende dich umgehend an die Verwaltung deiner Schule.',
+        ],
+        'mfa_factor_removed' => [
+            'subject' => 'Die zweistufige Verifizierung wurde bei :tenant deaktiviert',
+            'greeting' => 'Hallo :name.',
+            'body_by_self' => 'In deinem Konto bei :tenant wurde soeben ein Faktor der zweistufigen Verifizierung entfernt.',
+            'body_by_admin' => 'Ein Administrator bei :tenant hat die zweistufige Verifizierung deines Kontos zurückgesetzt: deine bisherigen Faktoren und Wiederherstellungscodes sind nicht mehr gültig.',
+            'warning' => 'Wenn du das nicht warst, wende dich umgehend an die Verwaltung deiner Schule.',
+        ],
+        'recovery_code_used' => [
+            'subject' => 'Bei :tenant wurde ein Wiederherstellungscode verwendet',
+            'greeting' => 'Hallo :name.',
+            'body' => 'Einer deiner Wiederherstellungscodes wurde verwendet, um dich bei deinem Konto bei :tenant anzumelden, anstelle deines üblichen zweiten Faktors.',
+            'warning' => 'Wenn du das nicht warst, wende dich umgehend an die Verwaltung deiner Schule und überprüfe deine aktiven Sitzungen.',
         ],
         'new_device_login' => [
             'subject' => 'Neue Anmeldung bei deinem Konto auf :tenant',

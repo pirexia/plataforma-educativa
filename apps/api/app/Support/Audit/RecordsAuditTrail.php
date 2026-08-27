@@ -3,6 +3,7 @@
 namespace App\Support\Audit;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use WeakMap;
 
 /**
@@ -17,6 +18,20 @@ use WeakMap;
  * del "deleted"/"restored" duplicaría la fila — se suprime aquí y lo
  * registran los hooks deleted/restored, con el valor previo de deleted_at
  * capturado justo antes de que SoftDeletes lo toque.
+ *
+ * Hallazgo propio (1.3, `MfaReset`, el primer `Auditable` que es
+ * `AppendOnlyModel` en vez de `TenantModel`): `restoring`/`restored` **no**
+ * son métodos estáticos reales de `Illuminate\Database\Eloquent\Model` —
+ * solo existen cuando el modelo usa `SoftDeletes`, que los añade. Sin
+ * `SoftDeletes`, `static::restoring(...)` cae en `Model::__callStatic()`,
+ * que hace `(new static)->restoring(...)` para resolverlo — y esa
+ * instanciación reentra en `bootIfNotBooted()` de la MISMA clase mientras
+ * todavía se está *booteando*, lo que Laravel rechaza con
+ * `LogicException` desde Laravel 13. Por eso los dos enganches de abajo
+ * se condicionan a que el modelo use `SoftDeletes` — un `AppendOnlyModel`
+ * nunca tiene `deleted_at` que restaurar, así que omitirlos no pierde
+ * ninguna auditoría real: `AppendOnlyModel::booted()` ya impide `update`/
+ * `delete` en el motor (`REVOKE`) y en PHP (`LogicException` propia).
  */
 trait RecordsAuditTrail
 {
@@ -64,10 +79,20 @@ trait RecordsAuditTrail
             ]);
         });
 
+        if (! in_array(SoftDeletes::class, class_uses_recursive(static::class), true)) {
+            return;
+        }
+
+        // Larastan analiza este trait una vez por cada modelo que lo usa,
+        // incluidos los que (como MfaReset) NO tienen restoring()/restored()
+        // — el guard de arriba ya lo hace inalcanzable en tiempo de
+        // ejecución para esos, pero el análisis estático no puede probarlo.
+        // @phpstan-ignore staticMethod.notFound
         static::restoring(function (Model $model): void {
             self::rememberDeletedAtBefore($model, $model->getOriginal('deleted_at'));
         });
 
+        // @phpstan-ignore staticMethod.notFound
         static::restored(function (Model&Auditable $model): void {
             app(AuditRecorder::class)->record($model, 'restored', [
                 'deleted_at' => [self::recallDeletedAtBefore($model), null],

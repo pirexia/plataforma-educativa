@@ -7,7 +7,11 @@
 
 ## Estado actual
 
-**Fase**: 0 cerrada en la práctica (lo pendiente de `0.10`-`0.12` es negocio, no código — ver "Bloqueantes"). **Fase 1, bloque A: 1.1, 1.2 y 1.2b cerrados y mezclados. Próximo paso: `1.3` (MFA), a confirmar con el usuario. Antes, buscar hueco en `PLAN-IMPLEMENTACION.md` para las ideas nuevas de la sesión anterior (`#78`/`#82`/`#79`/`#80`, ver "Problemas abiertos").**
+**Fase**: 0 cerrada en la práctica (lo pendiente de `0.10`-`0.12` es negocio, no código — ver "Bloqueantes"). **Fase 1, bloque A: 1.1, 1.2, 1.2b y 1.3 cerrados y mezclados.** Siguiente paso libre: `1.3b`, `1.4` o el que decida el usuario.
+
+**Norma nueva, en `CLAUDE.md §3` desde 2026-08-27 (v2.1.3)**: relanzar un subagente de ejecución (`implementer`) tras un fallo o corte de cuota no es licencia para decidir alcance por su cuenta — sigue la especificación aprobada al pie de la letra. Motivada por un caso real de `1.3` (ver historial).
+
+**1.3 · `REQ-AUTH-003`: MFA — TOTP, obligatoriedad por rol y restablecimiento — CERRADO Y MEZCLADO** (2026-08-26/27). PR [#107](https://github.com/pirexia/plataforma-educativa/pull/107) (*squash*). Dos cortes de cuota consecutivos, un recorte de alcance no autorizado detectado y corregido (`GET /mfa-compliance/users`), pipeline de revisión independiente con 8 hallazgos (0 seguridad, corregidos el resto). Detalle completo en `docs/historial/1.3-mfa-obligatorio-por-rol.md`.
 
 **1.2b · `REQ-AUTH-005` puntos 2-4: sesiones activas, cierre remoto y detección de dispositivo — CERRADO Y MEZCLADO** (2026-08-25/26). PR [#91](https://github.com/pirexia/plataforma-educativa/pull/91) (*squash*, commit `12fe917`). Pipeline de revisión independiente (`security-reviewer`/`db-reviewer`/`doc-reviewer`) con 3 hallazgos Media, todos corregidos y verificados antes de mezclar. Detalle completo en `docs/historial/1.2b-sesiones-activas.md`.
 **1.2 · `REQ-AUTH`: autenticación local y sesiones — CERRADO Y MEZCLADO** (2026-08-22/25). PR [#76](https://github.com/pirexia/plataforma-educativa/pull/76) (*squash*, commit `0d34587`). Revisión independiente (`security-reviewer`/`doc-reviewer`) con 2 hallazgos Alta de seguridad y 7 Media de documentación, todos corregidos antes de mezclar. Detalle completo en `docs/historial/1.2-auth-local-sesiones.md`.
@@ -110,16 +114,16 @@
 | [#86](https://github.com/pirexia/plataforma-educativa/issues/86) | `HomeView.vue` llama a `GET /api/v1/health` (404); el healthcheck real está en `/api/health`, fuera de `v1`. Detectado de pasada verificando `1.2b` en navegador, sin relación con ese módulo. No resuelto. | Baja |
 | [#89](https://github.com/pirexia/plataforma-educativa/issues/89) | `infra/quadlet/plataforma.env.example` sin las variables `AUTH_*`/`SESSION_*` de `1.2`/`1.2b`. Plantilla de despliegue incompleta, no bloquea (`OPEN-11` sigue sin resolver). | Media |
 | [#90](https://github.com/pirexia/plataforma-educativa/issues/90) | Literal `'—'` sin traducir en `SessionsView.vue` para IP nula. Decisión de convención pendiente (¿clave común de "valor ausente"?), no corrección mecánica. | Baja |
+| [#97](https://github.com/pirexia/plataforma-educativa/issues/97) | Fallo de validación YAML preexistente en `apps/api/openapi/components.yaml` (descripción sin comillas, línea ~369, `UserSession.ip_address`, desde 1.2b). Rompe parsers estrictos. Detectado validando el OpenAPI de 1.3, ajeno a él. | Baja |
+| [#106](https://github.com/pirexia/plataforma-educativa/issues/106) | Suite Pest completa agota `memory_limit=128M` del PHP CLI en local (no afecta a CI). Rodeo: `php -d memory_limit=512M`. | Baja |
 
 ---
 
 ## Siguiente paso concreto
 
-**Rama**: `develop`, limpia y sincronizada. `1.2` y `1.2b` cerrados y mezclados (PR #76, #87, #91). Sin rama de trabajo abierta.
+**`1.3` cerrado y mezclado** (PR #107, squash) — el usuario confirmó el merge 2026-08-27 tras revisar que toda la documentación quedara al día. Rama `feature/REQ-AUTH-003-1.3-mfa-obligatorio-por-rol` borrada (local y remota). `develop` es la rama activa, limpia y sincronizada con `origin`.
 
-El usuario fijó el orden de la próxima sesión, en tres pasos:
-
-1. **Buscar hueco en `PLAN-IMPLEMENTACION.md` para las ideas nuevas** de la sesión anterior: `#78` (asociaciones, Fase 3, `REQ-GOB` — el usuario decidió dejarlo en Fase 3 tal cual, sin adelantarlo), `#82` (apoderado, Fase 2, `REQ-DOC`), `#79` (cuota de tenant — el usuario decidió que **no** entra en el alcance inicial de `1.6`/`REQ-BO`, paso propio posterior), `#80` (Google Workspace, Fase 2, `REQ-API`/`REQ-DOC`). Ninguna de las cuatro tiene código propio en `PLAN-IMPLEMENTACION.md` todavía, solo en `memory.md`/issues — falta anotarlas ahí.
-2. **Empezar `1.3`** (`REQ-AUTH`: MFA con obligatoriedad por rol) — siguiente paso del plan tras `1.2b`.
-3. **Requisito de entorno para probar en navegador real** (issue #71): `apps/web/vite.config.ts` y `compose.yaml` sirven la SPA desde `demo.plataforma.test:5173`; necesita `127.0.0.1 demo.plataforma.test` en el `hosts` de **Windows** (no el de WSL2) — ya confirmado presente en esta máquina de desarrollo.
-4. **Nota de entorno, sigue aplicando**: `.env` no editable desde esta sesión (bloqueo de permisos). Variables inline en cada `Bash`, `podman exec <servicio> printenv`. `SESSION_LIFETIME=480`, `CORS_ALLOWED_ORIGINS` y `VITE_API_URL` siguen parcheados en `compose.yaml` en vez de en sus `.env` respectivos — trasladarlos si algún día `.env` es editable desde la sesión.
+1. **Elegir el siguiente paso** con el usuario: `1.3b` (correo como 2FA, excepciones temporales — modelo de datos `user_mfa_exemptions` ya existe desde `1.3`, solo faltan los 3 endpoints y la lógica —, pantalla de administración si `1.5` se retrasa) o `1.4` (login con Google), según prioridad. No asumir cuál sin confirmar.
+2. **Requisito de entorno para probar en navegador real** (issue #71): la SPA se sirve desde `demo.plataforma.test:5173`; necesita `127.0.0.1 demo.plataforma.test` en el `hosts` de **Windows** — confirmado presente.
+3. **Nota de entorno, corregida 2026-08-27**: `compose.yaml` ya fija `target: dev` en `api`/`web` (issue #96, cerrado) — cualquier `podman compose build` futuro reconstruye correctamente con Composer/herramientas de desarrollo. Contenedor `api`: `podman exec -w /var/www/html plataforma-api <cmd>`. Contenedor `web`: **`WORKDIR` es `/app`, no `/var/www/html`** — `podman exec -w /app plataforma-web <cmd>`. Suite Pest completa necesita `php -d memory_limit=512M` (128M por defecto no basta, issue #106, ajeno a `Auth`).
+4. **`.env` sigue sin ser editable desde esta sesión** (bloqueo de permisos). `SESSION_LIFETIME=480`, `CORS_ALLOWED_ORIGINS` y `VITE_API_URL` siguen parcheados en `compose.yaml` en vez de en sus `.env` respectivos.

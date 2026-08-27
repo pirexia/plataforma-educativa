@@ -34,4 +34,14 @@ final class EloquentTenantSettingsReader implements TenantSettingsReader
     {
         return (int) $this->cache->get()['session_timeout_minutes'];
     }
+
+    public function mfaAllowedMethods(): array
+    {
+        return $this->cache->get()['mfa_allowed_methods'];
+    }
+
+    public function mfaGracePeriodDays(): int
+    {
+        return (int) $this->cache->get()['mfa_grace_period_days'];
+    }
 }

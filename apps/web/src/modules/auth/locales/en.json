@@ -94,6 +94,86 @@
         "bot": "Bot",
         "desconocido": "Unknown"
       }
+    },
+    "mfa": {
+      "method": {
+        "totp": "Authenticator app",
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "enrollment": {
+        "intro": "Add an authenticator app (Google Authenticator, Authy, Microsoft Authenticator or another compatible app) as a second sign-in factor.",
+        "start": "Activate authenticator app",
+        "starting": "Preparing enrolment…",
+        "scanIntro": "Scan this code with your authenticator app, or type the key by hand if you can't use the camera.",
+        "qrLabel": "QR code to enrol the second factor in your authenticator app",
+        "secretLabel": "Key to type by hand",
+        "secretHint": "Use it if you can't scan the QR code. It works the same in any compatible app.",
+        "expired": "This enrolment has expired. Start again.",
+        "expiresIn": "Expires in {time}",
+        "codeLabel": "6-digit code from your app",
+        "confirm": "Confirm code",
+        "confirming": "Confirming…",
+        "cancel": "Cancel",
+        "notAllowed": "This method isn't available at your centre.",
+        "activatedTitle": "Second factor activated."
+      },
+      "recoveryCodes": {
+        "title": "Recovery codes",
+        "onceWarning": "These codes are shown only once. Save them somewhere safe: they're the only way in if you lose access to your authenticator app.",
+        "copy": "Copy",
+        "download": "Download",
+        "acknowledge": "I've saved these codes somewhere safe.",
+        "continue": "Continue",
+        "remaining": "You have {count} unused recovery codes left.",
+        "regenerate": "Generate new recovery codes",
+        "confirmRegenerate": "The current codes will stop working. Confirm your password to generate a new set."
+      },
+      "security": {
+        "title": "Account security",
+        "intro": "Manage your account's second sign-in factor.",
+        "loading": "Loading your security status…",
+        "enrollSuccess": "Second factor activated.",
+        "factorRemoved": "Second factor deactivated.",
+        "factorRequiredGeneric": "You can't deactivate your last factor: at least one of your roles requires a second factor.",
+        "wrongPassword": "The current password isn't correct.",
+        "graceBanner": "Your role requires a second sign-in factor. You have {days} days left to activate it.",
+        "factorsTitle": "Your active factors",
+        "noFactors": "You don't have any active second factor yet.",
+        "preferred": "preferred",
+        "confirmedAt": "Activated on {date}",
+        "deactivate": "Deactivate",
+        "confirmDeactivate": "Deactivate this second factor? You need to confirm your current password.",
+        "deactivating": "Deactivating…",
+        "confirmYes": "Confirm",
+        "confirmCancel": "Cancel",
+        "recoveryCodesRegenerated": "A new set of recovery codes has been generated.",
+        "logout": "Sign out"
+      },
+      "wall": {
+        "title": "Activate your second factor",
+        "reason": "Your role requires a second sign-in factor and the deadline to activate it has passed. Complete it to continue; you can't access the rest of the platform until you do.",
+        "completed": "Second factor activated. You can now continue.",
+        "continue": "Continue",
+        "logout": "Sign out"
+      }
+    },
+    "mfaChallenge": {
+      "title": "Verify your identity",
+      "intro": "Enter the code from your authenticator app to finish signing in.",
+      "methodSelectorLabel": "Second factor method",
+      "codeLabel": "6-digit code",
+      "clockHint": "If the code keeps failing, check the clock on your device.",
+      "expiresIn": "This code expires in {time}",
+      "submit": "Verify",
+      "submitting": "Verifying…",
+      "resend": "Resend code",
+      "resending": "Resending…",
+      "useRecoveryCode": "Use a recovery code",
+      "useCodeInstead": "Use the app code instead",
+      "recoveryCodeLabel": "Recovery code",
+      "invalidCode": "The code isn't correct.",
+      "expired": "Verification has expired. Sign in again."
     }
   }
 }

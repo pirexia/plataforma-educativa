@@ -30,20 +30,24 @@ test('GET /roles devuelve los 16 roles predefinidos y GET /roles/{id} sus permis
         ->getJson(coreApiUrl($tenant->slug, "/roles/{$adminRole['public_id']}"))
         ->assertOk();
 
-    // 20 de REQ-CORE + 2 de REQ-AUTH (bloqueo_cuenta.leer/eliminar,
+    // 21 de REQ-CORE (20 de 1.1 + rol.actualizar de 1.3) + 4 de REQ-AUTH
+    // (bloqueo_cuenta.leer/eliminar de 1.2, mfa.leer/eliminar de 1.3 —
     // permisos.md §5 — solo administrador_centro los recibe).
-    expect($detail->json('permissions'))->toHaveCount(22);
+    expect($detail->json('permissions'))->toHaveCount(25);
 });
 
 // CA-CORE-041
-test('CA-CORE-041: modificar o borrar un rol del sistema no tiene ruta disponible (solo lectura en 1.1)', function (): void {
+test('CA-CORE-041: borrar un rol del sistema no tiene ruta disponible; modificarlo solo admite mfa_required (REQ-AUTH-003, 1.3, RN-AUTH-70)', function (): void {
     [$tenant, $admin] = provisionCoreTenant('roles-041');
 
     $role = app(TenantContext::class)->runFor($tenant->id, fn () => Role::where('code', 'docente')->firstOrFail());
 
+    // 1.3 añade PATCH /roles/{public_id}, pero acotado a mfa_required
+    // (RN-AUTH-70, §C.2.2) — cualquier otro campo, incluido el resto del
+    // editor de roles (name, etc.), sigue sin tener camino: 422, no 405.
     test()->actingAs($admin)
         ->patchJson(coreApiUrl($tenant->slug, "/roles/{$role->public_id}"), ['name' => 'Cambiado'])
-        ->assertStatus(405);
+        ->assertStatus(422);
 
     test()->actingAs($admin)
         ->deleteJson(coreApiUrl($tenant->slug, "/roles/{$role->public_id}"))

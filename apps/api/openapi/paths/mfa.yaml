@@ -1,0 +1,354 @@
+# REQ-AUTH-003 (paso 1.3). Convenciones transversales en
+# docs/adr/ADR-038-convenciones-api-rest.md. Todos los endpoints bajo
+# /api/v1, referenciados desde apps/api/openapi.yaml. Contrato completo en
+# docs/modulos/REQ-AUTH/api.md §C.
+#
+# api.md §C.1/§C.5: diez endpoints — siete de autoservicio (por
+# identidad, sin permiso, salvo los dos de login en dos pasos que van sin
+# sesión) y tres de administración (mfa.leer × 2, mfa.eliminar × 1).
+# GET /mfa-compliance/users se restauró en 1.3 el 2026-08-27 (api.md
+# §C.1). Ninguno lleva module-enabled (RN-AUTH-35, CA-AUTH-145). El
+# undécimo endpoint de este paso, PATCH /api/v1/roles/{publicId} acotado
+# a mfa_required, vive en core.yaml (REQ-CORE es dueño del recurso,
+# §C.2.2).
+
+paths:
+  /api/v1/auth/mfa-enrollments:
+    post:
+      operationId: createMfaEnrollment
+      summary: Alta de un factor MFA (provisional, sin confirmar)
+      description: >
+        funcional.md §C.4.1. Solo TOTP en 1.3 (§C.16: el correo como
+        segundo factor es 1.3b). El secreto en base32 y la URI otpauth
+        salen del servidor UNA SOLA VEZ, en esta respuesta (RN-AUTH-55).
+        Sin permiso — por identidad del portador de la cookie.
+      tags: [Auth / MFA]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [method]
+              properties:
+                method: { type: string, enum: [totp] }
+      responses:
+        '201':
+          description: Alta provisional creada.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/MfaEnrollment' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '409':
+          description: Ya existe un factor confirmado de ese método (funcional.md §C.4.1 punto 2).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/auth/mfa-factors:
+    post:
+      operationId: createMfaFactor
+      summary: Confirma un alta provisional con un código válido
+      description: >
+        funcional.md §C.4.1 puntos 5-11. RN-AUTH-59: quinto intento
+        fallido, el alta queda muerta (410 a partir de entonces). Si es
+        el primer factor confirmado del usuario, devuelve también los
+        códigos de respaldo en claro (RN-AUTH-56, una sola vez).
+      tags: [Auth / MFA]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enrollment, code]
+              properties:
+                enrollment: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                code: { type: string, example: "123456" }
+      responses:
+        '201':
+          description: Factor confirmado.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/MfaFactorConfirmation' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '410':
+          description: Alta inexistente, ajena o vencida — mismo cuerpo en los tres casos (CA-AUTH-107).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/auth/mfa-factors/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    delete:
+      operationId: deleteMfaFactor
+      summary: Desactiva un factor confirmado del propio usuario
+      description: >
+        funcional.md §C.4.6. Exige la contraseña actual en el cuerpo
+        (mismo argumento que la regeneración de códigos de respaldo).
+        RN-AUTH-61: 409 si es el último factor utilizable y algún rol
+        del usuario exige MFA sin excepción viva.
+      tags: [Auth / MFA]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password]
+              properties:
+                current_password: { type: string }
+      responses:
+        '204':
+          description: Factor desactivado (borrado lógico).
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/auth/mfa:
+    get:
+      operationId: getMfaStatus
+      summary: Estado MFA completo del propio usuario
+      description: >
+        funcional.md §C.4.3 punto 7, §C.4.8. Factores confirmados (nunca
+        el secreto), códigos de respaldo restantes y bloque de
+        obligación/gracia — la pantalla de /cuenta/seguridad (§C.11).
+      tags: [Auth / MFA]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Estado del usuario autenticado.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/MfaStatus' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+
+  /api/v1/auth/mfa-recovery-codes:
+    post:
+      operationId: createMfaRecoveryCodes
+      summary: Regenera el lote de códigos de respaldo
+      description: >
+        funcional.md §C.4.3 punto 4. Exige la contraseña actual
+        (RN-AUTH-60). Sustituye el lote entero — los códigos anteriores,
+        usados o no, dejan de funcionar. En claro, una sola vez.
+      tags: [Auth / MFA]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password]
+              properties:
+                current_password: { type: string }
+      responses:
+        '201':
+          description: Lote nuevo generado.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recovery_codes:
+                    type: array
+                    items: { type: string, example: "A3F7K-9QRT2" }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/auth/mfa-challenges:
+    post:
+      operationId: createMfaChallenge
+      summary: Cambia el método del desafío en curso o reenvía el código
+      description: >
+        funcional.md §C.4.4.1. Sin sesión autenticada (§C.6): el titular
+        se resuelve por el session_id de la sesión anónima con el
+        desafío vivo (RN-AUTH-53), nunca por un identificador en el
+        cuerpo. No reinicia el contador de intentos ni la caducidad
+        (RN-AUTH-54).
+      tags: [Auth / MFA]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [method]
+              properties:
+                method: { type: string, enum: [totp, email, sms] }
+      responses:
+        '200':
+          description: Desafío actualizado.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/MfaChallenge' }
+        '410':
+          description: Sin desafío vivo para esta sesión — inexistente, ajeno o caducado, mismo cuerpo (RN-AUTH-53/72).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/auth/mfa-verifications:
+    post:
+      operationId: createMfaVerification
+      summary: Paso 2 del login — verifica el segundo factor
+      description: >
+        funcional.md §C.4.4 puntos 6-11. Sin sesión autenticada (§C.6):
+        exactamente uno de code/recovery_code. Éxito ⇒ mismo recurso que
+        GET /me, identificador de sesión regenerado (RN-AUTH-32). Fallo
+        ⇒ 401 genérico, cuenta hacia el mismo bloqueo que la contraseña
+        (RN-AUTH-64) y puede terminar en 423 en el siguiente
+        POST /auth/session.
+      tags: [Auth / MFA]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code: { type: string, example: "123456" }
+                recovery_code: { type: string, example: "A3F7K-9QRT2" }
+      responses:
+        '200':
+          description: Login completado. Mismo recurso que GET /me.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/User' }
+        '401':
+          description: Código incorrecto — genérico, no distingue TOTP de código de respaldo (RN-AUTH-72).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '410':
+          description: Sin desafío vivo para esta sesión — inexistente, ajeno, caducado o ya consumido, mismo cuerpo (RN-AUTH-53/54/72).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/mfa-compliance:
+    get:
+      operationId: getMfaCompliance
+      summary: Vista previa de usuarios afectados y estado de cumplimiento de un rol
+      description: >
+        funcional.md §C.1.1 punto 9, CA-AUTH-136. Sin `mfa_required` en
+        la query ⇒ estado real del rol. Con `mfa_required` ⇒ vista
+        previa hipotética, sin escribir nada — el mismo endpoint
+        resuelve las dos peticiones del requisito. Permiso `mfa.leer`.
+      tags: [Auth / MFA]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: role
+          in: query
+          required: true
+          description: public_id del rol (REQ-CORE).
+          schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: mfa_required
+          in: query
+          description: Presente ⇒ vista previa hipotética de ese valor. Ausente ⇒ estado real.
+          schema: { type: string, enum: ['0', '1', 'true', 'false'] }
+      responses:
+        '200':
+          description: Resumen de cumplimiento.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/MfaComplianceSummary' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/mfa-compliance/users:
+    get:
+      operationId: listMfaComplianceUsers
+      summary: Listado individualizado de cumplimiento MFA
+      description: >
+        api.md §C.5. Restaurado en 1.3 el 2026-08-27 (decisión del
+        usuario, corrige un recorte no autorizado a 1.3b). Complemento
+        individualizado de GET /mfa-compliance. Permiso mfa.leer, el
+        mismo que el agregado — no usuario.leer (permisos.md §C.6.1).
+      tags: [Auth / MFA]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: state
+          in: query
+          description: >
+            obligated|enrolled|pending|past_deadline|exempt, varios
+            separados por coma (ADR-038 §5.2). obligated es un alias de
+            conveniencia sobre pending+past_deadline: ninguna fila
+            individual lleva ese valor.
+          schema: { type: string }
+        - $ref: '../components.yaml#/components/parameters/PageParam'
+        - $ref: '../components.yaml#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: Colección paginada por página (catálogo acotado al tenant, ADR-038 §4.2).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/MfaComplianceUserRow' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/mfa-resets:
+    post:
+      operationId: createMfaReset
+      summary: Restablecimiento de MFA por el administrador
+      description: >
+        funcional.md §C.4.10, RN-AUTH-66. Motivo obligatorio (mínimo 10
+        caracteres), auditado con el administrador y el motivo. Borra
+        lógicamente todos los factores y códigos del usuario, revoca
+        todas sus sesiones (cambio_credencial) y notifica al titular sin
+        enlace accionable. RN-AUTH-67: nadie se restablece a sí mismo
+        (403), tenga el permiso que tenga. Permiso `mfa.eliminar`.
+      tags: [Auth / MFA]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user, reason]
+              properties:
+                user: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                reason: { type: string, minLength: 10, maxLength: 1000 }
+      responses:
+        '204':
+          description: MFA restablecido.
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403':
+          description: >
+            Sin `mfa.eliminar` (Forbidden genérico), o el administrador
+            intenta restablecerse a sí mismo (RN-AUTH-67) — mismo
+            estado, cuerpo genérico en los dos casos.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }

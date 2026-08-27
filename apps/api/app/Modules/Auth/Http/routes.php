@@ -10,6 +10,14 @@
 use App\Modules\Auth\Http\Controllers\AccountLockoutsController;
 use App\Modules\Auth\Http\Controllers\AccountUnlocksController;
 use App\Modules\Auth\Http\Controllers\InvitationRedemptionsController;
+use App\Modules\Auth\Http\Controllers\MfaChallengesController;
+use App\Modules\Auth\Http\Controllers\MfaComplianceController;
+use App\Modules\Auth\Http\Controllers\MfaEnrollmentsController;
+use App\Modules\Auth\Http\Controllers\MfaFactorsController;
+use App\Modules\Auth\Http\Controllers\MfaRecoveryCodesController;
+use App\Modules\Auth\Http\Controllers\MfaResetsController;
+use App\Modules\Auth\Http\Controllers\MfaStatusController;
+use App\Modules\Auth\Http\Controllers\MfaVerificationsController;
 use App\Modules\Auth\Http\Controllers\PasswordChangesController;
 use App\Modules\Auth\Http\Controllers\PasswordResetRequestsController;
 use App\Modules\Auth\Http\Controllers\PasswordResetsController;
@@ -56,3 +64,48 @@ Route::delete('/auth/sessions/{publicId}', [UserSessionsController::class, 'dest
 
 Route::delete('/auth/sessions', [UserSessionsController::class, 'destroyAll'])
     ->name('auth.sessions.destroy-all');
+
+// REQ-AUTH-003 (1.3), api.md §C.1. Autoservicio del propio factor: sin
+// permiso, por identidad — mismo criterio que /auth/password-changes y
+// /auth/sessions. GET /auth/mfa y los dos de alta están en la lista
+// blanca de RequireMfaEnrollment (§C.4.9); el resto no hace falta:
+// solo se alcanzan ya autenticado y sin restricción de muro.
+Route::get('/auth/mfa', [MfaStatusController::class, 'show'])
+    ->name('auth.mfa.show');
+
+Route::post('/auth/mfa-enrollments', [MfaEnrollmentsController::class, 'store'])
+    ->name('auth.mfa-enrollments.store');
+
+Route::post('/auth/mfa-factors', [MfaFactorsController::class, 'store'])
+    ->name('auth.mfa-factors.store');
+
+Route::delete('/auth/mfa-factors/{publicId}', [MfaFactorsController::class, 'destroy'])
+    ->name('auth.mfa-factors.destroy');
+
+Route::post('/auth/mfa-recovery-codes', [MfaRecoveryCodesController::class, 'store'])
+    ->name('auth.mfa-recovery-codes.store');
+
+// §C.4.4, §C.6: sin sesión autenticada — el titular se resuelve por el
+// session_id del desafío (RN-AUTH-53), nunca por Auth::user().
+Route::post('/auth/mfa-challenges', [MfaChallengesController::class, 'store'])
+    ->name('auth.mfa-challenges.store');
+
+Route::post('/auth/mfa-verifications', [MfaVerificationsController::class, 'store'])
+    ->name('auth.mfa-verifications.store');
+
+// §C.4.10, §C.1.1 punto 9: administración. Permisos propios (mfa.leer,
+// mfa.eliminar), declarados en AuthServiceProvider.
+Route::get('/mfa-compliance', [MfaComplianceController::class, 'index'])
+    ->middleware('permission:mfa.leer')
+    ->name('auth.mfa-compliance.index');
+
+// api.md §C.5. Restaurado en 1.3 el 2026-08-27 (decisión del usuario,
+// corrige un recorte no autorizado a `1.3b`). Mismo permiso que el
+// agregado (`§C.6.1` de permisos.md): no es `usuario.leer`.
+Route::get('/mfa-compliance/users', [MfaComplianceController::class, 'users'])
+    ->middleware('permission:mfa.leer')
+    ->name('auth.mfa-compliance.users');
+
+Route::post('/mfa-resets', [MfaResetsController::class, 'store'])
+    ->middleware('permission:mfa.eliminar')
+    ->name('auth.mfa-resets.store');

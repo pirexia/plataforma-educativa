@@ -17,6 +17,10 @@ return [
         'current_password_incorrect' => 'The current password is incorrect.',
         'lockout_already_unlocked' => 'This lockout has already been lifted.',
         'session_already_closed' => 'This session is already closed.',
+        'mfa_factor_already_confirmed' => 'You already have a confirmed factor for this method.',
+        'mfa_method_not_available' => 'This verification method is not available at this school.',
+        'mfa_code_invalid' => 'The code is not correct.',
+        'mfa_factor_required_by_role' => 'You cannot disable your last factor: one of your roles requires two-step verification.',
     ],
 
     'mail' => [
@@ -40,6 +44,25 @@ return [
             'greeting' => 'Hello, :name.',
             'body' => 'Your password at :tenant has just been changed.',
             'warning' => 'If this was not you, contact your school administration as soon as possible.',
+        ],
+        'mfa_factor_activated' => [
+            'subject' => 'Two-step verification has been turned on at :tenant',
+            'greeting' => 'Hello, :name.',
+            'body' => 'A new two-step verification factor has just been activated on your account at :tenant.',
+            'warning' => 'If this was not you, contact your school administration as soon as possible.',
+        ],
+        'mfa_factor_removed' => [
+            'subject' => 'Two-step verification has been turned off at :tenant',
+            'greeting' => 'Hello, :name.',
+            'body_by_self' => 'A two-step verification factor has just been removed from your account at :tenant.',
+            'body_by_admin' => 'An administrator at :tenant has reset two-step verification on your account: your previous factors and backup codes are no longer valid.',
+            'warning' => 'If this was not you, contact your school administration as soon as possible.',
+        ],
+        'recovery_code_used' => [
+            'subject' => 'A backup code was used at :tenant',
+            'greeting' => 'Hello, :name.',
+            'body' => 'One of your backup codes was used to sign in to your account at :tenant instead of your usual second factor.',
+            'warning' => 'If this was not you, contact your school administration as soon as possible and review your active sessions.',
         ],
         'new_device_login' => [
             'subject' => 'New sign-in to your account at :tenant',
