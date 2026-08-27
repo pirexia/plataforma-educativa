@@ -6,6 +6,8 @@ use App\Models\UserStatus;
 use App\Modules\Auth\Domain\MfaMethod;
 use App\Modules\Auth\Domain\Models\MfaFactor;
 use App\Modules\Core\Application\ProvisionTenantDefaults;
+use App\Modules\Core\Domain\Models\TenantSetting;
+use App\Modules\Core\Infrastructure\TenantSettingsCache;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -200,6 +202,36 @@ function resetSessionState(): void
             $prop->setValue($testCase, []);
         }
     }
+
+    // Issue #110 (severidad Media, hallazgo propio de 1.3b): `Route::
+    // getController()` (vendor/laravel/framework .../Routing/Route.php)
+    // cachea la instancia del controlador EN EL PROPIO OBJETO Route la
+    // primera vez que se resuelve, y esa Route sobrevive sin cambios
+    // entre las distintas peticiones HTTP simuladas de un mismo test —
+    // `forgetScopedInstances()` (AuthServiceProvider, invocado en cada
+    // `Kernel::terminate()`) solo vacía el caché de bindings `scoped()`
+    // del CONTENEDOR, no esta caché paralela de la Route. Consecuencia
+    // real: un controlador con una dependencia `scoped()` en el
+    // constructor (`SessionController` con `MfaPolicy`) memoiza esa
+    // dependencia la PRIMERA vez que el test llama a su ruta y la
+    // conserva en las llamadas siguientes DENTRO DEL MISMO TEST, aunque
+    // el estado subyacente cambie (p. ej., confirmar un factor MFA entre
+    // dos peticiones a `POST /auth/session` del mismo test) — un test
+    // que encadena "sin factor" → "confirma factor" → "vuelve a pedir
+    // /auth/session" ve el resultado ANTIGUO. No reproducible en
+    // producción con `ADR-037` (cada petición real es un proceso PHP
+    // nuevo, sin Route compartida entre peticiones), pero sí sería un
+    // riesgo real si el proyecto adoptase Octane (varias peticiones
+    // reales por proceso) sin este mismo arreglo — el comentario de
+    // `AuthServiceProvider` que introdujo `forgetScopedInstances()` para
+    // `CA-AUTH-130/131` anticipó justo ese escenario y no cubrió esta
+    // caché paralela porque en 1.3 ningún test dependía de ella. Se
+    // vacía aquí, no en código de producción: es infraestructura de
+    // test, y `resetSessionState()` es exactamente el punto ya dedicado
+    // a dejar cada petición simulada libre de residuos de la anterior.
+    foreach (app('router')->getRoutes() as $route) {
+        $route->flushController();
+    }
 }
 
 /**
@@ -311,4 +343,44 @@ function openMfaChallengeFor(string $slug, string $email, string $password)
     return test()->postJson(coreApiUrl($slug, '/auth/session'), [
         'email' => $email, 'password' => $password,
     ])->assertStatus(202);
+}
+
+/**
+ * REQ-AUTH-003 (1.3b), funcional.md §D.0.1/§D.2.4. `mfa_allowed_methods`
+ * por defecto es `["totp"]`: los tests del correo como segundo factor
+ * necesitan que el tenant lo admita explícitamente. Crea la fila de
+ * `tenant_settings` si `provisionActiveUser()` (sin
+ * `tenant:provision-defaults`) no la dejó puesta, e invalida la caché
+ * (`operacion.md §D.7`) para que la lectura siguiente vea el cambio.
+ */
+function enableEmailMfaMethod(Tenant $tenant): void
+{
+    app(TenantContext::class)->runFor($tenant->id, function (): void {
+        $settings = TenantSetting::query()->first();
+
+        if ($settings === null) {
+            TenantSetting::create(['mfa_allowed_methods' => ['totp', 'email']]);
+        } else {
+            $settings->update(['mfa_allowed_methods' => ['totp', 'email']]);
+        }
+
+        app(TenantSettingsCache::class)->forget();
+    });
+}
+
+/**
+ * REQ-AUTH-003 (1.3b), funcional.md §D.4.1. Crea directamente un factor
+ * `email` ya confirmado para `$user`, sin pasar por el flujo HTTP de
+ * alta — análogo a `createConfirmedTotpFactor()`.
+ */
+function createConfirmedEmailFactor(Tenant $tenant, User $user, bool $preferred = false): void
+{
+    app(TenantContext::class)->runFor($tenant->id, function () use ($user, $preferred): void {
+        MfaFactor::create([
+            'user_id' => $user->id,
+            'method' => MfaMethod::Email,
+            'confirmed_at' => now(),
+            'is_preferred' => $preferred,
+        ]);
+    });
 }
