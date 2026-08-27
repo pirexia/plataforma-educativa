@@ -95,6 +95,8 @@ Bug propio encontrado probando este procedimiento (0.9b.5, `compose.prodlike.yam
 
 No hay salida por la aplicación: es intervención directa sobre la base de datos, no un procedimiento que este runbook pueda automatizar.
 
+**Matiz de `REQ-AUTH-003` (1.3b, `docs/modulos/REQ-AUTH/operacion.md §D.10`):** en este mismo escenario, **un usuario con factor de correo activado sí puede entrar** — su verificación no depende de `APP_KEY` (el código se compara por hash SHA-256, no se descifra). No convierte el escenario en recuperable por sí solo (depende de que ese usuario tenga el correo activado y de que el correo transaccional funcione), pero puede ser la diferencia entre "nadie entra" y "un administrador con correo activado entra y restablece el MFA de los demás" antes de recurrir a la intervención directa sobre la base de datos.
+
 ### 3b.2 Desplegar una versión
 
 ```bash
@@ -124,6 +126,8 @@ Es una operación de segundos porque cada versión es una imagen inmutable en GH
 - **Drenar la cola `auth-mail` antes de revertir.** Los cinco trabajos de correo nuevos de 1.3 (código de segundo factor, código de alta, activación/desactivación, código de respaldo usado) no existen en la versión anterior: si queda alguno pendiente en la cola al revertir, los *workers* de la versión anterior fallan por clase inexistente. `queue:prune-failed --hours=24` limita el daño, pero drenar antes evita generarlo.
 - **Revertir con factores MFA ya dados de alta es una degradación silenciosa de seguridad, no una pérdida de datos.** La versión anterior ignora `user_mfa_factors` y hace login de un solo paso: los usuarios que activaron MFA dejan de tener segundo factor **sin que nadie se lo diga**. No se pierde nada — las filas siguen ahí y vuelven a valer al desplegar 1.3 de nuevo — pero mientras dura la reversión, cuentas que un momento antes exigían dos factores solo exigen uno. Hay que saberlo antes de decidir revertir, no descubrirlo después.
 - La migración del `CHECK` ampliado de `login_attempts` es de un solo sentido en la práctica (tabla *append-only*, sin `DELETE`): revertir la aplicación **no** exige revertir esa migración.
+
+**Reversión de `REQ-AUTH-003` (1.3b)** (`docs/modulos/REQ-AUTH/datos.md §D.6`): sin aviso previo a los centros (`mfa_allowed_methods` sigue en `["totp"]` salvo que un centro haya activado el correo a propósito, `operacion.md §D.11.1`). **Con una consecuencia real si algún centro sí lo activó**: `migrate:rollback` retira `code_hash`/`code_expires_at` de `user_mfa_factors`; un factor `email` que estuviera confirmado en ese momento queda como un factor válido que la versión anterior **no sabe verificar** — la salida es un restablecimiento de MFA por administrador para esas personas, no una pérdida de datos.
 
 ### 3b.4 Notas operativas de las unidades Quadlet
 
