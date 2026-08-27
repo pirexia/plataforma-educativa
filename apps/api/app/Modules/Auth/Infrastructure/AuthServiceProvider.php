@@ -24,6 +24,7 @@ use App\Modules\Auth\Domain\UserSessionDirectory;
 use App\Modules\Auth\Infrastructure\Console\CloseExpiredLockoutsCommand;
 use App\Modules\Auth\Infrastructure\Console\CloseOrphanedUserSessionsCommand;
 use App\Modules\Auth\Infrastructure\Console\GrantLockoutPermissionsCommand;
+use App\Modules\Auth\Infrastructure\Console\MfaObligationsMaintenanceCommand;
 use App\Modules\Auth\Infrastructure\Console\PurgeAuthMaintenanceCommand;
 use App\Modules\Auth\Infrastructure\Listeners\MaterializeMfaObligationsForRole;
 use App\Modules\Auth\Infrastructure\Listeners\ReconcileMfaAllowedMethodsChange;
@@ -136,6 +137,7 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
                 CloseExpiredLockoutsCommand::class,
                 CloseOrphanedUserSessionsCommand::class,
                 GrantLockoutPermissionsCommand::class,
+                MfaObligationsMaintenanceCommand::class,
             ]);
         }
     }
