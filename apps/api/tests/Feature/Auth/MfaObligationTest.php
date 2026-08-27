@@ -4,6 +4,7 @@ use App\Models\Person;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserStatus;
+use App\Modules\Auth\Domain\MfaMethod;
 use App\Modules\Auth\Domain\MfaPolicy;
 use App\Modules\Auth\Domain\Models\MfaFactor;
 use App\Modules\Auth\Domain\Models\UserMfaObligation;
@@ -293,4 +294,55 @@ test('CA-AUTH-134: guardar mfa_allowed_methods sin totp, o con sms, responde 422
             'security' => ['mfa_allowed_methods' => ['totp', 'email']],
         ])
         ->assertOk();
+});
+
+// CA-AUTH-133, RN-AUTH-69 punto 5. El método de entrega por correo no se
+// puede dar de alta por HTTP en 1.3 (§C.16, el correo como segundo
+// factor es 1.3b) — se crea el factor confirmado directamente para
+// probar el mecanismo de reconciliación (ReconcileMfaAllowedMethodsChange,
+// activado por TenantSettingsUpdated), que sí es de este paso.
+test('CA-AUTH-133: retirar un método deja de admitir sus factores y reabre la obligación con plazo completo', function (): void {
+    // Sin Queue::fake(): el listener debe ejecutarse de verdad.
+    [$tenant, $admin] = provisionCoreTenant('mfa-133');
+
+    $user = app(TenantContext::class)->runFor($tenant->id, function () use ($tenant): User {
+        $role = Role::create(['code' => 'rol-133', 'name' => 'Rol 133', 'is_system' => false, 'mfa_required' => true]);
+        $person = Person::factory()->create();
+        $user = User::factory()->for($person)->create(['status' => UserStatus::Activo]);
+        $user->roles()->attach($role->id);
+
+        // Tenant admite email (necesario para que el CHECK de
+        // mfa_allowed_methods lo acepte primero).
+        DB::table('tenant_settings')->updateOrInsert(
+            ['tenant_id' => $tenant->id],
+            ['mfa_allowed_methods' => json_encode(['totp', 'email']), 'mfa_grace_period_days' => 7, 'created_at' => now(), 'updated_at' => now()],
+        );
+
+        MfaFactor::create([
+            'user_id' => $user->id,
+            'method' => MfaMethod::Email,
+            'confirmed_at' => now(),
+        ]);
+
+        return $user;
+    });
+
+    // Sin comprobación previa vía app(MfaPolicy::class) aquí a propósito:
+    // MfaPolicy memoiza por instancia (scoped, RN-AUTH-62) y solo se
+    // reinicia al terminar un ciclo real de Kernel::handle()/terminate()
+    // — llamarla directamente contaminaría el memo con el estado ANTES
+    // del PATCH de más abajo, que sí pasa por el kernel.
+    test()->actingAs($admin)
+        ->patchJson(coreApiUrl($tenant->slug, '/tenant/settings'), [
+            'security' => ['mfa_allowed_methods' => ['totp']],
+        ])
+        ->assertOk();
+
+    app(TenantContext::class)->runFor($tenant->id, function () use ($user): void {
+        $obligation = UserMfaObligation::query()->where('user_id', $user->id)->whereNull('resolved_at')->first();
+        expect($obligation)->not->toBeNull()
+            ->and($obligation->trigger)->toBe('metodo_retirado')
+            ->and($obligation->obligated_since->diffInDays($obligation->grace_deadline_at))
+            ->toBe(7.0);
+    });
 });

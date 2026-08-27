@@ -605,16 +605,18 @@ Dos eventos nuevos publicados, `SessionRevoked` y `NewDeviceDetected` (`funciona
 
 ## C.1 Reglas generales: qué cambia respecto de §1 y §B.1
 
+**Nota de partición (`OPEN-AUTH-24`, `funcional.md §C.16`):** la especificación original de este paso incluía también la excepción temporal nominal (recurso `exencion_mfa`, endpoints `GET`/`POST`/`DELETE /mfa-exemptions`) y un listado individualizado de usuarios (`GET /mfa-compliance/users`). El usuario partió el paso en `1.3`/`1.3b` el 2026-08-26: **1.3 no entrega ninguno de los dos**. Esta sección documenta únicamente lo que `1.3` entrega de verdad.
+
 | Aspecto | 1.3 |
 |---------|-----|
 | Autenticación | Sin cambios (`ADR-025`). **El segundo paso del login se autoriza con la misma cookie de sesión anónima**, no con un token nuevo (`RN-AUTH-53`) |
-| Autorización | De los **13 endpoints nuevos de este módulo**: **2 autorizados por la cookie del desafío** (mecanismo nuevo, `permisos.md §C.4`), **5 por identidad del portador**, **6 con permiso declarado**. Más **1 en `REQ-CORE`** (`PATCH /roles/{public_id}`, permiso `rol.actualizar`). Es la primera vez que este módulo aporta permisos más allá de `bloqueo_cuenta` (`permisos.md §C.3`) |
+| Autorización | De los **9 endpoints nuevos de este módulo**: **2 autorizados por la cookie del desafío** (mecanismo nuevo, `permisos.md §C.4`), **5 por identidad del portador**, **2 con permiso declarado**. Más **1 en `REQ-CORE`** (`PATCH /roles/{public_id}`, permiso `rol.actualizar`). Es la primera vez que este módulo aporta permisos más allá de `bloqueo_cuenta` (`permisos.md §C.3`) |
 | Aislamiento | Sin cambios. Recurso de otro tenant ⇒ `404`, nunca `403` (`ADR-038 §6.4`) |
 | Idempotencia | **Ningún endpoint exige `Idempotency-Key`** (`§C.8.2`) |
 | Auditoría | `INV-003`, **sin ampliar el vocabulario** (`funcional.md §C.10`). Todo por el *observer* de 0.9, salvo `login`, que ya existía |
 | Módulo desactivado | No aplica: ninguna ruta lleva `module-enabled` (`RN-AUTH-35`, `CA-AUTH-145`) |
-| Límite de tasa | Los tres anónimos y los dos que envían correo, por IP y por sujeto. `operacion.md §C.6` |
-| OpenAPI | Los 14 en `apps/api/openapi/paths/auth.yaml`; el `PATCH` de roles en `core.yaml`, que es de quien es el recurso |
+| Límite de tasa | Los anónimos y los de alta/regeneración, por IP y por sujeto. `operacion.md §C.6` |
+| OpenAPI | Los 9 en `apps/api/openapi/paths/mfa.yaml`; el `PATCH` de roles en `core.yaml`, que es de quien es el recurso |
 
 ### C.1.1 Tipo de error nuevo: **uno**
 
@@ -662,18 +664,15 @@ Los errores de §2 se conservan **literalmente**: `401` genérico e indistinguib
 {
   "public_id": "01JD7...",
   "method": "totp",
-  "available_methods": ["totp", "email"],
-  "destination_masked": null,
+  "available_methods": ["totp"],
   "expires_at": "2026-08-26T10:35:00Z",
-  "attempts_remaining": 5,
-  "deliveries_remaining": 3,
-  "recovery_codes_available": true
+  "has_unused_recovery_codes": true
 }
 ```
 
-- `destination_masked` solo se informa en los métodos de entrega (`a···z@e···e.com`) y es `null` en `totp`.
-- **`recovery_codes_available` es un booleano y no un número**: decir «te quedan 2» a alguien que aún no ha demostrado ser el titular es información de más.
+- **`has_unused_recovery_codes` es un booleano y no un número**: decir «te quedan 2» a alguien que aún no ha demostrado ser el titular es información de más.
 - **No hay ningún token, ni el `session_id`, ni el secreto, ni el código entregado** (`CA-AUTH-116`).
+- **`available_methods` en 1.3 solo puede contener `totp`**: el correo como método de entrega es `1.3b` (`§C.1`), así que hoy nunca hay más de un método entre los que ofrecer.
 
 ### C.2.1 Por qué `202` y no `401`, `403` o un `200` polimórfico
 
@@ -724,10 +723,10 @@ Completa el login superando el desafío abierto.
 Cambia el método del desafío en curso o reenvía su código.
 
 - **Permiso**: ninguno; misma autorización por cookie que el anterior.
-- **Cuerpo**: `{"method": "email"}`
-- **Respuesta `202`**: el mismo recurso del desafío de `§C.2`, actualizado.
-- **Reglas que la respuesta refleja**: `attempts_remaining` **no sube** y `expires_at` **no se mueve** (`RN-AUTH-54`). Lo que baja es `deliveries_remaining`.
-- **Errores**: `410` (sin desafío vivo), `422` (método no admitido por el tenant o no dado de alta por el usuario), `429` (límite de reenvíos, `operacion.md §C.6`), `403`/`419`.
+- **Cuerpo**: `{"method": "totp"}`
+- **Respuesta `200`**: el mismo recurso del desafío de `§C.2` (sin `destination_masked`: en 1.3 no hay ningún método de entrega dado de alta, ver `§C.1`), actualizado.
+- **Reglas que la respuesta refleja**: el contador de intentos del desafío **no se reinicia** y `expires_at` **no se mueve** (`RN-AUTH-54`).
+- **Errores**: `410` (sin desafío vivo), `422` (método no dado de alta por el usuario entre los que el tenant admite), `429` (límite de reenvíos, `operacion.md §C.6`), `403`/`419`.
 
 ---
 
@@ -747,31 +746,28 @@ Mi estado de MFA.
     { "public_id": "01JD7...", "method": "totp", "confirmed_at": "2026-03-01T09:12:00Z",
       "last_used_at": "2026-08-26T07:41:00Z", "is_preferred": true }
   ],
-  "recovery_codes_remaining": 7,
-  "allowed_methods": ["totp"],
-  "obligation": {
-    "obligated": true,
+  "unused_recovery_codes_count": 7,
+  "mfa": {
     "enrolled": true,
+    "obligated": true,
     "enforced": false,
     "grace_deadline_at": null,
-    "days_remaining": null,
-    "exempt_until": null,
-    "required_by_roles": ["administrador_centro"]
+    "days_remaining": null
   }
 }
 ```
 
 - **`factors` solo lista los confirmados** (`RN-AUTH-59`). Un alta a medias no es un factor y no aparece.
-- **`required_by_roles` lleva los `code` de los roles que lo exigen**, no solo un booleano: sin eso, la pantalla solo puede decir «no puedes desactivarlo» y el usuario no sabe por qué.
+- **`mfa` es el mismo bloque que `GET /me`/`POST /auth/session` (`§C.6`)**, repetido aquí para que la pantalla de `/cuenta/seguridad` no tenga que pedir dos recursos.
 - **Nunca contiene el secreto, ni un hash, ni un código** (`CA-AUTH-109`).
 - **Errores**: `401`.
 
 ### `POST /api/v1/auth/mfa-enrollments`
 
-Inicia el alta de un factor. **No lo activa.**
+Inicia el alta de un factor. **No lo activa.** **En 1.3, `method` solo admite `totp`** — el correo como método es `1.3b` (`§C.1`); el cuerpo lo declara `email`/`sms` como valores de forma válidos (para no romper el cliente cuando `1.3b` llegue), pero el servidor los rechaza con `422` hoy, sea o no el tenant quien los admita.
 
 - **Cuerpo**: `{"method": "totp"}`
-- **Respuesta `201`**, con `Location` al alta:
+- **Respuesta `201`**:
 
 ```json
 {
@@ -779,16 +775,14 @@ Inicia el alta de un factor. **No lo activa.**
   "method": "totp",
   "secret": "JBSWY3DPEHPK3PXP",
   "otpauth_uri": "otpauth://totp/Colegio%20Ficticio:ana.perez%40example.com?secret=JBSWY3DPEHPK3PXP&issuer=Colegio%20Ficticio&algorithm=SHA1&digits=6&period=30",
-  "expires_at": "2026-08-26T10:40:00Z",
-  "destination_masked": null
+  "expires_at": "2026-08-26T10:40:00Z"
 }
 ```
 
 - **`secret` y `otpauth_uri` salen aquí y en ningún otro sitio nunca más** (`RN-AUTH-55`). Una segunda llamada crea un alta **nueva** con un secreto **nuevo**; no reexpone el anterior.
 - **`secret` en texto es obligatorio, no opcional**: es el único camino para quien no puede escanear un QR, y sin él la pantalla no cumple WCAG 2.2 AA (`funcional.md §C.11`).
 - **El servidor no devuelve imagen**: el QR lo pinta la SPA a partir de `otpauth_uri` (`OPEN-AUTH-20`).
-- En `email`, `secret` y `otpauth_uri` son `null`, `destination_masked` viene informado y el código **se encola** (`INV-012`).
-- **Errores**: `401`; `422` (método no admitido por el tenant, o ya hay un factor confirmado de ese método); `429`.
+- **Errores**: `401`; `422` (método no implementado en 1.3, no admitido por el tenant, o ya hay un factor confirmado de ese método); `429`.
 
 ### `POST /api/v1/auth/mfa-factors`
 
@@ -799,14 +793,16 @@ Confirma el alta y activa el factor de verdad.
 
 ```json
 {
-  "public_id": "01JD7...",
-  "method": "totp",
-  "confirmed_at": "2026-08-26T10:33:00Z",
+  "factor": {
+    "public_id": "01JD7...",
+    "method": "totp",
+    "confirmed_at": "2026-08-26T10:33:00Z"
+  },
   "recovery_codes": ["H7K2M-9PQR4", "…"]
 }
 ```
 
-- **`recovery_codes` aparece solo si se han generado** en esta llamada, es decir, solo si era el primer factor confirmado del usuario (`funcional.md §C.4.3`). En los siguientes, la clave no está.
+- **`recovery_codes` aparece solo si se han generado** en esta llamada, es decir, solo si era el primer factor confirmado del usuario (`funcional.md §C.4.3`); en los siguientes es `null`.
 - **Es la única vez que los códigos salen del servidor.** La pantalla tiene que decirlo antes de que el usuario cierre el diálogo.
 - **Errores**: `401`; `422` (código incorrecto — el alta sobrevive y se consume un intento); `410` (alta inexistente, caducada, de otro usuario o con los intentos agotados, cuerpo idéntico); `429`.
 
@@ -831,50 +827,41 @@ Regenera el juego de códigos de respaldo.
 
 - **Cuerpo**: `{"current_password": "···"}`
 - **Respuesta `201`**: `{"recovery_codes": ["…"]}`. Los anteriores dejan de funcionar en el acto.
-- **Errores**: `401`; `422` (contraseña); `409` (el usuario no tiene ningún factor confirmado — no hay nada que respaldar); `429`.
+- **Errores**: `401`; `422` (contraseña ausente o incorrecta); `429`.
 
 ---
 
 ## C.5 Administración
 
-Los cinco declaran permiso. Todos responden `404` con **cuerpo idéntico** ante un recurso de otro tenant (`ADR-038 §6.4`) y `403` sin permiso.
+Los dos declaran permiso. Los dos responden `404` con **cuerpo idéntico** ante un recurso de otro tenant (`ADR-038 §6.4`) y `403` sin permiso.
+
+**`GET /mfa-compliance/users` (listado individualizado) y los tres de `/mfa-exemptions` (excepción temporal nominal) NO se entregan en 1.3** — `§C.1`. Se documentarán en su propia sección cuando `1.3b` los entregue.
 
 ### `GET /api/v1/mfa-compliance`
 
-Estado de cumplimiento **y** vista previa, en el mismo endpoint. `REQ-AUTH-003` pide las dos cosas y son la misma consulta con y sin hipótesis.
+Estado de cumplimiento **y** vista previa de un rol, en el mismo endpoint. `REQ-AUTH-003` pide las dos cosas y son la misma consulta con y sin hipótesis (`funcional.md §C.1.1` punto 9, `CA-AUTH-136`).
 
 - **Permiso**: `mfa.leer`
-- **Parámetros de simulación** (opcionales, van juntos): `role={public_id}` y `mfa_required={true|false}`
-- **Respuesta `200`**:
+- **Parámetros**: `role={public_id}` (**obligatorio**) y `mfa_required={0|1|true|false}` (opcional)
+- **Respuesta `200`**, sin `mfa_required` en la consulta (estado real del rol):
 
 ```json
 {
-  "totals": { "obligated": 34, "enrolled": 21, "pending": 11, "past_deadline": 2, "exempt": 1 },
-  "by_role": [
-    { "role": { "public_id": "01J…", "code": "administrador_centro", "name": "Administrador de centro" },
-      "mfa_required": true, "users": 3, "enrolled": 3 }
-  ],
-  "simulation": {
-    "role": { "public_id": "01J…", "code": "docente" },
-    "mfa_required": true,
-    "newly_obligated": 42,
-    "obligated_after": 76
-  }
+  "role": { "public_id": "01J…", "code": "administrador_centro" },
+  "mfa_required": true,
+  "preview": false,
+  "users_total": 3,
+  "users_enrolled": 3,
+  "users_obligated": 0,
+  "users_in_grace": 0,
+  "users_enforced": 0,
+  "users_exempt": 0
 }
 ```
 
-- **`simulation` es `null` sin parámetros**, y **la llamada con parámetros no modifica nada**: es una consulta hipotética (`CA-AUTH-136`).
-- Es lo que 1.5 consumirá desde el editor de roles para pintar *«este cambio obligará a 42 usuarios más»* antes de guardar.
-
-### `GET /api/v1/mfa-compliance/users`
-
-Quiénes son. El requisito pide el estado *«consultable por el administrador: usuarios obligados, inscritos y pendientes»*, y eso es una lista, no un contador.
-
-- **Permiso**: `mfa.leer`
-- **Filtros**: `state=obligated|enrolled|pending|past_deadline|exempt`
-- **Paginación**: por página, como el resto de listados de administración (`ADR-038 §4`)
-- **Respuesta `200`**: colección `{"data": [...], "meta": {...}}` con `user` (público, nombre, correo), `state`, `grace_deadline_at`, `enrolled_methods` y `required_by_roles`.
-- **Nunca** incluye secretos, hashes ni número de códigos restantes de nadie.
+- **Con `mfa_required` en la consulta**, la misma forma pero `preview: true`: `users_enrolled`/`users_obligated` reflejan la hipótesis (cuántos **quedarían** obligados si el rol pasara a tener ese valor), `users_in_grace`/`users_enforced` van siempre a `0` (no hay obligación real que clasificar en gracia o vencida sobre algo que no se ha guardado), y **no se escribe nada** (`CA-AUTH-136`).
+- Es lo que 1.5 consumirá desde el editor de roles para pintar *«este cambio obligará a N usuarios más»* antes de guardar.
+- Consulta **por rol**, no un `totals` del centro entero: cada llamada acota explícitamente `role`, para que el coste de la consulta sea el de un rol, no el de toda la población.
 
 ### `POST /api/v1/mfa-resets`
 
@@ -890,21 +877,8 @@ Restablece el MFA de un usuario (`REQ-AUTH-003`, «recuperación»).
 | `422` | `urn:pge:error:validation` | `reason` ausente o de menos de 10 caracteres (`RN-AUTH-66`) |
 | `403` | `urn:pge:error:forbidden` | **El administrador es el propio sujeto** (`RN-AUTH-67`). Es distinto de no tener permiso, y se distingue en el mensaje |
 | `404` | `urn:pge:error:not-found` | Usuario inexistente o de otro tenant |
-| `409` | `urn:pge:error:conflict` | El usuario no tiene ningún factor. No es un error de datos: no hay nada que restablecer |
 
-**Efecto** (`funcional.md §C.4.10`): borra sus factores y códigos, **cierra todas sus sesiones** con `end_reason = 'cambio_credencial'`, escribe la fila de `mfa_resets` con el motivo, reabre la obligación con plazo completo si procede, y **encola** la notificación al afectado.
-
-### `GET` · `POST` · `DELETE /api/v1/mfa-exemptions[/{public_id}]`
-
-Excepción temporal nominal.
-
-| Verbo | Permiso | Cuerpo / respuesta |
-|-------|---------|--------------------|
-| `GET /mfa-exemptions` | `exencion_mfa.leer` | Colección paginada. Filtro `active=true` |
-| `POST /mfa-exemptions` | `exencion_mfa.crear` | `{"user": "01J…", "reason": "…", "expires_at": "2026-09-15T00:00:00Z"}` ⇒ `201` |
-| `DELETE /mfa-exemptions/{public_id}` | `exencion_mfa.eliminar` | `204`. Revoca; **la fila se conserva** con `revoked_at`/`revoked_by` |
-
-Errores propios del `POST`: `422` si falta `expires_at`, si está en el pasado o si supera `AUTH_MFA_MAX_EXEMPTION_DAYS` (`RN-AUTH-68`); `422` si `reason` es corto; `403` si el administrador es el propio sujeto (`RN-AUTH-67`); `409` si ya hay una excepción vigente para ese usuario.
+**Efecto** (`funcional.md §C.4.10`): borra sus factores y códigos (incluidos altas sin confirmar), **cierra todas sus sesiones** con `end_reason = 'cambio_credencial'`, escribe la fila de `mfa_resets` con el motivo, reabre la obligación con plazo completo si procede, y **encola** la notificación al afectado. No hay `409`: un usuario sin ningún factor sigue siendo un restablecimiento válido (`factors_removed: 0` en la traza), no un error.
 
 ---
 
@@ -930,7 +904,7 @@ El grupo `security` de §6 gana `mfa_allowed_methods` y `mfa_grace_period_days`.
 
 - **Permiso**: `configuracion.leer` / `configuracion.actualizar`. **Sin permiso propio**, por el mismo argumento con el que §6 gobernó `session_timeout_minutes` (`permisos.md §4.1`).
 - **Validación** (`INV-010`): array no vacío, **`totp` obligatorio**, **`sms` rechazado** con mensaje explícito que dice que no hay proveedor (`RN-AUTH-69`), y `mfa_grace_period_days` entre 1 y 90.
-- **Efecto colateral que hay que documentar en la pantalla**: quitar un método **invalida los factores existentes de ese método** y reabre la obligación de sus titulares con plazo completo (`funcional.md §C.4.12`). La respuesta del `PATCH` incluye `affected_users` para que la interfaz pueda avisar **antes**, con el mismo espíritu que la vista previa del rol.
+- **Efecto colateral que hay que documentar en la pantalla**: quitar un método **invalida los factores existentes de ese método** y reabre la obligación de sus titulares con plazo completo (`funcional.md §C.4.12`). Esto ocurre **de forma asíncrona**, vía el listener `ReconcileMfaAllowedMethodsChange` sobre `TenantSettingsUpdated` (`INV-012`): la respuesta del `PATCH` es el `TenantSettingsResource` normal, **sin ningún recuento de usuarios afectados** — a diferencia de `PATCH /roles/{public_id}`, este endpoint no tiene modo de vista previa en 1.3.
 
 ### `GET /api/v1/me` y el `200` de `POST /auth/session` — bloque `mfa`
 
@@ -966,16 +940,14 @@ Es lo que sostiene *«avisos en cada acceso»* del requisito **sin endpoint nuev
 | 19 | `DELETE /auth/mfa-factors/{public_id}` | Identidad | **1.3** |
 | 20 | `POST /auth/mfa-recovery-codes` | Identidad | **1.3** |
 | 21 | `GET /mfa-compliance` | `mfa.leer` | **1.3** |
-| 22 | `GET /mfa-compliance/users` | `mfa.leer` | **1.3** |
-| 23 | `POST /mfa-resets` | `mfa.eliminar` | **1.3** |
-| 24 | `GET /mfa-exemptions` | `exencion_mfa.leer` | **1.3** |
-| 25 | `POST /mfa-exemptions` | `exencion_mfa.crear` | **1.3** |
-| 26 | `DELETE /mfa-exemptions/{public_id}` | `exencion_mfa.eliminar` | **1.3** |
+| 22 | `POST /mfa-resets` | `mfa.eliminar` | **1.3** |
 | — | `PATCH /roles/{public_id}` | `rol.actualizar` | **1.3, en `REQ-CORE`** |
 
 **Modificados sin romper contrato**: `POST /auth/session` (añade `202`), `GET /me` y `PATCH /tenant/settings` (añaden campos).
 
-**Trece endpoints nuevos en `REQ-AUTH` más uno en `REQ-CORE`.** La superficie del módulo pasa de 13 a 26 en un solo paso, y **la superficie anónima pasa de 6 a 8** (los dos del desafío no son anónimos del todo —exigen una sesión con desafío vivo— pero son alcanzables sin autenticación y se protegen como tales). Es el dato que más pesa en `OPEN-AUTH-24`.
+**Nueve endpoints nuevos en `REQ-AUTH` más uno en `REQ-CORE`.** La superficie del módulo pasa de 13 a 22 en este paso, y **la superficie anónima pasa de 6 a 8** (los dos del desafío no son anónimos del todo —exigen una sesión con desafío vivo— pero son alcanzables sin autenticación y se protegen como tales). Es el dato que más pesa en `OPEN-AUTH-24`.
+
+`GET /mfa-compliance/users` y los tres de `/mfa-exemptions` (§C.16, `OPEN-AUTH-24`) **no están en esta tabla porque no se han construido en 1.3**: quedan para `1.3b`, junto con el método `email` como segundo factor.
 
 ---
 
@@ -987,7 +959,7 @@ Es lo que sostiene *«avisos en cada acceso»* del requisito **sin endpoint nuev
 
 ### C.8.2 Sin `Idempotency-Key`, otra vez
 
-Ninguno de los 14. Los tres del desafío tienen su propia protección contra repetición —el desafío se consume— y los de autoservicio son operaciones que un usuario ejecuta desde una pantalla. Los de administración son los únicos discutibles: un doble envío de `POST /mfa-resets` haría dos restablecimientos. **El segundo es inofensivo** (no quedan factores que borrar; devuelve `409`) y escribiría una fila de traza de más, que es preferible a una de menos. Mismo criterio que §9.3 y `§B.7.2`.
+Ninguno de los nueve. Los dos del desafío tienen su propia protección contra repetición —el desafío se consume— y los de autoservicio son operaciones que un usuario ejecuta desde una pantalla. Los de administración son los únicos discutibles: un doble envío de `POST /mfa-resets` haría dos restablecimientos. **El segundo es inofensivo** (no quedan factores que borrar; sigue respondiendo `204`, con `factors_removed: 0` en la traza) y escribiría una fila de traza de más, que es preferible a una de menos. Mismo criterio que §9.3 y `§B.7.2`.
 
 ### C.8.3 Un `DELETE` con cuerpo
 
@@ -1003,7 +975,9 @@ Se elige el cuerpo, y se anota como cosa a verificar en el despliegue real detr�
 
 ### C.8.5 Enumerados
 
-`method` (`totp`, `email`, `sms`), `state` de cumplimiento (cinco valores) y `trigger` de obligación (cinco valores) viajan como **códigos estables en castellano o en inglés técnico según ya usa cada tabla**, nunca traducidos (`ADR-038 §7.3`). El cliente **debe** tener rama por defecto: `sms` puede aparecer el día que exista proveedor sin que la SPA cambie.
+`method` (`totp`, `email`, `sms`) viaja como **código estable en inglés técnico**, nunca traducido (`ADR-038 §7.3`). En 1.3 el servidor solo confirma factores `totp` — `email` y `sms` se validan como valores de enumerado pero cualquier intento de inscripción con ellos responde `422` (§C.1, deferred a `1.3b`) — y el cliente **debe** tener rama por defecto: los otros dos pueden aparecer el día que existan sin que la SPA cambie.
+
+`trigger` de obligación (`MfaObligationTrigger`, cinco valores: `rol_modificado`, `rol_asignado`, `metodo_retirado`, `restablecimiento`, `exencion_vencida`) es **interno**: sostiene `user_mfa_obligations.trigger` para trazabilidad pero **no se expone en ningún endpoint** de 1.3. `exencion_vencida` existe ya en el enumerado porque el modelo de datos es compartido con `1.3b`, pero ningún flujo de este paso lo produce.
 
 ---
 

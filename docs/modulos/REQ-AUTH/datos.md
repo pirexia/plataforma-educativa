@@ -615,7 +615,7 @@ Restricciones e índices:
 
 ## C.6 `user_mfa_exemptions` — excepción temporal nominal
 
-Entidad `MfaExemption`. Tabla de tenant ordinaria, con `public_id` porque se expone (`DELETE /mfa-exemptions/{public_id}`).
+Entidad `MfaExemption`. Tabla de tenant ordinaria, con `public_id` **para cuando se exponga**: `1.3` crea el esquema y lo consulta (`MfaPolicy::hasLiveExemption()`, paso 1 de `resolve()`, `RN-AUTH-61`) porque la condición de exención tiene que existir desde el primer día para que «último factor utilizable» se calcule bien, pero **los endpoints `GET`/`POST`/`DELETE /mfa-exemptions[/{public_id}]` que la administran son `1.3b`** (`OPEN-AUTH-24`, `api.md §C.1`). Sin ellos, la tabla existe pero nadie puede escribir una fila salvo por consola — documentado así para que no se lea como un hueco de datos.
 
 | Columna | Tipo | Nulo | Descripción |
 |---------|------|------|-------------|
