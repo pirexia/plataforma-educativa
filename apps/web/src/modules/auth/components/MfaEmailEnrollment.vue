@@ -1,26 +1,27 @@
 <script setup lang="ts">
 /**
- * Alta y confirmación de un factor TOTP (funcional.md §C.4.1/§C.4.3,
- * api.md §C.4). Panel autónomo, sin `AppLayout`, que reutilizan las dos
- * pantallas que lo necesitan: `/cuenta/seguridad` (AccountSecurityView) y
- * `/cuenta/seguridad/obligatorio` (MfaEnrollmentWallView) — es
- * literalmente "la misma alta" en las dos (`funcional.md §C.11`).
+ * Alta y confirmación de un factor «código por correo» (funcional.md
+ * §D.4.1, api.md §D.2). Hermano de `MfaTotpEnrollment.vue`: mismo patrón
+ * de fases y el mismo endpoint de confirmación (`POST /auth/mfa-factors`
+ * ramifica por el método del alta), pero la respuesta del alta no trae
+ * nada verificable (`RN-AUTH-75`) — solo el destino enmascarado y dos
+ * caducidades distintas: la del código (`code_expires_at`, la que importa
+ * para la cuenta atrás y para saber si hay que empezar de nuevo) y la del
+ * alta en sí (`expires_at`), que hoy coinciden por configuración pero son
+ * dos plazos independientes (`funcional.md §D.4.1` punto 4).
  *
- * No decide nada de sesión ni de navegación: solo emite `enrolled` cuando
- * el factor queda confirmado y el usuario ha reconocido explícitamente
- * los códigos de respaldo (si los hubo). La vista que lo embebe decide
- * qué pasa después.
+ * Reutilizan este componente `/cuenta/seguridad` (`AccountSecurityView`) y
+ * el muro (`MfaEnrollmentWallView`), igual que con TOTP.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useT } from '@/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import QrCode from '@/components/QrCode.vue'
 import RecoveryCodesReveal from './RecoveryCodesReveal.vue'
 import { confirmMfaFactor, createMfaEnrollment } from '../api'
 import { apiErrorStatus, fieldErrors, retryAfterSeconds } from '../composables/formErrors'
-import type { MfaEnrollmentTotp } from '../types'
+import type { MfaEnrollmentEmail } from '../types'
 
 const props = withDefaults(defineProps<{ autoStart?: boolean }>(), { autoStart: false })
 const emit = defineEmits<{ enrolled: [] }>()
@@ -30,7 +31,7 @@ const t = useT()
 type Phase = 'idle' | 'starting' | 'enrolling' | 'confirming' | 'recovery-codes'
 
 const phase = ref<Phase>('idle')
-const enrollment = ref<MfaEnrollmentTotp | null>(null)
+const enrollment = ref<MfaEnrollmentEmail | null>(null)
 const code = ref('')
 const codeInputEl = ref<InstanceType<typeof Input> | null>(null)
 const errorMessage = ref<string | null>(null)
@@ -54,12 +55,15 @@ onBeforeUnmount(() => {
   clearInterval(tickHandle)
 })
 
+// funcional.md §D.4.1 punto 4: la cuenta atrás y el "ha caducado" se
+// calculan sobre `code_expires_at` — es la caducidad que de verdad bloquea
+// la confirmación (CA-AUTH-149), no `expires_at` del alta.
 const secondsRemaining = computed(() => {
   if (!enrollment.value) {
     return null
   }
 
-  const diff = Math.floor((new Date(enrollment.value.expires_at).getTime() - now.value) / 1000)
+  const diff = Math.floor((new Date(enrollment.value.code_expires_at).getTime() - now.value) / 1000)
 
   return Math.max(diff, 0)
 })
@@ -89,7 +93,7 @@ async function startEnrollment(): Promise<void> {
   errorMessage.value = null
 
   try {
-    enrollment.value = await createMfaEnrollment('totp')
+    enrollment.value = await createMfaEnrollment('email')
     code.value = ''
     codeErrors.value = []
     phase.value = 'enrolling'
@@ -99,6 +103,8 @@ async function startEnrollment(): Promise<void> {
   }
 }
 
+// funcional.md §D.4.1: no hay endpoint de reenvío para el alta — volver a
+// empezar pide un alta nueva, que invalida la anterior (RN-AUTH-76).
 function cancelEnrollment(): void {
   enrollment.value = null
   code.value = ''
@@ -129,12 +135,14 @@ async function confirmCode(): Promise<void> {
     const status = apiErrorStatus(err)
 
     if (status === 410) {
-      errorMessage.value = t('auth.mfa.enrollment.expired')
+      errorMessage.value = t('auth.mfa.emailEnrollment.expired')
       enrollment.value = null
       phase.value = 'idle'
       return
     }
 
+    // api.md §D.2: un código caducado responde 422, igual que uno
+    // incorrecto, y consume un intento (RN-AUTH-59, CA-AUTH-149).
     codeErrors.value = fieldErrors(err, 'code')
     if (codeErrors.value.length === 0) {
       errorMessage.value = mfaErrorMessage(err)
@@ -156,7 +164,11 @@ function mfaErrorMessage(err: unknown): string {
   const status = apiErrorStatus(err)
 
   if (status === 422) {
-    return t('auth.mfa.enrollment.notAllowed')
+    return t('auth.mfa.emailEnrollment.notAllowed')
+  }
+
+  if (status === 409) {
+    return t('auth.mfa.emailEnrollment.alreadyEnrolled')
   }
 
   if (status === 429) {
@@ -173,17 +185,17 @@ function mfaErrorMessage(err: unknown): string {
 <template>
   <div class="flex flex-col gap-4">
     <div v-if="phase === 'idle'">
-      <p class="text-muted-foreground mb-3 text-sm">{{ t('auth.mfa.enrollment.intro') }}</p>
+      <p class="text-muted-foreground mb-3 text-sm">{{ t('auth.mfa.emailEnrollment.intro') }}</p>
       <p v-if="errorMessage" role="alert" class="text-destructive mb-3 text-sm">
         {{ errorMessage }}
       </p>
       <Button type="button" @click="startEnrollment">
-        {{ t('auth.mfa.enrollment.start') }}
+        {{ t('auth.mfa.emailEnrollment.start') }}
       </Button>
     </div>
 
     <div v-else-if="phase === 'starting'" role="status" class="text-muted-foreground text-sm">
-      {{ t('auth.mfa.enrollment.starting') }}
+      {{ t('auth.mfa.emailEnrollment.starting') }}
     </div>
 
     <form
@@ -192,38 +204,27 @@ function mfaErrorMessage(err: unknown): string {
       novalidate
       @submit.prevent="confirmCode"
     >
-      <p class="text-sm">{{ t('auth.mfa.enrollment.scanIntro') }}</p>
-
-      <div class="flex justify-center">
-        <QrCode
-          v-if="enrollment"
-          :value="enrollment.otpauth_uri"
-          :label="t('auth.mfa.enrollment.qrLabel')"
-          :module-size="6"
-        />
-      </div>
-
       <div class="flex flex-col gap-1.5">
-        <Label>{{ t('auth.mfa.enrollment.secretLabel') }}</Label>
-        <p class="text-muted-foreground text-xs">{{ t('auth.mfa.enrollment.secretHint') }}</p>
+        <Label>{{ t('auth.mfa.emailEnrollment.destinationLabel') }}</Label>
+        <!-- D.9: el destino enmascarado se muestra como texto seleccionable, nunca como imagen. -->
         <p
           class="border-border bg-muted select-all rounded-lg border px-3 py-2 font-mono text-sm break-all"
         >
-          {{ enrollment?.secret }}
+          {{ enrollment?.destination_masked }}
         </p>
       </div>
 
       <p v-if="expired" role="alert" class="text-destructive text-sm">
-        {{ t('auth.mfa.enrollment.expired') }}
+        {{ t('auth.mfa.emailEnrollment.expired') }}
       </p>
       <p v-else class="text-muted-foreground text-xs">
-        {{ t('auth.mfa.enrollment.expiresIn', { time: formattedCountdown }) }}
+        {{ t('auth.mfa.emailEnrollment.expiresIn', { time: formattedCountdown }) }}
       </p>
 
       <div class="flex flex-col gap-1.5">
-        <Label for="mfa-enrollment-code">{{ t('auth.mfa.enrollment.codeLabel') }}</Label>
+        <Label for="mfa-email-enrollment-code">{{ t('auth.mfa.emailEnrollment.codeLabel') }}</Label>
         <Input
-          id="mfa-enrollment-code"
+          id="mfa-email-enrollment-code"
           ref="codeInputEl"
           v-model="code"
           type="text"
@@ -252,12 +253,12 @@ function mfaErrorMessage(err: unknown): string {
         <Button type="submit" :disabled="phase === 'confirming' || expired">
           {{
             phase === 'confirming'
-              ? t('auth.mfa.enrollment.confirming')
-              : t('auth.mfa.enrollment.confirm')
+              ? t('auth.mfa.emailEnrollment.confirming')
+              : t('auth.mfa.emailEnrollment.confirm')
           }}
         </Button>
         <Button type="button" variant="outline" @click="cancelEnrollment">
-          {{ t('auth.mfa.enrollment.cancel') }}
+          {{ t('auth.mfa.emailEnrollment.cancel') }}
         </Button>
       </div>
     </form>

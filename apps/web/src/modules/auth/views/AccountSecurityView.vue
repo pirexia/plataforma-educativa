@@ -24,6 +24,7 @@ import {
   fieldErrors,
   retryAfterSeconds,
 } from '../composables/formErrors'
+import MfaEmailEnrollment from '../components/MfaEmailEnrollment.vue'
 import MfaTotpEnrollment from '../components/MfaTotpEnrollment.vue'
 import RecoveryCodesReveal from '../components/RecoveryCodesReveal.vue'
 import type { MfaStatus } from '../types'
@@ -44,6 +45,22 @@ const dateFormatter = computed(
 function formatDate(value: string): string {
   return dateFormatter.value.format(new Date(value))
 }
+
+// funcional.md §D.9: el bloque de alta por correo solo aparece si el
+// tenant lo admite (`allowed_methods`) y el usuario no tiene ya un factor
+// `email` confirmado; el mismo criterio, por método, decide TOTP — con
+// dos métodos posibles, "ya tengo un factor" deja de ser "tengo alguno" y
+// pasa a ser "tengo este" (funcional.md §D.1.1 punto 6, coexistencia).
+const hasTotpFactor = computed(
+  () => status.value?.factors.some((factor) => factor.method === 'totp') ?? false,
+)
+const hasEmailFactor = computed(
+  () => status.value?.factors.some((factor) => factor.method === 'email') ?? false,
+)
+const showTotpEnrollment = computed(() => !hasTotpFactor.value)
+const showEmailEnrollment = computed(
+  () => (status.value?.allowed_methods.includes('email') ?? false) && !hasEmailFactor.value,
+)
 
 async function load(): Promise<void> {
   loading.value = true
@@ -240,6 +257,17 @@ async function logoutFromHere(): Promise<void> {
           {{ t('auth.mfa.security.graceBanner', { days: status.mfa.days_remaining ?? 0 }) }}
         </p>
 
+        <!-- funcional.md §D.9: aviso de excepción viva con su caducidad,
+             sostenido por `mfa.exempt_until` sin enviar ningún correo
+             (§D.4.10). -->
+        <p
+          v-if="status.mfa.exempt_until"
+          role="status"
+          class="border-border bg-muted mb-4 rounded-lg border px-3 py-2 text-sm"
+        >
+          {{ t('auth.mfa.security.exemptBanner', { date: formatDate(status.mfa.exempt_until) }) }}
+        </p>
+
         <section class="mb-6">
           <h2 class="mb-2 text-sm font-semibold">{{ t('auth.mfa.security.factorsTitle') }}</h2>
 
@@ -256,6 +284,9 @@ async function logoutFromHere(): Promise<void> {
               <div class="flex items-center justify-between gap-2">
                 <div>
                   <span class="font-medium">{{ t(`auth.mfa.method.${factor.method}`) }}</span>
+                  <span v-if="factor.destination_masked" class="text-muted-foreground">
+                    · {{ factor.destination_masked }}</span
+                  >
                   <span v-if="factor.is_preferred" class="text-muted-foreground">
                     · {{ t('auth.mfa.security.preferred') }}</span
                   >
@@ -327,7 +358,10 @@ async function logoutFromHere(): Promise<void> {
             </li>
           </ul>
 
-          <MfaTotpEnrollment v-if="status.factors.length === 0" @enrolled="onEnrolled" />
+          <div v-if="showTotpEnrollment || showEmailEnrollment" class="flex flex-col gap-6">
+            <MfaTotpEnrollment v-if="showTotpEnrollment" @enrolled="onEnrolled" />
+            <MfaEmailEnrollment v-if="showEmailEnrollment" @enrolled="onEnrolled" />
+          </div>
         </section>
 
         <section v-if="status.factors.length > 0">

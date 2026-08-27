@@ -118,6 +118,20 @@
         "notAllowed": "This method isn't available at your centre.",
         "activatedTitle": "Second factor activated."
       },
+      "emailEnrollment": {
+        "intro": "Receive a one-time code by email, at the address you sign in with.",
+        "start": "Activate email code",
+        "starting": "Preparing enrolment…",
+        "destinationLabel": "A code has been sent to",
+        "expired": "This code has expired. Start again.",
+        "expiresIn": "Expires in {time}",
+        "codeLabel": "6-digit code received by email",
+        "confirm": "Confirm code",
+        "confirming": "Confirming…",
+        "cancel": "Cancel",
+        "notAllowed": "This method isn't available at your centre.",
+        "alreadyEnrolled": "You already have an active email factor."
+      },
       "recoveryCodes": {
         "title": "Recovery codes",
         "onceWarning": "These codes are shown only once. Save them somewhere safe: they're the only way in if you lose access to your authenticator app.",
@@ -148,19 +162,22 @@
         "confirmYes": "Confirm",
         "confirmCancel": "Cancel",
         "recoveryCodesRegenerated": "A new set of recovery codes has been generated.",
-        "logout": "Sign out"
+        "logout": "Sign out",
+        "exemptBanner": "You're not required to use a second factor until {date}."
       },
       "wall": {
         "title": "Activate your second factor",
         "reason": "Your role requires a second sign-in factor and the deadline to activate it has passed. Complete it to continue; you can't access the rest of the platform until you do.",
         "completed": "Second factor activated. You can now continue.",
         "continue": "Continue",
-        "logout": "Sign out"
+        "logout": "Sign out",
+        "methodSelectorLabel": "Choose how you want to receive the second factor"
       }
     },
     "mfaChallenge": {
       "title": "Verify your identity",
       "intro": "Enter the code from your authenticator app to finish signing in.",
+      "introDelivery": "We've sent a code to {destination}.",
       "methodSelectorLabel": "Second factor method",
       "codeLabel": "6-digit code",
       "clockHint": "If the code keeps failing, check the clock on your device.",
@@ -169,6 +186,7 @@
       "submitting": "Verifying…",
       "resend": "Resend code",
       "resending": "Resending…",
+      "resendLimitAlternatives": "You can use another of your methods or a recovery code.",
       "useRecoveryCode": "Use a recovery code",
       "useCodeInstead": "Use the app code instead",
       "recoveryCodeLabel": "Recovery code",

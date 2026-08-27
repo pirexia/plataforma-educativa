@@ -118,6 +118,20 @@
         "notAllowed": "Diese Methode ist an deinem Standort nicht verfügbar.",
         "activatedTitle": "Zweiter Faktor aktiviert."
       },
+      "emailEnrollment": {
+        "intro": "Erhalte einen Einmalcode per E-Mail an die Adresse, mit der du dich anmeldest.",
+        "start": "E-Mail-Code aktivieren",
+        "starting": "Registrierung wird vorbereitet…",
+        "destinationLabel": "Ein Code wurde gesendet an",
+        "expired": "Dieser Code ist abgelaufen. Beginne erneut.",
+        "expiresIn": "Läuft ab in {time}",
+        "codeLabel": "6-stelliger Code aus deiner E-Mail",
+        "confirm": "Code bestätigen",
+        "confirming": "Wird bestätigt…",
+        "cancel": "Abbrechen",
+        "notAllowed": "Diese Methode ist an deinem Standort nicht verfügbar.",
+        "alreadyEnrolled": "Du hast bereits einen aktiven E-Mail-Faktor."
+      },
       "recoveryCodes": {
         "title": "Wiederherstellungscodes",
         "onceWarning": "Diese Codes werden nur einmal angezeigt. Bewahre sie an einem sicheren Ort auf: Sie sind der einzige Weg zum Zugang, falls du den Zugriff auf deine Authenticator-App verlierst.",
@@ -148,19 +162,22 @@
         "confirmYes": "Bestätigen",
         "confirmCancel": "Abbrechen",
         "recoveryCodesRegenerated": "Ein neuer Satz Wiederherstellungscodes wurde erzeugt.",
-        "logout": "Abmelden"
+        "logout": "Abmelden",
+        "exemptBanner": "Der zweite Faktor wird bis {date} nicht von dir verlangt."
       },
       "wall": {
         "title": "Aktiviere deinen zweiten Faktor",
         "reason": "Deine Rolle erfordert einen zweiten Anmeldefaktor, und die Frist zur Aktivierung ist abgelaufen. Schließe sie ab, um fortzufahren; du hast bis dahin keinen Zugriff auf den Rest der Plattform.",
         "completed": "Zweiter Faktor aktiviert. Du kannst jetzt fortfahren.",
         "continue": "Weiter",
-        "logout": "Abmelden"
+        "logout": "Abmelden",
+        "methodSelectorLabel": "Wähle, wie du den zweiten Faktor erhalten möchtest"
       }
     },
     "mfaChallenge": {
       "title": "Bestätige deine Identität",
       "intro": "Gib den Code aus deiner Authenticator-App ein, um die Anmeldung abzuschließen.",
+      "introDelivery": "Wir haben einen Code an {destination} gesendet.",
       "methodSelectorLabel": "Methode des zweiten Faktors",
       "codeLabel": "6-stelliger Code",
       "clockHint": "Falls der Code weiterhin fehlschlägt, prüfe die Uhrzeit deines Geräts.",
@@ -169,6 +186,7 @@
       "submitting": "Wird geprüft…",
       "resend": "Code erneut senden",
       "resending": "Wird erneut gesendet…",
+      "resendLimitAlternatives": "Du kannst eine andere deiner Methoden oder einen Wiederherstellungscode verwenden.",
       "useRecoveryCode": "Wiederherstellungscode verwenden",
       "useCodeInstead": "Stattdessen den App-Code verwenden",
       "recoveryCodeLabel": "Wiederherstellungscode",

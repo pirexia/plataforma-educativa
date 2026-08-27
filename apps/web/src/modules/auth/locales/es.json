@@ -118,6 +118,20 @@
         "notAllowed": "Este método no está disponible en tu centro.",
         "activatedTitle": "Segundo factor activado."
       },
+      "emailEnrollment": {
+        "intro": "Recibe un código de un solo uso por correo electrónico, a la dirección con la que accedes.",
+        "start": "Activar código por correo",
+        "starting": "Preparando el alta…",
+        "destinationLabel": "Se ha enviado un código a",
+        "expired": "Este código ha caducado. Vuelve a empezar.",
+        "expiresIn": "Caduca en {time}",
+        "codeLabel": "Código de 6 dígitos recibido por correo",
+        "confirm": "Confirmar código",
+        "confirming": "Confirmando…",
+        "cancel": "Cancelar",
+        "notAllowed": "Este método no está disponible en tu centro.",
+        "alreadyEnrolled": "Ya tienes un factor de correo activo."
+      },
       "recoveryCodes": {
         "title": "Códigos de respaldo",
         "onceWarning": "Estos códigos solo se muestran una vez. Guárdalos en un lugar seguro: son la única forma de entrar si pierdes el acceso a tu aplicación de autenticación.",
@@ -148,19 +162,22 @@
         "confirmYes": "Confirmar",
         "confirmCancel": "Cancelar",
         "recoveryCodesRegenerated": "Se ha generado un juego nuevo de códigos de respaldo.",
-        "logout": "Cerrar sesión"
+        "logout": "Cerrar sesión",
+        "exemptBanner": "No se te exige el segundo factor hasta el {date}."
       },
       "wall": {
         "title": "Activa tu segundo factor",
         "reason": "Tu rol exige un segundo factor de acceso y el plazo para activarlo ha vencido. Complétalo para continuar; no puedes acceder al resto de la plataforma hasta hacerlo.",
         "completed": "Segundo factor activado. Ya puedes continuar.",
         "continue": "Continuar",
-        "logout": "Cerrar sesión"
+        "logout": "Cerrar sesión",
+        "methodSelectorLabel": "Elige cómo quieres recibir el segundo factor"
       }
     },
     "mfaChallenge": {
       "title": "Verifica tu identidad",
       "intro": "Introduce el código de tu aplicación de autenticación para completar el inicio de sesión.",
+      "introDelivery": "Te hemos enviado un código a {destination}.",
       "methodSelectorLabel": "Método del segundo factor",
       "codeLabel": "Código de 6 dígitos",
       "clockHint": "Si el código sigue fallando, comprueba la hora de tu dispositivo.",
@@ -169,6 +186,7 @@
       "submitting": "Verificando…",
       "resend": "Reenviar código",
       "resending": "Reenviando…",
+      "resendLimitAlternatives": "Puedes usar otro método de los tuyos o un código de respaldo.",
       "useRecoveryCode": "Usar un código de respaldo",
       "useCodeInstead": "Usar el código de la aplicación en su lugar",
       "recoveryCodeLabel": "Código de respaldo",

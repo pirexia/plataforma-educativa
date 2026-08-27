@@ -79,30 +79,64 @@ export interface MfaChallenge {
   destination_masked?: string | null
 }
 
-/** api.md §C.4 `GET /auth/mfa`: un factor confirmado. Un alta a medias nunca aparece aquí (RN-AUTH-59). */
+/**
+ * api.md §C.4 `GET /auth/mfa`: un factor confirmado. Un alta a medias
+ * nunca aparece aquí (RN-AUTH-59). `destination_masked` (api.md §D.3.1)
+ * solo viene informado en los métodos de entrega — ausente, no `null`,
+ * en `totp`.
+ */
 export interface MfaFactorSummary {
   public_id: PublicId
   method: MfaMethod
   confirmed_at: string
   last_used_at: string | null
   is_preferred: boolean
+  destination_masked?: string
 }
 
-/** api.md §C.4 `GET /auth/mfa`: mi estado de MFA completo. */
+/**
+ * api.md §D.3.1 `GET /auth/mfa`: mi estado de MFA completo. 1.3b añade
+ * `allowed_methods` (lo que el tenant admite, para ofrecer el correo solo
+ * si procede) y `mfa.exempt_until` — este último **solo existe aquí**, no
+ * en el bloque `mfa` compartido de `GET /me` (`MfaBlock`), por eso no se
+ * amplía ese tipo (`api.md §D.3.1`: "exempt_until solo aparece aquí").
+ */
 export interface MfaStatus {
+  allowed_methods: MfaMethod[]
   factors: MfaFactorSummary[]
   unused_recovery_codes_count: number
-  mfa: MfaBlock
+  mfa: MfaBlock & { exempt_until: string | null }
 }
 
-/** api.md §C.4 `POST /auth/mfa-enrollments`, respuesta `201`. */
-export interface MfaEnrollment {
+/**
+ * api.md §C.4 `POST /auth/mfa-enrollments`, respuesta `201` para `totp`:
+ * el secreto y la URI otpauth salen del servidor una sola vez
+ * (RN-AUTH-55).
+ */
+export interface MfaEnrollmentTotp {
   public_id: PublicId
-  method: MfaMethod
+  method: 'totp'
   secret: string
   otpauth_uri: string
   expires_at: string
 }
+
+/**
+ * api.md §D.2 `POST /auth/mfa-enrollments`, respuesta `201` para `email`:
+ * **no** hay nada verificable que devolver (RN-AUTH-75) — ni secreto ni
+ * código —, solo el destino enmascarado y las dos caducidades (la del
+ * código y la del alta, distintas aunque hoy coincidan por configuración).
+ */
+export interface MfaEnrollmentEmail {
+  public_id: PublicId
+  method: 'email'
+  destination_masked: string
+  code_expires_at: string
+  expires_at: string
+}
+
+/** api.md §C.4/§D.2 `POST /auth/mfa-enrollments`, respuesta `201`, discriminada por `method`. */
+export type MfaEnrollment = MfaEnrollmentTotp | MfaEnrollmentEmail
 
 /**
  * api.md §C.4 `POST /auth/mfa-factors`, respuesta `201`.

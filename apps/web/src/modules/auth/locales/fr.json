@@ -118,6 +118,20 @@
         "notAllowed": "Cette méthode n'est pas disponible dans votre établissement.",
         "activatedTitle": "Second facteur activé."
       },
+      "emailEnrollment": {
+        "intro": "Recevez un code à usage unique par e-mail, à l'adresse avec laquelle vous vous connectez.",
+        "start": "Activer le code par e-mail",
+        "starting": "Préparation de l'inscription…",
+        "destinationLabel": "Un code a été envoyé à",
+        "expired": "Ce code a expiré. Recommencez.",
+        "expiresIn": "Expire dans {time}",
+        "codeLabel": "Code à 6 chiffres reçu par e-mail",
+        "confirm": "Confirmer le code",
+        "confirming": "Confirmation en cours…",
+        "cancel": "Annuler",
+        "notAllowed": "Cette méthode n'est pas disponible dans votre établissement.",
+        "alreadyEnrolled": "Vous avez déjà un facteur e-mail actif."
+      },
       "recoveryCodes": {
         "title": "Codes de secours",
         "onceWarning": "Ces codes ne s'affichent qu'une seule fois. Conservez-les en lieu sûr : c'est le seul moyen de vous connecter si vous perdez l'accès à votre application d'authentification.",
@@ -148,19 +162,22 @@
         "confirmYes": "Confirmer",
         "confirmCancel": "Annuler",
         "recoveryCodesRegenerated": "Un nouveau jeu de codes de secours a été généré.",
-        "logout": "Se déconnecter"
+        "logout": "Se déconnecter",
+        "exemptBanner": "Le second facteur ne vous est pas exigé jusqu'au {date}."
       },
       "wall": {
         "title": "Activez votre second facteur",
         "reason": "Votre rôle exige un second facteur de connexion et le délai pour l'activer est dépassé. Complétez-le pour continuer ; vous ne pouvez pas accéder au reste de la plateforme tant que ce n'est pas fait.",
         "completed": "Second facteur activé. Vous pouvez continuer.",
         "continue": "Continuer",
-        "logout": "Se déconnecter"
+        "logout": "Se déconnecter",
+        "methodSelectorLabel": "Choisissez comment recevoir le second facteur"
       }
     },
     "mfaChallenge": {
       "title": "Vérifiez votre identité",
       "intro": "Saisissez le code de votre application d'authentification pour terminer la connexion.",
+      "introDelivery": "Nous avons envoyé un code à {destination}.",
       "methodSelectorLabel": "Méthode du second facteur",
       "codeLabel": "Code à 6 chiffres",
       "clockHint": "Si le code continue d'échouer, vérifiez l'heure de votre appareil.",
@@ -169,6 +186,7 @@
       "submitting": "Vérification en cours…",
       "resend": "Renvoyer le code",
       "resending": "Renvoi en cours…",
+      "resendLimitAlternatives": "Vous pouvez utiliser une autre de vos méthodes ou un code de secours.",
       "useRecoveryCode": "Utiliser un code de secours",
       "useCodeInstead": "Utiliser plutôt le code de l'application",
       "recoveryCodeLabel": "Code de secours",
