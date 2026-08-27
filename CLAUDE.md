@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.1.2** · 2026-08-18 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.1.3** · 2026-08-27 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -77,6 +77,8 @@ Frases prohibidas: "¡Excelente idea!", "Tienes toda la razón" como apertura re
 4. Deja el repositorio en estado compilable y con tests en verde.
 
 **Este cierre no espera a que lo pidas.** En cuanto el propio sistema avise de que la cuota se agota (aviso de "usage limit approaching" u otro equivalente), ejecútalo sin que haga falta que lo digas tú: termina el paso atómico en curso (no empieces uno nuevo), aplica los cuatro puntos anteriores, y programa un aviso para retomar cuando la cuota se restaure. La hora de reset **no está en tu contexto** (la app cliente la muestra en su propia interfaz, no como texto de sistema): pregúntasela al usuario, salvo que ya te la haya dado en la conversación. Mecanismo concreto en el skill `cierre-de-sesion`.
+
+**Relanzar un subagente `implementer` (o cualquier subagente de ejecución) tras un fallo o un corte por cuota no es licencia para decidir alcance.** Continuar un trabajo a medias no autoriza a recortar, ampliar, fusionar o reinterpretar lo que la especificación ya aprobada dice — ni siquiera para "simplificar" algo que parece redundante o para acelerar el cierre del paso. El subagente relanzado sigue la especificación al pie de la letra, exactamente igual que si la hubiera empezado él desde cero; si el trabajo restante no está claro en la especificación o parece contradecirla, para y repórtalo (regla fundamental, sección 0), no lo decide por su cuenta. Quien relanza (la sesión orquestadora) es responsable de contrastar lo entregado contra la especificación antes de darlo por bueno, precisamente porque una continuación es el punto donde más fácil es que se cuele una decisión no autorizada sin que nadie la note a tiempo. Caso real que motiva esta norma: un `implementer` relanzado tras un corte de cuota recortó por su cuenta un endpoint entero del alcance ya aprobado (`GET /mfa-compliance/users`, 1.3/`REQ-AUTH-003`, 2026-08-27) agrupándolo por error con algo que sí estaba diferido — el hallazgo solo se detectó en la revisión posterior.
 
 ---
 
