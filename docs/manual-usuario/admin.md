@@ -1,6 +1,6 @@
 # Manual de administración
 
-> Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre lo que ya tiene código detrás: el registro de auditoría (paso 0.9) y las cuentas bloqueadas y el tiempo de sesión (paso 1.2). El resto de secciones del manual de Administrador de Centro (usuarios, roles, módulos contratados) llegan con `REQ-BO` (paso 1.6) y las pantallas restantes de `REQ-CORE` (1.1, `OPEN-CORE-02`, con 1.8).
+> Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre lo que ya tiene código detrás: el registro de auditoría (paso 0.9), las cuentas bloqueadas y el tiempo de sesión (paso 1.2), y la autenticación en dos pasos por rol (paso 1.3). El resto de secciones del manual de Administrador de Centro (usuarios, roles, módulos contratados) llegan con `REQ-BO` (paso 1.6) y las pantallas restantes de `REQ-CORE` (1.1, `OPEN-CORE-02`, con 1.8).
 
 ## Cuentas bloqueadas
 
@@ -17,6 +17,42 @@ El listado de cuentas bloqueadas se filtra por estado (vigente o ya levantado) y
 ### Qué es
 
 Cuánto tiempo puede estar una persona sin actividad en la aplicación antes de que su sesión se cierre sola por seguridad (entre 5 minutos y 8 horas). Es un valor único para todo el centro, no por persona ni por rol: se configura junto con el resto de opciones de seguridad del centro, y se aplica a toda sesión nueva que se abra después del cambio — no cierra de golpe las que ya estaban abiertas con el valor anterior.
+
+## Autenticación en dos pasos (MFA)
+
+### Qué es
+
+La autenticación en dos pasos (o «segundo factor», MFA) añade, además de la contraseña, un código de un solo uso que cambia cada 30 segundos y que solo genera la aplicación de autenticación del propio dispositivo de la persona (o, si el centro lo activa más adelante, un código enviado por correo). Como administrador del centro puedes hacerla obligatoria para determinados roles, consultar quién la tiene activada y quién no, y restablecerla cuando alguien pierde el acceso a su dispositivo.
+
+### Hacer obligatorio el segundo factor para un rol
+
+Desde la pantalla de roles, cada rol tiene un interruptor de «segundo factor obligatorio». Al activarlo, todas las personas que tengan ese rol pasan a estar obligadas a configurar su segundo factor **en los siete días siguientes** (plazo de gracia, configurable por el centro); durante esos días verán un aviso en cada acceso con los días que les quedan. Pasado el plazo sin haberlo configurado, la persona sigue pudiendo entrar con su contraseña, pero llega a una pantalla de la que no puede salir hasta darse de alta el segundo factor — no pierde el acceso a la aplicación, pero no puede usar ninguna otra pantalla hasta completarlo.
+
+Los roles **Administrador de centro** y **Soporte de la plataforma** llevan el segundo factor obligatorio activado por defecto desde que existe el producto, aunque hasta ahora no tenía ningún efecto. Si tu centro está actualizando a una versión que ya lo aplica, las personas con esos dos roles empezarán a ver el aviso de plazo el día del cambio, sin que hayas tenido que activar nada tú.
+
+Desactivar el interruptor no borra el segundo factor de nadie que ya lo tenga configurado: simplemente deja de exigirse a quien todavía no lo tenía.
+
+### Consultar quién cumple
+
+Hay dos vistas de cumplimiento, ambas de solo lectura:
+
+- **Resumen por rol**: cuántas personas de un rol tienen el segundo factor activado, cuántas están dentro del plazo de gracia y cuántas ya lo tienen exigible sin haberlo configurado. Sirve también para simular el efecto de activar la obligación en un rol **antes** de activarla de verdad, sin cambiar nada todavía.
+- **Listado individualizado**: el nombre y el correo de cada persona, con su estado de cumplimiento. Es información sensible a propósito restringida — dice exactamente a quién le falta el segundo factor, que es también decir a quién sería más fácil atacar — así que solo la ven quienes tienen el permiso específico de MFA, no cualquiera que pueda consultar el listado general de usuarios del centro.
+
+### Restablecer el segundo factor de una persona
+
+Si alguien pierde su dispositivo (o el acceso a los códigos de respaldo que se le entregaron al activarlo), puedes restablecer su segundo factor desde tu panel de administración: la persona vuelve a quedar sin segundo factor configurado, con un plazo de gracia completo desde ese momento si su rol lo exige.
+
+**Antes de restablecerlo, verifica su identidad.** No es un trámite opcional ni una casilla que se marca sin más — es la única defensa contra que alguien se haga pasar por otra persona para quitarle el segundo factor y entrar en su lugar. Verifícala por uno de estos dos caminos:
+
+1. **En persona**: pide su documento de identidad y compruébalo contra el registro del centro.
+2. **A distancia**, cuando no sea posible en persona: por un canal **distinto** del que se está intentando recuperar — por ejemplo, una videollamada mostrando el documento de identidad, o una llamada al número de teléfono que **ya** tenías registrado del centro (nunca a un número que la persona te dé en ese mismo momento: eso no verifica nada).
+
+Un correo pidiendo el restablecimiento, una llamada entrante sin cotejar el número, o «reconocer la voz» **no son verificación válida** — precisamente porque el correo o el teléfono de esa persona pueden ser lo que está comprometido.
+
+Al restablecer, el sistema te pide un motivo (mínimo 10 caracteres) que queda guardado junto con tu nombre y la fecha. Describe también **cómo verificaste la identidad**, no solo por qué lo pierde — por ejemplo «presencial, DNI cotejado, perdió el móvil» en vez de solo «perdió el móvil» — porque es el único registro de que la verificación ocurrió. La persona afectada recibe una notificación automática de que su segundo factor se ha restablecido, y todas sus sesiones abiertas se cierran en el acto.
+
+**No puedes restablecer tu propio segundo factor**, tengas el permiso que tengas: si pudieras, cualquiera con ese permiso podría quitarse a sí mismo la obligación en cualquier momento. Si pierdes tu propio dispositivo, necesitas que otro administrador de centro te lo restablezca a ti siguiendo el mismo procedimiento. Si tu centro solo tiene un administrador de centro y ese es quien pierde el acceso, no hay salida desde la propia aplicación — contacta con soporte de la plataforma.
 
 ## Registro de auditoría
 
