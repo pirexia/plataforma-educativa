@@ -603,6 +603,21 @@ Amplía §9. Los característicos de este paso, con su síntoma real:
 
 **Y la trampa de §9 que sigue aplicando**, repetida porque este paso la roza: la marca de última actividad se lee del *payload*, **nunca** de `sessions.last_activity`.
 
+### C.9.1 Procedimiento de restablecimiento de MFA: verificación de identidad
+
+`funcional.md §C.4.10` punto 3 exige *«verificación previa de identidad»* antes de `POST /mfa-resets`, y deja explícito que es **un procedimiento humano, no una casilla en un formulario**. Esto es ese procedimiento — el mismo texto va también en el manual de administrador (`docs/manual-usuario/admin.md`).
+
+**Antes de restablecer el MFA de alguien, quien tiene `mfa.eliminar` verifica su identidad por uno de estos dos caminos:**
+
+1. **Presencial.** La persona se presenta con un documento de identidad válido y quien la atiende la reconoce o coteja el documento contra el registro del centro (`usuario.leer`).
+2. **Remota.** Cuando no es posible en persona (ausencia, docencia a distancia), la verificación se hace por un canal **distinto** del que se está intentando recuperar: por ejemplo, una videollamada mostrando el documento de identidad, o una llamada al número de teléfono **ya registrado** en el centro (nunca a un número que la persona proporciona en ese momento, porque eso no verifica nada).
+
+**Lo que no cuenta como verificación**, y hay que decirlo porque es la tentación fácil bajo presión: un correo pidiendo el restablecimiento (el correo puede estar comprometido, que es justamente el escenario contra el que protege el MFA), una llamada entrante sin cotejar el número contra el registro, o «reconocer la voz».
+
+**Qué queda como constancia**: el `reason` de `POST /mfa-resets` (`RN-AUTH-66`, mínimo 10 caracteres) debe describir **qué verificación se hizo**, no solo el motivo de la pérdida — por ejemplo *«presencial, DNI cotejado, perdió el móvil»*, no solo *«perdió el móvil»*. Es el único registro de que la verificación ocurrió, y el motivo se conserva en auditoría (`datos.md §C.11`).
+
+**Si nadie en el centro puede verificar** (un centro con un solo administrador que es quien necesita el restablecimiento): no hay salida por la aplicación (`RN-AUTH-67`, `§C.11.1`). Es intervención directa sobre la base de datos, y es la razón por la que `§C.11.1` exige comprobar que cada tenant tiene más de un `administrador_centro` antes del despliegue.
+
 ---
 
 ## C.10 Impacto en copias de seguridad y restauración
