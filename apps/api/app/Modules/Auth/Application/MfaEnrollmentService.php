@@ -3,12 +3,15 @@
 namespace App\Modules\Auth\Application;
 
 use App\Models\User;
+use App\Modules\Auth\Domain\DestinationMasker;
 use App\Modules\Auth\Domain\Events\MfaFactorConfirmed;
+use App\Modules\Auth\Domain\MfaDeliveryCode;
 use App\Modules\Auth\Domain\MfaMethod;
 use App\Modules\Auth\Domain\MfaVerifier;
 use App\Modules\Auth\Domain\Models\MfaFactor;
 use App\Modules\Auth\Domain\Models\UserMfaObligation;
 use App\Modules\Auth\Domain\TotpProvisioner;
+use App\Modules\Auth\Infrastructure\Jobs\SendMfaEnrollmentCodeEmail;
 use App\Modules\Auth\Infrastructure\Jobs\SendMfaFactorActivatedEmail;
 use App\Modules\Core\Domain\TenantSettingsReader;
 use App\Support\Api\ApiException;
@@ -18,17 +21,15 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 
 /**
- * funcional.md §C.4.1. Alta y confirmación de un factor. `1.3` solo
- * implementa TOTP (`§C.16`: el correo como segundo factor es `1.3b`) —
- * `self::IMPLEMENTED_METHODS` es la frontera explícita de esa partición,
- * independiente de lo que el tenant admita en `mfa_allowed_methods`
- * (`RN-AUTH-69`): un método puede estar permitido por el centro y no
- * estar todavía implementado por el producto.
+ * funcional.md §C.4.1, §D.4.1. Alta y confirmación de un factor. TOTP y
+ * `email` están implementados (`self::IMPLEMENTED_METHODS`); `sms` sigue
+ * sin proveedor (`RN-AUTH-69`, `OPEN-AUTH-18`) — un método puede estar
+ * permitido por el centro y no estar todavía implementado por el producto.
  */
 final class MfaEnrollmentService
 {
     /** @var list<MfaMethod> */
-    private const IMPLEMENTED_METHODS = [MfaMethod::Totp];
+    private const IMPLEMENTED_METHODS = [MfaMethod::Totp, MfaMethod::Email];
 
     public function __construct(
         private readonly TotpProvisioner $totpProvisioner,
@@ -39,7 +40,7 @@ final class MfaEnrollmentService
     ) {}
 
     /**
-     * `POST /auth/mfa-enrollments`, `§C.4.1` puntos 2-4.
+     * `POST /auth/mfa-enrollments`, `§C.4.1` puntos 2-4, `§D.4.1`.
      *
      * @throws ApiException validation() (422) o conflict() (409)
      */
@@ -57,6 +58,13 @@ final class MfaEnrollmentService
             throw ApiException::conflict('auth.validation.mfa_factor_already_confirmed');
         }
 
+        return $method->requiresDelivery()
+            ? $this->startDelivery($user, $method)
+            : $this->startTotp($user, $method);
+    }
+
+    private function startTotp(User $user, MfaMethod $method): MfaEnrollmentResult
+    {
         $secret = $this->totpProvisioner->generateSecret();
         $ttlMinutes = (int) config('auth-local.mfa.enrollment_ttl_minutes');
 
@@ -71,6 +79,47 @@ final class MfaEnrollmentService
         $uri = $this->totpProvisioner->buildOtpAuthUri($secret, $user->email, $tenant->name ?? 'Plataforma');
 
         return new MfaEnrollmentResult($factor, $secret, $uri);
+    }
+
+    /**
+     * `RN-AUTH-75`, `RN-AUTH-76`, `RN-AUTH-77`. El destino es siempre
+     * `users.email` en el momento del envío, nunca se copia a la fila del
+     * factor, y no se devuelve nada verificable en la respuesta.
+     */
+    private function startDelivery(User $user, MfaMethod $method): MfaEnrollmentResult
+    {
+        // RN-AUTH-76: como mucho un alta sin confirmar viva por (usuario,
+        // método de entrega) — abrir una nueva invalida la anterior.
+        MfaFactor::query()
+            ->where('user_id', $user->id)
+            ->where('method', $method)
+            ->whereNull('confirmed_at')
+            ->delete();
+
+        $code = MfaDeliveryCode::generate();
+        $codeTtlMinutes = (int) config('auth-local.mfa.code_ttl_minutes');
+        $enrollmentTtlMinutes = (int) config('auth-local.mfa.enrollment_ttl_minutes');
+
+        $factor = MfaFactor::create([
+            'user_id' => $user->id,
+            'method' => $method,
+            'code_hash' => MfaDeliveryCode::hash($code),
+            'code_expires_at' => now()->addMinutes($codeTtlMinutes),
+            'expires_at' => now()->addMinutes($enrollmentTtlMinutes),
+        ]);
+
+        $tenant = Tenant::query()->find($this->tenantContext->tenantId());
+
+        SendMfaEnrollmentCodeEmail::dispatch(
+            recipientEmail: $user->email,
+            recipientGivenName: $user->person->given_name ?? '',
+            recipientLocale: $user->person->locale ?? 'es-ES',
+            tenantName: $tenant->name ?? '',
+            code: $code,
+            ttlMinutes: $codeTtlMinutes,
+        );
+
+        return new MfaEnrollmentResult($factor, null, null, DestinationMasker::maskEmail($user->email));
     }
 
     /**
@@ -93,9 +142,20 @@ final class MfaEnrollmentService
             throw ApiException::gone();
         }
 
-        $validatedStep = $this->totpVerifier->verify($factor->secret_encrypted, $code, null);
+        $validatedStep = $factor->method === MfaMethod::Totp
+            ? $this->totpVerifier->verify($factor->secret_encrypted, $code, null)
+            : null;
 
-        if ($validatedStep === null) {
+        // RN-AUTH-75, §D.4.1 punto 7: comparación en tiempo constante
+        // contra el hash del alta, y la caducidad propia del código —
+        // distinta de expires_at del alta (CA-AUTH-149).
+        $deliveryCodeValid = $factor->method->requiresDelivery()
+            && $factor->code_hash !== null
+            && hash_equals($factor->code_hash, MfaDeliveryCode::hash($code))
+            && $factor->code_expires_at !== null
+            && now()->lessThan($factor->code_expires_at);
+
+        if ($factor->method === MfaMethod::Totp ? $validatedStep === null : ! $deliveryCodeValid) {
             $this->recordFailedAttempt($factor);
 
             $errors = new ValidationErrorBag;
@@ -111,6 +171,10 @@ final class MfaEnrollmentService
         $recoveryCodesInClear = DB::transaction(function () use ($factor, $validatedStep, $user, $wasFirstConfirmedFactor): ?array {
             $factor->confirmed_at = now();
             $factor->expires_at = null;
+            // RN-AUTH-75: el código ya no tiene función en cuanto se
+            // confirma — es material vivo mientras esté.
+            $factor->code_hash = null;
+            $factor->code_expires_at = null;
             $factor->last_used_step = $validatedStep;
             $factor->last_used_at = now();
             $factor->save();

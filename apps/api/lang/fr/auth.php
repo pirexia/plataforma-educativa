@@ -21,6 +21,7 @@ return [
         'mfa_method_not_available' => 'Cette méthode de vérification n\'est pas disponible dans cet établissement.',
         'mfa_code_invalid' => 'Le code n\'est pas correct.',
         'mfa_factor_required_by_role' => 'Vous ne pouvez pas désactiver votre dernier facteur : l\'un de vos rôles exige la vérification en deux étapes.',
+        'mfa_exemption_already_live' => 'Cet utilisateur a déjà une exemption MFA en cours.',
     ],
 
     'mail' => [
@@ -63,6 +64,21 @@ return [
             'greeting' => 'Bonjour :name.',
             'body' => 'L\'un de vos codes de secours a été utilisé pour accéder à votre compte sur :tenant à la place de votre second facteur habituel.',
             'warning' => 'Si ce n\'était pas vous, contactez au plus vite l\'administration de votre établissement et vérifiez vos sessions actives.',
+        ],
+        'mfa_enrollment_code' => [
+            'subject' => 'Code pour activer la vérification en deux étapes sur :tenant',
+            'greeting' => 'Bonjour :name.',
+            'body' => 'Vous activez l\'e-mail comme vérification en deux étapes sur votre compte sur :tenant. Utilisez ce code pour le confirmer.',
+            'code' => 'Votre code : :code',
+            'expires' => 'Ce code expire dans :minutes minutes.',
+        ],
+        'mfa_challenge_code' => [
+            'subject' => 'Votre code de connexion pour :tenant',
+            'greeting' => 'Bonjour :name.',
+            'body' => 'Vous vous connectez à :tenant et avez besoin de ce code pour terminer la vérification en deux étapes.',
+            'code' => 'Votre code : :code',
+            'expires' => 'Ce code expire dans :minutes minutes.',
+            'warning' => 'Si vous n\'avez pas tenté de vous connecter, changez votre mot de passe au plus vite.',
         ],
         'new_device_login' => [
             'subject' => 'Nouvelle connexion à votre compte sur :tenant',

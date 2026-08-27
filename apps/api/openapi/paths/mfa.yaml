@@ -18,10 +18,12 @@ paths:
       operationId: createMfaEnrollment
       summary: Alta de un factor MFA (provisional, sin confirmar)
       description: >
-        funcional.md §C.4.1. Solo TOTP en 1.3 (§C.16: el correo como
-        segundo factor es 1.3b). El secreto en base32 y la URI otpauth
-        salen del servidor UNA SOLA VEZ, en esta respuesta (RN-AUTH-55).
-        Sin permiso — por identidad del portador de la cookie.
+        funcional.md §C.4.1, §D.4.1 (1.3b). TOTP y `email` implementados;
+        `sms` sigue rechazado (RN-AUTH-69, sin proveedor). El secreto en
+        base32 y la URI otpauth de TOTP, o el destino enmascarado de
+        `email`, salen del servidor UNA SOLA VEZ, en esta respuesta
+        (RN-AUTH-55/75). Sin permiso — por identidad del portador de la
+        cookie.
       tags: [Auth / MFA]
       security: [{ SessionCookie: [] }]
       requestBody:
@@ -32,7 +34,7 @@ paths:
               type: object
               required: [method]
               properties:
-                method: { type: string, enum: [totp] }
+                method: { type: string, enum: [totp, email, sms] }
       responses:
         '201':
           description: Alta provisional creada.
@@ -53,10 +55,14 @@ paths:
       operationId: createMfaFactor
       summary: Confirma un alta provisional con un código válido
       description: >
-        funcional.md §C.4.1 puntos 5-11. RN-AUTH-59: quinto intento
-        fallido, el alta queda muerta (410 a partir de entonces). Si es
-        el primer factor confirmado del usuario, devuelve también los
-        códigos de respaldo en claro (RN-AUTH-56, una sola vez).
+        funcional.md §C.4.1 puntos 5-11, §D.4.1 (1.3b). RN-AUTH-59: quinto
+        intento fallido, el alta queda muerta (410 a partir de entonces).
+        Ramifica por el método del alta: contra el secreto en TOTP,
+        contra el hash del código entregado en un método de entrega — un
+        código correcto pero caducado responde 422, igual que uno
+        incorrecto. Si es el primer factor confirmado del usuario,
+        devuelve también los códigos de respaldo en claro (RN-AUTH-56,
+        una sola vez).
       tags: [Auth / MFA]
       security: [{ SessionCookie: [] }]
       requestBody:
@@ -121,9 +127,12 @@ paths:
       operationId: getMfaStatus
       summary: Estado MFA completo del propio usuario
       description: >
-        funcional.md §C.4.3 punto 7, §C.4.8. Factores confirmados (nunca
-        el secreto), códigos de respaldo restantes y bloque de
-        obligación/gracia — la pantalla de /cuenta/seguridad (§C.11).
+        funcional.md §C.4.3 punto 7, §C.4.8, §D.2.4. Factores confirmados
+        (nunca el secreto ni ningún hash), destino enmascarado de los de
+        entrega, métodos que admite el tenant, códigos de respaldo
+        restantes, bloque de obligación/gracia y caducidad de la
+        excepción propia si la hay (1.3b, api.md §D.3.1) — la pantalla de
+        /cuenta/seguridad (§C.11).
       tags: [Auth / MFA]
       security: [{ SessionCookie: [] }]
       responses:
@@ -173,11 +182,15 @@ paths:
       operationId: createMfaChallenge
       summary: Cambia el método del desafío en curso o reenvía el código
       description: >
-        funcional.md §C.4.4.1. Sin sesión autenticada (§C.6): el titular
-        se resuelve por el session_id de la sesión anónima con el
-        desafío vivo (RN-AUTH-53), nunca por un identificador en el
-        cuerpo. No reinicia el contador de intentos ni la caducidad
-        (RN-AUTH-54).
+        funcional.md §C.4.4.1, §D.4.3 (1.3b). Sin sesión autenticada
+        (§C.6): el titular se resuelve por el session_id de la sesión
+        anónima con el desafío vivo (RN-AUTH-53), nunca por un
+        identificador en el cuerpo. No reinicia el contador de intentos
+        ni la caducidad (RN-AUTH-54). Pedir el método en el que ya se
+        está **es** el reenvío: genera un código nuevo y lo encola
+        (RN-AUTH-79); superado `AUTH_MFA_MAX_DELIVERIES` (3 por desafío)
+        responde 429 con `Retry-After`, sin generar código y sin matar el
+        desafío. Cambiar a `totp` no consume ninguna entrega.
       tags: [Auth / MFA]
       security: []
       requestBody:

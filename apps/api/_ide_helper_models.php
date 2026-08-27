@@ -651,6 +651,12 @@ namespace App\Modules\Auth\Domain\Models{
  * depender de una coincidencia). `last_used_step`/`last_used_at` no se
  * registran: cambian en cada login y no dicen nada que `login` no diga ya.
  *
+ * `code_hash`/`code_expires_at` (datos.md §D.2, 1.3b): hash SHA-256 y
+ * caducidad del código de un alta de método de entrega (`email`),
+ * distinta de `expires_at` (caducidad del alta). Se ponen a `NULL` al
+ * confirmar, en la misma transacción (`RN-AUTH-75`). `code_hash` se
+ * declara secreto a mano: el patrón global `*secret*` no cubre su nombre.
+ *
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -668,11 +674,15 @@ namespace App\Modules\Auth\Domain\Models{
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property string|null $code_hash
+ * @property \Illuminate\Support\Carbon|null $code_expires_at
  * @property-read \App\Models\User|null $user
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor onlyTrashed()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereCodeExpiresAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereCodeHash($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereConfirmationAttempts($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereConfirmedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereCreatedAt($value)

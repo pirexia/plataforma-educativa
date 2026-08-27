@@ -21,6 +21,7 @@ return [
         'mfa_method_not_available' => 'This verification method is not available at this school.',
         'mfa_code_invalid' => 'The code is not correct.',
         'mfa_factor_required_by_role' => 'You cannot disable your last factor: one of your roles requires two-step verification.',
+        'mfa_exemption_already_live' => 'This user already has a live MFA exemption.',
     ],
 
     'mail' => [
@@ -63,6 +64,21 @@ return [
             'greeting' => 'Hello, :name.',
             'body' => 'One of your backup codes was used to sign in to your account at :tenant instead of your usual second factor.',
             'warning' => 'If this was not you, contact your school administration as soon as possible and review your active sessions.',
+        ],
+        'mfa_enrollment_code' => [
+            'subject' => 'Code to turn on two-step verification at :tenant',
+            'greeting' => 'Hello, :name.',
+            'body' => 'You are turning on email as two-step verification on your account at :tenant. Use this code to confirm it.',
+            'code' => 'Your code: :code',
+            'expires' => 'This code expires in :minutes minutes.',
+        ],
+        'mfa_challenge_code' => [
+            'subject' => 'Your sign-in code for :tenant',
+            'greeting' => 'Hello, :name.',
+            'body' => 'You are signing in to :tenant and need this code to complete two-step verification.',
+            'code' => 'Your code: :code',
+            'expires' => 'This code expires in :minutes minutes.',
+            'warning' => 'If you did not try to sign in, change your password as soon as possible.',
         ],
         'new_device_login' => [
             'subject' => 'New sign-in to your account at :tenant',

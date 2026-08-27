@@ -36,6 +36,19 @@ class MfaEnrollmentsController extends Controller
         $method = MfaMethod::from($request->string('method')->value());
         $result = $this->service->start($user, $method);
 
+        // api.md §D.2: la respuesta de un método de entrega no se parece a
+        // la de TOTP a propósito — no hay nada verificable que devolver
+        // (RN-AUTH-75), solo el destino enmascarado y las dos caducidades.
+        if ($method->requiresDelivery()) {
+            return response()->json([
+                'public_id' => $result->factor->public_id,
+                'method' => $result->factor->method->value,
+                'destination_masked' => $result->destinationMasked,
+                'code_expires_at' => $result->factor->code_expires_at->toISOString(),
+                'expires_at' => $result->factor->expires_at->toISOString(),
+            ], 201);
+        }
+
         // §C.4.1 punto 4: el secreto en claro y la URI otpauth salen del
         // servidor UNA SOLA VEZ, en esta respuesta (RN-AUTH-55).
         return response()->json([
