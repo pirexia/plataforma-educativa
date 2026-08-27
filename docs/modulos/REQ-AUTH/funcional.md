@@ -1938,3 +1938,616 @@ Con `OPEN-AUTH-24` resuelto, el alcance de **esta rama** (`feature/REQ-AUTH-003-
 **Antes de implementar**: `OPEN-AUTH-19`/`20` aprobaron la *dirección* (qué tipo de dependencia), no la comprobación formal de mantenimiento/licencia/*releases* que exige `CLAUDE.md §1` para `pragmarx/google2fa` y la librería de QR. Esa comprobación, envuelta en un ADR, es tarea de `architect` (Opus) y va **antes** que `implementer` — mismo patrón que `ADR-040` en `1.2b`.
 
 **Hecha: `ADR-041`** (2026-08-26). Aprobadas `pragmarx/google2fa` `^9.1` (backend) y `uqr` `^0.1.3` (SPA); **rechazada `qrcode` (node-qrcode)** por mantenimiento parado. El ADR fija además los envoltorios que `implementer` debe crear: `App\Modules\Auth\Domain\MfaVerifier` y `TotpProvisioner`, con adaptador único `App\Modules\Auth\Infrastructure\Google2FaTotpVerifier`; y `apps/web/src/components/QrCode.vue`. Con esto, `1.3` no tiene nada pendiente antes de implementar.
+
+---
+
+# Parte D · Paso 1.3b · MFA: correo como segundo factor y excepciones temporales (`REQ-AUTH-003`)
+
+> **Estructura**: §1-§14 son el paso **1.2** (cerrado 2026-08-25). `§B.1`-`§B.14` son **1.2b** (cerrado 2026-08-26). `§C.0`-`§C.16` son **1.3** (cerrado y mezclado 2026-08-26/27, PR [#107](https://github.com/pirexia/plataforma-educativa/pull/107), commit `cd13e8a`). Esta **Parte D** (`§D.0` en adelante) es el paso **1.3b**, **pendiente de aprobación**.
+>
+> Numeración: mismo criterio que 1.2b y 1.3. Las secciones anteriores **no se tocan**. Las reglas de negocio continúan la serie única (`RN-AUTH-75` en adelante), los criterios de aceptación también (`CA-AUTH-146` en adelante, más `CA-AUTH-139`, que 1.3 dejó escrito y diferido a este paso) y las preguntas abiertas también (`OPEN-AUTH-27` en adelante).
+>
+> Fuente: `REQ-AUTH-003` (sección 5.2 del documento de requisitos), `RPERM-014`, `RPERM-007`, y las decisiones ya tomadas en `OPEN-AUTH-24` (partición 1.3/1.3b) y `OPEN-AUTH-25` (el correo se ofrece, desactivado por defecto).
+>
+> **Estado: las tres preguntas abiertas de esta parte (`OPEN-AUTH-27`, `OPEN-AUTH-28`, `OPEN-AUTH-29`) están resueltas por el usuario el 2026-08-27.** Sus decisiones están incorporadas al alcance y a las reglas; el argumento original de cada una se conserva en `§D.12` para que la decisión se entienda con su coste, no solo con su resultado.
+
+---
+
+## D.0 Antes de nada: qué existe hoy de verdad, verificado en el código
+
+Este paso **no empieza de cero**: 1.3 dejó el esquema, los enumerados y los huecos preparados a propósito. Antes de especificar nada se ha comprobado, fichero a fichero, qué hay puesto y qué no. La respuesta cambia el alcance de forma importante: **1.3b es sobre todo lógica y superficie HTTP, no modelo de datos**.
+
+| Hecho verificado | Dónde | Consecuencia para 1.3b |
+|------------------|-------|------------------------|
+| `MfaMethod` ya tiene los tres casos y `requiresDelivery()` | `app/Modules/Auth/Domain/MfaMethod.php` | El enumerado **no se toca** |
+| `user_mfa_factors.method` admite `email` por `CHECK`, y `secret_encrypted` es `NULL` obligatorio en los métodos de entrega | `2026_08_26_100100_create_user_mfa_factors_table.php` | Un factor de correo cabe en la tabla **tal cual está**… salvo por el hueco de `§D.2.1` |
+| `mfa_challenges` ya tiene `code_hash`, `code_expires_at` y `deliveries`, con `CHECK ((method='totp') = (code_hash IS NULL))` | `2026_08_26_100300_create_mfa_challenges_table.php` | **El desafío por correo no necesita ninguna migración** |
+| `tenant_settings.mfa_allowed_methods` admite `email` y lo rechaza `sms`, con el `CHECK` en el motor | `2026_08_26_100800_add_mfa_settings_to_tenant_settings.php` | `RN-AUTH-69` está implementado. 1.3b **no lo toca** |
+| `user_mfa_exemptions` existe entera: `public_id`, `reason`, `expires_at NOT NULL`, `granted_by`, `revoked_at`/`revoked_by`, único parcial de una viva por usuario, dos índices y tres `CHECK` | `2026_08_26_100500_create_user_mfa_exemptions_table.php` | **La excepción temporal no necesita migración ninguna.** Faltan los tres endpoints y la lógica |
+| El modelo `UserMfaExemption` existe, es `Auditable` con política `Full`, tiene `isLive()` y las tres relaciones | `Domain/Models/UserMfaExemption.php` | Tampoco hay que crear el modelo |
+| `MfaPolicy::hasLiveExemption()` ya se consulta en `resolve()` (paso 1) y en `materialize()`, y `MfaFactorRemovalService` la usa para `RN-AUTH-61` | `Infrastructure/EloquentMfaPolicy.php`, `Application/MfaFactorRemovalService.php` | **La excepción ya surte efecto** en cuanto exista una fila. Lo que falta es quién la escribe |
+| `MfaObligationTrigger` ya tiene el valor `exencion_vencida`, y el `CHECK` de `user_mfa_obligations.trigger` lo admite | `Domain/MfaObligationTrigger.php`, `2026_08_26_100400_…` | La reapertura de obligación **no amplía ningún enumerado** |
+| `EloquentMfaComplianceDirectory` ya cuenta `users_exempt` y ya emite filas con `state: "exempt"` | `Infrastructure/EloquentMfaComplianceDirectory.php` | El cumplimiento ya sabe de exenciones; hoy siempre da `0` porque nadie las crea |
+| `config('auth-local.mfa')` ya declara `code_ttl_minutes`, `max_deliveries` y `max_exemption_days` | `config/auth-local.php` | **No hay variables de entorno nuevas** salvo la de `§D.2.4` |
+| Los seis límites de tasa de MFA existen y están aplicados en sus controladores | `config/auth-local.php`, `Http/Controllers/Mfa*Controller.php` | Se reutilizan sin añadir ninguno |
+| `RequireMfaEnrollment` permite `auth.mfa-enrollments.store` y `auth.mfa-factors.store` | `app/Http/Middleware/RequireMfaEnrollment.php` | **El muro no cambia**: el alta por correo usa esos dos mismos endpoints |
+
+**Conclusión: el modelo de datos de 1.3b es una sola modificación aditiva de tabla** (`§D.2.1`), y todo lo demás es lógica de aplicación, tres endpoints, dos correos, pantallas y tests.
+
+### D.0.1 Dependencias no implementadas que sí condicionan el alcance
+
+| Dependencia | Estado | Qué condiciona |
+|-------------|--------|----------------|
+| **Correo transaccional** (`0.10c` / `OPEN-09`, `OPEN-AUTH-07`) | **Pendiente, sin decidir.** En desarrollo, *mailer* `log` | **Condiciona el método entero.** En producción, un tenant que active `email` como segundo factor y no tenga correo transaccional deja sin entrar a todo usuario cuyo único factor sea ese. `operacion.md §C.3` ya lo escribió y `§D.7` lo repite con la consecuencia nueva: **este paso convierte `0.10c` en bloqueante funcional del método, no solo operativo del módulo** |
+| **`1.5` (editor de roles, permisos granulares)** | **No implementado y sin especificación escrita.** No existe `docs/modulos/REQ-PERM/` ni equivalente; en `PLAN-IMPLEMENTACION.md` va después de `1.4` y `1.4b`, y está marcado *paso crítico* | **Es justo el motivo por el que la pieza 3 entra** (`OPEN-AUTH-28`, resuelta el 2026-08-27): la pantalla de administración no espera a `1.5`. `§D.1.3` |
+| **`1.7`/`1.8` (design system, layout)** | No implementados | Las pantallas de 1.3b siguen el patrón de 1.2/1.2b/1.3: autónomas, sin `AppLayout`, sin design system (`§D.9`) |
+| **Proveedor de SMS** | **Sigue sin existir** (`OPEN-AUTH-18`) | Sin cambios: `sms` sigue cerrado con guarda en el motor. 1.3b **no lo toca ni lo prepara** |
+| **Librerías nuevas** | **Ninguna.** El envío de correo usa la infraestructura del módulo (`Mail`, colas, `auth-mail`), que existe desde 1.2 | **1.3b no introduce ninguna dependencia externa** y por tanto **no necesita ADR previo** de `CLAUDE.md §1`, a diferencia de 1.3 (`ADR-041`) |
+
+### D.0.2 Contradicciones detectadas
+
+**Ninguna entre requisitos.** `REQ-AUTH-003` enumera el correo entre sus métodos y exige la excepción temporal nominal con motivo, caducidad y auditoría; nada de eso choca con `RPERM-007`/`RPERM-014`, con `RSEC-OWASP-002` ni con las invariantes de la sección 0.5.
+
+**Hubo una discrepancia entre el encargo de este paso y lo escrito en `§C.8`/`OPEN-AUTH-25`, y está resuelta.** El encargo decía que *«`OPEN-AUTH-25` fija que TOTP no se puede desactivar aunque el usuario active correo»*, mientras que lo que `§C.8` y `RN-AUTH-69` fijaron —y lo que el motor implementa— es que **el tenant** no puede quitar `totp` de `mfa_allowed_methods`. Son dos reglas distintas, con consecuencias distintas.
+
+**Decisión del usuario (2026-08-27, `OPEN-AUTH-27`): vale solo la restricción de tenant.** «TOTP no desactivable» significa exclusivamente que un centro no puede retirar `totp` de sus métodos admitidos. **No existe ninguna restricción a nivel de usuario**: quien tenga los dos factores puede retirar el TOTP y quedarse solo con el correo, si su tenant lo permite. `§D.6` recoge la regla ya cerrada y el argumento con el que se cerró.
+
+---
+
+## D.1 Alcance del paso 1.3b
+
+### D.1.1 Entra
+
+**Pieza 1 — el correo como segundo factor** (`REQ-AUTH-003`, «métodos soportados: TOTP, SMS y email»; `OPEN-AUTH-25`, aprobado el 2026-08-26):
+
+1. **Alta de un factor `email`** por el propio usuario, sobre los dos endpoints que ya existen (`POST /auth/mfa-enrollments`, `POST /auth/mfa-factors`), con entrega de un código de 6 dígitos al correo de acceso y confirmación obligatoria antes de activar (`§D.4.1`).
+2. **Verificación en el login**: apertura del desafío con entrega, cambio de método y reenvío con tope, y verificación del código (`§D.4.2`, `§D.4.3`).
+3. **Tope de entregas por desafío** (`AUTH_MFA_MAX_DELIVERIES`, 3), que 1.3 dejó configurado y sin implementar (`§D.2.3`).
+4. **Destino enmascarado** en las respuestas que lo necesitan, con una regla de enmascarado determinista y testeable (`§D.4.5`).
+5. **Dos correos nuevos** —código de desafío y código de alta—, encolados, cifrados en el *payload*, en los cuatro idiomas y sin enlace accionable (`operacion.md §D.3`).
+6. **Coexistencia con TOTP**: un usuario puede tener los dos factores; cuál se propone primero y cómo se cambia (`§D.4.2`).
+
+**Pieza 2 — excepciones temporales nominales** (`REQ-AUTH-003`, «excepción temporal nominal, con motivo, caducidad y registro de auditoría… No existe la exención permanente»):
+
+7. **Tres endpoints**: conceder, listar y revocar (`api.md §D.4`), con el recurso de permisos `exencion_mfa` (`permisos.md §D.2`).
+8. **Ciclo de vida completo**: concesión (cierra la obligación abierta), vigencia (el usuario deja de estar obligado), caducidad y revocación (reabren la obligación **con plazo completo**) (`§D.4.6`-`§D.4.9`).
+9. **Auditoría del ciclo entero por el *observer***, sin código propio y sin ampliar el vocabulario de `audit_logs` (`§D.8`).
+
+**Pieza 3 — pantalla mínima de administración de MFA** (`OPEN-AUTH-28`, **resuelta el 2026-08-27: entra, sin condición**; `§D.1.3`):
+
+10. **Ruta `/administracion/mfa`** con cuatro capacidades, todas sobre endpoints que **ya existen** —ninguna API nueva y ningún permiso nuevo por esta pieza (`permisos.md §D.6.3`)—:
+    1. **Cumplimiento**: estado agregado por rol y listado individualizado de usuarios con su estado (`GET /mfa-compliance`, `GET /mfa-compliance/users`).
+    2. **Conmutador de `mfa_required` por rol, con vista previa del impacto** antes de guardar (`PATCH /roles/{public_id}` acotado, y el mismo `GET /mfa-compliance?mfa_required=…` en modo hipótesis).
+    3. **Restablecimiento del MFA de un usuario**, con motivo obligatorio (`POST /mfa-resets`).
+    4. **Gestión de excepciones**: conceder, listar y revocar (los tres endpoints de la pieza 2).
+11. **Sin editor de roles ni nada más de `1.5`**: ni creación, ni clonación, ni edición de nombre o de concesiones, ni matriz de permisos (`§D.1.2`).
+
+**Pieza 4 — las cuatro tareas de mantenimiento de MFA que 1.3 declaró y no construyó** (`OPEN-AUTH-29`, **resuelta el 2026-08-27: entran en esta rama**; issue [#109](https://github.com/pirexia/plataforma-educativa/issues/109), severidad Media; `§D.2.2`):
+
+12. **`PurgeMfaEnrollments`** — borrado **físico** de las altas sin confirmar y vencidas, que hoy conservan un secreto TOTP cifrado sin finalidad.
+13. **`PurgeMfaFactors`** — borrado **físico** de los factores borrados lógicamente hace más de `AUTH_MFA_FACTOR_PURGE_DAYS` (30), plazo hoy configurado y no aplicado.
+14. **`PurgeMfaChallenges`** — retención de `AUTH_MFA_CHALLENGE_RETENTION_HOURS` (24) sobre los desafíos consumidos.
+15. **`MaterializeMfaObligations`** — la ejecución **horaria** que complementa al *listener* `MaterializeMfaObligationsForRole`, para que el plazo de gracia no dependa de que un trabajo encolado no se pierda.
+16. **Y `ReopenExpiredMfaExemptions`**, la quinta de la lista de `operacion.md §C.4`, que es de la pieza 2 y llega con ella (`§D.4.9`).
+17. **Las cinco, despachadas por tenant** (`RunsPerTenant`) y **registradas en el *scheduler*** con la cadencia de `operacion.md §D.4` — las purgas a diario, las dos de obligación/exención cada hora. Un trabajo escrito y no programado no purga nada.
+
+**Transversal:**
+
+18. **Pantallas de autoservicio**: el paso 2 del login gana selector de método, reenvío con cuenta atrás y destino enmascarado; `/cuenta/seguridad` y el muro ganan el alta por correo (`§D.9`).
+19. **Ampliación aditiva de `GET /auth/mfa`**: `allowed_methods` del tenant, destino enmascarado de los factores de entrega y caducidad de la excepción propia si la hay (`api.md §D.3.1`).
+20. **Tests** que referencian `REQ-AUTH-003` y los `CA-AUTH-*` de `§D.10` (`INV-015`).
+21. **Documentación** de los cinco ficheros del módulo, `SYSADMIN.md`, `RUNBOOK.md` y el manual de administración, en la misma entrega (`CLAUDE.md §6.1`).
+
+### D.1.2 No entra, y por qué
+
+| Fuera | Por qué |
+|-------|---------|
+| **Método SMS** | Sigue sin proveedor (`OPEN-AUTH-18`, `§C.7`). El `CHECK` del motor lo impide y **no se levanta**. Al cerrar 1.3b, `REQ-AUTH-003` sigue cumplido en **dos de sus tres métodos**, y hay que declararlo, no darlo por terminado |
+| **Verificación del correo de acceso antes de admitirlo como factor** | `users.email` ya está verificado por construcción: es por donde entró la invitación y por donde va la recuperación de contraseña (§4.5). No es el caso de `people.contact_phone`, que sí exigiría verificación previa (`§C.7`) |
+| **Endpoint para marcar un factor como preferido** (`is_preferred`) | La columna existe desde 1.3 y **nadie la escribe**. Con dos métodos, `pickMethod()` ya es determinista (preferido si lo hay; si no, TOTP; si no, el único) y el usuario puede cambiar de método dentro del desafío. Un endpoint de preferencia no lo pide ningún requisito. Se deja escrito como punto de extensión (`§D.11`), no se implementa |
+| **Cambiar el destino del código a un correo alternativo** | `REQ-AUTH-003` no lo pide, y un segundo factor que se entrega a una dirección editable convierte «quien controle ese campo» en «quien controle la cuenta». Es el mismo argumento de `§C.4.2`, ahora con consecuencia real |
+| **«No volver a pedir el código en este dispositivo»** | Decidido que no en 1.3 (`RN-AUTH-71`) y **no se reabre** |
+| **Notificación al usuario cuando se le concede o revoca una excepción** | `§D.4.10` lo argumenta. No está en el requisito y no es un cambio de credencial. Se dice en voz alta para que el usuario pueda pedir lo contrario |
+| **Exención por rol o por grupo** | *«Excepción temporal **nominal**»* es literal del requisito. Una exención por rol es apagar `mfa_required`, que ya tiene su interruptor (`§C.2`) |
+| **Prórroga de una excepción** (`PATCH /mfa-exemptions/{id}`) | No está en el requisito. Prorrogar es revocar y conceder de nuevo, con dos filas de auditoría en vez de una edición silenciosa — que es exactamente lo que se quiere en un mecanismo que relaja una obligación de seguridad |
+| **Editor de roles, roles personalizados, clonación con herencia de `mfa_required` (`RPERM-006`)** | Sigue siendo `1.5` íntegro, sin cambios respecto de `§C.1.2`. **La pantalla de la pieza 3 no lo adelanta**: conmuta un atributo de un rol que ya existe, que es exactamente lo que `PATCH /roles/{public_id}` acotado permite desde 1.3 (`§C.2`) |
+| **Matriz de permisos, ámbitos y vista previa de permisos efectivos en la pantalla** | `1.5`. La pantalla de la pieza 3 no muestra ni un permiso: muestra cumplimiento de MFA, el conmutador de `mfa_required`, restablecimientos y excepciones |
+| **Restricción a nivel de usuario de «no puedes quitarte el TOTP»** | **Descartada por el usuario** el 2026-08-27 (`OPEN-AUTH-27`). `§D.6` |
+
+### D.1.3 La pantalla de administración: por qué entra
+
+**Decisión del usuario (2026-08-27, `OPEN-AUTH-28`): entra en 1.3b, sin condición.** `PLAN-IMPLEMENTACION.md` la describía como *«pantalla de administración de MFA/roles **si `1.5` se retrasa**»*; los datos con los que se evaluó esa condición, y que la dieron por cumplida, son estos:
+
+- **`1.5` no tiene especificación escrita.** No existe su carpeta en `docs/modulos/`, ni un ADR suyo, ni una nota de alcance más allá de la línea del plan (*«Matriz recurso × acción × ámbito, roles personalizados, denegación por defecto, vista previa de permisos efectivos. Sección 11»*).
+- **`1.5` no es el paso siguiente.** Entre medias van `1.4` (Google) y `1.4b` (SSO institucional, etiquetado `OPUS + SONNET` porque toca el modelo de identidad). `1.5` está además marcado *⚠️ paso crítico*.
+- **Sin esta pieza, tras 1.3b habría siete endpoints de administración de MFA sin una sola pantalla**: `PATCH /roles/{public_id}`, `GET /mfa-compliance`, `GET /mfa-compliance/users`, `POST /mfa-resets` (los cuatro de 1.3) y los tres de excepciones (1.3b). Los cuatro de 1.3 se usan hoy con `curl` o consola, y así llevan desde el 2026-08-27.
+- **La excepción temporal es, precisamente, la válvula de escape operativa**: el caso que `§C.2.1` describía —un administrador sin dispositivo compatible en un centro con un solo administrador— se resuelve con una excepción. Entregarla sin interfaz significa que quien la necesita no puede usarla salvo con acceso a la consola del servidor.
+
+**El criterio con el que se decidió**, escrito para que la decisión sea reconstruible y no una preferencia:
+
+> Se incluye una pantalla mínima de administración en 1.3b **si `1.5` queda a más de un paso de distancia en el plan** —lo está: van `1.4` y `1.4b` antes, y `1.5` ni siquiera tiene especificación— **y se acepta que es provisional y la absorberán `1.5`/`1.8`**, con el mismo precedente con el que las pantallas de 1.2/1.2b/1.3 se construyeron autónomas antes del design system.
+
+Las dos condiciones se cumplen y **el usuario ha aceptado explícitamente la segunda**: esta pantalla se rehará.
+
+**Qué es «mínima»**, y es el límite que no se cruza: una ruta `/administracion/mfa` con (a) cumplimiento —agregado por rol y listado individualizado—, (b) el conmutador de `mfa_required` del rol con su vista previa de impacto, (c) el restablecimiento con motivo obligatorio, y (d) conceder, listar y revocar excepciones. **Sin editor de roles, sin creación ni clonación, sin matriz de permisos, sin ámbitos**: eso es `1.5` y no se adelanta ni «de paso».
+
+**Cuatro consecuencias de que entre**, que la implementación tiene que respetar:
+
+1. **No aporta ni un endpoint nuevo ni un permiso nuevo.** Consume los siete que existirán tras la pieza 2 (`api.md §D.5`, `permisos.md §D.6.3`). Si al construirla aparece la necesidad de un endpoint, es señal de que se está adelantando `1.5`: hay que parar y preguntar.
+2. **Es autónoma**, sin `AppLayout` ni design system (1.7) ni navegación (1.8), igual que las cuatro pantallas de 1.2/1.2b/1.3 (`§D.9`).
+3. **La SPA no decide quién entra.** La ruta se protege por lo que el servidor responde —`403` sin permiso—, no por una comprobación de rol en el cliente; el control de acceso vive en el *middleware* `permission:` (`INV-002`, `permisos.md §D.6.3`).
+4. **Los cuatro idiomas** (`INV-009`), como todo lo visible.
+
+### D.1.4 El tamaño de este paso, dicho antes de empezar
+
+Con las tres decisiones del 2026-08-27 incorporadas: **1 modificación aditiva de tabla, 3 endpoints nuevos, 6 endpoints modificados de forma aditiva, 3 permisos nuevos, 2 correos nuevos, 5 tareas de mantenimiento (1 propia y 4 recuperadas de 1.3) con su registro en el *scheduler*, 3 pantallas de autoservicio ampliadas más 1 componente nuevo, y 1 ruta de administración nueva.**
+
+Es **más de lo que era antes de las decisiones** y sigue siendo **menor que 1.3** (6 tablas, 14 endpoints, 3 pantallas, 2 dependencias externas). La comparación honesta es con 1.2b más la pantalla: sigue siendo un paso de una o dos sesiones, no de tres.
+
+**No propongo partirlo**, y lo digo explícitamente para que no haya que preguntarlo: la partición de `OPEN-AUTH-24` ya hizo su trabajo, el modelo de datos casi no se toca (`datos.md §D.1`) y las cuatro tareas recuperadas son clases pequeñas calcadas de las cinco purgas que ya existen. **Lo que sí pido es que el orden de implementación sea el de `§D.1.1`**: piezas 1 y 2 primero —que es donde está el riesgo—, pieza 4 después —que es mecánica— y la pantalla al final, porque consume todo lo anterior y es lo único que puede recortarse sin dejar el paso incoherente si la sesión se agota (`CLAUDE.md §3`: si hay que parar, se para entre piezas, no a mitad de una).
+
+---
+
+## D.2 Hallazgos sobre lo entregado en 1.3, antes de añadir nada
+
+Cuatro cosas que la revisión de este paso ha encontrado en el código de 1.3 y que **no son opinión sino desviaciones comprobables** respecto de lo que la propia documentación del módulo declara. Se listan aquí, al principio, porque **las cuatro condicionan cómo se implementa 1.3b y las cuatro entran en su alcance** (`CLAUDE.md §0`, §5).
+
+### D.2.1 `user_mfa_factors` no tiene dónde guardar el código de un alta por correo
+
+**Hallazgo.** El alta de un factor de entrega necesita persistir el hash del código enviado y su caducidad (`§C.4.2`, punto 3: *«se guarda solo su hash SHA-256… con `expires_at = ahora + AUTH_MFA_CODE_TTL_MINUTES`»*). La tabla **no tiene columna para el hash**: `secret_encrypted` está prohibido en los métodos de entrega por el `CHECK user_mfa_factors_secret_matches_method_check`, y `expires_at` es la caducidad **del alta**, no la del código, que `§C.4.2` distingue de forma explícita en `mfa_challenges` (`code_expires_at` frente a `expires_at`).
+
+**No es una contradicción de 1.3**: 1.3 solo entregó TOTP y no necesitaba esas columnas, y `datos.md §C.2` describe la tabla que 1.3 construyó, no la que 1.3b necesita. **Es el único cambio de esquema de este paso** y está especificado en `datos.md §D.2`.
+
+**Alternativas descartadas**, para que no se reabran en implementación:
+
+| Alternativa | Por qué no |
+|-------------|------------|
+| Reutilizar `mfa_challenges` para el alta, con una columna `purpose` | `§C.12` ya decidió que esa columna **no se añade hoy** (`ADR-034 OPEN-13`, no se anticipan columnas). Además el índice único de `mfa_challenges` es *un desafío vivo por sesión*: un alta y un login simultáneos en la misma sesión chocarían |
+| Guardar el hash en `secret_encrypted` | Rompe el `CHECK` del motor, y mezclar «secreto permanente cifrado» con «hash de un código de 10 minutos» en una columna es exactamente el tipo de reutilización que `datos.md §C.6.1` rechaza |
+| No persistirlo: derivar el código de `HMAC(APP_KEY, factor_id, ventana)` | Es TOTP con más pasos y sin librería, con la ventana mal calculada como riesgo (`OPEN-AUTH-19`). Y no permite el consumo de un solo uso |
+
+### D.2.2 Cinco tareas de mantenimiento declaradas en `operacion.md §C.4` no existen en el código
+
+**Hallazgo, verificado por búsqueda en todo `apps/api`:** no existe ninguna clase `PurgeMfaChallenges`, `PurgeMfaEnrollments`, `PurgeMfaFactors`, `MaterializeMfaObligations` (como trabajo programado) ni `ReopenExpiredMfaExemptions`. `PurgeAuthMaintenanceCommand` despacha cinco purgas y **ninguna es de MFA**; `routes/console.php` no programa nada de MFA. Lo único que existe es el *listener* `MaterializeMfaObligationsForRole`, que cubre el disparo por `PATCH /roles` pero **no** la ejecución horaria que `operacion.md §C.4.1` justifica con *«el disparo directo puede fallar y el plazo de gracia no puede depender de que un trabajo no se pierda»*.
+
+**Consecuencias reales, no teóricas:**
+
+1. **`PurgeMfaEnrollments` ausente**: las altas TOTP sin confirmar y ya vencidas **no se borran nunca**. Cada una guarda un secreto cifrado que ya no sirve para nada. Es material de credencial sin finalidad, retenido indefinidamente — minimización (`REQ-PRIV-*`, `datos.md §C.11`).
+2. **`PurgeMfaFactors` ausente**: las filas borradas lógicamente conservan el secreto cifrado **para siempre**, en lugar de los `AUTH_MFA_FACTOR_PURGE_DAYS` (30) que `datos.md §C.11` fija. `operacion.md §C.4.1` dice literalmente que es *«la única tabla del producto donde el borrado lógico de `INV-004` conserva una credencial viva, y por eso tiene plazo corto y propio»*. Hoy no tiene plazo ninguno.
+3. **`PurgeMfaChallenges` ausente**: crecimiento sin tope de una tabla transitoria.
+4. **`MaterializeMfaObligations` horario ausente**: si el trabajo del *listener* se pierde, el plazo de gracia de esos usuarios no arranca hasta que entren, que es justo lo que `RN-AUTH-65` y `OPEN-AUTH-22` decidieron evitar.
+
+**Severidad: Media** (`CLAUDE.md §5`: deuda que crecerá + incumplimiento de la retención documentada; y `§6.6`: código y documentación se contradicen ⇒ Media como mínimo). **No es un fallo del alcance aprobado de 1.3** —`operacion.md` las declaró y nadie las marcó como diferidas—, así que la vía correcta era issue en GitHub y decidir dónde se corrige.
+
+**Estado: issue [#109](https://github.com/pirexia/plataforma-educativa/issues/109) abierto** (severidad Media), y **decisión del usuario del 2026-08-27 (`OPEN-AUTH-29`): las cuatro se recogen en esta misma rama**, no en un `fix/` aparte. Son la **pieza 4** del alcance (`§D.1.1`, puntos 12-17), con sus criterios de aceptación propios (`CA-AUTH-170`-`CA-AUTH-174`) y su registro en el *scheduler* (`operacion.md §D.4`, `§D.4.1.1`). El issue se cierra con el mismo PR, enlazando el commit y explicando qué se hizo.
+
+**`ReopenExpiredMfaExemptions` es distinto de las otras cuatro** y conviene no confundirlas al implementar: es de excepciones, es **de 1.3b por definición** (pieza 2, `§D.4.9`) y no forma parte del issue [#109](https://github.com/pirexia/plataforma-educativa/issues/109) — aquella deuda es de 1.3, esta tarea es trabajo nuevo. Comparten cola, comando y *scheduler*, que es justo el argumento por el que se hacen a la vez.
+
+### D.2.3 `AUTH_MFA_MAX_DELIVERIES` está configurado y no se usa
+
+`config('auth-local.mfa.max_deliveries')` existe con valor 3 y **ninguna línea del código lo lee**. `MfaChallengeService::changeMethod()` incrementa `deliveries` y no lo compara con nada.
+
+**No es explotable en 1.3** porque no hay ningún método de entrega dado de alta, y `mfa_challenge_session` (3 por 10 minutos) ya acota el endpoint. **En 1.3b sí lo sería.** Se anota aquí, y no como un fallo de 1.3, porque la ausencia era inocua exactamente hasta este paso.
+
+De paso se corrige una imprecisión del mismo método: **`deliveries` se incrementa hoy también al cambiar a `totp`**, que no entrega nada. Con el tope activo eso gastaría entregas sin haber entregado.
+
+**Las dos correcciones están dentro del alcance de 1.3b, no son una nota**: son `RN-AUTH-79` y tienen **dos criterios de aceptación numerados y separados** —`CA-AUTH-157` (el tope se aplica de verdad: la cuarta entrega responde `429` sin generar código) y `CA-AUTH-158` (cambiar a `totp` no consume entrega)—, además de `CA-AUTH-175`, que comprueba que el valor **se lee de la configuración** y no está escrito a mano en el código.
+
+### D.2.4 `GET /auth/mfa` no dice qué métodos admite el tenant
+
+La pantalla de `/cuenta/seguridad` y el muro tienen que ofrecer «activar código por correo» **solo si el tenant lo admite** (`mfa_allowed_methods`). Hoy ese dato no sale por ninguna respuesta que el usuario final pueda pedir: `GET /tenant/settings` exige `configuracion.leer`, que una familia o un estudiante no tienen.
+
+Se resuelve con una **ampliación aditiva** de `GET /auth/mfa` (`api.md §D.3.1`), no con un endpoint nuevo ni relajando un permiso. Un cliente escrito contra 1.3 ignora la clave nueva (`ADR-038 §7.3`).
+
+---
+
+## D.3 Actores
+
+Sin actores nuevos. Lo que cambia es lo que puede hacer cada uno:
+
+| Actor | Qué añade 1.3b |
+|-------|----------------|
+| **Cualquier usuario autenticado** | Dar de alta un factor `email` si el tenant lo admite; elegir método y pedir reenvío en el paso 2 del login; ver hasta cuándo dura su excepción, si tiene una |
+| **Usuario en proceso de login** | Recibir el código por correo, cambiar de método y reenviar, con tope |
+| **Usuario obligado y no inscrito** | Cumplir la obligación **también** con el correo, desde el muro, sin salir de él |
+| **Usuario con excepción viva** | No está obligado mientras dure: no ve muro, ve el aviso de hasta cuándo, y **puede desactivar su factor** (`§C.4.11` punto 3, consecuencia aceptada) |
+| **Administrador de Centro** | Conceder, listar y revocar excepciones temporales nominales — y hacerlo **desde una pantalla**, junto con el cumplimiento, el conmutador de `mfa_required` y el restablecimiento, en vez de por `curl` (`§D.1.3`) |
+| **Sistema** | Reabrir la obligación cuando una excepción caduca (`ReopenExpiredMfaExemptions`), **y retirar el material de credencial que ya no tiene finalidad** con las tres purgas de la pieza 4 (`RN-AUTH-85`) |
+
+---
+
+## D.4 Flujos
+
+### D.4.1 Alta de un factor «código por correo»
+
+Amplía `§C.4.2`, que quedó escrito y sin implementar. Es el mismo par de endpoints que TOTP:
+
+1. El usuario, **autenticado**, abre `/cuenta/seguridad` (o el muro) y pide dar de alta el correo.
+2. `POST /api/v1/auth/mfa-enrollments` con `{"method": "email"}`. El servidor comprueba, **en este orden**:
+   1. que `email` está en `mfa_allowed_methods` del tenant ⇒ si no, `422` (`RN-AUTH-69`);
+   2. que el usuario **no** tiene ya un factor `email` confirmado ⇒ si lo tiene, `409` (comportamiento actual de `MfaEnrollmentService::start()`, sin cambios).
+3. **En una transacción**: se invalida el alta `email` sin confirmar que el usuario tuviera viva (`RN-AUTH-76`), se genera un código de **6 dígitos** con un generador criptográfico, se crea la fila de `user_mfa_factors` con `method = 'email'`, `secret_encrypted = NULL`, `code_hash = sha256(código)`, `code_expires_at = ahora + AUTH_MFA_CODE_TTL_MINUTES` (10) y `expires_at = ahora + AUTH_MFA_ENROLLMENT_TTL_MINUTES` (10), y **se encola** el correo (`INV-012`) al `users.email` del titular, en su idioma (`INV-009`).
+4. La respuesta `201` **no devuelve nada verificable**: `public_id` del alta, `method`, `destination_masked` y las dos caducidades. **No devuelve el código.** Devolverlo haría el segundo factor decorativo, y es el motivo por el que esta respuesta no se parece a la de TOTP (que sí devuelve el secreto, porque el secreto **es** lo que el usuario tiene que guardar).
+5. El usuario introduce el código.
+6. `POST /api/v1/auth/mfa-factors` con `{"enrollment": "<public_id>", "code": "123456"}` — **el mismo endpoint que TOTP**, que ramifica por el método del alta.
+7. El servidor compara en **tiempo constante** `sha256(código)` con `code_hash` y comprueba `code_expires_at > ahora`. Si falla ⇒ `422`, el alta sobrevive y se consume un intento (`RN-AUTH-59`, sin cambios); agotados los intentos, el alta muere y hay que empezar de nuevo.
+8. Si acierta, **en una transacción**: `confirmed_at = ahora`, `expires_at = NULL`, **`code_hash = NULL` y `code_expires_at = NULL`** (el código ya no tiene función y es material vivo mientras esté), se cierra la obligación abierta si la había, y —si el usuario no tenía ningún factor confirmado antes— se generan sus códigos de respaldo (`§C.4.3`), que salen en claro **una sola vez**.
+9. Se encola el aviso «se ha activado un segundo factor» (`§C.4.13`), que ya existe.
+10. El *observer* audita `created` y `updated` sobre `MfaFactor` (`§D.8`).
+
+**El destino es siempre `users.email`**, el correo de acceso, no `people.contact_email` (`§C.4.2`, sin cambios) y **no se copia a la fila del factor** (`RN-AUTH-77`): si el correo de acceso cambia, el factor sigue al correo nuevo, que es lo coherente con que la recuperación de contraseña haga lo mismo.
+
+**No hay endpoint de reenvío para el alta**, y es una decisión: repetir `POST /auth/mfa-enrollments` produce un alta nueva con un código nuevo e invalida la anterior, y el límite `mfa_enrollment_user` (10/hora) ya acota el abuso. Un endpoint de reenvío sería una superficie más para el mismo efecto.
+
+### D.4.2 Login en dos pasos con el correo
+
+Amplía `§C.4.4`. La apertura del desafío cambia en un punto y el resto es idéntico.
+
+**Elección del método** (`MfaChallengeService::pickMethod()`, ya implementado y sin cambios): el preferido si lo hay; si no, **TOTP gana**; si no, el único que tenga. Con `email` como único factor, se elige `email`.
+
+**Si el método requiere entrega** (`MfaMethod::requiresDelivery()`):
+
+1. Se genera el código de 6 dígitos, se guarda `code_hash` y `code_expires_at` en la fila de `mfa_challenges`, y `deliveries = 1`.
+2. **Se encola** el envío (`INV-012`). La respuesta no espera al correo: si el trabajo falla, el usuario ve la pantalla del paso 2 sin código y usa «reenviar» o un código de respaldo. **La alternativa —enviar en la petición— convierte una caída del proveedor de correo en un login colgado**, que es peor.
+3. El `202` incluye `destination_masked`, que 1.3 dejó documentado y nunca llegó a emitir (`api.md §C.3`).
+
+**Verificación** (`POST /auth/mfa-verifications`), rama nueva del paso 8 de `§C.4.4`:
+
+- **Correo**: `hash_equals(challenge.code_hash, sha256(código))` **y** `code_expires_at > ahora`. Las dos condiciones fallan igual: `401` genérico, indistinguible (`RN-AUTH-78`).
+- **Código caducado con desafío vivo ⇒ `401`, no `410`.** El desafío sigue existiendo y el usuario puede reenviar; devolver `410` le echaría al login sin necesidad. Es la única distinción entre las dos caducidades del paso 2 y por eso hay dos columnas.
+- Todo lo demás del paso 10 de `§C.4.4` es idéntico: consumo del desafío, regeneración de sesión, `login()`, auditoría, `user_sessions`, `login_attempts` con `exito` (`RN-AUTH-63`).
+- **`last_used_step` no se toca**: es de TOTP (lo impide un `CHECK`). En un factor de entrega solo se actualiza `last_used_at`.
+
+### D.4.3 Cambiar de método y reenviar, ahora con tope
+
+`POST /api/v1/auth/mfa-challenges` con `{"method": "email"}` sobre un desafío vivo. Reglas, que amplían `§C.4.4.1`:
+
+1. El método pedido tiene que ser **uno de los factores confirmados del usuario entre los que el tenant admite** ⇒ si no, `422` (ya implementado).
+2. **Si el método pedido requiere entrega**: se genera código nuevo, se guarda su hash, se encola el envío y **`deliveries + 1`**. Pedir `email` estando ya en `email` **es** el reenvío: no hay un endpoint distinto para eso.
+3. **Si el método pedido es `totp`**: se cambia el método, **no se genera nada y `deliveries` no se toca** (`RN-AUTH-79`, corrige `§D.2.3`). Además se limpian `code_hash` y `code_expires_at`, que el `CHECK ((method='totp') = (code_hash IS NULL))` exige.
+4. **Superado `AUTH_MFA_MAX_DELIVERIES` (3) ⇒ `429` con `Retry-After`**, sin generar código y sin tocar el desafío. El desafío **no muere** por esto: el usuario aún puede usar TOTP si lo tiene, o un código de respaldo.
+5. **Ni el reenvío ni el cambio de método prolongan `expires_at` ni reinician `attempts`** (`RN-AUTH-54`, sin cambios). Un código nuevo entregado a los 4 minutos y 50 segundos de un desafío de 5 minutos **caduca con el desafío**, no con sus propios 10 minutos: la pantalla tiene que mostrar la cuenta atrás del desafío, no la del código.
+
+### D.4.4 Qué pasa si el correo no sale
+
+Es el escenario que `operacion.md §C.3` anticipó y que este paso hace real:
+
+| Situación | Comportamiento |
+|-----------|----------------|
+| El trabajo de correo falla sus 3 reintentos | El usuario no recibe nada. Puede reenviar (hasta 3), cambiar a TOTP si lo tiene, o usar un código de respaldo. **No hay ningún camino que le deje entrar sin segundo factor** |
+| El tenant no tiene correo transaccional (`0.10c` sin resolver) y `email` es el único factor del usuario | **No puede entrar.** Es la consecuencia que justifica, por segunda vez y ahora operativamente, que `totp` no se pueda quitar del tenant (`RN-AUTH-69`) y que `email` esté **desactivado de fábrica** |
+| El buzón del usuario está comprometido | El segundo factor no protege (`§C.8`). No es un fallo del sistema: es lo que el centro acepta al activar el método, y el manual de administración tiene que decirlo con esas palabras |
+
+### D.4.5 Enmascarado del destino
+
+Aparece en tres sitios (`201` del alta, `202` del desafío, `200` de `GET /auth/mfa`) y necesita una regla única, determinista y testeable, porque hoy solo hay un ejemplo (`a···z@e···e.com`) y un ejemplo no es una especificación:
+
+1. Se parte la dirección por la última `@`.
+2. **Parte local**: si tiene 1 carácter ⇒ ese carácter + `···`; si tiene 2 o más ⇒ primer carácter + `···` + último carácter.
+3. **Dominio**: se separa el último punto. La etiqueta anterior se enmascara con la misma regla que la parte local; **el resto (el TLD) se conserva íntegro**. Un dominio sin punto se enmascara entero con la misma regla.
+4. El separador es `···` (U+00B7 repetido, tres veces), **con independencia de la longitud real**: repetir un punto por carácter revelaría la longitud del correo, que es información de más.
+5. El enmascarado **se calcula al presentar**, nunca se persiste.
+
+### D.4.6 Conceder una excepción temporal nominal
+
+Implementa `§C.4.11`, que 1.3 dejó escrito y explícitamente sin entregar.
+
+1. `POST /api/v1/mfa-exemptions` con `{"user": "<public_id>", "reason": "…", "expires_at": "…"}`, permiso **`exencion_mfa.crear`**.
+2. Validación en servidor (`INV-010`), toda con `422` salvo lo que se indica:
+   - `user`: `public_id` existente **en el tenant del host** (`RN-AUTH-06`, `RN-AUTH-07`); inexistente o de otro tenant ⇒ `404` con cuerpo idéntico (`ADR-038 §6.4`).
+   - `reason`: obligatorio, **mínimo 10 caracteres** (`RN-AUTH-66`, la mitad que 1.3 dejó pendiente).
+   - `expires_at`: obligatorio, **en el futuro** y **como máximo `AUTH_MFA_MAX_EXEMPTION_DAYS` (90) por delante**. El tope es de aplicación; que la caducidad **exista** lo garantiza el motor (`NOT NULL`, `datos.md §C.6`).
+   - **El solicitante no puede ser el sujeto** ⇒ `403` (`RN-AUTH-81`, extensión literal de `RN-AUTH-67`).
+   - **Si el usuario ya tiene una excepción viva** ⇒ `409`. La comprobación es explícita, **no** dejar que salte el índice único: un `500` por violación de unicidad no es una respuesta.
+3. Efecto, **en una transacción**:
+   1. se crea la fila con `granted_by` = administrador;
+   2. **se cierra la obligación abierta del usuario**, si la hay, con `resolved_at = ahora` (`RN-AUTH-82`).
+4. Respuesta `201` con el recurso de la excepción (`api.md §D.4`).
+5. El *observer* audita el `created` (`§D.8`). **Sin código de auditoría propio**: la excepción es una entidad, no un evento (`ADR-039 §5.3`).
+
+**Por qué cerrar la obligación abierta y no dejarla.** `MfaPolicy::resolve()` devuelve `NoObligado` mientras la excepción vive, así que la fila abierta no molesta *durante* la excepción. Molesta **después**: cuando caduque, `openObligation()` devolvería la fila vieja, cuyo `grace_deadline_at` ya pasó, y el usuario se encontraría el muro **sin un solo día de gracia**, en contra de `§C.4.11` punto 4 (*«la obligación vuelve con plazo de gracia completo»*). Cerrarla es lo que permite que la reapertura cree una fila nueva con plazo entero.
+
+**El coste, dicho entero**: `datos.md §C.5` describe `resolved_at` como *«cuándo la cumplió (confirmó un factor)»*, y aquí se usa para cerrar un período que **no** se cumplió. El historial sigue siendo legible porque la fila siguiente lleva `trigger = 'exencion_vencida'` y la excepción que la provocó está en su propia tabla con sus fechas. La alternativa —una columna `resolution` en `user_mfa_obligations`— es más precisa y añade una migración a un paso que solo necesitaba una; se deja anotada como extensión (`§D.11`), no se hace.
+
+**Se admite conceder una excepción a un usuario que ya tiene factor.** Es inútil hoy y útil mañana (alguien que va a perder el dispositivo, un cambio de teléfono programado), y prohibirlo obligaría a una comprobación que el requisito no pide. Consecuencia que hay que aceptar y escribir: **mientras dure, ese usuario también puede desactivar su factor** (`§C.4.11` punto 3, ya decidido en 1.3).
+
+### D.4.7 Listar excepciones
+
+`GET /api/v1/mfa-exemptions`, permiso **`exencion_mfa.leer`**. Paginado por página, como el resto de listados de administración (`ADR-038 §4.3`).
+
+- Filtros: `state` (`live`, `expired`, `revoked`; sin filtro, todas) y `user={public_id}`.
+- Cada fila lleva: `public_id`, el usuario (campos públicos: nombre, apellidos, correo), `reason`, `expires_at`, `granted_by`, `granted_at`, `revoked_at`, `revoked_by` y `state` derivado.
+- **`reason` sale en el listado**: es el motivo por el que existe el mecanismo y quien tiene el permiso es quien tiene que poder auditarlo. `permisos.md §D.6` desarrolla qué significa eso para el manual de administración.
+
+### D.4.8 Revocar una excepción
+
+1. `DELETE /api/v1/mfa-exemptions/{public_id}`, permiso **`exencion_mfa.eliminar`**.
+2. Excepción inexistente, de otro tenant o **ya revocada** ⇒ `404` con cuerpo idéntico. Revocar dos veces no es un conflicto: la segunda no encuentra una excepción revocable.
+3. Efecto, **en una transacción**: `revoked_at = ahora`, `revoked_by` = administrador, y **reapertura de la obligación** con plazo completo si el usuario sigue reuniendo las condiciones (`§D.4.9`).
+4. Respuesta `204`.
+5. **La fila no se borra, ni siquiera lógicamente** (`RN-AUTH-83`): el *observer* registra un `updated`, no un `deleted`. Es traza, exactamente como un bloqueo levantado (`funcional.md §10.1`).
+
+**Un administrador sí puede revocar su propia excepción.** La prohibición de `RN-AUTH-81` es sobre concederse una —relajar la seguridad de uno mismo—; renunciar a ella es lo contrario y no hay motivo para impedirlo.
+
+### D.4.9 Caducidad: cómo vuelve la obligación
+
+Dos caminos, y los dos acaban en lo mismo:
+
+| Camino | Cuándo |
+|--------|--------|
+| **`ReopenExpiredMfaExemptions`**, tarea programada **cada hora** por tenant | Recorre las excepciones con `expires_at` vencido en las últimas `AUTH_MFA_EXEMPTION_REOPEN_WINDOW_HOURS` (48 por defecto), sin revocar, y llama a `MfaPolicy::materialize($user, ExencionVencida)` para cada titular |
+| **`MfaPolicy::resolve()`**, en la siguiente petición del usuario | Es la red de seguridad: aunque la tarea no corra, el paso 4 de `resolve()` materializa la obligación al evaluarla |
+
+- **`materialize()` ya es idempotente** (comprueba excepción viva, factor utilizable, roles, y obligación abierta), y el índice único parcial de `user_mfa_obligations` lo garantiza bajo concurrencia. La tarea **no necesita marcar filas como procesadas**, y por eso no se añade ninguna columna.
+- **La ventana de 48 horas es lo que evita que la tarea recorra el histórico entero cada hora.** Si el *scheduler* estuviera caído más de 48 horas, esas excepciones no se reabrirían por tarea — y no pasa nada, porque `resolve()` las reabre en la siguiente petición del titular. La tarea adelanta el trabajo; no es la única garantía.
+- **El `trigger` es `exencion_vencida` también cuando la excepción se revocó a mano.** No se amplía el enumerado: el valor describe «la excepción dejó de proteger», y ampliar de cinco a seis valores para distinguir dos caminos que producen el mismo estado es el error contrario al del issue [#61](https://github.com/pirexia/plataforma-educativa/issues/61) (`§C.4.10` punto 4). Quién revocó y cuándo está en `user_mfa_exemptions`, íntegro.
+
+### D.4.10 Avisos al titular: por qué no hay uno nuevo
+
+`§C.4.13` fijó tres avisos y este paso **no añade ninguno**. Los dos candidatos, con su argumento:
+
+| Candidato | Decisión |
+|-----------|----------|
+| «Se te ha concedido una excepción de MFA» | **No.** No es un cambio de credencial, no reduce lo que el usuario puede hacer y no hay nada que él pueda deshacer al recibirlo. `REQ-AUTH-003` exige notificar el **restablecimiento**, que sí toca sus factores, y no menciona la excepción. Añadir un envío tiene coste real (`0.10c` sin resolver, `RMT-005`) |
+| «Tu excepción caduca mañana» | **No.** Sería un recordatorio nuevo, con su propia programación y su propia deduplicación, no pedido. Lo que sí se hace es **mostrar la caducidad en `GET /auth/mfa`** (`§D.2.4`), para que la pantalla avise sin enviar nada |
+
+Se dice en voz alta —igual que `§C.4.13` dijo lo contrario sobre los tres que sí entraron— para que el usuario pueda rechazarlo si no lo comparte, y no para esconderlo.
+
+---
+
+## D.5 Reglas de negocio nuevas
+
+Continúan la serie única. Las 74 anteriores siguen en vigor sin cambios, con **una precisión** sobre `RN-AUTH-54` que introduce `RN-AUTH-79`.
+
+| ID | Regla |
+|----|-------|
+| **Correo como segundo factor** | |
+| `RN-AUTH-75` | Un alta de un método de entrega guarda **solo el hash SHA-256** del código entregado (`RN-AUTH-56`) y su **caducidad propia** (`AUTH_MFA_CODE_TTL_MINUTES`), distinta de la del alta. La respuesta del alta **no devuelve el código**: devuelve el destino enmascarado. Al confirmar, hash y caducidad del código se ponen a `NULL` en la misma transacción. |
+| `RN-AUTH-76` | Como mucho **un alta sin confirmar viva por (usuario, método de entrega)**: abrir una nueva invalida la anterior en la misma transacción. Varias altas vivas serían varios códigos válidos a la vez contra un valor de seis dígitos. **TOTP conserva el comportamiento de 1.3** (varias altas provisionales pueden coexistir), porque allí cada alta tiene un secreto distinto que el atacante no conoce. |
+| `RN-AUTH-77` | El destino de un factor `email` es **siempre `users.email` en el momento del envío**, nunca `people.contact_email`, y **no se copia** a la fila del factor. El enmascarado se calcula al presentar (`§D.4.5`) y no se persiste. |
+| `RN-AUTH-78` | El código entregado se compara **en tiempo constante** contra su hash y se rechaza si su caducidad pasó, **aunque el desafío siga vivo**: en ese caso la respuesta es `401`, no `410`, y es indistinguible de un código incorrecto. Un acierto consume el desafío: el mismo código no vale dos veces. |
+| `RN-AUTH-79` | `deliveries` cuenta **solo entregas realmente encoladas**; cambiar a `totp` no consume ninguna. Superar `AUTH_MFA_MAX_DELIVERIES` (3) responde `429` **sin generar código y sin matar el desafío**. Ni el reenvío ni el cambio de método prolongan `expires_at` ni reinician `attempts` (precisión de `RN-AUTH-54`, que sigue vigente). |
+| `RN-AUTH-80` | **«`totp` no desactivable» es una restricción de tenant y solo de tenant** (`RN-AUTH-69`, garantizada por el `CHECK` del motor): ningún centro puede retirar `totp` de `mfa_allowed_methods`. **A nivel de usuario no existe ningún cerrojo sobre el método**: quien tenga dos factores puede retirar cualquiera de los dos —el TOTP incluido— mientras le quede uno utilizable y se cumpla `RN-AUTH-61`. **Un usuario puede quedarse solo con el correo si su tenant lo admite.** Decidido por el usuario el 2026-08-27 (`OPEN-AUTH-27`); el argumento, en `§D.6`. |
+| **Excepciones temporales** | |
+| `RN-AUTH-81` | Una excepción exige **motivo de al menos 10 caracteres** y **caducidad futura de como mucho `AUTH_MFA_MAX_EXEMPTION_DAYS` (90)** (`RN-AUTH-66`, `RN-AUTH-68`). **Una sola viva por usuario**: la segunda responde `409` por comprobación explícita, no por violación del índice. **Nadie se concede una excepción a sí mismo** ⇒ `403` (extensión de `RN-AUTH-67`); revocar la propia sí se permite. |
+| `RN-AUTH-82` | Conceder una excepción **cierra la obligación abierta** del titular (`resolved_at`) en la misma transacción. Al caducar o revocarse se abre una **nueva** con **plazo de gracia completo** y `trigger = 'exencion_vencida'` — el mismo valor para caducidad y para revocación anticipada, sin ampliar el enumerado. |
+| `RN-AUTH-83` | Revocar **no borra**: escribe `revoked_at`/`revoked_by` y conserva la fila. El endpoint `DELETE` **no** produce un borrado lógico, y por tanto la auditoría registra `updated`, no `deleted`. Una excepción ya revocada responde `404`, no `409`. |
+| `RN-AUTH-84` | Ninguna respuesta, registro de auditoría, log o *payload* de trabajo encolado contiene **el código entregado en claro** salvo el propio correo al titular, ni su hash en ningún caso. El destino enmascarado solo se muestra a quien ya superó la contraseña (`202`) o es el titular autenticado (`201` del alta, `GET /auth/mfa`). |
+| **Retención de material de credencial** | |
+| `RN-AUTH-85` | **Ningún secreto ni hash de segundo factor sobrevive a su finalidad.** Un alta sin confirmar y vencida se borra **físicamente**; un factor borrado lógicamente se borra **físicamente** a los `AUTH_MFA_FACTOR_PURGE_DAYS` (30); un desafío consumido, a las `AUTH_MFA_CHALLENGE_RETENTION_HOURS` (24). Los plazos ya estaban escritos (`datos.md §C.11`, `operacion.md §C.4.1`) y **este paso los hace efectivos** construyendo las tres purgas que faltaban (issue [#109](https://github.com/pirexia/plataforma-educativa/issues/109), `§D.2.2`). Una tarea escrita y **no registrada en el *scheduler*** no cumple esta regla. |
+
+---
+
+## D.6 «`totp` no desactivable»: la regla, ya cerrada
+
+> **Decisión del usuario, 2026-08-27 (`OPEN-AUTH-27`): vale la lectura A y solo la A.** «TOTP no desactivable» es **exclusivamente** la restricción que ya rige desde 1.3 —**un tenant no puede retirar `totp` de `mfa_allowed_methods`**— y **no se añade ninguna restricción nueva a nivel de usuario**. Un usuario individual **sí puede tener solo correo** si su tenant lo permite, y **sí puede retirar su factor TOTP** teniendo el correo activo, con el único límite de `RN-AUTH-61` (no quedarse sin ningún factor utilizable si algún rol suyo lo exige). La regla queda en `RN-AUTH-80`.
+
+Se conserva el análisis con el que se tomó la decisión, porque explica **por qué** la regla es esa y evita que se reabra en implementación o en revisión.
+
+**Lectura A — el tenant no puede quitar `totp` de `mfa_allowed_methods`. Es la aprobada.** Es lo que dicen `§C.8` (*«por eso `totp` no se puede quitar (`RN-AUTH-69`)»*) y `§C.4.12` punto 3, lo que la recomendación de `OPEN-AUTH-25` proponía (*«ofrecerlo, desactivado por defecto, con `totp` no desactivable»*), y **lo que el motor implementa desde 1.3**: `CHECK (… mfa_allowed_methods @> '["totp"]'::jsonb …)`. Está aprobada, implementada y probada (`CA-AUTH-134`).
+
+**Lectura B — un usuario que activa el correo no puede después retirar su TOTP. Descartada.** Era lo que decía el encargo de 1.3b, y **no estaba en ningún requisito, en ninguna regla de negocio ni en ninguna decisión anotada**. Estas son las consecuencias que la descartaron:
+
+| Consecuencia | Detalle |
+|--------------|---------|
+| **Un usuario que pierde su aplicación de autenticación queda con un factor muerto que no puede retirar** | El índice único `(tenant_id, user_id, method) WHERE confirmed_at IS NOT NULL` impide tener dos TOTP confirmados: para dar de alta uno nuevo hay que borrar el viejo. Con la lectura B, cambiar de teléfono **exige un restablecimiento por administrador**, que borra *todos* los factores y *todos* los códigos de respaldo, y que un administrador no puede hacerse a sí mismo (`RN-AUTH-67`) |
+| **Contradice `RN-AUTH-61` tal como está implementada** | Hoy la regla es *«no puedes retirar tu último factor utilizable si tu rol lo exige»*. La lectura B añadiría *«ni el TOTP aunque no sea el último»*, que es una regla distinta con otro sujeto |
+| **Deja fuera al usuario que el método existe para incluir** | `§C.8` justificó el correo diciendo que *«hay personas sin teléfono con aplicación de autenticación, y excluirlas del MFA es peor que darles un factor imperfecto»*. Esa persona nunca tendrá TOTP, así que la lectura B no le afecta; a quien afecta es a quien probó TOTP, no le funcionó, y quiere quedarse solo con el correo |
+
+**El argumento que cerró la cuestión**: quien no quiera que sus usuarios se queden solo con el correo tiene la palanca correcta y ya implementada: **no activar `email` en el tenant**. Es una decisión del centro, con nombre y apellidos y con auditoría, y no un cerrojo por usuario que se convierte en una trampa el día que alguien cambia de teléfono.
+
+**Qué significa esto para quien implementa**, dicho sin rodeos porque es donde se colaría una regla que nadie pidió:
+
+- `DELETE /auth/mfa-factors/{public_id}` **no gana ninguna comprobación nueva** (`api.md §D.2`). Su único `409` sigue siendo el de `RN-AUTH-61`.
+- `MfaFactorRemovalService` **no se toca** por esta cuestión: su lógica de «último factor utilizable» ya es la correcta y ya está implementada desde 1.3.
+- Un test que afirme «no se puede retirar el TOTP teniendo correo» sería un test **contra** la especificación.
+
+---
+
+## D.7 Interacción con otros módulos
+
+Sin interfaces nuevas y sin acoplamientos nuevos (`INV-007`).
+
+### D.7.1 Interfaces que consume
+
+| Interfaz | De | Qué añade 1.3b |
+|----------|----|----------------|
+| `TenantSettingsReader` | `REQ-CORE` | `mfaAllowedMethods()` pasa a decidir también qué se ofrece en la SPA (`§D.2.4`), no solo qué se admite en el servidor |
+| `UserDirectory` | `REQ-CORE` | Resolver el `public_id` del sujeto en los tres endpoints de excepciones (`RN-AUTH-73`: solo los de administración lo aceptan) |
+| `MfaPolicy` | `REQ-AUTH` (1.3) | `materialize()` y `hasLiveExemption()`, ya existentes, se llaman desde el servicio de excepciones y desde la tarea programada |
+| Infraestructura de correo (`Mail`, cola `auth-mail`) | `REQ-AUTH` (1.2) | Dos trabajos y dos plantillas nuevas. **Nada nuevo que integrar** |
+
+### D.7.2 Interfaces que expone
+
+**Ninguna nueva.** `MfaVerifier` sigue siendo solo para métodos con material secreto derivado: el correo se compara con `hash_equals()` contra el hash del desafío o del alta, exactamente como su propio comentario de 1.3 anticipó. **No se crea un `EmailMfaVerifier`** para encajarlo a la fuerza en una interfaz que no le sirve.
+
+### D.7.3 Eventos publicados
+
+**Ninguno nuevo.** `MfaFactorConfirmed`, `MfaFactorRemoved` y `MfaObligationStarted` cubren lo que este paso produce. Un evento `MfaExemptionGranted` sería un evento que nadie consume: los avisos no existen (`§D.4.10`) y la auditoría la hace el *observer*.
+
+---
+
+## D.8 Auditoría (`INV-003`)
+
+**1.3b tampoco amplía el vocabulario de `audit_logs`** (`RN-AUTH-74`, `ADR-039 §5.3`). Hecho por hecho:
+
+| Hecho | Cómo queda registrado | Evento |
+|-------|------------------------|--------|
+| Alta de un factor `email` (provisional) | `created` sobre `MfaFactor` | `created` |
+| Confirmación del factor `email` | `updated` sobre `MfaFactor` | `updated` |
+| **Concesión** de una excepción | `created` sobre `UserMfaExemption`, con `reason`, `expires_at` y `granted_by` **con valor** (política `Full`, ya declarada) | `created` |
+| **Revocación** de una excepción | `updated` sobre `UserMfaExemption` con `revoked_at`/`revoked_by` | `updated` |
+| Cierre de la obligación al conceder | `updated` sobre `MfaObligation` (`resolved_at`) | `updated` |
+| Reapertura al caducar o revocar | `created` sobre `MfaObligation` con `trigger = 'exencion_vencida'` | `created` |
+| Envío de un código por correo | **`login_attempts` no; `audit_logs` no.** No se registra | — |
+| Fallo de un código entregado | `login_attempts` con `outcome = 'segundo_factor_invalido'`, igual que un TOTP fallido | — |
+
+**Los dos últimos merecen el detalle**, con el mismo criterio de `§C.10`:
+
+- **El envío de un código no se audita.** Es un artefacto transitorio de diez minutos, como el desafío que lo contiene, que `datos.md §C.4` ya dejó fuera del *observer*. Auditarlo escribiría una fila por reenvío en una tabla con dos años de retención, para decir algo que el `login` posterior ya dice.
+- **`mfa_challenges` sigue sin ser auditable**, y `user_mfa_factors` conserva su política `Selective` de `datos.md §C.2`. **`code_hash` se declara explícitamente en `auditSecretAttributes()` del modelo `MfaFactor`**, igual que `secret_encrypted`, y por el mismo motivo: no depender de que un patrón global siga cubriendo un nombre de columna tras un refactor.
+
+**Exclusiones (`ADR-040`): ninguna nueva.**
+
+---
+
+## D.9 Interfaz de usuario
+
+Mismo criterio de 1.2, 1.2b y 1.3: pantallas autónomas, sin `AppLayout`, sin design system (1.7) ni layout (1.8).
+
+| Ruta / componente | Qué cambia | Estado |
+|-------------------|------------|--------|
+| `/entrar` (paso 2, `LoginView.vue`) | **Selector de método** cuando `available_methods` trae más de uno; **destino enmascarado** cuando el método entrega; **botón de reenvío con cuenta atrás** y su mensaje de tope alcanzado; el enlace de código de respaldo se conserva | Pública |
+| `/cuenta/seguridad` (`AccountSecurityView.vue`) | Bloque de alta por correo, visible **solo si `allowed_methods` incluye `email`**; estado del factor `email` con su destino enmascarado; aviso de excepción viva con su caducidad | Con sesión |
+| `/cuenta/seguridad/obligatorio` (`MfaEnrollmentWallView.vue`) | La misma alta por correo dentro del muro, sin navegación y con «cerrar sesión» siempre visible | Sesión restringida |
+| `MfaEmailEnrollment.vue` (**nuevo**) | Componente hermano de `MfaTotpEnrollment.vue`: pedir alta, mostrar destino enmascarado, introducir código, confirmar | — |
+| **`/administracion/mfa`** (**nueva**, `§D.1.3`) | La pantalla mínima de administración: las cuatro capacidades de la pieza 3 | Con sesión y permiso |
+
+### D.9.1 La pantalla de administración, en detalle
+
+Una ruta con cuatro áreas, **todas sobre endpoints que ya existen**. Se describe aquí lo que cada una tiene que resolver, no cómo se maqueta:
+
+| Área | Qué muestra y qué permite | Endpoints |
+|------|---------------------------|-----------|
+| **Cumplimiento** | Selector de rol; recuentos del rol (total, inscritos, obligados, en gracia, vencidos, exentos); y **listado individualizado** con filtro por `state`, paginado | `GET /mfa-compliance`, `GET /mfa-compliance/users` |
+| **Obligatoriedad por rol** | Conmutador de `mfa_required` **con vista previa del impacto antes de guardar** —«este cambio obligará a N usuarios más»— y confirmación explícita, porque activarlo pone a contar el plazo de gracia de gente que no ha pedido nada | `GET /mfa-compliance?role=…&mfa_required=…` (hipótesis) y `PATCH /roles/{public_id}` |
+| **Restablecimiento** | Buscar usuario, **motivo obligatorio de 10 caracteres**, y aviso de que se cerrarán todas sus sesiones y se le notificará | `POST /mfa-resets` |
+| **Excepciones** | Listado con `state`, motivo, caducidad y quién la concedió; formulario de concesión (usuario, motivo, caducidad con el tope de 90 días **visible en el propio formulario**); y revocación con confirmación | Los tres de `/mfa-exemptions` |
+
+Cuatro reglas de esta pantalla que no son de maquetación y que la revisión debe comprobar:
+
+1. **Ningún área se «adapta» ocultando errores del servidor.** Un `403` por falta de permiso se muestra como lo que es; la pantalla no decide quién entra (`§D.1.3`, punto 3).
+2. **La vista previa no escribe nada** y tiene que decirlo en la interfaz: es una simulación (`CA-AUTH-136`).
+3. **Las dos operaciones con motivo obligatorio —restablecimiento y excepción— advierten de que el texto queda registrado y de quién puede leerlo** (`permisos.md §D.8`), y de que **no debe contener datos de salud**.
+4. **La caducidad de una excepción se muestra con fecha y hora efectivas**, no solo con el día (`api.md §D.4`): «hasta el 15 de octubre» caduca a las 00:00 de ese día, y esa sorpresa se evita en el formulario, no en el manual.
+
+Reglas de accesibilidad que este paso no puede saltarse (WCAG 2.2 AA, `CLAUDE.md §10`):
+
+- El campo del código admite pegado y `autocomplete="one-time-code"`, y el foco entra en él al abrirse el paso (igual que en 1.3).
+- **La cuenta atrás del reenvío no puede ser la única señal**: el botón se deshabilita **y** el texto dice cuántos segundos faltan; al agotarse el tope, el mensaje explica qué alternativas quedan (TOTP, código de respaldo), no solo que no se puede reenviar.
+- El destino enmascarado se muestra como texto seleccionable, nunca como imagen.
+- **El selector de método es un grupo de radios etiquetado**, no dos botones sin relación semántica.
+- En la pantalla de administración, **las tablas llevan cabecera asociada** y los estados (`pending`, `past_deadline`, `exempt`…) **no se distinguen solo por color**: llevan texto.
+- Los cuatro idiomas, sin literal en el código (`INV-009`), incluidas las dos plantillas de correo nuevas y **toda** la pantalla de administración.
+
+---
+
+## D.10 Criterios de aceptación
+
+Verificables, cada uno con test que referencia su ID (`INV-015`). Bloque `146-176`, sin solaparse con 1.2 (`001-079`), 1.2b (`080-103`) ni 1.3 (`104-145`). Se **recupera** además `CA-AUTH-139`, que 1.3 escribió y dejó explícitamente sin test por no existir el endpoint.
+
+### Alta del factor por correo
+
+- **`CA-AUTH-146`** · *Dado* un tenant con `mfa_allowed_methods = ["totp","email"]` y un usuario autenticado, *cuando* llama a `POST /auth/mfa-enrollments` con `{"method":"email"}`, *entonces* recibe `201` con `destination_masked` y **sin código**, existe una fila de `user_mfa_factors` con `method='email'`, `secret_encrypted IS NULL`, `code_hash` informado y `confirmed_at IS NULL`, y **se ha encolado** el correo (`RN-AUTH-75`).
+- **`CA-AUTH-147`** · *Dado* ese alta, *cuando* se confirma con el código correcto, *entonces* `201`, `confirmed_at` informado, **`code_hash` y `code_expires_at` a `NULL`**, y —si era su primer factor— la respuesta trae los códigos de respaldo (`§D.4.1` punto 8).
+- **`CA-AUTH-148`** · *Dado* ese alta, *cuando* se confirma con un código **incorrecto**, *entonces* `422`, el alta sobrevive con un intento consumido, y al quinto el alta muere (`RN-AUTH-59`).
+- **`CA-AUTH-149`** · *Dado* un alta por correo con `code_expires_at` vencido pero `expires_at` del alta aún vivo, *cuando* se confirma con el código correcto, *entonces* **`422`** y el factor no se activa (`RN-AUTH-75`).
+- **`CA-AUTH-150`** · *Dado* un usuario con un alta `email` sin confirmar, *cuando* abre otra, *entonces* la anterior deja de poder confirmarse y **solo el código nuevo funciona** (`RN-AUTH-76`).
+- **`CA-AUTH-151`** · *Dado* un tenant con `mfa_allowed_methods = ["totp"]`, *cuando* un usuario intenta dar de alta `email`, *entonces* `422` y no se crea ninguna fila (`RN-AUTH-69`, amplía `CA-AUTH-110`).
+- **`CA-AUTH-152`** · *Dado* cualquier respuesta del producto tras dar de alta un factor `email` —`201`, `GET /auth/mfa`, `GET /me`, el `202` del login—, *cuando* se inspeccionan, *entonces* **ninguna contiene el código en claro ni su hash**, y el destino aparece siempre enmascarado según `§D.4.5` (`RN-AUTH-84`).
+
+### Login con el correo
+
+- **`CA-AUTH-153`** · *Dado* un usuario cuyo único factor es `email`, *cuando* envía credenciales correctas, *entonces* recibe `202` con `method: "email"`, `destination_masked` y `available_methods: ["email"]`, **`Auth::id()` es `null`**, y se ha encolado el correo con el código (`RN-AUTH-52`, `§D.4.2`).
+- **`CA-AUTH-154`** · *Dado* ese desafío, *cuando* se verifica con el código entregado, *entonces* `200` con el recurso de `/me`, identificador de sesión regenerado, fila en `user_sessions` y **una sola** fila `login` en `audit_logs` (`§C.4.4` punto 10).
+- **`CA-AUTH-155`** · *Dado* ese desafío, *cuando* se verifica con el código ya usado, con uno incorrecto, o con uno correcto pero **caducado**, *entonces* `401` con **cuerpo idéntico en los tres casos**, y el desafío sigue vivo hasta agotar sus intentos (`RN-AUTH-78`).
+- **`CA-AUTH-156`** · *Dado* un usuario con TOTP **y** correo, *cuando* inicia sesión, *entonces* el desafío se abre en `totp`, `available_methods` trae los dos, y **no se encola ningún correo** hasta que pida el cambio (`§D.4.2`).
+- **`CA-AUTH-157`** · *Dado* un desafío en `email`, *cuando* se pide reenvío tres veces, *entonces* las tres encolan un correo y la cuarta responde `429` con `Retry-After`, **sin generar código**, sin matar el desafío y sin tocar `attempts` ni `expires_at` (`RN-AUTH-79`).
+- **`CA-AUTH-158`** · *Dado* un desafío en `email`, *cuando* se cambia a `totp`, *entonces* `deliveries` **no cambia**, `code_hash` y `code_expires_at` quedan a `NULL`, y no se encola nada (`RN-AUTH-79`).
+- **`CA-AUTH-159`** · *Dado* un usuario con factor `email` y códigos de respaldo, *cuando* el trabajo de correo falla, *entonces* puede completar el login con un código de respaldo y **ningún camino le deja entrar sin segundo factor** (`§D.4.4`).
+
+### Excepciones temporales
+
+- **`CA-AUTH-139`** (recuperado de `§C.13`) · *Dado* `POST /mfa-exemptions` **sin `expires_at`**, o con una fecha a más de `AUTH_MFA_MAX_EXEMPTION_DAYS`, o en el pasado, *entonces* `422`; con una válida, *entonces* el usuario **deja de estar obligado** mientras dura y vuelve a estarlo **con plazo completo** al caducar (`RN-AUTH-68`, `RN-AUTH-82`).
+- **`CA-AUTH-160`** · *Dado* `POST /mfa-exemptions` con `reason` de menos de 10 caracteres o ausente, *entonces* `422` y no se crea nada (`RN-AUTH-81`).
+- **`CA-AUTH-161`** · *Dado* un administrador con `exencion_mfa.crear`, *cuando* intenta concederse una excepción **a sí mismo**, *entonces* `403`; *cuando* **revoca la suya**, *entonces* `204` (`RN-AUTH-81`).
+- **`CA-AUTH-162`** · *Dado* un usuario con una excepción viva, *cuando* se le concede otra, *entonces* `409` —**no un error de base de datos**— y sigue habiendo exactamente una fila viva (`RN-AUTH-81`).
+- **`CA-AUTH-163`** · *Dado* un usuario obligado **con la gracia vencida** y una obligación abierta, *cuando* se le concede una excepción, *entonces* su obligación queda cerrada (`resolved_at`), deja de recibir el `403` del muro en la petición siguiente, y `GET /mfa-compliance` lo cuenta en `users_exempt` (`RN-AUTH-82`).
+- **`CA-AUTH-164`** · *Dado* ese usuario, *cuando* la excepción caduca y corre `ReopenExpiredMfaExemptions`, *entonces* existe una fila **nueva** de `user_mfa_obligations` con `trigger = 'exencion_vencida'` y `grace_deadline_at = ahora + mfa_grace_period_days` **completo**, y el usuario **no** ve el muro ese mismo día (`RN-AUTH-82`).
+- **`CA-AUTH-165`** · *Dado* una excepción, *cuando* se revoca, *entonces* `204`, la fila **conserva** `revoked_at`/`revoked_by` **sin `deleted_at`**, la auditoría registra un `updated` (no un `deleted`), y una segunda revocación responde `404` (`RN-AUTH-83`).
+- **`CA-AUTH-166`** · *Dado* los **tres** endpoints de excepciones, *cuando* se llaman **sin sesión** ⇒ `401`; **sin el permiso correspondiente** ⇒ `403`; sobre un usuario o una excepción **de otro tenant** ⇒ `404` con cuerpo idéntico; y **sin CSRF** en las escrituras ⇒ `419`/`403` (`INV-002`, `INV-001`, `RN-AUTH-29`, `ADR-038 §6.4`).
+
+### Transversales
+
+- **`CA-AUTH-167`** · *Dado* los correos que emite el módulo tras 1.3b —los siete *mailables* que existen hoy más los dos de este paso—, *cuando* se revisan, *entonces* existen en `es-ES`, `en`, `de` y `fr`, van en el idioma del destinatario, **ninguno lleva el código en el asunto**, ninguno lleva enlace accionable, y los dos que llevan código en el *payload* implementan `ShouldBeEncrypted` (`INV-009`, `RN-AUTH-50`, issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73)).
+- **`CA-AUTH-168`** · *Dado* las rutas nuevas de este paso, *cuando* se inspecciona el enrutado, *entonces* **ninguna lleva `module-enabled`** (`RN-AUTH-35`, amplía `CA-AUTH-145`).
+- **`CA-AUTH-169`** · *Dado* el catálogo tras `platform:sync-registry`, *cuando* se consulta `permissions`, *entonces* hay **exactamente siete** filas con `module_code = 'auth'`, ninguna con `retired_at`, ninguna con `is_special_category = true`, y **ninguna fila de `permission_role` de este módulo con `scope` distinto de `todos`** (`permisos.md §D.5`).
+
+### Tareas de mantenimiento (pieza 4, issue [#109](https://github.com/pirexia/plataforma-educativa/issues/109))
+
+- **`CA-AUTH-170`** · *Dado* un alta de factor sin confirmar cuyo `expires_at` venció, *cuando* corre `PurgeMfaEnrollments`, *entonces* **la fila desaparece de la tabla** —borrado físico, no lógico— y con ella el `secret_encrypted` o el `code_hash` que guardaba; un alta **viva** de otro usuario del mismo tenant **no se toca** (`RN-AUTH-85`, `datos.md §C.11`).
+- **`CA-AUTH-171`** · *Dado* un factor borrado lógicamente hace más de `AUTH_MFA_FACTOR_PURGE_DAYS`, *cuando* corre `PurgeMfaFactors`, *entonces* la fila desaparece **físicamente**; uno borrado **ayer** sigue estando (`RN-AUTH-85`).
+- **`CA-AUTH-172`** · *Dado* desafíos consumidos hace más de `AUTH_MFA_CHALLENGE_RETENTION_HOURS`, *cuando* corre `PurgeMfaChallenges`, *entonces* desaparecen, y **un desafío vivo nunca se purga** aunque sea antiguo (`RN-AUTH-85`).
+- **`CA-AUTH-173`** · *Dado* un usuario obligado sin fila de `user_mfa_obligations` —porque el trabajo del *listener* se perdió—, *cuando* corre `MaterializeMfaObligations`, *entonces* se le crea la obligación con su plazo; *y cuando* vuelve a correr, *entonces* **no se crea una segunda** (idempotencia, `RN-AUTH-65`).
+- **`CA-AUTH-174`** · *Dado* el *scheduler* y un entorno con **dos tenants**, *cuando* se inspecciona la programación y se ejecuta, *entonces* **las cinco tareas están registradas** con su cadencia (`PurgeMfa*` a diario; `MaterializeMfaObligations` y `ReopenExpiredMfaExemptions` cada hora) y **cada una se ejecuta para los dos tenants**, no solo para el primero (`RunsPerTenant`, `operacion.md §D.4`).
+- **`CA-AUTH-175`** · *Dado* `config('auth-local.mfa.max_deliveries')` con un valor distinto del de fábrica, *cuando* se agota el tope de entregas de un desafío, *entonces* el corte ocurre **en ese valor** —el tope se lee de la configuración y no está escrito a mano— (`RN-AUTH-79`, `§D.2.3`).
+
+### Pantalla de administración (pieza 3)
+
+- **`CA-AUTH-176`** · *Dado* `/administracion/mfa`, *cuando* la abre un usuario **con** `mfa.leer`, `mfa.eliminar`, `exencion_mfa.*` y `rol.actualizar`, *entonces* puede consultar el cumplimiento agregado e individualizado, ver la vista previa de impacto **sin que se escriba nada**, conmutar `mfa_required`, restablecer el MFA de otro usuario con motivo, y conceder, listar y revocar excepciones; *y cuando* la abre un usuario **sin** esos permisos, *entonces* el servidor responde `403` y la pantalla lo muestra **sin ocultar el fallo ni redirigir al login** (`§D.1.3`, `permisos.md §D.6.3`). Los textos existen en los cuatro idiomas (`INV-009`).
+
+---
+
+## D.11 Puntos de extensión
+
+- **Cuando exista proveedor de SMS**: el camino que este paso construye para el correo —`code_hash`/`code_expires_at` en el alta y en el desafío, `deliveries`, tope, reenvío, destino enmascarado— **es el mismo** que necesitará el SMS. Lo único que cambiará es de dónde sale el destino (un teléfono **verificado**, que hoy no existe, `§C.7`) y quién lo entrega. **Ni una tabla ni un endpoint más.**
+- **Preferencia de método** (`is_preferred`): la columna existe y nadie la escribe. Cuando se pida, es un campo más en un `PATCH` de autoservicio, sin cambio de esquema.
+- **`user_mfa_obligations.resolution`**: distinguir «cerrada por cumplimiento» de «cerrada por excepción» sin depender del `trigger` de la fila siguiente (`§D.4.6`). Es una columna aditiva; no se anticipa (`ADR-034 OPEN-13`).
+- **`1.5`**: consume `MfaComplianceDirectory` y el `PATCH` de roles ya existentes, y **absorbe la pantalla de `§D.1.3`** en su editor de roles. Está asumido y aceptado al decidir `OPEN-AUTH-28`: `/administracion/mfa` es provisional por diseño, y `1.5` puede retirarla sin ceremonia — **no hay contrato de API que romper, porque no aporta ninguno**.
+- **`1.19` (`REQ-COM`)**: sustituye los avisos de `§C.4.13` por su canal, y decidirá entonces si la concesión de una excepción merece notificación (`§D.4.10`).
+
+---
+
+## D.12 Preguntas abiertas
+
+**Ninguna pendiente.** Fueron tres y **las tres las resolvió el usuario el 2026-08-27**. Se conserva el argumento original de cada una —igual que hizo `§C.14` con las nueve de 1.3— para que la decisión se entienda con su coste y no solo con su resultado, y para que quien revise no tenga que reconstruirla.
+
+### `OPEN-AUTH-27` · «`totp` no desactivable»: ¿solo el tenant, o también el usuario? — **RESUELTA**
+
+`§D.6` desarrolla las dos lecturas. **La lectura A (el tenant no puede quitar `totp`) estaba aprobada e implementada desde 1.3.** La lectura B (un usuario con correo no puede retirar su TOTP) aparecía en el encargo de 1.3b y **no estaba en ningún requisito ni en ninguna decisión anotada**.
+
+**Recomendación dada**: mantener **solo la A**. La B convierte el cambio de teléfono en un restablecimiento por administrador, contradice la forma de `RN-AUTH-61` y no protege a nadie a quien el tenant no pueda proteger simplemente no activando el correo.
+
+**Decisión (2026-08-27)**: **solo la lectura A.** «TOTP no desactivable» es exclusivamente la restricción de tenant ya vigente desde 1.3; **no se añade ninguna restricción a nivel de usuario**, y un usuario puede quedarse solo con el correo si su tenant lo admite. Incorporada como `RN-AUTH-80` y desarrollada en `§D.6`, con la consecuencia explícita de que `DELETE /auth/mfa-factors/{public_id}` **no gana ninguna comprobación nueva**.
+
+### `OPEN-AUTH-28` · La pantalla de administración: ¿entra en 1.3b? — **RESUELTA**
+
+`§D.1.3` tiene los datos: `1.5` no tiene especificación escrita, van `1.4` y `1.4b` antes, está marcado *paso crítico*, y tras 1.3b habría **siete endpoints de administración de MFA sin una sola pantalla** — incluida la excepción temporal, que es la válvula de escape para el administrador que no puede cumplir su propia obligación.
+
+**Recomendación dada**: sí, la pantalla mínima, con el alcance acotado de `§D.1.3` y **sin** editor de roles, asumiendo explícitamente que `1.5`/`1.8` la absorberán.
+
+**Decisión (2026-08-27)**: **entra, y deja de ser condicional.** No se espera a ver si `1.5` se retrasa: se incluye siempre, precisamente porque `1.5` no tiene ni especificación. Alcance cerrado: cumplimiento (listado de usuarios y estado), conmutador de `mfa_required` por rol con vista previa de impacto, restablecimiento de MFA de un usuario, y gestión de excepciones (conceder, revocar, listar). **Nada más de `1.5`.** Es la **pieza 3** de `§D.1.1`, detallada en `§D.1.3` y `§D.9.1`, con `CA-AUTH-176`.
+
+### `OPEN-AUTH-29` · Las cuatro tareas de mantenimiento de 1.3 que no existen: ¿aquí o en un `fix/` propio? — **RESUELTA**
+
+`§D.2.2` lo documenta con la comprobación hecha: `PurgeMfaChallenges`, `PurgeMfaEnrollments`, `PurgeMfaFactors` y el `MaterializeMfaObligations` horario están declarados en `operacion.md §C.4` y **no existen en el código**. Severidad **Media**: secretos TOTP cifrados retenidos sin finalidad y sin plazo, contra lo que `datos.md §C.11` fija.
+
+**Recomendación dada**: abrir el issue (obligatorio, `CLAUDE.md §5`) y recogerlas en esta misma rama, porque son cuatro clases pequeñas calcadas de las cinco purgas que ya existen y 1.3b toca de todos modos ese comando y ese *scheduler*.
+
+**Decisión (2026-08-27)**: **issue [#109](https://github.com/pirexia/plataforma-educativa/issues/109) abierto** (severidad Media) y **las cuatro entran en la rama de 1.3b**, como **pieza 4** de `§D.1.1` (puntos 12-17): los cuatro trabajos, su despacho por tenant y **su registro en el *scheduler*** — no basta con escribir las clases. Criterios de aceptación `CA-AUTH-170`-`CA-AUTH-174`, y regla `RN-AUTH-85`. El issue se cierra con el mismo PR.
+
+### Lo que **no** dejo como pregunta abierta, y por qué
+
+- **Que el código entregado no salga en ninguna respuesta** (`RN-AUTH-84`). No es una preferencia: devolverlo hace el segundo factor decorativo.
+- **Que el reenvío no prolongue el desafío ni reinicie los intentos** (`RN-AUTH-79`). Ya decidido en `RN-AUTH-54`; lo contrario da intentos ilimitados.
+- **Que conceder una excepción cierre la obligación abierta** (`RN-AUTH-82`). Sin eso, la reapertura no puede dar plazo completo y el requisito se incumple; el coste semántico está escrito en `§D.4.6`.
+- **Que no haya aviso por correo al conceder o revocar una excepción** (`§D.4.10`). Está argumentado y es reversible con una línea si el usuario lo pide; no es una decisión con coste de rehacer.
+- **Que no se introduzca ninguna dependencia nueva** (`§D.0.1`). No hay nada que envolver: el correo ya está integrado desde 1.2.
+
+---
+
+## D.13 ¿Se aprueba esta especificación?
+
+**Las tres preguntas de `§D.12` están decididas por el usuario el 2026-08-27**, y ninguna era de detalle:
+
+1. **`OPEN-AUTH-27`** → **solo la restricción de tenant.** Ninguna regla nueva sobre el usuario; `RN-AUTH-80`.
+2. **`OPEN-AUTH-28`** → **la pantalla mínima entra**, sin condición; pieza 3.
+3. **`OPEN-AUTH-29`** → **las cuatro tareas entran en esta rama**; pieza 4, issue [#109](https://github.com/pirexia/plataforma-educativa/issues/109).
+
+Las tres están incorporadas al alcance (`§D.1.1`), a las reglas (`RN-AUTH-80`, `RN-AUTH-85`) y a los criterios de aceptación (`CA-AUTH-170`-`CA-AUTH-176`). **No queda ninguna pregunta abierta pendiente de decisión.**
+
+**1.3b no necesita ADR previo** —no hay dependencia nueva que comprobar (`§D.0.1`), a diferencia de 1.3 con `ADR-041`— y puede pasar a `implementer` en la rama `feature/REQ-AUTH-003-1.3b-mfa-correo-excepciones`, con el orden de implementación de `§D.1.4`: piezas 1 y 2 primero, pieza 4 después, pantalla al final.
+
+**Confirmaciones que la implementación debe respetar y que no son negociables sin volver aquí**: el alcance de la pantalla se detiene donde dice `§D.1.3` (nada de `1.5`); las cuatro tareas incluyen **su registro en el *scheduler***, no solo las clases; y no se añade ninguna comprobación de «no puedes quitarte el TOTP» (`§D.6`).
+
+**¿Se aprueba esta especificación tal como queda, para pasar a implementación?**

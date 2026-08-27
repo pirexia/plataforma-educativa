@@ -807,3 +807,162 @@ Propiedades que hay que poder afirmar en la revisión (`db-reviewer`):
 **A partir de 1.3 cifra credenciales de usuario.** Perder la clave, o restaurar una copia de la base de datos sin ella, significa que **todos los factores TOTP del sistema dejan de verificar a la vez** y hay que restablecer el MFA de todo el mundo a mano — con la ironía de que el restablecimiento masivo lo tiene que hacer un administrador que tampoco puede entrar si su rol exige MFA.
 
 `ADR-037 §7.2` punto 4 ya obliga a custodiar `APP_KEY` **separada** de la copia de la base de datos y `0.10d` lo recoge. Lo que cambia con este paso es que deja de ser una buena práctica y pasa a ser **un requisito de recuperación con consecuencia visible y catastrófica**. `operacion.md §C.10` y `OPEN-AUTH-26`.
+
+---
+
+# Parte D · Paso 1.3b · Modelo de datos (`REQ-AUTH-003`)
+
+> **Estructura**: `§A.1`-`§A.9` son 1.2 (cerrado). `§B.1`-`§B.7` son 1.2b (cerrado). `§C.0`-`§C.11` son 1.3 (cerrado y mezclado, commit `cd13e8a`). Esta **Parte D** es el paso **1.3b**, **pendiente de aprobación** (`funcional.md §D.13`).
+>
+> Convenciones de `ADR-029` sin excepción. Migración segura según `CLAUDE.md §9` (*expand/contract*) y la lección del hallazgo Media de `db-reviewer` en 1.3 —la migración de `login_attempts` sin `NOT VALID`/`VALIDATE CONSTRAINT`, uno de los issues [#98](https://github.com/pirexia/plataforma-educativa/issues/98)-[#105](https://github.com/pirexia/plataforma-educativa/issues/105)—: **toda restricción añadida a una tabla existente se crea `NOT VALID` y se valida después**.
+
+---
+
+## D.0 Lo que **ya existe** y este paso no crea
+
+Es, con diferencia, la sección que más ahorra de este paso: **1.3 dejó puesto casi todo el esquema que 1.3b necesita.**
+
+| Objeto | Estado | Consecuencia para 1.3b |
+|--------|--------|------------------------|
+| `user_mfa_exemptions` **entera**: `public_id`, `user_id`, `reason`, `expires_at NOT NULL`, `granted_by`, `revoked_at`, `revoked_by`, FK compuestas, único parcial de una viva por usuario, dos índices y tres `CHECK` | **Existe** (`2026_08_26_100500_create_user_mfa_exemptions_table.php`) | **Ninguna migración.** `RN-AUTH-68` («no existe la exención permanente») ya está garantizado por el motor |
+| Modelo `UserMfaExemption`: `Auditable`, política `Full`, `HasPublicId`, `TenantModel`, `isLive()`, tres relaciones | **Existe** (`Domain/Models/UserMfaExemption.php`) | Tampoco hay modelo que crear |
+| `mfa_challenges.code_hash`, `code_expires_at` y `deliveries`, con `CHECK ((method='totp') = (code_hash IS NULL))` y `CHECK ((code_hash IS NULL) = (code_expires_at IS NULL))` | **Existen** (`§C.4`) | **El desafío por correo no necesita esquema nuevo** |
+| `user_mfa_factors.method` con `email` en su `CHECK`, y `CHECK ((method='totp') = (secret_encrypted IS NOT NULL))` | **Existen** (`§C.2`) | Un factor de correo cabe tal cual… salvo por `§D.2` |
+| `user_mfa_obligations.trigger` con `exencion_vencida` en su `CHECK` | **Existe** (`§C.5`) | La reapertura de obligación **no amplía ningún enumerado** |
+| `tenant_settings.mfa_allowed_methods` con `email` admitido y `sms` prohibido en el motor | **Existe** (`§C.7.2`) | `RN-AUTH-69` implementado. 1.3b **no toca** `tenant_settings` |
+
+---
+
+## D.1 Resumen del cambio
+
+**Una sola modificación aditiva de una tabla existente. Cero tablas nuevas.**
+
+| # | Objeto | Tipo |
+|---|--------|------|
+| 1 | `user_mfa_factors` — dos columnas y dos restricciones nuevas | Modificación aditiva (`§D.2`) |
+
+Compárese con 1.3 (seis tablas nuevas y dos modificaciones) o con 1.2b (dos tablas nuevas). **El peso de 1.3b no está en los datos**, está en la lógica, la superficie HTTP y las pantallas (`funcional.md §D.1.4`).
+
+**Las tres decisiones del usuario del 2026-08-27 no cambian ni una línea de esquema**, y conviene decirlo porque dos de ellas amplían el paso: la pantalla de administración (`OPEN-AUTH-28`) consume endpoints existentes, y las cuatro tareas de mantenimiento recuperadas (`OPEN-AUTH-29`, issue [#109](https://github.com/pirexia/plataforma-educativa/issues/109)) **borran filas, no crean columnas** — ninguna necesita una marca de «ya procesado» (`§D.4`, `funcional.md §D.4.9`). Si al implementarlas aparece la tentación de añadir una columna de control, hay que parar: es señal de que se está resolviendo con esquema algo que el índice único parcial y la idempotencia ya resuelven.
+
+---
+
+## D.2 `user_mfa_factors` — dos columnas para el código de un alta por correo
+
+El hallazgo que lo motiva está en `funcional.md §D.2.1`: **hoy no hay dónde guardar el hash del código enviado en el alta de un factor de entrega**, porque `secret_encrypted` está prohibido en esos métodos por el `CHECK` y `expires_at` es la caducidad del alta, no la del código — una distinción que `mfa_challenges` sí hace y que `§C.4.2` describe explícitamente.
+
+```sql
+ALTER TABLE user_mfa_factors
+    ADD COLUMN code_hash text NULL,
+    ADD COLUMN code_expires_at timestamptz NULL;
+
+ALTER TABLE user_mfa_factors ADD CONSTRAINT user_mfa_factors_code_only_delivery_check
+    CHECK (code_hash IS NULL OR method <> 'totp') NOT VALID;
+
+ALTER TABLE user_mfa_factors ADD CONSTRAINT user_mfa_factors_code_hash_expires_check
+    CHECK ((code_hash IS NULL) = (code_expires_at IS NULL)) NOT VALID;
+
+ALTER TABLE user_mfa_factors VALIDATE CONSTRAINT user_mfa_factors_code_only_delivery_check;
+ALTER TABLE user_mfa_factors VALIDATE CONSTRAINT user_mfa_factors_code_hash_expires_check;
+```
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `code_hash` | `text` | Sí | **SHA-256 del código entregado en el alta** (`RN-AUTH-56`, `RN-AUTH-75`). `NULL` en `totp` **y** en cualquier factor ya confirmado |
+| `code_expires_at` | `TIMESTAMPTZ` | Sí | Caducidad **del código**, distinta de la del alta. `AUTH_MFA_CODE_TTL_MINUTES` (10) |
+
+**Las dos se ponen a `NULL` al confirmar el factor**, en la misma transacción que escribe `confirmed_at` (`funcional.md §D.4.1` punto 8). Un factor confirmado que conservara el hash guardaría material vivo sin función, que es lo que `§C.11` llama minimización y lo que `PurgeMfaFactors` existe para evitar en el otro extremo del ciclo.
+
+**Por qué `NOT VALID` y después `VALIDATE`** (`CLAUDE.md §9`, `migracion-segura`): añadir un `CHECK` validado bloquea la tabla en `ACCESS EXCLUSIVE` mientras recorre todas las filas. `user_mfa_factors` es pequeña hoy, pero **la lección ya costó un hallazgo Media en la revisión de 1.3** —la misma omisión, sobre `login_attempts`— y no se repite. Con `NOT VALID` la comprobación aplica solo a filas nuevas y la validación posterior toma un candado que **no bloquea lecturas ni escrituras**.
+
+**Por qué las dos columnas son `NULL` y no `NOT NULL DEFAULT`**: no tienen valor sensato para las filas existentes, que son todas TOTP. Es *expand* puro: la versión anterior de la aplicación no las conoce, no las escribe y sigue funcionando; la nueva las usa solo en el camino del correo.
+
+**Por qué no se añade un `deliveries` al factor**: no hay reenvío en el alta (`funcional.md §D.4.1`). Repetir `POST /auth/mfa-enrollments` crea un alta nueva e invalida la anterior (`RN-AUTH-76`), y el límite de tasa `mfa_enrollment_user` (10/hora) es lo que acota el abuso. Una columna que nadie incrementa es una columna que sobra.
+
+**Índices: ninguno nuevo.** La búsqueda del alta al confirmar es por `(user_id, public_id)` con `confirmed_at IS NULL`, servida por el `UNIQUE (public_id)` que ya existe. `code_hash` **no se busca**: se compara con el hash de la fila ya localizada, a diferencia de `user_mfa_recovery_codes.code_hash`, que sí es criterio de búsqueda y por eso sí está indexado (`§C.3`).
+
+**Política de auditoría**: `Selective`, sin cambios. **`code_hash` se declara explícitamente en `auditSecretAttributes()` del modelo `MfaFactor`**, junto a `secret_encrypted`. El patrón global `*secret*` de `config('audit.secret_attribute_patterns')` **no** cubre este nombre, así que aquí la declaración manual no es redundancia defensiva como en `§C.2`: es la única protección. `code_expires_at` **no se registra**: es ruido de un artefacto de diez minutos.
+
+---
+
+## D.3 `user_mfa_exemptions` — la tabla que 1.3 creó y 1.3b empieza a usar
+
+**Sin cambios de esquema.** `§C.6` la describe entera y sigue siendo exacta. Lo que este paso añade es **quién escribe sus filas** y qué garantiza cada restricción en la práctica:
+
+| Restricción / índice existente | Qué garantiza ahora que hay endpoints |
+|--------------------------------|----------------------------------------|
+| `expires_at NOT NULL` | *«No existe la exención permanente»* del requisito, **en el motor**. Ni un `FormRequest` mal escrito ni una consola pueden crear una excepción sin caducidad (`RN-AUTH-68`) |
+| `UNIQUE (tenant_id, user_id) WHERE revoked_at IS NULL AND deleted_at IS NULL` | Una sola excepción vigente por usuario. **La aplicación comprueba antes y responde `409`** (`RN-AUTH-81`): el índice es la red, no el mensaje de error. Un `500` por violación de unicidad no es una respuesta |
+| `CHECK (expires_at > created_at)` | Una excepción que nace caducada es un error de entrada. La validación de aplicación es más estrecha (futuro **y** ≤ 90 días); el motor garantiza el mínimo |
+| `CHECK ((revoked_at IS NULL) = (revoked_by IS NULL))` | Las dos direcciones. Revocar sin dejar quién revocó, o al revés, es imposible |
+| `(tenant_id, user_id) WHERE revoked_at IS NULL` | Paso 1 de `MfaPolicy::resolve()`, **en cada petición autenticada**. Ya se usa desde 1.3 |
+| `(tenant_id, expires_at) WHERE revoked_at IS NULL` | **La consulta de `ReopenExpiredMfaExemptions`** (`funcional.md §D.4.9`), que 1.3b construye. El índice se creó en 1.3 anticipando exactamente esta tarea |
+
+**El tope de `AUTH_MFA_MAX_EXEMPTION_DAYS` (90) sigue siendo de aplicación**, no de motor, por el motivo que `§C.6` ya explicó: un `CHECK` no puede comparar contra `now() + interval`. Lo que el motor garantiza es que la caducidad **existe**, que es la parte que el requisito exige.
+
+**`revoked_by` no usa el *helper* `tenantForeignId()`** (es `unsignedBigInteger` con la FK compuesta añadida a mano, porque es *nullable*). Es una de las dos columnas del hallazgo **Baja** de `db-reviewer` en 1.3 sobre el uso del *helper*. **1.3b no lo cambia**: alterar la definición de una columna existente para usar un *helper* no aporta comportamiento y sí una migración de riesgo innecesario.
+
+---
+
+## D.4 `user_mfa_obligations` — sin cambios de esquema, con un uso nuevo de `resolved_at`
+
+**Ninguna columna nueva**, y merece decirse porque es donde estaba la tentación.
+
+`resolved_at` pasa a escribirse también cuando se **concede una excepción**, no solo cuando el usuario confirma un factor (`RN-AUTH-82`). `§C.5` describía la columna como *«cuándo la cumplió (confirmó un factor)»*, y este paso la usa para cerrar un período que no se cumplió.
+
+**Por qué no se añade una columna `resolution`**, que sería más precisa: el historial sigue siendo legible sin ella —la fila siguiente lleva `trigger = 'exencion_vencida'` y la excepción que la provocó está en su propia tabla, con `reason`, `granted_by` y fechas—, y añadir una columna a una tabla existente para una distinción que se puede derivar es exactamente lo que `ADR-034 OPEN-13` («no se anticipan columnas») desaconseja. Queda anotado como punto de extensión (`funcional.md §D.11`), con el coste dicho en voz alta (`funcional.md §D.4.6`).
+
+**Por qué no se amplía el `CHECK` de `trigger` con un `exencion_revocada`**: caducidad y revocación producen el mismo estado —la excepción dejó de proteger— y quién la revocó y cuándo está en `user_mfa_exemptions`, íntegro. Ampliar de cinco a seis valores para distinguir dos caminos hacia el mismo sitio es el error contrario al del issue [#61](https://github.com/pirexia/plataforma-educativa/issues/61), y `§C.4.10` punto 4 ya fijó ese criterio con `cambio_credencial`.
+
+---
+
+## D.5 Relaciones
+
+Sin relaciones nuevas. El diagrama de `§C.8` sigue siendo válido; lo único que cambia es que **dos aristas dejan de estar muertas**:
+
+```
+users (REQ-CORE, 0.8)
+  ├─1:N→ user_mfa_exemptions.user_id       ← escrita por primera vez en 1.3b
+  └─1:N→ user_mfa_exemptions.granted_by    ← ídem
+         user_mfa_exemptions.revoked_by    ← ídem (nullable)
+```
+
+**Supresión de una persona**: sin cambios respecto de `§C.11`. Las excepciones cuelgan del usuario y se van con él; `granted_by`/`revoked_by` apuntan a **otro** usuario (el administrador), y la supresión de ese administrador sigue el mismo tratamiento que `mfa_resets.performed_by` — que es una decisión de `REQ-PRIV` y no de este paso.
+
+---
+
+## D.6 Migraciones: orden y compatibilidad
+
+**Una sola migración**, en `app/Modules/Auth/Database/migrations/`, con el sello temporal correspondiente a este paso:
+
+| # | Migración | Tipo | Reversible |
+|---|-----------|------|------------|
+| 1 | `…_add_delivery_code_to_user_mfa_factors.php` | *Expand* aditiva: dos columnas *nullable* y dos `CHECK` `NOT VALID` + `VALIDATE` | Sí: `down()` retira las dos restricciones y las dos columnas |
+
+Compatibilidad **hacia atrás**, verificada punto por punto contra `CLAUDE.md §9`:
+
+1. **La versión anterior de la aplicación sigue funcionando** con el esquema nuevo: no conoce las dos columnas, no las escribe, y los dos `CHECK` solo se activan sobre valores que solo la versión nueva produce.
+2. **La versión nueva funciona con el esquema anterior** salvo en el camino del correo, que es el camino que este paso estrena. **No hay ventana en la que un usuario existente pierda una capacidad que tenía.**
+3. **Ninguna columna se renombra ni se borra.** No hay fase *contract* pendiente para una versión posterior.
+4. **Los trabajos encolados por la versión anterior siguen procesándose**: ninguno de los `payload` cambia de forma.
+
+**Reversión probada**: `php artisan migrate:rollback --step=1` deja la tabla exactamente como está hoy. Las filas de factores `email` que existieran al revertir quedarían con `confirmed_at` informado y sin sus dos columnas — es decir, **factores válidos que la versión anterior no sabe verificar**. Es la única consecuencia real de una reversión y hay que escribirla en `operacion.md §D.6`: revertir después de que alguien haya activado el correo **deja a esa persona sin poder usar su factor**, y la salida es un restablecimiento por administrador.
+
+---
+
+## D.7 Retención y supresión
+
+Amplía `§C.11`, sin cambiar ninguno de sus plazos.
+
+| Dato | Retención | Quién la aplica |
+|------|-----------|-----------------|
+| `user_mfa_factors.code_hash` / `code_expires_at` de un alta **confirmada** | **Cero**: se ponen a `NULL` en la transacción que confirma | La aplicación (`funcional.md §D.4.1`) |
+| Los mismos de un alta **no confirmada** | `AUTH_MFA_ENROLLMENT_TTL_MINUTES` de vida útil, y borrado **físico** de la fila por `PurgeMfaEnrollments` | La tarea programada, **que este paso construye** (pieza 4, `funcional.md §D.1.1`; issue [#109](https://github.com/pirexia/plataforma-educativa/issues/109)) |
+| `user_mfa_factors.secret_encrypted` de un factor **borrado lógicamente** | `AUTH_MFA_FACTOR_PURGE_DAYS` (30), y borrado **físico** por `PurgeMfaFactors` | Ídem. **El plazo estaba escrito desde 1.3 y no lo aplicaba nadie** (`§C.11`, `operacion.md §D.4.2`) |
+| `mfa_challenges` consumidos | `AUTH_MFA_CHALLENGE_RETENTION_HOURS` (24), por `PurgeMfaChallenges` | Ídem |
+| `user_mfa_exemptions` (revocadas y caducadas) | **Sin purga, a propósito.** Son la traza de por qué alguien quedó exento de una obligación de seguridad, con nombre del administrador y motivo. Se van con la supresión de la persona, como `mfa_resets` | El flujo de supresión de `REQ-PRIV` |
+| `user_mfa_exemptions.reason` | Texto libre escrito por un administrador **sobre otra persona**. No es categoría especial por sí mismo, pero puede contenerla («no tiene teléfono porque está ingresado») | `permisos.md §D.6`. **El manual de administración debe advertirlo**, igual que con `mfa_resets.reason` |
+
+**El punto que hay que mirar dos veces**: **las tres primeras filas de esta tabla no se cumplen hoy**, porque las tres purgas están declaradas desde 1.3 y **no existen en el código** (`funcional.md §D.2.2`, issue [#109](https://github.com/pirexia/plataforma-educativa/issues/109)). Sin ellas, un secreto TOTP cifrado sobrevive indefinidamente a su borrado lógico y el hash de un código de seis dígitos vive para siempre en la tabla.
+
+**Decisión del usuario (2026-08-27, `OPEN-AUTH-29`): las tres purgas y el `MaterializeMfaObligations` horario se construyen en esta misma rama**, como pieza 4 del alcance. A partir de este paso, esta tabla de retención **describe el comportamiento real y no una intención**, que es lo que `RN-AUTH-85` exige y lo que `CA-AUTH-170`-`CA-AUTH-174` comprueban. **Una tarea escrita y no registrada en el *scheduler* deja esta tabla igual de incumplida que hoy** (`operacion.md §D.4`).

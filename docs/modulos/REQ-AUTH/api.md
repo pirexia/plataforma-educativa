@@ -1025,3 +1025,311 @@ Se elige el cuerpo, y se anota como cosa a verificar en el despliegue real detr�
 Cinco eventos nuevos (`funcional.md §C.9.3`): `MfaFactorConfirmed`, `MfaFactorRemoved`, `MfaReset`, `MfaObligationStarted`, `RecoveryCodeUsed`. **Ninguno se expone por API.**
 
 **Webhooks: ninguno**, y aquí con el agravante más fuerte de los tres que lleva este módulo: notificar a un tercero que una persona ha activado, desactivado o usado un factor de autenticación es enviarle el estado de seguridad de una cuenta ajena. Ni siquiera cuando `REQ-API` traiga el mecanismo general debería este módulo publicar por él sin una decisión propia.
+
+---
+
+# Parte D · Paso 1.3b · API (`REQ-AUTH-003`)
+
+> **Estructura**: §1-§11 son 1.2 (cerrado). `§B.1`-`§B.8` son 1.2b (cerrado). `§C.1`-`§C.9` son 1.3 (cerrado y mezclado, commit `cd13e8a`). Esta **Parte D** es el paso **1.3b**, **pendiente de aprobación** (`funcional.md §D.13`).
+>
+> Convenciones de `ADR-038` sin excepción, salvo lo que `§D.6` matiza.
+
+---
+
+## D.1 Reglas generales: qué cambia respecto de `§C.1`
+
+| Aspecto | 1.3b |
+|---------|------|
+| Autenticación | Sin cambios. El paso 2 del login se sigue autorizando con la cookie de la sesión que abrió el desafío (`RN-AUTH-53`) |
+| Autorización | **3 endpoints nuevos, los tres con permiso declarado** (`exencion_mfa.crear`, `.leer`, `.eliminar`). El módulo pasa de 4 a **7 permisos** (`permisos.md §D.3`) |
+| Aislamiento | Sin cambios. Recurso de otro tenant ⇒ `404`, nunca `403` (`ADR-038 §6.4`) |
+| Idempotencia | **Ningún endpoint exige `Idempotency-Key`** (`§D.6.1`) |
+| Auditoría | `INV-003`, **sin ampliar el vocabulario** (`funcional.md §D.8`). Todo por el *observer* |
+| Módulo desactivado | No aplica: ninguna ruta lleva `module-enabled` (`RN-AUTH-35`, `CA-AUTH-168`) |
+| Límite de tasa | **Ninguno nuevo.** Se reutilizan los seis de `operacion.md §C.6`, y se activa el tope de entregas por desafío que 1.3 dejó sin implementar (`RN-AUTH-79`) |
+| OpenAPI | Los tres nuevos y los cinco modificados, en `apps/api/openapi/paths/mfa.yaml` |
+
+### D.1.1 Tipos de error nuevos: **ninguno**
+
+`ADR-038 §6.2` declara su catálogo *«cerrado y ampliable solo por ADR o por especificación de módulo»*. 1.2 añadió uno, 1.2b ninguno, 1.3 uno (`mfa-enrollment-required`). **1.3b no añade ninguno**, y conviene decir qué se reutiliza para que no se invente nada en implementación:
+
+| Situación nueva | `type` reutilizado | Estado |
+|-----------------|--------------------|--------|
+| Código entregado incorrecto, ya usado o **caducado con el desafío vivo** | `urn:pge:error:unauthenticated` | `401` |
+| Tope de entregas de un desafío alcanzado | `urn:pge:error:too-many-requests` | `429` con `Retry-After` |
+| Método no admitido por el tenant, motivo corto, caducidad ausente o fuera de rango | `urn:pge:error:validation` | `422` |
+| El usuario ya tiene una excepción viva | `urn:pge:error:conflict` | `409` |
+| Un administrador intenta concederse una excepción a sí mismo | `urn:pge:error:forbidden` | `403` |
+| Excepción o usuario inexistente, de otro tenant, o excepción ya revocada | `urn:pge:error:not-found` | `404` |
+
+**El `401` del código caducado es la decisión que hay que mirar dos veces.** El desafío tiene dos caducidades (`expires_at` del desafío, `code_expires_at` del código) y **solo la primera produce `410`**. Un código caducado dentro de un desafío vivo es indistinguible de un código incorrecto —mismo estado, mismo cuerpo— porque el usuario aún puede reenviar y no hay motivo para echarle al login (`RN-AUTH-78`).
+
+---
+
+## D.2 Endpoints de autoservicio modificados
+
+Los cinco de `§C.4` siguen autorizándose **por identidad del portador de la cookie**, sin permiso, y **ninguno acepta un identificador de usuario** (`RN-AUTH-73`). Lo que cambia:
+
+### `POST /api/v1/auth/mfa-enrollments` — **modificado**: `email` deja de responder `422`
+
+`§C.4` decía que el cuerpo *«declara `email`/`sms` como valores de forma válidos… pero el servidor los rechaza con `422` hoy»*. **1.3b levanta ese rechazo para `email`**; `sms` sigue rechazado (`RN-AUTH-69`, sin proveedor).
+
+- **Cuerpo**: `{"method": "email"}`
+- **Respuesta `201`**, distinta de la de TOTP a propósito:
+
+```json
+{
+  "public_id": "01JD7...",
+  "method": "email",
+  "destination_masked": "a···z@e···e.com",
+  "code_expires_at": "2026-08-27T10:40:00Z",
+  "expires_at": "2026-08-27T10:40:00Z"
+}
+```
+
+- **No hay `secret` ni `otpauth_uri`**, y no es una omisión: en un método de entrega **no hay nada que el usuario deba guardar**. Devolver el código haría el segundo factor decorativo (`RN-AUTH-75`).
+- **`code_expires_at` y `expires_at` se devuelven las dos** aunque hoy coincidan por configuración (10 y 10 minutos): son dos plazos con dos variables distintas y la pantalla tiene que contar el del código.
+- **Errores**: `401`; `422` (`email` no admitido por el tenant, `sms` en cualquier caso); `409` (ya hay un factor `email` confirmado); `429` (`mfa_enrollment_user`, 10/hora).
+- **Efecto colateral documentado**: abrir un alta `email` **invalida el alta `email` sin confirmar** que el usuario tuviera viva (`RN-AUTH-76`). El comportamiento de TOTP no cambia.
+
+### `POST /api/v1/auth/mfa-factors` — **modificado**: ramifica por el método del alta
+
+Mismo contrato de entrada y de salida. Lo que cambia es la verificación interna: contra el secreto en TOTP, contra `code_hash` en un método de entrega (`funcional.md §D.4.1`).
+
+- **Errores**: los de `§C.4` sin cambios, con una precisión: **un código correcto pero caducado responde `422`**, igual que uno incorrecto, y consume un intento. `410` sigue reservado al alta inexistente, vencida, ajena o con los intentos agotados.
+
+### `DELETE /api/v1/auth/mfa-factors/{public_id}` — **sin cambios de contrato**
+
+Se documenta aquí porque su comportamiento **se vuelve observable por primera vez**: con dos factores, retirar uno ya no es retirar «el último». El `409` de `RN-AUTH-61` solo aparece si el que se retira es el último utilizable y ningún rol lo permite (comportamiento ya implementado en `MfaFactorRemovalService`, no un cambio).
+
+**`OPEN-AUTH-27` está resuelta (2026-08-27): este endpoint no gana ninguna comprobación nueva.** Se llegó a plantear un `409` adicional —«no puedes retirar tu TOTP mientras tengas el correo activo»— y **se descartó**: «TOTP no desactivable» es una restricción de tenant y solo de tenant (`RN-AUTH-80`, `funcional.md §D.6`). **Un usuario con TOTP y correo puede retirar el TOTP y quedarse solo con el correo.** Su único `409` sigue siendo el de `RN-AUTH-61`.
+
+---
+
+## D.3 Endpoints del desafío modificados
+
+### `POST /api/v1/auth/session` — **modificado**: el `202` puede traer destino
+
+Sin cambios de contrato. `§C.2` ya documentó el cuerpo del `202`; lo que ocurre es que **dos de sus campos dejan de ser constantes**:
+
+```json
+{
+  "public_id": "01JD7...",
+  "method": "email",
+  "available_methods": ["totp", "email"],
+  "destination_masked": "a···z@e···e.com",
+  "expires_at": "2026-08-27T10:35:00Z",
+  "has_unused_recovery_codes": true
+}
+```
+
+- **`destination_masked` aparece solo si el método en curso entrega algo.** En `totp` la clave **no está presente**, no está en `null`: es un campo que no aplica, no un valor vacío.
+- **`available_methods` puede traer ahora más de un elemento**, que es lo que `§C.2` anticipaba (*«en 1.3 solo puede contener `totp`»*).
+- **Sigue sin haber ningún token, ni `session_id`, ni el código** (`RN-AUTH-84`, `CA-AUTH-116`).
+
+### `POST /api/v1/auth/mfa-challenges` — **modificado**: entrega real y tope
+
+- **Cuerpo**: `{"method": "email"}` — sin cambios de forma.
+- **Respuesta `200`**: el mismo recurso del desafío, **ahora sí con `destination_masked`** cuando procede.
+- **Semántica nueva**: pedir el método en el que ya se está **es el reenvío**. No hay endpoint distinto para reenviar, y no lo hay a propósito: son la misma operación (generar y entregar un código para este desafío).
+- **Errores**: `410` (sin desafío vivo); `422` (método no dado de alta por el usuario, o no admitido por el tenant); **`429` con `Retry-After`** por dos vías distintas —el límite de tasa `mfa_challenge_session` (3/10 min) y el tope `AUTH_MFA_MAX_DELIVERIES` (3 por desafío)—; `403`/`419` (CSRF).
+- **Ni el reenvío ni el cambio prolongan `expires_at` ni reinician `attempts`** (`RN-AUTH-54`, `RN-AUTH-79`).
+
+### `POST /api/v1/auth/mfa-verifications` — **modificado**: acepta el código entregado
+
+Mismo cuerpo (`{"code": "…"}` o `{"recovery_code": "…"}`) y mismas respuestas. El `code` se interpreta según el método **en curso del desafío**, no según lo que el cliente diga: no hay campo `method` en el cuerpo y no lo habrá.
+
+**Errores**: sin cambios. El `401` cubre ahora también «código entregado caducado» (`§D.1.1`).
+
+### D.3.1 `GET /api/v1/auth/mfa` — **modificado**: tres añadidos aditivos
+
+Motivado por `funcional.md §D.2.4`: la pantalla no puede ofrecer el correo sin saber si el tenant lo admite, y ese dato solo salía hasta ahora por `GET /tenant/settings`, que exige `configuracion.leer` — un permiso que una familia o un estudiante no tienen.
+
+```json
+{
+  "allowed_methods": ["totp", "email"],
+  "factors": [
+    { "public_id": "01JD7...", "method": "totp", "is_preferred": false,
+      "confirmed_at": "2026-03-01T09:12:00Z", "last_used_at": "2026-08-26T07:41:00Z" },
+    { "public_id": "01JD8...", "method": "email", "is_preferred": false,
+      "destination_masked": "a···z@e···e.com",
+      "confirmed_at": "2026-08-27T10:33:00Z", "last_used_at": null }
+  ],
+  "unused_recovery_codes_count": 7,
+  "mfa": {
+    "enrolled": true,
+    "obligated": true,
+    "enforced": false,
+    "grace_deadline_at": null,
+    "days_remaining": null,
+    "exempt_until": null
+  }
+}
+```
+
+1. **`allowed_methods`**: lo que el tenant admite hoy (`mfa_allowed_methods`). **No es un permiso relajado**: es información sobre la configuración del centro que el titular necesita para gestionar su propia seguridad, y no dice nada de nadie más.
+2. **`destination_masked`** en los factores de entrega, ausente en `totp`.
+3. **`mfa.exempt_until`**: la caducidad de la excepción propia, o `null`. Es lo que permite avisar *«no se te exige MFA hasta el 30 de septiembre»* **sin enviar un solo correo** (`funcional.md §D.4.10`), con el mismo criterio con el que `§C.4.8` resolvió los avisos de gracia con el recurso que la SPA ya pide.
+
+**`exempt_until` solo aparece aquí, no en `GET /me`.** El bloque `mfa` del presentador compartido (`UserProfilePresenter`) **no se toca**: lo consumen dos módulos y ampliarlo obliga a revisar los dos. `/cuenta/seguridad` ya pide este endpoint.
+
+**Los tres son ampliaciones aditivas** (`ADR-038 §7.3`): un cliente escrito contra 1.3 ignora las claves nuevas.
+
+---
+
+## D.4 Excepciones temporales nominales: los tres endpoints
+
+Implementan `§C.4.11`, que 1.3 dejó escrito y explícitamente sin entregar (`§C.1`, nota de partición). Los tres declaran permiso, los tres responden `404` con **cuerpo idéntico** ante un recurso de otro tenant (`ADR-038 §6.4`) y `403` sin permiso.
+
+**El recurso**, común a los tres:
+
+```json
+{
+  "public_id": "01JD9...",
+  "user": {
+    "public_id": "01J…",
+    "given_name": "Marta",
+    "family_name_1": "Ruiz",
+    "family_name_2": "Soto",
+    "email": "marta.ruiz@example.com"
+  },
+  "reason": "Sin teléfono compatible hasta la renovación de equipos de octubre",
+  "expires_at": "2026-10-15T00:00:00Z",
+  "state": "live",
+  "granted_by": { "public_id": "01J…", "given_name": "Luis", "family_name_1": "Ortiz" },
+  "granted_at": "2026-08-27T11:02:00Z",
+  "revoked_by": null,
+  "revoked_at": null
+}
+```
+
+- **`state`** es derivado, no una columna: `live` (`revoked_at IS NULL` y `expires_at > ahora`), `expired` (`revoked_at IS NULL` y `expires_at <= ahora`), `revoked` (`revoked_at` informado). Es la misma técnica que `MfaObligationState` en `GET /mfa-compliance/users` (`§C.8.5`), y aquí **sí** comparten vocabulario el filtro y el campo: los tres valores del filtro son los tres valores posibles de una fila.
+- **`user` y `granted_by` llevan solo campos públicos.** Nunca secretos, ni recuento de códigos de respaldo, ni estado de factores.
+- **`granted_at` es `created_at`**, renombrado en el recurso porque «cuándo se creó la fila» y «cuándo se concedió» son lo mismo y el segundo nombre es el que entiende quien lee la pantalla.
+
+### `POST /api/v1/mfa-exemptions`
+
+Concede una excepción temporal nominal.
+
+- **Permiso**: `exencion_mfa.crear`
+- **Cabeceras**: `X-XSRF-TOKEN` obligatoria (`RN-AUTH-29`)
+- **Cuerpo**:
+
+```json
+{
+  "user": "01J…",
+  "reason": "Sin teléfono compatible hasta la renovación de equipos de octubre",
+  "expires_at": "2026-10-15T00:00:00Z"
+}
+```
+
+- **Respuesta `201`** con el recurso completo.
+- **Errores**
+
+| Estado | `type` | Cuándo |
+|--------|--------|--------|
+| `422` | `urn:pge:error:validation` | `reason` ausente o de menos de 10 caracteres; `expires_at` ausente, en el pasado, mal formada, o **a más de `AUTH_MFA_MAX_EXEMPTION_DAYS` (90)** (`RN-AUTH-81`) |
+| `403` | `urn:pge:error:forbidden` | **El solicitante es el propio sujeto** (`RN-AUTH-81`). Distinto de no tener permiso, y se distingue en el mensaje — igual que en `POST /mfa-resets` (`§C.5`) |
+| `409` | `urn:pge:error:conflict` | El usuario **ya tiene una excepción viva**. Comprobación explícita, no violación del índice |
+| `404` | `urn:pge:error:not-found` | Usuario inexistente o de otro tenant |
+
+**Efecto** (`funcional.md §D.4.6`): crea la fila con `granted_by`, **cierra la obligación abierta del usuario** si la hay, y a partir de ese instante `MfaPolicy::resolve()` devuelve `NoObligado` para él — es decir, **si estaba contra el muro, deja de estarlo en su siguiente petición**.
+
+**`expires_at` viaja como `TIMESTAMPTZ` ISO-8601 y se interpreta tal cual, sin truncar al día.** Una excepción «hasta el 15 de octubre» concedida sin hora caduca a las `00:00` de ese día en el huso del centro, no a las 23:59: es lo que dice el valor que se envía, y la pantalla debe mostrar la fecha y la hora efectivas para que no haya sorpresa.
+
+### `GET /api/v1/mfa-exemptions`
+
+Lista las excepciones del centro.
+
+- **Permiso**: `exencion_mfa.leer`
+- **Filtros**: `state` (uno o varios separados por coma, `ADR-038 §5.2`, de entre `live`, `expired`, `revoked`; sin filtro, todas) y `user={public_id}`
+- **Paginación**: por página, como el resto de listados de administración (`ADR-038 §4.3`, mismo patrón que `GET /account-lockouts` y `GET /mfa-compliance/users`)
+- **Orden**: las vivas primero, y dentro de cada grupo por `granted_at` descendente. Quien abre esta pantalla quiere ver **qué está exento ahora**, no el histórico
+- **Respuesta `200`**: colección `{"data": [...], "meta": {...}}` con el recurso de arriba
+- **Errores**: `401`, `403`, `422` (valor de `state` desconocido)
+
+**Se solapa a propósito con `GET /mfa-compliance/users?state=exempt`**, y hay que decir en qué se diferencian para que nadie los funda en implementación: aquel responde *«quién está exento»* dentro del cumplimiento de un rol; este responde *«qué excepciones hay, quién las concedió, por qué y hasta cuándo»*. **Solo este trae `reason` y `granted_by`**, que es lo que convierte el mecanismo en auditable desde la interfaz y no solo desde `audit_logs`.
+
+### `DELETE /api/v1/mfa-exemptions/{public_id}`
+
+Revoca una excepción antes de su caducidad.
+
+- **Permiso**: `exencion_mfa.eliminar`
+- **Cabeceras**: `X-XSRF-TOKEN` obligatoria
+- **Cuerpo**: **ninguno.** A diferencia de `DELETE /auth/mfa-factors/{public_id}` (`§C.8.3`), aquí no hay reautenticación que pedir: el actor no está tocando sus propias credenciales, está retirando un permiso que él o un compañero concedió, y ya tiene el permiso que lo autoriza
+- **Respuesta `204`**
+- **Errores**
+
+| Estado | `type` | Cuándo |
+|--------|--------|--------|
+| `404` | `urn:pge:error:not-found` | Excepción inexistente, de otro tenant o **ya revocada**. Cuerpo idéntico en los tres (`RN-AUTH-83`) |
+| `401` / `403` | | Sin sesión / sin permiso |
+
+**Efecto** (`funcional.md §D.4.8`): escribe `revoked_at`/`revoked_by`, **conserva la fila** (no hay borrado lógico, y por tanto la auditoría registra un `updated`) y **reabre la obligación con plazo de gracia completo** si el usuario sigue reuniendo las condiciones.
+
+**Un administrador sí puede revocar la suya**, a diferencia de concederla (`funcional.md §D.4.8`).
+
+**Una excepción caducada no se revoca, se deja estar.** No hay operación sobre ella: ya no protege nada y su fila es traza.
+
+---
+
+## D.5 Superficie del módulo tras 1.3b
+
+| # | Método y ruta | Autorización | Paso |
+|---|---------------|--------------|------|
+| 1-13 | Los diez de §7 y los tres de `§B.5` | | 1.2 / 1.2b |
+| 14-23 | Los diez de `§C.7` | | 1.3 |
+| **24** | `POST /mfa-exemptions` | `exencion_mfa.crear` | **1.3b** |
+| **25** | `GET /mfa-exemptions` | `exencion_mfa.leer` | **1.3b** |
+| **26** | `DELETE /mfa-exemptions/{public_id}` | `exencion_mfa.eliminar` | **1.3b** |
+
+**Tres endpoints nuevos, ninguno anónimo.** La superficie del módulo pasa de 23 a **26**, y **la superficie anónima no crece**: sigue en 8 (`§C.7`). Es la diferencia importante con 1.3, que añadió dos endpoints alcanzables sin autenticar.
+
+**Modificados sin romper contrato**: `POST /auth/session` (el `202` puede traer `destination_masked` y más de un método), `POST /auth/mfa-enrollments` (acepta `email`), `POST /auth/mfa-factors` (ramifica por método), `POST /auth/mfa-challenges` (entrega real y tope), `POST /auth/mfa-verifications` (acepta el código entregado) y `GET /auth/mfa` (tres campos aditivos).
+
+**Ningún endpoint retirado, ninguna ruta cambiada, ningún campo eliminado.** Un cliente escrito contra 1.3 sigue funcionando sin tocar una línea.
+
+### D.5.1 La pantalla de administración no aporta superficie de API
+
+`OPEN-AUTH-28` se resolvió el 2026-08-27 por incluir en 1.3b una pantalla mínima de administración (`funcional.md §D.1.3`). **No añade ni un endpoint a esta tabla**, y es una condición de su alcance, no una casualidad: las cuatro capacidades que ofrece se cubren con los siete endpoints de administración que ya existen tras la pieza 2.
+
+| Capacidad de la pantalla | Endpoint que consume | Paso en que se entregó |
+|--------------------------|----------------------|------------------------|
+| Cumplimiento agregado por rol | `GET /mfa-compliance` | 1.3 |
+| Listado individualizado de usuarios | `GET /mfa-compliance/users` | 1.3 |
+| Vista previa del impacto de `mfa_required` | `GET /mfa-compliance?role=…&mfa_required=…` | 1.3 |
+| Conmutar `mfa_required` de un rol | `PATCH /roles/{public_id}` (en `REQ-CORE`) | 1.3 |
+| Restablecer el MFA de un usuario | `POST /mfa-resets` | 1.3 |
+| Conceder, listar y revocar excepciones | Los tres de `/mfa-exemptions` | **1.3b** |
+
+**Si al construir la pantalla aparece la necesidad de un endpoint nuevo, hay que parar y preguntar**: significa que se está adelantando `1.5` o que la pantalla se está saliendo de lo acotado. No se resuelve añadiendo API «pequeña» sobre la marcha (`CLAUDE.md §3`).
+
+---
+
+## D.6 Convenciones transversales: dónde 1.3b se aparta o matiza
+
+### D.6.1 Sin `Idempotency-Key`, otra vez
+
+Los tres nuevos: `GET` es una lectura; `DELETE` es idempotente por naturaleza (la segunda llamada responde `404`, que es un estado final estable); y `POST /mfa-exemptions` **está protegido por el `409`**, que es una idempotencia mejor que una cabecera: un doble envío no crea dos excepciones porque no puede haber dos vivas. Mismo criterio que `§C.8.2` y §9.3.
+
+### D.6.2 Un campo ausente no es un campo nulo
+
+`destination_masked` **no aparece** en el recurso cuando el método no entrega nada, en vez de aparecer con `null`. Es la única convención nueva de este paso y va contra la costumbre de `§C.8.4` («`null` no es un error»), así que se argumenta: `null` significaría «hay un destino y no lo sé»; la ausencia significa «este método no tiene destino». Un cliente tipado distingue las dos cosas y la segunda es la verdad.
+
+### D.6.3 Enumerados
+
+- `method` (`totp`, `email`, `sms`) sigue viajando como código estable en inglés técnico (`ADR-038 §7.3`). **A partir de 1.3b, `email` es un valor que el cliente verá de verdad**; `sms` sigue sin poder existir.
+- `state` de `GET /mfa-exemptions` (`live`, `expired`, `revoked`) es derivado y **comparte vocabulario entre filtro y campo**, a diferencia de `state` en `GET /mfa-compliance/users` (`§C.8.5`).
+- `trigger` de obligación sigue siendo **interno** y sin exponerse. `exencion_vencida`, que `§C.8.5` describía como *«existe ya en el enumerado porque el modelo de datos es compartido con 1.3b, pero ningún flujo de este paso lo produce»*, **pasa a producirse** en 1.3b.
+
+### D.6.4 Dos caducidades en el mismo recurso
+
+El desafío expone `expires_at` (suya) y el alta expone `expires_at` y `code_expires_at`. **No se unifican**, aunque hoy coincidan por configuración: son dos plazos con dos variables de entorno y dos consecuencias distintas (`410` frente a `401`, `§D.1.1`). La pantalla cuenta el del código; el servidor comprueba los dos.
+
+---
+
+## D.7 Eventos de dominio y webhooks
+
+**Ningún evento nuevo** (`funcional.md §D.7.3`). Los cinco de `§C.9` cubren lo que este paso produce.
+
+**Webhooks: ninguno**, con el mismo agravante de `§C.9` y uno más: publicar hacia un tercero que una persona está **exenta** de segundo factor es publicar exactamente qué cuenta atacar. Ni cuando `REQ-API` traiga el mecanismo general.
