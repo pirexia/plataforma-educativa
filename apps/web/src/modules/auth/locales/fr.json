@@ -94,6 +94,86 @@
         "bot": "Robot",
         "desconocido": "Inconnu"
       }
+    },
+    "mfa": {
+      "method": {
+        "totp": "Application d'authentification",
+        "email": "E-mail",
+        "sms": "SMS"
+      },
+      "enrollment": {
+        "intro": "Ajoutez une application d'authentification (Google Authenticator, Authy, Microsoft Authenticator ou une autre application compatible) comme second facteur de connexion.",
+        "start": "Activer l'application d'authentification",
+        "starting": "Préparation de l'inscription…",
+        "scanIntro": "Scannez ce code avec votre application d'authentification, ou saisissez la clé manuellement si vous ne pouvez pas utiliser l'appareil photo.",
+        "qrLabel": "Code QR pour inscrire le second facteur dans votre application d'authentification",
+        "secretLabel": "Clé à saisir manuellement",
+        "secretHint": "Utilisez-la si vous ne pouvez pas scanner le code QR. Elle fonctionne de la même façon dans toute application compatible.",
+        "expired": "Cette inscription a expiré. Recommencez.",
+        "expiresIn": "Expire dans {time}",
+        "codeLabel": "Code à 6 chiffres de votre application",
+        "confirm": "Confirmer le code",
+        "confirming": "Confirmation en cours…",
+        "cancel": "Annuler",
+        "notAllowed": "Cette méthode n'est pas disponible dans votre établissement.",
+        "activatedTitle": "Second facteur activé."
+      },
+      "recoveryCodes": {
+        "title": "Codes de secours",
+        "onceWarning": "Ces codes ne s'affichent qu'une seule fois. Conservez-les en lieu sûr : c'est le seul moyen de vous connecter si vous perdez l'accès à votre application d'authentification.",
+        "copy": "Copier",
+        "download": "Télécharger",
+        "acknowledge": "J'ai enregistré ces codes en lieu sûr.",
+        "continue": "Continuer",
+        "remaining": "Il vous reste {count} codes de secours non utilisés.",
+        "regenerate": "Générer de nouveaux codes de secours",
+        "confirmRegenerate": "Les codes actuels cesseront de fonctionner. Confirmez votre mot de passe pour générer un nouveau jeu."
+      },
+      "security": {
+        "title": "Sécurité du compte",
+        "intro": "Gérez le second facteur de connexion de votre compte.",
+        "loading": "Chargement de votre état de sécurité…",
+        "enrollSuccess": "Second facteur activé.",
+        "factorRemoved": "Second facteur désactivé.",
+        "factorRequiredGeneric": "Vous ne pouvez pas désactiver votre dernier facteur : au moins un de vos rôles exige un second facteur.",
+        "wrongPassword": "Le mot de passe actuel n'est pas correct.",
+        "graceBanner": "Votre rôle exige un second facteur de connexion. Il vous reste {days} jours pour l'activer.",
+        "factorsTitle": "Vos facteurs actifs",
+        "noFactors": "Vous n'avez encore aucun second facteur actif.",
+        "preferred": "préféré",
+        "confirmedAt": "Activé le {date}",
+        "deactivate": "Désactiver",
+        "confirmDeactivate": "Désactiver ce second facteur ? Vous devez confirmer votre mot de passe actuel.",
+        "deactivating": "Désactivation…",
+        "confirmYes": "Confirmer",
+        "confirmCancel": "Annuler",
+        "recoveryCodesRegenerated": "Un nouveau jeu de codes de secours a été généré.",
+        "logout": "Se déconnecter"
+      },
+      "wall": {
+        "title": "Activez votre second facteur",
+        "reason": "Votre rôle exige un second facteur de connexion et le délai pour l'activer est dépassé. Complétez-le pour continuer ; vous ne pouvez pas accéder au reste de la plateforme tant que ce n'est pas fait.",
+        "completed": "Second facteur activé. Vous pouvez continuer.",
+        "continue": "Continuer",
+        "logout": "Se déconnecter"
+      }
+    },
+    "mfaChallenge": {
+      "title": "Vérifiez votre identité",
+      "intro": "Saisissez le code de votre application d'authentification pour terminer la connexion.",
+      "methodSelectorLabel": "Méthode du second facteur",
+      "codeLabel": "Code à 6 chiffres",
+      "clockHint": "Si le code continue d'échouer, vérifiez l'heure de votre appareil.",
+      "expiresIn": "Ce code expire dans {time}",
+      "submit": "Vérifier",
+      "submitting": "Vérification en cours…",
+      "resend": "Renvoyer le code",
+      "resending": "Renvoi en cours…",
+      "useRecoveryCode": "Utiliser un code de secours",
+      "useCodeInstead": "Utiliser plutôt le code de l'application",
+      "recoveryCodeLabel": "Code de secours",
+      "invalidCode": "Le code n'est pas correct.",
+      "expired": "La vérification a expiré. Reconnectez-vous."
     }
   }
 }

@@ -50,6 +50,20 @@ const router = createRouter({
       name: 'sessions',
       component: () => import('@/modules/auth/views/SessionsView.vue'),
     },
+    // REQ-AUTH-003 (1.3), funcional.md §C.11: misma categoría — con
+    // sesión, sin `AppLayout`. `mfa-enrollment-wall` es además el destino
+    // fijo al que `src/api/client.ts` redirige ante cualquier
+    // `403 urn:pge:error:mfa-enrollment-required` (funcional.md §C.4.9).
+    {
+      path: '/cuenta/seguridad',
+      name: 'mfa-security',
+      component: () => import('@/modules/auth/views/AccountSecurityView.vue'),
+    },
+    {
+      path: '/cuenta/seguridad/obligatorio',
+      name: 'mfa-enrollment-wall',
+      component: () => import('@/modules/auth/views/MfaEnrollmentWallView.vue'),
+    },
   ],
 })
 

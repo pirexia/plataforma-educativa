@@ -31,3 +31,36 @@ export function retryAfterSeconds(err: unknown): number | null {
 export function apiErrorStatus(err: unknown): number | null {
   return err instanceof ApiError ? err.status : null
 }
+
+/**
+ * REQ-AUTH (1.3): `detail` de `problem+json`, ya traducido por el
+ * servidor (`ADR-038 §6.3`, mismo criterio que `fieldErrors`). Se usa
+ * cuando el cuerpo del error no tiene una forma de campo fija —p.ej. el
+ * `409` de "último factor exigido" de `DELETE /auth/mfa-factors/{id}`,
+ * cuyo detalle nombra los roles que lo exigen— así que no hay una clave
+ * de `errors` que leer.
+ */
+export function apiErrorDetail(err: unknown): string | null {
+  if (!(err instanceof ApiError)) {
+    return null
+  }
+
+  const body = err.body as AuthProblemBody | null
+
+  return body?.detail ?? null
+}
+
+/**
+ * REQ-AUTH (1.3): el `type` de `problem+json` (`ADR-038 §6`) para
+ * distinguir, p.ej., el `409` de "último factor exigido" de otro `409`
+ * genérico, sin acoplarse a la forma exacta del cuerpo de error.
+ */
+export function apiErrorType(err: unknown): string | null {
+  if (!(err instanceof ApiError)) {
+    return null
+  }
+
+  const body = err.body as AuthProblemBody | null
+
+  return body?.type ?? null
+}
