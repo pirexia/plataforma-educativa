@@ -3,12 +3,14 @@
 # /api/v1, referenciados desde apps/api/openapi.yaml. Contrato completo en
 # docs/modulos/REQ-AUTH/api.md §C.
 #
-# api.md §C.1/§C.5: diez endpoints — ocho de autoservicio (por identidad,
-# sin permiso, salvo los dos de login en dos pasos que van sin sesión) y
-# dos de administración (mfa.leer/mfa.eliminar). Ninguno lleva
-# module-enabled (RN-AUTH-35, CA-AUTH-145). El undécimo endpoint de este
-# paso, PATCH /api/v1/roles/{publicId} acotado a mfa_required, vive en
-# core.yaml (REQ-CORE es dueño del recurso, §C.2.2).
+# api.md §C.1/§C.5: diez endpoints — siete de autoservicio (por
+# identidad, sin permiso, salvo los dos de login en dos pasos que van sin
+# sesión) y tres de administración (mfa.leer × 2, mfa.eliminar × 1).
+# GET /mfa-compliance/users se restauró en 1.3 el 2026-08-27 (api.md
+# §C.1). Ninguno lleva module-enabled (RN-AUTH-35, CA-AUTH-145). El
+# undécimo endpoint de este paso, PATCH /api/v1/roles/{publicId} acotado
+# a mfa_required, vive en core.yaml (REQ-CORE es dueño del recurso,
+# §C.2.2).
 
 paths:
   /api/v1/auth/mfa-enrollments:
@@ -272,6 +274,44 @@ paths:
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
         '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/mfa-compliance/users:
+    get:
+      operationId: listMfaComplianceUsers
+      summary: Listado individualizado de cumplimiento MFA
+      description: >
+        api.md §C.5. Restaurado en 1.3 el 2026-08-27 (decisión del
+        usuario, corrige un recorte no autorizado a 1.3b). Complemento
+        individualizado de GET /mfa-compliance. Permiso mfa.leer, el
+        mismo que el agregado — no usuario.leer (permisos.md §C.6.1).
+      tags: [Auth / MFA]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: state
+          in: query
+          description: >
+            obligated|enrolled|pending|past_deadline|exempt, varios
+            separados por coma (ADR-038 §5.2). obligated es un alias de
+            conveniencia sobre pending+past_deadline: ninguna fila
+            individual lleva ese valor.
+          schema: { type: string }
+        - $ref: '../components.yaml#/components/parameters/PageParam'
+        - $ref: '../components.yaml#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: Colección paginada por página (catálogo acotado al tenant, ADR-038 §4.2).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/MfaComplianceUserRow' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
 
   /api/v1/mfa-resets:

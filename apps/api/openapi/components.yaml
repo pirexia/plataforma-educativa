@@ -476,6 +476,41 @@ components:
         users_enforced: { type: integer }
         users_exempt: { type: integer }
 
+    MfaComplianceUserRow:
+      type: object
+      description: >
+        REQ-AUTH-003 (1.3), api.md §C.5. Fila de
+        `GET /mfa-compliance/users` — restaurado en 1.3 el 2026-08-27.
+        `user` lleva solo campos públicos; nunca secretos, hashes ni
+        recuento de códigos de respaldo restantes (permisos.md §C.6.1).
+      properties:
+        user:
+          type: object
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            given_name: { type: string, nullable: true }
+            family_name_1: { type: string, nullable: true }
+            family_name_2: { type: string, nullable: true }
+            email: { type: string, format: email }
+        state:
+          type: string
+          description: >
+            Valor de la fila — nunca literalmente "obligated" (ese es
+            solo un alias de filtro sobre pending+past_deadline).
+          enum: [enrolled, exempt, pending, past_deadline]
+        grace_deadline_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Solo informado en pending/past_deadline.
+        enrolled_methods:
+          type: array
+          items: { type: string, enum: [totp, email, sms] }
+        required_by_roles:
+          type: array
+          items: { type: string }
+          description: code de los roles vivos del usuario que exigen MFA.
+
     PublicId:
       type: string
       format: ulid

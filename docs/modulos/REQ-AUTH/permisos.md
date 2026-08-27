@@ -288,9 +288,9 @@ Lo que 1.2b **sí** añade al inventario de datos personales del módulo, y que 
 
 No es una desviación: es la consecuencia directa de que `REQ-AUTH-003` sea el primer requisito de este módulo con superficie de administración real. Hasta ahora lo único que un administrador podía hacer aquí era levantar un bloqueo. Ahora puede **cambiar la política de seguridad de un rol entero** y **devolver el acceso a una cuenta protegida**. Las dos son decisiones sobre otras personas, y las dos necesitan permiso.
 
-Lo que **no** cambia es la otra mitad de §1: de los diez endpoints de este paso, **ocho siguen sin permiso** —dos autorizados por la cookie del desafío y seis por identidad del portador— y ahí la denegación por defecto (`INV-002`) sigue sin aplicarla ningún *middleware*, sino los mecanismos de `§C.4`.
+Lo que **no** cambia es la otra mitad de §1: de los diez endpoints de este paso, **siete siguen sin permiso** —dos autorizados por la cookie del desafío y cinco por identidad del portador— y ahí la denegación por defecto (`INV-002`) sigue sin aplicarla ningún *middleware*, sino los mecanismos de `§C.4`. (Corrección de cuenta, 2026-08-27: esta frase decía antes "ocho... dos... seis", una aritmética que nunca cuadró con los nueve endpoints que tenía 1.3 antes de restaurar `GET /mfa-compliance/users` — ver la nota de partición.)
 
-**Nota de partición (`OPEN-AUTH-24`, `funcional.md §C.16`):** la especificación original de este paso incluía también el recurso `exencion_mfa` (conceder/revocar una excepción temporal nominal). El usuario partió el paso en `1.3`/`1.3b` el 2026-08-26, y la excepción temporal quedó en `1.3b`. Esta sección documenta **solo** lo que `1.3` declara; `exencion_mfa` se documentará en su propia sección cuando `1.3b` se implemente. La tabla `user_mfa_exemptions` ya existe desde 1.3 (`datos.md §C.6`) porque `MfaPolicy::resolve()` la consulta (§C.4.7 punto 1 de `funcional.md`), pero **ningún endpoint de 1.3 escribe en ella todavía**.
+**Nota de partición (`OPEN-AUTH-24`, `funcional.md §C.16`):** la especificación original de este paso incluía también el recurso `exencion_mfa` (conceder/revocar una excepción temporal nominal) y el listado individualizado de usuarios (`GET /mfa-compliance/users`). El usuario partió el paso en `1.3`/`1.3b` el 2026-08-26. **Corrección del 2026-08-27**: un subagente había movido los dos a `1.3b` por error — solo `exencion_mfa` estaba en lo que el usuario decidió mover. El usuario revisó el hallazgo y restauró `GET /mfa-compliance/users` en `1.3`, con el mismo permiso `mfa.leer` que el agregado (`§C.6.1`). `exencion_mfa` **sigue** en `1.3b`; esta sección documenta **solo** lo que `1.3` declara. La tabla `user_mfa_exemptions` ya existe desde 1.3 (`datos.md §C.6`) porque `MfaPolicy::resolve()` la consulta (§C.4.7 punto 1 de `funcional.md`), pero **ningún endpoint de 1.3 escribe en ella todavía**.
 
 ---
 
@@ -312,7 +312,7 @@ Lo que **no** cambia es la otra mitad de §1: de los diez endpoints de este paso
 
 | `code` | Recurso | Acción | Endpoints que lo exigen |
 |--------|---------|--------|-------------------------|
-| `mfa.leer` | `mfa` | `leer` | `GET /mfa-compliance` |
+| `mfa.leer` | `mfa` | `leer` | `GET /mfa-compliance`, `GET /mfa-compliance/users` |
 | `mfa.eliminar` | `mfa` | `eliminar` | `POST /mfa-resets` |
 
 **Total del módulo tras 1.3: cuatro permisos** (los dos de `bloqueo_cuenta` más estos dos).
@@ -365,6 +365,7 @@ Hoy `CoreServiceProvider::declaredPermissions()` declara `'rol' => ['leer']`. Es
 | `rol.actualizar` | `REQ-CORE` (**declarado en este paso**, `§C.5`) | `PATCH /roles/{public_id}` con `mfa_required` |
 | `rol.leer` | `REQ-CORE` | La pantalla de 1.5 necesita listar roles antes de cambiar ninguno |
 | `configuracion.leer` / `configuracion.actualizar` | `REQ-CORE` | `mfa_allowed_methods` y `mfa_grace_period_days` en `GET`/`PATCH /tenant/settings` (`api.md §C.6`). **Sin permiso propio**, mismo argumento que §4.1 |
+| `usuario.leer` | `REQ-CORE` | **No se usa.** `GET /mfa-compliance/users` devuelve datos de usuario (nombre, correo) pero exige `mfa.leer`, no `usuario.leer` — ver `§C.6.1` |
 
 ---
 
@@ -379,14 +380,21 @@ Hoy `CoreServiceProvider::declaredPermissions()` declara `'rol' => ['leer']`. Es
 
 **`mfa` sin `exportar`, y merece decirse.** Un CSV con quién tiene y quién no tiene segundo factor es un mapa de las cuentas más fáciles de atacar en el centro, ordenado por facilidad. `REQ-AUTH-003` pide que el estado sea *consultable*, no exportable, y la diferencia entre las dos cosas es un fichero que sale del sistema y acaba en un correo. Si algún día se pide, es un requisito nuevo con su propio permiso y su propia auditoría de exportación (`REQ-CORE-005` ya tiene el mecanismo).
 
-### C.6.1 Por qué `GET /mfa-compliance` exige `mfa.leer` y no `rol.leer` ni `usuario.leer`
+### C.6.1 Por qué `GET /mfa-compliance` y `GET /mfa-compliance/users` exigen `mfa.leer` y no `rol.leer` ni `usuario.leer`
 
-`GET /mfa-compliance` devuelve **solo recuentos agregados** por rol (obligados, inscritos, en gracia, exigibles) — nunca nombres ni correos de usuarios individuales (`api.md §C.5`, `funcional.md §C.1.1` punto 9). Aun así merece permiso propio y no uno prestado, por dos motivos:
+Los dos comparten permiso, pero por motivos distintos — conviene separarlos, no tratarlos como si fuera el mismo argumento repetido dos veces.
+
+**`GET /mfa-compliance`** devuelve **solo recuentos agregados** por rol (obligados, inscritos, en gracia, exigibles) — nunca nombres ni correos de usuarios individuales (`api.md §C.5`, `funcional.md §C.1.1` punto 9). Aun así merece permiso propio y no uno prestado, por dos motivos:
 
 1. **El recuento en sí es información de ataque.** Cuántos usuarios de un rol carecen de segundo factor es un indicador de qué cuenta conviene atacar primero, aunque no diga cuál. `rol.leer` (que casi cualquier rol de gestión tiene, `§C.7.6`) no es el permiso pensado para exponer eso.
 2. **La vista previa hipotética escribe una decisión antes de guardarla.** `?mfa_required=true` simula el efecto de una `PATCH /roles` que todavía no se ha hecho. Es una consulta sobre una decisión de seguridad, no sobre el catálogo de roles: por eso el permiso es del recurso `mfa`, no de `rol`.
 
-`mfa.leer` es, por tanto, un permiso propio y estrecho: quien lo tiene ve cumplimiento agregado, nada de identidad de usuarios.
+**`GET /mfa-compliance/users`** (restaurado en 1.3 el 2026-08-27, `§C.1`) sí es distinto: devuelve nombre y correo de usuarios (`api.md §C.5`), que es justo lo que `usuario.leer` gobierna. Y aun así el permiso es `mfa.leer`, no `usuario.leer`, por dos motivos — el argumento original de la especificación, restaurado junto con el endpoint:
+
+1. **Lo que hace peligroso a ese listado no son los nombres, es el filtro por `state`.** `usuario.leer` lo tienen `direccion`, `secretaria` y `administrativo` en 1.1. Reutilizarlo aquí daría a esos tres roles la lista de **quién no tiene segundo factor**, que es información de ataque, no de gestión.
+2. **Un permiso más restrictivo no se puede obtener componiendo dos menos restrictivos.** Exigir `mfa.leer` **y** `usuario.leer` sería más correcto en teoría y peor en la práctica: dos comprobaciones para una pantalla, y el día que alguien simplifique quitará la que no entienda.
+
+`mfa.leer` es, por tanto, **más restrictivo que `usuario.leer` y no lo sustituye**: quien lo tiene ve estos datos en este contexto —cumplimiento, agregado o individualizado— y nada más.
 
 ---
 
@@ -439,7 +447,7 @@ Sin cambios. `REQ-AUTH` sigue sin exponer categoría especial (`§C.9`).
 
 Rige la **regla de seguridad** de §5.6, que sigue en vigor sin matices: entre 1.1 y 1.5, el resolutor provisional de `ADR-034 §2` **lee `permission_role.effect` e ignora `permission_role.scope`**. Una concesión con ámbito `propios` se evalúa hoy exactamente igual que una con ámbito `todos`.
 
-Aplicado a este paso, y el ejemplo es peor que el de 1.2: sembrar `mfa.leer` con ámbito `propios` —pensando en «que cada uno vea su estado»— daría a ese rol **el recuento agregado de cumplimiento de todo el centro**. Es decir, exactamente la información que `§C.6.1` acaba de argumentar que no se reparte, entregada por un ámbito que nadie evalúa.
+Aplicado a este paso, y el ejemplo es peor que el de 1.2: sembrar `mfa.leer` con ámbito `propios` —pensando en «que cada uno vea su estado»— daría a ese rol **el recuento agregado de cumplimiento de todo el centro, y desde la restauración de `GET /mfa-compliance/users`, la identidad de quién no cumple**. Es decir, exactamente la información que `§C.6.1` acaba de argumentar que no se reparte, entregada por un ámbito que nadie evalúa.
 
 Reglas derivadas, verificables:
 
@@ -477,14 +485,14 @@ Y siguen en vigor, sin excepción, las ocho de §7 y las cinco de `§B.4`: `RN-A
 Lo que 1.3 **sí** añade al inventario de datos sensibles del módulo, y que no hay que confundir con «no sensible»:
 
 - **Credenciales de segundo factor.** Un secreto TOTP es material que permite generar códigos válidos indefinidamente. Es la primera columna **cifrada en reposo** del producto (`datos.md §C.2`), y su custodia depende de `APP_KEY` (`datos.md §C.11.1`, `OPEN-AUTH-26`).
-- **Un mapa de qué cuentas están peor protegidas.** El recuento de cumplimiento es información de ataque: dice a qué rol conviene atacar primero. Por eso `mfa.leer` es un permiso propio y estrecho (`§C.6.1`) y por eso `mfa` **no tiene `exportar`** (`§C.6`).
+- **Un mapa de qué cuentas están peor protegidas — y, desde 1.3, de quiénes son.** `GET /mfa-compliance` da el recuento por rol; `GET /mfa-compliance/users` (restaurado el 2026-08-27) da la identidad de cada persona detrás de ese recuento. Los dos son información de ataque: dicen a qué rol, y a quién exactamente, conviene atacar primero. Por eso `mfa.leer` es un permiso propio y estrecho, más restrictivo que `usuario.leer` (`§C.6.1`), y por eso `mfa` **no tiene `exportar`** (`§C.6`).
 - **Texto libre escrito por un administrador sobre otra persona**, en `mfa_resets.reason`. No es categoría especial por sí mismo, pero puede contenerla según lo que se escriba («perdió el móvil ingresado en el hospital»). Se borra con la persona, solo lo lee quien tiene el permiso, y el manual de administración debe advertir de que se registra y de quién puede leerlo (`datos.md §C.11`). `user_mfa_exemptions.reason` tendrá la misma consideración cuando `1.3b` entregue el endpoint que lo escribe; la columna existe ya (`§C.1`) pero nadie la usa todavía.
 
 ---
 
 ## C.10 Verificación
 
-- **`CA-AUTH-140`** — los endpoints de administración de este paso (`GET /mfa-compliance`, `POST /mfa-resets`): `401` sin sesión, `403` sin permiso, `404` sobre recurso de otro tenant con **cuerpo idéntico**, `419`/`403` sin CSRF en las escrituras.
+- **`CA-AUTH-140`** — los endpoints de administración de este paso (`GET /mfa-compliance`, `POST /mfa-resets`): `401` sin sesión, `403` sin permiso, `404` sobre recurso de otro tenant con **cuerpo idéntico**, `419`/`403` sin CSRF en las escrituras. `GET /mfa-compliance/users`, restaurado el 2026-08-27, no tiene CA numerado propio: la misma comprobación de sesión/permiso/aislamiento está en su test dedicado de `MfaAdministrationTest.php` (referenciado como `REQ-AUTH-003`, no un CA nuevo — `funcional.md §C.13`).
 - **`CA-AUTH-138`** — un administrador con `mfa.eliminar` **no puede restablecerse a sí mismo**: `403` (`RN-AUTH-67`).
 - **`CA-AUTH-115`** — con segundo factor pendiente, **cualquier** endpoint autenticado responde `401` (`RN-AUTH-52`).
 - **`CA-AUTH-117`** — desafío presentado desde otra sesión: `410` con el mismo cuerpo que uno inexistente (`RN-AUTH-53`).

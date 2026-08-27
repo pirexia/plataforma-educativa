@@ -605,18 +605,18 @@ Dos eventos nuevos publicados, `SessionRevoked` y `NewDeviceDetected` (`funciona
 
 ## C.1 Reglas generales: qué cambia respecto de §1 y §B.1
 
-**Nota de partición (`OPEN-AUTH-24`, `funcional.md §C.16`):** la especificación original de este paso incluía también la excepción temporal nominal (recurso `exencion_mfa`, endpoints `GET`/`POST`/`DELETE /mfa-exemptions`) y un listado individualizado de usuarios (`GET /mfa-compliance/users`). El usuario partió el paso en `1.3`/`1.3b` el 2026-08-26: **1.3 no entrega ninguno de los dos**. Esta sección documenta únicamente lo que `1.3` entrega de verdad.
+**Nota de partición (`OPEN-AUTH-24`, `funcional.md §C.16`):** la especificación original de este paso incluía también la excepción temporal nominal (recurso `exencion_mfa`, endpoints `GET`/`POST`/`DELETE /mfa-exemptions`) y un listado individualizado de usuarios (`GET /mfa-compliance/users`). El usuario partió el paso en `1.3`/`1.3b` el 2026-08-26, y **1.3 dejó de entregar los dos**. **Corrección del 2026-08-27**: un subagente había agrupado el listado individualizado con la excepción temporal por error — solo esta última estaba en el alcance movido a `1.3b`. El usuario revisó el hallazgo y decidió restaurar `GET /mfa-compliance/users` en `1.3`; `exencion_mfa` y sus tres endpoints **siguen** en `1.3b`. Esta sección documenta lo que `1.3` entrega de verdad, incluida esa restauración.
 
 | Aspecto | 1.3 |
 |---------|-----|
 | Autenticación | Sin cambios (`ADR-025`). **El segundo paso del login se autoriza con la misma cookie de sesión anónima**, no con un token nuevo (`RN-AUTH-53`) |
-| Autorización | De los **9 endpoints nuevos de este módulo**: **2 autorizados por la cookie del desafío** (mecanismo nuevo, `permisos.md §C.4`), **5 por identidad del portador**, **2 con permiso declarado**. Más **1 en `REQ-CORE`** (`PATCH /roles/{public_id}`, permiso `rol.actualizar`). Es la primera vez que este módulo aporta permisos más allá de `bloqueo_cuenta` (`permisos.md §C.3`) |
+| Autorización | De los **10 endpoints nuevos de este módulo**: **2 autorizados por la cookie del desafío** (mecanismo nuevo, `permisos.md §C.4`), **5 por identidad del portador**, **3 con permiso declarado**. Más **1 en `REQ-CORE`** (`PATCH /roles/{public_id}`, permiso `rol.actualizar`). Es la primera vez que este módulo aporta permisos más allá de `bloqueo_cuenta` (`permisos.md §C.3`) |
 | Aislamiento | Sin cambios. Recurso de otro tenant ⇒ `404`, nunca `403` (`ADR-038 §6.4`) |
 | Idempotencia | **Ningún endpoint exige `Idempotency-Key`** (`§C.8.2`) |
 | Auditoría | `INV-003`, **sin ampliar el vocabulario** (`funcional.md §C.10`). Todo por el *observer* de 0.9, salvo `login`, que ya existía |
 | Módulo desactivado | No aplica: ninguna ruta lleva `module-enabled` (`RN-AUTH-35`, `CA-AUTH-145`) |
 | Límite de tasa | Los anónimos y los de alta/regeneración, por IP y por sujeto. `operacion.md §C.6` |
-| OpenAPI | Los 9 en `apps/api/openapi/paths/mfa.yaml`; el `PATCH` de roles en `core.yaml`, que es de quien es el recurso |
+| OpenAPI | Los 10 en `apps/api/openapi/paths/mfa.yaml`; el `PATCH` de roles en `core.yaml`, que es de quien es el recurso |
 
 ### C.1.1 Tipo de error nuevo: **uno**
 
@@ -833,9 +833,9 @@ Regenera el juego de códigos de respaldo.
 
 ## C.5 Administración
 
-Los dos declaran permiso. Los dos responden `404` con **cuerpo idéntico** ante un recurso de otro tenant (`ADR-038 §6.4`) y `403` sin permiso.
+Los tres declaran permiso. Los tres responden `404` con **cuerpo idéntico** ante un recurso de otro tenant (`ADR-038 §6.4`) y `403` sin permiso.
 
-**`GET /mfa-compliance/users` (listado individualizado) y los tres de `/mfa-exemptions` (excepción temporal nominal) NO se entregan en 1.3** — `§C.1`. Se documentarán en su propia sección cuando `1.3b` los entregue.
+**Los tres de `/mfa-exemptions` (excepción temporal nominal) NO se entregan en 1.3** — `§C.1`. Se documentarán en su propia sección cuando `1.3b` los entregue. `GET /mfa-compliance/users` (listado individualizado), en cambio, **sí se entrega en 1.3**: restaurado el 2026-08-27 (`§C.1`, decisión del usuario que corrige un recorte no autorizado a `1.3b`).
 
 ### `GET /api/v1/mfa-compliance`
 
@@ -862,6 +862,42 @@ Estado de cumplimiento **y** vista previa de un rol, en el mismo endpoint. `REQ-
 - **Con `mfa_required` en la consulta**, la misma forma pero `preview: true`: `users_enrolled`/`users_obligated` reflejan la hipótesis (cuántos **quedarían** obligados si el rol pasara a tener ese valor), `users_in_grace`/`users_enforced` van siempre a `0` (no hay obligación real que clasificar en gracia o vencida sobre algo que no se ha guardado), y **no se escribe nada** (`CA-AUTH-136`).
 - Es lo que 1.5 consumirá desde el editor de roles para pintar *«este cambio obligará a N usuarios más»* antes de guardar.
 - Consulta **por rol**, no un `totals` del centro entero: cada llamada acota explícitamente `role`, para que el coste de la consulta sea el de un rol, no el de toda la población.
+
+### `GET /api/v1/mfa-compliance/users`
+
+Quiénes son. El requisito pide el estado *«consultable por el administrador: usuarios obligados, inscritos y pendientes»* (`funcional.md §C.1.1` punto 9), y eso es una lista, no un contador — es el complemento individualizado de `GET /mfa-compliance`. Restaurado en 1.3 el 2026-08-27 (`§C.1`).
+
+- **Permiso**: `mfa.leer` (el mismo que el agregado — `permisos.md §C.6.1` explica por qué, y no `usuario.leer`)
+- **Filtros**: `state`, uno o varios separados por coma (`ADR-038 §5.2`) de entre `obligated`, `enrolled`, `pending`, `past_deadline`, `exempt`. Sin filtro, todos.
+  - `obligated` es un alias de conveniencia sobre `pending`+`past_deadline`: el dominio (`MfaObligationState`) no tiene un tercer estado propio con ese nombre — ninguna fila individual del `data` lleva literalmente `state: "obligated"`.
+- **Paginación**: por página, como el resto de listados de administración (`ADR-038 §4.3`, mismo patrón que `GET /account-lockouts`)
+- **Respuesta `200`**: colección `{"data": [...], "meta": {...}}`:
+
+```json
+{
+  "data": [
+    {
+      "user": {
+        "public_id": "01J…",
+        "given_name": "Marta",
+        "family_name_1": "Ruiz",
+        "family_name_2": "Soto",
+        "email": "marta.ruiz@example.com"
+      },
+      "state": "pending",
+      "grace_deadline_at": "2026-09-02T10:00:00Z",
+      "enrolled_methods": [],
+      "required_by_roles": ["docente"]
+    }
+  ],
+  "meta": { "current_page": 1, "per_page": 25, "total": 34, "last_page": 2 }
+}
+```
+
+- **`user` lleva solo campos públicos** (nombre, correo). **Nunca** secretos, hashes ni recuento de códigos de respaldo restantes de nadie.
+- **`grace_deadline_at` es `null`** salvo en `pending`/`past_deadline`.
+- **`enrolled_methods`** son los métodos con factor confirmado (vacío si ninguno); **`required_by_roles`** son los `code` de los roles vivos del usuario que exigen MFA (vacío si ninguno le exige nada — puede pasar en `enrolled`, MFA voluntario).
+- **Quien no está obligado por ningún rol, no está inscrito y no tiene excepción viva, no aparece en el listado**: no es información de cumplimiento.
 
 ### `POST /api/v1/mfa-resets`
 
@@ -940,14 +976,15 @@ Es lo que sostiene *«avisos en cada acceso»* del requisito **sin endpoint nuev
 | 19 | `DELETE /auth/mfa-factors/{public_id}` | Identidad | **1.3** |
 | 20 | `POST /auth/mfa-recovery-codes` | Identidad | **1.3** |
 | 21 | `GET /mfa-compliance` | `mfa.leer` | **1.3** |
-| 22 | `POST /mfa-resets` | `mfa.eliminar` | **1.3** |
+| 22 | `GET /mfa-compliance/users` | `mfa.leer` | **1.3** (restaurado 2026-08-27) |
+| 23 | `POST /mfa-resets` | `mfa.eliminar` | **1.3** |
 | — | `PATCH /roles/{public_id}` | `rol.actualizar` | **1.3, en `REQ-CORE`** |
 
 **Modificados sin romper contrato**: `POST /auth/session` (añade `202`), `GET /me` y `PATCH /tenant/settings` (añaden campos).
 
-**Nueve endpoints nuevos en `REQ-AUTH` más uno en `REQ-CORE`.** La superficie del módulo pasa de 13 a 22 en este paso, y **la superficie anónima pasa de 6 a 8** (los dos del desafío no son anónimos del todo —exigen una sesión con desafío vivo— pero son alcanzables sin autenticación y se protegen como tales). Es el dato que más pesa en `OPEN-AUTH-24`.
+**Diez endpoints nuevos en `REQ-AUTH` más uno en `REQ-CORE`.** La superficie del módulo pasa de 13 a 23 en este paso, y **la superficie anónima pasa de 6 a 8** (los dos del desafío no son anónimos del todo —exigen una sesión con desafío vivo— pero son alcanzables sin autenticación y se protegen como tales). Es el dato que más pesa en `OPEN-AUTH-24`.
 
-`GET /mfa-compliance/users` y los tres de `/mfa-exemptions` (§C.16, `OPEN-AUTH-24`) **no están en esta tabla porque no se han construido en 1.3**: quedan para `1.3b`, junto con el método `email` como segundo factor.
+Los tres de `/mfa-exemptions` (§C.16, `OPEN-AUTH-24`) **no están en esta tabla porque no se han construido en 1.3**: quedan para `1.3b`, junto con el método `email` como segundo factor. `GET /mfa-compliance/users` (fila 22), en cambio, se restauró en 1.3 el 2026-08-27 tras corregirse un recorte no autorizado — ver `§C.1`.
 
 ---
 
@@ -959,7 +996,7 @@ Es lo que sostiene *«avisos en cada acceso»* del requisito **sin endpoint nuev
 
 ### C.8.2 Sin `Idempotency-Key`, otra vez
 
-Ninguno de los nueve. Los dos del desafío tienen su propia protección contra repetición —el desafío se consume— y los de autoservicio son operaciones que un usuario ejecuta desde una pantalla. Los de administración son los únicos discutibles: un doble envío de `POST /mfa-resets` haría dos restablecimientos. **El segundo es inofensivo** (no quedan factores que borrar; sigue respondiendo `204`, con `factors_removed: 0` en la traza) y escribiría una fila de traza de más, que es preferible a una de menos. Mismo criterio que §9.3 y `§B.7.2`.
+Ninguno de los diez. Los dos del desafío tienen su propia protección contra repetición —el desafío se consume— y los de autoservicio son operaciones que un usuario ejecuta desde una pantalla. `GET /mfa-compliance/users` es una lectura, no hay nada que idempotizar. Los de escritura de administración son los únicos discutibles: un doble envío de `POST /mfa-resets` haría dos restablecimientos. **El segundo es inofensivo** (no quedan factores que borrar; sigue respondiendo `204`, con `factors_removed: 0` en la traza) y escribiría una fila de traza de más, que es preferible a una de menos. Mismo criterio que §9.3 y `§B.7.2`.
 
 ### C.8.3 Un `DELETE` con cuerpo
 
@@ -978,6 +1015,8 @@ Se elige el cuerpo, y se anota como cosa a verificar en el despliegue real detr�
 `method` (`totp`, `email`, `sms`) viaja como **código estable en inglés técnico**, nunca traducido (`ADR-038 §7.3`). En 1.3 el servidor solo confirma factores `totp` — `email` y `sms` se validan como valores de enumerado pero cualquier intento de inscripción con ellos responde `422` (§C.1, deferred a `1.3b`) — y el cliente **debe** tener rama por defecto: los otros dos pueden aparecer el día que existan sin que la SPA cambie.
 
 `trigger` de obligación (`MfaObligationTrigger`, cinco valores: `rol_modificado`, `rol_asignado`, `metodo_retirado`, `restablecimiento`, `exencion_vencida`) es **interno**: sostiene `user_mfa_obligations.trigger` para trazabilidad pero **no se expone en ningún endpoint** de 1.3. `exencion_vencida` existe ya en el enumerado porque el modelo de datos es compartido con `1.3b`, pero ningún flujo de este paso lo produce.
+
+`state` de `GET /mfa-compliance/users` (`§C.5`) tiene **cinco valores válidos como filtro** (`obligated`, `enrolled`, `pending`, `past_deadline`, `exempt`) pero solo **cuatro aparecen como valor de una fila**: `obligated` es un alias de conveniencia sobre `pending`+`past_deadline` que el servidor expande antes de consultar — no hay un tercer estado de dominio con ese nombre (`MfaObligationState` solo tiene `EnGracia`/`Exigible` para quien está obligado, más `enrolled`/`exempt` fuera de ese enumerado). Es la única excepción de este módulo a "el filtro y el campo comparten vocabulario", y se anota aquí para que no se lea como una inconsistencia sin explicar.
 
 ---
 

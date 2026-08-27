@@ -153,6 +153,8 @@ paths:
     $ref: "openapi/paths/mfa.yaml#/paths/~1api~1v1~1auth~1mfa-verifications"
   /api/v1/mfa-compliance:
     $ref: "openapi/paths/mfa.yaml#/paths/~1api~1v1~1mfa-compliance"
+  /api/v1/mfa-compliance/users:
+    $ref: "openapi/paths/mfa.yaml#/paths/~1api~1v1~1mfa-compliance~1users"
   /api/v1/mfa-resets:
     $ref: "openapi/paths/mfa.yaml#/paths/~1api~1v1~1mfa-resets"
 
