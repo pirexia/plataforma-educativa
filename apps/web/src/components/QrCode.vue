@@ -15,6 +15,11 @@
  * pantalla o una captura de este componente no debe poder extraerlo por
  * ahí. Quien necesite el valor en texto lo tiene aparte, seleccionable
  * (`funcional.md §C.11`).
+ *
+ * `ADR-041` §2.4/§2.3.1: los módulos se pintan con `fill="currentColor"`,
+ * nunca un color fijo, para heredar el color de texto del tema del centro
+ * (claro/oscuro). El fondo es transparente (sin `<rect>` de fondo): el
+ * contraste lo aporta el contenedor que use este componente.
  */
 import { computed } from 'vue'
 import { encode } from 'uqr'
@@ -62,7 +67,6 @@ const darkModules = computed(() => {
     :viewBox="`0 0 ${qr.size} ${qr.size}`"
     shape-rendering="crispEdges"
   >
-    <rect x="0" y="0" :width="qr.size" :height="qr.size" fill="white" />
     <rect
       v-for="cell in darkModules"
       :key="`${cell.x}-${cell.y}`"
@@ -70,7 +74,7 @@ const darkModules = computed(() => {
       :y="cell.y"
       width="1"
       height="1"
-      fill="black"
+      fill="currentColor"
     />
   </svg>
 </template>
