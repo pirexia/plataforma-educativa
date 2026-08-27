@@ -434,7 +434,7 @@ Lo que sí hay que decir es qué pasa **con el MFA desactivado en un tenant**, q
 | `AUTH_MFA_MAX_EXEMPTION_DAYS` | Tope de la caducidad de una excepción (`RN-AUTH-68`) | `90` |
 | `AUTH_MFA_FACTOR_PURGE_DAYS` | Retención de factores borrados lógicamente (`datos.md §C.11`) | `30` |
 | `AUTH_MFA_CHALLENGE_RETENTION_HOURS` | Retención de desafíos consumidos | `24` |
-| `AUTH_RATE_LIMIT_MFA_*` | Los tres límites de `§C.6` | Ver `§C.6` |
+| `AUTH_RATE_LIMIT_MFA_*` | Los seis límites de `§C.6` | Ver `§C.6` |
 
 **Ninguna es un secreto.** `AUTH_MFA_TOTP_WINDOW` tiene guarda de arranque: un valor por encima de `2` amplía la ventana de validez de un código a más de dos minutos y medio y convierte un código capturado en utilizable; la aplicación aborta.
 
