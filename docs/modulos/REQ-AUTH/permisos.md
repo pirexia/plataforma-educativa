@@ -708,7 +708,7 @@ Lo que **no** cambia tampoco:
 - **`REQ-AUTH` sigue sin exponer categoría especial** (`§E.5`).
 - **Ningún endpoint nuevo acepta un sujeto ajeno** (`RN-AUTH-73`): los dos de autoservicio actúan siempre sobre el portador de la cookie, y el *callback* sobre quien resuelva el proveedor para la sesión que arrancó el flujo.
 
-**Que no haya permisos no significa que no haya autorización.** `INV-002` no admite excepciones, y `§E.2` describe qué autoriza cada uno de los cinco *endpoints*.
+**Que no haya permisos no significa que no haya autorización.** `INV-002` no admite excepciones, y `§E.2` describe qué autoriza cada uno de los **seis** *endpoints* — los cinco del flujo de Google más `GET /auth/mfa-challenges`, que 1.4 añade sobre un recurso de 1.3 para que la pantalla de resultado del *callback* pueda pintar el segundo factor (`api.md §E.5b`).
 
 ---
 
@@ -722,6 +722,7 @@ Lo que **no** cambia tampoco:
 | `POST /auth/oauth-authorizations` con `intent = "login"` | **Anónimo**, con CSRF y límite de tasa | |
 | `POST /auth/oauth-authorizations` con `intent = "link"` | **Identidad del portador de la cookie** | Sesión completa. Una sesión **restringida** por el muro de MFA no llega: el endpoint no está en la lista blanca de `§C.4.9` |
 | `GET /auth/oauth/google/callback` | **Posesión de la sesión que arrancó el flujo** | El cuarto mecanismo, el que 1.3 estrenó con el desafío de MFA. Aquí la prueba es el `state` guardado en el *payload*, comparado en tiempo constante y consumido en el acto |
+| `GET /auth/mfa-challenges` (`api.md §E.5b`) | **Posesión de la sesión que abrió el desafío** | El mismo cuarto mecanismo, esta vez idéntico al de `POST /auth/mfa-verifications`: el desafío se busca **por `session_id`** (`RN-AUTH-53`). Sin desafío vivo para esa sesión, `410` — **nunca `401`**, porque entre el paso 1 y el paso 2 no hay identidad que reclamar (`RN-AUTH-52`) |
 | `GET /auth/identities` | Identidad del portador | Sin parámetro de sujeto |
 | `DELETE /auth/identities/{public_id}` | Identidad del portador **más contraseña actual** | La contraseña no es un permiso: es la reautenticación de `RN-AUTH-60`, ya usada en 1.3 para desactivar un factor |
 
@@ -786,4 +787,5 @@ Lo que 1.4 **sí** añade al inventario de datos sensibles del módulo, ampliand
 - **`CA-AUTH-216`/`CA-AUTH-217`** — el login federado **no** salta el segundo factor (`RN-AUTH-94`). Es el test que más importa de todo el paso.
 - **`CA-AUTH-201`** — sin CSRF no se arranca el flujo y **no queda `state` en la sesión**.
 - **`CA-AUTH-225`** — sin contraseña actual no se desvincula, y el fallo cuenta hacia el bloqueo.
-- **`CA-AUTH-231`** — ninguna de las cinco rutas lleva `module-enabled`.
+- **`CA-AUTH-231`** — ninguna de las **seis** rutas lleva `module-enabled`.
+- **`CA-AUTH-237`** — `GET /auth/mfa-challenges` presentado **desde una sesión que no abrió el desafío** responde `410` con cuerpo idéntico al de «no hay desafío», y **nunca** devuelve el desafío de otra sesión (`RN-AUTH-53`, `api.md §E.5b`).

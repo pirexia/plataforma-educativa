@@ -2666,7 +2666,7 @@ Lo que este paso **sí** decide, y no es una consecuencia de la contradicción s
 
 ### E.1.3 El tamaño de este paso, dicho antes de empezar
 
-**Una tabla nueva, una columna y un valor de enumerado más, cinco endpoints, dos pantallas nuevas y un bloque en una tercera.** Está entre 1.2b (dos tablas, tres endpoints, una pantalla) y 1.3 (seis tablas, diez endpoints, cuatro pantallas), más cerca del primero. **No propongo partirlo.**
+**Una tabla nueva, una columna y un valor de enumerado más, seis endpoints, dos pantallas nuevas y un bloque en una tercera.** Está entre 1.2b (dos tablas, tres endpoints, una pantalla) y 1.3 (seis tablas, diez endpoints, cuatro pantallas), más cerca del primero. **No propongo partirlo.**
 
 Lo que sí tiene de caro no está en el volumen: está en que **es la primera vez que el producto acepta una identidad que no ha emitido él**, y en las dos decisiones de `§E.0.2` y `§E.3`, que hay que tomar antes de escribir código.
 
@@ -2775,6 +2775,7 @@ El centro registra su cliente en Google Cloud y pega `client_id`/`client_secret`
    1. **Bloqueo vivo** para `(tenant_id, email)` ⇒ `resultado=cuenta_bloqueada`, sin sesión. La decisión y su alternativa, en `§E.6` y `OPEN-AUTH-32`.
    2. **Estado de la cuenta**: solo `activo` entra (`RN-AUTH-23`). `pendiente` e `inactivo` salen con la **misma** salida genérica.
    3. **`MfaPolicy::resolve()`**, con **las cuatro ramas** de `§C.4.4` sin cambios: sin obligación ⇒ sesión; con factor confirmado ⇒ **se abre desafío** en `mfa_challenges` ligado al `session_id` **actual** y la SPA aterriza en la pantalla de segundo factor; obligado en gracia ⇒ sesión con el aviso; obligado y vencido ⇒ **sesión restringida**, el muro de `§C.4.9`.
+      - **De dónde saca la pantalla los datos del desafío.** El `302` no lleva datos (`RN-AUTH-93`) y el login federado no pasa por el `202` de `POST /auth/session`, que es donde el camino local los recibe. Los recupera con **`GET /auth/mfa-challenges`** (`api.md §E.5b`), autorizado por la misma sesión que abrió el desafío. Es la única superficie que 1.4 añade sobre un recurso de 1.3, y existe por este hueco concreto.
 9. **Creación de la sesión**: exactamente la transacción de `§C.4.4` punto 10, sin variantes — regeneración del identificador (`RN-AUTH-32`), `Auth::guard('web')->login()`, `AuditRecorder::record($user, 'login')` **después** del `login()` (`ADR-039 §4.5`), `pge_tenant_id` y `pge_last_activity_at` en el *payload*, registro en `user_sessions` con el identificador **posterior** a la regeneración y detección de dispositivo (`§B.4.1`), y fila en `login_attempts` con `outcome = 'exito'` y `method = 'google'`, que es lo que pone a cero el contador de fallos (`RN-AUTH-63`).
 10. `302` a la ruta de la SPA que corresponda. **En esa URL no viaja ningún token, ni el `code`, ni el `state`, ni el correo, ni un `public_id`, ni nada personal**: solo un código de resultado de una lista cerrada (`RN-AUTH-93`).
 
@@ -2952,7 +2953,7 @@ Tres piezas. Dos son nuevas y la tercera ya existe desde 1.3.
 | Ruta de la SPA | Qué | Sesión |
 |----------------|-----|--------|
 | `/entrar` | **Modificada**: botón «Continuar con Google», pintado solo si el proveedor está disponible (`RN-AUTH-98`) | No |
-| `/entrar/google` | **Nueva**: pantalla de resultado del *callback*. Traduce el código de resultado a un mensaje y ofrece la salida que corresponda | No |
+| `/entrar/google` | **Nueva**: pantalla de resultado del *callback*. Traduce el código de resultado a un mensaje y ofrece la salida que corresponda. Con `resultado=segundo_factor` **pide `GET /auth/mfa-challenges`** para recuperar los datos del desafío y continuar en la pantalla de segundo factor que ya existe desde 1.3 (`api.md §E.5b`) | No |
 | `/cuenta/seguridad` | **Modificada**: bloque «Cuentas vinculadas» con proveedor, correo con el que se vinculó, fecha de vínculo, último uso y el botón de desvincular con su diálogo de contraseña | Sí |
 
 Reglas obligatorias, sin excepción por ser pocas pantallas (`CLAUDE.md §10`):
@@ -3018,6 +3019,9 @@ Verificables, cada uno con test que referencia su ID (`INV-015`).
 ### Integración con MFA (`REQ-AUTH-003`)
 
 - **`CA-AUTH-216`** · *Dado* un usuario con factor TOTP confirmado, *cuando* completa el *callback*, *entonces* **no** se crea sesión autenticada: se abre `mfa_challenges` ligado al `session_id` actual y la SPA aterriza en la pantalla de segundo factor (`RN-AUTH-94`, `RN-AUTH-52`).
+- **`CA-AUTH-237`** · *Dado* un desafío abierto por el *callback* federado, *cuando* la SPA pide `GET /auth/mfa-challenges` desde **esa misma sesión**, *entonces* `200` con **el mismo recurso que el `202` de `POST /auth/session`** —método en curso, alternativos, `expires_at`, `destination_masked` solo si el método entrega— y **sin token, sin `session_id` y sin el código** (`api.md §E.5b`, `RN-AUTH-84`).
+- **`CA-AUTH-238`** · *Dado* ese mismo desafío, *cuando* se pide `GET /auth/mfa-challenges` **desde otra sesión**, o sin desafío vivo, o con el desafío ya consumido, *entonces* `410` con **cuerpo idéntico en los cuatro casos**, nunca `401` y nunca el desafío ajeno (`RN-AUTH-53`, `RN-AUTH-72`).
+- **`CA-AUTH-239`** · *Dado* un desafío vivo, *cuando* se pide `GET /auth/mfa-challenges` diez veces seguidas, *entonces* **no** se genera ningún código, **no** se encola ningún correo, y `attempts`, `deliveries` y `expires_at` **no cambian**: es una lectura sin efectos, a diferencia del `POST` del mismo recurso (`api.md §E.5b`, `RN-AUTH-54`).
 - **`CA-AUTH-217`** · *Dado* ese desafío, *cuando* se completa con `POST /auth/mfa-verifications`, *entonces* la sesión se crea con el procedimiento de `§C.4.4` punto 10 y `login_attempts` registra `exito` con `method = 'google'`.
 - **`CA-AUTH-218`** · *Dado* un usuario obligado con la gracia vencida y sin factor, *cuando* entra con Google, *entonces* obtiene sesión **restringida**, y `POST /auth/oauth-authorizations` con `intent = 'link'` responde `403 urn:pge:error:mfa-enrollment-required` (`§C.4.9`).
 

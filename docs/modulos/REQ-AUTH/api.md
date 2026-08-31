@@ -689,6 +689,8 @@ Los errores de §2 se conservan **literalmente**: `401` genérico e indistinguib
 
 ## C.3 Segundo paso del login
 
+> **Nota añadida por 1.4 (2026-09-01)**: la superficie de `mfa_challenges` **gana un `GET`** en el paso 1.4, documentado en **`§E.5b`**. No es una modificación de nada de 1.3 —los dos `POST` de esta sección siguen exactamente igual— sino un *endpoint* nuevo que necesita el login federado, que llega al segundo factor por un `302` sin datos. Se anota aquí para que quien busque la superficie de este recurso la encuentre entera desde la Parte C, y no solo desde la Parte E.
+
 ### `POST /api/v1/auth/mfa-verifications`
 
 Completa el login superando el desafío abierto.
@@ -1351,13 +1353,13 @@ El desafío expone `expires_at` (suya) y el alta expone `expires_at` y `code_exp
 | Aspecto | 1.4 |
 |---------|-----|
 | Autenticación | Sin cambios (`ADR-025`). El *callback* se autoriza con **la misma cookie de sesión anónima que arrancó el flujo**, contra el `state` guardado en su *payload* — el mismo mecanismo que el desafío de MFA (`RN-AUTH-53`, `permisos.md §C.4`), no uno nuevo |
-| Autorización | De los **5 endpoints nuevos**: **2 anónimos**, **1 autorizado por la sesión que arrancó el flujo**, **2 por identidad del portador**. **Ninguno declara permiso** (`permisos.md §E.1`) |
+| Autorización | De los **6 endpoints nuevos**: **2 anónimos**, **2 autorizados por posesión de la sesión** (el *callback*, por el `state`; `GET /auth/mfa-challenges`, por el desafío abierto), **2 por identidad del portador**. **Ninguno declara permiso** (`permisos.md §E.1`) |
 | Aislamiento | Sin cambios. Recurso de otro tenant ⇒ `404`, nunca `403` (`ADR-038 §6.4`) |
 | Idempotencia | **Ningún endpoint exige `Idempotency-Key`** (`§E.7.2`) |
 | Auditoría | `INV-003`, **sin ampliar el vocabulario** (`funcional.md §E.8`). Todo por el *observer* de 0.9, más el `login` que ya existía |
 | Módulo desactivado | No aplica: ninguna ruta lleva `module-enabled` (`RN-AUTH-35`, `CA-AUTH-231`) |
 | Proveedor no configurado (`AUTH_OAUTH_DRIVER=none`, **por defecto**) | **Estado normal, no degradado.** `GET /auth/identity-providers` responde `200` con `data: []`; `POST /auth/oauth-authorizations` responde `422`; el *callback* responde `302 estado_no_valido`; **y los dos de `/auth/identities` funcionan con normalidad**, porque gestionar vínculos ya existentes no necesita proveedor (`operacion.md §E.1`) |
-| Límite de tasa | Los dos anónimos y el *callback*, por IP. `operacion.md §E.6` |
+| Límite de tasa | **Cuatro *buckets* propios**: los dos anónimos y el *callback* por IP, y `GET /auth/mfa-challenges` por sesión. **Los dos de `/auth/identities` no llevan *bucket* propio** —exigen sesión, y el `429` que puedan dar es el del limitador global—, mismo criterio que los tres de 1.2b (`§B.1`) y que `DELETE /auth/mfa-factors` de 1.3. `operacion.md §E.6` |
 | OpenAPI | Los 5 en `apps/api/openapi/paths/oauth.yaml` antes del *merge* (`CLAUDE.md §10`) |
 
 ### E.1.1 Tipos de error nuevos: **ninguno**
@@ -1398,7 +1400,7 @@ Qué proveedores externos admite este host. Lo pide la pantalla de login antes d
 - **Es el único endpoint de este paso que responde `200` con `driver = none`**, y por eso existe: es el que permite a la pantalla de login decidir sin adivinar (`RN-AUTH-98`). Si respondiera `422` como los del flujo, la SPA no tendría forma de distinguir «no hay proveedor» de «algo va mal» y acabaría pintando el botón por si acaso.
 - **`label_key` y no `label`**: el texto lo resuelve la SPA con su catálogo de traducciones, en los cuatro idiomas (`INV-009`). El servidor no manda literales de interfaz.
 - **No lleva `client_id`, ni la URL de autorización, ni nada del proveedor.** Construir la URL es trabajo del servidor (`§E.3`), y publicarla aquí daría un punto de partida del flujo que se salta el CSRF y el límite de tasa.
-- **Errores**: `404` (host sin tenant), `429`, `503` (tenant suspendido).
+- **Errores**: `404` (host sin tenant), `429` (*bucket* `identity_providers_ip`, 60/min — `operacion.md §E.6`), `503` (tenant suspendido).
 - **Idempotencia**: no procede (`GET`).
 
 ---
@@ -1515,7 +1517,7 @@ Mis cuentas externas vinculadas. Lo pinta el bloque nuevo de `/cuenta/seguridad`
 - **`email_at_link` sale enmascarado**, con el mismo `DestinationMasker` que 1.3b introdujo para el destino del código por correo (`§D.4.5`). El titular no necesita ver la dirección entera para reconocer cuál es, y una sesión secuestrada tampoco debe llevarse el correo personal de nadie.
 - **`link_method` sí sale**, y es lo que permite al titular distinguir «lo vinculé yo» de «el sistema lo vinculó porque los correos coincidían». Es la mitad visible de `RN-AUTH-97`.
 - **Sin paginación**: como mucho hay un vínculo por proveedor, y hoy un proveedor. Se devuelve `meta.total` por coherencia de la envoltura, no porque haya páginas.
-- **Errores**: `401` sin sesión, `429`.
+- **Errores**: `401` sin sesión; `429` **del limitador global, no de un *bucket* propio** (`operacion.md §E.6`).
 
 ### `DELETE /api/v1/auth/identities/{public_id}`
 
@@ -1541,7 +1543,52 @@ Desvincular.
 | `404` | Vínculo inexistente, ya desvinculado, de otro usuario o de otro tenant. **Cuerpo idéntico en los cuatro casos** |
 | `401` | Sin sesión |
 | `419`/`403` | CSRF |
-| `429` | Límite de tasa |
+| `429` | Limitador global, **sin *bucket* propio** (`operacion.md §E.6`). Contra la fuerza bruta de contraseña aquí defiende el **bloqueo de cuenta**, no el límite de tasa: los fallos de `current_password` incrementan el contador de `RN-AUTH-14` |
+
+---
+
+## E.5b `GET /api/v1/auth/mfa-challenges` — el desafío en curso
+
+Devuelve el desafío abierto para esta sesión. Lo necesita `/entrar/google`: el *callback* responde `302` con un código de resultado y **sin datos** (`RN-AUTH-93`), así que tras el redirect la SPA no tiene de dónde leer el método en curso, los alternativos, el destino enmascarado ni la caducidad — datos que en el login local viajan siempre en el cuerpo del `202` de `POST /auth/session`.
+
+> **Por qué está numerado `5b` y por qué vive en la Parte E.** Dos criterios, los dos ya establecidos en este documento y aplicados aquí sin inventar nada:
+>
+> 1. **Cada Parte documenta lo que su paso entrega, aunque el recurso sea de otro paso o de otro módulo.** El precedente exacto es `§C.6`: 1.3 entregó `PATCH /roles/{public_id}`, un recurso de **`REQ-CORE`**, y lo documentó en la Parte C, no editando la documentación de `REQ-CORE`. Aquí pasa lo mismo un grado más cerca: `mfa_challenges` es un recurso de `REQ-AUTH-003` (Parte C) y el *endpoint* lo entrega 1.4. Reescribir la Parte C sería tocar **el registro de un paso cerrado y mezclado**, que la cabecera de este documento prohíbe explícitamente.
+> 2. **La numeración `5b` evita desplazar las referencias cruzadas ya escritas** a `§E.6`-`§E.8` desde este y otros documentos del módulo. Mismo criterio, y mismo motivo, que `§5b` y que `1.2b`/`1.4b` en `PLAN-IMPLEMENTACION.md`.
+>
+> Queda **nota cruzada en `§C.3`**: quien lea la Parte C buscando la superficie de `mfa_challenges` tiene que encontrar el `GET` desde allí, o la partición por pasos se convierte en documentación escondida.
+
+- **Permiso**: ninguno. **Autorizado por la posesión de la sesión que abrió el desafío**, exactamente el mismo mecanismo que `POST /auth/mfa-verifications` y `POST /auth/mfa-challenges` (`RN-AUTH-53`, `permisos.md §C.4`). **No es un mecanismo nuevo**: es el cuarto de `permisos.md §E.2`, sin ampliación.
+- **Cabeceras**: ninguna. **Sin CSRF**, por ser `GET`.
+- **Respuesta `200`**: **exactamente el mismo recurso que el `202` de `POST /auth/session`** (`§C.2`, con el `destination_masked` que `§D.3` añadió). No se inventa contrato:
+
+```json
+{
+  "public_id": "01JD7...",
+  "method": "email",
+  "available_methods": ["totp", "email"],
+  "destination_masked": "a···z@e···e.com",
+  "expires_at": "2026-09-01T10:35:00Z",
+  "has_unused_recovery_codes": true
+}
+```
+
+- **`destination_masked` sigue apareciendo solo si el método en curso entrega algo** (`§D.3`): en `totp` la clave **no está presente**, no está en `null`.
+- **Sigue sin haber ningún token, ni `session_id`, ni el código entregado** (`RN-AUTH-84`, `RN-AUTH-93`). Este *endpoint* **no amplía en un solo campo** lo que el titular de esa sesión ya podía ver.
+- **`Cache-Control: no-store`** obligatorio. Es un `GET` que devuelve estado de autenticación con un destino enmascarado dentro; ningún intermediario ni el propio navegador deben conservarlo.
+- **No entrega nada ni consume nada**: no genera código, no encola correo, no toca `attempts`, no toca `deliveries` y **no prolonga `expires_at`**. Es estrictamente de lectura, y es lo que lo distingue del `POST` del mismo recurso, que **sí** entrega (`§D.3`).
+
+**Errores**:
+
+| Estado | Cuándo |
+|--------|--------|
+| `410` | `urn:pge:error:gone` — **no hay desafío vivo para esta sesión**: inexistente, caducado, consumido, con los intentos agotados o **de otra sesión**. **Cuerpo idéntico en los cinco casos** (`RN-AUTH-53`, mismo criterio que `§C.3`) |
+| `429` | *Bucket* propio (`operacion.md §E.6`), con `Retry-After` |
+| `404` / `503` | Host sin tenant / tenant suspendido |
+
+**No responde `401`**, y merece decirse: entre el paso 1 y el paso 2 **no hay identidad** (`RN-AUTH-52`), así que «no autenticado» sería una respuesta que describe mal la situación. La ausencia de desafío es `410`, igual que en el resto del flujo.
+
+**Sirve también al login local, y aun así no cambia su contrato.** Un usuario que recarga `/entrar` a mitad del segundo paso hoy pierde los datos del desafío; con este *endpoint* la pantalla puede recuperarlos. **Pero el `202` de `POST /auth/session` sigue trayendo el cuerpo completo** (`§C.2`, `§D.3`): no se retira nada, no se obliga a la SPA a encadenar una segunda petición, y el camino local no se toca en 1.4.
 
 ---
 
@@ -1553,19 +1600,22 @@ Desvincular.
 | 1.2b | 3 | 13 |
 | 1.3 | 10 (+1 en `REQ-CORE`) | 23 |
 | 1.3b | 3 | 26 |
-| **1.4** | **5** | **31** |
+| **1.4** | **6** | **32** |
 
-Los cinco:
+Los seis:
 
 | Método y ruta | Autorización |
 |---------------|--------------|
 | `GET /api/v1/auth/identity-providers` | Anónimo |
 | `POST /api/v1/auth/oauth-authorizations` | Anónimo (`login`) · por identidad (`link`) |
 | `GET /api/v1/auth/oauth/google/callback` | Posesión de la sesión que arrancó el flujo |
+| **`GET /api/v1/auth/mfa-challenges`** (`§E.5b`) | Posesión de la sesión que abrió el desafío |
 | `GET /api/v1/auth/identities` | Identidad del portador |
 | `DELETE /api/v1/auth/identities/{public_id}` | Identidad del portador |
 
 **1.4 no modifica ningún endpoint existente y no toca ninguno de `REQ-CORE`.** Es la primera vez desde 1.2b que un paso de este módulo no altera el contrato de `POST /auth/session` ni el recurso de `GET /me`: el login federado **no pasa por ahí**, tiene su propio camino, y termina en la misma sesión.
+
+**Matiz obligatorio, porque la frase anterior se puede leer de más**: no modificar nada existente **no significa que 1.4 no añada superficie a recursos de pasos anteriores**. Sí lo hace, una vez: `GET /auth/mfa-challenges` amplía la superficie de `mfa_challenges`, que es un recurso de `REQ-AUTH-003` entregado en 1.3 (`§E.5b`, con nota cruzada en `§C.3`). Lo que se conserva intacto es el **contrato** de los *endpoints* que ya existían, no el inventario de rutas por recurso.
 
 ---
 

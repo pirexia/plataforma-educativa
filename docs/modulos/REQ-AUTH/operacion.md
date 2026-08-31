@@ -942,8 +942,10 @@ Lo que este paso introduce, y es distinto, es un **eje de configuración que no 
 | `AUTH_GOOGLE_CLIENT_ID` | Identificador del cliente OAuth. No es secreto, pero identifica el despliegue. Solo se lee con `driver = google` | *(vacío)* | *(vacío)* |
 | `AUTH_GOOGLE_CLIENT_SECRET` | **Secreto.** Va en el gestor de secretos de `ADR-037 §7`, **nunca en `.env` versionado ni en la unidad Quadlet en claro**. Solo se lee con `driver = google` | *(vacío)* | *(vacío)* |
 | `AUTH_OAUTH_STATE_TTL_MINUTES` | Vida del `state` y del verificador PKCE en el *payload* de la sesión (`RN-AUTH-91`) | `10` | `10` |
-| `AUTH_RATE_LIMIT_OAUTH_START_PER_IP` | Arranques de flujo por IP y minuto | Ver `§E.6` | Ver `§E.6` |
-| `AUTH_RATE_LIMIT_OAUTH_CALLBACK_PER_IP` | *Callbacks* por IP y minuto | Ver `§E.6` | Ver `§E.6` |
+| `AUTH_RATE_LIMIT_OAUTH_START_PER_IP` | Arranques de flujo por IP y minuto (`oauth_start_ip`) | `10` | `10` |
+| `AUTH_RATE_LIMIT_OAUTH_CALLBACK_PER_IP` | *Callbacks* por IP y minuto (`oauth_callback_ip`) | `20` | `20` |
+| `AUTH_RATE_LIMIT_IDENTITY_PROVIDERS_PER_IP` | Consultas del catálogo de proveedores por IP y minuto (`identity_providers_ip`) | `60` | `60` |
+| `AUTH_RATE_LIMIT_MFA_CHALLENGE_READ_PER_SESSION` | Lecturas del desafío en curso por sesión y minuto (`mfa_challenge_read_session`, `§E.6`) | `30` | `30` |
 
 **Guardas de arranque, en todos los entornos** —mismo patrón que `SESSION_DOMAIN` (§2.2) y que la política de contraseñas—:
 
@@ -1027,16 +1029,31 @@ Reglas comunes con los tres que ya existen (§5, `§C.5`, `§D.5`):
 
 ## E.6 Límites de tasa
 
-Dos nuevos, con el criterio de §6:
+**Cuatro *buckets* nuevos, y dos endpoints deliberadamente sin *bucket* propio.** Amplía §6 y `§C.6`, con sus mismos criterios.
 
-| Endpoint | Límite | Por qué |
-|----------|--------|---------|
-| `POST /auth/oauth-authorizations` | Por **IP**, ventana de un minuto | Cada llamada escribe en la sesión y genera material aleatorio. Sin límite es un generador de trabajo gratuito |
-| `GET /auth/oauth/google/callback` | Por **IP**, ventana de un minuto, más holgado | Es una navegación legítima que ocurre una vez por login. El límite está para el abuso, no para el uso |
+| Endpoint | Límite | Clave (*bucket*) |
+|----------|--------|------------------|
+| `POST /auth/oauth-authorizations` | **10 / min** | IP — `oauth_start_ip` |
+| `GET /auth/oauth/google/callback` | **20 / min** | IP — `oauth_callback_ip` |
+| `GET /auth/identity-providers` | **60 / min** | IP — `identity_providers_ip` |
+| `GET /auth/mfa-challenges` (`api.md §E.5b`) | **30 / min** | `(tenant_id, session_id)` — `mfa_challenge_read_session` |
+| `GET /auth/identities` | **ninguno propio** | Ver abajo |
+| `DELETE /auth/identities/{public_id}` | **ninguno propio** | Ver abajo |
 
-**No hay límite por `(tenant_id, email)`** en estos dos, a diferencia de los anónimos de 1.2, y hay que decir por qué: **en el arranque no hay correo todavía**, y en el *callback* el correo lo pone Google, no el cliente. El límite por sujeto en el camino federado lo aporta el bloqueo de cuenta, que sí se aplica (`funcional.md §E.6`).
+- **Toda clave incluye el `tenant_id`** (`ADR-033 §9`), sin cambios respecto de §6 y `§C.6`.
+- **`GET /auth/identity-providers` va a 60/min por IP, el mismo número que `GET /auth/csrf-cookie`** (§6), y por el mismo motivo: es un `GET` anónimo, barato, sin efectos, que la SPA pide **en cada carga de la pantalla de login**. Un límite estrecho aquí rompe el uso normal antes que ningún abuso. Es el análogo más cercano que tiene el módulo y se le copia el valor a propósito, en vez de inventar uno.
+- **`GET /auth/mfa-challenges` se lleva por sesión y no por IP**, igual que `POST /auth/mfa-verifications` (`§C.6`): **la sesión es lo que identifica el desafío** (`RN-AUTH-53`). Y va **mucho más holgado que el `POST` de verificación** (30/min frente a 5/min) porque **no adivina nada**: es una lectura sin efectos, que no entrega código, no consume intentos y no prolonga la caducidad (`api.md §E.5b`). Lo que defiende es el servidor, no la cuenta. Aun así lleva *bucket*, y no se deja al limitador global, porque **es alcanzable sin autenticación** —basta una sesión anónima con desafío abierto— y §6 fija que toda superficie anónima de este módulo lleva su defensa activa.
 
-**El limitador sigue sin degradar a «sin límite»**: si su almacén no responde, `503` (§3).
+**Por qué los dos de `/auth/identities` no llevan *bucket* propio**, que es la parte que hay que argumentar y no dar por hecha:
+
+1. **Exigen sesión**, así que no amplían la superficie anónima que §6 defiende. Es literalmente el criterio que `api.md §B.1` fijó para los tres *endpoints* de sesiones activas de 1.2b —listar y revocar en autoservicio, la forma más parecida que hay en el módulo— y que dejó escrito que *«los `429` que puedan aparecer son los del limitador global, no de un bucket propio»*.
+2. **`DELETE /auth/identities/{public_id}` verifica la contraseña actual, y aun así tampoco lo lleva**, exactamente igual que `DELETE /auth/mfa-factors/{public_id}` de 1.3, que tiene la misma forma y **no aparece en la tabla de `§C.6`**. La razón es la buena: **contra la fuerza bruta de contraseña ahí no defiende el límite de tasa, defiende el bloqueo de cuenta**, porque sus fallos incrementan el contador de `RN-AUTH-14` (`RN-AUTH-96`, `funcional.md §E.4.5` punto 2). El límite se olvida en una ventana; el bloqueo persiste. Añadirle un *bucket* propio no cerraría ningún hueco y **crearía la inconsistencia de tratar distinto a dos endpoints idénticos**.
+
+**No hay límite por `(tenant_id, email)`** en ninguno de los cuatro, a diferencia de los anónimos de 1.2, y hay que decir por qué: **en el arranque del flujo no hay correo todavía**, y en el *callback* el correo lo pone Google, no el cliente. El límite por sujeto en el camino federado lo aporta el bloqueo de cuenta, que sí se aplica (`funcional.md §E.6`).
+
+- **`429` siempre con `Retry-After`** (`ADR-038 §6.5`).
+- **El limitador sigue sin degradar a «sin límite»**: si su almacén no responde, `503` (§3).
+- **El punto ciego de §6 y `§C.6` —un centro entero detrás de una IP de salida— no empeora en este paso.** Un login federado sustituye a uno local, no se suma: son 1 arranque + 1 *callback* por persona en vez de 1 `POST /auth/session`. Lo único que sí se suma es `GET /auth/identity-providers`, y por eso va a 60/min. **Sigue pendiente de medir con `REQ-SEED` (1.15b)**, sin cambios en esa recomendación.
 
 ---
 
