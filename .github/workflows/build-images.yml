@@ -29,7 +29,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Comprobar ausencia de proxy_pass
         run: |
-          if grep -r "proxy_pass" infra/containers/web/; then
+          # Solo directivas reales (línea que empieza, tras espacios, por
+          # "proxy_pass"), no comentarios que citen la palabra para explicar
+          # la propia prohibición (issue #131).
+          if grep -rE '^\s*proxy_pass\b' infra/containers/web/; then
             echo "::error::proxy_pass encontrado bajo infra/containers/web/ — ADR-037 §3.4 lo prohíbe: el frontend no hace de proxy hacia la API."
             exit 1
           fi
