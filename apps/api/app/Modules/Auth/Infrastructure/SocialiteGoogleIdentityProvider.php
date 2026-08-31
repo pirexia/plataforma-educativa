@@ -8,7 +8,6 @@ use App\Modules\Auth\Domain\ExternalIdentityFailure;
 use App\Modules\Auth\Domain\ExternalIdentityProvider;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
-use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
@@ -66,6 +65,15 @@ final class SocialiteGoogleIdentityProvider implements ExternalIdentityProvider
 
         $provider = $this->newProvider()
             ->stateless()
+            // funcional.md §E.1.1, CA-AUTH-202: los tres scopes exactos.
+            // GoogleProvider ya trae ['openid','profile','email'] como
+            // valor por defecto (scopes() los fusiona, no los sustituye,
+            // así que el orden final en la URL lo fija la librería, no
+            // esta llamada) — es irrelevante para OAuth2, RFC 6749 §3.3:
+            // "scope" es una lista separada por espacios sin semántica de
+            // orden. CA-AUTH-202 se verifica por pertenencia, no por
+            // cadena literal (tests/Feature/Auth/
+            // SocialiteGoogleIdentityProviderTest.php).
             ->scopes(['openid', 'profile', 'email'])
             ->with([
                 'state' => $state,
@@ -110,7 +118,13 @@ final class SocialiteGoogleIdentityProvider implements ExternalIdentityProvider
                 ->userFromToken($this->exchangeCodeForAccessToken($code, $codeVerifier));
         } catch (ExternalIdentityException $e) {
             throw $e;
-        } catch (GuzzleException|Throwable $e) {
+        } catch (Throwable $e) {
+            // Cubre tanto GuzzleHttp\Exception\GuzzleException (fallo de
+            // red contra el endpoint de token) como cualquier otro fallo
+            // de Socialite al mapear la respuesta — PHPStan señala
+            // GuzzleException como "nunca lanzada" en la firma declarada
+            // de userFromToken(), así que declararla aparte de Throwable
+            // es una rama muerta, no una cobertura adicional real.
             throw new ExternalIdentityException(ExternalIdentityFailure::ProviderUnreachable, previous: $e);
         }
 

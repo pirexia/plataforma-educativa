@@ -10,6 +10,8 @@
 use App\Modules\Auth\Http\Controllers\AccountLockoutsController;
 use App\Modules\Auth\Http\Controllers\AccountUnlocksController;
 use App\Modules\Auth\Http\Controllers\FakeGoogleAuthorizationController;
+use App\Modules\Auth\Http\Controllers\IdentitiesController;
+use App\Modules\Auth\Http\Controllers\IdentityProvidersController;
 use App\Modules\Auth\Http\Controllers\InvitationRedemptionsController;
 use App\Modules\Auth\Http\Controllers\MfaChallengesController;
 use App\Modules\Auth\Http\Controllers\MfaComplianceController;
@@ -20,6 +22,8 @@ use App\Modules\Auth\Http\Controllers\MfaRecoveryCodesController;
 use App\Modules\Auth\Http\Controllers\MfaResetsController;
 use App\Modules\Auth\Http\Controllers\MfaStatusController;
 use App\Modules\Auth\Http\Controllers\MfaVerificationsController;
+use App\Modules\Auth\Http\Controllers\OAuthAuthorizationsController;
+use App\Modules\Auth\Http\Controllers\OAuthCallbackController;
 use App\Modules\Auth\Http\Controllers\PasswordChangesController;
 use App\Modules\Auth\Http\Controllers\PasswordResetRequestsController;
 use App\Modules\Auth\Http\Controllers\PasswordResetsController;
@@ -125,6 +129,36 @@ Route::get('/mfa-exemptions', [MfaExemptionsController::class, 'index'])
 Route::delete('/mfa-exemptions/{publicId}', [MfaExemptionsController::class, 'destroy'])
     ->middleware('permission:exencion_mfa.eliminar')
     ->name('auth.mfa-exemptions.destroy');
+
+// REQ-AUTH-002 (1.4), api.md §E.2-§E.5. Los cinco endpoints del paso.
+// Ninguno declara permiso (permisos.md §E.1) ni lleva `module-enabled`
+// (RN-AUTH-35, CA-AUTH-231).
+
+// §E.2: anónimo, tenant por host. Le dice a la pantalla de login si hay
+// botón que pintar (RN-AUTH-98).
+Route::get('/auth/identity-providers', [IdentityProvidersController::class, 'index'])
+    ->name('auth.identity-providers.index');
+
+// §E.3: anónimo con intent=login; por identidad con intent=link (la
+// comprobación de sesión es de negocio, en OAuthAuthorizationService).
+Route::post('/auth/oauth-authorizations', [OAuthAuthorizationsController::class, 'store'])
+    ->name('auth.oauth-authorizations.store');
+
+// §E.4: la única excepción real a ADR-038 del módulo — nunca
+// problem+json, siempre 302 con un código de una lista cerrada
+// (RN-AUTH-93). Autorizado por posesión de la sesión que arrancó el
+// flujo (el `state`), no por CSRF: es una navegación de un tercero.
+Route::get('/auth/oauth/google/callback', OAuthCallbackController::class)
+    ->name('auth.oauth.google.callback');
+
+// §E.5: autoservicio puro, por identidad. Funcionan con
+// AUTH_OAUTH_DRIVER=none (operacion.md §E.1): gestionar un vínculo que
+// ya existe no necesita proveedor.
+Route::get('/auth/identities', [IdentitiesController::class, 'index'])
+    ->name('auth.identities.index');
+
+Route::delete('/auth/identities/{publicId}', [IdentitiesController::class, 'destroy'])
+    ->name('auth.identities.destroy');
 
 // REQ-AUTH-002 (1.4), operacion.md §E.10.3, CA-AUTH-230: la ruta del
 // proveedor simulado NO se registra fuera de local/testing — la primera

@@ -12,6 +12,7 @@ use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Testing\TestResponse;
 use PragmaRX\Google2FA\Google2FA;
 use Tests\TestCase;
 
@@ -383,4 +384,100 @@ function createConfirmedEmailFactor(Tenant $tenant, User $user, bool $preferred 
             'is_preferred' => $preferred,
         ]);
     });
+}
+
+/**
+ * REQ-AUTH-002 (1.4), `operacion.md §E.10.2`. Arranca `POST
+ * /auth/oauth-authorizations` con el proveedor simulado y devuelve
+ * `[$authorizationUrl, $sessionCookie]` — la cookie de la sesión que
+ * arrancó el flujo, imprescindible para completar el *callback* con el
+ * mismo `state` (`RN-AUTH-91`). `$sessionCookie` de entrada permite
+ * encadenar sobre una sesión ya autenticada (`intent = 'link'`).
+ *
+ * @return array{0: string, 1: string}
+ */
+function beginFakeGoogleFlow(string $slug, string $intent = 'login', ?string $sessionCookie = null): array
+{
+    if ($sessionCookie !== null) {
+        $client = withSessionCookie($sessionCookie);
+    } else {
+        // Issue #83 (ver resetSessionState()): sin esto, una sesión ya
+        // autenticada de una llamada anterior en el mismo test —u otro
+        // tenant— queda adjunta al cliente de test y este arranque
+        // "anónimo" en realidad la reenvía, con el mismo fallo silencioso
+        // que motivó ese hallazgo (VerifySessionTenant 401 al cruzar de
+        // tenant, o un `state` que en realidad pertenece a otra sesión).
+        resetSessionState();
+        $client = test();
+    }
+
+    $begin = $client->postJson(coreApiUrl($slug, '/auth/oauth-authorizations'), [
+        'provider' => 'google',
+        'intent' => $intent,
+    ])->assertStatus(201);
+
+    return [$begin->json('authorization_url'), sessionCookieValue($begin)];
+}
+
+/**
+ * Completa el flujo simulado enviando el formulario del proveedor
+ * simulado (`FakeGoogleAuthorizationController`) y siguiendo su
+ * redirección hasta el *callback* real — el mismo camino que un
+ * navegador de verdad, sin usar Google. Devuelve la respuesta del
+ * *callback* (siempre `302`, `RN-AUTH-93`): los tests leen `Location`
+ * para el código de resultado, o encadenan la sesión resultante con
+ * `sessionCookieValue()` cuando el login se completó.
+ *
+ * @param  array<string, mixed>  $claims
+ */
+function completeFakeGoogleFlow(string $authorizationUrl, string $sessionCookie, array $claims): TestResponse
+{
+    $query = [];
+    parse_str((string) parse_url($authorizationUrl, PHP_URL_QUERY), $query);
+
+    $formSubmission = array_merge(['state' => $query['state'], 'submit' => '1'], $claims);
+
+    $authorizePath = (string) parse_url($authorizationUrl, PHP_URL_PATH);
+
+    $redirectToCallback = withSessionCookie($sessionCookie)
+        ->get($authorizePath.'?'.http_build_query($formSubmission))
+        ->assertRedirect();
+
+    $callbackUrl = $redirectToCallback->headers->get('Location');
+
+    return withSessionCookie(sessionCookieValue($redirectToCallback))
+        ->get($callbackUrl)
+        ->assertRedirect();
+}
+
+/**
+ * Código de resultado (`resultado=<código>`) de la URL de destino de una
+ * respuesta del *callback* (`302`), o `null` si la redirección no lleva
+ * ninguno (login completado, `api.md §E.4.2`).
+ */
+function oauthCallbackResultCode($response): ?string
+{
+    $location = $response->headers->get('Location');
+    $query = [];
+    parse_str((string) parse_url($location, PHP_URL_QUERY), $query);
+
+    return $query['resultado'] ?? null;
+}
+
+/**
+ * `operacion.md §E.10.2`, login completo en un solo paso con el
+ * proveedor simulado: arranca, completa el formulario y sigue el
+ * *callback* hasta la sesión ya autenticada (sin desafío de MFA de por
+ * medio). Devuelve la cookie de la sesión autenticada resultante.
+ *
+ * @param  array<string, mixed>  $claims
+ */
+function loginWithFakeGoogleFor(string $slug, array $claims): string
+{
+    [$authorizationUrl, $beginCookie] = beginFakeGoogleFlow($slug);
+    $callback = completeFakeGoogleFlow($authorizationUrl, $beginCookie, $claims);
+
+    expect(oauthCallbackResultCode($callback))->toBeNull();
+
+    return sessionCookieValue($callback);
 }
