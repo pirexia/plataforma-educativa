@@ -50,6 +50,11 @@ jobs:
       DB_PLATFORM_USERNAME: plataforma_platform
       DB_PLATFORM_PASSWORD: ci-tenancy-platform
       REDIS_HOST: 127.0.0.1
+      # .env.example trae el valor de partida del starter kit (120), inferior
+      # al mínimo que exige RN-AUTH-30 (issue #62, pendiente en el propio
+      # .env.example de desarrollo). SessionEnvironmentGuard aborta el
+      # arranque sin esto (issue #132).
+      SESSION_LIFETIME: "480"
     steps:
       - uses: actions/checkout@v4
 
@@ -96,6 +101,40 @@ jobs:
   lint:
     name: Lint (Pint)
     runs-on: ubuntu-latest
+    # Mismos servicios que "test": el arranque del framework durante
+    # composer install (artisan package:discover) puede intentar resolver
+    # una conexión de base de datos/caché real, no solo leer config
+    # (issue #132) — sin ellos el job se cuelga en vez de fallar rápido.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: plataforma_test
+          POSTGRES_USER: plataforma
+          POSTGRES_PASSWORD: ci-postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U plataforma"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USERNAME: plataforma_app
+      DB_PASSWORD: ci-tenancy-app
+      REDIS_HOST: 127.0.0.1
+      SESSION_LIFETIME: "480"
     steps:
       - uses: actions/checkout@v4
 
@@ -119,6 +158,37 @@ jobs:
   static-analysis:
     name: Análisis estático (Larastan)
     runs-on: ubuntu-latest
+    # Ver comentario del job "lint" sobre los servicios.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: plataforma_test
+          POSTGRES_USER: plataforma
+          POSTGRES_PASSWORD: ci-postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U plataforma"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USERNAME: plataforma_app
+      DB_PASSWORD: ci-tenancy-app
+      REDIS_HOST: 127.0.0.1
+      SESSION_LIFETIME: "480"
     steps:
       - uses: actions/checkout@v4
 

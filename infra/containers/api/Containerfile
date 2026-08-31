@@ -49,8 +49,17 @@ RUN composer install \
 COPY . .
 
 # post-autoload-dump ejecuta artisan package:discover, que necesita el
-# código de la aplicación ya presente — por eso el COPY . . va antes.
-RUN composer dump-autoload --optimize --no-dev --no-interaction
+# código de la aplicación ya presente — por eso el COPY . . va antes. Sin
+# .env en esta fase (por diseño, ADR-037: los secretos se inyectan en
+# tiempo de ejecución, nunca se hornean en la imagen), el arranque de
+# Laravel caería al entorno "production" por defecto y
+# SessionEnvironmentGuard abortaría el build (issue #134). Estas dos
+# variables solo existen para esta orden — no pasan a la fase "prod", que
+# parte de "base", no de "build" — y no influyen en el comportamiento real
+# de la imagen publicada, solo permiten que el arranque de descubrimiento
+# de paquetes complete.
+RUN APP_ENV=local SESSION_LIFETIME=480 \
+    composer dump-autoload --optimize --no-dev --no-interaction
 
 # ---------------------------------------------------------------------------
 FROM base AS prod
