@@ -4,7 +4,9 @@ namespace App\Modules\Auth\Infrastructure;
 
 use App\Modules\Auth\Domain\AccountLockService;
 use App\Modules\Auth\Domain\ClientDescriber;
+use App\Modules\Auth\Domain\ExternalIdentityProvider;
 use App\Modules\Auth\Domain\IpGeolocator;
+use App\Modules\Auth\Domain\LinkedIdentityDirectory;
 use App\Modules\Auth\Domain\MfaComplianceDirectory;
 use App\Modules\Auth\Domain\MfaPolicy;
 use App\Modules\Auth\Domain\MfaVerifier;
@@ -12,6 +14,7 @@ use App\Modules\Auth\Domain\Models\AccountLockout;
 use App\Modules\Auth\Domain\Models\MfaFactor;
 use App\Modules\Auth\Domain\Models\MfaRecoveryCode;
 use App\Modules\Auth\Domain\Models\MfaReset as MfaResetModel;
+use App\Modules\Auth\Domain\Models\UserIdentity;
 use App\Modules\Auth\Domain\Models\UserKnownDevice;
 use App\Modules\Auth\Domain\Models\UserMfaExemption;
 use App\Modules\Auth\Domain\Models\UserMfaObligation;
@@ -78,6 +81,21 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         $this->app->terminating(fn () => $this->app->forgetScopedInstances());
 
         $this->app->bind(MfaComplianceDirectory::class, EloquentMfaComplianceDirectory::class);
+
+        // ADR-042 §4.2, operacion.md §E.2.1: la única decisión de qué
+        // implementación de ExternalIdentityProvider se sirve. 'fake' es
+        // el valor por defecto (config('auth-local.oauth.driver')) —
+        // OAuthEnvironmentGuard::verify() aborta el arranque si eso
+        // ocurre fuera de local/testing, así que llegar aquí con 'fake'
+        // en cualquier otro entorno ya no es posible.
+        $this->app->bind(ExternalIdentityProvider::class, function ($app) {
+            return match ((string) config('auth-local.oauth.driver')) {
+                'google' => $app->make(SocialiteGoogleIdentityProvider::class),
+                default => $app->make(FakeIdentityProvider::class),
+            };
+        });
+
+        $this->app->bind(LinkedIdentityDirectory::class, EloquentLinkedIdentityDirectory::class);
     }
 
     public function boot(): void
@@ -102,11 +120,19 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             'mfa_reset' => MfaResetModel::class,
             'user_mfa_obligation' => UserMfaObligation::class,
             'user_mfa_exemption' => UserMfaExemption::class,
+            // REQ-AUTH-002 (1.4), datos.md §E.2.
+            'user_identity' => UserIdentity::class,
         ]);
 
         // funcional.md §6.2, issue #8: guarda en todos los entornos, no
         // solo producción — CA-AUTH-001.
         app(SessionEnvironmentGuard::class)->verify();
+
+        // operacion.md §E.2.1, §E.10.3: las tres guardas de arranque de
+        // 1.4, en todos los entornos. La más importante evita que un
+        // proveedor de identidad simulado llegue a producción
+        // (CA-AUTH-230).
+        app(OAuthEnvironmentGuard::class)->verify();
 
         // operacion.md §2.1, RN-AUTH-01/RN-AUTH-03: la documentación ya
         // prometía esta guarda ("rechaza cualquier valor por debajo de

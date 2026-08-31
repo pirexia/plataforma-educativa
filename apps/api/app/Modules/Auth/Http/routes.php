@@ -9,6 +9,7 @@
 
 use App\Modules\Auth\Http\Controllers\AccountLockoutsController;
 use App\Modules\Auth\Http\Controllers\AccountUnlocksController;
+use App\Modules\Auth\Http\Controllers\FakeGoogleAuthorizationController;
 use App\Modules\Auth\Http\Controllers\InvitationRedemptionsController;
 use App\Modules\Auth\Http\Controllers\MfaChallengesController;
 use App\Modules\Auth\Http\Controllers\MfaComplianceController;
@@ -124,3 +125,15 @@ Route::get('/mfa-exemptions', [MfaExemptionsController::class, 'index'])
 Route::delete('/mfa-exemptions/{publicId}', [MfaExemptionsController::class, 'destroy'])
     ->middleware('permission:exencion_mfa.eliminar')
     ->name('auth.mfa-exemptions.destroy');
+
+// REQ-AUTH-002 (1.4), operacion.md §E.10.3, CA-AUTH-230: la ruta del
+// proveedor simulado NO se registra fuera de local/testing — la primera
+// de las dos barreras contra que llegue a producción (la segunda es
+// OAuthEnvironmentGuard, que aborta el arranque si AUTH_OAUTH_DRIVER=fake
+// fuera de esos entornos). app()->environment(), no config('app.env'):
+// se evalúa en el momento de cargar las rutas, con el entorno real ya
+// resuelto por el framework.
+if (app()->environment(['local', 'testing'])) {
+    Route::get('/auth/oauth/fake/authorize', FakeGoogleAuthorizationController::class)
+        ->name('auth.oauth.fake.authorize');
+}

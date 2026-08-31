@@ -24,6 +24,9 @@ return [
         'mfa_exemption_already_live' => 'Dieser Benutzer hat bereits eine gültige MFA-Ausnahme.',
         'mfa_exemption_self' => 'Du kannst dir selbst keine MFA-Ausnahme gewähren.',
         'mfa_reset_self' => 'Du kannst dein eigenes MFA nicht zurücksetzen.',
+        'oauth_provider_not_configured' => 'Dieser Anmeldeanbieter ist an dieser Schule nicht verfügbar.',
+        'oauth_intent_requires_session' => 'Du musst angemeldet sein, um ein Konto zu verknüpfen.',
+        'identity_would_leave_user_without_access' => 'Du kannst dieses Konto nicht trennen: Es ist deine einzige Möglichkeit, dich anzumelden.',
     ],
 
     'mail' => [
@@ -91,6 +94,19 @@ return [
             'what_to_do' => 'Wenn du das warst, musst du nichts weiter tun. Wenn du diese Anmeldung nicht erkennst, überprüfe deine aktiven Sitzungen und ändere dein Passwort so schnell wie möglich.',
             'cta' => 'Meine aktiven Sitzungen überprüfen',
             'unknown_client' => 'ein unbekanntes Gerät',
+        ],
+        'identity_linked' => [
+            'subject' => 'Bei :tenant wurde ein Google-Konto verknüpft',
+            'greeting' => 'Hallo :name.',
+            'body_fusion' => 'Bei der Anmeldung mit Google bei :tenant hat das System das Konto :email automatisch mit deinem Profil verknüpft, da die E-Mail-Adresse übereinstimmte und bestätigt war.',
+            'body_profile' => 'Du hast soeben das Google-Konto :email mit deinem Profil bei :tenant verknüpft.',
+            'warning' => 'Wenn du das nicht warst, wende dich umgehend an die Verwaltung deiner Schule.',
+        ],
+        'identity_unlinked' => [
+            'subject' => 'Bei :tenant wurde ein Google-Konto getrennt',
+            'greeting' => 'Hallo :name.',
+            'body' => 'Das Google-Konto :email wurde von deinem Profil bei :tenant getrennt.',
+            'warning' => 'Wenn du das nicht warst, wende dich umgehend an die Verwaltung deiner Schule.',
         ],
     ],
 

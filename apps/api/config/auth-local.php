@@ -90,6 +90,9 @@ return [
         'mfa_enrollment_user' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_ENROLLMENT_USER_MAX', 10), 'decay' => 3600],
         'mfa_recovery_codes_user' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_RECOVERY_CODES_USER_MAX', 5), 'decay' => 3600],
         'mfa_resets_admin' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_RESETS_ADMIN_MAX', 20), 'decay' => 3600],
+        // REQ-AUTH-002 (1.4), operacion.md §E.6.
+        'oauth_start_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_OAUTH_START_PER_IP', 10), 'decay' => 60],
+        'oauth_callback_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_OAUTH_CALLBACK_PER_IP', 30), 'decay' => 60],
     ],
 
     /*
@@ -120,6 +123,26 @@ return [
         // trabajo que MfaPolicy::resolve() haría de todas formas en la
         // siguiente petición del titular, no es la única garantía.
         'exemption_reopen_window_hours' => (int) env('AUTH_MFA_EXEMPTION_REOPEN_WINDOW_HOURS', 48),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Login con Google y fusión de cuentas (REQ-AUTH-002, 1.4)
+    |--------------------------------------------------------------------------
+    |
+    | operacion.md §E.2.1. `driver`: 'google' o 'fake' (proveedor simulado,
+    | operacion.md §E.10). Guardas de arranque en
+    | AuthServiceProvider::boot() (OAuthEnvironmentGuard), en todos los
+    | entornos. `client_secret` es el único valor secreto de este bloque
+    | (ADR-037 §7): nunca en `.env` versionado ni en la unidad Quadlet en
+    | claro.
+    |
+    */
+    'oauth' => [
+        'driver' => env('AUTH_OAUTH_DRIVER', 'fake'),
+        'google_client_id' => env('AUTH_GOOGLE_CLIENT_ID'),
+        'google_client_secret' => env('AUTH_GOOGLE_CLIENT_SECRET'),
+        'state_ttl_minutes' => (int) env('AUTH_OAUTH_STATE_TTL_MINUTES', 10),
     ],
 
 ];

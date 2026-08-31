@@ -2,6 +2,7 @@
 
 namespace App\Modules\Auth\Domain\Models;
 
+use App\Modules\Auth\Domain\LoginMethod;
 use App\Modules\Auth\Domain\LoginOutcome;
 use App\Support\Tenancy\AppendOnlyModel;
 
@@ -23,6 +24,9 @@ class LoginAttempt extends AppendOnlyModel
         'email',
         'user_id',
         'outcome',
+        // REQ-AUTH-002 (1.4), datos.md §E.3.1. DEFAULT 'local' en el motor:
+        // las filas anteriores a 1.4 quedan correctamente clasificadas.
+        'method',
         'attempted_at',
         'ip_address',
         'user_agent',
@@ -32,5 +36,6 @@ class LoginAttempt extends AppendOnlyModel
     protected $casts = [
         'attempted_at' => 'datetime',
         'outcome' => LoginOutcome::class,
+        'method' => LoginMethod::class,
     ];
 }

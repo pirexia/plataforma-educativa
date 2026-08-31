@@ -3,6 +3,7 @@
 namespace App\Modules\Auth\Application;
 
 use App\Models\User;
+use App\Modules\Auth\Domain\LoginMethod;
 use App\Support\Api\UserProfilePresenter;
 use App\Support\Audit\AuditRecorder;
 use App\Support\Tenancy\TenantContext;
@@ -38,11 +39,14 @@ final class AuthenticatedSessionEstablisher
         User $user,
         string $normalizedEmail,
         ?string $deviceCookieValue,
+        LoginMethod $method = LoginMethod::Local,
     ): AuthenticatedSessionResult {
         // RN-AUTH-63: el único punto del sistema que pone a cero el
         // contador de fallos consecutivos — porque es el único punto que
-        // de verdad crea una sesión.
-        $this->attempts->recordSuccess($normalizedEmail, $user);
+        // de verdad crea una sesión. $method: REQ-AUTH-002 (1.4),
+        // CA-AUTH-208/CA-AUTH-217 exigen method='google' en el camino
+        // federado.
+        $this->attempts->recordSuccess($normalizedEmail, $user, $method);
 
         $request->session()->regenerate();
 

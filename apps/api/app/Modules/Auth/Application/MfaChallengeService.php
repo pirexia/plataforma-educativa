@@ -5,6 +5,8 @@ namespace App\Modules\Auth\Application;
 use App\Models\User;
 use App\Modules\Auth\Domain\DestinationMasker;
 use App\Modules\Auth\Domain\Events\RecoveryCodeUsed;
+use App\Modules\Auth\Domain\LinkMethod;
+use App\Modules\Auth\Domain\LoginMethod;
 use App\Modules\Auth\Domain\MfaDeliveryCode;
 use App\Modules\Auth\Domain\MfaMethod;
 use App\Modules\Auth\Domain\MfaVerifier;
@@ -28,13 +30,53 @@ use Illuminate\Support\Facades\DB;
  */
 final class MfaChallengeService
 {
+    /**
+     * REQ-AUTH-002 (1.4). `mfa_challenges` no gana columna (datos.md
+     * §E.0: "ni un `purpose` ni un `origin`... no hay ningún camino de
+     * código que lo lea" — hasta este paso). El desafío es el mismo
+     * desafío tanto si lo abrió el login local como el federado
+     * (RN-AUTH-94), pero `CA-AUTH-217` exige que el `login_attempts` que
+     * se escribe al superarlo lleve `method = 'google'` cuando el origen
+     * lo fue. Sin tocar el esquema, ese único dato transitorio vive en el
+     * mismo sitio que el `state`/PKCE del propio flujo: el *payload* de
+     * la sesión del servidor, consumido en el acto igual que el resto.
+     */
+    private const CHALLENGE_ORIGIN_SESSION_KEY = 'pge_mfa_challenge_origin';
+
+    /**
+     * REQ-AUTH-002 (1.4), funcional.md §E.4.2 paso 7b + paso 8.3: una
+     * fusión automática candidata (correo verificado, sin vínculo) no se
+     * escribe hasta que el login vaya a completarse de verdad — si hace
+     * falta segundo factor, hasta que se supere. Mismo criterio que ya
+     * usa `AuthenticatedSessionEstablisher`: nada se escribe antes de
+     * confirmar que la sesión se crea.
+     */
+    private const PENDING_FEDERATED_LINK_SESSION_KEY = 'pge_oauth_pending_link';
+
     public function __construct(
         private readonly MfaVerifier $totpVerifier,
         private readonly TenantSettingsReader $settings,
         private readonly TenantContext $tenantContext,
         private readonly LoginAttemptRecorder $attempts,
         private readonly AuthenticatedSessionEstablisher $establisher,
+        private readonly UserIdentityLinkingService $identityLinking,
     ) {}
+
+    /**
+     * REQ-AUTH-002 (1.4). Deja constancia, en el mismo *payload* de
+     * sesión que ya guarda `state`/PKCE, de que este desafío —si se
+     * supera— debe fusionar la cuenta con la identidad de Google que lo
+     * abrió. Lo llama `GoogleOAuthCallbackService` cuando la resolución
+     * es la rama b (fusión) y hace falta segundo factor.
+     */
+    public function stashPendingFederatedLink(Request $request, string $subject, string $email, bool $emailVerified): void
+    {
+        $request->session()->put(self::PENDING_FEDERATED_LINK_SESSION_KEY, [
+            'subject' => $subject,
+            'email' => $email,
+            'email_verified' => $emailVerified,
+        ]);
+    }
 
     /**
      * `§C.4.4`, apertura del desafío (contraseña ya verificada por
@@ -43,8 +85,10 @@ final class MfaChallengeService
      *
      * @return array<string, mixed>
      */
-    public function open(Request $request, User $user): array
+    public function open(Request $request, User $user, LoginMethod $loginMethod = LoginMethod::Local): array
     {
+        $request->session()->put(self::CHALLENGE_ORIGIN_SESSION_KEY, $loginMethod->value);
+
         $method = $this->pickMethod($user);
         $ttlMinutes = (int) config('auth-local.mfa.challenge_ttl_minutes');
 
@@ -77,7 +121,7 @@ final class MfaChallengeService
         // §C.4.4 punto 4: pendiente de segundo factor, no cuenta ni pone
         // a cero el bloqueo (RN-AUTH-63). users.email ya se guarda
         // normalizado (LoginService::normalize() en el alta/login).
-        $this->attempts->recordPendingSecondFactor($user->email, $user);
+        $this->attempts->recordPendingSecondFactor($user->email, $user, $loginMethod);
 
         return $this->present($challenge, $user);
     }
@@ -168,6 +212,13 @@ final class MfaChallengeService
             throw ApiException::gone();
         }
 
+        // REQ-AUTH-002 (1.4): de un solo uso, igual que el resto del
+        // payload transitorio de sesión — si el desafío se abrió por el
+        // login local (o esta clave ya no está, back-compat con una
+        // sesión anterior a 1.4), local por defecto.
+        $originValue = $request->session()->pull(self::CHALLENGE_ORIGIN_SESSION_KEY);
+        $loginMethod = $originValue === LoginMethod::Google->value ? LoginMethod::Google : LoginMethod::Local;
+
         $user = $challenge->user;
         $normalizedEmail = $user->email;
 
@@ -208,19 +259,33 @@ final class MfaChallengeService
             $challenge->save();
 
             // RN-AUTH-64: cuenta hacia el mismo bloqueo que una contraseña.
-            $this->attempts->recordSecondFactorInvalid($normalizedEmail, $user);
+            $this->attempts->recordSecondFactorInvalid($normalizedEmail, $user, $loginMethod);
 
             throw ApiException::unauthenticated();
         }
 
         // RN-AUTH-57: el consumo del código de respaldo se escribe en la
         // MISMA transacción que crea la sesión — envolviendo también
-        // AuthenticatedSessionEstablisher::establish(), no antes.
+        // AuthenticatedSessionEstablisher::establish(), no antes. Mismo
+        // criterio para la fusión federada pendiente (REQ-AUTH-002, 1.4):
+        // si el segundo factor falla, nada de esto se escribió nunca.
         return DB::transaction(function () use (
-            $challenge, $recoveryRow, $validatedStep, $deliveryCodeValid, $user, $request, $normalizedEmail, $deviceCookieValue,
+            $challenge, $recoveryRow, $validatedStep, $deliveryCodeValid, $user, $request, $normalizedEmail, $deviceCookieValue, $loginMethod,
         ): AuthenticatedSessionResult {
             $challenge->consumed_at = now();
             $challenge->save();
+
+            $pendingLink = $request->session()->pull(self::PENDING_FEDERATED_LINK_SESSION_KEY);
+
+            if (is_array($pendingLink)) {
+                $this->identityLinking->link(
+                    $user,
+                    (string) ($pendingLink['subject'] ?? ''),
+                    (string) ($pendingLink['email'] ?? ''),
+                    ($pendingLink['email_verified'] ?? false) === true,
+                    LinkMethod::FusionAutomatica,
+                );
+            }
 
             if ($recoveryRow !== null) {
                 $recoveryRow->used_at = now();
@@ -244,7 +309,7 @@ final class MfaChallengeService
                 $factor->save();
             }
 
-            $result = $this->establisher->establish($request, $user, $normalizedEmail, $deviceCookieValue);
+            $result = $this->establisher->establish($request, $user, $normalizedEmail, $deviceCookieValue, $loginMethod);
 
             if ($recoveryRow !== null) {
                 event(new RecoveryCodeUsed($this->tenantContext->tenantId(), $user->public_id, $request->ip()));

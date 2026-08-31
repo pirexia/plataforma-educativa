@@ -4,6 +4,7 @@ namespace App\Modules\Auth\Application;
 
 use App\Models\User;
 use App\Modules\Auth\Domain\AccountLockService;
+use App\Modules\Auth\Domain\LoginMethod;
 use App\Modules\Auth\Domain\LoginOutcome;
 use App\Modules\Auth\Domain\Models\LoginAttempt;
 use App\Support\Http\RequestId;
@@ -31,10 +32,12 @@ final class LoginAttemptRecorder
     /**
      * RN-AUTH-63: llamar **solo** cuando la sesión se ha creado de verdad
      * — es lo único que pone el contador de fallos consecutivos a cero.
+     * `$method` por defecto `Local`: el camino federado (REQ-AUTH-002,
+     * 1.4) lo pasa explícitamente (CA-AUTH-208, CA-AUTH-217).
      */
-    public function recordSuccess(string $email, User $user): void
+    public function recordSuccess(string $email, User $user, LoginMethod $method = LoginMethod::Local): void
     {
-        $this->write($email, $user, LoginOutcome::Exito);
+        $this->write($email, $user, LoginOutcome::Exito, $method);
     }
 
     /**
@@ -42,9 +45,9 @@ final class LoginAttemptRecorder
      * abre un desafío de segundo factor. No cuenta hacia el bloqueo y,
      * sobre todo, no lo pone a cero.
      */
-    public function recordPendingSecondFactor(string $email, User $user): void
+    public function recordPendingSecondFactor(string $email, User $user, LoginMethod $method = LoginMethod::Local): void
     {
-        $this->write($email, $user, LoginOutcome::PendienteSegundoFactor);
+        $this->write($email, $user, LoginOutcome::PendienteSegundoFactor, $method);
     }
 
     /**
@@ -52,9 +55,9 @@ final class LoginAttemptRecorder
      * respaldo— incrementa el **mismo** contador que un fallo de
      * contraseña y puede provocar el bloqueo de RN-AUTH-14.
      */
-    public function recordSecondFactorInvalid(string $email, User $user): void
+    public function recordSecondFactorInvalid(string $email, User $user, LoginMethod $method = LoginMethod::Local): void
     {
-        $this->write($email, $user, LoginOutcome::SegundoFactorInvalido);
+        $this->write($email, $user, LoginOutcome::SegundoFactorInvalido, $method);
 
         $consecutiveFailures = $this->consecutiveFailures($email);
         $maxAttempts = (int) config('auth-local.max_login_attempts');
@@ -70,7 +73,7 @@ final class LoginAttemptRecorder
      */
     public function recordFailure(string $email, ?User $user): void
     {
-        $this->write($email, $user, LoginOutcome::CredencialesInvalidas);
+        $this->write($email, $user, LoginOutcome::CredencialesInvalidas, LoginMethod::Local);
 
         $consecutiveFailures = $this->consecutiveFailures($email);
         $maxAttempts = (int) config('auth-local.max_login_attempts');
@@ -85,22 +88,35 @@ final class LoginAttemptRecorder
      * es un fallo, así que no cuenta hacia el bloqueo. Se registra igual
      * (§4.2 punto 4: "cada intento, éxito o fallo, escribe una fila").
      */
-    public function recordNonActiveState(string $email, User $user): void
+    public function recordNonActiveState(string $email, User $user, LoginMethod $method = LoginMethod::Local): void
     {
-        $this->write($email, $user, LoginOutcome::EstadoNoActivo);
+        $this->write($email, $user, LoginOutcome::EstadoNoActivo, $method);
     }
 
-    public function recordLockedAttempt(string $email, ?User $user): void
+    public function recordLockedAttempt(string $email, ?User $user, LoginMethod $method = LoginMethod::Local): void
     {
-        $this->write($email, $user, LoginOutcome::CuentaBloqueada);
+        $this->write($email, $user, LoginOutcome::CuentaBloqueada, $method);
     }
 
-    private function write(string $email, ?User $user, LoginOutcome $outcome): void
+    /**
+     * REQ-AUTH-002 (1.4), datos.md §E.3.2: el *callback* termina sin
+     * poder resolver un usuario (sin vínculo y, o el correo no venía
+     * verificado, o no hay cuenta local). Siempre `method = google`.
+     * **No cuenta hacia el bloqueo** (RN-AUTH-14 no aplica: no se ha
+     * probado ninguna credencial nuestra).
+     */
+    public function recordFederatedNoLink(string $email): void
+    {
+        $this->write($email, null, LoginOutcome::FederadoSinVinculo, LoginMethod::Google);
+    }
+
+    private function write(string $email, ?User $user, LoginOutcome $outcome, LoginMethod $method): void
     {
         LoginAttempt::create([
             'email' => $email,
             'user_id' => $user?->id,
             'outcome' => $outcome,
+            'method' => $method,
             'attempted_at' => now(),
             'ip_address' => RequestFacade::ip(),
             'user_agent' => RequestFacade::userAgent(),

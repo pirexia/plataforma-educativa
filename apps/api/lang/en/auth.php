@@ -24,6 +24,9 @@ return [
         'mfa_exemption_already_live' => 'This user already has a live MFA exemption.',
         'mfa_exemption_self' => 'You cannot grant yourself an MFA exemption.',
         'mfa_reset_self' => 'You cannot reset your own MFA.',
+        'oauth_provider_not_configured' => 'This sign-in provider is not available at this school.',
+        'oauth_intent_requires_session' => 'You must be signed in to link an account.',
+        'identity_would_leave_user_without_access' => 'You cannot unlink this account: it is your only way to sign in.',
     ],
 
     'mail' => [
@@ -91,6 +94,19 @@ return [
             'what_to_do' => 'If this was you, there is nothing else to do. If you do not recognise this sign-in, review your active sessions and change your password as soon as possible.',
             'cta' => 'Review my active sessions',
             'unknown_client' => 'an unknown device',
+        ],
+        'identity_linked' => [
+            'subject' => 'A Google account has been linked at :tenant',
+            'greeting' => 'Hello, :name.',
+            'body_fusion' => 'When you signed in with Google at :tenant, the system automatically linked the account :email to your profile because the email matched and was verified.',
+            'body_profile' => 'You just linked the Google account :email to your profile at :tenant.',
+            'warning' => 'If this was not you, contact your school administration as soon as possible.',
+        ],
+        'identity_unlinked' => [
+            'subject' => 'A Google account has been unlinked at :tenant',
+            'greeting' => 'Hello, :name.',
+            'body' => 'The Google account :email has been unlinked from your profile at :tenant.',
+            'warning' => 'If this was not you, contact your school administration as soon as possible.',
         ],
     ],
 
