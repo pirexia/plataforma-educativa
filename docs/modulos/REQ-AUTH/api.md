@@ -1333,3 +1333,267 @@ El desafío expone `expires_at` (suya) y el alta expone `expires_at` y `code_exp
 **Ningún evento nuevo** (`funcional.md §D.7.3`). Los cinco de `§C.9` cubren lo que este paso produce.
 
 **Webhooks: ninguno**, con el mismo agravante de `§C.9` y uno más: publicar hacia un tercero que una persona está **exenta** de segundo factor es publicar exactamente qué cuenta atacar. Ni cuando `REQ-API` traiga el mecanismo general.
+
+---
+
+# Parte E · Paso 1.4 · API (`REQ-AUTH-002`)
+
+> **Estructura**: §1-§11 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3 y `§D.*` es 1.3b, los cuatro cerrados. Esta **Parte E** es el paso **1.4**, **no implementada**: es especificación previa.
+>
+> Convenciones de `ADR-038` sin excepción, salvo lo que `§E.7` matiza — y este paso tiene **una excepción de verdad**, la primera del módulo: el *callback* no habla `problem+json`.
+>
+> Escrita sobre la **opción A** de `funcional.md §E.3` (una URI de redirección por tenant), **decidida por el usuario el 2026-08-31**: el *callback* aterriza en el host del propio centro y entra por la cadena de *middleware* de `/api/v1` sin excepciones. La dependencia del cliente OAuth y su envoltorio los fija `ADR-042`.
+
+---
+
+## E.1 Reglas generales: qué cambia respecto de §1, `§B.1`, `§C.1` y `§D.1`
+
+| Aspecto | 1.4 |
+|---------|-----|
+| Autenticación | Sin cambios (`ADR-025`). El *callback* se autoriza con **la misma cookie de sesión anónima que arrancó el flujo**, contra el `state` guardado en su *payload* — el mismo mecanismo que el desafío de MFA (`RN-AUTH-53`, `permisos.md §C.4`), no uno nuevo |
+| Autorización | De los **5 endpoints nuevos**: **2 anónimos**, **1 autorizado por la sesión que arrancó el flujo**, **2 por identidad del portador**. **Ninguno declara permiso** (`permisos.md §E.1`) |
+| Aislamiento | Sin cambios. Recurso de otro tenant ⇒ `404`, nunca `403` (`ADR-038 §6.4`) |
+| Idempotencia | **Ningún endpoint exige `Idempotency-Key`** (`§E.7.2`) |
+| Auditoría | `INV-003`, **sin ampliar el vocabulario** (`funcional.md §E.8`). Todo por el *observer* de 0.9, más el `login` que ya existía |
+| Módulo desactivado | No aplica: ninguna ruta lleva `module-enabled` (`RN-AUTH-35`, `CA-AUTH-231`) |
+| Proveedor no configurado | **Estado normal, no degradado**: la colección de proveedores viene vacía y los otros cuatro responden `422` (`funcional.md §E.10`) |
+| Límite de tasa | Los dos anónimos y el *callback*, por IP. `operacion.md §E.6` |
+| OpenAPI | Los 5 en `apps/api/openapi/paths/oauth.yaml` antes del *merge* (`CLAUDE.md §10`) |
+
+### E.1.1 Tipos de error nuevos: **ninguno**
+
+`ADR-038 §6.2` declara su catálogo *«cerrado y ampliable solo por ADR o por especificación de módulo»*. 1.2 añadió `account-locked`, 1.2b ninguno, 1.3 añadió `mfa-enrollment-required`, 1.3b ninguno. **1.4 tampoco añade ninguno**, y merece decirse por qué, porque la tentación existía:
+
+| Situación | Qué se reutiliza |
+|-----------|------------------|
+| Vínculo ya existente, propio o de otro usuario | `urn:pge:error:conflict` (**409**) — mismo criterio que la desactivación de un factor exigido (`§C.1.1`) |
+| Desvincular dejaría al usuario sin forma de entrar | `urn:pge:error:conflict` (**409**) |
+| Contraseña actual incorrecta al desvincular | `urn:pge:error:validation` (**422**) — mismo criterio que `POST /auth/password-changes` (§5b) |
+| Proveedor no configurado, o `provider` desconocido | `urn:pge:error:validation` (**422**) |
+| Vínculo de otro tenant, o inexistente | `urn:pge:error:not-found` (**404**), cuerpo idéntico |
+| Sesión restringida por el muro de MFA | `urn:pge:error:mfa-enrollment-required` (**403**), el de 1.3, sin cambios |
+
+**Y no hay ningún tipo de error para los fallos del flujo OAuth** —`state` inválido, código caducado, proveedor que no responde, persona que cancela— porque **el *callback* no responde con errores HTTP**: responde `302` con un código de resultado. `§E.4` lo argumenta.
+
+---
+
+## E.2 `GET /api/v1/auth/identity-providers`
+
+Qué proveedores externos admite este host. Lo pide la pantalla de login antes de decidir si pinta el botón (`RN-AUTH-98`).
+
+- **Permiso**: ninguno. **Anónimo**, tenant resuelto por host.
+- **Cabeceras**: ninguna especial.
+- **Respuesta `200`** (colección, `ADR-038 §3.1`):
+
+```json
+{
+  "data": [
+    { "provider": "google", "label_key": "auth.providers.google" }
+  ],
+  "meta": { "total": 1 }
+}
+```
+
+- **`data: []`** cuando no hay credenciales configuradas. **No es un error**: es el despliegue que no quiere Google, y el que tendrá cualquiera hasta que se configure (`funcional.md §E.10`).
+- **`label_key` y no `label`**: el texto lo resuelve la SPA con su catálogo de traducciones, en los cuatro idiomas (`INV-009`). El servidor no manda literales de interfaz.
+- **No lleva `client_id`, ni la URL de autorización, ni nada del proveedor.** Construir la URL es trabajo del servidor (`§E.3`), y publicarla aquí daría un punto de partida del flujo que se salta el CSRF y el límite de tasa.
+- **Errores**: `404` (host sin tenant), `429`, `503` (tenant suspendido).
+- **Idempotencia**: no procede (`GET`).
+
+---
+
+## E.3 `POST /api/v1/auth/oauth-authorizations`
+
+Arranca el flujo. Devuelve la URL a la que la SPA debe navegar.
+
+- **Permiso**: ninguno. **Anónimo** con `intent = "login"`; **por identidad del portador** con `intent = "link"`, que exige sesión completa.
+- **Cabeceras**: `X-XSRF-TOKEN` obligatoria (`RN-AUTH-29`).
+- **Cuerpo**:
+
+```json
+{ "provider": "google", "intent": "login" }
+```
+
+`intent` ∈ `login` | `link`. Cualquier otro valor ⇒ `422`.
+
+- **Respuesta `201`**:
+
+```json
+{
+  "authorization_url": "https://accounts.google.com/o/oauth2/v2/auth?...",
+  "expires_at": "2026-09-01T10:10:00Z"
+}
+```
+
+- **`201` y no `204`**: hay un recurso que devolver, y sin él el cliente no puede continuar.
+- **Sin `public_id`, a propósito.** La única credencial del flujo es la cookie de sesión; dar un identificador invitaría a aceptarlo como forma de continuar desde otro cliente. Mismo argumento que `RN-AUTH-53` y `permisos.md §D.4`.
+- **La URL lleva `state`, `code_challenge` y `code_challenge_method=S256`** (`RN-AUTH-91`), y la `redirect_uri` construida con el slug del tenant y el dominio base configurado, **nunca con `$request->getHost()`** (`RN-AUTH-92`, `CA-AUTH-203`).
+- **Efecto colateral obligatorio**: el `state`, el verificador PKCE, el `intent` y el proveedor quedan en el *payload* de la sesión del servidor, con caducidad. **No se emite ninguna cookie propia** para esto.
+
+**Errores**:
+
+| Estado | Cuándo |
+|--------|--------|
+| `422` | `provider` desconocido o no configurado; `intent` inválido; `intent = "link"` sin sesión |
+| `403` | `urn:pge:error:mfa-enrollment-required` — sesión restringida por el muro de 1.3 y `intent = "link"` (`funcional.md §E.4.4` punto 5) |
+| `419`/`403` | CSRF ausente o inválido |
+| `429` | Límite de tasa por IP, con `Retry-After` |
+| `404` / `503` | Host sin tenant / tenant suspendido |
+
+- **Idempotencia**: no exige `Idempotency-Key`. Repetirlo genera un `state` nuevo que **sustituye** al anterior, que deja de valer en el acto — mismo criterio que `RN-AUTH-11` con los tokens de restablecimiento.
+
+---
+
+## E.4 `GET /api/v1/auth/oauth/google/callback`
+
+**Es el único endpoint del producto que no habla el lenguaje de `ADR-038`, y es a propósito.**
+
+- **Permiso**: ninguno declarado. Se autoriza por **posesión de la sesión que arrancó el flujo**, comparando el `state` del parámetro con el del *payload* en tiempo constante (`RN-AUTH-91`). Es el cuarto mecanismo de `permisos.md §C.4`, sin ampliación.
+- **Cabeceras**: ninguna. **Sin CSRF**, porque es un `GET` que llega como navegación desde un tercero; la defensa contra la falsificación de esta petición **es el `state`**, que es exactamente para lo que existe en OAuth2.
+- **Parámetros de consulta**: `code` y `state`, o `error` y `state`. Los pone Google, no nosotros.
+- **Respuesta**: **siempre `302`**, a `https://{slug}.{base}/entrar/google?resultado=<código>` o, cuando el login se completa, a la ruta de destino de la SPA.
+
+### E.4.1 Por qué `302` y no `problem+json`
+
+| Alternativa | Por qué no |
+|-------------|------------|
+| **`problem+json` como el resto del módulo** | Quien llega aquí es **un navegador haciendo una navegación de primer nivel**, no el cliente HTTP de la SPA. Un `422` con `application/problem+json` se le pinta al usuario como un volcado JSON en pantalla blanca. No hay ningún cliente programático de este endpoint: su único llamante es Google devolviendo a una persona |
+| **`200` con HTML propio** | Obligaría al *backend* a renderizar una pantalla, con su plantilla, su branding y sus cuatro idiomas — duplicando lo que la SPA ya sabe hacer y creando la primera vista servidor del producto |
+| **`302` con el detalle del error en la URL** | Es lo que se hace, **pero con una lista cerrada de códigos**, no con texto ni con datos. Un mensaje en la URL acabaría llevando el correo o el motivo, y `§4.7` lo prohíbe |
+
+**El código de resultado es un enumerado cerrado**, y eso es lo que permite traducirlo a cuatro idiomas sin literales en el código (`INV-009`) y lo que impide que un día alguien meta un dato personal en él (`RN-AUTH-93`).
+
+### E.4.2 Códigos de resultado
+
+| Código | Cuándo | Qué ofrece la pantalla |
+|--------|--------|------------------------|
+| *(ninguno: redirección al destino)* | Login completado | — |
+| `segundo_factor` | Se abrió desafío de MFA (`funcional.md §E.4.2` paso 8.3) | Redirige a la pantalla de segundo factor, que ya existe desde 1.3 |
+| `alta_mfa_requerida` | Sesión restringida: obligado, sin factor y gracia vencida | Redirige al muro de `§C.4.9`, que ya existe |
+| `vinculado` | `intent = link` completado | Vuelve a `/cuenta/seguridad` con el aviso de éxito |
+| `sin_cuenta` | **No hay vínculo y, o el correo no venía verificado, o no hay cuenta local.** Un solo código para los dos casos (`datos.md §E.3.2`) | «Si tienes cuenta en este centro, entra con tu contraseña y vincula Google desde tu perfil» — en condicional, sin afirmar nada |
+| `cuenta_bloqueada` | Bloqueo vivo para ese correo (`§E.6` de `funcional.md`) | Explica el bloqueo y ofrece el desbloqueo, igual que la pantalla de 1.2 |
+| `acceso_denegado` | Usuario `pendiente`, `inactivo` o borrado | Mensaje **genérico**, el mismo que el `401` de `§4.7` |
+| `ya_vinculado` | `intent = link` y el usuario ya tenía un vínculo vivo | Explica que hay que desvincular primero |
+| `proveedor_ya_vinculado` | Esa cuenta de Google ya está vinculada a otro usuario del centro | Mensaje genérico: **no dice a quién** |
+| `cancelado` | La persona canceló en Google (`error=access_denied`) | Vuelve al login, sin dramatismo |
+| `estado_no_valido` | `state` ausente, distinto, caducado o ya consumido | «Vuelve a intentarlo» |
+| `error_proveedor` | Fallo al canjear el código, o Google no responde | «Inténtalo más tarde o entra con tu contraseña» |
+
+**Ningún código lleva sufijo con el detalle.** `sin_cuenta` no se desdobla, `acceso_denegado` no dice qué estado tiene la cuenta, y `proveedor_ya_vinculado` no nombra al otro usuario. Es la misma disciplina de `§4.7`, aplicada a un canal distinto.
+
+**Efectos**: en el camino de éxito, el *callback* **crea sesión** (`funcional.md §E.4.2` paso 9) y, según el caso, **crea la fila de `user_identities`**. Es, por tanto, un `GET` que escribe — el mismo apartamiento que `§B.7.1` documentó para `GET /auth/sessions`, y aquí es inevitable: la forma de la petición la fija OAuth2, no nosotros.
+
+---
+
+## E.5 Autoservicio del propio usuario
+
+### `GET /api/v1/auth/identities`
+
+Mis cuentas externas vinculadas. Lo pinta el bloque nuevo de `/cuenta/seguridad`.
+
+- **Permiso**: ninguno. **Por identidad del portador de la cookie** (`RN-AUTH-73`: no acepta ningún sujeto en el cuerpo ni en la consulta).
+- **Respuesta `200`**:
+
+```json
+{
+  "data": [
+    {
+      "public_id": "01JD7...",
+      "provider": "google",
+      "email_at_link": "n***@gmail.com",
+      "link_method": "fusion_automatica",
+      "linked_at": "2026-09-01T10:05:00Z",
+      "last_login_at": "2026-09-14T08:12:00Z"
+    }
+  ],
+  "meta": { "total": 1 }
+}
+```
+
+- **`email_at_link` sale enmascarado**, con el mismo `DestinationMasker` que 1.3b introdujo para el destino del código por correo (`§D.4.5`). El titular no necesita ver la dirección entera para reconocer cuál es, y una sesión secuestrada tampoco debe llevarse el correo personal de nadie.
+- **`link_method` sí sale**, y es lo que permite al titular distinguir «lo vinculé yo» de «el sistema lo vinculó porque los correos coincidían». Es la mitad visible de `RN-AUTH-97`.
+- **Sin paginación**: como mucho hay un vínculo por proveedor, y hoy un proveedor. Se devuelve `meta.total` por coherencia de la envoltura, no porque haya páginas.
+- **Errores**: `401` sin sesión, `429`.
+
+### `DELETE /api/v1/auth/identities/{public_id}`
+
+Desvincular.
+
+- **Permiso**: ninguno. Por identidad del portador. El vínculo se busca **por `public_id` más predicado de tenant más `user_id` del portador, en el mismo `WHERE`** — nunca un `find()` seguido de una comprobación en PHP (`permisos.md §E.4`, misma regla que `RN-AUTH-41`).
+- **Cabeceras**: `X-XSRF-TOKEN` obligatoria.
+- **Cuerpo**:
+
+```json
+{ "current_password": "..." }
+```
+
+- **Un `DELETE` con cuerpo**, otra vez. Ya ocurre desde 1.3 con `DELETE /auth/mfa-factors/{public_id}` y por el mismo motivo (`§C.8.3`): la contraseña actual no puede viajar en la URL.
+- **Respuesta `204`**, sin cuerpo.
+
+**Errores**:
+
+| Estado | Cuándo |
+|--------|--------|
+| `422` | `current_password` ausente o incorrecta. **No `401`**: la sesión sigue siendo válida (`funcional.md §E.4.5` punto 2). **Cuenta hacia el bloqueo** y escribe en `login_attempts` |
+| `409` | `urn:pge:error:conflict` — desvincular dejaría al usuario sin ninguna forma de entrar (`RN-AUTH-96`) |
+| `404` | Vínculo inexistente, ya desvinculado, de otro usuario o de otro tenant. **Cuerpo idéntico en los cuatro casos** |
+| `401` | Sin sesión |
+| `419`/`403` | CSRF |
+| `429` | Límite de tasa |
+
+---
+
+## E.6 Superficie del módulo tras 1.4
+
+| Paso | Endpoints | Acumulado |
+|------|-----------|-----------|
+| 1.2 | 10 | 10 |
+| 1.2b | 3 | 13 |
+| 1.3 | 10 (+1 en `REQ-CORE`) | 23 |
+| 1.3b | 3 | 26 |
+| **1.4** | **5** | **31** |
+
+Los cinco:
+
+| Método y ruta | Autorización |
+|---------------|--------------|
+| `GET /api/v1/auth/identity-providers` | Anónimo |
+| `POST /api/v1/auth/oauth-authorizations` | Anónimo (`login`) · por identidad (`link`) |
+| `GET /api/v1/auth/oauth/google/callback` | Posesión de la sesión que arrancó el flujo |
+| `GET /api/v1/auth/identities` | Identidad del portador |
+| `DELETE /api/v1/auth/identities/{public_id}` | Identidad del portador |
+
+**1.4 no modifica ningún endpoint existente y no toca ninguno de `REQ-CORE`.** Es la primera vez desde 1.2b que un paso de este módulo no altera el contrato de `POST /auth/session` ni el recurso de `GET /me`: el login federado **no pasa por ahí**, tiene su propio camino, y termina en la misma sesión.
+
+---
+
+## E.7 Convenciones transversales: dónde 1.4 se aparta o matiza
+
+### E.7.1 Una excepción de verdad a `ADR-038`, la primera del módulo
+
+El *callback* **no responde `problem+json`, no devuelve recursos y siempre responde `302`**. `§E.4.1` tiene el argumento entero. Se registra aquí, y no solo allí, para que la revisión no lo tome por descuido: es el único endpoint del producto cuyo cliente es un navegador que viene de un tercero.
+
+### E.7.2 Sin `Idempotency-Key`, otra vez
+
+Por cuarta vez, y por los motivos de §9.3: ninguna escritura de este paso es una operación de negocio costosa cuyo reintento produzca un duplicado que el usuario pague. El arranque del flujo sustituye el `state` anterior; el *callback* es idempotente por construcción, porque el `state` es de un solo uso (`CA-AUTH-205`); y la desvinculación repetida responde `404`.
+
+### E.7.3 Un `GET` que escribe, otra vez
+
+El *callback* crea una sesión y a veces una fila. Ya ocurría con `GET /auth/sessions` en 1.2b (`§B.7.1`). La diferencia es que allí era una decisión nuestra y aquí la forma la impone el protocolo.
+
+### E.7.4 Un `DELETE` con cuerpo, otra vez
+
+`§C.8.3`, sin cambios.
+
+### E.7.5 Enumerados
+
+Tres, todos cerrados y todos con su `CHECK` o su validación en servidor: `provider` (`google`), `intent` (`login`, `link`) y **el código de resultado del *callback***, que no está en base de datos pero es igual de cerrado (`§E.4.2`) y cuya lista es lo que hace traducible la pantalla.
+
+---
+
+## E.8 Eventos de dominio y webhooks
+
+**Dos eventos nuevos**, `IdentityLinked` e `IdentityUnlinked` (`funcional.md §E.7.3`). **Ningún webhook**: `REQ-API` es fase 2 y sigue sin haber suscriptores externos.
+
+**`UserLoggedIn` se publica igual que siempre** en el login federado. No hay una variante `UserLoggedInFederated`: el hecho es el mismo, y quien necesite la distinción la tiene en `login_attempts.method` (`datos.md §E.3`, con la salvedad de retención de `funcional.md §E.8`).

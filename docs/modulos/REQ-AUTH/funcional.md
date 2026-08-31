@@ -2556,3 +2556,615 @@ Las tres están incorporadas al alcance (`§D.1.1`), a las reglas (`RN-AUTH-80`,
 **Confirmaciones que la implementación debe respetar y que no son negociables sin volver aquí**: el alcance de la pantalla se detiene donde dice `§D.1.3` (nada de `1.5`); las cuatro tareas incluyen **su registro en el *scheduler***, no solo las clases; y no se añade ninguna comprobación de «no puedes quitarte el TOTP» (`§D.6`).
 
 **¿Se aprueba esta especificación tal como queda, para pasar a implementación?**
+
+---
+
+# Parte E · Paso 1.4 · Login con Google y fusión de cuentas (`REQ-AUTH-002`)
+
+| Campo | Valor |
+|-------|-------|
+| Código | `REQ-AUTH-002` |
+| Prioridad | MUST |
+| Fase | 1 · Bloque A · **paso 1.4** |
+| Depende de | 1.1 (`REQ-CORE`: `users`, `people`, invitaciones), 1.2 (login local, cookie de sesión, `login_attempts`, bloqueo), 1.2b (`user_sessions`, detección de dispositivo), 1.3/1.3b (`MfaPolicy`, `mfa_challenges`, muro de alta) |
+| Estado | **APROBADO** el 2026-08-31 (`§E.14`). Las tres decisiones bloqueantes —`OPEN-AUTH-30`, `OPEN-AUTH-31` y `OPEN-AUTH-35`— están tomadas. Único trabajo previo a implementar: `ADR-042`, en redacción por `architect` |
+| Módulo (código) | `auth` · `apps/api/app/Modules/Auth` · `apps/web/src/modules/auth` |
+
+> **Estructura**: §1-§14 son 1.2 (cerrado). `§B.*` es 1.2b (cerrado). `§C.*` es 1.3 (cerrado, commit `cd13e8a`). `§D.*` es 1.3b (cerrado, commit `dd68f48`). Esta **Parte E** es el paso **1.4**, **no implementado**: es especificación previa, no descripción de lo que existe.
+>
+> Fuente de verdad: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md §5.2`, `REQ-AUTH-002`, **incluida su nota de seguridad**. Este documento **no** reabre `ADR-014`, `ADR-025`, `ADR-029`, `ADR-033`, `ADR-034`, `ADR-035`, `ADR-038`, `ADR-039` ni `ADR-040`, ni ninguna decisión de 1.2/1.2b/1.3/1.3b.
+>
+> Numeración: reglas de negocio desde `RN-AUTH-86`, criterios de aceptación desde **`CA-AUTH-200`** y preguntas abiertas desde `OPEN-AUTH-30`. Los criterios arrancan en 200 y no en 177 —el primer número libre— para que el bloque de este paso se distinga de un vistazo, con el mismo criterio con el que los pasos anteriores dejaron huecos (faltan hoy los 8-9, 18-19, 46-49, 64-69 y 79).
+
+---
+
+## E.0 Antes de nada
+
+`CLAUDE.md §0` obliga a poner esto delante, no al final. **Este paso tenía una contradicción con una decisión ya tomada del producto y una decisión estructural sin tomar.** Las dos las resolvió el usuario el **2026-08-31**, y se conserva el argumento entero de cada una —igual que hicieron `§C.14` y `§D.12` con las suyas— para que la decisión se entienda con su coste y no solo con su resultado.
+
+### E.0.1 Dependencias no implementadas que condicionan el alcance
+
+| Dependencia | Estado | Qué bloquea exactamente |
+|-------------|--------|-------------------------|
+| **`0.10b` · Dominio, DNS con comodín y certificado** (`OPEN-08`) | **Pendiente** | Sube de categoría en este paso. Google **no admite** como URI de redirección un host que no sea `https` sobre un dominio público registrable (la excepción es `http://localhost`), y el entorno de desarrollo de `ADR-030` sirve `{slug}.{TENANCY_BASE_DOMAIN}` sobre HTTP. Consecuencia honesta: **1.4 no se puede verificar de extremo a extremo contra Google de verdad en WSL2**, a diferencia de 1.2, 1.2b y 1.3, que sí se verificaron en navegador real. Se cubre con un proveedor simulado (`operacion.md §E.10`) y la verificación real queda pendiente de que exista un entorno con dominio público. **Hay que decirlo antes de empezar, no al cerrar.** |
+| **`0.10c` · Proveedor de correo transaccional** (`OPEN-09`) | **Pendiente** | Los tres avisos al titular de `§E.4.7` dependen de él, igual que los del resto del módulo. No impide implementar ni probar (el test comprueba que el trabajo se encola), sí impide operar. Hereda `OPEN-AUTH-07` sin agravarlo. |
+| **`1.4b` · SSO institucional (`REQ-AUTH-004`)** | Posterior | Es quien traerá el catálogo de proveedores **por tenant**. Este paso le reserva el nombre `identity_providers` y **no lo ocupa** (`datos.md §E.2`). También es de 1.4b, y no de aquí, la decisión de si un proveedor externo que ya hizo su propio segundo factor exime del nuestro: ya está escrito así en `§C.12` y no se hereda. |
+| **`1.5` · Permisos granulares** | Posterior | **Sin impacto**: 1.4 no declara ningún permiso (`permisos.md §E.1`), como 1.2b. |
+| **`REQ-PRIV-006` / `ADR-034 OPEN-13`** | Pendiente | Fija la lista definitiva de campos de `people` y su base legal por campo. **Deja de condicionar este paso** al resolverse la contradicción 2 (`§E.0.2`): sin creación de usuarios no hay ningún dato de perfil de Google que ubicar. Vuelve a ser relevante en `1.4b`. |
+| **`ADR-042` · dependencia y envoltorio del cliente OAuth** | **En redacción por `architect`** | **Requisito previo de `implementer`**, igual que `ADR-041` lo fue de 1.3. Formaliza la comprobación de `CLAUDE.md §1` sobre `laravel/socialite` (aprobada el 2026-08-31, `OPEN-AUTH-35`) y **fija la forma exacta de la interfaz `IdentityProvider`** (`§E.7.2`), incluido que `email_verified` salga como booleano de primera clase y que ninguna importación de `Laravel\Socialite\*` exista fuera de esa única implementación. |
+
+### E.0.2 Contradicciones detectadas
+
+Dos, **las dos resueltas por el usuario el 2026-08-31**. Se detuvo el diseño del sub-flujo afectado hasta tenerlas, como obliga `CLAUDE.md §0`.
+
+#### Contradicción 1 · «crear un nuevo usuario con los datos de Google» frente al alta exclusiva por invitación — **RESUELTA (2026-08-31)**
+
+`REQ-AUTH-002` punto 3 dice literalmente: *«Si no existe: crear un nuevo usuario con los datos de Google (nombre, apellidos, email, foto)»*.
+
+Eso es **alta auto-servicio**, y el producto ya decidió lo contrario, dos veces:
+
+- `REQ-CORE/funcional.md` (línea 66), al cerrar 1.1: *la creación de usuarios es **exclusivamente** por invitación del Administrador de Centro*.
+- `funcional.md §1.3` de este mismo documento, al cerrar 1.2, siguiendo ese criterio sin reabrirlo: *«No existe ningún endpoint de alta auto-servicio. Nadie se da de alta solo»*, y da el motivo legal: **`INV-008`** — en un centro educativo, un alta abierta acepta datos de menores sin base legal ni consentimiento del tutor.
+
+No es una tensión teórica. Implementado al pie de la letra, el punto 3 significa que **cualquier persona de Internet con una cuenta de Google que sepa la dirección `centroX.dominio` se crea una cuenta en ese centro**. Y además:
+
+1. **Fabrica `people` duplicadas.** `ADR-034 §1` hace de `users` una faceta 0..1 de `people`, con `users.person_id` `NOT NULL` y `UNIQUE (tenant_id, person_id)`. Crear el usuario obliga a crear antes la persona, sin documento de identidad — y el índice único que `REQ-CORE` puso para evitar duplicados (`people_tenant_document_unique`) es **parcial sobre `document_number IS NOT NULL`**, así que no impide nada. El día que la secretaría dé de alta de verdad a esa misma persona, habrá dos filas en `people` para el mismo ser humano. Es exactamente el problema que el modelo de 1.1 está construido para evitar.
+2. **La cuenta creada no sirve para nada.** Sin roles, la denegación por defecto de `RPERM-011`/`INV-002` la deja sin ver una sola pantalla. Lo único que produce es censo sucio y una fila más en la lista de usuarios del administrador.
+3. **El requisito que sí pide aprovisionamiento automático es otro.** *«Just-in-Time provisioning: creación automática de usuarios en el primer login SSO»* está en **`REQ-AUTH-004`** (paso `1.4b`), donde tiene sentido: allí el proveedor de identidad **es el directorio del propio centro**, y que alguien exista en él es la prueba de que pertenece al centro. Google como proveedor de consumo no prueba nada equivalente: prueba que alguien tiene una cuenta de Google.
+
+**Decisión del usuario del 2026-08-31 (`OPEN-AUTH-31`): interpretación restrictiva.** El punto 3 se lee igual que `REQ-CORE` leyó «registro con email y contraseña»: **el login con Google nunca crea un usuario**. Solo vincula o fusiona con una cuenta local que ya existe. El aprovisionamiento automático queda **diferido a `REQ-AUTH-004`/`1.4b`**, que es donde el requisito lo pide de verdad y donde el proveedor de identidad es el directorio del propio centro.
+
+Rige por tanto `RN-AUTH-99`, ya sin condición: **ningún usuario se crea a partir de un login federado en 1.4.** Un login de Google sin cuenta en el centro termina sin crear nada.
+
+Es una interpretación **restrictiva** de un requisito escrito para un producto con registro abierto, exactamente como la de `§1.3`. Se anota con esas palabras a propósito: si algún día se quisiera el alta abierta por Google, sería un requisito nuevo con su propio análisis de protección de datos, no una ampliación de este paso.
+
+#### Contradicción 2 · «foto» y «apellidos» no tienen dónde ir — **RESUELTA (2026-08-31), por consecuencia de la anterior**
+
+El mismo punto 3 nombra cuatro datos: *nombre, apellidos, email, foto*. Dos de ellos no encajan en el esquema que existe:
+
+- **`people` no tiene columna de fotografía, y no la tiene a propósito.** La migración de 0.8 lo dice literalmente: *«Mínimo suficiente por minimización de datos (`OPEN-13` deja la lista definitiva y su base legal por campo a `REQ-PRIV-006`): fuera a propósito fotografía, sexo, nacionalidad y dirección postal.»* Añadir una columna de foto aquí sería adelantar por la puerta de atrás una decisión de protección de datos que tiene dueño (`REQ-PRIV-006`) y que además afecta a menores.
+- **Google devuelve un `family_name` único; `people` tiene `family_name_1` y `family_name_2`.** No hay forma no arbitraria de partir «García Ruiz» en dos, ni de saber si «Ruiz» es segundo apellido o parte del primero.
+
+**Queda resuelta sin decidir nada sobre `people`, y por dos caminos independientes** (`OPEN-AUTH-37`):
+
+1. **Los cuatro datos que nombra el punto 3 solo existen dentro del punto 3**, y el punto 3 está fuera de alcance por la contradicción 1. Sin creación de usuarios no hay nombre, apellidos ni foto de Google que ubicar en ningún sitio.
+2. **Aunque lo hubiera, no irían a `people`**: `RN-AUTH-88` prohíbe que Google escriba datos del centro en cualquier flujo, y `user_identities` **no tiene columna de nombre ni de fotografía** (`datos.md §E.2`). La decisión sobre la URL de la foto de Google está tomada allí y es **que no se guarda**: servirla filtraría a Google la IP de todo el que la mire, y guardarla sería tratar un dato personal nuevo sin base legal decidida.
+
+**Dónde reaparece, y hay que dejarlo dicho**: en **`1.4b`**. `REQ-AUTH-004` pide literalmente *«mapeo automático de atributos SAML/OIDC a campos de usuario»* y *«just-in-time provisioning»*, que es exactamente el problema de partir un `family_name` en dos y de dónde va una fotografía. Ahí sí habrá que resolverlo, con `REQ-PRIV-006` delante. **No es de 1.4.**
+
+Lo que este paso **sí** decide, y no es una consecuencia de la contradicción sino una regla propia: **Google nunca sobrescribe datos del centro** (`RN-AUTH-88`). Ni al fusionar, ni en logins posteriores. El nombre que vale es el que tiene la ficha de la persona en el centro, no el que el usuario haya puesto en su perfil de Google.
+
+---
+
+## E.1 Alcance del paso 1.4
+
+### E.1.1 Entra
+
+| Sub-requisito | Qué parte |
+|---------------|-----------|
+| `REQ-AUTH-002` | Botón «Iniciar sesión con Google» en el login. Flujo OAuth2 de código de autorización con **PKCE**, *scopes* `openid`, `profile`, `email`. |
+| `REQ-AUTH-002` punto 1-2 | Resolución de la identidad y **fusión de la cuenta**: vínculo del proveedor a un usuario existente **manteniendo datos, roles, historial y configuraciones** (`§E.4.3`). |
+| **Nota de seguridad de `REQ-AUTH-002`** | La fusión automática **solo** con `email_verified = true`. Sin ella, confirmación explícita desde la cuenta local, que se resuelve **con el flujo de vinculación desde el perfil que el propio requisito ya pide** — sin mecanismo nuevo (`§E.4.2` paso 7c). |
+| `REQ-AUTH-002` | **Vinculación** de Google a una cuenta local existente desde el perfil (`§E.4.4`). |
+| `REQ-AUTH-002` | **Desvinculación** desde el perfil, con contraseña actual y con guarda de «no te quedes fuera» (`§E.4.5`). |
+| Integración con lo ya construido | El login federado pasa por **las mismas** comprobaciones que el local: bloqueo, estado de la cuenta y `MfaPolicy` completo, incluidos el desafío de segundo factor y el muro de alta (`§E.4.2` paso 8). |
+| Descubrimiento | `GET /auth/identity-providers`: la pantalla de login sabe si hay botón que pintar. Sin él, el botón sería una constante del cliente y aparecería en despliegues sin credenciales. |
+| Pantallas | Botón en `/entrar`, pantalla de resultado `/entrar/google`, y un bloque «Cuentas vinculadas» en `/cuenta/seguridad`, que **ya existe** desde 1.3. |
+
+### E.1.2 No entra, y por qué
+
+| Fuera | Dónde va | Motivo |
+|-------|----------|--------|
+| **Creación automática de usuarios** (`REQ-AUTH-002` punto 3) | **1.4b** (`REQ-AUTH-004`) | **Decisión del usuario del 2026-08-31** (`OPEN-AUTH-31`): interpretación restrictiva, el login con Google nunca crea un usuario. `§E.0.2` contradicción 1. |
+| SSO SAML 2.0 / OIDC por tenant (`REQ-AUTH-004`) | **1.4b** ([#58](https://github.com/pirexia/plataforma-educativa/issues/58)) | Otro requisito, otro paso, etiquetado `OPUS + SONNET` porque toca el modelo de identidad. |
+| ¿El 2FA de Google exime del nuestro? | **1.4b, con su ADR** | Ya decidido así en `§C.12` al cerrar 1.3. **No se hereda ni se decide aquí.** |
+| Catálogo `identity_providers` configurable por el centro | **1.4b** | Este paso reserva el nombre y no lo ocupa (`datos.md §E.2`). |
+| Guardar `access_token` / `refresh_token` y llamar a APIs de Google (Calendar, Classroom, Drive…) | **Ningún paso** | No está en ningún requisito. `RN-AUTH-95`: los tokens se usan en la misma petición para leer los *claims* y se descartan. Guardar un *refresh token* de Google es guardar una llave a la cuenta personal de una persona, con su propia base legal y su propia superficie de fuga. |
+| Restricción por dominio de Google Workspace (*claim* `hd`) y conmutador por tenant | **Sin decidir** | No está en el requisito. `OPEN-AUTH-33`. |
+| Administración de los vínculos de **otros** usuarios | **Sin decidir** | No está en el requisito, y por eso 1.4 no declara permisos. `OPEN-AUTH-34`. |
+| Otros proveedores (Microsoft, Apple) | **Ningún paso** | `REQ-AUTH-002` nombra Google. `REQ-AUTH-004` nombra Azure AD/Entra ID, y es 1.4b. |
+
+### E.1.3 El tamaño de este paso, dicho antes de empezar
+
+**Una tabla nueva, una columna y un valor de enumerado más, cinco endpoints, dos pantallas nuevas y un bloque en una tercera.** Está entre 1.2b (dos tablas, tres endpoints, una pantalla) y 1.3 (seis tablas, diez endpoints, cuatro pantallas), más cerca del primero. **No propongo partirlo.**
+
+Lo que sí tiene de caro no está en el volumen: está en que **es la primera vez que el producto acepta una identidad que no ha emitido él**, y en las dos decisiones de `§E.0.2` y `§E.3`, que hay que tomar antes de escribir código.
+
+---
+
+## E.2 Actores
+
+| Actor | Qué hace en 1.4 |
+|-------|-----------------|
+| **Cualquier usuario del centro** | Entra con Google si su cuenta está vinculada o si la fusión procede. Vincula y desvincula su cuenta de Google desde su perfil. **Todo por identidad, nunca por permiso.** |
+| **Persona sin cuenta en el centro** | Completa el flujo de Google y **no entra**, con una salida que no le dice si tiene cuenta o no (`§E.4.6`). |
+| **Administrador de Centro** | **Nada nuevo en 1.4.** No ve ni retira los vínculos de otros (`OPEN-AUTH-34`). Lo que sí tiene, y sigue teniendo, es el desbloqueo de cuentas de 1.2 y todo lo de MFA de 1.3/1.3b. |
+| **Operador de sistemas** | Registra la URI de redirección en la consola de Google al dar de alta cada tenant (`§E.3`, opción A) y custodia el secreto de cliente (`operacion.md §E.2`). Es trabajo nuevo y manual, y por eso está escrito aquí. |
+| **Super Administrador** | Ninguna operación. El backoffice es 1.6. |
+
+---
+
+## E.3 La decisión estructural: cómo se resuelve el tenant en el *callback* de OAuth
+
+**Decidida por el usuario el 2026-08-31 (`OPEN-AUTH-30`): opción A, una URI de redirección por tenant.** Determinaba la ruta, la cadena de *middleware*, dónde vive el `state` y si hacía falta una tabla fuera del sistema de tenancy, y por eso era bloqueante.
+
+Se conserva el análisis entero de las tres opciones. No es ceremonia: **la opción A tiene un límite duro de número de centros** (`§E.3.2`), y el día que se acerque hay que retomar esta comparación sin reconstruirla desde cero.
+
+### E.3.1 El problema, con precisión
+
+`ADR-014` resuelve el tenant **solo por el host**, y `TenantHost::slugFrom()` acepta exactamente `{slug}.{TENANCY_BASE_DOMAIN}` con un único nivel de subdominio. Cada centro tiene, por tanto, **su propio host**.
+
+Google exige que la `redirect_uri` sea **exactamente una de las registradas** en la consola del cliente OAuth. **No admite comodines.** Y la cookie de sesión es *host-only* por decisión explícita de `§6`, con guarda de arranque: la sesión de `centroa.dominio` **no existe** en ningún otro host.
+
+De ahí las tres opciones reales.
+
+### E.3.2 Opción A — una URI de redirección por tenant · **ELEGIDA (2026-08-31)**
+
+`https://{slug}.{base}/api/v1/auth/oauth/google/callback`, registrada en la consola de Google al dar de alta cada centro.
+
+- **A favor**: el *callback* aterriza en el host del tenant, así que `ResolveTenant` funciona **sin tocar nada**; la cookie de sesión viaja porque `SameSite=Lax` sí se envía en una navegación *top-level* de tipo `GET` —que es justo lo que `RN-AUTH-27` argumentó para los enlaces de correo, y aquí es lo que hace posible el flujo—; el `state` y el verificador PKCE viven en el *payload* de la sesión del servidor, que ya existe y ya va cifrado; **cero estado nuevo fuera del tenant**; cero desviación de `ADR-014`, `ADR-033` y `§4.7`.
+- **En contra**: **un paso manual por centro**, fuera del producto. `REQ-BO-001` («alta de tenant reversible en un clic») deja de ser un clic mientras el operador no toque la consola de Google. Hay además un tope de URIs registradas por cliente OAuth que **hay que verificar en la consola antes de comprometerse** — y un centro con dominio propio (`RMT-008`, no implementado) necesita la suya.
+- **Encaje con la fase**: `ADR-015` fija un centro objetivo inicial y `CLAUDE.md §1` sitúa Kubernetes «a partir de 3-5 centros». Con ese volumen, el paso manual es un renglón del procedimiento de alta, no un problema.
+
+### E.3.3 Opción B — un *callback* central que rebota al host del tenant · **no elegida, guardada como camino de migración**
+
+Una única URI en un host fijo (`auth.{base}`), que después devuelve el navegador al host del centro.
+
+- **A favor**: una sola URI registrada para siempre; el alta de tenant sigue siendo un clic.
+- **En contra**, y es mucho:
+  1. Ese host **no resuelve tenant**: `TenantHost::slugFrom()` devuelve `null` y todo el grupo `/api/v1` responde `404`. Hace falta un grupo de rutas con **cadena de *middleware* propia y sin contexto de tenant**.
+  2. El `state` y el verificador PKCE **no pueden vivir en la sesión**, porque el *callback* aterriza en otro host con otra cookie *host-only*. Necesitan una **tabla sin `tenant_id`**, que es exactamente la clase de objeto que `INV-001` y `ADR-033` existen para evitar, y el mismo agujero que `sessions` ya tiene reconocido y sin cerrar (`OPEN-AUTH-10`).
+  3. Devolver el navegador al host del centro exige entregarle **un código de un solo uso en la URL**, y `§4.7` lo prohíbe con su argumento entero (registro del *proxy*, historial, `Referer`, `instance` del `problem+json`). Sería la primera excepción a esa regla desde que se escribió.
+- **Veredicto**: es la opción que escala, y cuesta un ADR, una tabla fuera del sistema de tenancy y una excepción a una regla de seguridad en vigor. **No para 1.4 sin decisión explícita.**
+
+### E.3.4 Opción C — un cliente OAuth por centro, configurado por el propio centro · **no elegida, es `1.4b`**
+
+El centro registra su cliente en Google Cloud y pega `client_id`/`client_secret` en `tenant/settings`.
+
+- Resuelve la URI de redirección (cada centro registra su host) y reparte el coste operativo al que lo causa.
+- **Pero es `REQ-AUTH-004`**, literalmente: *«OIDC para Azure AD / Entra ID, **Google Workspace**, etc.»*, con su configuración por tenant. Hacerlo aquí se come el paso 1.4b. Y deja el botón «Iniciar sesión con Google» —que `REQ-AUTH-002` describe como algo que está en el login, sin condiciones— indisponible hasta que cada centro haga trabajo de consola.
+
+### E.3.5 Decisión
+
+**Opción A**, decidida por el usuario el **2026-08-31**, con sus tres límites escritos donde alguien los lea antes de desplegar (`operacion.md §E.12` y `SYSADMIN.md`): **paso manual en el alta de tenant**, **tope de URIs registradas que hay que verificar en la consola y anotar como límite duro de número de centros**, y **dominios propios (`RMT-008`) sin cubrir**.
+
+**La opción B queda registrada como el camino de migración**, no descartada: cuando el número de centros haga insostenible el registro manual, se retoma `§E.3.3` con su propio ADR, su tabla fuera del sistema de tenancy y su excepción razonada a `§4.7`. Los tres límites de arriba son precisamente los indicadores que dicen cuándo llega ese día.
+
+> Todo este documento está escrito **sobre la opción A**, que es ahora la única. El modelo de identidad, la fusión, la vinculación y la desvinculación no dependían de esta elección y no cambian si algún día se migra a B: lo que cambiaría son `§E.4.1` punto 3, `§E.4.2` pasos 1-3, `api.md §E.4` y `datos.md §E.1`.
+
+---
+
+## E.4 Flujos
+
+### E.4.1 Arranque del flujo
+
+1. La pantalla de login pide `GET /api/v1/auth/identity-providers` (anónimo, tenant por host). Si la colección viene vacía, **no se pinta el botón** (`RN-AUTH-98`). Nunca se pinta por una constante del cliente: un despliegue sin credenciales enseñaría un botón que solo lleva a un error.
+2. La persona pulsa. La SPA se asegura de tener la cookie CSRF (`§4.7`) y envía `POST /api/v1/auth/oauth-authorizations` con `{"provider": "google", "intent": "login"}`.
+3. El servidor, en este orden:
+   1. **Límite de tasa por IP** (`operacion.md §E.6`). Excedido ⇒ `429` con `Retry-After`.
+   2. Comprueba que el proveedor está configurado. Si no ⇒ `422`.
+   3. Genera `state` (32 bytes de un generador criptográfico) y `code_verifier` PKCE, y guarda en el ***payload* de la sesión del servidor** —nunca en una cookie propia, nunca en `localStorage` (`RN-AUTH-28`)— el `state`, el `code_verifier`, el `intent`, el proveedor y `expires_at = ahora + AUTH_OAUTH_STATE_TTL_MINUTES` (10 por defecto). La sesión anónima ya existe: la creó la cookie CSRF, exactamente como en `§C.6.1`.
+   4. Construye la URL de autorización con `client_id`, `response_type=code`, `scope=openid email profile`, `state`, `code_challenge`, `code_challenge_method=S256`, `prompt=select_account` y la `redirect_uri`.
+   5. **La `redirect_uri` se construye con el `slug` del tenant ya resuelto y `config('tenancy.base_domain')`, jamás con `$request->getHost()` tal cual** (`RN-AUTH-92`). El `Host` lo controla el cliente; el slug resuelto y el dominio base configurado, no.
+4. Responde `201` con `{"authorization_url": ..., "expires_at": ...}`. **La SPA navega**; el servidor no responde `302`.
+
+**Por qué la SPA navega y el servidor no redirige.** Dos motivos, los dos concretos: la escritura queda bajo CSRF (`RN-AUTH-29`), y **no se crea ningún endpoint que reciba una URL y mande el navegador allí** — la superficie de redirección abierta se queda en cero, que es donde debe estar en el módulo de autenticación.
+
+**El recurso devuelto no tiene `public_id`, a propósito.** Darle uno invitaría a que alguien lo aceptara como forma de identificar el flujo, y la única credencial de este proceso es la cookie de sesión, igual que en el desafío de MFA (`RN-AUTH-53`, `permisos.md §D.4`).
+
+### E.4.2 *Callback*: resolución de la identidad y creación de sesión
+
+1. Google devuelve el navegador a `GET /api/v1/auth/oauth/google/callback?code=…&state=…` **en el host del tenant**. `ResolveTenant` resuelve por host como siempre.
+2. La cookie de sesión viaja: es una navegación *top-level* `GET`, que `SameSite=Lax` sí permite. Si no llega —navegador que la bloquea, sesión perdida—, no hay `state` con el que comparar y el flujo termina en el paso 3 sin haber hecho nada.
+3. **Comparación del `state`**: el del parámetro contra el de la sesión, en **tiempo constante**, y se **retira de la sesión en el acto** (un solo uso, `RN-AUTH-91`). Ausente, distinto o caducado ⇒ no se hace nada y se responde `302` con `resultado=estado_no_valido`.
+4. **Si Google devuelve `error`** (típicamente `access_denied`: la persona canceló) ⇒ `302` con `resultado=cancelado`. **No es un intento fallido**: no escribe fila de fallo en `login_attempts` y no toca el contador de bloqueo.
+5. **Canje del código** en el *endpoint* de *token* de Google, servidor a servidor sobre TLS, con el `code_verifier`. Fallo ⇒ `302` con `resultado=error_proveedor`; el detalle va al *log* de aplicación, no a la pantalla.
+6. **Lectura de los *claims***: `sub`, `email`, `email_verified`, `given_name`, `family_name`, `picture`. **La identidad es `sub`. El correo no es la identidad** (`RN-AUTH-86`). El correo se normaliza igual que en el login local —recorte y minúsculas— y **no se le aplica ninguna normalización propia de Gmail** (puntos, `+etiqueta`): tratar `a.b@gmail.com` y `ab@gmail.com` como el mismo correo sería inventarse la regla de un proveedor concreto y aplicarla a todos (`RN-AUTH-100`).
+7. **Resolución, en este orden exacto**:
+
+   | # | Condición | Qué ocurre |
+   |---|-----------|------------|
+   | **a** | Existe vínculo vivo `(tenant_id, 'google', sub)` en `user_identities` | Ese es el usuario. **El correo no se consulta.** Es lo que hace que cambiar de correo en Google no rompa el acceso, y que otra cuenta de Google con ese correo no entre |
+   | **b** | No hay vínculo, `email_verified = true`, y hay usuario **vivo** en el tenant con ese correo | **Fusión** (`§E.4.3`) |
+   | **c** | No hay vínculo y `email_verified = false` | **Ni se fusiona ni se crea nada.** Salida genérica (`§E.4.6`) |
+   | **d** | No hay vínculo, `email_verified = true` y no hay usuario con ese correo | **No se crea nada** (`RN-AUTH-99`, `OPEN-AUTH-31` resuelta el 2026-08-31). Misma salida genérica que **c** |
+
+   El caso **c** es la nota de seguridad del propio requisito. Lo que la pantalla dice —y esto es la mitad de la solución— es: *«si tienes cuenta en este centro, entra con tu contraseña y vincula Google desde tu perfil»*. Eso **es** la «confirmación explícita desde la cuenta local» que pide el requisito, y se resuelve con el flujo de vinculación que el propio requisito ya exige (`§E.4.4`): **ni un mecanismo nuevo, ni un token más, ni un correo más**.
+
+8. **Con usuario resuelto, se aplican las mismas comprobaciones del login local y en el mismo orden** (`RN-AUTH-94`). Ninguna se salta por ser federado:
+   1. **Bloqueo vivo** para `(tenant_id, email)` ⇒ `resultado=cuenta_bloqueada`, sin sesión. La decisión y su alternativa, en `§E.6` y `OPEN-AUTH-32`.
+   2. **Estado de la cuenta**: solo `activo` entra (`RN-AUTH-23`). `pendiente` e `inactivo` salen con la **misma** salida genérica.
+   3. **`MfaPolicy::resolve()`**, con **las cuatro ramas** de `§C.4.4` sin cambios: sin obligación ⇒ sesión; con factor confirmado ⇒ **se abre desafío** en `mfa_challenges` ligado al `session_id` **actual** y la SPA aterriza en la pantalla de segundo factor; obligado en gracia ⇒ sesión con el aviso; obligado y vencido ⇒ **sesión restringida**, el muro de `§C.4.9`.
+9. **Creación de la sesión**: exactamente la transacción de `§C.4.4` punto 10, sin variantes — regeneración del identificador (`RN-AUTH-32`), `Auth::guard('web')->login()`, `AuditRecorder::record($user, 'login')` **después** del `login()` (`ADR-039 §4.5`), `pge_tenant_id` y `pge_last_activity_at` en el *payload*, registro en `user_sessions` con el identificador **posterior** a la regeneración y detección de dispositivo (`§B.4.1`), y fila en `login_attempts` con `outcome = 'exito'` y `method = 'google'`, que es lo que pone a cero el contador de fallos (`RN-AUTH-63`).
+10. `302` a la ruta de la SPA que corresponda. **En esa URL no viaja ningún token, ni el `code`, ni el `state`, ni el correo, ni un `public_id`, ni nada personal**: solo un código de resultado de una lista cerrada (`RN-AUTH-93`).
+
+### E.4.3 La fusión de cuentas (`REQ-AUTH-002` punto 2)
+
+El requisito pide fusionar *«manteniendo datos, roles, historial y configuraciones»*. La forma más barata de garantizarlo es que la fusión **no tenga oportunidad de romper nada**:
+
+1. **La fusión escribe una fila en `user_identities` y nada más** (`RN-AUTH-88`). No toca `password`, ni `status`, ni `email`, ni `person_id`, ni los roles, ni `people.locale`, ni un solo ajuste. No hay «mezcla de datos» que pueda salir mal porque no hay mezcla: hay un vínculo.
+2. `link_method = 'fusion_automatica'`, que deja escrito **por qué** existe ese vínculo. Es la diferencia, dentro de dos años, entre «lo vinculó él desde su perfil» y «lo vinculó el sistema porque los correos coincidían».
+3. **`email_verified_at` no se toca.** No hace falta: un usuario `activo` lo tiene informado desde el canje (`RN-AUTH-20`), y uno que no lo esté no llega hasta aquí (paso 8.2).
+4. **Se avisa al titular por correo**, sin enlace accionable, en su idioma (`RN-AUTH-97`). Es el aviso más importante que introduce este paso: si no fue él, alguien que controla una cuenta de Google con su mismo correo acaba de conectar una segunda puerta a su cuenta.
+5. **Lo audita el *observer*** como `created` sobre `UserIdentity`, sin código propio y **sin ampliar el vocabulario de `audit_logs`** (`RN-AUTH-74` sigue en vigor): el vínculo es una entidad, no un evento suelto. Mismo argumento con el que `AccountLockout` encajó en `§10.1`.
+
+### E.4.4 Vinculación desde el perfil (`REQ-AUTH-002`)
+
+1. Usuario **autenticado**, sesión completa. Arranca igual (`§E.4.1`) con `{"provider": "google", "intent": "link"}`, con CSRF.
+2. En el *callback*, `intent = 'link'` significa que **el sujeto es el usuario de la sesión**, siempre. No se busca por correo ni se resuelve por `sub`: se vincula a quien está dentro.
+3. **El correo de Google no tiene por qué coincidir con el local**, y es deliberado. Exigir la igualdad dejaría fuera el caso ordinario —cuenta del centro `nombre@centro.es`, cuenta de Google `nombre@gmail.com`— y aquí no hay ninguna decisión de fusión que proteger: la persona ya está autenticada y acaba de demostrar posesión de la cuenta externa. **Consecuencia que hay que escribir porque no es obvia**: para ese vínculo, el paso 7b de `§E.4.2` no se disparará nunca; la entrada es siempre por 7a, por `sub`.
+4. **No se exige la contraseña actual.** Es coherente con `RN-AUTH-60`: dar de alta un segundo factor tampoco la exige. El riesgo es el mismo que allí —una sesión secuestrada podría vincular la cuenta de Google del atacante y quedarse dentro— y la defensa es la misma: **el aviso al titular**, que no se puede desactivar.
+5. **Un usuario obligado a MFA con la gracia vencida no puede vincular**: `POST /auth/oauth-authorizations` no está en la lista blanca del muro (`§C.4.9`), así que responde `403 urn:pge:error:mfa-enrollment-required`. Correcto y deliberado: primero se da de alta el segundo factor, después se reorganiza la cuenta. Es el mismo criterio con el que el muro deja fuera `POST /auth/password-changes`.
+6. Rechazos, los dos garantizados por índice único y no por un `if` previo (`RN-AUTH-89`):
+   - La cuenta de Google ya está vinculada a **otro** usuario del tenant ⇒ `resultado=proveedor_ya_vinculado`.
+   - El usuario ya tiene un vínculo vivo de Google ⇒ `resultado=ya_vinculado`. **Sustituir exige desvincular antes**, con su contraseña. Nunca en silencio.
+7. Aviso al titular y auditoría, igual que en la fusión, con `link_method = 'perfil'`.
+
+### E.4.5 Desvinculación desde el perfil (`REQ-AUTH-002`)
+
+1. `DELETE /api/v1/auth/identities/{public_id}`, con sesión, CSRF y **contraseña actual en el cuerpo**. Mismo criterio que `RN-AUTH-60` para desactivar un factor: retirar una protección o una vía de acceso exige demostrar que sigues siendo tú.
+2. Contraseña actual incorrecta ⇒ `422`, **no `401`** (la sesión sigue siendo válida; lo que falla es el dato del formulario), y **cuenta hacia el bloqueo** de `(tenant_id, email)` con fila en `login_attempts`, exactamente como en `§4.8` punto 4. Sin eso, este endpoint sería un oráculo de fuerza bruta ya autenticado.
+3. **Guarda de «no te quedes fuera»**: si el vínculo fuera la **única** forma de entrar del usuario ⇒ `409` (`RN-AUTH-96`).
+   - **Ese estado no se puede alcanzar en 1.4**: todo usuario fija contraseña al canjear su invitación (`RN-AUTH-20`), `users.password` es `NOT NULL`, y no hay forma de crear un usuario sin ella precisamente porque el alta automática quedó fuera (`OPEN-AUTH-31`, resuelta en restrictivo el 2026-08-31).
+   - **La guarda se escribe igual, con su test.** `1.4b` trae *just-in-time provisioning* (`REQ-AUTH-004`), y con él la primera posibilidad real de que exista un usuario sin contraseña utilizable. El día que eso ocurra, el caso aparece **de inmediato**, y una guarda añadida después es una guarda añadida después del primer usuario que se quedó fuera de su centro. Escribirla ahora cuesta un `if` y un test; escribirla después cuesta un incidente.
+4. Borrado **lógico** (`INV-004`): la fila conserva `deleted_at` y el *observer* audita el `deleted`. Es traza, igual que un bloqueo levantado o una excepción de MFA revocada.
+5. Aviso al titular (`RN-AUTH-97`).
+6. **Volver a vincular crea una fila nueva, no revive la anterior.** Así queda escrito que estuvo vinculada de marzo a junio, y otra vez desde septiembre.
+
+### E.4.6 Casos límite
+
+La columna de la derecha es lo que ocurre, no lo que se recomienda.
+
+| Caso | Qué ocurre |
+|------|------------|
+| Google devuelve `email_verified = false` y **sí** hay cuenta local con ese correo | No se fusiona, no se entra. Salida **idéntica** a la de «no hay cuenta» |
+| Google devuelve `email_verified = false` y **no** hay cuenta local | La **misma** salida. Ver el recuadro de abajo: aquí sí hay un oráculo real que cerrar |
+| El usuario cambia su correo en Google | Sigue entrando: la resolución es por `sub` (`§E.4.2` paso 7a) |
+| Otra cuenta de Google adopta el correo que tenía la vinculada | **No entra**: no tiene vínculo, y el paso 7b no se aplica porque el usuario local ya está vinculado a otro `sub` |
+| La misma cuenta de Google en dos centros | **Permitido y esperado.** Un vínculo por tenant, independientes (`RN-AUTH-90`, aplicación directa de `RN-AUTH-08`) |
+| Dos usuarios del mismo centro con la misma cuenta de Google | **Imposible**, índice único parcial (`RN-AUTH-89`) |
+| Usuario `pendiente`: invitado y sin canjear, con el correo verificado en Google | **No entra.** El canje es donde se fija la contraseña y se estampa `email_verified_at`; saltárselo cambiaría el contrato de activación de cuentas de `REQ-CORE` por la puerta de atrás (`RN-AUTH-23`) |
+| Usuario `inactivo` o borrado lógicamente | No entra. Misma salida genérica |
+| Usuario con MFA obligatorio y factor confirmado | Desafío de segundo factor, exactamente `§C.4.4`. **Google no salta el segundo factor** |
+| Usuario obligado con la gracia vencida y sin factor | Sesión **restringida**: entra al muro de `§C.4.9`, como por el login local |
+| Cuenta con bloqueo vivo por cinco fallos de contraseña | **No entra** (`§E.6`, decisión revisable en `OPEN-AUTH-32`) |
+| Tenant suspendido | `503` desde `ResolveTenant`, antes de tocar nada (`RN-AUTH-25`) |
+| La persona cancela en la pantalla de Google | Salida neutra. No es un intento fallido |
+| Se reintenta el mismo `code` | Falla: el `state` es de un solo uso y Google invalida el código. Nada se crea dos veces |
+| Google no responde | `resultado=error_proveedor`. **El login local sigue funcionando**, que es la razón por la que Google nunca es la única puerta (`operacion.md §E.3`) |
+
+> **El caso de `email_verified = false` es un oráculo de enumeración si se distingue, y hay que verlo.** El razonamiento fácil es: «con Google solo puedes probar tu propio correo, así que decirle a alguien que no tiene cuenta no revela nada de nadie». Eso es cierto **cuando el correo está verificado**. Cuando `email_verified = false`, el proveedor está diciendo justamente que **no responde de que esa dirección sea de quien la presenta**. Si en ese caso respondiéramos «esa dirección sí tiene cuenta, entra con tu contraseña», habríamos convertido una cuenta de Google no verificada en un **comprobador de altas del centro para direcciones ajenas** — el mismo agujero que `§4.7` cerró en el formulario de login, reabierto por otra puerta. Por eso las dos salidas son la misma, y por eso el texto de la pantalla está redactado en condicional («si tienes cuenta en este centro…») y no afirma nada.
+
+### E.4.7 Avisos al titular
+
+Tres, encolados (`INV-012`), en los cuatro idiomas (`INV-009`) y **sin enlace accionable** (`RN-AUTH-50`). Es la extensión directa del patrón de `§C.4.13`, no un requisito nuevo:
+
+| Cuándo | Por qué |
+|--------|---------|
+| Se fusiona la cuenta en un login | Es el aviso más urgente del paso: si no fue el titular, alguien acaba de conectar una segunda puerta a su cuenta **sin conocer su contraseña** |
+| Se vincula Google desde el perfil | Misma situación, otro camino. Es la defensa contra una sesión secuestrada que se hace permanente (`§E.4.4` punto 4) |
+| Se desvincula | Es la señal de que alguien retiró una vía de acceso de su cuenta |
+
+---
+
+## E.5 Reglas de negocio nuevas
+
+Continúan la numeración de `§5`, `§B.5`, `§C.5` y `§D.5`. Las 85 anteriores siguen en vigor **sin cambios**.
+
+| ID | Regla |
+|----|-------|
+| **Identidad externa** | |
+| `RN-AUTH-86` | La identidad de un proveedor externo es **`(provider, subject)`**, nunca el correo. El correo interviene **una sola vez**, en la fusión inicial, y solo con `email_verified = true`. A partir del vínculo, el correo del proveedor es informativo. |
+| `RN-AUTH-87` | La **fusión automática por correo exige `email_verified = true`** (nota de seguridad de `REQ-AUTH-002`). Sin ella no se fusiona, no se crea nada, y la salida es **indistinguible** de «no hay cuenta» (`§E.4.6`). |
+| `RN-AUTH-88` | La fusión y el vínculo **solo escriben la fila de `user_identities`**. No tocan contraseña, estado, correo, persona, roles, idioma ni ningún ajuste. **Google nunca sobrescribe datos del centro**, ni al vincular ni en logins posteriores. |
+| `RN-AUTH-89` | Un usuario tiene como mucho **un vínculo vivo por proveedor**, y una cuenta externa está vinculada como mucho a **un usuario por tenant**. Lo garantizan dos índices únicos parciales, **no** una comprobación de aplicación. |
+| `RN-AUTH-90` | La **misma cuenta de Google puede estar vinculada a usuarios de tenants distintos**, con vínculos independientes. Es la aplicación directa de `RN-AUTH-08`, y es el motivo de que `user_identities` sea tabla de tenant. |
+| **Flujo OAuth2** | |
+| `RN-AUTH-91` | El `state` es de **un solo uso**, vive en el *payload* de la sesión del servidor —nunca en cookie propia ni en `localStorage` (`RN-AUTH-28`)—, caduca a los `AUTH_OAUTH_STATE_TTL_MINUTES` y se compara en **tiempo constante**. **PKCE `S256` obligatorio.** |
+| `RN-AUTH-92` | La `redirect_uri` se construye con el **slug del tenant ya resuelto** y `config('tenancy.base_domain')`, **jamás con `$request->getHost()` tal cual**. El host lo controla el cliente. |
+| `RN-AUTH-93` | El *callback* **no devuelve nunca `problem+json` ni datos**: responde `302` a una ruta de la SPA con un **código de resultado de una lista cerrada**. Sin token, sin `code`, sin `state`, sin correo, sin `public_id` y sin ningún dato personal en la URL (`§4.7`). |
+| `RN-AUTH-94` | Un login federado pasa por **las mismas comprobaciones que el local y en el mismo orden**: bloqueo vivo, estado de la cuenta y `MfaPolicy` completo. **No salta ninguna** (`§C.12`). |
+| `RN-AUTH-95` | **No se almacena ningún `access_token` ni `refresh_token`** del proveedor. Se usan en la misma petición para leer los *claims* y se descartan. Este producto no llama a ninguna API de Google en nombre del usuario. |
+| `RN-AUTH-100` | El correo del proveedor se normaliza **igual que el del login local** (recorte y minúsculas) y se compara **exacto**. No se aplica ninguna normalización propia de un proveedor concreto —puntos ni `+etiqueta` de Gmail—: sería inventar la regla de uno y aplicarla a todos. |
+| **Autoservicio** | |
+| `RN-AUTH-96` | Desvincular exige **contraseña actual**, borra **lógicamente** la fila, y se **deniega con `409` si dejara al usuario sin ninguna forma de entrar**. Los fallos de contraseña actual cuentan hacia el bloqueo (`RN-AUTH-36`). |
+| `RN-AUTH-97` | Fusionar, vincular y desvincular **notifican al titular** por correo, en su idioma y **sin enlace accionable** (`§E.4.7`). |
+| `RN-AUTH-98` | El botón del proveedor se pinta **solo** si `GET /auth/identity-providers` lo devuelve. Nunca por constante del cliente ni por variable de compilación. |
+| **Alcance** | |
+| `RN-AUTH-99` | **Ningún usuario se crea a partir de un login federado.** Un login de Google sin cuenta local en el centro termina sin crear nada — ni `users`, ni `people`, ni vínculo. Decisión del usuario del 2026-08-31 (`OPEN-AUTH-31`, `§E.0.2`): el alta automática es de `REQ-AUTH-004`/`1.4b`, no de aquí. |
+
+---
+
+## E.6 Por qué el bloqueo de cuenta también frena el login con Google
+
+Es la decisión discutible del paso, y va con su alternativa escrita, como `§C.6` y `§B.6` hicieron con las suyas.
+
+**Decisión: un bloqueo vivo de `(tenant_id, email)` impide también entrar con Google.**
+
+A favor:
+
+1. **El bloqueo no es solo un freno de fuerza bruta: es la señal de contención de una cuenta bajo ataque.** Dejar una puerta abierta al lado, y que además la mitad del equipo olvidará que existe, es peor que el falso positivo que evita.
+2. **Dura 15 minutos** (`RN-AUTH-14`), no es indefinido. El coste del falso positivo está acotado por diseño, y esa acotación se decidió precisamente para eso (`OPEN-AUTH-03`).
+3. Una excepción aquí obligaría a duplicar el razonamiento en cada camino de creación de sesión que llegue después (1.4b, 1.6), que es como se pierden estas cosas.
+
+En contra, y es un argumento honesto:
+
+> Un login con Google **no prueba nada por fuerza bruta**: prueba posesión de una cuenta externa. El bloqueo protege de adivinar una contraseña, y aquí no se adivina ninguna. Aplicarlo significa que **cualquiera que conozca el correo de un profesor puede dejarlo fuera también de su acceso con Google** con cinco intentos de contraseña — es decir, agranda el vector de denegación de servicio que `OPEN-AUTH-03` ya reconoció.
+
+Cambiar de criterio es una línea: la comprobación de bloqueo se mueve **después** de la resolución de identidad y se aplica solo al camino local. Se registra como **`OPEN-AUTH-32`** para que el usuario pueda revocarlo al aprobar, con el coste de cada opción a la vista.
+
+---
+
+## E.7 Interacción con otros módulos
+
+`INV-007`: nada de importar código interno.
+
+### E.7.1 Interfaces que consume
+
+| Interfaz | De | Para qué |
+|----------|----|----------|
+| `UserDirectory::findActiveByEmail()` | `REQ-CORE` (ampliada en 1.2) | Resolver el candidato de la fusión. **Sin ampliación nueva** |
+| `MfaPolicy` | `REQ-AUTH` (1.3) | La rama de segundo factor del *callback*. **No se replica su lógica** |
+| `TenantSettingsReader` | `REQ-CORE` | Idioma del centro para las pantallas anónimas |
+
+### E.7.2 Interfaces que expone
+
+| Interfaz | Para qué |
+|----------|----------|
+| **`IdentityProvider`** | El envoltorio propio del cliente OAuth (`RNF-MANT-007`). Devuelve una `ExternalIdentity` con `provider`, `subject`, `email`, `emailVerified`, `givenName`, `familyName`. **Ninguna clase de la librería externa cruza esta frontera**, y en particular `email_verified` se lee aquí y se convierte en un **booleano de primera clase**, para que `RN-AUTH-87` no dependa de un array asociativo. **La forma exacta de la interfaz y la prohibición de importar `Laravel\Socialite\*` fuera de su única implementación las fija `ADR-042`** (`§E.0.1`), no `implementer` |
+| `LinkedIdentityDirectory` | Consultar los vínculos vivos de un usuario. La consumirán 1.4b y 1.6 |
+
+### E.7.3 Eventos que publica
+
+| Evento | Cuándo | Consumidor previsto |
+|--------|--------|---------------------|
+| `IdentityLinked` | Fusión o vinculación desde el perfil (con el `link_method`) | `REQ-COM` (1.19), que sustituirá el envío directo de correo; `REQ-BI` |
+| `IdentityUnlinked` | Desvinculación | `REQ-COM` (1.19) |
+
+### E.7.4 Eventos que consume
+
+**Ninguno nuevo**, y merece decirse por lo que **no** se hace:
+
+- **`UserEmailChanged` no desvincula nada.** El reflejo natural sería retirar el vínculo cuando el usuario cambia de correo en el centro, y sería un error: el vínculo es por `sub`, no por correo (`RN-AUTH-86`). Desvincular dejaría a la persona sin su forma habitual de entrar por un cambio administrativo que no tiene nada que ver.
+- **`UserDeactivated` no desvincula nada.** Ya revoca las sesiones (`§8.2`), que es lo que impide entrar. El vínculo queda, como quedan los roles: la cuenta está de baja, no borrada.
+
+---
+
+## E.8 Auditoría (`INV-003`)
+
+**El vocabulario de `audit_logs` no se amplía** (`RN-AUTH-74` sigue en vigor). Todo lo auditable de este paso es creación o borrado de una entidad real:
+
+| Hecho | Cómo queda registrado |
+|-------|------------------------|
+| Fusión de cuenta | `created` sobre `UserIdentity`, con `link_method = 'fusion_automatica'` |
+| Vinculación desde el perfil | `created` sobre `UserIdentity`, con `link_method = 'perfil'` |
+| Desvinculación | `deleted` sobre `UserIdentity` (borrado lógico) |
+| Acceso con Google | `login` — **el evento que `ADR-039` ya creó**, sin variante nueva |
+
+**Una consecuencia que hay que escribir, porque nadie la va a echar de menos hasta que la necesite**: `audit_logs` **no distingue** un acceso local de uno federado. La distinción vive en `login_attempts.method` (`datos.md §E.3`), cuya retención es de **90 días**, frente a los **dos años** de `audit_logs` (`REQ-CORE-005`). Pasados 90 días, la pregunta *«el acceso de marzo, ¿fue con contraseña o con Google?»* no tiene respuesta. Cerrar ese hueco significa tocar el registro común de los 53 módulos, y eso es un ADR y no una línea de esta especificación — el precedente exacto es `§10.2` → `ADR-039`. Queda como `OPEN-AUTH-36`, no bloqueante.
+
+---
+
+## E.9 Interfaz de usuario
+
+Tres piezas. Dos son nuevas y la tercera ya existe desde 1.3.
+
+| Ruta de la SPA | Qué | Sesión |
+|----------------|-----|--------|
+| `/entrar` | **Modificada**: botón «Continuar con Google», pintado solo si el proveedor está disponible (`RN-AUTH-98`) | No |
+| `/entrar/google` | **Nueva**: pantalla de resultado del *callback*. Traduce el código de resultado a un mensaje y ofrece la salida que corresponda | No |
+| `/cuenta/seguridad` | **Modificada**: bloque «Cuentas vinculadas» con proveedor, correo con el que se vinculó, fecha de vínculo, último uso y el botón de desvincular con su diálogo de contraseña | Sí |
+
+Reglas obligatorias, sin excepción por ser pocas pantallas (`CLAUDE.md §10`):
+
+- **Branding por tenant** en las dos públicas (`GET /tenant/branding`, `RUX-BRAND-002`).
+- **Cuatro idiomas** (`INV-009`), **incluidos los mensajes de resultado**: la lista cerrada de códigos de `§E.4.2` es exactamente lo que hace posible traducirlos sin literales en el código.
+- **WCAG 2.2 AA** (`RNF-UX-002`). El botón es un `button` que dispara una escritura y después navega, **no un enlace**: anunciarlo como enlace mentiría sobre lo que hace.
+- **El logotipo de Google se sirve desde el propio origen**, nunca desde un dominio de Google. Son dos cosas a la vez: la CSP estricta de `CLAUDE.md §8` no admite el origen externo, y cargar un recurso de Google en la pantalla de login filtra la IP de todo el que la abra, tenga cuenta o no.
+- **La navegación a Google se hace con `window.location`**, no con un formulario. Un `<form action="https://accounts.google.com/...">` chocaría con `form-action 'self'` en la CSP; una asignación de `location` no.
+- **Ninguna pantalla escribe credencial ni `state` en `localStorage`/`sessionStorage`** (`RN-AUTH-28`).
+- **Las guías de marca de Google imponen requisitos concretos al botón** (forma, color, texto admitido). Es una restricción externa real y va anotada aquí para que 1.7 la tenga en cuenta al absorber estas pantallas en el *design system*; no se resuelve en 1.4 más allá de cumplirla.
+
+---
+
+## E.10 Comportamiento con el módulo desactivado, y con el proveedor no configurado
+
+**`REQ-AUTH` sigue sin ser desactivable** (`RN-AUTH-35`), y **ninguna ruta de este paso lleva `module-enabled`** (`CA-AUTH-231`).
+
+Lo que sí existe, y es distinto, es que **el proveedor puede no estar configurado**. Ese estado es normal, no degradado: `GET /auth/identity-providers` devuelve la colección vacía, la pantalla no pinta el botón, y los otros cuatro *endpoints* responden `422` si alguien los llama a mano. Es lo que ocurrirá en cualquier despliegue que no quiera Google, y en desarrollo mientras no se configure el proveedor simulado (`operacion.md §E.10`).
+
+---
+
+## E.11 Criterios de aceptación
+
+Verificables, cada uno con test que referencia su ID (`INV-015`).
+
+### Descubrimiento y arranque del flujo
+
+- **`CA-AUTH-200`** · *Dado* un despliegue sin credenciales de Google, *cuando* la SPA pide `GET /auth/identity-providers`, *entonces* `200` con `data: []` y la pantalla de login **no** pinta el botón (`RN-AUTH-98`).
+- **`CA-AUTH-201`** · *Dado* el proveedor configurado, *cuando* se llama `POST /auth/oauth-authorizations` **sin** token CSRF, *entonces* `419`/`403` y **no** queda ningún `state` en la sesión (`RN-AUTH-29`).
+- **`CA-AUTH-202`** · *Dado* un arranque correcto, *cuando* se inspecciona la URL devuelta, *entonces* lleva `response_type=code`, `scope=openid email profile`, `state`, `code_challenge` y `code_challenge_method=S256` (`RN-AUTH-91`).
+- **`CA-AUTH-203`** · *Dada* una petición con la cabecera `Host` apuntando a un dominio ajeno, *cuando* se arranca el flujo, *entonces* la `redirect_uri` construida **no** contiene ese dominio: se construye con el slug resuelto y el dominio base configurado (`RN-AUTH-92`).
+
+### *Callback*: `state`, PKCE y forma de la respuesta
+
+- **`CA-AUTH-204`** · *Dado* un *callback* con `state` que no coincide con el de la sesión, *entonces* no se crea sesión, no se crea vínculo y se responde `302` con `resultado=estado_no_valido` (`RN-AUTH-91`).
+- **`CA-AUTH-205`** · *Dado* un *callback* ya consumido, *cuando* se repite con el mismo `code` y `state`, *entonces* el segundo responde `estado_no_valido` y **no** crea una segunda sesión.
+- **`CA-AUTH-206`** · *Dado* un *callback* con `error=access_denied`, *entonces* `resultado=cancelado`, **ninguna** fila de `login_attempts` con resultado de fallo y **ningún** incremento del contador de bloqueo.
+- **`CA-AUTH-207`** · *Dada* cualquier respuesta del *callback*, *cuando* se inspecciona la URL de destino, *entonces* no contiene `code`, `state`, token, correo, `public_id` ni ningún dato personal: solo un código de la lista cerrada (`RN-AUTH-93`).
+
+### Fusión (`REQ-AUTH-002` punto 2 y su nota de seguridad)
+
+- **`CA-AUTH-208`** · *Dado* un usuario `activo` con correo `x@d` y Google devolviendo ese correo con `email_verified = true` y sin vínculo previo, *cuando* termina el *callback*, *entonces* se crea **una** fila en `user_identities` con `link_method = 'fusion_automatica'`, se inicia sesión, y `password`, `status`, `email`, `person_id`, roles y `locale` quedan **exactamente iguales** que antes (`RN-AUTH-88`).
+- **`CA-AUTH-209`** · *Dado* el mismo caso, *cuando* se consulta `audit_logs`, *entonces* hay un `created` sobre `user_identity` y un `login`, y **ningún** `updated` sobre `user` (`RN-AUTH-88`, `RN-AUTH-74`).
+- **`CA-AUTH-210`** · *Dado* el mismo caso, *entonces* se encola el aviso al titular, en su idioma y sin enlace accionable (`RN-AUTH-97`).
+- **`CA-AUTH-211`** · *Dado* Google devolviendo `email_verified = false` y **existiendo** cuenta local con ese correo, *entonces* no se crea vínculo, no se crea sesión, y la respuesta es **byte a byte idéntica** a la del caso en que esa cuenta no existe (`RN-AUTH-87`, `§E.4.6`).
+- **`CA-AUTH-212`** · *Dado* un usuario ya vinculado que **cambia su correo en Google**, *cuando* vuelve a entrar, *entonces* entra en la misma cuenta local (`RN-AUTH-86`).
+- **`CA-AUTH-213`** · *Dado* un `sub` vinculado al usuario A, *cuando* llega un *callback* con ese `sub` y con el correo que hoy tiene el usuario B, *entonces* entra A y nunca B.
+
+### Multi-tenant (`INV-001`)
+
+- **`CA-AUTH-214`** · *Dada* la misma cuenta de Google vinculada en el tenant A y en el B, *cuando* entra por el host de A, *entonces* obtiene la sesión del usuario de A y ninguna consulta devuelve la fila de B (`RN-AUTH-90`).
+- **`CA-AUTH-215`** · *Dado* un `public_id` de `user_identities` del tenant B presentado a `DELETE /auth/identities/{public_id}` en el host de A, *entonces* `404` —nunca `403`— y la fila de B sigue viva (`ADR-038 §6.4`, `RN-AUTH-07`).
+
+### Integración con MFA (`REQ-AUTH-003`)
+
+- **`CA-AUTH-216`** · *Dado* un usuario con factor TOTP confirmado, *cuando* completa el *callback*, *entonces* **no** se crea sesión autenticada: se abre `mfa_challenges` ligado al `session_id` actual y la SPA aterriza en la pantalla de segundo factor (`RN-AUTH-94`, `RN-AUTH-52`).
+- **`CA-AUTH-217`** · *Dado* ese desafío, *cuando* se completa con `POST /auth/mfa-verifications`, *entonces* la sesión se crea con el procedimiento de `§C.4.4` punto 10 y `login_attempts` registra `exito` con `method = 'google'`.
+- **`CA-AUTH-218`** · *Dado* un usuario obligado con la gracia vencida y sin factor, *cuando* entra con Google, *entonces* obtiene sesión **restringida**, y `POST /auth/oauth-authorizations` con `intent = 'link'` responde `403 urn:pge:error:mfa-enrollment-required` (`§C.4.9`).
+
+### Estado de la cuenta y bloqueo
+
+- **`CA-AUTH-219`** · *Dado* un usuario `pendiente` cuyo correo Google devuelve verificado, *entonces* **no** entra y **no** se crea vínculo (`RN-AUTH-23`).
+- **`CA-AUTH-220`** · *Dado* un usuario `inactivo` o borrado lógicamente, *entonces* ídem, con la **misma** salida genérica.
+- **`CA-AUTH-221`** · *Dado* un bloqueo vivo para `(tenant_id, email)`, *cuando* el titular entra con Google, *entonces* `resultado=cuenta_bloqueada` y no se crea sesión (`§E.6`).
+
+### Vinculación desde el perfil
+
+- **`CA-AUTH-222`** · *Dado* un usuario autenticado sin vínculo, *cuando* completa el flujo con `intent = 'link'` y la cuenta de Google tiene **otro** correo, *entonces* se crea la fila con `link_method = 'perfil'` sobre el usuario de la sesión (`§E.4.4` punto 3).
+- **`CA-AUTH-223`** · *Dada* una cuenta de Google ya vinculada a otro usuario del mismo tenant, *cuando* un segundo usuario intenta vincularla, *entonces* se rechaza, no se crea fila, y **el rechazo lo produce el índice único**, no una comprobación previa (`RN-AUTH-89`).
+- **`CA-AUTH-224`** · *Dado* un usuario con vínculo vivo de Google, *cuando* intenta vincular otra cuenta, *entonces* se rechaza **sin sustituir** la existente.
+
+### Desvinculación
+
+- **`CA-AUTH-225`** · *Dado* un usuario con vínculo, *cuando* llama `DELETE /auth/identities/{public_id}` sin contraseña actual o con la incorrecta, *entonces* `422` —no `401`—, el vínculo sigue vivo, y el fallo **cuenta hacia el bloqueo** con fila en `login_attempts` (`RN-AUTH-96`, `RN-AUTH-36`).
+- **`CA-AUTH-226`** · *Dado* el mismo caso con la contraseña correcta, *entonces* la fila queda con `deleted_at`, el *observer* audita el `deleted`, se encola el aviso, y un login posterior con esa cuenta de Google ya no entra.
+- **`CA-AUTH-227`** · *Dado* un usuario cuyo vínculo fuera su **única** forma de entrar, *cuando* intenta desvincularlo, *entonces* `409` y el vínculo sigue vivo (`RN-AUTH-96`). El test construye ese estado a mano y documenta por qué hoy no se alcanza (`§E.4.5` punto 3).
+- **`CA-AUTH-228`** · *Dado* un vínculo desvinculado y vuelto a vincular, *entonces* hay **dos** filas —una borrada y una viva—, no una revivida.
+
+### Transversales
+
+- **`CA-AUTH-229`** · *Dado* el código del backend, *cuando* se analiza, *entonces* **no** se persiste en ningún sitio un `access_token` ni un `refresh_token` del proveedor (`RN-AUTH-95`).
+- **`CA-AUTH-230`** · *Dado* `AUTH_OAUTH_DRIVER=fake` con `APP_ENV` distinto de `local`/`testing`, *cuando* arranca la aplicación, *entonces* **falla el arranque**, y la ruta del proveedor simulado **no está registrada** (`operacion.md §E.10`).
+- **`CA-AUTH-231`** · *Dadas* las rutas de este paso, *entonces* **ninguna** lleva el *middleware* `module-enabled` (`RN-AUTH-35`).
+- **`CA-AUTH-232`** · *Dado* el catálogo tras `platform:sync-registry`, *entonces* sigue habiendo **exactamente siete** filas con `module_code = 'auth'`: 1.4 no declara ninguna (`permisos.md §E.1`).
+- **`CA-AUTH-233`** · *Dados* los textos de las pantallas y de los tres correos nuevos, *entonces* existen en los cuatro idiomas y ninguno está escrito en el código (`INV-009`).
+- **`CA-AUTH-234`** · *Dado* el frontend construido, *entonces* el logotipo de Google se sirve desde el propio origen y ninguna pantalla carga recursos de dominios de Google (`CLAUDE.md §8`, `§E.9`).
+
+---
+
+## E.12 Puntos de extensión
+
+- **1.4b (SSO institucional)**: hereda `user_identities` tal cual —`provider` es un `CHECK` que se amplía, no una tabla que se rehace— y **estrena `identity_providers`**, el catálogo por tenant que este paso deja libre a propósito. La decisión sobre si el segundo factor del proveedor exime del nuestro sigue siendo suya, con su ADR (`§C.12`).
+- **1.6 (`REQ-BO`)**: consume `LinkedIdentityDirectory` si el soporte de plataforma necesita ver vínculos. **No hereda ningún permiso**, porque este paso no declara ninguno.
+- **1.19 (`REQ-COM`)**: sustituye los tres avisos de `§E.4.7` por su canal.
+- **Administración de vínculos ajenos**: si `OPEN-AUTH-34` se resuelve por sí, es un recurso `identidad_externa` con `leer`/`eliminar` y dos *endpoints*. **Ni una tabla ni una columna más**: el hueco ya está.
+- **Otros proveedores de consumo** (Microsoft, Apple): un `IdentityProvider` más y un valor más en el `CHECK`. Ni un *endpoint* nuevo, porque el `provider` ya viaja en el cuerpo del arranque.
+- **`hd` / dominio de Google Workspace** (`OPEN-AUTH-33`): sería un ajuste en `tenant_settings`, grupo `security`, con `configuracion.actualizar`, exactamente donde viven `session_timeout_minutes` y `mfa_allowed_methods`. **No se anticipa la columna** (`ADR-034 OPEN-13`).
+
+---
+
+## E.13 Preguntas abiertas
+
+Fueron ocho. **Las tres bloqueantes y una cuarta por arrastre las resolvió el usuario el 2026-08-31**, las tres siguiendo la recomendación de esta especificación. **Quedan cuatro abiertas, ninguna bloqueante.**
+
+Se conserva el argumento original de cada una de las resueltas —igual que hicieron `§C.14` y `§D.12`— para que la decisión se entienda con su coste y no solo con su resultado, y para que quien revise no tenga que reconstruirla.
+
+### `OPEN-AUTH-30` · ¿Cómo se resuelve el tenant en el *callback*? — **RESUELTA (2026-08-31)**
+
+`§E.3`, entero. Tres opciones con sus costes: una URI de redirección por tenant (paso manual en el alta, cero cambios estructurales), un *callback* central (una URI para siempre, pero una tabla fuera del sistema de tenancy y una excepción a `§4.7`), o un cliente OAuth por centro (que es `REQ-AUTH-004` y se come 1.4b).
+
+**Decisión: opción A**, con sus tres límites escritos en `operacion.md §E.12.2` y `SYSADMIN.md` —paso manual por centro, tope de URIs registradas como límite duro de número de centros, y dominios propios sin cubrir—, y **la opción B registrada como camino de migración** con su propio ADR para cuando ese tope se acerque.
+
+**Por qué bloqueaba**: determinaba la ruta del *callback*, la cadena de *middleware*, si hacía falta una tabla nueva y si había que abrir una excepción a una regla de seguridad en vigor. No era un detalle cambiable después sin rehacer el flujo.
+
+### `OPEN-AUTH-31` · «Si no existe: crear un nuevo usuario» frente al alta exclusiva por invitación — **RESUELTA (2026-08-31)**
+
+`§E.0.2`, contradicción 1. `REQ-AUTH-002` punto 3 pide alta automática; `REQ-CORE` y `funcional.md §1.3` ya habían decidido que **no hay alta auto-servicio en este producto**, con `INV-008` detrás.
+
+**Decisión: interpretación restrictiva**, igual que `REQ-CORE` reinterpretó «registro con email y contraseña». **El login con Google nunca crea un usuario**: solo vincula o fusiona con una cuenta local existente, y un login sin cuenta en el centro termina sin crear nada (`RN-AUTH-99`). **El alta automática queda diferida a `REQ-AUTH-004`/`1.4b`.**
+
+Los tres argumentos que la sostienen, resumidos: abre el alta de cuentas a cualquiera de Internet que conozca la dirección del centro; **fabrica `people` duplicadas** que el modelo de 1.1 existe para evitar; y el aprovisionamiento automático que el producto sí quiere está pedido donde tiene sentido, en `REQ-AUTH-004`, con el directorio del propio centro detrás.
+
+**Lo que hereda `1.4b`** al traer el *just-in-time provisioning*: con qué rol nace la cuenta —si es que nace con alguno—, el mapeo de atributos de `OPEN-AUTH-37`, y la primera posibilidad real de un usuario sin contraseña utilizable, que es lo que hace que la guarda de `§E.4.5` punto 3 se escriba ya.
+
+### `OPEN-AUTH-32` · ¿El bloqueo de cuenta frena también el login con Google?
+
+`§E.6`, con los argumentos de las dos partes. **Decidido en esta especificación que sí**, por coherencia y por contención; el coste es que agranda el vector de denegación de servicio de `OPEN-AUTH-03`. Se deja como pregunta abierta —y no como decisión cerrada— porque es una elección de producto visible para el usuario final y revocable con una línea.
+
+### `OPEN-AUTH-33` · ¿Puede el centro restringir o desactivar el login con Google?
+
+Dos partes, ninguna en el requisito:
+
+1. **Conmutador por tenant**: un centro que no quiera Google no tiene hoy forma de quitar el botón.
+2. **Restricción por dominio de Google Workspace** (*claim* `hd`): un centro con Workspace propio podría querer que solo entre `@sucentro.es`, y no cualquier Gmail.
+
+La segunda es la que tiene peso de seguridad: sin ella, un docente puede vincular su Gmail personal a su cuenta del centro, y a partir de ahí la seguridad de la cuenta del centro depende de la higiene de una cuenta personal. **No lo invento** (`CLAUDE.md §11`). Si se quiere, es un ajuste en `tenant_settings` grupo `security`, sin *endpoint* nuevo.
+
+### `OPEN-AUTH-34` · ¿Puede un administrador ver o retirar el vínculo de otro usuario?
+
+El requisito habla solo de autoservicio, y por eso **1.4 no declara ni un permiso**. El caso real que lo pedirá: un empleado se va del centro y nadie quiere que su cuenta de Google siga vinculada — aunque hoy eso ya se resuelve dándole de baja, que revoca sus sesiones (`§8.2`).
+
+Si se quiere, es un recurso `identidad_externa` con `leer` y `eliminar`, concedido solo a `administrador_centro` por el mismo argumento de `permisos.md §5.1`/`§C.7.1`/`§D.6.1`. **No lo añado por mi cuenta.**
+
+### `OPEN-AUTH-35` · Dependencia nueva: cliente OAuth en el *backend* — **RESUELTA (2026-08-31)**
+
+`CLAUDE.md §1` prohíbe introducir una dependencia sin justificarla. **Aprobada `laravel/socialite`**, envuelta tras la interfaz propia `IdentityProvider` (`RNF-MANT-007`, `§E.7.2`).
+
+Comprobación hecha contra Packagist y la API de GitHub el **2026-08-31**, no de memoria:
+
+| Criterio | `laravel/socialite` |
+|----------|---------------------|
+| Última *release* | **v5.30.1 · 2026-08-24** (7 días) |
+| Licencia | **MIT** |
+| Repositorio | `laravel/socialite`, rama `5.x`, **no archivado**, último *push* **2026-08-31** |
+| *Issues* abiertas / estrellas | **3** / 5.746 |
+| Descargas | 118.312.304 totales · **5.041.993/mes** |
+| Marcado abandonado en Packagist | No |
+| Compatibilidad | `php ^8.1`, `illuminate/* ^6.0|…|^13.0` — **cubre `laravel/framework ^13.17`** |
+| Dependencias de ejecución | **5**: `firebase/php-jwt`, `guzzlehttp/guzzle`, `league/oauth1-client`, `phpseclib/phpseclib`, `ext-json` |
+| PKCE | **Sí**, `enablePKCE()` con `code_challenge_method=S256` |
+| *Scopes* del proveedor Google por defecto | **`openid`, `profile`, `email`** — exactamente los tres del requisito |
+
+**No falla la comprobación**, y dos cosas hay que decir en voz alta porque no la favorecen:
+
+1. **Arrastra `league/oauth1-client` y `phpseclib` para proveedores OAuth1 que este producto no usará jamás.** Es superficie de dependencia que no se aprovecha. Sigue siendo menos superficie que escribir a mano el canje de código, PKCE y el manejo de errores del proveedor.
+2. **`email_verified` no es un campo de primera clase de su objeto `User`**: hay que leerlo del *claim* crudo. Y `RN-AUTH-87` —la nota de seguridad del requisito— depende exactamente de ese valor. **Por eso el envoltorio de `§E.7.2` no es ceremonia**: es el sitio donde ese *claim* se lee una vez, se convierte en un booleano tipado y deja de depender de un array asociativo. Si se implementa sin envoltorio, `RN-AUTH-87` acaba escrita como `$user->user['email_verified'] ?? false`, con un `?? false` que un día alguien cambia por `?? true`.
+
+**Decisión del usuario del 2026-08-31**: sí a la dependencia, con la comprobación formal de `CLAUDE.md §1` recogida en **`ADR-042`** —el procedimiento exacto de `ADR-041` con `OPEN-AUTH-19`/`OPEN-AUTH-20`—, **en redacción por `architect` y requisito previo de `implementer`** (`§E.0.1`). Ese ADR fija la forma de la interfaz de envoltura, que `email_verified` salga como booleano de primera clase, y que **ninguna importación de `Laravel\Socialite\*` exista fuera de su única implementación** — con test de arquitectura, igual que el que prohíbe el `PasswordBroker` desde `§7.2` punto 4.
+
+**No es una decisión estructural**: es una librería cliente de un protocolo, no cambia el modelo de identidad, que es lo que sí decide `datos.md §E.2`.
+
+### `OPEN-AUTH-36` · `audit_logs` no distingue un acceso federado de uno local
+
+`§E.8`. La distinción vive en `login_attempts.method`, con 90 días de retención, frente a los dos años de `audit_logs`. Cerrarlo toca el registro común de los 53 módulos y es un ADR, no una línea de aquí (precedente: `§10.2` → `ADR-039`). **No bloquea.**
+
+### `OPEN-AUTH-37` · «Apellidos» y «foto» del requisito no tienen dónde ir — **RESUELTA (2026-08-31), por arrastre de `OPEN-AUTH-31`**
+
+`§E.0.2`, contradicción 2. `people` no tiene columna de fotografía **a propósito** (minimización, `REQ-PRIV-006`), y tiene `family_name_1`/`family_name_2` mientras Google devuelve un `family_name` único.
+
+**Deja de ser una pregunta de 1.4, y no porque se haya decidido algo sobre `people`, sino porque desaparece el flujo que la planteaba.** Los cuatro datos que nombra el requisito solo aparecen dentro del punto 3, que queda fuera de alcance. Verificado además que no reaparece por otra vía: `RN-AUTH-88` prohíbe que Google escriba datos del centro en cualquier flujo, y `user_identities` no tiene columna de nombre ni de fotografía (`datos.md §E.2`).
+
+**La decisión sobre la foto sí está tomada, y es que no se guarda**: servirla filtraría a Google la IP de todo el que la mire, y guardarla sería tratar un dato personal nuevo sin base legal decidida. Está incorporada al modelo de datos, no pendiente.
+
+**Reaparece en `1.4b`**, y hay que dejarlo escrito: `REQ-AUTH-004` pide *«mapeo automático de atributos SAML/OIDC a campos de usuario»* y *«just-in-time provisioning»*, que es literalmente el problema de partir un `family_name` en dos y de dónde va una fotografía. Ahí se resuelve, con `REQ-PRIV-006` delante.
+
+### Lo que **no** dejo como pregunta abierta, y por qué
+
+- **Que el login federado pase por `MfaPolicy`.** No es una decisión de este paso: `§C.12` ya lo dejó escrito al cerrar 1.3, y lo único que se difería era si un segundo factor externo exime del nuestro, que es de 1.4b.
+- **Que el vínculo se resuelva por `sub` y no por correo.** Resolver por correo haría que cambiar de dirección en Google cambiara de identidad, y que quien adquiera un correo liberado herede una cuenta. No hay dos opciones razonables.
+- **Que la fusión no toque nada más que la fila de vínculo.** Es la lectura literal de *«manteniendo datos, roles, historial y configuraciones»*, y cualquier otra cosa sería más código para cumplir peor.
+- **Que no se guarden `access_token` ni `refresh_token`.** Nada en el producto los usa; guardarlos es crear una fuga sin beneficio.
+- **Que la vinculación desde el perfil no exija contraseña.** Es coherencia con `RN-AUTH-60`, ya decidido en 1.3 para el alta de un factor. Cambiarlo aquí obligaría a explicar por qué dos cosas iguales se tratan distinto.
+
+---
+
+## E.14 ¿Se aprueba esta especificación?
+
+**Aprobada el 2026-08-31.** Las tres decisiones bloqueantes quedaron resueltas, **las tres siguiendo la recomendación de esta especificación**:
+
+1. **`OPEN-AUTH-30`** → **opción A**: una `redirect_uri` por tenant, registrada a mano en la consola de Google al dar de alta el centro. Los tres límites quedan documentados en `operacion.md §E.12.2` y deben pasar a `SYSADMIN.md`; la opción B queda como camino de migración con su propio ADR (`§E.3.5`).
+2. **`OPEN-AUTH-31`** → **interpretación restrictiva**: el login con Google **nunca crea un usuario**. Alta automática diferida a `REQ-AUTH-004`/`1.4b` (`RN-AUTH-99`).
+3. **`OPEN-AUTH-35`** → **aprobado `laravel/socialite`**, con `ADR-042` como trabajo previo obligatorio, igual que `ADR-041` lo fue de 1.3.
+
+Y **`OPEN-AUTH-37` queda resuelta por arrastre** de la segunda, verificado que no reaparece por ninguna otra vía en 1.4 (`§E.13`).
+
+Las cuatro decisiones están incorporadas al alcance (`§E.1`), a la sección estructural (`§E.3`), a los flujos (`§E.4.2` paso 7d), a las reglas (`RN-AUTH-99`) y a los criterios de aceptación. **No queda ninguna pregunta abierta bloqueante.** Siguen abiertas cuatro no bloqueantes —`OPEN-AUTH-32` a `OPEN-AUTH-34` y `OPEN-AUTH-36`—, todas con su decisión por defecto ya incorporada al texto y revocable sin rehacer nada.
+
+**Trabajo previo antes de `implementer`**: `ADR-042` (`§E.0.1`), en redacción por `architect`. Sin él no se toca `composer.json`.
+
+**Una advertencia operativa que no es una pregunta y que hay que aceptar al cerrar el paso**: **1.4 no se podrá cerrar con verificación en navegador real contra Google de verdad** mientras `0.10b` siga pendiente (`§E.0.1`). Los pasos 1.2, 1.2b, 1.3 y 1.3b sí la tuvieron. Lo que se verificará en navegador es el flujo completo con el proveedor simulado; la lista concreta de lo que queda pendiente de un entorno con dominio público está en `operacion.md §E.10.4` y **debe convertirse en tarea, no en un olvido**.
+
+**Confirmaciones que la implementación debe respetar y que no son negociables sin volver aquí**: el login federado pasa por `MfaPolicy` completo y no salta el segundo factor (`RN-AUTH-94`, `CA-AUTH-216`); ningún usuario se crea desde un login de Google (`RN-AUTH-99`); no se persiste ningún token del proveedor (`RN-AUTH-95`); y el proveedor simulado lleva **dos** barreras contra producción, no una (`operacion.md §E.10.3`).
+
+**Orden de implementación**: modelo de datos e `IdentityProvider` con el proveedor simulado primero; *callback* y resolución de identidad después; vinculación y desvinculación a continuación; pantallas al final. Rama `feature/REQ-AUTH-002-google-login-fusion-cuentas`.

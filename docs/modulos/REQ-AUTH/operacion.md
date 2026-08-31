@@ -901,3 +901,224 @@ Amplía `§C.11.3`:
 - **Que el *scheduler* ejecuta las cinco tareas por tenant** y no una sola vez para el primero, que es el fallo característico de `RunsPerTenant` mal cableado (`CA-AUTH-174`).
 - **Que las dos cadencias son las que dicen ser**: `schedule:list` en el contenedor real, no en WSL2 con el *scheduler* apagado. Una purga que solo existe en el código no purga (`§D.4.1.1`).
 - **Que la pantalla de administración se comporta ante un `403` real** —usuario sin permiso contra el servidor de verdad—, no solo con respuestas simuladas en pruebas de componente (`permisos.md §D.6.3`).
+
+---
+
+# Parte E · Paso 1.4 · Operación (`REQ-AUTH-002`)
+
+> **Estructura**: §1-§11 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3 y `§D.*` es 1.3b, los cuatro cerrados. Esta **Parte E** es el paso **1.4**, **no implementada**: es especificación previa.
+>
+> Escrita sobre la **opción A** de `funcional.md §E.3` (una URI de redirección por tenant), **decidida por el usuario el 2026-08-31**. Su coste operativo —un paso manual por centro y un tope de URIs registradas— está en `§E.12.2`, y es el apartado que hay que llevar a `SYSADMIN.md`.
+
+---
+
+## E.1 Comportamiento con el módulo activo o inactivo
+
+**`REQ-AUTH` sigue sin ser desactivable** (`RN-AUTH-35`) y **ninguna ruta de este paso lleva `module-enabled`** (`CA-AUTH-231`), por el motivo de §1: una fila mal puesta en `module_subscriptions` no puede dejar a un centro sin poder entrar.
+
+Lo que este paso introduce, y es distinto, es un **tercer estado que no existía**: el proveedor puede estar **no configurado**. No es una degradación, es la situación por defecto:
+
+| Estado | Qué ocurre |
+|--------|------------|
+| Sin `AUTH_GOOGLE_CLIENT_ID`/`SECRET` | `GET /auth/identity-providers` devuelve `data: []`, la pantalla **no pinta el botón**, y los otros cuatro *endpoints* responden `422`. **Todo el login local funciona igual** |
+| Configurado | El botón aparece y el flujo funciona |
+| Configurado con credenciales incorrectas | El botón aparece y el flujo termina en `error_proveedor`. **Es el fallo silencioso de este paso** y por eso hay alerta (`§E.8`) |
+
+**Google nunca es la única puerta.** No hay ningún estado del sistema en el que un usuario dependa de Google para entrar: siempre tiene su contraseña (`RN-AUTH-96`, y la guarda de `funcional.md §E.4.5`). Es la propiedad que hace que una caída de Google sea una molestia y no una incidencia.
+
+---
+
+## E.2 Variables de entorno
+
+### E.2.1 Propias del paso
+
+| Variable | Uso | Valor en desarrollo |
+|----------|-----|---------------------|
+| `AUTH_OAUTH_DRIVER` | `google` o **`fake`** (proveedor simulado, `§E.10`). Selecciona la implementación de `IdentityProvider`, cuya forma fija `ADR-042`. **Guarda de arranque: `fake` aborta la aplicación si `APP_ENV` no es `local` ni `testing`, en todos los entornos** | `fake` |
+| `AUTH_GOOGLE_CLIENT_ID` | Identificador del cliente OAuth. No es secreto, pero identifica el despliegue | *(vacío)* |
+| `AUTH_GOOGLE_CLIENT_SECRET` | **Secreto.** Va en el gestor de secretos de `ADR-037 §7`, **nunca en `.env` versionado ni en la unidad Quadlet en claro** | *(vacío)* |
+| `AUTH_OAUTH_STATE_TTL_MINUTES` | Vida del `state` y del verificador PKCE en el *payload* de la sesión (`RN-AUTH-91`) | `10` |
+| `AUTH_RATE_LIMIT_OAUTH_START_PER_IP` | Arranques de flujo por IP y minuto | Ver `§E.6` |
+| `AUTH_RATE_LIMIT_OAUTH_CALLBACK_PER_IP` | *Callbacks* por IP y minuto | Ver `§E.6` |
+
+**Guardas de arranque, en todos los entornos** —mismo patrón que `SESSION_DOMAIN` (§2.2) y que la política de contraseñas—:
+
+1. **`AUTH_OAUTH_DRIVER=fake` con `APP_ENV` distinto de `local`/`testing` ⇒ la aplicación no arranca.** Es la guarda más importante que introduce este paso: un proveedor de identidad simulado en producción **es una evasión completa de la autenticación**, la peor configuración incorrecta que este repositorio admite. Y por eso la ruta del proveedor simulado tampoco se registra fuera de esos entornos (`CA-AUTH-230`): dos barreras, no una.
+2. **`AUTH_OAUTH_DRIVER=google` con `AUTH_GOOGLE_CLIENT_SECRET` vacío ⇒ la aplicación no arranca.** Sin esto, el sistema levanta con el botón pintado y todo el mundo termina en `error_proveedor` sin que nadie sepa por qué.
+3. **`AUTH_OAUTH_DRIVER=google` con `APP_URL` sobre `http` ⇒ la aplicación no arranca fuera de `local`.** Google no admite URIs de redirección sin TLS, y un despliegue así solo puede fallar.
+
+Ninguna variable de sesión cambia. `SESSION_ENCRYPT=true` gana un motivo más —ahora el *payload* guarda también el verificador PKCE—, pero sigue siendo la misma recomendación de §2.2, y el material que guarda vive diez minutos.
+
+### E.2.2 `APP_KEY`: **sin cambios respecto de `§C.2.2`**
+
+Y conviene decirlo, porque 1.3 sí la cambió de categoría. **1.4 no añade ninguna columna cifrada en reposo**: no se guardan tokens del proveedor (`RN-AUTH-95`) ni secretos de ningún tipo en `user_identities`. Perder `APP_KEY` sigue teniendo exactamente la consecuencia que `§C.11.1` describe —los factores TOTP dejan de verificar— y **este paso no la agrava**.
+
+Lo que sí hay que custodiar como secreto nuevo es `AUTH_GOOGLE_CLIENT_SECRET`, con el procedimiento de `ADR-037 §7`. Su compromiso no da acceso a ninguna cuenta por sí solo —hace falta además el `code` de un usuario— pero permite suplantar a nuestra aplicación frente a Google.
+
+---
+
+## E.3 Servicios externos y degradación
+
+| Servicio | Uso | Si no responde |
+|----------|-----|----------------|
+| **Google (`accounts.google.com`, endpoint de *token*, `userinfo`)** | Todo el flujo federado | **El login con Google deja de funcionar; el login local no se entera.** El *callback* responde `error_proveedor` y la pantalla ofrece entrar con contraseña. **Sin *circuit breaker***: no hay reintento que hacer, porque la persona está esperando delante del navegador; se falla rápido y se ofrece la alternativa. **Con tiempo de espera corto y explícito** en el cliente HTTP: sin él, una caída de Google convierte cada *callback* en un trabajador de la API bloqueado |
+| PostgreSQL | La fila de vínculo y la sesión | Sin cambios respecto de §3 |
+| Redis | Límites de tasa | Sin cambios: **el limitador no degrada a «sin límite»**, responde `503` (§3) |
+| Correo transaccional | Los tres avisos de `funcional.md §E.4.7` | Depende de `0.10c`. El trabajo reintenta; agotados los reintentos, **el vínculo queda hecho y el titular no se ha enterado**. Es la degradación relevante de este paso: el aviso es la única defensa del titular ante una fusión que no hizo él |
+| S3 / MinIO | **No se usa** | — |
+
+---
+
+## E.4 Colas y trabajos (`INV-012`)
+
+| Cola | Trabajo | Disparo | Reintentos |
+|------|---------|---------|------------|
+| `auth-mail` | `SendIdentityLinkedEmail` | Fusión automática o vinculación desde el perfil | 3, mismo retroceso que `SendPasswordChangedEmail` |
+| `auth-mail` | `SendIdentityUnlinkedEmail` | Desvinculación | 3 |
+
+**Ninguna tarea de mantenimiento nueva**, y es una diferencia real con 1.3 y 1.3b. Este paso **no crea ningún artefacto transitorio en base de datos que purgar**: el `state` y el verificador PKCE viven en el *payload* de la sesión y mueren con ella, que ya tiene su propio ciclo. `user_identities` no tiene filas provisionales.
+
+Reglas heredadas que siguen aplicando sin excepción: contexto de tenant entrado y salido por el mecanismo de framework, ejecución por tenant con `RunsPerTenant` donde proceda, y el *scheduler* en su propio contenedor (`ADR-037`).
+
+**Los dos correos nuevos no llevan token ni enlace accionable** (`RN-AUTH-97`), así que —a diferencia de `SendPasswordResetEmail` y `SendAccountLockedEmail`— **no necesitan `ShouldBeEncrypted`** (issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73)): su *payload* no contiene material de credencial. Sí contiene el correo del destinatario, como todos los del módulo.
+
+---
+
+## E.5 Correos que emite el módulo
+
+Dos más, los dos en los cuatro idiomas de `ADR-021` (`INV-009`) y en el idioma preferido del destinatario:
+
+| Correo | Contenido | Enlace |
+|--------|-----------|--------|
+| Cuenta de Google vinculada | Qué cuenta (**enmascarada**), cuándo, y **si fue una fusión automática o una vinculación desde el perfil**. Qué hacer si no fue el titular | **Ninguno** |
+| Cuenta de Google desvinculada | Qué cuenta (enmascarada) y cuándo | **Ninguno** |
+
+Reglas comunes con los tres que ya existen (§5, `§C.5`, `§D.5`):
+
+- **Sin enlace accionable** (`RN-AUTH-50`). Un correo de «alguien vinculó una cuenta a la tuya» con un botón para deshacerlo es un correo de suplantación esperando a ocurrir.
+- **La dirección de Google va enmascarada** también en el correo, con el mismo `DestinationMasker` de `§D.4.5`. El titular la reconoce; quien intercepte el correo no se lleva una dirección personal completa.
+- **Distinguir fusión de vinculación es la parte útil del aviso.** «Vinculaste tu cuenta» es esperable; «el sistema vinculó tu cuenta porque los correos coincidían» es lo que alguien tiene que poder reconocer como ajeno.
+
+---
+
+## E.6 Límites de tasa
+
+Dos nuevos, con el criterio de §6:
+
+| Endpoint | Límite | Por qué |
+|----------|--------|---------|
+| `POST /auth/oauth-authorizations` | Por **IP**, ventana de un minuto | Cada llamada escribe en la sesión y genera material aleatorio. Sin límite es un generador de trabajo gratuito |
+| `GET /auth/oauth/google/callback` | Por **IP**, ventana de un minuto, más holgado | Es una navegación legítima que ocurre una vez por login. El límite está para el abuso, no para el uso |
+
+**No hay límite por `(tenant_id, email)`** en estos dos, a diferencia de los anónimos de 1.2, y hay que decir por qué: **en el arranque no hay correo todavía**, y en el *callback* el correo lo pone Google, no el cliente. El límite por sujeto en el camino federado lo aporta el bloqueo de cuenta, que sí se aplica (`funcional.md §E.6`).
+
+**El limitador sigue sin degradar a «sin límite»**: si su almacén no responde, `503` (§3).
+
+---
+
+## E.7 Caché
+
+**Ninguna caché nueva.**
+
+Y una advertencia concreta para la implementación del envoltorio de `ADR-042`, porque es el sitio donde se metería una caché sin querer: **el flujo no debe verificar la firma del *ID token* contra el JWKS de Google**, porque **no lo necesita**. El *token* se obtiene en una llamada servidor a servidor sobre TLS contra el *endpoint* de Google; la verificación de firma protege contra un *token* recibido por un canal no fiable, que no es el caso. Tomar el camino de verificación por JWKS obligaría a descargar y cachear el juego de claves de Google, con su invalidación y su modo de fallo propio, para no ganar nada. Si la librería elegida ofrece los dos caminos —y `laravel/socialite` los ofrece: usa `userinfo` con el *access token*, y solo verifica JWKS si se le pasa un *ID token*—, **se usa el que no verifica firmas**, y queda escrito aquí para que no se elija el otro por parecer más seguro.
+
+`GET /auth/identity-providers` tampoco se cachea: lee configuración de proceso, no base de datos.
+
+---
+
+## E.8 Métricas y alertas
+
+| Métrica | Alerta |
+|---------|--------|
+| `auth.oauth.callback.outcome` por código de resultado | **`error_proveedor` por encima del 5 % en 15 minutos ⇒ aviso.** Es la señal de credenciales mal configuradas o de Google caído, y sin ella el fallo es silencioso: cada usuario lo ve, nadie lo agrega |
+| `auth.oauth.callback.outcome{estado_no_valido}` | Un pico sostenido es, o un problema de cookies en algún navegador, o alguien probando el *callback* a mano |
+| `auth.identity.merged` | **Cualquier ráfaga es sospechosa.** Las fusiones son eventos raros: una por persona y por centro, como mucho. Diez en un minuto significa algo que hay que mirar |
+| `auth.identity.unlinked` | Ídem |
+| `login_attempts` con `outcome = 'federado_sin_vinculo'` | Volumen alto desde pocas IP: alguien probando qué correos tienen cuenta. **No es un oráculo** (`funcional.md §E.4.6`), pero sigue siendo actividad que merece mirarse |
+
+---
+
+## E.9 Problemas conocidos y diagnóstico
+
+| Síntoma | Causa probable | Comprobación |
+|---------|----------------|--------------|
+| Todo *callback* responde `estado_no_valido` | La cookie de sesión no llega en la navegación de vuelta | `SESSION_SAME_SITE` debe ser `lax`, **nunca `strict`** (`RN-AUTH-27`): con `strict` la cookie no viaja en una navegación que viene de Google y **el flujo no puede funcionar de ninguna manera**. Es el fallo más probable de este paso |
+| Google responde `redirect_uri_mismatch` | La URI de este tenant no está registrada, o difiere en el esquema, el puerto o la barra final | La consola de Google, contra la URI que construye `RN-AUTH-92`. Se compara **carácter a carácter** |
+| Google responde `invalid_client` | Secreto incorrecto o cliente de otro proyecto | El gestor de secretos |
+| El botón no aparece | Proveedor no configurado, que es el estado por defecto | `GET /auth/identity-providers` debe devolver el proveedor. Si devuelve `[]`, faltan credenciales (`§E.1`) |
+| El botón aparece y todo falla con `error_proveedor` | Credenciales presentes pero incorrectas, o Google inalcanzable desde el contenedor | Salida de red del contenedor de la API y el *log* de aplicación, donde va el detalle que **no** se le da al usuario |
+| Un usuario entra con Google y **no** le piden el segundo factor | **Incidencia de severidad crítica.** Es una evasión del segundo factor | `RN-AUTH-94` y `CA-AUTH-216`. Se detiene el trabajo en curso y se resuelve de inmediato (`CLAUDE.md §5`) |
+| Se creó un usuario a partir de un login de Google | **Incidencia crítica.** `RN-AUTH-99`: en 1.4 ese camino **no existe** (`OPEN-AUTH-31`, resuelta en restrictivo el 2026-08-31) | El código no debe tener ese camino. Si aparece un `users`/`people` nuevo con origen federado, es un fallo de implementación, no una configuración |
+
+---
+
+## E.10 Desarrollo sin credenciales reales: el proveedor simulado
+
+**Esto no es una comodidad: es la única forma de que este paso se pueda desarrollar y probar en el entorno que el proyecto tiene.**
+
+### E.10.1 Por qué no se puede usar Google de verdad en WSL2
+
+`ADR-030` fija el desarrollo en WSL2, y el entorno sirve `{slug}.{TENANCY_BASE_DOMAIN}` sobre HTTP. **Google exige que la URI de redirección de un cliente de tipo «aplicación web» sea `https` sobre un dominio público registrable**; la excepción de `http://localhost` no sirve, porque `ResolveTenant` necesita un host con forma `{slug}.{base}` y `localhost` no la tiene (`TenantHost::slugFrom()` devuelve `null` ⇒ `404`).
+
+Es decir: **no hay combinación de configuración que permita completar un flujo real de Google en el entorno de desarrollo actual**, y depende de `0.10b` (dominio, DNS con comodín y certificado), pendiente. Hay que verificar el detalle exacto contra la consola de Google antes de implementar, pero el diseño **no debe depender de que la respuesta sea una u otra**.
+
+### E.10.2 Qué se entrega en su lugar
+
+Un segundo `IdentityProvider` (`funcional.md §E.7.2`), **`FakeIdentityProvider`**, tras la misma interfaz — que es exactamente para lo que `RNF-MANT-007` obliga a envolver la dependencia:
+
+1. `AUTH_OAUTH_DRIVER=fake`. La `authorization_url` que devuelve `POST /auth/oauth-authorizations` apunta a **una ruta de la propia API**, registrada **solo** en `local`/`testing`.
+2. Esa ruta pinta un formulario mínimo con `sub`, `email` y una casilla `email_verified`, y al enviarlo redirige al *callback* real con un `code` que el proveedor simulado sabe canjear.
+3. **El resto del flujo es el de verdad**: el mismo `state`, el mismo PKCE, el mismo *callback*, la misma resolución de identidad, la misma fusión, el mismo `MfaPolicy`. Lo único simulado es de dónde salen los *claims*.
+4. Es también lo que usan los tests: **`RN-AUTH-87` se prueba de verdad** —con `email_verified` a `false` y a `true`— sin depender de una cuenta de Google real, que es algo que en un test no debe existir jamás.
+
+### E.10.3 Las dos barreras que impiden que llegue a producción
+
+1. **Guarda de arranque**: `AUTH_OAUTH_DRIVER=fake` fuera de `local`/`testing` **aborta la aplicación**, en todos los entornos (`§E.2.1`).
+2. **La ruta del proveedor simulado no se registra** fuera de esos entornos, y hay test que lo comprueba con `APP_ENV=production` (`CA-AUTH-230`).
+
+Dos y no una, porque lo que hay al otro lado de un descuido aquí **no es una funcionalidad rota: es cualquiera entrando como cualquiera**.
+
+### E.10.4 Lo que queda sin verificar, y hay que decirlo al cerrar
+
+Los pasos 1.2, 1.2b, 1.3 y 1.3b se cerraron con **verificación en navegador real**. **1.4 no podrá cerrarse así** mientras `0.10b` siga pendiente: lo que se verificará en navegador es el flujo completo con el proveedor simulado, más las pruebas de contrato contra las respuestas documentadas de Google. Queda pendiente, en un entorno con dominio público, comprobar: que la URI registrada coincide, que el consentimiento se muestra con los tres *scopes* pedidos, que `email_verified` llega como se espera para una cuenta de Workspace y para una de consumo, y que la cookie de sesión viaja en la navegación de vuelta con `Secure` y TLS reales. **Está escrito aquí para que se convierta en tarea y no en un olvido.**
+
+---
+
+## E.11 Impacto en copias de seguridad y restauración
+
+**Ninguno nuevo.** `user_identities` es una tabla de tenant ordinaria y entra en la copia como el resto. **No contiene material cifrado**, así que —a diferencia de 1.3— **restaurar una copia sin la `APP_KEY` correspondiente no rompe nada de este paso**: los vínculos siguen resolviendo, porque el `sub` está en claro y no es un secreto.
+
+Lo que sí hay que tener a mano en una recuperación es **`AUTH_GOOGLE_CLIENT_SECRET`**, que vive en el gestor de secretos y no en la copia de la base de datos (`ADR-037 §7.2`). Sin él, el login local funciona y el federado no — que es exactamente la degradación aceptable de `§E.3`.
+
+---
+
+## E.12 Despliegue
+
+### E.12.1 El día del despliegue no cambia nada para nadie
+
+Y es lo importante. Sin credenciales configuradas, el sistema queda exactamente como estaba: mismo login, mismas pantallas, mismo comportamiento, con una tabla vacía y una columna nueva con valor por defecto (`datos.md §E.7`). **El botón aparece el día que alguien configura el proveedor, no el día que se despliega el código.** Es la diferencia con 1.3, donde el despliegue activó la obligación de MFA de dos roles en todos los tenants (`§C.11.1`).
+
+### E.12.2 Trabajo manual nuevo en el alta de cada tenant
+
+**Este es el coste operativo de la decisión del 2026-08-31** (`funcional.md §E.3.5`, opción A). Dar de alta un centro deja de ser solo un clic en el backoffice: hay que **registrar `https://{slug}.{base}/api/v1/auth/oauth/google/callback` en la consola de Google** antes de que nadie de ese centro pueda usar el botón.
+
+Tres cosas que hay que escribir en `SYSADMIN.md` y en el procedimiento de alta, no solo aquí:
+
+1. **Es un paso manual, fuera del producto.** Si se olvida, el centro tiene el botón y todos sus usuarios reciben `redirect_uri_mismatch` (`§E.9`). **El alta de tenant no lo detecta ni lo avisa**: el fallo aparece cuando la primera persona pulsa el botón.
+2. **Hay un tope de URIs registradas por cliente OAuth**, que hay que **verificar en la consola antes del primer despliegue** y **anotar como límite duro de número de centros** con este diseño.
+3. **Un centro con dominio propio (`RMT-008`) necesita su propia URI**, y `RMT-008` no está implementado todavía.
+
+**El punto 2 es el disparador de la migración a la opción B**, y por eso es una cifra y no una impresión: cuando el número de centros se acerque al tope, se retoma `funcional.md §E.3.3` con su propio ADR, y a cambio del registro manual aparecen una tabla fuera del sistema de tenancy, un host adicional con su certificado y una excepción a `§4.7`. **Conviene vigilarlo antes de llegar**, porque migrar con centros en producción significa cambiar la URI registrada de todos ellos a la vez.
+
+### E.12.3 Orden y reversión
+
+1. Migraciones (`datos.md §E.7`), antes del código. Son *expand* puras.
+2. Despliegue de la aplicación **sin credenciales**, que deja el sistema idéntico al anterior.
+3. Registro de la URI en la consola de Google y carga del secreto en el gestor de secretos.
+4. Configuración de `AUTH_GOOGLE_CLIENT_ID`/`SECRET` y `AUTH_OAUTH_DRIVER=google`, y reinicio. **El botón aparece aquí.**
+
+**La reversión es limpia**: basta con vaciar las credenciales para que el proveedor desaparezca sin tocar la base de datos ni desplegar nada. Los vínculos ya creados quedan sin uso posible hasta que se vuelva a configurar, y **nadie se queda fuera**, porque nadie depende de Google para entrar (`§E.1`). La migración del `CHECK` de `login_attempts` es de un solo sentido si ya hay filas con el valor nuevo (`datos.md §E.7`), como todas las anteriores del mismo tipo, y revertir la aplicación no exige revertirla.
+
+### E.12.4 Lo que hay que verificar en el entorno real y no se puede verificar en WSL2
+
+`§E.10.4`, entero. Es la lista concreta, y es más larga que la de cualquier paso anterior del módulo.

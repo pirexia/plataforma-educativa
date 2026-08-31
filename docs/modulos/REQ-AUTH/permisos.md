@@ -685,3 +685,105 @@ Lo que 1.3b **sí** añade al inventario de datos sensibles del módulo, amplian
 - **Test de concesión**: los tres permisos nuevos están concedidos **solo** a `administrador_centro`. Si aparecen en cualquier otro rol predefinido, alguien ha repartido la capacidad de apagar la obligatoriedad de MFA (`§D.6.1`).
 - **`CA-AUTH-176`** — la pantalla `/administracion/mfa` con los permisos exigidos responde en sus cuatro áreas, y **sin ellos el servidor responde `403`** sin que la pantalla lo oculte ni redirija al login (`§D.6.3`).
 - **Test de catálogo de `REQ-CORE`: sin cambios.** 1.3b **no toca** el catálogo de otro módulo, a diferencia de 1.3 — **tampoco por la pantalla de administración**, que consume `rol.actualizar` tal como 1.3 lo declaró (`§D.6.3`). Si aparece una fila nueva con `module_code = 'core'` en esta rama, es un error.
+
+---
+
+# Parte E · Paso 1.4 · Permisos (`REQ-AUTH-002`)
+
+> **Estructura**: §1-§8 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3 y `§D.*` es 1.3b, los cuatro cerrados. Esta **Parte E** es el paso **1.4**, **no implementada**: es especificación previa.
+>
+> Fuente de verdad del catálogo: **el código** (`AuthServiceProvider::declaredPermissions()`), materializado por `platform:sync-registry`. Esta tabla es su reflejo documental.
+
+---
+
+## E.1 La conclusión, primero: **1.4 no declara ningún permiso**
+
+Como 1.2b, y por un motivo distinto del suyo. En 1.2b no había permiso porque **nadie gestiona las sesiones de otro**. Aquí es más simple todavía: **`REQ-AUTH-002` describe solo autoservicio**. Iniciar sesión con Google, vincular la cuenta propia, desvincular la cuenta propia. No hay en el requisito una sola frase sobre que alguien administre los vínculos de otra persona.
+
+El catálogo del módulo **sigue teniendo exactamente siete permisos** tras este paso: los dos de `bloqueo_cuenta` (1.2), los dos de `mfa` (1.3) y los tres de `exencion_mfa` (1.3b). `CA-AUTH-232` lo verifica.
+
+Lo que **no** cambia tampoco:
+
+- **No se toca el catálogo de `REQ-CORE`**, a diferencia de 1.3 (`rol.actualizar`, `§C.5`).
+- **`REQ-AUTH` sigue sin exponer categoría especial** (`§E.5`).
+- **Ningún endpoint nuevo acepta un sujeto ajeno** (`RN-AUTH-73`): los dos de autoservicio actúan siempre sobre el portador de la cookie, y el *callback* sobre quien resuelva el proveedor para la sesión que arrancó el flujo.
+
+**Que no haya permisos no significa que no haya autorización.** `INV-002` no admite excepciones, y `§E.2` describe qué autoriza cada uno de los cinco *endpoints*.
+
+---
+
+## E.2 Cómo se autoriza lo que no lleva permiso
+
+**Sin mecanismos nuevos.** Los cuatro de `§1`, `§C.4` y `§D.4` siguen siendo los únicos:
+
+| Endpoint | Mecanismo | Detalle |
+|----------|-----------|---------|
+| `GET /auth/identity-providers` | **Anónimo**, tenant por host | No revela nada de nadie: dice qué proveedores admite el despliegue, no quién los usa |
+| `POST /auth/oauth-authorizations` con `intent = "login"` | **Anónimo**, con CSRF y límite de tasa | |
+| `POST /auth/oauth-authorizations` con `intent = "link"` | **Identidad del portador de la cookie** | Sesión completa. Una sesión **restringida** por el muro de MFA no llega: el endpoint no está en la lista blanca de `§C.4.9` |
+| `GET /auth/oauth/google/callback` | **Posesión de la sesión que arrancó el flujo** | El cuarto mecanismo, el que 1.3 estrenó con el desafío de MFA. Aquí la prueba es el `state` guardado en el *payload*, comparado en tiempo constante y consumido en el acto |
+| `GET /auth/identities` | Identidad del portador | Sin parámetro de sujeto |
+| `DELETE /auth/identities/{public_id}` | Identidad del portador **más contraseña actual** | La contraseña no es un permiso: es la reautenticación de `RN-AUTH-60`, ya usada en 1.3 para desactivar un factor |
+
+**El punto donde se cometería el error**, y por eso se dice como `§D.4` dijo el suyo: la tentación en implementación es aceptar el `public_id` de la autorización —o del vínculo— como forma de continuar el flujo desde otra sesión. **No existe tal `public_id` en el arranque, y el del vínculo no autoriza nada** (`api.md §E.3`). La única credencial del flujo es la cookie, siempre.
+
+---
+
+## E.3 Matriz recurso × acción × ámbito
+
+Sin cambios respecto de 1.3b. `—` significa que el permiso no existe en este módulo.
+
+| Recurso | crear | leer | actualizar | eliminar | exportar | importar | aprobar | firmar | publicar |
+|---------|-------|------|------------|----------|----------|----------|---------|--------|----------|
+| `bloqueo_cuenta` (1.2) | — | `todos` | — | `todos` | — | — | — | — | — |
+| `mfa` (1.3) | — | `todos` | — | `todos` | — | — | — | — | — |
+| `exencion_mfa` (1.3b) | `todos` | `todos` | — | `todos` | — | — | — | — | — |
+| **`identidad_externa`** (1.4) | **—** | **—** | **—** | **—** | **—** | — | — | — | — |
+
+La fila de `identidad_externa` está **entera vacía a propósito**, y se escribe en vez de omitirse porque la pregunta «¿y el administrador?» se hace sola. La respuesta está en `OPEN-AUTH-34`: el requisito no lo pide, así que no se concede. **Denegación por defecto** (`RPERM-011`).
+
+Si `OPEN-AUTH-34` se resolviera por sí, serían `identidad_externa.leer` y `identidad_externa.eliminar`, con ámbito `todos` mientras rija el resolutor provisional (`§5.6`), concedidos **solo a `administrador_centro`** por el mismo argumento de `§5.1`, `§C.7.1` y `§D.6.1`. Queda escrito para que la decisión, si llega, no tenga que rehacer el análisis.
+
+---
+
+## E.4 Reglas de autorización que no son un permiso
+
+Amplía `§7`, `§B.4`, `§C.8` y `§D.7`. Es la parte que la revisión de seguridad debe recorrer entera.
+
+| Regla | Dónde | Efecto |
+|-------|-------|--------|
+| **`RN-AUTH-91` — el `state` es de un solo uso y se compara en tiempo constante** | *Callback* | Sin él, el *callback* es una petición falsificable desde cualquier sitio: es **la** defensa CSRF de ese endpoint, que no lleva token porque es una navegación de un tercero |
+| **`RN-AUTH-92` — la `redirect_uri` no sale de `$request->getHost()`** | Arranque del flujo | El `Host` lo controla el cliente. Se construye con el slug ya resuelto y el dominio base configurado (`CA-AUTH-203`) |
+| **`RN-AUTH-94` — el login federado no salta ninguna comprobación** | *Callback* | Bloqueo, estado de la cuenta y `MfaPolicy` completo. **Un camino de autenticación nuevo que se salta el segundo factor es un camino de evasión del segundo factor**, y es el error más caro que se puede cometer en este paso |
+| **El vínculo se busca por `public_id` + tenant + `user_id` del portador, en el mismo `WHERE`** | `DELETE /auth/identities/{public_id}` | Misma regla que `RN-AUTH-41` y que `§C.8` para los factores. Un `find()` seguido de una comprobación en PHP es un fallo de revisión |
+| **`RN-AUTH-89` — la unicidad del vínculo la garantiza el índice, no un `if`** | Fusión y vinculación | Una comprobación previa tiene condición de carrera; el índice único parcial no (`CA-AUTH-223`) |
+| **`RN-AUTH-87` — sin `email_verified` no hay fusión, y lo garantiza también el `CHECK`** | Fusión | La restricción `link_method <> 'fusion_automatica' OR email_verified_at_link` (`datos.md §E.2`) hace que ni un error de servicio pueda escribir una fusión no verificada |
+| **`RN-AUTH-99` — ningún usuario se crea desde un login federado** | *Callback* | Decidido el 2026-08-31 (`OPEN-AUTH-31`, interpretación restrictiva). Es una regla de **autorización**, no de alcance: crear una cuenta es la concesión de acceso más grande que existe, y aquí la concedería un desconocido con una cuenta de Google |
+| **Una sesión restringida por el muro no puede vincular** | `POST /auth/oauth-authorizations` con `intent = "link"` | La lista blanca de `§C.4.9` es blanca: lo que no está, no pasa. El endpoint nuevo **no se añade a ella**, y es correcto |
+
+Y siguen en vigor, sin excepción, las de `§7`, `§B.4`, `§C.8` y `§D.7`: `RN-AUTH-06` (el `tenant_id` sale del host), `RN-AUTH-07` (predicado explícito además de RLS), `RN-AUTH-29` (**CSRF en toda escritura**, incluidas las dos de este paso — el *callback* no es una escritura iniciada por nuestro cliente y su defensa es el `state`), `RN-AUTH-52`, `RN-AUTH-53`, `RN-AUTH-61`, `RN-AUTH-63`, `RN-AUTH-67`, `RN-AUTH-71`, `RN-AUTH-73` y `RN-AUTH-81`.
+
+---
+
+## E.5 Datos de categoría especial
+
+**Sigue sin haberlos.** `REQ-AUTH` no expone salud, NEAE ni convivencia, y ninguno de sus siete permisos lleva `is_special_category = true`. La auditoría reforzada de lectura de `RPERM-015` no se dispara aquí.
+
+Lo que 1.4 **sí** añade al inventario de datos sensibles del módulo, ampliando `§C.9` y `§D.8`:
+
+- **El identificador de una persona en un sistema de un tercero** (`user_identities.subject`). No es una credencial —conocerlo no permite entrar— pero **sí permite correlacionar a esa persona fuera de este producto**. Por eso va declarado como no registrable por `ADR-035` (`datos.md §E.2`) y por eso no sale por ninguna API: `GET /auth/identities` devuelve `public_id`, proveedor y correo enmascarado, nunca el `sub`.
+- **La dirección de correo personal**, que es lo que suele haber al otro lado de una cuenta de Google en un centro. Entra en el producto por este paso y **solo sale enmascarada** (`api.md §E.5`), incluso hacia el propio titular.
+- **El hecho de tener cuenta de Google vinculada**, para el conjunto del centro. No hay ningún endpoint que lo liste —por eso `identidad_externa` no tiene ni `leer` ni `exportar`—, y si `OPEN-AUTH-34` lo trae, ese listado hereda el criterio de `§D.2`: **sin `exportar`**, porque un CSV de quién entra con qué es un mapa de por dónde atacar.
+
+---
+
+## E.6 Verificación
+
+- **`CA-AUTH-232` — test de catálogo, ampliado**: tras `platform:sync-registry`, `permissions` sigue conteniendo **exactamente siete** filas con `module_code = 'auth'`, ninguna con `retired_at`, ninguna con `is_special_category = true`, y ninguna fila de `permission_role` de este módulo con `scope` distinto de `todos`. **Si aparece una octava en esta rama, alguien ha declarado un permiso que el requisito no pide.**
+- **Test de catálogo de `REQ-CORE`: sin cambios.** 1.4 **no toca** el catálogo de otro módulo. Una fila nueva con `module_code = 'core'` en esta rama es un error.
+- **`CA-AUTH-215`** — un `public_id` de vínculo de otro tenant responde `404`, nunca `403`, y la fila del otro tenant sigue viva.
+- **`CA-AUTH-218`** — una sesión restringida por el muro recibe `403 urn:pge:error:mfa-enrollment-required` al intentar vincular.
+- **`CA-AUTH-216`/`CA-AUTH-217`** — el login federado **no** salta el segundo factor (`RN-AUTH-94`). Es el test que más importa de todo el paso.
+- **`CA-AUTH-201`** — sin CSRF no se arranca el flujo y **no queda `state` en la sesión**.
+- **`CA-AUTH-225`** — sin contraseña actual no se desvincula, y el fallo cuenta hacia el bloqueo.
+- **`CA-AUTH-231`** — ninguna de las cinco rutas lleva `module-enabled`.
