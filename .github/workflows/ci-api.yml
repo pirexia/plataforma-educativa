@@ -85,6 +85,9 @@ jobs:
       # repositorio disponible. Contraseñas fijas de CI, sin relación con
       # ningún secreto: la base es efímera y se destruye al terminar el job.
       - name: Provisionar esquema y roles de tenancy (ADR-033)
+        # El fichero está en infra/, relativo a la raíz del repo, no a
+        # apps/api (defaults.run.working-directory de este workflow) — issue #135.
+        working-directory: .
         env:
           PGPASSWORD: ci-postgres
         run: |
