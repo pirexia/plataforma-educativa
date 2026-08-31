@@ -1,6 +1,6 @@
 # REQ-AUTH · Operación
 
-> **Estructura**: las secciones **§1 a §11** son el paso **1.2**, cerrado el 2026-08-25. La **Parte B** (`§B.1` en adelante) es el paso **1.2b** (`funcional.md` Parte B), **pendiente de aprobación**.
+> **Estructura**: las secciones **§1 a §11** son el paso **1.2**, cerrado el 2026-08-25. La **Parte B** (`§B.1` en adelante) es el paso **1.2b** (`funcional.md` Parte B), **implementada y cerrada** el 2026-08-26 (PR [#91](https://github.com/pirexia/plataforma-educativa/pull/91)/[#92](https://github.com/pirexia/plataforma-educativa/pull/92)).
 
 > Paso **1.2**. Complementa `SYSADMIN.md` y `RUNBOOK.md`; lo que aquí se describe es específico de este módulo.
 
@@ -228,7 +228,7 @@ Orden obligatorio, coherente con expand/contract (`CLAUDE.md §9`):
 
 # Parte B · Paso 1.2b · Operación
 
-> Alcance: paso **1.2b** (`funcional.md` Parte B). **Estado**: propuesta, pendiente de `funcional.md §B.14`.
+> Alcance: paso **1.2b** (`funcional.md` Parte B). **Estado**: implementada, aprobada el 2026-08-25 (`funcional.md §B.14`), cerrada el 2026-08-26.
 
 ---
 
@@ -405,7 +405,7 @@ Amplía §10, y **una de sus notas cambia de consecuencia**:
 
 # Parte C · Paso 1.3 · Operación (`REQ-AUTH-003`)
 
-> **Estructura**: §1-§11 son 1.2 (cerrado). §B.1-§B.9 son 1.2b (cerrado). Esta **Parte C** es el paso **1.3**, **pendiente de aprobación** (`funcional.md §C.15`).
+> **Estructura**: §1-§11 son 1.2 (cerrado). §B.1-§B.9 son 1.2b (cerrado). Esta **Parte C** es el paso **1.3**, **implementada y cerrada** el 2026-08-27 (PR [#107](https://github.com/pirexia/plataforma-educativa/pull/107), commit `cd13e8a`).
 
 ---
 
@@ -669,7 +669,7 @@ Amplía §11 y `§B.6`. **Este es el paso con el despliegue más delicado del m�
 
 # Parte D · Paso 1.3b · Operación (`REQ-AUTH-003`)
 
-> **Estructura**: §1-§11 son 1.2 (cerrado). `§B.1`-`§B.9` son 1.2b (cerrado). `§C.1`-`§C.11` son 1.3 (cerrado y mezclado, commit `cd13e8a`). Esta **Parte D** es el paso **1.3b**, **pendiente de aprobación** (`funcional.md §D.13`).
+> **Estructura**: §1-§11 son 1.2 (cerrado). `§B.1`-`§B.9` son 1.2b (cerrado). `§C.1`-`§C.11` son 1.3 (cerrado y mezclado, commit `cd13e8a`). Esta **Parte D** es el paso **1.3b**, **implementada y cerrada** el 2026-08-31 (PR [#123](https://github.com/pirexia/plataforma-educativa/pull/123), commit `dd68f48`).
 
 ---
 

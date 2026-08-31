@@ -80,10 +80,10 @@ Lista completa: sección 0.5 del documento de requisitos (`INV-001` a `INV-015`)
 | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | 3.1.1 |
 | `docs/SETUP-CLAUDE-CODE.md` | 1.2.0 |
 | `docs/SETUP-ENTORNO.md` | 1.3.0 |
-| `SYSADMIN.md` | 0.4.0 |
+| `SYSADMIN.md` | 0.5.0 |
 | `SECURITY.md` | 0.2.0 |
 | `PRIVACY.md` | 0.2.0 |
-| `RUNBOOK.md` | 0.1.0 |
+| `RUNBOOK.md` | 0.2.0 |
 | `CONTRIBUTING.md` | 0.1.0 |
 
 Historial completo en `CHANGELOG.md`.

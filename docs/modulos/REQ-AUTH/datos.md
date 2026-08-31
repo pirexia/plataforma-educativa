@@ -1,6 +1,6 @@
 # REQ-AUTH · Modelo de datos
 
-> **Estructura**: las secciones **§A.1 a §A.9** son el paso **1.2**, cerrado el 2026-08-25. La **Parte B** (`§B.1` en adelante) es el paso **1.2b** (`funcional.md` Parte B), **pendiente de aprobación**.
+> **Estructura**: las secciones **§A.1 a §A.9** son el paso **1.2**, cerrado el 2026-08-25. La **Parte B** (`§B.1` en adelante) es el paso **1.2b** (`funcional.md` Parte B), **implementada y cerrada** el 2026-08-26 (PR [#91](https://github.com/pirexia/plataforma-educativa/pull/91)/[#92](https://github.com/pirexia/plataforma-educativa/pull/92)).
 
 > Alcance: paso **1.2**. Cubre las **dos tablas nuevas** (§A.1, §A.2), la **modificación** de `password_reset_tokens` que exige el issue [#18](https://github.com/pirexia/plataforma-educativa/issues/18) (§A.3), la **columna nueva** de `tenant_settings` (§A.4) y lo que **no** se toca y por qué (§A.5).
 >
@@ -236,7 +236,7 @@ Todas las claves foráneas son **compuestas** `(tenant_id, columna) REFERENCES t
 >
 > Mismas convenciones de `ADR-029` y `ADR-033 §6` que la Parte A: `TIMESTAMPTZ`, `text`, `bigint` interno más `public_id` ULID **solo donde se expone en API o URL**, y creación por `App\Support\Tenancy\TenantMigration`.
 >
-> **Estado**: **propuesta**, pendiente de `funcional.md §B.14`. Cinco preguntas abiertas; ninguna cambia estas dos tablas salvo `OPEN-AUTH-13`, que solo decide si `location_label` nace ahora o después.
+> **Estado**: implementada, aprobada el 2026-08-25 (`funcional.md §B.14`), cerrada el 2026-08-26.
 
 ---
 
@@ -426,7 +426,7 @@ Aquí no hace falta compensación: **`user_sessions` y `user_known_devices` cuel
 
 # Parte C · Paso 1.3 · Modelo de datos (`REQ-AUTH-003`)
 
-> **Estructura**: `§A.1`-`§A.9` son 1.2 (cerrado). `§B.1`-`§B.7` son 1.2b (cerrado). Esta **Parte C** es el paso **1.3**, **pendiente de aprobación** (`funcional.md §C.15`).
+> **Estructura**: `§A.1`-`§A.9` son 1.2 (cerrado). `§B.1`-`§B.7` son 1.2b (cerrado). Esta **Parte C** es el paso **1.3**, **implementada y cerrada** el 2026-08-27 (PR [#107](https://github.com/pirexia/plataforma-educativa/pull/107), commit `cd13e8a`).
 >
 > Convenciones de `ADR-029` sin excepción: `TIMESTAMPTZ`, `text` en vez de `varchar(n)`, `bigint` interno más `public_id` ULID **solo donde se expone en API o URL**. Toda tabla de tenant se crea con `App\Support\Tenancy\TenantMigration::tenantTable()` (`ADR-033 §6`), que aporta `id`, `tenant_id` con `DEFAULT app.current_tenant_id()`, RLS `ENABLE`+`FORCE`, la política estándar, `UNIQUE (tenant_id, id)`, marcas de tiempo, borrado lógico y autoría.
 
@@ -812,7 +812,7 @@ Propiedades que hay que poder afirmar en la revisión (`db-reviewer`):
 
 # Parte D · Paso 1.3b · Modelo de datos (`REQ-AUTH-003`)
 
-> **Estructura**: `§A.1`-`§A.9` son 1.2 (cerrado). `§B.1`-`§B.7` son 1.2b (cerrado). `§C.0`-`§C.11` son 1.3 (cerrado y mezclado, commit `cd13e8a`). Esta **Parte D** es el paso **1.3b**, **pendiente de aprobación** (`funcional.md §D.13`).
+> **Estructura**: `§A.1`-`§A.9` son 1.2 (cerrado). `§B.1`-`§B.7` son 1.2b (cerrado). `§C.0`-`§C.11` son 1.3 (cerrado y mezclado, commit `cd13e8a`). Esta **Parte D** es el paso **1.3b**, **implementada y cerrada** el 2026-08-31 (PR [#123](https://github.com/pirexia/plataforma-educativa/pull/123), commit `dd68f48`).
 >
 > Convenciones de `ADR-029` sin excepción. Migración segura según `CLAUDE.md §9` (*expand/contract*) y la lección del hallazgo Media de `db-reviewer` en 1.3 —la migración de `login_attempts` sin `NOT VALID`/`VALIDATE CONSTRAINT`, uno de los issues [#98](https://github.com/pirexia/plataforma-educativa/issues/98)-[#105](https://github.com/pirexia/plataforma-educativa/issues/105)—: **toda restricción añadida a una tabla existente se crea `NOT VALID` y se valida después**.
 

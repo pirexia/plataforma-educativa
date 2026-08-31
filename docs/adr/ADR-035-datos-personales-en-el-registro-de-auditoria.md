@@ -1,6 +1,6 @@
 # ADR-035 · Datos personales en el registro de auditoría frente al derecho de supresión
 
-**Estado**: PROPUESTA
+**Estado**: ACEPTADA (2026-08-18, implementada en el paso 0.9 — auditoría e i18n)
 **Fecha**: 2026-08-18
 **Resuelve**: `OPEN-12`
 **Concreta**: `ADR-004` (borrado en tres niveles) aplicado a `audit_logs`; `ADR-034 §3` (esquema y política de redacción de `audit_logs`)

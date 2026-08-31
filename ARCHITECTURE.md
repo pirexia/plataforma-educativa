@@ -284,5 +284,5 @@ En AWS, vigilar el **NAT Gateway**: cuesta más que una instancia pequeña y sue
 
 ### ADR-026 · Estructura de documentación
 **Decisión**: híbrida. Documentos raíz para lo transversal y un directorio por módulo con plantilla fija. 
-**Motivo**: con 52 módulos, un documento único es inmanejable, provoca conflictos de merge constantes y consume el contexto del agente innecesariamente. La documentación por módulo permite cargar solo lo relevante. 
+**Motivo**: con 53 módulos, un documento único es inmanejable, provoca conflictos de merge constantes y consume el contexto del agente innecesariamente. La documentación por módulo permite cargar solo lo relevante. 
 **Consecuencia**: norma obligatoria en `CLAUDE.md`. Ningún módulo se cierra sin su documentación; ninguna fase se cierra sin revisión por un subagente especializado.

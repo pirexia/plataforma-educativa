@@ -1,6 +1,6 @@
 # ADR-036 · `Tenant` queda fuera del *observer* de auditoría de tenant
 
-**Estado**: PROPUESTA
+**Estado**: ACEPTADA (2026-08-18, implementada en el paso 0.9 — auditoría e i18n)
 **Fecha**: 2026-08-18
 **Sustituye**: la fila `Tenant` de la tabla de `ADR-035 §8` ("Declaración de los modelos del núcleo"). El resto de `ADR-035` queda intacto y no se reabre.
 **Se apoya en**: `ADR-033 §7` (reserva de `admin_action_logs`), `ADR-034 §3` (`audit_logs` es tabla de tenant)

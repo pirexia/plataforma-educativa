@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.1.0** · 2026-08-18
+> **Versión 0.2.0** · 2026-08-31
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -123,7 +123,7 @@ Es una operación de segundos porque cada versión es una imagen inmutable en GH
 
 **Reversión de `REQ-AUTH-003` (1.3)** (`docs/modulos/REQ-AUTH/operacion.md §C.11.2`):
 
-- **Drenar la cola `auth-mail` antes de revertir.** Los cinco trabajos de correo nuevos de 1.3 (código de segundo factor, código de alta, activación/desactivación, código de respaldo usado) no existen en la versión anterior: si queda alguno pendiente en la cola al revertir, los *workers* de la versión anterior fallan por clase inexistente. `queue:prune-failed --hours=24` limita el daño, pero drenar antes evita generarlo.
+- **Drenar la cola `auth-mail` antes de revertir** — procedimiento documentado para cuando exista un *worker* real consumiéndola. **A día de hoy no hay ningún *worker* de colas desplegado** (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128), `SYSADMIN.md`): los trabajos despachados a `auth-mail` quedan en la tabla `jobs` sin procesar, así que este procedimiento de drenado no se ha podido probar de extremo a extremo todavía. Los cinco trabajos de correo nuevos de 1.3 (código de segundo factor, código de alta, activación/desactivación, código de respaldo usado) no existen en la versión anterior: si queda alguno pendiente en la cola al revertir, un *worker* de la versión anterior fallaría por clase inexistente en cuanto se despliegue uno. `queue:prune-failed --hours=24` limita el daño, pero drenar antes evita generarlo.
 - **Revertir con factores MFA ya dados de alta es una degradación silenciosa de seguridad, no una pérdida de datos.** La versión anterior ignora `user_mfa_factors` y hace login de un solo paso: los usuarios que activaron MFA dejan de tener segundo factor **sin que nadie se lo diga**. No se pierde nada — las filas siguen ahí y vuelven a valer al desplegar 1.3 de nuevo — pero mientras dura la reversión, cuentas que un momento antes exigían dos factores solo exigen uno. Hay que saberlo antes de decidir revertir, no descubrirlo después.
 - La migración del `CHECK` ampliado de `login_attempts` es de un solo sentido en la práctica (tabla *append-only*, sin `DELETE`): revertir la aplicación **no** exige revertir esa migración.
 

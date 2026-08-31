@@ -26,7 +26,7 @@
 | `REQ-CORE-004` | Solo la parte de **almacenamiento y consulta**: listado de roles predefinidos y del catálogo de permisos, asignación de roles a usuarios, y el resolutor **provisional** que `ADR-034 §2` fija (lee `effect`, ignora `scope`). |
 | `REQ-CORE-005` | API de consulta y filtrado del registro de auditoría, y exportación a CSV. |
 | `REQ-CORE-006` | Idioma preferido por usuario e idiomas activos/por defecto del tenant, expuestos en la API. |
-| `RMOD-008`/`RMOD-009` | *Middleware* `EnsureModuleEnabled` (contrato fijado en `ADR-034 §5`, código pendiente desde entonces). |
+| `RMOD-008`/`RMOD-009` | *Middleware* `EnsureModuleEnabled` (contrato fijado en `ADR-034 §5`), implementado y registrado como alias `module-enabled` (`apps/api/bootstrap/app.php`). Sin consumidores todavía: los únicos módulos que existen hasta ahora, `Core` y `Auth`, están exentos por diseño. |
 
 **No entra en 1.1** — cada exclusión con su motivo en §1.
 

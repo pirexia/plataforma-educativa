@@ -6,6 +6,28 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-08-31 · `chore/vigencia-documentacion-raiz`
+
+### Nuevo: corrección de fondo para que la documentación no vuelva a quedarse desactualizada
+El checklist de `doc-reviewer` solo cubría documentación de módulo, nunca documentos raíz (`SECURITY.md`, `README.md`, `PRIVACY.md`, `docs/REQUISITOS-...md`) ni el estado (`PROPUESTA`/`pendiente de aprobación`) de ADR y partes de módulo ya cerradas — llevaban desde 0.9/0.13 y desde cada cierre de fase respectivamente sin actualizarse. `.claude/agents/doc-reviewer.md` gana los puntos 9 y 10; `CLAUDE.md` §6 gana la regla 7 (v2.2.1→2.3.0).
+
+### Corregido
+- **Media** (issues [#111](https://github.com/pirexia/plataforma-educativa/issues/111)-[#114](https://github.com/pirexia/plataforma-educativa/issues/114)): `SECURITY.md`/`README.md`/`PRIVACY.md`/`docs/REQUISITOS-...md` describían un producto sin auth/MFA/permisos, con tabla de versiones desincronizada de 5 documentos, sin la fila `3.1.1` de su propio historial, y sin la cookie de sesión/`XSRF-TOKEN` en el RAT.
+- **Media** ([#125](https://github.com/pirexia/plataforma-educativa/issues/125)): `CHANGELOG.md` sin las entradas de 1.2b y 1.3b.
+- **Alta** ([#129](https://github.com/pirexia/plataforma-educativa/issues/129)): 11 de los 14 ADR en fichero propio (`028`-`038`) seguían `Estado: PROPUESTA` pese a estar implementados y ratificados de facto, incluido `ADR-033` (concreta la invariante crítica `INV-001`).
+- **Media** ([#126](https://github.com/pirexia/plataforma-educativa/issues/126)/[#127](https://github.com/pirexia/plataforma-educativa/issues/127)): cabeceras de las Partes B/C/D de los cinco ficheros de `docs/modulos/REQ-AUTH/` seguían `pendiente de aprobación` pese a 1.2b/1.3/1.3b cerrados; `docs/modulos/REQ-CORE/funcional.md`/`datos.md` daban por pendiente el middleware `EnsureModuleEnabled` (ya implementado) y la aprobación de 1.1 (cerrado hace varias fases).
+- **Alta** ([#128](https://github.com/pirexia/plataforma-educativa/issues/128), documentación corregida — infraestructura pendiente de decisión): ningún *worker* de colas (Horizon/`queue:work`) desplegado pese a 32 clases `ShouldQueue` reales y `QUEUE_CONNECTION=database` por defecto. `SYSADMIN.md`/`RUNBOOK.md` corregidos para reflejarlo con precisión; el despliegue del *worker* en sí queda para una decisión aparte (afecta a `ADR-028`/`ADR-037`).
+- 13 issues cerrados por hallarse ya resueltos en código, dejados abiertos por descuido tras auditar la validez de los 49 issues abiertos: [#18](https://github.com/pirexia/plataforma-educativa/issues/18), [#36](https://github.com/pirexia/plataforma-educativa/issues/36), [#39](https://github.com/pirexia/plataforma-educativa/issues/39), [#49](https://github.com/pirexia/plataforma-educativa/issues/49), [#50](https://github.com/pirexia/plataforma-educativa/issues/50), [#52](https://github.com/pirexia/plataforma-educativa/issues/52), [#58](https://github.com/pirexia/plataforma-educativa/issues/58), [#66](https://github.com/pirexia/plataforma-educativa/issues/66), [#67](https://github.com/pirexia/plataforma-educativa/issues/67), [#70](https://github.com/pirexia/plataforma-educativa/issues/70), [#75](https://github.com/pirexia/plataforma-educativa/issues/75), [#95](https://github.com/pirexia/plataforma-educativa/issues/95), [#110](https://github.com/pirexia/plataforma-educativa/issues/110). [#62](https://github.com/pirexia/plataforma-educativa/issues/62) revisado y mantenido abierto: solo uno de sus cuatro puntos "Pendiente" está hecho.
+- **Baja**: `ARCHITECTURE.md`/`CLAUDE.md` decían "52 módulos", el recuento canónico es 53.
+
+### Diferido a propósito (issue abierto)
+[#128](https://github.com/pirexia/plataforma-educativa/issues/128) (Alta) — desplegar el *worker* de colas en sí, decisión de infraestructura fuera del alcance de un `chore/` de documentación.
+
+### Revisión independiente
+`doc-reviewer` revisó el diff propio del chore (2 hallazgos, orden cronológico de `CHANGELOG.md` y una imprecisión de redacción, ambos corregidos) y auditó el resto de la documentación no tocada en la primera pasada (4 issues nuevos encontrados: #126-#129). Auditoría aparte de validez de los 49 issues abiertos del repositorio.
+
+---
+
 ## 2026-08-31 · Cierre de 1.3b (`REQ-AUTH-003`: MFA — correo como segundo factor, excepciones temporales y administración)
 
 ### Nuevo: correo como 2FA, excepciones temporales y pantalla de administración

@@ -1,6 +1,6 @@
 # ADR-033 · Implementación del aislamiento multi-tenant en Laravel y PostgreSQL
 
-**Estado**: PROPUESTA
+**Estado**: ACEPTADA (2026-08-17, implementada en el paso 0.7 — núcleo multi-tenant)
 **Fecha**: 2026-08-17
 **Concreta**: `ADR-001` (estrategia), `ADR-014` (resolución del tenant)
 **Afecta a**: `INV-001`, `RNF-MANT-006`, `RMT-001`, `RMT-002`, `RMT-008`, `RMT-009`, `REQ-BO`, `REQ-SUP`, sección 16 del documento de requisitos

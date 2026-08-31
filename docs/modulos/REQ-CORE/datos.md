@@ -2,7 +2,7 @@
 
 > Cubre `audit_logs` (registro automático desde el paso 0.9, esquema fijado en `ADR-034` §3, política de valores en `ADR-035`/`ADR-036`) y las **cuatro tablas nuevas del paso 1.1** (§A). El resto de entidades núcleo (`Person`, `User`, `Role`, `Permission`, `AcademicYear`, `ModuleSubscription`) se documentaron en el cierre de 0.8 (`docs/historial/0.8-modelo-de-datos-nucleo.md`); este fichero no las repite.
 
-> **Estado**: los otros cuatro documentos del módulo (`funcional.md`, `api.md`, `permisos.md`, `operacion.md`) se escribieron en el paso **1.1** y están **pendientes de aprobación**. La parte de `audit_logs` de este fichero es de 0.9 y no se ha reescrito.
+> **Estado**: los otros cuatro documentos del módulo (`funcional.md`, `api.md`, `permisos.md`, `operacion.md`) se escribieron en el paso **1.1**, **implementado y cerrado** (PR [#56](https://github.com/pirexia/plataforma-educativa/pull/56)). La parte de `audit_logs` de este fichero es de 0.9 y no se ha reescrito.
 
 > **El paso 1.1 no altera ninguna tabla de 0.8.** Todas sus migraciones son aditivas: cuatro tablas nuevas y ningún `ALTER` sobre `people`, `users`, `roles`, `permission_role`, `module_subscriptions` ni `audit_logs`. La única excepción propuesta es la normalización de `people.locale` de `'es'` a `'es-ES'`, que es *expand* y está condicionada a la decisión pendiente descrita en `funcional.md` §10 (observación final).
 
