@@ -32,7 +32,7 @@ return new class extends Migration
             $table->boolean('email_verified_at_link');
             $table->text('link_method');
             $table->timestampTz('linked_at');
-            $table->timestampTz('last_used_at')->nullable();
+            $table->timestampTz('last_login_at')->nullable();
         });
 
         $owner = DB::connection('pgsql_owner');

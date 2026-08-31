@@ -20,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Selective: `subject` y `email_at_link` se declaran secretos a mano
  * (`ADR-035`) — identificadores personales que `config('audit.
  * secret_attribute_patterns')` no cubre (no encajan en `*password*`,
- * `*secret*`, `*token*` ni `*recovery_code*`). `last_used_at` no se
+ * `*secret*`, `*token*` ni `*recovery_code*`). `last_login_at` no se
  * registra: cambia en cada acceso y no dice nada que el evento `login`
  * no diga ya (mismo criterio que `user_mfa_factors.last_used_at`).
  *
@@ -55,14 +55,14 @@ class UserIdentity extends TenantModel implements Auditable
         'email_verified_at_link',
         'link_method',
         'linked_at',
-        'last_used_at',
+        'last_login_at',
     ];
 
     protected $casts = [
         'link_method' => LinkMethod::class,
         'email_verified_at_link' => 'boolean',
         'linked_at' => 'datetime',
-        'last_used_at' => 'datetime',
+        'last_login_at' => 'datetime',
     ];
 
     /**

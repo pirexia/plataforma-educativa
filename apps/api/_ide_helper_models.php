@@ -1034,7 +1034,7 @@ namespace App\Modules\Auth\Domain\Models{
  * @property bool $email_verified_at_link
  * @property \App\Modules\Auth\Domain\LinkMethod $link_method
  * @property \Illuminate\Support\Carbon $linked_at
- * @property \Illuminate\Support\Carbon|null $last_used_at
+ * @property \Illuminate\Support\Carbon|null $last_login_at
  * @property int|null $created_by
  * @property int|null $updated_by
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -1051,7 +1051,7 @@ namespace App\Modules\Auth\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereEmailAtLink($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereEmailVerifiedAtLink($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereLastUsedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereLastLoginAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereLinkMethod($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereLinkedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity providerUserId()
