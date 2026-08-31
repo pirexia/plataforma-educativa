@@ -664,3 +664,240 @@ Amplía §11 y `§B.6`. **Este es el paso con el despliegue más delicado del m�
 - **La entrega de los correos de código**, que depende de `0.10c` (`OPEN-AUTH-07`, `OPEN-09`).
 - **Que el cuerpo del `DELETE` llega a través de Traefik** (`api.md §C.8.3`).
 - **Que el reloj del contenedor de la API está sincronizado** y se mantiene así (`§C.9`). Es lo que más se parece a una dependencia externa de este paso, y no tiene test.
+
+---
+
+# Parte D · Paso 1.3b · Operación (`REQ-AUTH-003`)
+
+> **Estructura**: §1-§11 son 1.2 (cerrado). `§B.1`-`§B.9` son 1.2b (cerrado). `§C.1`-`§C.11` son 1.3 (cerrado y mezclado, commit `cd13e8a`). Esta **Parte D** es el paso **1.3b**, **pendiente de aprobación** (`funcional.md §D.13`).
+
+---
+
+## D.1 Comportamiento con el módulo activo o inactivo
+
+Sin cambios: **`REQ-AUTH` no es desactivable** (`RN-AUTH-35`) y ninguna ruta de este paso lleva `module-enabled` (`CA-AUTH-168`).
+
+Lo que sí cambia es **qué significa «MFA desactivado» en un tenant después de este paso**. Con el valor de fábrica `mfa_allowed_methods = ["totp"]`:
+
+- **Nada de 1.3b se activa.** No hay factores de correo, no se encola ningún código, las excepciones no existen porque nadie las concede, y la tarea horaria nueva no encuentra ninguna fila que procesar.
+- **El coste para quien no lo usa es cero**: ni una consulta más por login que las que 1.3 ya hacía.
+
+**El correo como segundo factor se activa a propósito y con consecuencia**, y el manual de administración tiene que decirlo con estas palabras: al añadir `email` a los métodos admitidos, el centro acepta que un usuario pueda protegerse **solo** con un factor que no resiste el compromiso de su buzón, al que además va la recuperación de contraseña (`funcional.md §C.8`).
+
+---
+
+## D.2 Variables de entorno
+
+### D.2.1 La única nueva
+
+| Variable | Uso | Valor en desarrollo |
+|----------|-----|---------------------|
+| `AUTH_MFA_EXEMPTION_REOPEN_WINDOW_HOURS` | Ventana hacia atrás que recorre `ReopenExpiredMfaExemptions` buscando excepciones recién caducadas (`funcional.md §D.4.9`) | `48` |
+
+**No es un secreto.** Su valor no es crítico: la tarea solo **adelanta** el trabajo que `MfaPolicy::resolve()` haría de todas formas en la siguiente petición del titular. Bajarlo a `1` haría que un *scheduler* caído más de una hora dejara obligaciones sin materializar hasta que la persona entrara; subirlo mucho hace que la tarea recorra histórico sin necesidad. 48 horas cubre un fin de semana.
+
+### D.2.2 Las que 1.3 dejó declaradas y este paso empieza a usar de verdad
+
+**Ninguna es nueva.** Las cinco existen en `config/auth-local.php` desde 1.3 y hasta ahora no hacían nada, porque no había método de entrega ni excepciones:
+
+| Variable | Qué pasa a gobernar en 1.3b |
+|----------|------------------------------|
+| `AUTH_MFA_CODE_TTL_MINUTES` (10) | Vida del código entregado, **tanto en el alta como en el desafío**. Es la caducidad que la pantalla debe contar |
+| `AUTH_MFA_MAX_DELIVERIES` (3) | **Estaba configurada y sin leer** (`funcional.md §D.2.3`). Pasa a ser el tope de entregas por desafío, con `429` al superarlo (`RN-AUTH-79`). **Que se lea de la configuración y no esté escrito a mano lo comprueba `CA-AUTH-175`** |
+| `AUTH_MFA_FACTOR_PURGE_DAYS` (30) y `AUTH_MFA_CHALLENGE_RETENTION_HOURS` (24) | **Estaban configuradas y sin leer**, porque las purgas que las usan no existían (`§D.4.2`, issue [#109](https://github.com/pirexia/plataforma-educativa/issues/109)). Pasan a gobernar de verdad la retención de `datos.md §D.7` (`RN-AUTH-85`, `CA-AUTH-171`, `CA-AUTH-172`) |
+| `AUTH_MFA_MAX_EXEMPTION_DAYS` (90) | Tope de la caducidad de una excepción, validado en el `FormRequest` (`RN-AUTH-81`). El motor solo garantiza que la caducidad **existe** (`datos.md §D.3`) |
+| `AUTH_MFA_GRACE_DEFAULT_DAYS` (7) | Sin cambios de valor, con un disparador nuevo: la obligación que se reabre al caducar una excepción usa **el plazo completo** (`RN-AUTH-82`) |
+| `AUTH_MFA_ENROLLMENT_TTL_MINUTES` (10) | Sin cambios. Aplica igual al alta por correo |
+
+**Guarda de arranque nueva: ninguna.** La de `AUTH_MFA_TOTP_WINDOW` (`§C.2.1`) sigue siendo la única del bloque MFA. Se ha considerado añadir una para `AUTH_MFA_MAX_DELIVERIES` y **se descarta**: un valor alto no abre una ventana de fuerza bruta —cada entrega genera un código nuevo y los intentos siguen topados por `AUTH_MFA_MAX_ATTEMPTS`—, solo permite gastar más correos, que es lo que el límite de tasa por sesión ya acota.
+
+### D.2.3 `APP_KEY`: sin cambios respecto de `§C.2.2`
+
+Este paso **no añade ninguna columna cifrada**: el código entregado se guarda como hash SHA-256, no cifrado (`RN-AUTH-56`). La consecuencia catastrófica de perder `APP_KEY` sigue siendo exactamente la de `§C.2.2` —todos los factores TOTP dejan de verificar a la vez— **y este paso la matiza en un solo punto, que conviene decir**: un usuario que además tenga factor de correo **sí podría entrar** en ese escenario, porque su verificación no depende de `APP_KEY`. No es una mitigación en la que apoyarse —depende de que ese usuario tenga correo activado y de que el correo transaccional funcione—, pero sí es un dato para el procedimiento de recuperación de `RUNBOOK.md`.
+
+---
+
+## D.3 Servicios externos y degradación
+
+Amplía `§C.3`. **La fila que cambia es la del correo, y cambia de categoría.**
+
+| Servicio | Uso nuevo en 1.3b | Si no responde |
+|----------|-------------------|----------------|
+| **Correo transaccional** (`0.10c`, `OPEN-09`, `OPEN-AUTH-07`) | **Entrega del segundo factor**, además de los avisos | **Deja de ser una degradación y pasa a ser una interrupción de acceso** para quien tenga el correo como único factor. `§C.3` lo anticipó; 1.3b lo hace real. Es el argumento operativo —además del de seguridad de `§C.8`— para que `totp` no sea desactivable en el tenant (`RN-AUTH-69`) y para que `email` esté **desactivado de fábrica** |
+| **Redis** | Colas (`auth-mail`, `auth-maintenance`) y los límites de tasa ya existentes | Sin cambios respecto de `§C.3`: el limitador **no degrada a «sin límite»**, responde `503` |
+| **PostgreSQL** | Sin uso nuevo más allá de las dos columnas de `datos.md §D.2` | Sin degradación posible ni deseable |
+| **SMS** | **Ninguno.** Sigue sin proveedor | No aplica. El `CHECK` del motor impide llegar a este caso |
+
+**Antes de que un centro real active `email`, `0.10c` tiene que estar resuelto.** No es una recomendación: sin correo transaccional en producción, activar el método entrega un segundo factor que nunca llega. Debe quedar escrito en `SYSADMIN.md` y en el manual de administración como **condición previa a activar el método**, no como nota al pie.
+
+---
+
+## D.4 Colas y trabajos (`INV-012`)
+
+### D.4.1 Los que este paso construye
+
+| Cola | Trabajo | Disparo | Reintentos |
+|------|---------|---------|------------|
+| `auth-mail` | **`SendMfaChallengeCodeEmail`** | Apertura o reenvío de un desafío con entrega | **3**, retroceso **corto** (10 s → 60 s) |
+| `auth-mail` | **`SendMfaEnrollmentCodeEmail`** | Alta de un factor de entrega | 3, mismo retroceso |
+| `auth-maintenance` | **`ReopenExpiredMfaExemptions`** | Programado, **cada hora**, por tenant | — |
+| `auth-maintenance` | **`MaterializeMfaObligations`** | Programado, **cada hora**, por tenant — además del *listener* `MaterializeMfaObligationsForRole`, que ya existe | 3 |
+| `auth-maintenance` | **`PurgeMfaChallenges`** | Programado, **diario**, por tenant | — |
+| `auth-maintenance` | **`PurgeMfaEnrollments`** | Programado, **diario**, por tenant | — |
+| `auth-maintenance` | **`PurgeMfaFactors`** | Programado, **diario**, por tenant | — |
+
+**Las cuatro últimas son la pieza 4 del alcance** (`funcional.md §D.1.1`): estaban declaradas en `§C.4` desde 1.3 y **nunca se construyeron** (`§D.4.2`, issue [#109](https://github.com/pirexia/plataforma-educativa/issues/109)). Su comportamiento es exactamente el que `§C.4.1` describe —no se reinterpreta nada— y su verificación, `CA-AUTH-170`-`CA-AUTH-174`.
+
+- **Los dos de correo llevan el código en el *payload* y por tanto implementan `ShouldBeEncrypted`** (issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73)), igual que `SendPasswordResetEmail` y `SendAccountLockedEmail`. `queue:prune-failed --hours=24` sigue siendo la segunda capa.
+- **El retroceso corto es la única desviación de la política de §4**, y `§C.4` ya la justificó: un código vive 10 minutos y el desafío 5; un reintento con retroceso exponencial entregaría el código cuando ya no vale. **Tres intentos en minuto y medio o nada.**
+- **`ReopenExpiredMfaExemptions` corre cada hora y no a diario** (`§C.4.1`): una excepción que caduca a las 9:00 no debería dejar a alguien sin exigencia hasta la madrugada. Es **idempotente** por construcción —`MfaPolicy::materialize()` comprueba excepción viva, factor utilizable, roles y obligación abierta— y el índice único parcial de `user_mfa_obligations` lo garantiza bajo concurrencia. **No marca filas como procesadas y no añade ninguna columna** (`datos.md §D.4`).
+- **Se despacha por tenant con `RunsPerTenant`**, desde un **comando horario propio** — **no** desde `auth:purge-maintenance`, que está programado `->daily()`. Es el error fácil de este paso: colgar una tarea horaria de un comando diario la convierte en diaria sin que nada falle.
+
+### D.4.1.1 El comando horario, y por qué hay dos y no uno
+
+Este paso deja **dos comandos de mantenimiento de MFA**, no uno:
+
+| Comando | Cadencia | Qué despacha |
+|---------|----------|--------------|
+| `auth:purge-maintenance` (**ya existe**, se amplía) | `->daily()` | Las cinco purgas de 1.2/1.2b **más las tres de MFA**: `PurgeMfaChallenges`, `PurgeMfaEnrollments`, `PurgeMfaFactors` |
+| `auth:mfa-obligations` (**nuevo**) | `->hourly()` | `MaterializeMfaObligations` y `ReopenExpiredMfaExemptions` |
+
+**Por qué no un solo comando con dos cadencias**: un comando programado dos veces con dos cadencias distintas no existe; y meter las tareas horarias en el diario retrasa hasta 24 horas el arranque de un plazo de gracia y la reapertura de una obligación caducada, que es exactamente lo que `§C.4.1` argumenta que no puede pasar (*«una excepción que caduca a las 9:00 no debería dejar a alguien sin exigencia hasta la madrugada»*).
+
+**Por qué las tres purgas sí van en el comando que ya existe**: son purgas diarias por tenant, idénticas en forma a las cinco que ese comando ya despacha. Crear un comando aparte para ellas sería duplicar el recorrido de tenants sin ganar nada.
+
+**Las dos cadencias se registran en `routes/console.php`**, junto a las tres entradas que ya hay (`CA-AUTH-174`).
+
+### D.4.2 Los cuatro que 1.3 declaró y no existían
+
+`funcional.md §D.2.2` lo documenta con la comprobación hecha: **`PurgeMfaChallenges`, `PurgeMfaEnrollments`, `PurgeMfaFactors` y el `MaterializeMfaObligations` horario están en la tabla de `§C.4` y no existen en el código.** `PurgeAuthMaintenanceCommand` despacha cinco purgas y ninguna es de MFA; `routes/console.php` no programa nada de MFA.
+
+**Consecuencia operativa, dicha entera:**
+
+> Hoy, en cualquier despliegue de 1.3, **los secretos TOTP de los factores borrados lógicamente no se retiran nunca**, y las altas sin confirmar tampoco. `AUTH_MFA_FACTOR_PURGE_DAYS` (30) está configurado y no lo lee nadie. `§C.4.1` dice que `user_mfa_factors` es *«la única tabla del producto donde el borrado lógico de `INV-004` conserva una credencial viva, y por eso tiene plazo corto y propio»*: el plazo está escrito y no se aplica.
+
+**Qué se ha hecho con ello**: **issue [#109](https://github.com/pirexia/plataforma-educativa/issues/109) abierto** (severidad Media, `CLAUDE.md §5`) y **decisión del usuario del 2026-08-27 (`OPEN-AUTH-29`): se corrige en esta misma rama**, no en un `fix/` aparte. Son la **pieza 4** del alcance (`funcional.md §D.1.1`), están en la tabla de `§D.4.1` y se cierran con el mismo PR, enlazando el commit.
+
+El argumento con el que se decidió: 1.3b toca de todos modos ese comando y ese *scheduler* para la tarea horaria de excepciones, y son cuatro clases calcadas de las cinco purgas que ya existen. Hacerlo aparte significaba tocar los mismos tres ficheros dos veces.
+
+**Lo que la implementación no puede confundir**: `ReopenExpiredMfaExemptions` es trabajo **nuevo** de 1.3b (pieza 2) y **no** forma parte del issue [#109](https://github.com/pirexia/plataforma-educativa/issues/109); las otras cuatro **sí**. Comparten cola y cadencia, pero no son la misma deuda ni se cierran con la misma referencia.
+
+**Hasta que este paso se despliegue, la limitación sigue viva en producción**: `RUNBOOK.md` debe recogerla como limitación conocida —con su comprobación (`SELECT count(*) FROM user_mfa_factors WHERE deleted_at IS NOT NULL`) y su retirada manual— y **borrar esa entrada en el mismo PR que la corrige**, no dejarla como fósil.
+
+---
+
+## D.5 Correos que emite el módulo
+
+**Nueve tras 1.3b**: los siete *mailables* que existen hoy (`AccountLockedMail`, `NewDeviceLoginMail`, `PasswordChangedMail`, `PasswordResetMail`, `MfaFactorActivatedMail`, `MfaFactorRemovedMail`, `RecoveryCodeUsedMail`) más los dos de este paso. Todos en los cuatro idiomas de `ADR-021` (`INV-009`, `CA-AUTH-167`) y en el idioma preferido del destinatario.
+
+| Correo | Contenido | Enlace |
+|--------|-----------|--------|
+| **Código de segundo factor (login)** | El código, **cuántos minutos vale**, y el aviso «si no has intentado entrar, cambia tu contraseña» | **Ninguno** |
+| **Código de alta de factor** | El código y su validez, con el contexto de que se está **activando** un segundo factor | **Ninguno** |
+
+Reglas comunes, que `§C.5` ya fijó y este paso convierte en verificables:
+
+- **Ningún correo de este paso lleva enlace accionable** (`RN-AUTH-50`).
+- **El código nunca va en el asunto.** Un asunto se ve en la pantalla de bloqueo del teléfono, en la vista previa del cliente de correo y en el registro del servidor intermedio.
+- **Los dos correos son deliberadamente distintos**, aunque el código sea idéntico: recibir «alguien está activando un segundo factor en tu cuenta» cuando no has pedido nada es una señal distinta de «alguien está intentando entrar». Comparten plantilla base y no texto.
+- **Ninguno revela si la cuenta existe a quien no es su titular**: los dos solo se envían cuando hay cuenta, factor o alta detrás.
+- Remitente y dominio dependen de `0.10c` (**pendiente**, `§D.3`). En desarrollo, *mailer* `log`; los tests comprueban que el trabajo **se encola**, no que el correo llega (convención de 1.1).
+
+---
+
+## D.6 Límites de tasa
+
+**Ninguno nuevo.** Los seis de `§C.6` se reutilizan tal cual. Lo que cambia es que **dos de ellos empiezan a defender algo que antes no existía**:
+
+| Endpoint | Límite existente | Qué defiende ahora |
+|----------|------------------|--------------------|
+| `POST /auth/mfa-challenges` | **3 / 10 min** por `(tenant_id, session_id)` | El **envío de correos**, no solo el cambio de método. Junto con `AUTH_MFA_MAX_DELIVERIES` (3 por desafío) son **dos topes distintos**: el de tasa se olvida a los diez minutos; el del desafío **muere con él** |
+| `POST /auth/mfa-enrollments` | 10 / hora por `(tenant_id, user_id)` | El envío de correos de alta, ahora que abrir un alta encola un correo. Es lo que sustituye a un endpoint de reenvío que no existe (`funcional.md §D.4.1`) |
+
+**Los tres endpoints nuevos de excepciones no llevan límite propio**, y hay que decir por qué para que no se lea como un olvido: son operaciones de administración autenticadas, con permiso, que solo tiene `administrador_centro`, y **ninguna encola correo ni entrega nada**. `POST /mfa-resets` sí lo lleva (20/hora) porque revoca todas las sesiones de alguien; conceder una excepción no tiene efecto amplificable. Si en algún momento se le añade notificación (`funcional.md §D.4.10`), **habrá que reconsiderarlo en el mismo cambio**.
+
+**El punto ciego de `§C.6` empeora otra vez**: un centro entero detrás de una IP de salida, con MFA por correo, son N logins **más** N verificaciones **más** los reenvíos de quien no vea llegar el correo. **Sigue pendiente de medir con `REQ-SEED` (1.15b)** antes de fijar el número definitivo del límite por IP; nada de este paso cambia esa recomendación, solo la hace más urgente.
+
+---
+
+## D.7 Caché
+
+**Ninguna nueva, y la decisión de `§C.7` se mantiene sin matices.** `MfaPolicy::resolve()` sigue sin cachearse entre peticiones: una excepción concedida o revocada tiene que ser efectiva en la petición siguiente, y con una caché de cinco minutos no lo sería. **La excepción temporal es precisamente el caso que hace visible el fallo**: un administrador revoca la excepción de alguien y ese alguien sigue entrando sin segundo factor durante cinco minutos.
+
+`TenantSettingsCache` sigue sirviendo `mfa_allowed_methods` con su invalidación existente. **Un cambio en los métodos admitidos ya invalida esa caché**, y de ahí cuelga el listener `ReconcileMfaAllowedMethodsChange` que 1.3 construyó.
+
+---
+
+## D.8 Métricas y alertas
+
+Amplía `§C.8`. Las que este paso obliga a mirar:
+
+| Métrica | Por qué |
+|---------|---------|
+| **Correos de código encolados frente a desafíos consumidos con éxito** | Si los primeros suben y los segundos no, el correo no está llegando. Es el síntoma que `§C.8` describía como «ratio de desafíos abiertos/consumidos», ahora con la causa concreta separable |
+| **Trabajos `SendMfaChallengeCodeEmail` fallidos** | Con retroceso corto y tres intentos, un fallo sostenido significa **nadie con correo puede entrar**. Es la alerta más urgente que añade este paso |
+| **Entregas por desafío (`deliveries`) en su tope** | Un pico de desafíos que agotan las tres entregas es «los correos tardan demasiado» o «llegan a un buzón que no es el que la persona mira» |
+| **Excepciones vivas por tenant, y su tendencia** | Es el indicador de que la obligatoriedad se está vaciando por la vía administrativa. Un centro con la mitad de su personal exento tiene MFA sobre el papel |
+| **Excepciones concedidas por administrador y por semana** | Mismo criterio que los restablecimientos de `§C.8`: un ritmo alto es un problema de usabilidad o ingeniería social, y las dos cosas hay que verlas |
+| **Excepciones que caducan en los próximos 7 días** | No es una alerta de guardia: es el dato que la pantalla de administración necesita para que nadie se encuentre el muro por sorpresa (`funcional.md §D.1.3`) |
+
+Alerta que este paso añade a la guardia: **más del X % de los desafíos de un tenant abiertos en `email` sin consumirse durante N minutos en horario lectivo**. Es «el correo se ha caído» visto desde el lado del acceso, y no lo detecta ninguna alerta de `§8` ni de `§C.8`.
+
+---
+
+## D.9 Problemas conocidos y diagnóstico
+
+Amplía `§C.9`. Los característicos de este paso:
+
+| Síntoma | Causa probable | Comprobación |
+|---------|----------------|--------------|
+| **Un usuario concreto no recibe el código, el resto sí** | Buzón lleno, filtro de correo no deseado, o **el `users.email` no es el que esa persona mira** — recuérdese que el destino es el correo de acceso, no el de contacto (`RN-AUTH-77`) | `failed_jobs` filtrado por ese destinatario; y confirmar con la persona cuál es su correo de acceso |
+| **Nadie recibe el código y los avisos de contraseña tampoco llegan** | El correo transaccional entero (`0.10c`) | Es el mismo diagnóstico de §9 para la recuperación de contraseña; no es un problema de MFA |
+| **El código llega tarde y ya no vale** | El desafío vive 5 minutos y el código 10: **manda el más corto** (`api.md §D.6.4`). Con la cola saturada, el correo llega después de que el desafío haya muerto | Latencia de la cola `auth-mail`. Si es sistemática, el problema es de capacidad de cola, no de MFA |
+| **Un usuario exento sigue viendo el muro** | La obligación abierta no se cerró al conceder la excepción (`RN-AUTH-82`), o la excepción se creó por consola sin pasar por el endpoint | `user_mfa_obligations` del usuario: no debe haber ninguna fila con `resolved_at IS NULL` |
+| **Un usuario cuya excepción caducó ayer está contra el muro sin un día de gracia** | **Es el fallo que `RN-AUTH-82` existe para evitar**: se reutilizó la obligación antigua en vez de abrir una nueva | La fila de `user_mfa_obligations` debe ser **nueva**, con `trigger = 'exencion_vencida'` y `grace_deadline_at` a `mfa_grace_period_days` del momento de la reapertura |
+| **Las excepciones caducadas no reabren la obligación hasta que la persona entra** | La tarea horaria no corre, o la ventana de `AUTH_MFA_EXEMPTION_REOPEN_WINDOW_HOURS` se quedó corta tras una parada larga del *scheduler* | Es **degradación aceptable**, no un fallo (`funcional.md §D.4.9`): `MfaPolicy::resolve()` es la red de seguridad |
+| **`user_mfa_factors` crece y no baja nunca** | Las purgas de la pieza 4 **están escritas pero no registradas en el *scheduler***, o el comando horario nuevo se colgó del diario (`§D.4.1.1`) | `php artisan schedule:list` tiene que mostrar `auth:purge-maintenance` diario **y** `auth:mfa-obligations` horario. Es el fallo más silencioso de este paso: nada falla, solo no se borra nada |
+| **Una tarea de mantenimiento solo procesa el primer tenant** | `RunsPerTenant` mal cableado — el fallo característico que `§D.11.3` obliga a verificar | Ejecutar el comando con dos tenants sembrados y comprobar las dos bases de filas (`CA-AUTH-174`) |
+
+---
+
+## D.10 Impacto en copias de seguridad y restauración
+
+Sin cambios respecto de `§C.10`. **Ninguna columna nueva se cifra** (`§D.2.3`), así que este paso no amplía la superficie que depende de `APP_KEY`.
+
+Un matiz para el procedimiento de recuperación de `RUNBOOK.md`: en el escenario catastrófico de `§C.2.2` —`APP_KEY` perdida, todos los TOTP inservibles—, **los usuarios con factor de correo sí pueden entrar**, porque su verificación no depende de la clave. No convierte el escenario en recuperable, pero puede ser la diferencia entre «nadie entra» y «un administrador con correo activado entra y restablece a los demás». **No es una razón para activar el correo**; es un dato que el procedimiento debe recoger.
+
+---
+
+## D.11 Despliegue
+
+### D.11.1 El día del despliegue no pasa nada, y eso es lo importante
+
+A diferencia de 1.3 —donde el despliegue **activaba la obligación de dos roles en todos los tenants existentes** (`§C.11.1`)—, 1.3b es inerte al desplegarse:
+
+- `mfa_allowed_methods` sigue en `["totp"]` en todos los tenants: **nadie puede dar de alta un factor de correo hasta que su centro lo active a propósito**.
+- No hay ninguna excepción concedida, así que la tarea horaria nueva no encuentra nada.
+- Las dos columnas nuevas son *nullable* y ninguna fila existente las usa.
+
+**No hace falta aviso previo a los centros**, a diferencia de 1.3.
+
+### D.11.2 Orden y reversión
+
+1. Migración aditiva (`datos.md §D.6`): dos columnas y dos `CHECK` `NOT VALID` + `VALIDATE`.
+2. `platform:sync-registry` para materializar los tres permisos nuevos, y la concesión a `administrador_centro` en el aprovisionamiento (`permisos.md §D.6`).
+3. Despliegue de la aplicación y de los *workers* — **los *workers* antes o a la vez que la API**, para que no haya trabajos `SendMfaChallengeCodeEmail` encolados que ningún *worker* sepa procesar.
+4. **Programación de las dos cadencias** en el contenedor del *scheduler* (`ADR-037`, `§D.4.1.1`): `auth:purge-maintenance` diario —ampliado con las tres purgas de MFA— y `auth:mfa-obligations` horario. **Comprobar con `schedule:list` que las dos aparecen**: es lo único que distingue «las tareas existen» de «las tareas corren».
+5. **La primera ejecución de las purgas retirará de golpe todo lo acumulado desde que 1.3 se desplegó** (altas vencidas y factores borrados lógicamente hace más de 30 días). Es el efecto buscado y no hay nada que preservar —ese material no tiene finalidad—, pero conviene saber que ese día la tabla encoge de forma visible y que **no es un incidente**.
+
+**Reversión**: `migrate:rollback --step=1` deja el esquema como está hoy. **Con una consecuencia real que hay que escribir en el procedimiento**: si al revertir hay factores `email` confirmados, esas personas quedan con un factor que la versión anterior no sabe verificar, y **la salida es un restablecimiento por administrador**. Por eso la reversión es segura **el día del despliegue** y deja de serlo en cuanto un centro active el método y alguien lo use.
+
+### D.11.3 Lo que hay que verificar en el entorno real y no se puede verificar en WSL2
+
+Amplía `§C.11.3`:
+
+- **Que el correo con el código llega en menos de lo que vive el desafío.** En desarrollo el *mailer* es `log` y la latencia es cero; en producción, con `0.10c` resuelto, hay que medirla contra los 5 minutos del desafío y decidir si `AUTH_MFA_CHALLENGE_TTL_MINUTES` sigue siendo suficiente.
+- **Que el asunto no revela el código** en el cliente de correo real y en la notificación del teléfono, no solo en la plantilla.
+- **Que el *scheduler* ejecuta las cinco tareas por tenant** y no una sola vez para el primero, que es el fallo característico de `RunsPerTenant` mal cableado (`CA-AUTH-174`).
+- **Que las dos cadencias son las que dicen ser**: `schedule:list` en el contenedor real, no en WSL2 con el *scheduler* apagado. Una purga que solo existe en el código no purga (`§D.4.1.1`).
+- **Que la pantalla de administración se comporta ante un `403` real** —usuario sin permiso contra el servidor de verdad—, no solo con respuestas simuladas en pruebas de componente (`permisos.md §D.6.3`).

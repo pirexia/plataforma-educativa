@@ -24,6 +24,7 @@ use App\Modules\Auth\Domain\UserSessionDirectory;
 use App\Modules\Auth\Infrastructure\Console\CloseExpiredLockoutsCommand;
 use App\Modules\Auth\Infrastructure\Console\CloseOrphanedUserSessionsCommand;
 use App\Modules\Auth\Infrastructure\Console\GrantLockoutPermissionsCommand;
+use App\Modules\Auth\Infrastructure\Console\MfaObligationsMaintenanceCommand;
 use App\Modules\Auth\Infrastructure\Console\PurgeAuthMaintenanceCommand;
 use App\Modules\Auth\Infrastructure\Listeners\MaterializeMfaObligationsForRole;
 use App\Modules\Auth\Infrastructure\Listeners\ReconcileMfaAllowedMethodsChange;
@@ -136,6 +137,7 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
                 CloseExpiredLockoutsCommand::class,
                 CloseOrphanedUserSessionsCommand::class,
                 GrantLockoutPermissionsCommand::class,
+                MfaObligationsMaintenanceCommand::class,
             ]);
         }
     }
@@ -183,6 +185,17 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             // 'eliminar': POST /mfa-resets (restablecimiento).
             ['code' => 'mfa.leer', 'resource' => 'mfa', 'action' => 'leer', 'is_special_category' => false],
             ['code' => 'mfa.eliminar', 'resource' => 'mfa', 'action' => 'eliminar', 'is_special_category' => false],
+            // REQ-AUTH-003 (1.3b), permisos.md §D.2-§D.5. Recurso propio
+            // (no una acción más de `mfa`): la excepción es una entidad
+            // con ciclo de vida propio (motivo, caducidad, autor, traza de
+            // revocación), no un atributo del usuario. `eliminar` para la
+            // revocación por el mismo criterio que `bloqueo_cuenta.eliminar`
+            // y `mfa.eliminar`: describe lo que el actor hace desde fuera
+            // (retirar algo vigente), no la operación SQL (`RN-AUTH-83`:
+            // revocar no borra, deja `revoked_at`/`revoked_by`).
+            ['code' => 'exencion_mfa.crear', 'resource' => 'exencion_mfa', 'action' => 'crear', 'is_special_category' => false],
+            ['code' => 'exencion_mfa.leer', 'resource' => 'exencion_mfa', 'action' => 'leer', 'is_special_category' => false],
+            ['code' => 'exencion_mfa.eliminar', 'resource' => 'exencion_mfa', 'action' => 'eliminar', 'is_special_category' => false],
         ];
     }
 }

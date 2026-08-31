@@ -12,6 +12,8 @@ return [
     'numeric' => 'Das Feld :attribute muss eine Zahl sein.',
     'date' => 'Das Feld :attribute muss ein gültiges Datum sein.',
     'date_format' => 'Das Feld :attribute muss dem Format :format entsprechen.',
+    'after' => 'Das Feld :attribute muss ein Datum nach :date sein.',
+    'before_or_equal' => 'Das Feld :attribute muss ein Datum vor oder gleich :date sein.',
     'regex' => 'Das Format des Feldes :attribute ist ungültig.',
     'in' => 'Der ausgewählte Wert für :attribute ist ungültig.',
     'not_in' => 'Der ausgewählte Wert für :attribute ist ungültig.',
@@ -60,5 +62,8 @@ return [
         'to' => 'bis',
         'format' => 'Format',
         'settings' => 'Einstellungen',
+        'reason' => 'Grund',
+        'expires_at' => 'Ablauf',
+        'user' => 'Benutzer',
     ],
 ];

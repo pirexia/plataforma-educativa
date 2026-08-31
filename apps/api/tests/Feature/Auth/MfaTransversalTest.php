@@ -1,7 +1,10 @@
 <?php
 
 use App\Models\AuditLog;
+use App\Modules\Auth\Infrastructure\Jobs\SendMfaChallengeCodeEmail;
+use App\Modules\Auth\Infrastructure\Jobs\SendMfaEnrollmentCodeEmail;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -100,4 +103,46 @@ test('CA-AUTH-144: los tres avisos de MFA existen traducidos en los cuatro idiom
     }
 
     app()->setLocale('es');
+});
+
+// CA-AUTH-167, INV-009, RN-AUTH-50, issue #73. Los nueve *mailables* del
+// módulo tras 1.3b: en los cuatro idiomas, sin el código en el asunto
+// (el asunto de los dos nuevos no interpola ningún parámetro 'code'), y
+// los dos que llevan un código en el payload implementan ShouldBeEncrypted.
+test('CA-AUTH-167: los nueve correos del módulo existen en los cuatro idiomas y ninguno lleva el código en el asunto', function (): void {
+    $subjectKeys = [
+        'auth.mail.account_locked.subject',
+        'auth.mail.new_device_login.subject',
+        'auth.mail.password_changed.subject',
+        'auth.mail.password_reset.subject',
+        'auth.mail.mfa_factor_activated.subject',
+        'auth.mail.mfa_factor_removed.subject',
+        'auth.mail.recovery_code_used.subject',
+        'auth.mail.mfa_enrollment_code.subject',
+        'auth.mail.mfa_challenge_code.subject',
+    ];
+
+    foreach (['es', 'en', 'de', 'fr'] as $locale) {
+        app()->setLocale($locale);
+
+        foreach ($subjectKeys as $key) {
+            $subject = __($key, ['tenant' => 'Centro ficticio']);
+
+            expect($subject)->not->toBe($key)
+                ->and($subject)->not->toContain('123456');
+        }
+    }
+
+    app()->setLocale('es');
+
+    foreach ([
+        SendMfaEnrollmentCodeEmail::class,
+        SendMfaChallengeCodeEmail::class,
+    ] as $jobClass) {
+        expect(is_subclass_of($jobClass, ShouldBeEncrypted::class) || in_array(
+            ShouldBeEncrypted::class,
+            class_implements($jobClass),
+            true,
+        ))->toBeTrue("{$jobClass} debe implementar ShouldBeEncrypted (issue #73)");
+    }
 });

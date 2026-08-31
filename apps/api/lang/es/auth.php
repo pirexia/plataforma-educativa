@@ -25,6 +25,12 @@ return [
         'mfa_method_not_available' => 'Este método de verificación no está disponible en este centro.',
         'mfa_code_invalid' => 'El código no es correcto.',
         'mfa_factor_required_by_role' => 'No puedes desactivar tu último factor: alguno de tus roles exige la verificación en dos pasos.',
+        // REQ-AUTH-003 (1.3b), funcional.md §D.4.6, RN-AUTH-81.
+        'mfa_exemption_already_live' => 'Este usuario ya tiene una excepción de MFA vigente.',
+        // RN-AUTH-81/RN-AUTH-67, api.md §D.4/§C.5: distinto del 403 genérico
+        // por falta de permiso — se distingue en el mensaje.
+        'mfa_exemption_self' => 'No puedes concederte una excepción de MFA a ti mismo.',
+        'mfa_reset_self' => 'No puedes restablecer tu propio MFA.',
     ],
 
     'mail' => [
@@ -69,6 +75,23 @@ return [
             'greeting' => 'Hola, :name.',
             'body' => 'Se ha usado uno de tus códigos de respaldo para acceder a tu cuenta de :tenant en lugar de tu segundo factor habitual.',
             'warning' => 'Si no has sido tú, contacta cuanto antes con la administración de tu centro y revisa tus sesiones activas.',
+        ],
+        // REQ-AUTH-003 (1.3b), funcional.md §D.4.1, §D.4.2, RN-AUTH-84: sin
+        // enlace accionable, el código nunca en el asunto.
+        'mfa_enrollment_code' => [
+            'subject' => 'Código para activar la verificación en dos pasos en :tenant',
+            'greeting' => 'Hola, :name.',
+            'body' => 'Estás activando el correo como verificación en dos pasos en tu cuenta de :tenant. Usa este código para confirmarlo.',
+            'code' => 'Tu código: :code',
+            'expires' => 'Este código caduca en :minutes minutos.',
+        ],
+        'mfa_challenge_code' => [
+            'subject' => 'Tu código de acceso a :tenant',
+            'greeting' => 'Hola, :name.',
+            'body' => 'Estás iniciando sesión en :tenant y necesitas este código para completar la verificación en dos pasos.',
+            'code' => 'Tu código: :code',
+            'expires' => 'Este código caduca en :minutes minutos.',
+            'warning' => 'Si no has intentado entrar, cambia tu contraseña cuanto antes.',
         ],
         'new_device_login' => [
             'subject' => 'Nuevo acceso a tu cuenta en :tenant',

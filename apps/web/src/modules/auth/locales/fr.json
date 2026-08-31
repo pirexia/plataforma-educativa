@@ -118,6 +118,20 @@
         "notAllowed": "Cette méthode n'est pas disponible dans votre établissement.",
         "activatedTitle": "Second facteur activé."
       },
+      "emailEnrollment": {
+        "intro": "Recevez un code à usage unique par e-mail, à l'adresse avec laquelle vous vous connectez.",
+        "start": "Activer le code par e-mail",
+        "starting": "Préparation de l'inscription…",
+        "destinationLabel": "Un code a été envoyé à",
+        "expired": "Ce code a expiré. Recommencez.",
+        "expiresIn": "Expire dans {time}",
+        "codeLabel": "Code à 6 chiffres reçu par e-mail",
+        "confirm": "Confirmer le code",
+        "confirming": "Confirmation en cours…",
+        "cancel": "Annuler",
+        "notAllowed": "Cette méthode n'est pas disponible dans votre établissement.",
+        "alreadyEnrolled": "Vous avez déjà un facteur e-mail actif."
+      },
       "recoveryCodes": {
         "title": "Codes de secours",
         "onceWarning": "Ces codes ne s'affichent qu'une seule fois. Conservez-les en lieu sûr : c'est le seul moyen de vous connecter si vous perdez l'accès à votre application d'authentification.",
@@ -148,19 +162,22 @@
         "confirmYes": "Confirmer",
         "confirmCancel": "Annuler",
         "recoveryCodesRegenerated": "Un nouveau jeu de codes de secours a été généré.",
-        "logout": "Se déconnecter"
+        "logout": "Se déconnecter",
+        "exemptBanner": "Le second facteur ne vous est pas exigé jusqu'au {date}."
       },
       "wall": {
         "title": "Activez votre second facteur",
         "reason": "Votre rôle exige un second facteur de connexion et le délai pour l'activer est dépassé. Complétez-le pour continuer ; vous ne pouvez pas accéder au reste de la plateforme tant que ce n'est pas fait.",
         "completed": "Second facteur activé. Vous pouvez continuer.",
         "continue": "Continuer",
-        "logout": "Se déconnecter"
+        "logout": "Se déconnecter",
+        "methodSelectorLabel": "Choisissez comment recevoir le second facteur"
       }
     },
     "mfaChallenge": {
       "title": "Vérifiez votre identité",
       "intro": "Saisissez le code de votre application d'authentification pour terminer la connexion.",
+      "introDelivery": "Nous avons envoyé un code à {destination}.",
       "methodSelectorLabel": "Méthode du second facteur",
       "codeLabel": "Code à 6 chiffres",
       "clockHint": "Si le code continue d'échouer, vérifiez l'heure de votre appareil.",
@@ -169,11 +186,111 @@
       "submitting": "Vérification en cours…",
       "resend": "Renvoyer le code",
       "resending": "Renvoi en cours…",
+      "resendLimitAlternatives": "Vous pouvez utiliser une autre de vos méthodes ou un code de secours.",
       "useRecoveryCode": "Utiliser un code de secours",
       "useCodeInstead": "Utiliser plutôt le code de l'application",
       "recoveryCodeLabel": "Code de secours",
       "invalidCode": "Le code n'est pas correct.",
       "expired": "La vérification a expiré. Reconnectez-vous."
+    },
+    "mfaAdmin": {
+      "title": "Administration du MFA",
+      "loadingRoles": "Chargement des rôles…",
+      "roleLabel": "Rôle",
+      "rolePlaceholder": "Choisissez un rôle",
+      "forbidden": "Vous n'avez pas la permission pour cette action.",
+      "compliance": {
+        "title": "Conformité",
+        "chooseRoleHint": "Choisissez un rôle pour voir sa conformité.",
+        "total": "Total",
+        "enrolled": "Inscrits",
+        "obligated": "Obligés",
+        "inGrace": "En délai de grâce",
+        "enforced": "En retard",
+        "exempt": "Exemptés",
+        "filterLegend": "Filtrer par état",
+        "state": {
+          "obligated": "Obligé",
+          "enrolled": "Inscrit",
+          "pending": "En attente",
+          "past_deadline": "En retard",
+          "exempt": "Exempté"
+        },
+        "loading": "Chargement des utilisateurs…",
+        "columnUser": "Utilisateur",
+        "columnState": "État",
+        "columnGraceDeadline": "Fin du délai de grâce",
+        "columnMethods": "Méthodes inscrites",
+        "columnRoles": "Rôles qui l'exigent",
+        "columnActions": "Actions",
+        "empty": "Personne à afficher avec ce filtre.",
+        "resetAction": "Réinitialiser",
+        "previousPage": "Précédent",
+        "nextPage": "Suivant",
+        "pageIndicator": "Page {page} sur {lastPage}"
+      },
+      "roleRequirement": {
+        "title": "Obligation par rôle",
+        "currentlyRequired": "Le rôle « {role} » exige aujourd'hui le second facteur.",
+        "currentlyNotRequired": "Le rôle « {role} » n'exige pas aujourd'hui le second facteur.",
+        "previewDisable": "Aperçu : ne plus l'exiger",
+        "previewEnable": "Aperçu : commencer à l'exiger",
+        "previewNotice": "Ceci est une simulation : rien n'a encore été enregistré.",
+        "impactDisable": "Ce changement cesserait de l'exiger pour {count} utilisateurs.",
+        "impactEnable": "Ce changement l'exigera pour {count} utilisateurs de plus.",
+        "applying": "Application en cours…",
+        "confirm": "Confirmer le changement",
+        "cancel": "Annuler",
+        "applied": "Obligation du rôle mise à jour."
+      },
+      "reset": {
+        "title": "Réinitialisation du MFA",
+        "reasonLabel": "Motif (10 caractères minimum)",
+        "reasonWarning": "Le motif est enregistré dans le journal d'audit et lisible uniquement par les personnes autorisées. N'y écrivez pas de données de santé.",
+        "effectWarning": "Toutes les sessions actives de cette personne seront fermées et elle sera notifiée.",
+        "reasonTooShort": "Le motif doit comporter au moins 10 caractères.",
+        "userNotFound": "Cet utilisateur est introuvable.",
+        "submitting": "Réinitialisation en cours…",
+        "submit": "Réinitialiser le MFA",
+        "success": "Le MFA de {name} a été réinitialisé."
+      },
+      "exemptions": {
+        "title": "Exemptions temporaires",
+        "grantAction": "Accorder une exemption",
+        "reasonLabel": "Motif (10 caractères minimum)",
+        "expiresLabel": "Expire le",
+        "maxDaysHint": "La limite autorisée est de {days} jours à partir d'aujourd'hui.",
+        "reasonWarning": "Le motif est enregistré dans le journal d'audit et lisible uniquement par les personnes autorisées. N'y écrivez pas de données de santé.",
+        "granting": "Attribution en cours…",
+        "confirmGrant": "Accorder",
+        "cancel": "Annuler",
+        "alreadyLive": "Cette personne a déjà une exemption active.",
+        "filterLegend": "Filtrer par état",
+        "filterAll": "Toutes",
+        "state": {
+          "live": "Active",
+          "expired": "Expirée",
+          "revoked": "Révoquée"
+        },
+        "loading": "Chargement des exemptions…",
+        "columnUser": "Utilisateur",
+        "columnState": "État",
+        "columnReason": "Motif",
+        "columnExpiresAt": "Expire",
+        "columnGrantedBy": "Accordée par",
+        "columnActions": "Actions",
+        "empty": "Aucune exemption avec ce filtre.",
+        "revokeAction": "Révoquer",
+        "confirmRevoke": "Révoquer cette exemption ?",
+        "confirmYes": "Oui, révoquer"
+      },
+      "userPicker": {
+        "label": "Rechercher un utilisateur",
+        "placeholder": "Nom ou adresse e-mail",
+        "loading": "Chargement des utilisateurs…",
+        "noMatches": "Aucune correspondance.",
+        "change": "Changer"
+      }
     }
   }
 }

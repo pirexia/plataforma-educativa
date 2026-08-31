@@ -11,6 +11,7 @@ import { useT } from '@/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { login, switchMfaChallenge, verifyMfaChallenge } from '../api'
 import { usePublicAuthScreen } from '../composables/usePublicAuthScreen'
 import { apiErrorStatus, fieldErrors, retryAfterSeconds } from '../composables/formErrors'
@@ -196,7 +197,12 @@ async function submitChallenge() {
     if (status === 401) {
       consecutiveFailures.value += 1
       challengeError.value = t('auth.mfaChallenge.invalidCode')
-      showClockHint.value = !useRecoveryCode.value && consecutiveFailures.value >= 2
+      // El aviso de reloj desincronizado solo tiene sentido en TOTP: un
+      // código por correo no depende del reloj del dispositivo.
+      showClockHint.value =
+        !useRecoveryCode.value &&
+        consecutiveFailures.value >= 2 &&
+        challenge.value?.method === 'totp'
       code.value = ''
       recoveryCode.value = ''
     } else if (status === 410) {
@@ -236,6 +242,18 @@ async function switchMethod(method: MfaChallenge['method']) {
   }
 }
 
+// funcional.md §D.9: al agotarse el tope de reenvíos, el mensaje explica
+// qué alternativas quedan (otro método confirmado, código de respaldo),
+// no solo que no se puede reenviar — el 429 es indistinguible entre el
+// límite de tasa por sesión y el tope `AUTH_MFA_MAX_DELIVERIES` del
+// desafío (api.md §D.3), así que el aviso de alternativas se muestra
+// siempre que existan, con independencia de cuál de los dos lo causó.
+const hasAlternatives = computed(
+  () =>
+    (challenge.value?.available_methods.length ?? 0) > 1 ||
+    challenge.value?.has_unused_recovery_codes === true,
+)
+
 async function resendCode() {
   if (!challenge.value || resending.value) {
     return
@@ -251,10 +269,14 @@ async function resendCode() {
       backToCredentials(t('auth.mfaChallenge.expired'))
     } else if (apiErrorStatus(err) === 429) {
       const seconds = retryAfterSeconds(err)
-      challengeError.value =
+      const limitMessage =
         seconds !== null
           ? t('auth.common.tooManyRequestsWithSeconds', { seconds })
           : t('auth.common.tooManyRequests')
+
+      challengeError.value = hasAlternatives.value
+        ? `${limitMessage} ${t('auth.mfaChallenge.resendLimitAlternatives')}`
+        : limitMessage
     }
   } finally {
     resending.value = false
@@ -307,25 +329,34 @@ async function resendCode() {
 
     <template v-else-if="challenge">
       <h1 class="mb-1 text-lg font-semibold">{{ t('auth.mfaChallenge.title') }}</h1>
-      <p class="text-muted-foreground mb-4 text-sm">{{ t('auth.mfaChallenge.intro') }}</p>
+      <p class="text-muted-foreground mb-4 text-sm">
+        {{
+          challenge.destination_masked
+            ? t('auth.mfaChallenge.introDelivery', { destination: challenge.destination_masked })
+            : t('auth.mfaChallenge.intro')
+        }}
+      </p>
 
-      <div
+      <!-- D.9: el selector de método es un grupo de radios etiquetado,
+           no botones sueltos sin relación semántica. -->
+      <RadioGroup
         v-if="challenge.available_methods.length > 1"
-        class="mb-4 flex gap-2"
-        role="group"
+        class="mb-4"
+        :model-value="challenge.method"
         :aria-label="t('auth.mfaChallenge.methodSelectorLabel')"
+        @update:model-value="(value) => switchMethod(value as MfaChallenge['method'])"
       >
-        <Button
+        <div
           v-for="method in challenge.available_methods"
           :key="method"
-          type="button"
-          size="sm"
-          :variant="method === challenge.method ? 'default' : 'outline'"
-          @click="switchMethod(method)"
+          class="flex items-center gap-2"
         >
-          {{ t(`auth.mfa.method.${method}`) }}
-        </Button>
-      </div>
+          <RadioGroupItem :id="`mfa-challenge-method-${method}`" :value="method" />
+          <Label :for="`mfa-challenge-method-${method}`">{{
+            t(`auth.mfa.method.${method}`)
+          }}</Label>
+        </div>
+      </RadioGroup>
 
       <form
         v-if="!useRecoveryCode"

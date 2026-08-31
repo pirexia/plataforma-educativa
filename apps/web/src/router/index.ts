@@ -64,6 +64,16 @@ const router = createRouter({
       name: 'mfa-enrollment-wall',
       component: () => import('@/modules/auth/views/MfaEnrollmentWallView.vue'),
     },
+    // 1.3b, pieza 3 (funcional.md §D.1.3/§D.9.1): pantalla mínima de
+    // administración de MFA. Con sesión y permiso — pero la ruta no
+    // comprueba ningún permiso en el cliente (INV-002, permisos.md
+    // §D.6.3): cada área de la vista lo hace contra el servidor.
+    // Provisional por diseño: 1.5 la absorbe en su editor de roles.
+    {
+      path: '/administracion/mfa',
+      name: 'mfa-administration',
+      component: () => import('@/modules/auth/views/AdminMfaView.vue'),
+    },
   ],
 })
 

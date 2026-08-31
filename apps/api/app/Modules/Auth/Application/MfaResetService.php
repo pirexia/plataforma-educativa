@@ -38,7 +38,13 @@ final class MfaResetService
     public function reset(User $actor, User $target, string $reason): void
     {
         if ($actor->id === $target->id) {
-            throw ApiException::forbidden();
+            // issue #115 (hallazgo propio de 1.3b): api.md §C.5 documenta
+            // que este 403 "es distinto de no tener permiso, y se
+            // distingue en el mensaje", pero antes de este cambio se
+            // lanzaba sin detailKey — idéntico al 403 genérico de
+            // RequirePermission. Se corrige aquí porque es exactamente el
+            // criterio que RN-AUTH-81 (autoexención) replica.
+            throw ApiException::forbidden('auth.validation.mfa_reset_self');
         }
 
         DB::transaction(function () use ($actor, $target, $reason): void {

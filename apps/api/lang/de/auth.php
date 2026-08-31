@@ -21,6 +21,9 @@ return [
         'mfa_method_not_available' => 'Diese Verifizierungsmethode ist an dieser Schule nicht verfügbar.',
         'mfa_code_invalid' => 'Der Code ist nicht korrekt.',
         'mfa_factor_required_by_role' => 'Du kannst deinen letzten Faktor nicht deaktivieren: eine deiner Rollen erfordert die zweistufige Verifizierung.',
+        'mfa_exemption_already_live' => 'Dieser Benutzer hat bereits eine gültige MFA-Ausnahme.',
+        'mfa_exemption_self' => 'Du kannst dir selbst keine MFA-Ausnahme gewähren.',
+        'mfa_reset_self' => 'Du kannst dein eigenes MFA nicht zurücksetzen.',
     ],
 
     'mail' => [
@@ -63,6 +66,21 @@ return [
             'greeting' => 'Hallo :name.',
             'body' => 'Einer deiner Wiederherstellungscodes wurde verwendet, um dich bei deinem Konto bei :tenant anzumelden, anstelle deines üblichen zweiten Faktors.',
             'warning' => 'Wenn du das nicht warst, wende dich umgehend an die Verwaltung deiner Schule und überprüfe deine aktiven Sitzungen.',
+        ],
+        'mfa_enrollment_code' => [
+            'subject' => 'Code zur Aktivierung der zweistufigen Verifizierung bei :tenant',
+            'greeting' => 'Hallo :name.',
+            'body' => 'Du aktivierst gerade E-Mail als zweistufige Verifizierung für dein Konto bei :tenant. Verwende diesen Code, um es zu bestätigen.',
+            'code' => 'Dein Code: :code',
+            'expires' => 'Dieser Code läuft in :minutes Minuten ab.',
+        ],
+        'mfa_challenge_code' => [
+            'subject' => 'Dein Anmeldecode für :tenant',
+            'greeting' => 'Hallo :name.',
+            'body' => 'Du meldest dich bei :tenant an und benötigst diesen Code, um die zweistufige Verifizierung abzuschließen.',
+            'code' => 'Dein Code: :code',
+            'expires' => 'Dieser Code läuft in :minutes Minuten ab.',
+            'warning' => 'Wenn du dich nicht angemeldet hast, ändere dein Passwort so schnell wie möglich.',
         ],
         'new_device_login' => [
             'subject' => 'Neue Anmeldung bei deinem Konto auf :tenant',

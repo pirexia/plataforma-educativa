@@ -13,6 +13,7 @@ use App\Modules\Auth\Http\Controllers\InvitationRedemptionsController;
 use App\Modules\Auth\Http\Controllers\MfaChallengesController;
 use App\Modules\Auth\Http\Controllers\MfaComplianceController;
 use App\Modules\Auth\Http\Controllers\MfaEnrollmentsController;
+use App\Modules\Auth\Http\Controllers\MfaExemptionsController;
 use App\Modules\Auth\Http\Controllers\MfaFactorsController;
 use App\Modules\Auth\Http\Controllers\MfaRecoveryCodesController;
 use App\Modules\Auth\Http\Controllers\MfaResetsController;
@@ -109,3 +110,17 @@ Route::get('/mfa-compliance/users', [MfaComplianceController::class, 'users'])
 Route::post('/mfa-resets', [MfaResetsController::class, 'store'])
     ->middleware('permission:mfa.eliminar')
     ->name('auth.mfa-resets.store');
+
+// REQ-AUTH-003 (1.3b), funcional.md §D.4.6-§D.4.8, api.md §D.4. Las tres
+// excepciones temporales nominales, permisos propios (permisos.md §D.3).
+Route::post('/mfa-exemptions', [MfaExemptionsController::class, 'store'])
+    ->middleware('permission:exencion_mfa.crear')
+    ->name('auth.mfa-exemptions.store');
+
+Route::get('/mfa-exemptions', [MfaExemptionsController::class, 'index'])
+    ->middleware('permission:exencion_mfa.leer')
+    ->name('auth.mfa-exemptions.index');
+
+Route::delete('/mfa-exemptions/{publicId}', [MfaExemptionsController::class, 'destroy'])
+    ->middleware('permission:exencion_mfa.eliminar')
+    ->name('auth.mfa-exemptions.destroy');

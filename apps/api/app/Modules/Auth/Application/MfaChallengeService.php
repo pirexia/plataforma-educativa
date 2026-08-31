@@ -3,12 +3,15 @@
 namespace App\Modules\Auth\Application;
 
 use App\Models\User;
+use App\Modules\Auth\Domain\DestinationMasker;
 use App\Modules\Auth\Domain\Events\RecoveryCodeUsed;
+use App\Modules\Auth\Domain\MfaDeliveryCode;
 use App\Modules\Auth\Domain\MfaMethod;
 use App\Modules\Auth\Domain\MfaVerifier;
 use App\Modules\Auth\Domain\Models\MfaChallenge;
 use App\Modules\Auth\Domain\Models\MfaFactor;
 use App\Modules\Auth\Domain\Models\MfaRecoveryCode;
+use App\Modules\Auth\Infrastructure\Jobs\SendMfaChallengeCodeEmail;
 use App\Modules\Auth\Infrastructure\Jobs\SendRecoveryCodeUsedEmail;
 use App\Modules\Core\Domain\TenantSettingsReader;
 use App\Support\Api\ApiException;
@@ -16,7 +19,6 @@ use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 
 /**
  * funcional.md §C.4.4, §C.6. El paso 2 del login: abrir el desafío,
@@ -46,15 +48,31 @@ final class MfaChallengeService
         $method = $this->pickMethod($user);
         $ttlMinutes = (int) config('auth-local.mfa.challenge_ttl_minutes');
 
-        $challenge = MfaChallenge::create([
+        $attributes = [
             'user_id' => $user->id,
             'session_id' => $request->session()->getId(),
             'method' => $method,
             'expires_at' => now()->addMinutes($ttlMinutes),
             'ip_address' => $request->ip(),
-        ]);
+        ];
 
-        $this->assertDeliverable($method);
+        $code = null;
+        $codeTtlMinutes = (int) config('auth-local.mfa.code_ttl_minutes');
+
+        // §D.4.2: la apertura de un desafío que entrega algo cuenta como
+        // su primera entrega.
+        if ($method->requiresDelivery()) {
+            $code = MfaDeliveryCode::generate();
+            $attributes['code_hash'] = MfaDeliveryCode::hash($code);
+            $attributes['code_expires_at'] = now()->addMinutes($codeTtlMinutes);
+            $attributes['deliveries'] = 1;
+        }
+
+        $challenge = MfaChallenge::create($attributes);
+
+        if ($code !== null) {
+            $this->dispatchChallengeCodeEmail($user, $code, $codeTtlMinutes);
+        }
 
         // §C.4.4 punto 4: pendiente de segundo factor, no cuenta ni pone
         // a cero el bloqueo (RN-AUTH-63). users.email ya se guarda
@@ -65,13 +83,15 @@ final class MfaChallengeService
     }
 
     /**
-     * `POST /auth/mfa-challenges`, `§C.4.4.1`. No reinicia intentos ni
-     * caducidad (`RN-AUTH-54`).
-     *
+     * `POST /auth/mfa-challenges`, `§C.4.4.1`, `§D.4.3`. Cambia el método
+     * en curso del desafío o reenvía el código (pedir el método en el que
+     * ya se está **es** el reenvío). No reinicia intentos ni caducidad
+     * (`RN-AUTH-54`); cambiar a `totp` no consume ninguna entrega
+     * (`RN-AUTH-79`).
      *
      * @return array<string, mixed>
      *
-     * @throws ApiException gone() (410), validation() (422)
+     * @throws ApiException gone() (410), validation() (422), tooManyRequests() (429)
      */
     public function changeMethod(Request $request, MfaMethod $newMethod): array
     {
@@ -94,11 +114,38 @@ final class MfaChallengeService
             ]);
         }
 
+        if (! $newMethod->requiresDelivery()) {
+            // RN-AUTH-79: cambiar a totp no genera nada ni consume una
+            // entrega; se limpian code_hash/code_expires_at porque el
+            // CHECK del motor lo exige para method = 'totp'.
+            $challenge->method = $newMethod;
+            $challenge->code_hash = null;
+            $challenge->code_expires_at = null;
+            $challenge->save();
+
+            return $this->present($challenge, $user);
+        }
+
+        $maxDeliveries = (int) config('auth-local.mfa.max_deliveries');
+
+        // RN-AUTH-79: tope de entregas del desafío, distinto del límite de
+        // tasa por sesión — este muere con el desafío, no a los 10 minutos.
+        if ($challenge->deliveries >= $maxDeliveries) {
+            $retryAfterSeconds = max(1, (int) now()->diffInSeconds($challenge->expires_at, absolute: false));
+
+            throw ApiException::tooManyRequests($retryAfterSeconds);
+        }
+
+        $code = MfaDeliveryCode::generate();
+        $codeTtlMinutes = (int) config('auth-local.mfa.code_ttl_minutes');
+
         $challenge->method = $newMethod;
+        $challenge->code_hash = MfaDeliveryCode::hash($code);
+        $challenge->code_expires_at = now()->addMinutes($codeTtlMinutes);
         $challenge->deliveries++;
         $challenge->save();
 
-        $this->assertDeliverable($newMethod);
+        $this->dispatchChallengeCodeEmail($user, $code, $codeTtlMinutes);
 
         return $this->present($challenge, $user);
     }
@@ -126,6 +173,7 @@ final class MfaChallengeService
 
         $recoveryRow = null;
         $validatedStep = null;
+        $deliveryCodeValid = false;
 
         if ($recoveryCode !== null) {
             $recoveryRow = MfaRecoveryCode::query()
@@ -139,9 +187,17 @@ final class MfaChallengeService
             if ($factor !== null) {
                 $validatedStep = $this->totpVerifier->verify($factor->secret_encrypted, $code, $factor->last_used_step);
             }
+        } elseif ($code !== null && $challenge->method->requiresDelivery()) {
+            // RN-AUTH-78: comparación en tiempo constante; un código
+            // caducado con el desafío vivo es indistinguible de uno
+            // incorrecto — 401, no 410 (§D.1.1).
+            $deliveryCodeValid = $challenge->code_hash !== null
+                && hash_equals($challenge->code_hash, MfaDeliveryCode::hash($code))
+                && $challenge->code_expires_at !== null
+                && now()->lessThan($challenge->code_expires_at);
         }
 
-        if ($recoveryRow === null && $validatedStep === null) {
+        if ($recoveryRow === null && $validatedStep === null && ! $deliveryCodeValid) {
             $challenge->attempts++;
             $maxAttempts = (int) config('auth-local.mfa.max_attempts');
 
@@ -161,7 +217,7 @@ final class MfaChallengeService
         // MISMA transacción que crea la sesión — envolviendo también
         // AuthenticatedSessionEstablisher::establish(), no antes.
         return DB::transaction(function () use (
-            $challenge, $recoveryRow, $validatedStep, $user, $request, $normalizedEmail, $deviceCookieValue,
+            $challenge, $recoveryRow, $validatedStep, $deliveryCodeValid, $user, $request, $normalizedEmail, $deviceCookieValue,
         ): AuthenticatedSessionResult {
             $challenge->consumed_at = now();
             $challenge->save();
@@ -170,6 +226,17 @@ final class MfaChallengeService
                 $recoveryRow->used_at = now();
                 $recoveryRow->used_ip = $request->ip();
                 $recoveryRow->save();
+            } elseif ($deliveryCodeValid) {
+                // §D.4.2: last_used_step no se toca en un factor de
+                // entrega (el CHECK del motor lo reserva a totp) — solo
+                // last_used_at.
+                $factor = MfaFactor::query()
+                    ->where('user_id', $user->id)
+                    ->where('method', $challenge->method)
+                    ->whereNotNull('confirmed_at')
+                    ->first();
+
+                $factor?->update(['last_used_at' => now()]);
             } else {
                 $factor = $this->confirmedTotpFactor($user);
                 $factor->last_used_step = $validatedStep;
@@ -258,19 +325,21 @@ final class MfaChallengeService
     }
 
     /**
-     * `§C.16`: 1.3 solo implementa TOTP — correo (y SMS) quedan para
-     * `1.3b`/proveedor futuro. No debería ser alcanzable en 1.3 porque
-     * `MfaEnrollmentService` no permite confirmar un factor de entrega
-     * (`self::IMPLEMENTED_METHODS`); esta comprobación es la defensa en
-     * profundidad si esa invariante se rompiera en otro punto.
+     * `§D.4.2`. El destino es siempre `users.email` en el momento de
+     * presentar (`RN-AUTH-77`) — nunca se persiste enmascarado.
      */
-    private function assertDeliverable(MfaMethod $method): void
+    private function dispatchChallengeCodeEmail(User $user, string $code, int $ttlMinutes): void
     {
-        if ($method->requiresDelivery()) {
-            throw new RuntimeException(
-                "Entrega del método {$method->value} no implementada en 1.3 (funcional.md §C.16)."
-            );
-        }
+        $tenant = Tenant::query()->find($this->tenantContext->tenantId());
+
+        SendMfaChallengeCodeEmail::dispatch(
+            recipientEmail: $user->email,
+            recipientGivenName: $user->person->given_name ?? '',
+            recipientLocale: $user->person->locale ?? 'es-ES',
+            tenantName: $tenant->name ?? '',
+            code: $code,
+            ttlMinutes: $ttlMinutes,
+        );
     }
 
     /**
@@ -283,15 +352,24 @@ final class MfaChallengeService
             ->whereNull('used_at')
             ->exists();
 
-        return [
+        $payload = [
             'public_id' => $challenge->public_id,
             'method' => $challenge->method->value,
             'available_methods' => array_map(
                 fn (MfaMethod $method): string => $method->value,
                 $this->usableMethods($user),
             ),
-            'expires_at' => $challenge->expires_at->toISOString(),
-            'has_unused_recovery_codes' => $hasUnusedRecoveryCodes,
         ];
+
+        // api.md §D.3: presente solo si el método en curso entrega algo —
+        // un campo ausente no es un campo nulo (§D.6.2).
+        if ($challenge->method->requiresDelivery()) {
+            $payload['destination_masked'] = DestinationMasker::maskEmail($user->email);
+        }
+
+        $payload['expires_at'] = $challenge->expires_at->toISOString();
+        $payload['has_unused_recovery_codes'] = $hasUnusedRecoveryCodes;
+
+        return $payload;
     }
 }

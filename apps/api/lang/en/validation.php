@@ -12,6 +12,8 @@ return [
     'numeric' => 'The :attribute field must be a number.',
     'date' => 'The :attribute field must be a valid date.',
     'date_format' => 'The :attribute field must match the format :format.',
+    'after' => 'The :attribute field must be a date after :date.',
+    'before_or_equal' => 'The :attribute field must be a date before or equal to :date.',
     'regex' => 'The :attribute field format is invalid.',
     'in' => 'The selected :attribute is invalid.',
     'not_in' => 'The selected :attribute is invalid.',
@@ -60,5 +62,8 @@ return [
         'to' => 'to',
         'format' => 'format',
         'settings' => 'settings',
+        'reason' => 'reason',
+        'expires_at' => 'expiry',
+        'user' => 'user',
     ],
 ];

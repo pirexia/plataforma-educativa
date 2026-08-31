@@ -15,6 +15,8 @@ return [
     'numeric' => 'El campo :attribute debe ser un número.',
     'date' => 'El campo :attribute debe ser una fecha válida.',
     'date_format' => 'El campo :attribute debe tener el formato :format.',
+    'after' => 'El campo :attribute debe ser una fecha posterior a :date.',
+    'before_or_equal' => 'El campo :attribute debe ser una fecha anterior o igual a :date.',
     'regex' => 'El formato del campo :attribute no es válido.',
     'in' => 'El valor seleccionado para :attribute no es válido.',
     'not_in' => 'El valor seleccionado para :attribute no es válido.',
@@ -63,5 +65,8 @@ return [
         'to' => 'hasta',
         'format' => 'formato',
         'settings' => 'configuración',
+        'reason' => 'motivo',
+        'expires_at' => 'caducidad',
+        'user' => 'usuario',
     ],
 ];

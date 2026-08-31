@@ -15,6 +15,22 @@ export function getRole(publicId: PublicId): Promise<Role> {
   return apiFetch<Role>(`/roles/${publicId}`)
 }
 
+/**
+ * REQ-AUTH-003 (1.3), api.md §C.6: `PATCH /roles/{public_id}` acotado a
+ * `mfa_required` — el único atributo escribible hasta que 1.5 amplíe el
+ * cuerpo admitido (mismo verbo, misma ruta, mismo permiso). Vive en
+ * `REQ-CORE` porque `roles` es su recurso (`INV-007`); lo consume la
+ * pantalla de administración de MFA de 1.3b como cliente público de este
+ * módulo, igual que ya hacen `getMe`/`getTenantBranding` en sentido
+ * contrario.
+ */
+export function updateRoleMfaRequired(publicId: PublicId, mfaRequired: boolean): Promise<Role> {
+  return apiFetch<Role>(`/roles/${publicId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ mfa_required: mfaRequired }),
+  })
+}
+
 export interface ListPermissionsParams {
   module_code?: string
   resource?: string

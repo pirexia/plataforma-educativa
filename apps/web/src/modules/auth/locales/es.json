@@ -118,6 +118,20 @@
         "notAllowed": "Este método no está disponible en tu centro.",
         "activatedTitle": "Segundo factor activado."
       },
+      "emailEnrollment": {
+        "intro": "Recibe un código de un solo uso por correo electrónico, a la dirección con la que accedes.",
+        "start": "Activar código por correo",
+        "starting": "Preparando el alta…",
+        "destinationLabel": "Se ha enviado un código a",
+        "expired": "Este código ha caducado. Vuelve a empezar.",
+        "expiresIn": "Caduca en {time}",
+        "codeLabel": "Código de 6 dígitos recibido por correo",
+        "confirm": "Confirmar código",
+        "confirming": "Confirmando…",
+        "cancel": "Cancelar",
+        "notAllowed": "Este método no está disponible en tu centro.",
+        "alreadyEnrolled": "Ya tienes un factor de correo activo."
+      },
       "recoveryCodes": {
         "title": "Códigos de respaldo",
         "onceWarning": "Estos códigos solo se muestran una vez. Guárdalos en un lugar seguro: son la única forma de entrar si pierdes el acceso a tu aplicación de autenticación.",
@@ -148,19 +162,22 @@
         "confirmYes": "Confirmar",
         "confirmCancel": "Cancelar",
         "recoveryCodesRegenerated": "Se ha generado un juego nuevo de códigos de respaldo.",
-        "logout": "Cerrar sesión"
+        "logout": "Cerrar sesión",
+        "exemptBanner": "No se te exige el segundo factor hasta el {date}."
       },
       "wall": {
         "title": "Activa tu segundo factor",
         "reason": "Tu rol exige un segundo factor de acceso y el plazo para activarlo ha vencido. Complétalo para continuar; no puedes acceder al resto de la plataforma hasta hacerlo.",
         "completed": "Segundo factor activado. Ya puedes continuar.",
         "continue": "Continuar",
-        "logout": "Cerrar sesión"
+        "logout": "Cerrar sesión",
+        "methodSelectorLabel": "Elige cómo quieres recibir el segundo factor"
       }
     },
     "mfaChallenge": {
       "title": "Verifica tu identidad",
       "intro": "Introduce el código de tu aplicación de autenticación para completar el inicio de sesión.",
+      "introDelivery": "Te hemos enviado un código a {destination}.",
       "methodSelectorLabel": "Método del segundo factor",
       "codeLabel": "Código de 6 dígitos",
       "clockHint": "Si el código sigue fallando, comprueba la hora de tu dispositivo.",
@@ -169,11 +186,111 @@
       "submitting": "Verificando…",
       "resend": "Reenviar código",
       "resending": "Reenviando…",
+      "resendLimitAlternatives": "Puedes usar otro método de los tuyos o un código de respaldo.",
       "useRecoveryCode": "Usar un código de respaldo",
       "useCodeInstead": "Usar el código de la aplicación en su lugar",
       "recoveryCodeLabel": "Código de respaldo",
       "invalidCode": "El código no es correcto.",
       "expired": "La verificación ha caducado. Vuelve a iniciar sesión."
+    },
+    "mfaAdmin": {
+      "title": "Administración de MFA",
+      "loadingRoles": "Cargando roles…",
+      "roleLabel": "Rol",
+      "rolePlaceholder": "Elige un rol",
+      "forbidden": "No tienes permiso para esta acción.",
+      "compliance": {
+        "title": "Cumplimiento",
+        "chooseRoleHint": "Elige un rol para ver su cumplimiento.",
+        "total": "Total",
+        "enrolled": "Inscritos",
+        "obligated": "Obligados",
+        "inGrace": "En gracia",
+        "enforced": "Vencidos",
+        "exempt": "Exentos",
+        "filterLegend": "Filtrar por estado",
+        "state": {
+          "obligated": "Obligado",
+          "enrolled": "Inscrito",
+          "pending": "Pendiente",
+          "past_deadline": "Vencido",
+          "exempt": "Exento"
+        },
+        "loading": "Cargando usuarios…",
+        "columnUser": "Usuario",
+        "columnState": "Estado",
+        "columnGraceDeadline": "Plazo de gracia",
+        "columnMethods": "Métodos inscritos",
+        "columnRoles": "Roles que lo exigen",
+        "columnActions": "Acciones",
+        "empty": "Nadie que mostrar con este filtro.",
+        "resetAction": "Restablecer",
+        "previousPage": "Anterior",
+        "nextPage": "Siguiente",
+        "pageIndicator": "Página {page} de {lastPage}"
+      },
+      "roleRequirement": {
+        "title": "Obligatoriedad por rol",
+        "currentlyRequired": "El rol «{role}» exige hoy el segundo factor.",
+        "currentlyNotRequired": "El rol «{role}» no exige hoy el segundo factor.",
+        "previewDisable": "Vista previa: dejar de exigirlo",
+        "previewEnable": "Vista previa: empezar a exigirlo",
+        "previewNotice": "Esto es una simulación: todavía no se ha guardado nada.",
+        "impactDisable": "Este cambio dejaría de obligar a {count} usuarios.",
+        "impactEnable": "Este cambio obligará a {count} usuarios más.",
+        "applying": "Aplicando…",
+        "confirm": "Confirmar el cambio",
+        "cancel": "Cancelar",
+        "applied": "Obligatoriedad del rol actualizada."
+      },
+      "reset": {
+        "title": "Restablecimiento de MFA",
+        "reasonLabel": "Motivo (mínimo 10 caracteres)",
+        "reasonWarning": "El motivo queda registrado en la auditoría y solo lo puede leer quien tenga permiso para verla. No escribas datos de salud.",
+        "effectWarning": "Se cerrarán todas las sesiones activas de esta persona y se le notificará.",
+        "reasonTooShort": "El motivo debe tener al menos 10 caracteres.",
+        "userNotFound": "No se ha encontrado a ese usuario.",
+        "submitting": "Restableciendo…",
+        "submit": "Restablecer MFA",
+        "success": "MFA de {name} restablecido."
+      },
+      "exemptions": {
+        "title": "Excepciones temporales",
+        "grantAction": "Conceder excepción",
+        "reasonLabel": "Motivo (mínimo 10 caracteres)",
+        "expiresLabel": "Caduca el",
+        "maxDaysHint": "El tope permitido es de {days} días desde hoy.",
+        "reasonWarning": "El motivo queda registrado en la auditoría y solo lo puede leer quien tenga permiso para verla. No escribas datos de salud.",
+        "granting": "Concediendo…",
+        "confirmGrant": "Conceder",
+        "cancel": "Cancelar",
+        "alreadyLive": "Esta persona ya tiene una excepción viva.",
+        "filterLegend": "Filtrar por estado",
+        "filterAll": "Todas",
+        "state": {
+          "live": "Viva",
+          "expired": "Caducada",
+          "revoked": "Revocada"
+        },
+        "loading": "Cargando excepciones…",
+        "columnUser": "Usuario",
+        "columnState": "Estado",
+        "columnReason": "Motivo",
+        "columnExpiresAt": "Caduca",
+        "columnGrantedBy": "Concedida por",
+        "columnActions": "Acciones",
+        "empty": "No hay excepciones con este filtro.",
+        "revokeAction": "Revocar",
+        "confirmRevoke": "¿Revocar esta excepción?",
+        "confirmYes": "Sí, revocar"
+      },
+      "userPicker": {
+        "label": "Buscar usuario",
+        "placeholder": "Nombre o correo electrónico",
+        "loading": "Cargando usuarios…",
+        "noMatches": "Sin coincidencias.",
+        "change": "Cambiar"
+      }
     }
   }
 }

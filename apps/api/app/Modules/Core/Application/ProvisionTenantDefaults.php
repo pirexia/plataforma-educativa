@@ -61,6 +61,11 @@ final class ProvisionTenantDefaults
         'bloqueo_cuenta.leer', 'bloqueo_cuenta.eliminar',
         // REQ-AUTH/funcional.md §C.4.10, §C.1.1 punto 9 (1.3).
         'mfa.leer', 'mfa.eliminar',
+        // REQ-AUTH/permisos.md §D.6 (1.3b). Solo administrador_centro,
+        // por el mismo argumento reforzado de §D.6.1: conceder una
+        // excepción deja a alguien sin segundo factor y sin obligación
+        // hasta 90 días.
+        'exencion_mfa.crear', 'exencion_mfa.leer', 'exencion_mfa.eliminar',
     ];
 
     /** @var array<string, list<string>> */

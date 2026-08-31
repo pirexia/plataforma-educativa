@@ -1,15 +1,16 @@
 /**
- * REQ-AUTH (1.3). Cliente de los ocho endpoints de MFA de este módulo
- * (api.md §C.3-§C.4) salvo `POST /auth/session`, que sigue en `session.ts`
- * por ser el mismo endpoint que ya existía en 1.2. Los dos de
- * administración (`GET /mfa-compliance`, `POST /mfa-resets`) no se
- * entregan en 1.3 (funcional.md §C.11: "sin pantalla de administración") y
- * no tienen cliente aquí.
+ * REQ-AUTH (1.3, ampliado en 1.3b). Cliente de los ocho endpoints de MFA
+ * de este módulo (api.md §C.3-§C.4, §D.2-§D.3) salvo `POST /auth/session`,
+ * que sigue en `session.ts` por ser el mismo endpoint que ya existía en
+ * 1.2. Los de administración (`mfa-compliance`, `mfa-resets`,
+ * `mfa-exemptions`) tienen su propio cliente (`mfaAdministration.ts`,
+ * pieza 3 de 1.3b).
  */
 import { apiFetch } from '@/api/client'
 import type {
   MfaChallenge,
-  MfaEnrollment,
+  MfaEnrollmentEmail,
+  MfaEnrollmentTotp,
   MfaFactorConfirmation,
   MfaMethod,
   MfaStatus,
@@ -23,11 +24,17 @@ export function getMfaStatus(): Promise<MfaStatus> {
 }
 
 /**
- * api.md §C.4 `POST /auth/mfa-enrollments`. Inicia el alta, no la activa
- * (RN-AUTH-59). En 1.3 solo `totp` supera la validación del servidor.
+ * api.md §C.4/§D.2 `POST /auth/mfa-enrollments`. Inicia el alta, no la
+ * activa (RN-AUTH-59). Desde 1.3b también admite `email` (`sms` sigue
+ * rechazado con `422`, sin proveedor). La forma de la respuesta depende
+ * del método (`RN-AUTH-75`), de ahí las dos sobrecargas.
  */
-export function createMfaEnrollment(method: MfaMethod = 'totp'): Promise<MfaEnrollment> {
-  return apiFetch<MfaEnrollment>('/auth/mfa-enrollments', {
+export function createMfaEnrollment(method: 'totp'): Promise<MfaEnrollmentTotp>
+export function createMfaEnrollment(method: 'email'): Promise<MfaEnrollmentEmail>
+export function createMfaEnrollment(
+  method: MfaMethod,
+): Promise<MfaEnrollmentTotp | MfaEnrollmentEmail> {
+  return apiFetch<MfaEnrollmentTotp | MfaEnrollmentEmail>('/auth/mfa-enrollments', {
     method: 'POST',
     body: JSON.stringify({ method }),
   })

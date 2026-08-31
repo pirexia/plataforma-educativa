@@ -12,6 +12,8 @@ return [
     'numeric' => 'Le champ :attribute doit être un nombre.',
     'date' => 'Le champ :attribute doit être une date valide.',
     'date_format' => 'Le champ :attribute doit respecter le format :format.',
+    'after' => 'Le champ :attribute doit être une date postérieure à :date.',
+    'before_or_equal' => 'Le champ :attribute doit être une date antérieure ou égale à :date.',
     'regex' => 'Le format du champ :attribute n\'est pas valide.',
     'in' => 'La valeur sélectionnée pour :attribute n\'est pas valide.',
     'not_in' => 'La valeur sélectionnée pour :attribute n\'est pas valide.',
@@ -60,5 +62,8 @@ return [
         'to' => 'jusqu\'à',
         'format' => 'format',
         'settings' => 'paramètres',
+        'reason' => 'motif',
+        'expires_at' => 'expiration',
+        'user' => 'utilisateur',
     ],
 ];

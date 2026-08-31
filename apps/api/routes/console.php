@@ -26,6 +26,15 @@ Schedule::job(new PurgeExpiredIdempotencyKeys)->daily();
 Schedule::command('auth:purge-maintenance')->daily();
 Schedule::command('auth:close-expired-lockouts')->everyFiveMinutes();
 
+// REQ-AUTH-003 (1.3b), funcional.md §D.4.1.1, operacion.md §D.4.1.1.
+// Horario, no diario: una excepción que caduca a las 9:00 no debería
+// dejar a alguien sin exigencia hasta la madrugada, y un plazo de
+// gracia perdido por MaterializeMfaObligationsForRole tampoco debería
+// esperar 24 horas. `auth:purge-maintenance` ya lleva las tres purgas
+// de MFA (diarias, issue #109) — este comando es solo las dos tareas de
+// obligación/excepción.
+Schedule::command('auth:mfa-obligations')->hourly();
+
 // 1.2b, funcional.md §B.4.7, operacion.md §B.3.1/§B.6: consolidador de
 // user_sessions huérfanas, cada 15 minutos (no cada 5 como los bloqueos:
 // una sesión huérfana no ocupa ningún hueco de índice único, el listado

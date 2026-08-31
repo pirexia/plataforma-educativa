@@ -503,3 +503,185 @@ Lo que 1.3 **sí** añade al inventario de datos sensibles del módulo, y que no
 - **`CA-AUTH-145`** — ninguna ruta de este módulo lleva `module-enabled`, **incluidas las diez nuevas**.
 - **Test de catálogo, ampliado**: tras `platform:sync-registry`, `permissions` contiene **exactamente cuatro** filas con `module_code = 'auth'` —`bloqueo_cuenta.leer`, `bloqueo_cuenta.eliminar`, `mfa.leer`, `mfa.eliminar`—, ninguna con `retired_at`, ninguna con `is_special_category = true`, y **ninguna fila de `permission_role` de este módulo con `scope` distinto de `todos`**.
 - **Test de catálogo de `REQ-CORE`, ampliado en una fila**: `rol.actualizar` existe con `module_code = 'core'` y está concedido **solo** a `administrador_centro`. Si aparece declarado con `module_code = 'auth'`, alguien ha puesto el permiso en el módulo equivocado (`§C.5`).
+
+---
+
+# Parte D · Paso 1.3b · Permisos (`REQ-AUTH-003`)
+
+> **Estructura**: §1-§8 son 1.2 (cerrado). `§B.1`-`§B.6` son 1.2b (cerrado). `§C.1`-`§C.10` son 1.3 (cerrado y mezclado, commit `cd13e8a`). Esta **Parte D** es el paso **1.3b**, **pendiente de aprobación** (`funcional.md §D.13`).
+>
+> Fuente de verdad del catálogo: **el código** (`AuthServiceProvider::declaredPermissions()`), materializado por `platform:sync-registry`. Esta tabla es su reflejo documental.
+
+---
+
+## D.1 La conclusión, primero
+
+`§C.1` decía que *«1.3 rompe la racha»* declarando dos permisos donde el módulo no tenía casi ninguno. **1.3b declara tres más, todos del mismo recurso, y cierra el hueco que la partición de `OPEN-AUTH-24` dejó abierto**: `permisos.md §C.1` anotó que el recurso `exencion_mfa` quedaba en 1.3b y que *«ningún endpoint de 1.3 escribe en `user_mfa_exemptions` todavía»*. Este paso lo cambia.
+
+Lo que **no** cambia:
+
+- **De los seis endpoints de autoservicio y desafío que 1.3b modifica, ninguno gana permiso.** Siguen autorizándose por identidad del portador o por la cookie del desafío, con los cuatro mecanismos de `§C.4` sin ampliación.
+- **El ámbito sigue siendo `todos` en todo lo que este paso siembra**, por el mismo motivo estructural de `§5.6`/`§C.7.6`: el resolutor provisional de `ADR-034 §2` **ignora `scope`** hasta 1.5.
+- **`REQ-AUTH` sigue sin exponer categoría especial** (`§D.6`).
+- **No se toca el catálogo de `REQ-CORE`**, a diferencia de 1.3 (`rol.actualizar`, `§C.5`). 1.3b es un paso enteramente dentro de su módulo.
+
+---
+
+## D.2 Recursos que aporta el paso
+
+| Recurso | Qué representa |
+|---------|----------------|
+| `exencion_mfa` | La **excepción temporal nominal** a la obligatoriedad de MFA: quién está exento, por qué, hasta cuándo y quién lo decidió |
+
+**Uno**, y ya estaba nombrado en `§C.4.11` y `§C.2` de 1.3 — no se inventa aquí. Las **acciones** son las de `RPERM-003` sin excepción.
+
+**Por qué un recurso propio y no acciones nuevas sobre `mfa`.** Podría parecer que conceder una excepción es «actualizar el MFA de alguien» y que bastaría con `mfa.actualizar`. Se descarta por dos motivos:
+
+1. **La excepción es una entidad con vida propia**, con motivo, caducidad, autor y traza de revocación — exactamente el mismo argumento por el que `AccountLockout` es un recurso y no un atributo del usuario (`funcional.md §10.1`), y por el que `MfaReset` es una tabla y no una fila de `audit_logs` (`datos.md §C.6.1`). Un recurso con ciclo de vida propio se gobierna con sus propios permisos.
+2. **Separarlo permite repartirlo distinto.** Un centro puede querer que dirección **vea** quién está exento sin poder **conceder** exenciones. Con `mfa.actualizar` eso no se puede expresar; con tres acciones sobre `exencion_mfa`, sí — el día que 1.5 permita roles personalizados.
+
+**Por qué `mfa` no gana ninguna acción nueva.** Sigue sin `crear` y sin `actualizar` por el argumento de `§C.3`: nadie activa ni modifica el MFA de otra persona. **Y sigue sin `exportar`** por el de `§C.6`: un CSV de quién no tiene segundo factor es un mapa de ataque. **La excepción tampoco tiene `exportar`, y por el mismo motivo elevado**: una lista de exentos es la lista de las cuentas privilegiadas que hoy entran solo con contraseña.
+
+---
+
+## D.3 Catálogo de permisos que declara `REQ-AUTH` en 1.3b
+
+`module_code = 'auth'`, `is_special_category = false` en los tres (`§D.6`).
+
+| `code` | Recurso | Acción | Endpoints que lo exigen |
+|--------|---------|--------|-------------------------|
+| `exencion_mfa.crear` | `exencion_mfa` | `crear` | `POST /mfa-exemptions` |
+| `exencion_mfa.leer` | `exencion_mfa` | `leer` | `GET /mfa-exemptions` |
+| `exencion_mfa.eliminar` | `exencion_mfa` | `eliminar` | `DELETE /mfa-exemptions/{public_id}` |
+
+**Total del módulo tras 1.3b: siete permisos** — los dos de `bloqueo_cuenta` (1.2), los dos de `mfa` (1.3) y estos tres.
+
+**Por qué `eliminar` y no `actualizar` para la revocación.** Revocar deja la fila con `revoked_at` y no borra nada (`RN-AUTH-83`), así que en rigor es una actualización. Se declara `eliminar` porque **es el mismo criterio que ya usa el módulo dos veces**: `bloqueo_cuenta.eliminar` levanta un bloqueo que tampoco borra la fila (§2), y `mfa.eliminar` restablece un MFA que borra lógicamente (`§C.2`). El permiso describe **lo que el actor hace desde fuera** —retirar algo que estaba vigente—, no la operación SQL que ocurre dentro. Cambiar de criterio ahora obligaría a explicar por qué tres cosas iguales se llaman distinto.
+
+**Por qué `leer` es un permiso separado y no va incluido en `crear`.** Denegación por defecto (`RPERM-011`, `INV-002`): quien puede conceder no obtiene por arrastre el derecho a leer el histórico de motivos escritos por otros administradores sobre otras personas. Son dos capacidades y son dos filas.
+
+### D.3.1 Endpoints sin permiso, sin cambios
+
+Los siete de `§C.3.1` siguen exactamente igual, incluidos los cinco que 1.3b modifica (`POST /auth/mfa-enrollments`, `POST /auth/mfa-factors`, `DELETE /auth/mfa-factors/{public_id}`, `POST /auth/mfa-challenges`, `POST /auth/mfa-verifications`) y `GET /auth/mfa`.
+
+**El que hay que mirar dos veces es `GET /auth/mfa`**, porque 1.3b le añade tres campos (`api.md §D.3.1`) y uno de ellos —`exempt_until`— es información sobre una decisión administrativa. **Sigue sin permiso, y es correcto**: devuelve **el estado del portador de la cookie**, sin parámetro de sujeto (`RN-AUTH-73`), y decirle a una persona que no se le exige MFA hasta el 30 de septiembre no revela nada de nadie más. Lo que **no** hace es exponer el motivo ni quién la concedió: eso vive en `GET /mfa-exemptions`, que sí tiene permiso.
+
+---
+
+## D.4 Cómo se autoriza lo que no lleva permiso
+
+**Sin mecanismos nuevos.** Los cuatro de `§1` y `§C.4` siguen siendo los únicos: posesión de token, verificación de credencial, identidad del portador y **posesión de la sesión que abrió el desafío**.
+
+Este paso amplía el cuarto en un punto que conviene decir porque es donde se cometería el error: **el reenvío de un código sigue autorizándose por `session_id`, igual que la verificación** (`RN-AUTH-53`). La tentación en implementación es aceptar el `public_id` del desafío en el cuerpo del reenvío —«total, solo manda un correo»— y eso convertiría un identificador que viaja en una respuesta HTTP en **una palanca para enviar correos a la dirección de otra persona**, sin autenticarse. La búsqueda es por `session_id`, siempre, y el `public_id` solo sirve para que el cliente sepa de qué habla.
+
+---
+
+## D.5 Matriz recurso × acción × ámbito
+
+Ámbito único en 1.3b: `todos`. `—` significa que el permiso no existe en este módulo.
+
+| Recurso | crear | leer | actualizar | eliminar | exportar | importar | aprobar | firmar | publicar |
+|---------|-------|------|------------|----------|----------|----------|---------|--------|----------|
+| `bloqueo_cuenta` (1.2) | — | `todos` | — | `todos` | — | — | — | — | — |
+| `mfa` (1.3) | — (`§C.3`) | `todos` | — (`§C.3`) | `todos` | — (`§C.6`) | — | — | — | — |
+| **`exencion_mfa`** (1.3b) | `todos` | `todos` | — (`§D.3`) | `todos` | — (`§D.2`) | — | — | — | — |
+
+**`exencion_mfa` sin `actualizar`, y merece decirse.** No hay prórroga (`funcional.md §D.1.2`): alargar una excepción es revocarla y conceder otra, con dos filas de auditoría en lugar de una edición silenciosa. En un mecanismo cuya única función es **relajar una obligación de seguridad**, que cada decisión deje su propia fila no es burocracia: es la diferencia entre «se le concedieron tres excepciones de un mes» y «alguien editó una fecha cuatro veces».
+
+---
+
+## D.6 Asignación en los roles predefinidos
+
+Los 16 roles de tenant se siembran en `tenant:provision-defaults`. **1.3b no crea ni modifica ningún rol**: añade tres concesiones.
+
+Denegación por defecto (`RPERM-011`): lo que no aparece, no se concede.
+
+| Rol (`code`) | Permisos de `REQ-AUTH` que gana en 1.3b | Ámbito |
+|--------------|------------------------------------------|--------|
+| `administrador_centro` | `exencion_mfa.crear`, `exencion_mfa.leer`, `exencion_mfa.eliminar` | `todos` |
+| Los 15 restantes | — | — |
+
+### D.6.1 Por qué solo el Administrador de Centro, por tercera vez
+
+`§5.1` lo argumentó para el desbloqueo y `§C.7.1` para el restablecimiento. **Con la excepción el argumento es el más fuerte de los tres**, y conviene verlo entero porque es contraintuitivo: parece la operación más inocua de las tres —no toca credenciales, no borra nada, caduca sola— y es la más peligrosa.
+
+> Restablecer el MFA de alguien le deja **sin** segundo factor y **obligado**: en cuanto entre, el muro le exige darlo de alta otra vez. **Conceder una excepción le deja sin segundo factor y sin obligación**, durante hasta 90 días, y además le permite **desactivar el factor que tuviera** (`§C.4.11` punto 3). Es la única operación del producto que apaga la obligatoriedad de `REQ-AUTH-003` para una persona concreta sin dejarla en un estado que el sistema empuje a corregir.
+
+De ahí las tres consecuencias que este paso fija y no negocia:
+
+1. **Solo `administrador_centro`**, con el mismo razonamiento reforzado de `§C.7.1` sobre `secretaria`, `administrativo` y `direccion`: quien recibe la llamada de «no puedo activar el MFA» es exactamente el objetivo de una llamada falsa, y aquí la llamada falsa no pide un desbloqueo temporal sino **tres meses sin segundo factor**.
+2. **Nadie se concede una excepción a sí mismo** (`RN-AUTH-81`). Sin esa regla, `exencion_mfa.crear` **es** el interruptor de apagado de la obligatoriedad para quien lo tiene: se concede 90 días, desactiva su factor y ya está. Es el mismo agujero que `RN-AUTH-67` cerró en el restablecimiento, y aquí es peor porque no deja al actor en estado obligado.
+3. **`soporte_plataforma` sigue sin ningún permiso de `REQ-AUTH`**, igual que en 1.1, 1.2, 1.2b y 1.3. Un rol del proveedor capaz de eximir de MFA a cualquier usuario de cualquier centro sería una llave maestra con caducidad de 90 días y renovable.
+
+Si un centro necesita repartirlo —por ejemplo, que secretaría **vea** las exenciones sin poder concederlas—, **1.5 lo permitirá con un rol personalizado**: la decisión la toma el centro, con nombre y apellidos, y queda en auditoría. Y para eso hace falta que `leer` sea un permiso separado, que es justo lo que `§D.3` argumenta.
+
+### D.6.2 Ámbitos en 1.3b: por qué los tres son `todos`
+
+Rige la **regla de seguridad** de `§5.6`, sin matices: entre 1.1 y 1.5 el resolutor provisional **lee `effect` e ignora `scope`**.
+
+Aplicado a este paso, el ejemplo es tan malo como el de `§C.7.6`: sembrar `exencion_mfa.leer` con ámbito `propios` —pensando en «que cada uno vea la suya»— daría a ese rol **la lista completa de exentos del centro, con motivo y autor**, entregada por un ámbito que nadie evalúa. Y «que cada uno vea la suya» no se modela así: se modela con `GET /auth/mfa`, que devuelve `exempt_until` del portador y **no pasa por el resolutor** (`§D.3.1`, regla 2 de `§5.6`).
+
+**Toda fila de `permission_role` creada en 1.3b lleva `scope = 'todos'`** (`RN-CORE-22`), verificado por el test de catálogo de `§D.8`.
+
+### D.6.3 La pantalla de administración **no añade ningún permiso**
+
+`OPEN-AUTH-28` se resolvió el 2026-08-27 por incluir en 1.3b una pantalla mínima de administración de MFA (`funcional.md §D.1.3`). **No aporta ni un permiso nuevo ni un endpoint nuevo** (`api.md §D.5.1`): consume los que ya existen.
+
+| Área de la pantalla | Permiso que exige el servidor | Declarado en |
+|---------------------|-------------------------------|--------------|
+| Cumplimiento (agregado, individualizado y vista previa) | `mfa.leer` | 1.3 (`§C.3`) |
+| Conmutador de `mfa_required` del rol | `rol.actualizar` (**de `REQ-CORE`**) | 1.3 (`§C.5`) |
+| Restablecimiento de MFA | `mfa.eliminar` | 1.3 (`§C.3`) |
+| Excepciones: conceder / listar / revocar | `exencion_mfa.crear` / `.leer` / `.eliminar` | **1.3b** (`§D.3`) |
+
+**`administrador_centro` ya tiene los seis** tras `§D.6`, así que la pantalla funciona sin tocar el aprovisionamiento más allá de las tres concesiones nuevas.
+
+Tres reglas de esta pantalla que son de autorización y no de interfaz:
+
+1. **La denegación por defecto sigue viviendo en el servidor** (`INV-002`). La ruta de la SPA no es un control de acceso: si un usuario sin permiso la abre, el endpoint responde `403` y la pantalla lo muestra. **Ocultar un botón no autoriza nada**, y enseñarlo tampoco desautoriza: las dos cosas se deciden en el *middleware* `permission:`.
+2. **Cada área comprueba su propio permiso, y no hay un «permiso de pantalla».** Alguien con `mfa.leer` pero sin `exencion_mfa.crear` ve el cumplimiento y recibe `403` al intentar conceder una excepción. Ese caso **no existe hoy** entre los roles predefinidos —`administrador_centro` los tiene todos— pero existirá en cuanto 1.5 traiga los roles personalizados, y la pantalla tiene que comportarse bien entonces sin rehacerse.
+3. **La pantalla no es un camino alternativo a nada.** Todo lo que hace pasa por los mismos endpoints, con los mismos permisos, la misma CSRF y la misma auditoría que una llamada por API (`INV-006`: la UI es un cliente más).
+
+
+---
+
+## D.7 Reglas de autorización que no son un permiso
+
+Amplía `§7`, `§B.4` y `§C.8`. Es la parte que la revisión de seguridad debe recorrer entera, ahora con cinco filas más.
+
+| Regla | Dónde | Efecto |
+|-------|-------|--------|
+| **`RN-AUTH-81` — nadie se exime a sí mismo** | `POST /mfa-exemptions` | `403`. Es la mitad que `§C.8` dejó pendiente de este paso. Sin ella, `exencion_mfa.crear` es el interruptor de apagado de la obligatoriedad (`§D.6.1`) |
+| **El sujeto de la excepción va en el `WHERE`, resuelto con predicado de tenant explícito** | Los tres de `/mfa-exemptions` | `RN-AUTH-07`. Un `public_id` de usuario de otro tenant ⇒ `404`, nunca `403`, nunca un registro creado. Es la única entrada de este paso que acepta un sujeto ajeno, y por eso es la que hay que revisar (`RN-AUTH-73`) |
+| **La excepción se busca por `public_id` + predicado de tenant, y la propiedad no se comprueba con un `if`** | `DELETE /mfa-exemptions/{public_id}` | Misma regla que `RN-AUTH-41` y que `§C.8` para los factores. Un `find()` seguido de una comprobación en PHP es un fallo de revisión |
+| **`RN-AUTH-84` — el código entregado no sale por ninguna respuesta** | Alta, desafío, `GET /auth/mfa`, auditoría, logs, *payloads* | El único sitio donde el código aparece es el correo al titular. Su hash no aparece en ninguno, y se declara secreto a mano en el modelo (`datos.md §D.2`) |
+| **El reenvío se autoriza por `session_id`, no por el `public_id` del desafío** | `POST /auth/mfa-challenges` | `§D.4`. Aceptar el `public_id` convertiría ese endpoint en un enviador de correos a direcciones ajenas sin autenticación |
+
+Y siguen en vigor, sin excepción, las de `§7`, `§B.4` y `§C.8`: `RN-AUTH-06` (el `tenant_id` sale del host), `RN-AUTH-07`, `RN-AUTH-29` (CSRF en toda escritura, **incluidas las dos del desafío y las dos nuevas de excepciones**), `RN-AUTH-52`, `RN-AUTH-53`, `RN-AUTH-61`, `RN-AUTH-63`, `RN-AUTH-67`, `RN-AUTH-71` y `RN-AUTH-73`.
+
+---
+
+## D.8 Datos de categoría especial
+
+**Sigue sin haberlos.** `REQ-AUTH` no expone salud, NEAE ni convivencia, y ninguno de sus **siete** permisos lleva `is_special_category = true`. La auditoría reforzada de lectura de `RPERM-015` no se dispara aquí.
+
+Lo que 1.3b **sí** añade al inventario de datos sensibles del módulo, ampliando `§C.9`:
+
+- **La lista de personas exentas de segundo factor.** Es el mapa de ataque de `§C.9` en su versión más concentrada: no «quién no ha activado todavía», sino **quién está autorizado a no tener**, con fecha de fin. Por eso `exencion_mfa.leer` es un permiso propio y estrecho y por eso el recurso **no tiene `exportar`** (`§D.5`).
+- **Texto libre escrito por un administrador sobre otra persona**, en `user_mfa_exemptions.reason`. `permisos.md §C.9` ya anticipó que *«tendrá la misma consideración cuando 1.3b entregue el endpoint que lo escribe»*, y aquí se cumple: no es categoría especial por sí mismo, pero puede contenerla según lo que se escriba («no tiene móvil porque está de baja por…»). Se borra con la persona, solo lo lee quien tiene el permiso, y **el manual de administración debe advertir de que se registra, de quién puede leerlo y de que no debe contener datos de salud** — exactamente igual que con `mfa_resets.reason`.
+- **La dirección de correo como destino de un factor.** Ya está en el sistema desde 1.1; lo que cambia es que ahora **es material de autenticación**, y por eso solo sale enmascarada (`RN-AUTH-84`, `funcional.md §D.4.5`) incluso hacia quien ya acertó la contraseña.
+
+---
+
+## D.9 Verificación
+
+- **`CA-AUTH-166`** — los tres endpoints de excepciones: `401` sin sesión, `403` sin el permiso correspondiente, `404` sobre usuario o excepción de otro tenant con **cuerpo idéntico**, `419`/`403` sin CSRF en las dos escrituras.
+- **`CA-AUTH-161`** — un administrador con `exencion_mfa.crear` **no puede concederse una excepción a sí mismo** (`403`), y **sí puede revocar la suya** (`RN-AUTH-81`).
+- **`CA-AUTH-162`** — una segunda excepción viva sobre el mismo usuario responde `409`, **no un error de base de datos**.
+- **`CA-AUTH-165`** — revocar conserva la fila, escribe `revoked_at`/`revoked_by`, produce una fila de auditoría `updated` (no `deleted`) y la segunda revocación responde `404`.
+- **`CA-AUTH-152`** — ninguna respuesta del producto contiene el código entregado ni su hash, y el destino sale siempre enmascarado.
+- **`CA-AUTH-168`** — ninguna ruta de este módulo lleva `module-enabled`, **incluidas las tres nuevas**.
+- **`CA-AUTH-169` — test de catálogo, ampliado**: tras `platform:sync-registry`, `permissions` contiene **exactamente siete** filas con `module_code = 'auth'` —`bloqueo_cuenta.leer`, `bloqueo_cuenta.eliminar`, `mfa.leer`, `mfa.eliminar`, `exencion_mfa.crear`, `exencion_mfa.leer`, `exencion_mfa.eliminar`—, ninguna con `retired_at`, ninguna con `is_special_category = true`, y **ninguna fila de `permission_role` de este módulo con `scope` distinto de `todos`**.
+- **Test de concesión**: los tres permisos nuevos están concedidos **solo** a `administrador_centro`. Si aparecen en cualquier otro rol predefinido, alguien ha repartido la capacidad de apagar la obligatoriedad de MFA (`§D.6.1`).
+- **`CA-AUTH-176`** — la pantalla `/administracion/mfa` con los permisos exigidos responde en sus cuatro áreas, y **sin ellos el servidor responde `403`** sin que la pantalla lo oculte ni redirija al login (`§D.6.3`).
+- **Test de catálogo de `REQ-CORE`: sin cambios.** 1.3b **no toca** el catálogo de otro módulo, a diferencia de 1.3 — **tampoco por la pantalla de administración**, que consume `rol.actualizar` tal como 1.3 lo declaró (`§D.6.3`). Si aparece una fila nueva con `module_code = 'core'` en esta rama, es un error.

@@ -20,7 +20,7 @@ import QrCode from '@/components/QrCode.vue'
 import RecoveryCodesReveal from './RecoveryCodesReveal.vue'
 import { confirmMfaFactor, createMfaEnrollment } from '../api'
 import { apiErrorStatus, fieldErrors, retryAfterSeconds } from '../composables/formErrors'
-import type { MfaEnrollment } from '../types'
+import type { MfaEnrollmentTotp } from '../types'
 
 const props = withDefaults(defineProps<{ autoStart?: boolean }>(), { autoStart: false })
 const emit = defineEmits<{ enrolled: [] }>()
@@ -30,7 +30,7 @@ const t = useT()
 type Phase = 'idle' | 'starting' | 'enrolling' | 'confirming' | 'recovery-codes'
 
 const phase = ref<Phase>('idle')
-const enrollment = ref<MfaEnrollment | null>(null)
+const enrollment = ref<MfaEnrollmentTotp | null>(null)
 const code = ref('')
 const codeInputEl = ref<InstanceType<typeof Input> | null>(null)
 const errorMessage = ref<string | null>(null)

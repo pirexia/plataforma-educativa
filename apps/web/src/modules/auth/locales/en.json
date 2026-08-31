@@ -118,6 +118,20 @@
         "notAllowed": "This method isn't available at your centre.",
         "activatedTitle": "Second factor activated."
       },
+      "emailEnrollment": {
+        "intro": "Receive a one-time code by email, at the address you sign in with.",
+        "start": "Activate email code",
+        "starting": "Preparing enrolment…",
+        "destinationLabel": "A code has been sent to",
+        "expired": "This code has expired. Start again.",
+        "expiresIn": "Expires in {time}",
+        "codeLabel": "6-digit code received by email",
+        "confirm": "Confirm code",
+        "confirming": "Confirming…",
+        "cancel": "Cancel",
+        "notAllowed": "This method isn't available at your centre.",
+        "alreadyEnrolled": "You already have an active email factor."
+      },
       "recoveryCodes": {
         "title": "Recovery codes",
         "onceWarning": "These codes are shown only once. Save them somewhere safe: they're the only way in if you lose access to your authenticator app.",
@@ -148,19 +162,22 @@
         "confirmYes": "Confirm",
         "confirmCancel": "Cancel",
         "recoveryCodesRegenerated": "A new set of recovery codes has been generated.",
-        "logout": "Sign out"
+        "logout": "Sign out",
+        "exemptBanner": "You're not required to use a second factor until {date}."
       },
       "wall": {
         "title": "Activate your second factor",
         "reason": "Your role requires a second sign-in factor and the deadline to activate it has passed. Complete it to continue; you can't access the rest of the platform until you do.",
         "completed": "Second factor activated. You can now continue.",
         "continue": "Continue",
-        "logout": "Sign out"
+        "logout": "Sign out",
+        "methodSelectorLabel": "Choose how you want to receive the second factor"
       }
     },
     "mfaChallenge": {
       "title": "Verify your identity",
       "intro": "Enter the code from your authenticator app to finish signing in.",
+      "introDelivery": "We've sent a code to {destination}.",
       "methodSelectorLabel": "Second factor method",
       "codeLabel": "6-digit code",
       "clockHint": "If the code keeps failing, check the clock on your device.",
@@ -169,11 +186,111 @@
       "submitting": "Verifying…",
       "resend": "Resend code",
       "resending": "Resending…",
+      "resendLimitAlternatives": "You can use another of your methods or a recovery code.",
       "useRecoveryCode": "Use a recovery code",
       "useCodeInstead": "Use the app code instead",
       "recoveryCodeLabel": "Recovery code",
       "invalidCode": "The code isn't correct.",
       "expired": "Verification has expired. Sign in again."
+    },
+    "mfaAdmin": {
+      "title": "MFA administration",
+      "loadingRoles": "Loading roles…",
+      "roleLabel": "Role",
+      "rolePlaceholder": "Choose a role",
+      "forbidden": "You don't have permission for this action.",
+      "compliance": {
+        "title": "Compliance",
+        "chooseRoleHint": "Choose a role to see its compliance.",
+        "total": "Total",
+        "enrolled": "Enrolled",
+        "obligated": "Obligated",
+        "inGrace": "In grace",
+        "enforced": "Overdue",
+        "exempt": "Exempt",
+        "filterLegend": "Filter by state",
+        "state": {
+          "obligated": "Obligated",
+          "enrolled": "Enrolled",
+          "pending": "Pending",
+          "past_deadline": "Overdue",
+          "exempt": "Exempt"
+        },
+        "loading": "Loading users…",
+        "columnUser": "User",
+        "columnState": "State",
+        "columnGraceDeadline": "Grace deadline",
+        "columnMethods": "Enrolled methods",
+        "columnRoles": "Roles requiring it",
+        "columnActions": "Actions",
+        "empty": "No one to show with this filter.",
+        "resetAction": "Reset",
+        "previousPage": "Previous",
+        "nextPage": "Next",
+        "pageIndicator": "Page {page} of {lastPage}"
+      },
+      "roleRequirement": {
+        "title": "Requirement by role",
+        "currentlyRequired": "The «{role}» role requires the second factor today.",
+        "currentlyNotRequired": "The «{role}» role doesn't require the second factor today.",
+        "previewDisable": "Preview: stop requiring it",
+        "previewEnable": "Preview: start requiring it",
+        "previewNotice": "This is a simulation: nothing has been saved yet.",
+        "impactDisable": "This change would stop requiring it for {count} users.",
+        "impactEnable": "This change will require it for {count} more users.",
+        "applying": "Applying…",
+        "confirm": "Confirm the change",
+        "cancel": "Cancel",
+        "applied": "Role requirement updated."
+      },
+      "reset": {
+        "title": "MFA reset",
+        "reasonLabel": "Reason (10 characters minimum)",
+        "reasonWarning": "The reason is recorded in the audit log and only readable by those with permission to view it. Don't write health data.",
+        "effectWarning": "All of this person's active sessions will be closed and they will be notified.",
+        "reasonTooShort": "The reason must be at least 10 characters.",
+        "userNotFound": "That user could not be found.",
+        "submitting": "Resetting…",
+        "submit": "Reset MFA",
+        "success": "MFA for {name} has been reset."
+      },
+      "exemptions": {
+        "title": "Temporary exemptions",
+        "grantAction": "Grant exemption",
+        "reasonLabel": "Reason (10 characters minimum)",
+        "expiresLabel": "Expires on",
+        "maxDaysHint": "The allowed limit is {days} days from today.",
+        "reasonWarning": "The reason is recorded in the audit log and only readable by those with permission to view it. Don't write health data.",
+        "granting": "Granting…",
+        "confirmGrant": "Grant",
+        "cancel": "Cancel",
+        "alreadyLive": "This person already has a live exemption.",
+        "filterLegend": "Filter by state",
+        "filterAll": "All",
+        "state": {
+          "live": "Live",
+          "expired": "Expired",
+          "revoked": "Revoked"
+        },
+        "loading": "Loading exemptions…",
+        "columnUser": "User",
+        "columnState": "State",
+        "columnReason": "Reason",
+        "columnExpiresAt": "Expires",
+        "columnGrantedBy": "Granted by",
+        "columnActions": "Actions",
+        "empty": "No exemptions with this filter.",
+        "revokeAction": "Revoke",
+        "confirmRevoke": "Revoke this exemption?",
+        "confirmYes": "Yes, revoke"
+      },
+      "userPicker": {
+        "label": "Search user",
+        "placeholder": "Name or email address",
+        "loading": "Loading users…",
+        "noMatches": "No matches.",
+        "change": "Change"
+      }
     }
   }
 }

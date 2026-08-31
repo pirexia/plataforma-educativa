@@ -23,6 +23,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * depender de una coincidencia). `last_used_step`/`last_used_at` no se
  * registran: cambian en cada login y no dicen nada que `login` no diga ya.
  *
+ * `code_hash`/`code_expires_at` (datos.md §D.2, 1.3b): hash SHA-256 y
+ * caducidad del código de un alta de método de entrega (`email`),
+ * distinta de `expires_at` (caducidad del alta). Se ponen a `NULL` al
+ * confirmar, en la misma transacción (`RN-AUTH-75`). `code_hash` se
+ * declara secreto a mano: el patrón global `*secret*` no cubre su nombre.
+ *
  * @mixin IdeHelperMfaFactor
  */
 class MfaFactor extends TenantModel implements Auditable
@@ -39,7 +45,7 @@ class MfaFactor extends TenantModel implements Auditable
     ];
 
     /** @var array<int, string> */
-    protected array $auditSecretAttributes = ['secret_encrypted'];
+    protected array $auditSecretAttributes = ['secret_encrypted', 'code_hash'];
 
     public function auditValuePolicy(): AuditValuePolicy
     {
@@ -50,6 +56,8 @@ class MfaFactor extends TenantModel implements Auditable
         'user_id',
         'method',
         'secret_encrypted',
+        'code_hash',
+        'code_expires_at',
         'last_used_step',
         'confirmed_at',
         'expires_at',
@@ -63,6 +71,7 @@ class MfaFactor extends TenantModel implements Auditable
         // RN-AUTH-55: cifrado con APP_KEY, nunca en claro en la base de
         // datos. Es la primera columna cifrada en reposo del producto.
         'secret_encrypted' => 'encrypted',
+        'code_expires_at' => 'datetime',
         'confirmed_at' => 'datetime',
         'expires_at' => 'datetime',
         'last_used_at' => 'datetime',
