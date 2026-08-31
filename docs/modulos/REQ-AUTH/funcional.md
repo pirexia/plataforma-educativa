@@ -11,7 +11,7 @@
 
 > Fuente de verdad: sección 5.2 de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` (`REQ-AUTH-001` a `REQ-AUTH-005`). Este documento **no** reabre lo decidido en `ADR-014`, `ADR-025`, `ADR-029`, `ADR-033`, `ADR-034`, `ADR-035`, `ADR-036` ni `ADR-038`, ni el alcance del paso 1.2 fijado con el usuario el 2026-08-22.
 >
-> **Estructura del documento**: las secciones **§0 a §14** son el paso **1.2**, cerrado y mezclado el 2026-08-25 (`docs/historial/1.2-auth-local-sesiones.md`). No se reescriben: son el registro de lo decidido y lo construido. La **Parte B** (`§B.0` en adelante, al final) es el paso **1.2b** — puntos 2, 3 y 4 de `REQ-AUTH-005`, diferidos en el issue [#59](https://github.com/pirexia/plataforma-educativa/issues/59) —, y **está pendiente de aprobación** (`§B.14`). La numeración de la Parte B es independiente para no desplazar las referencias cruzadas ya escritas a §1-§14 desde este y otros documentos, mismo criterio que `api.md §5b`.
+> **Estructura del documento**: las secciones **§0 a §14** son el paso **1.2**, cerrado y mezclado el 2026-08-25 (`docs/historial/1.2-auth-local-sesiones.md`). No se reescriben: son el registro de lo decidido y lo construido. La **Parte B** (`§B.0` en adelante, al final) es el paso **1.2b** — puntos 2, 3 y 4 de `REQ-AUTH-005`, diferidos en el issue [#59](https://github.com/pirexia/plataforma-educativa/issues/59) —, y **está implementada y cerrada** el 2026-08-26 (`§B.14`, PR [#91](https://github.com/pirexia/plataforma-educativa/pull/91)/[#92](https://github.com/pirexia/plataforma-educativa/pull/92)). La numeración de la Parte B es independiente para no desplazar las referencias cruzadas ya escritas a §1-§14 desde este y otros documentos, mismo criterio que `api.md §5b`.
 
 ---
 
@@ -695,7 +695,7 @@ Las demás (`OPEN-AUTH-04`, `-07`, `-09`, `-10`, `-11`) llevan recomendación, n
 | Requisito | `REQ-AUTH-005`, **puntos 2, 3 y 4** (el punto 1 se cerró en 1.2, §4.6) |
 | Origen | Issue [#59](https://github.com/pirexia/plataforma-educativa/issues/59), diferimiento acordado con el usuario el 2026-08-22 |
 | Depende de | **1.2** (cerrado 2026-08-25, PR [#76](https://github.com/pirexia/plataforma-educativa/pull/76)) |
-| Estado | **PROPUESTA · pendiente de aprobación** (`§B.14`) |
+| Estado | **IMPLEMENTADO** · aprobada el 2026-08-25, cerrada el 2026-08-26 (`§B.14`, PR [#91](https://github.com/pirexia/plataforma-educativa/pull/91)/[#92](https://github.com/pirexia/plataforma-educativa/pull/92)) |
 | Módulo | `auth` — **ampliación**, no módulo nuevo. Mismo *bounded context*, mismo `AuthServiceProvider`, mismas rutas |
 
 > Los tres sub-requisitos, literales: *«Cierre de sesión en todos los dispositivos» · «Visualización de sesiones activas con posibilidad de revocarlas» · «Detección de login desde nuevo dispositivo/ubicación con alerta al usuario»*.
@@ -1183,7 +1183,7 @@ Ninguna de las cinco impide **redactar**; `OPEN-AUTH-13` y `OPEN-AUTH-14` sí co
 
 # Parte C · Paso 1.3 · Autenticación multifactor (`REQ-AUTH-003`)
 
-> **Estructura**: §1 a §14 son el paso **1.2** (cerrado 2026-08-25). §B.1 a §B.14 son el paso **1.2b** (cerrado 2026-08-26). Esta **Parte C** (`§C.1` en adelante) es el paso **1.3**, **pendiente de aprobación**.
+> **Estructura**: §1 a §14 son el paso **1.2** (cerrado 2026-08-25). §B.1 a §B.14 son el paso **1.2b** (cerrado 2026-08-26). Esta **Parte C** (`§C.1` en adelante) es el paso **1.3**, **implementada y cerrada** el 2026-08-27 (PR [#107](https://github.com/pirexia/plataforma-educativa/pull/107), commit `cd13e8a`).
 >
 > Numeración: se sigue el criterio de 1.2b. Las secciones planas de 1.2 y las `§B.n` de 1.2b **no se tocan**, para no romper las referencias cruzadas que hay en `datos.md`, `api.md`, `permisos.md`, `operacion.md`, el código, los tests y tres ADR. Las reglas de negocio continúan la serie única (`RN-AUTH-52` en adelante), los criterios de aceptación también (`CA-AUTH-104` en adelante) y las preguntas abiertas también (`OPEN-AUTH-18` en adelante).
 >
@@ -1943,7 +1943,7 @@ Con `OPEN-AUTH-24` resuelto, el alcance de **esta rama** (`feature/REQ-AUTH-003-
 
 # Parte D · Paso 1.3b · MFA: correo como segundo factor y excepciones temporales (`REQ-AUTH-003`)
 
-> **Estructura**: §1-§14 son el paso **1.2** (cerrado 2026-08-25). `§B.1`-`§B.14` son **1.2b** (cerrado 2026-08-26). `§C.0`-`§C.16` son **1.3** (cerrado y mezclado 2026-08-26/27, PR [#107](https://github.com/pirexia/plataforma-educativa/pull/107), commit `cd13e8a`). Esta **Parte D** (`§D.0` en adelante) es el paso **1.3b**, **pendiente de aprobación**.
+> **Estructura**: §1-§14 son el paso **1.2** (cerrado 2026-08-25). `§B.1`-`§B.14` son **1.2b** (cerrado 2026-08-26). `§C.0`-`§C.16` son **1.3** (cerrado y mezclado 2026-08-26/27, PR [#107](https://github.com/pirexia/plataforma-educativa/pull/107), commit `cd13e8a`). Esta **Parte D** (`§D.0` en adelante) es el paso **1.3b**, **implementada y cerrada** el 2026-08-31 (PR [#123](https://github.com/pirexia/plataforma-educativa/pull/123), commit `dd68f48`).
 >
 > Numeración: mismo criterio que 1.2b y 1.3. Las secciones anteriores **no se tocan**. Las reglas de negocio continúan la serie única (`RN-AUTH-75` en adelante), los criterios de aceptación también (`CA-AUTH-146` en adelante, más `CA-AUTH-139`, que 1.3 dejó escrito y diferido a este paso) y las preguntas abiertas también (`OPEN-AUTH-27` en adelante).
 >

@@ -1,6 +1,6 @@
 # REQ-AUTH · Permisos
 
-> **Estructura**: las secciones **§1 a §8** son el paso **1.2**, cerrado el 2026-08-25. La **Parte B** (`§B.1` en adelante) es el paso **1.2b** (`funcional.md` Parte B), **pendiente de aprobación**.
+> **Estructura**: las secciones **§1 a §8** son el paso **1.2**, cerrado el 2026-08-25. La **Parte B** (`§B.1` en adelante) es el paso **1.2b** (`funcional.md` Parte B), **implementada y cerrada** el 2026-08-26 (PR [#91](https://github.com/pirexia/plataforma-educativa/pull/91)/[#92](https://github.com/pirexia/plataforma-educativa/pull/92)).
 
 > Sección 11 del documento de requisitos (`RPERM-001` a `RPERM-015`) aplicada a este módulo. El **resolutor granular** sigue siendo el paso 1.5 (`ADR-034 §2`); lo que se fija aquí es el catálogo, la matriz y la siembra, para que 1.5 no tenga que inventarlos ni migrarlos.
 >
@@ -185,7 +185,7 @@ Comprobaciones que ningún permiso cubre y que hay que implementar explícitamen
 
 # Parte B · Paso 1.2b · Permisos
 
-> Alcance: paso **1.2b** (`funcional.md` Parte B). **Estado**: propuesta, pendiente de `funcional.md §B.14`.
+> Alcance: paso **1.2b** (`funcional.md` Parte B). **Estado**: implementada, aprobada el 2026-08-25 (`funcional.md §B.14`), cerrada el 2026-08-26.
 
 ---
 
@@ -276,7 +276,7 @@ Lo que 1.2b **sí** añade al inventario de datos personales del módulo, y que 
 
 # Parte C · Paso 1.3 · Permisos (`REQ-AUTH-003`)
 
-> **Estructura**: §1-§8 son 1.2 (cerrado). §B.1-§B.6 son 1.2b (cerrado). Esta **Parte C** es el paso **1.3**, **pendiente de aprobación** (`funcional.md §C.15`).
+> **Estructura**: §1-§8 son 1.2 (cerrado). §B.1-§B.6 son 1.2b (cerrado). Esta **Parte C** es el paso **1.3**, **implementada y cerrada** el 2026-08-27 (PR [#107](https://github.com/pirexia/plataforma-educativa/pull/107), commit `cd13e8a`).
 >
 > Fuente de verdad del catálogo: **el código** (`AuthServiceProvider::declaredPermissions()`), materializado por `platform:sync-registry`. Esta tabla es su reflejo documental.
 
@@ -508,7 +508,7 @@ Lo que 1.3 **sí** añade al inventario de datos sensibles del módulo, y que no
 
 # Parte D · Paso 1.3b · Permisos (`REQ-AUTH-003`)
 
-> **Estructura**: §1-§8 son 1.2 (cerrado). `§B.1`-`§B.6` son 1.2b (cerrado). `§C.1`-`§C.10` son 1.3 (cerrado y mezclado, commit `cd13e8a`). Esta **Parte D** es el paso **1.3b**, **pendiente de aprobación** (`funcional.md §D.13`).
+> **Estructura**: §1-§8 son 1.2 (cerrado). `§B.1`-`§B.6` son 1.2b (cerrado). `§C.1`-`§C.10` son 1.3 (cerrado y mezclado, commit `cd13e8a`). Esta **Parte D** es el paso **1.3b**, **implementada y cerrada** el 2026-08-31 (PR [#123](https://github.com/pirexia/plataforma-educativa/pull/123), commit `dd68f48`).
 >
 > Fuente de verdad del catálogo: **el código** (`AuthServiceProvider::declaredPermissions()`), materializado por `platform:sync-registry`. Esta tabla es su reflejo documental.
 

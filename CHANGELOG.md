@@ -6,6 +6,47 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-08-31 · `chore/vigencia-documentacion-raiz`
+
+### Nuevo: corrección de fondo para que la documentación no vuelva a quedarse desactualizada
+El checklist de `doc-reviewer` solo cubría documentación de módulo, nunca documentos raíz (`SECURITY.md`, `README.md`, `PRIVACY.md`, `docs/REQUISITOS-...md`) ni el estado (`PROPUESTA`/`pendiente de aprobación`) de ADR y partes de módulo ya cerradas — llevaban desde 0.9/0.13 y desde cada cierre de fase respectivamente sin actualizarse. `.claude/agents/doc-reviewer.md` gana los puntos 9 y 10; `CLAUDE.md` §6 gana la regla 7 (v2.2.1→2.3.0).
+
+### Corregido
+- **Media** (issues [#111](https://github.com/pirexia/plataforma-educativa/issues/111)-[#114](https://github.com/pirexia/plataforma-educativa/issues/114)): `SECURITY.md`/`README.md`/`PRIVACY.md`/`docs/REQUISITOS-...md` describían un producto sin auth/MFA/permisos, con tabla de versiones desincronizada de 5 documentos, sin la fila `3.1.1` de su propio historial, y sin la cookie de sesión/`XSRF-TOKEN` en el RAT.
+- **Media** ([#125](https://github.com/pirexia/plataforma-educativa/issues/125)): `CHANGELOG.md` sin las entradas de 1.2b y 1.3b.
+- **Alta** ([#129](https://github.com/pirexia/plataforma-educativa/issues/129)): 11 de los 14 ADR en fichero propio (`028`-`038`) seguían `Estado: PROPUESTA` pese a estar implementados y ratificados de facto, incluido `ADR-033` (concreta la invariante crítica `INV-001`).
+- **Media** ([#126](https://github.com/pirexia/plataforma-educativa/issues/126)/[#127](https://github.com/pirexia/plataforma-educativa/issues/127)): cabeceras de las Partes B/C/D de los cinco ficheros de `docs/modulos/REQ-AUTH/` seguían `pendiente de aprobación` pese a 1.2b/1.3/1.3b cerrados; `docs/modulos/REQ-CORE/funcional.md`/`datos.md` daban por pendiente el middleware `EnsureModuleEnabled` (ya implementado) y la aprobación de 1.1 (cerrado hace varias fases).
+- **Alta** ([#128](https://github.com/pirexia/plataforma-educativa/issues/128), documentación corregida — infraestructura pendiente de decisión): ningún *worker* de colas (Horizon/`queue:work`) desplegado pese a 32 clases `ShouldQueue` reales y `QUEUE_CONNECTION=database` por defecto. `SYSADMIN.md`/`RUNBOOK.md` corregidos para reflejarlo con precisión; el despliegue del *worker* en sí queda para una decisión aparte (afecta a `ADR-028`/`ADR-037`).
+- 13 issues cerrados por hallarse ya resueltos en código, dejados abiertos por descuido tras auditar la validez de los 49 issues abiertos: [#18](https://github.com/pirexia/plataforma-educativa/issues/18), [#36](https://github.com/pirexia/plataforma-educativa/issues/36), [#39](https://github.com/pirexia/plataforma-educativa/issues/39), [#49](https://github.com/pirexia/plataforma-educativa/issues/49), [#50](https://github.com/pirexia/plataforma-educativa/issues/50), [#52](https://github.com/pirexia/plataforma-educativa/issues/52), [#58](https://github.com/pirexia/plataforma-educativa/issues/58), [#66](https://github.com/pirexia/plataforma-educativa/issues/66), [#67](https://github.com/pirexia/plataforma-educativa/issues/67), [#70](https://github.com/pirexia/plataforma-educativa/issues/70), [#75](https://github.com/pirexia/plataforma-educativa/issues/75), [#95](https://github.com/pirexia/plataforma-educativa/issues/95), [#110](https://github.com/pirexia/plataforma-educativa/issues/110). [#62](https://github.com/pirexia/plataforma-educativa/issues/62) revisado y mantenido abierto: solo uno de sus cuatro puntos "Pendiente" está hecho.
+- **Baja**: `ARCHITECTURE.md`/`CLAUDE.md` decían "52 módulos", el recuento canónico es 53.
+
+### Diferido a propósito (issue abierto)
+[#128](https://github.com/pirexia/plataforma-educativa/issues/128) (Alta) — desplegar el *worker* de colas en sí, decisión de infraestructura fuera del alcance de un `chore/` de documentación.
+
+### Revisión independiente
+`doc-reviewer` revisó el diff propio del chore (2 hallazgos, orden cronológico de `CHANGELOG.md` y una imprecisión de redacción, ambos corregidos) y auditó el resto de la documentación no tocada en la primera pasada (4 issues nuevos encontrados: #126-#129). Auditoría aparte de validez de los 49 issues abiertos del repositorio.
+
+---
+
+## 2026-08-31 · Cierre de 1.3b (`REQ-AUTH-003`: MFA — correo como segundo factor, excepciones temporales y administración)
+
+### Nuevo: correo como 2FA, excepciones temporales y pantalla de administración
+Partido de `1.3` por tamaño (`OPEN-AUTH-24`). Cuatro piezas: (1) correo como segundo factor de MFA con `DestinationMasker` (enmascarado determinista) y `MfaDeliveryCode` (hash SHA-256, comparación `hash_equals`); (2) excepciones temporales nominales a la obligatoriedad (`MfaExemptionService`, 3 endpoints, tope de 90 días, reapertura automática al caducar); (3) cuatro tareas de mantenimiento programadas (`PurgeMfaEnrollments`/`PurgeMfaFactors`/`PurgeMfaChallenges`/`MaterializeMfaObligations`+`ReopenExpiredMfaExemptions`), cierra issue [#109](https://github.com/pirexia/plataforma-educativa/issues/109); (4) pantalla `/administracion/mfa` (cumplimiento por rol, conmutador `mfa_required` con vista previa, restablecimiento ajeno, gestión de excepciones). Especificación aprobada en `docs/modulos/REQ-AUTH/*.md` Parte D. 288 tests Pest en verde, `pint`/`phpstan` limpios; frontend `eslint`/`vue-tsc`+`build`/`vitest`(20)/`lint:i18n` limpios. Verificado en navegador real (Playwright MCP). Mezclado a `develop` vía PR [#123](https://github.com/pirexia/plataforma-educativa/pull/123) (*squash*, commit `dd68f48`).
+
+### Corregido
+- **Media** (revisión independiente `db-reviewer`, [#118](https://github.com/pirexia/plataforma-educativa/issues/118)/[#119](https://github.com/pirexia/plataforma-educativa/issues/119)): `PurgeMfaChallenges`/`PurgeMfaFactors` filtraban sin índice de soporte — el índice de `1.3` quedó sobre la columna equivocada. Corregido con `CREATE INDEX CONCURRENTLY` el mismo día.
+- **Media** (revisión independiente `doc-reviewer`, [#121](https://github.com/pirexia/plataforma-educativa/issues/121)/[#122](https://github.com/pirexia/plataforma-educativa/issues/122)): `funcional.md` afirmaba "ninguna dependencia nueva" — sin documentar el primer uso real de `@tanstack/vue-table` (ya en el stack aprobado) ni la dependencia genuinamente nueva `@vueuse/core`, ambas traídas por la pieza 3 — y `admin.md` citaba una pantalla inexistente. Ambos corregidos el mismo día.
+- **Proceso**: issue [#110](https://github.com/pirexia/plataforma-educativa/issues/110), `Route::getController()` cacheaba el controlador entre peticiones simuladas de un mismo test Pest con dependencia `scoped()` — corregido en `tests/Pest.php`, no explotable en producción.
+- De paso, cerrado en GitHub el issue [#115](https://github.com/pirexia/plataforma-educativa/issues/115) (403 de autorrestablecimiento sin `detailKey`): ya resuelto desde la pieza 2, había quedado abierto por descuido.
+
+### Diferido a propósito (issues abiertos)
+[#116](https://github.com/pirexia/plataforma-educativa/issues/116) (Baja) tabla de cumplimiento visible antes de elegir rol · [#117](https://github.com/pirexia/plataforma-educativa/issues/117) (Baja) `/mfa-exemptions` sin *rate limit* propio, no explotable · [#120](https://github.com/pirexia/plataforma-educativa/issues/120) (Baja) pantalla sin test automatizado.
+
+### Revisión independiente
+`security-reviewer` sin hallazgos Crítica/Alta (1 Baja diferida). `db-reviewer`/`doc-reviewer`: 3 hallazgos Media, todos corregidos el mismo día. Detalle completo en `docs/historial/1.3b-mfa-correo-excepciones.md`.
+
+---
+
 ## 2026-08-27 · Cierre de 1.3 (`REQ-AUTH-003`: MFA — TOTP, obligatoriedad por rol y restablecimiento)
 
 ### Nuevo: backend y frontend completos de MFA
@@ -23,6 +64,27 @@ TOTP con códigos de respaldo, login en dos pasos, obligatoriedad por rol (`MfaP
 
 ### Revisión independiente
 `security-reviewer` sin hallazgos. `db-reviewer`/`doc-reviewer`: 8 hallazgos, todos corregidos en la misma sesión. Detalle completo en `docs/historial/1.3-mfa-obligatorio-por-rol.md`.
+
+---
+
+## 2026-08-26 · Cierre de 1.2b (`REQ-AUTH-005` puntos 2-4: sesiones activas, cierre remoto y detección de dispositivo)
+
+### Nuevo: panel de sesiones activas y detección de dispositivo nuevo
+Puntos 2-4 de `REQ-AUTH-005`, diferidos de `1.2` (issue [#59](https://github.com/pirexia/plataforma-educativa/issues/59)): listado de sesiones activas, revocación individual y masiva, detección de login desde dispositivo nuevo. 2 migraciones (`user_known_devices`, `user_sessions`, RLS desde el primer día), 3 endpoints de autoservicio, pantalla `/cuenta/sesiones`, 4 idiomas, OpenAPI completo. `ADR-040` (exclusión declarativa del *observer* de auditoría). No incluye geolocalización por IP (`OPEN-AUTH-13`, pospuesta) ni RLS en `sessions` del framework (issue [#81](https://github.com/pirexia/plataforma-educativa/issues/81), endurecimiento futuro). 279 tests backend (1576 aserciones), `pint`/`phpstan` limpios; frontend `eslint`/`vue-tsc`/`lint:i18n`/`vitest` (10/10) limpios. Mezclado a `develop` vía PR [#91](https://github.com/pirexia/plataforma-educativa/pull/91) (*squash*, commit `12fe917`).
+
+### Corregido
+- **Alta** (verificación en navegador real, issue [#85](https://github.com/pirexia/plataforma-educativa/issues/85)): `device_known` siempre daba `true`, ningún test unitario lo detectó.
+- **Media**: gestión de foco de las confirmaciones de revocar sesión no cumplía WCAG 2.2 AA 2.4.3/2.4.7.
+- **Media** (issue [#88](https://github.com/pirexia/plataforma-educativa/issues/88)): fix de `security-reviewer` sobre `Auth::guard('web')->logout()` quedó incompleto y sin verificar (fallo de entorno propio del agente) — reproducía la misma violación de FK por otra vía; corregido y verificado de verdad, junto con el test de regresión que lo enmascaraba.
+- **Media** (`db-reviewer`): los tres jobs de retención no tenían test — añadido `AuthRetentionJobsTest.php`.
+- **Media** (`doc-reviewer`, issue [#89](https://github.com/pirexia/plataforma-educativa/issues/89)): `SYSADMIN.md`/`PRIVACY.md` sin el inventario de cookies comprometido en la especificación.
+- **Proceso**: dos de los tres agentes de revisión lanzados con `isolation: "worktree"` se crearon desde un commit muy antiguo, sin el código del módulo — detectado tras más de una hora, parados y relanzados sin aislamiento. Motivó la norma de verificar `git log --oneline -1` en todo *worktree* de agente antes de dar por buena una revisión.
+
+### Diferido a propósito (issues abiertos)
+[#81](https://github.com/pirexia/plataforma-educativa/issues/81) (Media) `tenant_id`/RLS en `sessions` del framework · [#89](https://github.com/pirexia/plataforma-educativa/issues/89) (Media) plantilla de despliegue incompleta, no bloquea (`OPEN-11`) · [#90](https://github.com/pirexia/plataforma-educativa/issues/90) (Baja) literal sin traducir, decisión de convención pendiente.
+
+### Revisión independiente
+`db-reviewer`/`security-reviewer`/`doc-reviewer`, con el incidente de *worktrees* descrito arriba. Todos los hallazgos corregidos y verificados antes de mezclar. Detalle completo en `docs/historial/1.2b-sesiones-activas.md`.
 
 ---
 

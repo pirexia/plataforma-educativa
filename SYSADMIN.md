@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.4.0** · 2026-08-14
+> **Versión 0.5.0** · 2026-08-31
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`); el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
@@ -77,7 +77,7 @@ Credenciales en `.env` (gitignored), a partir de `.env.example`.
 
 **Pendiente, a propósito:**
 - El servicio de renderizado HTML→PDF no está definido todavía: falta decidir el motor concreto (ver paso 1.17 del plan). No se ha fijado una dependencia sin esa decisión.
-- Workers de Horizon se añaden cuando haya colas reales que procesar (a partir de 1.1).
+- **No hay ningún worker de colas desplegado** (ni Horizon ni `queue:work`), en `compose.yaml` ni en `infra/quadlet/*`, pese a que 1.1-1.3b ya despachan colas reales (`auth-mail` entre otras, 32 clases `ShouldQueue`) con `QUEUE_CONNECTION` por defecto `database` — no `sync`. Sin worker, esos trabajos quedan encolados sin procesar. Ver issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128).
 
 ---
 

@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.2.1** · 2026-08-27 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.3.0** · 2026-08-31 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -146,11 +146,12 @@ Estructura **híbrida**, y es obligatoria:
 **Normas de obligado cumplimiento:**
 
 1. **Ningún módulo se cierra sin su documentación actualizada.** Forma parte de la definición de terminado, no es una tarea posterior.
-2. **Ninguna fase se cierra sin revisión completa de documentación**, ejecutada por el subagente `doc-reviewer`, que verifica coherencia entre requisito, modelo de datos, API implementada, permisos y manual de usuario.
+2. **Ninguna fase se cierra sin revisión completa de documentación**, ejecutada por el subagente `doc-reviewer`, que verifica coherencia entre requisito, modelo de datos, API implementada, permisos, manual de usuario **y la vigencia de los documentos raíz** (regla 7).
 3. Toda decisión arquitectónica relevante genera un **ADR numerado e inmutable**. Los ADR `001`-`027` son canónicos en la sección 18 de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`, que actúa de índice. **Los nuevos, del `028` en adelante, se escriben como fichero propio en `/docs/adr/` y se referencian desde esa sección.**
 4. `SYSADMIN.md` y los manuales de usuario se actualizan **en cada fase**, no al final del proyecto.
-5. La documentación de un módulo se escribe en su carpeta, nunca se acumula en un documento único: es inmanejable con 52 módulos y consume el contexto innecesariamente.
+5. La documentación de un módulo se escribe en su carpeta, nunca se acumula en un documento único: es inmanejable con 53 módulos y consume el contexto innecesariamente.
 6. Si el código y la documentación se contradicen, es un issue de severidad media como mínimo.
+7. **Vigencia de los documentos raíz** (`README.md`, `SECURITY.md`, `PRIVACY.md`, `ARCHITECTURE.md`, `SYSADMIN.md`, `RUNBOOK.md`, `CONTRIBUTING.md`, `CHANGELOG.md` y la cabecera/historial de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`), no solo la de módulo: en **cada** cierre de fase (no solo al final de un bloque), `doc-reviewer` contrasta explícitamente su contenido contra el estado real del código y el plan — cabecera de estado, tabla de versiones cruzada entre documentos, secciones que describan como "pendiente" o "no implementado" algo que ya existe, y `CHANGELOG.md` con una entrada por cada paso cerrado. Motivada por un caso real: `SECURITY.md`, `README.md`, `PRIVACY.md` y `docs/REQUISITOS-...md` quedaron desactualizados durante los cinco cierres de fase que van de `1.1` a `1.3b` (2026-08-22/31) sin que ninguna revisión lo detectara, porque el checklist de `doc-reviewer` solo cubría documentación de módulo (issues #111-#114, #125).
 
 ---
 

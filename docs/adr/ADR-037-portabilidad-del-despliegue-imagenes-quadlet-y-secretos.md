@@ -1,6 +1,6 @@
 # ADR-037 · Portabilidad del despliegue: imágenes inmutables, unidades Quadlet y gestión de secretos
 
-**Estado**: PROPUESTA
+**Estado**: ACEPTADA (2026-08-19, implementada en el paso 0.9b — portabilidad del despliegue)
 **Fecha**: 2026-08-18
 **Concreta**: `ADR-027` (host inicial y Quadlet), `ADR-028` (topología de red y dependencias)
 **Enmienda parcialmente**: `ADR-030` (las dos líneas que presuponen `compose.yaml` en producción — ver §9)

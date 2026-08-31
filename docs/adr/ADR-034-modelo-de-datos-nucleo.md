@@ -1,6 +1,6 @@
 # ADR-034 · Modelo de datos núcleo
 
-**Estado**: PROPUESTA
+**Estado**: ACEPTADA (2026-08-18, implementada en el paso 0.8 — modelo de datos núcleo)
 **Fecha**: 2026-08-18
 **Concreta**: sección 16 del documento de requisitos (`16.1`, `16.2`, `16.3`)
 **Se apoya en**: `ADR-029` (identificadores y tipos), `ADR-033` (aislamiento), `ADR-004` (borrado en tres niveles), `ADR-020` (régimen por etapa)

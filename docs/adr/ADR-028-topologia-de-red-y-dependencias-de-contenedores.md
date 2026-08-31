@@ -1,6 +1,6 @@
 # ADR-028 · Topología de red y dependencias entre contenedores
 
-**Estado**: PROPUESTA
+**Estado**: ACEPTADA (2026-08-19, implementada en el paso 0.9b — portabilidad del despliegue)
 **Fecha**: 2026-08-11
 **Afecta a**: `RARQ-DEP-001`, `RARQ-DEP-007`, `RARQ-DEP-008`, `ADR-027`
 

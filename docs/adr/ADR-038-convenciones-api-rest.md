@@ -1,6 +1,6 @@
 # ADR-038 · Convenciones de la API REST
 
-**Estado**: PROPUESTA
+**Estado**: ACEPTADA (2026-08-22, implementada en el paso 1.1 — tenants y usuarios)
 **Fecha**: 2026-08-19
 **Resuelve**: `OPEN-CORE-09` (`docs/modulos/REQ-CORE/funcional.md §10`)
 **Concreta**: `INV-006` (API primero), `INV-009` (i18n), `INV-011` (idempotencia), `INV-013` (trazabilidad)

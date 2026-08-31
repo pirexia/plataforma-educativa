@@ -1,6 +1,6 @@
 # REQ-AUTH · API
 
-> **Estructura**: las secciones **§1 a §11** son el paso **1.2**, cerrado el 2026-08-25. La **Parte B** (`§B.1` en adelante) es el paso **1.2b** (`funcional.md` Parte B), **pendiente de aprobación**.
+> **Estructura**: las secciones **§1 a §11** son el paso **1.2**, cerrado el 2026-08-25. La **Parte B** (`§B.1` en adelante) es el paso **1.2b** (`funcional.md` Parte B), **implementada y cerrada** el 2026-08-26 (PR [#91](https://github.com/pirexia/plataforma-educativa/pull/91)/[#92](https://github.com/pirexia/plataforma-educativa/pull/92)).
 
 > Alcance: paso **1.2**. La frontera de qué entra y qué no está en `funcional.md §1`. Prefijo `/api/v1`, resolución de tenant por host antes de cualquier consulta (`ADR-033 §2`).
 >
@@ -405,7 +405,7 @@ Ninguno. La notificación saliente de eventos de seguridad hacia sistemas de ter
 >
 > Mismas convenciones transversales de `ADR-038` que la Parte A; este documento solo señala dónde 1.2b las usa de forma menos obvia (`§B.7`).
 >
-> **Estado**: propuesta, pendiente de `funcional.md §B.14`.
+> **Estado**: implementada, aprobada el 2026-08-25 (`funcional.md §B.14`), cerrada el 2026-08-26.
 
 ---
 
@@ -597,7 +597,7 @@ Dos eventos nuevos publicados, `SessionRevoked` y `NewDeviceDetected` (`funciona
 
 # Parte C · Paso 1.3 · API (`REQ-AUTH-003`)
 
-> **Estructura**: §1-§11 son 1.2 (cerrado). §B.1-§B.8 son 1.2b (cerrado). Esta **Parte C** es el paso **1.3**, **pendiente de aprobación** (`funcional.md §C.15`).
+> **Estructura**: §1-§11 son 1.2 (cerrado). §B.1-§B.8 son 1.2b (cerrado). Esta **Parte C** es el paso **1.3**, **implementada y cerrada** el 2026-08-27 (PR [#107](https://github.com/pirexia/plataforma-educativa/pull/107), commit `cd13e8a`).
 >
 > Convenciones de `ADR-038` sin excepción, salvo lo que `§C.8` matiza explícitamente.
 
@@ -1030,7 +1030,7 @@ Cinco eventos nuevos (`funcional.md §C.9.3`): `MfaFactorConfirmed`, `MfaFactorR
 
 # Parte D · Paso 1.3b · API (`REQ-AUTH-003`)
 
-> **Estructura**: §1-§11 son 1.2 (cerrado). `§B.1`-`§B.8` son 1.2b (cerrado). `§C.1`-`§C.9` son 1.3 (cerrado y mezclado, commit `cd13e8a`). Esta **Parte D** es el paso **1.3b**, **pendiente de aprobación** (`funcional.md §D.13`).
+> **Estructura**: §1-§11 son 1.2 (cerrado). `§B.1`-`§B.8` son 1.2b (cerrado). `§C.1`-`§C.9` son 1.3 (cerrado y mezclado, commit `cd13e8a`). Esta **Parte D** es el paso **1.3b**, **implementada y cerrada** el 2026-08-31 (PR [#123](https://github.com/pirexia/plataforma-educativa/pull/123), commit `dd68f48`).
 >
 > Convenciones de `ADR-038` sin excepción, salvo lo que `§D.6` matiza.
 
