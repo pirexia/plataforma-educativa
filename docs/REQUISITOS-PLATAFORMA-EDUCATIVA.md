@@ -3,7 +3,7 @@
 | Campo | Valor |
 |-------|-------|
 | **Versión** | 3.1.1 |
-| **Fecha** | 2026-08-11 |
+| **Fecha** | 2026-08-27 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
 | **Documento sustituye a** | v1.2.0 (mismo contenido, reorganizado y ampliado) |
@@ -3321,6 +3321,7 @@ Se mantendrá una matriz de trazabilidad (generada automáticamente desde las re
 
 | Versión | Fecha | Autor | Descripción |
 |---------|-------|-------|-------------|
+| 3.1.1 | 2026-08-27 | Product Owner | `ADR-041`: dependencias externas de MFA (`pragmarx/google2fa` en el backend, `uqr` en la SPA), añadido al índice de la sección 18. Requisito previo del paso `1.3` (`REQ-AUTH-003`). |
 | 3.1.0 | 2026-08-12 | Product Owner | `ADR-032`: unificación de las autorizaciones de recogida de menores. Nuevo `REQ-FAM-UNIT-005` como lista maestra única en fase 1. `REQ-PRL-004` reducido al proceso operativo y adelantado a fase 1. `REQ-TRAN-005` pasa a consumir la lista maestra en lugar de mantener una propia. |
 | 3.0.0 | 2026-08-11 | Product Owner | Módulo `REQ-TRAN` reescrito y ampliado de 3 a 12 requisitos, reubicado de COULD/fase 4 a SHOULD/fase 2 (`ADR-031`). Nuevo módulo `REQ-SEED` de datos de demostración, MUST de fase 1, con tres centros ficticios de régimen distinto. Entorno de desarrollo trasladado a WSL2 en equipo personal (`ADR-030`): cerrada `OPEN-06`, abierta `OPEN-11` sobre el alojamiento del piloto. Total: 53 módulos, 31 ADR. |
 | 2.6.0 | 2026-08-11 | Product Owner | `ADR-028` (topología de red y dependencias de contenedores) y `ADR-029` (identificador público ULID y convenciones de tipos en PostgreSQL), ambos en fichero propio estrenando la regla de `ADR-026`. Añadidas `OPEN-06` a `OPEN-10`. |
