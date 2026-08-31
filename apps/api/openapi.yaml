@@ -25,6 +25,7 @@ tags:
   - name: Auth / Recuperación
   - name: Auth / Bloqueo
   - name: Auth / MFA
+  - name: Auth / OAuth
 
 # ADR-038 §12.2: componentes compartidos (Problem, PageMeta, CursorMeta,
 # parámetros comunes) en un fichero propio, referenciados por $ref desde
@@ -157,6 +158,18 @@ paths:
     $ref: "openapi/paths/mfa.yaml#/paths/~1api~1v1~1mfa-compliance~1users"
   /api/v1/mfa-resets:
     $ref: "openapi/paths/mfa.yaml#/paths/~1api~1v1~1mfa-resets"
+
+  # REQ-AUTH-002 (paso 1.4). apps/api/openapi/paths/oauth.yaml.
+  /api/v1/auth/identity-providers:
+    $ref: "openapi/paths/oauth.yaml#/paths/~1api~1v1~1auth~1identity-providers"
+  /api/v1/auth/oauth-authorizations:
+    $ref: "openapi/paths/oauth.yaml#/paths/~1api~1v1~1auth~1oauth-authorizations"
+  /api/v1/auth/oauth/google/callback:
+    $ref: "openapi/paths/oauth.yaml#/paths/~1api~1v1~1auth~1oauth~1google~1callback"
+  /api/v1/auth/identities:
+    $ref: "openapi/paths/oauth.yaml#/paths/~1api~1v1~1auth~1identities"
+  /api/v1/auth/identities/{publicId}:
+    $ref: "openapi/paths/oauth.yaml#/paths/~1api~1v1~1auth~1identities~1{publicId}"
 
   # Los endpoints de los módulos siguientes se añaden aquí conforme se
   # implementan, cada uno con su propio apps/api/openapi/paths/<modulo>.yaml.
