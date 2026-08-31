@@ -130,16 +130,18 @@ return [
     | Login con Google y fusión de cuentas (REQ-AUTH-002, 1.4)
     |--------------------------------------------------------------------------
     |
-    | operacion.md §E.2.1. `driver`: 'google' o 'fake' (proveedor simulado,
-    | operacion.md §E.10). Guardas de arranque en
-    | AuthServiceProvider::boot() (OAuthEnvironmentGuard), en todos los
-    | entornos. `client_secret` es el único valor secreto de este bloque
+    | operacion.md §E.2.1. `driver`: 'none' (sin proveedor externo, valor por
+    | defecto — issue #140), 'google' o 'fake' (proveedor simulado,
+    | operacion.md §E.10). Guardas de arranque en AuthServiceProvider::boot()
+    | (OAuthEnvironmentGuard), en todos los entornos — 'none' no dispara
+    | ninguna, es el único valor seguro de desplegar sin configurar nada más
+    | (CA-AUTH-235). `client_secret` es el único valor secreto de este bloque
     | (ADR-037 §7): nunca en `.env` versionado ni en la unidad Quadlet en
     | claro.
     |
     */
     'oauth' => [
-        'driver' => env('AUTH_OAUTH_DRIVER', 'fake'),
+        'driver' => env('AUTH_OAUTH_DRIVER', 'none'),
         'google_client_id' => env('AUTH_GOOGLE_CLIENT_ID'),
         'google_client_secret' => env('AUTH_GOOGLE_CLIENT_SECRET'),
         'state_ttl_minutes' => (int) env('AUTH_OAUTH_STATE_TTL_MINUTES', 10),

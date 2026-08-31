@@ -82,16 +82,20 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
 
         $this->app->bind(MfaComplianceDirectory::class, EloquentMfaComplianceDirectory::class);
 
-        // ADR-042 §4.2, operacion.md §E.2.1: la única decisión de qué
-        // implementación de ExternalIdentityProvider se sirve. 'fake' es
-        // el valor por defecto (config('auth-local.oauth.driver')) —
-        // OAuthEnvironmentGuard::verify() aborta el arranque si eso
-        // ocurre fuera de local/testing, así que llegar aquí con 'fake'
-        // en cualquier otro entorno ya no es posible.
+        // ADR-042 §4.2, operacion.md §E.2.1, issue #140: la única decisión
+        // de qué implementación de ExternalIdentityProvider se sirve.
+        // 'none' es el valor por defecto (config('auth-local.oauth.driver'))
+        // — resuelve NullIdentityProvider, que falla si se invoca (defensa
+        // en profundidad: ningún endpoint debería necesitarlo con 'none').
+        // 'fake' solo llega aquí en local/testing: OAuthEnvironmentGuard::
+        // verify() aborta el arranque si ocurre fuera de esos entornos.
+        // Sin `default` implícito cayendo en Fake: sería exactamente el
+        // fallo que motivó el issue #140 trasladado a este binding.
         $this->app->bind(ExternalIdentityProvider::class, function ($app) {
             return match ((string) config('auth-local.oauth.driver')) {
                 'google' => $app->make(SocialiteGoogleIdentityProvider::class),
-                default => $app->make(FakeIdentityProvider::class),
+                'fake' => $app->make(FakeIdentityProvider::class),
+                default => $app->make(NullIdentityProvider::class),
             };
         });
 

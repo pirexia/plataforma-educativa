@@ -11,6 +11,14 @@ use RuntimeException;
  * `SessionEnvironmentGuard`. La primera es «la guarda más importante que
  * introduce este paso»: un proveedor de identidad simulado en producción
  * es una evasión completa de la autenticación.
+ *
+ * `AUTH_OAUTH_DRIVER=none` —el valor por defecto (`config('auth-local.
+ * oauth.driver')`, issue #140)— **no dispara ninguna de las tres**, en
+ * ningún entorno: ninguna de las tres comprobaciones de abajo entra en su
+ * condición cuando `$driver === 'none'`. Es justo lo que hace seguro
+ * desplegar sin tocar la variable (`CA-AUTH-235`) — la lección del propio
+ * issue: «un valor por defecto que dispara una guarda de arranque no es
+ * un valor por defecto, es una trampa» (`operacion.md §E.2.1`).
  */
 final class OAuthEnvironmentGuard
 {
