@@ -127,6 +127,32 @@ final class MfaChallengeService
     }
 
     /**
+     * `GET /auth/mfa-challenges`, `api.md §E.5b`, REQ-AUTH-002 (1.4).
+     * Estrictamente de lectura: mismo criterio de búsqueda que
+     * `changeMethod()`/`verify()` (por `session_id`, `RN-AUTH-53`), pero
+     * no escribe nada — `present()` no muta el desafío. Es lo que la
+     * distingue de `POST /auth/mfa-challenges`, que sí entrega
+     * (`CA-AUTH-239`). Sirve tanto al *callback* federado (que no tiene
+     * de dónde más leer el desafío que abrió, `RN-AUTH-93`) como al login
+     * local, que recupera aquí lo que pierde al recargar `/entrar` a
+     * mitad del segundo paso.
+     *
+     * @return array<string, mixed>
+     *
+     * @throws ApiException gone() (410)
+     */
+    public function current(Request $request): array
+    {
+        $challenge = $this->findLiveChallengeForSession($request);
+
+        if ($challenge === null) {
+            throw ApiException::gone();
+        }
+
+        return $this->present($challenge, $challenge->user);
+    }
+
+    /**
      * `POST /auth/mfa-challenges`, `§C.4.4.1`, `§D.4.3`. Cambia el método
      * en curso del desafío o reenvía el código (pedir el método en el que
      * ya se está **es** el reenvío). No reinicia intentos ni caducidad

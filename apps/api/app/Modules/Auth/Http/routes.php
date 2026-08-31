@@ -96,6 +96,14 @@ Route::post('/auth/mfa-recovery-codes', [MfaRecoveryCodesController::class, 'sto
 Route::post('/auth/mfa-challenges', [MfaChallengesController::class, 'store'])
     ->name('auth.mfa-challenges.store');
 
+// REQ-AUTH-002 (1.4), api.md §E.5b: GET añadido sobre el mismo recurso de
+// 1.3 — estrictamente de lectura, lo necesita /entrar/google (RN-AUTH-93,
+// el callback no lleva datos) y también el login local tras recargar
+// /entrar a mitad del segundo paso. Mismo mecanismo de autorización que
+// el POST de arriba: sin sesión autenticada, por session_id.
+Route::get('/auth/mfa-challenges', [MfaChallengesController::class, 'show'])
+    ->name('auth.mfa-challenges.show');
+
 Route::post('/auth/mfa-verifications', [MfaVerificationsController::class, 'store'])
     ->name('auth.mfa-verifications.store');
 

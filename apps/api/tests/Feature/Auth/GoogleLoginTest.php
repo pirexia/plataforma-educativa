@@ -12,6 +12,7 @@ use App\Modules\Auth\Domain\Models\MfaChallenge;
 use App\Modules\Auth\Domain\Models\UserIdentity;
 use App\Modules\Auth\Domain\Models\UserMfaObligation;
 use App\Modules\Auth\Infrastructure\Jobs\SendIdentityLinkedEmail;
+use App\Modules\Auth\Infrastructure\Jobs\SendMfaChallengeCodeEmail;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -360,6 +361,142 @@ test('CA-AUTH-216/CA-AUTH-217: con TOTP confirmado, el callback abre desafío y 
     });
 });
 
+// CA-AUTH-237, api.md §E.5b
+test('CA-AUTH-237: GET /auth/mfa-challenges desde la sesión que abrió el desafío devuelve el mismo recurso que el 202, sin datos sensibles', function (): void {
+    Queue::fake();
+    [$tenant, $user] = provisionActiveUser('goog-237', ['email' => 'totp-237@example.com']);
+    createConfirmedTotpFactor($tenant, $user);
+
+    [$url, $beginCookie] = beginFakeGoogleFlow($tenant->slug);
+    $callback = completeFakeGoogleFlow($url, $beginCookie, fakeGoogleClaims([
+        'email' => 'totp-237@example.com', 'email_verified' => '1',
+    ]));
+    expect(oauthCallbackResultCode($callback))->toBe('segundo_factor');
+
+    $cookie = sessionCookieValue($callback);
+    $read = withSessionCookie($cookie)->getJson(coreApiUrl($tenant->slug, '/auth/mfa-challenges'))->assertOk();
+
+    expect($read->json('method'))->toBe('totp')
+        ->and($read->json('available_methods'))->toBe(['totp'])
+        ->and($read->json())->toHaveKey('expires_at')
+        ->and($read->json())->toHaveKey('has_unused_recovery_codes')
+        // totp no entrega nada: destination_masked no debe aparecer.
+        ->and($read->json())->not->toHaveKey('destination_masked')
+        ->and($read->json())->not->toHaveKey('session_id')
+        ->and($read->json())->not->toHaveKey('code');
+
+    expect($read->headers->get('Cache-Control'))->toContain('no-store');
+
+    $raw = json_encode($read->json());
+    expect($raw)->not->toContain('token');
+});
+
+// CA-AUTH-238, RN-AUTH-53
+test('CA-AUTH-238: GET /auth/mfa-challenges desde otra sesión, o sin desafío vivo, o ya consumido, responde 410 con cuerpo idéntico, nunca 401', function (): void {
+    Queue::fake();
+    [$tenant, $user] = provisionActiveUser('goog-238', ['email' => 'totp-238@example.com']);
+    $secret = createConfirmedTotpFactor($tenant, $user);
+
+    [$url, $beginCookie] = beginFakeGoogleFlow($tenant->slug);
+    $callback = completeFakeGoogleFlow($url, $beginCookie, fakeGoogleClaims([
+        'email' => 'totp-238@example.com', 'email_verified' => '1',
+    ]));
+    $ownCookie = sessionCookieValue($callback);
+
+    // Caso 1: sin desafío vivo en absoluto (sesión anónima nueva).
+    resetSessionState();
+    $anon = test()->getJson(coreApiUrl($tenant->slug, '/auth/csrf-cookie'))->assertNoContent();
+    $noChallenge = withSessionCookie(sessionCookieValue($anon))
+        ->getJson(coreApiUrl($tenant->slug, '/auth/mfa-challenges'))
+        ->assertStatus(410);
+
+    // Caso 2: aislamiento entre sesiones — RN-AUTH-53, "nunca el desafío
+    // ajeno". Un segundo usuario, con su propio factor y su propio
+    // desafío vivo (email, distinto del totp del primero): la sesión
+    // anónima del primer usuario (sin desafío propio ya, tras el caso 1
+    // reutiliza otra anónima limpia) no puede leer el desafío del
+    // segundo, y el segundo sigue viendo el suyo sin alteración.
+    $otherUser = app(TenantContext::class)->runFor($tenant->id, function (): User {
+        $person = Person::factory()->create();
+
+        return User::factory()->for($person)->create([
+            'email' => 'otro-238@example.com',
+            'password' => 'Cl4v3-Correcta-2026!',
+            'status' => UserStatus::Activo,
+        ]);
+    });
+    createConfirmedTotpFactor($tenant, $otherUser, preferred: true);
+    $otherChallenge = openMfaChallengeFor($tenant->slug, $otherUser->email, 'Cl4v3-Correcta-2026!');
+    $otherCookie = sessionCookieValue($otherChallenge);
+
+    resetSessionState();
+    $freshAnon = test()->getJson(coreApiUrl($tenant->slug, '/auth/csrf-cookie'))->assertNoContent();
+    $fromOtherSession = withSessionCookie(sessionCookieValue($freshAnon))
+        ->getJson(coreApiUrl($tenant->slug, '/auth/mfa-challenges'))
+        ->assertStatus(410);
+
+    // El segundo usuario sigue leyendo el suyo con normalidad — la
+    // lectura ajena de arriba no lo tocó.
+    withSessionCookie($otherCookie)
+        ->getJson(coreApiUrl($tenant->slug, '/auth/mfa-challenges'))
+        ->assertOk()
+        ->assertJson(['method' => 'totp']);
+
+    // Caso 3: el desafío del primer usuario, ya consumido.
+    withSessionCookie($ownCookie)
+        ->postJson(coreApiUrl($tenant->slug, '/auth/mfa-verifications'), ['code' => currentTotpCode($secret)])
+        ->assertOk();
+    $consumed = withSessionCookie($ownCookie)
+        ->getJson(coreApiUrl($tenant->slug, '/auth/mfa-challenges'))
+        ->assertStatus(410);
+
+    $strip = fn (array $body) => collect($body)->except('request_id')->all();
+    expect($strip($noChallenge->json()))->toBe($strip($fromOtherSession->json()))
+        ->and($strip($noChallenge->json()))->toBe($strip($consumed->json()));
+
+    expect($noChallenge->status())->not->toBe(401)
+        ->and($fromOtherSession->status())->not->toBe(401)
+        ->and($consumed->status())->not->toBe(401);
+});
+
+// CA-AUTH-239, RN-AUTH-54
+test('CA-AUTH-239: diez lecturas seguidas no generan código, no encolan correo y no mueven attempts/deliveries/expires_at', function (): void {
+    Queue::fake();
+    [$tenant, $user] = provisionActiveUser('goog-239', ['email' => 'email-239@example.com']);
+    enableEmailMfaMethod($tenant);
+    createConfirmedEmailFactor($tenant, $user);
+
+    [$url, $beginCookie] = beginFakeGoogleFlow($tenant->slug);
+    $callback = completeFakeGoogleFlow($url, $beginCookie, fakeGoogleClaims([
+        'email' => 'email-239@example.com', 'email_verified' => '1',
+    ]));
+    expect(oauthCallbackResultCode($callback))->toBe('segundo_factor');
+
+    Queue::assertPushed(SendMfaChallengeCodeEmail::class, 1);
+
+    $cookie = sessionCookieValue($callback);
+
+    [$before, $expiresBefore] = app(TenantContext::class)->runFor($tenant->id, function () use ($user): array {
+        $challenge = MfaChallenge::query()->where('user_id', $user->id)->whereNull('consumed_at')->first();
+
+        return [$challenge->only(['attempts', 'deliveries', 'code_hash']), $challenge->expires_at->toISOString()];
+    });
+
+    for ($i = 0; $i < 10; $i++) {
+        withSessionCookie($cookie)->getJson(coreApiUrl($tenant->slug, '/auth/mfa-challenges'))->assertOk();
+    }
+
+    app(TenantContext::class)->runFor($tenant->id, function () use ($user, $before, $expiresBefore): void {
+        $challenge = MfaChallenge::query()->where('user_id', $user->id)->whereNull('consumed_at')->first();
+
+        expect($challenge->only(['attempts', 'deliveries', 'code_hash']))->toBe($before);
+        expect($challenge->expires_at->toISOString())->toBe($expiresBefore);
+    });
+
+    // Ningún correo adicional encolado por las diez lecturas.
+    Queue::assertPushed(SendMfaChallengeCodeEmail::class, 1);
+});
+
 // CA-AUTH-218
 test('CA-AUTH-218: obligado con gracia vencida y sin factor obtiene sesión restringida, y vincular responde 403', function (): void {
     [$tenant, $user] = provisionActiveUser('goog-218', ['email' => 'muro-218@example.com']);
@@ -471,11 +608,12 @@ test('CA-AUTH-229: user_identities no tiene columna de access_token ni de refres
 });
 
 // CA-AUTH-231, RN-AUTH-35
-test('CA-AUTH-231: ninguna de las cinco rutas de 1.4 lleva el middleware module-enabled', function (): void {
+test('CA-AUTH-231: ninguna de las seis rutas de 1.4 lleva el middleware module-enabled', function (): void {
     $routeNames = [
         'auth.identity-providers.index',
         'auth.oauth-authorizations.store',
         'auth.oauth.google.callback',
+        'auth.mfa-challenges.show',
         'auth.identities.index',
         'auth.identities.destroy',
     ];
