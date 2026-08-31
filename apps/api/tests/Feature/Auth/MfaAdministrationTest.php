@@ -444,7 +444,9 @@ test('REQ-AUTH-003: GET /mfa-compliance/users exige sesión, mfa.leer, y aísla 
     expect(collect($fromA->json('data'))->pluck('user.email'))->toContain('aislado@example.com');
 });
 
-// CA-AUTH-145, RN-AUTH-35
+// CA-AUTH-145, CA-AUTH-168, RN-AUTH-35. El filtro por prefijo `auth.mfa`
+// alcanza también a `auth.mfa-exemptions.*` (CA-AUTH-168): no hace falta
+// una segunda prueba idéntica para las tres rutas de excepciones.
 test('CA-AUTH-145: ninguna ruta nueva de este paso lleva el middleware module-enabled', function (): void {
     $mfaRoutes = collect(Route::getRoutes())
         ->filter(fn ($route) => str_starts_with((string) $route->getName(), 'auth.mfa') || $route->getName() === 'core.roles.update');
