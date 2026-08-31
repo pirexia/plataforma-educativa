@@ -43,12 +43,15 @@ auth.json
 **/gqdalya-export/
 
 # ---- Almacenamiento y logs ----
+# Contenido ignorado, no el directorio (issue #136): cada subdirectorio
+# lleva su propio .gitignore placeholder (*, !.gitignore) para que el
+# directorio vacío sobreviva a un clon aunque su contenido no se versione
+# -- mismo patrón que storage/app/, storage/framework/testing/.
 apps/api/storage/*.key
-apps/api/storage/app/public/
-apps/api/storage/framework/cache/
-apps/api/storage/framework/sessions/
-apps/api/storage/framework/views/
-apps/api/storage/logs/
+apps/api/storage/framework/cache/*
+apps/api/storage/framework/sessions/*
+apps/api/storage/framework/views/*
+apps/api/storage/logs/*
 *.log
 npm-debug.log*
 yarn-error.log*
