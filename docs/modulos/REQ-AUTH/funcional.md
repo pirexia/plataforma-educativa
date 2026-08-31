@@ -2971,7 +2971,14 @@ Reglas obligatorias, sin excepción por ser pocas pantallas (`CLAUDE.md §10`):
 
 **`REQ-AUTH` sigue sin ser desactivable** (`RN-AUTH-35`), y **ninguna ruta de este paso lleva `module-enabled`** (`CA-AUTH-231`).
 
-Lo que sí existe, y es distinto, es que **el proveedor puede no estar configurado**. Ese estado es normal, no degradado: `GET /auth/identity-providers` devuelve la colección vacía, la pantalla no pinta el botón, y los otros cuatro *endpoints* responden `422` si alguien los llama a mano. Es lo que ocurrirá en cualquier despliegue que no quiera Google, y en desarrollo mientras no se configure el proveedor simulado (`operacion.md §E.10`).
+Lo que sí existe, y es distinto, es que **el proveedor puede no estar configurado**. Ese estado tiene nombre propio —`AUTH_OAUTH_DRIVER=none`, y es **el valor por defecto** (`operacion.md §E.2.1`)— y es normal, no degradado:
+
+- `GET /auth/identity-providers` devuelve la colección vacía y la pantalla no pinta el botón (`RN-AUTH-98`).
+- `POST /auth/oauth-authorizations` responde `422` si alguien lo llama a mano.
+- El *callback* responde `302` con `resultado=estado_no_valido`, sin rama propia: con `none` nadie ha podido arrancar el flujo, así que no hay `state` que comparar.
+- **`GET /auth/identities` y `DELETE /auth/identities/{public_id}` siguen funcionando con normalidad.** Gestionar un vínculo que ya existe no necesita proveedor, y un centro que apague Google **tiene que dejar que sus usuarios vean y retiren los vínculos que ya tenían**. Un vínculo que no se puede desvincular porque se apagó el proveedor es un dato personal atrapado.
+
+Es el estado de cualquier despliegue recién hecho, y el de cualquiera que no quiera Google. En desarrollo se fija `fake` **explícitamente** (`operacion.md §E.2.1`), nunca por herencia de un valor por defecto.
 
 ---
 
@@ -2981,7 +2988,8 @@ Verificables, cada uno con test que referencia su ID (`INV-015`).
 
 ### Descubrimiento y arranque del flujo
 
-- **`CA-AUTH-200`** · *Dado* un despliegue sin credenciales de Google, *cuando* la SPA pide `GET /auth/identity-providers`, *entonces* `200` con `data: []` y la pantalla de login **no** pinta el botón (`RN-AUTH-98`).
+- **`CA-AUTH-200`** · *Dado* un despliegue con `AUTH_OAUTH_DRIVER=none` —**el valor por defecto**—, *cuando* la SPA pide `GET /auth/identity-providers`, *entonces* `200` con `data: []` y la pantalla de login **no** pinta el botón (`RN-AUTH-98`).
+- **`CA-AUTH-236`** · *Dado* `AUTH_OAUTH_DRIVER=none`, *cuando* se llama `POST /auth/oauth-authorizations`, *entonces* `422`; *y cuando* se llama al *callback*, *entonces* `302` con `resultado=estado_no_valido`; *y* `GET`/`DELETE /auth/identities` **siguen funcionando con normalidad** sobre los vínculos que ya existieran (`§E.10`).
 - **`CA-AUTH-201`** · *Dado* el proveedor configurado, *cuando* se llama `POST /auth/oauth-authorizations` **sin** token CSRF, *entonces* `419`/`403` y **no** queda ningún `state` en la sesión (`RN-AUTH-29`).
 - **`CA-AUTH-202`** · *Dado* un arranque correcto, *cuando* se inspecciona la URL devuelta, *entonces* lleva `response_type=code`, `scope=openid email profile`, `state`, `code_challenge` y `code_challenge_method=S256` (`RN-AUTH-91`).
 - **`CA-AUTH-203`** · *Dada* una petición con la cabecera `Host` apuntando a un dominio ajeno, *cuando* se arranca el flujo, *entonces* la `redirect_uri` construida **no** contiene ese dominio: se construye con el slug resuelto y el dominio base configurado (`RN-AUTH-92`).
@@ -3036,6 +3044,7 @@ Verificables, cada uno con test que referencia su ID (`INV-015`).
 
 - **`CA-AUTH-229`** · *Dado* el código del backend, *cuando* se analiza, *entonces* **no** se persiste en ningún sitio un `access_token` ni un `refresh_token` del proveedor (`RN-AUTH-95`).
 - **`CA-AUTH-230`** · *Dado* `AUTH_OAUTH_DRIVER=fake` con `APP_ENV` distinto de `local`/`testing`, *cuando* arranca la aplicación, *entonces* **falla el arranque**, y la ruta del proveedor simulado **no está registrada** (`operacion.md §E.10`).
+- **`CA-AUTH-235`** · *Dado* `APP_ENV=production` y **`AUTH_OAUTH_DRIVER` sin fijar**, *cuando* arranca la aplicación, *entonces* **arranca sin excepción**, con el proveedor en `none` y sin disparar ninguna guarda. Es el test de regresión del issue [#140](https://github.com/pirexia/plataforma-educativa/issues/140): el valor por defecto **nunca** puede ser uno que una guarda de arranque prohíba (`operacion.md §E.2.1`, `§E.12.1`).
 - **`CA-AUTH-231`** · *Dadas* las rutas de este paso, *entonces* **ninguna** lleva el *middleware* `module-enabled` (`RN-AUTH-35`).
 - **`CA-AUTH-232`** · *Dado* el catálogo tras `platform:sync-registry`, *entonces* sigue habiendo **exactamente siete** filas con `module_code = 'auth'`: 1.4 no declara ninguna (`permisos.md §E.1`).
 - **`CA-AUTH-233`** · *Dados* los textos de las pantallas y de los tres correos nuevos, *entonces* existen en los cuatro idiomas y ninguno está escrito en el código (`INV-009`).

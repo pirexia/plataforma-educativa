@@ -1356,7 +1356,7 @@ El desafío expone `expires_at` (suya) y el alta expone `expires_at` y `code_exp
 | Idempotencia | **Ningún endpoint exige `Idempotency-Key`** (`§E.7.2`) |
 | Auditoría | `INV-003`, **sin ampliar el vocabulario** (`funcional.md §E.8`). Todo por el *observer* de 0.9, más el `login` que ya existía |
 | Módulo desactivado | No aplica: ninguna ruta lleva `module-enabled` (`RN-AUTH-35`, `CA-AUTH-231`) |
-| Proveedor no configurado | **Estado normal, no degradado**: la colección de proveedores viene vacía y los otros cuatro responden `422` (`funcional.md §E.10`) |
+| Proveedor no configurado (`AUTH_OAUTH_DRIVER=none`, **por defecto**) | **Estado normal, no degradado.** `GET /auth/identity-providers` responde `200` con `data: []`; `POST /auth/oauth-authorizations` responde `422`; el *callback* responde `302 estado_no_valido`; **y los dos de `/auth/identities` funcionan con normalidad**, porque gestionar vínculos ya existentes no necesita proveedor (`operacion.md §E.1`) |
 | Límite de tasa | Los dos anónimos y el *callback*, por IP. `operacion.md §E.6` |
 | OpenAPI | Los 5 en `apps/api/openapi/paths/oauth.yaml` antes del *merge* (`CLAUDE.md §10`) |
 
@@ -1394,7 +1394,8 @@ Qué proveedores externos admite este host. Lo pide la pantalla de login antes d
 }
 ```
 
-- **`data: []`** cuando no hay credenciales configuradas. **No es un error**: es el despliegue que no quiere Google, y el que tendrá cualquiera hasta que se configure (`funcional.md §E.10`).
+- **`data: []`** cuando **`AUTH_OAUTH_DRIVER=none`**, que es **el valor por defecto** (`operacion.md §E.2.1`). **No es un error ni un estado degradado**: es el despliegue que no quiere Google, y el que tiene cualquiera recién desplegado hasta que alguien configure el proveedor a propósito (`funcional.md §E.10`).
+- **Es el único endpoint de este paso que responde `200` con `driver = none`**, y por eso existe: es el que permite a la pantalla de login decidir sin adivinar (`RN-AUTH-98`). Si respondiera `422` como los del flujo, la SPA no tendría forma de distinguir «no hay proveedor» de «algo va mal» y acabaría pintando el botón por si acaso.
 - **`label_key` y no `label`**: el texto lo resuelve la SPA con su catálogo de traducciones, en los cuatro idiomas (`INV-009`). El servidor no manda literales de interfaz.
 - **No lleva `client_id`, ni la URL de autorización, ni nada del proveedor.** Construir la URL es trabajo del servidor (`§E.3`), y publicarla aquí daría un punto de partida del flujo que se salta el CSRF y el límite de tasa.
 - **Errores**: `404` (host sin tenant), `429`, `503` (tenant suspendido).
@@ -1434,7 +1435,7 @@ Arranca el flujo. Devuelve la URL a la que la SPA debe navegar.
 
 | Estado | Cuándo |
 |--------|--------|
-| `422` | `provider` desconocido o no configurado; `intent` inválido; `intent = "link"` sin sesión |
+| `422` | **`AUTH_OAUTH_DRIVER=none`** (no hay proveedor externo, y es el estado por defecto); `provider` desconocido; `intent` inválido; `intent = "link"` sin sesión |
 | `403` | `urn:pge:error:mfa-enrollment-required` — sesión restringida por el muro de 1.3 y `intent = "link"` (`funcional.md §E.4.4` punto 5) |
 | `419`/`403` | CSRF ausente o inválido |
 | `429` | Límite de tasa por IP, con `Retry-After` |
@@ -1477,7 +1478,7 @@ Arranca el flujo. Devuelve la URL a la que la SPA debe navegar.
 | `ya_vinculado` | `intent = link` y el usuario ya tenía un vínculo vivo | Explica que hay que desvincular primero |
 | `proveedor_ya_vinculado` | Esa cuenta de Google ya está vinculada a otro usuario del centro | Mensaje genérico: **no dice a quién** |
 | `cancelado` | La persona canceló en Google (`error=access_denied`) | Vuelve al login, sin dramatismo |
-| `estado_no_valido` | `state` ausente, distinto, caducado o ya consumido | «Vuelve a intentarlo» |
+| `estado_no_valido` | `state` ausente, distinto, caducado o ya consumido. **También cubre `AUTH_OAUTH_DRIVER=none` sin rama propia**: con `none` nadie ha podido arrancar el flujo, así que no hay `state` que comparar, y la comprobación del paso 3 —que precede a toda llamada al proveedor— lo resuelve sin que el *callback* tenga que saber qué *driver* hay | «Vuelve a intentarlo» |
 | `error_proveedor` | Fallo al canjear el código, o Google no responde | «Inténtalo más tarde o entra con tu contraseña» |
 
 **Ningún código lleva sufijo con el detalle.** `sin_cuenta` no se desdobla, `acceso_denegado` no dice qué estado tiene la cuenta, y `proveedor_ya_vinculado` no nombra al otro usuario. Es la misma disciplina de `§4.7`, aplicada a un canal distinto.

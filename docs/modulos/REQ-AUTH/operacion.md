@@ -916,13 +916,17 @@ Amplía `§C.11.3`:
 
 **`REQ-AUTH` sigue sin ser desactivable** (`RN-AUTH-35`) y **ninguna ruta de este paso lleva `module-enabled`** (`CA-AUTH-231`), por el motivo de §1: una fila mal puesta en `module_subscriptions` no puede dejar a un centro sin poder entrar.
 
-Lo que este paso introduce, y es distinto, es un **tercer estado que no existía**: el proveedor puede estar **no configurado**. No es una degradación, es la situación por defecto:
+Lo que este paso introduce, y es distinto, es un **eje de configuración que no existía**: el proveedor externo puede estar **no configurado**. No es una degradación, es la situación por defecto, y **tiene un valor propio y explícito** (`AUTH_OAUTH_DRIVER=none`, `§E.2.1`), no la ausencia de configuración cayendo en otra cosa:
 
 | Estado | Qué ocurre |
 |--------|------------|
-| Sin `AUTH_GOOGLE_CLIENT_ID`/`SECRET` | `GET /auth/identity-providers` devuelve `data: []`, la pantalla **no pinta el botón**, y los otros cuatro *endpoints* responden `422`. **Todo el login local funciona igual** |
-| Configurado | El botón aparece y el flujo funciona |
-| Configurado con credenciales incorrectas | El botón aparece y el flujo termina en `error_proveedor`. **Es el fallo silencioso de este paso** y por eso hay alerta (`§E.8`) |
+| **`AUTH_OAUTH_DRIVER=none`** — el valor por defecto | `GET /auth/identity-providers` devuelve `data: []`, la pantalla **no pinta el botón**, `POST /auth/oauth-authorizations` responde `422` y el *callback* responde `302` con `resultado=estado_no_valido`. **Todo el login local funciona igual, y el arranque de la aplicación no se ve afectado en ningún entorno** |
+| `AUTH_OAUTH_DRIVER=google` con credenciales | El botón aparece y el flujo funciona |
+| `AUTH_OAUTH_DRIVER=google` con credenciales incorrectas | El botón aparece y el flujo termina en `error_proveedor`. **Es el fallo silencioso de este paso** y por eso hay alerta (`§E.8`) |
+| `AUTH_OAUTH_DRIVER=fake` en `local`/`testing` | Proveedor simulado (`§E.10`) |
+| `AUTH_OAUTH_DRIVER=fake` fuera de `local`/`testing` | **La aplicación no arranca**, a propósito (`§E.2.1`, guarda 1) |
+
+**Los dos endpoints de autoservicio no dependen del proveedor.** `GET /auth/identities` y `DELETE /auth/identities/{public_id}` siguen funcionando con `driver=none`, y es deliberado: un centro que desactive Google después de que haya vínculos creados **tiene que dejar que sus usuarios los vean y los retiren**. Un vínculo que no se puede desvincular porque se apagó el proveedor es un dato personal atrapado.
 
 **Google nunca es la única puerta.** No hay ningún estado del sistema en el que un usuario dependa de Google para entrar: siempre tiene su contraseña (`RN-AUTH-96`, y la guarda de `funcional.md §E.4.5`). Es la propiedad que hace que una caída de Google sea una molestia y no una incidencia.
 
@@ -932,20 +936,40 @@ Lo que este paso introduce, y es distinto, es un **tercer estado que no existía
 
 ### E.2.1 Propias del paso
 
-| Variable | Uso | Valor en desarrollo |
-|----------|-----|---------------------|
-| `AUTH_OAUTH_DRIVER` | `google` o **`fake`** (proveedor simulado, `§E.10`). Selecciona la implementación de `IdentityProvider`, cuya forma fija `ADR-042`. **Guarda de arranque: `fake` aborta la aplicación si `APP_ENV` no es `local` ni `testing`, en todos los entornos** | `fake` |
-| `AUTH_GOOGLE_CLIENT_ID` | Identificador del cliente OAuth. No es secreto, pero identifica el despliegue | *(vacío)* |
-| `AUTH_GOOGLE_CLIENT_SECRET` | **Secreto.** Va en el gestor de secretos de `ADR-037 §7`, **nunca en `.env` versionado ni en la unidad Quadlet en claro** | *(vacío)* |
-| `AUTH_OAUTH_STATE_TTL_MINUTES` | Vida del `state` y del verificador PKCE en el *payload* de la sesión (`RN-AUTH-91`) | `10` |
-| `AUTH_RATE_LIMIT_OAUTH_START_PER_IP` | Arranques de flujo por IP y minuto | Ver `§E.6` |
-| `AUTH_RATE_LIMIT_OAUTH_CALLBACK_PER_IP` | *Callbacks* por IP y minuto | Ver `§E.6` |
+| Variable | Uso | Valor por defecto | Valor en desarrollo |
+|----------|-----|-------------------|---------------------|
+| `AUTH_OAUTH_DRIVER` | **Tres valores: `none`, `google`, `fake`.** Selecciona la implementación del proveedor, cuya forma fija `ADR-042`. `none` = **sin proveedor externo** (`§E.1`); `google` = el real; `fake` = el simulado (`§E.10`). **Guarda de arranque: `fake` aborta la aplicación si `APP_ENV` no es `local` ni `testing`, en todos los entornos** | **`none`** | **`fake`, fijado explícitamente** |
+| `AUTH_GOOGLE_CLIENT_ID` | Identificador del cliente OAuth. No es secreto, pero identifica el despliegue. Solo se lee con `driver = google` | *(vacío)* | *(vacío)* |
+| `AUTH_GOOGLE_CLIENT_SECRET` | **Secreto.** Va en el gestor de secretos de `ADR-037 §7`, **nunca en `.env` versionado ni en la unidad Quadlet en claro**. Solo se lee con `driver = google` | *(vacío)* | *(vacío)* |
+| `AUTH_OAUTH_STATE_TTL_MINUTES` | Vida del `state` y del verificador PKCE en el *payload* de la sesión (`RN-AUTH-91`) | `10` | `10` |
+| `AUTH_RATE_LIMIT_OAUTH_START_PER_IP` | Arranques de flujo por IP y minuto | Ver `§E.6` | Ver `§E.6` |
+| `AUTH_RATE_LIMIT_OAUTH_CALLBACK_PER_IP` | *Callbacks* por IP y minuto | Ver `§E.6` | Ver `§E.6` |
 
 **Guardas de arranque, en todos los entornos** —mismo patrón que `SESSION_DOMAIN` (§2.2) y que la política de contraseñas—:
 
 1. **`AUTH_OAUTH_DRIVER=fake` con `APP_ENV` distinto de `local`/`testing` ⇒ la aplicación no arranca.** Es la guarda más importante que introduce este paso: un proveedor de identidad simulado en producción **es una evasión completa de la autenticación**, la peor configuración incorrecta que este repositorio admite. Y por eso la ruta del proveedor simulado tampoco se registra fuera de esos entornos (`CA-AUTH-230`): dos barreras, no una.
 2. **`AUTH_OAUTH_DRIVER=google` con `AUTH_GOOGLE_CLIENT_SECRET` vacío ⇒ la aplicación no arranca.** Sin esto, el sistema levanta con el botón pintado y todo el mundo termina en `error_proveedor` sin que nadie sepa por qué.
 3. **`AUTH_OAUTH_DRIVER=google` con `APP_URL` sobre `http` ⇒ la aplicación no arranca fuera de `local`.** Google no admite URIs de redirección sin TLS, y un despliegue así solo puede fallar.
+
+**`none` no dispara ninguna guarda, en ningún entorno.** Es la propiedad que hace que el valor por defecto sea seguro de desplegar, y es la razón de que exista como valor propio.
+
+#### Por qué `none` es un valor y no la ausencia de valor (issue [#140](https://github.com/pirexia/plataforma-educativa/issues/140))
+
+Este apartado nace de un defecto **de esta especificación**, detectado durante la implementación, y se deja escrito porque el modo de fallo es de los que se repiten.
+
+La versión anterior de esta tabla documentaba solo dos valores —`google` y `fake`— y ponía `fake` en la columna «valor en desarrollo» sin decir cuál era el valor **por defecto**. Con esa lectura, lo razonable al implementar era que la ausencia de configuración cayera en `fake`. Y `fake` es exactamente el valor que la guarda 1 prohíbe fuera de `local`/`testing`.
+
+**Resultado: desplegar 1.4 en producción sin fijar `AUTH_OAUTH_DRIVER` tumbaba el arranque de la aplicación entera** — no el login con Google, sino `REQ-AUTH` completo y con él la plataforma, que es el modo de fallo total del que §1 dice que no puede existir. Y contradecía de frente lo que `§E.12.1` prometía: que el día del despliegue no cambia nada para nadie.
+
+Las dos mitades eran correctas por separado; el hueco estaba entre ellas. La lección, que vale más allá de este paso: **un valor por defecto que dispara una guarda de arranque no es un valor por defecto, es una trampa.** Todo interruptor de este módulo con una guarda detrás necesita un valor de reposo explícito que no la dispare nunca.
+
+**La guarda 1 no se relaja** — sigue siendo correcta y deliberadamente estricta. Lo que se arregla es que el estado de reposo tenga nombre propio.
+
+#### Los entornos de desarrollo fijan `fake` explícitamente
+
+Consecuencia directa de lo anterior: **`local` ya no hereda `fake` por un defecto implícito**. `AUTH_OAUTH_DRIVER=fake` se escribe a mano en `apps/api/.env.example` y en el servicio de la API de `compose.yaml`, junto al resto de variables del entorno de desarrollo.
+
+Cuesta una línea en dos ficheros y compra que **el valor por defecto del código sea el único seguro en cualquier entorno**, en vez de uno que solo es seguro en el entorno donde se escribió.
 
 Ninguna variable de sesión cambia. `SESSION_ENCRYPT=true` gana un motivo más —ahora el *payload* guarda también el verificador PKCE—, pero sigue siendo la misma recomendación de §2.2, y el material que guarda vive diez minutos.
 
@@ -1045,7 +1069,8 @@ Y una advertencia concreta para la implementación del envoltorio de `ADR-042`, 
 | Todo *callback* responde `estado_no_valido` | La cookie de sesión no llega en la navegación de vuelta | `SESSION_SAME_SITE` debe ser `lax`, **nunca `strict`** (`RN-AUTH-27`): con `strict` la cookie no viaja en una navegación que viene de Google y **el flujo no puede funcionar de ninguna manera**. Es el fallo más probable de este paso |
 | Google responde `redirect_uri_mismatch` | La URI de este tenant no está registrada, o difiere en el esquema, el puerto o la barra final | La consola de Google, contra la URI que construye `RN-AUTH-92`. Se compara **carácter a carácter** |
 | Google responde `invalid_client` | Secreto incorrecto o cliente de otro proyecto | El gestor de secretos |
-| El botón no aparece | Proveedor no configurado, que es el estado por defecto | `GET /auth/identity-providers` debe devolver el proveedor. Si devuelve `[]`, faltan credenciales (`§E.1`) |
+| **La aplicación no arranca tras desplegar 1.4** | `AUTH_OAUTH_DRIVER=fake` fuera de `local`/`testing` (guarda 1), o `google` sin secreto (guarda 2) | El mensaje de la guarda lo dice. **Salida inmediata: `AUTH_OAUTH_DRIVER=none` y reinicio** (`§E.12.3`), que devuelve el sistema al estado de reposo sin tocar nada más. Es el modo de fallo del issue [#140](https://github.com/pirexia/plataforma-educativa/issues/140), cerrado con el valor `none` por defecto y `CA-AUTH-235` |
+| El botón no aparece | `AUTH_OAUTH_DRIVER=none`, que es el estado por defecto | `GET /auth/identity-providers` debe devolver el proveedor. Si devuelve `[]`, el *driver* es `none` o faltan credenciales (`§E.1`) |
 | El botón aparece y todo falla con `error_proveedor` | Credenciales presentes pero incorrectas, o Google inalcanzable desde el contenedor | Salida de red del contenedor de la API y el *log* de aplicación, donde va el detalle que **no** se le da al usuario |
 | Un usuario entra con Google y **no** le piden el segundo factor | **Incidencia de severidad crítica.** Es una evasión del segundo factor | `RN-AUTH-94` y `CA-AUTH-216`. Se detiene el trabajo en curso y se resuelve de inmediato (`CLAUDE.md §5`) |
 | Se creó un usuario a partir de un login de Google | **Incidencia crítica.** `RN-AUTH-99`: en 1.4 ese camino **no existe** (`OPEN-AUTH-31`, resuelta en restrictivo el 2026-08-31) | El código no debe tener ese camino. Si aparece un `users`/`people` nuevo con origen federado, es un fallo de implementación, no una configuración |
@@ -1096,7 +1121,11 @@ Lo que sí hay que tener a mano en una recuperación es **`AUTH_GOOGLE_CLIENT_SE
 
 ### E.12.1 El día del despliegue no cambia nada para nadie
 
-Y es lo importante. Sin credenciales configuradas, el sistema queda exactamente como estaba: mismo login, mismas pantallas, mismo comportamiento, con una tabla vacía y una columna nueva con valor por defecto (`datos.md §E.7`). **El botón aparece el día que alguien configura el proveedor, no el día que se despliega el código.** Es la diferencia con 1.3, donde el despliegue activó la obligación de MFA de dos roles en todos los tenants (`§C.11.1`).
+Y es lo importante. **Y es cierto por una razón concreta, no por casualidad: el valor por defecto de `AUTH_OAUTH_DRIVER` es `none`** (`§E.2.1`), que no dispara ninguna guarda de arranque en ningún entorno.
+
+Desplegado sin tocar una sola variable, el sistema queda exactamente como estaba: mismo login, mismas pantallas, mismo comportamiento, con una tabla vacía y una columna nueva con valor por defecto (`datos.md §E.7`). **El botón aparece el día que alguien configura el proveedor, no el día que se despliega el código.** Es la diferencia con 1.3, donde el despliegue activó la obligación de MFA de dos roles en todos los tenants (`§C.11.1`).
+
+**Esto hay que poder afirmarlo con un test, no con un párrafo** — y la primera versión de esta especificación lo afirmaba solo con un párrafo, que es de donde salió el issue [#140](https://github.com/pirexia/plataforma-educativa/issues/140). Lo cubre **`CA-AUTH-235`**: arranque con `APP_ENV=production` y **sin `AUTH_OAUTH_DRIVER` fijado**, que debe completar sin excepción.
 
 ### E.12.2 Trabajo manual nuevo en el alta de cada tenant
 
@@ -1113,11 +1142,16 @@ Tres cosas que hay que escribir en `SYSADMIN.md` y en el procedimiento de alta, 
 ### E.12.3 Orden y reversión
 
 1. Migraciones (`datos.md §E.7`), antes del código. Son *expand* puras.
-2. Despliegue de la aplicación **sin credenciales**, que deja el sistema idéntico al anterior.
+2. Despliegue de la aplicación **sin tocar ninguna variable nueva**. `AUTH_OAUTH_DRIVER` queda en `none` por defecto, el sistema arranca y queda idéntico al anterior. **No hay que fijar nada para que este paso sea seguro**, que es justo lo que el issue [#140](https://github.com/pirexia/plataforma-educativa/issues/140) demostró que no se cumplía.
 3. Registro de la URI en la consola de Google y carga del secreto en el gestor de secretos.
-4. Configuración de `AUTH_GOOGLE_CLIENT_ID`/`SECRET` y `AUTH_OAUTH_DRIVER=google`, y reinicio. **El botón aparece aquí.**
+4. Configuración de `AUTH_OAUTH_DRIVER=google` **más** `AUTH_GOOGLE_CLIENT_ID`/`SECRET`, y reinicio. **El botón aparece aquí.** Los tres valores van juntos: `google` sin secreto no arranca (guarda 2), y es a propósito — es preferible que el reinicio falle a que el centro entero descubra el problema pulsando el botón.
 
-**La reversión es limpia**: basta con vaciar las credenciales para que el proveedor desaparezca sin tocar la base de datos ni desplegar nada. Los vínculos ya creados quedan sin uso posible hasta que se vuelva a configurar, y **nadie se queda fuera**, porque nadie depende de Google para entrar (`§E.1`). La migración del `CHECK` de `login_attempts` es de un solo sentido si ya hay filas con el valor nuevo (`datos.md §E.7`), como todas las anteriores del mismo tipo, y revertir la aplicación no exige revertirla.
+**La reversión es limpia y tiene dos escalones**, según lo que se quiera deshacer:
+
+- **Apagar solo Google**: `AUTH_OAUTH_DRIVER=none` y reinicio. Sin tocar la base de datos, sin desplegar y sin retirar las credenciales. Los vínculos ya creados dejan de servir para entrar, **pero sus titulares siguen pudiendo verlos y retirarlos** (`§E.1`), y **nadie se queda fuera**, porque nadie depende de Google para entrar.
+- **Revertir la aplicación**: la migración del `CHECK` de `login_attempts` es de un solo sentido si ya hay filas con el valor nuevo (`datos.md §E.7`), como todas las anteriores del mismo tipo, y revertir la aplicación no exige revertirla.
+
+**Volver a `none` es la primera maniobra ante cualquier incidencia del proveedor**, y conviene que esté escrita aquí y no haya que deducirla: es un cambio de variable y un reinicio, no toca datos y no es destructiva.
 
 ### E.12.4 Lo que hay que verificar en el entorno real y no se puede verificar en WSL2
 
