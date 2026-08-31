@@ -300,10 +300,17 @@ final class MfaChallengeService
     }
 
     /**
+     * Orden estable (Totp, Email, Sms — declaración de MfaMethod), no el
+     * orden de fila que devuelva la consulta: sin ORDER BY explícito,
+     * PostgreSQL no lo garantiza, y CA-AUTH-156 exige `available_methods`
+     * en un orden predecible.
+     *
      * @return list<MfaMethod>
      */
     private function usableMethods(User $user): array
     {
+        $priority = array_flip(array_column(MfaMethod::cases(), 'value'));
+
         return MfaFactor::query()
             ->where('user_id', $user->id)
             ->whereNotNull('confirmed_at')
@@ -311,6 +318,7 @@ final class MfaChallengeService
             ->get()
             ->map(fn (MfaFactor $factor): MfaMethod => $factor->method)
             ->unique(fn (MfaMethod $method): string => $method->value)
+            ->sortBy(fn (MfaMethod $method): int => $priority[$method->value])
             ->values()
             ->all();
     }
