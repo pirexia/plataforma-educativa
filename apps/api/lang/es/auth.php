@@ -123,6 +123,37 @@ return [
             'body' => 'Se ha desvinculado la cuenta de Google :email de tu perfil en :tenant.',
             'warning' => 'Si no has sido tú, contacta cuanto antes con la administración de tu centro.',
         ],
+        // REQ-AUTH-004 (1.4b), funcional.md §F.4.6. Distinto de
+        // identity_linked: nombra el proveedor del centro y deja claro
+        // que fue el sistema quien vinculó, no el titular.
+        'identity_matched' => [
+            'subject' => 'Tu cuenta se ha vinculado con :tenant',
+            'greeting' => 'Hola, :name.',
+            'body' => 'Al entrar con :provider en :tenant, el sistema ha vinculado automáticamente la cuenta :email a tu perfil porque el correo coincidía.',
+            'warning' => 'Si no has sido tú, contacta cuanto antes con la administración de tu centro.',
+        ],
+    ],
+
+    // REQ-AUTH-004 (1.4b). Catálogo de proveedores OIDC por tenant
+    // (funcional.md §F.4). `discovery.*` es la lista cerrada de motivos
+    // por los que un documento de descubrimiento no pasa las cinco
+    // guardas de §F.4.2 — ninguno lleva el detalle del destino
+    // (RN-AUTH-113).
+    'sso' => [
+        'identity_provider_issuer_already_catalogued' => 'Este centro ya tiene catalogado un proveedor con ese emisor.',
+        'identity_provider_enable_without_secret' => 'No puedes activar este proveedor sin una credencial de cliente vigente.',
+        'identity_provider_secret_last_active' => 'No puedes retirar la última credencial vigente de un proveedor activo: desactívalo antes.',
+        'discovery' => [
+            'esquema_no_admitido' => 'La URL de descubrimiento debe usar https.',
+            'destino_no_publico' => 'No se puede acceder a esa dirección desde este servidor.',
+            'demasiadas_redirecciones' => 'El documento de descubrimiento redirige demasiadas veces.',
+            'sin_respuesta' => 'No se ha podido descargar el documento de descubrimiento.',
+            'respuesta_demasiado_grande' => 'El documento de descubrimiento es demasiado grande.',
+            'documento_no_valido' => 'El documento de descubrimiento no es válido o le faltan datos obligatorios.',
+            'emisor_no_coincide' => 'El emisor declarado no coincide con el origen de la URL de descubrimiento.',
+            'endpoint_no_seguro' => 'Alguno de los puntos de conexión declarados no usa https.',
+            'flujo_no_admitido' => 'Este emisor no admite el flujo de autorización necesario.',
+        ],
     ],
 
 ];

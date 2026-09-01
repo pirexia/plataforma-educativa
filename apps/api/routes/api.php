@@ -1,9 +1,28 @@
 <?php
 
 use App\Http\Controllers\HealthController;
+use App\Modules\Auth\Infrastructure\FakeOidcIssuerController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', HealthController::class)->name('api.health');
+
+// REQ-AUTH-004 (1.4b), operacion.md §F.10. El emisor OIDC simulado: fuera
+// del grupo de tenant a propósito (es un emisor de plataforma, no de un
+// centro concreto — el catálogo de cada tenant apunta a él por su propia
+// discovery_url) y solo registrado en local/testing (§F.10.3, segunda
+// barrera junto a FakeOidcIssuerController::guardEnvironment()).
+if (app()->environment(['local', 'testing'])) {
+    Route::prefix('_sso-simulator')->group(function (): void {
+        Route::get('/.well-known/openid-configuration', [FakeOidcIssuerController::class, 'discovery'])
+            ->name('sso-simulator.discovery');
+        Route::get('/authorize', [FakeOidcIssuerController::class, 'authorize'])
+            ->name('sso-simulator.authorize');
+        Route::post('/token', [FakeOidcIssuerController::class, 'token'])
+            ->name('sso-simulator.token');
+        Route::get('/userinfo', [FakeOidcIssuerController::class, 'userinfo'])
+            ->name('sso-simulator.userinfo');
+    });
+}
 
 // ADR-014/ADR-033 §2: toda ruta de negocio, sin excepción, resuelve tenant
 // antes de tocar datos. /health queda fuera a propósito (healthcheck del

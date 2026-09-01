@@ -108,6 +108,29 @@ return [
             'body' => 'The Google account :email has been unlinked from your profile at :tenant.',
             'warning' => 'If this was not you, contact your school administration as soon as possible.',
         ],
+        'identity_matched' => [
+            'subject' => 'Your account has been linked at :tenant',
+            'greeting' => 'Hello, :name.',
+            'body' => 'When you signed in with :provider at :tenant, the system automatically linked the account :email to your profile because the email matched.',
+            'warning' => 'If this was not you, contact your school administration as soon as possible.',
+        ],
+    ],
+
+    'sso' => [
+        'identity_provider_issuer_already_catalogued' => 'This school already has a provider catalogued with that issuer.',
+        'identity_provider_enable_without_secret' => 'You cannot enable this provider without a current client credential.',
+        'identity_provider_secret_last_active' => 'You cannot retire the last active credential of an enabled provider: disable it first.',
+        'discovery' => [
+            'esquema_no_admitido' => 'The discovery URL must use https.',
+            'destino_no_publico' => 'That address cannot be reached from this server.',
+            'demasiadas_redirecciones' => 'The discovery document redirects too many times.',
+            'sin_respuesta' => 'The discovery document could not be downloaded.',
+            'respuesta_demasiado_grande' => 'The discovery document is too large.',
+            'documento_no_valido' => 'The discovery document is invalid or is missing required fields.',
+            'emisor_no_coincide' => 'The declared issuer does not match the origin of the discovery URL.',
+            'endpoint_no_seguro' => 'One of the declared endpoints does not use https.',
+            'flujo_no_admitido' => 'This issuer does not support the required authorization flow.',
+        ],
     ],
 
 ];

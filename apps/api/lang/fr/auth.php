@@ -108,6 +108,29 @@ return [
             'body' => 'Le compte Google :email a été dissocié de votre profil sur :tenant.',
             'warning' => "Si ce n'était pas vous, contactez au plus vite l'administration de votre établissement.",
         ],
+        'identity_matched' => [
+            'subject' => 'Votre compte a été lié sur :tenant',
+            'greeting' => 'Bonjour :name.',
+            'body' => "En vous connectant avec :provider sur :tenant, le système a automatiquement lié le compte :email à votre profil car l'adresse e-mail correspondait.",
+            'warning' => "Si ce n'était pas vous, contactez au plus vite l'administration de votre établissement.",
+        ],
+    ],
+
+    'sso' => [
+        'identity_provider_issuer_already_catalogued' => 'Cet établissement a déjà un fournisseur catalogué avec cet émetteur.',
+        'identity_provider_enable_without_secret' => "Vous ne pouvez pas activer ce fournisseur sans identifiant client valide.",
+        'identity_provider_secret_last_active' => "Vous ne pouvez pas retirer le dernier identifiant valide d'un fournisseur actif : désactivez-le d'abord.",
+        'discovery' => [
+            'esquema_no_admitido' => "L'URL de découverte doit utiliser https.",
+            'destino_no_publico' => 'Cette adresse est inaccessible depuis ce serveur.',
+            'demasiadas_redirecciones' => 'Le document de découverte redirige trop de fois.',
+            'sin_respuesta' => 'Le document de découverte n\'a pas pu être téléchargé.',
+            'respuesta_demasiado_grande' => 'Le document de découverte est trop volumineux.',
+            'documento_no_valido' => 'Le document de découverte est invalide ou il manque des champs obligatoires.',
+            'emisor_no_coincide' => "L'émetteur déclaré ne correspond pas à l'origine de l'URL de découverte.",
+            'endpoint_no_seguro' => "L'un des points de terminaison déclarés n'utilise pas https.",
+            'flujo_no_admitido' => "Cet émetteur ne prend pas en charge le flux d'autorisation requis.",
+        ],
     ],
 
 ];
