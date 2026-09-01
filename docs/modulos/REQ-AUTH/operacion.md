@@ -1174,3 +1174,314 @@ Tres cosas que hay que escribir en `SYSADMIN.md` y en el procedimiento de alta, 
 ### E.12.4 Lo que hay que verificar en el entorno real y no se puede verificar en WSL2
 
 `§E.10.4`, entero. Es la lista concreta, y es más larga que la de cualquier paso anterior del módulo.
+
+---
+
+# Parte F · Paso 1.4b · Operación (`REQ-AUTH-004`)
+
+> **Estructura**: §1-§11 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b y `§E.*` es 1.4, los cinco cerrados. Esta **Parte F** es el paso **1.4b**, **en especificación**.
+>
+> Escrita sobre `ADR-043` (**ACEPTADA**) y sobre las tres decisiones del usuario del 2026-09-01. **El cambio operativo mayor del paso es que `APP_KEY` gana responsabilidad por segunda vez** (`§F.2.2`), y el segundo es que **el trabajo manual de alta de tenant que 1.4 introdujo desaparece** (`§F.12.2`).
+
+---
+
+## F.1 Comportamiento con el módulo activo o inactivo
+
+**`REQ-AUTH` sigue sin ser desactivable** (`RN-AUTH-35`) y **ninguna ruta de este paso lleva `module-enabled`** (`CA-AUTH-306`), **tampoco las ocho de administración**: un administrador que no puede corregir la configuración de su IdP porque una fila de `module_subscriptions` está mal es el mismo fallo total de §1 con otra ropa.
+
+Lo que este paso introduce es un eje de configuración **por tenant y en base de datos**, no por despliegue. Sus estados:
+
+| Estado | Qué ocurre |
+|--------|------------|
+| **Sin proveedores catalogados** — el estado de **todos** los tenants el día del despliegue | `GET /auth/identity-providers` devuelve exactamente lo que devolvía en 1.4; las ocho rutas de administración responden con normalidad y colección vacía. **Nada cambia para nadie** (`§F.12.1`) |
+| Proveedor catalogado y **no activo** | No se pinta y **no arranca el flujo** aunque se llame a mano (`RN-AUTH-102`) |
+| Proveedor activo con credencial vigente | El botón aparece y el flujo funciona |
+| Proveedor activo **sin credencial vigente** | `POST /auth/oauth-authorizations` responde `422` **y se emite alerta** (`§F.8`). Es el estado en que un centro cree tener SSO y no lo tiene. **Solo se alcanza retirando la última credencial de un proveedor ya activo**, porque activarlo sin credencial responde `409` (`api.md §F.3`) |
+| Proveedor activo con credencial **caducada en el IdP** | El canje falla ⇒ `error_proveedor` para todo el centro. **Es el fallo con mayor impacto del paso**, y por eso hay ventana de rotación, aviso a 30 días y alerta (`§F.4`, `§F.8`) |
+| Emisor inalcanzable | `error_proveedor`. **El login local sigue funcionando** |
+
+**El SSO institucional nunca es la única puerta.** No hay ningún estado del sistema en el que un usuario dependa del IdP de su centro para entrar: siempre tiene su contraseña (`RN-AUTH-96`, y la guarda de `§E.4.5`). Es la propiedad que hace que una caída del IdP del centro sea una molestia y no una incidencia — y es la propiedad que `OPEN-AUTH-39` pondría en juego si cambiara de signo (`funcional.md §F.0.3` punto 3).
+
+**Los dos *endpoints* de autoservicio de vínculos no dependen del proveedor**, igual que en `§E.1`: `GET /auth/identities` y `DELETE /auth/identities/{public_id}` siguen funcionando con un proveedor desactivado o borrado. Un vínculo que no se puede retirar porque se apagó el proveedor es un dato personal atrapado.
+
+---
+
+## F.2 Variables de entorno
+
+### F.2.1 Propias del paso
+
+| Variable | Uso | Valor por defecto | Valor en desarrollo |
+|----------|-----|-------------------|---------------------|
+| `AUTH_SSO_DISCOVERY_TIMEOUT_SECONDS` | Tiempo de espera de la descarga del documento de descubrimiento (`funcional.md §F.4.2` guarda 4) | `5` | `5` |
+| `AUTH_SSO_DISCOVERY_MAX_BYTES` | Tope de tamaño de ese documento | `262144` | `262144` |
+| `AUTH_SSO_DISCOVERY_MAX_REDIRECTS` | Guarda 3 | `3` | `3` |
+| `AUTH_SSO_DISCOVERY_REFRESH_DAYS` | Antigüedad a partir de la cual la tarea programada refresca un proveedor (`§F.4`) | `7` | `7` |
+| `AUTH_SSO_SECRET_EXPIRY_WARNING_DAYS` | Antelación del aviso de caducidad de credencial (`§F.4`) | `30` | `30` |
+| `AUTH_SSO_CLOCK_SKEW_SECONDS` | Tolerancia de reloj al validar `exp`/`iat` del `id_token` (`RN-AUTH-104`) | `120` | `120` |
+| `AUTH_SSO_ALLOW_INSECURE_DISCOVERY` | **Permite `http` en el descubrimiento y en los *endpoints* del emisor.** Existe **solo** para el emisor simulado de `§F.10`. **Guarda de arranque: aborta la aplicación si es `true` y `APP_ENV` no es `local` ni `testing`, en todos los entornos** | **`false`** | **`true`, fijado explícitamente** |
+| `AUTH_RATE_LIMIT_OIDC_CALLBACK_PER_IP` | *Callbacks* institucionales por IP y minuto (`oidc_callback_ip`) | `20` | `20` |
+| `AUTH_RATE_LIMIT_SSO_DISCOVERY_PER_TENANT` | Validaciones de descubrimiento por tenant y minuto (`sso_discovery_tenant`) | `6` | `6` |
+| `AUTH_RATE_LIMIT_SSO_SECRET_PER_TENANT` | Cargas de credencial por tenant y minuto (`sso_secret_tenant`) | `6` | `6` |
+
+**Guardas de arranque, en todos los entornos** —mismo patrón que `SESSION_DOMAIN` (§2.2), la política de contraseñas y las tres de `§E.2.1`—:
+
+1. **`AUTH_SSO_ALLOW_INSECURE_DISCOVERY=true` con `APP_ENV` distinto de `local`/`testing` ⇒ la aplicación no arranca.** Con `http` admitido, el documento que decide **dónde se autentica el personal de un centro** viaja en claro y lo puede reescribir cualquiera en el camino. Es la guarda más importante que introduce este paso, y es la hermana exacta de la guarda 1 de `§E.2.1`.
+2. **La ruta del emisor simulado no se registra** fuera de `local`/`testing`, con test que lo comprueba con `APP_ENV=production` (`§F.10.3`). **Dos barreras, no una**, por el mismo motivo que en 1.4: lo que hay al otro lado de un descuido aquí no es una funcionalidad rota, es cualquiera entrando como cualquiera.
+
+**Y una propiedad que hay que poder afirmar y no solo escribir** (lección del issue [#140](https://github.com/pirexia/plataforma-educativa/issues/140), `§E.2.1`): **ninguna variable de este paso tiene un valor por defecto que dispare una guarda de arranque.** `AUTH_SSO_ALLOW_INSECURE_DISCOVERY` vale `false` por defecto, que es el valor seguro en cualquier entorno, y el entorno de desarrollo lo fija a `true` **a mano** en `apps/api/.env.example` y en `compose.yaml`, nunca por herencia. Lo cubre `CA-AUTH-310`.
+
+**Ninguna variable nueva lleva credenciales de ningún tenant**, y es el cambio de modelo del paso: en 1.4 el secreto era del despliegue (`AUTH_GOOGLE_CLIENT_SECRET`, `EnvironmentFile=`); aquí es **de cada centro** y vive cifrado en base de datos, porque un `EnvironmentFile=` cambiaría con cada alta de tenant y exigiría reiniciar el servicio (`ADR-043 §8.2`).
+
+**`AUTH_OAUTH_DRIVER` y `AUTH_GOOGLE_CLIENT_*` no cambian.** El *driver* global de 1.4 sigue existiendo, con sus tres valores, sus tres guardas y su valor por defecto `none`.
+
+### F.2.2 `APP_KEY`: gana responsabilidad, **por segunda vez**
+
+Y hay que decirlo en voz alta, porque es la consecuencia de operación que este paso introduce y es de las que no se notan hasta que se necesitan.
+
+1.3 convirtió `APP_KEY` en custodio de los secretos TOTP (`§C.2.2`, `§C.11.1`). 1.4 **no la tocó** (`§E.2.2`). **1.4b la vuelve a cargar**: a partir de este paso, `APP_KEY` cifra **la credencial de cliente de cada proveedor de cada tenant** (`datos.md §F.3`).
+
+Consecuencias concretas, encadenadas:
+
+- **Perder `APP_KEY` deja sin SSO institucional a todos los tenants a la vez**, además de romper la verificación de los factores TOTP. La salida es la misma que en `§C.11.1`: no hay recuperación criptográfica, hay reconfiguración — cada centro vuelve a cargar su credencial. **Es recuperable, y por eso no es catastrófico**; pero es una llamada a 400 centros el día que ocurra.
+- **Rotar `APP_KEY` exige re-cifrar estas filas**, exactamente igual que las de `user_mfa_factors`. El procedimiento de rotación de `§C.11.1` **tiene que incluir esta tabla**, y si no la incluye, el día de la rotación el SSO se cae sin que nadie lo relacione. **Es la línea de este documento que más fácil es no leer y más cara es de descubrir.**
+- **Las copias de seguridad contienen ahora material sensible cifrado de todos los tenants** (`§F.11`). `ADR-043 §8.2` lo anticipó como la implicación de la decisión, y se acepta con esa implicación a la vista.
+
+**Lo que este paso *no* agrava**: no se guarda ningún `access_token`, `refresh_token` ni `id_token` (`RN-AUTH-95`, `CA-AUTH-307`). El único material nuevo cifrado en reposo es la credencial de cliente, que es **de la plataforma frente a un tercero**, no de ninguna persona.
+
+---
+
+## F.3 Servicios externos y degradación
+
+| Servicio | Uso | Si no responde |
+|----------|-----|----------------|
+| **El IdP de cada centro** (descubrimiento, autorización, *token*, opcionalmente `userinfo`) | Todo el flujo institucional de ese centro | **El SSO de ese centro deja de funcionar; el resto de centros y el login local no se enteran.** El *callback* responde `error_proveedor` y la pantalla ofrece entrar con contraseña. **Sin *circuit breaker***, por el motivo de `§E.3`: la persona está esperando delante del navegador, se falla rápido y se ofrece la alternativa. **Con tiempo de espera corto y explícito** en el cliente HTTP: sin él, una caída del IdP de un centro convierte cada *callback* en un trabajador de la API bloqueado, y con `N` centros eso es un modo de fallo compartido |
+| **El IdP de cada centro** (refresco programado del descubrimiento) | `§F.4` | **Se conservan los *endpoints* anteriores**, se estampa `discovery_failed_at` y se avisa. Un emisor momentáneamente inalcanzable **no deja a un centro sin SSO** |
+| PostgreSQL | Catálogo, credenciales, vínculos y sesión | Sin cambios respecto de §3 |
+| Redis | Límites de tasa | Sin cambios: **el limitador no degrada a «sin límite»**, responde `503` (§3) |
+| Correo transaccional | El aviso de emparejamiento de `funcional.md §F.4.6` | Depende de `0.10c`. El trabajo reintenta; agotados los reintentos, **el vínculo queda hecho y el titular no se ha enterado**. Misma degradación que `§E.3`, con el mismo peso: el aviso es la única defensa del titular ante un vínculo que no hizo él |
+| S3 / MinIO | **No se usa** | — |
+
+**Un modo de fallo compartido que hay que anotar y que 1.4 no tenía**: con un solo proveedor global, un IdP lento afectaba a un flujo. Con `N` proveedores de `N` centros, **un IdP lento de un centro consume trabajadores de la API que sirven a todos los demás**. El tiempo de espera corto es lo que acota el daño, y por eso es explícito y no heredado del cliente HTTP por defecto. **Se vigila con `auth.oidc.callback.duration` (`§F.8`)**, y si algún día no basta, la salida conocida es un *bulkhead* por proveedor — que **no se implementa hoy** porque sería complejidad sin medida detrás.
+
+---
+
+## F.4 Colas y trabajos (`INV-012`)
+
+| Cola | Trabajo | Disparo | Reintentos |
+|------|---------|---------|------------|
+| `auth-mail` | `SendIdentityMatchedEmail` | Emparejamiento en un login institucional | 3, mismo retroceso que `SendIdentityLinkedEmail` |
+
+**Dos tareas de mantenimiento nuevas, y ninguna borra nada** (`datos.md §F.10`):
+
+| Comando | Cadencia | Qué hace |
+|---------|----------|----------|
+| `auth:refresh-oidc-discovery` | **Diaria** | Para cada proveedor **activo** cuyo `discovery_fetched_at` sea anterior a `AUTH_SSO_DISCOVERY_REFRESH_DAYS`, revalida el documento con **las mismas cinco guardas** que el alta y actualiza los *endpoints*. **Si falla, conserva los anteriores** y estampa `discovery_failed_at`. Ejecuta **por tenant** con `RunsPerTenant` |
+| `auth:warn-expiring-client-secrets` | **Diaria** | Marca como *«caduca pronto»* toda credencial vigente cuya `expires_at` esté a menos de `AUTH_SSO_SECRET_EXPIRY_WARNING_DAYS`, emite la métrica de `§F.8` y **avisa al administrador del centro**. Ejecuta por tenant |
+
+**Por qué el refresco es diario y no horario**: un documento de descubrimiento cambia de *endpoints* una vez cada varios años. Diario con ventana de siete días es holgado y no golpea a `N` emisores externos cada hora, que es exactamente la clase de tráfico que un IdP institucional acaba bloqueando.
+
+**Por qué el aviso de caducidad es un comando y no un disparador en el login**: en el login no hay tiempo (`INV-012`) y, sobre todo, **el aviso tiene que salir aunque nadie entre** — un centro en agosto con la credencial venciendo el 1 de septiembre es exactamente el caso que hay que cubrir.
+
+**Las cinco tareas que ya existen no cambian.** `PurgeLoginAttempts` sigue con sus 90 días y la columna `method` no altera nada.
+
+Reglas heredadas que siguen aplicando sin excepción: contexto de tenant entrado y salido por el mecanismo de framework, ejecución por tenant con `RunsPerTenant`, y el *scheduler* en su propio contenedor (`ADR-037`).
+
+**El correo nuevo no lleva token ni enlace accionable** (`RN-AUTH-97`), así que —como los dos de 1.4— **no necesita `ShouldBeEncrypted`** (issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73)): su *payload* no contiene material de credencial. Sí contiene el correo del destinatario, como todos los del módulo.
+
+---
+
+## F.5 Correos que emite el módulo
+
+**Uno más**, en los cuatro idiomas de `ADR-021` (`INV-009`) y en el idioma preferido del destinatario:
+
+| Correo | Contenido | Enlace |
+|--------|-----------|--------|
+| Cuenta vinculada con el proveedor del centro | **Qué proveedor** (por su nombre visible), cuándo, y **que fue el sistema quien lo vinculó por coincidencia de correo**, no el titular. Qué hacer si no lo reconoce | **Ninguno** |
+
+Reglas comunes con los cinco que ya existen (§5, `§C.5`, `§D.5`, `§E.5`):
+
+- **Sin enlace accionable** (`RN-AUTH-50`).
+- **Distinguir el emparejamiento de la vinculación manual es la parte útil del aviso**, igual que en `§E.5`: «vinculaste tu cuenta» es esperable; «el sistema la vinculó» es lo que alguien tiene que poder reconocer como ajeno.
+- **El aviso nombra el proveedor del centro, no el correo del directorio.** El titular reconoce «Entra ID del centro» sin que haga falta repetirle su dirección.
+
+**Una consecuencia de volumen que hay que anticipar** (`funcional.md §F.4.6`): el día que un centro de 400 personas activa el emparejamiento se encolan hasta 400 avisos a medida que la gente entra. **No es una ráfaga sospechosa, es el comportamiento esperado**, y por eso la alerta de `§F.8` se define por proveedor recién activado y no por volumen absoluto.
+
+---
+
+## F.6 Límites de tasa
+
+**Tres *buckets* nuevos, y cinco *endpoints* deliberadamente sin *bucket* propio.** Amplía §6, `§C.6` y `§E.6`, con sus mismos criterios.
+
+| Endpoint | Límite | Clave (*bucket*) |
+|----------|--------|------------------|
+| `GET /auth/oauth/oidc/callback` | **20 / min** | IP — `oidc_callback_ip` |
+| `POST /identity-providers` y `POST .../discovery-refreshes` | **6 / min** | `(tenant_id)` — `sso_discovery_tenant` |
+| `POST .../secrets` | **6 / min** | `(tenant_id)` — `sso_secret_tenant` |
+| Los otros cinco de administración | **ninguno propio** | Ver abajo |
+
+- **Toda clave incluye el `tenant_id`** (`ADR-033 §9`), sin cambios.
+- **`sso_discovery_tenant` va por tenant y no por sesión ni por IP, y es la decisión que hay que argumentar.** Lo que se defiende aquí **no es la cuenta ni el servidor: son terceros**. Un administrador con sesión legítima que repita la validación en bucle convierte nuestra API en un generador de tráfico contra el emisor que él elija. Por sesión, dos pestañas duplican el límite; por IP, un centro entero detrás de una salida NAT comparte el de todos. **Por tenant es la unidad que corresponde al daño**: es el centro quien responde de lo que pide su administrador. Es la primera vez que este módulo pone un *bucket* con esa clave, y por eso se escribe.
+- **`sso_secret_tenant` es un límite antiabuso, no antiadivinanza**: cargar credenciales en bucle no adivina nada, pero llena la tabla y el registro de auditoría. Seis por minuto es holgadísimo para una operación que se hace dos veces al año.
+- **`oidc_callback_ip` copia el valor de `oauth_callback_ip` de `§E.6`** (20/min), a propósito y no por inventar uno: es el análogo exacto, y dos límites distintos para dos *callbacks* iguales sería una inconsistencia que alguien tendría que explicar.
+
+**Por qué los otros cinco de administración no llevan *bucket* propio**, que es lo que hay que argumentar y no dar por hecho:
+
+1. **Exigen sesión completa y un permiso concedido solo a `administrador_centro`** (`permisos.md §F.7`), así que no amplían ninguna superficie anónima. Es literalmente el criterio de `api.md §B.1` para los de 1.2b y el de `§E.6` para los dos de `/auth/identities`.
+2. **Ninguno hace una petición saliente ni verifica una credencial.** Los dos que sí hacen una petición saliente **sí** llevan *bucket*, y ese es el criterio que separa a unos de otros. **Un límite que no cierra ningún hueco y crea una inconsistencia no se pone** (`§E.6`, mismo argumento).
+
+**No hay límite por `(tenant_id, email)`** en ninguno de los tres, por el mismo motivo de `§E.6`: en el arranque del flujo no hay correo todavía, y en el *callback* lo pone el IdP, no el cliente. El límite por sujeto en el camino institucional lo aporta el bloqueo de cuenta, que sí se aplica (`RN-AUTH-111`).
+
+- **`429` siempre con `Retry-After`** (`ADR-038 §6.5`).
+- **El limitador sigue sin degradar a «sin límite»**: si su almacén no responde, `503` (§3).
+- **El punto ciego de §6 —un centro entero detrás de una IP de salida— no empeora**: un login institucional sustituye a uno local, no se suma. Sigue pendiente de medir con `REQ-SEED` (1.15b), sin cambios en esa recomendación.
+
+---
+
+## F.7 Caché
+
+**Ninguna caché de framework nueva**, y una decisión de diseño que hace innecesaria la que sería obvia.
+
+**Los *endpoints* del emisor no se cachean: se guardan en la fila** (`datos.md §F.2`). Es deliberado, y la alternativa —descubrir en cada login y cachear el resultado en Redis— se descarta por tres motivos: haría depender cada login de una petición saliente, metería un modo de fallo nuevo entre el usuario y su sesión, y añadiría una invalidación que nadie recuerda al depurar. **Con los *endpoints* en la fila, un login no habla con nadie salvo con el propio IdP.**
+
+**Y la advertencia de `§E.7` sigue vigente y se refuerza**: **el flujo no debe verificar la firma del `id_token` contra el JWKS del emisor**. `funcional.md §F.3.2` tiene el argumento entero, con el respaldo de OpenID Connect Core `§3.1.3.7`. Tomar ese camino obligaría a descargar, cachear e invalidar el juego de claves de **cada emisor de cada tenant**, con su propio modo de fallo, para la misma garantía. **Si la librería ofrece los dos caminos, se usa el que no verifica firmas**, y queda escrito aquí —como en 1.4— para que no se elija el otro por parecer más seguro.
+
+`GET /auth/identity-providers` **sí consulta base de datos ahora**, a diferencia de 1.4, donde leía configuración de proceso. Es una consulta por `(tenant_id, is_enabled)` con índice, en cada carga de la pantalla de login. **No se cachea**: el resultado tiene que cambiar en el acto cuando un administrador activa o desactiva un proveedor, y una caché con invalidación por evento aquí es más código y más modos de fallo que la consulta que evita.
+
+---
+
+## F.8 Métricas y alertas
+
+| Métrica | Alerta |
+|---------|--------|
+| `auth.oidc.callback.outcome` por código de resultado y por proveedor | **`error_proveedor` por encima del 5 % en 15 minutos para un proveedor ⇒ aviso.** Es la señal de credencial caducada, `client_id` incorrecto o emisor caído, y sin ella el fallo es silencioso: cada usuario lo ve, nadie lo agrega |
+| `auth.oidc.callback.outcome{estado_no_valido}` | Pico sostenido: problema de cookies en algún navegador, o alguien probando el *callback* a mano |
+| **`auth.oidc.callback.outcome{dominio_no_permitido}`** | **Volumen alto en un proveedor recién configurado ⇒ aviso al administrador del centro.** Casi siempre significa que declaró mal el dominio, y el síntoma que ve él es «no entra nadie» |
+| **`auth.oidc.idtoken.invalid` por motivo** (`iss`, `aud`, `exp`, `iat`, `nonce`) | **Cualquier cosa que no sea cero merece mirarse.** Un `id_token` que no valida no es un error de usuario: es configuración incorrecta o alguien probando. **`nonce` distinto de cero es lo más grave de esta tabla**: es el síntoma de una reproducción |
+| **`auth.oidc.callback.duration` por proveedor** | **Percentil 95 por encima del tiempo de espera configurado ⇒ aviso.** Es la señal del modo de fallo compartido de `§F.3`: un IdP lento consumiendo trabajadores que sirven a todos los centros |
+| **`auth.sso.provider.enabled_without_secret`** | **Cualquier valor distinto de cero ⇒ aviso.** Un proveedor activo sin credencial vigente es un centro que cree tener SSO y no lo tiene (`§F.1`) |
+| **`auth.sso.secret.expiring`** por proveedor | **Cualquier valor distinto de cero ⇒ aviso**, con la antelación de `AUTH_SSO_SECRET_EXPIRY_WARNING_DAYS`. Es lo que evita la caída total sin aviso de `funcional.md §F.3.5` |
+| **`auth.sso.discovery.refresh_failed`** por proveedor | **Tres días seguidos ⇒ aviso.** Un fallo aislado es ruido; tres días es un emisor que cambió algo |
+| **`auth.sso.discovery.blocked`** por código de guarda | **Cualquier `destino_no_publico` ⇒ aviso de seguridad, no operativo.** Es un administrador de centro apuntando nuestro servidor a la red interna: puede ser un error de copiar y pegar, y puede no serlo. **La guarda ya lo impidió**; el aviso existe para que alguien lo mire (`RN-AUTH-113`) |
+| `auth.identity.matched` por proveedor | **Ráfaga en un proveedor que lleva activo más de una semana ⇒ aviso.** No se define por volumen absoluto: la primera semana de cada centro es legítimamente una ráfaga (`§F.5`) |
+| `login_attempts` con `outcome = 'federado_sin_vinculo'` y `method = 'sso'` | Volumen alto desde pocas IP: alguien probando qué correos tienen cuenta. **No es un oráculo** (`funcional.md §F.4.5`), pero sigue siendo actividad que merece mirarse |
+
+---
+
+## F.9 Problemas conocidos y diagnóstico
+
+| Síntoma | Causa probable | Comprobación |
+|---------|----------------|--------------|
+| Todo *callback* responde `estado_no_valido` | La cookie de sesión no llega en la navegación de vuelta | `SESSION_SAME_SITE` debe ser `lax`, **nunca `strict`** (`RN-AUTH-27`, `§E.9`). Sigue siendo el fallo más probable de un flujo federado |
+| El IdP responde `redirect_uri_mismatch` | La URI registrada por el centro no coincide | La pantalla de administración muestra la URI exacta (`api.md §F.2`). Se compara **carácter a carácter**: esquema, puerto y barra final incluidos |
+| El IdP responde `invalid_client` | `client_id` incorrecto, o **credencial caducada o revocada en el IdP** | `secret_status` en la pantalla, y `expires_at` de la credencial vigente. **Es la causa que más va a aparecer a partir del segundo año** |
+| Todo falla con `error_proveedor` y `auth.oidc.idtoken.invalid{aud}` sube | El `client_id` catalogado no es el del cliente que emite el *token* — típico tras rehacer el registro en el IdP | El `client_id` del catálogo contra el del IdP |
+| `auth.oidc.idtoken.invalid{nonce}` distinto de cero | **Incidencia de severidad alta.** O hay un problema de sesión, o alguien está reproduciendo un `id_token` | `RN-AUTH-104`, `CA-AUTH-276`. Se investiga, no se sube el umbral |
+| Nadie entra y `dominio_no_permitido` sube | `allowed_email_domains` mal declarado, o el emisor manda el correo en otro *claim* | El dominio declarado contra el del correo real. Y `email_claim`: Entra ID federado con AD suele mandar `upn`, no `email` (`funcional.md §F.5.1`) |
+| **Nadie entra y `sin_cuenta` sube en un centro con Entra ID** | **El `id_token` de Entra ID no trae `email`.** Es el caso de interoperabilidad más probable del paso: sin el *claim* opcional configurado o sin dirección en el directorio, `email` no viene | La salida es `claims_source = 'userinfo'` o `email_claim = 'upn'`, según lo que ese inquilino publique (`funcional.md §F.3.2`) |
+| Un centro se queda sin SSO de un día para otro, sin haber tocado nada | **Credencial caducada.** Es el modo de fallo que la ventana de rotación y el aviso de 30 días existen para evitar | `auth.sso.secret.expiring` de las semanas anteriores. **Si el aviso salió y nadie lo atendió, el problema es del procedimiento, no del diseño** |
+| La aplicación no arranca tras desplegar 1.4b | `AUTH_SSO_ALLOW_INSECURE_DISCOVERY=true` fuera de `local`/`testing` (guarda 1) | El mensaje de la guarda lo dice. **Salida inmediata: quitar la variable y reiniciar.** Es el mismo modo de fallo que el issue [#140](https://github.com/pirexia/plataforma-educativa/issues/140) y por eso el valor por defecto es el seguro (`CA-AUTH-310`) |
+| Un administrador ve `destino_no_publico` al validar una URL correcta | El emisor está detrás de una resolución interna, o hay un DNS partido | **La guarda es correcta y no se relaja.** Un IdP institucional accesible solo desde la red interna del servidor no es un IdP que el navegador de un docente pueda alcanzar |
+| **Un usuario entra por SSO y no le piden el segundo factor** | **Incidencia de severidad crítica.** Es una evasión del segundo factor | `RN-AUTH-111`, `CA-AUTH-299`. Se detiene el trabajo en curso y se resuelve de inmediato (`CLAUDE.md §5`) |
+| **Aparece una `Person` o un `User` creado por un login SSO** | **Incidencia crítica.** `RN-AUTH-108`: ese camino **no existe** en 1.4b | El código no debe tenerlo. `CA-AUTH-287` es el test que lo cubre |
+| **Dos personas distintas entran en la misma cuenta desde dos IdP del mismo centro** | **Incidencia crítica.** Es el defecto de `ADR-043 §3.6` sin corregir | `CA-AUTH-294`. Si aparece, la clave de `user_identities` no se re-tecleó bien |
+| El SSO funciona y el botón no aparece | El proveedor está catalogado y **no activo**, o `GET /auth/identity-providers` se está cacheando en algún intermediario | `is_enabled` en el catálogo; y `Cache-Control` de la respuesta (`§F.7`) |
+
+---
+
+## F.10 Desarrollo sin un IdP comercial: el emisor simulado
+
+**A diferencia de 1.4, este paso sí se puede recorrer entero en el entorno de desarrollo**, y es la mejor noticia operativa que trae.
+
+### F.10.1 Por qué aquí sí, y en 1.4 no
+
+`operacion.md §E.10.1` explicó por qué 1.4 no podía probarse de verdad en WSL2: **Google** exige que la `redirect_uri` sea `https` sobre un dominio público registrable, y `ADR-030` sirve `{slug}.{TENANCY_BASE_DOMAIN}` sobre HTTP. **La restricción la ponía el emisor, no nosotros.**
+
+Aquí el emisor **lo elige el centro**, y en desarrollo lo elegimos nosotros. Un emisor OIDC conforme servido por la propia API permite recorrer el flujo **real**: descubrimiento con sus cinco guardas, `state`, PKCE `S256`, `nonce`, canje de código contra un `token_endpoint`, `id_token` con sus cinco validaciones, restricción por dominio, emparejamiento, `MfaPolicy` y creación de sesión. **Lo único simulado es quién firma el documento y de dónde salen los *claims*.**
+
+### F.10.2 Qué se entrega
+
+Un emisor OIDC mínimo servido por la propia API, **registrado solo en `local`/`testing`**:
+
+1. `/.well-known/openid-configuration` con un documento válido: `issuer`, `authorization_endpoint`, `token_endpoint`, `response_types_supported` con `code` y `code_challenge_methods_supported` con `S256`.
+2. Una pantalla de autorización mínima con `sub`, `email`, casilla `email_verified` y **campo `hd`**, para poder probar `CA-AUTH-284` de verdad.
+3. Un `token_endpoint` que valida el `code_verifier` y devuelve un `id_token` con el `nonce` recibido.
+4. **El resto del flujo es el de verdad.** Es también lo que usan los tests: `RN-AUTH-104` se prueba **negativamente** —`nonce` cambiado, `aud` de otro cliente, `exp` vencido, `iss` distinto— sin depender de ningún IdP real.
+
+**Se descarta añadir un contenedor de IdP real (Keycloak) al entorno de desarrollo**, y conviene decir por qué porque es la alternativa obvia: `ADR-030` fija un perfil reducido en WSL2, y un servicio con su propia base de datos y su propio ciclo de actualizaciones es exactamente lo que ese perfil evita. El emisor simulado **cuesta cero contenedores** y ejercita el mismo código nuestro. Queda anotado como la vía a retomar el día que haya que probar interoperabilidad de verdad contra un IdP completo.
+
+### F.10.3 Las dos barreras que impiden que llegue a producción
+
+1. **Guarda de arranque**: `AUTH_SSO_ALLOW_INSECURE_DISCOVERY=true` fuera de `local`/`testing` **aborta la aplicación** (`§F.2.1`).
+2. **La ruta del emisor simulado no se registra** fuera de esos entornos, con test que lo comprueba con `APP_ENV=production`.
+
+**Dos y no una**, por el mismo motivo que en `§E.10.3`.
+
+### F.10.4 Lo que queda sin verificar, y hay que decirlo al cerrar
+
+**La lista es mucho más corta que la de 1.4**, y es lo importante. Lo que **sí** se verificará en navegador real con el emisor simulado: el flujo entero, las cinco guardas de descubrimiento, las cinco validaciones del `id_token`, la restricción por dominio con y sin `hd`, el emparejamiento, el segundo factor y la rotación de credenciales.
+
+Queda pendiente de un entorno con dominio público (`0.10b`) y de un IdP comercial:
+
+- Que el documento de descubrimiento de **Entra ID** valide nuestras cinco guardas tal cual, y **si el `id_token` trae `email`** o hay que ir a `userinfo`/`upn` (`§F.9`). **Es lo primero que hay que comprobar**: determina si un centro con Entra ID funciona sin tocar nada.
+- Que el *claim* `hd` de **Google Workspace** llegue como se espera para una cuenta de Workspace y **no** llegue para una de consumo con dirección del mismo dominio, que es lo que `CA-AUTH-284` afirma.
+- Que la caducidad de una credencial de Entra ID se comporte como se supone al canjear.
+- Que la cookie de sesión viaje en la navegación de vuelta con `Secure` y TLS reales.
+
+**Está escrito aquí para que se convierta en tarea y no en un olvido**, igual que `§E.10.4`.
+
+---
+
+## F.11 Impacto en copias de seguridad y restauración
+
+**Sí lo hay, y es nuevo.** `§E.11` pudo afirmar que 1.4 no lo tenía porque `user_identities` no contiene material cifrado. **Aquí no se puede afirmar lo mismo.**
+
+- `identity_providers` es una tabla de tenant ordinaria y entra en la copia como el resto. **No contiene datos personales ni material cifrado.**
+- **`identity_provider_secrets` contiene material cifrado con `APP_KEY`**, de todos los tenants. Es la segunda tabla del producto en esa situación, después de `user_mfa_factors` (`§C.10`, `§C.11.1`).
+
+Consecuencias, encadenadas y concretas:
+
+1. **Restaurar una copia sin la `APP_KEY` correspondiente deja sin SSO institucional a todos los centros restaurados.** El login local funciona, el de Google funciona, y el institucional no — hasta que cada centro vuelva a cargar su credencial. **Es recuperable**, y por eso no bloquea una restauración; pero hay que saberlo **antes** de la restauración, no durante.
+2. **`APP_KEY` tiene que estar en el procedimiento de recuperación al mismo nivel que las credenciales de base de datos.** Ya lo estaba desde 1.3 por los factores TOTP (`§C.11.1`); este paso **añade un segundo motivo** y sube la consecuencia de «algunos usuarios no verifican su segundo factor» a «ningún centro entra por su IdP».
+3. **Una copia de la base de datos es ahora, además, un almacén de credenciales cifradas de terceros.** `ADR-043 §8.2` lo anticipó como la implicación aceptada de la decisión. Lo que hay que escribir en el procedimiento: **una copia y su `APP_KEY` no se custodian juntas**.
+
+**Lo que no cambia**: `AUTH_GOOGLE_CLIENT_SECRET` sigue viviendo en el gestor de secretos y no en la copia (`ADR-037 §7.2`, `§E.11`).
+
+---
+
+## F.12 Despliegue
+
+### F.12.1 El día del despliegue no cambia nada para nadie
+
+Y es cierto por una razón concreta, no por casualidad: **ningún tenant tiene proveedores catalogados** y **ninguna variable nueva tiene un valor por defecto que dispare una guarda de arranque** (`§F.2.1`).
+
+Desplegado sin tocar una sola variable, el sistema queda exactamente como estaba: mismo login, mismos botones, mismo comportamiento, con dos tablas vacías, una columna nullable nueva y un valor más en un enumerado (`datos.md §F.7`). **El SSO de un centro aparece el día que su administrador lo configura y lo activa, no el día que se despliega el código.**
+
+**Esto hay que poder afirmarlo con un test, no con un párrafo** — es la lección del issue [#140](https://github.com/pirexia/plataforma-educativa/issues/140), y la cubre `CA-AUTH-310`: arranque con `APP_ENV=production` **sin fijar ninguna variable nueva**, que debe completar sin excepción.
+
+### F.12.2 El trabajo manual de 1.4 **desaparece**, y aparece otro en otro sitio
+
+`§E.12.2` dejó anotado el coste operativo de 1.4: registrar a mano `https://{slug}.{base}/api/v1/auth/oauth/google/callback` en **nuestra** consola de Google al dar de alta cada centro, con un **tope de URIs por cliente OAuth** señalado como límite duro de número de centros.
+
+**En SSO institucional ese coste no existe** (`ADR-043 §5.1`): cada centro registra la URI **en su propio IdP**. No hay acumulación en un solo sitio, no hay tope común y **no hay disparador de migración a la opción B**. Conviene decirlo porque cambia el cálculo, y porque el tope de `§E.12.2` **sigue vigente para el botón global de Google de 1.4** y no debe darse por resuelto: son dos integraciones distintas con dos costes distintos.
+
+Lo que sí aparece, y va a `SYSADMIN.md` y al manual de administración de centro:
+
+1. **El alta de un proveedor es trabajo del centro, en dos sistemas.** Registra nuestra `redirect_uri` en su IdP y pega aquí su URL de descubrimiento y su `client_id`. **Si registra mal la URI, el fallo aparece cuando la primera persona pulsa el botón**, no al configurar: no hay forma de comprobarlo desde aquí sin un usuario real (`funcional.md §F.4.1`).
+2. **La credencial caduca, y renovarla es trabajo recurrente del centro.** El aviso a 30 días existe para eso. **Va en el procedimiento de alta, no solo en la pantalla**: un aviso que llega a una dirección que nadie lee es un aviso que no existe.
+3. **Retirar una credencial aquí no la revoca en el IdP.** Hay que hacer las dos cosas (`api.md §F.4`).
+
+### F.12.3 Orden y reversión
+
+1. Migraciones (`datos.md §F.7`), antes del código. Son *expand*, con la retirada de dos índices argumentada.
+2. Despliegue de la aplicación **sin tocar ninguna variable nueva**. El sistema arranca y queda idéntico al anterior. **No hay que fijar nada para que este paso sea seguro.**
+3. A partir de ahí, **cada centro configura el suyo cuando quiere**. No hay ninguna acción del operador de plataforma.
+
+**La reversión tiene tres escalones**, según lo que se quiera deshacer:
+
+- **Apagar el SSO de un centro**: su administrador desactiva el proveedor. Un `PATCH`, sin reinicio, sin tocar base de datos. **Nadie se queda fuera** porque nadie depende del IdP para entrar (`RN-AUTH-96`), y **los vínculos siguen viéndose y pudiendo retirarse** (`§F.1`).
+- **Apagar el SSO de todos los centros**: no hay interruptor global, y **es correcto que no lo haya**: un interruptor que un operador puede pulsar y que deja a 400 centros sin su vía de acceso habitual es más peligroso que útil. Si hiciera falta, la maniobra es desactivar los proveedores por consola con la conexión de plataforma, y queda registrada en `admin_action_logs`.
+- **Revertir la aplicación**: la migración del `CHECK` de `login_attempts` es de un solo sentido si ya hay filas con `method = 'sso'` (`datos.md §F.7`), como todas las anteriores del mismo tipo, y **revertir la aplicación no exige revertirla**. **Lo que sí hay que saber**: revertir las migraciones **con vínculos institucionales vivos no es seguro y falla ruidosamente**, que es el comportamiento correcto (`datos.md §F.7`).
+
+### F.12.4 Lo que hay que verificar en el entorno real y no se puede verificar en WSL2
+
+`§F.10.4`, entero. **Es más corta que la de 1.4**, y esa es la diferencia con el paso anterior.

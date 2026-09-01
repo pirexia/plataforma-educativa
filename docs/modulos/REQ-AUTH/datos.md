@@ -1177,3 +1177,297 @@ Propiedades que hay que poder afirmar en la revisión (`db-reviewer`):
 
 1. **`subject` y `email_at_link` son identificadores de esa persona en un sistema de un tercero.** No son categoría especial y no son credenciales, pero sí permiten correlacionar a alguien fuera de este producto. Por eso van declarados como no registrables por `ADR-035` (`§E.2`), y por eso la fila se borra con la persona.
 2. **Desvincular no es suprimir.** La fila borrada lógicamente conserva `subject` y `email_at_link` como traza. Si alguien ejerce el derecho de supresión, lo que la borra es el flujo de `REQ-PRIV-006`, no la desvinculación. Se anota porque la pregunta se hace sola y porque la respuesta correcta es la que hoy tienen todas las tablas de traza de este módulo.
+
+---
+
+# Parte F · Paso 1.4b · Modelo de datos (`REQ-AUTH-004`)
+
+> **Estructura**: `§A.*` es 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b y `§E.*` es 1.4, los cinco cerrados. Esta **Parte F** es el paso **1.4b**, **en especificación**.
+>
+> Convenciones de `ADR-029` sin excepción: `TIMESTAMPTZ`, `text` en vez de `varchar(n)`, `bigint` interno más `public_id` ULID **solo donde se expone en API o URL**. Toda tabla de tenant se crea con `TenantMigration::tenantTable()` (`ADR-033 §5`, `§6`), que aporta `id`, `tenant_id` con `DEFAULT app.current_tenant_id()`, RLS `ENABLE`+`FORCE`, la política estándar, `UNIQUE (tenant_id, id)`, marcas de tiempo, borrado lógico y autoría.
+>
+> Escrita sobre `ADR-043` (**ACEPTADA**) y sobre las tres decisiones del usuario del 2026-09-01: **solo emparejamiento**, **credencial cifrada en tabla propia**, **configuración en autoservicio del centro**.
+>
+> **SAML no se anticipa.** El único punto donde este paso mira a `1.4c` es la clave de `user_identities`, y lo hace porque `ADR-043 §3.6` lo pide expresamente: el defecto que corrige **ya existe hoy** y afecta a los dos protocolos.
+
+---
+
+## F.0 Lo que **ya existe** y este paso no crea
+
+| Objeto | Estado | Consecuencia para 1.4b |
+|--------|--------|-------------------------|
+| `user_identities` con sus dos únicos parciales | **Existe** (`§E.2`) | **La forma sirve; la clave no** (`ADR-043 §3.6`). Este paso añade una columna, cuatro índices y tres `CHECK`, y retira los dos únicos antiguos (`§F.4`). **La tabla no se rehace** |
+| `identity_providers` como nombre **reservado y sin ocupar** | **Reservado** desde `§E.1.1` | **Este paso lo ocupa** (`§F.2`), y con el significado exacto con el que se reservó: *«catálogo de proveedores configurados: qué IdP admite este centro, con qué metadatos»* |
+| `users` con `password` `NOT NULL`, `status` con tres valores y `UNIQUE (tenant_id, person_id)` | **Existe** desde 0.8 | **No se toca ni una columna** (`§F.6`). Con emparejamiento y sin creación, la tensión de `ADR-043 §4.6` no se materializa — comprobado, no supuesto (`funcional.md §F.0.3` punto 3) |
+| `people` con nueve columnas y sin fotografía | **Existe** desde 0.8 | **No se toca ni una columna** (`§F.6`). El mapeo de atributos no tiene mitad de escritura en este paso (`funcional.md §F.5.2`) |
+| `login_attempts` con `outcome` de siete valores y `method` de dos | **Existe** (`§E.3`) | Este paso añade **un valor a `method`**, y ninguno a `outcome` (`§F.5`) |
+| `mfa_challenges`, `MfaPolicy`, muro de alta | **Existen** (1.3/1.3b) | El *callback* institucional **reutiliza el desafío tal cual**. Ni una columna nueva |
+| `user_sessions`, `user_known_devices` | **Existen** (1.2b) | El login institucional registra la sesión y detecta el dispositivo por el **mismo** camino |
+| El *payload* de la sesión del servidor, cifrado (`SESSION_ENCRYPT`) | **Existe** | Es donde viven el `state`, el verificador PKCE y **el `nonce` nuevo**. **Ninguna tabla para eso** (`funcional.md §F.3.3`) |
+| `tenant_settings` con sus grupos | **Existe** | **Ninguna columna nueva.** La configuración del SSO es una entidad con ciclo de vida propio, no un ajuste del centro (`§F.6`) |
+| `config('audit.secret_attribute_patterns')` | **Existe** desde 0.9 | Cubriría `client_secret` por `*secret*`, y **eso no basta**: `ADR-043 §3.5.5` exige declaración explícita en el modelo, que es el paso 1 del orden de `ADR-035 §4` (`funcional.md §F.0.4`) |
+
+---
+
+## F.1 Resumen del cambio
+
+**Dos tablas nuevas y cuatro modificaciones.** Es el mayor cambio de datos del módulo desde 1.3.
+
+| # | Objeto | Tipo |
+|---|--------|------|
+| 1 | `identity_providers` | Tabla nueva (`§F.2`) |
+| 2 | `identity_provider_secrets` | Tabla nueva (`§F.3`) |
+| 3 | `user_identities` — columna `identity_provider_id`, cuatro índices nuevos, dos retirados, tres `CHECK` nuevos y dos ampliados | Modificación (`§F.4`) |
+| 4 | `login_attempts` — un valor más en el `CHECK` de `method` | Modificación (`§F.5`) |
+
+**Lo que este paso decide y no es una tabla**, igual que 1.4 en su `§E.1`: el `state`, el verificador PKCE y **el `nonce`** viven en el *payload* de la sesión del servidor, **no en base de datos**. El *callback* aterriza en el mismo host que arrancó el flujo, así que la sesión sirve y no hace falta nada más. **La tabla de correlación de peticiones que `ADR-043 §2.1` describe es de SAML y no se crea aquí** — ni siquiera vacía, ni siquiera «preparada».
+
+---
+
+## F.2 `identity_providers` — el catálogo de proveedores del centro
+
+Entidad `IdentityProvider`. Tabla de tenant ordinaria, con `public_id` ULID porque se expone en URL.
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `id`, `tenant_id` | `bigint` | No | De `tenantTable()` |
+| `public_id` | ULID | No | `ADR-029`. **No es una credencial**: presentarlo no autoriza nada. Es lo que la SPA echa de vuelta en `POST /auth/oauth-authorizations` |
+| `display_name` | `text` | No | El nombre que el centro le pone y que se pinta en el botón de login. **No se traduce**, con el mismo criterio que `tenant_settings.legal_name`: es un nombre propio de una institución (`funcional.md §F.9`) |
+| `discovery_url` | `text` | No | Lo que el administrador pega. **Se conserva tal cual** para poder refrescar y para que la pantalla muestre lo que él escribió, no lo que nosotros dedujimos |
+| `issuer` | `text` | No | **Del documento de descubrimiento, no de la URL.** Es contra este valor que se compara el `iss` de cada `id_token` (`RN-AUTH-104`) |
+| `authorization_endpoint` | `text` | No | Del descubrimiento. Sobre él se construye la URL de autorización |
+| `token_endpoint` | `text` | No | Del descubrimiento. Contra él se canjea el código |
+| `userinfo_endpoint` | `text` | Sí | Del descubrimiento, **si viene**: es opcional en OpenID Connect Discovery 1.0 |
+| `claims_source` | `text` + `CHECK` | No | `id_token` (por defecto) o `userinfo`. **Conmutador explícito, no respaldo silencioso** (`funcional.md §F.3.2`) |
+| `email_claim` | `text` + `CHECK` | No | `email` (por defecto), `preferred_username` o `upn`. **Lista blanca cerrada de tres valores**, nunca texto libre (`funcional.md §F.5.1`) |
+| `scopes` | `jsonb` | No | Por defecto `["openid","email","profile"]`. `CHECK` de array no vacío que **contiene `openid`** |
+| `client_id` | `text` | No | **No es secreto**, pero identifica el despliegue frente al IdP del centro |
+| `allowed_email_domains` | `jsonb` | No | Array, por defecto `[]` = **sin restricción**. Con contenido, el dominio del correo tiene que estar en la lista, y si el emisor es Google, también el *claim* `hd` (`RN-AUTH-107`) |
+| `provisioning_mode` | `text` + `CHECK` | No | `desactivado` (por defecto) o `emparejamiento`. **No existe `creacion`**, y no se deja el valor preparado: `ADR-043 §8.1` y `CLAUDE.md §11` |
+| `is_enabled` | `boolean` | No | `false` por defecto. Un proveedor no activo no se pinta **y no arranca el flujo** (`RN-AUTH-102`) |
+| `discovery_fetched_at` | `TIMESTAMPTZ` | No | Cuándo se validó el documento por última vez. Lo lee la pantalla y lo escribe la tarea de refresco |
+| `discovery_failed_at` | `TIMESTAMPTZ` | Sí | Último refresco fallido. **No invalida los *endpoints* guardados** (`funcional.md §F.4.2`): un emisor momentáneamente inalcanzable no deja a un centro sin SSO |
+
+**Ninguna columna de `protocol`.** SAML es `1.4c` y añadirla ahora es anticipar una columna que ningún camino de código lee (`ADR-034 OPEN-13`, `CLAUDE.md §11`). `1.4c` la añade en *expand* con `DEFAULT 'oidc'`, que es aditivo y barato.
+
+**Ninguna columna de `jwks_uri`.** No se verifica la firma del `id_token` (`funcional.md §F.3.2`), y no se guarda lo que no se usa.
+
+**Ninguna columna de mapeo de atributos hacia `people`.** `funcional.md §F.5.2`: no hay escritura que configurar, y guardar configuración desconectada es la clase de columna que un día alguien conecta sin revisar por qué estaba desconectada.
+
+**Ninguna columna de credencial.** Está en su propia tabla, por decisión del usuario sobre `ADR-043 §8.2` (`§F.3`).
+
+Restricciones e índices:
+
+| Restricción / índice | Qué garantiza o qué consulta sirve |
+|----------------------|-------------------------------------|
+| `UNIQUE (public_id)` | `ADR-029` |
+| `UNIQUE (tenant_id, issuer) WHERE deleted_at IS NULL` | **Un centro no cataloga dos veces el mismo emisor.** Dos filas para el mismo `issuer` producirían dos botones idénticos y dos identidades distintas para la misma persona. Parcial sobre `deleted_at IS NULL` porque borrar y volver a dar de alta tiene que ser posible |
+| `(tenant_id, is_enabled) WHERE deleted_at IS NULL` | **La consulta caliente**: los proveedores activos del tenant, una vez por carga de la pantalla de login |
+| `CHECK (claims_source IN ('id_token','userinfo'))` | |
+| `CHECK (claims_source <> 'userinfo' OR userinfo_endpoint IS NOT NULL)` | **Coherencia**: no se puede pedir que los *claims* vengan de un *endpoint* que el emisor no publica |
+| `CHECK (email_claim IN ('email','preferred_username','upn'))` | La lista blanca de `funcional.md §F.5.1`, **en el motor** y no solo en el `FormRequest` |
+| `CHECK (provisioning_mode IN ('desactivado','emparejamiento'))` | Se amplía si alguna vez hay creación. Aditivo |
+| `CHECK (jsonb_typeof(scopes) = 'array' AND scopes @> '["openid"]'::jsonb)` | **`openid` es lo que hace que el flujo sea OIDC y no OAuth2 a secas.** Sin él no hay `id_token`, y sin `id_token` no hay `sub` |
+| `CHECK (jsonb_typeof(allowed_email_domains) = 'array')` | Vacío es válido y significa «sin restricción» |
+| ~~`CHECK (issuer LIKE 'https://%')`~~ y sus equivalentes para los dos *endpoints* | **No se crean, y hay que decirlo en vez de omitirlo.** La exigencia de `https` es real y no negociable en producción (`funcional.md §F.4.2` guarda 1), pero **no puede vivir en el esquema**: el emisor simulado de desarrollo (`operacion.md §F.10`) sirve sobre `http` en `local`/`testing`, y un `CHECK` que hay que retirar en desarrollo no es una garantía, es una molestia que alguien acabará quitando también en producción. **La comprobación vive en la validación de servidor**, que es donde puede consultar `APP_ENV` y `AUTH_SSO_ALLOW_INSECURE_DISCOVERY`, y la cubre `CA-AUTH-264` |
+
+**Política de auditoría**: `Full`.
+
+Y es la decisión de auditoría del paso, así que va con su argumento: **`identity_providers` no contiene ningún dato personal**. Contiene la configuración técnica del emisor de un centro: URLs, un `client_id`, una lista de dominios y tres conmutadores. Es exactamente el perfil de `AcademicYear`, `Role`, `ModuleSubscription` y la configuración del centro, que `ADR-035 §2` enumera como los modelos de `Full`. **`Full` está sujeto a registro explícito con test** (`ADR-035 §2`): añadir este modelo a la lista fija del test de arquitectura es una edición consciente y aparece en la revisión, que es para lo que existe esa regla.
+
+Que sea `Full` importa: la pregunta que un auditor hará dentro de dos años es *«¿quién activó este proveedor, cuándo, y con qué dominios admitidos?»*, y con `Full` la respuesta está en `audit_logs` con sus valores. Con `Selective` habría que enumerar ocho columnas para conseguir lo mismo y la novena se olvidaría.
+
+---
+
+## F.3 `identity_provider_secrets` — la credencial de cliente, cifrada
+
+Entidad `IdentityProviderSecret`. Tabla de tenant ordinaria, con `public_id` ULID porque se expone en URL (`DELETE .../secrets/{public_id}`).
+
+**Por qué es una tabla y no una columna de `identity_providers`.** Dos motivos independientes, y el segundo es un hallazgo que `ADR-043` no pesó:
+
+1. **Decisión del usuario sobre `ADR-043 §8.2`**: *«cifrado en tabla propia»*. Separar el material sensible en su propia tabla permite que `identity_providers` sea `Full` y legible con normalidad, y concentra en una sola tabla todo lo que no puede salir.
+2. **La credencial caduca, y una sola columna produce una caída total sin aviso.** `ADR-043 §2.4` dio ese argumento para los certificados de SAML y afirmó que *«OIDC no tiene este problema porque el JWKS del emisor se descubre y rota solo»*. Eso es cierto del material **del emisor**; no lo es de **nuestra credencial en el emisor**: un secreto de cliente de Entra ID caduca con un máximo de 24 meses. **Es el mismo modo de fallo, en el otro extremo de la relación**, y se resuelve con lo mismo: varias filas y una ventana de rotación (`funcional.md §F.3.5`).
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `id`, `tenant_id` | `bigint` | No | De `tenantTable()` |
+| `public_id` | ULID | No | `ADR-029` |
+| `identity_provider_id` | `bigint` | No | `tenantForeignId()`, obligatoria. Una credencial sin proveedor no existe |
+| `client_secret` | `text` | No | **Cifrado con la clave de aplicación** (`encrypted` de Laravel, `APP_KEY`). Nunca se lee fuera del canje de código (`RN-AUTH-112`) |
+| `expires_at` | `TIMESTAMPTZ` | Sí | **Lo declara el administrador al cargarla**, copiándolo de su IdP. Nulo si su IdP no caduca las credenciales. Es lo que dispara el aviso de 30 días |
+| `activated_at` | `TIMESTAMPTZ` | No | Desde cuándo se usa. **Ordena la elección**: se usa la activa de `activated_at` más reciente |
+| `retired_at` | `TIMESTAMPTZ` | Sí | Retirada a mano por el administrador. Una fila retirada **no se usa jamás**, aunque no haya vencido |
+
+**La columna se llama `client_secret` a propósito.** Encaja con el patrón global `*secret*` de `config('audit.secret_attribute_patterns')`, que es **defensa en profundidad** y no la garantía: la garantía es la declaración explícita en `$auditSecretAttributes` del modelo, que es el paso 1 del orden de evaluación de `ADR-035 §4` y es absoluto, anterior a la política del modelo. **Las dos cosas, no una** (`funcional.md §F.0.4`, `ADR-043 §3.5.5`).
+
+Restricciones e índices:
+
+| Restricción / índice | Qué garantiza o qué consulta sirve |
+|----------------------|-------------------------------------|
+| `UNIQUE (public_id)` | `ADR-029` |
+| `(tenant_id, identity_provider_id, activated_at DESC) WHERE deleted_at IS NULL AND retired_at IS NULL` | **La consulta caliente**: la credencial vigente de un proveedor, una vez por canje de código |
+| `CHECK (retired_at IS NULL OR retired_at >= activated_at)` | Coherencia temporal, mismo criterio que `user_mfa_exemptions` (`§C.6`) |
+| FK compuesta `(tenant_id, identity_provider_id)` → `identity_providers (tenant_id, id)` | `ADR-033 §6` |
+
+**No hay `UNIQUE` de «una sola credencial activa por proveedor», y es deliberado**: la ventana de rotación exige que haya dos a la vez. Lo que garantiza que se use una sola es la regla de elección —la activa más reciente—, que es determinista y está en el índice.
+
+**Política de auditoría**: `Selective`.
+
+- Registrados con valor: `identity_provider_id`, `expires_at`, `activated_at`, `retired_at`, `deleted_at`, `created_by`, `updated_by`. Es lo que un auditor necesita: quién cargó una credencial, cuándo, hasta cuándo valía y cuándo se retiró.
+- **`client_secret` en `$auditSecretAttributes`**, declarado a mano. Se registra **que cambió, no su valor** (`ADR-035 §4`, orden de evaluación paso 1, `{"redacted":"secret"}` sin banderas de vacío).
+
+**Retención**: la fila retirada **se conserva**. Es traza de qué credencial estuvo vigente en qué ventana, del mismo carácter que un bloqueo levantado (`§A.2`) o una excepción de MFA revocada (`§C.11`). **Y a diferencia de `user_mfa_factors`, no se purga a los 30 días**, aunque siga conteniendo un secreto cifrado: una credencial retirada del IdP **ya no abre nada**, porque el administrador la revocó allí; lo que queda aquí es una cadena cifrada sin contraparte. Se anota porque la pregunta se hace sola después de `§C.11`, y porque la respuesta correcta depende de que el administrador la revoque **también en su IdP** — cosa que la pantalla dice al retirarla (`funcional.md §F.9`).
+
+---
+
+## F.4 `user_identities` — el re-tecleado por proveedor concreto
+
+**Es el punto que `ADR-043 §3.6` marcó como error de corrección, no como preferencia**, y se corrige ahora porque hoy la tabla tiene **cero filas institucionales**. Encontrado después, sería un re-tecleado con vínculos reales dentro.
+
+### F.4.1 Qué está mal hoy, en una frase
+
+Los dos únicos de `§E.2` —`UNIQUE (tenant_id, provider, subject)` y `UNIQUE (tenant_id, user_id, provider)`— **suponen que `provider` identifica al emisor**. Con `provider = 'google'` es cierto: hay un solo Google. Con un catálogo por tenant es **falso**, por dos motivos independientes que `ADR-043 §3.6` desarrolla: un centro puede tener **más de un IdP a la vez** (una migración de ADFS a Entra ID convive meses con los dos), y **`subject` solo es único dentro de su emisor**, así que dos emisores pueden emitir legítimamente el mismo `sub` para **dos personas distintas**. Con la clave actual, el segundo quedaría vinculado al usuario del primero: **apropiación de cuenta por colisión de configuración**.
+
+### F.4.2 El cambio
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `identity_provider_id` | `bigint` | **Sí** | **Nueva.** FK compuesta `(tenant_id, identity_provider_id)` → `identity_providers (tenant_id, id)`. **Nullable a propósito**: las filas de `provider = 'google'` que 1.4 pudo crear **no tienen catálogo detrás**, porque su proveedor es un *driver* global de despliegue |
+
+**La FK se declara a mano, no con `tenantForeignId()`**, precisamente porque ese ayudante crea la columna `NOT NULL` (`ADR-034 §4`: *«`academic_year_id` es `NOT NULL` o no existe la columna, nunca nullable»*, y el mismo criterio para toda referencia **obligatoria**). Aquí la referencia **no es obligatoria** y la nulabilidad es la que distingue los dos mundos, así que se declara igual que `created_by`/`updated_by`: columna + índice + `FOREIGN KEY (tenant_id, identity_provider_id) REFERENCES identity_providers (tenant_id, id)`. **Se escribe porque un revisor lo va a preguntar.**
+
+**Sin `ON DELETE CASCADE`, y sin `ON DELETE SET NULL`.** Borrar un proveedor del catálogo **no borra ni desconecta** los vínculos que se crearon con él: el borrado del catálogo es lógico (`INV-004`), la fila padre sigue existiendo, y la traza de quién entró por ese emisor tiene que sobrevivir (`funcional.md §F.4.5`). Un `CASCADE` aquí borraría historial de acceso al desactivar una integración.
+
+Índices, en orden de creación:
+
+| # | Índice | Qué garantiza |
+|---|--------|---------------|
+| 1 | `UNIQUE (tenant_id, identity_provider_id, subject) WHERE deleted_at IS NULL AND identity_provider_id IS NOT NULL` | **Una identidad de un emisor catalogado está vinculada como mucho a un usuario del tenant.** Es la mitad institucional de `RN-AUTH-89` |
+| 2 | `UNIQUE (tenant_id, user_id, identity_provider_id) WHERE deleted_at IS NULL AND identity_provider_id IS NOT NULL` | **Un usuario tiene como mucho un vínculo vivo por proveedor catalogado.** La otra mitad |
+| 3 | `UNIQUE (tenant_id, provider, subject) WHERE deleted_at IS NULL AND identity_provider_id IS NULL` | La garantía **de 1.4**, estrechada al mundo sin catálogo: el *driver* global |
+| 4 | `UNIQUE (tenant_id, user_id, provider) WHERE deleted_at IS NULL AND identity_provider_id IS NULL` | Ídem |
+| — | **Se retiran** `user_identities_tenant_provider_subject_unique` y `user_identities_tenant_user_provider_unique` | Sustituidos por 3 y 4, que dicen lo mismo para las filas que aquellos cubrían |
+| 5 | `(tenant_id, identity_provider_id) WHERE deleted_at IS NULL` | El listado de administración por proveedor y la comprobación previa a desactivar uno |
+
+El índice `(tenant_id, user_id) WHERE deleted_at IS NULL` de `§E.2` **sigue sirviendo sin cambios** al listado del perfil.
+
+`CHECK` nuevos y ampliados:
+
+| Restricción | Qué garantiza |
+|-------------|---------------|
+| `CHECK (provider IN ('google','oidc'))` | **Ampliación aditiva** del de `§E.2`. `oidc` significa «emisor catalogado de este tenant»; **quién es** lo dice `identity_provider_id`, que es el re-tecleado que pide `ADR-043 §3.6`. `1.4c` añadirá `saml` con el mismo patrón |
+| `CHECK (provider <> 'google' OR identity_provider_id IS NULL)` | El *driver* global **nunca** tiene catálogo detrás |
+| `CHECK (provider <> 'oidc' OR identity_provider_id IS NOT NULL)` | Un vínculo catalogado **nunca** existe sin su fila de catálogo. **Se escribe así, en dos `CHECK` por valor, y no como una equivalencia**, para que `1.4c` añada el suyo sin tocar los existentes |
+| `CHECK (link_method IN ('fusion_automatica','perfil','emparejamiento_sso'))` | **Ampliación aditiva** del de `§E.2` |
+| `CHECK (link_method <> 'emparejamiento_sso' OR identity_provider_id IS NOT NULL)` | **La restricción más importante que añade este paso**, y la respuesta concreta a lo que `ADR-043 §3.6` exigía resolver: la garantía de un vínculo institucional **no es un `email_verified`**, es que **hay un emisor catalogado por el centro detrás**. Está en el motor, no en el servicio (`funcional.md §F.4.3.1`) |
+| `CHECK (link_method <> 'fusion_automatica' OR email_verified_at_link)` | **No se toca, no se debilita y no se reutiliza.** Sigue diciendo exactamente lo que decía de `fusion_automatica`, que es un vínculo con un proveedor de consumo cuyo correo venía verificado. `ADR-043 §3.6` advertía de que se rellenara con *«un `true` de conveniencia que vacíe la garantía sin que se note»*: **eso no ocurre aquí porque el camino institucional no pasa por ese `link_method`** |
+
+**`email_verified_at_link` sigue siendo `NOT NULL` y se rellena con el valor real del *claim***, o `false` si el emisor no lo manda —lo normal fuera de Google—. Queda como telemetría de lo que dijo el emisor y **no sostiene ninguna decisión** en el camino institucional (`RN-AUTH-106`).
+
+**Política de auditoría: sin cambios.** `Selective`, con `subject` y `email_at_link` declarados secretos a mano. La columna nueva `identity_provider_id` **se añade a `$auditRecordedAttributes`**: es un identificador interno de una entidad de configuración, no un dato personal, y es exactamente lo que hace falta para responder *«¿por qué proveedor entró esta persona?»*.
+
+---
+
+## F.5 `login_attempts` — un valor más en `method`
+
+```
+'local', 'google', 'sso'   ← nuevo
+```
+
+**Un solo valor para todo el SSO institucional, y no el identificador del proveedor.** Es la decisión, y va con su motivo:
+
+- `login_attempts` es **telemetría *append-only* con 90 días de retención** (`§A.1`, `§A.9`). Poner una FK a `identity_providers` obligaría a una clave foránea compuesta desde una tabla que nunca se actualiza hacia una que se borra lógicamente, y a decidir qué pasa con las filas cuyo proveedor ya no existe. **Coste alto, beneficio ninguno**: la pregunta que esta tabla responde es *«¿por qué vía entró?»*, no *«¿por cuál de los dos IdP del centro?»*.
+- La segunda pregunta **sí tiene respuesta**, y está en `user_identities.identity_provider_id`, que es donde vive el vínculo y no caduca a los 90 días.
+
+**`outcome` no gana ningún valor.** Los siete de `§E.3.2` cubren el camino institucional sin excepción: `exito` con `method = 'sso'`, `cuenta_bloqueada`, `estado_no_activo`, `pendiente_segundo_factor`, `segundo_factor_invalido` y **`federado_sin_vinculo`**, que ya significa exactamente lo que aquí hace falta: *«el flujo termina sin poder resolver un usuario»*. En este paso cubre además el caso del dominio no admitido y el del `sub` ausente — y **un solo valor para todos ellos es lo correcto por el mismo motivo que en `§E.3.2`**: desde nuestro lado el hecho es uno, no hay vínculo utilizable. La causa concreta va a la telemetría de aplicación y al aviso operativo (`operacion.md §F.8`), no a un valor de enumerado que un día alguien pinte en una pantalla.
+
+**`DEFAULT 'local'` sigue en la columna** y sigue haciendo que nada haya que reescribir.
+
+---
+
+## F.6 Lo que 1.4b **no** toca
+
+| Objeto | Por qué |
+|--------|---------|
+| **`users`** | **Ni una columna.** En particular **`password` sigue `NOT NULL`**: la tensión de `ADR-043 §4.6` no se materializa porque este paso no crea cuentas (`RN-AUTH-108`) y no activa las `pendiente` (`funcional.md §F.0.3` punto 3, `OPEN-AUTH-39`). Si `OPEN-AUTH-39` cambia de signo, será ese cambio quien lo decida, con `RN-AUTH-96` delante |
+| **`people`** | **Ni una columna**, y menos la de fotografía (`funcional.md §F.0.3` punto 1). El mapeo de atributos no tiene mitad de escritura en este paso. **`locale` tampoco se toca**, ni siquiera para añadirle el `CHECK` que le falta: es columna de `REQ-CORE` y su corrección va por issue propio, [#145](https://github.com/pirexia/plataforma-educativa/issues/145) (`funcional.md §F.0.3` punto 4) |
+| **`tenant_settings`** | **Ninguna columna nueva.** Un proveedor de identidad es una entidad con ciclo de vida propio —metadatos, credencial con caducidad, activación, dominios— y varias instancias por centro; un ajuste del centro es un valor escalar. Es el mismo criterio con el que `user_mfa_exemptions` fue tabla y no un campo de `users` (`permisos.md §D.2`) |
+| **`sessions`** | Sin cambios. Sigue sin `tenant_id` (`OPEN-AUTH-10`/`OPEN-AUTH-15`), y este paso **no lo agrava**: lo que guarda de más en el *payload* es un `nonce` de diez minutos |
+| **`mfa_challenges`** | **Ni una columna.** El desafío institucional es el mismo desafío. En particular **no** se añade nada para saber de qué proveedor vino: ningún camino de código lo leería (`ADR-034 OPEN-13`) |
+| **`audit_logs`** | El vocabulario **no se amplía** (`RN-AUTH-74`). Todo es `created`/`updated`/`deleted` sobre entidades reales, más el `login` que `ADR-039` ya creó |
+| **`config/audit.php`** | **No se toca.** El patrón global ya cubre `*secret*` como red; la garantía es la declaración en el modelo (`§F.3`) |
+| **Ninguna tabla de correlación de peticiones** | Es de SAML (`ADR-043 §2.1`). **No se crea, ni vacía, ni «preparada»** |
+
+---
+
+## F.7 Migraciones: orden y compatibilidad
+
+Cuatro migraciones, en este orden:
+
+1. `create_identity_providers_table`
+2. `create_identity_provider_secrets_table`
+3. `add_identity_provider_to_user_identities` — la columna con su FK compuesta, los índices 1-5, la retirada de los dos antiguos, y los cinco `CHECK` nuevos o ampliados
+4. `add_sso_method_to_login_attempts` — `DROP`+`ADD CONSTRAINT` sobre `method` con `pgsql_owner`
+
+Propiedades que hay que poder afirmar en la revisión (`db-reviewer`):
+
+- **Las dos primeras son *expand* puras.** No tocan nada existente.
+- **La tercera es *expand* con una retirada de índice en el mismo despliegue, y hay que argumentarlo**, porque `CLAUDE.md §9` describe el ciclo largo. El orden dentro de la migración es **crear los cuatro nuevos primero y retirar los dos antiguos después**, de modo que **en ningún instante hay una ventana sin garantía de unicidad**. Y la retirada es segura porque los índices 3 y 4 dicen **exactamente lo mismo** que los antiguos para **todas** las filas que existen: hoy no hay ni una con `identity_provider_id` informado, porque la columna se acaba de crear. No es un cambio destructivo diferible: es la sustitución de dos índices por cuatro que los cubren.
+- **La versión anterior de la aplicación sigue funcionando contra el esquema nuevo.** No conoce `identity_provider_id` y no la escribe, así que todas sus filas caen en los índices 3 y 4, que le dan la garantía que tenía; no conoce `provider = 'oidc'` ni `link_method = 'emparejamiento_sso'` y no los genera; no escribe `login_attempts.method = 'sso'`; y no conoce las dos tablas nuevas. **Login local, login con Google, logout, restablecimiento, cambio de contraseña, panel de sesiones, MFA y los seis *endpoints* de 1.4 siguen operando exactamente igual** (`CA-AUTH-297`).
+- **La versión nueva contra el esquema antiguo no se da**: las migraciones preceden al despliegue (`operacion.md §F.12`).
+- **El `ALTER TABLE ... ADD COLUMN` nullable sin `DEFAULT` no reescribe la tabla** en PostgreSQL. `user_identities` es de unidades de filas por persona, así que la creación de índices tampoco es un problema de tiempo; **si en el momento del despliegue tuviera volumen, se usa `CREATE INDEX CONCURRENTLY` fuera de transacción**, con la salvedad conocida de que un `CONCURRENTLY` fallido deja un índice inválido que hay que retirar a mano.
+- **El `DROP`/`ADD CONSTRAINT` de `login_attempts.method` exige una validación completa de la tabla más grande del módulo**: si tiene volumen, se añade `NOT VALID` y un `VALIDATE CONSTRAINT` posterior. **Es la tercera vez que este documento deja la misma nota** (`§C.10`, `§E.7`) y por el mismo motivo.
+- **La reversión es limpia para 1, 2 y 3, y de un solo sentido para la 4.** Las dos tablas se eliminan sin que nada las referencie una vez retirada la columna de `user_identities`; la cuarta **falla si ya existe alguna fila con `method = 'sso'`**, igual que las de `§C.10`, `§E.7` y `ADR-039 §4.6`, porque `login_attempts` es *append-only* y no admite `DELETE` desde la aplicación. **Revertir la aplicación no requiere revertir esta migración.**
+- **Orden de reversión de la 3**, si hiciera falta: recrear los dos índices antiguos **antes** de retirar los cuatro nuevos y la columna. Recrearlos falla si existiera alguna fila institucional — que es la señal correcta: revertir con vínculos institucionales vivos **no es seguro** y tiene que fallar ruidosamente, no en silencio.
+
+---
+
+## F.8 Checklist obligatorio
+
+- [x] **`tenant_id` presente e indexado como primera columna de las consultas frecuentes** — las dos tablas nuevas vía `tenantTable()`, con RLS `ENABLE`+`FORCE` y política estándar. Todos sus índices lo llevan en primera posición, y también los cinco nuevos de `user_identities`
+- [x] **`academic_year_id`** — **no aplica** en ninguna de las dos. Un proveedor de identidad y su credencial no pertenecen a un curso académico. Por `ADR-034 §4` la columna **no existe**, nunca *nullable*
+- [x] **`created_at`/`updated_at`/`deleted_at`/`created_by`/`updated_by`** — los cinco en las dos tablas, vía `tenantTable()`. `login_attempts` sigue siendo la excepción *append-only* que ya era
+- [x] **Claves foráneas y restricciones declaradas en base de datos** — 5 FK compuestas nuevas (`identity_provider_secrets.identity_provider_id`, `user_identities.identity_provider_id` y las de autoría de las dos tablas), 11 `CHECK` nuevos o ampliados, 8 índices nuevos de los cuales 4 únicos. **Nada de esto vive solo en la aplicación**, y en particular la garantía de `ADR-043 §3.6` (`CA-AUTH-294`) y la de `funcional.md §F.4.3.1` (`CA-AUTH-298`) son restricciones del motor
+- [x] **Importes en enteros de céntimos** — **no aplica**, sin importes
+- [x] **Fechas en UTC (`TIMESTAMPTZ`)** — `discovery_fetched_at`, `discovery_failed_at`, `expires_at`, `activated_at`, `retired_at` y las de `tenantTable()`
+- [x] **Datos de categoría especial en tabla separada y cifrada** — **no aplica**: `REQ-AUTH` sigue sin tratar salud, NEAE ni convivencia (`permisos.md §F.8`). **Lo que sí aparece es la segunda columna cifrada en reposo del módulo**, `identity_provider_secrets.client_secret`, después de los secretos TOTP de 1.3. **`APP_KEY` gana responsabilidad** y hay que decirlo (`operacion.md §F.2.2`)
+- [x] **Particionado evaluado** — `identity_providers` es de **unidades de filas por tenant** y `identity_provider_secrets` de unidades por proveedor: no son candidatas y no lo serán. El disparador de revisión sigue siendo `login_attempts` (`§A.8`, `§C.9`, `§E.6`), y este paso **le añade un valor de enumerado, no volumen**
+- [x] **Toda restricción de unicidad sobre tabla con borrado lógico es parcial** — los cinco únicos nuevos lo son, y los dos que se retiran también lo eran
+- [x] **Migraciones aditivas y compatibles con la versión anterior** — `§F.7`, con la retirada de índices argumentada
+
+---
+
+## F.9 Relaciones
+
+```
+identity_providers  (1.4b, tenant)
+  ├─1:N→ identity_provider_secrets   (tenant_id, identity_provider_id)  — rotación
+  └─1:N→ user_identities             (tenant_id, identity_provider_id)  — NULLABLE, sin cascada
+
+users (REQ-CORE, 0.8)
+  └─1:N→ user_identities             (tenant_id, user_id)               — sin cambios
+
+login_attempts (1.2)  ──method: un valor más──▶  clasifica la vía de acceso
+mfa_challenges (1.3)  ◀── reutilizado tal cual por el callback institucional, sin FK nueva
+sessions (framework)  ◀── payload: state + code_verifier PKCE + nonce, 10 min, sin tabla
+```
+
+**Todas las claves foráneas son compuestas `(tenant_id, …)`** (`ADR-033 §6`). La única cadena nueva entre tablas nuevas es `identity_providers → identity_provider_secrets`, y su borrado **no cascadea** hacia `user_identities` (`§F.4.2`).
+
+---
+
+## F.10 Retención y supresión
+
+| Tabla | Plazo | Base y mecanismo |
+|-------|-------|------------------|
+| `identity_providers` (vivos) | **Vida de la integración** | Configuración del centro. Se retira cuando el centro deja de usar ese IdP |
+| `identity_providers` (borrados lógicamente) | **Fila permanente** | Traza de qué emisor estuvo catalogado. **Sin datos personales dentro** (`§F.2`), así que no hay tensión con el derecho de supresión |
+| `identity_provider_secrets` (vigentes y retiradas) | **Fila permanente** | Traza de qué credencial estuvo vigente en qué ventana. **No se purga a los 30 días como `user_mfa_factors`**, con el argumento de `§F.3`: una credencial retirada en el IdP ya no abre nada |
+| `user_identities` | **Sin cambios** (`§E.8`) | La columna nueva no altera nada |
+| `login_attempts` | **90 días**, sin cambios | `AUTH_LOGIN_ATTEMPT_RETENTION_DAYS`, `PurgeLoginAttempts` (`§A.9`) |
+
+**Ninguna tarea de mantenimiento de purga nueva.** Este paso no crea artefactos transitorios en base de datos: el `state`, el verificador PKCE y el `nonce` viven en la sesión y mueren con ella. Las **dos** tareas programadas que sí introduce —refresco del descubrimiento y aviso de caducidad de credenciales— **no borran nada** (`operacion.md §F.4`).
+
+**Derecho de supresión (`ADR-004`, `REQ-PRIV-006`)**: sin novedad y sigue siendo el caso fácil. `user_identities` cuelga de un `user_id` real por clave foránea compuesta obligatoria y la supresión de la persona la arrastra. **Las dos tablas nuevas no contienen ningún dato personal**: `identity_providers` es configuración técnica y `identity_provider_secrets` es una credencial de la plataforma frente a un tercero, **no de una persona**. Es la primera vez en este módulo que una tabla nueva no aparece en el análisis de supresión, y conviene decirlo para que la revisión no lo tome por omisión.
+
+**Un matiz de protección de datos que sí hay que escribir**: `identity_providers.allowed_email_domains` contiene el dominio de correo de una institución. **No es dato personal** —es el dominio de un centro, no de una persona— pero sí es información sobre la organización, y por eso la tabla no sale por ninguna API anónima: `GET /auth/identity-providers` devuelve `public_id` y `display_name`, nunca el emisor, los dominios ni el `client_id` (`api.md §F.6`).

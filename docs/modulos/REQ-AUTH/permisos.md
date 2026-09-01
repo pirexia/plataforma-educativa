@@ -789,3 +789,173 @@ Lo que 1.4 **sí** añade al inventario de datos sensibles del módulo, ampliand
 - **`CA-AUTH-225`** — sin contraseña actual no se desvincula, y el fallo cuenta hacia el bloqueo.
 - **`CA-AUTH-231`** — ninguna de las **seis** rutas lleva `module-enabled`.
 - **`CA-AUTH-237`** — `GET /auth/mfa-challenges` presentado **desde una sesión que no abrió el desafío** responde `410` con cuerpo idéntico al de «no hay desafío», y **nunca** devuelve el desafío de otra sesión (`RN-AUTH-53`, `api.md §E.5b`).
+
+---
+
+# Parte F · Paso 1.4b · Permisos (`REQ-AUTH-004`)
+
+> **Estructura**: §1-§8 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b y `§E.*` es 1.4, los cinco cerrados. Esta **Parte F** es el paso **1.4b**, **en especificación**.
+>
+> Fuente de verdad del catálogo: **el código** (`AuthServiceProvider::declaredPermissions()`), materializado por `platform:sync-registry`. Esta tabla es su reflejo documental.
+
+---
+
+## F.1 La conclusión, primero: **1.4b declara cuatro permisos**
+
+Y rompe la racha de 1.4, que no declaró ninguno. **El motivo es una decisión del usuario, no una interpretación**: `ADR-043 §8.3` se resolvió el 2026-09-01 en **autoservicio del centro**. Configurar el proveedor de identidad de un centro **es una operación de administración de tenant**, con cinco *endpoints* de escritura y lectura sobre una entidad nueva, y `INV-002` no admite un solo *endpoint* sin autorización verificada.
+
+El contraste con 1.4 es exacto y merece decirse, porque es el mismo módulo con dos resultados opuestos en dos pasos consecutivos:
+
+- **1.4 no declaró ninguno** porque `REQ-AUTH-002` describe **solo autoservicio del titular**: iniciar sesión, vincular lo propio, desvincular lo propio. No hay en el requisito una frase sobre administrar lo de otro.
+- **1.4b declara cuatro** porque `REQ-AUTH-004` describe una **integración del centro**: *«SAML 2.0 para sistemas de identidad institucionales»*, *«OIDC para Azure AD / Entra ID, Google Workspace»*. Un IdP institucional no es de nadie en particular: es del centro, y alguien del centro lo configura.
+
+El catálogo del módulo pasa de **siete a once** permisos: los dos de `bloqueo_cuenta` (1.2), los dos de `mfa` (1.3), los tres de `exencion_mfa` (1.3b) y los **cuatro** de `proveedor_identidad` (1.4b). `CA-AUTH-305` lo verifica.
+
+Lo que **no** cambia:
+
+- **No se toca el catálogo de `REQ-CORE`**, a diferencia de 1.3 (`rol.actualizar`, `§C.5`). El recurso nuevo es de este módulo.
+- **`REQ-AUTH` sigue sin exponer categoría especial** (`§F.8`).
+- **Ningún *endpoint* del flujo de login acepta un sujeto ajeno** (`RN-AUTH-73`): el *callback* actúa sobre quien resuelva el proveedor para la sesión que arrancó el flujo, y los dos de `/auth/identities` sobre el portador de la cookie.
+- **`OPEN-AUTH-34` sigue abierta y este paso no la resuelve.** Administrar los vínculos **de otros usuarios** sigue sin estar en el requisito, y el recurso `identidad_externa` sigue con su fila entera vacía (`§F.6`). **Configurar un proveedor no es ver los vínculos de nadie**, y confundir las dos cosas sería resolver por la puerta de atrás una pregunta abierta.
+
+---
+
+## F.2 Recursos que aporta el paso
+
+| Recurso | Qué es | Por qué recurso propio |
+|---------|--------|------------------------|
+| **`proveedor_identidad`** | El emisor OIDC que un centro cataloga: metadatos, credencial, dominios admitidos, modo de aprovisionamiento y conmutador de activación | No es una acción más de `configuracion` de `REQ-CORE`, y hay que argumentarlo porque la alternativa era real. `configuracion.actualizar` gobierna `tenant_settings`, que es **un escalar por ajuste y una fila por centro**. Un proveedor es **una entidad con ciclo de vida propio y varias instancias por centro** (`datos.md §F.6`). Es el mismo criterio con el que `exencion_mfa` fue recurso propio y no una acción de `mfa` (`§D.2`) |
+
+**Y un recurso que este paso deliberadamente no crea**: `credencial_proveedor_identidad`. Las dos operaciones sobre credenciales van con `proveedor_identidad.actualizar` (`§F.4`).
+
+---
+
+## F.3 Catálogo de permisos que declara `REQ-AUTH` en 1.4b
+
+| Código | Recurso | Acción | Categoría especial | Qué autoriza |
+|--------|---------|--------|--------------------|--------------|
+| `proveedor_identidad.leer` | `proveedor_identidad` | `leer` | No | `GET /identity-providers` y su detalle |
+| `proveedor_identidad.crear` | `proveedor_identidad` | `crear` | No | `POST /identity-providers`, con su validación de descubrimiento |
+| `proveedor_identidad.actualizar` | `proveedor_identidad` | `actualizar` | No | `PATCH /identity-providers/{id}`, los **dos** de credenciales y `POST .../discovery-refreshes` |
+| `proveedor_identidad.eliminar` | `proveedor_identidad` | `eliminar` | No | `DELETE /identity-providers/{id}` (borrado lógico) |
+
+**Cuatro acciones y no dos**, a diferencia de `bloqueo_cuenta` y `mfa`, que solo tienen `leer` y `eliminar`. Aquí el ciclo de vida completo existe de verdad —se crea, se consulta, se modifica y se retira— y el vocabulario de `ADR-038`/`RPERM` lo cubre sin inventar nada. **No se añade `exportar`**, y es deliberado: `§F.8`.
+
+### F.3.1 Endpoints sin permiso, a propósito y de forma razonada
+
+| Endpoint | Por qué no lleva permiso |
+|----------|--------------------------|
+| `GET /auth/identity-providers` | **Anónimo** por diseño: la pantalla de login tiene que saber qué botones pintar antes de que nadie se identifique (`RN-AUTH-98`). Devuelve **solo** identificador opaco y nombre visible; ni emisor, ni `client_id`, ni dominios (`api.md §F.6`) |
+| `POST /auth/oauth-authorizations` | **Anónimo** con `intent = login`; **por identidad del portador** con `intent = link`. Sin cambios respecto de `§E.2` |
+| `GET /auth/oauth/oidc/callback` | **Posesión de la sesión que arrancó el flujo**, probada por el `state`. Es el cuarto mecanismo de `§C.4`, **sin ampliación** |
+| `GET` / `DELETE /auth/identities` | **Identidad del portador**, sin cambios respecto de `§E.2` |
+
+---
+
+## F.4 Por qué las credenciales no tienen permiso propio
+
+Es la decisión discutible de esta Parte y va con su alternativa, como `§C.6.1` y `§D.6.3` hicieron con las suyas.
+
+**La alternativa era `proveedor_identidad.crear`/`eliminar` para la configuración y un recurso `credencial_proveedor_identidad` para el material sensible**, de modo que «quién ve el catálogo» y «quién carga la credencial» pudieran separarse.
+
+**Se descarta, por tres motivos en orden de peso:**
+
+1. **Hoy no separaría a nadie.** Los cuatro permisos se conceden **solo** a `administrador_centro` (`§F.6`), y un recurso más produciría **dos permisos que siempre se conceden juntos a la misma persona**. Es complejidad sin beneficio proporcional, exactamente el criterio con el que `ADR-043 §4.3` descartó el mapeo libre.
+2. **La separación que de verdad importa ya está, y no es de permisos: es de lectura.** El riesgo de una credencial no es quién la carga, sino quién la lee, y **nadie la lee**: no sale por ninguna API, ni enmascarada (`RN-AUTH-112`, `CA-AUTH-266`). Un permiso de lectura sobre algo que no se puede leer sería ceremonia.
+3. **Cargar una credencial es modificar la configuración del proveedor**, en el sentido que importa: cambia lo que el sistema envía al IdP. `actualizar` lo describe bien.
+
+**Si algún día hiciera falta separar** —un centro donde el jefe de estudios configura y solo el director carga la credencial—, es un recurso más y dos permisos más, sin tabla ni *endpoint* nuevos. **El hueco ya está** y queda escrito para que la decisión, si llega, no tenga que rehacer este análisis.
+
+---
+
+## F.5 Cómo se autoriza lo que sí lleva permiso, y las dos guardas que no son permisos
+
+**Los ocho *endpoints* de administración van con `Gate` sobre su permiso, denegando por defecto** (`RPERM-011`, `INV-002`). Y llevan **dos guardas más** que no son permisos y que la revisión tiene que recorrer:
+
+1. **El muro de MFA se aplica.** Ninguna de las ocho rutas está en la lista blanca de `§C.4.9`, y **es correcto**: un administrador obligado a MFA con la gracia vencida **no configura el IdP de su centro**; primero da de alta su segundo factor. Es el mismo criterio con el que el muro deja fuera `POST /auth/password-changes` y `POST /auth/oauth-authorizations` con `intent = link` (`CA-AUTH-300`).
+2. **El recurso se busca por `public_id` más predicado de tenant, en el mismo `WHERE`.** Nunca un `find()` seguido de una comprobación en PHP (`RN-AUTH-41`, `§E.4`). Vale para el proveedor y para la credencial anidada, que además se busca **por su proveedor padre en la misma consulta**: una credencial de otro proveedor del mismo tenant presentada bajo el `public_id` equivocado es un `404`, no un borrado ajeno.
+
+---
+
+## F.6 Matriz recurso × acción × ámbito
+
+`—` significa que el permiso no existe en este módulo.
+
+| Recurso | crear | leer | actualizar | eliminar | exportar | importar | aprobar | firmar | publicar |
+|---------|-------|------|------------|----------|----------|----------|---------|--------|----------|
+| `bloqueo_cuenta` (1.2) | — | `todos` | — | `todos` | — | — | — | — | — |
+| `mfa` (1.3) | — | `todos` | — | `todos` | — | — | — | — | — |
+| `exencion_mfa` (1.3b) | `todos` | `todos` | — | `todos` | — | — | — | — | — |
+| `identidad_externa` (1.4) | — | — | — | — | — | — | — | — | — |
+| **`proveedor_identidad`** (1.4b) | **`todos`** | **`todos`** | **`todos`** | **`todos`** | **—** | — | — | — | — |
+
+**La fila de `identidad_externa` sigue entera vacía**, y este paso **no la rellena**. `OPEN-AUTH-34` sigue abierta con el mismo argumento de `§E.3`: el requisito no pide que un administrador vea ni retire el vínculo de otro. **Que 1.4b traiga permisos de administración no arrastra a este recurso**, y decirlo es el punto: es exactamente la clase de deriva que convierte «el requisito no lo pide» en «ya que estamos».
+
+**Los cuatro ámbitos son `todos`**, por el mismo motivo de `§5.6`, `§C.7.6` y `§D.6.2`: el resolutor de ámbitos es provisional hasta 1.5, y **ningún ámbito más estrecho tiene sentido aquí de todos modos**. Un proveedor de identidad no cuelga de un grupo, ni de una etapa, ni de un curso: es del centro entero. Es el caso más claro de `todos` que ha aparecido en el módulo.
+
+---
+
+## F.7 Asignación en los roles predefinidos
+
+**Solo `administrador_centro`**, los cuatro. Por cuarta vez, y con el argumento de `§5.1`, `§C.7.1` y `§D.6.1`, más uno propio de este paso que lo refuerza:
+
+> **Quien configura el proveedor de identidad decide de quién se fía el sistema para dejar entrar.** Un `client_id` apuntado a otro emisor, o un `allowed_email_domains` vacío en un centro con Workspace, es la diferencia entre «entra el personal del centro» y «entra cualquiera con una cuenta en cualquier sitio». **Es la concesión de acceso más amplia que un rol de centro puede hacer**, y por eso no baja de `administrador_centro` sin una decisión explícita del producto.
+
+- **`direccion` y `secretaria` no lo reciben.** No es una omisión: `RPERM-011` deniega por defecto, y ampliarlo es una decisión de 1.5 con el editor de roles delante.
+- **`soporte_plataforma`**: sin cambios (`§5.2`). No es un rol de tenant.
+- **`super_administrador`**: sin cambios (`§5.3`). El backoffice es 1.6 y `ADR-043 §8.3` dejó esta configuración fuera de él expresamente.
+- **`mfa_obligatorio` (`RPERM-014`)**: `administrador_centro` ya lo tiene desde 1.3 (`§C.7.4`), así que **quien configura el SSO está obligado a segundo factor**. Es coherente y conviene decirlo: la cuenta que puede cambiar de quién se fía el sistema no entra con solo una contraseña.
+- **`acceso_datos_especiales` (`RPERM-015`)**: sin cambios. Ninguno de los cuatro permisos nuevos lo lleva ni lo requiere (`§F.8`).
+- **`RPERM-012`**: ninguno de los cuatro es de categoría especial, y **el aprovisionamiento no puede conceder ninguno** (`RN-AUTH-110`).
+
+---
+
+## F.8 Datos de categoría especial
+
+**Sigue sin haberlos.** `REQ-AUTH` no expone salud, NEAE ni convivencia, y ninguno de sus **once** permisos lleva `is_special_category = true`. La auditoría reforzada de lectura de `RPERM-015` no se dispara aquí.
+
+Lo que 1.4b **sí** añade al inventario de datos sensibles del módulo, ampliando `§C.9`, `§D.8` y `§E.5`:
+
+- **La credencial de cliente del centro frente a su IdP** (`identity_provider_secrets.client_secret`). **No es un dato personal**: es material de autenticación de la plataforma frente a un tercero. Su compromiso no da acceso a ninguna cuenta por sí solo —hace falta además el `code` de un usuario— pero permite **suplantar a la plataforma frente al IdP del centro**. Por eso está cifrada, no sale por ninguna vía y no aparece en `audit_logs` con su valor (`RN-AUTH-112`, `datos.md §F.3`).
+- **El mapa de integración del centro**: emisor, `client_id` y dominios admitidos. No es dato personal, pero **describe cómo entra el personal de un centro**, y por eso `GET /auth/identity-providers`, que es anónimo, **no lo publica** (`api.md §F.6`).
+- **Nada nuevo sobre personas.** `identity_providers` e `identity_provider_secrets` **no contienen ni un dato personal** (`datos.md §F.10`), y es la primera vez en este módulo que se puede afirmar de una tabla nueva.
+
+**Y sin `exportar`**, con el criterio de `§D.2` y `§E.5`: un CSV de la configuración de identidad de los centros es un mapa de por dónde atacar. La pantalla lo enseña; no hay descarga.
+
+---
+
+## F.9 Reglas de autorización que no son un permiso
+
+Amplía `§7`, `§B.4`, `§C.8`, `§D.7` y `§E.4`. **Es la parte que la revisión de seguridad debe recorrer entera, y este paso es el que más añade desde 1.3.**
+
+| Regla | Dónde | Efecto |
+|-------|-------|--------|
+| **`RN-AUTH-113` — cinco guardas sobre toda URL que el servidor descargue por indicación del tenant** | `POST /identity-providers`, `PATCH` con `discovery_url`, `POST .../discovery-refreshes` | **Es la superficie nueva con más peso de seguridad del paso.** Sin ellas, un administrador de centro convierte al servidor en su cliente HTTP contra la red interna, y **ve el resultado en el mensaje de error**. Las guardas se aplican **también en cada redirección** (`CA-AUTH-262`, `CA-AUTH-263`) |
+| **`RN-AUTH-112` — la credencial no sale en claro para nadie** | Los ocho de administración, `audit_logs`, el registro de aplicación | Ni el administrador que la cargó puede releerla. Se descifra solo dentro del canje de código, en memoria (`CA-AUTH-266`) |
+| **`RN-AUTH-103` — el proveedor sale de la sesión, jamás de la URL** | *Callback* institucional | Una ruta con el identificador del proveedor dentro sería un parámetro controlado por quien llega, en el *endpoint* que crea sesiones (`CA-AUTH-278`) |
+| **`RN-AUTH-104` — cinco validaciones del `id_token`, con `nonce` obligatorio** | *Callback* | Es lo que sustituye a la verificación de firma (`funcional.md §F.3.2`). **Sin `nonce`, un `id_token` capturado se puede reproducir**; sin `aud`, un `id_token` emitido para otro cliente del mismo emisor vale aquí (`CA-AUTH-276`, `CA-AUTH-277`) |
+| **`RN-AUTH-105` — sin `sub` no hay identidad, y nunca se identifica por correo** | *Callback* | Identificar por correo haría que quien adquiera un correo liberado heredara una cuenta (`ADR-042 §3`, trampa 3). **Fallo en cerrado, con salida indistinguible** (`CA-AUTH-279`) |
+| **`RN-AUTH-107` — la restricción por dominio se comprueba antes de resolver identidad** | *Callback* | Comprobarla después dejaría un camino donde se consulta el censo con un correo de un dominio ajeno. Y el `hd` de Google **no es redundante** con el dominio del correo (`CA-AUTH-284`) |
+| **`RN-AUTH-108` — ningún `Person` ni `User` se crea** | *Callback* | Es una regla de **autorización**, no de alcance, con las palabras de `§E.4`: crear una cuenta es la concesión de acceso más grande que existe (`CA-AUTH-287`) |
+| **`RN-AUTH-110` — el emparejamiento no concede ni un rol** | *Callback* | `RPERM-011` deja a una cuenta sin roles sin ver una pantalla; el aprovisionamiento **no puede ser el agujero** por el que se concedan, y menos los de categoría especial (`RPERM-012`, `CA-AUTH-292`) |
+| **`RN-AUTH-111` — el SSO no salta ninguna comprobación** | *Callback* | Bloqueo, estado y `MfaPolicy` completo. **Un camino de autenticación nuevo que se salta el segundo factor es un camino de evasión del segundo factor**, y sigue siendo el error más caro que se puede cometer en este módulo (`CA-AUTH-299`) |
+| **`RN-AUTH-102` — un proveedor no activo no arranca el flujo** | `POST /auth/oauth-authorizations` | Ocultar el botón no es una defensa (`INV-010`). La comprobación es de servidor en los dos sitios (`CA-AUTH-270`) |
+| **`RN-AUTH-101` — un `public_id` de otro tenant es `404`, y en el *endpoint* anónimo es `422` indistinguible** | Los ocho de administración; `POST /auth/oauth-authorizations` | La asimetría es deliberada y está argumentada en `api.md §F.1`: en el anónimo, un `404` distinguible sería un comprobador de qué centros tienen SSO (`CA-AUTH-265`, `CA-AUTH-271`) |
+| **El muro de MFA cubre las ocho rutas de administración** | Lista blanca de `§C.4.9` | La lista es blanca: lo que no está, no pasa. **Las ocho no se añaden**, y es correcto (`CA-AUTH-300`) |
+
+Y siguen en vigor, sin excepción, las de `§7`, `§B.4`, `§C.8`, `§D.7` y `§E.4`: `RN-AUTH-06` (el `tenant_id` sale del host), `RN-AUTH-07` (predicado explícito además de RLS), `RN-AUTH-29` (**CSRF en toda escritura**, incluidas las ocho de este paso — el *callback* no es una escritura iniciada por nuestro cliente y su defensa es el `state`), `RN-AUTH-41`, `RN-AUTH-52`, `RN-AUTH-53`, `RN-AUTH-61`, `RN-AUTH-63`, `RN-AUTH-67`, `RN-AUTH-71`, `RN-AUTH-73`, `RN-AUTH-81`, `RN-AUTH-89`, `RN-AUTH-91`, `RN-AUTH-92`, `RN-AUTH-93` y `RN-AUTH-96`.
+
+---
+
+## F.10 Verificación
+
+- **`CA-AUTH-305` — test de catálogo, ampliado**: tras `platform:sync-registry`, `permissions` contiene **exactamente once** filas con `module_code = 'auth'`, ninguna con `retired_at`, ninguna con `is_special_category = true`, y ninguna fila de `permission_role` de este módulo con `scope` distinto de `todos`. **Si aparece una duodécima en esta rama, alguien ha declarado un permiso que el requisito no pide.**
+- **Test de catálogo de `REQ-CORE`: sin cambios.** 1.4b **no toca** el catálogo de otro módulo. Una fila nueva con `module_code = 'core'` en esta rama es un error.
+- **Test de asignación**: los cuatro permisos nuevos están **solo** en `administrador_centro` tras `tenant:provision-defaults`. Si aparecen en `direccion` o `secretaria`, es una ampliación de alcance no aprobada (`§F.7`).
+- **`CA-AUTH-265`** — cualquiera de las ocho rutas con un `public_id` de otro tenant responde `404`, nunca `403`, y la fila del otro tenant sigue viva.
+- **`CA-AUTH-262`/`CA-AUTH-263`** — las cinco guardas de descubrimiento, incluida la revalidación **en cada redirección**. Es el test que más importa de la mitad de administración.
+- **`CA-AUTH-266`** — la credencial no aparece en el detalle, ni en la colección, ni en `audit_logs`.
+- **`CA-AUTH-299`/`CA-AUTH-300`** — el SSO institucional **no** salta el segundo factor, y el muro cubre las ocho rutas de administración. Son los tests que más importan de la mitad de flujo.
+- **`CA-AUTH-287`** — ninguna fila nueva en `people` ni en `users` tras un emparejamiento.
+- **`CA-AUTH-294`** — dos proveedores del mismo centro con el mismo `subject` producen dos vínculos independientes sobre dos usuarios distintos. **Con la clave de 1.4 este test falla**, y por eso existe.
+- **`CA-AUTH-306`** — ninguna de las **nueve** rutas lleva `module-enabled`.

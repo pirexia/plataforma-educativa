@@ -1648,3 +1648,370 @@ Tres, todos cerrados y todos con su `CHECK` o su validación en servidor: `provi
 **Dos eventos nuevos**, `IdentityLinked` e `IdentityUnlinked` (`funcional.md §E.7.3`). **Ningún webhook**: `REQ-API` es fase 2 y sigue sin haber suscriptores externos.
 
 **`UserLoggedIn` se publica igual que siempre** en el login federado. No hay una variante `UserLoggedInFederated`: el hecho es el mismo, y quien necesite la distinción la tiene en `login_attempts.method` (`datos.md §E.3`, con la salvedad de retención de `funcional.md §E.8`).
+
+---
+
+# Parte F · Paso 1.4b · API (`REQ-AUTH-004`)
+
+> **Estructura**: §1-§11 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b y `§E.*` es 1.4, los cinco cerrados. Esta **Parte F** es el paso **1.4b**, **en especificación**.
+>
+> Convenciones de `ADR-038` sin excepción, salvo lo que `§F.9` matiza. **La excepción de 1.4 —el *callback* que no habla `problem+json`— se hereda tal cual y no se amplía**: el *callback* institucional responde `302` con un código de resultado por el mismo motivo, que es que su cliente es un navegador que viene de un tercero (`§E.4.1`).
+>
+> Escrita sobre `ADR-043` (**ACEPTADA**) y sobre la decisión del usuario del 2026-09-01 sobre `§8.3`: la configuración del IdP es **autoservicio del centro**, así que **este paso sí trae *endpoints* de administración y permisos**, a diferencia de 1.4.
+
+---
+
+## F.1 Reglas generales: qué cambia respecto de §1, `§B.1`, `§C.1`, `§D.1` y `§E.1`
+
+| Aspecto | 1.4b |
+|---------|------|
+| Autenticación | Sin cambios (`ADR-025`). El *callback* institucional se autoriza con **la misma cookie de sesión anónima que arrancó el flujo**, contra el `state` guardado en su *payload*. **Ningún mecanismo nuevo** |
+| Autorización | De los **9 *endpoints* nuevos**: **1 por posesión de sesión** (el *callback*), **8 por permiso** — y son los primeros del módulo desde 1.3b. `permisos.md §F.3` |
+| Aislamiento | Sin cambios. Recurso de otro tenant ⇒ `404`, nunca `403` (`ADR-038 §6.4`). **Con un matiz propio de este paso**: en `POST /auth/oauth-authorizations`, un identificador de proveedor de otro tenant responde **`422` con el mismo cuerpo que uno inexistente**, porque ese *endpoint* es anónimo y un `404` distinguible sería un comprobador de qué centros tienen SSO (`§F.5`) |
+| Idempotencia | **Ningún *endpoint* exige `Idempotency-Key`** (`§F.9.2`) |
+| Auditoría | `INV-003`, **sin ampliar el vocabulario** (`funcional.md §F.8`). Todo por el *observer* de 0.9, más el `login` que ya existía |
+| Módulo desactivado | No aplica: ninguna ruta lleva `module-enabled` (`RN-AUTH-35`, `CA-AUTH-306`), **tampoco las de administración** (`funcional.md §F.10.1`) |
+| Catálogo vacío | **Estado normal, no degradado.** `GET /auth/identity-providers` devuelve lo mismo que devolvía en 1.4; las cinco rutas de administración responden con una colección vacía |
+| Límite de tasa | **Tres *buckets* propios nuevos**: el *callback* institucional por IP, la validación de descubrimiento por tenant y la carga de credenciales por tenant. Los cinco de administración restantes **no llevan *bucket* propio** —exigen sesión y permiso—, mismo criterio que `§B.1` y `§E.1`. `operacion.md §F.6` |
+| OpenAPI | Los 9 en `apps/api/openapi/paths/sso.yaml` antes del *merge* (`CLAUDE.md §10`), más la actualización de los dos modificados en `oauth.yaml` |
+
+### F.1.1 Tipos de error nuevos: **ninguno**
+
+`ADR-038 §6.2` declara su catálogo *«cerrado y ampliable solo por ADR o por especificación de módulo»*. 1.2 añadió `account-locked`, 1.3 añadió `mfa-enrollment-required`, y 1.2b, 1.3b y 1.4 ninguno. **1.4b tampoco añade ninguno**, y merece decirse por qué, porque aquí la tentación era mayor que en 1.4: hay un tipo de fallo nuevo de verdad, la validación del documento de descubrimiento.
+
+| Situación | Qué se reutiliza |
+|-----------|------------------|
+| Documento de descubrimiento que no valida, por cualquiera de las cinco guardas | `urn:pge:error:validation` (**422**), con el detalle en `errors` y un **código de una lista cerrada** (`§F.3`) |
+| Proveedor desconocido, borrado, no activo o sin credencial vigente, al arrancar el flujo | `urn:pge:error:validation` (**422**), cuerpo idéntico en los cuatro casos |
+| Emisor ya catalogado en este centro | `urn:pge:error:conflict` (**409**) |
+| Retirar la última credencial vigente de un proveedor **activo** | `urn:pge:error:conflict` (**409**) — dejaría el proveedor pintado y roto (`§F.4`) |
+| Proveedor o credencial de otro tenant, o inexistente | `urn:pge:error:not-found` (**404**), cuerpo idéntico |
+| Sin el permiso correspondiente | `urn:pge:error:forbidden` (**403**), el de `§1` |
+| Sesión restringida por el muro de MFA | `urn:pge:error:mfa-enrollment-required` (**403**), el de 1.3, sin cambios |
+
+**Por qué el fallo de validación del descubrimiento es un `422` y no un tipo propio.** Es exactamente lo que `urn:pge:error:validation` describe: un dato del cuerpo —la URL— que no supera la validación del servidor. Que la validación implique una petición saliente es un detalle de implementación, no un tipo de error nuevo para el cliente, que hace lo mismo en los dos casos: enseñar el fallo junto al campo. **Un tipo de error nuevo se justifica cuando el cliente tiene que actuar distinto**, y aquí no.
+
+**Y no hay ningún tipo de error para los fallos del flujo OIDC** —`state` inválido, `nonce` que no coincide, `id_token` no válido, dominio no admitido, emisor que no responde— porque **el *callback* no responde con errores HTTP**: responde `302` con un código de resultado (`§F.7`).
+
+---
+
+## F.2 `GET /api/v1/identity-providers` — el catálogo del centro
+
+- **Permiso**: `proveedor_identidad.leer`.
+- **Respuesta `200`** (colección, `ADR-038 §3.1`, paginada por `ADR-038 §4` aunque en la práctica sean una o dos filas):
+
+```json
+{
+  "data": [
+    {
+      "public_id": "01JD8...",
+      "display_name": "Entra ID del centro",
+      "issuer": "https://login.microsoftonline.com/8f3c.../v2.0",
+      "client_id": "1b0d...",
+      "is_enabled": true,
+      "provisioning_mode": "emparejamiento",
+      "claims_source": "id_token",
+      "email_claim": "email",
+      "scopes": ["openid", "email", "profile"],
+      "allowed_email_domains": ["sucentro.es"],
+      "discovery_fetched_at": "2026-09-01T09:00:00Z",
+      "discovery_failed_at": null,
+      "secret_status": {
+        "has_active": true,
+        "active_expires_at": "2027-03-01T00:00:00Z",
+        "expiring_soon": false
+      }
+    }
+  ],
+  "meta": { "total": 1, "page": 1, "per_page": 25 }
+}
+```
+
+- **`secret_status` es un resumen, no la credencial.** Dice si hay una vigente, cuándo caduca y si está a menos de 30 días. **Nunca su valor, ni enmascarado** (`RN-AUTH-112`, `CA-AUTH-266`).
+- **`discovery_url` no sale en la colección**, sí en el detalle: es un dato largo que solo hace falta al editar.
+- **Errores**: `401`, `403`, `404` (host sin tenant), `503` (tenant suspendido).
+
+### `GET /api/v1/identity-providers/{public_id}`
+
+- **Permiso**: `proveedor_identidad.leer`.
+- **Respuesta `200`**: el mismo recurso más `discovery_url`, `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`, la **lista de credenciales** (sin valores) y el bloque **`integration`**, que es lo que `ADR-043 §5.2` obliga a publicar para que el administrador configure su IdP:
+
+```json
+{
+  "integration": {
+    "redirect_uri": "https://centroficticio.ejemplo.test/api/v1/auth/oauth/oidc/callback",
+    "scopes": ["openid", "email", "profile"],
+    "subject_claim": "sub",
+    "email_claim": "email"
+  },
+  "secrets": [
+    { "public_id": "01JD9...", "activated_at": "2026-09-01T09:05:00Z",
+      "expires_at": "2027-03-01T00:00:00Z", "retired_at": null }
+  ]
+}
+```
+
+- **`redirect_uri` se construye con el slug del tenant resuelto y `config('tenancy.base_domain')`, nunca con `$request->getHost()`** (`RN-AUTH-92`). Es el mismo valor que usará el flujo, y **tiene que serlo carácter a carácter**: si esta pantalla enseñara una URI distinta de la que el servidor construye, el administrador la registraría mal y el fallo aparecería en el navegador de otra persona.
+- **Errores**: `401`, `403`, `404` (inexistente o de otro tenant, **cuerpo idéntico**), `503`.
+
+---
+
+## F.3 `POST /api/v1/identity-providers` — alta con validación de metadatos
+
+- **Permiso**: `proveedor_identidad.crear`.
+- **Cabeceras**: `X-XSRF-TOKEN` obligatoria (`RN-AUTH-29`).
+- **Cuerpo**:
+
+```json
+{
+  "display_name": "Entra ID del centro",
+  "discovery_url": "https://login.microsoftonline.com/8f3c.../v2.0/.well-known/openid-configuration",
+  "client_id": "1b0d...",
+  "email_claim": "email",
+  "claims_source": "id_token",
+  "scopes": ["openid", "email", "profile"],
+  "allowed_email_domains": ["sucentro.es"],
+  "provisioning_mode": "desactivado"
+}
+```
+
+- **`is_enabled` no se acepta en el alta**, y es deliberado: un proveedor nace **no activo** siempre. Activarlo es un `PATCH` posterior, después de haber cargado la credencial y de haber registrado la `redirect_uri` en el IdP. **Permitir `is_enabled: true` en el alta sería permitir crear un proveedor pintado y roto en un solo paso** (`funcional.md §F.4.1`).
+- **Efecto obligatorio y síncrono**: se descarga y valida el documento de descubrimiento con las **cinco guardas de `funcional.md §F.4.2`**. Si falla, **no se crea nada**.
+- **Respuesta `201`**: el recurso completo del detalle.
+
+**Errores**:
+
+| Estado | Cuándo |
+|--------|--------|
+| `422` | Validación de forma; **y validación del descubrimiento**, con `errors.discovery_url` y un `code` de la lista cerrada de abajo |
+| `409` | `urn:pge:error:conflict` — el `issuer` que declara el documento **ya está catalogado vivo** en este centro (`datos.md §F.2`) |
+| `403` | Sin `proveedor_identidad.crear`, o sesión restringida por el muro |
+| `419`/`403` | CSRF |
+| `429` | *Bucket* `sso_discovery_tenant`, con `Retry-After` — **la validación hace una petición saliente y no puede quedar al limitador global** |
+| `404` / `503` | Host sin tenant / tenant suspendido |
+
+**Códigos de fallo de validación del descubrimiento** — lista cerrada, traducible a los cuatro idiomas (`INV-009`), y **ninguno lleva el detalle del destino**:
+
+| Código | Guarda de `funcional.md §F.4.2` |
+|--------|--------------------------------|
+| `esquema_no_admitido` | 1 · la URL no es `https` |
+| `destino_no_publico` | 2 · la dirección resuelta es privada, de bucle local o de enlace local |
+| `demasiadas_redirecciones` | 3 |
+| `sin_respuesta` | 4 · tiempo de espera agotado o error de red |
+| `respuesta_demasiado_grande` | 4 |
+| `documento_no_valido` | 5 · no es JSON, o le faltan `issuer`, `authorization_endpoint` o `token_endpoint` |
+| `emisor_no_coincide` | 5 · el `issuer` no coincide con el origen de la URL |
+| `endpoint_no_seguro` | 5 · algún *endpoint* declarado no es `https` |
+| `flujo_no_admitido` | 5 · `response_types_supported` no contiene `code`, o `code_challenge_methods_supported` viene y no contiene `S256` |
+
+**`destino_no_publico` no dice qué dirección era, y `sin_respuesta` no dice el error de red.** Es la misma disciplina de `§4.7` aplicada a otro canal: el mensaje detallado convertiría este *endpoint* en un escáner de la red interna con sesión de administrador de centro (`RN-AUTH-113`).
+
+### `PATCH /api/v1/identity-providers/{public_id}`
+
+- **Permiso**: `proveedor_identidad.actualizar`.
+- **Cuerpo**: cualquier subconjunto de `display_name`, `discovery_url`, `client_id`, `email_claim`, `claims_source`, `scopes`, `allowed_email_domains`, `provisioning_mode`, `is_enabled`.
+- **Si viene `discovery_url`, se revalida entera**, con las cinco guardas y los mismos códigos. Si falla, **no se cambia nada**, ni siquiera los campos que sí eran válidos.
+- **`is_enabled: true` exige credencial vigente**. Sin ella ⇒ `409`: activar un proveedor sin credencial es pintar un botón que solo lleva a `error_proveedor` para todo el centro.
+- **Respuesta `200`** con el recurso.
+- **Errores**: los de `§F.3`, más `404`.
+
+### `DELETE /api/v1/identity-providers/{public_id}`
+
+- **Permiso**: `proveedor_identidad.eliminar`.
+- **Borrado lógico** (`INV-004`). El proveedor deja de pintarse y deja de arrancar el flujo.
+- **Los vínculos existentes no se borran ni se desconectan** (`datos.md §F.4.2`): siguen viéndose y pudiendo retirarse desde el perfil de cada titular (`CA-AUTH-304`).
+- **Respuesta `204`**, sin cuerpo.
+- **No hay `409` por «tiene vínculos vivos»**, y es una decisión: un centro que deja de usar un IdP tiene que poder retirarlo sin pedir a 400 personas que se desvinculen primero. Lo que sí hace la pantalla es **decir cuántos vínculos quedarán huérfanos** antes de confirmar.
+
+---
+
+## F.4 Credenciales de cliente
+
+### `POST /api/v1/identity-providers/{public_id}/secrets`
+
+- **Permiso**: `proveedor_identidad.actualizar`. **No hay un permiso propio**, y `permisos.md §F.4` argumenta por qué.
+- **Cabeceras**: `X-XSRF-TOKEN` obligatoria.
+- **Cuerpo**:
+
+```json
+{ "client_secret": "...", "expires_at": "2027-03-01T00:00:00Z" }
+```
+
+- **`expires_at` es opcional pero se pide con insistencia en la pantalla**: es lo único que permite avisar antes de que el SSO del centro se caiga (`funcional.md §F.3.5`).
+- **Respuesta `201`**:
+
+```json
+{ "public_id": "01JD9...", "activated_at": "2026-09-01T09:05:00Z",
+  "expires_at": "2027-03-01T00:00:00Z", "retired_at": null }
+```
+
+- **La respuesta no devuelve el secreto, ni una parte, ni un resumen criptográfico** (`RN-AUTH-112`). Ni siquiera en el `201` que lo acaba de recibir: devolverlo aquí lo dejaría en el registro del cliente HTTP de quien lo llame.
+- **Cargar una credencial nueva no retira la anterior.** Las dos quedan activas y **se usa la de `activated_at` más reciente** (`datos.md §F.3`). Es la ventana de rotación, y es deliberado: el administrador rota en su IdP a su ritmo y retira la vieja cuando ha comprobado que la nueva funciona.
+- **Errores**: `422` (falta el secreto, o `expires_at` en el pasado), `403`, `404`, `419`/`403`, `429` (*bucket* `sso_secret_tenant`), `503`.
+
+### `DELETE /api/v1/identity-providers/{public_id}/secrets/{secret_public_id}`
+
+- **Permiso**: `proveedor_identidad.actualizar`.
+- **Retirada**: estampa `retired_at`. **No es un borrado lógico de la fila**: la fila se conserva como traza de qué credencial estuvo vigente en qué ventana (`datos.md §F.10`).
+- **Respuesta `204`**.
+- **`409`** si es la **última vigente de un proveedor activo**: dejaría el proveedor pintado y roto para todo el centro. **La salida es desactivar el proveedor primero**, y la pantalla lo dice.
+- **La respuesta recuerda que hay que revocarla también en el IdP.** Retirarla aquí impide que la usemos; **no la invalida en el IdP del centro**, que es donde de verdad sigue abriendo. Es la clase de cosa que nadie hace si nadie la dice.
+- **Errores**: `403`, `404` (cuerpo idéntico para inexistente, ya retirada, de otro proveedor o de otro tenant), `409`, `419`/`403`, `503`.
+
+---
+
+## F.5 `POST /api/v1/identity-providers/{public_id}/discovery-refreshes`
+
+Fuerza la revalidación del documento de descubrimiento y la actualización de los *endpoints*.
+
+- **Permiso**: `proveedor_identidad.actualizar`.
+- **Cuerpo**: vacío.
+- **Respuesta `200`** con el recurso del proveedor ya actualizado.
+- **Es síncrono, y no una tarea encolada.** `INV-012` obliga a encolar lo pesado, y esto **no lo es**: una petición `HTTPS` con tiempo de espera corto y tope de tamaño (`funcional.md §F.4.2` guarda 4). Encolarlo obligaría a inventar un recurso de estado del trabajo para que el administrador supiera si funcionó, que es más superficie para el mismo resultado. **El refresco periódico sí va en tarea programada** (`operacion.md §F.4`), que es donde el volumen lo justifica.
+- **Si falla, se conservan los *endpoints* anteriores**, se estampa `discovery_failed_at` y se responde `422` con el mismo código cerrado de `§F.3`. **Un emisor momentáneamente inalcanzable no deja a un centro sin SSO.**
+- **Es un `POST` sobre un sustantivo en plural**, `discovery-refreshes`, no un verbo (`ADR-038 §2`). Mismo criterio con el que 1.2 tiene `account-unlocks` y 1.3 `mfa-resets`.
+- **Errores**: `422`, `403`, `404`, `419`/`403`, `429` (*bucket* `sso_discovery_tenant`, compartido con el alta), `503`.
+
+---
+
+## F.6 Endpoints existentes que este paso modifica
+
+**Dos, y los dos de forma aditiva.** Ningún cliente de 1.4 se rompe.
+
+### `GET /api/v1/auth/identity-providers` — **modificado**
+
+Sigue siendo anónimo, con tenant por host, y sigue existiendo para lo mismo: que la pantalla de login sepa qué botones pintar (`RN-AUTH-98`). Lo que cambia es que la colección deja de ser «cero o uno» y pasa a ser **`N`**.
+
+```json
+{
+  "data": [
+    { "id": "google",  "display_name_key": "auth.provider.google" },
+    { "id": "01JD8...", "display_name": "Entra ID del centro" }
+  ],
+  "meta": { "total": 2 }
+}
+```
+
+- **`id` es un identificador opaco** que el cliente **echa de vuelta** en `POST /auth/oauth-authorizations`. Para el *driver* global de 1.4 vale `"google"`, exactamente como antes; para un proveedor catalogado es su `public_id`. **La SPA no lo construye ni lo interpreta**: lo copia.
+  - **Por qué un campo y no dos.** La alternativa era añadir `identity_provider_public_id` junto al `provider` de 1.4 y que el cliente rellenara uno u otro. Eso obliga a ramificar en el cliente y en el servidor por una distinción —*driver* global frente a catálogo— que **es nuestra y no del cliente**. Con un identificador opaco, el contrato de `§E.3` no cambia de forma y **`{"provider": "google"}` sigue funcionando byte a byte**.
+- **`display_name` solo aparece en los catalogados**, y es texto del centro sin traducir (`funcional.md §F.9`). El *driver* global sigue sin traer texto: su etiqueta la resuelve la SPA con su propio catálogo de cuatro idiomas, que es exactamente lo que `§E.2` decidió al retirar `label_key` — **y `display_name_key` es lo que `§E.2` anticipó que se reintroduciría *«cuando 1.4b traiga varios proveedores»*, ahora que hay un consumidor real**.
+- **No sale nada más**: ni `issuer`, ni `client_id`, ni los dominios admitidos, ni el modo de aprovisionamiento. Es un *endpoint* **anónimo**: publicar el emisor y los dominios de un centro sería publicar su mapa de integración a cualquiera que sepa su dirección (`datos.md §F.10`).
+- **Errores**: sin cambios (`§E.2`).
+
+### `POST /api/v1/auth/oauth-authorizations` — **modificado**
+
+- **Contrato de forma sin cambios**: `{"provider": "<id opaco>", "intent": "login"|"link"}`.
+- **`provider` acepta ahora también un `public_id` de proveedor catalogado.** Desconocido, borrado, **no activo** o **sin credencial vigente** ⇒ `422`, **con el mismo cuerpo en los cuatro casos** y sin distinguirlos: este *endpoint* es anónimo y distinguirlos convertiría el arranque del flujo en un comprobador de qué centros tienen SSO y en qué estado.
+- **La URL se construye sobre el `authorization_endpoint` descubierto** y lleva, además de lo de 1.4, **`nonce`** (`RN-AUTH-104`).
+- **Efecto colateral obligatorio**: el `state`, el verificador PKCE, **el `nonce`**, el `intent` y **el identificador interno del proveedor** quedan en el *payload* de la sesión del servidor, con caducidad. **No se emite ninguna cookie propia** y **no se crea ninguna fila** (`datos.md §F.1`).
+- **`intent = "link"` funciona igual con un proveedor catalogado**: vincula al usuario de la sesión, sin buscar por correo (`§E.4.4` punto 2). Y **sigue sin pasar el muro de MFA** (`§C.4.9`).
+- **Errores**: los de `§E.3`, sin ninguno nuevo.
+
+**`GET /api/v1/auth/identities` y `DELETE /api/v1/auth/identities/{public_id}` no cambian de contrato**, y es una comprobación, no una omisión: el recurso ya devolvía `provider`, `email_at_link` enmascarado, `link_method`, `linked_at` y `last_login_at`. Lo único que hace este paso es que `provider` pueda valer `oidc` y que se añada `provider_display_name` cuando hay proveedor catalogado detrás, para que el titular reconozca cuál de los dos IdP de su centro es (`CA-AUTH-303`). **Sigue sin salir el `subject`** (`permisos.md §E.5`).
+
+---
+
+## F.7 `GET /api/v1/auth/oauth/oidc/callback`
+
+**Una sola ruta para todos los proveedores catalogados del tenant**, con el argumento de `funcional.md §F.3.1`. La de 1.4, `GET /api/v1/auth/oauth/google/callback`, **sigue existiendo sin cambios**.
+
+- **Permiso**: ninguno declarado. Se autoriza por **posesión de la sesión que arrancó el flujo**, comparando el `state` en tiempo constante y consumiéndolo en el acto (`RN-AUTH-91`). Es el cuarto mecanismo de `permisos.md §C.4`, **sin ampliación**.
+- **El proveedor se resuelve desde el *payload* de la sesión, jamás desde la URL** (`RN-AUTH-103`, `CA-AUTH-278`). Es la razón principal de que la ruta no lleve el identificador del proveedor.
+- **Cabeceras**: ninguna. **Sin CSRF**, porque es un `GET` que llega como navegación desde un tercero; la defensa es el `state`, y ahora además el `nonce` en el `id_token` (`RN-AUTH-104`).
+- **Parámetros de consulta**: `code` y `state`, o `error` y `state`. Los pone el IdP.
+- **Respuesta**: **siempre `302`**, a `https://{slug}.{base}/entrar/sso?resultado=<código>` o, cuando el login se completa, a la ruta de destino de la SPA.
+
+### F.7.1 Códigos de resultado
+
+Heredan los once de `§E.4.2` con el mismo significado, **más dos**. La lista sigue siendo **cerrada**, que es lo que la hace traducible sin literales en el código (`INV-009`) y lo que impide que alguien meta un dato personal en ella (`RN-AUTH-93`).
+
+| Código | Cuándo | Nuevo |
+|--------|--------|-------|
+| *(ninguno: redirección al destino)* | Login completado | |
+| `segundo_factor` | Se abrió desafío de MFA. La SPA lo recupera con `GET /auth/mfa-challenges` (`§E.5b`) | |
+| `alta_mfa_requerida` | Sesión restringida: obligado, sin factor y gracia vencida | |
+| `vinculado` | `intent = link` completado | |
+| `sin_cuenta` | **No hay vínculo y no se pudo emparejar**: el emparejamiento está desactivado, o falta el *claim* de correo, o **falta `sub`**, o no hay usuario **activo** con ese correo. **Un solo código para los cuatro casos** (`funcional.md §F.4.5`) | |
+| **`dominio_no_permitido`** | El dominio del correo no está en `allowed_email_domains`, o el emisor es Google y falta el *claim* `hd` admitido | **Sí** |
+| **`proveedor_no_disponible`** | El proveedor se desactivó, se borró o se quedó sin credencial vigente **entre el arranque del flujo y la vuelta** | **Sí** |
+| `cuenta_bloqueada` | Bloqueo vivo para ese correo | |
+| `acceso_denegado` | Usuario `pendiente`, `inactivo` o borrado | |
+| `ya_vinculado` | `intent = link` y el usuario ya tenía vínculo vivo con **ese** proveedor | |
+| `proveedor_ya_vinculado` | Esa identidad ya está vinculada a otro usuario del centro. **No dice a quién** | |
+| `cancelado` | La persona canceló en el IdP | |
+| `estado_no_valido` | `state` ausente, distinto, caducado o ya consumido | |
+| `error_proveedor` | Fallo al canjear el código, **`id_token` que no valida en cualquiera de sus cinco puntos**, o emisor que no responde | |
+
+**Por qué `dominio_no_permitido` es un código propio y `sin_cuenta` no se desdobla.** Los dos criterios son el mismo aplicado a información distinta:
+
+- `sin_cuenta` **no se desdobla** porque cada uno de sus cuatro casos revelaría algo sobre **el censo del centro**: distinguir «no tienes cuenta» de «tu correo no viene en el *claim*» convierte el botón en un comprobador de altas (`ADR-043 §4.4`, `funcional.md §E.4.6`).
+- `dominio_no_permitido` **sí es propio** porque habla de **la configuración del proveedor**, no de personas: decir «este centro solo admite direcciones de su dominio» no revela nada de nadie, y no decirlo condena a la persona a no entender por qué su cuenta personal no sirve.
+
+**`error_proveedor` agrupa a propósito el fallo de canje y el de validación del `id_token`.** Distinguirlos no ayuda a quien está delante —en los dos casos la salida es «entra con tu contraseña»— y sí ayudaría a quien esté probando qué validaciones tenemos. El detalle va al registro de aplicación y a la métrica (`operacion.md §F.8`), no a la pantalla.
+
+**Efectos**: en el camino de éxito el *callback* **crea sesión** y, según el caso, **crea la fila de `user_identities`**. Es un `GET` que escribe, el mismo apartamiento de `§E.7.3`, y aquí es igual de inevitable: la forma de la petición la fija OIDC.
+
+---
+
+## F.8 Superficie del módulo tras 1.4b
+
+| Paso | Endpoints | Acumulado |
+|------|-----------|-----------|
+| 1.2 | 10 | 10 |
+| 1.2b | 3 | 13 |
+| 1.3 | 10 (+1 en `REQ-CORE`) | 23 |
+| 1.3b | 3 | 26 |
+| 1.4 | 6 | 32 |
+| **1.4b** | **9** | **41** |
+
+Los nueve:
+
+| Método y ruta | Autorización |
+|---------------|--------------|
+| `GET /api/v1/identity-providers` | `proveedor_identidad.leer` |
+| `GET /api/v1/identity-providers/{public_id}` | `proveedor_identidad.leer` |
+| `POST /api/v1/identity-providers` | `proveedor_identidad.crear` |
+| `PATCH /api/v1/identity-providers/{public_id}` | `proveedor_identidad.actualizar` |
+| `DELETE /api/v1/identity-providers/{public_id}` | `proveedor_identidad.eliminar` |
+| `POST /api/v1/identity-providers/{public_id}/secrets` | `proveedor_identidad.actualizar` |
+| `DELETE /api/v1/identity-providers/{public_id}/secrets/{secret_public_id}` | `proveedor_identidad.actualizar` |
+| `POST /api/v1/identity-providers/{public_id}/discovery-refreshes` | `proveedor_identidad.actualizar` |
+| `GET /api/v1/auth/oauth/oidc/callback` | Posesión de la sesión que arrancó el flujo |
+
+Y los **dos modificados**, los dos de forma aditiva: `GET /api/v1/auth/identity-providers` y `POST /api/v1/auth/oauth-authorizations`.
+
+**1.4b no toca ningún *endpoint* de `REQ-CORE`**, a diferencia de 1.3 (`§C.6`). Los cuatro permisos nuevos son del recurso `proveedor_identidad`, que es de este módulo (`permisos.md §F.2`).
+
+---
+
+## F.9 Convenciones transversales: dónde 1.4b se aparta o matiza
+
+### F.9.1 La excepción a `ADR-038` de 1.4 se hereda y **no se amplía**
+
+El *callback* institucional responde `302` con código de resultado, igual que el de Google, por el mismo argumento de `§E.4.1`. **Es la misma excepción, en un segundo *endpoint*, no una excepción nueva.** Los otros ocho *endpoints* de este paso hablan `problem+json` como todo el producto.
+
+### F.9.2 Sin `Idempotency-Key`, otra vez
+
+Por quinta vez, y por los motivos de §9.3: ninguna escritura de este paso es una operación de negocio costosa cuyo reintento produzca un duplicado que el usuario pague. El alta de proveedor **está protegida por el `UNIQUE (tenant_id, issuer)`**, que devuelve `409` a un reintento; la carga de una credencial repetida produce **dos filas y la última gana**, que es exactamente el comportamiento de rotación deseado; y el refresco de descubrimiento es idempotente por naturaleza.
+
+### F.9.3 Un `GET` que escribe, otra vez
+
+El *callback*. `§E.7.3`, sin cambios.
+
+### F.9.4 Un `POST` que hace una petición saliente, y es nuevo
+
+`POST /identity-providers` y `POST .../discovery-refreshes` **hacen una petición HTTP a un destino que indica el cliente**. Es la primera vez que ocurre en el producto y **la superficie con más peso de seguridad de este paso** (`funcional.md §F.4.2`, `RN-AUTH-113`). Se registra aquí, y no solo allí, para que la revisión no lo tome por descuido: sin las cinco guardas, estos dos *endpoints* son una petición forjada del lado del servidor con un formulario delante.
+
+### F.9.5 Enumerados
+
+Seis, todos cerrados y todos con su `CHECK` o su validación en servidor: `claims_source`, `email_claim`, `provisioning_mode`, `provider` y `link_method` de `user_identities`, y **el código de resultado del *callback***, que no está en base de datos pero es igual de cerrado (`§F.7.1`). A los que se suma la **lista cerrada de códigos de fallo de validación del descubrimiento** de `§F.3`, que tampoco está en base de datos y es igual de traducible.
+
+---
+
+## F.10 Eventos de dominio y webhooks
+
+**Dos eventos nuevos**, `IdentityProviderActivated` e `IdentityProviderDeactivated` (`funcional.md §F.7.3`). `IdentityLinked` e `IdentityUnlinked` **se reutilizan** y llevan el `link_method`, que ahora puede valer `emparejamiento_sso`.
+
+**Ningún webhook**: `REQ-API` es fase 2 y sigue sin haber suscriptores externos.
+
+**`UserLoggedIn` se publica igual que siempre.** No hay variante institucional: el hecho es el mismo, y quien necesite la distinción la tiene en `login_attempts.method` (`datos.md §F.5`), con la salvedad de retención que `OPEN-AUTH-36` sigue recogiendo.

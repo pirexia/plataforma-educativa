@@ -3181,3 +3181,728 @@ Las cuatro decisiones están incorporadas al alcance (`§E.1`), a la sección es
 **Confirmaciones que la implementación debe respetar y que no son negociables sin volver aquí**: el login federado pasa por `MfaPolicy` completo y no salta el segundo factor (`RN-AUTH-94`, `CA-AUTH-216`); ningún usuario se crea desde un login de Google (`RN-AUTH-99`); no se persiste ningún token del proveedor (`RN-AUTH-95`); y el proveedor simulado lleva **dos** barreras contra producción, no una (`operacion.md §E.10.3`).
 
 **Orden de implementación**: modelo de datos e `IdentityProvider` con el proveedor simulado primero; *callback* y resolución de identidad después; vinculación y desvinculación a continuación; pantallas al final. Rama `feature/REQ-AUTH-002-google-login-fusion-cuentas`.
+
+---
+
+# Parte F · Paso 1.4b · SSO institucional: OIDC por tenant y aprovisionamiento por emparejamiento (`REQ-AUTH-004`)
+
+| Campo | Valor |
+|-------|-------|
+| Código | `REQ-AUTH-004` (parte 1 de 2) |
+| Prioridad | MUST |
+| Fase | 1 · Bloque A · **paso 1.4b** |
+| Depende de | 1.1 (`REQ-CORE`: `people`, `users`, invitaciones, `tenant_settings`), 1.2 (login local, cookie de sesión, `login_attempts`, bloqueo), 1.2b (`user_sessions`, dispositivo), 1.3/1.3b (`MfaPolicy`, `mfa_challenges`, muro de alta), **1.4** (`user_identities`, envoltorio `ExternalIdentityProvider`, `state` en sesión, códigos de resultado del *callback*) |
+| Estado | **APROBADA** el 2026-09-01 (`§F.14`). Rama `feature/REQ-AUTH-004-sso-institucional`. `ADR-043` **ACEPTADA**. Las cuatro preguntas abiertas —`OPEN-AUTH-38`, `39`, `40`, `41`— resueltas por el usuario el 2026-09-01, todas con la salida recomendada por la especificación. Pendiente de implementar |
+| Módulo (código) | `auth` · `apps/api/app/Modules/Auth` · `apps/web/src/modules/auth` |
+
+> **Estructura**: §1-§14 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b y `§E.*` es 1.4, los cinco cerrados y mezclados. Esta **Parte F** es el paso **1.4b**. **No reescribe ni reabre ninguna de las anteriores**: son el registro de lo decidido y lo construido.
+>
+> Fuente de verdad: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md §5.2`, `REQ-AUTH-004`, sus **cuatro líneas literales**. Este documento **no** reabre `ADR-014`, `ADR-025`, `ADR-029`, `ADR-033`, `ADR-034`, `ADR-035`, `ADR-038`, `ADR-039`, `ADR-040`, `ADR-042` ni `ADR-043`.
+>
+> Numeración: reglas de negocio desde **`RN-AUTH-101`**, criterios de aceptación desde **`CA-AUTH-260`** y preguntas abiertas desde **`OPEN-AUTH-38`**. Los criterios arrancan en 260 y no en 240 —el primer número libre— por el mismo criterio con el que 1.4 arrancó en 200: que el bloque del paso se distinga de un vistazo.
+>
+> **SAML 2.0 no está en esta Parte y no se anticipa en ella.** Es el paso `1.4c`, y `ADR-043 §3.1` lo separa con un argumento de cuatro frentes. Donde este documento parece dejar hueco a SAML lo dice explícitamente y cita el punto de `ADR-043` que lo pide; en todo lo demás, la regla es la de `CLAUDE.md §11` y `ADR-034 OPEN-13`: **no se anticipa ni una columna**.
+
+---
+
+## F.0 Antes de nada
+
+`CLAUDE.md §0` obliga a ponerlo delante. **Este paso llega con tres decisiones ya tomadas por el usuario y con dos problemas que la especificación descubre al bajar al detalle y que el ADR no podía ver desde arriba.** Los dos están en `§F.0.3`, y el segundo es **bloqueante**.
+
+### F.0.1 Lo que `ADR-043` ya decidió, y que aquí no se repregunta
+
+| Punto | Decisión del usuario (2026-09-01) | Dónde vive en este documento |
+|-------|-----------------------------------|------------------------------|
+| `ADR-043 §8.1` · ¿crear o emparejar? | **Solo emparejar.** `1.4b` **nunca** crea `Person` ni `User`. Vincula la identidad SSO con una cuenta que ya existe en el censo | `RN-AUTH-108`, `§F.4.3`, `§F.6` |
+| `ADR-043 §8.2` · ¿dónde vive el `client_secret` por tenant? | **Cifrado en tabla propia**, con la clave de aplicación | `datos.md §F.3`, `operacion.md §F.2.2` |
+| `ADR-043 §8.3` · ¿quién configura el IdP? | **El administrador del centro, en autoservicio.** Pantallas, permisos y validación de metadatos entran en este paso | `§F.4.1`, `api.md §F.3`, `permisos.md §F.1` |
+
+Y las cinco restricciones de diseño de `ADR-043 §3.5`, que este documento **no puede cruzar** sin volver al ADR:
+
+1. El catálogo de proveedores es **tabla de tenant** con `tenant_id`, RLS `ENABLE`+`FORCE` y política estándar (`ADR-033 §5`, `§6`). Sin excepción de *tenancy* en ningún punto del paso.
+2. `user_identities` **se re-teclea por proveedor concreto, no por protocolo** (`ADR-043 §3.6`). `datos.md §F.4`.
+3. El mapeo de atributos escribe sobre una **lista blanca cerrada de destinos**, nunca sobre un destino libre (`ADR-043 §4.3`). `§F.5`, y ver `§F.0.3` punto 2 — es aquí donde aparece el problema bloqueante.
+4. El aprovisionamiento **nunca concede roles por sí mismo** (`ADR-043 §4.5`). `RN-AUTH-110`.
+5. **Ningún certificado, clave privada ni secreto de cliente aparece en `audit_logs`**, ni por patrón (`ADR-043 §3.5.5`). `datos.md §F.3`, con una precisión de mecanismo en `§F.0.4`.
+
+### F.0.2 Dependencias no implementadas que condicionan el alcance
+
+| Dependencia | Estado | Qué bloquea exactamente |
+|-------------|--------|-------------------------|
+| **`0.10b` · Dominio, DNS con comodín y certificado** (`OPEN-08`) | **Pendiente** | **Baja de categoría respecto de 1.4, y hay que decirlo porque es la primera buena noticia del paso.** El obstáculo de 1.4 era Google, que no admite una `redirect_uri` que no sea `https` sobre dominio público. Aquí el IdP **lo elige el centro**, y en desarrollo lo elegimos nosotros: un emisor OIDC servido por la propia API en `local`/`testing` permite recorrer el flujo **entero y real** —descubrimiento, `state`, PKCE, `nonce`, canje de código, lectura de *claims*, emparejamiento, `MfaPolicy`— sin dominio público (`operacion.md §F.10`). Lo que **sigue** pendiente de `0.10b` es la verificación contra un IdP comercial (Entra ID, Google Workspace) con TLS real |
+| **`0.10c` · Proveedor de correo transaccional** (`OPEN-09`) | **Pendiente** | El aviso al titular de `§F.4.6` depende de él, igual que los cinco que ya existen. No impide implementar ni probar; sí impide operar. Hereda `OPEN-AUTH-07` sin agravarlo |
+| **`1.4c` · SSO institucional (SAML 2.0)** | Posterior | Es quien traerá el segundo protocolo. **Este paso no le deja hueco en el modelo salvo donde `ADR-043 §3.6` lo pide expresamente**: la clave de `user_identities` re-tecleada por proveedor concreto, que sirve a los dos protocolos porque el defecto que corrige es de los dos |
+| **`1.5` · Permisos granulares** | Posterior | **Sí tiene impacto, a diferencia de 1.4.** Este paso **declara cuatro permisos** (`permisos.md §F.3`), los primeros del módulo desde 1.3b. Se asignan al rol `administrador_centro` con ámbito `todos` mientras rija el resolutor provisional (`permisos.md §5.6`) |
+| **`1.6` · `REQ-BO`** | Posterior | **Deja de ser relevante para este paso.** `ADR-043 §8.3` decidió autoservicio del centro: la configuración del IdP **no** es una operación de backoffice |
+| **`REQ-PRIV-006` / `ADR-034 OPEN-13`** | **Pendiente** | **Vuelve a condicionar, como `ADR-043 §7.5` anunció.** Fija la lista definitiva de columnas de `people` y su base legal por campo. Sin ella no hay columna de fotografía, y por tanto **hay una parte del literal de `REQ-AUTH-004` que este paso no puede cumplir** (`§F.0.3` punto 1) |
+| **`RMT-008` · dominio propio por centro** | No implementado | Sin impacto real aquí, y conviene decirlo: la `redirect_uri` de este paso se construye igual que la de 1.4 (`RN-AUTH-92`), y un centro con dominio propio simplemente registraría otra URI **en su propio IdP**, sin tope común (`ADR-043 §5.1`) |
+
+### F.0.3 Contradicciones y problemas detectados, con su estado
+
+**Cuatro. Dos son declaraciones de incumplimiento parcial del requisito, uno es un hallazgo sobre código existente y uno es bloqueante.**
+
+#### 1 · La fotografía de `REQ-AUTH-004` no tiene dónde ir, y no se fabrica la columna — **declarado, no resuelto**
+
+`REQ-AUTH-004` pide *«mapeo automático de atributos SAML/OIDC a campos de usuario»*. `ADR-043 §4.3` recorre el destino campo por campo y llega a la fotografía: **`people` no tiene columna de fotografía y no la tiene por olvido**, sino porque `ADR-034 §1` la dejó fuera por minimización y `OPEN-13` sigue sin catálogo de bases legales, con `REQ-PRIV-006` como dueño.
+
+**Este paso no la crea.** `OPEN-AUTH-37` ya cerró en 1.4 que la fotografía **no se guarda**, y `ADR-043 §7.5` descartó expresamente aprovechar este paso para cerrar `OPEN-13`. Por tanto, y con las palabras que `ADR-043 §4.3` exige que se usen:
+
+> **`REQ-AUTH-004` queda incumplido en la parte de fotografía del mapeo de atributos, y no es un olvido de implementación: es un requisito bloqueado por `OPEN-13`/`REQ-PRIV-006`.** No se resuelve por la puerta de atrás.
+
+Lo mismo, con menos dramatismo, vale para partir apellidos: si un IdP manda un solo `family_name`, va entero a `family_name_1` y `family_name_2` queda `NULL`. **Nunca se parte una cadena con heurística** (`ADR-042 §4.6`, argumento «García de la Torre», sin cambios).
+
+#### 2 · Con emparejamiento y sin creación, el mapeo de atributos **no tiene sobre qué escribir** — **BLOQUEANTE, `OPEN-AUTH-38`**
+
+Es el problema que la especificación descubre al bajar al detalle, y `CLAUDE.md §0` obliga a decirlo antes de aplicarlo. **No es un desacuerdo con `ADR-043`: es una consecuencia de la decisión del usuario sobre `§8.1` que el ADR no podía ver, porque escribió su `§4.3` cuando la creación seguía siendo posible.**
+
+El razonamiento, en tres pasos verificables:
+
+1. `ADR-043 §4.3` construye la lista blanca de destinos de `people` que el IdP puede rellenar: `given_name`, `family_name_1`, `family_name_2`, `contact_email`, `locale` y, con reservas, `contact_phone`. Esa lista está escrita **para el alta**: «qué puede rellenar el mapeo de atributos» en el momento en que se crea la persona.
+2. La decisión del usuario sobre `§8.1` retira la creación: `1.4b` **empareja** con una `Person` que **ya existe en el censo**, con sus datos ya puestos por la secretaría del centro.
+3. Sobre una `Person` que ya existe, escribir esos campos desde el IdP **no es rellenar: es sobrescribir**. Y sobrescribir datos del centro con datos del directorio es exactamente lo que `RN-AUTH-88` prohíbe desde 1.4 —*«el proveedor nunca sobrescribe datos del centro»*—, con un argumento que no ha cambiado: la ficha de la persona en el centro es el registro autoritativo (`ADR-034 §1`), no el perfil del directorio.
+
+De ahí que este paso **implemente el mapeo solo en su mitad de resolución de identidad** —qué *claim* es el identificador estable y qué *claim* lleva el correo con el que se empareja (`§F.5`)— y **no implemente la escritura sobre `people`**. La lista blanca cerrada de `ADR-043 §4.3` se documenta aquí (`§F.5.3`) como **la lista que gobernaría esa escritura el día que exista creación**, y no se materializa hoy en ninguna columna ni en ningún ajuste: hacerlo sería guardar configuración que ningún camino de código lee, que es lo que `ADR-034 OPEN-13` prohíbe.
+
+**Consecuencia honesta, y por eso es bloqueante**: de las cuatro líneas de `REQ-AUTH-004`, la tercera —*«mapeo automático de atributos SAML/OIDC a campos de usuario»*— queda cubierta **solo en su mitad de identidad**. Escrito sin adornos: con emparejamiento y sin creación, el mapeo de atributos no tiene sujeto. Las salidas son tres y **ninguna la decide `spec-writer`**: se registran en **`OPEN-AUTH-38`** (`§F.13`).
+
+#### 3 · Un usuario `pendiente` no entra por SSO, y eso acota el valor que `ADR-043 §4.2` prometió — **decidido aquí, con su coste, `OPEN-AUTH-39`**
+
+`ADR-043 §4.2` justificó el emparejamiento con una frase concreta: *«es lo que resuelve el problema real de un centro con 80 docentes: nadie gestiona 80 invitaciones»*. Al bajar al detalle, eso **es cierto solo a medias**, y la mitad que no lo es hay que escribirla.
+
+`RN-AUTH-23` deja entrar únicamente a `users.status = 'activo'`, y `CA-AUTH-219` ya lo comprobó para el camino federado de 1.4. Una cuenta `pendiente` es una invitación sin canjear, y el canje es donde se fija la contraseña y se estampa `email_verified_at`. Por tanto:
+
+- **Los 80 docentes que ya están en el censo y activos** quedan vinculados sin que nadie mueva un dedo, en su primer acceso. **Ese valor sí se entrega**, y es real: cero trabajo administrativo de vinculación para todo el censo existente.
+- **Un docente nuevo sigue necesitando canjear su invitación** antes de poder entrar por SSO. El SSO le quita la contraseña del día a día, no la invitación del alta.
+
+Dejarle entrar en el mismo acceso que lo activa —`pendiente` → `activo` sin canje— exigiría estampar `email_verified_at` a partir de la aserción y **crear un usuario sin contraseña utilizable**, con `users.password` `NOT NULL` de por medio (`ADR-043 §4.6`) y `RN-AUTH-96` («nadie depende de un tercero para entrar») rota por primera vez. Es exactamente la tensión que `ADR-043` asoció a la creación y que, por esta puerta, **sí alcanza al emparejamiento**.
+
+**Decisión de esta especificación: no.** `RN-AUTH-23` no se toca, `users` no se toca, `users.password` sigue `NOT NULL`, y una cuenta `pendiente` que llega por SSO sale con la misma salida genérica que cualquier otra (`RN-AUTH-107`). El motivo es de reversibilidad, no de elegancia: pasar de «no entra» a «entra» más adelante es aditivo; volver de «entra» a «no entra» con cuentas ya activadas sin contraseña, no. Queda registrado como **`OPEN-AUTH-39`** con su coste a la vista, porque es una decisión de producto y no mía.
+
+#### 4 · `people.locale` acepta cualquier valor y su defecto no es un idioma admitido — **hallazgo sobre código existente, no se arregla aquí**
+
+Verificado en el repositorio, no recordado. `database/migrations/2026_08_18_100200_create_people_table.php:31` declara `locale` como `text` con `DEFAULT 'es'` **y sin `CHECK`**, mientras que el conjunto admitido en todo el producto es `{es-ES, en, de, fr}` (`tenant_settings.default_locale` sí tiene su `CHECK`, y `StoreUserRequest`/`UpdateUserRequest`/`IndexUsersRequest` validan `in:es-ES,en,de,fr`). Es decir: toda `Person` creada sin `locale` explícito queda con un valor que **no es ninguno de los cuatro idiomas del producto** (`ADR-021`, `INV-009`).
+
+**No se toca en este paso**, y por dos motivos: no es de `REQ-AUTH` (la columna es de `REQ-CORE`/`ADR-034`), y `CLAUDE.md §11` prohíbe refactorizar código ajeno al objetivo de la sesión. Sí es relevante aquí porque `ADR-043 §4.3` autorizaba al IdP a escribir `locale` *«si el valor está en `{es-ES,en,de,fr}`»*, y esa validación no la garantiza hoy el esquema. Se documenta como **incidencia de severidad baja**, con issue propio y propuesta (añadir el `CHECK` y corregir el `DEFAULT` en una migración *expand* de `REQ-CORE`), **informada y no resuelta**, según la tabla de `CLAUDE.md §5`: issue [#145](https://github.com/pirexia/plataforma-educativa/issues/145).
+
+### F.0.4 Una precisión de mecanismo sobre `ADR-043 §3.5.5`
+
+`ADR-043 §3.5` punto 5 pide que ningún secreto de cliente aparezca en `audit_logs` *«ni siquiera redactado por patrón: se declara a mano, como `datos.md §E.2` tuvo que hacer con `subject`»*. La intención es correcta y se cumple entera; el mecanismo que nombra conviene precisarlo, porque `datos.md §E.2` **no** declaró `subject` en `config('audit.secret_attribute_patterns')`:
+
+- El patrón global de `config/audit.php` es **defensa en profundidad** (`ADR-035 §4`, paso 1) y **no se toca en este paso**. De hecho ya cubriría `client_secret` por `*secret*`, y eso es justamente lo que `ADR-043` no quiere que se dé por bueno.
+- La declaración explícita vive **en el modelo**, en `$auditSecretAttributes`, que es lo que hizo `UserIdentity` con `subject` y `email_at_link`. Es el paso 1 del orden de evaluación de `ADR-035 §4`, absoluto y anterior a la política del modelo.
+
+Este paso hace las dos cosas —declaración explícita en el modelo **y** el patrón global como red— y lo escribe así en `datos.md §F.3`. El resultado es el que `ADR-043` pide; la ruta es la que `ADR-035` fija.
+
+---
+
+## F.1 Alcance del paso 1.4b
+
+### F.1.1 Entra
+
+| Sub-requisito | Qué parte |
+|---------------|-----------|
+| `REQ-AUTH-004` línea 2 (*«OIDC para Azure AD / Entra ID, Google Workspace, etc.»*) | **Catálogo de proveedores OIDC por tenant** (`identity_providers`), con descubrimiento y validación de metadatos, credencial de cliente cifrada, conmutador de activación y restricción por dominio de correo |
+| `REQ-AUTH-004` línea 2 | **Proveedor OIDC genérico parametrizado por emisor**, sin dependencia nueva (`§F.3.4`): flujo de código de autorización con **PKCE `S256`** y **`nonce`**, válido para cualquier emisor conforme a OpenID Connect Discovery 1.0 |
+| `ADR-043 §5.3` | **Restricción por dominio**, obligatoria y no opcional: `allowed_email_domains` para cualquier emisor, más la comprobación del *claim* `hd` cuando el emisor es Google (`§F.4.4`). **Cierra la mitad de seguridad de `OPEN-AUTH-33`** |
+| `REQ-AUTH-004` línea 3 | **Mapeo de atributos, mitad de identidad**: qué *claim* es el identificador estable (fijo, `sub`) y qué *claim* lleva el correo con el que se empareja (configurable, lista blanca cerrada). La mitad de escritura sobre `people` **no entra**: `§F.0.3` punto 2, `OPEN-AUTH-38` |
+| `REQ-AUTH-004` línea 4 | **Aprovisionamiento por emparejamiento** en el primer acceso: vínculo automático con una cuenta **ya existente y activa** del censo. **Nunca creación** (`ADR-043 §8.1`) |
+| `ADR-043 §3.6` | **Re-tecleado de `user_identities` por proveedor concreto**, en *expand/contract*, mientras la tabla tiene cero filas institucionales |
+| `ADR-043 §8.3` | **Autoservicio del centro**: pantallas de administración del catálogo, permisos propios y validación de metadatos, con los datos que el administrador necesita para registrar nuestra `redirect_uri` en su IdP (`ADR-043 §5.2`) |
+| Integración con lo ya construido | El login por SSO institucional pasa por **las mismas** comprobaciones que el local y que el de 1.4: bloqueo, estado de la cuenta y `MfaPolicy` completo, con desafío de segundo factor y muro de alta (`RN-AUTH-94`, ampliada a `RN-AUTH-111`) |
+
+### F.1.2 No entra, y por qué
+
+| Fuera | Dónde va | Motivo |
+|-------|----------|--------|
+| **SAML 2.0** | **1.4c** | `ADR-043 §3.1`. Rompe a la vez el mecanismo de sesión del *callback*, el envoltorio de la dependencia, el perfil de riesgo y el ciclo del material criptográfico. **No se le deja hueco en el modelo** salvo la clave de `user_identities`, que `ADR-043 §3.6` pide expresamente y que sirve a los dos porque el defecto que corrige es de los dos |
+| **Creación automática de `Person`/`User`** (*JIT creation*) | **Ningún paso hoy** | Decisión del usuario del 2026-09-01 (`ADR-043 §8.1`). No se descarta para el futuro; si se retoma, exige antes los cinco puntos de `ADR-043 §8.1` |
+| **Escritura del mapeo sobre `people`** | **Sin decidir** | `§F.0.3` punto 2, `OPEN-AUTH-38`. **Bloqueante** |
+| **Single Logout (SLO)** | **Ningún paso** | `ADR-043 §3.4`. No lo pide el requisito; cerrar sesión en nuestro lado funciona desde 1.2b, incluido el cierre remoto |
+| **SCIM y sincronización de directorio** | **Ningún paso** | `ADR-043 §3.4`. El censo es de `REQ-ALUM`/`REQ-RRHH`, no del IdP |
+| **SSO iniciado por el IdP** | **1.4c**, por defecto **no** | `ADR-043 §3.4`, `§8.4`. Se comprueba aquí que **no condiciona el modelo de 1.4b** (`§F.3.3`) y se deja como `OPEN-AUTH-40` |
+| **Que el segundo factor del IdP exima del nuestro** | **Sin decidir**, por defecto **no** | `ADR-043 §3.4`, `§8.5`; heredado de `§C.12`. `OPEN-AUTH-41` |
+| **Convertir el SSO en la única puerta de entrada** | **Ningún paso** | `ADR-043 §3.4`. `RN-AUTH-96` sigue en vigor sin excepción |
+| **Autenticación de cliente por clave privada** (`private_key_jwt`) | **Ningún paso** | El usuario resolvió `ADR-043 §8.2` por la vía del secreto cifrado. Añadir `private_key_jwt` traería generación, custodia, rotación y publicación de un JWKS propio — un subsistema, con el argumento de `ADR-043 §2.4`. Queda como ampliación aditiva (`§F.12`) |
+| **Otros protocolos o proveedores de consumo** (Microsoft personal, Apple) | **Ningún paso** | No están en el requisito |
+| **Conmutador por tenant del botón global de Google de 1.4** | **Sin decidir** | Es la **otra** mitad de `OPEN-AUTH-33`, la que no tiene peso de seguridad. `§F.10.2` |
+
+### F.1.3 El tamaño de este paso, dicho antes de empezar
+
+**Dos tablas nuevas, cuatro modificaciones de tablas existentes, nueve *endpoints* nuevos, dos modificados, cuatro permisos y tres pantallas.**
+
+Comparado con lo que este módulo ya ha entregado: 1.2 (cuatro tablas, diez *endpoints*, seis pantallas), 1.3 (seis tablas, diez *endpoints*, cuatro pantallas), 1.4 (una tabla, seis *endpoints*, dos pantallas). **Está en el tamaño de 1.3, que es el mayor del módulo hasta hoy.**
+
+**No propongo partirlo, y digo por qué**, porque la pregunta se hace sola después de que `ADR-043` ya partiera el requisito una vez:
+
+1. `ADR-043 §6` descartó expresamente el corte «por capa» —catálogo primero, protocolo después— con un argumento que sigue valiendo: dejaría un paso **sin ningún protocolo entero**, es decir, un paso que no se puede verificar de extremo a extremo con un IdP de verdad. *«Un paso que no se puede probar de extremo a extremo no está terminado, solo escrito.»*
+2. Las tres piezas de este paso —catálogo, protocolo y emparejamiento— **no son separables por dónde está el riesgo**: el riesgo de `INV-008` vive en el emparejamiento, el de configuración vive en el catálogo, y el de protocolo es el más pequeño de los tres porque no hay dependencia nueva. Partir aquí repartiría cada riesgo entre dos revisiones.
+
+Lo que sí propongo es un **orden de implementación con punto de control**, en `§F.14`.
+
+---
+
+## F.2 Actores
+
+| Actor | Qué hace en 1.4b |
+|-------|------------------|
+| **Administrador de Centro** | **Es el actor nuevo del paso.** Da de alta el IdP de su centro, pega la URL de descubrimiento y el `client_id`, carga la credencial de cliente, fija el dominio o dominios admitidos, activa el proveedor y decide si el emparejamiento automático está encendido. Ve la `redirect_uri` que tiene que registrar en su IdP y los *claims* que se esperan. **Es el único rol con los cuatro permisos nuevos** (`permisos.md §F.6`) |
+| **Cualquier usuario del centro** | Entra con las credenciales del centro si su cuenta ya existe, está activa y el emparejamiento resuelve. Ve y retira sus vínculos desde su perfil, por el mismo `GET`/`DELETE /auth/identities` de 1.4, **sin ningún endpoint nuevo** |
+| **Persona sin cuenta activa en el centro** | Completa el flujo con su IdP y **no entra**, con una salida que no revela si tiene cuenta (`§F.4.5`) |
+| **Operador de sistemas** | **Menos trabajo que en 1.4, y es la mejora operativa del paso.** No registra ninguna URI en ninguna consola: lo hace cada centro en su propio IdP (`ADR-043 §5.1`). Lo que sí custodia es `APP_KEY`, que a partir de aquí cifra también las credenciales de cliente de todos los tenants (`operacion.md §F.2.2`) |
+| **Super Administrador** | Ninguna operación. El backoffice es 1.6, y `ADR-043 §8.3` dejó esta configuración fuera de él |
+
+---
+
+## F.3 Decisiones estructurales
+
+Cinco. Las tres primeras eran las que podían condicionar el modelo; las dos últimas son las que `ADR-043` dejó explícitamente a esta especificación.
+
+### F.3.1 Una sola URI de *callback* por tenant, no una por proveedor
+
+`ADR-043 §5.1` confirma que la opción A de 1.4 (URI propia por tenant) sirve aquí y **mejora**: cada centro registra la URI en su propio IdP, así que desaparece el tope de URIs por cliente OAuth que preocupaba a `operacion.md §E.12.2` punto 2. Eso está decidido y no se reabre.
+
+Lo que sí decide este documento es si la URI es **una por tenant** o **una por proveedor catalogado**:
+
+```
+Opción 1   GET /api/v1/auth/oauth/oidc/callback                 ← una por tenant   · ELEGIDA
+Opción 2   GET /api/v1/auth/oauth/{provider_public_id}/callback ← una por proveedor
+```
+
+**Elegida la opción 1**, por tres motivos en orden de peso:
+
+1. **La URI que el administrador registra en su IdP no cambia nunca.** Con la opción 2, borrar un proveedor mal configurado y volver a crearlo produce un `public_id` nuevo y **rompe el registro que el administrador ya había hecho en su IdP** — un error de configuración cuyo síntoma (`redirect_uri_mismatch`) aparece en el navegador de otra persona, días después. Con la opción 1 no hay forma de que ocurra.
+2. **Un centro en migración de ADFS a Entra ID tiene dos IdP a la vez** (`ADR-043 §3.6`) y registra **la misma** URI en los dos. Es una línea del procedimiento, no dos.
+3. **El proveedor no se resuelve nunca desde la URL.** Sale del *payload* de la sesión, junto al `state`, el verificador PKCE y el `nonce`, exactamente como el `intent` de 1.4 (`§E.4.1` punto 3.3). Un identificador de proveedor en la URL sería un parámetro controlado por quien llega, en el endpoint que crea sesiones.
+
+**No se toca la ruta de 1.4.** `GET /api/v1/auth/oauth/google/callback` sigue existiendo, con su *driver* global, sin cambios de contrato.
+
+### F.3.2 De dónde salen los *claims*: del `id_token`, no del `userinfo`
+
+Decisión con peso de seguridad, y va con su argumento porque es el punto donde alguien «mejorará» el código dentro de dos años.
+
+**Los *claims* se leen del `id_token` que devuelve el *endpoint* de *token*, obtenido en una llamada servidor a servidor sobre TLS.** No se llama a `userinfo` salvo que el proveedor esté configurado para ello (`claims_source = 'userinfo'`, `datos.md §F.2`).
+
+- **`userinfo_endpoint` es opcional en OpenID Connect Discovery; `id_token` no lo es.** Exigir `userinfo` dejaría fuera emisores conformes por una razón que no es de seguridad.
+- **No se verifica la firma del `id_token` contra el JWKS del emisor**, por el mismo argumento que `operacion.md §E.7` ya escribió para 1.4 y que aquí además está bendecido por el estándar: OpenID Connect Core 1.0 `§3.1.3.7` admite que, cuando el `id_token` se obtiene por comunicación directa con el *endpoint* de *token*, la validación TLS del servidor sustituya a la comprobación de firma. Tomar el camino del JWKS obligaría a descargar, cachear e invalidar el juego de claves de cada emisor de cada tenant, con su propio modo de fallo, para no ganar nada. **Por eso `jwks_uri` no se guarda**: no se guarda lo que no se usa.
+- **Lo que sí se valida siempre, y es lo que sustituye a la firma** (`RN-AUTH-104`): `iss` idéntico al emisor catalogado, `aud` que contiene nuestro `client_id`, `exp` no vencido e `iat` dentro de una tolerancia de reloj de 120 segundos, y **`nonce` idéntico al que guardamos en la sesión**. Sin cualquiera de los cinco, el acceso se rechaza.
+- **`claims_source = 'userinfo'` existe porque hay un caso real**, no por simetría: Entra ID no incluye `email` en el `id_token` de una cuenta sin dirección de correo en el directorio o sin el *claim* opcional configurado, y sin `email` el emparejamiento no puede resolver. Es un **conmutador explícito por proveedor**, no un respaldo silencioso: un respaldo automático crearía dos caminos de código con el mismo aspecto y un modo de fallo que solo aparece en producción. Cuando está en `userinfo`, la llamada usa el *access token* recién obtenido, sobre TLS, y el `sub` devuelto **debe coincidir** con el del `id_token` (`RN-AUTH-105`) — es la comprobación que OpenID Connect Core `§5.3.2` exige y sin la cual `userinfo` es un canal sin vincular.
+
+### F.3.3 `ADR-043 §8.4` no condiciona el modelo de este paso, y hay que comprobarlo
+
+`ADR-043 §8.4` se anotó *«aquí y no en 1.4c porque condiciona el modelo de 1.4b: si se va a aceptar, la tabla de correlación de peticiones se diseña distinta»*. **Comprobado, y la respuesta es que no lo condiciona**, por una razón concreta:
+
+En OIDC el *callback* es una **navegación `GET` de nivel superior** al host del tenant, así que la cookie de sesión viaja (`SameSite=Lax`) y el `state`, el verificador PKCE y el `nonce` viven en el *payload* de la sesión, **sin tabla de correlación** — igual que en 1.4 (`datos.md §E.1`). La tabla que `§8.4` teme es la que SAML necesita porque su *binding* HTTP-POST llega **sin cookie** (`ADR-043 §2.1`). **En `1.4b` esa tabla no existe ni se crea**, luego no hay diseño que condicionar.
+
+Queda como `OPEN-AUTH-40` con la posición por defecto del ADR —**no**—, y como lo que es: una decisión de `1.4c`, no de aquí.
+
+### F.3.4 El envoltorio: `ExternalIdentityProvider` **se generaliza**, no se duplica
+
+`ADR-042 §4.3` fijó la interfaz **a propósito para un solo proveedor**, sin parámetros, y escribió que `1.4b` decidiría si hace falta un registro. Decidido aquí, con el criterio de `ADR-041 §1.4` delante —*«una interfaz que la mitad de sus implementaciones no puede cumplir es peor que dos interfaces»*— y **verificado contra la forma real de la interfaz**, no supuesto:
+
+```php
+interface ExternalIdentityProvider {
+    public function beginAuthorization(): string;
+    public function completeAuthorization(): ExternalIdentity;
+}
+
+final readonly class ExternalIdentity {
+    public string $providerUserId;  public string $email;      public bool $emailVerified;
+    public ?string $displayName;    public ?string $givenName;  public ?string $familyName;
+    public ?string $avatarUrl;
+}
+```
+
+**Las siete propiedades de `ExternalIdentity` las cumple un emisor OIDC genérico sin excepciones**, porque son *claims* estándar de OpenID Connect Core (`sub`, `email`, `email_verified`, `name`, `given_name`, `family_name`, `picture`) — no invenciones de Google. La objeción de `ADR-042 §4.3` valía para SAML (`§2.2` del `ADR-043`: sin `client_secret`, sin canje de código, sin `sub` garantizado, **sin `email_verified` en absoluto**), y **SAML no está en este paso**. Aquí los dos casos son OIDC.
+
+Por tanto:
+
+- **`ExternalIdentity` se reutiliza tal cual, sin una sola propiedad nueva.** `emailVerified` sigue siendo booleano de primera clase; lo que cambia es **qué garantiza**, y eso se dice en `§F.4.3` y en `RN-AUTH-106`, no aquí.
+- **`ExternalIdentityProvider` se generaliza a un registro por tenant**: el contenedor deja de resolver una implementación fija por variable de entorno y pasa a resolverla **para un proveedor concreto**, mediante una fábrica `ExternalIdentityProviderRegistry` que recibe la fila del catálogo. **La firma de los dos métodos no cambia**: el proveedor sigue construyéndose ya parametrizado, y quien lo usa no sabe de dónde salió la configuración. Es exactamente el punto que `ADR-042 §4.3` dejó abierto, resuelto en la dirección que dejaba prevista.
+- **La implementación nueva es una clase nuestra, no una dependencia nueva.** Verificado en `vendor/laravel/socialite` de la versión instalada: `SocialiteManager::buildProvider($clase, ['client_id','client_secret','redirect','scopes'])` existe, y `Two\AbstractProvider::getAuthUrl()`/`getTokenUrl()`/`getUserByToken()`/`mapUserToObject()` son **abstractas de instancia**, con `getTokenFields()` `protected` y `enablePKCE()` público. Un `GenericOidcProvider extends Two\AbstractProvider` parametrizado por los *endpoints* descubiertos es una clase de este repositorio.
+  - **Un matiz verificado que hay que escribir para que no sorprenda a `implementer`**: el constructor que `buildProvider()` invoca tiene firma fija `(Request, clientId, clientSecret, redirectUrl, guzzle)` y **no transporta los *endpoints* del emisor**. Se construye igual, y los *endpoints* descubiertos se inyectan después con un método propio (`forIssuer()`), o se instancia la clase directamente. **No es un problema**: es la razón por la que el envoltorio existe.
+- **`ADR-042` no se reabre y no hace falta un ADR nuevo.** No hay dependencia nueva que aprobar, no cambia la forma del objeto de valor y no se retira ninguna decisión: se ejerce una extensión que el propio `ADR-042 §4.3` dejó nombrada. Si la revisión considera que generalizar la interfaz es una decisión estructural, es un ADR corto — se anota, no se da por hecho.
+
+### F.3.5 La credencial de cliente: tabla propia, varias filas y ventana de rotación
+
+El usuario resolvió `ADR-043 §8.2`: **cifrada en tabla propia, con la clave de aplicación**. Este documento fija lo que el ADR le pidió que fijara —el mecanismo concreto y quién puede leerla en claro— y añade **un hallazgo que el ADR no pesó**.
+
+**El hallazgo**: `ADR-043 §2.4` argumentó que el ciclo de vida del material criptográfico es un subsistema y que **OIDC no tiene ese problema porque el JWKS del emisor rota solo**. Eso es cierto del material **del emisor**. No es cierto de **nuestra credencial en el emisor**: un secreto de cliente de Entra ID **caduca**, con un máximo de 24 meses, y Google Cloud permite rotarlo. El día del vencimiento, un diseño de una sola columna produce **la caída total del acceso por SSO de ese centro, sin aviso previo y con un mensaje que no apunta a la causa** — que es, palabra por palabra, el modo de fallo que `ADR-043 §2.4` describió para los certificados de SAML.
+
+Por eso la credencial no es una columna sino **una tabla hija con varias filas** (`datos.md §F.3`): la vigente se usa, la anterior se retira, y las dos pueden convivir mientras el administrador rota en su IdP. Con `expires_at` declarado por el administrador al cargarla, un aviso a 30 días y una métrica (`operacion.md §F.4`, `§F.8`). **Es una tabla, un comando programado y un aviso; no es un subsistema de certificados.**
+
+**Quién puede leerla en claro: nadie.** Ni el administrador que la cargó, ni ninguna respuesta de la API, ni `audit_logs`, ni el registro de aplicación. Es de **solo escritura** a través de la API: se carga, y a partir de ahí solo se ven `expires_at`, `activated_at`, `retired_at` y quién la cargó. Se descifra **únicamente** dentro del servicio de canje de código, en memoria, durante la petición. Un endpoint que la devolviera —aunque fuese enmascarada— convertiría el permiso de administración del centro en una vía de exfiltración de la credencial de la plataforma frente al IdP.
+
+---
+
+## F.4 Flujos
+
+### F.4.1 Alta y validación de un proveedor por el administrador del centro
+
+`ADR-043 §8.3`: es autoservicio, y es donde vive la validación de metadatos.
+
+1. El administrador abre `/administracion/sso` y crea un proveedor con **nombre visible**, **URL de descubrimiento** y **`client_id`**.
+2. El servidor **descarga y valida el documento de descubrimiento** de forma **síncrona** —el administrador está esperando y necesita el resultado para corregir—, con las cinco guardas de `§F.4.2`.
+3. Si la validación pasa, se guardan el `issuer` **tal como lo declara el documento** y los *endpoints* de autorización y de *token*; y `userinfo_endpoint` si viene. Si falla, **no se crea nada** y la respuesta dice qué comprobación falló, en un enumerado cerrado y traducible.
+4. El administrador **carga la credencial de cliente** (`POST .../secrets`) con su fecha de caducidad. Va cifrada y no vuelve a salir (`§F.3.5`).
+5. La pantalla le muestra, para que lo copie en su IdP (`ADR-043 §5.2`): la **`redirect_uri` exacta** `https://{slug}.{base}/api/v1/auth/oauth/oidc/callback`, los ***scopes*** que pediremos, el ***claim* que usaremos como identificador** (`sub`) y el ***claim* del que leeremos el correo**.
+6. Fija **los dominios de correo admitidos** y el **modo de aprovisionamiento** (`desactivado` por defecto, `emparejamiento` si lo quiere).
+7. **Activa** el proveedor. Hasta ese momento **no aparece en la pantalla de login de nadie** y **el flujo no arranca aunque alguien llame al *endpoint* a mano** (`RN-AUTH-102`).
+
+**El alta no verifica que el IdP nos conozca**, y hay que decirlo: nada en este flujo comprueba que el administrador haya registrado nuestra `redirect_uri` ni que el `client_id` y la credencial sean correctos. Eso se descubre en el primer intento real, con `error_proveedor` y el detalle en el registro de aplicación (`operacion.md §F.9`). **No se implementa una «prueba de conexión»**: exigiría un flujo de usuario completo —hay que redirigir a una persona real— y una prueba parcial que solo canjeara credenciales daría falsos positivos sobre lo que de verdad falla, que es la URI registrada. Lo que sí hay es una **métrica y una alerta** sobre el primer acceso fallido de un proveedor recién activado.
+
+### F.4.2 Validación del documento de descubrimiento: cinco guardas
+
+Es la parte con peso de seguridad del autoservicio. **Un administrador de centro proporciona una URL que nuestro servidor descarga.** Sin guardas, eso es una petición forjada del lado del servidor (SSRF) con un formulario delante.
+
+| # | Guarda | Por qué |
+|---|--------|---------|
+| 1 | **Solo `https`**, sin excepción en producción. `http` solo si `AUTH_SSO_ALLOW_INSECURE_DISCOVERY=true`, que **aborta el arranque** fuera de `local`/`testing` (`operacion.md §F.2.1`) | Un descubrimiento sobre texto claro entrega los *endpoints* de autenticación a quien esté en medio |
+| 2 | **El destino tiene que resolver a una dirección pública.** Se rechazan `127.0.0.0/8`, `::1`, `10/8`, `172.16/12`, `192.168/16`, `169.254/16` (incluido `169.254.169.254`), `fc00::/7` y `fe80::/10`. La comprobación se hace **sobre la dirección a la que se va a conectar**, no solo sobre el nombre, y **se repite en cada redirección** | Sin esto, un administrador de centro puede hacer que nuestro servidor consulte el servicio de metadatos de la nube, un Redis interno o cualquier servicio de la red del contenedor, y **ver el resultado en el mensaje de error**. Es el riesgo real y mayor del autoservicio de `ADR-043 §8.3` |
+| 3 | **Máximo 3 redirecciones, todas `https`, todas revalidadas** por las guardas 1 y 2 | Una redirección es la vía habitual para saltarse una comprobación hecha solo sobre la URL inicial |
+| 4 | **Tiempo de espera corto y tope de tamaño** (`AUTH_SSO_DISCOVERY_TIMEOUT_SECONDS`, `AUTH_SSO_DISCOVERY_MAX_BYTES`) | Una descarga lenta o enorme desde un *endpoint* con sesión de administrador es una denegación de servicio barata |
+| 5 | **Contenido**: `issuer` presente y **coincidente con el origen de la URL de descubrimiento** (OpenID Connect Discovery 1.0 `§4.3`); `authorization_endpoint` y `token_endpoint` presentes y `https`; `response_types_supported` contiene `code`; si viene `code_challenge_methods_supported`, contiene `S256` | Un documento que no cumple esto describe un emisor con el que **no podemos hacer el flujo que vamos a hacer**. Fallar aquí es fallar delante del administrador que puede corregirlo; no fallar aquí es fallar delante de un docente que no puede |
+
+**El refresco posterior no es síncrono.** Los *endpoints* se re-descargan por tarea programada (`operacion.md §F.4`) y el administrador puede forzarlo. **Si el refresco falla, se conservan los valores anteriores** y se avisa: un emisor momentáneamente inalcanzable no debe dejar sin SSO a un centro cuyo IdP funciona.
+
+### F.4.3 Login con un proveedor institucional
+
+1. La pantalla de login pide `GET /api/v1/auth/identity-providers` (anónimo, tenant por host). La colección trae ahora **los proveedores catalogados y activos del tenant**, además del *driver* global de 1.4 si lo hubiera. **Sin proveedores, no se pinta ningún botón** (`RN-AUTH-98`, sin cambios).
+2. La persona pulsa. La SPA envía `POST /api/v1/auth/oauth-authorizations` con `{"provider": "<identificador opaco>", "intent": "login"}` y su token CSRF.
+3. El servidor, en este orden:
+   1. **Límite de tasa por IP** (`operacion.md §F.6`).
+   2. Resuelve el proveedor **dentro del tenant**. Desconocido, borrado o **no activo** ⇒ `422`, sin distinguir los tres casos.
+   3. Comprueba que hay **credencial de cliente vigente**. Si no, ⇒ `422` y **alerta operativa** (`operacion.md §F.8`): es el estado en que el centro cree tener SSO y no lo tiene.
+   4. Genera `state` (32 bytes de generador criptográfico), `code_verifier` PKCE y **`nonce`** (32 bytes), y los guarda con el `intent`, el identificador interno del proveedor y `expires_at` en el ***payload* de la sesión del servidor** (`RN-AUTH-91`, sin cambios).
+   5. Construye la URL sobre el `authorization_endpoint` descubierto, con `response_type=code`, los *scopes* del proveedor, `state`, `nonce`, `code_challenge` y `code_challenge_method=S256`, y la `redirect_uri` construida **con el slug del tenant ya resuelto y `config('tenancy.base_domain')`** (`RN-AUTH-92`, sin cambios).
+4. Responde `201` con `{"authorization_url", "expires_at"}`. **La SPA navega**; el servidor no responde `302`. Sin cambios respecto de `§E.4.1`.
+5. El IdP devuelve el navegador a `GET /api/v1/auth/oauth/oidc/callback?code=…&state=…`, **en el host del tenant**.
+6. **Comparación del `state`** en tiempo constante y retirada en el acto (un solo uso). Ausente, distinto o caducado ⇒ `302` con `resultado=estado_no_valido`. **El proveedor sale de la sesión, nunca de la URL** (`RN-AUTH-103`).
+7. **Canje del código** contra el `token_endpoint` descubierto, servidor a servidor sobre TLS, con el `code_verifier` y la **credencial vigente** (`§F.3.5`). Fallo ⇒ `resultado=error_proveedor`; el detalle al registro de aplicación, nunca a la pantalla.
+8. **Lectura y validación de los *claims*** (`§F.3.2`, `RN-AUTH-104`): `iss`, `aud`, `exp`, `iat` y **`nonce`**. Cualquiera que falle ⇒ `resultado=error_proveedor`.
+9. **`sub` ausente o vacío ⇒ se rechaza sin alternativa** (`RN-AUTH-105`, `ADR-043 §4.4`). **Nunca se identifica por correo como respaldo**: un correo se reasigna (`ADR-042 §3`, trampa 3). Sale con la **misma** salida genérica que «no hay cuenta».
+10. **Restricción por dominio** (`§F.4.4`). No admitido ⇒ `resultado=dominio_no_permitido`.
+11. **Resolución de la identidad, en este orden exacto**:
+
+    | # | Condición | Qué ocurre |
+    |---|-----------|------------|
+    | **a** | Existe vínculo vivo `(tenant_id, identity_provider_id, subject)` | Ese es el usuario. **El correo no se consulta.** Cambiar de correo en el directorio no rompe el acceso |
+    | **b** | No hay vínculo, el proveedor tiene `provisioning_mode = 'emparejamiento'`, el *claim* de correo está presente, y hay usuario **vivo y `activo`** en el tenant con ese correo | **Emparejamiento** (`§F.4.3.1`) |
+    | **c** | No hay vínculo y el emparejamiento está desactivado, o falta el *claim* de correo, o no hay usuario activo con ese correo | **No se vincula y no se crea nada.** Salida genérica (`§F.4.5`) |
+    | **d** | El usuario encontrado por correo **ya tiene** un vínculo vivo con **este** proveedor y otro `subject` | **No se empareja.** Es un cambio de identidad en el IdP, no un acceso ordinario: lo resuelve el titular desvinculando, o el administrador. Salida genérica, y **una entrada propia en la telemetría** porque es la señal de que algo cambió en el directorio |
+
+12. **Con usuario resuelto, las mismas comprobaciones del login local, en el mismo orden** (`RN-AUTH-111`, ampliación de `RN-AUTH-94`): bloqueo vivo, estado de la cuenta (`RN-AUTH-23`: solo `activo`), y **`MfaPolicy::resolve()` completo**, con sus cuatro ramas sin excepciones. **El SSO institucional no salta el segundo factor** mientras `OPEN-AUTH-41` siga con su posición por defecto.
+13. **Creación de la sesión**: exactamente la transacción de `§C.4.4` punto 10, sin variantes, y fila en `login_attempts` con `outcome = 'exito'` y **`method = 'sso'`** (`datos.md §F.5`).
+14. `302` a la ruta de la SPA. **En esa URL no viaja nada personal**: solo un código de resultado de la lista cerrada (`RN-AUTH-93`, sin cambios).
+
+#### F.4.3.1 El emparejamiento, y en qué se apoya su confianza
+
+Es la operación central del paso y **no es una fusión de 1.4 con otro nombre**. La diferencia está en de dónde sale la confianza, y `ADR-043 §3.6` obliga a escribirla como tal y no dejar que se rellene con un `true` de conveniencia:
+
+- En 1.4, la fusión automática se apoyaba en el *claim* **`email_verified`** de Google, porque Google es un proveedor de consumo del que solo sabemos que dice que verificó una dirección. De ahí `RN-AUTH-87` y el `CHECK (link_method <> 'fusion_automatica' OR email_verified_at_link)`, descrito como *«la restricción más importante de la tabla»*.
+- En `1.4b`, la confianza **no viene de un *claim***: viene de que **el administrador del centro catalogó ese emisor como el suyo, cargó su credencial y lo activó**, y de que el correo pertenece a un dominio que él mismo declaró. Es un argumento distinto, más fuerte para lo que aquí importa, y **de otra naturaleza**.
+
+Por tanto, y para que la garantía de 1.4 no se vacíe sin que se note:
+
+1. El emparejamiento usa un `link_method` **propio**: `emparejamiento_sso`. **No reutiliza `fusion_automatica`**, que queda como lo que era: el vínculo por coincidencia de correo con un proveedor de consumo verificado.
+2. El `CHECK` de 1.4 **no se toca ni se debilita**. Sigue diciendo exactamente lo que decía sobre `fusion_automatica`.
+3. La garantía equivalente para el camino institucional es **otra restricción del motor**, no un `if`: `CHECK (link_method <> 'emparejamiento_sso' OR identity_provider_id IS NOT NULL)`. Un vínculo institucional **no puede existir sin una fila de catálogo de ese tenant detrás** (`datos.md §F.4`).
+4. **`email_verified_at_link` se rellena con el valor real del *claim***, o `false` si el emisor no lo manda —que es lo normal fuera de Google—. Queda como lo que es: telemetría de lo que dijo el emisor, no la base de la decisión.
+5. El emparejamiento **escribe la fila de `user_identities` y nada más**: ni contraseña, ni estado, ni correo, ni persona, ni roles, ni idioma, ni un solo ajuste (`RN-AUTH-88`, ampliada a los proveedores institucionales por `RN-AUTH-109`).
+6. **Se avisa al titular** por correo, sin enlace accionable, en su idioma (`RN-AUTH-97`, `§F.4.6`).
+7. **Lo audita el *observer*** como `created` sobre `UserIdentity`, sin ampliar el vocabulario de `audit_logs` (`RN-AUTH-74` sigue en vigor).
+
+### F.4.4 Restricción por dominio: `allowed_email_domains` y el *claim* `hd`
+
+`ADR-043 §5.3` la convierte en trabajo obligatorio: *«no se puede afirmar que se cubre “OIDC para Google Workspace” permitiendo que entre cualquier Gmail»*. Se implementa en dos capas, y las dos hacen falta:
+
+1. **Genérica, para cualquier emisor**: si `allowed_email_domains` no está vacío, el dominio del *claim* de correo tiene que estar en la lista, comparado en minúsculas y sobre la parte posterior a la última `@`. **Sin coincidencia de sufijo ni comodines**: `sucentro.es` no admite `malo-sucentro.es`, y un subdominio se declara aparte. La lista vacía significa **sin restricción**, y es el valor por defecto.
+2. **Google, además**: cuando el `issuer` catalogado es `https://accounts.google.com` **y** `allowed_email_domains` no está vacío, el *claim* **`hd`** tiene que estar presente y su valor tiene que estar en la lista.
+
+**La segunda capa no es redundante, y por eso está**: una cuenta **de consumo** de Google puede tener como dirección principal `alguien@sucentro.es` si su titular la registró como cuenta Google con esa dirección. Esa cuenta pasaría la capa 1 y **no pertenece al Workspace del centro** — es el hueco que `hd` existe para cerrar, y es exactamente el escenario que `OPEN-AUTH-33` describía: *«un docente puede vincular su Gmail personal a su cuenta del centro, y a partir de ahí la seguridad de la cuenta del centro depende de la higiene de una cuenta personal»*.
+
+**La restricción se aplica antes de resolver ninguna identidad** (paso 10, antes del 11) y su resultado es **`dominio_no_permitido`**, un código distinto de `sin_cuenta`. Que sean distintos es correcto y no abre ningún oráculo: `dominio_no_permitido` habla de **la configuración del proveedor**, no de si esa persona tiene cuenta en el centro. Decirle a alguien «este centro solo admite direcciones de su dominio» no revela nada de nadie, y decirle un error genérico le condena a no entender por qué su cuenta personal no sirve.
+
+### F.4.5 Casos límite
+
+La columna de la derecha es lo que ocurre, no lo que se recomienda.
+
+| Caso | Qué ocurre |
+|------|------------|
+| El emisor no manda `sub` | **Se rechaza sin alternativa** (`RN-AUTH-105`). Salida **idéntica** a «no hay cuenta». Nunca se identifica por correo |
+| El emisor no manda el *claim* de correo y no hay vínculo previo | **No se empareja.** Misma salida genérica. La causa concreta va a la telemetría y al aviso operativo, **no a la pantalla** (`ADR-043 §4.4`) |
+| El emparejamiento está desactivado y no hay vínculo | Misma salida genérica. **No se distingue** de «no hay cuenta» |
+| Hay cuenta en el centro pero en estado `pendiente` | **No entra**, misma salida genérica (`§F.0.3` punto 3, `OPEN-AUTH-39`) |
+| Hay cuenta `inactivo` o borrada lógicamente | **No entra**, misma salida genérica |
+| El usuario cambia su correo en el directorio | **Sigue entrando**: la resolución es por `(proveedor, sub)` |
+| El IdP reasigna un `sub` a otra persona | **No hay defensa posible desde aquí**, y hay que decirlo: `sub` es, por definición, el identificador estable que el emisor promete no reutilizar. Un emisor que lo reutiliza rompe el estándar. Lo que sí hay es el aviso al titular de cada vínculo nuevo (`§F.4.6`) |
+| El mismo `sub` con **dos** proveedores distintos del mismo centro | **Dos vínculos independientes, y es correcto.** Es el defecto de corrección que `ADR-043 §3.6` identifica y que la clave nueva arregla: con la clave de 1.4, el segundo emisor habría quedado vinculado al usuario del primero |
+| Un centro en migración con **dos** IdP activos a la vez | **Permitido y esperado** (`ADR-043 §3.6`). Dos botones en la pantalla de login, dos vínculos posibles por usuario |
+| La misma cuenta institucional en dos centros | **Permitido**, vínculos independientes por tenant (`RN-AUTH-90`, sin cambios) |
+| Dos usuarios del mismo centro con el mismo `(proveedor, sub)` | **Imposible**, índice único parcial (`datos.md §F.4`) |
+| El proveedor se desactiva con vínculos ya creados | **Nadie se queda fuera**: todos tienen contraseña (`RN-AUTH-96`). Los vínculos **siguen viéndose y pudiendo retirarse** desde el perfil, por el mismo criterio de `§E.10`: un vínculo que no se puede desvincular porque se apagó el proveedor es un dato personal atrapado |
+| El proveedor se borra (lógicamente) con vínculos vivos | Los vínculos **quedan**, con su `identity_provider_id` apuntando a una fila borrada. **No se borran en cascada**, y es deliberado: borrar el catálogo no debe borrar la traza de quién entró por él (`datos.md §F.8`) |
+| La credencial de cliente caduca | El canje falla ⇒ `error_proveedor` para todo el centro. **Es el fallo con mayor impacto del paso**, y por eso hay ventana de rotación, aviso a 30 días y alerta (`§F.3.5`) |
+| El documento de descubrimiento cambia de *endpoints* | El refresco programado los actualiza. Entre refrescos, un cambio de *endpoint* del emisor produce `error_proveedor`; el administrador puede forzar el refresco desde la pantalla |
+| Usuario con MFA obligatorio y factor confirmado | Desafío de segundo factor, exactamente `§C.4.4`. **El SSO no lo salta** |
+| Cuenta con bloqueo vivo | **No entra** (`resultado=cuenta_bloqueada`), mismo criterio que `§E.6` y misma objeción registrada en `OPEN-AUTH-32`, que este paso **no reabre** |
+| Tenant suspendido | `503` desde `ResolveTenant`, antes de tocar nada (`RN-AUTH-25`) |
+| Se reintenta el mismo `code` | Falla: el `state` es de un solo uso y el emisor invalida el código |
+
+### F.4.6 Avisos al titular
+
+**Uno nuevo, y ninguno más.** El de desvinculación y el de vinculación desde el perfil ya existen desde 1.4 (`§E.4.7`) y sirven igual.
+
+| Cuándo | Por qué |
+|--------|---------|
+| **Se empareja la cuenta con un proveedor institucional** en un login | Es el equivalente institucional del aviso de fusión, y su contenido tiene que ser **distinto**: dice qué proveedor del centro se vinculó y que fue el sistema quien lo hizo por coincidencia de correo, no el titular |
+
+**Una consecuencia de operación que hay que anticipar y que no es un problema de diseño**: el día que un centro de 400 personas activa el emparejamiento, **se encolan hasta 400 avisos** a medida que la gente entra. No es una ráfaga sospechosa sino el comportamiento esperado, y por eso la alerta de `auth.identity.matched` de `operacion.md §F.8` se define **por proveedor recién activado**, no por volumen absoluto: si no, la primera semana de cada centro dispararía una alarma que nadie volvería a mirar.
+
+---
+
+## F.5 El mapeo de atributos: qué hace y qué no
+
+### F.5.1 La mitad que se implementa
+
+| Elemento | Valor | Configurable |
+|----------|-------|--------------|
+| *Claim* del **identificador estable** | `sub` | **No.** Es el identificador del sujeto en OpenID Connect y no hay alternativa correcta. Dejarlo configurable sería ofrecer al administrador la posibilidad de identificar por correo, que es exactamente lo que `ADR-043 §4.4` prohíbe |
+| *Claim* del **correo de emparejamiento** | `email` por defecto | **Sí, sobre una lista blanca cerrada**: `email`, `preferred_username`, `upn`. Ni un valor más, y en particular **ningún nombre de *claim* libre** |
+
+**Por qué la lista blanca del *claim* de correo tiene exactamente tres valores** y no es un campo de texto: los tres cubren lo que los emisores reales usan —`email` (estándar), `upn` (Entra ID en despliegues federados con Active Directory) y `preferred_username` (Keycloak y buena parte del ecosistema)—, y un campo libre permitiría dirigir **cualquier** *claim* del emisor hacia la comparación con `users.email`. Un administrador de centro que apuntara la comparación a un *claim* que él controla podría emparejar con cuentas ajenas. **La flexibilidad sobre tres valores no compra nada y la superficie que abre es la del acceso a cuentas.**
+
+En los tres casos el valor se **normaliza igual que en el login local** —recorte y minúsculas— y se compara **exacto**, sin normalización propia de ningún proveedor concreto (`RN-AUTH-100`, sin cambios), y tiene que tener forma de dirección de correo: un `preferred_username` que no la tenga **no empareja** (fallo en cerrado).
+
+### F.5.2 La mitad que no se implementa, y por qué
+
+**La escritura sobre `people` no se implementa en `1.4b`.** El argumento entero está en `§F.0.3` punto 2 y es de una línea: con emparejamiento y sin creación, no hay nada que rellenar — solo algo que sobrescribir, y sobrescribir está prohibido desde 1.4 (`RN-AUTH-88`).
+
+En consecuencia, y para que no se cuele por la puerta de atrás:
+
+- **`identity_providers` no lleva ninguna columna de mapeo de atributos hacia `people`.** Guardar configuración que ningún camino de código lee es lo que `ADR-034 OPEN-13` prohíbe, y es además la clase de columna que un día alguien conecta sin revisar por qué estaba desconectada.
+- **`RN-AUTH-109`** lo dice como regla, no como omisión: ningún proveedor institucional escribe en `people` ni en `users`, en ningún flujo de este paso.
+
+### F.5.3 La lista blanca cerrada, documentada para cuando exista sujeto
+
+Se conserva aquí, íntegra y sin materializar, la tabla de `ADR-043 §4.3`, porque es la restricción que gobernaría la escritura el día que `OPEN-AUTH-38` la traiga. **Documentarla no la implementa.**
+
+| Campo de `people` | ¿Podría rellenarlo el IdP? |
+|-------------------|----------------------------|
+| `given_name` | **Sí** |
+| `family_name_1`, `family_name_2` | **Sí, y nunca partiendo una cadena.** Un `family_name` único va entero a `family_name_1`; `family_name_2` queda `NULL` (`ADR-042 §4.6`) |
+| `contact_email` | **Sí** |
+| `locale` | **Sí, solo si el valor está en `{es-ES, en, de, fr}`**; en otro caso, el del centro. Y con la salvedad de `§F.0.3` punto 4: hoy el esquema no lo garantiza |
+| `contact_phone` | **Con reservas.** Sale del directorio y suele ser el corporativo, no el personal |
+| `birth_date` | **No.** Es el dato que determina si hay un menor delante: no entra como un atributo mapeado más, sino con la decisión de `INV-008` tomada (`ADR-043 §4.1`) |
+| `document_type` / `document_number` | **No.** Identificador oficial con unicidad garantizada por índice; un mapeo mal configurado colisionaría contra el censo real |
+| **Fotografía** | **No existe la columna, y no por olvido.** `§F.0.3` punto 1 |
+
+**Y en ningún caso un destino libre** (`ADR-043 §3.5` punto 3): un mapeo libre permitiría a un administrador de centro dirigir un atributo arbitrario del IdP hacia `document_number` o `birth_date`.
+
+---
+
+## F.6 Reglas de negocio nuevas
+
+Continúan la numeración de `§5`, `§B.5`, `§C.5`, `§D.5` y `§E.5`. Las 100 anteriores siguen en vigor **sin cambios**, incluidas `RN-AUTH-86` a `RN-AUTH-100`, que rigen igual para los proveedores institucionales salvo donde una regla nueva las amplía **de forma explícita**.
+
+| ID | Regla |
+|----|-------|
+| **Catálogo por tenant** | |
+| `RN-AUTH-101` | El catálogo de proveedores es **de tenant**: `tenant_id`, RLS `ENABLE`+`FORCE` y política estándar (`ADR-033 §5`). **Ningún proveedor es global ni compartido**, y no existe herencia de configuración entre centros. Un `public_id` de proveedor de otro tenant responde `404`, nunca `403`. |
+| `RN-AUTH-102` | Un proveedor **no activo** no aparece en `GET /auth/identity-providers`, **y además no arranca el flujo** aunque se le llame directamente. La comprobación es de servidor en los dos sitios: ocultar el botón no es una defensa (`INV-010`). |
+| `RN-AUTH-103` | **El proveedor de un *callback* se resuelve desde el *payload* de la sesión, jamás desde la URL, la consulta o una cabecera.** La única credencial del flujo sigue siendo la cookie, con el `state` de un solo uso (`RN-AUTH-91`). |
+| **Protocolo** | |
+| `RN-AUTH-104` | Todo `id_token` se valida en **cinco** puntos antes de leer un solo *claim* de identidad: `iss` idéntico al emisor catalogado, `aud` que contiene nuestro `client_id`, `exp` no vencido, `iat` dentro de 120 segundos de tolerancia, y **`nonce` idéntico al guardado en la sesión**. Falla uno ⇒ no hay identidad. **El `nonce` es obligatorio y de un solo uso**, como el `state`. |
+| `RN-AUTH-105` | **La identidad es `(proveedor catalogado, sub)`.** Sin `sub` se rechaza el acceso **sin alternativa**: nunca se identifica por correo como respaldo (`ADR-043 §4.4`). Si los *claims* se leen de `userinfo`, su `sub` **tiene que coincidir** con el del `id_token`. |
+| `RN-AUTH-106` | La confianza de un vínculo institucional **no viene de `email_verified`**: viene de que el centro catalogó ese emisor, cargó su credencial y lo activó, y de que el correo pertenece a un dominio que el centro declaró. `email_verified_at_link` se guarda con el valor real del *claim* —`false` si no viene— y **no sostiene ninguna decisión**. El `CHECK` de `fusion_automatica` de 1.4 **no se debilita ni se reutiliza**. |
+| `RN-AUTH-107` | **La restricción por dominio se comprueba antes de resolver ninguna identidad**, y cuando el emisor es Google con dominios declarados, el *claim* `hd` tiene que estar presente y admitido. Sin `allowed_email_domains`, no hay restricción — y para un Workspace eso significa que **entra cualquier cuenta de Google** (`ADR-043 §5.3`). |
+| **Aprovisionamiento** | |
+| `RN-AUTH-108` | **El aprovisionamiento solo empareja. Nunca crea.** Ningún flujo de este paso inserta una fila en `people` ni en `users`. Un acceso SSO que no resuelve una cuenta **ya existente y `activo`** termina sin crear nada (decisión del usuario del 2026-09-01, `ADR-043 §8.1`). |
+| `RN-AUTH-109` | Un proveedor institucional **no escribe nunca en `people` ni en `users`**: ni al emparejar, ni al vincular, ni en accesos posteriores. Es la extensión literal de `RN-AUTH-88` a este paso, y la razón por la que el mapeo de atributos no tiene mitad de escritura (`§F.5.2`). |
+| `RN-AUTH-110` | **Una cuenta emparejada no gana ni pierde ni un rol.** El aprovisionamiento no concede autorizaciones (`ADR-043 §4.5`), no existe rol por defecto, y en particular **nunca** puede conceder acceso a datos de categoría especial (`RPERM-012`). |
+| `RN-AUTH-111` | Un login por SSO institucional pasa por **las mismas comprobaciones que el local y en el mismo orden**: bloqueo vivo, estado de la cuenta y `MfaPolicy` completo. **No salta ninguna**, y en particular no salta el segundo factor mientras `OPEN-AUTH-41` mantenga su posición por defecto. Es la ampliación de `RN-AUTH-94` al camino institucional. |
+| **Credencial de cliente** | |
+| `RN-AUTH-112` | La credencial de cliente vive **cifrada, en su propia tabla, con la clave de aplicación**, admite **más de una vigente a la vez** para la ventana de rotación, y **no sale en claro por ninguna vía**: ni por API, ni enmascarada, ni en `audit_logs`, ni en el registro de aplicación. Se descifra solo dentro del canje de código, en memoria (`ADR-043 §8.2`, `§F.3.5`). |
+| `RN-AUTH-113` | **Toda URL que el servidor descargue por indicación de un administrador de centro pasa las cinco guardas de `§F.4.2`**, incluidas las de cada redirección. El autoservicio de `ADR-043 §8.3` no puede convertirse en un cliente HTTP a disposición del tenant. |
+
+---
+
+## F.7 Interacción con otros módulos
+
+`INV-007`: nada de importar código interno.
+
+### F.7.1 Interfaces que consume
+
+| Interfaz | De | Para qué |
+|----------|----|----------|
+| `UserDirectory::findActiveByEmail()` | `REQ-CORE` (ampliada en 1.2) | Resolver el candidato del emparejamiento. **Sin ampliación nueva**, y es una comprobación deliberada: el emparejamiento usa exactamente el mismo predicado que la fusión de 1.4, «vivo y activo en este tenant con ese correo» |
+| `MfaPolicy` | `REQ-AUTH` (1.3) | La rama de segundo factor del *callback*. **No se replica su lógica** |
+| `TenantSettingsReader` | `REQ-CORE` | Idioma del centro para las pantallas anónimas |
+| `LinkedIdentityDirectory` | `REQ-AUTH` (1.4) | Los vínculos vivos de un usuario, para el perfil y para la guarda de desvinculación |
+
+### F.7.2 Interfaces que expone
+
+| Interfaz | Para qué |
+|----------|----------|
+| **`ExternalIdentityProviderRegistry`** | **Nueva.** Construye un `ExternalIdentityProvider` ya parametrizado a partir de una fila del catálogo (`§F.3.4`). Es el punto donde la configuración del tenant se convierte en un proveedor utilizable, y **el único** sitio del código que sabe de dónde salió esa configuración |
+| `ExternalIdentityProvider` | **Sin cambio de firma** (`ADR-042 §4.3`). Gana implementación: `GenericOidcProvider`. **Ninguna clase de `Laravel\Socialite\*` cruza esta frontera**, con el mismo test de arquitectura que `ADR-042` ya impuso |
+| **`IdentityProviderDirectory`** | **Nueva.** Los proveedores catalogados y activos de un tenant, para la pantalla de login y para `1.4c`, que añadirá los suyos sin tocar a los consumidores |
+
+### F.7.3 Eventos que publica
+
+| Evento | Cuándo | Consumidor previsto |
+|--------|--------|---------------------|
+| `IdentityLinked` | Emparejamiento o vinculación desde el perfil, con su `link_method` | `REQ-COM` (1.19); `REQ-BI` |
+| `IdentityUnlinked` | Desvinculación | `REQ-COM` (1.19) |
+| **`IdentityProviderActivated`** / **`IdentityProviderDeactivated`** | Activación y desactivación de un proveedor del catálogo | `REQ-COM` (1.19) para avisar a la dirección del centro; `REQ-BI` |
+
+**`UserLoggedIn` se publica igual que siempre.** No hay variante federada ni institucional: el hecho es el mismo, y quien necesite la distinción la tiene en `login_attempts.method`, con la salvedad de retención de `§E.8` que `OPEN-AUTH-36` sigue recogiendo.
+
+### F.7.4 Eventos que consume
+
+**Ninguno nuevo**, y merece decirse por lo que **no** se hace, igual que en `§E.7.4`:
+
+- **`UserEmailChanged` no desvincula nada.** El vínculo es por `(proveedor, sub)`, no por correo.
+- **`UserDeactivated` no desvincula nada.** Ya revoca las sesiones, que es lo que impide entrar.
+- **Nada reacciona al alta de una persona en el censo.** Un centro que da de alta a alguien **no** desencadena ningún aprovisionamiento: el emparejamiento ocurre en el primer acceso de esa persona, no antes. Es la diferencia con SCIM, que está fuera de alcance (`ADR-043 §3.4`).
+
+---
+
+## F.8 Auditoría (`INV-003`)
+
+**El vocabulario de `audit_logs` no se amplía** (`RN-AUTH-74` sigue en vigor). Todo lo auditable de este paso es creación, modificación o borrado de una entidad real:
+
+| Hecho | Cómo queda registrado |
+|-------|------------------------|
+| Alta, modificación y borrado de un proveedor | `created` / `updated` / `deleted` sobre `IdentityProvider`, por el *observer* |
+| Activación y desactivación | Es un `updated` sobre `IdentityProvider` con el valor de `is_enabled` **registrado**: no es dato personal y es la información que un auditor buscará primero |
+| Carga y retirada de una credencial de cliente | `created` / `updated` sobre `IdentityProviderSecret`, **con el valor cifrado declarado como secreto y por tanto nunca escrito** (`§F.0.4`, `datos.md §F.3`) |
+| Emparejamiento en un login | `created` sobre `UserIdentity`, con `link_method = 'emparejamiento_sso'` |
+| Vinculación desde el perfil | `created` sobre `UserIdentity`, con `link_method = 'perfil'` |
+| Desvinculación | `deleted` sobre `UserIdentity` (borrado lógico) |
+| Acceso por SSO institucional | `login` — el evento que `ADR-039` ya creó, **sin variante nueva** |
+
+**La consecuencia de `§E.8` sigue vigente y se agrava un poco**: `audit_logs` no distingue un acceso local de uno federado ni de uno institucional. La distinción vive en `login_attempts.method`, con 90 días de retención frente a los dos años de `audit_logs`. **`OPEN-AUTH-36` sigue abierta y este paso no la cierra**, porque cerrarla toca el registro común de los 53 módulos y es un ADR, no una línea de aquí.
+
+---
+
+## F.9 Interfaz de usuario
+
+Cinco piezas: dos modificadas, tres nuevas.
+
+| Ruta de la SPA | Qué | Sesión |
+|----------------|-----|--------|
+| `/entrar` | **Modificada**: la lista de proveedores deja de ser «cero o uno» y pasa a ser **`N`**. Un botón por proveedor devuelto, con el nombre que el centro le puso. Sin proveedores, ningún botón (`RN-AUTH-98`) | No |
+| `/entrar/sso` | **Nueva**: pantalla de resultado del *callback* institucional. Traduce el código de resultado y ofrece la salida que corresponda, exactamente como `/entrar/google` de 1.4, incluida la recuperación del desafío de MFA con `GET /auth/mfa-challenges` (`api.md §E.5b`) | No |
+| `/cuenta/seguridad` | **Modificada**: el bloque «Cuentas vinculadas» que ya existe muestra ahora también los vínculos institucionales, con el nombre del proveedor del centro y su `link_method` | Sí |
+| `/administracion/sso` | **Nueva**: lista del catálogo del centro, con estado, dominios admitidos, modo de aprovisionamiento y **el aviso de caducidad de la credencial** | Sí |
+| `/administracion/sso/{public_id}` | **Nueva**: alta y edición. Validación del descubrimiento con el detalle del fallo; carga y retirada de credenciales; y el bloque **«qué registrar en tu IdP»** con la `redirect_uri`, los *scopes* y los *claims* esperados, cada uno con su botón de copiar (`ADR-043 §5.2`) | Sí |
+
+Reglas obligatorias, sin excepción (`CLAUDE.md §10`):
+
+- **Branding por tenant** en las dos públicas (`GET /tenant/branding`, `RUX-BRAND-002`).
+- **Cuatro idiomas** (`INV-009`), incluidos los códigos de resultado y **los códigos de fallo de validación del descubrimiento**: que sean enumerados cerrados es exactamente lo que los hace traducibles sin literales en el código.
+- **El nombre visible del proveedor lo escribe el centro y no se traduce**, con el mismo criterio con el que `tenant_settings.legal_name` es un solo texto: es un nombre propio de una institución, no una etiqueta de interfaz. Se anota porque la pregunta se hace sola con `INV-009` delante.
+- **Ningún logotipo de terceros se sirve desde su dominio** (`§E.9`, sin cambios): la CSP no lo admite y cargarlo filtraría la IP de todo el que abra la pantalla de login. Un proveedor institucional **no lleva logotipo**: lleva el nombre que el centro le puso.
+- **WCAG 2.2 AA** (`RNF-UX-002`). Con `N` botones, la lista es una lista, no una fila de botones sueltos.
+- **La navegación al IdP se hace con `window.location`**, no con un formulario (`form-action 'self'` en la CSP).
+- **Ninguna pantalla escribe credencial, `state` ni `nonce` en `localStorage`/`sessionStorage`** (`RN-AUTH-28`).
+- **La pantalla de administración no muestra la credencial de cliente, ni siquiera enmascarada** (`RN-AUTH-112`). Muestra `expires_at`, `activated_at`, quién la cargó y su estado.
+
+---
+
+## F.10 Comportamiento con el módulo desactivado y sin proveedores
+
+### F.10.1 El módulo
+
+**`REQ-AUTH` sigue sin ser desactivable** (`RN-AUTH-35`), y **ninguna ruta de este paso lleva `module-enabled`** (`CA-AUTH-306`), por el motivo de §1: una fila mal puesta en `module_subscriptions` no puede dejar a un centro sin poder entrar. **Tampoco las de administración**: un administrador que no puede corregir la configuración de su IdP porque una suscripción está mal es el mismo fallo con otra ropa.
+
+### F.10.2 El catálogo vacío es el estado normal
+
+**Ningún tenant tiene proveedores el día del despliegue**, y ese es el estado correcto y por defecto:
+
+- `GET /auth/identity-providers` devuelve lo que devolvía antes: la colección del *driver* global de 1.4, vacía si es `none`.
+- Las cinco rutas de administración responden con normalidad, con una colección vacía.
+- **El día del despliegue no cambia nada para nadie** (`operacion.md §F.12.1`), igual que en 1.4 y por la misma razón: no hay ningún valor por defecto que dispare una guarda de arranque, que es la lección del issue [#140](https://github.com/pirexia/plataforma-educativa/issues/140).
+
+**Y la otra mitad de `OPEN-AUTH-33` sigue abierta.** Este paso cierra la parte con peso de seguridad —la restricción por dominio, ahora obligatoria y disponible para cualquier emisor, incluido Google Workspace configurado como proveedor del centro—, pero **no** añade un conmutador por tenant para el botón global de Google de 1.4, que sigue siendo una variable de despliegue (`AUTH_OAUTH_DRIVER`). **No lo invento** (`CLAUDE.md §11`): un centro que quiera Google bajo su control lo configura como proveedor catalogado con sus dominios; quitar el botón global a un tenant concreto es una pregunta distinta y sigue en `OPEN-AUTH-33`.
+
+---
+
+## F.11 Criterios de aceptación
+
+Verificables, cada uno con test que referencia su ID (`INV-015`).
+
+### Catálogo y autoservicio
+
+- **`CA-AUTH-260`** · *Dado* un administrador de centro con `proveedor_identidad.crear`, *cuando* da de alta un proveedor con una URL de descubrimiento válida, *entonces* `201`, el `issuer` y los *endpoints* quedan guardados **tal como los declara el documento**, y el proveedor nace **no activo** y con `provisioning_mode = 'desactivado'` (`§F.4.1`).
+- **`CA-AUTH-261`** · *Dado* un documento de descubrimiento cuyo `issuer` **no coincide** con el origen de la URL, *entonces* `422`, **no se crea ninguna fila** y el cuerpo dice qué comprobación falló con un código de una lista cerrada (`§F.4.2` guarda 5).
+- **`CA-AUTH-262`** · *Dada* una URL de descubrimiento que resuelve a `127.0.0.1`, `169.254.169.254`, `10.0.0.1` o cualquier rango privado, *entonces* `422` **sin realizar la petición**, y ningún mensaje revela nada del destino (`RN-AUTH-113`, `§F.4.2` guarda 2).
+- **`CA-AUTH-263`** · *Dada* una URL válida que **redirige** a una dirección privada, *entonces* se rechaza igual: la comprobación se repite **en cada redirección**, no solo en la URL inicial (`RN-AUTH-113`).
+- **`CA-AUTH-264`** · *Dado* `APP_ENV=production` y `AUTH_SSO_ALLOW_INSECURE_DISCOVERY=true`, *cuando* arranca la aplicación, *entonces* **falla el arranque** (`operacion.md §F.2.1`).
+- **`CA-AUTH-265`** · *Dado* un `public_id` de proveedor del tenant B presentado en cualquiera de las cinco rutas de administración en el host de A, *entonces* `404` —nunca `403`— y la fila de B sigue viva (`RN-AUTH-101`, `ADR-038 §6.4`).
+- **`CA-AUTH-266`** · *Dado* un proveedor con credencial cargada, *cuando* se pide su detalle, se lista el catálogo o se consulta `audit_logs`, *entonces* **el valor de la credencial no aparece en ninguno de los tres**, ni en claro ni enmascarado ni redactado con su valor (`RN-AUTH-112`, `ADR-043 §3.5.5`).
+- **`CA-AUTH-267`** · *Dado* un proveedor con dos credenciales activas, *cuando* se canjea un código, *entonces* se usa **la de activación más reciente**; *y cuando* esa se retira, *entonces* el canje siguiente usa la otra **sin intervención** (`§F.3.5`).
+- **`CA-AUTH-268`** · *Dada* una credencial cuya `expires_at` está a menos de 30 días, *cuando* corre el comando diario, *entonces* se emite el aviso y la pantalla de administración lo muestra (`operacion.md §F.4`).
+
+### Descubrimiento del proveedor y arranque del flujo
+
+- **`CA-AUTH-269`** · *Dado* un tenant sin proveedores catalogados y `AUTH_OAUTH_DRIVER=none`, *cuando* la SPA pide `GET /auth/identity-providers`, *entonces* `200` con `data: []` y la pantalla **no pinta ningún botón** (`RN-AUTH-98`).
+- **`CA-AUTH-270`** · *Dados* dos proveedores del tenant, **uno activo y otro no**, *entonces* `GET /auth/identity-providers` devuelve **solo el activo**, y `POST /auth/oauth-authorizations` con el identificador del **no activo** responde `422` (`RN-AUTH-102`).
+- **`CA-AUTH-271`** · *Dado* el identificador de un proveedor **de otro tenant**, *cuando* se llama `POST /auth/oauth-authorizations` en el host de A, *entonces* `422` con **el mismo cuerpo** que un identificador inexistente: no se distingue «existe en otro centro» de «no existe» (`RN-AUTH-101`).
+- **`CA-AUTH-272`** · *Dado* un arranque correcto, *cuando* se inspecciona la URL devuelta, *entonces* lleva `response_type=code`, `state`, **`nonce`**, `code_challenge` y `code_challenge_method=S256`, y se construye sobre el `authorization_endpoint` **descubierto**, no sobre uno escrito en el código (`RN-AUTH-104`).
+- **`CA-AUTH-273`** · *Dada* una petición con la cabecera `Host` apuntando a un dominio ajeno, *entonces* la `redirect_uri` construida **no** contiene ese dominio (`RN-AUTH-92`, sin cambios respecto de `CA-AUTH-203`).
+- **`CA-AUTH-274`** · *Dado* un proveedor activo **sin credencial vigente**, *cuando* se arranca el flujo, *entonces* `422` y **se emite la alerta operativa** (`operacion.md §F.8`).
+
+### *Callback*, validación y aislamiento del proveedor
+
+- **`CA-AUTH-275`** · *Dado* un *callback* cuyo `state` no coincide con el de la sesión, *entonces* no se crea sesión, no se crea vínculo y se responde `302` con `resultado=estado_no_valido` (`RN-AUTH-91`).
+- **`CA-AUTH-276`** · *Dado* un `id_token` cuyo **`nonce`** no coincide con el de la sesión, *entonces* `resultado=error_proveedor`, **no se lee ni un *claim* de identidad** y no se crea nada (`RN-AUTH-104`).
+- **`CA-AUTH-277`** · *Dado* un `id_token` con `iss` distinto del emisor catalogado, o con `aud` que no contiene nuestro `client_id`, o vencido, o con `iat` fuera de la tolerancia, *entonces* `resultado=error_proveedor` **en los cuatro casos** y con el mismo cuerpo (`RN-AUTH-104`).
+- **`CA-AUTH-278`** · *Dado* un *callback* del proveedor A cuyo `state` fue emitido para el proveedor B, *entonces* se rechaza: **el proveedor sale de la sesión, no de la URL ni del código** (`RN-AUTH-103`).
+- **`CA-AUTH-279`** · *Dado* un `id_token` **sin `sub`** (ausente o vacío), *entonces* se rechaza el acceso, **no se busca por correo** y la salida es **byte a byte idéntica** a la del caso «no hay cuenta» (`RN-AUTH-105`, `ADR-043 §4.4`).
+- **`CA-AUTH-280`** · *Dado* `claims_source = 'userinfo'` y un `userinfo` cuyo `sub` **no coincide** con el del `id_token`, *entonces* se rechaza el acceso (`RN-AUTH-105`).
+- **`CA-AUTH-281`** · *Dada* cualquier respuesta del *callback*, *cuando* se inspecciona la URL de destino, *entonces* no contiene `code`, `state`, `nonce`, token, correo, `public_id` ni ningún dato personal (`RN-AUTH-93`).
+
+### Restricción por dominio (`ADR-043 §5.3`, `OPEN-AUTH-33`)
+
+- **`CA-AUTH-282`** · *Dado* un proveedor con `allowed_email_domains = ["sucentro.es"]`, *cuando* llega una identidad con correo `alguien@otro.es`, *entonces* `resultado=dominio_no_permitido`, **antes** de consultar `users`, y **no se crea ni se consulta ningún vínculo** (`RN-AUTH-107`).
+- **`CA-AUTH-283`** · *Dado* el mismo proveedor, *cuando* llega `alguien@malo-sucentro.es`, *entonces* se rechaza igual: la comparación es **exacta sobre el dominio**, no por sufijo (`RN-AUTH-107`).
+- **`CA-AUTH-284`** · *Dado* un proveedor cuyo `issuer` es `https://accounts.google.com` con `allowed_email_domains` no vacío, *cuando* llega una identidad con correo `alguien@sucentro.es` **y sin *claim* `hd`**, *entonces* **se rechaza**. Es el test que cierra el hueco de `OPEN-AUTH-33`: una cuenta de consumo con dirección del dominio del centro **no** es una cuenta del Workspace del centro (`§F.4.4`).
+- **`CA-AUTH-285`** · *Dado* un proveedor con `allowed_email_domains` **vacío**, *entonces* no hay restricción, y la pantalla de administración lo advierte explícitamente (`RN-AUTH-107`).
+
+### Emparejamiento (`ADR-043 §8.1`)
+
+- **`CA-AUTH-286`** · *Dado* un usuario `activo` con correo `x@d` y un proveedor con `provisioning_mode = 'emparejamiento'` y `d` admitido, *cuando* llega su primer acceso, *entonces* se crea **una** fila en `user_identities` con `link_method = 'emparejamiento_sso'` e `identity_provider_id` informado, se inicia sesión, y `password`, `status`, `email`, `person_id`, roles y `locale` quedan **exactamente iguales** que antes (`RN-AUTH-109`).
+- **`CA-AUTH-287`** · *Dado* el mismo caso, *cuando* se consulta la base de datos, *entonces* **no hay ninguna fila nueva en `people` ni en `users`** (`RN-AUTH-108`). Es el test que más importa del paso junto con `CA-AUTH-292`.
+- **`CA-AUTH-288`** · *Dado* el mismo caso, *cuando* se consulta `audit_logs`, *entonces* hay un `created` sobre `user_identity` y un `login`, y **ningún `updated` sobre `user` ni sobre `person`** (`RN-AUTH-109`, `RN-AUTH-74`).
+- **`CA-AUTH-289`** · *Dado* el mismo caso, *entonces* se encola el aviso al titular, en su idioma, sin enlace accionable, y **nombrando el proveedor del centro** (`RN-AUTH-97`, `§F.4.6`).
+- **`CA-AUTH-290`** · *Dado* un proveedor con `provisioning_mode = 'desactivado'` y un usuario activo con correo coincidente, *entonces* **no se crea vínculo, no se entra**, y la salida es **idéntica** a la de «no hay cuenta» (`§F.4.5`).
+- **`CA-AUTH-291`** · *Dado* un usuario en estado `pendiente` cuyo correo coincide, *entonces* **no entra, no se activa y no se crea vínculo**, con la misma salida genérica (`RN-AUTH-23`, `§F.0.3` punto 3).
+- **`CA-AUTH-292`** · *Dada* una cuenta emparejada, *cuando* se consultan sus roles, *entonces* **tiene exactamente los que tenía**, y una cuenta sin roles sigue sin poder ver una sola pantalla (`RN-AUTH-110`, `RPERM-011`).
+- **`CA-AUTH-293`** · *Dado* un usuario ya vinculado que **cambia su correo en el directorio**, *cuando* vuelve a entrar, *entonces* entra en la misma cuenta local: la resolución es por `(proveedor, sub)` (`RN-AUTH-105`).
+
+### Re-tecleado de `user_identities` (`ADR-043 §3.6`)
+
+- **`CA-AUTH-294`** · *Dados* **dos** proveedores catalogados del mismo tenant que emiten **el mismo `subject`** para **dos personas distintas**, *cuando* las dos entran, *entonces* se crean **dos vínculos independientes** sobre **dos usuarios distintos**, y ninguna entra en la cuenta de la otra. **Con la clave de 1.4 este test falla**, y por eso existe (`ADR-043 §3.6`).
+- **`CA-AUTH-295`** · *Dado* un usuario con vínculo vivo del proveedor A, *cuando* intenta vincular el proveedor B del mismo centro, *entonces* **se permite**: la unicidad es por proveedor concreto, no por protocolo.
+- **`CA-AUTH-296`** · *Dado* un `(proveedor, subject)` ya vinculado a un usuario, *cuando* otro usuario del mismo tenant intenta vincular esa identidad, *entonces* se rechaza, y **el rechazo lo produce el índice único**, no una comprobación previa (`RN-AUTH-89`).
+- **`CA-AUTH-297`** · *Dadas* las filas de `provider = 'google'` que 1.4 pudo crear, *cuando* se aplican las migraciones de este paso, *entonces* **siguen respetando su unicidad**, quedan con `identity_provider_id` a `NULL`, y **la versión anterior de la aplicación sigue funcionando contra el esquema nuevo** (`datos.md §F.7`).
+- **`CA-AUTH-298`** · *Dado* el esquema tras las migraciones, *entonces* **no se puede insertar** una fila con `link_method = 'emparejamiento_sso'` y `identity_provider_id` nulo, ni una con `provider = 'google'` e `identity_provider_id` informado: lo impiden los `CHECK`, no el servicio (`§F.4.3.1`, `datos.md §F.4`).
+
+### Integración con lo ya construido
+
+- **`CA-AUTH-299`** · *Dado* un usuario con factor TOTP confirmado, *cuando* completa el *callback* institucional, *entonces* **no** se crea sesión autenticada: se abre `mfa_challenges` ligado al `session_id` actual y la SPA aterriza en la pantalla de segundo factor (`RN-AUTH-111`).
+- **`CA-AUTH-300`** · *Dado* un usuario obligado con la gracia vencida y sin factor, *cuando* entra por SSO, *entonces* obtiene sesión **restringida** y el muro de `§C.4.9` se aplica igual; *y* las rutas de administración de proveedores **no están en la lista blanca del muro** (`permisos.md §F.5`).
+- **`CA-AUTH-301`** · *Dado* un bloqueo vivo para `(tenant_id, email)`, *cuando* el titular entra por SSO, *entonces* `resultado=cuenta_bloqueada` y no se crea sesión (`§E.6`, sin reabrir `OPEN-AUTH-32`).
+- **`CA-AUTH-302`** · *Dado* un acceso institucional completado, *entonces* `login_attempts` registra `outcome = 'exito'` con **`method = 'sso'`**, y `user_sessions` y la detección de dispositivo funcionan por el **mismo** camino que el login local (`datos.md §F.5`).
+- **`CA-AUTH-303`** · *Dado* un vínculo institucional, *cuando* el titular pide `GET /auth/identities`, *entonces* aparece con **el nombre del proveedor de su centro** y su correo **enmascarado**, y **nunca** el `subject` (`api.md §F.6`).
+- **`CA-AUTH-304`** · *Dado* un proveedor **desactivado** con vínculos vivos, *entonces* `GET` y `DELETE /auth/identities` **siguen funcionando** sobre ellos: un vínculo que no se puede retirar porque se apagó el proveedor es un dato personal atrapado (`§F.4.5`).
+
+### Transversales
+
+- **`CA-AUTH-305`** · *Dado* el catálogo tras `platform:sync-registry`, *entonces* hay **exactamente once** filas con `module_code = 'auth'` —las siete de 1.2/1.3/1.3b más las **cuatro** de este paso—, ninguna con `retired_at` y ninguna con `is_special_category = true` (`permisos.md §F.7`).
+- **`CA-AUTH-306`** · *Dadas* las rutas de este paso, *entonces* **ninguna** lleva el *middleware* `module-enabled` (`RN-AUTH-35`, `§F.10.1`).
+- **`CA-AUTH-307`** · *Dado* el código del *backend*, *cuando* se analiza, *entonces* **no** se persiste ningún `access_token`, `refresh_token` ni `id_token` del proveedor (`RN-AUTH-95`, sin cambios).
+- **`CA-AUTH-308`** · *Dado* el código del *backend*, *entonces* **ninguna importación de `Laravel\Socialite\*` existe fuera de las implementaciones de `ExternalIdentityProvider`** (`ADR-042`, test de arquitectura ya existente, ampliado a la implementación nueva).
+- **`CA-AUTH-309`** · *Dados* los textos de las tres pantallas nuevas, los códigos de resultado, los códigos de fallo de validación y el correo nuevo, *entonces* existen en los cuatro idiomas y ninguno está escrito en el código (`INV-009`).
+- **`CA-AUTH-310`** · *Dado* un despliegue de este paso **sin tocar ninguna variable de entorno**, *cuando* arranca la aplicación con `APP_ENV=production`, *entonces* arranca sin excepción y el sistema queda idéntico al anterior (`operacion.md §F.12.1`, lección del issue [#140](https://github.com/pirexia/plataforma-educativa/issues/140)).
+
+---
+
+## F.12 Puntos de extensión
+
+- **`1.4c` (SAML 2.0)**: hereda el catálogo, el emparejamiento, la auditoría, los permisos y la clave re-tecleada de `user_identities`. Lo que añade es un protocolo: una columna `protocol` en `identity_providers` (*expand*, con `DEFAULT 'oidc'`), su tabla hija de certificados con rotación (`ADR-043 §2.4`), su tabla de correlación de peticiones **con `tenant_id` y RLS ordinaria** (`ADR-043 §2.1`) y su propia interfaz o la misma, decidido **con la implementación delante** (`ADR-043 §7.4`). **Nada de eso se anticipa aquí.**
+- **Creación automática (*JIT creation*)**: si `OPEN-AUTH-38` u `OPEN-AUTH-39` la traen, es un `link_method` más, un `provisioning_mode` más y la decisión sobre `users.password` de `ADR-043 §4.6`. **El hueco de datos ya está**: `identity_provider_id`, el catálogo y el modo de aprovisionamiento por tenant.
+- **Escritura del mapeo de atributos**: sería una columna `jsonb` en `identity_providers` con la lista blanca cerrada de `§F.5.3` validada en servidor. **No se anticipa** (`§F.5.2`).
+- **`private_key_jwt`**: un valor más en un enumerado de método de autenticación de cliente, más generación y custodia de la clave y publicación de nuestro JWKS. Aditivo, y no se anticipa (`§F.1.2`).
+- **`1.5` (editor de roles)**: los cuatro permisos nuevos entran en su editor sin nada especial.
+- **`1.6` (`REQ-BO`)**: consume `IdentityProviderDirectory` si el soporte de plataforma necesita ver la configuración de un centro. **No hereda ningún permiso de tenant.**
+- **`1.19` (`REQ-COM`)**: sustituye el aviso de `§F.4.6` y los cuatro que ya existen por su canal, y consume `IdentityProviderActivated`/`Deactivated`.
+
+---
+
+## F.13 Preguntas abiertas
+
+**Cuatro. Una es bloqueante.**
+
+Las tres decisiones bloqueantes de `ADR-043 §8` —`§8.1`, `§8.2` y `§8.3`— ya las resolvió el usuario el 2026-09-01 y **no se repreguntan**: están incorporadas al alcance (`§F.1`), a las decisiones estructurales (`§F.3`), a los flujos (`§F.4`) y a las reglas (`RN-AUTH-108`, `RN-AUTH-112`).
+
+### `OPEN-AUTH-38` · Con emparejamiento y sin creación, el mapeo de atributos no tiene sobre qué escribir — **RESUELTA (2026-09-01)**
+
+**Decisión del usuario: salida A**, la recomendada por esta especificación. No se implementa la escritura sobre `people`. La lista blanca de `§F.5.3` queda documentada, sin materializar, para el día que exista sujeto.
+
+`§F.0.3` punto 2, entero. **Es la consecuencia de la decisión del usuario sobre `ADR-043 §8.1` que el ADR no podía ver**, porque escribió su `§4.3` cuando la creación seguía sobre la mesa.
+
+La tercera línea de `REQ-AUTH-004` —*«mapeo automático de atributos SAML/OIDC a campos de usuario»*— tiene dos mitades: **resolver la identidad** (qué *claim* identifica, qué *claim* empareja) y **escribir en `people`**. La primera se implementa (`§F.5.1`). La segunda **no tiene sujeto**: la persona ya existe en el censo con sus datos puestos por la secretaría, y escribir encima es lo que `RN-AUTH-88` prohíbe desde 1.4.
+
+Las tres salidas, con su coste, y **ninguna la decide `spec-writer`**:
+
+| Salida | Qué significa | Coste |
+|--------|---------------|-------|
+| **A · Declarar la línea cubierta a medias** (lo que este documento propone) | El mapeo es de identidad; la escritura sobre `people` no se implementa y se documenta la lista blanca para cuando exista sujeto | Un requisito MUST queda cubierto parcialmente **por segunda vez** en el mismo paso, y hay que decirlo al cerrar. **Es la salida reversible**: añadir la escritura después es aditivo |
+| **B · Implementar la escritura solo sobre campos vacíos** | El IdP rellena `given_name`, `contact_phone`, etc. **únicamente cuando el campo local está `NULL`**, nunca sobrescribiendo | Preserva la propiedad real de `RN-AUTH-88` (el IdP no sobrescribe), pero **introduce datos personales en `people` sin acto del centro y sin base legal por campo decidida** (`OPEN-13` abierta, `REQ-PRIV-006` sin dueño asignado a este paso). Y hace falta el `CHECK` de `locale` de `§F.0.3` punto 4 antes, no después |
+| **C · Reabrir `ADR-043 §8.1` y traer la creación** | El mapeo recupera su sujeto entero, y la línea 4 del requisito también | Es la salida que **más** requisito cubre y la que **más** riesgo trae: exige los cinco puntos de `ADR-043 §8.1`, empezando por (a) una respuesta a `INV-008` que funcione **sin conocer la fecha de nacimiento**. `architect` recomendó no implementarlo sin (a), y el usuario ya decidió que no |
+
+**Recomendación de esta especificación: A**, por reversibilidad. **B** es defendible si el usuario acepta el argumento de protección de datos; **C** ya se decidió que no.
+
+### `OPEN-AUTH-39` · Un usuario `pendiente` no entra por SSO, y eso deja fuera a las altas nuevas — **RESUELTA (2026-09-01)**
+
+**Decisión del usuario: no entra**, la recomendada por esta especificación. `users`, `RN-AUTH-23` y `RN-AUTH-96` no se tocan.
+
+`§F.0.3` punto 3, entero. **Decidido en esta especificación que no entra**, por reversibilidad y para no tocar `users`, `RN-AUTH-23` ni `RN-AUTH-96`. Se deja abierta porque **acota el valor que `ADR-043 §4.2` prometió** y es una decisión de producto:
+
+- Lo que se entrega: **cero trabajo de vinculación para todo el censo ya activo**. Es real y es la mayor parte del valor.
+- Lo que no: **un alta nueva sigue necesitando canjear su invitación** antes de poder usar el SSO.
+
+Cambiar de criterio no es una línea: exige `users.password` *nullable* (`ADR-043 §4.6`), revisar cada punto que asume que hay contraseña, y aceptar que aparece **por primera vez un usuario que solo puede entrar por un tercero**, rompiendo `RN-AUTH-96`. **No bloquea para empezar**; sí conviene decidirla antes de cerrar, porque es lo primero que preguntará el primer centro que despliegue esto.
+
+### `OPEN-AUTH-40` · ¿Se acepta SSO iniciado por el IdP? — de `1.4c`
+
+`ADR-043 §8.4`. **Posición por defecto: no.** Sin petición previa no hay `nonce` ni `state` que correlacionar, luego no hay protección contra repetición ni contra CSRF de inicio de sesión.
+
+**Se comprueba en `§F.3.3` que no condiciona el modelo de `1.4b`**, en contra de lo que el ADR temía: en OIDC el *callback* es una navegación `GET` de nivel superior al host del tenant, la cookie viaja y el `state` vive en la sesión, así que **no existe la tabla de correlación** cuyo diseño `§8.4` quería condicionar. Es una decisión de `1.4c`, y se traslada allí.
+
+### `OPEN-AUTH-41` · ¿El segundo factor del IdP exime del nuestro?
+
+`ADR-043 §8.5`, heredada de `§C.12`, que la difirió literalmente «a 1.4b». **Posición por defecto: no exime** (`INV-002`, denegar por defecto), y es lo que este documento implementa (`RN-AUTH-111`).
+
+**Merece decidirse a conciencia y no por omisión**, y ahora hay un argumento más a favor de mirarla que el que tenía `ADR-043`: con SSO institucional, un centro con Entra ID y MFA obligatorio para todo su personal **va a preguntar** por qué se le pide un segundo factor dos veces, y «porque no lo decidimos» no es una respuesta. Si la respuesta cambia, es un ADR corto porque toca `MfaPolicy`, que es de 1.3, y exigiría además decidir **en qué se confía**: el `amr`/`acr` de un `id_token` es una afirmación del emisor, no una prueba, y aceptarla significa que la política de MFA de un centro pasa a depender de la configuración de un tercero.
+
+### Lo que **no** dejo como pregunta abierta, y por qué
+
+- **Que los *claims* se lean del `id_token` y no del `userinfo`.** `§F.3.2` tiene el argumento y el respaldo del estándar. El conmutador a `userinfo` existe para un caso real y concreto, no como duda.
+- **Que no se verifique la firma del `id_token` contra el JWKS.** `operacion.md §E.7` ya lo decidió en 1.4 con el mismo argumento, y OpenID Connect Core `§3.1.3.7` lo admite expresamente para un *token* obtenido por comunicación directa sobre TLS. Tomar el otro camino es más código, más estado y más modos de fallo para la misma garantía.
+- **Que haya una sola URI de *callback* por tenant.** `§F.3.1`. La alternativa rompe el registro que el administrador ya hizo en su IdP cada vez que se rehace una fila.
+- **Que el `state`, el `nonce` y el verificador PKCE sigan en el *payload* de la sesión.** Es lo que 1.4 decidió y lo que la topología de OIDC permite. La tabla de correlación es de SAML (`ADR-043 §2.1`).
+- **Que `ExternalIdentity` se reutilice sin una propiedad nueva.** `§F.3.4`, verificado contra la interfaz real: sus siete propiedades son *claims* estándar de OpenID Connect, no invenciones de Google.
+- **Que la credencial de cliente no salga en claro para nadie.** `ADR-043 §8.2` pedía fijarlo, y está fijado (`RN-AUTH-112`). No hay dos opciones razonables.
+- **Que el catálogo no lleve columna de `protocol`.** SAML es `1.4c` y añadirla ahora es anticipar una columna que ningún camino de código lee (`CLAUDE.md §11`, `ADR-034 OPEN-13`).
+
+---
+
+## F.14 ¿Se aprueba esta especificación?
+
+**APROBADA por el usuario el 2026-09-01.** `OPEN-AUTH-38` resuelta con la salida A (cobertura parcial del mapeo de atributos). `OPEN-AUTH-39` resuelta: un usuario `pendiente` no entra por SSO. `OPEN-AUTH-40` (de `1.4c`) y `OPEN-AUTH-41` (¿exime el MFA del IdP?) **no se han repreguntado**: no bloqueaban para empezar, quedan con su posición por defecto (no/no exime) incorporada al texto, y son revocables sin rehacer nada — a decidir a conciencia antes de cerrar el paso, como avisa `§F.13`.
+
+**Lo que hay que aceptar al aprobar, dicho sin adornos:**
+
+1. **`REQ-AUTH-004` queda incumplido en la parte de fotografía del mapeo de atributos** mientras `OPEN-13`/`REQ-PRIV-006` sigan abiertas (`§F.0.3` punto 1). No es un olvido de implementación: es un requisito bloqueado, y `ADR-043 §4.3` exige que se diga así.
+2. **La tercera línea del requisito queda cubierta solo en su mitad de identidad** con la salida A de `OPEN-AUTH-38`.
+3. **La cuarta línea —*«creación automática de usuarios en el primer login SSO»*— no se implementa**: el usuario ya decidió emparejamiento el 2026-09-01 (`ADR-043 §8.1`). Este paso lo cumple en su mitad de emparejamiento y lo declara así.
+4. **Un alta nueva sigue necesitando invitación** (`OPEN-AUTH-39`).
+5. **`APP_KEY` gana responsabilidad**: a partir de este paso cifra las credenciales de cliente de todos los tenants, y las copias de seguridad las contienen cifradas (`operacion.md §F.2.2`, `§F.11`). Es el segundo dato del producto que se pierde si se pierde la clave, después de los secretos TOTP de 1.3.
+6. **Aparece un cliente HTTP saliente controlado por configuración de tenant**, con sus cinco guardas (`§F.4.2`). Es la superficie nueva con más peso de seguridad del paso y la que `security-reviewer` debe recorrer primero.
+
+**Confirmaciones que la implementación debe respetar y que no son negociables sin volver aquí**: ningún `Person` ni `User` se crea (`RN-AUTH-108`, `CA-AUTH-287`); ningún proveedor escribe en `people` ni en `users` (`RN-AUTH-109`); el SSO no salta el segundo factor (`RN-AUTH-111`, `CA-AUTH-299`); la clave de `user_identities` se re-teclea por proveedor concreto y `CA-AUTH-294` lo demuestra; la credencial de cliente no sale en claro por ninguna vía (`RN-AUTH-112`, `CA-AUTH-266`); y las cinco guardas de descubrimiento se aplican **también en cada redirección** (`RN-AUTH-113`, `CA-AUTH-263`).
+
+**Orden de implementación propuesto**, con un punto de control en medio:
+
+1. Migraciones y modelo: `identity_providers`, `identity_provider_secrets`, re-tecleado de `user_identities`, `login_attempts.method`.
+2. Descubrimiento con sus cinco guardas, y los cinco *endpoints* de administración con sus permisos y sus tests de aislamiento.
+   > **Punto de control**: revisión de seguridad **antes** de continuar, centrada en `§F.4.2` y en `RN-AUTH-112`. Es la mitad del paso donde un fallo no se ve desde la interfaz.
+3. `GenericOidcProvider` y `ExternalIdentityProviderRegistry`, con el emisor simulado de `operacion.md §F.10`.
+4. *Callback*, validación de `id_token`, restricción por dominio y emparejamiento.
+5. Pantallas: administración primero, login después.
+
+Rama: `feature/REQ-AUTH-004-sso-institucional`.
