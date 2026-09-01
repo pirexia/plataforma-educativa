@@ -22,6 +22,8 @@ export type PublicId = string
 export * from './administration'
 // REQ-AUTH-002 (1.4): mismo criterio que la línea de arriba.
 export * from './oauth'
+// REQ-AUTH-004 (1.4b): ídem.
+export * from './sso'
 
 /**
  * api.md §2, funcional.md §4.2 punto 6.6: el mismo recurso que `GET /me`

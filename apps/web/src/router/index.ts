@@ -25,6 +25,13 @@ const router = createRouter({
       name: 'oauth-google-callback',
       component: () => import('@/modules/auth/views/GoogleCallbackResultView.vue'),
     },
+    // REQ-AUTH-004 (1.4b), funcional.md §F.9, api.md §F.7: destino del
+    // 302 del callback institucional. Misma categoría que /entrar/google.
+    {
+      path: '/entrar/sso',
+      name: 'oauth-sso-callback',
+      component: () => import('@/modules/auth/views/SsoCallbackResultView.vue'),
+    },
     {
       path: '/activar/:token',
       name: 'invitation-redemption',
@@ -81,6 +88,25 @@ const router = createRouter({
       path: '/administracion/mfa',
       name: 'mfa-administration',
       component: () => import('@/modules/auth/views/AdminMfaView.vue'),
+    },
+    // REQ-AUTH-004 (1.4b), funcional.md §F.9: autoservicio del centro
+    // (ADR-043 §8.3), permiso `proveedor_identidad.*` — comprobado por el
+    // servidor, no por un guard de router (INV-002). `nuevo` distingue
+    // el alta (sin recurso) de la edición en el mismo componente.
+    {
+      path: '/administracion/sso',
+      name: 'sso-administration',
+      component: () => import('@/modules/auth/views/AdminSsoView.vue'),
+    },
+    {
+      path: '/administracion/sso/nuevo',
+      name: 'sso-administration-new',
+      component: () => import('@/modules/auth/views/AdminSsoProviderView.vue'),
+    },
+    {
+      path: '/administracion/sso/:publicId',
+      name: 'sso-administration-edit',
+      component: () => import('@/modules/auth/views/AdminSsoProviderView.vue'),
     },
   ],
 })

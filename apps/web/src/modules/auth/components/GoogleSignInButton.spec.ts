@@ -49,7 +49,7 @@ describe('GoogleSignInButton', () => {
 
   it('RN-AUTH-98: pinta el botón de login cuando el proveedor está disponible', async () => {
     getIdentityProviders.mockResolvedValue({
-      data: [{ provider: 'google' }],
+      data: [{ id: 'google' }],
     })
     const wrapper = mount(GoogleSignInButton, { global: { plugins: [i18n] } })
     await flushPromises()
@@ -60,7 +60,7 @@ describe('GoogleSignInButton', () => {
 
   it('funcional.md §E.4.4: con intent="link" pinta la etiqueta de vincular', async () => {
     getIdentityProviders.mockResolvedValue({
-      data: [{ provider: 'google' }],
+      data: [{ id: 'google' }],
     })
     const wrapper = mount(GoogleSignInButton, {
       props: { intent: 'link' },
@@ -73,7 +73,7 @@ describe('GoogleSignInButton', () => {
 
   it('api.md §E.3: al pulsar, arranca el flujo y navega con window.location, no con un formulario', async () => {
     getIdentityProviders.mockResolvedValue({
-      data: [{ provider: 'google' }],
+      data: [{ id: 'google' }],
     })
     beginOAuthAuthorization.mockResolvedValue({
       authorization_url: 'https://accounts.google.com/o/oauth2/v2/auth?client_id=x',
@@ -93,7 +93,7 @@ describe('GoogleSignInButton', () => {
 
   it('CA-AUTH-234: el logotipo va inline, sin <img> ni referencia a un dominio de Google', async () => {
     getIdentityProviders.mockResolvedValue({
-      data: [{ provider: 'google' }],
+      data: [{ id: 'google' }],
     })
     const wrapper = mount(GoogleSignInButton, { global: { plugins: [i18n] } })
     await flushPromises()
@@ -113,7 +113,7 @@ describe('GoogleSignInButton', () => {
 
   it('en 429 muestra el tiempo de reintento y no navega', async () => {
     getIdentityProviders.mockResolvedValue({
-      data: [{ provider: 'google' }],
+      data: [{ id: 'google' }],
     })
     const headers = new Headers({ 'Retry-After': '30' })
     beginOAuthAuthorization.mockRejectedValue(new ApiError('rate limited', 429, null, headers))

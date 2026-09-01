@@ -206,7 +206,8 @@
         "empty": "You don't have any external account linked yet.",
         "linkMethod": {
           "fusion_automatica": "Linked automatically when signing in",
-          "perfil": "Linked from your profile"
+          "perfil": "Linked from your profile",
+          "emparejamiento_sso": "Linked automatically by the system"
         },
         "linkedAt": "Linked on {date}",
         "lastLoginAt": "Last used on {date}",
@@ -232,7 +233,10 @@
       "estadoNoValido": "We couldn't complete signing in with Google. Please try again.",
       "errorProveedor": "We couldn't reach Google. Try again later or sign in with your password.",
       "backToLogin": "Back to sign in",
-      "backToSecurity": "Back to my account"
+      "backToSecurity": "Back to my account",
+      "ssoTitle": "Institutional sign-in",
+      "dominioNoPermitido": "This school only accepts accounts from its own email domain. If you think this is a mistake, contact your school.",
+      "proveedorNoDisponible": "This sign-in provider is not available right now. Try again later or sign in with your password."
     },
     "mfaAdmin": {
       "title": "MFA administration",
@@ -331,6 +335,128 @@
         "loading": "Loading users…",
         "noMatches": "No matches.",
         "change": "Change"
+      }
+    },
+    "provider": {
+      "google": "Google"
+    },
+    "ssoAdmin": {
+      "title": "Identity providers",
+      "intro": "Configure the institutional identity systems (Entra ID, Google Workspace, etc.) your staff can use to sign in with the school's credentials.",
+      "loading": "Loading the catalogue…",
+      "loadError": "The provider catalogue could not be loaded.",
+      "empty": "This school does not have any identity provider catalogued yet.",
+      "create": "Add provider",
+      "columns": {
+        "displayName": "Name",
+        "issuer": "Issuer",
+        "status": "Status",
+        "provisioningMode": "Provisioning",
+        "secret": "Credential"
+      },
+      "status": {
+        "enabled": "Enabled",
+        "disabled": "Not enabled"
+      },
+      "provisioningMode": {
+        "desactivado": "Disabled",
+        "emparejamiento": "Matching"
+      },
+      "secretStatus": {
+        "none": "No active credential",
+        "active": "Active",
+        "expiringSoon": "Expiring soon",
+        "noExpiry": "No expiry declared"
+      },
+      "edit": "Edit",
+      "delete": "Delete",
+      "confirmDelete": "Remove this provider? Existing links will still show on each account's profile, but nobody will be able to sign in through it from now on.",
+      "confirmYes": "Yes, remove",
+      "confirmCancel": "Cancel",
+      "deleted": "Provider removed.",
+      "back": "Back to the catalogue",
+      "form": {
+        "titleNew": "New identity provider",
+        "titleEdit": "Edit identity provider",
+        "displayName": "Display name",
+        "displayNameHint": "The name staff will see on the sign-in button. Not translated.",
+        "discoveryUrl": "Discovery URL",
+        "discoveryUrlHint": "The .well-known/openid-configuration URL published by your identity provider.",
+        "clientId": "Client ID",
+        "emailClaim": "Email claim",
+        "claimsSource": "Claims source",
+        "claimsSourceIdToken": "ID token",
+        "claimsSourceUserinfo": "Userinfo",
+        "scopes": "Scopes",
+        "scopesHint": "Comma-separated. Must include \"openid\".",
+        "allowedDomains": "Allowed email domains",
+        "allowedDomainsHint": "Comma-separated. Empty means no restriction.",
+        "provisioningMode": "Provisioning mode",
+        "isEnabled": "Provider enabled",
+        "isEnabledHint": "A provider that is not enabled does not appear on the sign-in screen.",
+        "submit": "Save",
+        "submitting": "Saving…",
+        "cancel": "Cancel",
+        "created": "Provider created. Now upload its credential and enable it when ready.",
+        "saved": "Changes saved.",
+        "genericError": "The changes could not be saved.",
+        "enableWithoutSecretError": "You cannot enable this provider without first uploading a current client credential.",
+        "issuerAlreadyCatalogued": "This school already has a provider catalogued with that same issuer.",
+        "emailClaimOptions": {
+          "email": "email",
+          "preferred_username": "preferred_username",
+          "upn": "upn"
+        },
+        "allowedDomainsPlaceholder": "sucentro.es"
+      },
+      "integration": {
+        "title": "What to register with your identity provider",
+        "intro": "Copy these values into your identity provider's configuration to complete the integration.",
+        "redirectUri": "Redirect URI",
+        "scopes": "Scopes",
+        "subjectClaim": "Subject claim",
+        "emailClaim": "Email claim",
+        "copy": "Copy",
+        "copied": "Copied."
+      },
+      "secrets": {
+        "title": "Client credentials",
+        "intro": "You can have more than one active credential at a time to rotate it without downtime: the most recent one is always used.",
+        "addNew": "Upload new credential",
+        "clientSecret": "Client secret",
+        "expiresAt": "Expires on",
+        "expiresAtHint": "Optional, but recommended: it enables the expiry warning.",
+        "submit": "Upload credential",
+        "submitting": "Uploading…",
+        "created": "Credential uploaded.",
+        "genericError": "The credential could not be uploaded.",
+        "activatedAt": "Uploaded on {date}",
+        "expiresAtLabel": "Expires on {date}",
+        "noExpiry": "No expiry declared",
+        "retired": "Retired on {date}",
+        "retire": "Retire",
+        "retireConfirm": "Retire this credential? Remember to also revoke it in your identity provider.",
+        "retireConfirmYes": "Yes, retire",
+        "retiredMessage": "Credential retired. Remember to also revoke it in your identity provider.",
+        "lastActiveError": "You cannot retire the last active credential of an enabled provider: disable it first.",
+        "none": "This provider has no credential uploaded."
+      },
+      "discoveryRefresh": {
+        "button": "Force a discovery document refresh",
+        "refreshing": "Refreshing…",
+        "success": "Discovery document updated.",
+        "failure": "The document could not be refreshed; previous values were kept."
+      },
+      "discoveryFailure": {
+        "esquema_no_admitido": "The discovery URL must use https.",
+        "destino_no_publico": "That address cannot be reached from the server.",
+        "demasiadas_redirecciones": "The discovery document redirects too many times.",
+        "sin_respuesta": "The discovery document could not be downloaded.",
+        "respuesta_demasiado_grande": "The discovery document is too large.",
+        "documento_no_valido": "The discovery document is invalid or is missing required fields.",
+        "emisor_no_coincide": "The declared issuer does not match the origin of the discovery URL.",
+        "endpoint_no_seguro": "One of the declared endpoints does not use https.",
+        "flujo_no_admitido": "This issuer does not support the required authorization flow."
       }
     }
   }

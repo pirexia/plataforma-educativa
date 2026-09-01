@@ -19,7 +19,7 @@ import { login } from '../api'
 import { usePublicAuthScreen } from '../composables/usePublicAuthScreen'
 import { apiErrorStatus, fieldErrors, retryAfterSeconds } from '../composables/formErrors'
 import PublicAuthShell from '../components/PublicAuthShell.vue'
-import GoogleSignInButton from '../components/GoogleSignInButton.vue'
+import IdentityProviderLoginList from '../components/IdentityProviderLoginList.vue'
 import MfaChallengeStep from '../components/MfaChallengeStep.vue'
 import type { MfaChallenge } from '../types'
 
@@ -141,10 +141,10 @@ function onChallengeLost(message: string) {
         </Button>
       </form>
 
-      <!-- REQ-AUTH-002 (1.4), funcional.md §E.9: solo si el descubrimiento
-           (GET /auth/identity-providers) dice que hay proveedor —
-           RN-AUTH-98, nunca por una constante del cliente. -->
-      <GoogleSignInButton class="mt-4" />
+      <!-- REQ-AUTH-002 (1.4)/REQ-AUTH-004 (1.4b), funcional.md §E.9/§F.9:
+           solo los proveedores que GET /auth/identity-providers confirma
+           — RN-AUTH-98, nunca por una constante del cliente. -->
+      <IdentityProviderLoginList />
 
       <div class="mt-4 flex flex-col gap-1 text-center text-sm">
         <RouterLink to="/recuperar" class="text-primary hover:underline">

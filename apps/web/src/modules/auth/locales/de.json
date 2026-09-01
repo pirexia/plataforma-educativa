@@ -206,7 +206,8 @@
         "empty": "Du hast noch kein externes Konto verknüpft.",
         "linkMethod": {
           "fusion_automatica": "Automatisch beim Anmelden verknüpft",
-          "perfil": "Über dein Profil verknüpft"
+          "perfil": "Über dein Profil verknüpft",
+          "emparejamiento_sso": "Automatisch vom System verknüpft"
         },
         "linkedAt": "Verknüpft am {date}",
         "lastLoginAt": "Zuletzt verwendet am {date}",
@@ -232,7 +233,10 @@
       "estadoNoValido": "Die Anmeldung mit Google konnte nicht abgeschlossen werden. Bitte versuche es erneut.",
       "errorProveedor": "Google konnte nicht erreicht werden. Versuche es später erneut oder melde dich mit deinem Passwort an.",
       "backToLogin": "Zurück zur Anmeldung",
-      "backToSecurity": "Zurück zu meinem Konto"
+      "backToSecurity": "Zurück zu meinem Konto",
+      "ssoTitle": "Institutionelle Anmeldung",
+      "dominioNoPermitido": "Diese Schule akzeptiert nur Konten der eigenen E-Mail-Domain. Wenn du glaubst, dass dies ein Fehler ist, wende dich an deine Schule.",
+      "proveedorNoDisponible": "Dieser Anmeldeanbieter ist gerade nicht verfügbar. Versuche es später erneut oder melde dich mit deinem Passwort an."
     },
     "mfaAdmin": {
       "title": "MFA-Verwaltung",
@@ -331,6 +335,128 @@
         "loading": "Nutzer werden geladen…",
         "noMatches": "Keine Treffer.",
         "change": "Ändern"
+      }
+    },
+    "provider": {
+      "google": "Google"
+    },
+    "ssoAdmin": {
+      "title": "Identitätsanbieter",
+      "intro": "Konfiguriere die institutionellen Identitätssysteme (Entra ID, Google Workspace usw.), mit denen sich dein Personal mit den Zugangsdaten der Schule anmelden kann.",
+      "loading": "Katalog wird geladen…",
+      "loadError": "Der Anbieterkatalog konnte nicht geladen werden.",
+      "empty": "Diese Schule hat noch keinen Identitätsanbieter katalogisiert.",
+      "create": "Anbieter hinzufügen",
+      "columns": {
+        "displayName": "Name",
+        "issuer": "Aussteller",
+        "status": "Status",
+        "provisioningMode": "Bereitstellung",
+        "secret": "Zugangsdaten"
+      },
+      "status": {
+        "enabled": "Aktiv",
+        "disabled": "Nicht aktiv"
+      },
+      "provisioningMode": {
+        "desactivado": "Deaktiviert",
+        "emparejamiento": "Zuordnung"
+      },
+      "secretStatus": {
+        "none": "Keine gültigen Zugangsdaten",
+        "active": "Gültig",
+        "expiringSoon": "Läuft bald ab",
+        "noExpiry": "Kein Ablaufdatum angegeben"
+      },
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "confirmDelete": "Diesen Anbieter entfernen? Bestehende Verknüpfungen sind weiterhin im Profil sichtbar, aber niemand kann sich ab sofort darüber anmelden.",
+      "confirmYes": "Ja, entfernen",
+      "confirmCancel": "Abbrechen",
+      "deleted": "Anbieter entfernt.",
+      "back": "Zurück zum Katalog",
+      "form": {
+        "titleNew": "Neuer Identitätsanbieter",
+        "titleEdit": "Identitätsanbieter bearbeiten",
+        "displayName": "Anzeigename",
+        "displayNameHint": "Der Name, den das Personal auf der Anmeldeschaltfläche sieht. Wird nicht übersetzt.",
+        "discoveryUrl": "Discovery-URL",
+        "discoveryUrlHint": "Die von deinem Identitätsanbieter veröffentlichte .well-known/openid-configuration-URL.",
+        "clientId": "Client-ID",
+        "emailClaim": "E-Mail-Claim",
+        "claimsSource": "Quelle der Claims",
+        "claimsSourceIdToken": "ID-Token",
+        "claimsSourceUserinfo": "Userinfo",
+        "scopes": "Scopes",
+        "scopesHint": "Durch Kommas getrennt. Muss „openid“ enthalten.",
+        "allowedDomains": "Zulässige E-Mail-Domains",
+        "allowedDomainsHint": "Durch Kommas getrennt. Leer bedeutet keine Einschränkung.",
+        "provisioningMode": "Bereitstellungsmodus",
+        "isEnabled": "Anbieter aktiv",
+        "isEnabledHint": "Ein nicht aktiver Anbieter erscheint nicht auf dem Anmeldebildschirm.",
+        "submit": "Speichern",
+        "submitting": "Wird gespeichert…",
+        "cancel": "Abbrechen",
+        "created": "Anbieter erstellt. Lade jetzt seine Zugangsdaten hoch und aktiviere ihn, wenn er bereit ist.",
+        "saved": "Änderungen gespeichert.",
+        "genericError": "Die Änderungen konnten nicht gespeichert werden.",
+        "enableWithoutSecretError": "Du kannst diesen Anbieter nicht aktivieren, ohne vorher gültige Client-Zugangsdaten hochzuladen.",
+        "issuerAlreadyCatalogued": "Diese Schule hat bereits einen Anbieter mit demselben Aussteller katalogisiert.",
+        "emailClaimOptions": {
+          "email": "email",
+          "preferred_username": "preferred_username",
+          "upn": "upn"
+        },
+        "allowedDomainsPlaceholder": "sucentro.es"
+      },
+      "integration": {
+        "title": "Was bei deinem Identitätsanbieter zu registrieren ist",
+        "intro": "Kopiere diese Werte in die Konfiguration deines Identitätsanbieters, um die Integration abzuschließen.",
+        "redirectUri": "Weiterleitungs-URI",
+        "scopes": "Scopes",
+        "subjectClaim": "Subjekt-Claim",
+        "emailClaim": "E-Mail-Claim",
+        "copy": "Kopieren",
+        "copied": "Kopiert."
+      },
+      "secrets": {
+        "title": "Client-Zugangsdaten",
+        "intro": "Du kannst mehr als eine gültige Zugangsdaten gleichzeitig haben, um sie unterbrechungsfrei zu rotieren: Es wird immer die aktuellste verwendet.",
+        "addNew": "Neue Zugangsdaten hochladen",
+        "clientSecret": "Client-Secret",
+        "expiresAt": "Läuft ab am",
+        "expiresAtHint": "Optional, aber empfohlen: aktiviert die Ablaufwarnung.",
+        "submit": "Zugangsdaten hochladen",
+        "submitting": "Wird hochgeladen…",
+        "created": "Zugangsdaten hochgeladen.",
+        "genericError": "Die Zugangsdaten konnten nicht hochgeladen werden.",
+        "activatedAt": "Hochgeladen am {date}",
+        "expiresAtLabel": "Läuft ab am {date}",
+        "noExpiry": "Kein Ablaufdatum angegeben",
+        "retired": "Zurückgezogen am {date}",
+        "retire": "Zurückziehen",
+        "retireConfirm": "Diese Zugangsdaten zurückziehen? Denke daran, sie auch bei deinem Identitätsanbieter zu widerrufen.",
+        "retireConfirmYes": "Ja, zurückziehen",
+        "retiredMessage": "Zugangsdaten zurückgezogen. Denke daran, sie auch bei deinem Identitätsanbieter zu widerrufen.",
+        "lastActiveError": "Du kannst die letzten gültigen Zugangsdaten eines aktiven Anbieters nicht zurückziehen: deaktiviere ihn zuerst.",
+        "none": "Für diesen Anbieter wurden keine Zugangsdaten hochgeladen."
+      },
+      "discoveryRefresh": {
+        "button": "Aktualisierung des Discovery-Dokuments erzwingen",
+        "refreshing": "Wird aktualisiert…",
+        "success": "Discovery-Dokument aktualisiert.",
+        "failure": "Das Dokument konnte nicht aktualisiert werden; die vorherigen Werte wurden beibehalten."
+      },
+      "discoveryFailure": {
+        "esquema_no_admitido": "Die Discovery-URL muss https verwenden.",
+        "destino_no_publico": "Diese Adresse ist vom Server aus nicht erreichbar.",
+        "demasiadas_redirecciones": "Das Discovery-Dokument leitet zu oft weiter.",
+        "sin_respuesta": "Das Discovery-Dokument konnte nicht heruntergeladen werden.",
+        "respuesta_demasiado_grande": "Das Discovery-Dokument ist zu groß.",
+        "documento_no_valido": "Das Discovery-Dokument ist ungültig oder es fehlen Pflichtfelder.",
+        "emisor_no_coincide": "Der angegebene Aussteller stimmt nicht mit dem Ursprung der Discovery-URL überein.",
+        "endpoint_no_seguro": "Einer der angegebenen Endpunkte verwendet kein https.",
+        "flujo_no_admitido": "Dieser Aussteller unterstützt den erforderlichen Autorisierungsablauf nicht."
       }
     }
   }

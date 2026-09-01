@@ -42,7 +42,7 @@ const errorMessage = ref<string | null>(null)
 onMounted(async () => {
   try {
     const { data } = await getIdentityProviders()
-    available.value = data.some((provider) => provider.provider === 'google')
+    available.value = data.some((provider) => provider.id === 'google')
   } catch {
     // RN-AUTH-98: sin proveedor confirmado, no se pinta el botón. Un
     // fallo de red aquí se trata igual que "no hay proveedor" — la

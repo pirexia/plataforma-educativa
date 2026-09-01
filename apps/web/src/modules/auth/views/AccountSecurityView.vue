@@ -557,7 +557,13 @@ async function logoutFromHere(): Promise<void> {
               >
                 <div class="flex items-center justify-between gap-2">
                   <div>
-                    <span class="font-medium">{{ t('auth.oauth.identities.providerGoogle') }}</span>
+                    <!-- REQ-AUTH-004 (1.4b), CA-AUTH-303: el nombre del
+                         proveedor del centro cuando hay catálogo detrás
+                         (provider_display_name, texto sin traducir); el
+                         driver global de Google en el resto. -->
+                    <span class="font-medium">{{
+                      identity.provider_display_name ?? t('auth.oauth.identities.providerGoogle')
+                    }}</span>
                     <span class="text-muted-foreground"> · {{ identity.email_at_link }}</span>
                     <div class="text-muted-foreground text-xs">
                       {{ t(`auth.oauth.identities.linkMethod.${identity.link_method}`) }}
