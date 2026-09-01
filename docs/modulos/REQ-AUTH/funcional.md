@@ -2567,10 +2567,10 @@ Las tres están incorporadas al alcance (`§D.1.1`), a las reglas (`RN-AUTH-80`,
 | Prioridad | MUST |
 | Fase | 1 · Bloque A · **paso 1.4** |
 | Depende de | 1.1 (`REQ-CORE`: `users`, `people`, invitaciones), 1.2 (login local, cookie de sesión, `login_attempts`, bloqueo), 1.2b (`user_sessions`, detección de dispositivo), 1.3/1.3b (`MfaPolicy`, `mfa_challenges`, muro de alta) |
-| Estado | **APROBADO** el 2026-08-31 (`§E.14`). Las tres decisiones bloqueantes —`OPEN-AUTH-30`, `OPEN-AUTH-31` y `OPEN-AUTH-35`— están tomadas. Único trabajo previo a implementar: `ADR-042`, en redacción por `architect` |
+| Estado | **IMPLEMENTADO** · aprobada el 2026-08-31 (`§E.14`), `ADR-042` **ACEPTADA**. Las tres decisiones bloqueantes —`OPEN-AUTH-30`, `OPEN-AUTH-31` y `OPEN-AUTH-35`— están tomadas. Backend y frontend completos (2026-09-01, rama `feature/REQ-AUTH-002-google-login-fusion-cuentas`), en revisión independiente, pendiente de mezclar a `develop` (PR [#143](https://github.com/pirexia/plataforma-educativa/pull/143)) |
 | Módulo (código) | `auth` · `apps/api/app/Modules/Auth` · `apps/web/src/modules/auth` |
 
-> **Estructura**: §1-§14 son 1.2 (cerrado). `§B.*` es 1.2b (cerrado). `§C.*` es 1.3 (cerrado, commit `cd13e8a`). `§D.*` es 1.3b (cerrado, commit `dd68f48`). Esta **Parte E** es el paso **1.4**, **no implementado**: es especificación previa, no descripción de lo que existe.
+> **Estructura**: §1-§14 son 1.2 (cerrado). `§B.*` es 1.2b (cerrado). `§C.*` es 1.3 (cerrado, commit `cd13e8a`). `§D.*` es 1.3b (cerrado, commit `dd68f48`). Esta **Parte E** es el paso **1.4**, **implementado** (2026-09-01, rama `feature/REQ-AUTH-002-google-login-fusion-cuentas`, PR [#143](https://github.com/pirexia/plataforma-educativa/pull/143)): describe lo que existe, en revisión independiente antes de mezclar.
 >
 > Fuente de verdad: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md §5.2`, `REQ-AUTH-002`, **incluida su nota de seguridad**. Este documento **no** reabre `ADR-014`, `ADR-025`, `ADR-029`, `ADR-033`, `ADR-034`, `ADR-035`, `ADR-038`, `ADR-039` ni `ADR-040`, ni ninguna decisión de 1.2/1.2b/1.3/1.3b.
 >
@@ -2591,7 +2591,7 @@ Las tres están incorporadas al alcance (`§D.1.1`), a las reglas (`RN-AUTH-80`,
 | **`1.4b` · SSO institucional (`REQ-AUTH-004`)** | Posterior | Es quien traerá el catálogo de proveedores **por tenant**. Este paso le reserva el nombre `identity_providers` y **no lo ocupa** (`datos.md §E.2`). También es de 1.4b, y no de aquí, la decisión de si un proveedor externo que ya hizo su propio segundo factor exime del nuestro: ya está escrito así en `§C.12` y no se hereda. |
 | **`1.5` · Permisos granulares** | Posterior | **Sin impacto**: 1.4 no declara ningún permiso (`permisos.md §E.1`), como 1.2b. |
 | **`REQ-PRIV-006` / `ADR-034 OPEN-13`** | Pendiente | Fija la lista definitiva de campos de `people` y su base legal por campo. **Deja de condicionar este paso** al resolverse la contradicción 2 (`§E.0.2`): sin creación de usuarios no hay ningún dato de perfil de Google que ubicar. Vuelve a ser relevante en `1.4b`. |
-| **`ADR-042` · dependencia y envoltorio del cliente OAuth** | **En redacción por `architect`** | **Requisito previo de `implementer`**, igual que `ADR-041` lo fue de 1.3. Formaliza la comprobación de `CLAUDE.md §1` sobre `laravel/socialite` (aprobada el 2026-08-31, `OPEN-AUTH-35`) y **fija la forma exacta de la interfaz `IdentityProvider`** (`§E.7.2`), incluido que `email_verified` salga como booleano de primera clase y que ninguna importación de `Laravel\Socialite\*` exista fuera de esa única implementación. |
+| **`ADR-042` · dependencia y envoltorio del cliente OAuth** | **ACEPTADA** | **Requisito previo de `implementer`**, igual que `ADR-041` lo fue de 1.3. Formaliza la comprobación de `CLAUDE.md §1` sobre `laravel/socialite` (aprobada el 2026-08-31, `OPEN-AUTH-35`) y **fija la forma exacta de la interfaz `IdentityProvider`** (`§E.7.2`), incluido que `email_verified` salga como booleano de primera clase y que ninguna importación de `Laravel\Socialite\*` exista fuera de esa única implementación. |
 
 ### E.0.2 Contradicciones detectadas
 
@@ -3134,7 +3134,7 @@ Comprobación hecha contra Packagist y la API de GitHub el **2026-08-31**, no de
 1. **Arrastra `league/oauth1-client` y `phpseclib` para proveedores OAuth1 que este producto no usará jamás.** Es superficie de dependencia que no se aprovecha. Sigue siendo menos superficie que escribir a mano el canje de código, PKCE y el manejo de errores del proveedor.
 2. **`email_verified` no es un campo de primera clase de su objeto `User`**: hay que leerlo del *claim* crudo. Y `RN-AUTH-87` —la nota de seguridad del requisito— depende exactamente de ese valor. **Por eso el envoltorio de `§E.7.2` no es ceremonia**: es el sitio donde ese *claim* se lee una vez, se convierte en un booleano tipado y deja de depender de un array asociativo. Si se implementa sin envoltorio, `RN-AUTH-87` acaba escrita como `$user->user['email_verified'] ?? false`, con un `?? false` que un día alguien cambia por `?? true`.
 
-**Decisión del usuario del 2026-08-31**: sí a la dependencia, con la comprobación formal de `CLAUDE.md §1` recogida en **`ADR-042`** —el procedimiento exacto de `ADR-041` con `OPEN-AUTH-19`/`OPEN-AUTH-20`—, **en redacción por `architect` y requisito previo de `implementer`** (`§E.0.1`). Ese ADR fija la forma de la interfaz de envoltura, que `email_verified` salga como booleano de primera clase, y que **ninguna importación de `Laravel\Socialite\*` exista fuera de su única implementación** — con test de arquitectura, igual que el que prohíbe el `PasswordBroker` desde `§7.2` punto 4.
+**Decisión del usuario del 2026-08-31**: sí a la dependencia, con la comprobación formal de `CLAUDE.md §1` recogida en **`ADR-042`** —el procedimiento exacto de `ADR-041` con `OPEN-AUTH-19`/`OPEN-AUTH-20`—, **ACEPTADA y requisito previo de `implementer`** (`§E.0.1`). Ese ADR fija la forma de la interfaz de envoltura, que `email_verified` salga como booleano de primera clase, y que **ninguna importación de `Laravel\Socialite\*` exista fuera de su única implementación** — con test de arquitectura, igual que el que prohíbe el `PasswordBroker` desde `§7.2` punto 4.
 
 **No es una decisión estructural**: es una librería cliente de un protocolo, no cambia el modelo de identidad, que es lo que sí decide `datos.md §E.2`.
 
@@ -3174,7 +3174,7 @@ Y **`OPEN-AUTH-37` queda resuelta por arrastre** de la segunda, verificado que n
 
 Las cuatro decisiones están incorporadas al alcance (`§E.1`), a la sección estructural (`§E.3`), a los flujos (`§E.4.2` paso 7d), a las reglas (`RN-AUTH-99`) y a los criterios de aceptación. **No queda ninguna pregunta abierta bloqueante.** Siguen abiertas cuatro no bloqueantes —`OPEN-AUTH-32` a `OPEN-AUTH-34` y `OPEN-AUTH-36`—, todas con su decisión por defecto ya incorporada al texto y revocable sin rehacer nada.
 
-**Trabajo previo antes de `implementer`**: `ADR-042` (`§E.0.1`), en redacción por `architect`. Sin él no se toca `composer.json`.
+**Trabajo previo antes de `implementer`**: `ADR-042` (`§E.0.1`), **ACEPTADA**. Sin él no se habría tocado `composer.json`.
 
 **Una advertencia operativa que no es una pregunta y que hay que aceptar al cerrar el paso**: **1.4 no se podrá cerrar con verificación en navegador real contra Google de verdad** mientras `0.10b` siga pendiente (`§E.0.1`). Los pasos 1.2, 1.2b, 1.3 y 1.3b sí la tuvieron. Lo que se verificará en navegador es el flujo completo con el proveedor simulado; la lista concreta de lo que queda pendiente de un entorno con dominio público está en `operacion.md §E.10.4` y **debe convertirse en tarea, no en un olvido**.
 

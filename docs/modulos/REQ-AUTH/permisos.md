@@ -690,7 +690,7 @@ Lo que 1.3b **sí** añade al inventario de datos sensibles del módulo, amplian
 
 # Parte E · Paso 1.4 · Permisos (`REQ-AUTH-002`)
 
-> **Estructura**: §1-§8 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3 y `§D.*` es 1.3b, los cuatro cerrados. Esta **Parte E** es el paso **1.4**, **no implementada**: es especificación previa.
+> **Estructura**: §1-§8 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3 y `§D.*` es 1.3b, los cuatro cerrados. Esta **Parte E** es el paso **1.4**, **implementada** (2026-09-01, rama `feature/REQ-AUTH-002-google-login-fusion-cuentas`, PR [#143](https://github.com/pirexia/plataforma-educativa/pull/143)): describe la autorización tal como existe, en revisión independiente antes de mezclar.
 >
 > Fuente de verdad del catálogo: **el código** (`AuthServiceProvider::declaredPermissions()`), materializado por `platform:sync-registry`. Esta tabla es su reflejo documental.
 
