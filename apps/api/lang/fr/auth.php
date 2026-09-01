@@ -118,7 +118,7 @@ return [
 
     'sso' => [
         'identity_provider_issuer_already_catalogued' => 'Cet établissement a déjà un fournisseur catalogué avec cet émetteur.',
-        'identity_provider_enable_without_secret' => "Vous ne pouvez pas activer ce fournisseur sans identifiant client valide.",
+        'identity_provider_enable_without_secret' => 'Vous ne pouvez pas activer ce fournisseur sans identifiant client valide.',
         'identity_provider_secret_last_active' => "Vous ne pouvez pas retirer le dernier identifiant valide d'un fournisseur actif : désactivez-le d'abord.",
         'discovery' => [
             'esquema_no_admitido' => "L'URL de découverte doit utiliser https.",
