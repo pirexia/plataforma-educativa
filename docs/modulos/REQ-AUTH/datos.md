@@ -971,7 +971,7 @@ Amplía `§C.11`, sin cambiar ninguno de sus plazos.
 
 # Parte E · Paso 1.4 · Modelo de datos (`REQ-AUTH-002`)
 
-> **Estructura**: `§A.*` es 1.2, `§B.*` es 1.2b, `§C.*` es 1.3 y `§D.*` es 1.3b, los cuatro cerrados. Esta **Parte E** es el paso **1.4**, **no implementado**: es especificación previa.
+> **Estructura**: `§A.*` es 1.2, `§B.*` es 1.2b, `§C.*` es 1.3 y `§D.*` es 1.3b, los cuatro cerrados. Esta **Parte E** es el paso **1.4**, implementado (2026-09-01, `feature/REQ-AUTH-002-google-login-fusion-cuentas`).
 >
 > Convenciones de `ADR-029` sin excepción: `TIMESTAMPTZ`, `text` en vez de `varchar(n)`, `bigint` interno más `public_id` ULID **solo donde se expone en API o URL**. Toda tabla de tenant se crea con `TenantMigration::tenantTable()` (`ADR-033 §6`), que aporta `id`, `tenant_id` con `DEFAULT app.current_tenant_id()`, RLS `ENABLE`+`FORCE`, la política estándar, `UNIQUE (tenant_id, id)`, marcas de tiempo, borrado lógico y autoría.
 >
