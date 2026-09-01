@@ -1,6 +1,6 @@
 # PRIVACY.md
 
-> **Versión 0.2.0** · 2026-08-31
+> **Versión 0.2.1** · 2026-09-01
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Base del Registro de Actividades de Tratamiento (RAT) exigido por el RGPD — hoy es un **esqueleto**, no un RAT completo: varias secciones dependen de decisiones que todavía no se han tomado (`OPEN-07`, entidad jurídica y contrato de encargado de tratamiento). No se rellenan con suposiciones (`CLAUDE.md` §0/§11).
 
 ---
@@ -29,6 +29,21 @@ Este documento describe el **marco de diseño ya decidido** para cuando exista t
 | `pge_device` | `REQ-AUTH-005` (1.2b) | Reconocer el navegador de un usuario ya autenticado para avisarle de accesos desde un dispositivo no reconocido (detección de dispositivo nuevo). Opaca, sin dato personal alguno dentro, emitida **solo** tras una autenticación correcta, de solo el titular de la cuenta. | **Cookie técnica de seguridad, exenta de consentimiento** (`funcional.md §B.6.2`, decisión del usuario en `funcional.md §B.14` punto 2, `OPEN-AUTH-14`). No hay perfilado ni cesión a terceros. Vida 365 días (`AUTH_DEVICE_COOKIE_TTL_DAYS`), `httpOnly`, `Secure`, `SameSite=Lax`, *host-only*. |
 | Cookie de sesión (Laravel) | `REQ-AUTH` (1.2) | Mantener autenticado al usuario entre peticiones tras el login (`ADR-025`) — identificador de sesión opaco, sin dato personal dentro; el servidor asocia la sesión al usuario en su propio almacén. | **Cookie técnica estrictamente necesaria, exenta de consentimiento** (`RGPD` art. 6.1.f / excepción de cookies técnicas — no hay finalidad distinta de prestar el servicio solicitado). No hay perfilado ni cesión a terceros. Vida ligada a `SESSION_LIFETIME` (expiración por inactividad configurable), `httpOnly`, `Secure`, `SameSite`, *host-only*. |
 | `XSRF-TOKEN` | `REQ-AUTH` (1.2) | Token anti-CSRF legible por JavaScript, exigido por la SPA en cada petición mutante para probar que la petición se originó en el propio frontend | **Cookie técnica estrictamente necesaria, exenta de consentimiento** — mismo fundamento que la cookie de sesión, es su contrapartida de seguridad, no un tratamiento adicional. No legible entre orígenes distintos (`SameSite`), sin dato personal dentro. |
+
+### 2.2 Datos recibidos de un proveedor de identidad externo (Google, `REQ-AUTH-002`, paso 1.4)
+
+El *callback* de OAuth2 recibe de Google, además del `access_token`/`id_token` de la propia negociación, un conjunto de datos personales de la persona que inicia sesión. Qué entra y qué se descarta, decidido en `ADR-042` y `funcional.md §E.0.2`/`§E.4`:
+
+| Dato que envía Google | ¿Se persiste? | Dónde / por qué |
+|------------------------|----------------|------------------|
+| `sub` (identificador estable del proveedor) | **Sí** | `user_identities.subject`. Es la identidad federada real (nunca el correo, `RN-AUTH-86`); permite correlacionar a la persona fuera de este producto, por eso no sale por ninguna API (`permisos.md §E.5`) |
+| `email` | **Sí, solo en la fusión inicial** | `user_identities.email_at_link`, **enmascarado** en toda salida (`DestinationMasker`). No se usa para reconocer al usuario en accesos posteriores (eso es `sub`) |
+| `email_verified` | **No se persiste el valor**, solo su efecto | Decide si la fusión automática procede (`RN-AUTH-87`); normalizado por lista blanca estricta en un único punto (`ADR-042 §4.4`) para que un `(bool) 'false'` no abra una vía de apropiación de cuenta |
+| `given_name` / `family_name` | **No** | `RN-AUTH-88`: Google **nunca** sobrescribe datos del centro, ni al vincular ni en logins posteriores. El nombre que vale es el de la ficha de la persona en el centro. Partir `family_name` en `family_name_1`/`family_name_2` sin criterio no arbitrario es, además, el motivo por el que ni se intenta (`funcional.md §E.0.2` contradicción 2) |
+| `picture` (URL del avatar) | **No, bajo ningún concepto** | Ni se descarga ni se guarda la URL. Servirla filtraría a Google la IP de quien la mire; guardarla sería tratar un dato personal nuevo sin base legal decidida (`REQ-PRIV-006`, `OPEN-13`) |
+| `access_token` / `refresh_token` | **No** | Se usan en la misma petición servidor-a-servidor para leer los *claims* y se descartan de inmediato (`RN-AUTH-95`). Este producto no llama a ninguna API de Google en nombre de nadie; guardar un *refresh token* sería custodiar una llave a la cuenta personal de una persona, con su propia base legal y su propia superficie de fuga |
+
+**Ningún usuario se crea a partir de este flujo** (`RN-AUTH-99`): sin cuenta local ya existente en el centro, no se trata ningún dato de los de arriba — se descartan en el acto. El aprovisionamiento automático (con su propio mapeo de atributos y su propia decisión sobre `family_name`/foto) queda para `REQ-AUTH-004`/`1.4b`, donde el proveedor de identidad es el directorio del propio centro y sí hay base para tratarlo.
 
 ## 3. Registro de Actividades de Tratamiento (RAT) — plantilla
 
