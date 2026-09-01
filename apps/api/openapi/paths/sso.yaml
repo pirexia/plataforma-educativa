@@ -1,0 +1,480 @@
+# REQ-AUTH-004 (paso 1.4b). SSO institucional: catálogo de proveedores
+# OIDC por tenant, credenciales con rotación, y el callback institucional.
+# Convenciones transversales en docs/adr/ADR-038-convenciones-api-rest.md.
+# Contrato completo en docs/modulos/REQ-AUTH/api.md Parte F.
+#
+# api.md §F.1: nueve endpoints. Ocho de administración con permiso
+# `proveedor_identidad.*` (permisos.md §F.3); el callback se autoriza por
+# posesión de la sesión que arrancó el flujo. Ninguno lleva
+# `module-enabled` (RN-AUTH-35, CA-AUTH-306).
+
+paths:
+  /api/v1/identity-providers:
+    get:
+      operationId: getIdentityProviders
+      summary: Catálogo de proveedores OIDC del centro
+      description: >
+        api.md §F.2. Permiso `proveedor_identidad.leer`. Paginado
+        (ADR-038 §4) aunque en la práctica sean una o dos filas.
+        `secret_status` es un resumen de la credencial vigente —
+        **nunca su valor**, ni enmascarado (RN-AUTH-112, CA-AUTH-266).
+        `discovery_url` no sale aquí, solo en el detalle.
+      tags: [Auth / SSO]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Colección paginada del catálogo del tenant.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/IdentityProviderSummary' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '503':
+          description: Tenant suspendido.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+    post:
+      operationId: createIdentityProvider
+      summary: Da de alta un proveedor OIDC, con validación síncrona del documento de descubrimiento
+      description: >
+        api.md §F.3, funcional.md §F.4.1-§F.4.2. Permiso
+        `proveedor_identidad.crear`. Descarga y valida el documento de
+        descubrimiento de forma **síncrona**, con las cinco guardas
+        contra SSRF de `funcional.md §F.4.2` (revalidadas en cada
+        redirección, RN-AUTH-113). Si falla, **no se crea nada**.
+        `is_enabled` no se acepta en el alta: un proveedor nace siempre
+        no activo (funcional.md §F.4.1) — activarlo es un `PATCH`
+        posterior, tras cargar la credencial. Límite de tasa por tenant
+        (`sso_discovery_tenant`, operacion.md §F.6): la validación hace
+        una petición saliente.
+      tags: [Auth / SSO]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [display_name, discovery_url, client_id]
+              properties:
+                display_name: { type: string, description: "Nombre visible del proveedor, texto del centro sin traducir." }
+                discovery_url: { type: string, format: uri }
+                client_id: { type: string }
+                email_claim: { type: string, enum: [email, preferred_username, upn], description: "Por defecto email." }
+                claims_source: { type: string, enum: [id_token, userinfo], description: "Por defecto id_token (funcional.md §F.3.2)." }
+                scopes: { type: array, items: { type: string }, description: "Por defecto [openid, email, profile]. Debe contener openid." }
+                allowed_email_domains: { type: array, items: { type: string }, description: "Por defecto []: sin restricción (RN-AUTH-107)." }
+                provisioning_mode: { type: string, enum: [desactivado, emparejamiento], description: "Por defecto desactivado." }
+      responses:
+        '201':
+          description: Proveedor creado, no activo.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdentityProviderDetail' }
+        '422':
+          description: >
+            Validación de forma; o del documento de descubrimiento, con
+            `errors.discovery_url[0].code` de la lista cerrada de
+            `#/components/schemas/DiscoveryFailureCode`.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '409':
+          description: El issuer que declara el documento ya está catalogado vivo en este centro.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '419':
+          description: Token CSRF ausente o inválido.
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+        '503':
+          description: Tenant suspendido.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/identity-providers/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getIdentityProvider
+      summary: Detalle de un proveedor, incluida la integración que el administrador tiene que registrar en su IdP
+      description: >
+        api.md §F.2. Permiso `proveedor_identidad.leer`. Añade sobre la
+        colección los tres endpoints descubiertos, `discovery_url`, la
+        lista de credenciales (sin valores) y el bloque `integration`
+        —`redirect_uri`, scopes y claims esperados— que ADR-043 §5.2
+        obliga a publicar. `redirect_uri` se construye con el slug del
+        tenant ya resuelto, nunca con la cabecera Host (RN-AUTH-92,
+        CA-AUTH-273): tiene que coincidir carácter a carácter con la que
+        usará el flujo real.
+      tags: [Auth / SSO]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdentityProviderDetail' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404':
+          description: Inexistente o de otro tenant — cuerpo idéntico (RN-AUTH-101, ADR-038 §6.4, CA-AUTH-265).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '503':
+          description: Tenant suspendido.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+    patch:
+      operationId: updateIdentityProvider
+      summary: Modifica un proveedor; si cambia discovery_url, se revalida entero
+      description: >
+        api.md §F.3. Permiso `proveedor_identidad.actualizar`. Si viene
+        `discovery_url`, se revalida con las cinco guardas; si falla, no
+        se cambia nada, ni siquiera los campos que sí eran válidos.
+        `is_enabled: true` exige credencial vigente (409 si no la hay):
+        activar un proveedor sin credencial pintaría un botón que solo
+        lleva a `error_proveedor` para todo el centro.
+      tags: [Auth / SSO]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                display_name: { type: string }
+                discovery_url: { type: string, format: uri }
+                client_id: { type: string }
+                email_claim: { type: string, enum: [email, preferred_username, upn] }
+                claims_source: { type: string, enum: [id_token, userinfo] }
+                scopes: { type: array, items: { type: string } }
+                allowed_email_domains: { type: array, items: { type: string } }
+                provisioning_mode: { type: string, enum: [desactivado, emparejamiento] }
+                is_enabled: { type: boolean }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdentityProviderDetail' }
+        '422':
+          description: Validación de forma, o del documento de descubrimiento si cambió discovery_url.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '409':
+          description: Emisor ya catalogado, o is_enabled=true sin credencial vigente.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '419':
+          description: Token CSRF ausente o inválido.
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+        '503':
+          description: Tenant suspendido.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+    delete:
+      operationId: deleteIdentityProvider
+      summary: Retira un proveedor (borrado lógico)
+      description: >
+        api.md §F.3. Permiso `proveedor_identidad.eliminar`. Borrado
+        lógico (INV-004): deja de pintarse y de arrancar el flujo. Los
+        vínculos existentes **no se borran ni se desconectan**
+        (datos.md §F.4.2, CA-AUTH-304) — siguen viéndose y pudiendo
+        retirarse desde el perfil de cada titular. Sin `409` por «tiene
+        vínculos vivos»: un centro que deja de usar un IdP tiene que
+        poder retirarlo sin pedir a todo el mundo que se desvincule antes.
+      tags: [Auth / SSO]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204':
+          description: Proveedor borrado lógicamente.
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '419':
+          description: Token CSRF ausente o inválido.
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+        '503':
+          description: Tenant suspendido.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/identity-providers/{publicId}/secrets:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: createIdentityProviderSecret
+      summary: Carga una credencial de cliente nueva (ventana de rotación)
+      description: >
+        api.md §F.4, funcional.md §F.3.5. Permiso
+        `proveedor_identidad.actualizar` — sin permiso propio
+        (permisos.md §F.4). Cargar una credencial nueva **no retira la
+        anterior**: las dos quedan activas y se usa la de `activated_at`
+        más reciente (CA-AUTH-267). **La respuesta nunca devuelve el
+        secreto**, ni siquiera en este 201 que lo acaba de recibir
+        (RN-AUTH-112). Límite de tasa por tenant (`sso_secret_tenant`).
+      tags: [Auth / SSO]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [client_secret]
+              properties:
+                client_secret: { type: string }
+                expires_at: { type: string, format: date-time, description: "Opcional pero recomendado: dispara el aviso de caducidad a 30 días (operacion.md §F.4)." }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdentityProviderSecret' }
+        '422':
+          description: Falta el secreto, o expires_at en el pasado.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '419':
+          description: Token CSRF ausente o inválido.
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+        '503':
+          description: Tenant suspendido.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/identity-providers/{publicId}/secrets/{secretPublicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+      - name: secretPublicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    delete:
+      operationId: deleteIdentityProviderSecret
+      summary: Retira una credencial
+      description: >
+        api.md §F.4. Permiso `proveedor_identidad.actualizar`. Estampa
+        `retired_at` — no es un borrado lógico de la fila: se conserva
+        como traza de qué credencial estuvo vigente en qué ventana
+        (datos.md §F.10). `409` si es la última vigente de un proveedor
+        **activo** (dejaría el proveedor pintado y roto); la salida es
+        desactivar el proveedor primero. Retirarla aquí no la revoca en
+        el IdP del centro: hay que hacer las dos cosas.
+      tags: [Auth / SSO]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204':
+          description: Credencial retirada.
+        '409':
+          description: Es la última credencial vigente de un proveedor activo.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404':
+          description: Inexistente, ya retirada, de otro proveedor o de otro tenant — cuerpo idéntico.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '419':
+          description: Token CSRF ausente o inválido.
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+        '503':
+          description: Tenant suspendido.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/identity-providers/{publicId}/discovery-refreshes:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: createIdentityProviderDiscoveryRefresh
+      summary: Fuerza la revalidación del documento de descubrimiento
+      description: >
+        api.md §F.5. Permiso `proveedor_identidad.actualizar`. Síncrono,
+        no encolado (INV-012 no lo exige: petición corta con tope de
+        tamaño). Si falla, **se conservan los endpoints anteriores** y se
+        estampa `discovery_failed_at`: un emisor momentáneamente
+        inalcanzable no debe dejar a un centro sin SSO. Límite de tasa
+        compartido con el alta (`sso_discovery_tenant`).
+      tags: [Auth / SSO]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Proveedor con los endpoints ya actualizados.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdentityProviderDetail' }
+        '422':
+          description: El documento no pasa alguna de las cinco guardas; código en errors.discovery_url[0].code.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '419':
+          description: Token CSRF ausente o inválido.
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+        '503':
+          description: Tenant suspendido.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/auth/oauth/oidc/callback:
+    get:
+      operationId: getOAuthOidcCallback
+      summary: Callback OIDC institucional — una sola ruta para todos los proveedores catalogados del tenant
+      description: >
+        api.md §F.7, funcional.md §F.3.1, §F.4.3. **Segunda excepción del
+        módulo a ADR-038** (la primera es el callback de Google): nunca
+        responde problem+json, siempre 302 con un código de resultado de
+        una lista cerrada (RN-AUTH-93). El proveedor se resuelve
+        **siempre desde el payload de la sesión** que arrancó el flujo,
+        jamás desde esta URL, la consulta o una cabecera (RN-AUTH-103,
+        CA-AUTH-278) — por eso la ruta no lleva ningún identificador de
+        proveedor. Autorizado por posesión de la sesión (el `state`,
+        comparado en tiempo constante, de un solo uso); sin CSRF, porque
+        es una navegación de primer nivel que llega desde un tercero.
+      tags: [Auth / SSO]
+      security: []
+      parameters:
+        - name: code
+          in: query
+          schema: { type: string }
+          description: Puesto por el IdP. Ausente si canceló o si hay error.
+        - name: state
+          in: query
+          schema: { type: string }
+        - name: error
+          in: query
+          schema: { type: string }
+      responses:
+        '302':
+          description: >
+            Siempre. Sin `resultado`: login completado. Con `resultado`,
+            uno de segundo_factor, alta_mfa_requerida, vinculado,
+            sin_cuenta, dominio_no_permitido, proveedor_no_disponible,
+            cuenta_bloqueada, acceso_denegado, ya_vinculado,
+            proveedor_ya_vinculado, cancelado, estado_no_valido o
+            error_proveedor (api.md §F.7.1) — nunca datos, tokens, el
+            `code`, el `state`, un correo ni un `public_id` (RN-AUTH-93,
+            CA-AUTH-281).
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+
+components:
+  schemas:
+    IdentityProviderSecretStatus:
+      type: object
+      properties:
+        has_active: { type: boolean }
+        active_expires_at: { type: string, format: date-time, nullable: true }
+        expiring_soon: { type: boolean, description: "A menos de AUTH_SSO_SECRET_EXPIRY_WARNING_DAYS (30 por defecto)." }
+
+    IdentityProviderSummary:
+      type: object
+      properties:
+        public_id: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        display_name: { type: string }
+        issuer: { type: string }
+        client_id: { type: string }
+        is_enabled: { type: boolean }
+        provisioning_mode: { type: string, enum: [desactivado, emparejamiento] }
+        claims_source: { type: string, enum: [id_token, userinfo] }
+        email_claim: { type: string, enum: [email, preferred_username, upn] }
+        scopes: { type: array, items: { type: string } }
+        allowed_email_domains: { type: array, items: { type: string } }
+        discovery_fetched_at: { type: string, format: date-time }
+        discovery_failed_at: { type: string, format: date-time, nullable: true }
+        secret_status: { $ref: '#/components/schemas/IdentityProviderSecretStatus' }
+
+    IdentityProviderDetail:
+      allOf:
+        - $ref: '#/components/schemas/IdentityProviderSummary'
+        - type: object
+          properties:
+            discovery_url: { type: string, format: uri }
+            authorization_endpoint: { type: string, format: uri }
+            token_endpoint: { type: string, format: uri }
+            userinfo_endpoint: { type: string, format: uri, nullable: true }
+            integration:
+              type: object
+              description: ADR-043 §5.2 — lo que el administrador tiene que registrar en su IdP.
+              properties:
+                redirect_uri: { type: string, format: uri }
+                scopes: { type: array, items: { type: string } }
+                subject_claim: { type: string, enum: [sub] }
+                email_claim: { type: string, enum: [email, preferred_username, upn] }
+            secrets:
+              type: array
+              items: { $ref: '#/components/schemas/IdentityProviderSecret' }
+
+    IdentityProviderSecret:
+      type: object
+      description: Nunca incluye el valor de la credencial (RN-AUTH-112).
+      properties:
+        public_id: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        activated_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time, nullable: true }
+        retired_at: { type: string, format: date-time, nullable: true }
+
+    DiscoveryFailureCode:
+      type: string
+      description: funcional.md §F.4.2. Lista cerrada, sin el detalle del destino (RN-AUTH-113).
+      enum:
+        - esquema_no_admitido
+        - destino_no_publico
+        - demasiadas_redirecciones
+        - sin_respuesta
+        - respuesta_demasiado_grande
+        - documento_no_valido
+        - emisor_no_coincide
+        - endpoint_no_seguro
+        - flujo_no_admitido

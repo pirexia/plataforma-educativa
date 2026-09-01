@@ -15,26 +15,29 @@ paths:
       operationId: getAuthIdentityProviders
       summary: Proveedores de identidad externos admitidos por este centro
       description: >
-        api.md §E.2. Anónimo, tenant por host. Lo pide la pantalla de
-        login antes de decidir si pinta el botón (RN-AUTH-98) — nunca se
-        pinta por una constante del cliente. `data: []` con
-        AUTH_OAUTH_DRIVER=none (el valor por defecto, operacion.md §E.1)
-        no es un error: es el estado de cualquier despliegue recién
-        hecho o que no quiera Google. Es el único de los cinco endpoints
-        que responde 200 en ese estado — si respondiera 422 como el resto
-        del flujo, la SPA no podría distinguir "no hay proveedor" de
-        "algo va mal" (CA-AUTH-200). Solo lleva `provider`: no hay
-        `label_key` (retirado en el cierre de 1.4, hallazgo de
-        doc-reviewer) — el texto del botón lo decide la SPA por `intent`
-        (login/link), no por proveedor, y `ADR-042 §4.3` fija
-        `IdentityProvider` como interfaz de un solo proveedor a
-        propósito, así que un campo pensado para un catálogo
-        multiproveedor de 1.4b no tenía ningún consumidor real.
+        api.md §E.2, ampliado por api.md §F.6 (1.4b). Anónimo, tenant por
+        host. Lo pide la pantalla de login antes de decidir qué botones
+        pintar (RN-AUTH-98) — nunca se pintan por una constante del
+        cliente. `data: []` con AUTH_OAUTH_DRIVER=none y catálogo vacío
+        (el estado de todos los tenants el día del despliegue,
+        operacion.md §F.1) no es un error. **La colección deja de ser
+        «cero o uno» (1.4) y pasa a ser N** (1.4b): el driver global de
+        Google, si lo hay, más los proveedores catalogados y activos del
+        tenant. `id` es un identificador **opaco** que la SPA copia tal
+        cual en `POST /auth/oauth-authorizations` sin interpretarlo —
+        `"google"` para el driver global, o el `public_id` de un
+        proveedor catalogado. `display_name_key` solo aparece en la
+        entrada de Google (su etiqueta la resuelve la SPA con su propio
+        catálogo de 4 idiomas); `display_name` solo en las catalogadas
+        (texto del centro, sin traducir — funcional.md §F.9). No sale
+        `issuer`, `client_id` ni los dominios admitidos: es un endpoint
+        anónimo y publicarlos sería publicar el mapa de integración del
+        centro (datos.md §F.10).
       tags: [Auth / OAuth]
       security: []
       responses:
         '200':
-          description: Colección de proveedores disponibles (como mucho uno hoy).
+          description: Colección de proveedores disponibles.
           content:
             application/json:
               schema:
@@ -45,7 +48,9 @@ paths:
                     items:
                       type: object
                       properties:
-                        provider: { type: string, enum: [google] }
+                        id: { type: string, description: "Identificador opaco: \"google\" o el public_id de un proveedor catalogado." }
+                        display_name_key: { type: string, description: "Solo en la entrada de Google." }
+                        display_name: { type: string, description: "Solo en proveedores catalogados: texto del centro, sin traducir." }
                   meta:
                     type: object
                     properties:
@@ -58,16 +63,22 @@ paths:
       operationId: createOAuthAuthorization
       summary: Arranca el flujo OAuth2 con PKCE — login o vinculación
       description: >
-        api.md §E.3, funcional.md §E.4.1. Anónimo con intent=login; por
-        identidad del portador con intent=link (sesión completa, no
-        restringida por el muro de 1.3 — no está en su lista blanca).
-        Devuelve la URL de autorización, nunca redirige: la escritura
-        queda bajo CSRF (RN-AUTH-29) y el servidor no expone ningún
-        endpoint que reciba una URL y mande el navegador allí. La
-        `redirect_uri` interna se construye con el slug del tenant ya
-        resuelto y el dominio base configurado, nunca con la cabecera
-        Host (RN-AUTH-92, CA-AUTH-203). Sin `public_id`: la única
-        credencial del flujo es la cookie de sesión.
+        api.md §E.3, funcional.md §E.4.1, ampliado por funcional.md §F.4.3
+        (1.4b). Anónimo con intent=login; por identidad del portador con
+        intent=link (sesión completa, no restringida por el muro de 1.3 —
+        no está en su lista blanca). Devuelve la URL de autorización,
+        nunca redirige: la escritura queda bajo CSRF (RN-AUTH-29) y el
+        servidor no expone ningún endpoint que reciba una URL y mande el
+        navegador allí. La `redirect_uri` interna se construye con el
+        slug del tenant ya resuelto y el dominio base configurado, nunca
+        con la cabecera Host (RN-AUTH-92, CA-AUTH-203). `provider` acepta
+        ahora también el `public_id` de un proveedor catalogado (1.4b):
+        desconocido, borrado, no activo o sin credencial vigente ⇒ el
+        mismo 422 en los cuatro casos, sin distinguirlos (RN-AUTH-101,
+        RN-AUTH-102) — este endpoint es anónimo y distinguirlos sería un
+        comprobador de qué centros tienen SSO. Sin `public_id` propio en
+        la petición: la única credencial del flujo es la cookie de
+        sesión.
       tags: [Auth / OAuth]
       security: [{ SessionCookie: [] }]
       requestBody:
@@ -78,7 +89,9 @@ paths:
               type: object
               required: [provider, intent]
               properties:
-                provider: { type: string, enum: [google] }
+                provider:
+                  type: string
+                  description: "Identificador opaco: \"google\", o el public_id de un proveedor catalogado (1.4b)."
                 intent: { type: string, enum: [login, link] }
       responses:
         '201':
@@ -93,7 +106,8 @@ paths:
         '422':
           description: >
             AUTH_OAUTH_DRIVER=none (estado por defecto, ningún proveedor
-            configurado); provider desconocido; intent inválido; o
+            global configurado); provider desconocido, borrado, no
+            activo o sin credencial vigente; intent inválido; o
             intent=link sin sesión.
           content:
             application/problem+json:
@@ -185,11 +199,14 @@ paths:
                       type: object
                       properties:
                         public_id: { $ref: '../components.yaml#/components/schemas/PublicId' }
-                        provider: { type: string, enum: [google] }
+                        provider: { type: string, enum: [google, oidc], description: "oidc desde 1.4b (api.md §F.6)." }
+                        provider_display_name:
+                          type: string
+                          description: Solo cuando hay proveedor catalogado detrás (1.4b, CA-AUTH-303). Nunca el subject.
                         email_at_link:
                           type: string
                           description: Enmascarado con el mismo DestinationMasker de 1.3b (§D.4.5). Informativo, nunca se usa para resolver nada.
-                        link_method: { type: string, enum: [fusion_automatica, perfil] }
+                        link_method: { type: string, enum: [fusion_automatica, perfil, emparejamiento_sso], description: "emparejamiento_sso desde 1.4b." }
                         linked_at: { type: string, format: date-time }
                         last_login_at: { type: string, format: date-time, nullable: true }
                   meta:
