@@ -45,10 +45,20 @@ const t = useT()
 const route = useRoute()
 const router = useRouter()
 
+// El modo se decide por el NOMBRE de la ruta, no por el valor de
+// `params.publicId`: la ruta estática `/administracion/sso/nuevo`
+// (`sso-administration-new`) no tiene segmento `:publicId` en absoluto
+// — `route.params.publicId` es `undefined` ahí, nunca la cadena
+// "nuevo" — así que inferirlo desde el parámetro llevaba a tratar el
+// alta como una edición de un recurso inexistente (hallazgo propio,
+// verificado en navegador real: quedaba en "Cargando…" para siempre).
 const publicId = computed(() => {
+  if (route.name === 'sso-administration-new') {
+    return null
+  }
+
   const raw = route.params.publicId
-  const value = typeof raw === 'string' ? raw : ''
-  return value === 'nuevo' ? null : value
+  return typeof raw === 'string' ? raw : ''
 })
 
 const provider = ref<IdentityProviderDetail | null>(null)
@@ -258,8 +268,8 @@ async function copy(field: string, value: string) {
   }
 }
 
-function formatDate(value: string | null): string {
-  return value ? new Date(value).toLocaleString() : t('auth.ssoAdmin.secrets.noExpiry')
+function formatDate(value: string | null): string | null {
+  return value ? new Date(value).toLocaleString() : null
 }
 </script>
 
@@ -466,9 +476,11 @@ function formatDate(value: string | null): string {
                 {{
                   secret.retired_at
                     ? t('auth.ssoAdmin.secrets.retired', { date: formatDate(secret.retired_at) })
-                    : t('auth.ssoAdmin.secrets.expiresAtLabel', {
-                        date: formatDate(secret.expires_at),
-                      })
+                    : secret.expires_at
+                      ? t('auth.ssoAdmin.secrets.expiresAtLabel', {
+                          date: formatDate(secret.expires_at),
+                        })
+                      : t('auth.ssoAdmin.secrets.noExpiry')
                 }}
               </div>
             </div>
