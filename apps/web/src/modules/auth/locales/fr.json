@@ -238,6 +238,14 @@
       "dominioNoPermitido": "Cet établissement n'accepte que les comptes de son propre domaine de messagerie. Si vous pensez qu'il s'agit d'une erreur, contactez votre établissement.",
       "proveedorNoDisponible": "Ce fournisseur de connexion n'est pas disponible pour le moment. Réessayez plus tard ou connectez-vous avec votre mot de passe."
     },
+    "ssoCallback": {
+      "sinCuenta": "Si vous avez un compte dans cet établissement avec cette adresse e-mail, connectez-vous avec votre mot de passe et associez votre compte externe depuis votre profil de sécurité.",
+      "yaVinculado": "Vous avez déjà un compte externe associé. Dissociez-le d'abord depuis votre profil de sécurité si vous voulez en associer un autre.",
+      "proveedorYaVinculado": "Ce compte est déjà associé à une autre personne de cet établissement.",
+      "cancelado": "Vous avez annulé la connexion.",
+      "estadoNoValido": "Nous n'avons pas pu terminer la connexion. Veuillez réessayer.",
+      "errorProveedor": "Nous n'avons pas pu joindre le fournisseur de connexion. Réessayez plus tard ou connectez-vous avec votre mot de passe."
+    },
     "mfaAdmin": {
       "title": "Administration du MFA",
       "loadingRoles": "Chargement des rôles…",

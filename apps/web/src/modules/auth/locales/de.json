@@ -238,6 +238,14 @@
       "dominioNoPermitido": "Diese Schule akzeptiert nur Konten der eigenen E-Mail-Domain. Wenn du glaubst, dass dies ein Fehler ist, wende dich an deine Schule.",
       "proveedorNoDisponible": "Dieser Anmeldeanbieter ist gerade nicht verfügbar. Versuche es später erneut oder melde dich mit deinem Passwort an."
     },
+    "ssoCallback": {
+      "sinCuenta": "Falls du mit dieser E-Mail-Adresse ein Konto an diesem Schulzentrum hast, melde dich mit deinem Passwort an und verknüpfe dein externes Konto über dein Sicherheitsprofil.",
+      "yaVinculado": "Du hast bereits ein externes Konto verknüpft. Hebe die Verknüpfung zuerst in deinem Sicherheitsprofil auf, wenn du ein anderes verknüpfen möchtest.",
+      "proveedorYaVinculado": "Dieses Konto ist bereits mit einer anderen Person an diesem Schulzentrum verknüpft.",
+      "cancelado": "Du hast die Anmeldung abgebrochen.",
+      "estadoNoValido": "Die Anmeldung konnte nicht abgeschlossen werden. Bitte versuche es erneut.",
+      "errorProveedor": "Der Anmeldeanbieter konnte nicht erreicht werden. Versuche es später erneut oder melde dich mit deinem Passwort an."
+    },
     "mfaAdmin": {
       "title": "MFA-Verwaltung",
       "loadingRoles": "Rollen werden geladen…",

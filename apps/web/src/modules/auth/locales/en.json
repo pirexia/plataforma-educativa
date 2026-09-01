@@ -238,6 +238,14 @@
       "dominioNoPermitido": "This school only accepts accounts from its own email domain. If you think this is a mistake, contact your school.",
       "proveedorNoDisponible": "This sign-in provider is not available right now. Try again later or sign in with your password."
     },
+    "ssoCallback": {
+      "sinCuenta": "If you have an account at this school with this email address, sign in with your password and link your external account from your security profile.",
+      "yaVinculado": "You already have an external account linked. Unlink it first from your security profile if you want to link a different one.",
+      "proveedorYaVinculado": "That account is already linked to someone else at this school.",
+      "cancelado": "You cancelled signing in.",
+      "estadoNoValido": "We couldn't complete signing in. Please try again.",
+      "errorProveedor": "We couldn't reach the sign-in provider. Try again later or sign in with your password."
+    },
     "mfaAdmin": {
       "title": "MFA administration",
       "loadingRoles": "Loading roles…",

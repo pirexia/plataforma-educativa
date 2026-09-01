@@ -3,9 +3,16 @@
  * `/entrar/sso` (REQ-AUTH-004, 1.4b, funcional.md §F.9, api.md §F.7).
  * Paralela de `/entrar/google`: destino del `302` del *callback*
  * institucional cuando no hay redirección directa a la raíz. Mismos
- * códigos que `GoogleCallbackResultView.vue` (herencia literal,
+ * *códigos* que `GoogleCallbackResultView.vue` (herencia literal,
  * `api.md §F.7.1`) más dos propios de 1.4b: `dominio_no_permitido` y
  * `proveedor_no_disponible`.
+ *
+ * El *texto* de los seis códigos compartidos con Google (`sin_cuenta`,
+ * `ya_vinculado`, `proveedor_ya_vinculado`, `cancelado`,
+ * `estado_no_valido`, `error_proveedor`) **no** se hereda de
+ * `auth.oauthCallback`: esas claves mencionan "Google" literalmente, y
+ * aquí el usuario entró por el proveedor de su centro. Usa el juego
+ * neutro `auth.ssoCallback` (issue #148).
  */
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -62,7 +69,7 @@ function onChallengeLost(message: string) {
 const staticMessage = computed<string | null>(() => {
   switch (outcome.value as StaticOutcome | null) {
     case 'sin_cuenta':
-      return t('auth.oauthCallback.sinCuenta')
+      return t('auth.ssoCallback.sinCuenta')
     case 'dominio_no_permitido':
       return t('auth.oauthCallback.dominioNoPermitido')
     case 'proveedor_no_disponible':
@@ -72,15 +79,15 @@ const staticMessage = computed<string | null>(() => {
     case 'acceso_denegado':
       return t('auth.login.invalidCredentials')
     case 'ya_vinculado':
-      return t('auth.oauthCallback.yaVinculado')
+      return t('auth.ssoCallback.yaVinculado')
     case 'proveedor_ya_vinculado':
-      return t('auth.oauthCallback.proveedorYaVinculado')
+      return t('auth.ssoCallback.proveedorYaVinculado')
     case 'cancelado':
-      return t('auth.oauthCallback.cancelado')
+      return t('auth.ssoCallback.cancelado')
     case 'estado_no_valido':
-      return t('auth.oauthCallback.estadoNoValido')
+      return t('auth.ssoCallback.estadoNoValido')
     case 'error_proveedor':
-      return t('auth.oauthCallback.errorProveedor')
+      return t('auth.ssoCallback.errorProveedor')
     default:
       return null
   }

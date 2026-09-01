@@ -139,3 +139,56 @@ describe('i18n de 1.4b (CA-AUTH-309): los tres textos propios de SsoCallbackResu
     },
   )
 })
+
+// Issue #148: los seis códigos que SsoCallbackResultView.vue comparte con
+// GoogleCallbackResultView.vue no comparten claves de texto — auth.oauthCallback
+// menciona "Google" literalmente. auth.ssoCallback es el juego neutro propio.
+const SSO_NEUTRAL_PATH = ['auth', 'ssoCallback']
+const referenceSsoCallback = flatten(subtree(es, SSO_NEUTRAL_PATH))
+
+describe('i18n de 1.4b (issue #148): auth.ssoCallback existe completo, traducido, en los cuatro idiomas', () => {
+  it.each(['en', 'de', 'fr'])(
+    '%s tiene exactamente las mismas claves que es para auth.ssoCallback',
+    (locale) => {
+      const candidate = flatten(subtree(locales[locale]!, SSO_NEUTRAL_PATH))
+
+      const missing = [...referenceSsoCallback.keys()].filter((key) => !candidate.has(key))
+      const extra = [...candidate.keys()].filter((key) => !referenceSsoCallback.has(key))
+
+      expect(missing, `claves ausentes en ${locale}.json`).toEqual([])
+      expect(extra, `claves sobrantes en ${locale}.json`).toEqual([])
+    },
+  )
+
+  it.each(['en', 'de', 'fr'])(
+    '%s no tiene ningún valor vacío ni idéntico al español en auth.ssoCallback',
+    (locale) => {
+      const candidate = flatten(subtree(locales[locale]!, SSO_NEUTRAL_PATH))
+
+      for (const [key, esValue] of referenceSsoCallback) {
+        const value = candidate.get(key)
+        expect(typeof value, `auth.ssoCallback.${key} ausente en ${locale}.json`).toBe('string')
+        expect(
+          (value as string).trim().length,
+          `auth.ssoCallback.${key} vacío en ${locale}.json`,
+        ).toBeGreaterThan(0)
+        expect(value, `auth.ssoCallback.${key} no traducido en ${locale}.json`).not.toBe(esValue)
+      }
+    },
+  )
+
+  it('ninguna clave de auth.ssoCallback menciona "Google" en ningún idioma (motivo del issue #148)', () => {
+    for (const [locale, root] of Object.entries(locales)) {
+      const candidate = flatten(subtree(root, SSO_NEUTRAL_PATH))
+
+      for (const [key, value] of candidate) {
+        if (typeof value === 'string') {
+          expect(
+            value.toLowerCase(),
+            `auth.ssoCallback.${key} menciona Google en ${locale}.json`,
+          ).not.toContain('google')
+        }
+      }
+    }
+  })
+})

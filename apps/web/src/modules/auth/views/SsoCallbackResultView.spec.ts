@@ -146,57 +146,56 @@ describe('SsoCallbackResultView', () => {
   })
 
   // Los seis casos siguientes (`sin_cuenta`, `cancelado`, `estado_no_valido`,
-  // `error_proveedor`, `ya_vinculado`, `proveedor_ya_vinculado`) reutilizan
-  // literalmente las claves de `GoogleCallbackResultView.vue`
-  // ("herencia literal", api.md §F.7.1) — pero el TEXTO de esas claves
-  // menciona "Google" explícitamente (`auth.oauthCallback.sinCuenta`,
-  // `.cancelado`, `.estadoNoValido`, `.errorProveedor`, `.yaVinculado`,
-  // `.proveedorYaVinculado`), y esta pantalla es la institucional: un
-  // usuario que entra por su IdP del centro vería un mensaje que le
-  // habla de una cuenta de Google que nunca tocó. Hallazgo reportado al
-  // cierre de este issue (no es un fallo de este componente sino de las
-  // claves de traducción compartidas) — estos tests verifican solo lo
-  // que SÍ es correcto hoy (navegación, ausencia de datos personales),
-  // deliberadamente sin fijar como "correcto" un texto de marca
-  // equivocado.
-  it('resultado=sin_cuenta: pinta un mensaje y ofrece volver a /entrar (RN-AUTH-93)', async () => {
+  // `error_proveedor`, `ya_vinculado`, `proveedor_ya_vinculado`) comparten
+  // *código* con `GoogleCallbackResultView.vue` ("herencia literal",
+  // api.md §F.7.1), pero desde el issue #148 ya NO comparten *texto*: usan
+  // el juego neutro `auth.ssoCallback`, que no menciona ningún proveedor
+  // por nombre. Cada test fija explícitamente la ausencia de "Google" para
+  // que una regresión futura (volver a apuntar a `auth.oauthCallback`) la
+  // detecte de inmediato.
+  it('resultado=sin_cuenta: pinta un mensaje sin mencionar Google y ofrece volver a /entrar (RN-AUTH-93)', async () => {
     const { wrapper, router } = await mountAt('/entrar/sso?resultado=sin_cuenta')
 
     expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('Google')
     const link = wrapper.get('a')
     await link.trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('login')
   })
 
-  it('resultado=ya_vinculado: ofrece volver a /cuenta/seguridad, no a /entrar', async () => {
+  it('resultado=ya_vinculado: ofrece volver a /cuenta/seguridad, no a /entrar, sin mencionar Google', async () => {
     const { wrapper } = await mountAt('/entrar/sso?resultado=ya_vinculado')
 
     expect(wrapper.text()).toContain('Volver a mi cuenta')
     expect(wrapper.text()).not.toContain('Volver a iniciar sesión')
+    expect(wrapper.text()).not.toContain('Google')
   })
 
-  it('CA-AUTH-278/api.md §F.7.1: resultado=proveedor_ya_vinculado no nombra al otro usuario del centro', async () => {
+  it('CA-AUTH-278/api.md §F.7.1: resultado=proveedor_ya_vinculado no nombra al otro usuario del centro ni menciona Google', async () => {
     const { wrapper } = await mountAt('/entrar/sso?resultado=proveedor_ya_vinculado')
 
     expect(wrapper.find('[role="alert"]').exists()).toBe(true)
     // RN-AUTH-93: ningún dato personal en la respuesta del callback ni,
     // por tanto, en lo que esta pantalla puede llegar a mostrar.
     expect(wrapper.text()).not.toMatch(/@/)
+    expect(wrapper.text()).not.toContain('Google')
   })
 
-  it('CA-AUTH-275: resultado=estado_no_valido pinta un mensaje de alerta accionable, no una pantalla en blanco', async () => {
+  it('CA-AUTH-275: resultado=estado_no_valido pinta un mensaje de alerta accionable sin mencionar Google, no una pantalla en blanco', async () => {
     const { wrapper } = await mountAt('/entrar/sso?resultado=estado_no_valido')
 
     expect(wrapper.find('[role="alert"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Volver a iniciar sesión')
+    expect(wrapper.text()).not.toContain('Google')
   })
 
-  it('CA-AUTH-276/277: resultado=error_proveedor pinta un mensaje de alerta accionable, no una pantalla en blanco', async () => {
+  it('CA-AUTH-276/277: resultado=error_proveedor pinta un mensaje de alerta accionable sin mencionar Google, no una pantalla en blanco', async () => {
     const { wrapper } = await mountAt('/entrar/sso?resultado=error_proveedor')
 
     expect(wrapper.find('[role="alert"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Volver a iniciar sesión')
+    expect(wrapper.text()).not.toContain('Google')
   })
 
   it('sin ningún código de resultado reconocido, cae al mensaje genérico de error en vez de dejar la pantalla en blanco', async () => {

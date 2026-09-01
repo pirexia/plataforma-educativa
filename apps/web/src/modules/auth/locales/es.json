@@ -238,6 +238,14 @@
       "dominioNoPermitido": "Este centro solo admite cuentas de su propio dominio de correo. Si crees que es un error, contacta con tu centro.",
       "proveedorNoDisponible": "Este proveedor de acceso no está disponible ahora mismo. Inténtalo más tarde o entra con tu contraseña."
     },
+    "ssoCallback": {
+      "sinCuenta": "Si tienes una cuenta en este centro con esta dirección de correo, entra con tu contraseña y vincula tu cuenta externa desde tu perfil de seguridad.",
+      "yaVinculado": "Ya tienes una cuenta externa vinculada. Desvincúlala primero desde tu perfil de seguridad si quieres vincular otra distinta.",
+      "proveedorYaVinculado": "Esa cuenta ya está vinculada a otra persona de este centro.",
+      "cancelado": "Has cancelado el inicio de sesión.",
+      "estadoNoValido": "No hemos podido completar el inicio de sesión. Vuelve a intentarlo.",
+      "errorProveedor": "No hemos podido conectar con el proveedor de acceso. Inténtalo más tarde o entra con tu contraseña."
+    },
     "mfaAdmin": {
       "title": "Administración de MFA",
       "loadingRoles": "Cargando roles…",
