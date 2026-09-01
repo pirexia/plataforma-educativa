@@ -175,6 +175,7 @@
       }
     },
     "mfaChallenge": {
+      "loading": "Retrieving your pending verification…",
       "title": "Verify your identity",
       "intro": "Enter the code from your authenticator app to finish signing in.",
       "introDelivery": "We've sent a code to {destination}.",

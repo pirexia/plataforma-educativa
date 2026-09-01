@@ -175,6 +175,7 @@
       }
     },
     "mfaChallenge": {
+      "loading": "Deine ausstehende Verifizierung wird abgerufen…",
       "title": "Bestätige deine Identität",
       "intro": "Gib den Code aus deiner Authenticator-App ein, um die Anmeldung abzuschließen.",
       "introDelivery": "Wir haben einen Code an {destination} gesendet.",

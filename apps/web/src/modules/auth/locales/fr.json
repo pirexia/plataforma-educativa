@@ -175,6 +175,7 @@
       }
     },
     "mfaChallenge": {
+      "loading": "Récupération de votre vérification en cours…",
       "title": "Vérifiez votre identité",
       "intro": "Saisissez le code de votre application d'authentification pour terminer la connexion.",
       "introDelivery": "Nous avons envoyé un code à {destination}.",
