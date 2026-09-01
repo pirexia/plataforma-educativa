@@ -3192,7 +3192,7 @@ Las cuatro decisiones están incorporadas al alcance (`§E.1`), a la sección es
 | Prioridad | MUST |
 | Fase | 1 · Bloque A · **paso 1.4b** |
 | Depende de | 1.1 (`REQ-CORE`: `people`, `users`, invitaciones, `tenant_settings`), 1.2 (login local, cookie de sesión, `login_attempts`, bloqueo), 1.2b (`user_sessions`, dispositivo), 1.3/1.3b (`MfaPolicy`, `mfa_challenges`, muro de alta), **1.4** (`user_identities`, envoltorio `ExternalIdentityProvider`, `state` en sesión, códigos de resultado del *callback*) |
-| Estado | **APROBADA** el 2026-09-01 (`§F.14`). Rama `feature/REQ-AUTH-004-sso-institucional`. `ADR-043` **ACEPTADA**. Las cuatro preguntas abiertas —`OPEN-AUTH-38`, `39`, `40`, `41`— resueltas por el usuario el 2026-09-01, todas con la salida recomendada por la especificación. Pendiente de implementar |
+| Estado | **APROBADA** el 2026-09-01 (`§F.14`). Rama `feature/REQ-AUTH-004-sso-institucional`. `ADR-043` **ACEPTADA**. Las cuatro preguntas abiertas —`OPEN-AUTH-38`, `39`, `40`, `41`— resueltas por el usuario el 2026-09-01, todas con la salida recomendada por la especificación. **Implementada** (backend, frontend, OpenAPI, traducciones a los 4 idiomas y verificación en navegador real); pendiente de revisión independiente (`security-reviewer`/`db-reviewer`/`doc-reviewer`) y de mezclar a `develop` |
 | Módulo (código) | `auth` · `apps/api/app/Modules/Auth` · `apps/web/src/modules/auth` |
 
 > **Estructura**: §1-§14 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b y `§E.*` es 1.4, los cinco cerrados y mezclados. Esta **Parte F** es el paso **1.4b**. **No reescribe ni reabre ninguna de las anteriores**: son el registro de lo decidido y lo construido.

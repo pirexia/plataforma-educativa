@@ -1653,7 +1653,7 @@ Tres, todos cerrados y todos con su `CHECK` o su validación en servidor: `provi
 
 # Parte F · Paso 1.4b · API (`REQ-AUTH-004`)
 
-> **Estructura**: §1-§11 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b y `§E.*` es 1.4, los cinco cerrados. Esta **Parte F** es el paso **1.4b**, **en especificación**.
+> **Estructura**: §1-§11 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b y `§E.*` es 1.4, los cinco cerrados. Esta **Parte F** es el paso **1.4b**, **implementada** (pendiente de revisión independiente y de mezclar a `develop`).
 >
 > Convenciones de `ADR-038` sin excepción, salvo lo que `§F.9` matiza. **La excepción de 1.4 —el *callback* que no habla `problem+json`— se hereda tal cual y no se amplía**: el *callback* institucional responde `302` con un código de resultado por el mismo motivo, que es que su cliente es un navegador que viene de un tercero (`§E.4.1`).
 >

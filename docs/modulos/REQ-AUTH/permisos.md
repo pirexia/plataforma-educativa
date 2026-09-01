@@ -794,7 +794,7 @@ Lo que 1.4 **sí** añade al inventario de datos sensibles del módulo, ampliand
 
 # Parte F · Paso 1.4b · Permisos (`REQ-AUTH-004`)
 
-> **Estructura**: §1-§8 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b y `§E.*` es 1.4, los cinco cerrados. Esta **Parte F** es el paso **1.4b**, **en especificación**.
+> **Estructura**: §1-§8 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b y `§E.*` es 1.4, los cinco cerrados. Esta **Parte F** es el paso **1.4b**, **implementada** (pendiente de revisión independiente y de mezclar a `develop`).
 >
 > Fuente de verdad del catálogo: **el código** (`AuthServiceProvider::declaredPermissions()`), materializado por `platform:sync-registry`. Esta tabla es su reflejo documental.
 

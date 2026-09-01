@@ -1179,7 +1179,7 @@ Tres cosas que hay que escribir en `SYSADMIN.md` y en el procedimiento de alta, 
 
 # Parte F · Paso 1.4b · Operación (`REQ-AUTH-004`)
 
-> **Estructura**: §1-§11 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b y `§E.*` es 1.4, los cinco cerrados. Esta **Parte F** es el paso **1.4b**, **en especificación**.
+> **Estructura**: §1-§11 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b y `§E.*` es 1.4, los cinco cerrados. Esta **Parte F** es el paso **1.4b**, **implementada** (pendiente de revisión independiente y de mezclar a `develop`).
 >
 > Escrita sobre `ADR-043` (**ACEPTADA**) y sobre las tres decisiones del usuario del 2026-09-01. **El cambio operativo mayor del paso es que `APP_KEY` gana responsabilidad por segunda vez** (`§F.2.2`), y el segundo es que **el trabajo manual de alta de tenant que 1.4 introdujo desaparece** (`§F.12.2`).
 
@@ -1385,6 +1385,7 @@ Reglas comunes con los cinco que ya existen (§5, `§C.5`, `§D.5`, `§E.5`):
 | **Aparece una `Person` o un `User` creado por un login SSO** | **Incidencia crítica.** `RN-AUTH-108`: ese camino **no existe** en 1.4b | El código no debe tenerlo. `CA-AUTH-287` es el test que lo cubre |
 | **Dos personas distintas entran en la misma cuenta desde dos IdP del mismo centro** | **Incidencia crítica.** Es el defecto de `ADR-043 §3.6` sin corregir | `CA-AUTH-294`. Si aparece, la clave de `user_identities` no se re-tecleó bien |
 | El SSO funciona y el botón no aparece | El proveedor está catalogado y **no activo**, o `GET /auth/identity-providers` se está cacheando en algún intermediario | `is_enabled` en el catálogo; y `Cache-Control` de la respuesta (`§F.7`) |
+| **En `local`, dar de alta un proveedor cuya `discovery_url` apunta al propio servidor de desarrollo se queda en `sin_respuesta` desde el navegador** | `php artisan serve` (fase `dev` del `Containerfile`) atiende **una petición a la vez**: la petición entrante del alta ocupa el único hilo, y la petición saliente de la validación —al mismo servidor— no puede atenderse hasta que la primera termine. Interbloqueo, resuelto solo por el tiempo de espera | No es un defecto del validador: la suite Pest usa la misma URL y pasa siempre (el proceso de test no ocupa el hilo del servidor HTTP), y en producción (`frankenphp php-server`, concurrente) no se da. Issue [#146](https://github.com/pirexia/plataforma-educativa/issues/146), severidad baja, sin resolver a propósito |
 
 ---
 
