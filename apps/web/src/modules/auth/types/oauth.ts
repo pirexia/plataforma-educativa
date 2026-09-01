@@ -6,10 +6,14 @@
  */
 import type { PublicId } from './index'
 
-/** api.md §E.2 `GET /auth/identity-providers`. Anónimo. */
+/**
+ * api.md §E.2 `GET /auth/identity-providers`. Anónimo. Sin `label_key`
+ * (retirado en el cierre de 1.4): el texto del botón lo decide
+ * `GoogleSignInButton.vue` por `intent`, no por proveedor, con su propio
+ * catálogo de 4 idiomas — no había ningún consumidor real de esa clave.
+ */
 export interface IdentityProvider {
   provider: 'google'
-  label_key: string
 }
 
 /**

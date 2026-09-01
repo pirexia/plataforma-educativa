@@ -49,7 +49,7 @@ describe('GoogleSignInButton', () => {
 
   it('RN-AUTH-98: pinta el botón de login cuando el proveedor está disponible', async () => {
     getIdentityProviders.mockResolvedValue({
-      data: [{ provider: 'google', label_key: 'auth.providers.google' }],
+      data: [{ provider: 'google' }],
     })
     const wrapper = mount(GoogleSignInButton, { global: { plugins: [i18n] } })
     await flushPromises()
@@ -60,7 +60,7 @@ describe('GoogleSignInButton', () => {
 
   it('funcional.md §E.4.4: con intent="link" pinta la etiqueta de vincular', async () => {
     getIdentityProviders.mockResolvedValue({
-      data: [{ provider: 'google', label_key: 'auth.providers.google' }],
+      data: [{ provider: 'google' }],
     })
     const wrapper = mount(GoogleSignInButton, {
       props: { intent: 'link' },
@@ -73,7 +73,7 @@ describe('GoogleSignInButton', () => {
 
   it('api.md §E.3: al pulsar, arranca el flujo y navega con window.location, no con un formulario', async () => {
     getIdentityProviders.mockResolvedValue({
-      data: [{ provider: 'google', label_key: 'auth.providers.google' }],
+      data: [{ provider: 'google' }],
     })
     beginOAuthAuthorization.mockResolvedValue({
       authorization_url: 'https://accounts.google.com/o/oauth2/v2/auth?client_id=x',
@@ -91,9 +91,29 @@ describe('GoogleSignInButton', () => {
     expect(window.location.href).toBe('https://accounts.google.com/o/oauth2/v2/auth?client_id=x')
   })
 
+  it('CA-AUTH-234: el logotipo va inline, sin <img> ni referencia a un dominio de Google', async () => {
+    getIdentityProviders.mockResolvedValue({
+      data: [{ provider: 'google' }],
+    })
+    const wrapper = mount(GoogleSignInButton, { global: { plugins: [i18n] } })
+    await flushPromises()
+
+    // funcional.md §E.9: "el logotipo de Google se sirve desde el propio
+    // origen, nunca desde un dominio de Google" — un <img src="https://
+    // ...google...">, aunque técnicamente "sirviera desde el origen
+    // propio" un recurso reescrito, no es lo que se implementó aquí (SVG
+    // inline) ni lo que pide la regla. Un <svg> propio no dispara ninguna
+    // petición de red, que es la forma más fuerte de cumplirla.
+    const html = wrapper.html()
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(html).not.toMatch(/google(usercontent)?\.com/i)
+    expect(html).not.toMatch(/gstatic\.com/i)
+    expect(html).toContain('<svg')
+  })
+
   it('en 429 muestra el tiempo de reintento y no navega', async () => {
     getIdentityProviders.mockResolvedValue({
-      data: [{ provider: 'google', label_key: 'auth.providers.google' }],
+      data: [{ provider: 'google' }],
     })
     const headers = new Headers({ 'Retry-After': '30' })
     beginOAuthAuthorization.mockRejectedValue(new ApiError('rate limited', 429, null, headers))
