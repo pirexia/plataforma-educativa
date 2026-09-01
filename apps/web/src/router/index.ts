@@ -17,6 +17,14 @@ const router = createRouter({
       name: 'login',
       component: () => import('@/modules/auth/views/LoginView.vue'),
     },
+    // REQ-AUTH-002 (1.4), funcional.md §E.9, api.md §E.4.2: destino del
+    // 302 del callback de Google cuando no redirige directamente a la
+    // raíz. Pública, sin AppLayout, misma categoría que /entrar.
+    {
+      path: '/entrar/google',
+      name: 'oauth-google-callback',
+      component: () => import('@/modules/auth/views/GoogleCallbackResultView.vue'),
+    },
     {
       path: '/activar/:token',
       name: 'invitation-redemption',

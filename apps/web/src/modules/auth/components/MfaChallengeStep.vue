@@ -82,7 +82,7 @@ onMounted(async () => {
     challenge.value = await getCurrentMfaChallenge()
     startTicking()
     void nextTick(() => codeInputEl.value?.$el?.focus?.())
-  } catch (err) {
+  } catch {
     // 410: sin desafío vivo para esta sesión (RN-AUTH-53) — nunca 401
     // (RN-AUTH-52). Cualquier otro fallo se presenta igual: sin desafío
     // que mostrar, no hay nada más que hacer aquí.
@@ -322,7 +322,9 @@ async function resendCode() {
 
     <form v-else class="flex flex-col gap-4" novalidate @submit.prevent="submitChallenge">
       <div class="flex flex-col gap-1.5">
-        <Label for="mfa-challenge-recovery-code">{{ t('auth.mfaChallenge.recoveryCodeLabel') }}</Label>
+        <Label for="mfa-challenge-recovery-code">{{
+          t('auth.mfaChallenge.recoveryCodeLabel')
+        }}</Label>
         <Input
           id="mfa-challenge-recovery-code"
           ref="codeInputEl"
@@ -341,7 +343,11 @@ async function resendCode() {
         {{ submitting ? t('auth.mfaChallenge.submitting') : t('auth.mfaChallenge.submit') }}
       </Button>
 
-      <button type="button" class="text-primary text-sm hover:underline" @click="toggleRecoveryCode">
+      <button
+        type="button"
+        class="text-primary text-sm hover:underline"
+        @click="toggleRecoveryCode"
+      >
         {{ t('auth.mfaChallenge.useCodeInstead') }}
       </button>
     </form>

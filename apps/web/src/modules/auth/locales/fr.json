@@ -193,6 +193,46 @@
       "invalidCode": "Le code n'est pas correct.",
       "expired": "La vérification a expiré. Reconnectez-vous."
     },
+    "oauth": {
+      "loginButton": "Continuer avec Google",
+      "linkButton": "Associer un compte Google",
+      "starting": "Redirection…",
+      "identities": {
+        "title": "Comptes associés",
+        "providerGoogle": "Google",
+        "intro": "Comptes externes que vous pouvez utiliser pour vous connecter.",
+        "loading": "Chargement de vos comptes associés…",
+        "empty": "Vous n'avez encore associé aucun compte externe.",
+        "linkMethod": {
+          "fusion_automatica": "Associé automatiquement lors de la connexion",
+          "perfil": "Associé depuis votre profil"
+        },
+        "linkedAt": "Associé le {date}",
+        "lastLoginAt": "Dernière utilisation le {date}",
+        "neverUsed": "Pas encore utilisé pour se connecter",
+        "unlink": "Dissocier",
+        "unlinking": "Dissociation…",
+        "confirmUnlink": "Dissocier ce compte ? Vous devez confirmer votre mot de passe actuel.",
+        "confirmYes": "Oui, dissocier",
+        "confirmCancel": "Annuler",
+        "unlinked": "Compte Google dissocié.",
+        "linkedBanner": "Compte Google associé.",
+        "conflictGeneric": "Vous ne pouvez pas dissocier votre seul moyen de connexion.",
+        "wrongPassword": "Le mot de passe actuel n'est pas correct."
+      }
+    },
+    "oauthCallback": {
+      "title": "Connexion avec Google",
+      "redirecting": "Un instant…",
+      "sinCuenta": "Si vous avez un compte dans cet établissement avec cette adresse e-mail, connectez-vous avec votre mot de passe et associez votre compte Google depuis votre profil de sécurité.",
+      "yaVinculado": "Vous avez déjà un compte Google associé. Dissociez-le d'abord depuis votre profil de sécurité si vous voulez en associer un autre.",
+      "proveedorYaVinculado": "Ce compte Google est déjà associé à une autre personne de cet établissement.",
+      "cancelado": "Vous avez annulé la connexion avec Google.",
+      "estadoNoValido": "Nous n'avons pas pu terminer la connexion avec Google. Veuillez réessayer.",
+      "errorProveedor": "Nous n'avons pas pu joindre Google. Réessayez plus tard ou connectez-vous avec votre mot de passe.",
+      "backToLogin": "Retour à la connexion",
+      "backToSecurity": "Retour à mon compte"
+    },
     "mfaAdmin": {
       "title": "Administration du MFA",
       "loadingRoles": "Chargement des rôles…",

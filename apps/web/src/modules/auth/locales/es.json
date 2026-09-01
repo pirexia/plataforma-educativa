@@ -193,6 +193,46 @@
       "invalidCode": "El código no es correcto.",
       "expired": "La verificación ha caducado. Vuelve a iniciar sesión."
     },
+    "oauth": {
+      "loginButton": "Continuar con Google",
+      "linkButton": "Vincular con Google",
+      "starting": "Redirigiendo…",
+      "identities": {
+        "title": "Cuentas vinculadas",
+        "providerGoogle": "Google",
+        "intro": "Cuentas externas que puedes usar para entrar en tu cuenta.",
+        "loading": "Cargando tus cuentas vinculadas…",
+        "empty": "Todavía no tienes ninguna cuenta externa vinculada.",
+        "linkMethod": {
+          "fusion_automatica": "Vinculada automáticamente al entrar",
+          "perfil": "Vinculada desde tu perfil"
+        },
+        "linkedAt": "Vinculada el {date}",
+        "lastLoginAt": "Último acceso el {date}",
+        "neverUsed": "Todavía no la has usado para entrar",
+        "unlink": "Desvincular",
+        "unlinking": "Desvinculando…",
+        "confirmUnlink": "¿Desvincular esta cuenta? Necesitas confirmar tu contraseña actual.",
+        "confirmYes": "Sí, desvincular",
+        "confirmCancel": "Cancelar",
+        "unlinked": "Cuenta de Google desvinculada.",
+        "linkedBanner": "Cuenta de Google vinculada.",
+        "conflictGeneric": "No puedes desvincular tu única forma de entrar en tu cuenta.",
+        "wrongPassword": "La contraseña actual no es correcta."
+      }
+    },
+    "oauthCallback": {
+      "title": "Inicio de sesión con Google",
+      "redirecting": "Un momento…",
+      "sinCuenta": "Si tienes una cuenta en este centro con esta dirección de correo, entra con tu contraseña y vincula tu cuenta de Google desde tu perfil de seguridad.",
+      "yaVinculado": "Ya tienes una cuenta de Google vinculada. Desvincúlala primero desde tu perfil de seguridad si quieres vincular otra distinta.",
+      "proveedorYaVinculado": "Esa cuenta de Google ya está vinculada a otra persona de este centro.",
+      "cancelado": "Has cancelado el inicio de sesión con Google.",
+      "estadoNoValido": "No hemos podido completar el inicio de sesión con Google. Vuelve a intentarlo.",
+      "errorProveedor": "No hemos podido conectar con Google. Inténtalo más tarde o entra con tu contraseña.",
+      "backToLogin": "Volver a iniciar sesión",
+      "backToSecurity": "Volver a mi cuenta"
+    },
     "mfaAdmin": {
       "title": "Administración de MFA",
       "loadingRoles": "Cargando roles…",

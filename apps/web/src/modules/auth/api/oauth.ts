@@ -6,14 +6,9 @@
  * URL directamente (`api.md §E.4`, `RN-AUTH-93`).
  */
 import { apiFetch } from '@/api/client'
-import type { PublicId } from '../types'
+import type { IdentityProvider, LinkedIdentity, OAuthAuthorization, PublicId } from '../types'
 
 /** api.md §E.2 `GET /auth/identity-providers`. Anónimo. */
-export interface IdentityProvider {
-  provider: 'google'
-  label_key: string
-}
-
 export function getIdentityProviders(): Promise<{ data: IdentityProvider[] }> {
   return apiFetch<{ data: IdentityProvider[] }>('/auth/identity-providers')
 }
@@ -25,11 +20,6 @@ export function getIdentityProviders(): Promise<{ data: IdentityProvider[] }> {
  * formulario (funcional.md §E.9: la CSP no admite `form-action` a
  * `accounts.google.com`).
  */
-export interface OAuthAuthorization {
-  authorization_url: string
-  expires_at: string
-}
-
 export function beginOAuthAuthorization(intent: 'login' | 'link'): Promise<OAuthAuthorization> {
   return apiFetch<OAuthAuthorization>('/auth/oauth-authorizations', {
     method: 'POST',
@@ -42,15 +32,6 @@ export function beginOAuthAuthorization(intent: 'login' | 'link'): Promise<OAuth
  * enmascarado del servidor (`DestinationMasker`) — nunca se enmascara en
  * el cliente.
  */
-export interface LinkedIdentity {
-  public_id: PublicId
-  provider: 'google'
-  email_at_link: string
-  link_method: 'fusion_automatica' | 'perfil'
-  linked_at: string
-  last_login_at: string | null
-}
-
 export function getIdentities(): Promise<{ data: LinkedIdentity[]; meta: { total: number } }> {
   return apiFetch<{ data: LinkedIdentity[]; meta: { total: number } }>('/auth/identities')
 }

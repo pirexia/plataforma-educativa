@@ -193,6 +193,46 @@
       "invalidCode": "The code isn't correct.",
       "expired": "Verification has expired. Sign in again."
     },
+    "oauth": {
+      "loginButton": "Continue with Google",
+      "linkButton": "Link Google account",
+      "starting": "Redirecting…",
+      "identities": {
+        "title": "Linked accounts",
+        "providerGoogle": "Google",
+        "intro": "External accounts you can use to sign in.",
+        "loading": "Loading your linked accounts…",
+        "empty": "You don't have any external account linked yet.",
+        "linkMethod": {
+          "fusion_automatica": "Linked automatically when signing in",
+          "perfil": "Linked from your profile"
+        },
+        "linkedAt": "Linked on {date}",
+        "lastLoginAt": "Last used on {date}",
+        "neverUsed": "Not used to sign in yet",
+        "unlink": "Unlink",
+        "unlinking": "Unlinking…",
+        "confirmUnlink": "Unlink this account? You need to confirm your current password.",
+        "confirmYes": "Yes, unlink",
+        "confirmCancel": "Cancel",
+        "unlinked": "Google account unlinked.",
+        "linkedBanner": "Google account linked.",
+        "conflictGeneric": "You can't unlink your only way of signing in.",
+        "wrongPassword": "The current password isn't correct."
+      }
+    },
+    "oauthCallback": {
+      "title": "Sign in with Google",
+      "redirecting": "One moment…",
+      "sinCuenta": "If you have an account at this school with this email address, sign in with your password and link your Google account from your security profile.",
+      "yaVinculado": "You already have a Google account linked. Unlink it first from your security profile if you want to link a different one.",
+      "proveedorYaVinculado": "That Google account is already linked to someone else at this school.",
+      "cancelado": "You cancelled signing in with Google.",
+      "estadoNoValido": "We couldn't complete signing in with Google. Please try again.",
+      "errorProveedor": "We couldn't reach Google. Try again later or sign in with your password.",
+      "backToLogin": "Back to sign in",
+      "backToSecurity": "Back to my account"
+    },
     "mfaAdmin": {
       "title": "MFA administration",
       "loadingRoles": "Loading roles…",
