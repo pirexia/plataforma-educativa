@@ -35,12 +35,15 @@ class IdentitiesController extends Controller
     {
         $user = $this->authenticatedUser();
 
-        $identities = UserIdentity::query()->where('user_id', $user->id)->get();
+        $identities = UserIdentity::query()->where('user_id', $user->id)->with('identityProvider')->get();
 
         return [
-            'data' => $identities->map(fn (UserIdentity $identity): array => [
+            'data' => $identities->map(fn (UserIdentity $identity): array => array_filter([
                 'public_id' => $identity->public_id,
                 'provider' => $identity->provider,
+                // api.md §F.6, CA-AUTH-303: solo cuando hay proveedor
+                // catalogado detrás — nunca el subject (permisos.md §E.5).
+                'provider_display_name' => $identity->identityProvider?->display_name,
                 // api.md §E.5: enmascarado con el mismo DestinationMasker
                 // que 1.3b introdujo (§D.4.5) — nunca el correo entero,
                 // ni siquiera al propio titular.
@@ -48,7 +51,7 @@ class IdentitiesController extends Controller
                 'link_method' => $identity->link_method->value,
                 'linked_at' => $identity->linked_at->toISOString(),
                 'last_login_at' => $identity->last_login_at?->toISOString(),
-            ])->values()->all(),
+            ], static fn (mixed $value): bool => $value !== null))->values()->all(),
             'meta' => ['total' => $identities->count()],
         ];
     }

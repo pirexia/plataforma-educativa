@@ -60,4 +60,19 @@ enum OAuthCallbackOutcome: string
 
     /** Fallo al canjear el código, Google no responde, o límite de tasa excedido. */
     case ErrorProveedor = 'error_proveedor';
+
+    /**
+     * `funcional.md §F.4.4`, `RN-AUTH-107` (1.4b). El dominio del correo
+     * no está en `allowed_email_domains`, o el emisor es Google y falta
+     * el *claim* `hd` admitido. Código propio y no fundido con `SinCuenta`
+     * porque habla de la configuración del proveedor, no de personas.
+     */
+    case DominioNoPermitido = 'dominio_no_permitido';
+
+    /**
+     * `api.md §F.7.1` (1.4b). El proveedor se desactivó, se borró o se
+     * quedó sin credencial vigente entre el arranque del flujo y la
+     * vuelta.
+     */
+    case ProveedorNoDisponible = 'proveedor_no_disponible';
 }

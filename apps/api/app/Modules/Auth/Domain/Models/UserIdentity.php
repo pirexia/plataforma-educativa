@@ -4,6 +4,7 @@ namespace App\Modules\Auth\Domain\Models;
 
 use App\Models\User;
 use App\Modules\Auth\Domain\LinkMethod;
+use App\Modules\Auth\Domain\Models\IdentityProvider as IdentityProviderModel;
 use App\Support\Audit\Auditable;
 use App\Support\Audit\AuditValuePolicy;
 use App\Support\Audit\HasAuditableAttributes;
@@ -24,6 +25,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * registra: cambia en cada acceso y no dice nada que el evento `login`
  * no diga ya (mismo criterio que `user_mfa_factors.last_used_at`).
  *
+ * `identity_provider_id` (1.4b, `datos.md §F.4`): re-tecleado por
+ * proveedor concreto, no por protocolo (`ADR-043 §3.6`). Se añade a
+ * `$auditRecordedAttributes`: identificador interno de una entidad de
+ * configuración, no un dato personal, y es lo que responde "¿por qué
+ * proveedor entró esta persona?".
+ *
  * @mixin IdeHelperUserIdentity
  */
 class UserIdentity extends TenantModel implements Auditable
@@ -36,7 +43,8 @@ class UserIdentity extends TenantModel implements Auditable
 
     /** @var array<int, string> */
     protected array $auditRecordedAttributes = [
-        'provider', 'link_method', 'linked_at', 'email_verified_at_link', 'deleted_at', 'created_by', 'updated_by',
+        'provider', 'identity_provider_id', 'link_method', 'linked_at', 'email_verified_at_link',
+        'deleted_at', 'created_by', 'updated_by',
     ];
 
     /** @var array<int, string> */
@@ -49,6 +57,7 @@ class UserIdentity extends TenantModel implements Auditable
 
     protected $fillable = [
         'user_id',
+        'identity_provider_id',
         'provider',
         'subject',
         'email_at_link',
@@ -71,5 +80,16 @@ class UserIdentity extends TenantModel implements Auditable
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * `null` para las filas `provider = 'google'` de 1.4 (el *driver*
+     * global nunca tiene catálogo detrás, `datos.md §F.4.2`).
+     *
+     * @return BelongsTo<IdentityProviderModel, $this>
+     */
+    public function identityProvider(): BelongsTo
+    {
+        return $this->belongsTo(IdentityProviderModel::class, 'identity_provider_id');
     }
 }

@@ -4,13 +4,18 @@ namespace App\Modules\Auth\Infrastructure;
 
 use App\Modules\Auth\Domain\AccountLockService;
 use App\Modules\Auth\Domain\ClientDescriber;
+use App\Modules\Auth\Domain\DiscoveryDocumentValidator;
 use App\Modules\Auth\Domain\ExternalIdentityProvider;
+use App\Modules\Auth\Domain\ExternalIdentityProviderRegistry;
+use App\Modules\Auth\Domain\IdentityProviderDirectory;
 use App\Modules\Auth\Domain\IpGeolocator;
 use App\Modules\Auth\Domain\LinkedIdentityDirectory;
 use App\Modules\Auth\Domain\MfaComplianceDirectory;
 use App\Modules\Auth\Domain\MfaPolicy;
 use App\Modules\Auth\Domain\MfaVerifier;
 use App\Modules\Auth\Domain\Models\AccountLockout;
+use App\Modules\Auth\Domain\Models\IdentityProvider;
+use App\Modules\Auth\Domain\Models\IdentityProviderSecret;
 use App\Modules\Auth\Domain\Models\MfaFactor;
 use App\Modules\Auth\Domain\Models\MfaRecoveryCode;
 use App\Modules\Auth\Domain\Models\MfaReset as MfaResetModel;
@@ -29,6 +34,8 @@ use App\Modules\Auth\Infrastructure\Console\CloseOrphanedUserSessionsCommand;
 use App\Modules\Auth\Infrastructure\Console\GrantLockoutPermissionsCommand;
 use App\Modules\Auth\Infrastructure\Console\MfaObligationsMaintenanceCommand;
 use App\Modules\Auth\Infrastructure\Console\PurgeAuthMaintenanceCommand;
+use App\Modules\Auth\Infrastructure\Console\RefreshOidcDiscoveryCommand;
+use App\Modules\Auth\Infrastructure\Console\WarnExpiringClientSecretsCommand;
 use App\Modules\Auth\Infrastructure\Listeners\MaterializeMfaObligationsForRole;
 use App\Modules\Auth\Infrastructure\Listeners\ReconcileMfaAllowedMethodsChange;
 use App\Modules\Auth\Infrastructure\Listeners\RevokeSessionsOnUserDeactivated;
@@ -100,6 +107,13 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         });
 
         $this->app->bind(LinkedIdentityDirectory::class, EloquentLinkedIdentityDirectory::class);
+
+        // REQ-AUTH-004 (1.4b). `funcional.md §F.3.4`/`§F.7.2`: el
+        // catálogo por tenant no depende de una variable de entorno como
+        // el driver de Google — es una sola implementación Eloquent.
+        $this->app->bind(DiscoveryDocumentValidator::class, CurlDiscoveryDocumentValidator::class);
+        $this->app->bind(ExternalIdentityProviderRegistry::class, EloquentExternalIdentityProviderRegistry::class);
+        $this->app->bind(IdentityProviderDirectory::class, EloquentIdentityProviderDirectory::class);
     }
 
     public function boot(): void
@@ -126,6 +140,9 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             'user_mfa_exemption' => UserMfaExemption::class,
             // REQ-AUTH-002 (1.4), datos.md §E.2.
             'user_identity' => UserIdentity::class,
+            // REQ-AUTH-004 (1.4b), datos.md §F.2-§F.3.
+            'identity_provider' => IdentityProvider::class,
+            'identity_provider_secret' => IdentityProviderSecret::class,
         ]);
 
         // funcional.md §6.2, issue #8: guarda en todos los entornos, no
@@ -137,6 +154,10 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         // proveedor de identidad simulado llegue a producción
         // (CA-AUTH-230).
         app(OAuthEnvironmentGuard::class)->verify();
+
+        // operacion.md §F.2.1, REQ-AUTH-004 (1.4b): la guarda más
+        // importante de este paso.
+        app(SsoEnvironmentGuard::class)->verify();
 
         // operacion.md §2.1, RN-AUTH-01/RN-AUTH-03: la documentación ya
         // prometía esta guarda ("rechaza cualquier valor por debajo de
@@ -168,6 +189,8 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
                 CloseOrphanedUserSessionsCommand::class,
                 GrantLockoutPermissionsCommand::class,
                 MfaObligationsMaintenanceCommand::class,
+                RefreshOidcDiscoveryCommand::class,
+                WarnExpiringClientSecretsCommand::class,
             ]);
         }
     }
@@ -226,6 +249,16 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             ['code' => 'exencion_mfa.crear', 'resource' => 'exencion_mfa', 'action' => 'crear', 'is_special_category' => false],
             ['code' => 'exencion_mfa.leer', 'resource' => 'exencion_mfa', 'action' => 'leer', 'is_special_category' => false],
             ['code' => 'exencion_mfa.eliminar', 'resource' => 'exencion_mfa', 'action' => 'eliminar', 'is_special_category' => false],
+            // REQ-AUTH-004 (1.4b), permisos.md §F.2-§F.3. Recurso propio:
+            // un proveedor de identidad es una entidad con ciclo de vida
+            // completo (se crea, se consulta, se modifica, se retira),
+            // no una acción más de `configuracion` (REQ-CORE). Las
+            // credenciales no tienen permiso propio (permisos.md §F.4):
+            // cargar/retirar una viaja con `proveedor_identidad.actualizar`.
+            ['code' => 'proveedor_identidad.leer', 'resource' => 'proveedor_identidad', 'action' => 'leer', 'is_special_category' => false],
+            ['code' => 'proveedor_identidad.crear', 'resource' => 'proveedor_identidad', 'action' => 'crear', 'is_special_category' => false],
+            ['code' => 'proveedor_identidad.actualizar', 'resource' => 'proveedor_identidad', 'action' => 'actualizar', 'is_special_category' => false],
+            ['code' => 'proveedor_identidad.eliminar', 'resource' => 'proveedor_identidad', 'action' => 'eliminar', 'is_special_category' => false],
         ];
     }
 }

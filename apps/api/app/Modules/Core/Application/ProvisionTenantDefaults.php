@@ -66,6 +66,12 @@ final class ProvisionTenantDefaults
         // excepción deja a alguien sin segundo factor y sin obligación
         // hasta 90 días.
         'exencion_mfa.crear', 'exencion_mfa.leer', 'exencion_mfa.eliminar',
+        // REQ-AUTH/permisos.md §F.7 (1.4b). Solo administrador_centro:
+        // quien configura el proveedor de identidad decide de quién se
+        // fía el sistema para dejar entrar — la concesión de acceso más
+        // amplia que un rol de centro puede hacer.
+        'proveedor_identidad.leer', 'proveedor_identidad.crear',
+        'proveedor_identidad.actualizar', 'proveedor_identidad.eliminar',
     ];
 
     /** @var array<string, list<string>> */

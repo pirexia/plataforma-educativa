@@ -386,18 +386,21 @@ test('CA-AUTH-166: los tres endpoints exigen sesión, permiso, aíslan por tenan
     }
 });
 
-// CA-AUTH-169, permisos.md §D.5. Catálogo ampliado a siete filas.
-test('CA-AUTH-169: tras platform:sync-registry hay exactamente siete permisos de auth, ninguno retirado ni especial, y ningún permission_role con scope distinto de todos', function (): void {
+// CA-AUTH-169, permisos.md §D.5. Catálogo ampliado a siete filas en
+// 1.3b; 1.4b lo amplía de nuevo a once (CA-AUTH-305, `permisos.md §F.1`)
+// — se conserva aquí la comprobación de las siete de 1.3b y anteriores,
+// dentro del conjunto de once.
+test('CA-AUTH-169: tras platform:sync-registry el catálogo de auth incluye las siete filas de 1.3b y anteriores, ninguna retirada ni especial, y ningún permission_role con scope distinto de todos', function (): void {
     test()->artisan('platform:sync-registry')->run();
 
     $authPermissions = Permission::query()->where('module_code', 'auth')->get();
 
-    expect($authPermissions)->toHaveCount(7)
-        ->and($authPermissions->pluck('code')->sort()->values()->all())->toBe([
+    expect($authPermissions)->toHaveCount(11)
+        ->and($authPermissions->pluck('code')->sort()->values()->all())->toContain(
             'bloqueo_cuenta.eliminar', 'bloqueo_cuenta.leer',
             'exencion_mfa.crear', 'exencion_mfa.eliminar', 'exencion_mfa.leer',
             'mfa.eliminar', 'mfa.leer',
-        ])
+        )
         ->and($authPermissions->whereNotNull('retired_at'))->toHaveCount(0)
         ->and($authPermissions->where('is_special_category', true))->toHaveCount(0);
 

@@ -137,7 +137,7 @@ final class GoogleOAuthCallbackService
             // RN-AUTH-89, CA-AUTH-223: el rechazo lo produce el índice
             // único, no una comprobación previa con condición de carrera.
             return OAuthCallbackResult::outcome(
-                str_contains($e->getMessage(), 'user_identities_tenant_provider_subject_unique')
+                str_contains($e->getMessage(), 'user_identities_tenant_provider_subject_null_unique')
                     ? OAuthCallbackOutcome::ProveedorYaVinculado
                     : OAuthCallbackOutcome::YaVinculado
             );

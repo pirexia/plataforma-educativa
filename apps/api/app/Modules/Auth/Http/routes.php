@@ -11,7 +11,10 @@ use App\Modules\Auth\Http\Controllers\AccountLockoutsController;
 use App\Modules\Auth\Http\Controllers\AccountUnlocksController;
 use App\Modules\Auth\Http\Controllers\FakeGoogleAuthorizationController;
 use App\Modules\Auth\Http\Controllers\IdentitiesController;
+use App\Modules\Auth\Http\Controllers\IdentityProviderDiscoveryRefreshesController;
+use App\Modules\Auth\Http\Controllers\IdentityProvidersAdminController;
 use App\Modules\Auth\Http\Controllers\IdentityProvidersController;
+use App\Modules\Auth\Http\Controllers\IdentityProviderSecretsController;
 use App\Modules\Auth\Http\Controllers\InvitationRedemptionsController;
 use App\Modules\Auth\Http\Controllers\MfaChallengesController;
 use App\Modules\Auth\Http\Controllers\MfaComplianceController;
@@ -24,6 +27,7 @@ use App\Modules\Auth\Http\Controllers\MfaStatusController;
 use App\Modules\Auth\Http\Controllers\MfaVerificationsController;
 use App\Modules\Auth\Http\Controllers\OAuthAuthorizationsController;
 use App\Modules\Auth\Http\Controllers\OAuthCallbackController;
+use App\Modules\Auth\Http\Controllers\OidcCallbackController;
 use App\Modules\Auth\Http\Controllers\PasswordChangesController;
 use App\Modules\Auth\Http\Controllers\PasswordResetRequestsController;
 use App\Modules\Auth\Http\Controllers\PasswordResetsController;
@@ -179,3 +183,49 @@ if (app()->environment(['local', 'testing'])) {
     Route::get('/auth/oauth/fake/authorize', FakeGoogleAuthorizationController::class)
         ->name('auth.oauth.fake.authorize');
 }
+
+// REQ-AUTH-004 (1.4b), api.md §F.2-§F.7. Los nueve endpoints del paso.
+// Ninguno lleva `module-enabled` (RN-AUTH-35, CA-AUTH-306) — tampoco los
+// ocho de administración (funcional.md §F.10.1).
+
+// §F.2-§F.3: catálogo del centro, autoservicio (ADR-043 §8.3). Permisos
+// propios (permisos.md §F.3), los primeros del módulo desde 1.3b.
+Route::get('/identity-providers', [IdentityProvidersAdminController::class, 'index'])
+    ->middleware('permission:proveedor_identidad.leer')
+    ->name('identity-providers.index');
+
+Route::get('/identity-providers/{publicId}', [IdentityProvidersAdminController::class, 'show'])
+    ->middleware('permission:proveedor_identidad.leer')
+    ->name('identity-providers.show');
+
+Route::post('/identity-providers', [IdentityProvidersAdminController::class, 'store'])
+    ->middleware('permission:proveedor_identidad.crear')
+    ->name('identity-providers.store');
+
+Route::patch('/identity-providers/{publicId}', [IdentityProvidersAdminController::class, 'update'])
+    ->middleware('permission:proveedor_identidad.actualizar')
+    ->name('identity-providers.update');
+
+Route::delete('/identity-providers/{publicId}', [IdentityProvidersAdminController::class, 'destroy'])
+    ->middleware('permission:proveedor_identidad.eliminar')
+    ->name('identity-providers.destroy');
+
+// §F.4: las credenciales no tienen permiso propio (permisos.md §F.4).
+Route::post('/identity-providers/{publicId}/secrets', [IdentityProviderSecretsController::class, 'store'])
+    ->middleware('permission:proveedor_identidad.actualizar')
+    ->name('identity-providers.secrets.store');
+
+Route::delete('/identity-providers/{publicId}/secrets/{secretPublicId}', [IdentityProviderSecretsController::class, 'destroy'])
+    ->middleware('permission:proveedor_identidad.actualizar')
+    ->name('identity-providers.secrets.destroy');
+
+// §F.5: síncrono, no encolado (INV-012 no lo exige).
+Route::post('/identity-providers/{publicId}/discovery-refreshes', [IdentityProviderDiscoveryRefreshesController::class, 'store'])
+    ->middleware('permission:proveedor_identidad.actualizar')
+    ->name('identity-providers.discovery-refreshes.store');
+
+// §F.7: una sola ruta para todos los proveedores catalogados del tenant
+// (funcional.md §F.3.1). Autorizado por posesión de la sesión que
+// arrancó el flujo (el `state`), no por permiso ni por CSRF.
+Route::get('/auth/oauth/oidc/callback', OidcCallbackController::class)
+    ->name('auth.oauth.oidc.callback');
