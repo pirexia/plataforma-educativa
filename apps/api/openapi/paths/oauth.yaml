@@ -23,7 +23,13 @@ paths:
         hecho o que no quiera Google. Es el único de los cinco endpoints
         que responde 200 en ese estado — si respondiera 422 como el resto
         del flujo, la SPA no podría distinguir "no hay proveedor" de
-        "algo va mal" (CA-AUTH-200).
+        "algo va mal" (CA-AUTH-200). Solo lleva `provider`: no hay
+        `label_key` (retirado en el cierre de 1.4, hallazgo de
+        doc-reviewer) — el texto del botón lo decide la SPA por `intent`
+        (login/link), no por proveedor, y `ADR-042 §4.3` fija
+        `IdentityProvider` como interfaz de un solo proveedor a
+        propósito, así que un campo pensado para un catálogo
+        multiproveedor de 1.4b no tenía ningún consumidor real.
       tags: [Auth / OAuth]
       security: []
       responses:
@@ -40,9 +46,6 @@ paths:
                       type: object
                       properties:
                         provider: { type: string, enum: [google] }
-                        label_key:
-                          type: string
-                          description: Clave de traducción — la SPA resuelve el texto (INV-009), el servidor no manda literales.
                   meta:
                     type: object
                     properties:

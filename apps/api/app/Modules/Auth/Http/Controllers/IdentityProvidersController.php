@@ -31,8 +31,17 @@ class IdentityProvidersController extends Controller
 
         // `data: []` con AUTH_OAUTH_DRIVER=none (el valor por defecto) no
         // es un error ni un estado degradado (operacion.md §E.1).
+        //
+        // Sin `label_key`: se documentó en el diseño inicial pensando en
+        // un futuro catálogo multiproveedor (1.4b), pero `ADR-042 §4.3`
+        // fija `IdentityProvider` como interfaz de un solo proveedor "a
+        // propósito", y el texto del botón lo decide la SPA por
+        // `intent` (login/link), no por el proveedor — nunca llegó a
+        // consumirlo ningún cliente (hallazgo de `doc-reviewer`, cierre
+        // de 1.4). Retirado en vez de dejarlo como superficie muerta
+        // documentada como si se usara.
         $data = $this->availability->isConfigured()
-            ? [['provider' => 'google', 'label_key' => 'auth.providers.google']]
+            ? [['provider' => 'google']]
             : [];
 
         return [

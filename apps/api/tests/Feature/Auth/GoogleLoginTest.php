@@ -57,7 +57,7 @@ test('con el proveedor simulado configurado, identity-providers devuelve google'
 
     test()->getJson(coreApiUrl($tenant->slug, '/auth/identity-providers'))
         ->assertOk()
-        ->assertJson(['data' => [['provider' => 'google', 'label_key' => 'auth.providers.google']], 'meta' => ['total' => 1]]);
+        ->assertExactJson(['data' => [['provider' => 'google']], 'meta' => ['total' => 1]]);
 });
 
 // CA-AUTH-201, RN-AUTH-29
@@ -258,6 +258,49 @@ test('CA-AUTH-211: email_verified=false con cuenta existente responde exactament
     app(TenantContext::class)->runFor($tenant->id, function (): void {
         expect(UserIdentity::query()->count())->toBe(0);
     });
+});
+
+// RN-AUTH-99, OPEN-AUTH-31, funcional.md §E.4.2 caso "d", §E.0.2 contradicción 1.
+// El caso central de la regla: email_verified=true (a diferencia de
+// CA-AUTH-211, que solo cubre el camino email_verified=false) y NINGÚN
+// usuario local con ese correo. La interpretación restrictiva decidida
+// el 2026-08-31 dice que este camino no crea nada — nunca un usuario,
+// nunca una persona, nunca un vínculo — y difiere el aprovisionamiento
+// automático a REQ-AUTH-004/1.4b. Sin este test, un cambio futuro que
+// reintrodujera el punto 3 literal de REQ-AUTH-002 ("si no existe: crear
+// un nuevo usuario con los datos de Google") pasaría el resto de la
+// batería sin que nada lo detectara.
+test('RN-AUTH-99: email_verified=true sin ningún usuario local con ese correo no crea usuario, persona ni vínculo', function (): void {
+    // Un usuario ya existente (correo distinto) para que el recuento no
+    // sea "cero por tenant vacío" sino "el mismo de antes": una prueba
+    // más fuerte de que no se creó nada nuevo.
+    [$tenant] = provisionActiveUser('goog-099', ['email' => 'ya-existe-099@example.com']);
+
+    [$usersBefore, $peopleBefore] = app(TenantContext::class)->runFor($tenant->id, function (): array {
+        return [User::query()->count(), Person::query()->count()];
+    });
+
+    [$url, $cookie] = beginFakeGoogleFlow($tenant->slug);
+    $callback = completeFakeGoogleFlow($url, $cookie, fakeGoogleClaims([
+        'email' => 'nadie-con-este-correo-099@example.com',
+        'email_verified' => '1',
+    ]));
+
+    expect(oauthCallbackResultCode($callback))->toBe('sin_cuenta');
+
+    app(TenantContext::class)->runFor($tenant->id, function () use ($usersBefore, $peopleBefore): void {
+        expect(User::query()->count())->toBe($usersBefore)
+            ->and(User::query()->where('email', 'nadie-con-este-correo-099@example.com')->exists())->toBeFalse()
+            ->and(Person::query()->count())->toBe($peopleBefore)
+            ->and(UserIdentity::query()->count())->toBe(0);
+    });
+
+    // No se creó sesión autenticada tampoco: la misma sesión que hizo el
+    // callback sigue siendo anónima, no una con guard 'web' autenticado.
+    $stillAnonymous = withSessionCookie(sessionCookieValue($callback))
+        ->getJson(coreApiUrl($tenant->slug, '/me'));
+
+    expect($stillAnonymous->status())->toBe(401);
 });
 
 // CA-AUTH-212, RN-AUTH-86

@@ -1340,7 +1340,7 @@ El desafío expone `expires_at` (suya) y el alta expone `expires_at` y `code_exp
 
 # Parte E · Paso 1.4 · API (`REQ-AUTH-002`)
 
-> **Estructura**: §1-§11 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3 y `§D.*` es 1.3b, los cuatro cerrados. Esta **Parte E** es el paso **1.4**, **no implementada**: es especificación previa.
+> **Estructura**: §1-§11 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3 y `§D.*` es 1.3b, los cuatro cerrados. Esta **Parte E** es el paso **1.4**, **implementada** (2026-09-01, rama `feature/REQ-AUTH-002-google-login-fusion-cuentas`, PR [#143](https://github.com/pirexia/plataforma-educativa/pull/143)): describe la API tal como existe, en revisión independiente antes de mezclar.
 >
 > Convenciones de `ADR-038` sin excepción, salvo lo que `§E.7` matiza — y este paso tiene **una excepción de verdad**, la primera del módulo: el *callback* no habla `problem+json`.
 >
@@ -1390,7 +1390,7 @@ Qué proveedores externos admite este host. Lo pide la pantalla de login antes d
 ```json
 {
   "data": [
-    { "provider": "google", "label_key": "auth.providers.google" }
+    { "provider": "google" }
   ],
   "meta": { "total": 1 }
 }
@@ -1398,7 +1398,7 @@ Qué proveedores externos admite este host. Lo pide la pantalla de login antes d
 
 - **`data: []`** cuando **`AUTH_OAUTH_DRIVER=none`**, que es **el valor por defecto** (`operacion.md §E.2.1`). **No es un error ni un estado degradado**: es el despliegue que no quiere Google, y el que tiene cualquiera recién desplegado hasta que alguien configure el proveedor a propósito (`funcional.md §E.10`).
 - **Es el único endpoint de este paso que responde `200` con `driver = none`**, y por eso existe: es el que permite a la pantalla de login decidir sin adivinar (`RN-AUTH-98`). Si respondiera `422` como los del flujo, la SPA no tendría forma de distinguir «no hay proveedor» de «algo va mal» y acabaría pintando el botón por si acaso.
-- **`label_key` y no `label`**: el texto lo resuelve la SPA con su catálogo de traducciones, en los cuatro idiomas (`INV-009`). El servidor no manda literales de interfaz.
+- **Solo `provider`, sin `label_key`.** La primera redacción de esta sección documentaba `label_key` para que la SPA resolviera el texto del botón con un catálogo de traducciones por proveedor — pensado con la vista puesta en el catálogo multiproveedor de `1.4b`. **Retirado en el cierre de 1.4** (hallazgo de `doc-reviewer`): con un solo proveedor (`ADR-042 §4.3`, interfaz de un solo proveedor a propósito), el texto del botón no depende del proveedor sino del `intent` («Continuar con Google» / «Vincular con Google»), y ese texto ya lo resuelve la SPA con su propio catálogo de 4 idiomas (`INV-009`) sin necesitar ninguna clave que el servidor le mande. Era superficie documentada sin ningún consumidor real; cuando `1.4b` traiga varios proveedores, se reintroduce lo que haga falta entonces, con el requisito delante.
 - **No lleva `client_id`, ni la URL de autorización, ni nada del proveedor.** Construir la URL es trabajo del servidor (`§E.3`), y publicarla aquí daría un punto de partida del flujo que se salta el CSRF y el límite de tasa.
 - **Errores**: `404` (host sin tenant), `429` (*bucket* `identity_providers_ip`, 60/min — `operacion.md §E.6`), `503` (tenant suspendido).
 - **Idempotencia**: no procede (`GET`).
