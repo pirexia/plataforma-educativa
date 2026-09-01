@@ -13,23 +13,31 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { getMfaStatus, regenerateMfaRecoveryCodes, removeMfaFactor } from '../api'
+import {
+  getIdentities,
+  getMfaStatus,
+  regenerateMfaRecoveryCodes,
+  removeMfaFactor,
+  unlinkIdentity,
+} from '../api'
 import {
   apiErrorDetail,
   apiErrorStatus,
   fieldErrors,
   retryAfterSeconds,
 } from '../composables/formErrors'
+import GoogleSignInButton from '../components/GoogleSignInButton.vue'
 import MfaEmailEnrollment from '../components/MfaEmailEnrollment.vue'
 import MfaTotpEnrollment from '../components/MfaTotpEnrollment.vue'
 import RecoveryCodesReveal from '../components/RecoveryCodesReveal.vue'
-import type { MfaStatus } from '../types'
+import type { LinkedIdentity, MfaStatus } from '../types'
 
 const { t, locale } = useI18n()
+const route = useRoute()
 const router = useRouter()
 
 const checkingSession = ref(true)
@@ -90,6 +98,17 @@ onMounted(async () => {
   checkingSession.value = true
   await load()
   checkingSession.value = false
+
+  // REQ-AUTH-002 (1.4), funcional.md §E.4.2: "vinculado" vuelve aquí
+  // desde /entrar/google con este banner — mismo patrón que
+  // activated/reset en LoginView.
+  if (route.query.linked !== undefined) {
+    statusMessage.value = t('auth.oauth.identities.linkedBanner')
+  }
+
+  if (status.value) {
+    await loadIdentities()
+  }
 })
 
 async function onEnrolled(): Promise<void> {
@@ -218,6 +237,97 @@ async function onRecoveryCodesAcknowledged(): Promise<void> {
   newRecoveryCodes.value = null
   statusMessage.value = t('auth.mfa.security.recoveryCodesRegenerated')
   await load()
+}
+
+// -- Cuentas vinculadas (REQ-AUTH-002, 1.4, funcional.md §E.4.4/§E.4.5) --
+
+const identities = ref<LinkedIdentity[]>([])
+const identitiesLoading = ref(true)
+
+async function loadIdentities(): Promise<void> {
+  identitiesLoading.value = true
+
+  try {
+    const result = await getIdentities()
+    identities.value = result.data
+  } catch (err) {
+    if (apiErrorStatus(err) === 401) {
+      await router.push({ name: 'login' })
+      return
+    }
+    // api.md §E.5: sin bucket propio, funciona con AUTH_OAUTH_DRIVER=none
+    // — un fallo aquí no debe romper el resto de la pantalla de
+    // seguridad, así que se deja la sección vacía en vez de un error
+    // bloqueante.
+    identities.value = []
+  } finally {
+    identitiesLoading.value = false
+  }
+}
+
+const unlinkingId = ref<string | null>(null)
+const unlinkPassword = ref('')
+const unlinkErrors = ref<string[]>([])
+const unlinkConflict = ref<string | null>(null)
+const unlinkSubmitting = ref(false)
+
+function askUnlink(publicId: string): void {
+  errorMessage.value = null
+  statusMessage.value = null
+  unlinkingId.value = publicId
+  unlinkPassword.value = ''
+  unlinkErrors.value = []
+  unlinkConflict.value = null
+}
+
+function cancelUnlink(): void {
+  unlinkingId.value = null
+  unlinkPassword.value = ''
+  unlinkErrors.value = []
+  unlinkConflict.value = null
+}
+
+async function confirmUnlink(): Promise<void> {
+  if (!unlinkingId.value) {
+    return
+  }
+
+  unlinkSubmitting.value = true
+  unlinkErrors.value = []
+  unlinkConflict.value = null
+
+  try {
+    // api.md §E.5, RN-AUTH-96: 422 (no 401) con contraseña incorrecta —
+    // cuenta hacia el bloqueo, no lo distingue esta pantalla de ningún
+    // otro fallo de contraseña actual.
+    await unlinkIdentity(unlinkingId.value, unlinkPassword.value)
+    statusMessage.value = t('auth.oauth.identities.unlinked')
+    cancelUnlink()
+    await loadIdentities()
+  } catch (err) {
+    const apiStatus = apiErrorStatus(err)
+
+    if (apiStatus === 401) {
+      await router.push({ name: 'login' })
+      return
+    }
+
+    if (apiStatus === 409) {
+      // RN-AUTH-96: desvincular dejaría al usuario sin ninguna forma de
+      // entrar. No alcanzable en 1.4 (funcional.md §E.4.5 punto 3), pero
+      // la guarda se escribe igual, con su mensaje.
+      unlinkConflict.value = apiErrorDetail(err) ?? t('auth.oauth.identities.conflictGeneric')
+    } else if (apiStatus === 422) {
+      unlinkErrors.value = fieldErrors(err, 'current_password')
+      if (unlinkErrors.value.length === 0) {
+        unlinkErrors.value = [t('auth.oauth.identities.wrongPassword')]
+      }
+    } else {
+      unlinkErrors.value = [t('auth.common.unexpectedError')]
+    }
+  } finally {
+    unlinkSubmitting.value = false
+  }
 }
 
 async function logoutFromHere(): Promise<void> {
@@ -419,6 +529,118 @@ async function logoutFromHere(): Promise<void> {
                 </Button>
               </div>
             </form>
+          </template>
+        </section>
+
+        <!-- REQ-AUTH-002 (1.4), funcional.md §E.9, §E.4.4/§E.4.5: cuentas
+             externas vinculadas — vincular (si no hay ninguna todavía y
+             el proveedor está disponible, RN-AUTH-98) o desvincular con
+             contraseña actual. -->
+        <section class="border-border mt-6 border-t pt-4">
+          <h2 class="mb-2 text-sm font-semibold">{{ t('auth.oauth.identities.title') }}</h2>
+          <p class="text-muted-foreground mb-4 text-sm">{{ t('auth.oauth.identities.intro') }}</p>
+
+          <p v-if="identitiesLoading" class="text-muted-foreground text-sm">
+            {{ t('auth.oauth.identities.loading') }}
+          </p>
+
+          <template v-else>
+            <p v-if="identities.length === 0" class="text-muted-foreground mb-4 text-sm">
+              {{ t('auth.oauth.identities.empty') }}
+            </p>
+
+            <ul v-else class="mb-4 flex flex-col gap-2">
+              <li
+                v-for="identity in identities"
+                :key="identity.public_id"
+                class="border-border flex flex-col gap-2 rounded-lg border px-3 py-2 text-sm"
+              >
+                <div class="flex items-center justify-between gap-2">
+                  <div>
+                    <span class="font-medium">{{ t('auth.oauth.identities.providerGoogle') }}</span>
+                    <span class="text-muted-foreground"> · {{ identity.email_at_link }}</span>
+                    <div class="text-muted-foreground text-xs">
+                      {{ t(`auth.oauth.identities.linkMethod.${identity.link_method}`) }}
+                      ·
+                      {{
+                        t('auth.oauth.identities.linkedAt', {
+                          date: formatDate(identity.linked_at),
+                        })
+                      }}
+                    </div>
+                    <div class="text-muted-foreground text-xs">
+                      {{
+                        identity.last_login_at
+                          ? t('auth.oauth.identities.lastLoginAt', {
+                              date: formatDate(identity.last_login_at),
+                            })
+                          : t('auth.oauth.identities.neverUsed')
+                      }}
+                    </div>
+                  </div>
+                  <Button
+                    v-if="unlinkingId !== identity.public_id"
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    @click="askUnlink(identity.public_id)"
+                  >
+                    {{ t('auth.oauth.identities.unlink') }}
+                  </Button>
+                </div>
+
+                <form
+                  v-if="unlinkingId === identity.public_id"
+                  class="flex flex-col gap-2"
+                  novalidate
+                  @submit.prevent="confirmUnlink"
+                >
+                  <p role="alert" class="text-sm">{{ t('auth.oauth.identities.confirmUnlink') }}</p>
+                  <p v-if="unlinkConflict" role="alert" class="text-destructive text-sm">
+                    {{ unlinkConflict }}
+                  </p>
+                  <div class="flex flex-col gap-1.5">
+                    <Label :for="`unlink-password-${identity.public_id}`">{{
+                      t('auth.fields.currentPassword')
+                    }}</Label>
+                    <Input
+                      :id="`unlink-password-${identity.public_id}`"
+                      v-model="unlinkPassword"
+                      type="password"
+                      autocomplete="current-password"
+                      required
+                    />
+                    <p
+                      v-for="message in unlinkErrors"
+                      :key="message"
+                      role="alert"
+                      class="text-destructive text-sm"
+                    >
+                      {{ message }}
+                    </p>
+                  </div>
+                  <div class="flex gap-2">
+                    <Button
+                      type="submit"
+                      variant="destructive"
+                      size="sm"
+                      :disabled="unlinkSubmitting"
+                    >
+                      {{
+                        unlinkSubmitting
+                          ? t('auth.oauth.identities.unlinking')
+                          : t('auth.oauth.identities.confirmYes')
+                      }}
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" @click="cancelUnlink">
+                      {{ t('auth.oauth.identities.confirmCancel') }}
+                    </Button>
+                  </div>
+                </form>
+              </li>
+            </ul>
+
+            <GoogleSignInButton v-if="identities.length === 0" intent="link" />
           </template>
         </section>
       </template>

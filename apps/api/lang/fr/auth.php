@@ -24,6 +24,9 @@ return [
         'mfa_exemption_already_live' => 'Cet utilisateur a déjà une exemption MFA en cours.',
         'mfa_exemption_self' => 'Vous ne pouvez pas vous accorder une exemption MFA à vous-même.',
         'mfa_reset_self' => 'Vous ne pouvez pas réinitialiser votre propre MFA.',
+        'oauth_provider_not_configured' => "Ce fournisseur de connexion n'est pas disponible dans cet établissement.",
+        'oauth_intent_requires_session' => 'Vous devez être connecté pour lier un compte.',
+        'identity_would_leave_user_without_access' => "Vous ne pouvez pas dissocier ce compte : c'est votre seul moyen de vous connecter.",
     ],
 
     'mail' => [
@@ -91,6 +94,19 @@ return [
             'what_to_do' => 'Si c\'était vous, vous n\'avez rien d\'autre à faire. Si vous ne reconnaissez pas cette connexion, vérifiez vos sessions actives et changez votre mot de passe dès que possible.',
             'cta' => 'Vérifier mes sessions actives',
             'unknown_client' => 'un appareil inconnu',
+        ],
+        'identity_linked' => [
+            'subject' => 'Un compte Google a été lié sur :tenant',
+            'greeting' => 'Bonjour :name.',
+            'body_fusion' => 'En vous connectant avec Google sur :tenant, le système a automatiquement lié le compte :email à votre profil car l\'adresse e-mail correspondait et était vérifiée.',
+            'body_profile' => 'Vous venez de lier le compte Google :email à votre profil sur :tenant.',
+            'warning' => "Si ce n'était pas vous, contactez au plus vite l'administration de votre établissement.",
+        ],
+        'identity_unlinked' => [
+            'subject' => 'Un compte Google a été dissocié sur :tenant',
+            'greeting' => 'Bonjour :name.',
+            'body' => 'Le compte Google :email a été dissocié de votre profil sur :tenant.',
+            'warning' => "Si ce n'était pas vous, contactez au plus vite l'administration de votre établissement.",
         ],
     ],
 

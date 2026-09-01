@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Auth\Infrastructure\OAuthEnvironmentGuard;
 use App\Modules\Auth\Infrastructure\PasswordPolicyEnvironmentGuard;
 use App\Modules\Auth\Infrastructure\SessionEnvironmentGuard;
 
@@ -23,6 +24,11 @@ afterEach(function (): void {
         'auth-local.session_timeout_max_minutes' => 480,
         'auth-local.password_min_length' => 12,
         'hashing.bcrypt.rounds' => 12,
+        // REQ-AUTH-002 (1.4), issue #140: valor por defecto real de
+        // config('auth-local.oauth.driver') tras el fix, no un valor de
+        // conveniencia de test.
+        'auth-local.oauth.driver' => 'none',
+        'auth-local.oauth.google_client_secret' => null,
     ]);
 });
 
@@ -134,4 +140,84 @@ test('RN-AUTH-03: AUTH_BCRYPT_ROUNDS en 12 o por encima no aborta el arranque', 
     config(['hashing.bcrypt.rounds' => 13]);
 
     expect(fn () => (new PasswordPolicyEnvironmentGuard)->verify())->not->toThrow(RuntimeException::class);
+});
+
+// REQ-AUTH-002 (1.4), operacion.md §E.2.1, §E.10.3.
+
+test('CA-AUTH-230: AUTH_OAUTH_DRIVER=fake fuera de local/testing aborta el arranque', function (): void {
+    config(['auth-local.oauth.driver' => 'fake']);
+    app()->detectEnvironment(fn () => 'production');
+
+    try {
+        expect(fn () => (new OAuthEnvironmentGuard)->verify())
+            ->toThrow(RuntimeException::class, 'AUTH_OAUTH_DRIVER=fake');
+    } finally {
+        app()->detectEnvironment(fn () => 'testing');
+    }
+});
+
+test('AUTH_OAUTH_DRIVER=fake en testing no aborta el arranque', function (): void {
+    config(['auth-local.oauth.driver' => 'fake']);
+
+    expect(fn () => (new OAuthEnvironmentGuard)->verify())->not->toThrow(RuntimeException::class);
+});
+
+test('AUTH_OAUTH_DRIVER=google sin AUTH_GOOGLE_CLIENT_SECRET aborta el arranque', function (): void {
+    config(['auth-local.oauth.driver' => 'google', 'auth-local.oauth.google_client_secret' => '']);
+
+    expect(fn () => (new OAuthEnvironmentGuard)->verify())
+        ->toThrow(RuntimeException::class, 'AUTH_GOOGLE_CLIENT_SECRET');
+});
+
+test('AUTH_OAUTH_DRIVER=google con APP_URL sobre http aborta el arranque fuera de local', function (): void {
+    $originalAppUrl = config('app.url');
+
+    config([
+        'auth-local.oauth.driver' => 'google',
+        'auth-local.oauth.google_client_secret' => 'un-secreto',
+        'app.url' => 'http://api.plataforma.test',
+    ]);
+    app()->detectEnvironment(fn () => 'production');
+
+    try {
+        expect(fn () => (new OAuthEnvironmentGuard)->verify())
+            ->toThrow(RuntimeException::class, 'APP_URL sobre http');
+    } finally {
+        app()->detectEnvironment(fn () => 'testing');
+        config(['app.url' => $originalAppUrl]);
+    }
+});
+
+// CA-AUTH-235, issue #140: el defecto de la especificación original no
+// fijaba un valor de AUTH_OAUTH_DRIVER distinto de 'fake' para "sin
+// configurar" — y 'fake' es justo el valor que la guarda de arriba
+// prohíbe fuera de local/testing. Regresión: producción sin fijar la
+// variable debe arrancar sin excepción, con el driver resuelto en 'none'.
+test('CA-AUTH-235: en production y sin AUTH_OAUTH_DRIVER fijado (resuelve a none), el arranque no lanza excepción', function (): void {
+    config(['auth-local.oauth.driver' => 'none', 'auth-local.oauth.google_client_secret' => null]);
+    app()->detectEnvironment(fn () => 'production');
+
+    try {
+        expect(fn () => (new OAuthEnvironmentGuard)->verify())->not->toThrow(RuntimeException::class);
+    } finally {
+        app()->detectEnvironment(fn () => 'testing');
+    }
+});
+
+test('AUTH_OAUTH_DRIVER=none no dispara ninguna guarda en ningún entorno, incluida una APP_URL en http', function (): void {
+    $originalAppUrl = config('app.url');
+
+    config([
+        'auth-local.oauth.driver' => 'none',
+        'auth-local.oauth.google_client_secret' => null,
+        'app.url' => 'http://localhost',
+    ]);
+    app()->detectEnvironment(fn () => 'production');
+
+    try {
+        expect(fn () => (new OAuthEnvironmentGuard)->verify())->not->toThrow(RuntimeException::class);
+    } finally {
+        app()->detectEnvironment(fn () => 'testing');
+        config(['app.url' => $originalAppUrl]);
+    }
 });

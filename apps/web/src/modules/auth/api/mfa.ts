@@ -98,3 +98,16 @@ export function switchMfaChallenge(method: MfaMethod): Promise<MfaChallenge> {
     body: JSON.stringify({ method }),
   })
 }
+
+/**
+ * REQ-AUTH-002 (1.4), api.md §E.5b `GET /api/v1/auth/mfa-challenges`.
+ * Estrictamente de lectura (CA-AUTH-239): a diferencia de
+ * `switchMfaChallenge()`, no genera código ni mueve ningún contador. Lo
+ * usa `/entrar/google` para recuperar el desafío que el *callback*
+ * federado abrió — su `302` no lleva datos (RN-AUTH-93) — y también el
+ * login local al recuperar el desafío tras recargar `/entrar`. `410`
+ * (nunca `401`, RN-AUTH-52) si no hay desafío vivo para esta sesión.
+ */
+export function getCurrentMfaChallenge(): Promise<MfaChallenge> {
+  return apiFetch<MfaChallenge>('/auth/mfa-challenges')
+}

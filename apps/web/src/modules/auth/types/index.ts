@@ -20,6 +20,8 @@ export type PublicId = string
 // — distinto del uso de autoservicio de arriba), reexportados aquí para
 // que el resto del módulo siga importando desde `../types` sin más rutas.
 export * from './administration'
+// REQ-AUTH-002 (1.4): mismo criterio que la línea de arriba.
+export * from './oauth'
 
 /**
  * api.md §2, funcional.md §4.2 punto 6.6: el mismo recurso que `GET /me`

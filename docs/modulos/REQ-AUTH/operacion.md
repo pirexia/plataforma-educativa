@@ -901,3 +901,276 @@ Amplía `§C.11.3`:
 - **Que el *scheduler* ejecuta las cinco tareas por tenant** y no una sola vez para el primero, que es el fallo característico de `RunsPerTenant` mal cableado (`CA-AUTH-174`).
 - **Que las dos cadencias son las que dicen ser**: `schedule:list` en el contenedor real, no en WSL2 con el *scheduler* apagado. Una purga que solo existe en el código no purga (`§D.4.1.1`).
 - **Que la pantalla de administración se comporta ante un `403` real** —usuario sin permiso contra el servidor de verdad—, no solo con respuestas simuladas en pruebas de componente (`permisos.md §D.6.3`).
+
+---
+
+# Parte E · Paso 1.4 · Operación (`REQ-AUTH-002`)
+
+> **Estructura**: §1-§11 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3 y `§D.*` es 1.3b, los cuatro cerrados. Esta **Parte E** es el paso **1.4**, **implementada** (2026-09-01, rama `feature/REQ-AUTH-002-google-login-fusion-cuentas`, PR [#143](https://github.com/pirexia/plataforma-educativa/pull/143)): describe la operación tal como existe, en revisión independiente antes de mezclar.
+>
+> Escrita sobre la **opción A** de `funcional.md §E.3` (una URI de redirección por tenant), **decidida por el usuario el 2026-08-31**. Su coste operativo —un paso manual por centro y un tope de URIs registradas— está en `§E.12.2`, y es el apartado que hay que llevar a `SYSADMIN.md`.
+
+---
+
+## E.1 Comportamiento con el módulo activo o inactivo
+
+**`REQ-AUTH` sigue sin ser desactivable** (`RN-AUTH-35`) y **ninguna ruta de este paso lleva `module-enabled`** (`CA-AUTH-231`), por el motivo de §1: una fila mal puesta en `module_subscriptions` no puede dejar a un centro sin poder entrar.
+
+Lo que este paso introduce, y es distinto, es un **eje de configuración que no existía**: el proveedor externo puede estar **no configurado**. No es una degradación, es la situación por defecto, y **tiene un valor propio y explícito** (`AUTH_OAUTH_DRIVER=none`, `§E.2.1`), no la ausencia de configuración cayendo en otra cosa:
+
+| Estado | Qué ocurre |
+|--------|------------|
+| **`AUTH_OAUTH_DRIVER=none`** — el valor por defecto | `GET /auth/identity-providers` devuelve `data: []`, la pantalla **no pinta el botón**, `POST /auth/oauth-authorizations` responde `422` y el *callback* responde `302` con `resultado=estado_no_valido`. **Todo el login local funciona igual, y el arranque de la aplicación no se ve afectado en ningún entorno** |
+| `AUTH_OAUTH_DRIVER=google` con credenciales | El botón aparece y el flujo funciona |
+| `AUTH_OAUTH_DRIVER=google` con credenciales incorrectas | El botón aparece y el flujo termina en `error_proveedor`. **Es el fallo silencioso de este paso** y por eso hay alerta (`§E.8`) |
+| `AUTH_OAUTH_DRIVER=fake` en `local`/`testing` | Proveedor simulado (`§E.10`) |
+| `AUTH_OAUTH_DRIVER=fake` fuera de `local`/`testing` | **La aplicación no arranca**, a propósito (`§E.2.1`, guarda 1) |
+
+**Los dos endpoints de autoservicio no dependen del proveedor.** `GET /auth/identities` y `DELETE /auth/identities/{public_id}` siguen funcionando con `driver=none`, y es deliberado: un centro que desactive Google después de que haya vínculos creados **tiene que dejar que sus usuarios los vean y los retiren**. Un vínculo que no se puede desvincular porque se apagó el proveedor es un dato personal atrapado.
+
+**Google nunca es la única puerta.** No hay ningún estado del sistema en el que un usuario dependa de Google para entrar: siempre tiene su contraseña (`RN-AUTH-96`, y la guarda de `funcional.md §E.4.5`). Es la propiedad que hace que una caída de Google sea una molestia y no una incidencia.
+
+---
+
+## E.2 Variables de entorno
+
+### E.2.1 Propias del paso
+
+| Variable | Uso | Valor por defecto | Valor en desarrollo |
+|----------|-----|-------------------|---------------------|
+| `AUTH_OAUTH_DRIVER` | **Tres valores: `none`, `google`, `fake`.** Selecciona la implementación del proveedor, cuya forma fija `ADR-042`. `none` = **sin proveedor externo** (`§E.1`); `google` = el real; `fake` = el simulado (`§E.10`). **Guarda de arranque: `fake` aborta la aplicación si `APP_ENV` no es `local` ni `testing`, en todos los entornos** | **`none`** | **`fake`, fijado explícitamente** |
+| `AUTH_GOOGLE_CLIENT_ID` | Identificador del cliente OAuth. No es secreto, pero identifica el despliegue. Solo se lee con `driver = google` | *(vacío)* | *(vacío)* |
+| `AUTH_GOOGLE_CLIENT_SECRET` | **Secreto.** Va en el gestor de secretos de `ADR-037 §7`, **nunca en `.env` versionado ni en la unidad Quadlet en claro**. Solo se lee con `driver = google` | *(vacío)* | *(vacío)* |
+| `AUTH_OAUTH_STATE_TTL_MINUTES` | Vida del `state` y del verificador PKCE en el *payload* de la sesión (`RN-AUTH-91`) | `10` | `10` |
+| `AUTH_RATE_LIMIT_OAUTH_START_PER_IP` | Arranques de flujo por IP y minuto (`oauth_start_ip`) | `10` | `10` |
+| `AUTH_RATE_LIMIT_OAUTH_CALLBACK_PER_IP` | *Callbacks* por IP y minuto (`oauth_callback_ip`) | `20` | `20` |
+| `AUTH_RATE_LIMIT_IDENTITY_PROVIDERS_PER_IP` | Consultas del catálogo de proveedores por IP y minuto (`identity_providers_ip`) | `60` | `60` |
+| `AUTH_RATE_LIMIT_MFA_CHALLENGE_READ_PER_SESSION` | Lecturas del desafío en curso por sesión y minuto (`mfa_challenge_read_session`, `§E.6`) | `30` | `30` |
+
+**Guardas de arranque, en todos los entornos** —mismo patrón que `SESSION_DOMAIN` (§2.2) y que la política de contraseñas—:
+
+1. **`AUTH_OAUTH_DRIVER=fake` con `APP_ENV` distinto de `local`/`testing` ⇒ la aplicación no arranca.** Es la guarda más importante que introduce este paso: un proveedor de identidad simulado en producción **es una evasión completa de la autenticación**, la peor configuración incorrecta que este repositorio admite. Y por eso la ruta del proveedor simulado tampoco se registra fuera de esos entornos (`CA-AUTH-230`): dos barreras, no una.
+2. **`AUTH_OAUTH_DRIVER=google` con `AUTH_GOOGLE_CLIENT_SECRET` vacío ⇒ la aplicación no arranca.** Sin esto, el sistema levanta con el botón pintado y todo el mundo termina en `error_proveedor` sin que nadie sepa por qué.
+3. **`AUTH_OAUTH_DRIVER=google` con `APP_URL` sobre `http` ⇒ la aplicación no arranca fuera de `local`.** Google no admite URIs de redirección sin TLS, y un despliegue así solo puede fallar.
+
+**`none` no dispara ninguna guarda, en ningún entorno.** Es la propiedad que hace que el valor por defecto sea seguro de desplegar, y es la razón de que exista como valor propio.
+
+#### Por qué `none` es un valor y no la ausencia de valor (issue [#140](https://github.com/pirexia/plataforma-educativa/issues/140))
+
+Este apartado nace de un defecto **de esta especificación**, detectado durante la implementación, y se deja escrito porque el modo de fallo es de los que se repiten.
+
+La versión anterior de esta tabla documentaba solo dos valores —`google` y `fake`— y ponía `fake` en la columna «valor en desarrollo» sin decir cuál era el valor **por defecto**. Con esa lectura, lo razonable al implementar era que la ausencia de configuración cayera en `fake`. Y `fake` es exactamente el valor que la guarda 1 prohíbe fuera de `local`/`testing`.
+
+**Resultado: desplegar 1.4 en producción sin fijar `AUTH_OAUTH_DRIVER` tumbaba el arranque de la aplicación entera** — no el login con Google, sino `REQ-AUTH` completo y con él la plataforma, que es el modo de fallo total del que §1 dice que no puede existir. Y contradecía de frente lo que `§E.12.1` prometía: que el día del despliegue no cambia nada para nadie.
+
+Las dos mitades eran correctas por separado; el hueco estaba entre ellas. La lección, que vale más allá de este paso: **un valor por defecto que dispara una guarda de arranque no es un valor por defecto, es una trampa.** Todo interruptor de este módulo con una guarda detrás necesita un valor de reposo explícito que no la dispare nunca.
+
+**La guarda 1 no se relaja** — sigue siendo correcta y deliberadamente estricta. Lo que se arregla es que el estado de reposo tenga nombre propio.
+
+#### Los entornos de desarrollo fijan `fake` explícitamente
+
+Consecuencia directa de lo anterior: **`local` ya no hereda `fake` por un defecto implícito**. `AUTH_OAUTH_DRIVER=fake` se escribe a mano en `apps/api/.env.example` y en el servicio de la API de `compose.yaml`, junto al resto de variables del entorno de desarrollo.
+
+Cuesta una línea en dos ficheros y compra que **el valor por defecto del código sea el único seguro en cualquier entorno**, en vez de uno que solo es seguro en el entorno donde se escribió.
+
+Ninguna variable de sesión cambia. `SESSION_ENCRYPT=true` gana un motivo más —ahora el *payload* guarda también el verificador PKCE—, pero sigue siendo la misma recomendación de §2.2, y el material que guarda vive diez minutos.
+
+### E.2.2 `APP_KEY`: **sin cambios respecto de `§C.2.2`**
+
+Y conviene decirlo, porque 1.3 sí la cambió de categoría. **1.4 no añade ninguna columna cifrada en reposo**: no se guardan tokens del proveedor (`RN-AUTH-95`) ni secretos de ningún tipo en `user_identities`. Perder `APP_KEY` sigue teniendo exactamente la consecuencia que `§C.11.1` describe —los factores TOTP dejan de verificar— y **este paso no la agrava**.
+
+Lo que sí hay que custodiar como secreto nuevo es `AUTH_GOOGLE_CLIENT_SECRET`, con el procedimiento de `ADR-037 §7`. Su compromiso no da acceso a ninguna cuenta por sí solo —hace falta además el `code` de un usuario— pero permite suplantar a nuestra aplicación frente a Google.
+
+---
+
+## E.3 Servicios externos y degradación
+
+| Servicio | Uso | Si no responde |
+|----------|-----|----------------|
+| **Google (`accounts.google.com`, endpoint de *token*, `userinfo`)** | Todo el flujo federado | **El login con Google deja de funcionar; el login local no se entera.** El *callback* responde `error_proveedor` y la pantalla ofrece entrar con contraseña. **Sin *circuit breaker***: no hay reintento que hacer, porque la persona está esperando delante del navegador; se falla rápido y se ofrece la alternativa. **Con tiempo de espera corto y explícito** en el cliente HTTP: sin él, una caída de Google convierte cada *callback* en un trabajador de la API bloqueado |
+| PostgreSQL | La fila de vínculo y la sesión | Sin cambios respecto de §3 |
+| Redis | Límites de tasa | Sin cambios: **el limitador no degrada a «sin límite»**, responde `503` (§3) |
+| Correo transaccional | Los tres avisos de `funcional.md §E.4.7` | Depende de `0.10c`. El trabajo reintenta; agotados los reintentos, **el vínculo queda hecho y el titular no se ha enterado**. Es la degradación relevante de este paso: el aviso es la única defensa del titular ante una fusión que no hizo él |
+| S3 / MinIO | **No se usa** | — |
+
+---
+
+## E.4 Colas y trabajos (`INV-012`)
+
+| Cola | Trabajo | Disparo | Reintentos |
+|------|---------|---------|------------|
+| `auth-mail` | `SendIdentityLinkedEmail` | Fusión automática o vinculación desde el perfil | 3, mismo retroceso que `SendPasswordChangedEmail` |
+| `auth-mail` | `SendIdentityUnlinkedEmail` | Desvinculación | 3 |
+
+**Ninguna tarea de mantenimiento nueva**, y es una diferencia real con 1.3 y 1.3b. Este paso **no crea ningún artefacto transitorio en base de datos que purgar**: el `state` y el verificador PKCE viven en el *payload* de la sesión y mueren con ella, que ya tiene su propio ciclo. `user_identities` no tiene filas provisionales.
+
+Reglas heredadas que siguen aplicando sin excepción: contexto de tenant entrado y salido por el mecanismo de framework, ejecución por tenant con `RunsPerTenant` donde proceda, y el *scheduler* en su propio contenedor (`ADR-037`).
+
+**Los dos correos nuevos no llevan token ni enlace accionable** (`RN-AUTH-97`), así que —a diferencia de `SendPasswordResetEmail` y `SendAccountLockedEmail`— **no necesitan `ShouldBeEncrypted`** (issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73)): su *payload* no contiene material de credencial. Sí contiene el correo del destinatario, como todos los del módulo.
+
+---
+
+## E.5 Correos que emite el módulo
+
+Dos más, los dos en los cuatro idiomas de `ADR-021` (`INV-009`) y en el idioma preferido del destinatario:
+
+| Correo | Contenido | Enlace |
+|--------|-----------|--------|
+| Cuenta de Google vinculada | Qué cuenta (**enmascarada**), cuándo, y **si fue una fusión automática o una vinculación desde el perfil**. Qué hacer si no fue el titular | **Ninguno** |
+| Cuenta de Google desvinculada | Qué cuenta (enmascarada) y cuándo | **Ninguno** |
+
+Reglas comunes con los tres que ya existen (§5, `§C.5`, `§D.5`):
+
+- **Sin enlace accionable** (`RN-AUTH-50`). Un correo de «alguien vinculó una cuenta a la tuya» con un botón para deshacerlo es un correo de suplantación esperando a ocurrir.
+- **La dirección de Google va enmascarada** también en el correo, con el mismo `DestinationMasker` de `§D.4.5`. El titular la reconoce; quien intercepte el correo no se lleva una dirección personal completa.
+- **Distinguir fusión de vinculación es la parte útil del aviso.** «Vinculaste tu cuenta» es esperable; «el sistema vinculó tu cuenta porque los correos coincidían» es lo que alguien tiene que poder reconocer como ajeno.
+
+---
+
+## E.6 Límites de tasa
+
+**Cuatro *buckets* nuevos, y dos endpoints deliberadamente sin *bucket* propio.** Amplía §6 y `§C.6`, con sus mismos criterios.
+
+| Endpoint | Límite | Clave (*bucket*) |
+|----------|--------|------------------|
+| `POST /auth/oauth-authorizations` | **10 / min** | IP — `oauth_start_ip` |
+| `GET /auth/oauth/google/callback` | **20 / min** | IP — `oauth_callback_ip` |
+| `GET /auth/identity-providers` | **60 / min** | IP — `identity_providers_ip` |
+| `GET /auth/mfa-challenges` (`api.md §E.5b`) | **30 / min** | `(tenant_id, session_id)` — `mfa_challenge_read_session` |
+| `GET /auth/identities` | **ninguno propio** | Ver abajo |
+| `DELETE /auth/identities/{public_id}` | **ninguno propio** | Ver abajo |
+
+- **Toda clave incluye el `tenant_id`** (`ADR-033 §9`), sin cambios respecto de §6 y `§C.6`.
+- **`GET /auth/identity-providers` va a 60/min por IP, el mismo número que `GET /auth/csrf-cookie`** (§6), y por el mismo motivo: es un `GET` anónimo, barato, sin efectos, que la SPA pide **en cada carga de la pantalla de login**. Un límite estrecho aquí rompe el uso normal antes que ningún abuso. Es el análogo más cercano que tiene el módulo y se le copia el valor a propósito, en vez de inventar uno.
+- **`GET /auth/mfa-challenges` se lleva por sesión y no por IP**, igual que `POST /auth/mfa-verifications` (`§C.6`): **la sesión es lo que identifica el desafío** (`RN-AUTH-53`). Y va **mucho más holgado que el `POST` de verificación** (30/min frente a 5/min) porque **no adivina nada**: es una lectura sin efectos, que no entrega código, no consume intentos y no prolonga la caducidad (`api.md §E.5b`). Lo que defiende es el servidor, no la cuenta. Aun así lleva *bucket*, y no se deja al limitador global, porque **es alcanzable sin autenticación** —basta una sesión anónima con desafío abierto— y §6 fija que toda superficie anónima de este módulo lleva su defensa activa.
+
+**Por qué los dos de `/auth/identities` no llevan *bucket* propio**, que es la parte que hay que argumentar y no dar por hecha:
+
+1. **Exigen sesión**, así que no amplían la superficie anónima que §6 defiende. Es literalmente el criterio que `api.md §B.1` fijó para los tres *endpoints* de sesiones activas de 1.2b —listar y revocar en autoservicio, la forma más parecida que hay en el módulo— y que dejó escrito que *«los `429` que puedan aparecer son los del limitador global, no de un bucket propio»*.
+2. **`DELETE /auth/identities/{public_id}` verifica la contraseña actual, y aun así tampoco lo lleva**, exactamente igual que `DELETE /auth/mfa-factors/{public_id}` de 1.3, que tiene la misma forma y **no aparece en la tabla de `§C.6`**. La razón es la buena: **contra la fuerza bruta de contraseña ahí no defiende el límite de tasa, defiende el bloqueo de cuenta**, porque sus fallos incrementan el contador de `RN-AUTH-14` (`RN-AUTH-96`, `funcional.md §E.4.5` punto 2). El límite se olvida en una ventana; el bloqueo persiste. Añadirle un *bucket* propio no cerraría ningún hueco y **crearía la inconsistencia de tratar distinto a dos endpoints idénticos**.
+
+**No hay límite por `(tenant_id, email)`** en ninguno de los cuatro, a diferencia de los anónimos de 1.2, y hay que decir por qué: **en el arranque del flujo no hay correo todavía**, y en el *callback* el correo lo pone Google, no el cliente. El límite por sujeto en el camino federado lo aporta el bloqueo de cuenta, que sí se aplica (`funcional.md §E.6`).
+
+- **`429` siempre con `Retry-After`** (`ADR-038 §6.5`).
+- **El limitador sigue sin degradar a «sin límite»**: si su almacén no responde, `503` (§3).
+- **El punto ciego de §6 y `§C.6` —un centro entero detrás de una IP de salida— no empeora en este paso.** Un login federado sustituye a uno local, no se suma: son 1 arranque + 1 *callback* por persona en vez de 1 `POST /auth/session`. Lo único que sí se suma es `GET /auth/identity-providers`, y por eso va a 60/min. **Sigue pendiente de medir con `REQ-SEED` (1.15b)**, sin cambios en esa recomendación.
+
+---
+
+## E.7 Caché
+
+**Ninguna caché nueva.**
+
+Y una advertencia concreta para la implementación del envoltorio de `ADR-042`, porque es el sitio donde se metería una caché sin querer: **el flujo no debe verificar la firma del *ID token* contra el JWKS de Google**, porque **no lo necesita**. El *token* se obtiene en una llamada servidor a servidor sobre TLS contra el *endpoint* de Google; la verificación de firma protege contra un *token* recibido por un canal no fiable, que no es el caso. Tomar el camino de verificación por JWKS obligaría a descargar y cachear el juego de claves de Google, con su invalidación y su modo de fallo propio, para no ganar nada. Si la librería elegida ofrece los dos caminos —y `laravel/socialite` los ofrece: usa `userinfo` con el *access token*, y solo verifica JWKS si se le pasa un *ID token*—, **se usa el que no verifica firmas**, y queda escrito aquí para que no se elija el otro por parecer más seguro.
+
+`GET /auth/identity-providers` tampoco se cachea: lee configuración de proceso, no base de datos.
+
+---
+
+## E.8 Métricas y alertas
+
+| Métrica | Alerta |
+|---------|--------|
+| `auth.oauth.callback.outcome` por código de resultado | **`error_proveedor` por encima del 5 % en 15 minutos ⇒ aviso.** Es la señal de credenciales mal configuradas o de Google caído, y sin ella el fallo es silencioso: cada usuario lo ve, nadie lo agrega |
+| `auth.oauth.callback.outcome{estado_no_valido}` | Un pico sostenido es, o un problema de cookies en algún navegador, o alguien probando el *callback* a mano |
+| `auth.identity.merged` | **Cualquier ráfaga es sospechosa.** Las fusiones son eventos raros: una por persona y por centro, como mucho. Diez en un minuto significa algo que hay que mirar |
+| `auth.identity.unlinked` | Ídem |
+| `login_attempts` con `outcome = 'federado_sin_vinculo'` | Volumen alto desde pocas IP: alguien probando qué correos tienen cuenta. **No es un oráculo** (`funcional.md §E.4.6`), pero sigue siendo actividad que merece mirarse |
+
+---
+
+## E.9 Problemas conocidos y diagnóstico
+
+| Síntoma | Causa probable | Comprobación |
+|---------|----------------|--------------|
+| Todo *callback* responde `estado_no_valido` | La cookie de sesión no llega en la navegación de vuelta | `SESSION_SAME_SITE` debe ser `lax`, **nunca `strict`** (`RN-AUTH-27`): con `strict` la cookie no viaja en una navegación que viene de Google y **el flujo no puede funcionar de ninguna manera**. Es el fallo más probable de este paso |
+| Google responde `redirect_uri_mismatch` | La URI de este tenant no está registrada, o difiere en el esquema, el puerto o la barra final | La consola de Google, contra la URI que construye `RN-AUTH-92`. Se compara **carácter a carácter** |
+| Google responde `invalid_client` | Secreto incorrecto o cliente de otro proyecto | El gestor de secretos |
+| **La aplicación no arranca tras desplegar 1.4** | `AUTH_OAUTH_DRIVER=fake` fuera de `local`/`testing` (guarda 1), o `google` sin secreto (guarda 2) | El mensaje de la guarda lo dice. **Salida inmediata: `AUTH_OAUTH_DRIVER=none` y reinicio** (`§E.12.3`), que devuelve el sistema al estado de reposo sin tocar nada más. Es el modo de fallo del issue [#140](https://github.com/pirexia/plataforma-educativa/issues/140), cerrado con el valor `none` por defecto y `CA-AUTH-235` |
+| El botón no aparece | `AUTH_OAUTH_DRIVER=none`, que es el estado por defecto | `GET /auth/identity-providers` debe devolver el proveedor. Si devuelve `[]`, el *driver* es `none` o faltan credenciales (`§E.1`) |
+| El botón aparece y todo falla con `error_proveedor` | Credenciales presentes pero incorrectas, o Google inalcanzable desde el contenedor | Salida de red del contenedor de la API y el *log* de aplicación, donde va el detalle que **no** se le da al usuario |
+| Un usuario entra con Google y **no** le piden el segundo factor | **Incidencia de severidad crítica.** Es una evasión del segundo factor | `RN-AUTH-94` y `CA-AUTH-216`. Se detiene el trabajo en curso y se resuelve de inmediato (`CLAUDE.md §5`) |
+| Se creó un usuario a partir de un login de Google | **Incidencia crítica.** `RN-AUTH-99`: en 1.4 ese camino **no existe** (`OPEN-AUTH-31`, resuelta en restrictivo el 2026-08-31) | El código no debe tener ese camino. Si aparece un `users`/`people` nuevo con origen federado, es un fallo de implementación, no una configuración |
+| **En desarrollo (WSL2)**, el navegador aterriza en un `404` servido por la API tras completar el proveedor simulado, aunque el backend resolvió la identidad y creó la sesión correctamente | El `302` del *callback* es **relativo** (`api.md §E.4`, correcto para la topología de un solo origen de producción/*staging* vía Traefik, `ADR-028`) y se resuelve contra el origen de la petición en curso — la **API** (`:8000`), no la SPA (`:5173`), en el entorno de orígenes separados de `ADR-030`/issue #71 | **No es un fallo del flujo**: compruébese en base de datos (`user_identities`, `login_attempts` con `outcome=exito`/`method=google`) que la identidad se resolvió bien, y navegue manualmente el navegador a la misma ruta bajo `:5173` — la sesión ya es válida y la SPA la sirve con normalidad. Detalle completo y propuesta de solución de desarrollo en el issue [#141](https://github.com/pirexia/plataforma-educativa/issues/141) (severidad Media, no bloquea 1.4, no afecta a producción) |
+
+---
+
+## E.10 Desarrollo sin credenciales reales: el proveedor simulado
+
+**Esto no es una comodidad: es la única forma de que este paso se pueda desarrollar y probar en el entorno que el proyecto tiene.**
+
+### E.10.1 Por qué no se puede usar Google de verdad en WSL2
+
+`ADR-030` fija el desarrollo en WSL2, y el entorno sirve `{slug}.{TENANCY_BASE_DOMAIN}` sobre HTTP. **Google exige que la URI de redirección de un cliente de tipo «aplicación web» sea `https` sobre un dominio público registrable**; la excepción de `http://localhost` no sirve, porque `ResolveTenant` necesita un host con forma `{slug}.{base}` y `localhost` no la tiene (`TenantHost::slugFrom()` devuelve `null` ⇒ `404`).
+
+Es decir: **no hay combinación de configuración que permita completar un flujo real de Google en el entorno de desarrollo actual**, y depende de `0.10b` (dominio, DNS con comodín y certificado), pendiente. Hay que verificar el detalle exacto contra la consola de Google antes de implementar, pero el diseño **no debe depender de que la respuesta sea una u otra**.
+
+### E.10.2 Qué se entrega en su lugar
+
+Un segundo `IdentityProvider` (`funcional.md §E.7.2`), **`FakeIdentityProvider`**, tras la misma interfaz — que es exactamente para lo que `RNF-MANT-007` obliga a envolver la dependencia:
+
+1. `AUTH_OAUTH_DRIVER=fake`. La `authorization_url` que devuelve `POST /auth/oauth-authorizations` apunta a **una ruta de la propia API**, registrada **solo** en `local`/`testing`.
+2. Esa ruta pinta un formulario mínimo con `sub`, `email` y una casilla `email_verified`, y al enviarlo redirige al *callback* real con un `code` que el proveedor simulado sabe canjear.
+3. **El resto del flujo es el de verdad**: el mismo `state`, el mismo PKCE, el mismo *callback*, la misma resolución de identidad, la misma fusión, el mismo `MfaPolicy`. Lo único simulado es de dónde salen los *claims*.
+4. Es también lo que usan los tests: **`RN-AUTH-87` se prueba de verdad** —con `email_verified` a `false` y a `true`— sin depender de una cuenta de Google real, que es algo que en un test no debe existir jamás.
+
+### E.10.3 Las dos barreras que impiden que llegue a producción
+
+1. **Guarda de arranque**: `AUTH_OAUTH_DRIVER=fake` fuera de `local`/`testing` **aborta la aplicación**, en todos los entornos (`§E.2.1`).
+2. **La ruta del proveedor simulado no se registra** fuera de esos entornos, y hay test que lo comprueba con `APP_ENV=production` (`CA-AUTH-230`).
+
+Dos y no una, porque lo que hay al otro lado de un descuido aquí **no es una funcionalidad rota: es cualquiera entrando como cualquiera**.
+
+### E.10.4 Lo que queda sin verificar, y hay que decirlo al cerrar
+
+Los pasos 1.2, 1.2b, 1.3 y 1.3b se cerraron con **verificación en navegador real**. **1.4 no podrá cerrarse así** mientras `0.10b` siga pendiente: lo que se verificará en navegador es el flujo completo con el proveedor simulado, más las pruebas de contrato contra las respuestas documentadas de Google. Queda pendiente, en un entorno con dominio público, comprobar: que la URI registrada coincide, que el consentimiento se muestra con los tres *scopes* pedidos, que `email_verified` llega como se espera para una cuenta de Workspace y para una de consumo, y que la cookie de sesión viaja en la navegación de vuelta con `Secure` y TLS reales. **Está escrito aquí para que se convierta en tarea y no en un olvido.**
+
+---
+
+## E.11 Impacto en copias de seguridad y restauración
+
+**Ninguno nuevo.** `user_identities` es una tabla de tenant ordinaria y entra en la copia como el resto. **No contiene material cifrado**, así que —a diferencia de 1.3— **restaurar una copia sin la `APP_KEY` correspondiente no rompe nada de este paso**: los vínculos siguen resolviendo, porque el `sub` está en claro y no es un secreto.
+
+Lo que sí hay que tener a mano en una recuperación es **`AUTH_GOOGLE_CLIENT_SECRET`**, que vive en el gestor de secretos y no en la copia de la base de datos (`ADR-037 §7.2`). Sin él, el login local funciona y el federado no — que es exactamente la degradación aceptable de `§E.3`.
+
+---
+
+## E.12 Despliegue
+
+### E.12.1 El día del despliegue no cambia nada para nadie
+
+Y es lo importante. **Y es cierto por una razón concreta, no por casualidad: el valor por defecto de `AUTH_OAUTH_DRIVER` es `none`** (`§E.2.1`), que no dispara ninguna guarda de arranque en ningún entorno.
+
+Desplegado sin tocar una sola variable, el sistema queda exactamente como estaba: mismo login, mismas pantallas, mismo comportamiento, con una tabla vacía y una columna nueva con valor por defecto (`datos.md §E.7`). **El botón aparece el día que alguien configura el proveedor, no el día que se despliega el código.** Es la diferencia con 1.3, donde el despliegue activó la obligación de MFA de dos roles en todos los tenants (`§C.11.1`).
+
+**Esto hay que poder afirmarlo con un test, no con un párrafo** — y la primera versión de esta especificación lo afirmaba solo con un párrafo, que es de donde salió el issue [#140](https://github.com/pirexia/plataforma-educativa/issues/140). Lo cubre **`CA-AUTH-235`**: arranque con `APP_ENV=production` y **sin `AUTH_OAUTH_DRIVER` fijado**, que debe completar sin excepción.
+
+### E.12.2 Trabajo manual nuevo en el alta de cada tenant
+
+**Este es el coste operativo de la decisión del 2026-08-31** (`funcional.md §E.3.5`, opción A). Dar de alta un centro deja de ser solo un clic en el backoffice: hay que **registrar `https://{slug}.{base}/api/v1/auth/oauth/google/callback` en la consola de Google** antes de que nadie de ese centro pueda usar el botón.
+
+Tres cosas que hay que escribir en `SYSADMIN.md` y en el procedimiento de alta, no solo aquí:
+
+1. **Es un paso manual, fuera del producto.** Si se olvida, el centro tiene el botón y todos sus usuarios reciben `redirect_uri_mismatch` (`§E.9`). **El alta de tenant no lo detecta ni lo avisa**: el fallo aparece cuando la primera persona pulsa el botón.
+2. **Hay un tope de URIs registradas por cliente OAuth**, que hay que **verificar en la consola antes del primer despliegue** y **anotar como límite duro de número de centros** con este diseño.
+3. **Un centro con dominio propio (`RMT-008`) necesita su propia URI**, y `RMT-008` no está implementado todavía.
+
+**El punto 2 es el disparador de la migración a la opción B**, y por eso es una cifra y no una impresión: cuando el número de centros se acerque al tope, se retoma `funcional.md §E.3.3` con su propio ADR, y a cambio del registro manual aparecen una tabla fuera del sistema de tenancy, un host adicional con su certificado y una excepción a `§4.7`. **Conviene vigilarlo antes de llegar**, porque migrar con centros en producción significa cambiar la URI registrada de todos ellos a la vez.
+
+### E.12.3 Orden y reversión
+
+1. Migraciones (`datos.md §E.7`), antes del código. Son *expand* puras.
+2. Despliegue de la aplicación **sin tocar ninguna variable nueva**. `AUTH_OAUTH_DRIVER` queda en `none` por defecto, el sistema arranca y queda idéntico al anterior. **No hay que fijar nada para que este paso sea seguro**, que es justo lo que el issue [#140](https://github.com/pirexia/plataforma-educativa/issues/140) demostró que no se cumplía.
+3. Registro de la URI en la consola de Google y carga del secreto en el gestor de secretos.
+4. Configuración de `AUTH_OAUTH_DRIVER=google` **más** `AUTH_GOOGLE_CLIENT_ID`/`SECRET`, y reinicio. **El botón aparece aquí.** Los tres valores van juntos: `google` sin secreto no arranca (guarda 2), y es a propósito — es preferible que el reinicio falle a que el centro entero descubra el problema pulsando el botón.
+
+**La reversión es limpia y tiene dos escalones**, según lo que se quiera deshacer:
+
+- **Apagar solo Google**: `AUTH_OAUTH_DRIVER=none` y reinicio. Sin tocar la base de datos, sin desplegar y sin retirar las credenciales. Los vínculos ya creados dejan de servir para entrar, **pero sus titulares siguen pudiendo verlos y retirarlos** (`§E.1`), y **nadie se queda fuera**, porque nadie depende de Google para entrar.
+- **Revertir la aplicación**: la migración del `CHECK` de `login_attempts` es de un solo sentido si ya hay filas con el valor nuevo (`datos.md §E.7`), como todas las anteriores del mismo tipo, y revertir la aplicación no exige revertirla.
+
+**Volver a `none` es la primera maniobra ante cualquier incidencia del proveedor**, y conviene que esté escrita aquí y no haya que deducirla: es un cambio de variable y un reinicio, no toca datos y no es destructiva.
+
+### E.12.4 Lo que hay que verificar en el entorno real y no se puede verificar en WSL2
+
+`§E.10.4`, entero. Es la lista concreta, y es más larga que la de cualquier paso anterior del módulo.

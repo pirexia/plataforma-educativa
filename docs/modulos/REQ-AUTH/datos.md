@@ -966,3 +966,214 @@ Amplía `§C.11`, sin cambiar ninguno de sus plazos.
 **El punto que hay que mirar dos veces**: **las tres primeras filas de esta tabla no se cumplen hoy**, porque las tres purgas están declaradas desde 1.3 y **no existen en el código** (`funcional.md §D.2.2`, issue [#109](https://github.com/pirexia/plataforma-educativa/issues/109)). Sin ellas, un secreto TOTP cifrado sobrevive indefinidamente a su borrado lógico y el hash de un código de seis dígitos vive para siempre en la tabla.
 
 **Decisión del usuario (2026-08-27, `OPEN-AUTH-29`): las tres purgas y el `MaterializeMfaObligations` horario se construyen en esta misma rama**, como pieza 4 del alcance. A partir de este paso, esta tabla de retención **describe el comportamiento real y no una intención**, que es lo que `RN-AUTH-85` exige y lo que `CA-AUTH-170`-`CA-AUTH-174` comprueban. **Una tarea escrita y no registrada en el *scheduler* deja esta tabla igual de incumplida que hoy** (`operacion.md §D.4`).
+
+---
+
+# Parte E · Paso 1.4 · Modelo de datos (`REQ-AUTH-002`)
+
+> **Estructura**: `§A.*` es 1.2, `§B.*` es 1.2b, `§C.*` es 1.3 y `§D.*` es 1.3b, los cuatro cerrados. Esta **Parte E** es el paso **1.4**, implementado (2026-09-01, `feature/REQ-AUTH-002-google-login-fusion-cuentas`).
+>
+> Convenciones de `ADR-029` sin excepción: `TIMESTAMPTZ`, `text` en vez de `varchar(n)`, `bigint` interno más `public_id` ULID **solo donde se expone en API o URL**. Toda tabla de tenant se crea con `TenantMigration::tenantTable()` (`ADR-033 §6`), que aporta `id`, `tenant_id` con `DEFAULT app.current_tenant_id()`, RLS `ENABLE`+`FORCE`, la política estándar, `UNIQUE (tenant_id, id)`, marcas de tiempo, borrado lógico y autoría.
+>
+> Escrita sobre la **opción A** de `funcional.md §E.3` (una URI de redirección por tenant), **decidida por el usuario el 2026-08-31**. La dependencia externa del cliente OAuth y la forma de su envoltorio los fija `ADR-042`.
+
+---
+
+## E.0 Lo que **ya existe** y este paso no crea
+
+| Objeto | Estado | Consecuencia para 1.4 |
+|--------|--------|------------------------|
+| `users.email` con `UNIQUE (tenant_id, email) WHERE deleted_at IS NULL` | **Existe** desde 0.8 | Es el eje de la fusión, y `ADR-034 §56` ya lo describe así: *«Es lo que se teclea en el login y lo que fusiona `REQ-AUTH-002`»*. **No se toca ni una columna de `users`** |
+| `users.email_verified_at`, rellenado por el canje | **Existe** y **funciona** (`RN-AUTH-20`) | La nota de seguridad de `REQ-AUTH-002` depende de que el correo local esté verificado, y lo está. `funcional.md §9` ya lo dejó anotado para este paso |
+| `login_attempts` con `outcome` de seis valores | **Existe** (`§A.1`, ampliada en `§C.7.1`) | Este paso la amplía con **una columna y un valor**, no la rehace (`§E.3`) |
+| `mfa_challenges`, `MfaPolicy`, muro de alta | **Existen** (1.3/1.3b) | El *callback* federado **reutiliza el desafío tal cual**. Ni una columna nueva (`funcional.md §E.4.2` paso 8.3) |
+| `user_sessions`, `user_known_devices` | **Existen** (1.2b) | El login federado registra la sesión y detecta el dispositivo por el **mismo** camino |
+| El *payload* de la sesión del servidor, cifrado (`SESSION_ENCRYPT`) | **Existe** | Es donde viven el `state` y el verificador PKCE. **Ninguna tabla nueva para eso** (`funcional.md §E.3.2`) |
+| `config('audit.secret_attribute_patterns')` | **Existe** desde 0.9 | **No cubre** los nombres de columna de este paso: `subject` no encaja en ningún patrón. Hay que declararlo a mano (`§E.2`) |
+
+---
+
+## E.1 Resumen del cambio
+
+**Una tabla nueva y una modificación.** Es el paso más pequeño del módulo en datos desde 1.2b.
+
+| # | Objeto | Tipo |
+|---|--------|------|
+| 1 | `user_identities` | Tabla nueva (`§E.2`) |
+| 2 | `login_attempts` — columna `method` y un valor más en el `CHECK` de `outcome` | Modificación (`§E.3`) |
+
+**Lo que este paso decide y no es una tabla**: el `state` de OAuth y el verificador PKCE viven en el *payload* de la sesión del servidor, **no en base de datos**. El *callback* aterriza en el mismo host que arrancó el flujo (opción A de `funcional.md §E.3`), así que la sesión sirve y no hace falta nada más.
+
+**Eso no salió gratis: fue el argumento de datos que decidió la opción A.** La alternativa exigía una tabla `oauth_authorization_requests` **sin `tenant_id`**, fuera del sistema de tenancy y con RLS imposible — la clase de objeto que `INV-001` y `ADR-033` existen para evitar. Queda escrito aquí, y no solo en `funcional.md`, porque es el coste que hay que volver a pesar el día que el tope de URIs registradas obligue a migrar a la opción B (`operacion.md §E.12.2`).
+
+### E.1.1 El nombre: `user_identities`, y no `identity_providers`
+
+`funcional.md §1.2` y `§A.5` de este documento anticiparon el nombre **`identity_providers`** al cerrar 1.2. **Se cambia, y hay que justificarlo porque estaba escrito.**
+
+`identity_providers` nombra un **catálogo de proveedores configurados**: qué IdP admite este centro, con qué metadatos, qué certificado, qué mapeo de atributos. Eso es exactamente `REQ-AUTH-004`, y es el paso **1.4b**. Lo que 1.4 necesita es otra cosa: **el vínculo entre un usuario y una cuenta externa concreta**. Son dos entidades distintas con dos ciclos de vida distintos, y ponerles el mismo nombre obligaría a 1.4b a renombrar una tabla en producción —lo que `CLAUDE.md §9` describe como el cambio caro— o a inventarse un nombre peor para lo suyo.
+
+`user_identities` sigue además la convención que el propio módulo ya usa cuatro veces para lo que cuelga de una persona: `user_sessions`, `user_known_devices`, `user_mfa_factors`, `user_mfa_obligations`.
+
+**`identity_providers` queda reservado y sin ocupar** para 1.4b (`funcional.md §E.12`).
+
+---
+
+## E.2 `user_identities` — cuentas externas vinculadas a un usuario
+
+Entidad `UserIdentity`. Tabla de tenant ordinaria, con `public_id` ULID porque se expone (`DELETE /auth/identities/{public_id}`).
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `id`, `tenant_id` | `bigint` | No | De `tenantTable()` |
+| `public_id` | ULID | No | `ADR-029`. **No es una credencial**: presentarlo no autoriza nada |
+| `user_id` | `bigint` | No | `tenantForeignId()`, obligatoria. Un vínculo sin titular no existe |
+| `provider` | `text` + `CHECK` | No | **`google`**, único valor hoy. 1.4b amplía el `CHECK`, no la tabla |
+| `subject` | `text` | No | El `sub` del proveedor. **Es la identidad** (`RN-AUTH-86`). Nunca el correo |
+| `email_at_link` | `text` | Sí | El correo que el proveedor devolvió **al vincular**. Informativo: se muestra en el perfil («vinculada con `x@gmail.com`») y sirve para explicar de dónde salió la fusión. **No se usa para resolver nada** |
+| `email_verified_at_link` | `boolean` | No | El valor del *claim* `email_verified` en el momento del vínculo. Es la prueba, dentro de dos años, de que la fusión automática cumplió `RN-AUTH-87` |
+| `link_method` | `text` + `CHECK` | No | `fusion_automatica` o `perfil`. **Por qué existe este vínculo.** **Dos valores y no tres**: el `alta` no existe porque el login federado no crea usuarios (`RN-AUTH-99`, `OPEN-AUTH-31` resuelta en restrictivo el 2026-08-31). Si `1.4b` trae *just-in-time provisioning*, amplía el `CHECK`, que es aditivo |
+| `linked_at` | `TIMESTAMPTZ` | No | Momento del vínculo. Distinto de `created_at`, que es de auditoría técnica |
+| `last_login_at` | `TIMESTAMPTZ` | Sí | Último acceso completado con este vínculo. Solo informativo |
+
+**Ninguna columna de token.** No hay `access_token`, no hay `refresh_token`, no hay `id_token` (`RN-AUTH-95`). Es la ausencia más importante de esta tabla y por eso se dice: la tentación de guardarlos «por si un día llamamos a Calendar» convertiría esta tabla en un almacén de llaves a cuentas personales de Google, con su propia base legal, su propio cifrado en reposo y su propia superficie de fuga. Cuando se necesite, será un requisito nuevo con su análisis.
+
+**Tampoco hay columna de fotografía ni de nombre.** `funcional.md §E.0.2` (contradicción 2) y `RN-AUTH-88`: **Google nunca sobrescribe datos del centro**, y guardar una copia de sus datos de perfil sería guardarlos para no usarlos.
+
+Restricciones e índices:
+
+| Restricción / índice | Qué garantiza o qué consulta sirve |
+|----------------------|-------------------------------------|
+| `UNIQUE (tenant_id, provider, subject) WHERE deleted_at IS NULL` | **Una cuenta externa está vinculada como mucho a un usuario del tenant.** Es la mitad de `RN-AUTH-89`, en el motor y no en un `if` |
+| `UNIQUE (tenant_id, user_id, provider) WHERE deleted_at IS NULL` | **Un usuario tiene como mucho un vínculo vivo por proveedor.** La otra mitad de `RN-AUTH-89`. Sustituir exige desvincular antes (`funcional.md §E.4.4` punto 6) |
+| `UNIQUE (public_id)` | `ADR-029` |
+| `CHECK (provider IN ('google'))` | Se amplía en 1.4b. Aditivo |
+| `CHECK (link_method IN ('fusion_automatica','perfil'))` | |
+| `CHECK (link_method <> 'fusion_automatica' OR email_verified_at_link)` | **Una fusión automática solo puede existir si el correo venía verificado.** `RN-AUTH-87` garantizada por el esquema, no solo por el servicio. Es la restricción más importante de la tabla |
+| `(tenant_id, provider, subject) WHERE deleted_at IS NULL` | **La consulta caliente**: el paso 7a del *callback*, una vez por login federado. La cubre el índice único de arriba |
+| `(tenant_id, user_id) WHERE deleted_at IS NULL` | El listado del perfil (`GET /auth/identities`) |
+
+**Los dos únicos son parciales sobre `deleted_at IS NULL`**, y eso es deliberado: desvincular y volver a vincular deja **dos filas**, no una revivida (`funcional.md §E.4.5` punto 6). Un único total impediría volver a vincular la misma cuenta jamás, que es justo lo contrario de lo que se quiere.
+
+**Política de auditoría**: `Selective`.
+
+- Registrados con valor: `provider`, `link_method`, `linked_at`, `email_verified_at_link`, `deleted_at`, `created_by`, `updated_by`.
+- **`subject` se declara en los atributos no registrables por `ADR-035`** (identificador personal), **explícitamente y a mano**: `config('audit.secret_attribute_patterns')` **no** lo cubre —no encaja en `*password*`, `*secret*`, `*token*` ni `*recovery_code*`— y es el identificador estable de una persona en un proveedor externo, en una tabla *append-only*, con dos años de retención y exportable a CSV por `REQ-CORE-005`. Se registra **el atributo, no su valor**, que es lo que `INV-003` admite por `ADR-035`.
+- **`email_at_link` también** (`ADR-035`, identificador personal), por el mismo motivo con el que `login_attempts.email` tiene retención propia: es un correo, y a menudo el personal, no el del centro.
+- `last_login_at` **no se registra**: cambia en cada acceso y llenaría el registro de ruido sin decir nada que el evento `login` no diga ya. Mismo criterio que `user_mfa_factors.last_used_at` (`§C.2`).
+
+---
+
+## E.3 `login_attempts` — una columna y un valor más
+
+### E.3.1 `method`: columna nueva
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `method` | `text` + `CHECK` | No | `local` o `google`. `DEFAULT 'local'` |
+
+**Por qué una columna y no valores de `outcome` duplicados.** La alternativa era `exito_federado`, `cuenta_bloqueada_federado`… — el producto cartesiano de dos dimensiones metido en un enumerado. Con una columna, los seis `outcome` que ya existen siguen significando exactamente lo mismo, las consultas de telemetría de 1.2 y 1.3 siguen funcionando sin tocarlas, y separar por vía de acceso es un `WHERE` más.
+
+**`DEFAULT 'local'`** hace la migración *expand* pura: las filas existentes quedan correctamente clasificadas sin reescribirlas, porque todas ellas **son** locales.
+
+### E.3.2 `outcome`: un valor más, de seis a siete
+
+```
+'exito', 'credenciales_invalidas', 'cuenta_bloqueada', 'estado_no_activo',
+'pendiente_segundo_factor', 'segundo_factor_invalido',
+'federado_sin_vinculo'                                    ← nuevo
+```
+
+`federado_sin_vinculo` cubre el caso en que el flujo termina sin poder resolver un usuario: **no hay vínculo y, o el correo no venía verificado, o no hay cuenta local con ese correo**.
+
+**Un solo valor para los dos casos, y es a propósito.** `funcional.md §E.4.6` obliga a que la **respuesta** sea indistinguible entre «no tienes cuenta» y «tu correo no viene verificado», porque distinguirlas convierte una cuenta de Google no verificada en un comprobador de altas del centro. Poner dos valores en la telemetría no rompería esa propiedad —`login_attempts` no se expone por ninguna API— pero sí crearía **dos formas de contar el mismo hecho** y la tentación de mostrarlas en una pantalla futura. Desde nuestro lado el hecho es uno: no hay vínculo utilizable.
+
+**Este resultado no incrementa el contador de fallos consecutivos** (`RN-AUTH-14`): no se ha probado ninguna credencial nuestra, así que no hay nada que contar. Es la misma distinción que `pendiente_segundo_factor` hizo en `§C.7.1`, por el motivo contrario.
+
+**Los cuatro resultados que sí reutiliza el camino federado, sin valor nuevo**: `exito` (con `method = 'google'`), `cuenta_bloqueada`, `estado_no_activo` y `pendiente_segundo_factor`. Y `segundo_factor_invalido` llega por el mismo `POST /auth/mfa-verifications` de siempre.
+
+**`credenciales_invalidas` no lo usa nunca el camino federado**, y hay un sitio donde sí aparece con `method = 'local'` por culpa de este paso: los fallos de **contraseña actual** en `DELETE /auth/identities/{public_id}` (`funcional.md §E.4.5` punto 2), igual que ya ocurre con `POST /auth/password-changes` desde 1.2.
+
+### E.3.3 `email` en un intento federado
+
+Se guarda el correo que devolvió el proveedor, normalizado (`RN-AUTH-100`). Es dato personal con la retención de 90 días que `§A.9` ya fijó, y no cambia nada: la tabla ya guarda correos de personas que ni siquiera tienen cuenta (bloqueo fantasma, `RN-AUTH-15`).
+
+---
+
+## E.4 Lo que 1.4 **no** toca
+
+| Objeto | Por qué |
+|--------|---------|
+| **`users`** | **Ni una columna.** La fusión escribe la fila de vínculo y nada más (`RN-AUTH-88`). En particular **no** se añade `password` *nullable* «por si algún día se crean cuentas sin contraseña»: en 1.4 no se crean cuentas (`RN-AUTH-99`), y si `1.4b` las crea será ese paso quien lo decida. `ADR-034 OPEN-13` prohíbe anticipar columnas |
+| **`people`** | **Ni una columna**, y menos la de fotografía. **No hay nada que ubicar**: sin creación de usuarios no llega ningún dato de perfil de Google, y `RN-AUTH-88` prohíbe que lo escriba en cualquier caso (`funcional.md §E.0.2` contradicción 2, `OPEN-AUTH-37` resuelta el 2026-08-31). El mapeo de atributos es problema de `1.4b` |
+| **`tenant_settings`** | **Ninguna columna nueva.** El conmutador por tenant y la restricción por dominio de Workspace son `OPEN-AUTH-33`, sin decidir. No se anticipa |
+| **`sessions`** | Sin cambios. Sigue sin `tenant_id` (`OPEN-AUTH-10`/`OPEN-AUTH-15`), y este paso **no lo agrava**: lo que guarda de más en el *payload* es un `state` y un verificador PKCE con diez minutos de vida, no material de credencial permanente |
+| **`mfa_challenges`** | **Ni una columna.** El desafío federado es el mismo desafío. En particular **no** se añade un `purpose` ni un `origin` para distinguir de dónde vino el login: no hay ningún camino de código que lo lea (`ADR-034 OPEN-13`) |
+| **`identity_providers`** | **No se crea.** Reservada para 1.4b (`§E.1.1`) |
+| **`audit_logs`** | El vocabulario **no se amplía** (`RN-AUTH-74`). Todo lo de este paso es `created`/`deleted` sobre una entidad real, más el `login` que `ADR-039` ya creó |
+
+---
+
+## E.5 Relaciones
+
+```
+users (REQ-CORE, 0.8)
+  └─1:N→ user_identities   (tenant_id, user_id)   — vínculos vivos y borrados
+                            + created_by, updated_by → users
+
+login_attempts (1.2)  ──method (columna nueva)──▶  clasifica la vía de acceso
+mfa_challenges (1.3)  ◀── reutilizado tal cual por el callback federado, sin FK nueva
+sessions (framework)  ◀── payload: state + code_verifier PKCE, 10 min, sin tabla
+```
+
+**Todas las claves foráneas son compuestas `(tenant_id, …)`** (`ADR-033 §7`). `user_identities` **no tiene FK hacia ninguna tabla de este paso** —solo hacia `users`—, y no hay ninguna tabla nueva que dependa de otra nueva.
+
+---
+
+## E.6 Checklist obligatorio
+
+- [x] **`tenant_id` presente e indexado como primera columna de las consultas frecuentes** — `user_identities` vía `tenantTable()`, con RLS `ENABLE`+`FORCE` y política estándar. Sus cuatro índices lo llevan en primera posición
+- [x] **`academic_year_id`** — **no aplica**. Un vínculo con una cuenta externa no pertenece a un curso académico. Por `ADR-034 §4` la columna **no existe**, nunca *nullable*
+- [x] **`created_at`/`updated_at`/`deleted_at`/`created_by`/`updated_by`** — los cinco, vía `tenantTable()`. `login_attempts` sigue siendo la excepción *append-only* que ya era (`§A.1`), y este paso no la cambia
+- [x] **Claves foráneas y restricciones declaradas en base de datos** — 3 FK compuestas, 4 `CHECK` (dos de enumerado, uno de coherencia `link_method`/`email_verified_at_link`, uno de `method` en `login_attempts`), 3 índices únicos. **Nada de esto vive solo en la aplicación**, y en particular `RN-AUTH-87` y `RN-AUTH-89` son restricciones del motor
+- [x] **Importes en enteros de céntimos** — **no aplica**, sin importes
+- [x] **Fechas en UTC (`TIMESTAMPTZ`)** — `linked_at`, `last_login_at` y las de `tenantTable()`
+- [x] **Datos de categoría especial en tabla separada y cifrada** — **no aplica**: `REQ-AUTH` sigue sin tratar salud, NEAE ni convivencia (`permisos.md §E.5`). **Este paso no añade ninguna columna cifrada en reposo**: a diferencia de 1.3, aquí no hay secreto que guardar, porque no se guardan tokens (`RN-AUTH-95`). `APP_KEY` no gana responsabilidad nueva
+- [x] **Particionado evaluado** — `user_identities` es de **unidades de filas por persona**: no es candidata ni lo será. El disparador de revisión sigue siendo `login_attempts` (`§A.8`, `§C.9`), y este paso **le añade una columna, no volumen**: un login federado escribe las mismas filas que uno local
+- [x] **Toda restricción de unicidad sobre tabla con borrado lógico es parcial** — los dos únicos de `user_identities` lo son, y `§E.2` explica por qué **no** pueden ser totales
+- [x] **Migraciones aditivas y compatibles con la versión anterior** — `§E.7`
+
+---
+
+## E.7 Migraciones: orden y compatibilidad
+
+Dos migraciones, en este orden:
+
+1. `create_user_identities_table`
+2. `add_method_and_federated_outcome_to_login_attempts` — la columna con `DEFAULT`, y `DROP`+`ADD CONSTRAINT` sobre `outcome` con `pgsql_owner`
+
+Propiedades que hay que poder afirmar en la revisión (`db-reviewer`):
+
+- **Es *expand* puro y el ciclo termina ahí.** No se retira, renombra ni deja de usar nada. `CLAUDE.md §9` describe el ciclo completo de un cambio destructivo; aquí no lo hay. Mismo caso que `§B.6`, `§C.10` y `§D.6`.
+- **La versión anterior de la aplicación sigue funcionando contra el esquema nuevo.** No conoce `user_identities` y no la escribe; no escribe `login_attempts.method`, que tiene `DEFAULT`; y no produce el `outcome` nuevo porque su código no lo genera. **Login local, logout, restablecimiento, cambio de contraseña, panel de sesiones y MFA siguen operando exactamente igual.**
+- **La versión nueva contra el esquema antiguo no se da**: la migración precede al despliegue (`operacion.md §E.12`).
+- **El `ALTER` de la columna con `DEFAULT` no reescribe la tabla** en PostgreSQL 11+. **El `DROP`/`ADD CONSTRAINT` de `outcome` sí exige una validación completa de `login_attempts`, que es la tabla más grande del módulo**: si en el momento del despliegue tiene volumen, se añade `NOT VALID` y un `VALIDATE CONSTRAINT` posterior. Es exactamente la misma nota que `§C.10` dejó para la ampliación anterior del mismo `CHECK`, y por el mismo motivo.
+- **La reversión es limpia para la primera y de un solo sentido para la segunda.** `user_identities` se elimina sin que nada la referencie. La segunda **falla si ya existe alguna fila con `outcome = 'federado_sin_vinculo'`**, igual que la de `§C.10` y la de `ADR-039 §4.6`, y por el mismo motivo: `login_attempts` es *append-only* y no admite `DELETE` desde la aplicación. Revertir la **aplicación** no requiere revertir esta migración.
+
+---
+
+## E.8 Retención y supresión
+
+| Tabla | Plazo | Base y mecanismo |
+|-------|-------|------------------|
+| `user_identities` (vivas) | **Vida del vínculo** | Es una vía de acceso activa. Se retira cuando el titular la desvincula |
+| `user_identities` (borradas lógicamente) | **Fila permanente** | Traza de que la cuenta estuvo vinculada, del mismo carácter que un bloqueo levantado (`§A.2`) o una excepción de MFA revocada (`§C.11`). **No hay aquí el motivo que obligó a los 30 días de `user_mfa_factors`**: esa fila conserva un secreto cifrado dentro, y esta **no conserva ninguna credencial** — el `subject` no sirve para entrar, solo para reconocer |
+| `login_attempts` | **90 días**, sin cambios | `AUTH_LOGIN_ATTEMPT_RETENTION_DAYS`, `PurgeLoginAttempts` (`§A.9`). La columna `method` no altera nada |
+
+**Ninguna tarea de mantenimiento nueva** (`operacion.md §E.4`). Este paso no crea ningún artefacto transitorio en base de datos: el `state` vive en la sesión y muere con ella, y no hay altas a medio confirmar que purgar.
+
+**Derecho de supresión (`ADR-004`, `REQ-PRIV-006`): es el caso fácil**, por el mismo motivo que `user_sessions` y las seis tablas de MFA: `user_identities` cuelga de un `user_id` real por clave foránea compuesta obligatoria, y la supresión de la persona la arrastra como borrado de fila, sin columnas desnormalizadas que queden atrás. No hay aquí nada equivalente al problema de `login_attempts.email` de `§A.9`.
+
+**Dos matices que sí hay que escribir:**
+
+1. **`subject` y `email_at_link` son identificadores de esa persona en un sistema de un tercero.** No son categoría especial y no son credenciales, pero sí permiten correlacionar a alguien fuera de este producto. Por eso van declarados como no registrables por `ADR-035` (`§E.2`), y por eso la fila se borra con la persona.
+2. **Desvincular no es suprimir.** La fila borrada lógicamente conserva `subject` y `email_at_link` como traza. Si alguien ejerce el derecho de supresión, lo que la borra es el flujo de `REQ-PRIV-006`, no la desvinculación. Se anota porque la pregunta se hace sola y porque la respuesta correcta es la que hoy tienen todas las tablas de traza de este módulo.

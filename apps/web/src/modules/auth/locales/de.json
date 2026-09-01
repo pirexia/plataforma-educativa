@@ -175,6 +175,7 @@
       }
     },
     "mfaChallenge": {
+      "loading": "Deine ausstehende Verifizierung wird abgerufen…",
       "title": "Bestätige deine Identität",
       "intro": "Gib den Code aus deiner Authenticator-App ein, um die Anmeldung abzuschließen.",
       "introDelivery": "Wir haben einen Code an {destination} gesendet.",
@@ -192,6 +193,46 @@
       "recoveryCodeLabel": "Wiederherstellungscode",
       "invalidCode": "Der Code ist nicht korrekt.",
       "expired": "Die Bestätigung ist abgelaufen. Melde dich erneut an."
+    },
+    "oauth": {
+      "loginButton": "Weiter mit Google",
+      "linkButton": "Mit Google verknüpfen",
+      "starting": "Weiterleitung…",
+      "identities": {
+        "title": "Verknüpfte Konten",
+        "providerGoogle": "Google",
+        "intro": "Externe Konten, mit denen du dich anmelden kannst.",
+        "loading": "Deine verknüpften Konten werden geladen…",
+        "empty": "Du hast noch kein externes Konto verknüpft.",
+        "linkMethod": {
+          "fusion_automatica": "Automatisch beim Anmelden verknüpft",
+          "perfil": "Über dein Profil verknüpft"
+        },
+        "linkedAt": "Verknüpft am {date}",
+        "lastLoginAt": "Zuletzt verwendet am {date}",
+        "neverUsed": "Noch nicht zur Anmeldung verwendet",
+        "unlink": "Verknüpfung aufheben",
+        "unlinking": "Verknüpfung wird aufgehoben…",
+        "confirmUnlink": "Verknüpfung dieses Kontos aufheben? Du musst dein aktuelles Passwort bestätigen.",
+        "confirmYes": "Ja, aufheben",
+        "confirmCancel": "Abbrechen",
+        "unlinked": "Google-Konto-Verknüpfung aufgehoben.",
+        "linkedBanner": "Google-Konto verknüpft.",
+        "conflictGeneric": "Du kannst deine einzige Möglichkeit zur Anmeldung nicht entfernen.",
+        "wrongPassword": "Das aktuelle Passwort ist nicht korrekt."
+      }
+    },
+    "oauthCallback": {
+      "title": "Anmeldung mit Google",
+      "redirecting": "Einen Moment…",
+      "sinCuenta": "Falls du mit dieser E-Mail-Adresse ein Konto an diesem Schulzentrum hast, melde dich mit deinem Passwort an und verknüpfe dein Google-Konto über dein Sicherheitsprofil.",
+      "yaVinculado": "Du hast bereits ein Google-Konto verknüpft. Hebe die Verknüpfung zuerst in deinem Sicherheitsprofil auf, wenn du ein anderes verknüpfen möchtest.",
+      "proveedorYaVinculado": "Dieses Google-Konto ist bereits mit einer anderen Person an diesem Schulzentrum verknüpft.",
+      "cancelado": "Du hast die Anmeldung mit Google abgebrochen.",
+      "estadoNoValido": "Die Anmeldung mit Google konnte nicht abgeschlossen werden. Bitte versuche es erneut.",
+      "errorProveedor": "Google konnte nicht erreicht werden. Versuche es später erneut oder melde dich mit deinem Passwort an.",
+      "backToLogin": "Zurück zur Anmeldung",
+      "backToSecurity": "Zurück zu meinem Konto"
     },
     "mfaAdmin": {
       "title": "MFA-Verwaltung",

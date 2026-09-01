@@ -559,6 +559,7 @@ namespace App\Modules\Auth\Domain\Models{
  * @property string|null $ip_address
  * @property string|null $user_agent
  * @property string|null $request_id
+ * @property \App\Modules\Auth\Domain\LoginMethod $method
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt query()
@@ -566,6 +567,7 @@ namespace App\Modules\Auth\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereEmail($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereIpAddress($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereMethod($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereOutcome($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereRequestId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereTenantId($value)
@@ -787,6 +789,64 @@ namespace App\Modules\Auth\Domain\Models{
  */
 	#[\AllowDynamicProperties]
 	class IdeHelperMfaReset {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §E.2. El vínculo entre un usuario y una cuenta externa
+ * concreta. Ninguna columna de token (`RN-AUTH-95`) ni de nombre o
+ * fotografía (`RN-AUTH-88`).
+ *
+ * Selective: `subject` y `email_at_link` se declaran secretos a mano
+ * (`ADR-035`) — identificadores personales que `config('audit.
+ * secret_attribute_patterns')` no cubre (no encajan en `*password*`,
+ * `*secret*`, `*token*` ni `*recovery_code*`). `last_login_at` no se
+ * registra: cambia en cada acceso y no dice nada que el evento `login`
+ * no diga ya (mismo criterio que `user_mfa_factors.last_used_at`).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $user_id
+ * @property string $provider
+ * @property string $subject
+ * @property string|null $email_at_link
+ * @property bool $email_verified_at_link
+ * @property \App\Modules\Auth\Domain\LinkMethod $link_method
+ * @property \Illuminate\Support\Carbon $linked_at
+ * @property \Illuminate\Support\Carbon|null $last_login_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Models\User|null $user
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereEmailAtLink($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereEmailVerifiedAtLink($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereLastLoginAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereLinkMethod($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereLinkedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereProvider($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereSubject($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperUserIdentity {}
 }
 
 namespace App\Modules\Auth\Domain\Models{

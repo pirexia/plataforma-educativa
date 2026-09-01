@@ -88,6 +88,13 @@ services:
       # es solo para wiring de infraestructura (ver DB_HOST/REDIS_HOST/
       # TENANCY_BASE_DOMAIN de arriba), no para configuración de aplicación.
       SESSION_LIFETIME: "480"
+      # REQ-AUTH-002 (1.4), operacion.md §E.2.1, issue #140: AUTH_OAUTH_DRIVER
+      # ya no hereda `fake` de un valor por defecto implícito (el defecto del
+      # código es ahora `none`, seguro en cualquier entorno) — el entorno de
+      # desarrollo lo declara a mano. Mismo patrón de parche temporal que
+      # SESSION_LIFETIME arriba: pertenece a apps/api/.env, no editable desde
+      # esta sesión (bloqueo de permisos). TODO: mover cuando sea editable.
+      AUTH_OAUTH_DRIVER: "fake"
     volumes:
       - ./apps/api:/var/www/html:Z
     ports:

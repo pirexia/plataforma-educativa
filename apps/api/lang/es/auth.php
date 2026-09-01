@@ -31,6 +31,10 @@ return [
         // por falta de permiso — se distingue en el mensaje.
         'mfa_exemption_self' => 'No puedes concederte una excepción de MFA a ti mismo.',
         'mfa_reset_self' => 'No puedes restablecer tu propio MFA.',
+        // REQ-AUTH-002 (1.4).
+        'oauth_provider_not_configured' => 'Este proveedor de acceso no está disponible en este centro.',
+        'oauth_intent_requires_session' => 'Tienes que haber iniciado sesión para vincular una cuenta.',
+        'identity_would_leave_user_without_access' => 'No puedes desvincular esta cuenta: es tu única forma de entrar.',
     ],
 
     'mail' => [
@@ -102,6 +106,22 @@ return [
             'what_to_do' => 'Si has sido tú, no tienes que hacer nada más. Si no reconoces este acceso, revisa tus sesiones activas y cambia tu contraseña cuanto antes.',
             'cta' => 'Revisar mis sesiones activas',
             'unknown_client' => 'un dispositivo desconocido',
+        ],
+        // REQ-AUTH-002 (1.4), funcional.md §E.4.7. Sin enlace accionable
+        // (RN-AUTH-97). La dirección de Google va enmascarada, igual que
+        // en la API (DestinationMasker, §D.4.5).
+        'identity_linked' => [
+            'subject' => 'Se ha vinculado una cuenta de Google en :tenant',
+            'greeting' => 'Hola, :name.',
+            'body_fusion' => 'Al entrar con Google en :tenant, el sistema ha vinculado automáticamente la cuenta :email a tu perfil porque el correo coincidía y venía verificado.',
+            'body_profile' => 'Acabas de vincular la cuenta de Google :email a tu perfil en :tenant.',
+            'warning' => 'Si no has sido tú, contacta cuanto antes con la administración de tu centro.',
+        ],
+        'identity_unlinked' => [
+            'subject' => 'Se ha desvinculado una cuenta de Google en :tenant',
+            'greeting' => 'Hola, :name.',
+            'body' => 'Se ha desvinculado la cuenta de Google :email de tu perfil en :tenant.',
+            'warning' => 'Si no has sido tú, contacta cuanto antes con la administración de tu centro.',
         ],
     ],
 

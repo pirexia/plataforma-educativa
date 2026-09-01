@@ -90,6 +90,14 @@ return [
         'mfa_enrollment_user' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_ENROLLMENT_USER_MAX', 10), 'decay' => 3600],
         'mfa_recovery_codes_user' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_RECOVERY_CODES_USER_MAX', 5), 'decay' => 3600],
         'mfa_resets_admin' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_RESETS_ADMIN_MAX', 20), 'decay' => 3600],
+        // REQ-AUTH-002 (1.4), operacion.md §E.6. GET/DELETE /auth/identities
+        // no llevan bucket propio a propósito (mismo criterio que las
+        // sesiones activas de 1.2b y DELETE /auth/mfa-factors de 1.3: el
+        // bloqueo de cuenta defiende ahí, no el límite de tasa).
+        'oauth_start_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_OAUTH_START_PER_IP', 10), 'decay' => 60],
+        'oauth_callback_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_OAUTH_CALLBACK_PER_IP', 20), 'decay' => 60],
+        'identity_providers_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_IDENTITY_PROVIDERS_PER_IP', 60), 'decay' => 60],
+        'mfa_challenge_read_session' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_CHALLENGE_READ_PER_SESSION', 30), 'decay' => 60],
     ],
 
     /*
@@ -120,6 +128,28 @@ return [
         // trabajo que MfaPolicy::resolve() haría de todas formas en la
         // siguiente petición del titular, no es la única garantía.
         'exemption_reopen_window_hours' => (int) env('AUTH_MFA_EXEMPTION_REOPEN_WINDOW_HOURS', 48),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Login con Google y fusión de cuentas (REQ-AUTH-002, 1.4)
+    |--------------------------------------------------------------------------
+    |
+    | operacion.md §E.2.1. `driver`: 'none' (sin proveedor externo, valor por
+    | defecto — issue #140), 'google' o 'fake' (proveedor simulado,
+    | operacion.md §E.10). Guardas de arranque en AuthServiceProvider::boot()
+    | (OAuthEnvironmentGuard), en todos los entornos — 'none' no dispara
+    | ninguna, es el único valor seguro de desplegar sin configurar nada más
+    | (CA-AUTH-235). `client_secret` es el único valor secreto de este bloque
+    | (ADR-037 §7): nunca en `.env` versionado ni en la unidad Quadlet en
+    | claro.
+    |
+    */
+    'oauth' => [
+        'driver' => env('AUTH_OAUTH_DRIVER', 'none'),
+        'google_client_id' => env('AUTH_GOOGLE_CLIENT_ID'),
+        'google_client_secret' => env('AUTH_GOOGLE_CLIENT_SECRET'),
+        'state_ttl_minutes' => (int) env('AUTH_OAUTH_STATE_TTL_MINUTES', 10),
     ],
 
 ];
