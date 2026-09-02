@@ -104,6 +104,15 @@ services:
       # variables de arriba: pertenece a apps/api/.env, no editable desde
       # esta sesión (bloqueo de permisos). TODO: mover cuando sea editable.
       AUTH_SSO_ALLOW_INSECURE_DISCOVERY: "true"
+      # REQ-AUTH-004 (1.4c), operacion.md §G.2.1, §G.10: mismo argumento
+      # exacto que AUTH_SSO_ALLOW_INSECURE_DISCOVERY, un bloque más
+      # arriba, para el IdP SAML simulado — sirve sus metadatos y su
+      # SingleSignOnService por http en local/testing, con
+      # SamlEnvironmentGuard::verify() como barrera de arranque fuera de
+      # esos entornos. Mismo patrón de parche temporal: pertenece a
+      # apps/api/.env, no editable desde esta sesión (bloqueo de
+      # permisos). TODO: mover cuando sea editable.
+      AUTH_SAML_ALLOW_INSECURE_METADATA: "true"
     volumes:
       - ./apps/api:/var/www/html:Z
     ports:

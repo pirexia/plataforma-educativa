@@ -49,6 +49,14 @@ Schedule::command('auth:close-orphaned-sessions')->everyFifteenMinutes();
 Schedule::command('auth:refresh-oidc-discovery')->daily();
 Schedule::command('auth:warn-expiring-client-secrets')->daily();
 
+// REQ-AUTH-004 (1.4c), operacion.md §G.4. Diarias, mismo criterio que las
+// dos de OIDC de arriba. auth:purge-saml-correlation es la primera purga
+// del módulo con artefactos transitorios en base de datos (el `state` de
+// OIDC vive en la sesión y muere con ella; aquí no).
+Schedule::command('auth:refresh-saml-metadata')->daily();
+Schedule::command('auth:warn-expiring-idp-certificates')->daily();
+Schedule::command('auth:purge-saml-correlation')->daily();
+
 // Issue #73: sin esto, un job de correo de REQ-AUTH que agota sus 5
 // reintentos (SendPasswordResetEmail/SendAccountLockedEmail, con un token
 // de un solo uso en el payload) se queda en failed_jobs sin fecha de
