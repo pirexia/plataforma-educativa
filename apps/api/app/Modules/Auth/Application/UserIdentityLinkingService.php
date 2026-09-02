@@ -17,16 +17,19 @@ use App\Support\Tenancy\TenantContext;
  * funcional.md §E.4.3, §E.4.4. El único punto que escribe una fila de
  * `user_identities` por fusión o por vinculación desde el perfil —
  * `RN-AUTH-88`: solo esa fila, nada más. Compartido por
- * `GoogleOAuthCallbackService` (fusión y vinculación sin segundo factor
- * de por medio) y por `MfaChallengeService::verify()` (fusión que
- * esperó a que el segundo factor se superase).
+ * `GoogleOAuthCallbackService`/`OidcCallbackService`/`SamlAcsService`
+ * (fusión y vinculación sin segundo factor de por medio) y por
+ * `MfaChallengeService::verify()` (fusión que esperó a que el segundo
+ * factor se superase).
  *
- * `linkViaSso()` (1.4b, `funcional.md §F.4.3.1`): el equivalente
- * institucional, con `link_method = 'emparejamiento_sso'`,
- * `provider = 'oidc'` e `identity_provider_id` informado —nunca
- * `link()`, que sigue siendo exclusivo de `fusion_automatica`/`perfil`
- * sobre el *driver* global de Google (`RN-AUTH-106`: el `CHECK` de 1.4
- * no se toca ni se reutiliza)—, y un aviso distinto (`SendIdentityMatchedEmail`).
+ * `linkViaSso()` (1.4b, `funcional.md §F.4.3.1`, ampliado en `§G.4.3` para
+ * SAML): el equivalente institucional, con `link_method =
+ * 'emparejamiento_sso'`, `provider` derivado del `protocol` del proveedor
+ * catalogado (`'oidc'` o `'saml'`) e `identity_provider_id` informado —
+ * nunca `link()`, que sigue siendo exclusivo de
+ * `fusion_automatica`/`perfil` sobre el *driver* global de Google
+ * (`RN-AUTH-106`: el `CHECK` de 1.4 no se toca ni se reutiliza)—, y un
+ * aviso distinto (`SendIdentityMatchedEmail`).
  */
 final class UserIdentityLinkingService
 {
@@ -35,10 +38,10 @@ final class UserIdentityLinkingService
     ) {}
 
     /**
-     * `$identityProvider` (1.4b): vinculación manual desde el perfil
-     * (`intent = link`, `api.md §F.6`) con un proveedor catalogado —
-     * `provider = 'oidc'` en vez de `'google'`. Fuera de ese caso, sin
-     * cambios respecto de 1.4.
+     * `$identityProvider` (1.4b, ampliado a SAML en 1.4c): vinculación
+     * manual desde el perfil (`intent = link`, `api.md §F.6`/`§G.6`) con
+     * un proveedor catalogado — `provider` derivado de su `protocol` en
+     * vez de `'google'`. Fuera de ese caso, sin cambios respecto de 1.4.
      */
     public function link(
         User $user,
@@ -48,10 +51,12 @@ final class UserIdentityLinkingService
         LinkMethod $linkMethod,
         ?IdentityProvider $identityProvider = null,
     ): UserIdentity {
+        $provider = $identityProvider?->protocol->value ?? 'google';
+
         $identity = UserIdentity::create([
             'user_id' => $user->id,
             'identity_provider_id' => $identityProvider?->id,
-            'provider' => $identityProvider !== null ? 'oidc' : 'google',
+            'provider' => $provider,
             'subject' => $subject,
             'email_at_link' => $email,
             'email_verified_at_link' => $emailVerified,
@@ -62,7 +67,7 @@ final class UserIdentityLinkingService
         event(new IdentityLinked(
             $this->tenantContext->tenantId(),
             $user->public_id,
-            $identityProvider !== null ? 'oidc' : 'google',
+            $provider,
             $linkMethod->value,
         ));
 
@@ -89,10 +94,12 @@ final class UserIdentityLinkingService
      */
     public function linkViaSso(User $user, IdentityProvider $provider, string $subject, string $email, bool $emailVerified): UserIdentity
     {
+        $protocolValue = $provider->protocol->value;
+
         $identity = UserIdentity::create([
             'user_id' => $user->id,
             'identity_provider_id' => $provider->id,
-            'provider' => 'oidc',
+            'provider' => $protocolValue,
             'subject' => $subject,
             'email_at_link' => $email,
             'email_verified_at_link' => $emailVerified,
@@ -103,7 +110,7 @@ final class UserIdentityLinkingService
         event(new IdentityLinked(
             $this->tenantContext->tenantId(),
             $user->public_id,
-            'oidc',
+            $protocolValue,
             LinkMethod::EmparejamientoSso->value,
         ));
 

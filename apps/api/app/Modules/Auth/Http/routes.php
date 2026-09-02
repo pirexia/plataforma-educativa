@@ -11,7 +11,9 @@ use App\Modules\Auth\Http\Controllers\AccountLockoutsController;
 use App\Modules\Auth\Http\Controllers\AccountUnlocksController;
 use App\Modules\Auth\Http\Controllers\FakeGoogleAuthorizationController;
 use App\Modules\Auth\Http\Controllers\IdentitiesController;
+use App\Modules\Auth\Http\Controllers\IdentityProviderCertificatesController;
 use App\Modules\Auth\Http\Controllers\IdentityProviderDiscoveryRefreshesController;
+use App\Modules\Auth\Http\Controllers\IdentityProviderMetadataController;
 use App\Modules\Auth\Http\Controllers\IdentityProvidersAdminController;
 use App\Modules\Auth\Http\Controllers\IdentityProvidersController;
 use App\Modules\Auth\Http\Controllers\IdentityProviderSecretsController;
@@ -31,6 +33,7 @@ use App\Modules\Auth\Http\Controllers\OidcCallbackController;
 use App\Modules\Auth\Http\Controllers\PasswordChangesController;
 use App\Modules\Auth\Http\Controllers\PasswordResetRequestsController;
 use App\Modules\Auth\Http\Controllers\PasswordResetsController;
+use App\Modules\Auth\Http\Controllers\SamlMetadataRefreshesController;
 use App\Modules\Auth\Http\Controllers\SessionController;
 use App\Modules\Auth\Http\Controllers\UserSessionsController;
 use Illuminate\Support\Facades\Route;
@@ -229,3 +232,31 @@ Route::post('/identity-providers/{publicId}/discovery-refreshes', [IdentityProvi
 // arrancó el flujo (el `state`), no por permiso ni por CSRF.
 Route::get('/auth/oauth/oidc/callback', OidcCallbackController::class)
     ->name('auth.oauth.oidc.callback');
+
+// REQ-AUTH-004 (1.4c), api.md §G.2-§G.5. Los cuatro endpoints de
+// administración del paso. El quinto —el ACS— vive en su propio grupo de
+// rutas sin csrf, fuera de este fichero (routes/api.php, api.md §G.7.1).
+// Ninguno lleva `module-enabled` (RN-AUTH-35, CA-AUTH-350).
+
+// §G.3: nuestros metadatos de SP. No anónimo (§G.3.1): mismo permiso que
+// leer el proveedor.
+Route::get('/identity-providers/{publicId}/metadata', [IdentityProviderMetadataController::class, 'show'])
+    ->middleware('permission:proveedor_identidad.leer')
+    ->name('identity-providers.metadata.show');
+
+// §G.5: no llevan permiso propio, por el mismo argumento que las
+// credenciales OIDC (§F.4) — cargar/retirar un certificado es configurar
+// el proveedor, no administrar un recurso distinto (permisos.md §G.4).
+Route::post('/identity-providers/{publicId}/certificates', [IdentityProviderCertificatesController::class, 'store'])
+    ->middleware('permission:proveedor_identidad.actualizar')
+    ->name('identity-providers.certificates.store');
+
+Route::delete('/identity-providers/{publicId}/certificates/{certificatePublicId}', [IdentityProviderCertificatesController::class, 'destroy'])
+    ->middleware('permission:proveedor_identidad.actualizar')
+    ->name('identity-providers.certificates.destroy');
+
+// §G.4: hermano exacto de discovery-refreshes (§F.5). Solo sobre
+// proveedores SAML de origen URL.
+Route::post('/identity-providers/{publicId}/metadata-refreshes', [SamlMetadataRefreshesController::class, 'store'])
+    ->middleware('permission:proveedor_identidad.actualizar')
+    ->name('identity-providers.metadata-refreshes.store');
