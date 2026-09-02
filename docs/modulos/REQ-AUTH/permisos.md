@@ -959,3 +959,143 @@ Y siguen en vigor, sin excepción, las de `§7`, `§B.4`, `§C.8`, `§D.7` y `§
 - **`CA-AUTH-287`** — ninguna fila nueva en `people` ni en `users` tras un emparejamiento.
 - **`CA-AUTH-294`** — dos proveedores del mismo centro con el mismo `subject` producen dos vínculos independientes sobre dos usuarios distintos. **Con la clave de 1.4 este test falla**, y por eso existe.
 - **`CA-AUTH-306`** — ninguna de las **nueve** rutas lleva `module-enabled`.
+
+---
+
+# Parte G · Paso 1.4c · SSO institucional (SAML 2.0) — Permisos (`REQ-AUTH-004`)
+
+> **Estructura**: §1-§8 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b, `§E.*` es 1.4 y `§F.*` es 1.4b, los seis cerrados. Esta **Parte G** es el paso **1.4c**, **especificada y pendiente de aprobación**.
+>
+> `INV-002` (denegar por defecto) y `ADR-038 §6.4` (`404` y nunca `403` ante un identificador de otro tenant) sin excepción.
+
+---
+
+## G.1 La conclusión, primero: **1.4c no declara ningún permiso**
+
+Y vuelve a la situación de 1.4, después de que 1.4b declarara cuatro. **El motivo no es que este paso sea pequeño** —tiene cinco *endpoints* nuevos y cuatro tablas—, sino que **no aporta ningún recurso ni ninguna acción que el catálogo no cubra ya**.
+
+El argumento, en una frase: **configurar un proveedor SAML es configurar un proveedor de identidad**, y ese recurso existe desde 1.4b con sus cuatro acciones y su ciclo de vida completo. Añadir `proveedor_identidad_saml.*` sería tener dos recursos para la misma cosa según un detalle de protocolo que el administrador ni siquiera experimenta como una distinción: entra en la misma pantalla, en la misma lista, y da de alta «el sistema de identidad de mi centro».
+
+**El catálogo del módulo sigue en once permisos**: los dos de `bloqueo_cuenta` (1.2), los dos de `mfa` (1.3), los tres de `exencion_mfa` (1.3b) y los cuatro de `proveedor_identidad` (1.4b). **`CA-AUTH-361` lo verifica, y está redactado para fallar si alguien declara un duodécimo.**
+
+El contraste con los tres pasos anteriores del requisito, que es lo que hace la decisión comprobable en vez de cómoda:
+
+- **1.4 no declaró ninguno** porque `REQ-AUTH-002` describe **solo autoservicio del titular**.
+- **1.4b declaró cuatro** porque `REQ-AUTH-004` describe una **integración del centro**, con una entidad nueva y cinco *endpoints* de administración sobre ella.
+- **1.4c no declara ninguno** porque **la entidad ya existe**. Lo que este paso añade son **más columnas, más tablas hijas y más operaciones sobre el mismo recurso**, y `ADR-038` no crea un permiso por cada tabla: lo crea por cada recurso que el usuario reconoce como tal.
+
+Lo que **no** cambia:
+
+- **No se toca el catálogo de `REQ-CORE`**, a diferencia de 1.3 (`rol.actualizar`, `§C.5`). Una fila nueva con `module_code = 'core'` en esta rama es un error.
+- **`REQ-AUTH` sigue sin exponer categoría especial** (`§G.6`).
+- **Ningún *endpoint* del flujo de acceso acepta un sujeto ajeno** (`RN-AUTH-73`): el ACS actúa sobre quien resuelva la **fila de correlación que nosotros emitimos**, no sobre quien diga el cuerpo de la petición.
+- **`OPEN-AUTH-34` sigue abierta y este paso tampoco la resuelve.** Administrar los vínculos **de otros usuarios** sigue sin estar en el requisito, y el recurso `identidad_externa` sigue con su fila entera vacía (`§F.6`).
+
+---
+
+## G.2 Recursos que aporta el paso: **ninguno**
+
+Y hay que argumentar por qué, porque las tres tablas nuevas con `public_id` o sin él son candidatas obvias que se descartan:
+
+| Candidato descartado | Por qué no es recurso |
+|----------------------|------------------------|
+| **`certificado_proveedor_identidad`** | Es la respuesta exacta que `§F.4` dio para las credenciales, y el argumento **no ha cambiado al cambiar de protocolo**: un certificado no tiene sentido fuera de su proveedor, no se lista ni se busca por sí mismo, y quien puede modificar un proveedor puede modificar su material de verificación. Las dos operaciones van con `proveedor_identidad.actualizar`. **Un permiso separado permitiría un rol que puede cargar certificados y no ver el proveedor al que pertenecen** — una combinación sin significado que alguien tendría que explicar |
+| **`configuracion_saml`** | Es una tabla hija 1:1 sin identidad propia, sin `public_id` y sin ningún *endpoint* que la direccione: se crea, se lee y se modifica siempre a través del `public_id` del padre (`api.md §G.2`). **Un permiso para algo que no tiene URL propia no se puede ejercer por separado** |
+| **`peticion_saml` / `asercion_consumida`** | Son **estado transitorio de protocolo**, no entidades de negocio. No se listan, no se editan, no se borran a mano y **no tienen ni un solo *endpoint***. Su ciclo entero lo gobierna el servidor |
+| **`metadatos_sp`** | No es una entidad: es una **proyección de lectura** del proveedor y del *host* del tenant. Se lee con `proveedor_identidad.leer`, que es exactamente lo que es (`api.md §G.3`) |
+
+---
+
+## G.3 Matriz recurso × acción × ámbito
+
+**Sin una sola fila nueva.** Se reproduce la de `§F.6` en lo que 1.4c ejerce, con la columna de qué *endpoint* del paso cubre cada permiso:
+
+| Recurso | Acción | Ámbito | Qué autoriza **en 1.4c** |
+|---------|--------|--------|---------------------------|
+| `proveedor_identidad` | `leer` | `todos` | `GET .../{public_id}/metadata` (`api.md §G.3`), y los campos SAML del listado y del detalle |
+| `proveedor_identidad` | `crear` | `todos` | `POST /identity-providers` con `protocol: "saml"`, con su validación de metadatos |
+| `proveedor_identidad` | `actualizar` | `todos` | `PATCH /identity-providers/{public_id}`, las **dos** operaciones de certificados y `POST .../metadata-refreshes` |
+| `proveedor_identidad` | `eliminar` | `todos` | `DELETE /identity-providers/{public_id}`, sin cambios |
+| `identidad_externa` | — | — | **Fila entera vacía, sin cambios.** `OPEN-AUTH-34` |
+
+**El ámbito sigue siendo `todos` en los cuatro, y no `propios`**: un proveedor de identidad **es del centro**, no de quien lo dio de alta. Un ámbito `propios` significaría que el administrador que configuró el IdP es el único que puede corregirlo, lo que convierte una baja de personal en una integración huérfana. Sin cambios respecto de `§F.6`, y se repite porque es la clase de cosa que se copia mal.
+
+---
+
+## G.4 Endpoints sin permiso, a propósito y de forma razonada
+
+**Uno solo**, y es el más delicado del módulo.
+
+### `POST /api/v1/auth/saml/{public_id}/acs`
+
+**No lleva permiso, y no puede llevarlo**: es una petición **anónima**, que llega desde el IdP del centro, **sin cookie de sesión** y por tanto sin usuario al que autorizar. Es la misma situación de los dos *callbacks* de 1.4 y 1.4b, **con una diferencia sustantiva que hay que escribir porque cambia dónde está la garantía**:
+
+- **En OIDC**, la prueba de posesión es **la cookie de sesión** más el `state` guardado en su *payload*. Quien no arrancó el flujo en ese navegador no tiene ninguna de las dos.
+- **En SAML no hay cookie** (`ADR-043 §2.1`), así que la prueba de posesión es **la fila de `saml_auth_requests`**: una petición viva, no consumida, no caducada y emitida por nosotros, cuyo `request_id` case con el `InResponseTo` de la aserción.
+
+Es el **cuarto mecanismo de autorización** de `§C.4` —posesión de un artefacto de un solo uso emitido por el servidor—, ejercido sobre un artefacto que vive en base de datos en vez de en la sesión. **No es un mecanismo nuevo; es el mismo con otro almacén.**
+
+**Y aquí está lo que esta sección tiene que dejar dicho con todas las letras**: como el ACS **tampoco lleva `csrf`** (`api.md §G.7.1`), **la correlación es la única barrera que queda entre un `POST` anónimo y una sesión autenticada**. No es defensa en profundidad: es la defensa. De ahí que:
+
+1. **`RN-AUTH-120` (no se acepta SSO iniciado por el IdP) no sea una preferencia de prudencia sino una precondición de seguridad** de la excepción de CSRF (`ADR-043 §10.9` decisión 4). Sin `InResponseTo` que correlacionar, un atacante puede hacer que el navegador de la víctima entregue una aserción legítima **de la cuenta del atacante**, y la víctima queda operando en una cuenta ajena que el atacante luego lee: ***login CSRF*** sin mitigación.
+2. **`RN-AUTH-121` (consumo atómico de un solo uso)** cierre la repetición contra la misma petición, y **`RN-AUTH-122`** la de la misma aserción contra otra petición.
+3. **`RN-AUTH-118` (la llave nunca se elige por el contenido del mensaje)** impida que quien envía el mensaje elija con qué certificado se le comprueba.
+
+**Los cuatro tests que sostienen esto son `CA-AUTH-341`, `CA-AUTH-342`, `CA-AUTH-343` y `CA-AUTH-344`**, y `CA-AUTH-346` comprueba que la excepción de CSRF está donde se dijo y **solo ahí**.
+
+**Y lo que este *endpoint* explícitamente sí hace, aunque no lleve permiso**: aplica `MfaPolicy::resolve()` entero (`RN-AUTH-129`, `CA-AUTH-354`), el bloqueo de cuenta (`CA-AUTH-357`) y la comprobación de estado `activo` (`CA-AUTH-358`). **No llevar permiso no es no autorizar**: es autorizar por otro mecanismo y aplicar todas las guardas del login local después.
+
+**Los cuatro *endpoints* nuevos de administración sí llevan permiso**, sin excepción, y ninguno estrena mecanismo: son `proveedor_identidad.leer` y `proveedor_identidad.actualizar` sobre rutas nuevas.
+
+---
+
+## G.5 Asignación en los roles predefinidos
+
+**Sin cambios.** Los cuatro permisos de `proveedor_identidad` siguen **solo** en `administrador_centro` tras `tenant:provision-defaults` (`§F.7`).
+
+**No se amplía a `direccion` ni a `secretaria`**, y la tentación existe porque «configurar el SSO» suena a tarea de dirección. **No**: quien puede catalogar un IdP puede decidir **qué sistema externo dice quién es quién** en el centro. Con SAML eso es aún más literal que con OIDC — cargar un certificado de firma es decidir **qué clave se acepta como prueba de identidad de cualquiera del centro**. Es una operación de administración de la plataforma dentro del centro, y `RPERM-012` es el criterio: los permisos con consecuencia sobre el acceso no se reparten por comodidad.
+
+**Ningún rol nuevo, y ningún permiso de este módulo con `scope` distinto de `todos`.**
+
+---
+
+## G.6 Datos de categoría especial
+
+**`REQ-AUTH` sigue sin exponer ni un permiso con `is_special_category = true`**, y 1.4c no lo cambia.
+
+Merece una comprobación explícita porque este paso maneja material criptográfico y podría parecer que sí:
+
+- **Un certificado del IdP es una clave pública.** No es dato personal ni categoría especial: es material público de una institución (`ADR-043 §10.6`).
+- **La clave privada de firma del SP es un secreto de plataforma**, no de una persona, y **no se expone por ninguna API** (`RN-AUTH-127`, `CA-AUTH-334`). No hay permiso que la gobierne porque no hay *endpoint* que la sirva.
+- **Una aserción SAML sí contiene datos personales** —nombre, correo, atributos del directorio—, y por eso **no se persiste ninguna**: de una aserción solo sobreviven su `ID` y su `NotOnOrAfter` (`CA-AUTH-363`, `datos.md §G.4.2`). **No hay dato personal que permisar porque no hay dato personal guardado.**
+- **`RPERM-012` sigue cumpliéndose sin esfuerzo**: el aprovisionamiento no concede ni un rol (`RN-AUTH-129`, `CA-AUTH-353`), así que no puede ser el agujero por el que se concedan permisos de categoría especial.
+
+---
+
+## G.7 Reglas de autorización que no son un permiso
+
+Las de `§F.9` siguen vigentes sin cambios. **Tres se ejercen de forma distinta en SAML y hay que decirlo:**
+
+| Regla | Cómo se ejerce en 1.4c |
+|-------|------------------------|
+| **`RN-AUTH-101` · aislamiento por `public_id`** | Los cinco *endpoints* nuevos responden **`404` y nunca `403`** ante un `public_id` de otro tenant (`CA-AUTH-317`). **Incluido el ACS**, que además responde `302` con `estado_no_valido` en vez de `404` cuando el `public_id` no resuelve a un proveedor SAML activo — porque distinguir «este proveedor no existe» de «esta aserción no correlaciona» en una ruta anónima sería **un comprobador de qué centros tienen SAML** (`funcional.md §G.10.2`) |
+| **`RN-AUTH-102` · un proveedor no activo no arranca el flujo** | Sin cambios, **y con una guarda más**: un proveedor SAML activo **sin certificado de firma vigente** tampoco arranca (`RN-AUTH-128`, `api.md §G.6`) |
+| **`RN-AUTH-116` · aislamiento entre tenants en el propio protocolo** | **Es nuevo y no tiene equivalente en OIDC.** `entityId` de SP y ACS URL se derivan del *host* del tenant. Un `entityId` compartido haría textualmente válida en el centro B una aserción emitida legítimamente para el A: **fuga entre tenants por diseño, `INV-001`, severidad crítica de `CLAUDE.md §5`**. Con `Destination`, `Audience` y ruta del ACS todos por tenant quedan **tres barreras independientes**, y `CA-AUTH-339` las prueba **de una en una** |
+
+**Y una regla de autorización que este paso hereda y que conviene no perder de vista**: `RN-AUTH-96` (*«el SSO nunca es la única puerta»*) sigue en vigor **sin excepción**, y en este paso es además lo que **degrada la caducidad de un certificado de caída total a molestia** (`ADR-043 §10.6`). No es solo una regla de disponibilidad: es lo que sostiene que el material criptográfico de un tercero pueda vencerse sin dejar a nadie fuera.
+
+---
+
+## G.8 Verificación
+
+- **`CA-AUTH-361` — test de catálogo**: tras `platform:sync-registry`, `permissions` contiene **exactamente once** filas con `module_code = 'auth'`, ninguna con `retired_at`, ninguna con `is_special_category = true`, y ninguna fila de `permission_role` de este módulo con `scope` distinto de `todos`. **Si aparece una duodécima en esta rama, alguien ha declarado un permiso que el requisito no pide.**
+- **Test de catálogo de `REQ-CORE`: sin cambios.** 1.4c **no toca** el catálogo de otro módulo.
+- **Test de asignación**: los cuatro permisos de `proveedor_identidad` siguen **solo** en `administrador_centro`. Si aparecen en `direccion` o `secretaria`, es una ampliación de alcance no aprobada (`§G.5`).
+- **`CA-AUTH-317`** — cualquiera de las rutas de administración con un `public_id` de otro tenant responde `404`, nunca `403`, y la fila del otro tenant sigue viva.
+- **`CA-AUTH-339`** — una aserción legítima del centro A entregada en el ACS del centro B se rechaza, y **las tres barreras la rechazan por separado**. Es el test que más importa de esta parte: es `INV-001` en el protocolo, no en la consulta.
+- **`CA-AUTH-341`/`342`/`343`/`344`** — las cuatro protecciones de la correlación. **Son lo que hace defendible la excepción de CSRF** (`§G.4`).
+- **`CA-AUTH-346`** — el ACS es la **única** ruta sin `csrf`, en grupo propio, y **no existe ninguna lista global `validateCsrfTokens(except:)`**.
+- **`CA-AUTH-352`/`353`** — ninguna fila nueva en `people` ni en `users`, y ni un rol concedido, tras un emparejamiento SAML.
+- **`CA-AUTH-354`** — el SSO institucional SAML **no** salta el segundo factor.
+- **`CA-AUTH-334`** — la clave privada de firma del SP no aparece en ninguna respuesta de la API ni en ninguna línea del registro.
+- **`CA-AUTH-350`** — ninguna de las cinco rutas nuevas lleva `module-enabled`.

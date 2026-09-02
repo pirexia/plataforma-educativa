@@ -1487,3 +1487,296 @@ Lo que sí aparece, y va a `SYSADMIN.md` y al manual de administración de centr
 ### F.12.4 Lo que hay que verificar en el entorno real y no se puede verificar en WSL2
 
 `§F.10.4`, entero. **Es más corta que la de 1.4**, y esa es la diferencia con el paso anterior.
+
+---
+
+# Parte G · Paso 1.4c · SSO institucional (SAML 2.0) — Operación (`REQ-AUTH-004`)
+
+> **Estructura**: §1-§12 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b, `§E.*` es 1.4 y `§F.*` es 1.4b, los seis cerrados. Esta **Parte G** es el paso **1.4c**, **especificada y pendiente de aprobación**.
+>
+> Escrita sobre `ADR-043 §10`. **La decisión 8 —sin intermediario externo, dependencia SAML directa— tiene consecuencias de operación permanentes**, y están en `§G.3`.
+
+---
+
+## G.1 Comportamiento con el módulo activo o inactivo
+
+**`REQ-AUTH` sigue sin ser desactivable** (`RN-AUTH-35`), y **ninguna ruta de este paso lleva `module-enabled`** (`CA-AUTH-350`), **tampoco el ACS**. Se dice explícitamente porque el ACS es la primera ruta del módulo que podría parecer «de integración» y no «de acceso»: un centro que no puede recibir la aserción de su IdP porque una fila de `module_subscriptions` está mal es **el mismo fallo total con otra ropa**.
+
+**El catálogo sin proveedores SAML es el estado normal**, y el día del despliegue **no cambia nada para nadie** (`§G.12.1`). El ACS existe desde el primer minuto y, mientras ningún `public_id` resuelva a un proveedor SAML activo, responde `302` con `estado_no_valido` a cualquier cosa que llegue — **nunca `404`** (`funcional.md §G.10.2`).
+
+**Un centro sin SAML no nota este paso.** Un centro con SAML y sin certificado vigente **tampoco pierde el acceso**: `RN-AUTH-96` garantiza que la contraseña local nunca deja de ser puerta válida, y esa propiedad es la que convierte la caducidad de un certificado en una degradación en vez de una caída (`ADR-043 §10.6`).
+
+---
+
+## G.2 Variables de entorno
+
+### G.2.1 Propias del paso
+
+| Variable | Uso | Valor por defecto | Valor en desarrollo |
+|----------|-----|-------------------|---------------------|
+| `AUTH_SAML_SP_SIGNING_KEY_PATH` | **Ruta al fichero con la clave privada de firma del SP** (`funcional.md §G.3.7`). Vacía = no se puede activar `sign_authn_requests` en ningún proveedor | **vacía** | vacía |
+| `AUTH_SAML_SP_SIGNING_CERT_PATH` | Ruta al certificado público correspondiente. **Es el que se publica en nuestros metadatos de SP** cuando la firma está activa | **vacía** | vacía |
+| `AUTH_SAML_METADATA_TIMEOUT_SECONDS` | Tiempo de espera de la descarga de metadatos del IdP (guarda 4 de `§F.4.2`, reutilizada) | `5` | `5` |
+| `AUTH_SAML_METADATA_MAX_BYTES` | Tope de tamaño del documento de metadatos | `524288` | `524288` |
+| `AUTH_SAML_METADATA_MAX_REDIRECTS` | Guarda 3, reutilizada | `3` | `3` |
+| `AUTH_SAML_METADATA_MAX_DEPTH` | **Tope de profundidad de anidamiento del XML.** Guarda contra la bomba de expansión (`api.md §G.4`) | `20` | `20` |
+| `AUTH_SAML_METADATA_REFRESH_DAYS` | Antigüedad a partir de la cual la tarea programada refresca un proveedor SAML de origen URL (`§G.4`) | `7` | `7` |
+| `AUTH_SAML_AUTH_REQUEST_RETENTION_HOURS` | Antigüedad a partir de la cual se purgan las filas de `saml_auth_requests` consumidas o caducadas (`§G.4`) | `24` | `24` |
+| `AUTH_SAML_MIN_CERTIFICATE_KEY_BITS` | Tamaño mínimo de clave aceptado al cargar un certificado del IdP (`RN-AUTH-126`) | `2048` | `2048` |
+| `AUTH_SAML_ALLOW_INSECURE_METADATA` | **Permite `http` en la URL de metadatos y en el `SingleSignOnService`.** Existe **solo** para el IdP simulado de `§G.10`. **Guarda de arranque: aborta la aplicación si es `true` y `APP_ENV` no es `local` ni `testing`** | **`false`** | **`true`, fijado explícitamente** |
+| `AUTH_RATE_LIMIT_SAML_ACS_PER_IP` | Entregas al ACS por IP y minuto (`saml_acs_ip`) | `20` | `20` |
+| `AUTH_RATE_LIMIT_SSO_METADATA_PER_TENANT` | Validaciones de metadatos por tenant y minuto (`sso_metadata_tenant`) | `6` | `6` |
+| `AUTH_RATE_LIMIT_SSO_CERTIFICATE_PER_TENANT` | Cargas de certificado por tenant y minuto (`sso_certificate_tenant`) | `6` | `6` |
+
+**Se reutilizan sin cambios y no se duplican**: `AUTH_SSO_CLOCK_SKEW_SECONDS` (tolerancia de reloj, ahora también para `NotBefore`/`NotOnOrAfter`, `RN-AUTH-119`) y `AUTH_SSO_SECRET_EXPIRY_WARNING_DAYS` (antelación del aviso, ahora también para certificados del IdP, `CA-AUTH-335`). **Reutilizarlas es deliberado**: dos variables distintas para la misma antelación de aviso serían dos números que un operador tendría que mantener sincronizados sin ningún motivo.
+
+### G.2.2 Guardas de arranque, en todos los entornos
+
+Mismo patrón que `SESSION_DOMAIN` (§2.2), las tres de `§E.2.1` y las dos de `§F.2.1`:
+
+1. **`AUTH_SAML_ALLOW_INSECURE_METADATA=true` con `APP_ENV` distinto de `local`/`testing` ⇒ la aplicación no arranca.** Con `http` admitido, el documento que declara **con qué certificado se verifica quién entra en un centro** viaja en claro y lo puede reescribir cualquiera en el camino. Es la hermana exacta de la guarda 1 de `§F.2.1`, y **aquí es peor**, porque en OIDC lo que se reescribiría son URLs y aquí es material criptográfico de confianza.
+2. **`AUTH_SAML_SP_SIGNING_KEY_PATH` informada y el fichero no legible ⇒ la aplicación no arranca.** Una clave configurada y ausente es peor que ninguna clave: los proveedores con `sign_authn_requests = true` fallarían **en el camino del acceso**, uno a uno, sin que nada lo agregue. **Fallar al arrancar es fallar donde alguien lo ve.**
+3. **La ruta del IdP SAML simulado no se registra** fuera de `local`/`testing`, con test que lo comprueba con `APP_ENV=production` (`§G.10.3`). **Dos barreras, no una.**
+
+**Y la propiedad que hay que poder afirmar y no solo escribir** (lección del issue [#140](https://github.com/pirexia/plataforma-educativa/issues/140)): **ninguna variable de este paso tiene un valor por defecto que dispare una guarda de arranque.** `AUTH_SAML_ALLOW_INSECURE_METADATA` vale `false`; las dos rutas de clave valen **vacío**, que desactiva la guarda 2 entera. **Un despliegue de 1.4c sin tocar una sola variable arranca** (`CA-AUTH-365`).
+
+### G.2.3 `APP_KEY` **no** gana responsabilidad, y es la buena noticia del paso
+
+`§F.2.2` tuvo que escribir que `APP_KEY` ganaba responsabilidad por segunda vez, al cifrar el `client_secret` de cada centro. **Aquí no ocurre, y es consecuencia directa de dos hechos, no de un cuidado especial:**
+
+- **SAML no tiene secreto de cliente.** Usa certificados, y el del IdP es **material público** que no se cifra en reposo (`RN-AUTH-127`). `ADR-043 §10.10` lo anotó como uno de los dos temores que *«se cierran con hallazgos»*: `§8.2` **se reduce en vez de resolverse**.
+- **La clave privada del SP es de plataforma y no cambia con ninguna alta de tenant**, así que cabe en `ADR-037 §7` (`EnvironmentFile=` y fichero montado) y **no repite el camino a base de datos**. Es la recomendación de `OPEN-AUTH-44`, **bloqueante**: si se decidiera la salida B —cifrada con `APP_KEY`—, `APP_KEY` ganaría responsabilidad **por tercera vez** y perderla dejaría además sin firmar todas las peticiones de todos los centros.
+
+**Custodia del fichero de clave, si se aprueba la salida A** (`SYSADMIN.md` y `RUNBOOK.md`):
+
+- Montado con la etiqueta `:Z` (`CLAUDE.md §9`), permisos `0400` y propiedad del usuario del servicio.
+- **Fuera del repositorio, sin excepción** (`CLAUDE.md §4`: claves y certificados nunca se suben).
+- **En el procedimiento de recuperación**: un restablecimiento sin este fichero deja fuera de servicio la firma de peticiones de **todos** los centros que la tengan activa.
+- **Sin rotación automática** (`funcional.md §G.3.7`). Rotarla es reemplazar el fichero y **pedir a cada centro que vuelva a cargar nuestros metadatos**. Se documenta y no se automatiza: automatizar una rotación que nadie ha ejecutado nunca es código sin ejercitar en el camino del acceso.
+
+---
+
+## G.3 Servicios externos y degradación
+
+**Un servicio externo nuevo por centro —su IdP— y ningún servicio de plataforma nuevo.** `ADR-043 §10.9` decisión 8: **sin intermediario externo**, dependencia SAML directa.
+
+| Servicio | Si no responde | Impacto |
+|----------|----------------|---------|
+| **IdP SAML de un centro** (durante el acceso) | La persona no vuelve, o vuelve con un `Status` de fallo | **Solo ese centro**, y **solo su vía de SSO**: la contraseña local sigue funcionando (`RN-AUTH-96`) |
+| **IdP SAML de un centro** (durante el refresco de metadatos) | Se estampa `metadata_failed_at` y **se conserva todo lo anterior** | **Ninguno inmediato.** El SSO sigue funcionando con lo catalogado (`CA-AUTH-326`) |
+
+**Y una diferencia estructural con 1.4b que conviene decir en voz alta, porque mejora**: en OIDC, **cada login hace una petición saliente** al `token_endpoint` del emisor, y `§F.8` tuvo que poner una alerta sobre `auth.oidc.callback.duration` porque *«un IdP lento consume trabajadores que sirven a todos los centros»*. **En el perfil Web Browser SSO de SAML no hay canal trasero**: la aserción llega firmada en el `POST` del navegador. **El ACS no habla con nadie.** Un IdP SAML lento afecta al navegador de su usuario, no a nuestros trabajadores. **Es el modo de fallo compartido de `§F.3` que este paso no hereda.**
+
+### G.3.1 La dependencia de `php-saml`: la consecuencia de operación permanente
+
+**Es la parte de este paso que no termina cuando termina el paso**, y `ADR-043 §2.3` y `§10.3` la exigieron por escrito. Va aquí, en operación, y **a `RUNBOOK.md`**, porque no es una tarea de implementación:
+
+1. **Suscripción a los avisos de seguridad de `onelogin/php-saml` *y* de `robrichards/xmlseclibs`.** Las dos, no una: `xmlseclibs` es el núcleo de XML-DSig y acumula cuatro avisos históricos, uno de ellos un *«critical signature bypass»*.
+2. **Compromiso de parcheo rápido.** El modo de fallo característico de esta familia es *«la firma no se valida y el sistema cree que sí»* (`ADR-043 §2.3`), sobre el componente que decide quién entra en un sistema con datos de menores.
+3. **`xmlseclibs 4.0.0` (2026-08-22) queda en vigilancia.** `php-saml` sigue anclado en `^3.1.5`. El día que mueva esa restricción, **es una actualización a revisar, no a aplicar en automático**.
+4. **Factor autobús 1** (`ADR-043 §10.3`): 15 de 16 *commits* del último año son de un solo mantenedor. Se acepta a sabiendas; la mitigación es que MIT + 6.779 líneas hacen el *fork* una salida real. **Si el mantenedor desaparece, el disparador de `ADR-043 §7.2` —volver a evaluar un intermediario externo— se reabre con su propio ADR.**
+
+**El escaneo de dependencias de cada PR (`CLAUDE.md §8`) sí funciona sobre esta biblioteca**, y esa fue la razón de elegirla: **publica avisos**. `ADR-043 §10.1` documentó que sobre `litesaml/lightsaml` ese control **no funciona** —un salto de autenticación completo pasó por todos los escáneres en verde—, y esa es la diferencia entre tener un control y creer que se tiene.
+
+---
+
+## G.4 Colas y trabajos (`INV-012`)
+
+**Tres tareas programadas nuevas y ningún trabajo en cola nuevo.**
+
+| Tarea | Frecuencia | Qué hace |
+|-------|------------|----------|
+| **`auth:refresh-saml-metadata`** | **Diaria** | Refresca los metadatos de los proveedores SAML **de origen URL** con más de `AUTH_SAML_METADATA_REFRESH_DAYS` de antigüedad. **Añade certificados nuevos y no retira ninguno** (`RN-AUTH-125`, `CA-AUTH-325`). Si falla, conserva todo y estampa `metadata_failed_at`. Precedente directo: `auth:refresh-oidc-discovery` |
+| **`auth:warn-expiring-idp-certificates`** | **Diaria** | Avisa de los certificados del IdP cuya `not_after` está a menos de `AUTH_SSO_SECRET_EXPIRY_WARNING_DAYS`, con avisos escalonados y marca visible en la pantalla del proveedor (`CA-AUTH-335`). Hermana de `auth:warn-expiring-client-secrets` |
+| **`auth:purge-saml-correlation`** | **Diaria** | Purga `saml_auth_requests` consumidas o caducadas con más de `AUTH_SAML_AUTH_REQUEST_RETENTION_HOURS`, y `saml_consumed_assertions` cuyo `not_on_or_after` ya pasó con margen |
+
+**La purga es lo que 1.4b no necesitó**, y la diferencia es estructural: el `state` de OIDC vive en la sesión y muere con ella; **en SAML el estado equivalente vive en base de datos** porque el ACS llega sin cookie (`ADR-043 §2.1`). **Lo que se persiste hay que purgarlo.**
+
+**Y se purga sin bloquear**, con el patrón de `2026_08_31_100100_add_purge_indexes_to_mfa_tables.php` e issues [#118](https://github.com/pirexia/plataforma-educativa/issues/118)/[#119](https://github.com/pirexia/plataforma-educativa/issues/119): **borrado por lotes acotados, con el índice que sirve exactamente a la consulta de purga** (`datos.md §G.4`), nunca un `DELETE` masivo en una transacción. Se dice porque es el error que este proyecto ya cometió una vez.
+
+**Ningún trabajo en cola nuevo.** El aviso de emparejamiento (`SendIdentityMatchedEmail`) **ya existe desde 1.4b y se reutiliza tal cual** (`funcional.md §G.4.6`): el hecho es el mismo y el nombre visible del proveedor es igual de válido para un IdP SAML.
+
+**La validación de metadatos es síncrona y no va a cola**, exactamente igual que el descubrimiento en 1.4b y por el mismo motivo: **el administrador está esperando y necesita el resultado para corregir**. `INV-012` habla de tareas pesadas, y descargar y analizar un XML con tope de tamaño y de tiempo de espera no lo es.
+
+---
+
+## G.5 Correos que emite el módulo
+
+**Ninguno nuevo** (`funcional.md §G.4.6`).
+
+**Y una consecuencia que se hereda literalmente de `§F.5`**: el día que un centro de 400 personas activa el emparejamiento con su IdP SAML se encolan hasta 400 avisos. La alerta sobre `auth.identity.matched` sigue definida **por proveedor recién activado**, no por volumen absoluto — la primera semana de cada centro es legítimamente una ráfaga.
+
+**El aviso de vencimiento de certificado no es un correo al titular**: es un aviso operativo y una marca en la pantalla de administración, con el mismo criterio que el de credenciales de 1.4b. **Quien tiene que actuar es el administrador del centro, no las 400 personas.**
+
+---
+
+## G.6 Límites de tasa
+
+**Tres *buckets* nuevos.** Amplía §6, `§C.6`, `§E.6` y `§F.6` con sus mismos criterios.
+
+| Endpoint | Límite | Clave (*bucket*) |
+|----------|--------|------------------|
+| **`POST /auth/saml/{public_id}/acs`** | **20 / min** | IP — `saml_acs_ip` |
+| `POST /identity-providers` con metadatos por URL, y `POST .../metadata-refreshes` | **6 / min** | `(tenant_id)` — `sso_metadata_tenant` |
+| `POST .../certificates` | **6 / min** | `(tenant_id)` — `sso_certificate_tenant` |
+
+- **Toda clave incluye el `tenant_id`** (`ADR-033 §9`), sin cambios.
+- **`saml_acs_ip` copia el valor de `oidc_callback_ip` y de `oauth_callback_ip`** (20/min), a propósito y no por inventar uno: **es el análogo exacto**, y tres límites distintos para tres puntos de retorno iguales sería una inconsistencia que alguien tendría que explicar.
+- **`sso_metadata_tenant` va por tenant, y no por sesión ni por IP**, por el mismo argumento que `sso_discovery_tenant` en `§F.6`, que aquí vale igual: **lo que se defiende no es la cuenta ni el servidor, son terceros**. Un administrador con sesión legítima que repita la validación en bucle convierte nuestra API en un generador de tráfico contra el IdP que él elija.
+- **`sso_metadata_tenant` no se aplica cuando el origen es XML pegado**, y es una diferencia deliberada con 1.4b: **un XML pegado no genera tráfico saliente contra nadie**, así que aplicarle el *bucket* que existe para proteger a terceros sería un límite que no cierra ningún hueco (`§E.6`, mismo argumento).
+- **`sso_certificate_tenant` es antiabuso, no antiadivinanza**: cargar certificados en bucle no adivina nada, pero llena la tabla y el registro de auditoría.
+
+**Los cuatro *endpoints* nuevos restantes no llevan *bucket* propio** por el criterio ya establecido en `§F.6`: exigen sesión completa y un permiso concedido solo a `administrador_centro`, y **ninguno hace una petición saliente**. `GET .../metadata` es una lectura que no toca la red.
+
+**El ACS sí lo lleva, y es el que más importa**, porque es **anónimo y sin CSRF**. Sin él, la validación de firma XML —que es cara— sería un amplificador de denegación de servicio desde cualquier origen. **El límite se aplica antes de tocar el XML** (`funcional.md §G.4.3` punto 6).
+
+- **`429` siempre con `Retry-After`** (`ADR-038 §6.5`). En el ACS, **el `429` es la única respuesta del *endpoint* que no es un `302`**, y se acepta: un navegador limitado por tasa no es un navegador al que haya que dar un código de resultado de producto.
+- **El limitador sigue sin degradar a «sin límite»**: si su almacén no responde, `503` (§3).
+
+---
+
+## G.7 Caché
+
+**Ninguna caché de framework nueva**, y la misma decisión de diseño que la hace innecesaria: **los datos del IdP se guardan en la fila, no se cachean** (`datos.md §G.3`, `§G.5`). Un acceso SAML **no habla con nadie**, ni siquiera con el IdP.
+
+**Los certificados admisibles se consultan en cada aserción**, con el índice `(tenant_id, identity_provider_id) WHERE deleted_at IS NULL AND retired_at IS NULL`. **No se cachean**, y merece el argumento: son unas pocas filas por proveedor, la consulta es por índice, y **el resultado tiene que cambiar en el acto** cuando un administrador retira un certificado comprometido. Una caché con invalidación por evento aquí es más código y más modos de fallo que la consulta que evita — el mismo razonamiento con el que `§F.7` decidió no cachear `GET /auth/identity-providers`.
+
+**Y una advertencia que hay que escribir aquí para que no se elija mal, en la línea de la que `§F.7` dejó sobre el JWKS**: **el envoltorio no debe descargar nada durante la validación de una aserción.** `php-saml` admite configuraciones que resuelven material por red; **no se usan**. Todo lo que hace falta para verificar una firma está en la fila y en `identity_provider_certificates`, puesto ahí por un administrador o por el refresco programado. **Si la biblioteca ofrece los dos caminos, se usa el que no sale a la red**, por la misma razón que en 1.4b: meter una petición saliente entre el usuario y su sesión es un modo de fallo nuevo para la misma garantía.
+
+---
+
+## G.8 Métricas y alertas
+
+| Métrica | Alerta |
+|---------|--------|
+| `auth.saml.acs.outcome` por código de resultado y por proveedor | **`error_proveedor` por encima del 5 % en 15 minutos para un proveedor ⇒ aviso.** Es la señal de certificado caducado, `entityId` mal registrado o IdP reconfigurado, y sin ella el fallo es silencioso: cada usuario lo ve, nadie lo agrega |
+| **`auth.saml.assertion.invalid` por motivo** (`firma`, `issuer`, `destination`, `audience`, `ventana`, `recipient`, `in_response_to`, `repetida`) | **Cualquier cosa que no sea cero merece mirarse, y `firma` es incidencia de seguridad, no ruido** (`funcional.md §G.4.5`). Una aserción cuya firma no valida no es un error de usuario: es configuración incorrecta **o alguien probando**. `repetida` distinto de cero es lo más grave de esta tabla: es el síntoma de un intento de reproducción |
+| **`auth.saml.acs.outcome{estado_no_valido}`** | **Pico sostenido ⇒ aviso de seguridad.** Agrupa el `InResponseTo` ausente —es decir, **SSO iniciado por el IdP o *login CSRF* intentado**— con el consumido y el caducado. **Es la métrica que vigila la excepción de CSRF**, y por eso no se agrega con las demás |
+| **`auth.saml.provider.enabled_without_certificate`** | **Cualquier valor distinto de cero ⇒ aviso.** Un proveedor activo sin certificado vigente es un centro que cree tener SSO y no lo tiene (`RN-AUTH-128`) |
+| **`auth.saml.certificate.expiring`** por proveedor | **Cualquier valor distinto de cero ⇒ aviso**, con la antelación de `AUTH_SSO_SECRET_EXPIRY_WARNING_DAYS`. **Es lo que evita el modo de fallo que `ADR-043 §2.4` describe**: caída del SSO de un centro el día del vencimiento, con un mensaje que no apunta al certificado |
+| **`auth.saml.metadata.refresh_failed`** por proveedor | **Tres días seguidos ⇒ aviso.** Un fallo aislado es ruido; tres días es un IdP que cambió algo |
+| **`auth.saml.metadata.blocked`** por código de guarda | **Cualquier `destino_no_publico` ⇒ aviso de seguridad, no operativo.** Es un administrador de centro apuntando nuestro servidor a la red interna. **La guarda ya lo impidió**; el aviso existe para que alguien lo mire (`RN-AUTH-113`) |
+| **`auth.saml.acs.first_failure`** por proveedor recién activado | **El primer acceso fallido de un proveedor recién activado ⇒ aviso al administrador del centro.** Es lo que compensa que el alta **no verifique que el IdP nos conoce** (`funcional.md §G.4.1`), cosa que no se puede comprobar sin un usuario real recorriendo el flujo |
+| `auth.identity.matched` por proveedor | Sin cambios respecto de `§F.8`: ráfaga en un proveedor activo desde hace más de una semana ⇒ aviso |
+| `login_attempts` con `outcome = 'federado_sin_vinculo'` y `method = 'sso'` | Sin cambios. **No es un oráculo**, pero sigue siendo actividad que merece mirarse |
+
+**Lo que no se mide, y por qué**: **no hay métrica de duración del ACS por proveedor**, a diferencia de `auth.oidc.callback.duration`. No hace falta: **el ACS no hace ninguna petición saliente** (`§G.3`), así que no puede quedarse esperando a un tercero. Su duración es la de una validación de firma local, que es trabajo de CPU acotado. **Poner la métrica sería copiar una alerta de 1.4b sin su motivo.**
+
+---
+
+## G.9 Problemas conocidos y diagnóstico
+
+| Síntoma | Causa probable | Comprobación |
+|---------|----------------|--------------|
+| **Todo acceso responde `estado_no_valido`** | El IdP está enviando aserciones **no solicitadas** (SSO iniciado por el IdP), típico si el centro configuró el enlace desde su portal | **No se soporta y no se va a soportar** (`RN-AUTH-120`, `ADR-043 §10.9` decisión 4). La salida es que el acceso empiece **siempre** en nuestra pantalla de login. **No es un fallo: es la precondición de seguridad de la excepción de CSRF** |
+| Todo acceso responde `error_proveedor` y `auth.saml.assertion.invalid{firma}` sube | **Certificado rotado en el IdP y no cargado aquí** | Los certificados vigentes del proveedor. **Es la causa que más va a aparecer a partir del segundo año**, y es exactamente para lo que existe el aviso de vencimiento |
+| `auth.saml.assertion.invalid{audience}` o `{destination}` sube | El centro registró en su IdP un `entityID` o una ACS URL que no son los nuestros | La pantalla muestra los valores exactos y el botón de descarga de metadatos (`api.md §G.3`). Se comparan **carácter a carácter**: esquema, puerto y barra final incluidos |
+| **`auth.saml.assertion.invalid{firma}` distinto de cero sin rotación de por medio** | **Incidencia de severidad alta.** O el IdP cambió algo sin avisar, o alguien está probando firmas | `RN-AUTH-117`, `CA-AUTH-337`. **Se investiga, no se sube ningún umbral y no se relaja ningún indicador** |
+| **`auth.saml.assertion.invalid{repetida}` distinto de cero** | **Incidencia de severidad alta.** Es un intento de reproducción de aserción | `RN-AUTH-122`, `CA-AUTH-344`. La protección funcionó; lo que hay que averiguar es de dónde vino |
+| El IdP rechaza nuestro `AuthnRequest` con un error de firma | `sign_authn_requests` activo y la clave de plataforma no es la que el centro registró | El certificado público de nuestros metadatos contra el que tenga cargado el centro. **Rotar la clave obliga a que todos los centros recarguen los metadatos** (`§G.2.3`) |
+| El IdP rechaza el `AuthnRequest` porque espera que vaya firmado | `sign_authn_requests` apagado y el IdP lo exige — típico de algunos despliegues de ADFS y Shibboleth | Activar el conmutador. **Si responde `409`, es que no hay clave de plataforma configurada** (`RN-AUTH-128`), y eso es una tarea del operador, no del centro |
+| **Un centro con ADFS no puede integrarse en absoluto** | **Está cifrando la aserción** (`EncryptedAssertion`) | **No se soporta en 1.4c** (`OPEN-AUTH-46`). La salida es que el centro desactive el cifrado; el transporte ya es TLS y la aserción va firmada |
+| **Un IdP conforme es rechazado y firma solo la aserción, no la respuesta** | **`wantMessagesSigned = true`**, restricción aceptada a conciencia (`funcional.md §G.3.5`) | **Es lo primero que hay que comprobar contra un IdP comercial** (`§G.10.4`). Si ocurre, es **un cambio de una línea de configuración con su propio test y su propia decisión**, no un rediseño |
+| Nadie empareja y `sin_cuenta` sube | El `email_attribute` configurado no es el que ese IdP emite | El nombre exacto del atributo. En ADFS suele ser `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress`; en Shibboleth, `urn:oid:0.9.2342.19200300.100.1.3` |
+| Nadie empareja, `sin_cuenta` sube y el IdP emite `NameID` opaco | El `NameIDFormat` es `persistent` y **no hay `email_attribute`** | **No debería haberse podido catalogar así**: el `CHECK` de `datos.md §G.3` lo impide. Si ocurre, es un defecto del `CHECK` |
+| Un administrador ve `destino_no_publico` al validar una URL correcta | El IdP está detrás de una resolución interna | **La guarda es correcta y no se relaja.** Un IdP institucional accesible solo desde la red interna del servidor no es un IdP que el navegador de un docente pueda alcanzar |
+| El acceso completa y la SPA aterriza sin sesión | La cookie fijada en la respuesta del ACS no viajó en el `302` | **Es el escenario que `§G.10.4` manda comprobar en navegador real.** Si ocurre, la reserva declarada es el vale opaco de un solo uso (`funcional.md §G.3.2`), **que no se implementa por adelantado** |
+| **Un usuario entra por SAML y no le piden el segundo factor** | **Incidencia de severidad crítica.** Es una evasión del segundo factor | `RN-AUTH-129`, `CA-AUTH-354`. Se detiene el trabajo en curso y se resuelve de inmediato (`CLAUDE.md §5`) |
+| **Aparece una `Person` o un `User` creado por un acceso SAML** | **Incidencia crítica.** Ese camino **no existe**, y además **la base de datos no lo permite** (`CHECK` de `provisioning_mode`) | `CA-AUTH-352`. Si aparece, alguien amplió el `CHECK` |
+| **Una aserción de un centro es aceptada en otro** | **Incidencia crítica: fuga entre tenants** (`INV-001`) | `CA-AUTH-339`. Las tres barreras —ruta del ACS, `Destination`, `Audience`— tienen que rechazarla **cada una por separado** |
+| El ACS responde `419` | La ruta quedó dentro del grupo de `/api/v1` en vez de en su grupo propio | `CA-AUTH-346`, `CA-AUTH-347`. **Es un fallo de despliegue de rutas, no de protocolo** |
+
+---
+
+## G.10 Desarrollo sin un IdP comercial: el IdP SAML simulado
+
+### G.10.1 Por qué hace falta, y por qué aquí importa más que en 1.4b
+
+`§F.10.1` explicó que 1.4b sí se podía probar entero en desarrollo. **En 1.4c no es que se pueda: es que hay que poder, y por un motivo distinto.**
+
+Lo que hay que probar aquí **no es el camino feliz**: son los rechazos. **Firma alterada, `Audience` de otro tenant, `InResponseTo` inventado, aserción repetida, ventana vencida, `NameID` ausente, `Issuer` que no casa.** Ninguna de esas pruebas se puede hacer contra un IdP real, porque **un IdP real no emite aserciones inválidas a petición**. Sin un emisor bajo nuestro control, `RN-AUTH-117` a `RN-AUTH-123` **no tendrían ni un test negativo**, que es tanto como no tenerlas (`INV-015`).
+
+**Es la razón por la que `funcional.md §G.14` pone el IdP simulado y las pruebas negativas *antes* del ACS en el orden de implementación.**
+
+### G.10.2 Qué se entrega
+
+**Un IdP SAML simulado servido por la propia API**, hermano del emisor OIDC de `§F.10.2`, **fuera del grupo de tenant** (es un emisor de plataforma, no de un centro) y bajo el mismo prefijo `_sso-simulator`:
+
+- Un *endpoint* de **metadatos** con `entityID`, `SingleSignOnService` HTTP-Redirect y un `KeyDescriptor use="signing"` con un certificado **generado para desarrollo**.
+- Un *endpoint* de **SSO** que recibe el `AuthnRequest`, extrae su `ID` y devuelve un formulario de auto-envío al ACS con una aserción firmada.
+- **Y lo que lo hace útil de verdad: modificadores de comportamiento** para emitir a propósito una aserción **sin firmar**, **con firma alterada**, **con `Audience` de otro tenant**, **sin `InResponseTo`**, **con `InResponseTo` inventado**, **caducada**, **repetida** o **sin `NameID`**. Es lo que convierte cada regla de `RN-AUTH-117` a `RN-AUTH-123` en un test negativo real.
+
+**El certificado y la clave del IdP simulado son de desarrollo y se generan en el arranque del entorno**, nunca se commitean (`CLAUDE.md §4`) y nunca son los mismos que ningún material de producción.
+
+### G.10.3 Las dos barreras que impiden que llegue a producción
+
+Mismo patrón que 1.4 y 1.4b, **y por el mismo motivo, que aquí es aún más literal**: lo que hay al otro lado de un descuido no es una funcionalidad rota, **es un emisor bajo control de cualquiera capaz de firmar aserciones que nuestro ACS aceptaría**.
+
+1. **La ruta no se registra** fuera de `local`/`testing`, con test que lo comprueba con `APP_ENV=production` (`CA-AUTH-366`).
+2. **Guarda de arranque en el propio controlador**, que aborta si se le invoca fuera de esos entornos.
+
+**Dos barreras, no una.** Y una tercera de hecho, que conviene nombrar aunque no sea de este mecanismo: **un centro tendría que catalogar el IdP simulado como proveedor suyo y cargar su certificado** para que sus aserciones fueran aceptadas — cosa que `RN-AUTH-118` hace imposible por accidente, porque los certificados admisibles se fijan por proveedor.
+
+### G.10.4 Lo que queda sin verificar, y hay que decirlo al cerrar
+
+**Es más larga que la de 1.4b, y esa es la diferencia con el paso anterior.** El IdP simulado prueba nuestra mitad del protocolo entera; **no prueba la interoperabilidad**, que en SAML es donde están las sorpresas.
+
+| Sin verificar | Por qué | Riesgo |
+|---------------|---------|--------|
+| **Que un IdP comercial real firme *también* la `Response` y no solo la `Assertion`** | `wantMessagesSigned = true` lo exige (`funcional.md §G.3.5`) | **Es lo primero que hay que comprobar**, contra ADFS, Entra ID y Shibboleth. Si un IdP conforme no puede, es un cambio de una línea **con su propia decisión**, no un rediseño |
+| **Que la cookie de sesión fijada por el ACS viaje en el `302` en todos los navegadores** | El ACS fija la cookie en una respuesta a un `POST` entre sitios, y la SPA la recibe en una navegación `GET` de nivel superior a nuestro propio origen | **Si algún navegador no la envía**, la reserva declarada es el vale opaco de un solo uso (`funcional.md §G.3.2`). **No se implementa por adelantado**: es complejidad real a cambio de un problema que puede no existir, y averiguarlo cuesta una prueba |
+| **La interoperabilidad de `NameIDFormat` y de los nombres de atributo** | Cada despliegue de ADFS y Shibboleth los configura a mano | Es el motivo de `OPEN-AUTH-43` y de que `email_attribute` sea texto libre validado |
+| **TLS real, dominio público y certificado** | `0.10b` (`OPEN-08`) sigue pendiente | **Menos bloqueante que en 1.4b**: el flujo entero se recorre sin dominio público. Lo que no se puede es integrar con un IdP institucional de verdad |
+| **El comportamiento con `EncryptedAssertion`** | No se soporta (`OPEN-AUTH-46`) | Un centro con ADFS cifrando **no puede integrarse** hasta que lo desactive. **Se documenta, no se descubre** |
+| **Reloj desincronizado de verdad** | `AUTH_SSO_CLOCK_SKEW_SECONDS` (120) se prueba con relojes simulados | Un IdP con más de dos minutos de desfase real rechazaría todo, con un síntoma que no apunta al reloj |
+
+---
+
+## G.11 Impacto en copias de seguridad y restauración
+
+**Cuatro tablas más en la copia, y ningún cambio de procedimiento.**
+
+**Y una propiedad que hay que afirmar explícitamente, porque es la que `§F.11` no pudo afirmar**: **ninguna de las cuatro tablas nuevas contiene un secreto cifrado.** `identity_provider_secrets` metió en la copia de seguridad `client_secret` cifrados con `APP_KEY`, con la consecuencia de que **la copia sin `APP_KEY` es inservible para esa tabla**. Aquí no: los certificados del IdP son **material público**, y la clave privada del SP **no está en base de datos** (`§G.2.3`, `datos.md §G.1`).
+
+**Consecuencia práctica de la restauración:**
+
+- **Restaurar la base de datos sin nada más devuelve el SSO SAML a funcionar**, siempre que los IdP de los centros no hayan rotado sus certificados entretanto.
+- **Salvo la firma de peticiones**: los proveedores con `sign_authn_requests = true` **necesitan además el fichero de clave privada**, que **no viaja en la copia de la base de datos**. Va en el procedimiento de recuperación como un artefacto aparte, con el mismo tratamiento que `APP_KEY` (`§G.2.3`).
+- **`saml_auth_requests` y `saml_consumed_assertions` restauradas son irrelevantes y no molestan**: las filas de correlación habrán caducado, y las aserciones consumidas solo pueden causar **rechazos de más**, nunca aceptaciones de más. **Es la dirección segura del error**, y merece decirse: una restauración a un punto anterior **no reabre** ninguna ventana de repetición dentro del `NotOnOrAfter` de una aserción ya consumida, porque el índice único sigue ahí.
+
+---
+
+## G.12 Despliegue
+
+### G.12.1 El día del despliegue no cambia nada para nadie
+
+1. **Migraciones**: seis (`datos.md §G.7`). Las cuatro tablas nuevas no las usa nadie todavía; las dos modificaciones son **aditivas y compatibles con la versión anterior** (`datos.md §G.7.2`, `CA-AUTH-314`).
+2. **Despliegue de la aplicación sin tocar ninguna variable nueva.** El sistema arranca y queda idéntico al anterior (`CA-AUTH-365`). **No hay que fijar nada para que este paso sea seguro**: las dos rutas de clave valen vacío y `AUTH_SAML_ALLOW_INSECURE_METADATA` vale `false`.
+3. **La única acción del operador de plataforma, y es opcional**: generar y montar el par de clave/certificado del SP **si algún centro va a necesitar peticiones firmadas**. Sin él, todo lo demás funciona; lo único que no se puede es activar `sign_authn_requests` (`409`).
+4. **A partir de ahí, cada centro configura el suyo cuando quiere.**
+
+**El ACS se despliega y queda vivo desde el primer minuto**, respondiendo `302` con `estado_no_valido` a todo. **Es correcto y es lo que se quiere**: una ruta que existe y no reconoce nada es preferible a una que aparece cuando el primer centro cataloga un proveedor.
+
+### G.12.2 Orden y reversión
+
+**La reversión tiene tres escalones**, según lo que se quiera deshacer:
+
+- **Apagar el SSO SAML de un centro**: su administrador desactiva el proveedor. Un `PATCH`, sin reinicio, sin tocar base de datos. **Nadie se queda fuera** (`RN-AUTH-96`), y **los vínculos siguen viéndose y pudiendo retirarse** desde el perfil.
+- **Apagar la firma de peticiones en toda la plataforma**: retirar la variable de la clave y reiniciar. Los proveedores con `sign_authn_requests = true` dejarían de poder firmar, así que **no es una maniobra inocua** y solo tiene sentido si la clave se ha comprometido — en cuyo caso el procedimiento completo incluye pedir a cada centro afectado que recargue nuestros metadatos.
+- **Revertir la aplicación**: **mientras no haya ninguna fila con `protocol = 'saml'`, revertir el esquema es limpio y completo.** En cuanto un centro cataloga un proveedor SAML, **revertir la migración 1 falla ruidosamente**, porque devolver las siete columnas a `NOT NULL` es imposible con una fila SAML dentro (`datos.md §G.7.3`). **Es el comportamiento correcto y no se suaviza**: a partir de ahí, revertir el esquema deja de ser una operación de despliegue y pasa a ser una decisión con pérdida de datos.
+
+**Como en todos los pasos anteriores del módulo, revertir la aplicación no exige revertir las migraciones**, y esa es la vía normal de vuelta atrás.
+
+### G.12.3 Lo que hay que verificar en el entorno real y no se puede verificar en WSL2
+
+`§G.10.4`, entero. **Es más larga que la de 1.4b**, y esa es la diferencia honesta con el paso anterior: SAML tiene mucha más superficie de interoperabilidad que OIDC, y **la parte que un IdP simulado no puede cubrir es precisamente la que decide si un centro real puede integrarse**.
+
+### G.12.4 Documentación raíz que este paso obliga a tocar, y no después
+
+**`SECURITY.md` gana una entrada, y no es opcional** (`ADR-043 §10.10`, `CLAUDE.md §6.7`): **la primera excepción de CSRF de la aplicación**, qué ruta, qué pila de *middleware*, y **qué la mitiga** — la correlación de un solo uso y el «no» al SSO iniciado por el IdP, **no la ausencia de riesgo**.
+
+**`RUNBOOK.md` gana la obligación de seguimiento de `php-saml` y `xmlseclibs`** (`§G.3.1`), y el procedimiento de rotación manual de la clave del SP (`§G.2.3`).
+
+**`SYSADMIN.md` gana la custodia del fichero de clave** y las tres guardas de arranque de `§G.2.2`.
+
+Se escribe aquí, en la especificación, **con el precedente de los issues [#111](https://github.com/pirexia/plataforma-educativa/issues/111)-[#114](https://github.com/pirexia/plataforma-educativa/issues/114) y [#125](https://github.com/pirexia/plataforma-educativa/issues/125) delante**: la documentación raíz se quedó atrás durante cinco cierres de fase seguidos porque nadie la puso en el alcance del paso. **Aquí está en el alcance del paso.**

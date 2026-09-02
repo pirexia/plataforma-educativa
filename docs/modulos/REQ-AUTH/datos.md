@@ -1472,3 +1472,407 @@ sessions (framework)  ◀── payload: state + code_verifier PKCE + nonce, 10 
 **Derecho de supresión (`ADR-004`, `REQ-PRIV-006`)**: sin novedad y sigue siendo el caso fácil. `user_identities` cuelga de un `user_id` real por clave foránea compuesta obligatoria y la supresión de la persona la arrastra. **Las dos tablas nuevas no contienen ningún dato personal**: `identity_providers` es configuración técnica y `identity_provider_secrets` es una credencial de la plataforma frente a un tercero, **no de una persona**. Es la primera vez en este módulo que una tabla nueva no aparece en el análisis de supresión, y conviene decirlo para que la revisión no lo tome por omisión.
 
 **Un matiz de protección de datos que sí hay que escribir**: `identity_providers.allowed_email_domains` contiene el dominio de correo de una institución. **No es dato personal** —es el dominio de un centro, no de una persona— pero sí es información sobre la organización, y por eso la tabla no sale por ninguna API anónima: `GET /auth/identity-providers` devuelve `public_id` y `display_name`, nunca el emisor, los dominios ni el `client_id` (`api.md §F.6`).
+
+---
+
+# Parte G · Paso 1.4c · SSO institucional (SAML 2.0) — Modelo de datos (`REQ-AUTH-004`)
+
+> **Estructura**: `§A.*` es 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b, `§E.*` es 1.4 y `§F.*` es 1.4b, los seis cerrados. Esta **Parte G** es el paso **1.4c**, **especificada y pendiente de aprobación**.
+>
+> Convenciones de `ADR-029` sin excepción: `TIMESTAMPTZ`, `text` en vez de `varchar(n)`, `bigint` interno más `public_id` ULID **solo donde se expone en API o URL**. Toda tabla de tenant se crea con `TenantMigration::tenantTable()` (`ADR-033 §5`, `§6`).
+>
+> Escrita sobre `ADR-043 §10` (**ocho decisiones del usuario, 2026-09-02**), y en particular sobre su **decisión 2**: discriminador `protocol` en el padre más tabla hija 1:1, **sin mover ni tocar las columnas OIDC existentes**.
+>
+> **Tres puntos del boceto de `ADR-043 §10.4`/`§10.6` no sobreviven al contraste con lo que 1.4b construyó de verdad.** Están declarados en `funcional.md §G.0.3` y no se repiten aquí; sus consecuencias de esquema sí, en `§G.2` y `§G.3`.
+
+---
+
+## G.0 Lo que **ya existe** y este paso no crea
+
+| Objeto | Estado | Consecuencia para 1.4c |
+|--------|--------|-------------------------|
+| `identity_providers` con quince columnas, dos índices y seis `CHECK` | **Existe** (`§F.2`, migración `2026_09_01_100300`) | **Es el objeto que este paso modifica**, y es una **tabla viva**: hay centros con proveedores OIDC catalogados desde que 1.4b se desplegó. De ahí *expand/contract* y el patrón `CONCURRENTLY`/`NOT VALID` (`§G.7`) |
+| `identity_provider_secrets` | **Existe** (`§F.3`) | **No se toca ni una columna.** SAML **no tiene secreto de cliente** (`ADR-043 §8.2`, y `§10.10` lo señala como un problema que *«se reduce en vez de resolverse»*): usa certificados, y el privado es nuestro y uno solo. Un proveedor SAML **no tiene ninguna fila aquí**, y eso es correcto, no un hueco |
+| `user_identities` con la columna `identity_provider_id`, cinco índices y seis `CHECK` | **Existe** (`§F.4`) | **La clave ya está bien re-tecleada y no se vuelve a tocar.** Este paso añade **dos** `CHECK` y ni un índice: los cuatro únicos parciales de `§F.4.2` ya cubren SAML sin cambio, porque están tecleados por `identity_provider_id`, no por protocolo (`§G.6`) |
+| `users` con `password` `NOT NULL` y `status` de tres valores | **Existe** desde 0.8 | **No se toca ni una columna.** La tensión de `ADR-043 §4.6` no se materializa, exactamente igual que en 1.4b y por el mismo motivo: **solo emparejamiento** — impuesto además por el `CHECK` de `provisioning_mode`, que este paso **no toca** (`ADR-043 §10.9`) |
+| `people` con nueve columnas y sin fotografía | **Existe** desde 0.8 | **No se toca ni una columna.** El mapeo de atributos no tiene mitad de escritura (`funcional.md §G.5.2`, `OPEN-AUTH-38` salida A) |
+| `login_attempts` con `method` de tres valores | **Existe** (`§F.5`) | **Ningún valor nuevo** (`§G.6`) |
+| `mfa_challenges`, `MfaPolicy`, muro de alta | **Existen** (1.3/1.3b) | El ACS **reutiliza el desafío tal cual**. Ni una columna nueva |
+| `user_sessions`, `user_known_devices` | **Existen** (1.2b) | El acceso SAML registra la sesión y detecta el dispositivo por el **mismo** camino |
+| El *payload* de la sesión del servidor | **Existe** | **Aquí no sirve, y esa es la diferencia estructural del paso.** El ACS llega sin cookie (`ADR-043 §2.1`), así que la correlación **tiene que vivir en base de datos** (`§G.4`). Es la tabla que `§F.1` dijo expresamente que **no** creaba en 1.4b |
+| `config('audit.secret_attribute_patterns')` | **Existe** desde 0.9 | **No cubre `certificate` ni `private_key`.** `ADR-043 §3.5.5` exige declaración explícita en el modelo, paso 1 del orden de `ADR-035 §4` (`§G.3`, `§G.5`) |
+
+---
+
+## G.1 Resumen del cambio
+
+**Cuatro tablas nuevas y dos modificaciones.** Es el mayor cambio de datos del módulo desde 1.3, y mayor que el de 1.4b.
+
+| # | Objeto | Tipo |
+|---|--------|------|
+| 1 | `identity_providers` — columna `protocol`, **siete** columnas que pasan a *nullable*, **cuatro** `CHECK` reescritos y **nueve** `CHECK` nuevos | Modificación (`§G.2`) |
+| 2 | `saml_identity_provider_settings` | Tabla nueva (`§G.3`) |
+| 3 | `saml_auth_requests` | Tabla nueva (`§G.4`) |
+| 4 | `saml_consumed_assertions` | Tabla nueva (`§G.4`) |
+| 5 | `identity_provider_certificates` | Tabla nueva (`§G.5`) |
+| 6 | `user_identities` — **dos** `CHECK`, uno ampliado y uno nuevo | Modificación (`§G.6`) |
+
+**Lo que este paso decide y no es una tabla**: la **clave privada de firma del SP no vive en base de datos**. Es una clave de **plataforma**, no por tenant, así que cabe en el mecanismo de `ADR-037 §7` (`EnvironmentFile=` y fichero montado) y **no repite el camino del `client_secret` de 1.4b**, cuyo argumento —*«cambiaría con cada alta de tenant»*— aquí no aplica. Es `OPEN-AUTH-44`, **bloqueante**.
+
+**Y una tabla que deliberadamente no se crea**: `saml_identity_providers` paralela. `ADR-043 §10.4` la descarta con el argumento bueno, que no es el de las columnas: `user_identities` lleva `FOREIGN KEY (tenant_id, identity_provider_id) REFERENCES identity_providers (tenant_id, id)` con cuatro índices únicos parciales y seis `CHECK` colgando. Un catálogo aparte obligaría a una segunda FK *nullable* con exclusión mutua, o a una referencia polimórfica **sin clave foránea** — integridad referencial renunciada en la tabla que decide quién es quién. **La pieza reutilizable es la clave foránea, no el conjunto de columnas.**
+
+---
+
+## G.2 `identity_providers` — el discriminador y las siete columnas condicionadas
+
+**Aditivo en el padre, sin mover un solo dato.** `ADR-043 §10.9` decisión 2 descartó a conciencia la forma «de libro» —mover las columnas OIDC a una hija `oidc_identity_provider_settings` simétrica— porque exige reescribir una tabla viva y el código de 1.4b ya desplegado **a cambio de cero invariantes ganadas** (`CLAUDE.md §0`: lo reversible antes que lo óptimo).
+
+### G.2.1 La columna nueva
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `protocol` | `text` + `CHECK` | No | **Nueva.** `oidc` (por defecto) o `saml`. `ADD COLUMN` con `DEFAULT` **no volátil** no reescribe la tabla en PostgreSQL 11+, así que es barato sobre una tabla viva. **Toda fila existente queda `oidc`**, que es lo que es (`CA-AUTH-314`) |
+
+**`protocol` es inmutable tras el alta** (`RN-AUTH-114`), y **eso no se impone con un `CHECK`** —un `CHECK` no ve el valor anterior— sino en el servicio y con `CA-AUTH-316`. Se escribe porque un revisor lo va a preguntar: la alternativa sería un disparador, y este proyecto no usa disparadores para reglas de aplicación.
+
+### G.2.2 Las siete columnas que pasan a *nullable*
+
+`ADR-043 §10.4` punto 2 enumera **seis**. Son **siete**: falta `claims_source`, igual de específica de OIDC, que el ADR no listó.
+
+| Columna | Hoy | Tras 1.4c | Por qué una fila SAML no la puede rellenar |
+|---------|-----|-----------|---------------------------------------------|
+| `discovery_url` | `NOT NULL` | *nullable* | SAML no tiene documento de descubrimiento; tiene metadatos XML, que no son lo mismo ni se refrescan igual |
+| `token_endpoint` | `NOT NULL` | *nullable* | **No existe** en el perfil Web Browser SSO. No hay canje de código ni canal trasero: la aserción llega firmada en el `POST` |
+| `client_id` | `NOT NULL` | *nullable* | No existe. El identificador es nuestro `entityId` de SP, que es **nuestro** y no del proveedor |
+| `scopes` | `NOT NULL` | *nullable* | No existe, y el `CHECK` obliga literalmente al valor `openid` |
+| `discovery_fetched_at` | `NOT NULL` | *nullable* | Consecuencia de la primera |
+| `email_claim` | `NOT NULL` | *nullable* | El `CHECK IN ('email','preferred_username','upn')` prohíbe los nombres de atributo SAML, que son URN |
+| `claims_source` | `NOT NULL` | *nullable* | **La séptima, que el ADR no listó.** `id_token`/`userinfo` son artefactos de OIDC; ninguno de los dos existe en SAML |
+
+`userinfo_endpoint` y `discovery_failed_at` **ya son *nullable*** y no se tocan.
+
+**`issuer` y `authorization_endpoint` siguen `NOT NULL`, y una fila SAML los rellena.** Es la desviación 2 de `funcional.md §G.0.3` y la pregunta abierta **`OPEN-AUTH-42`, bloqueante**: `issuer` = `entityID` del IdP, `authorization_endpoint` = URL del `SingleSignOnService` con *binding* HTTP-Redirect. **Lo que se gana y no es estético**: `UNIQUE (tenant_id, issuer) WHERE deleted_at IS NULL` —que ya existe desde 1.4b— pasa a valer **entre protocolos**, sin un índice nuevo. Un centro no puede catalogar dos veces el mismo emisor ni aunque lo intente una vez como OIDC y otra como SAML (`CA-AUTH-315`).
+
+### G.2.3 Los `DEFAULT` que se retiran, y por qué es el punto que más fácil se olvida
+
+**Se retiran los `DEFAULT` de `scopes`, `claims_source` y `email_claim`.**
+
+Con el `DEFAULT` puesto, una fila SAML insertada sin nombrar esas columnas **se rellena sola con valores OIDC de conveniencia** — exactamente el patrón que `ADR-043` rechazó dos veces por su nombre (`§3.6`, *«un `true` de conveniencia que vacíe la garantía sin que se note»*; `§4.6`, *«formalmente cierta y materialmente falsa»*). El `CHECK` de `§G.2.4` lo atraparía, pero entonces el fallo sería un error de inserción incomprensible en vez de una columna vacía.
+
+**Es seguro retirarlos**, y esto está verificado contra el código desplegado, no supuesto: `IdentityProviderService::create()` fija las tres explícitamente en todas sus rutas. Ninguna inserción existente depende del `DEFAULT`.
+
+### G.2.4 Restricciones: cuatro reescritas y nueve nuevas
+
+**Cuatro `CHECK` existentes se reescriben** prefijándolos con `protocol <> 'oidc' OR`. La garantía **no se pierde: cambia de sitio**.
+
+| `CHECK` | Forma tras 1.4c |
+|---------|-----------------|
+| `identity_providers_claims_source_check` | `CHECK (protocol <> 'oidc' OR claims_source IN ('id_token','userinfo'))` |
+| `identity_providers_claims_source_userinfo_check` | `CHECK (protocol <> 'oidc' OR claims_source <> 'userinfo' OR userinfo_endpoint IS NOT NULL)` |
+| `identity_providers_email_claim_check` | `CHECK (protocol <> 'oidc' OR email_claim IN ('email','preferred_username','upn'))` |
+| `identity_providers_scopes_check` | `CHECK (protocol <> 'oidc' OR (jsonb_typeof(scopes) = 'array' AND scopes @> '["openid"]'::jsonb))` |
+
+**Dos `CHECK` existentes no se tocan**, y merece decirse cuáles y por qué: `identity_providers_provisioning_mode_check` —`CHECK (provisioning_mode IN ('desactivado','emparejamiento'))`, que es **lo que impide crear `Person`/`User` desde SAML por construcción y no por política** (`ADR-043 §10.9`)— y `identity_providers_allowed_domains_check`, que es protocolo-agnóstico.
+
+**Nueve `CHECK` nuevos:**
+
+| # | Restricción | Qué garantiza |
+|---|-------------|---------------|
+| 1 | `CHECK (protocol IN ('oidc','saml'))` | El discriminador. Se amplía si algún día hay un tercer protocolo: aditivo |
+| 2-8 | `CHECK (protocol <> 'oidc' OR <columna> IS NOT NULL)`, **una por cada una de las siete** de `§G.2.2` | **La obligatoriedad que se perdió al hacerlas *nullable*.** Siete `CHECK` separados y no uno compuesto, siguiendo la forma literal de `ADR-043 §10.4` punto 2 y porque un fallo señala **qué** columna falta (`CA-AUTH-312`) |
+| 9 | `CHECK (protocol <> 'saml' OR (discovery_url IS NULL AND token_endpoint IS NULL AND client_id IS NULL AND scopes IS NULL AND email_claim IS NULL AND claims_source IS NULL AND userinfo_endpoint IS NULL AND discovery_fetched_at IS NULL AND discovery_failed_at IS NULL))` | **La garantía simétrica, que no estaba en el ADR y que la revisión de 1.4b enseñó a pedir.** Es la hermana exacta de `user_identities_fusion_no_provider_check`, hallazgo de `db-reviewer`: sin ella, *«una fila SAML no rellena columnas OIDC»* viviría **solo en el servicio y no en el motor**, contradiciendo `§F.8` (*«nada de esto vive solo en la aplicación»*). Cubre las **nueve** columnas OIDC, incluidas las dos que ya eran *nullable* (`CA-AUTH-311`) |
+
+**Ningún índice nuevo sobre el padre.** `(tenant_id, is_enabled) WHERE deleted_at IS NULL` sigue siendo la consulta caliente y **no se teclea por `protocol`**: la pantalla de login pide *todos* los proveedores activos del centro, sin distinguir protocolo (`funcional.md §G.4.3` punto 1), y un centro tiene proveedores de un dígito. Un índice por `protocol` sería coste de escritura sin lectura que lo justifique.
+
+**Política de auditoría: `Full`, sin cambios.** `protocol` queda registrado con su valor, y es la primera pregunta que hará un auditor (`funcional.md §G.8`).
+
+---
+
+## G.3 `saml_identity_provider_settings` — la hija 1:1
+
+Entidad `SamlIdentityProviderSettings`. Tabla de tenant ordinaria. **Sin `public_id`**, y es deliberado: **no se expone nunca en una URL propia**. Se crea, se lee y se modifica siempre a través del `public_id` del padre (`api.md §G.2`), así que un identificador público propio sería superficie sin consumidor — el criterio de `ADR-029` («`public_id` solo donde se expone»).
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `id`, `tenant_id` | `bigint` | No | De `tenantTable()` |
+| `identity_provider_id` | `bigint` | No | `tenantForeignId()`, **obligatoria**: una configuración SAML sin proveedor no existe. FK compuesta `(tenant_id, identity_provider_id)` → `identity_providers (tenant_id, id)` |
+| `metadata_source` | `text` + `CHECK` | No | `url` o `xml`. **Conmutador explícito, no deducido de qué columna está informada** — mismo criterio que `claims_source` en `§F.2`: un respaldo silencioso es lo que se rechazó allí |
+| `metadata_url` | `text` | Sí | Lo que el administrador pegó, **conservado tal cual** para poder refrescar y para que la pantalla muestre lo que él escribió. `NULL` si el origen fue XML |
+| `metadata_xml` | `text` | Sí | El XML pegado, **conservado tal cual** por el mismo motivo: es lo que hay que volver a analizar si cambia una guarda. `NULL` si el origen fue URL |
+| `name_id_format` | `text` + `CHECK` | No | El `NameIDFormat` que pedimos y que se exige en la aserción. **`transient` no está en la lista** (`RN-AUTH-123`) |
+| `email_attribute` | `text` | **Sí** | El nombre del atributo del que sale el correo de emparejamiento. *Nullable* a propósito: si el `name_id_format` es `emailAddress`, **el propio `NameID` es el correo** y no hace falta atributo (`funcional.md §G.4.5`). Su forma es `OPEN-AUTH-43`, **bloqueante** |
+| `sign_authn_requests` | `boolean` | No | `false` por defecto. Si es `true`, el `AuthnRequest` va firmado con la **clave única de plataforma** (`ADR-043 §10.9` decisión 6) |
+| `metadata_fetched_at` | `TIMESTAMPTZ` | Sí | Cuándo se validaron los metadatos por última vez. `NULL` mientras el origen sea XML pegado y no se haya refrescado nunca |
+| `metadata_failed_at` | `TIMESTAMPTZ` | Sí | Último refresco fallido. **No invalida nada de lo guardado** (`funcional.md §G.4.2`): un IdP momentáneamente inalcanzable no deja a un centro sin SSO |
+
+**Tres columnas que el boceto de `ADR-043 §10.4` punto 3 esbozaba y que no se crean**, cada una con su argumento en `funcional.md §G.0.3` y ninguna por simplificar:
+
+- **`sso_binding`** (desviación 1): 1.4c implementa **solo HTTP-Redirect** para el `AuthnRequest`. Una columna cuyo único valor posible es `redirect` es configuración que ningún camino de código ramifica — la clase de columna que `ADR-034 OPEN-13` prohíbe y que un día alguien conecta sin revisar por qué estaba desconectada. La guarda equivalente está en la validación de metadatos (`CA-AUTH-321`).
+- **`idp_entity_id`** y **`sso_service_url`** (desviación 2): viven en `issuer` y `authorization_endpoint` del padre. Duplicarlas es dos fuentes de verdad para el mismo dato, **con la garantía de que un día divergen**. `OPEN-AUTH-42`.
+- **Nombres de atributo de nombre y apellidos** (desviación 3): `RN-AUTH-109` prohíbe que un proveedor institucional escriba en `people`, y `§F.2` ya dejó el padre sin ninguna columna de mapeo hacia `people` por el mismo motivo. **Guardar en 1.4c lo que 1.4b se negó a guardar sería reintroducir por la hija lo que se cerró en el padre.**
+
+Restricciones e índices:
+
+| Restricción / índice | Qué garantiza |
+|----------------------|---------------|
+| `UNIQUE (tenant_id, identity_provider_id)` | **La relación es 1:1**, no 1:N. Está en el motor, no en el servicio |
+| FK compuesta `(tenant_id, identity_provider_id)` → `identity_providers (tenant_id, id)` | `ADR-033 §6` |
+| `CHECK (metadata_source IN ('url','xml'))` | |
+| `CHECK (metadata_source <> 'url' OR metadata_url IS NOT NULL)` | **Coherencia**: el origen declarado y el dato guardado no pueden contradecirse |
+| `CHECK (metadata_source <> 'xml' OR metadata_xml IS NOT NULL)` | Ídem |
+| `CHECK (name_id_format IN ('emailAddress','persistent','unspecified'))` | **Lista blanca cerrada en el motor.** `transient` **no está**, y esa ausencia es la regla `RN-AUTH-123`: un identificador que cambia en cada acceso no puede sostener un vínculo (`CA-AUTH-323`) |
+| `CHECK (email_attribute IS NOT NULL OR name_id_format = 'emailAddress')` | **La garantía de que siempre hay de dónde sacar un correo de emparejamiento.** Sin ella, un proveedor con `persistent` y sin atributo se cataloga sin problemas y **no empareja a nadie nunca**, con un síntoma que no apunta a la causa |
+
+**Sin `CHECK (metadata_url LIKE 'https://%')`**, y por el mismo motivo exacto que `§F.2` no lo puso sobre `discovery_url`: el IdP simulado de desarrollo (`operacion.md §G.10`) sirve sobre `http` en `local`/`testing`, y **un `CHECK` que hay que retirar en desarrollo no es una garantía, es una molestia que alguien acabará quitando también en producción**. Vive en la validación de servidor, donde puede consultar `APP_ENV`.
+
+**Política de auditoría: `Full`.**
+
+Y va con su argumento, igual que `§F.2` tuvo que darlo: **esta tabla no contiene ningún dato personal**. Contiene la configuración técnica del IdP de un centro — un formato de identificador, un nombre de atributo, dos conmutadores y unos metadatos públicos. Es el mismo perfil que `identity_providers`, y `Full` responde de un tirón la pregunta que un auditor hará: *«¿quién activó la firma de peticiones y cuándo?»*.
+
+**Con una salvedad declarada a mano** (`ADR-043 §3.5.5`, paso 1 del orden de `ADR-035 §4`): **`metadata_xml` va en `$auditSecretAttributes`**. No porque sea secreto —son metadatos públicos— sino porque es un documento de decenas de kilobytes con certificados dentro, y `Full` lo copiaría entero en `audit_logs` en cada modificación. Se registra **que cambió, no su valor**. Es la misma decisión de proporción que `subject` en `§E.2`, con motivo distinto, y por eso se escribe en vez de darse por hecha.
+
+---
+
+## G.4 La correlación: `saml_auth_requests` y `saml_consumed_assertions`
+
+**Dos tablas, no una.** `ADR-043 §10.7` es explícito: *«hacen falta las dos protecciones (…) cubren ataques distintos»*. Es la pieza que sostiene la excepción de CSRF del ACS (`funcional.md §G.3.2`), así que cada columna va con el ataque que cierra.
+
+**Y es la tabla que `§F.1` dijo expresamente que 1.4b no creaba**, *«ni siquiera vacía, ni siquiera preparada»*. Aquí sí, y con la diferencia que `ADR-043 §2.1` argumentó: a diferencia de la `oauth_authorization_requests` que `OPEN-AUTH-30` rechazó en 1.4 —que iba **fuera del sistema de tenancy, sin `tenant_id` y con RLS imposible**—, **esta lleva `tenant_id` y RLS ordinaria**, porque el ACS es una URL del host del tenant y `ResolveTenant` corre en primera posición (`ADR-033 §2`). **No es la misma tabla ni el mismo problema.**
+
+### G.4.1 `saml_auth_requests`
+
+Entidad `SamlAuthRequest`. Tabla de tenant ordinaria. **Sin `public_id`**: no se expone en ninguna URL ni en ninguna respuesta de API. El identificador que viaja es `request_id`, que es el `ID` del `AuthnRequest` y va **dentro del mensaje SAML**, no en una ruta nuestra.
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `id`, `tenant_id` | `bigint` | No | De `tenantTable()` |
+| `identity_provider_id` | `bigint` | No | `tenantForeignId()`, obligatoria. FK compuesta |
+| `request_id` | `text` | No | El `ID` del `AuthnRequest` que **nosotros** emitimos. Un `ID` de SAML es un `NCName`: **no puede empezar por dígito**, así que lleva prefijo (`funcional.md §G.4.3` punto 3.4) |
+| `intent` | `text` + `CHECK` | No | `login` o `link` |
+| `linking_user_id` | `bigint` | Sí | El usuario a vincular cuando `intent = 'link'`. **Es la columna que 1.4b no necesitó** |
+| `expires_at` | `TIMESTAMPTZ` | No | Ventana corta, la misma `state_ttl_minutes` que 1.4b ya tiene configurada para OIDC |
+| `consumed_at` | `TIMESTAMPTZ` | Sí | Marca de un solo uso |
+
+**Qué protege cada pieza**, que es lo que hay que justificar y no dar por obvio:
+
+- **`request_id` + `consumed_at`**: la fila es de **un solo uso**, consumida en la **misma transacción** en que se valida, con `UPDATE … WHERE consumed_at IS NULL` comprobando **filas afectadas** — nunca leer y luego escribir. Dos ACS simultáneos con la misma aserción no pueden ganar los dos (`RN-AUTH-121`, `CA-AUTH-343`). Es lo que cierra la repetición y, con `funcional.md §G.3.2`, el ***login CSRF***.
+- **`expires_at`**: acota la ventana de robo de una aserción en vuelo.
+- **`intent` + `linking_user_id`**: en OIDC, `intent` y usuario viven en el *payload* de la sesión y siguen ahí en el *callback*. **En SAML el ACS no tiene sesión**, así que se capturan **al emitir la petición** —donde sí hay sesión autenticada— y viajan en la fila. **Sin esto, `intent = 'link'` en SAML es irrealizable** (`funcional.md §G.4.4`).
+
+Restricciones e índices:
+
+| Restricción / índice | Qué garantiza o qué consulta sirve |
+|----------------------|-------------------------------------|
+| `UNIQUE (tenant_id, request_id)` | **Un `request_id` no se repite dentro de un centro.** No es parcial sobre `deleted_at`: la unicidad tiene que valer también sobre filas ya consumidas, o la repetición se reabre por la puerta del borrado lógico |
+| `(tenant_id, expires_at) WHERE consumed_at IS NULL` | **La purga programada** (`operacion.md §G.4`), con el precedente de `2026_08_31_100100_add_purge_indexes_to_mfa_tables.php` e issues #118/#119 sobre cómo hacerla sin bloquear |
+| FK compuesta `(tenant_id, identity_provider_id)` → `identity_providers (tenant_id, id)` | `ADR-033 §6` |
+| FK compuesta `(tenant_id, linking_user_id)` → `users (tenant_id, id)` | Declarada **a mano**, no con `tenantForeignId()`, porque la referencia **no es obligatoria** — mismo criterio y mismo argumento que `user_identities.identity_provider_id` en `§F.4.2` (`ADR-034 §4`) |
+| `CHECK (intent IN ('login','link'))` | |
+| `CHECK (intent <> 'link' OR linking_user_id IS NOT NULL)` | Un `intent` de vinculación **sin usuario a vincular** no es una petición, es un error de programación que llegaría al ACS |
+| `CHECK (intent <> 'login' OR linking_user_id IS NULL)` | El simétrico. Sin él, una petición de login con `linking_user_id` informado satisface todo lo demás y **solo lo evita el código de aplicación** — el hallazgo de `db-reviewer` de 1.4b, aplicado antes de que ocurra |
+| `CHECK (consumed_at IS NULL OR consumed_at >= created_at)` | Coherencia temporal, mismo criterio que `user_mfa_exemptions` (`§C.6`) y `identity_provider_secrets` (`§F.3`) |
+
+**Política de auditoría: `None`.** Y va con su argumento porque es la única tabla de este paso que no se audita: **es estado transitorio de protocolo con vida de cinco minutos**, del mismo carácter exacto que el `state` de OIDC, que vive en la sesión y tampoco se audita. Auditarla llenaría `audit_logs` de filas que nadie consultará jamás y que caducan antes de ser útiles (`funcional.md §G.8`). **Su traza operativa vive en la telemetría** (`operacion.md §G.8`).
+
+### G.4.2 `saml_consumed_assertions`
+
+Entidad `SamlConsumedAssertion`. Tabla de tenant ordinaria, sin `public_id`.
+
+**Por qué es una tabla aparte y no dos columnas más en la anterior**, que es la pregunta que se hace sola: porque **cubre un ataque distinto**. `saml_auth_requests` impide que una petición se use dos veces. No impide que **una misma aserción se reenvíe contra otra petición viva** — un atacante que capture una aserción legítima puede arrancar un flujo nuevo y entregarla contra el `InResponseTo` de esa segunda petición. Lo que lo cierra es registrar el `ID` de cada aserción consumida y rechazar la repetida mientras siga dentro de su ventana de validez (`RN-AUTH-122`, `CA-AUTH-344`).
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `id`, `tenant_id` | `bigint` | No | De `tenantTable()` |
+| `identity_provider_id` | `bigint` | No | `tenantForeignId()`, obligatoria. FK compuesta |
+| `assertion_id` | `text` | No | El `ID` de la aserción, tal como lo emitió el IdP |
+| `not_on_or_after` | `TIMESTAMPTZ` | No | **De la propia aserción.** Define hasta cuándo hay que recordarla: pasada esa marca, la aserción ya se rechaza por ventana temporal y la fila deja de aportar nada |
+
+| Restricción / índice | Qué garantiza o qué consulta sirve |
+|----------------------|-------------------------------------|
+| `UNIQUE (tenant_id, identity_provider_id, assertion_id)` | **Es la protección, no un índice de apoyo.** El rechazo de la repetición lo produce **la violación de este índice único**, no una lectura previa (`CA-AUTH-344`). Tecleado por proveedor y no solo por tenant porque dos IdP distintos pueden emitir legítimamente el mismo `ID` |
+| `(tenant_id, not_on_or_after)` | La purga programada (`operacion.md §G.4`) |
+| FK compuesta `(tenant_id, identity_provider_id)` → `identity_providers (tenant_id, id)` | `ADR-033 §6` |
+
+**No se guarda el XML de la aserción, ni ningún fragmento suyo.** De una aserción solo sobreviven su `ID` y su `NotOnOrAfter` (`CA-AUTH-363`, `RN-AUTH-95` ampliado). Guardarla sería persistir el nombre, el correo y los atributos de una persona en una tabla de mecánica de protocolo, sin ninguna pregunta que eso responda.
+
+**Política de auditoría: `None`**, por el mismo argumento de `§G.4.1`.
+
+---
+
+## G.5 `identity_provider_certificates` — la ventana de rotación
+
+Entidad `IdentityProviderCertificate`. Tabla de tenant ordinaria, **con `public_id` ULID** porque **sí** se expone en URL (`DELETE .../certificates/{public_id}`).
+
+`ADR-043 §2.4` lo anticipó sin verlo y `§10.6` lo concretó: **un certificado de firma caduca**, típicamente entre uno y tres años, y se rota. Un diseño con una columna `certificate` produce, el día del vencimiento, **una caída del SSO de ese centro sin ningún aviso previo** y con un mensaje que no apunta al certificado.
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `id`, `tenant_id` | `bigint` | No | De `tenantTable()` |
+| `public_id` | ULID | No | `ADR-029` |
+| `identity_provider_id` | `bigint` | No | `tenantForeignId()`, obligatoria. FK compuesta |
+| `certificate` | `text` | No | El X.509 en PEM. **Material público**: no se cifra en reposo (`RN-AUTH-127`) |
+| `fingerprint_sha256` | `text` | No | Huella del certificado, **calculada por nosotros al cargarlo**. Sirve para la pantalla y para detectar en el refresco que un certificado ya está catalogado sin comparar PEM completos |
+| `not_before` | `TIMESTAMPTZ` | No | **Extraída del propio certificado**, nunca tecleada (`RN-AUTH-126`, `CA-AUTH-328`) |
+| `not_after` | `TIMESTAMPTZ` | No | Ídem. Es lo que dispara el aviso de vencimiento |
+| `source` | `text` + `CHECK` | No | `metadata` (llegó en los metadatos del IdP) o `manual` (lo subió el administrador). **Traza de procedencia**, y lo que permite que el refresco añada sin pisar lo que alguien subió a mano |
+| `retired_at` | `TIMESTAMPTZ` | Sí | Retirado **a mano por el administrador**. Una fila retirada **no se usa jamás**, aunque siga vigente |
+
+**Varias filas activas a la vez, y es el requisito que obliga a la tabla**: durante una rotación el IdP firma con la nueva mientras algunas aserciones en vuelo llevan la vieja. **La validación se intenta contra todas las activas y vigentes** (`RN-AUTH-125`, `CA-AUTH-327`).
+
+**No hay columna `is_active`**, y es deliberado: «activo» es exactamente `retired_at IS NULL AND deleted_at IS NULL`, y `not_before`/`not_after` deciden la vigencia. Una columna booleana que duplica lo que dos marcas de tiempo ya dicen es un tercer estado que un día contradice a los otros dos. `ADR-043 §10.6` la nombraba en su boceto; se prefiere el estado derivado, con el mismo criterio con el que `identity_provider_secrets` usa `activated_at`/`retired_at` y no un booleano (`§F.3`).
+
+| Restricción / índice | Qué garantiza o qué consulta sirve |
+|----------------------|-------------------------------------|
+| `UNIQUE (public_id)` | `ADR-029` |
+| `UNIQUE (tenant_id, identity_provider_id, fingerprint_sha256) WHERE deleted_at IS NULL` | **El mismo certificado no se cataloga dos veces** en un proveedor. Es lo que hace que el refresco de metadatos sea idempotente: vuelve a ver los mismos certificados cada día y no crea filas (`CA-AUTH-325`) |
+| `(tenant_id, identity_provider_id) WHERE deleted_at IS NULL AND retired_at IS NULL` | **La consulta caliente**: los certificados admisibles de un proveedor, una vez por aserción validada |
+| `(tenant_id, not_after) WHERE deleted_at IS NULL AND retired_at IS NULL` | La tarea diaria de aviso de vencimiento (`operacion.md §G.4`) |
+| FK compuesta `(tenant_id, identity_provider_id)` → `identity_providers (tenant_id, id)` | `ADR-033 §6` |
+| `CHECK (source IN ('metadata','manual'))` | |
+| `CHECK (not_after > not_before)` | Coherencia temporal |
+| `CHECK (retired_at IS NULL OR retired_at >= created_at)` | Ídem, mismo criterio que `§F.3` |
+
+**No hay `UNIQUE` de «un solo certificado activo por proveedor», y es deliberado**, exactamente por el mismo motivo que en `identity_provider_secrets`: **la ventana de rotación exige que haya varios a la vez**. Y a diferencia de las credenciales, aquí no hay siquiera una regla de elección: se intentan **todos**.
+
+**Política de auditoría: `Selective`.**
+
+- Registrados con valor: `identity_provider_id`, `fingerprint_sha256`, `not_before`, `not_after`, `source`, `retired_at`, `deleted_at`, `created_by`, `updated_by`. Es lo que un auditor necesita: quién cargó un certificado, cuándo, hasta cuándo valía y cuándo se retiró.
+- **`certificate` en `$auditSecretAttributes`**, declarado a mano (`ADR-043 §3.5.5`, `RN-AUTH-127`, `CA-AUTH-333`). **No porque sea secreto** —es una clave pública, y tratarlo como secreto solo añadiría ceremonia (`ADR-043 §10.6`)— sino por la misma razón de proporción que `metadata_xml`: es un bloque de kilobytes que `audit_logs` no tiene por qué duplicar en cada cambio. **La huella sí se registra**, y es lo que responde *«¿qué certificado era?»* sin copiar el PEM.
+- **`config('audit.secret_attribute_patterns')` no cubre `certificate`**, y por eso la declaración explícita **no es defensa en profundidad aquí, es la única barrera**. `ADR-043 §3.5.5` lo dijo con estas palabras: *«no lo cubre el patrón; se declara a mano»*.
+
+**Retención**: la fila retirada **se conserva**. Es traza de qué certificado estuvo vigente en qué ventana, del mismo carácter que una credencial retirada (`§F.3`). No contiene ningún dato personal.
+
+---
+
+## G.6 `login_attempts` y `user_identities` — lo que cambia y lo que no
+
+### G.6.1 `login_attempts`: **ningún valor nuevo**
+
+`method` sigue siendo `local`, `google`, `sso`. **Un acceso SAML registra `method = 'sso'`**, el mismo valor que un acceso OIDC institucional (`CA-AUTH-359`).
+
+Es una decisión, así que va con su argumento, y es el mismo de `§F.5` llevado un paso más allá: la pregunta que esta tabla responde es *«¿por qué vía entró?»*, y la vía es **el SSO institucional del centro** — que sea SAML u OIDC es un detalle de protocolo que no cambia la respuesta. Añadir `saml` sería meter **el producto cartesiano de dos dimensiones** —vía de acceso × protocolo— en un enumerado de una sola, que es exactamente lo que esa columna existe para evitar. La segunda pregunta sí tiene respuesta y está donde tiene que estar: `user_identities.identity_provider_id`, que apunta al proveedor concreto y **no caduca a los 90 días**.
+
+### G.6.2 `user_identities`: dos `CHECK`, ni un índice
+
+**Los cuatro únicos parciales de `§F.4.2` cubren SAML sin cambio alguno**, y esa es la comprobación de que el re-tecleado de 1.4b se hizo bien: están tecleados por `identity_provider_id`, no por protocolo. Un vínculo SAML es una fila más con su `identity_provider_id` informado, y los índices 1 y 2 le aplican tal cual.
+
+| Restricción | Cambio |
+|-------------|--------|
+| `user_identities_provider_check` | **Ampliación aditiva**: `CHECK (provider IN ('google','oidc','saml'))`. `§F.4.2` lo dejó previsto por escrito — *«`1.4c` añadirá `saml` con el mismo patrón»* |
+| `user_identities_saml_requires_provider_check` | **Nuevo**: `CHECK (provider <> 'saml' OR identity_provider_id IS NOT NULL)`. Un vínculo SAML **nunca** existe sin su fila de catálogo. Se escribe como un `CHECK` por valor, exactamente igual que `user_identities_oidc_requires_provider_check`, **y por eso no hay que tocar ninguno de los existentes** |
+
+**Cuatro `CHECK` de `user_identities` que no se tocan, no se debilitan y no se reutilizan**, y hay que decirlo explícitamente porque es donde `ADR-043 §3.6` temía un `true` de conveniencia:
+
+- `user_identities_fusion_requires_verified_check` — `CHECK (link_method <> 'fusion_automatica' OR email_verified_at_link)`.
+- `user_identities_fusion_no_provider_check` — `CHECK (link_method <> 'fusion_automatica' OR identity_provider_id IS NULL)`.
+- `user_identities_google_no_provider_check` y `user_identities_emparejamiento_requires_provider_check`.
+
+**El temor de `ADR-043 §3.6` ya no aplica, y 1.4b lo cerró estructuralmente sin saberlo** (`ADR-043 §10.8`): con `fusion_no_provider_check` en su sitio, **la fusión automática es imposible por esquema para cualquier proveedor catalogado**. Un vínculo SAML usa `emparejamiento_sso`, que exige `identity_provider_id IS NOT NULL` y **no está sujeto al `CHECK` de correo verificado**. Es decir: **SAML nunca consume `email_verified_at_link` para nada.**
+
+**`email_verified_at_link` sigue siendo `NOT NULL` y se rellena con `false`** en todo vínculo SAML — **SAML no tiene ese concepto** (`ADR-043 §2.2`: *«no hay `email_verified` en absoluto»*). Queda como lo que es, un dato de telemetría sobre lo que dijo el emisor, y **no sostiene ninguna decisión** (`RN-AUTH-130`, `CA-AUTH-351`). La confianza de un vínculo institucional viene de que el centro catalogó ese IdP, cargó su certificado de firma y lo activó — que es el argumento distinto que `ADR-043 §3.6` pedía que se escribiera **como tal** en vez de dejar que el `CHECK` se rellenara con conveniencia.
+
+**Política de auditoría: sin cambios.** `Selective`, con `subject` y `email_at_link` declarados secretos a mano.
+
+---
+
+## G.7 Migraciones: orden y compatibilidad
+
+**Seis migraciones**, en este orden. `CLAUDE.md §9` (*expand/contract*) y la *skill* `migracion-segura` sin excepción.
+
+| # | Migración | Qué hace | `withinTransaction` |
+|---|-----------|----------|---------------------|
+| 1 | `…_add_protocol_to_identity_providers` | `ADD COLUMN protocol` con `DEFAULT 'oidc'`; las siete columnas a *nullable*; retirada de tres `DEFAULT`; cuatro `CHECK` reescritos y nueve nuevos | **`false`** |
+| 2 | `…_create_saml_identity_provider_settings_table` | Tabla nueva | `true` |
+| 3 | `…_create_identity_provider_certificates_table` | Tabla nueva | `true` |
+| 4 | `…_create_saml_auth_requests_table` | Tabla nueva | `true` |
+| 5 | `…_create_saml_consumed_assertions_table` | Tabla nueva | `true` |
+| 6 | `…_add_saml_to_user_identities` | `CHECK` de `provider` ampliado y `CHECK` nuevo | **`false`** |
+
+**Las cuatro tablas nuevas van en transacción y las dos modificaciones no.** No es una preferencia de estilo: crear una tabla que nadie usa todavía no bloquea a nadie, mientras que tocar `identity_providers` y `user_identities` —**dos tablas vivas, con filas de centros reales**— exige `NOT VALID` + `VALIDATE CONSTRAINT` fuera de transacción, que es lo que corrigió `2026_08_31_100100_add_purge_indexes_to_mfa_tables.php` (issues #118/#119) y lo que `db-reviewer` exigió en la revisión de 1.4b.
+
+### G.7.1 La migración 1, en detalle: es donde un error no se ve desde la interfaz
+
+**El orden dentro de la migración importa y no es intercambiable:**
+
+1. **`ADD COLUMN protocol text NOT NULL DEFAULT 'oidc'`.** Va **primero** porque los `CHECK` de los pasos siguientes lo mencionan. `DEFAULT` no volátil ⇒ **no reescribe la tabla** en PostgreSQL 11+; toda fila existente queda `'oidc'`, que es lo que es (`CA-AUTH-314`).
+2. **`ALTER COLUMN … DROP NOT NULL`** en las siete. **Es metadato puro**: no escanea la tabla, no bloquea escrituras de forma apreciable.
+3. **`ALTER COLUMN … DROP DEFAULT`** en `scopes`, `claims_source` y `email_claim`. Metadato puro (`§G.2.3`).
+4. **Los cuatro `CHECK` reescritos**: `DROP CONSTRAINT IF EXISTS` + `ADD CONSTRAINT … NOT VALID` + `VALIDATE CONSTRAINT`. `DROP`+`ADD` de un `CHECK` es metadato; **solo la validación posterior toca cada fila**, y por eso va separada.
+5. **Los nueve `CHECK` nuevos**, con el mismo patrón `NOT VALID` + `VALIDATE CONSTRAINT`, y **`DROP CONSTRAINT IF EXISTS` delante de cada `ADD`**: sin él, un reintento tras un fallo parcial se atasca en *«constraint already exists»* — el segundo hallazgo de `db-reviewer` en 1.4b, aplicado aquí de entrada en vez de descubierto otra vez.
+
+**El paso 4 tiene una ventana y hay que decirlo**, porque es la única de la migración: entre el `DROP CONSTRAINT` y el `ADD CONSTRAINT` de cada uno de los cuatro, esa garantía **no está vigente**. Dura microsegundos, es metadato puro, y lo que podría colarse es una fila OIDC con `email_claim` fuera de la lista — que solo puede insertar nuestro propio servicio, que no lo hace. **Se acepta y se declara**; la alternativa (crear el `CHECK` nuevo con otro nombre, validarlo y luego retirar el viejo) es una migración de dos entregas para cerrar una ventana que ningún camino de código puede atravesar.
+
+### G.7.2 Compatibilidad con la versión anterior — la propiedad que hay que poder afirmar
+
+`CLAUDE.md §9`: *«el esquema debe ser compatible con la versión anterior y la nueva simultáneamente»*. **Se cumple, y es comprobable** (`CA-AUTH-314`):
+
+- **La aplicación de 1.4b no conoce `protocol`.** No la nombra en ningún `INSERT`, y el `DEFAULT 'oidc'` la rellena: sus altas siguen funcionando y producen filas OIDC correctas.
+- **Las siete columnas pasando a *nullable* no rompen nada**: relajar una restricción nunca invalida una escritura que antes era válida. La aplicación de 1.4b sigue rellenándolas todas.
+- **Los `DEFAULT` retirados tampoco**, y esto es lo único que hubo que verificar contra el código en vez de razonar: `IdentityProviderService::create()` fija `scopes`, `claims_source` y `email_claim` **explícitamente en todas sus rutas**. Si dependiera del `DEFAULT`, retirarlo rompería a la versión anterior durante el despliegue continuo.
+- **Los nueve `CHECK` nuevos no afectan a ninguna fila que la versión anterior pueda escribir**: ocho están condicionados a `protocol = 'oidc'` y reproducen exactamente lo que ya era `NOT NULL`; el noveno solo se activa con `protocol = 'saml'`, valor que la versión anterior **no sabe escribir**.
+- **Las cuatro tablas nuevas son invisibles** para la versión anterior.
+- **El `CHECK` de `provider` en `user_identities`** se amplía, que es aditivo: la versión anterior sigue escribiendo `google` y `oidc` sin problema.
+
+### G.7.3 Reversión
+
+**`down()` en las seis, y con una salvedad ruidosa a propósito.** Revertir la migración 1 exige devolver las siete columnas a `NOT NULL`, y eso **falla si existe alguna fila con `protocol = 'saml'`** — porque una fila SAML las tiene todas a `NULL`, que es justamente lo que este paso permite.
+
+**Es el comportamiento correcto y no se suaviza**: revertir con proveedores SAML catalogados **no es seguro**, y un fallo ruidoso es mejor que un `UPDATE` de conveniencia que rellene las columnas OIDC de una fila SAML para que la reversión pase. Mismo criterio y mismo argumento que `§F.7` aplicó a los vínculos institucionales vivos.
+
+**La reversión práctica, entonces, tiene dos escalones** (`operacion.md §G.12`): mientras no haya ninguna fila SAML, revertir es limpio y completo; en cuanto un centro cataloga un proveedor SAML, revertir el esquema deja de ser una operación de despliegue y pasa a ser una decisión con pérdida de datos.
+
+---
+
+## G.8 Checklist obligatorio
+
+- [x] **`tenant_id` en todas las tablas nuevas**, con RLS `ENABLE`+`FORCE` y política estándar (`ADR-033 §6`). Las cuatro por `TenantMigration::tenantTable()`, sin una sola excepción de tenancy — incluida `saml_auth_requests`, que es precisamente la que `ADR-043 §2.1` señaló que **sí puede** llevarla, a diferencia de la que 1.4 rechazó.
+- [x] **`academic_year_id`**: **ninguna tabla lo lleva**, y es correcto. La configuración de un IdP y el estado de un flujo de autenticación **no pertenecen a un curso académico** (`ADR-034 §4`: es `NOT NULL` o no existe la columna).
+- [x] **`TIMESTAMPTZ` siempre**, `text` en vez de `varchar(n)` (`ADR-029`).
+- [x] **`public_id` ULID solo donde se expone**: lo lleva `identity_provider_certificates`; **no** lo llevan las otras tres, y el motivo está escrito en cada una.
+- [x] **Borrado lógico** (`INV-004`) en las cuatro, de `tenantTable()`.
+- [x] **Claves foráneas compuestas declaradas en base de datos**: seis nuevas, las cinco obligatorias con `tenantForeignId()` y la de `linking_user_id` a mano por ser *nullable* (`ADR-034 §4`).
+- [x] **Restricciones en el motor, no solo en la aplicación** (`§F.8`): el `CHECK` 9 de `§G.2.4` existe exactamente por esto, y es el hallazgo que la revisión de 1.4b enseñó a pedir por adelantado.
+- [x] **Auditoría declarada en los cuatro modelos** (`INV-003`), con `certificate` y `metadata_xml` en `$auditSecretAttributes` a mano (`ADR-043 §3.5.5`).
+- [x] **Índices para las consultas calientes y para las purgas**, no solo para las unicidades.
+- [x] **Ninguna columna de dato personal en ninguna tabla nueva** (`§G.10`).
+- [x] **Ningún secreto en base de datos**: la clave privada del SP **no vive aquí** (`§G.1`, `OPEN-AUTH-44`).
+
+---
+
+## G.9 Relaciones
+
+```
+tenants ──< identity_providers ──1:1── saml_identity_provider_settings   (solo protocol='saml')
+                    │
+                    ├──< identity_provider_secrets        (solo protocol='oidc', de 1.4b)
+                    ├──< identity_provider_certificates   (solo protocol='saml', varias vigentes a la vez)
+                    ├──< saml_auth_requests ──?──> users  (linking_user_id, nullable)
+                    ├──< saml_consumed_assertions
+                    └──< user_identities ──> users ──> people
+```
+
+**Una asimetría que conviene ver dibujada**: `identity_provider_secrets` e `identity_provider_certificates` cuelgan del mismo padre y **son excluyentes por protocolo**, pero **esa exclusión no está en el motor** y no se impone. Ponerla exigiría un `CHECK` que consultara la fila padre —lo que un `CHECK` no puede hacer— o un disparador. Lo que sí garantiza el motor es que **una fila SAML no tiene columnas OIDC informadas** (`CHECK` 9), y lo que garantiza el servicio es que no se carga una credencial en un proveedor SAML (`api.md §G.5`, `409`). **Se declara porque es la única garantía de este paso que no vive en el esquema**, y un revisor tiene que saber que es deliberado y no un olvido.
+
+---
+
+## G.10 Retención y supresión
+
+| Tabla | Retención | Mecanismo |
+|-------|-----------|-----------|
+| `saml_identity_provider_settings` (vivas) | **Vida de la integración** | Configuración del centro |
+| `saml_identity_provider_settings` (borradas lógicamente) | **Fila permanente** | Traza de qué configuración estuvo vigente. **Sin datos personales dentro** |
+| `identity_provider_certificates` (vigentes y retirados) | **Fila permanente** | Traza de qué certificado estuvo vigente en qué ventana, mismo criterio que `identity_provider_secrets` (`§F.10`) |
+| **`saml_auth_requests`** | **Purga programada** | **Es la primera tabla del módulo con artefactos transitorios en base de datos**, y por eso trae purga: filas caducadas o consumidas con más de 24 horas. `operacion.md §G.4` |
+| **`saml_consumed_assertions`** | **Purga programada** | Filas con `not_on_or_after` en el pasado con margen: pasada esa marca la aserción ya se rechaza por ventana temporal y la fila no protege nada |
+| `user_identities` | **Sin cambios** (`§E.8`) | Los dos `CHECK` no alteran nada |
+| `login_attempts` | **90 días**, sin cambios | `AUTH_LOGIN_ATTEMPT_RETENTION_DAYS` |
+
+**Dos tareas de purga nuevas, y es el contraste exacto con 1.4b**, cuyo `§F.10` pudo escribir *«ninguna tarea de mantenimiento de purga nueva»* precisamente porque el `state` de OIDC vive en la sesión y muere con ella. **En SAML el estado equivalente vive en base de datos** (`ADR-043 §2.1`), y lo que se persiste hay que purgarlo. Las dos siguen el patrón sin bloqueo de los issues #118/#119.
+
+**Derecho de supresión (`ADR-004`, `REQ-PRIV-006`)**: **ninguna de las cuatro tablas nuevas contiene un dato personal.**
+
+- `saml_identity_provider_settings` e `identity_provider_certificates` son configuración técnica y material criptográfico **público de una institución**, no de una persona.
+- **`saml_auth_requests` merece un párrafo, porque es la que más se parece a una excepción y no lo es.** Contiene `linking_user_id`, que es una referencia a un usuario — pero es una **clave foránea a `users`**, no un dato personal copiado, así que la supresión de la persona la arrastra por la vía ordinaria. No guarda ni correo, ni `NameID`, ni nada de la aserción. Y la fila vive cinco minutos y se purga a las 24 horas.
+- **`saml_consumed_assertions` guarda un `assertion_id`**, que es un identificador opaco generado por el IdP para un mensaje, **no para una persona**: no es estable entre accesos, no identifica a nadie y no se puede cruzar con nada. Se anota porque la pregunta se hace sola al ver la palabra «aserción».
+
+**Y lo que sigue sin cambiar**: `user_identities` cuelga de un `user_id` real por clave foránea compuesta obligatoria y la supresión de la persona la arrastra.
