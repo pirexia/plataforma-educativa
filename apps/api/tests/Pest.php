@@ -476,6 +476,9 @@ function createActiveOidcProvider(string $slug, User $admin, array $overrides = 
     resetSessionState();
 
     $body = array_merge([
+        // REQ-AUTH-004 (1.4c), api.md §G.2: protocol es obligatorio desde
+        // 1.4c y sin valor por defecto en la API.
+        'protocol' => 'oidc',
         'display_name' => 'Proveedor OIDC de prueba',
         'discovery_url' => 'http://localhost:8000/api/_sso-simulator/.well-known/openid-configuration',
         'client_id' => 'test-client-'.Str::random(8),

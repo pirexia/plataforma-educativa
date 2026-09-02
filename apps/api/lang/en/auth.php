@@ -27,6 +27,8 @@ return [
         'oauth_provider_not_configured' => 'This sign-in provider is not available at this school.',
         'oauth_intent_requires_session' => 'You must be signed in to link an account.',
         'identity_would_leave_user_without_access' => 'You cannot unlink this account: it is your only way to sign in.',
+        'saml_certificate_invalid' => 'The certificate is not a valid X.509 certificate, has already expired, or its key does not meet the minimum allowed size.',
+        'saml_email_attribute_required' => 'Provide the email attribute, unless the identifier uses the email address format.',
     ],
 
     'mail' => [
@@ -130,6 +132,29 @@ return [
             'emisor_no_coincide' => 'The declared issuer does not match the origin of the discovery URL.',
             'endpoint_no_seguro' => 'One of the declared endpoints does not use https.',
             'flujo_no_admitido' => 'This issuer does not support the required authorization flow.',
+        ],
+    ],
+
+    'saml' => [
+        'certificate_provider_not_saml' => 'This provider is not SAML: it does not accept issuer signing certificates.',
+        'certificate_already_catalogued' => 'This certificate is already catalogued on this provider.',
+        'certificate_last_active' => 'You cannot retire the last active certificate of an enabled provider: disable it first.',
+        'sign_authn_requests_without_platform_key' => 'You cannot enable request signing: no platform signing key is configured.',
+        'identity_provider_enable_without_certificate' => 'You cannot enable this provider without a current signing certificate.',
+        'metadata_refresh_not_applicable' => 'This provider has no metadata to refresh.',
+        'metadata' => [
+            'esquema_no_admitido' => 'The metadata URL must use https.',
+            'destino_no_publico' => 'That address cannot be reached from this server.',
+            'demasiadas_redirecciones' => 'The metadata redirects too many times.',
+            'sin_respuesta' => 'The metadata could not be downloaded.',
+            'respuesta_demasiado_grande' => 'The metadata is too large.',
+            'metadatos_no_validos' => 'The metadata is not valid XML.',
+            'metadatos_demasiado_grandes' => 'The metadata is too large or too deeply nested.',
+            'metadatos_ambiguos' => 'The metadata does not describe a single identity provider, or both sources were sent at once.',
+            'binding_no_admitido' => 'The metadata does not publish a compatible endpoint.',
+            'sin_certificado_de_firma' => 'The metadata does not include any valid signing certificate.',
+            'formato_de_identificador_no_admitido' => 'The declared identifier format is not supported.',
+            'emisor_ya_catalogado' => 'This school already has a provider catalogued with that issuer.',
         ],
     ],
 
