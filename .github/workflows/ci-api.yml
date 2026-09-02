@@ -122,6 +122,14 @@ jobs:
       # de este arreglo, sin migrar antes: /api/health respondía rápido
       # pero con error, y el bucle de espera nunca veía un 200.
       - name: Arrancar servidor de desarrollo (emisor OIDC simulado)
+        # DB_DATABASE: .env.example trae "plataforma" (valor de desarrollo);
+        # el servicio postgres de este job crea "plataforma_test"
+        # (POSTGRES_DB de arriba). phpunit.xml fuerza DB_DATABASE=
+        # plataforma_test dentro del propio proceso de Pest, pero este paso
+        # invoca artisan directamente, fuera de ese mecanismo — sin esto,
+        # migra (y el servidor sirve) contra una base que no existe.
+        env:
+          DB_DATABASE: plataforma_test
         run: |
           php artisan migrate --database=pgsql_owner --force
           php artisan serve --host=127.0.0.1 --port=8000 > /tmp/artisan-serve.log 2>&1 &
