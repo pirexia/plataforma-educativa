@@ -95,6 +95,15 @@ services:
       # SESSION_LIFETIME arriba: pertenece a apps/api/.env, no editable desde
       # esta sesión (bloqueo de permisos). TODO: mover cuando sea editable.
       AUTH_OAUTH_DRIVER: "fake"
+      # REQ-AUTH-004 (1.4b), operacion.md §F.2.1, §F.10: sin dominio
+      # público (0.10b pendiente) el emisor OIDC simulado se sirve por la
+      # propia API en local/testing sobre http y en la red del contenedor
+      # — guardas 1 y 2 de funcional.md §F.4.2 aflojadas a propósito, con
+      # SsoEnvironmentGuard::verify() como barrera de arranque fuera de
+      # local/testing. Mismo patrón de parche temporal que las dos
+      # variables de arriba: pertenece a apps/api/.env, no editable desde
+      # esta sesión (bloqueo de permisos). TODO: mover cuando sea editable.
+      AUTH_SSO_ALLOW_INSECURE_DISCOVERY: "true"
     volumes:
       - ./apps/api:/var/www/html:Z
     ports:

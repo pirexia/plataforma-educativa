@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Versión** | 3.1.2 |
-| **Fecha** | 2026-08-31 |
+| **Versión** | 3.1.3 |
+| **Fecha** | 2026-09-01 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
 | **Documento sustituye a** | v1.2.0 (mismo contenido, reorganizado y ampliado) |
@@ -3234,6 +3234,7 @@ Del `028` en adelante, cada decisión vive en `docs/adr/` (`ADR-026`).
 | `ADR-040` | El *observer* de auditoría gana exclusión por modelo y evento: `UserSession` no registra `created` (**resuelve `OPEN-AUTH-16`**; **amplía el mecanismo automático de `ADR-035 §4`/`§9` con una cuarta declaración del contrato `Auditable`**, sin cambiar su política de redacción ni la tabla de `§8`; sigue el precedente de excepción por modelo de `ADR-036` y se apoya en el evento `login` de `ADR-039 §4.2`; concreta `INV-003`). Aplicable a los 53 módulos |
 | `ADR-041` | Dependencias externas de MFA: `pragmarx/google2fa` `^9.1` en el backend tras `MfaVerifier`/`TotpProvisioner`, y `uqr` `^0.1.3` en la SPA tras el componente `QrCode.vue` (**cierra la comprobación de `CLAUDE.md §1` que `OPEN-AUTH-19` y `OPEN-AUTH-20` dejaron pendiente**; **rechaza `qrcode` (node-qrcode) por mantenimiento parado** y descarta `spomky-labs/otphp`, `google2fa-laravel`, `google2fa-qrcode`, `qrcode.vue` y `qr-code-styling`; concreta `RNF-MANT-007` y da soporte a `RN-AUTH-55`/`RN-AUTH-58`). Requisito previo del paso **1.3** (`REQ-AUTH-003`) |
 | `ADR-042` | Dependencia externa para el login con Google: `laravel/socialite` `^5.30` (mínimo `v5.30.1`) tras la interfaz propia `ExternalIdentityProvider`, con el objeto de valor `ExternalIdentity` y adaptador único `SocialiteGoogleIdentityProvider` (**cierra la comprobación de `CLAUDE.md §1` para `REQ-AUTH-002`**; **descarta `league/oauth2-client`+`league/oauth2-google`, `jumbojett/openid-connect-php` por mantenimiento parado, escribir el flujo OIDC a mano y los paquetes `socialiteproviders/*`**; concreta `RNF-MANT-007` e `INV-006`, y convierte la nota de seguridad de `REQ-AUTH-002` sobre `email_verified` en un booleano de primera clase normalizado en un solo punto). Requisito previo del paso **1.4** (`REQ-AUTH-002`); **no decide nada de `1.4b`/`REQ-AUTH-004`** |
+| `ADR-043` | Alcance y secuencia de `REQ-AUTH-004` (SSO institucional): se divide en **1.4b** (catálogo de proveedores por tenant, OIDC genérico, mapeo de atributos, aprovisionamiento) y **1.4c** (SAML 2.0, sobre el catálogo ya construido) — SAML rompe a la vez el mecanismo de sesión del *callback*, el envoltorio de la dependencia, el perfil de riesgo y el ciclo de vida del certificado, ninguno de los cuales afecta a OIDC. Decisiones del usuario (2026-09-01): aprovisionamiento **solo emparejamiento** (nunca crea `Person`/`User` nuevos, por el riesgo de `INV-008` en un directorio institucional con alumnado), `client_secret` por tenant cifrado en tabla propia, configuración del proveedor en autoservicio por el propio centro. Identifica un error de corrección en la clave única de `user_identities` de `1.4` (`provider`+`subject` no identifica al emisor fuera de `google`), corregible ahora sin filas institucionales. No aprueba ninguna dependencia SAML. Requisito previo de **1.4b** y **1.4c** (`REQ-AUTH-004`) |
 
 ### Decisiones abiertas vivas
 
@@ -3249,7 +3250,7 @@ Del `028` en adelante, cada decisión vive en `docs/adr/` (`ADR-026`).
 | `OPEN-09` | Proveedor de correo transaccional. | `REQ-AUTH`, `REQ-COM` |
 | `OPEN-10` | Proveedor de almacenamiento de objetos para copias, distinto del host. | `REQ-BKP` |
 | `OPEN-11` | **Dónde se aloja el piloto.** El desarrollo pasa a WSL2 en equipo personal (`ADR-030`), que no puede alojar datos reales bajo ningún concepto. Decidir antes de que llegue el centro, no después. | Hito H0 |
-| `OPEN-13` | **Lista definitiva de columnas de `Person` y su base legal por campo.** `ADR-034` fija un mínimo por minimización y deja fuera fotografía, sexo, nacionalidad y dirección postal hasta que exista el catálogo de bases legales. | `REQ-PRIV-006`, paso 1.1 |
+| `OPEN-13` | **Lista definitiva de columnas de `Person` y su base legal por campo.** `ADR-034` fija un mínimo por minimización y deja fuera fotografía, sexo, nacionalidad y dirección postal hasta que exista el catálogo de bases legales. | `REQ-PRIV-006`, paso 1.1, `REQ-AUTH-004`/paso 1.4b (la parte de fotografía del mapeo de atributos no se puede cumplir mientras siga abierta, `docs/modulos/REQ-AUTH/funcional.md §F.0.3` punto 1) |
 
 Bloqueante de mayor prioridad: el hito **H0** (`ADR-019`), conseguir el centro piloto y sus ficheros de exportación.
 
@@ -3322,6 +3323,7 @@ Se mantendrá una matriz de trazabilidad (generada automáticamente desde las re
 
 | Versión | Fecha | Autor | Descripción |
 |---------|-------|-------|-------------|
+| 3.1.3 | 2026-09-01 | Product Owner | `ADR-043`: alcance y secuencia de `REQ-AUTH-004` (SSO institucional), añadido al índice de la sección 18. Divide el paso en `1.4b` (OIDC + aprovisionamiento) y `1.4c` (SAML 2.0); `PLAN-IMPLEMENTACION.md` actualizado en consecuencia. |
 | 3.1.2 | 2026-08-31 | Product Owner | `ADR-042`: dependencia externa del login con Google (`laravel/socialite` `^5.30` tras `ExternalIdentityProvider`), añadido al índice de la sección 18. Requisito previo del paso `1.4` (`REQ-AUTH-002`). |
 | 3.1.1 | 2026-08-27 | Product Owner | `ADR-041`: dependencias externas de MFA (`pragmarx/google2fa` en el backend, `uqr` en la SPA), añadido al índice de la sección 18. Requisito previo del paso `1.3` (`REQ-AUTH-003`). |
 | 3.1.0 | 2026-08-12 | Product Owner | `ADR-032`: unificación de las autorizaciones de recogida de menores. Nuevo `REQ-FAM-UNIT-005` como lista maestra única en fase 1. `REQ-PRL-004` reducido al proceso operativo y adelantado a fase 1. `REQ-TRAN-005` pasa a consumir la lista maestra en lugar de mantener una propia. |

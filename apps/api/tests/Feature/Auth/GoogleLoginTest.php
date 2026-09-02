@@ -52,12 +52,15 @@ test('CA-AUTH-200: con AUTH_OAUTH_DRIVER=none (por defecto), identity-providers 
         ->assertExactJson(['data' => [], 'meta' => ['total' => 0]]);
 });
 
+// api.md §F.6 (1.4b): la forma cambia de {provider} a {id, display_name_key}
+// — id es el identificador opaco que la SPA copia en POST
+// /auth/oauth-authorizations sin interpretarlo.
 test('con el proveedor simulado configurado, identity-providers devuelve google', function (): void {
     [$tenant] = provisionActiveUser('goog-200b');
 
     test()->getJson(coreApiUrl($tenant->slug, '/auth/identity-providers'))
         ->assertOk()
-        ->assertExactJson(['data' => [['provider' => 'google']], 'meta' => ['total' => 1]]);
+        ->assertExactJson(['data' => [['id' => 'google', 'display_name_key' => 'auth.provider.google']], 'meta' => ['total' => 1]]);
 });
 
 // CA-AUTH-201, RN-AUTH-29
@@ -668,13 +671,16 @@ test('CA-AUTH-231: ninguna de las seis rutas de 1.4 lleva el middleware module-e
     }
 });
 
-// CA-AUTH-232, permisos.md §E.1
-test('CA-AUTH-232: tras platform:sync-registry siguen habiendo exactamente siete permisos de auth', function (): void {
+// CA-AUTH-232, permisos.md §E.1. 1.4 no declaró ningún permiso nuevo
+// (REQ-AUTH-002 es autoservicio puro) — el catálogo sigue siendo el que
+// dejó 1.3b hasta que 1.4b (REQ-AUTH-004) lo amplía a once
+// (CA-AUTH-305, `permisos.md §F.1`).
+test('CA-AUTH-232: 1.4 no amplía el catálogo de permisos de auth respecto de 1.3b', function (): void {
     test()->artisan('platform:sync-registry')->run();
 
     $count = DB::connection('pgsql_platform')->table('permissions')->where('module_code', 'auth')->count();
 
-    expect($count)->toBe(7);
+    expect($count)->toBe(11);
 });
 
 // CA-AUTH-236, operacion.md §E.1, issue #140

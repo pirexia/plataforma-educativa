@@ -26,6 +26,7 @@ tags:
   - name: Auth / Bloqueo
   - name: Auth / MFA
   - name: Auth / OAuth
+  - name: Auth / SSO
 
 # ADR-038 §12.2: componentes compartidos (Problem, PageMeta, CursorMeta,
 # parámetros comunes) en un fichero propio, referenciados por $ref desde
@@ -170,6 +171,20 @@ paths:
     $ref: "openapi/paths/oauth.yaml#/paths/~1api~1v1~1auth~1identities"
   /api/v1/auth/identities/{publicId}:
     $ref: "openapi/paths/oauth.yaml#/paths/~1api~1v1~1auth~1identities~1{publicId}"
+
+  # REQ-AUTH-004 (paso 1.4b). apps/api/openapi/paths/sso.yaml.
+  /api/v1/identity-providers:
+    $ref: "openapi/paths/sso.yaml#/paths/~1api~1v1~1identity-providers"
+  /api/v1/identity-providers/{publicId}:
+    $ref: "openapi/paths/sso.yaml#/paths/~1api~1v1~1identity-providers~1{publicId}"
+  /api/v1/identity-providers/{publicId}/secrets:
+    $ref: "openapi/paths/sso.yaml#/paths/~1api~1v1~1identity-providers~1{publicId}~1secrets"
+  /api/v1/identity-providers/{publicId}/secrets/{secretPublicId}:
+    $ref: "openapi/paths/sso.yaml#/paths/~1api~1v1~1identity-providers~1{publicId}~1secrets~1{secretPublicId}"
+  /api/v1/identity-providers/{publicId}/discovery-refreshes:
+    $ref: "openapi/paths/sso.yaml#/paths/~1api~1v1~1identity-providers~1{publicId}~1discovery-refreshes"
+  /api/v1/auth/oauth/oidc/callback:
+    $ref: "openapi/paths/sso.yaml#/paths/~1api~1v1~1auth~1oauth~1oidc~1callback"
 
   # Los endpoints de los módulos siguientes se añaden aquí conforme se
   # implementan, cada uno con su propio apps/api/openapi/paths/<modulo>.yaml.

@@ -14,16 +14,21 @@ export function getIdentityProviders(): Promise<{ data: IdentityProvider[] }> {
 }
 
 /**
- * api.md §E.3 `POST /auth/oauth-authorizations`. `intent = 'login'`
- * (anónimo, desde `/entrar`) o `'link'` (por identidad, desde
- * `/cuenta/seguridad`). La SPA navega con `window.location`, nunca un
- * formulario (funcional.md §E.9: la CSP no admite `form-action` a
- * `accounts.google.com`).
+ * api.md §E.3, ampliado por api.md §F.6 (1.4b) `POST
+ * /auth/oauth-authorizations`. `intent = 'login'` (anónimo, desde
+ * `/entrar`) o `'link'` (por identidad, desde `/cuenta/seguridad`). La
+ * SPA navega con `window.location`, nunca un formulario (funcional.md
+ * §E.9/§F.9: la CSP no admite `form-action` a un tercero). `provider` es
+ * el `id` **opaco** que devolvió `getIdentityProviders()` — `"google"`
+ * por defecto, o el `public_id` de un proveedor catalogado (1.4b).
  */
-export function beginOAuthAuthorization(intent: 'login' | 'link'): Promise<OAuthAuthorization> {
+export function beginOAuthAuthorization(
+  intent: 'login' | 'link',
+  provider = 'google',
+): Promise<OAuthAuthorization> {
   return apiFetch<OAuthAuthorization>('/auth/oauth-authorizations', {
     method: 'POST',
-    body: JSON.stringify({ provider: 'google', intent }),
+    body: JSON.stringify({ provider, intent }),
   })
 }
 

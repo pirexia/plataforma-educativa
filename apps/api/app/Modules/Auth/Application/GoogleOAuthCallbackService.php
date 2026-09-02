@@ -85,7 +85,15 @@ final class GoogleOAuthCallbackService
             return OAuthCallbackResult::outcome(match ($e->failure) {
                 ExternalIdentityFailure::ConsentDenied => OAuthCallbackOutcome::Cancelado,
                 ExternalIdentityFailure::InvalidState => OAuthCallbackOutcome::EstadoNoValido,
-                ExternalIdentityFailure::ProviderUnreachable => OAuthCallbackOutcome::ErrorProveedor,
+                // IdTokenInvalid y DomainNotAllowed son de 1.4b
+                // (ExternalIdentityFailure ampliada para el proveedor OIDC
+                // genérico) y SocialiteGoogleIdentityProvider nunca las
+                // lanza hoy — pero el match tiene que ser exhaustivo sobre
+                // el enum completo, no sobre lo que un único adaptador usa
+                // en la práctica (Larastan, hallazgo de CI). Mismo mapeo
+                // que OidcCallbackService::handle().
+                ExternalIdentityFailure::ProviderUnreachable, ExternalIdentityFailure::IdTokenInvalid => OAuthCallbackOutcome::ErrorProveedor,
+                ExternalIdentityFailure::DomainNotAllowed => OAuthCallbackOutcome::DominioNoPermitido,
             });
         }
 
@@ -136,6 +144,14 @@ final class GoogleOAuthCallbackService
         } catch (UniqueConstraintViolationException $e) {
             // RN-AUTH-89, CA-AUTH-223: el rechazo lo produce el índice
             // único, no una comprobación previa con condición de carrera.
+            // 1.4b (migración 2026_09_01_100500) renombra este índice con
+            // un sufijo `_null` al final, no en medio, precisamente para
+            // que `user_identities_tenant_provider_subject_unique` siga
+            // siendo subcadena literal del nombre nuevo — este código,
+            // sin cambios propios de 1.4b más allá de esta nota, sigue
+            // reconociendo la violación sin repliegue durante la ventana
+            // de un despliegue continuo con instancias antiguas y nuevas
+            // conviviendo (hallazgo de `db-reviewer`, 1.4b).
             return OAuthCallbackResult::outcome(
                 str_contains($e->getMessage(), 'user_identities_tenant_provider_subject_unique')
                     ? OAuthCallbackOutcome::ProveedorYaVinculado

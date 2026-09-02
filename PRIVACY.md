@@ -1,6 +1,6 @@
 # PRIVACY.md
 
-> **Versión 0.2.1** · 2026-09-01
+> **Versión 0.2.2** · 2026-09-02
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Base del Registro de Actividades de Tratamiento (RAT) exigido por el RGPD — hoy es un **esqueleto**, no un RAT completo: varias secciones dependen de decisiones que todavía no se han tomado (`OPEN-07`, entidad jurídica y contrato de encargado de tratamiento). No se rellenan con suposiciones (`CLAUDE.md` §0/§11).
 
 ---
@@ -43,7 +43,21 @@ El *callback* de OAuth2 recibe de Google, además del `access_token`/`id_token` 
 | `picture` (URL del avatar) | **No, bajo ningún concepto** | Ni se descarga ni se guarda la URL. Servirla filtraría a Google la IP de quien la mire; guardarla sería tratar un dato personal nuevo sin base legal decidida (`REQ-PRIV-006`, `OPEN-13`) |
 | `access_token` / `refresh_token` | **No** | Se usan en la misma petición servidor-a-servidor para leer los *claims* y se descartan de inmediato (`RN-AUTH-95`). Este producto no llama a ninguna API de Google en nombre de nadie; guardar un *refresh token* sería custodiar una llave a la cuenta personal de una persona, con su propia base legal y su propia superficie de fuga |
 
-**Ningún usuario se crea a partir de este flujo** (`RN-AUTH-99`): sin cuenta local ya existente en el centro, no se trata ningún dato de los de arriba — se descartan en el acto. El aprovisionamiento automático (con su propio mapeo de atributos y su propia decisión sobre `family_name`/foto) queda para `REQ-AUTH-004`/`1.4b`, donde el proveedor de identidad es el directorio del propio centro y sí hay base para tratarlo.
+**Ningún usuario se crea a partir de este flujo** (`RN-AUTH-99`): sin cuenta local ya existente en el centro, no se trata ningún dato de los de arriba — se descartan en el acto. `REQ-AUTH-004`/`1.4b` (§2.3) tampoco crea usuarios: el directorio del propio centro contiene también alumnado, y un aprovisionamiento automático que confiara en la aserción crearía el registro de un menor sin base legal ni consentimiento del tutor (`INV-008`) — decisión del usuario, `ADR-043 §8.1`.
+
+### 2.3 Datos recibidos de un proveedor de identidad institucional (OIDC, `REQ-AUTH-004`, paso 1.4b)
+
+Cada centro cataloga su propio proveedor de identidad (Azure AD/Entra ID, Google Workspace u otro emisor conforme a OIDC). El *callback* recibe del `id_token` un conjunto de *claims* de la persona que inicia sesión. Qué entra y qué se descarta, decidido en `ADR-043` y `funcional.md §F.5`:
+
+| *Claim* que envía el proveedor | ¿Se persiste? | Dónde / por qué |
+|---------------------------------|----------------|------------------|
+| `sub` (identificador estable del emisor) | **Sí** | `user_identities.subject`, junto a `identity_provider_id` — un mismo `sub` solo es único dentro de su emisor (`ADR-043 §3.6`), nunca el correo |
+| `email` (o el *claim* configurado como origen del correo) | **Sí, solo para resolver el emparejamiento** | Se usa para localizar la `Person`/`User` ya existente en el censo con ese correo; no se persiste como dato nuevo del proveedor, es el mismo `contact_email` que ya tenía la persona en el centro |
+| Resto de atributos (`given_name`, `family_name`, teléfono, etc.) | **No, bajo ningún concepto** | `RN-AUTH-88`/`OPEN-AUTH-38`: el mapeo de atributos de este paso resuelve identidad, no escribe sobre `people` — la persona ya tiene sus datos puestos por el centro, y escribir encima sería sobrescribirlos sin su acto. La lista blanca de campos que **podría** rellenar el día que exista esa mitad está documentada, sin materializar, en `funcional.md §F.5.3` |
+| Fecha de nacimiento | **No se lee ni se pide** | Es justo el dato cuya ausencia impide saber si el directorio acaba de entregar la identidad de un menor — motivo central de que este paso no cree cuentas (`ADR-043 §4.1`) |
+| Credencial de cliente del centro (`client_secret` o equivalente) | **Sí, cifrada** | `identity_provider_secrets.client_secret`, cifrada con `APP_KEY` a nivel de aplicación, nunca en claro por ningún endpoint. Es material de configuración del centro, no un dato personal de quien inicia sesión |
+
+**Ningún usuario ni persona nueva se crea a partir de este flujo.** Un acceso sin cuenta ya existente en el centro con ese correo termina sin vincular y sin crear nada, con la misma respuesta genérica e indistinguible que el resto de casos "sin cuenta" (`funcional.md §F.4.5`).
 
 ## 3. Registro de Actividades de Tratamiento (RAT) — plantilla
 

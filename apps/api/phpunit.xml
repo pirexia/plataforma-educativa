@@ -93,5 +93,28 @@
         <env name="PULSE_ENABLED" value="false" force="true"/>
         <env name="TELESCOPE_ENABLED" value="false" force="true"/>
         <env name="NIGHTWATCH_ENABLED" value="false" force="true"/>
+        <!--
+            REQ-AUTH-004 (1.4b). El emisor OIDC simulado que usa casi toda
+            la suite de tests del paso (`OIDC_DISCOVERY_URL` en
+            tests/Pest.php, operacion.md §F.10) se sirve por `http://`
+            desde dentro del propio contenedor de test: sin esto, la
+            inmensa mayoría de esos tests fallarían por
+            `esquema_no_admitido` en un entorno que no arrastre un
+            AUTH_SSO_ALLOW_INSECURE_DISCOVERY=true ambiental (como CI, que
+            arranca de `.env.example`, donde no está declarada). A
+            diferencia de AUTH_OAUTH_DRIVER (donde cada test de Google
+            elige explícitamente `fake`/`none` según lo que prueba, porque
+            las tres opciones son igual de legítimas), aquí el valor
+            correcto es `true` para casi toda la suite y solo un puñado de
+            tests necesita lo contrario — de ahí forzarlo aquí en vez de
+            repetirlo en cada fichero. `SsoEnvironmentGuard` sigue
+            abortando el arranque si esto llegara a `true` fuera de
+            `local`/`testing`, en todos los entornos (operacion.md §F.2.1)
+            — este forzado no lo afloja, solo fija el valor por defecto
+            dentro de `testing`. Los tests que necesitan lo contrario
+            (CA-AUTH-262, CA-AUTH-264) ya gestionan su propio valor de
+            `config()`, así que no se ven afectados.
+        -->
+        <env name="AUTH_SSO_ALLOW_INSECURE_DISCOVERY" value="true" force="true"/>
     </php>
 </phpunit>

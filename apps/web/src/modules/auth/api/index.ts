@@ -4,6 +4,7 @@
  * directamente de `@/api/client` con rutas escritas a mano.
  */
 export * from './accountUnlocks'
+export * from './identityProviders'
 export * from './invitationRedemptions'
 export * from './mfa'
 export * from './mfaAdministration'

@@ -98,6 +98,15 @@ return [
         'oauth_callback_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_OAUTH_CALLBACK_PER_IP', 20), 'decay' => 60],
         'identity_providers_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_IDENTITY_PROVIDERS_PER_IP', 60), 'decay' => 60],
         'mfa_challenge_read_session' => ['max' => (int) env('AUTH_RATE_LIMIT_MFA_CHALLENGE_READ_PER_SESSION', 30), 'decay' => 60],
+        // REQ-AUTH-004 (1.4b), operacion.md §F.6. oidc_callback_ip copia
+        // el valor de oauth_callback_ip a propósito: es el análogo
+        // exacto. sso_discovery_tenant y sso_secret_tenant van por
+        // tenant y no por IP/sesión: lo que se defiende no es la cuenta
+        // ni el servidor, son terceros (un centro entero comparte el
+        // límite de lo que pide su administrador).
+        'oidc_callback_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_OIDC_CALLBACK_PER_IP', 20), 'decay' => 60],
+        'sso_discovery_tenant' => ['max' => (int) env('AUTH_RATE_LIMIT_SSO_DISCOVERY_PER_TENANT', 6), 'decay' => 60],
+        'sso_secret_tenant' => ['max' => (int) env('AUTH_RATE_LIMIT_SSO_SECRET_PER_TENANT', 6), 'decay' => 60],
     ],
 
     /*
@@ -150,6 +159,29 @@ return [
         'google_client_id' => env('AUTH_GOOGLE_CLIENT_ID'),
         'google_client_secret' => env('AUTH_GOOGLE_CLIENT_SECRET'),
         'state_ttl_minutes' => (int) env('AUTH_OAUTH_STATE_TTL_MINUTES', 10),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | SSO institucional: OIDC por tenant (REQ-AUTH-004, 1.4b)
+    |--------------------------------------------------------------------------
+    |
+    | operacion.md §F.2.1. Ninguna es secreta: el client_secret de cada
+    | proveedor vive cifrado en identity_provider_secrets, no aquí
+    | (ADR-043 §8.2). allow_insecure_discovery: false por defecto en
+    | cualquier entorno (CA-AUTH-310) — SsoEnvironmentGuard aborta el
+    | arranque si es true fuera de local/testing.
+    |
+    */
+    'sso' => [
+        'discovery_timeout_seconds' => (int) env('AUTH_SSO_DISCOVERY_TIMEOUT_SECONDS', 5),
+        'discovery_max_bytes' => (int) env('AUTH_SSO_DISCOVERY_MAX_BYTES', 262144),
+        'discovery_max_redirects' => (int) env('AUTH_SSO_DISCOVERY_MAX_REDIRECTS', 3),
+        'discovery_refresh_days' => (int) env('AUTH_SSO_DISCOVERY_REFRESH_DAYS', 7),
+        'secret_expiry_warning_days' => (int) env('AUTH_SSO_SECRET_EXPIRY_WARNING_DAYS', 30),
+        'clock_skew_seconds' => (int) env('AUTH_SSO_CLOCK_SKEW_SECONDS', 120),
+        'token_timeout_seconds' => (int) env('AUTH_SSO_TOKEN_TIMEOUT_SECONDS', 5),
+        'allow_insecure_discovery' => filter_var(env('AUTH_SSO_ALLOW_INSECURE_DISCOVERY', false), FILTER_VALIDATE_BOOLEAN),
     ],
 
 ];

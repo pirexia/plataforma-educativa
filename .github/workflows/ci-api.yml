@@ -99,6 +99,48 @@ jobs:
             -v dbname=plataforma_test \
             -f infra/containers/postgres/init/01-tenancy.sql.tpl
 
+      # REQ-AUTH-004 (1.4b), operacion.md §F.10: el emisor OIDC simulado
+      # se sirve por la propia API en local/testing, y la suite Pest lo
+      # alcanza por HTTP real (no en proceso) para probar de verdad las
+      # cinco guardas SSRF de CurlDiscoveryDocumentValidator. En
+      # desarrollo eso lo da el contenedor `api`, que ya sirve en el
+      # puerto 8000 de forma continua (SYSADMIN.md); este job no arrancaba
+      # ningún servidor, así que la petición saliente del validador no
+      # tenía nada que atender y toda la suite de 1.4b fallaba en CI con
+      # auth.sso.discovery.sin_respuesta pese a pasar en local. `pest`
+      # corre como proceso CLI aparte de este servidor, así que no aplica
+      # el interbloqueo de un solo hilo del issue #146 (ahí el conflicto
+      # es con una petición *entrante* del navegador, no con el propio
+      # proceso de test).
+      #
+      # El servidor necesita el esquema ya migrado: tests/TestCase.php
+      # migra de forma perezosa (una sola vez, guardada en una bandera
+      # estática) dentro del propio proceso de Pest, en el primer setUp()
+      # — un proceso de artisan serve aparte nunca pasa por ahí, así que
+      # sin este paso toda petición que tocara sesión (SESSION_DRIVER=
+      # database) fallaba contra un esquema inexistente. Primer intento
+      # de este arreglo, sin migrar antes: /api/health respondía rápido
+      # pero con error, y el bucle de espera nunca veía un 200.
+      - name: Arrancar servidor de desarrollo (emisor OIDC simulado)
+        # DB_DATABASE: .env.example trae "plataforma" (valor de desarrollo);
+        # el servicio postgres de este job crea "plataforma_test"
+        # (POSTGRES_DB de arriba). phpunit.xml fuerza DB_DATABASE=
+        # plataforma_test dentro del propio proceso de Pest, pero este paso
+        # invoca artisan directamente, fuera de ese mecanismo — sin esto,
+        # migra (y el servidor sirve) contra una base que no existe.
+        env:
+          DB_DATABASE: plataforma_test
+        run: |
+          php artisan migrate --database=pgsql_owner --force
+          php artisan serve --host=127.0.0.1 --port=8000 > /tmp/artisan-serve.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf -o /dev/null http://127.0.0.1:8000/api/health && exit 0
+            sleep 1
+          done
+          echo "::error::php artisan serve no respondió a tiempo en el puerto 8000"
+          cat /tmp/artisan-serve.log
+          exit 1
+
       - run: composer test
 
   lint:

@@ -108,6 +108,29 @@ return [
             'body' => 'Das Google-Konto :email wurde von deinem Profil bei :tenant getrennt.',
             'warning' => 'Wenn du das nicht warst, wende dich umgehend an die Verwaltung deiner Schule.',
         ],
+        'identity_matched' => [
+            'subject' => 'Dein Konto wurde bei :tenant verknüpft',
+            'greeting' => 'Hallo :name.',
+            'body' => 'Bei der Anmeldung mit :provider bei :tenant hat das System das Konto :email automatisch mit deinem Profil verknüpft, da die E-Mail-Adresse übereinstimmte.',
+            'warning' => 'Wenn du das nicht warst, wende dich umgehend an die Verwaltung deiner Schule.',
+        ],
+    ],
+
+    'sso' => [
+        'identity_provider_issuer_already_catalogued' => 'Diese Schule hat bereits einen Anbieter mit diesem Aussteller erfasst.',
+        'identity_provider_enable_without_secret' => 'Du kannst diesen Anbieter ohne gültiges Client-Geheimnis nicht aktivieren.',
+        'identity_provider_secret_last_active' => 'Du kannst das letzte gültige Geheimnis eines aktiven Anbieters nicht entfernen: deaktiviere ihn zuerst.',
+        'discovery' => [
+            'esquema_no_admitido' => 'Die Discovery-URL muss https verwenden.',
+            'destino_no_publico' => 'Diese Adresse ist von diesem Server aus nicht erreichbar.',
+            'demasiadas_redirecciones' => 'Das Discovery-Dokument leitet zu oft weiter.',
+            'sin_respuesta' => 'Das Discovery-Dokument konnte nicht heruntergeladen werden.',
+            'respuesta_demasiado_grande' => 'Das Discovery-Dokument ist zu groß.',
+            'documento_no_valido' => 'Das Discovery-Dokument ist ungültig oder es fehlen Pflichtfelder.',
+            'emisor_no_coincide' => 'Der angegebene Aussteller stimmt nicht mit dem Ursprung der Discovery-URL überein.',
+            'endpoint_no_seguro' => 'Einer der angegebenen Endpunkte verwendet kein https.',
+            'flujo_no_admitido' => 'Dieser Aussteller unterstützt den erforderlichen Autorisierungsablauf nicht.',
+        ],
     ],
 
 ];

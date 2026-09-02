@@ -24,7 +24,10 @@ class StoreOAuthAuthorizationRequest extends ApiFormRequest
     public function rules(): array
     {
         return [
-            'provider' => ['required', 'string', Rule::in(['google'])],
+            // api.md §F.6 (1.4b): identificador opaco — "google" (driver
+            // global) o el public_id ULID de un proveedor catalogado.
+            // Cuál de los dos es, y si existe, lo decide el servicio.
+            'provider' => ['required', 'string', 'max:255'],
             'intent' => ['required', 'string', Rule::in(['login', 'link'])],
         ];
     }

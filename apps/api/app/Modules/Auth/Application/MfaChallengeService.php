@@ -5,6 +5,7 @@ namespace App\Modules\Auth\Application;
 use App\Models\User;
 use App\Modules\Auth\Domain\DestinationMasker;
 use App\Modules\Auth\Domain\Events\RecoveryCodeUsed;
+use App\Modules\Auth\Domain\IdentityProviderDirectory;
 use App\Modules\Auth\Domain\LinkMethod;
 use App\Modules\Auth\Domain\LoginMethod;
 use App\Modules\Auth\Domain\MfaDeliveryCode;
@@ -60,6 +61,7 @@ final class MfaChallengeService
         private readonly LoginAttemptRecorder $attempts,
         private readonly AuthenticatedSessionEstablisher $establisher,
         private readonly UserIdentityLinkingService $identityLinking,
+        private readonly IdentityProviderDirectory $identityProviders,
     ) {}
 
     /**
@@ -72,6 +74,24 @@ final class MfaChallengeService
     public function stashPendingFederatedLink(Request $request, string $subject, string $email, bool $emailVerified): void
     {
         $request->session()->put(self::PENDING_FEDERATED_LINK_SESSION_KEY, [
+            'kind' => 'google_fusion',
+            'subject' => $subject,
+            'email' => $email,
+            'email_verified' => $emailVerified,
+        ]);
+    }
+
+    /**
+     * REQ-AUTH-004 (1.4b), `funcional.md §F.4.3.1` punto 6: el
+     * equivalente institucional de `stashPendingFederatedLink()` — un
+     * emparejamiento candidato no se escribe hasta que el segundo factor
+     * se supere, mismo criterio que la fusión de Google.
+     */
+    public function stashPendingSsoMatch(Request $request, int $identityProviderId, string $subject, string $email, bool $emailVerified): void
+    {
+        $request->session()->put(self::PENDING_FEDERATED_LINK_SESSION_KEY, [
+            'kind' => 'sso_match',
+            'identity_provider_id' => $identityProviderId,
             'subject' => $subject,
             'email' => $email,
             'email_verified' => $emailVerified,
@@ -238,12 +258,16 @@ final class MfaChallengeService
             throw ApiException::gone();
         }
 
-        // REQ-AUTH-002 (1.4): de un solo uso, igual que el resto del
-        // payload transitorio de sesión — si el desafío se abrió por el
-        // login local (o esta clave ya no está, back-compat con una
-        // sesión anterior a 1.4), local por defecto.
+        // REQ-AUTH-002 (1.4)/REQ-AUTH-004 (1.4b): de un solo uso, igual
+        // que el resto del payload transitorio de sesión — si el
+        // desafío se abrió por el login local (o esta clave ya no está,
+        // back-compat con una sesión anterior a 1.4), local por defecto.
         $originValue = $request->session()->pull(self::CHALLENGE_ORIGIN_SESSION_KEY);
-        $loginMethod = $originValue === LoginMethod::Google->value ? LoginMethod::Google : LoginMethod::Local;
+        $loginMethod = match ($originValue) {
+            LoginMethod::Google->value => LoginMethod::Google,
+            LoginMethod::Sso->value => LoginMethod::Sso,
+            default => LoginMethod::Local,
+        };
 
         $user = $challenge->user;
         $normalizedEmail = $user->email;
@@ -303,7 +327,25 @@ final class MfaChallengeService
 
             $pendingLink = $request->session()->pull(self::PENDING_FEDERATED_LINK_SESSION_KEY);
 
-            if (is_array($pendingLink)) {
+            if (is_array($pendingLink) && ($pendingLink['kind'] ?? null) === 'sso_match') {
+                $provider = $this->identityProviders->findById((int) ($pendingLink['identity_provider_id'] ?? 0));
+
+                // Entre el arranque del flujo y la superación del
+                // segundo factor el proveedor pudo desactivarse o
+                // borrarse: no hay salida de resultado que corregir aquí
+                // (la sesión ya se va a crear), así que simplemente no
+                // se empareja — el titular sigue entrando con su
+                // contraseña la próxima vez (RN-AUTH-96).
+                if ($provider !== null) {
+                    $this->identityLinking->linkViaSso(
+                        $user,
+                        $provider,
+                        (string) ($pendingLink['subject'] ?? ''),
+                        (string) ($pendingLink['email'] ?? ''),
+                        ($pendingLink['email_verified'] ?? false) === true,
+                    );
+                }
+            } elseif (is_array($pendingLink)) {
                 $this->identityLinking->link(
                     $user,
                     (string) ($pendingLink['subject'] ?? ''),

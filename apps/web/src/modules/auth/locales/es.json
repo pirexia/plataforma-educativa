@@ -206,7 +206,8 @@
         "empty": "Todavía no tienes ninguna cuenta externa vinculada.",
         "linkMethod": {
           "fusion_automatica": "Vinculada automáticamente al entrar",
-          "perfil": "Vinculada desde tu perfil"
+          "perfil": "Vinculada desde tu perfil",
+          "emparejamiento_sso": "Vinculada automáticamente por el sistema"
         },
         "linkedAt": "Vinculada el {date}",
         "lastLoginAt": "Último acceso el {date}",
@@ -232,7 +233,18 @@
       "estadoNoValido": "No hemos podido completar el inicio de sesión con Google. Vuelve a intentarlo.",
       "errorProveedor": "No hemos podido conectar con Google. Inténtalo más tarde o entra con tu contraseña.",
       "backToLogin": "Volver a iniciar sesión",
-      "backToSecurity": "Volver a mi cuenta"
+      "backToSecurity": "Volver a mi cuenta",
+      "ssoTitle": "Inicio de sesión institucional",
+      "dominioNoPermitido": "Este centro solo admite cuentas de su propio dominio de correo. Si crees que es un error, contacta con tu centro.",
+      "proveedorNoDisponible": "Este proveedor de acceso no está disponible ahora mismo. Inténtalo más tarde o entra con tu contraseña."
+    },
+    "ssoCallback": {
+      "sinCuenta": "Si tienes una cuenta en este centro con esta dirección de correo, entra con tu contraseña y vincula tu cuenta externa desde tu perfil de seguridad.",
+      "yaVinculado": "Ya tienes una cuenta externa vinculada. Desvincúlala primero desde tu perfil de seguridad si quieres vincular otra distinta.",
+      "proveedorYaVinculado": "Esa cuenta ya está vinculada a otra persona de este centro.",
+      "cancelado": "Has cancelado el inicio de sesión.",
+      "estadoNoValido": "No hemos podido completar el inicio de sesión. Vuelve a intentarlo.",
+      "errorProveedor": "No hemos podido conectar con el proveedor de acceso. Inténtalo más tarde o entra con tu contraseña."
     },
     "mfaAdmin": {
       "title": "Administración de MFA",
@@ -331,6 +343,128 @@
         "loading": "Cargando usuarios…",
         "noMatches": "Sin coincidencias.",
         "change": "Cambiar"
+      }
+    },
+    "provider": {
+      "google": "Google"
+    },
+    "ssoAdmin": {
+      "title": "Proveedores de identidad",
+      "intro": "Configura los sistemas de identidad institucionales (Entra ID, Google Workspace, etc.) con los que tu personal puede entrar con las credenciales del centro.",
+      "loading": "Cargando el catálogo…",
+      "loadError": "No se ha podido cargar el catálogo de proveedores.",
+      "empty": "Este centro todavía no tiene ningún proveedor de identidad catalogado.",
+      "create": "Añadir proveedor",
+      "columns": {
+        "displayName": "Nombre",
+        "issuer": "Emisor",
+        "status": "Estado",
+        "provisioningMode": "Aprovisionamiento",
+        "secret": "Credencial"
+      },
+      "status": {
+        "enabled": "Activo",
+        "disabled": "No activo"
+      },
+      "provisioningMode": {
+        "desactivado": "Desactivado",
+        "emparejamiento": "Emparejamiento"
+      },
+      "secretStatus": {
+        "none": "Sin credencial vigente",
+        "active": "Vigente",
+        "expiringSoon": "Caduca pronto",
+        "noExpiry": "Sin caducidad declarada"
+      },
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "confirmDelete": "¿Retirar este proveedor? Los vínculos ya creados seguirán viéndose desde el perfil de cada titular, pero nadie podrá entrar por aquí a partir de ahora.",
+      "confirmYes": "Sí, retirar",
+      "confirmCancel": "Cancelar",
+      "deleted": "Proveedor retirado.",
+      "back": "Volver al catálogo",
+      "form": {
+        "titleNew": "Nuevo proveedor de identidad",
+        "titleEdit": "Editar proveedor de identidad",
+        "displayName": "Nombre visible",
+        "displayNameHint": "El nombre que verá el personal del centro en el botón de acceso. No se traduce.",
+        "discoveryUrl": "URL de descubrimiento",
+        "discoveryUrlHint": "La URL .well-known/openid-configuration que publica tu proveedor de identidad.",
+        "clientId": "Identificador de cliente (client_id)",
+        "emailClaim": "Claim del correo",
+        "claimsSource": "Origen de los claims",
+        "claimsSourceIdToken": "Token de identidad (id_token)",
+        "claimsSourceUserinfo": "Userinfo",
+        "scopes": "Ámbitos (scopes)",
+        "scopesHint": "Separados por comas. Debe incluir «openid».",
+        "allowedDomains": "Dominios de correo admitidos",
+        "allowedDomainsHint": "Separados por comas. Vacío = sin restricción.",
+        "provisioningMode": "Modo de aprovisionamiento",
+        "isEnabled": "Proveedor activo",
+        "isEnabledHint": "Un proveedor no activo no aparece en la pantalla de acceso.",
+        "submit": "Guardar",
+        "submitting": "Guardando…",
+        "cancel": "Cancelar",
+        "created": "Proveedor creado. Ahora carga su credencial y actívalo cuando esté listo.",
+        "saved": "Cambios guardados.",
+        "genericError": "No se han podido guardar los cambios.",
+        "enableWithoutSecretError": "No puedes activar este proveedor sin cargar antes una credencial de cliente vigente.",
+        "issuerAlreadyCatalogued": "Este centro ya tiene catalogado un proveedor con ese mismo emisor.",
+        "emailClaimOptions": {
+          "email": "email",
+          "preferred_username": "preferred_username",
+          "upn": "upn"
+        },
+        "allowedDomainsPlaceholder": "sucentro.es"
+      },
+      "integration": {
+        "title": "Qué registrar en tu proveedor de identidad",
+        "intro": "Copia estos datos en la configuración de tu proveedor de identidad para completar la integración.",
+        "redirectUri": "URI de redirección",
+        "scopes": "Ámbitos (scopes)",
+        "subjectClaim": "Claim del identificador",
+        "emailClaim": "Claim del correo",
+        "copy": "Copiar",
+        "copied": "Copiado."
+      },
+      "secrets": {
+        "title": "Credenciales de cliente",
+        "intro": "Puedes tener más de una credencial vigente a la vez para rotarla sin interrupción: se usa siempre la más reciente.",
+        "addNew": "Cargar nueva credencial",
+        "clientSecret": "Credencial (client_secret)",
+        "expiresAt": "Caduca el",
+        "expiresAtHint": "Opcional, pero recomendado: activa el aviso de caducidad.",
+        "submit": "Cargar credencial",
+        "submitting": "Cargando…",
+        "created": "Credencial cargada.",
+        "genericError": "No se ha podido cargar la credencial.",
+        "activatedAt": "Cargada el {date}",
+        "expiresAtLabel": "Caduca el {date}",
+        "noExpiry": "Sin caducidad declarada",
+        "retired": "Retirada el {date}",
+        "retire": "Retirar",
+        "retireConfirm": "¿Retirar esta credencial? Recuerda revocarla también en tu proveedor de identidad.",
+        "retireConfirmYes": "Sí, retirar",
+        "retiredMessage": "Credencial retirada. Recuerda revocarla también en tu proveedor de identidad.",
+        "lastActiveError": "No puedes retirar la última credencial vigente de un proveedor activo: desactívalo antes.",
+        "none": "Este proveedor no tiene ninguna credencial cargada."
+      },
+      "discoveryRefresh": {
+        "button": "Forzar refresco del documento de descubrimiento",
+        "refreshing": "Refrescando…",
+        "success": "Documento de descubrimiento actualizado.",
+        "failure": "No se ha podido refrescar el documento; se conservan los valores anteriores."
+      },
+      "discoveryFailure": {
+        "esquema_no_admitido": "La URL de descubrimiento debe usar https.",
+        "destino_no_publico": "No se puede acceder a esa dirección desde el servidor.",
+        "demasiadas_redirecciones": "El documento de descubrimiento redirige demasiadas veces.",
+        "sin_respuesta": "No se ha podido descargar el documento de descubrimiento.",
+        "respuesta_demasiado_grande": "El documento de descubrimiento es demasiado grande.",
+        "documento_no_valido": "El documento de descubrimiento no es válido o le faltan datos obligatorios.",
+        "emisor_no_coincide": "El emisor declarado no coincide con el origen de la URL de descubrimiento.",
+        "endpoint_no_seguro": "Alguno de los puntos de conexión declarados no usa https.",
+        "flujo_no_admitido": "Este emisor no admite el flujo de autorización necesario."
       }
     }
   }

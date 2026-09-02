@@ -41,6 +41,14 @@ Schedule::command('auth:mfa-obligations')->hourly();
 // ya la cierra perezosamente en cuanto alguien mira).
 Schedule::command('auth:close-orphaned-sessions')->everyFifteenMinutes();
 
+// REQ-AUTH-004 (1.4b), operacion.md §F.4. Diarias, no horarias: un
+// documento de descubrimiento cambia de *endpoints* una vez cada varios
+// años, y una credencial se avisa con semanas de antelación — diario con
+// ventana de siete días es holgado y no golpea a N emisores externos
+// cada hora.
+Schedule::command('auth:refresh-oidc-discovery')->daily();
+Schedule::command('auth:warn-expiring-client-secrets')->daily();
+
 // Issue #73: sin esto, un job de correo de REQ-AUTH que agota sus 5
 // reintentos (SendPasswordResetEmail/SendAccountLockedEmail, con un token
 // de un solo uso en el payload) se queda en failed_jobs sin fecha de

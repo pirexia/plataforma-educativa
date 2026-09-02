@@ -12,6 +12,7 @@ use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use PragmaRX\Google2FA\Google2FA;
 use Tests\TestCase;
@@ -448,6 +449,156 @@ function completeFakeGoogleFlow(string $authorizationUrl, string $sessionCookie,
     return withSessionCookie(sessionCookieValue($redirectToCallback))
         ->get($callbackUrl)
         ->assertRedirect();
+}
+
+/**
+ * REQ-AUTH-004 (1.4b). La URL de descubrimiento del emisor OIDC
+ * simulado (`operacion.md §F.10`), alcanzable desde dentro del propio
+ * contenedor de la API. Constante global de test: la usan varios
+ * ficheros de `tests/Feature/Auth`.
+ */
+const OIDC_DISCOVERY_URL = 'http://localhost:8000/api/_sso-simulator/.well-known/openid-configuration';
+
+/**
+ * REQ-AUTH-004 (1.4b), operacion.md §F.10. Da de alta y activa un
+ * proveedor OIDC catalogado que apunta al emisor simulado servido por la
+ * propia API — el mismo host que atiende la petición de test, así que
+ * `CurlDiscoveryDocumentValidator` lo descarga de verdad (AUTH_SSO_
+ * ALLOW_INSECURE_DISCOVERY=true en local/testing afloja las guardas 1 y
+ * 2 para permitirlo, operacion.md §F.2.1). Requiere `$admin` con los
+ * cuatro permisos `proveedor_identidad.*` (`provisionCoreTenant()`).
+ *
+ * @param  array<string, mixed>  $overrides  Campos del cuerpo de POST /identity-providers a sustituir.
+ * @return array{public_id: string, secret_public_id: string}
+ */
+function createActiveOidcProvider(string $slug, User $admin, array $overrides = []): array
+{
+    resetSessionState();
+
+    $body = array_merge([
+        'display_name' => 'Proveedor OIDC de prueba',
+        'discovery_url' => 'http://localhost:8000/api/_sso-simulator/.well-known/openid-configuration',
+        'client_id' => 'test-client-'.Str::random(8),
+        'provisioning_mode' => 'emparejamiento',
+    ], $overrides);
+
+    $store = test()->actingAs($admin)
+        ->postJson(coreApiUrl($slug, '/identity-providers'), $body)
+        ->assertStatus(201);
+
+    $publicId = $store->json('public_id');
+
+    $secret = test()->actingAs($admin)
+        ->postJson(coreApiUrl($slug, "/identity-providers/{$publicId}/secrets"), [
+            'client_secret' => 'test-client-secret-'.Str::random(16),
+        ])
+        ->assertStatus(201);
+
+    test()->actingAs($admin)
+        ->patchJson(coreApiUrl($slug, "/identity-providers/{$publicId}"), ['is_enabled' => true])
+        ->assertOk();
+
+    resetSessionState();
+
+    return ['public_id' => $publicId, 'secret_public_id' => $secret->json('public_id')];
+}
+
+/**
+ * REQ-AUTH-004 (1.4b). Tenant con `provisionCoreTenant()` (permisos
+ * `proveedor_identidad.*`), un usuario `activo` con correo conocido, y
+ * un proveedor OIDC catalogado, activado y con credencial vigente, listo
+ * para completar un login (`Person`/`User::factory()->for()`).
+ *
+ * @return array{0: Tenant, 1: User, 2: string}
+ */
+function provisionOidcTenantWithActiveUser(string $slug, array $userAttrs = []): array
+{
+    [$tenant, $admin] = provisionCoreTenant($slug);
+
+    $user = app(TenantContext::class)->runFor($tenant->id, function () use ($userAttrs) {
+        $person = Person::factory()->create();
+
+        return User::factory()->for($person)->create(array_merge([
+            'status' => UserStatus::Activo,
+        ], $userAttrs));
+    });
+
+    $provider = createActiveOidcProvider($slug, $admin);
+
+    return [$tenant, $user, $provider['public_id']];
+}
+
+/**
+ * REQ-AUTH-004 (1.4b). Arranca el flujo institucional — paralelo de
+ * `beginFakeGoogleFlow()`.
+ *
+ * @return array{0: string, 1: string}
+ */
+function beginOidcFlow(string $slug, string $providerPublicId, string $intent = 'login', ?string $sessionCookie = null): array
+{
+    if ($sessionCookie !== null) {
+        $client = withSessionCookie($sessionCookie);
+    } else {
+        resetSessionState();
+        $client = test();
+    }
+
+    $begin = $client->postJson(coreApiUrl($slug, '/auth/oauth-authorizations'), [
+        'provider' => $providerPublicId,
+        'intent' => $intent,
+    ])->assertStatus(201);
+
+    return [$begin->json('authorization_url'), sessionCookieValue($begin)];
+}
+
+/**
+ * REQ-AUTH-004 (1.4b). Completa el flujo enviando el formulario del
+ * emisor simulado (`FakeOidcIssuerController`) — a diferencia de
+ * `completeFakeGoogleFlow()`, reenvía **todos** los parámetros de la URL
+ * de autorización (`client_id`, `redirect_uri`, `nonce`, `code_challenge`),
+ * porque el emisor simulado es genérico y no conoce de antemano la ruta
+ * de *callback* de este producto.
+ *
+ * @param  array<string, mixed>  $claims
+ */
+function completeOidcFlow(string $authorizationUrl, string $sessionCookie, array $claims): TestResponse
+{
+    $query = [];
+    parse_str((string) parse_url($authorizationUrl, PHP_URL_QUERY), $query);
+
+    $formSubmission = array_merge($query, ['submit' => '1'], $claims);
+
+    $authorizePath = (string) parse_url($authorizationUrl, PHP_URL_PATH);
+
+    // El emisor simulado vive fuera del grupo de rutas con sesión
+    // (routes/api.php: es un emisor de plataforma, no del tenant) y no
+    // devuelve ninguna cookie propia — a diferencia de
+    // FakeGoogleAuthorizationController, que sí está dentro de ese
+    // grupo. Se reutiliza la misma cookie con la que arrancó el flujo.
+    $redirectToCallback = withSessionCookie($sessionCookie)
+        ->get($authorizePath.'?'.http_build_query($formSubmission))
+        ->assertRedirect();
+
+    $callbackUrl = $redirectToCallback->headers->get('Location');
+
+    return withSessionCookie($sessionCookie)
+        ->get($callbackUrl)
+        ->assertRedirect();
+}
+
+/**
+ * REQ-AUTH-004 (1.4b), paralelo de `loginWithFakeGoogleFor()`.
+ *
+ * @param  array<string, mixed>  $claims
+ */
+function loginWithOidcFor(string $slug, string $providerPublicId, array $claims): string
+{
+    [$authorizationUrl, $beginCookie] = beginOidcFlow($slug, $providerPublicId);
+    $callback = completeOidcFlow($authorizationUrl, $beginCookie, $claims);
+
+    expect(oauthCallbackResultCode($callback))->toBeNull();
+
+    return sessionCookieValue($callback);
 }
 
 /**

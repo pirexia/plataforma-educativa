@@ -206,7 +206,8 @@
         "empty": "Vous n'avez encore associé aucun compte externe.",
         "linkMethod": {
           "fusion_automatica": "Associé automatiquement lors de la connexion",
-          "perfil": "Associé depuis votre profil"
+          "perfil": "Associé depuis votre profil",
+          "emparejamiento_sso": "Lié automatiquement par le système"
         },
         "linkedAt": "Associé le {date}",
         "lastLoginAt": "Dernière utilisation le {date}",
@@ -232,7 +233,18 @@
       "estadoNoValido": "Nous n'avons pas pu terminer la connexion avec Google. Veuillez réessayer.",
       "errorProveedor": "Nous n'avons pas pu joindre Google. Réessayez plus tard ou connectez-vous avec votre mot de passe.",
       "backToLogin": "Retour à la connexion",
-      "backToSecurity": "Retour à mon compte"
+      "backToSecurity": "Retour à mon compte",
+      "ssoTitle": "Connexion institutionnelle",
+      "dominioNoPermitido": "Cet établissement n'accepte que les comptes de son propre domaine de messagerie. Si vous pensez qu'il s'agit d'une erreur, contactez votre établissement.",
+      "proveedorNoDisponible": "Ce fournisseur de connexion n'est pas disponible pour le moment. Réessayez plus tard ou connectez-vous avec votre mot de passe."
+    },
+    "ssoCallback": {
+      "sinCuenta": "Si vous avez un compte dans cet établissement avec cette adresse e-mail, connectez-vous avec votre mot de passe et associez votre compte externe depuis votre profil de sécurité.",
+      "yaVinculado": "Vous avez déjà un compte externe associé. Dissociez-le d'abord depuis votre profil de sécurité si vous voulez en associer un autre.",
+      "proveedorYaVinculado": "Ce compte est déjà associé à une autre personne de cet établissement.",
+      "cancelado": "Vous avez annulé la connexion.",
+      "estadoNoValido": "Nous n'avons pas pu terminer la connexion. Veuillez réessayer.",
+      "errorProveedor": "Nous n'avons pas pu joindre le fournisseur de connexion. Réessayez plus tard ou connectez-vous avec votre mot de passe."
     },
     "mfaAdmin": {
       "title": "Administration du MFA",
@@ -331,6 +343,128 @@
         "loading": "Chargement des utilisateurs…",
         "noMatches": "Aucune correspondance.",
         "change": "Changer"
+      }
+    },
+    "provider": {
+      "google": "Google"
+    },
+    "ssoAdmin": {
+      "title": "Fournisseurs d'identité",
+      "intro": "Configurez les systèmes d'identité institutionnels (Entra ID, Google Workspace, etc.) que votre personnel peut utiliser pour se connecter avec les identifiants de l'établissement.",
+      "loading": "Chargement du catalogue…",
+      "loadError": "Le catalogue des fournisseurs n'a pas pu être chargé.",
+      "empty": "Cet établissement n'a encore aucun fournisseur d'identité catalogué.",
+      "create": "Ajouter un fournisseur",
+      "columns": {
+        "displayName": "Nom",
+        "issuer": "Émetteur",
+        "status": "Statut",
+        "provisioningMode": "Approvisionnement",
+        "secret": "Identifiant"
+      },
+      "status": {
+        "enabled": "Actif",
+        "disabled": "Non actif"
+      },
+      "provisioningMode": {
+        "desactivado": "Désactivé",
+        "emparejamiento": "Association"
+      },
+      "secretStatus": {
+        "none": "Aucun identifiant valide",
+        "active": "Valide",
+        "expiringSoon": "Expire bientôt",
+        "noExpiry": "Aucune expiration déclarée"
+      },
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "confirmDelete": "Retirer ce fournisseur ? Les liaisons existantes resteront visibles sur le profil de chaque titulaire, mais plus personne ne pourra se connecter par ce biais désormais.",
+      "confirmYes": "Oui, retirer",
+      "confirmCancel": "Annuler",
+      "deleted": "Fournisseur retiré.",
+      "back": "Retour au catalogue",
+      "form": {
+        "titleNew": "Nouveau fournisseur d'identité",
+        "titleEdit": "Modifier le fournisseur d'identité",
+        "displayName": "Nom affiché",
+        "displayNameHint": "Le nom que le personnel verra sur le bouton de connexion. Non traduit.",
+        "discoveryUrl": "URL de découverte",
+        "discoveryUrlHint": "L'URL .well-known/openid-configuration publiée par votre fournisseur d'identité.",
+        "clientId": "Identifiant client (client_id)",
+        "emailClaim": "Claim de l'e-mail",
+        "claimsSource": "Source des claims",
+        "claimsSourceIdToken": "Jeton d'identité (id_token)",
+        "claimsSourceUserinfo": "Userinfo",
+        "scopes": "Portées (scopes)",
+        "scopesHint": "Séparées par des virgules. Doit inclure « openid ».",
+        "allowedDomains": "Domaines de messagerie autorisés",
+        "allowedDomainsHint": "Séparés par des virgules. Vide = aucune restriction.",
+        "provisioningMode": "Mode d'approvisionnement",
+        "isEnabled": "Fournisseur actif",
+        "isEnabledHint": "Un fournisseur non actif n'apparaît pas sur l'écran de connexion.",
+        "submit": "Enregistrer",
+        "submitting": "Enregistrement…",
+        "cancel": "Annuler",
+        "created": "Fournisseur créé. Chargez maintenant son identifiant et activez-le quand il sera prêt.",
+        "saved": "Modifications enregistrées.",
+        "genericError": "Les modifications n'ont pas pu être enregistrées.",
+        "enableWithoutSecretError": "Vous ne pouvez pas activer ce fournisseur sans avoir préalablement chargé un identifiant client valide.",
+        "issuerAlreadyCatalogued": "Cet établissement a déjà un fournisseur catalogué avec ce même émetteur.",
+        "emailClaimOptions": {
+          "email": "email",
+          "preferred_username": "preferred_username",
+          "upn": "upn"
+        },
+        "allowedDomainsPlaceholder": "sucentro.es"
+      },
+      "integration": {
+        "title": "Ce qu'il faut enregistrer auprès de votre fournisseur d'identité",
+        "intro": "Copiez ces valeurs dans la configuration de votre fournisseur d'identité pour terminer l'intégration.",
+        "redirectUri": "URI de redirection",
+        "scopes": "Portées (scopes)",
+        "subjectClaim": "Claim du sujet",
+        "emailClaim": "Claim de l'e-mail",
+        "copy": "Copier",
+        "copied": "Copié."
+      },
+      "secrets": {
+        "title": "Identifiants client",
+        "intro": "Vous pouvez avoir plusieurs identifiants valides en même temps pour les faire tourner sans interruption : le plus récent est toujours utilisé.",
+        "addNew": "Charger un nouvel identifiant",
+        "clientSecret": "Identifiant (client_secret)",
+        "expiresAt": "Expire le",
+        "expiresAtHint": "Facultatif, mais recommandé : active l'alerte d'expiration.",
+        "submit": "Charger l'identifiant",
+        "submitting": "Chargement…",
+        "created": "Identifiant chargé.",
+        "genericError": "L'identifiant n'a pas pu être chargé.",
+        "activatedAt": "Chargé le {date}",
+        "expiresAtLabel": "Expire le {date}",
+        "noExpiry": "Aucune expiration déclarée",
+        "retired": "Retiré le {date}",
+        "retire": "Retirer",
+        "retireConfirm": "Retirer cet identifiant ? Pensez à le révoquer également chez votre fournisseur d'identité.",
+        "retireConfirmYes": "Oui, retirer",
+        "retiredMessage": "Identifiant retiré. Pensez à le révoquer également chez votre fournisseur d'identité.",
+        "lastActiveError": "Vous ne pouvez pas retirer le dernier identifiant valide d'un fournisseur actif : désactivez-le d'abord.",
+        "none": "Ce fournisseur n'a aucun identifiant chargé."
+      },
+      "discoveryRefresh": {
+        "button": "Forcer l'actualisation du document de découverte",
+        "refreshing": "Actualisation…",
+        "success": "Document de découverte mis à jour.",
+        "failure": "Le document n'a pas pu être actualisé ; les valeurs précédentes ont été conservées."
+      },
+      "discoveryFailure": {
+        "esquema_no_admitido": "L'URL de découverte doit utiliser https.",
+        "destino_no_publico": "Cette adresse est inaccessible depuis le serveur.",
+        "demasiadas_redirecciones": "Le document de découverte redirige trop de fois.",
+        "sin_respuesta": "Le document de découverte n'a pas pu être téléchargé.",
+        "respuesta_demasiado_grande": "Le document de découverte est trop volumineux.",
+        "documento_no_valido": "Le document de découverte est invalide ou il manque des champs obligatoires.",
+        "emisor_no_coincide": "L'émetteur déclaré ne correspond pas à l'origine de l'URL de découverte.",
+        "endpoint_no_seguro": "L'un des points de terminaison déclarés n'utilise pas https.",
+        "flujo_no_admitido": "Cet émetteur ne prend pas en charge le flux d'autorisation requis."
       }
     }
   }

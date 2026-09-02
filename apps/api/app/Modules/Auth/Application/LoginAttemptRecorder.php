@@ -101,13 +101,15 @@ final class LoginAttemptRecorder
     /**
      * REQ-AUTH-002 (1.4), datos.md §E.3.2: el *callback* termina sin
      * poder resolver un usuario (sin vínculo y, o el correo no venía
-     * verificado, o no hay cuenta local). Siempre `method = google`.
-     * **No cuenta hacia el bloqueo** (RN-AUTH-14 no aplica: no se ha
-     * probado ninguna credencial nuestra).
+     * verificado, o no hay cuenta local). `$method` por defecto `Google`
+     * — el camino institucional (1.4b, `datos.md §F.5`) lo pasa
+     * explícitamente (`method = 'sso'`). **No cuenta hacia el bloqueo**
+     * (RN-AUTH-14 no aplica: no se ha probado ninguna credencial
+     * nuestra).
      */
-    public function recordFederatedNoLink(string $email): void
+    public function recordFederatedNoLink(string $email, LoginMethod $method = LoginMethod::Google): void
     {
-        $this->write($email, null, LoginOutcome::FederadoSinVinculo, LoginMethod::Google);
+        $this->write($email, null, LoginOutcome::FederadoSinVinculo, $method);
     }
 
     private function write(string $email, ?User $user, LoginOutcome $outcome, LoginMethod $method): void

@@ -6,6 +6,7 @@ use App\Models\ModuleSubscription;
 use App\Models\Person;
 use App\Models\Role;
 use App\Models\User;
+use App\Modules\Auth\Domain\Models\IdentityProvider;
 use App\Modules\Auth\Domain\Models\MfaReset;
 use App\Modules\Auth\Domain\Models\UserMfaExemption;
 use App\Modules\Auth\Domain\Models\UserMfaObligation;
@@ -41,7 +42,10 @@ test('todo modelo de tenant núcleo está en el morph map', function (): void {
 // datos.md §C.5/§C.6/§C.6.1) se suman en Full: sin datos personales más
 // allá de la relación con el usuario (MfaReset.reason es la única
 // excepción y es contenido, no dato personal, mismo criterio que
-// roles.name — ADR-035 §8).
+// roles.name — ADR-035 §8). IdentityProvider (REQ-AUTH-004, 1.4b,
+// datos.md §F.2) se suma en Full: configuración técnica del emisor de
+// un centro, sin datos personales — IdentityProviderSecret NO entra
+// aquí, es Selective (client_secret secreto a mano).
 test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR-035 §8', function (): void {
     $map = Relation::morphMap();
 
@@ -58,7 +62,7 @@ test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR
 
     expect($fullPolicyModels)->toEqualCanonicalizing([
         AcademicYear::class, Role::class, ModuleSubscription::class, DataExport::class,
-        MfaReset::class, UserMfaObligation::class, UserMfaExemption::class,
+        MfaReset::class, UserMfaObligation::class, UserMfaExemption::class, IdentityProvider::class,
     ]);
 });
 

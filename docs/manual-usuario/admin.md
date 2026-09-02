@@ -73,6 +73,28 @@ Mientras dura una excepción, la persona **también puede desactivar su segundo 
 
 Puedes consultar en cualquier momento quién tiene una excepción viva, por qué se le concedió y quién la concedió, y revocarla antes de su caducidad si la situación cambia. Revocarla no borra el registro: queda constancia de que existió y de cuándo se retiró, igual que con un bloqueo de cuenta levantado.
 
+## Inicio de sesión único (SSO) institucional
+
+### Qué es
+
+Permite que el personal del centro entre a la aplicación con las credenciales del propio centro (Microsoft Entra ID, Google Workspace u otro sistema de identidad compatible con OIDC), en vez de una contraseña propia de esta plataforma. Lo configuras tú, desde `Administración → Proveedores de identidad`, dando de alta cada sistema de identidad como un proveedor.
+
+Importante: entrar por aquí **nunca crea una cuenta nueva**. Solo vincula el inicio de sesión institucional con una cuenta que ya exista en el centro, con el mismo correo. Si la persona no tiene todavía cuenta, tiene que dársela de alta primero de la forma habitual (invitación).
+
+### Añadir un proveedor
+
+Al pulsar «Añadir proveedor» rellenas: un nombre visible (el que verá el personal en el botón de acceso), la URL de descubrimiento que publica tu sistema de identidad (termina en `.well-known/openid-configuration`), el identificador de cliente (`client_id`) que te dé tu proveedor, y opcionalmente qué dominios de correo se admiten — déjalo vacío si no quieres restringir por dominio, o indica el tuyo (p. ej. `sucentro.es`) para que solo entren cuentas de ese dominio.
+
+Tras guardar, la pantalla te muestra los datos que tienes que copiar en la configuración de tu proveedor de identidad (la URI de redirección, los ámbitos y los nombres de los campos que se leen) para completar la integración por su lado.
+
+### Cargar la credencial de cliente
+
+Un proveedor recién creado no puede activarse todavía: primero necesita al menos una credencial de cliente (`client_secret`) vigente, que te da tu propio sistema de identidad. Puedes tener más de una credencial cargada a la vez — útil para rotarla sin cortar el acceso, porque siempre se usa la más reciente. Si le indicas una fecha de caducidad, el sistema te avisa con antelación antes de que caduque.
+
+### Activar, editar y retirar un proveedor
+
+Un proveedor no activo no aparece como opción de acceso para nadie. Puedes editarlo en cualquier momento (nombre, dominios admitidos, modo de aprovisionamiento) y retirarlo si tu centro deja de usarlo — al retirarlo, los vínculos ya creados con esa identidad siguen viéndose desde el perfil de cada persona, pero nadie podrá volver a entrar por ese proveedor.
+
 ## Registro de auditoría
 
 ### Qué es
