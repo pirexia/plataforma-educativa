@@ -14,6 +14,8 @@
 **No decide**: la biblioteca de SAML (`§7.3` da la comparación y **no** la conclusión: es una aprobación de dependencia del usuario, con su ADR propio, igual que `OPEN-AUTH-35` → `ADR-042`); si el aprovisionamiento automático crea personas o solo las empareja (`§8.1`, decisión de producto); dónde vive el secreto de cliente por tenant (`§8.2`); ni el modelo de datos, los endpoints ni los permisos, que son de `docs/modulos/REQ-AUTH/*.md`
 **Precedente que sigue**: `ADR-031` y `ADR-032` — ADR de **alcance y fase** sobre un módulo aún sin construir, escrito antes de la especificación precisamente para que la especificación no tenga que descubrirlo
 
+**Ampliación `§10`** (2026-09-02, apertura de `1.4c`): con `1.4b` ya mezclado (PR #149, `8f439d4`), `§10` reevalúa en vivo la comparación de bibliotecas de `§7.3` —que resulta **equivocada en dos de sus cuatro observaciones**—, da la recomendación firme que `§7.3` difirió, y contrasta el diseño de `1.4c` contra el catálogo realmente construido. `§10.4` **matiza `§3.1`**: el catálogo sirve, pero la reutilización **no es aditiva** como el enunciado de `§3.1` daba a entender. Ninguna decisión de `§1`-`§9` se revoca.
+
 ---
 
 ## Contexto
@@ -403,3 +405,241 @@ Heredada de `funcional.md §C.12`, que la difirió literalmente «a 1.4b». La p
 - **Este ADR no aprueba ninguna dependencia**, así que `1.4c` arrancará con una decisión abierta de las que bloquean, igual que `1.4` arrancó con `OPEN-AUTH-35`.
 
 **Reversibilidad**: **alta, y es el argumento de `§6`.** Revertir esta decisión es fusionar dos renglones del plan antes de que exista una sola línea de especificación. No crea código, no crea esquema, no crea dependencias. Lo único que sobreviviría a su reversión son los hallazgos técnicos —la clave de `user_identities` (`§3.6`), `SameSite` en el ACS (`§2.1`), `users.password` (`§4.6`), la desaparición del tope de URIs (`§5.1`)—, que son ciertos con independencia de cómo se organicen los pasos.
+
+---
+
+## 10 · Decisión sobre biblioteca SAML y diseño de `1.4c`
+
+**Fecha**: 2026-09-02. **Estado**: análisis de `architect` para la apertura de `1.4c`. Las ocho decisiones de `§10.9` fueron llevadas al usuario el 2026-09-02 y **todas resueltas siguiendo la recomendación de `architect`**.
+
+`§7.3` dejó una comparación fechada el 2026-09-01 y escribió su propio límite: *«es de metadatos, no de código (…) no hay base para una recomendación firme y no se da»*. Esta sección hace lo que faltaba: reverifica los metadatos, **lee las fuentes** de los tres candidatos como `ADR-042` leyó las de Socialite, y contrasta el diseño contra el catálogo que `1.4b` construyó de verdad, no contra el que `§3` imaginó.
+
+### 10.1 · La reverificación cambia el resultado: `§7.3` estaba equivocada en dos observaciones
+
+Consultado en vivo contra `packagist.org`, `repo.packagist.org`, `api.github.com/repos`, `api.github.com/advisories` y los tarballs de las tres versiones el **2026-09-02**:
+
+| | `SAML-Toolkits/php-saml` | `litesaml/lightsaml` | `simplesamlphp/saml2` |
+|---|---|---|---|
+| **Última versión** | 4.3.2 · 2026-05-07 (y **3.8.2 · 2026-05-11**, rama antigua viva) | 5.1.0 · 2026-07-09 | v6.3.0 · 2026-08-09 (y `v7.0.0-rc1`, php `^8.5`) |
+| **Último *commit*** | 2026-08-06 | 2026-07-09 | 2026-08-18 |
+| ***Commits* últimos 12 meses** | **16** | **26** | **≥100** (tope de la consulta) |
+| **Autores humanos en esos *commits*** | **1** (`pitbulk`, 15 de 16) | **1** (`william-suppo`, 23 de 26) | **3** (`tvdijen` 84, `ioigoume` 8, `monkeyiq` 2) |
+| **Licencia** | MIT | MIT | **LGPL-2.1-or-later** |
+| **Descargas/mes** | 1.323.998 | **293.569** | 266.770 |
+| **PHP declarado** | `>=7.3` | `^8.4` | `^8.2` |
+| **Avisos en Packagist / GHSA** | 3 / 3 | **0 / 0** | 9 / 9 |
+| **Núcleo criptográfico** | `robrichards/xmlseclibs ^3.1.5` (2,17 M descargas/mes, 88 M totales) | `robrichards/xmlseclibs ^3.1.5` | **`simplesamlphp/xml-security ~2.3`** (v6 abandonó xmlseclibs) |
+
+Cuatro correcciones y hallazgos que `§7.3` no tenía, y dos de ellos invierten su lectura:
+
+**1. El «0 avisos» de `litesaml/lightsaml` no significa lo que `§7.3` supuso, y es descalificante.** `§7.3` lo leyó con la reserva de *«cero avisos con poca adopción no es lo mismo que cero avisos con mucha»*. La reserva era la equivocada. Las **notas de publicación del propio proyecto** dicen esto de la versión 5.0.1 (2026-06-29):
+
+> *«LightSAML 5.0.0 was vulnerable to an XML Signature Wrapping (XSW) attack allowing an attacker who has captured one genuine signed assertion to have LightSAML accept a fully attacker-authored assertion as IdP-signed, leading to **authentication bypass and privilege escalation**.»*
+
+Y 5.1.0 (2026-07-09) publica bajo el epígrafe `### Security` otras dos: *«Reject Responses with duplicate assertion IDs»* y *«Reject assertions with missing or empty ID»*. Es decir: **tres correcciones de seguridad en once días, una de ellas un salto de autenticación completo, y ninguna de las tres tiene aviso en Packagist ni en la base de datos de GitHub** (verificado: `api.github.com/advisories?ecosystem=composer&affects=litesaml%2Flightsaml` devuelve **0**). El «0» de la tabla no mide la ausencia de vulnerabilidades: mide que el proyecto **no publica avisos**.
+
+Eso choca de frente con un control que este proyecto tiene escrito: `CLAUDE.md §8`, *«cada PR pasa escaneo de dependencias»*. Sobre esta biblioteca, ese control **no funciona**: un despliegue anclado en 5.0.0 habría pasado todos los escaneos en verde mientras aceptaba aserciones falsificadas. No es un defecto del código de `lightsaml` —lo corrigieron rápido y bien—, es un defecto de **gobierno de la dependencia**, y es exactamente el eje sobre el que `§2.3` dijo que se decide esta familia.
+
+**2. La adopción de `lightsaml` no es baja, y su *fork* no es «de 2026».** `§7.3` dijo *«fork de 2026 de un proyecto abandonado desde 2022»* y *«107 estrellas propias»*. Verificado: el repositorio `litesaml/lightsaml` se creó el **2022-05-27**, dos días antes del último *release* del original (`lightsaml/lightsaml` 2.3.5, 2022-05-29), y lleva **cuatro años** publicando. Y sus 293.569 descargas/mes **superan** a las de `simplesamlphp/saml2`; más de la mitad llegan por `socialiteproviders/saml2` (156.734/mes), que `§7.3` no vio. La observación 2 de `§7.3` debe darse por retirada: `lightsaml` se descarta, pero **no por lo que `§7.3` decía**.
+
+**3. `simplesamlphp/saml2` v6 cambió de núcleo criptográfico, y eso empeora su perfil, no lo mejora.** `§7.3` lo llamó *«técnicamente el más activo de los tres»*, y en cadencia lo es. Pero la rama v6 **ya no depende de `robrichards/xmlseclibs`**: sustituye la firma XML por `simplesamlphp/xml-security`, una biblioteca con **3 estrellas** en GitHub y 70 de sus 85 *commits* del último año firmados por la misma persona (`tvdijen`) que firma 84 de los 100 de `saml2`. Se cambia la pieza de XML-DSig más golpeada de PHP (88 millones de descargas acumuladas, cuatro avisos históricos **encontrados y publicados**) por una escrita en casa, joven y con escrutinio externo casi nulo, en la capa donde `§2.3` demostró que están todos los fallos. Sumado a la LGPL de la observación 1 de `§7.3`, que sigue vigente.
+
+**4. Y su propio `README.md` desaconseja usarla para lo que queremos hacer**, en mayúsculas y en la segunda línea:
+
+> *«DO NOT USE THIS LIBRARY UNLESS YOU ARE INTIMATELY FAMILIAR WITH THE SAML2 SPECIFICATION. If you are not familiar with the SAML2 specification and are simply looking to connect your application using SAML2, you should probably use SimpleSAMLphp.»*
+
+Es una biblioteca de **modelo de mensajes**, no un SP. Quien la usa escribe la secuencia de validación entera. Su propio equipo dirige al resto hacia la aplicación completa, que es la alternativa de `§7.2` con otro nombre. Tomarse en serio esa advertencia es tomarse en serio a sus autores.
+
+**5. `xmlseclibs 4.0.0` salió el 2026-08-22** —confirmado— y `php-saml` y `lightsaml` siguen anclados en `^3.1.5`. Es una deuda de dependencia a vigilar, no un fallo: 3.1.5 (2026-03-13) corrige `CVE-2026-32313`, y la rama 3 sigue recibiendo mantenimiento del mismo autor (24 de 29 *commits* del último año).
+
+### 10.2 · Lo que aparece al leer el código, que es lo que `§7.3` no pudo hacer
+
+**`litesaml/lightsaml` 5.1.0 — `src/Action/Assertion/Inbound/AssertionSignatureValidatorAction.php`.** Tras resolver la credencial, la acción hace esto:
+
+```php
+$credential = $this->signatureValidator->validate(...);
+if ($credential instanceof CredentialInterface) { /* … log OK … */ }
+else {
+    $this->logger->warning('Assertion signature verification was not performed', …);
+}
+```
+
+Cuando la verificación **no se ha realizado**, se registra un *warning* y `doExecute()` **retorna con normalidad**: la aserción sigue viva por el resto de la tubería. El contrato lo confirma en `AbstractSignatureReader::validateMulti()`, documentado literalmente como *«Returns credential that validated the signature or **null if validation was not performed**»*. La rama que devuelve `null` es estrecha en el *binding* HTTP-POST —exige un lector de firma sin objeto `XMLSecurityDSig`— y **no se afirma aquí que sea explotable hoy**; lo que se afirma es que **el fallo está construido en abierto**: la vía «no se pudo verificar» y la vía «se verificó bien» desembocan en el mismo `return`. Es, palabra por palabra, el modo de fallo que `§2.3` describió como *«la firma no se valida y el sistema cree que sí»*, y convive con el XSW real corregido dos versiones antes.
+
+**`SAML-Toolkits/php-saml` 4.3.2 — `src/Saml2/Settings.php` y `src/Saml2/Response.php`.** Tiene su propia trampa, y hay que decirla porque es la biblioteca que se recomienda:
+
+- `wantMessagesSigned` por defecto **`false`** (línea 377) y `wantAssertionsSigned` por defecto **`false`** (línea 380). Sin tocarlos, `Response::isValid()` **acepta una respuesta sin firmar**: las comprobaciones de las líneas 387 y 394 solo se ejecutan si esos indicadores están activos.
+- `rejectUnsolicitedResponsesWithInResponseTo` por defecto **`false`** (línea 405).
+- A favor: `$_strict = true` **por defecto** (línea 46) — al contrario de lo que suele repetirse —, `wantXMLValidation = true`, y `Response::isValid($requestId)` recibe el identificador de la petición **como parámetro**, comparándolo contra `InResponseTo` y contra `SubjectConfirmationData/@InResponseTo`.
+
+La diferencia con `lightsaml` no es que `php-saml` sea seguro y el otro no. Es **dónde vive el riesgo y cuánto cuesta cerrarlo**: en `php-saml` son **tres booleanos en un único *array* de configuración**, que nuestro envoltorio fija a `true` y un test de `1.4c` verifica por reflexión; en `lightsaml` es una tubería de acciones que hay que montar entera y en la que la rama insegura es un `return` silencioso dentro de una clase de la biblioteca. Lo primero es auditable de un vistazo por un operador en solitario dentro de tres años; lo segundo no.
+
+**Acoplamiento a superglobales de `php-saml`, y por qué no bloquea.** `Auth::processResponse()` lee `$_POST['SAMLResponse']` directamente, y `Utils::getSelfURL()` lee `$_SERVER` con estado estático. En una aplicación tras Traefik (`ADR-028`) eso sería un riesgo real en la validación de `Destination`. **Tiene salida limpia y de primera clase**: la superficie de seguridad completa está en `new Response($settings, $xmlBase64)` + `$response->isValid($requestId)`, que reciben el mensaje y el identificador **por parámetro**. El envoltorio de `RNF-MANT-007` puede por tanto **no usar `Auth` en absoluto** en el camino de entrada, alimentar el mensaje desde `$request->input('SAMLResponse')` de Laravel, y fijar la URL propia con `Utils::setBaseURL()` a partir del *host* de tenant ya resuelto por `ResolveTenant`. Con eso, `Destination` se compara contra un valor que ponemos nosotros y no contra `$_SERVER`. Es una restricción de diseño de `1.4c`, no un impedimento.
+
+### 10.3 · Recomendación de biblioteca: `SAML-Toolkits/php-saml`
+
+**Recomendación firme: `onelogin/php-saml` (repositorio `SAML-Toolkits/php-saml`), serie 4.x, MIT, envuelta tras interfaz propia según `RNF-MANT-007` y usada solo por su API de bajo nivel (`Settings` + `Response`), nunca por `Auth`.**
+
+El argumento no es que sea la mejor biblioteca SAML de PHP. Es que es **la única de las tres cuyo riesgo residual se puede gestionar por una persona sola durante tres años**, que es el criterio que `§2.3` fijó y `ADR-037 §10` generalizó (*«un mecanismo aburrido que se sigue ejecutando igual el día 1.000»*):
+
+1. **Publica avisos.** Tres en Packagist y tres en GHSA, el más reciente de 2025-12. Es el único de los tres candidatos sobre el que `CLAUDE.md §8` («cada PR pasa escaneo de dependencias») **hace lo que promete**. Frente a `lightsaml`, donde un salto de autenticación pasó por el escáner sin ruido (`§10.1` punto 1), esto no es un matiz: es la diferencia entre tener un control y creer que se tiene.
+2. **Superficie pequeña y auditable.** 6.779 líneas en 12 ficheros, con la validación entera concentrada en `Response::isValid()`. `lightsaml` son 289 ficheros y `simplesamlphp/saml2` 328. Con un solo desarrollador, poder leer entero el fichero que decide quién entra es una propiedad de mantenimiento, no una preferencia estética.
+3. **Su trampa es conocida, acotada y verificable por test** (`§10.2`): tres booleanos. La de `lightsaml` es estructural.
+4. **Máximo escrutinio externo.** 1,32 M descargas/mes y 50 M acumuladas, sobre `xmlseclibs`, la implementación de XML-DSig más ejercitada del ecosistema. En criptografía, el código que más gente ataca es el que menos sorpresas guarda; los tres avisos de `php-saml` y los cuatro de `xmlseclibs` son la prueba de que se mira, no de que sea peor.
+5. **MIT.** Sin la zona gris de la LGPL en PHP que `§7.3` observación 1 documentó y que sigue vigente.
+
+**Lo que se acepta al recomendarla, sin disimular:**
+
+- **Factor autobús 1.** 15 de 16 *commits* del último año son de `pitbulk`. Es el peor dato de la biblioteca. Se mitiga por dos vías: la licencia MIT y las 6.779 líneas hacen el *fork* viable de verdad si el mantenedor desaparece; y `§10.9` decisión 8 anota el disparador para volver a `§7.2`.
+- **16 *commits* en doce meses y `php >=7.3` declarado** son señales de base de código en modo conservación, no de proyecto en crecimiento. En una biblioteca de protocolo cerrado como SAML 2.0, «pocos cambios» es una señal ambivalente, no negativa; pero obliga a lo del punto siguiente.
+- **Obligación permanente de seguimiento**, que `§2.3` ya exigió y que aquí se concreta: suscripción a los avisos de `onelogin/php-saml` **y** de `robrichards/xmlseclibs`, y compromiso de parcheo rápido. `xmlseclibs 4.0.0` (2026-08-22) queda en vigilancia: el día que `php-saml` mueva su `^3.1.5`, es una actualización a revisar, no a aplicar en automático.
+
+**Implementar el núcleo SAML a mano queda descartado, y conviene decir por qué explícitamente**, porque el encargo lo pedía como posible conclusión: la validación de firma XML con canonicalización, el rechazo de XSW, XXE y de las transformadas XPath maliciosas son precisamente donde han fallado **todas** las implementaciones PHP con años de escrutinio (`§2.3`, y `§10.1` punto 1 añade una más). Escribirlo aquí sería sustituir un riesgo gestionable —una dependencia de 6.779 líneas que publica avisos— por uno sin gestionar y sin nadie mirándolo. No.
+
+### 10.4 · El catálogo de `1.4b` sirve, pero la reutilización **no es aditiva**: matiz a `§3.1`
+
+`§3.1` describió `1.4c` como *«adaptador SAML sobre el catálogo ya existente (…) añade un protocolo, no un modelo»*, y `§9` remató que *«solo añade un adaptador»*. **Con `identity_providers` construido delante, esa frase es demasiado optimista y hay que corregirla antes de que `spec-writer` la herede.**
+
+Leída la migración `2026_09_01_100300_create_identity_providers_table.php`, el catálogo no es un catálogo de proveedores de identidad: es un catálogo **de proveedores OIDC**. Su propio *docblock* lo dice (*«Ninguna columna de `protocol` (SAML es 1.4c…)»*). Estas columnas son `NOT NULL` y **una fila SAML no puede rellenar ninguna con un valor verdadero**:
+
+| Columna | Por qué no la puede rellenar una fila SAML |
+|---|---|
+| `discovery_url` | SAML no tiene documento de descubrimiento; tiene metadatos XML, que no son lo mismo ni se refrescan igual |
+| `token_endpoint` | **No existe** en el perfil Web Browser SSO. No hay canje de código ni canal trasero: la aserción llega firmada en el `POST` |
+| `client_id` | No existe. El identificador es nuestro `entityId` de SP, que es **nuestro** y no del proveedor |
+| `scopes` | No existe, y el `CHECK (scopes @> '["openid"]')` obliga literalmente al valor `openid` |
+| `discovery_fetched_at` | Consecuencia de la primera |
+| `email_claim` | El `CHECK IN ('email','preferred_username','upn')` prohíbe los nombres de atributo SAML, que son URN (`urn:oid:0.9.2342.19200300.100.1.3`) |
+
+Rellenarlas con valores de conveniencia para que la fila entre es exactamente el patrón que **este mismo ADR rechazó dos veces**: en `§4.6` (*«deja `RN-AUTH-96` formalmente cierta y materialmente falsa»*) y en `§3.6` (*«un `true` de conveniencia que vacíe la garantía sin que se note»*). No se hace.
+
+**Pero la decisión de `§3.1` se mantiene, y por una razón que `§3.1` no dio y que resulta ser la buena.** Lo que hace inviable una tabla `saml_identity_providers` paralela no son las columnas: es que `1.4b` creó
+
+```sql
+FOREIGN KEY (tenant_id, identity_provider_id) REFERENCES identity_providers (tenant_id, id)
+```
+
+sobre `user_identities`, con cuatro índices únicos parciales y seis `CHECK` colgando de que esa columna esté o no informada. Un catálogo SAML aparte obligaría a una segunda columna FK *nullable* con un `CHECK` de exclusión mutua, o a una referencia polimórfica **sin clave foránea** — que es integridad referencial renunciada en la tabla que decide quién es quién. Inaceptable. **La pieza reutilizable es la clave foránea, no el conjunto de columnas.**
+
+**Forma recomendada (decisión 2 de `§10.9`): discriminador en el padre + tabla hija 1:1 por protocolo, sin mover datos.**
+
+1. `identity_providers` recibe `protocol text NOT NULL DEFAULT 'oidc'` con `CHECK IN ('oidc','saml')`. Aditivo puro; toda fila existente es OIDC.
+2. Las seis columnas OIDC de arriba pasan de `NOT NULL` a *nullable*, **y su obligatoriedad se reexpresa como `CHECK` condicionado al protocolo** — `CHECK (protocol <> 'oidc' OR token_endpoint IS NOT NULL)`, y así con las seis. La garantía no se pierde: cambia de sitio. Los tres `CHECK` de valor (`scopes`, `email_claim`, `claims_source`) se prefijan igual con `protocol <> 'oidc' OR …`.
+3. Lo específico de SAML va a **`saml_identity_provider_settings`**, 1:1 con el padre, donde sus propias columnas sí son `NOT NULL` de verdad: `idp_entity_id`, `sso_service_url`, `sso_binding` (`CHECK IN ('redirect','post')`), `name_id_format`, `sign_authn_requests`, y los nombres de atributo esperados para correo, nombre y apellidos.
+4. Lo que **sí** se reutiliza tal cual, y no es poco: `tenant_id` + RLS + política estándar, `public_id`, `display_name`, `allowed_email_domains`, `provisioning_mode`, `is_enabled`, `deleted_at`, la clase de auditoría `Full` de `ADR-035 §8`, los cuatro permisos `proveedor_identidad.*`, las pantallas de autoservicio y el endpoint anónimo `GET /auth/identity-providers` que pinta los botones de la pantalla de acceso.
+
+Se descarta **mover** las columnas OIDC a una hija `oidc_identity_provider_settings` simétrica, que sería la forma «correcta» de libro: exige reescribir una tabla viva y el código de `1.4b` que lleva días desplegado, a cambio de cero invariantes ganadas. `CLAUDE.md §0`: lo reversible antes que lo óptimo.
+
+**El coste honesto, entonces:** `1.4c` no es «un adaptador». Es un adaptador **más** una migración expand/contract sobre una tabla viva (nulabilidad de seis columnas y reescritura de nueve `CHECK`), **más** dos tablas nuevas (`§10.6` certificados, `§10.7` correlación), **más** una dependencia de alto riesgo. Sigue siendo bastante menor que `1.4b`, y la decisión de dividir de `§3` sigue siendo la correcta — pero el enunciado de `§3.1`/`§9` se corrige aquí y no se deja que llegue intacto a la especificación.
+
+### 10.5 · El ACS y el mecanismo de sesión: dos fallos, no uno, y una excepción de CSRF que solo es segura acompañada
+
+`§2.1` predijo que el ACS aterrizaría sin cookie. Verificado contra `routes/api.php` y `bootstrap/app.php`, el problema es **doble**, y conviene separarlo porque tiene dos remedios distintos:
+
+1. **No llega la cookie.** `config/session.php:202` fija `same_site = 'lax'`. Un `POST` entre sitios no la lleva. `start-session` (posición 5 de la cadena de `/api/v1`) crea entonces una sesión **nueva y vacía**. Predicho por `§2.1`, confirmado.
+2. **`ValidateCsrfToken` rechaza la petición.** El *callback* de OIDC de `1.4b` (`GET /auth/oauth/oidc/callback`) esquiva esto por accidente feliz: Laravel exime `GET`. **El ACS es `POST` y no lo exime.** Con la cadena actual devolvería `419` antes de mirar la aserción. `bootstrap/app.php` **no tiene hoy ninguna lista de exenciones de CSRF**, y esa propiedad —que no exista la lista— es valiosa en sí misma.
+
+**Recomendación (decisión 3 de `§10.9`): un grupo de rutas propio para el ACS, con pila declarada explícitamente y sin `csrf`, en vez de una lista global de exenciones.**
+
+```
+resolve-tenant → encrypt-cookies → add-queued-cookies → start-session → verify-session-tenant
+```
+
+Es decir, la cadena de `/api/v1` **menos `csrf`, `session-idle-timeout`, `resolve-locale` y `require-mfa-enrollment`**, ninguno de los cuales tiene sentido sobre una petición que por diseño llega sin sesión. `verify-session-tenant` se mantiene: sobre sesión vacía no hace nada, y si por lo que fuera llegara una sesión, `RN-AUTH-31` debe seguir aplicando. Se prefiere a `validateCsrfTokens(except: […])` por dos motivos: una lista global admite comodines y crece sin que nadie la revise, mientras que un grupo nombrado se autodocumenta y su alcance es exactamente las rutas que contiene; y porque `api.md §8` fija el orden de la cadena advirtiendo que *«un intercambio de dos posiciones aquí es un fallo de seguridad silencioso»* — una pila declarada aparte se lee y se compara, una exención global no aparece al leer la ruta.
+
+**El riesgo de la excepción, dicho sin suavizar: un `POST` sin CSRF que establece sesión autenticada es un vector de *login CSRF*.** Un atacante hace que el navegador de la víctima envíe al ACS una aserción legítima **de la cuenta del atacante**, y la víctima queda con sesión iniciada en la cuenta ajena sin notarlo — operando y subiendo datos a una cuenta que el atacante controla y luego lee.
+
+**Lo que lo cierra es exactamente la correlación en servidor de `§10.7` y el «no» a `§8.4`.** Si el ACS solo acepta una aserción cuyo `InResponseTo` case con una fila **viva, no consumida y no caducada** que nosotros mismos emitimos en ese navegador, la aserción del atacante no tiene contra qué casar y se rechaza. Esto convierte `§8.4` de «preferencia por prudencia» en **precondición de seguridad de la excepción de CSRF**: aceptar SSO iniciado por el IdP significa aceptar un `POST` sin CSRF y sin petición previa que correlacionar, es decir, *login CSRF* sin mitigación. `§10.9` decisión 4 lo recoge.
+
+**Se descarta `SESSION_SAME_SITE=none`.** Resolvería el punto 1 y empeoraría la postura CSRF de **toda** la aplicación para arreglar una ruta. `ADR-042 §6` ya anotó que este ajuste es sensible en el sentido contrario.
+
+**Cómo se establece la sesión, y por qué funciona.** `SameSite` restringe el **envío** de una cookie, no su **fijación**: la respuesta al `POST` entre sitios sí puede fijar la cookie de sesión. La secuencia recomendada es la que ya usa `1.4` en su *callback*: ACS valida → `session()->regenerate()` (obligatorio, es el punto de fijación de sesión) → autentica → **`302` a una URL propia del tenant** (`/entrar/sso?resultado=…`). Esa redirección es una navegación `GET` de nivel superior hacia nuestro propio origen, que es justo el caso que `Lax` sí acompaña, con lo que la SPA recibe la petición ya con la cookie nueva. Es el mismo mecanismo de salida de `RN-AUTH-93` (`302` con código de una lista cerrada, nunca `problem+json`), reutilizado. **Si la verificación en navegador real de `1.4c` mostrara que algún navegador no envía la cookie en esa redirección**, la salida de reserva es un vale opaco de un solo uso y vida corta en la URL de redirección, que la SPA canjea por sesión con un `POST` normal y con CSRF. Se documenta como reserva y **no se implementa por adelantado**: es complejidad real a cambio de un problema que puede no existir, y averiguarlo cuesta una prueba.
+
+### 10.6 · Certificados del IdP: tabla hija, no columna — `§2.4` confirmado y concretado
+
+`§2.4` lo anticipó sin verlo. Con el autoservicio de `1.4b` construido, la forma concreta es:
+
+- **`identity_provider_certificates`**: tabla hija de tenant, `identity_provider_id`, `certificate` (PEM), `not_before`, `not_after` (**extraídos del propio certificado al subirlo**, no tecleados), `is_active`, `public_id`. **Varias filas activas a la vez** — es el requisito que obliga a la tabla: durante una rotación el IdP firma con la nueva mientras algunas aserciones en vuelo llevan la vieja. La validación intenta contra todas las activas y vigentes.
+- **Quién lo sube**: el administrador del centro, mismo autoservicio y mismos permisos `proveedor_identidad.*` que `1.4b` (decisión ya tomada en `§8.3`; SAML no la reabre).
+- **Validación en el momento de subir**: que sea un X.509 analizable, que `not_after` esté en el futuro, y que la clave sea de un tamaño aceptable. Un certificado ya caducado se rechaza al subirlo, no al usarlo.
+- **Aviso de vencimiento**: tarea programada diaria, con precedente directo en `auth:refresh-oidc-discovery` que `1.4b` ya registró en `routes/console.php`. Avisos escalonados y una marca visible en la pantalla del proveedor.
+- **`CLAUDE.md §8` y `§3.5` punto 5**: ni el PEM ni ninguna huella entran en `audit_logs`; se declara a mano, como `datos.md §E.2` tuvo que hacer con `subject`. Nótese que un certificado del IdP es **material público** (es una clave pública), a diferencia del `client_secret` de `1.4b`: no necesita cifrado en reposo. Es un dato de configuración, no un secreto, y tratarlo como secreto solo añadiría ceremonia.
+
+**Impacto en `RNF-DISP` cuando uno caduca en uso**: el SSO de **ese** centro deja de funcionar, con un fallo que sin la tarea de aviso no apunta al certificado. **No es una caída de acceso**, y la razón es `RN-AUTH-96`: la contraseña local nunca deja de ser una puerta válida. Merece anotarse porque es el segundo argumento independiente en contra de tocar `users.password` (`§4.6`): mientras `RN-AUTH-96` se sostenga, la caducidad de un certificado es una degradación; el día que deje de sostenerse, es una caída total de un centro por un descuido de calendario.
+
+### 10.7 · Correlación en servidor: `saml_auth_requests`, y qué protege cada pieza
+
+`§2.1` señaló que hacía falta y que, a diferencia de la tabla que `OPEN-AUTH-30` rechazó en `1.4`, **esta sí lleva `tenant_id` y RLS ordinaria** porque el tenant se resuelve por el *host* antes de tocar datos (`ADR-033 §2`). Sigue siendo cierto. Forma concreta:
+
+**`saml_auth_requests`** (tabla de tenant, RLS `ENABLE`+`FORCE`, política estándar de `ADR-033 §6`): `identity_provider_id` (FK), `request_id` (el `ID` del `AuthnRequest` que emitimos; único por tenant), `intent` (`CHECK IN ('login','link')`), `linking_user_id` *nullable*, `created_at`, `expires_at`, `consumed_at` *nullable*.
+
+Qué protege cada columna, que es lo que hay que justificar y no dar por obvio:
+
+- **`request_id` + `consumed_at`**: la fila es de **un solo uso**. Case el `InResponseTo`, se marca consumida en la **misma transacción** en que se valida (`UPDATE … WHERE consumed_at IS NULL` y comprobar la fila afectada, no leer-luego-escribir: dos ACS simultáneos con la misma aserción no pueden ganar los dos). Cierra la repetición contra una misma petición y, con `§10.5`, el *login CSRF*.
+- **`expires_at`**: ventana corta, del orden de cinco minutos, coherente con `state_ttl_minutes` que `1.4b` ya tiene configurado para OIDC. Acota la ventana de robo del `RelayState`.
+- **`intent` + `linking_user_id`**: es la pieza que `1.4b` no necesitó. En OIDC, vincular una identidad exige sesión autenticada al iniciar el flujo y la sesión sigue ahí en el *callback*. **En SAML el ACS no tiene sesión** (`§10.5`), así que el usuario a vincular se captura **al emitir la petición**, cuando sí hay sesión, y viaja en la fila. Sin esto, el `intent=link` de SAML es irrealizable.
+
+**Repetición de la aserción, que la fila anterior no cubre**: una misma aserción podría reenviarse contra **otra** petición viva. Hace falta registrar el `ID` de cada aserción consumida junto a su `NotOnOrAfter`, con índice único por tenant, y rechazar la repetida mientras siga dentro de su ventana de validez. Puede vivir en `saml_auth_requests` o en tabla propia — es de `datos.md`. Lo que este ADR fija es que **hacen falta las dos protecciones**, no una: la fila de un solo uso y el registro de aserciones consumidas cubren ataques distintos. Ambas tablas necesitan purga programada, con el precedente de `2026_08_31_100100_add_purge_indexes_to_mfa_tables.php` e issues #118/#119 sobre cómo hacerla sin bloquear.
+
+**Y una restricción de diseño que se deriva de todo lo anterior y que es fácil equivocar:** el ACS es **por proveedor**, con el `public_id` del proveedor en la propia ruta (`…/auth/saml/{public_id}/acs`). El motivo no es de comodidad: es que **la clave con la que se verifica una firma nunca puede elegirse a partir del contenido del mensaje que aún no se ha verificado**. Con el proveedor en la ruta, el conjunto de certificados admisibles y el `entityId` de emisor esperado quedan fijados **antes** de tocar el XML; el `Issuer` que venga dentro se compara contra ese valor y, si no coincide, se rechaza. Resolver el proveedor leyendo el `Issuer` de la aserción sería dejar que el atacante elija con qué llave se le comprueba.
+
+**`entityId` de SP: por tenant, y esto no es una pregunta.** Si todos los centros compartieran `entityId`, una aserción emitida legítimamente por el IdP del centro A —con `Audience` = ese `entityId` compartido— sería textualmente válida para el centro B. Es fuga entre tenants por diseño, `INV-001`, severidad crítica de `CLAUDE.md §5`. `entityId` y ACS URL se derivan del *host* del tenant, que ya es el mecanismo de `ADR-033 §2` y el que `§5.1` confirmó que aquí **no** tiene el tope de URIs de `1.4`, porque cada centro registra la suya en su propio IdP. Con `Destination`, `Audience` y ruta del ACS todos por tenant, quedan tres barreras independientes.
+
+### 10.8 · Reutilización de `ExternalIdentity` y `ExternalIdentityFailure`: distinto veredicto para cada uno
+
+Leídos los dos ficheros tal como quedaron en `1.4b`, la respuesta no es la misma:
+
+**`ExternalIdentity` — no se reutiliza, y no hace falta forzarlo.** Es un `final readonly` de siete propiedades con `public bool $emailVerified` de primera clase, y su *docblock* dice *«firma copiada literalmente del ADR»* (`ADR-042 §4.3`). Tres salidas:
+
+- **(a) Reutilizarlo pasando `emailVerified: true`.** Es el `true` de conveniencia que `§3.6` prohibió por su nombre. **No.**
+- **(b) Un objeto de valor propio para SAML**, sin ese campo, tras una interfaz propia — que es lo que `§7.4` dejó dicho que decidiría `1.4c` *«con su implementación delante»*. **Recomendada.**
+- **(c) Convertir `emailVerified` en un enum de confianza** (`ProviderVerified` / `InstitutionalAssertion` / `Unverified`) compartido por los dos protocolos. Es más limpio conceptualmente y ningún implementador tendría que mentir, pero toca un objeto de valor cuya firma `ADR-042` congeló, y con ella el código de `1.4` y `1.4b` ya desplegado, a cambio de cero garantías nuevas.
+
+**Y lo que decide entre (b) y (c) es un hallazgo que `§3.6` no podía tener**: `§3.6` temía que el `CHECK (link_method <> 'fusion_automatica' OR email_verified_at_link)` se rellenara con un `true` de conveniencia. **Ese temor ya no aplica, porque `1.4b` lo cerró estructuralmente.** La migración `2026_09_01_100500` añadió `CHECK (link_method <> 'fusion_automatica' OR identity_provider_id IS NULL)`: la fusión automática es **imposible por esquema** para cualquier proveedor catalogado. Un vínculo SAML usará `emparejamiento_sso`, que a su vez exige `identity_provider_id IS NOT NULL` y **no está sujeto al `CHECK` de correo verificado**. Es decir: **SAML nunca consume `emailVerified` para nada.** Un objeto de valor que no lo lleve no pierde ninguna garantía; es (b), y es además la opción reversible — si más adelante se quiere la abstracción común de (c), se hace entonces con dos implementaciones reales delante en vez de una imaginada.
+
+**`ExternalIdentityFailure` — sí se reutiliza, ampliándolo.** Es un enum de resultados **de cara a la persona**, no de mecánica de protocolo, y esa es la razón: `funcional.md §F.7.1` lo traduce a una lista cerrada de códigos de salida del `302`, y tener dos listas para el mismo botón «entrar con el sistema del centro» sería peor producto y peor auditoría. El mapeo:
+
+| Caso | SAML |
+|---|---|
+| `ConsentDenied` | Se reutiliza: `Status` `AuthnFailed` / `RequestDenied` del IdP |
+| `InvalidState` | Se reutiliza tal cual: `InResponseTo` sin fila viva, consumida o caducada (`§10.7`) |
+| `DomainNotAllowed` | Se reutiliza sin cambios: `allowed_email_domains` es del padre y es protocolo-agnóstico |
+| `ProviderUnreachable` | **Sin uso en SAML**: no hay canal trasero en el perfil `POST`. No estorba |
+| `IdTokenInvalid` | **No sirve**: nombra un artefacto de OIDC. Hace falta un caso hermano —firma inválida, `Audience`/`Destination`/`Issuer` que no casan, ventana temporal fuera, aserción repetida— agrupado bajo el mismo código de salida `error_proveedor` por la razón que `1.4b` ya escribió: *«distinguirlos no ayuda a quien está delante, y sí ayudaría a quien esté probando qué validaciones tenemos»*. El detalle de cuál de las validaciones falló va al registro de aplicación |
+
+Añadir casos a un enum de PHP es aditivo y **seguro de verificar**: todo `match` exhaustivo sobre él deja de compilar hasta cubrirlos, así que el análisis estático localiza cada punto de consumo. No hay ventana de olvido silencioso.
+
+### 10.9 · Decisiones que corresponden al usuario
+
+`§8` dejó cinco preguntas; el usuario resolvió tres el 2026-09-01. De las dos que quedaban, `§8.4` es de este paso y `§8.5` sigue viva. `§10` añade cuatro más que el análisis estructural ha destapado. Las ocho, **decididas por el usuario el 2026-09-02, todas siguiendo la recomendación de `architect`**:
+
+| # | Decisión | Decisión tomada |
+|---|---|---|
+| **1** | **Biblioteca SAML** (equivalente a `OPEN-AUTH-35`→`ADR-042`). Candidatos: `SAML-Toolkits/php-saml` · `litesaml/lightsaml` · `simplesamlphp/saml2` · intermediario externo (`§7.2`) · a mano | **`SAML-Toolkits/php-saml` 4.x** (`§10.3`) |
+| **2** | **Forma del catálogo**: discriminador `protocol` + hija `saml_identity_provider_settings` · todo *nullable* en el padre · separación completa en hijas por protocolo · tabla SAML paralela | **Discriminador + hija 1:1**, sin mover las columnas OIDC (`§10.4`) |
+| **3** | **Excepción de CSRF para el ACS**: grupo de rutas propio sin `csrf` · lista global `validateCsrfTokens(except:)` · `SESSION_SAME_SITE=none` | **Grupo de rutas propio** (`§10.5`) |
+| **4** | **`§8.4` · ¿SSO iniciado por el IdP?** | **No.** Precondición de seguridad de la decisión 3: aceptarlo sería un `POST` sin CSRF y sin nada que correlacionar (`§10.5`) |
+| **5** | **Objeto de valor de la identidad SAML**: VO propio · enum de confianza compartido | **VO propio** (`§10.8` salida b) |
+| **6** | **Clave de firma del SP**: ¿firmamos los `AuthnRequest`? ¿una clave de plataforma o una por tenant? | **Una sola clave de plataforma**, firma **opcional por proveedor** (`sign_authn_requests`), apagado por defecto |
+| **7** | **`§8.5` · ¿el segundo factor del IdP exime del nuestro?** Heredada de `funcional.md §C.12` | **No exime** (`INV-002`) |
+| **8** | **¿Se dispara el gatillo de `§7.2`** (intermediario Keycloak/Authentik) a la vista de los datos de `§10.1`? | **No** — dependencia directa, con seguimiento continuo del gobierno de `php-saml` |
+
+**Confirmado y no es pregunta** (se declara aquí para que no reaparezca como ambigüedad en `spec-writer`, tal como pedía el encargo): **la política de «solo emparejamiento» de `§8.1` aplica a SAML sin ninguna diferencia.** Es la misma invariante `INV-008` y el mismo hecho de `§4.1` —el directorio institucional contiene alumnado y la aserción no trae fecha de nacimiento—, y el protocolo no cambia ni una cosa ni la otra. **Además ya está impuesto por el motor y no solo por política**: `identity_providers.provisioning_mode` lleva `CHECK IN ('desactivado','emparejamiento')`, de modo que una fila SAML **hereda la restricción por construcción**. `1.4c` no toca ese `CHECK`. Crear `Person`/`User` desde SAML no es algo que `1.4c` decida no hacer: es algo que la base de datos no permite.
+
+### 10.10 · Consecuencias de `§10`
+
+**A favor**
+
+- La comparación de `§7.3` queda **corregida, no solo actualizada**: sus observaciones 2 y 3 se retiran con datos, y el criterio que decide («¿publica avisos esta dependencia?») queda escrito y es verificable por cualquiera dentro de tres años.
+- El diseño de `1.4c` entra en `spec-writer` con las cuatro roturas de `§2` resueltas en concreto y no en abstracto: `§10.5` la sesión, `§10.7` la correlación, `§10.6` los certificados, `§10.8` el objeto de valor.
+- Se descubre **antes** de la especificación que `§3.1` prometía más reutilización de la que hay (`§10.4`). Encontrado durante la implementación, habría sido una especificación aprobada con una migración imposible dentro.
+- Dos temores anteriores se cierran con hallazgos, no con matices: el `CHECK` de correo verificado de `§3.6` ya no es un problema porque `1.4b` lo cerró por esquema, y `§8.2` se reduce en vez de resolverse porque SAML no tiene secreto de cliente.
+
+**En contra, y se asume**
+
+- **Se adopta la dependencia con el peor factor autobús de las tres** (`§10.3`), a sabiendas. El argumento es que MIT + 6.779 líneas hacen el *fork* una salida real; no es una salida gratis.
+- **`1.4c` es mayor de lo que `§3.1` anunció.** Se corrige el enunciado, no se recorta el alcance.
+- **La excepción de CSRF del ACS existe y es real**, aunque quede acotada a una ruta y mitigada por `§10.7`. Es la primera de la aplicación, y de aprobarse hay que dejarla escrita en `SECURITY.md` — con el precedente de los issues #111-#114 sobre documentación raíz que se quedó atrás, esto **no** es una tarea posterior.
+- **La lectura de código de `§10.2` es parcial**, y hay que decirlo con la misma franqueza con que `§7.3` dijo su límite: se han leído la validación de firma de `lightsaml`, los valores por defecto y el acoplamiento a superglobales de `php-saml`, y el `README`, las dependencias y la estructura de `simplesamlphp/saml2`. **No se ha auditado `Response::isValid()` de `php-saml` línea a línea**, ni `xmlseclibs`. La recomendación se apoya en gobierno, superficie y escrutinio externo — no en una auditoría criptográfica, que este proyecto no está en condiciones de hacer y que sería deshonesto simular.
+
+**Reversibilidad**: **media, y es asimétrica por partes.** La elección de biblioteca es la pieza reversible: envuelta tras interfaz propia (`RNF-MANT-007`) y usada solo por `Settings`+`Response`, sustituirla es reescribir un adaptador, no el paso. El discriminador de `§10.4` es reversible con expand/contract mientras no haya filas SAML. Lo caro de deshacer, una vez desplegado, son las dos tablas nuevas con filas dentro y la excepción de CSRF una vez que haya centros dependiendo del ACS — por eso `§10.9` lleva ocho decisiones al usuario **antes** de que `spec-writer` escriba una línea, y no después.
