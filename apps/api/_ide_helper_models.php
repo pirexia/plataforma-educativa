@@ -543,6 +543,130 @@ namespace App\Modules\Auth\Domain\Models{
 
 namespace App\Modules\Auth\Domain\Models{
 /**
+ * datos.md §F.2. El catálogo de proveedores OIDC de un centro
+ * (`ADR-043 §3.5` punto 1: tabla de tenant, sin excepción de *tenancy*).
+ *
+ * `Full`: sin datos personales (`ADR-035 §8`). URLs, un `client_id`, una
+ * lista de dominios y tres conmutadores — el mismo perfil que
+ * `AcademicYear`/`Role`/`ModuleSubscription`.
+ *
+ * Ninguna columna de `protocol` (SAML es 1.4c), `jwks_uri` (no se
+ * verifica firma) ni mapeo de atributos hacia `people` (`funcional.md
+ * §F.5.2`).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property string $display_name
+ * @property string $discovery_url
+ * @property string $issuer
+ * @property string $authorization_endpoint
+ * @property string $token_endpoint
+ * @property string|null $userinfo_endpoint
+ * @property \App\Modules\Auth\Domain\ClaimsSource $claims_source
+ * @property \App\Modules\Auth\Domain\EmailClaim $email_claim
+ * @property array<array-key, mixed> $scopes
+ * @property string $client_id
+ * @property array<array-key, mixed> $allowed_email_domains
+ * @property \App\Modules\Auth\Domain\ProvisioningMode $provisioning_mode
+ * @property bool $is_enabled
+ * @property \Illuminate\Support\Carbon $discovery_fetched_at
+ * @property \Illuminate\Support\Carbon|null $discovery_failed_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\Auth\Domain\Models\IdentityProviderSecret> $secrets
+ * @property-read int|null $secrets_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereAllowedEmailDomains($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereAuthorizationEndpoint($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereClaimsSource($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereClientId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereDiscoveryFailedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereDiscoveryFetchedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereDiscoveryUrl($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereDisplayName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereEmailClaim($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereIsEnabled($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereIssuer($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereProvisioningMode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereScopes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereTokenEndpoint($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereUserinfoEndpoint($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperIdentityProvider {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §F.3. La credencial de cliente de un proveedor, cifrada con
+ * `APP_KEY` (`RN-AUTH-112`). **De solo escritura a través de la API**:
+ * nadie la relee en claro, ni siquiera quien la cargó — se descifra
+ * únicamente dentro del canje de código, en memoria.
+ *
+ * Selective: `client_secret` se declara secreto a mano (paso 1 del orden
+ * de `ADR-035 §4`, absoluto y anterior al patrón global de
+ * `config('audit.secret_attribute_patterns')`, que también lo cubriría
+ * por `*secret*` como defensa en profundidad — `funcional.md §F.0.4`).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $identity_provider_id
+ * @property string $client_secret
+ * @property \Illuminate\Support\Carbon|null $expires_at
+ * @property \Illuminate\Support\Carbon $activated_at
+ * @property \Illuminate\Support\Carbon|null $retired_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\Auth\Domain\Models\IdentityProvider|null $identityProvider
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret whereActivatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret whereClientSecret($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret whereExpiresAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret whereIdentityProviderId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret whereRetiredAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperIdentityProviderSecret {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
  * datos.md §A.1. Append-only: sin created_at/updated_at (usa
  * attempted_at), sin borrado lógico (INV-004 no aplica: un registro de
  * seguridad append-only no se "revierte"). No implementa Auditable a
@@ -804,6 +928,12 @@ namespace App\Modules\Auth\Domain\Models{
  * registra: cambia en cada acceso y no dice nada que el evento `login`
  * no diga ya (mismo criterio que `user_mfa_factors.last_used_at`).
  *
+ * `identity_provider_id` (1.4b, `datos.md §F.4`): re-tecleado por
+ * proveedor concreto, no por protocolo (`ADR-043 §3.6`). Se añade a
+ * `$auditRecordedAttributes`: identificador interno de una entidad de
+ * configuración, no un dato personal, y es lo que responde "¿por qué
+ * proveedor entró esta persona?".
+ *
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -820,6 +950,8 @@ namespace App\Modules\Auth\Domain\Models{
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property int|null $identity_provider_id
+ * @property-read \App\Modules\Auth\Domain\Models\IdentityProvider|null $identityProvider
  * @property-read \App\Models\User|null $user
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity newQuery()
@@ -831,6 +963,7 @@ namespace App\Modules\Auth\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereEmailAtLink($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereEmailVerifiedAtLink($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereIdentityProviderId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereLastLoginAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereLinkMethod($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereLinkedAt($value)

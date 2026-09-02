@@ -32,7 +32,7 @@ class IdentityProviderResource extends JsonResource
             'email_claim' => $this->email_claim->value,
             'scopes' => $this->scopes,
             'allowed_email_domains' => $this->allowed_email_domains,
-            'discovery_fetched_at' => $this->discovery_fetched_at?->toISOString(),
+            'discovery_fetched_at' => $this->discovery_fetched_at->toISOString(),
             'discovery_failed_at' => $this->discovery_failed_at?->toISOString(),
             'secret_status' => $this->secretStatus(),
         ];

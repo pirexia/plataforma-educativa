@@ -2,12 +2,15 @@
 
 namespace App\Modules\Auth\Http\Resources;
 
+use App\Modules\Auth\Domain\Models\IdentityProviderSecret;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * `api.md §F.4`. Nunca el valor de la credencial — ni en la respuesta de
  * alta, ni aquí (`RN-AUTH-112`).
+ *
+ * @mixin IdentityProviderSecret
  */
 class IdentityProviderSecretResource extends JsonResource
 {
@@ -18,7 +21,7 @@ class IdentityProviderSecretResource extends JsonResource
     {
         return [
             'public_id' => $this->public_id,
-            'activated_at' => $this->activated_at?->toISOString(),
+            'activated_at' => $this->activated_at->toISOString(),
             'expires_at' => $this->expires_at?->toISOString(),
             'retired_at' => $this->retired_at?->toISOString(),
         ];

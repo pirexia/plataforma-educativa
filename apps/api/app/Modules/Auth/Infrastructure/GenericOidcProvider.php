@@ -11,7 +11,6 @@ use App\Modules\Auth\Domain\ExternalIdentityProvider;
 use App\Modules\Auth\Domain\Models\IdentityProvider;
 use App\Modules\Auth\Domain\OidcRedirectUri;
 use App\Support\Tenancy\TenantContext;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -63,7 +62,7 @@ final class GenericOidcProvider implements ExternalIdentityProvider
             'response_type' => 'code',
             'client_id' => $this->provider->client_id,
             'redirect_uri' => $this->buildRedirectUri(),
-            'scope' => implode(' ', is_array($scopes) ? $scopes : ['openid']),
+            'scope' => implode(' ', $scopes !== [] ? $scopes : ['openid']),
             'state' => $state,
             'nonce' => $nonce,
             'code_challenge' => $codeChallenge,
@@ -145,6 +144,8 @@ final class GenericOidcProvider implements ExternalIdentityProvider
      * identidad. Falla uno ⇒ no hay identidad, con el mismo código de
      * salida que el fallo de canje (`funcional.md §F.7.1`) — el detalle
      * va al registro, no a la pantalla.
+     *
+     * @param  array<string, mixed>  $payload
      */
     private function validateIdTokenClaims(array $payload, string $expectedNonce): void
     {
@@ -199,6 +200,9 @@ final class GenericOidcProvider implements ExternalIdentityProvider
      * se evalúa el dominio: `funcional.md §F.4.3` fija el orden exacto
      * —paso 9 (`sub`) antes que paso 10 (dominio)— y sin `sub` el paso 9
      * ya decide la salida (`RN-AUTH-105`), sin alcanzar el 10.
+     *
+     * @param  array<string, mixed>  $idTokenPayload
+     * @param  array<string, mixed>  $claims
      */
     private function normalize(array $idTokenPayload, array $claims): ExternalIdentity
     {
@@ -227,6 +231,8 @@ final class GenericOidcProvider implements ExternalIdentityProvider
      * `funcional.md §F.5.1`: el valor tiene que tener forma de correo, o
      * no empareja (fallo en cerrado) — un `preferred_username` sin `@`
      * se trata como ausente.
+     *
+     * @param  array<string, mixed>  $claims
      */
     private function extractEmail(array $claims): string
     {
@@ -245,12 +251,14 @@ final class GenericOidcProvider implements ExternalIdentityProvider
      * `funcional.md §F.4.4`, `RN-AUTH-107`. Genérica siempre; el *claim*
      * `hd` de Google, además, cuando el emisor catalogado es
      * `accounts.google.com` y hay dominios declarados.
+     *
+     * @param  array<string, mixed>  $claims
      */
     private function guardEmailDomain(string $email, array $claims): void
     {
         $allowedDomains = array_map(
             static fn (mixed $domain): string => strtolower((string) $domain),
-            is_array($this->provider->allowed_email_domains) ? $this->provider->allowed_email_domains : []
+            $this->provider->allowed_email_domains
         );
 
         if ($allowedDomains === []) {
@@ -321,7 +329,7 @@ final class GenericOidcProvider implements ExternalIdentityProvider
                     'client_secret' => $clientSecret,
                     'code_verifier' => $codeVerifier,
                 ]);
-        } catch (ConnectionException|Throwable $e) {
+        } catch (Throwable $e) {
             throw new ExternalIdentityException(ExternalIdentityFailure::ProviderUnreachable, previous: $e);
         }
 
@@ -350,7 +358,7 @@ final class GenericOidcProvider implements ExternalIdentityProvider
                 ->timeout($timeout)
                 ->connectTimeout($timeout)
                 ->get($this->provider->userinfo_endpoint);
-        } catch (ConnectionException|Throwable $e) {
+        } catch (Throwable $e) {
             throw new ExternalIdentityException(ExternalIdentityFailure::ProviderUnreachable, previous: $e);
         }
 
