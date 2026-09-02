@@ -107,6 +107,15 @@ return [
         'oidc_callback_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_OIDC_CALLBACK_PER_IP', 20), 'decay' => 60],
         'sso_discovery_tenant' => ['max' => (int) env('AUTH_RATE_LIMIT_SSO_DISCOVERY_PER_TENANT', 6), 'decay' => 60],
         'sso_secret_tenant' => ['max' => (int) env('AUTH_RATE_LIMIT_SSO_SECRET_PER_TENANT', 6), 'decay' => 60],
+        // REQ-AUTH-004 (1.4c), operacion.md §G.6. saml_acs_ip copia el
+        // valor de oidc_callback_ip/oauth_callback_ip a propósito: es el
+        // análogo exacto (mismo punto de retorno, otro protocolo).
+        // sso_metadata_tenant/sso_certificate_tenant van por tenant, no
+        // por IP/sesión: lo que se defiende son terceros o la tabla de
+        // certificados, no la cuenta ni el servidor.
+        'saml_acs_ip' => ['max' => (int) env('AUTH_RATE_LIMIT_SAML_ACS_PER_IP', 20), 'decay' => 60],
+        'sso_metadata_tenant' => ['max' => (int) env('AUTH_RATE_LIMIT_SSO_METADATA_PER_TENANT', 6), 'decay' => 60],
+        'sso_certificate_tenant' => ['max' => (int) env('AUTH_RATE_LIMIT_SSO_CERTIFICATE_PER_TENANT', 6), 'decay' => 60],
     ],
 
     /*
@@ -182,6 +191,36 @@ return [
         'clock_skew_seconds' => (int) env('AUTH_SSO_CLOCK_SKEW_SECONDS', 120),
         'token_timeout_seconds' => (int) env('AUTH_SSO_TOKEN_TIMEOUT_SECONDS', 5),
         'allow_insecure_discovery' => filter_var(env('AUTH_SSO_ALLOW_INSECURE_DISCOVERY', false), FILTER_VALIDATE_BOOLEAN),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | SSO institucional: SAML 2.0 por tenant (REQ-AUTH-004, 1.4c)
+    |--------------------------------------------------------------------------
+    |
+    | operacion.md §G.2.1. Ninguna es secreta salvo las dos rutas de la
+    | clave de firma del SP, que no son el secreto en sí (viven fuera de
+    | base de datos, en un fichero montado, `ADR-037 §7`) sino solo su
+    | ruta. `AUTH_SSO_CLOCK_SKEW_SECONDS` y
+    | `AUTH_SSO_SECRET_EXPIRY_WARNING_DAYS` (arriba) se reutilizan sin
+    | duplicar, también para SAML.
+    |
+    | `allow_insecure_metadata`: `false` en cualquier entorno por
+    | defecto — SamlEnvironmentGuard aborta el arranque si es `true`
+    | fuera de local/testing (CA-AUTH-365, issue #140).
+    |
+    */
+    'saml' => [
+        'sp_signing_key_path' => env('AUTH_SAML_SP_SIGNING_KEY_PATH', ''),
+        'sp_signing_cert_path' => env('AUTH_SAML_SP_SIGNING_CERT_PATH', ''),
+        'metadata_timeout_seconds' => (int) env('AUTH_SAML_METADATA_TIMEOUT_SECONDS', 5),
+        'metadata_max_bytes' => (int) env('AUTH_SAML_METADATA_MAX_BYTES', 524288),
+        'metadata_max_redirects' => (int) env('AUTH_SAML_METADATA_MAX_REDIRECTS', 3),
+        'metadata_max_depth' => (int) env('AUTH_SAML_METADATA_MAX_DEPTH', 20),
+        'metadata_refresh_days' => (int) env('AUTH_SAML_METADATA_REFRESH_DAYS', 7),
+        'auth_request_retention_hours' => (int) env('AUTH_SAML_AUTH_REQUEST_RETENTION_HOURS', 24),
+        'min_certificate_key_bits' => (int) env('AUTH_SAML_MIN_CERTIFICATE_KEY_BITS', 2048),
+        'allow_insecure_metadata' => filter_var(env('AUTH_SAML_ALLOW_INSECURE_METADATA', false), FILTER_VALIDATE_BOOLEAN),
     ],
 
 ];

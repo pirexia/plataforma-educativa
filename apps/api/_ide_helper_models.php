@@ -20,6 +20,7 @@ namespace App\Models{
  *
  * ADR-035 §8: Full — sin datos personales.
  *
+ * @mixin IdeHelperAcademicYear
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -50,10 +51,8 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereUpdatedBy($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperAcademicYear {}
+	class AcademicYear extends \Eloquent implements \App\Support\Audit\Auditable {}
 }
 
 namespace App\Models{
@@ -63,6 +62,7 @@ namespace App\Models{
  * por modelo) lo escribe el paso 0.9 — este modelo solo fija el esquema y
  * la relación polimórfica.
  *
+ * @mixin IdeHelperAuditLog
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -98,10 +98,8 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AuditLog whereRequestId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AuditLog whereTenantId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AuditLog whereUserAgent($value)
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperAuditLog {}
+	class AuditLog extends \Eloquent {}
 }
 
 namespace App\Models{
@@ -120,6 +118,7 @@ namespace App\Models{
  * consumidor; se traslada ahora, antes de que un segundo módulo la
  * importe desde el sitio equivocado (`INV-007`).
  *
+ * @mixin IdeHelperIdempotencyKey
  * @property int $id
  * @property int $tenant_id
  * @property string $endpoint
@@ -154,10 +153,8 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdempotencyKey whereUpdatedBy($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdempotencyKey withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdempotencyKey withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperIdempotencyKey {}
+	class IdempotencyKey extends \Eloquent {}
 }
 
 namespace App\Models{
@@ -166,6 +163,7 @@ namespace App\Models{
  * patrón que Permission: sin tenant_id, sin RLS, escritura reservada al
  * comando `platform:sync-registry` (REVOKE en la migración de 0.8.7).
  *
+ * @mixin IdeHelperModule
  * @property string $code
  * @property string $name_key
  * @property string $phase
@@ -177,10 +175,8 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Module whereNameKey($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Module wherePhase($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Module whereRetiredAt($value)
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperModule {}
+	class Module extends \Eloquent {}
 }
 
 namespace App\Models{
@@ -192,6 +188,7 @@ namespace App\Models{
  * ADR-035 §8: Full — `settings` queda acotado por el tope de tamaño de
  * config('audit.max_value_length'), no por clasificación.
  *
+ * @mixin IdeHelperModuleSubscription
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -226,10 +223,8 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ModuleSubscription whereUpdatedBy($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ModuleSubscription withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ModuleSubscription withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperModuleSubscription {}
+	class ModuleSubscription extends \Eloquent implements \App\Support\Audit\Auditable {}
 }
 
 namespace App\Models{
@@ -241,6 +236,7 @@ namespace App\Models{
  * Escritura reservada al comando de 0.8.11 (REVOKE en la migración, no
  * solo en este modelo).
  *
+ * @mixin IdeHelperPermission
  * @property string $code
  * @property string $resource
  * @property string $action
@@ -256,10 +252,8 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Permission whereModuleCode($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Permission whereResource($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Permission whereRetiredAt($value)
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperPermission {}
+	class Permission extends \Eloquent {}
 }
 
 namespace App\Models{
@@ -269,6 +263,7 @@ namespace App\Models{
  * `tenant:provision-defaults`, no hay escritura de usuario que auditar
  * todavía (1.5 la traerá junto con el resolutor completo).
  *
+ * @mixin IdeHelperPermissionRole
  * @property int $id
  * @property int $tenant_id
  * @property int $role_id
@@ -299,10 +294,8 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PermissionRole whereUpdatedBy($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PermissionRole withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|PermissionRole withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperPermissionRole {}
+	class PermissionRole extends \Eloquent {}
 }
 
 namespace App\Models{
@@ -319,6 +312,7 @@ namespace App\Models{
  * cada alumno/tutor/empleado escribe su identidad completa si no se
  * clasifica).
  *
+ * @mixin IdeHelperPerson
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -361,10 +355,8 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Person whereUpdatedBy($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Person withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Person withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperPerson {}
+	class Person extends \Eloquent implements \App\Support\Audit\Auditable {}
 }
 
 namespace App\Models{
@@ -376,6 +368,7 @@ namespace App\Models{
  *
  * ADR-035 §8: Full — `name` es contenido del centro, no dato personal.
  *
+ * @mixin IdeHelperRole
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -414,10 +407,8 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Role whereUpdatedBy($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Role withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Role withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperRole {}
+	class Role extends \Eloquent implements \App\Support\Audit\Auditable {}
 }
 
 namespace App\Models{
@@ -437,6 +428,7 @@ namespace App\Models{
  * §8); `password`/`remember_token` los redacta la regla 1 (patrón global
  * de secretos), sin necesidad de declararlos aquí.
  *
+ * @mixin IdeHelperUser
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -477,10 +469,8 @@ namespace App\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUpdatedBy($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperUser {}
+	class User extends \Eloquent implements \App\Support\Audit\Auditable, \Illuminate\Contracts\Auth\Authenticatable {}
 }
 
 namespace App\Modules\Auth\Domain\Models{
@@ -493,6 +483,7 @@ namespace App\Modules\Auth\Domain\Models{
  * `updated`, ambos por el *observer* de 0.9 — ningún código de este
  * módulo llama a AuditRecorder para bloqueo/desbloqueo (funcional.md §10.1).
  *
+ * @mixin IdeHelperAccountLockout
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -535,48 +526,55 @@ namespace App\Modules\Auth\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout whereUserId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AccountLockout withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperAccountLockout {}
+	class AccountLockout extends \Eloquent implements \App\Support\Audit\Auditable {}
 }
 
 namespace App\Modules\Auth\Domain\Models{
 /**
- * datos.md §F.2. El catálogo de proveedores OIDC de un centro
- * (`ADR-043 §3.5` punto 1: tabla de tenant, sin excepción de *tenancy*).
+ * datos.md §F.2, ampliado en `datos.md §G.2` (REQ-AUTH-004, 1.4c: el
+ * discriminador `protocol`). El catálogo de proveedores de identidad de
+ * un centro, OIDC y SAML (`ADR-043 §3.5` punto 1: tabla de tenant, sin
+ * excepción de *tenancy*).
  *
  * `Full`: sin datos personales (`ADR-035 §8`). URLs, un `client_id`, una
- * lista de dominios y tres conmutadores — el mismo perfil que
+ * lista de dominios y varios conmutadores — el mismo perfil que
  * `AcademicYear`/`Role`/`ModuleSubscription`.
  *
- * Ninguna columna de `protocol` (SAML es 1.4c), `jwks_uri` (no se
- * verifica firma) ni mapeo de atributos hacia `people` (`funcional.md
- * §F.5.2`).
+ * `protocol` es **inmutable tras el alta** (`RN-AUTH-114`): no lo impone
+ * un `CHECK` (no ve el valor anterior), lo impone el servicio
+ * (`IdentityProviderService`/`SamlIdentityProviderAdminService`,
+ * `CA-AUTH-316`). Ninguna columna de mapeo de atributos hacia `people`
+ * (`funcional.md §F.5.2`, `§G.5.2`).
  *
+ * @mixin IdeHelperIdentityProvider
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
  * @property string $display_name
- * @property string $discovery_url
+ * @property string|null $discovery_url
  * @property string $issuer
  * @property string $authorization_endpoint
- * @property string $token_endpoint
+ * @property string|null $token_endpoint
  * @property string|null $userinfo_endpoint
- * @property \App\Modules\Auth\Domain\ClaimsSource $claims_source
- * @property \App\Modules\Auth\Domain\EmailClaim $email_claim
- * @property array<array-key, mixed> $scopes
- * @property string $client_id
+ * @property \App\Modules\Auth\Domain\ClaimsSource|null $claims_source
+ * @property \App\Modules\Auth\Domain\EmailClaim|null $email_claim
+ * @property array<array-key, mixed>|null $scopes
+ * @property string|null $client_id
  * @property array<array-key, mixed> $allowed_email_domains
  * @property \App\Modules\Auth\Domain\ProvisioningMode $provisioning_mode
  * @property bool $is_enabled
- * @property \Illuminate\Support\Carbon $discovery_fetched_at
+ * @property \Illuminate\Support\Carbon|null $discovery_fetched_at
  * @property \Illuminate\Support\Carbon|null $discovery_failed_at
  * @property int|null $created_by
  * @property int|null $updated_by
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property \App\Modules\Auth\Domain\Protocol $protocol
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\Auth\Domain\Models\IdentityProviderCertificate> $certificates
+ * @property-read int|null $certificates_count
+ * @property-read \App\Modules\Auth\Domain\Models\SamlIdentityProviderSettings|null $samlSettings
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\Auth\Domain\Models\IdentityProviderSecret> $secrets
  * @property-read int|null $secrets_count
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider newModelQuery()
@@ -598,6 +596,7 @@ namespace App\Modules\Auth\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereIsEnabled($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereIssuer($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereProtocol($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereProvisioningMode($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider wherePublicId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereScopes($value)
@@ -608,10 +607,66 @@ namespace App\Modules\Auth\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereUserinfoEndpoint($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperIdentityProvider {}
+	class IdentityProvider extends \Eloquent implements \App\Support\Audit\Auditable {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §G.5 (REQ-AUTH-004, 1.4c). La ventana de rotación de los
+ * certificados de firma de un IdP SAML. Con `public_id`: sí se expone en
+ * URL (`DELETE .
+ *
+ * ../certificates/{public_id}`).
+ *
+ * Selective: `certificate` (el PEM) se declara secreto a mano
+ * (`ADR-043 §3.5.5`, `RN-AUTH-127`, `CA-AUTH-333`) — no porque sea
+ * secreto (es una clave pública), sino por proporción: un bloque de
+ * kilobytes que `audit_logs` no tiene por qué duplicar en cada cambio.
+ * `config('audit.secret_attribute_patterns')` no cubre `certificate`, así
+ * que esta declaración explícita no es defensa en profundidad aquí: es
+ * la única barrera.
+ *
+ * @mixin IdeHelperIdentityProviderCertificate
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $identity_provider_id
+ * @property string $certificate
+ * @property string $fingerprint_sha256
+ * @property \Illuminate\Support\Carbon $not_before
+ * @property \Illuminate\Support\Carbon $not_after
+ * @property \App\Modules\Auth\Domain\SamlCertificateSource $source
+ * @property \Illuminate\Support\Carbon|null $retired_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\Auth\Domain\Models\IdentityProvider|null $identityProvider
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereCertificate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereFingerprintSha256($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereIdentityProviderId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereNotAfter($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereNotBefore($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereRetiredAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereSource($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate withoutTrashed()
+ */
+	class IdentityProviderCertificate extends \Eloquent implements \App\Support\Audit\Auditable {}
 }
 
 namespace App\Modules\Auth\Domain\Models{
@@ -626,6 +681,7 @@ namespace App\Modules\Auth\Domain\Models{
  * `config('audit.secret_attribute_patterns')`, que también lo cubriría
  * por `*secret*` como defensa en profundidad — `funcional.md §F.0.4`).
  *
+ * @mixin IdeHelperIdentityProviderSecret
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -659,10 +715,8 @@ namespace App\Modules\Auth\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret whereUpdatedBy($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderSecret withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperIdentityProviderSecret {}
+	class IdentityProviderSecret extends \Eloquent implements \App\Support\Audit\Auditable {}
 }
 
 namespace App\Modules\Auth\Domain\Models{
@@ -674,6 +728,7 @@ namespace App\Modules\Auth\Domain\Models{
  * ataque de fuerza bruta, inundaría la tabla de dos años de retención
  * (funcional.md §10.2, datos.md §A.1).
  *
+ * @mixin IdeHelperLoginAttempt
  * @property int $id
  * @property int $tenant_id
  * @property string $email
@@ -697,10 +752,8 @@ namespace App\Modules\Auth\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereTenantId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereUserAgent($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|LoginAttempt whereUserId($value)
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperLoginAttempt {}
+	class LoginAttempt extends \Eloquent {}
 }
 
 namespace App\Modules\Auth\Domain\Models{
@@ -716,6 +769,7 @@ namespace App\Modules\Auth\Domain\Models{
  * credencial que autoriza el desafío (RN-AUTH-53): se busca siempre por
  * `(tenant_id, session_id)`, nunca por `public_id`.
  *
+ * @mixin IdeHelperMfaChallenge
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -759,10 +813,8 @@ namespace App\Modules\Auth\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge whereUserId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaChallenge withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperMfaChallenge {}
+	class MfaChallenge extends \Eloquent {}
 }
 
 namespace App\Modules\Auth\Domain\Models{
@@ -783,6 +835,7 @@ namespace App\Modules\Auth\Domain\Models{
  * confirmar, en la misma transacción (`RN-AUTH-75`). `code_hash` se
  * declara secreto a mano: el patrón global `*secret*` no cubre su nombre.
  *
+ * @mixin IdeHelperMfaFactor
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -828,10 +881,8 @@ namespace App\Modules\Auth\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor whereUserId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaFactor withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperMfaFactor {}
+	class MfaFactor extends \Eloquent implements \App\Support\Audit\Auditable {}
 }
 
 namespace App\Modules\Auth\Domain\Models{
@@ -844,6 +895,7 @@ namespace App\Modules\Auth\Domain\Models{
  * valor de ~50 bits es material atacable por fuerza bruta si se filtra, y
  * `audit_logs` es exportable a CSV (`REQ-CORE-005`).
  *
+ * @mixin IdeHelperMfaRecoveryCode
  * @property int $id
  * @property int $tenant_id
  * @property int $user_id
@@ -875,10 +927,8 @@ namespace App\Modules\Auth\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode whereUserId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaRecoveryCode withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperMfaRecoveryCode {}
+	class MfaRecoveryCode extends \Eloquent implements \App\Support\Audit\Auditable {}
 }
 
 namespace App\Modules\Auth\Domain\Models{
@@ -888,6 +938,7 @@ namespace App\Modules\Auth\Domain\Models{
  * propósito** — es exactamente la información que `REQ-AUTH-003` exige
  * conservar y `ADR-035` redactaría si viviera solo en `audit_logs.changes`.
  *
+ * @mixin IdeHelperMfaReset
  * @property int $id
  * @property int $tenant_id
  * @property int $user_id
@@ -909,10 +960,159 @@ namespace App\Modules\Auth\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaReset whereRequestId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaReset whereTenantId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|MfaReset whereUserId($value)
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperMfaReset {}
+	class MfaReset extends \Eloquent implements \App\Support\Audit\Auditable {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §G.4.1 (REQ-AUTH-004, 1.4c). La correlación del `AuthnRequest`
+ * emitido: sostiene la excepción de CSRF del ACS (`RN-AUTH-120`,
+ * `RN-AUTH-124`). Sin `HasPublicId`: no se expone en ninguna URL ni
+ * respuesta de API — el identificador que viaja es `request_id`, dentro
+ * del propio mensaje SAML.
+ *
+ * **No implementa `Auditable`**: política de auditoría `None`
+ * (`datos.md §G.4.1`). Es estado transitorio de protocolo con vida de
+ * cinco minutos, del mismo carácter que el `state` de OIDC en sesión, que
+ * tampoco se audita.
+ *
+ * @mixin IdeHelperSamlAuthRequest
+ * @property int $id
+ * @property int $tenant_id
+ * @property int $identity_provider_id
+ * @property string $request_id
+ * @property string $intent
+ * @property int|null $linking_user_id
+ * @property \Illuminate\Support\Carbon $expires_at
+ * @property \Illuminate\Support\Carbon|null $consumed_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\Auth\Domain\Models\IdentityProvider|null $identityProvider
+ * @property-read \App\Models\User|null $linkingUser
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereConsumedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereExpiresAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereIdentityProviderId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereIntent($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereLinkingUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereRequestId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest withoutTrashed()
+ */
+	class SamlAuthRequest extends \Eloquent {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §G.4.2 (REQ-AUTH-004, 1.4c). Cubre un ataque distinto de
+ * `SamlAuthRequest`: que una misma aserción legítima se reenvíe contra
+ * OTRA petición viva (`RN-AUTH-122`). No guarda el XML de la aserción ni
+ * ningún fragmento suyo (`CA-AUTH-363`).
+ *
+ * **No implementa `Auditable`**: política de auditoría `None`, mismo
+ * argumento que `SamlAuthRequest`.
+ *
+ * @mixin IdeHelperSamlConsumedAssertion
+ * @property int $id
+ * @property int $tenant_id
+ * @property int $identity_provider_id
+ * @property string $assertion_id
+ * @property \Illuminate\Support\Carbon $not_on_or_after
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\Auth\Domain\Models\IdentityProvider|null $identityProvider
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereAssertionId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereIdentityProviderId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereNotOnOrAfter($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion withoutTrashed()
+ */
+	class SamlConsumedAssertion extends \Eloquent {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §G.3 (REQ-AUTH-004, 1.4c). La hija 1:1 de un proveedor SAML.
+ *
+ * Sin `HasPublicId`: no se expone nunca en una URL propia (`api.md §G.2`).
+ *
+ * `Full`: sin datos personales (configuración técnica y metadatos
+ * públicos de una institución). **Salvedad declarada a mano**
+ * (`ADR-043 §3.5.5`): `metadata_xml` va en `$auditSecretAttributes` — no
+ * porque sea secreto, sino porque es un documento de decenas de
+ * kilobytes con certificados dentro y `Full` lo copiaría entero en
+ * `audit_logs` en cada modificación. Se registra que cambió, no su valor.
+ *
+ * @mixin IdeHelperSamlIdentityProviderSettings
+ * @property int $id
+ * @property int $tenant_id
+ * @property int $identity_provider_id
+ * @property \App\Modules\Auth\Domain\SamlMetadataSource $metadata_source
+ * @property string|null $metadata_url
+ * @property string|null $metadata_xml
+ * @property \App\Modules\Auth\Domain\SamlNameIdFormat $name_id_format
+ * @property string|null $email_attribute
+ * @property bool $sign_authn_requests
+ * @property \Illuminate\Support\Carbon|null $metadata_fetched_at
+ * @property \Illuminate\Support\Carbon|null $metadata_failed_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\Auth\Domain\Models\IdentityProvider|null $identityProvider
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereEmailAttribute($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereIdentityProviderId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereMetadataFailedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereMetadataFetchedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereMetadataSource($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereMetadataUrl($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereMetadataXml($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereNameIdFormat($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereSignAuthnRequests($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings withoutTrashed()
+ */
+	class SamlIdentityProviderSettings extends \Eloquent implements \App\Support\Audit\Auditable {}
 }
 
 namespace App\Modules\Auth\Domain\Models{
@@ -934,6 +1134,7 @@ namespace App\Modules\Auth\Domain\Models{
  * configuración, no un dato personal, y es lo que responde "¿por qué
  * proveedor entró esta persona?".
  *
+ * @mixin IdeHelperUserIdentity
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -976,10 +1177,8 @@ namespace App\Modules\Auth\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity whereUserId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserIdentity withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperUserIdentity {}
+	class UserIdentity extends \Eloquent implements \App\Support\Audit\Auditable {}
 }
 
 namespace App\Modules\Auth\Domain\Models{
@@ -994,6 +1193,7 @@ namespace App\Modules\Auth\Domain\Models{
  * auditados sin ninguna llamada manual (funcional.md §B.10) — a diferencia
  * de `UserSession`, este modelo no declara `auditExcludedEvents()`.
  *
+ * @mixin IdeHelperUserKnownDevice
  * @property int $id
  * @property int $tenant_id
  * @property int $user_id
@@ -1031,10 +1231,8 @@ namespace App\Modules\Auth\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice whereUserId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserKnownDevice withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperUserKnownDevice {}
+	class UserKnownDevice extends \Eloquent implements \App\Support\Audit\Auditable {}
 }
 
 namespace App\Modules\Auth\Domain\Models{
@@ -1048,6 +1246,7 @@ namespace App\Modules\Auth\Domain\Models{
  * pueda contener información sensible según lo que se escriba
  * (datos.md §C.11, punto 1) — el manual de administración debe advertirlo.
  *
+ * @mixin IdeHelperUserMfaExemption
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -1085,10 +1284,8 @@ namespace App\Modules\Auth\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption whereUserId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaExemption withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperUserMfaExemption {}
+	class UserMfaExemption extends \Eloquent implements \App\Support\Audit\Auditable {}
 }
 
 namespace App\Modules\Auth\Domain\Models{
@@ -1099,6 +1296,7 @@ namespace App\Modules\Auth\Domain\Models{
  *
  * Full: sin ningún dato personal más allá de la relación con el usuario.
  *
+ * @mixin IdeHelperUserMfaObligation
  * @property int $id
  * @property int $tenant_id
  * @property int $user_id
@@ -1130,10 +1328,8 @@ namespace App\Modules\Auth\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation whereUserId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserMfaObligation withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperUserMfaObligation {}
+	class UserMfaObligation extends \Eloquent implements \App\Support\Audit\Auditable {}
 }
 
 namespace App\Modules\Auth\Domain\Models{
@@ -1152,6 +1348,7 @@ namespace App\Modules\Auth\Domain\Models{
  * resto del ciclo de vida (revocación, los siete cierres de §B.4.6,
  * borrado lógico) se sigue auditando entero por el mecanismo automático.
  *
+ * @mixin IdeHelperUserSession
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -1203,10 +1400,8 @@ namespace App\Modules\Auth\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession whereUserId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSession withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperUserSession {}
+	class UserSession extends \Eloquent implements \App\Support\Audit\Auditable {}
 }
 
 namespace App\Modules\Core\Domain\Models{
@@ -1215,6 +1410,7 @@ namespace App\Modules\Core\Domain\Models{
  * cuándo y por quién. Primitiva compartida (ExportRequestService,
  * INV-007) — otros módulos la usan por interfaz, no importando esta clase.
  *
+ * @mixin IdeHelperDataExport
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -1258,10 +1454,8 @@ namespace App\Modules\Core\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|DataExport whereUpdatedBy($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|DataExport withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|DataExport withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperDataExport {}
+	class DataExport extends \Eloquent implements \App\Support\Audit\Auditable {}
 }
 
 namespace App\Modules\Core\Domain\Models{
@@ -1271,6 +1465,7 @@ namespace App\Modules\Core\Domain\Models{
  * persona física o sociedad unipersonal son datos personales; las claves
  * de objeto de branding quedan fuera por no aportar nada legible.
  *
+ * @mixin IdeHelperTenantSetting
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -1333,10 +1528,8 @@ namespace App\Modules\Core\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting whereUpdatedBy($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantSetting withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperTenantSetting {}
+	class TenantSetting extends \Eloquent implements \App\Support\Audit\Auditable {}
 }
 
 namespace App\Modules\Core\Domain\Models{
@@ -1345,6 +1538,7 @@ namespace App\Modules\Core\Domain\Models{
  * `error_summary` se redactan como `identifier` — pueden contener nombres
  * de fichero o fragmentos identificativos de personal del centro.
  *
+ * @mixin IdeHelperUserImport
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -1389,10 +1583,8 @@ namespace App\Modules\Core\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserImport whereValidatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserImport withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserImport withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperUserImport {}
+	class UserImport extends \Eloquent implements \App\Support\Audit\Auditable {}
 }
 
 namespace App\Modules\Core\Domain\Models{
@@ -1401,6 +1593,7 @@ namespace App\Modules\Core\Domain\Models{
  * patrón global `*token*` de config('audit.secret_attribute_patterns') —
  * no hace falta declararlo aquí.
  *
+ * @mixin IdeHelperUserInvitation
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
@@ -1434,10 +1627,8 @@ namespace App\Modules\Core\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserInvitation whereUserId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserInvitation withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|UserInvitation withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperUserInvitation {}
+	class UserInvitation extends \Eloquent implements \App\Support\Audit\Auditable {}
 }
 
 namespace App\Support\Tenancy{
@@ -1451,6 +1642,7 @@ namespace App\Support\Tenancy{
  * seguridad para el día en que algo la consulte por la conexión pgsql: en
  * ese caso solo vería su propia fila, nunca las de otro tenant.
  *
+ * @mixin IdeHelperTenant
  * @property int $id
  * @property string $public_id
  * @property string $slug
@@ -1474,9 +1666,7 @@ namespace App\Support\Tenancy{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant withoutTrashed()
- * @mixin \Eloquent
  */
-	#[\AllowDynamicProperties]
-	class IdeHelperTenant {}
+	class Tenant extends \Eloquent {}
 }
 
