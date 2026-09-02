@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Database\Connection;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -161,7 +162,7 @@ return new class extends Migration
         }
     }
 
-    private function replaceCheck(\Illuminate\Database\Connection $owner, string $name, string $definition): void
+    private function replaceCheck(Connection $owner, string $name, string $definition): void
     {
         $owner->statement("ALTER TABLE identity_providers DROP CONSTRAINT IF EXISTS {$name}");
         $owner->statement("ALTER TABLE identity_providers ADD CONSTRAINT {$name} {$definition} NOT VALID");
