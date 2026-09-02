@@ -1218,6 +1218,7 @@ Lo que este paso introduce es un eje de configuración **por tenant y en base de
 | `AUTH_SSO_DISCOVERY_REFRESH_DAYS` | Antigüedad a partir de la cual la tarea programada refresca un proveedor (`§F.4`) | `7` | `7` |
 | `AUTH_SSO_SECRET_EXPIRY_WARNING_DAYS` | Antelación del aviso de caducidad de credencial (`§F.4`) | `30` | `30` |
 | `AUTH_SSO_CLOCK_SKEW_SECONDS` | Tolerancia de reloj al validar `exp`/`iat` del `id_token` (`RN-AUTH-104`) | `120` | `120` |
+| `AUTH_SSO_TOKEN_TIMEOUT_SECONDS` | Tiempo de espera del canje de código/`userinfo` con el emisor | `5` | `5` |
 | `AUTH_SSO_ALLOW_INSECURE_DISCOVERY` | **Permite `http` en el descubrimiento y en los *endpoints* del emisor.** Existe **solo** para el emisor simulado de `§F.10`. **Guarda de arranque: aborta la aplicación si es `true` y `APP_ENV` no es `local` ni `testing`, en todos los entornos** | **`false`** | **`true`, fijado explícitamente** |
 | `AUTH_RATE_LIMIT_OIDC_CALLBACK_PER_IP` | *Callbacks* institucionales por IP y minuto (`oidc_callback_ip`) | `20` | `20` |
 | `AUTH_RATE_LIMIT_SSO_DISCOVERY_PER_TENANT` | Validaciones de descubrimiento por tenant y minuto (`sso_discovery_tenant`) | `6` | `6` |

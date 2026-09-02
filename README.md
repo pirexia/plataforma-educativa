@@ -4,9 +4,9 @@ SaaS para la gestión integral de centros educativos. Segmento inicial: **centro
 
 | Campo | Valor |
 |-------|-------|
-| **Versión del documento** | 2.5.1 |
-| **Fecha** | 2026-09-01 |
-| **Estado del proyecto** | Fase 1 · MVP operativo. Bloque A (identidad y acceso): tenants/usuarios, autenticación local, sesiones activas y MFA (TOTP + correo) cerrados y mezclados (`1.1`-`1.3b`); `1.4` (login con Google y fusión de cuentas) implementada, en revisión independiente antes de mezclar (PR [#143](https://github.com/pirexia/plataforma-educativa/pull/143)). Siguiente paso: `1.4b` (SSO institucional SAML 2.0 / OIDC) |
+| **Versión del documento** | 2.5.2 |
+| **Fecha** | 2026-09-02 |
+| **Estado del proyecto** | Fase 1 · MVP operativo. Bloque A (identidad y acceso): tenants/usuarios, autenticación local, sesiones activas, MFA (TOTP + correo) y login con Google (fusión de cuentas) cerrados y mezclados (`1.1`-`1.4`); `1.4b` (SSO institucional OIDC y aprovisionamiento por emparejamiento) implementada, en revisión independiente antes de mezclar. SAML 2.0 queda en un paso propio posterior, `1.4c` (`ADR-043`) |
 
 ---
 
@@ -27,7 +27,7 @@ Excepción: en el **primer ciclo de Infantil (0-3) en régimen privado** sí som
 | **`PLAN-IMPLEMENTACION.md`** | Pasos de ejecución, dimensionados a sesiones de 5 h | Al arrancar cada sesión |
 | **`ARCHITECTURE.md`** | Stack, estructura, despliegue, dimensionado de hardware | Antes de tocar arquitectura |
 | **`SYSADMIN.md`** | Entorno de desarrollo, `compose.yaml`, operación | Antes de tocar infraestructura |
-| **`docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`** | Fuente de verdad funcional. 53 módulos, 32 ADR | Al empezar un módulo |
+| **`docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`** | Fuente de verdad funcional. 53 módulos, 43 ADR | Al empezar un módulo |
 | **`docs/i18n.md`** | Convención de internacionalización, backend y frontend (`ADR-021`/`INV-009`) | Antes de escribir cualquier texto visible |
 | **`docs/SETUP-ENTORNO.md`** | **Puesta en marcha completa**: WSL2, Podman, Claude Code, repositorio | Antes que nada |
 | **`docs/SETUP-CLAUDE-CODE.md`** | Plugins, MCP, subagentes y skills | Al configurar el entorno |
@@ -73,16 +73,16 @@ Lista completa: sección 0.5 del documento de requisitos (`INV-001` a `INV-015`)
 
 | Documento | Versión |
 |-----------|---------|
-| `README.md` | 2.5.1 |
+| `README.md` | 2.5.2 |
 | `CLAUDE.md` | 2.3.0 |
 | `ARCHITECTURE.md` | 2.0.2 |
 | `PLAN-IMPLEMENTACION.md` | 2.2.0 |
-| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | 3.1.2 |
+| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | 3.1.3 |
 | `docs/SETUP-CLAUDE-CODE.md` | 1.2.0 |
 | `docs/SETUP-ENTORNO.md` | 1.3.0 |
 | `SYSADMIN.md` | 0.6.0 |
-| `SECURITY.md` | 0.2.1 |
-| `PRIVACY.md` | 0.2.1 |
+| `SECURITY.md` | 0.2.2 |
+| `PRIVACY.md` | 0.2.2 |
 | `RUNBOOK.md` | 0.2.0 |
 | `CONTRIBUTING.md` | 0.1.0 |
 

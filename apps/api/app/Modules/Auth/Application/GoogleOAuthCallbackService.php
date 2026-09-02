@@ -136,8 +136,16 @@ final class GoogleOAuthCallbackService
         } catch (UniqueConstraintViolationException $e) {
             // RN-AUTH-89, CA-AUTH-223: el rechazo lo produce el índice
             // único, no una comprobación previa con condición de carrera.
+            // 1.4b (migración 2026_09_01_100500) renombra este índice con
+            // un sufijo `_null` al final, no en medio, precisamente para
+            // que `user_identities_tenant_provider_subject_unique` siga
+            // siendo subcadena literal del nombre nuevo — este código,
+            // sin cambios propios de 1.4b más allá de esta nota, sigue
+            // reconociendo la violación sin repliegue durante la ventana
+            // de un despliegue continuo con instancias antiguas y nuevas
+            // conviviendo (hallazgo de `db-reviewer`, 1.4b).
             return OAuthCallbackResult::outcome(
-                str_contains($e->getMessage(), 'user_identities_tenant_provider_subject_null_unique')
+                str_contains($e->getMessage(), 'user_identities_tenant_provider_subject_unique')
                     ? OAuthCallbackOutcome::ProveedorYaVinculado
                     : OAuthCallbackOutcome::YaVinculado
             );

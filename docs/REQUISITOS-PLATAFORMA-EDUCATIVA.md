@@ -3250,7 +3250,7 @@ Del `028` en adelante, cada decisión vive en `docs/adr/` (`ADR-026`).
 | `OPEN-09` | Proveedor de correo transaccional. | `REQ-AUTH`, `REQ-COM` |
 | `OPEN-10` | Proveedor de almacenamiento de objetos para copias, distinto del host. | `REQ-BKP` |
 | `OPEN-11` | **Dónde se aloja el piloto.** El desarrollo pasa a WSL2 en equipo personal (`ADR-030`), que no puede alojar datos reales bajo ningún concepto. Decidir antes de que llegue el centro, no después. | Hito H0 |
-| `OPEN-13` | **Lista definitiva de columnas de `Person` y su base legal por campo.** `ADR-034` fija un mínimo por minimización y deja fuera fotografía, sexo, nacionalidad y dirección postal hasta que exista el catálogo de bases legales. | `REQ-PRIV-006`, paso 1.1 |
+| `OPEN-13` | **Lista definitiva de columnas de `Person` y su base legal por campo.** `ADR-034` fija un mínimo por minimización y deja fuera fotografía, sexo, nacionalidad y dirección postal hasta que exista el catálogo de bases legales. | `REQ-PRIV-006`, paso 1.1, `REQ-AUTH-004`/paso 1.4b (la parte de fotografía del mapeo de atributos no se puede cumplir mientras siga abierta, `docs/modulos/REQ-AUTH/funcional.md §F.0.3` punto 1) |
 
 Bloqueante de mayor prioridad: el hito **H0** (`ADR-019`), conseguir el centro piloto y sus ficheros de exportación.
 
