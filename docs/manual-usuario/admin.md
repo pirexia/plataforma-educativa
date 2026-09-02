@@ -89,7 +89,7 @@ Tras guardar, la pantalla te muestra los datos que tienes que copiar en la confi
 
 ### Cargar la credencial de cliente
 
-Un proveedor recién creado no puede activarse todavía: primero necesita al menos una credencial de cliente (`client_secret`) vigente, que te da tu propio sistema de identidad. Puedes tener más de una credencial cargada a la vez — útil para rotarla sin cortar el acceso, porque siempre se usa la más reciente. Si le indicas una fecha de caducidad, el sistema te avisa quince días antes de que caduque.
+Un proveedor recién creado no puede activarse todavía: primero necesita al menos una credencial de cliente (`client_secret`) vigente, que te da tu propio sistema de identidad. Puedes tener más de una credencial cargada a la vez — útil para rotarla sin cortar el acceso, porque siempre se usa la más reciente. Si le indicas una fecha de caducidad, el sistema te avisa con antelación antes de que caduque.
 
 ### Activar, editar y retirar un proveedor
 
