@@ -6,7 +6,7 @@ SaaS para la gestión integral de centros educativos. Segmento inicial: **centro
 |-------|-------|
 | **Versión del documento** | 2.5.2 |
 | **Fecha** | 2026-09-02 |
-| **Estado del proyecto** | Fase 1 · MVP operativo. Bloque A (identidad y acceso): tenants/usuarios, autenticación local, sesiones activas, MFA (TOTP + correo) y login con Google (fusión de cuentas) cerrados y mezclados (`1.1`-`1.4`); `1.4b` (SSO institucional OIDC y aprovisionamiento por emparejamiento) implementada, en revisión independiente antes de mezclar. SAML 2.0 queda en un paso propio posterior, `1.4c` (`ADR-043`) |
+| **Estado del proyecto** | Fase 1 · MVP operativo. Bloque A (identidad y acceso): tenants/usuarios, autenticación local, sesiones activas, MFA (TOTP + correo), login con Google (fusión de cuentas) y SSO institucional OIDC con aprovisionamiento por emparejamiento cerrados y mezclados (`1.1`-`1.4b`). `1.4c` (SSO institucional SAML 2.0, `ADR-043`) en desarrollo, sobre rama propia, pendiente de revisión de seguridad y de mezclar |
 
 ---
 

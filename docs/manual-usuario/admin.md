@@ -77,23 +77,33 @@ Puedes consultar en cualquier momento quién tiene una excepción viva, por qué
 
 ### Qué es
 
-Permite que el personal del centro entre a la aplicación con las credenciales del propio centro (Microsoft Entra ID, Google Workspace u otro sistema de identidad compatible con OIDC), en vez de una contraseña propia de esta plataforma. Lo configuras tú, desde `Administración → Proveedores de identidad`, dando de alta cada sistema de identidad como un proveedor.
+Permite que el personal del centro entre a la aplicación con las credenciales del propio centro (Microsoft Entra ID, Google Workspace u otro sistema de identidad compatible con OIDC o con SAML 2.0), en vez de una contraseña propia de esta plataforma. Lo configuras tú, desde `Administración → Proveedores de identidad`, dando de alta cada sistema de identidad como un proveedor.
 
-Importante: entrar por aquí **nunca crea una cuenta nueva**. Solo vincula el inicio de sesión institucional con una cuenta que ya exista en el centro, con el mismo correo. Si la persona no tiene todavía cuenta, tiene que dársela de alta primero de la forma habitual (invitación).
+Importante: entrar por aquí **nunca crea una cuenta nueva**, en ningún caso. Solo vincula el inicio de sesión institucional con una cuenta que ya exista en el centro, con el mismo correo. Si la persona no tiene todavía cuenta, tiene que dársela de alta primero de la forma habitual (invitación).
 
 ### Añadir un proveedor
 
-Al pulsar «Añadir proveedor» rellenas: un nombre visible (el que verá el personal en el botón de acceso), la URL de descubrimiento que publica tu sistema de identidad (termina en `.well-known/openid-configuration`), el identificador de cliente (`client_id`) que te dé tu proveedor, y opcionalmente qué dominios de correo se admiten — déjalo vacío si no quieres restringir por dominio, o indica el tuyo (p. ej. `sucentro.es`) para que solo entren cuentas de ese dominio.
+Al pulsar «Añadir proveedor» eliges primero **qué tipo de sistema de identidad es** — OIDC o SAML 2.0 — según lo que use tu centro; una vez guardado, ese tipo no se puede cambiar (si te equivocas, borras el proveedor y das de alta uno nuevo del tipo correcto).
 
-Tras guardar, la pantalla te muestra los datos que tienes que copiar en la configuración de tu proveedor de identidad (la URI de redirección, los ámbitos y los nombres de los campos que se leen) para completar la integración por su lado.
+**Con OIDC** rellenas: un nombre visible (el que verá el personal en el botón de acceso), la URL de descubrimiento que publica tu sistema de identidad (termina en `.well-known/openid-configuration`), el identificador de cliente (`client_id`) que te dé tu proveedor, y opcionalmente qué dominios de correo se admiten.
 
-### Cargar la credencial de cliente
+**Con SAML 2.0** rellenas: un nombre visible, y los metadatos de tu sistema de identidad — o pegas la URL donde los publica, o pegas directamente el XML si tu proveedor no lo publica en una URL —, el nombre del campo (atributo) del que sale el correo de la persona si tu sistema de identidad no usa el correo como identificador principal, y opcionalmente los dominios admitidos. Al guardar, el sistema valida esos metadatos al momento: si algo no es correcto (el documento no es válido, no incluye un certificado de firma, o ya tienes otro proveedor con el mismo emisor), te lo dice ahí mismo y no se crea nada.
 
-Un proveedor recién creado no puede activarse todavía: primero necesita al menos una credencial de cliente (`client_secret`) vigente, que te da tu propio sistema de identidad. Puedes tener más de una credencial cargada a la vez — útil para rotarla sin cortar el acceso, porque siempre se usa la más reciente. Si le indicas una fecha de caducidad, el sistema te avisa con antelación antes de que caduque.
+En los dos casos, opcionalmente puedes restringir por dominio de correo — déjalo vacío si no quieres restringir, o indica el tuyo (p. ej. `sucentro.es`) para que solo entren cuentas de ese dominio.
+
+Tras guardar, la pantalla te muestra los datos que tienes que copiar en la configuración de tu propio sistema de identidad para completar la integración por su lado: con OIDC, la URI de redirección, los ámbitos y los campos que se leen; con SAML, el identificador de nuestra plataforma (`entityID`), la dirección a la que tiene que enviar la respuesta, y — si activaste la firma de peticiones (ver más abajo) — el certificado con el que puede comprobarla. Para SAML hay además un botón para descargarte estos datos ya empaquetados en el formato que la mayoría de sistemas de identidad esperan.
+
+### Cargar la credencial o el certificado
+
+**Con OIDC**, un proveedor recién creado no puede activarse todavía: primero necesita al menos una credencial de cliente (`client_secret`) vigente, que te da tu propio sistema de identidad. Puedes tener más de una credencial cargada a la vez — útil para rotarla sin cortar el acceso, porque siempre se usa la más reciente. Si le indicas una fecha de caducidad, el sistema te avisa con antelación antes de que caduque.
+
+**Con SAML**, el certificado con el que se comprueban las respuestas de tu sistema de identidad se recoge normalmente solo con pegar la URL o el XML de metadatos, y se mantiene al día en solitario si diste la URL (el sistema la revisa periódicamente). Si tu proveedor rota su certificado y prefieres subir el nuevo tú mismo, o si diste el XML pegado y necesitas actualizarlo a mano, puedes cargar un certificado adicional en cualquier momento — al igual que con la credencial OIDC, puedes tener varios vigentes a la vez para no cortar el acceso durante una rotación. Retirar un certificado **no lo anula en tu propio sistema de identidad**: si quieres invalidarlo del todo, también tienes que hacerlo allí. Si tu sistema de identidad exige que las peticiones de acceso vayan firmadas por nosotros (algunos lo exigen, la mayoría no), activa «Firmar peticiones de acceso» en la configuración del proveedor.
 
 ### Activar, editar y retirar un proveedor
 
-Un proveedor no activo no aparece como opción de acceso para nadie. Puedes editarlo en cualquier momento (nombre, dominios admitidos, modo de aprovisionamiento) y retirarlo si tu centro deja de usarlo — al retirarlo, los vínculos ya creados con esa identidad siguen viéndose desde el perfil de cada persona, pero nadie podrá volver a entrar por ese proveedor.
+Un proveedor no activo no aparece como opción de acceso para nadie. Puedes editarlo en cualquier momento (nombre, dominios admitidos, modo de aprovisionamiento) y retirarlo si tu centro deja de usarlo — al retirarlo, los vínculos ya creados con esa identidad siguen viéndose desde el perfil de cada persona, pero nadie podrá volver a entrar por ese proveedor. **Con SAML hay una particularidad a tener en cuenta**: si retiras un proveedor y luego das de alta otro con el mismo nombre para sustituirlo, la dirección a la que tu sistema de identidad tiene que enviar la respuesta cambia, así que tendrás que volver a configurarlo por su lado — el aviso aparece en la pantalla antes de confirmar el borrado.
+
+En ningún caso, con ningún proveedor, el inicio de sesión único sustituye del todo a la contraseña: si el sistema de identidad del centro falla o su certificado caduca sin que te hayas dado cuenta del aviso, el personal siempre puede seguir entrando con su contraseña habitual de esta plataforma.
 
 ## Registro de auditoría
 
