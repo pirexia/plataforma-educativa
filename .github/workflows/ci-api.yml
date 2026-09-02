@@ -112,8 +112,18 @@ jobs:
       # el interbloqueo de un solo hilo del issue #146 (ahí el conflicto
       # es con una petición *entrante* del navegador, no con el propio
       # proceso de test).
+      #
+      # El servidor necesita el esquema ya migrado: tests/TestCase.php
+      # migra de forma perezosa (una sola vez, guardada en una bandera
+      # estática) dentro del propio proceso de Pest, en el primer setUp()
+      # — un proceso de artisan serve aparte nunca pasa por ahí, así que
+      # sin este paso toda petición que tocara sesión (SESSION_DRIVER=
+      # database) fallaba contra un esquema inexistente. Primer intento
+      # de este arreglo, sin migrar antes: /api/health respondía rápido
+      # pero con error, y el bucle de espera nunca veía un 200.
       - name: Arrancar servidor de desarrollo (emisor OIDC simulado)
         run: |
+          php artisan migrate --database=pgsql_owner --force
           php artisan serve --host=127.0.0.1 --port=8000 > /tmp/artisan-serve.log 2>&1 &
           for i in $(seq 1 30); do
             curl -sf -o /dev/null http://127.0.0.1:8000/api/health && exit 0
