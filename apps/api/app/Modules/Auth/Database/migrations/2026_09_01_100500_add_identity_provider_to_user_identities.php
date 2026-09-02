@@ -66,6 +66,12 @@ return new class extends Migration
 
         $owner = DB::connection('pgsql_owner');
 
+        // Hallazgo de db-reviewer (segunda pasada, revisión independiente
+        // de 1.4b): sin este DROP previo, un reintento tras un fallo
+        // parcial de la migración (p.ej. en la VALIDATE CONSTRAINT de la
+        // línea siguiente) se atasca en "constraint already exists" —
+        // mismo patrón de idempotencia que ya llevan los seis CHECK.
+        $owner->statement('ALTER TABLE user_identities DROP CONSTRAINT IF EXISTS user_identities_identity_provider_id_foreign');
         $owner->statement(<<<'SQL'
             ALTER TABLE user_identities ADD CONSTRAINT user_identities_identity_provider_id_foreign
                 FOREIGN KEY (tenant_id, identity_provider_id) REFERENCES identity_providers (tenant_id, id)
