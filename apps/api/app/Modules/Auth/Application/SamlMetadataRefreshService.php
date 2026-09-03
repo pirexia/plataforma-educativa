@@ -51,7 +51,14 @@ final class SamlMetadataRefreshService
                 'metadata_failed_at' => null,
             ])->save();
 
+            // withTrashed(): un certificado retirado (RN-AUTH-125) lleva
+            // también borrado lógico (api.md §G.5), así que la relación por
+            // defecto no lo vería y el refresco lo recrearía como fila
+            // nueva y activa la próxima vez que el IdP siga publicándolo —
+            // deshaciendo en silencio el acto deliberado del administrador
+            // que la propia regla dice que solo él puede deshacer.
             $existingFingerprints = $provider->certificates()
+                ->withTrashed()
                 ->pluck('fingerprint_sha256')
                 ->all();
 
