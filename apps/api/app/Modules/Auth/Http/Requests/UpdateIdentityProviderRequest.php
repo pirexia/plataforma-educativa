@@ -67,12 +67,24 @@ class UpdateIdentityProviderRequest extends ApiFormRequest
      * `null` si el `public_id` de la ruta no resuelve — en ese caso las
      * reglas OIDC (las históricas) se aplican por defecto y el
      * controlador responde `404` de todas formas al no encontrar la fila.
+     *
+     * `IdentityProvider::query()` es un builder de Eloquent: `->value()`
+     * hidrata el resultado y aplica el cast `'protocol' => Protocol::class`
+     * del modelo, así que ya llega como instancia de `Protocol`, nunca
+     * como cadena. Comprobar `is_string()` sobre ese valor era siempre
+     * falso — bug real encontrado escribiendo `CA-AUTH-332` (issue #156):
+     * `sign_authn_requests` y el resto de campos exclusivos de SAML
+     * nunca se validaban ni se aplicaban en ningún `PATCH`.
      */
     private function targetProtocol(): ?Protocol
     {
         $publicId = (string) $this->route('publicId');
         $value = IdentityProvider::query()->where('public_id', $publicId)->value('protocol');
 
-        return is_string($value) ? Protocol::from($value) : null;
+        return match (true) {
+            $value instanceof Protocol => $value,
+            is_string($value) => Protocol::from($value),
+            default => null,
+        };
     }
 }
