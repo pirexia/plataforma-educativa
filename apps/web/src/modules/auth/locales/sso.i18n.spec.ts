@@ -82,13 +82,18 @@ describe('i18n de 1.4b (CA-AUTH-309): auth.ssoAdmin existe completo en los cuatr
 
   // Términos técnicos OIDC (nombres de *claim*) y el ejemplo de dominio
   // del placeholder: coinciden a propósito entre los cuatro idiomas, no
-  // son prosa sin traducir.
+  // son prosa sin traducir. REQ-AUTH-004 (1.4c): el nombre de los dos
+  // protocolos (`OIDC`, `SAML 2.0`) es la misma sigla/nombre técnico en
+  // los cuatro idiomas — no se traduce, igual criterio que el resto de
+  // esta lista.
   const EXPECTED_IDENTICAL_ACROSS_LOCALES = new Set([
     'form.claimsSourceUserinfo',
     'form.emailClaimOptions.email',
     'form.emailClaimOptions.preferred_username',
     'form.emailClaimOptions.upn',
     'form.allowedDomainsPlaceholder',
+    'protocolLabel.oidc',
+    'protocolLabel.saml',
   ])
 
   it.each(['en', 'de', 'fr'])(

@@ -3,7 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { i18n, setLocale } from '@/i18n'
 import { ApiError } from '@/api/client'
-import type { IdentityProviderDetail } from '../types'
+import type { IdentityProviderOidcDetail, IdentityProviderSamlDetail } from '../types'
 
 // REQ-AUTH-004 (1.4b), funcional.md §F.9/§F.11, api.md §F.3-§F.5. Issue
 // #147: `AdminSsoProviderView.vue` (529 líneas, la pantalla más grande
@@ -20,6 +20,12 @@ const updateIdentityProvider = vi.fn()
 const createIdentityProviderSecret = vi.fn()
 const deleteIdentityProviderSecret = vi.fn()
 const refreshIdentityProviderDiscovery = vi.fn()
+// REQ-AUTH-004 (1.4c), funcional.md §G.9, api.md §G.2-§G.5.
+const getIdentityProviderSpMetadata = vi.fn()
+const downloadIdentityProviderSpMetadataXml = vi.fn()
+const refreshIdentityProviderMetadata = vi.fn()
+const createIdentityProviderCertificate = vi.fn()
+const deleteIdentityProviderCertificate = vi.fn()
 
 vi.mock('../api', () => ({
   getIdentityProviderDetail: (...args: unknown[]) => getIdentityProviderDetail(...args),
@@ -29,14 +35,23 @@ vi.mock('../api', () => ({
   deleteIdentityProviderSecret: (...args: unknown[]) => deleteIdentityProviderSecret(...args),
   refreshIdentityProviderDiscovery: (...args: unknown[]) =>
     refreshIdentityProviderDiscovery(...args),
+  getIdentityProviderSpMetadata: (...args: unknown[]) => getIdentityProviderSpMetadata(...args),
+  downloadIdentityProviderSpMetadataXml: (...args: unknown[]) =>
+    downloadIdentityProviderSpMetadataXml(...args),
+  refreshIdentityProviderMetadata: (...args: unknown[]) => refreshIdentityProviderMetadata(...args),
+  createIdentityProviderCertificate: (...args: unknown[]) =>
+    createIdentityProviderCertificate(...args),
+  deleteIdentityProviderCertificate: (...args: unknown[]) =>
+    deleteIdentityProviderCertificate(...args),
 }))
 
 const { default: AdminSsoProviderView } = await import('./AdminSsoProviderView.vue')
 
-function detail(overrides: Partial<IdentityProviderDetail> = {}): IdentityProviderDetail {
+function detail(overrides: Partial<IdentityProviderOidcDetail> = {}): IdentityProviderOidcDetail {
   return {
     public_id: '01J-EXISTING',
     display_name: 'Entra ID del centro',
+    protocol: 'oidc',
     issuer: 'https://login.microsoftonline.com/tenant-x/v2.0',
     client_id: 'client-abc',
     is_enabled: true,
@@ -60,6 +75,33 @@ function detail(overrides: Partial<IdentityProviderDetail> = {}): IdentityProvid
       email_claim: 'email',
     },
     secrets: [],
+    ...overrides,
+  }
+}
+
+/** Hermana SAML de `detail()` — REQ-AUTH-004 (1.4c), api.md §G.2. */
+function samlDetail(
+  overrides: Partial<IdentityProviderSamlDetail> = {},
+): IdentityProviderSamlDetail {
+  return {
+    public_id: '01J-SAML',
+    display_name: 'ADFS del centro',
+    protocol: 'saml',
+    issuer: 'https://adfs.sucentro.es/adfs/services/trust',
+    is_enabled: true,
+    provisioning_mode: 'emparejamiento',
+    allowed_email_domains: ['sucentro.es'],
+    certificate_status: { vigentes: 0, proximo_vencimiento: null },
+    authorization_endpoint: 'https://adfs.sucentro.es/adfs/ls',
+    metadata_source: 'url',
+    metadata_url: 'https://adfs.sucentro.es/federationmetadata/2007-06/federationmetadata.xml',
+    metadata_xml: null,
+    name_id_format: 'emailAddress',
+    email_attribute: null,
+    sign_authn_requests: false,
+    metadata_fetched_at: '2026-09-01T10:00:00Z',
+    metadata_failed_at: null,
+    certificates: [],
     ...overrides,
   }
 }
@@ -447,5 +489,195 @@ describe('AdminSsoProviderView — refresco de descubrimiento', () => {
 
     expect(wrapper.text()).toContain('https://valor-nuevo.example.com/callback')
     expect(wrapper.text()).not.toContain('https://valor-antiguo.example.com/callback')
+  })
+})
+
+// REQ-AUTH-004 (1.4c), funcional.md §G.9, api.md §G.2-§G.5. Un proveedor
+// SAML: campos propios en vez de los de OIDC, protocol inmutable en
+// edición (RN-AUTH-114, CA-AUTH-316), el bloque «qué registrar en tu
+// IdP» y la gestión de certificados en vez de credenciales.
+describe('AdminSsoProviderView — proveedor SAML', () => {
+  beforeEach(() => {
+    getIdentityProviderDetail.mockReset()
+    createIdentityProvider.mockReset()
+    updateIdentityProvider.mockReset()
+    getIdentityProviderSpMetadata.mockReset()
+    downloadIdentityProviderSpMetadataXml.mockReset()
+    refreshIdentityProviderMetadata.mockReset()
+    createIdentityProviderCertificate.mockReset()
+    deleteIdentityProviderCertificate.mockReset()
+    getIdentityProviderSpMetadata.mockResolvedValue({
+      entity_id: 'https://sucentro.example.com/saml/01J-SAML',
+      assertion_consumer_service_url: 'https://sucentro.example.com/api/v1/auth/saml/01J-SAML/acs',
+      name_id_format: 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
+      certificate: null,
+    })
+    setLocale('es')
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+  })
+
+  it('api.md §G.2: un proveedor SAML pinta los campos de metadatos, no los de OIDC, y el protocolo se muestra como texto', async () => {
+    getIdentityProviderDetail.mockResolvedValue(samlDetail())
+    const { wrapper } = await mountEdit('01J-SAML')
+
+    expect(wrapper.find('#sso-metadata-url').exists()).toBe(true)
+    expect(wrapper.find('#sso-discovery-url').exists()).toBe(false)
+    expect(wrapper.find('#sso-client-id').exists()).toBe(false)
+    // RN-AUTH-114/CA-AUTH-316: protocol es inmutable en edición, así que
+    // no hay ningún control de formulario para él (ni <select> ni
+    // <input>), solo el texto.
+    expect(wrapper.find('#sso-protocol').element.tagName).toBe('P')
+    expect(wrapper.text()).toContain('SAML 2.0')
+  })
+
+  it('RN-AUTH-114, CA-AUTH-316: guardar cambios en un proveedor SAML nunca envía protocol en el PATCH', async () => {
+    getIdentityProviderDetail.mockResolvedValue(samlDetail())
+    updateIdentityProvider.mockResolvedValue(samlDetail({ display_name: 'ADFS renombrado' }))
+    const { wrapper } = await mountEdit('01J-SAML')
+
+    await wrapper.get('#sso-display-name').setValue('ADFS renombrado')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(updateIdentityProvider).toHaveBeenCalledTimes(1)
+    const [calledPublicId, payload] = updateIdentityProvider.mock.calls[0] ?? []
+    expect(calledPublicId).toBe('01J-SAML')
+    expect(payload).not.toHaveProperty('protocol')
+    expect(payload.metadata_url).toBe(
+      'https://adfs.sucentro.es/federationmetadata/2007-06/federationmetadata.xml',
+    )
+  })
+
+  it('api.md §G.3: carga y muestra los metadatos del SP (entityID, ACS URL) para copiarlos', async () => {
+    getIdentityProviderDetail.mockResolvedValue(samlDetail())
+    const { wrapper } = await mountEdit('01J-SAML')
+
+    expect(getIdentityProviderSpMetadata).toHaveBeenCalledWith('01J-SAML')
+    expect(wrapper.text()).toContain('https://sucentro.example.com/saml/01J-SAML')
+    expect(wrapper.text()).toContain('https://sucentro.example.com/api/v1/auth/saml/01J-SAML/acs')
+  })
+
+  it('api.md §G.3: el botón de descarga pide el documento XML de metadatos del SP, no el JSON', async () => {
+    downloadIdentityProviderSpMetadataXml.mockResolvedValue('<EntityDescriptor/>')
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL: vi.fn(() => 'blob:mock'),
+      revokeObjectURL: vi.fn(),
+    })
+    getIdentityProviderDetail.mockResolvedValue(samlDetail())
+    const { wrapper } = await mountEdit('01J-SAML')
+
+    const downloadButton = wrapper.findAll('button').find((b) => b.text() === 'Descargar metadatos')
+    await downloadButton?.trigger('click')
+    await flushPromises()
+
+    expect(downloadIdentityProviderSpMetadataXml).toHaveBeenCalledWith('01J-SAML')
+    vi.unstubAllGlobals()
+  })
+
+  it('api.md §G.5: cargar un certificado llama a la API con el PEM pegado y recarga el detalle', async () => {
+    getIdentityProviderDetail.mockResolvedValueOnce(samlDetail()).mockResolvedValueOnce(
+      samlDetail({
+        certificates: [
+          {
+            public_id: '01J-CERT',
+            fingerprint_sha256: 'aa:bb:cc',
+            not_before: '2026-01-01T00:00:00Z',
+            not_after: '2027-01-01T00:00:00Z',
+            source: 'manual',
+            retired_at: null,
+          },
+        ],
+      }),
+    )
+    createIdentityProviderCertificate.mockResolvedValue({
+      public_id: '01J-CERT',
+      fingerprint_sha256: 'aa:bb:cc',
+      not_before: '2026-01-01T00:00:00Z',
+      not_after: '2027-01-01T00:00:00Z',
+      source: 'manual',
+      retired_at: null,
+    })
+    const { wrapper } = await mountEdit('01J-SAML')
+
+    await wrapper
+      .get('#sso-new-certificate')
+      .setValue('-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----')
+    await wrapper
+      .findAll('form')
+      .find((f) => f.find('#sso-new-certificate').exists())
+      ?.trigger('submit.prevent')
+    await flushPromises()
+
+    expect(createIdentityProviderCertificate).toHaveBeenCalledWith('01J-SAML', {
+      certificate: '-----BEGIN CERTIFICATE-----\nMIIB...\n-----END CERTIFICATE-----',
+    })
+    expect(wrapper.text()).toContain('aa:bb:cc')
+  })
+
+  it('api.md §G.5: retirar un certificado pide confirmación, la advertencia de que no revoca en el IdP está siempre visible, y llama a la API', async () => {
+    getIdentityProviderDetail.mockResolvedValue(
+      samlDetail({
+        certificates: [
+          {
+            public_id: '01J-CERT',
+            fingerprint_sha256: 'aa:bb:cc',
+            not_before: '2026-01-01T00:00:00Z',
+            not_after: '2027-01-01T00:00:00Z',
+            source: 'manual',
+            retired_at: null,
+          },
+        ],
+      }),
+    )
+    deleteIdentityProviderCertificate.mockResolvedValue(undefined)
+    const { wrapper } = await mountEdit('01J-SAML')
+
+    // funcional.md §G.9: la advertencia es obligatoria y siempre visible,
+    // no solo tras la acción.
+    expect(wrapper.text()).toContain('no lo revoca en tu proveedor de identidad')
+
+    const retireButton = wrapper.findAll('button').find((b) => b.text() === 'Retirar')
+    await retireButton?.trigger('click')
+    await flushPromises()
+
+    expect(window.confirm).toHaveBeenCalled()
+    expect(deleteIdentityProviderCertificate).toHaveBeenCalledWith('01J-SAML', '01J-CERT')
+  })
+
+  it('CA-AUTH-326: si el refresco de metadatos falla, se conserva lo anterior y se avisa sin borrar nada', async () => {
+    getIdentityProviderDetail.mockResolvedValue(samlDetail())
+    refreshIdentityProviderMetadata.mockRejectedValue(new Error('metadata unreachable'))
+    const { wrapper } = await mountEdit('01J-SAML')
+
+    const refreshButton = wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Forzar refresco de los metadatos')
+    await refreshButton?.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(
+      'No se han podido refrescar los metadatos; se conservan los valores anteriores.',
+    )
+    expect(wrapper.find('#sso-metadata-url').exists()).toBe(true)
+  })
+
+  // El selector de protocolo es un `Select` de Reka UI (sin `<select>`
+  // nativo, contenido portado fuera del árbol montado): ningún test de
+  // este fichero conduce un `Select` por interacción de usuario — ni
+  // siquiera los ya existentes de `email_claim`/`claims_source`/
+  // `provisioning_mode` lo hacen, todos dejan el valor por defecto. Se
+  // sigue el mismo criterio aquí en vez de introducir un patrón de test
+  // frágil y sin precedente en la suite.
+  it('el alta por defecto (sin tocar el selector de protocolo) sigue siendo OIDC, protocol incluido en el payload', async () => {
+    createIdentityProvider.mockResolvedValue(detail({ public_id: '01J-NEW' }))
+    const { wrapper } = await mountNew()
+
+    await fillMinimalForm(wrapper)
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    const payload = createIdentityProvider.mock.calls[0]?.[0]
+    expect(payload.protocol).toBe('oidc')
   })
 })
