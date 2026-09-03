@@ -21,13 +21,26 @@ use Illuminate\Support\Facades\DB;
 // cuenta tampoco se reutiliza jamás, y un código de respaldo MFA
 // tampoco — ni siquiera tras su propio borrado lógico (§C.4.3 punto 3:
 // "un código no se reutiliza jamás") — las cuatro deliberadamente
-// totales, documentadas en su propio datos.md, no un descuido.
+// totales, documentadas en su propio datos.md, no un descuido. Y
+// REQ-AUTH/datos.md §G.4.1/§G.4.2 (paso 1.4c), dos más: un `request_id`
+// de `saml_auth_requests` no se repite dentro de un centro, y la
+// unicidad tiene que valer también sobre filas ya consumidas — parcial
+// sobre `deleted_at` reabriría la repetición de un `request_id` por la
+// puerta del borrado lógico, exactamente lo que la correlación de un
+// solo uso (`RN-AUTH-121`) existe para impedir. Y el `assertion_id` de
+// `saml_consumed_assertions` (por proveedor): el rechazo de una aserción
+// reenviada contra otra petición viva lo produce la violación de este
+// índice, no una lectura previa (`RN-AUTH-122`, `CA-AUTH-344`) — parcial
+// dejaría reutilizar un `assertion_id` ya visto en cuanto su fila se
+// borrara lógicamente.
 test('toda restricción única sobre tabla con borrado lógico es parcial, salvo las dos excepciones de ADR-034 §6', function (): void {
     $namedExceptions = [
         'user_invitations_tenant_token_unique',
         'idempotency_keys_tenant_endpoint_key_unique',
         'account_lockouts_tenant_unlock_token_hash_unique',
         'user_mfa_recovery_codes_tenant_hash_unique',
+        'saml_auth_requests_tenant_request_id_unique',
+        'saml_consumed_assertions_tenant_provider_assertion_unique',
     ];
 
     $tablesWithDeletedAt = collect(DB::select(<<<'SQL'

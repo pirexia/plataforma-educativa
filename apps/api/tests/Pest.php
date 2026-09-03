@@ -635,3 +635,278 @@ function loginWithFakeGoogleFor(string $slug, array $claims): string
 
     return sessionCookieValue($callback);
 }
+
+/**
+ * REQ-AUTH-004 (1.4c), operacion.md §G.10. La URL de metadatos del IdP
+ * SAML simulado (`FakeSamlIdentityProviderController::metadata()`),
+ * alcanzable desde dentro del propio contenedor de la API — paralela de
+ * `OIDC_DISCOVERY_URL`. `AUTH_SAML_ALLOW_INSECURE_METADATA=true` en
+ * local/testing (phpunit.xml) afloja la guarda de esquema para permitir
+ * `http` sobre este host.
+ */
+const SAML_FAKE_IDP_METADATA_URL = 'http://localhost:8000/api/_sso-simulator/saml/metadata';
+
+/**
+ * La URL de SSO del IdP SAML simulado, sin *query*
+ * (`FakeSamlIdentityProviderController::sso()`). Los tests la recomponen
+ * con el `SAMLRequest` real (de `beginSamlFlow()`) más los parámetros de
+ * `operacion.md §G.10.2` que fuerzan una aserción rota.
+ */
+const SAML_FAKE_IDP_SSO_URL = 'http://localhost:8000/api/_sso-simulator/saml/sso';
+
+/**
+ * REQ-AUTH-004 (1.4c), operacion.md §G.10. Da de alta y activa un
+ * proveedor SAML catalogado que apunta al IdP simulado servido por la
+ * propia API — hermana de `createActiveOidcProvider()`. El origen es
+ * `metadata_url` (no XML pegado): así se ejercita también
+ * `CurlSamlMetadataValidator` de verdad, mismo criterio que
+ * `createActiveOidcProvider()` con `discovery_url`.
+ *
+ * El IdP simulado declara tres `NameIDFormat` en sus metadatos y
+ * `CurlSamlMetadataValidator::extractNameIdFormat()` se queda con el
+ * **primero** de la lista blanca que encuentra: `persistent`
+ * (`FakeSamlIdentityProviderController::metadata()`). Con
+ * `name_id_format = persistent`, el `CHECK` de `datos.md §G.3` exige
+ * `email_attribute` — se fija por defecto a `'mail'`, el atributo que
+ * `completeSamlFlow()` rellena en la aserción vía `attribute_name`/
+ * `attribute_value` para que el emparejamiento tenga de dónde sacar el
+ * correo.
+ *
+ * Requiere `$admin` con los cuatro permisos `proveedor_identidad.*`
+ * (`provisionCoreTenant()`).
+ *
+ * @param  array<string, mixed>  $overrides  Campos del cuerpo de POST /identity-providers a sustituir.
+ * @return array{public_id: string}
+ */
+function createActiveSamlProvider(string $slug, User $admin, array $overrides = []): array
+{
+    resetSessionState();
+
+    $body = array_merge([
+        'protocol' => 'saml',
+        'display_name' => 'Proveedor SAML de prueba',
+        'metadata_url' => SAML_FAKE_IDP_METADATA_URL,
+        'email_attribute' => 'mail',
+        'provisioning_mode' => 'emparejamiento',
+    ], $overrides);
+
+    $store = test()->actingAs($admin)
+        ->postJson(coreApiUrl($slug, '/identity-providers'), $body)
+        ->assertStatus(201);
+
+    $publicId = $store->json('public_id');
+
+    test()->actingAs($admin)
+        ->patchJson(coreApiUrl($slug, "/identity-providers/{$publicId}"), ['is_enabled' => true])
+        ->assertOk();
+
+    resetSessionState();
+
+    return ['public_id' => $publicId];
+}
+
+/**
+ * REQ-AUTH-004 (1.4c). Tenant con `provisionCoreTenant()` (permisos
+ * `proveedor_identidad.*`), un usuario `activo` con correo conocido, y
+ * un proveedor SAML catalogado, activado y con certificado de firma
+ * vigente, listo para completar un login — hermana de
+ * `provisionOidcTenantWithActiveUser()`.
+ *
+ * @return array{0: Tenant, 1: User, 2: string}
+ */
+function provisionSamlTenantWithActiveUser(string $slug, array $userAttrs = []): array
+{
+    [$tenant, $admin] = provisionCoreTenant($slug);
+
+    $user = app(TenantContext::class)->runFor($tenant->id, function () use ($userAttrs) {
+        $person = Person::factory()->create();
+
+        return User::factory()->for($person)->create(array_merge([
+            'status' => UserStatus::Activo,
+        ], $userAttrs));
+    });
+
+    $provider = createActiveSamlProvider($slug, $admin);
+
+    return [$tenant, $user, $provider['public_id']];
+}
+
+/**
+ * REQ-AUTH-004 (1.4c), funcional.md §G.4.3. Arranca `POST
+ * /auth/oauth-authorizations` con un proveedor SAML — paralela de
+ * `beginOidcFlow()`. A diferencia de OIDC, el arranque SAML **no
+ * escribe nada en la sesión** (`§G.0.4`, `RN-AUTH-114`): la fila de
+ * correlación vive en `saml_auth_requests`. `$sessionCookie` de entrada
+ * sigue haciendo falta para `intent = 'link'` (exige sesión autenticada
+ * en el momento de emitir la petición, `§G.4.4`) y para no arrastrar la
+ * sesión de una llamada anterior en el mismo test (issue #83, ver
+ * `resetSessionState()`).
+ *
+ * @return array{0: string, 1: string} [authorization_url, session_cookie]
+ */
+function beginSamlFlow(string $slug, string $providerPublicId, string $intent = 'login', ?string $sessionCookie = null): array
+{
+    if ($sessionCookie !== null) {
+        $client = withSessionCookie($sessionCookie);
+    } else {
+        resetSessionState();
+        $client = test();
+    }
+
+    $begin = $client->postJson(coreApiUrl($slug, '/auth/oauth-authorizations'), [
+        'provider' => $providerPublicId,
+        'intent' => $intent,
+    ])->assertStatus(201);
+
+    return [$begin->json('authorization_url'), sessionCookieValue($begin)];
+}
+
+/**
+ * REQ-AUTH-004 (1.4c), operacion.md §G.10.2. Completa el flujo SAML
+ * simulado: llama al `GET` de SSO del IdP simulado con el `SAMLRequest`
+ * real que devolvió `beginSamlFlow()` (mismo `ID`, mismo `Destination`,
+ * mismo `Issuer`) más los parámetros que fuerzan una aserción rota o
+ * personalizan el sujeto (`sub`, `broken`, `name_id_format`,
+ * `attribute_name`, `attribute_value`, `assertion_id_override`,
+ * `acs_url_override`, `audience_override`), extrae el formulario de
+ * auto-envío que produce (`SAMLResponse` + la URL del ACS de destino) y
+ * lo entrega al ACS real por `POST` — **sin cookie de sesión y sin
+ * token CSRF**, tal y como llega desde un navegador real tras un `POST`
+ * entre sitios (`RN-AUTH-124`, `CA-AUTH-347`). Devuelve la respuesta del
+ * ACS, siempre `302` (`api.md §G.7.2`).
+ *
+ * @param  array<string, mixed>  $params
+ */
+function completeSamlFlow(string $authorizationUrl, array $params = []): TestResponse
+{
+    $query = [];
+    parse_str((string) parse_url($authorizationUrl, PHP_URL_QUERY), $query);
+
+    $ssoUrl = SAML_FAKE_IDP_SSO_URL.'?'.http_build_query(array_merge($query, $params));
+
+    $form = test()->get($ssoUrl)->assertOk();
+
+    $acsUrl = samlAutoSubmitFormValue($form->getContent(), 'action');
+    $samlResponseB64 = samlAutoSubmitFormValue($form->getContent(), 'SAMLResponse');
+
+    return test()->post($acsUrl, ['SAMLResponse' => $samlResponseB64])->assertRedirect();
+}
+
+/**
+ * Extrae, del HTML de auto-envío de `FakeSamlIdentityProviderController::
+ * sso()`, el destino del formulario (`$name = 'action'`) o el valor de
+ * uno de sus campos ocultos (`$name` = nombre del campo, p. ej.
+ * `'SAMLResponse'`). Infraestructura de test, no cliente SAML genérico:
+ * el HTML lo produce siempre el mismo controlador con la misma forma.
+ */
+function samlAutoSubmitFormValue(string $html, string $name): string
+{
+    if ($name === 'action') {
+        preg_match('/<form method="post" action="([^"]*)"/', $html, $matches);
+    } else {
+        preg_match('/name="'.preg_quote($name, '/').'" value="([^"]*)"/', $html, $matches);
+    }
+
+    return html_entity_decode($matches[1] ?? '', ENT_QUOTES, 'UTF-8');
+}
+
+/**
+ * REQ-AUTH-004 (1.4c). Login SAML completo en un solo paso, sin desafío
+ * de MFA de por medio — paralela de `loginWithOidcFor()`. `$params` debe
+ * traer al menos `sub` y, salvo que el proveedor cataloge
+ * `name_id_format = emailAddress`, `attribute_name`/`attribute_value`
+ * con el atributo de correo configurado (`'mail'` por defecto en
+ * `createActiveSamlProvider()`).
+ *
+ * @param  array<string, mixed>  $params
+ */
+function loginWithSamlFor(string $slug, string $providerPublicId, array $params): string
+{
+    [$authorizationUrl, $beginCookie] = beginSamlFlow($slug, $providerPublicId);
+    $callback = completeSamlFlow($authorizationUrl, $params);
+
+    expect(oauthCallbackResultCode($callback))->toBeNull();
+
+    return sessionCookieValue($callback);
+}
+
+/**
+ * REQ-AUTH-004 (1.4c), `RN-AUTH-126`. Genera un par clave/certificado
+ * X.509 autofirmado **de prueba** (`REQ-SEED-005`: nunca material de
+ * producción), con la vigencia pedida a partir de ahora — para los
+ * tests de carga manual de certificados del IdP (`CA-AUTH-328`-`330`)
+ * que necesitan un PEM real y no el del IdP simulado (que solo conoce
+ * una clave). Con `Carbon::setTestNow()` activo (viaje en el tiempo),
+ * `$days` se cuenta desde el "ahora" congelado.
+ *
+ * @return array{key: string, cert: string}
+ */
+function generateSelfSignedTestCertificate(int $days = 3650, int $keyBits = 2048): array
+{
+    $key = openssl_pkey_new([
+        'private_key_bits' => $keyBits,
+        'private_key_type' => OPENSSL_KEYTYPE_RSA,
+    ]);
+
+    $csr = openssl_csr_new(['CN' => 'saml-test-cert.example.com'], $key, ['digest_alg' => 'sha256']);
+    $cert = openssl_csr_sign($csr, null, $key, $days, ['digest_alg' => 'sha256']);
+
+    openssl_pkey_export($key, $keyPem);
+    openssl_x509_export($cert, $certPem);
+
+    return ['key' => $keyPem, 'cert' => $certPem];
+}
+
+/**
+ * El cuerpo Base64 de un PEM, sin cabeceras `BEGIN/END CERTIFICATE` ni
+ * espacio en blanco — la forma en la que un `ds:X509Certificate` de
+ * metadatos SAML lo lleva.
+ */
+function stripPemHeaders(string $pem): string
+{
+    return trim((string) preg_replace('/-----(BEGIN|END) CERTIFICATE-----|\s+/', '', $pem));
+}
+
+/**
+ * REQ-AUTH-004 (1.4c), `funcional.md §G.4.2`. Construye a mano un
+ * documento de metadatos de IdP mínimo pero válido, con el certificado
+ * y el `NameIDFormat` que se le pidan — para los tests de las guardas de
+ * contenido (`CA-AUTH-318`, `321`-`323`) que necesitan una forma
+ * concreta que el IdP simulado no ofrece (p. ej. `NameIDFormat`
+ * `transient`, o ningún `KeyDescriptor`).
+ *
+ * @param  list<string>  $nameIdFormats  URN completos. `[]` omite el elemento por completo.
+ */
+function buildSamlMetadataXml(
+    string $entityId = 'https://idp-manual.example.com/entity',
+    ?string $certificatePem = null,
+    string $ssoBinding = 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect',
+    string $ssoUrl = 'https://idp-manual.example.com/sso',
+    array $nameIdFormats = ['urn:oasis:names:tc:SAML:2.0:nameid-format:persistent'],
+): string {
+    $keyDescriptor = $certificatePem !== null
+        ? '<md:KeyDescriptor use="signing"><ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">'.
+            '<ds:X509Data><ds:X509Certificate>'.stripPemHeaders($certificatePem).'</ds:X509Certificate></ds:X509Data>'.
+            '</ds:KeyInfo></md:KeyDescriptor>'
+        : '';
+
+    $nameIdFormatsXml = implode('', array_map(
+        fn (string $urn): string => '<md:NameIDFormat>'.htmlspecialchars($urn, ENT_QUOTES).'</md:NameIDFormat>',
+        $nameIdFormats,
+    ));
+
+    $entityIdAttr = htmlspecialchars($entityId, ENT_QUOTES);
+    $ssoUrlAttr = htmlspecialchars($ssoUrl, ENT_QUOTES);
+    $ssoBindingAttr = htmlspecialchars($ssoBinding, ENT_QUOTES);
+
+    return <<<XML
+        <?xml version="1.0"?>
+        <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="{$entityIdAttr}">
+          <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+            {$keyDescriptor}
+            {$nameIdFormatsXml}
+            <md:SingleSignOnService Binding="{$ssoBindingAttr}" Location="{$ssoUrlAttr}"/>
+          </md:IDPSSODescriptor>
+        </md:EntityDescriptor>
+        XML;
+}
