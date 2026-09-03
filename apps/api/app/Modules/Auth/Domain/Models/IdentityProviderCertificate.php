@@ -36,14 +36,24 @@ class IdentityProviderCertificate extends TenantModel implements Auditable
 
     protected $table = 'identity_provider_certificates';
 
-    /** @var array<int, string> */
+    /**
+     * `fingerprint_sha256` no va aquí, aunque no sea un secreto en sí
+     * (RN-AUTH-127, ADR-043 §3.5.5/§10.6: "ni el PEM ni ninguna huella
+     * entran en audit_logs"). Identifica de forma única un certificado
+     * concreto, así que exponerla en audit_logs reconstruiría fuera de
+     * la tabla el mismo identificador que datos.md §G.5 protege dentro
+     * (issue #157, revisión de 1.4c: datos.md decía lo contrario y
+     * contradecía este mismo ADR que citaba).
+     *
+     * @var array<int, string>
+     */
     protected array $auditRecordedAttributes = [
-        'identity_provider_id', 'fingerprint_sha256', 'not_before', 'not_after', 'source', 'retired_at',
+        'identity_provider_id', 'not_before', 'not_after', 'source', 'retired_at',
         'deleted_at', 'created_by', 'updated_by',
     ];
 
     /** @var array<int, string> */
-    protected array $auditSecretAttributes = ['certificate'];
+    protected array $auditSecretAttributes = ['certificate', 'fingerprint_sha256'];
 
     public function auditValuePolicy(): AuditValuePolicy
     {
