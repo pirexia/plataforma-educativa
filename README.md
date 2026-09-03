@@ -4,9 +4,9 @@ SaaS para la gestión integral de centros educativos. Segmento inicial: **centro
 
 | Campo | Valor |
 |-------|-------|
-| **Versión del documento** | 2.5.2 |
-| **Fecha** | 2026-09-02 |
-| **Estado del proyecto** | Fase 1 · MVP operativo. Bloque A (identidad y acceso): tenants/usuarios, autenticación local, sesiones activas, MFA (TOTP + correo), login con Google (fusión de cuentas) y SSO institucional OIDC con aprovisionamiento por emparejamiento cerrados y mezclados (`1.1`-`1.4b`). `1.4c` (SSO institucional SAML 2.0, `ADR-043`) en desarrollo, sobre rama propia, pendiente de revisión de seguridad y de mezclar |
+| **Versión del documento** | 2.5.3 |
+| **Fecha** | 2026-09-04 |
+| **Estado del proyecto** | Fase 1 · MVP operativo. Bloque A (identidad y acceso) **completo y mezclado**: tenants/usuarios, autenticación local, sesiones activas, MFA (TOTP + correo), login con Google (fusión de cuentas) y SSO institucional OIDC + SAML 2.0 con aprovisionamiento por emparejamiento (`1.1`-`1.4c`, `REQ-AUTH-004` íntegro). Siguiente paso: `1.5` · Permisos granulares (paso crítico) |
 
 ---
 
@@ -73,17 +73,17 @@ Lista completa: sección 0.5 del documento de requisitos (`INV-001` a `INV-015`)
 
 | Documento | Versión |
 |-----------|---------|
-| `README.md` | 2.5.2 |
-| `CLAUDE.md` | 2.3.0 |
+| `README.md` | 2.5.3 |
+| `CLAUDE.md` | 2.4.0 |
 | `ARCHITECTURE.md` | 2.0.2 |
 | `PLAN-IMPLEMENTACION.md` | 2.2.0 |
-| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | 3.1.3 |
+| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | 3.1.4 |
 | `docs/SETUP-CLAUDE-CODE.md` | 1.2.0 |
 | `docs/SETUP-ENTORNO.md` | 1.3.0 |
-| `SYSADMIN.md` | 0.6.0 |
-| `SECURITY.md` | 0.2.2 |
+| `SYSADMIN.md` | 0.7.0 |
+| `SECURITY.md` | 0.2.3 |
 | `PRIVACY.md` | 0.2.2 |
-| `RUNBOOK.md` | 0.2.0 |
+| `RUNBOOK.md` | 0.3.0 |
 | `CONTRIBUTING.md` | 0.1.0 |
 
 Historial completo en `CHANGELOG.md`.
