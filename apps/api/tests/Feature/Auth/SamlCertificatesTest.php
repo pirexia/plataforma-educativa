@@ -328,7 +328,7 @@ test('CA-AUTH-333: ni el PEM ni la huella de un certificado aparecen en audit_lo
             ->where('auditable_id', DB::table('identity_provider_certificates')->where('public_id', $store->json('public_id'))->value('id'))
             ->first();
         expect($createdLog)->not->toBeNull()
-            ->and($createdLog->actor_id)->not->toBeNull();
+            ->and($createdLog->actor_user_id)->not->toBeNull();
         expect($createdLog->changes)->toContain('not_before')->toContain('not_after');
     });
 });

@@ -775,6 +775,26 @@ function beginSamlFlow(string $slug, string $providerPublicId, string $intent = 
  * entre sitios (`RN-AUTH-124`, `CA-AUTH-347`). Devuelve la respuesta del
  * ACS, siempre `302` (`api.md §G.7.2`).
  *
+ * `resetSessionState()` justo antes del `POST` al ACS, no al principio de
+ * la función: el ACS crea una sesión propia, genuinamente nueva, sin
+ * relación con la de la petición `GET` de SSO que la precede (que a su
+ * vez puede no llevar ninguna). Sin este reseteo, `Illuminate\Session\
+ * DatabaseSessionHandler::$exists` —una bandera de instancia, no por
+ * sesión— queda en `true` desde una escritura anterior de este mismo
+ * test (p. ej. `provisionCoreTenant()`/`beginSamlFlow()`), y
+ * `DatabaseSessionHandler::write()` se lo cree para el nuevo `id` del
+ * ACS y llama a `performUpdate()` en vez de `performInsert()`: un
+ * `UPDATE` de cero filas, sin excepción, sin aviso. La cookie de sesión
+ * que el ACS devuelve queda "viva" a ojos del cliente de test, pero la
+ * fila de `sessions` nunca llega a existir hasta la primera petición
+ * posterior que sí resetea o que golpea un handler fresco — momento en
+ * el que cualquier cosa guardada en el `payload` del ACS (aquí,
+ * `stashPendingSsoMatch()` para el vínculo pendiente de MFA) se ha
+ * perdido en silencio. Bug real encontrado con `CA-AUTH-354`, mismo
+ * mecanismo general que el issue #83 ya documentado en
+ * `resetSessionState()`, pero disparado por la reutilización del
+ * handler entre sesiones distintas, no por la cookie adjunta al cliente.
+ *
  * @param  array<string, mixed>  $params
  */
 function completeSamlFlow(string $authorizationUrl, array $params = []): TestResponse
@@ -788,6 +808,8 @@ function completeSamlFlow(string $authorizationUrl, array $params = []): TestRes
 
     $acsUrl = samlAutoSubmitFormValue($form->getContent(), 'action');
     $samlResponseB64 = samlAutoSubmitFormValue($form->getContent(), 'SAMLResponse');
+
+    resetSessionState();
 
     return test()->post($acsUrl, ['SAMLResponse' => $samlResponseB64])->assertRedirect();
 }
