@@ -1,6 +1,6 @@
 # SECURITY.md
 
-> **Versión 0.2.2** · 2026-09-02
+> **Versión 0.2.3** · 2026-09-03
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6), no solo al final. Sin datos reales todavía (`ADR-030`, entorno de desarrollo en WSL2).
 
 ---
@@ -35,9 +35,18 @@ Un contacto de seguridad dedicado (email, política de divulgación responsable 
 | Consultas a base de datos | Parametrizadas siempre. Nunca concatenación de SQL | `CLAUDE.md` §8 |
 | Ficheros subidos | Validación de tipo real, tamaño y almacenamiento fuera de la raíz web, con URL firmada de caducidad corta | `CLAUDE.md` §8 |
 
+### 2.1 · La excepción de CSRF del ACS SAML
+
+**Es la primera y única excepción de CSRF de toda la aplicación** (`1.4c`, `REQ-AUTH-004`). El motivo es de protocolo, no de comodidad: un IdP SAML entrega la aserción al *Assertion Consumer Service* (ACS) mediante un `POST` HTTP entre sitios (*HTTP-POST binding*), y `SameSite=Lax` de la cookie de sesión no acompaña a ese `POST` — el navegador nunca envía la cookie, así que no hay token CSRF que verificar ni sesión de la que leerlo.
+
+**Alcance de la excepción**: un grupo de rutas propio, con su propia pila de middleware declarada explícitamente, que cubre **únicamente** `POST /api/v1/auth/saml/{publicId}/acs`. No es una entrada en la lista global de exenciones de `validateCsrfTokens(except:)` — esa lista sigue vacía. Ninguna otra ruta de la aplicación está exenta.
+
+**Por qué es segura sin CSRF**: la mitigación no es una excepción "confiada", es una sustitución equivalente. El ACS solo acepta una aserción cuyo `InResponseTo` case con una fila de `saml_auth_requests` que la propia aplicación emitió, que sigue viva (no caducada) y que no ha sido consumida — el consumo es atómico a nivel de SQL (`UPDATE ... WHERE consumed_at IS NULL` comprobando la fila afectada dentro de la misma transacción que valida la aserción, nunca lectura-luego-escritura), así que dos peticiones concurrentes con la misma aserción no pueden ganar las dos. Sin esa fila previa, la aserción se rechaza — es lo que excluye el SSO iniciado por el propio IdP (`ADR-043 §10.9` decisión 4): aceptarlo habría significado aceptar un `POST` sin CSRF y sin nada contra qué correlacionar, es decir, *login CSRF* real y sin mitigación.
+
+**A esto se suma**: la firma de la aserción se verifica siempre (§2, fila "SSO institucional SAML 2.0"), y el proveedor —y por tanto el certificado admisible— se resuelve desde la propia ruta del ACS, nunca desde el contenido del mensaje.
+
 ## 3. Qué falta todavía (no es una omisión, es el orden del plan)
 
-- **SSO institucional SAML 2.0** (`1.4c`) — la mitad OIDC ya está implementada (§2). `ADR-043` divide el requisito en dos pasos: SAML rompe a la vez el mecanismo de sesión del *callback*, el envoltorio de la dependencia, el perfil de riesgo (verificado contra Packagist: patrón recurrente de fallos de validación de firma en las bibliotecas PHP candidatas) y el ciclo de vida del certificado, ninguno de los cuales afecta a OIDC.
 - **Autorización granular por endpoint**: el esquema de `roles`/`permissions` existe desde el paso 0.8 y cada endpoint de negocio implementado ya exige su permiso (`INV-002`), pero el resolutor completo (matriz recurso × acción × ámbito, roles personalizados, vista previa de permisos efectivos) llega en el paso 1.5.
 - **Cabeceras de seguridad y CSP estricta**: se configuran en el primer despliegue real (`OPEN-11`), no en desarrollo.
 - **Hallazgos de seguridad conocidos y ya registrados**, no bloqueantes hoy: [#6](https://github.com/pirexia/plataforma-educativa/issues/6) (`TenantContext::runAsPlatform()` sin auditoría, pendiente del sistema de permisos), [#7](https://github.com/pirexia/plataforma-educativa/issues/7) (ventana de caché en la suspensión de tenants), [#8](https://github.com/pirexia/plataforma-educativa/issues/8) (cookie de sesión host-only por defecto de Laravel, sin refuerzo activo), [#18](https://github.com/pirexia/plataforma-educativa/issues/18) (falta un `PasswordBrokerRepository` propio con tenant, reevaluar tras 1.2), [#81](https://github.com/pirexia/plataforma-educativa/issues/81) (`tenant_id`/RLS en `sessions` del framework, endurecimiento futuro).

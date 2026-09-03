@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Versión** | 3.1.3 |
-| **Fecha** | 2026-09-01 |
+| **Versión** | 3.1.4 |
+| **Fecha** | 2026-09-03 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
 | **Documento sustituye a** | v1.2.0 (mismo contenido, reorganizado y ampliado) |
@@ -570,6 +570,8 @@ El Administrador de Centro puede:
 - OIDC para Azure AD / Entra ID, Google Workspace, etc.
 - Mapeo automático de atributos SAML/OIDC a campos de usuario.
 - Just-in-Time provisioning: creación automática de usuarios en el primer login SSO.
+
+> ⚠️ **Cobertura real, `ADR-043`**: el aprovisionamiento se implementa **solo por emparejamiento** con una `Person`/`User` ya existente en el censo del centro — nunca crea cuentas nuevas. Un directorio institucional (Google Workspace for Education, Entra ID) contiene también alumnado, y crear automáticamente sin conocer la fecha de nacimiento incumpliría `INV-008` (`ADR-043 §8.1`, decisión del usuario, 2026-09-01). El mapeo de atributos resuelve identidad (qué *claim*/atributo identifica, cuál empareja) pero **no** escribe sobre `people`: hacerlo violaría `RN-AUTH-88` (los datos ya los puso la secretaría). Ambos puntos quedan, por tanto, cubiertos solo parcialmente mientras `OPEN-13`/`REQ-PRIV-006` sigan abiertas (lista de bases legales por campo).
 
 #### REQ-AUTH-005: Gestión de sesiones
 - Sesiones con expiración configurable (por defecto 30 minutos de inactividad).
@@ -3323,6 +3325,7 @@ Se mantendrá una matriz de trazabilidad (generada automáticamente desde las re
 
 | Versión | Fecha | Autor | Descripción |
 |---------|-------|-------|-------------|
+| 3.1.4 | 2026-09-03 | Product Owner | `REQ-AUTH-004`: nota de cobertura real (`ADR-043`) sobre aprovisionamiento solo por emparejamiento y mapeo de atributos sin escritura sobre `people` — la redacción original seguía describiendo creación automática de usuarios, contradiciendo la decisión ya tomada en `1.4b` (hallazgo de `doc-reviewer`, revisión de `1.4c`). |
 | 3.1.3 | 2026-09-01 | Product Owner | `ADR-043`: alcance y secuencia de `REQ-AUTH-004` (SSO institucional), añadido al índice de la sección 18. Divide el paso en `1.4b` (OIDC + aprovisionamiento) y `1.4c` (SAML 2.0); `PLAN-IMPLEMENTACION.md` actualizado en consecuencia. |
 | 3.1.2 | 2026-08-31 | Product Owner | `ADR-042`: dependencia externa del login con Google (`laravel/socialite` `^5.30` tras `ExternalIdentityProvider`), añadido al índice de la sección 18. Requisito previo del paso `1.4` (`REQ-AUTH-002`). |
 | 3.1.1 | 2026-08-27 | Product Owner | `ADR-041`: dependencias externas de MFA (`pragmarx/google2fa` en el backend, `uqr` en la SPA), añadido al índice de la sección 18. Requisito previo del paso `1.3` (`REQ-AUTH-003`). |

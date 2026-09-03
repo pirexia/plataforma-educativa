@@ -6,6 +6,31 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-09-02/03 · 1.4c (`REQ-AUTH-004`, parte 2/2: SSO institucional SAML 2.0) — en revisión, sin mezclar todavía
+
+### Nuevo: SAML 2.0 como segundo protocolo del catálogo `identity_providers`
+`architect` reevaluó en vivo, al abrir el paso, la comparación de bibliotecas SAML PHP que `ADR-043 §7.3` había dejado sin recomendación firme: dos de sus cuatro observaciones resultaron equivocadas (`litesaml/lightsaml` tuvo un salto de autenticación real por *XML Signature Wrapping* en 5.0.0 sin aviso publicado en Packagist ni GHSA; `simplesamlphp/saml2` v6 abandonó `xmlseclibs` por una biblioteca propia con escrutinio externo casi nulo). Recomendación resultante y decisión del usuario: **`SAML-Toolkits/php-saml` 4.x**, envuelta tras interfaz propia (`RNF-MANT-007`), nunca `OneLogin\Saml2\Auth` directamente.
+
+Ocho decisiones más del usuario (2026-09-02, `ADR-043 §10.9`, todas siguiendo la recomendación): catálogo con discriminador `protocol` + tabla hija `saml_identity_provider_settings` (1:1, sin mover las columnas OIDC de 1.4b); excepción de CSRF acotada a un grupo de rutas propio solo para el ACS, nunca una lista global; **sin SSO iniciado por el IdP** (precondición de seguridad de esa misma excepción: sin petición previa que correlacionar, sería *login CSRF* sin mitigación); objeto de valor propio para la identidad SAML (no reutiliza `ExternalIdentity`, que depende de `email_verified`, inexistente en SAML); clave de firma del SP única de plataforma, por fichero montado y variable de entorno, nunca en base de datos; MFA propio nunca exento aunque el IdP declare su propio segundo factor; sin intermediario externo (Keycloak/Authentik). Siete preguntas más de `spec-writer` al detallar la especificación (`OPEN-AUTH-42`-`48`), todas resueltas por el usuario siguiendo la recomendación.
+
+Correlación de la petición SAML en servidor (`saml_auth_requests`, consumo atómico de un solo uso), gestión y rotación de certificados de firma del IdP con retirada manual, obtención de metadatos por URL (reutilizando las cinco guardas SSRF de 1.4b) o XML pegado. Aprovisionamiento solo por emparejamiento, igual que OIDC — ya impuesto por el `CHECK` de `identity_providers.provisioning_mode` desde 1.4b, no una decisión nueva de este paso.
+
+### Corregido
+- **Media** (revisión independiente `db-reviewer`): `identity_provider_certificates_tenant_provider_fingerprint_unique` medía 65 caracteres — PostgreSQL lo habría truncado en silencio al límite de 63. Renombrado a `...tenant_provider_fp_unique`.
+- **Media** (revisión independiente `db-reviewer`): el índice de purga de `saml_auth_requests` solo cubría la mitad de la condición real de la consulta (filas caducadas sin consumir); la rama de filas ya consumidas —es decir, todo login SSO SAML exitoso— se quedaba sin índice de apoyo hasta purgarse, mismo patrón que motivó los issues #118/#119 de `1.3b`. Añadido el índice que faltaba.
+- **Alta** (revisión independiente `security-reviewer` y `doc-reviewer`, coincidente): el ACS —la única ruta sin CSRF de la aplicación— no tenía ningún test ejecutándolo de verdad, pese a que el código citaba varios criterios de aceptación como si estuvieran verificados. Issue [#152](https://github.com/pirexia/plataforma-educativa/issues/152).
+- **Alta** (revisión independiente `doc-reviewer`): `SECURITY.md` remitía a una `§2.1` inexistente para la excepción de CSRF del ACS. Añadida.
+- **Alta** (revisión independiente `doc-reviewer`): `apps/api/openapi.yaml` no registraba los cinco endpoints nuevos del paso (los esquemas existían en `openapi/paths/sso.yaml` pero no estaban enlazados). Corregido.
+- **Media** (revisión independiente `doc-reviewer`): `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` seguía describiendo `REQ-AUTH-004` con aprovisionamiento por creación automática ("*Just-in-Time provisioning*"), contradiciendo la decisión de solo-emparejamiento tomada en `1.4b`.
+
+### Diferido a propósito (issues abiertos)
+[#153](https://github.com/pirexia/plataforma-educativa/issues/153) (Baja): nombre de FK de `1.4b` (`identity_provider_secrets`) también truncado a 63 bytes por PostgreSQL, hallazgo colateral de la revisión de `1.4c`, sin código de aplicación que lo referencie hoy · [#154](https://github.com/pirexia/plataforma-educativa/issues/154) (Baja): aviso de expiración de certificados SAML en el manual de administrador más vago que el resto del propio documento.
+
+### Revisión independiente
+`security-reviewer`: 1 hallazgo Alta bloqueante (tests del ACS ausentes, detalle arriba), el resto de los doce puntos de atención sin hallazgos contra código real. `db-reviewer`: 2 hallazgos Media, corregidos antes de continuar. `doc-reviewer`: 3 hallazgos Alta bloqueantes y 2 Media, corregidos antes de continuar — la coherencia código↔documentación del propio módulo `REQ-AUTH` no tuvo hallazgos; todo lo bloqueante fue vigencia de documentos raíz y `OpenAPI`. **Pendiente de segunda pasada de verificación de estos hallazgos y del test de seguridad antes de mezclar** — esta entrada se completa con las cifras finales en el cierre.
+
+---
+
 ## 2026-09-01/02 · Cierre de 1.4b (`REQ-AUTH-004`, parte 1/2: SSO institucional OIDC y aprovisionamiento por emparejamiento)
 
 ### Nuevo: catálogo de proveedores OIDC por tenant, login institucional, aprovisionamiento por emparejamiento
