@@ -111,7 +111,7 @@ test('CA-AUTH-354: con factor TOTP confirmado, el login SAML no crea sesión y a
     [$tenant, $user, $providerId] = provisionSamlTenantWithActiveUser(samlLoginSlug('saml-354'), ['email' => 'u354@example.com']);
     $secret = createConfirmedTotpFactor($tenant, $user);
 
-    [$authorizationUrl, ] = beginSamlFlow($tenant->slug, $providerId);
+    [$authorizationUrl] = beginSamlFlow($tenant->slug, $providerId);
     $callback = completeSamlFlow($authorizationUrl, [
         'sub' => 'sub-354', 'attribute_name' => 'mail', 'attribute_value' => 'u354@example.com',
     ]);
@@ -155,7 +155,7 @@ test('CA-AUTH-355: intent=link arrancado desde el perfil crea el vínculo sobre 
     $authenticated = loginFor($tenant->slug, 'u355@example.com', $rawPassword);
     $sessionCookie = sessionCookieValue($authenticated);
 
-    [$authorizationUrl, ] = beginSamlFlow($tenant->slug, $provider['public_id'], 'link', $sessionCookie);
+    [$authorizationUrl] = beginSamlFlow($tenant->slug, $provider['public_id'], 'link', $sessionCookie);
 
     // completeSamlFlow() entrega el ACS SIN cookie de sesión de por
     // medio (§G.4.4: el ACS no tiene sesión) — el usuario a vincular sale
@@ -190,7 +190,7 @@ test('CA-AUTH-356: intent=link cuyo linking_user_id se desactivó entre la petic
     $authenticated = loginFor($tenant->slug, 'u356@example.com', $rawPassword);
     $sessionCookie = sessionCookieValue($authenticated);
 
-    [$authorizationUrl, ] = beginSamlFlow($tenant->slug, $provider['public_id'], 'link', $sessionCookie);
+    [$authorizationUrl] = beginSamlFlow($tenant->slug, $provider['public_id'], 'link', $sessionCookie);
 
     app(TenantContext::class)->runFor($tenant->id, function () use ($user): void {
         $user->fresh()->update(['status' => UserStatus::Inactivo]);
@@ -217,7 +217,7 @@ test('CA-AUTH-357: un bloqueo vivo para (tenant_id, email) impide entrar por SAM
         app(AccountLockService::class)->lock('u357@example.com', $user, 5);
     });
 
-    [$authorizationUrl, ] = beginSamlFlow($tenant->slug, $providerId);
+    [$authorizationUrl] = beginSamlFlow($tenant->slug, $providerId);
     $callback = completeSamlFlow($authorizationUrl, [
         'sub' => 'sub-357', 'attribute_name' => 'mail', 'attribute_value' => 'u357@example.com',
     ]);
@@ -235,7 +235,7 @@ test('CA-AUTH-358: un usuario pendiente cuyo correo coincide no entra, no se act
         'email' => 'u358@example.com', 'status' => UserStatus::Pendiente,
     ]);
 
-    [$authorizationUrl, ] = beginSamlFlow($tenant->slug, $providerId);
+    [$authorizationUrl] = beginSamlFlow($tenant->slug, $providerId);
     $callback = completeSamlFlow($authorizationUrl, [
         'sub' => 'sub-358', 'attribute_name' => 'mail', 'attribute_value' => 'u358@example.com',
     ]);

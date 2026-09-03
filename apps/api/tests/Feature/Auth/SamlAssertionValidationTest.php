@@ -128,7 +128,7 @@ test('CA-AUTH-339: una aserción del centro A se rechaza en el ACS del centro B 
     // Barrera 1: la ruta. Una aserción válida de A entregada en el host
     // de B, sobre el MISMO public_id de A — RLS hace que ese public_id
     // no exista para B, RN-AUTH-116.
-    [$authorizationUrl1, ] = beginSamlFlow($tenantA->slug, $providerA['public_id']);
+    [$authorizationUrl1] = beginSamlFlow($tenantA->slug, $providerA['public_id']);
     $query1 = [];
     parse_str((string) parse_url($authorizationUrl1, PHP_URL_QUERY), $query1);
     $ssoUrl1 = SAML_FAKE_IDP_SSO_URL.'?'.http_build_query(array_merge($query1, [
@@ -145,7 +145,7 @@ test('CA-AUTH-339: una aserción del centro A se rechaza en el ACS del centro B 
     // igualmente en la ACS real de A (para aislar esta barrera de la de
     // la ruta): se posta a mano en vez de seguir el `action` del
     // formulario, que llevaría el mismo valor erróneo.
-    [$authorizationUrl2, ] = beginSamlFlow($tenantA->slug, $providerA['public_id']);
+    [$authorizationUrl2] = beginSamlFlow($tenantA->slug, $providerA['public_id']);
     $query2 = [];
     parse_str((string) parse_url($authorizationUrl2, PHP_URL_QUERY), $query2);
     $ssoUrl2 = SAML_FAKE_IDP_SSO_URL.'?'.http_build_query(array_merge($query2, [
@@ -163,7 +163,7 @@ test('CA-AUTH-339: una aserción del centro A se rechaza en el ACS del centro B 
     // — la entrega sí llega a la ACS real de A. Petición nueva (una fila
     // de correlación es de un solo uso, RN-AUTH-121): no se reutiliza
     // ninguna de las dos anteriores.
-    [$authorizationUrl3, ] = beginSamlFlow($tenantA->slug, $providerA['public_id']);
+    [$authorizationUrl3] = beginSamlFlow($tenantA->slug, $providerA['public_id']);
     $callback3 = completeSamlFlow($authorizationUrl3, [
         'broken' => 'audiencia_otro_tenant', 'sub' => 'sub-339-audiencia', 'attribute_name' => 'mail', 'attribute_value' => 'u339@example.com',
     ]);
@@ -185,7 +185,7 @@ test('CA-AUTH-340: Issuer distinto, NotOnOrAfter vencido y Recipient incorrecto 
     [$tenant, $user, $providerId] = provisionSamlTenantWithActiveUser(samlAssertionSlug('saml-340'), ['email' => 'u340@example.com']);
 
     // NotOnOrAfter vencido.
-    [$url1, ] = beginSamlFlow($tenant->slug, $providerId);
+    [$url1] = beginSamlFlow($tenant->slug, $providerId);
     $callback1 = completeSamlFlow($url1, [
         'broken' => 'caducada', 'sub' => 'sub-340a', 'attribute_name' => 'mail', 'attribute_value' => 'u340@example.com',
     ]);
@@ -195,7 +195,7 @@ test('CA-AUTH-340: Issuer distinto, NotOnOrAfter vencido y Recipient incorrecto 
     // CA-AUTH-339 (acs_url_override cambia Destination/Recipient dentro
     // del XML sin cambiar dónde se entrega de verdad). Antes de mutar el
     // issuer más abajo, para no mezclar las dos causas de rechazo.
-    [$url2, ] = beginSamlFlow($tenant->slug, $providerId);
+    [$url2] = beginSamlFlow($tenant->slug, $providerId);
     $query2 = [];
     parse_str((string) parse_url($url2, PHP_URL_QUERY), $query2);
     $ssoUrl2 = SAML_FAKE_IDP_SSO_URL.'?'.http_build_query(array_merge($query2, [
@@ -215,7 +215,7 @@ test('CA-AUTH-340: Issuer distinto, NotOnOrAfter vencido y Recipient incorrecto 
         DB::table('identity_providers')->where('public_id', $providerId)->update(['issuer' => 'https://issuer-cambiado.example.com/entity']);
     });
 
-    [$url3, ] = beginSamlFlow($tenant->slug, $providerId);
+    [$url3] = beginSamlFlow($tenant->slug, $providerId);
     $callback3 = completeSamlFlow($url3, [
         'sub' => 'sub-340c', 'attribute_name' => 'mail', 'attribute_value' => 'u340@example.com',
     ]);
@@ -226,7 +226,7 @@ test('CA-AUTH-340: Issuer distinto, NotOnOrAfter vencido y Recipient incorrecto 
 test('CA-AUTH-341: una aserción sin InResponseTo se rechaza con estado_no_valido, aunque su firma sea perfectamente válida', function (): void {
     [$tenant, $user, $providerId] = provisionSamlTenantWithActiveUser(samlAssertionSlug('saml-341'), ['email' => 'u341@example.com']);
 
-    [$authorizationUrl, ] = beginSamlFlow($tenant->slug, $providerId);
+    [$authorizationUrl] = beginSamlFlow($tenant->slug, $providerId);
     $callback = completeSamlFlow($authorizationUrl, [
         'broken' => 'sin_in_response_to', 'sub' => 'sub-341', 'attribute_name' => 'mail', 'attribute_value' => 'u341@example.com',
     ]);
@@ -248,7 +248,7 @@ test('CA-AUTH-342: un InResponseTo de una fila ya consumida o caducada se rechaz
 
     // Caducada: se crea la petición y se fuerza su expires_at al pasado
     // antes de entregar la aserción.
-    [$authorizationUrl, ] = beginSamlFlow($tenant->slug, $providerId);
+    [$authorizationUrl] = beginSamlFlow($tenant->slug, $providerId);
     app(TenantContext::class)->runFor($tenant->id, function () use ($providerId): void {
         DB::table('saml_auth_requests')
             ->where('identity_provider_id', DB::table('identity_providers')->where('public_id', $providerId)->value('id'))
@@ -262,7 +262,7 @@ test('CA-AUTH-342: un InResponseTo de una fila ya consumida o caducada se rechaz
 
     // Ya consumida: se fuerza consumed_at directamente (sin depender de
     // completar un login real, que el hallazgo de la cabecera bloquea).
-    [$authorizationUrl2, ] = beginSamlFlow($tenant->slug, $providerId);
+    [$authorizationUrl2] = beginSamlFlow($tenant->slug, $providerId);
     app(TenantContext::class)->runFor($tenant->id, function () use ($providerId): void {
         DB::table('saml_auth_requests')
             ->where('identity_provider_id', DB::table('identity_providers')->where('public_id', $providerId)->value('id'))
@@ -284,7 +284,7 @@ test('CA-AUTH-343: dos entregas de la misma aserción — exactamente una crea s
     // ACS real, verbatim.
     [$tenant, $user, $providerId] = provisionSamlTenantWithActiveUser(samlAssertionSlug('saml-343'), ['email' => 'u343@example.com']);
 
-    [$authorizationUrl, ] = beginSamlFlow($tenant->slug, $providerId);
+    [$authorizationUrl] = beginSamlFlow($tenant->slug, $providerId);
     $query = [];
     parse_str((string) parse_url($authorizationUrl, PHP_URL_QUERY), $query);
     $ssoUrl = SAML_FAKE_IDP_SSO_URL.'?'.http_build_query(array_merge($query, [
@@ -326,7 +326,7 @@ test('CA-AUTH-344: una aserción ya consumida se reenvía contra otra petición 
     // (mismo assertion_id) — InResponseTo distinto (correlaciona con la
     // segunda fila), pero el ID de aserción ya está registrado en
     // saml_consumed_assertions.
-    [$authorizationUrl2, ] = beginSamlFlow($tenant->slug, $providerId);
+    [$authorizationUrl2] = beginSamlFlow($tenant->slug, $providerId);
     $callback2 = completeSamlFlow($authorizationUrl2, [
         'sub' => 'sub-344', 'attribute_name' => 'mail', 'attribute_value' => 'u344@example.com',
         'assertion_id_override' => $fixedAssertionId,
@@ -358,7 +358,7 @@ test('CA-AUTH-345: una aserción sin NameID, con NameID vacío, o con Format dis
     [$tenant, $user, $providerId] = provisionSamlTenantWithActiveUser(samlAssertionSlug('saml-345'), ['email' => 'u345@example.com']);
 
     // Sin NameID.
-    [$url1, ] = beginSamlFlow($tenant->slug, $providerId);
+    [$url1] = beginSamlFlow($tenant->slug, $providerId);
     $callback1 = completeSamlFlow($url1, [
         'broken' => 'sin_name_id', 'attribute_name' => 'mail', 'attribute_value' => 'u345@example.com',
     ]);
@@ -366,7 +366,7 @@ test('CA-AUTH-345: una aserción sin NameID, con NameID vacío, o con Format dis
 
     // Format distinto del catalogado (el proveedor cataloga `persistent`
     // vía createActiveSamlProvider(); se envía `unspecified`).
-    [$url2, ] = beginSamlFlow($tenant->slug, $providerId);
+    [$url2] = beginSamlFlow($tenant->slug, $providerId);
     $callback2 = completeSamlFlow($url2, [
         'sub' => 'sub-345', 'name_id_format' => 'urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified',
         'attribute_name' => 'mail', 'attribute_value' => 'u345@example.com',

@@ -67,7 +67,7 @@ test('CA-AUTH-347: un POST al ACS sin cookie de sesión y sin token CSRF no resp
 test('CA-AUTH-348: un acceso SAML con éxito redirige a origen propio, sin datos personales en la URL, y la cookie resultante autentica de verdad', function (): void {
     [$tenant, $user, $providerId] = provisionSamlTenantWithActiveUser(samlAcsSlug('saml-348'), ['email' => 'u348@example.com']);
 
-    [$authorizationUrl, ] = beginSamlFlow($tenant->slug, $providerId);
+    [$authorizationUrl] = beginSamlFlow($tenant->slug, $providerId);
     $callback = completeSamlFlow($authorizationUrl, [
         'sub' => 'sub-348', 'attribute_name' => 'mail', 'attribute_value' => 'u348@example.com',
     ]);
