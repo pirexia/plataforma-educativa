@@ -360,7 +360,8 @@
         "issuer": "Aussteller",
         "status": "Status",
         "provisioningMode": "Bereitstellung",
-        "secret": "Zugangsdaten"
+        "secret": "Zugangsdaten",
+        "protocol": "Protokoll"
       },
       "status": {
         "enabled": "Aktiv",
@@ -415,7 +416,20 @@
           "preferred_username": "preferred_username",
           "upn": "upn"
         },
-        "allowedDomainsPlaceholder": "sucentro.es"
+        "allowedDomainsPlaceholder": "sucentro.es",
+        "protocol": "Protokoll",
+        "metadataSource": "Metadatenquelle",
+        "metadataSourceUrl": "URL",
+        "metadataSourceXml": "Eingefügtes XML",
+        "metadataUrl": "Metadaten-URL",
+        "metadataUrlHint": "Die URL, unter der dein Identitätsanbieter seine SAML-Metadaten veröffentlicht.",
+        "metadataXml": "XML-Metadaten",
+        "metadataXmlHint": "Füge hier das XML-Metadatendokument ein, das dein Identitätsanbieter veröffentlicht.",
+        "emailAttribute": "E-Mail-Attribut",
+        "emailAttributeHint": "Der Name des SAML-Attributs, das die E-Mail-Adresse enthält. Bleibt es leer, muss das Namensbezeichner-Format E-Mail sein.",
+        "signAuthnRequests": "Authentifizierungsanfragen signieren",
+        "signAuthnRequestsHint": "Erfordert einen konfigurierten Plattform-Signaturschlüssel. Aktiviere dies nur, wenn dein Identitätsanbieter es verlangt.",
+        "nameIdFormatLabel": "Erkanntes Namensbezeichner-Format: {format}"
       },
       "integration": {
         "title": "Was bei deinem Identitätsanbieter zu registrieren ist",
@@ -465,6 +479,52 @@
         "emisor_no_coincide": "Der angegebene Aussteller stimmt nicht mit dem Ursprung der Discovery-URL überein.",
         "endpoint_no_seguro": "Einer der angegebenen Endpunkte verwendet kein https.",
         "flujo_no_admitido": "Dieser Aussteller unterstützt den erforderlichen Autorisierungsablauf nicht."
+      },
+      "protocolLabel": {
+        "oidc": "OIDC",
+        "saml": "SAML 2.0"
+      },
+      "certificateStatus": {
+        "none": "Kein gültiges Signaturzertifikat",
+        "active": "Gültig: {count}",
+        "nextExpiry": "nächster Ablauf: {date}"
+      },
+      "confirmDeleteSaml": "Wenn du diesen Anbieter erneut erstellst, ändert sich die ACS-URL und du musst deinen Identitätsanbieter neu konfigurieren.",
+      "spMetadata": {
+        "title": "Was bei deinem Identitätsanbieter zu registrieren ist",
+        "intro": "Kopiere diese Werte in die Konfiguration deines Identitätsanbieters, um die Integration abzuschließen, oder lade das Metadatendokument herunter.",
+        "entityId": "Entitäts-ID (entityID)",
+        "acsUrl": "Assertion-Consumer-Service-URL (ACS)",
+        "nameIdFormat": "Namensbezeichner-Format",
+        "certificate": "Signaturzertifikat",
+        "download": "Metadaten herunterladen",
+        "loadError": "Die Metadaten des Dienstanbieters konnten nicht geladen werden."
+      },
+      "metadataRefresh": {
+        "button": "Metadaten-Aktualisierung erzwingen",
+        "refreshing": "Wird aktualisiert…",
+        "success": "Metadaten aktualisiert.",
+        "failure": "Die Metadaten konnten nicht aktualisiert werden; die vorherigen Werte bleiben erhalten."
+      },
+      "certificates": {
+        "title": "Signaturzertifikate des Identitätsanbieters",
+        "intro": "Die Zertifikate, mit denen dein Identitätsanbieter seine Aussagen signiert. Eine Metadaten-Aktualisierung kann nur Zertifikate hinzufügen, niemals entfernen.",
+        "none": "Dieser Anbieter hat kein Zertifikat hochgeladen.",
+        "certificate": "Zertifikat (PEM)",
+        "certificateHint": "Füge hier das X.509-Zertifikat im PEM-Format ein.",
+        "submit": "Zertifikat hochladen",
+        "submitting": "Wird hochgeladen…",
+        "genericError": "Das Zertifikat konnte nicht hochgeladen werden.",
+        "retire": "Entfernen",
+        "retireConfirm": "Dieses Zertifikat entfernen? Denke daran, dass dies es nicht bei deinem Identitätsanbieter widerruft.",
+        "retireWarning": "Das Entfernen eines Zertifikats hier widerruft es nicht bei deinem Identitätsanbieter.",
+        "retired": "Entfernt am {date}",
+        "validUntil": "Gültig bis {date}",
+        "source": {
+          "metadata": "Aus den Metadaten",
+          "manual": "Manuell hochgeladen"
+        },
+        "lastActiveError": "Du kannst das letzte gültige Zertifikat eines aktiven Anbieters nicht entfernen: deaktiviere ihn zuerst."
       }
     }
   }

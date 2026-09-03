@@ -360,7 +360,8 @@
         "issuer": "Émetteur",
         "status": "Statut",
         "provisioningMode": "Approvisionnement",
-        "secret": "Identifiant"
+        "secret": "Identifiant",
+        "protocol": "Protocole"
       },
       "status": {
         "enabled": "Actif",
@@ -415,7 +416,20 @@
           "preferred_username": "preferred_username",
           "upn": "upn"
         },
-        "allowedDomainsPlaceholder": "sucentro.es"
+        "allowedDomainsPlaceholder": "sucentro.es",
+        "protocol": "Protocole",
+        "metadataSource": "Origine des métadonnées",
+        "metadataSourceUrl": "URL",
+        "metadataSourceXml": "XML collé",
+        "metadataUrl": "URL des métadonnées",
+        "metadataUrlHint": "L'URL où votre fournisseur d'identité publie ses métadonnées SAML.",
+        "metadataXml": "Métadonnées XML",
+        "metadataXmlHint": "Collez ici le document de métadonnées XML publié par votre fournisseur d’identité.",
+        "emailAttribute": "Attribut de l'e-mail",
+        "emailAttributeHint": "Le nom de l'attribut SAML qui contient l'adresse e-mail. S'il est vide, le format de l'identifiant de nom doit être de type e-mail.",
+        "signAuthnRequests": "Signer les demandes d'authentification",
+        "signAuthnRequestsHint": "Nécessite une clé de signature de plateforme configurée. Activez-la seulement si votre fournisseur d'identité l'exige.",
+        "nameIdFormatLabel": "Format d'identifiant de nom détecté : {format}"
       },
       "integration": {
         "title": "Ce qu'il faut enregistrer auprès de votre fournisseur d'identité",
@@ -465,6 +479,52 @@
         "emisor_no_coincide": "L'émetteur déclaré ne correspond pas à l'origine de l'URL de découverte.",
         "endpoint_no_seguro": "L'un des points de terminaison déclarés n'utilise pas https.",
         "flujo_no_admitido": "Cet émetteur ne prend pas en charge le flux d'autorisation requis."
+      },
+      "protocolLabel": {
+        "oidc": "OIDC",
+        "saml": "SAML 2.0"
+      },
+      "certificateStatus": {
+        "none": "Aucun certificat de signature valide",
+        "active": "Valides : {count}",
+        "nextExpiry": "prochaine expiration : {date}"
+      },
+      "confirmDeleteSaml": "Si vous recréez ce fournisseur, l'URL ACS changera et vous devrez reconfigurer votre fournisseur d'identité.",
+      "spMetadata": {
+        "title": "Que déclarer auprès de votre fournisseur d'identité",
+        "intro": "Copiez ces valeurs dans la configuration de votre fournisseur d'identité pour terminer l'intégration, ou téléchargez le document de métadonnées.",
+        "entityId": "Identifiant d'entité (entityID)",
+        "acsUrl": "URL du service consommateur d'assertions (ACS)",
+        "nameIdFormat": "Format de l'identifiant de nom",
+        "certificate": "Certificat de signature",
+        "download": "Télécharger les métadonnées",
+        "loadError": "Les métadonnées du fournisseur de services n’ont pas pu être chargées."
+      },
+      "metadataRefresh": {
+        "button": "Forcer l'actualisation des métadonnées",
+        "refreshing": "Actualisation…",
+        "success": "Métadonnées mises à jour.",
+        "failure": "Les métadonnées n'ont pas pu être actualisées ; les valeurs précédentes sont conservées."
+      },
+      "certificates": {
+        "title": "Certificats de signature du fournisseur d'identité",
+        "intro": "Les certificats que votre fournisseur d'identité utilise pour signer ses assertions. Une actualisation des métadonnées ne peut qu'ajouter des certificats, jamais les retirer.",
+        "none": "Ce fournisseur n'a aucun certificat chargé.",
+        "certificate": "Certificat (PEM)",
+        "certificateHint": "Collez ici le certificat X.509 au format PEM.",
+        "submit": "Charger le certificat",
+        "submitting": "Chargement…",
+        "genericError": "Le certificat n'a pas pu être chargé.",
+        "retire": "Retirer",
+        "retireConfirm": "Retirer ce certificat ? N'oubliez pas que cela ne le révoque pas chez votre fournisseur d'identité.",
+        "retireWarning": "Retirer un certificat ici ne le révoque pas chez votre fournisseur d'identité.",
+        "retired": "Retiré le {date}",
+        "validUntil": "Valide jusqu’au {date}",
+        "source": {
+          "metadata": "Issu des métadonnées",
+          "manual": "Chargé manuellement"
+        },
+        "lastActiveError": "Vous ne pouvez pas retirer le dernier certificat valide d'un fournisseur actif : désactivez-le d'abord."
       }
     }
   }

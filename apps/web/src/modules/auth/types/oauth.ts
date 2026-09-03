@@ -34,14 +34,16 @@ export interface OAuthAuthorization {
 }
 
 /**
- * api.md §E.5, ampliado por api.md §F.6 (1.4b). `email_at_link` ya llega
- * enmascarado del servidor (`DestinationMasker`) — nunca se enmascara en
- * el cliente. `provider_display_name` solo cuando hay proveedor
- * catalogado detrás (CA-AUTH-303) — nunca el `subject`.
+ * api.md §E.5, ampliado por api.md §F.6 (1.4b) y `§G.9` (1.4c: `provider`
+ * puede valer ahora `'saml'`, derivado del `protocol` del proveedor
+ * catalogado — `UserIdentityLinkingService::link()`). `email_at_link` ya
+ * llega enmascarado del servidor (`DestinationMasker`) — nunca se
+ * enmascara en el cliente. `provider_display_name` solo cuando hay
+ * proveedor catalogado detrás (CA-AUTH-303) — nunca el `subject`.
  */
 export interface LinkedIdentity {
   public_id: PublicId
-  provider: 'google' | 'oidc'
+  provider: 'google' | 'oidc' | 'saml'
   provider_display_name?: string
   email_at_link: string
   link_method: 'fusion_automatica' | 'perfil' | 'emparejamiento_sso'

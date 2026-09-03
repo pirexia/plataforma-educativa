@@ -360,7 +360,8 @@
         "issuer": "Emisor",
         "status": "Estado",
         "provisioningMode": "Aprovisionamiento",
-        "secret": "Credencial"
+        "secret": "Credencial",
+        "protocol": "Protocolo"
       },
       "status": {
         "enabled": "Activo",
@@ -415,7 +416,20 @@
           "preferred_username": "preferred_username",
           "upn": "upn"
         },
-        "allowedDomainsPlaceholder": "sucentro.es"
+        "allowedDomainsPlaceholder": "sucentro.es",
+        "protocol": "Protocolo",
+        "metadataSource": "Origen de los metadatos",
+        "metadataSourceUrl": "URL",
+        "metadataSourceXml": "XML pegado",
+        "metadataUrl": "URL de metadatos",
+        "metadataUrlHint": "La URL donde tu proveedor de identidad publica sus metadatos SAML.",
+        "metadataXml": "Metadatos XML",
+        "metadataXmlHint": "Pega aquí el documento de metadatos XML que publica tu proveedor de identidad.",
+        "emailAttribute": "Atributo del correo",
+        "emailAttributeHint": "El nombre del atributo SAML que trae el correo. Si se deja vacío, el identificador de nombre debe ser de tipo correo electrónico.",
+        "signAuthnRequests": "Firmar las peticiones de autenticación",
+        "signAuthnRequestsHint": "Requiere una clave de firma de plataforma configurada. Actívalo solo si tu proveedor de identidad lo exige.",
+        "nameIdFormatLabel": "Tipo de identificador de nombre detectado: {format}"
       },
       "integration": {
         "title": "Qué registrar en tu proveedor de identidad",
@@ -465,6 +479,52 @@
         "emisor_no_coincide": "El emisor declarado no coincide con el origen de la URL de descubrimiento.",
         "endpoint_no_seguro": "Alguno de los puntos de conexión declarados no usa https.",
         "flujo_no_admitido": "Este emisor no admite el flujo de autorización necesario."
+      },
+      "protocolLabel": {
+        "oidc": "OIDC",
+        "saml": "SAML 2.0"
+      },
+      "certificateStatus": {
+        "none": "Sin certificado de firma vigente",
+        "active": "Vigentes: {count}",
+        "nextExpiry": "próximo vencimiento: {date}"
+      },
+      "confirmDeleteSaml": "Si vuelves a crear este proveedor, la URL del ACS cambiará y tendrás que reconfigurar tu proveedor de identidad.",
+      "spMetadata": {
+        "title": "Qué registrar en tu proveedor de identidad",
+        "intro": "Copia estos datos en la configuración de tu proveedor de identidad para completar la integración, o descarga el documento de metadatos.",
+        "entityId": "Identificador de entidad (entityID)",
+        "acsUrl": "URL del servicio consumidor de aserciones (ACS)",
+        "nameIdFormat": "Formato del identificador de nombre",
+        "certificate": "Certificado de firma",
+        "download": "Descargar metadatos",
+        "loadError": "No se han podido cargar los metadatos del proveedor de servicios."
+      },
+      "metadataRefresh": {
+        "button": "Forzar refresco de los metadatos",
+        "refreshing": "Refrescando…",
+        "success": "Metadatos actualizados.",
+        "failure": "No se han podido refrescar los metadatos; se conservan los valores anteriores."
+      },
+      "certificates": {
+        "title": "Certificados de firma del proveedor de identidad",
+        "intro": "Los certificados que tu proveedor de identidad usa para firmar sus aserciones. El refresco de metadatos solo puede añadir certificados, nunca retirarlos.",
+        "none": "Este proveedor no tiene ningún certificado cargado.",
+        "certificate": "Certificado (PEM)",
+        "certificateHint": "Pega aquí el certificado X.509 en formato PEM.",
+        "submit": "Cargar certificado",
+        "submitting": "Cargando…",
+        "genericError": "No se ha podido cargar el certificado.",
+        "retire": "Retirar",
+        "retireConfirm": "¿Retirar este certificado? Recuerda que esto no lo revoca en tu proveedor de identidad.",
+        "retireWarning": "Retirar un certificado aquí no lo revoca en tu proveedor de identidad.",
+        "retired": "Retirado el {date}",
+        "validUntil": "Vigente hasta el {date}",
+        "source": {
+          "metadata": "De los metadatos",
+          "manual": "Cargado a mano"
+        },
+        "lastActiveError": "No puedes retirar el último certificado vigente de un proveedor activo: desactívalo antes."
       }
     }
   }
