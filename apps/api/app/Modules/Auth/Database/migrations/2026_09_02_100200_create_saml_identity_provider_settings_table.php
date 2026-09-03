@@ -49,9 +49,16 @@ return new class extends Migration
         $owner = DB::connection('pgsql_owner');
 
         // La relación es 1:1, no 1:N. En el motor, no en el servicio.
+        // Parcial sobre deleted_at, a diferencia de saml_auth_requests y
+        // saml_consumed_assertions: aquí no hay ningún ataque de
+        // reutilización que cerrar (SchemaInvariantsTest, ADR-034 §6) —
+        // una fila de configuración borrada lógicamente no tiene que
+        // seguir bloqueando el hueco, mismo criterio que
+        // identity_provider_certificates_tenant_provider_fingerprint_unique.
         $owner->statement(<<<'SQL'
             CREATE UNIQUE INDEX saml_identity_provider_settings_tenant_provider_unique
                 ON saml_identity_provider_settings (tenant_id, identity_provider_id)
+                WHERE deleted_at IS NULL
             SQL);
 
         $owner->statement(<<<'SQL'
