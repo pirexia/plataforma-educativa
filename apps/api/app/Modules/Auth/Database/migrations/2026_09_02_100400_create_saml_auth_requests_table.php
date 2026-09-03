@@ -51,11 +51,23 @@ return new class extends Migration
             SQL);
 
         // La purga programada (operacion.md §G.4), mismo patrón que
-        // 2026_08_31_100100_add_purge_indexes_to_mfa_tables.php.
+        // 2026_08_31_100100_add_purge_indexes_to_mfa_tables.php. La
+        // consulta de purga (PurgeSamlAuthRequests) filtra por dos ramas
+        // OR: caducadas sin consumir, o consumidas hace tiempo. Cada rama
+        // necesita su propio índice parcial — con uno solo (hallazgo de
+        // `db-reviewer`, 1.4c) la rama de filas ya consumidas (que es
+        // *todo* login SSO SAML exitoso) se queda sin índice de apoyo
+        // hasta que se purgue, mismo defecto que motivó #118/#119.
         $owner->statement(<<<'SQL'
             CREATE INDEX saml_auth_requests_tenant_expires_idx
                 ON saml_auth_requests (tenant_id, expires_at)
                 WHERE consumed_at IS NULL
+            SQL);
+
+        $owner->statement(<<<'SQL'
+            CREATE INDEX saml_auth_requests_tenant_consumed_idx
+                ON saml_auth_requests (tenant_id, consumed_at)
+                WHERE consumed_at IS NOT NULL
             SQL);
 
         $owner->statement(<<<'SQL'

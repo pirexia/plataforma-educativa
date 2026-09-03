@@ -1592,7 +1592,7 @@ Mismo patrón que `SESSION_DOMAIN` (§2.2), las tres de `§E.2.1` y las dos de `
 
 **La purga es lo que 1.4b no necesitó**, y la diferencia es estructural: el `state` de OIDC vive en la sesión y muere con ella; **en SAML el estado equivalente vive en base de datos** porque el ACS llega sin cookie (`ADR-043 §2.1`). **Lo que se persiste hay que purgarlo.**
 
-**Y se purga sin bloquear**, con el patrón de `2026_08_31_100100_add_purge_indexes_to_mfa_tables.php` e issues [#118](https://github.com/pirexia/plataforma-educativa/issues/118)/[#119](https://github.com/pirexia/plataforma-educativa/issues/119): **borrado por lotes acotados, con el índice que sirve exactamente a la consulta de purga** (`datos.md §G.4`), nunca un `DELETE` masivo en una transacción. Se dice porque es el error que este proyecto ya cometió una vez.
+**Y se purga sin bloquear**, con el patrón de `2026_08_31_100100_add_purge_indexes_to_mfa_tables.php` e issues [#118](https://github.com/pirexia/plataforma-educativa/issues/118)/[#119](https://github.com/pirexia/plataforma-educativa/issues/119): **borrado por lotes acotados, con un índice parcial de apoyo para cada rama OR de la consulta de purga** (`datos.md §G.4`), nunca un `DELETE` masivo en una transacción. Se dice porque es el error que este proyecto ya cometió una vez — y `saml_auth_requests` estuvo a punto de repetirlo con un solo índice cubriendo solo la mitad de su consulta (hallazgo de `db-reviewer`, corregido antes de mezclar `1.4c`).
 
 **Ningún trabajo en cola nuevo.** El aviso de emparejamiento (`SendIdentityMatchedEmail`) **ya existe desde 1.4b y se reutiliza tal cual** (`funcional.md §G.4.6`): el hecho es el mismo y el nombre visible del proveedor es igual de válido para un IdP SAML.
 

@@ -54,7 +54,7 @@ return new class extends Migration
         // reutilización que cerrar (SchemaInvariantsTest, ADR-034 §6) —
         // una fila de configuración borrada lógicamente no tiene que
         // seguir bloqueando el hueco, mismo criterio que
-        // identity_provider_certificates_tenant_provider_fingerprint_unique.
+        // identity_provider_certificates_tenant_provider_fp_unique.
         $owner->statement(<<<'SQL'
             CREATE UNIQUE INDEX saml_identity_provider_settings_tenant_provider_unique
                 ON saml_identity_provider_settings (tenant_id, identity_provider_id)

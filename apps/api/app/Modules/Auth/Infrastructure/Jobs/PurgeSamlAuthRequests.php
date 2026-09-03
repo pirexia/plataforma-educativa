@@ -22,8 +22,9 @@ use Illuminate\Support\Facades\DB;
  * **Borrado por lotes acotados, nunca un `DELETE` masivo en una
  * transacción** — precedente de
  * `2026_08_31_100100_add_purge_indexes_to_mfa_tables.php` e issues
- * #118/#119. El índice `saml_auth_requests_tenant_expires_idx` sirve
- * exactamente a esta consulta.
+ * #118/#119. Las dos ramas OR de la consulta tienen su propio índice
+ * parcial de apoyo: `saml_auth_requests_tenant_expires_idx` (caducadas
+ * sin consumir) y `saml_auth_requests_tenant_consumed_idx` (consumidas).
  */
 class PurgeSamlAuthRequests implements ShouldQueue
 {

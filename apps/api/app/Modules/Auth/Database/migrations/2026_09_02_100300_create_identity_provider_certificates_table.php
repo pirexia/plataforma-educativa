@@ -46,8 +46,15 @@ return new class extends Migration
 
         // El mismo certificado no se cataloga dos veces en un proveedor.
         // Lo que hace idempotente el refresco de metadatos (CA-AUTH-325).
+        //
+        // Nombre abreviado a "fp" (hallazgo de `db-reviewer`, 1.4c): la
+        // forma sin abreviar,
+        // identity_provider_certificates_tenant_provider_fingerprint_unique,
+        // mide 65 caracteres y PostgreSQL la habría truncado en silencio a
+        // 63 — mismo problema que motivó nombrar a mano las dos llamadas
+        // a tenantForeignId() de este mismo commit (TenantMigration.php).
         $owner->statement(<<<'SQL'
-            CREATE UNIQUE INDEX identity_provider_certificates_tenant_provider_fingerprint_unique
+            CREATE UNIQUE INDEX identity_provider_certificates_tenant_provider_fp_unique
                 ON identity_provider_certificates (tenant_id, identity_provider_id, fingerprint_sha256)
                 WHERE deleted_at IS NULL
             SQL);
