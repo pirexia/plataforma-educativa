@@ -16,6 +16,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use LogicException;
 use Throwable;
 
 /**
@@ -240,6 +241,13 @@ final class GenericOidcProvider implements ExternalIdentityProvider
             EmailClaim::Email => 'email',
             EmailClaim::PreferredUsername => 'preferred_username',
             EmailClaim::Upn => 'upn',
+            // `email_claim` es nullable desde 1.4c (columna compartida con
+            // SAML, que no la usa) — pero EloquentExternalIdentityProviderRegistry
+            // solo construye esta clase para proveedores OIDC
+            // (OAuthAuthorizationService despacha por `protocol` antes de
+            // llegar aquí). Un `null` real sería un fallo de invariante en
+            // el llamador, no un dato de usuario que tratar con gracia.
+            null => throw new LogicException('GenericOidcProvider recibió un IdentityProvider sin email_claim; solo debería construirse para proveedores OIDC.'),
         };
 
         $value = $claims[$key] ?? null;

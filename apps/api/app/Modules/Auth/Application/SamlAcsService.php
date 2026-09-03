@@ -370,7 +370,7 @@ final class SamlAcsService
     {
         $allowedDomains = $provider->allowed_email_domains;
 
-        if (! is_array($allowedDomains) || $allowedDomains === []) {
+        if ($allowedDomains === []) {
             return true;
         }
 

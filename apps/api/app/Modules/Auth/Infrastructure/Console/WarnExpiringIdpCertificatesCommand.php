@@ -38,7 +38,7 @@ class WarnExpiringIdpCertificatesCommand extends Command
                 Log::channel(config('logging.default'))->warning('auth.saml.certificate.expiring', [
                     'tenant_id' => $tenant->id,
                     'identity_provider_id' => $certificate->identity_provider_id,
-                    'not_after' => $certificate->not_after?->toISOString(),
+                    'not_after' => $certificate->not_after->toISOString(),
                 ]);
             }
         });

@@ -131,6 +131,13 @@ AUTHNREQUEST;
             throw new ExternalIdentityException(ExternalIdentityFailure::AssertionInvalid, previous: $e);
         }
 
+        // Response::getAssertionNotOnOrAfter() declara @var int en el
+        // vendor, pero la propiedad que devuelve solo se asigna dentro de
+        // una rama condicional de isValid() — sin SubjectConfirmationData
+        // válida sigue sin inicializar (null real en tiempo de ejecución),
+        // pese a lo que dice su PHPDoc. La comprobación es defensiva
+        // contra ese desajuste, no redundante.
+        // @phpstan-ignore function.alreadyNarrowedType
         if (! is_string($assertionId) || $assertionId === '' || ! is_int($notOnOrAfterTimestamp)) {
             throw new ExternalIdentityException(ExternalIdentityFailure::AssertionInvalid, 'saml_assertion_missing_id');
         }
