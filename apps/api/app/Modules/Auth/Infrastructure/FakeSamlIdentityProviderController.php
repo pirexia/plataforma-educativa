@@ -128,7 +128,7 @@ class FakeSamlIdentityProviderController extends Controller
             nameIdFormat: $nameIdFormat,
             attributeName: $attributeName,
             attributeValue: $attributeValue,
-            signAssertion: $broken !== 'sin_firma',
+            sign: $broken !== 'sin_firma',
             tamperAfterSigning: $broken === 'firma_alterada',
         );
 
@@ -174,7 +174,7 @@ class FakeSamlIdentityProviderController extends Controller
         string $nameIdFormat,
         string $attributeName,
         string $attributeValue,
-        bool $signAssertion,
+        bool $sign,
         bool $tamperAfterSigning,
     ): string {
         $idpEntityId = $this->currentIssuer();
@@ -223,32 +223,31 @@ class FakeSamlIdentityProviderController extends Controller
             </samlp:Response>
             XML;
 
-        if (! $signAssertion) {
+        if (! $sign) {
             return $responseXml;
         }
 
         $doc = new DOMDocument;
         $doc->loadXML($responseXml);
         $assertionNode = $doc->getElementsByTagName('Assertion')->item(0);
+        $responseNode = $doc->documentElement;
 
         $material = FakeSamlKeyMaterial::get();
 
-        $key = new XMLSecurityKey(XMLSecurityKey::RSA_SHA256, ['type' => 'private']);
-        $key->loadKey($material['key'], false);
-
-        $dsig = new XMLSecurityDSig;
-        $dsig->setCanonicalMethod(XMLSecurityDSig::EXC_C14N);
-        $dsig->addReferenceList(
-            [$assertionNode],
-            XMLSecurityDSig::SHA256,
-            ['http://www.w3.org/2000/09/xmldsig#enveloped-signature', XMLSecurityDSig::EXC_C14N],
-            ['id_name' => 'ID', 'overwrite' => false],
-        );
-        $dsig->sign($key);
-        $dsig->add509Cert($material['cert'], true);
-
-        $issuerNode = $assertionNode->getElementsByTagName('Issuer')->item(0);
-        $dsig->insertSignature($assertionNode, $issuerNode->nextSibling);
+        // Firma la Assertion primero, luego el Response envolvente —en
+        // ese orden, para que la firma del Response cubra también la
+        // firma ya insertada de la Assertion, igual que hace un IdP
+        // real y que Utils::addSign() de onelogin/php-saml (fichero de
+        // referencia, no se usa aquí porque esta clase no cruza la
+        // frontera de CA-AUTH-362).
+        //
+        // `wantMessagesSigned = true` (RN-AUTH-117, EloquentSamlIdentity-
+        // ProviderRegistry::forProvider()) exige la firma del Response,
+        // no solo de la Assertion: sin ella, ningún login simulado podía
+        // completarse — bug real encontrado escribiendo los tests del
+        // ACS (issue #155), corregido aquí firmando los dos nodos.
+        $this->signNode($doc, $assertionNode, $material);
+        $this->signNode($doc, $responseNode, $material);
 
         $signed = $doc->saveXML();
 
@@ -259,6 +258,50 @@ class FakeSamlIdentityProviderController extends Controller
         }
 
         return $signed;
+    }
+
+    /**
+     * Firma `$node` en el sitio (envuelto, `enveloped-signature`) e
+     * inserta el `<ds:Signature>` justo después del `<saml:Issuer>`
+     * **hijo directo** de `$node` — nunca del primero que aparezca en
+     * todo el subárbol, que en `Assertion` sería el suyo propio pero en
+     * `Response` sería el mismo si se buscara sin acotar (el `Issuer` de
+     * `Response` antecede en el documento al de `Assertion`, así que
+     * `getElementsByTagName()->item(0)` da por casualidad el resultado
+     * correcto hoy; se acota explícitamente para no depender de esa
+     * casualidad de orden).
+     *
+     * @param  array{key: string, cert: string}  $material
+     */
+    private function signNode(DOMDocument $doc, \DOMElement $node, array $material): void
+    {
+        $key = new XMLSecurityKey(XMLSecurityKey::RSA_SHA256, ['type' => 'private']);
+        $key->loadKey($material['key'], false);
+
+        $dsig = new XMLSecurityDSig;
+        $dsig->setCanonicalMethod(XMLSecurityDSig::EXC_C14N);
+        $dsig->addReferenceList(
+            [$node],
+            XMLSecurityDSig::SHA256,
+            ['http://www.w3.org/2000/09/xmldsig#enveloped-signature', XMLSecurityDSig::EXC_C14N],
+            ['id_name' => 'ID', 'overwrite' => false],
+        );
+        $dsig->sign($key);
+        $dsig->add509Cert($material['cert'], true);
+
+        $issuerNode = $this->firstChildElementByTagName($node, 'Issuer');
+        $dsig->insertSignature($node, $issuerNode?->nextSibling);
+    }
+
+    private function firstChildElementByTagName(\DOMNode $parent, string $localName): ?\DOMElement
+    {
+        foreach ($parent->childNodes as $child) {
+            if ($child instanceof \DOMElement && $child->localName === $localName) {
+                return $child;
+            }
+        }
+
+        return null;
     }
 
     private function currentIssuer(): string
