@@ -15,10 +15,12 @@ use App\Modules\Auth\Domain\MfaPolicy;
 use App\Modules\Auth\Domain\MfaVerifier;
 use App\Modules\Auth\Domain\Models\AccountLockout;
 use App\Modules\Auth\Domain\Models\IdentityProvider;
+use App\Modules\Auth\Domain\Models\IdentityProviderCertificate;
 use App\Modules\Auth\Domain\Models\IdentityProviderSecret;
 use App\Modules\Auth\Domain\Models\MfaFactor;
 use App\Modules\Auth\Domain\Models\MfaRecoveryCode;
 use App\Modules\Auth\Domain\Models\MfaReset as MfaResetModel;
+use App\Modules\Auth\Domain\Models\SamlIdentityProviderSettings;
 use App\Modules\Auth\Domain\Models\UserIdentity;
 use App\Modules\Auth\Domain\Models\UserKnownDevice;
 use App\Modules\Auth\Domain\Models\UserMfaExemption;
@@ -26,6 +28,8 @@ use App\Modules\Auth\Domain\Models\UserMfaObligation;
 use App\Modules\Auth\Domain\Models\UserSession;
 use App\Modules\Auth\Domain\PasswordPolicy;
 use App\Modules\Auth\Domain\PasswordResetTokenRepository;
+use App\Modules\Auth\Domain\SamlIdentityProviderRegistry;
+use App\Modules\Auth\Domain\SamlMetadataValidator;
 use App\Modules\Auth\Domain\SessionRevoker;
 use App\Modules\Auth\Domain\TotpProvisioner;
 use App\Modules\Auth\Domain\UserSessionDirectory;
@@ -34,8 +38,11 @@ use App\Modules\Auth\Infrastructure\Console\CloseOrphanedUserSessionsCommand;
 use App\Modules\Auth\Infrastructure\Console\GrantLockoutPermissionsCommand;
 use App\Modules\Auth\Infrastructure\Console\MfaObligationsMaintenanceCommand;
 use App\Modules\Auth\Infrastructure\Console\PurgeAuthMaintenanceCommand;
+use App\Modules\Auth\Infrastructure\Console\PurgeSamlCorrelationCommand;
 use App\Modules\Auth\Infrastructure\Console\RefreshOidcDiscoveryCommand;
+use App\Modules\Auth\Infrastructure\Console\RefreshSamlMetadataCommand;
 use App\Modules\Auth\Infrastructure\Console\WarnExpiringClientSecretsCommand;
+use App\Modules\Auth\Infrastructure\Console\WarnExpiringIdpCertificatesCommand;
 use App\Modules\Auth\Infrastructure\Listeners\MaterializeMfaObligationsForRole;
 use App\Modules\Auth\Infrastructure\Listeners\ReconcileMfaAllowedMethodsChange;
 use App\Modules\Auth\Infrastructure\Listeners\RevokeSessionsOnUserDeactivated;
@@ -114,6 +121,11 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         $this->app->bind(DiscoveryDocumentValidator::class, CurlDiscoveryDocumentValidator::class);
         $this->app->bind(ExternalIdentityProviderRegistry::class, EloquentExternalIdentityProviderRegistry::class);
         $this->app->bind(IdentityProviderDirectory::class, EloquentIdentityProviderDirectory::class);
+
+        // REQ-AUTH-004 (1.4c). `funcional.md §G.7.2`: hermanas exactas de
+        // las dos de arriba.
+        $this->app->bind(SamlMetadataValidator::class, CurlSamlMetadataValidator::class);
+        $this->app->bind(SamlIdentityProviderRegistry::class, EloquentSamlIdentityProviderRegistry::class);
     }
 
     public function boot(): void
@@ -143,6 +155,11 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             // REQ-AUTH-004 (1.4b), datos.md §F.2-§F.3.
             'identity_provider' => IdentityProvider::class,
             'identity_provider_secret' => IdentityProviderSecret::class,
+            // REQ-AUTH-004 (1.4c), datos.md §G.3, §G.5. saml_auth_requests
+            // y saml_consumed_assertions NO entran: política de auditoría
+            // `None` (datos.md §G.4), no implementan Auditable.
+            'saml_identity_provider_settings' => SamlIdentityProviderSettings::class,
+            'identity_provider_certificate' => IdentityProviderCertificate::class,
         ]);
 
         // funcional.md §6.2, issue #8: guarda en todos los entornos, no
@@ -158,6 +175,11 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         // operacion.md §F.2.1, REQ-AUTH-004 (1.4b): la guarda más
         // importante de este paso.
         app(SsoEnvironmentGuard::class)->verify();
+
+        // operacion.md §G.2.2, REQ-AUTH-004 (1.4c): las dos primeras de
+        // las tres guardas del paso. La tercera (ruta del IdP SAML
+        // simulado) vive en routes/api.php.
+        app(SamlEnvironmentGuard::class)->verify();
 
         // operacion.md §2.1, RN-AUTH-01/RN-AUTH-03: la documentación ya
         // prometía esta guarda ("rechaza cualquier valor por debajo de
@@ -191,6 +213,9 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
                 MfaObligationsMaintenanceCommand::class,
                 RefreshOidcDiscoveryCommand::class,
                 WarnExpiringClientSecretsCommand::class,
+                RefreshSamlMetadataCommand::class,
+                WarnExpiringIdpCertificatesCommand::class,
+                PurgeSamlCorrelationCommand::class,
             ]);
         }
     }

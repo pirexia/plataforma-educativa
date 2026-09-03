@@ -20,6 +20,7 @@ test('CA-AUTH-260: alta con URL de descubrimiento válida guarda el issuer y los
     [$tenant, $admin] = provisionCoreTenant('idp-260');
 
     $response = test()->actingAs($admin)->postJson(coreApiUrl($tenant->slug, '/identity-providers'), [
+        'protocol' => 'oidc',
         'display_name' => 'Entra ID del centro',
         'discovery_url' => OIDC_DISCOVERY_URL,
         'client_id' => 'client-260',
@@ -39,6 +40,7 @@ test('CA-AUTH-261: un issuer que no coincide con el origen de la URL responde 42
     [$tenant, $admin] = provisionCoreTenant('idp-261');
 
     $response = test()->actingAs($admin)->postJson(coreApiUrl($tenant->slug, '/identity-providers'), [
+        'protocol' => 'oidc',
         'display_name' => 'Proveedor roto',
         'discovery_url' => OIDC_DISCOVERY_URL.'?broken=emisor_no_coincide',
         'client_id' => 'client-261',
@@ -59,6 +61,7 @@ test('CA-AUTH-262: una URL de descubrimiento que resuelve a una dirección priva
         config(['auth-local.sso.allow_insecure_discovery' => false]);
 
         $response = test()->actingAs($admin)->postJson(coreApiUrl($tenant->slug, '/identity-providers'), [
+            'protocol' => 'oidc',
             'display_name' => 'Proveedor privado',
             'discovery_url' => $url,
             'client_id' => 'client-262',
@@ -223,6 +226,7 @@ test('CA-AUTH-270: de dos proveedores, uno activo y otro no, la lista pública s
     // Segundo proveedor, con un emisor distinto (UNIQUE(tenant_id,
     // issuer) impide catalogar dos veces el mismo), nunca activado.
     $inactiveStore = test()->actingAs($admin)->postJson(coreApiUrl($tenant->slug, '/identity-providers'), [
+        'protocol' => 'oidc',
         'display_name' => 'Inactivo',
         'discovery_url' => OIDC_DISCOVERY_URL.'?issuer_suffix=-alt-270',
         'client_id' => 'client-270-inactive',
@@ -310,6 +314,7 @@ test('CA-AUTH-274: un proveedor activo sin credencial vigente responde 422 al ar
     [$tenant, $admin] = provisionCoreTenant('idp-274');
 
     $store = test()->actingAs($admin)->postJson(coreApiUrl($tenant->slug, '/identity-providers'), [
+        'protocol' => 'oidc',
         'display_name' => 'Sin credencial',
         'discovery_url' => OIDC_DISCOVERY_URL,
         'client_id' => 'client-274',

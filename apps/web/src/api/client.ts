@@ -156,3 +156,39 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
   return body
 }
+
+/**
+ * Como `apiFetch`, pero para un recurso cuya negociación de contenido no
+ * es JSON (REQ-AUTH-004, 1.4c, api.md §G.3: `GET .../metadata` con
+ * `Accept: application/samlmetadata+xml` — el documento que el
+ * administrador tiene que descargar y subir a su IdP). `apiFetch` fija
+ * siempre `Accept: application/problem+json, application/json`, así que
+ * no sirve para pedir esta forma. El cuerpo de error de esta API siempre
+ * es JSON, firme o no la petición, así que el `catch` del `!response.ok`
+ * es seguro.
+ */
+export async function apiFetchText(path: string, accept: string): Promise<string> {
+  let response: Response
+
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      credentials: 'include',
+      headers: { Accept: accept },
+    })
+  } catch (cause) {
+    throw new ApiError('No se pudo contactar con la API', 0, cause)
+  }
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+
+    throw new ApiError(
+      `La API respondió ${response.status}`,
+      response.status,
+      body,
+      response.headers,
+    )
+  }
+
+  return response.text()
+}

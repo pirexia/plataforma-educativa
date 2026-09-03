@@ -27,6 +27,8 @@ return [
         'oauth_provider_not_configured' => 'Dieser Anmeldeanbieter ist an dieser Schule nicht verfügbar.',
         'oauth_intent_requires_session' => 'Du musst angemeldet sein, um ein Konto zu verknüpfen.',
         'identity_would_leave_user_without_access' => 'Du kannst dieses Konto nicht trennen: Es ist deine einzige Möglichkeit, dich anzumelden.',
+        'saml_certificate_invalid' => 'Das Zertifikat ist kein gültiges X.509-Zertifikat, ist bereits abgelaufen oder sein Schlüssel erreicht nicht die Mindestgröße.',
+        'saml_email_attribute_required' => 'Gib das E-Mail-Attribut an, es sei denn, der Identifikator verwendet das E-Mail-Adressformat.',
     ],
 
     'mail' => [
@@ -130,6 +132,29 @@ return [
             'emisor_no_coincide' => 'Der angegebene Aussteller stimmt nicht mit dem Ursprung der Discovery-URL überein.',
             'endpoint_no_seguro' => 'Einer der angegebenen Endpunkte verwendet kein https.',
             'flujo_no_admitido' => 'Dieser Aussteller unterstützt den erforderlichen Autorisierungsablauf nicht.',
+        ],
+    ],
+
+    'saml' => [
+        'certificate_provider_not_saml' => 'Dieser Anbieter ist kein SAML-Anbieter: Er akzeptiert keine Signaturzertifikate des Ausstellers.',
+        'certificate_already_catalogued' => 'Dieses Zertifikat ist bei diesem Anbieter bereits erfasst.',
+        'certificate_last_active' => 'Du kannst das letzte gültige Zertifikat eines aktiven Anbieters nicht entfernen: deaktiviere ihn zuerst.',
+        'sign_authn_requests_without_platform_key' => 'Du kannst die Signierung von Anfragen nicht aktivieren: Es ist kein Plattform-Signaturschlüssel konfiguriert.',
+        'identity_provider_enable_without_certificate' => 'Du kannst diesen Anbieter ohne gültiges Signaturzertifikat nicht aktivieren.',
+        'metadata_refresh_not_applicable' => 'Dieser Anbieter hat keine Metadaten zum Aktualisieren.',
+        'metadata' => [
+            'esquema_no_admitido' => 'Die Metadaten-URL muss https verwenden.',
+            'destino_no_publico' => 'Diese Adresse ist von diesem Server aus nicht erreichbar.',
+            'demasiadas_redirecciones' => 'Die Metadaten leiten zu oft weiter.',
+            'sin_respuesta' => 'Die Metadaten konnten nicht heruntergeladen werden.',
+            'respuesta_demasiado_grande' => 'Die Metadaten sind zu groß.',
+            'metadatos_no_validos' => 'Die Metadaten sind kein gültiges XML.',
+            'metadatos_demasiado_grandes' => 'Die Metadaten sind zu groß oder zu tief verschachtelt.',
+            'metadatos_ambiguos' => 'Die Metadaten beschreiben keinen einzelnen Identitätsanbieter, oder es wurden beide Quellen gleichzeitig gesendet.',
+            'binding_no_admitido' => 'Die Metadaten veröffentlichen keinen kompatiblen Endpunkt.',
+            'sin_certificado_de_firma' => 'Die Metadaten enthalten kein gültiges Signaturzertifikat.',
+            'formato_de_identificador_no_admitido' => 'Das angegebene Identifikatorformat wird nicht unterstützt.',
+            'emisor_ya_catalogado' => 'Diese Schule hat bereits einen Anbieter mit diesem Aussteller erfasst.',
         ],
     ],
 

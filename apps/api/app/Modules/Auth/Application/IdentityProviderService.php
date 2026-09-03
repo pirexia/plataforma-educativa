@@ -5,6 +5,7 @@ namespace App\Modules\Auth\Application;
 use App\Modules\Auth\Domain\DiscoveryDocumentValidator;
 use App\Modules\Auth\Domain\DiscoveryValidationException;
 use App\Modules\Auth\Domain\Models\IdentityProvider;
+use App\Modules\Auth\Domain\Protocol;
 use App\Support\Api\ApiException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Arr;
@@ -36,6 +37,14 @@ final class IdentityProviderService
         try {
             return DB::transaction(function () use ($attributes, $document): IdentityProvider {
                 return IdentityProvider::create([
+                    // api.md §G.1: protocol entra en el contrato desde
+                    // 1.4c. La columna ya lo rellena por DEFAULT a nivel
+                    // de fila, pero el modelo en memoria que este método
+                    // devuelve —usado tal cual por el recurso de
+                    // respuesta— no lo ve reflejado si no se nombra aquí
+                    // (Eloquent no relee los DEFAULT de la base de datos
+                    // tras un create()).
+                    'protocol' => Protocol::Oidc,
                     'display_name' => $attributes['display_name'],
                     'discovery_url' => $attributes['discovery_url'],
                     'issuer' => $document->issuer,

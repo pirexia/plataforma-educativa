@@ -27,6 +27,8 @@ return [
         'oauth_provider_not_configured' => "Ce fournisseur de connexion n'est pas disponible dans cet établissement.",
         'oauth_intent_requires_session' => 'Vous devez être connecté pour lier un compte.',
         'identity_would_leave_user_without_access' => "Vous ne pouvez pas dissocier ce compte : c'est votre seul moyen de vous connecter.",
+        'saml_certificate_invalid' => "Le certificat n'est pas un certificat X.509 valide, a déjà expiré, ou sa clé n'atteint pas la taille minimale requise.",
+        'saml_email_attribute_required' => "Indiquez l'attribut d'adresse e-mail, sauf si l'identifiant utilise le format d'adresse e-mail.",
     ],
 
     'mail' => [
@@ -130,6 +132,29 @@ return [
             'emisor_no_coincide' => "L'émetteur déclaré ne correspond pas à l'origine de l'URL de découverte.",
             'endpoint_no_seguro' => "L'un des points de terminaison déclarés n'utilise pas https.",
             'flujo_no_admitido' => "Cet émetteur ne prend pas en charge le flux d'autorisation requis.",
+        ],
+    ],
+
+    'saml' => [
+        'certificate_provider_not_saml' => "Ce fournisseur n'est pas SAML : il n'accepte pas de certificats de signature de l'émetteur.",
+        'certificate_already_catalogued' => 'Ce certificat est déjà catalogué pour ce fournisseur.',
+        'certificate_last_active' => "Vous ne pouvez pas retirer le dernier certificat valide d'un fournisseur actif : désactivez-le d'abord.",
+        'sign_authn_requests_without_platform_key' => "Vous ne pouvez pas activer la signature des requêtes : aucune clé de signature de plateforme n'est configurée.",
+        'identity_provider_enable_without_certificate' => 'Vous ne pouvez pas activer ce fournisseur sans certificat de signature valide.',
+        'metadata_refresh_not_applicable' => 'Ce fournisseur n\'a pas de métadonnées à actualiser.',
+        'metadata' => [
+            'esquema_no_admitido' => "L'URL des métadonnées doit utiliser https.",
+            'destino_no_publico' => 'Cette adresse est inaccessible depuis ce serveur.',
+            'demasiadas_redirecciones' => 'Les métadonnées redirigent trop de fois.',
+            'sin_respuesta' => "Les métadonnées n'ont pas pu être téléchargées.",
+            'respuesta_demasiado_grande' => 'Les métadonnées sont trop volumineuses.',
+            'metadatos_no_validos' => 'Les métadonnées ne sont pas un XML valide.',
+            'metadatos_demasiado_grandes' => 'Les métadonnées sont trop volumineuses ou trop profondément imbriquées.',
+            'metadatos_ambiguos' => "Les métadonnées ne décrivent pas un fournisseur d'identité unique, ou les deux sources ont été envoyées à la fois.",
+            'binding_no_admitido' => 'Les métadonnées ne publient aucun point de terminaison compatible.',
+            'sin_certificado_de_firma' => 'Les métadonnées ne comportent aucun certificat de signature valide.',
+            'formato_de_identificador_no_admitido' => "Le format d'identifiant déclaré n'est pas pris en charge.",
+            'emisor_ya_catalogado' => 'Cet établissement a déjà un fournisseur catalogué avec cet émetteur.',
         ],
     ],
 

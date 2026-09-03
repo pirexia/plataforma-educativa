@@ -1,13 +1,15 @@
 <script setup lang="ts">
 /**
- * `/administracion/sso` (REQ-AUTH-004, 1.4b, funcional.md §F.9,
- * api.md §F.2). Lista del catálogo del centro: estado, dominios
- * admitidos, modo de aprovisionamiento y el aviso de caducidad de la
- * credencial (`secret_status.expiring_soon`). Autoservicio del
- * administrador de centro (`ADR-043 §8.3`): sin `AppLayout` ni guard de
- * router — la SPA no es control de acceso (`INV-002`), el servidor
- * responde `403` si falta el permiso `proveedor_identidad.leer` y esta
- * pantalla lo muestra tal cual.
+ * `/administracion/sso` (REQ-AUTH-004, 1.4b, funcional.md §F.9;
+ * ampliada por `1.4c`, `funcional.md §G.9`, `api.md §G.2`). Lista del
+ * catálogo del centro: protocolo, estado, dominios admitidos, modo de
+ * aprovisionamiento y el aviso de caducidad — de la credencial
+ * (`secret_status.expiring_soon`) en un proveedor OIDC, del certificado
+ * de firma (`certificate_status`) en uno SAML, hermanos exactos.
+ * Autoservicio del administrador de centro (`ADR-043 §8.3`): sin
+ * `AppLayout` ni guard de router — la SPA no es control de acceso
+ * (`INV-002`), el servidor responde `403` si falta el permiso
+ * `proveedor_identidad.leer` y esta pantalla lo muestra tal cual.
  */
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -59,7 +61,16 @@ function formatDate(value: string | null): string {
 }
 
 async function remove(provider: IdentityProviderSummary) {
-  if (!window.confirm(t('auth.ssoAdmin.confirmDelete'))) {
+  // funcional.md §G.9: al borrar un proveedor SAML, avisar de que la ACS
+  // URL cambiará si vuelve a crearse (va por proveedor, api.md §G.7) y
+  // habrá que reconfigurar el IdP — advertencia que un proveedor OIDC no
+  // necesita.
+  const confirmMessage =
+    provider.protocol === 'saml'
+      ? `${t('auth.ssoAdmin.confirmDelete')} ${t('auth.ssoAdmin.confirmDeleteSaml')}`
+      : t('auth.ssoAdmin.confirmDelete')
+
+  if (!window.confirm(confirmMessage)) {
     return
   }
 
@@ -101,6 +112,7 @@ async function remove(provider: IdentityProviderSummary) {
       <TableHeader>
         <TableRow>
           <TableHead>{{ t('auth.ssoAdmin.columns.displayName') }}</TableHead>
+          <TableHead>{{ t('auth.ssoAdmin.columns.protocol') }}</TableHead>
           <TableHead>{{ t('auth.ssoAdmin.columns.issuer') }}</TableHead>
           <TableHead>{{ t('auth.ssoAdmin.columns.status') }}</TableHead>
           <TableHead>{{ t('auth.ssoAdmin.columns.provisioningMode') }}</TableHead>
@@ -111,6 +123,7 @@ async function remove(provider: IdentityProviderSummary) {
       <TableBody>
         <TableRow v-for="provider in providers" :key="provider.public_id">
           <TableCell class="font-medium">{{ provider.display_name }}</TableCell>
+          <TableCell>{{ t(`auth.ssoAdmin.protocolLabel.${provider.protocol}`) }}</TableCell>
           <TableCell class="max-w-64 truncate text-sm">{{ provider.issuer }}</TableCell>
           <TableCell>
             {{
@@ -123,16 +136,48 @@ async function remove(provider: IdentityProviderSummary) {
             t(`auth.ssoAdmin.provisioningMode.${provider.provisioning_mode}`)
           }}</TableCell>
           <TableCell>
-            <span v-if="!provider.secret_status.has_active" class="text-destructive">
-              {{ t('auth.ssoAdmin.secretStatus.none') }}
-            </span>
-            <span v-else-if="provider.secret_status.expiring_soon" class="text-amber-600">
-              {{ t('auth.ssoAdmin.secretStatus.expiringSoon') }}
-              <template v-if="provider.secret_status.active_expires_at">
-                ({{ formatDate(provider.secret_status.active_expires_at) }})
-              </template>
-            </span>
-            <span v-else>{{ t('auth.ssoAdmin.secretStatus.active') }}</span>
+            <template v-if="provider.protocol === 'saml'">
+              <!--
+                api.md §G.2: certificate_status es {vigentes, proximo_vencimiento},
+                no un booleano "expiring_soon" precalculado como secret_status —
+                no se inventa aquí un umbral de aviso propio de la SPA
+                (AUTH_SSO_SECRET_EXPIRY_WARNING_DAYS es una decisión de servidor,
+                operacion.md §G.5); el aviso de caducidad lo emite y lo dirige
+                el comando diario (CA-AUTH-335).
+              -->
+              <span
+                v-if="!provider.certificate_status || provider.certificate_status.vigentes === 0"
+                class="text-destructive"
+              >
+                {{ t('auth.ssoAdmin.certificateStatus.none') }}
+              </span>
+              <span v-else>
+                {{
+                  t('auth.ssoAdmin.certificateStatus.active', {
+                    count: provider.certificate_status.vigentes,
+                  })
+                }}
+                <template v-if="provider.certificate_status.proximo_vencimiento">
+                  ({{
+                    t('auth.ssoAdmin.certificateStatus.nextExpiry', {
+                      date: formatDate(provider.certificate_status.proximo_vencimiento),
+                    })
+                  }})
+                </template>
+              </span>
+            </template>
+            <template v-else-if="provider.secret_status">
+              <span v-if="!provider.secret_status.has_active" class="text-destructive">
+                {{ t('auth.ssoAdmin.secretStatus.none') }}
+              </span>
+              <span v-else-if="provider.secret_status.expiring_soon" class="text-amber-600">
+                {{ t('auth.ssoAdmin.secretStatus.expiringSoon') }}
+                <template v-if="provider.secret_status.active_expires_at">
+                  ({{ formatDate(provider.secret_status.active_expires_at) }})
+                </template>
+              </span>
+              <span v-else>{{ t('auth.ssoAdmin.secretStatus.active') }}</span>
+            </template>
           </TableCell>
           <TableCell class="flex justify-end gap-2">
             <Button variant="outline" size="sm" as-child>

@@ -2015,3 +2015,321 @@ Seis, todos cerrados y todos con su `CHECK` o su validación en servidor: `claim
 **Ningún webhook**: `REQ-API` es fase 2 y sigue sin haber suscriptores externos.
 
 **`UserLoggedIn` se publica igual que siempre.** No hay variante institucional: el hecho es el mismo, y quien necesite la distinción la tiene en `login_attempts.method` (`datos.md §F.5`), con la salvedad de retención que `OPEN-AUTH-36` sigue recogiendo.
+
+---
+
+# Parte G · Paso 1.4c · SSO institucional (SAML 2.0) — API (`REQ-AUTH-004`)
+
+> **Estructura**: §1-§11 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b, `§E.*` es 1.4 y `§F.*` es 1.4b, los seis cerrados. Esta **Parte G** es el paso **1.4c**, **APROBADA** el 2026-09-02 (`funcional.md §G.14`).
+>
+> `ADR-038` sin excepciones nuevas: `application/problem+json` en todo `4xx`/`5xx`, `public_id` en las URL, `404` y nunca `403` ante un identificador de otro tenant.
+>
+> Escrita sobre `ADR-043 §10` (ocho decisiones del usuario, 2026-09-02). **La decisión 3 —la excepción de CSRF acotada al ACS— es lo que hace de esta parte la más sensible del módulo**, y va entera en `§G.7`.
+
+---
+
+## G.1 Reglas generales: qué cambia respecto de `§F.1`
+
+**Cinco *endpoints* nuevos y cinco modificados. Ningún permiso nuevo** (`permisos.md §G.1`).
+
+Cuatro reglas que gobiernan toda la parte:
+
+1. **El discriminador `protocol` entra en el contrato de administración**, no solo en el esquema. Se fija en el alta y **es inmutable**: un `PATCH` que lo traiga responde `422` (`RN-AUTH-114`, `CA-AUTH-316`).
+2. **La colección anónima `GET /api/v1/auth/identity-providers` no cambia de forma, y es deliberado.** Un proveedor SAML sale con el mismo `{id, display_name}` opaco que uno OIDC. **La SPA no sabe qué protocolo es ninguno, y no debe saberlo**: es la propiedad que `§F.6` compró al elegir un identificador opaco, y que aquí se cobra sin escribir una línea de cliente.
+3. **El ACS es la única ruta del módulo —y de la aplicación— fuera del grupo `/api/v1` estándar** (`§G.7`). No es una exención dentro de la cadena: es un grupo propio con su pila declarada.
+4. **Ni la clave privada de firma del SP, ni ningún PEM de certificado del IdP salen enmascarados «por si acaso»**: el certificado del IdP **sí sale entero** porque es material público que el administrador necesita ver, y la clave privada del SP **no sale por ninguna vía** (`RN-AUTH-127`, `CA-AUTH-334`).
+
+### G.1.1 Tipos de error nuevos: **ninguno**
+
+Como en `§F.1.1`. Todo lo que este paso rechaza cabe en los tipos ya registrados: `validation-error` (`422`), `conflict` (`409`), `not-found` (`404`), `rate-limited` (`429`), `unauthenticated` (`401`), `forbidden` (`403`) y `tenant-unavailable` (`503`).
+
+**Y una consecuencia del ACS que hay que declarar aquí y no en `§G.7`**: el ACS **nunca responde `problem+json`**. Responde **siempre `302`**, igual que los dos *callbacks* de 1.4 y 1.4b, con un código de resultado de la lista cerrada de `§F.7.1`. Es el apartamiento de `ADR-038` que `§F.9.1` heredó de 1.4, y **no se amplía**: se aplica a una ruta más, del mismo carácter y por el mismo motivo — al otro lado hay un navegador que viene de un tercero, no un cliente de API.
+
+---
+
+## G.2 Los cuatro *endpoints* de administración que este paso modifica
+
+Los cinco de `§F.3` siguen existiendo con sus permisos y sus errores. Lo que cambia es aditivo.
+
+### `POST /api/v1/identity-providers` — el alta gana una rama
+
+- **Permiso**: `proveedor_identidad.crear`, sin cambios.
+- **Cuerpo, campo nuevo y obligatorio**: `protocol`, `"oidc"` o `"saml"`. **Sin valor por defecto en la API**, aunque la columna lo tenga en el esquema: obligar a decirlo es lo que impide que un cliente que no conoce el campo cree un proveedor del protocolo equivocado sin enterarse.
+- **Con `protocol: "oidc"`**: el contrato de `§F.3` **byte a byte**, sin una sola diferencia.
+- **Con `protocol: "saml"`**: los campos OIDC **se rechazan si vienen** (`422`) — no se ignoran en silencio, que es lo que dejaría al administrador creyendo que configuró algo. El cuerpo admite:
+
+| Campo | Obligatorio | Notas |
+|-------|-------------|-------|
+| `display_name` | Sí | Igual que en OIDC. **No se traduce** |
+| `metadata_url` **o** `metadata_xml` | **Uno de los dos, nunca los dos ni ninguno** | `422` con `metadatos_ambiguos` si vienen los dos, y `validation-error` ordinario si no viene ninguno |
+| `email_attribute` | No | *Nullable*. Si se omite, **el `NameIDFormat` de los metadatos tiene que ser `emailAddress`**, o el alta falla — es el `CHECK` de `datos.md §G.3` devuelto como `422` |
+| `allowed_email_domains` | No | Por defecto `[]`. **Protocolo-agnóstico**, sin cambios |
+| `provisioning_mode` | No | `desactivado` por defecto. **`creacion` no existe y no se acepta** (`ADR-043 §8.1`) |
+| `sign_authn_requests` | No | `false` por defecto |
+
+- **La validación de metadatos es síncrona** (`funcional.md §G.4.1`): el administrador está esperando y necesita el resultado para corregir. Sus códigos de fallo, en `§G.4`.
+- **Lo que se deriva y no se teclea**: `issuer` (= `entityID` del IdP), `authorization_endpoint` (= `SingleSignOnService` HTTP-Redirect), `name_id_format`, y **una fila de `identity_provider_certificates` por cada `KeyDescriptor` de firma** con su vigencia extraída del propio certificado (`CA-AUTH-324`).
+- **El proveedor nace no activo**, con `provisioning_mode = "desactivado"` y `sign_authn_requests = false`.
+- **Respuesta `201`** con el recurso.
+- **`429`**: *bucket* `sso_metadata_tenant` cuando el origen es una URL. **No cuando el origen es XML pegado**, y es deliberado: lo que ese *bucket* defiende no es nuestro servidor, son **terceros** (`§F.6`), y un XML pegado no genera tráfico saliente contra nadie.
+
+### `PATCH /api/v1/identity-providers/{public_id}`
+
+- **Permiso**: `proveedor_identidad.actualizar`, sin cambios.
+- **`protocol` en el cuerpo ⇒ `422`, siempre**, aunque el valor coincida con el actual. Cambiar de protocolo no es editar una fila: es dar de alta otro proveedor (`RN-AUTH-114`).
+- **En un proveedor SAML**, los campos aceptados son `display_name`, `metadata_url`/`metadata_xml`, `email_attribute`, `allowed_email_domains`, `provisioning_mode`, `sign_authn_requests` e `is_enabled`. Los campos OIDC **se rechazan**, no se ignoran.
+- **Si vienen metadatos, se revalidan enteros**, con las mismas guardas y los mismos códigos. **Si falla, no se cambia nada**, ni siquiera los campos que sí eran válidos — el mismo criterio de `§F.3`.
+- **Dos `409` nuevos** (`RN-AUTH-128`, `CA-AUTH-331`, `CA-AUTH-332`):
+  - **`is_enabled: true` sin ningún certificado de firma vigente.** Es el análogo exacto del `409` de 1.4b por credencial ausente: activar un proveedor sin certificado es pintar un botón que solo lleva a `error_proveedor` para todo el centro.
+  - **`sign_authn_requests: true` sin clave de firma de plataforma configurada.** Un proveedor que dice firmar y no firma es un proveedor cuyo IdP rechaza **todas** las peticiones, con un síntoma que no apunta a la causa.
+- **Respuesta `200`** con el recurso.
+
+### `GET /api/v1/identity-providers` y `GET /api/v1/identity-providers/{public_id}`
+
+- **Permiso**: `proveedor_identidad.leer`, sin cambios. Paginación de la colección sin cambios.
+- **Campo nuevo en los dos**: `protocol`.
+- **En la colección**, un bloque `certificate_status` para las filas SAML, hermano exacto del `secret_status` de 1.4b: `{"vigentes": n, "proximo_vencimiento": "<fecha o null>"}`. **Es lo que la pantalla necesita para el aviso de caducidad** (`funcional.md §G.9`) sin pedir el detalle de cada proveedor.
+- **En el detalle de una fila SAML**, además: `metadata_source`, `metadata_url` (o `null`), `name_id_format`, `email_attribute`, `sign_authn_requests`, `metadata_fetched_at`, `metadata_failed_at`, y la **lista de certificados** con `public_id`, `fingerprint_sha256`, `not_before`, `not_after`, `source` y `retired_at`.
+- **`metadata_xml` no sale en la colección**, y en el detalle sale **solo si `metadata_source = "xml"`** — que es el único caso en que el administrador lo pegó y puede querer revisarlo. Cuando el origen es una URL, el XML es un artefacto descargado de decenas de kilobytes que nadie va a leer en una pantalla: se omite y se ofrece la URL.
+- **Ningún campo nuevo es un secreto**, y por eso no hay enmascarado que discutir aquí. El único secreto del paso no vive en esta entidad (`datos.md §G.1`).
+
+---
+
+## G.3 `GET /api/v1/identity-providers/{public_id}/metadata` — nuestros metadatos de SP
+
+**Es el *endpoint* que hace posible el autoservicio**, y el equivalente exacto del bloque `integration` que 1.4b devolvía en el detalle: lo que el administrador tiene que registrar en su IdP para que la integración exista (`ADR-043 §5.2`).
+
+- **Permiso**: **`proveedor_identidad.leer`**.
+- **`Accept`**: `application/samlmetadata+xml` (por defecto) o `application/json`.
+- **Respuesta `200`** con el `EntityDescriptor` del **SP**, derivado del *host* del tenant:
+
+| Elemento | Valor | Por qué |
+|----------|-------|---------|
+| `entityID` | Derivado del *host* del tenant | **Por tenant, y no es una pregunta** (`RN-AUTH-116`). Un `entityID` compartido haría textualmente válida en el centro B una aserción emitida legítimamente para el A: fuga entre tenants por diseño, `INV-001`, severidad crítica |
+| `AssertionConsumerService` | `POST` sobre `https://{slug}.{base}/api/v1/auth/saml/{public_id}/acs`, `index="0"`, `isDefault="true"` | **Por proveedor** (`§G.7`) |
+| `NameIDFormat` | El catalogado | |
+| `KeyDescriptor use="signing"` | El certificado público del SP, **solo si `sign_authn_requests` está activo** | Publicar una clave que no se usa invita al IdP a exigir firmas que no mandamos |
+| `SingleLogoutService` | **Ausente** | SLO está fuera de alcance (`ADR-043 §3.4`). **Publicarlo sin implementarlo es peor que no publicarlo**: el IdP intentaría usarlo |
+| `WantAssertionsSigned` | `true` | Es la postura de `RN-AUTH-117`, declarada al IdP y no solo aplicada en casa |
+| `KeyDescriptor use="encryption"` | **Ausente** | `EncryptedAssertion` no se soporta (`OPEN-AUTH-46`) |
+
+**`404`** si el `public_id` no resuelve, es de otro tenant, está borrado o **es un proveedor OIDC** — que no tiene metadatos de SP que publicar.
+
+### G.3.1 Por qué **no** es anónimo, y qué cuesta
+
+Es la decisión de este *endpoint* y va con su precio dicho.
+
+Lo habitual en SAML es publicar los metadatos del SP en una URL pública, para que el IdP los obtenga y los refresque solo. **Aquí no se hace**, y el motivo es el mismo con el que `datos.md §F.10` y `permisos.md §F.8` decidieron que la colección anónima devuelve **solo** `public_id` y `display_name`: unos metadatos de SP anónimos **publican el mapa de integración del centro** —qué proveedores tiene, con qué identificadores, con qué certificado— a cualquiera que sepa el *host*, que es público.
+
+**El coste se acepta y se dice**: el IdP del centro **no podrá obtener nuestros metadatos por URL**, y el administrador tendrá que descargarlos y subirlos a mano. Es una operación de una vez por proveedor, la misma que ya hace con la ACS URL, y la pantalla ofrece el botón de descarga y los valores en texto para copiar (`funcional.md §G.9`).
+
+**Y no queda como pregunta abierta**, porque no hay dos opciones razonables: publicar sin sesión lo que se decidió no publicar sin sesión sería reabrir por la puerta de atrás una decisión de 1.4b.
+
+---
+
+## G.4 Validación de metadatos del IdP: la lista cerrada de códigos de fallo
+
+Traducible a los cuatro idiomas (`INV-009`), y **ninguno lleva el detalle del destino** — misma disciplina que `§F.3` y por el mismo motivo: el mensaje detallado convertiría el *endpoint* en un escáner de la red interna con sesión de administrador de centro (`RN-AUTH-113`).
+
+**Cuando el origen es una URL, las cinco guardas de `§F.4.2` se reutilizan sin una sola relajación y también en cada redirección**, con sus mismos cinco primeros códigos:
+
+| Código | Guarda |
+|--------|--------|
+| `esquema_no_admitido` | 1 · la URL no es `https` |
+| `destino_no_publico` | 2 · dirección privada, de bucle local o de enlace local (`CA-AUTH-319`) |
+| `demasiadas_redirecciones` | 3 |
+| `sin_respuesta` | 4 · tiempo de espera agotado o error de red |
+| `respuesta_demasiado_grande` | 4 |
+
+**Cuando el origen es XML pegado no hay petición saliente**, así que las guardas 1-4 no aplican. **La de contenido sí, siempre**, y son las de `funcional.md §G.4.2`:
+
+| Código | Comprobación | Por qué |
+|--------|--------------|---------|
+| `metadatos_no_validos` | XML mal formado, **o que declara una entidad externa o una DTD** | Es la guarda contra **XXE**, uno de los avisos históricos del ecosistema (`ADR-043 §2.3`). Se rechaza **en el analizador**, antes que ninguna otra comprobación (`CA-AUTH-318`) |
+| `metadatos_demasiado_grandes` | Tope de tamaño **y de profundidad de anidamiento** | Una bomba de expansión de entidades o un documento de mil niveles es una denegación de servicio barata desde un *endpoint* con sesión |
+| `metadatos_ambiguos` | No hay exactamente un `EntityDescriptor` con `entityID` y un solo `IDPSSODescriptor` | Un `EntitiesDescriptor` con una federación entera dentro no es lo que un centro cataloga. **Y también**: han venido `metadata_url` y `metadata_xml` a la vez |
+| `binding_no_admitido` | No hay `SingleSignOnService` con `Binding` HTTP-Redirect y `https` | `funcional.md §G.0.3` desviación 1. **Falla delante del administrador que puede corregirlo, no delante de un docente que no puede** (`CA-AUTH-321`) |
+| `sin_certificado_de_firma` | Ningún `KeyDescriptor use="signing"` con un X.509 analizable y no caducado | Un IdP sin certificado de firma es un IdP cuyas aserciones no podemos verificar, y `RN-AUTH-117` no admite excepciones (`CA-AUTH-322`) |
+| `formato_de_identificador_no_admitido` | El `NameIDFormat` declarado no está en la lista blanca | **`transient` cae aquí**: un identificador que cambia en cada acceso no puede sostener un vínculo (`RN-AUTH-123`, `CA-AUTH-323`) |
+| `emisor_ya_catalogado` | El `entityID` ya está catalogado vivo en este centro | `UNIQUE (tenant_id, issuer)`, **ahora entre protocolos** (`CA-AUTH-315`). Se devuelve como **`409`**, no `422`: es un conflicto de estado, no un cuerpo mal formado |
+
+**`sin_certificado_de_firma` y `binding_no_admitido` no dicen qué publicaba el documento**, por la misma razón que `destino_no_publico` no dice la dirección: son mensajes para corregir una configuración propia, no para explorar la ajena.
+
+### `POST /api/v1/identity-providers/{public_id}/metadata-refreshes`
+
+Hermano exacto de `POST .../discovery-refreshes` (`§F.5`), y con las mismas propiedades.
+
+- **Permiso**: `proveedor_identidad.actualizar`.
+- **Solo sobre proveedores SAML con `metadata_source = "url"`.** Sobre uno de origen XML ⇒ `409`: no hay nada que refrescar, y devolver `204` fingiendo que se hizo algo sería peor.
+- **Es un `POST` que crea un refresco**, no un `PATCH`: la operación es un hecho, no una edición. Misma forma que 1.4b.
+- **Respuesta `200`** con el proveedor actualizado, o **`422`** con el código de fallo. **Si falla, se conserva todo lo anterior** —`issuer`, `authorization_endpoint`, `name_id_format` y **todos los certificados**— y solo se estampa `metadata_failed_at` (`CA-AUTH-326`). Un IdP momentáneamente inalcanzable no debe dejar sin SSO a un centro cuyo IdP funciona.
+- **El refresco puede añadir certificados, nunca retirarlos** (`RN-AUTH-125`, `CA-AUTH-325`). Es la decisión con más consecuencia operativa del *endpoint*: si un IdP publica metadatos con solo el certificado nuevo mientras aún firma con el viejo —cosa que ocurre—, retirar el viejo automáticamente **corta el acceso del centro en mitad de una rotación**.
+- **`429`**: *bucket* `sso_metadata_tenant`.
+
+---
+
+## G.5 Certificados del IdP
+
+### `POST /api/v1/identity-providers/{public_id}/certificates`
+
+- **Permiso**: **`proveedor_identidad.actualizar`** — **no un permiso propio**, exactamente por el argumento de `§F.4` sobre las credenciales: cargar un certificado es configurar el proveedor, no administrar un recurso distinto (`permisos.md §G.1`).
+- **Cuerpo**: `certificate` (PEM). **Y nada más.**
+- **`not_before` y `not_after` no se aceptan aunque vengan**: se extraen del propio certificado (`RN-AUTH-126`, `CA-AUTH-328`). Aceptarlos permitiría a un administrador declarar una vigencia falsa y desactivar de hecho el aviso de vencimiento.
+- **Validación al cargar, no al usar** (`CA-AUTH-329`): que sea un X.509 analizable, que `not_after` esté en el futuro, y que la clave alcance el tamaño mínimo. Cualquiera que falle ⇒ `422`.
+- **`409`** si el mismo certificado ya está catalogado vivo en ese proveedor (índice único por huella).
+- **`409`** si el proveedor es **OIDC**: un proveedor OIDC no tiene certificados de firma del emisor, y aceptar la fila crearía un estado que ningún camino de código lee (`datos.md §G.9`).
+- **Respuesta `201`** con `public_id`, `fingerprint_sha256`, `not_before`, `not_after` y `source: "manual"`. **El PEM no se devuelve en la respuesta del alta** — el cliente acaba de enviarlo.
+- **`429`**: *bucket* `sso_certificate_tenant`.
+
+### `DELETE /api/v1/identity-providers/{public_id}/certificates/{certificate_public_id}`
+
+- **Permiso**: `proveedor_identidad.actualizar`.
+- **Retira el certificado** (`retired_at`), y además borrado lógico. Una fila retirada **no se usa jamás**, aunque siga vigente.
+- **`409` si es el último certificado vigente de un proveedor activo** (`RN-AUTH-128`, `CA-AUTH-330`). **La salida es desactivar el proveedor primero**, y la pantalla lo dice. Es el mismo criterio que 1.4b con la última credencial: dejar un proveedor activo y sin forma de verificar firmas es dejar un botón que solo lleva a `error_proveedor`.
+- **Respuesta `204`**, sin cuerpo.
+- **Retirar aquí no revoca nada en el IdP del centro**, y la pantalla tiene que decirlo (`funcional.md §G.9`). Es la hermana exacta de la advertencia que 1.4b puso al retirar una credencial.
+
+---
+
+## G.6 `POST /api/v1/auth/oauth-authorizations` — reutilizado, no duplicado
+
+**El contrato no cambia ni un byte**: `{"provider": "<public_id opaco>", "intent": "login"|"link"}` → `201 {"authorization_url", "expires_at"}`.
+
+- **Con un proveedor SAML**, `authorization_url` es la URL de HTTP-Redirect con el `AuthnRequest` desinflado, codificado y —si `sign_authn_requests`— firmado. **La SPA navega con `window.location`, exactamente igual que en OIDC** (`RN-AUTH-93`). **No cambia ni una línea de la pantalla de login.**
+- **`422`** si el proveedor es desconocido, borrado o **no activo**, sin distinguir los tres casos (`RN-AUTH-102`).
+- **`422` nuevo**: proveedor SAML **sin ningún certificado de firma vigente**. Es el análogo exacto de la comprobación de credencial vigente de 1.4b, y **dispara alerta operativa** (`operacion.md §G.8`): es el estado en que el centro cree tener SSO y no lo tiene.
+- **Efecto de servidor nuevo y solo en SAML**: crea la fila de `saml_auth_requests` con `request_id`, `intent`, `linking_user_id` si procede, y `expires_at`. **En OIDC no se crea ninguna fila**: su `state` sigue viviendo en el *payload* de la sesión, sin cambios.
+- **Los dos mecanismos de correlación son independientes** (`RN-AUTH-114`): arrancar un flujo SAML **no** deja un `pge_oauth_intent` huérfano en la sesión, y arrancar uno OIDC o de Google **no** invalida una petición SAML pendiente (`funcional.md §G.0.4`).
+- **`429`**: *bucket* `oauth_start_ip`, sin cambios.
+
+**El nombre del *endpoint* dice «oauth» y SAML no es OAuth.** Es deuda declarada y es `OPEN-AUTH-48`, **no bloqueante**. La recomendación es reutilizarlo: el contrato describe SAML exactamente igual de bien, la SPA ya copia un identificador opaco **sin interpretarlo**, y un *endpoint* propio serían dos caminos de código y dos ramas en la SPA para la misma acción de usuario — más un tercero el día que llegue otro protocolo.
+
+---
+
+## G.7 `POST /api/v1/auth/saml/{public_id}/acs` — el ACS
+
+**Es la ruta más sensible del módulo entero**, y la única de la aplicación sin `csrf`.
+
+### G.7.1 El grupo de rutas propio
+
+`ADR-043 §10.9` decisión 3. **No es una exención dentro de la cadena de `/api/v1`: es un grupo propio con la pila declarada explícitamente.**
+
+```
+resolve-tenant → encrypt-cookies → add-queued-cookies → start-session → verify-session-tenant
+```
+
+Es la cadena de `§8` **menos `csrf`, `session-idle-timeout`, `resolve-locale` y `require-mfa-enrollment`**, ninguno de los cuales tiene sentido sobre una petición que **por diseño llega sin sesión**.
+
+| Pieza | Por qué está o por qué no |
+|-------|---------------------------|
+| `resolve-tenant` | **Primera posición, imprescindible.** El tenant se resuelve por el *host* antes de tocar datos (`ADR-033 §2`), y es lo que hace que un tenant suspendido responda `503` **antes de mirar el XML** (`CA-AUTH-349`) |
+| `encrypt-cookies` + `add-queued-cookies` + `start-session` | **La sesión hay que poder *fijarla***, aunque no llegue ninguna. `SameSite` restringe el **envío** de una cookie, no su **fijación** |
+| `verify-session-tenant` | **Se mantiene.** Sobre sesión vacía no hace nada; y si por lo que fuera llegara una sesión, `RN-AUTH-31` debe seguir aplicando. **Quitarlo por «no hace falta» sería el intercambio de posiciones que `§8` advierte que es un fallo de seguridad silencioso** |
+| `csrf` | **Ausente.** Un `POST` entre sitios no lleva la cookie de sesión con `same_site = 'lax'`, así que no hay token que validar: con la cadena estándar el ACS devolvería `419` antes de mirar la aserción (`CA-AUTH-347`) |
+| `session-idle-timeout` | Ausente: no hay sesión previa cuya inactividad medir |
+| `resolve-locale` | Ausente: la respuesta es un `302`, no un cuerpo traducible. **El idioma lo resuelve la SPA en la pantalla de destino** |
+| `require-mfa-enrollment` | Ausente **del *middleware***, y esto no debilita nada: **`MfaPolicy::resolve()` se aplica entero dentro del controlador** (`RN-AUTH-129`, `CA-AUTH-354`). El muro de alta es un *middleware* para rutas con sesión ya establecida; aquí la sesión se establece **dentro** de la petición |
+| `module-enabled` | Ausente, como en todas las rutas del módulo (`RN-AUTH-35`, `CA-AUTH-350`) |
+
+**Se prefiere el grupo propio a `validateCsrfTokens(except: […])`** por dos motivos que `ADR-043 §10.5` dio y esta especificación hace suyos: una lista global **admite comodines y crece sin que nadie la revise**, mientras que un grupo nombrado se autodocumenta y su alcance es exactamente las rutas que contiene; y `§8` fija el orden de la cadena advirtiendo que *«un intercambio de dos posiciones aquí es un fallo de seguridad silencioso»* — **una pila declarada aparte se lee y se compara; una exención global no aparece al leer la ruta**.
+
+**Hoy `bootstrap/app.php` no tiene ninguna lista de exenciones de CSRF, y esa propiedad —que no exista la lista— es valiosa en sí misma.** `CA-AUTH-346` la convierte en un test.
+
+### G.7.2 El contrato
+
+- **Permiso**: **ninguno declarado.** Se autoriza por **correlación en servidor**: una fila de `saml_auth_requests` viva, no consumida y no caducada cuyo `request_id` case con el `InResponseTo` de la respuesta. Es el cuarto mecanismo de `permisos.md §C.4`, **con una diferencia respecto de OIDC que hay que decir**: allí la prueba de posesión es la cookie de sesión; **aquí no hay cookie, y la prueba es la fila**.
+- **El proveedor se resuelve desde la ruta, jamás desde el `Issuer` del mensaje** (`RN-AUTH-118`, `CA-AUTH-338`). Es lo contrario de lo que hace el *callback* de OIDC (`§F.7`), y el motivo es de corrección criptográfica, no de comodidad: **la clave con la que se verifica una firma nunca puede elegirse a partir del contenido del mensaje que aún no se ha verificado.** Con el proveedor en la ruta, el conjunto de certificados admisibles y el emisor esperado quedan fijados **antes** de tocar el XML.
+- **`Content-Type`**: `application/x-www-form-urlencoded`. Lo fija el *binding* HTTP-POST de SAML 2.0, no nosotros.
+- **Cuerpo**: `SAMLResponse` (Base64) y, opcionalmente, `RelayState`. **Los pone el IdP.**
+- **`RelayState` no se interpreta ni se refleja**, y es una decisión: todo lo que necesitamos saber del flujo está en la fila de correlación, que **nosotros** escribimos. Reflejar un `RelayState` de vuelta a un destino es un vector de redirección abierta clásico en SAML. Se ignora, no se registra y no se devuelve.
+- **Respuesta**: **siempre `302`**, a `https://{slug}.{base}/entrar/sso?resultado=<código>` o, cuando el acceso se completa, a la ruta de destino de la SPA. **Nunca `problem+json`**, nunca `4xx` con cuerpo, ni siquiera ante una aserción falsificada — la forma de la respuesta no debe distinguir un fallo de otro para quien esté probando.
+- **Códigos de resultado**: **los mismos catorce de `§F.7.1`. SAML no añade ninguno**, y es la comprobación de que `ExternalIdentityFailure` era un enum de resultados de cara a la persona y no de mecánica de protocolo (`ADR-043 §10.8`).
+- **`429`**: *bucket* `saml_acs_ip`, con `Retry-After` (`operacion.md §G.6`).
+- **`503`** desde `ResolveTenant` si el tenant está suspendido, **antes de tocar ninguna tabla** (`CA-AUTH-349`).
+
+**Qué código sale en cada caso**, que es donde la agrupación importa:
+
+| Situación | Código |
+|-----------|--------|
+| Firma ausente o que no valida; `Issuer`, `Destination` o `Audience` que no casan; ventana temporal fuera; `Recipient` incorrecto; aserción repetida | **`error_proveedor`**, los siete con **el mismo cuerpo** (`CA-AUTH-340`, `CA-AUTH-344`) |
+| `InResponseTo` ausente, sin fila viva, ya consumida o caducada | **`estado_no_valido`** (`CA-AUTH-341`, `CA-AUTH-342`) |
+| `intent = link` cuyo `linking_user_id` ya no está vivo y activo | **`estado_no_valido`**. **La aserción no se reinterpreta como un login** (`CA-AUTH-356`) |
+| `NameID` ausente, vacío o de formato distinto del catalogado | **`sin_cuenta`** — **byte a byte idéntico** al caso «no hay cuenta» (`RN-AUTH-123`, `CA-AUTH-345`) |
+| Dominio del correo fuera de `allowed_email_domains` | `dominio_no_permitido` |
+| Proveedor desactivado, borrado o sin certificado vigente entre la petición y la aserción | `proveedor_no_disponible` |
+| Cuenta bloqueada, `pendiente`, `inactiva` o borrada | `cuenta_bloqueada` / `acceso_denegado` |
+| Segundo factor pendiente | `segundo_factor` |
+
+**Por qué las siete primeras comparten código**: distinguirlas no ayuda a quien está delante —en todos los casos la salida es «entra con tu contraseña»— y **sí ayudaría a quien esté probando qué validaciones tenemos**. Es el mismo argumento con el que 1.4b agrupó el fallo de canje y el del `id_token`. El detalle de cuál falló va al registro de aplicación y a la métrica (`operacion.md §G.8`), nunca a la pantalla.
+
+**Efectos en el camino de éxito**: `session()->regenerate()` **antes de autenticar** (`RN-AUTH-32`, punto de fijación de sesión), consumo atómico de la fila de correlación y registro del `ID` de la aserción **en la misma transacción**, creación de sesión, fila en `login_attempts` con `method = 'sso'`, y **creación de la fila de `user_identities`** si el emparejamiento resuelve. **Es un `POST` que hace todo eso sin CSRF, y lo que lo sostiene es la correlación, no la ausencia de riesgo** (`RN-AUTH-124`).
+
+**En la URL de redirección no viaja `SAMLResponse`, ni `NameID`, ni correo, ni `public_id`, ni ningún dato personal** (`RN-AUTH-93`, `CA-AUTH-348`).
+
+---
+
+## G.8 Superficie del módulo tras 1.4c
+
+| Paso | Endpoints | Acumulado |
+|------|-----------|-----------|
+| 1.2 | 10 | 10 |
+| 1.2b | 3 | 13 |
+| 1.3 | 10 (+1 en `REQ-CORE`) | 23 |
+| 1.3b | 3 | 26 |
+| 1.4 | 6 | 32 |
+| 1.4b | 9 | 41 |
+| **1.4c** | **5** | **46** |
+
+Los cinco:
+
+| Método y ruta | Autorización |
+|---------------|--------------|
+| `GET /api/v1/identity-providers/{public_id}/metadata` | `proveedor_identidad.leer` |
+| `POST /api/v1/identity-providers/{public_id}/certificates` | `proveedor_identidad.actualizar` |
+| `DELETE /api/v1/identity-providers/{public_id}/certificates/{certificate_public_id}` | `proveedor_identidad.actualizar` |
+| `POST /api/v1/identity-providers/{public_id}/metadata-refreshes` | `proveedor_identidad.actualizar` |
+| **`POST /api/v1/auth/saml/{public_id}/acs`** | **Correlación en servidor** (`§G.7.2`) |
+
+Y los **cinco modificados**, los cinco de forma aditiva: `POST`, `PATCH`, `GET` y `GET /{public_id}` de `/identity-providers`, y `POST /auth/oauth-authorizations`.
+
+**`GET /api/v1/auth/identity-providers` no se modifica**, y merece decirse: es la comprobación de que el contrato opaco de `§F.6` estaba bien hecho.
+
+**1.4c no toca ningún *endpoint* de `REQ-CORE`** y **no declara ningún permiso** (`permisos.md §G.1`).
+
+---
+
+## G.9 Convenciones transversales: dónde 1.4c se aparta o matiza
+
+### G.9.1 La excepción a `ADR-038`: se aplica a una ruta más, **no se amplía**
+
+El ACS responde `302` y nunca `problem+json`, igual que los dos *callbacks* de 1.4 y 1.4b (`§F.9.1`). **El carácter es el mismo** —al otro lado hay un navegador que viene de un tercero— y por tanto no es una excepción nueva, sino la misma aplicada donde corresponde. **Los ocho *endpoints* de administración y los dos de autoservicio siguen siendo `problem+json` sin excepción.**
+
+### G.9.2 La excepción de CSRF **sí es nueva, y es la primera de la aplicación**
+
+No se disimula. **Va a `SECURITY.md` en este mismo paso, no después** (`ADR-043 §10.10`), con el precedente de los issues #111-#114 sobre documentación raíz que se quedó atrás. Lo que hay que dejar escrito allí es exactamente lo de `§G.7.1`: qué ruta, qué pila, y **qué la mitiga** — la correlación de un solo uso y el «no» al SSO iniciado por el IdP, no la ausencia de riesgo.
+
+### G.9.3 Sin `Idempotency-Key`, otra vez
+
+Como en `§F.9.2`. Los cuatro *endpoints* de escritura de administración son de baja frecuencia y sus efectos son idempotentes por naturaleza o están protegidos por índice único (el de certificados, por huella). **El ACS no es idempotente y no puede serlo**: su propósito es consumir una fila de un solo uso. **Reintentar un ACS tiene que fallar**, y falla (`CA-AUTH-342`).
+
+### G.9.4 Un `POST` que hace una petición saliente: el segundo canal
+
+`§F.9.4` señaló el alta de proveedor OIDC como *«la superficie con más peso de seguridad del paso»*. **Este paso abre un segundo canal con la misma forma**: el alta y el refresco de metadatos por URL. **Se reutilizan las cinco guardas, el mismo cliente HTTP y el mismo *bucket* por tenant**, sin una sola relajación y también en cada redirección (`RN-AUTH-113`, `CA-AUTH-319`, `CA-AUTH-320`).
+
+**Es `OPEN-AUTH-45`, no bloqueante**: si se decide «solo XML pegado», se retiran `metadata_url`, `metadata_source`, `metadata_fetched_at`, `metadata_failed_at`, el *endpoint* de refresco y una tarea programada. **Es un recorte limpio, no un rediseño.**
+
+### G.9.5 Enumerados
+
+**Cinco cerrados y todos con su `CHECK` o su validación en servidor**: `protocol`, `metadata_source`, `name_id_format`, `intent` y `source` de los certificados. A los que se suma la **lista cerrada de códigos de fallo de validación de metadatos** de `§G.4`, que no está en base de datos y es igual de traducible.
+
+**`email_attribute` es texto libre validado, no un enumerado**, y es la única excepción del paso a la disciplina de `§F.5.1` — con su argumento entero en `funcional.md §G.5.1` y declarada como `OPEN-AUTH-43`, **bloqueante**.
+
+---
+
+## G.10 Eventos de dominio y webhooks
+
+**Ningún evento nuevo.** `IdentityLinked`, `IdentityUnlinked`, `IdentityProviderActivated` e `IdentityProviderDeactivated` se reutilizan tal cual: **el hecho es el mismo y el protocolo no lo cambia**. `IdentityLinked` lleva el `link_method`, que en SAML vale `emparejamiento_sso` o `perfil`.
+
+**Ningún webhook**: `REQ-API` es fase 2.
+
+**`UserLoggedIn` se publica igual que siempre.** Quien necesite la distinción la tiene en `login_attempts.method` (`datos.md §G.6`), con la salvedad de retención que `OPEN-AUTH-36` sigue recogiendo y que **este paso no cierra**.

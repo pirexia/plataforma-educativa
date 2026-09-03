@@ -35,6 +35,9 @@ return [
         'oauth_provider_not_configured' => 'Este proveedor de acceso no está disponible en este centro.',
         'oauth_intent_requires_session' => 'Tienes que haber iniciado sesión para vincular una cuenta.',
         'identity_would_leave_user_without_access' => 'No puedes desvincular esta cuenta: es tu única forma de entrar.',
+        // REQ-AUTH-004 (1.4c), api.md §G.5, funcional.md §G.5.1.
+        'saml_certificate_invalid' => 'El certificado no es un X.509 válido, ya ha caducado o su clave no alcanza el tamaño mínimo admitido.',
+        'saml_email_attribute_required' => 'Indica el atributo de correo, salvo que el identificador use el formato de dirección de correo.',
     ],
 
     'mail' => [
@@ -153,6 +156,33 @@ return [
             'emisor_no_coincide' => 'El emisor declarado no coincide con el origen de la URL de descubrimiento.',
             'endpoint_no_seguro' => 'Alguno de los puntos de conexión declarados no usa https.',
             'flujo_no_admitido' => 'Este emisor no admite el flujo de autorización necesario.',
+        ],
+    ],
+
+    // REQ-AUTH-004 (1.4c). Catálogo de proveedores SAML por tenant
+    // (funcional.md §G.4). `metadata.*` es la lista cerrada de motivos por
+    // los que unos metadatos del IdP no pasan las guardas de §G.4.2 —
+    // ninguno lleva el detalle del destino (RN-AUTH-113).
+    'saml' => [
+        'certificate_provider_not_saml' => 'Este proveedor no es SAML: no admite certificados de firma del emisor.',
+        'certificate_already_catalogued' => 'Este certificado ya está catalogado en este proveedor.',
+        'certificate_last_active' => 'No puedes retirar el último certificado vigente de un proveedor activo: desactívalo antes.',
+        'sign_authn_requests_without_platform_key' => 'No puedes activar la firma de peticiones: no hay ninguna clave de firma de plataforma configurada.',
+        'identity_provider_enable_without_certificate' => 'No puedes activar este proveedor sin un certificado de firma vigente.',
+        'metadata_refresh_not_applicable' => 'Este proveedor no tiene metadatos que refrescar.',
+        'metadata' => [
+            'esquema_no_admitido' => 'La URL de metadatos debe usar https.',
+            'destino_no_publico' => 'No se puede acceder a esa dirección desde este servidor.',
+            'demasiadas_redirecciones' => 'Los metadatos redirigen demasiadas veces.',
+            'sin_respuesta' => 'No se han podido descargar los metadatos.',
+            'respuesta_demasiado_grande' => 'Los metadatos son demasiado grandes.',
+            'metadatos_no_validos' => 'Los metadatos no son un XML válido.',
+            'metadatos_demasiado_grandes' => 'Los metadatos son demasiado grandes o tienen demasiados niveles de anidamiento.',
+            'metadatos_ambiguos' => 'Los metadatos no describen un único proveedor de identidad, o se han enviado dos orígenes a la vez.',
+            'binding_no_admitido' => 'Los metadatos no publican un punto de acceso compatible con este sistema.',
+            'sin_certificado_de_firma' => 'Los metadatos no incluyen ningún certificado de firma válido.',
+            'formato_de_identificador_no_admitido' => 'El formato de identificador declarado no está admitido.',
+            'emisor_ya_catalogado' => 'Este centro ya tiene catalogado un proveedor con ese emisor.',
         ],
     ],
 

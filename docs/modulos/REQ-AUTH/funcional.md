@@ -3906,3 +3906,754 @@ Cambiar de criterio no es una línea: exige `users.password` *nullable* (`ADR-04
 5. Pantallas: administración primero, login después.
 
 Rama: `feature/REQ-AUTH-004-sso-institucional`.
+
+---
+
+# Parte G · Paso 1.4c · SSO institucional (SAML 2.0) — Funcional (`REQ-AUTH-004`)
+
+> **Estructura**: §1-§11 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b, `§E.*` es 1.4 y `§F.*` es 1.4b, los seis cerrados. Esta **Parte G** es el paso **1.4c**, **APROBADA** el 2026-09-02 (`§G.14`). Las siete preguntas abiertas propias del paso —`OPEN-AUTH-42` a `48`— resueltas por el usuario el 2026-09-02, todas con la salida recomendada por la especificación.
+>
+> Escrita sobre `ADR-043` (**ACEPTADA**), y en particular sobre su **`§10`** (2026-09-02), que trae las **ocho decisiones del usuario** de `§10.9` y el análisis estructural del paso. Las ocho no se repreguntan aquí.
+
+---
+
+## G.0 Antes de nada
+
+`CLAUDE.md §0` obliga a ponerlo delante. **Este paso llega con ocho decisiones ya tomadas, y la especificación descubre al bajar al detalle tres desviaciones respecto del boceto de `ADR-043 §10.4`/`§10.6` y siete preguntas abiertas, tres de ellas bloqueantes.**
+
+### G.0.1 Lo que `ADR-043 §10.9` ya decidió, y que aquí no se repregunta
+
+| # | Decisión del usuario (2026-09-02) | Dónde vive en este documento |
+|---|-----------------------------------|------------------------------|
+| 1 | **Biblioteca: `SAML-Toolkits/php-saml` 4.x**, MIT, envuelta tras interfaz propia (`RNF-MANT-007`) y usada **solo** por su API de bajo nivel (`Settings` + `Response`), nunca por `Auth` | `§G.3.5`, `RN-AUTH-117` |
+| 2 | **Discriminador `protocol` en `identity_providers` + hija 1:1 `saml_identity_provider_settings`**, sin mover las columnas OIDC | `§G.3.1`, `datos.md §G.2`-`§G.3` |
+| 3 | **Excepción de CSRF para el ACS: grupo de rutas propio sin `csrf`**, no lista global ni `SESSION_SAME_SITE=none` | `§G.3.2`, `RN-AUTH-124`, `api.md §G.7` |
+| 4 | **Sin SSO iniciado por el IdP.** `OPEN-AUTH-40` queda **RESUELTA: no** | `RN-AUTH-120`, `§G.13` |
+| 5 | **VO propio** para la identidad SAML, no `ExternalIdentity` | `§G.3.6` |
+| 6 | **Una sola clave de firma de plataforma**, firma de `AuthnRequest` **opcional por proveedor** (`sign_authn_requests`), **apagada por defecto** | `§G.3.7`, `RN-AUTH-127`, `RN-AUTH-128` |
+| 7 | **El segundo factor del IdP no exime del nuestro.** `OPEN-AUTH-41` queda **RESUELTA: no exime** | `RN-AUTH-129` |
+| 8 | **Sin intermediario externo** (Keycloak/Authentik): dependencia SAML directa, con seguimiento continuo del gobierno de `php-saml` | `operacion.md §G.3` |
+
+Y lo que `ADR-043 §10.9` declara **confirmado y no es pregunta**: la política de **solo emparejamiento** (`§8.1`) aplica a SAML sin ninguna diferencia, y **ya está impuesta por el motor** — `identity_providers.provisioning_mode` lleva `CHECK IN ('desactivado','emparejamiento')` desde 1.4b y **este paso no lo toca**. Crear `Person`/`User` desde SAML no es algo que 1.4c decida no hacer: es algo que la base de datos no permite.
+
+Siguen vigentes sin excepción las cinco restricciones de diseño de `ADR-043 §3.5`, ya recogidas en `§F.0.1`.
+
+### G.0.2 Dependencias no implementadas que condicionan el alcance
+
+| Dependencia | Estado | Qué bloquea exactamente |
+|-------------|--------|-------------------------|
+| **1.4b · SSO institucional (OIDC)** | **Implementado y mezclado** (PR #149, `8f439d4`) | **Es la dependencia dura de este paso y está cumplida.** 1.4c hereda el catálogo, los cuatro permisos, el autoservicio, la clave re-tecleada de `user_identities`, el `link_method = 'emparejamiento_sso'`, el aviso al titular y la pantalla de resultado `/entrar/sso` |
+| **`0.10b` · Dominio, DNS con comodín y certificado** (`OPEN-08`) | **Pendiente** | **Menos bloqueante que en 1.4b, y hay que decirlo.** El IdP simulado de `§G.10` permite recorrer el flujo entero —`AuthnRequest`, firma de la aserción, `InResponseTo`, ventana temporal, repetición, emparejamiento, MFA— sin dominio público. Lo que **sí** queda pendiente es la interoperabilidad real contra ADFS/Entra ID/Shibboleth con TLS de verdad (`operacion.md §G.10.4`) |
+| **`0.10c` · Proveedor de correo transaccional** (`OPEN-09`) | **Pendiente** | El aviso de emparejamiento **ya existe** desde 1.4b (`SendIdentityMatchedEmail`) y se reutiliza tal cual. No impide implementar ni probar; sí impide operar. Hereda `OPEN-AUTH-07` sin agravarlo |
+| **`1.5` · Permisos granulares** | Posterior | **Sin impacto: este paso no declara ni un permiso** (`permisos.md §G.1`). Los cuatro de `proveedor_identidad` de 1.4b cubren todo el autoservicio SAML |
+| **`1.6` · `REQ-BO`** | Posterior | Sin impacto. `ADR-043 §8.3` dejó esta configuración fuera del backoffice |
+| **`REQ-PRIV-006` / `ADR-034 OPEN-13`** | **Pendiente** | **Sigue condicionando exactamente igual que en 1.4b**, y la consecuencia es la misma: no hay columna de fotografía, y la parte de fotografía del *«mapeo de atributos SAML/OIDC a campos de usuario»* de `REQ-AUTH-004` **sigue incumplida**. `§F.0.3` punto 1, sin cambios y sin resolver por la puerta de atrás |
+| **`OPEN-AUTH-38`** (escritura del mapeo sobre `people`) | **RESUELTA (salida A)** | Y tiene una consecuencia directa de esquema en este paso: **la hija SAML no lleva los nombres de atributo de nombre y apellidos** que `ADR-043 §10.4` punto 3 esbozaba, porque **ningún camino de código los leería** (`§G.0.3` desviación 3) |
+
+### G.0.3 Desviaciones respecto del boceto de `ADR-043 §10`, declaradas y no silenciadas
+
+`ADR-043 §10.4` y `§10.6` esbozan la forma de las tablas. Al bajar al detalle, **tres puntos de ese boceto no sobreviven al contraste con lo que 1.4b construyó de verdad y con `CLAUDE.md §11`**. Se declaran aquí, con su argumento, para que la revisión las vea como decisiones y no como descuidos. **Ninguna contradice una decisión de `§10.9`**; las tres afectan a mecánica de esquema, que es de `datos.md`.
+
+#### 1 · No hay columna `sso_binding`
+
+`ADR-043 §10.4` punto 3 la esboza con `CHECK IN ('redirect','post')`. **No se crea.** El motivo es de `CLAUDE.md §11`, no de simplificación:
+
+- 1.4c implementa **solo HTTP-Redirect** para el `AuthnRequest` de salida. Es el *binding* obligatorio del perfil Web Browser SSO para la petición, lo publica todo IdP real, y **es el único compatible con el contrato que ya existe**: `POST /auth/oauth-authorizations` devuelve `{"authorization_url"}` y la SPA navega (`§E.4.1`, `RN-AUTH-93`). Un *binding* HTTP-POST de salida no es una URL: es un formulario de auto-envío, es decir **otro contrato de API**.
+- La respuesta del IdP hacia nosotros es **siempre HTTP-POST**: es lo que hace que el ACS exista y lo que rompe la cookie (`ADR-043 §2.1`).
+- Guardar una columna cuyo único valor posible es `redirect` es guardar configuración que ningún camino de código ramifica — la clase de columna que `ADR-034 OPEN-13` prohíbe y que un día alguien conecta sin revisar por qué estaba desconectada.
+
+**Lo que sí hay** es una guarda: si los metadatos del IdP **no publican** un `SingleSignOnService` con *binding* HTTP-Redirect, el alta falla con el código cerrado `binding_no_admitido` (`api.md §G.4`). Fallar delante del administrador que puede corregirlo, no delante de un docente que no puede.
+
+#### 2 · La hija **no** lleva `idp_entity_id` ni `sso_service_url`
+
+`ADR-043 §10.4` se contradice consigo mismo en este punto y hay que resolverlo: su punto 2 enumera **seis** columnas del padre que una fila SAML no puede rellenar —`discovery_url`, `token_endpoint`, `client_id`, `scopes`, `discovery_fetched_at`, `email_claim`— y **`issuer` y `authorization_endpoint` no están en esa lista**; pero su punto 3 pone `idp_entity_id` y `sso_service_url` en la hija. **Las dos cosas no pueden ser ciertas a la vez** sin duplicar el dato en dos sitios, que es la peor de las tres salidas.
+
+**Esta especificación resuelve que una fila SAML rellena `issuer` y `authorization_endpoint` del padre**, y la hija no los duplica:
+
+- **`issuer` = `entityID` del IdP.** Es el mismo papel semántico en los dos protocolos —*«quién afirma la identidad»*— y es el valor contra el que se compara el emisor de cada mensaje (`RN-AUTH-104` en OIDC, `RN-AUTH-119` aquí).
+- **Y hay una garantía real que se gana**: `UNIQUE (tenant_id, issuer) WHERE deleted_at IS NULL` (1.4b) pasa a valer **entre protocolos**. Un centro no puede catalogar dos veces el mismo emisor ni aunque lo intente una vez como OIDC y otra como SAML. Con `idp_entity_id` en la hija haría falta un segundo índice único que **no** cubriría ese cruce.
+- **`authorization_endpoint` = URL del `SingleSignOnService` con *binding* HTTP-Redirect.** Es literalmente *«la URL a la que se envía el navegador para autenticarse»* en los dos protocolos.
+
+**Queda como `OPEN-AUTH-42`, bloqueante**, porque es una lectura del ADR y no una decisión que me corresponda cerrar. La especificación está escrita sobre esta salida.
+
+#### 3 · La hija **no** lleva nombres de atributo de nombre y apellidos
+
+`ADR-043 §10.4` punto 3 los esboza. **No se crean**, y el argumento no es nuevo: `OPEN-AUTH-38` se resolvió con la salida A el 2026-09-01, `RN-AUTH-109` prohíbe que un proveedor institucional escriba en `people`, y `§F.5.2` ya dejó `identity_providers` sin ninguna columna de mapeo hacia `people` por el mismo motivo. Guardar en 1.4c lo que 1.4b se negó a guardar sería reintroducir por la hija lo que se cerró en el padre.
+
+**Sí se crea `email_attribute`**, y solo ese, porque **tiene consumidor**: es el atributo del que sale el correo con el que se empareja. Su forma es la pregunta abierta `OPEN-AUTH-43`.
+
+### G.0.4 Un hallazgo sobre el código de 1.4b que este paso hereda y no arregla
+
+Verificado en el repositorio, no recordado. `OAuthAuthorizationService` guarda el `intent` en una clave de sesión **compartida por los dos protocolos** (`pge_oauth_intent`, con el comentario literal *«solo puede haber un flujo en curso a la vez en una sesión»*). En SAML el `intent` **no puede vivir ahí**: el ACS llega sin cookie (`ADR-043 §2.1`), así que el `intent` y el usuario a vincular viajan en la **fila de correlación** (`ADR-043 §10.7`, `datos.md §G.4`).
+
+**Consecuencia que hay que escribir para que no sorprenda a `implementer`**: arrancar un flujo SAML **no** debe dejar un `pge_oauth_intent` huérfano en la sesión, y arrancar un flujo OIDC o de Google **no** debe invalidar una petición SAML pendiente. Son dos mecanismos de correlación independientes por diseño, y `RN-AUTH-114` lo fija. No es un defecto de 1.4b: es la consecuencia de que los dos protocolos no comparten mecanismo de sesión, que es exactamente lo que `ADR-043 §2.1` argumentó para dividir el paso.
+
+---
+
+## G.1 Alcance del paso 1.4c
+
+### G.1.1 Entra
+
+| Sub-requisito | Qué parte |
+|---------------|-----------|
+| `REQ-AUTH-004` línea 1 (*«SAML 2.0 para sistemas de identidad institucionales»*) | **Perfil Web Browser SSO como *Service Provider***: `AuthnRequest` por HTTP-Redirect, aserción por HTTP-POST en un ACS propio, verificación de firma obligatoria y correlación en servidor |
+| `ADR-043 §10.4` | **Discriminador `protocol` en `identity_providers`** y **tabla hija `saml_identity_provider_settings`**, en *expand/contract* sobre una tabla viva |
+| `ADR-043 §10.6` | **`identity_provider_certificates`**: uno o varios certificados de firma del IdP vigentes a la vez, con ventana de rotación, vigencia extraída del propio certificado y aviso de vencimiento |
+| `ADR-043 §10.7` | **`saml_auth_requests`** (correlación de un solo uso, con `intent` y `linking_user_id`) y **`saml_consumed_assertions`** (repetición de la aserción). **Las dos, no una**: cubren ataques distintos |
+| `ADR-043 §8.3` | **Autoservicio del centro**, con los **mismos cuatro permisos** de 1.4b: alta del proveedor SAML pegando la URL de metadatos o el XML, carga y retirada de certificados, activación de la firma de peticiones, y **descarga de nuestros metadatos de SP** para que los registre en su IdP |
+| `REQ-AUTH-004` línea 3 | **Mapeo de atributos, mitad de identidad**: `NameID` como identificador estable y un atributo configurable como correo de emparejamiento. La mitad de escritura sobre `people` **no entra** (`OPEN-AUTH-38` salida A, `RN-AUTH-109`) |
+| `REQ-AUTH-004` línea 4 | **Aprovisionamiento por emparejamiento**, idéntico al de 1.4b y por el mismo camino de código (`UserIdentityLinkingService::linkViaSso()`). **Nunca creación** |
+| Integración con lo ya construido | Bloqueo, estado de la cuenta y **`MfaPolicy` completo**, sin una sola excepción (`RN-AUTH-129`) |
+| Operación | **IdP SAML simulado** en `local`/`testing` (`§G.10`), dos tareas programadas nuevas y una purga nueva |
+
+### G.1.2 No entra, y por qué
+
+| Fuera | Dónde va | Motivo |
+|-------|----------|--------|
+| **SSO iniciado por el IdP** | **Ningún paso** | `ADR-043 §10.9` decisión 4. **Y aquí no es una preferencia: es la precondición de seguridad de la excepción de CSRF del ACS** (`ADR-043 §10.5`). Aceptarlo sería un `POST` sin CSRF y sin nada que correlacionar |
+| **Single Logout (SLO)** | **Ningún paso** | `ADR-043 §3.4`. No lo pide el requisito, y es el mecanismo con peor interoperabilidad real del estándar |
+| **`EncryptedAssertion`** | **Sin decidir** | `OPEN-AUTH-46`. Exigiría una clave privada de descifrado de SP, publicarla en nuestros metadatos y una superficie de descifrado XML nueva. **Posición por defecto: no se soporta**, y se documenta que el centro debe entregar la aserción firmada y sin cifrar sobre TLS |
+| ***Binding* HTTP-POST para el `AuthnRequest` de salida** | **Ningún paso** | `§G.0.3` desviación 1 |
+| **`AuthnRequest` firmado por clave de tenant** | **Ningún paso** | `ADR-043 §10.9` decisión 6: una sola clave de plataforma |
+| **SAML como *Identity Provider*** (que nosotros emitamos aserciones) | **Ningún paso** | No está en el requisito, ni de lejos |
+| **SCIM y sincronización de directorio** | **Ningún paso** | `ADR-043 §3.4` |
+| **Creación automática de `Person`/`User`** | **Ningún paso** | `ADR-043 §8.1`, y **el `CHECK` de `provisioning_mode` lo impide por esquema** |
+| **Escritura del mapeo sobre `people`** | **Sin decidir** | `OPEN-AUTH-38` salida A, sin reabrir |
+| **Convertir el SSO en la única puerta de entrada** | **Ningún paso** | `RN-AUTH-96` sigue en vigor sin excepción, y en este paso **es además lo que degrada la caducidad de un certificado de caída a molestia** (`ADR-043 §10.6`) |
+
+### G.1.3 El tamaño de este paso, dicho antes de empezar
+
+**Cuatro tablas nuevas, dos modificaciones de tablas existentes, cinco *endpoints* nuevos, cinco modificados, cero permisos y tres pantallas modificadas.**
+
+Comparado con lo que el módulo ya ha entregado: 1.3 (seis tablas, diez *endpoints*), 1.4b (dos tablas, nueve *endpoints*, cuatro permisos, tres pantallas), 1.4 (una tabla, seis *endpoints*). **Está entre 1.4b y 1.3 en datos, y por debajo de los dos en superficie de API**, porque el autoservicio, los permisos y las pantallas ya existen.
+
+**`ADR-043 §10.4` avisó de que `§3.1` prometía más reutilización de la que hay, y tenía razón**: esto no es «un adaptador». Es un adaptador **más** una migración *expand/contract* sobre una tabla viva **más** cuatro tablas **más** una dependencia de alto riesgo **más** la primera excepción de CSRF de la aplicación. Sigue siendo menor que 1.4b, y **no propongo partirlo**: el corte por capa ya se descartó en `ADR-043 §6` con el argumento de que deja un paso que no se puede verificar de extremo a extremo, y aquí el flujo entero **sí** se puede recorrer en desarrollo (`§G.10`).
+
+---
+
+## G.2 Actores
+
+| Actor | Qué hace en 1.4c |
+|-------|------------------|
+| **Administrador de Centro** | **El mismo actor de 1.4b, con dos operaciones más.** Da de alta el IdP SAML de su centro pegando la URL de metadatos o el XML, carga y rota los certificados de firma, decide si firmamos las peticiones, **descarga nuestros metadatos de SP** para registrarlos en su IdP, fija dominios admitidos y modo de aprovisionamiento, y activa. **Con los mismos cuatro permisos de 1.4b**: este paso no declara ninguno |
+| **Cualquier usuario del centro** | Entra con las credenciales del centro si su cuenta ya existe, está activa y el emparejamiento resuelve. Ve y retira sus vínculos desde su perfil, por el mismo `GET`/`DELETE /auth/identities`, **sin ningún *endpoint* nuevo** |
+| **Persona sin cuenta activa** | Completa el flujo con su IdP y **no entra**, con una salida que no revela si tiene cuenta |
+| **Operador de sistemas** | **Una responsabilidad nueva y solo una**: custodiar la **clave privada de firma del SP** (`§G.3.7`), si el producto la usa. No registra nada en ninguna consola: lo hace cada centro en su propio IdP |
+| **Super Administrador** | Ninguna operación (`ADR-043 §8.3`) |
+
+---
+
+## G.3 Decisiones estructurales
+
+Siete. Las tres primeras vienen decididas de `ADR-043 §10.9` y aquí solo se concretan; las cuatro últimas son las que el ADR dejó a esta especificación.
+
+### G.3.1 El discriminador y la hija: qué garantía cambia de sitio y cuál se gana
+
+`ADR-043 §10.9` decisión 2. Lo que esta especificación fija es **cómo no se pierde ninguna garantía por el camino**, que es la parte que se puede hacer mal sin que se note:
+
+1. `identity_providers` recibe `protocol text NOT NULL DEFAULT 'oidc'` con `CHECK IN ('oidc','saml')`. **Aditivo puro**: toda fila existente es OIDC, y `ADD COLUMN` con `DEFAULT` no volátil no reescribe la tabla en PostgreSQL.
+2. **Siete** columnas OIDC pasan de `NOT NULL` a *nullable* —las seis de `ADR-043 §10.4` más `claims_source`, que es igual de OIDC-específica y que el ADR no listó— **y su obligatoriedad se reexpresa como `CHECK` condicionado**: `CHECK (protocol <> 'oidc' OR token_endpoint IS NOT NULL)`, y así con las siete. **La garantía no se pierde: cambia de sitio.**
+3. **Los `DEFAULT` de `scopes`, `claims_source` y `email_claim` se retiran.** Es el punto que más fácil es olvidar y el que produciría exactamente el fallo que `ADR-043` rechazó dos veces: con el `DEFAULT` puesto, una fila SAML insertada sin nombrar esas columnas **se rellena sola con valores OIDC de conveniencia**. Es seguro retirarlos porque `IdentityProviderService::create()` —código ya desplegado— **las fija las tres explícitamente** en todas sus rutas (verificado, no supuesto).
+4. **Y una garantía simétrica que no estaba en el ADR y que la revisión de 1.4b enseñó a pedir**: un `CHECK` que impide que una fila SAML lleve **ninguna** columna OIDC informada. Es la hermana exacta de `user_identities_fusion_no_provider_check`, el hallazgo de `db-reviewer` en 1.4b: sin ella, «no rellenar columnas OIDC en filas SAML» viviría solo en el servicio y no en el motor, contradiciendo `datos.md §F.8` (*«nada de esto vive solo en la aplicación»*).
+5. Lo específico de SAML va a **`saml_identity_provider_settings`**, 1:1 con el padre, donde sus columnas sí son `NOT NULL` de verdad.
+
+**Lo que se reutiliza tal cual, y no es poco**: `tenant_id` + RLS + política estándar, `public_id`, `display_name`, `issuer`, `authorization_endpoint`, `allowed_email_domains`, `provisioning_mode`, `is_enabled`, `deleted_at`, la clase de auditoría `Full`, **los cuatro permisos `proveedor_identidad.*`**, las pantallas de autoservicio, el `GET /auth/identity-providers` anónimo y la clave foránea compuesta de `user_identities`.
+
+**`protocol` es inmutable tras el alta** (`RN-AUTH-114`). Cambiar de protocolo no es editar una fila: es dar de alta otro proveedor. Permitirlo obligaría a vaciar y rellenar dos juegos de columnas en una sola transacción, con vínculos vivos colgando de esa fila.
+
+### G.3.2 El ACS: por qué es `POST`, por qué va sin CSRF y qué lo sostiene
+
+`ADR-043 §10.5`, decisión 3. El problema es **doble** y tiene dos remedios distintos:
+
+1. **No llega la cookie.** `config/session.php` fija `same_site = 'lax'`; un `POST` entre sitios no la lleva. `start-session` crea entonces una sesión nueva y vacía.
+2. **`ValidateCsrfToken` rechazaría la petición.** El *callback* de OIDC esquiva esto por accidente feliz —Laravel exime `GET`—; **el ACS es `POST` y no lo exime**. Con la cadena actual devolvería `419` antes de mirar la aserción.
+
+**Grupo de rutas propio, con pila declarada explícitamente:**
+
+```
+resolve-tenant → encrypt-cookies → add-queued-cookies → start-session → verify-session-tenant
+```
+
+Es la cadena de `/api/v1` **menos `csrf`, `session-idle-timeout`, `resolve-locale` y `require-mfa-enrollment`**, ninguno de los cuales tiene sentido sobre una petición que por diseño llega sin sesión. `verify-session-tenant` se mantiene: sobre sesión vacía no hace nada, y si por lo que fuera llegara una sesión, `RN-AUTH-31` debe seguir aplicando.
+
+**Se prefiere a `validateCsrfTokens(except: […])`** por dos motivos escritos en `ADR-043 §10.5` y que esta especificación hace suyos: una lista global admite comodines y crece sin que nadie la revise, mientras que un grupo nombrado se autodocumenta y su alcance es exactamente las rutas que contiene; y `api.md §8` fija el orden de la cadena advirtiendo que *«un intercambio de dos posiciones aquí es un fallo de seguridad silencioso»* — una pila declarada aparte se lee y se compara.
+
+**El riesgo, dicho sin suavizar**: un `POST` sin CSRF que establece sesión autenticada es un vector de ***login CSRF***. Un atacante hace que el navegador de la víctima envíe al ACS una aserción legítima **de la cuenta del atacante**, y la víctima queda operando en una cuenta ajena que el atacante luego lee.
+
+**Lo que lo cierra es la correlación de `§G.3.3`, y nada más.** Por eso `RN-AUTH-120` no es una preferencia de prudencia: es la condición sin la cual esta excepción no es defendible.
+
+**Se descarta `SESSION_SAME_SITE=none`**: resolvería el punto 1 y empeoraría la postura CSRF de **toda** la aplicación para arreglar una ruta.
+
+**Cómo se establece la sesión.** `SameSite` restringe el **envío** de una cookie, no su **fijación**. La secuencia es la que 1.4/1.4b ya usan: ACS valida → `session()->regenerate()` (`RN-AUTH-32`, punto de fijación de sesión) → autentica → **`302` a `/entrar/sso?resultado=…` o a la raíz**, que es una navegación `GET` de nivel superior hacia nuestro propio origen, el caso que `Lax` sí acompaña. Es el mismo mecanismo de salida de `RN-AUTH-93`, reutilizado sin variantes.
+
+**Reserva declarada y no implementada**: si la verificación en navegador real mostrara que algún navegador no envía la cookie en esa redirección, la salida es un vale opaco de un solo uso y vida corta en la URL, que la SPA canjea por sesión con un `POST` normal y con CSRF. **No se implementa por adelantado**: es complejidad real a cambio de un problema que puede no existir, y averiguarlo cuesta una prueba (`operacion.md §G.10.4`).
+
+### G.3.3 La correlación: dos tablas, no una, y qué protege cada pieza
+
+`ADR-043 §10.7`. Es la pieza que sostiene `§G.3.2`, así que va con el detalle de qué ataque cierra cada columna:
+
+| Pieza | Qué protege |
+|-------|-------------|
+| **`saml_auth_requests.request_id`** | Es el `ID` del `AuthnRequest` que **nosotros** emitimos y contra el que se compara el `InResponseTo` de la respuesta y el de `SubjectConfirmationData`. Sin fila viva que case, **no hay identidad** (`RN-AUTH-120`). Es lo que cierra el *login CSRF* de `§G.3.2` y lo que hace imposible el SSO iniciado por el IdP |
+| **`consumed_at`** | La fila es de **un solo uso**, marcada en la **misma transacción** en que se valida, con `UPDATE … WHERE consumed_at IS NULL` comprobando **filas afectadas** — nunca leer-y-luego-escribir. Dos ACS simultáneos con la misma aserción **no pueden ganar los dos** (`RN-AUTH-121`) |
+| **`expires_at`** | Ventana corta, la misma `state_ttl_minutes` que 1.4b ya tiene configurada. Acota la ventana de robo de una aserción en vuelo |
+| **`intent` + `linking_user_id`** | **La pieza que 1.4b no necesitó.** En OIDC, vincular exige sesión al iniciar y la sesión sigue ahí en el *callback*. **En SAML el ACS no tiene sesión**, así que el usuario a vincular se captura **al emitir la petición**, cuando sí hay sesión, y viaja en la fila. Sin esto, `intent = link` en SAML es irrealizable |
+| **`saml_consumed_assertions.assertion_id` + `not_on_or_after`** | **Cubre un ataque distinto y por eso es una segunda tabla**: una misma aserción reenviada contra **otra** petición viva. Con índice único por tenant y proveedor, una aserción repetida se rechaza mientras siga dentro de su ventana de validez (`RN-AUTH-122`) |
+
+**Las dos tablas necesitan purga programada** (`operacion.md §G.4`), con el precedente de `2026_08_31_100100_add_purge_indexes_to_mfa_tables.php` e issues #118/#119 sobre cómo hacerla sin bloquear.
+
+### G.3.4 El ACS es **por proveedor**, y el `entityId` del SP es **por tenant**
+
+`ADR-043 §10.7`, y es la restricción de diseño que más fácil es equivocar:
+
+- **El `public_id` del proveedor va en la ruta**: `POST /api/v1/auth/saml/{public_id}/acs`. El motivo no es de comodidad, es de corrección criptográfica: **la clave con la que se verifica una firma nunca puede elegirse a partir del contenido del mensaje que aún no se ha verificado.** Con el proveedor en la ruta, el conjunto de certificados admisibles y el emisor esperado quedan fijados **antes** de tocar el XML; el `Issuer` que venga dentro se compara contra ese valor y, si no coincide, se rechaza. Resolver el proveedor leyendo el `Issuer` sería dejar que el atacante elija con qué llave se le comprueba.
+- **Esto se aparta de `§F.3.1`, que eligió una URI por tenant para OIDC, y hay que decirlo.** El argumento de `§F.3.1` —que borrar y recrear un proveedor produce un `public_id` nuevo y rompe el registro que el administrador ya hizo en su IdP— **sigue siendo cierto aquí**. Lo que cambia es que en SAML hay un argumento de seguridad por encima, y ese manda. El coste operativo se acepta, se documenta en la pantalla y en el manual, y se registra como `OPEN-AUTH-47`.
+- **`entityId` del SP es por tenant y no es una pregunta.** Si todos los centros compartieran `entityId`, una aserción emitida legítimamente por el IdP del centro A —con `Audience` = ese `entityId` compartido— sería textualmente válida para el centro B. **Es fuga entre tenants por diseño, `INV-001`, severidad crítica.** `entityId` y ACS URL se derivan del *host* del tenant, que ya es el mecanismo de `ADR-033 §2` y el que `ADR-043 §5.1` confirmó que aquí **no** tiene el tope de URIs de 1.4.
+
+Con `Destination`, `Audience` y ruta del ACS todos por tenant, quedan **tres barreras independientes** contra la reutilización de una aserción entre centros.
+
+### G.3.5 El envoltorio de `php-saml`: qué se usa y qué no
+
+`ADR-043 §10.9` decisión 1 y `§10.2`. Lo que esta especificación fija es el contrato del envoltorio, porque es donde está la trampa conocida de la biblioteca:
+
+- **No se usa `OneLogin\Saml2\Auth` en absoluto** en el camino de entrada. `Auth::processResponse()` lee `$_POST['SAMLResponse']` directamente y `Utils::getSelfURL()` lee `$_SERVER` con estado estático, lo que tras Traefik (`ADR-028`) sería un riesgo real en la validación de `Destination`. **La superficie completa que se usa es `new Response($settings, $xmlBase64)` + `$response->isValid($requestId)`**, que reciben el mensaje y el identificador **por parámetro**.
+- **La URL propia se fija a mano** con `Utils::setBaseURL()` a partir del *host* de tenant **ya resuelto por `ResolveTenant`**, nunca desde `$_SERVER`. Así `Destination` se compara contra un valor que ponemos nosotros.
+- **Los tres indicadores que `ADR-043 §10.2` documenta como la trampa de la biblioteca se fijan a `true` por el envoltorio y se verifican por test**: `strict` (ya es `true` por defecto, pero se fija explícitamente), **`wantAssertionsSigned`** y **`wantMessagesSigned`** (los dos `false` por defecto — sin tocarlos, `Response::isValid()` **acepta una respuesta sin firmar**). `rejectUnsolicitedResponsesWithInResponseTo` se fija también a `true`, aunque nuestra propia correlación ya lo cubriría: dos barreras, no una.
+- **`CA-AUTH-336` comprueba los cuatro indicadores por reflexión sobre el `Settings` construido**, no por inspección del texto del código. Es el test que `ADR-043 §10.3` punto 3 anticipó como la razón por la que esta biblioteca es la manejable de las tres.
+- **Ninguna clase de `OneLogin\Saml2\*` cruza la frontera del envoltorio**, con el mismo test de arquitectura que `ADR-042` impuso para Socialite (`CA-AUTH-362`).
+
+**Sobre `wantMessagesSigned = true`**: no todos los IdP firman la `Response` además de la `Assertion`; el estándar admite firmar una, otra o las dos. Fijarlo a `true` exigiría la firma del mensaje **siempre**, y dejaría fuera IdP conformes. **Se fija a `true`, y la especificación acepta esa restricción**, por el argumento de `ADR-043 §2.3`: el modo de fallo característico de esta familia es *«la firma no se valida y el sistema cree que sí»*, y una configuración que exige las dos firmas no tiene ese modo de fallo. Si la verificación contra un IdP comercial mostrara que un centro real no puede firmar el mensaje, **es un cambio de una línea de configuración con su propio test y su propia decisión**, no un rediseño — y queda anotado en `operacion.md §G.10.4` como lo primero que hay que comprobar.
+
+### G.3.6 El objeto de valor: propio, y por qué no se fuerza `ExternalIdentity`
+
+`ADR-043 §10.9` decisión 5, `§10.8` salida (b). El argumento decisivo lo aportó 1.4b sin saberlo: la migración `2026_09_01_100500` añadió `CHECK (link_method <> 'fusion_automatica' OR identity_provider_id IS NULL)`, de modo que **la fusión automática es imposible por esquema para cualquier proveedor catalogado**. Un vínculo SAML usa `emparejamiento_sso`, que **no está sujeto al `CHECK` de correo verificado**. Es decir: **SAML nunca consume `emailVerified` para nada**, y un objeto de valor que no lo lleve no pierde ninguna garantía.
+
+```php
+final readonly class SamlIdentity {
+    public string $nameId;          // el identificador estable, RN-AUTH-123
+    public string $nameIdFormat;
+    public ?string $email;          // del atributo configurado, o del propio NameID si el formato es emailAddress
+    public string $assertionId;     // para saml_consumed_assertions
+    public CarbonImmutable $notOnOrAfter;
+}
+```
+
+Interfaz propia, en `Domain`, con dos verbos y la misma disciplina que `ExternalIdentityProvider`:
+
+```php
+interface SamlIdentityProvider {
+    public function buildAuthnRequest(string $requestId): string;   // URL HTTP-Redirect
+    public function validateAssertion(string $samlResponse, string $expectedRequestId): SamlIdentity;
+}
+interface SamlIdentityProviderRegistry {
+    public function forProvider(IdentityProvider $provider): SamlIdentityProvider;
+}
+```
+
+**`ExternalIdentityFailure` sí se reutiliza, ampliándolo** (`ADR-043 §10.8`): es un enum de resultados **de cara a la persona**, no de mecánica de protocolo, y tener dos listas para el mismo botón *«entrar con el sistema del centro»* sería peor producto y peor auditoría. Se le añade **un** caso, `AssertionInvalid`, hermano de `IdTokenInvalid` y agrupado bajo el mismo código de salida `error_proveedor`. `ConsentDenied`, `InvalidState` y `DomainNotAllowed` se reutilizan tal cual; `ProviderUnreachable` queda sin uso en SAML —no hay canal trasero en el perfil `POST`— y no estorba.
+
+**Añadir un caso a un enum de PHP es aditivo y seguro de verificar**: todo `match` exhaustivo sobre él deja de compilar hasta cubrirlo, así que el análisis estático localiza cada punto de consumo. No hay ventana de olvido silencioso.
+
+### G.3.7 La clave de firma del SP: de plataforma, opcional, y sin ella no se activa la firma
+
+`ADR-043 §10.9` decisión 6. Lo que esta especificación fija —y que el ADR dejó abierto— es **dónde vive y qué pasa cuando no está**:
+
+- **Es una clave de plataforma, no por tenant.** Por tanto **cabe en el mecanismo de `ADR-037 §7`**: se entrega por `EnvironmentFile=` como ruta a un fichero montado, y **no** cifrada en base de datos como el `client_secret` de 1.4b. El argumento de `ADR-043 §8.2` para meter el secreto en la tabla era que *«cambiaría con cada alta de tenant y exigiría reiniciar el servicio»*; **aquí no cambia con ninguna alta**, así que ese argumento no aplica y la salida coherente con `ADR-037` es la de despliegue. Queda como `OPEN-AUTH-44`, bloqueante, porque es custodia de material criptográfico y no me corresponde cerrarla.
+- **Es opcional y está apagada por defecto.** `sign_authn_requests = false` en todo proveedor nuevo. Un `AuthnRequest` sin firmar es lo normal y lo que la mayoría de IdP acepta; la firma la exigen algunos despliegues de ADFS y Shibboleth.
+- **Y hay una guarda, porque si no la hay el fallo es silencioso**: activar `sign_authn_requests = true` **sin clave de plataforma configurada responde `409`**, con el mismo criterio con el que 1.4b devuelve `409` al activar un proveedor sin credencial vigente (`RN-AUTH-128`). Un proveedor que dice firmar y no firma es un proveedor cuyo IdP rechaza todas las peticiones, con un síntoma que no apunta a la causa.
+- **La clave privada no sale por ninguna vía**: ni por API, ni enmascarada, ni en `audit_logs`, ni en el registro de aplicación. Es la hermana exacta de `RN-AUTH-112`. **El certificado público sí sale**, y tiene que salir: va en nuestros metadatos de SP (`api.md §G.3`).
+- **No hay rotación automática en 1.4c.** Rotar la clave de plataforma es reemplazar el fichero y pedir a cada centro que vuelva a cargar nuestros metadatos. Se documenta en `RUNBOOK.md` y no se automatiza: automatizar una rotación que nadie ha ejecutado nunca es código sin ejercitar en el camino del acceso.
+
+---
+
+## G.4 Flujos
+
+### G.4.1 Alta y validación de un proveedor SAML por el administrador del centro
+
+1. El administrador abre `/administracion/sso` y crea un proveedor con `protocol = "saml"`, **nombre visible**, y **o** una **URL de metadatos** **o** el **XML de metadatos pegado** — uno de los dos, nunca los dos ni ninguno.
+2. El servidor **obtiene y valida los metadatos de forma síncrona** —el administrador está esperando y necesita el resultado para corregir—:
+   - Si vino una URL, la descarga pasa **las mismas cinco guardas de `§F.4.2`**, sin una sola relajación y **también en cada redirección** (`RN-AUTH-113`, que se amplía a este canal sin cambiar de redacción).
+   - Si vino XML pegado, no hay petición saliente, y por tanto no hay guardas 1-4; sí la 5, la de contenido.
+3. **Validación de contenido de los metadatos** (`§G.4.2`). Si pasa, se guardan `issuer` (= `entityID` del IdP), `authorization_endpoint` (= `SingleSignOnService` con *binding* HTTP-Redirect), `name_id_format` y **los certificados de firma que los metadatos publiquen**, cada uno como una fila de `identity_provider_certificates` con su vigencia extraída. Si falla, **no se crea nada** y la respuesta dice qué comprobación falló con un código de una lista cerrada.
+4. El administrador **descarga nuestros metadatos de SP** (`GET .../metadata`) y los registra en su IdP. Es el equivalente exacto del bloque `integration` de 1.4b, y contiene: `entityID` del SP, ACS URL con *binding* HTTP-POST, `NameIDFormat` que pedimos, y el certificado público **solo si `sign_authn_requests` está activo**.
+5. Fija **los dominios de correo admitidos**, el **atributo de correo** y el **modo de aprovisionamiento** (`desactivado` por defecto).
+6. **Activa** el proveedor. Hasta ese momento **no aparece en la pantalla de login de nadie** y **el flujo no arranca aunque alguien llame al *endpoint* a mano** (`RN-AUTH-102`, sin cambios).
+
+**El alta no verifica que el IdP nos conozca**, exactamente igual que en 1.4b y por el mismo motivo: comprobarlo exige un usuario real recorriendo el flujo. Lo que sí hay es la métrica y la alerta sobre el primer acceso fallido de un proveedor recién activado (`operacion.md §G.8`).
+
+### G.4.2 Validación de los metadatos: qué se comprueba
+
+La guarda 5 de `§F.4.2` traducida a SAML. Las guardas 1-4 (esquema `https`, destino público, redirecciones, tiempo y tamaño) **se reutilizan sin cambios** cuando el origen es una URL.
+
+| # | Comprobación | Por qué |
+|---|--------------|---------|
+| 1 | **XML bien formado**, con **carga de entidades externas desactivada** y sin resolución de DTD | Es la guarda contra **XXE**, uno de los avisos históricos del ecosistema (`ADR-043 §2.3`). Va antes que ninguna otra porque es la única que se ejerce sobre el analizador |
+| 2 | **Tope de tamaño y de profundidad de anidamiento** del documento | Una bomba de expansión de entidades o un documento de mil niveles es una denegación de servicio barata desde un *endpoint* con sesión de administrador |
+| 3 | **Un `EntityDescriptor` con `entityID`**, y **un solo** `IDPSSODescriptor` | Un `EntitiesDescriptor` con federación entera dentro no es lo que un centro cataloga; si viene, se rechaza con `metadatos_ambiguos` |
+| 4 | **`SingleSignOnService` con `Binding` HTTP-Redirect presente y `https`** | `§G.0.3` desviación 1. Sin él no podemos hacer el flujo que vamos a hacer |
+| 5 | **Al menos un `KeyDescriptor` de uso `signing`** con un X.509 analizable y **no caducado** | Un IdP sin certificado de firma es un IdP cuyas aserciones no podemos verificar, y `RN-AUTH-117` no admite excepciones |
+| 6 | **`NameIDFormat`**, si viene, dentro de los admitidos | `transient` **no se admite** (`RN-AUTH-123`): un `NameID` que cambia en cada acceso no puede sostener un vínculo |
+| 7 | **`entityID` no catalogado ya vivo** en este centro | `UNIQUE (tenant_id, issuer)`, ahora entre protocolos (`§G.0.3` desviación 2) |
+
+**El refresco posterior no es síncrono** y solo aplica a los proveedores cuyo origen es una URL: tarea programada diaria (`operacion.md §G.4`), con la posibilidad de forzarlo desde la pantalla. **Si el refresco falla, se conserva todo lo anterior** y se avisa: un IdP momentáneamente inalcanzable no debe dejar sin SSO a un centro cuyo IdP funciona.
+
+**El refresco puede añadir certificados, nunca retirarlos.** Es la decisión con más consecuencia operativa del refresco y va con su argumento: si un IdP publica metadatos con solo el certificado nuevo mientras aún firma con el viejo —cosa que ocurre—, retirar el viejo automáticamente **corta el acceso del centro en mitad de una rotación**. Retirar un certificado es siempre un acto del administrador (`RN-AUTH-125`).
+
+### G.4.3 Login con un proveedor SAML
+
+1. La pantalla de login pide `GET /api/v1/auth/identity-providers` (anónimo, tenant por host). **La colección no cambia de forma**: los proveedores SAML activos salen con el mismo `{id, display_name}` opaco que los OIDC. **La SPA no sabe qué protocolo es ninguno, y no debe saberlo.**
+2. La persona pulsa. La SPA envía `POST /api/v1/auth/oauth-authorizations` con `{"provider": "<id opaco>", "intent": "login"}` y su token CSRF. **Mismo contrato, byte a byte.**
+3. El servidor, en este orden:
+   1. **Límite de tasa por IP** (`oauth_start_ip`, sin cambios).
+   2. Resuelve el proveedor **dentro del tenant**. Desconocido, borrado o **no activo** ⇒ `422`, sin distinguir los tres casos.
+   3. **Comprueba que hay al menos un certificado de firma vigente**. Si no, ⇒ `422` y **alerta operativa**: es el estado en que el centro cree tener SSO y no lo tiene. Es el análogo exacto de la comprobación de credencial vigente de 1.4b.
+   4. Genera el `request_id` (con la restricción de que un `ID` de SAML es un `NCName`: **no puede empezar por dígito**, así que lleva prefijo) y **crea la fila de `saml_auth_requests`** con `intent`, `linking_user_id` si procede, y `expires_at`.
+   5. Construye el `AuthnRequest` sobre el `authorization_endpoint`, con `AssertionConsumerServiceURL` y `Destination` **derivados del slug del tenant ya resuelto**, `NameIDPolicy/@Format` el catalogado, y **firma si `sign_authn_requests`**.
+4. Responde `201` con `{"authorization_url", "expires_at"}`. **La SPA navega**; el servidor no responde `302`. Sin cambios.
+5. El IdP devuelve el navegador con un **`POST` entre sitios** a `POST /api/v1/auth/saml/{public_id}/acs`, **en el host del tenant**, con `SAMLResponse` en el cuerpo. **Sin cookie de sesión** (`§G.3.2`).
+6. **Límite de tasa por IP** (`saml_acs_ip`).
+7. **Resolución del proveedor desde la ruta** y carga de sus certificados activos y vigentes, **antes de tocar el XML** (`RN-AUTH-118`).
+8. **Validación de la aserción**, en bloque y antes de leer un solo atributo de identidad (`RN-AUTH-119`): firma, `Issuer`, `Destination`, `Audience`, ventana temporal, `Recipient`, `InResponseTo` correlacionado y `ID` de aserción no repetido. Cualquiera que falle ⇒ `resultado=error_proveedor`; el detalle **al registro de aplicación, nunca a la pantalla**.
+9. **Consumo atómico** de la fila de correlación y **registro del `ID` de la aserción**, en la misma transacción (`RN-AUTH-121`, `RN-AUTH-122`).
+10. **`NameID` ausente, vacío o de formato no admitido ⇒ se rechaza sin alternativa** (`RN-AUTH-123`). **Nunca se identifica por correo como respaldo.** Sale con la **misma** salida genérica que «no hay cuenta».
+11. **Restricción por dominio** (`allowed_email_domains`, `RN-AUTH-107` sin cambios; la capa `hd` de Google no aplica en SAML). No admitido ⇒ `resultado=dominio_no_permitido`.
+12. **Resolución de la identidad, en el mismo orden exacto de `§F.4.3` punto 11**, con `subject = NameID`. Las cuatro ramas (a, b, c, d) son las mismas y comparten el código de 1.4b.
+13. **`session()->regenerate()`**, y a partir de ahí **las mismas comprobaciones del login local, en el mismo orden** (`RN-AUTH-129`): bloqueo vivo, estado de la cuenta (`RN-AUTH-23`: solo `activo`) y **`MfaPolicy::resolve()` completo**, con sus cuatro ramas sin excepciones.
+14. **Creación de la sesión**: exactamente la transacción de `§C.4.4` punto 10, y fila en `login_attempts` con **`method = 'sso'`** — el mismo valor que 1.4b, **sin ampliar el enumerado** (`datos.md §G.6`).
+15. `302` a la ruta de la SPA. **En esa URL no viaja nada personal**: solo un código de resultado de la lista cerrada que 1.4b ya fijó (`RN-AUTH-93`).
+
+**El emparejamiento pendiente cuando hay segundo factor** funciona por el mismo mecanismo de 1.4b (`MfaChallengeService::stashPendingSsoMatch()`), y **puede hacerlo** porque el punto 13 ya regeneró la sesión: a partir de ahí hay sesión donde aplazar el vínculo hasta que el desafío se supere.
+
+### G.4.4 Vinculación desde el perfil (`intent = link`)
+
+Es donde más se aparta de 1.4b, y por una razón mecánica:
+
+- **En OIDC**, `intent` y usuario viven en la sesión y siguen ahí en el *callback*.
+- **En SAML**, el ACS no tiene sesión. Por tanto `intent = 'link'` y `linking_user_id` **se capturan al emitir la petición** —donde sí hay sesión autenticada— y viajan en la fila de `saml_auth_requests`.
+
+En el ACS, con la fila ya correlacionada y consumida: el usuario a vincular sale de `linking_user_id`, **se comprueba que sigue vivo y `activo`**, y se escribe la fila con `link_method = 'perfil'`. **No se reutiliza la sesión del ACS para nada**, porque no la hay.
+
+**Y una guarda que hay que escribir**: si `linking_user_id` apunta a un usuario que entretanto se desactivó o se borró, el flujo termina **sin vincular y sin crear sesión**, con `resultado=estado_no_valido`. No se «aprovecha» la aserción para hacer un login: el `intent` de una petición es lo que es y no se reinterpreta a mitad de camino.
+
+### G.4.5 Casos límite
+
+La columna de la derecha es lo que ocurre, no lo que se recomienda.
+
+| Caso | Qué ocurre |
+|------|------------|
+| La aserción no está firmada, o la firma no valida | **Se rechaza.** `error_proveedor`, y `auth.saml.assertion.invalid{firma}` **distinto de cero es incidencia de seguridad**, no ruido |
+| La `Response` no está firmada pero la `Assertion` sí | **Se rechaza**, porque `wantMessagesSigned = true` (`§G.3.5`). Es la restricción que esa decisión acepta a conciencia |
+| Llega una aserción **sin `InResponseTo`** (SSO iniciado por el IdP) | **Se rechaza**, `estado_no_valido`. No es un caso a soportar: es el que hace defendible la excepción de CSRF (`RN-AUTH-120`) |
+| Llega una aserción con `InResponseTo` de una fila **ya consumida** | **Se rechaza**, `estado_no_valido` |
+| Llega una aserción con `InResponseTo` de una fila **caducada** | **Se rechaza**, `estado_no_valido`. Indistinguible del caso anterior |
+| La **misma aserción** llega dos veces simultáneamente | **Una gana y la otra se rechaza**, garantizado por el `UPDATE … WHERE consumed_at IS NULL` con comprobación de filas afectadas, no por el orden de llegada |
+| Una aserción válida se reenvía contra **otra** petición viva | **Se rechaza** por `saml_consumed_assertions` (`RN-AUTH-122`). Es el ataque que la fila de un solo uso **no** cubre, y por eso hay dos tablas |
+| El `Audience` es el `entityId` de **otro tenant** | **Se rechaza.** Tres barreras independientes lo impiden: ruta del ACS, `Destination` y `Audience` (`§G.3.4`) |
+| El `Issuer` no coincide con el `issuer` catalogado del proveedor de la ruta | **Se rechaza.** La llave nunca se elige por el contenido del mensaje (`RN-AUTH-118`) |
+| El reloj del IdP va adelantado unos segundos | **Entra**, dentro de `AUTH_SSO_CLOCK_SKEW_SECONDS` (120), la misma tolerancia que `RN-AUTH-104` usa para `exp`/`iat` |
+| El certificado de firma del IdP **caduca** | El SSO de **ese** centro deja de funcionar; **no es una caída de acceso** porque la contraseña local nunca deja de ser puerta válida (`RN-AUTH-96`). El aviso de vencimiento existe para que no llegue por sorpresa |
+| El IdP **rota** el certificado y firma con el nuevo mientras hay aserciones en vuelo con el viejo | **Las dos validan**, porque hay varios certificados activos a la vez. Es el requisito que obliga a la tabla hija (`ADR-043 §2.4`) |
+| El administrador retira el **último** certificado vigente de un proveedor **activo** | **`409`.** La salida es desactivar el proveedor primero, y la pantalla lo dice. Mismo criterio que 1.4b con la última credencial |
+| El `NameIDFormat` catalogado es `emailAddress` y no hay atributo de correo configurado | **El `NameID` es el correo de emparejamiento.** Es una configuración real y frecuente, y por eso `email_attribute` es *nullable* |
+| El `NameID` cambia en cada acceso | **No puede ocurrir**: `transient` no se admite en el catálogo (`RN-AUTH-123`). Si un IdP lo envía pese a lo catalogado, el formato no coincide y se rechaza |
+| El usuario cambia su correo en el directorio | **Sigue entrando**: la resolución es por `(proveedor, NameID)` |
+| Un centro con **un IdP SAML y uno OIDC** a la vez | **Permitido y esperado.** Dos botones, dos vínculos posibles por usuario, dos filas de catálogo, y la clave re-tecleada de 1.4b los mantiene separados (`CA-AUTH-294` sigue siendo el test que lo demuestra) |
+| El mismo `NameID` en dos proveedores SAML del mismo centro | **Dos vínculos independientes**, por el índice único sobre `(tenant_id, identity_provider_id, subject)` |
+| Hay cuenta en estado `pendiente` | **No entra**, misma salida genérica (`OPEN-AUTH-39`, resuelta y sin reabrir) |
+| El proveedor se desactiva con vínculos vivos | **Nadie se queda fuera** y los vínculos **siguen viéndose y pudiendo retirarse** desde el perfil (`§F.4.5`, sin cambios) |
+| Usuario con MFA obligatorio y factor confirmado | Desafío de segundo factor. **El SSO institucional no lo salta** (`RN-AUTH-129`) |
+| Tenant suspendido | `503` desde `ResolveTenant`, **antes de tocar nada** — y el ACS lleva `resolve-tenant` en primera posición precisamente por esto |
+| El XML trae una entidad externa o una DTD | **Se rechaza en el analizador**, antes de cualquier otra comprobación (`§G.4.2` punto 1) |
+
+### G.4.6 Avisos al titular
+
+**Ninguno nuevo.** El aviso de emparejamiento (`SendIdentityMatchedEmail`, 1.4b) sirve tal cual: nombra el proveedor del centro por su nombre visible, y ese nombre es igual de válido para un IdP SAML. Los de vinculación y desvinculación desde el perfil existen desde 1.4.
+
+**Y una consecuencia que se hereda literalmente**: el día que un centro de 400 personas activa el emparejamiento se encolan hasta 400 avisos. La alerta de `auth.identity.matched` sigue definida **por proveedor recién activado**, no por volumen absoluto.
+
+---
+
+## G.5 El mapeo de atributos en SAML
+
+### G.5.1 La mitad que se implementa
+
+| Elemento | Valor | Configurable |
+|----------|-------|--------------|
+| **Identificador estable** | `NameID`, con su `Format` | **No.** Es el identificador del sujeto en SAML 2.0. Dejarlo configurable sería ofrecer al administrador la posibilidad de identificar por un atributo cualquiera, que es exactamente lo que `ADR-043 §4.4` prohíbe |
+| **Correo de emparejamiento** | El atributo que declare `email_attribute`; si es `NULL` y `name_id_format = 'emailAddress'`, **el propio `NameID`** | **Sí** — y su forma es `OPEN-AUTH-43` |
+
+**Por qué la lista blanca cerrada de tres valores de `§F.5.1` no se puede trasladar, y es la contradicción que hay que declarar.** En OIDC los nombres de *claim* son tres y son estándar (`email`, `preferred_username`, `upn`). En SAML **no hay tres nombres**: hay `urn:oid:0.9.2342.19200300.100.1.3`, `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress`, `mail`, `email`, `EmailAddress` y los que cada despliegue de ADFS o Shibboleth haya configurado a mano. Una lista blanca cerrada **dejaría fuera a IdP conformes por una razón que no es de seguridad**, que es el mismo argumento con el que `§F.3.2` se negó a exigir `userinfo_endpoint`.
+
+**Lo que esta especificación propone, y por qué el riesgo no es el mismo**: el argumento de `§F.5.1` contra el *claim* libre era que *«un administrador de centro que apuntara la comparación a un claim que él controla podría emparejar con cuentas ajenas»*. Ese riesgo **existe igual con cualquiera de los URN**: quien administra el IdP del centro controla **todos** sus atributos, incluido el que esté en la lista blanca. La lista blanca no cerraba ese hueco en SAML; solo cerraba el de un IdP de consumo ajeno al centro, que es el caso de Google y **no** el de un IdP institucional que el propio centro catalogó. **La barrera real sigue siendo `allowed_email_domains` y el hecho de que el `NameID` no es configurable.**
+
+En todos los casos el valor se **normaliza igual que en el login local** —recorte y minúsculas— y se compara **exacto**; y tiene que tener forma de dirección de correo: un atributo que no la tenga **no empareja** (fallo en cerrado).
+
+### G.5.2 La mitad que no se implementa
+
+**La escritura sobre `people` no se implementa**, sin cambios respecto de `§F.5.2` y por el mismo argumento de una línea: con emparejamiento y sin creación no hay nada que rellenar, solo algo que sobrescribir, y sobrescribir está prohibido desde 1.4 (`RN-AUTH-88`). La lista blanca de destinos de `§F.5.3` se conserva allí, documentada y sin materializar.
+
+**Consecuencia de esquema**, ya declarada en `§G.0.3` desviación 3: `saml_identity_provider_settings` **no lleva** nombres de atributo de nombre ni de apellidos.
+
+---
+
+## G.6 Reglas de negocio nuevas
+
+Continúan la numeración de `§5`, `§B.5`, `§C.5`, `§D.5`, `§E.5` y `§F.6`. Las 113 anteriores siguen en vigor **sin cambios**, incluidas `RN-AUTH-101` a `RN-AUTH-113`, que rigen igual para los proveedores SAML salvo donde una regla nueva las amplía **de forma explícita**.
+
+| ID | Regla |
+|----|-------|
+| **Catálogo y protocolo** | |
+| `RN-AUTH-114` | Una fila del catálogo pertenece a **un solo protocolo**, y `protocol` es **inmutable tras el alta**. Los dos mecanismos de correlación —*payload* de sesión en OIDC, fila en base de datos en SAML— son **independientes**: arrancar un flujo de un protocolo **no invalida ni hereda** el estado en curso del otro. |
+| `RN-AUTH-115` | **Una fila SAML no rellena ninguna columna OIDC, ni con un valor de conveniencia ni con un `DEFAULT`.** La obligatoriedad de las columnas OIDC se reexpresa como `CHECK` condicionado al protocolo, y existe el `CHECK` simétrico que impide que una fila SAML las lleve informadas. **Está en el motor, no en el servicio.** |
+| `RN-AUTH-116` | **`entityId` de SP y ACS URL se derivan del *host* del tenant y nunca se comparten entre centros.** Un `entityId` común haría textualmente válida en el centro B una aserción emitida legítimamente para el A: fuga entre tenants por diseño (`INV-001`, severidad crítica). |
+| **Validación de la aserción** | |
+| `RN-AUTH-117` | **La firma se verifica siempre, y su verificación no puede omitirse por configuración.** El envoltorio fija `strict`, `wantAssertionsSigned`, `wantMessagesSigned` y `rejectUnsolicitedResponsesWithInResponseTo` a `true`, **y un test lo comprueba sobre el objeto construido, no sobre el texto del código**. Una aserción sin firma válida **no produce identidad, nunca**. |
+| `RN-AUTH-118` | **El conjunto de certificados admisibles y el emisor esperado se fijan antes de tocar el XML**, a partir del proveedor que identifica la ruta del ACS. **Nunca se eligen a partir del contenido del mensaje que aún no se ha verificado.** |
+| `RN-AUTH-119` | **Ocho validaciones antes de leer un solo atributo de identidad**: firma; `Issuer` idéntico al `issuer` catalogado; `Destination` idéntico a nuestra ACS URL; `Audience` idéntico a nuestro `entityId` de SP; ventana temporal (`NotBefore`/`NotOnOrAfter`) con tolerancia `AUTH_SSO_CLOCK_SKEW_SECONDS`; `SubjectConfirmationData/@Recipient`; `InResponseTo` correlacionado; y `ID` de aserción no repetido. **Falla una ⇒ no hay identidad**, y las ocho comparten el mismo código de salida. |
+| `RN-AUTH-120` | **No se acepta SSO iniciado por el IdP.** Solo se acepta una aserción cuyo `InResponseTo` case con una fila de `saml_auth_requests` **viva, no consumida y no caducada** que la propia aplicación emitió. **No es prudencia: es la precondición de seguridad de la excepción de CSRF del ACS** (`RN-AUTH-124`). |
+| `RN-AUTH-121` | La fila de correlación es de **un solo uso**, consumida **en la misma transacción** en que se valida, con `UPDATE … WHERE consumed_at IS NULL` comprobando **filas afectadas** — nunca leer y luego escribir. Dos ACS simultáneos con la misma aserción no pueden ganar los dos. |
+| `RN-AUTH-122` | El `ID` de cada aserción consumida se registra con su `NotOnOrAfter`, con índice único por tenant y proveedor. Una aserción repetida contra **otra** petición viva se rechaza mientras siga dentro de su ventana. **Es una protección distinta de `RN-AUTH-121` y hacen falta las dos.** |
+| `RN-AUTH-123` | **La identidad es `(proveedor catalogado, NameID)`.** Sin `NameID` utilizable se rechaza **sin alternativa**: nunca se identifica por un atributo de correo como respaldo. El `Format` recibido tiene que coincidir con el catalogado, y **`transient` no se admite en el catálogo**: un identificador que cambia en cada acceso no puede sostener un vínculo. |
+| `RN-AUTH-124` | **El ACS es la única ruta de la aplicación sin `csrf`**, en un grupo propio con la pila declarada explícitamente, nunca en una lista global de exenciones. **Su mitigación es `RN-AUTH-120` y `RN-AUTH-121`, no la ausencia de riesgo**, y así queda escrito en `SECURITY.md`. |
+| **Material criptográfico** | |
+| `RN-AUTH-125` | Un proveedor SAML tiene **uno o varios certificados de firma vigentes a la vez**, y la verificación se intenta contra todos los activos y vigentes. **Retirar un certificado es siempre un acto del administrador**: ni el refresco de metadatos ni ninguna tarea programada retiran uno, porque hacerlo cortaría el acceso del centro en mitad de una rotación. |
+| `RN-AUTH-126` | `not_before` y `not_after` **se extraen del propio certificado al cargarlo**, nunca se teclean. Un certificado que no sea un X.509 analizable, que ya esté caducado o cuya clave no alcance el tamaño mínimo **se rechaza al cargarlo, no al usarlo**. |
+| `RN-AUTH-127` | Un certificado del IdP es **material público**: no se cifra en reposo y no se trata como secreto. **La clave privada de firma del SP sí lo es** y no sale por ninguna vía: ni por API, ni enmascarada, ni en `audit_logs`, ni en el registro de aplicación. Es la hermana de `RN-AUTH-112`. **Ni el PEM ni la huella de ningún certificado entran en `audit_logs`** (`ADR-043 §3.5.5`). |
+| `RN-AUTH-128` | **Activar un proveedor SAML exige al menos un certificado de firma vigente**, y **activar `sign_authn_requests` exige que la clave de plataforma esté configurada**. Sin cualquiera de las dos, `409`. Es el mismo criterio con el que 1.4b impide activar un proveedor OIDC sin credencial: un proveedor pintado y roto es peor que uno apagado. |
+| **Emparejamiento, MFA y aislamiento** | |
+| `RN-AUTH-129` | **`RN-AUTH-108`, `RN-AUTH-109`, `RN-AUTH-110` y `RN-AUTH-111` rigen para SAML sin una sola excepción**: no se crea `Person` ni `User` —impuesto además por el `CHECK` de `provisioning_mode`, que este paso no toca—, no se escribe en `people` ni en `users`, no se concede ni un rol, y **el segundo factor del IdP no exime del propio** (`ADR-043 §10.9` decisión 7, `INV-002`). |
+| `RN-AUTH-130` | La confianza de un vínculo SAML **no viene de ningún atributo de la aserción**: viene de que el centro catalogó ese IdP, cargó su certificado de firma y lo activó. `email_verified_at_link` se guarda como `false` —SAML no tiene ese concepto— y **no sostiene ninguna decisión**. El `link_method` es `emparejamiento_sso`, cuyo `CHECK` ya exige `identity_provider_id`; el `CHECK` de `fusion_automatica` de 1.4 **no se toca, no se debilita y no se reutiliza**. |
+
+---
+
+## G.7 Interacción con otros módulos
+
+`INV-007`: nada de importar código interno.
+
+### G.7.1 Interfaces que consume
+
+| Interfaz | De | Para qué |
+|----------|----|----------|
+| `UserDirectory::findActiveByEmail()` | `REQ-CORE` | Resolver el candidato del emparejamiento. **Sin ampliación**: mismo predicado que 1.4 y 1.4b |
+| `MfaPolicy` | `REQ-AUTH` (1.3) | La rama de segundo factor del ACS. **No se replica su lógica** |
+| `IdentityProviderDirectory` | `REQ-AUTH` (1.4b) | Los proveedores catalogados y activos del tenant. **Sin cambio de firma**: `1.4c` añade filas, no consumidores |
+| `LinkedIdentityDirectory` | `REQ-AUTH` (1.4) | Los vínculos vivos de un usuario, para el perfil |
+| `TenantSettingsReader` | `REQ-CORE` | Idioma del centro para las pantallas anónimas |
+
+### G.7.2 Interfaces que expone
+
+| Interfaz | Para qué |
+|----------|----------|
+| **`SamlIdentityProvider`** | **Nueva.** Dos verbos: emitir el `AuthnRequest` y validar la aserción (`§G.3.6`). **Ninguna clase de `OneLogin\Saml2\*` cruza esta frontera** (`CA-AUTH-362`) |
+| **`SamlIdentityProviderRegistry`** | **Nueva.** Construye un `SamlIdentityProvider` ya parametrizado a partir de una fila del catálogo. Hermana exacta de `ExternalIdentityProviderRegistry` |
+| **`SamlMetadataValidator`** | **Nueva.** Obtiene y valida los metadatos del IdP con las guardas de `§G.4.2`. **Único punto autorizado, junto a `DiscoveryDocumentValidator`, a que el servidor haga una petición a un destino que indica un administrador de centro** |
+| `ExternalIdentityProvider` / `ExternalIdentityProviderRegistry` | **Sin cambios.** SAML **no** entra por ahí (`ADR-043 §7.4`, decidido con la implementación delante) |
+
+### G.7.3 Eventos que publica
+
+**Ninguno nuevo.** `IdentityLinked`, `IdentityUnlinked`, `IdentityProviderActivated` e `IdentityProviderDeactivated` se reutilizan tal cual: el hecho es el mismo y el protocolo no lo cambia. **`UserLoggedIn` se publica igual que siempre**, y quien necesite la distinción la tiene en `login_attempts.method`, con la salvedad de retención de `OPEN-AUTH-36`, que este paso **no** cierra.
+
+### G.7.4 Eventos que consume
+
+**Ninguno nuevo**, y merece decirse por lo que **no** se hace, igual que en `§E.7.4` y `§F.7.4`: `UserEmailChanged` no desvincula nada, `UserDeactivated` ya revoca sesiones, y **nada reacciona al alta de una persona en el censo**. El emparejamiento ocurre en el primer acceso, no antes: es la diferencia con SCIM, fuera de alcance.
+
+---
+
+## G.8 Auditoría (`INV-003`)
+
+**El vocabulario de `audit_logs` no se amplía** (`RN-AUTH-74` sigue en vigor).
+
+| Hecho | Cómo queda registrado |
+|-------|------------------------|
+| Alta, modificación y borrado de un proveedor SAML | `created` / `updated` / `deleted` sobre `IdentityProvider`, por el *observer*. **`protocol` queda registrado con su valor**: es la primera pregunta que hará un auditor |
+| Alta y modificación de la configuración SAML | `created` / `updated` sobre `SamlIdentityProviderSettings` |
+| Carga y retirada de un certificado del IdP | `created` / `updated` sobre `IdentityProviderCertificate`, **con el PEM y la huella declarados a mano como no registrables** (`RN-AUTH-127`, `ADR-043 §3.5.5`). Se registra `not_before`, `not_after`, `retired_at` y quién lo cargó |
+| Activación de `sign_authn_requests` | Es un `updated` sobre `SamlIdentityProviderSettings` con el valor registrado |
+| Emparejamiento en un acceso SAML | `created` sobre `UserIdentity`, con `link_method = 'emparejamiento_sso'` y `provider = 'saml'` |
+| Acceso por SAML | `login` — el evento que `ADR-039` ya creó, **sin variante nueva** |
+| **Petición SAML emitida, consumida o caducada** | **No se audita**, y es una decisión: `saml_auth_requests` es estado transitorio de protocolo con vida de cinco minutos, del mismo carácter que el `state` de OIDC, que tampoco se audita. Auditarlo llenaría `audit_logs` de filas que nadie consultará jamás y que caducan antes de ser útiles. **Su traza operativa vive en la telemetría** (`operacion.md §G.8`) |
+
+**La consecuencia de `§E.8` y `§F.8` sigue vigente y no se agrava**: `audit_logs` no distingue un acceso local de uno federado, institucional OIDC o institucional SAML. La distinción vive en `login_attempts.method` (90 días) y, para el vínculo, en `user_identities.identity_provider_id` (permanente). **`OPEN-AUTH-36` sigue abierta y este paso no la cierra.**
+
+---
+
+## G.9 Interfaz de usuario
+
+**Ninguna pantalla nueva. Dos modificadas.** Es la mejor noticia de interfaz del paso y es consecuencia directa de que 1.4b construyera el autoservicio.
+
+| Ruta de la SPA | Qué | Sesión |
+|----------------|-----|--------|
+| `/entrar` | **Sin cambios de código.** La lista de proveedores ya es `N` y los identificadores ya son opacos: un proveedor SAML pinta un botón como cualquier otro. **Que esta pantalla no necesite cambios es la comprobación de que el contrato de `§F.6` estaba bien hecho** | No |
+| `/entrar/sso` | **Sin cambios de código.** Los códigos de resultado son los mismos catorce de `§F.7.1`; SAML no añade ninguno | No |
+| `/cuenta/seguridad` | **Modificada, mínimamente**: el bloque «Cuentas vinculadas» muestra los vínculos SAML con el nombre del proveedor del centro, igual que los OIDC. `provider` puede valer ahora `saml` | Sí |
+| `/administracion/sso` | **Modificada**: la lista muestra el **protocolo** de cada proveedor, y para los SAML el **aviso de caducidad del certificado** en el lugar donde los OIDC muestran el de la credencial | Sí |
+| `/administracion/sso/{public_id}` | **Modificada**: al crear, se elige protocolo; para SAML, formulario de metadatos (URL o XML pegado), gestión de certificados con su vigencia, conmutador de firma de peticiones, y el bloque **«qué registrar en tu IdP»** con **botón de descarga de nuestros metadatos de SP** además de los valores en texto para copiar | Sí |
+
+Reglas obligatorias, sin excepción (`CLAUDE.md §10`), heredadas de `§F.9` y todas aplicables:
+
+- **Branding por tenant** en las públicas; **cuatro idiomas** (`INV-009`) incluidos los códigos de fallo de validación de metadatos, que son enumerados cerrados precisamente para eso.
+- **El nombre visible del proveedor lo escribe el centro y no se traduce.**
+- **Ningún logotipo de terceros se sirve desde su dominio.** Un proveedor SAML no lleva logotipo: lleva el nombre que el centro le puso.
+- **La pantalla no muestra la clave privada del SP, ni siquiera enmascarada** (`RN-AUTH-127`). Sí muestra el certificado público, que es lo que el centro necesita.
+- **WCAG 2.2 AA**, **`window.location`** para navegar al IdP, y **nada en `localStorage`/`sessionStorage`**.
+- **Una advertencia nueva y obligatoria en la pantalla**: al retirar un certificado, decir que hacerlo **no lo revoca en el IdP del centro**; y al borrar un proveedor SAML, decir que **la ACS URL cambiará si vuelve a crearse** y habrá que reconfigurar el IdP (`OPEN-AUTH-47`). Es la clase de cosa que nadie hace si nadie la dice.
+
+---
+
+## G.10 Comportamiento con el módulo desactivado y sin proveedores
+
+### G.10.1 El módulo
+
+**`REQ-AUTH` sigue sin ser desactivable** (`RN-AUTH-35`), y **ninguna ruta de este paso lleva `module-enabled`** (`CA-AUTH-350`), **tampoco el ACS**: un centro que no puede recibir la aserción de su IdP porque una fila de `module_subscriptions` está mal es el mismo fallo total con otra ropa.
+
+### G.10.2 El catálogo sin proveedores SAML es el estado normal
+
+**Ningún tenant tiene proveedores SAML el día del despliegue**, y ese es el estado correcto:
+
+- `GET /auth/identity-providers` devuelve exactamente lo que devolvía tras 1.4b.
+- Las rutas de administración responden con normalidad.
+- El ACS existe pero **ningún `public_id` resuelve a un proveedor SAML activo**, así que responde `302` con `estado_no_valido` a cualquier cosa que llegue. **No es un `404`**: distinguir «este proveedor no existe» de «esta aserción no correlaciona» en una ruta anónima sería un comprobador de qué centros tienen SAML.
+- **El día del despliegue no cambia nada para nadie** (`operacion.md §G.12.1`), y **ninguna variable nueva tiene un valor por defecto que dispare una guarda de arranque** — la lección del issue #140, cubierta por `CA-AUTH-365`.
+
+### G.10.3 El desarrollo sí puede recorrer el flujo entero
+
+**IdP SAML simulado servido por la propia API, registrado solo en `local`/`testing`**, con las **dos** barreras de 1.4/1.4b (ruta no registrada fuera de esos entornos **y** guarda de arranque). Detalle en `operacion.md §G.10`. Es lo que permite probar negativamente `RN-AUTH-117` a `RN-AUTH-123` —firma alterada, `Audience` de otro tenant, `InResponseTo` inventado, aserción repetida, ventana vencida— **sin depender de ningún IdP real**, que es la única forma de que esos tests existan de verdad.
+
+---
+
+## G.11 Criterios de aceptación
+
+Verificables, cada uno con test que referencia su ID (`INV-015`).
+
+### Catálogo, discriminador y migración
+
+- **`CA-AUTH-311`** · *Dado* el esquema tras las migraciones de este paso, *cuando* se intenta insertar una fila con `protocol = 'saml'` y **cualquiera** de las columnas OIDC informada (`discovery_url`, `token_endpoint`, `client_id`, `scopes`, `email_claim`, `claims_source`, `userinfo_endpoint`, `discovery_fetched_at`, `discovery_failed_at`), *entonces* **lo impide el `CHECK`**, no el servicio (`RN-AUTH-115`).
+- **`CA-AUTH-312`** · *Dado* el mismo esquema, *cuando* se intenta insertar una fila con `protocol = 'oidc'` y `token_endpoint`, `client_id`, `scopes`, `email_claim`, `claims_source`, `discovery_url` o `discovery_fetched_at` a `NULL`, *entonces* **lo impide el `CHECK` condicionado**: la obligatoriedad cambió de sitio y no se perdió (`RN-AUTH-115`).
+- **`CA-AUTH-313`** · *Dada* una inserción de una fila SAML que **no nombra** `scopes`, `claims_source` ni `email_claim`, *entonces* las tres quedan a `NULL` y **no** con el valor OIDC por defecto: los `DEFAULT` se retiraron (`§G.3.1` punto 3).
+- **`CA-AUTH-314`** · *Dadas* las filas OIDC que 1.4b creó, *cuando* se aplican las migraciones de este paso, *entonces* **todas quedan con `protocol = 'oidc'`**, ninguna pierde un valor, y **la versión anterior de la aplicación sigue funcionando contra el esquema nuevo** (`datos.md §G.7`).
+- **`CA-AUTH-315`** · *Dado* un centro que ya tiene catalogado un `issuer` como proveedor OIDC, *cuando* intenta catalogarlo como proveedor SAML, *entonces* `409`: `UNIQUE (tenant_id, issuer)` vale **entre protocolos** (`§G.0.3` desviación 2).
+- **`CA-AUTH-316`** · *Dado* un proveedor ya creado, *cuando* se envía un `PATCH` con `protocol` distinto, *entonces* `422` y **no se cambia nada**: `protocol` es inmutable (`RN-AUTH-114`).
+- **`CA-AUTH-317`** · *Dado* un `public_id` de proveedor SAML del tenant B presentado en cualquiera de las rutas de administración en el host de A, *entonces* `404` —nunca `403`— y la fila de B sigue viva (`RN-AUTH-101`, `ADR-038 §6.4`).
+
+### Metadatos del IdP
+
+- **`CA-AUTH-318`** · *Dado* un XML de metadatos que declara una **entidad externa** o una **DTD**, *entonces* se rechaza **en el analizador**, con `metadatos_no_validos`, y **no se realiza ninguna resolución de entidad** (`§G.4.2` punto 1).
+- **`CA-AUTH-319`** · *Dada* una **URL** de metadatos que resuelve a `127.0.0.1`, `169.254.169.254` o cualquier rango privado, *entonces* `422` **sin realizar la petición**, y ningún mensaje revela nada del destino (`RN-AUTH-113`, ampliada a este canal).
+- **`CA-AUTH-320`** · *Dada* una URL de metadatos válida que **redirige** a una dirección privada, *entonces* se rechaza igual: la comprobación se repite **en cada redirección** (`RN-AUTH-113`).
+- **`CA-AUTH-321`** · *Dados* unos metadatos **sin `SingleSignOnService` con *binding* HTTP-Redirect**, *entonces* `422` con `binding_no_admitido` y **no se crea nada** (`§G.0.3` desviación 1).
+- **`CA-AUTH-322`** · *Dados* unos metadatos **sin ningún `KeyDescriptor` de firma**, o cuyo único certificado está **ya caducado**, *entonces* `422` y **no se crea nada** (`§G.4.2` punto 5, `RN-AUTH-126`).
+- **`CA-AUTH-323`** · *Dados* unos metadatos que declaran `NameIDFormat` **`transient`**, *entonces* `422`: un identificador que cambia en cada acceso no puede sostener un vínculo (`RN-AUTH-123`).
+- **`CA-AUTH-324`** · *Dados* unos metadatos válidos, *cuando* se da de alta el proveedor, *entonces* `issuer` queda con el `entityID` **tal como lo declaran los metadatos**, `authorization_endpoint` con la URL HTTP-Redirect, se crea **una fila de certificado por cada `KeyDescriptor` de firma**, y el proveedor nace **no activo** con `provisioning_mode = 'desactivado'` y `sign_authn_requests = false`.
+- **`CA-AUTH-325`** · *Dado* un proveedor cuyos metadatos vinieron por URL y cuyo IdP publica ahora **solo el certificado nuevo**, *cuando* corre el refresco programado, *entonces* **se añade el nuevo y no se retira el viejo** (`RN-AUTH-125`).
+- **`CA-AUTH-326`** · *Dado* un refresco de metadatos que **falla**, *entonces* se conservan `issuer`, `authorization_endpoint` y todos los certificados anteriores, se estampa `metadata_failed_at` y **el SSO del centro sigue funcionando** (`§G.4.2`).
+
+### Certificados y clave del SP
+
+- **`CA-AUTH-327`** · *Dado* un proveedor con **dos certificados de firma vigentes**, *cuando* llega una aserción firmada con **cualquiera de los dos**, *entonces* valida (`RN-AUTH-125`). Es el test de la ventana de rotación.
+- **`CA-AUTH-328`** · *Dada* la carga de un certificado, *entonces* `not_before` y `not_after` salen **del propio certificado** y no del cuerpo de la petición, aunque el cuerpo los traiga (`RN-AUTH-126`).
+- **`CA-AUTH-329`** · *Dado* un certificado ya caducado, o no analizable, o con clave por debajo del mínimo, *cuando* se carga, *entonces* `422` y **no se crea la fila** (`RN-AUTH-126`).
+- **`CA-AUTH-330`** · *Dado* un proveedor SAML **activo** con un solo certificado vigente, *cuando* se intenta retirarlo, *entonces* `409` y la pantalla indica desactivar el proveedor primero (`RN-AUTH-128`).
+- **`CA-AUTH-331`** · *Dado* un proveedor **sin ningún certificado vigente**, *cuando* se intenta activarlo, *entonces* `409` (`RN-AUTH-128`).
+- **`CA-AUTH-332`** · *Dado* que **no hay clave de firma de plataforma configurada**, *cuando* se intenta activar `sign_authn_requests`, *entonces* `409` (`RN-AUTH-128`, `§G.3.7`).
+- **`CA-AUTH-333`** · *Dado* un proveedor con certificados cargados, *cuando* se consulta `audit_logs`, *entonces* **ni el PEM ni ninguna huella aparecen**, ni en claro ni redactados con su valor; sí aparecen `not_before`, `not_after`, `retired_at` y la autoría (`RN-AUTH-127`, `ADR-043 §3.5.5`).
+- **`CA-AUTH-334`** · *Dada* cualquier respuesta de la API y cualquier línea del registro de aplicación, *entonces* **la clave privada de firma del SP no aparece en ninguna** (`RN-AUTH-127`).
+- **`CA-AUTH-335`** · *Dado* un certificado del IdP cuya `not_after` está a menos de `AUTH_SSO_SECRET_EXPIRY_WARNING_DAYS`, *cuando* corre el comando diario, *entonces* se emite el aviso y la pantalla de administración lo muestra (`operacion.md §G.4`).
+
+### Validación de la aserción
+
+- **`CA-AUTH-336`** · *Dado* el `Settings` que construye el envoltorio, *cuando* se inspecciona **por reflexión**, *entonces* `strict`, `wantAssertionsSigned`, `wantMessagesSigned` y `rejectUnsolicitedResponsesWithInResponseTo` son **los cuatro `true`** (`RN-AUTH-117`). **Es el test que sostiene la elección de biblioteca** (`ADR-043 §10.3` punto 3).
+- **`CA-AUTH-337`** · *Dada* una aserción **sin firma**, o con una firma que no valida contra ningún certificado activo del proveedor, *entonces* `resultado=error_proveedor`, **no se lee ni un atributo de identidad**, no se crea sesión y no se crea vínculo (`RN-AUTH-117`).
+- **`CA-AUTH-338`** · *Dada* una aserción firmada por el IdP del **proveedor B** entregada en el ACS del **proveedor A** del mismo centro, *entonces* se rechaza: los certificados admisibles salieron de la ruta, no del `Issuer` del mensaje (`RN-AUTH-118`).
+- **`CA-AUTH-339`** · *Dada* una aserción legítima del centro **A** —con su `Audience` y su `Destination`— entregada en el ACS del centro **B**, *entonces* se rechaza, y **las tres barreras la rechazan por separado** cuando se prueban de una en una: ruta del ACS, `Destination` y `Audience` (`RN-AUTH-116`, `INV-001`).
+- **`CA-AUTH-340`** · *Dada* una aserción con `Issuer` distinto del catalogado, con `NotOnOrAfter` vencido, con `NotBefore` futuro fuera de la tolerancia, o con `Recipient` que no es nuestra ACS URL, *entonces* `resultado=error_proveedor` **en los cuatro casos y con el mismo cuerpo** (`RN-AUTH-119`).
+- **`CA-AUTH-341`** · *Dada* una aserción **sin `InResponseTo`** —una aserción no solicitada, SSO iniciado por el IdP—, *entonces* se rechaza con `estado_no_valido`, **aunque su firma sea perfectamente válida** (`RN-AUTH-120`). Es el test que hace defendible la excepción de CSRF.
+- **`CA-AUTH-342`** · *Dada* una aserción cuyo `InResponseTo` corresponde a una fila **ya consumida** o **caducada**, *entonces* se rechaza con `estado_no_valido`, **con el mismo cuerpo en los dos casos** (`RN-AUTH-121`).
+- **`CA-AUTH-343`** · *Dadas* **dos entregas simultáneas de la misma aserción**, *entonces* **exactamente una** crea sesión y la otra se rechaza, y el rechazo lo produce el **consumo atómico de la fila** —comprobación de filas afectadas—, no una lectura previa (`RN-AUTH-121`).
+- **`CA-AUTH-344`** · *Dada* una aserción ya consumida que se reenvía **contra otra petición viva del mismo proveedor**, *entonces* se rechaza mientras siga dentro de su `NotOnOrAfter`, y **el rechazo lo produce el índice único de `saml_consumed_assertions`** (`RN-AUTH-122`). Es la protección que `CA-AUTH-342` **no** cubre.
+- **`CA-AUTH-345`** · *Dada* una aserción **sin `NameID`**, con `NameID` vacío, o con un `Format` distinto del catalogado, *entonces* se rechaza el acceso, **no se busca por ningún atributo de correo**, y la salida es **byte a byte idéntica** a la del caso «no hay cuenta» (`RN-AUTH-123`).
+
+### El ACS, su cadena de *middleware* y la excepción de CSRF
+
+- **`CA-AUTH-346`** · *Dadas* las rutas de la aplicación, *entonces* **el ACS es la única sin `csrf`**, está en un grupo propio con la pila `resolve-tenant → encrypt-cookies → add-queued-cookies → start-session → verify-session-tenant`, y **no existe ninguna lista global `validateCsrfTokens(except:)`** en `bootstrap/app.php` (`RN-AUTH-124`).
+- **`CA-AUTH-347`** · *Dado* un `POST` al ACS **sin cookie de sesión y sin token CSRF** —el caso real—, *entonces* **no responde `419`** y el flujo se evalúa con normalidad (`§G.3.2`).
+- **`CA-AUTH-348`** · *Dado* un acceso SAML completado con éxito, *entonces* la sesión se **regenera** antes de autenticar (`RN-AUTH-32`), la respuesta es `302` a una ruta **de nuestro propio origen**, y **en esa URL no viaja `SAMLResponse`, ni `NameID`, ni correo, ni `public_id`, ni ningún dato personal** (`RN-AUTH-93`).
+- **`CA-AUTH-349`** · *Dado* un tenant **suspendido**, *cuando* llega una aserción a su ACS, *entonces* `503` desde `ResolveTenant` **antes de tocar ninguna tabla** (`RN-AUTH-25`).
+- **`CA-AUTH-350`** · *Dadas* las rutas de este paso, *entonces* **ninguna** lleva el *middleware* `module-enabled` (`RN-AUTH-35`, `§G.10.1`).
+
+### Emparejamiento, vinculación y MFA
+
+- **`CA-AUTH-351`** · *Dado* un usuario `activo` con correo `x@d` y un proveedor SAML con `provisioning_mode = 'emparejamiento'` y `d` admitido, *cuando* llega su primer acceso, *entonces* se crea **una** fila en `user_identities` con `provider = 'saml'`, `link_method = 'emparejamiento_sso'`, `identity_provider_id` informado y `email_verified_at_link = false`, y `password`, `status`, `email`, `person_id`, roles y `locale` quedan **exactamente iguales** (`RN-AUTH-130`).
+- **`CA-AUTH-352`** · *Dado* el mismo caso, *cuando* se consulta la base de datos, *entonces* **no hay ninguna fila nueva en `people` ni en `users`** (`RN-AUTH-129`). Es el test que más importa del paso junto con `CA-AUTH-337`.
+- **`CA-AUTH-353`** · *Dado* el mismo caso, *cuando* se consultan sus roles, *entonces* **tiene exactamente los que tenía**, y una cuenta sin roles sigue sin poder ver una sola pantalla (`RN-AUTH-129`, `RPERM-011`).
+- **`CA-AUTH-354`** · *Dado* un usuario con factor TOTP confirmado, *cuando* completa el flujo SAML, *entonces* **no** se crea sesión autenticada: se abre `mfa_challenges` ligado a la sesión ya regenerada y la SPA aterriza en la pantalla de segundo factor; *y* el emparejamiento pendiente **se escribe solo al superar el desafío** (`RN-AUTH-129`).
+- **`CA-AUTH-355`** · *Dado* un `intent = 'link'` arrancado desde el perfil, *cuando* la aserción llega al ACS **sin cookie de sesión**, *entonces* el vínculo se crea sobre el usuario de `linking_user_id` de la fila de correlación, con `link_method = 'perfil'` (`§G.4.4`).
+- **`CA-AUTH-356`** · *Dado* un `intent = 'link'` cuyo `linking_user_id` se ha **desactivado o borrado** entre la petición y la aserción, *entonces* **no se vincula y no se crea sesión**: `estado_no_valido`. La aserción **no se reinterpreta como un login** (`§G.4.4`).
+- **`CA-AUTH-357`** · *Dado* un bloqueo vivo para `(tenant_id, email)`, *cuando* el titular entra por SAML, *entonces* `resultado=cuenta_bloqueada` y no se crea sesión (`§E.6`, sin reabrir `OPEN-AUTH-32`).
+- **`CA-AUTH-358`** · *Dado* un usuario en estado `pendiente` cuyo correo coincide, *entonces* **no entra, no se activa y no se crea vínculo**, con la misma salida genérica (`RN-AUTH-23`, `OPEN-AUTH-39`).
+- **`CA-AUTH-359`** · *Dado* un acceso SAML completado, *entonces* `login_attempts` registra `outcome = 'exito'` con **`method = 'sso'`** —**sin valor nuevo en el enumerado**— y `user_sessions` y la detección de dispositivo funcionan por el **mismo** camino que el login local (`datos.md §G.6`).
+- **`CA-AUTH-360`** · *Dado* un centro con **un proveedor OIDC y uno SAML activos**, *cuando* la misma persona entra por los dos, *entonces* quedan **dos vínculos independientes** sobre el mismo usuario, y ninguno interfiere con el otro (`CA-AUTH-294`, la clave re-tecleada de 1.4b, que este paso no toca).
+
+### Transversales
+
+- **`CA-AUTH-361`** · *Dado* el catálogo tras `platform:sync-registry`, *entonces* sigue habiendo **exactamente once** filas con `module_code = 'auth'`: **este paso no declara ningún permiso** (`permisos.md §G.1`). **Si aparece una duodécima en esta rama, alguien ha declarado un permiso que el requisito no pide.**
+- **`CA-AUTH-362`** · *Dado* el código del *backend*, *entonces* **ninguna importación de `OneLogin\Saml2\*` existe fuera de la implementación de `SamlIdentityProvider`**, y en particular **`OneLogin\Saml2\Auth` no se instancia en ningún sitio** (`ADR-043 §10.2`, `RNF-MANT-007`).
+- **`CA-AUTH-363`** · *Dado* el código del *backend*, *cuando* se analiza, *entonces* **no se persiste ninguna aserción, ni su XML, ni ningún fragmento de él**: de una aserción solo sobreviven su `ID` y su `NotOnOrAfter` en `saml_consumed_assertions` (`RN-AUTH-95`, ampliado).
+- **`CA-AUTH-364`** · *Dados* los textos de las pantallas modificadas, los códigos de fallo de validación de metadatos y los códigos de resultado, *entonces* existen en los cuatro idiomas y ninguno está escrito en el código (`INV-009`).
+- **`CA-AUTH-365`** · *Dado* un despliegue de este paso **sin tocar ninguna variable de entorno**, *cuando* arranca la aplicación con `APP_ENV=production`, *entonces* arranca sin excepción y el sistema queda idéntico al anterior (`operacion.md §G.12.1`, lección del issue #140).
+- **`CA-AUTH-366`** · *Dado* `APP_ENV=production`, *entonces* **la ruta del IdP SAML simulado no está registrada**, y la guarda de arranque correspondiente aborta si su variable está activa (`operacion.md §G.10.3`). **Dos barreras, no una.**
+
+---
+
+## G.12 Puntos de extensión
+
+- **Single Logout (SLO)**: sería un *endpoint* más, un `SingleLogoutService` en nuestros metadatos y la revocación de sesión que ya existe desde 1.2b. **No se anticipa nada**: ni columna, ni ruta, ni valor de enumerado.
+- **`EncryptedAssertion`** (`OPEN-AUTH-46`): sería una clave de descifrado de SP —posiblemente la misma de firma—, un `KeyDescriptor use="encryption"` en nuestros metadatos y un paso de descifrado antes de la validación. **Aditivo**, y el envoltorio es el único punto que cambiaría.
+- **`AuthnRequest` por HTTP-POST**: exigiría devolver campos de formulario en vez de una URL, es decir **otro contrato** en `POST /auth/oauth-authorizations`. Si llega, es una decisión de API con su propia forma, no una columna.
+- **Un tercer protocolo**: el discriminador `protocol` y la forma padre-hija ya son el hueco. Un valor más en el `CHECK` y una hija más.
+- **Creación automática (*JIT creation*)**: sin cambios respecto de `§F.12`. El hueco de datos ya está; lo que falta es la decisión de `ADR-043 §8.1`, ya tomada en contra.
+- **`1.5` (editor de roles)**: nada que hacer. Los cuatro permisos de 1.4b ya están en su editor.
+- **`1.19` (`REQ-COM`)**: consume `IdentityProviderActivated`/`Deactivated` sin distinguir protocolo.
+
+---
+
+## G.13 Preguntas abiertas
+
+**Siete. Tres son bloqueantes.**
+
+Las ocho decisiones de `ADR-043 §10.9` **no se repreguntan**: están incorporadas al alcance, a las decisiones estructurales, a los flujos y a las reglas. Y dos preguntas heredadas quedan **cerradas por ellas**:
+
+- **`OPEN-AUTH-40`** (*¿SSO iniciado por el IdP?*) — **RESUELTA: no** (`ADR-043 §10.9` decisión 4). Y aquí deja de ser una preferencia: es la precondición de seguridad de la excepción de CSRF (`RN-AUTH-120`, `RN-AUTH-124`).
+- **`OPEN-AUTH-41`** (*¿el segundo factor del IdP exime del nuestro?*) — **RESUELTA: no exime** (`ADR-043 §10.9` decisión 7, `INV-002`). `RN-AUTH-129`.
+
+### `OPEN-AUTH-42` · ¿Rellena una fila SAML el `issuer` y el `authorization_endpoint` del padre? — **RESUELTA (2026-09-02)**
+
+**Decisión del usuario: salida A**, la recomendada por esta especificación. Una fila SAML rellena `issuer` (con el `entityID` del IdP) y `authorization_endpoint` (con la URL HTTP-Redirect); la tabla hija no los duplica.
+
+`§G.0.3` desviación 2, entero. **`ADR-043 §10.4` se contradice consigo mismo**: su punto 2 enumera **seis** columnas a hacer *nullable* y **no incluye** `issuer` ni `authorization_endpoint`; su punto 3 pone `idp_entity_id` y `sso_service_url` en la hija. Las dos cosas no pueden ser ciertas sin duplicar el dato.
+
+| Salida | Qué significa | Coste |
+|--------|---------------|-------|
+| **A · SAML rellena `issuer` y `authorization_endpoint`** (lo que este documento propone) | El `entityID` del IdP va en `issuer`; la URL HTTP-Redirect va en `authorization_endpoint`. La hija no los duplica | **Se gana `UNIQUE (tenant_id, issuer)` entre protocolos**: un centro no puede catalogar el mismo emisor dos veces ni cambiando de protocolo. Menos superficie de migración sobre una tabla viva. A cambio, dos columnas del padre tienen un significado ligeramente distinto según el protocolo, y hay que documentarlo |
+| **B · También pasan a *nullable*, y la hija lleva `idp_entity_id` y `sso_service_url`** | Lectura literal del punto 3 | Separación conceptual más limpia, pero **se pierde la unicidad entre protocolos** salvo que se añada un índice único adicional que **no** cubre el cruce, y la migración toca dos columnas más de una tabla viva |
+| **C · Duplicar en padre e hija** | — | **No.** Dos fuentes de verdad para el mismo dato, con la garantía de que un día divergen |
+
+**Recomendación: A.** No es preferencia estética: la unicidad cruzada es una garantía real que B no puede dar, y el argumento de que *«el `issuer` es quien afirma la identidad»* vale igual en los dos protocolos. **Bloqueante** porque define la migración y no puede cambiarse después sin rehacerla.
+
+### `OPEN-AUTH-43` · ¿De qué atributo sale el correo de emparejamiento en SAML? — **RESUELTA (2026-09-02)**
+
+**Decisión del usuario: salida A**, la recomendada por esta especificación. El administrador del centro declara, al configurar el proveedor, el nombre del atributo de correo (`email_attribute`); si es `NULL` y `name_id_format = 'emailAddress'`, se usa el propio `NameID`.
+
+`§G.5.1`, entero. **Es una contradicción con una regla escrita y vigente, y por eso se declara en vez de resolverse**: `§F.5.1` fijó una **lista blanca cerrada de tres valores** para el *claim* de correo *«ni un valor más, y en particular ningún nombre de claim libre»*, con el argumento de que un administrador podría apuntar la comparación a un *claim* que él controla. **En SAML esa lista no se puede construir**: los nombres de atributo son URN largos que varían por IdP y por despliegue.
+
+| Salida | Qué significa | Coste |
+|--------|---------------|-------|
+| **A · Atributo configurable, texto validado** (lo que este documento propone) | El administrador declara el nombre del atributo. Si es `NULL` y el `NameIDFormat` es `emailAddress`, el `NameID` es el correo | Se aparta de la letra de `§F.5.1`. **El argumento de por qué el riesgo no es el mismo está en `§G.5.1`**: quien administra el IdP del centro controla **todos** sus atributos, esté o no en una lista blanca, y la barrera real es `allowed_email_domains` más el hecho de que el `NameID` no es configurable |
+| **B · Lista blanca cerrada ampliada** con los cuatro o cinco URN más frecuentes | Coherencia literal con `§F.5.1` | **Deja fuera IdP conformes** por una razón que no es de seguridad, que es lo que `§F.3.2` ya rechazó al no exigir `userinfo_endpoint`. Y la lista habrá que ampliarla con cada centro nuevo, es decir, con un despliegue |
+| **C · Solo `NameID`, sin atributo de correo** | El emparejamiento solo funciona con `NameIDFormat = emailAddress` | Es la salida más estrecha y la más segura. **Deja sin emparejamiento a todo IdP que emita `NameID` persistente y opaco**, que es la configuración recomendada por buena parte de las guías de SAML. Es decir: acota el valor del paso justo donde `ADR-043 §4.2` lo había prometido |
+
+**Recomendación: A.** **Bloqueante**, porque define una columna, un texto de pantalla y un argumento de seguridad que se aparta de una regla ya escrita — y eso no lo decide `spec-writer`.
+
+### `OPEN-AUTH-44` · ¿Dónde vive la clave privada de firma del SP? — **RESUELTA (2026-09-02)**
+
+**Decisión del usuario: salida A**, la recomendada por esta especificación. Fichero montado, ruta por variable de entorno (`ADR-037 §7`, `EnvironmentFile=`), no cifrada en base de datos.
+
+`§G.3.7`. `ADR-043 §10.9` decisión 6 fijó **una sola clave de plataforma**, pero no dónde vive, y aquí conviven dos precedentes del propio proyecto que apuntan a sitios distintos:
+
+- **`ADR-037 §7`**: los secretos del despliegue se entregan por `EnvironmentFile=`, **sin gestor externo**.
+- **`ADR-043 §8.2`** (resuelto en 1.4b): el `client_secret` **por tenant** va cifrado en tabla propia, precisamente porque *«cambiaría con cada alta de tenant y exigiría reiniciar el servicio»*.
+
+| Salida | Coste |
+|--------|-------|
+| **A · Fichero montado, ruta por variable de entorno** (lo que este documento propone) | **La clave es de plataforma y no cambia con ninguna alta de tenant**, así que el argumento que llevó el `client_secret` a la base de datos **no aplica**, y `ADR-037 §7` se aplica limpiamente. A cambio: un fichero más que custodiar, montar con `:Z` y meter en el procedimiento de recuperación |
+| **B · Cifrada en base de datos con `APP_KEY`**, como los secretos de 1.4b | Coherente con lo más reciente del módulo y una cosa menos que montar. **Pero mete en la copia de seguridad una clave privada de plataforma** —no de un tercero, como el `client_secret`— y hace que `APP_KEY` gane responsabilidad **por tercera vez**, con la consecuencia de que perderla deja además sin firmar todas las peticiones |
+| **C · No firmar nunca**, y retirar `sign_authn_requests` del alcance | Cero material criptográfico propio que custodiar. **Deja fuera a los despliegues de ADFS y Shibboleth que exigen peticiones firmadas**, que existen y no son raros |
+
+**Recomendación: A.** **Bloqueante**: es custodia de material criptográfico, toca `SYSADMIN.md`, `RUNBOOK.md` y las guardas de arranque, y no se puede cambiar después sin rotar la clave y pedir a cada centro que recargue nuestros metadatos.
+
+### `OPEN-AUTH-45` · ¿Entra en 1.4c la obtención de metadatos por URL, o solo XML pegado? — **RESUELTA (2026-09-02)**
+
+**Decisión del usuario: las dos**, la recomendada por esta especificación. Reutiliza las cinco guardas SSRF de `CurlDiscoveryDocumentValidator` (1.4b) y el refresco programado.
+
+El encargo de este paso menciona *«subir/pegar metadatos del IdP o URL»*, así que la especificación está escrita **con las dos**. Merece decidirse explícitamente porque **la variante por URL trae consigo la superficie de `RN-AUTH-113`** —el cliente HTTP saliente controlado por configuración de tenant, con sus cinco guardas— y una tarea programada de refresco.
+
+- **Con URL**: la rotación de certificados del IdP se recoge **sola**, que es lo que evita la caída por vencimiento que `ADR-043 §2.4` describe. A cambio, se amplía a un segundo canal la superficie de SSRF que `api.md §F.9.4` señaló como *«la superficie con más peso de seguridad del paso»* de 1.4b.
+- **Solo XML pegado**: cero superficie saliente nueva, y **la rotación de certificados pasa a ser 100 % manual** — es decir, depende de que un administrador de centro lea un aviso y actúe.
+
+**Recomendación: las dos, reutilizando las cinco guardas y el mismo cliente** (es el mismo problema, ya resuelto y ya revisado en 1.4b), y con el refresco programado. **No bloqueante**: si la respuesta es «solo XML», se retiran `metadata_url`, `metadata_source`, `metadata_fetched_at`, `metadata_failed_at`, el *endpoint* de refresco y una tarea programada — es un recorte limpio, no un rediseño.
+
+### `OPEN-AUTH-46` · ¿Se soporta `EncryptedAssertion`? — **RESUELTA (2026-09-02)**
+
+**Decisión del usuario: no, en 1.4c**, la recomendada por esta especificación. Se reconsidera cuando un centro real lo exija.
+
+Muchos despliegues de ADFS cifran la aserción además de firmarla. Sin soporte, **un centro con esa configuración no puede integrarse** hasta que la desactive.
+
+- **No soportarlo** (posición por defecto de este documento): el transporte ya es TLS, la aserción va firmada, y la superficie de descifrado XML —otra vez XML, otra vez la capa donde `ADR-043 §2.3` demostró que están los fallos— no entra en el producto. Se documenta que el centro debe entregar la aserción sin cifrar.
+- **Soportarlo**: reutilizaría la clave de plataforma de `OPEN-AUTH-44` como clave de descifrado y añadiría un `KeyDescriptor use="encryption"` a nuestros metadatos. Es aditivo y el envoltorio es el único punto que cambia.
+
+**Recomendación: no soportarlo en 1.4c**, y reconsiderarlo cuando aparezca un centro real que lo exija — momento en el que además sabremos qué algoritmos concretos hay que admitir, que es información que hoy no tenemos. **No bloqueante**, pero **interactúa con `OPEN-AUTH-44`**: si la respuesta cambia, la clave de plataforma pasa a tener dos usos y su custodia sube de importancia.
+
+### `OPEN-AUTH-47` · El ACS lleva el `public_id` en la ruta: ¿se acepta que recrear un proveedor rompa el registro en el IdP? — **RESUELTA (2026-09-02)**
+
+**Decisión del usuario: salida A**, la recomendada por esta especificación. Se acepta tal cual; la pantalla avisa al borrar.
+
+`§G.3.4`. **Que el proveedor esté en la ruta no se discute**: `ADR-043 §10.7` lo exige por seguridad y el argumento es correcto. Lo que sí es una decisión de producto es **el coste operativo que arrastra**, y es exactamente el que `§F.3.1` evitó a propósito en OIDC: borrar un proveedor mal configurado y volver a crearlo produce un `public_id` nuevo y **rompe el registro que el administrador ya hizo en su IdP**.
+
+| Salida | Coste |
+|--------|-------|
+| **A · Aceptarlo tal cual** (lo que este documento propone) | Cero estado nuevo. La pantalla avisa al borrar, y el manual lo dice. **El síntoma cuando ocurre es claro**: el IdP rechaza la ACS URL antes de emitir nada |
+| **B · Un alias estable propio del ACS**, ajeno al `public_id`, que sobreviva a borrado y realta | Evita la reconfiguración. **A cambio: un identificador más con su propia unicidad, su propio ciclo de vida y su propia pregunta de "¿qué pasa si dos proveedores piden el mismo alias?"** — estado nuevo para un caso que ocurre una vez por centro |
+
+**Recomendación: A.** **No bloqueante.**
+
+### `OPEN-AUTH-48` · ¿Se reutiliza `POST /auth/oauth-authorizations` para arrancar el flujo SAML? — **RESUELTA (2026-09-02)**
+
+**Decisión del usuario: reutilizarlo**, la recomendada por esta especificación. El nombre queda registrado como deuda de nomenclatura en `CHANGELOG.md`.
+
+El nombre del *endpoint* dice «oauth» y SAML no es OAuth. Las salidas:
+
+- **Reutilizarlo** (lo que este documento propone): el contrato es `{provider, intent}` → `{authorization_url, expires_at}`, que describe SAML **exactamente igual de bien**; la SPA ya copia un identificador opaco **sin interpretarlo** (`api.md §F.6`), así que **no cambia ni una línea de la pantalla de login**; y el `§F.6` de 1.4b eligió el identificador opaco precisamente para que esta distinción *«es nuestra y no del cliente»*. El coste es un nombre desafortunado que queda como deuda declarada.
+- **Un *endpoint* propio** `POST /auth/sso-authorizations`: nombre honesto, y **dos caminos de código y dos ramas en la SPA para la misma acción de usuario**, más un tercer *endpoint* el día que llegue otro protocolo.
+- **Renombrarlo** y mantener el viejo como alias: lo más limpio a largo plazo y **una migración de contrato con dos rutas vivas** para arreglar un nombre.
+
+**Recomendación: reutilizarlo**, y registrar el nombre como deuda en `CHANGELOG.md`. **No bloqueante.**
+
+### Lo que **no** dejo como pregunta abierta, y por qué
+
+- **Que la firma se verifique siempre y que los cuatro indicadores de `php-saml` se fijen a `true`.** `§G.3.5`. No hay dos opciones razonables, y `CA-AUTH-336` lo convierte en verificable.
+- **Que el ACS sea `POST` sin CSRF en un grupo propio.** Decidido en `ADR-043 §10.9` decisión 3, y su mitigación está especificada, no supuesta.
+- **Que `entityId` de SP y ACS URL sean por tenant.** `ADR-043 §10.7` lo dice con las palabras exactas: *«esto no es una pregunta»*. Lo contrario es fuga entre tenants por diseño.
+- **Que no haya columna `sso_binding` ni atributos de nombre y apellidos.** `§G.0.3` desviaciones 1 y 3, las dos con el argumento de `CLAUDE.md §11` delante: no se guarda lo que ningún camino de código lee.
+- **Que `login_attempts.method` no gane un valor.** `datos.md §F.5` ya argumentó que un solo valor cubre todo el SSO institucional; añadir `saml` sería el producto cartesiano de dos dimensiones metido en un enumerado, que es lo que esa columna existe para evitar.
+- **Que no se declare ningún permiso nuevo.** `permisos.md §G.1`. Configurar un proveedor SAML es configurar un proveedor de identidad, y ese recurso ya existe con sus cuatro acciones.
+- **Que nuestros metadatos de SP no se publiquen de forma anónima.** Se descargan con `proveedor_identidad.leer`. Publicarlos sin sesión publicaría el mapa de integración del centro, que es lo que `datos.md §F.10` y `permisos.md §F.8` decidieron no publicar. **El coste se acepta y se dice**: el IdP del centro no podrá obtener nuestros metadatos por URL, y el administrador tendrá que descargarlos y subirlos.
+- **Que el refresco de metadatos no retire certificados.** `RN-AUTH-125`. Retirarlos automáticamente corta el acceso de un centro en mitad de una rotación.
+
+---
+
+## G.14 ¿Se aprueba esta especificación?
+
+**APROBADA el 2026-09-02.** Las siete preguntas abiertas —tres bloqueantes (`OPEN-AUTH-42`, `43`, `44`) y cuatro no bloqueantes (`OPEN-AUTH-45`-`48`)— quedaron resueltas por el usuario ese mismo día, todas con la salida recomendada por esta especificación (`§G.13`).
+
+**Lo que hay que aceptar al aprobar, dicho sin adornos:**
+
+1. **Aparece la primera excepción de CSRF de la aplicación**, acotada a una ruta y mitigada por la correlación en servidor. **Va a `SECURITY.md` en el mismo paso, no después** — con el precedente de los issues #111-#114 sobre documentación raíz que se quedó atrás.
+2. **Se adopta una dependencia con factor autobús 1** (`ADR-043 §10.3`), a sabiendas, sobre el componente que decide quién entra en un sistema con datos de menores. **Con ella se adquiere la obligación permanente de seguir los avisos de `onelogin/php-saml` y de `robrichards/xmlseclibs` y de parchear rápido.** No es una tarea posterior: es una entrada de `RUNBOOK.md`.
+3. **`wantMessagesSigned = true` puede dejar fuera a un IdP conforme** que firme solo la aserción (`§G.3.5`). Es una restricción aceptada a conciencia, y es lo primero que hay que comprobar contra un IdP comercial.
+4. **`REQ-AUTH-004` sigue incumplido en la parte de fotografía del mapeo de atributos** mientras `OPEN-13`/`REQ-PRIV-006` sigan abiertas, exactamente igual que tras 1.4b. **No es un olvido: es un requisito bloqueado.**
+5. **La tercera línea del requisito sigue cubierta solo en su mitad de identidad** (`OPEN-AUTH-38` salida A), y **la cuarta sigue cubierta solo en su mitad de emparejamiento** (`ADR-043 §8.1`).
+6. **Recrear un proveedor SAML obliga al centro a reconfigurar su IdP** (`OPEN-AUTH-47`).
+7. **Se declaran tres desviaciones respecto del boceto de `ADR-043 §10`** (`§G.0.3`). Ninguna toca una decisión de `§10.9`, pero las tres son decisiones de esquema y la revisión debe verlas como tales.
+
+**Confirmaciones que la implementación debe respetar y que no son negociables sin volver aquí**: la firma se verifica siempre y los cuatro indicadores se comprueban por reflexión (`RN-AUTH-117`, `CA-AUTH-336`); la llave nunca se elige por el contenido del mensaje (`RN-AUTH-118`, `CA-AUTH-338`); no se acepta una aserción sin `InResponseTo` correlacionado, vivo y no consumido (`RN-AUTH-120`-`122`, `CA-AUTH-341`-`344`); ningún `Person` ni `User` se crea (`RN-AUTH-129`, `CA-AUTH-352`); el SSO no salta el segundo factor (`CA-AUTH-354`); `entityId` y ACS son por tenant y hay tres barreras (`CA-AUTH-339`); y el ACS es la **única** ruta sin `csrf`, en grupo propio y sin lista global (`CA-AUTH-346`).
+
+**Orden de implementación propuesto**, con dos puntos de control:
+
+1. Migraciones y modelos: `protocol` y las siete columnas condicionadas en `identity_providers`, `saml_identity_provider_settings`, `identity_provider_certificates`, `saml_auth_requests`, `saml_consumed_assertions`, y los dos `CHECK` de `user_identities`.
+   > **Punto de control 1**: `db-reviewer` **antes** de continuar. Es una migración *expand/contract* sobre una tabla viva con cuatro `CHECK` reescritos y nueve nuevos (`datos.md §G.2.4`); es donde un error no se ve desde la interfaz.
+2. Validación de metadatos, gestión de certificados y los cuatro *endpoints* de administración, con sus tests de aislamiento.
+3. El envoltorio de `php-saml` y el IdP simulado, con `CA-AUTH-336` y las pruebas negativas de `RN-AUTH-117`-`123` **antes** que el flujo.
+   > **Punto de control 2**: `security-reviewer` centrado en el envoltorio, la excepción de CSRF y la correlación. **Es la mitad del paso donde un fallo es una evasión de autenticación**, no una funcionalidad rota.
+4. ACS, correlación, emparejamiento y creación de sesión.
+5. Pantallas: administración primero, perfil después.
+
+Rama: `feature/REQ-AUTH-004-sso-saml`.

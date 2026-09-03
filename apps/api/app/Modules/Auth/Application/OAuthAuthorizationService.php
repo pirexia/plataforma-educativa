@@ -6,6 +6,10 @@ use App\Models\User;
 use App\Modules\Auth\Domain\ExternalIdentityProvider;
 use App\Modules\Auth\Domain\ExternalIdentityProviderRegistry;
 use App\Modules\Auth\Domain\IdentityProviderDirectory;
+use App\Modules\Auth\Domain\Models\IdentityProvider;
+use App\Modules\Auth\Domain\Models\SamlAuthRequest;
+use App\Modules\Auth\Domain\Protocol;
+use App\Modules\Auth\Domain\SamlIdentityProviderRegistry;
 use App\Support\Api\ApiException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,14 +17,21 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * `funcional.md §E.4.1`, `api.md §E.3`, ampliado por `funcional.md
- * §F.4.3` (1.4b). Arranca el flujo: `POST /auth/oauth-authorizations`.
- * Anónimo con `intent = 'login'`; por identidad del portador con
- * `intent = 'link'` (`permisos.md §E.2`).
+ * §F.4.3` (1.4b) y `§G.4.3`/`§G.6` (1.4c). Arranca el flujo: `POST
+ * /auth/oauth-authorizations`. Anónimo con `intent = 'login'`; por
+ * identidad del portador con `intent = 'link'` (`permisos.md §E.2`).
  *
- * `provider` acepta ahora **o** el literal `"google"` (*driver* global de
- * 1.4, sin cambios) **o** el `public_id` de un proveedor catalogado
- * (1.4b) — un identificador opaco que la SPA copia de
- * `GET /auth/identity-providers` sin interpretarlo (`api.md §F.6`).
+ * `provider` acepta **o** el literal `"google"` (*driver* global de 1.4,
+ * sin cambios) **o** el `public_id` de un proveedor catalogado (OIDC
+ * desde 1.4b, SAML desde 1.4c) — un identificador opaco que la SPA copia
+ * de `GET /auth/identity-providers` sin interpretarlo (`api.md §F.6`,
+ * `§G.1` punto 2: **la SPA no sabe qué protocolo es ninguno**).
+ *
+ * `RN-AUTH-114`: los dos mecanismos de correlación de OIDC/Google
+ * (`pge_oauth_intent`/`pge_oidc_provider_id` en sesión) y de SAML
+ * (`saml_auth_requests` en base de datos, `funcional.md §G.0.4`) son
+ * **independientes**. Un flujo SAML no escribe nada en la clave de
+ * sesión, y un flujo OIDC/Google no toca la tabla de correlación.
  */
 final class OAuthAuthorizationService
 {
@@ -48,6 +59,7 @@ final class OAuthAuthorizationService
         private readonly ExternalIdentityProvider $provider,
         private readonly IdentityProviderDirectory $identityProviders,
         private readonly ExternalIdentityProviderRegistry $registry,
+        private readonly SamlIdentityProviderRegistry $samlRegistry,
     ) {}
 
     /**
@@ -65,18 +77,17 @@ final class OAuthAuthorizationService
             $this->fail('intent', 'oauth_intent_requires_session');
         }
 
-        $externalProvider = $provider === 'google'
-            ? $this->beginGoogle($request)
-            : $this->beginCatalog($request, $provider);
+        if ($provider === 'google') {
+            $authorizationUrl = $this->beginGoogle($request, $intent);
+        } else {
+            $identityProvider = $this->resolveCatalogProvider($provider);
+
+            $authorizationUrl = $identityProvider->protocol === Protocol::Saml
+                ? $this->beginSaml($identityProvider, $intent, $user)
+                : $this->beginOidc($request, $identityProvider, $intent);
+        }
 
         $ttlMinutes = (int) config('auth-local.oauth.state_ttl_minutes');
-
-        // funcional.md §E.4.1 punto 3.3: intent guardado junto al state,
-        // en el mismo payload de sesión cifrado — nunca en una cookie
-        // propia ni en localStorage (RN-AUTH-28).
-        $request->session()->put(self::INTENT_SESSION_KEY, $intent);
-
-        $authorizationUrl = $externalProvider->beginAuthorization();
 
         return [
             'authorization_url' => $authorizationUrl,
@@ -84,7 +95,7 @@ final class OAuthAuthorizationService
         ];
     }
 
-    private function beginGoogle(Request $request): ExternalIdentityProvider
+    private function beginGoogle(Request $request, string $intent): string
     {
         // operacion.md §E.1, issue #140: AUTH_OAUTH_DRIVER=none (valor
         // por defecto) es el estado normal de cualquier despliegue que
@@ -98,17 +109,19 @@ final class OAuthAuthorizationService
         // de un intento anterior sin terminar.
         $request->session()->forget(self::OIDC_PROVIDER_SESSION_KEY);
 
-        return $this->provider;
+        $this->putIntent($request, $intent);
+
+        return $this->provider->beginAuthorization();
     }
 
     /**
-     * `funcional.md §F.4.3` puntos 3.2-3.3. `$provider` es un `public_id`
-     * de proveedor catalogado. Desconocido, borrado, no activo o sin
-     * credencial vigente ⇒ **el mismo** `422`, sin distinguir los cuatro
-     * casos (`RN-AUTH-101`, `RN-AUTH-102`) — anónimo, y distinguirlos
-     * sería un comprobador de qué centros tienen SSO.
+     * `funcional.md §F.4.3` puntos 3.2-3.3, `§G.4.3` puntos 3.2-3.3.
+     * `$publicId` es el `public_id` de un proveedor catalogado (OIDC o
+     * SAML). Desconocido, borrado o no activo ⇒ **el mismo** `422`, sin
+     * distinguir los casos (`RN-AUTH-101`, `RN-AUTH-102`) — anónimo, y
+     * distinguirlos sería un comprobador de qué centros tienen SSO.
      */
-    private function beginCatalog(Request $request, string $publicId): ExternalIdentityProvider
+    private function resolveCatalogProvider(string $publicId): IdentityProvider
     {
         $identityProvider = $this->identityProviders->findByPublicId($publicId);
 
@@ -116,6 +129,11 @@ final class OAuthAuthorizationService
             $this->fail('provider', 'oauth_provider_not_configured');
         }
 
+        return $identityProvider;
+    }
+
+    private function beginOidc(Request $request, IdentityProvider $identityProvider, string $intent): string
+    {
         if ($identityProvider->activeSecret() === null) {
             // operacion.md §F.8: auth.sso.provider.enabled_without_secret
             // — sin backend de métricas, el registro de aplicación es la
@@ -128,8 +146,54 @@ final class OAuthAuthorizationService
         }
 
         $request->session()->put(self::OIDC_PROVIDER_SESSION_KEY, $identityProvider->id);
+        $this->putIntent($request, $intent);
 
-        return $this->registry->forProvider($identityProvider);
+        return $this->registry->forProvider($identityProvider)->beginAuthorization();
+    }
+
+    /**
+     * `funcional.md §G.4.3` puntos 3.3-3.5. **No escribe nada en la
+     * sesión** (`§G.0.4`, `RN-AUTH-114`): el `intent` y el usuario a
+     * vincular viajan en la fila de `saml_auth_requests`, no en
+     * `pge_oauth_intent`/`pge_oidc_provider_id` — un flujo SAML no debe
+     * dejar ninguna de esas dos claves huérfana.
+     */
+    private function beginSaml(IdentityProvider $identityProvider, string $intent, ?User $user): string
+    {
+        if ($identityProvider->activeCertificates()->isEmpty()) {
+            // operacion.md §G.8: auth.saml.provider.enabled_without_certificate.
+            Log::channel(config('logging.default'))->warning('auth.saml.provider.enabled_without_certificate', [
+                'identity_provider_id' => $identityProvider->id,
+            ]);
+
+            $this->fail('provider', 'oauth_provider_not_configured');
+        }
+
+        // funcional.md §G.4.3 punto 3.4: un ID de SAML es un NCName, no
+        // puede empezar por dígito — mismo prefijo que php-saml usa para
+        // lo mismo (OneLogin\Saml2\Utils::generateUniqueID()), sin cruzar
+        // la frontera de CA-AUTH-362 para generarlo (es texto, no un tipo
+        // de la biblioteca).
+        $requestId = 'ONELOGIN_'.bin2hex(random_bytes(20));
+        $ttlMinutes = (int) config('auth-local.oauth.state_ttl_minutes');
+
+        SamlAuthRequest::create([
+            'identity_provider_id' => $identityProvider->id,
+            'request_id' => $requestId,
+            'intent' => $intent,
+            'linking_user_id' => $intent === 'link' ? $user?->id : null,
+            'expires_at' => now()->addMinutes($ttlMinutes),
+        ]);
+
+        return $this->samlRegistry->forProvider($identityProvider)->buildAuthnRequest($requestId);
+    }
+
+    private function putIntent(Request $request, string $intent): void
+    {
+        // funcional.md §E.4.1 punto 3.3: intent guardado junto al state,
+        // en el mismo payload de sesión cifrado — nunca en una cookie
+        // propia ni en localStorage (RN-AUTH-28).
+        $request->session()->put(self::INTENT_SESSION_KEY, $intent);
     }
 
     /**

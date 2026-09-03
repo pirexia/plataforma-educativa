@@ -543,40 +543,48 @@ namespace App\Modules\Auth\Domain\Models{
 
 namespace App\Modules\Auth\Domain\Models{
 /**
- * datos.md §F.2. El catálogo de proveedores OIDC de un centro
- * (`ADR-043 §3.5` punto 1: tabla de tenant, sin excepción de *tenancy*).
+ * datos.md §F.2, ampliado en `datos.md §G.2` (REQ-AUTH-004, 1.4c: el
+ * discriminador `protocol`). El catálogo de proveedores de identidad de
+ * un centro, OIDC y SAML (`ADR-043 §3.5` punto 1: tabla de tenant, sin
+ * excepción de *tenancy*).
  *
  * `Full`: sin datos personales (`ADR-035 §8`). URLs, un `client_id`, una
- * lista de dominios y tres conmutadores — el mismo perfil que
+ * lista de dominios y varios conmutadores — el mismo perfil que
  * `AcademicYear`/`Role`/`ModuleSubscription`.
  *
- * Ninguna columna de `protocol` (SAML es 1.4c), `jwks_uri` (no se
- * verifica firma) ni mapeo de atributos hacia `people` (`funcional.md
- * §F.5.2`).
+ * `protocol` es **inmutable tras el alta** (`RN-AUTH-114`): no lo impone
+ * un `CHECK` (no ve el valor anterior), lo impone el servicio
+ * (`IdentityProviderService`/`SamlIdentityProviderAdminService`,
+ * `CA-AUTH-316`). Ninguna columna de mapeo de atributos hacia `people`
+ * (`funcional.md §F.5.2`, `§G.5.2`).
  *
  * @property int $id
  * @property int $tenant_id
  * @property string $public_id
  * @property string $display_name
- * @property string $discovery_url
+ * @property string|null $discovery_url
  * @property string $issuer
  * @property string $authorization_endpoint
- * @property string $token_endpoint
+ * @property string|null $token_endpoint
  * @property string|null $userinfo_endpoint
- * @property \App\Modules\Auth\Domain\ClaimsSource $claims_source
- * @property \App\Modules\Auth\Domain\EmailClaim $email_claim
- * @property array<array-key, mixed> $scopes
- * @property string $client_id
+ * @property \App\Modules\Auth\Domain\ClaimsSource|null $claims_source
+ * @property \App\Modules\Auth\Domain\EmailClaim|null $email_claim
+ * @property array<array-key, mixed>|null $scopes
+ * @property string|null $client_id
  * @property array<array-key, mixed> $allowed_email_domains
  * @property \App\Modules\Auth\Domain\ProvisioningMode $provisioning_mode
  * @property bool $is_enabled
- * @property \Illuminate\Support\Carbon $discovery_fetched_at
+ * @property \Illuminate\Support\Carbon|null $discovery_fetched_at
  * @property \Illuminate\Support\Carbon|null $discovery_failed_at
  * @property int|null $created_by
  * @property int|null $updated_by
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property \App\Modules\Auth\Domain\Protocol $protocol
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\Auth\Domain\Models\IdentityProviderCertificate> $certificates
+ * @property-read int|null $certificates_count
+ * @property-read \App\Modules\Auth\Domain\Models\SamlIdentityProviderSettings|null $samlSettings
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\Auth\Domain\Models\IdentityProviderSecret> $secrets
  * @property-read int|null $secrets_count
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider newModelQuery()
@@ -598,6 +606,7 @@ namespace App\Modules\Auth\Domain\Models{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereIsEnabled($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereIssuer($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereProtocol($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereProvisioningMode($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider wherePublicId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProvider whereScopes($value)
@@ -612,6 +621,65 @@ namespace App\Modules\Auth\Domain\Models{
  */
 	#[\AllowDynamicProperties]
 	class IdeHelperIdentityProvider {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §G.5 (REQ-AUTH-004, 1.4c). La ventana de rotación de los
+ * certificados de firma de un IdP SAML. Con `public_id`: sí se expone en
+ * URL (`DELETE .
+ *
+ * ../certificates/{public_id}`).
+ *
+ * Selective: `certificate` (el PEM) se declara secreto a mano
+ * (`ADR-043 §3.5.5`, `RN-AUTH-127`, `CA-AUTH-333`) — no porque sea
+ * secreto (es una clave pública), sino por proporción: un bloque de
+ * kilobytes que `audit_logs` no tiene por qué duplicar en cada cambio.
+ * `config('audit.secret_attribute_patterns')` no cubre `certificate`, así
+ * que esta declaración explícita no es defensa en profundidad aquí: es
+ * la única barrera.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $identity_provider_id
+ * @property string $certificate
+ * @property string $fingerprint_sha256
+ * @property \Illuminate\Support\Carbon $not_before
+ * @property \Illuminate\Support\Carbon $not_after
+ * @property \App\Modules\Auth\Domain\SamlCertificateSource $source
+ * @property \Illuminate\Support\Carbon|null $retired_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\Auth\Domain\Models\IdentityProvider|null $identityProvider
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereCertificate($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereFingerprintSha256($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereIdentityProviderId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereNotAfter($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereNotBefore($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereRetiredAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereSource($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|IdentityProviderCertificate withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperIdentityProviderCertificate {}
 }
 
 namespace App\Modules\Auth\Domain\Models{
@@ -913,6 +981,160 @@ namespace App\Modules\Auth\Domain\Models{
  */
 	#[\AllowDynamicProperties]
 	class IdeHelperMfaReset {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §G.4.1 (REQ-AUTH-004, 1.4c). La correlación del `AuthnRequest`
+ * emitido: sostiene la excepción de CSRF del ACS (`RN-AUTH-120`,
+ * `RN-AUTH-124`). Sin `HasPublicId`: no se expone en ninguna URL ni
+ * respuesta de API — el identificador que viaja es `request_id`, dentro
+ * del propio mensaje SAML.
+ *
+ * **No implementa `Auditable`**: política de auditoría `None`
+ * (`datos.md §G.4.1`). Es estado transitorio de protocolo con vida de
+ * cinco minutos, del mismo carácter que el `state` de OIDC en sesión, que
+ * tampoco se audita.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property int $identity_provider_id
+ * @property string $request_id
+ * @property string $intent
+ * @property int|null $linking_user_id
+ * @property \Illuminate\Support\Carbon $expires_at
+ * @property \Illuminate\Support\Carbon|null $consumed_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\Auth\Domain\Models\IdentityProvider|null $identityProvider
+ * @property-read \App\Models\User|null $linkingUser
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereConsumedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereExpiresAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereIdentityProviderId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereIntent($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereLinkingUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereRequestId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlAuthRequest withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperSamlAuthRequest {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §G.4.2 (REQ-AUTH-004, 1.4c). Cubre un ataque distinto de
+ * `SamlAuthRequest`: que una misma aserción legítima se reenvíe contra
+ * OTRA petición viva (`RN-AUTH-122`). No guarda el XML de la aserción ni
+ * ningún fragmento suyo (`CA-AUTH-363`).
+ *
+ * **No implementa `Auditable`**: política de auditoría `None`, mismo
+ * argumento que `SamlAuthRequest`.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property int $identity_provider_id
+ * @property string $assertion_id
+ * @property \Illuminate\Support\Carbon $not_on_or_after
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\Auth\Domain\Models\IdentityProvider|null $identityProvider
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereAssertionId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereIdentityProviderId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereNotOnOrAfter($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlConsumedAssertion withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperSamlConsumedAssertion {}
+}
+
+namespace App\Modules\Auth\Domain\Models{
+/**
+ * datos.md §G.3 (REQ-AUTH-004, 1.4c). La hija 1:1 de un proveedor SAML.
+ *
+ * Sin `HasPublicId`: no se expone nunca en una URL propia (`api.md §G.2`).
+ *
+ * `Full`: sin datos personales (configuración técnica y metadatos
+ * públicos de una institución). **Salvedad declarada a mano**
+ * (`ADR-043 §3.5.5`): `metadata_xml` va en `$auditSecretAttributes` — no
+ * porque sea secreto, sino porque es un documento de decenas de
+ * kilobytes con certificados dentro y `Full` lo copiaría entero en
+ * `audit_logs` en cada modificación. Se registra que cambió, no su valor.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property int $identity_provider_id
+ * @property \App\Modules\Auth\Domain\SamlMetadataSource $metadata_source
+ * @property string|null $metadata_url
+ * @property string|null $metadata_xml
+ * @property \App\Modules\Auth\Domain\SamlNameIdFormat $name_id_format
+ * @property string|null $email_attribute
+ * @property bool $sign_authn_requests
+ * @property \Illuminate\Support\Carbon|null $metadata_fetched_at
+ * @property \Illuminate\Support\Carbon|null $metadata_failed_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\Auth\Domain\Models\IdentityProvider|null $identityProvider
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereEmailAttribute($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereIdentityProviderId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereMetadataFailedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereMetadataFetchedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereMetadataSource($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereMetadataUrl($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereMetadataXml($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereNameIdFormat($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereSignAuthnRequests($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SamlIdentityProviderSettings withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperSamlIdentityProviderSettings {}
 }
 
 namespace App\Modules\Auth\Domain\Models{

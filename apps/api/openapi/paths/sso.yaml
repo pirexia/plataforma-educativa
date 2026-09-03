@@ -1,12 +1,20 @@
-# REQ-AUTH-004 (paso 1.4b). SSO institucional: catálogo de proveedores
-# OIDC por tenant, credenciales con rotación, y el callback institucional.
-# Convenciones transversales en docs/adr/ADR-038-convenciones-api-rest.md.
-# Contrato completo en docs/modulos/REQ-AUTH/api.md Parte F.
+# REQ-AUTH-004 (pasos 1.4b y 1.4c). SSO institucional: catálogo de
+# proveedores OIDC y SAML por tenant, credenciales/certificados con
+# rotación, y los callbacks institucionales. Convenciones transversales en
+# docs/adr/ADR-038-convenciones-api-rest.md. Contrato completo en
+# docs/modulos/REQ-AUTH/api.md Partes F (1.4b) y G (1.4c).
 #
-# api.md §F.1: nueve endpoints. Ocho de administración con permiso
+# api.md §F.1: nueve endpoints de 1.4b. Ocho de administración con permiso
 # `proveedor_identidad.*` (permisos.md §F.3); el callback se autoriza por
 # posesión de la sesión que arrancó el flujo. Ninguno lleva
 # `module-enabled` (RN-AUTH-35, CA-AUTH-306).
+#
+# api.md §G.1: cinco endpoints más de 1.4c, cero permisos nuevos
+# (permisos.md §G.1). El discriminador `protocol` entra en el contrato de
+# `POST`/`GET`/`PATCH` de arriba, de forma aditiva. El ACS
+# (`POST /auth/saml/{publicId}/acs`) es la única ruta de la aplicación
+# entera sin CSRF (api.md §G.7.1) y nunca responde `problem+json`: siempre
+# `302` (api.md §G.1.1, §G.7.2).
 
 paths:
   /api/v1/identity-providers:
@@ -14,11 +22,16 @@ paths:
       operationId: getIdentityProviders
       summary: Catálogo de proveedores OIDC del centro
       description: >
-        api.md §F.2. Permiso `proveedor_identidad.leer`. Paginado
-        (ADR-038 §4) aunque en la práctica sean una o dos filas.
-        `secret_status` es un resumen de la credencial vigente —
-        **nunca su valor**, ni enmascarado (RN-AUTH-112, CA-AUTH-266).
-        `discovery_url` no sale aquí, solo en el detalle.
+        api.md §F.2, §G.2. Permiso `proveedor_identidad.leer`. Paginado
+        (ADR-038 §4) aunque en la práctica sean pocas filas. `protocol`
+        (`oidc`/`saml`) sale en cada fila. Para OIDC, `secret_status` es
+        un resumen de la credencial vigente; para SAML,
+        `certificate_status` es su hermano exacto. **Nunca el secreto ni
+        el PEM**, ni enmascarados (RN-AUTH-112, RN-AUTH-127). Los campos
+        `discovery_url`/`metadata_xml` no salen aquí, solo en el detalle.
+        La SPA no sabe qué protocolo es cada proveedor cuando consulta
+        `GET /auth/identity-providers` (colección anónima, sin cambios de
+        forma): esta distinción solo existe en la administración.
       tags: [Auth / SSO]
       security: [{ SessionCookie: [] }]
       responses:
@@ -43,18 +56,37 @@ paths:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
     post:
       operationId: createIdentityProvider
-      summary: Da de alta un proveedor OIDC, con validación síncrona del documento de descubrimiento
+      summary: Da de alta un proveedor OIDC o SAML, con validación síncrona de sus metadatos
       description: >
-        api.md §F.3, funcional.md §F.4.1-§F.4.2. Permiso
-        `proveedor_identidad.crear`. Descarga y valida el documento de
-        descubrimiento de forma **síncrona**, con las cinco guardas
-        contra SSRF de `funcional.md §F.4.2` (revalidadas en cada
-        redirección, RN-AUTH-113). Si falla, **no se crea nada**.
-        `is_enabled` no se acepta en el alta: un proveedor nace siempre
-        no activo (funcional.md §F.4.1) — activarlo es un `PATCH`
-        posterior, tras cargar la credencial. Límite de tasa por tenant
-        (`sso_discovery_tenant`, operacion.md §F.6): la validación hace
-        una petición saliente.
+        api.md §F.3, §G.2, funcional.md §F.4.1-§F.4.2, §G.4.1-§G.4.2.
+        Permiso `proveedor_identidad.crear`. `protocol` es obligatorio y
+        **sin valor por defecto en la API** (RN-AUTH-114): obliga a
+        decirlo para que un cliente que no conoce el campo no cree un
+        proveedor del protocolo equivocado sin enterarse.
+
+        Con `protocol: oidc`, el contrato es el de 1.4b, byte a byte:
+        descarga y valida el documento de descubrimiento de forma
+        **síncrona**, con las cinco guardas contra SSRF de
+        `funcional.md §F.4.2` (revalidadas en cada redirección,
+        RN-AUTH-113). Límite de tasa por tenant (`sso_discovery_tenant`).
+
+        Con `protocol: saml`, valida los metadatos del IdP —por
+        `metadata_url` **o** `metadata_xml`, uno de los dos, nunca los dos
+        ni ninguno— también de forma síncrona, con las guardas de
+        `funcional.md §G.4.2` (XXE, tamaño/profundidad, un solo
+        `EntityDescriptor`, *binding* HTTP-Redirect, certificado de firma
+        no caducado, `NameIDFormat` admitido —`transient` rechazado—,
+        emisor no catalogado ya). Los campos OIDC se **rechazan** si
+        vienen, no se ignoran. `issuer` y `authorization_endpoint` se
+        derivan de los metadatos; se crea una fila de certificado por
+        cada `KeyDescriptor` de firma. Límite de tasa por tenant
+        (`sso_metadata_tenant`) **solo cuando el origen es una URL**: un
+        XML pegado no genera tráfico saliente contra nadie.
+
+        En los dos protocolos, `is_enabled` no se acepta en el alta: un
+        proveedor nace siempre no activo — activarlo es un `PATCH`
+        posterior, tras cargar la credencial o el certificado. Si la
+        validación falla, **no se crea nada**.
       tags: [Auth / SSO]
       security: [{ SessionCookie: [] }]
       requestBody:
@@ -62,17 +94,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [display_name, discovery_url, client_id]
-              properties:
-                display_name: { type: string, description: "Nombre visible del proveedor, texto del centro sin traducir." }
-                discovery_url: { type: string, format: uri }
-                client_id: { type: string }
-                email_claim: { type: string, enum: [email, preferred_username, upn], description: "Por defecto email." }
-                claims_source: { type: string, enum: [id_token, userinfo], description: "Por defecto id_token (funcional.md §F.3.2)." }
-                scopes: { type: array, items: { type: string }, description: "Por defecto [openid, email, profile]. Debe contener openid." }
-                allowed_email_domains: { type: array, items: { type: string }, description: "Por defecto []: sin restricción (RN-AUTH-107)." }
-                provisioning_mode: { type: string, enum: [desactivado, emparejamiento], description: "Por defecto desactivado." }
+              oneOf:
+                - $ref: '#/components/schemas/CreateOidcIdentityProviderRequest'
+                - $ref: '#/components/schemas/CreateSamlIdentityProviderRequest'
+              discriminator:
+                propertyName: protocol
+                mapping:
+                  oidc: '#/components/schemas/CreateOidcIdentityProviderRequest'
+                  saml: '#/components/schemas/CreateSamlIdentityProviderRequest'
       responses:
         '201':
           description: Proveedor creado, no activo.
@@ -81,14 +110,19 @@ paths:
               schema: { $ref: '#/components/schemas/IdentityProviderDetail' }
         '422':
           description: >
-            Validación de forma; o del documento de descubrimiento, con
-            `errors.discovery_url[0].code` de la lista cerrada de
-            `#/components/schemas/DiscoveryFailureCode`.
+            Validación de forma; o del documento de descubrimiento (OIDC,
+            `errors.discovery_url[0].code` de
+            `#/components/schemas/DiscoveryFailureCode`) o de los
+            metadatos del IdP (SAML, `errors.metadata_url[0].code` de
+            `#/components/schemas/SamlMetadataFailureCode`).
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
         '409':
-          description: El issuer que declara el documento ya está catalogado vivo en este centro.
+          description: >
+            El issuer/entityID ya está catalogado vivo en este centro
+            (`UNIQUE (tenant_id, issuer)`, entre protocolos desde 1.4c,
+            CA-AUTH-315).
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
@@ -114,14 +148,23 @@ paths:
       operationId: getIdentityProvider
       summary: Detalle de un proveedor, incluida la integración que el administrador tiene que registrar en su IdP
       description: >
-        api.md §F.2. Permiso `proveedor_identidad.leer`. Añade sobre la
-        colección los tres endpoints descubiertos, `discovery_url`, la
+        api.md §F.2, §G.2. Permiso `proveedor_identidad.leer`. Añade sobre
+        la colección los campos propios del protocolo.
+
+        **OIDC**: los tres *endpoints* descubiertos, `discovery_url`, la
         lista de credenciales (sin valores) y el bloque `integration`
         —`redirect_uri`, scopes y claims esperados— que ADR-043 §5.2
         obliga a publicar. `redirect_uri` se construye con el slug del
         tenant ya resuelto, nunca con la cabecera Host (RN-AUTH-92,
-        CA-AUTH-273): tiene que coincidir carácter a carácter con la que
-        usará el flujo real.
+        CA-AUTH-273).
+
+        **SAML**: `metadata_source`, `metadata_url` (o `null`),
+        `metadata_xml` (**solo** si `metadata_source = xml`),
+        `name_id_format`, `email_attribute`, `sign_authn_requests`,
+        `metadata_fetched_at`, `metadata_failed_at`, y la lista de
+        certificados —incluidos los retirados, como traza (datos.md
+        §G.10)— sin el PEM (RN-AUTH-127). Nuestros metadatos de SP se
+        obtienen aparte, en `GET .../metadata` (§G.3 de este fichero).
       tags: [Auth / SSO]
       security: [{ SessionCookie: [] }]
       responses:
@@ -143,43 +186,49 @@ paths:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
     patch:
       operationId: updateIdentityProvider
-      summary: Modifica un proveedor; si cambia discovery_url, se revalida entero
+      summary: Modifica un proveedor; si cambian sus metadatos/documento, se revalidan enteros
       description: >
-        api.md §F.3. Permiso `proveedor_identidad.actualizar`. Si viene
-        `discovery_url`, se revalida con las cinco guardas; si falla, no
-        se cambia nada, ni siquiera los campos que sí eran válidos.
-        `is_enabled: true` exige credencial vigente (409 si no la hay):
-        activar un proveedor sin credencial pintaría un botón que solo
-        lleva a `error_proveedor` para todo el centro.
+        api.md §F.3, §G.2. Permiso `proveedor_identidad.actualizar`.
+        `protocol` en el cuerpo ⇒ `422` **siempre**, aunque el valor
+        coincida con el actual: cambiar de protocolo no es editar una
+        fila, es dar de alta otro proveedor (RN-AUTH-114, CA-AUTH-316).
+
+        En un proveedor OIDC, si viene `discovery_url` se revalida con las
+        cinco guardas. En uno SAML, si viene `metadata_url`/`metadata_xml`
+        se revalidan enteros con las guardas de `funcional.md §G.4.2`. Si
+        falla, **no se cambia nada**, ni siquiera los campos que sí eran
+        válidos. Los campos del protocolo contrario se **rechazan**.
+
+        `is_enabled: true` exige credencial (OIDC) o certificado (SAML)
+        vigente — `409` si no lo hay. En SAML, además, `409` si se activa
+        `sign_authn_requests` sin clave de firma de plataforma configurada
+        (RN-AUTH-128).
       tags: [Auth / SSO]
       security: [{ SessionCookie: [] }]
       requestBody:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                display_name: { type: string }
-                discovery_url: { type: string, format: uri }
-                client_id: { type: string }
-                email_claim: { type: string, enum: [email, preferred_username, upn] }
-                claims_source: { type: string, enum: [id_token, userinfo] }
-                scopes: { type: array, items: { type: string } }
-                allowed_email_domains: { type: array, items: { type: string } }
-                provisioning_mode: { type: string, enum: [desactivado, emparejamiento] }
-                is_enabled: { type: boolean }
+              oneOf:
+                - $ref: '#/components/schemas/UpdateOidcIdentityProviderRequest'
+                - $ref: '#/components/schemas/UpdateSamlIdentityProviderRequest'
       responses:
         '200':
           content:
             application/json:
               schema: { $ref: '#/components/schemas/IdentityProviderDetail' }
         '422':
-          description: Validación de forma, o del documento de descubrimiento si cambió discovery_url.
+          description: >
+            Validación de forma; `protocol` presente en el cuerpo; o
+            revalidación del documento/de los metadatos si cambiaron.
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
         '409':
-          description: Emisor ya catalogado, o is_enabled=true sin credencial vigente.
+          description: >
+            Emisor/entityID ya catalogado; `is_enabled=true` sin
+            credencial o certificado vigente; o (SAML)
+            `sign_authn_requests=true` sin clave de firma de plataforma.
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
@@ -366,6 +415,273 @@ paths:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
 
+  /api/v1/identity-providers/{publicId}/metadata:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getIdentityProviderSpMetadata
+      summary: Nuestros metadatos de SP para un proveedor SAML — lo que el administrador registra en su IdP
+      description: >
+        api.md §G.3. Permiso `proveedor_identidad.leer`. **No es
+        anónimo** (§G.3.1): publicarlo sin sesión publicaría el mapa de
+        integración del centro. `entityID` y la ACS URL se derivan del
+        *host* del tenant y son **por proveedor** (RN-AUTH-116,
+        `INV-001`). El certificado público del SP solo sale si
+        `sign_authn_requests` está activo. `404` si el `public_id` no
+        resuelve, es de otro tenant, está borrado o es un proveedor OIDC
+        (que no tiene metadatos de SP que publicar).
+      tags: [Auth / SSO]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: Accept
+          in: header
+          schema: { type: string, enum: [application/samlmetadata+xml, application/json], default: application/samlmetadata+xml }
+      responses:
+        '200':
+          description: EntityDescriptor del SP, en XML (por defecto) o JSON.
+          content:
+            application/samlmetadata+xml:
+              schema: { type: string }
+            application/json:
+              schema: { $ref: '#/components/schemas/SamlSpMetadata' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '503':
+          description: Tenant suspendido.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/identity-providers/{publicId}/certificates:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: createIdentityProviderCertificate
+      summary: Carga un certificado de firma del IdP nuevo (ventana de rotación)
+      description: >
+        api.md §G.5, funcional.md §G.4.1. Permiso
+        `proveedor_identidad.actualizar` — sin permiso propio (permisos.md
+        §G.4): cargar un certificado es configurar el proveedor, no
+        administrar un recurso distinto. `not_before`/`not_after` **no se
+        aceptan aunque vengan**: se extraen del propio certificado
+        (RN-AUTH-126). `422` si no es un X.509 analizable, ya está
+        caducado o la clave no alcanza `AUTH_SAML_MIN_CERTIFICATE_KEY_BITS`.
+        `409` si el mismo certificado ya está catalogado vivo en ese
+        proveedor, o si el proveedor es OIDC. Cargar uno nuevo **no
+        retira** los anteriores: varios certificados vigentes a la vez es
+        la ventana de rotación (RN-AUTH-125). Límite de tasa por tenant
+        (`sso_certificate_tenant`).
+      tags: [Auth / SSO]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [certificate]
+              properties:
+                certificate: { type: string, description: "X.509 en PEM." }
+      responses:
+        '201':
+          description: >
+            Certificado catalogado. **El PEM no se devuelve** — el
+            cliente acaba de enviarlo (api.md §G.5).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdentityProviderCertificate' }
+        '422':
+          description: Certificado no analizable, ya caducado, o clave por debajo del mínimo.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '409':
+          description: Certificado ya catalogado vivo en este proveedor, o el proveedor no es SAML.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '419':
+          description: Token CSRF ausente o inválido.
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+        '503':
+          description: Tenant suspendido.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/identity-providers/{publicId}/certificates/{certificatePublicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+      - name: certificatePublicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    delete:
+      operationId: deleteIdentityProviderCertificate
+      summary: Retira un certificado de firma del IdP
+      description: >
+        api.md §G.5. Permiso `proveedor_identidad.actualizar`. Estampa
+        `retired_at` **y además borrado lógico** (a diferencia de las
+        credenciales OIDC): una fila retirada no se usa jamás, aunque
+        siga vigente por fecha. Se conserva como traza (datos.md §G.10).
+        `409` si es el último certificado vigente de un proveedor
+        **activo** (RN-AUTH-128) — la salida es desactivar el proveedor
+        primero. Retirarlo aquí **no lo revoca** en el IdP del centro.
+      tags: [Auth / SSO]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204':
+          description: Certificado retirado.
+        '409':
+          description: Es el último certificado vigente de un proveedor activo.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404':
+          description: Inexistente, ya retirado, de otro proveedor o de otro tenant — cuerpo idéntico.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '419':
+          description: Token CSRF ausente o inválido.
+        '503':
+          description: Tenant suspendido.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/identity-providers/{publicId}/metadata-refreshes:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: createIdentityProviderMetadataRefresh
+      summary: Fuerza la revalidación de los metadatos de un IdP SAML de origen URL
+      description: >
+        api.md §G.4. Permiso `proveedor_identidad.actualizar`. Hermano
+        exacto de `.../discovery-refreshes`. Solo sobre proveedores SAML
+        con `metadata_source = url` — `409` sobre uno de origen XML: no
+        hay nada que refrescar. Si falla, **se conserva todo lo
+        anterior** —`issuer`, `authorization_endpoint`, `name_id_format`
+        y todos los certificados— y se estampa `metadata_failed_at`. **El
+        refresco puede añadir certificados, nunca retirarlos**
+        (RN-AUTH-125). Límite de tasa compartido con el alta
+        (`sso_metadata_tenant`).
+      tags: [Auth / SSO]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Proveedor con los metadatos ya actualizados.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdentityProviderDetail' }
+        '422':
+          description: Los metadatos no pasan alguna de las guardas; código en errors.metadata_url[0].code.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '409':
+          description: El proveedor no es SAML, o su origen de metadatos no es una URL.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '419':
+          description: Token CSRF ausente o inválido.
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+        '503':
+          description: Tenant suspendido.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/auth/saml/{publicId}/acs:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: postSamlAcs
+      summary: Assertion Consumer Service — recibe la aserción SAML del IdP del centro
+      description: >
+        api.md §G.7. **La ruta más sensible del módulo, y la única de la
+        aplicación entera sin CSRF** (RN-AUTH-124) — mitigado por la
+        correlación de un solo uso en `saml_auth_requests`
+        (RN-AUTH-120/121) y por "no" al SSO iniciado por el IdP
+        (RN-AUTH-120). Grupo de rutas propio, fuera de `/api/v1`
+        estándar, con su propia pila de *middleware* declarada
+        (§G.7.1): `resolve-tenant → encrypt-cookies →
+        add-queued-cookies → start-session → verify-session-tenant`.
+
+        Sin permiso: se autoriza por posesión de una fila de
+        `saml_auth_requests` viva, no consumida y no caducada cuyo
+        `request_id` case con `InResponseTo` (permisos.md §G.4). El
+        proveedor se resuelve **desde la ruta**, nunca desde el `Issuer`
+        del mensaje (RN-AUTH-118). `RelayState` no se interpreta ni se
+        refleja. **Nunca `problem+json`**: siempre `302`, con un código
+        de resultado de la lista cerrada de 14 ya existente desde 1.4/
+        1.4b — SAML no añade ninguno (RN-AUTH-93). Límite de tasa por IP
+        (`saml_acs_ip`), aplicado antes de tocar el XML.
+      tags: [Auth / SSO]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [SAMLResponse]
+              properties:
+                SAMLResponse: { type: string, description: "La aserción, en Base64. La pone el IdP." }
+                RelayState: { type: string, description: "Ignorado: no se interpreta ni se refleja (vector de redirección abierta)." }
+      responses:
+        '302':
+          description: >
+            Siempre. Hacia `/entrar/sso?resultado=<código>` o, si el
+            acceso se completa, la ruta de destino de la SPA. **En la URL
+            no viaja `SAMLResponse`, `NameID`, correo, `public_id` ni
+            ningún dato personal** (RN-AUTH-93, CA-AUTH-348).
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+        '429':
+          description: >
+            La única respuesta del *endpoint* que no es un `302`
+            (operacion.md §G.6).
+          headers:
+            Retry-After:
+              schema: { type: integer }
+        '503':
+          description: Tenant suspendido — antes de tocar ninguna tabla (CA-AUTH-349).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
   /api/v1/auth/oauth/oidc/callback:
     get:
       operationId: getOAuthOidcCallback
@@ -418,26 +734,60 @@ components:
         active_expires_at: { type: string, format: date-time, nullable: true }
         expiring_soon: { type: boolean, description: "A menos de AUTH_SSO_SECRET_EXPIRY_WARNING_DAYS (30 por defecto)." }
 
-    IdentityProviderSummary:
+    IdentityProviderCertificateStatus:
+      type: object
+      description: >
+        api.md §G.2. Hermano exacto de `IdentityProviderSecretStatus`
+        para un proveedor SAML.
+      properties:
+        vigentes: { type: integer, description: "Número de certificados activos y dentro de su ventana de vigencia." }
+        proximo_vencimiento: { type: string, format: date-time, nullable: true }
+
+    IdentityProviderSummaryBase:
       type: object
       properties:
         public_id: { $ref: '../components.yaml#/components/schemas/PublicId' }
         display_name: { type: string }
+        protocol: { type: string, enum: [oidc, saml], description: "Inmutable tras el alta (RN-AUTH-114)." }
         issuer: { type: string }
-        client_id: { type: string }
         is_enabled: { type: boolean }
         provisioning_mode: { type: string, enum: [desactivado, emparejamiento] }
-        claims_source: { type: string, enum: [id_token, userinfo] }
-        email_claim: { type: string, enum: [email, preferred_username, upn] }
-        scopes: { type: array, items: { type: string } }
         allowed_email_domains: { type: array, items: { type: string } }
-        discovery_fetched_at: { type: string, format: date-time }
-        discovery_failed_at: { type: string, format: date-time, nullable: true }
-        secret_status: { $ref: '#/components/schemas/IdentityProviderSecretStatus' }
 
-    IdentityProviderDetail:
+    OidcIdentityProviderSummary:
       allOf:
-        - $ref: '#/components/schemas/IdentityProviderSummary'
+        - $ref: '#/components/schemas/IdentityProviderSummaryBase'
+        - type: object
+          properties:
+            client_id: { type: string }
+            claims_source: { type: string, enum: [id_token, userinfo] }
+            email_claim: { type: string, enum: [email, preferred_username, upn] }
+            scopes: { type: array, items: { type: string } }
+            discovery_fetched_at: { type: string, format: date-time }
+            discovery_failed_at: { type: string, format: date-time, nullable: true }
+            secret_status: { $ref: '#/components/schemas/IdentityProviderSecretStatus' }
+
+    SamlIdentityProviderSummary:
+      allOf:
+        - $ref: '#/components/schemas/IdentityProviderSummaryBase'
+        - type: object
+          properties:
+            certificate_status: { $ref: '#/components/schemas/IdentityProviderCertificateStatus' }
+
+    IdentityProviderSummary:
+      description: Forma de cada fila de `GET /identity-providers` — una de las dos según `protocol`.
+      oneOf:
+        - $ref: '#/components/schemas/OidcIdentityProviderSummary'
+        - $ref: '#/components/schemas/SamlIdentityProviderSummary'
+      discriminator:
+        propertyName: protocol
+        mapping:
+          oidc: '#/components/schemas/OidcIdentityProviderSummary'
+          saml: '#/components/schemas/SamlIdentityProviderSummary'
+
+    OidcIdentityProviderDetail:
+      allOf:
+        - $ref: '#/components/schemas/OidcIdentityProviderSummary'
         - type: object
           properties:
             discovery_url: { type: string, format: uri }
@@ -456,6 +806,39 @@ components:
               type: array
               items: { $ref: '#/components/schemas/IdentityProviderSecret' }
 
+    SamlIdentityProviderDetail:
+      allOf:
+        - $ref: '#/components/schemas/SamlIdentityProviderSummary'
+        - type: object
+          properties:
+            authorization_endpoint:
+              type: string
+              format: uri
+              description: "URL del SingleSignOnService HTTP-Redirect del IdP (datos.md §G.0.3 desviación 2)."
+            metadata_source: { type: string, enum: [url, xml] }
+            metadata_url: { type: string, format: uri, nullable: true }
+            metadata_xml: { type: string, nullable: true, description: "Solo si metadata_source = xml (api.md §G.2)." }
+            name_id_format: { type: string, enum: [emailAddress, persistent, unspecified] }
+            email_attribute: { type: string, nullable: true }
+            sign_authn_requests: { type: boolean }
+            metadata_fetched_at: { type: string, format: date-time, nullable: true }
+            metadata_failed_at: { type: string, format: date-time, nullable: true }
+            certificates:
+              type: array
+              description: "Incluye los retirados, como traza (datos.md §G.10)."
+              items: { $ref: '#/components/schemas/IdentityProviderCertificate' }
+
+    IdentityProviderDetail:
+      description: Forma de `GET /identity-providers/{publicId}` — una de las dos según `protocol`.
+      oneOf:
+        - $ref: '#/components/schemas/OidcIdentityProviderDetail'
+        - $ref: '#/components/schemas/SamlIdentityProviderDetail'
+      discriminator:
+        propertyName: protocol
+        mapping:
+          oidc: '#/components/schemas/OidcIdentityProviderDetail'
+          saml: '#/components/schemas/SamlIdentityProviderDetail'
+
     IdentityProviderSecret:
       type: object
       description: Nunca incluye el valor de la credencial (RN-AUTH-112).
@@ -464,6 +847,81 @@ components:
         activated_at: { type: string, format: date-time }
         expires_at: { type: string, format: date-time, nullable: true }
         retired_at: { type: string, format: date-time, nullable: true }
+
+    IdentityProviderCertificate:
+      type: object
+      description: >
+        api.md §G.2, §G.5. Nunca el PEM (RN-AUTH-127): la huella es lo
+        que identifica un certificado de un vistazo.
+      properties:
+        public_id: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        fingerprint_sha256: { type: string }
+        not_before: { type: string, format: date-time }
+        not_after: { type: string, format: date-time }
+        source: { type: string, enum: [metadata, manual] }
+        retired_at: { type: string, format: date-time, nullable: true }
+
+    SamlSpMetadata:
+      type: object
+      description: "Forma JSON de nuestros metadatos de SP (api.md §G.3), cuando Accept: application/json."
+      properties:
+        entity_id: { type: string, format: uri }
+        assertion_consumer_service_url: { type: string, format: uri }
+        name_id_format: { type: string, format: uri, description: "URN completo de SAML 2.0." }
+        certificate: { type: string, nullable: true, description: "Certificado público del SP, solo si sign_authn_requests está activo." }
+
+    CreateOidcIdentityProviderRequest:
+      type: object
+      required: [protocol, display_name, discovery_url, client_id]
+      properties:
+        protocol: { type: string, enum: [oidc] }
+        display_name: { type: string, description: "Nombre visible del proveedor, texto del centro sin traducir." }
+        discovery_url: { type: string, format: uri }
+        client_id: { type: string }
+        email_claim: { type: string, enum: [email, preferred_username, upn], description: "Por defecto email." }
+        claims_source: { type: string, enum: [id_token, userinfo], description: "Por defecto id_token (funcional.md §F.3.2)." }
+        scopes: { type: array, items: { type: string }, description: "Por defecto [openid, email, profile]. Debe contener openid." }
+        allowed_email_domains: { type: array, items: { type: string }, description: "Por defecto []: sin restricción (RN-AUTH-107)." }
+        provisioning_mode: { type: string, enum: [desactivado, emparejamiento], description: "Por defecto desactivado." }
+
+    CreateSamlIdentityProviderRequest:
+      type: object
+      required: [protocol, display_name]
+      description: "Uno de metadata_url / metadata_xml, nunca los dos ni ninguno (funcional.md §G.4.1)."
+      properties:
+        protocol: { type: string, enum: [saml] }
+        display_name: { type: string }
+        metadata_url: { type: string, format: uri }
+        metadata_xml: { type: string, description: "El XML de metadatos pegado." }
+        email_attribute: { type: string, nullable: true, description: "Omitible solo si el NameIDFormat de los metadatos es emailAddress." }
+        allowed_email_domains: { type: array, items: { type: string } }
+        provisioning_mode: { type: string, enum: [desactivado, emparejamiento], description: "Por defecto desactivado." }
+        sign_authn_requests: { type: boolean, description: "Por defecto false (RN-AUTH-128: exige clave de plataforma configurada)." }
+
+    UpdateOidcIdentityProviderRequest:
+      type: object
+      properties:
+        display_name: { type: string }
+        discovery_url: { type: string, format: uri }
+        client_id: { type: string }
+        email_claim: { type: string, enum: [email, preferred_username, upn] }
+        claims_source: { type: string, enum: [id_token, userinfo] }
+        scopes: { type: array, items: { type: string } }
+        allowed_email_domains: { type: array, items: { type: string } }
+        provisioning_mode: { type: string, enum: [desactivado, emparejamiento] }
+        is_enabled: { type: boolean }
+
+    UpdateSamlIdentityProviderRequest:
+      type: object
+      properties:
+        display_name: { type: string }
+        metadata_url: { type: string, format: uri }
+        metadata_xml: { type: string }
+        email_attribute: { type: string, nullable: true }
+        allowed_email_domains: { type: array, items: { type: string } }
+        provisioning_mode: { type: string, enum: [desactivado, emparejamiento] }
+        sign_authn_requests: { type: boolean }
+        is_enabled: { type: boolean }
 
     DiscoveryFailureCode:
       type: string
@@ -478,3 +936,24 @@ components:
         - emisor_no_coincide
         - endpoint_no_seguro
         - flujo_no_admitido
+
+    SamlMetadataFailureCode:
+      type: string
+      description: >
+        api.md §G.4, funcional.md §G.4.2. Lista cerrada, sin el detalle
+        del destino (RN-AUTH-113 ampliada a este canal). Los cinco
+        primeros son literalmente los mismos códigos que
+        `DiscoveryFailureCode` cuando el origen es una URL.
+      enum:
+        - esquema_no_admitido
+        - destino_no_publico
+        - demasiadas_redirecciones
+        - sin_respuesta
+        - respuesta_demasiado_grande
+        - metadatos_no_validos
+        - metadatos_demasiado_grandes
+        - metadatos_ambiguos
+        - binding_no_admitido
+        - sin_certificado_de_firma
+        - formato_de_identificador_no_admitido
+        - emisor_ya_catalogado

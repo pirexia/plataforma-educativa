@@ -135,6 +135,26 @@ Es una operación de segundos porque cada versión es una imagen inmutable en GH
 - La segunda réplica de la API (`api@2`) existe como plantilla ya escrita pero **no se activa** hasta que haya tráfico real (`ADR-037 §6.4`): `systemctl --user enable --now api@2.service` cuando corresponda, sin cambios de fichero.
 - El proxy de socket delante de Traefik (`ADR-037 §6.3`) es una tarea de `0.10e`, no de hoy: mientras tanto el socket de Podman está montado de solo lectura y el entorno no tiene datos reales.
 
+### 3b.5 SSO institucional SAML 2.0 (`REQ-AUTH-004`, 1.4c): seguimiento de la dependencia y rotación de la clave del SP
+
+`docs/modulos/REQ-AUTH/operacion.md §G.3.1`, `§G.2.3`. Dos obligaciones permanentes que **no terminan cuando termina el paso** — se adquieren al aprobar `ADR-043 §10` y siguen vigentes mientras el módulo use `onelogin/php-saml`:
+
+**Seguimiento de la dependencia** (`ADR-043 §10.3`, factor autobús 1):
+
+1. Suscripción a los avisos de seguridad de **`onelogin/php-saml`** *y* de **`robrichards/xmlseclibs`** — las dos, no una: `xmlseclibs` es el núcleo de XML-DSig y acumula avisos históricos, uno de ellos un *«critical signature bypass»*.
+2. Compromiso de parcheo rápido. El modo de fallo característico de esta familia es *«la firma no se valida y el sistema cree que sí»* — sobre el componente que decide quién entra en un sistema con datos de menores.
+3. `xmlseclibs 4.0.0` queda en vigilancia; `php-saml` la fija por debajo. Si `php-saml` mueve esa restricción algún día, **es una actualización a revisar, no a aplicar en automático** — repasar `CA-AUTH-336` (los cuatro indicadores del envoltorio siguen a `true`) tras cualquier subida de versión.
+4. Si el mantenedor único desaparece (sin *commits* ni respuesta a avisos durante un periodo prolongado), se reabre la evaluación de un intermediario externo (Keycloak/Authentik) que `ADR-043 §7.2` descartó para este paso — con su propio ADR, no como parche.
+
+**Rotación manual de la clave privada de firma del SP** (`AUTH_SAML_SP_SIGNING_KEY_PATH`/`AUTH_SAML_SP_SIGNING_CERT_PATH`, `SYSADMIN.md §2c`): sin automatizar a propósito — es código sin ejercitar en el camino del acceso hasta que alguien lo rote de verdad.
+
+1. Generar el par de clave/certificado nuevo (mismo procedimiento que la clave original, fuera del repositorio).
+2. Sustituir el fichero montado (`:Z`, `0400`) y reiniciar el servicio de la API — la nueva clave entra en vigor en el siguiente arranque, no en caliente.
+3. **Avisar a cada centro con `sign_authn_requests = true`**: tienen que volver a descargar nuestros metadatos de SP (`GET /identity-providers/{publicId}/metadata`) y recargarlos en su IdP — mientras no lo hagan, sus `AuthnRequest` firmados con la clave vieja serán rechazados por el IdP en cuanto compruebe la firma contra el certificado nuevo que aún no tiene.
+4. Confirmar con `auth.saml.acs.outcome` que ningún proveedor con firma activa empieza a fallar tras el reinicio.
+
+**Reversión de una incidencia con la clave** (comprometida o corrupta): retirar `AUTH_SAML_SP_SIGNING_KEY_PATH`/`AUTH_SAML_SP_SIGNING_CERT_PATH` y reiniciar. Ningún proveedor deja de funcionar — `sign_authn_requests` pasa a no poder activarse (`409` si alguien lo intenta) y los que ya lo tenían activo empiezan a enviar `AuthnRequest` sin firmar, que la mayoría de IdP aceptan igualmente (`funcional.md §G.3.7`). **No es una maniobra inocua para los que exigen la firma** (algunos despliegues de ADFS/Shibboleth): esos centros pierden su SSO hasta que se reconfigure la clave, aunque su acceso con contraseña local sigue intacto (`RN-AUTH-96`).
+
 ## 4. Copias de seguridad y recuperación
 
 **No aplica todavía.** El módulo `REQ-BKP` (copias de seguridad, restauración granular en cuatro niveles, copia inmutable) no está implementado, y el proveedor de almacenamiento de copias distinto del host sigue sin decidir (`OPEN-10`). No hay nada que respaldar en un entorno sin datos reales.

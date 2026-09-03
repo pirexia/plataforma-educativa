@@ -3,7 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { i18n, setLocale } from '@/i18n'
 import { ApiError } from '@/api/client'
-import type { IdentityProviderSummary } from '../types'
+import type { IdentityProviderOidcSummary, IdentityProviderSamlSummary } from '../types'
 
 // REQ-AUTH-004 (1.4b), funcional.md §F.9/§F.11, api.md §F.2. Issue #147:
 // `AdminSsoView.vue` (el catálogo de administración) no tenía ningún test
@@ -18,10 +18,13 @@ vi.mock('../api', () => ({
 
 const { default: AdminSsoView } = await import('./AdminSsoView.vue')
 
-function provider(overrides: Partial<IdentityProviderSummary> = {}): IdentityProviderSummary {
+function provider(
+  overrides: Partial<IdentityProviderOidcSummary> = {},
+): IdentityProviderOidcSummary {
   return {
     public_id: '01J-PROVIDER-A',
     display_name: 'Entra ID del centro',
+    protocol: 'oidc',
     issuer: 'https://login.microsoftonline.com/tenant-x/v2.0',
     client_id: 'client-abc',
     is_enabled: true,
@@ -33,6 +36,23 @@ function provider(overrides: Partial<IdentityProviderSummary> = {}): IdentityPro
     discovery_fetched_at: '2026-08-20T10:00:00Z',
     discovery_failed_at: null,
     secret_status: { has_active: true, active_expires_at: null, expiring_soon: false },
+    ...overrides,
+  }
+}
+
+/** Hermana SAML de `provider()` — REQ-AUTH-004 (1.4c), api.md §G.2. */
+function samlProvider(
+  overrides: Partial<IdentityProviderSamlSummary> = {},
+): IdentityProviderSamlSummary {
+  return {
+    public_id: '01J-SAML-PROVIDER',
+    display_name: 'ADFS del centro',
+    protocol: 'saml',
+    issuer: 'https://adfs.sucentro.es/adfs/services/trust',
+    is_enabled: true,
+    provisioning_mode: 'emparejamiento',
+    allowed_email_domains: ['sucentro.es'],
+    certificate_status: { vigentes: 1, proximo_vencimiento: '2027-01-01T00:00:00Z' },
     ...overrides,
   }
 }
@@ -189,5 +209,69 @@ describe('AdminSsoView', () => {
     const { router } = await mountView()
 
     expect(router.currentRoute.value.name).toBe('login')
+  })
+})
+
+// REQ-AUTH-004 (1.4c), funcional.md §G.9, api.md §G.2. certificate_status
+// es el hermano SAML de secret_status, pero con forma distinta
+// ({vigentes, proximo_vencimiento}, sin booleano precalculado) —
+// funcional.md §G.9 y §CA-AUTH-335 dejan el aviso de caducidad al comando
+// diario, no a un umbral recalculado en la SPA.
+describe('AdminSsoView — proveedor SAML', () => {
+  beforeEach(() => {
+    getIdentityProvidersCatalog.mockReset()
+    deleteIdentityProvider.mockReset()
+    setLocale('es')
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+  })
+
+  it('api.md §G.2: la columna de protocolo distingue OIDC de SAML en la misma tabla', async () => {
+    getIdentityProvidersCatalog.mockResolvedValue({
+      data: [provider(), samlProvider()],
+      meta: { total: 2 },
+    })
+    const { wrapper } = await mountView()
+
+    expect(wrapper.text()).toContain('OIDC')
+    expect(wrapper.text()).toContain('SAML 2.0')
+  })
+
+  it('un proveedor SAML sin ningún certificado vigente se distingue del que sí tiene', async () => {
+    getIdentityProvidersCatalog.mockResolvedValue({
+      data: [
+        samlProvider({
+          public_id: '01J-SAML-A',
+          certificate_status: { vigentes: 0, proximo_vencimiento: null },
+        }),
+      ],
+      meta: { total: 1 },
+    })
+    const { wrapper } = await mountView()
+
+    expect(wrapper.text()).toContain('Sin certificado de firma vigente')
+  })
+
+  it('funcional.md §G.9: al retirar un proveedor SAML, la confirmación añade el aviso de que la ACS URL cambiará', async () => {
+    getIdentityProvidersCatalog.mockResolvedValue({ data: [samlProvider()], meta: { total: 1 } })
+    const { wrapper } = await mountView()
+
+    const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'Eliminar')
+    await deleteButton?.trigger('click')
+    await flushPromises()
+
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('la URL del ACS cambiará'))
+  })
+
+  it('al retirar un proveedor OIDC, la confirmación NO lleva el aviso de la ACS URL (propio de SAML)', async () => {
+    getIdentityProvidersCatalog.mockResolvedValue({ data: [provider()], meta: { total: 1 } })
+    const { wrapper } = await mountView()
+
+    const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'Eliminar')
+    await deleteButton?.trigger('click')
+    await flushPromises()
+
+    expect(window.confirm).toHaveBeenCalledWith(
+      expect.not.stringContaining('la URL del ACS cambiará'),
+    )
   })
 })

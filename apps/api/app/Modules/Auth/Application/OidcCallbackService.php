@@ -88,7 +88,11 @@ final class OidcCallbackService
             return OAuthCallbackResult::outcome(match ($e->failure) {
                 ExternalIdentityFailure::ConsentDenied => OAuthCallbackOutcome::Cancelado,
                 ExternalIdentityFailure::InvalidState => OAuthCallbackOutcome::EstadoNoValido,
-                ExternalIdentityFailure::ProviderUnreachable, ExternalIdentityFailure::IdTokenInvalid => OAuthCallbackOutcome::ErrorProveedor,
+                // AssertionInvalid es de 1.4c (SAML): este servicio nunca la
+                // lanza, pero el match tiene que ser exhaustivo sobre el
+                // enum completo (Larastan, mismo criterio que
+                // GoogleOAuthCallbackService::handle()).
+                ExternalIdentityFailure::ProviderUnreachable, ExternalIdentityFailure::IdTokenInvalid, ExternalIdentityFailure::AssertionInvalid => OAuthCallbackOutcome::ErrorProveedor,
                 ExternalIdentityFailure::DomainNotAllowed => OAuthCallbackOutcome::DominioNoPermitido,
             });
         }

@@ -360,7 +360,8 @@
         "issuer": "Issuer",
         "status": "Status",
         "provisioningMode": "Provisioning",
-        "secret": "Credential"
+        "secret": "Credential",
+        "protocol": "Protocol"
       },
       "status": {
         "enabled": "Enabled",
@@ -415,7 +416,20 @@
           "preferred_username": "preferred_username",
           "upn": "upn"
         },
-        "allowedDomainsPlaceholder": "sucentro.es"
+        "allowedDomainsPlaceholder": "sucentro.es",
+        "protocol": "Protocol",
+        "metadataSource": "Metadata source",
+        "metadataSourceUrl": "URL",
+        "metadataSourceXml": "Pasted XML",
+        "metadataUrl": "Metadata URL",
+        "metadataUrlHint": "The URL where your identity provider publishes its SAML metadata.",
+        "metadataXml": "XML metadata",
+        "metadataXmlHint": "Paste here the XML metadata document your identity provider publishes.",
+        "emailAttribute": "Email attribute",
+        "emailAttributeHint": "The name of the SAML attribute that carries the email address. If left empty, the name identifier format must be email.",
+        "signAuthnRequests": "Sign authentication requests",
+        "signAuthnRequestsHint": "Requires a platform signing key to be configured. Enable it only if your identity provider requires it.",
+        "nameIdFormatLabel": "Detected name identifier format: {format}"
       },
       "integration": {
         "title": "What to register with your identity provider",
@@ -465,6 +479,52 @@
         "emisor_no_coincide": "The declared issuer does not match the origin of the discovery URL.",
         "endpoint_no_seguro": "One of the declared endpoints does not use https.",
         "flujo_no_admitido": "This issuer does not support the required authorization flow."
+      },
+      "protocolLabel": {
+        "oidc": "OIDC",
+        "saml": "SAML 2.0"
+      },
+      "certificateStatus": {
+        "none": "No active signing certificate",
+        "active": "Active: {count}",
+        "nextExpiry": "next expiry: {date}"
+      },
+      "confirmDeleteSaml": "If you create this provider again, the ACS URL will change and you will have to reconfigure your identity provider.",
+      "spMetadata": {
+        "title": "What to register with your identity provider",
+        "intro": "Copy these values into your identity provider's configuration to complete the integration, or download the metadata document.",
+        "entityId": "Entity ID (entityID)",
+        "acsUrl": "Assertion Consumer Service (ACS) URL",
+        "nameIdFormat": "Name identifier format",
+        "certificate": "Signing certificate",
+        "download": "Download metadata",
+        "loadError": "The service provider metadata could not be loaded."
+      },
+      "metadataRefresh": {
+        "button": "Force metadata refresh",
+        "refreshing": "Refreshing…",
+        "success": "Metadata updated.",
+        "failure": "The metadata could not be refreshed; previous values are kept."
+      },
+      "certificates": {
+        "title": "Identity provider signing certificates",
+        "intro": "The certificates your identity provider uses to sign its assertions. A metadata refresh can only add certificates, never remove them.",
+        "none": "This provider has no certificate uploaded.",
+        "certificate": "Certificate (PEM)",
+        "certificateHint": "Paste the X.509 certificate in PEM format here.",
+        "submit": "Upload certificate",
+        "submitting": "Uploading…",
+        "genericError": "The certificate could not be uploaded.",
+        "retire": "Retire",
+        "retireConfirm": "Retire this certificate? Remember this does not revoke it at your identity provider.",
+        "retireWarning": "Retiring a certificate here does not revoke it at your identity provider.",
+        "retired": "Retired on {date}",
+        "validUntil": "Valid until {date}",
+        "source": {
+          "metadata": "From metadata",
+          "manual": "Uploaded manually"
+        },
+        "lastActiveError": "You cannot retire the last active certificate of an enabled provider: disable it first."
       }
     }
   }

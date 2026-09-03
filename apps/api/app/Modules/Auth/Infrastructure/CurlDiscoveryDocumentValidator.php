@@ -14,12 +14,12 @@ use App\Modules\Auth\Domain\DiscoveryValidationException;
  * servidor descarga: sin estas guardas es una petición forjada del lado
  * del servidor con un formulario delante.
  *
- * cURL directo, sin envoltorio de terceros (`RNF-MANT-007` no aplica: la
- * extensión `curl` es parte del *runtime* de PHP, no una dependencia que
- * aprobar). `CURLOPT_RESOLVE` fija la conexión a la dirección ya validada
- * (guarda 2) mientras conserva el nombre de host original para SNI y la
- * verificación del certificado — evita el TOCTOU de una revalidación de
- * DNS que resolviera distinto entre la comprobación y la conexión.
+ * Las guardas 1-4 (esquema, destino público, redirecciones, tiempo/tamaño)
+ * viven en `SsrfSafeFetcher`, compartido con `CurlSamlMetadataValidator`
+ * desde 1.4c (`OPEN-AUTH-45`: "reutilizando las cinco guardas y el mismo
+ * cliente"). Esta clase solo traduce `SsrfGuardFailureReason` a
+ * `DiscoveryFailureCode` y aplica la guarda 5, específica de OIDC (forma
+ * del documento de descubrimiento).
  *
  * `AUTH_SSO_ALLOW_INSECURE_DISCOVERY` afloja **las guardas 1 y 2**, no
  * solo el esquema: el emisor simulado de `operacion.md §F.10` se sirve
@@ -32,175 +32,32 @@ use App\Modules\Auth\Domain\DiscoveryValidationException;
  */
 final class CurlDiscoveryDocumentValidator implements DiscoveryDocumentValidator
 {
+    public function __construct(
+        private readonly SsrfSafeFetcher $fetcher = new SsrfSafeFetcher,
+    ) {}
+
     public function validate(string $discoveryUrl): DiscoveryDocument
     {
-        $url = $discoveryUrl;
-        $redirects = 0;
-        $maxRedirects = (int) config('auth-local.sso.discovery_max_redirects');
-
-        while (true) {
-            $this->guardScheme($url);
-            $ip = $this->resolvePublicIp($url);
-
-            [$status, $body, $redirectUrl] = $this->fetch($url, $ip);
-
-            if (in_array($status, [301, 302, 303, 307, 308], true)) {
-                $redirects++;
-
-                if ($redirects > $maxRedirects) {
-                    throw new DiscoveryValidationException(DiscoveryFailureCode::DemasiadasRedirecciones);
-                }
-
-                if ($redirectUrl === null || $redirectUrl === '') {
-                    throw new DiscoveryValidationException(DiscoveryFailureCode::SinRespuesta);
-                }
-
-                $url = $redirectUrl;
-
-                continue;
-            }
-
-            if ($status < 200 || $status >= 300) {
-                throw new DiscoveryValidationException(DiscoveryFailureCode::SinRespuesta);
-            }
-
-            return $this->parseAndValidateBody($body, $discoveryUrl);
-        }
-    }
-
-    private function guardScheme(string $url): void
-    {
-        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
-
-        if ($scheme === 'https') {
-            return;
+        try {
+            $body = $this->fetcher->fetch(
+                url: $discoveryUrl,
+                acceptHeader: 'application/json',
+                timeoutSeconds: (int) config('auth-local.sso.discovery_timeout_seconds'),
+                maxBytes: (int) config('auth-local.sso.discovery_max_bytes'),
+                maxRedirects: (int) config('auth-local.sso.discovery_max_redirects'),
+                insecureAllowed: (bool) config('auth-local.sso.allow_insecure_discovery'),
+            );
+        } catch (SsrfGuardException $e) {
+            throw new DiscoveryValidationException(match ($e->reason) {
+                SsrfGuardFailureReason::UnsupportedScheme => DiscoveryFailureCode::EsquemaNoAdmitido,
+                SsrfGuardFailureReason::PrivateDestination => DiscoveryFailureCode::DestinoNoPublico,
+                SsrfGuardFailureReason::TooManyRedirects => DiscoveryFailureCode::DemasiadasRedirecciones,
+                SsrfGuardFailureReason::NoResponse => DiscoveryFailureCode::SinRespuesta,
+                SsrfGuardFailureReason::ResponseTooLarge => DiscoveryFailureCode::RespuestaDemasiadoGrande,
+            }, $e);
         }
 
-        if ($scheme === 'http' && $this->insecureAllowed()) {
-            return;
-        }
-
-        throw new DiscoveryValidationException(DiscoveryFailureCode::EsquemaNoAdmitido);
-    }
-
-    /**
-     * Guarda 2. `FILTER_FLAG_NO_PRIV_RANGE` cubre `10/8`, `172.16/12`,
-     * `192.168/16` y `fc00::/7`; `FILTER_FLAG_NO_RES_RANGE` cubre
-     * `127/8` (bucle local, incluye `169.254.169.254` vía el rango
-     * reservado de enlace local `169.254/16`), `::1` y `fe80::/10` — la
-     * lista exacta de `funcional.md §F.4.2` guarda 2, mediante la
-     * validación estándar de PHP en vez de una lista de CIDR propia.
-     */
-    private function resolvePublicIp(string $url): string
-    {
-        $host = parse_url($url, PHP_URL_HOST);
-
-        if (! is_string($host) || $host === '') {
-            throw new DiscoveryValidationException(DiscoveryFailureCode::SinRespuesta);
-        }
-
-        $ip = filter_var($host, FILTER_VALIDATE_IP) !== false ? $host : $this->resolveHost($host);
-
-        if ($ip === null) {
-            throw new DiscoveryValidationException(DiscoveryFailureCode::SinRespuesta);
-        }
-
-        if (! $this->isPublicIp($ip) && ! $this->insecureAllowed()) {
-            throw new DiscoveryValidationException(DiscoveryFailureCode::DestinoNoPublico);
-        }
-
-        return $ip;
-    }
-
-    private function resolveHost(string $host): ?string
-    {
-        $aRecords = @dns_get_record($host, DNS_A) ?: [];
-        $ip = $aRecords[0]['ip'] ?? null;
-
-        if (is_string($ip) && $ip !== '') {
-            return $ip;
-        }
-
-        $aaaaRecords = @dns_get_record($host, DNS_AAAA) ?: [];
-        $ipv6 = $aaaaRecords[0]['ipv6'] ?? null;
-
-        return is_string($ipv6) && $ipv6 !== '' ? $ipv6 : null;
-    }
-
-    private function isPublicIp(string $ip): bool
-    {
-        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false;
-    }
-
-    private function insecureAllowed(): bool
-    {
-        return (bool) config('auth-local.sso.allow_insecure_discovery');
-    }
-
-    /**
-     * @return array{0: int, 1: string, 2: ?string} [status, body, redirect_url]
-     */
-    private function fetch(string $url, string $ip): array
-    {
-        $parts = parse_url($url);
-        $scheme = $parts['scheme'] ?? 'https';
-        $host = $parts['host'] ?? '';
-        $port = $parts['port'] ?? ($scheme === 'https' ? 443 : 80);
-
-        $timeout = (int) config('auth-local.sso.discovery_timeout_seconds');
-        $maxBytes = (int) config('auth-local.sso.discovery_max_bytes');
-
-        $body = '';
-        $truncated = false;
-
-        $ch = curl_init();
-
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            // Fija la conexión a la IP ya validada (guarda 2), sin
-            // repetir la resolución DNS al conectar: TOCTOU cerrado. El
-            // nombre de host original se conserva para SNI/verificación
-            // de certificado.
-            CURLOPT_RESOLVE => ["{$host}:{$port}:{$ip}"],
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_HEADER => false,
-            CURLOPT_RETURNTRANSFER => false,
-            CURLOPT_TIMEOUT => $timeout,
-            CURLOPT_CONNECTTIMEOUT => $timeout,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
-            CURLOPT_HTTPHEADER => ['Accept: application/json'],
-            CURLOPT_WRITEFUNCTION => function ($handle, string $chunk) use (&$body, &$truncated, $maxBytes): int {
-                $body .= $chunk;
-
-                if (strlen($body) > $maxBytes) {
-                    $truncated = true;
-
-                    // Cualquier valor distinto de strlen($chunk) aborta
-                    // la transferencia (guarda 4).
-                    return -1;
-                }
-
-                return strlen($chunk);
-            },
-        ]);
-
-        $result = curl_exec($ch);
-        $errno = curl_errno($ch);
-        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $redirectUrl = curl_getinfo($ch, CURLINFO_REDIRECT_URL);
-        curl_close($ch);
-
-        if ($truncated) {
-            throw new DiscoveryValidationException(DiscoveryFailureCode::RespuestaDemasiadoGrande);
-        }
-
-        if ($result === false || $errno !== 0) {
-            throw new DiscoveryValidationException(DiscoveryFailureCode::SinRespuesta);
-        }
-
-        return [$status, $body, is_string($redirectUrl) && $redirectUrl !== '' ? $redirectUrl : null];
+        return $this->parseAndValidateBody($body, $discoveryUrl);
     }
 
     /**
@@ -265,6 +122,11 @@ final class CurlDiscoveryDocumentValidator implements DiscoveryDocumentValidator
         $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
 
         return $scheme === 'https' || ($scheme === 'http' && $this->insecureAllowed());
+    }
+
+    private function insecureAllowed(): bool
+    {
+        return (bool) config('auth-local.sso.allow_insecure_discovery');
     }
 
     private function originOf(string $url): ?string

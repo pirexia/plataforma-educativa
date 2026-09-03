@@ -59,6 +59,22 @@ Cada centro cataloga su propio proveedor de identidad (Azure AD/Entra ID, Google
 
 **Ningún usuario ni persona nueva se crea a partir de este flujo.** Un acceso sin cuenta ya existente en el centro con ese correo termina sin vincular y sin crear nada, con la misma respuesta genérica e indistinguible que el resto de casos "sin cuenta" (`funcional.md §F.4.5`).
 
+### 2.4 Datos recibidos de un proveedor de identidad institucional (SAML 2.0, `REQ-AUTH-004`, paso 1.4c)
+
+Mismo mecanismo que §2.3, protocolo distinto: cada centro cataloga su propio proveedor SAML (ADFS, Entra ID en modo SAML, Shibboleth u otro emisor conforme). La aserción que llega al ACS trae el `NameID` y, si se configuró, un atributo adicional de correo. Qué entra y qué se descarta, decidido en `ADR-043 §10` y `funcional.md §G.5`:
+
+| Elemento que envía el proveedor | ¿Se persiste? | Dónde / por qué |
+|----------------------------------|----------------|------------------|
+| `NameID` (identificador estable del sujeto) | **Sí** | `user_identities.subject`, junto a `identity_provider_id` — mismo papel que `sub` en OIDC (§2.3). **No es configurable**: es el identificador del sujeto en el estándar, y dejarlo elegible sería ofrecer al administrador del centro identificar por un atributo cualquiera (`ADR-043 §4.4`) |
+| Atributo de correo (`email_attribute`, o el propio `NameID` si su formato es `emailAddress`) | **Sí, solo para resolver el emparejamiento** | Igual que `email` en OIDC: localiza la `Person`/`User` ya existente en el censo; no se persiste como dato nuevo del proveedor |
+| Resto de atributos del directorio (nombre, apellidos, teléfono, etc.) | **No, bajo ningún concepto** | Mismo argumento que §2.3: el mapeo de este paso resuelve identidad, no escribe sobre `people` (`RN-AUTH-109`, `OPEN-AUTH-38` salida A) |
+| Fecha de nacimiento | **No se lee ni se pide** | Mismo motivo que §2.3: es justo el dato cuya ausencia impide saber si el directorio acaba de entregar la identidad de un menor |
+| **La aserción XML completa, o cualquier fragmento suyo** | **No, bajo ningún concepto** | A diferencia de OIDC (donde el `id_token` se descarta tras leer los *claims*), aquí se declara explícitamente porque la aserción viaja por el navegador en un `POST` de un tercero: de ella solo sobreviven su `ID` y su fecha de expiración (`NotOnOrAfter`) en `saml_consumed_assertions`, con el único propósito de impedir su repetición (`RN-AUTH-95` ampliado, `CA-AUTH-363`) — ninguno de los dos identifica a una persona |
+| Certificado de firma del proveedor | **Sí, en claro** | `identity_provider_certificates.certificate` — es una **clave pública** del centro, material de configuración institucional, no un dato personal de quien inicia sesión (`RN-AUTH-127`) |
+| Clave privada de firma de nuestra plataforma (si `sign_authn_requests` está activo) | **No vive en base de datos** | Fichero de plataforma fuera del repositorio y fuera de la copia de la base de datos (`SYSADMIN.md`, `operacion.md §G.2.3`). No es un dato de ninguna persona ni de ningún centro: es un secreto operativo de la plataforma |
+
+**Ningún usuario ni persona nueva se crea a partir de este flujo**, con la misma garantía de esquema que en OIDC (`ADR-043 §10.9`, el `CHECK` de `provisioning_mode` lo impide independientemente del protocolo). Un acceso sin cuenta ya existente en el centro con ese identificador termina sin vincular y sin crear nada, con la misma respuesta genérica e indistinguible que el resto de casos "sin cuenta" (`funcional.md §G.4.5`).
+
 ## 3. Registro de Actividades de Tratamiento (RAT) — plantilla
 
 Se completa cuando exista entidad jurídica responsable del tratamiento (`OPEN-07`). Estructura prevista:

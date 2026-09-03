@@ -85,14 +85,15 @@ final class GoogleOAuthCallbackService
             return OAuthCallbackResult::outcome(match ($e->failure) {
                 ExternalIdentityFailure::ConsentDenied => OAuthCallbackOutcome::Cancelado,
                 ExternalIdentityFailure::InvalidState => OAuthCallbackOutcome::EstadoNoValido,
-                // IdTokenInvalid y DomainNotAllowed son de 1.4b
-                // (ExternalIdentityFailure ampliada para el proveedor OIDC
-                // genérico) y SocialiteGoogleIdentityProvider nunca las
-                // lanza hoy — pero el match tiene que ser exhaustivo sobre
-                // el enum completo, no sobre lo que un único adaptador usa
-                // en la práctica (Larastan, hallazgo de CI). Mismo mapeo
-                // que OidcCallbackService::handle().
-                ExternalIdentityFailure::ProviderUnreachable, ExternalIdentityFailure::IdTokenInvalid => OAuthCallbackOutcome::ErrorProveedor,
+                // IdTokenInvalid, DomainNotAllowed y AssertionInvalid son de
+                // 1.4b/1.4c (ExternalIdentityFailure ampliada para el
+                // proveedor OIDC genérico y para SAML) y
+                // SocialiteGoogleIdentityProvider nunca las lanza hoy — pero
+                // el match tiene que ser exhaustivo sobre el enum completo,
+                // no sobre lo que un único adaptador usa en la práctica
+                // (Larastan, hallazgo de CI). Mismo mapeo que
+                // OidcCallbackService::handle().
+                ExternalIdentityFailure::ProviderUnreachable, ExternalIdentityFailure::IdTokenInvalid, ExternalIdentityFailure::AssertionInvalid => OAuthCallbackOutcome::ErrorProveedor,
                 ExternalIdentityFailure::DomainNotAllowed => OAuthCallbackOutcome::DominioNoPermitido,
             });
         }

@@ -8,6 +8,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Modules\Auth\Domain\Models\IdentityProvider;
 use App\Modules\Auth\Domain\Models\MfaReset;
+use App\Modules\Auth\Domain\Models\SamlIdentityProviderSettings;
 use App\Modules\Auth\Domain\Models\UserMfaExemption;
 use App\Modules\Auth\Domain\Models\UserMfaObligation;
 use App\Modules\Core\Domain\Models\DataExport;
@@ -46,6 +47,13 @@ test('todo modelo de tenant núcleo está en el morph map', function (): void {
 // datos.md §F.2) se suma en Full: configuración técnica del emisor de
 // un centro, sin datos personales — IdentityProviderSecret NO entra
 // aquí, es Selective (client_secret secreto a mano).
+// SamlIdentityProviderSettings (REQ-AUTH-004, 1.4c, datos.md §G.3) se
+// suma en Full por el mismo motivo que IdentityProvider: configuración
+// técnica del IdP SAML de un centro, sin datos personales —
+// IdentityProviderCertificate NO entra aquí, es Selective (`certificate`
+// declarado a mano, mismo criterio que IdentityProviderSecret).
+// SamlAuthRequest/SamlConsumedAssertion NO entran: no son Auditable en
+// absoluto (política None, datos.md §G.4.1/§G.4.2).
 test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR-035 §8', function (): void {
     $map = Relation::morphMap();
 
@@ -63,6 +71,7 @@ test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR
     expect($fullPolicyModels)->toEqualCanonicalizing([
         AcademicYear::class, Role::class, ModuleSubscription::class, DataExport::class,
         MfaReset::class, UserMfaObligation::class, UserMfaExemption::class, IdentityProvider::class,
+        SamlIdentityProviderSettings::class,
     ]);
 });
 

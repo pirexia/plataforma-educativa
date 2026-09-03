@@ -115,12 +115,30 @@ final class TenantMigration
      * obligatoria entre tablas de tenant. Una referencia opcional no usa
      * este helper: se declara a mano, como created_by/updated_by.
      */
-    public static function tenantForeignId(Blueprint $blueprint, string $column, string $referencedTable): void
+    /**
+     * `$constraintName`: hallazgo de `db-reviewer` (REQ-AUTH-004, 1.4c,
+     * punto de control 1). El nombre por defecto de Laravel para esta FK
+     * compuesta (`{tabla}_tenant_id_{columna}_foreign`) supera los 63
+     * bytes que PostgreSQL admite para un identificador en cuanto la
+     * tabla o la columna son largas —`saml_identity_provider_settings` e
+     * `identity_provider_certificates` son los primeros nombres del
+     * esquema que lo hacen—, y el motor lo trunca en silencio, perdiendo
+     * incluso el sufijo `_foreign`. Parámetro opcional y no retroactivo a
+     * propósito: cambiar el nombre por defecto para toda llamada ya
+     * existente alteraría el DDL que produce una instalación nueva de
+     * migraciones ya mezcladas en `develop` (p. ej.
+     * `identity_provider_secrets`, que **también** supera el límite —
+     * hallazgo aparte, fuera del alcance de esta sesión, `CLAUDE.md §5`
+     * severidad baja a reportar) sin que nadie lo pidiera para ese paso.
+     * Cada llamada nueva que lo necesite pasa su propio nombre corto y
+     * explícito.
+     */
+    public static function tenantForeignId(Blueprint $blueprint, string $column, string $referencedTable, ?string $constraintName = null): void
     {
         self::assertSafeIdentifier($referencedTable);
 
         $blueprint->foreignId($column);
-        $blueprint->foreign(['tenant_id', $column])->references(['tenant_id', 'id'])->on($referencedTable);
+        $blueprint->foreign(['tenant_id', $column], $constraintName)->references(['tenant_id', 'id'])->on($referencedTable);
     }
 
     /**

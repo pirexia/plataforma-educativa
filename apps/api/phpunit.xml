@@ -116,5 +116,16 @@
             `config()`, así que no se ven afectados.
         -->
         <env name="AUTH_SSO_ALLOW_INSECURE_DISCOVERY" value="true" force="true"/>
+        <!--
+            REQ-AUTH-004 (1.4c). Mismo argumento exacto que
+            AUTH_SSO_ALLOW_INSECURE_DISCOVERY, un bloque más arriba: el IdP
+            SAML simulado (operacion.md §G.10) sirve su documento de
+            metadatos y su SingleSignOnService por http:// desde dentro del
+            propio contenedor de test. SamlEnvironmentGuard sigue abortando
+            el arranque si esto llegara a true fuera de local/testing, en
+            todos los entornos (operacion.md §G.2.2) — este forzado no lo
+            afloja, solo fija el valor por defecto dentro de testing.
+        -->
+        <env name="AUTH_SAML_ALLOW_INSECURE_METADATA" value="true" force="true"/>
     </php>
 </phpunit>
