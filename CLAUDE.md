@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.3.0** · 2026-08-31 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.4.0** · 2026-09-03 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -81,6 +81,13 @@ Frases prohibidas: "¡Excelente idea!", "Tienes toda la razón" como apertura re
 **Cierre también entre pasos del plan, no solo por cuota.** Salvo que el usuario diga explícitamente lo contrario en esa sesión, al terminar un paso de `PLAN-IMPLEMENTACION.md` (especificación aprobada e implementada, revisión hecha, mezclado) aplica este mismo cierre completo **antes** de empezar el paso siguiente, y déjalo dicho en `memory.md`. Es una decisión de higiene de contexto, no de cuota: no encadenes varios pasos del plan dentro de la misma sesión por defecto — reiniciar entre pasos mantiene el contexto principal centrado en uno solo.
 
 **Relanzar un subagente `implementer` (o cualquier subagente de ejecución) tras un fallo o un corte por cuota no es licencia para decidir alcance.** Continuar un trabajo a medias no autoriza a recortar, ampliar, fusionar o reinterpretar lo que la especificación ya aprobada dice — ni siquiera para "simplificar" algo que parece redundante o para acelerar el cierre del paso. El subagente relanzado sigue la especificación al pie de la letra, exactamente igual que si la hubiera empezado él desde cero; si el trabajo restante no está claro en la especificación o parece contradecirla, para y repórtalo (regla fundamental, sección 0), no lo decide por su cuenta. Quien relanza (la sesión orquestadora) es responsable de contrastar lo entregado contra la especificación antes de darlo por bueno, precisamente porque una continuación es el punto donde más fácil es que se cuele una decisión no autorizada sin que nadie la note a tiempo. Caso real que motiva esta norma: un `implementer` relanzado tras un corte de cuota recortó por su cuenta un endpoint entero del alcance ya aprobado (`GET /mfa-compliance/users`, 1.3/`REQ-AUTH-003`, 2026-08-27) agrupándolo por error con algo que sí estaba diferido — el hallazgo solo se detectó en la revisión posterior.
+
+**Todo relanzamiento de un subagente tras un corte de cuota deja constancia de lo ya verificado, para que el siguiente corte no obligue a repetir esa verificación.** Motivado por un caso real (`1.4c`, `REQ-AUTH-004`, 2026-09-02/03): tres cortes de cuota consecutivos en el mismo paso obligaron, en cada relanzamiento, a reverificar desde cero trabajo que ya estaba bien — porque no quedaba ningún registro de qué se había probado y confirmado. Aplica a cualquier subagente de ejecución, no solo a `implementer`, y a todo el proyecto, no solo a este paso:
+
+1. Al confirmar que la suite de tests pasa en verde para un lote de commits, el mensaje del último commit de ese lote lo dice con el número real de tests (`Verificado: X/X Pest en verde tras este commit`), nunca aproximado ni supuesto — se ejecuta, no se estima.
+2. Mientras el paso esté en curso, `memory.md` mantiene una única nota viva por paso en su sección "Trabajo en curso" (se sobrescribe al actualizarse, no se acumula) con el hash hasta el que está verificado, la fecha, y qué queda con certeza por hacer.
+
+Un relanzamiento que encuentra esa nota confía en los commits que cubre sin volver a ejecutar la suite sobre ellos, y solo verifica de verdad lo que quede sin commitear o sea posterior a la nota. Esto **no** afloja la norma anterior: ahorra reverificación de lo ya confirmado, no habilita recortar, ampliar ni reinterpretar alcance por su cuenta — eso sigue estando fuera de lo que decide un subagente relanzado.
 
 ---
 
