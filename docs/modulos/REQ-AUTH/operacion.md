@@ -1492,7 +1492,7 @@ Lo que sí aparece, y va a `SYSADMIN.md` y al manual de administración de centr
 
 # Parte G · Paso 1.4c · SSO institucional (SAML 2.0) — Operación (`REQ-AUTH-004`)
 
-> **Estructura**: §1-§12 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b, `§E.*` es 1.4 y `§F.*` es 1.4b, los seis cerrados. Esta **Parte G** es el paso **1.4c**, **especificada y pendiente de aprobación**.
+> **Estructura**: §1-§12 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b, `§E.*` es 1.4 y `§F.*` es 1.4b, los seis cerrados. Esta **Parte G** es el paso **1.4c**, **APROBADA** el 2026-09-02 (`funcional.md §G.14`).
 >
 > Escrita sobre `ADR-043 §10`. **La decisión 8 —sin intermediario externo, dependencia SAML directa— tiene consecuencias de operación permanentes**, y están en `§G.3`.
 

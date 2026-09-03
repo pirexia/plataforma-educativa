@@ -2020,7 +2020,7 @@ Seis, todos cerrados y todos con su `CHECK` o su validación en servidor: `claim
 
 # Parte G · Paso 1.4c · SSO institucional (SAML 2.0) — API (`REQ-AUTH-004`)
 
-> **Estructura**: §1-§11 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b, `§E.*` es 1.4 y `§F.*` es 1.4b, los seis cerrados. Esta **Parte G** es el paso **1.4c**, **especificada y pendiente de aprobación**.
+> **Estructura**: §1-§11 son 1.2, `§B.*` es 1.2b, `§C.*` es 1.3, `§D.*` es 1.3b, `§E.*` es 1.4 y `§F.*` es 1.4b, los seis cerrados. Esta **Parte G** es el paso **1.4c**, **APROBADA** el 2026-09-02 (`funcional.md §G.14`).
 >
 > `ADR-038` sin excepciones nuevas: `application/problem+json` en todo `4xx`/`5xx`, `public_id` en las URL, `404` y nunca `403` ante un identificador de otro tenant.
 >
