@@ -295,6 +295,75 @@ test('CA-AUTH-319: una URL de metadatos que resuelve a una dirección privada se
     });
 });
 
+// CA-AUTH-320: pendiente, sin infraestructura de test que lo permita
+// ejercitar honestamente. `RN-AUTH-113` exige que la guarda de destino
+// privado se repita EN CADA REDIRECCIÓN, no solo sobre la URL inicial —
+// pero para observar esa repetición hace falta un primer salto que pase
+// la guarda (`allow_insecure_metadata = false`, así que HTTPS + IP
+// pública real) y que además devuelva un 30x hacia una dirección privada.
+// `SsrfSafeFetcher` usa cURL crudo con `CURLOPT_RESOLVE` fijado a mano
+// (sin cliente inyectable ni doble de red) y no hay en este entorno
+// ningún host alcanzable que sea a la vez "público" para
+// `FILTER_FLAG_NO_PRIV_RANGE|FILTER_FLAG_NO_RES_RANGE" y realmente
+// enrutable hacia un servidor bajo nuestro control. El mismo problema
+// existe sin resolver desde 1.4b para su criterio hermano
+// (`CA-AUTH-263`, funcional.md línea 3741: tampoco tiene test en todo el
+// repositorio). No se fabrica aquí un test que aparente cubrir esto sin
+// hacerlo de verdad — issue reportado en el resumen de la sesión.
+
+// CA-AUTH-325
+test('CA-AUTH-325: un refresco de metadatos añade el certificado nuevo que el IdP publica y no retira el ya catalogado', function (): void {
+    // Sufijo aleatorio en minúsculas (a diferencia de CA-AUTH-311, este
+    // test sí hace peticiones HTTP reales: Symfony\Request::getHost()
+    // normaliza el host entrante a minúsculas antes de que
+    // TenantHost::slugFrom() lo compare contra `tenants.slug`, así que un
+    // slug con mayúsculas —lo que Str::random() produce por defecto—
+    // nunca resolvería). Reejecutar este test varias veces durante el
+    // desarrollo de este mismo lote no debe chocar con la fila que ya
+    // dejó una ejecución anterior: `tenants` vive en `pgsql_platform`,
+    // fuera de la transacción de test que envuelve `pgsql`
+    // (`tests/TestCase.php`), así que sobrevive entre ejecuciones.
+    [$tenant, $admin] = provisionCoreTenant('saml-325-'.strtolower(Str::random(6)));
+
+    $provider = createActiveSamlProvider($tenant->slug, $admin);
+
+    // Simula que el proveedor ya tenía catalogado un certificado de una
+    // rotación anterior, distinto del que el IdP simulado publica ahora
+    // mismo — así el refresco de verdad tiene algo nuevo que añadir sin
+    // tocar el ya existente (RN-AUTH-125: el refresco nunca retira).
+    $oldCert = generateSelfSignedTestCertificate();
+    $oldFingerprint = openssl_x509_fingerprint($oldCert['cert'], 'sha256');
+
+    app(TenantContext::class)->runFor($tenant->id, function () use ($provider, $oldCert): void {
+        IdentityProvider::query()->where('public_id', $provider['public_id'])->firstOrFail()
+            ->certificates()->create([
+                'certificate' => $oldCert['cert'],
+                'fingerprint_sha256' => openssl_x509_fingerprint($oldCert['cert'], 'sha256'),
+                'not_before' => now()->subYears(2),
+                'not_after' => now()->addYears(2),
+                'source' => 'manual',
+            ]);
+    });
+
+    test()->actingAs($admin)
+        ->postJson(coreApiUrl($tenant->slug, "/identity-providers/{$provider['public_id']}/metadata-refreshes"))
+        ->assertOk();
+
+    app(TenantContext::class)->runFor($tenant->id, function () use ($provider, $oldFingerprint): void {
+        $identityProviderId = DB::table('identity_providers')->where('public_id', $provider['public_id'])->value('id');
+
+        $fingerprints = DB::table('identity_provider_certificates')
+            ->where('identity_provider_id', $identityProviderId)
+            ->whereNull('retired_at')
+            ->pluck('fingerprint_sha256');
+
+        // El antiguo sigue presente (no se retira solo)...
+        expect($fingerprints)->toContain($oldFingerprint)
+            // ...y hay un segundo: el que el IdP simulado publica ahora.
+            ->and($fingerprints)->toHaveCount(2);
+    });
+});
+
 // CA-AUTH-321
 test('CA-AUTH-321: unos metadatos sin SingleSignOnService HTTP-Redirect responden binding_no_admitido y no crean nada', function (): void {
     [$tenant, $admin] = provisionCoreTenant('saml-321');
