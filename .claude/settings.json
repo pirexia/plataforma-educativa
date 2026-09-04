@@ -43,5 +43,8 @@
       "Read(./**/*.pem)",
       "Read(./**/*.key)"
     ]
+  },
+  "worktree": {
+    "baseRef": "head"
   }
 }
