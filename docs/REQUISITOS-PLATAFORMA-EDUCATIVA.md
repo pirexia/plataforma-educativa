@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Versión** | 3.1.4 |
-| **Fecha** | 2026-09-03 |
+| **Versión** | 3.1.5 |
+| **Fecha** | 2026-09-04 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
 | **Documento sustituye a** | v1.2.0 (mismo contenido, reorganizado y ampliado) |
@@ -2815,6 +2815,8 @@ Para el centro concertado, además: cuotas del primer ciclo de Infantil, becas d
 
 ## 11. ROLES Y PERMISOS GRANULARES
 
+> **Identificador paraguas: `REQ-PERM`** (`ADR-044`, 2026-09-04). Los identificadores atómicos `RPERM-001`-`RPERM-015` de `§11.2` se mantienen intactos; `REQ-PERM` es el prefijo de requisito, rama y carpeta de documentación (`docs/modulos/REQ-PERM/`) para el paso `1.5`/`1.5b` del plan. No es un *bounded context* nuevo: el núcleo vive en `App\Support\Authorization`, la administración en `App\Modules\Core` (`ADR-044 §4.10`).
+
 ### 11.1 Roles predefinidos
 
 | Rol | Descripción |
@@ -2856,6 +2858,8 @@ Para el centro concertado, además: cuotas del primer ciclo de Infantil, becas d
 | `RPERM-013` | Un usuario nunca puede conceder un permiso que él mismo no posee. |
 | `RPERM-014` | Todo rol, predefinido o personalizado, incluye el atributo `mfa_obligatorio` (`REQ-AUTH-003`). |
 | `RPERM-015` | Todo rol incluye el atributo `acceso_datos_especiales`, que condiciona la visibilidad de salud, NEAE y convivencia y activa auditoría reforzada de lectura. |
+
+> **`RPERM-008` diferido a `REQ-CALIF` (paso 1.16)** (`ADR-044 §4.5`/`§10.3`, decisión del usuario 2026-09-04). El único caso citado por el propio requisito ("solo durante el período de evaluación") depende de `REQ-CURSO` y `REQ-CALIF`, ninguno implementado antes de 1.5. No hay columna reservada en el esquema de 1.5 para este requisito.
 
 ---
 
@@ -3237,6 +3241,7 @@ Del `028` en adelante, cada decisión vive en `docs/adr/` (`ADR-026`).
 | `ADR-041` | Dependencias externas de MFA: `pragmarx/google2fa` `^9.1` en el backend tras `MfaVerifier`/`TotpProvisioner`, y `uqr` `^0.1.3` en la SPA tras el componente `QrCode.vue` (**cierra la comprobación de `CLAUDE.md §1` que `OPEN-AUTH-19` y `OPEN-AUTH-20` dejaron pendiente**; **rechaza `qrcode` (node-qrcode) por mantenimiento parado** y descarta `spomky-labs/otphp`, `google2fa-laravel`, `google2fa-qrcode`, `qrcode.vue` y `qr-code-styling`; concreta `RNF-MANT-007` y da soporte a `RN-AUTH-55`/`RN-AUTH-58`). Requisito previo del paso **1.3** (`REQ-AUTH-003`) |
 | `ADR-042` | Dependencia externa para el login con Google: `laravel/socialite` `^5.30` (mínimo `v5.30.1`) tras la interfaz propia `ExternalIdentityProvider`, con el objeto de valor `ExternalIdentity` y adaptador único `SocialiteGoogleIdentityProvider` (**cierra la comprobación de `CLAUDE.md §1` para `REQ-AUTH-002`**; **descarta `league/oauth2-client`+`league/oauth2-google`, `jumbojett/openid-connect-php` por mantenimiento parado, escribir el flujo OIDC a mano y los paquetes `socialiteproviders/*`**; concreta `RNF-MANT-007` e `INV-006`, y convierte la nota de seguridad de `REQ-AUTH-002` sobre `email_verified` en un booleano de primera clase normalizado en un solo punto). Requisito previo del paso **1.4** (`REQ-AUTH-002`); **no decide nada de `1.4b`/`REQ-AUTH-004`** |
 | `ADR-043` | Alcance y secuencia de `REQ-AUTH-004` (SSO institucional): se divide en **1.4b** (catálogo de proveedores por tenant, OIDC genérico, mapeo de atributos, aprovisionamiento) y **1.4c** (SAML 2.0, sobre el catálogo ya construido) — SAML rompe a la vez el mecanismo de sesión del *callback*, el envoltorio de la dependencia, el perfil de riesgo y el ciclo de vida del certificado, ninguno de los cuales afecta a OIDC. Decisiones del usuario (2026-09-01): aprovisionamiento **solo emparejamiento** (nunca crea `Person`/`User` nuevos, por el riesgo de `INV-008` en un directorio institucional con alumnado), `client_secret` por tenant cifrado en tabla propia, configuración del proveedor en autoservicio por el propio centro. Identifica un error de corrección en la clave única de `user_identities` de `1.4` (`provider`+`subject` no identifica al emisor fuera de `google`), corregible ahora sin filas institucionales. No aprueba ninguna dependencia SAML. Requisito previo de **1.4b** y **1.4c** (`REQ-AUTH-004`) |
+| `ADR-044` | Núcleo de autorización granular de la sección 11 (`RPERM-001` a `RPERM-015`), propuesto bajo el paraguas `REQ-PERM`: **vocabulario de ámbitos cerrado y central** (los seis de `RPERM-004`, ampliable solo por ADR nuevo) con **resolutores registrados por el módulo propietario de cada entidad** (`INV-007`) — cuatro de los seis ámbitos no existen hasta `REQ-ACAD` (1.11) y `REQ-FAM-UNIT` (1.14), y un ámbito sin resolutor **no se puede conceder y deniega si existiera**, cerrando la vía de escalada silenciosa que `docs/modulos/REQ-CORE/permisos.md §5` tuvo que contener con una regla. El ámbito **acota consultas**, no devuelve booleanos (listado y detalle). Resolución multi-rol por **conjunto unión de ámbitos**, con `deny` **ciego al ámbito** que veta el código entero (`RPERM-007`); categoría especial en **conjunción sobre el rol que concede** (`RPERM-012`/`RPERM-015`), con recurso propio `rol_datos_especiales.actualizar`. **Difiere** `RPERM-008` (permisos condicionales) a `REQ-CALIF` (1.16) **sin columna reservada**, y **descarta** herencia viva de roles (`parent_role_id`) y caché de permisos resueltos — resolviendo las cuatro cuestiones que `ADR-034 §2` dejó nombradas como «decisiones de 1.5». Detecta que la concesión de permisos (`permission_role`) y la asignación de roles (`role_user`, escrita con `sync()`) **no dejan hoy rastro en `audit_logs`**, incumpliendo `INV-003`/`RPERM-010`, y lo pone en alcance de 1.5. Propone dividir el paso en **1.5** (núcleo y API) y **1.5b** (editor de roles y vista previa), por `INV-006`. Entrada obligatoria de `spec-writer`; `§10` lista cuatro decisiones reservadas al usuario |
 
 ### Decisiones abiertas vivas
 
@@ -3325,6 +3330,7 @@ Se mantendrá una matriz de trazabilidad (generada automáticamente desde las re
 
 | Versión | Fecha | Autor | Descripción |
 |---------|-------|-------|-------------|
+| 3.1.5 | 2026-09-04 | Product Owner | `ADR-044`: núcleo de autorización granular de la sección 11, añadido al índice de la sección 18. Adopta `REQ-PERM` como identificador paraguas de la sección 11 (los `RPERM-001`-`015` se mantienen intactos). Divide el paso en `1.5` (núcleo y API) y `1.5b` (editor de roles y vista previa, tras `1.9`); `PLAN-IMPLEMENTACION.md` actualizado en consecuencia. Decisión del usuario, 2026-09-04. |
 | 3.1.4 | 2026-09-03 | Product Owner | `REQ-AUTH-004`: nota de cobertura real (`ADR-043`) sobre aprovisionamiento solo por emparejamiento y mapeo de atributos sin escritura sobre `people` — la redacción original seguía describiendo creación automática de usuarios, contradiciendo la decisión ya tomada en `1.4b` (hallazgo de `doc-reviewer`, revisión de `1.4c`). |
 | 3.1.3 | 2026-09-01 | Product Owner | `ADR-043`: alcance y secuencia de `REQ-AUTH-004` (SSO institucional), añadido al índice de la sección 18. Divide el paso en `1.4b` (OIDC + aprovisionamiento) y `1.4c` (SAML 2.0); `PLAN-IMPLEMENTACION.md` actualizado en consecuencia. |
 | 3.1.2 | 2026-08-31 | Product Owner | `ADR-042`: dependencia externa del login con Google (`laravel/socialite` `^5.30` tras `ExternalIdentityProvider`), añadido al índice de la sección 18. Requisito previo del paso `1.4` (`REQ-AUTH-002`). |
