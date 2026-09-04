@@ -147,6 +147,8 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 
 - [ ] **1.7 · Design system** [OPUS + SONNET]
   Tokens, tema por tenant con variables CSS, componentes base de shadcn-vue, validación de contraste, modo oscuro.
+- [ ] **1.7b · Estandarización de módulos: tests de arquitectura y generador** [OPUS + SONNET] · *candidato, no comprometido*
+  Añadido como candidato (issue [#163](https://github.com/pirexia/plataforma-educativa/issues/163), 2026-09-04) tras evaluar y descartar la idea de una plantilla de módulo con toda la complejidad. Tres piezas, por orden de valor: (1) tests de arquitectura con Pest `arch()` — hoy hay cero, y con 53 módulos la deriva solo la frena algo que falle en CI (`INV-007`, `ServiceProvider` por convención, prohibición de `varchar`/`timestamp` sin zona de `ADR-029`, `public_id` en todo modelo expuesto); (2) generador `php artisan make:module` con el esqueleto **mínimo** más lo que de verdad se repite (`ServiceProvider`, `routes.php`, migración base con `tenant_id` + auditoría + RLS, factory, test de aislamiento entre tenants); (3) módulo de referencia designado en `ARCHITECTURE.md` en vez de plantilla muerta. **Deliberadamente posterior a 1.5 y 1.7**: 1.5 define la matriz de permisos que usarán los 53 módulos y 1.7 la forma del módulo de frontend; hacerlo antes garantiza rehacerlo. Requiere ADR propio (`CLAUDE.md` §6.3).
 - [ ] **1.8 · Layout, navegación y dashboards por rol** [SONNET]
   Responsive con los breakpoints de `RUX-RESP-001`, menús adaptativos, estados vacíos y de error.
 - [ ] **1.9 · Tablas de datos** [SONNET]

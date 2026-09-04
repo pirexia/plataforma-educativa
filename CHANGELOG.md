@@ -6,6 +6,32 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-09-04 · `chore/alcance-declarado-subagentes`
+
+Origen: se propuso configurar `.claudeignore` para aislar el contexto de agentes de backend y de frontend. Se descartó tras verificarlo empíricamente — `.claudeignore` no es una funcionalidad de Claude Code (solo una *feature request* abierta), y un fichero de prueba en la raíz no bloqueó ninguna lectura. La revisión del alcance realmente declarado de los nueve subagentes destapó lo que sigue.
+
+### Corregido: gobernanza de subagentes
+- Ninguno de los nueve declaraba `tools` ni `disallowedTools`, de modo que los nueve heredaban acceso completo. `explorer` decía "no modificas nada" en prosa mientras tenía `Write`, `Edit` y `Bash`; los tres revisores podían editar el código que debían auditar. Es la causa mecánica del issue [#150](https://github.com/pirexia/plataforma-educativa/issues/150) (`git reset`/revert no autorizado sobre trabajo ajeno, dos veces en 1.4c). Ahora: `explorer` solo `Read, Grep, Glob`; los tres revisores sin `Write`/`Edit` (conservan `Bash`: una revisión que no ejecuta nada es una revisión de memoria); `spec-writer` sin `Bash`; `implementer` y `test-writer` con `isolation: worktree`.
+- Ninguno declaraba `skills`, así que las diez del proyecto solo se cargaban si al agente se le ocurría invocarlas. Precargadas donde corresponde.
+- Ninguno declaraba ámbito de rutas ni recogía las reglas de `CLAUDE.md` §3 sobre relanzamiento tras corte de cuota. Añadidos a los nueve, junto con la prohibición de actuar sobre trabajo ajeno al encargo y de git destructivo.
+- **`db-reviewer` apuntaba a `database/migrations`, ruta que no existe.** Son dos: `apps/api/database/migrations` y `apps/api/app/Modules/*/Database/migrations`, donde está el grueso. Añadidas comprobaciones de RLS, `public_id` ULID y convenciones de `ADR-029` que sus puntos 7 y 8 contradecían.
+- `implementer` no citaba `INV-003` (auditoría de operaciones), distinto de los campos de auditoría de `INV-005`.
+- `test-writer` exigía 80%/95% de cobertura que nadie mide: `ci-api.yml` corre con `coverage: none` en sus tres *jobs* y `vitest.config.ts` no la configura. Umbral retirado.
+- `janitor.md` tenía el frontmatter con **YAML inválido desde su creación** (dos puntos sin comillas en `description`). Detectado al validar los nueve con un parser.
+
+### Corregido: `_PLANTILLA` contra los ADR vigentes (issue [#162](https://github.com/pirexia/plataforma-educativa/issues/162), Media)
+`docs/modulos/_PLANTILLA/` es del 2026-08-13 y no se había tocado desde entonces; `ADR-029` y `ADR-038` son posteriores. Su `datos.md` autorizaba *"importes en enteros de céntimos **o decimal exacto**"* y *"fechas en UTC"*, cuando `ADR-029` exige céntimos enteros y `TIMESTAMPTZ` — la misma redacción laxa que arrastraba `db-reviewer`, señal de que uno se copió del otro y el ADR posterior dejó obsoletos a los dos. Reescritas ambas plantillas; `doc-reviewer` gana una comprobación 11 para que las plantillas se revisen como el resto de la documentación.
+
+### Corregido: causa raíz de un incidente de 1.2b
+`worktree.baseRef` no estaba configurado y su valor por defecto (`"fresh"`) ramifica desde la rama por defecto **del remoto**, no desde el trabajo en curso. Es exactamente lo que ocurrió en 1.2b, cuando dos de tres agentes lanzados con aislamiento se crearon desde un commit de meses atrás y corrieron más de una hora así. Fijado a `"head"`. Añadido `.worktreeinclude` con los tres `.env`, sin los cuales un subagente aislado no puede arrancar la API ni ejecutar la suite.
+
+### Anotado, no ejecutado
+`1.7b` en `PLAN-IMPLEMENTACION.md` (issue [#163](https://github.com/pirexia/plataforma-educativa/issues/163), Baja): estandarización de módulos por tests de arquitectura con Pest `arch()` + generador `make:module`, en lugar de una plantilla de código maximalista. Deliberadamente posterior a 1.5 y 1.7, que definen la matriz de permisos y la forma del módulo de frontend.
+
+Sin cambios en código de aplicación.
+
+---
+
 ## 2026-09-02/04 · Cierre de 1.4c (`REQ-AUTH-004`, parte 2/2: SSO institucional SAML 2.0)
 
 ### Nuevo: SAML 2.0 como segundo protocolo del catálogo `identity_providers`
