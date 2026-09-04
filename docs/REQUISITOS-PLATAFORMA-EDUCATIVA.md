@@ -469,7 +469,7 @@ El Administrador de Centro puede:
 #### REQ-CORE-004: Roles y permisos granulares
 - Roles predefinidos (ver sección 11.1).
 - Roles personalizados con permisos a nivel de **recurso × acción × ámbito**.
-- Herencia de roles con posibilidad de override.
+- ~~Herencia de roles con posibilidad de override.~~ **Descartada** (`ADR-044 §4.6`, 2026-09-04): solo clonación (`RPERM-006`), sin `parent_role_id`. La herencia viva combinada con `deny`/ámbitos produce una resolución de cuatro capas inexplicable en la vista previa de `RPERM-009`, sin caso de uso descrito.
 - Asignación múltiple de roles por usuario.
 
 *Especificación completa en la sección 11.*
