@@ -1,6 +1,6 @@
 # REQ-CORE · Permisos
 
-> Sección 11 del documento de requisitos (`RPERM-001` a `RPERM-015`) aplicada a este módulo. El **resolutor granular** es el paso 1.5 (`ADR-034 §2`); lo que se fija aquí es el catálogo de permisos, la matriz y la siembra en los roles predefinidos, para que 1.5 no tenga que inventarlos ni migrarlos.
+> Sección 11 del documento de requisitos (`RPERM-001` a `RPERM-015`) aplicada a este módulo. El **resolutor granular** es el paso 1.5 (`ADR-034 §2`), **ya cerrado** — ver `docs/modulos/REQ-PERM/permisos.md` para la matriz completa post-1.5, la siembra de sus cuatro permisos nuevos y las reglas de ámbito. Lo que se fija aquí es el catálogo de permisos de `REQ-CORE`, ahora con `applicable_scopes` operativo.
 >
 > Fuente de verdad del catálogo: **el código del módulo** (`INV-007`), materializado en la tabla `permissions` por `platform:sync-registry` (`ADR-034 §2`). Esta tabla es su reflejo documental, no su origen.
 
@@ -25,60 +25,68 @@ Los **ámbitos** son los de `RPERM-004`: `todos`, `propios`, `departamento`, `gr
 
 ---
 
-## 2. Catálogo de permisos que declara `REQ-CORE` en 1.1
+## 2. Catálogo de permisos que declara `REQ-CORE`
 
-`module_code = 'core'`, `is_special_category = false` en todos (este módulo no expone salud, NEAE ni convivencia — §6).
+`module_code = 'core'`, `is_special_category = false` en todos (este módulo no expone salud, NEAE ni convivencia — §6). `applicable_scopes` operativo desde 1.5 (`REQ-PERM/permisos.md §3.1`) — columna añadida a la derecha; solo `auditoria.leer`/`.exportar` admiten algo distinto de `todos`.
 
-| `code` | Recurso | Acción | Endpoints que lo exigen |
-|--------|---------|--------|-------------------------|
-| `usuario.leer` | `usuario` | `leer` | `GET /users`, `GET /users/{id}` |
-| `usuario.crear` | `usuario` | `crear` | `POST /users` |
-| `usuario.actualizar` | `usuario` | `actualizar` | `PATCH /users/{id}`, `POST /users/{id}/status` |
-| `usuario.eliminar` | `usuario` | `eliminar` | `DELETE /users/{id}`, `POST /users/{id}/restore`, `GET /users?include_deleted=true` |
-| `usuario.importar` | `usuario` | `importar` | `POST /user-imports`, `GET /user-imports`, `GET /user-imports/{id}`, `POST /user-imports/{id}/execute`, `DELETE /user-imports/{id}` |
-| `usuario.exportar` | `usuario` | `exportar` | Reservado a la exportación del listado de usuarios. **Sin endpoint en 1.1** — ver §7 |
-| `invitacion.leer` | `invitacion` | `leer` | `GET /invitations` |
-| `invitacion.crear` | `invitacion` | `crear` | `POST /users/{id}/invitations` |
-| `invitacion.eliminar` | `invitacion` | `eliminar` | `DELETE /invitations/{id}` |
-| `asignacion_rol.leer` | `asignacion_rol` | `leer` | `GET /users/{id}/roles` |
-| `asignacion_rol.crear` | `asignacion_rol` | `crear` | `PUT /users/{id}/roles` (al añadir), `POST /users` con `role_ids` |
-| `asignacion_rol.eliminar` | `asignacion_rol` | `eliminar` | `PUT /users/{id}/roles` (al retirar) |
-| `rol.leer` | `rol` | `leer` | `GET /roles`, `GET /roles/{id}` |
-| `permiso.leer` | `permiso` | `leer` | `GET /permissions` |
-| `configuracion.leer` | `configuracion` | `leer` | `GET /tenant`, `GET /tenant/settings` |
-| `configuracion.actualizar` | `configuracion` | `actualizar` | `PATCH /tenant/settings`, `PUT`/`DELETE /tenant/settings/assets/{kind}` |
-| `modulo.leer` | `modulo` | `leer` | `GET /modules` |
-| `modulo.actualizar` | `modulo` | `actualizar` | `PATCH /module-subscriptions/{id}` (solo `settings`) |
-| `auditoria.leer` | `auditoria` | `leer` | `GET /audit-logs` |
-| `auditoria.exportar` | `auditoria` | `exportar` | `POST /audit-logs/exports`, `GET /data-exports/{id}` de tipo `audit_logs` |
+| `code` | Recurso | Acción | Endpoints que lo exigen | `applicable_scopes` |
+|--------|---------|--------|--------------------------|----------------------|
+| `usuario.leer` | `usuario` | `leer` | `GET /users`, `GET /users/{id}` | `todos` |
+| `usuario.crear` | `usuario` | `crear` | `POST /users` | `todos` |
+| `usuario.actualizar` | `usuario` | `actualizar` | `PATCH /users/{id}`, `POST /users/{id}/status` | `todos` |
+| `usuario.eliminar` | `usuario` | `eliminar` | `DELETE /users/{id}`, `POST /users/{id}/restore`, `GET /users?include_deleted=true` | `todos` |
+| `usuario.importar` | `usuario` | `importar` | `POST /user-imports`, `GET /user-imports`, `GET /user-imports/{id}`, `POST /user-imports/{id}/execute`, `DELETE /user-imports/{id}` | `todos` |
+| `usuario.exportar` | `usuario` | `exportar` | Reservado a la exportación del listado de usuarios. **Sin endpoint en 1.1** — ver §7 | `todos` |
+| `invitacion.leer` | `invitacion` | `leer` | `GET /invitations` | `todos` |
+| `invitacion.crear` | `invitacion` | `crear` | `POST /users/{id}/invitations` | `todos` |
+| `invitacion.eliminar` | `invitacion` | `eliminar` | `DELETE /invitations/{id}` | `todos` |
+| `asignacion_rol.leer` | `asignacion_rol` | `leer` | `GET /users/{id}/roles` | `todos` |
+| `asignacion_rol.crear` | `asignacion_rol` | `crear` | `PUT /users/{id}/roles` (al añadir), `POST /users` con `role_ids` | `todos` |
+| `asignacion_rol.eliminar` | `asignacion_rol` | `eliminar` | `PUT /users/{id}/roles` (al retirar) — **comprobación implementada en 1.5**, ver §9 de `REQ-PERM/api.md §8.2` | `todos` |
+| `rol.leer` | `rol` | `leer` | `GET /roles`, `GET /roles/{id}` | `todos` |
+| `rol.crear` | `rol` | `crear` | `POST /roles` (1.5, `RPERM-005`/`006`) | `todos` |
+| `rol.actualizar` | `rol` | `actualizar` | `PATCH /roles/{id}` (1.3, acotado a `mfa_required`; editor completo desde 1.5) | `todos` |
+| `rol.eliminar` | `rol` | `eliminar` | `DELETE /roles/{id}` (1.5) | `todos` |
+| `rol_datos_especiales.actualizar` | `rol_datos_especiales` | `actualizar` | `PATCH /roles/{id}` con `special_data_access`, `POST /roles` con `special_data_access: true` (1.5) | `todos` |
+| `permiso_efectivo.leer` | `permiso_efectivo` | `leer` | `GET /users/{id}/effective-permissions` (1.5, `RPERM-009`) | `todos` |
+| `permiso.leer` | `permiso` | `leer` | `GET /permissions` | `todos` |
+| `configuracion.leer` | `configuracion` | `leer` | `GET /tenant`, `GET /tenant/settings` | `todos` |
+| `configuracion.actualizar` | `configuracion` | `actualizar` | `PATCH /tenant/settings`, `PUT`/`DELETE /tenant/settings/assets/{kind}` | `todos` |
+| `modulo.leer` | `modulo` | `leer` | `GET /modules` | `todos` |
+| `modulo.actualizar` | `modulo` | `actualizar` | `PATCH /module-subscriptions/{id}` (solo `settings`) | `todos` |
+| `auditoria.leer` | `auditoria` | `leer` | `GET /audit-logs` | `todos`, `propios` |
+| `auditoria.exportar` | `auditoria` | `exportar` | `POST /audit-logs/exports`, `GET /data-exports/{id}` de tipo `audit_logs` | `todos`, `propios` |
 
 **Endpoints sin permiso, a propósito y de forma auditada:**
 
 | Endpoint | Por qué |
 |----------|---------|
 | `GET /tenant/branding` | Sin autenticación. La pantalla de login lo necesita antes de que exista sesión (`funcional.md` §4.8). Su superficie está cerrada por contrato y limitada por tasa. |
-| `GET /me`, `PATCH /me` | Autorizado **por identidad del sujeto**, no por permiso. Ver §5: con el resolutor provisional, un permiso de ámbito `propios` se comportaría como `todos`. |
+| `GET /me`, `PATCH /me` | Autorizado **por identidad del sujeto**, no por permiso. Ver §5: la regla de fondo sigue en vigor, con motivo distinto tras 1.5. |
+| `GET /me/effective-permissions` | Autoservicio por identidad, igual que `GET /me` (1.5, `REQ-PERM/permisos.md §2.2`). Nunca `403`, solo `401` sin sesión. |
 
 ---
 
 ## 3. Matriz recurso × acción × ámbito
 
-Ámbito único en 1.1: `todos` (§5). `—` significa que el permiso no existe en este módulo; `1.5` significa que el código lo declarará el paso 1.5, no 1.1.
+Estado tras el cierre de 1.5. `—` significa que el permiso no existe en este módulo. Cada celda es el ámbito que **admite** el permiso (`applicable_scopes`), no lo que se concede a quién (eso es §4).
 
 | Recurso | crear | leer | actualizar | eliminar | exportar | importar | aprobar | firmar | publicar |
 |---------|-------|------|------------|----------|----------|----------|---------|--------|----------|
 | `usuario` | `todos` | `todos` | `todos` | `todos` | `todos` (§7) | `todos` | — | — | — |
 | `invitacion` | `todos` | `todos` | — | `todos` | — | — | — | — | — |
 | `asignacion_rol` | `todos` | `todos` | — | `todos` | — | — | — | — | — |
-| `rol` | 1.5 | `todos` | 1.5 | 1.5 | — | — | — | — | — |
+| `rol` | `todos` | `todos` | `todos` | `todos` | — (§9.3) | — | — | — | — |
+| `rol_datos_especiales` | — | — | `todos` | — | — | — | — | — | — |
+| `permiso_efectivo` | — | `todos` | — | — | — (§9.3) | — | — | — | — |
 | `permiso` | — | `todos` | — | — | — | — | — | — | — |
 | `configuracion` | — | `todos` | `todos` | — | — | — | — | — | — |
 | `modulo` | — | `todos` | `todos` | — | — | — | — | — | — |
-| `auditoria` | — | `todos` | — | — | `todos` | — | — | — | — |
+| `auditoria` | — | `todos`, `propios` | — | — | `todos`, `propios` | — | — | — | — |
 
 `auditoria` no tiene `crear`, `actualizar` ni `eliminar` **por diseño**: la tabla es *append-only* con `REVOKE UPDATE, DELETE` en el motor (`ADR-034 §3`) y la escribe el *observer*, no un usuario. Declarar esos permisos sería sugerir que existe una forma de editar el registro.
 
-`rol` no tiene `exportar`: 1.5 decidirá si su vista previa de permisos efectivos (`RPERM-009`) lo necesita.
+`rol` y `permiso_efectivo` no tienen `exportar`: resuelto en 1.5 (`REQ-PERM/permisos.md §2.1`) — la vista previa de permisos efectivos es una fotografía calculada para diagnosticar, no un artefacto que sale del sistema.
 
 ---
 
@@ -92,7 +100,7 @@ Denegación por defecto (`RPERM-011`): lo que no aparece, no se concede.
 
 | Rol (`code`) | Permisos de `REQ-CORE` | Ámbito |
 |--------------|------------------------|--------|
-| `administrador_centro` | **Todos** los de §2 | `todos` |
+| `administrador_centro` | **Todos** los de §2, incluidos `rol.crear`, `rol.eliminar`, `rol_datos_especiales.actualizar` y `permiso_efectivo.leer` (1.5, `OPEN-PERM-07`) | `todos` |
 | `direccion` | `usuario.leer`, `rol.leer`, `asignacion_rol.leer`, `configuracion.leer`, `modulo.leer` | `todos` |
 | `secretaria` | `usuario.leer`, `invitacion.leer` | `todos` |
 | `administrativo` | `usuario.leer` | `todos` |
@@ -151,19 +159,23 @@ Se siembra el rol (existe en la sección 11.1) **sin ningún permiso de `REQ-COR
 
 ---
 
-## 5. Ámbitos en 1.1: por qué todo es `todos`
+## 5. Ámbitos: nota histórica (1.1-1.4c) y regla vigente tras 1.5
 
-Este apartado es una **regla de seguridad**, no una nota de estilo.
+**Esta sección describía una regla de seguridad que ya se ha cumplido y cerrado.** Se conserva, no se borra (`ADR-044 §8`), porque el motivo por el que existió es exactamente lo que `REQ-PERM`/1.5 vino a cerrar y una revisión futura debe poder leerlo.
 
-El resolutor provisional que rige entre 1.1 y 1.5 (`ADR-034 §2`) **lee `permission_role.effect` e ignora `permission_role.scope`**. Es decir: una concesión con ámbito `propios` se evalúa hoy exactamente igual que una con ámbito `todos`.
+### 5.1 Regla histórica, cerrada por 1.5
 
-Consecuencia: si 1.1 sembrara, por ejemplo, `usuario.leer` con ámbito `propios` para el rol `docente` pensando en «que cada uno vea su ficha», ese docente vería **el censo completo del centro** hasta que 1.5 implementara la resolución de ámbito. Sería un fallo de control de acceso silencioso, activo durante cuatro pasos del plan, y detectable solo leyendo el resolutor.
+Entre 1.1 y 1.4c, el resolutor provisional (`ADR-034 §2`) **leía `permission_role.effect` e ignoraba `permission_role.scope`**: una concesión con ámbito `propios` se evaluaba exactamente igual que una con ámbito `todos`. La regla 1 de entonces —«toda fila creada lleva `scope = 'todos'`», verificada por `CA-CORE-042`— existía para que ese ámbito ignorado nunca se usara para nada distinto de `todos` y así no abriera un acceso total en silencio.
 
-Reglas derivadas, verificables:
+`CA-CORE-042` queda **absorbido por `CA-PERM-003`** (`REQ-PERM/permisos.md §9.6`), que es la versión más fuerte de la misma comprobación: ahora garantizada por `CHECK` en el motor (`RN-PERM-02`), no solo por un test sobre lo que sembraba el aprovisionamiento.
 
-1. **Toda fila de `permission_role` creada en 1.1 lleva `scope = 'todos'`.** Test de esquema: `SELECT count(*) FROM permission_role WHERE scope IS DISTINCT FROM 'todos'` debe ser cero al terminar el aprovisionamiento (`CA-CORE-042`).
-2. **El autoservicio no se modela como permiso con ámbito.** `GET /me` y `PATCH /me` se autorizan comprobando que el sujeto es el propio usuario autenticado. Es una comprobación de identidad, no de permiso, y por tanto no depende del resolutor.
-3. **1.5 hereda la responsabilidad** de introducir los ámbitos restringidos junto con el resolutor que los evalúa, en el mismo paso. Nunca antes.
+### 5.2 Regla vigente: el autoservicio no se modela como permiso con ámbito
+
+**Sigue en vigor después de 1.5**, con un motivo distinto (`REQ-PERM/permisos.md §5.3`): ya no es que el ámbito no se evalúe —`propios` sobre `auditoria` funciona de verdad desde 1.5—, es que **un permiso puede ponerse a `false`**, y un usuario tiene que poder saber siempre qué puede hacer. `GET /me`/`PATCH /me` y, desde 1.5, `GET /me/effective-permissions` se autorizan comprobando identidad, nunca permiso.
+
+### 5.3 Lo que 1.5 entregó
+
+Resolutor completo (`App\Support\Authorization`), vocabulario cerrado de seis ámbitos con `CHECK` en `permission_role.scope`, y un resolutor real —`propios` sobre `auditoria`— probado de punta a punta. Detalle completo en `docs/modulos/REQ-PERM/`.
 
 ---
 
@@ -187,7 +199,7 @@ Solo uno, y con motivo:
 
 Si esto se considera adelantarse, la alternativa es retirarlo del catálogo de 1.1 y que lo declare el paso que implemente el endpoint. Es reversible: añadir un permiso al catálogo es idempotente y sin migración.
 
-**Permisos que 1.1 NO declara y que corresponden a 1.5**: `rol.crear`, `rol.actualizar`, `rol.eliminar`, y cualquier permiso sobre la concesión y revocación de permisos a un rol. Se dejan a 1.5 porque es quien implementa sus endpoints y porque `platform:sync-registry` los añadirá sin migración cuando su código los declare (`ADR-034 §2`).
+**Cerrado.** `rol.actualizar` lo declaró 1.3; `rol.crear` y `rol.eliminar`, 1.5. La concesión y revocación de permisos a un rol **no recibe permiso propio**: `PUT /roles/{id}/permissions` se gobierna con `rol.actualizar` (`REQ-PERM/permisos.md §2.1`) — separarlo obligaría a comprobar dos permisos para guardar una fila de la matriz.
 
 ---
 
@@ -208,8 +220,10 @@ Comprobaciones adicionales que ningún permiso cubre y que hay que implementar e
 ## 9. Verificación
 
 - **`CA-CORE-019`** — un usuario sin permisos recibe `403` en `GET /users`.
-- **`CA-CORE-042`** — ninguna fila de `permission_role` con `scope` distinto de `todos` (§5).
-- **`CA-CORE-017`** — `RPERM-013` verificado con un caso real (asignar un rol con `auditoria.leer` sin poseerlo).
+- **`CA-CORE-042`** — **absorbido por `CA-PERM-003`** (§5.1): ninguna fila de `permission_role` con `scope` nulo o fuera del vocabulario, garantizado por `CHECK`.
+- **`CA-CORE-017`** — `RPERM-013` verificado con un caso real; **ampliado por `CA-PERM-040`-`044`** (`REQ-PERM/permisos.md §9.6`), que lo prueban comparando pares (código, ámbito).
 - **`CA-CORE-070`** — todo endpoint del módulo responde `401` sin sesión y `403` sin permiso.
 - **`CA-CORE-073`** — recurso de otro tenant ⇒ `404`.
-- Test de catálogo: tras `platform:sync-registry`, la tabla `permissions` contiene exactamente los códigos de §2 con `module_code = 'core'`, y ninguno marcado `retired_at`.
+- Test de catálogo: tras `platform:sync-registry`, la tabla `permissions` contiene exactamente los 25 códigos de §2 con `module_code = 'core'`, ninguno marcado `retired_at`, y cada uno con su `applicable_scopes`.
+
+Los criterios propios de `REQ-PERM` (`CA-PERM-001` a `CA-PERM-093`) están en `docs/modulos/REQ-PERM/funcional.md §17`.

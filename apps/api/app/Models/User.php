@@ -50,9 +50,19 @@ class User extends TenantModel implements Auditable, AuthenticatableContract
     use Notifiable;
     use RecordsAuditTrail;
 
-    /** @var array<int, string> */
+    /**
+     * REQ-PERM/datos.md §5.3.1 (1.5): `roles` se añade para que el registro
+     * explícito de `PUT /users/{id}/roles` (`funcional.md §12.2`, un código
+     * de rol no es un dato personal) no quede redactado como `identifier`
+     * — `AuditChangeBuilder` redacta como tal todo lo que no esté en esta
+     * lista de inclusión, con política `Selective` (fallo en cerrado,
+     * `ADR-035 §2`). Es una lista de inclusión: añadir `roles` no abre
+     * ningún otro atributo.
+     *
+     * @var array<int, string>
+     */
     protected array $auditRecordedAttributes = [
-        'status', 'email_verified_at', 'deleted_at', 'created_by', 'updated_by',
+        'status', 'email_verified_at', 'deleted_at', 'created_by', 'updated_by', 'roles',
     ];
 
     /** @var array<int, string> */

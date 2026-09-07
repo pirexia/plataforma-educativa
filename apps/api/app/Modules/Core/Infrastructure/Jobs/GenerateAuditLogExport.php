@@ -4,6 +4,8 @@ namespace App\Modules\Core\Infrastructure\Jobs;
 
 use App\Models\AuditLog;
 use App\Modules\Core\Domain\Models\DataExport;
+use App\Support\Authorization\PermissionResolver;
+use App\Support\Authorization\ScopedQuery;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -16,6 +18,15 @@ use Illuminate\Support\Facades\Storage;
  * generación nunca ocurre en la petición HTTP. El contexto de tenant lo
  * gestiona TenancyServiceProvider a partir del `tenant_id` estampado al
  * despachar (issue #49).
+ *
+ * REQ-PERM/funcional.md §6.3, `RN-PERM-15`, operacion.md §5.1 (1.5): el
+ * artefacto se acota con la misma restricción que el listado, dentro del
+ * propio trabajo — un trabajo en cola no tiene sesión, así que si la
+ * acotación viviera solo en el controlador, el fichero saldría completo.
+ * El sujeto viaja como `requested_by` (ya existía desde 1.1, columna de
+ * `DataExport`) y el ámbito se **vuelve a resolver** aquí, con el contexto
+ * de tenant propio del trabajo — nunca un objeto `PermissionDecision`
+ * serializado en la cola.
  */
 class GenerateAuditLogExport implements ShouldQueue
 {
@@ -33,9 +44,9 @@ class GenerateAuditLogExport implements ShouldQueue
         $this->onQueue('core-exports');
     }
 
-    public function handle(): void
+    public function handle(PermissionResolver $permissions, ScopedQuery $scopedQuery): void
     {
-        $export = DataExport::query()->find($this->dataExportId);
+        $export = DataExport::query()->with('requester')->find($this->dataExportId);
 
         if ($export === null) {
             return;
@@ -60,6 +71,11 @@ class GenerateAuditLogExport implements ShouldQueue
 
         if (! empty($filters['auditable_type'])) {
             $query->whereIn('auditable_type', (array) $filters['auditable_type']);
+        }
+
+        if ($export->requester !== null) {
+            $decision = $permissions->decide($export->requester, 'auditoria.exportar');
+            $query = $scopedQuery->constrain($query, 'auditoria', $decision, $export->requester);
         }
 
         $objectKey = "tenants/{$this->tenantPublicId}/exports/{$export->public_id}.csv";

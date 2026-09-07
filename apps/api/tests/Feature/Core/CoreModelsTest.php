@@ -3,6 +3,7 @@
 use App\Models\AcademicYear;
 use App\Models\AuditLog;
 use App\Models\ModuleSubscription;
+use App\Models\PermissionRole;
 use App\Models\Person;
 use App\Models\Role;
 use App\Models\User;
@@ -54,6 +55,9 @@ test('todo modelo de tenant núcleo está en el morph map', function (): void {
 // declarado a mano, mismo criterio que IdentityProviderSecret).
 // SamlAuthRequest/SamlConsumedAssertion NO entran: no son Auditable en
 // absoluto (política None, datos.md §G.4.1/§G.4.2).
+// PermissionRole (REQ-PERM/datos.md §5.2, 1.5, issue #165) se suma en
+// Full: un código de permiso, un código de rol, un efecto y un ámbito no
+// son datos personales.
 test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR-035 §8', function (): void {
     $map = Relation::morphMap();
 
@@ -71,7 +75,7 @@ test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR
     expect($fullPolicyModels)->toEqualCanonicalizing([
         AcademicYear::class, Role::class, ModuleSubscription::class, DataExport::class,
         MfaReset::class, UserMfaObligation::class, UserMfaExemption::class, IdentityProvider::class,
-        SamlIdentityProviderSettings::class,
+        SamlIdentityProviderSettings::class, PermissionRole::class,
     ]);
 });
 

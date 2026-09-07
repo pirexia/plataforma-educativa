@@ -2,7 +2,9 @@
 
 namespace App\Support\Modules;
 
+use App\Support\Authorization\Scope;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
 /**
  * ADR-034 §2, §5, §7 (subpaso 0.8.11). Materializa en `modules` y
@@ -53,6 +55,7 @@ final class SyncModuleRegistry
                         'action' => $permission['action'],
                         'module_code' => $module['code'],
                         'is_special_category' => $permission['is_special_category'] ?? false,
+                        'applicable_scopes' => self::encodeApplicableScopes($permission),
                         'retired_at' => null,
                     ]
                 );
@@ -68,5 +71,32 @@ final class SyncModuleRegistry
             ->whereNotIn('code', $declaredPermissionCodes)
             ->whereNull('retired_at')
             ->update(['retired_at' => now()]);
+    }
+
+    /**
+     * REQ-PERM/operacion.md §4.2: valida `applicable_scopes` contra el
+     * vocabulario cerrado de `Scope` y **aborta el despliegue** si un
+     * módulo declara un ámbito inexistente — preferible un despliegue
+     * detenido a un catálogo con un ámbito que ningún `CHECK` de
+     * `permission_role` aceptará después.
+     *
+     * @param  array{code: string, applicable_scopes?: list<string>}  $permission
+     */
+    private static function encodeApplicableScopes(array $permission): ?string
+    {
+        if (! isset($permission['applicable_scopes'])) {
+            return null;
+        }
+
+        foreach ($permission['applicable_scopes'] as $scope) {
+            if (Scope::tryFrom($scope) === null) {
+                throw new InvalidArgumentException(
+                    "El permiso «{$permission['code']}» declara el ámbito «{$scope}», ".
+                    'fuera del vocabulario cerrado de Scope (RN-PERM-01). platform:sync-registry aborta.'
+                );
+            }
+        }
+
+        return json_encode($permission['applicable_scopes']);
     }
 }

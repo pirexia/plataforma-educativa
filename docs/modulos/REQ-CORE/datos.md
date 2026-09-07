@@ -102,8 +102,8 @@ Todo modelo auditable implementa `App\Support\Audit\Auditable` y declara `auditV
 
 | Política | Efecto | Modelos del núcleo (0.9) |
 |----------|--------|---------------------------|
-| `Full` | Se registra el valor de todos los atributos (salvo secretos, siempre absolutos) | `AcademicYear`, `Role`, `ModuleSubscription` |
-| `Selective` | Solo se registra el valor de `auditRecordedAttributes()`; el resto se redacta como `identifier` | `Person` (`locale`, `deleted_at`, `created_by`, `updated_by`), `User` (`status`, `email_verified_at`, `deleted_at`, `created_by`, `updated_by`) |
+| `Full` | Se registra el valor de todos los atributos (salvo secretos, siempre absolutos) | `AcademicYear`, `Role`, `ModuleSubscription`, `PermissionRole` (1.5, `REQ-PERM/datos.md §5.2`: un código de permiso, un código de rol, un efecto y un ámbito no son datos personales) |
+| `Selective` | Solo se registra el valor de `auditRecordedAttributes()`; el resto se redacta como `identifier` | `Person` (`locale`, `deleted_at`, `created_by`, `updated_by`), `User` (`status`, `email_verified_at`, `deleted_at`, `created_by`, `updated_by`, **`roles`** — añadido en 1.5, `REQ-PERM/datos.md §5.3.1`, para que el registro explícito de `PUT /users/{id}/roles` no quede redactado) |
 | `Redacted` | Nunca se registra ningún valor | Ningún modelo del núcleo todavía — reservada a categoría especial (salud, NEAE, convivencia), que llega con sus propios módulos |
 
 `Tenant` y `Permission`/`Module` **no son auditables en 0.9** (`docs/adr/ADR-036-tenant-fuera-del-observer-de-auditoria-de-tenant.md`, que sustituye la fila `Tenant` de `ADR-035 §8`): `Tenant` es una entidad de plataforma sin `tenant_id` propio, y `audit_logs` es una tabla de tenant — su auditoría corresponde a `admin_action_logs` (paso 1.6, `ADR-033` §7), no a este mecanismo. `Permission`/`Module` son catálogos de referencia gestionados por `platform:sync-registry`, fuera del ámbito de auditoría por tenant.

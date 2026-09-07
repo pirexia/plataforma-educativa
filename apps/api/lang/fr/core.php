@@ -43,6 +43,32 @@ return [
         'export_failed' => 'La génération de cet export a échoué.',
         'import_not_validated' => 'Le lot doit être validé avant de pouvoir être exécuté.',
         'import_already_executed' => 'Ce lot a déjà été exécuté ou est en cours d\'exécution et ne peut pas être écarté.',
+
+        'role_code_taken' => 'Il existe déjà un rôle actif dans cet établissement avec ce code.',
+        'role_code_immutable' => 'Le code d\'un rôle ne peut pas être modifié : c\'est sa référence stable.',
+        'role_name_system' => 'Un rôle prédéfini n\'accepte pas de nom littéral : utilisez sa traduction.',
+        'clone_source_not_found' => 'Le rôle d\'origine indiqué n\'existe pas dans cet établissement.',
+        'clone_requires_special_data_access' => 'Vous ne pouvez pas cloner ce rôle : il accorde l\'accès à des données de catégorie spéciale que vous ne pouvez pas activer.',
+        'clone_and_permissions_exclusive' => 'Vous ne pouvez pas indiquer « clone_from » et « permissions » en même temps.',
+        'scope_not_applicable' => 'Le périmètre « :scope » ne peut pas être accordé pour cette permission.',
+        'scope_resolver_missing' => 'Le périmètre « :scope » ne peut pas encore être accordé : son résolveur n\'est pas enregistré.',
+        'permission_not_found' => 'Le code de permission « :code » n\'existe pas dans le catalogue.',
+        'permission_retired' => 'Le code de permission « :code » n\'est plus disponible.',
+        'permission_duplicated' => 'Le code de permission « :code » apparaît plus d\'une fois.',
+        'role_is_system' => 'Un rôle du provisionnement de l\'établissement ne peut pas être supprimé.',
+        'role_has_assignments' => 'Ce rôle a :users_count utilisateur(s) assigné(s) et ne peut pas être supprimé.',
+    ],
+
+    'authorization' => [
+        'cannot_grant_unheld_permission' => 'Vous ne pouvez pas accorder la permission « :code » avec le périmètre « :scope » : vous ne la possédez pas vous-même.',
+        'special_data_access_not_held' => 'Vous ne pouvez pas activer l\'accès aux données de catégorie spéciale : vous ne le possédez pas vous-même.',
+    ],
+
+    'inert_reasons' => [
+        'inerte_permiso_retirado' => 'Cette permission n\'est plus déclarée par aucun module.',
+        'inerte_modulo' => 'Le module de cette permission n\'est pas activé pour cet établissement.',
+        'inerte_datos_especiales' => 'L\'attribution provient d\'un rôle sans accès aux données de catégorie spéciale.',
+        'inerte_sin_resolutor' => 'Le périmètre de cette attribution n\'a pas encore de résolveur.',
     ],
 
     'idempotency' => [

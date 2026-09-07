@@ -18,7 +18,13 @@ interface DeclaresModuleRegistry
     public function moduleDescriptor(): array;
 
     /**
-     * @return list<array{code: string, resource: string, action: string, is_special_category?: bool}>
+     * REQ-PERM/datos.md §3 (1.5): `applicable_scopes` es opcional — su
+     * omisión equivale a `['todos']` (funcional.md §3.2 regla 1). Cuando se
+     * declara, cada valor debe pertenecer al vocabulario cerrado de
+     * `App\Support\Authorization\Scope`; `SyncModuleRegistry` aborta el
+     * despliegue si no es así (RN-PERM-01, operacion.md §4.2).
+     *
+     * @return list<array{code: string, resource: string, action: string, is_special_category?: bool, applicable_scopes?: list<string>}>
      */
     public function declaredPermissions(): array;
 }

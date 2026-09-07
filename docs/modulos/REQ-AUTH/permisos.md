@@ -2,7 +2,7 @@
 
 > **Estructura**: las secciones **§1 a §8** son el paso **1.2**, cerrado el 2026-08-25. La **Parte B** (`§B.1` en adelante) es el paso **1.2b** (`funcional.md` Parte B), **implementada y cerrada** el 2026-08-26 (PR [#91](https://github.com/pirexia/plataforma-educativa/pull/91)/[#92](https://github.com/pirexia/plataforma-educativa/pull/92)).
 
-> Sección 11 del documento de requisitos (`RPERM-001` a `RPERM-015`) aplicada a este módulo. El **resolutor granular** sigue siendo el paso 1.5 (`ADR-034 §2`); lo que se fija aquí es el catálogo, la matriz y la siembra, para que 1.5 no tenga que inventarlos ni migrarlos.
+> Sección 11 del documento de requisitos (`RPERM-001` a `RPERM-015`) aplicada a este módulo. El **resolutor granular** es el paso 1.5 (`ADR-034 §2`), **ya cerrado**. Los once permisos de este catálogo declaran ahora `applicable_scopes: ['todos']`, explícito y sin excepción (`docs/modulos/REQ-PERM/permisos.md §3.2`) — incluida la comprobación, ya hecha y descartada, de `propios` para `bloqueo_cuenta.leer` (§5.6: un usuario bloqueado nunca llega a un endpoint con sesión). Este documento no repite la tabla; la fuente de verdad sigue siendo `AuthServiceProvider::declaredPermissions()`.
 >
 > Fuente de verdad del catálogo: **el código del módulo** (`INV-007`), declarado en `AuthServiceProvider::declaredPermissions()` y materializado en `permissions` por `platform:sync-registry` (`ADR-034 §2`). Esta tabla es su reflejo documental, no su origen.
 
@@ -127,17 +127,19 @@ Merece decirse en voz alta porque es contraintuitivo: al cerrar 1.2 existe un at
 
 Sin cambios. `REQ-AUTH` no expone categoría especial (§6).
 
-### 5.6 Ámbitos en 1.2: por qué los dos permisos son `todos`
+### 5.6 Ámbitos en 1.2: por qué los dos permisos son `todos` — **CERRADA por 1.5**
 
-Rige la misma **regla de seguridad** que `REQ-CORE/permisos.md §5`, y hay que repetirla porque sigue en vigor: entre 1.1 y 1.5, el resolutor provisional de `ADR-034 §2` **lee `permission_role.effect` e ignora `permission_role.scope`**. Una concesión con ámbito `propios` se evalúa hoy exactamente igual que una con ámbito `todos`.
+**Marcada como cerrada, no borrada** (`ADR-044 §8`, `REQ-PERM/permisos.md §9.2`): describía una regla de seguridad vigente entre 1.1 y 1.4c, que 1.5 cerró con el resolutor granular completo (`docs/modulos/REQ-PERM/`).
 
-Aplicado a este módulo: sembrar `bloqueo_cuenta.leer` con ámbito `propios` —pensando en «que cada uno vea si está bloqueado»— daría a ese rol el **listado completo de cuentas bloqueadas del centro**, que es un mapa de quién ha tenido problemas de acceso y de qué correos existen. Fallo de control de acceso silencioso, activo durante tres pasos del plan.
+Rige la misma **regla de seguridad** que regía `REQ-CORE/permisos.md §5`: entre 1.1 y 1.4c, el resolutor provisional de `ADR-034 §2` **leía `permission_role.effect` e ignoraba `permission_role.scope`**. Una concesión con ámbito `propios` se evaluaba exactamente igual que una con ámbito `todos`.
 
-Reglas derivadas, verificables:
+Aplicado a este módulo: sembrar `bloqueo_cuenta.leer` con ámbito `propios` —pensando en «que cada uno vea si está bloqueado»— habría dado a ese rol el **listado completo de cuentas bloqueadas del centro**. Es exactamente el fallo que `REQ-PERM/permisos.md §3.2` volvió a comprobar y descartar para este mismo permiso al cerrar el catálogo completo tras 1.5 — `bloqueo_cuenta.leer` sigue en `['todos']`: el caso de uso de `propios` no existe (un usuario bloqueado no puede autenticarse, nunca llega a un endpoint con sesión).
 
-1. **Toda fila de `permission_role` creada en 1.2 lleva `scope = 'todos'`** (`RN-CORE-22`). Verificado por el test de catálogo de §8.
-2. **El autoservicio no se modela como permiso con ámbito.** El logout se autoriza por identidad del portador de la cookie (§1), no por `sesion.eliminar` con ámbito `propios`. Es una comprobación de identidad y no depende del resolutor.
-3. **1.5 hereda la responsabilidad** de introducir los ámbitos restringidos junto con el resolutor que los evalúa, en el mismo paso. Nunca antes.
+Reglas derivadas, verificadas al cierre de 1.5:
+
+1. **Toda fila de `permission_role` lleva un `scope` del vocabulario cerrado**, garantizado ahora por `CHECK` en el motor (`RN-PERM-02`), no solo por el test de catálogo de §8.
+2. **El autoservicio no se modela como permiso con ámbito**, con motivo renovado (`REQ-PERM/permisos.md §5.3`): un permiso puede ponerse a `false`, y el autoservicio no debe poder desactivarse. El logout sigue autorizándose por identidad del portador de la cookie (§1).
+3. **1.5 entregó** el resolutor y el vocabulario cerrado de ámbitos, en el mismo paso.
 
 ---
 
@@ -202,6 +204,8 @@ No es un descuido ni una simplificación. Es la consecuencia directa de que **lo
 | `DELETE /auth/sessions` | Identidad del portador | Ídem |
 
 Y sobre todo: `permisos.md §5.6`, **regla 2**, escrita en 1.2 y en vigor —*«El autoservicio no se modela como permiso con ámbito. El logout se autoriza por identidad del portador de la cookie, no por `sesion.eliminar` con ámbito `propios`»*—. 1.2b es el primer paso que **pone a prueba** esa regla con una funcionalidad que sí parece pedir un recurso, y la regla aguanta.
+
+**Cerrado por 1.5** (`REQ-PERM/permisos.md §9.2`): la regla 2 de `§5.6` sigue en vigor después del resolutor granular completo, con el mismo motivo renovado — un permiso puede desactivarse, y el autoservicio no debe poder desactivarse con él. `GET /me/effective-permissions` (1.5) es la aplicación más reciente del mismo patrón.
 
 **Recuerdo de por qué importa**: entre 1.1 y 1.5 el resolutor provisional de `ADR-034 §2` **lee `effect` e ignora `scope`**. Un permiso `sesion.leer` sembrado con ámbito `propios` —pensando «que cada uno vea las suyas»— se evaluaría hoy como `todos`. Es decir: **crear ese permiso con la intención correcta daría, durante tres pasos del plan, acceso al listado completo de sesiones activas del centro**, que es un mapa en tiempo real de quién está conectado y desde dónde. Ese es el fallo silencioso concreto que la regla 2 evita, y es la razón por la que no basta con «lo arreglamos en 1.5».
 
@@ -443,17 +447,19 @@ Si un centro concreto necesita repartirlo, **1.5 lo permitirá con un rol person
 
 Sin cambios. `REQ-AUTH` sigue sin exponer categoría especial (`§C.9`).
 
-### C.7.6 Ámbitos en 1.3: por qué los dos son `todos`
+### C.7.6 Ámbitos en 1.3: por qué los dos son `todos` — **CERRADA por 1.5**
 
-Rige la **regla de seguridad** de §5.6, que sigue en vigor sin matices: entre 1.1 y 1.5, el resolutor provisional de `ADR-034 §2` **lee `permission_role.effect` e ignora `permission_role.scope`**. Una concesión con ámbito `propios` se evalúa hoy exactamente igual que una con ámbito `todos`.
+**Marcada como cerrada, no borrada** (`ADR-044 §8`, `REQ-PERM/permisos.md §9.2`), por el mismo motivo que `§5.6`.
 
-Aplicado a este paso, y el ejemplo es peor que el de 1.2: sembrar `mfa.leer` con ámbito `propios` —pensando en «que cada uno vea su estado»— daría a ese rol **el recuento agregado de cumplimiento de todo el centro, y desde la restauración de `GET /mfa-compliance/users`, la identidad de quién no cumple**. Es decir, exactamente la información que `§C.6.1` acaba de argumentar que no se reparte, entregada por un ámbito que nadie evalúa.
+Regía la **regla de seguridad** de §5.6, en vigor sin matices entre 1.1 y 1.4c: el resolutor provisional de `ADR-034 §2` **leía `permission_role.effect` e ignoraba `permission_role.scope`**. Una concesión con ámbito `propios` se evaluaba exactamente igual que una con ámbito `todos`.
 
-Reglas derivadas, verificables:
+Aplicado a este paso: sembrar `mfa.leer` con ámbito `propios` —pensando en «que cada uno vea su estado»— habría dado a ese rol **el recuento agregado de cumplimiento de todo el centro, y desde la restauración de `GET /mfa-compliance/users`, la identidad de quién no cumple**. Exactamente la información que `§C.6.1` argumenta que no se reparte. El catálogo completo revisado tras 1.5 (`REQ-PERM/permisos.md §3.2`) confirma `mfa.leer` en `['todos']`, explícito y sin excepción.
 
-1. **Toda fila de `permission_role` creada en 1.3 lleva `scope = 'todos'`** (`RN-CORE-22`). Verificado por el test de catálogo de `§C.10`.
-2. **El autoservicio no se modela como permiso con ámbito.** `GET /auth/mfa` no es `mfa.leer` con ámbito `propios`: es una comprobación de identidad que no pasa por el resolutor. Es la misma regla 2 de §5.6, y sigue siendo la que evita que un ámbito no evaluado abra un listado.
-3. **1.5 hereda la responsabilidad** de introducir los ámbitos restringidos junto con el resolutor que los evalúa, en el mismo paso. Nunca antes.
+Reglas derivadas, verificadas al cierre de 1.5:
+
+1. **Toda fila de `permission_role` lleva un `scope` del vocabulario cerrado**, garantizado por `CHECK` en el motor (`RN-PERM-02`).
+2. **El autoservicio no se modela como permiso con ámbito**, con motivo renovado (`REQ-PERM/permisos.md §5.3`): un permiso puede ponerse a `false`. `GET /auth/mfa` sigue autorizándose por identidad, sin pasar por el resolutor.
+3. **1.5 entregó** el resolutor y el vocabulario cerrado de ámbitos.
 
 ---
 
