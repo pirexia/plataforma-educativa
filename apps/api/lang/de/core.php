@@ -43,6 +43,32 @@ return [
         'export_failed' => 'Die Erstellung dieses Exports ist fehlgeschlagen.',
         'import_not_validated' => 'Der Stapel muss validiert sein, bevor er ausgeführt werden kann.',
         'import_already_executed' => 'Dieser Stapel wurde bereits ausgeführt oder wird gerade ausgeführt und kann nicht verworfen werden.',
+
+        'role_code_taken' => 'Es gibt in dieser Schule bereits eine aktive Rolle mit diesem Code.',
+        'role_code_immutable' => 'Der Code einer Rolle kann nicht geändert werden: Er ist ihre stabile Referenz.',
+        'role_name_system' => 'Eine vordefinierte Rolle akzeptiert keinen literalen Namen: Verwende ihre Übersetzung.',
+        'clone_source_not_found' => 'Die angegebene Ursprungsrolle existiert in dieser Schule nicht.',
+        'clone_requires_special_data_access' => 'Du kannst diese Rolle nicht klonen: Sie gewährt Zugriff auf besonders geschützte Daten, den du nicht aktivieren kannst.',
+        'clone_and_permissions_exclusive' => 'Du kannst nicht gleichzeitig „clone_from" und „permissions" angeben.',
+        'scope_not_applicable' => 'Der Geltungsbereich „:scope" kann für diese Berechtigung nicht vergeben werden.',
+        'scope_resolver_missing' => 'Der Geltungsbereich „:scope" kann noch nicht vergeben werden: Sein Resolver ist nicht registriert.',
+        'permission_not_found' => 'Der Berechtigungscode „:code" existiert nicht im Katalog.',
+        'permission_retired' => 'Der Berechtigungscode „:code" ist nicht mehr verfügbar.',
+        'permission_duplicated' => 'Der Berechtigungscode „:code" kommt mehr als einmal vor.',
+        'role_is_system' => 'Eine Rolle aus der Bereitstellung der Schule kann nicht gelöscht werden.',
+        'role_has_assignments' => 'Dieser Rolle sind :users_count Benutzer zugewiesen und sie kann nicht gelöscht werden.',
+    ],
+
+    'authorization' => [
+        'cannot_grant_unheld_permission' => 'Du kannst die Berechtigung „:code" mit Geltungsbereich „:scope" nicht vergeben: Du besitzt sie selbst nicht.',
+        'special_data_access_not_held' => 'Du kannst den Zugriff auf besonders geschützte Daten nicht aktivieren: Du besitzt ihn selbst nicht.',
+    ],
+
+    'inert_reasons' => [
+        'inerte_permiso_retirado' => 'Diese Berechtigung wird von keinem Modul mehr deklariert.',
+        'inerte_modulo' => 'Das Modul dieser Berechtigung ist für diese Schule nicht aktiviert.',
+        'inerte_datos_especiales' => 'Die Gewährung stammt von einer Rolle ohne Zugriff auf besonders geschützte Daten.',
+        'inerte_sin_resolutor' => 'Der Geltungsbereich dieser Gewährung hat noch keinen Resolver.',
     ],
 
     'idempotency' => [

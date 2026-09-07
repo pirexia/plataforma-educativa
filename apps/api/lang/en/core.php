@@ -43,6 +43,32 @@ return [
         'export_failed' => 'The generation of this export has failed.',
         'import_not_validated' => 'The batch must be validated before it can be executed.',
         'import_already_executed' => 'This batch has already been executed or is being executed and cannot be discarded.',
+
+        'role_code_taken' => 'A living role in this school already uses this code.',
+        'role_code_immutable' => 'A role\'s code cannot be changed: it is its stable reference.',
+        'role_name_system' => 'A predefined role does not accept a literal name: use its translation.',
+        'clone_source_not_found' => 'The given source role does not exist in this school.',
+        'clone_requires_special_data_access' => 'You cannot clone this role: it grants access to special category data and you cannot activate it.',
+        'clone_and_permissions_exclusive' => 'You cannot provide both "clone_from" and "permissions".',
+        'scope_not_applicable' => 'The scope ":scope" cannot be granted for this permission.',
+        'scope_resolver_missing' => 'The scope ":scope" cannot be granted yet: its resolver is not registered.',
+        'permission_not_found' => 'The permission code ":code" does not exist in the catalog.',
+        'permission_retired' => 'The permission code ":code" is no longer available.',
+        'permission_duplicated' => 'The permission code ":code" appears more than once.',
+        'role_is_system' => 'A role from the school\'s provisioning cannot be deleted.',
+        'role_has_assignments' => 'This role has :users_count assigned user(s) and cannot be deleted.',
+    ],
+
+    'authorization' => [
+        'cannot_grant_unheld_permission' => 'You cannot grant permission ":code" with scope ":scope": you do not have it yourself.',
+        'special_data_access_not_held' => 'You cannot activate access to special category data: you do not have it yourself.',
+    ],
+
+    'inert_reasons' => [
+        'inerte_permiso_retirado' => 'No module declares this permission anymore.',
+        'inerte_modulo' => 'This permission\'s module is not enabled for this school.',
+        'inerte_datos_especiales' => 'The grant comes from a role without access to special category data.',
+        'inerte_sin_resolutor' => 'This grant\'s scope does not have a resolver yet.',
     ],
 
     'idempotency' => [
