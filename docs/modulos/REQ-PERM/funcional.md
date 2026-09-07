@@ -6,7 +6,7 @@
 | Prioridad | MUST |
 | Fase | 1 · paso **1.5** del plan |
 | Depende de | `REQ-CORE` (1.1, cerrado), `REQ-AUTH` (1.2/1.2b/1.3/1.3b/1.4/1.4b/1.4c, cerrados) |
-| Estado | **PROPUESTO** — pendiente de aprobación antes de implementar |
+| Estado | **ACEPTADA** e **IMPLEMENTADA** — aprobada por el usuario el 2026-09-04 (§19), implementada y verificada el 2026-09-07 (`memory.md`, commit `57f6f85`) |
 | Decisión de arquitectura vinculante | `ADR-044` (ACEPTADA, 2026-09-04) |
 
 > **Todo lo que sigue se deriva de `ADR-044`.** Donde esta especificación añade una decisión que el ADR no fija, se marca con **[DERIVADA]** y se argumenta. Donde falta información que no me corresponde inventar, hay una **pregunta abierta** en §13 y **no** una decisión.

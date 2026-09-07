@@ -23,34 +23,75 @@
  * `RuntimeException` para explicar por qué él mismo se niega a escribir en
  * modo plataforma. Ninguno de los tres es una excepción real que declarar
  * en la lista: ninguno invoca el método.
+ *
+ * Hallazgo de `security-reviewer` (issue #167, 2026-09-07): la primera
+ * versión solo reconocía `->runAsPlatform(` (T_OBJECT_OPERATOR), dejando
+ * pasar sin detectar dos formas reales de invocarlo: el operador nullsafe
+ * (`$context?->runAsPlatform(...)`, T_NULLSAFE_OBJECT_OPERATOR — un token
+ * distinto de `->` desde PHP 8) y la llamada dinámica por nombre entre
+ * llaves (`$context->{'runAsPlatform'}(...)`), donde el nombre del método
+ * es una cadena, no un T_STRING. Ambas cubiertas ahora.
  */
 function usesRunAsPlatform(string $path): bool
 {
     $tokens = token_get_all(file_get_contents($path));
 
-    foreach ($tokens as $i => $token) {
-        if (! is_array($token) || $token[0] !== T_STRING || $token[1] !== 'runAsPlatform') {
-            continue;
+    $tokenId = static fn (mixed $t): int|string => is_array($t) ? $t[0] : $t;
+    $tokenText = static fn (mixed $t): string => is_array($t) ? $t[1] : $t;
+
+    $isInsignificant = static fn (mixed $t): bool => is_array($t) && in_array($t[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true);
+
+    // Devuelve el ÍNDICE del token significativo anterior, o null — nunca
+    // el valor, porque un token de un solo carácter (`{`) es una cadena
+    // plana en `token_get_all()`, no un array, y no se puede reencontrar
+    // de forma fiable con `array_search()` sobre el array de tokens.
+    $previousSignificantIndex = static function (array $tokens, int $from) use ($isInsignificant): ?int {
+        for ($j = $from; $j >= 0; $j--) {
+            if (! $isInsignificant($tokens[$j])) {
+                return $j;
+            }
         }
 
-        // Busca hacia atrás el token significativo anterior (saltando
-        // espacios en blanco y comentarios): una llamada real es
-        // `->runAsPlatform(` o una declaración `function runAsPlatform(`.
-        for ($j = $i - 1; $j >= 0; $j--) {
-            $previous = $tokens[$j];
+        return null;
+    };
 
-            if (is_array($previous) && in_array($previous[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
-                continue;
-            }
+    $isAccessOperator = static fn (mixed $t): bool => $t !== null && in_array($tokenId($t), [T_OBJECT_OPERATOR, T_NULLSAFE_OBJECT_OPERATOR], true);
 
-            $isCall = is_array($previous) && $previous[0] === T_OBJECT_OPERATOR;
-            $isDeclaration = is_array($previous) && $previous[0] === T_FUNCTION;
+    foreach ($tokens as $i => $token) {
+        // Forma directa: `->runAsPlatform(`, `?->runAsPlatform(`, o la
+        // declaración `function runAsPlatform(`.
+        if (is_array($token) && $token[0] === T_STRING && $token[1] === 'runAsPlatform') {
+            $previousIndex = $previousSignificantIndex($tokens, $i - 1);
+            $previous = $previousIndex === null ? null : $tokens[$previousIndex];
+            $isCall = $isAccessOperator($previous);
+            $isDeclaration = $previous !== null && $tokenId($previous) === T_FUNCTION;
 
             if ($isCall || $isDeclaration) {
                 return true;
             }
+        }
 
-            break;
+        // Forma dinámica: `->{'runAsPlatform'}(` o `?->{'runAsPlatform'}(`
+        // — el nombre viaja como cadena entre llaves, no como identificador.
+        if (is_array($token) && $token[0] === T_CONSTANT_ENCAPSED_STRING) {
+            $name = substr($token[1], 1, -1);
+
+            if ($name !== 'runAsPlatform') {
+                continue;
+            }
+
+            $braceIndex = $previousSignificantIndex($tokens, $i - 1);
+
+            if ($braceIndex === null || $tokenText($tokens[$braceIndex]) !== '{') {
+                continue;
+            }
+
+            $operatorIndex = $previousSignificantIndex($tokens, $braceIndex - 1);
+            $operator = $operatorIndex === null ? null : $tokens[$operatorIndex];
+
+            if ($isAccessOperator($operator)) {
+                return true;
+            }
         }
     }
 

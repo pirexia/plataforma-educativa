@@ -32,9 +32,21 @@ use Illuminate\Support\Facades\DB;
  * Sin `contract`: no se elimina ni se renombra nada (`expand` puro,
  * datos.md §2.4). Ejecutada sobre `pgsql_owner`, como el resto del DDL de
  * esta tabla.
+ *
+ * `$withinTransaction = false` (hallazgo Alta de `db-reviewer`, issue #166,
+ * 2026-09-07): sin este flag, Laravel envuelve las siete sentencias en un
+ * único `BEGIN`/`COMMIT` y el lock `ACCESS EXCLUSIVE` adquirido por la
+ * sentencia 2 no se libera hasta el final de la transacción — anulando por
+ * completo la ventaja de `NOT VALID`/`VALIDATE CONSTRAINT` de las
+ * sentencias 3 y 7, que quedarían bloqueando lecturas/escrituras durante
+ * todo el recorrido de la tabla. Mismo fallo, mismo patrón de corrección
+ * ya aplicado en 1.4b/1.4c (ver p. ej.
+ * `2026_09_01_100500_add_identity_provider_to_user_identities.php`).
  */
 return new class extends Migration
 {
+    public $withinTransaction = false;
+
     public function up(): void
     {
         $owner = DB::connection('pgsql_owner');
