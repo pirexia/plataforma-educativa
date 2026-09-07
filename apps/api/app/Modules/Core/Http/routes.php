@@ -11,6 +11,7 @@
 
 use App\Modules\Core\Http\Controllers\AuditLogsController;
 use App\Modules\Core\Http\Controllers\DataExportsController;
+use App\Modules\Core\Http\Controllers\EffectivePermissionsController;
 use App\Modules\Core\Http\Controllers\InvitationsController;
 use App\Modules\Core\Http\Controllers\MeController;
 use App\Modules\Core\Http\Controllers\ModulesController;
@@ -102,16 +103,33 @@ Route::get('/roles', [RolesController::class, 'index'])
     ->middleware('permission:rol.leer')
     ->name('core.roles.index');
 
+// REQ-PERM/api.md §3 (1.5, RPERM-005/006): alta y clonación comparten
+// ruta, verbo y permiso.
+Route::post('/roles', [RolesController::class, 'store'])
+    ->middleware('permission:rol.crear')
+    ->name('core.roles.store');
+
 Route::get('/roles/{publicId}', [RolesController::class, 'show'])
     ->middleware('permission:rol.leer')
     ->name('core.roles.show');
 
 // REQ-AUTH/funcional.md §C.2.2, §C.16 (1.3): acotado a mfa_required
-// (RN-AUTH-70). El editor completo de roles llega en 1.5, sobre la misma
-// ruta y el mismo permiso (expand puro sobre la superficie HTTP).
+// (RN-AUTH-70). REQ-PERM/api.md §4 (1.5): mismo método, misma ruta, mismo
+// permiso base — el editor completo se abre en PatchRole.
 Route::patch('/roles/{publicId}', [RolesController::class, 'update'])
     ->middleware('permission:rol.actualizar')
     ->name('core.roles.update');
+
+// REQ-PERM/api.md §6 (1.5, RN-PERM-16/17).
+Route::delete('/roles/{publicId}', [RolesController::class, 'destroy'])
+    ->middleware('permission:rol.eliminar')
+    ->name('core.roles.destroy');
+
+// REQ-PERM/api.md §5 (1.5): reemplazo completo de las concesiones de un
+// rol (ADR-038 §9.1).
+Route::put('/roles/{publicId}/permissions', [RolesController::class, 'replacePermissions'])
+    ->middleware('permission:rol.actualizar')
+    ->name('core.roles.permissions.replace');
 
 Route::get('/permissions', [PermissionsController::class, 'index'])
     ->middleware('permission:permiso.leer')
@@ -124,6 +142,19 @@ Route::get('/users/{publicId}/roles', [UserRolesController::class, 'index'])
 Route::put('/users/{publicId}/roles', [UserRolesController::class, 'replace'])
     ->middleware('permission:asignacion_rol.crear')
     ->name('core.user-roles.replace');
+
+// REQ-PERM/api.md §7 (1.5, RPERM-009). Dos rutas, un solo controlador y
+// un solo cálculo (`ComputeEffectivePermissions`) — la diferencia está
+// entera en cómo se autoriza cada una (funcional.md §7.11).
+Route::get('/users/{publicId}/effective-permissions', [EffectivePermissionsController::class, 'show'])
+    ->middleware('permission:permiso_efectivo.leer')
+    ->name('core.users.effective-permissions');
+
+// Sin middleware `permission:` — y nunca lo llevará (funcional.md §7.11,
+// permisos.md §2.2): autoservicio autorizado por identidad del portador
+// de la cookie, como GET /me.
+Route::get('/me/effective-permissions', [EffectivePermissionsController::class, 'mine'])
+    ->name('core.me.effective-permissions');
 
 Route::get('/modules', [ModulesController::class, 'index'])
     ->middleware('permission:modulo.leer')

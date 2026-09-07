@@ -3,21 +3,29 @@
 namespace App\Modules\Core\Http\Controllers;
 
 use App\Models\Role;
-use App\Modules\Core\Domain\Events\RoleMfaRequirementChanged;
+use App\Models\User;
+use App\Modules\Core\Application\CreateRole;
+use App\Modules\Core\Application\DeleteRole;
+use App\Modules\Core\Application\PatchRole;
+use App\Modules\Core\Application\ReplaceRolePermissions;
 use App\Modules\Core\Http\Requests\PatchRoleRequest;
+use App\Modules\Core\Http\Requests\ReplaceRolePermissionsRequest;
+use App\Modules\Core\Http\Requests\StoreRoleRequest;
 use App\Modules\Core\Http\Resources\RoleResource;
 use App\Support\Api\ApiException;
 use App\Support\Api\PagePaginatedResponse;
-use App\Support\Api\ValidationErrorBag;
-use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Auth;
 
 /**
- * api.md §5. Solo lectura en 1.1. REQ-AUTH/funcional.md §C.2, §C.16 (1.3)
- * añade `update()`, acotado a `mfa_required` (`RN-AUTH-70`) — el resto de
- * la escritura de roles y concesiones sigue siendo 1.5.
+ * api.md §3-§6. Alta y clonación (`RPERM-005`/`006`), editor completo
+ * (`PATCH`, sobre la misma ruta y el mismo permiso desde 1.3), concesión y
+ * revocación de permisos, y baja de rol — los cuatro nuevos/ampliados de
+ * `REQ-PERM` (1.5) sobre `App\Modules\Core`, donde ya vivían `index()` y
+ * `show()` desde 1.1.
  */
 class RolesController extends Controller
 {
@@ -43,11 +51,24 @@ class RolesController extends Controller
     }
 
     /**
-     * REQ-AUTH/funcional.md §C.2.2, §C.16, `RN-AUTH-70`, `CA-AUTH-135`.
-     * En 1.3 el cuerpo admite **exactamente** `mfa_required`: cualquier
-     * otra clave responde `422` sin cambiar nada (`ADR-038 §8`, semántica
-     * de `PATCH`). En 1.5 este mismo método admite el resto de atributos
-     * del editor de roles, sin cambiar de ruta ni de permiso (`§C.2.2`).
+     * `RPERM-005`/`RPERM-006`, api.md §3. `clone_from` decide si es alta o
+     * clonación; ambas comparten permiso (`rol.crear`) y validación
+     * (`CreateRole`).
+     */
+    public function store(StoreRoleRequest $request): JsonResponse
+    {
+        $role = app(CreateRole::class)->create($request->validated(), $this->actor());
+        $role->load('permissionGrants.permission');
+
+        return (new RoleResource($role))->response()
+            ->setStatusCode(201)
+            ->header('Location', route('core.roles.show', $role->public_id));
+    }
+
+    /**
+     * REQ-AUTH/funcional.md §C.2.2, §C.16, `RN-AUTH-70`, `CA-AUTH-135`
+     * (1.3): acotado a `mfa_required`. REQ-PERM/api.md §4 (1.5): mismo
+     * método, mismo permiso base, editor completo delegado en `PatchRole`.
      */
     public function update(PatchRoleRequest $request, string $publicId): RoleResource
     {
@@ -57,28 +78,54 @@ class RolesController extends Controller
             throw ApiException::notFound();
         }
 
-        $extraKeys = array_diff(array_keys($request->all()), ['mfa_required']);
+        $role = app(PatchRole::class)->apply($role, $request->all(), $this->actor());
 
-        if ($extraKeys !== []) {
-            $errors = new ValidationErrorBag;
-            $errors->add('body', 'core.validation.role_patch_field_not_allowed', 'core.validation.role_patch_field_not_allowed');
-            $errors->throwIfAny();
+        return new RoleResource($role);
+    }
+
+    /**
+     * api.md §6, `funcional.md §7.9` (`RN-PERM-16`, `RN-PERM-17`).
+     */
+    public function destroy(string $publicId): Response
+    {
+        $role = Role::query()->where('public_id', $publicId)->first();
+
+        if ($role === null) {
+            throw ApiException::notFound();
         }
 
-        $newValue = $request->boolean('mfa_required');
-        $wasRequired = (bool) $role->mfa_required;
+        app(DeleteRole::class)->delete($role);
 
-        $role->mfa_required = $newValue;
-        $role->save();
+        return response()->noContent();
+    }
 
-        // funcional.md §C.4.8: solo cuando la obligación EMPIEZA (false→true)
-        // hace falta materializar de inmediato — apagarla no crea nada que
-        // resolver aquí (MfaPolicy ya deja de exigirlo en la próxima
-        // evaluación de cada usuario).
-        if ($newValue && ! $wasRequired) {
-            event(new RoleMfaRequirementChanged(app(TenantContext::class)->tenantId(), $role->public_id));
+    /**
+     * api.md §5, `PUT /roles/{public_id}/permissions`. Reemplazo completo
+     * del conjunto de concesiones (`ADR-038 §9.1`). El orden de validación
+     * exacto — forma antes que autorización, existencia del rol la última
+     * — vive en `ReplaceRolePermissions` (api.md §5.1).
+     */
+    public function replacePermissions(ReplaceRolePermissionsRequest $request, string $publicId): RoleResource
+    {
+        $role = Role::query()->where('public_id', $publicId)->first();
+
+        $updated = app(ReplaceRolePermissions::class)->execute(
+            $role,
+            $request->validated('permissions'),
+            $this->actor(),
+        );
+
+        return new RoleResource($updated);
+    }
+
+    private function actor(): User
+    {
+        $actor = Auth::user();
+
+        if (! $actor instanceof User) {
+            throw ApiException::unauthenticated();
         }
 
-        return new RoleResource($role->refresh());
+        return $actor;
     }
 }
