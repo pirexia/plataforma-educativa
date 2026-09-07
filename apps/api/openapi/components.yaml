@@ -171,13 +171,71 @@ components:
 
     Permission:
       type: object
+      description: >
+        REQ-PERM/api.md §2.1 (1.5): applicable_scopes/grantable_scopes
+        distinguen «este ámbito existe pero su módulo todavía no ha
+        llegado» de «se puede conceder ahora mismo».
       properties:
         code: { type: string }
         resource: { type: string }
         action: { type: string }
         module_code: { type: string }
         is_special_category: { type: boolean }
+        applicable_scopes:
+          type: array
+          items: { $ref: '#/components/schemas/Scope' }
+        grantable_scopes:
+          type: array
+          items: { $ref: '#/components/schemas/Scope' }
         retired_at: { type: string, format: date-time, nullable: true }
+
+    Scope:
+      type: string
+      description: REQ-PERM/funcional.md §3.1, ADR-044 §4.1. Vocabulario cerrado.
+      enum: [todos, propios, departamento, grupo, clase, unidad_familiar]
+
+    PermissionGrant:
+      type: object
+      required: [code, effect, scope]
+      properties:
+        code: { type: string }
+        effect: { type: string, enum: [allow, deny] }
+        scope: { $ref: '#/components/schemas/Scope' }
+
+    EffectivePermissionSource:
+      type: object
+      properties:
+        role:
+          type: object
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            code: { type: string }
+            name: { type: string }
+        effect: { type: string, enum: [allow, deny] }
+        scope: { $ref: '#/components/schemas/Scope' }
+        inert: { type: boolean }
+        inert_reason:
+          type: string
+          nullable: true
+          enum: [inerte_permiso_retirado, inerte_modulo, inerte_datos_especiales, inerte_sin_resolutor]
+
+    EffectivePermission:
+      type: object
+      description: REQ-PERM/api.md §7 (RPERM-009).
+      properties:
+        code: { type: string }
+        resource: { type: string }
+        action: { type: string }
+        module_code: { type: string }
+        is_special_category: { type: boolean }
+        decision: { type: string, enum: [permitido, denegado] }
+        scopes:
+          type: array
+          items: { $ref: '#/components/schemas/Scope' }
+        unrestricted: { type: boolean }
+        sources:
+          type: array
+          items: { $ref: '#/components/schemas/EffectivePermissionSource' }
 
     ModuleSubscription:
       type: object
