@@ -214,6 +214,15 @@ Más allá de credenciales de base de datos/Redis (`.env.example`), la aplicaci�
 
 **Limitación conocida del entorno de desarrollo, no de producción** (issue [#146](https://github.com/pirexia/plataforma-educativa/issues/146)): el emisor OIDC simulado de 1.4b (`docs/modulos/REQ-AUTH/operacion.md §F.10`) se sirve por la propia API en `local`/`testing`. Con `php artisan serve` (servidor de un solo hilo, solo en la imagen `dev` del `Containerfile`), dar de alta **desde el navegador** un proveedor cuya `discovery_url` apunte al propio servidor de desarrollo se interbloquea y responde `sin_respuesta` — la suite Pest no lo sufre (proceso aparte del servidor HTTP) y producción tampoco (`frankenphp php-server`, concurrente). **La misma limitación aplica al IdP SAML simulado de 1.4c** (`docs/modulos/REQ-AUTH/operacion.md §G.10`) cuando se cataloga un proveedor con `metadata_url` apuntando al propio servidor de desarrollo: mismo síntoma, misma causa, misma ausencia de impacto en tests y en producción.
 
+**Nota de despliegue de 1.5** (`REQ-PERM`, núcleo de autorización granular — `docs/modulos/REQ-PERM/operacion.md §4`): **cuatro pasos, en este orden exacto**, sin variable de entorno nueva.
+
+1. **Migraciones de esquema** — dos, ambas aditivas: `permission_role.scope` a `NOT NULL` + `CHECK` de vocabulario (siete sentencias escalonadas, sin bloqueo apreciable); `permissions.applicable_scopes` (`ADD COLUMN` simple, tabla de referencia).
+2. **`php artisan platform:sync-registry`** — ya obligatorio desde 0.8.11; gana la responsabilidad de materializar `applicable_scopes` y los cuatro permisos nuevos (`rol.crear`, `rol.eliminar`, `rol_datos_especiales.actualizar`, `permiso_efectivo.leer`). **Aborta el despliegue** si algún módulo declara un ámbito fuera del vocabulario cerrado.
+3. **`php artisan perm:grant-role-administration`** — **el paso que más fácil se olvida** (mismo patrón que `auth:grant-lockout-permissions` de 1.2): concede a `administrador_centro`, en cada tenant **ya existente**, los cuatro permisos nuevos. `tenant:provision-defaults` solo los siembra en tenants nuevos. **Sin este paso, los centros existentes ven `403` inexplicables al intentar crear o eliminar un rol** — el síntoma es indistinguible de «no tengo permiso».
+4. **Verificación** (cuatro comprobaciones de una línea, `operacion.md §4.4`): ninguna fila de `permission_role` con `scope` nulo o fuera del vocabulario; los cuatro permisos nuevos existen sin `retired_at`; `auditoria.leer` tiene `applicable_scopes = ["todos","propios"]`; `administrador_centro` tiene las cuatro concesiones nuevas en cada tenant.
+
+Sin caché de permisos (`ADR-044 §4.7`): una restauración de copia de seguridad no necesita reconstruir nada de autorización, pero si la restauración es anterior al despliegue de 1.5, hay que **volver a ejecutar los pasos 2 y 3**.
+
 ## 3. Comprobación rápida
 
 ```bash

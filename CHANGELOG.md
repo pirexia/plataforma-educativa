@@ -6,6 +6,38 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-09-04/07 · Cierre de 1.5 (`REQ-PERM`, núcleo de autorización granular)
+
+### Nuevo: motor de resolución multi-rol completo, sucesor del resolutor provisional de 1.1-1.4c
+`App\Support\Authorization` (framework, no módulo — `ADR-044 §4.10`): `Scope` (enum PHP de los seis ámbitos cerrados), `ScopeResolverRegistry` + contrato `ScopeResolver` (un módulo propietario registra el resolutor de su entidad; el núcleo nunca sabe qué es un grupo), `PermissionDecision`/`PermissionSource` (procedencia y motivo de inercia), `ScopedQuery` (API sancionada única de acotación por ámbito) y `PermissionResolver` reescrito: algoritmo exacto de `RPERM-007` — deny ciego al ámbito veta el código entero, `allow` pasa cuatro filtros de inercia (catálogo retirado, módulo desactivado, categoría especial sin `special_data_access`, ámbito sin resolutor), unión de ámbitos supervivientes, `todos` absorbe, conjunto vacío deniega (`RPERM-011`). Memoizado por petición (`scoped()`), sin caché compartida (`ADR-044 §4.7`).
+
+Único resolutor real probado de punta a punta (`ADR-044 §8`): `propios` sobre `auditoria` — un rol con ese ámbito ve solo sus propias entradas en `GET /audit-logs`, con detalle implícito por `auditable_id` (`404`, nunca lista vacía con `200`) y exportación acotada dentro del propio trabajo en cola (`GenerateAuditLogExport`, re-resuelve el ámbito con su propio contexto de tenant).
+
+### Nuevo: CRUD completo de roles personalizados y concesiones, sobre `App\Modules\Core`
+`POST /roles` (alta y clonación, `RPERM-005`/`006`), `PATCH /roles/{id}` ampliado (`name`, `special_data_access` con permiso propio `rol_datos_especiales.actualizar` + posesión del atributo), `DELETE /roles/{id}` (`409` si es `is_system` o tiene asignaciones vivas), `PUT /roles/{id}/permissions` (reemplazo completo, orden de validación fijo: forma antes que autorización, existencia del rol lo último). `RPERM-013` pasa a comparar pares (código, ámbito) con `todos` absorbiendo, en los cuatro puntos donde se concede algo (`POST /roles`, `PUT /roles/{id}/permissions`, `PUT /users/{id}/roles`, `POST /users` con `role_ids`).
+
+Dos endpoints de permisos efectivos compartiendo un solo cálculo (`RPERM-009`): `GET /users/{id}/effective-permissions` (administración, permiso nuevo `permiso_efectivo.leer`, solo `administrador_centro`) y `GET /me/effective-permissions` (autoservicio, por identidad, sin permiso — decisión del usuario, 2026-09-04).
+
+### Corregido: `PermissionRole` y `role_user` no dejaban rastro en `audit_logs` (issue [#165](https://github.com/pirexia/plataforma-educativa/issues/165), Alta)
+`PermissionRole` pasa a `Auditable` (`Full`). El cambio de roles de un usuario (`PUT /users/{id}/roles`) audita `updated` sobre `user` con `changes.roles.{from,to}` mediante registro explícito (`sync()` no dispara eventos de modelo) — `User::$auditRecordedAttributes` gana `roles` para que no quede redactado como `identifier`.
+
+### Corregido: hallazgo confirmado en `REQ-CORE/api.md §5` (issue [#165](https://github.com/pirexia/plataforma-educativa/issues/165))
+`PUT /users/{id}/roles` documentaba desde 1.1 que retirar un rol exige también `asignacion_rol.eliminar`; la ruta solo declaraba `asignacion_rol.crear` y la comprobación no estaba implementada. Corregido en `ReplaceUserRoles`.
+
+### Corregido: test de arquitectura para `TenantContext::runAsPlatform()` (issue [#6](https://github.com/pirexia/plataforma-educativa/issues/6), punto 1)
+Mismo mecanismo que el ya existente para `withoutGlobalScope`: falla si `runAsPlatform()` aparece en código real de `apps/api/app/` fuera de tres excepciones verificadas una a una (`TenantContext.php`, `RunsPerTenant.php`, `PurgeExpiredIdempotencyKeys.php`). Los puntos 2 y 3 del issue quedan re-etiquetados a 1.6 (dependen de `platform_admins`/`admin_action_logs`, inexistentes hasta entonces).
+
+### Esquema
+Dos migraciones aditivas con tratamiento distinto según el riesgo (`ADR-044 §8`, `OPEN-PERM-06`): `permission_role.scope` a `NOT NULL` + `CHECK` de vocabulario, siete sentencias escalonadas sin bloqueo apreciable (tabla de tenant, RLS, escritura concurrente); `permissions.applicable_scopes` (`jsonb` anulable), `ADD COLUMN` simple (tabla de referencia de ~35 filas, un único escritor).
+
+### Operación
+Comando nuevo `perm:grant-role-administration` — el paso de despliegue que más fácil se olvida (mismo patrón que `auth:grant-lockout-permissions` de 1.2): concede a `administrador_centro`, en cada tenant existente, los cuatro permisos que `tenant:provision-defaults` ya siembra en los nuevos.
+
+### Documentación desfasada por este cierre, corregida
+`docs/modulos/REQ-CORE/permisos.md` (catálogo, matriz, siembra, la regla «todo es `todos`» reemplazada y no borrada), `docs/modulos/REQ-CORE/datos.md` (`PermissionRole` en el listado de modelos `Full`, `roles` en la lista de inclusión de auditoría de `User`), `docs/modulos/REQ-AUTH/permisos.md` (§5.6, §B.1, §C.7.6 marcadas como cerradas por 1.5), `SYSADMIN.md` (los cuatro pasos de despliegue), `SECURITY.md` (el modelo de autorización deja de ser «booleano por endpoint»).
+
+---
+
 ## 2026-09-04 · `chore/alcance-declarado-subagentes`
 
 Origen: se propuso configurar `.claudeignore` para aislar el contexto de agentes de backend y de frontend. Se descartó tras verificarlo empíricamente — `.claudeignore` no es una funcionalidad de Claude Code (solo una *feature request* abierta), y un fichero de prueba en la raíz no bloqueó ninguna lectura. La revisión del alcance realmente declarado de los nueve subagentes destapó lo que sigue.
