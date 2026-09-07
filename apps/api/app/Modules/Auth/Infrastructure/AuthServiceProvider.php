@@ -252,17 +252,27 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
      * no se declara `crear` (el sistema crea los bloqueos, nunca una
      * persona) ni `actualizar` (un bloqueo no se edita: se crea o se
      * levanta).
+     *
+     * REQ-PERM/permisos.md §3.2 (1.5): los once permisos pasan a
+     * `applicable_scopes: ['todos']`, explícito y sin excepción. No cambia
+     * el comportamiento (la omisión ya equivale a `['todos']`,
+     * `CA-PERM-007`), pero deja escrita la revisión completa del catálogo
+     * que `ADR-044` exige — incluida la comprobación, ya hecha y
+     * descartada, de `propios` para `bloqueo_cuenta.leer`
+     * (`permisos.md §3.2`: un usuario bloqueado nunca llega a un endpoint
+     * con sesión). `applicable_scopes` de este módulo lo declara
+     * `AuthServiceProvider`, no `REQ-CORE` (`INV-007`).
      */
     public function declaredPermissions(): array
     {
         return [
-            ['code' => 'bloqueo_cuenta.leer', 'resource' => 'bloqueo_cuenta', 'action' => 'leer', 'is_special_category' => false],
-            ['code' => 'bloqueo_cuenta.eliminar', 'resource' => 'bloqueo_cuenta', 'action' => 'eliminar', 'is_special_category' => false],
+            ['code' => 'bloqueo_cuenta.leer', 'resource' => 'bloqueo_cuenta', 'action' => 'leer', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
+            ['code' => 'bloqueo_cuenta.eliminar', 'resource' => 'bloqueo_cuenta', 'action' => 'eliminar', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
             // REQ-AUTH-003 (1.3), funcional.md §C.4.10, §C.1.1 punto 9.
             // 'leer': GET /mfa-compliance (vista previa y cumplimiento).
             // 'eliminar': POST /mfa-resets (restablecimiento).
-            ['code' => 'mfa.leer', 'resource' => 'mfa', 'action' => 'leer', 'is_special_category' => false],
-            ['code' => 'mfa.eliminar', 'resource' => 'mfa', 'action' => 'eliminar', 'is_special_category' => false],
+            ['code' => 'mfa.leer', 'resource' => 'mfa', 'action' => 'leer', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
+            ['code' => 'mfa.eliminar', 'resource' => 'mfa', 'action' => 'eliminar', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
             // REQ-AUTH-003 (1.3b), permisos.md §D.2-§D.5. Recurso propio
             // (no una acción más de `mfa`): la excepción es una entidad
             // con ciclo de vida propio (motivo, caducidad, autor, traza de
@@ -271,19 +281,19 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             // y `mfa.eliminar`: describe lo que el actor hace desde fuera
             // (retirar algo vigente), no la operación SQL (`RN-AUTH-83`:
             // revocar no borra, deja `revoked_at`/`revoked_by`).
-            ['code' => 'exencion_mfa.crear', 'resource' => 'exencion_mfa', 'action' => 'crear', 'is_special_category' => false],
-            ['code' => 'exencion_mfa.leer', 'resource' => 'exencion_mfa', 'action' => 'leer', 'is_special_category' => false],
-            ['code' => 'exencion_mfa.eliminar', 'resource' => 'exencion_mfa', 'action' => 'eliminar', 'is_special_category' => false],
+            ['code' => 'exencion_mfa.crear', 'resource' => 'exencion_mfa', 'action' => 'crear', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
+            ['code' => 'exencion_mfa.leer', 'resource' => 'exencion_mfa', 'action' => 'leer', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
+            ['code' => 'exencion_mfa.eliminar', 'resource' => 'exencion_mfa', 'action' => 'eliminar', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
             // REQ-AUTH-004 (1.4b), permisos.md §F.2-§F.3. Recurso propio:
             // un proveedor de identidad es una entidad con ciclo de vida
             // completo (se crea, se consulta, se modifica, se retira),
             // no una acción más de `configuracion` (REQ-CORE). Las
             // credenciales no tienen permiso propio (permisos.md §F.4):
             // cargar/retirar una viaja con `proveedor_identidad.actualizar`.
-            ['code' => 'proveedor_identidad.leer', 'resource' => 'proveedor_identidad', 'action' => 'leer', 'is_special_category' => false],
-            ['code' => 'proveedor_identidad.crear', 'resource' => 'proveedor_identidad', 'action' => 'crear', 'is_special_category' => false],
-            ['code' => 'proveedor_identidad.actualizar', 'resource' => 'proveedor_identidad', 'action' => 'actualizar', 'is_special_category' => false],
-            ['code' => 'proveedor_identidad.eliminar', 'resource' => 'proveedor_identidad', 'action' => 'eliminar', 'is_special_category' => false],
+            ['code' => 'proveedor_identidad.leer', 'resource' => 'proveedor_identidad', 'action' => 'leer', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
+            ['code' => 'proveedor_identidad.crear', 'resource' => 'proveedor_identidad', 'action' => 'crear', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
+            ['code' => 'proveedor_identidad.actualizar', 'resource' => 'proveedor_identidad', 'action' => 'actualizar', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
+            ['code' => 'proveedor_identidad.eliminar', 'resource' => 'proveedor_identidad', 'action' => 'eliminar', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
         ];
     }
 }
