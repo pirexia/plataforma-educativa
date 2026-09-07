@@ -34,26 +34,33 @@ test('GET /roles devuelve los 16 roles predefinidos y GET /roles/{id} sus permis
     // (bloqueo_cuenta.leer/eliminar de 1.2, mfa.leer/eliminar de 1.3,
     // exencion_mfa.crear/leer/eliminar de 1.3b, proveedor_identidad.leer/
     // crear/actualizar/eliminar de 1.4b — permisos.md §5/§D.6/§F.7 —
-    // solo administrador_centro los recibe).
-    expect($detail->json('permissions'))->toHaveCount(32);
+    // solo administrador_centro los recibe) + los cuatro de REQ-PERM/
+    // permisos.md §5 (1.5): rol.crear, rol.eliminar,
+    // rol_datos_especiales.actualizar, permiso_efectivo.leer.
+    expect($detail->json('permissions'))->toHaveCount(36);
 });
 
-// CA-CORE-041
-test('CA-CORE-041: borrar un rol del sistema no tiene ruta disponible; modificarlo solo admite mfa_required (REQ-AUTH-003, 1.3, RN-AUTH-70)', function (): void {
+// CA-CORE-041 (REQ-AUTH-003, 1.3, RN-AUTH-70) / CA-PERM-053, CA-PERM-056
+// (REQ-PERM, 1.5): `DELETE /roles/{public_id}` existe desde 1.5 y un rol
+// `is_system` responde `409`, no `405`; `code` sigue sin ser editable
+// (`422`, ahora con el código específico `role_code_immutable`), y `name`
+// en un rol de sistema responde `422` (`role_name_system`).
+test('CA-CORE-041/CA-PERM-053/056: un rol del sistema no se puede eliminar (409) ni renombrar (422); su code tampoco (422)', function (): void {
     [$tenant, $admin] = provisionCoreTenant('roles-041');
 
     $role = app(TenantContext::class)->runFor($tenant->id, fn () => Role::where('code', 'docente')->firstOrFail());
 
-    // 1.3 añade PATCH /roles/{public_id}, pero acotado a mfa_required
-    // (RN-AUTH-70, §C.2.2) — cualquier otro campo, incluido el resto del
-    // editor de roles (name, etc.), sigue sin tener camino: 422, no 405.
     test()->actingAs($admin)
         ->patchJson(coreApiUrl($tenant->slug, "/roles/{$role->public_id}"), ['name' => 'Cambiado'])
         ->assertStatus(422);
 
     test()->actingAs($admin)
+        ->patchJson(coreApiUrl($tenant->slug, "/roles/{$role->public_id}"), ['code' => 'otro_codigo'])
+        ->assertStatus(422);
+
+    test()->actingAs($admin)
         ->deleteJson(coreApiUrl($tenant->slug, "/roles/{$role->public_id}"))
-        ->assertStatus(405);
+        ->assertStatus(409);
 });
 
 // CA-CORE-043
