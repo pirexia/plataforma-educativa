@@ -9,6 +9,8 @@ use App\Modules\Core\Domain\Models\DataExport;
 use App\Modules\Core\Infrastructure\Jobs\GenerateAuditLogExport;
 use App\Support\Api\ApiException;
 use App\Support\Audit\AuditRecorder;
+use App\Support\Authorization\PermissionResolver;
+use App\Support\Authorization\ScopedQuery;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 
@@ -16,13 +18,26 @@ use App\Support\Tenancy\TenantContext;
  * funcional.md §4.6, §7. En 1.1 solo despacha el generador de
  * `audit_logs`; un `kind` futuro añadirá su propio `match` sin tocar el
  * contrato de la interfaz.
+ *
+ * REQ-PERM/funcional.md §6.3, `RN-PERM-15` (1.5): la exportación se acota
+ * con la misma restricción que el listado. Aquí solo se acota el
+ * **recuento** contra el límite de filas (`assertWithinRowLimit`) — la
+ * acotación real del artefacto ocurre dentro del trabajo en cola
+ * (`GenerateAuditLogExport`), que vuelve a resolver el ámbito al arrancar,
+ * con su propio contexto de tenant (operacion.md §5.1): un trabajo en cola
+ * no tiene sesión, así que la acotación no puede vivir solo aquí.
  */
 final class EloquentExportRequestService implements ExportRequestService
 {
+    public function __construct(
+        private readonly PermissionResolver $permissions,
+        private readonly ScopedQuery $scopedQuery,
+    ) {}
+
     public function request(string $kind, string $format, array $filters, User $requestedBy): DataExport
     {
         if ($kind === 'audit_logs') {
-            $this->assertWithinRowLimit($filters);
+            $this->assertWithinRowLimit($filters, $requestedBy);
         }
 
         $export = DataExport::create([
@@ -54,7 +69,7 @@ final class EloquentExportRequestService implements ExportRequestService
     /**
      * @param  array<string, mixed>  $filters
      */
-    private function assertWithinRowLimit(array $filters): void
+    private function assertWithinRowLimit(array $filters, User $requestedBy): void
     {
         $query = AuditLog::query();
 
@@ -69,6 +84,9 @@ final class EloquentExportRequestService implements ExportRequestService
         if (! empty($filters['event'])) {
             $query->whereIn('event', (array) $filters['event']);
         }
+
+        $decision = $this->permissions->decide($requestedBy, 'auditoria.exportar');
+        $this->scopedQuery->constrain($query, 'auditoria', $decision, $requestedBy);
 
         if ($query->count() > (int) config('core.export_max_rows')) {
             throw ApiException::validation([
