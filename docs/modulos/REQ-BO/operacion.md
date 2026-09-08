@@ -2,7 +2,54 @@
 
 > Paso **1.6**, dividido en cinco sub-pasos por decisión del usuario del 2026-09-08 (`funcional.md §12`). Complementa `SYSADMIN.md` y `RUNBOOK.md`; aquí sólo lo específico de este módulo.
 >
-> **La conclusión primero**: a diferencia de `REQ-PERM`, que no añadía ni una variable de entorno, este paso añade **un segundo *host*, un segundo camino de autenticación, variables de entorno nuevas, tres tareas programadas y un procedimiento de arranque manual sin el cual nadie puede entrar al backoffice** (§5). Y ese último punto es el que más fácil se olvida: el sistema **se despliega bloqueado a propósito**.
+> **La conclusión primero**: a diferencia de `REQ-PERM`, que no añadía ni una variable de entorno, este paso añade **un segundo *host*, un segundo camino de autenticación, cambios en `infra/quadlet` (§0), variables de entorno nuevas, tres tareas programadas y un procedimiento de arranque manual sin el cual nadie puede entrar al backoffice** (§5). Y ese último punto es el que más fácil se olvida: el sistema **se despliega bloqueado a propósito**.
+
+---
+
+## 0. Enrutado y separación de superficie: `infra/quadlet` cambia en `1.6`
+
+**Va primero porque sin esto la separación no existe**, y porque es lo único de este documento que no se arregla desplegando otra vez el código. `ADR-046 §4.3` y `§4.6` lo meten dentro de `1.6` a propósito, aunque `infra/` no sea ámbito habitual de un paso de módulo: *«fuera del ámbito habitual de un paso de módulo, pero inseparable de esta decisión»* (`ADR-046 §8`).
+
+### 0.1 El estado de partida, verificado y no supuesto
+
+**Hoy Traefik enruta sólo por `PathPrefix`, sin `Host()`** (`infra/quadlet/web.container`, `api@.container`; verificado en `ADR-046 §1.1`):
+
+| *Router* | Regla actual | Prioridad |
+|---|---|---|
+| `plataforma-web` | `PathPrefix(/)` | 1 |
+| `plataforma-api` | `PathPrefix(/api)` | 10 |
+
+**Dos consecuencias, las dos decisivas:**
+
+1. **Cualquier *host* que llegue al proxy alcanza el mismo contenedor de API**, incluido `centroa.dominio/api/platform/…`. Sin `Host()`, un grupo de rutas de plataforma sería alcanzable desde el *host* de un centro y la única barrera restante sería la autenticación — que es exactamente el defecto por el que se descartó la Opción C (`funcional.md §3.2`).
+2. **`plataforma-web` serviría la SPA de los centros bajo el *host* del backoffice.** Hoy es inofensivo porque sólo hay un *host*; deja de serlo en cuanto exista el segundo.
+
+### 0.2 Lo que hay que cambiar
+
+| # | Cambio | Cuándo | Fichero |
+|---|---|---|---|
+| 1 | `PathPrefix(...)` pasa a **`Host(...) && PathPrefix(...)`** en los dos *routers* existentes | **`1.6`** | `infra/quadlet/web.container`, `infra/quadlet/api@.container` |
+| 2 | ***Router* nuevo para `/api/platform`** bajo el *host* del backoffice | **`1.6`** | `infra/quadlet` |
+| 3 | *Middleware* **`ipallowlist`** de Traefik aplicado **sólo** a los *routers* del backoffice | **`1.6`** | Ídem |
+| 4 | ***Router* nuevo para la SPA** del backoffice, más la unidad y el `Containerfile` de su contenedor de estáticos, con `Wants=`+`After=` y **nunca** `Requires=` ni `BindsTo=` (`ADR-028`, `CLAUDE.md §9`) | **El paso de interfaz**, posterior a `1.7`/`1.9` | Ídem |
+
+Todo dentro de `ADR-028 §1` (Traefik como único punto de entrada) y **sin tocar `ADR-037`**.
+
+> **Por qué la fila 4 no es de `1.6`, y por qué no contradice a `ADR-046`.** `ADR-046 §4.1` decide **dónde vive** la SPA del backoffice —`apps/backoffice`, proyecto Vite independiente que no comparte *bundle* con `apps/web`— y no **cuándo** se construye. Lo segundo ya estaba decidido por el usuario el 2026-09-08 (`OPEN-BO-08`): los cinco sub-pasos se operan **sólo por API** hasta que existan `1.7` y `1.9` (`funcional.md §12.5`). Desplegar en `1.6` un *router* hacia un contenedor de estáticos vacío no aporta nada y sí añade una unidad que mantener.
+>
+> **Lo que sí es de `1.6` es la fila 1**, y ahí no hay margen: sin `Host()` en `plataforma-web`, la SPA **de los centros** se sirve bajo el *host* del backoffice (§0.1, consecuencia 2). Esa fila cierra ese agujero **aunque todavía no haya una SPA de backoffice que servir**.
+
+### 0.3 El aviso que no se puede perder: `forwardedHeaders.trustedIPs`
+
+> **Una lista blanca de IP en el *ingress* sólo es real si Traefik ve la IP del cliente.** Si algún día hay otro proxy delante —un balanceador, un CDN, un cortafuegos de aplicación—, hace falta configurar **`forwardedHeaders.trustedIPs`** en el *entrypoint*. **Sin eso, la lista blanca compara contra la dirección del NAT y permite a todo el mundo, sin dar ningún síntoma**: no hay error, no hay log raro, no hay `403` que investigar. Simplemente deja de proteger.
+
+Es el motivo por el que `RN-BO-06` y `RN-BO-07` se cumplen **también en la aplicación** (`api.md §1.1`, puesto 2) y no sólo en el proxy: la configuración de Traefik no la cubre la suite de tests y la aplicación sí. **Las dos capas son obligatorias y ninguna sustituye a la otra** (`funcional.md §3.4`, condiciones 3 y 4).
+
+**Comprobación operativa, no teórica**, que debe constar en `SYSADMIN.md`: tras cualquier cambio en la cadena de proxies, verificar que la IP registrada en `admin_action_logs` para un acceso legítimo es la del cliente y no una dirección interna. Si aparece una dirección de la red del NAT, la lista blanca del *ingress* está desactivada de hecho.
+
+### 0.4 Y el *host* no puede ser cualquiera
+
+`BACKOFFICE_HOST` **no puede ser un subdominio de `TENANCY_BASE_DOMAIN`** (`RN-BO-49`, `ADR-046 §4.4`): `TenantHost::slugFrom()` devuelve la etiqueta más a la izquierda de **cualquier** *host* que termine en `.{TENANCY_BASE_DOMAIN}`, de modo que un backoffice en `admin.{dominio_base}` resolvería el *slug* `admin`, y lo único que impediría que resolviera un centro sería que ninguno se llame así. El nombre concreto sigue bloqueado por `OPEN-08` (`OPEN-BO-12`); **la restricción que ese nombre deberá cumplir ya está decidida**.
 
 ---
 
@@ -18,8 +65,9 @@ Lo que sí hace es **escribir el dato del que dependen esos dos requisitos**, y 
 
 | Variable | Para qué | Nota |
 |---|---|---|
-| `BO_HOST` | *Host* del backoffice | **Nunca un literal en el código.** `OPEN-08` (dominio de la plataforma) sigue abierta: hasta que se cierre, en desarrollo es un `*.plataforma.test` y en despliegue lo fija Traefik |
-| `BO_SESSION_LIFETIME` | Vida de la sesión de plataforma, en minutos (`RN-BO-09`) | **Más corta que la del producto.** El valor concreto es de operación, no de código |
+| **`BACKOFFICE_HOST`** | *Host* del backoffice, con su entrada propia en `config/` (`ADR-046 §4.4`) | **Nunca un literal en el código y nunca derivada de `TENANCY_BASE_DOMAIN`** — ni por concatenación, ni por valor por defecto, ni «para desarrollo». Es lo que compara `RequirePlatformHost` (`RN-BO-48`) y **no puede ser un subdominio del dominio base de los tenants** (`RN-BO-49`, §0.4). `OPEN-08` sigue abierta: hasta que se cierre, en desarrollo es un *host* propio de `*.test` que **no** termina en el dominio base, y en despliegue lo fija Traefik (§0.2) |
+| `BO_SESSION_COOKIE` | Nombre de la cookie de sesión de plataforma | **Distinto del de la cookie del producto**, y *host-only* como aquella (`SESSION_DOMAIN` sigue sin valor). Con §0 y `RN-BO-49`, `RMT-009` se cumple por construcción: dominios distintos, cookies distintas, tablas distintas |
+| `BO_SESSION_LIFETIME` | Vida de la sesión de plataforma, en minutos (`RN-BO-09`) | **Más corta que la del producto**, y **propia**: no se deriva de `SESSION_LIFETIME`. La sesión vive en `platform_sessions`, no en `sessions` (`datos.md §2.6`), y su caducidad es de operación, no de código |
 | `BO_REAUTH_WINDOW` | Ventana de reautenticación para operaciones sensibles (`RN-BO-08`) | En minutos. Del orden de una decena |
 | `BO_DUAL_AUTH_TTL` | Vida de una solicitud de doble autorización | Corto. Una solicitud de eliminar un centro que sigue viva una semana es una firma pendiente que nadie recuerda |
 | `DB_PLATFORM_USERNAME` / `DB_PLATFORM_PASSWORD` | Rol `plataforma_platform` (`ADR-033 §5`) | **Ya existen** desde 0.7. Este paso es el primero que las usa de verdad en un camino de petición HTTP |
@@ -30,6 +78,7 @@ Lo que sí hace es **escribir el dato del que dependen esos dos requisitos**, y 
 | Lo que habría llevado una variable | Por qué no la hay |
 |---|---|
 | Conmutador para **desactivar la lista blanca de IP** | Es una puerta trasera con nombre de opción de configuración. Se desactivaría «un momento para depurar» y se quedaría así. La forma de operar sin restricción de red es una entrada `0.0.0.0/0` en la tabla: **visible, auditada y con autor** |
+| Conmutador para **saltarse `RequirePlatformHost`** | Mismo argumento, y peor consecuencia: apagarlo devuelve el producto al estado de §0.1, en el que el backoffice es alcanzable desde el *host* de cualquier centro. En desarrollo se resuelve **dando un valor a `BACKOFFICE_HOST`**, que es lo que se va a usar en producción, no evitando la comprobación |
 | Conmutador para **relajar el MFA** | `REQ-BO-007` dice «sin excepción». Una variable que lo relaja convierte «sin excepción» en «salvo que alguien exporte esto» |
 | Conmutador para **saltar la doble autorización en desarrollo** | Es exactamente el mecanismo que acaba en producción. El entorno de desarrollo crea **dos** administradores; cuesta lo mismo y prueba lo que de verdad se va a usar |
 | Variable para **forzar el valor de un *feature flag*** (`FEATURE_X=true`) | Es la forma más rápida de tener un *flag* encendido en producción **sin autor, sin motivo y sin auditoría**, y de que su valor real dependa de en qué contenedor caiga la petición. El estado de un *flag* vive en su tabla, con su `reason` y su entrada en `admin_action_logs` (`RN-BO-43`). Para apagarlo ya, está `forced_off`, que es igual de rápido y **sí** deja rastro (`api.md §2.12`) |
@@ -41,11 +90,11 @@ Lo que sí hace es **escribir el dato del que dependen esos dos requisitos**, y 
 
 | Servicio | Uso | Si no responde |
 |---|---|---|
-| **PostgreSQL** (`plataforma_platform`) | Todo | El backoffice no sirve. Sin degradación posible ni deseable |
+| **PostgreSQL** (`plataforma_platform`) | Todo, **incluida la sesión de plataforma**: `platform_sessions` es tabla, no Redis (`datos.md §2.6`) | El backoffice no sirve. Sin degradación posible ni deseable |
 | **PostgreSQL** (`plataforma_app`) | Aprovisionamiento de un tenant nuevo, que entra en su contexto | Ídem |
-| **Redis** | Sesión de plataforma (según `OPEN-BO-02`), límite de tasa, y las **cachés que hay que invalidar** (§4), incluida la de evaluación de *flags* | Ver §4: el modo de fallo importa |
+| **Redis** | Límite de tasa y las **cachés que hay que invalidar** (§4), incluida la de evaluación de *flags*. **No la sesión de plataforma** | Ver §4: el modo de fallo importa |
 | **Correo** | Invitación del primer administrador del centro nuevo, e invitación de un administrador de plataforma | Sigue pendiente `OPEN-09` (proveedor transaccional). En desarrollo, `log`. Los tests comprueban que el trabajo se **encola**, no que el correo llegue |
-| **Traefik / ACME** | Enrutado del *host* de plataforma y su certificado | Sin él no hay backoffice. **No es parte de este módulo**: es despliegue, y depende de `OPEN-08` |
+| **Traefik / ACME** | Enrutado por `Host()` del *host* de plataforma, su `ipallowlist` y su certificado | Sin él no hay backoffice. **Y su configuración sí es parte de este paso** (§0): `ADR-046` mete las reglas de `infra/quadlet` dentro de `1.6`. Lo que sigue dependiendo de `OPEN-08` es el **nombre** del *host*, no las reglas |
 
 **Redis caído: qué pasa exactamente.** La caché de disponibilidad de módulo falla a consultar la base de datos, que es correcto y sólo más lento. Lo que **no** puede ocurrir es lo contrario: que un Redis vacío o desalojado por memoria haga que un módulo no contratado parezca contratado. `EloquentModuleAvailability` falla en cerrado fuera de contexto de tenant y esa propiedad se conserva.
 
@@ -109,7 +158,8 @@ Procedimiento de arranque, **en este orden**, y `SYSADMIN.md` debe recogerlo:
 
 | # | Paso | Nota |
 |---|---|---|
-| 1 | Migraciones por `pgsql_owner` | Incluida la de privilegios de `module_subscriptions` (`datos.md §7`) |
+| 0 | **Reglas `Host()` e `ipallowlist` de Traefik desplegadas** (§0.2), y `BACKOFFICE_HOST` fijada | **Antes que nada.** Sin `Host()`, la SPA de los centros se sirve bajo el *host* del backoffice y el grupo `/api/platform` es alcanzable desde el *host* de cualquier centro (§0.1). Comprobar además §0.3 si hay algún proxy delante de Traefik |
+| 1 | Migraciones por `pgsql_owner` | Incluidas la de `platform_sessions` y `platform_admin_sessions` con su `REVOKE ALL … FROM plataforma_app` (`datos.md §2.6`, `§12` fila 1b) y la de privilegios de `module_subscriptions` (`datos.md §7`) |
 | 2 | `php artisan platform:sync-registry` | Gana la validación de `depends_on` que **aborta el despliegue** ante código inexistente o ciclo (`CA-BO-034`, `CA-BO-035`) y, desde `1.6e`, la del catálogo de *feature flags*: clave duplicada entre dos módulos, clave con formato inválido o `module_code` inexistente **también abortan** (`CA-BO-089`). Si aborta, **no se sigue**: se arregla el descriptor. **Es un solo comando y un solo punto de aborto**, a propósito: un segundo comando de sincronización sería un segundo sitio del que olvidarse |
 | 3 | `php artisan bo:allow-ip <cidr> --description="…"` | **Desde el servidor.** Sin esto no entra nadie, ni con credenciales correctas |
 | 4 | `php artisan bo:create-admin --email=… --role=superadministrador` | Crea sin contraseña utilizable y emite invitación. `actor_type = 'console'` en `admin_action_logs` |
@@ -125,6 +175,7 @@ Es el escenario que hay que tener escrito **antes** de que ocurra: la lista blan
 | Nadie cubierto por la lista blanca | `php artisan bo:allow-ip` desde el servidor. **Requiere acceso al *host***, que es exactamente la barrera que se quiere |
 | El único administrador pierde su segundo factor | `php artisan bo:reset-mfa <email>` desde el servidor, auditado como `console`. **No hay vía por correo ni por la API** (`CA-BO-012`) |
 | No queda ningún `superadministrador` | `bo:create-admin`. `RN-BO-11` impide llegar ahí por la API, pero no impide un borrado por base de datos |
+| **Todo el backoffice responde `404`** | `BACKOFFICE_HOST` no coincide con el *host* por el que se entra, o la regla `Host()` de Traefik apunta a otro nombre. Se corrige en configuración y despliegue (§0), **no en la aplicación**: `RequirePlatformHost` está haciendo exactamente lo que debe (`RN-BO-48`) |
 
 **Los tres comandos exigen acceso de consola al servidor y los tres escriben en `admin_action_logs`.** Un mecanismo de recuperación sin rastro sería una puerta trasera con otro nombre.
 
@@ -179,6 +230,10 @@ Es el escenario que hay que tener escrito **antes** de que ocurra: la lista blan
 | Síntoma | Primera comprobación | Causa probable |
 |---|---|---|
 | «Nadie puede entrar al backoffice recién desplegado» | `SELECT count(*) FROM platform_ip_allowlist WHERE enabled` | §5, pasos 3-4. **Es el fallo más probable de este despliegue** y es intencionado |
+| «El backoffice devuelve `404` en todo, incluso en `/csrf-cookie`» | `BACKOFFICE_HOST` frente al `Host` con el que se entra, y la regla `Host()` del *router* | `RN-BO-48`. **Un `404` aquí no es una ruta que falta**: es `RequirePlatformHost` funcionando (§0.4, §5.1) |
+| «La lista blanca de IP no bloquea a nadie» | La IP que queda registrada en `admin_action_logs` para un acceso legítimo | **§0.3**: si es una dirección interna o del NAT, falta `forwardedHeaders.trustedIPs` y la lista del *ingress* está desactivada de hecho, **sin dar ningún síntoma**. La de la aplicación sigue aplicando; la del proxy no |
+| «Bajo el *host* del backoffice se sirve la SPA de los centros» | La regla del *router* `plataforma-web` | §0.1, consecuencia 2: sigue en `PathPrefix(/)` con prioridad 1 y le falta el `Host()` |
+| «Al suspender a un administrador sigue dentro» | `platform_admin_sessions` con `ended_at IS NULL` para ese administrador | `datos.md §2.7`: suspender debe **revocar** sus sesiones vivas, no sólo impedir que vuelva a entrar |
 | «Entro pero no puedo hacer nada» | `mfa_enrolled_at` del administrador | `RN-BO-05`: sin factor confirmado sólo se alcanza `/mfa/*` |
 | «Contrato un módulo y el centro sigue viendo 403» | Que la escritura invalide la caché **con el prefijo del tenant** | §4.2. Con un solo tenant en desarrollo esto **parece funcionar** aunque esté mal |
 | «Suspendo un centro y sigue entrando» | Que la transición invalide `tenant-resolution:{slug}` | §4.1, issue #7 |
@@ -201,7 +256,7 @@ Es el escenario que hay que tener escrito **antes** de que ocurra: la lista blan
 
 ## 9. Impacto en copias de seguridad y restauración
 
-- **Once tablas nuevas entran en la copia de plataforma** (`REQ-BKP-001`), las nueve del chasis más `feature_flags` y `feature_flag_rules`.
+- **Trece tablas nuevas entran en la copia de plataforma** (`REQ-BKP-001`): las nueve del chasis, `platform_sessions` y `platform_admin_sessions`, y `feature_flags` y `feature_flag_rules`. **`platform_sessions` es la única que no vale la pena restaurar**: sus filas caducan solas y restaurarla sólo revive sesiones que ya deberían haber muerto — se copia porque copiar la base entera es más simple que excluir una tabla, y se vacía al restaurar.
 - **Ninguna entra en la copia por tenant** (`REQ-BKP-002`): no pertenecen a ningún centro. La única excepción a considerar cuando `REQ-BKP` llegue son las filas de `admin_action_logs` y `tenant_lifecycle_events` **de ese centro**, que sí forman parte de lo que le corresponde llevarse. Las dos de *flags* tampoco: describen el despliegue del producto, no el centro.
 - **Restaurar la base de datos de plataforma a un punto anterior revierte el estado de los *flags***, y eso puede **encender** algo que se había apagado con `forced_off`. Es el único caso de este módulo en el que una restauración va en la dirección insegura, y por eso debe comprobarse **antes** de dar el servicio por restaurado: la lista de *flags* en `forced_off` es corta y se revisa en un minuto. Debe constar en el procedimiento de `REQ-BKP-003`.
 - **`admin_action_logs` y `tenant_lifecycle_events` son *append-only***: una restauración a un punto anterior **pierde entradas de auditoría**, y eso es una pérdida de prueba, no de dato operativo. Debe constar en el informe posterior a toda restauración (`REQ-BKP-003`).
@@ -216,12 +271,12 @@ Trabajo de cierre del paso, **no opcional** (`CLAUDE.md §6`, regla 7):
 
 | Documento | Qué añadir |
 |---|---|
-| `SYSADMIN.md` | El procedimiento de arranque de §5 completo, con el paso 5 (**segundo `superadministrador`**) marcado como obligatorio; los tres comandos de recuperación de §5.1; las variables de §2; el *host* del backoffice en la configuración de Traefik |
-| `SECURITY.md` | **Un sujeto de autenticación nuevo en el producto.** Deja de haber un solo tipo de cuenta. Hay que describir: los cuatro roles internos, el MFA incondicional, la lista blanca de IP, la doble autorización y la auditoría de plataforma independiente. Al cerrar `1.6e`, además: **ningún control de seguridad vive detrás de un *feature flag*** (`RN-BO-47`), y un *flag* no concede acceso a datos (`permisos.md §5.3`) |
+| `SYSADMIN.md` | El procedimiento de arranque de §5 completo —**incluido el paso 0**, las reglas de Traefik—, con el paso 5 (**segundo `superadministrador`**) marcado como obligatorio; los tres comandos de recuperación de §5.1; las variables de §2, con `BACKOFFICE_HOST` y su restricción de `RN-BO-49`; **§0 entero**: las reglas `Host()` e `ipallowlist` de `infra/quadlet`, **el aviso de `forwardedHeaders.trustedIPs` de §0.3 y su comprobación operativa** |
+| `SECURITY.md` | **Un sujeto de autenticación nuevo en el producto.** Deja de haber un solo tipo de cuenta. Hay que describir: los cuatro roles internos, el MFA incondicional, la lista blanca de IP **en sus dos capas** (§0.3), la doble autorización y la auditoría de plataforma independiente. Y las **cuatro barreras** que sostienen «un usuario de un tenant nunca alcanza el backoffice» (`ADR-046 §8`): `Host()` en Traefik, `ipallowlist` en el *ingress*, `RequirePlatformHost` en la aplicación, y *guard*, cookie y **tabla de sesión** distintos. Al cerrar `1.6e`, además: **ningún control de seguridad vive detrás de un *feature flag*** (`RN-BO-47`), y un *flag* no concede acceso a datos (`permisos.md §5.3`) |
 | `ARCHITECTURE.md` (`1.6e`) | El motor de *feature flags*: catálogo declarado en código, reglas en base de datos, evaluador en `REQ-CORE` y no en `REQ-BO`, y **por qué el reparto por porcentaje es una función determinista y no una tabla** |
 | `CONTRIBUTING.md` (`1.6e`) | Cómo se declara un *flag* nuevo en el descriptor de un módulo, y la regla de que **un *flag* se crea escribiendo el código que lo consulta** — no hay pantalla que los cree (`RN-BO-34`). Es la parte que un desarrollador nuevo necesita y que no está en ningún otro sitio |
 | `PRIVACY.md` | `platform_admins` es un tratamiento de datos personales **del personal del proveedor**, con base legal propia (relación laboral o de servicio), distinto de los tratamientos en los que somos encargados. Y el acceso del proveedor a los sistemas del cliente queda documentado con su registro |
-| `ARCHITECTURE.md` | La segunda superficie HTTP y su frontera, según se resuelva `OPEN-BO-01`. Si sale la Opción B, además un contenedor nuevo en el diagrama |
+| `ARCHITECTURE.md` | La segunda superficie HTTP y su frontera, **según la decide `ADR-046 §4`**: mismo monolito y mismo despliegue de API, con *guard*, grupo de rutas y **SPA propia (`apps/backoffice`)**. En el diagrama entra un contenedor nuevo —el de estáticos del backoffice— y **dos *routers* de Traefik enrutados por `Host()`**, no por `PathPrefix`. Y la frontera de `App\Support\Tenancy`: `runAsPlatform()` con propósito declarado (`funcional.md §6.2`) |
 | `RUNBOOK.md` | §5.1 (salida de un bloqueo total) y §8 (diagnóstico) |
 | `CHANGELOG.md` | Una entrada por cada sub-paso cerrado (`CLAUDE.md §6.7`) |
 | `docs/manual-usuario/admin.md` | **Nada.** El Administrador de Centro no alcanza el backoffice. Lo que sí cambia en su manual es consecuencia de `ADR-045`: **ya no activa ni desactiva módulos**, sólo los consulta y configura. Es una capacidad que el manual describía y que desaparece |
@@ -238,14 +293,15 @@ Trabajo de cierre del paso, **no opcional** (`CLAUDE.md §6`, regla 7):
 | # | Paso | Nota |
 |---|---|---|
 | 1 | Desplegar la versión anterior | |
-| 2 | Retirar el *host* del backoffice de Traefik | Sin él, la superficie deja de existir aunque el código siga desplegado |
-| 3 | `down()` de las migraciones, **en orden inverso** | Las de tabla son `DROP` limpios: nada las referencia desde el producto |
-| 4 | Restituir los privilegios de `module_subscriptions` | `GRANT UPDATE, INSERT ON module_subscriptions TO plataforma_app` |
+| 2 | Retirar de Traefik los *routers* del backoffice que estén desplegados | Sin ellos, la superficie deja de existir aunque el código siga desplegado (§0.2) |
+| 3 | **Decidir qué se hace con las reglas `Host()` de `plataforma-web` y `plataforma-api`** | **No se revierten sin pensarlo.** Volver a `PathPrefix` restituye el estado de §0.1, en el que cualquier *host* alcanza la API. Con el backoffice retirado eso es lo que había antes de este paso y es tolerable; **si el backoffice se va a volver a desplegar, se dejan puestas** |
+| 4 | `down()` de las migraciones, **en orden inverso** | Las de tabla son `DROP` limpios: nada las referencia desde el producto. `DROP TABLE platform_sessions` **cierra todas las sesiones de plataforma vivas**, que es el efecto correcto de retirar la superficie |
+| 5 | Restituir los privilegios de `module_subscriptions` | `GRANT UPDATE, INSERT ON module_subscriptions TO plataforma_app` |
 
 **Dos cosas que hay que decir en voz alta sobre esta reversión:**
 
 - **`DROP TABLE admin_action_logs` destruye la auditoría de plataforma.** Es lo único de este módulo cuya pérdida no es recuperable rehaciendo trabajo. Si hay actividad real, **se vuelca antes**, y el volcado se custodia con el mismo cuidado que la tabla.
-- **Revertir el paso 4 reabre el agujero que `ADR-045 §4.4` cierra**: el centro vuelve a poder escribir `enabled` si algún día un controlador se lo permite. Es aceptable para un despliegue fallido y **nunca** como forma de «desactivar temporalmente la restricción» con el código nuevo en producción.
+- **Revertir el paso 5 reabre el agujero que `ADR-045 §4.4` cierra**: el centro vuelve a poder escribir `enabled` si algún día un controlador se lo permite. Es aceptable para un despliegue fallido y **nunca** como forma de «desactivar temporalmente la restricción» con el código nuevo en producción.
 
 **Sobre la reversión de `1.6e` en concreto**: `DROP TABLE feature_flags, feature_flag_rules` deja **todos los *flags* apagados**, porque sin catálogo ni reglas el evaluador devuelve falso (`RN-BO-35`). Es la dirección segura y no hay que hacer nada más: se pierden funcionalidades en despliegue parcial, no se enciende ninguna. Lo que sí se pierde y **no** se recupera rehaciendo trabajo es el registro de **a qué centros se expuso qué y cuándo** — las reglas son esa prueba (`datos.md §13`) —, así que si hay despliegues progresivos vivos se vuelcan antes, igual que `admin_action_logs`.
 

@@ -5,13 +5,13 @@
 | Código | `REQ-BO` |
 | Prioridad | MUST |
 | Fase | 1 · Bloque A · **paso 1.6**, dividido en **cinco sub-pasos** por decisión del usuario del 2026-09-08 (§12) |
-| Depende de | `REQ-CORE` (1.1), `REQ-AUTH` (1.2/1.3), `REQ-PERM` (1.5), `ADR-033`, `ADR-034`, `ADR-035`, `ADR-036`, `ADR-038`, `ADR-044`, **`ADR-045`** |
-| Estado | **PROPUESTO** — revisado el 2026-09-08 con cuatro decisiones del usuario aplicadas (§15). Sigue pendiente de aprobación y de **tres decisiones bloqueantes** que no me corresponden (§14) |
-| Módulo (código) | `bo` · `apps/api/app/Modules/Backoffice` · frontend **sin ubicación decidida** (`OPEN-BO-01`) |
+| Depende de | `REQ-CORE` (1.1), `REQ-AUTH` (1.2/1.3), `REQ-PERM` (1.5), `ADR-033`, `ADR-034`, `ADR-035`, `ADR-036`, `ADR-038`, `ADR-044`, **`ADR-045`**, **`ADR-046`** |
+| Estado | **PROPUESTO** — revisado el 2026-09-08 con cuatro decisiones del usuario aplicadas (§15) y con **`ADR-046` aplicado**, que cierra las tres decisiones que bloqueaban el arranque. Sigue pendiente de **aprobación** (§15) |
+| Módulo (código) | `bo` · `apps/api/app/Modules/Backoffice` · frontend **`apps/backoffice`**, SPA propia sin *bundle* compartido con `apps/web` (`ADR-046 §4.1`), **construida en el paso de interfaz posterior a `1.7`/`1.9`** (§12.5) |
 
 > Fuente de verdad: sección 5.51 de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` (`REQ-BO-001` a `REQ-BO-007`), más `RMOD-002`/`RMOD-006`, `RMT-007`, `REQ-CORE-001` y la sección 11.1. Desde el 2026-09-08, y sólo para `REQ-BO-005` puntos 1-2, también **`REQ-OPS-002`** (sección 5.49) y **`RARQ-DEP-010`** (sección 8).
-> Entrada obligatoria: **`ADR-045`**, cuyo `§10` ya se ha ejecutado sobre el documento de requisitos (versión 3.2.0) y sobre `docs/modulos/REQ-CORE/funcional.md §2`.
-> Este documento **no reabre** `ADR-033`, `ADR-034`, `ADR-036`, `ADR-044` ni `ADR-045`.
+> Entradas obligatorias: **`ADR-045`**, cuyo `§10` ya se ha ejecutado sobre el documento de requisitos (versión 3.2.0) y sobre `docs/modulos/REQ-CORE/funcional.md §2`; y **`ADR-046`** (ACEPTADA, 2026-09-08), que resuelve `OPEN-BO-01`, `OPEN-BO-02` y `OPEN-BO-03` y cuyo `§10` está aplicado a los cinco ficheros de este módulo.
+> Este documento **no reabre** `ADR-033`, `ADR-034`, `ADR-036`, `ADR-044`, `ADR-045` ni `ADR-046`.
 
 ---
 
@@ -23,15 +23,17 @@ Tres afirmaciones que hay que leer antes que nada:
 
    **De esos cuatro, el usuario ha decidido el 2026-09-08 adelantar exactamente uno**: el motor de *feature flags* de `REQ-OPS-002` (`REQ-BO-005`, puntos 1-2), por el motivo que esta misma especificación daba al señalar su exclusión como «menos firme que las anteriores» — es el único cuya construcción **no depende de ningún módulo que falte**. Entra en `§2.1`, se especifica en `§5.11` y ocupa un sub-paso propio, `1.6e` (`§12.2`). Todo lo demás sigue fuera, y `§2.2` mantiene el motivo de cada exclusión.
 
-2. **Nada de la identidad de plataforma existe.** Verificado sobre el código (§1): no hay `platform_admins`, no hay `admin_action_logs`, hay **un solo *guard*** (`web`), la tabla de sesiones es de tenant, y todo el MFA de 1.3/1.3b está atado a `TenantContext::tenantId()`. El backoffice no es «una pantalla más»: es un segundo sujeto de autenticación, con su propia autorización, su propia auditoría y su propio segundo factor.
+2. **Nada de la identidad de plataforma existe.** Verificado sobre el código (§1): no hay `platform_admins`, no hay `admin_action_logs`, hay **un solo *guard*** (`web`), no hay ningún almacén de sesión que sirva a un sujeto sin tenant, y todo el MFA de 1.3/1.3b está atado a `TenantContext::tenantId()`. El backoffice no es «una pantalla más»: es un segundo sujeto de autenticación, con su propia autorización, su propia auditoría y su propio segundo factor.
 
-3. **La separación de la aplicación —«dominio propio, autenticación propia»— es una decisión estructural que no me corresponde.** §3 evalúa las opciones con sus costes y las consecuencias que el código ya impone, y la deja como `OPEN-BO-01`. **No la doy por decidida en ningún punto de esta especificación**, y por eso `datos.md`, `api.md` y `operacion.md` están escritos para ser válidos bajo cualquiera de las dos opciones vivas.
+   > **Corrección de una premisa falsa de la revisión anterior de este documento**, señalada por `ADR-046 §1.1` y `§11.2`: esta especificación afirmaba que `sessions` es «tabla de tenant» y que lleva `tenant_id`. **Es falso.** `sessions` se crea en `0001_01_01_000000_create_users_table.php` con `{id, user_id, ip_address, user_agent, payload, last_activity}`, ninguna migración posterior la altera, y está declarada en `config/tenancy.php` bajo `shared_tables.framework`: **sin `tenant_id` y sin RLS**. El endurecimiento de esa tabla es el issue [#81](https://github.com/pirexia/plataforma-educativa/issues/81), **abierto**. Todo lo que este documento decía apoyándose en esa columna queda sustituido por el diseño de `platform_sessions` que fija `ADR-046 §5.2` (§1.2, §5.1, §14).
+
+3. **La separación de la aplicación —«dominio propio, autenticación propia»— la decide `ADR-046`, no esta especificación.** §3 conserva la evaluación de opciones y sus costes porque sigue siendo el razonamiento que sostiene la decisión, pero el resultado ya no está abierto: **Opción A** —mismo monolito, *guard* propio, grupo de rutas propio y SPA propia— **con cinco condiciones vinculantes** (`ADR-046 §4`), de las cuales la más importante no es código: **Traefik tiene que enrutar por `Host()`**, cosa que hoy no hace. `datos.md`, `api.md` y `operacion.md` ya **no** están escritos para ser válidos bajo dos opciones: están escritos sobre la Opción A.
 
 ---
 
 ## 1. Estado real del código, verificado y no supuesto
 
-Verificado el 2026-09-08 sobre `feature/REQ-BO-1.6-backoffice-superadmin` (un *commit* de `ADR-045` sobre `develop` en `b95be70`).
+Verificado el 2026-09-08 sobre `feature/REQ-BO-1.6-backoffice-superadmin` (un *commit* de `ADR-045` sobre `develop` en `b95be70`), y **reverificado el mismo día por `ADR-046 §1.1`** sobre esa misma rama en `2993581`. De esa reverificación salieron **dos correcciones a este documento**: la premisa falsa sobre `sessions` (§0 punto 2, §1.2) y el recuento de llamadores de `runAsPlatform()` (§6.2).
 
 ### 1.1 Lo que existe y sirve
 
@@ -54,7 +56,7 @@ Verificado el 2026-09-08 sobre `feature/REQ-BO-1.6-backoffice-superadmin` (un *c
 | `platform_admins` | No aparece en ninguna migración ni modelo; sólo como texto en un comentario de `TenantContext` | Hay que crearla, con su ciclo de vida completo |
 | `admin_action_logs` | Ídem. `ADR-033 §7` la reservó en el registro de tablas compartidas y `ADR-036` la fechó en 1.6 | Sin ella no hay auditoría de plataforma, y `Tenant` sigue sin auditarse (issue [#27](https://github.com/pirexia/plataforma-educativa/issues/27)) |
 | Un segundo *guard* | `config/auth.php` define **un solo** *guard*, `web`, sobre el *provider* `users` (modelo `App\Models\User`) | El backoffice necesita *guard*, *provider* y modelo propios |
-| Sesión sin tenant | `config/session.php` usa el *driver* `database`; `ADR-034 §8` dejó escrito que 1.2 añade `tenant_id` a `sessions` | **Un `platform_admin` no tiene tenant.** O el backoffice tiene almacén de sesión propio, o `sessions.tenant_id` deja de ser obligatoria — y lo segundo debilita una invariante sobre una tabla viva. Ver `OPEN-BO-02` |
+| Almacén de sesión para un sujeto sin tenant | `config/session.php` usa el *driver* `database` sobre `sessions`. **Verificado (`ADR-046 §1.1`): `sessions` NO tiene `tenant_id`**, está en `shared_tables.framework` sin RLS, y **`plataforma_app` puede leer todas sus filas** —debilidad preexistente y aceptada, issue [#81](https://github.com/pirexia/plataforma-educativa/issues/81), abierto—. El vínculo sesión↔tenant lo producen hoy la cookie *host-only*, la clave `pge_tenant_id` del *payload* y el *middleware* `VerifySessionTenant`, no una columna | **`ADR-046 §5` decide: tabla propia `platform_sessions`**, tabla de plataforma, con `REVOKE ALL … FROM plataforma_app` en su migración. El motivo no es «no debilitar una columna» —esa columna no existe— sino **no heredar el issue #81** en la superficie más sensible del producto: en el *driver* `database`, `sessions.id` **es** el identificador de sesión, y dejar ahí los de plataforma sería una escalada de tenant a backoffice que no pasa por la autenticación (§5.1, `datos.md §2.6`) |
 | MFA fuera de tenant | Las seis tablas `mfa_*` llevan `tenant_id`; `EloquentMfaPolicy` llama a `TenantContext::tenantId()` y lanza `TenantContextMissing` sin contexto | El MFA obligatorio de `REQ-BO-007` **no se resuelve reutilizando las tablas de 1.3** |
 | Impersonación | Búsqueda de `impersonat*` en `apps/api` y `apps/web`: **cero resultados** | `REQ-BO-004` último punto está por construir entero |
 | *Feature flags*, mantenimiento, *early adopters* | **Verificado el 2026-09-08 y sin una sola coincidencia**: ni `feature_flag`, ni `flag`, ni `toggle`, ni `rollout`, ni `canary`, ni `early_adopter` en `apps/api` ni en `apps/web`; ninguna dependencia de `laravel/pennant`, Unleash o Flagsmith en `composer.json` ni en `package.json`; ningún fichero en `config/`; ninguna tabla con `flag` en el nombre | `REQ-BO-005` está por construir entero. Sus **puntos 1-2 entran en alcance** por decisión del usuario del 2026-09-08 (§2.1, §5.11); los puntos 3-4 siguen fuera (§2.2) |
@@ -121,7 +123,9 @@ La nota para el implementador de `REQ-BO-005` obliga a que ese flujo esté «cla
 
 ---
 
-## 3. La separación de la aplicación: opciones, costes y por qué **no la decido**
+## 3. La separación de la aplicación: opciones, costes y la decisión de `ADR-046`
+
+> **Estado de esta sección: cerrada.** La escribí evaluando opciones y parando en `OPEN-BO-01`, porque una de ellas exigía tocar `ADR-002`. **`ADR-046` (ACEPTADA, 2026-09-08) decide la Opción A con cinco condiciones vinculantes**, ratifica en el fondo la lectura que yo ofrecía como insumo y la **corrige en la forma**: mis dos condiciones eran necesarias pero **no suficientes**, porque les faltaba el enrutado por *host*, que es justo el punto donde la Opción A se cae. §3.1 a §3.3 conservan el razonamiento —sigue siendo lo que sostiene la decisión— y **§3.4 recoge lo decidido**, que es lo vinculante.
 
 `REQ-BO` dice literalmente: «Aplicación **separada del producto** que usan los centros, con su propio dominio, su propia autenticación y sus propios roles. Un usuario de un tenant nunca puede alcanzar este backoffice, ni siquiera con el rol máximo de su centro.»
 
@@ -131,7 +135,9 @@ Eso fija tres propiedades **obligatorias** —dominio propio, autenticación pro
 
 | Restricción | Origen | Consecuencia |
 |-------------|--------|--------------|
-| `ResolveTenant` es el **primer** *middleware* de los grupos `api` y `web`, resuelve por *host* y lanza `TenantNotResolved` → 404 si el *host* no es de ningún centro | `ADR-033 §2` | El dominio del backoffice **no resuelve ningún tenant**. Sus rutas no pueden pasar por ese grupo: necesitan pila de *middleware* propia. Esto es cierto en **todas** las opciones |
+| `ResolveTenant` resuelve por *host* y lanza `TenantNotResolved` → 404 si el *host* no es de ningún centro | `ADR-033 §2` | El dominio del backoffice **no resuelve ningún tenant**. Sus rutas no pueden pasar por ese grupo: necesitan pila de *middleware* propia. Esto es cierto en **todas** las opciones |
+| Un grupo de rutas fuera del tenant **no es una excepción nueva**: ya existen `/api/health` y `/api/_sso-simulator/*` | Código, verificado en `ADR-046 §1.1` | Declarar `/api/platform/v1` con pila propia y explícita es **el patrón vigente**, no una desviación |
+| **Traefik enruta hoy sólo por `PathPrefix`, sin `Host()`** | `infra/quadlet/web.container`, `api@.container`, verificado en `ADR-046 §1.1` | **Cualquier *host* que llegue al proxy alcanza el mismo contenedor de API**, incluido `centroa.dominio/api/…`. Sin `Host()` en las reglas, un grupo de rutas de plataforma sería alcanzable desde el *host* de un centro. Es lo que hace que la condición 1 de §3.4 no sea una recomendación |
 | Cookie de sesión ***host-only***, sin dominio principal | `ADR-033 §2` | La sesión del backoffice queda ligada a su *host* por construcción. Una cookie de `centroa.dominio` **no puede** viajar al dominio del backoffice, ni al revés. `RMT-009` se cumple solo |
 | El backoffice escribe por `plataforma_platform` (`BYPASSRLS`), credenciales separadas | `ADR-033 §5` | «Encaja con que `REQ-BO` sea una aplicación aparte», dice el propio ADR |
 | Monolito modular hasta la fase 3 | `ADR-002` | Un servicio desplegable independiente **contradice** una decisión vigente y exigiría ADR nuevo |
@@ -140,25 +146,39 @@ Eso fija tres propiedades **obligatorias** —dominio propio, autenticación pro
 
 ### 3.2 Las opciones que quedan vivas
 
-**Opción A · Mismo monolito, segundo *guard*, segundo grupo de rutas, SPA propia.**
+**Opción A · Mismo monolito, segundo *guard*, segundo grupo de rutas, SPA propia.** — **la elegida** (§3.4)
 `platform` como *guard* de sesión sobre el modelo `PlatformAdmin`; grupo de rutas `/api/platform/v1` sin `ResolveTenant` y con su propia pila; una segunda aplicación Vite (`apps/backoffice`) con su propio `dist`, enrutada por Traefik al mismo contenedor de API bajo el *host* de plataforma.
-*Coste*: bajo. *Riesgo*: el aislamiento entre las dos superficies depende de la configuración de rutas y de que ningún *middleware* se cuele; hay que probarlo, no confiarlo (§CA-BO-001/002).
+*Coste*: bajo. *Riesgo*: el aislamiento entre las dos superficies depende de la configuración de rutas y de que ningún *middleware* se cuele; hay que probarlo, no confiarlo — y es exactamente lo que hacen las cuatro aserciones de `CA-BO-011` y `CA-BO-013` a `CA-BO-015`.
 *Compatible con* `ADR-002` sin tocarlo.
 
-**Opción B · Aplicación desplegable independiente** (`apps/backoffice-api`), compartiendo únicamente la base de datos por el rol `plataforma_platform`.
+**Opción B · Aplicación desplegable independiente** (`apps/backoffice-api`), compartiendo únicamente la base de datos por el rol `plataforma_platform`. — **descartada** (`ADR-046 §9`)
 *Coste*: alto — segundo contenedor, segundo ciclo de *release*, segunda configuración, duplicación de `App\Support` o extracción a un paquete compartido.
-*Beneficio real*: el aislamiento deja de depender de la disciplina de enrutado y pasa a ser una propiedad del despliegue; la lista blanca de IP se aplica en el *ingress* y no en la aplicación.
-*Requiere ADR* que ampíe o excepcione `ADR-002`.
+*Beneficio real*: el aislamiento deja de depender de la disciplina de enrutado y pasa a ser una propiedad del despliegue; la lista blanca de IP se aplica en el *ingress* y no en la aplicación. **Ese beneficio es genuino y `ADR-046 §3` lo reconoce antes de descartarlo** — pero se compra más barato en el sitio correcto, con `Host()` e `ipallowlist` en Traefik (§3.4, condiciones 2 y 3).
+*Requiere ADR* que amplíe o excepcione `ADR-002`. **Y rompe `RN-BO-22`**: la resolución de dependencias de módulos vive en un servicio de dominio de `REQ-CORE` y un backoffice desplegado aparte o la duplica —dos implementaciones de una regla facturable— o la alcanza por HTTP, inventando el primer microservicio del proyecto para servir a la pantalla de administración interna. Ese, y no el coste, es el argumento que decide (`ADR-046 §7.1`).
 
 **Opción C · Misma SPA con un «modo backoffice».** **Descartada, y sí decido esto**, porque contradice el requisito de forma directa: una sola aplicación servida en los dos dominios significa que el *bundle* del backoffice viaja al navegador de cualquier usuario de cualquier centro. «Un usuario de un tenant nunca puede alcanzar este backoffice» dejaría de ser una propiedad y pasaría a ser una condición en tiempo de ejecución. Se descarta por incompatibilidad con el requisito, no por preferencia.
 
-### 3.3 Por qué paro aquí
+### 3.3 Por qué paré aquí, y qué aportó pararme
 
-Entre A y B hay una diferencia de **naturaleza**, no de detalle: B toca `ADR-002`, que es una decisión arquitectónica vigente. `CLAUDE.md §11` dice que no se cambia una decisión de un ADR sin un ADR nuevo, y `CLAUDE.md §0` que no se rellenan huecos con suposiciones. Además, la elección arrastra a `OPEN-BO-02` (dónde vive la sesión del backoffice) y a cómo se aplica la lista blanca de IP.
+Entre A y B hay una diferencia de **naturaleza**, no de detalle: B toca `ADR-002`, que es una decisión arquitectónica vigente. `CLAUDE.md §11` dice que no se cambia una decisión de un ADR sin un ADR nuevo, y `CLAUDE.md §0` que no se rellenan huecos con suposiciones. Además, la elección arrastraba a `OPEN-BO-02` (dónde vive la sesión del backoffice) y a cómo se aplica la lista blanca de IP.
 
-**`OPEN-BO-01` (§14) es, por tanto, la primera pregunta que hay que responder, y recomiendo que se resuelva con un ADR propio antes de implementar nada.** `ADR-045` no la toca ni pretende tocarla (`ADR-045 §2`: «No decide la autenticación ni los roles internos del backoffice»).
+Mi lectura, ofrecida entonces como insumo y no como decisión, fue **A** con dos condiciones: lista blanca de IP también en Traefik, y un test de arquitectura que falle si una ruta de plataforma aparece bajo el grupo de tenant o al revés. `ADR-046 §4` la ratifica en el fondo **y la corrige en la forma**: esas dos condiciones son necesarias pero **no suficientes**, porque no cubrían el enrutado por *host* —y sin él, `centroa.dominio/api/platform/…` alcanza el mismo contenedor y la única barrera restante es la autenticación, que es exactamente el defecto por el que se descartó la Opción C—.
 
-Mi lectura, ofrecida como insumo y **no** como decisión: **A**, por `ADR-002` y por coste, con dos condiciones que la hacen defendible — (1) la lista blanca de IP se aplica **además** en Traefik, no sólo en la aplicación, de modo que la primera barrera no sea código; y (2) un test de arquitectura que falle si una ruta de plataforma aparece bajo el grupo de tenant o al revés, con el mismo espíritu de «convertir disciplina en *build* roto» de `ADR-033 §10`.
+### 3.4 La decisión (`ADR-046 §4`): **Opción A con cinco condiciones vinculantes**
+
+Las cinco son **parte de la decisión, no glosa**: sin ellas, `ADR-046` deja escrito que la decisión no se sostiene.
+
+| # | Condición | Dónde se cumple |
+|---|---|---|
+| 1 | **Superficie de aplicación propia.** Módulo `App\Modules\Backoffice` sujeto a `INV-007` como cualquier otro; *guard* de sesión `platform` sobre el *provider* `platform_admins` y el modelo `PlatformAdmin`, **sin `tenant_id`** (`RN-BO-01`); grupo de rutas `/api/platform/v1`, hermano de `/api/v1`, **con pila de *middleware* declarada de forma explícita y completa**, sin `resolve-tenant`, sin `verify-session-tenant` y sin `require-mfa-enrollment`; SPA propia en `apps/backoffice`, proyecto Vite independiente que **no comparte *bundle*** con `apps/web` —esto fija **dónde vive**; su construcción es del paso de interfaz, posterior a `1.7`/`1.9` (§12.5)—. El *guard* `web` no cambia | `api.md §0`, `§1` y `§1.1`; `permisos.md §5` |
+| 2 | **Traefik enruta por `Host()`.** Las reglas de `web.container` y `api@.container` pasan de `PathPrefix(...)` a `Host(...) && PathPrefix(...)`, y se añaden los *routers* del backoffice bajo su propio `Host()` —el de `/api/platform` en `1.6`; el de la SPA cuando exista la SPA, en el paso de interfaz (`operacion.md §0.2`)—. **Sin esto la separación no existe a nivel de red**, y `plataforma-web`, con su `PathPrefix(/)` de prioridad 1, serviría la SPA de los centros bajo el *host* del backoffice (`ADR-046 §4.6`) | `operacion.md §0.1` y `§0.2` |
+| 3 | **Lista blanca de IP también en el *ingress***: *middleware* `ipallowlist` de Traefik sobre los *routers* del backoffice, **además** de `RN-BO-06`/`RN-BO-07` en la aplicación. Ninguna de las dos capas sustituye a la otra. Con el aviso de `forwardedHeaders.trustedIPs` que `operacion.md §0.3` recoge y que es donde una lista blanca se vuelve decorativa **sin dar ningún síntoma** | `operacion.md §0.3` |
+| 4 | **La aplicación vuelve a comprobar el *host***, porque la configuración del proxy no la cubre la suite de tests y la aplicación sí. Dos *middleware*, los dos primeros de la pila: `RequirePlatformHost` (`RN-BO-48`) y `EnforcePlatformIpAllowlist` (`RN-BO-06`/`RN-BO-07`). Y el *host* del backoffice **no puede ser subdominio de `TENANCY_BASE_DOMAIN`** (`RN-BO-49`) | `RN-BO-48`, `RN-BO-49`; `api.md §1.1`; `operacion.md §2` |
+| 5 | **Test de arquitectura sobre `Route::getRoutes()`, no sobre el texto de los ficheros.** Cuatro aserciones (`ADR-046 §4.5`), en el espíritu de `ADR-033 §10`: nada de plataforma lleva los tres *middleware* de tenant; **toda** ruta de plataforma lleva la pila completa **y en orden**; ninguna ruta de tenant ni del grupo `web` usa el *guard* `platform`; ninguna ruta fuera de `/api/platform/*` apunta a un controlador de `App\Modules\Backoffice` | `CA-BO-011`, `CA-BO-013`, `CA-BO-014`, `CA-BO-015` |
+
+**Lo que sigue siendo compartido, y es correcto** (`ADR-046 §4.2`): el backoffice consume `App\Support` (`Tenancy`, `Audit`, `Api`) y los **servicios de dominio públicos** de `REQ-CORE`, empezando por la resolución de dependencias de módulos de `RMOD-006`/`RN-BO-22`. Eso no es acoplamiento indebido: es `INV-007` bien aplicado entre dos *bounded contexts* del mismo monolito, y es literalmente la razón por la que la Opción B pierde — un backoffice desplegado aparte o duplica esa regla facturable o la alcanza por HTTP.
+
+**Riesgo residual, dicho en voz alta y no eliminado** (`ADR-046 §8`): en la Opción A, un error de configuración de rutas expone el backoffice donde no debe, cosa que en B no pasaría. Lo mitigan la condición 5 —que lo convierte en *build* roto— y las condiciones 2 y 3, que ponen la primera barrera fuera del código. No lo eliminan.
 
 ---
 
@@ -205,13 +225,15 @@ Resolución multi-rol: **unión de capacidades**. No hay `deny` en el backoffice
 
 ### 5.1 Acceso al backoffice (`REQ-BO-007`)
 
-1. La petición llega al *host* de plataforma. **Antes de nada, la lista blanca de IP**: si la dirección de origen no está contenida en ninguna entrada activa, `403` y **entrada en `admin_action_logs`** con `action = 'acceso.rechazado_por_ip'` y sin revelar nada más.
-2. Credenciales (`POST /platform/auth/session`). Contraseña verificada contra `platform_admins.password`. Mismos límites de tasa y bloqueo por intentos que `REQ-AUTH-001`, con su propio contador.
-3. **Segundo factor, siempre.** No hay período de gracia, no hay exención y no existe el equivalente a `user_mfa_exemptions` de 1.3b (§7.2).
-4. Sesión emitida con vida corta (`RN-BO-09`), *host-only*, `httpOnly`, `Secure`, `SameSite`, con CSRF (`ADR-025`).
-5. Toda la secuencia queda auditada: intento, éxito o fallo, IP, *user-agent* y `request_id`.
+0. **Antes que la aplicación, la red.** Traefik enruta por `Host()` y aplica su *middleware* `ipallowlist` sobre los *routers* del backoffice (§3.4, condiciones 2 y 3). Una petición al *host* de un centro **nunca** llega a este grupo de rutas.
+1. **`RequirePlatformHost`**, primer *middleware* de la pila: si el *host* de la petición no coincide con `BACKOFFICE_HOST`, **`404`**, antes de sesión y antes de credenciales. Mismo criterio que `ResolveTenant` con un *host* desconocido: **no se revela que la superficie existe** (`RN-BO-48`, `CA-BO-016`). La comparación es contra `BACKOFFICE_HOST`, nunca contra «lo que no resuelve tenant».
+2. **`EnforcePlatformIpAllowlist`**: si la dirección de origen no está contenida en ninguna entrada activa, `403` y **entrada en `admin_action_logs`** con `action = 'acceso.rechazado_por_ip'` y sin revelar nada más (`RN-BO-06`, `RN-BO-07`).
+3. Credenciales (`POST /auth/session`). Contraseña verificada contra `platform_admins.password`. Mismos límites de tasa y bloqueo por intentos que `REQ-AUTH-001`, con su propio contador.
+4. **Segundo factor, siempre.** No hay período de gracia, no hay exención y no existe el equivalente a `user_mfa_exemptions` de 1.3b (§7.2).
+5. Sesión emitida con vida corta (`RN-BO-09`), sobre **`platform_sessions`** y con **cookie de nombre propio**, *host-only*, `httpOnly`, `Secure`, `SameSite`, con CSRF (`ADR-025`). El almacén se selecciona **por grupo de rutas**, con un *middleware* que fija la configuración de sesión de plataforma **antes** de `start-session` — mismo patrón que `TenantContext::applyCachePrefix()` con `cache.prefix` y `Cache::forgetDriver()`, probado desde `0.7` (`ADR-046 §5.2`, `datos.md §2.6`).
+6. Toda la secuencia queda auditada: intento, éxito o fallo, IP, *user-agent* y `request_id`.
 
-**Un usuario de tenant que llegue al dominio del backoffice** no encuentra ningún *endpoint* que acepte su cookie: la cookie es *host-only* y no viaja, el *guard* es otro y el *provider* apunta a otra tabla. El intento se audita (`CA-BO-002`), que es lo que exige el cuarto criterio de aceptación de §5.51.
+**Un usuario de tenant que llegue al dominio del backoffice** no encuentra ningún *endpoint* que acepte su cookie, y ahora por **cuatro** barreras independientes en vez de una: `Host()` en Traefik, lista blanca de IP en el *ingress*, `RequirePlatformHost` en la aplicación, y *guard*, cookie y **tabla de sesión** distintos. La cookie es *host-only* y no viaja, el *guard* es otro, el *provider* apunta a otra tabla y el almacén de sesión es otro. El intento se audita (`CA-BO-002`), que es lo que exige el cuarto criterio de aceptación de §5.51.
 
 ### 5.2 Reautenticación para operaciones sensibles (`REQ-BO-007`)
 
@@ -222,7 +244,7 @@ Las operaciones marcadas como sensibles (`api.md §4`) exigen que la sesión hay
 Es **una operación de datos, no un despliegue** (nota para el implementador de `REQ-BO-005`), y debe completarse en segundos.
 
 1. `superadministrador` envía nombre, `slug`, idiomas activos y por defecto, zona horaria, moneda, CCAA y los datos del primer Administrador de Centro.
-2. Validación: `slug` único entre los tenants vivos, con formato de etiqueta DNS; idioma por defecto contenido en los activos; los cuatro de `ADR-021`; zona horaria IANA; moneda ISO 4217; CCAA del catálogo.
+2. Validación: `slug` único entre los tenants vivos, con formato de etiqueta DNS; **`slug` distinto de la etiqueta del *host* de plataforma, o `422`** (`RN-BO-49`, `CA-BO-017`); idioma por defecto contenido en los activos; los cuatro de `ADR-021`; zona horaria IANA; moneda ISO 4217; CCAA del catálogo.
 3. En una transacción por `pgsql_platform`: fila en `tenants` con `status = 'en_alta'`, y **dentro del contexto del tenant recién creado**, todo lo que hoy hace `tenant:provision-defaults` (los 16 roles predefinidos, sus concesiones, la configuración inicial) más la `Person`/`User` del primer administrador y su invitación.
 4. Transición a `activo` cuando el aprovisionamiento termina sin error.
 5. `admin_action_logs`: `tenant.creado`, con `affected_tenant_id`.
@@ -412,16 +434,99 @@ Tres propiedades que se obtienen de elegir esta forma y **no** un sorteo con res
 
 ### 6.2 Issue #6 · `runAsPlatform()` sin autorización ni auditoría
 
-El punto 1 (test de arquitectura) lo cerró 1.5 con `RunAsPlatformArchitectureTest` (`CA-PERM-092`) y una lista de tres excepciones verificadas. Quedan los puntos 2 y 3, re-etiquetados a este paso.
+El punto 1 (test de arquitectura) lo cerró 1.5 con `RunAsPlatformArchitectureTest` (`CA-PERM-092`) y una lista blanca de **tres apariciones** en `app/`. Quedan los puntos 2 y 3, re-etiquetados a este paso, y **`ADR-046 §6` los decide**.
 
-**Y aquí hay que corregir la propuesta original del issue**, porque aplicada al pie de la letra produce algo peor que el problema:
+> **Corrección de una imprecisión de la revisión anterior**, señalada por `ADR-046 §11.3`: este documento hablaba de «sus tres llamadores». Son **dos llamadores reales** —`RunsPerTenant::eachTenant()` y `PurgeExpiredIdempotencyKeys::handle()`— más la **definición** del método en `App\Support\Tenancy\TenantContext`, que no es un llamador. Las tres apariciones de la lista blanca del test no son tres llamadas. Sin consecuencia sobre la decisión, pero la especificación tiene que decirlo bien.
 
-- **Auditar cada llamada a `runAsPlatform()` no sirve.** Dos de sus tres llamadores legítimos son mantenimiento sin sujeto —`RunsPerTenant::eachTenant()` y `PurgeExpiredIdempotencyKeys`—; auditar cada iteración llenaría `admin_action_logs` de entradas sin significado de negocio y dejaría lo que de verdad importa enterrado. **Lo que se audita es la operación** («este administrador suspendió este centro»), no la primitiva que la ejecuta.
+**La propuesta literal del issue produce algo peor que el problema**, y `ADR-046 §6` lo confirma contra el código:
+
+- **Auditar cada llamada a `runAsPlatform()` no sirve.** Sus dos llamadores reales son mantenimiento **sin sujeto** y **corren sin tenant activo**: `eachTenant()` lo usa para *listar* los tenants antes de iterar con `runFor()`, y `PurgeExpiredIdempotencyKeys` se despacha desde `routes/console.php` fuera de todo contexto de tenant. Auditar cada iteración llenaría `admin_action_logs` de entradas sin significado de negocio. **Lo que se audita es la operación** («este administrador suspendió este centro»), no la primitiva que la ejecuta.
 - **Comprobar un permiso dentro de la primitiva tampoco sirve**, por lo mismo: un comando de consola no tiene sujeto al que comprobarle nada.
 
-Propuesta concreta, que convierte el `TODO` del *docblock* en un contrato tipado: **`runAsPlatform()` recibe un propósito declarado** —`Mantenimiento` (sin sujeto, no auditado, sólo alcanzable desde consola o cola) o `Backoffice` (exige administrador de plataforma autenticado con la capacidad correspondiente, y la operación que lo envuelve **debe** dejar entrada en `admin_action_logs`)—. Una llamada desde código de módulo sin propósito válido lanza excepción, igual que `tenantId()` lanza sin contexto: fallo en cerrado.
+**`ADR-046 §6` acepta el cambio de firma y lo concreta hasta el punto en que ni `spec-writer` ni `implementer` deciden nada.** Tres cambios respecto de lo que yo proponía, cada uno con su motivo: el propósito de backoffice se parte en **lectura y escritura**, la primitiva **exige ausencia de tenant activo**, y la obligación de auditar deja de ser una promesa y pasa a ser una **comprobación al cierre del bloque**.
 
-Esto **cambia una firma en `App\Support\Tenancy`**, que es infraestructura compartida por todo el producto. Lo propongo, no lo decido: `OPEN-BO-03`.
+#### 6.2.1 La firma, exacta (`ADR-046 §6.1`)
+
+```php
+namespace App\Support\Tenancy;
+
+enum PlatformAccessPurpose: string
+{
+    case Mantenimiento       = 'mantenimiento';
+    case BackofficeLectura   = 'backoffice_lectura';
+    case BackofficeEscritura = 'backoffice_escritura';
+}
+```
+
+```php
+// App\Support\Tenancy\TenantContext
+public function runAsPlatform(PlatformAccessPurpose $purpose, Closure $callback): mixed;
+
+// Nuevo, para que AuditRecorder y los tests puedan ramificar sin adivinar:
+public function platformPurpose(): ?PlatformAccessPurpose;   // null fuera de modo plataforma
+public function isPlatformMode(): bool;                      // sin cambios
+```
+
+El propósito es **el primer parámetro y no tiene valor por defecto**, deliberadamente: así ninguna llamada existente sigue compilando sin tocarla, y ningún llamador futuro hereda un propósito por omisión. **Los dos llamadores actuales pasan `PlatformAccessPurpose::Mantenimiento`.** El *enum* vive en `App\Support\Tenancy`, junto a `TenantContext`, `TenantScope` y `TenantContextMissing` —es infraestructura de aislamiento, no de `REQ-BO`—, con nombres de caso en español, como `TenantStatus::Activo` y `SessionEndReason::RevocadaUsuario`.
+
+#### 6.2.2 Tres propósitos, y por qué no dos
+
+Yo proponía dos (`Mantenimiento` / `Backoffice`) y que `Backoffice` obligara siempre a escribir en `admin_action_logs`. **Eso obligaría a una operación de sólo lectura —el rol `soporte`, «solo lectura y diagnóstico» según `REQ-BO-007`, listando el inventario— a inventarse una acción que registrar. Una obligación que hay que falsear se acaba desactivando.**
+
+| Propósito | Quién puede | Obligación de auditoría |
+|---|---|---|
+| `Mantenimiento` | Sólo con `app()->runningInConsole()` verdadero —comandos, tareas programadas y *workers* de cola, que corren bajo `artisan`—. **Desde una petición HTTP lanza excepción**, sin exenciones: `INV-012` ya obliga a que lo pesado vaya en colas, así que no existe un caso legítimo | Ninguna. Sin sujeto no hay nada que registrar |
+| `BackofficeLectura` | Administrador de plataforma autenticado en el *guard* `platform`, con la capacidad que el llamador ya comprobó | Ninguna en `admin_action_logs`. La auditoría de **lectura** de datos de categoría especial (`CLAUDE.md §8`) es otra cosa y sigue su propia regla |
+| `BackofficeEscritura` | Igual que la anterior | **Obligatoria**, comprobada al cierre (§6.2.4) |
+
+#### 6.2.3 Dónde vive la comprobación, sin romper `INV-007` (`ADR-046 §6.3`)
+
+`TenantContext` está en `App\Support` y **no puede importar `App\Modules\Backoffice`**. La primitiva no sabe qué es un administrador de plataforma: lo pregunta.
+
+```php
+namespace App\Support\Tenancy;
+
+interface PlatformAccessCheck
+{
+    /** Antes de abrir el bloque. Lanza si el propósito no es alcanzable desde aquí. */
+    public function before(PlatformAccessPurpose $purpose): void;
+
+    /** Al cerrar el bloque, también si el callback lanzó. Lanza si quedó una obligación sin cumplir. */
+    public function after(PlatformAccessPurpose $purpose): void;
+}
+```
+
+- Enlace **por defecto** en `App\Support\Tenancy` (`DefaultPlatformAccessCheck`): permite `Mantenimiento` bajo consola y **deniega los dos propósitos de backoffice**. Consecuencia buscada: mientras `REQ-BO` no exista, los propósitos de backoffice son **inutilizables**, no «permitidos porque todavía no hay quien compruebe» (`INV-002`, denegar por defecto).
+- El `ServiceProvider` de `App\Modules\Backoffice` **sustituye** el enlace por su implementación, que sí sabe consultar el *guard* `platform` y `admin_action_logs`.
+- `after()` se llama en el `finally`, **siempre**, también si el *callback* lanzó.
+
+#### 6.2.4 Ausencia de tenant activo, y la regla de cierre (`ADR-046 §6.4`, `§6.5`)
+
+**`runAsPlatform()` lanza excepción si `hasTenant()` es verdadero, con cualquier propósito.** No es celo: la implementación actual **no limpia `tenantId`**, y el comentario que ya existe en `AuditRecorder` describe con precisión el fallo que esa combinación permite —escribir con el `tenant_id` equivocado o violar un `NOT NULL`, sin `TenantScope` que filtre y sobre una conexión `BYPASSRLS`—. Verificado que **no rompe nada**: los dos llamadores actuales corren sin tenant.
+
+- El acceso a datos de un tenant concreto desde el backoffice se hace fijando `tenant_id` **a mano** dentro del bloque, que es lo que el *docblock* de `BelongsToTenant` ya prescribe para modo plataforma.
+- La invalidación de caché de `RN-BO-25`/`ADR-045 §8.3`, que necesita el prefijo `t{id}:`, se hace **fuera** del bloque de plataforma, con `runFor($tenantId, …)`. Nunca componiendo el prefijo a mano desde dentro de modo plataforma (`operacion.md §4.2`).
+- **`REQ-SUP-003` (impersonación) es la única funcionalidad prevista que podría querer la combinación prohibida.** No la necesita —una impersonación entra en un tenant *como usuario de ese tenant*, por `plataforma_app`— pero si su diseño de fase 2 concluyera lo contrario, **exigirá un ADR nuevo que sustituya esta decisión**.
+
+**Un bloque `BackofficeEscritura` que termina sin ninguna entrada en `admin_action_logs` lanza excepción al cerrarse.** Lo comprueba `after()`, contando las entradas registradas por el grabador de acciones de plataforma dentro del bloque. El motivo es que esta decisión **retira una barrera** y hay que sustituirla, no eliminarla: hoy `AuditRecorder` lanza en modo plataforma y por eso ninguna escritura de plataforma pasa desapercibida, pero `ADR-045` obliga al backoffice a escribir `module_subscriptions` —`Auditable` con política `Full` y **tabla de tenant**—, cuyo rastro no puede ir a `audit_logs` porque no hay tenant en contexto. Silenciar la excepción sin más cambiaría un fallo ruidoso por un silencio.
+
+Regla nueva de `AuditRecorder`, precisa (`ADR-046 §6.5`):
+
+| Modo | Comportamiento |
+|---|---|
+| Sin modo plataforma | Sin cambios |
+| Modo plataforma, propósito `Mantenimiento` | **Lanza**, con el mensaje actual. Sin cambios: defensa en profundidad, no redundancia a retirar |
+| Modo plataforma, propósito de backoffice | **Retorna en silencio.** El rastro es `admin_action_logs` y su obligación la garantiza la regla de cierre, no este método |
+
+El actor lo aporta `AuditActor::actingAs('platform', …)`, que ya está previsto en su propio *docblock*. **No se toca el vocabulario de `audit_logs`** de `ADR-039`: `admin_action_logs` es otra tabla con su propio vocabulario (`datos.md §4.2`).
+
+#### 6.2.5 El test de arquitectura crece, y no se afloja (`ADR-046 §6.7`)
+
+`RunAsPlatformArchitectureTest` (`CA-PERM-092`) **mantiene su lista blanca fichero a fichero**. Queda **prohibido** convertirla en un comodín de directorio del tipo `app/Modules/Backoffice/**`: eso vaciaría el test precisamente en el módulo que más lo necesita. Consecuencia práctica para `1.6`: el backoffice canaliza **todo** su acceso de plataforma por un conjunto **acotado y nombrado** de clases, que se añaden a la lista una a una y con su justificación en el propio test. Si esa lista crece sin control, es señal de un diseño mal repartido, y el test es lo que lo hace visible.
+
+Aserción nueva: **ninguna llamada a `runAsPlatform()` en `app/` pasa un propósito calculado en tiempo de ejecución**; el argumento es siempre un caso literal del *enum* (`CA-BO-029`). Un propósito que dependa de una variable es un propósito que un día valdrá lo que convenga.
+
+**Esto cambia una firma de `App\Support\Tenancy`, infraestructura compartida por todo el producto**, y por eso el trabajo cae dentro del sub-paso `1.6` aunque no sea código de `REQ-BO` (§12.2). Además de los dos llamadores, hay **cuatro ficheros de test** que actualizar —`TenantModelTest`, `AuditObserverTest`, `CorePurgeJobsTest`, `RunAsPlatformArchitectureTest`—, y `AuditObserverTest` **cambia de significado**: el caso que documentaba —modo plataforma con tenant activo— deja de ser «no ocurre hoy» y pasa a ser «lanza siempre» (`ADR-046 §8`).
 
 ### 6.3 Issue #7 · Caché de resolución de tenant
 
@@ -450,6 +555,10 @@ Esto **cambia una firma en `App\Support\Tenancy`**, que es infraestructura compa
 | `RN-BO-09` | La sesión de plataforma tiene vida **más corta** que la de tenant y su valor es configurable, nunca escrito en código |
 | `RN-BO-10` | Un `platform_admin` no se suspende, no se elimina y no se cambia los roles **a sí mismo** (equivalente de `RN-CORE-06`) |
 | `RN-BO-11` | Debe quedar **siempre al menos un `superadministrador` vivo y activo** (equivalente de `RN-CORE-07`) |
+| `RN-BO-48` | **`RequirePlatformHost` es el primer *middleware* de la pila de plataforma.** Si el *host* de la petición no coincide con `BACKOFFICE_HOST`, **`404`** —no `403`— **antes de sesión y antes de credenciales**: no se revela que la superficie existe, mismo criterio que `ResolveTenant` con un *host* desconocido. La comparación es **contra `BACKOFFICE_HOST`**, nunca contra «lo que no resuelve tenant». **No sustituye** a la regla `Host()` de Traefik ni al revés: las dos capas son obligatorias (`ADR-046 §4.3`) |
+| `RN-BO-49` | El *host* del backoffice vive en **su propia variable de entorno** (`BACKOFFICE_HOST`), **nunca derivado de `TENANCY_BASE_DOMAIN`**, y **no debe ser un subdominio suyo**: `TenantHost::slugFrom()` devuelve la etiqueta más a la izquierda de **cualquier** *host* que termine en `.{TENANCY_BASE_DOMAIN}`, de modo que un backoffice en `admin.{dominio_base}` resolvería el *slug* `admin` y lo único que impediría que resolviera un centro sería que ninguno se llame así. **Defensa en profundidad obligatoria**: el alta de tenant rechaza con `422` un *slug* que coincida con la etiqueta del *host* de plataforma (`ADR-046 §4.4`, `CA-BO-017`) |
+
+> **`RN-BO-48` y `RN-BO-49` van numeradas al final y colocadas aquí, y las dos cosas son a propósito.** Los identificadores de regla **no se reordenan nunca** —`RN-BO-12` a `RN-BO-47` ya están citadas desde los otros cuatro ficheros de este módulo y desde `ADR-046`—, así que las reglas nuevas siguen a la última existente aunque su sitio temático sea §7.1. Renumerar para que el orden quedara bonito rompería referencias en cinco documentos a cambio de nada.
 
 ### 7.2 Ciclo de vida del tenant
 
@@ -522,7 +631,11 @@ Esto **cambia una firma en `App\Support\Tenancy`**, que es infraestructura compa
 | Un `platform_admin` pierde su segundo factor | Lo restablece **otro** `superadministrador`, auditado. **Nunca autoservicio**, y **nunca por correo**: sería una vía de recuperación que evita el segundo factor de la cuenta más peligrosa del producto |
 | El último `superadministrador` intenta darse de baja | `409` (`RN-BO-11`) |
 | Se contrata un módulo cuya dependencia está `retired_at` | `422`. El catálogo nunca borra, pero un módulo retirado no es contratable |
-| El *host* del backoffice recibe una cookie de sesión de tenant | No hay *endpoint* que la acepte; `401`, y el intento se audita |
+| El *host* del backoffice recibe una cookie de sesión de tenant | No hay *endpoint* que la acepte: la cookie es *host-only*, el *guard* es otro, el *provider* apunta a otra tabla y el almacén de sesión es `platform_sessions`. `401`, y el intento se audita |
+| Una ruta de `/api/platform/*` se alcanza desde el *host* de un centro | **`404`**, por `RequirePlatformHost`, antes de sesión y de credenciales (`RN-BO-48`, `CA-BO-016`). En un despliegue correcto la petición ni siquiera llega: Traefik enruta por `Host()` (§3.4, condición 2) |
+| Se intenta dar de alta un tenant cuyo `slug` coincide con la etiqueta del *host* de plataforma | `422` (`RN-BO-49`, `CA-BO-017`). Lo mismo en el cambio de `slug` de `api.md §2.5` |
+| Código de módulo llama a `runAsPlatform()` con un tenant activo | **Lanza**, con cualquier propósito (§6.2.4, `CA-BO-027`). Para operar sobre un tenant concreto se fija `tenant_id` a mano dentro del bloque, o se sale y se usa `runFor()` |
+| Un bloque `BackofficeEscritura` termina sin escribir en `admin_action_logs` | **Lanza al cerrarse** (§6.2.4, `CA-BO-028`). No es un aviso: la escritura de plataforma sin rastro no se completa |
 | Suspensión mientras hay jobs del tenant en cola | Los jobs siguen y terminan. Suspender bloquea el **acceso**, no la maquinaria (`RN-BO-16`) |
 | Se consulta un *flag* cuya clave no está en el catálogo | **Falso**, sin excepción y sin error. Un `flag('lo_que_sea')` que devolviera verdadero por no encontrarse sería la peor forma posible de fallar |
 | Un despliegue **retira** un *flag* que aún tiene reglas | El *flag* queda `retired_at`, evalúa falso y sus reglas se conservan como prueba de lo que estuvo activo. **No se borran**: son el registro de a quién se expuso qué |
@@ -584,7 +697,7 @@ Dos consecuencias concretas de ese reparto, que hay que verificar antes de imple
 
 ### 12.1 Por qué se divide
 
-`1.6` tal como está en el plan tiene, sólo en lo que **sí** entra: **once tablas nuevas** —nueve, más las dos del motor de *flags* que trae la decisión del 2026-09-08—, un segundo sujeto de autenticación con su propio MFA, una segunda superficie HTTP, un mecanismo genérico de doble autorización, la migración de privilegios de `ADR-045 §4.4`, los tres derivados de `ADR-045 §11`, tres issues que cerrar y —si `OPEN-BO-01` sale por la Opción B— una segunda aplicación desplegable. Es varias veces el tamaño de `1.5`, que ya se dividió.
+`1.6` tal como está en el plan tiene, sólo en lo que **sí** entra: **trece tablas nuevas** —nueve del chasis, del ciclo de vida y de la auditoría; **dos de la sesión de plataforma** que trae `ADR-046 §5`; y dos del motor de *flags* que trae la decisión del 2026-09-08—, un segundo sujeto de autenticación con su propio MFA, una segunda superficie HTTP con su propia SPA, un mecanismo genérico de doble autorización, la migración de privilegios de `ADR-045 §4.4`, los tres derivados de `ADR-045 §11`, tres issues que cerrar y —por `ADR-046`— un cambio de firma en infraestructura compartida y dos bloques de trabajo en `infra/quadlet` (§12.2.1). Es varias veces el tamaño de `1.5`, que ya se dividió.
 
 Y hay un argumento mejor que el tamaño: **el orden está forzado**. `REQ-BO-002` no se puede implementar antes que `REQ-BO-007`, porque escribir `enabled` desde el backoffice exige que exista alguien autenticado como Super Administrador. Cuando la secuencia ya es obligatoria, dividir no añade riesgo, sólo puntos de corte limpios.
 
@@ -592,11 +705,24 @@ Y hay un argumento mejor que el tamaño: **el orden está forzado**. `REQ-BO-002
 
 | Paso | Alcance | Por qué corta ahí |
 |------|---------|-------------------|
-| **1.6** · *Identidad, autorización y auditoría de plataforma* | `REQ-BO-007` completo: `platform_admins` y sus roles, MFA propio sin excepción, lista blanca de IP, sesión corta y reautenticación, `admin_action_logs`, doble autorización genérica. Cierra los puntos 2-3 del issue #6 | Es el chasis. Sin él, ninguno de los otros seis sub-requisitos tiene sujeto que autorizar ni sitio donde auditarse. Termina con algo verificable de punta a punta: un administrador de plataforma que entra, con MFA, desde una IP permitida, y cuyo acceso queda registrado |
+| **1.6** · *Identidad, autorización y auditoría de plataforma* | `REQ-BO-007` completo: `platform_admins` y sus roles, MFA propio sin excepción, lista blanca de IP, sesión corta y reautenticación sobre **`platform_sessions`**, `admin_action_logs`, doble autorización genérica. Cierra los puntos 2-3 del issue #6. **Y, por `ADR-046`, el trabajo de separación de superficie que se detalla justo debajo (§12.2.1): las reglas `Host()` e `ipallowlist` de `infra/quadlet`, y la firma de `runAsPlatform()` en `App\Support\Tenancy`** | Es el chasis. Sin él, ninguno de los otros seis sub-requisitos tiene sujeto que autorizar ni sitio donde auditarse. Termina con algo verificable de punta a punta: un administrador de plataforma que entra, con MFA, desde una IP permitida y **bajo el *host* de plataforma**, y cuyo acceso queda registrado |
 | **1.6b** · *Ciclo de vida de tenants* | `REQ-BO-001` completo, sobre el chasis de 1.6. Cierra los issues #7 y #27 | Es la primera operación destructiva real y la primera consumidora de la doble autorización. Separarla permite que el chasis se revise en seguridad **antes** de que exista algo peligroso que hacer con él |
 | **1.6c** · *Matriz de módulos* (`ADR-045`) | `REQ-BO-002` completo, la migración de privilegios de `ADR-045 §4.4` y los **tres derivados** de `ADR-045 §11` | Es el paso que `ADR-045` describe punto por punto, y el único cuyo diseño ya está cerrado antes de empezar. Toca `REQ-CORE` (servicio de contratación, eventos, descriptor) más que a `REQ-BO` |
 | **1.6d** · *Salud y métricas* | `REQ-BO-004` reducido y `REQ-BO-006` reducido (§5.9, §5.10) | Es el único bloque **enteramente de lectura**. Puede posponerse sin bloquear nada, y su valor crece a medida que existan más módulos que observar |
 | **1.6e** · *Motor de* feature flags | `REQ-BO-005` puntos 1-2 completos (§5.11): catálogo declarado en código, `feature_flags` y `feature_flag_rules`, `tenants.early_adopter_since`, evaluador en `REQ-CORE`, caché versionada e interruptor de emergencia | §12.3 |
+
+### 12.2.1 `1.6` incluye trabajo fuera de `apps/api/app/Modules/Backoffice`, y hay que decirlo aquí
+
+**Añadido tras `ADR-046`. Los cortes de la tabla anterior no cambian; lo que cambia es que el primer sub-paso recoge explícitamente dos bloques de trabajo que no son código de módulo** y que sin ellos el chasis no se puede dar por terminado. `ADR-046 §4.1`, `§4.6` y `§8` los meten dentro de `1.6` a propósito, aunque `infra/` y `App\Support` no sean ámbito habitual de un paso de módulo: *«fuera del ámbito habitual de un paso de módulo, pero inseparable de esta decisión»*.
+
+| Bloque | Qué entra en `1.6` | Por qué no puede esperar |
+|---|---|---|
+| **`infra/quadlet` y Traefik** | `Host()` en las reglas de `web.container` y `api@.container`, el *router* nuevo de `/api/platform` bajo el *host* del backoffice, y el *middleware* `ipallowlist` sobre él (`operacion.md §0.2`, filas 1 a 3). **El *router* y el contenedor de estáticos de la SPA no**: son del paso de interfaz, posterior a `1.7`/`1.9` (§12.5, `OPEN-BO-08`) — `ADR-046 §4.1` decide **dónde vive** esa SPA, no cuándo se construye | **Hoy Traefik enruta sólo por `PathPrefix`.** Sin `Host()`, `centroa.dominio/api/platform/…` alcanza el mismo contenedor, la separación de superficie no existe y `1.6` no cumple el requisito de `REQ-BO`. Y `plataforma-web`, con su `PathPrefix(/)` de prioridad 1, serviría la SPA de los centros bajo el *host* del backoffice |
+| **`App\Support\Tenancy`** | Firma nueva de `runAsPlatform()`, `PlatformAccessPurpose`, `platformPurpose()`, `PlatformAccessCheck` con su enlace por defecto que **deniega** los propósitos de backoffice, la regla de ausencia de tenant activo, la regla de cierre y la regla nueva de `AuditRecorder` (§6.2) | Es **infraestructura compartida por todo el producto**, no código de `REQ-BO`: la firma cambia para los dos llamadores que existen y para todos los futuros, y arrastra cuatro ficheros de test. El backoffice no puede escribir nada de plataforma hasta que exista la puerta por la que hacerlo |
+
+**Y una consecuencia sobre el orden interno de `1.6`**: el enlace por defecto de `PlatformAccessCheck` deniega los dos propósitos de backoffice mientras `App\Modules\Backoffice` no lo sustituya (§6.2.3). Eso significa que el trabajo de `App\Support\Tenancy` puede —y conviene que— ir **antes** que el resto del chasis: hasta que llegue, el producto queda estrictamente más cerrado que hoy, no más abierto.
+
+**Nada de esto altera `1.6b`, `1.6c`, `1.6d` ni `1.6e`**, cuyo alcance y orden siguen exactamente como los describe §12.2.
 
 ### 12.3 Dónde encaja el motor de *feature flags*, y por qué ahí
 
@@ -631,6 +757,8 @@ Si cinco parecen demasiados, la fusión que menos duele sigue siendo **1.6 + 1.6
 
 El mismo argumento aplica aquí sin cambiar una palabra, y `INV-006` lo respalda: la API existe antes que la interfaz.
 
+**`ADR-046` no cambia esto, y conviene decir por qué no**, porque su `§4.1` exige «SPA propia en `apps/backoffice`, proyecto Vite independiente que no comparte *bundle* con `apps/web`». Eso decide **dónde vive** esa SPA y **qué no puede compartir** —es lo que descarta la Opción C—, no **cuándo** se construye. El cuándo lo decidió el usuario el 2026-09-08 (`OPEN-BO-08`) y sigue siendo: después de `1.7` y `1.9`. La consecuencia operativa está en `operacion.md §0.2`, fila 4: el *router* de Traefik y el contenedor de estáticos de esa SPA son del paso de interfaz, no de `1.6`.
+
 **Consecuencia que hay que aceptar explícitamente**, igual que se aceptó en `OPEN-CORE-02`: al cerrar estos pasos, `REQ-BO` no cumple la definición de terminado de `CLAUDE.md §10`, porque no tiene interfaz accesible ni manual de usuario con capturas. Y aquí duele más que en `REQ-CORE`, porque el operador de plataforma **es** el usuario: sin pantallas, suspender un centro se hace con `curl`. Ver `OPEN-BO-08`.
 
 ---
@@ -651,8 +779,14 @@ Formato `Dado / Cuando / Entonces`, verificables, con el ID de requisito que cub
 - **`CA-BO-008`** · *Dado* un `platform_admin` con rol `soporte`, *cuando* intenta cualquier escritura, *entonces* `403` (`REQ-BO-007`, «solo lectura y diagnóstico»).
 - **`CA-BO-009`** · *Dado* un `platform_admin` con rol `operaciones`, *cuando* intenta eliminar un tenant, *entonces* `403`: la eliminación es de `superadministrador`.
 - **`CA-BO-010`** · *Dado* el único `superadministrador` vivo y activo, *cuando* intenta suspenderse o retirarse el rol, *entonces* `409` (`RN-BO-10`, `RN-BO-11`).
-- **`CA-BO-011`** · *Dado* cualquier ruta del backoffice, *cuando* se inspecciona su pila de *middleware*, *entonces* **no incluye `ResolveTenant`** y ninguna ruta de tenant incluye el *guard* de plataforma — verificado por test de arquitectura, no por revisión (§3.3).
+- **`CA-BO-011`** · *(aserción 1 de `ADR-046 §4.5`)* *Dado* el mapa de rutas de la aplicación, *cuando* un test de arquitectura recorre **`Route::getRoutes()`** —no el texto de los ficheros—, *entonces* **ninguna** ruta bajo `/api/platform/*` lleva `resolve-tenant`, `verify-session-tenant` ni `require-mfa-enrollment` (§3.4, condición 5).
 - **`CA-BO-012`** · *Dado* un `platform_admin` que perdió su segundo factor, *cuando* pide restablecerlo, *entonces* sólo puede hacerlo otro `superadministrador`, queda auditado, y **no existe ninguna vía de autoservicio ni por correo**.
+- **`CA-BO-013`** · *(aserción 2 de `ADR-046 §4.5`)* *Dado* ese mismo recorrido de `Route::getRoutes()`, *entonces* **toda** ruta bajo `/api/platform/*` lleva la pila de plataforma **completa y en este orden**: `RequirePlatformHost`, `EnforcePlatformIpAllowlist`, cookies, sesión de plataforma, CSRF, caducidad, idioma, MFA de plataforma, capacidad (`api.md §1.1`). **Se comprueba por presencia, no por ausencia**: denegar por defecto es `INV-002`, y una pila incompleta en una sola ruta es la forma de fallo que este test existe para impedir. **La forma exacta de este test depende de `OPEN-BO-13`** (`api.md §1.1.1`): las rutas de pre-autenticación no pueden llevar los puestos 8 y 9 en el sentido literal, y hay que decidir si el test lo resuelve con *middleware* que conocen su excepción o con una lista blanca nombrada. **El resto del criterio no cambia en ninguno de los dos casos.**
+- **`CA-BO-014`** · *(aserción 3 de `ADR-046 §4.5`)* *Dado* ese mismo recorrido, *entonces* **ninguna** ruta bajo `/api/v1/*` ni del grupo `web` usa el *guard* `platform`.
+- **`CA-BO-015`** · *(aserción 4 de `ADR-046 §4.5`)* *Dado* ese mismo recorrido, *entonces* **ninguna** ruta fuera de `/api/platform/*` apunta a un controlador de `App\Modules\Backoffice`.
+- **`CA-BO-016`** · *Dado* una petición a cualquier ruta de `/api/platform/*` cuyo `Host` **no** coincide con `BACKOFFICE_HOST`, *entonces* **`404`** —no `403`, no `401`— y **antes** de tocar la sesión y las credenciales; y la respuesta es indistinguible de la de una ruta inexistente (`RN-BO-48`, `ADR-046 §4.3`).
+- **`CA-BO-017`** · *Dado* un alta de tenant —o un cambio de `slug`— cuyo `slug` coincide con la etiqueta del *host* de plataforma, *entonces* **`422`** y no se crea ni se modifica nada (`RN-BO-49`, `ADR-046 §4.4`).
+- **`CA-BO-018`** · *Dado* la conexión de la aplicación de los centros (`plataforma_app`), *cuando* intenta un `SELECT` sobre **`platform_sessions`**, *entonces* **el motor lo rechaza por falta de privilegio**, no la aplicación — verificado por privilegios de motor, con el mismo patrón con el que `CA-BO-030` comprueba `module_subscriptions` (`ADR-046 §5.2`, `datos.md §2.6`).
 
 ### 13.2 Auditoría de plataforma (`REQ-BO-007`, issues #6 y #27)
 
@@ -661,8 +795,11 @@ Formato `Dado / Cuando / Entonces`, verificables, con el ID de requisito que cub
 - **`CA-BO-022`** · *Dado* un centro, *cuando* consulta desde su propia aplicación las acciones de plataforma que le afectan, *entonces* recibe **sólo** las entradas con su `affected_tenant_id` y ninguna otra, ni siquiera las de alcance global (`RN-BO-31`, `INV-001`).
 - **`CA-BO-023`** · *Dado* la suspensión de un tenant, *cuando* se consulta `audit_logs` de ese tenant, *entonces* **no** aparece: la auditoría de plataforma no se mezcla con la del centro (`RN-BO-30`, `ADR-036`).
 - **`CA-BO-024`** · *Dado* el ciclo de vida de un `Tenant` (alta, suspensión, reactivación, cambio de `slug`, baja, eliminación), *cuando* se ejecuta cualquiera de esas operaciones, *entonces* queda registrada — **cerrando el issue [#27](https://github.com/pirexia/plataforma-educativa/issues/27)**.
-- **`CA-BO-025`** · *Dado* `runAsPlatform()` invocado desde código de módulo sin propósito declarado válido, *entonces* lanza excepción y no ejecuta el *callback* — puntos 2-3 del issue [#6](https://github.com/pirexia/plataforma-educativa/issues/6) (§6.2, sujeto a `OPEN-BO-03`).
+- **`CA-BO-025`** · *Dado* `runAsPlatform()` con un propósito **no alcanzable desde donde se invoca** —`Mantenimiento` desde una petición HTTP, o cualquiera de los dos de backoffice sin administrador de plataforma autenticado en el *guard* `platform`—, *entonces* `before()` lanza excepción y **no se ejecuta el *callback*** (§6.2.2, §6.2.3, `ADR-046 §6`). Y *dado* el enlace **por defecto** de `PlatformAccessCheck`, *cuando* `App\Modules\Backoffice` no está registrado, *entonces* los dos propósitos de backoffice están **denegados**, no permitidos — puntos 2-3 del issue [#6](https://github.com/pirexia/plataforma-educativa/issues/6).
 - **`CA-BO-026`** · *Dado* el mantenimiento por consola que usa `runAsPlatform()` (`RunsPerTenant`, `PurgeExpiredIdempotencyKeys`), *cuando* se ejecuta sobre N tenants, *entonces* **no** escribe N entradas en `admin_action_logs`: se audita la operación, no la primitiva (§6.2).
+- **`CA-BO-027`** · *Dado* un tenant activo en el contexto, *cuando* se invoca `runAsPlatform()` con **cualquiera** de los tres propósitos, *entonces* **lanza** y no ejecuta el *callback* (§6.2.4, `ADR-046 §6.4`). Y *dado* `AuditObserverTest`, *entonces* su caso «modo plataforma con tenant activo» deja de documentar algo que «no ocurre hoy» y pasa a comprobar que **lanza siempre**.
+- **`CA-BO-028`** · *Dado* un bloque `runAsPlatform(PlatformAccessPurpose::BackofficeEscritura, …)` que termina **sin** haber dejado ninguna entrada en `admin_action_logs`, *entonces* `after()` **lanza al cerrar el bloque**, también si el *callback* ya había lanzado (§6.2.4, `ADR-046 §6.5`). Y *dado* `AuditRecorder::record()` bajo modo plataforma, *entonces* **lanza** con propósito `Mantenimiento` y **retorna en silencio** con los dos de backoffice, según la tabla de §6.2.4.
+- **`CA-BO-029`** · *Dado* el código completo de `app/`, *cuando* el test de arquitectura de `RunAsPlatformArchitectureTest` recorre las invocaciones de `runAsPlatform()`, *entonces* **ninguna** pasa un propósito calculado en tiempo de ejecución —el argumento es siempre un caso literal del *enum*—, y **la lista blanca sigue siendo fichero a fichero**: un comodín de directorio del tipo `app/Modules/Backoffice/**` hace fallar el test (§6.2.5, `ADR-046 §6.7`).
 
 ### 13.3 Módulos — los tres derivados de `ADR-045 §11` y `REQ-BO-002`
 
@@ -741,15 +878,15 @@ Formato `Dado / Cuando / Entonces`, verificables, con el ID de requisito que cub
 
 ## 14. Preguntas abiertas
 
-**No las resuelvo yo.** Las tres primeras son estructurales y **bloquean el arranque de la implementación**.
+**No las resuelvo yo.** Las tres primeras eran estructurales y bloqueaban el arranque; **`ADR-046` (ACEPTADA, 2026-09-08) las cierra las tres**, y esta revisión aplica su `§10` a los cinco ficheros del módulo.
 
-**Estado a 2026-09-08**, tras la respuesta del usuario:
+**Estado a 2026-09-08**, tras la respuesta del usuario y tras `ADR-046`:
 
 | Pregunta | Estado |
 |---|---|
-| `OPEN-BO-01` · Separación de la aplicación | **Abierta · bloqueante.** En manos de `architect`, con ADR propio en curso |
-| `OPEN-BO-02` · Sesión del backoffice | **Abierta · bloqueante.** Ídem, en el mismo ADR |
-| `OPEN-BO-03` · Firma de `runAsPlatform()` | **Abierta · bloqueante.** Ídem |
+| `OPEN-BO-01` · Separación de la aplicación | **RESUELTA por `ADR-046 §4`** · Opción A con cinco condiciones vinculantes |
+| `OPEN-BO-02` · Sesión del backoffice | **RESUELTA por `ADR-046 §5`** · tabla propia `platform_sessions`. **La pregunta estaba mal planteada** y la premisa que la sostenía era falsa |
+| `OPEN-BO-03` · Firma de `runAsPlatform()` | **RESUELTA por `ADR-046 §6`** · propósito declarado con **tres** casos, sin valor por defecto |
 | `OPEN-BO-04` · ADR que cierre `ADR-036` | **Abierta**, no bloqueante |
 | `OPEN-BO-05` · Baja sin portabilidad ni purga | **Resuelta 2026-09-08 · riesgo aceptado por el usuario** |
 | `OPEN-BO-06` · Retención de `admin_action_logs` | **Abierta**, no bloqueante |
@@ -758,26 +895,30 @@ Formato `Dado / Cuando / Entonces`, verificables, con el ID de requisito que cub
 | `OPEN-BO-09` · Dos personas para eliminar un tenant | **Resuelta 2026-09-08 · aceptada sin relajar `RN-BO-19`** |
 | `OPEN-BO-10` · RLS de `admin_action_logs` | **Abierta**, pendiente de `db-reviewer` y `architect` antes de la primera migración |
 | `OPEN-BO-11` · Direccionar un *flag* por su `key` | **Abierta · nueva**, no bloqueante. Surge de la decisión del 2026-09-08 |
+| `OPEN-BO-12` · Nombre del *host* de plataforma | **Abierta · nueva**, no bloqueante. Depende de `OPEN-08` (`ADR-046 §2.1`, §4.4). Lo que **sí** queda decidido es la restricción que ese nombre deberá cumplir (`RN-BO-49`) |
+| `OPEN-BO-13` · Las rutas de pre-autenticación y la aserción 2 de `ADR-046 §4.5` | **Abierta · nueva**, no bloqueante, pero **previa a escribir el test de `CA-BO-013`** (`api.md §1.1.1`) |
 
-**Las tres bloqueantes siguen bloqueando.** Que siete de diez estén resueltas o no bloqueen no autoriza a empezar a implementar (§15).
+**Ya no queda ninguna pregunta bloqueante.** Lo que impide empezar a implementar no son las abiertas, sino los tres requisitos de §15: el visto bueno de `db-reviewer` y `architect` a `OPEN-BO-10` —y ahora también a `platform_sessions` y `platform_admin_sessions`—, la decisión de `OPEN-BO-13` antes del test de `CA-BO-013`, y la aprobación explícita del usuario a esta especificación.
 
-### `OPEN-BO-01` · ¿Cómo se separa técnicamente la aplicación del backoffice? · **BLOQUEANTE**
+### `OPEN-BO-01` · ¿Cómo se separa técnicamente la aplicación del backoffice? · **RESUELTA por `ADR-046 §4`**
 
-§3 evalúa las opciones. `ADR-002` (monolito modular hasta la fase 3) hace que la Opción B —aplicación desplegable independiente— **exija un ADR nuevo**, y `CLAUDE.md §11` no permite cambiar una decisión de ADR sin él. La Opción C queda descartada por incompatibilidad con el requisito.
+> **Decisión: Opción A** —mismo monolito y mismo despliegue de API, con *guard* propio, grupo de rutas propio y SPA propia—, **con cinco condiciones vinculantes** que son parte de la decisión y no glosa. **`ADR-002` no se toca.** El detalle está en §3.4; el motivo que decide, en `ADR-046 §7.1`: la Opción B rompía una regla decidida el mismo día —`ADR-045` y `RN-BO-22` exigen **una sola implementación** de las dependencias de módulos en `REQ-CORE`, y un backoffice desplegado aparte o la duplica o inventa un contrato entre servicios—.
 
-**Recomiendo que esta pregunta se responda con un ADR propio**, separado de `ADR-045` (que no la toca), decidido por `architect` o por el usuario, **antes** de escribir la primera migración. Arrastra a `OPEN-BO-02` y a cómo se aplica la lista blanca de IP.
+Mi lectura previa (**A**, con dos condiciones) se ratifica en el fondo y **se corrige en la forma**: le faltaba el enrutado por `Host()`, sin el cual la Opción A no cumple el requisito. Lo que **no** decide `ADR-046` es el nombre de *host* concreto: sigue bloqueado por `OPEN-08` (ver `OPEN-BO-12`).
 
-### `OPEN-BO-02` · ¿Dónde vive la sesión del backoffice? · **BLOQUEANTE**
+### `OPEN-BO-02` · ¿Dónde vive la sesión del backoffice? · **RESUELTA por `ADR-046 §5`** — y **estaba mal planteada**
 
-`sessions` es tabla de tenant desde 1.2 y un `platform_admin` no tiene tenant. Dos salidas: **(a)** almacén de sesión propio para el *guard* de plataforma; **(b)** `sessions.tenant_id` deja de ser obligatoria.
+> **La premisa de la que partía esta pregunta era falsa, y hay que decirlo antes que la respuesta.** Yo escribí que «`sessions` es tabla de tenant desde 1.2» y planteé como salida (b) que «`sessions.tenant_id` deja de ser obligatoria». **Esa columna no existe** (§0, punto 2; `ADR-046 §1.1`), luego la salida (b) describía algo imaginario y el argumento con el que la descartaba —«debilita una invariante sobre una tabla viva»— no aplicaba a nada real.
 
-**(b) debilita una invariante sobre una tabla viva y con sesiones reales**, y una columna de aislamiento anulable es exactamente el tipo de excepción que erosiona `INV-001`. **Recomiendo (a)**, pero el coste real depende de `OPEN-BO-01` y de la nulabilidad efectiva de esa columna, que hay que verificar contra la migración de 1.2 antes de decidir.
+> **Decisión: tabla propia, `platform_sessions`** (`datos.md §2.6`). Coincide en el resultado con mi recomendación (a), **pero por un motivo distinto y verificable**: `sessions` es tabla del framework **sin `tenant_id`, sin RLS y legible por `plataforma_app`**, y en el *driver* `database` de Laravel `sessions.id` **es** el identificador de sesión. Dejar ahí las sesiones de plataforma significaría que cualquier camino que consiguiera leer esa tabla desde el *runtime* de un centro obtendría **identificadores de sesión vivos de administradores de plataforma** — una escalada de tenant a backoffice que no pasa por la autenticación. Que `plataforma_app` pueda leer las sesiones de todos los tenants es una debilidad **preexistente y aceptada** (issue [#81](https://github.com/pirexia/plataforma-educativa/issues/81), abierto): `ADR-046` **no la arregla**, pero **prohíbe heredarla**.
 
-### `OPEN-BO-03` · ¿Se acepta cambiar la firma de `runAsPlatform()`? · **BLOQUEANTE de los puntos 2-3 del issue #6**
+Lo que se construye: tabla de plataforma con `REVOKE ALL … FROM plataforma_app` en su migración, declarada en `shared_tables.platform`, cookie de nombre propio y *host-only*, vida propia y configurable, y selección del almacén **por grupo de rutas** mediante un *middleware* anterior a `start-session`. `sessions` **se queda exactamente como está**.
 
-§6.2 propone que la primitiva reciba un **propósito declarado** (`Mantenimiento` / `Backoffice`) en vez de una comprobación de permiso genérica que sus llamadores de consola no pueden satisfacer. Es una firma de `App\Support\Tenancy`, infraestructura compartida por todo el producto, con tres llamadores hoy y un test de arquitectura de 1.5 apuntándole.
+### `OPEN-BO-03` · ¿Se acepta cambiar la firma de `runAsPlatform()`? · **RESUELTA por `ADR-046 §6`**
 
-Lo propongo porque la alternativa literal del issue produce auditoría sin valor y comprobaciones imposibles; **no lo decido**, porque toca infraestructura ajena a este módulo.
+> **Decisión: sí, con tres cambios sobre lo que yo proponía.** El propósito de backoffice se parte en **lectura y escritura** —tres casos, no dos—, la primitiva **exige ausencia de tenant activo**, y la obligación de auditar deja de ser una promesa y pasa a ser una **comprobación al cierre del bloque**. Firma exacta, contrato `PlatformAccessCheck`, regla de `AuditRecorder` y aserción nueva del test de arquitectura: §6.2.
+
+De paso queda corregida una imprecisión mía: eran **dos llamadores**, no tres (`ADR-046 §11.3`).
 
 ### `OPEN-BO-04` · ¿Hace falta un ADR que cierre formalmente `ADR-036`?
 
@@ -830,11 +971,25 @@ Eran `REQ-OPS-002`, fase 2, `SHOULD`. La pregunta se planteó porque, a diferenc
 
 **No lo decido porque es la letra de un ADR vigente** (`CLAUDE.md §11`). Si se rechaza, las rutas pasan a `public_id` y **nada más de esta especificación cambia** — por eso no bloquea. Lo señalo en vez de resolverlo por comodidad, que es exactamente cómo se erosiona una convención de identificadores.
 
+### `OPEN-BO-12` · ¿Cuál es el *host* del backoffice?
+
+`ADR-046 §2.1` deja explícito que es **lo único que ese ADR no puede decidir**, porque sigue bloqueado por `OPEN-08` (dominio de la plataforma). Lo que sí queda decidido es la **restricción** que ese nombre deberá cumplir: variable de entorno propia `BACKOFFICE_HOST`, nunca derivada de `TENANCY_BASE_DOMAIN`, y **no un subdominio suyo** (`RN-BO-49`).
+
+**No bloquea** porque toda la especificación está escrita contra la variable y ninguna parte contra un literal, y porque el `422` del *slug* colisionante (`CA-BO-017`) funciona con cualquier valor. Lo que sí exige es que `OPEN-08` se resuelva **antes del despliegue**, no antes de la implementación: sin nombre no hay reglas `Host()` en Traefik y sin ellas la separación de superficie no existe (§3.4, condición 2).
+
+### `OPEN-BO-13` · ¿Cómo cumple la aserción 2 de `ADR-046 §4.5` en las rutas de pre-autenticación?
+
+**Surge al aplicar `ADR-046 §10.4` y la señalo en vez de resolverla**, porque las dos salidas tocan la letra de un ADR vigente (`CLAUDE.md §11`). La aserción 2 exige que **toda** ruta de `/api/platform/*` lleve la pila completa, **incluidos el MFA de plataforma y la comprobación de capacidad**. Hay cuatro grupos de rutas para los que eso, literalmente, no puede cumplirse: `GET /csrf-cookie`, `POST /auth/session`, `POST /auth/session/mfa` y los tres de alta de segundo factor — que son, por `RN-BO-05`, **los únicos alcanzables sin factor confirmado**.
+
+Las dos lecturas y su diferencia práctica están en **`api.md §1.1.1`**. Resumida: **(a)** los dos *middleware* están presentes en todas las rutas y conocen su propia excepción —la capacidad puede ser «por identidad del portador», como `GET /me`—, con lo que la aserción se cumple literalmente y **no hay lista que mantener**; **(b)** el test admite una lista blanca cerrada y nombrada de rutas de pre-autenticación, al modo de `RunAsPlatformArchitectureTest`.
+
+**Recomiendo (a)** por el mismo motivo por el que `ADR-046 §6.7` prohíbe convertir una lista blanca en comodín: bajo (b) existe una lista que alguien puede ampliar; bajo (a) no existe. **No bloquea la implementación** —el resto de la especificación es idéntico en ambas— pero **sí es previa a escribir el test de `CA-BO-013`**, que es lo único que cambia de forma.
+
 ---
 
 ## 15. ¿Se aprueba esta especificación?
 
-**Sigue sin estar aprobada.** El 2026-09-08 el usuario resolvió cuatro de las diez preguntas abiertas y esta revisión las ha aplicado; **eso no es la aprobación de la especificación**, y tres bloqueantes siguen en pie.
+**Sigue sin estar aprobada.** El 2026-09-08 el usuario resolvió cuatro de las diez preguntas abiertas y `ADR-046` cerró las tres bloqueantes; esta revisión ha aplicado ambas cosas. **Nada de eso es la aprobación de la especificación.**
 
 Lo resuelto el 2026-09-08, y ya incorporado a este documento:
 
@@ -846,12 +1001,23 @@ Lo resuelto el 2026-09-08, y ya incorporado a este documento:
 | 4 | **Baja sin portabilidad ni purga, riesgo aceptado** (`OPEN-BO-05`) | §14, sin tocar §5.5 ni §7.2 |
 | 5 | **Dos personas reales para eliminar un tenant** (`OPEN-BO-09`), sin relajar `RN-BO-19` | §14, `operacion.md §5` paso 5 |
 
+Lo que trae **`ADR-046`**, aplicado en esta pasada a los cinco ficheros del módulo (`ADR-046 §10`):
+
+| # | Decisión | Dónde queda |
+|---|---|---|
+| 6 | **Opción A con cinco condiciones vinculantes** (`OPEN-BO-01`) | §0 punto 3, §3.4, `RN-BO-48`, `RN-BO-49`, `CA-BO-011` y `CA-BO-013` a `CA-BO-017`, `api.md §0`/`§1.1`, `operacion.md §0` y `§2`, `permisos.md §5` |
+| 7 | **`platform_sessions`, tabla propia** (`OPEN-BO-02`), sustituyendo una **premisa falsa** sobre `sessions.tenant_id`, más `platform_admin_sessions` para poder revocar | §0 punto 2, §1.2, §5.1, §14, `datos.md §2.6` y `§2.7`, `api.md §1`, `CA-BO-018` |
+| 8 | **`runAsPlatform(PlatformAccessPurpose, Closure)`**, tres propósitos, sin tenant activo, con regla de cierre (`OPEN-BO-03`) | §6.2 completo, `CA-BO-025` a `CA-BO-029` |
+| 9 | **`1.6` recoge el trabajo de `infra/quadlet` y de `App\Support\Tenancy`** que la separación de superficie exige | §12.2 y **§12.2.1**, `operacion.md §0` y `§5` paso 0 |
+| 10 | Corrección de «tres llamadores» de `runAsPlatform()` → **dos** | §6.2 |
+| 11 | **Dos preguntas abiertas nuevas**, ninguna bloqueante: el nombre del *host* (`OPEN-BO-12`, que `ADR-046 §2.1` declara fuera de su alcance) y las rutas de pre-autenticación frente a la aserción 2 (`OPEN-BO-13`, detectada al aplicar `ADR-046 §10.4`) | §14, `api.md §1.1.1` |
+
 Lo que **falta** antes de que `implementer` toque una línea:
 
-1. **Las tres decisiones bloqueantes**, que no las decido yo y que están en curso: `OPEN-BO-01` (separación de la aplicación), `OPEN-BO-02` (sesión del backoffice) y `OPEN-BO-03` (firma de `runAsPlatform()`). **Cuando el ADR que las resuelva exista, `datos.md`, `api.md` y `operacion.md` necesitan una segunda pasada** para aplicarlo: hoy están escritos para ser válidos bajo cualquiera de las dos opciones vivas, y eso deja de ser deseable en cuanto haya una elegida.
-2. El visto bueno de `db-reviewer` y `architect` a **`OPEN-BO-10`** antes de escribir la primera migración de `admin_action_logs`.
-3. La **aprobación explícita del usuario** a esta especificación completa, con los *feature flags* dentro.
+1. El visto bueno de `db-reviewer` y `architect` a **`OPEN-BO-10`** antes de escribir la primera migración de `admin_action_logs`. **Y ahora también el de `db-reviewer` a `platform_sessions` y `platform_admin_sessions`** (`datos.md §2.6`, `§2.7`), que son tablas nuevas con `REVOKE` y con entrada en `shared_tables.platform`.
+2. **`OPEN-BO-13`** decidida antes de escribir el test de `CA-BO-013` — no antes de empezar, pero sí antes de ese test.
+3. La **aprobación explícita del usuario** a esta especificación completa, con los *feature flags* dentro y con `ADR-046` aplicado.
 
-**¿Se aprueba la especificación con estos cambios, o hay algo del motor de *feature flags* de §5.11 que revisar antes?** En particular, tres puntos donde he decidido yo y conviene que se ratifiquen: que la **unidad de reparto la declare el código y no el operador** (§5.11.2), que el **rol filtre y no amplíe** (§5.11.4), y que `1.6e` vaya **el último** de los cinco sub-pasos (§12.3).
+**¿Se aprueba la especificación con estos cambios?** Tres puntos donde he decidido yo y conviene que se ratifiquen antes de implementar: que la **unidad de reparto de un *flag* la declare el código y no el operador** (§5.11.2), que el **rol filtre y no amplíe** (§5.11.4), y que `1.6e` vaya **el último** de los cinco sub-pasos (§12.3). Y un cuarto que trae esta pasada: el diseño de **`platform_admin_sessions`** (`datos.md §2.7`), que `ADR-046 §5.2` me encarga explícitamente y sobre el que ese ADR no fija nada.
 
 Lo que **sí** está cerrado y no espera a nadie es el encargo de `ADR-045 §10`: el documento de requisitos está en 3.2.0 con los trece requisitos reescritos, y `OPEN-CORE-03` queda marcado como resuelto en `docs/modulos/REQ-CORE/funcional.md`.

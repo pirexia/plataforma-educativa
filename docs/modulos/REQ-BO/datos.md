@@ -1,6 +1,6 @@
 # REQ-BO · Modelo de datos
 
-> Paso **1.6**, dividido en cinco sub-pasos (`funcional.md §12`). Todas las convenciones de `ADR-029` aplican **sin excepción**: `TIMESTAMPTZ` siempre, `text` nunca `varchar(n)`, enumerados como `text` con `CHECK`, importes en enteros de céntimos, clave primaria `bigint` interna más `public_id` ULID en todo lo expuesto. La única desviación propuesta, y **propuesta, no decidida**, es direccionar un *feature flag* por su `key`: `OPEN-BO-11`.
+> Paso **1.6**, dividido en cinco sub-pasos (`funcional.md §12`). **Entrada obligatoria: `ADR-046`**, cuyo `§5` fija el almacén de sesión de plataforma (§2.6) y cuyo `§10.2` corrige una premisa falsa de la revisión anterior de este documento — la de que `sessions` lleva `tenant_id` (§2.6.1). Todas las convenciones de `ADR-029` aplican **sin excepción**: `TIMESTAMPTZ` siempre, `text` nunca `varchar(n)`, enumerados como `text` con `CHECK`, importes en enteros de céntimos, clave primaria `bigint` interna más `public_id` ULID en todo lo expuesto. La única desviación propuesta, y **propuesta, no decidida**, es direccionar un *feature flag* por su `key`: `OPEN-BO-11`.
 >
 > **Lo primero, porque es lo que distingue a este módulo de los cinco anteriores**: **todas** sus tablas son **de plataforma**, no de tenant. No llevan `tenant_id` como propiedad, no llevan la política `tenant_isolation`, y **por eso mismo cada una tiene que declararse en el registro de tablas compartidas de `config/tenancy.php`** o el test de esquema #8 de `ADR-033 §10` fallará — que es exactamente lo que ese test existe para hacer. Ninguna omisión aquí es inofensiva.
 
@@ -16,6 +16,8 @@
 | `platform_admin_mfa_recovery_codes` | Plataforma | — | No | Ídem |
 | `platform_admin_mfa_challenges` | Plataforma | — | No | Ídem |
 | `platform_ip_allowlist` | Plataforma | — | No | Ídem |
+| `platform_sessions` | Plataforma | — | No | `plataforma_platform`. **`REVOKE ALL … FROM plataforma_app`** (§2.6) |
+| `platform_admin_sessions` | Plataforma | — | No | Ídem (§2.7) |
 | `dual_authorizations` | Plataforma | — | No | Ídem |
 | `admin_action_logs` | Plataforma **con referencia a tenant** | `affected_tenant_id` (referencia, **no** propiedad) | **Sí, propia** (§4.3) | `plataforma_platform` inserta; nadie actualiza ni borra |
 | `tenant_lifecycle_events` | Plataforma **con referencia a tenant** | `tenant_id` (referencia) | **Sí, propia** (§5.3) | `plataforma_platform` |
@@ -24,7 +26,7 @@
 | `tenants` | Ya existe | — | Ya tiene la suya (`id = app.current_tenant_id()`) | Gana columnas (§6) |
 | `module_subscriptions` | Ya existe, **de tenant** | Sí | Ya la tiene | **Gana una migración de privilegios** (§7), sin cambio de esquema |
 
-**Once tablas nuevas**: nueve del chasis, del ciclo de vida y de la auditoría, más las dos del motor de *feature flags* que entró en alcance por decisión del usuario del 2026-09-08 (§9). Es el dato que sostiene la división del paso en cinco (`funcional.md §12`).
+**Trece tablas nuevas**: nueve del chasis, del ciclo de vida y de la auditoría; **las dos de la sesión de plataforma** que trae `ADR-046 §5` (§2.6, §2.7); y las dos del motor de *feature flags* que entró en alcance por decisión del usuario del 2026-09-08 (§9). Es el dato que sostiene la división del paso en cinco (`funcional.md §12`).
 
 ---
 
@@ -114,6 +116,91 @@ Pivote entre administrador y rol interno. Los roles son **cuatro y fijos** (`REQ
 **Sobre el tipo `cidr` frente a `text`**: `ADR-029` prohíbe `varchar(n)` y el tipo `ENUM` de PostgreSQL; no prohíbe los tipos de red nativos. `cidr` da el operador de contención `>>=`, que **es** la comprobación que hay que hacer, validado por el motor. Con `text` habría que analizar la máscara en PHP en cada petición y aceptar que una entrada mal escrita se descubra en ejecución. Se elige el tipo que hace imposible el dato inválido.
 
 `ip_address` de `admin_action_logs` se mantiene con el mismo tipo que ya usa `audit_logs`, para que las dos tablas se lean igual.
+
+### 2.6 `platform_sessions` (`ADR-046 §5`)
+
+#### 2.6.1 Primero, la premisa falsa que esta tabla sustituye
+
+La revisión anterior de esta especificación afirmaba —en `funcional.md §1.2` y `§14`— que **`sessions` es tabla de tenant y lleva `tenant_id`**, y planteaba como alternativa que esa columna «dejara de ser obligatoria». **Es falso, y `ADR-046 §1.1` lo verificó contra el código:**
+
+- `sessions` se crea en `database/migrations/0001_01_01_000000_create_users_table.php` con `{id, user_id, ip_address, user_agent, payload, last_activity}`, y **ninguna migración posterior la altera**.
+- Está declarada en `config/tenancy.php` bajo **`shared_tables.framework`**, junto a `migrations`, `job_batches`, `cache`, `cache_locks` y `jobs`: **sin `tenant_id` y sin RLS**, por declaración explícita.
+- Lo confirman los *docblocks* de `DatabaseSessionRevoker` y de la migración de `mfa_challenges`, y el issue [#81](https://github.com/pirexia/plataforma-educativa/issues/81) —*«`tenant_id` + RLS en `sessions` del framework, paso propio de endurecimiento»*—, que sigue **abierto**.
+- El vínculo sesión↔tenant lo producen hoy **tres cosas y ninguna es una columna**: la cookie *host-only*, la clave `pge_tenant_id` del *payload*, y `VerifySessionTenant`, que la reverifica en cada petición. La tabla de tenant con RLS que sí es fuente de verdad de «qué sesiones hay vivas» es `user_sessions`, no `sessions`.
+
+**Este documento no adelanta el issue #81 ni lo bloquea. `sessions` se queda exactamente como está.**
+
+#### 2.6.2 El motivo real de que la sesión de plataforma tenga tabla propia
+
+`sessions` es **legible por `plataforma_app`**, que es el rol con el que corre el *runtime* que sirve las peticiones de los centros. Y en el *driver* `database` de Laravel, **`sessions.id` es el identificador de sesión**.
+
+Si las sesiones de plataforma vivieran ahí, cualquier camino que consiguiera leer esa tabla desde el *runtime* de un tenant —una inyección SQL, una consulta descuidada, un volcado de depuración— obtendría **identificadores de sesión vivos de administradores de plataforma**: una escalada de tenant a backoffice **que no pasa por la autenticación**, y por tanto lo contrario exacto de «un usuario de un tenant nunca puede alcanzar este backoffice, ni siquiera con el rol máximo de su centro».
+
+Que `plataforma_app` pueda leer hoy las sesiones de todos los tenants es una debilidad **preexistente y aceptada**, con issue propio. `ADR-046` **no la arregla** —está fuera de su alcance— pero **prohíbe heredarla**: la superficie más sensible del producto no nace dentro de un problema conocido y sin cerrar.
+
+#### 2.6.3 Esquema
+
+Es el almacén del *driver* `database` de Laravel para el *guard* `platform`: **misma forma que `sessions`**, y a propósito, para que el driver estándar funcione sin adaptador propio.
+
+| Campo | Tipo | Nulo | Descripción |
+|---|---|---|---|
+| `id` | `text` | No | **Clave primaria: es el identificador de sesión.** Lo genera el framework, no es un ULID nuestro y **no se expone en ninguna API** |
+| `platform_admin_id` | `bigint` | Sí | Equivalente de `sessions.user_id`. Nulo antes de autenticarse. Índice |
+| `ip_address` | Igual que en `admin_action_logs` | Sí | |
+| `user_agent` | `text` | Sí | |
+| `payload` | `text` | No | Serializado por el framework |
+| `last_activity` | `integer` | No | Marca UNIX, como en `sessions`: **la impone el driver y no se cambia a `timestamptz`** |
+
+> **Dos desviaciones de `ADR-029` que son del framework y no mías, y que por eso se declaran en vez de corregirse**: `id` es `text` y no `bigint`+`public_id`, y `last_activity` es `integer` y no `TIMESTAMPTZ`. Cambiar cualquiera de las dos exigiría un manejador de sesión propio para no ganar nada: esta tabla no se expone, no se direcciona por URL y no la lee ninguna consulta de negocio. La forma la fija el *driver* `database`, y apartarse de ella es sustituir una convención de esquema por un adaptador que hay que mantener.
+
+**Privilegios — es la mitad de la decisión y no un detalle de despliegue:**
+
+```sql
+REVOKE ALL ON platform_sessions FROM plataforma_app;
+-- plataforma_platform conserva SELECT, INSERT, UPDATE, DELETE: es el runtime del backoffice.
+```
+
+Precedente literal en el repositorio: `2026_08_17_180000_harden_failed_jobs_grants.php` y `2026_08_18_100900_harden_audit_logs_platform_grants.php`. **Que el *runtime* de un centro no pueda leer una sesión de plataforma deja de ser disciplina y pasa a ser un `GRANT`**, que es la forma que este proyecto le da a `INV-001` desde `ADR-033 §5`. Verificado por `CA-BO-018`, y con la lección de `ADR-045 §4.4` aplicada: *«un `REVOKE` que no se prueba no existe»*.
+
+**Debe quedar declarada en `config/tenancy.php` bajo `shared_tables.platform`**, o el test de esquema #8 de `ADR-033 §10` falla — **y debe fallar** si alguien la crea sin declararla (`CA-BO-075`).
+
+**Cómo se selecciona este almacén**: por **grupo de rutas**, con un *middleware* que fija la configuración de sesión de plataforma —conexión, tabla, nombre de cookie y vida— **antes** de `start-session` (`api.md §1.1`). No es un mecanismo nuevo: `TenantContext::applyCachePrefix()` ya hace exactamente esta forma de cosa con `cache.prefix` y `Cache::forgetDriver()`, y está probada desde `0.7`.
+
+**Cookie**: nombre propio, distinto del de la cookie del producto, y ***host-only*** igual que aquella (`SESSION_DOMAIN` sigue sin valor, `ADR-033 §2`). Con el enrutado por `Host()` y la restricción de `RN-BO-49`, `RMT-009` se cumple **por construcción y por partida triple**: dominios distintos, cookies distintas, tablas distintas.
+
+**Vida**: propia y configurable, **más corta** que la del tenant (`RN-BO-09`), en su propia variable de entorno (`operacion.md §2`).
+
+### 2.7 `platform_admin_sessions`
+
+`ADR-046 §5.2` deja escrito que el equivalente de `user_sessions` para el backoffice —**la fuente de verdad de qué sesiones de plataforma hay vivas, necesaria para revocar**— es tabla de plataforma también, y **encarga su diseño a este documento**. Lo que sigue es ese diseño; el ADR no fija nada sobre él, así que es una propuesta mía y está en la lista de §15 de `funcional.md`.
+
+**Por qué hacen falta dos tablas y no una.** Es la misma separación que 1.2 hizo entre `sessions` y `user_sessions`, y por el mismo motivo: `platform_sessions` la escribe el *driver* del framework y su forma no es nuestra (§2.6.3); `platform_admin_sessions` es **dato de negocio** —qué sesiones hay abiertas, desde dónde, desde cuándo, y por qué terminó cada una— que la aplicación lee y muestra, y que sobrevive al cierre de la sesión para poder auditarlo. Meter lo segundo en la tabla del driver significaría que un `DELETE` del recolector de sesiones borra el rastro.
+
+| Campo | Tipo | Nulo | Descripción |
+|---|---|---|---|
+| `id` | `bigserial` | No | |
+| `platform_admin_id` | `bigint` | No | FK → `platform_admins.id` |
+| `session_id` | `text` | Sí | Referencia a `platform_sessions.id`. **Se pone a nulo al terminar la sesión**, para no conservar un identificador de sesión más de lo necesario |
+| `ip_address` | Igual que en `admin_action_logs` | Sí | |
+| `user_agent` | `text` | Sí | |
+| `started_at` | `timestamptz` | No | |
+| `last_seen_at` | `timestamptz` | No | |
+| `reauthenticated_at` | `timestamptz` | Sí | Última reautenticación superada. **No es la marca que gobierna `RN-BO-08`** — esa vive en la sesión (`funcional.md §5.2`) — sino su reflejo consultable |
+| `ended_at` | `timestamptz` | Sí | Nulo ⇒ viva |
+| `end_reason` | `text` | Sí | `CHECK IN ('cierre_usuario','caducidad','revocada_admin','admin_suspendido','mfa_restablecido')`. **Vocabulario propio**, no el `SessionEndReason` de tenant: son dos sujetos distintos y compartir el *enum* ataría dos ciclos de vida que no tienen por qué evolucionar juntos |
+| `created_at`, `updated_at` | `timestamptz` | No | |
+
+```sql
+CHECK ((ended_at IS NULL) = (end_reason IS NULL))
+```
+
+**Índices**: `(platform_admin_id, started_at DESC) WHERE ended_at IS NULL` —«qué sesiones tiene abiertas esta persona», que es la consulta de la revocación—; `(session_id) WHERE session_id IS NOT NULL`.
+
+**No lleva `public_id`**, igual que `platform_admin_roles`, y por el mismo motivo: **en 1.6 no se direcciona por URL**. La revocación no es un *endpoint* propio, es el **efecto** de operaciones que ya existen —suspender, eliminar, retirar roles, restablecer el segundo factor— y que se identifican por el `public_id` **del administrador**, no por el de cada sesión. Si algún día hace falta revocar una sesión concreta desde una pantalla, ese *endpoint* traerá consigo su `public_id` en una migración aditiva; **no se adelanta la columna** (`ADR-034 OPEN-13`).
+
+**Privilegios**: los mismos que §2.6 — `REVOKE ALL … FROM plataforma_app`. Y **la misma declaración obligatoria** en `shared_tables.platform`.
+
+**Qué obliga a revocar**, y por eso la tabla no es opcional en `1.6`: suspender o eliminar un `platform_admin` (`admin.suspendido`, `admin.eliminado`), retirarle roles, y restablecerle el segundo factor (`admin.mfa_restablecido`). Sin esta tabla, «suspendido» significaría «no puede volver a entrar» y no «está fuera ahora», que es lo que hace falta cuando se suspende a alguien por un incidente. Cada revocación deja entrada en `admin_action_logs` con `action = 'sesion.cerrada'` (§4.2).
 
 ---
 
@@ -502,6 +589,8 @@ erDiagram
     PLATFORM_ADMIN ||--o{ PLATFORM_ADMIN_MFA_FACTOR : registra
     PLATFORM_ADMIN ||--o{ PLATFORM_ADMIN_MFA_RECOVERY_CODE : conserva
     PLATFORM_ADMIN ||--o{ PLATFORM_ADMIN_MFA_CHALLENGE : resuelve
+    PLATFORM_ADMIN ||--o{ PLATFORM_ADMIN_SESSION : abre
+    PLATFORM_ADMIN_SESSION ||--o| PLATFORM_SESSION : "respalda mientras vive"
     PLATFORM_ADMIN ||--o{ ADMIN_ACTION_LOG : produce
     PLATFORM_ADMIN ||--o{ DUAL_AUTHORIZATION : solicita
     PLATFORM_ADMIN ||--o{ DUAL_AUTHORIZATION : aprueba
@@ -524,20 +613,22 @@ erDiagram
 
 **No hay ninguna relación entre `PLATFORM_ADMIN` y `USER`, `PERSON` o `ROLE`.** Es la propiedad central del modelo (`RN-BO-01`, `RN-BO-02`), y el diagrama la muestra por ausencia: los dos subgrafos sólo se tocan a través de `TENANT`, y siempre como referencia, nunca como pertenencia.
 
+**Y tampoco hay ninguna entre `PLATFORM_SESSION` y `sessions`**, que es la otra ausencia deliberada del diagrama: son dos almacenes de sesión sin nada en común salvo la forma que les impone el mismo *driver*, y `plataforma_app` sólo alcanza uno de los dos (§2.6.2).
+
 ---
 
 ## 11. Checklist obligatorio
 
-- [x] **`tenant_id`**: ninguna tabla nueva es de tenant. Las tres que referencian a uno lo hacen como referencia y no como propiedad (`affected_tenant_id` en §4.3, `tenant_id` en §5.3 y en `feature_flag_rules` §9.3) y **está razonado**. Las once se declaran en el registro de tablas compartidas de `config/tenancy.php` o el test #8 de `ADR-033 §10` falla.
-- [x] **Política de RLS declarada para cada tabla nueva**: las siete de plataforma pura, ninguna (no la necesitan: `plataforma_app` no las alcanza). `admin_action_logs` y `tenant_lifecycle_events`, política propia de visibilidad por tenant afectado, **sujeta a `OPEN-BO-10`**. `feature_flags` y `feature_flag_rules`, **ninguna, y razonado en §9.6**: `plataforma_app` sí las lee, pero su contenido no es de ningún centro; la restricción vive en el *endpoint*, que devuelve sólo lo que evalúa verdadero para quien pregunta.
+- [x] **`tenant_id`**: ninguna tabla nueva es de tenant. Las tres que referencian a uno lo hacen como referencia y no como propiedad (`affected_tenant_id` en §4.3, `tenant_id` en §5.3 y en `feature_flag_rules` §9.3) y **está razonado**. Las trece se declaran en el registro de tablas compartidas de `config/tenancy.php`, bajo `shared_tables.platform`, o el test #8 de `ADR-033 §10` falla.
+- [x] **Política de RLS declarada para cada tabla nueva**: las nueve de plataforma pura —incluidas `platform_sessions` y `platform_admin_sessions`—, ninguna, y en el caso de las dos de sesión **no por descuido sino porque la barrera es más fuerte**: `REVOKE ALL … FROM plataforma_app` (§2.6.3), que no deja fila que filtrar. `admin_action_logs` y `tenant_lifecycle_events`, política propia de visibilidad por tenant afectado, **sujeta a `OPEN-BO-10`**. `feature_flags` y `feature_flag_rules`, **ninguna, y razonado en §9.6**: `plataforma_app` sí las lee, pero su contenido no es de ningún centro; la restricción vive en el *endpoint*, que devuelve sólo lo que evalúa verdadero para quien pregunta.
 - [x] **`academic_year_id`**: ninguna entidad de este módulo depende del curso académico. Un tenant, un administrador de plataforma y una acción del proveedor existen fuera del calendario escolar.
-- [x] **`created_at`, `updated_at`, `deleted_at`, `created_by`, `updated_by`** (`INV-005`) en las tablas mutables. **Las dos append-only no llevan `updated_at`, `deleted_at` ni `updated_by` a propósito**: son columnas que sugieren que la fila se puede cambiar, y no se puede.
+- [x] **`created_at`, `updated_at`, `deleted_at`, `created_by`, `updated_by`** (`INV-005`) en las tablas mutables. **Las dos append-only no llevan `updated_at`, `deleted_at` ni `updated_by` a propósito**: son columnas que sugieren que la fila se puede cambiar, y no se puede. **`platform_sessions` no lleva ninguna de las cinco**: su forma la fija el *driver* (§2.6.3), y `last_activity` cumple el papel de `updated_at`. **`platform_admin_sessions` no lleva `deleted_at`**: una sesión no se borra lógicamente, termina — y eso lo dicen `ended_at` y `end_reason` (§2.7).
 - [x] **Claves foráneas, `CHECK` y restricciones en la base de datos**, no sólo en la aplicación. En particular `dual_authorizations_distinct_approver` (§3.1), los `CHECK` de coherencia de estado (§3.2, §5.2) y el vocabulario cerrado de `action` (§4.2).
-- [x] **`TIMESTAMPTZ` siempre** (`timestampsTz()`, `timestampTz()`), nunca los `timestamps()` por defecto de Laravel.
+- [x] **`TIMESTAMPTZ` siempre** (`timestampsTz()`, `timestampTz()`), nunca los `timestamps()` por defecto de Laravel. **Excepción declarada, no elegida**: `platform_sessions.last_activity` es `integer` porque lo impone el *driver* `database` del framework (§2.6.3).
 - [x] **`text`, nunca `varchar(n)`**. Excepción razonada: `cidr` en `platform_ip_allowlist` (§2.5).
 - [x] **Importes en enteros de céntimos**: no hay ningún importe en este módulo. `REQ-BO-003` está fuera de alcance (`funcional.md §2.2`).
-- [x] **Enumerados como `text` con `CHECK`**, nunca el tipo `ENUM` de PostgreSQL: `status`, `role`, `action`, `actor_type`, `from_status`/`to_status`, `rollout_unit`, `scope_type`. Única excepción de tipo: `percentage` es `smallint` con `CHECK (0..100)`, porque es un número y no un enumerado.
-- [x] **`public_id` ULID** en toda entidad expuesta en API: `platform_admins`, `platform_ip_allowlist`, `dual_authorizations`, `admin_action_logs`, `tenant_lifecycle_events`, `feature_flags`, `feature_flag_rules`. `platform_admin_roles` y las tablas de códigos de recuperación **no lo llevan**: no se direccionan por URL. **`api.md §2.11` propone direccionar `feature_flags` por su `key` además de por `public_id`** —es lo que el código escribe y lo que un operador reconoce; un ULID no significa nada para nadie—, y la `key` cumple lo que `ADR-029` busca en un identificador expuesto: es única, estable, inmutable y no filtra cardinalidad. **Pero es una desviación de la letra de `ADR-029` y no la decido yo**: queda como `OPEN-BO-11` (`funcional.md §14`), no bloqueante, y si se rechaza la ruta pasa a `public_id` sin ningún otro cambio de este documento.
+- [x] **Enumerados como `text` con `CHECK`**, nunca el tipo `ENUM` de PostgreSQL: `status`, `role`, `action`, `actor_type`, `from_status`/`to_status`, `end_reason` (§2.7), `rollout_unit`, `scope_type`. Única excepción de tipo: `percentage` es `smallint` con `CHECK (0..100)`, porque es un número y no un enumerado.
+- [x] **`public_id` ULID** en toda entidad expuesta en API: `platform_admins`, `platform_ip_allowlist`, `dual_authorizations`, `admin_action_logs`, `tenant_lifecycle_events`, `feature_flags`, `feature_flag_rules`. `platform_admin_roles`, `platform_admin_sessions` (§2.7) y las tablas de códigos de recuperación **no lo llevan**: no se direccionan por URL. **`platform_sessions` tampoco, y ahí es una propiedad y no una omisión**: su clave primaria **es** el identificador de sesión, no se expone en ninguna respuesta y darle un `public_id` sería añadir un segundo identificador a una tabla que nadie debe poder nombrar (§2.6.3). **`api.md §2.11` propone direccionar `feature_flags` por su `key` además de por `public_id`** —es lo que el código escribe y lo que un operador reconoce; un ULID no significa nada para nadie—, y la `key` cumple lo que `ADR-029` busca en un identificador expuesto: es única, estable, inmutable y no filtra cardinalidad. **Pero es una desviación de la letra de `ADR-029` y no la decido yo**: queda como `OPEN-BO-11` (`funcional.md §14`), no bloqueante, y si se rechaza la ruta pasa a `public_id` sin ningún otro cambio de este documento.
 - [x] **`NULLS NOT DISTINCT`**: no lo exige ninguna regla de este módulo.
 - [x] **Datos de categoría especial**: este módulo **no trata ninguno** — ni salud, ni NEAE, ni convivencia. Y no debe: `RN-BO-33` prohíbe que el backoffice exponga datos personales de los centros.
 - [x] **Particionado**: evaluado y descartado para `admin_action_logs`, con disparador de revisión escrito (§4.4).
@@ -548,7 +639,8 @@ erDiagram
 
 | # | Sub-paso | Qué | Bloqueo | Nota |
 |---|---|-----|---------|------|
-| 1 | `1.6` | Las siete tablas de plataforma pura | Ninguno: tablas nuevas | Con sus `GRANT`/`REVOKE` desde el principio, no en una migración posterior |
+| 1 | `1.6` | Las siete tablas de plataforma pura del chasis (§2.1-§2.5, §3) | Ninguno: tablas nuevas | Con sus `GRANT`/`REVOKE` desde el principio, no en una migración posterior |
+| 1b | `1.6` | `platform_sessions` y `platform_admin_sessions`, **con su `REVOKE ALL … FROM plataforma_app`** y su entrada en `shared_tables.platform` (§2.6, §2.7) | Ninguno: tablas nuevas | Migración propia y **anterior** a la del *guard*: sin almacén no hay sesión de plataforma que emitir. El `REVOKE` va **en esta misma migración**, no en una de endurecimiento posterior — el precedente de `harden_failed_jobs_grants` es el patrón, no la secuencia |
 | 2 | `1.6` | `admin_action_logs` con su RLS y su `REVOKE UPDATE, DELETE` | Ninguno | **No se escribe hasta el visto bueno de `OPEN-BO-10`** |
 | 3 | `1.6b` | `tenant_lifecycle_events` con su RLS | Ninguno | Ídem |
 | 4 | `1.6b` | `tenants` gana tres columnas anulables (`suspension_message`, `suspended_at`, `grace_period_ends_at`) | **Instantáneo**: `ADD COLUMN` anulable sin defecto no reescribe la tabla en PostgreSQL 17 | Aditivo puro |
@@ -571,6 +663,8 @@ erDiagram
 | `tenant_lifecycle_events` | Vida del tenant más su plazo de conservación | Sigue la suerte del tenant |
 | `dual_authorizations` | Igual que `admin_action_logs`: son la prueba de quién autorizó qué | Ídem |
 | `platform_admin_mfa_*` | Vida de la cuenta | Se borran con ella. Los secretos **cifrados**, nunca en claro |
+| `platform_sessions` | Vida de la sesión (`BO_SESSION_LIFETIME`) | Las recoge el recolector del *driver*. **No es un registro y no se conserva**: el rastro está en §2.7 y en `admin_action_logs` |
+| `platform_admin_sessions` | Igual que `admin_action_logs`: es la prueba de desde dónde y cuándo entró el personal del proveedor | Al terminar la sesión se pone `session_id` a nulo —no se conserva un identificador de sesión más de lo necesario— y la fila **se queda**. Purga por retención cuando `REQ-PRIV-006` exista |
 | `feature_flags` | Indefinida | **Nunca se borra**: `retired_at` (`RN-BO-44`). Son unas decenas de filas y son el catálogo de lo que el producto ha desplegado alguna vez |
 | `feature_flag_rules` | Vida del *flag* | Borrado lógico. **No se purgan al retirar el *flag***: son la prueba de a qué centros se expuso qué y cuándo, y esa es justamente la pregunta que se hace cuando un centro reclama por un comportamiento que ya no existe |
 

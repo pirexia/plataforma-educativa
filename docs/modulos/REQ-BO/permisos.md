@@ -3,6 +3,8 @@
 > Este documento es **la excepción del proyecto**, y conviene decirlo antes de la primera tabla: es el único módulo cuya autorización **no** se resuelve con el motor de `REQ-PERM`. No porque sea especial, sino porque su sujeto —un administrador de plataforma— **no tiene tenant**, y todo el motor de 1.5 está construido, correctamente, alrededor de que sí lo tenga.
 >
 > La decisión no es mía: `ADR-034 §2` ya la tomó y `REQ-CORE/permisos.md §4.5` la recoge. Lo que sí me toca es **justificar que sigue siendo la correcta después de 1.5**, cuando por fin existe un motor de verdad y reutilizarlo es una tentación legítima. Eso es §1.
+>
+> **`ADR-046` no reabre nada de este documento** (`ADR-046 §2.2`: «No decide los roles internos ni el catálogo de capacidades del backoffice»). Lo que sí añade son **tres reglas de autorización que no son capacidades** y que están en §5: el *host* de plataforma, la restricción del *slug* y el propósito declarado de `runAsPlatform()`.
 
 ---
 
@@ -148,7 +150,8 @@ Igual que `REQ-CORE/permisos.md §8` y `REQ-PERM/permisos.md §8`: lo que ningun
 
 | Regla | Dónde | Efecto |
 |-------|-------|--------|
-| **Lista blanca de IP antes que las credenciales** (`RN-BO-06`) | Primer *middleware* de la pila de plataforma | `403` genérico, auditado. **Antes** de tocar la base de datos de usuarios |
+| **El *host* de plataforma antes que nada** (`RN-BO-48`) | **Primer** *middleware* de la pila de plataforma, `RequirePlatformHost` (`api.md §1.1`, puesto 1) | **`404`**, no `403`: antes de sesión y de credenciales, y sin revelar que la superficie existe. **No es una capacidad y no hay ninguna que lo relaje** |
+| **Lista blanca de IP antes que las credenciales** (`RN-BO-06`) | Segundo *middleware* de la pila (`api.md §1.1`, puesto 2), **y además `ipallowlist` en Traefik** (`operacion.md §0`) | `403` genérico, auditado. **Antes** de tocar la base de datos de usuarios. Las dos capas son obligatorias y ninguna sustituye a la otra |
 | **Lista vacía = denegar** (`RN-BO-07`) | Ídem | Nunca «vacía = sin restricción» |
 | **MFA incondicional** (`RN-BO-05`) | *Middleware* posterior a la sesión | Sin factor confirmado, sólo `/mfa/*`. **Sin gracia y sin exención** |
 | **Reautenticación en operaciones sensibles** (`RN-BO-08`) | *Middleware* sobre la lista cerrada de `api.md §4` | `403` con `type` propio |
@@ -157,7 +160,9 @@ Igual que `REQ-CORE/permisos.md §8` y `REQ-PERM/permisos.md §8`: lo que ningun
 | **Quien aprueba ≠ quien solicita** (`RN-BO-19`) | Base de datos | `CHECK`. **No es una comprobación de aplicación** |
 | **La ejecución usa el `payload` congelado** (`RN-BO-20`) | Servicio de ejecución | Huella distinta ⇒ rechazo |
 | **El backoffice no devuelve datos personales de los centros** (`RN-BO-33`) | Todo *endpoint* | Restricción **funcional**, no de permiso: no hay capacidad que la conceda |
-| **Un `User` de tenant nunca autentica aquí** (`RN-BO-02`) | *Guard* y *provider* separados, cookie *host-only* | `401`, auditado |
+| **Un `User` de tenant nunca autentica aquí** (`RN-BO-02`) | *Guard* y *provider* separados, cookie *host-only* con nombre propio, y **almacén de sesión propio** (`datos.md §2.6`) | `401`, auditado. Y `plataforma_app` **no puede ni leer** `platform_sessions`: `REVOKE ALL`, verificado por privilegios de motor (`CA-BO-018`) |
+| **El *slug* de un centro no puede ser el *host* de plataforma** (`RN-BO-49`) | Alta y cambio de `slug` (`api.md §2.4`, `§2.5`) | `422`. **Tampoco es una capacidad**: ni `superadministrador` puede saltárselo |
+| **`runAsPlatform()` exige propósito declarado y ausencia de tenant** (`funcional.md §6.2`) | `App\Support\Tenancy`, con `PlatformAccessCheck` cuyo enlace por defecto **deniega** los propósitos de backoffice | Lanza excepción. **No se comprueba una capacidad dentro de la primitiva** —un comando de consola no tiene a quién comprobársela—: la capacidad la comprueba el llamador, y la primitiva comprueba que el propósito es alcanzable desde donde se invoca (`CA-BO-025`, `CA-BO-027`) |
 | **Ningún control de seguridad detrás de un *flag*** (`RN-BO-47`) | Test de arquitectura | El evaluador **no** se invoca desde el *middleware* de MFA, de lista blanca, de autorización, de resolución de tenant ni de doble autorización (`CA-BO-096`) |
 | **Un *flag* no concede acceso a un módulo no contratado** (`RN-BO-45`) | Evaluador y `ModuleAvailability` | Son dos comprobaciones distintas y la de módulo es previa. Un *flag* al 100 % no evita el `urn:pge:error:module-disabled` (`CA-BO-092`) |
 | **La unidad de reparto no la elige el operador** (`RN-BO-36`) | Descriptor del módulo, materializado; privilegio de columna (`datos.md §9.6`) | Ninguna capacidad permite escribir `rollout_unit`, ni siquiera `superadministrador` |
@@ -250,6 +255,8 @@ Los criterios completos están en `funcional.md §13`. Los que verifican **esta*
 - **`CA-BO-010`** — nadie se modifica a sí mismo; nunca queda la plataforma sin `superadministrador`.
 - **`CA-BO-062`** — el aprobador no puede ser el solicitante, **comprobado escribiendo por SQL directo**, no por la API: un test que pase por el controlador comprobaría el `if`, no la restricción.
 - **`CA-BO-070`** — todo *endpoint* responde `401` sin sesión de plataforma y `403` sin la capacidad.
+- **`CA-BO-013`** — **toda** ruta de `/api/platform/*` lleva la pila completa de `api.md §1.1`, **incluido el puesto 9, el de capacidad**, comprobado por presencia sobre `Route::getRoutes()`. Es lo que impide que una ruta nueva se quede sin comprobación de capacidad y nadie lo note: `CA-BO-070` prueba las que hay, ésta prueba las que habrá.
+- **`CA-BO-018`** — `plataforma_app` **no puede leer `platform_sessions`**, rechazado por el motor y no por la aplicación.
 - **`CA-BO-074`** — ninguna respuesta contiene datos personales de alumnos, familias ni personal de los centros.
 - **`CA-BO-094`** — `soporte` **lee** *flags* y no escribe ninguno; `operaciones` escribe.
 - **`CA-BO-096`** — test de arquitectura: **ningún control de seguridad consulta el evaluador de *flags*** (`RN-BO-47`, §5.3). Es el segundo test de arquitectura de este módulo, junto al de comparación de códigos de rol, y por el mismo motivo: son propiedades que una revisión de código detecta hoy y deja de detectar cuando el fichero crece.

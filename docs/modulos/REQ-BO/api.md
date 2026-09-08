@@ -1,17 +1,18 @@
 # REQ-BO · API
 
-> Todo lo que sigue se ajusta a **`ADR-038`**: envoltura (§3), paginación por página o por cursor según el criterio objetivo (§4), sintaxis de filtrado y orden (§5), formato de error RFC 9457 con `type` como URN (§6), reglas de versionado (§7) e idempotencia (§8).
+> Todo lo que sigue se ajusta a **`ADR-038`**: envoltura (§3), paginación por página o por cursor según el criterio objetivo (§4), sintaxis de filtrado y orden (§5), formato de error RFC 9457 con `type` como URN (§6), reglas de versionado (§7) e idempotencia (§8). Y a **`ADR-046 §4`**, que decide la separación de superficie y fija la pila de *middleware* de §1.1.
 
 ## 0. Prefijo, *host* y una advertencia
 
-**Prefijo**: `/api/platform/v1/…`, servido **únicamente bajo el *host* de plataforma**.
+**Prefijo**: `/api/platform/v1/…`, servido **únicamente bajo el *host* de plataforma**. Grupo de rutas **hermano de `/api/v1`** en `routes/api.php`, con **su propia pila de *middleware* declarada de forma explícita y completa** (§1.1), igual que hoy hace el grupo del ACS de SAML.
 
-Dos precisiones que no son cosméticas:
+Tres precisiones que no son cosméticas:
 
-1. **El *host* concreto no se escribe en ninguna parte.** `OPEN-08` (dominio de la plataforma) sigue abierta; el *host* se resuelve por variable de entorno (`operacion.md §2`), nunca por literal.
-2. **El prefijo depende de `OPEN-BO-01`.** Bajo la Opción A (mismo monolito) el segmento `platform` es lo que separa los dos grupos de rutas y su presencia es la señal legible de que esa ruta no lleva `ResolveTenant`. Bajo la Opción B (aplicación independiente) sobraría, porque la separación la daría el despliegue. **Las rutas de recurso de este documento son idénticas en ambos casos**; sólo cambiaría el prefijo. Se escribe con `platform` porque es lo que sirve en las dos y lo que hace visible la frontera en cualquier log.
+1. **El *host* concreto no se escribe en ninguna parte.** `OPEN-08` (dominio de la plataforma) sigue abierta; el *host* se resuelve por la variable `BACKOFFICE_HOST` (`operacion.md §2`), nunca por literal, y **no puede ser un subdominio de `TENANCY_BASE_DOMAIN`** (`RN-BO-49`).
+2. **El prefijo ya no depende de ninguna pregunta abierta.** `ADR-046 §4.1` decide la **Opción A**: mismo monolito y mismo despliegue de API, con *guard*, grupo de rutas y SPA propios. El segmento `platform` es lo que separa los dos grupos y la señal legible, en cualquier log, de que esa ruta no lleva `ResolveTenant`.
+3. **Declarar un grupo de rutas fuera del tenant no es una excepción nueva**: `/api/health` y `/api/_sso-simulator/*` ya lo son. Es el patrón vigente (`ADR-046 §1.1`).
 
-> **Ninguna ruta de este documento lleva `ResolveTenant`, y ninguna ruta de tenant lleva el *guard* `platform`.** Es la propiedad que `CA-BO-011` verifica con un test de arquitectura, no con revisión.
+> **Ninguna ruta de este documento lleva `resolve-tenant`, `verify-session-tenant` ni `require-mfa-enrollment`, y ninguna ruta de tenant lleva el *guard* `platform`.** Son propiedades verificadas por un test de arquitectura que recorre **`Route::getRoutes()`** —la verdad efectiva, no el texto de los ficheros—: `CA-BO-011`, `CA-BO-013`, `CA-BO-014` y `CA-BO-015`.
 
 ---
 
@@ -20,11 +21,50 @@ Dos precisiones que no son cosméticas:
 | Aspecto | Decisión |
 |---------|----------|
 | Mecanismo | Cookie de sesión `httpOnly`, `Secure`, `SameSite`, con CSRF (`ADR-025`). **Ningún token en el navegador**, igual que en el producto |
-| *Guard* | `platform`, sobre el *provider* `platform_admins`. Independiente de `web` |
-| Cookie | ***Host-only***, sin dominio principal (`ADR-033 §2`): no puede viajar entre el *host* de plataforma y el de ningún centro, ni al revés |
-| Almacén de sesión | **`OPEN-BO-02`**, sin decidir. `sessions` es tabla de tenant desde 1.2 y un `platform_admin` no tiene tenant |
-| Vida | Corta y configurable (`RN-BO-09`) |
-| Segundo factor | **Obligatorio siempre** (`RN-BO-05`). Sin factor confirmado, la sesión sólo alcanza `/mfa/*` |
+| *Guard* | `platform`, sobre el *provider* `platform_admins` y el modelo `PlatformAdmin`, **sin `tenant_id`**. Independiente de `web`, que no cambia (`ADR-046 §4.1`) |
+| Cookie | **Nombre propio**, distinto del de la cookie del producto, y ***host-only***, sin dominio principal (`ADR-033 §2`): no puede viajar entre el *host* de plataforma y el de ningún centro, ni al revés |
+| Almacén de sesión | **`platform_sessions`**, tabla de plataforma propia con `REVOKE ALL … FROM plataforma_app` (`ADR-046 §5`, `datos.md §2.6`). **No es `sessions`**, y el motivo no es que aquella tenga una columna de tenant —no la tiene— sino que `plataforma_app` la lee y en el *driver* `database` su clave primaria **es** el identificador de sesión |
+| Selección del almacén | Por **grupo de rutas**, con un *middleware* que fija la configuración de sesión de plataforma **antes** de `start-session`. Mismo patrón que `TenantContext::applyCachePrefix()` |
+| Vida | Corta y configurable, **más corta que la del tenant** (`RN-BO-09`, `BO_SESSION_LIFETIME`) |
+| Segundo factor | **Obligatorio siempre** (`RN-BO-05`). Sin factor confirmado, la sesión sólo alcanza `/mfa/*`. **Es MFA de plataforma, no `require-mfa-enrollment`**, que es el del tenant |
+
+### 1.1 La pila de *middleware* del grupo, completa y en orden
+
+`ADR-046 §4.1` exige que esta pila se declare **explícita y completa** en `routes/api.php`, y `§4.5` la convierte en la aserción 2 del test de arquitectura: **toda** ruta bajo `/api/platform/*` la lleva entera y en este orden. Se comprueba **por presencia, no por ausencia** — denegar por defecto es `INV-002`, y una pila incompleta en una sola ruta es la forma de fallo que el test existe para impedir (`CA-BO-013`).
+
+| # | *Middleware* | Qué hace, y por qué va aquí y no antes ni después |
+|---|---|---|
+| 1 | `RequirePlatformHost` | *Host* distinto de `BACKOFFICE_HOST` ⇒ **`404`**, antes de sesión y de credenciales. No se revela que la superficie existe (`RN-BO-48`, `CA-BO-016`) |
+| 2 | `EnforcePlatformIpAllowlist` | Dirección de origen fuera de la lista blanca activa ⇒ `403` genérico, **auditado**, antes de tocar la base de datos de usuarios. Lista vacía ⇒ **denegar** (`RN-BO-06`, `RN-BO-07`) |
+| 3 | Cookies (cifrado y cola de cookies) | Estándar del framework. Va después de las dos barreras: una petición que no debe llegar no merece que se le descifre nada |
+| 4 | **Sesión de plataforma** | Fija conexión, tabla `platform_sessions`, nombre de cookie y vida **antes** de `start-session`, y arranca la sesión |
+| 5 | CSRF | `ADR-025`. Después de la sesión, porque necesita el *token* de sesión |
+| 6 | Caducidad de sesión | Vida corta de `RN-BO-09`; y la ventana de reautenticación de `RN-BO-08` para las operaciones de §4 |
+| 7 | Idioma | Resuelve el idioma del administrador (`platform_admins.locale`), uno de los cuatro de `ADR-021` (`INV-009`) |
+| 8 | **MFA de plataforma** | Sin factor confirmado, sólo `/mfa/*`. **Sin gracia y sin exención** (`RN-BO-05`, `CA-BO-005`, `CA-BO-006`) |
+| 9 | **Capacidad** | La de cada ruta, según `permisos.md §3` y `§4`. Denegar por defecto (`RN-BO-03`) |
+
+**Lo que esta pila deliberadamente no lleva**, y es la aserción 1 del test (`CA-BO-011`): **`resolve-tenant`, `verify-session-tenant` y `require-mfa-enrollment`**. Los tres son del tenant; el backoffice tiene sus equivalentes propios en los puestos 1, 4 y 8, y su MFA es incondicional.
+
+**Y una barrera más que no está en esta tabla porque no es de la aplicación**: Traefik enruta por `Host()` y aplica su propio *middleware* `ipallowlist` sobre los *routers* del backoffice (`operacion.md §0`). Los puestos 1 y 2 **no la sustituyen** ni al revés: la configuración del proxy no la cubre la suite de tests y la aplicación sí, y por eso las dos capas son obligatorias (`funcional.md §3.4`).
+
+#### 1.1.1 Una tensión con la letra de `ADR-046 §4.5` que **no resuelvo yo**
+
+`ADR-046 §4.5`, aserción 2, dice que **toda** ruta bajo `/api/platform/*` lleva la pila completa **incluidos los puestos 8 y 9** —MFA de plataforma y capacidad—. **Aplicado al pie de la letra, eso es imposible en cuatro rutas de §2.1**, y conviene decirlo antes de que lo descubra quien escriba el test:
+
+| Ruta | Por qué no puede llevar el puesto 8 o el 9 |
+|---|---|
+| `GET /csrf-cookie` | No hay sujeto todavía. Ni MFA que exigir ni capacidad que comprobar |
+| `POST /auth/session` | Ídem: es la ruta que **crea** el sujeto |
+| `POST /auth/session/mfa` | Es la que **resuelve** el segundo factor; exigir el puesto 8 antes de ella es una dependencia circular |
+| `POST /mfa/factors` · `POST /mfa/factors/{public_id}/confirm` · `GET /mfa/recovery-codes` | Son, por diseño, las **únicas** alcanzables sin factor confirmado (`RN-BO-05`). El puesto 8 tiene que dejarlas pasar |
+
+Las dos lecturas posibles, y **ninguna la decido yo porque las dos tocan la letra de un ADR vigente** (`CLAUDE.md §11`):
+
+- **(a)** Los puestos 8 y 9 **están presentes en todas** las rutas, y son ellos los que conocen su propia excepción: el de MFA deja pasar `/mfa/*` y las de sesión, y el de capacidad admite «autorizada por identidad del portador», como `GET /me` y como `GET /api/v1/feature-flags` (§2.14). La aserción 2 se cumple **literalmente** y no hay lista de excepciones que mantener. Es la lectura que menos erosiona el test, y la que yo recomendaría.
+- **(b)** La aserción 2 admite una **lista blanca cerrada y nombrada** de rutas de pre-autenticación, declarada en el propio test con su justificación, como hace `RunAsPlatformArchitectureTest` con sus llamadores (`funcional.md §6.2.5`).
+
+**La diferencia importa**: bajo (b) alguien puede añadir una ruta a la lista; bajo (a) no hay lista que ampliar. Queda como **`OPEN-BO-13`** (`funcional.md §14`), **no bloqueante** —el resto de esta especificación es idéntico en las dos— pero **sí previa a escribir el test de `CA-BO-013`**, porque es ese test el que cambia de forma.
 
 ---
 
@@ -72,7 +112,7 @@ Dos precisiones que no son cosméticas:
 | Verbo · Ruta | Capacidad | Notas |
 |---|---|---|
 | `GET /tenants` | `tenant.leer` | Página. §3.1 |
-| `POST /tenants` | `tenant.crear` | Sensible. `Idempotency-Key` **obligatoria** (`ADR-038 §8.1`, criterios 2 y 3: envía la invitación del primer administrador y ejecuta un proceso por lotes). `201` |
+| `POST /tenants` | `tenant.crear` | Sensible. `Idempotency-Key` **obligatoria** (`ADR-038 §8.1`, criterios 2 y 3: envía la invitación del primer administrador y ejecuta un proceso por lotes). `201`. **`422` con `bo.tenant.slug_reserved` si el `slug` coincide con la etiqueta del *host* de plataforma** (`RN-BO-49`, `CA-BO-017`) |
 | `GET /tenants/{public_id}` | `tenant.leer` | Ficha: estado, configuración, módulos contratados, historial de estados |
 | `PATCH /tenants/{public_id}` | `tenant.actualizar` | Nombre y `suspension_message`. **`slug` va aparte** (§2.5) |
 | `POST /tenants/{public_id}/transitions` | Según destino (§ `permisos.md`) | **Único** camino para cambiar de estado. Cuerpo: `to_status`, `reason`, y `confirmation_name` cuando `to_status = 'eliminado'` |
@@ -97,6 +137,8 @@ Dos precisiones que no son cosméticas:
 `POST /tenants/{public_id}/slug` — capacidad `tenant.actualizar`, **sensible**.
 
 Ruta propia y no un campo de `PATCH`, porque no es un cambio de dato: **cambia el nombre DNS con el que el centro entra**, invalida `tenant-resolution:{slug}` de las dos claves —la vieja y la nueva—, deja fuera a quien tenga la URL antigua guardada y afecta al certificado. Un campo dentro de un `PATCH` genérico lo haría parecer equivalente a cambiar el nombre para mostrar, y no lo es.
+
+**Valida lo mismo que el alta** (`funcional.md §5.3` punto 2), y en particular: `422` si el `slug` coincide con la etiqueta del *host* de plataforma (`RN-BO-49`, `CA-BO-017`), con la clave `bo.tenant.slug_reserved` en `errors`. Es la defensa en profundidad de `ADR-046 §4.4`, y va **en las dos puertas** —alta y cambio— porque una sola dejaría la otra abierta.
 
 ### 2.6 Módulos por tenant (`REQ-BO-002`, `ADR-045`)
 
@@ -346,11 +388,15 @@ Además de los de `ADR-038 §6.2`, este módulo añade **dos** al catálogo cerr
 
 Los `403` de este módulo **no revelan por qué en `detail`** cuando la causa es la lista blanca: `title` y `detail` genéricos, y el motivo real sólo en `admin_action_logs`. Un mensaje que confirma «tu IP no está permitida» le dice a quien prueba desde fuera que ha encontrado el *host* correcto.
 
+**Y hay un caso que ni siquiera llega a `403`**: una petición cuyo `Host` no es `BACKOFFICE_HOST` recibe **`404`**, indistinguible de una ruta inexistente, desde `RequirePlatformHost` y **antes** de la sesión y de las credenciales (`RN-BO-48`, `CA-BO-016`). No lleva `type` propio a propósito: **cualquier código de error específico sería la confirmación de que la superficie existe**, que es exactamente lo que ese `404` evita. Mismo criterio que `ResolveTenant` con un *host* desconocido (`ADR-033 §2`) y que `RN-BO-15` con los centros.
+
 **Códigos de `errors` propios** (clave, mensaje traducido y `params`, según `ADR-038 §6.3`):
 
-`bo.tenant.invalid_transition` · `bo.tenant.reason_required` · `bo.tenant.name_mismatch` · `bo.tenant.slug_taken` · `bo.tenant.last_superadmin` · `bo.module.essential` · `bo.module.missing_dependencies` · `bo.module.dependent_modules` · `bo.module.retired` · `bo.dual_auth.same_actor` · `bo.dual_auth.expired` · `bo.dual_auth.already_resolved` · `bo.dual_auth.payload_mismatch` · `bo.admin.self_modification` · `bo.ip.allowlist_empty` · `bo.flag.retired` · `bo.flag.invalid_rule` · `bo.flag.duplicate_rule`
+`bo.tenant.invalid_transition` · `bo.tenant.reason_required` · `bo.tenant.name_mismatch` · `bo.tenant.slug_taken` · **`bo.tenant.slug_reserved`** · `bo.tenant.last_superadmin` · `bo.module.essential` · `bo.module.missing_dependencies` · `bo.module.dependent_modules` · `bo.module.retired` · `bo.dual_auth.same_actor` · `bo.dual_auth.expired` · `bo.dual_auth.already_resolved` · `bo.dual_auth.payload_mismatch` · `bo.admin.self_modification` · `bo.ip.allowlist_empty` · `bo.flag.retired` · `bo.flag.invalid_rule` · `bo.flag.duplicate_rule`
 
-Los **dieciocho** —quince del chasis, del ciclo de vida y de los módulos, más tres de *feature flags*—, en `es-ES`, `en`, `de` y `fr` (`INV-009`, `CA-BO-073`).
+Los **diecinueve** —dieciséis del chasis, del ciclo de vida y de los módulos, más tres de *feature flags*—, en `es-ES`, `en`, `de` y `fr` (`INV-009`, `CA-BO-073`).
+
+**`bo.tenant.slug_reserved` lo añade `ADR-046 §4.4`** y es distinto de `bo.tenant.slug_taken`: aquel dice «ese nombre ya es de otro centro», éste dice «ese nombre está reservado por la plataforma». Mezclarlos daría un mensaje que sugiere al operador buscar el centro que lo ocupa, y no hay ninguno. **Su `detail` no nombra el *host* de plataforma**, por el mismo criterio con el que los `403` de la lista blanca no dicen su causa (§5).
 
 **No se añade ningún `type` nuevo al catálogo cerrado por los *flags***: los tres casos son errores de validación de un cuerpo, y `422` con su clave en `errors` es exactamente lo que `ADR-038 §6.3` prevé para eso. Un `urn:pge:error:` propio se reserva para lo que la interfaz debe **distinguir sin analizar texto**, como `reauthentication-required` o `module-disabled`, y aquí no hay nada de eso: un formulario de reglas mal enviado se trata igual que cualquier otro formulario mal enviado.
 
