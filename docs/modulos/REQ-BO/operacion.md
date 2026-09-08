@@ -2,7 +2,7 @@
 
 > Paso **1.6**, dividido en cinco sub-pasos por decisión del usuario del 2026-09-08 (`funcional.md §12`). Complementa `SYSADMIN.md` y `RUNBOOK.md`; aquí sólo lo específico de este módulo.
 >
-> **La conclusión primero**: a diferencia de `REQ-PERM`, que no añadía ni una variable de entorno, este paso añade **un segundo *host*, un segundo camino de autenticación, cambios en `infra/quadlet` (§0), variables de entorno nuevas, tres tareas programadas y un procedimiento de arranque manual sin el cual nadie puede entrar al backoffice** (§5). Y ese último punto es el que más fácil se olvida: el sistema **se despliega bloqueado a propósito**.
+> **La conclusión primero**: a diferencia de `REQ-PERM`, que no añadía ni una variable de entorno, este paso añade **un segundo *host*, un segundo camino de autenticación, cambios en `infra/quadlet` (§0), variables de entorno nuevas, cuatro tareas programadas y un procedimiento de arranque manual sin el cual nadie puede entrar al backoffice** (§5). Y ese último punto es el que más fácil se olvida: el sistema **se despliega bloqueado a propósito**.
 
 ---
 
@@ -198,12 +198,36 @@ Es el escenario que hay que tener escrito **antes** de que ocurra: la lista blan
 | Tarea | Frecuencia | Qué hace |
 |---|---|---|
 | `bo:expire-dual-authorizations` | Cada 15 min | Pasa a `caducada` lo vencido. `actor_type = 'system'` |
+| `bo:close-orphaned-sessions` | **Cada 15 min** | Cierra como `caducidad` las filas vivas de `platform_admin_sessions` cuyo `session_id` ya no está en `platform_sessions`: anula `session_id`, fija `ended_at` y escribe `end_reason = 'caducidad'`. §6.3 |
 | `bo:check-grace-periods` | Diaria | Marca los tenants cuyo período de gracia venció y **avisa**. **No borra nada** (`RN-BO-17`) |
 | `bo:purge-mfa-challenges` | Cada hora | Desafíos caducados, igual que su homóloga de 1.3 |
 
 **Los *feature flags* no añaden ni un trabajo en cola ni una tarea programada**, y merece una frase porque es lo contrario de lo que se espera de un motor de despliegue progresivo. No hay nada que barrer —el reparto por porcentaje se calcula, no se almacena (`RN-BO-38`)—, nada que caducar —una regla vive hasta que alguien la cambia— y nada que recalcular cuando aparece un centro nuevo, que es justamente la propiedad por la que se eligió una función determinista en vez de una tabla de asignaciones. **Si en la implementación aparece un job de «recalcular cubos» o de «sincronizar exposiciones», el diseño se ha desviado de `funcional.md §5.11.6`** y hay que volver a él, no añadir el job.
 
 > **`bo:check-grace-periods` no borra, y es una decisión.** Una purga automática por temporizador sobre los datos de un centro entero —con datos de menores dentro— no puede depender de que nadie haya olvidado prorrogar el plazo. Marca y avisa; borrar exige una persona, doble autorización y `REQ-PRIV-006` (`funcional.md §2.2`, `OPEN-BO-05`).
+
+### 6.3 El barrido de sesiones huérfanas de plataforma (`ADR-047 §5.1`)
+
+*Job* `CloseOrphanedPlatformSessions` y comando `bo:close-orphaned-sessions`, en `app/Modules/Backoffice/Infrastructure/`, con el **precedente exacto** de `CloseOrphanedUserSessions` del módulo `Auth` (`REQ-AUTH/operacion.md §B.3` y `§B.3.1`), del que copia forma y periodicidad.
+
+| Aspecto | Aquí | Su homóloga de `1.2b` |
+|---|---|---|
+| Qué cierra | Filas vivas de `platform_admin_sessions` sin fila en `platform_sessions` | Filas vivas de `user_sessions` sin fila en `sessions` |
+| Cómo las cierra | `session_id` a nulo, `ended_at` fijado, `end_reason = 'caducidad'` | Ídem, con su propio vocabulario |
+| **¿Es una purga?** | **No.** No borra ni redacta ninguna fila. Comparte cola con las purgas y **no** periodicidad, igual que `CloseExpiredLockouts` | Ídem |
+| Contexto de tenant | **Ninguno.** Corre **fuera** de todo tenant, sobre dos tablas de plataforma. **No usa `RunsPerTenant`** | Se ejecuta **por tenant**, con `RunsPerTenant` |
+| Rol de base de datos | `plataforma_platform`: `plataforma_app` no puede ni leer estas dos tablas (`datos.md §2.6`, `§2.7`) | `plataforma_app`; son tablas de tenant ordinarias |
+
+**Por qué existe, y por qué no es opcional.** `datos.md §2.7.1` decide, siguiendo `ADR-047 §5.1`, que `session_id` **no lleva clave foránea**: en el instante del `INSERT` la fila de `platform_sessions` todavía no existe —el *driver* la escribe al final de la petición— y una clave foránea rompería **todos** los inicios de sesión de plataforma. El barrido es lo que se pone en su lugar, y resuelve dos cosas que la clave foránea no resolvía ninguna:
+
+1. **`end_reason = 'caducidad'` está en el `CHECK` de la tabla y sin este barrido no tiene ningún escritor.** El recolector del *driver* borra de `platform_sessions` y no toca `platform_admin_sessions`. Sin barrido, toda sesión caducada se queda con `ended_at IS NULL` **para siempre**, y el índice `(platform_admin_id, started_at DESC) WHERE ended_at IS NULL` —que es **la consulta de la revocación**— devuelve sesiones muertas. Suspender a alguien por un incidente mostraría datos falsos, que es justo el caso de uso con el que esa tabla se justifica (§8).
+2. Un `ON DELETE SET NULL` sólo actúa cuando el recolector borra y **no puede escribir columnas ajenas**: nunca fijaría `ended_at` ni `end_reason`.
+
+**Por qué cada 15 minutos y no cada 5**, con el mismo razonamiento que su homóloga: una sesión huérfana sin cerrar **no bloquea nada** —no ocupa el hueco de ningún índice único, a diferencia de un bloqueo vencido en `CloseExpiredLockouts`— y lo único que produce mientras tanto es una fila de más entre las sesiones vivas de un administrador. Quince minutos acotan esa ventana sin convertir un barrido de mantenimiento en trabajo de camino caliente.
+
+> **`1.6` no tiene el cierre perezoso que `1.2b` puso en su listado de sesiones** (`REQ-AUTH/funcional.md §B.4.2`), y no se adelanta: no hay pantalla de sesiones de plataforma (`funcional.md §12.5`) ni *endpoint* que las liste (`datos.md §2.7`). **La tarea, en cambio, hace falta desde el primer día**, precisamente porque sin cierre perezoso nada más cierra esas filas — y la revocación, que sí existe en `1.6`, lee ese índice.
+
+Verificado por `CA-BO-104`.
 
 ---
 
@@ -234,6 +258,9 @@ Es el escenario que hay que tener escrito **antes** de que ocurra: la lista blan
 | «La lista blanca de IP no bloquea a nadie» | La IP que queda registrada en `admin_action_logs` para un acceso legítimo | **§0.3**: si es una dirección interna o del NAT, falta `forwardedHeaders.trustedIPs` y la lista del *ingress* está desactivada de hecho, **sin dar ningún síntoma**. La de la aplicación sigue aplicando; la del proxy no |
 | «Bajo el *host* del backoffice se sirve la SPA de los centros» | La regla del *router* `plataforma-web` | §0.1, consecuencia 2: sigue en `PathPrefix(/)` con prioridad 1 y le falta el `Host()` |
 | «Al suspender a un administrador sigue dentro» | `platform_admin_sessions` con `ended_at IS NULL` para ese administrador | `datos.md §2.7`: suspender debe **revocar** sus sesiones vivas, no sólo impedir que vuelva a entrar |
+| «La lista de sesiones vivas de un administrador muestra sesiones que ya no existen» | Que `bo:close-orphaned-sessions` esté en el planificador y corriendo | §6.3. **Sin esa tarea, `end_reason = 'caducidad'` no tiene ningún escritor** y toda sesión caducada queda con `ended_at IS NULL` para siempre. Síntoma característico: las filas fantasma desaparecen solas a los 15 minutos cuando la tarea sí corre |
+| «Ningún administrador de plataforma puede iniciar sesión, y falla la inserción de `platform_admin_sessions`» | Si alguien ha añadido la clave foránea `session_id → platform_sessions.id` | `datos.md §2.7.1`, `ADR-047 §5.1`: **esa columna no lleva clave foránea a propósito**. La fila referenciada no existe todavía en el instante del `INSERT`, y la escritura va en transacción con el login |
+| «Una consulta del backoffice devuelve filas de todos los tenants sin pasar por `runAsPlatform()`» | Si el *middleware* de sesión de plataforma toca `database.default` o llama a `DB::setDefaultConnection()` | `datos.md §2.6.3`. **Sólo puede fijar `session.connection = 'pgsql_platform'`.** Dejar `pgsql_platform` como conexión por defecto pone `BYPASSRLS` de fondo en todo el grupo de rutas y vacía `ADR-046 §6` sin dar ningún síntoma. Es lo que `CA-BO-105` existe para impedir |
 | «Entro pero no puedo hacer nada» | `mfa_enrolled_at` del administrador | `RN-BO-05`: sin factor confirmado sólo se alcanza `/mfa/*` |
 | «Contrato un módulo y el centro sigue viendo 403» | Que la escritura invalide la caché **con el prefijo del tenant** | §4.2. Con un solo tenant en desarrollo esto **parece funcionar** aunque esté mal |
 | «Suspendo un centro y sigue entrando» | Que la transición invalide `tenant-resolution:{slug}` | §4.1, issue #7 |
@@ -242,6 +269,7 @@ Es el escenario que hay que tener escrito **antes** de que ocurra: la lista blan
 | «Un centro tiene `M` sin `N` y el sistema no lo arregla» | Ficha de salud del centro | `ADR-045 §4.5`: el comando **informa y no corrige**. Contratar automáticamente sería tomar una decisión comercial facturable sobre 200 centros |
 | «La aprobación de una doble autorización falla con `409`» | Si aprobador y solicitante son la misma persona | `RN-BO-19`, y lo rechaza la base de datos, no el controlador |
 | «El centro no ve las acciones de plataforma que le afectan» | Que la fila tenga `affected_tenant_id` | `RN-BO-31`. Las de alcance global (`NULL`) **no las ve ningún tenant**, y es correcto |
+| «`GET /api/v1/platform-actions` falla con error de privilegios de PostgreSQL» | Qué columnas pide la consulta | `datos.md §4.3`: `plataforma_app` tiene `SELECT` sobre **seis columnas enumeradas** y ninguna más. Un `SELECT *`, un `ORDER BY id` o cualquier `reason`/`context`/`ip_address` en la proyección da este error. **Es el comportamiento correcto y es ruidoso a propósito** (`ADR-047 §4.4`); se arregla en la consulta, **no ampliando el `GRANT`** |
 | «Un cursor de auditoría de plataforma devuelve `422`» | Que lo haya emitido **esta** sesión | `api.md §3.2`: el cursor lleva el `platform_admin_id`, no un `tenant_id` |
 | «Este centro ve una funcionalidad que no debería» | `GET /tenants/{id}/feature-flags` y su campo **`matched_by`** | `api.md §2.13`. Dice **por qué regla** está expuesto: nominal, cohorte o porcentaje. Sin ese campo, se acaba adivinando |
 | «He cambiado un porcentaje y no pasa nada» | Que `rules_version` se haya incrementado | §4.3. Si la versión no sube, la escritura no invalidó nada y todos los centros siguen leyendo la entrada anterior hasta que caduque el TTL |
@@ -272,6 +300,8 @@ Trabajo de cierre del paso, **no opcional** (`CLAUDE.md §6`, regla 7):
 | Documento | Qué añadir |
 |---|---|
 | `SYSADMIN.md` | El procedimiento de arranque de §5 completo —**incluido el paso 0**, las reglas de Traefik—, con el paso 5 (**segundo `superadministrador`**) marcado como obligatorio; los tres comandos de recuperación de §5.1; las variables de §2, con `BACKOFFICE_HOST` y su restricción de `RN-BO-49`; **§0 entero**: las reglas `Host()` e `ipallowlist` de `infra/quadlet`, **el aviso de `forwardedHeaders.trustedIPs` de §0.3 y su comprobación operativa** |
+| `ARCHITECTURE.md` (`ADR-047`) | **La quinta categoría de la taxonomía de tablas**: «plataforma con visibilidad por tenant afectado» —columna `affected_tenant_id`, política `tenant_visibility` de solo lectura, `GRANT SELECT` de columnas enumeradas—, y la convención de nombres que la acompaña: **`tenant_id` significa propiedad y sólo propiedad**, en los 53 módulos. Es la parte de `ADR-047` que vincula a todo el proyecto y no sólo a este paso |
+| `SECURITY.md` (`ADR-047`) | **Los datos personales del personal del proveedor no son alcanzables desde el *runtime* de un centro**, y lo garantiza un `GRANT` de columna, no la proyección de un *endpoint*. Con ello, `plataforma_app` gana `SELECT` sobre un subconjunto de columnas de dos tablas que no son suyas: **es superficie nueva, creada a sabiendas**, y `ADR-047 §8` la deja anotada como riesgo residual acotado —política que falla en cerrado en los dos sentidos, columnas enumeradas, tests que lo comprueban—. Debe constar como riesgo aceptado, no descubrirse después |
 | `SECURITY.md` | **Un sujeto de autenticación nuevo en el producto.** Deja de haber un solo tipo de cuenta. Hay que describir: los cuatro roles internos, el MFA incondicional, la lista blanca de IP **en sus dos capas** (§0.3), la doble autorización y la auditoría de plataforma independiente. Y las **cuatro barreras** que sostienen «un usuario de un tenant nunca alcanza el backoffice» (`ADR-046 §8`): `Host()` en Traefik, `ipallowlist` en el *ingress*, `RequirePlatformHost` en la aplicación, y *guard*, cookie y **tabla de sesión** distintos. Al cerrar `1.6e`, además: **ningún control de seguridad vive detrás de un *feature flag*** (`RN-BO-47`), y un *flag* no concede acceso a datos (`permisos.md §5.3`) |
 | `ARCHITECTURE.md` (`1.6e`) | El motor de *feature flags*: catálogo declarado en código, reglas en base de datos, evaluador en `REQ-CORE` y no en `REQ-BO`, y **por qué el reparto por porcentaje es una función determinista y no una tabla** |
 | `CONTRIBUTING.md` (`1.6e`) | Cómo se declara un *flag* nuevo en el descriptor de un módulo, y la regla de que **un *flag* se crea escribiendo el código que lo consulta** — no hay pantalla que los cree (`RN-BO-34`). Es la parte que un desarrollador nuevo necesita y que no está en ningún otro sitio |

@@ -213,7 +213,11 @@ Los dos *endpoints* de vista previa **no escriben nada** y devuelven lo que `REQ
 |---|---|---|
 | `GET /api/v1/platform-actions` | **Aplicación del tenant** (`REQ-CORE`) | `auditoria.leer` |
 
-Es el requisito de `REQ-BO-007` de que el registro sea «consultable por el propio centro en lo que le afecte». Devuelve **sólo** las filas con el `affected_tenant_id` del centro, garantizado por RLS y no por el `where` del controlador (`CA-BO-022`). Se declara aquí porque el dato es de este módulo, pero **la ruta y el permiso son de `REQ-CORE`**: `INV-007`, y además un usuario de tenant no debe conocer siquiera la existencia del *host* del backoffice.
+Es el requisito de `REQ-BO-007` de que el registro sea «consultable por el propio centro en lo que le afecte». Devuelve **sólo** las filas con el `affected_tenant_id` del centro, garantizado por la política `tenant_visibility` de `ADR-047 §4.3` y no por el `where` del controlador (`CA-BO-022`). Se declara aquí porque el dato es de este módulo, pero **la ruta y el permiso son de `REQ-CORE`**: `INV-007`, y además un usuario de tenant no debe conocer siquiera la existencia del *host* del backoffice.
+
+> **Su proyección no la decide el controlador: la decide el `GRANT`.** `plataforma_app` tiene concedido `SELECT` sobre **seis columnas enumeradas** de `admin_action_logs` —`public_id`, `occurred_at`, `action`, `affected_tenant_id`, `subject_type`, `subject_public_id`— y sobre ninguna más (`datos.md §4.3`). El recurso de este *endpoint* **es exactamente ese conjunto**, y un `SELECT *` o cualquier intento de devolver `reason`, `actor_platform_admin_id`, `ip_address`, `user_agent`, `context` o `changes` **falla con error de privilegios del motor**, no con una respuesta de más (`CA-BO-099`). Es deliberado que falle ruidosamente: la superficie es el `GRANT`, no el *resource* (`ADR-047 §4.4`).
+>
+> **Consecuencia sobre el cursor de este *endpoint*, que hay que verificar y no suponer**: el listado de plataforma de §3.2 desempata por `id` porque corre con `plataforma_platform`; **aquí `id` no está concedido**, así que el desempate estricto que `ADR-038 §4.4` exige tiene que apoyarse en `public_id`, que sí lo está. Son dos consultas sobre la misma tabla con dos superficies distintas y **no se copia una en la otra**. `datos.md §4.5` deja anotado que el índice que sirve a esta segunda hay que confirmarlo antes de escribir la migración — es el mismo trabajo de `db-reviewer` que `ADR-047 §7` reserva para la lista de columnas.
 
 > **No hay exportación.** Ni aquí ni en el lado del tenant, y es una decisión: un CSV del registro completo de acciones del proveedor es un mapa de la operación de la plataforma, y `REQ-PERM/permisos.md §2.1` ya sentó el criterio con `rol.exportar` y `permiso_efectivo.exportar`. Si algún día hace falta, es un requisito nuevo con su permiso y su propia auditoría de exportación.
 
@@ -253,7 +257,7 @@ Entra por decisión del usuario del 2026-09-08. Diseño en `funcional.md §5.11`
 |---|---|
 | Clave de *flag* inexistente en el catálogo | `404` |
 | *Flag* con `retired_at`, en cualquier escritura | `422`, `bo.flag.retired` (`CA-BO-091`) |
-| Regla con el eje y la columna descuadrados (un `percentage` con `tenant_id`, por ejemplo) | `422`, `bo.flag.invalid_rule` |
+| Regla con el eje y la columna descuadrados (un `percentage` con `affected_tenant_id`, por ejemplo) | `422`, `bo.flag.invalid_rule` |
 | Dos reglas del mismo eje sobre el mismo objetivo en el conjunto enviado | `422`, `bo.flag.duplicate_rule` |
 | `percentage` fuera de `0..100` | `422`, `bo.flag.invalid_rule` |
 | Motivo ausente o vacío | `422` (`RN-BO-43`) |

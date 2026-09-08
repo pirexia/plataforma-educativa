@@ -5,13 +5,13 @@
 | Código | `REQ-BO` |
 | Prioridad | MUST |
 | Fase | 1 · Bloque A · **paso 1.6**, dividido en **cinco sub-pasos** por decisión del usuario del 2026-09-08 (§12) |
-| Depende de | `REQ-CORE` (1.1), `REQ-AUTH` (1.2/1.3), `REQ-PERM` (1.5), `ADR-033`, `ADR-034`, `ADR-035`, `ADR-036`, `ADR-038`, `ADR-044`, **`ADR-045`**, **`ADR-046`** |
-| Estado | **PROPUESTO** — revisado el 2026-09-08 con cuatro decisiones del usuario aplicadas (§15) y con **`ADR-046` aplicado**, que cierra las tres decisiones que bloqueaban el arranque. Sigue pendiente de **aprobación** (§15) |
+| Depende de | `REQ-CORE` (1.1), `REQ-AUTH` (1.2/1.3), `REQ-PERM` (1.5), `ADR-033`, `ADR-034`, `ADR-035`, `ADR-036`, `ADR-038`, `ADR-044`, **`ADR-045`**, **`ADR-046`**, **`ADR-047`** |
+| Estado | **APROBADA** — especificación completa aprobada por el usuario el 2026-09-08, con `ADR-046` aplicado (cierra las tres decisiones que bloqueaban el arranque) y `ADR-047` aplicado (resuelve `OPEN-BO-10` y con ella el último visto bueno técnico pendiente; los dos puntos de decisión propia que trajo esa pasada —`reason` fuera del `GRANT`, `affected_tenant_id` `NOT NULL` en `tenant_lifecycle_events`— ratificados por el usuario el mismo día). Sin ningún bloqueante para `implementer`; único pendiente no bloqueante: `OPEN-BO-13`, antes de escribir el test `CA-BO-013` (§15) |
 | Módulo (código) | `bo` · `apps/api/app/Modules/Backoffice` · frontend **`apps/backoffice`**, SPA propia sin *bundle* compartido con `apps/web` (`ADR-046 §4.1`), **construida en el paso de interfaz posterior a `1.7`/`1.9`** (§12.5) |
 
 > Fuente de verdad: sección 5.51 de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` (`REQ-BO-001` a `REQ-BO-007`), más `RMOD-002`/`RMOD-006`, `RMT-007`, `REQ-CORE-001` y la sección 11.1. Desde el 2026-09-08, y sólo para `REQ-BO-005` puntos 1-2, también **`REQ-OPS-002`** (sección 5.49) y **`RARQ-DEP-010`** (sección 8).
-> Entradas obligatorias: **`ADR-045`**, cuyo `§10` ya se ha ejecutado sobre el documento de requisitos (versión 3.2.0) y sobre `docs/modulos/REQ-CORE/funcional.md §2`; y **`ADR-046`** (ACEPTADA, 2026-09-08), que resuelve `OPEN-BO-01`, `OPEN-BO-02` y `OPEN-BO-03` y cuyo `§10` está aplicado a los cinco ficheros de este módulo.
-> Este documento **no reabre** `ADR-033`, `ADR-034`, `ADR-036`, `ADR-044`, `ADR-045` ni `ADR-046`.
+> Entradas obligatorias: **`ADR-045`**, cuyo `§10` ya se ha ejecutado sobre el documento de requisitos (versión 3.2.0) y sobre `docs/modulos/REQ-CORE/funcional.md §2`; **`ADR-046`** (ACEPTADA, 2026-09-08), que resuelve `OPEN-BO-01`, `OPEN-BO-02` y `OPEN-BO-03` y cuyo `§10` está aplicado a los cinco ficheros de este módulo; y **`ADR-047`** (ACEPTADA, 2026-09-08), que resuelve `OPEN-BO-10`, crea la categoría «plataforma con visibilidad por tenant afectado» y fija la convención de nombres `affected_tenant_id` para todo el proyecto.
+> Este documento **no reabre** `ADR-033`, `ADR-034`, `ADR-036`, `ADR-044`, `ADR-045`, `ADR-046` ni `ADR-047`.
 
 ---
 
@@ -851,7 +851,7 @@ Formato `Dado / Cuando / Entonces`, verificables, con el ID de requisito que cub
 - **`CA-BO-072`** · *Dado* cualquier respuesta de error, *entonces* sigue RFC 9457 con `type` en la forma `urn:pge:error:<slug>` y `request_id` presente (`ADR-038 §6`).
 - **`CA-BO-073`** · *Dado* cualquier mensaje visible de este módulo, *entonces* existe en `es-ES`, `en`, `de` y `fr`, y no hay literales en el código (`INV-009`).
 - **`CA-BO-074`** · *Dado* cualquier *endpoint* del backoffice, *cuando* se recorre su respuesta, *entonces* **no contiene ningún dato personal de alumnos, familias ni personal de los centros** (`RN-BO-33`, `REQ-BO-007`).
-- **`CA-BO-075`** · *Dado* la suite completa, *cuando* se ejecuta, *entonces* ninguna tabla nueva de este módulo aparece en el test de esquema #8 de `ADR-033 §10` como incumplimiento: o tiene `tenant_id` con RLS, o está declarada en el registro de tablas compartidas de `config/tenancy.php`.
+- **`CA-BO-075`** · *Dado* la suite completa, *cuando* se ejecuta, *entonces* ninguna tabla nueva de este módulo aparece en el test de esquema #8 de `ADR-033 §10` como incumplimiento. Y con `ADR-047 §4.2` aplicado la rama es **una sola**: **ninguna de las trece lleva una columna llamada `tenant_id`**, luego **las trece** caen en la rama «sin `tenant_id`» y **las trece** tienen que estar declaradas en `shared_tables.platform` de `config/tenancy.php`. Antes del renombrado esto no era cierto para `tenant_lifecycle_events`, que pasaba el test por la rama de RLS **sin que nadie comprobase su declaración** (`datos.md §11`, `ADR-047 §11` punto 5).
 
 ### 13.7 *Feature flags* (`REQ-BO-005` puntos 1-2 · sub-paso `1.6e`)
 
@@ -874,13 +874,36 @@ Formato `Dado / Cuando / Entonces`, verificables, con el ID de requisito que cub
 - **`CA-BO-096`** · *Dado* el código completo, *cuando* un test de arquitectura busca invocaciones del evaluador de *flags* desde el *middleware* de MFA, de lista blanca de IP, de autorización, de resolución de tenant o de doble autorización, *entonces* **no encuentra ninguna** (`RN-BO-47`).
 - **`CA-BO-097`** · *Dado* la API del **tenant**, *cuando* un usuario consulta sus *flags*, *entonces* recibe **sólo** las claves que evalúan verdadero para él, y **ninguna** de las que están apagadas o en despliegue parcial (`api.md §2.14`).
 
+### 13.8 Visibilidad por tenant afectado, privilegios y sesión de plataforma (`ADR-047`)
+
+> Los ocho salen de **`ADR-047`** (ACEPTADA, 2026-09-08). Los seis primeros son el mínimo que `ADR-047 §4.4` exige **por cada tabla** de la categoría «plataforma con visibilidad por tenant afectado» —`plataforma_app` no puede insertar, no puede leer una columna fuera de la lista, y **sí** ve y **sólo** ve las filas de su tenant—, con la lección de `ADR-045 §4.4`: *«un `REVOKE` que no se prueba no existe»*. Los seis se comprueban **por privilegios de motor**, no por la API, con el mismo patrón que `CA-BO-018` y `CA-BO-030`: un test que pase por el controlador comprobaría el `where` del controlador, no el `GRANT`.
+>
+> **El tercero de cada terna es el que importa más de lo que parece**: es el único que atrapa una **lista de columnas demasiado corta**, que es el fallo que no aparece en revisión y sí en producción, como error de privilegios sobre una consulta que el centro cree rutinaria (`ADR-047 §7`).
+
+**`admin_action_logs`** (`datos.md §4.3`)
+
+- **`CA-BO-098`** · *Dado* la conexión de la aplicación de los centros (`plataforma_app`), *cuando* intenta un `INSERT` en `admin_action_logs`, *entonces* **el motor lo rechaza**; y *cuando* intenta obtener un valor de `admin_action_logs_id_seq` con `nextval()`, *entonces* también lo rechaza — el `REVOKE` de tabla **no cubre la secuencia** y hace falta el suyo (`ADR-047 §4.4`, `§11` punto 1; `datos.md §12.1`).
+- **`CA-BO-099`** · *Dado* esa misma conexión y dentro del contexto de un tenant, *cuando* intenta leer **cualquier** columna fuera de la lista concedida —`reason`, `actor_platform_admin_id`, `ip_address`, `user_agent`, `context`, `changes`— o un `SELECT *`, *entonces* **el motor lo rechaza por falta de privilegio de columna**, no la aplicación (`datos.md §4.3`, `§4.3.1`).
+- **`CA-BO-100`** · *Dado* esa misma conexión, *cuando* consulta las columnas **sí** concedidas dentro del contexto del tenant `A`, *entonces* la consulta **funciona** y devuelve **exactamente** las filas con `affected_tenant_id = A`: ni las del tenant `B`, ni las de alcance global (`affected_tenant_id IS NULL`). Y *dado* la misma consulta **sin** contexto de tenant, *entonces* devuelve **cero** filas: la política `tenant_visibility` falla en cerrado en los dos sentidos (`ADR-047 §4.3`, regla 5).
+
+**`tenant_lifecycle_events`** (`datos.md §5.3`)
+
+- **`CA-BO-101`** · *Dado* la conexión `plataforma_app`, *cuando* intenta un `INSERT` en `tenant_lifecycle_events`, *entonces* el motor lo rechaza; y lo mismo con `nextval()` sobre `tenant_lifecycle_events_id_seq`.
+- **`CA-BO-102`** · *Dado* esa misma conexión, *cuando* intenta leer `reason`, `performed_by` o `dual_authorization_id`, o un `SELECT *`, *entonces* **el motor lo rechaza** (`datos.md §5.3`, `§5.3.1`).
+- **`CA-BO-103`** · *Dado* esa misma conexión, *cuando* consulta las seis columnas concedidas dentro del contexto del tenant `A`, *entonces* la consulta **funciona** y devuelve **exactamente** su propia historia de estados y ninguna otra; y **sin** contexto de tenant, cero filas.
+
+**Sesión de plataforma** (`datos.md §2.6.3`, `§2.7.2`)
+
+- **`CA-BO-104`** · *Dado* una fila viva de `platform_admin_sessions` —`ended_at IS NULL`— cuyo `session_id` **ya no existe** en `platform_sessions`, *cuando* se ejecuta `bo:close-orphaned-sessions`, *entonces* la fila queda con `session_id` nulo, `ended_at` fijado y `end_reason = 'caducidad'`, y **deja de aparecer** en la consulta de sesiones vivas del administrador — que es la de la revocación (`ADR-047 §5.1`, `operacion.md §6.3`). Y *dado* una fila viva **cuya** sesión sí existe, *entonces* la tarea **no la toca**.
+- **`CA-BO-105`** · *Dado* una petición cualquiera a `/api/platform/*`, *cuando* ha pasado por el *middleware* que selecciona el almacén de sesión de plataforma, *entonces* la **conexión de base de datos por defecto de la aplicación no ha cambiado**: sigue siendo la del producto y **no** es `pgsql_platform`. El *middleware* fija `session.connection` y **sólo** eso; el `BYPASSRLS` de `pgsql_platform` se alcanza únicamente por `runAsPlatform()`, con su propósito declarado. Es lo que impide vaciar `ADR-046 §6` sin ningún síntoma (`ADR-047 §11` punto 2, `datos.md §2.6.3`).
+
 ---
 
 ## 14. Preguntas abiertas
 
-**No las resuelvo yo.** Las tres primeras eran estructurales y bloqueaban el arranque; **`ADR-046` (ACEPTADA, 2026-09-08) las cierra las tres**, y esta revisión aplica su `§10` a los cinco ficheros del módulo.
+**No las resuelvo yo.** Las tres primeras eran estructurales y bloqueaban el arranque; **`ADR-046` (ACEPTADA, 2026-09-08) las cierra las tres**, y esta revisión aplica su `§10` a los cinco ficheros del módulo. **`ADR-047` (ACEPTADA, 2026-09-08) cierra además `OPEN-BO-10`**, que era la última puerta previa a la primera migración.
 
-**Estado a 2026-09-08**, tras la respuesta del usuario y tras `ADR-046`:
+**Estado a 2026-09-08**, tras la respuesta del usuario y tras `ADR-046` y `ADR-047`:
 
 | Pregunta | Estado |
 |---|---|
@@ -893,12 +916,12 @@ Formato `Dado / Cuando / Entonces`, verificables, con el ID de requisito que cub
 | `OPEN-BO-07` · *Feature flags* | **Resuelta 2026-09-08 · entran en alcance**, en el sub-paso `1.6e` |
 | `OPEN-BO-08` · Sin pantallas hasta `1.7`/`1.9` | **Resuelta 2026-09-08 · sólo API** |
 | `OPEN-BO-09` · Dos personas para eliminar un tenant | **Resuelta 2026-09-08 · aceptada sin relajar `RN-BO-19`** |
-| `OPEN-BO-10` · RLS de `admin_action_logs` | **Abierta**, pendiente de `db-reviewer` y `architect` antes de la primera migración |
+| `OPEN-BO-10` · RLS de `admin_action_logs` | **RESUELTA por `ADR-047`** (ACEPTADA, 2026-09-08) · categoría nueva «plataforma con visibilidad por tenant afectado», política `tenant_visibility` de solo lectura y `GRANT SELECT` de **columnas enumeradas**. Los vistos buenos de `architect` y `db-reviewer` **están dados**: las tres piezas aprobadas **con cambios**, ninguna rechazada |
 | `OPEN-BO-11` · Direccionar un *flag* por su `key` | **Abierta · nueva**, no bloqueante. Surge de la decisión del 2026-09-08 |
 | `OPEN-BO-12` · Nombre del *host* de plataforma | **Abierta · nueva**, no bloqueante. Depende de `OPEN-08` (`ADR-046 §2.1`, §4.4). Lo que **sí** queda decidido es la restricción que ese nombre deberá cumplir (`RN-BO-49`) |
 | `OPEN-BO-13` · Las rutas de pre-autenticación y la aserción 2 de `ADR-046 §4.5` | **Abierta · nueva**, no bloqueante, pero **previa a escribir el test de `CA-BO-013`** (`api.md §1.1.1`) |
 
-**Ya no queda ninguna pregunta bloqueante.** Lo que impide empezar a implementar no son las abiertas, sino los tres requisitos de §15: el visto bueno de `db-reviewer` y `architect` a `OPEN-BO-10` —y ahora también a `platform_sessions` y `platform_admin_sessions`—, la decisión de `OPEN-BO-13` antes del test de `CA-BO-013`, y la aprobación explícita del usuario a esta especificación.
+**Ya no queda ninguna pregunta bloqueante, y ya no queda ningún visto bueno técnico pendiente.** `ADR-047` cierra `OPEN-BO-10` **y** las dos piezas que se le habían añadido —`platform_sessions` y `platform_admin_sessions`—: las tres quedan aprobadas con cambios, ninguna rechazada (`ADR-047`, encabezado y `§5.1`). Lo que impide empezar a implementar se reduce a los dos requisitos de §15: la decisión de `OPEN-BO-13` **antes del test de `CA-BO-013`** —no antes de empezar— y la aprobación explícita del usuario a esta especificación.
 
 ### `OPEN-BO-01` · ¿Cómo se separa técnicamente la aplicación del backoffice? · **RESUELTA por `ADR-046 §4`**
 
@@ -959,11 +982,27 @@ Eran `REQ-OPS-002`, fase 2, `SHOULD`. La pregunta se planteó porque, a diferenc
 
 > **Decisión del usuario del 2026-09-08: aceptada, y `RN-BO-19` no se relaja.** Ni por configuración, ni por entorno, ni «para desarrollo» — una excepción de ese tipo acabaría en producción, que es el motivo por el que `operacion.md §2` tampoco crea una variable de entorno para saltarse la doble autorización. **Consecuencia operativa**: el paso 5 del procedimiento de arranque de `operacion.md §5` —crear un **segundo** `superadministrador`— deja de ser una recomendación y es condición para que el sistema sea operable al completo.
 
-### `OPEN-BO-10` · `admin_action_logs` con `affected_tenant_id` y RLS: ¿encaja en `ADR-033 §7`?
+### `OPEN-BO-10` · `admin_action_logs` con `affected_tenant_id` y RLS: ¿encaja en `ADR-033 §7`? · **RESUELTA por `ADR-047`**
 
-`ADR-033 §7` clasifica `admin_action_logs` como tabla de plataforma «sin `tenant_id`, `REVOKE` completo para `plataforma_app` salvo lo imprescindible». `REQ-BO-007` exige además que sea «consultable por el propio centro en lo que le afecte», lo que obliga a una referencia al tenant afectado y a un camino de lectura para `plataforma_app`.
+**La pregunta.** `ADR-033 §7` clasifica `admin_action_logs` como tabla de plataforma «sin `tenant_id`, `REVOKE` completo para `plataforma_app` salvo lo imprescindible». `REQ-BO-007` exige además que sea «consultable por el propio centro en lo que le afecte», lo que obliga a una referencia al tenant afectado y a un camino de lectura para `plataforma_app`. `datos.md §4.3` propuso `affected_tenant_id` más una política de solo lectura y un `GRANT SELECT` acotado, y **no escribió la migración sin visto bueno** porque tocaba el registro de tablas compartidas y el test de esquema #8.
 
-`datos.md §4` propone resolverlo con `affected_tenant_id` más una política RLS `USING (affected_tenant_id = app.current_tenant_id())` y `GRANT SELECT` acotado — la tabla no *pertenece* a un tenant, pero *referencia* a uno. Encaja con el espíritu de `ADR-033` y con cómo se trata la propia tabla `tenants`, pero **toca el registro de tablas compartidas y el test de esquema #8**, así que quiero que lo bendigan `db-reviewer` y `architect` antes de escribir la migración.
+> **Decisión: `ADR-047`** (`docs/adr/ADR-047-tablas-de-plataforma-con-visibilidad-por-tenant-afectado.md`), **ACEPTADA el 2026-09-08**. **Los dos vistos buenos están dados y las tres piezas quedan aprobadas *con cambios*, ninguna rechazada.** El mecanismo propuesto era correcto; lo que faltaba era el sitio donde escribirlo, porque es una regla que van a copiar los 53 módulos y no cabe en la carpeta de uno — mismo argumento por el que `OPEN-CORE-09` acabó siendo `ADR-038`.
+
+Lo que decide, y que esta revisión ha aplicado a `datos.md`, `operacion.md` y §13.8:
+
+| # | Decisión de `ADR-047` | Dónde queda |
+|---|---|---|
+| 1 | **Categoría nueva** en la taxonomía de `ADR-033 §7`: «plataforma con visibilidad por tenant afectado». La adoptan `admin_action_logs` y `tenant_lifecycle_events`; **no** `feature_flag_rules` | `datos.md §1`, `§4.3`, `§5.3`, `§9.3.1` |
+| 2 | **`tenant_id` queda reservado, sin excepción, a la columna de propiedad.** Una referencia a un tenant desde una tabla de plataforma se llama **`affected_tenant_id`**, siempre y en todo el proyecto | `datos.md §5.2` y `§9.3` renombran; `§4.3` ya era correcta |
+| 3 | Política **`tenant_visibility`**, `FOR SELECT` únicamente, sin `WITH CHECK` y sin `OR … IS NULL`. **Lo que cierra la escritura es `FORCE` sin política permisiva**, no el `REVOKE` | `datos.md §4.3`, `§5.3` |
+| 4 | El `GRANT SELECT` es de **columnas enumeradas, nunca de tabla**: RLS filtra filas, no columnas | `datos.md §4.3`, `§5.3`; la frontera de `reason` la decide el producto y se decide en `datos.md §4.3.1`/`§5.3.1`: **no cruza el `GRANT`** |
+| 5 | **`platform_admin_sessions.session_id` no lleva clave foránea**, y en su lugar va un barrido de sesiones huérfanas | `datos.md §2.7.1`, `§2.7.2`; `operacion.md §6.3`; `CA-BO-104` |
+| 6 | Tres criterios de privilegios **por tabla**, como mínimo | §13.8, `CA-BO-098` a `CA-BO-103` |
+| 7 | Dos hallazgos reportados y **no corregidos por el propio ADR** (`§11`): el `REVOKE` de secuencia, que afecta a **las trece** tablas nuevas; y la conexión del almacén de sesión de plataforma | `datos.md §12.1` y `§11`; `datos.md §2.6.3` y `CA-BO-105` |
+
+**Lo que `ADR-047` deliberadamente no decide**, y sigue abierto: la **retención** de `admin_action_logs` (`OPEN-BO-06`) y el **particionado**, que `datos.md §4.4` ya evaluó, descartó y dejó con disparador de revisión escrito.
+
+**Y una consecuencia que hay que leer antes de escribir cualquier migración futura sobre estas dos tablas**: bajo `FORCE ROW LEVEL SECURITY` sin política permisiva de escritura, **ni siquiera `plataforma_owner` puede escribirlas**. Una migración *expand/contract* puede añadir una columna, pero **no puede rellenarla** sobre las filas existentes: `ADD COLUMN` es DDL y funciona, el `UPDATE` de relleno no. **Quedan fuera del ciclo *expand/contract* para siempre** (`ADR-047 §5.2`), toda columna nueva nace anulable y sin retroactividad, y `INV-004` no les aplica igual que no aplica a `audit_logs`. Es también la razón por la que los renombrados del punto 2 se hacen **ahora**: hoy es editar un fichero que no existe; después de la primera fila, no hay ciclo *contract* que valga.
 
 ### `OPEN-BO-11` · ¿Se puede direccionar un *feature flag* por su `key` en la URL?
 
@@ -989,7 +1028,7 @@ Las dos lecturas y su diferencia práctica están en **`api.md §1.1.1`**. Resum
 
 ## 15. ¿Se aprueba esta especificación?
 
-**Sigue sin estar aprobada.** El 2026-09-08 el usuario resolvió cuatro de las diez preguntas abiertas y `ADR-046` cerró las tres bloqueantes; esta revisión ha aplicado ambas cosas. **Nada de eso es la aprobación de la especificación.**
+**Aprobada.** El 2026-09-08 el usuario resolvió cuatro de las diez preguntas abiertas, `ADR-046` cerró las tres bloqueantes, `ADR-047` cerró `OPEN-BO-10` junto con los vistos buenos técnicos que faltaban, y el usuario aprobó explícitamente la especificación completa con las tres cosas aplicadas — más, en una segunda ratificación el mismo día, los dos puntos de decisión propia de la pasada de `ADR-047` (fila 5 y 6 de la tabla de abajo).
 
 Lo resuelto el 2026-09-08, y ya incorporado a este documento:
 
@@ -1012,12 +1051,28 @@ Lo que trae **`ADR-046`**, aplicado en esta pasada a los cinco ficheros del mód
 | 10 | Corrección de «tres llamadores» de `runAsPlatform()` → **dos** | §6.2 |
 | 11 | **Dos preguntas abiertas nuevas**, ninguna bloqueante: el nombre del *host* (`OPEN-BO-12`, que `ADR-046 §2.1` declara fuera de su alcance) y las rutas de pre-autenticación frente a la aserción 2 (`OPEN-BO-13`, detectada al aplicar `ADR-046 §10.4`) | §14, `api.md §1.1.1` |
 
-Lo que **falta** antes de que `implementer` toque una línea:
+Lo que trae **`ADR-047`** (ACEPTADA, 2026-09-08), aplicado en esta pasada a `funcional.md`, `datos.md`, `api.md` y `operacion.md` (`permisos.md` no cambia: `ADR-047` no toca ninguna capacidad):
 
-1. El visto bueno de `db-reviewer` y `architect` a **`OPEN-BO-10`** antes de escribir la primera migración de `admin_action_logs`. **Y ahora también el de `db-reviewer` a `platform_sessions` y `platform_admin_sessions`** (`datos.md §2.6`, `§2.7`), que son tablas nuevas con `REVOKE` y con entrada en `shared_tables.platform`.
-2. **`OPEN-BO-13`** decidida antes de escribir el test de `CA-BO-013` — no antes de empezar, pero sí antes de ese test.
-3. La **aprobación explícita del usuario** a esta especificación completa, con los *feature flags* dentro y con `ADR-046` aplicado.
+| # | Decisión | Dónde queda |
+|---|---|---|
+| 12 | **`OPEN-BO-10` resuelta**: categoría «plataforma con visibilidad por tenant afectado», política `tenant_visibility` de solo lectura y `GRANT SELECT` de **columnas enumeradas**. Los dos vistos buenos, dados; las tres piezas, aprobadas con cambios | §14 (`OPEN-BO-10`), `datos.md §1`, `§4.3`, `§5.3` |
+| 13 | **`tenant_id` reservado a la columna de propiedad**: `tenant_lifecycle_events` y `feature_flag_rules` renombran su referencia a **`affected_tenant_id`** | `datos.md §5.2`, `§9.3`, `§9.3.1`, `§11`, `api.md §2.11` |
+| 14 | **`platform_admin_sessions.session_id` sin clave foránea**, con barrido de sesiones huérfanas en su lugar | `datos.md §2.7.1`, `§2.7.2`, `operacion.md §6.2` y `§6.3`, `CA-BO-104` |
+| 15 | **Ocho criterios de aceptación nuevos**, `CA-BO-098` a `CA-BO-105` | §13.8 |
+| 16 | **Dos hallazgos de `ADR-047 §11` incorporados**: el `REVOKE` de secuencia en **las trece** tablas nuevas, y la conexión del almacén de sesión de plataforma | `datos.md §11`, `§12.1`, `§2.6.3`, `operacion.md §8`, `CA-BO-105` |
+| 17 | La afirmación del checklist «las trece se declaran … o el test #8 falla» **pasa a ser cierta**, y **antes no lo era** para `tenant_lifecycle_events` | `datos.md §11` |
 
-**¿Se aprueba la especificación con estos cambios?** Tres puntos donde he decidido yo y conviene que se ratifiquen antes de implementar: que la **unidad de reparto de un *flag* la declare el código y no el operador** (§5.11.2), que el **rol filtre y no amplíe** (§5.11.4), y que `1.6e` vaya **el último** de los cinco sub-pasos (§12.3). Y un cuarto que trae esta pasada: el diseño de **`platform_admin_sessions`** (`datos.md §2.7`), que `ADR-046 §5.2` me encarga explícitamente y sobre el que ese ADR no fija nada.
+**Nada queda pendiente antes de que `implementer` toque una línea.** Registro de cierre:
+
+1. ~~El visto bueno de `db-reviewer` y `architect` a `OPEN-BO-10`, `platform_sessions` y `platform_admin_sessions`.~~ **Cerrado por `ADR-047`**: los dos vistos buenos están dados y las tres piezas quedan aprobadas con cambios, ninguna rechazada.
+2. **`OPEN-BO-13`** — no bloqueante, decidida antes de escribir el test de `CA-BO-013`, no antes de empezar a implementar.
+3. ~~La aprobación explícita del usuario a esta especificación completa.~~ **Dada el 2026-09-08**, con `ADR-046` y `ADR-047` aplicados.
+
+**Puntos donde decidió la sesión orquestadora y quedan ratificados por el usuario** (todos el 2026-09-08): que la unidad de reparto de un *flag* la declare el código y no el operador (§5.11.2), que el rol filtre y no amplíe (§5.11.4), que `1.6e` vaya el último de los cinco sub-pasos (§12.3), el diseño de `platform_admin_sessions` (`datos.md §2.7`), y los dos que trajo la pasada de `ADR-047`:
+
+| # | Decisión | Dónde | Ratificada |
+|---|---|---|---|
+| 5 | **`reason` no cruza el `GRANT SELECT`** en ninguna de las dos tablas. `ADR-047 §2.1` declina decidirlo y lo remite a `datos.md` | `datos.md §4.3.1`, `§5.3.1` | Sí, 2026-09-08 |
+| 6 | **`tenant_lifecycle_events.affected_tenant_id` es `NOT NULL`**, mientras que `ADR-047 §4.2` describe la columna de la categoría como anulable —«nula ⇒ alcance global»— | `datos.md §5.2` | Sí, 2026-09-08 |
 
 Lo que **sí** está cerrado y no espera a nadie es el encargo de `ADR-045 §10`: el documento de requisitos está en 3.2.0 con los trece requisitos reescritos, y `OPEN-CORE-03` queda marcado como resuelto en `docs/modulos/REQ-CORE/funcional.md`.

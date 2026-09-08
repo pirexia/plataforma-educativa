@@ -1,6 +1,6 @@
 # REQ-BO · Modelo de datos
 
-> Paso **1.6**, dividido en cinco sub-pasos (`funcional.md §12`). **Entrada obligatoria: `ADR-046`**, cuyo `§5` fija el almacén de sesión de plataforma (§2.6) y cuyo `§10.2` corrige una premisa falsa de la revisión anterior de este documento — la de que `sessions` lleva `tenant_id` (§2.6.1). Todas las convenciones de `ADR-029` aplican **sin excepción**: `TIMESTAMPTZ` siempre, `text` nunca `varchar(n)`, enumerados como `text` con `CHECK`, importes en enteros de céntimos, clave primaria `bigint` interna más `public_id` ULID en todo lo expuesto. La única desviación propuesta, y **propuesta, no decidida**, es direccionar un *feature flag* por su `key`: `OPEN-BO-11`.
+> Paso **1.6**, dividido en cinco sub-pasos (`funcional.md §12`). **Entradas obligatorias: `ADR-046`**, cuyo `§5` fija el almacén de sesión de plataforma (§2.6) y cuyo `§10.2` corrige una premisa falsa de la revisión anterior de este documento — la de que `sessions` lleva `tenant_id` (§2.6.1) —; y **`ADR-047`** (ACEPTADA, 2026-09-08), que **resuelve `OPEN-BO-10`**, crea la categoría «plataforma con visibilidad por tenant afectado» (§4.3, §5.3), impone el nombre `affected_tenant_id` para toda referencia a un tenant desde una tabla de plataforma (§5.2, §9.3) y decide que `platform_admin_sessions.session_id` **no lleva clave foránea** (§2.7). Todas las convenciones de `ADR-029` aplican **sin excepción**: `TIMESTAMPTZ` siempre, `text` nunca `varchar(n)`, enumerados como `text` con `CHECK`, importes en enteros de céntimos, clave primaria `bigint` interna más `public_id` ULID en todo lo expuesto. La única desviación propuesta, y **propuesta, no decidida**, es direccionar un *feature flag* por su `key`: `OPEN-BO-11`.
 >
 > **Lo primero, porque es lo que distingue a este módulo de los cinco anteriores**: **todas** sus tablas son **de plataforma**, no de tenant. No llevan `tenant_id` como propiedad, no llevan la política `tenant_isolation`, y **por eso mismo cada una tiene que declararse en el registro de tablas compartidas de `config/tenancy.php`** o el test de esquema #8 de `ADR-033 §10` fallará — que es exactamente lo que ese test existe para hacer. Ninguna omisión aquí es inofensiva.
 
@@ -19,10 +19,10 @@
 | `platform_sessions` | Plataforma | — | No | `plataforma_platform`. **`REVOKE ALL … FROM plataforma_app`** (§2.6) |
 | `platform_admin_sessions` | Plataforma | — | No | Ídem (§2.7) |
 | `dual_authorizations` | Plataforma | — | No | Ídem |
-| `admin_action_logs` | Plataforma **con referencia a tenant** | `affected_tenant_id` (referencia, **no** propiedad) | **Sí, propia** (§4.3) | `plataforma_platform` inserta; nadie actualiza ni borra |
-| `tenant_lifecycle_events` | Plataforma **con referencia a tenant** | `tenant_id` (referencia) | **Sí, propia** (§5.3) | `plataforma_platform` |
+| `admin_action_logs` | **Plataforma con visibilidad por tenant afectado** (`ADR-047 §4.1`) | `affected_tenant_id` (referencia, **no** propiedad) | **Sí, propia**: `tenant_visibility` (§4.3) | `plataforma_platform` inserta; nadie actualiza ni borra |
+| `tenant_lifecycle_events` | **Plataforma con visibilidad por tenant afectado** (`ADR-047 §4.1`) | `affected_tenant_id` (referencia, **no** propiedad) | **Sí, propia**: `tenant_visibility` (§5.3) | `plataforma_platform` |
 | `feature_flags` | Plataforma | — | No | `plataforma_owner` materializa el catálogo; `plataforma_platform` escribe estado; `plataforma_app` **sólo `SELECT`** (§9.6) |
-| `feature_flag_rules` | Plataforma **con referencia opcional a tenant** | `tenant_id` (referencia, sólo en reglas nominales) | No | Ídem |
+| `feature_flag_rules` | Plataforma **con referencia opcional a tenant** | `affected_tenant_id` (referencia, sólo en reglas nominales). **No adopta la categoría de `ADR-047 §4.1`** (§9.3) | No | Ídem |
 | `tenants` | Ya existe | — | Ya tiene la suya (`id = app.current_tenant_id()`) | Gana columnas (§6) |
 | `module_subscriptions` | Ya existe, **de tenant** | Sí | Ya la tiene | **Gana una migración de privilegios** (§7), sin cambio de esquema |
 
@@ -157,6 +157,8 @@ Es el almacén del *driver* `database` de Laravel para el *guard* `platform`: **
 
 ```sql
 REVOKE ALL ON platform_sessions FROM plataforma_app;
+-- Sin REVOKE de secuencia: la clave primaria es `text` y esta tabla no tiene ninguna.
+-- Es la única exención declarada del punto de checklist de §12.1.
 -- plataforma_platform conserva SELECT, INSERT, UPDATE, DELETE: es el runtime del backoffice.
 ```
 
@@ -165,6 +167,14 @@ Precedente literal en el repositorio: `2026_08_17_180000_harden_failed_jobs_gran
 **Debe quedar declarada en `config/tenancy.php` bajo `shared_tables.platform`**, o el test de esquema #8 de `ADR-033 §10` falla — **y debe fallar** si alguien la crea sin declararla (`CA-BO-075`).
 
 **Cómo se selecciona este almacén**: por **grupo de rutas**, con un *middleware* que fija la configuración de sesión de plataforma —conexión, tabla, nombre de cookie y vida— **antes** de `start-session` (`api.md §1.1`). No es un mecanismo nuevo: `TenantContext::applyCachePrefix()` ya hace exactamente esta forma de cosa con `cache.prefix` y `Cache::forgetDriver()`, y está probada desde `0.7`.
+
+**La conexión que se fija es `session.connection = 'pgsql_platform'`, y sólo esa clave** (`ADR-047 §11`, punto 2). Hay que escribirlo con el nombre exacto porque hasta ahora este documento decía «conexión» sin nombrarla, y porque la frase siguiente es la que de verdad importa:
+
+> **El *middleware* fija configuración de *sesión* y nunca la conexión de base de datos por defecto.** No toca `database.default`, no llama a `DB::setDefaultConnection()` y no deja `pgsql_platform` puesta de fondo para el resto de la petición. Sólo el manejador de sesión del framework usa esa conexión, y sólo para leer y escribir su propia fila.
+>
+> **Por qué es la línea que hay que defender.** `pgsql_platform` es el rol con `BYPASSRLS` (`ADR-033 §5`). Si el grupo de rutas de plataforma acabara corriendo entero sobre esa conexión —por comodidad, o porque alguien «unificó» la configuración—, todo el backoffice tendría `BYPASSRLS` **sin pasar por `runAsPlatform()`**, y con él se perderían de golpe las tres garantías de `ADR-046 §6`: el propósito declarado, la prohibición de tenant activo y la comprobación de auditoría al cierre del bloque. **Es la única forma identificada de vaciar `ADR-046 §6` sin que nadie lo note**: no produce error, no cambia ninguna respuesta y no aparece en ninguna revisión de código que mire sólo el módulo. Por eso lleva criterio de aceptación propio, `CA-BO-105`, y no una nota.
+
+El acceso deliberado a `pgsql_platform` desde el código de este módulo sigue teniendo un solo camino con nombre —`runAsPlatform()`, con su propósito— y el hecho de que el almacén de sesión use esa misma conexión **no es una excepción a esa regla**: no es código de aplicación pidiendo `BYPASSRLS`, es el manejador del framework escribiendo en una tabla que `plataforma_app` no puede tocar (§2.6.2).
 
 **Cookie**: nombre propio, distinto del de la cookie del producto, y ***host-only*** igual que aquella (`SESSION_DOMAIN` sigue sin valor, `ADR-033 §2`). Con el enrutado por `Host()` y la restricción de `RN-BO-49`, `RMT-009` se cumple **por construcción y por partida triple**: dominios distintos, cookies distintas, tablas distintas.
 
@@ -180,7 +190,7 @@ Precedente literal en el repositorio: `2026_08_17_180000_harden_failed_jobs_gran
 |---|---|---|---|
 | `id` | `bigserial` | No | |
 | `platform_admin_id` | `bigint` | No | FK → `platform_admins.id` |
-| `session_id` | `text` | Sí | Referencia a `platform_sessions.id`. **Se pone a nulo al terminar la sesión**, para no conservar un identificador de sesión más de lo necesario |
+| `session_id` | `text` | Sí | Referencia a `platform_sessions.id`, **sin clave foránea** (§2.7.1). **Se pone a nulo al terminar la sesión**, para no conservar un identificador de sesión más de lo necesario |
 | `ip_address` | Igual que en `admin_action_logs` | Sí | |
 | `user_agent` | `text` | Sí | |
 | `started_at` | `timestamptz` | No | |
@@ -196,9 +206,37 @@ CHECK ((ended_at IS NULL) = (end_reason IS NULL))
 
 **Índices**: `(platform_admin_id, started_at DESC) WHERE ended_at IS NULL` —«qué sesiones tiene abiertas esta persona», que es la consulta de la revocación—; `(session_id) WHERE session_id IS NOT NULL`.
 
+#### 2.7.1 `session_id` **no lleva clave foránea**, y el motivo es el orden de escritura (`ADR-047 §5.1`)
+
+La revisión conjunta de `architect` y `db-reviewer` propuso `FOREIGN KEY (session_id) REFERENCES platform_sessions (id) ON DELETE SET NULL`. **`ADR-047 §5.1` la descarta**, y no por el argumento de `CASCADE`/`RESTRICT` —que estaba bien resuelto— sino por uno verificado sobre el código:
+
+- El registro de la sesión de negocio se escribe **dentro de una transacción, durante la petición**, con el identificador que `session()->getId()` ya conoce tras `regenerate()`. Es lo que hace `SessionRegistrationService::register()` para `user_sessions`, y la sesión de plataforma reproduce la misma mecánica con otro *guard*.
+- La fila de `platform_sessions` la escribe el *driver* al **final** de la petición, cuando el manejador de sesión guarda.
+
+**En el instante del `INSERT`, la fila referenciada todavía no existe.** Una clave foránea fallaría en **cada inicio de sesión** y, como la escritura va en transacción —deliberadamente: si algo falla, el login falla—, el fallo sería el login: ningún administrador de plataforma podría entrar. `ON DELETE SET NULL` gobierna el borrado del padre y no dice nada sobre su ausencia al insertar el hijo, y `DEFERRABLE INITIALLY DEFERRED` tampoco salva el caso, porque la transacción confirma antes de que el *driver* escriba.
+
+Es literalmente el segundo de los tres motivos que la migración de `user_sessions` de `1.2` dejó escritos en su *docblock* para no poner esa clave foránea. **Se dice explícitamente, con su motivo, precisamente porque su ausencia parece un descuido**: es la misma forma en que `1.2` lo dejó dicho.
+
+#### 2.7.2 Lo que sustituye a la clave foránea: barrido de sesiones huérfanas
+
+`ADR-047 §5.1` pone en su lugar algo que la clave foránea no podía hacer: un **barrido de sesiones huérfanas de plataforma**, `CloseOrphanedPlatformSessions` (*job* y comando, `app/Modules/Backoffice/Infrastructure/`), con el precedente exacto de `CloseOrphanedUserSessions` del módulo `Auth`. Para **toda fila viva** —`ended_at IS NULL`— cuyo `session_id` ya no exista en `platform_sessions`:
+
+1. anula `session_id`,
+2. fija `ended_at`,
+3. escribe `end_reason = 'caducidad'`.
+
+**No es una purga**: no borra ni redacta ninguna fila. Su entrada en el planificador está en `operacion.md §6.2`.
+
+**Por qué no es opcional, y por qué no lo resolvía la clave foránea:**
+
+- **`end_reason = 'caducidad'` está en el `CHECK` de esta tabla y hoy no tiene ningún escritor.** El recolector del *driver* borra de `platform_sessions` y no toca esta tabla. Sin el barrido, **toda sesión caducada queda con `ended_at IS NULL` para siempre**, y el índice `(platform_admin_id, started_at DESC) WHERE ended_at IS NULL` —que es **la consulta de la revocación**— devuelve sesiones muertas. Suspender a alguien por un incidente pasaría a mostrar datos falsos, que es justo el caso de uso con el que esta tabla se justifica.
+- **Una clave foránea no escribe columnas ajenas.** `ON DELETE SET NULL` sólo actúa cuando el recolector borra, y nunca podría fijar `ended_at` ni `end_reason`. Resuelve menos, y sólo en un caso.
+
+Verificado por `CA-BO-104`.
+
 **No lleva `public_id`**, igual que `platform_admin_roles`, y por el mismo motivo: **en 1.6 no se direcciona por URL**. La revocación no es un *endpoint* propio, es el **efecto** de operaciones que ya existen —suspender, eliminar, retirar roles, restablecer el segundo factor— y que se identifican por el `public_id` **del administrador**, no por el de cada sesión. Si algún día hace falta revocar una sesión concreta desde una pantalla, ese *endpoint* traerá consigo su `public_id` en una migración aditiva; **no se adelanta la columna** (`ADR-034 OPEN-13`).
 
-**Privilegios**: los mismos que §2.6 — `REVOKE ALL … FROM plataforma_app`. Y **la misma declaración obligatoria** en `shared_tables.platform`.
+**Privilegios**: los mismos que §2.6 — `REVOKE ALL … FROM plataforma_app` —, **más el `REVOKE ALL ON SEQUENCE platform_admin_sessions_id_seq FROM plataforma_app`** que su clave `bigserial` exige y que el `REVOKE` de tabla no cubre (§12.1). Y **la misma declaración obligatoria** en `shared_tables.platform`.
 
 **Qué obliga a revocar**, y por eso la tabla no es opcional en `1.6`: suspender o eliminar un `platform_admin` (`admin.suspendido`, `admin.eliminado`), retirarle roles, y restablecerle el segundo factor (`admin.mfa_restablecido`). Sin esta tabla, «suspendido» significaría «no puede volver a entrar» y no «está fuera ahora», que es lo que hace falta cuando se suspende a alguien por un incidente. Cada revocación deja entrada en `admin_action_logs` con `action = 'sesion.cerrada'` (§4.2).
 
@@ -290,11 +328,13 @@ Cerrado, con `CHECK`, siguiendo el precedente de `audit_logs.event` (`ADR-034 §
 | Módulos | `modulo.contratado`, `modulo.descontratado`, `modulo.masivo_ejecutado` |
 | Diagnóstico | `job.reintentado` |
 
-### 4.3 `affected_tenant_id` no es `tenant_id`, y la diferencia importa
+### 4.3 `affected_tenant_id` no es `tenant_id`, y la diferencia importa (`ADR-047`)
 
 `ADR-033 §7` clasifica esta tabla como de plataforma, «sin `tenant_id`». Se respeta: **la tabla no pertenece a ningún centro**, sus filas no las crea la actividad de un centro y no se borran cuando un centro se va. `affected_tenant_id` dice **a quién afectó** una acción del proveedor, que es información distinta de la propiedad de la fila.
 
-Esa columna es lo que hace posible el requisito de `REQ-BO-007`: auditoría «consultable por el propio centro en lo que le afecte». La forma propuesta:
+Esa columna es lo que hace posible el requisito de `REQ-BO-007`: auditoría «consultable por el propio centro en lo que le afecte».
+
+> **`OPEN-BO-10` está resuelta.** Lo que este apartado sometía al visto bueno conjunto de `architect` y `db-reviewer` lo decide **`ADR-047`** (ACEPTADA, 2026-09-08): las dos piezas quedan aprobadas **con cambios**, ninguna rechazada, y la forma que sigue es la canónica de `ADR-047 §4.3` y `§4.4`, no una propuesta. La tabla pertenece a la categoría nueva **«plataforma con visibilidad por tenant afectado»** (`ADR-047 §4.1`), que amplía el cuadro de `ADR-033 §7` sin modificar ninguna de sus cuatro categorías.
 
 ```sql
 ALTER TABLE admin_action_logs ENABLE ROW LEVEL SECURITY;
@@ -303,13 +343,73 @@ ALTER TABLE admin_action_logs FORCE  ROW LEVEL SECURITY;
 CREATE POLICY tenant_visibility ON admin_action_logs
     FOR SELECT
     USING (affected_tenant_id = app.current_tenant_id());
+
+-- 1. Punto de partida limpio. El REVOKE de tabla NO cubre la secuencia:
+--    01-tenancy.sql.tpl concede USAGE, SELECT sobre las secuencias por defecto.
+REVOKE ALL ON admin_action_logs                 FROM plataforma_app;
+REVOKE ALL ON SEQUENCE admin_action_logs_id_seq FROM plataforma_app;
+
+-- 2. Lo imprescindible, y sólo eso: columnas enumeradas, nunca la tabla.
+GRANT SELECT (
+    public_id,
+    occurred_at,
+    action,
+    affected_tenant_id,
+    subject_type,
+    subject_public_id
+) ON admin_action_logs TO plataforma_app;
+
+-- 3. Inmutabilidad también para el rol que escribe
+--    (precedente literal: harden_audit_logs_platform_grants).
+REVOKE UPDATE, DELETE ON admin_action_logs FROM plataforma_platform;
 ```
 
-- `plataforma_app` (la aplicación de los centros) recibe **`GRANT SELECT` y nada más**, y la política le deja ver exclusivamente las filas de su tenant. Las de alcance global (`affected_tenant_id IS NULL`) **no las ve nadie desde un tenant**, porque `NULL = algo` no es verdadero — el mismo mecanismo de fallo en cerrado de `ADR-033 §5`.
-- `plataforma_platform` tiene `BYPASSRLS` y ve todo: es el backoffice.
-- **Nadie tiene `UPDATE` ni `DELETE`**, ni siquiera `plataforma_owner` en tiempo de ejecución (`RN-BO-29`), con el mismo `REVOKE` que `2026_08_18_100900_harden_audit_logs_platform_grants.php` aplicó a `audit_logs`.
+**Las cinco reglas de la política** (`ADR-047 §4.3`), ninguna negociable:
 
-> **Esto es lo que `OPEN-BO-10` somete a `db-reviewer` y `architect`**: es una lectura razonable de `ADR-033 §7` y encaja con cómo se trata la propia tabla `tenants` (política `USING (id = app.current_tenant_id())`), pero toca el registro de tablas compartidas y el test de esquema #8. No se escribe la migración sin ese visto bueno.
+1. **`FOR SELECT` únicamente.** No hay política de `INSERT`, `UPDATE` ni `DELETE`, y **su ausencia no es un olvido**: bajo `FORCE`, la ausencia de política permisiva es lo que cierra la escritura para todo rol sin `BYPASSRLS`, incluido el propietario del esquema. **Es el cierre de verdad**; el `REVOKE` del paso 3 es la capa de encima. Quien algún día quite una de las dos tiene que quitar la redundante, no ésta.
+2. **Sin `WITH CHECK`.** En una política de solo lectura no hace nada y sugiere que la tabla admite escritura desde el tenant.
+3. **Sin `OR app.current_tenant_id() IS NULL`**, ni ninguna variante: `ADR-033 §5` lo prohíbe terminantemente y aquí rige idéntico.
+4. **La política se llama `tenant_visibility`**, no `tenant_isolation`. Dos nombres porque son dos cosas: quien lea un volcado del esquema tiene que distinguirlas sin leer el predicado.
+5. **Las filas de alcance global son invisibles desde un tenant.** Con `affected_tenant_id` nula, `NULL = <algo>` no es verdadero. Sin contexto de tenant, `app.current_tenant_id()` es nula y no se devuelve ninguna fila. Falla en cerrado en los dos sentidos, sin código que lo recuerde.
+
+**Por qué el `GRANT` es de columnas y no de tabla** (`ADR-047 §4.4`): **RLS filtra filas, no columnas.** Con `GRANT SELECT` sobre la tabla completa, el *runtime* de un centro podría leer, en las filas que le corresponden, el motivo interno del operador, el `context` —que según §13 lleva el nombre del empleado del proveedor— y la IP y el agente de usuario del personal de plataforma: datos personales de empleados nuestros expuestos a un cliente. **Que el *endpoint* proyecte sólo lo debido no basta: la superficie es el `GRANT`**, y una consulta descuidada o una inyección ve lo que el `GRANT` permita. Además falla ruidosamente: un `SELECT *` desde el tenant da error de privilegios en vez de devolver de más.
+
+**Qué entra y qué no**, aplicando el criterio de `ADR-047 §4.4`:
+
+| Columna | ¿La ve el centro? | Motivo |
+|---|:---:|---|
+| `public_id` | Sí | Identidad expuesta y desempate del cursor |
+| `occurred_at` | Sí | El «cuándo» |
+| `action` | Sí | El «qué», con vocabulario cerrado (§4.2): dice lo ocurrido sin texto libre |
+| `affected_tenant_id` | Sí | Es la referencia al propio centro |
+| `subject_type`, `subject_public_id` | Sí | Sobre qué se actuó, en el vocabulario público del *morph map* y con el identificador que ya conoce |
+| `id`, `subject_id` | No | Claves internas. No se exponen nunca (`ADR-029`) |
+| `actor_type` | No | Describe la maquinaria interna del proveedor —consola, sistema o persona— y es el primer paso hacia identificar a quién. No responde a «qué le pasó a este centro» |
+| `actor_platform_admin_id` | **No** | Identifica al empleado del proveedor. Excluido por nombre en `ADR-047 §4.4` |
+| `ip_address`, `user_agent` | **No** | Datos personales del personal del proveedor. Ídem |
+| `context` | **No** | Ídem, y además información operativa interna |
+| `changes` | **No** | Antes/después con la redacción de `ADR-035`, pensada para la investigación, no para el cliente |
+| `request_id` | No | Identificador de correlación interno (`INV-013`). No significa nada fuera de nuestros logs |
+| `reason` | **No** | §4.3.1 |
+
+#### 4.3.1 `reason` **no** cruza el `GRANT`
+
+`ADR-047 §2.1` y `§4.4` declinan decidirlo y lo remiten a este documento: *«el `reason` es la única frontera discutible y la decide el producto»*. La decisión es **excluirlo**, y con **un solo criterio para las dos tablas de esta categoría** (§5.3.1 lo aplica igual): **ningún texto libre escrito por un operador del proveedor cruza el `GRANT`.** Un criterio distinto por tabla sería justo el vocabulario de excepciones que `ADR-047` viene a impedir.
+
+Tres motivos, en orden de peso:
+
+1. **No hay nada que garantice que ese texto sea apto para el cliente.** `reason` es texto libre, sin longitud acotada y sin la redacción de `ADR-035` que sí lleva `changes`. Un motivo real puede nombrar a personas, a terceros, a otro centro o a una negociación comercial. Nada de eso es «lo que le afecta» en el sentido de `REQ-BO-007`: es *por qué* lo hizo el proveedor, que es otra pregunta.
+2. **La asimetría de coste es total.** Añadir una columna al `GRANT` más adelante es una migración de una línea. Quitarla después de que los centros la hayan leído no deshace nada: el dato ya salió. Ante una frontera discutible, la dirección reversible es la cerrada.
+3. **Sin `reason`, la respuesta al centro sigue siendo completa.** `action`, `occurred_at`, `subject_type` y `subject_public_id` responden enteras a «qué le pasó a este centro y cuándo». Se le niega el comentario interno, no el hecho.
+
+Y aquí el argumento es, si acaso, más fuerte que en `tenant_lifecycle_events`: el `reason` de una acción de plataforma es la nota que un operador escribe **para la investigación futura**, y su valor depende de que se escriba sin pensar en quién la lee. Un `reason` que el cliente puede leer deja de ser esa nota y pasa a ser un texto redactado — es decir, deja de servir para lo que existe.
+
+> **Si el producto decide que el centro debe recibir un motivo**, el camino correcto **no** es abrir esta columna: es un campo propio, escrito a sabiendas de que lo lee el cliente, distinto de la nota interna. Es la distinción que `tenants.suspension_message` (§6) ya hace para la suspensión —un texto redactado *para* el centro— frente al `reason` de la transición, que se redacta para el registro. Queda escrito para que nadie resuelva la petición ampliando el `GRANT`.
+
+- `plataforma_platform` tiene `BYPASSRLS` y ve la tabla entera: es el backoffice, y es quien sirve `GET /admin-action-logs` (`api.md §2.9`).
+- **Nadie tiene `UPDATE` ni `DELETE`**, ni siquiera `plataforma_owner` en tiempo de ejecución (`RN-BO-29`). Consecuencia que hay que conocer antes de escribir cualquier migración futura sobre esta tabla: **queda fuera del ciclo *expand/contract* para siempre** (`ADR-047 §5.2`, §12).
+
+**Verificación** (`ADR-047 §4.4`, «un `REVOKE` que no se prueba no existe»): `CA-BO-098`, `CA-BO-099` y `CA-BO-100` (`funcional.md §13.8`), además de `CA-BO-021`, que comprueba el rechazo de `UPDATE`/`DELETE` por el motor, y de `CA-BO-022`, que comprueba el mismo aislamiento desde el *endpoint* del tenant.
 
 ### 4.4 Particionado: **no**, y con el disparador escrito
 
@@ -322,10 +422,12 @@ CREATE POLICY tenant_visibility ON admin_action_logs
 | Índice | Consulta |
 |--------|----------|
 | `(occurred_at DESC, id DESC)` | Listado general del backoffice, por cursor. **El desempate por `id` no es opcional**: sin él, dos filas con el mismo `occurred_at` en el límite de página se pierden o se repiten (`ADR-038 §4.4`) |
-| `(affected_tenant_id, occurred_at DESC, id DESC)` | Ficha de un centro, y la consulta del propio centro sobre lo que le afecta |
+| `(affected_tenant_id, occurred_at DESC, id DESC)` | Ficha de un centro **desde el backoffice**, que corre con `plataforma_platform` y ve la tabla entera |
 | `(actor_platform_admin_id, occurred_at DESC, id DESC)` | «Qué ha hecho esta persona»: la primera pregunta de cualquier investigación |
 | `(action, occurred_at DESC)` | Filtro por tipo de acción |
 | `UNIQUE (public_id)` | |
+
+> **La consulta del propio centro (`GET /api/v1/platform-actions`) necesita comprobación aparte, y se anota aquí para que no se descubra al escribir la migración.** Esa consulta corre con `plataforma_app`, que tiene concedidas seis columnas y **`id` no es una de ellas** (§4.3). No puede ordenar ni desempatar por `id`, así que el orden total estricto que `ADR-038 §4.4` exige tiene que apoyarse en `public_id` — ULID, único y monótono— y el índice `(affected_tenant_id, occurred_at DESC, id DESC)` **no la sirve**. **No decido aquí el índice**: es exactamente el tipo de trabajo que `ADR-047 §7` reserva a `db-reviewer` —«la lista de columnas hay que verificarla, no suponerla», y su corolario es que hay que verificar también qué consultas quedan servidas—. Lo que sí queda decidido es que **no se resuelve ampliando el `GRANT` con `id`**: `id` es una clave interna que `ADR-029` no expone nunca, y abrirla para ahorrar un índice sería pagar una convención con un índice.
 
 ---
 
@@ -349,7 +451,7 @@ Leer el vencimiento de un período de gracia de una tabla de auditoría signific
 |-------|------|------|-------------|
 | `id` | `bigserial` | No | |
 | `public_id` | `text` | No | ULID, `UNIQUE` |
-| `tenant_id` | `bigint` | No | FK → `tenants.id` |
+| `affected_tenant_id` | `bigint` | **No** | FK → `tenants.id`. **Referencia, no propiedad** (`ADR-047 §4.2`). Se llamaba `tenant_id` hasta la aplicación de `ADR-047`: ese nombre queda reservado a la columna de propiedad —la que lleva `DEFAULT app.current_tenant_id()`, la política `tenant_isolation` y la clave foránea compuesta de `ADR-033 §6`—, y usarlo aquí hacía fallar **dos** tests de esquema (`ADR-047 §1.1`, puntos 1 y 2) |
 | `from_status` | `text` | Sí | Nulo sólo en el alta. `CHECK` contra los cinco valores de `TenantStatus` |
 | `to_status` | `text` | No | Ídem |
 | `reason` | `text` | No | `CHECK (length(btrim(reason)) > 0)` — `RN-BO-13` en el motor |
@@ -363,15 +465,68 @@ Leer el vencimiento de un período de gracia de una tabla de auditoría signific
 CHECK (to_status <> 'eliminado' OR dual_authorization_id IS NOT NULL)
 ```
 
-**Append-only**, como `admin_action_logs`: `REVOKE UPDATE, DELETE`. La historia de estados de un centro no se corrige, se continúa.
+**Append-only**, como `admin_action_logs`, y por la misma vía: lo que cierra la escritura es `FORCE ROW LEVEL SECURITY` sin política permisiva de escritura; el `REVOKE UPDATE, DELETE` es la capa de encima (§5.3). La historia de estados de un centro no se corrige, se continúa.
 
-### 5.3 RLS
+> **`affected_tenant_id` es `NOT NULL` aquí y anulable en `admin_action_logs`, y la diferencia es de significado, no de descuido.** `ADR-047 §4.2` describe la columna de la categoría como anulable porque «nula ⇒ alcance global», y eso tiene sentido en una tabla de auditoría, donde el proveedor hace cosas que no afectan a ningún centro. **En esta tabla no existe el evento de ciclo de vida sin centro**: la fila *es* una transición de la máquina de estados de un centro concreto. Anularla admitiría una fila sin significado. La restricción es más estricta que la del ADR y no contradice ninguna de sus cinco reglas: la política sigue fallando en cerrado en los dos sentidos (§5.3).
 
-Misma forma que §4.3: `USING (tenant_id = app.current_tenant_id())` con `GRANT SELECT` a `plataforma_app`, para que el propio centro pueda ver su historia. Sujeta al mismo visto bueno de `OPEN-BO-10`.
+### 5.3 Visibilidad por tenant afectado y privilegios (`ADR-047 §4.3`, `§4.4`)
+
+Misma forma canónica que §4.3, adaptada a las columnas de esta tabla, y con el mismo fin: que el propio centro pueda consultar su historia de estados sin que la fila deje de ser del proveedor.
+
+```sql
+ALTER TABLE tenant_lifecycle_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tenant_lifecycle_events FORCE  ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_visibility ON tenant_lifecycle_events
+    FOR SELECT
+    USING (affected_tenant_id = app.current_tenant_id());
+
+-- 1. Punto de partida limpio. El REVOKE de tabla NO cubre la secuencia:
+--    01-tenancy.sql.tpl concede USAGE, SELECT sobre las secuencias por defecto.
+REVOKE ALL ON tenant_lifecycle_events                   FROM plataforma_app;
+REVOKE ALL ON SEQUENCE tenant_lifecycle_events_id_seq   FROM plataforma_app;
+
+-- 2. Lo imprescindible, y sólo eso: columnas enumeradas, nunca la tabla.
+GRANT SELECT (
+    public_id,
+    affected_tenant_id,
+    from_status,
+    to_status,
+    occurred_at,
+    grace_period_ends_at
+) ON tenant_lifecycle_events TO plataforma_app;
+
+-- 3. Inmutabilidad también para el rol que escribe.
+REVOKE UPDATE, DELETE ON tenant_lifecycle_events FROM plataforma_platform;
+```
+
+**Por qué esas seis columnas y no otras**, aplicando el criterio de `ADR-047 §4.4` («entra lo que responde a *qué le pasó a este centro y cuándo*»):
+
+| Columna | ¿La ve el centro? | Motivo |
+|---|:---:|---|
+| `public_id` | Sí | Identidad expuesta y desempate del cursor |
+| `affected_tenant_id` | Sí | Es la referencia al propio centro. No le dice nada que no sepa |
+| `from_status`, `to_status` | Sí | **Son literalmente «qué le pasó»**: la transición es el hecho |
+| `occurred_at` | Sí | El «cuándo» |
+| `grace_period_ends_at` | Sí | Es una fecha que le concierne directamente y sobre la que tiene que actuar. Negársela sería negarle el plazo del que depende |
+| `id` | No | Clave interna. No se expone nunca (`ADR-029`) |
+| `reason` | **No** | §5.3.1 |
+| `performed_by` | **No** | Identifica a una persona del proveedor. `ADR-047 §4.4` lo excluye por nombre en su criterio: nada que identifique al empleado del proveedor cruza el `GRANT` |
+| `dual_authorization_id` | **No** | Referencia a una tabla de plataforma que el centro no puede leer, y una ventana al proceso interno de aprobación. Devolvería un identificador que no resuelve nada y describiría maquinaria del proveedor |
+
+#### 5.3.1 `reason` **no** cruza el `GRANT`, aquí tampoco
+
+**Mismo criterio y mismos tres motivos que en §4.3.1**, que es donde se razonan: ningún texto libre escrito por un operador del proveedor cruza el `GRANT`. Se aplica igual aquí, y a propósito — un criterio distinto por tabla sería el vocabulario de excepciones que `ADR-047` viene a impedir.
+
+Lo que cambia es sólo la comprobación del tercer motivo, porque hay que hacerla sobre estas columnas y no sobre las otras: **sin `reason`, la respuesta al centro sigue siendo completa.** `from_status`, `to_status`, `occurred_at` y `grace_period_ends_at` responden enteras a «qué le pasó a este centro y cuándo» — de hecho la transición **es** el hecho. Se le niega el comentario interno del operador, no la historia de estados.
+
+Y una tentación concreta que conviene desactivar por escrito: `reason` es aquí `NOT NULL`, lo que hace pensar que «siempre hay algo que enseñar». **Que la columna sea obligatoria dice que el proveedor tiene que justificar la transición ante su propio registro, no que el centro tenga derecho a leer esa justificación.** Si el producto decide que el centro debe recibir un motivo, el camino es el de §4.3.1: un campo propio redactado para el cliente, no abrir éste.
+
+**Verificación** (`ADR-047 §4.4`, «un `REVOKE` que no se prueba no existe»): `CA-BO-101`, `CA-BO-102` y `CA-BO-103` (`funcional.md §13.8`).
 
 ### 5.4 Índices
 
-`(tenant_id, occurred_at DESC, id DESC)` para la ficha del centro; `(to_status, grace_period_ends_at) WHERE to_status = 'en_baja'` para el barrido de vencimientos de `RN-BO-17`; `UNIQUE (public_id)`.
+`(affected_tenant_id, occurred_at DESC, id DESC)` para la ficha del centro y para la consulta del propio centro sobre su historia; `(to_status, grace_period_ends_at) WHERE to_status = 'en_baja'` para el barrido de vencimientos de `RN-BO-17`; `UNIQUE (public_id)`.
 
 ---
 
@@ -506,7 +661,7 @@ Una sola tabla con discriminador, y no cuatro tablas por eje. Motivo: **la prece
 | `public_id` | `text` | No | ULID, `UNIQUE` |
 | `feature_flag_id` | `bigint` | No | FK → `feature_flags.id`, `ON DELETE CASCADE` |
 | `scope_type` | `text` | No | `CHECK IN ('global','tenant','early_adopters','percentage','role')`. Vocabulario **cerrado**, se amplía por migración |
-| `tenant_id` | `bigint` | Sí | FK → `tenants.id`. **Sólo** con `scope_type = 'tenant'`. **Referencia, no propiedad** (mismo criterio que §4.3) |
+| `affected_tenant_id` | `bigint` | Sí | FK → `tenants.id`. **Sólo** con `scope_type = 'tenant'`. **Referencia, no propiedad** (mismo criterio que §4.3). Se llamaba `tenant_id` hasta la aplicación de `ADR-047 §4.2`; §9.3.1 explica por qué lleva el nombre de la categoría sin llevar su política |
 | `role_code` | `text` | Sí | **Sólo** con `scope_type = 'role'`. Es el **código** del rol, no una FK a `roles`: `roles` es tabla de tenant y una regla de plataforma no puede apuntar a la fila de un centro concreto (`RN-BO-40`) |
 | `percentage` | `smallint` | Sí | **Sólo** con `scope_type = 'percentage'`. `CHECK (percentage BETWEEN 0 AND 100)` |
 | `enabled` | `boolean` | No | `DEFAULT true`. Con `scope_type = 'tenant'` puede ser `false`: es la forma de **excluir** a un centro de un despliegue por porcentaje |
@@ -519,22 +674,34 @@ Una sola tabla con discriminador, y no cuatro tablas por eje. Motivo: **la prece
 
 ```sql
 -- Cada eje lleva exactamente su columna, y ninguna otra
-CHECK ((scope_type = 'tenant')     = (tenant_id  IS NOT NULL))
-CHECK ((scope_type = 'role')       = (role_code  IS NOT NULL))
-CHECK ((scope_type = 'percentage') = (percentage IS NOT NULL))
+CHECK ((scope_type = 'tenant')     = (affected_tenant_id IS NOT NULL))
+CHECK ((scope_type = 'role')       = (role_code          IS NOT NULL))
+CHECK ((scope_type = 'percentage') = (percentage         IS NOT NULL))
 
 -- Un solo cubo por eje y por objetivo: no hay dos porcentajes contradictorios
 CREATE UNIQUE INDEX ON feature_flag_rules (feature_flag_id, scope_type)
     WHERE deleted_at IS NULL AND scope_type IN ('global','early_adopters','percentage');
-CREATE UNIQUE INDEX ON feature_flag_rules (feature_flag_id, tenant_id)
+CREATE UNIQUE INDEX ON feature_flag_rules (feature_flag_id, affected_tenant_id)
     WHERE deleted_at IS NULL AND scope_type = 'tenant';
 CREATE UNIQUE INDEX ON feature_flag_rules (feature_flag_id, role_code)
     WHERE deleted_at IS NULL AND scope_type = 'role';
 ```
 
+#### 9.3.1 Por qué se llama `affected_tenant_id` sin tener la política de `ADR-047`
+
+Es la única aparente inconsistencia de este documento y por eso lleva su apartado: esta tabla adopta **el nombre** de la categoría de `ADR-047 §4.1` y **no** su política RLS ni su `GRANT` de columnas.
+
+- **El nombre es obligatorio.** `ADR-047 §4.2` es una regla sobre la **columna**, no sobre la política: *«el nombre `tenant_id` queda reservado, sin excepción, a la columna de propiedad»*. Aquí la columna es una referencia —a qué centro nombra la regla—, no propiedad: la fila no la crea el centro, no la escribe su *runtime* y no se borra con él.
+- **Y además es lo que evita dos fallos de *build*.** Con `tenant_id` literal, el test de esquema #8 de `ADR-033 §10` clasifica la tabla como de tenant por el nombre de la columna y exige `ENABLE`+`FORCE`, que esta tabla no tiene; y `SchemaInvariantsTest` exigiría la clave foránea compuesta `(tenant_id, feature_flag_id) REFERENCES feature_flags (tenant_id, id)`, imposible porque `feature_flags` no tiene `tenant_id` (`ADR-047 §1.1`, puntos 1 y 2). Con `affected_tenant_id` la tabla cae en la rama «sin `tenant_id`» y su declaración en `shared_tables.platform` pasa a ser lo que la verifica.
+- **La política no se adopta, y el motivo es §9.6**, que `ADR-047 §9` ratifica expresamente al descartar la alternativa: el contenido de esta tabla **no es de ningún centro** —es el catálogo de despliegue del producto—, `plataforma_app` la lee entera y es correcto, y la barrera está en el *endpoint*, que devuelve sólo las claves que evalúan verdadero para quien pregunta (`api.md §2.14`, `CA-BO-097`). Darle RLS sería aislar por tenant un dato que no es de ningún tenant.
+
+> **La regla general, para que nadie deduzca la equivocada de este caso**: `affected_tenant_id` significa «esta columna referencia a un centro y no le pertenece». Que la tabla tenga además política `tenant_visibility` depende de si su contenido concierne al centro, y eso lo decide cada tabla. El nombre no implica la política; la política sí implica el nombre.
+
+**Este apartado corrige la especificación, no el sub-paso.** El renombrado pertenece a `1.6e` junto con el resto de la tabla; se escribe hoy porque hoy no existe la migración y cambiarlo cuesta cero (`ADR-047 §3`, `§11` punto 4).
+
 > **Los tres índices únicos parciales son el corazón de la coherencia de este modelo.** Sin ellos, «al 20 %» y «al 60 %» podrían coexistir sobre el mismo *flag* y el resultado dependería del orden de las filas — que es la clase de fallo que no se reproduce en desarrollo y que nadie sabe explicar en producción. La precedencia de `funcional.md §5.11.5` sólo es determinista si el conjunto de reglas no admite ambigüedad, y eso lo garantiza el motor.
 
-**Índices de consulta**: `(feature_flag_id) WHERE deleted_at IS NULL` —el evaluador siempre lee el conjunto completo de un *flag*, nunca una regla suelta— y `(tenant_id) WHERE deleted_at IS NULL AND scope_type = 'tenant'`, para la pregunta inversa: «¿qué reglas nominales tiene este centro?», que es la de `GET /tenants/{id}/feature-flags`.
+**Índices de consulta**: `(feature_flag_id) WHERE deleted_at IS NULL` —el evaluador siempre lee el conjunto completo de un *flag*, nunca una regla suelta— y `(affected_tenant_id) WHERE deleted_at IS NULL AND scope_type = 'tenant'`, para la pregunta inversa: «¿qué reglas nominales tiene este centro?», que es la de `GET /tenants/{id}/feature-flags`.
 
 **No hay `academic_year_id`.** Un despliegue progresivo no pertenece a ningún curso escolar.
 
@@ -573,6 +740,10 @@ GRANT  UPDATE (status, status_reason, rules_version, updated_at)
 -- La aplicación de los centros sólo evalúa: lee y nada más
 REVOKE INSERT, UPDATE, DELETE ON feature_flags, feature_flag_rules FROM plataforma_app;
 GRANT  SELECT ON feature_flags, feature_flag_rules TO plataforma_app;
+
+-- Y las secuencias, que el REVOKE de tabla no toca (§11, §12.1)
+REVOKE ALL ON SEQUENCE feature_flags_id_seq      FROM plataforma_app;
+REVOKE ALL ON SEQUENCE feature_flag_rules_id_seq FROM plataforma_app;
 ```
 
 **Y aquí aplica, sin descuento, la advertencia de §7.1**: la lista de columnas del `GRANT UPDATE` debe **verificarse capturando lo que Eloquent envía en un `UPDATE` real**, no leyendo el modelo. Una lista incompleta no falla en la revisión, falla en producción, y falla justo en la operación más urgente que tiene este módulo —apagar un *flag* roto—. Es trabajo de `db-reviewer`, y `CA-BO-094`/`CA-BO-095` no lo cubren: hace falta un test que pruebe que el camino normal de escritura **funciona**, igual que la segunda mitad de `CA-BO-031`.
@@ -619,8 +790,10 @@ erDiagram
 
 ## 11. Checklist obligatorio
 
-- [x] **`tenant_id`**: ninguna tabla nueva es de tenant. Las tres que referencian a uno lo hacen como referencia y no como propiedad (`affected_tenant_id` en §4.3, `tenant_id` en §5.3 y en `feature_flag_rules` §9.3) y **está razonado**. Las trece se declaran en el registro de tablas compartidas de `config/tenancy.php`, bajo `shared_tables.platform`, o el test #8 de `ADR-033 §10` falla.
-- [x] **Política de RLS declarada para cada tabla nueva**: las nueve de plataforma pura —incluidas `platform_sessions` y `platform_admin_sessions`—, ninguna, y en el caso de las dos de sesión **no por descuido sino porque la barrera es más fuerte**: `REVOKE ALL … FROM plataforma_app` (§2.6.3), que no deja fila que filtrar. `admin_action_logs` y `tenant_lifecycle_events`, política propia de visibilidad por tenant afectado, **sujeta a `OPEN-BO-10`**. `feature_flags` y `feature_flag_rules`, **ninguna, y razonado en §9.6**: `plataforma_app` sí las lee, pero su contenido no es de ningún centro; la restricción vive en el *endpoint*, que devuelve sólo lo que evalúa verdadero para quien pregunta.
+- [x] **`tenant_id`**: ninguna tabla nueva es de tenant. **Ninguna tabla nueva de este módulo lleva una columna llamada `tenant_id`**, y eso es ahora una afirmación literal y no una aproximación: las tres que referencian a un centro la llaman `affected_tenant_id` (§4.3, §5.2, §9.3), porque `ADR-047 §4.2` reserva el nombre `tenant_id` a la columna de propiedad, sin excepción.
+- [x] **Declaración en `shared_tables.platform`**: **las trece se declaran** en el registro de tablas compartidas de `config/tenancy.php`, **o el test #8 de `ADR-033 §10` falla**. **Esta afirmación depende del renombrado del punto anterior y antes no era cierta.** El test #8 decide por el nombre literal de la columna: con `tenant_id` literal, `tenant_lifecycle_events` habría caído en la rama «tabla de tenant» —que sólo exige `ENABLE`+`FORCE` y **no mira** el registro de tablas compartidas—, de modo que su declaración no la habría comprobado nadie (`ADR-047 §4.2`, `§11` punto 5). Con `affected_tenant_id` cae en la rama «sin `tenant_id`» y su declaración pasa a ser **verificada**. Es cobertura recuperada, no cobertura nueva: el guardarraíl creía tenerla.
+- [x] **Política de RLS declarada para cada tabla nueva**: las nueve de plataforma pura —incluidas `platform_sessions` y `platform_admin_sessions`—, ninguna, y en el caso de las dos de sesión **no por descuido sino porque la barrera es más fuerte**: `REVOKE ALL … FROM plataforma_app` (§2.6.3), que no deja fila que filtrar. `admin_action_logs` y `tenant_lifecycle_events`, política propia **`tenant_visibility`** de solo lectura, en la forma canónica de `ADR-047 §4.3` — **`OPEN-BO-10` está resuelta**. `feature_flags` y `feature_flag_rules`, **ninguna, y razonado en §9.6** y en §9.3.1: `plataforma_app` sí las lee, pero su contenido no es de ningún centro; la restricción vive en el *endpoint*, que devuelve sólo lo que evalúa verdadero para quien pregunta.
+- [x] **`REVOKE ALL` sobre la secuencia, no sólo sobre la tabla, en las trece** (`ADR-047 §4.4`, `§11` punto 1). `infra/containers/postgres/init/01-tenancy.sql.tpl` concede por defecto `USAGE, SELECT ON SEQUENCES` a `plataforma_app` y a `plataforma_platform`, y **un `REVOKE ALL ON <tabla>` no toca la secuencia** de una clave `bigserial`: el rol de tenant conserva `nextval()` y la lectura de `last_value`. **Toda migración de tabla nueva de este módulo con clave `bigserial` lleva `REVOKE ALL ON SEQUENCE <tabla>_id_seq FROM plataforma_app` junto al `REVOKE` de tabla**, no en una migración de endurecimiento posterior. Aplica a las **trece**, no sólo a `admin_action_logs` y `tenant_lifecycle_events`: también a las siete del chasis, a `platform_admin_sessions`, a `dual_authorizations`, a `feature_flags` y a `feature_flag_rules`. **`platform_sessions` es la única exenta, y por una razón y no por olvido**: su clave primaria es `text` y no tiene secuencia (§2.6.3). Es la misma clase de `REVOKE` incompleto que produjo el bug 6 de `0.7` con `failed_jobs`.
 - [x] **`academic_year_id`**: ninguna entidad de este módulo depende del curso académico. Un tenant, un administrador de plataforma y una acción del proveedor existen fuera del calendario escolar.
 - [x] **`created_at`, `updated_at`, `deleted_at`, `created_by`, `updated_by`** (`INV-005`) en las tablas mutables. **Las dos append-only no llevan `updated_at`, `deleted_at` ni `updated_by` a propósito**: son columnas que sugieren que la fila se puede cambiar, y no se puede. **`platform_sessions` no lleva ninguna de las cinco**: su forma la fija el *driver* (§2.6.3), y `last_activity` cumple el papel de `updated_at`. **`platform_admin_sessions` no lleva `deleted_at`**: una sesión no se borra lógicamente, termina — y eso lo dicen `ended_at` y `end_reason` (§2.7).
 - [x] **Claves foráneas, `CHECK` y restricciones en la base de datos**, no sólo en la aplicación. En particular `dual_authorizations_distinct_approver` (§3.1), los `CHECK` de coherencia de estado (§3.2, §5.2) y el vocabulario cerrado de `action` (§4.2).
@@ -639,10 +812,10 @@ erDiagram
 
 | # | Sub-paso | Qué | Bloqueo | Nota |
 |---|---|-----|---------|------|
-| 1 | `1.6` | Las siete tablas de plataforma pura del chasis (§2.1-§2.5, §3) | Ninguno: tablas nuevas | Con sus `GRANT`/`REVOKE` desde el principio, no en una migración posterior |
-| 1b | `1.6` | `platform_sessions` y `platform_admin_sessions`, **con su `REVOKE ALL … FROM plataforma_app`** y su entrada en `shared_tables.platform` (§2.6, §2.7) | Ninguno: tablas nuevas | Migración propia y **anterior** a la del *guard*: sin almacén no hay sesión de plataforma que emitir. El `REVOKE` va **en esta misma migración**, no en una de endurecimiento posterior — el precedente de `harden_failed_jobs_grants` es el patrón, no la secuencia |
-| 2 | `1.6` | `admin_action_logs` con su RLS y su `REVOKE UPDATE, DELETE` | Ninguno | **No se escribe hasta el visto bueno de `OPEN-BO-10`** |
-| 3 | `1.6b` | `tenant_lifecycle_events` con su RLS | Ninguno | Ídem |
+| 1 | `1.6` | Las siete tablas de plataforma pura del chasis (§2.1-§2.5, §3) | Ninguno: tablas nuevas | Con sus `GRANT`/`REVOKE` **de tabla y de secuencia** desde el principio, no en una migración posterior |
+| 1b | `1.6` | `platform_sessions` y `platform_admin_sessions`, **con su `REVOKE ALL … FROM plataforma_app`** y su entrada en `shared_tables.platform` (§2.6, §2.7) | Ninguno: tablas nuevas | Migración propia y **anterior** a la del *guard*: sin almacén no hay sesión de plataforma que emitir. El `REVOKE` va **en esta misma migración**, no en una de endurecimiento posterior — el precedente de `harden_failed_jobs_grants` es el patrón, no la secuencia. `platform_admin_sessions` lleva además el `REVOKE` de su secuencia; `platform_sessions` no tiene (`id` es `text`). **`session_id` sin clave foránea** (§2.7.1) |
+| 2 | `1.6` | `admin_action_logs` con su política `tenant_visibility`, su `GRANT SELECT` de columnas enumeradas y sus `REVOKE` de tabla, secuencia y `UPDATE`/`DELETE` (§4.3) | Ninguno | **`OPEN-BO-10` resuelta por `ADR-047`**: se escribe en la forma canónica de `ADR-047 §4.3`/`§4.4`, **sin `TenantMigration::tenantTable*()`** (`ADR-047 §4.5`) |
+| 3 | `1.6b` | `tenant_lifecycle_events`, ídem con sus propias columnas (§5.3) | Ninguno | Ídem |
 | 4 | `1.6b` | `tenants` gana tres columnas anulables (`suspension_message`, `suspended_at`, `grace_period_ends_at`) | **Instantáneo**: `ADD COLUMN` anulable sin defecto no reescribe la tabla en PostgreSQL 17 | Aditivo puro |
 | 5 | `1.6c` | Privilegios de `module_subscriptions` (§7) | Ninguno sobre datos; toma bloqueo breve de catálogo | La lista de columnas **verificada**, no supuesta |
 | 6 | `1.6e` | `feature_flags` y `feature_flag_rules`, con sus `CHECK`, sus tres índices únicos parciales y sus `GRANT`/`REVOKE` (§9.6) | Ninguno: tablas nuevas | La lista de columnas del `GRANT UPDATE` a `plataforma_platform`, **verificada igual que la de §7.1** |
@@ -651,6 +824,16 @@ erDiagram
 **Todas aditivas. No hay fase *contract* y no hay nada que revertir en dos entregas** (`CLAUDE.md §9`).
 
 > **Recordatorio de `db-reviewer` que ya costó un hallazgo Alta en 1.4b, 1.4c y 1.5**: las migraciones que ejecutan DDL fuera de transacción —y las que tocan privilegios lo son— necesitan `$withinTransaction = false`. Es el issue [#166](https://github.com/pirexia/plataforma-educativa/issues/166) repitiéndose por cuarta vez si nadie lo mira.
+
+### 12.1 El `REVOKE` de secuencia: obligatorio en las trece, no sólo en las dos de `ADR-047`
+
+Punto de checklist de esta tabla, y por tanto de cada una de sus filas (`ADR-047 §11`, punto 1):
+
+- [ ] **Toda migración de este módulo que cree una tabla con clave `bigserial` ejecuta, junto al `REVOKE` de tabla, `REVOKE ALL ON SEQUENCE <tabla>_id_seq FROM plataforma_app`.** No basta el `REVOKE ALL ON <tabla>`: los privilegios por defecto de `infra/containers/postgres/init/01-tenancy.sql.tpl` conceden `USAGE, SELECT ON SEQUENCES`, y sin revocarlos el *runtime* de un centro conserva `nextval()` sobre la secuencia de una tabla que no puede ni leer, y `last_value` le filtra la cardinalidad. Severidad **media**, y afecta a **las trece tablas nuevas de `1.6`** — chasis incluido—, no sólo a las dos de la categoría de `ADR-047`.
+- [ ] **Única exención, declarada**: `platform_sessions`, cuya clave primaria es `text` y no tiene secuencia (§2.6.3).
+- [ ] **Y se prueba.** `ADR-045 §4.4`: un `REVOKE` que no se prueba no existe. Para las dos tablas de la categoría de `ADR-047` lo cubren `CA-BO-098` y `CA-BO-101`; para las once restantes, el mismo tipo de aserción sobre privilegios que ya exige `CA-BO-018` para `platform_sessions`.
+
+> **Recomendación de `ADR-047 §4.5`, que es recomendación y no decisión**: trece tablas escribiendo a mano su juego de `GRANT`/`REVOKE` es el reparto que motivó la existencia de `TenantMigration`. Un `TenantMigration::platformTable()` que aplique el `REVOKE` de tabla **y de secuencia** en un solo sitio convertiría esta omisión en imposible en vez de en probable. **La toma quien implemente**; no bloquea `1.6` y esta especificación no la decide.
 
 ---
 
@@ -668,6 +851,6 @@ erDiagram
 | `feature_flags` | Indefinida | **Nunca se borra**: `retired_at` (`RN-BO-44`). Son unas decenas de filas y son el catálogo de lo que el producto ha desplegado alguna vez |
 | `feature_flag_rules` | Vida del *flag* | Borrado lógico. **No se purgan al retirar el *flag***: son la prueba de a qué centros se expuso qué y cuándo, y esa es justamente la pregunta que se hace cuando un centro reclama por un comportamiento que ya no existe |
 
-**Ni `feature_flags` ni `feature_flag_rules` contienen datos personales.** Los únicos identificadores de persona son `created_by`/`updated_by`, que apuntan a `platform_admins` —personal del proveedor— y se rigen por lo dicho en la primera fila de esta tabla. Un `role_code` es un código de rol, no una persona; un `tenant_id` es un centro, no un interesado.
+**Ni `feature_flags` ni `feature_flag_rules` contienen datos personales.** Los únicos identificadores de persona son `created_by`/`updated_by`, que apuntan a `platform_admins` —personal del proveedor— y se rigen por lo dicho en la primera fila de esta tabla. Un `role_code` es un código de rol, no una persona; un `affected_tenant_id` es un centro, no un interesado.
 
 **Interacción con `ADR-004`**: nada de este módulo entra en el derecho de supresión de un interesado de un centro, porque no contiene datos de alumnos ni de familias. Los datos personales que sí contiene —los del personal del proveedor— se rigen por la relación laboral, y su tratamiento se documenta en `PRIVACY.md` como tratamiento propio, no como encargado.
