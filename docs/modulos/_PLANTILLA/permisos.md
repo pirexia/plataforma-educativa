@@ -4,9 +4,9 @@
 
 ## Matriz recurso × acción × ámbito
 
-| Recurso | crear | leer | actualizar | eliminar | exportar | aprobar |
-|---------|-------|------|------------|----------|----------|---------|
-| | | | | | | |
+| Recurso | crear | leer | actualizar | eliminar | exportar | importar | aprobar | firmar | publicar |
+|---------|-------|------|------------|----------|----------|----------|---------|--------|----------|
+| | | | | | | | | | |
 
 ## Asignación en roles predefinidos
 

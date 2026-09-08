@@ -12,6 +12,7 @@ use App\Modules\Core\Domain\TenantSettingsReader;
 use App\Support\Api\ApiException;
 use App\Support\Api\ValidationErrorBag;
 use App\Support\Authorization\PermissionResolver;
+use App\Support\Authorization\Scope;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Collection;
@@ -133,22 +134,34 @@ final class CreateUser
     }
 
     /**
-     * RN-CORE-08/RPERM-013: nadie concede un permiso que no posee.
+     * RN-CORE-08/RPERM-013 (REQ-PERM/api.md §8: "Ídem" para
+     * `POST /users` con `role_ids`): nadie concede un permiso que no
+     * posee, comparando pares (código, ámbito) con `todos` absorbiendo
+     * (ADR-044 §4.8) — no solo códigos, como hacía el resolutor
+     * provisional.
      *
      * @param  Collection<int, Role>  $roles
      */
     private function assertActorCanGrant(User $actor, Collection $roles): void
     {
-        $actorPermissions = $this->permissions->effectivePermissionCodes($actor);
-
-        $grantedCodes = PermissionRole::query()
+        $grants = PermissionRole::query()
             ->whereIn('role_id', $roles->pluck('id'))
             ->where('effect', 'allow')
-            ->pluck('permission_code')
-            ->unique();
+            ->get(['permission_code', 'scope']);
 
-        if ($grantedCodes->diff($actorPermissions)->isNotEmpty()) {
-            throw ApiException::forbidden();
+        foreach ($grants as $grant) {
+            $scope = Scope::tryFrom($grant->scope);
+
+            if ($scope === null) {
+                continue;
+            }
+
+            if (! $this->permissions->ownsScope($actor, $grant->permission_code, $scope)) {
+                throw ApiException::forbidden('core.authorization.cannot_grant_unheld_permission', [
+                    'code' => $grant->permission_code,
+                    'scope' => $scope->value,
+                ]);
+            }
         }
     }
 }

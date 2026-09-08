@@ -549,6 +549,43 @@ paths:
                   meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
         '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+    post:
+      operationId: createRole
+      summary: Crea un rol personalizado, desde cero o por clonación (REQ-PERM, 1.5)
+      description: >
+        REQ-PERM/api.md §3 (RPERM-005/006). `clone_from` y `permissions`
+        son mutuamente excluyentes. `is_system` es siempre `false` y no es
+        un campo del cuerpo. Cada concesión pasa por RPERM-013 (subconjunto
+        de lo que el solicitante posee, con `todos` absorbiendo).
+      tags: [Core / Roles]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, name]
+              properties:
+                code: { type: string, pattern: '^[a-z][a-z0-9_]{2,63}$' }
+                name: { type: string }
+                mfa_required: { type: boolean, default: false }
+                special_data_access: { type: boolean, default: false }
+                clone_from: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                permissions:
+                  type: array
+                  items: { $ref: '../components.yaml#/components/schemas/PermissionGrant' }
+      responses:
+        '201':
+          description: Rol creado.
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Role' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
 
   /api/v1/roles/{publicId}:
     parameters:
@@ -573,14 +610,16 @@ paths:
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
     patch:
       operationId: patchRole
-      summary: Cambia mfa_required de un rol (REQ-AUTH-003, 1.3)
+      summary: Edita name, mfa_required y special_data_access de un rol
       description: >
-        REQ-AUTH/funcional.md §C.2.2, §C.16, RN-AUTH-70. Acotado a
-        **exactamente** `mfa_required` en 1.3 — cualquier otra clave en
-        el cuerpo responde 422 sin cambiar nada (CA-AUTH-135). El editor
-        completo de roles (1.5) ampliará este mismo método sobre la
-        misma ruta y el mismo permiso — expand puro (ADR-038 §8), sin
-        romper ningún cliente de 1.3. Permiso `rol.actualizar`.
+        REQ-AUTH/funcional.md §C.2.2, §C.16, RN-AUTH-70 (1.3): acotado a
+        `mfa_required` en su origen. REQ-PERM/api.md §4 (1.5) abre `name`
+        (solo en roles no `is_system`) y `special_data_access` (exige
+        además `rol_datos_especiales.actualizar` y poseer el atributo para
+        activarlo) sobre la misma ruta y el mismo permiso base
+        `rol.actualizar` — expand puro (ADR-038 §8). `code` no es
+        editable; `permissions` no se admite aquí (usa
+        `PUT /roles/{publicId}/permissions`).
       tags: [Core / Roles]
       security: [{ SessionCookie: [] }]
       requestBody:
@@ -589,12 +628,68 @@ paths:
           application/json:
             schema:
               type: object
-              required: [mfa_required]
               properties:
+                name: { type: string }
                 mfa_required: { type: boolean }
+                special_data_access: { type: boolean }
       responses:
         '200':
           description: Rol actualizado.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Role' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    delete:
+      operationId: deleteRole
+      summary: Da de baja (lógica) un rol personalizado (REQ-PERM, 1.5)
+      description: >
+        REQ-PERM/api.md §6 (RN-PERM-16/17). Un rol `is_system` responde
+        `409`; un rol con asignaciones vivas también, con
+        `params.users_count`. Sin cascada sobre las asignaciones.
+      tags: [Core / Roles]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204': { description: Rol dado de baja. }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+
+  /api/v1/roles/{publicId}/permissions:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    put:
+      operationId: replaceRolePermissions
+      summary: Reemplaza el conjunto completo de concesiones de un rol (REQ-PERM, 1.5)
+      description: >
+        REQ-PERM/api.md §5 (ADR-038 §9.1). `permissions` es obligatorio y
+        admite el array vacío. `scope` es obligatorio en cada entrada, sin
+        valor por defecto. Un `deny` no está sujeto a RPERM-013. Orden de
+        validación exacto en api.md §5.1: forma (catálogo, vocabulario,
+        applicable_scopes, resolutor) antes que autorización (RPERM-013),
+        y la existencia del rol es lo último que se comprueba.
+      tags: [Core / Roles]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [permissions]
+              properties:
+                permissions:
+                  type: array
+                  items: { $ref: '../components.yaml#/components/schemas/PermissionGrant' }
+      responses:
+        '200':
+          description: Rol con el conjunto de concesiones ya aplicado.
           content:
             application/json:
               schema: { $ref: '../components.yaml#/components/schemas/Role' }
@@ -688,7 +783,12 @@ paths:
                     items: { $ref: '../components.yaml#/components/schemas/RoleSummary' }
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
         '403':
-          description: Algún rol concede un permiso que el solicitante no posee (RPERM-013).
+          description: >
+            Algún rol añadido concede un par (código, ámbito) que el
+            solicitante no posee (RPERM-013, ADR-044 §4.8); o se retira
+            al menos un rol y el solicitante no tiene
+            `asignacion_rol.eliminar` (REQ-PERM/api.md §8.2, hallazgo
+            corregido en 1.5).
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
@@ -699,6 +799,102 @@ paths:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/users/{publicId}/effective-permissions:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getUserEffectivePermissions
+      summary: Permisos efectivos de un usuario, con procedencia (REQ-PERM, 1.5)
+      description: >
+        REQ-PERM/funcional.md §7.10, api.md §7 (RPERM-009). Permiso
+        `permiso_efectivo.leer`, sólo `administrador_centro` por defecto.
+        Calculado con el mismo código que autoriza cada endpoint real
+        (RN-PERM-22): no hay una segunda implementación de la resolución.
+        Distingue «no concedido» de «concedido pero inerte»
+        (`sources[].inert`/`inert_reason`).
+      tags: [Core / Roles]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: module_code
+          in: query
+          schema: { type: string }
+          description: Valores múltiples separados por coma.
+        - name: resource
+          in: query
+          schema: { type: string }
+        - name: include_inert
+          in: query
+          schema: { type: boolean, default: true }
+      responses:
+        '200':
+          description: Resolución completa del catálogo utilizable.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/EffectivePermission' }
+                  meta:
+                    type: object
+                    properties:
+                      subject:
+                        type: object
+                        properties:
+                          public_id: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                          display_name: { type: string }
+                      roles:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            public_id: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                            code: { type: string }
+                            name: { type: string }
+                      computed_at: { type: string, format: date-time }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+
+  /api/v1/me/effective-permissions:
+    get:
+      operationId: getMyEffectivePermissions
+      summary: Permisos efectivos propios, por identidad (autoservicio, REQ-PERM 1.5)
+      description: >
+        REQ-PERM/funcional.md §7.11, api.md §7.4. Ruta propia, **sin
+        permiso** y sin parámetro de sujeto — el portador de la cookie es
+        siempre el sujeto (RN-PERM-23), igual que `GET /me`. Responde
+        `200` incluso a un usuario sin ningún permiso; nunca `403`.
+      tags: [Core / Roles]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: module_code
+          in: query
+          schema: { type: string }
+        - name: resource
+          in: query
+          schema: { type: string }
+        - name: include_inert
+          in: query
+          schema: { type: boolean, default: true }
+      responses:
+        '200':
+          description: Misma forma que GET /users/{publicId}/effective-permissions.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/EffectivePermission' }
+                  meta: { type: object }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
 
   /api/v1/modules:
     get:

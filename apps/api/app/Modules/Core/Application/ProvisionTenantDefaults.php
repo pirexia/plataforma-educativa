@@ -47,13 +47,32 @@ final class ProvisionTenantDefaults
         'soporte_plataforma' => ['mfa_required' => true, 'special_data_access' => false],
     ];
 
+    /**
+     * REQ-PERM/permisos.md §5, operacion.md §4.3 (1.5, OPEN-PERM-07): los
+     * cuatro permisos nuevos de este paso, a `administrador_centro` y a
+     * nadie más. Constante propia (no inline en `ADMIN_CENTRO_PERMISSIONS`)
+     * para que `GrantRoleAdministrationCommand` (operacion.md §4.3, el
+     * comando de migración de datos para tenants ya existentes) conceda
+     * exactamente la misma lista, en un solo sitio, por los dos caminos.
+     *
+     * `rol_datos_especiales.actualizar` incluido: es la decisión que evita
+     * el bloqueo sin salida (conceder un permiso exige poseerlo,
+     * RPERM-013), aunque `administrador_centro` no pueda ejercerlo por sí
+     * mismo (le falta `special_data_access`, a propósito — §5.5).
+     */
+    public const ROLE_ADMINISTRATION_PERMISSIONS = [
+        'rol.crear', 'rol.eliminar', 'rol_datos_especiales.actualizar', 'permiso_efectivo.leer',
+    ];
+
     private const ADMIN_CENTRO_PERMISSIONS = [
         'usuario.leer', 'usuario.crear', 'usuario.actualizar', 'usuario.eliminar', 'usuario.importar', 'usuario.exportar',
         'invitacion.leer', 'invitacion.crear', 'invitacion.eliminar',
         'asignacion_rol.leer', 'asignacion_rol.crear', 'asignacion_rol.eliminar',
         // REQ-AUTH/funcional.md §C.2.2, §C.16 (1.3): 'rol.actualizar' es
         // el permiso de PATCH /roles/{public_id} acotado a mfa_required.
-        'rol.leer', 'rol.actualizar', 'permiso.leer',
+        'rol.leer', 'rol.actualizar',
+        ...self::ROLE_ADMINISTRATION_PERMISSIONS,
+        'permiso.leer',
         'configuracion.leer', 'configuracion.actualizar',
         'modulo.leer', 'modulo.actualizar',
         'auditoria.leer', 'auditoria.exportar',

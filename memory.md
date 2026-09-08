@@ -7,7 +7,9 @@
 
 ## Estado actual
 
-**Fase**: 0 cerrada en la práctica (lo pendiente de `0.10`-`0.12` es negocio, no código — ver "Bloqueantes"). **Fase 1, bloque A: 1.1, 1.2, 1.2b, 1.3, 1.3b, 1.4, 1.4b y 1.4c cerrados y mezclados — `REQ-AUTH-004` completo.** Siguiente paso: **`1.5` · Permisos granulares** (paso crítico, sección 11 del plan).
+**Fase**: 0 cerrada en la práctica (lo pendiente de `0.10`-`0.12` es negocio, no código — ver "Bloqueantes"). **Fase 1, bloque A: 1.1, 1.2, 1.2b, 1.3, 1.3b, 1.4, 1.4b, 1.4c y 1.5 cerrados y mezclados — `REQ-AUTH-004` completo, núcleo de autorización granular (`REQ-PERM`) completo.** Siguiente paso: **`1.6` · `REQ-BO`: backoffice de superadmin**.
+
+**`1.5 · REQ-PERM`: núcleo de autorización granular — CERRADO Y MEZCLADO** (2026-09-04/07). Rama `feature/REQ-PERM-nucleo-autorizacion`. Diseño en `ADR-044` (ACEPTADA): vocabulario cerrado de ámbitos con resolutores por módulo, resolutor que acota consultas (no solo autoriza), `deny` ciego al ámbito, categoría especial en conjunción sobre el rol que concede. Paso dividido en `1.5` (este) y `1.5b` (editor visual, tras `1.9`). 544 tests Pest en verde, Larastan/Pint limpios. Revisión independiente: `db-reviewer` 1 Alta bloqueante (#166, migración sin `$withinTransaction = false`), `security-reviewer` sin Crítico/Alta + 3 Media de cobertura de test (#167-#169), `doc-reviewer` 3 Media de cabeceras/manual desincronizados — todo corregido y reverificado (544/544). Issue #165 (auditoría, Alta) cerrado. Un corte de cuota semanal a mitad de la implementación, absorbido con `TaskStop` sin pérdida (el intento no había producido nada) y relanzado limpio tras el reinicio. Detalle completo en `docs/historial/1.5-nucleo-autorizacion-granular.md`.
 
 **`chore/` de alcance declarado de subagentes — CERRADO Y MEZCLADO** (2026-09-04). Nació de descartar una propuesta de `.claudeignore` (no es funcionalidad de Claude Code: solo *feature request*; verificado en vivo, un fichero de prueba no bloqueó ninguna lectura). Los nueve subagentes no declaraban `tools`, `disallowedTools`, `skills` ni ámbito: heredaban acceso completo, que es la causa mecánica de #150. Ahora `explorer` es solo lectura por herramientas y no por prosa, los tres revisores no pueden editar lo que auditan, e `implementer`/`test-writer` corren con `isolation: worktree`. Corregidos además: ruta inexistente en `db-reviewer`, `INV-003` ausente en `implementer`, umbral de cobertura que nadie mide en `test-writer`, YAML inválido en `janitor` y `_PLANTILLA` contra `ADR-029`/`ADR-038` (#162). Anotado `1.7b` como candidato (#163). Detalle en `CHANGELOG.md`.
 
@@ -66,11 +68,13 @@
 | ADR-040 | El *observer* de auditoría de 0.9 gana `Auditable::auditExcludedEvents()`, exclusión declarativa por modelo y evento; `UserSession` declara `['created']` (el login ya lo registra vía `login` de `ADR-039`). Resuelve `OPEN-AUTH-16` |
 | ADR-042 | Dependencia externa de login con Google: `laravel/socialite ^5.30` tras `ExternalIdentityProvider` |
 | ADR-043 | `REQ-AUTH-004` dividido en 1.4b (OIDC + aprovisionamiento por emparejamiento) y 1.4c (SAML, posterior) — SAML rompe a la vez sesión, dependencia, riesgo y ciclo del certificado |
+| ADR-044 | `REQ-PERM`: vocabulario de ámbitos cerrado y central con resolutores registrados por módulo (`ScopeResolver`); resolutor acota consultas, no solo autoriza; multi-rol por unión de ámbitos con `deny` ciego al ámbito; categoría especial en conjunción sobre el rol que concede; sin condiciones/herencia/caché en 1.5; paso dividido en 1.5 (núcleo) y 1.5b (interfaz, tras 1.9) |
 
 ---
 
 ## Trabajo en curso
 
+- **1.5 completo**: detalle en `docs/historial/1.5-nucleo-autorizacion-granular.md` (issues #165-#170, revisión independiente en las tres disciplinas, todo cerrado salvo #170 Baja).
 - **1.4c completo**: detalle en `docs/historial/1.4c-sso-institucional-saml.md` (issues #150/#152/#155/#156/#157/#158/#159, dos pasadas de revisión independiente en las tres disciplinas, todo cerrado).
 - **1.1 completo**: detalle en `docs/historial/1.1-core-tenants-usuarios.md` (issues #48-#55, hallazgos de revisión independiente, todo cerrado).
 - **1.2 completo**: detalle en `docs/historial/1.2-auth-local-sesiones.md` (issues #62-#75, dos rondas de revisión independiente, login por navegador verificado de verdad, todo cerrado).
@@ -102,7 +106,7 @@
 | ID | Descripción | Severidad |
 |----|-------------|-----------|
 | P-02 | `create-vue` cuelga el instalador interactivo — usar `npm create vite` en su lugar (ver 0.5). | Baja |
-| [#6](https://github.com/pirexia/plataforma-educativa/issues/6) | `TenantContext::runAsPlatform()` sin control de autorización ni auditoría. Retomar en 1.5. | Media |
+| [#6](https://github.com/pirexia/plataforma-educativa/issues/6) | `TenantContext::runAsPlatform()` sin control de autorización ni auditoría. Punto 1 (test de arquitectura) en alcance de 1.5 (`ADR-044`); puntos 2-3 re-etiquetados a 1.6 (dependen de `platform_admins`/`admin_action_logs`). | Media |
 | [#7](https://github.com/pirexia/plataforma-educativa/issues/7) | Caché de resolución de tenant no se invalida al suspender. Retomar en REQ-BO-001. | Baja |
 | [#8](https://github.com/pirexia/plataforma-educativa/issues/8) | Cookie de sesión "host-only" es el valor por defecto, no reforzado activamente. | Baja |
 | [#27](https://github.com/pirexia/plataforma-educativa/issues/27) | `Tenant` sin auditoría hasta `admin_action_logs` (1.6). Ver `ADR-036`. No explotable hoy. | Media |
@@ -135,6 +139,7 @@
 | [#142](https://github.com/pirexia/plataforma-educativa/issues/142) | (1.4, hallazgo de `db-reviewer`) `RecordsAuditTrail` no excluye `last_login_at`/`last_used_at` de ningún evento `updated`, contradice la documentación de `UserIdentity` (1.4) y `MfaFactor` (1.3, mismo problema sin detectar entonces). Toca infraestructura de auditoría compartida — requiere sesión propia. | Media |
 | [#145](https://github.com/pirexia/plataforma-educativa/issues/145) | (1.4b) `people.locale` sin `CHECK` y con `DEFAULT` fuera de `{es-ES,en,de,fr}` — columna de `REQ-CORE`, detectada al especificar 1.4b, no agravada por él. | Baja |
 | [#146](https://github.com/pirexia/plataforma-educativa/issues/146) | (1.4b) `php artisan serve` de un solo hilo interbloquea el alta desde el **navegador** de un proveedor OIDC auto-referenciado al propio servidor de desarrollo — no afecta a producción (FrankenPHP) ni a CI (Pest es proceso CLI aparte del servidor). | Baja |
+| [#170](https://github.com/pirexia/plataforma-educativa/issues/170) | (1.5, `security-reviewer`) `ReplaceRolePermissions` exige posesión de ámbito también al **estrechar** una concesión (p. ej. `todos`→`propios`) sin poseer ninguno de los dos, más estricto de lo que `REQ-PERM/api.md §5.4` describe ("restringir siempre se permite"). Falla en cerrado, no es riesgo de seguridad. Aclarar con `spec-writer` cuál de las dos lecturas es la intencionada. No resuelto a propósito — decisión del usuario. | Baja |
 
 ---
 
@@ -144,7 +149,9 @@
 
 **`chore/alcance-declarado-subagentes` cerrado y mezclado el 2026-09-04**: gobernanza de los nueve subagentes (herramientas, skills, ámbito, aislamiento), `_PLANTILLA` alineada con `ADR-029`/`ADR-038` (#162) y `1.7b` anotado como candidato (#163). Detalle en `CHANGELOG.md`.
 
-**Siguiente paso del plan**: **`1.5 · Permisos granulares`** [OPUS + SONNET], paso crítico (⚠️, sección 11 de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`). Matriz recurso × acción × ámbito, roles personalizados, denegación por defecto, vista previa de permisos efectivos. Sin `ADR` ni especificación previa todavía — empieza por `architect` evaluando el impacto estructural, como cualquier paso nuevo. Issues #6/#27/#44/#60 (`memory.md` § "Problemas abiertos") están pendientes de este paso.
+**`1.5` implementado, revisado y verificado en verde (544/544) en `feature/REQ-PERM-nucleo-autorizacion` — pendiente de PR y merge a `develop`.** Rama empujada a `origin` hasta el commit `3f063a9`. `PLAN-IMPLEMENTACION.md` ya marca `1.5` como cerrado (`[x]`). Detalle completo en `docs/historial/1.5-nucleo-autorizacion-granular.md`.
+
+**Siguiente paso del plan tras mezclar `1.5`**: **`1.6 · REQ-BO`: backoffice de superadmin** [SONNET] — aplicación y dominio separados, ciclo de vida de tenants, matriz de módulos, MFA obligatorio, doble autorización para acciones destructivas. Sin `ADR` ni especificación previa todavía. Retoma los puntos 2-3 del issue #6 (re-etiquetado a `REQ-BO`), y los issues #27/#44 (`memory.md` § "Problemas abiertos").
 
 **Lecciones de proceso de `1.4c`**: (1) un hallazgo de "falta cobertura de test" puede esconder bugs reales que ninguna revisión de código estático detecta — no se cierra hasta que los tests nuevos pasen de verdad, no solo hasta que existan. (2) Con varios subagentes trabajando en paralelo sobre el mismo árbol (sin *worktree*), **cualquiera de ellos puede ejecutar un `git reset`/`git revert` sobre trabajo ajeno sin comprobar `git status` antes** — pasó dos veces seguidas en este paso (issue #150). Un subagente nunca debe actuar (ni "arreglar" ni revertir) sobre algo que no forma parte de su encargo, ni siquiera `CLAUDE.md`/`docs/adr/` con buena intención — debe pararse y reportarlo. (3) `Illuminate\Session\DatabaseSessionHandler::$exists` es una bandera de *instancia*, no por sesión: reutilizar el mismo *handler* de test entre peticiones que simulan sesiones distintas puede convertir un `INSERT` en un `UPDATE` de cero filas, en silencio — llamar a `resetSessionState()` (ya existente en `Pest.php`) antes de cualquier petición que abra una sesión genuinamente nueva. (4) "Pasa en local" sigue sin ser "pasa en CI", una vez más: con las tres disciplinas de revisión ya en verde, el primer *push* real reveló Larastan (131 errores por `_ide_helper_models.php` regenerado sin `-M` en algún commit anterior, no detectado porque nadie volvió a correr `composer analyse` tras esos commits), Pint (ficheros de test nunca lintados) y Trivy (dependencia mal clasificada en `dependencies` en vez de `devDependencies`) en rojo — ninguno era un fallo del código de 1.4c en sí. **Antes de dar cualquier paso por cerrado: `composer analyse`/`./vendor/bin/pint --test`/`npm run lint` sobre el estado final completo, no solo sobre los ficheros que se recuerda haber tocado.**
 

@@ -46,6 +46,39 @@ return [
         'export_failed' => 'La generación de esta exportación ha fallado.',
         'import_not_validated' => 'El lote debe estar validado antes de ejecutarse.',
         'import_already_executed' => 'Este lote ya se ha ejecutado o se está ejecutando y no se puede descartar.',
+
+        // REQ-PERM/api.md §9.1 (1.5): códigos nuevos de la matriz de
+        // permisos, roles personalizados y concesión/revocación.
+        'role_code_taken' => 'Ya existe un rol vivo en este centro con este código.',
+        'role_code_immutable' => 'El código de un rol no se puede modificar: es su referencia estable.',
+        'role_name_system' => 'Un rol predefinido no admite un nombre literal: usa su traducción.',
+        'clone_source_not_found' => 'El rol de origen indicado no existe en este centro.',
+        'clone_requires_special_data_access' => 'No puedes clonar este rol: concede acceso a datos de categoría especial y no puedes activarlo.',
+        'clone_and_permissions_exclusive' => 'No puedes indicar «clone_from» y «permissions» a la vez.',
+        'scope_not_applicable' => 'El ámbito «:scope» no se puede conceder para este permiso.',
+        'scope_resolver_missing' => 'El ámbito «:scope» no puede concederse todavía: su resolutor no está registrado.',
+        'permission_not_found' => 'El código de permiso «:code» no existe en el catálogo.',
+        'permission_retired' => 'El código de permiso «:code» ya no está disponible.',
+        'permission_duplicated' => 'El código de permiso «:code» aparece más de una vez.',
+        'role_is_system' => 'Un rol del aprovisionamiento del centro no se puede eliminar.',
+        'role_has_assignments' => 'Este rol tiene :users_count usuario(s) asignado(s) y no se puede eliminar.',
+    ],
+
+    // REQ-PERM/api.md §9.2 (1.5): motivo de un 403 de autorización, para
+    // que el administrador pueda corregir algo con la respuesta.
+    'authorization' => [
+        'cannot_grant_unheld_permission' => 'No puedes conceder el permiso «:code» con ámbito «:scope»: tú mismo no lo tienes.',
+        'special_data_access_not_held' => 'No puedes activar el acceso a datos de categoría especial: tú mismo no lo tienes.',
+    ],
+
+    // REQ-PERM/api.md §7.2, permisos.md §10 (1.5): etiquetas de los cuatro
+    // motivos de inercia de `GET /users/{id}/effective-permissions`. 1.5
+    // las crea aunque ninguna pantalla las pinte todavía (1.5b).
+    'inert_reasons' => [
+        'inerte_permiso_retirado' => 'El permiso ya no lo declara ningún módulo.',
+        'inerte_modulo' => 'El módulo de este permiso no está activo en este centro.',
+        'inerte_datos_especiales' => 'La concesión viene de un rol sin acceso a datos de categoría especial.',
+        'inerte_sin_resolutor' => 'El ámbito de esta concesión todavía no tiene resolutor.',
     ],
 
     'idempotency' => [
