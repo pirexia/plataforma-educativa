@@ -1,0 +1,397 @@
+# REQ-BO · API
+
+> Todo lo que sigue se ajusta a **`ADR-038`**: envoltura (§3), paginación por página o por cursor según el criterio objetivo (§4), sintaxis de filtrado y orden (§5), formato de error RFC 9457 con `type` como URN (§6), reglas de versionado (§7) e idempotencia (§8).
+
+## 0. Prefijo, *host* y una advertencia
+
+**Prefijo**: `/api/platform/v1/…`, servido **únicamente bajo el *host* de plataforma**.
+
+Dos precisiones que no son cosméticas:
+
+1. **El *host* concreto no se escribe en ninguna parte.** `OPEN-08` (dominio de la plataforma) sigue abierta; el *host* se resuelve por variable de entorno (`operacion.md §2`), nunca por literal.
+2. **El prefijo depende de `OPEN-BO-01`.** Bajo la Opción A (mismo monolito) el segmento `platform` es lo que separa los dos grupos de rutas y su presencia es la señal legible de que esa ruta no lleva `ResolveTenant`. Bajo la Opción B (aplicación independiente) sobraría, porque la separación la daría el despliegue. **Las rutas de recurso de este documento son idénticas en ambos casos**; sólo cambiaría el prefijo. Se escribe con `platform` porque es lo que sirve en las dos y lo que hace visible la frontera en cualquier log.
+
+> **Ninguna ruta de este documento lleva `ResolveTenant`, y ninguna ruta de tenant lleva el *guard* `platform`.** Es la propiedad que `CA-BO-011` verifica con un test de arquitectura, no con revisión.
+
+---
+
+## 1. Autenticación
+
+| Aspecto | Decisión |
+|---------|----------|
+| Mecanismo | Cookie de sesión `httpOnly`, `Secure`, `SameSite`, con CSRF (`ADR-025`). **Ningún token en el navegador**, igual que en el producto |
+| *Guard* | `platform`, sobre el *provider* `platform_admins`. Independiente de `web` |
+| Cookie | ***Host-only***, sin dominio principal (`ADR-033 §2`): no puede viajar entre el *host* de plataforma y el de ningún centro, ni al revés |
+| Almacén de sesión | **`OPEN-BO-02`**, sin decidir. `sessions` es tabla de tenant desde 1.2 y un `platform_admin` no tiene tenant |
+| Vida | Corta y configurable (`RN-BO-09`) |
+| Segundo factor | **Obligatorio siempre** (`RN-BO-05`). Sin factor confirmado, la sesión sólo alcanza `/mfa/*` |
+
+---
+
+## 2. Endpoints
+
+### 2.1 Sesión y segundo factor
+
+| Verbo · Ruta | Capacidad | Notas |
+|---|---|---|
+| `GET /csrf-cookie` | — | Sin sesión. **Con límite de tasa desde el primer día**: su ausencia fue un hallazgo Alta en 1.2 (issue [#74](https://github.com/pirexia/plataforma-educativa/issues/74)) y no se repite |
+| `POST /auth/session` | — | Credenciales. `200` con `mfa_required: true` si falta el segundo paso; nunca emite sesión plena antes del factor |
+| `POST /auth/session/mfa` | — | Resuelve el desafío. Emite la sesión plena |
+| `DELETE /auth/session` | Identidad | Cierre de sesión |
+| `POST /auth/reauthenticate` | Identidad | Contraseña **y** segundo factor. Marca la sesión como reautenticada (§4) |
+| `GET /me` | Identidad | El administrador y sus roles. **Sin permiso, por identidad del portador**, igual que `GET /me` en `REQ-CORE` |
+| `POST /mfa/factors` · `POST /mfa/factors/{public_id}/confirm` · `GET /mfa/recovery-codes` | Identidad | Alta y confirmación del segundo factor. Únicos endpoints alcanzables sin factor confirmado |
+
+**Errores de `POST /auth/session`**: `401` credenciales inválidas (mensaje **idéntico** para usuario inexistente y contraseña incorrecta), `403` IP no permitida, `429` límite de tasa con `Retry-After`.
+
+### 2.2 Administradores de plataforma (`REQ-BO-007`)
+
+| Verbo · Ruta | Capacidad | Notas |
+|---|---|---|
+| `GET /admins` | `admin.leer` | Página. Filtros `status`, `role`, `q` |
+| `POST /admins` | `admin.crear` | Sensible. Crea sin contraseña utilizable e invita |
+| `GET /admins/{public_id}` | `admin.leer` | |
+| `PATCH /admins/{public_id}` | `admin.actualizar` | Nombre, correo, idioma |
+| `PUT /admins/{public_id}/roles` | `admin.rol.gestionar` | Conjunto completo. `409` si el actor es el propio sujeto (`RN-BO-10`) o si deja la plataforma sin `superadministrador` (`RN-BO-11`) |
+| `POST /admins/{public_id}/status` | `admin.actualizar` | Suspender o reactivar. Mismos `409` |
+| `DELETE /admins/{public_id}` | `admin.eliminar` | Sensible. Borrado lógico. Mismos `409` |
+| `DELETE /admins/{public_id}/mfa` | `admin.mfa.restablecer` | Sensible. **Sólo `superadministrador`, nunca autoservicio, nunca por correo** (`CA-BO-012`) |
+
+### 2.3 Lista blanca de IP (`REQ-BO-007`)
+
+| Verbo · Ruta | Capacidad |
+|---|---|
+| `GET /ip-allowlist` | `ip_allowlist.leer` |
+| `POST /ip-allowlist` | `ip_allowlist.gestionar` · **sensible** |
+| `DELETE /ip-allowlist/{public_id}` | `ip_allowlist.gestionar` · **sensible** |
+
+> **`DELETE` no comprueba si el solicitante se está dejando fuera a sí mismo, y es deliberado.** Un guardarraíl que compare la IP de la petición con la entrada a borrar daría falsa seguridad —una red corporativa tiene varias salidas y el operador puede estar en otra— y complicaría la retirada legítima de un rango caducado. La red real es que un bloqueo total se resuelve por consola en el servidor (`RN-BO-07`, `operacion.md §5`), y eso está documentado en vez de simulado.
+
+### 2.4 Inventario y ciclo de vida de tenants (`REQ-BO-001`)
+
+| Verbo · Ruta | Capacidad | Notas |
+|---|---|---|
+| `GET /tenants` | `tenant.leer` | Página. §3.1 |
+| `POST /tenants` | `tenant.crear` | Sensible. `Idempotency-Key` **obligatoria** (`ADR-038 §8.1`, criterios 2 y 3: envía la invitación del primer administrador y ejecuta un proceso por lotes). `201` |
+| `GET /tenants/{public_id}` | `tenant.leer` | Ficha: estado, configuración, módulos contratados, historial de estados |
+| `PATCH /tenants/{public_id}` | `tenant.actualizar` | Nombre y `suspension_message`. **`slug` va aparte** (§2.5) |
+| `POST /tenants/{public_id}/transitions` | Según destino (§ `permisos.md`) | **Único** camino para cambiar de estado. Cuerpo: `to_status`, `reason`, y `confirmation_name` cuando `to_status = 'eliminado'` |
+| `GET /tenants/{public_id}/lifecycle-events` | `tenant.leer` | Cursor. Tabla *append-only* |
+| `POST /tenants/{public_id}/clone` | `tenant.crear` | Sensible. `Idempotency-Key` obligatoria. Copia configuración, roles, concesiones y suscripciones; **nunca personas** (`RN-BO-21`) |
+
+**Un solo *endpoint* de transición, no seis rutas de verbo** (`/suspend`, `/reactivate`, `/close`…). Motivo: `RN-BO-12` es una máquina de estados y una sola puerta hace que la validación de transiciones se escriba **una vez**. Con seis rutas, la séptima que alguien añada se olvidará de comprobar el estado de origen — y el motivo obligatorio, y la invalidación de caché de `RN-BO-14`.
+
+**Respuestas de `POST /tenants/{public_id}/transitions`**
+
+| Caso | Respuesta |
+|---|---|
+| Transición simple (suspender, reactivar, dar de baja, rescatar) | `200` con el tenant actualizado |
+| `to_status = 'eliminado'` | **`202`** con la `dual_authorization` creada en estado `pendiente`. **No se ha eliminado nada** |
+| Transición no permitida (`RN-BO-12`) | `409` `urn:pge:error:conflict` |
+| Motivo ausente o vacío (`RN-BO-13`) | `422` |
+| `confirmation_name` distinto del nombre exacto (`RN-BO-18`) | `422`, y **no se crea ninguna solicitud** (`CA-BO-065`) |
+| Sesión sin reautenticación viva | `403` `urn:pge:error:reauthentication-required` |
+
+### 2.5 Cambio de `slug`
+
+`POST /tenants/{public_id}/slug` — capacidad `tenant.actualizar`, **sensible**.
+
+Ruta propia y no un campo de `PATCH`, porque no es un cambio de dato: **cambia el nombre DNS con el que el centro entra**, invalida `tenant-resolution:{slug}` de las dos claves —la vieja y la nueva—, deja fuera a quien tenga la URL antigua guardada y afecta al certificado. Un campo dentro de un `PATCH` genérico lo haría parecer equivalente a cambiar el nombre para mostrar, y no lo es.
+
+### 2.6 Módulos por tenant (`REQ-BO-002`, `ADR-045`)
+
+| Verbo · Ruta | Capacidad | Notas |
+|---|---|---|
+| `GET /modules` | `modulo.leer` | Catálogo con `depends_on`, `essential` y `phase` **leídos del descriptor** |
+| `GET /tenants/{public_id}/modules` | `modulo.leer` | Los tres estados de `ADR-045 §4.7` por módulo, con `enabled_at`, `disabled_at` y `reason` |
+| `POST /tenants/{public_id}/modules/preview` | `modulo.leer` | **Vista previa de impacto**, sin escribir nada. §2.7 |
+| `PUT /tenants/{public_id}/modules/{module_code}` | `modulo.contratar` | Contratar o descontratar. Cuerpo: `enabled`, `reason`, `cascade` |
+| `POST /module-rollouts/preview` | `modulo.leer` | Vista previa de una operación masiva. §2.7 |
+| `POST /module-rollouts` | `modulo.contratar_masivo` | Operación masiva. `Idempotency-Key` **obligatoria**. En cola (`INV-012`). `202` |
+
+**`PUT` y no `PATCH`** para el conmutador: el cuerpo declara el estado deseado completo de esa celda, y `ADR-038` reserva `PATCH` para la modificación parcial de un recurso. Contratar dos veces con el mismo cuerpo es idempotente y no emite evento (`CA-BO-044`), que es la semántica que se espera de `PUT`.
+
+**Códigos de este grupo**
+
+| Caso | Respuesta |
+|---|---|
+| Contratar sin dependencias y sin `cascade: true` | `409`, `params.missing_dependencies` con los códigos que faltan |
+| Descontratar una dependencia de módulos contratados sin `cascade: true` | `409`, `params.dependent_modules` con los arrastrados (`CA-BO-040`) |
+| Descontratar un módulo **esencial** | `422`, `params.module_code` (`CA-BO-041`) |
+| Módulo `retired_at` | `422` |
+| Motivo ausente | `422` (`RN-BO-24`) |
+| Desactivación **masiva** | `202` con la `dual_authorization` pendiente (`CA-BO-066`) |
+
+**Un solo código de error para el módulo no contratado**, en el lado del tenant: `urn:pge:error:module-disabled`. `ADR-045 §4.10` es explícito — con una sola potestad hay una sola causa, y el mensaje no revela plan, precio ni condiciones comerciales.
+
+### 2.7 Vista previa de impacto
+
+Los dos *endpoints* de vista previa **no escriben nada** y devuelven lo que `REQ-BO-002` enumera:
+
+```json
+{
+  "affected_tenants": 1,
+  "modules_to_contract": ["comedor", "fin"],
+  "modules_to_decontract": [],
+  "cascaded_dependencies": ["fin"],
+  "blocked": [{ "module_code": "core", "reason_code": "bo.module.essential" }],
+  "impact": {
+    "users_affected": 128,
+    "screens_removed": ["comedor.menus", "comedor.reservas"],
+    "integrations_disabled": []
+  }
+}
+```
+
+> **`impact` es la parte más fácil de falsear de toda la API.** `users_affected` sólo se puede calcular sobre lo que existe: en 1.6 son los usuarios del tenant con algún permiso del módulo. `screens_removed` e `integrations_disabled` salen del **descriptor declarado por el módulo**, no de una lista escrita en el backoffice — si un módulo no las declara, el campo va **vacío y así se muestra**, nunca relleno con un valor inventado. Una vista previa que exagera el impacto se ignora a la tercera vez.
+
+### 2.8 Doble autorización (`REQ-BO-007`)
+
+| Verbo · Ruta | Capacidad | Notas |
+|---|---|---|
+| `GET /dual-authorizations` | `autorizacion.leer` | Página. Filtros `status`, `action`, `requested_by` |
+| `GET /dual-authorizations/{public_id}` | `autorizacion.leer` | Incluye el `payload` congelado, para que quien aprueba vea **exactamente** qué aprueba |
+| `POST /dual-authorizations/{public_id}/approval` | Según `action` · **sensible** | Aprueba **y ejecuta**. `409` si caducada, ya resuelta, o si el aprobador es el solicitante |
+| `POST /dual-authorizations/{public_id}/rejection` | Ídem | Rechaza con motivo |
+
+**No hay `DELETE`.** Una solicitud no se retira: se rechaza, con motivo y con actor. Borrar la prueba de que alguien pidió eliminar un centro sería justo lo contrario de lo que `REQ-BO-007` pide.
+
+**El `409` del aprobador que es el solicitante lo produce la restricción de base de datos** (`datos.md §3.1`), traducida a error de API. El controlador puede comprobarlo antes para dar un mensaje mejor, pero **la garantía no vive ahí** (`CA-BO-062`).
+
+### 2.9 Auditoría de plataforma (`REQ-BO-007`)
+
+| Verbo · Ruta | Capacidad | Notas |
+|---|---|---|
+| `GET /admin-action-logs` | `auditoria_plataforma.leer` | **Cursor**. §3.2 |
+| `GET /tenants/{public_id}/admin-action-logs` | `tenant.leer` | Lo ocurrido a un centro concreto |
+
+**Y un endpoint que vive en la aplicación de los centros, no aquí**:
+
+| Verbo · Ruta | Dónde | Permiso |
+|---|---|---|
+| `GET /api/v1/platform-actions` | **Aplicación del tenant** (`REQ-CORE`) | `auditoria.leer` |
+
+Es el requisito de `REQ-BO-007` de que el registro sea «consultable por el propio centro en lo que le afecte». Devuelve **sólo** las filas con el `affected_tenant_id` del centro, garantizado por RLS y no por el `where` del controlador (`CA-BO-022`). Se declara aquí porque el dato es de este módulo, pero **la ruta y el permiso son de `REQ-CORE`**: `INV-007`, y además un usuario de tenant no debe conocer siquiera la existencia del *host* del backoffice.
+
+> **No hay exportación.** Ni aquí ni en el lado del tenant, y es una decisión: un CSV del registro completo de acciones del proveedor es un mapa de la operación de la plataforma, y `REQ-PERM/permisos.md §2.1` ya sentó el criterio con `rol.exportar` y `permiso_efectivo.exportar`. Si algún día hace falta, es un requisito nuevo con su permiso y su propia auditoría de exportación.
+
+### 2.10 Salud y métricas (`REQ-BO-004`, `REQ-BO-006`, reducidos)
+
+| Verbo · Ruta | Capacidad | Notas |
+|---|---|---|
+| `GET /tenants/{public_id}/health` | `salud.leer` | Sólo lo observable (`funcional.md §5.9`). Los campos sin fuente **no aparecen**, no van a cero |
+| `GET /tenants/{public_id}/failed-jobs` | `salud.leer` | Cursor. Filtrados por el `tenant_id` del *payload* (`ADR-033 §8`) |
+| `POST /tenants/{public_id}/failed-jobs/{uuid}/retry` | `job.reintentar` | Auditado (`REQ-SUP-004`) |
+| `GET /metrics/platform` | `metrica.leer` | Tenants por estado, altas y bajas del período |
+| `GET /metrics/module-adoption` | `metrica.leer` | Cuántos centros tienen contratado cada módulo |
+
+> **Regla de honestidad, y va en la especificación porque es lo primero que se pierde**: un campo cuya fuente no existe en 1.6 **se omite de la respuesta**. No se devuelve `0`, no se devuelve `null`, no se devuelve `"n/d"`. Un cero indistinguible de «no medido» es peor que la ausencia, y los enumerados de respuesta son extensibles (`ADR-038 §7.3`), así que añadir el campo cuando exista el dato es un cambio compatible.
+
+### 2.11 *Feature flags* (`REQ-BO-005` puntos 1-2 · sub-paso `1.6e`)
+
+Entra por decisión del usuario del 2026-09-08. Diseño en `funcional.md §5.11`, esquema en `datos.md §9`.
+
+| Verbo · Ruta | Capacidad | Notas |
+|---|---|---|
+| `GET /feature-flags` | `flag.leer` | Página. Catálogo materializado, con `module_code`, `rollout_unit`, `status`, `rules_version` y un resumen de sus reglas. Filtros `module_code`, `status`, `retired` (booleano), `q` |
+| `GET /feature-flags/{key}` | `flag.leer` | El *flag* y **todas** sus reglas |
+| `PUT /feature-flags/{key}/state` | `flag.gestionar` | `status` ∈ {`activo`, `forced_off`} más `reason`. Es el interruptor de emergencia. §2.12 |
+| `PUT /feature-flags/{key}/rules` | `flag.gestionar` · **sensible** | **El conjunto completo** de reglas del *flag*, en una escritura atómica, con `reason`. §2.12 |
+| `POST /feature-flags/{key}/rules/preview` | `flag.leer` | Vista previa: a cuántos centros expondría el conjunto propuesto, **sin escribir nada**. §2.13 |
+| `GET /tenants/{public_id}/feature-flags` | `flag.leer` | Qué *flags* están expuestos en ese centro **y por qué regla**. §2.13 |
+| `PUT /tenants/{public_id}/early-adopter` | `tenant.actualizar` | Designar o retirar, con `reason`. Escribe `tenants.early_adopter_since` (`RN-BO-46`) |
+
+**Sobre `{key}` en la ruta**: `datos.md §11` y `OPEN-BO-11` (`funcional.md §14`). Si esa pregunta se resuelve en contra, **las cuatro rutas que llevan `{key}`** pasan a `{public_id}` y nada más cambia. Las dos de `/tenants/{public_id}/…` ya usan el ULID del centro y no se ven afectadas.
+
+**Por qué la designación de *early adopter* se autoriza con `tenant.actualizar` y no con `flag.gestionar`**: es un atributo **del centro**, escrito en `tenants`, no una regla de despliegue. Colgarlo de `flag.gestionar` significaría que una capacidad sobre *flags* permite modificar la ficha de un centro, que es una frontera que no conviene difuminar. En la práctica no cambia quién puede hacerlo —`operaciones` y `superadministrador` tienen ambas—, y por eso mismo es gratis elegir la correcta.
+
+**Códigos de este grupo**
+
+| Caso | Respuesta |
+|---|---|
+| Clave de *flag* inexistente en el catálogo | `404` |
+| *Flag* con `retired_at`, en cualquier escritura | `422`, `bo.flag.retired` (`CA-BO-091`) |
+| Regla con el eje y la columna descuadrados (un `percentage` con `tenant_id`, por ejemplo) | `422`, `bo.flag.invalid_rule` |
+| Dos reglas del mismo eje sobre el mismo objetivo en el conjunto enviado | `422`, `bo.flag.duplicate_rule` |
+| `percentage` fuera de `0..100` | `422`, `bo.flag.invalid_rule` |
+| Motivo ausente o vacío | `422` (`RN-BO-43`) |
+| Intento de escribir `rollout_unit` | `422`: no es un campo de la API. Lo declara el código (`RN-BO-36`) |
+
+**No hay `POST /feature-flags` ni `DELETE`.** Un *flag* se crea escribiendo el código que lo consulta y se retira dejando de declararlo; el catálogo lo materializa `platform:sync-registry` (`RN-BO-34`, `CA-BO-090`). Un *endpoint* de creación produciría *flags* huérfanos que ningún código lee y que nadie se atreve a borrar — y es exactamente el fallo que `ADR-034 §5` evitó al no dejar que los módulos se dieran de alta desde la aplicación.
+
+### 2.12 Dos decisiones sobre las escrituras de *flag* que hay que defender
+
+**1 · Las reglas se escriben en bloque, con `PUT`, y no una a una.**
+La precedencia de `funcional.md §5.11.5` es una propiedad **del conjunto**, no de cada regla. Con `POST`/`DELETE` por regla, un operador que quiere «subir al 40 % **y** excluir al centro que tuvo la incidencia» tiene que hacer dos llamadas, y entre las dos existe un instante real en el que ese centro está expuesto. Con un `PUT` del conjunto completo, la transición es atómica, `rules_version` se incrementa una vez y no hay ventana. El coste es que el cliente tiene que enviar lo que no cambia; es un coste que se paga con gusto por eliminar un estado intermedio incorrecto.
+
+**2 · Apagar no es una operación sensible; encender sí.**
+`PUT /feature-flags/{key}/rules` exige reautenticación (§4). `PUT …/state` **no la exige cuando el destino es `forced_off`**, y **sí cuando es volver a `activo`**.
+
+> Es la única asimetría de este tipo en toda la API y por eso lleva su párrafo. `forced_off` es el freno de emergencia: se usa cuando una funcionalidad recién desplegada está rompiendo colegios, a menudo de madrugada y a menudo por quien está de guardia. **Poner fricción en el freno es cómo se aprende a no usarlo** — o peor, cómo se acaba compartiendo credenciales para llegar antes. Apagar va siempre en la dirección segura, es reversible y queda auditado con su actor y su motivo. Volver a encender es la dirección peligrosa, y ahí la fricción sí está bien puesta.
+
+**No hay doble autorización en ninguna operación de *flags***, y también conviene decir por qué no: `REQ-BO-007` la exige para «eliminar un tenant, purgar datos o desactivar módulos en masa» —operaciones **destructivas**—, y ninguna escritura de *flag* destruye nada ni es irreversible: se deshace con otra escritura, en segundos, sin desplegar (`RNF-MANT-005`). Exigir dos personas para tocar un porcentaje convertiría el despliegue progresivo en algo que nadie usa, y el resultado sería desplegar de golpe, que es justo lo que `RARQ-DEP-010` quiere evitar.
+
+### 2.13 Las dos lecturas que de verdad se usan al depurar
+
+`POST /feature-flags/{key}/rules/preview` responde al «¿a cuántos afecto?» **antes** de escribir:
+
+```json
+{
+  "rollout_unit": "tenant",
+  "exposed_tenants": 23,
+  "total_tenants": 210,
+  "newly_exposed": ["01J...", "01J..."],
+  "newly_hidden": [],
+  "by_rule": { "global": 0, "early_adopters": 8, "percentage": 15, "tenant": 1 },
+  "role_filter": ["docente"]
+}
+```
+
+`GET /tenants/{public_id}/feature-flags` responde a la pregunta inversa, que es la que llega por soporte —«este centro ve algo que no debería»—:
+
+```json
+{
+  "data": [
+    { "key": "comedor.reserva_v2", "enabled": true, "matched_by": "early_adopters" },
+    { "key": "eval.boletin_v3",   "enabled": false, "matched_by": "none" },
+    { "key": "acad.horario_beta", "enabled": true, "matched_by": "percentage" }
+  ]
+}
+```
+
+> **`matched_by` es la mitad del valor de este *endpoint***. Sin él, un operador ve que un centro tiene un *flag* encendido y no puede saber si es por regla nominal, por cohorte o porque cayó dentro del porcentaje — y acabará adivinando. Es el equivalente, para *flags*, de lo que `REQ-PERM` resolvió con la explicación de permiso efectivo: **decir el resultado sin decir la causa obliga a reproducir el cálculo a mano**.
+>
+> `newly_exposed` y `newly_hidden` listan `public_id` de centros y **se truncan**: por encima de un umbral se devuelve sólo el recuento. Un operador no lee doscientos identificadores, y devolverlos convierte una vista previa en un volcado del inventario.
+
+### 2.14 Y un *endpoint* que vive en la aplicación de los centros
+
+Igual que `GET /api/v1/platform-actions` en §2.9, el dato es de este módulo pero la ruta no:
+
+| Verbo · Ruta | Dónde | Permiso |
+|---|---|---|
+| `GET /api/v1/feature-flags` | **Aplicación del tenant** (`REQ-CORE`) | **Ninguno**: por identidad del portador, como `GET /me` |
+
+Es lo que la SPA necesita para saber qué renderizar. Tres propiedades, y las tres son decisiones:
+
+1. **Devuelve sólo las claves que evalúan verdadero** para el usuario que pregunta. No devuelve las apagadas, ni las que están en despliegue parcial y no le han tocado (`CA-BO-097`).
+2. **Por eso no hace falta permiso, y por eso no filtra nada**: la lista completa de *flags* del producto es el mapa de todo lo que estamos construyendo y a qué ritmo lo estamos soltando — información competitiva y, en manos de quien busca superficie, información útil. Un cliente que no recibe una clave la trata como apagada, que es el valor por defecto de todos modos (`RN-BO-35`), así que omitirlas no rompe nada.
+3. **Se autoriza por identidad, no por capacidad**, porque la respuesta depende del propio sujeto: sus roles determinan el filtro de `funcional.md §5.11.5` paso 4. Pedir un permiso para consultar lo que a uno mismo le aplica sería el error que `REQ-CORE` ya evitó con `GET /me`.
+
+**No hay ningún *endpoint* de tenant que escriba *flags*.** Un centro no se autoconcede una funcionalidad en despliegue, y `datos.md §9.6` lo garantiza con `REVOKE` en el motor, no sólo con la ausencia de la ruta.
+
+---
+
+## 3. Paginación, filtrado y ordenación
+
+### 3.1 Qué usa cada listado
+
+Aplicando el criterio objetivo de `ADR-038 §4.2` —**origen de las filas**, no cardinalidad estimada:
+
+| Listado | Modo | Por qué |
+|---|---|---|
+| `GET /tenants` | **Página** | Catálogo de entidades: las filas nacen de un alta administrativa humana |
+| `GET /admins` | **Página** | Ídem |
+| `GET /ip-allowlist` | **Página** | Ídem |
+| `GET /dual-authorizations` | **Página** | Ídem: cada fila es una decisión humana |
+| `GET /feature-flags` | **Página** | Catálogo, y de los más pequeños: sus filas nacen de una declaración en el código, no de la actividad |
+| `GET /tenants/{id}/feature-flags` | **Sin paginar** | Es el conjunto completo de *flags* evaluados para un centro — decenas de claves, no un listado. Paginarlo obligaría a recorrer páginas para responder a una pregunta que se responde de una vez, y `ADR-038 §4.2` no exige paginar lo que es un cálculo y no una tabla |
+| `GET /admin-action-logs` | **Cursor** | Flujo de eventos, tabla *append-only*. La regla operativa de `ADR-038 §4.2` es literal: «si la tabla es *append-only*, es cursor» |
+| `GET /tenants/{id}/lifecycle-events` | **Cursor** | Ídem |
+| `GET /tenants/{id}/failed-jobs` | **Cursor** | Ídem |
+
+### 3.2 El cursor de `admin_action_logs` tiene una particularidad
+
+`ADR-038 §4.4` exige orden total estricto y que el cursor cifrado transporte, entre otras cosas, el `tenant_id` del emisor. **Aquí no hay tenant**: el emisor es un `platform_admin`. El campo `t` del cursor lleva, en su lugar, el `platform_admin_id`, con la misma finalidad —que un cursor emitido por otra sesión no valga— y el mismo `422` al no cuadrar. Se dice explícitamente porque es una desviación de la letra de `ADR-038` que conserva su motivo, y una revisión futura debe encontrarla escrita en vez de leerla como un descuido.
+
+Orden: `(occurred_at DESC, id DESC)`, con el índice de `datos.md §4.5`.
+
+### 3.3 Filtros
+
+Sintaxis de `ADR-038 §5.2` sin excepción: parámetros planos, valores múltiples separados por comas (`status=activo,suspendido`), rangos con `_from`/`_to` inclusivos, texto libre siempre en **`q`**, booleanos `true`/`false`, parámetro desconocido **ignorado**, parámetro conocido con valor inválido **`422`**.
+
+| Listado | Filtros | Orden admitido |
+|---|---|---|
+| `GET /tenants` | `status`, `module_code`, `autonomous_community`, `q` (nombre y `slug`) | `name`, `-name`, `created_at`, `-created_at`, `status` |
+| `GET /admins` | `status`, `role`, `q` | `name`, `-name`, `-created_at` |
+| `GET /admin-action-logs` | `action`, `actor_platform_admin_id`, `affected_tenant_id`, `occurred_at_from`, `occurred_at_to` | Fijo: `-occurred_at` |
+| `GET /dual-authorizations` | `status`, `action`, `requested_by` | `-requested_at`, `expires_at` |
+| `GET /feature-flags` | `module_code`, `status`, `retired` (booleano), `q` (clave y textos) | `key`, `-key`, `-updated_at` |
+
+**`plan`, `student_count` y `regime` no son filtros de `GET /tenants`** (`funcional.md §1.3`): no existe el dato. Añadirlos cuando exista es un cambio compatible (`ADR-038 §7.2`).
+
+`autonomous_community` se lee de la configuración del centro que fija `REQ-CORE`; **no se duplica una columna en `tenants`** para poder filtrar. Si el `JOIN` resultara caro con doscientos centros —que no lo será—, la solución es un índice, no desnormalizar.
+
+---
+
+## 4. Operaciones sensibles: reautenticación
+
+Exigen sesión reautenticada dentro de la ventana (`RN-BO-08`). La lista es **cerrada y está aquí**, no repartida por los controladores, para que añadir una operación destructiva obligue a tocar este documento:
+
+`POST /tenants` · `POST /tenants/{id}/clone` · `POST /tenants/{id}/slug` · `POST /tenants/{id}/transitions` cuando `to_status ∈ {en_baja, eliminado}` · `POST /admins` · `DELETE /admins/{id}` · `DELETE /admins/{id}/mfa` · `POST` y `DELETE /ip-allowlist` · `POST /module-rollouts` · `POST /dual-authorizations/{id}/approval` y `/rejection` · `PUT /feature-flags/{key}/rules` · `PUT /feature-flags/{key}/state` **sólo cuando el destino es `activo`** (§2.12).
+
+Fallo: `403` con `type` **propio** — `urn:pge:error:reauthentication-required` — porque la interfaz tiene que distinguir «vuelve a identificarte» de «no tienes permiso» **sin analizar texto**, exactamente por el motivo con el que `ADR-038 §6.2` separó `module-disabled` de `forbidden`.
+
+---
+
+## 5. Códigos de error
+
+Además de los de `ADR-038 §6.2`, este módulo añade **dos** al catálogo cerrado:
+
+| `type` | Estado | Cuándo |
+|---|---|---|
+| `urn:pge:error:reauthentication-required` | 403 | Operación sensible sin reautenticación viva |
+| `urn:pge:error:ip-not-allowed` | 403 | Dirección de origen fuera de la lista blanca |
+
+**No se añade ningún código para la doble autorización**, y se dice para que nadie lo eche en falta: una solicitud pendiente **no es un error**. Es un `202` con el recurso `dual_authorization` en el cuerpo, que es lo que la interfaz necesita para enseñar «pendiente de un segundo administrador» y enlazar la solicitud.
+
+Los `403` de este módulo **no revelan por qué en `detail`** cuando la causa es la lista blanca: `title` y `detail` genéricos, y el motivo real sólo en `admin_action_logs`. Un mensaje que confirma «tu IP no está permitida» le dice a quien prueba desde fuera que ha encontrado el *host* correcto.
+
+**Códigos de `errors` propios** (clave, mensaje traducido y `params`, según `ADR-038 §6.3`):
+
+`bo.tenant.invalid_transition` · `bo.tenant.reason_required` · `bo.tenant.name_mismatch` · `bo.tenant.slug_taken` · `bo.tenant.last_superadmin` · `bo.module.essential` · `bo.module.missing_dependencies` · `bo.module.dependent_modules` · `bo.module.retired` · `bo.dual_auth.same_actor` · `bo.dual_auth.expired` · `bo.dual_auth.already_resolved` · `bo.dual_auth.payload_mismatch` · `bo.admin.self_modification` · `bo.ip.allowlist_empty` · `bo.flag.retired` · `bo.flag.invalid_rule` · `bo.flag.duplicate_rule`
+
+Los **dieciocho** —quince del chasis, del ciclo de vida y de los módulos, más tres de *feature flags*—, en `es-ES`, `en`, `de` y `fr` (`INV-009`, `CA-BO-073`).
+
+**No se añade ningún `type` nuevo al catálogo cerrado por los *flags***: los tres casos son errores de validación de un cuerpo, y `422` con su clave en `errors` es exactamente lo que `ADR-038 §6.3` prevé para eso. Un `urn:pge:error:` propio se reserva para lo que la interfaz debe **distinguir sin analizar texto**, como `reauthentication-required` o `module-disabled`, y aquí no hay nada de eso: un formulario de reglas mal enviado se trata igual que cualquier otro formulario mal enviado.
+
+---
+
+## 6. Idempotencia (`ADR-038 §8.1`)
+
+**Obligatoria** en: `POST /tenants` (envía la invitación del primer administrador **y** ejecuta un proceso por lotes: criterios 2 y 3), `POST /tenants/{id}/clone` (criterio 3) y `POST /module-rollouts` (criterios 2 y 3).
+
+**No obligatoria** en `PUT /tenants/{id}/modules/{code}`: el índice único `(tenant_id, module_code) WHERE deleted_at IS NULL` hace la operación naturalmente idempotente, y `ADR-038 §8.1` dice explícitamente que la idempotencia se pone donde falta protección, no donde queda bonita.
+
+**No obligatoria** en `POST /dual-authorizations/{id}/approval`: el índice único parcial y el `CHECK` de coherencia de estado (`datos.md §3.2`) convierten el reintento en `409`, que es el resultado correcto.
+
+**No obligatoria** en ninguna escritura de *flags*: `PUT …/rules` y `PUT …/state` declaran el estado deseado completo y son idempotentes por construcción — reenviar el mismo cuerpo deja el mismo resultado. Lo único que un reintento produce de más es un incremento de `rules_version` y una entrada de auditoría, y ninguna de las dos cosas es un efecto que haya que evitar: la primera sólo invalida caché de sobra, y la segunda es el registro fiel de que alguien envió la operación dos veces.
+
+---
+
+## 7. Eventos de dominio emitidos
+
+| Evento | Emisor | Cuándo | Consumidor en 1.6 |
+|---|---|---|---|
+| `ModuleContracted` | **`REQ-CORE`** | `enabled` pasa a `true` | Ninguno (`ADR-045 §4.8`). En **1.19**, `REQ-COM-003` |
+| `ModuleDecontracted` | **`REQ-CORE`** | `enabled` pasa a `false` | Ídem |
+| `TenantSuspended`, `TenantReactivated`, `TenantMarkedForClosure` | `REQ-BO` | Transición correspondiente | Ninguno. Se declaran para `REQ-BKP` (1.26) y `REQ-COM` (1.19) |
+
+Los dos primeros **no los emite este módulo**, y no es un detalle de implementación: `RMOD-010` y `ADR-045 §4.8` fijan que todo evento del ciclo de vida de un módulo pertenece a `REQ-CORE`. `CA-BO-038` lo verifica descontratando un módulo y comprobando que el evento sale igualmente, **aunque el módulo quede apagado**.
+
+**Las escrituras de *feature flags* no emiten ningún evento de dominio, y aquí sí es una decisión distinta de la que se tomó con los tenants.** `TenantSuspended` y compañía se declaran aunque hoy no tengan consumidor, porque `REQ-BKP` y `REQ-COM` los necesitarán y añadirlos después obligaría a tocar el camino de escritura otra vez. Con los *flags* no ocurre eso: **el consumidor de un *flag* es el evaluador, y el evaluador lee el estado vigente, no la transición**. Ningún módulo de fase 1 ni de fase 2 necesita reaccionar al hecho de que una regla cambió — necesita saber el valor **ahora**, que es justo lo que `FeatureFlagEvaluator` responde. Declarar un evento sin consumidor posible sería inventar una extensión, no anticiparla.
+
+---
+
+## 8. Webhooks
+
+**Ninguno.** Ningún requisito de `REQ-BO` pide notificación saliente a terceros, y `ADR-038 §2` deja los webhooks explícitamente sin decidir. No se inventa un mecanismo sin consumidor.
+
+---
+
+## 9. OpenAPI
+
+Todos los *endpoints* de §2 se documentan en `openapi.yaml` (`CLAUDE.md §10`), **en un documento o sección separada de la API del producto**: son dos superficies con dos autenticaciones distintas, y mezclarlas produce un cliente generado que cree poder llamar a `/tenants` con la cookie de un centro.
+
+Cada listado declara su `enum` cerrado de `sort` y sus filtros uno a uno (`ADR-038 §5.3`). Todo enumerado de respuesta se documenta como **extensible** (`ADR-038 §7.3`).
+
+**Los dos *endpoints* que viven en la aplicación del tenant** —`GET /api/v1/platform-actions` (§2.9) y `GET /api/v1/feature-flags` (§2.14)— se documentan **en el documento del producto, no en el de plataforma**, aunque su dato nazca aquí. Ponerlos en el de plataforma generaría un cliente que cree poder llamarlos con la sesión equivocada, que es exactamente lo que separar los dos documentos pretende evitar.

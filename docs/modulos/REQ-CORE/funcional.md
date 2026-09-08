@@ -136,26 +136,39 @@ Lo que sí entrega 1.1 en `apps/web/src/modules/core/`: `api/` (cliente tipado d
 
 ---
 
-## 2. Contradicción detectada: quién activa y desactiva módulos
+## 2. Quién contrata y descontrata módulos — **RESUELTO por `ADR-045`** (2026-09-08)
 
-**Hay una contradicción real entre dos requisitos y no la resuelvo yo.**
+> **Estado**: la contradicción que esta sección describía está **cerrada**. Se conserva el planteamiento original, no se borra, porque el motivo por el que 1.1 acotó su alcance a solo lectura es exactamente lo que `ADR-045` vino a decidir, y una revisión futura debe poder leerlo (`ADR-044 §8`, mismo criterio que `permisos.md §5`).
 
-| Requisito | Dice |
-|-----------|------|
+### 2.1 La contradicción, tal como se detectó en 1.1
+
+| Requisito | Decía |
+|-----------|-------|
 | `REQ-CORE-002` | «El Administrador de Centro puede […] **activar/desactivar módulos contratados**.» |
 | `RMOD-002` | «El **Super Admin** puede activar/desactivar módulos por tenant desde el panel de administración.» |
 
-No es un matiz de redacción: `module_subscriptions` tiene **un solo booleano** `enabled` (`ADR-034 §5`). Un único interruptor no puede representar a la vez «la plataforma ha contratado este módulo al centro» y «el centro lo tiene encendido». Con el esquema actual, o manda uno o manda el otro, y el que pierda puede pisar la decisión del que gana.
+No era un matiz de redacción: `module_subscriptions` tiene **un solo booleano** `enabled` (`ADR-034 §5`). Un único interruptor no puede representar a la vez «la plataforma ha contratado este módulo al centro» y «el centro lo tiene encendido». Con ese esquema, o manda uno o manda el otro, y el que pierda puede pisar la decisión del que gana — y la contradicción no se manifiesta como un error, se manifiesta como una factura.
 
-La lectura que reconcilia los dos requisitos exigiría **dos estados** (contratado por la plataforma × habilitado por el centro), lo que significa una columna nueva y una regla de precedencia — es decir, una decisión de modelo de datos con impacto en `RMOD-003`, `RMOD-004`, `RMOD-006`, `RMOD-009` y en la facturación de `REQ-SAAS-001`. Eso es un ADR, no una decisión de esta especificación (`CLAUDE.md §11`).
+### 2.2 Cómo se resolvió
 
-**Efecto sobre el alcance de 1.1, para no construir sobre una contradicción sin resolver:**
+`ADR-045` (ACEPTADA, 2026-09-08) la resuelve **eliminando uno de los dos actores, no repartiendo el dato**, y **sin tocar el esquema**: ni una columna nueva, ni un renombrado, ni ciclo *expand/contract*.
 
-- 1.1 expone `module_subscriptions` en **solo lectura** (`GET /modules`), que es lo que necesitan `RMOD-008` (ocultar módulos desactivados en la interfaz) y el *middleware* de `RMOD-009`.
-- 1.1 permite editar únicamente `module_subscriptions.settings` (configuración del módulo para ese centro), que ningún requisito disputa.
-- **1.1 no permite cambiar `enabled` a nadie.** Ni al Administrador de Centro ni por API. Hasta 1.6, el interruptor se mueve por consola con el rol propietario.
+| Punto | Decisión |
+|-------|----------|
+| Significado de `enabled` | «La plataforma ha contratado este módulo para este centro **y por tanto el centro puede usarlo**». Un solo significado, un solo dueño |
+| Quién lo escribe | **Solo el Super Administrador**, desde el backoffice, por la conexión `pgsql_platform`, con motivo obligatorio en `reason` (`REQ-BO-002`) |
+| Qué conserva el Administrador de Centro | **Leer** sus módulos (`modulo.leer`, `GET /modules`) y **configurar** los contratados (`modulo.actualizar`, `PATCH` sobre `settings`). **Nada más.** Sin conmutar, ni para encender ni para apagar |
+| Qué gana el centro a cambio | Un **aviso** de que el módulo está disponible, informativo y sin acción requerida. En 1.6 se deriva de `enabled_at`, que ya se rellena; la notificación in-app de verdad es un *listener* de `ModuleContracted` en `REQ-COM-003` (1.19) |
+| Quién hace cumplir la restricción | **El motor, no el controlador.** 1.6 aplica `REVOKE UPDATE, INSERT ON module_subscriptions FROM plataforma_app` más `GRANT UPDATE (settings, …)`. Hoy la garantía es un `if` en `ModulesController::updateSettings()`; `INV-001` exige que las restricciones que importan no vivan ahí |
 
-Registrado como `OPEN-CORE-03`, con severidad de bloqueo para 1.6.
+La recomendación de `architect` había sido la contraria (dos columnas con `AND` lógico, para no borrar una capacidad de `REQ-CORE-002`); el usuario decidió lo anterior y la discrepancia queda registrada en `ADR-045 §12.1`. La vuelta atrás es **aditiva pura** —una columna `enabled_by_tenant` con `DEFAULT true` que no cambia el estado efectivo de ninguna fila—, de modo que la elección no cierra ninguna puerta.
+
+### 2.3 Qué significa esto para lo que 1.1 dejó escrito
+
+- La acotación de 1.1 —`module_subscriptions` en solo lectura salvo `settings`— **deja de ser provisional y pasa a ser la regla definitiva.** No hay que deshacer nada de lo que 1.1 construyó.
+- `ModulesController::updateSettings()` sigue rechazando `enabled` con `422` y `core.validation.enabled_not_editable`, y a partir de 1.6 el rechazo lo respalda además un privilegio de columna en PostgreSQL.
+- `CA-CORE-061` **se conserva y se refuerza** (§9): deja de ser una limitación temporal y pasa a ser una propiedad del producto verificada en dos capas.
+- Lo que 1.6 sí añade es el **camino de escritura del backoffice**, que hoy no existe: contratar y descontratar desde `REQ-BO-002`, con emisión de `ModuleContracted`/`ModuleDecontracted` desde `REQ-CORE` (`ADR-045 §4.8`) e invalidación de la caché de disponibilidad (`ADR-045 §8.3`).
 
 ---
 
@@ -424,7 +437,7 @@ Verificables, cada uno con test que referencia su ID (`INV-015`).
 ### Módulos (`RMOD-008`, `RMOD-009`)
 
 - **`CA-CORE-060`** · *Dado* un tenant sin fila de suscripción para un módulo, *cuando* se llama a un endpoint de ese módulo, *entonces* `403` con cuerpo informativo — la ausencia de fila se lee como desactivado (`ADR-034 §5`, fallo en cerrado).
-- **`CA-CORE-061`** · *Dado* un Administrador de Centro, *cuando* intenta cambiar `enabled` de una suscripción por API, *entonces* la operación no existe (`404`/`405`) — está fuera de alcance hasta que se resuelva `OPEN-CORE-03` (§2).
+- **`CA-CORE-061`** · *Dado* un Administrador de Centro, *cuando* intenta cambiar `enabled` de una suscripción por API, *entonces* la operación es rechazada — `PATCH /module-subscriptions/{public_id}` con la clave `enabled` responde `422` con `core.validation.enabled_not_editable`, y no existe ninguna otra ruta que lo permita. **Reforzado por `ADR-045` (§2)**: deja de ser una limitación temporal de 1.1 y pasa a ser la regla definitiva del producto. Desde 1.6 se verifica **en dos capas**, y las dos tienen test propio: la validación de la aplicación (este criterio) y el privilegio de columna en PostgreSQL (`REVOKE UPDATE, INSERT ON module_subscriptions FROM plataforma_app`, `CA-BO-030`/`CA-BO-031`), de modo que un fallo futuro en el controlador —o un controlador nuevo que nadie relacione con esto— siga sin poder contratar nada.
 - **`CA-CORE-062`** · *Dado* `GET /modules`, *cuando* lo consulta un Administrador de Centro, *entonces* recibe solo las suscripciones de su tenant, con su estado y su configuración.
 
 ### Transversales
@@ -450,9 +463,11 @@ Decididas por el usuario el 2026-08-19 tras revisar esta especificación, salvo 
 
 **Decisión**: 1.1 es solo API (§1.11 se mantiene tal cual). Las pantallas de `REQ-CORE` se construyen dentro del paso **1.8** (layout, navegación y dashboards por rol), junto con el resto de la interfaz por rol, cuando ya existan el design system (1.7) y el layout (1.8) — no como paso «1.8b» separado. Consecuencia aceptada explícitamente: `REQ-CORE` no cumple la definición de terminado de `CLAUDE.md §10` al cerrar 1.1; se completa al cerrar 1.8.
 
-### `OPEN-CORE-03` · Quién activa y desactiva módulos: contradicción `REQ-CORE-002` vs `RMOD-002` — **RESUELTO (diferido)**
+### `OPEN-CORE-03` · Quién activa y desactiva módulos: contradicción `REQ-CORE-002` vs `RMOD-002` — **RESUELTO por `ADR-045`** (2026-09-08)
 
-Detallada en §2. Requiere **ADR** (dos estados: contratado × habilitado, con regla de precedencia) porque toca el modelo de datos y afecta a `RMOD-003`, `RMOD-004`, `RMOD-006`, `RMOD-009` y `REQ-SAAS-001`. **No bloquea 1.1** porque el alcance se ha acotado a solo lectura. Registrado como issue [#44](https://github.com/pirexia/plataforma-educativa/issues/44) (severidad Media); el ADR se escribe al arrancar **1.6**.
+Detallada en §2. En 1.1 se difirió con severidad de bloqueo para 1.6 y se registró como issue [#44](https://github.com/pirexia/plataforma-educativa/issues/44) (severidad Media).
+
+**Cerrada.** `ADR-045` (ACEPTADA, 2026-09-08) decide que la potestad es **única y del Super Administrador**, con aviso informativo al centro; el Administrador de Centro conserva consultar y configurar `settings`, y pierde la de conmutar. La opción que `1.1` anticipaba —dos estados con regla de precedencia— fue la recomendación de `architect` y **no** la elegida; la discrepancia queda registrada en `ADR-045 §12.1`. **Coste de esquema cero**: no se añade, renombra ni elimina ninguna columna, luego nada de lo que 1.1 construyó hay que deshacerlo, y la acotación a solo lectura pasa de provisional a definitiva. La reversibilidad hacia la opción de dos columnas es aditiva pura, si algún día aparece la demanda de soporte que la justifique (`ADR-045 §8.1`). El camino de escritura del backoffice lo construye **1.6** (`docs/modulos/REQ-BO/`).
 
 ### `OPEN-CORE-04` · Proveedor de correo transaccional (`0.10c`), sin decidir
 
