@@ -48,7 +48,7 @@ Tres precisiones que no son cosméticas:
 
 **Y una barrera más que no está en esta tabla porque no es de la aplicación**: Traefik enruta por `Host()` y aplica su propio *middleware* `ipallowlist` sobre los *routers* del backoffice (`operacion.md §0`). Los puestos 1 y 2 **no la sustituyen** ni al revés: la configuración del proxy no la cubre la suite de tests y la aplicación sí, y por eso las dos capas son obligatorias (`funcional.md §3.4`).
 
-#### 1.1.1 Una tensión con la letra de `ADR-046 §4.5` que **no resuelvo yo**
+#### 1.1.1 Una tensión con la letra de `ADR-046 §4.5`, resuelta por el usuario (`OPEN-BO-13`, 2026-09-08: lectura (a))
 
 `ADR-046 §4.5`, aserción 2, dice que **toda** ruta bajo `/api/platform/*` lleva la pila completa **incluidos los puestos 8 y 9** —MFA de plataforma y capacidad—. **Aplicado al pie de la letra, eso es imposible en cuatro rutas de §2.1**, y conviene decirlo antes de que lo descubra quien escriba el test:
 
@@ -59,12 +59,12 @@ Tres precisiones que no son cosméticas:
 | `POST /auth/session/mfa` | Es la que **resuelve** el segundo factor; exigir el puesto 8 antes de ella es una dependencia circular |
 | `POST /mfa/factors` · `POST /mfa/factors/{public_id}/confirm` · `GET /mfa/recovery-codes` | Son, por diseño, las **únicas** alcanzables sin factor confirmado (`RN-BO-05`). El puesto 8 tiene que dejarlas pasar |
 
-Las dos lecturas posibles, y **ninguna la decido yo porque las dos tocan la letra de un ADR vigente** (`CLAUDE.md §11`):
+Dos lecturas posibles, ninguna la decidía `spec-writer` porque las dos tocan la letra de un ADR vigente (`CLAUDE.md §11`). **El usuario decidió la (a) el 2026-09-08**, la recomendada:
 
-- **(a)** Los puestos 8 y 9 **están presentes en todas** las rutas, y son ellos los que conocen su propia excepción: el de MFA deja pasar `/mfa/*` y las de sesión, y el de capacidad admite «autorizada por identidad del portador», como `GET /me` y como `GET /api/v1/feature-flags` (§2.14). La aserción 2 se cumple **literalmente** y no hay lista de excepciones que mantener. Es la lectura que menos erosiona el test, y la que yo recomendaría.
-- **(b)** La aserción 2 admite una **lista blanca cerrada y nombrada** de rutas de pre-autenticación, declarada en el propio test con su justificación, como hace `RunAsPlatformArchitectureTest` con sus llamadores (`funcional.md §6.2.5`).
+- **(a) — adoptada.** Los puestos 8 y 9 **están presentes en todas** las rutas, y son ellos los que conocen su propia excepción: el de MFA deja pasar `/mfa/*` y las de sesión, y el de capacidad admite «autorizada por identidad del portador», como `GET /me` y como `GET /api/v1/feature-flags` (§2.14). La aserción 2 se cumple **literalmente** y no hay lista de excepciones que mantener.
+- ~~(b) Lista blanca cerrada y nombrada de rutas de pre-autenticación~~ — descartada: bajo (b) existe una lista que alguien puede ampliar; bajo (a) no.
 
-**La diferencia importa**: bajo (b) alguien puede añadir una ruta a la lista; bajo (a) no hay lista que ampliar. Queda como **`OPEN-BO-13`** (`funcional.md §14`), **no bloqueante** —el resto de esta especificación es idéntico en las dos— pero **sí previa a escribir el test de `CA-BO-013`**, porque es ese test el que cambia de forma.
+`CA-BO-013` (`funcional.md §13`) se escribe contra la lectura (a): comprueba que los puestos 8 y 9 están presentes en toda ruta de `/api/platform/*` sin excepción, y que cada uno de los dos resuelve su propia excepción por identidad del sujeto o de la ruta, no por una lista externa.
 
 ---
 
