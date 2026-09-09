@@ -142,3 +142,98 @@ test('CA-PERM-092: runAsPlatform() no aparece en código de app/ fuera de su lis
     expect($checked)->toBeGreaterThan(0);
     expect($foundOutsideAllowlist)->toBe([], 'runAsPlatform() encontrado en código fuera de la lista de excepciones: '.implode(', ', $foundOutsideAllowlist));
 });
+
+/**
+ * ADR-046 §6.7, CA-BO-029. Ninguna llamada a `runAsPlatform()` en `app/`
+ * pasa un propósito calculado en tiempo de ejecución: el argumento es
+ * siempre un caso literal del enum (`PlatformAccessPurpose::Xxx`), nunca
+ * una variable, una llamada a método o cualquier otra expresión. Un
+ * propósito que dependa de una variable es un propósito que un día
+ * valdrá lo que convenga.
+ */
+function firstArgumentIsLiteralEnumCase(array $tokens, int $callParenIndex): bool
+{
+    $isInsignificant = static fn (mixed $t): bool => is_array($t) && in_array($t[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true);
+
+    $i = $callParenIndex + 1;
+    while ($i < count($tokens) && $isInsignificant($tokens[$i])) {
+        $i++;
+    }
+
+    // Forma esperada: PlatformAccessPurpose :: CaseName seguido de ',' o ')'.
+    if (! (is_array($tokens[$i] ?? null) && $tokens[$i][0] === T_STRING && $tokens[$i][1] === 'PlatformAccessPurpose')) {
+        return false;
+    }
+    $i++;
+    while ($i < count($tokens) && $isInsignificant($tokens[$i])) {
+        $i++;
+    }
+    if (! (is_array($tokens[$i] ?? null) && $tokens[$i][0] === T_DOUBLE_COLON)) {
+        return false;
+    }
+    $i++;
+    while ($i < count($tokens) && $isInsignificant($tokens[$i])) {
+        $i++;
+    }
+    if (! (is_array($tokens[$i] ?? null) && $tokens[$i][0] === T_STRING)) {
+        return false;
+    }
+    $i++;
+    while ($i < count($tokens) && $isInsignificant($tokens[$i])) {
+        $i++;
+    }
+    $next = $tokens[$i] ?? null;
+    $nextText = is_array($next) ? $next[1] : $next;
+
+    return $nextText === ',' || $nextText === ')';
+}
+
+test('CA-BO-029: ninguna llamada a runAsPlatform() pasa un propósito calculado en tiempo de ejecución', function (): void {
+    $appPath = base_path('app');
+    $violations = [];
+
+    $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($appPath));
+
+    foreach ($iterator as $file) {
+        if (! $file->isFile() || $file->getExtension() !== 'php') {
+            continue;
+        }
+
+        $path = $file->getPathname();
+        $tokens = token_get_all(file_get_contents($path));
+
+        foreach ($tokens as $i => $token) {
+            if (! (is_array($token) && $token[0] === T_STRING && $token[1] === 'runAsPlatform')) {
+                continue;
+            }
+
+            // Solo llamadas (operador de acceso antes), no la declaración
+            // del método en TenantContext.
+            $j = $i - 1;
+            while ($j >= 0 && is_array($tokens[$j]) && in_array($tokens[$j][0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+                $j--;
+            }
+            $prev = $tokens[$j] ?? null;
+            $isCall = is_array($prev) && in_array($prev[0], [T_OBJECT_OPERATOR, T_NULLSAFE_OBJECT_OPERATOR], true);
+
+            if (! $isCall) {
+                continue;
+            }
+
+            // El paréntesis de apertura de la llamada.
+            $k = $i + 1;
+            while ($k < count($tokens) && is_array($tokens[$k]) && in_array($tokens[$k][0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+                $k++;
+            }
+            if (($tokens[$k] ?? null) !== '(') {
+                continue;
+            }
+
+            if (! firstArgumentIsLiteralEnumCase($tokens, $k)) {
+                $violations[] = $path;
+            }
+        }
+    }
+
+    expect($violations)->toBe([], 'runAsPlatform() invocado con un propósito no literal en: '.implode(', ', array_unique($violations)));
+});

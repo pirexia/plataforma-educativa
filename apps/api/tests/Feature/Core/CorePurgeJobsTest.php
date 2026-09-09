@@ -8,6 +8,7 @@ use App\Modules\Core\Infrastructure\Jobs\PurgeExpiredExports;
 use App\Modules\Core\Infrastructure\Jobs\PurgeExpiredIdempotencyKeys;
 use App\Modules\Core\Infrastructure\Jobs\PurgeExpiredInvitations;
 use App\Modules\Core\Infrastructure\Jobs\PurgeOrphanBrandingAssets;
+use App\Support\Tenancy\PlatformAccessPurpose;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
@@ -143,7 +144,7 @@ test('PurgeExpiredIdempotencyKeys borra físicamente las claves vencidas de cual
 
     PurgeExpiredIdempotencyKeys::dispatch();
 
-    app(TenantContext::class)->runAsPlatform(function () use ($id): void {
+    app(TenantContext::class)->runAsPlatform(PlatformAccessPurpose::Mantenimiento, function () use ($id): void {
         expect(IdempotencyKey::find($id))->toBeNull();
     });
 });

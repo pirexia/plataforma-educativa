@@ -3,6 +3,7 @@
 use App\Models\AuditLog;
 use App\Models\Person;
 use App\Models\User;
+use App\Support\Tenancy\PlatformAccessPurpose;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 
@@ -154,17 +155,26 @@ test('tras anonimizar una persona, ninguna fila de audit_logs referida a ella co
     }
 });
 
-// Hallazgo Media de la revisión independiente de 0.9 (security-reviewer):
-// AuditRecorder no se protegía si isPlatformMode() y hasTenant() coinciden
-// (TenantContext::runAsPlatform() no limpia tenantId()). No ocurre hoy con
-// ningún consumidor real, pero es el hueco que se activaría en cuanto
-// exista el primero. Falla en cerrado: lanza en vez de escribir con
-// tenant_id potencialmente equivocado.
-test('el observer no escribe en audit_logs mientras TenantContext está en modo plataforma', function (): void {
+// Hallazgo Media de la revisión independiente de 0.9 (security-reviewer),
+// resuelto por ADR-046 §6.4 (REQ-BO, 1.6): AuditRecorder no se protegía
+// si isPlatformMode() y hasTenant() coincidían (TenantContext::
+// runAsPlatform() no limpia tenantId()). CA-BO-027: ya no es AuditRecorder
+// quien lo impide — es runAsPlatform() mismo, que ahora exige AUSENCIA de
+// tenant activo con cualquier propósito y lanza antes de ejecutar el
+// callback. El caso "modo plataforma con tenant activo" deja de
+// documentar algo que "no ocurre hoy" y pasa a comprobar que lanza
+// siempre, con el callback sin ejecutarse (el update() nunca llega a
+// intentarse, así que audit_logs no gana ninguna fila).
+test('runAsPlatform() lanza con un tenant activo, en vez de dejar escribir con el tenant equivocado', function (): void {
     $person = Person::factory()->create();
+    $before = AuditLog::where('auditable_id', $person->id)->count();
 
-    app(TenantContext::class)->runAsPlatform(function () use ($person): void {
-        expect(fn () => $person->update(['contact_phone' => '600111222']))
-            ->toThrow(RuntimeException::class, 'modo plataforma');
-    });
+    expect(fn () => app(TenantContext::class)->runAsPlatform(
+        PlatformAccessPurpose::Mantenimiento,
+        function () use ($person): void {
+            $person->update(['contact_phone' => '600111222']);
+        }
+    ))->toThrow(RuntimeException::class, 'tenant activo');
+
+    expect(AuditLog::where('auditable_id', $person->id)->count())->toBe($before);
 });

@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\Tenancy\PlatformAccessPurpose;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use App\Support\Tenancy\TenantContextMissing;
@@ -106,6 +107,7 @@ test('runAsPlatform() ve todos los tenants', function (): void {
     ]);
 
     $todos = $context->runAsPlatform(
+        PlatformAccessPurpose::Mantenimiento,
         fn () => TenantModelProbe::query()->whereIn('tenant_id', [$tenantA->id, $tenantB->id])->get()
     );
 
