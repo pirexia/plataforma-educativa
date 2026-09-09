@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Modules\Backoffice\Domain\Models\PlatformAdmin;
 
 return [
 
@@ -41,6 +42,14 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // ADR-046 §4.1, RN-BO-01, RN-BO-02: guard independiente de 'web',
+        // sobre un provider y un modelo propios, sin tenant_id. 'web' no
+        // cambia.
+        'platform' => [
+            'driver' => 'session',
+            'provider' => 'platform_admins',
+        ],
     ],
 
     /*
@@ -70,6 +79,13 @@ return [
         //     'driver' => 'database',
         //     'table' => 'users',
         // ],
+
+        // ADR-046 §4.1: provider propio del guard 'platform', sobre
+        // PlatformAdmin — sin tenant_id.
+        'platform_admins' => [
+            'driver' => 'eloquent',
+            'model' => PlatformAdmin::class,
+        ],
     ],
 
     /*

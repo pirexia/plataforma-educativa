@@ -5,6 +5,7 @@ namespace App\Support\Tenancy;
 use Closure;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 /**
  * Dónde vive "el tenant actual" durante la petición, un job o un comando.
@@ -18,6 +19,8 @@ final class TenantContext
     private ?int $tenantId = null;
 
     private bool $platformMode = false;
+
+    private ?PlatformAccessPurpose $platformPurpose = null;
 
     private readonly string $basePrefix;
 
@@ -99,30 +102,81 @@ final class TenantContext
     }
 
     /**
-     * ADR-033 §4: la única puerta sancionada para leer entre tenants desde
-     * código de negocio. TenantModel deja de aplicar TenantScope y cambia
-     * de conexión a pgsql_platform (BYPASSRLS) mientras dure el closure —
-     * no una bandera que cualquier ruta de código pueda activar sola, sino
-     * un rol de base de datos distinto con credenciales propias.
+     * ADR-033 §4, ADR-046 §6: la única puerta sancionada para leer entre
+     * tenants desde código de negocio. TenantModel deja de aplicar
+     * TenantScope y cambia de conexión a pgsql_platform (BYPASSRLS)
+     * mientras dure el closure — no una bandera que cualquier ruta de
+     * código pueda activar sola, sino un rol de base de datos distinto
+     * con credenciales propias.
      *
-     * Pendiente (0.8/REQ-BO): dejar rastro en el registro de auditoría de
-     * plataforma (`admin_action_logs`), que todavía no existe.
+     * `$purpose` es el primer parámetro y no tiene valor por defecto,
+     * deliberadamente (funcional.md §6.2.1): así ninguna llamada existente
+     * sigue compilando sin tocarla y ningún llamador futuro hereda un
+     * propósito por omisión.
+     *
+     * Exige ausencia de tenant activo, con cualquier propósito
+     * (funcional.md §6.2.4, ADR-046 §6.4): esta implementación no limpia
+     * tenantId() al entrar en modo plataforma, así que "modo plataforma"
+     * y "tenant activo" a la vez escribiría con el tenant_id equivocado o
+     * violaría un NOT NULL, sin TenantScope que filtre y sobre una
+     * conexión BYPASSRLS. El acceso a datos de un tenant concreto desde
+     * el backoffice se hace fijando tenant_id a mano dentro del bloque
+     * (docblock de BelongsToTenant); la invalidación de caché por tenant
+     * se hace fuera del bloque, con runFor().
+     *
+     * La comprobación de si el propósito es alcanzable desde aquí, y la
+     * obligación de auditoría al cierre, las delega en PlatformAccessCheck
+     * (ADR-046 §6.3): esta clase no puede importar App\Modules\Backoffice
+     * (INV-007), así que pregunta en vez de saber.
+     *
+     * @throws RuntimeException si hay un tenant activo, o si before()/after()
+     *                          deniegan el propósito o encuentran una
+     *                          obligación incumplida
      */
-    public function runAsPlatform(Closure $callback): mixed
+    public function runAsPlatform(PlatformAccessPurpose $purpose, Closure $callback): mixed
     {
+        if ($this->hasTenant()) {
+            throw new RuntimeException(
+                "runAsPlatform({$purpose->value}) no se puede invocar con un tenant activo ".
+                '(ADR-046 §6.4). Sal del contexto de tenant con leave() o fuera del bloque '.
+                'de runFor(), o fija tenant_id a mano dentro del bloque de plataforma si '.
+                'necesitas escribir un dato de un tenant concreto.'
+            );
+        }
+
+        app(PlatformAccessCheck::class)->before($purpose);
+
         $wasPlatformMode = $this->platformMode;
+        $previousPurpose = $this->platformPurpose;
         $this->platformMode = true;
+        $this->platformPurpose = $purpose;
 
         try {
             return $callback();
         } finally {
+            // after() se llama con el bloque todavía "abierto" (antes de
+            // restaurar platformMode/platformPurpose): es simétrico con
+            // before(), que se llama antes de abrirlo, y deja que la
+            // comprobación observe el mismo estado que vio el callback.
+            app(PlatformAccessCheck::class)->after($purpose);
+
             $this->platformMode = $wasPlatformMode;
+            $this->platformPurpose = $previousPurpose;
         }
     }
 
     public function isPlatformMode(): bool
     {
         return $this->platformMode;
+    }
+
+    /**
+     * ADR-046 §6.1: null fuera de modo plataforma. Deja que AuditRecorder
+     * y los tests ramifiquen por propósito sin adivinarlo.
+     */
+    public function platformPurpose(): ?PlatformAccessPurpose
+    {
+        return $this->platformPurpose;
     }
 
     /**

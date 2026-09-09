@@ -16,6 +16,7 @@ use App\Modules\Core\Http\Controllers\InvitationsController;
 use App\Modules\Core\Http\Controllers\MeController;
 use App\Modules\Core\Http\Controllers\ModulesController;
 use App\Modules\Core\Http\Controllers\PermissionsController;
+use App\Modules\Core\Http\Controllers\PlatformActionsController;
 use App\Modules\Core\Http\Controllers\RolesController;
 use App\Modules\Core\Http\Controllers\TenantController;
 use App\Modules\Core\Http\Controllers\TenantSettingsAssetsController;
@@ -195,6 +196,14 @@ Route::get('/audit-logs', [AuditLogsController::class, 'index'])
 Route::post('/audit-logs/exports', [AuditLogsController::class, 'storeExport'])
     ->middleware('permission:auditoria.exportar')
     ->name('core.audit-logs.exports');
+
+// REQ-BO-007 (1.6), api.md §2.9. El dato nace en admin_action_logs
+// (REQ-BO), pero la ruta y el permiso son de REQ-CORE (INV-007):
+// reutiliza auditoria.leer, mismo criterio que REQ-PERM/permisos.md §5.1
+// — el recurso es el mismo desde el punto de vista del centro.
+Route::get('/platform-actions', [PlatformActionsController::class, 'index'])
+    ->middleware('permission:auditoria.leer')
+    ->name('core.platform-actions.index');
 
 // api.md §8: "el permiso del recurso exportado" — en 1.1 el único `kind`
 // es `audit_logs`, así que se fija auditoria.exportar aquí. Cuando otro

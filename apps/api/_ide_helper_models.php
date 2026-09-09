@@ -241,16 +241,23 @@ namespace App\Models{
  * Escritura reservada al comando de 0.8.11 (REVOKE en la migración, no
  * solo en este modelo).
  *
+ * REQ-PERM/datos.md §3 (1.5): `applicable_scopes` — qué ámbitos admite este
+ * permiso. `NULL` en la columna se interpreta como `['todos']`
+ * (funcional.md §3.2 regla 1): el valor que deja el sistema exactamente
+ * como estaba y el que menos permite.
+ *
  * @property string $code
  * @property string $resource
  * @property string $action
  * @property string $module_code
  * @property bool $is_special_category
  * @property \Illuminate\Support\Carbon|null $retired_at
+ * @property array<array-key, mixed>|null $applicable_scopes
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Permission newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Permission newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Permission query()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Permission whereAction($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Permission whereApplicableScopes($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Permission whereCode($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Permission whereIsSpecialCategory($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Permission whereModuleCode($value)
@@ -264,17 +271,26 @@ namespace App\Models{
 
 namespace App\Models{
 /**
- * ADR-034 §2: concesión de un permiso a un rol del tenant. Sin política de
- * auditoría propia en 1.1 — en este paso solo la siembra
- * `tenant:provision-defaults`, no hay escritura de usuario que auditar
- * todavía (1.5 la traerá junto con el resolutor completo).
+ * ADR-034 §2: concesión de un permiso a un rol del tenant.
+ *
+ * REQ-PERM/funcional.md §12.1, `datos.md §5.2` (1.5, issue #165): pasa a
+ * `Auditable` con política `Full` — un código de permiso, un código de rol,
+ * un efecto y un ámbito no son datos personales (`ADR-035 §2`). No declara
+ * `auditExcludedEvents()`: `created` se registra (`ADR-040 §4.4` fija que
+ * `UserSession` es la única exclusión del repositorio).
+ *
+ * **Toda escritura pasa por el modelo** (`create()`/`save()`/`delete()`),
+ * nunca por `attach()`/`detach()`/`sync()` sobre una relación
+ * `belongsToMany` — esas no disparan eventos de modelo y dejarían esta
+ * auditoría muda en la práctica (`RN-PERM-19`). Es exactamente lo que hoy
+ * deja sin rastro a `role_user` (`datos.md §5.3`).
  *
  * @property int $id
  * @property int $tenant_id
  * @property int $role_id
  * @property string $permission_code
  * @property string $effect
- * @property string|null $scope
+ * @property string $scope
  * @property int|null $created_by
  * @property int|null $updated_by
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -1429,6 +1445,398 @@ namespace App\Modules\Auth\Domain\Models{
  */
 	#[\AllowDynamicProperties]
 	class IdeHelperUserSession {}
+}
+
+namespace App\Modules\Backoffice\Domain\Models{
+/**
+ * REQ-BO-007, ADR-033 §7, ADR-036, ADR-047 §4.1/§4.3/§4.4. Solo-anexión
+ * permanente: no hay `update()`/`delete()` que valga desde este modelo
+ * (RN-BO-29) — el motor ya lo rechaza para `plataforma_platform`
+ * (`REVOKE UPDATE, DELETE`), y esto es defensa en profundidad, no la
+ * barrera real.
+ *
+ * Conexión `pgsql_platform` (BYPASSRLS): es como el backoffice lee la
+ * tabla entera, incluidas las columnas que `plataforma_app` no tiene
+ * concedidas. La consulta del propio centro (`GET
+ * /api/v1/platform-actions`, REQ-CORE) NO usa este modelo: corre sobre
+ * la conexión `pgsql` del tenant, con las seis columnas del `GRANT` y
+ * filtrada por la política `tenant_visibility`, no por `BYPASSRLS`.
+ *
+ * @property int $id
+ * @property string $public_id
+ * @property \Illuminate\Support\Carbon $occurred_at
+ * @property \App\Modules\Backoffice\Domain\AdminActionLogActorType $actor_type
+ * @property int|null $actor_platform_admin_id
+ * @property int|null $affected_tenant_id
+ * @property string $subject_type
+ * @property int|null $subject_id
+ * @property string|null $subject_public_id
+ * @property \App\Modules\Backoffice\Domain\AdminActionLogAction $action
+ * @property string|null $reason
+ * @property array<array-key, mixed>|null $changes
+ * @property string|null $ip_address
+ * @property string|null $user_agent
+ * @property string|null $request_id
+ * @property array<array-key, mixed>|null $context
+ * @property-read \App\Modules\Backoffice\Domain\Models\PlatformAdmin|null $actor
+ * @property-read \App\Support\Tenancy\Tenant|null $affectedTenant
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AdminActionLog newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AdminActionLog newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AdminActionLog query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AdminActionLog whereAction($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AdminActionLog whereActorPlatformAdminId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AdminActionLog whereActorType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AdminActionLog whereAffectedTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AdminActionLog whereChanges($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AdminActionLog whereContext($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AdminActionLog whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AdminActionLog whereIpAddress($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AdminActionLog whereOccurredAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AdminActionLog wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AdminActionLog whereReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AdminActionLog whereRequestId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AdminActionLog whereSubjectId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AdminActionLog whereSubjectPublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AdminActionLog whereSubjectType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AdminActionLog whereUserAgent($value)
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperAdminActionLog {}
+}
+
+namespace App\Modules\Backoffice\Domain\Models{
+/**
+ * REQ-BO-007, datos.md §3. La tabla que sostiene "ninguna acción
+ * destructiva en un solo paso". La restricción de aprobador distinto
+ * (RN-BO-19) vive en el motor (`dual_authorizations_distinct_approver`),
+ * no en este modelo — CA-BO-062 la comprueba escribiendo por SQL
+ * directo, precisamente para no confiar en que este código la respete.
+ *
+ * Mecanismo genérico sin *endpoint* propio en 1.6 (docblock de la
+ * migración): el motor y su restricción son de este sub-paso; solicitar,
+ * aprobar y ejecutar una operación concreta llega con la primera acción
+ * real (`tenant.eliminar` en 1.6b).
+ *
+ * @property int $id
+ * @property string $public_id
+ * @property \App\Modules\Backoffice\Domain\DualAuthorizationAction $action
+ * @property array<array-key, mixed> $payload
+ * @property string $payload_fingerprint
+ * @property string $reason
+ * @property int $requested_by
+ * @property \Illuminate\Support\Carbon $requested_at
+ * @property \Illuminate\Support\Carbon $expires_at
+ * @property \App\Modules\Backoffice\Domain\DualAuthorizationStatus $status
+ * @property int|null $approved_by
+ * @property \Illuminate\Support\Carbon|null $approved_at
+ * @property string|null $resolution_reason
+ * @property \Illuminate\Support\Carbon|null $executed_at
+ * @property string|null $execution_error
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Modules\Backoffice\Domain\Models\PlatformAdmin|null $approver
+ * @property-read \App\Modules\Backoffice\Domain\Models\PlatformAdmin|null $requester
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization whereAction($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization whereApprovedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization whereApprovedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization whereExecutedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization whereExecutionError($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization whereExpiresAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization wherePayload($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization wherePayloadFingerprint($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization whereReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization whereRequestedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization whereRequestedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization whereResolutionReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|DualAuthorization whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperDualAuthorization {}
+}
+
+namespace App\Modules\Backoffice\Domain\Models{
+/**
+ * REQ-BO-007, datos.md §2.1. La identidad de plataforma: RN-BO-01, ningún
+ * `platform_admin` tiene tenant — ninguna columna es `tenant_id`, ni
+ * nula, y ninguna consulta pasa por el scope global de tenant.
+ *
+ * Conexión de plataforma directa (`pgsql_platform`), igual que `Tenant`:
+ * este módulo no necesita `TenantContext::runAsPlatform()` para leer o
+ * escribir sus propias tablas (ninguna es de tenant); esa primitiva
+ * sirve para cuando el backoffice toca una tabla de TENANT (p. ej.
+ * `module_subscriptions`, 1.6c).
+ *
+ * No implementa `Auditable`/`RecordsAuditTrail` (ADR-035): esa maquinaria
+ * escribe en `audit_logs`, que es tabla de tenant. El rastro de toda
+ * escritura sobre este modelo lo deja explícitamente el servicio que
+ * escribe, en `admin_action_logs` (RN-BO-29 a RN-BO-32).
+ *
+ * No tiene `person_id` (Person es de tenant, ADR-034 §1) ni
+ * `mfa_required` (obligatorio sin excepción, datos.md §2.1).
+ *
+ * @property int $id
+ * @property string $public_id
+ * @property string $email
+ * @property string $name
+ * @property string $password
+ * @property \App\Modules\Backoffice\Domain\PlatformAdminStatus $status
+ * @property string $locale
+ * @property \Illuminate\Support\Carbon|null $last_login_at
+ * @property \Illuminate\Support\Carbon $password_changed_at
+ * @property \Illuminate\Support\Carbon|null $mfa_enrolled_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\Backoffice\Domain\Models\PlatformAdminMfaFactor> $mfaFactors
+ * @property-read int|null $mfa_factors_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\Backoffice\Domain\Models\PlatformAdminRole> $roleAssignments
+ * @property-read int|null $role_assignments_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin whereEmail($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin whereLastLoginAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin whereLocale($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin whereMfaEnrolledAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin wherePassword($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin wherePasswordChangedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdmin withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperPlatformAdmin {}
+}
+
+namespace App\Modules\Backoffice\Domain\Models{
+/**
+ * datos.md §2.3. Segundo paso pendiente de un login de plataforma,
+ * artefacto transitorio purgado por `bo:purge-mfa-challenges`.
+ *
+ * @property int $id
+ * @property string $public_id
+ * @property int $platform_admin_id
+ * @property string $challenge_hash
+ * @property \Illuminate\Support\Carbon $expires_at
+ * @property \Illuminate\Support\Carbon|null $consumed_at
+ * @property int $attempts
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Modules\Backoffice\Domain\Models\PlatformAdmin|null $admin
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaChallenge newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaChallenge newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaChallenge query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaChallenge whereAttempts($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaChallenge whereChallengeHash($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaChallenge whereConsumedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaChallenge whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaChallenge whereExpiresAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaChallenge whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaChallenge wherePlatformAdminId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaChallenge wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaChallenge whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperPlatformAdminMfaChallenge {}
+}
+
+namespace App\Modules\Backoffice\Domain\Models{
+/**
+ * datos.md §2.3. Solo TOTP (datos.md §2.4): el correo no es segundo
+ * factor en el backoffice.
+ *
+ * @property int $id
+ * @property string $public_id
+ * @property int $platform_admin_id
+ * @property string $type
+ * @property string $secret_encrypted
+ * @property int|null $last_used_step
+ * @property \Illuminate\Support\Carbon|null $confirmed_at
+ * @property \Illuminate\Support\Carbon|null $last_used_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\Backoffice\Domain\Models\PlatformAdmin|null $admin
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaFactor newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaFactor newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaFactor onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaFactor query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaFactor whereConfirmedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaFactor whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaFactor whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaFactor whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaFactor whereLastUsedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaFactor whereLastUsedStep($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaFactor wherePlatformAdminId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaFactor wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaFactor whereSecretEncrypted($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaFactor whereType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaFactor whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaFactor withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaFactor withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperPlatformAdminMfaFactor {}
+}
+
+namespace App\Modules\Backoffice\Domain\Models{
+/**
+ * datos.md §2.3. Solo el hash, nunca el código.
+ *
+ * @property int $id
+ * @property int $platform_admin_id
+ * @property string $code_hash
+ * @property \Illuminate\Support\Carbon|null $used_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Modules\Backoffice\Domain\Models\PlatformAdmin|null $admin
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaRecoveryCode newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaRecoveryCode newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaRecoveryCode query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaRecoveryCode whereCodeHash($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaRecoveryCode whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaRecoveryCode whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaRecoveryCode wherePlatformAdminId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaRecoveryCode whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminMfaRecoveryCode whereUsedAt($value)
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperPlatformAdminMfaRecoveryCode {}
+}
+
+namespace App\Modules\Backoffice\Domain\Models{
+/**
+ * datos.md §2.2. Pivote entre administrador y rol interno.
+ *
+ * @property int $id
+ * @property int $platform_admin_id
+ * @property \App\Modules\Backoffice\Domain\PlatformRole $role
+ * @property int|null $granted_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\Backoffice\Domain\Models\PlatformAdmin|null $admin
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminRole newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminRole newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminRole onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminRole query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminRole whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminRole whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminRole whereGrantedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminRole whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminRole wherePlatformAdminId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminRole whereRole($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminRole whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminRole withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminRole withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperPlatformAdminRole {}
+}
+
+namespace App\Modules\Backoffice\Domain\Models{
+/**
+ * ADR-047 §5.1, datos.md §2.7. Dato de negocio: qué sesiones de
+ * plataforma hay abiertas, desde dónde y por qué terminó cada una.
+ *
+ * `session_id` sin FK a propósito (docblock de la migración): lo
+ * sustituye el barrido de sesiones huérfanas (§2.7.2,
+ * `CloseOrphanedPlatformSessions`).
+ *
+ * @property int $id
+ * @property int $platform_admin_id
+ * @property string|null $session_id
+ * @property string|null $ip_address
+ * @property string|null $user_agent
+ * @property \Illuminate\Support\Carbon $started_at
+ * @property \Illuminate\Support\Carbon $last_seen_at
+ * @property \Illuminate\Support\Carbon|null $reauthenticated_at
+ * @property \Illuminate\Support\Carbon|null $ended_at
+ * @property \App\Modules\Backoffice\Domain\PlatformAdminSessionEndReason|null $end_reason
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Modules\Backoffice\Domain\Models\PlatformAdmin|null $admin
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminSession newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminSession newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminSession query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminSession whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminSession whereEndReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminSession whereEndedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminSession whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminSession whereIpAddress($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminSession whereLastSeenAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminSession wherePlatformAdminId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminSession whereReauthenticatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminSession whereSessionId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminSession whereStartedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminSession whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminSession whereUserAgent($value)
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperPlatformAdminSession {}
+}
+
+namespace App\Modules\Backoffice\Domain\Models{
+/**
+ * REQ-BO-007, datos.md §2.5. `cidr` nativo: el operador de contención lo
+ * verifica el motor, no PHP analizando una máscara en cada petición.
+ *
+ * @property int $id
+ * @property string $public_id
+ * @property string $cidr
+ * @property string $description
+ * @property bool $enabled
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformIpAllowlistEntry newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformIpAllowlistEntry newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformIpAllowlistEntry onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformIpAllowlistEntry query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformIpAllowlistEntry whereCidr($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformIpAllowlistEntry whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformIpAllowlistEntry whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformIpAllowlistEntry whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformIpAllowlistEntry whereDescription($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformIpAllowlistEntry whereEnabled($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformIpAllowlistEntry whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformIpAllowlistEntry wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformIpAllowlistEntry whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformIpAllowlistEntry whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformIpAllowlistEntry withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformIpAllowlistEntry withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperPlatformIpAllowlistEntry {}
 }
 
 namespace App\Modules\Core\Domain\Models{

@@ -17,6 +17,7 @@ use Illuminate\Support\Carbon;
  * datos.md §A.2. Selective: `email` se redacta como `identifier` (dato
  * personal directo, mismo criterio que `users.email`); `unlock_token_hash`
  * lo redacta automáticamente el patrón global `*token*` sin declararlo.
+ *
  * La creación de la fila es un evento `created` y el desbloqueo un
  * `updated`, ambos por el *observer* de 0.9 — ningún código de este
  * módulo llama a AuditRecorder para bloqueo/desbloqueo (funcional.md §10.1).

@@ -8,6 +8,19 @@
 #
 # Sin TLS todavía: certificado comodín bloqueado por OPEN-08 (0.10b).
 # Solo HTTP hasta entonces — documentado, no un olvido.
+#
+# REQ-BO (1.6), operacion.md §0.3. Hoy Traefik recibe la conexión
+# directamente (PublishPort=80:80, sin nada delante) — la IP del cliente
+# que ve es la real, y el middleware `ipallowlist` del backoffice
+# (api@.container) compara contra ella sin más. Si algún día hay OTRO
+# proxy delante de Traefik (balanceador, CDN, WAF), hace falta añadir
+# aquí --entrypoints.web.forwardedHeaders.trustedIPs=<CIDR del proxy> —
+# sin eso, la lista blanca de IP del backoffice pasaría a comparar
+# contra la IP de ese proxy (o del NAT) y dejaría de proteger nada, SIN
+# dar ningún síntoma (ni error, ni log raro, ni 403 que investigar).
+# Comprobación operativa obligatoria tras cualquier cambio en la cadena
+# de proxies: la IP registrada en admin_action_logs para un acceso
+# legítimo tiene que ser la del cliente, nunca una dirección interna.
 
 [Unit]
 Description=Traefik — proxy inverso, único punto de entrada

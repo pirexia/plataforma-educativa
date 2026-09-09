@@ -3,6 +3,7 @@
 namespace App\Modules\Core\Infrastructure\Jobs;
 
 use App\Models\IdempotencyKey;
+use App\Support\Tenancy\PlatformAccessPurpose;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -34,7 +35,7 @@ class PurgeExpiredIdempotencyKeys implements ShouldQueue
 
     public function handle(TenantContext $tenantContext): void
     {
-        $tenantContext->runAsPlatform(function (): void {
+        $tenantContext->runAsPlatform(PlatformAccessPurpose::Mantenimiento, function (): void {
             IdempotencyKey::query()
                 ->where('expires_at', '<', now())
                 ->forceDelete();

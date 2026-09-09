@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Support\Tenancy\DefaultPlatformAccessCheck;
+use App\Support\Tenancy\PlatformAccessCheck;
 use App\Support\Tenancy\TenantContext;
 use App\Support\Tenancy\TenantStorage;
 use Illuminate\Database\Events\ConnectionEstablished;
@@ -25,6 +27,13 @@ class TenancyServiceProvider extends ServiceProvider
     {
         $this->app->singleton(TenantContext::class);
         $this->app->singleton(TenantStorage::class);
+
+        // ADR-046 §6.3: enlace por defecto, sustituido por
+        // App\Modules\Backoffice\Infrastructure\BackofficeServiceProvider
+        // en cuanto ese módulo se registre. Mientras no exista, los dos
+        // propósitos de backoffice de runAsPlatform() están denegados
+        // (INV-002, denegar por defecto).
+        $this->app->singleton(PlatformAccessCheck::class, DefaultPlatformAccessCheck::class);
     }
 
     public function boot(): void

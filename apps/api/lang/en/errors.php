@@ -19,6 +19,8 @@ return [
         'internal' => 'Internal server error',
         'unavailable' => 'Service temporarily unavailable',
         'account-locked' => 'Account locked',
+        'reauthentication-required' => 'Please sign in again',
+        'ip-not-allowed' => 'Access not allowed',
     ],
 
     'detail' => [
@@ -31,5 +33,6 @@ return [
         'internal' => 'An unexpected error occurred. Keep the request identifier if you contact support.',
         'unavailable' => 'The service is temporarily unavailable. Please try again in a few minutes.',
         'account-locked' => 'This account is temporarily locked after too many failed attempts. Check your email or try again later.',
+        'reauthentication-required' => 'This action requires you to confirm your password and second factor again.',
     ],
 ];

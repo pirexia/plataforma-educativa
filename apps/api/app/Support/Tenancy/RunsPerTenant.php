@@ -23,6 +23,7 @@ trait RunsPerTenant
         $context = app(TenantContext::class);
 
         $tenants = $context->runAsPlatform(
+            PlatformAccessPurpose::Mantenimiento,
             fn () => Tenant::query()->where('status', TenantStatus::Activo)->get()
         );
 

@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * ADR-034 §2: esquema completo desde 0.8, resolutor de permisos en 1.5.
+ *
  * mfa_required/special_data_access existen desde ahora aunque nadie los
  * lea todavía (RPERM-014, RPERM-015).
  *

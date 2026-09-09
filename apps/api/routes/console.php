@@ -64,3 +64,10 @@ Schedule::command('auth:purge-saml-correlation')->daily();
 // segunda capa (nunca guardar más de lo necesario, ni siquiera cifrado).
 // failed_jobs es tabla de plataforma (config/tenancy.php), no por tenant.
 Schedule::command('queue:prune-failed', ['--hours' => 24])->daily();
+
+// REQ-BO (1.6), operacion.md §6.2. Las cuatro tareas programadas del
+// chasis de plataforma. Ninguna es por tenant: corren sobre tablas de
+// plataforma, fuera de todo contexto de tenant.
+Schedule::command('bo:expire-dual-authorizations')->everyFifteenMinutes();
+Schedule::command('bo:close-orphaned-sessions')->everyFifteenMinutes();
+Schedule::command('bo:purge-mfa-challenges')->hourly();

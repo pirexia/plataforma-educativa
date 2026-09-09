@@ -22,6 +22,9 @@ return [
         'unavailable' => 'Servicio no disponible temporalmente',
         // REQ-AUTH/api.md §1.1: 423, cuenta bloqueada por intentos fallidos.
         'account-locked' => 'Cuenta bloqueada',
+        // REQ-BO/api.md §5 (1.6): dos códigos propios del backoffice.
+        'reauthentication-required' => 'Vuelve a identificarte',
+        'ip-not-allowed' => 'Acceso no permitido',
     ],
 
     'detail' => [
@@ -34,5 +37,6 @@ return [
         'internal' => 'Se ha producido un error inesperado. Conserva el identificador de la solicitud si contactas con soporte.',
         'unavailable' => 'El servicio no está disponible temporalmente. Inténtalo de nuevo en unos minutos.',
         'account-locked' => 'Esta cuenta está bloqueada temporalmente por demasiados intentos fallidos. Revisa tu correo o inténtalo de nuevo más tarde.',
+        'reauthentication-required' => 'Esta operación exige que confirmes tu contraseña y tu segundo factor de nuevo.',
     ],
 ];

@@ -90,6 +90,13 @@
         <env name="SESSION_LIFETIME" value="480" force="true"/>
         <env name="SESSION_DOMAIN" value="" force="true"/>
         <env name="TENANCY_BASE_DOMAIN" value="plataforma.test" force="true"/>
+        <!--
+            REQ-BO (1.6), RN-BO-49: nunca derivado de TENANCY_BASE_DOMAIN
+            ni subdominio suyo — "backoffice.test" terminaría en
+            ".test" pero no en ".plataforma.test", así que TenantHost::
+            slugFrom() no lo resuelve como ningún tenant.
+        -->
+        <env name="BACKOFFICE_HOST" value="backoffice.test" force="true"/>
         <env name="PULSE_ENABLED" value="false" force="true"/>
         <env name="TELESCOPE_ENABLED" value="false" force="true"/>
         <env name="NIGHTWATCH_ENABLED" value="false" force="true"/>
