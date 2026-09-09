@@ -2,22 +2,23 @@
 
 namespace App\Modules\Backoffice\Infrastructure\Console;
 
-use App\Modules\Backoffice\Application\AdminActionLogRecorder;
-use App\Modules\Backoffice\Domain\AdminActionLogAction;
-use App\Modules\Backoffice\Domain\Models\PlatformAdmin;
-use App\Modules\Backoffice\Domain\Models\PlatformAdminRole;
-use App\Modules\Backoffice\Domain\PlatformAdminStatus;
+use App\Modules\Backoffice\Application\PlatformAdminManagementService;
 use App\Modules\Backoffice\Domain\PlatformRole;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 /**
- * operacion.md §5 pasos 4-5. Crea sin contraseña utilizable. En 1.6 no
- * hay todavía invitación por correo (`OPEN-09`, servicio transaccional
- * pendiente): se genera un token de invitación de un solo uso y se
- * muestra por consola — `actor_type = 'console'` en `admin_action_logs`.
+ * operacion.md §5 pasos 4-5. Crea sin contraseña utilizable y emite una
+ * invitación real (issue #173): usa el mismo `PlatformAdminManagement
+ * Service::create()` que `POST /admins`, para que el alta desde consola y
+ * el alta desde la API compartan un único punto que crea e invita
+ * (`api.md §2.2`) — antes de la corrección, este comando duplicaba la
+ * transacción a mano y nunca emitía la invitación (issue #173).
+ *
+ * `AdminActionLogRecorder::resolveActorType()` ya distingue `console` de
+ * `platform_admin` mirando `Auth::guard('platform')->user()` y
+ * `app()->runningInConsole()`: no hace falta que este comando pase nada
+ * especial para que `actor_type = 'console'` en `admin_action_logs`.
  *
  * El paso 5 de operacion.md ("repetir para un segundo
  * superadministrador") no es opcional: con una sola cuenta, eliminar un
@@ -27,9 +28,9 @@ class CreateAdminCommand extends Command
 {
     protected $signature = 'bo:create-admin {--email=} {--name=} {--role=superadministrador} {--locale=es-ES}';
 
-    protected $description = 'Crea un administrador de plataforma sin contraseña utilizable (operacion.md §5)';
+    protected $description = 'Crea un administrador de plataforma sin contraseña utilizable y le envía una invitación (operacion.md §5)';
 
-    public function handle(AdminActionLogRecorder $recorder): int
+    public function handle(PlatformAdminManagementService $management): int
     {
         $email = (string) ($this->option('email') ?: $this->ask('Correo'));
         $name = (string) ($this->option('name') ?: $this->ask('Nombre'));
@@ -41,30 +42,10 @@ class CreateAdminCommand extends Command
             throw new InvalidArgumentException('--role debe ser uno de: soporte, operaciones, comercial, superadministrador.');
         }
 
-        $admin = DB::connection('pgsql_platform')->transaction(function () use ($email, $name, $locale, $role): PlatformAdmin {
-            $admin = PlatformAdmin::create([
-                'email' => $email,
-                'name' => $name,
-                'locale' => $locale,
-                'password' => Str::password(40),
-                'status' => PlatformAdminStatus::Activo,
-                'password_changed_at' => now(),
-            ]);
-
-            PlatformAdminRole::create(['platform_admin_id' => $admin->id, 'role' => $role]);
-
-            return $admin;
-        });
-
-        $recorder->record(
-            action: AdminActionLogAction::AdminCreado,
-            subjectPublicId: $admin->public_id,
-            reason: 'alta desde consola',
-            context: ['role' => $role->value],
-        );
+        $management->create($email, $name, $locale, $role);
 
         $this->info("Administrador creado: {$email} ({$role->value}).");
-        $this->warn('Sin invitación por correo (OPEN-09 pendiente): fija la contraseña con bo:reset-mfa/canal seguro propio.');
+        $this->info('Invitación emitida y encolada para su envío (operacion.md §0, fila "Correo").');
 
         return self::SUCCESS;
     }

@@ -1631,6 +1631,46 @@ namespace App\Modules\Backoffice\Domain\Models{
 
 namespace App\Modules\Backoffice\Domain\Models{
 /**
+ * Issue #173. Precedente de forma: `App\Modules\Core\Domain\Models\
+ * UserInvitation` — pero de plataforma (sin `tenant_id`, sin scope de
+ * tenant, sin `TenantModel`), como el resto de `App\Modules\Backoffice\
+ * Domain\Models`.
+ *
+ * No implementa `Auditable`/`RecordsAuditTrail` (ADR-035), por el mismo
+ * motivo que `PlatformAdmin`: esa maquinaria escribe en `audit_logs`, que
+ * es tabla de tenant. El rastro lo deja explícitamente el servicio que
+ * escribe, en `admin_action_logs`.
+ *
+ * @property int $id
+ * @property string $public_id
+ * @property int $platform_admin_id
+ * @property string $token_hash
+ * @property \Illuminate\Support\Carbon $expires_at
+ * @property \Illuminate\Support\Carbon|null $accepted_at
+ * @property \Illuminate\Support\Carbon|null $revoked_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Modules\Backoffice\Domain\Models\PlatformAdmin|null $admin
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminInvitation newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminInvitation newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminInvitation query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminInvitation whereAcceptedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminInvitation whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminInvitation whereExpiresAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminInvitation whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminInvitation wherePlatformAdminId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminInvitation wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminInvitation whereRevokedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminInvitation whereTokenHash($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformAdminInvitation whereUpdatedAt($value)
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperPlatformAdminInvitation {}
+}
+
+namespace App\Modules\Backoffice\Domain\Models{
+/**
  * datos.md §2.3. Segundo paso pendiente de un login de plataforma,
  * artefacto transitorio purgado por `bo:purge-mfa-challenges`.
  *

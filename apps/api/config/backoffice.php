@@ -51,4 +51,17 @@ return [
 
     'dual_authorization_ttl_minutes' => (int) env('BO_DUAL_AUTH_TTL', 60),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Invitación de administradores de plataforma (issue #173)
+    |--------------------------------------------------------------------------
+    |
+    | Mismo criterio y mismo valor por defecto que `core.invitation_ttl_days`
+    | (REQ-CORE), pero propia: no se deriva de aquella — es una invitación
+    | de plataforma, no de tenant.
+    |
+    */
+
+    'invitation_ttl_days' => (int) env('BO_INVITATION_TTL_DAYS', 7),
+
 ];

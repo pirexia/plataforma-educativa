@@ -113,8 +113,16 @@ Route::prefix('v1')->middleware([
 //   7. csrf
 //   8. require-platform-session-idle-timeout — caducidad de RN-BO-09
 //   9. resolve-platform-locale
-//  10. require-platform-mfa              — RN-BO-05, sin gracia y sin exención
+//  10. require-platform-mfa              — por ruta, sin gracia y sin
+//                                           lista de excepciones (issue
+//                                           #174, OPEN-BO-13): :exento o
+//                                           enforcing por defecto
 //  11. require-platform-capability       — por ruta, con :identity o :<capacidad>
+//
+// Los puestos 10 y 11 se declaran EN CADA RUTA de
+// `Modules/Backoffice/Http/routes.php`, no en este array: los dos
+// conocen su propia excepción por parámetro de ruta, mismo patrón para
+// los dos — ninguna lista de nombres de ruta que mantener aparte.
 Route::prefix('platform/v1')->middleware([
     'require-platform-host',
     'enforce-platform-ip-allowlist',
@@ -125,7 +133,6 @@ Route::prefix('platform/v1')->middleware([
     'csrf',
     'require-platform-session-idle-timeout',
     'resolve-platform-locale',
-    'require-platform-mfa',
 ])->group(function (): void {
     require app_path('Modules/Backoffice/Http/routes.php');
 });

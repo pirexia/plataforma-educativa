@@ -78,6 +78,7 @@ beforeEach(function (): void {
     DB::connection('pgsql_owner')->statement('TRUNCATE admin_action_logs');
     DB::connection('pgsql_platform')->table('platform_admin_mfa_factors')->delete();
     DB::connection('pgsql_platform')->table('platform_admin_roles')->delete();
+    DB::connection('pgsql_platform')->table('platform_admin_invitations')->delete();
     DB::connection('pgsql_platform')->table('platform_admins')->delete();
     DB::connection('pgsql_platform')->table('platform_ip_allowlist')->delete();
     DB::connection('pgsql_platform')->table('tenants')->delete();
@@ -87,6 +88,7 @@ afterAll(function (): void {
     DB::connection('pgsql_owner')->statement('TRUNCATE admin_action_logs');
     DB::connection('pgsql_platform')->table('platform_admin_mfa_factors')->delete();
     DB::connection('pgsql_platform')->table('platform_admin_roles')->delete();
+    DB::connection('pgsql_platform')->table('platform_admin_invitations')->delete();
     DB::connection('pgsql_platform')->table('platform_admins')->delete();
     DB::connection('pgsql_platform')->table('platform_ip_allowlist')->delete();
     DB::connection('pgsql_platform')->table('tenants')->delete();

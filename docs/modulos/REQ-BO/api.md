@@ -83,8 +83,11 @@ Dos lecturas posibles, ninguna la decidía `spec-writer` porque las dos tocan la
 | `POST /auth/reauthenticate` | Identidad | Contraseña **y** segundo factor. Marca la sesión como reautenticada (§4) |
 | `GET /me` | Identidad | El administrador y sus roles. **Sin permiso, por identidad del portador**, igual que `GET /me` en `REQ-CORE` |
 | `POST /mfa/factors` · `POST /mfa/factors/{public_id}/confirm` · `GET /mfa/recovery-codes` | Identidad | Alta y confirmación del segundo factor. Únicos endpoints alcanzables sin factor confirmado |
+| `POST /admin-invitation-redemptions` | — | **Añadido por el issue [#173](https://github.com/pirexia/plataforma-educativa/issues/173)**: `CreateAdminCommand` no emitía ninguna invitación pese a documentarlo, dejando el chasis inutilizable de extremo a extremo. Anónimo, autorizado por posesión del token — mismo criterio que `POST /api/v1/auth/invitation-redemptions` de `REQ-AUTH`. Fija la contraseña; **no** abre sesión (mismo criterio que `RN-AUTH-21`). `410` si el token no es válido, caducado, revocado o ya canjeado. **No existe todavía un `CA-BO` numerado para este endpoint** — hueco real de la especificación detectado al resolver el issue, pendiente de que `funcional.md` lo incorpore |
 
 **Errores de `POST /auth/session`**: `401` credenciales inválidas (mensaje **idéntico** para usuario inexistente y contraseña incorrecta), `403` IP no permitida, `429` límite de tasa con `Retry-After`.
+
+**Sobre el issue [#173](https://github.com/pirexia/plataforma-educativa/issues/173)**: `POST /admins` y `bo:create-admin` (`operacion.md §5` paso 4) comparten ahora un único punto de alta (`PlatformAdminManagementService::create()`) que crea el administrador **y** despacha, en cola, una invitación real (`SendPlatformAdminInvitationEmail`, precedente de forma `Core\Infrastructure\Jobs\SendInvitationEmail`) — token de un solo uso, hash SHA-256 en `platform_admin_invitations` (tabla de plataforma nueva, `datos.md §2.8`), canjeable en el endpoint de arriba. `docs/modulos/REQ-BO/operacion.md §5` ya documentaba este flujo; lo que no existía era la implementación.
 
 ### 2.2 Administradores de plataforma (`REQ-BO-007`)
 

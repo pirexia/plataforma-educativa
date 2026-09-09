@@ -57,7 +57,7 @@ return [
         // fila que filtrar (datos.md §2.6.3).
         'platform' => [
             'failed_jobs',
-            'platform_admins', 'platform_admin_roles',
+            'platform_admins', 'platform_admin_roles', 'platform_admin_invitations',
             'platform_admin_mfa_factors', 'platform_admin_mfa_recovery_codes', 'platform_admin_mfa_challenges',
             'platform_ip_allowlist',
             'platform_sessions', 'platform_admin_sessions',

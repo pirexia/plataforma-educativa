@@ -40,6 +40,11 @@ class BackofficeServiceProvider extends ServiceProvider
     {
         $this->loadMigrationsFrom(app_path('Modules/Backoffice/Database/migrations'));
 
+        // Issue #173. Precedente: CoreServiceProvider::boot() registra
+        // 'core' para InvitationMail. Aquí, la vista del correo de
+        // invitación de un platform_admin.
+        $this->loadViewsFrom(app_path('Modules/Backoffice/Infrastructure/resources/views'), 'backoffice');
+
         // Ninguno de los modelos de este módulo implementa Auditable
         // (RN-BO-29 a RN-BO-32: el rastro es `admin_action_logs`, no
         // `audit_logs`) ni usa una relación polimórfica propia, así que

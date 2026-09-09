@@ -13,4 +13,14 @@ return [
     'validation' => [
         'cursor_invalid' => 'The pagination cursor is not valid.',
     ],
+    // Issue #173. Platform admin invitation email.
+    'mail' => [
+        'invitation' => [
+            'subject' => 'Activate your platform administrator account',
+            'greeting' => 'Hello, :name.',
+            'body' => 'You have been invited as an administrator of the school management platform backoffice.',
+            'cta' => 'Activate my account',
+            'expires' => 'This link expires in :days days. If you were not expecting this, you can ignore it.',
+        ],
+    ],
 ];

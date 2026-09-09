@@ -31,6 +31,8 @@ enum AdminActionLogAction: string
     case AdminRolConcedido = 'admin.rol_concedido';
     case AdminRolRetirado = 'admin.rol_retirado';
     case AdminMfaRestablecido = 'admin.mfa_restablecido';
+    case AdminInvitado = 'admin.invitado';
+    case AdminInvitacionCanjeada = 'admin.invitacion_canjeada';
 
     case IpPermitidaAnadida = 'ip.permitida_anadida';
     case IpPermitidaRetirada = 'ip.permitida_retirada';

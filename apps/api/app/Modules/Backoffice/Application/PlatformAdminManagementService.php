@@ -24,8 +24,16 @@ final class PlatformAdminManagementService
 {
     public function __construct(
         private readonly AdminActionLogRecorder $recorder,
+        private readonly IssuePlatformAdminInvitation $invitations,
     ) {}
 
+    /**
+     * Issue #173. `create()` la usan `POST /admins` y `bo:create-admin`
+     * por igual (api.md §2.2: «crea sin contraseña utilizable e
+     * invita»): el alta y la invitación son un único punto, mismo
+     * precedente de forma que `CreateUser` (`REQ-CORE`), que emite la
+     * invitación dentro de la misma transacción.
+     */
     public function create(string $email, string $name, string $locale, PlatformRole $role): PlatformAdmin
     {
         return DB::connection('pgsql_platform')->transaction(function () use ($email, $name, $locale, $role): PlatformAdmin {
@@ -35,7 +43,8 @@ final class PlatformAdminManagementService
                 'locale' => $locale,
                 // Sin contraseña utilizable: hash de un valor aleatorio
                 // que nadie conoce. El alta invita, no fija contraseña
-                // (funcional.md §5.1, operacion.md §5 paso 4).
+                // (funcional.md §5.1, operacion.md §5 paso 4) — la fija
+                // el canje de la invitación (issue #173).
                 'password' => Str::password(40),
                 'status' => PlatformAdminStatus::Activo,
                 'password_changed_at' => now(),
@@ -47,6 +56,8 @@ final class PlatformAdminManagementService
             ]);
 
             $this->recorder->record(action: AdminActionLogAction::AdminCreado, subjectPublicId: $admin->public_id, reason: 'alta de administrador de plataforma');
+
+            $this->invitations->issue($admin);
 
             return $admin;
         });

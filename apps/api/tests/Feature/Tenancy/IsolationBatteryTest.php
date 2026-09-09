@@ -5,6 +5,7 @@ use App\Modules\Auth\Domain\Models\MfaReset;
 use App\Modules\Backoffice\Domain\Models\AdminActionLog;
 use App\Modules\Backoffice\Domain\Models\DualAuthorization;
 use App\Modules\Backoffice\Domain\Models\PlatformAdmin;
+use App\Modules\Backoffice\Domain\Models\PlatformAdminInvitation;
 use App\Modules\Backoffice\Domain\Models\PlatformAdminMfaChallenge;
 use App\Modules\Backoffice\Domain\Models\PlatformAdminMfaFactor;
 use App\Modules\Backoffice\Domain\Models\PlatformAdminMfaRecoveryCode;
@@ -174,6 +175,9 @@ test('los modelos Eloquent de app/Modules extienden TenantModel', function (): v
         // nueve viven en `App\Modules\Backoffice`, así que sí entran en
         // el barrido de este test y necesitan su propia excepción.
         PlatformAdmin::class,
+        // Issue #173: mismo motivo que el resto de esta lista —
+        // platform_admin_invitations es tabla de plataforma, sin tenant.
+        PlatformAdminInvitation::class,
         PlatformAdminRole::class,
         PlatformAdminMfaFactor::class,
         PlatformAdminMfaRecoveryCode::class,

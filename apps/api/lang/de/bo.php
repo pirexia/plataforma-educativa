@@ -13,4 +13,14 @@ return [
     'validation' => [
         'cursor_invalid' => 'Der Paginierungs-Cursor ist ungültig.',
     ],
+    // Issue #173. Einladungs-E-Mail für einen Plattform-Administrator.
+    'mail' => [
+        'invitation' => [
+            'subject' => 'Aktiviere dein Konto als Plattform-Administrator',
+            'greeting' => 'Hallo, :name.',
+            'body' => 'Du wurdest als Administrator des Backoffice der Bildungsverwaltungsplattform eingeladen.',
+            'cta' => 'Mein Konto aktivieren',
+            'expires' => 'Dieser Link läuft in :days Tagen ab. Falls du dies nicht erwartet hast, kannst du die Nachricht ignorieren.',
+        ],
+    ],
 ];

@@ -13,4 +13,14 @@ return [
     'validation' => [
         'cursor_invalid' => 'Le curseur de pagination n\'est pas valide.',
     ],
+    // Issue #173. Courriel d'invitation d'un administrateur de plateforme.
+    'mail' => [
+        'invitation' => [
+            'subject' => 'Activez votre compte d\'administrateur de plateforme',
+            'greeting' => 'Bonjour :name.',
+            'body' => 'Vous avez été invité(e) comme administrateur du backoffice de la plateforme de gestion scolaire.',
+            'cta' => 'Activer mon compte',
+            'expires' => 'Ce lien expire dans :days jours. Si vous ne vous attendiez pas à ce message, vous pouvez l\'ignorer.',
+        ],
+    ],
 ];

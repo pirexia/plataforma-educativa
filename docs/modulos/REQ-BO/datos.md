@@ -12,6 +12,7 @@
 |-------|------|-------------|-----|----------|
 | `platform_admins` | Plataforma | — | No | `plataforma_platform`, `plataforma_owner` |
 | `platform_admin_roles` | Plataforma | — | No | Ídem |
+| `platform_admin_invitations` | Plataforma | — | No | Ídem (§2.8, issue [#173](https://github.com/pirexia/plataforma-educativa/issues/173)) |
 | `platform_admin_mfa_factors` | Plataforma | — | No | Ídem |
 | `platform_admin_mfa_recovery_codes` | Plataforma | — | No | Ídem |
 | `platform_admin_mfa_challenges` | Plataforma | — | No | Ídem |
@@ -26,7 +27,7 @@
 | `tenants` | Ya existe | — | Ya tiene la suya (`id = app.current_tenant_id()`) | Gana columnas (§6) |
 | `module_subscriptions` | Ya existe, **de tenant** | Sí | Ya la tiene | **Gana una migración de privilegios** (§7), sin cambio de esquema |
 
-**Trece tablas nuevas**: nueve del chasis, del ciclo de vida y de la auditoría; **las dos de la sesión de plataforma** que trae `ADR-046 §5` (§2.6, §2.7); y las dos del motor de *feature flags* que entró en alcance por decisión del usuario del 2026-09-08 (§9). Es el dato que sostiene la división del paso en cinco (`funcional.md §12`).
+**Trece tablas nuevas** en la revisión original: nueve del chasis, del ciclo de vida y de la auditoría; **las dos de la sesión de plataforma** que trae `ADR-046 §5` (§2.6, §2.7); y las dos del motor de *feature flags* que entró en alcance por decisión del usuario del 2026-09-08 (§9). Es el dato que sostiene la división del paso en cinco (`funcional.md §12`). **Catorce desde el issue [#173](https://github.com/pirexia/plataforma-educativa/issues/173)** (2026-09-09): `platform_admin_invitations` (§2.8), necesaria para que el mecanismo de invitación de administradores de plataforma, ya documentado en `operacion.md §5`, tuviera implementación real.
 
 ---
 
@@ -242,6 +243,33 @@ Verificado por `CA-BO-104`.
 
 **Qué obliga a revocar**, y por eso la tabla no es opcional en `1.6`: suspender o eliminar un `platform_admin` (`admin.suspendido`, `admin.eliminado`), retirarle roles, y restablecerle el segundo factor (`admin.mfa_restablecido`). Sin esta tabla, «suspendido» significaría «no puede volver a entrar» y no «está fuera ahora», que es lo que hace falta cuando se suspende a alguien por un incidente. Cada revocación deja entrada en `admin_action_logs` con `action = 'sesion.cerrada'` (§4.2).
 
+### 2.8 `platform_admin_invitations`
+
+**Issue [#173](https://github.com/pirexia/plataforma-educativa/issues/173), no prevista en la revisión original de este documento.** `CreateAdminCommand` generaba una contraseña aleatoria descartada, sin ningún mecanismo para que el administrador de plataforma la sustituyera por una utilizable: `operacion.md §5` pasos 4 y 6 documentaban «crea sin contraseña utilizable y emite invitación» / «el primer administrador canjea su invitación, fija contraseña y da de alta su segundo factor», pero ninguna de las dos piezas existía. Esta tabla, junto con el servicio de emisión y el *endpoint* de canje (`api.md §2.1`), cierra ese hueco.
+
+**Precedente de forma**: `user_invitations` (`REQ-CORE`, `datos.md §A.2`) — token de un solo uso, sólo su hash se persiste, una invitación viva por titular. **Diferencia**: es tabla de **plataforma** (`TenantMigration::platformTable()`), no de tenant — `platform_admins` no tiene tenant (`RN-BO-01`), así que tampoco lo tiene su invitación. Y, a diferencia de `user_invitations`, no hay un estado `pendiente` que comprobar en el sujeto: `platform_admins.status` sólo admite `activo`/`suspendido` (§2.1); la vigencia de la invitación la decide únicamente esta tabla.
+
+| Campo | Tipo | Nulo | Descripción |
+|---|---|---|---|
+| `id` | `bigserial` | No | |
+| `public_id` | `text` | No | ULID, `UNIQUE` |
+| `platform_admin_id` | `bigint` | No | FK → `platform_admins.id`, `ON DELETE CASCADE` |
+| `token_hash` | `text` | No | Sólo el hash SHA-256 (mismo criterio que `RN-CORE-19`, sin equivalente numerado propio de `REQ-BO`). El token en claro no se persiste en ningún sitio: sólo viaja en el *payload* de `SendPlatformAdminInvitationEmail` y en el correo generado |
+| `expires_at` | `timestamptz` | No | `now() + config('backoffice.invitation_ttl_days')` (`BO_INVITATION_TTL_DAYS`, por defecto 7 — mismo valor por defecto que `CORE_INVITATION_TTL_DAYS`, configurado por separado) |
+| `accepted_at` | `timestamptz` | Sí | La escribe el canje |
+| `revoked_at` | `timestamptz` | Sí | Emitir una invitación nueva para el mismo administrador revoca la viva (mismo criterio que `RN-CORE-09`) |
+| `created_at`, `updated_at` | `timestamptz` | No | |
+
+**Índices**: `UNIQUE (token_hash)` — global, sin partición por tenant, es la búsqueda del canje; `UNIQUE (platform_admin_id) WHERE accepted_at IS NULL AND revoked_at IS NULL` — una sola invitación viva por administrador.
+
+**Sin `deleted_at`**: como `platform_admin_mfa_challenges`, es un artefacto transitorio, no una entidad de negocio con ciclo de vida propio que borrar lógicamente.
+
+**Sin tarea de purga programada**: `operacion.md §6.2` enumera **cuatro** tareas para `1.6` y esta no es una de ellas — deliberado, no un olvido de esta adición. Una invitación caducada simplemente deja de ser válida en el canje (`410`); no hay dato sensible en las filas caducadas que purgar con la urgencia de, por ejemplo, un desafío de MFA. Si el volumen algún día lo justifica, es una tarea programada nueva y una decisión de producto, no algo que este issue deba introducir por su cuenta.
+
+**Vocabulario de `admin_action_logs.action`** (§4.2): dos valores nuevos, `admin.invitado` (se emitió el token) y `admin.invitacion_canjeada` (se fijó la contraseña) — añadidos por migración, como exige el vocabulario cerrado.
+
+**Privilegios**: los mismos que toda tabla de `platformTable()` — `REVOKE ALL … FROM plataforma_app`, tabla y secuencia (§12.1) —, y **la misma declaración obligatoria** en `shared_tables.platform`.
+
 ---
 
 ## 3. `dual_authorizations`
@@ -323,7 +351,7 @@ Cerrado, con `CHECK`, siguiendo el precedente de `audit_logs.event` (`ADR-034 §
 | Grupo | Valores |
 |-------|---------|
 | Acceso | `acceso.concedido`, `acceso.rechazado`, `acceso.rechazado_por_ip`, `sesion.cerrada`, `reautenticacion.superada` |
-| Administradores | `admin.creado`, `admin.actualizado`, `admin.suspendido`, `admin.reactivado`, `admin.eliminado`, `admin.rol_concedido`, `admin.rol_retirado`, `admin.mfa_restablecido` |
+| Administradores | `admin.creado`, `admin.actualizado`, `admin.suspendido`, `admin.reactivado`, `admin.eliminado`, `admin.rol_concedido`, `admin.rol_retirado`, `admin.mfa_restablecido`, `admin.invitado`, `admin.invitacion_canjeada` (los dos últimos, issue [#173](https://github.com/pirexia/plataforma-educativa/issues/173)) |
 | Lista blanca | `ip.permitida_anadida`, `ip.permitida_retirada` |
 | Doble autorización | `autorizacion.solicitada`, `autorizacion.aprobada`, `autorizacion.rechazada`, `autorizacion.caducada`, `autorizacion.ejecutada`, `autorizacion.fallida` |
 | Tenants | `tenant.creado`, `tenant.actualizado`, `tenant.suspendido`, `tenant.reactivado`, `tenant.baja_iniciada`, `tenant.rescatado`, `tenant.eliminado`, `tenant.clonado` |
@@ -824,6 +852,8 @@ erDiagram
 | 7 | `1.6e` | `tenants` gana `early_adopter_since` anulable (§6.1) | **Instantáneo** | Aditivo puro. Va en su propia migración, no mezclada con la #4: son dos sub-pasos distintos |
 
 **Todas aditivas. No hay fase *contract* y no hay nada que revertir en dos entregas** (`CLAUDE.md §9`).
+
+**Añadido por el issue [#173](https://github.com/pirexia/plataforma-educativa/issues/173) (2026-09-09), fuera de la fila numerada de arriba porque no formaba parte del plan de sub-pasos original**: dos migraciones más, ambas aditivas. La primera crea `platform_admin_invitations` (§2.8) con el mismo patrón `platformTable()` que el resto del chasis. La segunda amplía el `CHECK` de `admin_action_logs.action` con `admin.invitado`/`admin.invitacion_canjeada` — `DROP CONSTRAINT` + `ADD CONSTRAINT` del mismo `CHECK` con dos valores más, **nunca** una migración que renombre o borre valores existentes.
 
 > **Recordatorio de `db-reviewer` que ya costó un hallazgo Alta en 1.4b, 1.4c y 1.5**: las migraciones que ejecutan DDL fuera de transacción —y las que tocan privilegios lo son— necesitan `$withinTransaction = false`. Es el issue [#166](https://github.com/pirexia/plataforma-educativa/issues/166) repitiéndose por cuarta vez si nadie lo mira.
 
