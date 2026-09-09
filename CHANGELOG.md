@@ -6,6 +6,34 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-09-08 · `1.6` (`REQ-BO`, chasis de identidad, autorización y auditoría de plataforma)
+
+Primer sub-paso de cinco (`1.6`/`1.6b`/`1.6c`/`1.6d`/`1.6e`, decisión del usuario del 2026-09-08). Este cierre es solo `1.6`: `REQ-BO-007` completo — identidad de plataforma, MFA propio, lista blanca de IP, sesión corta con reautenticación, auditoría de plataforma — más el trabajo de infraestructura que `ADR-046` exige para separar la superficie del backoffice del producto.
+
+### Nuevo: segundo sujeto de autenticación, `App\Modules\Backoffice`
+`platform_admins` (identidad de plataforma, sin `tenant_id`, `RN-BO-01`) y sus cuatro roles internos fijos (`soporte`, `operaciones`, `comercial`, `superadministrador`, declarados en código — `permisos.md §2`); MFA propio de solo TOTP, sin gracia ni exención (`platform_admin_mfa_factors`/`_recovery_codes`/`_challenges`); `platform_ip_allowlist` con tipo `cidr` nativo verificado por el motor; sesión de plataforma sobre `platform_sessions` (driver `database`, `REVOKE ALL … FROM plataforma_app`, `ADR-046 §5`) y `platform_admin_sessions` (dato de negocio, `session_id` sin FK a propósito — `ADR-047 §5.1`); `dual_authorizations` (mecanismo genérico de doble autorización, con su `CHECK` de aprobador distinto en el motor, `RN-BO-19` — sin *endpoint* propio todavía: la primera acción real llega en `1.6b`); `admin_action_logs` (auditoría de plataforma, categoría nueva "plataforma con visibilidad por tenant afectado" de `ADR-047`, `affected_tenant_id`, política `tenant_visibility`, `GRANT SELECT` de seis columnas enumeradas); `tenant_lifecycle_events` (tabla, pieza de esquema para `1.6b`).
+
+Guard `platform` y provider `platform_admins` (`config/auth.php`), grupo de rutas `/api/platform/v1` hermano de `/api/v1` con pila de *middleware* propia y completa (`RequirePlatformHost`, `EnforcePlatformIpAllowlist`, `ConfigurePlatformSession`, `RequirePlatformSessionIdleTimeout`, `ResolvePlatformLocale`, `RequirePlatformMfa`, `RequirePlatformCapability` — ninguno de los tres de tenant). `GET /api/v1/platform-actions` (en `REQ-CORE`, no en `REQ-BO` — `INV-007`) y `GET /admin-action-logs`/`GET /tenants/{id}/admin-action-logs` (en el backoffice), con dos índices y dos codificadores de cursor distintos porque corren con privilegios distintos (`plataforma_app` sin `id` concedido, frente a `plataforma_platform` con `BYPASSRLS`).
+
+### Nuevo: `App\Support\Tenancy` — `runAsPlatform(PlatformAccessPurpose, Closure)`
+Cambio de firma de infraestructura compartida (`ADR-046 §6`), no código de `REQ-BO`: propósito declarado sin valor por defecto (`Mantenimiento`, `BackofficeLectura`, `BackofficeEscritura`), ausencia de tenant activo obligatoria con cualquier propósito, y comprobación delegada en `PlatformAccessCheck` (denegado por defecto hasta que `BackofficeServiceProvider` registra la implementación real). Un bloque `BackofficeEscritura` que no deja ninguna entrada en `admin_action_logs` lanza al cerrarse. `AuditRecorder` gana la rama de propósito: lanza con `Mantenimiento`, retorna en silencio con los dos de backoffice. Test de arquitectura ampliado con la aserción de que ningún propósito se calcula en tiempo de ejecución.
+
+### Infraestructura: separación de superficie en `infra/quadlet` (`ADR-046 §4`)
+Las reglas de Traefik pasan de `PathPrefix` a `Host(...) && PathPrefix(...)` en `web.container` y `api@.container`; router nuevo `plataforma-api-platform` bajo el host del backoffice, con su propio *middleware* `ipallowlist` — segunda capa de lista blanca, además de la de la aplicación. `install.sh` sustituye `TENANCY_BASE_DOMAIN`, `BACKOFFICE_HOST` y `BACKOFFICE_ALLOWED_IPS` con el mismo mecanismo de sustitución que `__TAG__`. El router de la SPA del backoffice queda para el paso de interfaz, posterior a `1.7`/`1.9` — no hay SPA que servir todavía.
+
+### Esquema
+Once migraciones aditivas puras, todas tablas nuevas (sin ciclo *contract*): siete tablas de plataforma pura del chasis; `platform_sessions`/`platform_admin_sessions`; `admin_action_logs`; `tenant_lifecycle_events`. Las once declaradas en `config('tenancy.shared_tables.platform')`. `TenantMigration` gana `platformTable()`/`revokeSequenceAndTable()` (recomendación de `ADR-047 §4.5`, tomada): centraliza el `REVOKE` de tabla y de secuencia que trece tablas escribiendo a mano habría arriesgado olvidar en una.
+
+**Desviación deliberada de `datos.md §2.3`, declarada para revisión**: `platform_admin_mfa_factors` añade `last_used_step` (no listada en la tabla compacta del documento) porque el mecanismo reutilizado (`MfaVerifier`/`ADR-041`) la exige para el anti-repetición de `RN-AUTH-58`; sin ella, un código TOTP capturado sería válido varias veces dentro de su ventana, sobre la cuenta más peligrosa del producto.
+
+### Sin resolver, declarado
+No hay mecanismo de invitación/alta de contraseña para un `platform_admin` recién creado: `api.md` no documenta ningún *endpoint* de canje, a diferencia de `REQ-AUTH`. `bo:create-admin` deja al administrador sin forma de fijar su contraseña por la API. Pendiente de decisión antes de que el chasis sea operable de verdad en un entorno real.
+
+### Documentación
+`infra/quadlet/plataforma.env.example` (tres variables nuevas), `phpunit.xml` (`BACKOFFICE_HOST` de pruebas). `docs/modulos/REQ-BO/*.md` no se tocan: son la especificación ya aprobada, no un espejo del código.
+
+---
+
 ## 2026-09-04/07 · Cierre de 1.5 (`REQ-PERM`, núcleo de autorización granular)
 
 ### Nuevo: motor de resolución multi-rol completo, sucesor del resolutor provisional de 1.1-1.4c
