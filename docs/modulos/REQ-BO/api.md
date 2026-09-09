@@ -48,6 +48,8 @@ Tres precisiones que no son cosméticas:
 
 **Y una barrera más que no está en esta tabla porque no es de la aplicación**: Traefik enruta por `Host()` y aplica su propio *middleware* `ipallowlist` sobre los *routers* del backoffice (`operacion.md §0`). Los puestos 1 y 2 **no la sustituyen** ni al revés: la configuración del proxy no la cubre la suite de tests y la aplicación sí, y por eso las dos capas son obligatorias (`funcional.md §3.4`).
 
+**El orden de esta tabla no es el orden que Laravel ejecuta por sí solo.** `Illuminate\Routing\SortedMiddleware` reordena la pila final según `$middlewarePriority` del framework, no según el orden en que la ruta los declara — hallazgo real de la implementación de `1.6`, detalle completo y la corrección exacta (`bootstrap/app.php`, `prependToPriorityList()`) en `datos.md §2.6.3`. Cualquier *middleware* nuevo que se añada a esta pila, o al grupo global `api`, debe revisar esa nota antes de asumir que basta con declararlo en el sitio correcto de `routes.php`.
+
 #### 1.1.1 Una tensión con la letra de `ADR-046 §4.5`, resuelta por el usuario (`OPEN-BO-13`, 2026-09-08: lectura (a))
 
 `ADR-046 §4.5`, aserción 2, dice que **toda** ruta bajo `/api/platform/*` lleva la pila completa **incluidos los puestos 8 y 9** —MFA de plataforma y capacidad—. **Aplicado al pie de la letra, eso es imposible en cuatro rutas de §2.1**, y conviene decirlo antes de que lo descubra quien escriba el test:

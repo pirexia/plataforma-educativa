@@ -145,7 +145,7 @@ Es el almacén del *driver* `database` de Laravel para el *guard* `platform`: **
 | Campo | Tipo | Nulo | Descripción |
 |---|---|---|---|
 | `id` | `text` | No | **Clave primaria: es el identificador de sesión.** Lo genera el framework, no es un ULID nuestro y **no se expone en ninguna API** |
-| `platform_admin_id` | `bigint` | Sí | Equivalente de `sessions.user_id`. Nulo antes de autenticarse. Índice |
+| `user_id` | `bigint` | Sí | Equivalente de `sessions.user_id`, y **con ese nombre exacto**, no `platform_admin_id`: `Illuminate\Session\DatabaseSessionHandler` escribe la clave `user_id` sin que sea configurable — el driver estándar la fija, igual que fija `id`/`payload`/`last_activity` (nota de arriba). Referencia a `platform_admins.id`. Nulo antes de autenticarse. Índice |
 | `ip_address` | Igual que en `admin_action_logs` | Sí | |
 | `user_agent` | `text` | Sí | |
 | `payload` | `text` | No | Serializado por el framework |
@@ -166,7 +166,9 @@ Precedente literal en el repositorio: `2026_08_17_180000_harden_failed_jobs_gran
 
 **Debe quedar declarada en `config/tenancy.php` bajo `shared_tables.platform`**, o el test de esquema #8 de `ADR-033 §10` falla — **y debe fallar** si alguien la crea sin declararla (`CA-BO-075`).
 
-**Cómo se selecciona este almacén**: por **grupo de rutas**, con un *middleware* que fija la configuración de sesión de plataforma —conexión, tabla, nombre de cookie y vida— **antes** de `start-session` (`api.md §1.1`). No es un mecanismo nuevo: `TenantContext::applyCachePrefix()` ya hace exactamente esta forma de cosa con `cache.prefix` y `Cache::forgetDriver()`, y está probada desde `0.7`.
+**Cómo se selecciona este almacén**: por **grupo de rutas**, con un *middleware* (`ConfigurePlatformSession`) que fija la configuración de sesión de plataforma —conexión, tabla, nombre de cookie y vida— **antes** de `start-session` (`api.md §1.1`). No es un mecanismo nuevo: `TenantContext::applyCachePrefix()` ya hace exactamente esta forma de cosa con `cache.prefix` y `Cache::forgetDriver()`, y está probada desde `0.7`.
+
+> **Hallazgo real de la implementación de `1.6`, con consecuencia directa sobre esta tabla — el orden declarado en `routes/api.php` no es el orden de ejecución.** `Illuminate\Routing\SortedMiddleware` reordena la pila final según `$middlewarePriority` de Laravel, no según el orden en que la ruta los declara. Ese vector sitúa `SubstituteBindings` (middleware global del grupo `api`) **después** de `StartSession` — así que sin una declaración explícita de prioridad, Laravel adelantaba `start-session` por delante de `configure-platform-session` **pese al orden contrario declarado en la ruta**: la sesión de plataforma se creaba en silencio con el nombre de cookie y la conexión **del producto**, no con `pgsql_platform`, sin que la petición fallara ni ningún test de estado lo detectara — solo se ve comparando la cookie por nombre. Corregido en `apps/api/bootstrap/app.php` con tres llamadas a `$middleware->prependToPriorityList()` (`RequirePlatformHost`, `EnforcePlatformIpAllowlist`, `ConfigurePlatformSession`, en ese orden, antes de `StartSession`), con test de regresión explícito. **Cualquier cambio futuro al grupo de rutas de plataforma, o cualquier middleware nuevo del grupo global `api`, debe revisar `$middlewarePriority` antes de asumir que el orden de `routes.php` es el que se ejecuta.**
 
 **La conexión que se fija es `session.connection = 'pgsql_platform'`, y sólo esa clave** (`ADR-047 §11`, punto 2). Hay que escribirlo con el nombre exacto porque hasta ahora este documento decía «conexión» sin nombrarla, y porque la frase siguiente es la que de verdad importa:
 
