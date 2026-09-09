@@ -12,6 +12,10 @@ servers:
 
 tags:
   - name: Plataforma
+  - name: Plataforma / Sesión
+  - name: Plataforma / Administradores
+  - name: Plataforma / Lista blanca IP
+  - name: Plataforma / Auditoría
   - name: Core / Tenant
   - name: Core / Usuarios
   - name: Core / Invitaciones
@@ -197,6 +201,53 @@ paths:
     $ref: "openapi/paths/sso.yaml#/paths/~1api~1v1~1identity-providers~1{publicId}~1metadata-refreshes"
   /api/v1/auth/saml/{publicId}/acs:
     $ref: "openapi/paths/sso.yaml#/paths/~1api~1v1~1auth~1saml~1{publicId}~1acs"
+
+  # REQ-BO-007 (1.6). El dato nace en admin_action_logs (REQ-BO), pero la
+  # ruta y el permiso son de REQ-CORE (INV-007) — issue #175, junto con
+  # las trece de abajo. Definida en core.yaml, no en platform.yaml.
+  /api/v1/platform-actions:
+    $ref: "openapi/paths/core.yaml#/paths/~1api~1v1~1platform-actions"
+
+  # REQ-BO-007 (paso 1.6). apps/api/openapi/paths/platform.yaml. Grupo
+  # hermano de /api/v1, servido bajo BACKOFFICE_HOST (api.md §0, §1.1) —
+  # issue #175: dieciocho rutas del chasis, más
+  # /admin-invitation-redemptions (issue #173).
+  /api/platform/v1/csrf-cookie:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1csrf-cookie"
+  /api/platform/v1/auth/session:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1auth~1session"
+  /api/platform/v1/auth/session/mfa:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1auth~1session~1mfa"
+  /api/platform/v1/admin-invitation-redemptions:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1admin-invitation-redemptions"
+  /api/platform/v1/auth/reauthenticate:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1auth~1reauthenticate"
+  /api/platform/v1/me:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1me"
+  /api/platform/v1/mfa/factors:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1mfa~1factors"
+  /api/platform/v1/mfa/factors/{publicId}/confirm:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1mfa~1factors~1{publicId}~1confirm"
+  /api/platform/v1/mfa/recovery-codes:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1mfa~1recovery-codes"
+  /api/platform/v1/admins:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1admins"
+  /api/platform/v1/admins/{publicId}:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1admins~1{publicId}"
+  /api/platform/v1/admins/{publicId}/roles:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1admins~1{publicId}~1roles"
+  /api/platform/v1/admins/{publicId}/status:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1admins~1{publicId}~1status"
+  /api/platform/v1/admins/{publicId}/mfa:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1admins~1{publicId}~1mfa"
+  /api/platform/v1/ip-allowlist:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1ip-allowlist"
+  /api/platform/v1/ip-allowlist/{publicId}:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1ip-allowlist~1{publicId}"
+  /api/platform/v1/admin-action-logs:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1admin-action-logs"
+  /api/platform/v1/tenants/{publicId}/admin-action-logs:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1admin-action-logs"
 
   # Los endpoints de los módulos siguientes se añaden aquí conforme se
   # implementan, cada uno con su propio apps/api/openapi/paths/<modulo>.yaml.
