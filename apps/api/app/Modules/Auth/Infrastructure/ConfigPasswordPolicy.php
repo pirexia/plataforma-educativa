@@ -44,4 +44,9 @@ final class ConfigPasswordPolicy implements PasswordPolicy
 
         return $violations;
     }
+
+    public function minLength(): int
+    {
+        return (int) config('auth-local.password_min_length');
+    }
 }

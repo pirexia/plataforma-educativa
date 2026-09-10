@@ -8,6 +8,7 @@ use App\Modules\Backoffice\Domain\Models\PlatformAdminInvitation;
 use App\Support\Api\ApiException;
 use App\Support\Api\ValidationErrorBag;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * Issue #173, `operacion.md §5` paso 6. Precedente de forma:
@@ -26,21 +27,40 @@ use Illuminate\Support\Facades\DB;
  * regla — longitud, complejidad — que `RN-AUTH-01`, configurada una sola
  * vez): se importa la interfaz, nunca la implementación concreta de
  * `Auth` (`INV-007`, «comunicación por interfaces»).
+ *
+ * Issue #180: límite de tasa por IP, único punto de defensa activa de este
+ * *endpoint* anónimo (mismo criterio — `RateLimiter` inline, sin tabla
+ * nueva — que `PlatformAuthenticationService::attempt()`; no se reutiliza
+ * `Auth\Application\RateLimitGuard` porque su clave pasa por
+ * `TenantContext::rateLimitKey()`, y este canje corre sin tenant).
  */
 final class PlatformAdminInvitationRedemptionService
 {
+    private const MAX_ATTEMPTS = 10;
+
+    private const DECAY_SECONDS = 3600;
+
     public function __construct(
         private readonly PasswordPolicy $passwordPolicy,
         private readonly AdminActionLogRecorder $recorder,
     ) {}
 
     /**
-     * @throws ApiException gone() si el token no es válido,
+     * @throws ApiException tooManyRequests() por límite de tasa,
+     *                      gone() si el token no es válido,
      *                      validation() si la contraseña incumple la
      *                      política
      */
-    public function redeem(string $token, string $password): void
+    public function redeem(string $token, string $password, string $ip): void
     {
+        $rateLimitKey = "platform-invitation-redemption:{$ip}";
+
+        if (RateLimiter::tooManyAttempts($rateLimitKey, self::MAX_ATTEMPTS)) {
+            throw ApiException::tooManyRequests(RateLimiter::availableIn($rateLimitKey));
+        }
+
+        RateLimiter::hit($rateLimitKey, self::DECAY_SECONDS);
+
         // El 410 se decide antes que la política de contraseña, mismo
         // motivo que el precedente de Auth: no filtrar por tiempo de
         // respuesta si el token era válido.
@@ -62,7 +82,7 @@ final class PlatformAdminInvitationRedemptionService
         $errors = new ValidationErrorBag;
 
         foreach ($this->passwordPolicy->violations($password) as $code) {
-            $params = $code === 'min_length' ? ['min' => (int) config('auth-local.password_min_length')] : [];
+            $params = $code === 'min_length' ? ['min' => $this->passwordPolicy->minLength()] : [];
 
             $errors->add('password', "auth.validation.password.{$code}", "auth.validation.password.{$code}", $params);
         }

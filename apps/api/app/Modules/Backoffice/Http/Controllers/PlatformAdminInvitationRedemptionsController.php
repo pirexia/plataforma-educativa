@@ -25,6 +25,7 @@ class PlatformAdminInvitationRedemptionsController extends Controller
         $this->redemptions->redeem(
             $request->string('token')->value(),
             $request->string('password')->value(),
+            (string) $request->ip(),
         );
 
         return response()->noContent();

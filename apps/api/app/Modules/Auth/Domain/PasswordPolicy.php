@@ -18,4 +18,11 @@ interface PasswordPolicy
      * @return list<string>
      */
     public function violations(string $password): array;
+
+    /**
+     * Longitud mínima exigida, para interpolar el mensaje del código
+     * `min_length` (issue #181: ningún llamador fuera de `Auth` puede leer
+     * `auth-local.password_min_length` directamente sin romper `INV-007`).
+     */
+    public function minLength(): int;
 }
