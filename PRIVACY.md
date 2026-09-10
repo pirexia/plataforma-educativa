@@ -1,6 +1,6 @@
 # PRIVACY.md
 
-> **Versión 0.2.2** · 2026-09-02
+> **Versión 0.2.3** · 2026-09-08
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Base del Registro de Actividades de Tratamiento (RAT) exigido por el RGPD — hoy es un **esqueleto**, no un RAT completo: varias secciones dependen de decisiones que todavía no se han tomado (`OPEN-07`, entidad jurídica y contrato de encargado de tratamiento). No se rellenan con suposiciones (`CLAUDE.md` §0/§11).
 
 ---
@@ -21,6 +21,7 @@ Este documento describe el **marco de diseño ya decidido** para cuando exista t
 | Auditoría sin copia en claro de datos protegidos | El registro de auditoría (`audit_logs`, implementado en el paso 0.9) nunca guarda el valor de un secreto, de un campo de categoría especial, ni de un identificador personal fuera de la lista de inclusión explícita del modelo — solo qué atributo cambió. Tampoco guarda el nombre del actor desnormalizado, para que la anonimización de una persona no deje un rastro legible en el histórico. Detalle en §5 | `ADR-034` §3, `ADR-035` |
 | Datos de menores | Base legal y consentimiento del tutor registrados para todo dato de un menor, no asumidos | `INV-008` |
 | Datos de prueba nunca reales | Bajo ningún concepto, ni una exportación del centro ni una copia de producción para depurar | `ADR-030` |
+| `platform_admins` es tratamiento propio del proveedor, no un encargo | Datos personales del **personal del proveedor** (no de alumnos, familias ni personal de los centros): correo, nombre, IP y agente de usuario de acceso. Base legal: relación laboral o de servicio. Distinto de los tratamientos de los que la plataforma es encargada — el backoffice **no expone datos personales de los centros** (`RN-BO-33`, restricción funcional, no solo de permiso) | `REQ-BO-007`, paso 1.6 |
 
 ### 2.1 Inventario de cookies propias
 
@@ -29,6 +30,7 @@ Este documento describe el **marco de diseño ya decidido** para cuando exista t
 | `pge_device` | `REQ-AUTH-005` (1.2b) | Reconocer el navegador de un usuario ya autenticado para avisarle de accesos desde un dispositivo no reconocido (detección de dispositivo nuevo). Opaca, sin dato personal alguno dentro, emitida **solo** tras una autenticación correcta, de solo el titular de la cuenta. | **Cookie técnica de seguridad, exenta de consentimiento** (`funcional.md §B.6.2`, decisión del usuario en `funcional.md §B.14` punto 2, `OPEN-AUTH-14`). No hay perfilado ni cesión a terceros. Vida 365 días (`AUTH_DEVICE_COOKIE_TTL_DAYS`), `httpOnly`, `Secure`, `SameSite=Lax`, *host-only*. |
 | Cookie de sesión (Laravel) | `REQ-AUTH` (1.2) | Mantener autenticado al usuario entre peticiones tras el login (`ADR-025`) — identificador de sesión opaco, sin dato personal dentro; el servidor asocia la sesión al usuario en su propio almacén. | **Cookie técnica estrictamente necesaria, exenta de consentimiento** (`RGPD` art. 6.1.f / excepción de cookies técnicas — no hay finalidad distinta de prestar el servicio solicitado). No hay perfilado ni cesión a terceros. Vida ligada a `SESSION_LIFETIME` (expiración por inactividad configurable), `httpOnly`, `Secure`, `SameSite`, *host-only*. |
 | `XSRF-TOKEN` | `REQ-AUTH` (1.2) | Token anti-CSRF legible por JavaScript, exigido por la SPA en cada petición mutante para probar que la petición se originó en el propio frontend | **Cookie técnica estrictamente necesaria, exenta de consentimiento** — mismo fundamento que la cookie de sesión, es su contrapartida de seguridad, no un tratamiento adicional. No legible entre orígenes distintos (`SameSite`), sin dato personal dentro. |
+| Cookie de sesión de plataforma (`BO_SESSION_COOKIE`) | `REQ-BO` (1.6) | Mantener autenticado a un administrador de plataforma — personal del proveedor, no un usuario de ningún centro. Nombre propio, distinto de la cookie de sesión del producto | **Cookie técnica estrictamente necesaria, exenta de consentimiento**, mismo fundamento que la cookie de sesión del producto. *Host-only* del dominio del backoffice: no viaja al dominio de ningún centro ni al revés. Vida más corta (`BO_SESSION_LIFETIME`), `httpOnly`, `Secure`, `SameSite`. |
 
 ### 2.2 Datos recibidos de un proveedor de identidad externo (Google, `REQ-AUTH-002`, paso 1.4)
 

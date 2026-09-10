@@ -2,6 +2,16 @@
 
 use App\Modules\Auth\Domain\Models\LoginAttempt;
 use App\Modules\Auth\Domain\Models\MfaReset;
+use App\Modules\Backoffice\Domain\Models\AdminActionLog;
+use App\Modules\Backoffice\Domain\Models\DualAuthorization;
+use App\Modules\Backoffice\Domain\Models\PlatformAdmin;
+use App\Modules\Backoffice\Domain\Models\PlatformAdminInvitation;
+use App\Modules\Backoffice\Domain\Models\PlatformAdminMfaChallenge;
+use App\Modules\Backoffice\Domain\Models\PlatformAdminMfaFactor;
+use App\Modules\Backoffice\Domain\Models\PlatformAdminMfaRecoveryCode;
+use App\Modules\Backoffice\Domain\Models\PlatformAdminRole;
+use App\Modules\Backoffice\Domain\Models\PlatformAdminSession;
+use App\Modules\Backoffice\Domain\Models\PlatformIpAllowlistEntry;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use App\Support\Tenancy\TenantMigration;
@@ -153,6 +163,29 @@ test('los modelos Eloquent de app/Modules extienden TenantModel', function (): v
         // REQ-AUTH/datos.md §C.6.1 (paso 1.3): mismo motivo — traza
         // append-only del restablecimiento de MFA por el administrador.
         MfaReset::class,
+        // REQ-BO (1.6), RN-BO-01, datos.md §1: las nueve tablas de
+        // plataforma de REQ-BO con modelo Eloquent no son de tenant en
+        // absoluto — a diferencia de LoginAttempt/MfaReset (que SÍ son
+        // de tenant, solo que append-only), ninguna de estas lleva
+        // `tenant_id` ni pasa por `BelongsToTenant`. Es la propiedad
+        // central del módulo, no una excepción puntual: un
+        // `platform_admin` no tiene tenant (RN-BO-01), y colgarlo de
+        // `TenantModel` le daría uno. Mismo motivo por el que `Tenant`
+        // (App\Support\Tenancy) no extiende `TenantModel` — estos
+        // nueve viven en `App\Modules\Backoffice`, así que sí entran en
+        // el barrido de este test y necesitan su propia excepción.
+        PlatformAdmin::class,
+        // Issue #173: mismo motivo que el resto de esta lista —
+        // platform_admin_invitations es tabla de plataforma, sin tenant.
+        PlatformAdminInvitation::class,
+        PlatformAdminRole::class,
+        PlatformAdminMfaFactor::class,
+        PlatformAdminMfaRecoveryCode::class,
+        PlatformAdminMfaChallenge::class,
+        PlatformIpAllowlistEntry::class,
+        PlatformAdminSession::class,
+        DualAuthorization::class,
+        AdminActionLog::class,
     ];
 
     $modulesPath = base_path('app/Modules');

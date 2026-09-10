@@ -9,6 +9,14 @@ use App\Http\Middleware\RequirePermission;
 use App\Http\Middleware\ResolveApiLocale;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\VerifySessionTenant;
+use App\Modules\Backoffice\Http\Middleware\ConfigurePlatformSession;
+use App\Modules\Backoffice\Http\Middleware\EnforcePlatformIpAllowlist;
+use App\Modules\Backoffice\Http\Middleware\RequirePlatformCapability;
+use App\Modules\Backoffice\Http\Middleware\RequirePlatformHost;
+use App\Modules\Backoffice\Http\Middleware\RequirePlatformMfa;
+use App\Modules\Backoffice\Http\Middleware\RequirePlatformReauthentication;
+use App\Modules\Backoffice\Http\Middleware\RequirePlatformSessionIdleTimeout;
+use App\Modules\Backoffice\Http\Middleware\ResolvePlatformLocale;
 use App\Support\Api\ProblemResponseFactory;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -60,7 +68,55 @@ return Application::configure(basePath: dirname(__DIR__))
             'session-idle-timeout' => EnforceSessionIdleTimeout::class,
             // REQ-AUTH-003 (1.3), funcional.md §C.4.9: el muro de alta.
             'require-mfa-enrollment' => RequireMfaEnrollment::class,
+
+            // REQ-BO (1.6), ADR-046 §4.1, api.md §1.1: pila propia del
+            // grupo /api/platform/*, sin ninguno de los tres alias de
+            // arriba que son de tenant.
+            'require-platform-host' => RequirePlatformHost::class,
+            'enforce-platform-ip-allowlist' => EnforcePlatformIpAllowlist::class,
+            'configure-platform-session' => ConfigurePlatformSession::class,
+            'require-platform-mfa' => RequirePlatformMfa::class,
+            'require-platform-capability' => RequirePlatformCapability::class,
+            'require-platform-reauthentication' => RequirePlatformReauthentication::class,
+            'require-platform-session-idle-timeout' => RequirePlatformSessionIdleTimeout::class,
+            'resolve-platform-locale' => ResolvePlatformLocale::class,
         ]);
+
+        // ADR-046 §4.5, RN-BO-48, RN-BO-06. `Illuminate\Routing\SortedMiddleware`
+        // reordena la pila final según `$middlewarePriority`, no según el
+        // orden declarado en `routes/api.php` — verificado en ejecución
+        // (hallazgo real de 1.6, ver docblock de `ConfigurePlatformSession`).
+        // `EncryptCookies`/`AddQueuedCookiesToResponse`/`StartSession` ya
+        // están en esa lista; `SubstituteBindings` (grupo global `api`)
+        // también, y detrás de `StartSession`. Sin declarar aquí la
+        // posición relativa de las cuatro piezas propias de plataforma que
+        // SÍ importan (dos por orden de negocio, dos por su propio
+        // contrato con el driver de sesión), el ordenador las deja fuera
+        // de la lista de prioridad y las trata como "sin posición" —
+        // libres de que Laravel las reordene alrededor de las que sí
+        // tienen prioridad, que es exactamente lo que rompía la cookie de
+        // sesión de plataforma en silencio.
+        //
+        // Orden deseado, de fuera adentro: RequirePlatformHost (404 antes
+        // que nada) → EnforcePlatformIpAllowlist (403 antes de sesión y
+        // credenciales) → EncryptCookies → AddQueuedCookiesToResponse →
+        // ConfigurePlatformSession (fija el almacén ANTES de StartSession)
+        // → StartSession. Cada llamada inserta justo delante del ancla
+        // indicada en el array YA MODIFICADO por las llamadas anteriores,
+        // así que el orden de estas cuatro líneas importa tanto como los
+        // argumentos.
+        $middleware->prependToPriorityList(
+            before: EncryptCookies::class,
+            prepend: RequirePlatformHost::class,
+        );
+        $middleware->prependToPriorityList(
+            before: EncryptCookies::class,
+            prepend: EnforcePlatformIpAllowlist::class,
+        );
+        $middleware->prependToPriorityList(
+            before: StartSession::class,
+            prepend: ConfigurePlatformSession::class,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

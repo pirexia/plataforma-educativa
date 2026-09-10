@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * como `identifier` por no estar en la lista de inclusión (paso 3 de
  * `AuditChangeBuilder`). Sin `public_id` (§B.1): ningún endpoint de 1.2b
  * devuelve un dispositivo como recurso propio, viaja dentro de la sesión.
+ *
  * El alta (`created`) y el aviso (`updated` con `alerted_at`) quedan
  * auditados sin ninguna llamada manual (funcional.md §B.10) — a diferencia
  * de `UserSession`, este modelo no declara `auditExcludedEvents()`.

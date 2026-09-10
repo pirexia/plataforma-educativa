@@ -43,7 +43,27 @@ return [
 
         // Sin tenant_id. REVOKE completo para plataforma_app salvo lo
         // imprescindible (ver la migración que aprovisiona cada una).
-        'platform' => ['failed_jobs'],
+        //
+        // REQ-BO (1.6), datos.md §11: las once tablas de plataforma de la
+        // identidad, auditoría y ciclo de vida del backoffice. Ninguna
+        // lleva una columna llamada `tenant_id` — las dos que referencian
+        // a un tenant sin ser de su propiedad usan `affected_tenant_id`
+        // (ADR-047 §4.2) — así que las once caen en la rama "sin
+        // tenant_id" del test de esquema #8 y su declaración aquí es lo
+        // que ese test verifica. `admin_action_logs` y
+        // `tenant_lifecycle_events` llevan además su propia RLS
+        // (`tenant_visibility`, ADR-047 §4.3); las otras nueve no la
+        // necesitan porque su barrera es el REVOKE completo, que no deja
+        // fila que filtrar (datos.md §2.6.3).
+        'platform' => [
+            'failed_jobs',
+            'platform_admins', 'platform_admin_roles', 'platform_admin_invitations',
+            'platform_admin_mfa_factors', 'platform_admin_mfa_recovery_codes', 'platform_admin_mfa_challenges',
+            'platform_ip_allowlist',
+            'platform_sessions', 'platform_admin_sessions',
+            'dual_authorizations',
+            'admin_action_logs', 'tenant_lifecycle_events',
+        ],
 
         // Fuera del sistema de tenancy por completo: sin tenant_id.
         // `users` salió de aquí en 0.8.4: ADR-034 la rehace con tenant_id y

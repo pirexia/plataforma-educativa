@@ -29,10 +29,35 @@ Notify=healthy
 # /api tiene más caracteres que / (web.container): gana por especificidad
 # incluso sin fijar Priority=, pero se deja explícito para no depender de
 # ese comportamiento por defecto si Traefik cambia de versión.
+#
+# REQ-BO (1.6), ADR-046 §4.3/§4.6, operacion.md §0.1/§0.2. La regla del
+# tenant pasa de PathPrefix(`/api`) a Host(...) && PathPrefix(`/api`) —
+# mismo motivo que web.container. Y se añade un router HERMANO,
+# `plataforma-api-platform`, bajo el host propio del backoffice, con su
+# propio middleware `ipallowlist` (condición 3 de funcional.md §3.4):
+# la lista blanca de IP en el *ingress*, ADEMÁS de la de la aplicación
+# (RN-BO-06/RN-BO-07) — ninguna de las dos capas sustituye a la otra.
+# Los dos routers apuntan al MISMO servicio (mismo contenedor, mismo
+# puerto): es la misma API Laravel, con un segundo grupo de rutas
+# (`/api/platform/*`) que decide por sí solo, con su propia pila de
+# middleware, que no lleva ninguno de los tres de tenant (api.md §1.1).
 Label=traefik.enable=true
-Label=traefik.http.routers.plataforma-api.rule=PathPrefix(`/api`)
+Label=traefik.http.routers.plataforma-api.rule=HostRegexp(`^[a-z0-9-]+\.__TENANCY_BASE_DOMAIN_ESCAPED__$`) && PathPrefix(`/api`)
 Label=traefik.http.routers.plataforma-api.priority=10
 Label=traefik.http.services.plataforma-api.loadbalancer.server.port=8000
+
+Label=traefik.http.routers.plataforma-api-platform.rule=Host(`__BACKOFFICE_HOST__`) && PathPrefix(`/api/platform`)
+Label=traefik.http.routers.plataforma-api-platform.priority=20
+Label=traefik.http.routers.plataforma-api-platform.service=plataforma-api
+Label=traefik.http.routers.plataforma-api-platform.middlewares=platform-ipallowlist@docker
+
+# RN-BO-06/RN-BO-07: lista vacía en __BACKOFFICE_ALLOWED_IPS__ = Traefik
+# rechaza a todo el mundo (comportamiento nativo del middleware
+# ipallowlist de Traefik ante sourceRange vacío), coherente con la
+# aplicación. operacion.md §0.3: esta lista solo protege de verdad si
+# Traefik ve la IP real del cliente — si algún día hay otro proxy
+# delante, hace falta forwardedHeaders.trustedIPs en traefik.container.
+Label=traefik.http.middlewares.platform-ipallowlist.ipallowlist.sourcerange=__BACKOFFICE_ALLOWED_IPS__
 
 [Service]
 Restart=always

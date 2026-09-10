@@ -19,6 +19,8 @@ return [
         'internal' => 'Erreur interne du serveur',
         'unavailable' => 'Service temporairement indisponible',
         'account-locked' => 'Compte verrouillé',
+        'reauthentication-required' => 'Merci de vous identifier à nouveau',
+        'ip-not-allowed' => 'Accès non autorisé',
     ],
 
     'detail' => [
@@ -31,5 +33,6 @@ return [
         'internal' => 'Une erreur inattendue s\'est produite. Conservez l\'identifiant de la requête si vous contactez le support.',
         'unavailable' => 'Le service est temporairement indisponible. Merci de réessayer dans quelques minutes.',
         'account-locked' => 'Ce compte est temporairement verrouillé après trop de tentatives échouées. Consultez votre e-mail ou réessayez plus tard.',
+        'reauthentication-required' => 'Cette action exige que vous confirmiez à nouveau votre mot de passe et votre second facteur.',
     ],
 ];

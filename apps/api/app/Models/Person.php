@@ -14,7 +14,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * ADR-034 §1: la identidad, no la cuenta. `User` es una faceta de
- * autenticación 0..1 (puede no existir: una persona sin acceso al
+ * autenticación 0.
+ *
+ * .1 (puede no existir: una persona sin acceso al
  * portal). Las facetas de alumno/tutor/empleado llegan con sus propios
  * módulos (REQ-ALUM, REQ-FAM-UNIT, REQ-RRHH), no en 0.8.
  *

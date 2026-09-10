@@ -23,7 +23,7 @@ final class PasswordPolicyValidator
     public function validate(string $field, string $password, ValidationErrorBag $errors): void
     {
         foreach ($this->policy->violations($password) as $code) {
-            $params = $code === 'min_length' ? ['min' => (int) config('auth-local.password_min_length')] : [];
+            $params = $code === 'min_length' ? ['min' => $this->policy->minLength()] : [];
 
             $errors->add($field, "auth.validation.password.{$code}", "auth.validation.password.{$code}", $params);
         }

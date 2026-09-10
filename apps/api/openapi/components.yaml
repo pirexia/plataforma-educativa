@@ -657,6 +657,111 @@ components:
           items: { type: string }
           description: code de los roles vivos del usuario que exigen MFA.
 
+    PlatformAdmin:
+      type: object
+      description: >
+        REQ-BO-007 (1.6), api.md §2.2. `PlatformAdminResource`. `password`
+        nunca viaja (ADR-029).
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        email: { type: string, format: email }
+        name: { type: string }
+        status: { type: string, enum: [activo, suspendido] }
+        locale: { $ref: '#/components/schemas/Locale' }
+        roles:
+          type: array
+          items: { type: string, enum: [soporte, operaciones, comercial, superadministrador] }
+        mfa_enrolled: { type: boolean }
+        last_login_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    PlatformIpAllowlistEntry:
+      type: object
+      description: REQ-BO-007 (1.6), api.md §2.3. `PlatformIpAllowlistResource`.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        cidr: { type: string, example: "203.0.113.0/24" }
+        description: { type: string }
+        enabled: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    AdminActionLog:
+      type: object
+      description: >
+        REQ-BO-007 (1.6), api.md §2.9, datos.md §4. `AdminActionLogResource`
+        — vista completa del backoffice (corre con `plataforma_platform`,
+        BYPASSRLS). No confundir con la proyección de seis columnas de
+        `GET /api/v1/platform-actions` (`PlatformAction`, más abajo).
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        occurred_at: { type: string, format: date-time }
+        actor_type: { type: string, enum: [platform_admin, console, system] }
+        actor_platform_admin_public_id: { $ref: '#/components/schemas/PublicId' }
+        affected_tenant_public_id:
+          $ref: '#/components/schemas/PublicId'
+        subject_type: { type: string }
+        subject_public_id: { $ref: '#/components/schemas/PublicId' }
+        action:
+          type: string
+          description: Vocabulario cerrado (datos.md §4.2). Enumerado extensible (ADR-038 §7.3).
+          enum:
+            - acceso.concedido
+            - acceso.rechazado
+            - acceso.rechazado_por_ip
+            - sesion.cerrada
+            - reautenticacion.superada
+            - admin.creado
+            - admin.actualizado
+            - admin.suspendido
+            - admin.reactivado
+            - admin.eliminado
+            - admin.rol_concedido
+            - admin.rol_retirado
+            - admin.mfa_restablecido
+            - admin.invitado
+            - admin.invitacion_canjeada
+            - ip.permitida_anadida
+            - ip.permitida_retirada
+            - autorizacion.solicitada
+            - autorizacion.aprobada
+            - autorizacion.rechazada
+            - autorizacion.caducada
+            - autorizacion.ejecutada
+            - autorizacion.fallida
+            - tenant.creado
+            - tenant.actualizado
+            - tenant.suspendido
+            - tenant.reactivado
+            - tenant.baja_iniciada
+            - tenant.rescatado
+            - tenant.eliminado
+            - tenant.clonado
+            - modulo.contratado
+            - modulo.descontratado
+            - modulo.masivo_ejecutado
+            - job.reintentado
+        reason: { type: string, nullable: true }
+        context: { type: object, nullable: true, additionalProperties: true }
+
+    PlatformAction:
+      type: object
+      description: >
+        REQ-CORE, api.md §2.9. Fila de `GET /api/v1/platform-actions`: el
+        dato nace en `admin_action_logs` (REQ-BO), pero la ruta y el
+        permiso son de `REQ-CORE` (INV-007) — `plataforma_app` sólo tiene
+        `GRANT SELECT` sobre estas seis columnas (datos.md §4.3), nunca
+        `reason`/`context`/`ip_address`.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        occurred_at: { type: string, format: date-time }
+        action: { type: string, description: Mismo vocabulario que AdminActionLog.action. }
+        affected_tenant_public_id:
+          type: string
+          nullable: true
+          description: Siempre el propio tenant (el filtro ya lo garantiza) — no expone el id interno.
+        subject_type: { type: string }
+        subject_public_id: { $ref: '#/components/schemas/PublicId' }
+
     PublicId:
       type: string
       format: ulid
@@ -781,6 +886,40 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+    PlatformHostMismatch:
+      description: >
+        REQ-BO-007 (1.6), RN-BO-48. El `Host` de la petición no coincide
+        con `BACKOFFICE_HOST` — 404, no 401/403, antes de sesión y de
+        credenciales, indistinguible de una ruta inexistente (CA-BO-016).
+        Aplica a TODA ruta de `/api/platform/v1/*`, no se repite endpoint
+        a endpoint en este fichero.
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    PlatformIpNotAllowed:
+      description: >
+        REQ-BO-007 (1.6), RN-BO-06/RN-BO-07. Dirección de origen fuera de
+        la lista blanca de plataforma — 403 genérico, auditado
+        (`urn:pge:error:ip-not-allowed`), antes de tocar la base de datos
+        de administradores. Lista vacía ⇒ denegar siempre.
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    PlatformReauthenticationRequired:
+      description: >
+        REQ-BO-007 (1.6), api.md §4, RN-BO-08. Operación sensible sin
+        reautenticación viva dentro de la ventana (`BO_REAUTH_WINDOW`) —
+        403 con `urn:pge:error:reauthentication-required`, distinto del
+        403 genérico de falta de capacidad.
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
 
   securitySchemes:
     SessionCookie:
@@ -794,3 +933,17 @@ components:
         POST /auth/session la establece, DELETE /auth/session la revoca.
         Nombre real de config('session.cookie') — depende de APP_NAME,
         verificar si ese valor cambia en despliegue.
+
+    PlatformSessionCookie:
+      type: apiKey
+      in: cookie
+      name: pge-backoffice-session
+      description: >
+        REQ-BO-007 (1.6), api.md §1. Cookie de sesión de PLATAFORMA —
+        distinta de SessionCookie (nombre, tabla de sesión
+        `platform_sessions`, guard `platform`, sin `tenant_id`). Sólo
+        alcanzable bajo `BACKOFFICE_HOST` (`RequirePlatformHost`, RN-BO-48);
+        una petición a cualquier otro host recibe 404, no 401/403, y ni
+        siquiera revela que esta superficie existe (CA-BO-016). CSRF vía
+        X-XSRF-TOKEN, igual que SessionCookie. Nombre real de
+        config('backoffice.session_cookie') (BO_SESSION_COOKIE).

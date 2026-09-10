@@ -127,6 +127,25 @@ final class ApiException extends RuntimeException
         return new self(422, 'validation', $detailKey, $detailParams, $errors);
     }
 
+    /**
+     * REQ-BO-007, api.md §4, §5. Operación sensible del backoffice sin
+     * reautenticación viva. `type` propio para que la interfaz lo
+     * distinga de `forbidden` sin analizar texto.
+     */
+    public static function reauthenticationRequired(): self
+    {
+        return new self(403, 'reauthentication-required');
+    }
+
+    /**
+     * REQ-BO-007, api.md §5. Dirección de origen fuera de la lista
+     * blanca de plataforma (RN-BO-06).
+     */
+    public static function ipNotAllowed(): self
+    {
+        return new self(403, 'ip-not-allowed');
+    }
+
     public static function tooManyRequests(int $retryAfterSeconds): self
     {
         return new self(429, 'too-many-requests', null, [], [], ['Retry-After' => (string) $retryAfterSeconds]);

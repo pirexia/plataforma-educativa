@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.7.0** · 2026-09-04
+> **Versión 0.8.1** · 2026-09-10
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`); el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
@@ -222,6 +222,38 @@ Más allá de credenciales de base de datos/Redis (`.env.example`), la aplicaci�
 4. **Verificación** (cuatro comprobaciones de una línea, `operacion.md §4.4`): ninguna fila de `permission_role` con `scope` nulo o fuera del vocabulario; los cuatro permisos nuevos existen sin `retired_at`; `auditoria.leer` tiene `applicable_scopes = ["todos","propios"]`; `administrador_centro` tiene las cuatro concesiones nuevas en cada tenant.
 
 Sin caché de permisos (`ADR-044 §4.7`): una restauración de copia de seguridad no necesita reconstruir nada de autorización, pero si la restauración es anterior al despliegue de 1.5, hay que **volver a ejecutar los pasos 2 y 3**.
+
+## 2d. Backoffice de plataforma (`REQ-BO`, `1.6`)
+
+**El sistema se despliega bloqueado a propósito** (`docs/modulos/REQ-BO/operacion.md §5`): sin ningún administrador de plataforma, sin ninguna entrada en la lista blanca de IP. Es la alternativa a la vulnerabilidad más repetida de la historia de los paneles de administración (una cuenta o una lista blanca "vacía = todo permitido"), no un defecto que corregir.
+
+Variables nuevas, ninguna con valor por defecto seguro que sirva para producción — **`BACKOFFICE_HOST` bloqueante hasta que se resuelva `OPEN-08`** (dominio real de la plataforma):
+
+| Variable | Para qué | Nota |
+|---|---|---|
+| `BACKOFFICE_HOST` | Host del backoffice (`RN-BO-48`) | **Nunca subdominio de `TENANCY_BASE_DOMAIN`** (`RN-BO-49`) — `infra/install.sh` aborta si no está fijada o si `TENANCY_BASE_DOMAIN` tampoco lo está |
+| `BACKOFFICE_ALLOWED_IPS` | Lista blanca de IP del *ingress* (Traefik), CIDR separados por comas | Segunda capa, además de `platform_ip_allowlist` en la aplicación (`RN-BO-06`/`RN-BO-07`) — vacío deniega a todo el mundo bajo ese host |
+| `BO_SESSION_COOKIE` | Nombre de la cookie de sesión de plataforma | Distinto del de la cookie del producto, *host-only* |
+| `BO_SESSION_LIFETIME` | Vida de la sesión de plataforma, minutos | Más corta que la del tenant (`RN-BO-09`) |
+| `BO_REAUTH_WINDOW` | Ventana de reautenticación para operaciones sensibles, minutos | `RN-BO-08` |
+| `BO_DUAL_AUTH_TTL` | Vida de una solicitud de doble autorización, minutos | Mecanismo genérico; sin *endpoint* que la use todavía en `1.6` |
+
+Procedimiento de arranque, **en este orden** (detalle completo, con salida de un bloqueo total y diagnóstico, en `docs/modulos/REQ-BO/operacion.md §5`/`§5.1`/`§8` — no se duplica aquí):
+
+```bash
+# 0. Reglas Host()/ipallowlist de Traefik desplegadas (infra/install.sh) y BACKOFFICE_HOST fijada.
+# 1. Migraciones (incluye platform_sessions/platform_admin_sessions con su REVOKE).
+php artisan migrate --database=pgsql_owner
+# 2. Sincroniza el catálogo de módulos/capacidades declaradas en código.
+php artisan platform:sync-registry
+# 3. Sin esto no entra nadie, ni con credenciales correctas.
+php artisan bo:allow-ip <cidr> --description="Oficina"
+# 4-5. DOS superadministradores — con uno solo, eliminar un tenant es imposible por diseño (RN-BO-19).
+php artisan bo:create-admin --email=a@proveedor.example --role=superadministrador
+php artisan bo:create-admin --email=b@proveedor.example --role=superadministrador
+```
+
+`bo:create-admin` crea la cuenta sin contraseña utilizable y emite automáticamente una invitación (`platform_admin_invitations`, issue [#173](https://github.com/pirexia/plataforma-educativa/issues/173)): el administrador la canjea en `POST /admin-invitation-redemptions` (token de un solo uso) para fijar su contraseña, y entra después por `POST /auth/session`, donde sin MFA confirmado solo alcanza `/mfa/*` (`RN-BO-05`). **Lo único pendiente es la entrega real del correo** (`OPEN-09`, proveedor transaccional sin elegir): en desarrollo, el contenido del correo se inspecciona en el *log mailer* o Mailpit, no llega a una bandeja real. Tareas programadas nuevas: `bo:expire-dual-authorizations`, `bo:close-orphaned-sessions` (cada 15 min), `bo:purge-mfa-challenges` (cada hora).
 
 ## 3. Comprobación rápida
 

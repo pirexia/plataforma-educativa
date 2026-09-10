@@ -1,6 +1,14 @@
 # nginx de estáticos (ADR-037 §3.4): sin proxy_pass, sin relación hacia
 # la API. Sirve solo la SPA compilada.
-
+#
+# REQ-BO (1.6), ADR-046 §4.3/§4.6, operacion.md §0.1/§0.2. La regla pasa
+# de PathPrefix(`/`) a Host(...) && PathPrefix(`/`): sin el Host(), esta
+# regla (prioridad 1) serviría la SPA de los centros también bajo el
+# host del backoffice en cuanto ese host exista — el agujero que ADR-046
+# §4.6 cierra explícitamente. HostRegexp, no un host literal: cualquier
+# subdominio de __TENANCY_BASE_DOMAIN__ es un tenant (ADR-014), y el
+# host del backoffice nunca puede serlo (RN-BO-49) — las dos reglas son
+# disjuntas por construcción, no por coincidencia de que hoy no colisionen.
 [Unit]
 Description=Frontend — SPA estática
 After=plataforma-network.service
@@ -18,7 +26,7 @@ HealthStartPeriod=5s
 Notify=healthy
 
 Label=traefik.enable=true
-Label=traefik.http.routers.plataforma-web.rule=PathPrefix(`/`)
+Label=traefik.http.routers.plataforma-web.rule=HostRegexp(`^[a-z0-9-]+\.__TENANCY_BASE_DOMAIN_ESCAPED__$`) && PathPrefix(`/`)
 Label=traefik.http.routers.plataforma-web.priority=1
 Label=traefik.http.services.plataforma-web.loadbalancer.server.port=80
 

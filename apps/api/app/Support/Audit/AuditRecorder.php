@@ -4,6 +4,7 @@ namespace App\Support\Audit;
 
 use App\Models\AuditLog;
 use App\Support\Http\RequestId;
+use App\Support\Tenancy\PlatformAccessPurpose;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -29,18 +30,30 @@ final class AuditRecorder
         $tenantContext = app(TenantContext::class);
 
         if ($tenantContext->isPlatformMode()) {
-            // TenantContext::runAsPlatform() no limpia tenantId(): un
-            // futuro uso que combine "tenant activo" + "modo plataforma"
-            // (hoy no ocurre, ver AuditRecorderTest) escribiría con el
-            // tenant_id equivocado o violaría el NOT NULL si no hay
-            // ninguno. Falla en cerrado: este mecanismo es para
-            // audit_logs (tabla de tenant); el rastro de una operación de
-            // plataforma es cosa de admin_action_logs (ADR-033 §7,
-            // pendiente de 1.6), no de aquí.
-            throw new RuntimeException(
-                'AuditRecorder no escribe en modo plataforma (TenantContext::runAsPlatform()); '.
-                'el rastro de esa operación corresponde a admin_action_logs, no a audit_logs.'
-            );
+            // ADR-046 §6.5. Con propósito Mantenimiento, sin cambios:
+            // defensa en profundidad, no redundancia a retirar — este
+            // mecanismo es para audit_logs (tabla de tenant), y un
+            // mantenimiento sin sujeto no debería tocar ningún modelo
+            // Auditable de tenant.
+            //
+            // Con un propósito de backoffice, retorna en silencio: el
+            // rastro de esa escritura es admin_action_logs, y su
+            // obligación la garantiza la regla de cierre de
+            // runAsPlatform() (TenantContext::platformPurpose() ===
+            // BackofficeEscritura ⇒ after() exige al menos una entrada),
+            // no este método. ADR-045 obliga al backoffice a escribir
+            // module_subscriptions (Auditable, tabla de tenant) fijando
+            // tenant_id a mano dentro del bloque de plataforma; sin esta
+            // rama, esa escritura seguiría lanzando aquí.
+            if ($tenantContext->platformPurpose() === PlatformAccessPurpose::Mantenimiento) {
+                throw new RuntimeException(
+                    'AuditRecorder no escribe en modo plataforma con propósito Mantenimiento '.
+                    '(TenantContext::runAsPlatform()); el rastro de esa operación corresponde '.
+                    'a admin_action_logs, no a audit_logs.'
+                );
+            }
+
+            return;
         }
 
         if (! $tenantContext->hasTenant()) {

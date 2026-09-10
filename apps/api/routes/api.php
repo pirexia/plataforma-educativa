@@ -96,3 +96,43 @@ Route::prefix('v1')->middleware([
     Route::post('/auth/saml/{publicId}/acs', SamlAcsController::class)
         ->name('auth.saml.acs');
 });
+
+// REQ-BO (1.6), ADR-046 §4.1, api.md §0/§1.1. Grupo hermano de
+// `/api/v1`, sin `resolve-tenant`: no lleva ninguno de los tres
+// middleware de tenant (`resolve-tenant`, `verify-session-tenant`,
+// `require-mfa-enrollment` — el backoffice tiene los suyos propios en
+// los puestos 1, 6 y 8), verificado por `RunAsPlatformArchitectureTest`
+// (CA-BO-011, CA-BO-013 a CA-BO-015). Pila completa y en orden,
+// api.md §1.1:
+//   1. require-platform-host             — 404 antes de sesión y credenciales
+//   2. enforce-platform-ip-allowlist     — 403 antes de tocar credenciales
+//   3. encrypt-cookies
+//   4. add-queued-cookies
+//   5. configure-platform-session        — fija el almacén ANTES de start-session
+//   6. start-session
+//   7. csrf
+//   8. require-platform-session-idle-timeout — caducidad de RN-BO-09
+//   9. resolve-platform-locale
+//  10. require-platform-mfa              — por ruta, sin gracia y sin
+//                                           lista de excepciones (issue
+//                                           #174, OPEN-BO-13): :exento o
+//                                           enforcing por defecto
+//  11. require-platform-capability       — por ruta, con :identity o :<capacidad>
+//
+// Los puestos 10 y 11 se declaran EN CADA RUTA de
+// `Modules/Backoffice/Http/routes.php`, no en este array: los dos
+// conocen su propia excepción por parámetro de ruta, mismo patrón para
+// los dos — ninguna lista de nombres de ruta que mantener aparte.
+Route::prefix('platform/v1')->middleware([
+    'require-platform-host',
+    'enforce-platform-ip-allowlist',
+    'encrypt-cookies',
+    'add-queued-cookies',
+    'configure-platform-session',
+    'start-session',
+    'csrf',
+    'require-platform-session-idle-timeout',
+    'resolve-platform-locale',
+])->group(function (): void {
+    require app_path('Modules/Backoffice/Http/routes.php');
+});

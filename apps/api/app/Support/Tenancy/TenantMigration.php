@@ -156,6 +156,53 @@ final class TenantMigration
         });
     }
 
+    /**
+     * Tabla de plataforma pura (ADR-033 §7): sin tenant_id, sin RLS.
+     * `REVOKE ALL ON <tabla> FROM plataforma_app`, y sobre la secuencia de
+     * su clave `bigserial` — el `REVOKE` de tabla no la cubre, y
+     * `01-tenancy.sql.tpl` concede `USAGE, SELECT ON SEQUENCES` por
+     * defecto (ADR-047 §4.4, §11 punto 1, datos.md §12.1). No añade
+     * timestamps, borrado lógico ni autoría: a diferencia de las tablas
+     * de tenant, las de plataforma no comparten una forma única (algunas
+     * son append-only, algunas no llevan `deleted_at`, alguna no lleva
+     * clave `bigserial` en absoluto) — cada migración declara las suyas.
+     *
+     * Recomendación de ADR-047 §4.5: centralizar aquí el `REVOKE` de
+     * tabla y de secuencia en un solo sitio, para que "trece tablas
+     * escribiendo a mano su juego de GRANT/REVOKE" no sea la forma en
+     * que uno de los trece se olvida.
+     */
+    public static function platformTable(string $table, Closure $columns): void
+    {
+        self::assertSafeIdentifier($table);
+
+        Schema::connection('pgsql_owner')->create($table, function (Blueprint $blueprint) use ($columns): void {
+            $blueprint->id();
+
+            $columns($blueprint);
+        });
+
+        self::revokeSequenceAndTable($table);
+    }
+
+    /**
+     * El `REVOKE` de tabla y de secuencia por separado, para las tablas de
+     * plataforma que no encajan en `platformTable()` — porque ya existen
+     * (`tenants`) o porque su forma la fija otra cosa (`admin_action_logs`
+     * y `tenant_lifecycle_events`, con la política `tenant_visibility` de
+     * `ADR-047 §4.3`, que necesitan su propio `GRANT SELECT` de columnas
+     * enumeradas antes de que este `REVOKE ALL` cierre el resto).
+     */
+    public static function revokeSequenceAndTable(string $table): void
+    {
+        self::assertSafeIdentifier($table);
+
+        $connection = DB::connection('pgsql_owner');
+
+        $connection->statement("REVOKE ALL ON {$table} FROM plataforma_app");
+        $connection->statement("REVOKE ALL ON SEQUENCE {$table}_id_seq FROM plataforma_app");
+    }
+
     private static function applyTenantDefaultsAndRls(string $table): void
     {
         $connection = DB::connection('pgsql_owner');
