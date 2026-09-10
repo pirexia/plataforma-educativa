@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.8.0** · 2026-09-09
+> **Versión 0.8.1** · 2026-09-10
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`); el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
@@ -253,7 +253,7 @@ php artisan bo:create-admin --email=a@proveedor.example --role=superadministrado
 php artisan bo:create-admin --email=b@proveedor.example --role=superadministrador
 ```
 
-**Sin mecanismo de invitación por correo todavía** (`OPEN-09`, proveedor transaccional pendiente): `bo:create-admin` crea la cuenta sin contraseña utilizable, y en `1.6` no hay ningún *endpoint* de canje — declarado como pendiente, no resuelto en silencio. Tareas programadas nuevas: `bo:expire-dual-authorizations`, `bo:close-orphaned-sessions` (cada 15 min), `bo:purge-mfa-challenges` (cada hora).
+`bo:create-admin` crea la cuenta sin contraseña utilizable y emite automáticamente una invitación (`platform_admin_invitations`, issue [#173](https://github.com/pirexia/plataforma-educativa/issues/173)): el administrador la canjea en `POST /admin-invitation-redemptions` (token de un solo uso) para fijar su contraseña, y entra después por `POST /auth/session`, donde sin MFA confirmado solo alcanza `/mfa/*` (`RN-BO-05`). **Lo único pendiente es la entrega real del correo** (`OPEN-09`, proveedor transaccional sin elegir): en desarrollo, el contenido del correo se inspecciona en el *log mailer* o Mailpit, no llega a una bandeja real. Tareas programadas nuevas: `bo:expire-dual-authorizations`, `bo:close-orphaned-sessions` (cada 15 min), `bo:purge-mfa-challenges` (cada hora).
 
 ## 3. Comprobación rápida
 

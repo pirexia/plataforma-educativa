@@ -88,6 +88,21 @@ paths:
         '404': { $ref: '../components.yaml#/components/responses/PlatformHostMismatch' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
         '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+    delete:
+      operationId: deletePlatformSession
+      summary: Cierra la sesión de plataforma en curso
+      description: >
+        api.md §2.1. Cierra `platform_admin_sessions` (RN-BO), invalida la
+        sesión HTTP y regenera el token CSRF. Idempotente: sin sesión
+        autenticada, igualmente responde `204` (mismo criterio que
+        `DELETE /api/v1/auth/session` de REQ-AUTH).
+      tags: [Plataforma / Sesión]
+      security: [{ PlatformSessionCookie: [] }]
+      responses:
+        '204':
+          description: Sesión cerrada (o ya no había ninguna activa).
+        '403': { $ref: '../components.yaml#/components/responses/PlatformIpNotAllowed' }
+        '404': { $ref: '../components.yaml#/components/responses/PlatformHostMismatch' }
 
   /api/platform/v1/auth/session/mfa:
     post:

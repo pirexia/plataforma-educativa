@@ -1,6 +1,6 @@
 # SECURITY.md
 
-> **Versión 0.3.0** · 2026-09-08
+> **Versión 0.3.1** · 2026-09-10
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6), no solo al final. Sin datos reales todavía (`ADR-030`, entorno de desarrollo en WSL2).
 
 ---
@@ -52,7 +52,7 @@ Un contacto de seguridad dedicado (email, política de divulgación responsable 
 - **Cabeceras de seguridad y CSP estricta**: se configuran en el primer despliegue real (`OPEN-11`), no en desarrollo.
 - **Hallazgos de seguridad conocidos y ya registrados**, no bloqueantes hoy: [#6](https://github.com/pirexia/plataforma-educativa/issues/6) (`TenantContext::runAsPlatform()` — **cerrado en 1.6**: los tres puntos completos, con propósito declarado, denegación por defecto vía `PlatformAccessCheck` y regla de cierre de auditoría), [#7](https://github.com/pirexia/plataforma-educativa/issues/7) (ventana de caché en la suspensión de tenants — el mecanismo genérico de invalidación es de 1.6, su uso real en la transición de estado es 1.6b), [#8](https://github.com/pirexia/plataforma-educativa/issues/8) (cookie de sesión host-only por defecto de Laravel, sin refuerzo activo), [#18](https://github.com/pirexia/plataforma-educativa/issues/18) (falta un `PasswordBrokerRepository` propio con tenant, reevaluar tras 1.2), [#81](https://github.com/pirexia/plataforma-educativa/issues/81) (`tenant_id`/RLS en `sessions` del framework — **no arreglado por 1.6**, deliberadamente fuera de su alcance, pero `platform_sessions` construye la superficie más sensible sin heredarlo, `ADR-046 §5`).
 - **Riesgo residual aceptado de `ADR-047`** (tablas "plataforma con visibilidad por tenant afectado"): `plataforma_app` gana `SELECT` sobre un subconjunto de columnas de `admin_action_logs` y `tenant_lifecycle_events`, que no son suyas. Es superficie nueva, creada a sabiendas — mitigada por columnas enumeradas (nunca la tabla), política que falla en cerrado en los dos sentidos, y tests de privilegio de motor, no de *endpoint*.
-- **Sin mecanismo de invitación/alta de contraseña para un `platform_admin`** (1.6): `bo:create-admin` crea la cuenta sin contraseña utilizable y `api.md` no documenta ningún *endpoint* de canje — a diferencia de `REQ-AUTH`. No es una vulnerabilidad (nadie puede entrar sin ese paso), pero deja el chasis inoperable hasta que se decida.
+- **Entrega real de la invitación de `platform_admin` pendiente de `OPEN-09`** (proveedor de correo transaccional sin elegir): el mecanismo en sí ya existe — `bo:create-admin` emite una invitación de un solo uso, canjeada en `POST /admin-invitation-redemptions` (`api.md §2.1`, issue [#173](https://github.com/pirexia/plataforma-educativa/issues/173)) — pero en desarrollo el correo no llega a una bandeja real.
 
 ## 4. Datos de menores
 
