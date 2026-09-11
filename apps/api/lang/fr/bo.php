@@ -13,6 +13,29 @@ return [
     'validation' => [
         'cursor_invalid' => 'Le curseur de pagination n\'est pas valide.',
     ],
+    'tenant' => [
+        'slug_taken' => 'Un établissement existe déjà avec cet identifiant.',
+        'slug_reserved' => 'Cet identifiant est réservé par la plateforme.',
+        'invalid_transition' => 'Cette transition d\'état n\'est pas autorisée.',
+        'name_mismatch' => 'Le nom saisi ne correspond pas exactement au nom de l\'établissement.',
+        'clone_source_invalid' => 'Un établissement dans cet état ne peut pas être cloné.',
+    ],
+    'dual_auth' => [
+        'same_actor' => 'La personne qui approuve une demande ne peut pas être celle qui l\'a faite.',
+        'expired' => 'Cette demande de double autorisation a expiré.',
+        'already_resolved' => 'Cette demande de double autorisation est déjà résolue.',
+        'payload_mismatch' => 'Cette opération ne peut plus être exécutée : ses conditions ont changé depuis la demande.',
+    ],
+    'tenant_lifecycle' => [
+        'reason' => [
+            'provisioned' => 'Provisionnement initial de l\'établissement terminé.',
+        ],
+    ],
+    'module_subscription' => [
+        'reason' => [
+            'cloned' => 'Copié lors du clonage de l\'établissement source.',
+        ],
+    ],
     // Issue #173. Courriel d'invitation d'un administrateur de plateforme.
     'mail' => [
         'invitation' => [

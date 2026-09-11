@@ -39,6 +39,9 @@ class Tenant extends Model
 
     protected $casts = [
         'status' => TenantStatus::class,
+        'suspended_at' => 'datetime',
+        'grace_period_ends_at' => 'datetime',
+        'grace_period_expired_at' => 'datetime',
     ];
 
     public static function findBySlug(string $slug): ?self

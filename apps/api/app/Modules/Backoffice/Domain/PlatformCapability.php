@@ -10,19 +10,27 @@ namespace App\Modules\Backoffice\Domain;
  * plataforma sería un camino para que alguien se conceda capacidades
  * sobre todos los centros a la vez, y ese camino no debe existir.
  *
- * **Subconjunto de 1.6**: permisos.md §3 describe la matriz completa de
- * `REQ-BO` (`tenant.crear/actualizar/suspender/baja/eliminar`,
- * `modulo.*`, `flag.*`, `salud.leer`, `job.reintentar`, `metrica.leer`,
- * `autorizacion.leer`…). Este `enum` solo declara las capacidades que
- * 1.6 respalda con un *endpoint* real — identidad y acceso, gestión de
- * administradores, lista blanca de IP, y la lectura de auditoría de
- * plataforma. El resto se añade en `1.6b`/`1.6c`/`1.6d`/`1.6e`, cuando
+ * **Subconjunto de 1.6, ampliado por 1.6b**: permisos.md §3 describe la
+ * matriz completa de `REQ-BO` (`tenant.crear/actualizar/suspender/baja/
+ * eliminar`, `modulo.*`, `flag.*`, `salud.leer`, `job.reintentar`,
+ * `metrica.leer`, `autorizacion.leer`…). El chasis de 1.6 declaró las
+ * capacidades que respaldaba con un *endpoint* real — identidad y
+ * acceso, gestión de administradores, lista blanca de IP, y la lectura
+ * de auditoría de plataforma—; `1.6b` añade las cinco de ciclo de vida
+ * de tenant (permisos.md §4.3) y `autorizacion.leer`, que respalda la
+ * doble autorización que la eliminación de un tenant necesita
+ * (`REQ-BO-007`). El resto se añade en `1.6c`/`1.6d`/`1.6e`, cuando
  * exista el *endpoint* que las necesite: declarar aquí una capacidad sin
  * *endpoint* sería inventar superficie que no existe.
  */
 enum PlatformCapability: string
 {
     case TenantLeer = 'tenant.leer';
+    case TenantCrear = 'tenant.crear';
+    case TenantActualizar = 'tenant.actualizar';
+    case TenantSuspender = 'tenant.suspender';
+    case TenantBaja = 'tenant.baja';
+    case TenantEliminar = 'tenant.eliminar';
 
     case AdminLeer = 'admin.leer';
     case AdminCrear = 'admin.crear';
@@ -35,4 +43,9 @@ enum PlatformCapability: string
     case IpAllowlistGestionar = 'ip_allowlist.gestionar';
 
     case AuditoriaPlataformaLeer = 'auditoria_plataforma.leer';
+
+    // 1.6b: permisos.md §2.8. No existe `autorizacion.aprobar` — la
+    // aprobación se rige por la capacidad de la acción autorizada
+    // (permisos.md §5.2).
+    case AutorizacionLeer = 'autorizacion.leer';
 }

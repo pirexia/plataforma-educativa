@@ -21,6 +21,20 @@ use Illuminate\Support\Str;
  * para `audit_logs`, tabla de tenant. `admin_action_logs` tiene su
  * propio vocabulario (RN-BO-30) y se escribe explícitamente desde cada
  * servicio, nunca desde un observer genérico de ciclo de vida.
+ *
+ * **Hallazgo de `1.6b`, severidad Media (issue #191)**: `runningInConsole()`
+ * es verdadero durante **cualquier** proceso arrancado por `artisan`, sin
+ * distinguir un operador tecleando un comando de un *worker* de cola
+ * procesando un `ShouldQueue` o de la propia suite de tests (`vendor/bin/
+ * pest` también es CLI) — así que la heurística por defecto no puede
+ * producir `system` para un trabajo en cola o una tarea programada, pese
+ * a que varios de ellos (`ExpireDualAuthorizations`,
+ * `tenant.aprovisionamiento_fallido`, `tenant.gracia_vencida`,
+ * `tenant.actualizado` de la fase 2 del alta) lo necesitan. `$actorType`
+ * deja que el llamador lo declare explícitamente cuando su propio
+ * contexto —y no el del proceso PHP— es lo que decide el tipo de actor;
+ * `null` (todos los llamadores existentes del chasis) conserva la
+ * heurística de siempre, sin cambiar su comportamiento.
  */
 final class AdminActionLogRecorder
 {
@@ -41,13 +55,14 @@ final class AdminActionLogRecorder
         ?string $reason = null,
         ?array $changes = null,
         ?array $context = null,
+        ?AdminActionLogActorType $actorType = null,
     ): AdminActionLog {
         $admin = Auth::guard('platform')->user();
 
         return AdminActionLog::create([
             'public_id' => (string) Str::ulid(),
             'occurred_at' => now(),
-            'actor_type' => $this->resolveActorType($admin),
+            'actor_type' => $actorType ?? $this->resolveActorType($admin),
             'actor_platform_admin_id' => $admin instanceof PlatformAdmin ? $admin->id : null,
             'affected_tenant_id' => $affectedTenantId,
             'subject_type' => $subjectType ?? 'platform',

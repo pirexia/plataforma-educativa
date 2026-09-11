@@ -3,9 +3,11 @@
 use App\Models\PermissionRole;
 use App\Models\Role;
 use App\Models\User;
-use App\Modules\Core\Application\ProvisionTenantDefaults;
 use App\Modules\Core\Domain\Models\TenantSetting;
 use App\Modules\Core\Domain\Models\UserInvitation;
+use App\Modules\Core\Domain\TenantAdministrator;
+use App\Modules\Core\Domain\TenantInitialSettings;
+use App\Modules\Core\Domain\TenantProvisioner;
 use App\Modules\Core\Infrastructure\Mail\InvitationMail;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
@@ -30,11 +32,10 @@ afterEach(function (): void {
 
 function provisionSmokeTenant(Tenant $tenant): void
 {
-    app(ProvisionTenantDefaults::class)->provision(
+    app(TenantProvisioner::class)->provision(
         $tenant,
-        'admin@example.com',
-        'Ana',
-        'Perez',
+        TenantInitialSettings::defaults(),
+        new TenantAdministrator('admin@example.com', 'Ana', 'Perez'),
     );
 }
 

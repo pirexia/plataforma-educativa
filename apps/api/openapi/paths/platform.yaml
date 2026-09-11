@@ -758,3 +758,499 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  # REQ-BO-001 (1.6b). api.md §2.4, §2.4.1 a §2.4.3, §2.5. Inventario y
+  # ciclo de vida de tenants.
+  /api/platform/v1/tenants:
+    get:
+      operationId: listPlatformTenants
+      summary: Inventario de tenants
+      description: >
+        api.md §2.4, §3.3. Capacidad tenant.leer. Filtros status, q,
+        grace_expired, provisioning, module_code. `autonomous_community`
+        **no** se implementa en 1.6b (ver TenantsController::index()):
+        la comunidad autónoma vive en `tenant_settings`, tabla interna de
+        `REQ-CORE`, y su única interfaz pública no sirve para filtrar
+        entre tenants sin ampliar la superficie pública de ese módulo
+        fuera de lo que `ADR-048 §10` autorizó. No se documenta un
+        parámetro que no hace nada.
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      parameters:
+        - name: status
+          in: query
+          description: Repetible, separado por comas.
+          schema: { type: string, enum: [en_alta, activo, suspendido, en_baja, eliminado] }
+        - { $ref: '../components.yaml#/components/parameters/QParam' }
+        - name: grace_expired
+          in: query
+          schema: { type: boolean }
+        - name: provisioning
+          in: query
+          schema: { type: string, enum: [en_curso, fallido] }
+        - name: module_code
+          in: query
+          schema: { type: string }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de tenants.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/PlatformTenant' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+    post:
+      operationId: createPlatformTenant
+      summary: Alta de un tenant (en dos fases)
+      description: >
+        REQ-BO-001, funcional.md §5.3, api.md §2.4.1. Capacidad
+        tenant.crear, sensible (reautenticación), `Idempotency-Key`
+        obligatoria (ADR-038 §8.1). Fase 1 síncrona: responde `201` con el
+        tenant en `en_alta`. Fase 2, en cola (`ProvisionTenant`): aplica
+        la configuración inicial, siembra los 16 roles y crea el primer
+        Administrador de Centro, invitado.
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/IdempotencyKeyHeader' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, slug, reason, settings, administrator]
+              properties:
+                name: { type: string }
+                slug: { type: string, pattern: '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$' }
+                reason: { type: string }
+                settings:
+                  type: object
+                  required: [default_locale, active_locales, timezone, currency, autonomous_community]
+                  properties:
+                    default_locale: { $ref: '../components.yaml#/components/schemas/Locale' }
+                    active_locales:
+                      type: array
+                      items: { $ref: '../components.yaml#/components/schemas/Locale' }
+                    timezone: { type: string, example: Europe/Madrid }
+                    currency: { type: string, example: EUR }
+                    autonomous_community: { type: string, example: MD }
+                administrator:
+                  type: object
+                  required: [email, given_name, family_name]
+                  properties:
+                    email: { type: string, format: email }
+                    given_name: { type: string }
+                    family_name: { type: string }
+      responses:
+        '201':
+          description: Tenant creado, en `en_alta`.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '../components.yaml#/components/schemas/PlatformTenant' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/PlatformReauthenticationRequired' }
+        '422':
+          description: "Validación, slug ocupado (bo.tenant.slug_taken) o reservado (bo.tenant.slug_reserved, RN-BO-49)."
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/platform/v1/tenants/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getPlatformTenant
+      summary: Ficha de un tenant
+      description: "api.md §2.4. Capacidad tenant.leer."
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      responses:
+        '200':
+          description: El tenant.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '../components.yaml#/components/schemas/PlatformTenant' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: updatePlatformTenant
+      summary: Actualiza nombre y/o mensaje de suspensión
+      description: "api.md §2.4. Capacidad tenant.actualizar. El `slug` va aparte (POST .../slug)."
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                suspension_message: { type: string, nullable: true }
+      responses:
+        '200':
+          description: Tenant actualizado.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '../components.yaml#/components/schemas/PlatformTenant' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/platform/v1/tenants/{publicId}/transitions:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: transitionPlatformTenant
+      summary: Única puerta de cambio de estado de un tenant
+      description: >
+        REQ-BO-001, funcional.md §5.4, §5.5, api.md §2.4.2. RN-BO-12: las
+        cinco transiciones permitidas y ninguna más. Capacidad exacta
+        según origen/destino (permisos.md §4.3): `tenant.suspender`
+        (suspender/reactivar), `tenant.baja` (dar de baja/rescatar),
+        `tenant.eliminar` (eliminar). Reautenticación exigida solo cuando
+        `to_status` ∈ {en_baja, eliminado} (api.md §4).
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [to_status, reason]
+              properties:
+                to_status: { type: string, enum: [activo, suspendido, en_baja, eliminado] }
+                reason: { type: string }
+                suspension_message: { type: string, nullable: true }
+                confirmation_name:
+                  type: string
+                  description: Obligatorio y literal cuando to_status=eliminado (RN-BO-57).
+      responses:
+        '200':
+          description: Transición simple ejecutada.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '../components.yaml#/components/schemas/PlatformTenant' }
+        '202':
+          description: "to_status=eliminado: doble autorización creada y pendiente. No se ha eliminado nada todavía."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '../components.yaml#/components/schemas/DualAuthorization' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/PlatformReauthenticationRequired' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: "Transición no permitida (bo.tenant.invalid_transition) o nombre de confirmación no exacto (bo.tenant.name_mismatch)."
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/platform/v1/tenants/{publicId}/lifecycle-events:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: listPlatformTenantLifecycleEvents
+      summary: Historia de la máquina de estados de un tenant
+      description: "api.md §2.4. Capacidad tenant.leer."
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de transiciones, orden occurred_at DESC.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/TenantLifecycleEvent' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+
+  /api/platform/v1/tenants/{publicId}/clone:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        description: public_id del tenant origen.
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: clonePlatformTenant
+      summary: Clona un tenant como plantilla
+      description: >
+        RMT-007, funcional.md §5.6, api.md §2.4.3. Capacidad tenant.crear,
+        sensible, `Idempotency-Key` obligatoria. Copia configuración
+        operativa, roles y concesiones (nunca personas, usuarios,
+        invitaciones ni auditoría — RN-BO-21). El origen no puede estar
+        `en_alta` ni `eliminado` (RN-BO-59).
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/IdempotencyKeyHeader' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, slug, reason, administrator]
+              properties:
+                name: { type: string }
+                slug: { type: string, pattern: '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$' }
+                reason: { type: string }
+                administrator:
+                  type: object
+                  required: [email, given_name, family_name]
+                  properties:
+                    email: { type: string, format: email }
+                    given_name: { type: string }
+                    family_name: { type: string }
+      responses:
+        '201':
+          description: Clon creado, en `en_alta`.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '../components.yaml#/components/schemas/PlatformTenantClone' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/PlatformReauthenticationRequired' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422':
+          description: "Validación, o origen en estado no clonable (bo.tenant.clone_source_invalid, RN-BO-59)."
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/platform/v1/tenants/{publicId}/slug:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: changePlatformTenantSlug
+      summary: Cambia el slug (dominio) de un tenant
+      description: >
+        api.md §2.5. Ruta propia, no un campo de `PATCH`: cambia el
+        nombre DNS del centro e invalida las dos claves de caché
+        (RN-BO-51). Capacidad tenant.actualizar, sensible.
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [slug, reason]
+              properties:
+                slug: { type: string, pattern: '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$' }
+                reason: { type: string }
+      responses:
+        '200':
+          description: Slug cambiado.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '../components.yaml#/components/schemas/PlatformTenant' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/PlatformReauthenticationRequired' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422':
+          description: "Validación, slug ocupado o reservado (RN-BO-49)."
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  # REQ-BO-007 (1.6b). api.md §2.8. Doble autorización. La aprobación y
+  # el rechazo se rigen por la capacidad de la ACCIÓN AUTORIZADA
+  # (permisos.md §5.2), no por una capacidad propia — no existe
+  # `autorizacion.aprobar`.
+  /api/platform/v1/dual-authorizations:
+    get:
+      operationId: listPlatformDualAuthorizations
+      summary: Solicitudes de doble autorización
+      description: "api.md §2.8. Capacidad autorizacion.leer. Filtros status, action, requested_by."
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [pendiente, aprobada, rechazada, caducada, ejecutada, fallida] }
+        - name: action
+          in: query
+          schema: { type: string }
+        - name: requested_by
+          in: query
+          schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de solicitudes.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/DualAuthorization' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+
+  /api/platform/v1/dual-authorizations/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getPlatformDualAuthorization
+      summary: Detalle de una solicitud, con el payload congelado
+      description: "api.md §2.8. Capacidad autorizacion.leer."
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      responses:
+        '200':
+          description: La solicitud.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '../components.yaml#/components/schemas/DualAuthorization' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+
+  /api/platform/v1/dual-authorizations/{publicId}/approval:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: approvePlatformDualAuthorization
+      summary: Aprueba y ejecuta la operación congelada
+      description: >
+        REQ-BO-007, funcional.md §5.7, api.md §2.8. Sensible. Capacidad de
+        la acción autorizada (permisos.md §5.2) — quien aprueba
+        `tenant.eliminar` necesita `tenant.eliminar`. `RN-BO-19`: el
+        aprobador no puede ser el solicitante, garantizado por el motor
+        (`CHECK dual_authorizations_distinct_approver`). Si la operación
+        congelada ha dejado de ser válida (RN-BO-20), la solicitud queda
+        `fallida` y responde `409`.
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resolution_reason: { type: string, nullable: true }
+      responses:
+        '200':
+          description: Aprobada y ejecutada.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '../components.yaml#/components/schemas/DualAuthorization' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/PlatformReauthenticationRequired' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: "Caducada (bo.dual_auth.expired), ya resuelta (bo.dual_auth.already_resolved), aprobador=solicitante (bo.dual_auth.same_actor), o parámetros ya no válidos (bo.dual_auth.payload_mismatch, RN-BO-20)."
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/platform/v1/dual-authorizations/{publicId}/rejection:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: rejectPlatformDualAuthorization
+      summary: Rechaza una solicitud, con motivo
+      description: "REQ-BO-007, funcional.md §5.7 punto 5, api.md §2.8. Sensible. Capacidad de la acción autorizada."
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resolution_reason]
+              properties:
+                resolution_reason: { type: string }
+      responses:
+        '200':
+          description: Rechazada.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '../components.yaml#/components/schemas/DualAuthorization' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/PlatformReauthenticationRequired' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: "Caducada o ya resuelta."
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }

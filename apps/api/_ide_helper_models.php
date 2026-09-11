@@ -1879,6 +1879,50 @@ namespace App\Modules\Backoffice\Domain\Models{
 	class IdeHelperPlatformIpAllowlistEntry {}
 }
 
+namespace App\Modules\Backoffice\Domain\Models{
+/**
+ * REQ-BO-001, datos.md §5, ADR-047 §4.1/§4.2/§4.3/§4.4. Historia de la
+ * máquina de estados de un centro: dato de negocio que la aplicación lee
+ * (cuándo vence la gracia, desde cuándo está suspendido), no auditoría —
+ * por eso es tabla distinta de `admin_action_logs` (datos.md §5.1).
+ *
+ * Append-only, como `AdminActionLog`: no hay `update()`/`delete()` que
+ * valga desde este modelo — el motor ya lo rechaza (`REVOKE UPDATE,
+ * DELETE`) bajo `FORCE ROW LEVEL SECURITY` sin política permisiva de
+ * escritura.
+ *
+ * @property int $id
+ * @property string $public_id
+ * @property int $affected_tenant_id
+ * @property \App\Support\Tenancy\TenantStatus|null $from_status
+ * @property \App\Support\Tenancy\TenantStatus $to_status
+ * @property string $reason
+ * @property \Illuminate\Support\Carbon $occurred_at
+ * @property int|null $performed_by
+ * @property int|null $dual_authorization_id
+ * @property \Illuminate\Support\Carbon|null $grace_period_ends_at
+ * @property-read \App\Support\Tenancy\Tenant|null $affectedTenant
+ * @property-read \App\Modules\Backoffice\Domain\Models\DualAuthorization|null $dualAuthorization
+ * @property-read \App\Modules\Backoffice\Domain\Models\PlatformAdmin|null $performer
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantLifecycleEvent newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantLifecycleEvent newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantLifecycleEvent query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantLifecycleEvent whereAffectedTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantLifecycleEvent whereDualAuthorizationId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantLifecycleEvent whereFromStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantLifecycleEvent whereGracePeriodEndsAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantLifecycleEvent whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantLifecycleEvent whereOccurredAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantLifecycleEvent wherePerformedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantLifecycleEvent wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantLifecycleEvent whereReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TenantLifecycleEvent whereToStatus($value)
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperTenantLifecycleEvent {}
+}
+
 namespace App\Modules\Core\Domain\Models{
 /**
  * datos.md §A.4. Full: no contiene datos personales, solo qué se pidió,
