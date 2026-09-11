@@ -82,6 +82,7 @@ Lo que sí hace es **escribir el dato del que dependen esos dos requisitos**, y 
 | Conmutador para **relajar el MFA** | `REQ-BO-007` dice «sin excepción». Una variable que lo relaja convierte «sin excepción» en «salvo que alguien exporte esto» |
 | Conmutador para **saltar la doble autorización en desarrollo** | Es exactamente el mecanismo que acaba en producción. El entorno de desarrollo crea **dos** administradores; cuesta lo mismo y prueba lo que de verdad se va a usar |
 | Variable para **forzar el valor de un *feature flag*** (`FEATURE_X=true`) | Es la forma más rápida de tener un *flag* encendido en producción **sin autor, sin motivo y sin auditoría**, y de que su valor real dependa de en qué contenedor caiga la petición. El estado de un *flag* vive en su tabla, con su `reason` y su entrada en `admin_action_logs` (`RN-BO-43`). Para apagarlo ya, está `forced_off`, que es igual de rápido y **sí** deja rastro (`api.md §2.12`) |
+| Variable para **acortar el período de gracia** de los 90 días (`1.6b`) | `REQ-BO-001` fija 90 días. Una variable que los acorte es una forma de saltarse el plazo de portabilidad de un centro **sin que quede rastro de que alguien lo decidió**, y acabaría puesta a un valor pequeño «para probar» en un entorno que un día es producción. El plazo vive en `config/backoffice.php` como constante del producto, no como configuración de despliegue (`RN-BO-61`). **Acortar un plazo concreto, para un centro concreto, es una decisión que necesita nombre y auditoría** — y hoy no existe: el único camino es rescatar y volver a dar de baja |
 | Conmutador para **desactivar el motor de *flags*** | Un motor desactivado tendría que devolver algo, y las dos respuestas posibles son malas: `false` para todo apaga funcionalidades ya entregadas a centros reales, y `true` para todo enciende de golpe lo que está a medias. Si el motor no puede leer sus tablas, la respuesta correcta es la de `RN-BO-35` —falso por defecto— y no hay nada que configurar |
 
 ---
@@ -106,13 +107,24 @@ Lo que sí hace es **escribir el dato del que dependen esos dos requisitos**, y 
 
 `ADR-045 §8.3` lo marca como **de obligado cumplimiento en 1.6**. Hay **tres** cachés distintas —dos que este paso rompe y una que crea— y confundirlas es el error probable. **Las tres se invalidan de forma diferente, y eso no es una inconsistencia: es que los tres patrones de escritura son distintos** (§4.4).
 
-### 4.1 `tenant-resolution:{slug}` — issue [#7](https://github.com/pirexia/plataforma-educativa/issues/7)
+### 4.1 `tenant-resolution:{slug}` — issue [#7](https://github.com/pirexia/plataforma-educativa/issues/7) · sub-paso `1.6b`
 
-`ResolveTenant` cachea `{id, status}` durante 60 s. Hasta hoy nadie cambiaba `status`; **este paso es el que deja de hacerlo cierto**.
+`ResolveTenant` cachea `{id, status}` durante 60 s. Hasta hoy nadie cambiaba `status`; **este sub-paso es el que deja de hacerlo cierto**.
 
 - **Toda** escritura de `tenants.status` la invalida **en la misma operación** (`RN-BO-14`), no en un paso posterior ni en un *listener* que alguien pueda desregistrar.
 - El **cambio de `slug`** invalida **dos** claves: la vieja y la nueva.
+- **El alta y la clonación invalidan la clave de su `slug` nuevo.** Parece inútil y no lo es: un `slug` de un tenant eliminado se puede reutilizar, y la entrada del anterior puede seguir viva (`funcional.md §5.4.2`).
 - Test: un tenant recién suspendido responde `503` **en el mismo segundo**, no en hasta 60 s (`CA-BO-054`).
+
+**Tres detalles de implementación que deciden si esto funciona o sólo lo parece:**
+
+| # | Detalle | Qué pasa si se ignora |
+|---|---|---|
+| 1 | **La clave vive bajo el prefijo base, no bajo `t{tenant_id}:`** | Nada, porque es correcto y sale solo: `ResolveTenant` escribe esa clave **antes** de que `TenantContext::enter()` cambie `cache.prefix`, y el backoffice corre sin tenant. **Se escribe aquí para que nadie «arregle» este caso copiando el mecanismo de §4.2**, que es el del caso contrario y produciría una clave que nadie lee |
+| 2 | **Se invalida al confirmar la transacción, no dentro** | Entre el `forget` y el `COMMIT`, una petición concurrente relee el valor **anterior** y lo vuelve a cachear 60 s. El resultado es un tenant suspendido que sigue sirviendo: exactamente el defecto que se está cerrando, reintroducido por el arreglo. `CA-BO-113` |
+| 3 | **La caché es compartida (Redis), no de proceso** | Con un almacén `array` o `file`, la invalidación sólo alcanza al nodo que escribe y los demás siguen sirviendo el estado viejo. **No da ningún síntoma en desarrollo con un proceso**, que es lo que lo hace peligroso |
+
+> **Y una comprobación que no es de caché pero se descubre aquí**: `ResolveTenant` responde hoy `404` —no `503`— para `en_baja` y `eliminado`, y a un tenant con `deleted_at` ni siquiera lo encuentra. `RN-BO-50` lo corrige y `CA-BO-110`/`CA-BO-111` lo verifican. Es del mismo sub-paso porque lo activa la misma funcionalidad (`funcional.md §5.4.1`).
 
 ### 4.2 `modules:{code}:enabled` — `ADR-045 §8.3`, y es la difícil
 
@@ -175,9 +187,10 @@ Es el escenario que hay que tener escrito **antes** de que ocurra: la lista blan
 | Nadie cubierto por la lista blanca | `php artisan bo:allow-ip` desde el servidor. **Requiere acceso al *host***, que es exactamente la barrera que se quiere |
 | El único administrador pierde su segundo factor | `php artisan bo:reset-mfa <email>` desde el servidor, auditado como `console`. **No hay vía por correo ni por la API** (`CA-BO-012`) |
 | No queda ningún `superadministrador` | `bo:create-admin`. `RN-BO-11` impide llegar ahí por la API, pero no impide un borrado por base de datos |
+| **`1.6b`** · Un tenant se queda atascado en `en_alta` porque su aprovisionamiento falló | `php artisan bo:retry-provisioning <slug>`, que reencola un trabajo **idempotente** (§6.1). Auditado como `console`. **No es un *endpoint***: no hace falta capacidad nueva ni pantalla, y el camino de recuperación de este módulo ya es la consola. **Y nunca se arregla escribiendo `status = 'activo'` a mano**: dejaría un centro marcado como listo sin roles, sin configuración y sin administrador (`RN-BO-52`, `funcional.md §5.3.5`) |
 | **Todo el backoffice responde `404`** | `BACKOFFICE_HOST` no coincide con el *host* por el que se entra, o la regla `Host()` de Traefik apunta a otro nombre. Se corrige en configuración y despliegue (§0), **no en la aplicación**: `RequirePlatformHost` está haciendo exactamente lo que debe (`RN-BO-48`) |
 
-**Los tres comandos exigen acceso de consola al servidor y los tres escriben en `admin_action_logs`.** Un mecanismo de recuperación sin rastro sería una puerta trasera con otro nombre.
+**Los cuatro comandos exigen acceso de consola al servidor y los cuatro escriben en `admin_action_logs`** —los tres del chasis y el que añade `1.6b`—. Un mecanismo de recuperación sin rastro sería una puerta trasera con otro nombre.
 
 ---
 
@@ -187,9 +200,12 @@ Es el escenario que hay que tener escrito **antes** de que ocurra: la lista blan
 
 | Trabajo | Cuándo | Nota |
 |---|---|---|
-| `ProvisionTenant` | Tras crear un tenant | Los 16 roles, sus concesiones, la configuración y el primer administrador. **Debe completarse en segundos** (nota para el implementador de `REQ-BO-005`): es operación de datos, no despliegue |
+| `ProvisionTenant` | Tras crear un tenant | Los 16 roles, sus concesiones, la configuración y el primer administrador. **Debe completarse en segundos** (nota para el implementador de `REQ-BO-005`): es operación de datos, no despliegue. **Es la fase 2 del alta** (`funcional.md §5.3.3`): al terminar escribe la transición `en_alta` → `activo` e invalida la caché de resolución. **No implementa el aprovisionamiento**: llama a `TenantProvisioner::provision()`, el contrato público de `REQ-CORE` que fija `ADR-048` (`RN-BO-53`). El fallo le llega como **excepción**, no como valor de retorno: la captura, escribe `tenant.aprovisionamiento_fallido` con el mensaje en `context` y deja que Laravel agote los reintentos |
 | `RunModuleRollout` | Activación masiva | Idempotente por `Idempotency-Key`. Emite **un evento por centro** (`RN-BO-27`) e invalida **el prefijo de cada centro** (§4.2) |
-| `CloneTenant` | Clonación | Copia configuración, roles, concesiones y suscripciones. **Nunca personas** (`RN-BO-21`) |
+| `CloneTenant` | Clonación | Copia configuración operativa, roles, concesiones y suscripciones, **en una sola lectura transaccional del origen**. **Nunca personas** (`RN-BO-21`, `RN-BO-59`): crea un primer administrador nuevo a partir del cuerpo de la petición. **Tampoco implementa la copia de lo que es de `REQ-CORE`** —`tenant_settings`, `roles` y `permission_role`—: llama a `TenantProvisioner::provisionFromTemplate()`, que es donde ocurre la lectura transaccional del origen (`ADR-048 §4.5`, `funcional.md §5.6.2`). Lo único que copia el propio trabajo es **`module_subscriptions`**, del que el backoffice es único escritor por `ADR-045 §4.1` |
+| `RevokeTenantSessions` | **Sólo** tras ejecutarse una eliminación (`1.6b`) | Cierra todas las sesiones vivas de los usuarios de ese centro con `baja_usuario`. **Entra en el contexto del tenant con `runFor()`**; no toca ningún otro. **No se encola al suspender ni al dar de baja** (`RN-BO-55`), y no hay ningún *endpoint* que lo dispare por su cuenta (`permisos.md §5`) |
+
+**Los cuatro trabajos de tenant son idempotentes y hay que probarlo, no suponerlo.** `ProvisionTenantDefaults` ya lo es —comprueba la existencia de `TenantSetting` antes de escribir, verificado sobre el código—, y de ahí sale la propiedad que hace posible `bo:retry-provisioning` (§5.1): reintentar un alta a medias no duplica roles, concesiones, personas ni invitaciones (`CA-BO-108`). **Desde `ADR-048 §4.3` esa idempotencia deja de ser silenciosa**: el contrato devuelve `TenantProvisioningOutcome::Provisioned` o `AlreadyProvisioned`, de modo que `bo:retry-provisioning` puede decirle al operador si reparó algo o si no había nada que reparar, y `CA-BO-108` puede comprobarlo sin contar filas. **`provisionFromTemplate()` es idempotente por la misma comprobación** (`ADR-048 §5.3`).
 
 **Los tres entran y salen del contexto de cada tenant con `runFor()`.** `ADR-033 §8` estampa el `tenant_id` en el *payload* de todo trabajo automáticamente — pero **estos trabajos los encola el backoffice, que no tiene tenant**: el tenant afectado viaja como dato del trabajo, no como contexto heredado, y el trabajo entra en él explícitamente. Es la diferencia que hace que `Queue::looping()` no aborte el *worker*.
 
@@ -199,7 +215,7 @@ Es el escenario que hay que tener escrito **antes** de que ocurra: la lista blan
 |---|---|---|
 | `bo:expire-dual-authorizations` | Cada 15 min | Pasa a `caducada` lo vencido. `actor_type = 'system'` |
 | `bo:close-orphaned-sessions` | **Cada 15 min** | Cierra como `caducidad` las filas vivas de `platform_admin_sessions` cuyo `session_id` ya no está en `platform_sessions`: anula `session_id`, fija `ended_at` y escribe `end_reason = 'caducidad'`. §6.3 |
-| `bo:check-grace-periods` | Diaria | Marca los tenants cuyo período de gracia venció y **avisa**. **No borra nada** (`RN-BO-17`) |
+| `bo:check-grace-periods` | Diaria | Marca los tenants cuyo período de gracia venció y **avisa**. **No borra nada** (`RN-BO-17`). Detalle en §6.4 |
 | `bo:purge-mfa-challenges` | Cada hora | Desafíos caducados, igual que su homóloga de 1.3 |
 
 **Los *feature flags* no añaden ni un trabajo en cola ni una tarea programada**, y merece una frase porque es lo contrario de lo que se espera de un motor de despliegue progresivo. No hay nada que barrer —el reparto por porcentaje se calcula, no se almacena (`RN-BO-38`)—, nada que caducar —una regla vive hasta que alguien la cambia— y nada que recalcular cuando aparece un centro nuevo, que es justamente la propiedad por la que se eligió una función determinista en vez de una tabla de asignaciones. **Si en la implementación aparece un job de «recalcular cubos» o de «sincronizar exposiciones», el diseño se ha desviado de `funcional.md §5.11.6`** y hay que volver a él, no añadir el job.
@@ -228,6 +244,27 @@ Es el escenario que hay que tener escrito **antes** de que ocurra: la lista blan
 > **`1.6` no tiene el cierre perezoso que `1.2b` puso en su listado de sesiones** (`REQ-AUTH/funcional.md §B.4.2`), y no se adelanta: no hay pantalla de sesiones de plataforma (`funcional.md §12.5`) ni *endpoint* que las liste (`datos.md §2.7`). **La tarea, en cambio, hace falta desde el primer día**, precisamente porque sin cierre perezoso nada más cierra esas filas — y la revocación, que sí existe en `1.6`, lee ese índice.
 
 Verificado por `CA-BO-104`.
+
+### 6.4 `bo:check-grace-periods`: qué hace exactamente, y qué **no** hace (`1.6b`)
+
+`RN-BO-17` dice «se marca como candidato y se avisa». Las dos palabras son ambiguas y las dos se dan por implementadas con facilidad, así que aquí van sin margen:
+
+**Para cada tenant con `status = 'en_baja'`, `grace_period_ends_at < now()` y `grace_period_expired_at IS NULL`:**
+
+1. Escribe `tenants.grace_period_expired_at = now()`. **Una sola vez**: la condición de la consulta lo garantiza y es lo que hace la tarea idempotente frente a una ejecución diaria (`CA-BO-122`).
+2. Escribe **una** entrada en `admin_action_logs` con `action = 'tenant.gracia_vencida'`, `actor_type = 'system'` y `affected_tenant_id`.
+3. Emite la señal de §7 para que el vencimiento sea visible en operación.
+
+**Y no hace nada más. En concreto, no hace estas cuatro:**
+
+| No hace | Por qué |
+|---|---|
+| **No borra ni anonimiza nada** | `RN-BO-17`. Una purga por temporizador sobre datos de un centro entero —con datos de menores— no puede depender de que nadie haya olvidado prorrogar el plazo. Borrar exige una persona, doble autorización y `REQ-PRIV-006` |
+| **No transita el tenant a `eliminado`** | Ídem, y además `RN-BO-18` exige cuatro cerrojos que una tarea programada no puede cumplir: no hay solicitante, no hay reautenticación y no hay dos personas |
+| **No escribe en `tenant_lifecycle_events`** | No ha habido transición. Esa tabla es la máquina de estados, no un diario (`datos.md §6.2`) |
+| **No notifica a nadie**, ni al centro ni al operador | No existe infraestructura de notificaciones hasta `REQ-COM` (paso 1.19). **«Avisar» es, en `1.6b`, exactamente los puntos 2 y 3 de arriba más el filtro `grace_expired` del inventario** (`api.md §3.3`). Se dice así de claro porque «y se avisa» es la clase de frase que se da por construida sin que nadie haya construido el aviso |
+
+**El tenant sigue siendo rescatable después de vencer**, y el rescate pone `grace_period_expired_at` a nulo (`RN-BO-58`): si el plazo vuelve a vencer tras una segunda baja, la tarea vuelve a marcarlo y a registrarlo, que es lo correcto.
 
 ---
 
@@ -263,7 +300,15 @@ Verificado por `CA-BO-104`.
 | «Una consulta del backoffice devuelve filas de todos los tenants sin pasar por `runAsPlatform()`» | Si el *middleware* de sesión de plataforma toca `database.default` o llama a `DB::setDefaultConnection()` | `datos.md §2.6.3`. **Sólo puede fijar `session.connection = 'pgsql_platform'`.** Dejar `pgsql_platform` como conexión por defecto pone `BYPASSRLS` de fondo en todo el grupo de rutas y vacía `ADR-046 §6` sin dar ningún síntoma. Es lo que `CA-BO-105` existe para impedir |
 | «Entro pero no puedo hacer nada» | `mfa_enrolled_at` del administrador | `RN-BO-05`: sin factor confirmado sólo se alcanza `/mfa/*` |
 | «Contrato un módulo y el centro sigue viendo 403» | Que la escritura invalide la caché **con el prefijo del tenant** | §4.2. Con un solo tenant en desarrollo esto **parece funcionar** aunque esté mal |
-| «Suspendo un centro y sigue entrando» | Que la transición invalide `tenant-resolution:{slug}` | §4.1, issue #7 |
+| «Suspendo un centro y sigue entrando» | Que la transición invalide `tenant-resolution:{slug}` | §4.1, issue #7. **Y si invalida pero sigue fallando en algunos nodos y no en otros**: el almacén de caché no es compartido (§4.1, detalle 3) |
+| «Suspendo un centro y sigue entrando **sólo durante unos segundos**» | Dónde se ejecuta la invalidación respecto del `COMMIT` | §4.1, detalle 2: invalidar **dentro** de la transacción deja que una petición concurrente recachee el valor anterior. Va en el `afterCommit` |
+| «Un centro dado de baja o eliminado responde `404` en vez de `503`» | El mapa de estados de `ResolveTenant` y si la búsqueda incluye borrados lógicos | `RN-BO-50`. **Es el comportamiento de hoy y es un defecto**, no una decisión: `funcional.md §5.4.1` |
+| «Un tenant lleva horas en `en_alta`» | `failed_jobs` del tenant y la última entrada `tenant.aprovisionamiento_fallido` | `funcional.md §5.3.5`. Se repara con `bo:retry-provisioning`, **nunca** escribiendo `status` a mano (§5.1) |
+| «El alta ha devuelto `201` pero el centro no tiene roles» | `provisioning.state` de la ficha | Es normal durante unos segundos: el alta tiene **dos fases** (`RN-BO-52`). Si el estado es `fallido`, es la fila de arriba |
+| «Elimino un tenant y sus usuarios siguen con la sesión abierta» | Que `RevokeTenantSessions` esté encolado y el *worker* corriendo | `RN-BO-55`. Mientras tanto, el `503` ya los bloquea: la revocación es para que no queden credenciales vivas, no para cerrar la puerta |
+| «Suspendo un centro y a sus usuarios se les ha cerrado la sesión» | **Es un defecto** | `RN-BO-55`: suspender **no** revoca. Si ocurre, alguien ha encolado la revocación en la transición equivocada y ha roto «al reactivarlo, todo vuelve sin pérdida» |
+| «El registro se llena de avisos de gracia vencida, uno por día» | `tenants.grace_period_expired_at` | §6.4: la tarea sólo actúa sobre los que tienen esa columna a nulo. Si se reescribe, la condición de la consulta está mal |
+| «He clonado un centro y le faltan el logo y el CIF» | **No es un fallo** | `funcional.md §5.6.2`: no se copian a propósito, y la respuesta de la operación lo dice en `not_copied` (`api.md §2.4.3`) |
 | «No puedo eliminar un tenant de pruebas» | Cuántos `superadministrador` hay | `RN-BO-19`: hacen falta **dos personas**. §5 paso 5 |
 | «`platform:sync-registry` aborta el despliegue» | El mensaje: código inexistente o ciclo | `CA-BO-034`/`CA-BO-035`. **Es el comportamiento correcto**: mejor un despliegue detenido que un catálogo con una arista rota |
 | «Un centro tiene `M` sin `N` y el sistema no lo arregla» | Ficha de salud del centro | `ADR-045 §4.5`: el comando **informa y no corrige**. Contratar automáticamente sería tomar una decisión comercial facturable sobre 200 centros |
@@ -307,11 +352,15 @@ Trabajo de cierre del paso, **no opcional** (`CLAUDE.md §6`, regla 7):
 | `CONTRIBUTING.md` (`1.6e`) | Cómo se declara un *flag* nuevo en el descriptor de un módulo, y la regla de que **un *flag* se crea escribiendo el código que lo consulta** — no hay pantalla que los cree (`RN-BO-34`). Es la parte que un desarrollador nuevo necesita y que no está en ningún otro sitio |
 | `PRIVACY.md` | `platform_admins` es un tratamiento de datos personales **del personal del proveedor**, con base legal propia (relación laboral o de servicio), distinto de los tratamientos en los que somos encargados. Y el acceso del proveedor a los sistemas del cliente queda documentado con su registro |
 | `ARCHITECTURE.md` | La segunda superficie HTTP y su frontera, **según la decide `ADR-046 §4`**: mismo monolito y mismo despliegue de API, con *guard*, grupo de rutas y **SPA propia (`apps/backoffice`)**. En el diagrama entra un contenedor nuevo —el de estáticos del backoffice— y **dos *routers* de Traefik enrutados por `Host()`**, no por `PathPrefix`. Y la frontera de `App\Support\Tenancy`: `runAsPlatform()` con propósito declarado (`funcional.md §6.2`) |
-| `RUNBOOK.md` | §5.1 (salida de un bloqueo total) y §8 (diagnóstico) |
+| `RUNBOOK.md` | §5.1 (salida de un bloqueo total) y §8 (diagnóstico). **Al cerrar `1.6b`**: el tenant atascado en `en_alta` y su reparación con `bo:retry-provisioning`, y el diagnóstico del `503`/`404` por estado |
+| `SECURITY.md` (`1.6b`) | **Qué revoca y qué no revoca cada transición de un centro** (`RN-BO-55`): eliminar cierra todas las sesiones de sus usuarios; suspender y dar de baja las dejan vivas y las bloquea `ResolveTenant`. Y el mapa de respuestas por estado de `RN-BO-50`, que es lo que garantiza que un centro sin acceso no devuelva **ningún** dato |
+| `PRIVACY.md` (`1.6b`) | **Un centro eliminado conserva íntegros todos sus datos, incluidos los de menores, sin plazo de purga definido** (`funcional.md §5.5.3`). Es el nivel 1 de `ADR-004` y es deuda declarada contra `REQ-PRIV-006`, con el riesgo aceptado por el usuario el 2026-09-08 (`OPEN-BO-05`). **Tiene que constar como decisión, no descubrirse en una auditoría** |
+| `SYSADMIN.md` (`1.6b`) | La tarea diaria `bo:check-grace-periods` y qué significa exactamente su marca (§6.4), y el comando `bo:retry-provisioning` |
 | `CHANGELOG.md` | Una entrada por cada sub-paso cerrado (`CLAUDE.md §6.7`) |
 | `docs/manual-usuario/admin.md` | **Nada.** El Administrador de Centro no alcanza el backoffice. Lo que sí cambia en su manual es consecuencia de `ADR-045`: **ya no activa ni desactiva módulos**, sólo los consulta y configura. Es una capacidad que el manual describía y que desaparece |
 | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | **Ya actualizado** a 3.2.0 por el encargo de `ADR-045 §10`, con su fila de historial |
 | `docs/modulos/REQ-CORE/funcional.md` | **Ya actualizado**: §2 y `OPEN-CORE-03` marcados como resueltos, `CA-CORE-061` reforzado |
+| `docs/modulos/REQ-CORE/funcional.md` | **Pendiente al cerrar `1.6b`** (`ADR-048 §7`, `§11` punto 3): su `§7` enumera las cinco interfaces públicas que `REQ-CORE` expone en su `Domain` y tendrá que añadir la sexta, **`TenantProvisioner`**. Mientras no se añada, `REQ-CORE` es dueño de un contrato público que su propia especificación no documenta — el mismo defecto que `1.6e` arrastra con el evaluador de *feature flags*, dos filas más abajo |
 | `docs/modulos/REQ-CORE/permisos.md` | Pendiente al cerrar `1.6c`: la fila de `modulo.actualizar` debe decir que su alcance es **sólo `settings`**, respaldado por privilegio de columna y no sólo por validación |
 | `docs/modulos/REQ-CORE/funcional.md` | **Pendiente al cerrar `1.6e`, y detectado en la revisión del 2026-09-08**: su `§2.3` enumera lo que `1.6` añade a `REQ-CORE` —camino de escritura de módulos, los dos eventos, invalidación de caché— y **no menciona el evaluador de *feature flags***, que esta especificación asigna a `REQ-CORE` y no a `REQ-BO` (`funcional.md §9`). No es una contradicción: `§2.3` se escribió antes de que los *flags* entraran en alcance. Pero si `1.6e` cierra sin añadir esa línea, `REQ-CORE` acaba siendo dueño de un componente que su propia especificación no documenta |
 | `docs/modulos/REQ-CORE/api.md` | Pendiente al cerrar `1.6e`: `GET /api/v1/feature-flags` es ruta suya, no de plataforma (`api.md §2.14`). Igual que `GET /api/v1/platform-actions` al cerrar `1.6` |
@@ -332,6 +381,12 @@ Trabajo de cierre del paso, **no opcional** (`CLAUDE.md §6`, regla 7):
 
 - **`DROP TABLE admin_action_logs` destruye la auditoría de plataforma.** Es lo único de este módulo cuya pérdida no es recuperable rehaciendo trabajo. Si hay actividad real, **se vuelca antes**, y el volcado se custodia con el mismo cuidado que la tabla.
 - **Revertir el paso 5 reabre el agujero que `ADR-045 §4.4` cierra**: el centro vuelve a poder escribir `enabled` si algún día un controlador se lo permite. Es aceptable para un despliegue fallido y **nunca** como forma de «desactivar temporalmente la restricción» con el código nuevo en producción.
+
+**Sobre la reversión de `1.6b` en concreto**, tres cosas y ninguna es inofensiva:
+
+- **`DROP COLUMN` de las cuatro columnas de `tenants` pierde datos vivos**: el mensaje de suspensión que un operador redactó y, sobre todo, **la fecha de fin del período de gracia de los centros que estén de baja**. Ese plazo es un compromiso con un cliente y no se puede reconstruir de memoria — `tenant_lifecycle_events` lo conserva en la fila de la baja, así que **se recupera de ahí antes de revertir**, no después.
+- **`ResolveTenant` vuelve a responder `404` donde ahora responde `503`**, y un centro suspendido vuelve a quedar accesible hasta 60 s tras el cambio de estado (issue #7 reabierto). Si se revierte el código pero se dejan las columnas, **no se opera ninguna suspensión hasta volver a desplegar**.
+- **Los tenants que estén en `en_baja` o `eliminado` siguen estándolo.** Es dato de negocio correcto, no residuo: revertir el despliegue no reabre un centro cerrado, y reabrirlo es una transición, no una reversión.
 
 **Sobre la reversión de `1.6e` en concreto**: `DROP TABLE feature_flags, feature_flag_rules` deja **todos los *flags* apagados**, porque sin catálogo ni reglas el evaluador devuelve falso (`RN-BO-35`). Es la dirección segura y no hay que hacer nada más: se pierden funcionalidades en despliegue parcial, no se enciende ninguna. Lo que sí se pierde y **no** se recupera rehaciendo trabajo es el registro de **a qué centros se expuso qué y cuándo** — las reglas son esa prueba (`datos.md §13`) —, así que si hay despliegues progresivos vivos se vuelcan antes, igual que `admin_action_logs`.
 

@@ -137,13 +137,99 @@ Dos lecturas posibles, ninguna la decidía `spec-writer` porque las dos tocan la
 | `confirmation_name` distinto del nombre exacto (`RN-BO-18`) | `422`, y **no se crea ninguna solicitud** (`CA-BO-065`) |
 | Sesión sin reautenticación viva | `403` `urn:pge:error:reauthentication-required` |
 
+#### 2.4.1 `POST /tenants` · cuerpo, respuesta y las dos fases (`1.6b`)
+
+```jsonc
+{
+  "name": "Colegio Ejemplo",              // obligatorio
+  "slug": "colegio-ejemplo",              // obligatorio, etiqueta DNS, único entre vivos
+  "reason": "Alta comercial — contrato 2026/27",   // obligatorio, no vacío (RN-BO-13)
+  "settings": {
+    "default_locale": "es-ES",            // obligatorio, contenido en active_locales
+    "active_locales": ["es-ES", "en"],    // obligatorio, subconjunto de ADR-021
+    "timezone": "Europe/Madrid",          // obligatorio, IANA
+    "currency": "EUR",                    // obligatorio, ISO 4217
+    "autonomous_community": "MD"          // obligatorio, catálogo de REQ-CORE
+  },
+  "administrator": {
+    "email": "direccion@example.com",     // obligatorio
+    "given_name": "Nombre",               // obligatorio
+    "family_name": "Apellido"             // obligatorio
+  }
+}
+```
+
+**No hay campos `domain`, `plan`, `stages` ni `regime`**, y no es un olvido: los cuatro los nombra `REQ-BO-001` y ninguno tiene dato hoy (`funcional.md §5.3.1`). Añadirlos cuando existan es un cambio compatible (`ADR-038 §7.2`); aceptarlos ahora y descartarlos en silencio es la peor de las tres opciones.
+
+> **El bloque `settings` y el bloque `administrator` viajan tal cual a `REQ-CORE`**, como los objetos de valor `TenantInitialSettings` y `TenantAdministrator` del contrato `TenantProvisioner` (`ADR-048 §4.2`). **`REQ-BO` es quien produce el `422`**: campos obligatorios, `autonomous_community` requerida aquí aunque la columna sea anulable, `slug` libre y no reservado, formato de correo (`funcional.md §5.3.2`). `REQ-CORE` vuelve a comprobar **coherencia** —idioma por defecto contenido en los activos, zona IANA, moneda `^[A-Z]{3}$`, CCAA del catálogo— y ante un valor inválido lanza `InvalidArgumentException` **sin clave de traducción**: llegar ahí significa que este *endpoint* no validó, y eso es un defecto de programación, no un error del operador (`ADR-048 §4.7`). El catálogo de CCAA se importa de `Core\Domain\AutonomousCommunity::CODES`, que es superficie pública; **no se duplican diecinueve códigos en `REQ-BO`**.
+
+**Respuesta `201`**, con el recurso en `en_alta` y un bloque que dice en qué fase está:
+
+```jsonc
+{
+  "data": {
+    "public_id": "01J…",
+    "slug": "colegio-ejemplo",
+    "name": "Colegio Ejemplo",
+    "status": "en_alta",
+    "provisioning": { "state": "en_curso", "started_at": "2026-09-11T10:00:00Z" },
+    "suspended_at": null, "suspension_message": null,
+    "grace_period_ends_at": null, "grace_period_expired_at": null,
+    "created_at": "2026-09-11T10:00:00Z"
+  }
+}
+```
+
+`provisioning.state` ∈ {`en_curso`, `completado`, `fallido`}. **Es un enumerado de respuesta y se documenta como extensible** (`ADR-038 §7.3`). Se deriva del estado del trabajo y de la última entrada de auditoría del tenant; **no hay una columna `provisioning_state`** y no se añade (`ADR-034 OPEN-13`): con `status = 'en_alta'` más la existencia o no de `tenant.aprovisionamiento_fallido` está todo dicho.
+
+**`201` y no `202`**, aunque el trabajo pesado vaya en cola: el recurso **existe** y tiene URL. Un `202` diría que puede que no llegue a existir, y no es el caso — lo que puede fallar es su configuración, y eso lo dice `provisioning.state`.
+
+#### 2.4.2 `POST /tenants/{public_id}/transitions` · la matriz completa
+
+Cuerpo: `to_status` (obligatorio), `reason` (obligatorio, no vacío), `confirmation_name` (sólo con `to_status = 'eliminado'`).
+
+| Origen → destino | Capacidad | ¿Sensible? | ¿Doble autorización? | Respuesta | Efectos, además de `tenants.status`, la fila de `tenant_lifecycle_events` y la de `admin_action_logs` |
+|---|---|:---:|:---:|---|---|
+| `en_alta` → `activo` | **Ninguna: no es alcanzable por API** | — | — | `409` | La produce el trabajo de aprovisionamiento (`RN-BO-52`). `reason` es una clave de catálogo (`RN-BO-54`) |
+| `activo` → `suspendido` | `tenant.suspender` | No | No | `200` | `suspended_at = now()`, `suspension_message` del cuerpo si viene; invalida la caché (`RN-BO-51`) |
+| `suspendido` → `activo` | `tenant.suspender` | No | No | `200` | `suspended_at` y `suspension_message` a nulo (`RN-BO-58`) |
+| `activo` → `en_baja` | `tenant.baja` | **Sí** | **No** (`RN-BO-62`, `OPEN-BO-14`) | `200` | `grace_period_ends_at = now() + 90 días` |
+| `en_baja` → `activo` (rescate) | **`tenant.baja`**, no `tenant.suspender` | No | No | `200` | `grace_period_ends_at` y `grace_period_expired_at` a nulo |
+| `en_baja` → `eliminado` | `tenant.eliminar` | **Sí** | **Sí** | **`202`** con la solicitud pendiente | Al **aprobarse**: `deleted_at`, `dual_authorization_id` en el evento, revocación de sesiones en cola (`RN-BO-55`) |
+| Cualquier otra | — | — | — | `409` `bo.tenant.invalid_transition` | Nada (`RN-BO-12`) |
+
+**El rescate se autoriza con `tenant.baja` y no con `tenant.suspender`**, y merece la frase: quien no puede dar de baja un centro tampoco debe poder deshacer la baja que decidió otro. Emparejar cada operación con su inversa bajo la misma capacidad es lo que evita que dos roles se pisen en una máquina de estados.
+
+**La suspensión admite `suspension_message` en el mismo cuerpo.** Es el único dato que la transición escribe además del estado, y separarlo en un `PATCH` posterior dejaría una ventana —corta, pero real— en la que el centro ve el mensaje por defecto en vez del que el operador acaba de redactar.
+
+#### 2.4.3 `POST /tenants/{public_id}/clone` · cuerpo y respuesta
+
+Mismo cuerpo que `POST /tenants` **menos `settings`** —que se copian del origen (`funcional.md §5.6.2`)— y **más** el `reason`. La respuesta es la misma de §2.4.1, con un bloque que dice qué se ha copiado y qué no:
+
+```jsonc
+"cloned_from": {
+  "tenant_public_id": "01J…",
+  "copied":     ["settings.operativos", "roles", "role_permissions", "module_subscriptions"],
+  "not_copied": ["settings.fiscales", "settings.marca", "personas", "usuarios",
+                 "invitaciones", "auditoria", "estado", "early_adopter"]
+}
+```
+
+> **`not_copied` no es decoración.** Un operador que clona espera que el clon sea igual al origen, y lo que no se copia **es justamente lo que no espera** (`CA-BO-123`). Devolverlo convierte una sorpresa en un dato; omitirlo convierte la decisión de §5.6.2 en un fallo aparente que alguien «arreglará» copiando también la identidad fiscal.
+
+**`422` con `bo.tenant.clone_source_invalid`** si el origen está `eliminado` o `en_alta` (`RN-BO-59`).
+
+**Que el cuerpo no traiga `settings` no significa que los copie este módulo.** `tenant_settings`, `roles` y `permission_role` son de `REQ-CORE` y los copia `REQ-CORE`, por `TenantProvisioner::provisionFromTemplate()` (`ADR-048 §4.5`, `funcional.md §5.6.2`). El bloque `administrator` del cuerpo sí viaja a ese contrato, igual que en el alta. Lo único que copia el trabajo del backoffice es `module_subscriptions`, del que es único escritor (`ADR-045 §4.1`) — y es también lo único de `copied` que no sale de `REQ-CORE`.
+
 ### 2.5 Cambio de `slug`
 
 `POST /tenants/{public_id}/slug` — capacidad `tenant.actualizar`, **sensible**.
 
 Ruta propia y no un campo de `PATCH`, porque no es un cambio de dato: **cambia el nombre DNS con el que el centro entra**, invalida `tenant-resolution:{slug}` de las dos claves —la vieja y la nueva—, deja fuera a quien tenga la URL antigua guardada y afecta al certificado. Un campo dentro de un `PATCH` genérico lo haría parecer equivalente a cambiar el nombre para mostrar, y no lo es.
 
-**Valida lo mismo que el alta** (`funcional.md §5.3` punto 2), y en particular: `422` si el `slug` coincide con la etiqueta del *host* de plataforma (`RN-BO-49`, `CA-BO-017`), con la clave `bo.tenant.slug_reserved` en `errors`. Es la defensa en profundidad de `ADR-046 §4.4`, y va **en las dos puertas** —alta y cambio— porque una sola dejaría la otra abierta.
+**Valida lo mismo que el alta** (`funcional.md §5.3.2`), y en particular: `422` si el `slug` coincide con la etiqueta del *host* de plataforma (`RN-BO-49`, `CA-BO-017`), con la clave `bo.tenant.slug_reserved` en `errors`. Es la defensa en profundidad de `ADR-046 §4.4`, y va **en las dos puertas** —alta y cambio— porque una sola dejaría la otra abierta.
+
+**Tres cosas más que `1.6b` fija sobre esta ruta**, y las tres se olvidan si no están escritas: exige **`reason`** como cualquier otra escritura de ciclo de vida; invalida **las dos** claves de caché, la vieja y la nueva, después del `COMMIT` (`RN-BO-51`, `CA-BO-114`); y se audita con **`tenant.slug_cambiado`**, valor propio del vocabulario y no `tenant.actualizado` (`datos.md §4.2.1`). **No** escribe fila en `tenant_lifecycle_events`: no ha habido transición de estado.
 
 ### 2.6 Módulos por tenant (`REQ-BO-002`, `ADR-045`)
 
@@ -362,7 +448,7 @@ Sintaxis de `ADR-038 §5.2` sin excepción: parámetros planos, valores múltipl
 
 | Listado | Filtros | Orden admitido |
 |---|---|---|
-| `GET /tenants` | `status`, `module_code`, `autonomous_community`, `q` (nombre y `slug`) | `name`, `-name`, `created_at`, `-created_at`, `status` |
+| `GET /tenants` | `status`, `module_code`, `autonomous_community`, `q` (nombre y `slug`), y **dos que añade `1.6b`**: `grace_expired` (booleano, `tenants.grace_period_expired_at IS NOT NULL`) y `provisioning` (∈ `en_curso`, `fallido`) | `name`, `-name`, `created_at`, `-created_at`, `status` |
 | `GET /admins` | `status`, `role`, `q` | `name`, `-name`, `-created_at` |
 | `GET /admin-action-logs` | `action`, `actor_platform_admin_id`, `affected_tenant_id`, `occurred_at_from`, `occurred_at_to` | Fijo: `-occurred_at` |
 | `GET /dual-authorizations` | `status`, `action`, `requested_by` | `-requested_at`, `expires_at` |
@@ -379,6 +465,8 @@ Sintaxis de `ADR-038 §5.2` sin excepción: parámetros planos, valores múltipl
 Exigen sesión reautenticada dentro de la ventana (`RN-BO-08`). La lista es **cerrada y está aquí**, no repartida por los controladores, para que añadir una operación destructiva obligue a tocar este documento:
 
 `POST /tenants` · `POST /tenants/{id}/clone` · `POST /tenants/{id}/slug` · `POST /tenants/{id}/transitions` cuando `to_status ∈ {en_baja, eliminado}` · `POST /admins` · `DELETE /admins/{id}` · `DELETE /admins/{id}/mfa` · `POST` y `DELETE /ip-allowlist` · `POST /module-rollouts` · `POST /dual-authorizations/{id}/approval` y `/rejection` · `PUT /feature-flags/{key}/rules` · `PUT /feature-flags/{key}/state` **sólo cuando el destino es `activo`** (§2.12).
+
+**`1.6b` no añade ninguna operación a esta lista, y conviene decir por qué no añade la que parece faltar**: el **rescate** (`en_baja` → `activo`) **no es sensible**, igual que no lo es la reactivación de una suspensión. Las dos van en la dirección de **devolver** el servicio, las dos son reversibles con una llamada más, y la reautenticación existe para lo que cuesta deshacer. Lo que sí está en la lista es la baja, que es la dirección contraria.
 
 Fallo: `403` con `type` **propio** — `urn:pge:error:reauthentication-required` — porque la interfaz tiene que distinguir «vuelve a identificarte» de «no tienes permiso» **sin analizar texto**, exactamente por el motivo con el que `ADR-038 §6.2` separó `module-disabled` de `forbidden`.
 
@@ -401,9 +489,15 @@ Los `403` de este módulo **no revelan por qué en `detail`** cuando la causa es
 
 **Códigos de `errors` propios** (clave, mensaje traducido y `params`, según `ADR-038 §6.3`):
 
-`bo.tenant.invalid_transition` · `bo.tenant.reason_required` · `bo.tenant.name_mismatch` · `bo.tenant.slug_taken` · **`bo.tenant.slug_reserved`** · `bo.tenant.last_superadmin` · `bo.module.essential` · `bo.module.missing_dependencies` · `bo.module.dependent_modules` · `bo.module.retired` · `bo.dual_auth.same_actor` · `bo.dual_auth.expired` · `bo.dual_auth.already_resolved` · `bo.dual_auth.payload_mismatch` · `bo.admin.self_modification` · `bo.ip.allowlist_empty` · `bo.flag.retired` · `bo.flag.invalid_rule` · `bo.flag.duplicate_rule`
+`bo.tenant.invalid_transition` · `bo.tenant.reason_required` · `bo.tenant.name_mismatch` · `bo.tenant.slug_taken` · **`bo.tenant.slug_reserved`** · **`bo.tenant.clone_source_invalid`** · `bo.tenant.last_superadmin` · `bo.module.essential` · `bo.module.missing_dependencies` · `bo.module.dependent_modules` · `bo.module.retired` · `bo.dual_auth.same_actor` · `bo.dual_auth.expired` · `bo.dual_auth.already_resolved` · `bo.dual_auth.payload_mismatch` · `bo.admin.self_modification` · `bo.ip.allowlist_empty` · `bo.flag.retired` · `bo.flag.invalid_rule` · `bo.flag.duplicate_rule`
 
-Los **diecinueve** —dieciséis del chasis, del ciclo de vida y de los módulos, más tres de *feature flags*—, en `es-ES`, `en`, `de` y `fr` (`INV-009`, `CA-BO-073`).
+Los **veinte** —diecisiete del chasis, del ciclo de vida y de los módulos, más tres de *feature flags*—, en `es-ES`, `en`, `de` y `fr` (`INV-009`, `CA-BO-073`).
+
+**`bo.tenant.clone_source_invalid` lo añade `1.6b`**: el origen de una clonación está `eliminado` o `en_alta` (`RN-BO-59`). Es distinto de `bo.tenant.invalid_transition` porque no hay ninguna transición en juego, y distinto de un `404` porque el tenant existe y el operador lo está viendo en su inventario.
+
+**Y `1.6b` no añade ningún `type` nuevo al catálogo cerrado**, ni siquiera para el aprovisionamiento fallido: un tenant en `en_alta` con `provisioning.state = "fallido"` es un **estado del recurso**, que la ficha devuelve (§2.4.1), no un error de una petición. Convertirlo en un `urn:pge:error:` obligaría a que consultar un tenant a medio aprovisionar fuera un fallo, y no lo es.
+
+**Textos de catálogo que `1.6b` añade fuera de `errors`**, y que también son los cuatro idiomas: los **cuatro mensajes de `503`** —`en_alta`, `suspendido` sin mensaje propio, `en_baja` y `eliminado` (`funcional.md §5.4.1`)— y las **claves de `reason` de las transiciones automáticas** (`RN-BO-54`). Ninguno es un literal en el código (`INV-009`).
 
 **`bo.tenant.slug_reserved` lo añade `ADR-046 §4.4`** y es distinto de `bo.tenant.slug_taken`: aquel dice «ese nombre ya es de otro centro», éste dice «ese nombre está reservado por la plataforma». Mezclarlos daría un mensaje que sugiere al operador buscar el centro que lo ocupa, y no hay ninguno. **Su `detail` no nombra el *host* de plataforma**, por el mismo criterio con el que los `403` de la lista blanca no dicen su causa (§5).
 
@@ -432,6 +526,8 @@ Los **diecinueve** —dieciséis del chasis, del ciclo de vida y de los módulos
 | `TenantSuspended`, `TenantReactivated`, `TenantMarkedForClosure` | `REQ-BO` | Transición correspondiente | Ninguno. Se declaran para `REQ-BKP` (1.26) y `REQ-COM` (1.19) |
 
 Los dos primeros **no los emite este módulo**, y no es un detalle de implementación: `RMOD-010` y `ADR-045 §4.8` fijan que todo evento del ciclo de vida de un módulo pertenece a `REQ-CORE`. `CA-BO-038` lo verifica descontratando un módulo y comprobando que el evento sale igualmente, **aunque el módulo quede apagado**.
+
+**Y `1.6b` no añade ninguna fila a esta tabla: ni el alta ni la clonación emiten evento de dominio** (`ADR-048 §4.6`). Es una omisión deliberada y no un olvido. El hecho «este tenant quedó aprovisionado» **ya se registra dos veces** —la fila `en_alta` → `activo` de `tenant_lifecycle_events` y la de `admin_action_logs`—, las dos escritas por el mismo trabajo y en el mismo instante; un `TenantProvisioned` sería una tercera fuente de verdad del mismo hecho, y en cuanto alguien la escuchara habría dos caminos por los que enterarse y uno se quedaría atrás. **No contradice el párrafo anterior sobre `TenantSuspended` y compañía**: aquellas son transiciones que decide un operador y cuyo momento sólo conoce el servicio de transición; el aprovisionamiento no lo decide nadie, es la consecuencia de un alta que ya quedó escrita. Cuando `REQ-ONB` (1.24) necesite engancharse, el evento se añade en `REQ-CORE` —nunca aquí (`ADR-045 §4.8`)— con una línea y sin ADR.
 
 **Las escrituras de *feature flags* no emiten ningún evento de dominio, y aquí sí es una decisión distinta de la que se tomó con los tenants.** `TenantSuspended` y compañía se declaran aunque hoy no tengan consumidor, porque `REQ-BKP` y `REQ-COM` los necesitarán y añadirlos después obligaría a tocar el camino de escritura otra vez. Con los *flags* no ocurre eso: **el consumidor de un *flag* es el evaluador, y el evaluador lee el estado vigente, no la transición**. Ningún módulo de fase 1 ni de fase 2 necesita reaccionar al hecho de que una regla cambió — necesita saber el valor **ahora**, que es justo lo que `FeatureFlagEvaluator` responde. Declarar un evento sin consumidor posible sería inventar una extensión, no anticiparla.
 

@@ -6,7 +6,7 @@
 | Prioridad | MUST |
 | Fase | 1 · Bloque A · **paso 1.6**, dividido en **cinco sub-pasos** por decisión del usuario del 2026-09-08 (§12) |
 | Depende de | `REQ-CORE` (1.1), `REQ-AUTH` (1.2/1.3), `REQ-PERM` (1.5), `ADR-033`, `ADR-034`, `ADR-035`, `ADR-036`, `ADR-038`, `ADR-044`, **`ADR-045`**, **`ADR-046`**, **`ADR-047`** |
-| Estado | **IMPLEMENTADA** — especificación aprobada por el usuario el 2026-09-08 (`ADR-046`/`ADR-047` aplicados, `OPEN-BO-13` resuelta), implementada por `implementer` y revisada de forma independiente en dos pasadas (`db-reviewer`/`security-reviewer`/`doc-reviewer`, issues #173-#186), con todos los hallazgos Alta/Media corregidos. **Chasis cerrado y mezclado a `develop`** — siguiente sub-paso: `1.6b` (§15, §12.2) |
+| Estado | **`1.6` (chasis): IMPLEMENTADA, cerrada y mezclada a `develop`** — especificación aprobada por el usuario el 2026-09-08 (`ADR-046`/`ADR-047` aplicados, `OPEN-BO-13` resuelta), revisada de forma independiente en dos pasadas (`db-reviewer`/`security-reviewer`/`doc-reviewer`, issues #173-#186), con todos los hallazgos Alta/Media corregidos (§15.1). · **`1.6b` (ciclo de vida de tenants, `REQ-BO-001`): ESPECIFICADA, PENDIENTE DE APROBACIÓN** (§15.2) — añade `RN-BO-50` a `RN-BO-62`, `CA-BO-106` a `CA-BO-127` y tres preguntas abiertas nuevas (`OPEN-BO-14` a `OPEN-BO-16`), de las cuales **`ADR-048` (2026-09-11) cierra `OPEN-BO-15`** —contrato síncrono `TenantProvisioner` en `REQ-CORE`, dos métodos, sin evento— y con ella un incumplimiento de `INV-007` en la clonación que la especificación no había nombrado (§5.6.2). Cierra los issues [#7](https://github.com/pirexia/plataforma-educativa/issues/7) y [#27](https://github.com/pirexia/plataforma-educativa/issues/27). · `1.6c`, `1.6d` y `1.6e`: sin empezar |
 | Módulo (código) | `bo` · `apps/api/app/Modules/Backoffice` · frontend **`apps/backoffice`**, SPA propia sin *bundle* compartido con `apps/web` (`ADR-046 §4.1`), **construida en el paso de interfaz posterior a `1.7`/`1.9`** (§12.5) |
 
 > Fuente de verdad: sección 5.51 de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` (`REQ-BO-001` a `REQ-BO-007`), más `RMOD-002`/`RMOD-006`, `RMT-007`, `REQ-CORE-001` y la sección 11.1. Desde el 2026-09-08, y sólo para `REQ-BO-005` puntos 1-2, también **`REQ-OPS-002`** (sección 5.49) y **`RARQ-DEP-010`** (sección 8).
@@ -239,51 +239,250 @@ Resolución multi-rol: **unión de capacidades**. No hay `deny` en el backoffice
 
 Las operaciones marcadas como sensibles (`api.md §4`) exigen que la sesión haya reautenticado —contraseña **y** segundo factor— dentro de una ventana corta. Se guarda como marca de tiempo **en la sesión**, no en una tabla: es estado de sesión, muere con ella, y una tabla añadiría un ciclo de vida que limpiar sin aportar nada. Si la marca falta o ha caducado: `403` con `urn:pge:error:reauthentication-required`, que la interfaz distingue de un `forbidden` sin analizar texto.
 
-### 5.3 Alta de un tenant (`REQ-BO-001`)
+### 5.3 Alta de un tenant (`REQ-BO-001`) · sub-paso `1.6b`
 
 Es **una operación de datos, no un despliegue** (nota para el implementador de `REQ-BO-005`), y debe completarse en segundos.
 
-1. `superadministrador` envía nombre, `slug`, idiomas activos y por defecto, zona horaria, moneda, CCAA y los datos del primer Administrador de Centro.
-2. Validación: `slug` único entre los tenants vivos, con formato de etiqueta DNS; **`slug` distinto de la etiqueta del *host* de plataforma, o `422`** (`RN-BO-49`, `CA-BO-017`); idioma por defecto contenido en los activos; los cuatro de `ADR-021`; zona horaria IANA; moneda ISO 4217; CCAA del catálogo.
-3. En una transacción por `pgsql_platform`: fila en `tenants` con `status = 'en_alta'`, y **dentro del contexto del tenant recién creado**, todo lo que hoy hace `tenant:provision-defaults` (los 16 roles predefinidos, sus concesiones, la configuración inicial) más la `Person`/`User` del primer administrador y su invitación.
-4. Transición a `activo` cuando el aprovisionamiento termina sin error.
-5. `admin_action_logs`: `tenant.creado`, con `affected_tenant_id`.
+#### 5.3.1 Qué recibe el *endpoint*, y qué **no** recibe aunque el requisito lo nombre
 
-**Esto convierte en `endpoint` lo que hoy es un comando de consola**, que es exactamente lo que `REQ-CORE/funcional.md §1.1` difirió a este paso: *«exponer el alta de tenants por HTTP antes de que exista el backoffice y su registro de auditoría de plataforma sería crear una operación crítica sin trazabilidad»*. Esa trazabilidad es lo que este paso construye. **El comando de consola se conserva**, no se retira: es el camino de arranque del primer tenant y del entorno de desarrollo, y ahora escribe en el mismo registro con `actor_type = 'console'`.
+`REQ-BO-001` describe el alta como «aprovisionamiento completo desde el panel (datos del centro, `slug`, **dominio**, **plan**, idiomas, **etapas y su régimen jurídico**), que dispara el asistente de *onboarding* (`REQ-ONB-001`)». **Cuatro de esas cosas no existen todavía**, y el alta de `1.6b` no las inventa:
 
-`REQ-ONB-001` (asistente de alta con *checklist* y datos de demostración) es el paso **1.24** y no se adelanta: 1.6 entrega la operación, no el asistente.
+| Campo del requisito | En `1.6b` |
+|---|---|
+| Nombre, `slug`, idiomas activos y por defecto, zona horaria, moneda, CCAA | ✅ Entran. Los cinco últimos van a `tenant_settings` (`REQ-CORE`), que es donde viven (`datos.md §7` de `REQ-CORE`) |
+| Datos del primer Administrador de Centro (correo, nombre, apellidos) | ✅ Entran. Sin ellos el centro nace sin nadie que pueda entrar |
+| **Dominio propio** | ❌ No existe el dominio personalizado (`OPEN-08`, `REQ-CORE/funcional.md §1.2`). El centro se alcanza por su `slug` bajo `TENANCY_BASE_DOMAIN` |
+| **Plan** | ❌ No existe `plans` (§1.3). Es `REQ-SAAS-001`, fase 2 |
+| **Etapas y su régimen jurídico** | ❌ Las etapas son `REQ-ACAD`, paso **1.11**, y el régimen es atributo **de la etapa** (`ADR-020`) |
+| **Asistente de *onboarding*** | ❌ `REQ-ONB-001` es el paso **1.24**. `1.6b` entrega la operación, no el asistente, y **no encola nada que lo simule** |
 
-### 5.4 Suspensión y reactivación (`REQ-BO-001`)
+**Motivo obligatorio también en el alta.** `RN-BO-13` exige motivo en **toda** transición y `tenant_lifecycle_events.reason` es `NOT NULL` (`datos.md §5.2`): el alta escribe la primera fila de esa tabla, luego `reason` es obligatorio en el cuerpo y `422` si falta o va vacío. No es burocracia: es la única forma de que meses después se sepa por qué existe un centro que nadie recuerda haber dado de alta.
+
+#### 5.3.2 Validación, completa
+
+1. `slug`: formato de etiqueta DNS (`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`), **único entre los tenants vivos** —la unicidad es parcial, `WHERE deleted_at IS NULL` (verificado: `2026_08_18_100800_partial_unique_tenants_slug.php`)—, `422` con `bo.tenant.slug_taken` si está ocupado.
+2. **`slug` distinto de la etiqueta del *host* de plataforma**, `422` con `bo.tenant.slug_reserved` (`RN-BO-49`, `CA-BO-017`).
+3. Idioma por defecto contenido en los activos; todos ellos entre los cuatro de `ADR-021`.
+4. Zona horaria IANA; moneda ISO 4217; CCAA del catálogo de `REQ-CORE`.
+5. Correo del primer administrador con formato válido. **No se comprueba contra ningún otro tenant**: la misma persona puede administrar dos centros con dos cuentas independientes, que es literalmente `RMT-009`.
+
+#### 5.3.3 El alta ocurre en **dos fases**, y esto resuelve una incoherencia entre dos ficheros de esta especificación
+
+La revisión anterior decía, en este mismo sitio, que el alta hacía todo «en una transacción por `pgsql_platform`», mientras que `operacion.md §6.1` declaraba `ProvisionTenant` como **trabajo en cola** y `§7` le ponía una alarma de duración. **Son dos diseños distintos y no pueden convivir.** `1.6b` resuelve la incoherencia a favor del trabajo en cola, por tres motivos y no por gusto:
+
+- **`INV-012`**: el aprovisionamiento escribe 16 roles, su matriz de concesiones, la configuración, una `Person`, un `User` y una invitación. Es un lote, y los lotes no van en el ciclo de petición.
+- **El estado `en_alta` existe exactamente para esta ventana.** Si el alta fuera atómica y síncrona, `en_alta` sería un estado por el que nada pasa nunca — y `REQ-BO-001` lo pone el primero de su máquina de estados.
+- **El reintento es gratis.** `ProvisionTenantDefaults` ya es idempotente (verificado: comprueba la existencia de `TenantSetting` antes de escribir nada), así que un trabajo que falla a medias se vuelve a lanzar sin efectos duplicados.
+
+| Fase | Quién | Qué hace |
+|---|---|---|
+| **1 · síncrona, dentro de la petición** | El *endpoint*, con `runAsPlatform(BackofficeEscritura, …)` | Valida; inserta la fila de `tenants` con `status = 'en_alta'`; escribe `tenant_lifecycle_events` (`from_status = NULL`, `to_status = 'en_alta'`) y `admin_action_logs` (`tenant.creado`); **invalida `tenant-resolution:{slug}`** (§6.3); encola `ProvisionTenant`. Responde **`201`** con el tenant en `en_alta` |
+| **2 · en cola** | `ProvisionTenant` | Entra en el contexto del tenant con `runFor()`, llama al aprovisionamiento de `REQ-CORE` (§5.3.4), y al terminar sin error escribe la transición `en_alta` → `activo`, su fila de auditoría (`tenant.actualizado`, actor `system`) y **vuelve a invalidar `tenant-resolution:{slug}`** |
+
+**La respuesta `201` no miente**: el recurso existe, y su `status` dice `en_alta`. El cliente que quiera esperar consulta la ficha; no hay *polling* obligatorio porque la fase 2 dura segundos.
+
+#### 5.3.4 `REQ-BO` **no** aprovisiona: se lo pide a `REQ-CORE` (`INV-007`) · **el mecanismo lo fija `ADR-048`**
+
+El aprovisionamiento vive hoy en `App\Modules\Core` (`ProvisionTenantDefaults`, invocado por `tenant:provision-defaults`). **El backoffice no puede importarlo**: `INV-007` prohíbe que un módulo use código interno de otro. Se consume por **interfaz pública de `REQ-CORE`**, exactamente como `ADR-045 §4.8` obligó a que la contratación de módulos y sus eventos vivieran en `REQ-CORE` y no aquí.
+
+> **`ADR-048` (2026-09-11) decide el mecanismo concreto y con ello `OPEN-BO-15`**: **contrato síncrono declarado en `Core\Domain`**, no evento emitido por `REQ-BO`. El evento se descarta por tres motivos de fondo —no devuelve resultado ni propaga fallo, y §5.3.3/§5.3.5 necesitan las dos cosas; el reintento obligaría a reemitir un hecho falso; y el vocabulario de `REQ-CORE` acabaría viviendo en una clase de `Backoffice`—. Lo que sigue es lo que hay que implementar, no una opción entre varias.
+
+**El contrato** (`ADR-048 §4.1`, `§4.2`, `§4.3`):
+
+```php
+namespace App\Modules\Core\Domain;
+
+interface TenantProvisioner
+{
+    public function provision(Tenant $t, TenantInitialSettings $s, TenantAdministrator $a): TenantProvisioningOutcome;
+    public function provisionFromTemplate(Tenant $source, Tenant $target, TenantAdministrator $a): TenantProvisioningOutcome;
+}
+```
+
+`TenantInitialSettings` y `TenantAdministrator` son objetos de valor de `Core\Domain` — **no ocho parámetros sueltos**, porque la firma va a crecer (§5.3.1 ya nombra cuatro campos que llegarán) y con objetos de valor cada llegada es una propiedad nueva y no una rotura para los tres llamadores. `TenantProvisioningOutcome` tiene dos casos, `Provisioned` y `AlreadyProvisioned`: hace **observable** la idempotencia que `CA-BO-108` tiene que demostrar y que hoy es silenciosa. **El fallo viaja como excepción, no como un tercer caso**, para que no se pueda ignorar por descuido.
+
+Cuatro consecuencias que el implementador tiene que comprobar **antes** de escribir nada, y no después:
+
+1. **La firma actual no basta.** Hoy es `provision(Tenant $tenant, string $adminEmail, string $adminGivenName, string $adminFamilyName): void` y crea un `TenantSetting` **vacío**. El alta de `1.6b` trae idiomas, zona horaria, moneda y CCAA, así que la interfaz pública tiene que aceptarlos y escribirlos en `tenant_settings`. **Ampliar esa superficie pública es trabajo de `1.6b`** y se declara como tal en `REQ-CORE` (`ADR-048 §10` enumera exactamente qué se toca), no se cuela como un `use` más.
+2. **El comando de consola se conserva y pasa a llamar a la misma interfaz.** Es el camino de arranque del primer tenant y del entorno de desarrollo (`operacion.md §5`), y desde `1.6b` escribe en el mismo registro con `actor_type = 'console'`. Dos caminos, una sola implementación — el mismo criterio con el que `RN-BO-22` exige una sola implementación de las dependencias de módulo. Gana **opciones nuevas** para los ajustes iniciales, cada una con el valor por defecto que ya tiene su columna, de modo que arrancar un centro por consola no exige teclear nada nuevo.
+3. **`ProvisionTenantDefaults` no se mueve ni se renombra** (`ADR-048 §4.4`). Pasa a `implements TenantProvisioner` y se enlaza en `CoreServiceProvider`. La asimetría con las cinco implementaciones `Eloquent*` de `Core\Infrastructure` es deliberada y está escrita para que nadie la «arregle».
+4. **Quién valida qué** (`ADR-048 §4.7`): el `422` con clave de traducción es de **`REQ-BO`**, en su `FormRequest` (§5.3.2). `REQ-CORE` comprueba **coherencia** —idioma por defecto contenido en los activos, zona IANA, moneda `^[A-Z]{3}$`, CCAA del catálogo— y lanza `InvalidArgumentException`, **sin clave de traducción**: llegar ahí con un valor inválido es un defecto de programación, no un error del operador. `Core\Domain\AutonomousCommunity::CODES` es superficie pública y `REQ-BO` lo importa para validar, en vez de duplicar diecinueve códigos.
+
+**`1.6b` no emite ningún evento de dominio nuevo** (`ADR-048 §4.6`). El hecho «este tenant ya está aprovisionado» ya tiene dos registros duraderos —la fila `en_alta` → `activo` de `tenant_lifecycle_events` y la de `admin_action_logs`—, y un `TenantProvisioned` sin oyente sería una tercera fuente de verdad del mismo hecho. Cuando `REQ-ONB` (1.24) lo necesite, añadirlo es una línea en `REQ-CORE` y no necesita ADR.
+
+**Un efecto lateral que es un arreglo, no un extra** (`ADR-048 §5.1`): `createAdministrator()` escribe hoy `locale = 'es-ES'` literal, y como `IssueUserInvitation` sólo consulta `defaultLocale()` cuando ese campo es nulo, **la invitación del primer administrador sale siempre en español, aunque el centro sea alemán**. Con la configuración ya disponible, el idioma del primer administrador pasa a ser el del centro. **Orden obligatorio dentro de la transacción**: `tenant_settings` se escribe **antes** que la `Person` y **antes** que la invitación; al revés, el correo vuelve a salir en español sin que nada falle visiblemente.
+
+**Esto convierte en *endpoint* lo que hoy es un comando de consola**, que es exactamente lo que `REQ-CORE/funcional.md §1.1` difirió a este paso: *«exponer el alta de tenants por HTTP antes de que exista el backoffice y su registro de auditoría de plataforma sería crear una operación crítica sin trazabilidad»*. Esa trazabilidad es lo que este paso construye.
+
+#### 5.3.5 Qué pasa si la fase 2 falla, que es la pregunta que nadie hace hasta que pasa
+
+Un tenant se queda en `en_alta` con la configuración a medias. **No hay transición a la que ir**: `RN-BO-12` no admite `en_alta` → nada salvo `activo`, y no se inventa un sexto estado para un caso de operación (`ADR-034 OPEN-13`). Lo que hace `1.6b`:
+
+- El trabajo agota sus reintentos y queda en `failed_jobs`, donde ya es visible por la ficha de salud del centro (§5.9).
+- Se escribe **una** entrada en `admin_action_logs` con `action = 'tenant.aprovisionamiento_fallido'`, `actor_type = 'system'` y el error en `context`. **Es un valor nuevo del vocabulario cerrado** y entra por migración (`datos.md §4.2`), como hizo el issue #173 con los dos de invitación.
+- **No** se escribe fila en `tenant_lifecycle_events`: no ha habido transición, y esa tabla es la historia de la máquina de estados, no un registro de intentos (`datos.md §5.1`).
+- La reparación es **un comando de consola**, `bo:retry-provisioning <slug>`, y no un *endpoint*: no hace falta capacidad nueva, no hace falta pantalla, y el camino de recuperación de este módulo ya es la consola (`operacion.md §5.1`). Reencola el mismo trabajo, que es idempotente.
+- Un tenant en `en_alta` **no sirve tráfico** (§5.4.1): sus usuarios no existen todavía.
+
+> **Esto es una decisión de especificación, no un requisito nuevo.** `REQ-BO-001` da por hecho que el alta funciona y no dice qué pasa cuando no. Dejarlo sin escribir produciría lo de siempre: un tenant zombi en `en_alta` que alguien «arregla» a mano por SQL, sin rastro.
+
+`REQ-ONB-001` (asistente de alta con *checklist* y datos de demostración) es el paso **1.24** y no se adelanta: `1.6b` entrega la operación, no el asistente.
+
+### 5.4 Suspensión y reactivación (`REQ-BO-001`) · sub-paso `1.6b`
 
 **Suspender** (`activo` → `suspendido`), con motivo obligatorio y mensaje configurable para los usuarios del centro:
 
 1. Se escribe `tenants.status`, `suspended_at`, `suspension_message` y la fila de `tenant_lifecycle_events`.
-2. **En la misma operación** se invalida `tenant-resolution:{slug}` — es el issue [#7](https://github.com/pirexia/plataforma-educativa/issues/7), y `RN-BO-14` lo convierte en regla.
+2. **En la misma operación** se invalida `tenant-resolution:{slug}` — es el issue [#7](https://github.com/pirexia/plataforma-educativa/issues/7), y `RN-BO-14` lo convierte en regla. El mecanismo exacto, con el detalle que hace falta para no implementarlo mal, está en §6.3.
 3. A partir de ese instante, cualquier petición a un *host* del centro recibe **`503`** con el mensaje configurado, `Retry-After` (`ADR-038 §6.5`) y ningún dato. Lo dice `ADR-033 §2` y lo repite el primer criterio de aceptación de §5.51.
 4. **Se conservan íntegros los datos y las tareas programadas críticas.** Un tenant suspendido no pierde nada y no deja de recibir sus purgas de retención.
 
-**Reactivar** (`suspendido` → `activo`) es la operación inversa, «reversible en un clic», con la misma invalidación de caché y su motivo.
+**Reactivar** (`suspendido` → `activo`) es la operación inversa, «reversible en un clic», con la misma invalidación de caché y su motivo. **Pone a nulo `suspended_at` y `suspension_message`**, y lo segundo es una decisión: un mensaje que sobrevive a la reactivación reaparecería, literal y desactualizado, la próxima vez que ese centro se suspenda por un motivo distinto. El coste de volver a escribirlo es un campo; el de servir el mensaje equivocado lo paga el centro delante de sus familias.
 
 Si `suspension_message` es nulo se sirve un mensaje por defecto del catálogo de traducción de la plataforma, en el idioma resuelto (`INV-009`). El mensaje que escribe el operador es **contenido**, no literal de código, y por eso puede ser un solo texto.
 
-### 5.5 Baja y eliminación (`REQ-BO-001`, `REQ-BO-007`)
+#### 5.4.1 `ResolveTenant` hoy **no cumple `RN-BO-15`**, y arreglarlo es parte de este sub-paso
 
-**Baja** (`activo` → `en_baja`): motivo obligatorio; se calcula `grace_period_ends_at` a 90 días; el acceso de los usuarios queda bloqueado igual que en la suspensión, con un mensaje propio. Durante la gracia, `REQ-OPS-004` debería ofrecer la exportación completa — y no existe (`OPEN-BO-05`).
+Verificado sobre el código (`app/Http/Middleware/ResolveTenant.php`), no supuesto:
 
-**Eliminación** (`en_baja` → `eliminado`): la operación más peligrosa del producto, y por eso lleva **cuatro** cerrojos que se comprueban en este orden:
+```php
+$cached = Cache::remember("tenant-resolution:{$slug}", 60, /* … {id, status} … */);
+// null                       -> abort(404)
+// TenantStatus::Suspendido   -> abort(503, __('tenancy.suspended'))
+// cualquier otro != Activo   -> abort(404)
+```
+
+De ahí salen **tres defectos**, los tres de `1.6b` porque los tres los activa este sub-paso:
+
+| # | Defecto | Por qué importa ahora |
+|---|---|---|
+| 1 | **`en_baja` y `eliminado` responden `404`**, no `503` | `RN-BO-15` dice `503` para los tres estados sin acceso, y reserva `404` a *«un host que no corresponde a ningún tenant»*. Hoy da igual porque nadie llega a esos estados; **`1.6b` es el sub-paso que crea el camino para llegar** |
+| 2 | **Un tenant `eliminado` lleva `deleted_at`, y `Tenant` usa `SoftDeletes`** | La búsqueda por `slug` no lo encuentra, devuelve `null`, y el `404` del punto 1 se produce además **por la vía equivocada**: no es «este estado no da acceso», es «este centro no existe». La resolución tiene que buscar **incluyendo los borrados lógicos** |
+| 3 | **El mensaje del `503` es un literal de catálogo fijo** (`tenancy.suspended`) | `suspension_message` no existe todavía y el `503` no lo sirve. `1.6b` lo introduce (`datos.md §6`) |
+
+**Lo que `1.6b` deja escrito, y `RN-BO-50` convierte en regla**, es el mapa completo:
+
+| Situación | Respuesta | Cuerpo |
+|---|---|---|
+| Ningún tenant con ese `slug`, vivo ni borrado | **`404`** | Genérico, indistinguible de una ruta inexistente |
+| `en_alta` | **`503`** | Mensaje por defecto «en preparación» del catálogo, con `Retry-After` |
+| `activo` | Pasa | — |
+| `suspendido` | **`503`** | `suspension_message`, o el del catálogo si es nulo |
+| `en_baja` | **`503`** | Mensaje propio de baja del catálogo, distinto del de suspensión: el centro tiene que poder distinguir «parado» de «terminando» |
+| `eliminado` | **`503`** | Mensaje propio de cierre del catálogo |
+
+**Y una consecuencia que hay que aceptar en voz alta**: bajo esta regla, el *host* de un centro eliminado sigue respondiendo `503` para siempre, lo que revela que ese centro existió. Se acepta porque la alternativa —`404`— rompería `RN-BO-15` en su propio terreno: si un `eliminado` devolviera `404`, el `404` dejaría de significar «aquí no hay nadie» y pasaría a significar dos cosas distintas. Quien quiera que ese nombre deje de responder, retira su DNS, que es donde se decide de verdad.
+
+#### 5.4.2 Un `slug` puede pertenecer a la vez a un tenant vivo y a uno eliminado
+
+La unicidad es **parcial** (`WHERE deleted_at IS NULL`), y §8 ya admite la reutilización de un `slug` de un tenant borrado lógicamente. Con la búsqueda del punto 2 de §5.4.1 —que incluye los borrados— eso deja de ser inofensivo: la consulta puede devolver dos filas. **La resolución prefiere siempre al vivo**; sólo si no hay ninguno vivo mira los borrados, y entre ellos el de `deleted_at` más reciente. Sin esa regla, dar de alta un centro reutilizando el `slug` de uno cerrado le serviría el `503` del muerto.
+
+#### 5.4.3 Qué pasa con las sesiones de los usuarios del centro
+
+La pregunta es legítima porque `1.2b` construyó `user_sessions` y un revocador, y la tentación de usarlos aquí es inmediata. **La respuesta es que una suspensión no revoca sesiones, y sí lo hace una eliminación:**
+
+| Transición | ¿Revoca `user_sessions`? | Por qué |
+|---|---|---|
+| `activo` → `suspendido` | **No** | La barrera es `ResolveTenant`: **ninguna** petición al *host* del centro pasa de ahí, tenga o no cookie. Revocar sería trabajo sobre miles de filas para cerrar una puerta que ya está cerrada, y **rompería la promesa del requisito**: «al reactivarlo, todo vuelve a estar disponible sin pérdida» y «reversible en un clic» — un claustro entero obligado a volver a autenticarse tras una suspensión de veinte minutos no es un clic |
+| `activo` → `en_baja` | **No** | Mismo argumento: `en_baja` es reversible durante 90 días (`RN-BO-12`, rescate) |
+| `en_baja` → `eliminado` | **Sí**, todas | Es terminal. La revocación no busca cerrar la puerta —ya está cerrada— sino **no dejar credenciales vivas apuntando a un centro que ya no se opera**: si un día se retirase el `503` por error de configuración, no debe quedar ni una sesión utilizable. Se ejecuta **en cola**, dentro del contexto del tenant, con `end_reason = 'baja_usuario'` del vocabulario ya existente de `SessionEndReason` (`REQ-AUTH`) — **no se amplía ese enumerado**: son sesiones de usuarios de tenant y su vocabulario es de `REQ-AUTH`, no de este módulo |
+
+> **La asimetría es deliberada y es la parte que una revisión va a querer unificar.** No se unifica: suspender es una medida operativa reversible y revocar sesiones la haría cara de deshacer; eliminar es definitivo y no tiene deshacer que encarecer.
+>
+> **Y lo que ninguna de las tres hace es tocar los datos.** `RN-BO-16` es explícito para la suspensión y `1.6b` lo extiende a las tres: ni borra, ni anonimiza, ni detiene las tareas programadas críticas del centro.
+
+### 5.5 Baja y eliminación (`REQ-BO-001`, `REQ-BO-007`) · sub-paso `1.6b`
+
+**Baja** (`activo` → `en_baja`): motivo obligatorio; se calcula `grace_period_ends_at` a 90 días; el acceso de los usuarios queda bloqueado igual que en la suspensión, con un mensaje propio (§5.4.1). Durante la gracia, `REQ-OPS-004` debería ofrecer la exportación completa — y no existe (`OPEN-BO-05`, riesgo aceptado por el usuario el 2026-09-08).
+
+**Rescate** (`en_baja` → `activo`): la baja es reversible mientras dure la gracia. Pone a nulo `grace_period_ends_at` y `grace_period_expired_at` (`datos.md §6`), invalida la caché y escribe `tenant.rescatado`. **No hay plazo para rescatar distinto del de la gracia**: vencida ésta, el centro sigue en `en_baja` y sigue siendo rescatable —nada se borra solo (`RN-BO-17`)— pero ya aparece marcado como candidato a eliminación.
+
+#### 5.5.1 Los 90 días, y qué ocurre exactamente cuando vencen
+
+`RN-BO-17` dice que vencido el plazo **no se elimina nada de forma automática**: se marca como candidato y se avisa. `1.6b` concreta las dos palabras que ahí quedaban sueltas:
+
+- **«Marca»** es la columna `tenants.grace_period_expired_at` (`datos.md §6`), escrita **una sola vez** por la tarea diaria `bo:check-grace-periods`. No es una columna «por si acaso» (`ADR-034 OPEN-13`): sin ella, la tarea no sabe si ya avisó y volvería a escribir una entrada de auditoría **cada día y para siempre** sobre el mismo centro. La alternativa —preguntárselo a `admin_action_logs`— está descartada por el argumento de `datos.md §5.1`: la lógica de negocio no depende del formato del registro de auditoría.
+- **«Avisa»** es, en `1.6b`, exactamente tres cosas: una entrada en `admin_action_logs` con `action = 'tenant.gracia_vencida'` y `actor_type = 'system'`; la aparición del centro en el filtro correspondiente de `GET /tenants`; y una señal de `operacion.md §7`. **No es una notificación a nadie**, ni al centro ni al operador, porque no hay infraestructura de notificaciones (`REQ-COM`, paso 1.19) y `1.6b` no la inventa. Se dice así de claro porque «y se avisa» es la clase de frase que se da por implementada sin que nadie haya construido el aviso.
+- **El plazo no es configurable por variable de entorno.** `REQ-BO-001` fija 90 días; una variable que lo acorte es una forma de saltarse el periodo de gracia sin que quede rastro (`operacion.md §2`).
+
+#### 5.5.2 Eliminación: los cuatro cerrojos
+
+**Eliminación** (`en_baja` → `eliminado`) es la operación más peligrosa del producto, y por eso lleva **cuatro** cerrojos que se comprueban en este orden:
 
 1. Sólo `superadministrador`, y con reautenticación viva (§5.2).
-2. El solicitante escribe el **nombre exacto del tenant**; una diferencia de un carácter es `422`.
+2. El solicitante escribe el **nombre exacto del tenant**; una diferencia de un carácter es `422` y **no se crea ninguna solicitud** (`CA-BO-065`). La comparación es **literal**: sin recortar espacios interiores, sin plegar mayúsculas y sin normalizar acentos. Un cerrojo que perdona diferencias no es un cerrojo, es un aviso.
 3. **Doble autorización** (§5.7): la solicitud queda pendiente y no ejecuta nada.
 4. Un `superadministrador` **distinto** aprueba, y sólo entonces se ejecuta.
 
-Efecto en 1.6: `status = 'eliminado'`, `deleted_at`, acceso revocado, datos **conservados**. La purga física es `REQ-PRIV-006` (§2.2, `OPEN-BO-05`).
+**Efecto de la ejecución**, en este orden y en una transacción: `status = 'eliminado'`, `deleted_at`, fila de `tenant_lifecycle_events` con su `dual_authorization_id` —que el `CHECK` de la tabla exige (`datos.md §5.2`)—, `admin_action_logs` con `tenant.eliminado`, invalidación de caché, y **encolado** de la revocación de sesiones del centro (§5.4.3). Los datos del centro se **conservan íntegros**.
 
-### 5.6 Clonación de un tenant (`RMT-007`)
+#### 5.5.3 Borrado lógico frente a eliminación real: dónde queda `INV-004` y dónde el RGPD
 
-Se clona **la configuración, nunca las personas**. En 1.6 eso es: la configuración del centro, los roles y sus concesiones, y las suscripciones de módulo. No se copian usuarios, ni invitaciones, ni auditoría, ni ningún dato personal — no porque no haya más que copiar hoy, sino porque **la regla debe quedar escrita antes de que exista más que copiar**: cuando lleguen alumnos y familias, un clon que arrastre personas sería una cesión de datos entre centros.
+Es la confusión más probable de este sub-paso, y conviene dejar los tres niveles separados por escrito:
 
-El resultado es un tenant nuevo en `en_alta`, con su propio `slug`, que sigue el mismo camino que §5.3 a partir del punto 4.
+| Nivel de `ADR-004` | Qué es | En `1.6b` |
+|---|---|---|
+| **1 · Borrado lógico** | `status = 'eliminado'` más `deleted_at` en `tenants`. El centro deja de ser alcanzable; **ni una fila de sus datos se toca** | ✅ **Es lo único que hace `1.6b`**, y cumple `INV-004` literalmente: la entidad crítica no se borra físicamente, se marca |
+| **2 · Anonimización** | Sustituir datos personales conservando la fila | ❌ No aplica a un tenant: el sujeto no es una persona |
+| **3 · Purga física** | Borrar de verdad los datos del centro | ❌ Es `REQ-PRIV-006`, que no existe (§2.2). **Ningún camino de código de `1.6b` borra un solo dato de un tenant** |
+
+Tres precisiones que evitan tres errores distintos:
+
+1. **`deleted_at` en `tenants` no borra nada del tenant.** Las filas de sus tablas siguen ahí, con su `tenant_id`, bajo su RLS. Lo que desaparece es la puerta, no la casa. Quien lea `INV-004` y espere una cascada de borrados lógicos por todo el esquema no la va a encontrar, y es correcto que no la encuentre.
+2. **La eliminación de un tenant no es el derecho de supresión de nadie.** El derecho de supresión de `ADR-004` es de un interesado —un alumno, una familia— sobre sus datos, y se ejerce dentro del centro. Cerrar un centro no ejerce ningún derecho: **crea la obligación** de decidir qué se hace con datos de menores que siguen ahí. Esa decisión es `REQ-PRIV-006` y su catálogo de retención, y `1.6b` **no la adelanta ni la simula**.
+3. **La consecuencia hay que decirla, no esconderla**: al cerrar `1.6b`, un centro eliminado conserva indefinidamente todos sus datos —incluidos los de menores— sin ningún plazo de purga definido. Es exactamente el riesgo que `OPEN-BO-05` describe y que el usuario aceptó el 2026-09-08. Queda como **deuda declarada contra `REQ-PRIV-006`**, con su fecha, y no como una omisión que alguien descubra en una auditoría.
+
+#### 5.5.4 Una contradicción entre dos ficheros de esta especificación, señalada y no resuelta por mí
+
+**`dual_authorizations.action` admite `tenant.baja`** —está en el `CHECK` de la migración ya desplegada y en el *enum* `DualAuthorizationAction` del chasis—, pero `api.md §2.4` clasifica la baja como «transición simple» con respuesta `200`, y §5.5 sólo pone doble autorización en la eliminación. **Las dos cosas no pueden ser ciertas a la vez.**
+
+Esta especificación está escrita contra la segunda lectura —**la baja no exige doble autorización**— por tres razones:
+
+1. `REQ-BO-007` enumera las operaciones que la exigen y son **tres**: *«eliminar un tenant, purgar datos o desactivar módulos en masa»*. La baja no está.
+2. La baja es **reversible** durante 90 días por diseño (`RN-BO-12`, rescate). La doble autorización existe para lo irreversible.
+3. Exigir dos personas para iniciar una baja comercial —que es una operación de rutina, acordada con el cliente— produce el efecto conocido: se pide con antelación «para tenerla firmada», y la doble autorización se convierte en un trámite que se resuelve por adelantado.
+
+**El valor `tenant.baja` del vocabulario se conserva** aunque no lo escriba nadie: retirarlo exigiría una migración sobre un `CHECK` desplegado, y dejarlo no cuesta nada. Si el usuario decide lo contrario, el cambio es acotado —la baja pasa a responder `202` con su solicitud pendiente, como la eliminación— y no toca ninguna otra parte. Queda como **`OPEN-BO-14`** (§14).
+
+### 5.6 Clonación de un tenant (`RMT-007`) · sub-paso `1.6b`
+
+Se clona **la configuración, nunca las personas**. En `1.6b` eso es: la configuración del centro, los roles y sus concesiones, y las suscripciones de módulo. No se copian usuarios, ni invitaciones, ni auditoría, ni ningún dato personal — no porque no haya más que copiar hoy, sino porque **la regla debe quedar escrita antes de que exista más que copiar**: cuando lleguen alumnos y familias, un clon que arrastre personas sería una cesión de datos entre centros.
+
+#### 5.6.1 Lo que dice el requisito, y lo que no dice
+
+`REQ-BO-001` dice, entero: *«Clonación de un tenant como plantilla para acelerar altas (`RMT-007`)»*. Y `RMT-007` dice: *«Plantillas de tenant para acelerar el alta de nuevos centros (`REQ-ONB-001`)»*. **Ninguno de los dos menciona datos**, los dos dicen «plantilla», y los dos apuntan al *onboarding*. La lectura conservadora —se clona la **estructura**, no el contenido— no es una restricción que yo añada: es lo único que los dos textos sostienen. Clonar datos de un centro real en otro sería, además, una cesión de datos personales entre responsables distintos sin base legal ninguna (`INV-008`, `PRIVACY.md`).
+
+#### 5.6.2 Inventario exacto de qué se copia y qué no
+
+| Origen | ¿Se copia? | Nota |
+|---|:---:|---|
+| `tenant_settings` — idiomas, zona horaria, moneda, CCAA, tiempo de sesión, métodos de MFA, periodo de gracia de MFA | ✅ | Es la plantilla: lo que se quiere no volver a teclear |
+| `tenant_settings` — identidad fiscal (`legal_name`, `tax_id`, dirección fiscal) | ❌ | Son **datos del centro origen**, no configuración reutilizable. Un clon que arrastre el CIF de otro colegio es un error de datos esperando a que alguien emita algo con él |
+| `tenant_settings` — marca (colores, logo, favicon, fondo de acceso) | ❌ | Ídem: los objetos de almacenamiento están segregados por tenant en su ruta, y copiar la referencia sin copiar el objeto produce un enlace roto; copiar el objeto es copiar la identidad visual de otro centro |
+| `roles` y su matriz de concesiones (`permission_role`), **incluidos los roles personalizados** que el centro origen haya creado | ✅ | Es el otro motivo real para clonar: una configuración de permisos afinada es trabajo de semanas |
+| `module_subscriptions` | ✅ | Con `enabled_at = now()` y un `reason` propio que dice que vienen de un clon. **No se copian `enabled_at`/`disabled_at` del origen**: el clon no ha tenido esos módulos desde 2024 |
+| `users`, `people`, `user_invitations`, `user_sessions`, `user_identities` | ❌ | `RN-BO-21`, sin excepción |
+| `audit_logs`, `tenant_lifecycle_events`, `admin_action_logs` del origen | ❌ | La historia no se hereda: el clon es un centro nuevo y su primera fila de historial es su propia alta |
+| `status`, `suspended_at`, `suspension_message`, `grace_period_ends_at`, `grace_period_expired_at` | ❌ | El clon nace en `en_alta`, aunque el origen esté suspendido |
+| `early_adopter_since` | ❌ | Es una **designación del proveedor sobre un centro concreto** (`datos.md §6.1`). Heredarla metería a un centro nuevo en despliegues progresivos sin que nadie lo haya decidido |
+| Cualquier dato de negocio de los módulos contratados | ❌ | En `1.6b` no existe ninguno; la regla se escribe **ahora** para que exista antes que el dato |
+
+> **Tres de esas cuatro tablas son de `REQ-CORE`, y eso no estaba dicho.** `tenant_settings`, `roles` y `permission_role` viven en `App\Modules\Core`; tal como estaba escrita esta sección, el trabajo `CloneTenant` de `REQ-BO` tendría que leerlas y escribirlas directamente — **exactamente la infracción de `INV-007` que `RN-BO-53` prohíbe para el alta**, tres secciones más arriba. Lo detectó `ADR-048 §1.2` al leer el código y se corrige aquí, antes de que exista implementación: **la copia de esas tres la ejecuta `REQ-CORE`**, por el segundo método del mismo contrato, `provisionFromTemplate(Tenant $source, Tenant $target, TenantAdministrator $a)`. La lista de qué columnas de `tenant_settings` son «operativas» y cuáles no vive con ellas, en `REQ-CORE`, que es quien las conoce.
+>
+> **`module_subscriptions` es la excepción y la copia `REQ-BO`**, sin que sea una incoherencia: `ADR-045 §4.1` decidió que el backoffice es su **único escritor**, por `pgsql_platform`. Meterla en el contrato de `REQ-CORE` revocaría esa decisión sin ADR que la sustituya. La frontera que queda es limpia: **`REQ-CORE` es dueño de lo que el centro *es*; `REQ-BO`, de lo que el proveedor le ha *vendido*** (`ADR-048 §4.5`).
+
+#### 5.6.3 El clon necesita un administrador, y por eso el cuerpo lo trae
+
+Si el clon no copia personas y tampoco ejecuta el aprovisionamiento por defecto —que es lo que crearía al primer administrador—, **nadie podría entrar en él nunca**. Por eso `POST /tenants/{public_id}/clone` recibe los mismos datos del primer Administrador de Centro que el alta, y **lo crea nuevo**: una `Person` y un `User` propios, con su propia invitación. No se copia a nadie; se da de alta a alguien. `RN-BO-21` se respeta a la letra.
+
+#### 5.6.4 Restricciones sobre el origen, y por qué
+
+- **El origen no puede estar `eliminado`**: `422` con `bo.tenant.clone_source_invalid`. Clonar un centro cerrado resucitaría su configuración sin que nadie lo haya decidido, y es justo el caso en que nadie recuerda por qué estaba cerrado.
+- **El origen sí puede estar `suspendido` o `en_baja`.** Suspensión y clonación son ejes distintos, igual que suspensión y contratación (`ADR-045 §2`), y el caso real —clonar la configuración de un centro que se va para montar el que llega— es legítimo.
+- **El origen no puede estar `en_alta`**: su configuración todavía no está completa (§5.3.3) y el clon saldría a medias sin que nada lo indique.
+- **La lectura del origen es un único punto en el tiempo.** Todo lo que se copia se lee dentro de una transacción, de una vez, para que un cambio concurrente en el origen no produzca un clon mitad viejo mitad nuevo. **Esto es, además, lo que descarta la alternativa aparentemente más sencilla** de que `REQ-BO` leyera la plantilla y se la pasara a `REQ-CORE` como datos: entre la lectura y la escritura habría una ventana, y `REQ-BO` seguiría leyendo tablas ajenas (`ADR-048 §9`). Por eso la lectura del origen ocurre **dentro** de `provisionFromTemplate()`, y `provisionFromTemplate()` es idempotente por la misma comprobación que `provision()` — la existencia de `tenant_settings` en el destino (`ADR-048 §5.3`).
+
+El resultado es un tenant nuevo en `en_alta`, con su propio `slug` —validado igual que en el alta, `RN-BO-49` incluido—, que transita a `activo` al terminar el trabajo, con la misma gestión de fallo de §5.3.5. Su fila de auditoría es `tenant.clonado`, con el `public_id` del origen en `context`.
 
 ### 5.7 Doble autorización (`REQ-BO-007`)
 
@@ -528,13 +727,24 @@ Aserción nueva: **ninguna llamada a `runAsPlatform()` en `app/` pasa un propós
 
 **Esto cambia una firma de `App\Support\Tenancy`, infraestructura compartida por todo el producto**, y por eso el trabajo cae dentro del sub-paso `1.6` aunque no sea código de `REQ-BO` (§12.2). Además de los dos llamadores, hay **cuatro ficheros de test** que actualizar —`TenantModelTest`, `AuditObserverTest`, `CorePurgeJobsTest`, `RunAsPlatformArchitectureTest`—, y `AuditObserverTest` **cambia de significado**: el caso que documentaba —modo plataforma con tenant activo— deja de ser «no ocurre hoy» y pasa a ser «lanza siempre» (`ADR-046 §8`).
 
-### 6.3 Issue #7 · Caché de resolución de tenant
+### 6.3 Issue #7 · Caché de resolución de tenant · **lo cierra el sub-paso `1.6b`**
 
-`ResolveTenant` cachea `{id, status}` durante 60 s bajo `tenant-resolution:{slug}`. Hoy es inofensivo porque nadie cambia `status`; **este paso es exactamente el que deja de hacerlo inofensivo**.
+`ResolveTenant` cachea `{id, status}` durante 60 s bajo `tenant-resolution:{slug}`. Hoy es inofensivo porque nadie cambia `status`; **este sub-paso es exactamente el que deja de hacerlo inofensivo**, y por eso el propio issue lo declara *«bloqueante al implementar `REQ-BO-001`»*.
 
 `RN-BO-14` lo convierte en regla: **toda escritura de `tenants.status` invalida esa clave en la misma operación**, no como paso posterior. Con test de que un tenant recién suspendido deja de resolver **de inmediato**, no en hasta 60 s (`CA-BO-054`).
 
-> **Cuidado con el hermano de este problema**, que es el que `ADR-045 §8.3` señala y que es más sutil: la caché de disponibilidad de módulo (`modules:{code}:enabled`) lleva el **prefijo de tenant** `t{tenant_id}:` que fija `TenantContext::enter()`, y **el backoffice escribe desde fuera del contexto del tenant**. Una invalidación ingenua limpiaría la clave del prefijo equivocado, y una activación masiva la limpiaría equivocada tantas veces como centros. La invalidación debe entrar en el contexto del tenant afectado, o componer su prefijo explícitamente. Con test (`CA-BO-033`).
+**El mecanismo, con el detalle que hace falta para no implementarlo mal:**
+
+1. **Un `Cache::forget("tenant-resolution:{$slug}")` basta, y aquí sí.** Es la diferencia con el caso difícil de `ADR-045 §8.3` (§6.2 de `operacion.md`), y el motivo es de orden de ejecución: `ResolveTenant` escribe esa clave **antes** de que `TenantContext::enter()` cambie `cache.prefix` a `t{tenant_id}:`, así que vive bajo el prefijo base. El backoffice corre **sin tenant**, luego también escribe bajo el prefijo base. **Las dos partes nombran la misma clave sin hacer nada especial.** `modules:{code}:enabled`, en cambio, vive bajo el prefijo del tenant y por eso exige entrar en su contexto. **No se unifiquen los dos mecanismos** (`operacion.md §4.4`).
+2. **Se invalida después de confirmar la transacción, nunca dentro.** Invalidar dentro abre una ventana real: entre el `forget` y el `COMMIT`, una petición concurrente relee de la base de datos el valor **anterior** y lo vuelve a cachear 60 s. El resultado sería un tenant suspendido que sigue sirviendo, que es exactamente el defecto que se está cerrando. Va en el `afterCommit` de la transacción, no en su cuerpo.
+3. **Quien la escribe es el servicio de transición, no un *listener*.** Un *listener* es algo que alguien puede no registrar en un entorno, y el fallo sería silencioso.
+4. **El cambio de `slug` invalida dos claves**, la vieja y la nueva (`api.md §2.5`).
+5. **El alta y la clonación también invalidan** la clave de su `slug` nuevo. Parece innecesario —nadie ha resuelto ese `slug` todavía— y no lo es: el `slug` de un tenant eliminado se puede reutilizar (§5.4.2, §8), y la entrada del anterior puede seguir viva.
+6. **La invalidación no puede quedarse en el nodo que escribe.** La caché es Redis y es compartida; un almacén de proceso —`array`, `file`— rompería la garantía sin dar ningún síntoma en desarrollo con un solo proceso. Queda escrito porque el modo de fallo es invisible.
+
+**Lo que `1.6b` cambia en `ResolveTenant`, además de la invalidación**, está en §5.4.1: hoy `en_baja` y `eliminado` responden `404` en vez de `503`, y un tenant con `deleted_at` ni siquiera se encuentra. Los tres arreglos son del mismo sub-paso porque los tres los activa la misma funcionalidad.
+
+> **Cuidado con el hermano de este problema**, que es el que `ADR-045 §8.3` señala, que es más sutil y que es de `1.6c`: la caché de disponibilidad de módulo (`modules:{code}:enabled`) lleva el **prefijo de tenant** `t{tenant_id}:` que fija `TenantContext::enter()`, y **el backoffice escribe desde fuera del contexto del tenant**. Una invalidación ingenua limpiaría la clave del prefijo equivocado, y una activación masiva la limpiaría equivocada tantas veces como centros. La invalidación debe entrar en el contexto del tenant afectado, o componer su prefijo explícitamente. Con test (`CA-BO-033`).
 
 ---
 
@@ -574,6 +784,26 @@ Aserción nueva: **ninguna llamada a `runAsPlatform()` en `app/` pasa un propós
 | `RN-BO-19` | En una doble autorización, **quien aprueba no puede ser quien solicita**, y lo garantiza un `CHECK` de base de datos, no el controlador |
 | `RN-BO-20` | La ejecución usa **los parámetros congelados en la solicitud**. Si su huella no coincide con lo aprobado, la operación se rechaza |
 | `RN-BO-21` | La clonación copia configuración, roles, concesiones y suscripciones de módulo. **Nunca personas, usuarios, invitaciones ni auditoría** |
+
+#### 7.2.1 Reglas que añade el sub-paso `1.6b`
+
+> Van numeradas **a continuación de la última existente**, no intercaladas, por la misma norma que ya obligó a colocar `RN-BO-48` y `RN-BO-49` al final: **los identificadores de regla no se reordenan nunca**, porque están citados desde los otros cuatro ficheros del módulo, desde tres ADR y desde los criterios de aceptación. Su sitio temático es esta sección; su número es el que les toca.
+
+| ID | Regla |
+|----|-------|
+| `RN-BO-50` | **La resolución de tenant responde según el estado, y `404` sólo cuando no hay tenant.** `en_alta`, `suspendido`, `en_baja` y `eliminado` ⇒ **`503`** con el mensaje que corresponda y `Retry-After`; `activo` ⇒ pasa; ningún tenant con ese `slug`, vivo ni borrado ⇒ **`404`** genérico. La búsqueda por `slug` **incluye los borrados lógicos** —si no, un tenant `eliminado` daría `404` por la vía equivocada— y **prefiere siempre al tenant vivo** cuando el `slug` está reutilizado; entre borrados, el de `deleted_at` más reciente (§5.4.1, §5.4.2). Completa `RN-BO-15`, que no llegaba a este nivel de detalle, y **corrige el comportamiento actual del código**, que devuelve `404` en tres de los cuatro estados sin acceso |
+| `RN-BO-51` | **La invalidación de `tenant-resolution:{slug}` se ejecuta al confirmar la transacción, nunca dentro de ella**, la escribe el servicio de transición —no un *listener*— y vive **bajo el prefijo base de caché**, no bajo `t{tenant_id}:` (§6.3). Invalidan: las cinco transiciones, el alta, la clonación y el cambio de `slug` —éste, **las dos claves**, la vieja y la nueva— |
+| `RN-BO-52` | **El alta y la clonación ocurren en dos fases**: una síncrona que crea la fila en `en_alta` y responde `201`, y una en cola que aprovisiona y transita a `activo` (`INV-012`). **El fallo de la segunda no crea ningún estado nuevo**: el tenant se queda en `en_alta`, se registra `tenant.aprovisionamiento_fallido` y se repara con un comando de consola. Nunca con una escritura manual de `status` |
+| `RN-BO-53` | **`REQ-BO` no aprovisiona un tenant ni lo clona: se lo pide a `REQ-CORE`** por el contrato público **`TenantProvisioner`** de `Core\Domain` (`ADR-048`), jamás importando su código interno (`INV-007`). Alcanza **al alta y a la clonación**: `tenant_settings`, `roles` y `permission_role` son de `REQ-CORE` y las escribe `REQ-CORE` por los dos caminos (`provision()` y `provisionFromTemplate()`). **`module_subscriptions` es la única excepción y la sigue escribiendo el backoffice**, por `ADR-045 §4.1`. Ampliar esa interfaz para que acepte la configuración inicial del centro es trabajo de `1.6b` y se declara como ampliación de la superficie pública de `REQ-CORE`, enumerada en `ADR-048 §10`. **Es un contrato síncrono y no un evento**: el evento no devuelve resultado ni propaga fallo, y §5.3.3/§5.3.5 necesitan las dos cosas |
+| `RN-BO-54` | **Las transiciones con `actor_type = 'system'` escriben en `reason` una clave del catálogo de traducción, nunca una frase.** `tenant_lifecycle_events.reason` es `NOT NULL` y esas transiciones no tienen operador que lo redacte; una frase escrita en el código sería un literal visible (`INV-009`). El motivo escrito por una persona sigue siendo texto libre |
+| `RN-BO-55` | **Eliminar un tenant revoca todas las sesiones vivas de sus usuarios; suspenderlo y darlo de baja, no** (§5.4.3). La revocación se ejecuta en cola, dentro del contexto del tenant, con el vocabulario de `SessionEndReason` que ya posee `REQ-AUTH` — **que no se amplía**: son sesiones de usuarios de tenant |
+| `RN-BO-56` | **Ningún camino de código de `1.6b` borra ni anonimiza un solo dato de un tenant.** La eliminación es el nivel 1 de `ADR-004` y nada más: `status`, `deleted_at` y revocación de acceso. La purga es `REQ-PRIV-006` (§5.5.3) |
+| `RN-BO-57` | La confirmación por nombre de la eliminación se compara **literalmente**: sin recortar espacios interiores, sin plegar mayúsculas y sin normalizar acentos (§5.5.2) |
+| `RN-BO-58` | **Volver a `activo` limpia lo que puso la transición que se deshace**: desde `suspendido`, `suspended_at` y `suspension_message`; desde `en_baja`, `grace_period_ends_at` y `grace_period_expired_at`. Un rastro que sobrevive a su causa acaba mostrándose fuera de contexto (§5.4, §5.5) |
+| `RN-BO-59` | **La clonación copia exactamente el inventario de §5.6.2 y nada más.** Nunca identidad fiscal, ni marca, ni estado, ni `early_adopter_since`, ni historial. El origen **no puede estar `eliminado` ni `en_alta`** (`422`); sí puede estar `suspendido` o `en_baja`. El clon crea un primer administrador **nuevo** a partir del cuerpo de la petición: no se copia a nadie, se da de alta a alguien |
+| `RN-BO-60` | **El vencimiento del período de gracia se marca una sola vez** en `tenants.grace_period_expired_at`, **no borra nada** y **no notifica a nadie** —no hay infraestructura de notificaciones hasta `REQ-COM` (1.19)—: deja entrada de auditoría, aparece en el filtro del inventario y produce una señal de operación (§5.5.1) |
+| `RN-BO-61` | **Los 90 días no son configurables por variable de entorno.** El plazo lo fija `REQ-BO-001`; una variable que lo acorte es una forma de saltarse el período de gracia sin dejar rastro, del mismo género que las tres que `operacion.md §2` se niega a crear |
+| `RN-BO-62` | **La baja no exige doble autorización** (§5.5.4). `REQ-BO-007` la exige para eliminar, purgar y desactivar módulos en masa, y la baja es reversible durante 90 días. El valor `tenant.baja` del vocabulario de `dual_authorizations` **se conserva sin escritor**. Sujeta a `OPEN-BO-14` |
 
 ### 7.3 Módulos (`ADR-045`)
 
@@ -637,6 +867,17 @@ Aserción nueva: **ninguna llamada a `runAsPlatform()` en `app/` pasa un propós
 | Código de módulo llama a `runAsPlatform()` con un tenant activo | **Lanza**, con cualquier propósito (§6.2.4, `CA-BO-027`). Para operar sobre un tenant concreto se fija `tenant_id` a mano dentro del bloque, o se sale y se usa `runFor()` |
 | Un bloque `BackofficeEscritura` termina sin escribir en `admin_action_logs` | **Lanza al cerrarse** (§6.2.4, `CA-BO-028`). No es un aviso: la escritura de plataforma sin rastro no se completa |
 | Suspensión mientras hay jobs del tenant en cola | Los jobs siguen y terminan. Suspender bloquea el **acceso**, no la maquinaria (`RN-BO-16`) |
+| **`1.6b`** · El trabajo de aprovisionamiento falla y el tenant se queda en `en_alta` | Queda en `failed_jobs`, visible en la ficha de salud; entrada `tenant.aprovisionamiento_fallido`; **ninguna** fila de `tenant_lifecycle_events`; se repara con `bo:retry-provisioning`, que reencola un trabajo idempotente (§5.3.5, `RN-BO-52`) |
+| **`1.6b`** · Se pide una transición sobre un tenant que sigue en `en_alta` | `409`: la única salida de `en_alta` la produce el aprovisionamiento, no una persona (`RN-BO-12`). No hay forzado manual a `activo` por API |
+| **`1.6b`** · Un *host* de un tenant `eliminado` recibe tráfico | `503`, no `404`, y para siempre mientras su DNS apunte aquí (`RN-BO-50`). Que deje de responder es una decisión de DNS, no de la aplicación |
+| **`1.6b`** · Se da de alta un tenant con el `slug` de otro eliminado, y llega tráfico al *host* | Resuelve al **vivo**; el borrado sólo se mira si no hay ninguno vivo (`RN-BO-50`, §5.4.2). La entrada de caché del anterior se invalidó en el alta (`RN-BO-51`) |
+| **`1.6b`** · Se suspende un tenant y un usuario suyo ya tenía la sesión abierta | No pasa de `ResolveTenant`: `503` en la siguiente petición. **Su sesión no se revoca** y al reactivar sigue sirviendo (`RN-BO-55`, primer criterio de §5.51) |
+| **`1.6b`** · Se elimina un tenant y un usuario suyo tenía la sesión abierta | La revocación se encola y cierra todas sus sesiones con `baja_usuario`. El `503` ya lo bloqueaba; la revocación es para que no queden credenciales vivas apuntando a un centro cerrado (`RN-BO-55`) |
+| **`1.6b`** · Vence el período de gracia y nadie hace nada | El centro sigue en `en_baja`, marcado y **rescatable**. **No se borra nada, nunca, por temporizador** (`RN-BO-17`, `RN-BO-60`) |
+| **`1.6b`** · La tarea diaria se ejecuta varias veces sobre el mismo tenant vencido | Escribe **una** entrada y **una** marca: `grace_period_expired_at` no se reescribe (`RN-BO-60`) |
+| **`1.6b`** · Se aprueba una eliminación cuyo tenant ha vuelto a `activo` entre la solicitud y la aprobación | La ejecución falla y la solicitud queda `fallida` con su motivo: los parámetros congelados ya no son válidos (`RN-BO-20`, §5.7 punto 3). **No se rescata reinterpretando la operación** |
+| **`1.6b`** · Se clona un tenant y, a la vez, alguien cambia su configuración | El clon refleja el estado del origen en el instante de la lectura, que es único y transaccional (§5.6.4). Nunca mitad viejo, mitad nuevo |
+| **`1.6b`** · Se clona un tenant cuya marca y datos fiscales el operador esperaba heredar | No se heredan, y es deliberado (§5.6.2). La respuesta de la operación **dice qué se ha copiado**, para que la ausencia no se lea como un fallo |
 | Se consulta un *flag* cuya clave no está en el catálogo | **Falso**, sin excepción y sin error. Un `flag('lo_que_sea')` que devolviera verdadero por no encontrarse sería la peor forma posible de fallar |
 | Un despliegue **retira** un *flag* que aún tiene reglas | El *flag* queda `retired_at`, evalúa falso y sus reglas se conservan como prueba de lo que estuvo activo. **No se borran**: son el registro de a quién se expuso qué |
 | Se baja un porcentaje del 40 % al 10 % | Los centros expuestos son un **subconjunto** de los anteriores; ninguno entra al bajar (`RN-BO-38`) |
@@ -834,6 +1075,56 @@ Formato `Dado / Cuando / Entonces`, verificables, con el ID de requisito que cub
 - **`CA-BO-059`** · *Dado* un tenant suspendido, *cuando* se inspeccionan sus datos y sus tareas programadas, *entonces* están íntegros y siguen ejecutándose (`RN-BO-16`).
 - **`CA-BO-060`** · *Dado* una clonación, *cuando* termina, *entonces* el tenant nuevo tiene configuración, roles, concesiones y suscripciones de módulo, y **cero personas, cero usuarios, cero invitaciones y cero entradas de auditoría** copiadas (`RN-BO-21`).
 
+#### 13.4.1 Los que añade el sub-paso `1.6b`
+
+> `CA-BO-050` a `CA-BO-060` describen el ciclo de vida a la altura a la que se escribió el chasis. Los que siguen son los que hacen falta para **implementarlo**, y cubren en particular las tres cosas que la revisión de `1.6b` encontró sin cubrir: el camino de fallo del aprovisionamiento, el comportamiento real de `ResolveTenant` frente a `RN-BO-15`, y qué ocurre con las sesiones de los usuarios del centro.
+
+**Alta**
+
+- **`CA-BO-106`** · *Dado* un alta válida, *cuando* se llama al *endpoint*, *entonces* responde **`201`** con `status = 'en_alta'` **sin haber aprovisionado nada todavía**; y *cuando* el trabajo en cola termina, *entonces* el tenant queda `activo` con sus 16 roles, sus concesiones, su configuración inicial —idiomas, zona horaria, moneda y CCAA, **escritos en `tenant_settings`**— y el primer Administrador de Centro invitado (`RN-BO-52`, §5.3.3).
+- **`CA-BO-107`** · *Dado* un alta **sin motivo o con motivo vacío**, *entonces* `422` y **no se crea ninguna fila en `tenants`** (`RN-BO-13`). Y *dado* un `slug` que no cumple el formato de etiqueta DNS, *entonces* `422` con `bo.tenant.slug_taken` reservado a su propio caso, no reutilizado para esto.
+- **`CA-BO-108`** · *(camino de fallo)* *Dado* un aprovisionamiento que falla, *entonces* el tenant sigue en `en_alta`, existe **una** entrada `tenant.aprovisionamiento_fallido` con `actor_type = 'system'`, **no** existe ninguna fila nueva en `tenant_lifecycle_events`, y *cuando* se ejecuta `bo:retry-provisioning`, *entonces* el tenant queda `activo` **sin duplicar ningún rol, concesión, persona ni invitación** (`RN-BO-52`, §5.3.5).
+- **`CA-BO-109`** · *Dado* el aprovisionamiento por la interfaz pública de `REQ-CORE`, *cuando* un test de arquitectura recorre `app/Modules/Backoffice`, *entonces* **no hay ni un `use` de una clase interna de `App\Modules\Core`** fuera de su superficie pública declarada (`RN-BO-53`, `INV-007`).
+
+**Resolución de tenant y caché (issue [#7](https://github.com/pirexia/plataforma-educativa/issues/7))**
+
+- **`CA-BO-110`** · *Dado* un tenant en cada uno de los cinco estados, *cuando* llega una petición a su *host*, *entonces* `en_alta`, `suspendido`, `en_baja` y `eliminado` responden **`503`** con `Retry-After` y su mensaje, `activo` pasa, y un *host* sin tenant responde **`404`** (`RN-BO-50`). **Los tres primeros fallan hoy** y este criterio es el que lo demuestra.
+- **`CA-BO-111`** · *Dado* un tenant `eliminado` —y por tanto con `deleted_at`—, *cuando* llega una petición a su *host*, *entonces* recibe **`503`**, no `404`: la resolución lo encuentra pese al borrado lógico (`RN-BO-50`, §5.4.1).
+- **`CA-BO-112`** · *Dado* un tenant eliminado cuyo `slug` se reutiliza en un alta posterior, *cuando* llega una petición a ese *host*, *entonces* resuelve al tenant **vivo** y sirve su estado, no el del eliminado (`RN-BO-50`, §5.4.2).
+- **`CA-BO-113`** · *Dado* una transición cuya transacción **falla y revierte**, *entonces* la caché `tenant-resolution:{slug}` **no queda envenenada** con un valor intermedio y el estado servido sigue siendo el anterior. Es la comprobación de que la invalidación va **después** del `COMMIT` y no dentro (`RN-BO-51`).
+- **`CA-BO-114`** · *Dado* un cambio de `slug`, *entonces* se invalidan **las dos** claves, la vieja y la nueva, y el *host* antiguo deja de resolver **de inmediato** (`RN-BO-51`, `api.md §2.5`).
+
+**Transiciones**
+
+- **`CA-BO-115`** · *Dado* un tenant en `en_alta`, *cuando* se intenta **cualquier** transición por API —incluida `activo`—, *entonces* `409`: de `en_alta` sólo sale el aprovisionamiento (`RN-BO-12`, `RN-BO-52`).
+- **`CA-BO-116`** · *Dado* una reactivación, *entonces* `suspended_at` y `suspension_message` quedan a nulo; *dado* un rescate, *entonces* `grace_period_ends_at` y `grace_period_expired_at` quedan a nulo (`RN-BO-58`).
+- **`CA-BO-117`** · *Dado* una transición ejecutada por el sistema —la de `en_alta` a `activo`—, *entonces* su `reason` es **una clave del catálogo de traducción** y existe en los cuatro idiomas; **no** una frase escrita en el código (`RN-BO-54`, `INV-009`).
+- **`CA-BO-118`** · *Dado* una eliminación, *cuando* el `confirmation_name` difiere del nombre en mayúsculas, en acentos o en espacios interiores, *entonces* `422` y **no se crea solicitud** (`RN-BO-57`).
+
+**Sesiones y datos**
+
+- **`CA-BO-119`** · *Dado* un tenant suspendido cuyos usuarios tenían sesiones abiertas, *entonces* **ninguna sesión se cierra**, todas responden `503` mientras dure la suspensión, y *cuando* se reactiva, *entonces* **las mismas sesiones siguen sirviendo sin volver a autenticarse** (`RN-BO-55`, primer criterio de §5.51).
+- **`CA-BO-120`** · *Dado* una eliminación ejecutada, *entonces* **todas** las sesiones vivas de los usuarios de ese centro quedan cerradas con `baja_usuario`, y ninguna sesión de **otro** centro se ve afectada (`RN-BO-55`).
+- **`CA-BO-121`** · *Dado* un tenant con datos en varias tablas, *cuando* se elimina, *entonces* el recuento de filas de cada una de esas tablas es **idéntico** antes y después: la eliminación es el nivel 1 de `ADR-004` y no borra ni anonimiza nada (`RN-BO-56`, `INV-004`).
+
+**Período de gracia**
+
+- **`CA-BO-122`** · *Dado* un tenant `en_baja` cuya gracia vence, *cuando* se ejecuta la tarea diaria **tres días seguidos**, *entonces* `grace_period_expired_at` se escribe **una sola vez**, existe **una sola** entrada `tenant.gracia_vencida`, el tenant sigue `en_baja` y **sigue siendo rescatable** (`RN-BO-17`, `RN-BO-60`).
+
+**Clonación**
+
+- **`CA-BO-123`** · *Dado* un tenant origen con configuración operativa, identidad fiscal, marca, roles personalizados, módulos contratados, usuarios y designación de *early adopter*, *cuando* se clona, *entonces* el clon tiene **la configuración operativa, los roles —los predefinidos y los personalizados— con sus concesiones, y las suscripciones de módulo**, y **no** tiene identidad fiscal, ni marca, ni `early_adopter_since`, ni estado, ni historial, ni una sola persona copiada (`RN-BO-59`, §5.6.2).
+- **`CA-BO-124`** · *Dado* una clonación, *entonces* el clon tiene **exactamente un** Administrador de Centro, creado a partir del cuerpo de la petición y con su invitación, **cuyo correo no coincide con ningún usuario del origen salvo que el operador lo haya escrito así** (`RN-BO-59`, §5.6.3).
+- **`CA-BO-125`** · *Dado* un tenant origen `eliminado` o `en_alta`, *cuando* se intenta clonar, *entonces* `422` con `bo.tenant.clone_source_invalid`; *dado* uno `suspendido` o `en_baja`, *entonces* la clonación procede (`RN-BO-59`).
+
+**Aislamiento entre centros — obligatorio para cerrar el sub-paso**
+
+- **`CA-BO-126`** · *Dado* **dos** tenants con datos equivalentes, *cuando* se suspende, se da de baja, se elimina y se clona el primero, *entonces* el segundo no ve alterado **ninguno** de: su resolución, su entrada de caché, sus sesiones, sus suscripciones de módulo y el recuento de filas de sus tablas (`INV-001`, y el test obligatorio de la *skill* `aislamiento-tenant`).
+
+**La baja, mientras `OPEN-BO-14` no diga lo contrario**
+
+- **`CA-BO-127`** · *Dado* una transición a `en_baja`, *entonces* responde **`200`**, la transición se ha ejecutado y **no** se ha creado ninguna `dual_authorization` (`RN-BO-62`, §5.5.4). **Este criterio cambia de signo si el usuario resuelve `OPEN-BO-14` en sentido contrario**, y es el único de la lista que lo hace.
+
 ### 13.5 Doble autorización (`REQ-BO-007`)
 
 - **`CA-BO-061`** · *Dado* un intento de eliminar un tenant con **una sola** cuenta de administrador, *entonces* el sistema lo impide y exige la autorización de un segundo administrador (tercer criterio de §5.51).
@@ -920,8 +1211,11 @@ Formato `Dado / Cuando / Entonces`, verificables, con el ID de requisito que cub
 | `OPEN-BO-11` · Direccionar un *flag* por su `key` | **Abierta · nueva**, no bloqueante. Surge de la decisión del 2026-09-08 |
 | `OPEN-BO-12` · Nombre del *host* de plataforma | **Abierta · nueva**, no bloqueante. Depende de `OPEN-08` (`ADR-046 §2.1`, §4.4). Lo que **sí** queda decidido es la restricción que ese nombre deberá cumplir (`RN-BO-49`) |
 | `OPEN-BO-13` · Las rutas de pre-autenticación y la aserción 2 de `ADR-046 §4.5` | **RESUELTA** (2026-09-08, lectura (a), `api.md §1.1.1`) |
+| `OPEN-BO-14` · ¿La baja exige doble autorización? | **Abierta · nueva** (`1.6b`). **Nace de una contradicción interna de esta especificación**, no de una duda de diseño. Recomendación: **no** |
+| `OPEN-BO-15` · Ampliar la superficie pública de `REQ-CORE` para el aprovisionamiento | **RESUELTA por `ADR-048`** (2026-09-11) · **contrato síncrono `TenantProvisioner` en `Core\Domain`, no evento**, con **dos** métodos: el alta y **la clonación** — que incumplía `INV-007` sin que nadie lo hubiera nombrado. Lo único que sigue pendiente del usuario es el permiso acotado de `ADR-048 §10`: que `1.6b` escriba las cinco cosas enumeradas dentro de `REQ-CORE` |
+| `OPEN-BO-16` · El `503` permanente de un centro eliminado, y el `503` de `en_alta` | **Abierta · nueva** (`1.6b`), no bloqueante. `RN-BO-50` extiende `RN-BO-15` a dos casos que aquella no nombraba |
 
-**Ya no queda ninguna pregunta abierta bloqueante ni no bloqueante, ni ningún visto bueno técnico pendiente.** `ADR-047` cierra `OPEN-BO-10` **y** las dos piezas que se le habían añadido —`platform_sessions` y `platform_admin_sessions`—: las tres quedan aprobadas con cambios, ninguna rechazada (`ADR-047`, encabezado y `§5.1`). `OPEN-BO-13` queda resuelta por decisión del usuario. Lo que impedía empezar a implementar (§15) está cerrado: la aprobación explícita del usuario a la especificación completa, dada.
+**Con `1.6b` volvieron a aparecer preguntas abiertas: tres, de las cuales `ADR-048` cierra una (`OPEN-BO-15`, 2026-09-11) y de las dos restantes sólo `OPEN-BO-14` cambia un código de respuesta y por tanto un criterio de aceptación.** Lo que sigue siendo cierto es lo de la revisión anterior, referido al chasis: `ADR-047` cierra `OPEN-BO-10` **y** las dos piezas que se le habían añadido —`platform_sessions` y `platform_admin_sessions`—: las tres quedan aprobadas con cambios, ninguna rechazada (`ADR-047`, encabezado y `§5.1`). `OPEN-BO-13` queda resuelta por decisión del usuario. Lo que impedía empezar a implementar (§15) está cerrado: la aprobación explícita del usuario a la especificación completa, dada.
 
 ### `OPEN-BO-01` · ¿Cómo se separa técnicamente la aplicación del backoffice? · **RESUELTA por `ADR-046 §4`**
 
@@ -1022,6 +1316,37 @@ Surgió al aplicar `ADR-046 §10.4`: la aserción 2 exige que **toda** ruta de `
 
 **Decisión del usuario: lectura (a)** (detalle en `api.md §1.1.1`) — los dos *middleware* están presentes en todas las rutas y conocen su propia excepción —la capacidad puede ser «por identidad del portador», como `GET /me`—, con lo que la aserción se cumple literalmente y **no hay lista que mantener**. Descartada la lectura (b) (lista blanca cerrada y nombrada de rutas de pre-autenticación, al modo de `RunAsPlatformArchitectureTest`), por el mismo motivo por el que `ADR-046 §6.7` prohíbe convertir una lista blanca en comodín: bajo (b) existe una lista que alguien puede ampliar; bajo (a) no existe.
 
+### `OPEN-BO-14` · ¿La baja de un tenant exige doble autorización? · **nueva en `1.6b`**
+
+**No es una duda de diseño: es una contradicción entre dos piezas ya escritas y una de ellas ya desplegada.** `dual_authorizations.action` admite `tenant.baja` —está en el `CHECK` de la migración del chasis y en el *enum* `DualAuthorizationAction`—, mientras que `api.md §2.4` clasifica la baja como transición simple con respuesta `200` y §5.5 sólo pone doble autorización en la eliminación.
+
+Esta especificación está escrita contra **«no»**, con el argumento de §5.5.4: `REQ-BO-007` enumera tres operaciones que la exigen y la baja no está entre ellas, la baja es reversible durante 90 días, y exigir dos personas para una operación de rutina acaba produciendo aprobaciones adelantadas «para tenerlas firmadas».
+
+**Lo que cambia si el usuario decide «sí»**, y es acotado: `POST /tenants/{id}/transitions` con `to_status = 'en_baja'` responde `202` con la solicitud pendiente en vez de `200`; `CA-BO-127` invierte su signo; `RN-BO-62` se retira. Nada más de esta especificación se ve afectado. **Lo señalo en vez de elegir por comodidad** porque elegir en silencio entre dos documentos aprobados es exactamente cómo una especificación deja de ser fuente de verdad.
+
+### `OPEN-BO-15` · ¿Se aprueba ampliar la superficie pública de `REQ-CORE`? · **RESUELTA por `ADR-048`, 2026-09-11**
+
+> **Decisión: contrato síncrono `TenantProvisioner` declarado en `Core\Domain`, con dos métodos — el alta y la clonación.** El detalle está en §5.3.4 y §5.6.2; el motivo que decide, en `ADR-048 §3.1` y `§6`.
+
+`RN-BO-53` obliga a que el backoffice pida el aprovisionamiento a `REQ-CORE` por interfaz pública, y la que existe hoy —`provision(Tenant, adminEmail, adminGivenName, adminFamilyName)`— **no acepta la configuración inicial del centro** (idiomas, zona horaria, moneda, CCAA) que el alta sí recoge. Hay que ampliarla.
+
+Al llevar la pregunta al usuario se le ofrecieron dos caminos —interfaz ampliada o evento de dominio— **sin haber leído el código**, y el usuario se negó, con razón, a elegir a ciegas. `ADR-048` decide sobre lo verificado, y encuentra tres cosas que la pregunta no contemplaba:
+
+1. **El evento no era una opción viable**, y no por estilo: no devuelve resultado ni propaga fallo, y §5.3.3 necesita saber que el aprovisionamiento **terminó bien** para escribir la transición `en_alta` → `activo`, y §5.3.5 necesita el error para escribir `tenant.aprovisionamiento_fallido`. Además el reintento de `bo:retry-provisioning` obligaría a **reemitir `TenantCreated`**, que es un enunciado de hecho falso: el tenant no se ha vuelto a crear.
+2. **El patrón ya existe y está repetido nueve veces**: `REQ-AUTH` consume `REQ-CORE` siempre igual —interfaz en `Core\Domain`, enlace en `CoreServiceProvider`, implementación dentro de `REQ-CORE`—, y los eventos se usan en la dirección contraria, para reaccionar a hechos consumados. Ningún evento del repositorio ordena nada ni devuelve resultado.
+3. **La clonación de §5.6 tenía el mismo problema y nadie lo había nombrado.** Copia `tenant_settings`, `roles` y `permission_role`, que son tablas de `REQ-CORE`; tal como estaba escrita, `CloneTenant` las leería y escribiría desde `REQ-BO`. Por eso el contrato tiene **dos** métodos.
+
+**Lo que sigue abierto, y es sólo esto**: el permiso para que `1.6b` escriba código dentro de `REQ-CORE`. `ADR-048 §10` lo acota a cinco cosas —tres tipos y un enumerado nuevos en `Core\Domain`, `implements` y un segundo método en la clase que ya existe, una línea de enlace en el proveedor, opciones nuevas en el comando de consola, y el `locale` del primer administrador— y deja explícito que **no se toca ninguna migración, columna, endpoint, permiso ni regla de negocio de `REQ-CORE`**. Si el usuario prefiere que esa ampliación se haga en un paso propio en vez de dentro de `1.6b`, el mecanismo no cambia: cambia sólo dónde se commitea.
+
+### `OPEN-BO-16` · El `503` permanente de un centro eliminado, y el `503` de `en_alta` · **nueva en `1.6b`**
+
+`RN-BO-15` nombra tres estados sin acceso —`suspendido`, `en_baja`, `eliminado`— y les asigna `503`. `RN-BO-50` completa el mapa y con ello toma **dos** decisiones que aquella regla no tomaba:
+
+1. **`en_alta` también responde `503`**, no `404`. Es coherente con «`404` sólo cuando no hay tenant», y hace que la ventana de aprovisionamiento sea observable en vez de indistinguible de un error de DNS.
+2. **Un centro eliminado responde `503` para siempre**, con lo que su *host* sigue revelando que ese centro existió. La alternativa —pasar a `404` transcurrido un plazo— convertiría el `404` en dos cosas distintas y obligaría a un temporizador nuevo.
+
+Las dos son extensiones razonadas de una regla aprobada, no reinterpretaciones de ella, y por eso van escritas y no ejecutadas en silencio. **No bloquean**: si el usuario prefiere `404` en alguno de los dos casos, el cambio es una fila de una tabla en `ResolveTenant` y una fila de `CA-BO-110`.
+
 ---
 
 ## 15. ¿Se aprueba esta especificación?
@@ -1079,4 +1404,26 @@ Lo que **sí** está cerrado y no espera a nadie es el encargo de `ADR-045 §10`
 
 El chasis se implementó (`aa668ba`) y pasó dos rondas de revisión independiente. **Primera pasada**: tres hallazgos Alta (issues [#173](https://github.com/pirexia/plataforma-educativa/issues/173)-[#175](https://github.com/pirexia/plataforma-educativa/issues/175) — mecanismo de invitación real, `RequirePlatformMfa` sin lista blanca, OpenAPI de plataforma) y dos Media (issues [#176](https://github.com/pirexia/plataforma-educativa/issues/176)/[#177](https://github.com/pirexia/plataforma-educativa/issues/177)), todos corregidos. **Segunda pasada**, centrada en esas correcciones: un cuarto Alta (issue [#180](https://github.com/pirexia/plataforma-educativa/issues/180), límite de tasa ausente en el canje) y cuatro Media (issues [#181](https://github.com/pirexia/plataforma-educativa/issues/181), [#183](https://github.com/pirexia/plataforma-educativa/issues/183)-[#185](https://github.com/pirexia/plataforma-educativa/issues/185)), todos corregidos. Dos hallazgos Baja quedan documentados, sin corregir a propósito (issues [#178](https://github.com/pirexia/plataforma-educativa/issues/178)/[#179](https://github.com/pirexia/plataforma-educativa/issues/179)/[#182](https://github.com/pirexia/plataforma-educativa/issues/182)/[#186](https://github.com/pirexia/plataforma-educativa/issues/186)). Detalle completo en `CHANGELOG.md`.
 
-El hueco de especificación señalado en la resolución del issue #173 — no existe todavía un `CA-BO` numerado para `POST /admin-invitation-redemptions` — sigue abierto: documentado en `api.md §2.1`, no inventado aquí, pendiente de asignar cuando se revise `§13` con calma.
+El hueco de especificación señalado en la resolución del issue #173 — no existe todavía un `CA-BO` numerado para `POST /admin-invitation-redemptions` — sigue abierto: documentado en `api.md §2.1`, no inventado aquí, pendiente de asignar cuando se revise `§13` con calma. **`1.6b` no lo cierra a propósito**: pertenece al chasis, ya implementado y mezclado, y asignarle un número desde un sub-paso posterior sin escribir su test sería cambiar el hueco de sitio.
+
+### 15.2 Sub-paso `1.6b` · ciclo de vida de tenants — **pendiente de aprobación**
+
+Esta pasada especifica `REQ-BO-001` completo a la altura que hace falta para implementarlo, sobre el chasis cerrado en `1.6`. Lo que trae, y dónde está:
+
+| # | Qué | Dónde |
+|---|---|---|
+| 1 | **El alta en dos fases**, que resuelve una incoherencia entre `funcional.md` y `operacion.md` a favor del trabajo en cola, y el camino de fallo del aprovisionamiento, que no estaba escrito | §5.3, `RN-BO-52`, `CA-BO-106` a `CA-BO-108` |
+| 2 | **`ResolveTenant` no cumple hoy `RN-BO-15`**, verificado sobre el código: `en_baja` y `eliminado` responden `404`, y un tenant con `deleted_at` ni se encuentra. Arreglarlo es de este sub-paso | §5.4.1, `RN-BO-50`, `CA-BO-110` a `CA-BO-112` |
+| 3 | **El mecanismo exacto del issue [#7](https://github.com/pirexia/plataforma-educativa/issues/7)**: por qué aquí basta un `forget` y en `1.6c` no, y por qué va **después** del `COMMIT` | §6.3, `RN-BO-51`, `CA-BO-113`, `CA-BO-114` |
+| 4 | **Qué pasa con las sesiones de los usuarios del centro**: eliminar revoca, suspender y dar de baja no, con el motivo de la asimetría | §5.4.3, `RN-BO-55`, `CA-BO-119`, `CA-BO-120` |
+| 5 | **Borrado lógico frente a purga**, con la consecuencia sobre datos de menores dicha en voz alta | §5.5.3, `RN-BO-56`, `CA-BO-121` |
+| 6 | **Inventario exacto de la clonación**, incluido lo que **no** se copia y por qué, y de dónde sale el primer administrador del clon | §5.6.2, `RN-BO-59`, `CA-BO-123` a `CA-BO-125` |
+| 7 | **Qué significan «marca» y «avisa»** al vencer el período de gracia, y la columna que lo hace idempotente | §5.5.1, `RN-BO-60`, `datos.md §6`, `CA-BO-122` |
+| 8 | **Trece reglas nuevas** (`RN-BO-50` a `RN-BO-62`) y **veintidós criterios nuevos** (`CA-BO-106` a `CA-BO-127`) | §7.2.1, §13.4.1 |
+| 9 | **`ADR-048` (2026-09-11)**, aplicado a esta pasada: el aprovisionamiento se pide a `REQ-CORE` por **contrato síncrono `TenantProvisioner`** —con el evento de dominio descartado y por qué—, y **la clonación pasa por el mismo contrato**, porque copiaba tres tablas de `REQ-CORE` desde `REQ-BO` | §5.3.4, §5.6.2, §5.6.4, `RN-BO-53`, `operacion.md §6.1` y `§8` |
+
+**Y tres preguntas que no resolvió `spec-writer`**: `OPEN-BO-14` (¿doble autorización en la baja? — contradicción interna, recomendación «no»), `OPEN-BO-15` (ampliar la superficie pública de `REQ-CORE`) y `OPEN-BO-16` (el `503` de `en_alta` y el permanente de un centro eliminado).
+
+**`OPEN-BO-15` está resuelta desde el 2026-09-11 por `ADR-048`** (contrato síncrono `TenantProvisioner`, dos métodos, sin evento), que al evaluarla sobre el código encontró además que **la clonación de §5.6 incumplía `INV-007`** igual que el alta, sin que nadie lo hubiera nombrado (§5.6.2). De lo que queda, **sólo `OPEN-BO-14` cambia el comportamiento del código** —`200` frente a `202`— y por tanto es la única que conviene resolver antes de que `implementer` toque nada. `OPEN-BO-16` se puede responder mientras se implementa sin rehacer trabajo.
+
+> **¿Se aprueba esta especificación de `1.6b` antes de pasar a implementación?**
