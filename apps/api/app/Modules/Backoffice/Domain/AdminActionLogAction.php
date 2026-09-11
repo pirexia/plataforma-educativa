@@ -9,11 +9,13 @@ namespace App\Modules\Backoffice\Domain;
  * vocabulario abierto se convierte en texto libre y deja de ser
  * consultable.
  *
- * Los 31 valores replican íntegro el `CHECK` de la migración, aunque
- * 1.6 solo emita los de acceso, administradores, lista blanca y doble
- * autorización — los de `tenant.*` y `modulo.*` los emiten `1.6b`/`1.6c`
- * cuando construyan esas operaciones, sobre la misma tabla y el mismo
- * vocabulario ya cerrado.
+ * Los 34 valores replican íntegro el `CHECK` de la migración (31 del
+ * chasis más los tres que añade `1.6b`, datos.md §4.2.1:
+ * `tenant.slug_cambiado`, `tenant.aprovisionamiento_fallido`,
+ * `tenant.gracia_vencida`), aunque 1.6 solo emitiera los de acceso,
+ * administradores, lista blanca y doble autorización — los de
+ * `modulo.*` los emite `1.6c` cuando construya esas operaciones, sobre
+ * la misma tabla y el mismo vocabulario ya cerrado.
  */
 enum AdminActionLogAction: string
 {
@@ -52,6 +54,11 @@ enum AdminActionLogAction: string
     case TenantRescatado = 'tenant.rescatado';
     case TenantEliminado = 'tenant.eliminado';
     case TenantClonado = 'tenant.clonado';
+
+    // 1.6b: datos.md §4.2.1.
+    case TenantSlugCambiado = 'tenant.slug_cambiado';
+    case TenantAprovisionamientoFallido = 'tenant.aprovisionamiento_fallido';
+    case TenantGraciaVencida = 'tenant.gracia_vencida';
 
     case ModuloContratado = 'modulo.contratado';
     case ModuloDescontratado = 'modulo.descontratado';

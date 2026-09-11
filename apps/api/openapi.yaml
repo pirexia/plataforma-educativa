@@ -249,5 +249,29 @@ paths:
   /api/platform/v1/tenants/{publicId}/admin-action-logs:
     $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1admin-action-logs"
 
+  # REQ-BO-001 (1.6b). Inventario y ciclo de vida de tenants.
+  /api/platform/v1/tenants:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants"
+  /api/platform/v1/tenants/{publicId}:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}"
+  /api/platform/v1/tenants/{publicId}/transitions:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1transitions"
+  /api/platform/v1/tenants/{publicId}/lifecycle-events:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1lifecycle-events"
+  /api/platform/v1/tenants/{publicId}/clone:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1clone"
+  /api/platform/v1/tenants/{publicId}/slug:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1slug"
+
+  # REQ-BO-007 (1.6b). Doble autorización.
+  /api/platform/v1/dual-authorizations:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1dual-authorizations"
+  /api/platform/v1/dual-authorizations/{publicId}:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1dual-authorizations~1{publicId}"
+  /api/platform/v1/dual-authorizations/{publicId}/approval:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1dual-authorizations~1{publicId}~1approval"
+  /api/platform/v1/dual-authorizations/{publicId}/rejection:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1dual-authorizations~1{publicId}~1rejection"
+
   # Los endpoints de los módulos siguientes se añaden aquí conforme se
   # implementan, cada uno con su propio apps/api/openapi/paths/<modulo>.yaml.

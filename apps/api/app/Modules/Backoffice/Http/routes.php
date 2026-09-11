@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Backoffice\Http\Controllers\AdminActionLogsController;
+use App\Modules\Backoffice\Http\Controllers\DualAuthorizationsController;
 use App\Modules\Backoffice\Http\Controllers\PlatformAdminInvitationRedemptionsController;
 use App\Modules\Backoffice\Http\Controllers\PlatformAdminsController;
 use App\Modules\Backoffice\Http\Controllers\PlatformIpAllowlistController;
@@ -9,6 +10,7 @@ use App\Modules\Backoffice\Http\Controllers\PlatformMfaFactorsController;
 use App\Modules\Backoffice\Http\Controllers\PlatformMfaRecoveryCodesController;
 use App\Modules\Backoffice\Http\Controllers\PlatformReauthenticationController;
 use App\Modules\Backoffice\Http\Controllers\PlatformSessionController;
+use App\Modules\Backoffice\Http\Controllers\TenantsController;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -91,3 +93,40 @@ Route::get('/admin-action-logs', [AdminActionLogsController::class, 'index'])
     ->middleware(['require-platform-mfa', 'require-platform-capability:auditoria_plataforma.leer'])->name('platform.admin-action-logs.index');
 Route::get('/tenants/{public_id}/admin-action-logs', [AdminActionLogsController::class, 'forTenant'])
     ->middleware(['require-platform-mfa', 'require-platform-capability:tenant.leer'])->name('platform.tenants.admin-action-logs.index');
+
+// §2.4, §2.4.1 a §2.4.3, §2.5 (1.6b, REQ-BO-001). `tenant.leer` es la
+// línea de base de `transitions`: la capacidad exacta depende de
+// `to_status` y la resuelve `TenantTransitionCapability` dentro del
+// servicio (permisos.md §4.3) — no hay un único valor estático que
+// describa las cinco aristas.
+Route::get('/tenants', [TenantsController::class, 'index'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:tenant.leer'])->name('platform.tenants.index');
+Route::post('/tenants', [TenantsController::class, 'store'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:tenant.crear', 'require-platform-reauthentication'])
+    ->name('platform.tenants.store');
+Route::get('/tenants/{public_id}', [TenantsController::class, 'show'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:tenant.leer'])->name('platform.tenants.show');
+Route::patch('/tenants/{public_id}', [TenantsController::class, 'update'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:tenant.actualizar'])->name('platform.tenants.update');
+Route::post('/tenants/{public_id}/transitions', [TenantsController::class, 'transitions'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:tenant.leer'])->name('platform.tenants.transitions.store');
+Route::get('/tenants/{public_id}/lifecycle-events', [TenantsController::class, 'lifecycleEvents'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:tenant.leer'])->name('platform.tenants.lifecycle-events.index');
+Route::post('/tenants/{public_id}/clone', [TenantsController::class, 'clone'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:tenant.crear', 'require-platform-reauthentication'])
+    ->name('platform.tenants.clone.store');
+Route::post('/tenants/{public_id}/slug', [TenantsController::class, 'updateSlug'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:tenant.actualizar', 'require-platform-reauthentication'])
+    ->name('platform.tenants.slug.store');
+
+// §2.8 (1.6b, REQ-BO-007). `autorizacion.leer` es la línea de base de
+// aprobación/rechazo: la capacidad exacta es la de la acción autorizada
+// (permisos.md §5.2), resuelta dentro de `DualAuthorizationService`.
+Route::get('/dual-authorizations', [DualAuthorizationsController::class, 'index'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:autorizacion.leer'])->name('platform.dual-authorizations.index');
+Route::get('/dual-authorizations/{public_id}', [DualAuthorizationsController::class, 'show'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:autorizacion.leer'])->name('platform.dual-authorizations.show');
+Route::post('/dual-authorizations/{public_id}/approval', [DualAuthorizationsController::class, 'approve'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:autorizacion.leer'])->name('platform.dual-authorizations.approval.store');
+Route::post('/dual-authorizations/{public_id}/rejection', [DualAuthorizationsController::class, 'reject'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:autorizacion.leer'])->name('platform.dual-authorizations.rejection.store');

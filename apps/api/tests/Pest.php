@@ -5,8 +5,10 @@ use App\Models\User;
 use App\Models\UserStatus;
 use App\Modules\Auth\Domain\MfaMethod;
 use App\Modules\Auth\Domain\Models\MfaFactor;
-use App\Modules\Core\Application\ProvisionTenantDefaults;
 use App\Modules\Core\Domain\Models\TenantSetting;
+use App\Modules\Core\Domain\TenantAdministrator;
+use App\Modules\Core\Domain\TenantInitialSettings;
+use App\Modules\Core\Domain\TenantProvisioner;
 use App\Modules\Core\Infrastructure\TenantSettingsCache;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
@@ -93,11 +95,10 @@ function provisionCoreTenant(?string $slug = null): array
     // tests/Feature/Tenancy/ResolveTenantMiddlewareTest.php.
     Cache::forget("tenant-resolution:{$tenant->slug}");
 
-    app(ProvisionTenantDefaults::class)->provision(
+    app(TenantProvisioner::class)->provision(
         $tenant,
-        'admin@example.com',
-        'Ana',
-        'Perez',
+        TenantInitialSettings::defaults(),
+        new TenantAdministrator('admin@example.com', 'Ana', 'Perez'),
     );
 
     $admin = app(TenantContext::class)->runFor(

@@ -3,6 +3,7 @@
 namespace App\Modules\Core\Infrastructure;
 
 use App\Models\PermissionRole;
+use App\Modules\Core\Application\ProvisionTenantDefaults;
 use App\Modules\Core\Domain\AuditoriaPropiosScopeResolver;
 use App\Modules\Core\Domain\AuditQuery;
 use App\Modules\Core\Domain\BulkUserImporter;
@@ -12,6 +13,7 @@ use App\Modules\Core\Domain\Models\DataExport;
 use App\Modules\Core\Domain\Models\TenantSetting;
 use App\Modules\Core\Domain\Models\UserImport;
 use App\Modules\Core\Domain\Models\UserInvitation;
+use App\Modules\Core\Domain\TenantProvisioner;
 use App\Modules\Core\Domain\TenantSettingsReader;
 use App\Modules\Core\Domain\UserDirectory;
 use App\Modules\Core\Infrastructure\Console\GrantRoleAdministrationCommand;
@@ -40,6 +42,12 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         $this->app->bind(BulkUserImporter::class, EloquentBulkUserImporter::class);
         $this->app->bind(UserDirectory::class, EloquentUserDirectory::class);
         $this->app->bind(InvitationRedeemer::class, EloquentInvitationRedeemer::class);
+
+        // ADR-048 §4.4: ProvisionTenantDefaults NO sigue la convención
+        // Eloquent* de sus cinco hermanas — no es un adaptador de
+        // persistencia, es un servicio de aplicación que orquesta una
+        // transacción, un contexto de tenant y un actor de auditoría.
+        $this->app->bind(TenantProvisioner::class, ProvisionTenantDefaults::class);
 
         // REQ-PERM/operacion.md §6.2 (1.5, ADR-044 §4.9): REQ-CORE posee la
         // interfaz que consume App\Support\Authorization sin importar nada
