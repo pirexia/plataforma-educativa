@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.4.0** · 2026-09-03 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.5.0** · 2026-09-11 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -55,6 +55,13 @@ Frases prohibidas: "¡Excelente idea!", "Tienes toda la razón" como apertura re
 - Cada subagente declara su modelo en su propia definición. No uses Opus en subagentes de ejecución.
 - **Cuota**: el plan es Pro con límite de 5 horas. Opus la consume rápido. Reserva Opus para sesiones de spec y plan; no lo uses para picar código.
 - Delega en subagentes todo lo que no necesite el contexto principal: exploración de código, lectura de documentación, revisiones. El contexto principal es un recurso escaso.
+
+**Aprovechamiento de la caché de prompt.** La sesión corre vía API: cada acierto de caché de Anthropic ahorra coste y tiempo; cada fallo reprocesa el contexto entero desde cero. La caché solo acierta si el *prefijo* de la petición (system prompt, definiciones de herramientas, turnos de conversación previos) coincide byte a byte con el de una petición reciente — vigencia por defecto de **5 minutos** desde el último acierto.
+
+- Al programar cualquier espera de la sesión (`ScheduleWakeup` u otro mecanismo de pausa), evita duraciones alrededor de 300 s: pagan el fallo de caché sin amortizarlo. Usa menos de ~270 s si hace falta mantener la caché caliente, o 1200-1800 s si la espera es de fondo — nunca un valor redondo intermedio sin motivo.
+- Prefiere lanzar un subagente `fork` en vez de uno nuevo cuando la tarea necesita el contexto ya acumulado en la sesión: un `fork` comparte la caché de quien lo lanza; un subagente nuevo empieza siempre en frío.
+- No cargues herramientas adicionales a mitad de sesión más veces de las necesarias (`ToolSearch` sobre herramientas diferidas, activar una skill que añade herramientas nuevas): cada herramienta nueva cambia el bloque de definiciones y invalida el prefijo cacheado para el resto de la sesión. Decide de una vez qué hará falta, no de forma incremental.
+- Esto no releva el protocolo de cierre de sesión de la sección 3 (cierre por cuota, cierre entre pasos del plan): esas normas son de higiene de contexto y priman sobre el ahorro de caché, aunque reabrir sesión pague un fallo de caché inevitable en el primer mensaje.
 
 ---
 
