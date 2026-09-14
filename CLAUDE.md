@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.5.0** · 2026-09-11 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.5.1** · 2026-09-14 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -55,6 +55,7 @@ Frases prohibidas: "¡Excelente idea!", "Tienes toda la razón" como apertura re
 - Cada subagente declara su modelo en su propia definición. No uses Opus en subagentes de ejecución.
 - **Cuota**: el plan es Pro con límite de 5 horas. Opus la consume rápido. Reserva Opus para sesiones de spec y plan; no lo uses para picar código.
 - Delega en subagentes todo lo que no necesite el contexto principal: exploración de código, lectura de documentación, revisiones. El contexto principal es un recurso escaso.
+- **Segunda opinión externa (Codex, `ADR-049`)**: el plugin `openai/codex-plugin-cc` da una revisión adicional sobre código ya implementado, contra la cuota de OpenAI y no la de este plan. Protocolo de uso completo en la skill `revision-con-codex`. Solo lectura, sin autoridad de bloqueo, nunca sustituye a `db-reviewer`/`security-reviewer`/`doc-reviewer`, y un hallazgo suyo que contradiga un ADR vigente se cierra citando el ADR sin discutirlo — Codex no ha leído ninguno. Prueba acotada y reversible: `ADR-049 §8` fija su criterio de éxito/fracaso.
 
 **Aprovechamiento de la caché de prompt.** La sesión corre vía API: cada acierto de caché de Anthropic ahorra coste y tiempo; cada fallo reprocesa el contexto entero desde cero. La caché solo acierta si el *prefijo* de la petición (system prompt, definiciones de herramientas, turnos de conversación previos) coincide byte a byte con el de una petición reciente — vigencia por defecto de **5 minutos** desde el último acierto.
 

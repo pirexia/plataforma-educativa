@@ -1,5 +1,4 @@
 {
-  "$comment": "Configuración compartida del proyecto. Lo personal va en settings.local.json, que está en .gitignore. Verifica el esquema soportado por tu versión de Claude Code antes de ampliarlo.",
   "permissions": {
     "allow": [
       "Bash(git status:*)",
@@ -22,14 +21,6 @@
       "Bash(podman logs:*)",
       "Bash(systemctl status:*)"
     ],
-    "ask": [
-      "Bash(git push:*)",
-      "Bash(git merge:*)",
-      "Bash(php artisan migrate:*)",
-      "Bash(podman compose down:*)",
-      "Bash(podman network rm:*)",
-      "Bash(podman system prune:*)"
-    ],
     "deny": [
       "Bash(git push --force:*)",
       "Bash(git reset --hard:*)",
@@ -42,9 +33,29 @@
       "Read(./**/secrets/**)",
       "Read(./**/*.pem)",
       "Read(./**/*.key)"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(git merge:*)",
+      "Bash(php artisan migrate:*)",
+      "Bash(podman compose down:*)",
+      "Bash(podman network rm:*)",
+      "Bash(podman system prune:*)"
     ]
   },
   "worktree": {
     "baseRef": "head"
+  },
+  "enabledPlugins": {
+    "codex@openai-codex": true
+  },
+  "$comment": "Configuración compartida del proyecto. Lo personal va en settings.local.json, que está en .gitignore. Verifica el esquema soportado por tu versión de Claude Code antes de ampliarlo.",
+  "extraKnownMarketplaces": {
+    "openai-codex": {
+      "source": {
+        "source": "github",
+        "repo": "openai/codex-plugin-cc"
+      }
+    }
   }
 }
