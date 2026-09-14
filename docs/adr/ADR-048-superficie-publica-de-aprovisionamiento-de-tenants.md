@@ -1,6 +1,6 @@
 # ADR-048 · Superficie pública de aprovisionamiento de tenants: contrato síncrono en `REQ-CORE`, no evento de `REQ-BO`
 
-**Estado**: **ACEPTADA en cuanto al mecanismo** (decisión de `architect`, 2026-09-11, tomada sobre el código real y no sobre las dos opciones planteadas a ciegas). **Pendiente de la ratificación que `OPEN-BO-15` reservaba al usuario**, que no es el mecanismo sino el permiso: que un sub-paso de `REQ-BO` (`1.6b`) escriba código dentro de `REQ-CORE`. `§10` enumera exactamente qué se toca de `REQ-CORE` y qué no.
+**Estado**: **ACEPTADA**, mecanismo y permiso (decisión de `architect` sobre el mecanismo, 2026-09-11, tomada sobre el código real y no sobre las dos opciones planteadas a ciegas; ratificación del usuario sobre el permiso de `§10`, 2026-09-14). `1.6b` toca `REQ-CORE` exactamente en las cinco cosas que `§10` enumera, dentro de la misma rama.
 
 **Fecha**: 2026-09-11
 
@@ -301,7 +301,7 @@ El mecanismo (`§4`) es decisión de `architect` y está tomada. Lo que `OPEN-BO
 
 **Lo que `1.6b` NO toca de `REQ-CORE`:** ninguna migración, ninguna columna, ningún endpoint, ningún permiso, ningún rol, ninguna regla de negocio ya escrita, y ninguno de los otros cinco contratos públicos.
 
-Si el usuario prefiere que la ampliación de `REQ-CORE` se haga en un paso propio en vez de dentro de `1.6b`, el mecanismo de este ADR no cambia: cambia sólo dónde se commitea. Es lo único de este documento que sigue abierto.
+**Ratificado por el usuario el 2026-09-14**: la ampliación de `REQ-CORE` se hace dentro de `1.6b`, en la misma rama, no en un paso propio.
 
 ---
 
