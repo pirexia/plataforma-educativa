@@ -13,6 +13,29 @@ return [
     'validation' => [
         'cursor_invalid' => 'Der Paginierungs-Cursor ist ungültig.',
     ],
+    'tenant' => [
+        'slug_taken' => 'Es existiert bereits eine Schule mit dieser Kennung.',
+        'slug_reserved' => 'Diese Kennung ist von der Plattform reserviert.',
+        'invalid_transition' => 'Dieser Statuswechsel ist nicht zulässig.',
+        'name_mismatch' => 'Der eingegebene Name stimmt nicht genau mit dem Namen der Schule überein.',
+        'clone_source_invalid' => 'Eine Schule in diesem Status kann nicht geklont werden.',
+    ],
+    'dual_auth' => [
+        'same_actor' => 'Wer eine Anfrage genehmigt, kann nicht dieselbe Person sein, die sie gestellt hat.',
+        'expired' => 'Diese Doppelautorisierungsanfrage ist abgelaufen.',
+        'already_resolved' => 'Diese Doppelautorisierungsanfrage wurde bereits entschieden.',
+        'payload_mismatch' => 'Dieser Vorgang kann nicht mehr ausgeführt werden: Die Bedingungen haben sich seit der Anfrage geändert.',
+    ],
+    'tenant_lifecycle' => [
+        'reason' => [
+            'provisioned' => 'Erstbereitstellung der Schule abgeschlossen.',
+        ],
+    ],
+    'module_subscription' => [
+        'reason' => [
+            'cloned' => 'Beim Klonen der Ursprungsschule kopiert.',
+        ],
+    ],
     // Issue #173. Einladungs-E-Mail für einen Plattform-Administrator.
     'mail' => [
         'invitation' => [

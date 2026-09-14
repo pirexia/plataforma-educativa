@@ -35,7 +35,14 @@ final class IssueUserInvitation
         $rawToken = bin2hex(random_bytes(32));
         $ttlDays = config('core.invitation_ttl_days');
 
-        $invitation = UserInvitation::create([
+        // `tenant_id`/`forceCreate()` a mano (issue #196): `tenant:provision-
+        // defaults` (fase 2 del alta de tenant, `1.6b`) puede llamar a este
+        // método con `runAsPlatform()` todavía activo en la pila —
+        // `BelongsToTenant` no rellena solo en modo plataforma, y
+        // `tenant_id` no está en $fillable a propósito. $user->tenant_id ya
+        // es correcto (se acaba de crear en este mismo contexto de tenant).
+        $invitation = UserInvitation::forceCreate([
+            'tenant_id' => $user->tenant_id,
             'user_id' => $user->id,
             'token_hash' => hash('sha256', $rawToken),
             'expires_at' => now()->addDays($ttlDays),
@@ -60,7 +67,12 @@ final class IssueUserInvitation
 
     private function revokeLiveInvitation(User $user): void
     {
+        // `where('tenant_id', ...)` a mano (issue #196): sin él, en modo
+        // plataforma esta consulta podría coincidir con la invitación de
+        // OTRO usuario con el mismo `user_id` autoincremental en otro
+        // tenant (`TenantScope` no filtra en modo plataforma).
         $live = UserInvitation::query()
+            ->where('tenant_id', $user->tenant_id)
             ->where('user_id', $user->id)
             ->whereNull('accepted_at')
             ->whereNull('revoked_at')

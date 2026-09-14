@@ -2,7 +2,7 @@
 
 namespace App\Modules\Backoffice\Http\Middleware;
 
-use App\Support\Api\ApiException;
+use App\Modules\Backoffice\Application\PlatformReauthenticationCheck;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,19 +17,20 @@ use Symfony\Component\HttpFoundation\Response;
  * `platform_admin_sessions.reauthenticated_at` (datos.md §2.7) es el
  * reflejo consultable de esta marca, no la que gobierna esta
  * comprobación.
+ *
+ * 1.6b: la comprobación en sí vive en `PlatformReauthenticationCheck`,
+ * reutilizada también por `TenantsController::transitions()` para la
+ * única operación de este módulo cuya sensibilidad depende del cuerpo de
+ * la petición (`to_status`), donde una declaración estática de
+ * middleware no basta (api.md §4).
  */
 class RequirePlatformReauthentication
 {
-    public const SESSION_KEY = 'platform_reauthenticated_at';
+    public const SESSION_KEY = PlatformReauthenticationCheck::SESSION_KEY;
 
     public function handle(Request $request, Closure $next): Response
     {
-        $reauthenticatedAt = $request->session()->get(self::SESSION_KEY);
-        $windowMinutes = (int) config('backoffice.reauthentication_window_minutes');
-
-        if ($reauthenticatedAt === null || now()->diffInMinutes($reauthenticatedAt, true) > $windowMinutes) {
-            throw ApiException::reauthenticationRequired();
-        }
+        PlatformReauthenticationCheck::ensureFresh($request);
 
         return $next($request);
     }

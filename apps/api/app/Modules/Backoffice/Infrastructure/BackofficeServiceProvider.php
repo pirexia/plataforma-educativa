@@ -6,11 +6,13 @@ use App\Modules\Auth\Domain\MfaVerifier;
 use App\Modules\Auth\Domain\TotpProvisioner;
 use App\Modules\Auth\Infrastructure\Google2FaTotpVerifier;
 use App\Modules\Backoffice\Infrastructure\Console\AllowIpCommand;
+use App\Modules\Backoffice\Infrastructure\Console\CheckGracePeriodsCommand;
 use App\Modules\Backoffice\Infrastructure\Console\CloseOrphanedPlatformSessionsCommand;
 use App\Modules\Backoffice\Infrastructure\Console\CreateAdminCommand;
 use App\Modules\Backoffice\Infrastructure\Console\ExpireDualAuthorizationsCommand;
 use App\Modules\Backoffice\Infrastructure\Console\PurgePlatformMfaChallengesCommand;
 use App\Modules\Backoffice\Infrastructure\Console\ResetMfaCommand;
+use App\Modules\Backoffice\Infrastructure\Console\RetryProvisioningCommand;
 use App\Support\Tenancy\PlatformAccessCheck;
 use Illuminate\Support\ServiceProvider;
 
@@ -59,6 +61,8 @@ class BackofficeServiceProvider extends ServiceProvider
                 CloseOrphanedPlatformSessionsCommand::class,
                 PurgePlatformMfaChallengesCommand::class,
                 ExpireDualAuthorizationsCommand::class,
+                RetryProvisioningCommand::class,
+                CheckGracePeriodsCommand::class,
             ]);
         }
     }

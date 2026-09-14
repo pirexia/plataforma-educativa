@@ -12,6 +12,7 @@ use App\Modules\Backoffice\Domain\Models\PlatformAdminMfaRecoveryCode;
 use App\Modules\Backoffice\Domain\Models\PlatformAdminRole;
 use App\Modules\Backoffice\Domain\Models\PlatformAdminSession;
 use App\Modules\Backoffice\Domain\Models\PlatformIpAllowlistEntry;
+use App\Modules\Backoffice\Domain\Models\TenantLifecycleEvent;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use App\Support\Tenancy\TenantMigration;
@@ -186,6 +187,13 @@ test('los modelos Eloquent de app/Modules extienden TenantModel', function (): v
         PlatformAdminSession::class,
         DualAuthorization::class,
         AdminActionLog::class,
+        // REQ-BO-001 (1.6b), ADR-047 §4.1/§4.2, datos.md §5. Mismo motivo
+        // que AdminActionLog: es "plataforma con visibilidad por tenant
+        // afectado" — `affected_tenant_id` es una referencia, no la
+        // propiedad que `BelongsToTenant`/`TenantModel` exigirían. La
+        // fila no pertenece a ningún tenant: es la historia de la
+        // máquina de estados de un centro, escrita por el proveedor.
+        TenantLifecycleEvent::class,
     ];
 
     $modulesPath = base_path('app/Modules');

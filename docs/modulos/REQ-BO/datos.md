@@ -354,9 +354,21 @@ Cerrado, con `CHECK`, siguiendo el precedente de `audit_logs.event` (`ADR-034 §
 | Administradores | `admin.creado`, `admin.actualizado`, `admin.suspendido`, `admin.reactivado`, `admin.eliminado`, `admin.rol_concedido`, `admin.rol_retirado`, `admin.mfa_restablecido`, `admin.invitado`, `admin.invitacion_canjeada` (los dos últimos, issue [#173](https://github.com/pirexia/plataforma-educativa/issues/173)) |
 | Lista blanca | `ip.permitida_anadida`, `ip.permitida_retirada` |
 | Doble autorización | `autorizacion.solicitada`, `autorizacion.aprobada`, `autorizacion.rechazada`, `autorizacion.caducada`, `autorizacion.ejecutada`, `autorizacion.fallida` |
-| Tenants | `tenant.creado`, `tenant.actualizado`, `tenant.suspendido`, `tenant.reactivado`, `tenant.baja_iniciada`, `tenant.rescatado`, `tenant.eliminado`, `tenant.clonado` |
+| Tenants | `tenant.creado`, `tenant.actualizado`, `tenant.suspendido`, `tenant.reactivado`, `tenant.baja_iniciada`, `tenant.rescatado`, `tenant.eliminado`, `tenant.clonado`, y **tres que añade `1.6b`** (§4.2.1): `tenant.slug_cambiado`, `tenant.aprovisionamiento_fallido`, `tenant.gracia_vencida` |
 | Módulos | `modulo.contratado`, `modulo.descontratado`, `modulo.masivo_ejecutado` |
 | Diagnóstico | `job.reintentado` |
+
+#### 4.2.1 Los tres valores que añade `1.6b`, con su motivo
+
+Se añaden por migración —`DROP CONSTRAINT` + `ADD CONSTRAINT` del mismo `CHECK` con tres valores más, **nunca** renombrando ni borrando los existentes—, con el precedente literal de la migración que el issue [#173](https://github.com/pirexia/plataforma-educativa/issues/173) hizo para `admin.invitado`/`admin.invitacion_canjeada`.
+
+| Valor | Cuándo | Por qué no vale uno existente |
+|---|---|---|
+| `tenant.slug_cambiado` | `POST /tenants/{id}/slug` (`api.md §2.5`) | `tenant.actualizado` lo taparía, y no es lo mismo: cambiar el `slug` cambia el nombre DNS con el que entra el centro, invalida dos claves de caché y deja fuera a quien tenga la URL antigua. Es la operación que uno busca en la auditoría cuando un centro «ha dejado de existir» |
+| `tenant.aprovisionamiento_fallido` | El trabajo de la fase 2 agota sus reintentos (`funcional.md §5.3.5`) | No hay ninguna transición que registrar —el tenant sigue en `en_alta`— así que no hay fila de `tenant_lifecycle_events`. Sin este valor, el fallo de un alta **no dejaría ningún rastro** en la auditoría de plataforma. `actor_type = 'system'` |
+| `tenant.gracia_vencida` | La tarea diaria marca un `en_baja` cuyo plazo venció (`RN-BO-60`) | Ídem: tampoco hay transición. `actor_type = 'system'` |
+
+**Los tres llevan `affected_tenant_id`**, porque los tres afectan a un centro concreto (`RN-BO-31`). **Y los tres son visibles para ese centro**, porque `action` está entre las seis columnas concedidas a `plataforma_app` (§4.3): un centro puede ver que su alta falló o que su período de gracia venció, sin ver el motivo interno ni quién lo hizo. Es exactamente el reparto que `ADR-047 §4.4` busca.
 
 ### 4.3 `affected_tenant_id` no es `tenant_id`, y la diferencia importa (`ADR-047`)
 
@@ -569,7 +581,10 @@ Migración **aditiva pura**, sin renombrados y sin ciclo *contract* (`CLAUDE.md 
 | `suspension_message` | `text` | Sí | Mensaje que ven los usuarios del centro cuando el acceso está bloqueado. **Nulo ⇒ mensaje por defecto del catálogo de traducción**, en el idioma resuelto (`CA-BO-053`) |
 | `suspended_at` | `timestamptz` | Sí | Redundante con `tenant_lifecycle_events`, y a propósito: `ResolveTenant` la lee **en cada petición** y no puede permitirse un `JOIN` con una tabla de historial en el camino más caliente del sistema |
 | `grace_period_ends_at` | `timestamptz` | Sí | Ídem: la lee el barrido diario y la ficha del centro |
+| `grace_period_expired_at` | `timestamptz` | Sí | **Añadida por `1.6b`** (§6.2). La escribe **una sola vez** la tarea diaria al vencer el plazo. **Nulo ⇒ no ha vencido, o ya se rescató** |
 | `early_adopter_since` | `timestamptz` | Sí | Designación de *early adopter* (`REQ-BO-005` punto 2). **Nulo ⇒ no lo es.** §6.1 |
+
+**Verificado el 2026-09-11 sobre `develop`: ninguna de las cinco existe todavía.** `tenants` tiene hoy `{id, public_id, slug, name, status, created_at, updated_at, deleted_at}` y sólo dos migraciones la tocan —la de creación y la del índice único parcial de `slug`—. Las cuatro primeras entran en `1.6b`; `early_adopter_since` en `1.6e` y en su propia migración (§12).
 
 ### 6.1 `early_adopter_since`: por qué una marca de tiempo, y por qué en `tenants`
 
@@ -582,6 +597,29 @@ Migración **aditiva pura**, sin renombrados y sin ciclo *contract* (`CLAUDE.md 
 **Lo que `tenants` no gana**, y hay que decirlo porque el requisito lo nombra: **`plan_id` no se añade** (`funcional.md §1.3`). No existe `plans`, no existe modelo comercial (`ADR-045 §2`) y `ADR-034 OPEN-13` es explícito: no se adelanta ninguna columna «por si acaso».
 
 **El mensaje de suspensión es contenido, no literal de código** (`INV-009`): lo escribe una persona, no el programa. Un solo texto por centro, no cuatro; si el centro tiene familias en cuatro idiomas, el operador escribe el que corresponda o deja el valor nulo y sirve el catálogo traducido.
+
+### 6.2 `grace_period_expired_at`: una columna nueva, y por qué no es «por si acaso» (`1.6b`)
+
+`RN-BO-17` dice que, vencido el período de gracia, el centro **se marca como candidato y se avisa**, y que **no se borra nada**. «Marcar» necesita un sitio donde marcar, y la alternativa obvia —deducirlo de `grace_period_ends_at < now()`— **no sirve para lo que hace falta**: la tarea es diaria, así que sin una marca escribiría una entrada de auditoría y una señal de alarma **cada día, para siempre**, sobre cada centro vencido. A la tercera semana nadie las mira, que es la forma conocida de que una alarma deje de existir.
+
+Las dos alternativas que se consideraron, y por qué se descartan:
+
+| Alternativa | Por qué no |
+|---|---|
+| Preguntar a `admin_action_logs` si ya existe una entrada `tenant.gracia_vencida` | Haría que **la lógica de negocio dependiera del formato del registro de auditoría**, que es exactamente el argumento con el que §5.1 justifica que `tenant_lifecycle_events` exista además de `admin_action_logs`. Aplicarlo aquí al revés sería contradecir la propia decisión de este documento |
+| Una fila de `tenant_lifecycle_events` | **No hay transición**: el tenant sigue en `en_baja`. Esa tabla es la historia de la máquina de estados, no un registro de cosas que le pasan al centro. Una fila `en_baja → en_baja` rompería su significado y su `CHECK` |
+
+**Y no es una columna adelantada** (`ADR-034 OPEN-13`): la escribe la tarea diaria de `1.6b`, la lee el filtro `grace_expired` de `GET /tenants` y la pone a nulo el rescate (`RN-BO-58`). Tiene escritor, lector y borrador desde el primer día.
+
+### 6.3 Lo que `1.6b` **no** cambia: la forma de la entrada de caché de resolución
+
+`ResolveTenant` cachea hoy `{id, status}` durante 60 s, y **sigue cacheando exactamente eso**. Es deliberado y merece una frase porque la tentación inmediata es meter ahí `suspension_message` para no consultar la base de datos al servir un `503`:
+
+- **El camino del `503` es frío.** Lo recorren los usuarios de un centro parado, que son pocos y durante poco tiempo; una consulta por petición es un coste despreciable en el único caso en que se paga.
+- **El camino del `200` es el más caliente del sistema** y no se toca.
+- **Cambiar la forma del valor cacheado obliga a un despliegue compatible**: durante 60 s convivirían entradas con y sin la clave nueva, y el lector tendría que tolerar su ausencia. Es deuda a cambio de un ahorro que no hace falta.
+
+Lo que `1.6b` sí cambia en `ResolveTenant` es la **consulta** que rellena la caché —buscar incluyendo los borrados lógicos y preferir al vivo, `RN-BO-50`— y el **mapa de respuestas** por estado. No la forma del valor cacheado.
 
 ---
 
@@ -846,7 +884,8 @@ erDiagram
 | 1b | `1.6` | `platform_sessions` y `platform_admin_sessions`, **con su `REVOKE ALL … FROM plataforma_app`** y su entrada en `shared_tables.platform` (§2.6, §2.7) | Ninguno: tablas nuevas | Migración propia y **anterior** a la del *guard*: sin almacén no hay sesión de plataforma que emitir. El `REVOKE` va **en esta misma migración**, no en una de endurecimiento posterior — el precedente de `harden_failed_jobs_grants` es el patrón, no la secuencia. `platform_admin_sessions` lleva además el `REVOKE` de su secuencia; `platform_sessions` no tiene (`id` es `text`). **`session_id` sin clave foránea** (§2.7.1) |
 | 2 | `1.6` | `admin_action_logs` con su política `tenant_visibility`, su `GRANT SELECT` de columnas enumeradas y sus `REVOKE` de tabla, secuencia y `UPDATE`/`DELETE` (§4.3) | Ninguno | **`OPEN-BO-10` resuelta por `ADR-047`**: se escribe en la forma canónica de `ADR-047 §4.3`/`§4.4`, **sin `TenantMigration::tenantTable*()`** (`ADR-047 §4.5`) |
 | 3 | `1.6b` | `tenant_lifecycle_events`, ídem con sus propias columnas (§5.3) | Ninguno | Ídem |
-| 4 | `1.6b` | `tenants` gana tres columnas anulables (`suspension_message`, `suspended_at`, `grace_period_ends_at`) | **Instantáneo**: `ADD COLUMN` anulable sin defecto no reescribe la tabla en PostgreSQL 17 | Aditivo puro |
+| 4 | `1.6b` | `tenants` gana **cuatro** columnas anulables: `suspension_message`, `suspended_at`, `grace_period_ends_at` y **`grace_period_expired_at`** (§6.2) | **Instantáneo**: `ADD COLUMN` anulable sin defecto no reescribe la tabla en PostgreSQL 17 | Aditivo puro. **Verificado el 2026-09-11: ninguna de las cuatro existe hoy** |
+| 4b | `1.6b` | El `CHECK` de `admin_action_logs.action` gana **tres** valores: `tenant.slug_cambiado`, `tenant.aprovisionamiento_fallido`, `tenant.gracia_vencida` (§4.2.1) | Toma bloqueo breve de catálogo | `DROP CONSTRAINT` + `ADD CONSTRAINT` del mismo `CHECK`, **nunca** renombrando ni retirando valores. Precedente literal: la migración del issue [#173](https://github.com/pirexia/plataforma-educativa/issues/173). **Ojo**: la tabla es *append-only* bajo `FORCE` sin política de escritura, así que esta migración **puede** ampliar el `CHECK` pero **no podría rellenar ninguna columna** sobre las filas existentes (`ADR-047 §5.2`) |
 | 5 | `1.6c` | Privilegios de `module_subscriptions` (§7) | Ninguno sobre datos; toma bloqueo breve de catálogo | La lista de columnas **verificada**, no supuesta |
 | 6 | `1.6e` | `feature_flags` y `feature_flag_rules`, con sus `CHECK`, sus tres índices únicos parciales y sus `GRANT`/`REVOKE` (§9.6) | Ninguno: tablas nuevas | La lista de columnas del `GRANT UPDATE` a `plataforma_platform`, **verificada igual que la de §7.1** |
 | 7 | `1.6e` | `tenants` gana `early_adopter_since` anulable (§6.1) | **Instantáneo** | Aditivo puro. Va en su propia migración, no mezclada con la #4: son dos sub-pasos distintos |

@@ -55,6 +55,16 @@ final class AuditActor
 
     public static function resolveUserId(): ?int
     {
+        // Solo 'console' fuerza null: el actor ambiental (Auth::id(), bajo
+        // el guard que corresponda) puede resolver a un administrador de
+        // plataforma que no es una fila de `users` del tenant (issue #196).
+        // 'import' deja pasar Auth::id() a propósito — ExecuteUserImport
+        // fija un usuario real del tenant con Auth::setUser() antes de
+        // entrar en actingAs('import', ...), y ese sí es el creador real.
+        if (self::$override === 'console') {
+            return null;
+        }
+
         return Auth::id();
     }
 }

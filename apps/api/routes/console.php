@@ -71,3 +71,10 @@ Schedule::command('queue:prune-failed', ['--hours' => 24])->daily();
 Schedule::command('bo:expire-dual-authorizations')->everyFifteenMinutes();
 Schedule::command('bo:close-orphaned-sessions')->everyFifteenMinutes();
 Schedule::command('bo:purge-mfa-challenges')->hourly();
+
+// REQ-BO-001 (1.6b), operacion.md §6.2, RN-BO-17/RN-BO-60. Diaria: el
+// vencimiento de un periodo de gracia de 90 días no necesita más
+// frecuencia, y `CA-BO-122` exige que ejecutarla varios días seguidos
+// sobre el mismo tenant vencido no repita la marca ni la entrada de
+// auditoría.
+Schedule::command('bo:check-grace-periods')->daily();

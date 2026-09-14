@@ -107,10 +107,23 @@ test('CA-PERM-092: runAsPlatform() no aparece en código de app/ fuera de su lis
     //   - PurgeExpiredIdempotencyKeys.php: purga de mantenimiento sin
     //     sujeto y sin salida de datos, desde código de módulo — el
     //     patrón que el issue temía, admitido explícitamente aquí.
+    // REQ-BO-001 (1.6b), funcional.md §5.3.3, §6.2.5: dos más, con
+    // propósito declarado y literal en cada llamada (CA-BO-029) —
+    // `App\Modules\Backoffice` canaliza su acceso de plataforma por un
+    // conjunto acotado y nombrado de clases:
+    //   - TenantLifecycleService.php: `BackofficeEscritura` en el alta y
+    //     en la clonación (fase 1, síncrona) — exigido explícitamente
+    //     por la especificación para esa operación concreta.
+    //   - TenantsController.php: `BackofficeLectura` en `index()` para
+    //     los filtros `module_code`/`autonomous_community`, que leen
+    //     `module_subscriptions`/`tenant_settings` de todos los
+    //     tenants — lectura, sin escritura, sin obligación de auditoría.
     $allowlist = [
         base_path('app/Support/Tenancy/TenantContext.php'),
         base_path('app/Support/Tenancy/RunsPerTenant.php'),
         base_path('app/Modules/Core/Infrastructure/Jobs/PurgeExpiredIdempotencyKeys.php'),
+        base_path('app/Modules/Backoffice/Application/TenantLifecycleService.php'),
+        base_path('app/Modules/Backoffice/Http/Controllers/TenantsController.php'),
     ];
 
     $appPath = base_path('app');

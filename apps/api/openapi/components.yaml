@@ -736,6 +736,9 @@ components:
             - tenant.rescatado
             - tenant.eliminado
             - tenant.clonado
+            - tenant.slug_cambiado
+            - tenant.aprovisionamiento_fallido
+            - tenant.gracia_vencida
             - modulo.contratado
             - modulo.descontratado
             - modulo.masivo_ejecutado
@@ -761,6 +764,75 @@ components:
           description: Siempre el propio tenant (el filtro ya lo garantiza) — no expone el id interno.
         subject_type: { type: string }
         subject_public_id: { $ref: '#/components/schemas/PublicId' }
+
+    PlatformTenant:
+      type: object
+      description: >
+        REQ-BO-001 (1.6b), api.md §2.4.1. `TenantResource`.
+        `provisioning.state` es un enumerado de respuesta extensible
+        (ADR-038 §7.3), derivado y nunca una columna.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        slug: { type: string }
+        name: { type: string }
+        status: { type: string, enum: [en_alta, activo, suspendido, en_baja, eliminado] }
+        provisioning:
+          type: object
+          properties:
+            state: { type: string, enum: [en_curso, completado, fallido] }
+            started_at: { type: string, format: date-time, nullable: true }
+        suspended_at: { type: string, format: date-time, nullable: true }
+        suspension_message: { type: string, nullable: true }
+        grace_period_ends_at: { type: string, format: date-time, nullable: true }
+        grace_period_expired_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    PlatformTenantClone:
+      allOf:
+        - { $ref: '#/components/schemas/PlatformTenant' }
+        - type: object
+          description: api.md §2.4.3. `TenantCloneResource` — dice qué se ha copiado y qué no (CA-BO-123).
+          properties:
+            cloned_from:
+              type: object
+              properties:
+                tenant_public_id: { $ref: '#/components/schemas/PublicId' }
+                copied: { type: array, items: { type: string } }
+                not_copied: { type: array, items: { type: string } }
+
+    TenantLifecycleEvent:
+      type: object
+      description: >
+        REQ-BO-001 (1.6b), api.md §2.4, datos.md §5. `TenantLifecycleEventResource`
+        — historia de la máquina de estados de un centro, vista completa
+        del backoffice.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        from_status: { type: string, enum: [en_alta, activo, suspendido, en_baja, eliminado], nullable: true }
+        to_status: { type: string, enum: [en_alta, activo, suspendido, en_baja, eliminado] }
+        reason: { type: string }
+        occurred_at: { type: string, format: date-time }
+        performed_by: { $ref: '#/components/schemas/PublicId' }
+        dual_authorization_id: { $ref: '#/components/schemas/PublicId' }
+        grace_period_ends_at: { type: string, format: date-time, nullable: true }
+
+    DualAuthorization:
+      type: object
+      description: REQ-BO-007, api.md §2.8. `DualAuthorizationResource`. Incluye el `payload` congelado.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        action: { type: string, enum: [tenant.eliminar, tenant.baja, modulo.descontratar_masivo] }
+        payload: { type: object, additionalProperties: true }
+        reason: { type: string }
+        requested_by: { $ref: '#/components/schemas/PublicId' }
+        requested_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        status: { type: string, enum: [pendiente, aprobada, rechazada, caducada, ejecutada, fallida] }
+        approved_by: { $ref: '#/components/schemas/PublicId' }
+        approved_at: { type: string, format: date-time, nullable: true }
+        resolution_reason: { type: string, nullable: true }
+        executed_at: { type: string, format: date-time, nullable: true }
+        execution_error: { type: string, nullable: true }
 
     PublicId:
       type: string

@@ -24,13 +24,24 @@ final class PlatformCapabilityMap
         ],
         'operaciones' => [
             PlatformCapability::TenantLeer,
+            // permisos.md §4.3: operaciones puede parar un centro y no
+            // puede cerrarlo — tenant.actualizar y tenant.suspender sí,
+            // tenant.baja y tenant.eliminar no.
+            PlatformCapability::TenantActualizar,
+            PlatformCapability::TenantSuspender,
             PlatformCapability::AuditoriaPlataformaLeer,
+            PlatformCapability::AutorizacionLeer,
         ],
         'comercial' => [
             PlatformCapability::TenantLeer,
         ],
         'superadministrador' => [
             PlatformCapability::TenantLeer,
+            PlatformCapability::TenantCrear,
+            PlatformCapability::TenantActualizar,
+            PlatformCapability::TenantSuspender,
+            PlatformCapability::TenantBaja,
+            PlatformCapability::TenantEliminar,
             PlatformCapability::AdminLeer,
             PlatformCapability::AdminCrear,
             PlatformCapability::AdminActualizar,
@@ -40,6 +51,7 @@ final class PlatformCapabilityMap
             PlatformCapability::IpAllowlistLeer,
             PlatformCapability::IpAllowlistGestionar,
             PlatformCapability::AuditoriaPlataformaLeer,
+            PlatformCapability::AutorizacionLeer,
         ],
     ];
 

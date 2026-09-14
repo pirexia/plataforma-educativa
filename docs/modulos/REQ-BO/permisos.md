@@ -142,6 +142,23 @@ Un administrador puede tener varios roles (`datos.md §2.2`); las capacidades se
 
 Consecuencia concreta y aceptada: alguien con `operaciones` **y** `superadministrador` puede solicitar y no aprobar su propia eliminación de tenant. **Acumular roles no rompe la doble autorización**, y `CA-BO-062` lo verifica.
 
+### 4.3 Qué capacidad exige cada transición de estado (`1.6b`)
+
+§3 declara cuatro capacidades sobre el recurso `tenant` además de `leer` y `crear`, y §4 dice quién las tiene. Lo que faltaba, y lo que `implementer` necesita para no inventárselo, es **el emparejamiento entre cada arista de la máquina de estados y su capacidad**:
+
+| Transición | Capacidad | Quién la tiene | Por qué esa y no otra |
+|---|---|---|---|
+| `en_alta` → `activo` | **Ninguna** | Nadie | No es alcanzable por API: la produce el aprovisionamiento (`RN-BO-52`). Una capacidad para forzarla sería una puerta para declarar «listo» un centro que no lo está |
+| `activo` → `suspendido` | `tenant.suspender` | `operaciones`, `superadministrador` | Es la respuesta operativa a un incidente y tiene que poder darse de madrugada (§4.1) |
+| `suspendido` → `activo` | `tenant.suspender` | Ídem | Deshacer lo propio, con la capacidad propia |
+| `activo` → `en_baja` | `tenant.baja` | Sólo `superadministrador` | Es ciclo de vida comercial, no operación |
+| `en_baja` → `activo` (rescate) | **`tenant.baja`** | Sólo `superadministrador` | **Y no `tenant.suspender`**: quien no puede dar de baja tampoco debe poder deshacer la baja que decidió otro |
+| `en_baja` → `eliminado` | `tenant.eliminar`, **más** reautenticación, confirmación por nombre y doble autorización | Sólo `superadministrador` | Los cuatro cerrojos de `funcional.md §5.5.2` |
+| Clonación | `tenant.crear` | Sólo `superadministrador` | Un clon **es** un alta: mismo efecto, mismos datos nuevos, misma capacidad. Darle una capacidad propia dejaría a alguien crear centros por la puerta de al lado |
+| Cambio de `slug` | `tenant.actualizar` · sensible | `operaciones`, `superadministrador` | `api.md §2.5` |
+
+> **La consecuencia que hay que ver de un vistazo: `operaciones` puede parar un centro y no puede cerrarlo.** Es la línea que §4.1 ya trazaba en prosa —«`operaciones` no elimina ni da de baja»— y que esta tabla convierte en algo comprobable celda a celda, como el test de la matriz de §9.
+
 ---
 
 ## 5. Reglas de autorización que no son una capacidad
@@ -166,6 +183,11 @@ Igual que `REQ-CORE/permisos.md §8` y `REQ-PERM/permisos.md §8`: lo que ningun
 | **Ningún control de seguridad detrás de un *flag*** (`RN-BO-47`) | Test de arquitectura | El evaluador **no** se invoca desde el *middleware* de MFA, de lista blanca, de autorización, de resolución de tenant ni de doble autorización (`CA-BO-096`) |
 | **Un *flag* no concede acceso a un módulo no contratado** (`RN-BO-45`) | Evaluador y `ModuleAvailability` | Son dos comprobaciones distintas y la de módulo es previa. Un *flag* al 100 % no evita el `urn:pge:error:module-disabled` (`CA-BO-092`) |
 | **La unidad de reparto no la elige el operador** (`RN-BO-36`) | Descriptor del módulo, materializado; privilegio de columna (`datos.md §9.6`) | Ninguna capacidad permite escribir `rollout_unit`, ni siquiera `superadministrador` |
+| **`1.6b` · De `en_alta` no se sale por API** (`RN-BO-52`) | `POST /tenants/{id}/transitions` | `409`. **No hay capacidad que lo permita**: la transición la produce el aprovisionamiento. Forzarla a mano daría por configurado un centro que no lo está |
+| **`1.6b` · La confirmación por nombre es literal** (`RN-BO-57`) | Eliminación de tenant | `422`. No es una comprobación de permiso y **ninguna capacidad la salta**, tampoco la de `superadministrador` |
+| **`1.6b` · Eliminar un tenant no borra ni un dato suyo** (`RN-BO-56`) | Servicio de eliminación | Es una restricción **funcional**, como `RN-BO-33`: no hay capacidad que conceda purgar, porque no existe el camino. La purga es `REQ-PRIV-006` |
+| **`1.6b` · La revocación de sesiones del centro no es una capacidad** (`RN-BO-55`) | Efecto de la eliminación, en cola | Nadie «revoca sesiones de un centro» como operación propia: es una consecuencia de eliminarlo. Un *endpoint* de revocación masiva sería una capacidad de dejar a un colegio fuera sin pasar por el ciclo de vida ni por su auditoría |
+| **`1.6b` · El período de gracia no se acorta por configuración** (`RN-BO-61`) | Servicio de baja | 90 días fijos (`REQ-BO-001`). Ni capacidad, ni variable de entorno (`operacion.md §2`) |
 
 
 ### 5.1 `RPERM-013` traducido a este módulo
@@ -255,6 +277,9 @@ Los criterios completos están en `funcional.md §13`. Los que verifican **esta*
 - **`CA-BO-010`** — nadie se modifica a sí mismo; nunca queda la plataforma sin `superadministrador`.
 - **`CA-BO-062`** — el aprobador no puede ser el solicitante, **comprobado escribiendo por SQL directo**, no por la API: un test que pase por el controlador comprobaría el `if`, no la restricción.
 - **`CA-BO-070`** — todo *endpoint* responde `401` sin sesión de plataforma y `403` sin la capacidad.
+- **Test de la matriz de §4.3**, arista a arista de la máquina de estados: para cada transición y cada uno de los cuatro roles, se comprueba que la capacidad exigida es **exactamente** la de esa tabla. Es lo que impide que un reparto se afloje sin que nadie lo note — en particular que el rescate acabe pidiendo `tenant.suspender` «porque es volver a activo».
+- **`CA-BO-115`** — de `en_alta` no se sale por API con ninguna capacidad.
+- **`CA-BO-126`** — el aislamiento entre centros se mantiene a lo largo de todo el ciclo de vida: operar sobre un tenant no altera nada del otro.
 - **`CA-BO-013`** — **toda** ruta de `/api/platform/*` lleva la pila completa de `api.md §1.1`, **incluido el puesto 9, el de capacidad**, comprobado por presencia sobre `Route::getRoutes()`. Es lo que impide que una ruta nueva se quede sin comprobación de capacidad y nadie lo note: `CA-BO-070` prueba las que hay, ésta prueba las que habrá.
 - **`CA-BO-018`** — `plataforma_app` **no puede leer `platform_sessions`**, rechazado por el motor y no por la aplicación.
 - **`CA-BO-074`** — ninguna respuesta contiene datos personales de alumnos, familias ni personal de los centros.
