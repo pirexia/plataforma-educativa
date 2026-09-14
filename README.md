@@ -74,11 +74,11 @@ Lista completa: sección 0.5 del documento de requisitos (`INV-001` a `INV-015`)
 | Documento | Versión |
 |-----------|---------|
 | `README.md` | 2.6.2 |
-| `CLAUDE.md` | 2.4.0 |
+| `CLAUDE.md` | 2.5.1 |
 | `ARCHITECTURE.md` | 2.1.0 |
 | `PLAN-IMPLEMENTACION.md` | 2.2.1 |
 | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | 3.2.3 |
-| `docs/SETUP-CLAUDE-CODE.md` | 1.2.0 |
+| `docs/SETUP-CLAUDE-CODE.md` | 1.3.0 |
 | `docs/SETUP-ENTORNO.md` | 1.3.0 |
 | `SYSADMIN.md` | 0.8.1 |
 | `SECURITY.md` | 0.3.1 |

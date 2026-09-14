@@ -6,6 +6,27 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-09-14 · `chore/codex-plugin-integracion`
+
+Origen: instalar `openai/codex-plugin-cc` (plugin oficial de OpenAI, Apache-2.0) como segunda opinión de revisión contra la cuota de OpenAI, no la del plan Pro. `ADR-049` (nuevo, ACEPTADA) decide el mecanismo completo.
+
+### Nuevo: `ADR-049` y skill `revision-con-codex`
+Solo lectura (`/codex:review`, `/codex:adversarial-review`, `/codex:status`, `/codex:result`, `/codex:cancel`), sin autoridad de bloqueo, sin puerta de revisión automática, prueba acotada y reversible con criterio de éxito/fracaso medido de antemano (`ADR-049 §8`). `RNF-MANT-007` para una herramienta de desarrollo que no es librería queda zanjado: la interfaz propia es el protocolo documentado en la skill, no código.
+
+### Corregido: dos afirmaciones de seguridad falsas, detectadas por el propio Codex
+Un `/codex:adversarial-review` (disparado sin querer por un `--help` exploratorio, que resultó ser el propio hallazgo) encontró que `ADR-049 §5.1` y la skill afirmaban una barrera técnica inexistente: el *sandbox* de solo lectura **no impide que `/codex:rescue` escriba** si se invoca — `codex-companion.mjs` fija el modo de *sandbox* por invocación (`--write` → `workspace-write`), y el agente `codex-rescue` añade `--write` por defecto. Corregido en el ADR y en la skill: la única protección real es no invocar `rescue`/`transfer`, sin red técnica. Segundo hallazgo: `--help` no corta la ejecución en los comandos que pasan por `codex-companion.mjs` — dispara una revisión real. Norma nueva: nunca sintaxis exploratoria.
+
+### Corregido: bug conocido de `openai/codex` que dejaba la protección en el papel
+El `.codex/config.toml` de proyecto no se aplicaba (issue [#30001](https://github.com/openai/codex/issues/30001) de `openai/codex`, verificado con `codex doctor` y una comprobación de comportamiento real). Corregido con una réplica en `~/.codex/config.toml` (nivel de usuario), verificada.
+
+### Corregido: dos `.claude/worktrees/agent-*` abandonados
+Con copias completas del árbol, incluidos los tres `.env` reales y las claves de prueba SAML — triplicaban el material sensible en disco justo cuando se instalaba una herramienta cuyo *sandbox* no puede restringir lectura. Limpiados con permiso explícito del usuario, sin trabajo único (verificado con `diff -rq`, mismo procedimiento que el precedente de `1.6`).
+
+### Hallado: 3 bugs reales de condición de carrera en `1.6b` (issues #205-#207)
+Calibrado de `ADR-049 §8.1`: `codex review` sobre el diff ya cerrado de PR #204, sin darle la lista de incidencias conocidas. No encontró ninguno de los 4 hallazgos ya documentados (falla el umbral de cobertura), pero encontró y se verificaron contra el código real tres condiciones de carrera que ningún revisor humano había detectado: doble resolución concurrente de una `dual_authorization` sin bloqueo de fila (#205), `CloneTenant` no idempotente ante fallo parcial —bloquea `bo:retry-provisioning`— (#206), y transición de tenant sin `lockForUpdate()` (#207). Cumple el umbral de aportación diferencial de `ADR-049 §8.2` pese a fallar el de cobertura; evaluación combinada pendiente de los dos pasos de prueba siguientes. Issues abiertos, sin corregir en esta sesión (fuera de su objetivo).
+
+---
+
 ## 2026-09-11/14 · Cierre de 1.6b (`REQ-BO-001`, ciclo de vida de tenants)
 
 Segundo de cinco sub-pasos (`1.6c`/`1.6d`/`1.6e` pendientes). `REQ-BO-001` completo sobre el chasis de `1.6`: alta en dos fases, suspensión/reactivación, baja con gracia de 90 días, eliminación con doble autorización, clonación. Cierra el issue [#7](https://github.com/pirexia/plataforma-educativa/issues/7) (invalidación de caché de resolución de tenant al cambiar `status`).

@@ -1,6 +1,6 @@
 # SETUP-CLAUDE-CODE.md
 
-> **Versión 1.2.0** · 2026-08-11
+> **Versión 1.3.0** · 2026-09-14
 
 Configuración del entorno de desarrollo asistido. Corresponde al **paso 0.2** de `PLAN-IMPLEMENTACION.md`.
 
@@ -56,6 +56,19 @@ Existen marketplaces comunitarios con miles de skills, incluidos varios específ
 > Un plugin no es una librería: son **instrucciones que el modelo va a seguir** y puede incluir hooks que ejecutan scripts en tu máquina. Un plugin malicioso puede exfiltrar el contenido de tus ficheros. Lee la descripción y el contenido antes de instalar, y prefiere fuentes identificables.
 
 Y una regla práctica: **instala poco**. Demasiadas skills ralentizan el arranque de sesión y provocan activaciones falsas, que es peor que no tenerlas.
+
+### 2.4 Instalado: `openai/codex-plugin-cc` (`ADR-049`)
+
+Segunda opinión de Codex sobre código ya implementado, contra la cuota de OpenAI y no la de este plan. **Solo lectura, sin autoridad de bloqueo, prueba acotada y reversible** — decisión completa y condiciones vinculantes en `ADR-049`, protocolo de uso en la skill `revision-con-codex`.
+
+Instalación (ámbito `project`, ya versionada en `.claude/settings.json`):
+
+```
+npm install -g @openai/codex
+codex login   # interactivo, requiere navegador — hazlo tú, no una sesión
+```
+
+**Antes de usarlo en una máquina nueva**, comprobar la configuración efectiva del *sandbox* (`codex doctor`), no solo el fichero: `.codex/config.toml` de proyecto puede no aplicarse por un *bug* conocido de `openai/codex` (issue #30001) — la protección real puede depender de la réplica en `~/.codex/config.toml`, fuera del repositorio. Detalle completo en `ADR-049 §5.2`.
 
 ---
 
