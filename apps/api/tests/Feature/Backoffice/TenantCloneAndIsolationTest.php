@@ -5,6 +5,9 @@ use App\Models\PermissionRole;
 use App\Models\Role;
 use App\Models\User;
 use App\Modules\Backoffice\Domain\Models\AdminActionLog;
+use App\Modules\Backoffice\Domain\Models\PlatformAdmin;
+use App\Modules\Backoffice\Domain\Models\TenantLifecycleEvent;
+use App\Modules\Core\Domain\Models\TenantSetting;
 use App\Modules\Core\Domain\Models\UserInvitation;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
@@ -41,7 +44,7 @@ afterEach(function (): void {
     Cache::flush();
 });
 
-function boCloneClient(\App\Modules\Backoffice\Domain\Models\PlatformAdmin $admin, string $secret): mixed
+function boCloneClient(PlatformAdmin $admin, string $secret): mixed
 {
     return boWithReauthenticatedCookie(boReauthenticatedSessionCookie($admin, $secret));
 }
@@ -49,8 +52,8 @@ function boCloneClient(\App\Modules\Backoffice\Domain\Models\PlatformAdmin $admi
 test('CA-BO-123: la clonación copia configuración operativa, roles (predefinidos y personalizados) y suscripciones, y no copia identidad fiscal, marca, early_adopter, estado ni historial', function (): void {
     [$source, $sourceAdmin] = provisionCoreTenant();
 
-    app(TenantContext::class)->runFor($source->id, function () use ($sourceAdmin): void {
-        \App\Modules\Core\Domain\Models\TenantSetting::query()->update([
+    app(TenantContext::class)->runFor($source->id, function (): void {
+        TenantSetting::query()->update([
             'legal_name' => 'Fundación Origen S.L.',
             'tax_id' => 'B00000000',
             'color_primary' => '#112233',
@@ -60,10 +63,37 @@ test('CA-BO-123: la clonación copia configuración operativa, roles (predefinid
         $customRole = Role::create(['code' => 'inspector_calidad', 'name_key' => 'roles.inspector_calidad', 'name' => null, 'is_system' => false, 'mfa_required' => false, 'special_data_access' => false]);
         PermissionRole::create(['role_id' => $customRole->id, 'permission_code' => 'usuario.leer', 'effect' => 'allow', 'scope' => 'todos']);
 
-        ModuleSubscription::create(['module_code' => 'comedor', 'enabled' => true, 'enabled_at' => now(), 'reason' => 'Contratación de prueba']);
+        // 'auth' (issue #196): 'comedor' no existe en el catálogo de
+        // módulos — platform:sync-registry solo registra los módulos que
+        // de verdad tienen ServiceProvider hoy (auth/core/backoffice,
+        // AuthServiceProvider/CoreServiceProvider/BackofficeServiceProvider),
+        // y module_subscriptions.module_code es FK contra modules. Un
+        // código inventado violaba la FK, abortaba la transacción de
+        // pgsql del test, y la cascada resultante se atribuyó por error
+        // al problema de runAsPlatform() (que también era real y sigue
+        // corregido más abajo, pero no era la causa de este fallo).
+        ModuleSubscription::create(['module_code' => 'auth', 'enabled' => true, 'enabled_at' => now(), 'reason' => 'Contratación de prueba']);
     });
 
-    $source->forceFill(['early_adopter_since' => now(), 'status' => TenantStatus::Suspendido, 'suspended_at' => now(), 'suspension_message' => 'Mensaje de origen'])->save();
+    // Historial propio del origen (issue #196): provisionCoreTenant() crea
+    // el tenant por factory, no por TenantLifecycleService — sin esto
+    // $sourceEventCount siempre sería 0 y la comprobación de abajo (el
+    // historial del origen no se copia) no comprobaría nada de verdad.
+    TenantLifecycleEvent::create([
+        'affected_tenant_id' => $source->id,
+        'from_status' => null,
+        'to_status' => TenantStatus::EnAlta,
+        'reason' => 'Alta de prueba',
+        'occurred_at' => now(),
+        'performed_by' => null,
+    ]);
+
+    // `early_adopter_since` NO entra aquí (issue #196, datos.md §6.1/§12):
+    // la propia especificación de 1.6b deja esa columna fuera a propósito
+    // — llega en 1.6e con su propia migración —, así que todavía no existe
+    // en `tenants`. `RN-BO-59` exige que la clonación tampoco la copie,
+    // pero eso solo se puede verificar de verdad cuando exista la columna.
+    $source->forceFill(['status' => TenantStatus::Suspendido, 'suspended_at' => now(), 'suspension_message' => 'Mensaje de origen'])->save();
 
     [$admin, $secret] = boCreateEnrolledAdmin('superadministrador');
     $this->actingAs($admin, 'platform');
@@ -89,7 +119,7 @@ test('CA-BO-123: la clonación copia configuración operativa, roles (predefinid
     expect($target->fresh()->status)->toBe(TenantStatus::Activo);
 
     $targetData = app(TenantContext::class)->runFor($target->id, fn () => [
-        'settings' => \App\Modules\Core\Domain\Models\TenantSetting::first(),
+        'settings' => TenantSetting::first(),
         'roleCodes' => Role::pluck('code')->sort()->values()->all(),
         'moduleCodes' => ModuleSubscription::pluck('module_code')->all(),
     ]);
@@ -106,20 +136,25 @@ test('CA-BO-123: la clonación copia configuración operativa, roles (predefinid
     expect($targetData['roleCodes'])->toHaveCount(17);
 
     // Copiado: suscripciones de módulo.
-    expect($targetData['moduleCodes'])->toContain('comedor');
+    expect($targetData['moduleCodes'])->toContain('auth');
 
-    // No copiado: estado, mensaje de suspensión, early_adopter.
+    // No copiado: estado, mensaje de suspensión. `early_adopter_since`
+    // queda fuera de esta comprobación (ver forceFill de arriba, issue
+    // #196): la columna no existe todavía, entra en 1.6e.
     expect($target->status)->toBe(TenantStatus::Activo);
     expect($target->suspended_at)->toBeNull();
     expect($target->suspension_message)->toBeNull();
-    expect($target->early_adopter_since ?? null)->toBeNull();
 
     // No copiado: historial del origen — el clon empieza con su propia
     // primera fila (en_alta → activo), nunca las del origen.
-    $sourceEventCount = \App\Modules\Backoffice\Domain\Models\TenantLifecycleEvent::query()->where('affected_tenant_id', $source->id)->count();
-    $targetEvents = \App\Modules\Backoffice\Domain\Models\TenantLifecycleEvent::query()->where('affected_tenant_id', $target->id)->pluck('to_status');
+    $sourceEventCount = TenantLifecycleEvent::query()->where('affected_tenant_id', $source->id)->count();
+    // orderBy('id') (issue #196): sin orden explícito, SELECT no garantiza
+    // devolver las filas en orden de inserción — y `to_status` se castea
+    // a TenantStatus (comparar contra el string plano nunca habría
+    // pasado, con o sin el orden correcto).
+    $targetEvents = TenantLifecycleEvent::query()->where('affected_tenant_id', $target->id)->orderBy('id')->pluck('to_status');
     expect($sourceEventCount)->toBeGreaterThan(0);
-    expect($targetEvents->all())->toBe(['en_alta', 'activo']);
+    expect($targetEvents->all())->toBe([TenantStatus::EnAlta, TenantStatus::Activo]);
 });
 
 test('CA-BO-124: el clon tiene exactamente un administrador nuevo, con su propia invitación, y ninguna persona copiada del origen', function (): void {
@@ -204,7 +239,7 @@ test('CA-BO-126: operar sobre un tenant a lo largo de todo su ciclo de vida no a
         'modules' => ModuleSubscription::count(),
     ]);
 
-    [$admin] = boCreateEnrolledAdmin('superadministrador');
+    [$admin, $adminSecret] = boCreateEnrolledAdmin('superadministrador');
     $this->actingAs($admin, 'platform');
 
     // Suspender A.
@@ -212,11 +247,11 @@ test('CA-BO-126: operar sobre un tenant a lo largo de todo su ciclo de vida no a
         'to_status' => 'suspendido', 'reason' => 'Prueba de aislamiento',
     ])->assertStatus(200);
 
-    // Darlo de baja tras reactivarlo.
+    // Darlo de baja tras reactivarlo. api.md §4: `en_baja` es sensible.
     $this->postJson('http://'.boPlatformHost()."/api/platform/v1/tenants/{$tenantA->public_id}/transitions", [
         'to_status' => 'activo', 'reason' => 'Prueba de aislamiento',
     ])->assertStatus(200);
-    $this->postJson('http://'.boPlatformHost()."/api/platform/v1/tenants/{$tenantA->public_id}/transitions", [
+    boCloneClient($admin, $adminSecret)->postJson('http://'.boPlatformHost()."/api/platform/v1/tenants/{$tenantA->public_id}/transitions", [
         'to_status' => 'en_baja', 'reason' => 'Prueba de aislamiento',
     ])->assertStatus(200);
 
@@ -239,8 +274,14 @@ test('CA-BO-126: operar sobre un tenant a lo largo de todo su ciclo de vida no a
 
     // Clonar A (todavía se puede: eliminado NO es clonable, así que
     // clonamos B como origen para no violar RN-BO-59, y comprobamos que
-    // A sigue intacto tras la operación).
-    $cloneClient = boCloneClient($admin, boCreateEnrolledAdmin('superadministrador')[1] ?? null);
+    // A sigue intacto tras la operación). Administrador nuevo, no $admin
+    // reutilizado: el mismo secreto TOTP en la misma ventana de 30s ya se
+    // usó arriba, y la protección contra repetición del código lo
+    // rechazaría (no es un fallo, es RN-AUTH-*, el mismo criterio que
+    // REQ-AUTH).
+    [$cloner, $clonerSecret] = boCreateEnrolledAdmin('superadministrador');
+    $this->actingAs($cloner, 'platform');
+    $cloneClient = boCloneClient($cloner, $clonerSecret);
 
     // --- Comprobación de aislamiento ---
     // B nunca ha cambiado de estado ni de datos.

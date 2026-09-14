@@ -9,6 +9,7 @@ use App\Modules\Backoffice\Domain\AdminActionLogAction;
 use App\Modules\Backoffice\Domain\AdminActionLogActorType;
 use App\Modules\Core\Domain\TenantAdministrator;
 use App\Modules\Core\Domain\TenantProvisioner;
+use App\Support\Audit\AuditActor;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use App\Support\Tenancy\TenantStatus;
@@ -86,15 +87,24 @@ class CloneTenant implements ShouldQueue
         }
 
         $tenantContext->runFor($targetTenantId, function () use ($subscriptions): void {
-            foreach ($subscriptions as $subscription) {
-                ModuleSubscription::create([
-                    'module_code' => $subscription->module_code,
-                    'enabled' => true,
-                    'enabled_at' => now(),
-                    'reason' => 'bo.module_subscription.reason.cloned',
-                    'settings' => $subscription->settings,
-                ]);
-            }
+            // AuditActor::actingAs('console', ...) (issue #196, mismo
+            // patrón que ProvisionTenantDefaults y RevokeTenantSessions,
+            // que este método se quedó sin recibir): quien dispara este
+            // job es un administrador de plataforma, nunca un usuario del
+            // tenant destino — sin esto, created_by/updated_by intentan
+            // grabar su id y violan module_subscriptions_tenant_id_
+            // created_by_foreign (compuesta contra users del tenant).
+            AuditActor::actingAs('console', function () use ($subscriptions): void {
+                foreach ($subscriptions as $subscription) {
+                    ModuleSubscription::create([
+                        'module_code' => $subscription->module_code,
+                        'enabled' => true,
+                        'enabled_at' => now(),
+                        'reason' => 'bo.module_subscription.reason.cloned',
+                        'settings' => $subscription->settings,
+                    ]);
+                }
+            });
         });
     }
 

@@ -58,12 +58,22 @@ final class AdminActionLogRecorder
         ?AdminActionLogActorType $actorType = null,
     ): AdminActionLog {
         $admin = Auth::guard('platform')->user();
+        $resolvedActorType = $actorType ?? $this->resolveActorType($admin);
 
         return AdminActionLog::create([
             'public_id' => (string) Str::ulid(),
             'occurred_at' => now(),
-            'actor_type' => $actorType ?? $this->resolveActorType($admin),
-            'actor_platform_admin_id' => $admin instanceof PlatformAdmin ? $admin->id : null,
+            'actor_type' => $resolvedActorType,
+            // admin_action_logs_actor_matches_type_check (issue #196): el
+            // id solo acompaña a 'platform_admin'. Un $actorType explícito
+            // (System/Console, declarado por un job que no confía en
+            // runningInConsole()) puede coexistir con un admin todavía
+            // autenticado en el guard ambiental — sync en tests, o
+            // cualquier reintento manual — y ese admin no es el actor que
+            // se está declarando.
+            'actor_platform_admin_id' => $resolvedActorType === AdminActionLogActorType::PlatformAdmin && $admin instanceof PlatformAdmin
+                ? $admin->id
+                : null,
             'affected_tenant_id' => $affectedTenantId,
             'subject_type' => $subjectType ?? 'platform',
             'subject_id' => $subjectId,

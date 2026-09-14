@@ -132,7 +132,16 @@ final class ProvisionTenantDefaults implements TenantProvisioner
     public function provision(Tenant $tenant, TenantInitialSettings $settings, TenantAdministrator $administrator): TenantProvisioningOutcome
     {
         return $this->tenantContext->runFor($tenant->id, function () use ($tenant, $settings, $administrator): TenantProvisioningOutcome {
-            if (TenantSetting::query()->exists()) {
+            // `where('tenant_id', ...)` a mano (issue #196): `TenantScope`
+            // no filtra en modo plataforma (docblock de la clase), así que
+            // sin esto la comprobación de idempotencia mira si CUALQUIER
+            // tenant tiene ya `tenant_settings` — con datos acumulados de
+            // otros aprovisionamientos ya resueltos (`pgsql_platform` no
+            // se limpia entre tests, y en producción hay siempre algún
+            // tenant provisionado), esto cortocircuita el alta de un
+            // tenant nuevo dándolo por aprovisionado sin haber escrito
+            // ni una fila suya.
+            if (TenantSetting::query()->where('tenant_id', $tenant->id)->exists()) {
                 return TenantProvisioningOutcome::AlreadyProvisioned;
             }
 
@@ -143,7 +152,20 @@ final class ProvisionTenantDefaults implements TenantProvisioner
                     // IssueUserInvitation lee el locale por defecto que
                     // acaba de dejar de existir y el correo sale en
                     // español sin que nada falle visiblemente.
-                    TenantSetting::create([
+                    //
+                    // `tenant_id` a mano en los cinco `forceCreate()` de
+                    // este método (issue #196): `provision()` puede
+                    // ejecutarse con `runAsPlatform()` todavía activo en la
+                    // pila (fase 2 síncrona en tests, o cualquier reintento
+                    // manual desde el backoffice) — `TenantContext::runFor()`
+                    // no limpia `platformMode`, así que `BelongsToTenant`
+                    // no rellena `tenant_id` solo (docblock de
+                    // `TenantContext::runAsPlatform()`, ADR-046 §6.4).
+                    // `forceCreate()`, no `create()`: `tenant_id` no está en
+                    // `$fillable` a propósito (nadie más debe poder fijarlo
+                    // por asignación masiva).
+                    TenantSetting::forceCreate([
+                        'tenant_id' => $tenant->id,
                         'default_locale' => $settings->defaultLocale,
                         'active_locales' => $settings->activeLocales,
                         'timezone' => $settings->timezone,
@@ -151,11 +173,16 @@ final class ProvisionTenantDefaults implements TenantProvisioner
                         'autonomous_community' => $settings->autonomousCommunity,
                     ]);
 
-                    $roleIds = $this->seedRoles();
-                    $this->seedPermissionGrants($roleIds);
+                    $roleIds = $this->seedRoles($tenant->id);
+                    $this->seedPermissionGrants($tenant->id, $roleIds);
 
-                    $user = $this->createAdministrator($administrator, $settings->defaultLocale);
-                    $user->roles()->attach($roleIds['administrador_centro']);
+                    $user = $this->createAdministrator($tenant->id, $administrator, $settings->defaultLocale);
+                    // `attach()` hace un INSERT de query builder puro sobre
+                    // la tabla pivote: no pasa por BelongsToTenant ni por
+                    // el DEFAULT app.current_tenant_id() (que lee el GUC de
+                    // la conexión pgsql, nunca fijado en pgsql_platform) —
+                    // tenant_id explícito como atributo del pivote (#196).
+                    $user->roles()->attach($roleIds['administrador_centro'], ['tenant_id' => $tenant->id]);
 
                     event(new UserCreated($tenant->id, $user->public_id));
 
@@ -181,9 +208,12 @@ final class ProvisionTenantDefaults implements TenantProvisioner
     public function provisionFromTemplate(Tenant $source, Tenant $target, TenantAdministrator $administrator): TenantProvisioningOutcome
     {
         return DB::transaction(function () use ($source, $target, $administrator): TenantProvisioningOutcome {
+            // `where('tenant_id', ...)` a mano en las cuatro consultas de
+            // este método (issue #196), mismo motivo que en provision():
+            // `TenantScope` no filtra en modo plataforma.
             $alreadyProvisioned = $this->tenantContext->runFor(
                 $target->id,
-                fn (): bool => TenantSetting::query()->exists(),
+                fn (): bool => TenantSetting::query()->where('tenant_id', $target->id)->exists(),
             );
 
             if ($alreadyProvisioned) {
@@ -192,7 +222,7 @@ final class ProvisionTenantDefaults implements TenantProvisioner
 
             /** @var array{settings: TenantSetting, roles: Collection<int, Role>, grants: Collection<int, PermissionRole>} $template */
             $template = $this->tenantContext->runFor($source->id, function () use ($source): array {
-                $settings = TenantSetting::query()->first();
+                $settings = TenantSetting::query()->where('tenant_id', $source->id)->first();
 
                 if ($settings === null) {
                     throw new RuntimeException(
@@ -202,8 +232,8 @@ final class ProvisionTenantDefaults implements TenantProvisioner
 
                 return [
                     'settings' => $settings,
-                    'roles' => Role::query()->get(),
-                    'grants' => PermissionRole::query()->get(),
+                    'roles' => Role::query()->where('tenant_id', $source->id)->get(),
+                    'grants' => PermissionRole::query()->where('tenant_id', $source->id)->get(),
                 ];
             });
 
@@ -211,16 +241,27 @@ final class ProvisionTenantDefaults implements TenantProvisioner
                 AuditActor::actingAs('console', function () use ($template, $administrator, $target): void {
                     $sourceSettings = $template['settings'];
 
-                    TenantSetting::create(array_intersect_key(
-                        $sourceSettings->only(self::OPERATIONAL_SETTINGS_ATTRIBUTES),
-                        array_flip(self::OPERATIONAL_SETTINGS_ATTRIBUTES),
+                    // `tenant_id` a mano en los `::create()` de este bloque
+                    // (issue #196), por la misma razón que en provision():
+                    // `TenantLifecycleService` despacha `CloneTenant`
+                    // (síncrono en tests) desde dentro de su propio
+                    // `runAsPlatform()`, así que la premisa "nunca
+                    // runAsPlatform" de arriba no se sostiene en la
+                    // práctica y `BelongsToTenant` no rellena solo.
+                    TenantSetting::forceCreate(array_merge(
+                        array_intersect_key(
+                            $sourceSettings->only(self::OPERATIONAL_SETTINGS_ATTRIBUTES),
+                            array_flip(self::OPERATIONAL_SETTINGS_ATTRIBUTES),
+                        ),
+                        ['tenant_id' => $target->id],
                     ));
 
                     $roleIdByCode = [];
                     $roleCodeById = [];
 
                     foreach ($template['roles'] as $sourceRole) {
-                        $newRole = Role::create([
+                        $newRole = Role::forceCreate([
+                            'tenant_id' => $target->id,
                             'code' => $sourceRole->code,
                             'name_key' => $sourceRole->name_key,
                             'name' => $sourceRole->name,
@@ -240,7 +281,8 @@ final class ProvisionTenantDefaults implements TenantProvisioner
                             continue;
                         }
 
-                        PermissionRole::create([
+                        PermissionRole::forceCreate([
+                            'tenant_id' => $target->id,
                             'role_id' => $roleIdByCode[$code],
                             'permission_code' => $grant->permission_code,
                             'effect' => $grant->effect,
@@ -252,8 +294,8 @@ final class ProvisionTenantDefaults implements TenantProvisioner
                         'El tenant origen no tiene el rol administrador_centro: no se puede clonar.'
                     );
 
-                    $user = $this->createAdministrator($administrator, $sourceSettings->default_locale);
-                    $user->roles()->attach($administratorRoleId);
+                    $user = $this->createAdministrator($target->id, $administrator, $sourceSettings->default_locale);
+                    $user->roles()->attach($administratorRoleId, ['tenant_id' => $target->id]);
 
                     event(new UserCreated($target->id, $user->public_id));
 
@@ -268,12 +310,13 @@ final class ProvisionTenantDefaults implements TenantProvisioner
     /**
      * @return array<string, int>
      */
-    private function seedRoles(): array
+    private function seedRoles(int $tenantId): array
     {
         $roleIds = [];
 
         foreach (self::ROLE_ATTRIBUTES as $code => $attributes) {
-            $role = Role::create([
+            $role = Role::forceCreate([
+                'tenant_id' => $tenantId,
                 'code' => $code,
                 'name_key' => "roles.{$code}",
                 'name' => null,
@@ -291,13 +334,14 @@ final class ProvisionTenantDefaults implements TenantProvisioner
     /**
      * @param  array<string, int>  $roleIds
      */
-    private function seedPermissionGrants(array $roleIds): void
+    private function seedPermissionGrants(int $tenantId, array $roleIds): void
     {
         $grants = [...self::CORE_PERMISSION_GRANTS, 'administrador_centro' => self::ADMIN_CENTRO_PERMISSIONS];
 
         foreach ($grants as $roleCode => $permissionCodes) {
             foreach ($permissionCodes as $permissionCode) {
-                PermissionRole::create([
+                PermissionRole::forceCreate([
+                    'tenant_id' => $tenantId,
                     'role_id' => $roleIds[$roleCode],
                     'permission_code' => $permissionCode,
                     'effect' => 'allow',
@@ -314,16 +358,18 @@ final class ProvisionTenantDefaults implements TenantProvisioner
      * que sin este cambio la invitación de un centro alemán seguiría
      * saliendo siempre en español.
      */
-    private function createAdministrator(TenantAdministrator $administrator, string $locale): User
+    private function createAdministrator(int $tenantId, TenantAdministrator $administrator, string $locale): User
     {
-        $person = Person::create([
+        $person = Person::forceCreate([
+            'tenant_id' => $tenantId,
             'given_name' => $administrator->givenName,
             'family_name_1' => $administrator->familyName,
             'contact_email' => $administrator->email,
             'locale' => $locale,
         ]);
 
-        return User::create([
+        return User::forceCreate([
+            'tenant_id' => $tenantId,
             'person_id' => $person->id,
             'email' => $administrator->email,
             // No utilizable (RN-CORE-04/funcional.md §1.4): nadie puede

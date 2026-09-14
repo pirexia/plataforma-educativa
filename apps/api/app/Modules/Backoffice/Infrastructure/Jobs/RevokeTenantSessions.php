@@ -5,6 +5,7 @@ namespace App\Modules\Backoffice\Infrastructure\Jobs;
 use App\Models\User;
 use App\Modules\Auth\Domain\SessionEndReason;
 use App\Modules\Auth\Domain\SessionRevoker;
+use App\Support\Audit\AuditActor;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -43,11 +44,19 @@ class RevokeTenantSessions implements ShouldQueue
 
     public function handle(TenantContext $tenantContext, SessionRevoker $sessionRevoker): void
     {
-        $tenantContext->runFor($this->tenantId, function () use ($sessionRevoker): void {
-            User::query()->chunkById(200, function ($users) use ($sessionRevoker): void {
-                foreach ($users as $user) {
-                    $sessionRevoker->revokeAllForUser($user, SessionEndReason::BajaUsuario);
-                }
+        // AuditActor::actingAs('console', ...): quien dispara este trabajo
+        // es un administrador de plataforma (o nadie, si lo relanza
+        // `job:reintentar`), nunca un usuario del tenant afectado —
+        // RecordsAuthorship no debe intentar grabar ese id ajeno como
+        // updated_by de user_sessions (mismo bug e idéntico remedio que
+        // ProvisionTenantDefaults, issue #196).
+        AuditActor::actingAs('console', function () use ($tenantContext, $sessionRevoker): void {
+            $tenantContext->runFor($this->tenantId, function () use ($sessionRevoker): void {
+                User::query()->chunkById(200, function ($users) use ($sessionRevoker): void {
+                    foreach ($users as $user) {
+                        $sessionRevoker->revokeAllForUser($user, SessionEndReason::BajaUsuario);
+                    }
+                });
             });
         });
     }

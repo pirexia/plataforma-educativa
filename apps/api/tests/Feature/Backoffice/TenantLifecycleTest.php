@@ -3,8 +3,10 @@
 use App\Models\PermissionRole;
 use App\Models\Role;
 use App\Models\User;
+use App\Modules\Auth\Domain\Models\UserSession;
 use App\Modules\Backoffice\Application\ActivateProvisionedTenant;
 use App\Modules\Backoffice\Domain\Models\AdminActionLog;
+use App\Modules\Backoffice\Domain\Models\PlatformAdmin;
 use App\Modules\Backoffice\Domain\Models\TenantLifecycleEvent;
 use App\Modules\Backoffice\Infrastructure\Jobs\ProvisionTenant;
 use App\Modules\Core\Domain\TenantAdministrator;
@@ -80,7 +82,7 @@ function boValidTenantPayload(array $overrides = []): array
  * sensible (api.md §4). Ver PlatformAdminManagementTest.php para el
  * detalle de por qué es un round-trip HTTP real y no un `session()->put()`.
  */
-function boSensitiveClient(\App\Modules\Backoffice\Domain\Models\PlatformAdmin $admin, string $secret): mixed
+function boSensitiveClient(PlatformAdmin $admin, string $secret): mixed
 {
     $cookie = boReauthenticatedSessionCookie($admin, $secret);
 
@@ -105,7 +107,7 @@ test('CA-BO-106: el alta responde 201 en en_alta y, tras la fase 2, el tenant qu
     // (funcional.md §5.3.3): en ese momento el tenant estaba en_alta,
     // aunque la fase 2 (síncrona en tests, QUEUE_CONNECTION=sync) ya
     // haya terminado para cuando se lee esta aserción.
-    expect($response->json('data.status'))->toBe('en_alta');
+    expect($response->json('status'))->toBe('en_alta');
 
     $tenant = Tenant::query()->where('slug', $payload['slug'])->firstOrFail();
 
@@ -393,7 +395,7 @@ test('CA-BO-119: suspender no revoca las sesiones de los usuarios del centro, y 
     [$tenant, $user] = provisionCoreTenant();
 
     $sessionId = app(TenantContext::class)->runFor($tenant->id, function () use ($user) {
-        return \App\Modules\Auth\Domain\Models\UserSession::create([
+        return UserSession::create([
             'user_id' => $user->id,
             'session_id' => 'sess-'.Str::random(20),
             'ip_address' => '127.0.0.1',
@@ -409,7 +411,7 @@ test('CA-BO-119: suspender no revoca las sesiones de los usuarios del centro, y 
         'reason' => 'Suspensión de prueba',
     ])->assertStatus(200);
 
-    $stillLive = app(TenantContext::class)->runFor($tenant->id, fn () => \App\Modules\Auth\Domain\Models\UserSession::query()->whereNull('ended_at')->where('id', $sessionId)->exists());
+    $stillLive = app(TenantContext::class)->runFor($tenant->id, fn () => UserSession::query()->whereNull('ended_at')->where('id', $sessionId)->exists());
     expect($stillLive)->toBeTrue();
 
     $this->postJson('http://'.boPlatformHost()."/api/platform/v1/tenants/{$tenant->public_id}/transitions", [
@@ -417,7 +419,7 @@ test('CA-BO-119: suspender no revoca las sesiones de los usuarios del centro, y 
         'reason' => 'Reactivación de prueba',
     ])->assertStatus(200);
 
-    $stillLiveAfterReactivation = app(TenantContext::class)->runFor($tenant->id, fn () => \App\Modules\Auth\Domain\Models\UserSession::query()->whereNull('ended_at')->where('id', $sessionId)->exists());
+    $stillLiveAfterReactivation = app(TenantContext::class)->runFor($tenant->id, fn () => UserSession::query()->whereNull('ended_at')->where('id', $sessionId)->exists());
     expect($stillLiveAfterReactivation)->toBeTrue();
 });
 
@@ -425,11 +427,11 @@ test('CA-BO-120: eliminar un tenant revoca todas las sesiones de sus usuarios, y
     [$tenantA, $userA] = provisionCoreTenant();
     [$tenantB, $userB] = provisionCoreTenant();
 
-    $sessionA = app(TenantContext::class)->runFor($tenantA->id, fn () => \App\Modules\Auth\Domain\Models\UserSession::create([
+    $sessionA = app(TenantContext::class)->runFor($tenantA->id, fn () => UserSession::create([
         'user_id' => $userA->id, 'session_id' => 'sess-a-'.Str::random(10), 'ip_address' => '127.0.0.1', 'started_at' => now(),
     ]));
 
-    $sessionB = app(TenantContext::class)->runFor($tenantB->id, fn () => \App\Modules\Auth\Domain\Models\UserSession::create([
+    $sessionB = app(TenantContext::class)->runFor($tenantB->id, fn () => UserSession::create([
         'user_id' => $userB->id, 'session_id' => 'sess-b-'.Str::random(10), 'ip_address' => '127.0.0.1', 'started_at' => now(),
     ]));
 
@@ -455,8 +457,8 @@ test('CA-BO-120: eliminar un tenant revoca todas las sesiones de sus usuarios, y
     $approveClient->postJson('http://'.boPlatformHost()."/api/platform/v1/dual-authorizations/{$authorizationPublicId}/approval", [])
         ->assertStatus(200);
 
-    $sessionAStillLive = app(TenantContext::class)->runFor($tenantA->id, fn () => \App\Modules\Auth\Domain\Models\UserSession::query()->where('id', $sessionA->id)->whereNull('ended_at')->exists());
-    $sessionBStillLive = app(TenantContext::class)->runFor($tenantB->id, fn () => \App\Modules\Auth\Domain\Models\UserSession::query()->where('id', $sessionB->id)->whereNull('ended_at')->exists());
+    $sessionAStillLive = app(TenantContext::class)->runFor($tenantA->id, fn () => UserSession::query()->where('id', $sessionA->id)->whereNull('ended_at')->exists());
+    $sessionBStillLive = app(TenantContext::class)->runFor($tenantB->id, fn () => UserSession::query()->where('id', $sessionB->id)->whereNull('ended_at')->exists());
 
     expect($sessionAStillLive)->toBeFalse();
     expect($sessionBStillLive)->toBeTrue();
@@ -505,16 +507,18 @@ test('CA-BO-121: eliminar un tenant no cambia el recuento de filas de sus tablas
 test('CA-BO-127: dar de baja un tenant responde 200 y no crea ninguna dual_authorization', function (): void {
     $tenant = Tenant::factory()->create(['status' => 'activo']);
 
-    [$admin] = boCreateEnrolledAdmin('superadministrador');
+    [$admin, $secret] = boCreateEnrolledAdmin('superadministrador');
     $this->actingAs($admin, 'platform');
 
-    $response = $this->postJson('http://'.boPlatformHost()."/api/platform/v1/tenants/{$tenant->public_id}/transitions", [
+    // api.md §4: `en_baja` es sensible (reautenticación), aunque no exija
+    // doble autorización — las dos cosas son independientes.
+    $response = boSensitiveClient($admin, $secret)->postJson('http://'.boPlatformHost()."/api/platform/v1/tenants/{$tenant->public_id}/transitions", [
         'to_status' => 'en_baja',
         'reason' => 'Baja comercial de prueba',
     ]);
 
     $response->assertStatus(200);
-    expect($response->json('data.status'))->toBe('en_baja');
+    expect($response->json('status'))->toBe('en_baja');
     expect(DB::connection('pgsql_platform')->table('dual_authorizations')->count())->toBe(0);
 
     $tenant->refresh();

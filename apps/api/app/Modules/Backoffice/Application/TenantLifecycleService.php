@@ -47,6 +47,20 @@ final class TenantLifecycleService
      * invalida la caché de resolución y encola la fase 2
      * (`ProvisionTenant`). Envuelta en `runAsPlatform(BackofficeEscritura,
      * …)`, tal como exige la especificación para esta operación concreta.
+     *
+     * El despacho de `ProvisionTenant` ocurre DESPUÉS de que
+     * `runAsPlatform()` retorne, no dentro de su `afterCommit()` (issue
+     * #196): `TenantContext` es un singleton de duración de proceso que no
+     * limpia `platformMode` al entrar/salir de `runFor()` — con
+     * `QUEUE_CONNECTION=sync` (tests, y cualquier entorno que fuerce
+     * ejecución síncrona) el `handle()` del job heredaría
+     * `platformMode=true` de este método y `TenantModel::getConnectionName()`
+     * resolvería a `pgsql_platform` en vez de `pgsql` sin que ningún límite
+     * de proceso lo evite. Despachar fuera del bloque lo garantiza siempre,
+     * no solo cuando hay un *worker* real de por medio. Semántica
+     * equivalente a la anterior: `DB::transaction()` no retorna sin haber
+     * comprometido, así que `runAsPlatform()` no retorna aquí sin que la
+     * fila del tenant ya esté comprometida.
      */
     public function create(
         string $name,
@@ -59,10 +73,10 @@ final class TenantLifecycleService
         $this->guardSlugAvailable($slug);
         $this->guardSlugNotReserved($slug);
 
-        return $this->tenantContext->runAsPlatform(
+        $tenant = $this->tenantContext->runAsPlatform(
             PlatformAccessPurpose::BackofficeEscritura,
-            function () use ($name, $slug, $reason, $settings, $administrator, $actor): Tenant {
-                return DB::connection('pgsql_platform')->transaction(function () use ($name, $slug, $reason, $settings, $administrator, $actor): Tenant {
+            function () use ($name, $slug, $reason, $actor): Tenant {
+                return DB::connection('pgsql_platform')->transaction(function () use ($name, $slug, $reason, $actor): Tenant {
                     $tenant = Tenant::create([
                         'slug' => $slug,
                         'name' => $name,
@@ -87,15 +101,22 @@ final class TenantLifecycleService
                         reason: $reason,
                     );
 
-                    DB::connection('pgsql_platform')->afterCommit(function () use ($tenant, $settings, $administrator): void {
+                    DB::connection('pgsql_platform')->afterCommit(function () use ($tenant): void {
                         TenantResolutionCache::forget($tenant->slug);
-                        ProvisionTenant::dispatch($tenant->public_id, $settings, $administrator);
                     });
 
                     return $tenant;
                 });
             },
         );
+
+        // Sentencia suelta, no valor de retorno (mismo aviso que runFor(),
+        // TenantContext.php): el despacho real ocurre en el __destruct()
+        // de PendingDispatch, y para entonces platformMode ya está
+        // restaurado por el finally() de runAsPlatform() de arriba.
+        ProvisionTenant::dispatch($tenant->public_id, $settings, $administrator);
+
+        return $tenant;
     }
 
     /**
@@ -203,6 +224,19 @@ final class TenantLifecycleService
      * misma forma que el alta (crea el destino en `en_alta`, escribe su
      * transición y su auditoría propia `tenant.clonado`) y encola la
      * fase 2 (`CloneTenant`).
+     *
+     * `CloneTenant::dispatch()` ocurre DESPUÉS de que `runAsPlatform()`
+     * retorne, mismo motivo y misma garantía que en `create()` (issue
+     * #196): con `platformMode` todavía activo al despachar,
+     * `ProvisionTenantDefaults::provisionFromTemplate()` — que su propio
+     * docblock declara que "nunca" corre en modo plataforma — heredaría
+     * ese modo bajo `QUEUE_CONNECTION=sync` y sus lecturas del tenant
+     * origen resolverían a la conexión `pgsql_platform` en vez de `pgsql`,
+     * una sesión de PostgreSQL distinta de la que contiene los datos del
+     * origen todavía sin comprometer en el arnés de tests (`ADR-033 §5`,
+     * `$connectionsToTransact = ['pgsql']`). Aquí es aún más importante
+     * que en `create()`: `provisionFromTemplate()` sí necesita leer datos
+     * ya existentes del tenant origen, no solo escribir datos nuevos.
      */
     public function clone(
         Tenant $source,
@@ -219,10 +253,10 @@ final class TenantLifecycleService
         $this->guardSlugAvailable($slug);
         $this->guardSlugNotReserved($slug);
 
-        return $this->tenantContext->runAsPlatform(
+        $target = $this->tenantContext->runAsPlatform(
             PlatformAccessPurpose::BackofficeEscritura,
-            function () use ($source, $name, $slug, $reason, $administrator, $actor): Tenant {
-                return DB::connection('pgsql_platform')->transaction(function () use ($source, $name, $slug, $reason, $administrator, $actor): Tenant {
+            function () use ($source, $name, $slug, $reason, $actor): Tenant {
+                return DB::connection('pgsql_platform')->transaction(function () use ($source, $name, $slug, $reason, $actor): Tenant {
                     $target = Tenant::create([
                         'slug' => $slug,
                         'name' => $name,
@@ -248,15 +282,22 @@ final class TenantLifecycleService
                         context: ['source_tenant_public_id' => $source->public_id],
                     );
 
-                    DB::connection('pgsql_platform')->afterCommit(function () use ($source, $target, $administrator): void {
+                    DB::connection('pgsql_platform')->afterCommit(function () use ($target): void {
                         TenantResolutionCache::forget($target->slug);
-                        CloneTenant::dispatch($source->public_id, $target->public_id, $administrator);
                     });
 
                     return $target;
                 });
             },
         );
+
+        // Sentencia suelta, no valor de retorno (mismo aviso que en
+        // create() y que runFor(), TenantContext.php): platformMode ya
+        // está restaurado por el finally() de runAsPlatform() de arriba
+        // cuando el __destruct() de PendingDispatch dispare el envío real.
+        CloneTenant::dispatch($source->public_id, $target->public_id, $administrator);
+
+        return $target;
     }
 
     /**
