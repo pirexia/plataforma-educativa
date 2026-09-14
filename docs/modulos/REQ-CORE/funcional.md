@@ -258,10 +258,12 @@ El esquema de columnas es fijo y se documenta en `api.md` §7. **No hay mapeo vi
 
 Sin este flujo, 1.1 no tiene ni un solo usuario con el que probarse. No es un endpoint (§1.1).
 
-`php artisan tenant:provision-defaults {slug} --admin-email= --admin-given-name= --admin-family-name=`
+`php artisan tenant:provision-defaults {slug} --admin-email= --admin-given-name= --admin-family-name= [--default-locale=es-ES] [--active-locale=*] [--timezone=Europe/Madrid] [--currency=EUR] [--autonomous-community=]`
+
+Desde `ADR-048` (2026-09-11, `1.6b`): inyecta el contrato `TenantProvisioner` en vez de instanciar la clase concreta, y las cinco opciones nuevas (`--default-locale`, `--active-locale`, repetible, `--timezone`, `--currency`, `--autonomous-community`) permiten fijar los ajustes iniciales sin editarlos después — cada una con el valor por defecto que ya tenía la columna, así que arrancar un centro por consola sin tocarlas se comporta igual que antes.
 
 1. Comprueba que el tenant existe y no tiene ya configuración.
-2. Crea la fila `tenant_settings` con los valores por defecto (`es-ES`, idiomas activos `['es-ES']`, `Europe/Madrid`, `EUR`).
+2. Crea la fila `tenant_settings` con los valores por defecto (`es-ES`, idiomas activos `['es-ES']`, `Europe/Madrid`, `EUR`) o los que las opciones anteriores indiquen.
 3. Siembra los **16 roles predefinidos** de la sección 11.1 con `is_system = true`, `name_key = 'roles.{code}'`, y los atributos `mfa_required` / `special_data_access` de `permisos.md` §4. (`super_administrador` no es fila de `roles`: vive en `platform_admins`, sin `tenant_id` — `ADR-034 §2`, `permisos.md` §4.5. La sección 11.1 enumera 17 roles porque incluye ese, pero solo 16 se materializan como fila del tenant. Corregido tras confirmación del usuario, issue [#48](https://github.com/pirexia/plataforma-educativa/issues/48).)
 4. Concede a cada rol predefinido sus permisos de `REQ-CORE` según la matriz de `permisos.md` §4.
 5. Crea la persona y el usuario del primer Administrador de Centro, le asigna el rol y emite su invitación.
@@ -357,6 +359,7 @@ Interfaces públicas que `REQ-CORE` expone en su `Domain` para que otros módulo
 - `BulkUserImporter` — destino de importación de personal para `REQ-ONB-002` (§1.10).
 - `AuditQuery` — consulta filtrada del registro, para que ningún módulo consulte `audit_logs` directamente.
 - `ExportRequestService` — solicitud de una exportación asíncrona (§4.6), reutilizable por `REQ-PRIV` y demás.
+- `TenantProvisioner` (`ADR-048`, 2026-09-11) — contrato síncrono con dos métodos: `provision()` (alta, fase 2 del alta de tenant) y `provisionFromTemplate()` (clonación, `REQ-BO/funcional.md §5.6.2`). Implementado por `ProvisionTenantDefaults`, consumido por `REQ-BO` (`1.6b`) desde sus trabajos en cola `ProvisionTenant`/`CloneTenant`, sin que `REQ-BO` importe código interno de `Core` (`INV-007`). Dos objetos de valor de entrada (`TenantInitialSettings`, `TenantAdministrator`) y el enumerado de resultado `TenantProvisioningOutcome`. Devuelve resultado y propaga fallo — por eso es contrato síncrono y no evento de dominio (`ADR-048 §4`, tres motivos de fondo). Fija el patrón para `1.6c` y `1.24` (`REQ-ONB`).
 
 > Nota de convención: las clases (modelos, eventos, servicios) se nombran en inglés, coherentes con el código ya existente (`Person`, `User`, `AcademicYear`, `AuditLog`). La documentación y los literales de interfaz van en español. El ejemplo en español del skill `modulo-nuevo` no coincide con lo que hay en el repositorio; se sigue el repositorio.
 

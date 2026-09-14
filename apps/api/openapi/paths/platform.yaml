@@ -972,11 +972,15 @@ paths:
         '403': { $ref: '../components.yaml#/components/responses/PlatformReauthenticationRequired' }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409':
-          description: "Transición no permitida (bo.tenant.invalid_transition) o nombre de confirmación no exacto (bo.tenant.name_mismatch)."
+          description: "Transición no permitida (bo.tenant.invalid_transition)."
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
-        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '422':
+          description: "Validación de cuerpo o de parámetros, incluido nombre de confirmación no exacto (bo.tenant.name_mismatch, RN-BO-57)."
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
 
   /api/platform/v1/tenants/{publicId}/lifecycle-events:
     parameters:

@@ -243,11 +243,15 @@ final class ProvisionTenantDefaults implements TenantProvisioner
 
                     // `tenant_id` a mano en los `::create()` de este bloque
                     // (issue #196), por la misma razón que en provision():
-                    // `TenantLifecycleService` despacha `CloneTenant`
-                    // (síncrono en tests) desde dentro de su propio
-                    // `runAsPlatform()`, así que la premisa "nunca
-                    // runAsPlatform" de arriba no se sostiene en la
-                    // práctica y `BelongsToTenant` no rellena solo.
+                    // defensa en profundidad. La premisa del docblock de
+                    // cabecera ("nunca runAsPlatform") es correcta hoy —
+                    // `TenantLifecycleService::clone()` despacha
+                    // `CloneTenant` DESPUÉS de que `runAsPlatform()`
+                    // retorne, no dentro—, pero `BelongsToTenant` solo
+                    // rellena `tenant_id` cuando NO está en modo
+                    // plataforma: fijarlo a mano no depende de esa
+                    // garantía externa para seguir siendo correcto si
+                    // algún llamador futuro rompiera la premisa.
                     TenantSetting::forceCreate(array_merge(
                         array_intersect_key(
                             $sourceSettings->only(self::OPERATIONAL_SETTINGS_ATTRIBUTES),

@@ -1406,7 +1406,7 @@ El chasis se implementó (`aa668ba`) y pasó dos rondas de revisión independien
 
 El hueco de especificación señalado en la resolución del issue #173 — no existe todavía un `CA-BO` numerado para `POST /admin-invitation-redemptions` — sigue abierto: documentado en `api.md §2.1`, no inventado aquí, pendiente de asignar cuando se revise `§13` con calma. **`1.6b` no lo cierra a propósito**: pertenece al chasis, ya implementado y mezclado, y asignarle un número desde un sub-paso posterior sin escribir su test sería cambiar el hueco de sitio.
 
-### 15.2 Sub-paso `1.6b` · ciclo de vida de tenants — **pendiente de aprobación**
+### 15.2 Sub-paso `1.6b` · ciclo de vida de tenants — **aprobada e implementada, en revisión antes de mezclar**
 
 Esta pasada especifica `REQ-BO-001` completo a la altura que hace falta para implementarlo, sobre el chasis cerrado en `1.6`. Lo que trae, y dónde está:
 

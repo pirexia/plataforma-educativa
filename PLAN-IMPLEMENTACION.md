@@ -146,6 +146,7 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
   Cerrado 2026-09-10: implementado, dos pasadas de revisión independiente (issues #173-#186, Alta/Media corregidos, Baja documentado), 607/607 Pest en verde. Detalle completo en `CHANGELOG.md` y `docs/modulos/REQ-BO/funcional.md §15.1`. Siguiente sub-paso: `1.6b` (ciclo de vida de tenants).
 - [ ] **1.6b · `REQ-BO`: ciclo de vida de tenants** [SONNET]
   `REQ-BO-001` completo sobre el chasis de `1.6`: alta, suspensión/reactivación, baja con gracia de 90 días, eliminación con doble autorización, clonación. Cierra issue [#7](https://github.com/pirexia/plataforma-educativa/issues/7) (invalidación de caché de resolución de tenant al cambiar `status`).
+  Implementado y en revisión independiente antes de mezclar (2026-09-14): especificación aprobada, `ADR-048` ratificado, 631/631 Pest relevantes en verde, Pint/Larastan limpios. Casilla se marca al cerrar y mezclar.
 - [ ] **1.6c · `REQ-BO`: matriz de módulos** [SONNET]
   `REQ-BO-002` completo según `ADR-045`: contratar/descontratar con motivo, dependencias como invariante de escritura (`depends_on`/`essential` en el descriptor, aborta el despliegue si hay ciclos), invalidación de caché de disponibilidad, eventos `ModuleContracted`/`ModuleDecontracted` emitidos por `REQ-CORE`, activación masiva.
 - [ ] **1.6d · `REQ-BO`: salud y métricas de plataforma** [SONNET]
