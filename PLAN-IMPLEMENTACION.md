@@ -1,6 +1,6 @@
 # PLAN-IMPLEMENTACION.md
 
-> **Versión 2.2.0** · 2026-08-12
+> **Versión 2.2.1** · 2026-09-14
 
 > Plan de ejecución dimensionado a **sesiones de ~5 horas** (límite del plan Pro). Cada paso cabe en una o dos sesiones y termina con el repositorio en estado compilable, tests en verde y `memory.md` actualizado.
 >
@@ -144,9 +144,9 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 - [x] **1.6 · `REQ-BO`: backoffice de superadmin — chasis de identidad, autorización y auditoría de plataforma** [SONNET]
   `REQ-BO-007` completo: `platform_admins` y sus cuatro roles internos (`soporte`/`operaciones`/`comercial`/`superadministrador`, fuera de `REQ-PERM` por `ADR-034 §2`), MFA propio sin excepción, lista blanca de IP, sesión corta y reautenticación, `admin_action_logs` (cierra issue [#27](https://github.com/pirexia/plataforma-educativa/issues/27)), doble autorización genérica. Incluye la separación de superficie de `ADR-046` (`Host()` en Traefik, `apps/backoffice`, `platform_sessions`) y el cambio de firma de `runAsPlatform()` (cierra puntos 2-3 del issue [#6](https://github.com/pirexia/plataforma-educativa/issues/6)). Especificación en `docs/modulos/REQ-BO/`, diseño en `ADR-045`/`ADR-046`.
   Cerrado 2026-09-10: implementado, dos pasadas de revisión independiente (issues #173-#186, Alta/Media corregidos, Baja documentado), 607/607 Pest en verde. Detalle completo en `CHANGELOG.md` y `docs/modulos/REQ-BO/funcional.md §15.1`. Siguiente sub-paso: `1.6b` (ciclo de vida de tenants).
-- [ ] **1.6b · `REQ-BO`: ciclo de vida de tenants** [SONNET]
+- [x] **1.6b · `REQ-BO`: ciclo de vida de tenants** [SONNET]
   `REQ-BO-001` completo sobre el chasis de `1.6`: alta, suspensión/reactivación, baja con gracia de 90 días, eliminación con doble autorización, clonación. Cierra issue [#7](https://github.com/pirexia/plataforma-educativa/issues/7) (invalidación de caché de resolución de tenant al cambiar `status`).
-  Implementado y en revisión independiente antes de mezclar (2026-09-14): especificación aprobada, `ADR-048` ratificado, 631/631 Pest relevantes en verde, Pint/Larastan limpios. Casilla se marca al cerrar y mezclar.
+  Cerrado 2026-09-14: implementado, `ADR-048` ratificado, una pasada de revisión independiente (issues #196/#199-#203, Alta corregido, Media corregido, Baja documentado), 632/634 Pest en verde (2 restantes ajenos a este paso, issue #199). Detalle completo en `CHANGELOG.md`. Siguiente sub-paso: `1.6c` (matriz de módulos).
 - [ ] **1.6c · `REQ-BO`: matriz de módulos** [SONNET]
   `REQ-BO-002` completo según `ADR-045`: contratar/descontratar con motivo, dependencias como invariante de escritura (`depends_on`/`essential` en el descriptor, aborta el despliegue si hay ciclos), invalidación de caché de disponibilidad, eventos `ModuleContracted`/`ModuleDecontracted` emitidos por `REQ-CORE`, activación masiva.
 - [ ] **1.6d · `REQ-BO`: salud y métricas de plataforma** [SONNET]
