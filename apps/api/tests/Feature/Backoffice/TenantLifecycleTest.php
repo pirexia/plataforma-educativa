@@ -464,6 +464,45 @@ test('CA-BO-120: eliminar un tenant revoca todas las sesiones de sus usuarios, y
     expect($sessionBStillLive)->toBeTrue();
 });
 
+// RN-BO-08, RN-BO-18, api.md §4 (issue #196, hallazgo Alta de revisión):
+// aprobar/rechazar una doble autorización es el momento exacto en que se
+// ejecuta la eliminación de un tenant — api.md §4 la exige explícitamente
+// entre las operaciones sensibles, y sin embargo la ruta no llevaba
+// require-platform-reauthentication. Sin este test, el hueco no estaba
+// cubierto ni en código ni en test (INV-015).
+test('aprobar o rechazar una doble autorización sin reautenticación viva responde reauthentication-required', function (): void {
+    $tenant = Tenant::factory()->create(['status' => 'en_baja']);
+
+    [$requester, $secretRequester] = boCreateEnrolledAdmin('superadministrador');
+    $this->actingAs($requester, 'platform');
+    $requestClient = boSensitiveClient($requester, $secretRequester);
+
+    $deletionResponse = $requestClient->postJson('http://'.boPlatformHost()."/api/platform/v1/tenants/{$tenant->public_id}/transitions", [
+        'to_status' => 'eliminado',
+        'reason' => 'Eliminación de prueba',
+        'confirmation_name' => $tenant->name,
+    ]);
+    $deletionResponse->assertStatus(202);
+    $authorizationPublicId = $deletionResponse->json('data.public_id');
+
+    // resetSessionState() (issue #196, mismo motivo que en otros ficheros
+    // de Auth): sin esto, la petición del aprobador reenviaría la cookie
+    // ya reautenticada de $requester (Laravel no la olvida sola entre
+    // peticiones del mismo TestCase) y el hallazgo que este test cubre
+    // pasaría en falso.
+    resetSessionState();
+    [$approver] = boCreateEnrolledAdmin('superadministrador');
+    $this->actingAs($approver, 'platform');
+
+    $approvalResponse = $this->postJson('http://'.boPlatformHost()."/api/platform/v1/dual-authorizations/{$authorizationPublicId}/approval", []);
+    $approvalResponse->assertStatus(403);
+    $approvalResponse->assertJson(['type' => 'urn:pge:error:reauthentication-required']);
+
+    $rejectionResponse = $this->postJson('http://'.boPlatformHost()."/api/platform/v1/dual-authorizations/{$authorizationPublicId}/rejection", ['resolution_reason' => 'Rechazo de prueba']);
+    $rejectionResponse->assertStatus(403);
+    $rejectionResponse->assertJson(['type' => 'urn:pge:error:reauthentication-required']);
+});
+
 test('CA-BO-121: eliminar un tenant no cambia el recuento de filas de sus tablas', function (): void {
     [$tenant] = provisionCoreTenant();
     $tenant->forceFill(['status' => 'en_baja'])->save();

@@ -127,6 +127,6 @@ Route::get('/dual-authorizations', [DualAuthorizationsController::class, 'index'
 Route::get('/dual-authorizations/{public_id}', [DualAuthorizationsController::class, 'show'])
     ->middleware(['require-platform-mfa', 'require-platform-capability:autorizacion.leer'])->name('platform.dual-authorizations.show');
 Route::post('/dual-authorizations/{public_id}/approval', [DualAuthorizationsController::class, 'approve'])
-    ->middleware(['require-platform-mfa', 'require-platform-capability:autorizacion.leer'])->name('platform.dual-authorizations.approval.store');
+    ->middleware(['require-platform-mfa', 'require-platform-capability:autorizacion.leer', 'require-platform-reauthentication'])->name('platform.dual-authorizations.approval.store');
 Route::post('/dual-authorizations/{public_id}/rejection', [DualAuthorizationsController::class, 'reject'])
-    ->middleware(['require-platform-mfa', 'require-platform-capability:autorizacion.leer'])->name('platform.dual-authorizations.rejection.store');
+    ->middleware(['require-platform-mfa', 'require-platform-capability:autorizacion.leer', 'require-platform-reauthentication'])->name('platform.dual-authorizations.rejection.store');
