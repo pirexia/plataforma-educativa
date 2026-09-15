@@ -409,6 +409,20 @@ final class TenantLifecycleService
         PlatformAdmin $actor,
     ): Tenant {
         return DB::connection('pgsql_platform')->transaction(function () use ($tenant, $from, $to, $reason, $suspensionMessage, $actor): Tenant {
+            // lockForUpdate() + comprobación de estado (issue #207): sin
+            // esto, dos peticiones de transición concurrentes sobre el
+            // mismo tenant calculan su arista permitida en transition()
+            // —fuera de esta transacción— a partir del mismo estado de
+            // partida obsoleto, y cada una guarda por su cuenta: gana la
+            // que comprometa en último lugar, dejando
+            // tenant_lifecycle_events con una transición que en realidad
+            // no partió del estado que dice partir.
+            $tenant = Tenant::query()->lockForUpdate()->findOrFail($tenant->id);
+
+            if ($tenant->status !== $from) {
+                throw ApiException::conflict('bo.tenant.invalid_transition');
+            }
+
             $attributes = ['status' => $to];
             $graceEndsAt = null;
 
