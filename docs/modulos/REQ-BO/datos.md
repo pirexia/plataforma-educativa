@@ -317,6 +317,10 @@ UNIQUE (action, payload_fingerprint) WHERE status = 'pendiente'
 
 **Índices**: `(status, expires_at) WHERE status = 'pendiente'` para el barrido de caducidad (§ `operacion.md`), y `(requested_by)` para «mis solicitudes».
 
+### 3.3 Lo que ningún `CHECK` puede impedir: dos resoluciones a la vez
+
+**Que una solicitud no se resuelva dos veces** (aprobar y rechazar, o dos aprobaciones, casi a la vez) es una restricción sobre el **orden de dos transacciones**, no sobre una fila — mismo argumento que `RN-BO-11` en `§2.2`. `DualAuthorizationService::approve()`/`reject()` releen la fila con `lockForUpdate()` **dentro** de la transacción y repiten la comprobación de estado sobre esa lectura bloqueada antes de escribir; sin eso, dos resoluciones concurrentes podían pasar la comprobación cada una por su lado y la que escribe en último lugar ganaba en silencio, dejando el histórico contradictorio con lo que de verdad se ejecutó (issue #205). Mismo mecanismo y mismo motivo en `ExpireDualAuthorizations::handle()` (issue #210): cada fila se releé bajo bloqueo antes de marcarla `caducada`, para no sobrescribir una resolución que llegó justo a tiempo.
+
 ---
 
 ## 4. `admin_action_logs`
@@ -620,6 +624,10 @@ Las dos alternativas que se consideraron, y por qué se descartan:
 - **Cambiar la forma del valor cacheado obliga a un despliegue compatible**: durante 60 s convivirían entradas con y sin la clave nueva, y el lector tendría que tolerar su ausencia. Es deuda a cambio de un ahorro que no hace falta.
 
 Lo que `1.6b` sí cambia en `ResolveTenant` es la **consulta** que rellena la caché —buscar incluyendo los borrados lógicos y preferir al vivo, `RN-BO-50`— y el **mapa de respuestas** por estado. No la forma del valor cacheado.
+
+### 6.4 Lo que ningún `CHECK` puede impedir: dos transiciones a la vez sobre el mismo tenant
+
+Mismo argumento que `§3.3` sobre `dual_authorizations`, aplicado a `status`: que una transición se aplique sobre el estado que dice partir (`RN-BO-12`) es una restricción sobre el **orden** de dos peticiones concurrentes, no sobre una fila. `TenantLifecycleService::executeSimpleTransition()` releé el tenant con `lockForUpdate()` **dentro** de su transacción y comprueba que el `status` real sigue siendo el de partida antes de escribir; sin eso, dos transiciones concurrentes sobre el mismo tenant (calculadas fuera de la transacción, sobre el mismo estado de partida obsoleto) podían aplicarse las dos, dejando `tenant_lifecycle_events` con una fila que no partió del estado que dice partir (issue #207). `executeApprovedDeletion()` (la ejecución real del cuarto cerrojo de `RN-BO-18`) tiene el mismo bloqueo por el mismo motivo: sin él, un rescate (`en_baja → activo`) podía colarse entre la lectura y la escritura de la eliminación, ejecutándola sobre un tenant que un instante antes había sido rescatado — justo lo que `RN-BO-20` dice impedir (issue #209).
 
 ---
 

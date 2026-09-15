@@ -1,7 +1,9 @@
 <?php
 
+use App\Modules\Backoffice\Application\AdminActionLogRecorder;
 use App\Modules\Backoffice\Domain\Models\PlatformAdmin;
 use App\Modules\Backoffice\Domain\PlatformAdminStatus;
+use App\Modules\Backoffice\Infrastructure\Jobs\ExpireDualAuthorizations;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 
@@ -163,4 +165,63 @@ test('la base de datos rechaza dos solicitudes pendientes con la misma acción y
         'created_at' => now(),
         'updated_at' => now(),
     ]))->toThrow(QueryException::class);
+});
+
+// Issue #210: ExpireDualAuthorizations::handle() solo debe tocar lo que
+// sigue realmente pendiente y vencido en el instante de escribir — no lo
+// que ya se resolvió (aunque siguiera vencido) ni lo que todavía no ha
+// vencido. No cubre la ventana exacta de la carrera (exigiría dos
+// transacciones solapadas de verdad, que este arnés de tests no puede
+// simular de forma fiable), pero es la primera cobertura funcional real
+// de este job — antes no tenía ninguna.
+test('bo:expire-dual-authorizations solo caduca lo pendiente y vencido, no lo ya resuelto ni lo vigente', function (): void {
+    $admin = daCreateAdmin();
+    $approver = daCreateAdmin();
+
+    $expiredPending = (string) Str::ulid();
+    $alreadyApproved = (string) Str::ulid();
+    $stillValid = (string) Str::ulid();
+
+    DB::connection('pgsql_platform')->table('dual_authorizations')->insert([
+        [
+            'public_id' => $expiredPending,
+            'action' => 'tenant.eliminar',
+            'payload' => json_encode(['x' => 1]),
+            'payload_fingerprint' => hash('sha256', 'expirada-pendiente'),
+            'reason' => 'motivo', 'requested_by' => $admin->id, 'requested_at' => now()->subHours(2),
+            'expires_at' => now()->subHour(), 'status' => 'pendiente',
+            'approved_by' => null, 'approved_at' => null,
+            'created_at' => now(), 'updated_at' => now(),
+        ],
+        [
+            'public_id' => $alreadyApproved,
+            'action' => 'tenant.eliminar',
+            'payload' => json_encode(['x' => 2]),
+            'payload_fingerprint' => hash('sha256', 'ya-aprobada'),
+            'reason' => 'motivo', 'requested_by' => $admin->id, 'requested_at' => now()->subHours(2),
+            'expires_at' => now()->subHour(), 'status' => 'aprobada',
+            'approved_by' => $approver->id, 'approved_at' => now(),
+            'created_at' => now(), 'updated_at' => now(),
+        ],
+        [
+            'public_id' => $stillValid,
+            'action' => 'tenant.eliminar',
+            'payload' => json_encode(['x' => 3]),
+            'payload_fingerprint' => hash('sha256', 'todavia-vigente'),
+            'reason' => 'motivo', 'requested_by' => $admin->id, 'requested_at' => now(),
+            'expires_at' => now()->addHour(), 'status' => 'pendiente',
+            'approved_by' => null, 'approved_at' => null,
+            'created_at' => now(), 'updated_at' => now(),
+        ],
+    ]);
+
+    (new ExpireDualAuthorizations)->handle(app(AdminActionLogRecorder::class));
+
+    $statuses = DB::connection('pgsql_platform')->table('dual_authorizations')
+        ->whereIn('public_id', [$expiredPending, $alreadyApproved, $stillValid])
+        ->pluck('status', 'public_id');
+
+    expect($statuses[$expiredPending])->toBe('caducada');
+    expect($statuses[$alreadyApproved])->toBe('aprobada');
+    expect($statuses[$stillValid])->toBe('pendiente');
 });

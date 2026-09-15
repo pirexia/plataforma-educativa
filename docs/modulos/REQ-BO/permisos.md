@@ -175,7 +175,9 @@ Igual que `REQ-CORE/permisos.md §8` y `REQ-PERM/permisos.md §8`: lo que ningun
 | **Nadie se modifica a sí mismo** (`RN-BO-10`) | `PUT /admins/{id}/roles`, `POST /admins/{id}/status`, `DELETE /admins/{id}` | `409` |
 | **Siempre un `superadministrador` vivo** (`RN-BO-11`) | Mismas rutas | `409`, con bloqueo de fila: es una restricción de conjunto y no cabe en un `CHECK` (`datos.md §2.2`) |
 | **Quien aprueba ≠ quien solicita** (`RN-BO-19`) | Base de datos | `CHECK`. **No es una comprobación de aplicación** |
-| **La ejecución usa el `payload` congelado** (`RN-BO-20`) | Servicio de ejecución | Huella distinta ⇒ rechazo |
+| **Una solicitud no se resuelve dos veces** (`RN-BO-19`/`RN-BO-20`) | `DualAuthorizationService::approve()`/`reject()` | `409`, con bloqueo de fila: mismo argumento que `RN-BO-11`, restricción de orden entre dos transacciones y no cabe en un `CHECK` (`datos.md §3.3`) |
+| **La ejecución usa el `payload` congelado** (`RN-BO-20`) | Servicio de ejecución | Huella distinta ⇒ rechazo. Bloqueo de fila también en `executeApprovedDeletion()` (`datos.md §6.4`): sin él, un rescate concurrente podía colarse entre la comprobación y la escritura |
+| **Una transición no se aplica sobre un estado ya superado** (`RN-BO-12`) | `TenantLifecycleService::executeSimpleTransition()` | `409 bo.tenant.invalid_transition`, con bloqueo de fila (`datos.md §6.4`) |
 | **El backoffice no devuelve datos personales de los centros** (`RN-BO-33`) | Todo *endpoint* | Restricción **funcional**, no de permiso: no hay capacidad que la conceda |
 | **Un `User` de tenant nunca autentica aquí** (`RN-BO-02`) | *Guard* y *provider* separados, cookie *host-only* con nombre propio, y **almacén de sesión propio** (`datos.md §2.6`) | `401`, auditado. Y `plataforma_app` **no puede ni leer** `platform_sessions`: `REVOKE ALL`, verificado por privilegios de motor (`CA-BO-018`) |
 | **El *slug* de un centro no puede ser el *host* de plataforma** (`RN-BO-49`) | Alta y cambio de `slug` (`api.md §2.4`, `§2.5`) | `422`. **Tampoco es una capacidad**: ni `superadministrador` puede saltárselo |

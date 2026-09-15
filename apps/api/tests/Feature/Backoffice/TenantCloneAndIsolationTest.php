@@ -4,11 +4,15 @@ use App\Models\ModuleSubscription;
 use App\Models\PermissionRole;
 use App\Models\Role;
 use App\Models\User;
+use App\Modules\Backoffice\Application\ActivateProvisionedTenant;
 use App\Modules\Backoffice\Domain\Models\AdminActionLog;
 use App\Modules\Backoffice\Domain\Models\PlatformAdmin;
 use App\Modules\Backoffice\Domain\Models\TenantLifecycleEvent;
+use App\Modules\Backoffice\Infrastructure\Jobs\CloneTenant;
 use App\Modules\Core\Domain\Models\TenantSetting;
 use App\Modules\Core\Domain\Models\UserInvitation;
+use App\Modules\Core\Domain\TenantAdministrator;
+use App\Modules\Core\Domain\TenantProvisioner;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use App\Support\Tenancy\TenantStatus;
@@ -221,6 +225,47 @@ test('CA-BO-125: un origen eliminado o en_alta no se puede clonar; uno suspendid
         'administrator' => ['email' => 'x3@example.com', 'given_name' => 'X', 'family_name' => 'Y'],
     ]);
     $response3->assertStatus(201);
+});
+
+// Issue #206: un reintento de la fase 2 de la clonación (bo:retry-
+// provisioning, tras un fallo parcial hipotético) no debe chocar con las
+// suscripciones de módulo que un intento anterior ya dejó insertadas.
+// Se simula el reintento llamando dos veces a CloneTenant::handle() para
+// el mismo par origen/destino, devolviendo el destino a en_alta entre
+// medias (mismo estado en el que handle() encuentra un clon a medias).
+test('reintentar la fase 2 de una clonación no falla por las suscripciones de módulo ya copiadas', function (): void {
+    [$source] = provisionCoreTenant();
+    app(TenantContext::class)->runFor($source->id, function (): void {
+        ModuleSubscription::create(['module_code' => 'auth', 'enabled' => true, 'enabled_at' => now(), 'reason' => 'Prueba']);
+        ModuleSubscription::create(['module_code' => 'core', 'enabled' => true, 'enabled_at' => now(), 'reason' => 'Prueba']);
+    });
+
+    [$admin, $secret] = boCreateEnrolledAdmin('superadministrador');
+    $this->actingAs($admin, 'platform');
+    $targetSlug = 'clon-reintento-'.Str::lower(Str::random(8));
+
+    boCloneClient($admin, $secret)->postJson('http://'.boPlatformHost()."/api/platform/v1/tenants/{$source->public_id}/clone", [
+        'name' => 'Colegio Reintento',
+        'slug' => $targetSlug,
+        'reason' => 'Clonación de prueba',
+        'administrator' => ['email' => 'admin-reintento@example.com', 'given_name' => 'Nuevo', 'family_name' => 'Administrador'],
+    ])->assertStatus(201);
+
+    $target = Tenant::query()->where('slug', $targetSlug)->firstOrFail();
+
+    // Vuelve a en_alta: el mismo estado en el que un CloneTenant::handle()
+    // real encontraría el destino si la fase 2 hubiera fallado a mitad del
+    // bucle de suscripciones, antes de llegar a activate().
+    $target->forceFill(['status' => TenantStatus::EnAlta])->save();
+
+    // Antes del arreglo, esto lanzaba QueryException por
+    // module_subscriptions_tenant_module_unique en la primera suscripción
+    // ya copiada.
+    (new CloneTenant($source->public_id, $target->public_id, new TenantAdministrator('admin-reintento@example.com', 'Nuevo', 'Administrador')))
+        ->handle(app(TenantProvisioner::class), app(ActivateProvisionedTenant::class), app(TenantContext::class));
+
+    $moduleCodes = app(TenantContext::class)->runFor($target->id, fn () => ModuleSubscription::pluck('module_code')->sort()->values()->all());
+    expect($moduleCodes)->toBe(['auth', 'core']);
 });
 
 // CA-BO-126, y el test obligatorio de la skill aislamiento-tenant: dos

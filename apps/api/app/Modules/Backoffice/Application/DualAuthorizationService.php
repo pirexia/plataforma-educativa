@@ -32,6 +32,9 @@ final class DualAuthorizationService
 
     public function approve(DualAuthorization $authorization, PlatformAdmin $approver, ?string $resolutionReason): DualAuthorization
     {
+        // Comprobación rápida fuera de la transacción, sobre el modelo ya
+        // cargado: da el mensaje de error correcto sin abrir transacción
+        // en el caso normal (sin carrera). No sustituye a la de dentro.
         $this->guardResolvable($authorization);
         $this->guardCapability($authorization, $approver);
 
@@ -39,7 +42,18 @@ final class DualAuthorizationService
             throw ApiException::conflict('bo.dual_auth.same_actor');
         }
 
-        DB::connection('pgsql_platform')->transaction(function () use ($authorization, $approver, $resolutionReason): void {
+        DB::connection('pgsql_platform')->transaction(function () use (&$authorization, $approver, $resolutionReason): void {
+            // lockForUpdate() + guardResolvable() otra vez, ya dentro de la
+            // transacción (issue #205): sin esto, dos resoluciones
+            // concurrentes de la misma solicitud (dos aprobadores, o un
+            // aprobador y un rechazador) cargan cada una su propia copia
+            // en memoria, ambas pasan la comprobación de arriba antes de
+            // que cualquiera comprometa, y la que escribe en último lugar
+            // gana en silencio — pudiendo dejar una eliminación ya
+            // ejecutada marcada como rechazada, o viceversa.
+            $authorization = DualAuthorization::query()->lockForUpdate()->findOrFail($authorization->id);
+            $this->guardResolvable($authorization);
+
             try {
                 $authorization->forceFill([
                     'status' => DualAuthorizationStatus::Aprobada,
@@ -70,7 +84,11 @@ final class DualAuthorizationService
         $this->guardResolvable($authorization);
         $this->guardCapability($authorization, $rejecter);
 
-        DB::connection('pgsql_platform')->transaction(function () use ($authorization, $resolutionReason): void {
+        DB::connection('pgsql_platform')->transaction(function () use (&$authorization, $resolutionReason): void {
+            // Mismo motivo que en approve() (issue #205).
+            $authorization = DualAuthorization::query()->lockForUpdate()->findOrFail($authorization->id);
+            $this->guardResolvable($authorization);
+
             $authorization->forceFill([
                 'status' => DualAuthorizationStatus::Rechazada,
                 'resolution_reason' => $resolutionReason,

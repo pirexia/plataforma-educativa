@@ -96,13 +96,25 @@ class CloneTenant implements ShouldQueue
             // created_by_foreign (compuesta contra users del tenant).
             AuditActor::actingAs('console', function () use ($subscriptions): void {
                 foreach ($subscriptions as $subscription) {
-                    ModuleSubscription::create([
-                        'module_code' => $subscription->module_code,
-                        'enabled' => true,
-                        'enabled_at' => now(),
-                        'reason' => 'bo.module_subscription.reason.cloned',
-                        'settings' => $subscription->settings,
-                    ]);
+                    // updateOrCreate(), no create() (issue #206): sin esto,
+                    // un fallo a mitad del bucle (p. ej. la segunda de tres
+                    // suscripciones) deja ya comprometidas las filas
+                    // anteriores; un reintento de bo:retry-provisioning
+                    // vuelve a recorrer el bucle entero desde el principio
+                    // y el INSERT de la primera suscripción viola
+                    // module_subscriptions_tenant_module_unique, dejando
+                    // el clon sin recuperación posible por ese camino.
+                    // Idempotente: repetir esta llamada con los mismos
+                    // datos no duplica ni cambia nada.
+                    ModuleSubscription::query()->updateOrCreate(
+                        ['module_code' => $subscription->module_code],
+                        [
+                            'enabled' => true,
+                            'enabled_at' => now(),
+                            'reason' => 'bo.module_subscription.reason.cloned',
+                            'settings' => $subscription->settings,
+                        ],
+                    );
                 }
             });
         });

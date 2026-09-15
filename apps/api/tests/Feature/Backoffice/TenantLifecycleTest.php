@@ -5,13 +5,17 @@ use App\Models\Role;
 use App\Models\User;
 use App\Modules\Auth\Domain\Models\UserSession;
 use App\Modules\Backoffice\Application\ActivateProvisionedTenant;
+use App\Modules\Backoffice\Application\DualAuthorizationService;
+use App\Modules\Backoffice\Application\TenantLifecycleService;
 use App\Modules\Backoffice\Domain\Models\AdminActionLog;
+use App\Modules\Backoffice\Domain\Models\DualAuthorization;
 use App\Modules\Backoffice\Domain\Models\PlatformAdmin;
 use App\Modules\Backoffice\Domain\Models\TenantLifecycleEvent;
 use App\Modules\Backoffice\Infrastructure\Jobs\ProvisionTenant;
 use App\Modules\Core\Domain\TenantAdministrator;
 use App\Modules\Core\Domain\TenantInitialSettings;
 use App\Modules\Core\Domain\TenantProvisioner;
+use App\Support\Api\ApiException;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use App\Support\Tenancy\TenantStatus;
@@ -370,6 +374,38 @@ test('CA-BO-117: la transición automática en_alta a activo escribe una clave d
     app()->setLocale('es');
 });
 
+// Issue #207: dos transiciones concurrentes sobre el mismo tenant no deben
+// poder escribir las dos. Misma técnica que el test de la carrera de
+// dual_authorizations (issue #205): dos copias en memoria del mismo
+// tenant, ambas viendo "activo", transicionando primero por una y
+// después por la copia ya obsoleta de la otra.
+test('transicionar un tenant desde una copia en memoria ya obsoleta responde invalid_transition, sin sobrescribir la transición ya aplicada', function (): void {
+    $tenant = Tenant::factory()->create(['status' => 'activo']);
+    $actor = boCreateEnrolledAdmin('superadministrador')[0];
+
+    $service = app(TenantLifecycleService::class);
+
+    // Dos copias independientes del mismo tenant, ambas viendo "activo"
+    // — el estado antes de que cualquiera de las dos transicione.
+    $staleCopy = Tenant::query()->findOrFail($tenant->id);
+    $freshCopy = Tenant::query()->findOrFail($tenant->id);
+
+    // La primera transición (suspender) tiene éxito.
+    $service->transition($freshCopy, TenantStatus::Suspendido, 'Suspensión de prueba', null, null, $actor);
+
+    // La segunda, sobre la copia obsoleta que seguía viendo "activo",
+    // debe rechazarse — antes del arreglo, executeSimpleTransition() no
+    // volvía a comprobar el estado real y esta transición se habría
+    // aplicado igual, dejando tenant_lifecycle_events con una fila
+    // "activo → en_baja" que en realidad partía de "suspendido".
+    expect(fn () => $service->transition($staleCopy, TenantStatus::EnBaja, 'Baja de prueba', null, null, $actor))
+        ->toThrow(ApiException::class);
+
+    $tenant->refresh();
+    expect($tenant->status)->toBe(TenantStatus::Suspendido);
+    expect(TenantLifecycleEvent::query()->where('affected_tenant_id', $tenant->id)->count())->toBe(1);
+});
+
 test('CA-BO-118: una confirmación de nombre que difiere en mayúsculas, acentos o espacios responde 422 y no crea ninguna solicitud', function (): void {
     $tenant = Tenant::factory()->create(['status' => 'en_baja', 'name' => 'Colegio Peña Alta']);
 
@@ -501,6 +537,49 @@ test('aprobar o rechazar una doble autorización sin reautenticación viva respo
     $rejectionResponse = $this->postJson('http://'.boPlatformHost()."/api/platform/v1/dual-authorizations/{$authorizationPublicId}/rejection", ['resolution_reason' => 'Rechazo de prueba']);
     $rejectionResponse->assertStatus(403);
     $rejectionResponse->assertJson(['type' => 'urn:pge:error:reauthentication-required']);
+});
+
+// Issue #205: dos resoluciones concurrentes de la misma dual_authorization
+// no deben poder escribir las dos. Se reproduce la carrera sin hilos
+// reales: dos copias en memoria de la misma fila (equivalente a dos
+// peticiones HTTP que la cargaron cada una por su lado antes de que
+// cualquiera comprometa), resolviendo primero por una y después por la
+// copia ya obsoleta de la otra.
+test('aprobar una dual_authorization ya resuelta por otra copia en memoria responde already_resolved, sin sobrescribir la primera resolución', function (): void {
+    $tenant = Tenant::factory()->create(['status' => 'en_baja']);
+
+    [$requester, $secretRequester] = boCreateEnrolledAdmin('superadministrador');
+    $this->actingAs($requester, 'platform');
+    boSensitiveClient($requester, $secretRequester)->postJson('http://'.boPlatformHost()."/api/platform/v1/tenants/{$tenant->public_id}/transitions", [
+        'to_status' => 'eliminado',
+        'reason' => 'Eliminación de prueba',
+        'confirmation_name' => $tenant->name,
+    ])->assertStatus(202);
+
+    $authorization = DB::connection('pgsql_platform')->table('dual_authorizations')->where('status', 'pendiente')->latest('id')->first();
+    $service = app(DualAuthorizationService::class);
+
+    // Dos copias independientes de la misma fila, ambas en estado
+    // "pendiente" en memoria — el estado antes de que cualquiera resuelva.
+    $staleCopy = DualAuthorization::query()->findOrFail($authorization->id);
+    $freshCopy = DualAuthorization::query()->findOrFail($authorization->id);
+
+    [$approver] = boCreateEnrolledAdmin('superadministrador');
+    [$rejecter] = boCreateEnrolledAdmin('superadministrador');
+
+    // La primera resolución (aprobar) tiene éxito.
+    $service->approve($freshCopy, $approver, 'Aprobación de prueba');
+
+    // La segunda, sobre la copia obsoleta que seguía viendo "pendiente",
+    // debe rechazarse — antes del arreglo, guardResolvable() solo miraba
+    // esta copia en memoria y dejaba pasar el rechazo, sobrescribiendo el
+    // resultado de la aprobación ya ejecutada.
+    expect(fn () => $service->reject($staleCopy, $rejecter, 'Rechazo de prueba'))
+        ->toThrow(ApiException::class);
+
+    $final = DB::connection('pgsql_platform')->table('dual_authorizations')->where('id', $authorization->id)->first();
+    expect($final->status)->toBe('ejecutada');
+    expect($final->approved_by)->toBe($approver->id);
 });
 
 test('CA-BO-121: eliminar un tenant no cambia el recuento de filas de sus tablas', function (): void {

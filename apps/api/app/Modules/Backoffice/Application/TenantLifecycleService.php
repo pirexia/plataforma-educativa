@@ -355,8 +355,16 @@ final class TenantLifecycleService
      */
     public function executeApprovedDeletion(DualAuthorization $authorization): void
     {
+        // lockForUpdate() (hallazgo Alta de la revisión de fix/REQ-BO-001-
+        // condiciones-de-carrera, mismo defecto que #207 pero en el camino
+        // real de ejecución de la eliminación): sin esto, un rescate
+        // (en_baja → activo, que sí relee bajo bloqueo desde el arreglo
+        // de #207) podía colarse entre esta lectura y el forceFill()/save()
+        // de más abajo, ejecutando la eliminación sobre un tenant que un
+        // instante antes había sido rescatado. Ya corre dentro de la
+        // transacción de DualAuthorizationService::execute().
         $tenantPublicId = $authorization->payload['tenant_public_id'] ?? null;
-        $tenant = $tenantPublicId !== null ? Tenant::query()->where('public_id', $tenantPublicId)->first() : null;
+        $tenant = $tenantPublicId !== null ? Tenant::query()->lockForUpdate()->where('public_id', $tenantPublicId)->first() : null;
 
         if ($tenant === null || $tenant->status !== TenantStatus::EnBaja) {
             throw new RuntimeException(
@@ -409,6 +417,20 @@ final class TenantLifecycleService
         PlatformAdmin $actor,
     ): Tenant {
         return DB::connection('pgsql_platform')->transaction(function () use ($tenant, $from, $to, $reason, $suspensionMessage, $actor): Tenant {
+            // lockForUpdate() + comprobación de estado (issue #207): sin
+            // esto, dos peticiones de transición concurrentes sobre el
+            // mismo tenant calculan su arista permitida en transition()
+            // —fuera de esta transacción— a partir del mismo estado de
+            // partida obsoleto, y cada una guarda por su cuenta: gana la
+            // que comprometa en último lugar, dejando
+            // tenant_lifecycle_events con una transición que en realidad
+            // no partió del estado que dice partir.
+            $tenant = Tenant::query()->lockForUpdate()->findOrFail($tenant->id);
+
+            if ($tenant->status !== $from) {
+                throw ApiException::conflict('bo.tenant.invalid_transition');
+            }
+
             $attributes = ['status' => $to];
             $graceEndsAt = null;
 

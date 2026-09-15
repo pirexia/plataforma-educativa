@@ -11,6 +11,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 
 /**
  * operacion.md §6.2. Pasa a `caducada` lo vencido. `actor_type =
@@ -37,11 +38,32 @@ class ExpireDualAuthorizations implements ShouldQueue
 
     public function handle(AdminActionLogRecorder $recorder): void
     {
-        DualAuthorization::query()
+        // Issue #210 (revisión de fix/REQ-BO-001-condiciones-de-carrera,
+        // db-reviewer): el listado inicial no bloquea ninguna fila, así
+        // que cada `save()` de más abajo corría fuera de transacción y
+        // sin releer — si una autorización listada aquí como "vencida y
+        // pendiente" se resolvía (aprobada/rechazada) justo antes de que
+        // le tocara el turno, este job sobrescribía esa resolución con
+        // `caducada`, corrompiendo el rastro de auditoría de una acción
+        // destructiva (INV-003). Cada fila se releé bajo lockForUpdate()
+        // dentro de su propia transacción y solo se marca caducada si
+        // sigue pendiente y vencida en ese instante.
+        $ids = DualAuthorization::query()
             ->where('status', DualAuthorizationStatus::Pendiente)
             ->where('expires_at', '<', now())
-            ->get()
-            ->each(function (DualAuthorization $authorization) use ($recorder): void {
+            ->pluck('id');
+
+        foreach ($ids as $id) {
+            DB::connection('pgsql_platform')->transaction(function () use ($id, $recorder): void {
+                $authorization = DualAuthorization::query()->lockForUpdate()->find($id);
+
+                if ($authorization === null
+                    || $authorization->status !== DualAuthorizationStatus::Pendiente
+                    || $authorization->expires_at->isFuture()
+                ) {
+                    return;
+                }
+
                 $authorization->forceFill(['status' => DualAuthorizationStatus::Caducada])->save();
 
                 $recorder->record(
@@ -49,5 +71,6 @@ class ExpireDualAuthorizations implements ShouldQueue
                     subjectPublicId: $authorization->public_id,
                 );
             });
+        }
     }
 }
