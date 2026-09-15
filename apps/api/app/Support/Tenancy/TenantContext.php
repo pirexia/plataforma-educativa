@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
+use Throwable;
 
 /**
  * Dónde vive "el tenant actual" durante la petición, un job o un comando.
@@ -151,18 +152,52 @@ final class TenantContext
         $this->platformMode = true;
         $this->platformPurpose = $purpose;
 
+        // 1.6c, hallazgo propio (severidad Alta, corregido en este mismo
+        // commit): `after()` sólo se llama en el camino de éxito, nunca
+        // cuando el `callback()` lanza. Antes de este cambio, un
+        // `finally` incondicional invocaba `after()` también cuando el
+        // callback fallaba — y con `BackofficeEscritura`, `after()`
+        // exige al menos una fila nueva en `admin_action_logs` (ADR-046
+        // §6.5). Eso funcionaba mientras cada llamador garantizara
+        // escribir algo siempre que el bloque terminase (el patrón de
+        // `TenantLifecycleService`: toda validación que pueda fallar
+        // ocurre ANTES de abrir el bloque, nunca dentro). `REQ-BO-002`
+        // (1.6c) rompe esa premisa por primera vez: el cierre de
+        // dependencias de `ModuleContractingService::apply()` sólo se
+        // conoce bajo el bloqueo de la fila de `tenants` (`RN-BO-66`), y
+        // puede concluir legítimamente "nada que escribir" —esencial,
+        // retirado, dependencias sin confirmar, estado del tenant que ya
+        // no admite escritura— **después** de haber entrado en el
+        // bloque. La excepción de negocio que señala ese resultado
+        // (`ApiException`) quedaba enmascarada por la excepción de
+        // `after()` ("terminó sin dejar rastro"), convirtiendo un `422`/
+        // `409` limpio en un `500` de plataforma. Un bloque que falla no
+        // "termina": su transacción se revierte, y exigirle un rastro de
+        // algo que nunca llegó a comprometerse no tiene sentido — el
+        // caso que `after()` existe para atrapar es el opuesto, un
+        // bloque que **sí** completa una escritura y se olvida de
+        // auditarla. Ningún llamador existente (`TenantLifecycleService`,
+        // `TenantsController`) deja de compilar ni cambia de
+        // comportamiento: ninguno lanza hoy dentro de su bloque.
         try {
-            return $callback();
-        } finally {
-            // after() se llama con el bloque todavía "abierto" (antes de
-            // restaurar platformMode/platformPurpose): es simétrico con
-            // before(), que se llama antes de abrirlo, y deja que la
-            // comprobación observe el mismo estado que vio el callback.
-            app(PlatformAccessCheck::class)->after($purpose);
-
+            $result = $callback();
+        } catch (Throwable $e) {
             $this->platformMode = $wasPlatformMode;
             $this->platformPurpose = $previousPurpose;
+
+            throw $e;
         }
+
+        // after() se llama con el bloque todavía "abierto" (antes de
+        // restaurar platformMode/platformPurpose): es simétrico con
+        // before(), que se llama antes de abrirlo, y deja que la
+        // comprobación observe el mismo estado que vio el callback.
+        app(PlatformAccessCheck::class)->after($purpose);
+
+        $this->platformMode = $wasPlatformMode;
+        $this->platformPurpose = $previousPurpose;
+
+        return $result;
     }
 
     public function isPlatformMode(): bool

@@ -142,17 +142,41 @@ test('CA-BO-028: BackofficeEscritura que sí escribe en admin_action_logs no lan
     Auth::guard('platform')->logout();
 });
 
-// CA-BO-028 (segunda parte, ADR-046 §6.5): también lanza si el callback
-// ya había lanzado — after() se llama en el finally.
-test('CA-BO-028: la regla de cierre corre también cuando el callback lanza', function (): void {
+// CA-BO-028 (segunda parte, ADR-046 §6.5) — **corregido en 1.6c**, hallazgo
+// propio de severidad Alta (ver docblock de
+// `TenantContext::runAsPlatform()`): antes de este cambio, `after()` se
+// llamaba incondicionalmente en el `finally`, así que un bloque que
+// fallaba ANTES de escribir nada quedaba enmascarado por el
+// `RuntimeException` de "sin rastro" — convirtiendo, por ejemplo, un
+// `422` de validación limpio de `REQ-BO-002` (esencial, retirado,
+// dependencias sin confirmar, estado del tenant que ya no admite
+// escritura — RN-BO-65/66/67/71, todos legítimos DENTRO del bloque, sin
+// escribir nada) en un `500` de plataforma confuso. Un bloque que falla
+// no "termina": su transacción se revierte, y exigirle un rastro de algo
+// que nunca se comprometió no tiene sentido — `after()` existe para
+// atrapar el caso opuesto, un bloque que sí escribe y se olvida de
+// auditarlo (comprobado arriba, "BackofficeEscritura que sí escribe...
+// no lanza"). Ahora la excepción original propaga intacta y `after()` ni
+// siquiera se invoca.
+test('CA-BO-028: si el callback lanza, la excepción original propaga y no se enmascara con la regla de cierre', function (): void {
     $admin = makePlatformAdminForAccessCheck();
     Auth::guard('platform')->login($admin);
 
     $context = app(TenantContext::class);
+    $checkpoint = (int) (AdminActionLog::query()->max('id') ?? 0);
 
     expect(fn () => $context->runAsPlatform(PlatformAccessPurpose::BackofficeEscritura, function (): void {
         throw new DomainException('fallo del callback');
-    }))->toThrow(RuntimeException::class);
+    }))->toThrow(DomainException::class, 'fallo del callback');
+
+    // No sólo la excepción es la correcta: after() de verdad no corrió
+    // (si hubiera corrido sin escribir nada, habría lanzado su propio
+    // RuntimeException en vez de dejar pasar el DomainException de arriba).
+    expect((int) (AdminActionLog::query()->max('id') ?? 0))->toBe($checkpoint);
+
+    // El estado de plataforma queda restaurado igual que antes del
+    // cambio: un fallo no debe dejar `isPlatformMode()` a true.
+    expect($context->isPlatformMode())->toBeFalse();
 
     Auth::guard('platform')->logout();
 });
