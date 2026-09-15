@@ -25,6 +25,31 @@ class ModuleSubscription extends TenantModel implements Auditable
     use HasPublicId;
     use RecordsAuditTrail;
 
+    /**
+     * `RN-BO-82`, `datos.md §7.7` (1.6c): columnas que el `GRANT SELECT`
+     * por columnas concede a `plataforma_app` tras el `REVOKE SELECT` de
+     * tabla — `reason`, `created_by` y `updated_by` quedan fuera. Todo
+     * `SELECT` de esta tabla alcanzable desde el *runtime* de un centro
+     * debe proyectar exactamente esta lista, nunca `SELECT *`: sin
+     * proyección explícita, el motor lo rechaza por falta de privilegio
+     * de columna (`CA-BO-147`).
+     *
+     * @var list<string>
+     */
+    public const TENANT_VISIBLE_COLUMNS = [
+        'id',
+        'tenant_id',
+        'public_id',
+        'module_code',
+        'enabled',
+        'enabled_at',
+        'disabled_at',
+        'settings',
+        'created_at',
+        'updated_at',
+        'deleted_at',
+    ];
+
     /** @var array<int, string> */
     protected array $auditRecordedAttributes = [];
 

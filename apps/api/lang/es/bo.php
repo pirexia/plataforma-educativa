@@ -40,6 +40,15 @@ return [
             'cloned' => 'Copiado al clonar el centro de origen.',
         ],
     ],
+    // REQ-BO-002 (1.6c): catálogo de errores de contratación de módulos.
+    'module' => [
+        'essential' => 'El módulo «:module_code» es esencial: no se puede contratar ni descontratar.',
+        'retired' => 'El módulo «:module_code» ya no existe en el catálogo: no se puede contratar.',
+        'reason_required' => 'El motivo es obligatorio y no puede estar vacío.',
+        'tenant_state_invalid' => 'El centro está en un estado que no admite escritura de módulos.',
+        'missing_dependencies' => 'Faltan dependencias por contratar: :modules. Confirma el arrastre para continuar.',
+        'dependent_modules' => 'Otros módulos dependen de éste: :modules. Confirma el arrastre para continuar.',
+    ],
     // Issue #173. Correo de invitación de un administrador de plataforma.
     'mail' => [
         'invitation' => [

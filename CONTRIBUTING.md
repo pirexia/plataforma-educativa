@@ -1,6 +1,6 @@
 # CONTRIBUTING.md
 
-> **Versión 0.1.0** · 2026-08-18
+> **Versión 0.2.0** · 2026-09-15
 > Estilo de código, flujo de trabajo Git y revisión de código. Extraído de `CLAUDE.md`, que es la fuente de verdad si algo difiere.
 
 ---
@@ -69,6 +69,21 @@ Larastan infiere las propiedades mágicas de un modelo Eloquent escaneando `Sche
 5. Revisión de código (sección 2) antes de mezclar.
 
 Un módulo no se cierra sin su documentación actualizada — forma parte de la definición de terminado (`CLAUDE.md` §10), no es una tarea posterior.
+
+### 4.1 Declarar dependencias entre módulos y módulos esenciales (`REQ-BO-002`, `ADR-045`)
+
+En `moduleDescriptor()` del `ServiceProvider` de tu módulo (implementa `App\Support\Modules\DeclaresModuleRegistry`), además de `code`/`name_key`/`phase`:
+
+- **`depends_on`** (opcional, por omisión `[]`): lista de códigos de módulo de los que el tuyo depende. Contratar tu módulo arrastra automáticamente estas dependencias en la misma transacción.
+- **`essential`** (opcional, por omisión `false`): márcalo `true` solo si tu módulo es imprescindible para que el producto funcione en absoluto (como `core`/`auth`). Un esencial está siempre disponible, no aparece en el cierre de dependencias de nadie, y **no tiene conmutador**: ni se contrata ni se descontrata (`RN-BO-65`).
+
+`php artisan platform:sync-registry` **aborta el despliegue, sin escribir nada**, si:
+
+1. `depends_on` referencia un código que no existe en el catálogo declarado.
+2. El grafo de `depends_on` tiene un ciclo.
+3. Un módulo `essential: true` declara `depends_on` de un módulo no esencial — ningún esencial tiene fila de suscripción que una escritura pueda proteger, así que la única defensa posible es el despliegue (`RN-BO-64`).
+
+Ninguna de las dos claves se materializa en la tabla `modules`: se leen del descriptor, resuelto una sola vez por proceso desde los `ServiceProvider` ya registrados por el contenedor — nunca por escaneo de ficheros ni por consulta a base de datos en el camino de petición (`RN-BO-63`).
 
 ## 5. Gestión de incidencias
 

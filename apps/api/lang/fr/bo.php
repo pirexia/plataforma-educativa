@@ -36,6 +36,15 @@ return [
             'cloned' => 'Copié lors du clonage de l\'établissement source.',
         ],
     ],
+    // REQ-BO-002 (1.6c) : catalogue d'erreurs de la contractualisation des modules.
+    'module' => [
+        'essential' => 'Le module « :module_code » est essentiel : il ne peut être ni souscrit ni résilié.',
+        'retired' => 'Le module « :module_code » n\'existe plus dans le catalogue : il ne peut pas être souscrit.',
+        'reason_required' => 'Le motif est obligatoire et ne peut pas être vide.',
+        'tenant_state_invalid' => 'L\'établissement est dans un état qui n\'autorise pas l\'écriture de modules.',
+        'missing_dependencies' => 'Des dépendances restent à souscrire : :modules. Confirmez l\'entraînement pour continuer.',
+        'dependent_modules' => 'D\'autres modules dépendent de celui-ci : :modules. Confirmez l\'entraînement pour continuer.',
+    ],
     // Issue #173. Courriel d'invitation d'un administrateur de plateforme.
     'mail' => [
         'invitation' => [

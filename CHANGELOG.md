@@ -6,6 +6,32 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-09-15 · `feature/REQ-BO-002-matriz-modulos-spec`
+
+Implementa el sub-paso `1.6c` (`REQ-BO-002`, matriz de módulos) sobre la especificación aprobada de `docs/modulos/REQ-BO/funcional.md §5.8`/`§7.3.1`/`§13.3.1`.
+
+### Añadido
+- `Core\Domain\ModuleCatalog`/`ModuleContracting` (`ADR-045 §4.5`/`§4.8`, `OPEN-BO-18`): lectura del catálogo de descriptores (`depends_on`, `essential`) y escritura de `module_subscriptions` en dos fases (`apply()`/`publish()`, forzado por `ADR-046 §6.4`), implementadas por `DeclaredModuleCatalog` y `ModuleContractingService`. Eventos de dominio `ModuleContracted`/`ModuleDecontracted`, emitidos siempre por `REQ-CORE` (`RMOD-010`).
+- `Backoffice\Application\ModuleSubscriptionsService`: capacidades, reautenticación (`OPEN-BO-17`), doble autorización de la descontratación masiva y `Idempotency-Key` de la masiva. Job `RunModuleRollout` (una transacción por centro, orden ascendente de `id`, un fallo no aborta el lote).
+- Cinco *endpoints* nuevos del backoffice: `GET /modules`, `GET /tenants/{id}/modules`, `POST /tenants/{id}/modules/preview`, `PUT /tenants/{id}/modules/{code}`, `POST /module-rollouts` y su vista previa.
+- `platform:sync-registry` gana tres validaciones que abortan el despliegue sin escribir nada: código de `depends_on` inexistente, ciclo en el grafo, y un esencial que dependa de uno no esencial (`RN-BO-64`).
+- Migración de privilegios de `module_subscriptions` (`REVOKE`/`GRANT` de `datos.md §7`/`§7.7`, `OPEN-BO-19` resuelta: el centro no lee `reason`).
+- `platform_idempotency_keys` (versión de plataforma de `idempotency_keys`, ver "Corregido" — issue [#216](https://github.com/pirexia/plataforma-educativa/issues/216)).
+
+### Corregido
+- **[#215](https://github.com/pirexia/plataforma-educativa/issues/215)** (Alta) — `TenantContext::runAsPlatform(BackofficeEscritura)` enmascaraba con su propio `RuntimeException` de cierre cualquier excepción de negocio lanzada dentro del bloque antes de escribir en `admin_action_logs` — convertía, por ejemplo, un `422` de módulo esencial en un `500` de plataforma. `after()` ahora sólo se invoca en el camino de éxito.
+- **[#216](https://github.com/pirexia/plataforma-educativa/issues/216)** (Alta) — la instrucción de reutilizar `RequireIdempotencyKey`/`IdempotencyKey` para `POST /module-rollouts` resultó técnicamente inviable: esa primitiva es de tenant y el backoffice nunca tiene tenant activo. Se creó su versión de plataforma.
+- `CloneTenant`/tests existentes ajustados a la conexión `pgsql_platform` para `module_subscriptions`, consecuencia directa de la migración de privilegios (`ModuleSubscriptionsSchemaTest`, `SyncModuleRegistryTest`, `TenantCloneAndIsolationTest`).
+
+### Documentación
+- `docs/modulos/REQ-CORE/funcional.md §7`: `ModuleCatalog`/`ModuleContracting` añadidas a las interfaces públicas, con sus dos eventos.
+- `docs/modulos/REQ-CORE/permisos.md`: `modulo.actualizar` documenta que su alcance (`settings`) lo respalda un privilegio de columna, no solo la validación del controlador.
+- `SECURITY.md`, `SYSADMIN.md`, `CONTRIBUTING.md` actualizados (aislamiento de módulos por `REVOKE`, procedimiento de despliegue, cómo declarar `depends_on`/`essential`).
+
+**Verificado**: suite completa de `tests/Feature/Backoffice`, `tests/Feature/Core`, `tests/Feature/Authorization` y `tests/Feature/Tenancy` en verde (328/328), Pint y Larastan limpios. Ver el mensaje del último commit de esta rama para el número exacto de la suite completa del repositorio.
+
+---
+
 ## 2026-09-15 · `fix/REQ-BO-001-condiciones-de-carrera`
 
 Cierra el hilo abierto por `chore/codex-plugin-integracion` (2026-09-14): los tres bugs reales de condición de carrera que `/codex:review` encontró sobre el diff ya cerrado de `1.6b` (issues #205, #206, #207), corregidos con revisión independiente completa.

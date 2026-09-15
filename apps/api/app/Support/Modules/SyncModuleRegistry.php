@@ -27,16 +27,23 @@ final class SyncModuleRegistry
      */
     public static function run(array $providerClasses): void
     {
+        $providers = array_values(array_filter(
+            array_map(static fn (string $class) => new $class(app()), $providerClasses),
+            static fn ($provider): bool => $provider instanceof DeclaresModuleRegistry,
+        ));
+
+        // `RN-BO-64` (1.6c): las tres validaciones de `depends_on`
+        // corren en una pasada previa, sobre el catálogo **completo**
+        // declarado, y antes de escribir una sola fila — "aborta el
+        // despliegue y no escribe nada" (`CA-BO-034`, `CA-BO-035`,
+        // `CA-BO-129`) sólo es cierto si nada se ha escrito todavía
+        // cuando se detecta el problema.
+        self::validateDependencyGraph($providers);
+
         $declaredModuleCodes = [];
         $declaredPermissionCodes = [];
 
-        foreach ($providerClasses as $providerClass) {
-            $provider = new $providerClass(app());
-
-            if (! $provider instanceof DeclaresModuleRegistry) {
-                continue;
-            }
-
+        foreach ($providers as $provider) {
             $module = $provider->moduleDescriptor();
             $declaredModuleCodes[] = $module['code'];
 
@@ -71,6 +78,106 @@ final class SyncModuleRegistry
             ->whereNotIn('code', $declaredPermissionCodes)
             ->whereNull('retired_at')
             ->update(['retired_at' => now()]);
+    }
+
+    /**
+     * `ADR-045 §4.5`, `RN-BO-64`. Tres comprobaciones, mismo precedente
+     * exacto que `encodeApplicableScopes()`: excepción, sin escribir
+     * nada, despliegue detenido.
+     *
+     * @param  list<DeclaresModuleRegistry>  $providers
+     */
+    private static function validateDependencyGraph(array $providers): void
+    {
+        /** @var array<string, array{depends_on: list<string>, essential: bool}> $descriptors */
+        $descriptors = [];
+
+        foreach ($providers as $provider) {
+            $module = $provider->moduleDescriptor();
+            $descriptors[$module['code']] = [
+                'depends_on' => $module['depends_on'] ?? [],
+                'essential' => $module['essential'] ?? false,
+            ];
+        }
+
+        // 1. Todo código de `depends_on` existe en el catálogo
+        //    **declarado** (CA-BO-034), no en la tabla `modules`, que
+        //    puede tener retirados.
+        foreach ($descriptors as $code => $descriptor) {
+            foreach ($descriptor['depends_on'] as $dependency) {
+                if (! isset($descriptors[$dependency])) {
+                    throw new InvalidArgumentException(
+                        "El módulo «{$code}» declara depends_on «{$dependency}», que no existe en el ".
+                        'catálogo declarado (ADR-045 §4.5). platform:sync-registry aborta.'
+                    );
+                }
+            }
+        }
+
+        // 2. El grafo no tiene ciclos, y el error nombra el ciclo
+        //    (CA-BO-035).
+        foreach (array_keys($descriptors) as $code) {
+            $cycle = self::findCycle($code, $descriptors, []);
+
+            if ($cycle !== null) {
+                throw new InvalidArgumentException(
+                    'El grafo de depends_on tiene un ciclo: '.implode(' -> ', $cycle).
+                    ' (ADR-045 §4.5). platform:sync-registry aborta.'
+                );
+            }
+        }
+
+        // 3. Un esencial no declara dependencias de módulos no
+        //    esenciales (CA-BO-129, RN-BO-64) — derivada, no escrita en
+        //    ADR-045: un esencial devuelve `true` sin fila (§4.9) y por
+        //    tanto ninguna escritura puede protegerlo si dependiera de
+        //    algo descontratable (§4.5).
+        foreach ($descriptors as $code => $descriptor) {
+            if (! $descriptor['essential']) {
+                continue;
+            }
+
+            foreach ($descriptor['depends_on'] as $dependency) {
+                if (! $descriptors[$dependency]['essential']) {
+                    throw new InvalidArgumentException(
+                        "El módulo esencial «{$code}» declara depends_on del módulo no esencial ".
+                        "«{$dependency}» (RN-BO-64): ninguna escritura podría protegerlo, porque un ".
+                        'esencial no tiene fila que bloquear. platform:sync-registry aborta.'
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, array{depends_on: list<string>, essential: bool}>  $descriptors
+     * @param  list<string>  $path
+     * @return list<string>|null
+     */
+    private static function findCycle(string $code, array $descriptors, array $path): ?array
+    {
+        if (in_array($code, $path, true)) {
+            return [...$path, $code];
+        }
+
+        $path[] = $code;
+
+        foreach ($descriptors[$code]['depends_on'] ?? [] as $dependency) {
+            if (! isset($descriptors[$dependency])) {
+                // Código inexistente: ya lo reporta la validación 1, y
+                // seguir el rastro aquí produciría un mensaje de ciclo
+                // confuso sobre un problema distinto.
+                continue;
+            }
+
+            $cycle = self::findCycle($dependency, $descriptors, $path);
+
+            if ($cycle !== null) {
+                return $cycle;
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -48,4 +48,14 @@ enum PlatformCapability: string
     // aprobación se rige por la capacidad de la acción autorizada
     // (permisos.md §5.2).
     case AutorizacionLeer = 'autorizacion.leer';
+
+    // 1.6c: permisos.md §3, §4.4. Una sola capacidad para las dos
+    // direcciones individuales (contratar/descontratar) — quien
+    // contrata tiene que poder deshacerlo (permisos.md §4.4 punto 1).
+    // `modulo.contratar_masivo` existe aparte aunque hoy reparta a los
+    // mismos roles: la diferencia de alcance (un centro frente a
+    // doscientos) es real (permisos.md §4.4 punto 2).
+    case ModuloLeer = 'modulo.leer';
+    case ModuloContratar = 'modulo.contratar';
+    case ModuloContratarMasivo = 'modulo.contratar_masivo';
 }

@@ -36,6 +36,15 @@ return [
             'cloned' => 'Beim Klonen der Ursprungsschule kopiert.',
         ],
     ],
+    // REQ-BO-002 (1.6c): Fehlerkatalog für die Modulvertragsverwaltung.
+    'module' => [
+        'essential' => 'Das Modul „:module_code“ ist wesentlich: Es kann weder beauftragt noch gekündigt werden.',
+        'retired' => 'Das Modul „:module_code“ existiert nicht mehr im Katalog: Es kann nicht beauftragt werden.',
+        'reason_required' => 'Der Grund ist erforderlich und darf nicht leer sein.',
+        'tenant_state_invalid' => 'Die Schule befindet sich in einem Status, der keine Modulschreibvorgänge zulässt.',
+        'missing_dependencies' => 'Es fehlen noch zu beauftragende Abhängigkeiten: :modules. Bestätige die Übernahme, um fortzufahren.',
+        'dependent_modules' => 'Andere Module hängen von diesem ab: :modules. Bestätige die Übernahme, um fortzufahren.',
+    ],
     // Issue #173. Einladungs-E-Mail für einen Plattform-Administrator.
     'mail' => [
         'invitation' => [

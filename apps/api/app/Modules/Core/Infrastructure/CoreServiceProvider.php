@@ -3,6 +3,7 @@
 namespace App\Modules\Core\Infrastructure;
 
 use App\Models\PermissionRole;
+use App\Modules\Core\Application\ModuleContractingService;
 use App\Modules\Core\Application\ProvisionTenantDefaults;
 use App\Modules\Core\Domain\AuditoriaPropiosScopeResolver;
 use App\Modules\Core\Domain\AuditQuery;
@@ -13,6 +14,8 @@ use App\Modules\Core\Domain\Models\DataExport;
 use App\Modules\Core\Domain\Models\TenantSetting;
 use App\Modules\Core\Domain\Models\UserImport;
 use App\Modules\Core\Domain\Models\UserInvitation;
+use App\Modules\Core\Domain\ModuleCatalog;
+use App\Modules\Core\Domain\ModuleContracting;
 use App\Modules\Core\Domain\TenantProvisioner;
 use App\Modules\Core\Domain\TenantSettingsReader;
 use App\Modules\Core\Domain\UserDirectory;
@@ -53,6 +56,13 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         // interfaz que consume App\Support\Authorization sin importar nada
         // de este módulo (INV-007).
         $this->app->bind(ModuleAvailability::class, EloquentModuleAvailability::class);
+
+        // funcional.md §5.8.2, OPEN-BO-18 (1.6c): singleton porque
+        // DeclaredModuleCatalog memoiza el catálogo una sola vez por
+        // proceso (RN-BO-63) — un `bind()` normal crearía una instancia
+        // nueva (y por tanto una memoización nueva) en cada resolución.
+        $this->app->singleton(ModuleCatalog::class, DeclaredModuleCatalog::class);
+        $this->app->bind(ModuleContracting::class, ModuleContractingService::class);
     }
 
     public function boot(): void
@@ -105,10 +115,15 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
 
     public function moduleDescriptor(): array
     {
+        // RN-BO-63, CA-BO-036 (1.6c): `essential: true` sustituye a la
+        // entrada de `core` en `ALWAYS_ENABLED` de
+        // `EloquentModuleAvailability`, que desaparece con este cambio.
         return [
             'code' => 'core',
             'name_key' => 'modules.core',
             'phase' => '1',
+            'depends_on' => [],
+            'essential' => true,
         ];
     }
 
