@@ -11,6 +11,7 @@ use App\Modules\Backoffice\Domain\Models\PlatformAdminMfaFactor;
 use App\Modules\Backoffice\Domain\Models\PlatformAdminMfaRecoveryCode;
 use App\Modules\Backoffice\Domain\Models\PlatformAdminRole;
 use App\Modules\Backoffice\Domain\Models\PlatformAdminSession;
+use App\Modules\Backoffice\Domain\Models\PlatformIdempotencyKey;
 use App\Modules\Backoffice\Domain\Models\PlatformIpAllowlistEntry;
 use App\Modules\Backoffice\Domain\Models\TenantLifecycleEvent;
 use App\Support\Tenancy\Tenant;
@@ -194,6 +195,12 @@ test('los modelos Eloquent de app/Modules extienden TenantModel', function (): v
         // fila no pertenece a ningún tenant: es la historia de la
         // máquina de estados de un centro, escrita por el proveedor.
         TenantLifecycleEvent::class,
+        // REQ-BO-002 (1.6c): mismo motivo que PlatformAdmin y el resto de
+        // esta lista — `platform_idempotency_keys` es tabla de
+        // plataforma, sin tenant_id (ver el docblock de su migración
+        // para el porqué exacto: la versión de tenant, `IdempotencyKey`,
+        // exige contexto de tenant activo, que el backoffice no tiene).
+        PlatformIdempotencyKey::class,
     ];
 
     $modulesPath = base_path('app/Modules');
