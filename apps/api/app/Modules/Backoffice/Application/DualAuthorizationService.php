@@ -28,6 +28,7 @@ final class DualAuthorizationService
     public function __construct(
         private readonly AdminActionLogRecorder $recorder,
         private readonly TenantLifecycleService $tenantLifecycle,
+        private readonly ModuleSubscriptionsService $moduleSubscriptions,
     ) {}
 
     public function approve(DualAuthorization $authorization, PlatformAdmin $approver, ?string $resolutionReason): DualAuthorization
@@ -140,6 +141,11 @@ final class DualAuthorizationService
             DB::connection('pgsql_platform')->transaction(function () use ($authorization): void {
                 match ($authorization->action) {
                     DualAuthorizationAction::TenantEliminar => $this->tenantLifecycle->executeApprovedDeletion($authorization),
+                    // RN-BO-80: "ejecutar" aquí significa encolar el
+                    // lote, no aplicarlo — el resultado de las N
+                    // operaciones vive en `admin_action_logs`, no en el
+                    // estado de esta solicitud.
+                    DualAuthorizationAction::ModuloDescontratarMasivo => $this->moduleSubscriptions->executeApprovedBulkDecontract($authorization),
                     default => throw new LogicException(
                         "Ejecución no implementada todavía para {$authorization->action->value}."
                     ),

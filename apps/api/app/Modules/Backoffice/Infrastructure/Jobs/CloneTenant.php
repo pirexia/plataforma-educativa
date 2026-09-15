@@ -70,16 +70,33 @@ class CloneTenant implements ShouldQueue
      * funcional.md §5.6.2: se copian **con `enabled_at = now()`** y un
      * `reason` propio que dice que vienen de un clon — nunca
      * `enabled_at`/`disabled_at` del origen. `ADR-045 §4.1`: el
-     * backoffice es el único escritor de esta tabla; hasta que `1.6c`
-     * aplique el `REVOKE`/`GRANT` de columna de `datos.md §7`, la
-     * escritura normal por `runFor()` (RLS ordinaria) sigue siendo
-     * correcta.
+     * backoffice es el único escritor de esta tabla.
+     *
+     * **`1.6c`, hallazgo de severidad Alta corregido en este mismo
+     * cambio** (issue de esta migración de privilegios, ver commit):
+     * antes de `1.6c`, este método leía y escribía `module_subscriptions`
+     * por `runFor()` normal (conexión `pgsql`, rol `plataforma_app`), y
+     * era correcto porque ese rol todavía tenía `INSERT`/`UPDATE`/`SELECT`
+     * completos sobre la tabla. La migración de `datos.md §7`/`§7.7` se
+     * los revoca, así que la escritura de esta clonación —que sigue sin
+     * pasar por `ModuleContracting` (funcional.md §5.8.2: el sembrado
+     * inicial de un clon no es "contratar/descontratar")— rompería en
+     * seco: ni podría leer con `SELECT *` ni podría escribir. La
+     * corrección es forzar la conexión a `pgsql_platform`
+     * (`ModuleSubscription::on(...)`, sin necesidad y sin poder entrar
+     * en `runAsPlatform()`: es un trabajo en cola sin sesión de
+     * administrador, y `BackofficeEscritura`/`BackofficeLectura` la
+     * exigen) permaneciendo en modo de tenant normal vía `runFor()`, para
+     * que `TenantScope` siga filtrando por el tenant correcto y
+     * `AuditRecorder` siga auditando esta escritura con normalidad —
+     * exactamente el comportamiento de antes de `1.6c`, ahora sobre la
+     * conexión que conserva privilegio completo.
      */
     private function cloneModuleSubscriptions(TenantContext $tenantContext, int $sourceTenantId, int $targetTenantId): void
     {
         $subscriptions = $tenantContext->runFor(
             $sourceTenantId,
-            fn () => ModuleSubscription::query()->where('enabled', true)->get(),
+            fn () => ModuleSubscription::on('pgsql_platform')->where('enabled', true)->get(),
         );
 
         if ($subscriptions->isEmpty()) {
@@ -106,7 +123,7 @@ class CloneTenant implements ShouldQueue
                     // el clon sin recuperación posible por ese camino.
                     // Idempotente: repetir esta llamada con los mismos
                     // datos no duplica ni cambia nada.
-                    ModuleSubscription::query()->updateOrCreate(
+                    ModuleSubscription::on('pgsql_platform')->updateOrCreate(
                         ['module_code' => $subscription->module_code],
                         [
                             'enabled' => true,
