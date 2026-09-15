@@ -6,6 +6,34 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-09-15 · `fix/REQ-BO-001-condiciones-de-carrera`
+
+Cierra el hilo abierto por `chore/codex-plugin-integracion` (2026-09-14): los tres bugs reales de condición de carrera que `/codex:review` encontró sobre el diff ya cerrado de `1.6b` (issues #205, #206, #207), corregidos con revisión independiente completa.
+
+### Corregido: tres condiciones de carrera en el ciclo de vida de tenants y la doble autorización
+- **#205** — `DualAuthorizationService::approve()`/`reject()` comprobaban `guardResolvable()` solo sobre el modelo cargado en memoria, antes de abrir la transacción. Dos resoluciones concurrentes de la misma solicitud podían pasar la comprobación cada una por su lado; la que escribía en último lugar ganaba en silencio, pudiendo dejar una eliminación ya ejecutada marcada como rechazada. Corregido con `lockForUpdate()` + repetir la comprobación dentro de la transacción.
+- **#206** — `CloneTenant::cloneModuleSubscriptions()` insertaba con `create()` en un bucle sin idempotencia. Un fallo a mitad del bucle dejaba las filas anteriores comprometidas, y un reintento de `bo:retry-provisioning` violaba `module_subscriptions_tenant_module_unique` sin posibilidad de recuperación. Corregido con `updateOrCreate()`.
+- **#207** — `TenantLifecycleService::executeSimpleTransition()` no volvía a comprobar el estado del tenant dentro de su transacción. Dos transiciones concurrentes sobre el mismo tenant podían aplicarse las dos, dejando `tenant_lifecycle_events` con una fila que no partió del estado que dice partir. Corregido con `lockForUpdate()` + recomprobación.
+
+Los tres tests de regresión reproducen el escenario exacto sin hilos reales (dos copias en memoria de la misma fila), y se confirmó explícitamente que cada uno falla sin su arreglo antes de darlo por bueno (revertido y reejecutado uno a uno).
+
+### Corregido: dos condiciones de carrera más, encontradas por la propia revisión independiente
+- **#209** (Crítica, `db-reviewer` y `security-reviewer` de forma independiente) — `TenantLifecycleService::executeApprovedDeletion()` tenía el mismo defecto que #207 pero en la ejecución real de la eliminación, el camino más sensible del módulo: leía el tenant sin bloqueo, así que un rescate (`en_baja → activo`) podía colarse entre la comprobación de `RN-BO-20` y el `save()`, ejecutando la eliminación sobre un tenant recién rescatado. Corregido con el mismo patrón `lockForUpdate()`.
+- **#210** (Media, `db-reviewer`) — `ExpireDualAuthorizations::handle()` listaba las solicitudes vencidas sin bloquear ninguna fila; una resolución concurrente justo antes de que le tocara el turno quedaba sobrescrita con `caducada`, corrompiendo el rastro de auditoría de una acción destructiva. Corregido con `lockForUpdate()` por fila dentro de su propia transacción. Añadida su primera cobertura de test (no tenía ninguna).
+
+No cubren la ventana exacta de estas dos últimas carreras con un test de regresión: a diferencia de las tres primeras, exigen dos transacciones solapadas de verdad (el defecto está en el hueco entre la lectura y la escritura de un único método, no en dos operaciones públicas independientes), y este arnés de tests no tiene la infraestructura para simularlo de forma fiable — dicho explícitamente en vez de fingir una prueba que no demuestra nada.
+
+### Documentado, sin corregir (Baja, `CLAUDE.md §5`)
+- **#211** — `CheckGracePeriodsCommand` tiene el mismo patrón de lectura sin bloqueo, pero su único efecto es un campo informativo sin consecuencia sobre el ciclo de vida real.
+- Ausencia de `lock_timeout`/`statement_timeout` en las conexiones `pgsql`/`pgsql_platform` (preexistente, sistémico, no introducido por esta rama): si una transacción que sostiene un `lockForUpdate()` se queda colgada, una petición sobre la misma fila queda bloqueada indefinidamente. No bloquea este merge.
+
+### Documentación: mecanismo de bloqueo de fila documentado por primera vez
+`docs/modulos/REQ-BO/datos.md §3.3`/`§6.4` y `permisos.md` ganan la misma nota que ya existía para `RN-BO-11` («esto no se puede expresar con un `CHECK`, se implementa con bloqueo de fila») aplicada a `RN-BO-12`, `RN-BO-19` y `RN-BO-20` — el módulo ya tenía el precedente de documentar este tipo de mecanismo cuando protege una invariante, y no lo había hecho para estos tres.
+
+**Verificado**: 88/88 Pest de `tests/Feature/Backoffice/` en verde, Pint limpio (773 ficheros), Larastan sin errores. Revisión independiente completa (`db-reviewer`/`security-reviewer`/`doc-reviewer`) sobre los tres arreglos originales; los dos adicionales (#209, #210) no pasaron una segunda ronda completa de revisión —se aplicó el mismo patrón ya validado por los propios revisores para el caso análogo—, dicho explícitamente.
+
+---
+
 ## 2026-09-14 · `chore/codex-plugin-integracion`
 
 Origen: instalar `openai/codex-plugin-cc` (plugin oficial de OpenAI, Apache-2.0) como segunda opinión de revisión contra la cuota de OpenAI, no la del plan Pro. `ADR-049` (nuevo, ACEPTADA) decide el mecanismo completo.
