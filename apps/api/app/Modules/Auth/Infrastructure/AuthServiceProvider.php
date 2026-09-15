@@ -240,10 +240,15 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
 
     public function moduleDescriptor(): array
     {
+        // RN-BO-63, CA-BO-036 (1.6c): `essential: true` sustituye a la
+        // entrada de `auth` en `ALWAYS_ENABLED` de
+        // `EloquentModuleAvailability`, que desaparece con este cambio.
         return [
             'code' => 'auth',
             'name_key' => 'modules.auth',
             'phase' => '1',
+            'depends_on' => [],
+            'essential' => true,
         ];
     }
 
