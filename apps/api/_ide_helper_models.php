@@ -1844,6 +1844,26 @@ namespace App\Modules\Backoffice\Domain\Models{
 
 namespace App\Modules\Backoffice\Domain\Models{
 /**
+ * `ADR-038 §8` (1.6c). Versión de plataforma de `App\Models\
+ * IdempotencyKey` — ver el docblock de la migración para el porqué de
+ * que exista una segunda tabla en vez de reutilizar la de tenant: esa es
+ * `TenantModel` y exige contexto de tenant activo, que el backoffice
+ * nunca tiene.
+ *
+ * Sin `public_id` (nunca se expone) y no auditable (registro técnico, no
+ * una entidad de negocio) — mismo criterio que su homóloga de tenant.
+ *
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformIdempotencyKey newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformIdempotencyKey newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PlatformIdempotencyKey query()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperPlatformIdempotencyKey {}
+}
+
+namespace App\Modules\Backoffice\Domain\Models{
+/**
  * REQ-BO-007, datos.md §2.5. `cidr` nativo: el operador de contención lo
  * verifica el motor, no PHP analizando una máscara en cada petición.
  *
@@ -2173,6 +2193,10 @@ namespace App\Support\Tenancy{
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property string|null $suspension_message
+ * @property \Illuminate\Support\Carbon|null $suspended_at
+ * @property \Illuminate\Support\Carbon|null $grace_period_ends_at
+ * @property \Illuminate\Support\Carbon|null $grace_period_expired_at
  * @method static \Database\Factories\TenantFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant newQuery()
@@ -2180,11 +2204,15 @@ namespace App\Support\Tenancy{
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant query()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant whereCreatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant whereGracePeriodEndsAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant whereGracePeriodExpiredAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant whereName($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant wherePublicId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant whereSlug($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant whereSuspendedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant whereSuspensionMessage($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant withTrashed(bool $withTrashed = true)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Tenant withoutTrashed()

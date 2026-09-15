@@ -53,7 +53,7 @@ Los **ámbitos** son los de `RPERM-004`: `todos`, `propios`, `departamento`, `gr
 | `configuracion.leer` | `configuracion` | `leer` | `GET /tenant`, `GET /tenant/settings` | `todos` |
 | `configuracion.actualizar` | `configuracion` | `actualizar` | `PATCH /tenant/settings`, `PUT`/`DELETE /tenant/settings/assets/{kind}` | `todos` |
 | `modulo.leer` | `modulo` | `leer` | `GET /modules` | `todos` |
-| `modulo.actualizar` | `modulo` | `actualizar` | `PATCH /module-subscriptions/{id}` (solo `settings`) | `todos` |
+| `modulo.actualizar` | `modulo` | `actualizar` | `PATCH /module-subscriptions/{id}` (solo `settings`) — desde `1.6c` (`REQ-BO/datos.md §7`) ese alcance lo respalda un privilegio de columna (`GRANT UPDATE (settings, updated_at, updated_by, deleted_at)`), no sólo la validación de `ModulesController::updateSettings()`: un intento de escribir `enabled` lo rechaza el motor, no la aplicación | `todos` |
 | `auditoria.leer` | `auditoria` | `leer` | `GET /audit-logs` | `todos`, `propios` |
 | `auditoria.exportar` | `auditoria` | `exportar` | `POST /audit-logs/exports`, `GET /data-exports/{id}` de tipo `audit_logs` | `todos`, `propios` |
 
