@@ -149,6 +149,7 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
   Cerrado 2026-09-14: implementado, `ADR-048` ratificado, una pasada de revisión independiente (issues #196/#199-#203, Alta corregido, Media corregido, Baja documentado), 632/634 Pest en verde (2 restantes ajenos a este paso, issue #199). Detalle completo en `CHANGELOG.md`. Siguiente sub-paso: `1.6c` (matriz de módulos).
 - [ ] **1.6c · `REQ-BO`: matriz de módulos** [SONNET]
   `REQ-BO-002` completo según `ADR-045`: contratar/descontratar con motivo, dependencias como invariante de escritura (`depends_on`/`essential` en el descriptor, aborta el despliegue si hay ciclos), invalidación de caché de disponibilidad, eventos `ModuleContracted`/`ModuleDecontracted` emitidos por `REQ-CORE`, activación masiva.
+  Especificación aprobada 2026-09-15 (`docs/modulos/REQ-BO/funcional.md §15.3`): `RN-BO-63` a `82`, `CA-BO-128` a `148`, tres preguntas abiertas resueltas (`OPEN-BO-17` a `19`). Verificado que ninguno de los criterios previos de `ADR-045`/`§13.3` estaba ya satisfecho en código. Pendiente: implementación, en sesión nueva con `implementer`.
 - [ ] **1.6d · `REQ-BO`: salud y métricas de plataforma** [SONNET]
   `REQ-BO-004` y `REQ-BO-006` reducidos a lo observable sin `REQ-SAAS`/`REQ-ALUM`/`REQ-SUP` (fase 2): ficha de salud del tenant, reintento de jobs, métricas de adopción por módulo y de tenants por estado.
 - [ ] **1.6e · `REQ-BO`: motor de *feature flags*** [SONNET]

@@ -6,7 +6,7 @@
 | Prioridad | MUST |
 | Fase | 1 · Bloque A · **paso 1.6**, dividido en **cinco sub-pasos** por decisión del usuario del 2026-09-08 (§12) |
 | Depende de | `REQ-CORE` (1.1), `REQ-AUTH` (1.2/1.3), `REQ-PERM` (1.5), `ADR-033`, `ADR-034`, `ADR-035`, `ADR-036`, `ADR-038`, `ADR-044`, **`ADR-045`**, **`ADR-046`**, **`ADR-047`** |
-| Estado | **`1.6` (chasis): IMPLEMENTADA, cerrada y mezclada a `develop`** — especificación aprobada por el usuario el 2026-09-08 (`ADR-046`/`ADR-047` aplicados, `OPEN-BO-13` resuelta), revisada de forma independiente en dos pasadas (`db-reviewer`/`security-reviewer`/`doc-reviewer`, issues #173-#186), con todos los hallazgos Alta/Media corregidos (§15.1). · **`1.6b` (ciclo de vida de tenants, `REQ-BO-001`): APROBADA e IMPLEMENTADA, en revisión antes de mezclar** (§15.2) — añade `RN-BO-50` a `RN-BO-62`, `CA-BO-106` a `CA-BO-127` y tres preguntas abiertas nuevas (`OPEN-BO-14` a `OPEN-BO-16`), de las cuales **`ADR-048` (2026-09-11) cierra `OPEN-BO-15`** —contrato síncrono `TenantProvisioner` en `REQ-CORE`, dos métodos, sin evento— y con ella un incumplimiento de `INV-007` en la clonación que la especificación no había nombrado (§5.6.2). Cierra los issues [#7](https://github.com/pirexia/plataforma-educativa/issues/7) y [#27](https://github.com/pirexia/plataforma-educativa/issues/27). · `1.6c`, `1.6d` y `1.6e`: sin empezar |
+| Estado | **`1.6` (chasis): IMPLEMENTADA, cerrada y mezclada a `develop`** — especificación aprobada por el usuario el 2026-09-08 (`ADR-046`/`ADR-047` aplicados, `OPEN-BO-13` resuelta), revisada de forma independiente en dos pasadas (`db-reviewer`/`security-reviewer`/`doc-reviewer`, issues #173-#186), con todos los hallazgos Alta/Media corregidos (§15.1). · **`1.6b` (ciclo de vida de tenants, `REQ-BO-001`): IMPLEMENTADA, cerrada y mezclada a `develop`** el 2026-09-14 (PR [#204](https://github.com/pirexia/plataforma-educativa/pull/204), [#208](https://github.com/pirexia/plataforma-educativa/pull/208), [#212](https://github.com/pirexia/plataforma-educativa/pull/212); §15.2) — añadió `RN-BO-50` a `RN-BO-62`, `CA-BO-106` a `CA-BO-127` y tres preguntas abiertas nuevas (`OPEN-BO-14` a `OPEN-BO-16`), de las cuales **`ADR-048` (2026-09-11) cierra `OPEN-BO-15`** —contrato síncrono `TenantProvisioner` en `REQ-CORE`, dos métodos, sin evento— y con ella un incumplimiento de `INV-007` en la clonación que la especificación no había nombrado (§5.6.2). Cierra los issues [#7](https://github.com/pirexia/plataforma-educativa/issues/7) y [#27](https://github.com/pirexia/plataforma-educativa/issues/27). · **`1.6c` (matriz de módulos, `REQ-BO-002`): ESPECIFICADA Y APROBADA** (§15.3) el 2026-09-15, pendiente de implementación — añade `RN-BO-63` a `RN-BO-82`, `CA-BO-128` a `CA-BO-148` y tres preguntas abiertas nuevas (`OPEN-BO-17` a `OPEN-BO-19`), las tres resueltas. **Verificado que ninguno de los dieciséis criterios de §13.3 está satisfecho hoy** (§5.8.1). · `1.6d` y `1.6e`: sin empezar |
 | Módulo (código) | `bo` · `apps/api/app/Modules/Backoffice` · frontend **`apps/backoffice`**, SPA propia sin *bundle* compartido con `apps/web` (`ADR-046 §4.1`), **construida en el paso de interfaz posterior a `1.7`/`1.9`** (§12.5) |
 
 > Fuente de verdad: sección 5.51 de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` (`REQ-BO-001` a `REQ-BO-007`), más `RMOD-002`/`RMOD-006`, `RMT-007`, `REQ-CORE-001` y la sección 11.1. Desde el 2026-09-08, y sólo para `REQ-BO-005` puntos 1-2, también **`REQ-OPS-002`** (sección 5.49) y **`RARQ-DEP-010`** (sección 8).
@@ -496,7 +496,7 @@ Mecanismo **genérico y con vocabulario cerrado**, no una condición dentro de c
 
 Las cinco transiciones se escriben en `admin_action_logs`. **Solicitar no es aprobar, y aprobar no es ejecutar**: son tres eventos distintos y los tres se registran.
 
-### 5.8 Contratar y descontratar módulos (`REQ-BO-002`, `ADR-045`)
+### 5.8 Contratar y descontratar módulos (`REQ-BO-002`, `ADR-045`) · sub-paso `1.6c`
 
 **Contratar** un módulo `M` para un tenant `T`:
 
@@ -510,6 +510,192 @@ Las cinco transiciones se escriben en `admin_action_logs`. **Solicitar no es apr
 **Descontratar** es simétrico, con dos diferencias: un módulo **esencial** no se descontrata nunca (`422`), y si otros módulos contratados dependen de `M`, la vista previa los lista y la ejecución exige confirmación explícita — o se arrastran, o la operación se rechaza; no hay tercera vía que deje el grafo roto.
 
 **Activación masiva**: la misma operación sobre un conjunto de tenants. Se ejecuta **en cola** (`INV-012`), con `Idempotency-Key` obligatoria (`ADR-038 §8.1`, criterios 2 y 3: notifica a terceros y opera por lotes), y emite **un evento y un aviso por cada centro afectado**, nunca uno global (`ADR-045 §4.7`). Su vista previa dice, en número, cuántos centros pasan a tenerlo y cuántas dependencias arrastra. La **desactivación** masiva es acción destructiva y pasa por §5.7.
+
+> Lo anterior es el flujo tal como lo escribió la revisión del chasis, y **sigue siendo cierto entero**. Lo que falta para poder implementarlo —qué recibe cada *endpoint*, en qué transacción ocurre cada escritura, qué pasa cuando falla la invalidación o el evento, y qué impide que dos operaciones concurrentes dejen el grafo roto— es §5.8.1 a §5.8.9.
+
+#### 5.8.1 Estado real del código, verificado y no supuesto
+
+Verificado el **2026-09-15** sobre `develop` en `91adac6`, con el mismo método que §1 aplicó al chasis y §5.3 a `1.6b`. **La conclusión primero, porque contradice lo que parecía razonable suponer: de los dieciséis criterios de `§13.3` no hay ni uno satisfecho hoy.** Lo que sí existe son los precedentes sobre los que se construyen.
+
+| Pieza | Estado real |
+|---|---|
+| Tabla `module_subscriptions` | ✅ **Existe y no le falta ninguna columna.** `2026_08_18_100600_create_modules_table.php`, creada con `TenantMigration::tenantTable()`: `public_id` ULID, `module_code` (FK → `modules.code`), `enabled boolean DEFAULT false`, `enabled_at`, `disabled_at`, `reason`, `settings jsonb`, más `id`, `tenant_id`, `created_by`, `updated_by`, `timestamps` y `deleted_at`. Índice `UNIQUE (tenant_id, module_code) WHERE deleted_at IS NULL`. **`ADR-045 §4.2` —«este ADR no cambia el esquema»— sigue siendo literalmente cierto: `1.6c` no añade ni una columna** (`datos.md §7`) |
+| Modelo `ModuleSubscription` | ✅ Existe. `TenantModel`, `Auditable` con política `Full`, `$fillable` con los cinco campos de negocio |
+| Catálogo `modules` | ✅ Existe, con `REVOKE INSERT, UPDATE, DELETE … FROM plataforma_app, plataforma_platform` en su propia migración. Sólo lo escribe `SyncModuleRegistry` por `pgsql_owner` |
+| `SyncModuleRegistry` | ✅ Existe y **ya aborta el despliegue** ante un `applicable_scopes` fuera del vocabulario (`encodeApplicableScopes()`, `InvalidArgumentException`). **Es el precedente exacto**, línea a línea, de las validaciones que pide `ADR-045 §4.5` |
+| `moduleDescriptor()` | ⚠️ Devuelve **`{code, name_key, phase}` y nada más**. Búsqueda de `depends_on` en todo `apps/api`: **cero resultados**. `essential` aparece **una sola vez**, y es el comentario de `ALWAYS_ENABLED` |
+| Quién declara descriptor | **Dos módulos**: `CoreServiceProvider` (`core`) y `AuthServiceProvider` (`auth`). `BackofficeServiceProvider` **no** implementa la interfaz, a propósito (§10) |
+| `EloquentModuleAvailability` | ⚠️ `ALWAYS_ENABLED = ['core','auth']` escrita a mano, y `Cache::remember("modules:{$moduleCode}:enabled", 300, …)` **sin ningún `Cache::forget` en todo el repositorio** |
+| `ModuleContracted` / `ModuleDecontracted` | ❌ **Cero resultados.** No existen |
+| Privilegios de `module_subscriptions` | ❌ **Ninguna migración hace `REVOKE` ni `GRANT` sobre esa tabla.** Los privilegios por defecto de `01-tenancy.sql.tpl` siguen intactos: `plataforma_app` puede insertar, actualizar `enabled` y leer todas las columnas |
+| Superficie de backoffice para módulos | ❌ **No existe ninguna.** `app/Modules/Backoffice/Http/routes.php` no declara ni `/modules` ni `/module-rollouts`; no hay controlador con `Module` en el nombre en todo el módulo |
+| `DualAuthorizationAction` | ✅ **Ya admite `modulo.descontratar_masivo`**, en el *enum* y en el `CHECK` de la migración del chasis, **ya desplegado**. `1.6c` es quien le da su primer escritor |
+| Patrón de escritura concurrente | ✅ Existe y está probado: `DualAuthorizationService::approve()`/`reject()` y `TenantLifecycleService::executeSimpleTransition()`/`executeApprovedDeletion()` releen la fila con `lockForUpdate()` **dentro** de la transacción (issues #205, #207, #209, #210). Es el patrón que §5.8.5 aplica aquí **desde el principio, no como parche** |
+
+**Los dieciséis criterios de `§13.3`, uno a uno:**
+
+| Criterio | ¿Satisfecho hoy? | Prueba |
+|---|:---:|---|
+| `CA-BO-030`, `CA-BO-031` (privilegios) | **No** | No existe la migración de `datos.md §7` |
+| `CA-BO-032`, `CA-BO-033` (invalidación) | **No** | No hay `Cache::forget` y no hay camino de escritura |
+| `CA-BO-034`, `CA-BO-035` (`depends_on`) | **No** | `depends_on` no existe en ningún sitio |
+| `CA-BO-036` (`essential`) | **No** | `ALWAYS_ENABLED` sigue en `EloquentModuleAvailability:28` |
+| `CA-BO-037` a `CA-BO-045` | **No** | Ni los eventos ni los *endpoints* existen |
+
+> **Dos consecuencias sobre tests ya escritos, y la segunda no estaba nombrada en ninguna parte de esta especificación.** `ADR-045 §4.4` y `datos.md §7.3` avisan de que `ModuleSubscriptionsSchemaTest` inserta hoy por la conexión `pgsql` y tiene que pasar a `pgsql_platform` con el `REVOKE INSERT`. **`SyncModuleRegistryTest` hace exactamente lo mismo** —inserta una fila de `module_subscriptions` por `pgsql` dentro del contexto de un tenant, para comprobar que retirar un módulo del código conserva las suscripciones— y **también** tiene que cambiar de conexión. Que el segundo no estuviera nombrado es la forma concreta en que un `REVOKE` rompe un test que nadie relacionaba con él.
+
+#### 5.8.2 Dónde vive cada pieza, y por qué no puede vivir en el backoffice
+
+`ADR-045 §4.5` exige *«una sola implementación, en un servicio de dominio de `REQ-CORE`, consumida por la activación individual, por la masiva y por la vista previa»*, y `§4.8` que los dos eventos los emita *«el servicio de contratación de `REQ-CORE`, no el backoffice directamente»*. Traducido a la frontera de `INV-007`, y siguiendo el precedente **exacto** que `ADR-048` fijó para el aprovisionamiento —interfaz en `Core\Domain`, enlace en `CoreServiceProvider`, implementación dentro de `REQ-CORE`—:
+
+| Pieza | Dueño | Motivo |
+|---|---|---|
+| Catálogo de descriptores (`code`, `name_key`, `phase`, **`depends_on`**, **`essential`**) | `REQ-CORE` | Es lo que ya materializa `platform:sync-registry`, y lo consume `EloquentModuleAvailability` en cada petición |
+| Cierre de dependencias y detección de ciclos | `REQ-CORE` | `RN-BO-22`: una sola implementación. Dos —una en el backoffice para la vista previa y otra en el dominio para la escritura— es la forma conocida de que la vista previa mienta |
+| Escritura de `enabled`/`enabled_at`/`disabled_at`/`reason` | `REQ-CORE`, sobre `pgsql_platform` | La **potestad** es del backoffice (`ADR-045 §4.1`) y el **rol de base de datos** también; la **implementación** es de quien posee la tabla y el invariante |
+| Invalidación de `modules:{code}:enabled` | `REQ-CORE` | La clave la escribe `EloquentModuleAvailability`, que es suya. Quien inventa la clave la borra |
+| `ModuleContracted` / `ModuleDecontracted` | `REQ-CORE` | `ADR-045 §4.8`, `RMOD-010`: todo evento del ciclo de vida de un módulo pertenece a `REQ-CORE`, nunca al módulo afectado |
+| `admin_action_logs`, capacidades, reautenticación, doble autorización, `Idempotency-Key` | **`REQ-BO`** | Son su tabla y sus reglas. `REQ-CORE` no puede escribir `admin_action_logs` (`INV-007`) |
+
+**El contrato, con la forma de `ADR-048 §4.1`** (dos interfaces en `Core\Domain`, porque leer el catálogo y escribir una suscripción son dos capacidades con dos públicos distintos — el evaluador de permisos necesita la primera y no la segunda):
+
+```php
+namespace App\Modules\Core\Domain;
+
+interface ModuleCatalog          // lectura; la consume también EloquentModuleAvailability
+{
+    /** @return list<ModuleDescriptor> */
+    public function all(): array;
+    public function find(string $code): ?ModuleDescriptor;
+    /** Cierre transitivo hacia abajo, sin el propio $code y sin esenciales. */
+    public function dependenciesOf(string $code): array;
+    /** Módulos declarados que dependen, transitivamente, de $code. */
+    public function dependentsOf(string $code): array;
+}
+
+interface ModuleContracting      // escritura; sólo la consume REQ-BO
+{
+    public function preview(int $tenantId, ModuleChange $change): ModuleContractingPreview;
+    /** Fase 1: valida, bloquea, recalcula el cierre y escribe. No invalida ni emite. */
+    public function apply(int $tenantId, ModuleChange $change): ModuleContractingOutcome;
+    /** Fase 2: invalida la caché de cada centro y emite los eventos. Ver §5.8.6. */
+    public function publish(ModuleContractingOutcome $outcome): void;
+}
+```
+
+`ModuleChange` es un objeto de valor `{module_code, enabled, reason, cascade}`; `ModuleContractingOutcome` enumera **lo que de verdad cambió** —módulo a módulo, con la dirección y si fue principal o arrastrado— y es lo que `REQ-BO` recorre para escribir `admin_action_logs`. **Un `Outcome` vacío es un resultado legítimo y frecuente** (`RN-BO-69`): contratar lo ya contratado no cambia nada.
+
+> **Por qué `apply()` y `publish()` son dos métodos y no uno, que es la pregunta que va a hacer la revisión.** No es estilo: **lo fuerza `ADR-046 §6.4`.** La fase 1 corre dentro de `runAsPlatform(BackofficeEscritura, …)`, donde está **prohibido** que haya tenant activo; la invalidación necesita el prefijo `t{tenant_id}:` y por tanto necesita entrar en el contexto del centro con `runFor()`, que es justamente la combinación prohibida. Las dos cosas no caben en el mismo bloque, y §6.2.4 ya lo dejó escrito: *«la invalidación … se hace **fuera** del bloque de plataforma»*. Un contrato de un solo método obligaría a violar esa regla o a componer el prefijo a mano, que `operacion.md §4.2` prohíbe expresamente.
+
+**Ampliar otra vez la superficie pública de `REQ-CORE` es trabajo de `1.6c`** y se declara como tal, con la lista cerrada de lo que se toca, igual que hizo `ADR-048 §10`: dos interfaces y tres tipos nuevos en `Core\Domain`; dos claves nuevas en `DeclaresModuleRegistry::moduleDescriptor()`; la implementación en `Core\Infrastructure`; dos líneas de enlace en `CoreServiceProvider`; la retirada de `ALWAYS_ENABLED` de `EloquentModuleAvailability`; y las dos clases de evento en `Core\Domain\Events`. **No se toca ninguna migración, columna, *endpoint*, permiso ni regla de negocio de `REQ-CORE`.** Ver `OPEN-BO-18`.
+
+> **Una incoherencia interna de esta especificación, detectada al escribir lo anterior y corregida sólo en la redacción.** §9 dice, en su frontera con `REQ-CORE`: *«`REQ-BO` **no escribe `module_subscriptions` directamente**»*; §5.6.2 dice, sobre la clonación: *«**`module_subscriptions` es la excepción y la copia `REQ-BO`**»*, y así está implementado y mezclado desde `1.6b` (`CloneTenant` usa `ModuleSubscription::query()->updateOrCreate()`). **Las dos frases se refieren a operaciones distintas y ninguna decisión cambia**: la de §9 habla de **contratar y descontratar**, que es lo único que `ADR-045 §4.5`/`§4.8` manda al servicio de `REQ-CORE`; la de §5.6.2 habla del **sembrado inicial de un clon**, que copia un conjunto ya coherente y no emite eventos —el clon nace en `en_alta` y todavía no tiene un solo usuario al que avisar—. §9 queda redactada de forma que lo diga. **No se cambia `CloneTenant`**, y no es un hallazgo que corregir: es una frase de esta especificación que era más ancha que la decisión que describía.
+
+#### 5.8.3 `depends_on` y `essential`: qué valida el despliegue, y qué deja pasar
+
+Las dos claves entran en `moduleDescriptor()` con valor por omisión —`[]` y `false`— para que los dos módulos que declaran descriptor hoy sigan compilando sin tocarlos, salvo `core` y `auth`, que pasan a declarar `essential: true` y con ello **vacían `ALWAYS_ENABLED`** (`CA-BO-036`).
+
+`platform:sync-registry` gana **tres** validaciones, todas con la forma de la que ya existe para `applicable_scopes` —excepción, sin escribir nada, despliegue detenido— y **ninguna de ellas corrige nada**:
+
+| # | Validación | Motivo |
+|---|---|---|
+| 1 | Todo código de `depends_on` existe en el catálogo **declarado** (no en la tabla `modules`, que puede tener retirados) | `ADR-045 §4.5`. `CA-BO-034` |
+| 2 | El grafo no tiene ciclos, y el error **nombra el ciclo** | Ídem. `CA-BO-035` |
+| 3 | **Un módulo `essential` no declara dependencias de módulos no esenciales** | Derivada, y es la única de las tres que no está escrita en `ADR-045`. Sale de juntar sus dos frases: un esencial *«devuelve `true` sin necesidad de fila»* (`§4.9`) y *«ninguna escritura puede dejar un módulo contratado cuya dependencia no lo esté»* (`§4.5`). Un esencial que dependiera de algo descontratable sería un módulo siempre utilizable que se puede romper sin que nadie lo haya tocado, y **ninguna escritura lo impediría**, porque el esencial no tiene fila que bloquear. Se valida en el despliegue porque es el único sitio donde se puede (`RN-BO-64`) |
+
+**Lo que el comando sigue dejando pasar, y es correcto**: una arista nueva que deje centros incoherentes —`M` contratado y `N` no— **informa y no corrige** (`RN-BO-28`, `ADR-045 §4.5`). Contratar `N` en 200 centros es una decisión comercial facturable y no la toma un comando de despliegue. `1.6c` le da a esa incoherencia dos sitios donde verse: la ficha de `GET /tenants/{public_id}/modules` (`api.md §2.6.2`) y la señal de `operacion.md §7`.
+
+**El catálogo se resuelve una vez por proceso** (`RN-BO-63`). No es un detalle: `EloquentModuleAvailability::isEnabled()` corre en **cada petición de cada usuario de cada centro** —por `EnsureModuleEnabled` y por el filtro de inercia de `PermissionResolver` (`ADR-044 §4.9`)— y hoy resuelve `essential` con un `in_array` sobre una constante. Sustituir eso por un escaneo de ficheros (`ModuleServiceProviderDiscovery`, que es lo que usa el comando de consola) o por una consulta a `modules` sería cambiar una comparación en memoria por trabajo de disco o de base de datos en el camino más caliente del sistema. El catálogo se construye desde los `ServiceProvider` **ya registrados** por el contenedor, que Laravel arranca de todos modos.
+
+#### 5.8.4 Qué recibe cada *endpoint* y qué se valida, en orden
+
+Los cuerpos exactos están en `api.md §2.6`; aquí, el orden de comprobación, que es lo que decide qué error ve el operador cuando fallan dos cosas a la vez.
+
+**`PUT /tenants/{public_id}/modules/{module_code}`** — cuerpo `{enabled, reason, cascade}`:
+
+1. Capacidad `modulo.contratar` (`permisos.md §4.4`) y, con `enabled: false`, reautenticación viva (`OPEN-BO-17`).
+2. El tenant existe y **su estado admite escritura de módulos**: `activo`, `suspendido` y `en_baja` sí; `en_alta` y `eliminado` **no**, `409` (`RN-BO-71`).
+3. `reason` presente y no vacío, `422` (`RN-BO-24`).
+4. `module_code` existe en el catálogo declarado, `404` si no.
+5. El módulo **no es esencial**, en ninguna de las dos direcciones, `422` con `bo.module.essential` (`RN-BO-65`).
+6. Con `enabled: true`, el módulo **no está `retired_at`**, `422` con `bo.module.retired`. Con `enabled: false` sí se admite retirado (`RN-BO-70`).
+7. **A partir de aquí todo ocurre dentro de la transacción** (§5.8.5), porque el cierre de dependencias depende del estado real del tenant en ese instante y no del que tenía cuando se calculó la vista previa.
+
+**`POST /tenants/{public_id}/modules/preview`** hace del 2 al 6 y devuelve el cierre **sin escribir nada y sin bloquear nada** (`RN-BO-68`).
+
+**`POST /module-rollouts`** — cuerpo `{module_code, enabled, reason, cascade, tenant_public_ids[]}`:
+
+- Todo lo anterior, **más** `Idempotency-Key` obligatoria (`ADR-038 §8.1`) y capacidad `modulo.contratar_masivo`.
+- `tenant_public_ids` es una **lista explícita**, no vacía y sin duplicados. **No hay selector por filtro** (`RN-BO-81`): «todos los centros activos» lo compone el cliente desde `GET /tenants`, y eso es precisamente lo que hace que el conjunto se pueda congelar en una doble autorización y auditar después. Un filtro cambia de contenido entre la vista previa, la solicitud y la aprobación, y `RN-BO-20` congela parámetros, no consultas.
+- Las comprobaciones **por centro** —estado, si ya lo tiene, qué arrastra— **no se hacen aquí**: se hacen dentro del lote, centro a centro, y lo que no procede se **omite y se reporta** en vez de abortar el lote (`RN-BO-78`). Rechazar la petición entera porque uno de doscientos centros está `en_alta` convertiría una operación de rutina en un juego de adivinanzas.
+- Con `enabled: false`, **no se encola nada**: se crea la `dual_authorization` (§5.8.7).
+
+#### 5.8.5 La transacción, el bloqueo y por qué el bloqueo no va donde parece
+
+El cierre de dependencias se calcula sobre el conjunto de suscripciones del centro, y ese conjunto lo puede estar cambiando otra petición. El caso concreto que hay que impedir, y que ningún `CHECK` puede: **A contrata `M`, que depende de `N`; B descontrata `N` a la vez.** Las dos calculan su cierre sobre el mismo estado de partida, las dos lo pasan, y el resultado es `M` contratado sin `N` — exactamente lo que `RN-BO-22` dice que ninguna escritura puede producir.
+
+Es el mismo tipo de restricción que `datos.md §3.3` y `§6.4` resolvieron con `lockForUpdate()` tras los issues #205, #207, #209 y #210, y se aplica **desde el principio y no como parche posterior**. Con una diferencia que importa:
+
+> **El bloqueo no puede ir sobre las filas de `module_subscriptions`.** Contratar **crea** filas, y no se puede bloquear lo que todavía no existe: dos peticiones que contratan módulos distintos del mismo centro no se verían la una a la otra. El punto de serialización es la **fila de `tenants`** (`SELECT … FOR UPDATE`), que existe siempre y es única por centro. Es el mismo recurso que bloquea `TenantLifecycleService`, y que lo sea es una propiedad buscada: una eliminación no debe colarse en mitad de un cierre de dependencias, ni al revés.
+
+Orden dentro de la fase 1, sin margen:
+
+1. `runAsPlatform(PlatformAccessPurpose::BackofficeEscritura, …)` — con `hasTenant()` falso, que la primitiva exige (`§6.2.4`).
+2. `DB::transaction(…)`.
+3. `SELECT … FROM tenants WHERE id = ? FOR UPDATE`, y **releer el `status`** sobre esa lectura bloqueada: si dejó de admitir escritura entre el paso 2 de §5.8.4 y este, `409`.
+4. Leer el conjunto de `module_subscriptions` del centro **fijando `tenant_id` a mano** dentro del bloque, que es lo que el *docblock* de `BelongsToTenant` prescribe para modo plataforma.
+5. **Recalcular el cierre** sobre esa lectura. Si difiere de lo que el cliente confirmó, se aplica **el recálculo** y la respuesta dice lo que de verdad se hizo (`RN-BO-68`).
+6. Escribir `module_subscriptions` por `pgsql_platform`: `enabled`, `enabled_at` o `disabled_at`, y `reason` **literal del operador en todas las filas tocadas, arrastradas incluidas** (`RN-BO-72`).
+7. Escribir `admin_action_logs`: **una entrada por módulo cambiado**, con `affected_tenant_id`, y `cascaded_from` en `context` para las arrastradas.
+8. `COMMIT`, y cierre del bloque de plataforma.
+
+**Dos escrituras que el backoffice no hace, y hay que decirlo porque las dos parecen obligatorias:**
+
+- **`created_by` y `updated_by` se quedan nulos** (`RN-BO-73`). Son columnas de una tabla de tenant y referencian a `users` **de ese centro**; un administrador de plataforma no es un usuario de ningún centro (`RN-BO-01`), y escribir ahí su identificador sería la referencia de otra persona con el mismo número. **Verificado el 2026-09-15 sobre `TenantMigration::tenantTable()`: las dos llevan clave foránea compuesta `(tenant_id, created_by) REFERENCES users (tenant_id, id)`**, así que el intento **falla ruidosamente** y no en silencio — que es la mejor de las dos formas de equivocarse y conviene saber que la tenemos. El actor de la operación vive donde tiene que vivir: `admin_action_logs.actor_platform_admin_id`.
+- **No queda fila en `audit_logs` del centro** (`RN-BO-74`). `ModuleSubscription` es `Auditable` con política `Full`, pero la escritura ocurre bajo `BackofficeEscritura`, donde `AuditRecorder::record()` **retorna en silencio** por decisión de `ADR-046 §6.5` (§6.2.4). Es correcto y es `RN-BO-30`: la auditoría de plataforma no se mezcla con la del centro. El centro ve la operación por `GET /api/v1/platform-actions` (`api.md §2.9`). Se escribe aquí para que nadie lea ese silencio como un defecto y «lo arregle».
+
+#### 5.8.6 La fase 2: invalidación y eventos, y qué pasa exactamente si fallan
+
+Ésta es la pregunta que el encargo de este sub-paso pide responder y que no estaba escrita en ninguna parte.
+
+La fase 2 corre **fuera** del bloque de plataforma y **después** del `COMMIT` (`RN-BO-75`), por el motivo de §5.8.2, y hace dos cosas por cada centro afectado:
+
+1. `TenantContext::runFor($tenantId, fn () => Cache::forget("modules:{$code}:enabled"))`, **una vez por módulo cambiado**. Nunca componiendo el prefijo `t{id}:` a mano (`operacion.md §4.2`), y nunca con un almacén de proceso: la caché es Redis y es compartida (`operacion.md §4.1`, detalle 3).
+2. Emitir `ModuleContracted` o `ModuleDecontracted`, **uno por centro y por módulo**, jamás uno agregado (`RN-BO-27`).
+
+**Si la fase 2 falla —Redis caído, por ejemplo— la petición no falla** (`RN-BO-76`). La escritura ya está confirmada y auditada; devolver `500` sería mentir sobre algo que ya ocurrió e invitar al operador a reintentarlo. Lo que se hace: se registra, se produce la señal de operación de `operacion.md §7`, y **el TTL de 300 s de la propia caché es el peor caso acotado**. Esa es, exactamente, la razón por la que ese TTL existe y por la que no debe subirse.
+
+> **Y una carrera residual que hay que declarar en voz alta en vez de dejar que la encuentre una revisión.** Entre el `COMMIT` y el `forget` hay una ventana en la que un lector concurrente puede haber leído el valor **anterior** de la base de datos y escribirlo en caché **después** del `forget`, dejándolo vivo hasta 300 s. Es la misma carrera que `RN-BO-51` acepta con 60 s para `tenant-resolution`, y por el mismo motivo: invalidar **dentro** de la transacción no la cierra, la agranda. **No se elimina aquí**, y el disparador queda escrito: si alguna vez importa de verdad, la solución es el mecanismo de clave versionada de `1.6e` (`datos.md §9.5`), no un TTL más corto — y `operacion.md §4.4` explica por qué los dos mecanismos no se unifican hoy.
+
+**Todo *listener* de los dos eventos es encolado** (`RN-BO-77`). En `1.6c` no hay ninguno —`ADR-045 §4.8` punto 3 deja el primero para `1.19`—, y la regla se escribe **antes** de que exista, porque un *listener* síncrono que lanzara convertiría un fallo de terceros en el fallo de una escritura ya confirmada, que es el mismo defecto del párrafo anterior por otra puerta.
+
+#### 5.8.7 La masiva: un lote por dirección, una transacción por centro
+
+`RunModuleRollout` (`operacion.md §6.1`) recorre la lista congelada de centros y, **para cada uno**, ejecuta las fases 1 y 2 completas de §5.8.5 y §5.8.6. Tres decisiones, con su motivo:
+
+- **Una transacción por centro, no una sobre N** (`RN-BO-78`). Una sola transacción mantendría N bloqueos de fila de `tenants` durante todo el lote —parando de paso cualquier transición de estado de esos centros— y haría que el fallo del centro 57 deshiciera los 56 que ya estaban bien. Los centros se procesan en **orden ascendente de `tenants.id`**, para que dos lotes concurrentes no se interbloqueen.
+- **Un fallo por centro no aborta el lote**: se registra y se continúa. Al final, **una** entrada `modulo.masivo_ejecutado` con `affected_tenant_id` **nulo** —es un resumen de la operación, no algo que le pase a un centro— y los recuentos en `context`: cuántos se pidieron, cuántos cambiaron, cuáles se omitieron y por qué, y cuáles fallaron. Los centros que sí cambiaron tienen además su entrada propia con su `affected_tenant_id`; los que fallaron **no tienen ninguna**, y eso es coherente: no les pasó nada.
+- **Un lote no mezcla direcciones** (`RN-BO-79`). El cuerpo declara **un** `enabled` para todo el lote. Un lote mixto tendría que pasar entero por doble autorización —encareciendo una contratación de rutina— o partirse por dentro, y partirlo haría que la mitad se ejecutara de inmediato y la otra quedara pendiente de un segundo administrador: un `202` que significa dos cosas a la vez.
+
+**La descontratación masiva pasa por §5.7**, y su ejecución tiene una particularidad que ninguna de las otras dos acciones del vocabulario tiene: **es asíncrona**. Al aprobarla, el servicio valida el *payload* congelado —los centros existen, el módulo existe, no es esencial— y **encola** el lote; `executed_at` marca **ese** instante, no el final (`RN-BO-80`). Es deliberado: una `dual_authorization` registra **la autorización**, no el resultado de doscientas operaciones independientes, y hacer que su estado dependiera de todas ellas le daría un estado que no significa nada. El resultado por centro está en `admin_action_logs`, que es donde se consulta.
+
+#### 5.8.8 El motivo del operador, y a quién se lo estamos enseñando sin querer
+
+**`1.6c` es el sub-paso que hace que `module_subscriptions.reason` contenga algo.** Hasta hoy nadie escribe `enabled` (`ADR-045 §1.1`) y esa columna es siempre nula; a partir de este sub-paso guarda texto libre redactado por un operador de plataforma: «impago del segundo trimestre», «rescisión, contrato 2026/27», «pruebas del comercial X».
+
+Y `module_subscriptions` es **tabla de tenant**: su RLS le da al centro sus propias filas, y el `REVOKE` de `datos.md §7` sólo quita `INSERT` y `UPDATE`. **El `SELECT` sigue siendo de tabla completa, luego el centro puede leer ese motivo.**
+
+Es exactamente el mismo problema que `datos.md §4.3.1` y `§5.3.1` resolvieron para `admin_action_logs` y `tenant_lifecycle_events`, con un criterio único que el usuario ratificó el 2026-09-08: **ningún texto libre escrito por un operador del proveedor cruza el `GRANT`**. La diferencia es que aquellas dos tablas nacían con el `GRANT` acotado y ésta ya existe con el `GRANT` abierto — y que aquí el argumento es **el mismo paralelo que §6.3 usó con el issue #7**: era inofensivo mientras nadie escribiera, y este sub-paso es el que deja de hacerlo cierto.
+
+La recomendación es cerrarlo por columnas, con su coste dicho: `ModuleSubscription` tendría que declarar una proyección explícita en vez de `SELECT *`, y eso toca el `GET /modules` y el `PATCH settings` que `REQ-CORE` ya tiene en producción. **No lo decido**, porque cambia una migración ya especificada y toca *endpoints* de otro módulo: `OPEN-BO-19`, con la forma exacta en `datos.md §7.7`.
+
+#### 5.8.9 Lo que este sub-paso deliberadamente **no** hace
+
+- **No añade ni una columna** a `module_subscriptions` (`ADR-045 §4.2`, §5.8.1).
+- **No materializa `depends_on` ni `essential` en `modules`** (`ADR-034 §5`, `ADR-045 §9`, `datos.md §8`). No se reabre.
+- **No construye el aviso al centro.** `ADR-045 §4.8` punto 2 lo resuelve con `enabled_at`, que ya se rellena, y el realce en el panel del centro es trabajo de la interfaz de `REQ-CORE`, no de este sub-paso. La notificación de verdad es `REQ-COM-003`, paso 1.19.
+- **No devuelve la potestad al centro.** `CA-CORE-061` se conserva y se refuerza: a partir de `1.6c` lo respalda un `REVOKE`, no un `if` (`ADR-045 §10`).
+- **No toca `ModuleAvailability`, `EnsureModuleEnabled` ni `PermissionResolver`** (`ADR-045 §4.10`). Lo único que cambia dentro de `EloquentModuleAvailability` es de dónde sale `essential` y que ahora hay quien invalida su caché.
 
 ### 5.9 Ficha de salud del tenant (`REQ-BO-004`, parte)
 
@@ -817,6 +1003,33 @@ Aserción nueva: **ninguna llamada a `runAsPlatform()` en `app/` pasa un propós
 | `RN-BO-27` | La activación masiva emite **un evento por cada centro afectado**, jamás uno agregado |
 | `RN-BO-28` | `platform:sync-registry` **aborta el despliegue** si `depends_on` referencia un código inexistente o el grafo tiene ciclos. Ante una arista nueva que deje centros incoherentes, **informa y no corrige** |
 
+#### 7.3.1 Reglas que añade el sub-paso `1.6c`
+
+> Mismo criterio de numeración que §7.2.1: **van a continuación de la última existente y no intercaladas**, porque `RN-BO-22` a `RN-BO-28` ya están citadas desde los otros cuatro ficheros del módulo, desde `ADR-045` y desde los criterios de aceptación. Su sitio temático es esta sección; su número es el que les toca.
+
+| ID | Regla |
+|----|-------|
+| `RN-BO-63` | **`depends_on` y `essential` se leen siempre del descriptor, y el catálogo se resuelve una sola vez por proceso**, desde los `ServiceProvider` ya registrados por el contenedor — **nunca por escaneo de ficheros ni por consulta a `modules` en el camino de petición**. `ALWAYS_ENABLED` desaparece de `EloquentModuleAvailability` y **no se sustituye por otra constante** (`CA-BO-036`). El motivo no es elegancia: `isEnabled()` corre en cada petición de cada usuario de cada centro, por `EnsureModuleEnabled` y por el filtro de inercia de `PermissionResolver` (§5.8.3) |
+| `RN-BO-64` | `platform:sync-registry` aborta el despliegue ante **tres** cosas, no dos: código de `depends_on` inexistente, ciclo en el grafo, y **un módulo `essential` que declare dependencia de uno no esencial**. La tercera es derivada y no está escrita en `ADR-045`: un esencial es utilizable sin fila (`§4.9`) y por tanto **ninguna escritura puede protegerlo** (`§4.5`), así que el despliegue es el único sitio donde la incoherencia se puede impedir (§5.8.3) |
+| `RN-BO-65` | **Un módulo esencial no tiene conmutador en ninguna de las dos direcciones**: contratarlo es `422` igual que descontratarlo, y **no aparece en el cierre de dependencias** —no necesita fila—. `ADR-045 §4.7` dice «celda bloqueada, sin conmutador», y una celda medio bloqueada no es una celda bloqueada |
+| `RN-BO-66` | **El cierre de dependencias se recalcula dentro de la transacción, sobre una lectura bloqueada**, y el punto de serialización es la **fila de `tenants`** (`SELECT … FOR UPDATE`), no las de `module_subscriptions`: contratar crea filas que todavía no existen y no se puede bloquear lo que no está (§5.8.5). Mismo mecanismo y mismo motivo que `datos.md §3.3` y `§6.4`, aplicado **desde el principio y no como parche posterior** |
+| `RN-BO-67` | **`cascade` no tiene valor por defecto verdadero.** Sin él, toda operación que arrastre otro módulo —hacia arriba o hacia abajo— responde `409` con la lista exacta de arrastrados. Es denegar por defecto aplicado al efecto colateral: quien no ha pedido tocar cinco módulos no toca cinco módulos |
+| `RN-BO-68` | **La vista previa no reserva nada y no es un contrato.** La ejecución recalcula el cierre dentro de su transacción y aplica el recálculo; la respuesta dice **qué se hizo de verdad**. `RN-BO-20` congela los **parámetros** de una doble autorización —módulo, dirección, lista de centros, motivo—, **no el cierre derivado**, que se recalcula al ejecutar sobre el estado de ese instante |
+| `RN-BO-69` | **Contratar lo ya contratado, o descontratar lo ya descontratado, es no-operación completa**: no reescribe `enabled_at`, no reescribe `disabled_at`, **tampoco `reason`**, no emite evento, no invalida caché y no audita. `200` con el recurso sin cambios. Completa `CA-BO-044`; que tampoco se reescriba `reason` es la parte nueva, y es lo que impide una modificación del motivo sin ningún rastro |
+| `RN-BO-70` | **Un módulo `retired_at` no se contrata** —ni directamente ni por arrastre de dependencia—, `422`; **sí se descontrata**, porque es la única forma de cerrar la suscripción a algo que ya no existe en el código. El catálogo nunca borra (`SyncModuleRegistry`), y una suscripción viva a un módulo retirado se factura (`RMOD-007`) |
+| `RN-BO-71` | **Qué estados de tenant admiten escritura de módulos**: `activo`, `suspendido` y `en_baja` **sí**; `en_alta` y `eliminado` **no** — `409` en la operación individual, **omitido y reportado** en la masiva. `en_alta` porque el conjunto de suscripciones lo está escribiendo todavía el aprovisionamiento o la clonación (`RN-BO-52`, §5.6.2); `eliminado` porque contratar a un centro cerrado es una escritura facturable sobre algo que no se opera. Que `suspendido` y `en_baja` sí admitan es lo que ya decía §8: suspensión y contratación son ejes distintos (`ADR-045 §2`) |
+| `RN-BO-72` | **El motivo del operador se escribe literal en el `reason` de todas las filas que la operación toca, arrastradas incluidas.** Qué fila fue la principal y cuál la arrastrada vive en `admin_action_logs.context` (`cascaded_from`), **no en una frase compuesta dentro de `reason`**: componer texto en el código sería un literal visible (`INV-009`) y además haría el motivo inconsultable |
+| `RN-BO-73` | **El backoffice no escribe `created_by` ni `updated_by` de `module_subscriptions`, y sí escribe `tenant_id` a mano.** Las dos primeras referencian a `users` **de ese centro** y un administrador de plataforma no lo es (`RN-BO-01`); quedan nulas, y el actor vive en `admin_action_logs.actor_platform_admin_id`. **Verificado sobre `TenantMigration::tenantTable()`: llevan clave foránea compuesta a `users`, luego un `platform_admins.id` ahí falla ruidosamente** en vez de apuntar en silencio a otra persona. `tenant_id` no puede confiarse a su `DEFAULT app.current_tenant_id()`, que es nulo sin tenant activo (§5.8.5, `datos.md §7.6`) |
+| `RN-BO-74` | **Una escritura de módulos del backoffice no deja fila en `audit_logs` del centro, y es correcto.** Ocurre bajo `BackofficeEscritura`, donde `AuditRecorder::record()` retorna en silencio por decisión de `ADR-046 §6.5` (§6.2.4), y `RN-BO-30` prohíbe mezclar los dos registros. El centro la ve por `GET /api/v1/platform-actions`. Se escribe como regla para que nadie lea ese silencio como un defecto y lo «arregle» |
+| `RN-BO-75` | **La invalidación de caché y la emisión de eventos ocurren fuera del bloque de plataforma y después del `COMMIT`**, en dos fases: la 1 valida, bloquea, escribe y audita dentro de `runAsPlatform(BackofficeEscritura, …)`; la 2 entra en el contexto de cada centro con `runFor()`, invalida `modules:{code}:enabled` y emite los eventos. **La partición en dos fases no es estilo: la fuerza `ADR-046 §6.4`**, que prohíbe tenant activo dentro de un bloque de plataforma (§5.8.2) |
+| `RN-BO-76` | **El fallo de la fase 2 no hace fallar la petición.** La escritura ya está confirmada y auditada; un `500` mentiría sobre algo que ya ocurrió e invitaría a reintentarlo. Se registra, produce señal de operación, y el **TTL de 300 s de la propia caché es el peor caso acotado** — que es la razón de que ese TTL exista y de que no deba subirse. **Carrera residual declarada**: un lector que leyó antes del `COMMIT` puede cachear el valor anterior después del `forget`, acotado por ese mismo TTL. Es la misma que `RN-BO-51` acepta con 60 s, y **no se elimina aquí** (§5.8.6) |
+| `RN-BO-77` | **Todo *listener* de `ModuleContracted` y `ModuleDecontracted` es encolado.** Uno síncrono que lanzara convertiría un fallo de terceros en el fallo de una escritura ya confirmada. En `1.6c` no hay ninguno; la regla se escribe **antes** de que `1.19` escriba el primero (`ADR-045 §4.8` punto 3) |
+| `RN-BO-78` | **Una operación masiva es una transacción por centro, no una sobre N**, y los centros se procesan **en orden ascendente de `tenants.id`** para que dos lotes concurrentes no se interbloqueen. Una sola transacción mantendría N bloqueos de fila durante todo el lote —parando de paso cualquier transición de estado de esos centros— y haría que el fallo del centro 57 deshiciera los 56 que ya estaban bien. **El fallo sobre un centro no aborta el lote**: se registra y se continúa |
+| `RN-BO-79` | **Un lote no mezcla direcciones**: `POST /module-rollouts` declara **un** `enabled` para todo él. La contratación masiva no exige doble autorización; la descontratación masiva **sí** (`modulo.descontratar_masivo`, valor que el `CHECK` de `dual_authorizations.action` ya admite desde `1.6`). Un lote mixto tendría que pasar entero por doble autorización —encareciendo una contratación de rutina— o partirse por dentro, y partirlo produciría un `202` que significa dos cosas a la vez |
+| `RN-BO-80` | **Al aprobar una `modulo.descontratar_masivo` se encola el lote, y `executed_at` marca ese instante, no el final.** Una `dual_authorization` registra **la autorización**, no el resultado de N operaciones independientes; hacer que su estado dependiera de todas ellas le daría un estado que no significa nada. El resultado por centro vive en `admin_action_logs`. Es la única de las tres acciones del vocabulario cuya ejecución es **asíncrona**, y por eso se dice |
+| `RN-BO-81` | **El conjunto de centros de una masiva es una lista explícita de `public_id`, nunca un filtro.** Un filtro cambia de contenido entre la vista previa, la solicitud y la aprobación, y `RN-BO-20` congela parámetros, no consultas. «Todos los centros activos» lo compone el cliente desde `GET /tenants`, y eso es justamente lo que hace el conjunto congelable y auditable |
+| `RN-BO-82` | **El motivo interno del operador no lo lee el centro.** `module_subscriptions.reason` es texto libre del proveedor y `plataforma_app` lee hoy la tabla entera; **`1.6c` es el sub-paso que hace que esa columna contenga algo**, exactamente como `1.6b` fue el que hizo que `status` cambiara (§6.3). Se aplica el criterio único ya ratificado por el usuario para las otras dos tablas (`datos.md §4.3.1`, `§5.3.1`): **ningún texto libre escrito por un operador del proveedor cruza el `GRANT`**. Sujeta a `OPEN-BO-19` (§5.8.8, `datos.md §7.7`) |
+
 ### 7.4 Auditoría de plataforma
 
 | ID | Regla |
@@ -878,6 +1091,17 @@ Aserción nueva: **ninguna llamada a `runAsPlatform()` en `app/` pasa un propós
 | **`1.6b`** · Se aprueba una eliminación cuyo tenant ha vuelto a `activo` entre la solicitud y la aprobación | La ejecución falla y la solicitud queda `fallida` con su motivo: los parámetros congelados ya no son válidos (`RN-BO-20`, §5.7 punto 3). **No se rescata reinterpretando la operación** |
 | **`1.6b`** · Se clona un tenant y, a la vez, alguien cambia su configuración | El clon refleja el estado del origen en el instante de la lectura, que es único y transaccional (§5.6.4). Nunca mitad viejo, mitad nuevo |
 | **`1.6b`** · Se clona un tenant cuya marca y datos fiscales el operador esperaba heredar | No se heredan, y es deliberado (§5.6.2). La respuesta de la operación **dice qué se ha copiado**, para que la ausencia no se lea como un fallo |
+| **`1.6c`** · Se contrata un módulo esencial | `422`, igual que descontratarlo. La celda está bloqueada en las dos direcciones (`RN-BO-65`, `CA-BO-130`) |
+| **`1.6c`** · Se descontrata un módulo que ya está `retired_at` | **Se admite**, `200`. Es la única forma de cerrar la suscripción a algo que ya no existe en el código, y mientras viva se factura (`RN-BO-70`, `RMOD-007`) |
+| **`1.6c`** · Se contrata un módulo en un tenant `en_alta` | `409`: el conjunto de suscripciones lo está escribiendo todavía el aprovisionamiento o la clonación (`RN-BO-71`). En una masiva, ese centro se **omite y se reporta**, y el lote sigue |
+| **`1.6c`** · Se contrata un módulo en un tenant `eliminado` | `409`. Contratar a un centro cerrado es una escritura facturable sobre algo que no se opera (`RN-BO-71`) |
+| **`1.6c`** · Dos peticiones a la vez: una contrata `M`, que depende de `N`; la otra descontrata `N` | Se serializan por el bloqueo de la fila de `tenants`, y la segunda recalcula el cierre sobre la lectura bloqueada. **Nunca queda `M` sin `N`** (`RN-BO-66`, `CA-BO-132`) |
+| **`1.6c`** · Se vuelve a contratar un módulo ya contratado **con otro motivo** | No-operación completa: `reason` **no se reescribe**, no hay evento, no hay auditoría y no se invalida nada (`RN-BO-69`, `CA-BO-134`) |
+| **`1.6c`** · Falla la invalidación de caché tras confirmar la escritura | La petición **responde con éxito**. La fila está escrita y auditada; el peor caso observable es que el centro siga viendo `403` durante el TTL de 300 s (`RN-BO-76`, `CA-BO-139`) |
+| **`1.6c`** · Un lote de 200 centros falla en el número 57 | Los 56 anteriores quedan aplicados, el 57 se registra como fallido **sin entrada propia** —no le pasó nada— y el lote continúa con los 143 restantes (`RN-BO-78`, `CA-BO-141`) |
+| **`1.6c`** · Se aprueba una descontratación masiva y un centro del lote ha sido eliminado entretanto | Ese centro se **omite y se reporta**; el resto se aplica. **El conjunto ejecutado es el congelado**, no el resultado de volver a consultar nada (`RN-BO-20`, `RN-BO-81`, `CA-BO-144`) |
+| **`1.6c`** · Una versión nueva declara que `M` depende de `N`, y hay centros con `M` y sin `N` | `platform:sync-registry` **informa y no corrige** (`RN-BO-28`). La incoherencia se ve en `GET /tenants/{id}/modules` y en la ficha de salud, y la resuelve una persona desde la matriz |
+| **`1.6c`** · Un módulo esencial declara `depends_on` de uno no esencial | **El despliegue aborta** (`RN-BO-64`, `CA-BO-129`). No hay escritura que pueda proteger a un esencial, porque no tiene fila que bloquear |
 | Se consulta un *flag* cuya clave no está en el catálogo | **Falso**, sin excepción y sin error. Un `flag('lo_que_sea')` que devolviera verdadero por no encontrarse sería la peor forma posible de fallar |
 | Un despliegue **retira** un *flag* que aún tiene reglas | El *flag* queda `retired_at`, evalúa falso y sus reglas se conservan como prueba de lo que estuvo activo. **No se borran**: son el registro de a quién se expuso qué |
 | Se baja un porcentaje del 40 % al 10 % | Los centros expuestos son un **subconjunto** de los anteriores; ninguno entra al bajar (`RN-BO-38`) |
@@ -908,7 +1132,9 @@ Dos consecuencias concretas de ese reparto, que hay que verificar antes de imple
 1. **El filtro por rol necesita los códigos de rol del usuario autenticado**, que son dato de `REQ-PERM`. El evaluador los obtiene por la **interfaz pública** que `REQ-PERM` expone, nunca consultando `roles` o `role_user` por su cuenta (`INV-007`, y el error característico de «consultar directamente tablas de otro módulo»). **Si esa interfaz pública no existe hoy en `REQ-PERM`, añadirla es parte de `1.6e` y debe declararse como ampliación de la superficie pública de `REQ-PERM`, no colarse como un `use` más.** Es lo primero que el implementador tiene que comprobar contra el código.
 2. **El evaluador corre en el camino de petición de todos los centros.** Es el único componente de los cinco sub-pasos del que eso es cierto, y por eso su caché no es opcional (`operacion.md §4.3`) y por eso `1.6e` va el último (§12.2).
 
-**`INV-007` en la frontera con `REQ-CORE`**: `REQ-BO` **no escribe `module_subscriptions` directamente**. Llama a un servicio de aplicación con interfaz pública que posee `REQ-CORE` —el mismo que resuelve dependencias, invalida caché y emite los eventos— exactamente como `REQ-CORE` expuso `BulkUserImporter` para que 1.24 no lo reimplemente. Sin eso, la regla de dependencias tendría dos implementaciones y el evento se emitiría desde el sitio equivocado.
+**`INV-007` en la frontera con `REQ-CORE`**: **contratar y descontratar no los escribe `REQ-BO` directamente.** Llama al contrato público que posee `REQ-CORE` —el mismo que resuelve dependencias, invalida caché y emite los eventos (§5.8.2)— exactamente como `REQ-CORE` expuso `BulkUserImporter` para que 1.24 no lo reimplemente. Sin eso, la regla de dependencias tendría dos implementaciones y el evento se emitiría desde el sitio equivocado.
+
+> **Precisión añadida en `1.6c`, que corrige una frase más ancha que la decisión que describía.** Hasta esta pasada, este párrafo decía «`REQ-BO` no escribe `module_subscriptions` directamente», sin más, y eso **contradecía en apariencia** a §5.6.2 —«`module_subscriptions` es la excepción y la copia `REQ-BO`»— y al código ya mezclado de `1.6b`, donde `CloneTenant` usa `ModuleSubscription::query()->updateOrCreate()`. **No hay ninguna decisión en conflicto y no cambia nada**: lo que `ADR-045 §4.5`/`§4.8` manda al servicio de `REQ-CORE` es el **camino de contratación y descontratación**, que es el que tiene que resolver dependencias, invalidar caché y emitir eventos. El **sembrado inicial de un clon** es otra cosa: copia un conjunto que ya es coherente —si el origen cumple `RN-BO-22`, la copia lo cumple—, no emite eventos porque el clon nace en `en_alta` y todavía no tiene un solo usuario al que avisar, y `ADR-045 §4.1` ya decidió que el backoffice es el único escritor de esa tabla. `CloneTenant` **no se toca**.
 
 ---
 
@@ -1060,6 +1286,51 @@ Formato `Dado / Cuando / Entonces`, verificables, con el ID de requisito que cub
 - **`CA-BO-043`** · *Dado* una activación masiva reintentada con la **misma** `Idempotency-Key`, *entonces* devuelve el resultado anterior sin contratar de nuevo ni emitir eventos duplicados (`INV-011`).
 - **`CA-BO-044`** · *Dado* la contratación de un módulo ya contratado, *entonces* es idempotente: no reescribe `enabled_at`, no emite evento y no audita.
 - **`CA-BO-045`** · *Dado* un módulo desactivado desde el backoffice, *cuando* se vuelve a contratar meses después, *entonces* los datos históricos están íntegros y accesibles (`RMOD-003`, `RMOD-004`, segundo criterio de §5.51).
+
+#### 13.3.1 Los dieciséis anteriores **no están satisfechos hoy**, y los que añade el sub-paso `1.6c`
+
+> **Verificado el 2026-09-15 sobre `develop` en `91adac6` (§5.8.1), y conviene decirlo porque lo razonable era suponer lo contrario**: parecía que los de catálogo y registro —`CA-BO-030` a `CA-BO-036`— estarían cubiertos por el trabajo de `0.8` y `1.1`. **No lo están.** No existe la migración de privilegios, no existe `Cache::forget`, `depends_on` no aparece en una sola línea de `apps/api` y `ALWAYS_ENABLED` sigue en `EloquentModuleAvailability:28`. Lo que sí existe es el **precedente** de cada uno: la validación de `applicable_scopes` que ya aborta el despliegue, las dos migraciones `harden_*_grants`, y el patrón `lockForUpdate()` de `1.6b`. **Los dieciséis son objetivo de este sub-paso, no herencia del anterior.**
+>
+> Y dos tests existentes cambian de conexión con el `REVOKE INSERT`: `ModuleSubscriptionsSchemaTest` —ya avisado por `ADR-045 §4.4` y `datos.md §7.3`— y **`SyncModuleRegistryTest`, que no estaba nombrado en ninguna parte** y que también inserta en `module_subscriptions` por `pgsql` (§5.8.1).
+
+**Catálogo, descriptor y despliegue**
+
+- **`CA-BO-128`** · *Dado* el camino de petición completo de un usuario de un centro, *cuando* se cuentan las consultas y los accesos a disco de `ModuleAvailability::isEnabled()`, *entonces* **no hay ninguna consulta a `modules` ni ningún escaneo de ficheros**: el catálogo de descriptores se resolvió una sola vez por proceso (`RN-BO-63`).
+- **`CA-BO-129`** · *Dado* un módulo declarado `essential: true` que declara en `depends_on` un módulo **no** esencial, *cuando* se ejecuta `platform:sync-registry`, *entonces* **aborta con error y no escribe nada** — tercer caso de `RN-BO-64`, que `CA-BO-034` y `CA-BO-035` no cubren.
+
+**Contratar y descontratar**
+
+- **`CA-BO-130`** · *Dado* un módulo esencial, *cuando* se intenta **contratarlo** —no descontratarlo—, *entonces* `422` con `bo.module.essential`: la celda está bloqueada en las dos direcciones (`RN-BO-65`). Es la otra mitad de `CA-BO-041`.
+- **`CA-BO-131`** · *Dado* un módulo `M` que declara `depends_on: ['core', 'N']`, *cuando* se contrata en un centro sin `N`, *entonces* se crean **dos** filas —`M` y `N`— y **ninguna para `core`**: un esencial no entra en el cierre porque no necesita fila (`RN-BO-65`).
+- **`CA-BO-132`** · *(concurrencia)* *Dado* dos peticiones simultáneas sobre el mismo centro desde **dos conexiones distintas** —una contrata `M`, que depende de `N`; la otra descontrata `N`—, *cuando* ambas terminan, *entonces* el grafo resultante es coherente: o `M` y `N` contratados, o ninguno de los dos, **nunca `M` sin `N`** (`RN-BO-22`, `RN-BO-66`). Es el equivalente para módulos de lo que los issues #205, #207 y #209 fueron para `1.6b`, y se escribe **antes** de que ocurra.
+- **`CA-BO-133`** · *Dado* una operación que arrastra otros módulos, *cuando* se envía **sin `cascade`**, *entonces* `409` con la lista exacta y **no se escribe nada**; *cuando* se envía con `cascade: true`, *entonces* se aplica exactamente lo que la vista previa anunció (`RN-BO-67`).
+- **`CA-BO-134`** · *Dado* un módulo ya contratado, *cuando* se vuelve a contratar **con un motivo distinto**, *entonces* `reason` **no se reescribe**, no hay entrada en `admin_action_logs`, no hay evento y no se invalida ninguna caché (`RN-BO-69`). Es la parte de `CA-BO-044` que faltaba: sin ella, el motivo se podría cambiar sin dejar rastro.
+- **`CA-BO-135`** · *Dado* un módulo con `retired_at`, *cuando* se intenta contratar —directamente o como dependencia arrastrada de otro—, *entonces* `422` con `bo.module.retired`; *cuando* se **descontrata**, *entonces* `200` y la suscripción queda cerrada (`RN-BO-70`).
+- **`CA-BO-136`** · *Dado* un tenant en cada uno de los cinco estados, *cuando* se intenta contratar un módulo, *entonces* `activo`, `suspendido` y `en_baja` responden `200`, y `en_alta` y `eliminado` responden `409` con `bo.module.tenant_state_invalid` (`RN-BO-71`).
+- **`CA-BO-137`** · *Dado* una contratación ejecutada desde el backoffice, *cuando* se lee la fila de `module_subscriptions`, *entonces* `created_by` y `updated_by` son **nulos** y ninguno contiene el identificador del administrador de plataforma (`RN-BO-73`).
+- **`CA-BO-138`** · *Dado* esa misma contratación, *entonces* **no** existe ninguna fila nueva en `audit_logs` de ese centro, y **sí** existe una en `admin_action_logs` con `action = 'modulo.contratado'` y su `affected_tenant_id` (`RN-BO-74`, `RN-BO-30`).
+
+**Invalidación, eventos y fallo de la fase 2**
+
+- **`CA-BO-139`** · *(camino de fallo)* *Dado* una contratación cuya **fase 2 falla** —caché no disponible—, *entonces* la petición responde con éxito, la fila está escrita y auditada, se produce la señal de operación, y **el peor caso observable es que el centro siga viendo `403` durante el TTL de 300 s**, nunca más (`RN-BO-76`, §5.8.6).
+- **`CA-BO-140`** · *Dado* un *listener* registrado sobre `ModuleContracted`, *cuando* se recorre el código, *entonces* es **encolado**; y *cuando* ese *listener* lanza, *entonces* el fallo acaba en `failed_jobs` y **no** en la respuesta de la operación (`RN-BO-77`).
+
+**Activación masiva**
+
+- **`CA-BO-141`** · *Dado* un lote sobre tres centros de los cuales **el segundo falla**, *cuando* termina, *entonces* el primero y el tercero están aplicados, el lote **no se abortó**, existe una entrada por cada centro aplicado con su `affected_tenant_id`, **ninguna** para el que falló, y **una** entrada `modulo.masivo_ejecutado` con `affected_tenant_id` **nulo** y los recuentos en `context` (`RN-BO-78`, §5.8.7).
+- **`CA-BO-142`** · *Dado* un lote sobre N centros, *cuando* se inspecciona su ejecución, *entonces* son **N transacciones**, una por centro, en orden ascendente de `tenants.id`, y **no** una sola transacción (`RN-BO-78`).
+- **`CA-BO-143`** · *Dado* una **descontratación** masiva, *entonces* responde `202` con la `dual_authorization` en `pendiente` y **ninguna fila de `module_subscriptions` ha cambiado**; *cuando* un segundo administrador la aprueba, *entonces* el lote queda **encolado**, `executed_at` marca ese instante y la solicitud pasa a `ejecutada` **aunque el lote no haya terminado** (`RN-BO-79`, `RN-BO-80`, `CA-BO-066`).
+- **`CA-BO-144`** · *Dado* una descontratación masiva aprobada **entre cuya solicitud y cuya aprobación uno de los centros pasó a `eliminado`**, *cuando* se ejecuta, *entonces* ese centro se **omite y se reporta**, el resto se aplica, y **el conjunto ejecutado es el congelado**, no el resultado de volver a evaluar ningún filtro (`RN-BO-20`, `RN-BO-81`).
+- **`CA-BO-145`** · *Dado* el cuerpo de `POST /module-rollouts`, *cuando* se busca un selector por filtro —«todos los activos», «los del plan X»—, *entonces* **no existe ninguno**: sólo se admite una lista explícita de `public_id`, no vacía y sin duplicados (`RN-BO-81`).
+
+**Lecturas y motivo**
+
+- **`CA-BO-146`** · *Dado* un centro con un módulo contratado, otro no contratado, uno esencial y uno con una **dependencia incoherente** —contratado y con su dependencia sin contratar, tras una versión que añadió la arista—, *cuando* se consulta `GET /tenants/{public_id}/modules`, *entonces* aparecen los **tres** estados de `ADR-045 §4.7` y la incoherencia se muestra con los códigos que faltan (`RN-BO-28`, `ADR-045 §4.5`).
+- **`CA-BO-147`** · *Dado* la conexión de la aplicación de los centros (`plataforma_app`) dentro del contexto de un tenant, *cuando* intenta leer `module_subscriptions.reason`, *entonces* **el motor lo rechaza por falta de privilegio de columna**; y *cuando* consulta las columnas concedidas —incluidas `enabled` y `enabled_at`, que el panel del centro necesita (`ADR-045 §4.8` punto 2)—, *entonces* la consulta **funciona** (`RN-BO-82`). **Este criterio depende de `OPEN-BO-19`**: si el usuario decide no cerrar el `GRANT` por columnas, se retira y su garantía pasa a ser la proyección del *resource* de `REQ-CORE`, que es más débil y hay que decirlo.
+
+**Aislamiento entre centros — obligatorio para cerrar el sub-paso**
+
+- **`CA-BO-148`** · *Dado* **tres** tenants, *cuando* se ejecuta un lote sobre el primero y el tercero, *entonces* el segundo no ve alterada **ninguna** de sus suscripciones ni su entrada de caché `modules:{code}:enabled`, y su respuesta a un *endpoint* de ese módulo no cambia (`INV-001`, `CA-BO-033`, y el test obligatorio de la *skill* `aislamiento-tenant`).
 
 ### 13.4 Ciclo de vida del tenant (`REQ-BO-001`)
 
@@ -1214,6 +1485,9 @@ Formato `Dado / Cuando / Entonces`, verificables, con el ID de requisito que cub
 | `OPEN-BO-14` · ¿La baja exige doble autorización? | **Abierta · nueva** (`1.6b`). **Nace de una contradicción interna de esta especificación**, no de una duda de diseño. Recomendación: **no** |
 | `OPEN-BO-15` · Ampliar la superficie pública de `REQ-CORE` para el aprovisionamiento | **RESUELTA por `ADR-048`** (2026-09-11) · **contrato síncrono `TenantProvisioner` en `Core\Domain`, no evento**, con **dos** métodos: el alta y **la clonación** — que incumplía `INV-007` sin que nadie lo hubiera nombrado. Lo único que sigue pendiente del usuario es el permiso acotado de `ADR-048 §10`: que `1.6b` escriba las cinco cosas enumeradas dentro de `REQ-CORE` |
 | `OPEN-BO-16` · El `503` permanente de un centro eliminado, y el `503` de `en_alta` | **Abierta · nueva** (`1.6b`), no bloqueante. `RN-BO-50` extiende `RN-BO-15` a dos casos que aquella no nombraba |
+| `OPEN-BO-17` · ¿La descontratación **individual** exige reautenticación y/o doble autorización? | **RESUELTA 2026-09-15**: **reautenticación sí, doble autorización no**. Cambia la lista cerrada de `api.md §4` |
+| `OPEN-BO-18` · Ampliar la superficie pública de `REQ-CORE` para el servicio de contratación | **RESUELTA 2026-09-15**: **sí, enumerado y sin ADR nuevo** — `ADR-045 §4.5`/`§4.8` ya decidió el mecanismo, mismo permiso acotado que `ADR-048 §10` pidió para `1.6b` |
+| `OPEN-BO-19` · ¿Se cierra por columnas el `GRANT SELECT` de `module_subscriptions` para que el centro no lea `reason`? | **RESUELTA 2026-09-15 por decisión explícita del usuario: sí.** Es la única de las tres con consecuencia de seguridad. Cambia la migración de `datos.md §7` y toca dos *endpoints* de `REQ-CORE` |
 
 **Con `1.6b` volvieron a aparecer preguntas abiertas: tres, de las cuales `ADR-048` cierra una (`OPEN-BO-15`, 2026-09-11) y de las dos restantes sólo `OPEN-BO-14` cambia un código de respuesta y por tanto un criterio de aceptación.** Lo que sigue siendo cierto es lo de la revisión anterior, referido al chasis: `ADR-047` cierra `OPEN-BO-10` **y** las dos piezas que se le habían añadido —`platform_sessions` y `platform_admin_sessions`—: las tres quedan aprobadas con cambios, ninguna rechazada (`ADR-047`, encabezado y `§5.1`). `OPEN-BO-13` queda resuelta por decisión del usuario. Lo que impedía empezar a implementar (§15) está cerrado: la aprobación explícita del usuario a la especificación completa, dada.
 
@@ -1347,6 +1621,44 @@ Al llevar la pregunta al usuario se le ofrecieron dos caminos —interfaz amplia
 
 Las dos son extensiones razonadas de una regla aprobada, no reinterpretaciones de ella, y por eso van escritas y no ejecutadas en silencio. **No bloquean**: si el usuario prefiere `404` en alguno de los dos casos, el cambio es una fila de una tabla en `ResolveTenant` y una fila de `CA-BO-110`.
 
+### `OPEN-BO-17` · ¿La descontratación **individual** exige reautenticación y doble autorización? · **RESUELTA 2026-09-15: reautenticación sí, doble autorización no**
+
+Son **dos** preguntas y conviene separarlas, porque tienen respuestas distintas.
+
+**Doble autorización: no, y aquí no hay duda.** `REQ-BO-007` enumera literalmente las tres operaciones que la exigen —*«eliminar un tenant, purgar datos o desactivar módulos **en masa**»*— y la descontratación individual no está entre ellas. El vocabulario de `dual_authorizations.action` lo confirma: el valor desplegado es `modulo.descontratar_masivo`, no `modulo.descontratar`. Exigir dos personas para apagar un módulo en un centro convertiría una operación comercial de rutina en un trámite que se pide por adelantado «para tenerlo firmado», que es el mismo argumento de §5.5.4 con la baja.
+
+**Reautenticación: creo que sí, y esto sí es una pregunta de verdad.** `api.md §4` declara la lista de operaciones sensibles **cerrada y en un solo sitio**, *«para que añadir una operación destructiva obligue a tocar este documento»*, y `PUT /tenants/{id}/modules/{code}` **no está en ella**. Descontratar un módulo deja sin acceso a una funcionalidad entera a todo un colegio, con consecuencia comercial (`RMOD-007`) y visible de inmediato para sus familias. Comparado con lo que sí está en la lista —`POST /tenants/{id}/slug`, que rompe una URL guardada— la asimetría no se sostiene.
+
+**La propuesta es asimétrica, y esa es la parte que hay que aprobar o rechazar**: sensible **sólo con `enabled: false`**, no al contratar. Contratar va en la dirección de dar servicio y se deshace descontratando; descontratar es la dirección que el centro nota. Es la misma asimetría que `api.md §2.12` ya defiende para los *feature flags*, **aplicada al revés y a propósito**: allí el freno de emergencia es apagar y la fricción va en encender; aquí la dirección peligrosa es apagar, porque no hay ninguna emergencia que apagar un módulo resuelva.
+
+**Lo que cambia si el usuario dice «no»**, y es acotado: se retira `PUT /tenants/{id}/modules/{code}` **con `enabled: false`** de la lista de `api.md §4`, y la columna «¿sensible?» de `permisos.md §4.4` pasa a «no» en esa fila. **Esta especificación está escrita contra el «sí»**, marcado en los tres sitios donde aparece (§5.8.4, `api.md §2.6`/`§4`, `permisos.md §4.4`). Nada más se ve afectado, y ningún criterio de aceptación cambia de signo.
+
+### `OPEN-BO-18` · ¿Se aprueba ampliar otra vez la superficie pública de `REQ-CORE`? · **RESUELTA 2026-09-15: sí, acotada y sin ADR nuevo**
+
+Es **la misma pregunta que `ADR-048 §10` planteó para `1.6b`**, sobre otro contrato, y por eso se plantea igual: no es una duda de diseño —`ADR-045 §4.5` y `§4.8` ya decidieron que la resolución de dependencias y la emisión de eventos viven en un servicio de dominio de `REQ-CORE`— sino un **permiso para escribir código dentro de otro módulo desde este sub-paso**.
+
+Lo que se toca, enumerado y cerrado (§5.8.2):
+
+1. Dos interfaces y tres tipos nuevos en `Core\Domain`: `ModuleCatalog`, `ModuleContracting`, `ModuleDescriptor`, `ModuleChange`, `ModuleContractingOutcome` (más `ModuleContractingPreview`).
+2. Dos claves nuevas con valor por omisión en `DeclaresModuleRegistry::moduleDescriptor()`: `depends_on` y `essential`.
+3. La implementación de las dos interfaces en `Core\Infrastructure`, y dos líneas de enlace en `CoreServiceProvider`.
+4. La retirada de `ALWAYS_ENABLED` de `EloquentModuleAvailability`, sustituida por `essential` del descriptor (`CA-BO-036`, que ya estaba aprobado).
+5. Dos clases de evento en `Core\Domain\Events`, más las tres validaciones de `SyncModuleRegistry`.
+
+**No se toca ninguna migración, columna, *endpoint*, permiso ni regla de negocio de `REQ-CORE`** — con **una excepción que depende de `OPEN-BO-19`**: si se cierra el `GRANT` por columnas, `ModuleSubscription` necesita una proyección explícita y eso sí alcanza a `GET /modules` y `PATCH …/settings`, que son suyos.
+
+**Recomendación: sí, y sin ADR nuevo.** `ADR-048` hizo falta porque `ADR-045` no había decidido **el mecanismo** del aprovisionamiento —contrato síncrono o evento— y la pregunta se había llevado al usuario sin haber leído el código. Aquí el mecanismo **ya está decidido** por `ADR-045 §4.5`/`§4.8`, y lo único que esta especificación añade es la firma, siguiendo el precedente que `ADR-048` acaba de sentar. Si el usuario prefiere que la ampliación se haga en un paso propio, el mecanismo no cambia: cambia sólo dónde se *commitea*.
+
+### `OPEN-BO-19` · ¿El centro puede leer el motivo interno del proveedor? · **RESUELTA 2026-09-15: no, se cierra el `GRANT` por columnas — decisión explícita del usuario, es la única de las tres con consecuencia de seguridad**
+
+**El problema, verificado**: `module_subscriptions` es tabla de tenant, su RLS le da al centro sus propias filas, y el `REVOKE` que `datos.md §7` especifica quita **`INSERT` y `UPDATE`, no `SELECT`**. A partir de este sub-paso, `reason` guarda texto libre escrito por un operador de plataforma —«impago del segundo trimestre», «rescisión, contrato 2026/27»— y **el centro puede leerlo**.
+
+Es el mismo caso que el usuario ya resolvió el 2026-09-08 para `admin_action_logs` y `tenant_lifecycle_events`, con un criterio que se ratificó explícitamente: **ningún texto libre escrito por un operador del proveedor cruza el `GRANT`** (`datos.md §4.3.1`, `§5.3.1`). Y el argumento de por qué aparece **ahora** es idéntico al del issue #7 en `1.6b`: era inofensivo mientras nadie escribiera esa columna, y **este sub-paso es el que deja de hacerlo cierto**.
+
+**Recomendación: cerrarlo, con su coste dicho.** La forma exacta está en `datos.md §7.7`: `REVOKE SELECT` de tabla y `GRANT SELECT` de columnas enumeradas, con `reason` fuera. El coste es real y no se esconde: `ModuleSubscription` deja de poder hacer `SELECT *`, y eso alcanza a `GET /modules` y a `PATCH …/settings` de `REQ-CORE`, que están en producción. A cambio, el fallo es **ruidoso** —error de privilegios, no una respuesta de más— y la superficie vuelve a ser el `GRANT` y no la proyección de un *resource*, que es lo que `ADR-047 §4.4` fijó como criterio.
+
+**Lo que cambia si el usuario dice «no»**: `RN-BO-82` pasa a ser una regla de proyección del *resource* de `REQ-CORE` en vez de un privilegio, `CA-BO-147` se retira, y queda escrito que la garantía es más débil. **No es una decisión que yo pueda tomar**: cambia una migración ya especificada y toca *endpoints* de otro módulo ya desplegados.
+
 ---
 
 ## 15. ¿Se aprueba esta especificación?
@@ -1426,4 +1738,34 @@ Esta pasada especifica `REQ-BO-001` completo a la altura que hace falta para imp
 
 **`OPEN-BO-15` está resuelta desde el 2026-09-11 por `ADR-048`** (contrato síncrono `TenantProvisioner`, dos métodos, sin evento), que al evaluarla sobre el código encontró además que **la clonación de §5.6 incumplía `INV-007`** igual que el alta, sin que nadie lo hubiera nombrado (§5.6.2). De lo que queda, **sólo `OPEN-BO-14` cambia el comportamiento del código** —`200` frente a `202`— y por tanto es la única que conviene resolver antes de que `implementer` toque nada. `OPEN-BO-16` se puede responder mientras se implementa sin rehacer trabajo.
 
-> **¿Se aprueba esta especificación de `1.6b` antes de pasar a implementación?**
+> **¿Se aprueba esta especificación de `1.6b` antes de pasar a implementación?** — **Sí**, y el sub-paso quedó cerrado y mezclado el 2026-09-14 (PR [#204](https://github.com/pirexia/plataforma-educativa/pull/204), [#208](https://github.com/pirexia/plataforma-educativa/pull/208), [#212](https://github.com/pirexia/plataforma-educativa/pull/212)).
+
+### 15.3 Sub-paso `1.6c` · matriz de módulos — **especificada, pendiente de aprobación**
+
+Esta pasada especifica `REQ-BO-002` completo y los tres derivados de `ADR-045 §11` a la altura que hace falta para implementarlos, sobre el chasis de `1.6` y el ciclo de vida de `1.6b`. **No parte de cero**: §5.8 ya describía el flujo y §13.3 ya tenía dieciséis criterios. Lo que trae, y dónde está:
+
+| # | Qué | Dónde |
+|---|---|---|
+| 1 | **Ninguno de los dieciséis criterios de `§13.3` está satisfecho hoy**, verificado sobre `develop` en `91adac6` — al contrario de lo razonable de suponer. Lo que existe es el **precedente** de cada uno, no el criterio | §5.8.1, §13.3.1 |
+| 2 | **Dos tests existentes cambian de conexión** con el `REVOKE INSERT`, no uno: `ModuleSubscriptionsSchemaTest` —ya avisado— y **`SyncModuleRegistryTest`, que no estaba nombrado en ninguna parte** | §5.8.1 |
+| 3 | **El contrato con `REQ-CORE`**, con la forma de `ADR-048`: `ModuleCatalog` (lectura, la consume también `EloquentModuleAvailability`) y `ModuleContracting` (escritura, en **dos fases**) | §5.8.2, `OPEN-BO-18` |
+| 4 | **Por qué la escritura son dos fases y no una**: lo fuerza `ADR-046 §6.4` —prohibido tenant activo dentro de un bloque de plataforma—, y la invalidación necesita el prefijo del tenant | §5.8.2, §5.8.6, `RN-BO-75` |
+| 5 | **Qué pasa si falla la invalidación o el evento**, que es la pregunta que nadie hace hasta que pasa: la petición **no falla**, el TTL de 300 s es el peor caso acotado, y la **carrera residual queda declarada** en vez de escondida | §5.8.6, `RN-BO-76`, `CA-BO-139` |
+| 6 | **El bloqueo va sobre la fila de `tenants`, no sobre `module_subscriptions`**: contratar crea filas que aún no existen y no se puede bloquear lo que no está. Aplicado desde el principio, con el patrón de los issues #205/#207/#209 | §5.8.5, `RN-BO-66`, `CA-BO-132` |
+| 7 | **Una tercera validación que aborta el despliegue** y que `ADR-045` no escribe: un módulo esencial no puede depender de uno no esencial, porque **ninguna escritura podría protegerlo** | §5.8.3, `RN-BO-64`, `CA-BO-129` |
+| 8 | **Dos escrituras que el backoffice no hace aunque lo parezcan**: `created_by`/`updated_by` —referencias a `users` del centro, y un `platform_admin` no lo es— y la fila de `audit_logs`, que no existe y es correcto | §5.8.5, `RN-BO-73`, `RN-BO-74` |
+| 9 | **La masiva, en detalle**: una transacción por centro en orden de `id`, el fallo de uno no aborta el lote, un lote no mezcla direcciones, y la aprobación **encola** en vez de ejecutar | §5.8.7, `RN-BO-78` a `RN-BO-81` |
+| 10 | **Veinte reglas nuevas** (`RN-BO-63` a `RN-BO-82`) y **veintiún criterios nuevos** (`CA-BO-128` a `CA-BO-148`) | §7.3.1, §13.3.1 |
+| 11 | **Una frase de esta especificación corregida en su redacción**, no en su decisión: §9 decía «`REQ-BO` no escribe `module_subscriptions` directamente» de forma más ancha que lo que `ADR-045` decide, y chocaba en apariencia con §5.6.2 y con `CloneTenant`, ya mezclado | §9, §5.8.2 |
+
+**Y tres preguntas que no resuelvo yo**, ninguna de las cuales bloquea la implementación del resto:
+
+| Pregunta | Recomendación | Qué cambia si se decide lo contrario |
+|---|---|---|
+| `OPEN-BO-17` · ¿Reautenticación y/o doble autorización en la descontratación **individual**? | Reautenticación **sí**, doble autorización **no** | Una fila de `api.md §4` y una celda de `permisos.md §4.4`. **Ningún criterio de aceptación cambia de signo** |
+| `OPEN-BO-18` · ¿Se amplía la superficie pública de `REQ-CORE`? | **Sí**, acotada y enumerada, **sin ADR nuevo**: `ADR-045 §4.5`/`§4.8` ya decidió el mecanismo, que es justo lo que a `ADR-048` le faltaba | Sólo dónde se *commitea* |
+| `OPEN-BO-19` · ¿Cierra el `GRANT SELECT` por columnas para que el centro no lea `reason`? | **Sí** | `RN-BO-82` pasa de privilegio a proyección, `CA-BO-147` se retira, y la garantía queda **más débil**. Es la única de las tres con consecuencia de seguridad |
+
+**`OPEN-BO-19` es la que conviene resolver antes de que `implementer` toque nada**, porque cambia una migración ya especificada (`datos.md §7`) y alcanza a dos *endpoints* de `REQ-CORE` en producción. `OPEN-BO-17` y `OPEN-BO-18` se pueden responder mientras se implementa sin rehacer trabajo. **`OPEN-BO-04` y `OPEN-BO-06` siguen abiertas y siguen sin bloquear**: la primera es un ADR que formalice el cierre de `ADR-036` —`1.6c` no añade ni una fila a `admin_action_logs` que la afecte— y la segunda es la retención, que no condiciona ninguna escritura de este sub-paso.
+
+> **¿Se aprueba esta especificación de `1.6c` antes de pasar a implementación?** — **Sí, aprobada 2026-09-15.** Las tres preguntas se resuelven como recomendaba `spec-writer`: `OPEN-BO-17` (reautenticación sí, doble autorización no), `OPEN-BO-18` (sí, superficie acotada sin ADR nuevo) y `OPEN-BO-19` (sí, se cierra el `GRANT` por columnas — decisión explícita del usuario, es la única con consecuencia de seguridad). Pendiente: implementación.
