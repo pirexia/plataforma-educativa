@@ -1992,7 +1992,7 @@ El chasis se implementó (`aa668ba`) y pasó dos rondas de revisión independien
 
 El hueco de especificación señalado en la resolución del issue #173 — no existe todavía un `CA-BO` numerado para `POST /admin-invitation-redemptions` — sigue abierto: documentado en `api.md §2.1`, no inventado aquí, pendiente de asignar cuando se revise `§13` con calma. **`1.6b` no lo cierra a propósito**: pertenece al chasis, ya implementado y mezclado, y asignarle un número desde un sub-paso posterior sin escribir su test sería cambiar el hueco de sitio.
 
-### 15.2 Sub-paso `1.6b` · ciclo de vida de tenants — **aprobada e implementada, en revisión antes de mezclar**
+### 15.2 Sub-paso `1.6b` · ciclo de vida de tenants — **cerrado y mezclado (2026-09-11/15)**
 
 Esta pasada especifica `REQ-BO-001` completo a la altura que hace falta para implementarlo, sobre el chasis cerrado en `1.6`. Lo que trae, y dónde está:
 
@@ -2012,7 +2012,13 @@ Esta pasada especifica `REQ-BO-001` completo a la altura que hace falta para imp
 
 **`OPEN-BO-15` está resuelta desde el 2026-09-11 por `ADR-048`** (contrato síncrono `TenantProvisioner`, dos métodos, sin evento), que al evaluarla sobre el código encontró además que **la clonación de §5.6 incumplía `INV-007`** igual que el alta, sin que nadie lo hubiera nombrado (§5.6.2). De lo que queda, **sólo `OPEN-BO-14` cambia el comportamiento del código** —`200` frente a `202`— y por tanto es la única que conviene resolver antes de que `implementer` toque nada. `OPEN-BO-16` se puede responder mientras se implementa sin rehacer trabajo.
 
-> **¿Se aprueba esta especificación de `1.6b` antes de pasar a implementación?** — **Sí**, y el sub-paso quedó cerrado y mezclado el 2026-09-14 (PR [#204](https://github.com/pirexia/plataforma-educativa/pull/204), [#208](https://github.com/pirexia/plataforma-educativa/pull/208), [#212](https://github.com/pirexia/plataforma-educativa/pull/212)).
+> **¿Se aprueba esta especificación de `1.6b` antes de pasar a implementación?**
+
+**Cierre (2026-09-11/15).** Aprobada e implementada (`feat/REQ-BO-001-ciclo-de-vida-tenants`, PR [#204](https://github.com/pirexia/plataforma-educativa/pull/204)). Una pasada de revisión independiente encontró `ADR-048` pendiente de ratificar (resuelto: ratificada, §11 puntos 2/3 cerrados), un hallazgo Alta (reautenticación ausente en aprobación/rechazo de doble autorización) y varios Baja documentados; issues #196/#199-#203 abiertos en la revisión. El Alta y las incidencias Media (#196, #200) se corrigieron antes de mezclar.
+
+Una segunda pasada, esta vez con `codex-plugin-cc` (`ADR-049`, prueba acotada) como segunda opinión sobre el PR ya mezclado, encontró tres condiciones de carrera reales por lectura-sin-bloqueo en escrituras concurrentes (issues #205-#207, Media) más una cuarta ya Crítica al generalizar el patrón (#209) y una quinta relacionada (#210): todas corregidas con `lockForUpdate()` y re-verificación de estado dentro de la transacción, con test de regresión que falla sin el fix para cada una (`fix/REQ-BO-001-condiciones-de-carrera`, PR [#212](https://github.com/pirexia/plataforma-educativa/pull/212)). Detalle completo en `docs/historial/1.6b-ciclo-vida-tenants.md` y `CHANGELOG.md`.
+
+Quedan documentados y diferidos, sin corregir a propósito por severidad Baja o por no descarrilar el objetivo (§5 de `CLAUDE.md`): #199 (agotamiento intermitente de conexiones en la suite completa, nunca reproducido en CI, ajeno a este sub-paso), #201, #202, #203, #211, y la falta de `lock_timeout`/`statement_timeout` en `pgsql`/`pgsql_platform` (deuda sistémica, sin issue numerado todavía).
 
 ### 15.3 Sub-paso `1.6c` · matriz de módulos — **especificada y aprobada, implementada, en revisión independiente antes de mezclar**
 
