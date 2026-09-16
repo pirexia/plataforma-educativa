@@ -26,6 +26,8 @@
 | `feature_flag_rules` | Plataforma **con referencia opcional a tenant** | `affected_tenant_id` (referencia, sólo en reglas nominales). **No adopta la categoría de `ADR-047 §4.1`** (§9.3) | No | Ídem |
 | `tenants` | Ya existe | — | Ya tiene la suya (`id = app.current_tenant_id()`) | Gana columnas (§6) |
 | `module_subscriptions` | Ya existe, **de tenant** | Sí | Ya la tiene | **Gana una migración de privilegios** (§7), sin cambio de esquema |
+| `failed_jobs` | Ya existe, **de plataforma** (`shared_tables.platform`) | — (el tenant va **dentro del `payload`**, `ADR-033 §8`) | No: la barrera es el `REVOKE` de `0.7` | `1.6d` la **lee y escribe por `pgsql_platform`**, sin tocar su esquema ni sus privilegios (§14) |
+| `jobs`, `job_batches`, `migrations` | Ya existen, **del framework** (`shared_tables.framework`) | — | No | `1.6d` **sólo lee** `jobs` y `migrations`. Ni endurece ni altera ninguna (§14.3) |
 
 **Trece tablas nuevas** en la revisión original: nueve del chasis, del ciclo de vida y de la auditoría; **las dos de la sesión de plataforma** que trae `ADR-046 §5` (§2.6, §2.7); y las dos del motor de *feature flags* que entró en alcance por decisión del usuario del 2026-09-08 (§9). Es el dato que sostiene la división del paso en cinco (`funcional.md §12`). **Catorce desde el issue [#173](https://github.com/pirexia/plataforma-educativa/issues/173)** (2026-09-09): `platform_admin_invitations` (§2.8), necesaria para que el mecanismo de invitación de administradores de plataforma, ya documentado en `operacion.md §5`, tuviera implementación real.
 
@@ -337,7 +339,7 @@ La tabla que `ADR-033 §7` reservó y `ADR-036` fechó en este paso.
 | `actor_type` | `text` | No | `CHECK IN ('platform_admin','console','system')`. Vocabulario **propio y cerrado**, distinto del de `audit_logs` (`ADR-039`) |
 | `actor_platform_admin_id` | `bigint` | Sí | FK → `platform_admins.id`. Nulo para `console` y `system`. `CHECK ((actor_type = 'platform_admin') = (actor_platform_admin_id IS NOT NULL))` |
 | `affected_tenant_id` | `bigint` | Sí | FK → `tenants.id`. **Referencia, no propiedad** (§4.3). Nulo en acciones de alcance global |
-| `subject_type` | `text` | No | Del *morph map*, nunca el FQCN (`ADR-034 §3`) |
+| `subject_type` | `text` | No | Del *morph map*, nunca el FQCN (`ADR-034 §3`). **Vocabulario abierto, sin `CHECK`** —a diferencia de `action`—: hoy se escriben `platform` (el valor por omisión del grabador), `tenant`, `dual_authorization` y `module_subscription`, y **`1.6d` añade `failed_job`** sin migración (§14) |
 | `subject_id` | `bigint` | Sí | |
 | `subject_public_id` | `text` | Sí | Sobrevive al borrado del sujeto |
 | `action` | `text` | No | Vocabulario cerrado por `CHECK` (§4.2) |
@@ -968,6 +970,7 @@ erDiagram
 | 4b | `1.6b` | El `CHECK` de `admin_action_logs.action` gana **tres** valores: `tenant.slug_cambiado`, `tenant.aprovisionamiento_fallido`, `tenant.gracia_vencida` (§4.2.1) | Toma bloqueo breve de catálogo | `DROP CONSTRAINT` + `ADD CONSTRAINT` del mismo `CHECK`, **nunca** renombrando ni retirando valores. Precedente literal: la migración del issue [#173](https://github.com/pirexia/plataforma-educativa/issues/173). **Ojo**: la tabla es *append-only* bajo `FORCE` sin política de escritura, así que esta migración **puede** ampliar el `CHECK` pero **no podría rellenar ninguna columna** sobre las filas existentes (`ADR-047 §5.2`) |
 | 5 | `1.6c` | Privilegios de `module_subscriptions` (§7): `REVOKE UPDATE, INSERT` + `GRANT UPDATE (settings, …)`. **Y, si `OPEN-BO-19` se aprueba, el `REVOKE SELECT` + `GRANT SELECT` de columnas enumeradas de §7.7** | Ninguno sobre datos; toma bloqueo breve de catálogo | **La única migración de `1.6c`, y no crea ni altera ninguna tabla** (`ADR-045 §4.2`, §7.5). La lista de columnas **verificada capturando lo que Eloquent envía**, no supuesta (§7.1). Con `$withinTransaction = false`: toca privilegios, luego es DDL fuera de transacción (issue [#166](https://github.com/pirexia/plataforma-educativa/issues/166), cuarta repetición). **Dos tests existentes cambian de conexión**, no uno (§7.3) |
 | 6 | `1.6e` | `feature_flags` y `feature_flag_rules`, con sus `CHECK`, sus tres índices únicos parciales y sus `GRANT`/`REVOKE` (§9.6) | Ninguno: tablas nuevas | La lista de columnas del `GRANT UPDATE` a `plataforma_platform`, **verificada igual que la de §7.1** |
+| — | **`1.6d`** | **Ninguna.** Ni tabla, ni columna, ni índice, ni `CHECK` ampliado (§14) | — | **Es el único sub-paso de los cinco sin una sola migración**, y no por casualidad: es el único enteramente de lectura salvo por el reintento, cuyo vocabulario (`job.reintentado`) **ya está en el `CHECK` desplegado** desde el chasis (§4.2) |
 | 7 | `1.6e` | `tenants` gana `early_adopter_since` anulable (§6.1) | **Instantáneo** | Aditivo puro. Va en su propia migración, no mezclada con la #4: son dos sub-pasos distintos |
 
 **Todas aditivas. No hay fase *contract* y no hay nada que revertir en dos entregas** (`CLAUDE.md §9`).
@@ -1005,3 +1008,57 @@ Punto de checklist de esta tabla, y por tanto de cada una de sus filas (`ADR-047
 **Ni `feature_flags` ni `feature_flag_rules` contienen datos personales.** Los únicos identificadores de persona son `created_by`/`updated_by`, que apuntan a `platform_admins` —personal del proveedor— y se rigen por lo dicho en la primera fila de esta tabla. Un `role_code` es un código de rol, no una persona; un `affected_tenant_id` es un centro, no un interesado.
 
 **Interacción con `ADR-004`**: nada de este módulo entra en el derecho de supresión de un interesado de un centro, porque no contiene datos de alumnos ni de familias. Los datos personales que sí contiene —los del personal del proveedor— se rigen por la relación laboral, y su tratamiento se documenta en `PRIVACY.md` como tratamiento propio, no como encargado.
+
+---
+
+## 14. Salud y métricas (`1.6d`): **ninguna tabla, ninguna columna, ninguna migración**
+
+**La conclusión primero, porque es la pregunta que este documento tiene que responder para este sub-paso**: `1.6d` **no toca el esquema**. Todo sale de consultas sobre lo que ya existe, y el único vocabulario que estrena no necesita migración. Es el único de los cinco sub-pasos del que las dos cosas son ciertas.
+
+### 14.1 De dónde sale cada dato
+
+| Dato | Tabla | Tipo de tabla | Conexión | Nota |
+|---|---|---|---|---|
+| Versión desplegada | — | — | — | `config('app.version')`, que **ya existe** (`env('APP_VERSION', '0.1.0')`). No es un dato de base de datos |
+| Últimas migraciones | `migrations` | Framework (`shared_tables.framework`) | `pgsql_platform` | De plataforma, no del centro (`RN-BO-97`) |
+| Trabajos en cola del centro | `jobs` | Framework | `pgsql_platform` | Filtrado por `payload::jsonb ->> 'tenant_id'` (§14.2) |
+| Trabajos fallidos del centro | `failed_jobs` | **Plataforma** (`shared_tables.platform`) | `pgsql_platform` **obligatoriamente** (`RN-BO-86`, §14.3) | Ídem |
+| Última incidencia de plataforma | `admin_action_logs` | Plataforma con visibilidad por tenant afectado | `pgsql_platform` | Por `affected_tenant_id`, que es justo lo que al *payload* le falta (`funcional.md §5.9.3`) |
+| Estado y ciclo de vida | `tenants` | Raíz | `pgsql_platform` | Columnas de §6, ya existentes |
+| Tenants por estado, altas y bajas | `tenants`, `tenant_lifecycle_events` | Raíz y plataforma | `pgsql_platform` | `RN-BO-91`, `RN-BO-92` |
+| Adopción por módulo | `module_subscriptions` **y el catálogo declarado** | De tenant, y código | `pgsql_platform` | §14.4 |
+| Incoherencias de dependencia | Ninguna propia | — | — | Las calcula `REQ-CORE` desde `1.6c`; la ficha las **lee**, no las recalcula (`RN-BO-22`) |
+
+### 14.2 El tenant de un trabajo vive dentro del *payload*, y eso tiene consecuencias de esquema
+
+`failed_jobs` y `jobs` **no tienen columna `tenant_id`**, y no deben tenerla: son tablas del *driver* de colas y su forma la fija el framework, exactamente como `platform_sessions` (§2.6.3). El tenant lo estampa `ADR-033 §8` **dentro** del `payload`, que es `longText`.
+
+Filtrar por él es, por tanto, `payload::jsonb ->> 'tenant_id'`. Tres precisiones:
+
+1. **La expresión es inmutable** —el `cast` a `jsonb` y el operador `->>` lo son—, así que un índice de expresión **sería posible**. **No se crea en `1.6d`** y el motivo es el de siempre: `failed_jobs` tiene decenas de filas y una retención de 24 horas (`funcional.md §5.9.6`), y un índice sin una consulta que lo necesite es deuda (§2.1). **Disparador de revisión escrito**: si `failed_jobs` pasa de unos miles de filas sostenidas —lo que significaría que la purga no corre o que algo falla en masa—, el índice entra antes que cualquier otra optimización.
+2. **`payload` es `longText`, no `jsonb`, y no se cambia.** Convertir la columna reescribiría una tabla del framework y rompería el *driver*. El `cast` en la consulta es el precio, y es barato.
+3. **Un `payload` que no sea JSON válido haría fallar el `cast`.** No puede ocurrir —lo escribe el propio framework— pero la consulta se escribe de forma que un fallo ahí sea un error ruidoso y no una lista vacía: **una ficha de salud que enseña «cero fallos» porque su propia consulta falló es la peor respuesta posible** de este *endpoint*.
+
+### 14.3 Privilegios: el `REVOKE` de `0.7` decide por dónde corre todo
+
+`2026_08_17_180000_harden_failed_jobs_grants.php` dejó a `plataforma_app` **sólo `INSERT`** sobre `failed_jobs`, y su propio *docblock* dice para quién: *«leer y gestionar la cola de fallos es un asunto de plataforma (`REQ-BO-004`), ya cubierto por `plataforma_platform`»*. `1.6d` es ese asunto, dos meses después.
+
+- **Toda lectura y toda escritura de `failed_jobs` de este sub-paso corre por `pgsql_platform`** (`RN-BO-86`). No hay migración nueva: la que hace falta ya está desplegada.
+- **Y por eso el mecanismo del framework no sirve**: `config('queue.failed.database')` es `env('DB_CONNECTION')`, es decir `pgsql`. `queue:retry`, `queue:failed` y `queue:prune-failed` apuntan al rol equivocado (`funcional.md §5.9.6`). **No se arregla cambiando esa clave de configuración a `pgsql_platform`**: eso le daría al *worker* —que sólo necesita `INSERT`— una conexión con `BYPASSRLS` para registrar sus fallos, deshaciendo la mitad del endurecimiento de `0.7`. Se arregla con un camino propio del módulo, que es lo que `1.6d` construye.
+- **`jobs` y `job_batches` siguen sin endurecer**, y la primera no puede endurecerse mientras el *worker* corra por `plataforma_app` con el *driver* `database`. Declarado, con su issue, en `funcional.md §5.9.6`.
+
+### 14.4 La adopción se lee con el modelo de siempre, y eso es verificado y no supuesto
+
+`module_subscriptions` es tabla de tenant con RLS `FORCE`, y aun así el agregado **de todos los centros** se escribe sin tocar conexiones a mano ni usar `withoutGlobalScope()` —que además está prohibido en `app/Modules/**` por un test de arquitectura de `0.7.11`—. Verificado sobre el código:
+
+- `TenantScope::apply()` **retorna sin añadir ningún `where`** cuando `TenantContext::isPlatformMode()` es verdadero.
+- `TenantModel::getConnectionName()` **devuelve `pgsql_platform`** en ese mismo modo, y ese rol tiene `BYPASSRLS`.
+- `plataforma_platform` **conserva `SELECT` completo** sobre esta tabla: el cierre por columnas de §7.7 es sólo para `plataforma_app`.
+
+Luego `ModuleSubscription::query()->where('enabled', true)->…` dentro de `runAsPlatform(BackofficeLectura, …)` cuenta el parque entero. **Y fuera de ese bloque cuenta un solo centro, sin error** — que es el modo de fallo silencioso de `RN-BO-94` y la razón de que `CA-BO-162` compruebe el total con tres centros y no sólo la ausencia de fuga.
+
+### 14.5 Retención
+
+`1.6d` no crea ninguna tabla, así que no añade ninguna fila a §13. Lo que sí hereda es la retención de `failed_jobs`, que **no es de este módulo**: la fijó el issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73) en **24 horas** (`queue:prune-failed --hours=24`, programada a diario en `routes/console.php`) para no conservar tokens de un solo uso más de lo necesario, ni siquiera cifrados.
+
+> **Y hay que decir que esa purga no funciona hoy** (`funcional.md §5.9.6`, hallazgo 1, severidad **Alta**): usa el mismo proveedor del framework sobre `plataforma_app`, que tiene `REVOKE DELETE`. La retención de 24 horas está **decidida y documentada, y no aplicada**. Es un hallazgo anterior a este sub-paso y su arreglo es una decisión de alcance de la sesión orquestadora (`funcional.md §15.4`), no una que tome esta especificación.
