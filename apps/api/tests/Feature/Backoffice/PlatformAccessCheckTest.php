@@ -142,22 +142,18 @@ test('CA-BO-028: BackofficeEscritura que sí escribe en admin_action_logs no lan
     Auth::guard('platform')->logout();
 });
 
-// CA-BO-028 (segunda parte, ADR-046 §6.5) — **corregido en 1.6c**, hallazgo
-// propio de severidad Alta (ver docblock de
-// `TenantContext::runAsPlatform()`): antes de este cambio, `after()` se
-// llamaba incondicionalmente en el `finally`, así que un bloque que
-// fallaba ANTES de escribir nada quedaba enmascarado por el
-// `RuntimeException` de "sin rastro" — convirtiendo, por ejemplo, un
-// `422` de validación limpio de `REQ-BO-002` (esencial, retirado,
-// dependencias sin confirmar, estado del tenant que ya no admite
-// escritura — RN-BO-65/66/67/71, todos legítimos DENTRO del bloque, sin
-// escribir nada) en un `500` de plataforma confuso. Un bloque que falla
-// no "termina": su transacción se revierte, y exigirle un rastro de algo
-// que nunca se comprometió no tiene sentido — `after()` existe para
-// atrapar el caso opuesto, un bloque que sí escribe y se olvida de
-// auditarlo (comprobado arriba, "BackofficeEscritura que sí escribe...
-// no lanza"). Ahora la excepción original propaga intacta y `after()` ni
-// siquiera se invoca.
+// CA-BO-028 (segunda parte, ADR-046 §6.5) — issue #215 (Alta, hallado en
+// 1.6c): la obligación de auditar sigue vigente al pie de la letra
+// ("también si el callback lanzó", ADR-046 §6.3) — `after()` se sigue
+// llamando siempre, sin reabrir el ADR. Lo único que cambia es que su
+// resultado nunca sustituye a la excepción real del callback: si esta ya
+// lanzó (una `ApiException` de negocio, o un control de flujo legítimo
+// como `ModuleChangeWasNoOp` de `REQ-BO-002`, que es un ÉXITO sin
+// escritura), esa es la señal que importa. Antes de este arreglo, un
+// `422` de validación limpio (esencial, retirado, dependencias sin
+// confirmar — RN-BO-65/66/67/71, todos legítimos DENTRO del bloque, sin
+// escribir nada) quedaba enmascarado por el `RuntimeException` de "sin
+// rastro" de `after()`, convirtiéndose en un `500` de plataforma confuso.
 test('CA-BO-028: si el callback lanza, la excepción original propaga y no se enmascara con la regla de cierre', function (): void {
     $admin = makePlatformAdminForAccessCheck();
     Auth::guard('platform')->login($admin);
@@ -169,14 +165,41 @@ test('CA-BO-028: si el callback lanza, la excepción original propaga y no se en
         throw new DomainException('fallo del callback');
     }))->toThrow(DomainException::class, 'fallo del callback');
 
-    // No sólo la excepción es la correcta: after() de verdad no corrió
-    // (si hubiera corrido sin escribir nada, habría lanzado su propio
-    // RuntimeException en vez de dejar pasar el DomainException de arriba).
+    // after() sí se invocó (issue #218, defensa en profundidad intacta:
+    // si algo hubiera quedado escrito pese a la excepción, se habría
+    // reportado) y, como no había nada que auditar tras la reversión de
+    // la transacción, no dejó ninguna fila nueva.
     expect((int) (AdminActionLog::query()->max('id') ?? 0))->toBe($checkpoint);
 
     // El estado de plataforma queda restaurado igual que antes del
     // cambio: un fallo no debe dejar `isPlatformMode()` a true.
     expect($context->isPlatformMode())->toBeFalse();
+
+    Auth::guard('platform')->logout();
+});
+
+// Issue #215, la parte que de verdad prueba la corrección: cuando el
+// callback lanza Y after() también habría lanzado (nada escrito), la
+// excepción que propaga es la del callback, nunca la de after(). Antes
+// del arreglo esto era exactamente el 422→500 que #215 reporta.
+test('CA-BO-028: la excepción de after() nunca sustituye a la del callback cuando las dos ocurrirían', function (): void {
+    $admin = makePlatformAdminForAccessCheck();
+    Auth::guard('platform')->login($admin);
+
+    $context = app(TenantContext::class);
+
+    $thrown = null;
+
+    try {
+        $context->runAsPlatform(PlatformAccessPurpose::BackofficeEscritura, function (): void {
+            throw new DomainException('422 de negocio, sin escribir nada');
+        });
+    } catch (Throwable $e) {
+        $thrown = $e;
+    }
+
+    expect($thrown)->toBeInstanceOf(DomainException::class);
+    expect($thrown->getMessage())->toBe('422 de negocio, sin escribir nada');
 
     Auth::guard('platform')->logout();
 });

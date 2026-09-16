@@ -152,36 +152,29 @@ final class TenantContext
         $this->platformMode = true;
         $this->platformPurpose = $purpose;
 
-        // 1.6c, hallazgo propio (severidad Alta, corregido en este mismo
-        // commit): `after()` sólo se llama en el camino de éxito, nunca
-        // cuando el `callback()` lanza. Antes de este cambio, un
-        // `finally` incondicional invocaba `after()` también cuando el
-        // callback fallaba — y con `BackofficeEscritura`, `after()`
-        // exige al menos una fila nueva en `admin_action_logs` (ADR-046
-        // §6.5). Eso funcionaba mientras cada llamador garantizara
-        // escribir algo siempre que el bloque terminase (el patrón de
-        // `TenantLifecycleService`: toda validación que pueda fallar
-        // ocurre ANTES de abrir el bloque, nunca dentro). `REQ-BO-002`
-        // (1.6c) rompe esa premisa por primera vez: el cierre de
-        // dependencias de `ModuleContractingService::apply()` sólo se
-        // conoce bajo el bloqueo de la fila de `tenants` (`RN-BO-66`), y
-        // puede concluir legítimamente "nada que escribir" —esencial,
-        // retirado, dependencias sin confirmar, estado del tenant que ya
-        // no admite escritura— **después** de haber entrado en el
-        // bloque. La excepción de negocio que señala ese resultado
-        // (`ApiException`) quedaba enmascarada por la excepción de
-        // `after()` ("terminó sin dejar rastro"), convirtiendo un `422`/
-        // `409` limpio en un `500` de plataforma. Un bloque que falla no
-        // "termina": su transacción se revierte, y exigirle un rastro de
-        // algo que nunca llegó a comprometerse no tiene sentido — el
-        // caso que `after()` existe para atrapar es el opuesto, un
-        // bloque que **sí** completa una escritura y se olvida de
-        // auditarla. Ningún llamador existente (`TenantLifecycleService`,
-        // `TenantsController`) deja de compilar ni cambia de
-        // comportamiento: ninguno lanza hoy dentro de su bloque.
+        // Corrección del issue #215 (severidad Alta, hallada en 1.6c) sin
+        // reabrir ADR-046 §6.5: `after()` se sigue llamando siempre,
+        // "también si el callback lanzó", tal como dice el ADR — no se
+        // retira la barrera. Lo que cambia es qué excepción propaga: si
+        // el callback ya había lanzado, esa es la señal real (puede ser
+        // una excepción de negocio como `ApiException`, o un control de
+        // flujo legítimo como `ModuleChangeWasNoOp` de REQ-BO-002, que
+        // *es* un éxito sin escritura) y no debe sustituirse por la de
+        // `after()` — que en ese momento comprueba una transacción ya
+        // revertida y encontrará, correctamente, "nada escrito", sin que
+        // eso sea el fallo que hay que reportar. `after()` se llama
+        // igualmente (defensa en profundidad intacta: si de verdad quedó
+        // algo escrito sin auditar pese a la excepción, se registra con
+        // `report()`), pero nunca manda sobre la excepción original.
         try {
             $result = $callback();
         } catch (Throwable $e) {
+            try {
+                app(PlatformAccessCheck::class)->after($purpose);
+            } catch (Throwable $afterFailure) {
+                report($afterFailure);
+            }
+
             $this->platformMode = $wasPlatformMode;
             $this->platformPurpose = $previousPurpose;
 
@@ -191,11 +184,16 @@ final class TenantContext
         // after() se llama con el bloque todavía "abierto" (antes de
         // restaurar platformMode/platformPurpose): es simétrico con
         // before(), que se llama antes de abrirlo, y deja que la
-        // comprobación observe el mismo estado que vio el callback.
-        app(PlatformAccessCheck::class)->after($purpose);
-
-        $this->platformMode = $wasPlatformMode;
-        $this->platformPurpose = $previousPurpose;
+        // comprobación observe el mismo estado que vio el callback. El
+        // `finally` asegura la restauración también si after() lanza
+        // (issue #218): sin él, `platformMode` quedaría en `true` de
+        // forma persistente en ese proceso.
+        try {
+            app(PlatformAccessCheck::class)->after($purpose);
+        } finally {
+            $this->platformMode = $wasPlatformMode;
+            $this->platformPurpose = $previousPurpose;
+        }
 
         return $result;
     }
