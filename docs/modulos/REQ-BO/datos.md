@@ -1059,6 +1059,12 @@ Luego `ModuleSubscription::query()->where('enabled', true)->…` dentro de `runA
 
 ### 14.5 Retención
 
-`1.6d` no crea ninguna tabla, así que no añade ninguna fila a §13. Lo que sí hereda es la retención de `failed_jobs`, que **no es de este módulo**: la fijó el issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73) en **24 horas** (`queue:prune-failed --hours=24`, programada a diario en `routes/console.php`) para no conservar tokens de un solo uso más de lo necesario, ni siquiera cifrados.
+`1.6d` no crea ninguna tabla, así que no añade ninguna fila a §13. Lo que sí hace, por decisión del usuario del 2026-09-16, es **hacerse cargo de la retención de `failed_jobs`**: el plazo lo fijó el issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73) en **24 horas** para no conservar tokens de un solo uso más de lo necesario, ni siquiera cifrados, y desde `1.6d` lo aplica **`bo:purge-failed-jobs`** —comando propio del módulo, por `pgsql_platform`, diario— en lugar de `queue:prune-failed`, que apunta al rol sin `DELETE` (`RN-BO-98`, `funcional.md §5.9.7`).
 
-> **Y hay que decir que esa purga no funciona hoy** (`funcional.md §5.9.6`, hallazgo 1, severidad **Alta**): usa el mismo proveedor del framework sobre `plataforma_app`, que tiene `REVOKE DELETE`. La retención de 24 horas está **decidida y documentada, y no aplicada**. Es un hallazgo anterior a este sub-paso y su arreglo es una decisión de alcance de la sesión orquestadora (`funcional.md §15.4`), no una que tome esta especificación.
+| Tabla | Retención | Supresión |
+|-------|-----------|-----------|
+| `failed_jobs` | **24 horas** (issue #73). **Constante literal en `config/backoffice.php`, sin `env()`** — una variable que la alargue anula en silencio una mitigación de datos personales (`RN-BO-98`, `operacion.md §2`) | Purga física diaria por `bo:purge-failed-jobs`, sobre `pgsql_platform`. **Es el único borrado físico de todo `REQ-BO`**: las dos tablas *append-only* del módulo no se purgan hasta que exista `REQ-PRIV-006` (§13) |
+
+> **Y hay que decir de dónde venimos** (`funcional.md §5.9.6`, hallazgo 1, severidad **Alta**): esa purga **no ha funcionado desde `0.7`**, porque el comando del framework usa `config('queue.failed.database')` = `plataforma_app`, que tiene `REVOKE DELETE`. La retención de 24 horas estaba **decidida, documentada y no aplicada**, y los *payloads* cifrados con token de `REQ-AUTH` se han conservado indefinidamente durante ese periodo. Se cierra en `1.6d` y **queda registrado en `PRIVACY.md` como incidencia con sus fechas** (`operacion.md §10`): arreglarlo hacia delante no borra lo que se conservó de más.
+>
+> **Consecuencia visible del arreglo, y es la única regresión que `1.6d` introduce**: a partir de ahora la ficha de salud sólo ve 24 horas hacia atrás y `bo:retry-provisioning` sólo puede reparar un aprovisionamiento dentro de ese plazo (`operacion.md §8`).
