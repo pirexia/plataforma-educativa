@@ -21,6 +21,7 @@ final class PlatformCapabilityMap
         'soporte' => [
             PlatformCapability::TenantLeer,
             PlatformCapability::AuditoriaPlataformaLeer,
+            PlatformCapability::ModuloLeer,
         ],
         'operaciones' => [
             PlatformCapability::TenantLeer,
@@ -31,9 +32,17 @@ final class PlatformCapabilityMap
             PlatformCapability::TenantSuspender,
             PlatformCapability::AuditoriaPlataformaLeer,
             PlatformCapability::AutorizacionLeer,
+            // permisos.md §4.4: «módulos, límites, flags» es literal en
+            // REQ-BO-007 para operaciones.
+            PlatformCapability::ModuloLeer,
+            PlatformCapability::ModuloContratar,
+            PlatformCapability::ModuloContratarMasivo,
         ],
         'comercial' => [
             PlatformCapability::TenantLeer,
+            // permisos.md §4.4 punto 4: comercial necesita saber qué está
+            // contratado («planes y facturación»), nunca escribir.
+            PlatformCapability::ModuloLeer,
         ],
         'superadministrador' => [
             PlatformCapability::TenantLeer,
@@ -52,6 +61,9 @@ final class PlatformCapabilityMap
             PlatformCapability::IpAllowlistGestionar,
             PlatformCapability::AuditoriaPlataformaLeer,
             PlatformCapability::AutorizacionLeer,
+            PlatformCapability::ModuloLeer,
+            PlatformCapability::ModuloContratar,
+            PlatformCapability::ModuloContratarMasivo,
         ],
     ];
 

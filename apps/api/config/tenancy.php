@@ -63,6 +63,13 @@ return [
             'platform_sessions', 'platform_admin_sessions',
             'dual_authorizations',
             'admin_action_logs', 'tenant_lifecycle_events',
+
+            // REQ-BO-002 (1.6c), datos.md §7 (nota de la migración de
+            // `platform_idempotency_keys`): versión de plataforma de
+            // `idempotency_keys` — esa es de tenant y exige contexto de
+            // tenant activo para cualquier consulta, que `POST
+            // /module-rollouts` nunca tiene.
+            'platform_idempotency_keys',
         ],
 
         // Fuera del sistema de tenancy por completo: sin tenant_id.

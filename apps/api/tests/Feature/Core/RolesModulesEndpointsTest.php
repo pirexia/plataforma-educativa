@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ModuleSubscription;
 use App\Models\PermissionRole;
 use App\Models\Person;
 use App\Models\Role;
@@ -8,6 +9,7 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 
 afterEach(function (): void {
     DB::connection('pgsql_platform')->table('tenants')->delete();
@@ -220,6 +222,83 @@ test('CA-CORE-061: cambiar enabled de una suscripción por API no existe (422 si
             'enabled' => true,
         ])
         ->assertStatus(422);
+});
+
+// Issue #223 (hallazgo Medio de revisión independiente, 1.6c): la
+// cobertura existente de CA-BO-031 (ModuleSubscriptionsSchemaTest.php)
+// escribe y lee directamente por `DB::table()` crudo, sin ejercitar el
+// camino real de Eloquent de `PATCH /module-subscriptions/{publicId}`
+// (`Core\Http\Controllers\ModulesController::updateSettings()`). Este
+// test hace la petición HTTP real, autenticado como el Administrador de
+// Centro del propio tenant, y relee el resultado con el propio modelo
+// Eloquent (`ModuleSubscription::TENANT_VISIBLE_COLUMNS`, RN-BO-82), no
+// con un `DB::table()` crudo ni por otra conexión.
+//
+// La relectura tiene que ir por la conexión `pgsql` (la misma que usó la
+// petición, dentro de la MISMA transacción de `DatabaseTransactions` de
+// este test): `pgsql_platform` es una sesión distinta y no vería un
+// `UPDATE` todavía sin `COMMIT` — precisamente lo que le pasó a la
+// primera versión de este test (hallazgo propio al escribirlo). Por el
+// mismo motivo no se comprueba aquí `updated_by`: `plataforma_app` no
+// tiene privilegio de columna para leerlo ni siquiera vía `pgsql`
+// (`RN-BO-82`, `CA-BO-147`) y `pgsql_platform` no vería el `UPDATE` sin
+// confirmar — es decir, es estructuralmente imposible de comprobar desde
+// este camino sin romper la propia barrera de privilegio que se quiere
+// proteger. Que nadie lo escribe ya está verificado donde SÍ es
+// observable, el camino del backoffice (`CA-BO-137`/`CA-BO-138`, que
+// hace `COMMIT` real por no estar bajo `DatabaseTransactions` de
+// `pgsql`).
+test('CA-BO-031: PATCH /module-subscriptions/{publicId} actualiza settings por el camino real de Eloquent', function (): void {
+    [$tenant, $admin] = provisionCoreTenant('modules-223');
+
+    if (! DB::connection('pgsql_owner')->table('modules')->where('code', 'req-test-mod-223')->exists()) {
+        DB::connection('pgsql_owner')->table('modules')->insert([
+            'code' => 'req-test-mod-223', 'name_key' => 'modules.test', 'phase' => '1',
+        ]);
+    }
+
+    $publicId = (string) Str::ulid();
+    DB::connection('pgsql_platform')->table('module_subscriptions')->insert([
+        'tenant_id' => $tenant->id, 'public_id' => $publicId, 'module_code' => 'req-test-mod-223',
+        'enabled' => true, 'enabled_at' => now()->subMinute(), 'reason' => 'Alta de prueba',
+        'settings' => json_encode(['locale_default' => 'es-ES']),
+        'created_at' => now()->subMinute(), 'updated_at' => now()->subMinute(),
+    ]);
+
+    $response = test()->actingAs($admin)
+        ->patchJson(coreApiUrl($tenant->slug, "/module-subscriptions/{$publicId}"), [
+            'settings' => ['locale_default' => 'fr'],
+        ]);
+
+    $response->assertOk();
+    expect($response->json('public_id'))->toBe($publicId)
+        ->and($response->json('module_code'))->toBe('req-test-mod-223')
+        ->and($response->json('settings'))->toBe(['locale_default' => 'fr']);
+
+    $subscription = app(TenantContext::class)->runFor(
+        $tenant->id,
+        fn () => ModuleSubscription::query()
+            ->select(ModuleSubscription::TENANT_VISIBLE_COLUMNS)
+            ->where('public_id', $publicId)
+            ->firstOrFail(),
+    );
+
+    expect($subscription->settings)->toBe(['locale_default' => 'fr'])
+        ->and($subscription->updated_at->gt($subscription->created_at))->toBeTrue();
+
+    // Sin DELETE aquí a propósito, mismo motivo exacto que CA-BO-031 en
+    // ModuleSubscriptionsSchemaTest.php: el UPDATE de arriba corrió por
+    // `pgsql` dentro de la transacción de nivel de test
+    // (`DatabaseTransactions`), que mantiene el bloqueo de fila hasta que
+    // el test termina — un DELETE por `pgsql_platform` (autocommit,
+    // sesión distinta) sobre esa misma fila aquí se queda esperando ese
+    // bloqueo para siempre (punto muerto real, reproducido al escribir
+    // este test). La fila huérfana la limpia la siguiente corrida, igual
+    // que allí.
+    DB::connection('pgsql_platform')->table('module_subscriptions')
+        ->where('module_code', 'req-test-mod-223')
+        ->whereNotIn('tenant_id', DB::connection('pgsql_platform')->table('tenants')->select('id'))
+        ->delete();
 });
 
 // CA-CORE-062
