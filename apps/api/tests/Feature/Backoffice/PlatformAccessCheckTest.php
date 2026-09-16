@@ -142,6 +142,29 @@ test('CA-BO-028: BackofficeEscritura que sí escribe en admin_action_logs no lan
     Auth::guard('platform')->logout();
 });
 
+// Issue #218 (Media, security-reviewer, hallado en 1.6c): en el camino
+// de ÉXITO, si after() lanza (el bloque terminó sin dejar rastro en
+// admin_action_logs), la restauración de platformMode/platformPurpose
+// ocurría DESPUÉS de esa llamada — así que nunca llegaba a ejecutarse.
+// platformMode es un singleton de vida de proceso (causa raíz de #196):
+// una fuga aquí se autoperpetúa en cualquier runAsPlatform() posterior
+// del mismo proceso. Ahora esa llamada está en try/finally.
+test('issue #218: si after() lanza en el camino de éxito, platformMode se restaura igualmente', function (): void {
+    $admin = makePlatformAdminForAccessCheck();
+    Auth::guard('platform')->login($admin);
+
+    $context = app(TenantContext::class);
+
+    expect(fn () => $context->runAsPlatform(PlatformAccessPurpose::BackofficeEscritura, fn () => 'ok, pero sin escribir nada'))
+        ->toThrow(RuntimeException::class);
+
+    // La propiedad que #218 exige: pese a que after() lanzó, el estado
+    // no queda corrompido para la siguiente llamada del mismo proceso.
+    expect($context->isPlatformMode())->toBeFalse();
+
+    Auth::guard('platform')->logout();
+});
+
 // CA-BO-028 (segunda parte, ADR-046 §6.5) — issue #215 (Alta, hallado en
 // 1.6c): la obligación de auditar sigue vigente al pie de la letra
 // ("también si el callback lanzó", ADR-046 §6.3) — `after()` se sigue

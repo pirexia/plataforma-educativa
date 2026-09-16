@@ -1,7 +1,9 @@
 <?php
 
 use App\Modules\Backoffice\Application\ModuleSubscriptionsService;
+use App\Modules\Backoffice\Domain\DualAuthorizationStatus;
 use App\Modules\Backoffice\Domain\Models\AdminActionLog;
+use App\Modules\Backoffice\Domain\Models\DualAuthorization;
 use App\Modules\Backoffice\Domain\Models\PlatformAdmin;
 use App\Modules\Backoffice\Domain\Models\PlatformIdempotencyKey;
 use App\Modules\Backoffice\Infrastructure\Jobs\PurgePlatformIdempotencyKeys;
@@ -724,6 +726,103 @@ test('CA-BO-143, CA-BO-066: la descontratación masiva responde 202 con la dual_
         ->where('tenant_id', $tenant->id)->where('module_code', 'bo-test-base')->value('enabled');
 
     expect((bool) $enabledAfter)->toBeFalse();
+});
+
+// Issue #224 (Alta, /codex:review), #227 (Media, falta de test de
+// regresión, db-reviewer/security-reviewer): ModuleSubscriptionsService::
+// executeApprovedBulkDecontract() corre dentro de la transacción de
+// DualAuthorizationService::execute(). Antes del arreglo, encolaba
+// RunModuleRollout de inmediato; con QUEUE_CONNECTION=sync eso ejecutaba
+// el lote en el sitio, incluso si algo posterior en la misma transacción
+// (el forceFill(...)->save() o el record() de "ejecutada") lanzaba y
+// revertía. Reproduce exactamente esa forma: llama al método real dentro
+// de una transacción que después lanza a propósito, sin pasar por el
+// execute() privado (no se puede invocar desde fuera), y comprueba que
+// el lote no se aplicó.
+test('issue #224: si algo lanza en la misma transacción después de encolar el lote, el lote no se aplica', function (): void {
+    [$requester, $requesterSecret] = boCreateEnrolledAdmin('operaciones');
+    [$approver] = boCreateEnrolledAdmin('operaciones');
+    $this->actingAs($requester, 'platform');
+    $requesterClient = boSensitiveClient($requester, $requesterSecret);
+
+    $tenant = Tenant::factory()->create();
+    app(ModuleSubscriptionsService::class)->applyChange($tenant, new ModuleChange('bo-test-base', true, 'Alta previa'));
+
+    $response = $requesterClient->postJson('http://'.boPlatformHost().'/api/platform/v1/module-rollouts', [
+        'module_code' => 'bo-test-base',
+        'enabled' => false,
+        'reason' => 'Fin del piloto',
+        'tenant_public_ids' => [$tenant->public_id],
+    ], ['Idempotency-Key' => (string) Str::ulid()]);
+
+    $response->assertStatus(202);
+    $authPublicId = $response->json('data.public_id');
+
+    // Réplica mínima de lo que approve() deja antes de llamar a
+    // execute() (approved_by es lo único que executeApprovedBulkDecontract()
+    // necesita de verdad, vía $authorization->approver).
+    $authorization = DualAuthorization::query()->where('public_id', $authPublicId)->firstOrFail();
+    $authorization->forceFill([
+        'status' => DualAuthorizationStatus::Aprobada,
+        'approved_by' => $approver->id,
+        'approved_at' => now(),
+    ])->save();
+    $authorization->refresh();
+
+    $thrown = null;
+
+    try {
+        DB::connection('pgsql_platform')->transaction(function () use ($authorization): void {
+            app(ModuleSubscriptionsService::class)->executeApprovedBulkDecontract($authorization);
+
+            // El fallo simulado que motivó #224: algo revienta DESPUÉS
+            // de registrar el afterCommit() del lote, dentro de la misma
+            // transacción — exactamente donde execute() hace el
+            // forceFill(...)->save() y el record() de "ejecutada".
+            throw new RuntimeException('fallo simulado tras encolar el lote');
+        });
+    } catch (RuntimeException $e) {
+        $thrown = $e;
+    }
+
+    expect($thrown)->not->toBeNull();
+
+    // La propiedad que exige #224: con QUEUE_CONNECTION=sync, si el
+    // afterCommit() se hubiera disparado pese al ROLLBACK, esto ya
+    // estaría en false.
+    expect((bool) DB::connection('pgsql_platform')->table('module_subscriptions')
+        ->where('tenant_id', $tenant->id)->where('module_code', 'bo-test-base')->value('enabled'))->toBeTrue();
+});
+
+// Issue #225 (Media, /codex:review), #227: un tenant que ya está en el
+// estado solicitado es una no-operación completa (RN-BO-69) y no debe
+// contarse como `applied` en el resumen del lote — se cuenta aparte,
+// `unchanged`.
+test('issue #225: el resumen de la masiva distingue applied de unchanged', function (): void {
+    [$admin, $secret] = boCreateEnrolledAdmin('operaciones');
+    $this->actingAs($admin, 'platform');
+    $client = boSensitiveClient($admin, $secret);
+
+    $alreadyEnabled = Tenant::factory()->create();
+    $needsChange = Tenant::factory()->create();
+
+    app(ModuleSubscriptionsService::class)->applyChange($alreadyEnabled, new ModuleChange('bo-test-base', true, 'Alta previa'));
+
+    $response = $client->postJson('http://'.boPlatformHost().'/api/platform/v1/module-rollouts', [
+        'module_code' => 'bo-test-base',
+        'enabled' => true,
+        'reason' => 'CA-BO-142: prueba de unchanged vs applied',
+        'tenant_public_ids' => [$alreadyEnabled->public_id, $needsChange->public_id],
+    ], ['Idempotency-Key' => (string) Str::ulid()]);
+
+    $response->assertStatus(202);
+
+    $summary = AdminActionLog::query()->where('action', 'modulo.masivo_ejecutado')->whereNull('affected_tenant_id')->latest('id')->first();
+
+    expect($summary)->not->toBeNull();
+    expect($summary->context['requested'])->toBe(2);
+    expect($summary->context['applied'])->toBe(1);
+    expect($summary->context['unchanged'])->toBe(1);
 });
 
 test('CA-BO-144: un centro eliminado entre la solicitud y la aprobación se omite, y el resto se aplica', function (): void {

@@ -636,13 +636,22 @@ Mismo argumento que `§3.3` sobre `dual_authorizations`, aplicado a `status`: qu
 **`ADR-045` no cambia ni una columna de esta tabla.** Lo único que cambia es quién puede escribir qué:
 
 ```sql
-REVOKE UPDATE, INSERT ON module_subscriptions FROM plataforma_app;
+REVOKE UPDATE, INSERT, DELETE ON module_subscriptions FROM plataforma_app;
 
 GRANT UPDATE (settings, updated_at, updated_by, deleted_at)
     ON module_subscriptions TO plataforma_app;
 
--- plataforma_platform conserva INSERT y UPDATE completos: es la conexión del backoffice.
+-- SELECT de columnas enumeradas, nunca de tabla (§7.7, OPEN-BO-19 resuelta: sí).
+REVOKE SELECT ON module_subscriptions FROM plataforma_app;
+GRANT SELECT (
+    id, tenant_id, public_id, module_code, enabled, enabled_at,
+    disabled_at, settings, created_at, updated_at, deleted_at
+) ON module_subscriptions TO plataforma_app;
+
+-- plataforma_platform conserva INSERT, UPDATE, DELETE y SELECT completos: es la conexión del backoffice.
 ```
+
+**`REVOKE DELETE` (issue #220, Alta, hallado por `db-reviewer`, cerrado el 2026-09-16)**: era la única migración de endurecimiento del repositorio que no lo revocaba explícitamente. Un `DELETE` directo desde `plataforma_app` habría borrado físicamente una suscripción sin pasar por `enabled = false`, sin auditoría en `admin_action_logs` y saltándose `RN-BO-22`/`RN-BO-65`/`RN-BO-71` — incumpliendo `INV-003`/`INV-004` sobre esta tabla. En una migración propia (`2026_09_16_100000_harden_module_subscriptions_platform_grants_delete.php`), no editando la ya desplegada.
 
 ### 7.1 La lista de columnas hay que verificarla, no suponerla
 
@@ -652,13 +661,14 @@ GRANT UPDATE (settings, updated_at, updated_by, deleted_at)
 
 ### 7.2 Un test por revocación
 
-`ADR-045 §4.4`: *«un `REVOKE` que no se prueba no existe»* (lección del bug 6 de 0.7 con `failed_jobs`, citada en `TenantMigration`). Tres tests, no dos:
+`ADR-045 §4.4`: *«un `REVOKE` que no se prueba no existe»* (lección del bug 6 de 0.7 con `failed_jobs`, citada en `TenantMigration`). Cuatro tests, no tres:
 
 | Test | Comprueba |
 |------|-----------|
 | `CA-BO-030` | `plataforma_app` **no** puede escribir `enabled` |
 | `CA-BO-031` | `plataforma_app` **no** puede insertar filas |
 | `CA-BO-031` (segunda mitad) | `plataforma_app` **sí** puede seguir escribiendo `settings` por el camino normal de la aplicación — el que atrapa una lista de columnas incompleta |
+| (issue #220) | `plataforma_app` **no** puede hacer `DELETE`, añadido el 2026-09-16 junto con el `REVOKE` correspondiente — el mismo motivo: un `REVOKE` sin test no existe |
 
 ### 7.3 Consecuencia sobre **dos** tests existentes, no uno
 
@@ -704,32 +714,13 @@ El orden completo de la fase 1 está en `funcional.md §5.8.5`. Lo que correspon
 - **Y `tenant_id` se fija a mano.** La columna lleva `DEFAULT app.current_tenant_id()` y el backoffice escribe **sin tenant activo** (`ADR-046 §6.4`), donde esa función es nula y la columna es `NOT NULL`. Confiar en el `DEFAULT` desde modo plataforma no produce la fila del centro equivocado: produce un error de `NOT NULL`. Es lo que el *docblock* de `BelongsToTenant` ya prescribe para modo plataforma, y `plataforma_platform` puede hacerlo porque tiene `BYPASSRLS` y la política `tenant_isolation` no lo filtra (`ADR-033 §5`).
 - **No se escribe fila en `audit_logs`** (`RN-BO-74`), pese a que `ModuleSubscription` es `Auditable` con política `Full`: la escritura ocurre bajo `BackofficeEscritura` y `AuditRecorder::record()` retorna en silencio por `ADR-046 §6.5`. Es `RN-BO-30` funcionando, no un defecto.
 
-### 7.7 El `GRANT SELECT` y el motivo del operador · **`OPEN-BO-19`, sin decidir**
+### 7.7 El `GRANT SELECT` y el motivo del operador · **`OPEN-BO-19`, resuelta: sí, cerrar por columnas (decisión explícita del usuario, 2026-09-15)**
 
-§7 revoca `INSERT` y `UPDATE`. **No toca `SELECT`**, y por tanto `plataforma_app` sigue leyendo la tabla entera dentro de su RLS — incluida **`reason`**, que a partir de `1.6c` guarda texto libre escrito por un operador de plataforma.
+§7 revoca `INSERT`, `UPDATE` y `DELETE`. Sin este cierre, `plataforma_app` seguiría leyendo la tabla entera dentro de su RLS — incluida **`reason`**, que a partir de `1.6c` guarda texto libre escrito por un operador de plataforma.
 
-Es el mismo problema que §4.3.1 y §5.3.1 resolvieron para las otras dos tablas, con un criterio que el usuario ratificó el 2026-09-08 —*«ningún texto libre escrito por un operador del proveedor cruza el `GRANT`»*— y aparece **ahora** por el mismo motivo por el que el issue #7 apareció en `1.6b`: era inofensivo mientras nadie escribiera esa columna, y **este sub-paso es el que deja de hacerlo cierto**.
+Era el mismo problema que §4.3.1 y §5.3.1 resolvieron para las otras dos tablas, con un criterio que el usuario ratificó el 2026-09-08 —*«ningún texto libre escrito por un operador del proveedor cruza el `GRANT`»*— y apareció por el mismo motivo por el que el issue #7 apareció en `1.6b`: era inofensivo mientras nadie escribiera esa columna, y **este sub-paso es el que dejó de hacerlo cierto**.
 
-**La forma exacta si se aprueba** (`funcional.md`, `OPEN-BO-19`), que se añade a la misma migración de §7:
-
-```sql
--- SELECT de columnas enumeradas, nunca de tabla. Mismo criterio que §4.3 y §5.3.
-REVOKE SELECT ON module_subscriptions FROM plataforma_app;
-
-GRANT SELECT (
-    id,
-    tenant_id,
-    public_id,
-    module_code,
-    enabled,
-    enabled_at,
-    disabled_at,
-    settings,
-    created_at,
-    updated_at,
-    deleted_at
-) ON module_subscriptions TO plataforma_app;
-```
+La forma exacta (`funcional.md`, `OPEN-BO-19`) ya está en la migración de §7, arriba (`REVOKE SELECT` de tabla + `GRANT SELECT` de columnas enumeradas):
 
 | Columna | ¿La ve el centro? | Motivo |
 |---|:---:|---|
@@ -744,9 +735,7 @@ GRANT SELECT (
 
 > **Por qué `id` entra aquí y no entra en `admin_action_logs`, que es la pregunta obligada.** No es una excepción al criterio de `ADR-029` —que prohíbe **exponer** la clave interna en URL o API, y eso lo sigue garantizando el *resource*, no el `GRANT`—: es que **las dos lecturas son de naturaleza distinta**. La del centro sobre `admin_action_logs` es un listado construido a mano, de sólo lectura, que puede ordenar y desempatar por `public_id` (`§4.5`). **`module_subscriptions` es un modelo Eloquent completo con camino de escritura**: `PATCH /modules/{code}` de `REQ-CORE` localiza la fila y guarda `settings`, y sin la clave primaria concedida **Eloquent no puede ni hidratar el modelo ni emitir el `UPDATE`**. Negar `id` aquí no cerraría una filtración: rompería el único *endpoint* de escritura que le queda al centro sobre sus módulos. Y `tenant_id` es la columna de propiedad, que su propia RLS ya le acota a sus filas.
 
-**El coste, dicho y no escondido**: `ModuleSubscription` deja de poder hacer `SELECT *`, y eso alcanza a `GET /modules` y a `PATCH /modules/{code}` de `REQ-CORE`, que están en producción. Es exactamente lo que `ADR-047 §4.4` dice que vale la pena —*«la superficie es el `GRANT`, no el *resource*»*— y el fallo es **ruidoso**: error de privilegios del motor, no una respuesta de más.
-
-**Si el usuario decide que no**, esta sección se retira entera, `CA-BO-147` se retira, y queda escrito que la única barrera es la proyección del *resource* de `REQ-CORE` — que es la misma clase de garantía que `§9.6` acepta para `feature_flags`, pero allí sobre un dato que no es de nadie y aquí sobre el motivo comercial por el que se le ha quitado algo a un cliente concreto.
+**El coste, dicho y no escondido**: `ModuleSubscription` deja de poder hacer `SELECT *`, y eso alcanza a `GET /modules` y a `PATCH /modules/{code}` de `REQ-CORE`, que están en producción — ambos ya migrados a `ModuleSubscription::TENANT_VISIBLE_COLUMNS` en vez de `SELECT *`, verificado por `security-reviewer`. Es exactamente lo que `ADR-047 §4.4` dice que vale la pena —*«la superficie es el `GRANT`, no el *resource*»*— y el fallo es **ruidoso**: error de privilegios del motor, no una respuesta de más.
 
 ---
 
