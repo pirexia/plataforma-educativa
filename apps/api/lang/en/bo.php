@@ -36,6 +36,15 @@ return [
             'cloned' => 'Copied when cloning the source school.',
         ],
     ],
+    // REQ-BO-002 (1.6c): module contracting error catalog.
+    'module' => [
+        'essential' => 'Module ":module_code" is essential: it cannot be contracted or decontracted.',
+        'retired' => 'Module ":module_code" no longer exists in the catalog: it cannot be contracted.',
+        'reason_required' => 'The reason is required and cannot be empty.',
+        'tenant_state_invalid' => 'The school is in a state that does not allow module writes.',
+        'missing_dependencies' => 'Dependencies still need to be contracted: :modules. Confirm the cascade to continue.',
+        'dependent_modules' => 'Other modules depend on this one: :modules. Confirm the cascade to continue.',
+    ],
     // Issue #173. Platform admin invitation email.
     'mail' => [
         'invitation' => [

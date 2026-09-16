@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.8.1** · 2026-09-10
+> **Versión 0.8.2** · 2026-09-15
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`); el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
@@ -245,6 +245,9 @@ Procedimiento de arranque, **en este orden** (detalle completo, con salida de un
 # 1. Migraciones (incluye platform_sessions/platform_admin_sessions con su REVOKE).
 php artisan migrate --database=pgsql_owner
 # 2. Sincroniza el catálogo de módulos/capacidades declaradas en código.
+#    Desde 1.6c aborta el despliegue (sin escribir nada) si depends_on
+#    referencia un código inexistente, si el grafo tiene un ciclo, o si
+#    un módulo esencial depende de uno no esencial (RN-BO-64).
 php artisan platform:sync-registry
 # 3. Sin esto no entra nadie, ni con credenciales correctas.
 php artisan bo:allow-ip <cidr> --description="Oficina"
@@ -254,6 +257,12 @@ php artisan bo:create-admin --email=b@proveedor.example --role=superadministrado
 ```
 
 `bo:create-admin` crea la cuenta sin contraseña utilizable y emite automáticamente una invitación (`platform_admin_invitations`, issue [#173](https://github.com/pirexia/plataforma-educativa/issues/173)): el administrador la canjea en `POST /admin-invitation-redemptions` (token de un solo uso) para fijar su contraseña, y entra después por `POST /auth/session`, donde sin MFA confirmado solo alcanza `/mfa/*` (`RN-BO-05`). **Lo único pendiente es la entrega real del correo** (`OPEN-09`, proveedor transaccional sin elegir): en desarrollo, el contenido del correo se inspecciona en el *log mailer* o Mailpit, no llega a una bandeja real. Tareas programadas nuevas: `bo:expire-dual-authorizations`, `bo:close-orphaned-sessions` (cada 15 min), `bo:purge-mfa-challenges` (cada hora).
+
+### 2d.1 Contratación de módulos (`REQ-BO-002`, `1.6c`)
+
+Cola `backoffice-maintenance`: `RunModuleRollout` procesa una activación/desactivación masiva, una transacción por centro (nunca una sobre todos), en orden ascendente de `id` — un fallo sobre un centro no aborta el lote, se registra en `admin_action_logs` y el lote sigue (`RN-BO-78`). El resultado de un lote se consulta en `admin_action_logs` (`action = 'modulo.masivo_ejecutado'`), no en una tabla propia.
+
+Tabla nueva `platform_idempotency_keys` (`ADR-038 §8`): versión de plataforma de `idempotency_keys`, para `POST /module-rollouts` — el backoffice nunca tiene tenant activo y la tabla de tenant exige uno para cualquier consulta (issue [#216](https://github.com/pirexia/plataforma-educativa/issues/216)). Sin tarea de purga programada todavía; las filas caducadas (`expires_at`, 24 h) se acumulan hasta que se añada, igual que ocurrió con `idempotency_keys` antes de `PurgeExpiredIdempotencyKeys` — pendiente de documentar aquí cuando exista su homóloga de plataforma.
 
 ## 3. Comprobación rápida
 

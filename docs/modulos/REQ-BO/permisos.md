@@ -5,6 +5,8 @@
 > La decisión no es mía: `ADR-034 §2` ya la tomó y `REQ-CORE/permisos.md §4.5` la recoge. Lo que sí me toca es **justificar que sigue siendo la correcta después de 1.5**, cuando por fin existe un motor de verdad y reutilizarlo es una tentación legítima. Eso es §1.
 >
 > **`ADR-046` no reabre nada de este documento** (`ADR-046 §2.2`: «No decide los roles internos ni el catálogo de capacidades del backoffice»). Lo que sí añade son **tres reglas de autorización que no son capacidades** y que están en §5: el *host* de plataforma, la restricción del *slug* y el propósito declarado de `runAsPlatform()`.
+>
+> **`1.6c` tampoco añade ninguna capacidad.** Las tres del recurso `modulo` —`modulo.leer`, `modulo.contratar`, `modulo.contratar_masivo`— ya estaban declaradas en §3 y repartidas en §4 desde el chasis. Lo que añade es **§4.4**, el emparejamiento operación por operación con sus tres barreras, y **seis reglas de §5 que no son capacidades**. El único punto abierto es si la descontratación individual es sensible (`OPEN-BO-17`), que es una celda de §4.4 y no un permiso.
 
 ---
 
@@ -159,6 +161,34 @@ Consecuencia concreta y aceptada: alguien con `operaciones` **y** `superadminist
 
 > **La consecuencia que hay que ver de un vistazo: `operaciones` puede parar un centro y no puede cerrarlo.** Es la línea que §4.1 ya trazaba en prosa —«`operaciones` no elimina ni da de baja»— y que esta tabla convierte en algo comprobable celda a celda, como el test de la matriz de §9.
 
+### 4.4 Qué exige cada operación sobre módulos (`1.6c`)
+
+§3 declara tres capacidades sobre el recurso `modulo` y §4 dice quién las tiene. Lo que faltaba, y lo que `implementer` necesita para no inventárselo, es **el emparejamiento operación por operación**, con las tres barreras que no son la capacidad: reautenticación, doble autorización y confirmación.
+
+| Operación | Capacidad | Quién la tiene | ¿Sensible? | ¿Doble autorización? |
+|---|---|---|:---:|:---:|
+| `GET /modules` (catálogo) | `modulo.leer` | Los cuatro roles | No | No |
+| `GET /tenants/{id}/modules` | `modulo.leer` | Los cuatro | No | No |
+| `POST /tenants/{id}/modules/preview` | `modulo.leer` | Los cuatro | No | No |
+| `POST /module-rollouts/preview` | `modulo.leer` | Los cuatro | No | No |
+| **Contratar** uno (`PUT …/modules/{code}`, `enabled: true`) | `modulo.contratar` | `operaciones`, `superadministrador` | **No** | No |
+| **Descontratar** uno (`PUT …/modules/{code}`, `enabled: false`) | `modulo.contratar` | Ídem | **Sí** (`OPEN-BO-17`) | No |
+| **Contratación masiva** (`POST /module-rollouts`, `enabled: true`) | `modulo.contratar_masivo` | Ídem | **Sí** | No |
+| **Descontratación masiva** (`POST /module-rollouts`, `enabled: false`) | `modulo.contratar_masivo` | Ídem | **Sí** | **Sí** (`modulo.descontratar_masivo`) |
+| **Aprobar** una `modulo.descontratar_masivo` | **`modulo.contratar_masivo`** | Ídem | **Sí** | — |
+
+**Las cuatro decisiones de esta tabla que hay que poder defender:**
+
+**1 · Una sola capacidad para las dos direcciones individuales, y no `modulo.contratar` / `modulo.descontratar`.** Es el mismo criterio con el que §4.3 empareja el rescate con `tenant.baja` y no con `tenant.suspender`: **quien contrata tiene que poder deshacerlo**. Partirlas produciría el caso conocido —alguien que contrata y no puede corregir su propio error, y acaba pidiéndoselo a un `superadministrador` a las nueve de la noche— sin ganar ninguna separación real: la diferencia de peligro entre las dos direcciones no es de **quién**, es de **cuánta fricción**, y eso lo resuelve la reautenticación, no una capacidad más.
+
+**2 · La masiva tiene capacidad propia aunque la tengan los mismos roles.** `modulo.contratar_masivo` no reparte hoy a nadie distinto de `modulo.contratar`, y aun así existe — porque **la diferencia de alcance es real**: una es una escritura facturable sobre un centro y la otra sobre doscientos a la vez. Que hoy coincidan los titulares no significa que deban coincidir siempre, y separarlas cuesta una constante mientras que unirlas cuesta una migración de permisos el día que se separen. Es el mismo argumento con el que §4.1 se niega a darle de más a `comercial` «porque total, aún no hace nada».
+
+**3 · Aprobar una descontratación masiva exige `modulo.contratar_masivo`, no una capacidad de aprobación.** Es §5.2 aplicado: **al aprobar se ejecuta**, luego aprobar es tan potente como ejecutar. No existe `autorizacion.aprobar` y no se crea aquí.
+
+**4 · `soporte` no toca ni una escritura de módulos, y `comercial` tampoco.** `soporte` es «solo lectura y diagnóstico» (§4.1) y lee las cuatro consultas de arriba, **incluidas las dos vistas previa** — que son lectura pura y son exactamente lo que responde a «¿por qué este centro no ve el comedor?». `comercial` tiene `modulo.leer` desde §4 porque «planes y facturación» necesita saber qué está contratado, y **ninguna escritura**: contratar es la operación que produce la factura, no la que la consulta.
+
+> **La consecuencia de un vistazo, como en §4.3: `operaciones` contrata y descontrata módulos en cualquier centro, y no puede cerrar ninguno.** Es coherente con «módulos, límites, flags» de `REQ-BO-007`, que es literal, y con que el ciclo de vida sea del `superadministrador`. Y **la descontratación masiva es la única operación del módulo en la que `operaciones` necesita a otra persona** — no a un `superadministrador`, a **otro `operaciones`**, que es lo que `RN-BO-19` exige y lo que la capacidad de §5.2 permite.
+
 ---
 
 ## 5. Reglas de autorización que no son una capacidad
@@ -190,6 +220,12 @@ Igual que `REQ-CORE/permisos.md §8` y `REQ-PERM/permisos.md §8`: lo que ningun
 | **`1.6b` · Eliminar un tenant no borra ni un dato suyo** (`RN-BO-56`) | Servicio de eliminación | Es una restricción **funcional**, como `RN-BO-33`: no hay capacidad que conceda purgar, porque no existe el camino. La purga es `REQ-PRIV-006` |
 | **`1.6b` · La revocación de sesiones del centro no es una capacidad** (`RN-BO-55`) | Efecto de la eliminación, en cola | Nadie «revoca sesiones de un centro» como operación propia: es una consecuencia de eliminarlo. Un *endpoint* de revocación masiva sería una capacidad de dejar a un colegio fuera sin pasar por el ciclo de vida ni por su auditoría |
 | **`1.6b` · El período de gracia no se acorta por configuración** (`RN-BO-61`) | Servicio de baja | 90 días fijos (`REQ-BO-001`). Ni capacidad, ni variable de entorno (`operacion.md §2`) |
+| **`1.6c` · Un módulo esencial no se conmuta en ninguna dirección** (`RN-BO-65`) | Servicio de contratación de `REQ-CORE` | `422` al contratar **y** al descontratar. **Ninguna capacidad lo salta**, tampoco la de `superadministrador`: `essential` lo declara el código y la celda está bloqueada (`ADR-045 §4.7`) |
+| **`1.6c` · Ninguna escritura deja un módulo contratado sin su dependencia** (`RN-BO-22`, `RN-BO-66`) | Servicio de contratación, con bloqueo de la fila de `tenants` | `409` sin `cascade`; recálculo dentro de la transacción con él. Es una restricción de **orden entre dos transacciones** y no cabe en un `CHECK`: mismo argumento que `RN-BO-11` y `RN-BO-12` (`datos.md §7.6`) |
+| **`1.6c` · El estado del centro decide si admite escritura de módulos** (`RN-BO-71`) | Servicio de contratación | `409` en `en_alta` y `eliminado`. **No es una capacidad** y ningún rol la salta. En una masiva no es error: se omite y se reporta |
+| **`1.6c` · El backoffice no escribe `created_by`/`updated_by` de `module_subscriptions`** (`RN-BO-73`) | Servicio de contratación | Son referencias a `users` **del centro** y un administrador de plataforma no lo es (`RN-BO-01`). Quedan nulos; el actor vive en `admin_action_logs` |
+| **`1.6c` · El motivo interno del operador no lo lee el centro** (`RN-BO-82`) | **Privilegio de columna**, `datos.md §7.7` | Ningún texto libre del proveedor cruza el `GRANT`, mismo criterio ya ratificado para las otras dos tablas. **Sujeta a `OPEN-BO-19`**: si se decide que no, la barrera pasa a ser la proyección del *resource* de `REQ-CORE`, que es más débil |
+| **`1.6c` · La descontratación individual no exige doble autorización** | Servicio de contratación | `REQ-BO-007` la exige para eliminar, purgar y desactivar **en masa**; el vocabulario desplegado es `modulo.descontratar_masivo` y no `modulo.descontratar`. **Sí exige reautenticación** (§4.4, `OPEN-BO-17`) |
 
 
 ### 5.1 `RPERM-013` traducido a este módulo
@@ -289,3 +325,11 @@ Los criterios completos están en `funcional.md §13`. Los que verifican **esta*
 - **`CA-BO-096`** — test de arquitectura: **ningún control de seguridad consulta el evaluador de *flags*** (`RN-BO-47`, §5.3). Es el segundo test de arquitectura de este módulo, junto al de comparación de códigos de rol, y por el mismo motivo: son propiedades que una revisión de código detecta hoy y deja de detectar cuando el fichero crece.
 - **`CA-BO-097`** — la API del tenant devuelve **sólo** los *flags* que evalúan verdadero para quien pregunta: ni los apagados, ni los que están en despliegue parcial y no le han tocado.
 - **Test de arquitectura**: **ningún control de acceso de este módulo compara un código de rol** (`RN-BO-04`). Es el candidato (1) de `ADR-044 §8` aplicado aquí, y aquí es más necesario que en el tenant, porque con cuatro roles fijos escribir `if ($admin->hasRole('superadministrador'))` es más cómodo que comprobar la capacidad.
+- **Test de la matriz de §4.4**, operación a operación: para cada una de las nueve y cada uno de los cuatro roles, se comprueba que la capacidad exigida, la reautenticación y la doble autorización son **exactamente** las de esa tabla. Mismo espíritu que el test de §4.3: es lo que impide que un reparto se afloje sin que nadie lo note — en particular que la descontratación acabe pidiendo una capacidad propia «porque suena más peligrosa», rompiendo el emparejamiento del punto 1.
+- **`CA-BO-008` y `CA-BO-094` cubren la lectura de `soporte`; para módulos falta su simétrico**: `soporte` **lee** el catálogo, la matriz del centro y las **dos** vistas previa, y recibe `403` en las cuatro escrituras (`PUT …/modules/{code}` en las dos direcciones y `POST /module-rollouts` en las dos). Es la misma forma que `CA-BO-094` tiene para *flags*.
+- **`CA-BO-130`** — contratar un módulo esencial es `422` igual que descontratarlo: **ninguna capacidad abre esa celda**.
+- **`CA-BO-132`** — dos operaciones concurrentes sobre el mismo centro no dejan el grafo de dependencias roto.
+- **`CA-BO-136`** — los cinco estados de tenant frente a la escritura de módulos, celda a celda.
+- **`CA-BO-143`** — la descontratación masiva pasa por doble autorización y la aprueba **otro administrador con `modulo.contratar_masivo`**, no una capacidad genérica de aprobación (§5.2).
+- **`CA-BO-147`** — `plataforma_app` **no puede leer `module_subscriptions.reason`**, rechazado por el motor y no por la aplicación. **Depende de `OPEN-BO-19`**; si se resuelve en contra, este criterio se retira y la garantía queda en el *resource*.
+- **`CA-BO-148`** — un lote sobre dos centros no altera nada del tercero: ni sus suscripciones, ni su caché, ni sus respuestas.

@@ -76,7 +76,13 @@ test('CA-BO-123: la clonación copia configuración operativa, roles (predefinid
         // pgsql del test, y la cascada resultante se atribuyó por error
         // al problema de runAsPlatform() (que también era real y sigue
         // corregido más abajo, pero no era la causa de este fallo).
-        ModuleSubscription::create(['module_code' => 'auth', 'enabled' => true, 'enabled_at' => now(), 'reason' => 'Contratación de prueba']);
+        //
+        // `::on('pgsql_platform')` (1.6c, datos.md §7): el `REVOKE
+        // INSERT` de la migración de privilegios le quita a
+        // `plataforma_app` la capacidad de insertar en
+        // `module_subscriptions` — sigue en contexto de tenant normal
+        // (no en modo plataforma), así que `tenant_id` se rellena solo.
+        ModuleSubscription::on('pgsql_platform')->create(['module_code' => 'auth', 'enabled' => true, 'enabled_at' => now(), 'reason' => 'Contratación de prueba']);
     });
 
     // Historial propio del origen (issue #196): provisionCoreTenant() crea
@@ -236,8 +242,9 @@ test('CA-BO-125: un origen eliminado o en_alta no se puede clonar; uno suspendid
 test('reintentar la fase 2 de una clonación no falla por las suscripciones de módulo ya copiadas', function (): void {
     [$source] = provisionCoreTenant();
     app(TenantContext::class)->runFor($source->id, function (): void {
-        ModuleSubscription::create(['module_code' => 'auth', 'enabled' => true, 'enabled_at' => now(), 'reason' => 'Prueba']);
-        ModuleSubscription::create(['module_code' => 'core', 'enabled' => true, 'enabled_at' => now(), 'reason' => 'Prueba']);
+        // `::on('pgsql_platform')`: mismo motivo que arriba (1.6c).
+        ModuleSubscription::on('pgsql_platform')->create(['module_code' => 'auth', 'enabled' => true, 'enabled_at' => now(), 'reason' => 'Prueba']);
+        ModuleSubscription::on('pgsql_platform')->create(['module_code' => 'core', 'enabled' => true, 'enabled_at' => now(), 'reason' => 'Prueba']);
     });
 
     [$admin, $secret] = boCreateEnrolledAdmin('superadministrador');

@@ -65,12 +65,16 @@ Schedule::command('auth:purge-saml-correlation')->daily();
 // failed_jobs es tabla de plataforma (config/tenancy.php), no por tenant.
 Schedule::command('queue:prune-failed', ['--hours' => 24])->daily();
 
-// REQ-BO (1.6), operacion.md §6.2. Las cuatro tareas programadas del
+// REQ-BO (1.6), operacion.md §6.2. Las cinco tareas programadas del
 // chasis de plataforma. Ninguna es por tenant: corren sobre tablas de
 // plataforma, fuera de todo contexto de tenant.
 Schedule::command('bo:expire-dual-authorizations')->everyFifteenMinutes();
 Schedule::command('bo:close-orphaned-sessions')->everyFifteenMinutes();
 Schedule::command('bo:purge-mfa-challenges')->hourly();
+
+// REQ-BO-002 (1.6c), operacion.md §6.2 (issue #221). Diaria, mismo
+// criterio que su homóloga de tenant (`core:purge-maintenance` de arriba).
+Schedule::command('bo:purge-idempotency-keys')->daily();
 
 // REQ-BO-001 (1.6b), operacion.md §6.2, RN-BO-17/RN-BO-60. Diaria: el
 // vencimiento de un periodo de gracia de 90 días no necesita más

@@ -2,6 +2,7 @@
 
 use App\Modules\Backoffice\Http\Controllers\AdminActionLogsController;
 use App\Modules\Backoffice\Http\Controllers\DualAuthorizationsController;
+use App\Modules\Backoffice\Http\Controllers\ModulesController;
 use App\Modules\Backoffice\Http\Controllers\PlatformAdminInvitationRedemptionsController;
 use App\Modules\Backoffice\Http\Controllers\PlatformAdminsController;
 use App\Modules\Backoffice\Http\Controllers\PlatformIpAllowlistController;
@@ -130,3 +131,25 @@ Route::post('/dual-authorizations/{public_id}/approval', [DualAuthorizationsCont
     ->middleware(['require-platform-mfa', 'require-platform-capability:autorizacion.leer', 'require-platform-reauthentication'])->name('platform.dual-authorizations.approval.store');
 Route::post('/dual-authorizations/{public_id}/rejection', [DualAuthorizationsController::class, 'reject'])
     ->middleware(['require-platform-mfa', 'require-platform-capability:autorizacion.leer', 'require-platform-reauthentication'])->name('platform.dual-authorizations.rejection.store');
+
+// §2.6, §2.7 (1.6c, REQ-BO-002). La reautenticación de `PUT …/modules/
+// {code}` sólo aplica con `enabled: false` (OPEN-BO-17) y la comprueba
+// el controlador, no una declaración estática de middleware — mismo
+// criterio que `transitions()` de TenantsController.
+Route::get('/modules', [ModulesController::class, 'index'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:modulo.leer'])->name('platform.modules.index');
+Route::get('/tenants/{public_id}/modules', [ModulesController::class, 'forTenant'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:modulo.leer'])->name('platform.tenants.modules.index');
+Route::post('/tenants/{public_id}/modules/preview', [ModulesController::class, 'preview'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:modulo.leer'])->name('platform.tenants.modules.preview.store');
+Route::put('/tenants/{public_id}/modules/{module_code}', [ModulesController::class, 'update'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:modulo.contratar'])->name('platform.tenants.modules.update');
+Route::post('/module-rollouts/preview', [ModulesController::class, 'rolloutsPreview'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:modulo.leer'])->name('platform.module-rollouts.preview.store');
+Route::post('/module-rollouts', [ModulesController::class, 'rollouts'])
+    ->middleware([
+        'require-platform-mfa',
+        'require-platform-capability:modulo.contratar_masivo',
+        'require-platform-reauthentication',
+        'idempotent-platform:bo.module-rollouts.store',
+    ])->name('platform.module-rollouts.store');

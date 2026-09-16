@@ -13,6 +13,7 @@ use App\Modules\Backoffice\Http\Middleware\ConfigurePlatformSession;
 use App\Modules\Backoffice\Http\Middleware\EnforcePlatformIpAllowlist;
 use App\Modules\Backoffice\Http\Middleware\RequirePlatformCapability;
 use App\Modules\Backoffice\Http\Middleware\RequirePlatformHost;
+use App\Modules\Backoffice\Http\Middleware\RequirePlatformIdempotencyKey;
 use App\Modules\Backoffice\Http\Middleware\RequirePlatformMfa;
 use App\Modules\Backoffice\Http\Middleware\RequirePlatformReauthentication;
 use App\Modules\Backoffice\Http\Middleware\RequirePlatformSessionIdleTimeout;
@@ -79,6 +80,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'require-platform-capability' => RequirePlatformCapability::class,
             'require-platform-reauthentication' => RequirePlatformReauthentication::class,
             'require-platform-session-idle-timeout' => RequirePlatformSessionIdleTimeout::class,
+            'idempotent-platform' => RequirePlatformIdempotencyKey::class,
             'resolve-platform-locale' => ResolvePlatformLocale::class,
         ]);
 

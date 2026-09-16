@@ -118,12 +118,24 @@ test('CA-PERM-092: runAsPlatform() no aparece en código de app/ fuera de su lis
     //     los filtros `module_code`/`autonomous_community`, que leen
     //     `module_subscriptions`/`tenant_settings` de todos los
     //     tenants — lectura, sin escritura, sin obligación de auditoría.
+    // REQ-BO-002 (1.6c), funcional.md §5.8.4, §5.8.5: dos más —
+    //   - ModuleSubscriptionsService.php: `BackofficeLectura` en
+    //     `preview()`/`previewBulk()` (vista previa de impacto, sin
+    //     escribir nada) y `BackofficeEscritura` en `applyChange()`
+    //     (fase 1 de contratar/descontratar, con la obligación de
+    //     `admin_action_logs` que `ADR-046 §6.5` exige).
+    //   - ModulesController.php: `BackofficeLectura` en `forTenant()`
+    //     (api.md §2.6.2), que lee `module_subscriptions` de un tenant
+    //     concreto sin sesión de ese tenant — mismo motivo exacto que
+    //     `TenantsController::index()`.
     $allowlist = [
         base_path('app/Support/Tenancy/TenantContext.php'),
         base_path('app/Support/Tenancy/RunsPerTenant.php'),
         base_path('app/Modules/Core/Infrastructure/Jobs/PurgeExpiredIdempotencyKeys.php'),
         base_path('app/Modules/Backoffice/Application/TenantLifecycleService.php'),
         base_path('app/Modules/Backoffice/Http/Controllers/TenantsController.php'),
+        base_path('app/Modules/Backoffice/Application/ModuleSubscriptionsService.php'),
+        base_path('app/Modules/Backoffice/Http/Controllers/ModulesController.php'),
     ];
 
     $appPath = base_path('app');

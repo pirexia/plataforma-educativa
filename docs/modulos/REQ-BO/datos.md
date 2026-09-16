@@ -636,13 +636,22 @@ Mismo argumento que `§3.3` sobre `dual_authorizations`, aplicado a `status`: qu
 **`ADR-045` no cambia ni una columna de esta tabla.** Lo único que cambia es quién puede escribir qué:
 
 ```sql
-REVOKE UPDATE, INSERT ON module_subscriptions FROM plataforma_app;
+REVOKE UPDATE, INSERT, DELETE ON module_subscriptions FROM plataforma_app;
 
 GRANT UPDATE (settings, updated_at, updated_by, deleted_at)
     ON module_subscriptions TO plataforma_app;
 
--- plataforma_platform conserva INSERT y UPDATE completos: es la conexión del backoffice.
+-- SELECT de columnas enumeradas, nunca de tabla (§7.7, OPEN-BO-19 resuelta: sí).
+REVOKE SELECT ON module_subscriptions FROM plataforma_app;
+GRANT SELECT (
+    id, tenant_id, public_id, module_code, enabled, enabled_at,
+    disabled_at, settings, created_at, updated_at, deleted_at
+) ON module_subscriptions TO plataforma_app;
+
+-- plataforma_platform conserva INSERT, UPDATE, DELETE y SELECT completos: es la conexión del backoffice.
 ```
+
+**`REVOKE DELETE` (issue #220, Alta, hallado por `db-reviewer`, cerrado el 2026-09-16)**: era la única migración de endurecimiento del repositorio que no lo revocaba explícitamente. Un `DELETE` directo desde `plataforma_app` habría borrado físicamente una suscripción sin pasar por `enabled = false`, sin auditoría en `admin_action_logs` y saltándose `RN-BO-22`/`RN-BO-65`/`RN-BO-71` — incumpliendo `INV-003`/`INV-004` sobre esta tabla. En una migración propia (`2026_09_16_100000_harden_module_subscriptions_platform_grants_delete.php`), no editando la ya desplegada.
 
 ### 7.1 La lista de columnas hay que verificarla, no suponerla
 
@@ -652,21 +661,81 @@ GRANT UPDATE (settings, updated_at, updated_by, deleted_at)
 
 ### 7.2 Un test por revocación
 
-`ADR-045 §4.4`: *«un `REVOKE` que no se prueba no existe»* (lección del bug 6 de 0.7 con `failed_jobs`, citada en `TenantMigration`). Tres tests, no dos:
+`ADR-045 §4.4`: *«un `REVOKE` que no se prueba no existe»* (lección del bug 6 de 0.7 con `failed_jobs`, citada en `TenantMigration`). Cuatro tests, no tres:
 
 | Test | Comprueba |
 |------|-----------|
 | `CA-BO-030` | `plataforma_app` **no** puede escribir `enabled` |
 | `CA-BO-031` | `plataforma_app` **no** puede insertar filas |
 | `CA-BO-031` (segunda mitad) | `plataforma_app` **sí** puede seguir escribiendo `settings` por el camino normal de la aplicación — el que atrapa una lista de columnas incompleta |
+| (issue #220) | `plataforma_app` **no** puede hacer `DELETE`, añadido el 2026-09-16 junto con el `REVOKE` correspondiente — el mismo motivo: un `REVOKE` sin test no existe |
 
-### 7.3 Consecuencia inmediata sobre un test existente
+### 7.3 Consecuencia sobre **dos** tests existentes, no uno
 
 `ModuleSubscriptionsSchemaTest` inserta hoy por la conexión `pgsql`. Con el `REVOKE INSERT` **debe pasar a `pgsql_platform`**. `ADR-045 §4.4` lo marca como no cosmético: *«es la comprobación de que la restricción funciona»*. Si el test se puede ajustar sin cambiar de conexión, el `REVOKE` no se ha aplicado.
+
+> **Y hay un segundo, que no estaba nombrado en ninguna parte de esta especificación** (verificado el 2026-09-15): **`tests/Feature/Core/SyncModuleRegistryTest.php`** inserta también en `module_subscriptions` por `pgsql`, dentro del contexto de un tenant, en el test *«retirar un módulo del código marca `retired_at` y conserva las suscripciones»* — que es justamente el que comprueba que el catálogo nunca borra. **También cambia de conexión.** Se anota aquí porque es la forma concreta en que un `REVOKE` rompe un test que nadie relacionaba con él, y porque el `afterEach` de ese fichero y sus comentarios sobre transacciones abiertas hacen que el cambio no sea una sustitución mecánica de una cadena.
 
 ### 7.4 Orden de despliegue: indiferente, y por qué
 
 `ADR-045 §6`: hoy **ninguna línea de código de aplicación escribe `enabled`** (el `PATCH` lo rechaza con `422`), así que la ventana en la que un `REVOKE` desplegado antes que el código nuevo rompería la versión anterior **está vacía**. Queda escrito para que se sepa que es por análisis y no por casualidad.
+
+### 7.5 El esquema está completo: `1.6c` no añade ni una columna
+
+**Verificado el 2026-09-15 sobre `develop` en `91adac6`**, contra la migración real (`2026_08_18_100600_create_modules_table.php`) y no contra la memoria de `ADR-045`:
+
+| Columna | Origen | ¿Le falta algo a `1.6c`? |
+|---|---|---|
+| `id`, `tenant_id`, `created_at`, `updated_at`, `deleted_at`, `created_by`, `updated_by` | `TenantMigration::tenantTable()` | No |
+| `public_id` | `ulid()->unique()` | No. Es lo que direcciona la celda si algún día hace falta; hoy la ruta usa `tenant.public_id` + `module_code` (`api.md §2.6`) |
+| `module_code` | `text`, FK → `modules.code` | No |
+| `enabled` | `boolean DEFAULT false` | No. **Ausencia de fila = desactivado** sigue siendo la regla (`ADR-034 §5`), luego contratar es `INSERT` o `UPDATE` según haya fila |
+| `enabled_at`, `disabled_at` | `timestamptz` anulables | No. `enabled_at` es además lo que alimenta el aviso al centro de `ADR-045 §4.8` punto 2 |
+| `reason` | `text` anulable | No **en esquema**; sí en privilegios (§7.7) |
+| `settings` | `jsonb` anulable | No. Es lo único que el centro escribe |
+
+Índice `UNIQUE (tenant_id, module_code) WHERE deleted_at IS NULL`: **existe**, y es lo que hace que `PUT …/modules/{code}` sea naturalmente idempotente sin `Idempotency-Key` (`api.md §6`).
+
+**`ADR-045 §4.2` —«este ADR no cambia el esquema de `module_subscriptions`»— sigue siendo literalmente cierto al cerrar `1.6c`.** Lo único que cambia en base de datos es la migración de privilegios de §7 (más lo que decida `OPEN-BO-19`, §7.7).
+
+**Y no se añade ninguna columna de las que la tentación pide**: ni `contracted_by_platform_admin_id` —el actor vive en `admin_action_logs`, §7.6—, ni `depends_on` materializado (§8), ni un tercer estado de aceptación (`ADR-045 §12.2`, descartado por el usuario), ni `provisioning_state`. `ADR-034 OPEN-13` rige igual aquí que en `1.6b`.
+
+### 7.6 Escritura concurrente: el bloqueo va sobre `tenants`, no sobre esta tabla
+
+Mismo argumento que §3.3 y §6.4, con una diferencia que cambia **dónde** se pone el bloqueo. Lo que ningún `CHECK` puede impedir aquí es que dos peticiones concurrentes sobre el mismo centro —una que contrata `M`, que depende de `N`, y otra que descontrata `N`— calculen su cierre de dependencias sobre el mismo estado de partida, lo pasen las dos, y dejen `M` contratado sin `N`: exactamente lo que `RN-BO-22` prohíbe.
+
+> **El bloqueo no puede ir sobre las filas de `module_subscriptions`.** Contratar **crea** filas, y `SELECT … FOR UPDATE` no bloquea lo que todavía no existe: dos peticiones que tocan módulos distintos del mismo centro no se verían la una a la otra, y el índice único `(tenant_id, module_code)` sólo protege de la escritura duplicada de **la misma celda**, no de la incoherencia del grafo. El punto de serialización es la **fila de `tenants`**, que existe siempre y es única por centro.
+
+Que sea la misma fila que bloquean `TenantLifecycleService::executeSimpleTransition()` y `executeApprovedDeletion()` (§6.4) **es una propiedad buscada y no una colisión**: una eliminación no debe colarse en mitad de un cierre de dependencias, ni un cierre de dependencias en mitad de una eliminación. Y en una operación masiva los centros se recorren **en orden ascendente de `tenants.id`** (`RN-BO-78`), que es lo que impide el interbloqueo entre dos lotes concurrentes con centros en común.
+
+El orden completo de la fase 1 está en `funcional.md §5.8.5`. Lo que corresponde a este documento son las dos columnas que el backoffice **no** escribe:
+
+- **`created_by` y `updated_by` se quedan nulos** (`RN-BO-73`). Son columnas de una tabla de tenant y su significado es «qué usuario **de este centro** lo hizo»; un administrador de plataforma no es usuario de ningún centro (`RN-BO-01`) y su identificador pertenece a otra secuencia. **Verificado el 2026-09-15 sobre `TenantMigration::tenantTable()`**: las dos son anulables y llevan **clave foránea compuesta** `(tenant_id, created_by) REFERENCES users (tenant_id, id)`, añadida porque `users` ya tenía `tenant_id` cuando se creó esta tabla (`addAuthorshipForeignKeys()`, condición de la línea 69). **Buena noticia y hay que aprovecharla: escribir ahí un `platform_admins.id` falla ruidosamente**, con violación de clave foránea, en vez de apuntar en silencio a la persona equivocada — que era el fallo que había que temer. El actor de la operación vive en `admin_action_logs.actor_platform_admin_id` (§4.1).
+- **Y `tenant_id` se fija a mano.** La columna lleva `DEFAULT app.current_tenant_id()` y el backoffice escribe **sin tenant activo** (`ADR-046 §6.4`), donde esa función es nula y la columna es `NOT NULL`. Confiar en el `DEFAULT` desde modo plataforma no produce la fila del centro equivocado: produce un error de `NOT NULL`. Es lo que el *docblock* de `BelongsToTenant` ya prescribe para modo plataforma, y `plataforma_platform` puede hacerlo porque tiene `BYPASSRLS` y la política `tenant_isolation` no lo filtra (`ADR-033 §5`).
+- **No se escribe fila en `audit_logs`** (`RN-BO-74`), pese a que `ModuleSubscription` es `Auditable` con política `Full`: la escritura ocurre bajo `BackofficeEscritura` y `AuditRecorder::record()` retorna en silencio por `ADR-046 §6.5`. Es `RN-BO-30` funcionando, no un defecto.
+
+### 7.7 El `GRANT SELECT` y el motivo del operador · **`OPEN-BO-19`, resuelta: sí, cerrar por columnas (decisión explícita del usuario, 2026-09-15)**
+
+§7 revoca `INSERT`, `UPDATE` y `DELETE`. Sin este cierre, `plataforma_app` seguiría leyendo la tabla entera dentro de su RLS — incluida **`reason`**, que a partir de `1.6c` guarda texto libre escrito por un operador de plataforma.
+
+Era el mismo problema que §4.3.1 y §5.3.1 resolvieron para las otras dos tablas, con un criterio que el usuario ratificó el 2026-09-08 —*«ningún texto libre escrito por un operador del proveedor cruza el `GRANT`»*— y apareció por el mismo motivo por el que el issue #7 apareció en `1.6b`: era inofensivo mientras nadie escribiera esa columna, y **este sub-paso es el que dejó de hacerlo cierto**.
+
+La forma exacta (`funcional.md`, `OPEN-BO-19`) ya está en la migración de §7, arriba (`REVOKE SELECT` de tabla + `GRANT SELECT` de columnas enumeradas):
+
+| Columna | ¿La ve el centro? | Motivo |
+|---|:---:|---|
+| `module_code`, `enabled` | Sí | Es la respuesta a «¿qué tengo contratado?», que es `REQ-CORE-002` entero |
+| `enabled_at` | Sí | **Obligatoria**: es de donde `ADR-045 §4.8` punto 2 deriva el aviso de «nuevo módulo disponible». Sin ella el aviso no existe |
+| `disabled_at` | Sí | Su simétrica. Un centro tiene derecho a saber desde cuándo dejó de tener algo |
+| `settings` | Sí | Es lo único que el propio centro escribe |
+| `public_id`, `created_at`, `updated_at`, `deleted_at` | Sí | Identidad expuesta y columnas de infraestructura que Eloquent lee en todo `SELECT` |
+| **`id`, `tenant_id`** | **Sí, y aquí la lista se aparta de §4.3 a propósito** | Ver la nota de abajo |
+| `reason` | **No** | Es la nota interna del proveedor, y su valor depende de que se escriba sin pensar en quién la lee (§4.3.1) |
+| `created_by`, `updated_by` | **No** | No las escribe nadie desde `1.6c` (§7.6) y son referencias internas a `users` |
+
+> **Por qué `id` entra aquí y no entra en `admin_action_logs`, que es la pregunta obligada.** No es una excepción al criterio de `ADR-029` —que prohíbe **exponer** la clave interna en URL o API, y eso lo sigue garantizando el *resource*, no el `GRANT`—: es que **las dos lecturas son de naturaleza distinta**. La del centro sobre `admin_action_logs` es un listado construido a mano, de sólo lectura, que puede ordenar y desempatar por `public_id` (`§4.5`). **`module_subscriptions` es un modelo Eloquent completo con camino de escritura**: `PATCH /modules/{code}` de `REQ-CORE` localiza la fila y guarda `settings`, y sin la clave primaria concedida **Eloquent no puede ni hidratar el modelo ni emitir el `UPDATE`**. Negar `id` aquí no cerraría una filtración: rompería el único *endpoint* de escritura que le queda al centro sobre sus módulos. Y `tenant_id` es la columna de propiedad, que su propia RLS ya le acota a sus filas.
+
+**El coste, dicho y no escondido**: `ModuleSubscription` deja de poder hacer `SELECT *`, y eso alcanza a `GET /modules` y a `PATCH /modules/{code}` de `REQ-CORE`, que están en producción — ambos ya migrados a `ModuleSubscription::TENANT_VISIBLE_COLUMNS` en vez de `SELECT *`, verificado por `security-reviewer`. Es exactamente lo que `ADR-047 §4.4` dice que vale la pena —*«la superficie es el `GRANT`, no el *resource*»*— y el fallo es **ruidoso**: error de privilegios del motor, no una respuesta de más.
 
 ---
 
@@ -679,12 +748,15 @@ Van en `moduleDescriptor()`, en el código de cada `ServiceProvider`, junto a `c
 | `depends_on` | `list<string>` | `[]` | Códigos de módulo de los que este depende |
 | `essential` | `bool` | `false` | `isEnabled()` devuelve `true` sin necesidad de fila; el backoffice no puede descontratarlo |
 
-**`SyncModuleRegistry` gana dos validaciones que abortan el despliegue** (`CA-BO-034`, `CA-BO-035`), con el precedente exacto de la validación de `applicable_scopes` que ese mismo comando ya ejecuta desde 1.5:
+**`SyncModuleRegistry` gana tres validaciones que abortan el despliegue** —no dos— con el precedente exacto de la validación de `applicable_scopes` que ese mismo comando ya ejecuta desde 1.5 (`encodeApplicableScopes()`, `InvalidArgumentException`, sin escribir nada):
 
-1. Todo código de `depends_on` existe en el catálogo declarado.
-2. El grafo **no tiene ciclos**.
+1. Todo código de `depends_on` existe en el **catálogo declarado**, no en la tabla `modules` —que conserva los retirados— (`CA-BO-034`).
+2. El grafo **no tiene ciclos**, y el error **nombra el ciclo** (`CA-BO-035`).
+3. **Un módulo `essential` no declara dependencias de módulos no esenciales** (`CA-BO-129`). Es derivada y **no está escrita en `ADR-045`**: sale de juntar sus dos frases —un esencial *«devuelve `true` sin necesidad de fila»* (`§4.9`) y *«ninguna escritura puede dejar un módulo contratado cuya dependencia no lo esté»* (`§4.5`)—. Un esencial que dependiera de algo descontratable sería un módulo siempre utilizable **al que ninguna escritura puede proteger**, porque no tiene fila que bloquear. El despliegue es el único sitio donde se puede impedir (`RN-BO-64`).
 
-Y `ALWAYS_ENABLED = ['core','auth']` **desaparece** de `EloquentModuleAvailability` (`CA-BO-036`): con dos listas, la de la constante y la del descriptor, la divergencia es cuestión de tiempo.
+**Verificado el 2026-09-15**: `depends_on` no aparece en una sola línea de `apps/api`, y `essential` sólo como comentario de `ALWAYS_ENABLED`. Los **dos** módulos que declaran descriptor hoy son `CoreServiceProvider` (`core`) y `AuthServiceProvider` (`auth`); los dos pasan a declarar `essential: true`, y con eso `ALWAYS_ENABLED = ['core','auth']` **desaparece** de `EloquentModuleAvailability` (`CA-BO-036`): con dos listas, la de la constante y la del descriptor, la divergencia es cuestión de tiempo.
+
+> **El catálogo de descriptores se resuelve una sola vez por proceso, y eso es una restricción de esquema por la puerta de atrás** (`RN-BO-63`). Al salir `essential` de una constante y entrar en el descriptor, `EloquentModuleAvailability::isEnabled()` pasa a consultarlo — y ese método corre en **cada petición de cada usuario de cada centro**. **Ni escaneo de ficheros** (`ModuleServiceProviderDiscovery`, que es lo que usa el comando de consola) **ni consulta a `modules`**: se construye desde los `ServiceProvider` ya registrados por el contenedor, que Laravel arranca de todos modos. Sustituir un `in_array` sobre una constante por trabajo de disco o de base de datos en el camino más caliente del sistema sería pagar la limpieza del catálogo con el rendimiento del producto entero. Verificado por `CA-BO-128`.
 
 ---
 
@@ -894,7 +966,7 @@ erDiagram
 | 3 | `1.6b` | `tenant_lifecycle_events`, ídem con sus propias columnas (§5.3) | Ninguno | Ídem |
 | 4 | `1.6b` | `tenants` gana **cuatro** columnas anulables: `suspension_message`, `suspended_at`, `grace_period_ends_at` y **`grace_period_expired_at`** (§6.2) | **Instantáneo**: `ADD COLUMN` anulable sin defecto no reescribe la tabla en PostgreSQL 17 | Aditivo puro. **Verificado el 2026-09-11: ninguna de las cuatro existe hoy** |
 | 4b | `1.6b` | El `CHECK` de `admin_action_logs.action` gana **tres** valores: `tenant.slug_cambiado`, `tenant.aprovisionamiento_fallido`, `tenant.gracia_vencida` (§4.2.1) | Toma bloqueo breve de catálogo | `DROP CONSTRAINT` + `ADD CONSTRAINT` del mismo `CHECK`, **nunca** renombrando ni retirando valores. Precedente literal: la migración del issue [#173](https://github.com/pirexia/plataforma-educativa/issues/173). **Ojo**: la tabla es *append-only* bajo `FORCE` sin política de escritura, así que esta migración **puede** ampliar el `CHECK` pero **no podría rellenar ninguna columna** sobre las filas existentes (`ADR-047 §5.2`) |
-| 5 | `1.6c` | Privilegios de `module_subscriptions` (§7) | Ninguno sobre datos; toma bloqueo breve de catálogo | La lista de columnas **verificada**, no supuesta |
+| 5 | `1.6c` | Privilegios de `module_subscriptions` (§7): `REVOKE UPDATE, INSERT` + `GRANT UPDATE (settings, …)`. **Y, si `OPEN-BO-19` se aprueba, el `REVOKE SELECT` + `GRANT SELECT` de columnas enumeradas de §7.7** | Ninguno sobre datos; toma bloqueo breve de catálogo | **La única migración de `1.6c`, y no crea ni altera ninguna tabla** (`ADR-045 §4.2`, §7.5). La lista de columnas **verificada capturando lo que Eloquent envía**, no supuesta (§7.1). Con `$withinTransaction = false`: toca privilegios, luego es DDL fuera de transacción (issue [#166](https://github.com/pirexia/plataforma-educativa/issues/166), cuarta repetición). **Dos tests existentes cambian de conexión**, no uno (§7.3) |
 | 6 | `1.6e` | `feature_flags` y `feature_flag_rules`, con sus `CHECK`, sus tres índices únicos parciales y sus `GRANT`/`REVOKE` (§9.6) | Ninguno: tablas nuevas | La lista de columnas del `GRANT UPDATE` a `plataforma_platform`, **verificada igual que la de §7.1** |
 | 7 | `1.6e` | `tenants` gana `early_adopter_since` anulable (§6.1) | **Instantáneo** | Aditivo puro. Va en su propia migración, no mezclada con la #4: son dos sub-pasos distintos |
 

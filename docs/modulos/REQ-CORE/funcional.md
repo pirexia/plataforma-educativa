@@ -351,6 +351,8 @@ Se autoriza por identidad (el sujeto es el propio usuario autenticado), **no por
 | `InvitationRevoked` | Revocación o caducidad | — |
 | `TenantSettingsUpdated` | `PATCH /tenant/settings` (idioma, zona horaria, moneda, comunidad autónoma, datos fiscales o colores). **No** se emite desde `PUT`/`DELETE .../assets/{kind}`: aunque también modifican `tenant_settings` (las claves de objeto de branding), sus únicos consumidores previstos (`REQ-CALIF`/`REQ-ECON`) no necesitan enterarse de un cambio de logo — esos endpoints solo invalidan la caché directamente | Invalidación de caché; `REQ-CALIF`/`REQ-ECON` (moneda, idioma de documentos) |
 | `UserImportCompleted` | Fin de una importación | `REQ-ONB` (1.24) |
+| `ModuleContracted` | `enabled` pasa a `true` en `module_subscriptions` de un tenant (`ADR-045 §4.8`, 1.6c). Lo emite `ModuleContracting::publish()`, nunca `REQ-BO` directamente (`RMOD-010`) | Ninguno en 1.6c; `REQ-COM-003` (1.19) |
+| `ModuleDecontracted` | `enabled` pasa a `false`, aunque el módulo quede apagado (`CA-BO-038`) | Ídem |
 
 Interfaces públicas que `REQ-CORE` expone en su `Domain` para que otros módulos las consuman sin acoplarse:
 
@@ -360,6 +362,8 @@ Interfaces públicas que `REQ-CORE` expone en su `Domain` para que otros módulo
 - `AuditQuery` — consulta filtrada del registro, para que ningún módulo consulte `audit_logs` directamente.
 - `ExportRequestService` — solicitud de una exportación asíncrona (§4.6), reutilizable por `REQ-PRIV` y demás.
 - `TenantProvisioner` (`ADR-048`, 2026-09-11) — contrato síncrono con dos métodos: `provision()` (alta, fase 2 del alta de tenant) y `provisionFromTemplate()` (clonación, `REQ-BO/funcional.md §5.6.2`). Implementado por `ProvisionTenantDefaults`, consumido por `REQ-BO` (`1.6b`) desde sus trabajos en cola `ProvisionTenant`/`CloneTenant`, sin que `REQ-BO` importe código interno de `Core` (`INV-007`). Dos objetos de valor de entrada (`TenantInitialSettings`, `TenantAdministrator`) y el enumerado de resultado `TenantProvisioningOutcome`. Devuelve resultado y propaga fallo — por eso es contrato síncrono y no evento de dominio (`ADR-048 §4`, tres motivos de fondo). Fija el patrón para `1.6c` y `1.24` (`REQ-ONB`).
+- `ModuleCatalog` (`ADR-045`, 1.6c) — lectura del catálogo de descriptores declarados en código (`code`, `name_key`, `phase`, `depends_on`, `essential`), resuelta una sola vez por proceso desde los `ServiceProvider` ya registrados por el contenedor (`RN-BO-63`). Implementada por `DeclaredModuleCatalog`. La consume también `EloquentModuleAvailability::isEnabled()` (sustituye a la constante `ALWAYS_ENABLED`) y `REQ-BO` para resolver el cierre de dependencias de la contratación de módulos.
+- `ModuleContracting` (`ADR-045 §4.5`/`§4.8`, 1.6c) — escritura de `module_subscriptions` en dos fases (`apply()`/`publish()`, forzado por `ADR-046 §6.4`): una sola implementación del cierre de dependencias (`RN-BO-22`), consumida por la contratación individual, la masiva y la vista previa de `REQ-BO` (`1.6c`), nunca reimplementada allí. Implementada por `ModuleContractingService`. Emite `ModuleContracted`/`ModuleDecontracted` (tabla de eventos de arriba) desde `publish()`, nunca desde el backoffice (`RMOD-010`).
 
 > Nota de convención: las clases (modelos, eventos, servicios) se nombran en inglés, coherentes con el código ya existente (`Person`, `User`, `AcademicYear`, `AuditLog`). La documentación y los literales de interfaz van en español. El ejemplo en español del skill `modulo-nuevo` no coincide con lo que hay en el repositorio; se sigue el repositorio.
 

@@ -13,13 +13,23 @@ use Illuminate\Routing\Controller;
  * api.md §6 (`RMOD-008`). Solo lectura de `enabled` en 1.1 — la
  * contradicción `REQ-CORE-002`/`RMOD-002` (funcional.md §2, issue #44)
  * queda diferida a 1.6. Solo se puede editar `settings`.
+ *
+ * `RN-BO-82` (1.6c, `REQ-BO/datos.md §7.7`): las dos consultas de este
+ * controlador proyectan explícitamente
+ * `ModuleSubscription::TENANT_VISIBLE_COLUMNS` — un `SELECT *` implícito
+ * ya no funciona bajo `plataforma_app` tras el `REVOKE SELECT` de esa
+ * migración, y `reason` (motivo interno del proveedor) no debe llegar
+ * aquí en ningún caso.
  */
 class ModulesController extends Controller
 {
     public function index(): JsonResponse
     {
         $modules = Module::query()->whereNull('retired_at')->orderBy('code')->get();
-        $subscriptions = ModuleSubscription::query()->get()->keyBy('module_code');
+        $subscriptions = ModuleSubscription::query()
+            ->select(ModuleSubscription::TENANT_VISIBLE_COLUMNS)
+            ->get()
+            ->keyBy('module_code');
 
         $data = $modules->map(function (Module $module) use ($subscriptions): array {
             /** @var ModuleSubscription|null $subscription */
@@ -54,7 +64,10 @@ class ModulesController extends Controller
 
         $request->validate(['settings' => ['required', 'array']]);
 
-        $subscription = ModuleSubscription::where('public_id', $publicId)->firstOrFail();
+        $subscription = ModuleSubscription::query()
+            ->select(ModuleSubscription::TENANT_VISIBLE_COLUMNS)
+            ->where('public_id', $publicId)
+            ->firstOrFail();
         $subscription->update(['settings' => $request->input('settings')]);
 
         return response()->json([

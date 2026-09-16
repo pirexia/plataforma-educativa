@@ -1112,6 +1112,224 @@ paths:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
 
+  # REQ-BO-002 (1.6c), ADR-045, funcional.md §5.8, api.md §2.6, §2.7.
+  # Contratar y descontratar módulos. Un solo código de error propio para
+  # el módulo no contratado, del lado del tenant (urn:pge:error:
+  # module-disabled) — no se repite aquí, es de REQ-CORE.
+  /api/platform/v1/modules:
+    get:
+      operationId: listPlatformModules
+      summary: Catálogo de módulos declarados
+      description: >
+        api.md §2.6.1. Capacidad modulo.leer. Sin paginar: son los
+        módulos declarados en código, leídos en proceso (ADR-038 §4.2).
+        `essential`/`depends_on` salen del descriptor (RN-BO-63), nunca
+        de la tabla `modules`; `retired_at` sí sale de ella.
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      responses:
+        '200':
+          description: Catálogo completo.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/PlatformModule' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+
+  /api/platform/v1/tenants/{publicId}/modules:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: listPlatformTenantModules
+      summary: Módulos de un tenant, con su estado
+      description: >
+        api.md §2.6.2. Capacidad modulo.leer. Los tres estados de
+        ADR-045 §4.7 (`no_contratado`, `contratado`, `esencial`) por
+        módulo, con la incoherencia de dependencias visible
+        (`missing_dependencies`, RN-BO-28, CA-BO-146). `reason` aparece
+        aquí (es el backoffice) y no en el `GET /modules` del propio
+        centro (RN-BO-82).
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      responses:
+        '200':
+          description: Estado de módulos del tenant.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/PlatformTenantModuleState' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+
+  /api/platform/v1/tenants/{publicId}/modules/preview:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: previewPlatformTenantModuleChange
+      summary: Vista previa de contratar/descontratar un módulo
+      description: >
+        api.md §2.7, RN-BO-68. No escribe nada y no bloquea nada: la
+        ejecución recalcula el cierre dentro de su transacción y puede
+        diferir de lo anunciado aquí. Capacidad modulo.leer.
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../components.yaml#/components/schemas/PlatformModuleChangeRequest' }
+      responses:
+        '200':
+          description: Cierre de dependencias e impacto estimado.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PlatformModulePreviewResult' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+
+  /api/platform/v1/tenants/{publicId}/modules/{moduleCode}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+      - name: moduleCode
+        in: path
+        required: true
+        description: Código estable del módulo (`modules.code`), no una clave interna (ADR-029).
+        schema: { type: string }
+    put:
+      operationId: updatePlatformTenantModule
+      summary: Contrata o descontrata un módulo de un tenant
+      description: >
+        api.md §2.6.3. Capacidad modulo.contratar. Sensible **sólo** con
+        `enabled: false` (OPEN-BO-17, RN-BO-08). `cascade` no tiene valor
+        por defecto verdadero (RN-BO-67): sin él, un arrastre responde
+        409 con la lista exacta. Idempotente por el índice único de
+        `module_subscriptions` (RN-BO-69): reintentar no reescribe nada
+        ni audita de nuevo.
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled, reason]
+              properties:
+                enabled: { type: boolean }
+                reason: { type: string, description: Obligatorio y no vacío (RN-BO-24, bo.module.reason_required). }
+                cascade: { type: boolean, default: false }
+      responses:
+        '200':
+          description: >
+            Dice qué se hizo de verdad (RN-BO-68), no lo que se pidió.
+            `applied` vacío y el módulo en `unchanged` es el resultado
+            normal de reintentar (RN-BO-69). `cache_invalidated: false`
+            indica que la fase 2 falló (RN-BO-76): la escritura ya está
+            confirmada y auditada de todos modos.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PlatformModuleChangeResult' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/PlatformReauthenticationRequired' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: "Arrastre sin confirmar (bo.module.dependent_modules/missing_dependencies) o estado del tenant que no admite escritura (bo.module.tenant_state_invalid, RN-BO-71)."
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '422':
+          description: "Módulo esencial (bo.module.essential, RN-BO-65), retirado al contratar (bo.module.retired, RN-BO-70), o motivo vacío."
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/platform/v1/module-rollouts/preview:
+    post:
+      operationId: previewPlatformModuleRollout
+      summary: Vista previa de una activación/desactivación masiva
+      description: >
+        api.md §2.7. Agrega la vista previa de cada centro de la lista.
+        No escribe ni bloquea nada (RN-BO-68). Capacidad modulo.leer.
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../components.yaml#/components/schemas/PlatformModuleRolloutRequest' }
+      responses:
+        '200':
+          description: Cierre agregado e impacto estimado sobre el lote.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PlatformModulePreviewResult' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '422':
+          description: "tenant_public_ids vacía, con duplicados o con un public_id inexistente (RN-BO-81)."
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/platform/v1/module-rollouts:
+    post:
+      operationId: createPlatformModuleRollout
+      summary: Activa o desactiva un módulo en varios tenants a la vez
+      description: >
+        api.md §2.6.4. Capacidad modulo.contratar_masivo, sensible,
+        `Idempotency-Key` obligatoria (ADR-038 §8.1, criterios 2 y 3).
+        Sin selector por filtro: lista explícita de `public_id`, no
+        vacía y sin duplicados (RN-BO-81). Un lote declara una única
+        dirección (RN-BO-79). `enabled: true` encola de inmediato
+        (`202`, tipo `module_rollout`); `enabled: false` no escribe ni
+        encola nada — crea la doble autorización pendiente (`202`, tipo
+        `dual_authorization`, `REQ-BO-007`) y sólo se ejecuta al
+        aprobarse (`POST /dual-authorizations/{id}/approval`).
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/IdempotencyKeyHeader' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../components.yaml#/components/schemas/PlatformModuleRolloutRequest' }
+      responses:
+        '202':
+          description: Lote encolado, o doble autorización pendiente — ver `data.type`.
+          headers:
+            Idempotency-Replayed: { $ref: '../components.yaml#/components/headers/IdempotencyReplayed' }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PlatformModuleRolloutAccepted' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/PlatformReauthenticationRequired' }
+        '422':
+          description: "tenant_public_ids vacía, con duplicados o con un public_id inexistente; motivo vacío (RN-BO-81, RN-BO-24)."
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
   # REQ-BO-007 (1.6b). api.md §2.8. Doble autorización. La aprobación y
   # el rechazo se rigen por la capacidad de la ACCIÓN AUTORIZADA
   # (permisos.md §5.2), no por una capacidad propia — no existe

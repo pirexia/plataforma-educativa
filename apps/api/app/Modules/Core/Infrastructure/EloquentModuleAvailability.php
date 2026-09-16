@@ -3,6 +3,7 @@
 namespace App\Modules\Core\Infrastructure;
 
 use App\Models\ModuleSubscription;
+use App\Modules\Core\Domain\ModuleCatalog;
 use App\Support\Modules\ModuleAvailability;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Cache;
@@ -16,24 +17,24 @@ use Illuminate\Support\Facades\Cache;
  * `inerte_modulo`, funcional.md §4.1) — sin ella, las dos tendrían lecturas
  * independientes del mismo booleano, con dos oportunidades de divergir.
  *
- * `core` y `auth` no son desactivables (`REQ-CORE/operacion.md §1`,
- * `REQ-AUTH/operacion.md`): siempre utilizables, sin necesidad de fila en
- * `module_subscriptions`. El resto sigue el mismo mecanismo de
+ * `RN-BO-63`, `CA-BO-036` (1.6c): `essential` sale del descriptor
+ * declarado (`ModuleCatalog`, resuelto una sola vez por proceso), no de
+ * la constante `ALWAYS_ENABLED` que existía hasta este sub-paso y que
+ * **no se sustituye por otra constante** — con dos listas la divergencia
+ * es cuestión de tiempo. El resto sigue el mismo mecanismo de
  * `EnsureModuleEnabled` desde 1.1: ausencia de fila = desactivado (falla en
  * cerrado), caché de prefijo de tenant con TTL corto.
  */
 final class EloquentModuleAvailability implements ModuleAvailability
 {
-    /** @var list<string> */
-    private const ALWAYS_ENABLED = ['core', 'auth'];
-
     public function __construct(
         private readonly TenantContext $tenantContext,
+        private readonly ModuleCatalog $catalog,
     ) {}
 
     public function isEnabled(string $moduleCode): bool
     {
-        if (in_array($moduleCode, self::ALWAYS_ENABLED, true)) {
+        if ($this->catalog->find($moduleCode)?->essential === true) {
             return true;
         }
 
@@ -44,7 +45,14 @@ final class EloquentModuleAvailability implements ModuleAvailability
         return Cache::remember(
             "modules:{$moduleCode}:enabled",
             300,
+            // `->select('id')` (1.6c, datos.md §7.7): sin proyección
+            // explícita, `exists()` compila un `select *` interno que
+            // exige privilegio sobre TODAS las columnas — `plataforma_app`
+            // ya no lo tiene tras el `REVOKE SELECT` de la migración de
+            // privilegios. `id` y las dos columnas del `where` están
+            // entre las concedidas.
             static fn (): bool => ModuleSubscription::query()
+                ->select('id')
                 ->where('module_code', $moduleCode)
                 ->where('enabled', true)
                 ->exists(),
