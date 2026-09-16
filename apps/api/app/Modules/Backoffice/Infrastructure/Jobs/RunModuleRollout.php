@@ -78,13 +78,25 @@ class RunModuleRollout implements ShouldQueue
         $change = new ModuleChange($this->moduleCode, $this->enabled, $this->reason, $this->cascade);
 
         $applied = 0;
+        $unchanged = 0;
         $omitted = [];
         $failed = [];
 
         foreach ($tenants as $tenant) {
             try {
-                $service->applyChange($tenant, $change);
-                $applied++;
+                $result = $service->applyChange($tenant, $change);
+
+                // issue #225 (Media, `/codex:review`): RN-BO-69 dice que
+                // contratar lo ya contratado (o descontratar lo ya
+                // descontratado) es no-operación completa, y no audita —
+                // pero seguía contando como `applied` en este resumen,
+                // exagerando cuántos centros cambiaron de verdad en un
+                // lote reintentado.
+                if ($result['outcome']->isEmpty()) {
+                    $unchanged++;
+                } else {
+                    $applied++;
+                }
             } catch (ApiException $e) {
                 // RN-BO-71, RN-BO-78: una regla de negocio impide la
                 // operación sobre ESTE centro (estado incompatible,
@@ -107,6 +119,7 @@ class RunModuleRollout implements ShouldQueue
                 'enabled' => $this->enabled,
                 'requested' => count($this->tenantPublicIds),
                 'applied' => $applied,
+                'unchanged' => $unchanged,
                 'omitted' => $omitted,
                 'failed' => $failed,
                 'dual_authorization_id' => $this->dualAuthorizationPublicId,

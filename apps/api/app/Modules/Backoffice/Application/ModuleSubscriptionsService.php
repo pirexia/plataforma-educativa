@@ -291,19 +291,32 @@ final class ModuleSubscriptionsService
             );
         }
 
-        RunModuleRollout::dispatch(
-            $moduleCode,
-            false,
-            (string) $payload['reason'],
-            (bool) $payload['cascade'],
-            $tenantPublicIds,
-            // `approver` está garantizado no nulo aquí: este método sólo
-            // se invoca desde `DualAuthorizationService::execute()`,
-            // llamado después de que `approve()` fije `approved_by`
-            // (RN-BO-80).
-            $authorization->approver->public_id,
-            $authorization->public_id,
-        );
+        // issue #224 (Alta, `/codex:review`): este método corre dentro de
+        // la transacción de `DualAuthorizationService::execute()`, y las
+        // tres conexiones de cola tienen `after_commit => false`
+        // (`config/queue.php`) — un `dispatch()` directo aquí encola de
+        // inmediato, antes del `COMMIT`. Si el `forceFill(...)->save()` o
+        // el `record()` que `execute()` ejecuta a continuación (todavía
+        // dentro de la misma transacción) lanzan, la transacción entera
+        // se revierte y la autorización queda `Fallida` — pero el lote ya
+        // encolado se ejecutaría igual. Mismo patrón que ya usa
+        // `TenantLifecycleService::executeApprovedDeletion()` para
+        // `RevokeTenantSessions`: encolar solo tras el `COMMIT` real.
+        DB::connection('pgsql_platform')->afterCommit(function () use ($moduleCode, $payload, $tenantPublicIds, $authorization): void {
+            RunModuleRollout::dispatch(
+                $moduleCode,
+                false,
+                (string) $payload['reason'],
+                (bool) $payload['cascade'],
+                $tenantPublicIds,
+                // `approver` está garantizado no nulo aquí: este método
+                // sólo se invoca desde `DualAuthorizationService::execute()`,
+                // llamado después de que `approve()` fije `approved_by`
+                // (RN-BO-80).
+                $authorization->approver->public_id,
+                $authorization->public_id,
+            );
+        });
     }
 
     private function guardModuleExists(string $moduleCode): void
