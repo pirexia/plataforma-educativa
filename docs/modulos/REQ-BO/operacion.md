@@ -225,6 +225,7 @@ Es el escenario que hay que tener escrito **antes** de que ocurra: la lista blan
 | `bo:close-orphaned-sessions` | **Cada 15 min** | Cierra como `caducidad` las filas vivas de `platform_admin_sessions` cuyo `session_id` ya no está en `platform_sessions`: anula `session_id`, fija `ended_at` y escribe `end_reason = 'caducidad'`. §6.3 |
 | `bo:check-grace-periods` | Diaria | Marca los tenants cuyo período de gracia venció y **avisa**. **No borra nada** (`RN-BO-17`). Detalle en §6.4 |
 | `bo:purge-mfa-challenges` | Cada hora | Desafíos caducados, igual que su homóloga de 1.3 |
+| `bo:purge-idempotency-keys` | Diaria | Purga física de `platform_idempotency_keys` vencidas (`ADR-038 §8`, issue #221), mismo criterio que `PurgeExpiredIdempotencyKeys` de `REQ-CORE` (`REQ-CORE/operacion.md §4`) |
 
 **Los *feature flags* no añaden ni un trabajo en cola ni una tarea programada**, y merece una frase porque es lo contrario de lo que se espera de un motor de despliegue progresivo. No hay nada que barrer —el reparto por porcentaje se calcula, no se almacena (`RN-BO-38`)—, nada que caducar —una regla vive hasta que alguien la cambia— y nada que recalcular cuando aparece un centro nuevo, que es justamente la propiedad por la que se eligió una función determinista en vez de una tabla de asignaciones. **Si en la implementación aparece un job de «recalcular cubos» o de «sincronizar exposiciones», el diseño se ha desviado de `funcional.md §5.11.6`** y hay que volver a él, no añadir el job.
 
