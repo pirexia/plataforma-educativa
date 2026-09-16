@@ -177,6 +177,37 @@ test('CA-BO-031: plataforma_app no puede insertar en module_subscriptions, y sí
     // del test, sobre la fila huérfana que deja la corrida anterior.
 });
 
+// Issue #220 (hallazgo Alta de revisión independiente, 1.6c): la
+// migración de endurecimiento original revocaba UPDATE/INSERT/SELECT de
+// tabla para plataforma_app pero nunca DELETE — la única de las
+// migraciones de endurecimiento del repositorio que dejaba ese privilegio
+// sin tocar. Cerrado por 2026_09_16_100000_harden_module_subscriptions_
+// platform_grants_delete. module_subscriptions usa borrado lógico
+// (INV-004): ningún camino de la aplicación necesita DELETE físico aquí.
+test('issue #220: plataforma_app no puede borrar físicamente filas de module_subscriptions', function (): void {
+    if (! DB::connection('pgsql_owner')->table('modules')->where('code', 'REQ-TEST-MOD')->exists()) {
+        DB::connection('pgsql_owner')->table('modules')->insert(['code' => 'REQ-TEST-MOD', 'name_key' => 'modules.test', 'phase' => '1']);
+    }
+
+    $tenant = Tenant::factory()->create();
+    $subscriptionId = DB::connection('pgsql_platform')->table('module_subscriptions')->insertGetId([
+        'tenant_id' => $tenant->id, 'public_id' => (string) Str::ulid(), 'module_code' => 'REQ-TEST-MOD', 'enabled' => false,
+    ]);
+
+    $context = app(TenantContext::class);
+    $context->enter($tenant->id);
+
+    expectPgsqlQueryToThrow(fn () => DB::table('module_subscriptions')->where('id', $subscriptionId)->delete());
+
+    $context->leave();
+
+    // La fila sigue existiendo: el DELETE falló por privilegio, no se
+    // ejecutó ni parcialmente.
+    expect(DB::connection('pgsql_platform')->table('module_subscriptions')->where('id', $subscriptionId)->exists())->toBeTrue();
+
+    DB::connection('pgsql_platform')->table('module_subscriptions')->where('id', $subscriptionId)->delete();
+});
+
 test('CA-BO-147: plataforma_app no puede leer reason de module_subscriptions, y sí las columnas concedidas', function (): void {
     if (! DB::connection('pgsql_owner')->table('modules')->where('code', 'REQ-TEST-MOD')->exists()) {
         DB::connection('pgsql_owner')->table('modules')->insert(['code' => 'REQ-TEST-MOD', 'name_key' => 'modules.test', 'phase' => '1']);

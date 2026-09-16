@@ -3,6 +3,8 @@
 use App\Modules\Backoffice\Application\ModuleSubscriptionsService;
 use App\Modules\Backoffice\Domain\Models\AdminActionLog;
 use App\Modules\Backoffice\Domain\Models\PlatformAdmin;
+use App\Modules\Backoffice\Domain\Models\PlatformIdempotencyKey;
+use App\Modules\Backoffice\Infrastructure\Jobs\PurgePlatformIdempotencyKeys;
 use App\Modules\Core\Domain\Events\ModuleContracted;
 use App\Modules\Core\Domain\Events\ModuleDecontracted;
 use App\Modules\Core\Domain\ModuleCatalog;
@@ -12,6 +14,8 @@ use App\Support\Modules\DeclaresModuleRegistry;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use App\Support\Tenancy\TenantStatus;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -71,6 +75,30 @@ class ModuleFixtureDependentWithCoreProvider extends ServiceProvider implements 
     }
 }
 
+/**
+ * CA-BO-140: listener de prueba real (no un doble), en cola, para probar
+ * la garantía de infraestructura sobre `ModuleContracted` sin inventar un
+ * caso de uso de negocio que todavía no existe (`ModuleContracted`/
+ * `ModuleDecontracted` no tienen consumidor real en `1.6c`). `Event::fake()`
+ * no sirve para esto: sustituye el despachador entero y nunca llega a
+ * encolar nada de verdad. `$connection = 'database'` (no el `sync` de
+ * `phpunit.xml`) es lo que hace que este listener aterrice en la tabla
+ * `jobs` en vez de ejecutarse en el mismo hilo que el evento.
+ */
+class ModuleContractedFailingTestListener implements ShouldQueue
+{
+    public $connection = 'database';
+
+    public $queue = 'default';
+
+    public $tries = 1;
+
+    public function handle(ModuleContracted $event): void
+    {
+        throw new RuntimeException('CA-BO-140: fallo deliberado del listener de prueba');
+    }
+}
+
 /** @var list<string> */
 const MODULE_FIXTURE_CODES = ['bo-test-base', 'bo-test-dep', 'bo-test-dep-core'];
 
@@ -121,6 +149,11 @@ afterEach(function (): void {
     DB::connection('pgsql_platform')->table('platform_admins')->delete();
     DB::connection('pgsql_platform')->table('platform_ip_allowlist')->delete();
     DB::connection('pgsql_platform')->table('tenants')->delete();
+    // CA-BO-140, issue #221: limpieza de lo que dejan el listener de
+    // prueba en cola y la purga de claves de idempotencia de plataforma.
+    DB::table('jobs')->delete();
+    DB::connection('pgsql_platform')->table('failed_jobs')->delete();
+    DB::connection('pgsql_platform')->table('platform_idempotency_keys')->delete();
     Cache::flush();
 });
 
@@ -435,8 +468,68 @@ test('CA-BO-139: si falla la invalidación de caché, la petición responde con 
 });
 
 // ---------------------------------------------------------------------
-// Eventos (CA-BO-037, CA-BO-038, CA-BO-042)
+// Eventos (CA-BO-037, CA-BO-038, CA-BO-042, CA-BO-140)
 // ---------------------------------------------------------------------
+
+// Hallazgo doc-reviewer (1.6c, sin issue propio): funcional.md §13.3.1
+// afirmaba cobertura de los 21 criterios de aceptación, pero CA-BO-140 no
+// tenía ningún test. `ModuleContracted`/`ModuleDecontracted` no tienen
+// consumidor real todavía, así que la garantía que se prueba aquí es de
+// infraestructura: CUALQUIER listener real que se registre sobre estos
+// eventos (a) va en cola, nunca en el mismo hilo que la petición HTTP que
+// disparó el evento, y (b) si ese listener falla, el fallo aterriza en
+// `failed_jobs`, nunca como error de la respuesta de quien contrató el
+// módulo.
+test('CA-BO-140: un listener en cola de ModuleContracted no se ejecuta en el hilo del evento, y su fallo va a failed_jobs, no a la respuesta HTTP', function (): void {
+    config(['queue.default' => 'database']);
+    // `queue.failed.database` es `pgsql` por defecto (`env('DB_CONNECTION')`,
+    // `plataforma_app`), que sólo tiene INSERT sobre `failed_jobs` desde
+    // `harden_failed_jobs_grants` (SELECT/UPDATE/DELETE revocados
+    // deliberadamente, `ADR-033 §7`): el propio worker puede escribir su
+    // fallo, pero leerlo de vuelta en el mismo hilo de test — a través de
+    // la MISMA transacción de `DatabaseTransactions`, que nunca hace
+    // `COMMIT` — no lo vería ninguna conexión distinta hasta que la
+    // transacción se cerrara, y `pgsql` no tiene privilegio para leerlo
+    // ni aun así. Se apunta aquí a `pgsql_platform` (BYPASSRLS, con
+    // privilegio completo) sólo para poder comprobar el resultado: la
+    // garantía que CA-BO-140 exige —el fallo no llega a la respuesta
+    // HTTP— no depende de qué conexión registre `failed_jobs` en
+    // producción, sólo de que el listener esté en cola.
+    config(['queue.failed.database' => 'pgsql_platform']);
+    Event::listen(ModuleContracted::class, ModuleContractedFailingTestListener::class);
+
+    [$tenant, $admin] = boModuleTestSetup();
+
+    // La petición HTTP que dispara ModuleContracted responde 200: el
+    // listener todavía no ha corrido ni una vez cuando esto se comprueba.
+    $response = $this->actingAs($admin, 'platform')->putJson(
+        'http://'.boPlatformHost()."/api/platform/v1/tenants/{$tenant->public_id}/modules/bo-test-base",
+        ['enabled' => true, 'reason' => 'CA-BO-140: prueba de listener en cola'],
+    );
+    $response->assertStatus(200);
+
+    // El listener aterrizó en la tabla de trabajos en cola, no se ejecutó
+    // en el hilo de la petición (si lo hubiera hecho, la excepción que
+    // lanza habría quedado sin capturar y la respuesta no sería 200).
+    $queued = DB::table('jobs')->latest('id')->first();
+    expect($queued)->not->toBeNull();
+    expect($queued->payload)->toContain(ModuleContractedFailingTestListener::class);
+
+    // Ahora se ejecuta de verdad, con un único intento: falla como el
+    // listener de prueba está diseñado para hacer.
+    Artisan::call('queue:work', [
+        'connection' => 'database', '--once' => true, '--queue' => 'default', '--tries' => 1,
+    ]);
+
+    expect(DB::table('jobs')->count())->toBe(0);
+
+    $failed = DB::connection('pgsql_platform')->table('failed_jobs')->latest('id')->first();
+    expect($failed)->not->toBeNull();
+    expect($failed->payload)->toContain(ModuleContractedFailingTestListener::class);
+    expect($failed->exception)->toContain('CA-BO-140: fallo deliberado del listener de prueba');
+
+    DB::connection('pgsql_platform')->table('failed_jobs')->where('id', $failed->id)->delete();
+});
 
 test('CA-BO-037, CA-BO-038: contratar y descontratar emiten ModuleContracted/ModuleDecontracted, uno por módulo', function (): void {
     [$tenant, $admin, $secret] = boModuleTestSetup();
@@ -541,6 +634,49 @@ test('CA-BO-141: un lote de tres centros con el segundo en en_alta lo omite y si
     expect($summary->context['applied'])->toBe(2);
     expect($summary->context['omitted'])->toHaveCount(1);
     expect($summary->context['omitted'][0]['tenant_public_id'])->toBe($second->public_id);
+});
+
+// Hallazgo doc-reviewer (1.6c, sin issue propio): CA-BO-142 no tenía
+// ningún test — a diferencia de CA-BO-141 (arriba), que sólo comprueba
+// `admin_action_logs`, esta prueba lee `module_subscriptions` directamente
+// para el primer y el tercer centro. `RunModuleRollout::handle()` llama a
+// `ModuleSubscriptionsService::applyChange()` una vez por centro dentro
+// del bucle, y cada llamada abre y cierra su PROPIA
+// `DB::connection('pgsql_platform')->transaction()` (RN-BO-78): para
+// cuando el segundo centro falla (en_alta, no admite escritura), la
+// transacción del primero ya hizo COMMIT. Si el lote entero viviera
+// dentro de una única transacción compartida, el fallo del segundo
+// centro revertiría también la fila ya escrita del primero.
+test('CA-BO-142: la activación masiva es una transacción por centro, no una única para todo el lote', function (): void {
+    [$admin, $secret] = boCreateEnrolledAdmin('operaciones');
+    $this->actingAs($admin, 'platform');
+    $client = boSensitiveClient($admin, $secret);
+
+    $first = Tenant::factory()->create();
+    $second = Tenant::factory()->create(['status' => TenantStatus::EnAlta]);
+    $third = Tenant::factory()->create();
+
+    $response = $client->postJson('http://'.boPlatformHost().'/api/platform/v1/module-rollouts', [
+        'module_code' => 'bo-test-base',
+        'enabled' => true,
+        'reason' => 'CA-BO-142: prueba de independencia transaccional',
+        'tenant_public_ids' => [$first->public_id, $second->public_id, $third->public_id],
+    ], ['Idempotency-Key' => (string) Str::ulid()]);
+
+    $response->assertStatus(202);
+
+    $firstSubscription = DB::connection('pgsql_platform')->table('module_subscriptions')
+        ->where('tenant_id', $first->id)->where('module_code', 'bo-test-base')->first();
+    $secondSubscription = DB::connection('pgsql_platform')->table('module_subscriptions')
+        ->where('tenant_id', $second->id)->where('module_code', 'bo-test-base')->first();
+    $thirdSubscription = DB::connection('pgsql_platform')->table('module_subscriptions')
+        ->where('tenant_id', $third->id)->where('module_code', 'bo-test-base')->first();
+
+    expect($firstSubscription)->not->toBeNull()
+        ->and((bool) $firstSubscription->enabled)->toBeTrue()
+        ->and($secondSubscription)->toBeNull()
+        ->and($thirdSubscription)->not->toBeNull()
+        ->and((bool) $thirdSubscription->enabled)->toBeTrue();
 });
 
 // ---------------------------------------------------------------------
@@ -753,4 +889,41 @@ test('permisos.md §4.4: soporte lee el catálogo y las vistas previas, y recibe
         'module_code' => 'bo-test-base', 'enabled' => true, 'reason' => 'Intento de soporte',
         'tenant_public_ids' => [$tenant->public_id],
     ], ['Idempotency-Key' => (string) Str::ulid()])->assertStatus(403);
+});
+
+// ---------------------------------------------------------------------
+// Purga de claves de idempotencia de plataforma (issue #221)
+// ---------------------------------------------------------------------
+
+// Issue #221 (hallazgo Medio de revisión independiente, 1.6c): el
+// docblock de la migración que crea `platform_idempotency_keys` afirmaba
+// "el mismo criterio de purga física a las 24h (PurgePlatformIdempotencyKeys)",
+// pero esa clase no existía. Cerrado con
+// App\Modules\Backoffice\Infrastructure\Jobs\PurgePlatformIdempotencyKeys,
+// mismo patrón que su homóloga de tenant (PurgeExpiredIdempotencyKeys).
+test('issue #221: PurgePlatformIdempotencyKeys borra físicamente las claves vencidas y conserva las vigentes', function (): void {
+    $expired = PlatformIdempotencyKey::create([
+        'endpoint' => 'bo.module-rollouts.store',
+        'idempotency_key' => (string) Str::ulid(),
+        'request_body_hash' => hash('sha256', 'vencida'),
+        'status' => 'completado',
+        'response_status' => 202,
+        'response_body' => ['status' => 'ok'],
+        'expires_at' => now()->subHour(),
+    ]);
+
+    $current = PlatformIdempotencyKey::create([
+        'endpoint' => 'bo.module-rollouts.store',
+        'idempotency_key' => (string) Str::ulid(),
+        'request_body_hash' => hash('sha256', 'vigente'),
+        'status' => 'completado',
+        'response_status' => 202,
+        'response_body' => ['status' => 'ok'],
+        'expires_at' => now()->addHour(),
+    ]);
+
+    PurgePlatformIdempotencyKeys::dispatchSync();
+
+    expect(PlatformIdempotencyKey::find($expired->id))->toBeNull();
+    expect(PlatformIdempotencyKey::find($current->id))->not->toBeNull();
 });
