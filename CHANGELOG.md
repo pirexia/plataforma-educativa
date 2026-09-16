@@ -6,7 +6,7 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
-## 2026-09-15 · `feature/REQ-BO-002-matriz-modulos-spec`
+## 2026-09-15/16 · `feature/REQ-BO-002-matriz-modulos-spec`
 
 Implementa el sub-paso `1.6c` (`REQ-BO-002`, matriz de módulos) sobre la especificación aprobada de `docs/modulos/REQ-BO/funcional.md §5.8`/`§7.3.1`/`§13.3.1`.
 
@@ -22,13 +22,33 @@ Implementa el sub-paso `1.6c` (`REQ-BO-002`, matriz de módulos) sobre la especi
 - **[#215](https://github.com/pirexia/plataforma-educativa/issues/215)** (Alta) — `TenantContext::runAsPlatform(BackofficeEscritura)` enmascaraba con su propio `RuntimeException` de cierre cualquier excepción de negocio lanzada dentro del bloque antes de escribir en `admin_action_logs` — convertía, por ejemplo, un `422` de módulo esencial en un `500` de plataforma. `after()` ahora sólo se invoca en el camino de éxito.
 - **[#216](https://github.com/pirexia/plataforma-educativa/issues/216)** (Alta) — la instrucción de reutilizar `RequireIdempotencyKey`/`IdempotencyKey` para `POST /module-rollouts` resultó técnicamente inviable: esa primitiva es de tenant y el backoffice nunca tiene tenant activo. Se creó su versión de plataforma.
 - `CloneTenant`/tests existentes ajustados a la conexión `pgsql_platform` para `module_subscriptions`, consecuencia directa de la migración de privilegios (`ModuleSubscriptionsSchemaTest`, `SyncModuleRegistryTest`, `TenantCloneAndIsolationTest`).
+- La primera corrección de #215 revertía `ADR-046 §6.5` sin ADR nuevo (hallazgo Alta de `doc-reviewer`) — corregida sin reabrir el ADR: `after()` se sigue llamando siempre, pero su excepción nunca sustituye a la del `callback()`.
+- **[#220](https://github.com/pirexia/plataforma-educativa/issues/220)** (Alta, `db-reviewer`) — faltaba `REVOKE DELETE` en `module_subscriptions` para `plataforma_app`, única migración de endurecimiento del repositorio que no lo hacía. Migración propia, no editada la ya desplegada.
+- **[#221](https://github.com/pirexia/plataforma-educativa/issues/221)** (Media, `db-reviewer`) — faltaba `PurgePlatformIdempotencyKeys`, que el docblock de la migración de `platform_idempotency_keys` daba por existente. Añadido su comando y su programación diaria, mismo patrón que `PurgeExpiredIdempotencyKeys`.
+- **[#223](https://github.com/pirexia/plataforma-educativa/issues/223)** (Media, `db-reviewer`) — faltaba un test *Feature* de extremo a extremo del `PATCH` de ajustes por el camino real de Eloquent.
+- **[#224](https://github.com/pirexia/plataforma-educativa/issues/224)** (Alta, `/codex:review`, segundo paso de prueba de `ADR-049`) — `RunModuleRollout::dispatch()` corría dentro de la transacción de `DualAuthorizationService::execute()`, con las tres conexiones de cola en `after_commit => false`: si el `forceFill()->save()` o el `record()` posteriores revertían, el lote de descontratación masiva ya encolado se ejecutaba igual pese a que la autorización quedara `Fallida`. Corregido con `DB::connection('pgsql_platform')->afterCommit(...)`, mismo patrón que `RevokeTenantSessions`.
+- **[#225](https://github.com/pirexia/plataforma-educativa/issues/225)** (Media, `/codex:review`, mismo paso) — `RunModuleRollout` contaba un tenant sin cambios reales como `applied` en el resumen del lote. Se cuenta aparte (`unchanged`).
+- **[#218](https://github.com/pirexia/plataforma-educativa/issues/218)** (Media, `security-reviewer`) — en el camino de éxito de `runAsPlatform()`, si `after()` lanzaba, `platformMode` quedaba sin restaurar (mismo tramo, ahora en `try`/`finally`).
+- **[#227](https://github.com/pirexia/plataforma-educativa/issues/227)** (Media, `db-reviewer`/`security-reviewer`, pasada final) — los arreglos de #224/#225 no tenían test de regresión propio; añadidos, junto con el de #218.
+
+### Documentado, sin corregir (Baja, `CLAUDE.md §5`)
+- **[#219](https://github.com/pirexia/plataforma-educativa/issues/219)** — `CloneTenant::cloneModuleSubscriptions()` escribe por `pgsql_platform` (`BYPASSRLS`) sin `runAsPlatform()`: la RLS queda inerte, solo protege el *scope* de Eloquent.
+- **[#222](https://github.com/pirexia/plataforma-educativa/issues/222)** — `deleted_at` de más en el `GRANT UPDATE` de `module_subscriptions`, sin camino de escritura que lo alcance.
+
+### Abiertos por error de diagnóstico, corregidos en la propia sesión
+- **[#217](https://github.com/pirexia/plataforma-educativa/issues/217)** — se creyó que `updated_by` sobraba en un `GRANT UPDATE`; `db-reviewer` verificó que sí se escribe, por `PATCH /module-subscriptions/{publicId}` vía `RecordsAuthorship`.
+- **[#226](https://github.com/pirexia/plataforma-educativa/issues/226)** — 13 tests fallando solo en ejecución conjunta, que parecían un problema de limpieza no acotada en un `afterEach`; era en realidad un *deadlock* real de PostgreSQL por dos *worktrees* de agente ejecutando la suite completa a la vez contra la misma base de test compartida. Lección de infraestructura, no bug de código.
+
+### Segundo paso de prueba de Codex (`ADR-049 §8.2`)
+`/codex:review` sobre el diff completo de la rama contra `develop` (65 ficheros, ~4.560 líneas), sin darle los hallazgos ya conocidos. 3 propuestos, 3 aceptados, 0 descartados: #224 (aportación diferencial real, ningún revisor humano lo había visto), #225, y un tercero coincidente con el ya conocido #221. Van dos pasos de prueba reales (calibrado sobre PR #204 + este); falta uno más antes de la evaluación combinada final. Detalle en `memory.md`.
 
 ### Documentación
 - `docs/modulos/REQ-CORE/funcional.md §7`: `ModuleCatalog`/`ModuleContracting` añadidas a las interfaces públicas, con sus dos eventos.
 - `docs/modulos/REQ-CORE/permisos.md`: `modulo.actualizar` documenta que su alcance (`settings`) lo respalda un privilegio de columna, no solo la validación del controlador.
-- `SECURITY.md`, `SYSADMIN.md`, `CONTRIBUTING.md` actualizados (aislamiento de módulos por `REVOKE`, procedimiento de despliegue, cómo declarar `depends_on`/`essential`).
+- `SECURITY.md`, `SYSADMIN.md`, `CONTRIBUTING.md` actualizados (aislamiento de módulos por `REVOKE` — incluido `DELETE`—, procedimiento de despliegue, cómo declarar `depends_on`/`essential`).
+- `docs/modulos/REQ-BO/datos.md §7`/`§7.2`/`§7.7`, `api.md §2.6.4`: sincronizados con las migraciones reales (`REVOKE DELETE`, `OPEN-BO-19` resuelta) y el campo `unchanged` del resumen de la masiva.
 
-**Verificado**: suite completa de `tests/Feature/Backoffice`, `tests/Feature/Core`, `tests/Feature/Authorization` y `tests/Feature/Tenancy` en verde (328/328), Pint y Larastan limpios. Ver el mensaje del último commit de esta rama para el número exacto de la suite completa del repositorio.
+**Verificado**: 673/673 Pest de la suite completa del repositorio, Pint (799 ficheros) y Larastan (642 análisis) limpios.
 
 ---
 
