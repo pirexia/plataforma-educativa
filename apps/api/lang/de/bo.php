@@ -45,6 +45,18 @@ return [
         'missing_dependencies' => 'Es fehlen noch zu beauftragende Abhängigkeiten: :modules. Bestätige die Übernahme, um fortzufahren.',
         'dependent_modules' => 'Andere Module hängen von diesem ab: :modules. Bestätige die Übernahme, um fortzufahren.',
     ],
+    // REQ-BO-004 (1.6d): Fehlerkatalog für Zustand und Neuversuch von Jobs.
+    'job' => [
+        'reason_required' => 'Der Grund ist erforderlich und darf nicht leer sein.',
+        'tenant_state_invalid' => 'Die Schule befindet sich in einem Status, der keinen Job-Neuversuch zulässt.',
+        'reason' => [
+            'retried_via_console' => 'Über bo:retry-provisioning neu eingereiht.',
+        ],
+    ],
+    // REQ-BO-006 (1.6d): Fehlerkatalog für Plattformkennzahlen.
+    'metrics' => [
+        'invalid_period' => 'Der Beginn des Zeitraums darf nicht nach seinem Ende liegen.',
+    ],
     // Issue #173. Einladungs-E-Mail für einen Plattform-Administrator.
     'mail' => [
         'invitation' => [

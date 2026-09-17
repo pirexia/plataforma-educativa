@@ -10,6 +10,7 @@ use App\Modules\Backoffice\Infrastructure\Console\CheckGracePeriodsCommand;
 use App\Modules\Backoffice\Infrastructure\Console\CloseOrphanedPlatformSessionsCommand;
 use App\Modules\Backoffice\Infrastructure\Console\CreateAdminCommand;
 use App\Modules\Backoffice\Infrastructure\Console\ExpireDualAuthorizationsCommand;
+use App\Modules\Backoffice\Infrastructure\Console\PurgeFailedJobsCommand;
 use App\Modules\Backoffice\Infrastructure\Console\PurgePlatformMfaChallengesCommand;
 use App\Modules\Backoffice\Infrastructure\Console\ResetMfaCommand;
 use App\Modules\Backoffice\Infrastructure\Console\RetryProvisioningCommand;
@@ -63,6 +64,7 @@ class BackofficeServiceProvider extends ServiceProvider
                 ExpireDualAuthorizationsCommand::class,
                 RetryProvisioningCommand::class,
                 CheckGracePeriodsCommand::class,
+                PurgeFailedJobsCommand::class,
             ]);
         }
     }

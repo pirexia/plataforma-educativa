@@ -64,4 +64,36 @@ return [
 
     'invitation_ttl_days' => (int) env('BO_INVITATION_TTL_DAYS', 7),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Salud del tenant (REQ-BO-004, sub-paso 1.6d)
+    |--------------------------------------------------------------------------
+    |
+    | Ventana, en horas, del recuento «fallos recientes» de la ficha
+    | (funcional.md §5.9.2). Acotada de hecho por la retención de
+    | `failed_jobs` de más abajo: pedir una ventana mayor que el plazo de
+    | purga devuelve siempre lo mismo que pedir esa misma retención. Por
+    | eso el valor viaja también en la respuesta (api.md §2.10.1).
+    |
+    */
+
+    'health_failed_jobs_window_hours' => (int) env('BO_HEALTH_FAILED_JOBS_WINDOW', 24),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Retención de failed_jobs (issue #73, RN-BO-98)
+    |--------------------------------------------------------------------------
+    |
+    | Constante literal, deliberadamente SIN `env()` — sería la primera
+    | clave de este fichero que no lee del entorno, y ese es exactamente
+    | el punto: una variable que la alargue anularía en silencio una
+    | mitigación de datos personales (los payloads cifrados de
+    | SendPasswordResetEmail/SendAccountLockedEmail llevan un token de un
+    | solo uso). Mismo criterio que los 90 días del período de gracia
+    | (RN-BO-61, funcional.md §5.9.7).
+    |
+    */
+
+    'failed_jobs_retention_hours' => 24,
+
 ];

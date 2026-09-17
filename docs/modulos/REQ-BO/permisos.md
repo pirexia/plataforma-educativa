@@ -7,6 +7,8 @@
 > **`ADR-046` no reabre nada de este documento** (`ADR-046 §2.2`: «No decide los roles internos ni el catálogo de capacidades del backoffice»). Lo que sí añade son **tres reglas de autorización que no son capacidades** y que están en §5: el *host* de plataforma, la restricción del *slug* y el propósito declarado de `runAsPlatform()`.
 >
 > **`1.6c` tampoco añade ninguna capacidad.** Las tres del recurso `modulo` —`modulo.leer`, `modulo.contratar`, `modulo.contratar_masivo`— ya estaban declaradas en §3 y repartidas en §4 desde el chasis. Lo que añade es **§4.4**, el emparejamiento operación por operación con sus tres barreras, y **seis reglas de §5 que no son capacidades**. El único punto abierto es si la descontratación individual es sensible (`OPEN-BO-17`), que es una celda de §4.4 y no un permiso.
+>
+> **`1.6d` tampoco decide ningún reparto nuevo, y conviene decir por qué parece que sí.** Las tres capacidades de salud y métricas —`salud.leer`, `job.reintentar` y `metrica.leer`— están en §3 y repartidas en §4 **desde el chasis**, con su argumento escrito en §4.1; lo que `1.6d` hace es **declararlas en el `enum` `PlatformCapability`**, que hasta ahora no las tenía porque su propio *docblock* fija la regla: una capacidad se declara *«cuando exista el *endpoint* que la necesite»*, y declarar una sin *endpoint* sería inventar superficie. Lo que añade este sub-paso es **§4.5**, el emparejamiento operación por operación, y **seis reglas de §5 que no son capacidades**. El único punto abierto es si el reintento es sensible (`OPEN-BO-21`), que es una celda de §4.5 y no un permiso.
 
 ---
 
@@ -189,6 +191,30 @@ Consecuencia concreta y aceptada: alguien con `operaciones` **y** `superadminist
 
 > **La consecuencia de un vistazo, como en §4.3: `operaciones` contrata y descontrata módulos en cualquier centro, y no puede cerrar ninguno.** Es coherente con «módulos, límites, flags» de `REQ-BO-007`, que es literal, y con que el ciclo de vida sea del `superadministrador`. Y **la descontratación masiva es la única operación del módulo en la que `operaciones` necesita a otra persona** — no a un `superadministrador`, a **otro `operaciones`**, que es lo que `RN-BO-19` exige y lo que la capacidad de §5.2 permite.
 
+### 4.5 Qué exige cada operación de salud y métricas (`1.6d`)
+
+§3 declara tres capacidades para este terreno —`salud.leer`, `job.reintentar` y `metrica.leer`— y §4 dice quién las tiene. Lo que faltaba, y lo que `implementer` necesita para no inventárselo, es el emparejamiento operación por operación con las barreras que no son la capacidad.
+
+| Operación | Capacidad | Quién la tiene | ¿Sensible? | ¿Doble autorización? |
+|---|---|---|:---:|:---:|
+| `GET /tenants/{id}/health` | `salud.leer` | `soporte`, `operaciones`, `superadministrador` | No | No |
+| `GET /tenants/{id}/failed-jobs` | `salud.leer` | Ídem | No | No |
+| **Reintentar** un trabajo (`POST …/failed-jobs/{uuid}/retry`) | **`job.reintentar`** | `operaciones`, `superadministrador` | **Sí** (`OPEN-BO-21`) | No |
+| `GET /metrics/platform` | `metrica.leer` | `operaciones`, `comercial`, `superadministrador` | No | No |
+| `GET /metrics/module-adoption` | `metrica.leer` | Ídem | No | No |
+
+**Las cuatro decisiones de esta tabla que hay que poder defender:**
+
+**1 · `job.reintentar` es una capacidad aparte de `salud.leer`, y no una acción más del mismo recurso.** No es simetría con `modulo.contratar` —donde §4.4 punto 1 decidió **una sola** capacidad para las dos direcciones—: allí las dos direcciones las hace la misma persona y la diferencia es de fricción; aquí la diferencia es de **naturaleza**, porque el recurso `salud` es de diagnóstico y `soporte` lo tiene entero, mientras que reintentar **es escritura** y `soporte` no puede tener ni una. Si fuesen la misma capacidad, o `soporte` pierde el diagnóstico —que es literalmente su trabajo— o gana una escritura que `REQ-BO-007` le niega.
+
+**2 · `comercial` lee métricas y no lee la ficha de salud, y eso ya estaba decidido en §4.** Merece la frase porque la tentación de darle `salud.leer` «para que vea si un cliente tiene problemas» es real: su alcance es «planes y facturación», la adopción por módulo es exactamente la cifra que necesita para eso, y el detalle de los trabajos de un centro no le dice nada que pueda usar. **No se le da de más «porque total, es sólo lectura»** — es el mismo argumento de §4.1 con el que no se le dio `auditoria_plataforma.leer`, y una lectura concedida de más no se retira nunca.
+
+**3 · `soporte` no lee métricas, y ésa es la asimetría que sorprende.** Tiene `salud.leer` —el diagnóstico de **un** centro, que es su trabajo— y no `metrica.leer`, que es el estado del **parque**: cuántos centros hay, cuántos se han ido y qué se contrata. Eso es información de negocio del proveedor, no una herramienta de soporte, y el reparto de §4 ya lo decidió así. Quien atiende un ticket no necesita saber el *churn*.
+
+**4 · Ninguna operación de este sub-paso pasa por doble autorización, y hay que decir por qué no.** `REQ-BO-007` la exige para *«eliminar un tenant, purgar datos o desactivar módulos en masa»*, y reintentar **un** trabajo no es ninguna de las tres. La que sí lo sería es un reintento masivo — y por eso `RN-BO-88` decide que **no existe** en vez de construirlo con doble autorización: no hay ningún caso de uso que lo pida, y el camino de §5.7 sigue disponible el día que lo haya.
+
+> **La consecuencia de un vistazo, como en §4.3 y §4.4: `soporte` puede verlo todo de un centro y no puede tocar nada; `comercial` puede ver el parque y no puede ver un centro.** Las dos mitades del rol de `REQ-BO-007` —«solo lectura y diagnóstico» frente a «planes y facturación»— quedan, por primera vez en este módulo, con superficie real que las distinga.
+
 ---
 
 ## 5. Reglas de autorización que no son una capacidad
@@ -226,6 +252,12 @@ Igual que `REQ-CORE/permisos.md §8` y `REQ-PERM/permisos.md §8`: lo que ningun
 | **`1.6c` · El backoffice no escribe `created_by`/`updated_by` de `module_subscriptions`** (`RN-BO-73`) | Servicio de contratación | Son referencias a `users` **del centro** y un administrador de plataforma no lo es (`RN-BO-01`). Quedan nulos; el actor vive en `admin_action_logs` |
 | **`1.6c` · El motivo interno del operador no lo lee el centro** (`RN-BO-82`) | **Privilegio de columna**, `datos.md §7.7` | Ningún texto libre del proveedor cruza el `GRANT`, mismo criterio ya ratificado para las otras dos tablas. **Sujeta a `OPEN-BO-19`**: si se decide que no, la barrera pasa a ser la proyección del *resource* de `REQ-CORE`, que es más débil |
 | **`1.6c` · La descontratación individual no exige doble autorización** | Servicio de contratación | `REQ-BO-007` la exige para eliminar, purgar y desactivar **en masa**; el vocabulario desplegado es `modulo.descontratar_masivo` y no `modulo.descontratar`. **Sí exige reautenticación** (§4.4, `OPEN-BO-17`) |
+| **`1.6d` · La ficha de salud no devuelve el *payload* de ningún trabajo** (`RN-BO-84`) | Proyección del *resource*, en **todas** las respuestas de salud | Restricción **funcional**, como `RN-BO-33`: **ninguna capacidad la concede**, tampoco `superadministrador`. Un *payload* serializado contiene el correo y el nombre de personas del centro, y en `SendPasswordResetEmail` además un token de un solo uso. `CA-BO-150` lo comprueba recorriendo la respuesta entera |
+| **`1.6d` · Un trabajo de otro centro responde `404`, no `403`** (`RN-BO-90`) | Servicio de reintento | Es aislamiento (`INV-001`) **y** no revelación: un `403` confirmaría que ese `uuid` existe en algún sitio, y un `uuid` es adivinable por fuerza bruta mucho antes que un `slug`. Mismo criterio que `RN-BO-48` con el *host* y que `RN-BO-15` con los centros (`CA-BO-153`) |
+| **`1.6d` · El estado del centro decide si admite reintento** (`RN-BO-87`) | Servicio de reintento | `409` en `eliminado`. **No es una capacidad** y ningún rol la salta. Y los estados admitidos **no son los mismos** que los de la escritura de módulos (`RN-BO-71`): aquí `en_alta` sí, porque reparar un aprovisionamiento a medias es justamente lo que hace falta ahí |
+| **`1.6d` · No existe reintento masivo** (`RN-BO-88`) | Ausencia de ruta y de bandera | No hay capacidad que lo conceda porque **no hay camino**. Un `retry all` reejecutaría efectos secundarios —correos incluidos— sobre todos los centros a la vez: sería una acción destructiva, y `REQ-BO-007` exige doble autorización a las destructivas (`CA-BO-157`) |
+| **`1.6d` · Ninguna lectura agregada corre fuera del bloque de plataforma** (`RN-BO-94`) | `runAsPlatform(BackofficeLectura, …)` | No es una comprobación de permiso y **su fallo es silencioso**: fuera del bloque, `TenantScope` filtra y la métrica sale reducida al tenant activo **sin error**. Es lo que `CA-BO-162` existe para atrapar, y por eso ese test usa tres centros y comprueba el total |
+| **`1.6d` · El reintento reencola el *payload* literal** (`RN-BO-85`) | Servicio de reintento | Ni capacidad ni validación: es la condición para que el trabajo vuelva a correr **dentro de su tenant**. Recomponerlo lo dejaría con `tenant_id` nulo sobre `plataforma_app`, escribiendo **sin filtro de RLS** — el modo de fallo de aislamiento más grave del sub-paso, y el único que no da síntoma (`CA-BO-152`) |
 
 
 ### 5.1 `RPERM-013` traducido a este módulo
@@ -333,3 +365,10 @@ Los criterios completos están en `funcional.md §13`. Los que verifican **esta*
 - **`CA-BO-143`** — la descontratación masiva pasa por doble autorización y la aprueba **otro administrador con `modulo.contratar_masivo`**, no una capacidad genérica de aprobación (§5.2).
 - **`CA-BO-147`** — `plataforma_app` **no puede leer `module_subscriptions.reason`**, rechazado por el motor y no por la aplicación. **Depende de `OPEN-BO-19`**; si se resuelve en contra, este criterio se retira y la garantía queda en el *resource*.
 - **`CA-BO-148`** — un lote sobre dos centros no altera nada del tercero: ni sus suscripciones, ni su caché, ni sus respuestas.
+- **Test de la matriz de §4.5** (`1.6d`), operación a operación: para cada una de las cinco y cada uno de los cuatro roles, se comprueba que la capacidad exigida y la reautenticación son **exactamente** las de esa tabla. Mismo espíritu que los de §4.3 y §4.4 — en particular, que `job.reintentar` no acabe fundiéndose con `salud.leer` «porque las dos son de la misma pantalla», que es lo que le daría a `soporte` una escritura que `REQ-BO-007` le niega.
+- **`CA-BO-163`** — el `enum` de capacidades gana **exactamente tres** (`salud.leer`, `job.reintentar`, `metrica.leer`) y ninguna más, y el test de catálogo sigue cuadrando celda a celda con §3 y §4.
+- **`CA-BO-165`** — `soporte` **lee** la ficha y el listado de trabajos y recibe `403` al reintentar; `operaciones` reintenta; `comercial` recibe `403` en la ficha y `200` en las dos métricas. Es la comprobación de las dos asimetrías de §4.5 puntos 2 y 3, que son las que una revisión va a querer «arreglar».
+- **`CA-BO-150`** — ninguna respuesta de salud contiene el *payload* de un trabajo, su traza, ni ningún dato personal que vinieran dentro (`RN-BO-84`). Es la mitad de `CA-BO-074` que este sub-paso tiene que ganarse: es el primero del módulo que lee una estructura **serializada por otro módulo** sin controlar su contenido.
+- **`CA-BO-153`** — un `uuid` de otro centro responde `404`, no `403`, y no encola nada.
+- **`CA-BO-158`** — `plataforma_app` **no puede** leer, actualizar ni borrar `failed_jobs`, y **sí** puede insertar; el camino del backoffice **funciona** porque corre por `pgsql_platform`. Comprobado por privilegios de motor, con el patrón de `CA-BO-018` y `CA-BO-030`.
+- **`CA-BO-162`** — con tres centros, los agregados los cuentan a los tres, la ficha de uno no contiene nada de los otros dos, y **la misma consulta fuera del bloque de plataforma da un resultado distinto y menor** — que es la demostración de que `RN-BO-94` describe un fallo real y silencioso.

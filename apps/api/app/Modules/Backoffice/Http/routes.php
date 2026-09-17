@@ -7,10 +7,12 @@ use App\Modules\Backoffice\Http\Controllers\PlatformAdminInvitationRedemptionsCo
 use App\Modules\Backoffice\Http\Controllers\PlatformAdminsController;
 use App\Modules\Backoffice\Http\Controllers\PlatformIpAllowlistController;
 use App\Modules\Backoffice\Http\Controllers\PlatformMeController;
+use App\Modules\Backoffice\Http\Controllers\PlatformMetricsController;
 use App\Modules\Backoffice\Http\Controllers\PlatformMfaFactorsController;
 use App\Modules\Backoffice\Http\Controllers\PlatformMfaRecoveryCodesController;
 use App\Modules\Backoffice\Http\Controllers\PlatformReauthenticationController;
 use App\Modules\Backoffice\Http\Controllers\PlatformSessionController;
+use App\Modules\Backoffice\Http\Controllers\TenantHealthController;
 use App\Modules\Backoffice\Http\Controllers\TenantsController;
 use Illuminate\Support\Facades\Route;
 
@@ -153,3 +155,22 @@ Route::post('/module-rollouts', [ModulesController::class, 'rollouts'])
         'require-platform-reauthentication',
         'idempotent-platform:bo.module-rollouts.store',
     ])->name('platform.module-rollouts.store');
+
+// §2.10, §2.10.1 a §2.10.5 (1.6d, REQ-BO-004/REQ-BO-006 reducidos). Ficha
+// de salud, trabajos fallidos del centro (capacidad salud.leer, sólo
+// lectura) y su único reintento (job.reintentar, escritura, sensible —
+// OPEN-BO-21). Las dos métricas agregadas (metrica.leer) corren dentro
+// de runAsPlatform(BackofficeLectura, …) — RN-BO-94 — así que no hace
+// falta ningún parámetro de tenant en su ruta.
+Route::get('/tenants/{public_id}/health', [TenantHealthController::class, 'show'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:salud.leer'])->name('platform.tenants.health.show');
+Route::get('/tenants/{public_id}/failed-jobs', [TenantHealthController::class, 'failedJobs'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:salud.leer'])->name('platform.tenants.failed-jobs.index');
+Route::post('/tenants/{public_id}/failed-jobs/{uuid}/retry', [TenantHealthController::class, 'retry'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:job.reintentar', 'require-platform-reauthentication'])
+    ->name('platform.tenants.failed-jobs.retry.store');
+
+Route::get('/metrics/platform', [PlatformMetricsController::class, 'platform'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:metrica.leer'])->name('platform.metrics.platform.show');
+Route::get('/metrics/module-adoption', [PlatformMetricsController::class, 'moduleAdoption'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:metrica.leer'])->name('platform.metrics.module-adoption.show');

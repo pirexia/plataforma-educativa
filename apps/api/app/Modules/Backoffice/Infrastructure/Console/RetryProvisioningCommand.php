@@ -2,10 +2,10 @@
 
 namespace App\Modules\Backoffice\Infrastructure\Console;
 
+use App\Modules\Backoffice\Application\FailedJobRetryService;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantStatus;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -25,15 +25,45 @@ use Illuminate\Support\Facades\DB;
  * (`operacion.md §5.1`). Localiza en `failed_jobs` el trabajo cuyo
  * `payload` serializado nombra el `public_id` de este tenant —
  * `ProvisionTenant`/`CloneTenant` declaran sus propiedades públicas para
- * hacer esa búsqueda posible sin reflexión sobre propiedades privadas —
- * y usa el mecanismo nativo `queue:retry` de Laravel para reencolar
- * exactamente el mismo trabajo, con el mismo `payload` original.
+ * hacer esa búsqueda posible sin reflexión sobre propiedades privadas.
+ *
+ * **`1.6d` (hallazgo 2 de `funcional.md §5.9.6`, severidad Media,
+ * `CA-BO-164`): este comando estaba mal conectado.** Buscaba por la
+ * conexión por defecto (`pgsql`, rol `plataforma_app`) y delegaba en
+ * `Artisan::call('queue:retry', …)`, que usa `config('queue.failed.database')`
+ * — la misma conexión —, y ese rol tiene `REVOKE SELECT, UPDATE, DELETE`
+ * sobre `failed_jobs` desde `0.7` (`RN-BO-86`): el camino no podía
+ * funcionar en ningún entorno con los tres roles de `ADR-033 §5`
+ * aprovisionados. Pasa a buscar por `pgsql_platform` y a reencolar con
+ * `FailedJobRetryService::retryByUuid()`, la misma implementación que usa
+ * `POST /tenants/{public_id}/failed-jobs/{uuid}/retry` (funcional.md
+ * §5.9.4 última línea: «dos caminos, una sola implementación»).
+ *
+ * **Segundo hallazgo, propio de esta sesión y distinto del anterior**:
+ * el filtro `LIKE` original comparaba contra `payload` entero, esperando
+ * encontrar literalmente `"tenantPublicId";s:` — pero `payload` es JSON
+ * (`json_encode` del *array* del *job*) y el PHP serializado de
+ * `data.command` viaja **como cadena JSON**, con sus comillas escapadas
+ * (`\"tenantPublicId\";s:`, no `"tenantPublicId";s:`). El `LIKE` contra
+ * el texto entero nunca podía casar con ninguna fila real — verificado
+ * despachando un trabajo de verdad con una propiedad pública y
+ * comprobando el `payload` almacenado. Se arregla extrayendo primero
+ * `data.command` con el operador `->>` de `jsonb` (que sí devuelve el
+ * texto ya desescapado) y aplicando el `LIKE` sobre ese valor, no sobre
+ * la columna entera. Documentado como hallazgo aparte porque no es el
+ * mismo defecto que el de privilegios de conexión: éste habría seguido
+ * roto aunque `queue:retry` no tuviera ningún problema de `GRANT`.
  */
 class RetryProvisioningCommand extends Command
 {
     protected $signature = 'bo:retry-provisioning {slug : Slug del tenant atascado en en_alta}';
 
     protected $description = 'Reencola el trabajo de aprovisionamiento fallido de un tenant en en_alta (funcional.md §5.3.5)';
+
+    public function __construct(private readonly FailedJobRetryService $retryService)
+    {
+        parent::__construct();
+    }
 
     public function handle(): int
     {
@@ -52,9 +82,14 @@ class RetryProvisioningCommand extends Command
             return self::FAILURE;
         }
 
-        $failedJob = DB::table('failed_jobs')
-            ->where('payload', 'like', '%"tenantPublicId";s:%:"'.$tenant->public_id.'"%')
-            ->orWhere('payload', 'like', '%"targetTenantPublicId";s:%:"'.$tenant->public_id.'"%')
+        $failedJob = DB::connection('pgsql_platform')->table('failed_jobs')
+            ->whereRaw(
+                "payload::jsonb -> 'data' ->> 'command' LIKE ? OR payload::jsonb -> 'data' ->> 'command' LIKE ?",
+                [
+                    '%"tenantPublicId";s:%:"'.$tenant->public_id.'"%',
+                    '%"targetTenantPublicId";s:%:"'.$tenant->public_id.'"%',
+                ],
+            )
             ->orderByDesc('id')
             ->first();
 
@@ -68,7 +103,7 @@ class RetryProvisioningCommand extends Command
             return self::FAILURE;
         }
 
-        Artisan::call('queue:retry', ['id' => [$failedJob->uuid]]);
+        $this->retryService->retryByUuid($failedJob->uuid, $tenant->id);
 
         $this->info("Trabajo de aprovisionamiento de «{$slug}» reencolado (uuid {$failedJob->uuid}).");
 

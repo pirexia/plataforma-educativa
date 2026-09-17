@@ -63,7 +63,16 @@ Schedule::command('auth:purge-saml-correlation')->daily();
 // caducidad. ShouldBeEncrypted ya cifra ese payload; esta purga es la
 // segunda capa (nunca guardar más de lo necesario, ni siquiera cifrado).
 // failed_jobs es tabla de plataforma (config/tenancy.php), no por tenant.
-Schedule::command('queue:prune-failed', ['--hours' => 24])->daily();
+//
+// REQ-BO-004 (1.6d, RN-BO-98, funcional.md §5.9.7): SUSTITUYE a
+// `Schedule::command('queue:prune-failed', ['--hours' => 24])`, que usa
+// `config('queue.failed.database')` = `plataforma_app`, con `REVOKE
+// DELETE` sobre `failed_jobs` desde `0.7` — esa purga nunca borró una
+// sola fila. `bo:purge-failed-jobs` corre por `pgsql_platform`, el único
+// rol con `DELETE`. Gestionar la cola de fallos es un asunto de
+// plataforma (REQ-BO-004), no de REQ-AUTH: no se dejan las dos
+// programadas, porque una de ellas fallaría a diario en silencio.
+Schedule::command('bo:purge-failed-jobs')->daily();
 
 // REQ-BO (1.6), operacion.md §6.2. Las cinco tareas programadas del
 // chasis de plataforma. Ninguna es por tenant: corren sobre tablas de

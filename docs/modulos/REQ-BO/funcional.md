@@ -6,7 +6,7 @@
 | Prioridad | MUST |
 | Fase | 1 · Bloque A · **paso 1.6**, dividido en **cinco sub-pasos** por decisión del usuario del 2026-09-08 (§12) |
 | Depende de | `REQ-CORE` (1.1), `REQ-AUTH` (1.2/1.3), `REQ-PERM` (1.5), `ADR-033`, `ADR-034`, `ADR-035`, `ADR-036`, `ADR-038`, `ADR-044`, **`ADR-045`**, **`ADR-046`**, **`ADR-047`** |
-| Estado | **`1.6` (chasis): IMPLEMENTADA, cerrada y mezclada a `develop`** — especificación aprobada por el usuario el 2026-09-08 (`ADR-046`/`ADR-047` aplicados, `OPEN-BO-13` resuelta), revisada de forma independiente en dos pasadas (`db-reviewer`/`security-reviewer`/`doc-reviewer`, issues #173-#186), con todos los hallazgos Alta/Media corregidos (§15.1). · **`1.6b` (ciclo de vida de tenants, `REQ-BO-001`): IMPLEMENTADA, cerrada y mezclada a `develop`** el 2026-09-14 (PR [#204](https://github.com/pirexia/plataforma-educativa/pull/204), [#208](https://github.com/pirexia/plataforma-educativa/pull/208), [#212](https://github.com/pirexia/plataforma-educativa/pull/212); §15.2) — añadió `RN-BO-50` a `RN-BO-62`, `CA-BO-106` a `CA-BO-127` y tres preguntas abiertas nuevas (`OPEN-BO-14` a `OPEN-BO-16`), de las cuales **`ADR-048` (2026-09-11) cierra `OPEN-BO-15`** —contrato síncrono `TenantProvisioner` en `REQ-CORE`, dos métodos, sin evento— y con ella un incumplimiento de `INV-007` en la clonación que la especificación no había nombrado (§5.6.2). Cierra los issues [#7](https://github.com/pirexia/plataforma-educativa/issues/7) y [#27](https://github.com/pirexia/plataforma-educativa/issues/27). · **`1.6c` (matriz de módulos, `REQ-BO-002`): IMPLEMENTADA, cerrada y mezclada a `develop`** el 2026-09-16 (PR [#214](https://github.com/pirexia/plataforma-educativa/pull/214); §15.3) — añade `RN-BO-63` a `RN-BO-82`, `CA-BO-128` a `CA-BO-148` y las tres preguntas abiertas `OPEN-BO-17` a `OPEN-BO-19`, las tres resueltas y aplicadas. **Los dieciséis criterios de §13.3 y los veintiuno de §13.3.1 están cubiertos por tests**, 676/676 Pest de la suite completa en verde. Revisión independiente en dos pasadas (`db-reviewer`/`security-reviewer`/`doc-reviewer`) más dos pasos de prueba de `/codex:review` (`ADR-049 §8`): doce issues encontrados, los doce cerrados (detalle completo en §15.3.1). Hallazgo diferencial de Codex, el más relevante: issue [#224](https://github.com/pirexia/plataforma-educativa/issues/224) (Alta) — una descontratación masiva aprobada podía ejecutarse pese a que la autorización acabara `Fallida`, por un `dispatch()` de cola dentro de una transacción con `after_commit=false`; ningún revisor humano lo había visto. · `1.6d` y `1.6e`: sin empezar |
+| Estado | **`1.6` (chasis): IMPLEMENTADA, cerrada y mezclada a `develop`** — especificación aprobada por el usuario el 2026-09-08 (`ADR-046`/`ADR-047` aplicados, `OPEN-BO-13` resuelta), revisada de forma independiente en dos pasadas (`db-reviewer`/`security-reviewer`/`doc-reviewer`, issues #173-#186), con todos los hallazgos Alta/Media corregidos (§15.1). · **`1.6b` (ciclo de vida de tenants, `REQ-BO-001`): IMPLEMENTADA, cerrada y mezclada a `develop`** el 2026-09-14 (PR [#204](https://github.com/pirexia/plataforma-educativa/pull/204), [#208](https://github.com/pirexia/plataforma-educativa/pull/208), [#212](https://github.com/pirexia/plataforma-educativa/pull/212); §15.2) — añadió `RN-BO-50` a `RN-BO-62`, `CA-BO-106` a `CA-BO-127` y tres preguntas abiertas nuevas (`OPEN-BO-14` a `OPEN-BO-16`), de las cuales **`ADR-048` (2026-09-11) cierra `OPEN-BO-15`** —contrato síncrono `TenantProvisioner` en `REQ-CORE`, dos métodos, sin evento— y con ella un incumplimiento de `INV-007` en la clonación que la especificación no había nombrado (§5.6.2). Cierra los issues [#7](https://github.com/pirexia/plataforma-educativa/issues/7) y [#27](https://github.com/pirexia/plataforma-educativa/issues/27). · **`1.6c` (matriz de módulos, `REQ-BO-002`): IMPLEMENTADA, cerrada y mezclada a `develop`** el 2026-09-16 (PR [#214](https://github.com/pirexia/plataforma-educativa/pull/214); §15.3) — añade `RN-BO-63` a `RN-BO-82`, `CA-BO-128` a `CA-BO-148` y las tres preguntas abiertas `OPEN-BO-17` a `OPEN-BO-19`, las tres resueltas y aplicadas. **Los dieciséis criterios de §13.3 y los veintiuno de §13.3.1 están cubiertos por tests**, 676/676 Pest de la suite completa en verde. Revisión independiente en dos pasadas (`db-reviewer`/`security-reviewer`/`doc-reviewer`) más dos pasos de prueba de `/codex:review` (`ADR-049 §8`): doce issues encontrados, los doce cerrados (detalle completo en §15.3.1). Hallazgo diferencial de Codex, el más relevante: issue [#224](https://github.com/pirexia/plataforma-educativa/issues/224) (Alta) — una descontratación masiva aprobada podía ejecutarse pese a que la autorización acabara `Fallida`, por un `dispatch()` de cola dentro de una transacción con `after_commit=false`; ningún revisor humano lo había visto. · **`1.6d` (salud y métricas, `REQ-BO-004`/`REQ-BO-006` reducidos): ESPECIFICADA y APROBADA el 2026-09-16** (§15.4) — añade `RN-BO-83` a `RN-BO-98`, `CA-BO-149` a `CA-BO-166` y cuatro preguntas abiertas nuevas (`OPEN-BO-20` a `OPEN-BO-23`), **las cuatro resueltas el mismo día**, y **sin una sola migración, tabla ni columna nueva**. Corrige una afirmación falsa de §5.9 —los trabajos en cola **no** salen de Horizon, que no está instalado, lo que llevó a corregir `CLAUDE.md §1` a la versión 2.5.2— y declara tres hallazgos de privilegios anteriores al sub-paso. **El de severidad Alta entra en su alcance por decisión del usuario**: `queue:prune-failed` llevaba desde `0.7` sin poder borrar nada, y con él la segunda capa del issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73) estaba documentada y no aplicada; lo sustituye **`bo:purge-failed-jobs`**, única tarea programada que añade el sub-paso (§5.9.7). · `1.6e`: sin empezar |
 | Módulo (código) | `bo` · `apps/api/app/Modules/Backoffice` · frontend **`apps/backoffice`**, SPA propia sin *bundle* compartido con `apps/web` (`ADR-046 §4.1`), **construida en el paso de interfaz posterior a `1.7`/`1.9`** (§12.5) |
 
 > Fuente de verdad: sección 5.51 de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` (`REQ-BO-001` a `REQ-BO-007`), más `RMOD-002`/`RMOD-006`, `RMT-007`, `REQ-CORE-001` y la sección 11.1. Desde el 2026-09-08, y sólo para `REQ-BO-005` puntos 1-2, también **`REQ-OPS-002`** (sección 5.49) y **`RARQ-DEP-010`** (sección 8).
@@ -318,7 +318,7 @@ Cuatro consecuencias que el implementador tiene que comprobar **antes** de escri
 
 Un tenant se queda en `en_alta` con la configuración a medias. **No hay transición a la que ir**: `RN-BO-12` no admite `en_alta` → nada salvo `activo`, y no se inventa un sexto estado para un caso de operación (`ADR-034 OPEN-13`). Lo que hace `1.6b`:
 
-- El trabajo agota sus reintentos y queda en `failed_jobs`, donde ya es visible por la ficha de salud del centro (§5.9).
+- El trabajo agota sus reintentos y queda en `failed_jobs`, donde ya es visible por la ficha de salud del centro (§5.9). **Esta frase es inexacta y `1.6d` lo descubrió**: el trabajo lo despacha el backoffice **sin tenant activo**, así que su `payload.tenant_id` es nulo y **no aparece bajo el filtro del centro**. Lo que sí lo hace visible en la ficha es la entrada de auditoría del punto siguiente, que sí lleva `affected_tenant_id`. No se reescribe aquí porque la salida de fondo está sujeta a `OPEN-BO-20` (§5.9.3).
 - Se escribe **una** entrada en `admin_action_logs` con `action = 'tenant.aprovisionamiento_fallido'`, `actor_type = 'system'` y el error en `context`. **Es un valor nuevo del vocabulario cerrado** y entra por migración (`datos.md §4.2`), como hizo el issue #173 con los dos de invitación.
 - **No** se escribe fila en `tenant_lifecycle_events`: no ha habido transición, y esa tabla es la historia de la máquina de estados, no un registro de intentos (`datos.md §5.1`).
 - La reparación es **un comando de consola**, `bo:retry-provisioning <slug>`, y no un *endpoint*: no hace falta capacidad nueva, no hace falta pantalla, y el camino de recuperación de este módulo ya es la consola (`operacion.md §5.1`). Reencola el mismo trabajo, que es idempotente.
@@ -697,34 +697,223 @@ La recomendación es cerrarlo por columnas, con su coste dicho: `ModuleSubscript
 - **No devuelve la potestad al centro.** `CA-CORE-061` se conserva y se refuerza: a partir de `1.6c` lo respalda un `REVOKE`, no un `if` (`ADR-045 §10`).
 - **No toca `ModuleAvailability`, `EnsureModuleEnabled` ni `PermissionResolver`** (`ADR-045 §4.10`). Lo único que cambia dentro de `EloquentModuleAvailability` es de dónde sale `essential` y que ahora hay quien invalida su caché.
 
-### 5.9 Ficha de salud del tenant (`REQ-BO-004`, parte)
+### 5.9 Ficha de salud del tenant (`REQ-BO-004`, parte) · sub-paso `1.6d`
 
 Sólo lo que hoy es observable de verdad. **Nada de valores calculados de mentira.**
 
-| Dato de `REQ-BO-004` | En 1.6 |
+| Dato de `REQ-BO-004` | En `1.6d` |
 |----------------------|--------|
-| Versión desplegada | ✅ Es de plataforma, no por tenant. Se muestra una vez |
+| Versión desplegada | ✅ Es de plataforma, no por tenant. Se muestra una vez, marcada como de alcance global (`RN-BO-97`) |
 | Últimas migraciones aplicadas | ✅ De la tabla `migrations`; también de plataforma |
-| Jobs en cola / fallidos | ✅ De Horizon y de `failed_jobs`, **filtrados por el `tenant_id` que `ADR-033 §8` estampa en el *payload*** |
-| Errores recientes | ⚠️ Recuento de `failed_jobs` del tenant. **Sin agregación de logs de aplicación**: no hay recolector, y `ADR-037` no lo contempla |
+| Jobs en cola / fallidos | ⚠️ De las tablas **`jobs` y `failed_jobs`** del *driver* `database`, filtrados por el `tenant_id` que `ADR-033 §8` estampa en el *payload*. **No de Horizon: Horizon no existe en este proyecto** (§5.9.1). Y ese filtro **no alcanza a los trabajos que despacha el propio backoffice** (§5.9.3) |
+| Errores recientes | ⚠️ Recuento de `failed_jobs` del tenant en una ventana. **Sin agregación de logs de aplicación**: no hay recolector, y `ADR-037` no lo contempla |
 | Uso de recursos frente a límites | ❌ No hay límites (`RMT-005` es `REQ-BO-003`) |
 | Certificado SSL, caducidad, validación de dominio | ❌ Es infraestructura (Traefik/ACME) y `OPEN-08` sigue abierta. `REQ-CORE/funcional.md §1.2` ya lo difirió |
 | Conectores externos, último volcado a Raíces | ❌ `REQ-SEC-004`, fase 2 |
-| Reintento de jobs y reenvío de notificaciones (`REQ-SUP-004`) | ✅ Reintento de un job fallido de un tenant, auditado. **Reenvío de notificaciones no**: no hay notificaciones (`REQ-COM`, 1.19) |
-| Incoherencias de dependencias de módulo | ✅ `ADR-045 §4.5` pide que se muestren aquí las aristas que `platform:sync-registry` haya reportado y nadie haya resuelto |
+| Reintento de jobs y reenvío de notificaciones (`REQ-SUP-004`) | ✅ Reintento de un job fallido de un tenant, auditado (§5.9.4). **Reenvío de notificaciones no**: no hay notificaciones (`REQ-COM`, 1.19) |
+| Incoherencias de dependencias de módulo | ✅ `ADR-045 §4.5` pide que se muestren aquí las aristas que `platform:sync-registry` haya reportado y nadie haya resuelto. **Ya se calculan desde `1.6c`** (`api.md §2.6.2`): la ficha las reutiliza, no las recalcula |
+| Estado del aprovisionamiento | ✅ **Añadido por `1.6d` y no está en el requisito**: es el `provisioning.state` que `api.md §2.4.1` ya deriva, y es la única fuente que hoy responde a «¿por qué lleva este centro dos horas en `en_alta`?» (§5.9.3) |
 
-### 5.10 Métricas de plataforma (`REQ-BO-006`, parte)
+> Lo anterior es el inventario tal como lo escribió la revisión del chasis, **corregido en dos filas** y ampliado en una. Lo que falta para poder implementarlo —de qué tabla sale cada número, quién puede leerlo, por qué conexión, y qué pasa con los trabajos que el backoffice despacha sin tenant— es §5.9.1 a §5.9.6.
 
-| Métrica | En 1.6 |
+#### 5.9.1 Estado real del código, verificado y no supuesto
+
+Verificado el **2026-09-16** sobre `develop` en `80397c2`, con el mismo método que §1 aplicó al chasis, §5.3 a `1.6b` y §5.8.1 a `1.6c`. **La conclusión primero, porque corrige una afirmación de esta misma especificación**: §5.9 decía que los trabajos en cola salen «de Horizon». **Horizon no existe en este proyecto y nada lo instala.**
+
+| Pieza | Estado real |
+|---|---|
+| **Horizon** | ❌ **No existe.** `composer.json` no declara `laravel/horizon` —las cinco dependencias de producción son `laravel/framework`, `laravel/socialite`, `laravel/tinker`, `onelogin/php-saml` y `pragmarx/google2fa`—, no hay `config/horizon.php` y no hay ninguna unidad ni servicio suyo en `infra/`. `CLAUDE.md §1` lo nombra en la tabla de *stack* como intención; **la intención no es una dependencia instalada**, y añadirla exige justificarla (`CLAUDE.md §1`). Ver `OPEN-BO-23` |
+| Cola por defecto | `config/queue.php`: `'default' => env('QUEUE_CONNECTION', 'database')`, y `'failed' => ['driver' => 'database-uuids', 'table' => 'failed_jobs']`. **El observatorio de colas de `1.6d` son dos tablas de PostgreSQL**, no un panel de Redis |
+| `failed_jobs` | ✅ Existe (`0001_01_01_000002_create_jobs_table.php`): `{id, uuid UNIQUE, connection, queue, payload, exception, failed_at}`. **Sin `tenant_id`** — el tenant vive dentro de `payload`. Declarada en `shared_tables.platform` de `config/tenancy.php` |
+| Privilegios de `failed_jobs` | ✅ **Endurecida desde `0.7`** (`2026_08_17_180000_harden_failed_jobs_grants.php`): `REVOKE SELECT, UPDATE, DELETE … FROM plataforma_app`. Conserva sólo `INSERT`, que es lo que el *worker* necesita para registrar su fallo. Su propio *docblock* dice que *«leer y gestionar la cola de fallos es un asunto de plataforma (`REQ-BO-004`)»*: **esta migración se escribió para este sub-paso, dos meses antes de que existiera** |
+| `jobs` y `job_batches` | ⚠️ Existen y están declaradas en **`shared_tables.framework`, no en `platform`**, y **ninguna migración las endurece**: `plataforma_app` conserva `SELECT`, `INSERT`, `UPDATE` y `DELETE` sobre las dos. Es **necesario** para `jobs` —el *worker* corre por esa conexión y tiene que reservar y borrar—, y es un hueco declarado para `job_batches` (§5.9.6) |
+| Estampado del tenant | ✅ `TenancyServiceProvider::registerTenantAwareQueues()`: `Queue::createPayloadUsing()` escribe `['tenant_id' => …]` **en la raíz del *payload*** y el *listener* de `JobProcessing` entra en ese tenant. **`null` cuando quien despacha no tiene tenant activo** — que es exactamente el caso del backoffice (§5.9.3) |
+| `migrations` | ✅ Tabla del framework, declarada en `shared_tables.framework`. Legible por `plataforma_platform` |
+| Versión desplegada | ✅ `config/app.php` declara `'version' => env('APP_VERSION', '0.1.0')`. **Existe la clave y existe la variable**; lo que hay que asegurar es que el despliegue la fije desde la etiqueta de imagen de `ADR-037` (`operacion.md §2`) |
+| `job.reintentado` | ✅ **Ya está en el `CHECK` desplegado** de `admin_action_logs.action` (`2026_09_08_101000_create_admin_action_logs_table.php`, último valor de la lista). **`1.6d` no necesita ninguna migración de vocabulario** — es el único de los cinco sub-pasos del que eso es cierto |
+| `salud.leer`, `job.reintentar`, `metrica.leer` | ❌ **No están en `PlatformCapability`.** Están en `permisos.md §3` y `§4` desde el chasis, y el *docblock* del propio `enum` dice que se declaran *«en `1.6c`/`1.6d`/`1.6e`, cuando exista el *endpoint* que las necesite»*. `1.6d` declara **exactamente esas tres** y ninguna más |
+| Superficie de salud y métricas | ❌ **No existe ninguna.** `app/Modules/Backoffice/Http/routes.php` no declara `/health`, ni `/failed-jobs`, ni `/metrics`; no hay controlador con `Health`, `Metrics` ni `Job` en el nombre |
+| `bo:retry-provisioning` | ⚠️ **Existe y está mal conectado.** `RetryProvisioningCommand` consulta `DB::table('failed_jobs')` por la **conexión por defecto** —`pgsql`, rol `plataforma_app`— y delega en `Artisan::call('queue:retry')`, que usa `config('queue.failed.database')`, es decir `DB_CONNECTION`, **la misma**. Con el `REVOKE SELECT, UPDATE, DELETE` de arriba desplegado, ese camino **no puede funcionar** en ningún entorno con los tres roles de `ADR-033 §5` aprovisionados: falla con error de privilegios. **No tiene test propio** —sólo una simulación del caso dentro de `CA-BO-108`—, que es por lo que nadie lo ha notado. Lo arregla `1.6d` reutilizando su servicio (§5.9.4) |
+| `queue:prune-failed` | ⚠️ **Mismo defecto, y con peor consecuencia.** `routes/console.php` la programa a diario con `--hours=24` y el comentario dice para qué: es la **segunda capa del issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73)** —«un job de correo que agota sus 5 reintentos se queda en `failed_jobs` con un token de un solo uso en el *payload*»—. Usa el mismo proveedor del framework, luego el mismo `DB_CONNECTION`, luego el mismo `REVOKE DELETE`: **esa purga no puede borrar nada**, y la mitigación que cierra #73 no existe de hecho. Es el tercer caso del mismo defecto y el único con consecuencia de datos personales (§5.9.6) |
+
+> **Y una consecuencia sobre el issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128), que hay que decir para que nadie la lea como un bloqueo.** Ese issue registra que **no hay ningún *worker* desplegado todavía**. `1.6d` **no depende de que lo haya**: lee dos tablas y escribe en una tercera, y las tres existen y se llenan con `QUEUE_CONNECTION=database` sin más. Lo que sí produce un *worker* ausente es que `jobs` crezca y `failed_jobs` no —los trabajos se encolan y nadie los procesa—, y eso la ficha de salud lo enseña **tal cual**: es información, no un defecto de la ficha. Lo que `1.6d` **no** puede es probarse de extremo a extremo contra un despliegue real sin *worker*; sus tests usan la cola síncrona y la de base de datos, como el resto de la suite.
+
+#### 5.9.2 Qué devuelve la ficha, bloque a bloque
+
+Cuatro bloques, y **cada uno dice de dónde sale**, porque mezclar en una sola ficha datos de plataforma y datos del centro es la forma de que alguien busque «la versión de este centro»:
+
+| Bloque | Alcance | Fuente |
+|---|---|---|
+| **Plataforma** | Global, idéntico para todos los centros | `config('app.version')` y las últimas migraciones aplicadas de la tabla `migrations` |
+| **Estado del centro** | Del centro | `tenants`: `status`, `suspended_at`, `grace_period_ends_at`, `grace_period_expired_at`, y el `provisioning.state` derivado de `api.md §2.4.1` |
+| **Trabajos del centro** | Del centro, **por `payload.tenant_id`** | Recuento de `jobs` pendientes, recuento de `failed_jobs`, recuento de `failed_jobs` en la ventana reciente, y la marca de tiempo del fallo más reciente. **Sólo alcanza a los trabajos despachados dentro del tenant** (§5.9.3), y **sólo a las últimas 24 horas** en cuanto la purga del hallazgo 1 de §5.9.6 funcione |
+| **Última incidencia de plataforma** | Del centro, **por `affected_tenant_id`** | La entrada más reciente de `admin_action_logs` con `action IN ('tenant.aprovisionamiento_fallido', 'tenant.gracia_vencida')`. Es lo que cubre el caso de §5.3.5 y lo que el bloque anterior **no** puede cubrir (§5.9.3) |
+| **Módulos** | Del centro | Recuento de contratados y **la lista de incoherencias de dependencia** que `1.6c` ya calcula (`api.md §2.6.2`). No se recalcula aquí: `RN-BO-22` exige una sola implementación y eso alcanza también a leerla |
+
+**Un campo cuya fuente no existe no aparece** (`RN-BO-83`). Y su recíproco, que es la mitad que se olvida: **un recuento que sí se ha medido y vale cero se devuelve**, porque ahí el cero significa «medido y son cero» y no «no medido».
+
+#### 5.9.3 A qué centro pertenece un trabajo: una contradicción de esta especificación, señalada y no resuelta por mí
+
+**`ADR-033 §8` estampa en el *payload* el tenant que estaba activo al despachar.** Verificado sobre el código (§5.9.1): `Queue::createPayloadUsing()` escribe `tenant_id` con `TenantContext::tenantId()` cuando lo hay, y **`null` cuando no**.
+
+**Los cuatro trabajos del backoffice se despachan sin tenant activo, y no por descuido**: `ADR-046 §6.4` **prohíbe** que haya tenant activo dentro de un bloque de plataforma, y `operacion.md §6.1` ya lo dice con todas las letras — *«estos trabajos los encola el backoffice, que no tiene tenant: el tenant afectado viaja como dato del trabajo, no como contexto heredado»*. Luego `ProvisionTenant`, `CloneTenant`, `RunModuleRollout` y `RevokeTenantSessions` llevan **`payload.tenant_id` nulo**.
+
+**Consecuencia, y es la contradicción:** una lista de `failed_jobs` filtrada por `payload.tenant_id = T` **no contiene ninguno de esos cuatro**. Y esta especificación afirma dos veces lo contrario:
+
+| Dónde | Qué afirma | Por qué es falso |
+|---|---|---|
+| §5.3.5 | *«El trabajo agota sus reintentos y queda en `failed_jobs`, **donde ya es visible por la ficha de salud del centro** (§5.9)»* | `ProvisionTenant` se despacha sin tenant: su fila existe en `failed_jobs`, pero no bajo el filtro del centro |
+| `operacion.md §8` | «Un tenant lleva horas en `en_alta`» → primera comprobación: *«`failed_jobs` **del tenant**»* | Ídem |
+
+**No lo resuelvo yo** (`OPEN-BO-20`), porque la salida limpia —que el estampado de `ADR-033 §8` sepa distinguir «el tenant en el que corro» de «el tenant al que afecto»— toca **infraestructura compartida por todo el producto** y la letra de un ADR vigente (`CLAUDE.md §11`), exactamente como `runAsPlatform()` tocaba `App\Support\Tenancy` y acabó necesitando `ADR-046 §6`.
+
+**Lo que `1.6d` escribe mientras tanto, y es honesto sin inventar nada**: el bloque «trabajos del centro» de §5.9.2 se llama así y **no** «todos los trabajos que le afectan», y la ficha lleva **un quinto dato** que sí cubre el caso de §5.3.5 sin tocar ninguna infraestructura: **la última incidencia de plataforma que afecta al centro**, leída de `admin_action_logs` con `affected_tenant_id = T` y `action IN ('tenant.aprovisionamiento_fallido', 'tenant.gracia_vencida')`. Esa entrada **ya se escribe desde `1.6b`** (`datos.md §4.2.1`) y ya lleva el centro afectado, que es justo lo que al *payload* le falta.
+
+> **Y hay que decir qué queda sin cubrir aun así**: `RunModuleRollout` fallido sobre un centro concreto no deja entrada propia —`RN-BO-78` es explícito: los centros fallidos **no tienen entrada propia** porque «no les pasó nada»—, así que el fallo de un lote sobre un centro sigue sin verse desde su ficha. Se ve desde `modulo.masivo_ejecutado`, que es de alcance global. **No se cambia `RN-BO-78` para arreglar esto**: sería reinterpretar una regla aprobada desde un sub-paso posterior, que es exactamente lo que `CLAUDE.md §3` prohíbe.
+
+#### 5.9.4 Reintento de un trabajo fallido
+
+`REQ-BO-004` pide «reintento de jobs» y `REQ-SUP-004` lo repite. Es **la única escritura de todo `1.6d`**, y tiene tres particularidades que deciden si funciona o sólo lo parece.
+
+**1 · No puede apoyarse en el mecanismo por defecto del framework** (`RN-BO-86`). `queue:retry` y el `FailedJobProvider` usan `config('queue.failed.database')`, que es `DB_CONNECTION` —la conexión `pgsql`, rol `plataforma_app`—, y ese rol tiene **`REVOKE SELECT, UPDATE, DELETE`** sobre `failed_jobs` desde `0.7`. Todo el camino —localizar por `uuid`, reencolar y borrar la fila— corre por **`pgsql_platform`**, dentro de `runAsPlatform(PlatformAccessPurpose::BackofficeEscritura, …)`, cuya obligación de auditar (`ADR-046 §6.5`) la cumple la entrada `job.reintentado`.
+
+**2 · El *payload* se reencola literal y nunca se recompone** (`RN-BO-85`). Dentro de ese *payload* viaja el `tenant_id` que `ADR-033 §8` estampó, y es **lo único** que hace que el *worker* vuelva a entrar en el contexto correcto al procesarlo. Recomponer el trabajo desde el backoffice —que por construcción no tiene tenant— produciría un *payload* con `tenant_id` nulo, y ese trabajo correría **sin contexto de tenant, sobre la conexión `plataforma_app`, escribiendo sin filtro de RLS**. Es el modo de fallo más grave de este sub-paso, no da ningún síntoma inmediato, y por eso es regla y tiene test propio (`CA-BO-152`).
+
+**3 · Se ejecuta dentro de la petición, no en cola** (`RN-BO-89`). Es un `INSERT` en `jobs` y un `DELETE` en `failed_jobs`. `INV-012` habla de trabajo pesado; encolar un reintento es encolar el encolado.
+
+**El orden, sin margen:**
+
+1. Capacidad `job.reintentar` (`permisos.md §4.5`) y reautenticación viva (`OPEN-BO-21`).
+2. El tenant existe y **su estado admite reintento**: `en_alta`, `activo`, `suspendido` y `en_baja` sí; `eliminado` **no**, `409` con `bo.job.tenant_state_invalid` (`RN-BO-87`).
+3. `reason` presente y no vacío, `422` con `bo.job.reason_required`.
+4. La fila de `failed_jobs` con ese `uuid` existe **y su `payload.tenant_id` es el del centro de la ruta**; si no, **`404`** — no `403`: un `403` confirmaría que ese `uuid` existe en otro centro (`CA-BO-153`).
+5. Dentro de `runAsPlatform(BackofficeEscritura, …)` y de una transacción por `pgsql_platform`: se reencola el *payload* tal cual sobre **la conexión y la cola que la propia fila declara** (`failed_jobs.connection`, `failed_jobs.queue`), con los intentos reiniciados; se borra la fila; se escribe `admin_action_logs` con `action = 'job.reintentado'`, `affected_tenant_id`, `subject_public_id = uuid` y el motivo.
+6. `200` con el recuento actualizado de trabajos fallidos del centro.
+
+**Tres precisiones sobre la entrada de auditoría**, verificadas contra `AdminActionLogRecorder::record()` y no supuestas:
+
+- **`action = 'job.reintentado'` ya está en el `enum` `AdminActionLogAction` y en el `CHECK` desplegado.** No hay migración de vocabulario y no hay que tocar el enumerado (§5.9.1).
+- **`subject_type` estrena un valor: `'failed_job'`.** Los cuatro que se escriben hoy son `platform` (el valor por omisión del grabador), `tenant`, `dual_authorization` y `module_subscription`. Esa columna **no tiene `CHECK`** —a diferencia de `action`—, así que el valor nuevo no es una migración, pero **sí es vocabulario** y se declara en `datos.md §4.1` como los otros cuatro. No se reutiliza `tenant`: el sujeto de la acción es el trabajo, y el centro ya viaja en `affected_tenant_id`.
+- **`subject_id` queda nulo y `subject_public_id` lleva el `uuid` del trabajo.** El `failed_jobs.id` es una clave interna de una tabla del framework que no se expone nunca (`ADR-029`), y el `uuid` es lo que el operador tiene delante y lo que sobrevive al borrado de la fila — que es precisamente lo que el reintento hace con ella.
+
+**Lo que no hay, y hay que decirlo porque las tres se esperan:**
+
+- **No hay reintento masivo ni «reintentar todo»** (`RN-BO-88`). `REQ-BO-004` pide «reintento de jobs», uno a uno. Un `retry all` reejecutaría efectos secundarios —correos a familias incluidos— sobre todos los centros a la vez sin que nadie haya mirado ninguno: es una acción destructiva, y `REQ-BO-007` exige doble autorización a las destructivas. Si algún día hace falta, entra por §5.7 con su propio valor de vocabulario, no por una bandera en este *endpoint*.
+- **No hay reenvío de notificaciones fallidas.** `REQ-BO-004` lo pide junto al reintento y **no hay notificaciones**: `REQ-COM` es el paso 1.19. Mismo argumento con el que `ADR-045 §4.8` se negó a adelantarlo para el aviso de módulo contratado.
+- **No hay borrado de un trabajo fallido.** Un `DELETE /failed-jobs/{uuid}` sería «haz desaparecer la prueba de que esto falló» sin ningún rastro de negocio. El único camino por el que una fila de `failed_jobs` desaparece en `1.6d` es un reintento, que sí queda auditado con su actor y su motivo.
+
+**Y `bo:retry-provisioning` pasa a usar el mismo servicio** (§5.9.1, última fila). Dos caminos —consola y API—, una sola implementación, exactamente el criterio con el que `RN-BO-22` exige una sola implementación de las dependencias de módulo y con el que `ADR-048` conservó el comando de aprovisionamiento llamando a la misma interfaz. El comando sigue sin necesitar capacidad y sigue auditándose con `actor_type = 'console'`.
+
+#### 5.9.5 Qué **no** devuelve la ficha, y por qué es una regla y no una omisión
+
+**El *payload* de un trabajo contiene datos personales del centro.** No es una posibilidad teórica: `SendInvitationEmail` serializa el correo y el nombre del invitado, `SendPasswordResetEmail` y `SendAccountLockedEmail` lo mismo, y cualquier trabajo futuro sobre alumnado llevará dentro a un menor. `RN-BO-33` y `REQ-BO-007` prohíben que el backoffice muestre datos personales de los centros, y `CA-BO-074` lo comprueba recorriendo **todas** las respuestas del módulo.
+
+Por eso `RN-BO-84`: la ficha y el listado devuelven **`uuid`, `queue`, `connection`, `failed_at`, la clase del trabajo** —`payload.displayName`, que es un nombre de clase PHP y no un dato— **y la clase de la excepción**. Nunca el *payload*, nunca la traza completa.
+
+> **Queda un borde, y lo señalo en vez de resolverlo** (`OPEN-BO-22`): **el mensaje** de la excepción. Sin él, el diagnóstico —que es literalmente el título de `REQ-BO-004`— no existe: «`QueryException`» no le dice nada a nadie. Con él, un mensaje de PostgreSQL puede arrastrar el valor que violó una restricción, y ese valor puede ser el correo de una familia. Esta especificación está escrita contra **devolverlo**, porque la alternativa vacía el requisito, y deja escrito que es una excepción consciente a `RN-BO-33` y no un descuido.
+
+#### 5.9.6 Tres hallazgos sobre privilegios, y `1.6d` corrige dos
+
+Los tres salen de leer el código para escribir esto, los tres son **anteriores** a este sub-paso y ninguno es suyo. Se escriben aquí —y se abren como issue— en vez de arreglarse en silencio (`CLAUDE.md §5`, issue [#150](https://github.com/pirexia/plataforma-educativa/issues/150)).
+
+**Los tres comparten una sola causa raíz, y conviene nombrarla antes que los síntomas**: `failed_jobs` se endureció en `0.7` dejando a `plataforma_app` sólo `INSERT`, pero **el proveedor de trabajos fallidos del framework sigue apuntando a esa misma conexión** (`config('queue.failed.database')` es `env('DB_CONNECTION')`). Todo lo que el framework hace con `failed_jobs` que no sea insertar —listar, reintentar, purgar— **falla por privilegios**. Es la contrapartida exacta del bug 6 de `0.7`: entonces faltaba el `REVOKE`; ahora sobra respecto de quien lo usa.
+
+| # | Hallazgo | ¿Lo corrige `1.6d`? | Severidad propuesta |
+|---|---|---|---|
+| 1 | **`queue:prune-failed` no puede borrar nada.** Programada a diario en `routes/console.php` con `--hours=24` **como segunda capa del issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73)**: los *payloads* de `SendPasswordResetEmail` y `SendAccountLockedEmail` llevan un token de un solo uso y, aunque van cifrados (`ShouldBeEncrypted`), la decisión era no conservarlos más de 24 horas. **Esa purga lleva desde `0.7` sin borrar una sola fila.** | **Sí** (decisión del usuario, 2026-09-16). Comando propio del módulo por `pgsql_platform`: **§5.9.7**, `RN-BO-98`, `CA-BO-166` | **Alta**: una mitigación de datos personales que se creyó desplegada y no lo está |
+| 2 | **`bo:retry-provisioning` no puede funcionar** (§5.9.1). Sin test propio, por eso nadie lo ha notado | **Sí.** Pasa a usar el servicio de §5.9.4, por `pgsql_platform`. Regresión: `CA-BO-164` | Media |
+| 3 | **`jobs` y `job_batches` no están endurecidas.** `plataforma_app` puede leer, actualizar y borrar **todas** las filas de las dos, y el *payload* de un trabajo en cola lleva dentro datos del centro que lo despachó. Para `jobs` es **inevitable** con el *driver* `database` —el *worker* corre por esa conexión y tiene que reservar y borrar—, y por eso está en `shared_tables.framework` y no en `platform`. **Para `job_batches` no lo es**, y nada del producto la usa todavía | **No.** Endurecer `job_batches` no lo necesita este sub-paso y tocar `jobs` exige decidir antes por qué conexión corre el *worker* | Media (`job_batches`) · Declarada y aceptada (`jobs`) |
+
+> **Y una consecuencia operativa del hallazgo 1 que hay que tener presente ahora que se arregla**: en cuanto esa purga funcione, **la ficha de salud sólo verá los fallos de las últimas 24 horas**, y `bo:retry-provisioning` sólo podrá reparar un aprovisionamiento durante ese mismo plazo. No es un defecto de `1.6d` —es la retención que el issue #73 fijó a propósito— pero **hoy no se nota porque la purga no borra, y a partir de `1.6d` sí se notará**. Es lo más parecido a una regresión visible que produce este sub-paso, y por eso está en `operacion.md §8` y no sólo aquí.
+
+#### 5.9.7 El arreglo del hallazgo Alta: `bo:purge-failed-jobs` · **decisión del usuario, 2026-09-16: entra en `1.6d`**
+
+**Qué se arregla, en una frase**: `queue:prune-failed` lleva desde `0.7` sin borrar una sola fila, y con ella la segunda capa del issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73) —*«nunca guardar más de lo necesario, ni siquiera cifrado»*— **está documentada y no aplicada**. El arreglo entra aquí porque `1.6d` es el sub-paso que construye el único camino de acceso que le falta: `pgsql_platform` sobre `failed_jobs` (`RN-BO-86`).
+
+**El diseño, sin margen:**
+
+| Pieza | Decisión |
+|---|---|
+| **Comando** | **`bo:purge-failed-jobs`**, en `app/Modules/Backoffice/Infrastructure/Console/`. El prefijo y el verbo son los del módulo —`bo:purge-mfa-challenges`, `bo:purge-idempotency-keys`—, no los del framework: `prune` es de Laravel y `purge` es de este proyecto |
+| **Conexión** | **`pgsql_platform`**, el único rol con `DELETE` sobre `failed_jobs` (`RN-BO-86`). Un `DELETE FROM failed_jobs WHERE failed_at < now() - interval`, sin más |
+| **Contexto** | **Ninguno.** `failed_jobs` es tabla de plataforma (`shared_tables.platform`): corre fuera de todo tenant y **no usa `RunsPerTenant`**, exactamente como `CloseOrphanedPlatformSessions` (`operacion.md §6.3`) |
+| **`runAsPlatform()`** | **No.** Sigue el precedente que ya existe en el módulo —`CloseOrphanedPlatformSessions` escribe por `pgsql_platform` directamente— y **no inventa una forma nueva**. Queda dicho que si algún día se decide que toda escritura por `pgsql_platform` pase por la primitiva (issue [#219](https://github.com/pirexia/plataforma-educativa/issues/219), Baja, documentado sin corregir), este comando entra en ese lote con los demás, no antes |
+| **Plazo** | **24 horas**, las del issue #73. Constante literal en `config/backoffice.php`, **sin `env()`** — sería la primera clave de ese fichero que no lee del entorno, y **eso es exactamente el punto** (`RN-BO-98`): una variable que la alargue anula en silencio una mitigación de datos personales. Mismo criterio que `RN-BO-61` con los 90 días del período de gracia |
+| **Programación** | `Schedule::command('bo:purge-failed-jobs')->daily()` en `routes/console.php`, **sustituyendo** la línea `Schedule::command('queue:prune-failed', ['--hours' => 24])->daily()`. **Sustituyendo, no acompañando**: dejar las dos significa que una de ellas falla a diario en silencio, que es el estado del que se sale |
+| **Auditoría** | **Ninguna entrada en `admin_action_logs`.** No hay sujeto ni decisión: es mantenimiento de retención, igual que las otras dos purgas del módulo, y `ADR-046 §6.2` ya decidió que el mantenimiento sin sujeto no tiene nada que registrar. El recuento de filas borradas va al registro de la tarea, que es donde se mira |
+
+**Una decisión que se aparta de los otros dos comandos `bo:` del módulo, y hay que defenderla: este comando ejecuta el borrado él mismo, no despacha un trabajo en cola.** `bo:purge-idempotency-keys` y `bo:close-orphaned-sessions` despachan `PurgePlatformIdempotencyKeys` y `CloseOrphanedPlatformSessions` a la cola `backoffice-maintenance`. Aquí **no**, por dos motivos y no por gusto:
+
+1. **Una purga encolada no purga si no hay quien la procese.** Hoy **no hay ningún *worker* desplegado** (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128)). Poner la mitigación de #73 detrás de una cola que nadie vacía es repetir el mismo fallo con otra forma: seguiría documentada y sin aplicarse. El planificador, en cambio, **sí** corre en su propio contenedor (`ADR-037`).
+2. **Un trabajo que limpia `failed_jobs` puede acabar dentro de `failed_jobs`.** Si falla, ensucia justo la tabla que existe para vaciar, y se queda ahí hasta que la siguiente ejecución —que también podría fallar— lo borre. Es un lazo que no aporta nada.
+
+**Y un `DELETE` acotado por fecha no es trabajo pesado**, así que `INV-012` no obliga a encolarlo: la regla habla de lo que no cabe en el ciclo de una petición, y esto ni siquiera ocurre en una petición.
+
+**Lo que este arreglo toca fuera de `REQ-BO`, enumerado y cerrado** —porque retirar una línea del planificador afecta a documentación de otros dos módulos y a un documento raíz (`operacion.md §10`)—:
+
+| Dónde | Qué dice hoy | Qué hay que corregir |
+|---|---|---|
+| `routes/console.php` | `Schedule::command('queue:prune-failed', ['--hours' => 24])->daily();` con un comentario que atribuye la línea al issue #73 | Se sustituye por la del comando nuevo, **conservando el comentario y su referencia al issue**: el motivo de la línea no cambia, cambia quién la ejecuta |
+| `docs/modulos/REQ-AUTH/operacion.md` | Su tabla de trabajos programados lista `queue:prune-failed --hours=24` como «comando directo», y **tres párrafos más** lo citan como *«la segunda capa»* de #73 | Las cuatro pasan a nombrar `bo:purge-failed-jobs` y a decir que **la purga es de `REQ-BO`**, no de `REQ-AUTH`. Es coherente con `INV-007` y con el *docblock* de la migración de `0.7`: *«gestionar la cola de fallos es un asunto de plataforma (`REQ-BO-004`)»* |
+| `docs/modulos/REQ-CORE/operacion.md` | Menciona la misma tarea | Ídem |
+| `RUNBOOK.md` | Ídem | Ídem |
+| `CHANGELOG.md`, `docs/historial/*` | La nombran al relatar `1.2` y el cierre de #73 | **No se tocan.** Son historia y decían la verdad cuando se escribieron |
+
+> **Ninguna de esas cuatro correcciones es opcional y ninguna es de `doc-reviewer` «si le da tiempo»**: una tarea programada retirada que sigue documentada en tres sitios es exactamente el tipo de desincronización que motivó la regla 7 de `CLAUDE.md §6`.
+
+**Y una verificación que ya está disponible y conviene aprovechar**: `MfaMaintenanceJobsTest` inspecciona el planificador de verdad —`app(Schedule::class)`, busca el evento por su `command` y comprueba su expresión— para `auth:purge-maintenance`. `CA-BO-166` usa **ese mismo patrón**, en las dos direcciones: que `bo:purge-failed-jobs` esté programado y que `queue:prune-failed` **ya no lo esté**. **Verificado que hoy ningún test comprueba la línea que se retira**, así que sustituirla no rompe nada existente — y esa ausencia de test es, precisamente, por lo que el defecto ha vivido dos meses.
+
+### 5.10 Métricas de plataforma (`REQ-BO-006`, parte) · sub-paso `1.6d`
+
+| Métrica | En `1.6d` |
 |---------|--------|
-| Tenants por estado, altas y bajas | ✅ De `tenants` y `tenant_lifecycle_events` |
-| Adopción por módulo | ✅ De `module_subscriptions`: cuántos centros tienen contratado cada módulo |
+| Tenants por estado, altas y bajas | ✅ De `tenants` y `tenant_lifecycle_events` (§5.10.1) |
+| Adopción por módulo | ✅ De `module_subscriptions` sobre el **catálogo declarado**: cuántos centros tienen contratado cada módulo (§5.10.2) |
 | Alumnos totales | ❌ `REQ-ALUM`, paso 1.15 |
 | Ingresos recurrentes, *churn* | ❌ `REQ-SAAS-004`, fase 2 |
 | Consumo de recursos frente a límites | ❌ No hay límites |
 | Alertas de salud comercial | ❌ Necesita tickets (`REQ-SUP`) e impagos (`REQ-SAAS`) |
 
-**El panel de 1.6 muestra dos números honestos en vez de seis inventados.** Es preferible a rellenar con ceros: un cero indistinguible de «no medido» es peor que la ausencia.
+**El panel de `1.6d` muestra dos números honestos en vez de seis inventados.** Es preferible a rellenar con ceros: un cero indistinguible de «no medido» es peor que la ausencia.
+
+#### 5.10.1 Tenants por estado, altas y bajas: las tres definiciones, sin ambigüedad
+
+Son tres frases del requisito y las tres admiten dos lecturas. Se fijan aquí porque una métrica cuya definición no está escrita es una métrica que cambia de significado cada vez que alguien la reimplementa.
+
+| Métrica | Definición exacta | La lectura que se descarta, y por qué |
+|---|---|---|
+| **Tenants por estado** | `COUNT(*)` agrupado por `tenants.status`, sobre los cinco valores de `TenantStatus`, **incluyendo los borrados lógicos** (`RN-BO-91`) | Excluir `deleted_at` dejaría la fila `eliminado` **siempre a cero**, porque la eliminación escribe las dos cosas a la vez (`funcional.md §5.5.2`). Es el mismo defecto por la vía equivocada que `RN-BO-50` corrigió en `ResolveTenant`, y aquí se evita antes de que ocurra |
+| **Altas del período** | Filas de `tenant_lifecycle_events` con **`from_status IS NULL`** —la única transición que lo tiene— y `occurred_at` dentro de la ventana | `tenants.created_at` parece más directo y no sirve: no responde «cuántas altas hubo **en este período**» si la fila se eliminó después, y la tabla de historial es *append-only* (`datos.md §5.2`), así que su respuesta no cambia con el tiempo |
+| **Bajas del período** | Filas con **`to_status = 'en_baja'`** en la ventana. Las eliminaciones (`to_status = 'eliminado'`) se devuelven **en una serie aparte**, nunca sumadas (`RN-BO-92`) | Sumarlas mezclaría el mes en que un centro se fue con el mes en que se cerró su expediente, y entre los dos hay **90 días de gracia** por diseño. Sumadas, un mes cualquiera contaría dos veces al mismo centro |
+
+**El *churn* no se calcula** y no es un olvido: `REQ-BO-006` lo remite a `REQ-SAAS-004`, que es fase 2, y calcularlo exige una base de clientes facturables que no existe (`funcional.md §2.2`). Devolver «bajas ÷ activos» llamándolo *churn* sería inventar una métrica de negocio desde un panel técnico.
+
+**La ventana** son dos parámetros `occurred_at_from` y `occurred_at_to`, inclusivos, con la sintaxis de `ADR-038 §5.2`; por omisión, los últimos 30 días. `422` si el principio es posterior al final. **El recuento por estado no lleva ventana**: es una foto del ahora, y decirlo evita la pregunta obvia de por qué un parámetro afecta a dos bloques y al tercero no.
+
+#### 5.10.2 Adopción por módulo: el esqueleto es el catálogo, no las filas
+
+`REQ-BO-006` lo pide «para decidir inversión de producto», y esa frase decide la forma: **la lista la marca el catálogo declarado** (`ModuleCatalog::all()`, el contrato que `1.6c` puso en `Core\Domain`), no las filas que existan en `module_subscriptions`.
+
+- **Un módulo sin una sola contratación aparece, con cero.** Y ese cero **sí** se devuelve, sin contradecir `RN-BO-83`: aquí significa «medido y son cero», que es precisamente la respuesta que un responsable de producto necesita — un módulo que no aparece es indistinguible de uno que nadie ha construido.
+- **Los módulos `essential` se devuelven marcados y sin recuento de contratación** (`RN-BO-93`). No tienen fila por diseño (`RN-BO-65`), así que un `0` diría que ningún centro tiene `core`, que es falso, y un recuento igual al total sería un número inventado con aspecto de medido.
+- **Los módulos con `retired_at` siguen apareciendo**, con su marca: el catálogo nunca borra (`SyncModuleRegistry`) y una suscripción viva a un módulo retirado se factura (`RMOD-007`, `RN-BO-70`). Desaparecerlos del panel escondería exactamente lo que hay que ver.
+- **El denominador viaja en la respuesta.** Centros vivos y no `eliminado`. Un porcentaje sin denominador es una cifra que nadie puede comprobar, y a los tres meses nadie recuerda si incluía a los suspendidos.
+
+#### 5.10.3 Cómo se leen sin romper el aislamiento, y cuál es el modo de fallo
+
+Las dos métricas recorren **todos** los centros, que es justo lo que ninguna otra parte del producto puede hacer.
+
+- Corren dentro de **`runAsPlatform(PlatformAccessPurpose::BackofficeLectura, …)`**, que **no obliga a escribir en `admin_action_logs`** (`ADR-046 §6.2`). Es exactamente el caso para el que ese propósito se separó del de escritura, y decirlo evita que alguien «complete» la auditoría inventándose una acción que registrar — *«una obligación que hay que falsear se acaba desactivando»*.
+- **`module_subscriptions` es tabla de tenant y aun así el agregado se escribe con el modelo de siempre.** Verificado sobre el código, no supuesto: en modo plataforma `TenantScope::apply()` **retorna sin añadir ningún `where`**, y `TenantModel::getConnectionName()` **devuelve `pgsql_platform`**, que tiene `BYPASSRLS`. No hay que tocar conexiones a mano ni usar `withoutGlobalScope()`, que además está prohibido en `app/Modules/**` por un test de arquitectura de `0.7.11`.
+- **Y ese mismo hecho es el riesgo** (`RN-BO-94`): una consulta de este sub-paso que se escape del bloque de plataforma **no falla**, devuelve el recuento de un solo centro. Una métrica silenciosamente equivocada es peor que un error, porque se usa para decidir. Por eso las dos consultas viven detrás de una sola puerta y por eso su test de aislamiento usa **tres** centros y comprueba el total, no sólo que no se filtre nada.
+- **Ninguna métrica se cachea en `1.6d`** (`RN-BO-95`), con el disparador de revisión escrito en `operacion.md §7`: dos `COUNT` agrupados sobre doscientos centros es trabajo despreciable, y una métrica cacheada es una métrica que alguien lee desactualizada **mientras decide**. Es la decisión contraria a la de `§4.3` de `operacion.md` para los *flags*, y lo es porque el problema es el contrario: allí se lee en cada petición de cada centro, aquí lo lee un operador unas veces al día.
+
+#### 5.10.4 Lo que este sub-paso deliberadamente **no** hace
+
+- **No crea ni una tabla, ni una columna, ni un índice** (`datos.md §14`). Todo sale de consultas sobre lo que ya existe.
+- **No materializa ninguna métrica** en una tabla de recuentos diarios. Sería una segunda fuente de verdad que se desincroniza, y no hay ninguna consulta cara que lo justifique — el disparador para reconsiderarlo está escrito en `operacion.md §7`.
+- **No añade ningún trabajo en cola ni ninguna tarea programada** (`operacion.md §6.1`, `§6.2`). Si en la implementación aparece un *job* de «consolidar métricas», el diseño se ha desviado de §5.10.3.
+- **No expone ningún dato personal de ningún centro** (`RN-BO-33`), ni siquiera el nombre de un usuario dentro del *payload* de un trabajo (§5.9.5).
 
 ### 5.11 Motor de *feature flags* (`REQ-BO-005` puntos 1-2, adelanta `REQ-OPS-002`)
 
@@ -1059,6 +1248,29 @@ Aserción nueva: **ninguna llamada a `runAsPlatform()` en `app/` pasa un propós
 | `RN-BO-46` | La designación de ***early adopter*** es del **centro** y no del *flag*: se marca una vez, con motivo, y sirve a todas las reglas de cohorte. Se puede retirar, y retirarla apaga sólo los *flags* que dependían **únicamente** de ella |
 | `RN-BO-47` | **Ningún control de seguridad puede quedar detrás de un *flag***: MFA, lista blanca de IP, doble autorización, aislamiento de tenant y comprobación de permisos están fuera del alcance del motor, verificado por test de arquitectura (`CA-BO-096`) |
 
+### 7.6 Salud y métricas (`REQ-BO-004`, `REQ-BO-006`) · sub-paso `1.6d`
+
+> Mismo criterio de numeración que §7.2.1 y §7.3.1: **van a continuación de la última existente**, `RN-BO-82`, y no intercaladas. Los identificadores de regla no se reordenan nunca.
+
+| ID | Regla |
+|----|-------|
+| `RN-BO-83` | **Un campo cuya fuente no existe se omite de la respuesta**: nunca `0`, nunca `null`, nunca `"n/d"`. Un cero indistinguible de «no medido» es peor que la ausencia, y los enumerados de respuesta son extensibles (`ADR-038 §7.3`), así que añadir el campo cuando exista el dato es un cambio compatible. **Y su recíproco, que es la mitad que se olvida: un recuento que sí se ha medido y vale cero se devuelve**, porque ahí el cero significa «medido y son cero» (§5.9.2, §5.10.2) |
+| `RN-BO-84` | **Ninguna respuesta de la ficha de salud devuelve el *payload* de un trabajo ni su traza completa.** Un *payload* serializado contiene datos personales del centro —el correo y el nombre de una invitación, y mañana un menor—, y `RN-BO-33` prohíbe que el backoffice los muestre. Se devuelven `uuid`, `queue`, `connection`, `failed_at`, la clase del trabajo (`payload.displayName`, un nombre de clase PHP) y la clase de la excepción. Sobre **el mensaje** de la excepción, `OPEN-BO-22` (§5.9.5) |
+| `RN-BO-85` | **El reintento reencola el *payload* original, literal, sobre la conexión y la cola que declara la propia fila, y nunca lo recompone.** El `tenant_id` que `ADR-033 §8` estampó vive dentro de ese *payload* y es lo único que hace que el *worker* vuelva a entrar en el contexto correcto. Un trabajo recompuesto desde el backoffice —que por construcción no tiene tenant (`ADR-046 §6.4`)— correría con `tenant_id` nulo, sobre `plataforma_app`, **escribiendo sin filtro de RLS**. Es el modo de fallo más grave de este sub-paso y no da ningún síntoma inmediato (`CA-BO-152`) |
+| `RN-BO-86` | **Todo el camino de lectura, reencolado y borrado de `failed_jobs` corre por `pgsql_platform`**, dentro de `runAsPlatform()`. `plataforma_app` tiene `REVOKE SELECT, UPDATE, DELETE` sobre esa tabla desde `0.7` y conserva sólo `INSERT`, que es lo que el *worker* necesita; el proveedor de trabajos fallidos del framework apunta a esa misma conexión, así que `queue:retry`, `queue:failed` y `queue:prune-failed` **no pueden funcionar** (§5.9.6). Alcanza también a `bo:retry-provisioning`, que hoy lo hace mal |
+| `RN-BO-87` | **Qué estados de tenant admiten reintento**: `en_alta`, `activo`, `suspendido` y `en_baja` **sí**; `eliminado` **no**, `409` con `bo.job.tenant_state_invalid`. Mismo criterio que `RN-BO-71`: reejecutar trabajo dentro de un centro cerrado es escribir en algo que ya no se opera. `suspendido` y `en_baja` **sí**, porque la suspensión bloquea el **acceso** y no la maquinaria (`RN-BO-16`) y sus trabajos siguen corriendo (§8) |
+| `RN-BO-88` | **No hay reintento masivo, ni «reintentar todo», ni bandera que lo active.** `REQ-BO-004` pide «reintento de jobs», uno a uno, con su motivo y su entrada de auditoría. Un `retry all` reejecutaría efectos secundarios —correos a familias incluidos— sobre todos los centros a la vez sin que nadie haya mirado ninguno: es una acción destructiva, y `REQ-BO-007` exige doble autorización a las destructivas. Si algún día hace falta, entra por §5.7 con su propio valor de vocabulario |
+| `RN-BO-89` | **El reintento se ejecuta dentro de la petición, no en cola.** Es un `INSERT` en `jobs` y un `DELETE` en `failed_jobs`; `INV-012` habla de trabajo pesado, y encolar un reintento es encolar el encolado |
+| `RN-BO-90` | **La atribución de un trabajo a un centro se lee del *payload*, y sólo alcanza a los trabajos despachados dentro del tenant.** Los cuatro que despacha el backoffice llevan `payload.tenant_id` **nulo** por construcción, así que **no aparecen** en los trabajos del centro; la ficha lo dice en bloques separados y nombrados, y la incidencia de aprovisionamiento se ve por `admin_action_logs`. **Contradice lo que §5.3.5 y `operacion.md §8` afirmaban**, y por eso está sujeta a `OPEN-BO-20` (§5.9.3) |
+| `RN-BO-91` | **El recuento de tenants por estado incluye los borrados lógicos.** Un tenant `eliminado` lleva `deleted_at`, y excluirlo dejaría esa fila **siempre a cero**: es el mismo defecto por la vía equivocada que `RN-BO-50` corrigió en `ResolveTenant`, evitado esta vez antes de que ocurra |
+| `RN-BO-92` | **Altas y bajas se cuentan sobre `tenant_lifecycle_events` y son series separadas.** Alta = `from_status IS NULL`; baja = `to_status = 'en_baja'`; eliminación = `to_status = 'eliminado'`, que **nunca** se suma a las bajas —entre una y otra hay 90 días de gracia y sumarlas contaría dos veces al mismo centro—. **El *churn* no se calcula** (`REQ-SAAS-004`, fase 2): no hay base de clientes facturables, y «bajas ÷ activos» llamado *churn* sería inventar una métrica de negocio desde un panel técnico |
+| `RN-BO-93` | **La adopción por módulo se construye sobre el catálogo declarado** (`ModuleCatalog`), no sobre las filas existentes: un módulo sin una sola contratación aparece con cero, y ahí el cero es una medición. **Los módulos `essential` se devuelven marcados y sin recuento**, porque no tienen fila (`RN-BO-65`) y un `0` diría que ningún centro tiene `core`. **Los `retired_at` siguen apareciendo**, con su marca: mientras viva una suscripción suya se factura (`RMOD-007`, `RN-BO-70`). **El denominador viaja en la respuesta** |
+| `RN-BO-94` | **Toda lectura agregada de este sub-paso ocurre dentro de `runAsPlatform(PlatformAccessPurpose::BackofficeLectura, …)`**, que no obliga a auditar (`ADR-046 §6.2`) — es el caso para el que ese propósito se separó del de escritura, y nadie tiene que inventarse una acción que registrar. **Fuera de ese bloque el agregado no falla: sale silenciosamente reducido al tenant activo**, porque `TenantScope` sí filtra. Una métrica equivocada en silencio es peor que un error, porque se usa para decidir (§5.10.3) |
+| `RN-BO-95` | **Ninguna métrica se cachea ni se materializa en `1.6d`**, con disparador de revisión escrito (`operacion.md §7`). Dos `COUNT` agrupados sobre doscientos centros es trabajo despreciable, y una métrica cacheada es una métrica que alguien lee desactualizada **mientras decide**. Es la decisión contraria a la de la caché de *flags* y lo es porque el problema es el contrario: aquélla se lee en cada petición de cada centro, ésta unas veces al día |
+| `RN-BO-96` | **`1.6d` es de sólo lectura salvo por un botón.** Su única escritura es el reintento, y su único efecto sobre datos de un centro es el que produzca el trabajo reintentado —que es el mismo que habría producido de no haber fallado—. Ninguna otra ruta del sub-paso escribe en ninguna tabla. Se dice como regla para delimitar qué tiene que revisar `security-reviewer` |
+| `RN-BO-97` | **La versión desplegada y las migraciones aplicadas son de la plataforma, no del centro**, y la respuesta las devuelve marcadas como de alcance global. Bajo `ADR-001` no existe «la versión de este centro»; un campo que lo sugiriera invitaría a buscar diferencias entre centros que no pueden existir |
+| `RN-BO-98` | **La purga de `failed_jobs` es de este módulo, corre por `pgsql_platform` y su plazo no es configurable por variable de entorno.** El plazo son **24 horas**, fijadas por el issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73) para no conservar tokens de un solo uso más de lo necesario, y vive en `config/backoffice.php` como constante del producto — **nunca** en el entorno: una variable que la alargue anula en silencio una mitigación de datos personales, exactamente el mismo argumento con el que `RN-BO-61` se niega a que los 90 días del período de gracia sean configurables. **El comando del framework (`queue:prune-failed`) deja de programarse**, porque apunta al rol que no tiene `DELETE` (`RN-BO-86`) y por tanto no purga nada. §5.9.7 |
+
 ---
 
 ## 8. Casos límite y errores
@@ -1102,6 +1314,20 @@ Aserción nueva: **ninguna llamada a `runAsPlatform()` en `app/` pasa un propós
 | **`1.6c`** · Se aprueba una descontratación masiva y un centro del lote ha sido eliminado entretanto | Ese centro se **omite y se reporta**; el resto se aplica. **El conjunto ejecutado es el congelado**, no el resultado de volver a consultar nada (`RN-BO-20`, `RN-BO-81`, `CA-BO-144`) |
 | **`1.6c`** · Una versión nueva declara que `M` depende de `N`, y hay centros con `M` y sin `N` | `platform:sync-registry` **informa y no corrige** (`RN-BO-28`). La incoherencia se ve en `GET /tenants/{id}/modules` y en la ficha de salud, y la resuelve una persona desde la matriz |
 | **`1.6c`** · Un módulo esencial declara `depends_on` de uno no esencial | **El despliegue aborta** (`RN-BO-64`, `CA-BO-129`). No hay escritura que pueda proteger a un esencial, porque no tiene fila que bloquear |
+| **`1.6d`** · Un centro no tiene ningún trabajo fallido | La ficha devuelve `0`, **no omite el campo**: es un recuento medido, y ahí el cero significa «medido» (`RN-BO-83`). Lo que sí se omite es el uso de recursos, el certificado y los conectores, que no tienen fuente |
+| **`1.6d`** · Un aprovisionamiento falla y el operador busca el trabajo en la ficha del centro | **No lo encuentra en el bloque de trabajos**, porque se despachó sin tenant (`RN-BO-90`). Lo encuentra en «última incidencia de plataforma», que lee `admin_action_logs` por `affected_tenant_id` (§5.9.3). **Es una limitación declarada, sujeta a `OPEN-BO-20`**, no un defecto de la implementación |
+| **`1.6d`** · Un lote masivo falla sobre un centro concreto y el operador lo busca en su ficha | **No aparece**: `RN-BO-78` decide que los centros fallidos de un lote **no tienen entrada propia** porque «no les pasó nada». Se ve en `modulo.masivo_ejecutado`, que es de alcance global. **`1.6d` no cambia `RN-BO-78`** para taparlo |
+| **`1.6d`** · Se reintenta el mismo `uuid` dos veces | La primera lo reencola y borra la fila; la segunda recibe **`404`**. No hace falta `Idempotency-Key`: el recurso desaparece al usarlo (`api.md §6`) |
+| **`1.6d`** · Se reintenta un `uuid` que pertenece a otro centro | **`404`**, no `403`. Un `403` confirmaría que ese trabajo existe en algún sitio, y el `uuid` es adivinable por fuerza bruta mucho antes que un centro (`CA-BO-153`) |
+| **`1.6d`** · Se reintenta un trabajo de un tenant `eliminado` | `409` con `bo.job.tenant_state_invalid` (`RN-BO-87`). El trabajo sigue en `failed_jobs` y visible; lo que no se hace es reejecutarlo dentro de un centro que ya no se opera |
+| **`1.6d`** · Se reintenta un trabajo de un tenant `suspendido` | **Se reintenta** (`RN-BO-87`). Suspender bloquea el acceso, no la maquinaria (`RN-BO-16`), y sus trabajos siguen corriendo — es la misma decisión de §8 unas filas más arriba |
+| **`1.6d`** · El trabajo reintentado vuelve a fallar | Vuelve a `failed_jobs` con un `uuid` **nuevo** y vuelve a aparecer en la ficha. El reintento anterior queda en `admin_action_logs` con su actor y su motivo: **se puede saber cuántas veces se ha reintentado y quién**, que es justo lo que hace falta para dejar de reintentar |
+| **`1.6d`** · El operador busca en la ficha un fallo de hace tres días | **No está**: `bo:purge-failed-jobs` lo borró (§5.9.7). La retención de 24 horas la fijó el issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73) a propósito y `RN-BO-98` la blinda contra una variable de entorno. **Hoy sí estaría**, porque la purga no borra; que a partir de `1.6d` deje de estar es el arreglo funcionando, no una pérdida |
+| **`1.6d`** · Un tenant lleva más de 24 horas atascado en `en_alta` y ya no hay trabajo que reintentar | `bo:retry-provisioning` no encuentra nada: la purga se llevó la fila. **Es consecuencia de la retención de #73, no de este sub-paso**, y la salida es dar de alta el centro otra vez o completar su aprovisionamiento a mano — nunca escribir `status` (`RN-BO-52`). Queda escrito porque es la única regresión visible que `1.6d` introduce al arreglar la purga (§5.9.7) |
+| **`1.6d`** · No hay ningún *worker* desplegado (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128)) | La ficha enseña `jobs` creciendo y `failed_jobs` vacío. **Es información correcta, no un defecto de la ficha**: es exactamente el síntoma que se espera, y verlo es el motivo de que esta ficha exista |
+| **`1.6d`** · Un módulo se retira del código y aún hay centros suscritos | Aparece en la adopción, **marcado como retirado y con su recuento real** (`RN-BO-93`). Desaparecerlo escondería suscripciones vivas que se siguen facturando (`RMOD-007`) |
+| **`1.6d`** · Se consulta la adopción de un módulo esencial | Aparece **marcado y sin recuento de contratación** (`RN-BO-93`). Ni `0` —falso— ni el total —inventado con aspecto de medido— |
+| **`1.6d`** · Se piden altas y bajas con `occurred_at_from` posterior a `occurred_at_to` | `422`. Parámetro conocido con valor inválido, según `ADR-038 §5.2` |
 | Se consulta un *flag* cuya clave no está en el catálogo | **Falso**, sin excepción y sin error. Un `flag('lo_que_sea')` que devolviera verdadero por no encontrarse sería la peor forma posible de fallar |
 | Un despliegue **retira** un *flag* que aún tiene reglas | El *flag* queda `retired_at`, evalúa falso y sus reglas se conservan como prueba de lo que estuvo activo. **No se borran**: son el registro de a quién se expuso qué |
 | Se baja un porcentaje del 40 % al 10 % | Los centros expuestos son un **subconjunto** de los anteriores; ninguno entra al bajar (`RN-BO-38`) |
@@ -1459,6 +1685,37 @@ Formato `Dado / Cuando / Entonces`, verificables, con el ID de requisito que cub
 - **`CA-BO-104`** · *Dado* una fila viva de `platform_admin_sessions` —`ended_at IS NULL`— cuyo `session_id` **ya no existe** en `platform_sessions`, *cuando* se ejecuta `bo:close-orphaned-sessions`, *entonces* la fila queda con `session_id` nulo, `ended_at` fijado y `end_reason = 'caducidad'`, y **deja de aparecer** en la consulta de sesiones vivas del administrador — que es la de la revocación (`ADR-047 §5.1`, `operacion.md §6.3`). Y *dado* una fila viva **cuya** sesión sí existe, *entonces* la tarea **no la toca**.
 - **`CA-BO-105`** · *Dado* una petición cualquiera a `/api/platform/*`, *cuando* ha pasado por el *middleware* que selecciona el almacén de sesión de plataforma, *entonces* la **conexión de base de datos por defecto de la aplicación no ha cambiado**: sigue siendo la del producto y **no** es `pgsql_platform`. El *middleware* fija `session.connection` y **sólo** eso; el `BYPASSRLS` de `pgsql_platform` se alcanza únicamente por `runAsPlatform()`, con su propósito declarado. Es lo que impide vaciar `ADR-046 §6` sin ningún síntoma (`ADR-047 §11` punto 2, `datos.md §2.6.3`).
 
+### 13.9 Salud y métricas (`REQ-BO-004`, `REQ-BO-006` · sub-paso `1.6d`)
+
+> **Ninguno de los que siguen está satisfecho hoy**, y aquí no hay sorpresa que declarar como la hubo en §13.3.1: **no existe ni una ruta, ni un controlador, ni una capacidad de salud o métricas en todo el módulo** (§5.9.1). Lo que sí existe es el precedente de cada mecanismo: el `REVOKE` de `failed_jobs` de `0.7`, el estampado de tenant de `ADR-033 §8`, `runAsPlatform()` con propósito de `ADR-046 §6`, el `ModuleCatalog` de `1.6c` y el valor `job.reintentado` ya desplegado en el `CHECK`.
+
+**La ficha de salud**
+
+- **`CA-BO-149`** · *Dado* un centro sin límites, sin certificado gestionado y sin conectores —es decir, cualquier centro de fase 1—, *cuando* se consulta `GET /tenants/{public_id}/health`, *entonces* la respuesta **no contiene** las claves de uso de recursos, certificado ni conectores, y **sí contiene** los recuentos de trabajos aunque valgan `0` (`RN-BO-83`).
+- **`CA-BO-150`** · *Dado* un trabajo fallido cuyo *payload* contiene el correo de una persona del centro, *cuando* se recorre **entera** la respuesta de `GET /tenants/{public_id}/health` y la de `GET /tenants/{public_id}/failed-jobs`, *entonces* **no aparece el *payload*, ni la traza, ni ese correo** (`RN-BO-84`, `RN-BO-33`, y es la mitad de `CA-BO-074` que este sub-paso tiene que ganarse).
+- **`CA-BO-151`** · *Dado* el bloque de plataforma de la ficha, *entonces* la versión y las migraciones vienen **marcadas de alcance global** y son idénticas al consultarlas desde dos centros distintos (`RN-BO-97`).
+- **`CA-BO-152`** · *(el que más importa)* *Dado* un trabajo fallido del centro `A`, *cuando* se reintenta y el *worker* lo procesa, *entonces* el trabajo corre **dentro del contexto del tenant `A`** —el `tenant_id` del *payload* llegó intacto— y **ninguna de sus escrituras aparece en `B`** (`RN-BO-85`, `ADR-033 §8`). Y *dado* el código del servicio de reintento, *entonces* **no reconstruye el trabajo**: reencola el *payload* tal cual.
+- **`CA-BO-153`** · *Dado* el `uuid` de un trabajo fallido del centro `B`, *cuando* se reintenta desde la ruta del centro `A`, *entonces* **`404`** —no `403`— y no se encola nada (`RN-BO-90`, `INV-001`).
+- **`CA-BO-154`** · *Dado* un tenant en cada uno de los cinco estados con un trabajo fallido suyo, *cuando* se reintenta, *entonces* `en_alta`, `activo`, `suspendido` y `en_baja` responden `200` y `eliminado` responde `409` con `bo.job.tenant_state_invalid` (`RN-BO-87`). Es el simétrico de `CA-BO-136` para módulos.
+- **`CA-BO-155`** · *Dado* un reintento **sin motivo o con motivo vacío**, *entonces* `422` con `bo.job.reason_required` y **la fila de `failed_jobs` sigue ahí**; *dado* uno con motivo, *entonces* existe **una** entrada en `admin_action_logs` con `action = 'job.reintentado'`, `subject_type = 'failed_job'`, `subject_public_id` igual al `uuid` y `affected_tenant_id` del centro.
+- **`CA-BO-156`** · *Dado* un `uuid` ya reintentado, *cuando* se reintenta otra vez, *entonces* `404` y **no hay un segundo trabajo encolado** (`api.md §6`: la idempotencia la da la desaparición del recurso, no una `Idempotency-Key`).
+- **`CA-BO-157`** · *Dado* la API de plataforma completa, *cuando* se busca un camino para reintentar más de un trabajo en una llamada —una ruta, una bandera, una lista en el cuerpo—, *entonces* **no existe ninguno** (`RN-BO-88`). Mismo espíritu que `CA-BO-090` y `CA-BO-145`.
+- **`CA-BO-158`** · *(privilegios de motor, no de API)* *Dado* la conexión `plataforma_app`, *cuando* intenta `SELECT`, `UPDATE` o `DELETE` sobre `failed_jobs`, *entonces* **el motor lo rechaza**, y **sí** puede `INSERT`; *dado* el camino de reintento del backoffice, *entonces* **funciona**, porque corre por `pgsql_platform` (`RN-BO-86`). Se comprueba por privilegios, con el patrón de `CA-BO-018` y `CA-BO-030` — un test que pase por el controlador comprobaría el controlador, no el `GRANT`.
+
+**Las métricas**
+
+- **`CA-BO-159`** · *Dado* un tenant en cada uno de los cinco estados, incluido uno `eliminado` con `deleted_at`, *cuando* se consulta `GET /metrics/platform`, *entonces* **los cinco recuentos son correctos** y el de `eliminado` **no es cero** (`RN-BO-91`).
+- **`CA-BO-160`** · *Dado* un centro dado de alta, otro dado de baja y otro eliminado dentro de la ventana, *entonces* la respuesta trae **tres series separadas** —altas, bajas y eliminaciones— y **la eliminación no está sumada a las bajas**; y *cuando* se busca un campo `churn`, *entonces* **no existe** (`RN-BO-92`).
+- **`CA-BO-161`** · *Dado* un catálogo con un módulo contratado en dos centros, uno sin ninguna contratación, uno `essential` y uno `retired_at` con una suscripción viva, *cuando* se consulta `GET /metrics/module-adoption`, *entonces* **aparecen los cuatro**: el primero con `2`, el segundo con `0`, el esencial **marcado y sin recuento**, y el retirado con su marca y su recuento real. Y la respuesta trae el **denominador** (`RN-BO-93`).
+- **`CA-BO-162`** · *(aislamiento — obligatorio para cerrar el sub-paso)* *Dado* **tres** tenants con datos equivalentes, *cuando* se consultan las dos métricas, *entonces* los recuentos incluyen **a los tres**; y *cuando* la misma consulta se ejecuta **fuera** del bloque `runAsPlatform(BackofficeLectura, …)`, *entonces* el resultado es **distinto y menor** — que es la demostración de que `RN-BO-94` describe un modo de fallo real y silencioso, y no una precaución teórica. Y la ficha del centro `A` no contiene **ni un** trabajo, módulo ni evento de `B` o `C` (`INV-001`, y el test obligatorio de la *skill* `aislamiento-tenant`).
+
+**Permisos y regresiones**
+
+- **`CA-BO-163`** · *Dado* el `enum` `PlatformCapability`, *entonces* declara **exactamente tres capacidades nuevas** —`salud.leer`, `job.reintentar` y `metrica.leer`— y ninguna más, y el test de catálogo de `permisos.md §9` sigue cuadrando celda a celda con `§3` y `§4`.
+- **`CA-BO-164`** · *(regresión del hallazgo 2 de §5.9.6)* *Dado* un tenant atascado en `en_alta` con su trabajo en `failed_jobs`, *cuando* se ejecuta `bo:retry-provisioning` **con los privilegios reales de los tres roles de `ADR-033 §5`**, *entonces* el trabajo se reencola y el tenant queda `activo` — hoy ese comando falla por privilegios y **no tiene ningún test que lo demuestre** (§5.9.1).
+- **`CA-BO-165`** · *Dado* el rol `soporte`, *entonces* lee la ficha, el listado de trabajos fallidos y **recibe `403` al reintentar** (`CA-BO-008`, «solo lectura y diagnóstico», y `job.reintentar` **es** escritura); *dado* `operaciones`, *entonces* reintenta; *dado* `comercial`, *entonces* recibe `403` en la ficha y `200` en las dos métricas — que es exactamente lo que `permisos.md §4` dice y lo que nadie comprueba si no se escribe.
+- **`CA-BO-166`** · *(regresión del hallazgo 1 de §5.9.6, severidad **Alta**)* *Dado* una fila de `failed_jobs` con `failed_at` de hace más de 24 horas y otra de hace una, *cuando* se ejecuta `bo:purge-failed-jobs` **con los privilegios reales de los tres roles de `ADR-033 §5`**, *entonces* **la vieja desaparece, la reciente se queda, y el comando no lanza ningún error de privilegios**. Y *dado* el planificador, *entonces* **`queue:prune-failed` ya no está programado** y sí lo está `bo:purge-failed-jobs` — dejar los dos significaría que uno de ellos falla a diario en silencio, que es exactamente el estado que este criterio cierra (`RN-BO-98`, §5.9.7).
+
 ---
 
 ## 14. Preguntas abiertas
@@ -1488,8 +1745,15 @@ Formato `Dado / Cuando / Entonces`, verificables, con el ID de requisito que cub
 | `OPEN-BO-17` · ¿La descontratación **individual** exige reautenticación y/o doble autorización? | **RESUELTA 2026-09-15**: **reautenticación sí, doble autorización no**. Cambia la lista cerrada de `api.md §4` |
 | `OPEN-BO-18` · Ampliar la superficie pública de `REQ-CORE` para el servicio de contratación | **RESUELTA 2026-09-15**: **sí, enumerado y sin ADR nuevo** — `ADR-045 §4.5`/`§4.8` ya decidió el mecanismo, mismo permiso acotado que `ADR-048 §10` pidió para `1.6b` |
 | `OPEN-BO-19` · ¿Se cierra por columnas el `GRANT SELECT` de `module_subscriptions` para que el centro no lea `reason`? | **RESUELTA 2026-09-15 por decisión explícita del usuario: sí.** Es la única de las tres con consecuencia de seguridad. Cambia la migración de `datos.md §7` y toca dos *endpoints* de `REQ-CORE` |
+| `OPEN-BO-20` · ¿Cómo se atribuye a un centro un trabajo despachado por el backoffice? | **RESUELTA 2026-09-16: se deja como está.** No se resuelve en `1.6d`; se retoma **con ADR nuevo** cuando exista un segundo caso de uso real. La ficha lo dice en dos bloques y `RN-BO-90` queda firme |
+| `OPEN-BO-21` · ¿Es sensible el reintento de un trabajo fallido? | **RESUELTA 2026-09-16: sí.** Entra en la lista cerrada de `api.md §4`; `permisos.md §4.5` lo marca «Sí». Esta especificación ya estaba escrita contra el «sí», así que **no cambia ningún contenido** |
+| `OPEN-BO-22` · ¿Se devuelve el **mensaje** de la excepción de un trabajo fallido? | **RESUELTA 2026-09-16: sí, se devuelve**, como excepción consciente y acotada a `RN-BO-33` (§5.9.5). Esta especificación ya estaba escrita contra el «sí» |
+| `OPEN-BO-23` · ¿Se adopta Horizon, o el observatorio de colas se queda sobre las tablas del *driver* `database`? | **RESUELTA 2026-09-16: no se adopta por ahora**, y **se corrige `CLAUDE.md §1`** (v2.5.2): la fila de colas distingue lo elegido de lo instalado y remite al issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128). Horizon **sigue siendo la elección de *stack***; lo que se corrige es el estado |
+| **Hallazgo Alta de §5.9.6** · ¿Entra en `1.6d` el arreglo de `queue:prune-failed`? | **RESUELTA 2026-09-16: sí, entra.** Es la única de las cinco decisiones que añade trabajo de diseño: comando propio por `pgsql_platform` (§5.9.7), `RN-BO-98` y `CA-BO-166` |
 
 **Con `1.6b` volvieron a aparecer preguntas abiertas: tres, de las cuales `ADR-048` cierra una (`OPEN-BO-15`, 2026-09-11) y de las dos restantes sólo `OPEN-BO-14` cambia un código de respuesta y por tanto un criterio de aceptación.** Lo que sigue siendo cierto es lo de la revisión anterior, referido al chasis: `ADR-047` cierra `OPEN-BO-10` **y** las dos piezas que se le habían añadido —`platform_sessions` y `platform_admin_sessions`—: las tres quedan aprobadas con cambios, ninguna rechazada (`ADR-047`, encabezado y `§5.1`). `OPEN-BO-13` queda resuelta por decisión del usuario. Lo que impedía empezar a implementar (§15) está cerrado: la aprobación explícita del usuario a la especificación completa, dada.
+
+**Con `1.6d` aparecieron cuatro preguntas abiertas más y las cuatro se resolvieron el mismo día** (2026-09-16), todas como recomendaba `spec-writer`. **Tres de ellas no cambiaron ni una línea de contenido**, porque la especificación ya estaba escrita contra la salida que se eligió —`OPEN-BO-20`, `OPEN-BO-21` y `OPEN-BO-22`—; la cuarta, `OPEN-BO-23`, se resolvió **fuera de este documento**, en `CLAUDE.md §1`. Junto a ellas se decidió el alcance del hallazgo de severidad Alta de §5.9.6, que **sí** añade diseño: §5.9.7, `RN-BO-98` y `CA-BO-166`. Detalle y tabla de las cinco decisiones, en §15.4. **Siguen abiertas, y siguen sin bloquear, `OPEN-BO-04` y `OPEN-BO-06`.**
 
 ### `OPEN-BO-01` · ¿Cómo se separa técnicamente la aplicación del backoffice? · **RESUELTA por `ADR-046 §4`**
 
@@ -1659,6 +1923,75 @@ Es el mismo caso que el usuario ya resolvió el 2026-09-08 para `admin_action_lo
 
 **Lo que cambia si el usuario dice «no»**: `RN-BO-82` pasa a ser una regla de proyección del *resource* de `REQ-CORE` en vez de un privilegio, `CA-BO-147` se retira, y queda escrito que la garantía es más débil. **No es una decisión que yo pueda tomar**: cambia una migración ya especificada y toca *endpoints* de otro módulo ya desplegados.
 
+### `OPEN-BO-20` · ¿Cómo se atribuye a un centro un trabajo que despachó el backoffice? · **RESUELTA 2026-09-16: se deja como está**
+
+> **Decisión del usuario del 2026-09-16: la salida (c) —dejarlo como está—**, que es la que esta especificación recomendaba. `1.6d` **no** toca el estampado de `ADR-033 §8` ni la firma de nada en `App\Support\Tenancy`: la ficha separa «trabajos del centro» de «última incidencia de plataforma» (§5.9.2, §5.9.3) y `RN-BO-90` queda firme tal como está escrita.
+>
+> **Lo que la decisión no cierra, y queda con su disparador escrito**: el día que aparezca un **segundo** consumidor real —algo que necesite saber a qué centro afecta un trabajo de plataforma y que no esté ya cubierto por `admin_action_logs`—, la salida es la **(b)** de la tabla de abajo y **exige un ADR nuevo** (`CLAUDE.md §11`), porque toca la letra de `ADR-033 §8` e infraestructura compartida por todo el producto. No se improvisa entonces: el razonamiento ya está aquí.
+>
+> **Y la consecuencia aceptada, dicha en voz alta**: un `RunModuleRollout` fallido sobre un centro concreto **sigue sin verse desde la ficha de ese centro** (`RN-BO-78`). Se ve en `modulo.masivo_ejecutado`, de alcance global.
+
+**No es una duda de diseño: es una contradicción entre esta especificación y un mecanismo verificado del código**, y aparece exactamente igual que apareció `OPEN-BO-14` — dos piezas ya escritas que no pueden ser ciertas a la vez.
+
+`ADR-033 §8` estampa en el *payload* de todo trabajo el tenant **activo al despachar** (`Queue::createPayloadUsing()`, verificado). `ADR-046 §6.4` **prohíbe** que haya tenant activo dentro de un bloque de plataforma. Los cuatro trabajos del backoffice se despachan desde ahí. Luego `payload.tenant_id` es **nulo** en `ProvisionTenant`, `CloneTenant`, `RunModuleRollout` y `RevokeTenantSessions`, y una lista filtrada por ese campo **no los contiene**. Y sin embargo §5.3.5 dice que un aprovisionamiento fallido *«ya es visible por la ficha de salud del centro»* y `operacion.md §8` manda mirar *«`failed_jobs` del tenant»*. Las dos frases son falsas.
+
+**Esta especificación está escrita contra la lectura conservadora** —la ficha separa «trabajos del centro» de «última incidencia de plataforma», y la segunda sí cubre el caso (§5.9.3)— porque las dos salidas que lo cerrarían de verdad tocan infraestructura compartida:
+
+| Salida | Coste | Qué habría que decidir |
+|---|---|---|
+| **(a)** Que el estampado de `ADR-033 §8` distinga «el tenant en el que corro» de «el tenant al que afecto», con una segunda clave en el *payload* | Toca `App\Support\Tenancy`, que usa **todo** el producto, y la letra de un ADR vigente | **Un ADR nuevo** (`CLAUDE.md §11`), exactamente como `runAsPlatform()` acabó necesitando `ADR-046 §6` |
+| **(b)** Que un trabajo declare su tenant afectado por una interfaz de `App\Support` que el estampador consulte al despachar | Igual de invasivo, pero **explícito por trabajo** y sin adivinanzas | Ídem, y además elegir qué pasa con los trabajos que afectan a varios centros —`RunModuleRollout` afecta a doscientos— |
+| **(c)** Dejarlo como está, y que la ficha lo diga en dos bloques | **Ninguno.** Es lo que `1.6d` implementa | Nada, salvo aceptar que `RunModuleRollout` fallido sobre un centro sigue sin verse desde su ficha (§5.9.3) |
+
+**Recomendación: (c) ahora, y (b) el día que haya un segundo caso que lo pida.** El único consumidor real de esto hoy es un aprovisionamiento fallido, y ése ya tiene su entrada en `admin_action_logs` con `affected_tenant_id`, escrita desde `1.6b`. Construir (a) o (b) para un solo consumidor que ya está cubierto es tocar la infraestructura de aislamiento de todo el producto para arreglar una frase de un documento.
+
+**Lo que hay que corregir en cualquier caso, se decida lo que se decida**: las dos frases falsas. Si se elige (c), se reescriben; si se elige (a) o (b), dejan de serlo. **Lo señalo en vez de reescribirlas por mi cuenta** porque una de ellas está en una sección aprobada e implementada (`1.6b`) y cambiar en silencio lo que dice un documento aprobado es exactamente cómo una especificación deja de ser fuente de verdad.
+
+### `OPEN-BO-21` · ¿Es sensible el reintento de un trabajo fallido? · **RESUELTA 2026-09-16: sí**
+
+> **Decisión del usuario del 2026-09-16: sí, exige reautenticación viva.** Entra en la lista cerrada de `api.md §4`, y la celda «¿sensible?» de `api.md §2.10` y de `permisos.md §4.5` dice «Sí». **Esta especificación ya estaba escrita contra el «sí», así que la decisión no cambia ni una línea de contenido**: sólo la cierra.
+
+`api.md §4` declara la lista de operaciones sensibles **cerrada y en un solo sitio**, *«para que añadir una operación destructiva obligue a tocar este documento»*. Este sub-paso añade una escritura, y la pregunta es si entra en esa lista. Es la misma pregunta que `OPEN-BO-17` para la descontratación individual, sobre otra operación.
+
+**Argumento a favor, y es el del propio proyecto**: `permisos.md §4.1` ya lo escribió al repartir la capacidad — *«`job.reintentar` **parece** diagnóstico y **es** escritura: reejecuta un trabajo que puede enviar correos, modificar datos y disparar eventos»*. Un reintento de `SendInvitationEmail` manda un correo a una familia real; uno de `RunModuleRollout` toca doscientos centros. Comparado con lo que sí está en la lista —`POST /tenants/{id}/slug`, que rompe una URL guardada— la asimetría no se sostiene.
+
+**Argumento en contra, y hay que ponerlo porque es real**: reintentar es la operación de diagnóstico más frecuente que tendrá este módulo, suele hacerse en mitad de un incidente, y la fricción en mitad de un incidente es cómo se acaban compartiendo credenciales — el mismo razonamiento con el que `api.md §2.12` deja el freno de emergencia de un *flag* **sin** reautenticación.
+
+**La diferencia que decide, y que hace que la recomendación sea «sí»**: apagar un *flag* va en la dirección segura y se deshace con otra llamada; **un reintento no se deshace**. El correo ya salió. Por eso esta especificación está escrita contra el «sí», marcado en los tres sitios donde aparece (§5.9.4, `api.md §2.10.3`/`§4`, `permisos.md §4.5`).
+
+**Lo que cambia si el usuario dice «no»**, y es acotado: se retira esa entrada de `api.md §4` y la celda «¿sensible?» de `permisos.md §4.5` pasa a «no». **Ningún criterio de aceptación cambia de signo** y nada más se ve afectado.
+
+### `OPEN-BO-22` · ¿El mensaje de la excepción de un trabajo fallido cruza al backoffice? · **RESUELTA 2026-09-16: sí, se devuelve**
+
+> **Decisión del usuario del 2026-09-16: se devuelve `exception_message`**, como esta especificación recomendaba. **Queda registrado como lo que es: una excepción consciente y acotada a `RN-BO-33`**, no un descuido — el campo puede arrastrar un dato del centro, está acotado a un rol interno con `salud.leer`, y sin él `REQ-BO-004` («Salud y **diagnóstico**») se vacía. `RN-BO-84` sigue dejando fuera el *payload* y la traza, que son el caso claro, y `CA-BO-150` sigue comprobándolo recorriendo la respuesta entera.
+>
+> **Lo que esta decisión obliga a escribir fuera de aquí**: la nota de `SECURITY.md` de `operacion.md §10`, que dice que **aquí la barrera es la proyección del *resource* y no un `GRANT` de columna** — una garantía más débil que la de `ADR-047 §4.4`, sostenida por un test y no por el motor. **Tiene que constar, no descubrirse en una revisión.**
+
+**El problema, verificado**: `RN-BO-33` y `REQ-BO-007` dicen que el backoffice *«muestra métricas y estado, no listados de alumnos»*, y `CA-BO-074` lo comprueba recorriendo todas las respuestas del módulo. El **mensaje** de una excepción de PostgreSQL puede arrastrar el valor que violó una restricción, y ese valor puede ser el correo de una familia o el nombre de un alumno. `RN-BO-84` ya deja fuera el *payload* y la traza, que son el caso claro; el mensaje es el borde.
+
+- **Devolverlo** es una excepción consciente a `RN-BO-33`, acotada a un campo y a un rol interno (`salud.leer`, que tienen `soporte`, `operaciones` y `superadministrador`), y sin la cual **el requisito se vacía**: `REQ-BO-004` se titula «Salud y **diagnóstico**», y «`QueryException`» no diagnostica nada.
+- **No devolverlo** deja la ficha estrictamente conforme a `RN-BO-33` y convierte cada incidencia en un acceso al servidor para leer el log — que es justo lo que este *endpoint* existe para evitar, y que además **no** está más protegido: quien lee el log lo ve todo.
+- **Una tercera vía que no recomiendo**: redactar el mensaje con la política de `ADR-035`. Esa maquinaria sabe redactar **atributos de un modelo conocido**, no texto libre de un motor de base de datos; aplicada aquí adivinaría, y una redacción que adivina da la peor combinación — mensajes mutilados que siguen filtrando lo que no supo reconocer.
+
+**Esta especificación está escrita contra devolverlo**, y lo deja dicho como excepción y no como descuido (§5.9.5). **Lo que cambia si el usuario decide lo contrario**: `RN-BO-84` incluye también el mensaje, `CA-BO-150` gana una aserción más y la ficha devuelve sólo la clase de la excepción. Nada más se ve afectado.
+
+### `OPEN-BO-23` · ¿Se adopta Horizon? · **RESUELTA 2026-09-16: no por ahora, y se corrige la documentación**
+
+> **Decisión del usuario del 2026-09-16: no se adopta Horizon en `1.6d`**, y **`CLAUDE.md §1` se corrige** (versión **2.5.2**, 2026-09-16). La corrección es de **estado, no de elección**: Horizon sigue siendo la tecnología elegida para colas; lo que se arregla es que la tabla de *stack* daba a entender que ya estaba desplegado. La fila pasa a distinguir lo que hay hoy —*driver* `database`, tablas `jobs`/`failed_jobs`, **sin *worker* desplegado**, issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128)— de lo elegido y no instalado, y se añade la regla general de que **esa tabla dice qué está elegido, no qué está instalado**, con este caso como motivo.
+>
+> **Por qué la corrección no es cosmética**: esta misma especificación llegó a afirmar que la ficha de salud leía datos «de Horizon», y nadie lo detectó hasta que `1.6d` fue a implementarlo. Una tabla de *stack* que no distingue elegido de instalado produce exactamente eso.
+
+`CLAUDE.md §1` lista «Redis + Laravel Horizon» en la tabla de *stack*, y esta misma especificación decía en §5.9 que los trabajos en cola salen «de Horizon». **Horizon no está instalado** y nada lo instala (§5.9.1, verificado sobre `composer.json`): la cola por defecto es `database`, los trabajos viven en tablas de PostgreSQL y no hay ningún panel.
+
+**No lo decido yo**, porque es una dependencia nueva y `CLAUDE.md §1` exige justificarla, comprobar su mantenimiento y envolverla tras una interfaz propia (`RNF-MANT-007`). Lo que sí digo es lo que cuesta cada camino:
+
+| | Coste | Qué gana |
+|---|---|---|
+| **No adoptarlo** (recomendado para `1.6d`) | Ninguno. Dos consultas sobre `jobs` y `failed_jobs` | La ficha de salud funciona hoy, sin dependencia, sin Redis como cola y sin un segundo panel con su propia autenticación que proteger |
+| **Adoptarlo** | Dependencia nueva + `QUEUE_CONNECTION=redis` + un panel web propio que hay que dejar fuera del *host* del backoffice o dentro de él con su propia autorización — **una tercera superficie**, después de la del producto y la de plataforma | Métricas de cola de verdad: rendimiento por cola, trabajos lentos, reintentos automáticos |
+
+**Recomendación: no ahora.** El parque no tiene ni un centro real (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128): no hay ni *worker* desplegado), y adoptar un panel de observabilidad antes que el *worker* que observar es construir el termómetro antes que el paciente. **Lo que sí conviene decidir ya es documental**: o `CLAUDE.md §1` deja de nombrar Horizon como parte del *stack*, o queda escrito que es intención y no estado — hoy induce a error a cualquiera que lea la tabla, **y ya indujo a error a esta misma especificación**, que es la prueba.
+
 ---
 
 ## 15. ¿Se aprueba esta especificación?
@@ -1800,3 +2133,44 @@ Implementado en la rama `feature/REQ-BO-002-matriz-modulos-spec`. `ModuleCatalog
 **Dos issues abiertos por error, corregidos y cerrados en la propia sesión**: [#217](https://github.com/pirexia/plataforma-educativa/issues/217) (creí que `updated_by` sobraba en un `GRANT UPDATE`; `db-reviewer` verificó que sí se escribe, por `PATCH /module-subscriptions/{publicId}` vía `RecordsAuthorship`) y [#226](https://github.com/pirexia/plataforma-educativa/issues/226) (13 tests fallando en ejecución conjunta que parecían un problema de limpieza no acotada en un `afterEach`; era en realidad un *deadlock* real de PostgreSQL por dos *worktrees* ejecutando la suite completa a la vez contra la misma base de test compartida — lección de infraestructura, no bug de código, trasladada a `memory.md`).
 
 Ninguno de los hallazgos cambia una regla de negocio de `REQ-BO-002`; varios corrigen infraestructura compartida (`App\Support\Tenancy`) fuera del ámbito de este sub-paso, sin necesitar ADR nuevo en ningún caso.
+
+### 15.4 Sub-paso `1.6d` · salud y métricas de plataforma — **especificada y aprobada**
+
+Esta pasada especifica `REQ-BO-004` y `REQ-BO-006` **reducidos a lo observable** —lo que `PLAN-IMPLEMENTACION.md` fija como alcance de `1.6d`— a la altura que hace falta para implementarlos. **No parte de cero**: §5.9 y §5.10 ya tenían las dos tablas de inventario. Lo que trae, y dónde está:
+
+| # | Qué | Dónde |
+|---|---|---|
+| 1 | **Horizon no existe**, verificado sobre `composer.json`: §5.9 decía que los trabajos en cola salen «de Horizon» y **es falso**. El observatorio de colas de `1.6d` son dos tablas del *driver* `database`. Misma clase de corrección que la premisa falsa sobre `sessions` de §0 punto 2 | §5.9, §5.9.1, `OPEN-BO-23` |
+| 2 | **Los trabajos que despacha el backoffice llevan `payload.tenant_id` nulo**, porque `ADR-046 §6.4` prohíbe tenant activo en un bloque de plataforma. Luego **no aparecen en la lista de trabajos del centro**, y §5.3.5 y `operacion.md §8` afirmaban lo contrario | §5.9.3, `RN-BO-90`, `OPEN-BO-20` |
+| 3 | **El reintento no puede apoyarse en el mecanismo del framework**: `plataforma_app` tiene `REVOKE SELECT, UPDATE, DELETE` sobre `failed_jobs` desde `0.7` y el proveedor del framework apunta a esa conexión. Todo el camino corre por `pgsql_platform` | §5.9.4, `RN-BO-86`, `CA-BO-158` |
+| 4 | **El *payload* se reencola literal y nunca se recompone**, porque dentro viaja el `tenant_id` de `ADR-033 §8`. Recomponerlo produciría un trabajo corriendo **sin filtro de RLS**, sin síntoma inmediato | `RN-BO-85`, `CA-BO-152` |
+| 5 | **La ficha no devuelve el *payload* ni la traza**: un *payload* serializado lleva datos personales del centro y `RN-BO-33` lo prohíbe. El **mensaje** de la excepción es el borde, y no lo decido yo | §5.9.5, `RN-BO-84`, `OPEN-BO-22` |
+| 6 | **Las tres definiciones de métrica, sin ambigüedad**: el recuento por estado **incluye los borrados lógicos** —si no, `eliminado` sería siempre cero—, las altas salen de `from_status IS NULL` y **las bajas no se suman a las eliminaciones** | §5.10.1, `RN-BO-91`, `RN-BO-92` |
+| 7 | **La adopción se construye sobre el catálogo declarado**, no sobre las filas: un módulo con cero contrataciones tiene que verse, y un `essential` no puede devolver `0` | §5.10.2, `RN-BO-93` |
+| 8 | **El modo de fallo de este sub-paso es silencioso**: un agregado fuera del bloque de plataforma no falla, devuelve el recuento de un solo centro. Por eso su test de aislamiento usa **tres** centros y comprueba el total | §5.10.3, `RN-BO-94`, `CA-BO-162` |
+| 9 | **Dieciséis reglas nuevas** (`RN-BO-83` a `RN-BO-98`) y **dieciocho criterios nuevos** (`CA-BO-149` a `CA-BO-166`) — las dos últimas de cada serie, `RN-BO-98` y `CA-BO-166`, las trae la decisión 5 | §7.6, §13.9 |
+| 10 | **Ninguna tabla, columna, migración, índice ni trabajo en cola nuevo**, y el vocabulario que necesita (`job.reintentado`) **ya está en el `CHECK` desplegado**. Es el único de los cinco sub-pasos sin una sola migración. **Sí añade una tarea programada**, `bo:purge-failed-jobs`, y sólo por la decisión 5 de abajo | `datos.md §14`, `operacion.md §6.1`/`§6.2` |
+| 11 | **Tres capacidades nuevas en el `enum` y ninguna decisión de reparto nueva**: `salud.leer`, `job.reintentar` y `metrica.leer` están en `permisos.md §3` y `§4` desde el chasis; lo que faltaba era el *endpoint* que las justifica | `permisos.md §4.5`, `CA-BO-163` |
+| 12 | **El arreglo del hallazgo Alta, que entra en alcance por decisión del usuario**: `bo:purge-failed-jobs`, comando propio por `pgsql_platform`, que **sustituye** a `queue:prune-failed` en `routes/console.php` y aplica por fin la retención de 24 horas del issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73). **Ejecuta el `DELETE` él mismo en vez de encolarlo**, a diferencia de las otras dos purgas del módulo, y el motivo está escrito para que nadie lo «arregle» | §5.9.7, `RN-BO-98`, `CA-BO-166` |
+
+**Y tres hallazgos de privilegios, anteriores a este sub-paso, que declaro y no arreglo de paso** (§5.9.6, `CLAUDE.md §5`, issue [#150](https://github.com/pirexia/plataforma-educativa/issues/150)). Los tres comparten causa: **el proveedor de trabajos fallidos del framework apunta a la conexión que perdió los privilegios en `0.7`**.
+
+| Hallazgo | Severidad propuesta | ¿Entra en `1.6d`? |
+|---|---|---|
+| `queue:prune-failed` **lleva desde `0.7` sin borrar nada**, y es la segunda capa del issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73) — tokens de un solo uso conservados más allá de las 24 horas que se decidió conservarlos | **Alta** (mitigación de datos personales que se creyó desplegada) | **Sí, por decisión del usuario del 2026-09-16.** `bo:purge-failed-jobs`, §5.9.7 |
+| `bo:retry-provisioning` no puede funcionar, y **no tiene test propio** | Media | **Sí**: lo arregla reutilizando el servicio de §5.9.4 (`CA-BO-164`) |
+| `job_batches` sin endurecer, `jobs` sin endurecer y **inevitablemente** así con el *driver* `database` | Media / declarada | **No** |
+
+**Dependencias de otros módulos: ninguna de código.** A diferencia de `1.6b` y `1.6c`, este sub-paso **no amplía la superficie pública de `REQ-CORE`** ni la de ningún otro módulo: consume `ModuleCatalog`, que `1.6c` ya declaró en `Core\Domain`, y lee tablas que ya existen. No hay `OPEN-BO` equivalente a `OPEN-BO-15`/`OPEN-BO-18` que plantear. **Lo que sí toca fuera del módulo es `routes/console.php` y la documentación de otros dos módulos**, por el arreglo de la purga, y está enumerado y cerrado en §5.9.7.
+
+> **¿Se aprueba esta especificación de `1.6d` antes de pasar a implementación?** — **Sí, aprobada 2026-09-16.** Las cinco decisiones se resuelven como recomendaba `spec-writer`:
+>
+> | # | Decisión | Qué cambió en el documento |
+> |---|---|---|
+> | 1 | **`OPEN-BO-20`** (atribución de un trabajo de plataforma a un centro) → **se deja como está**; se retoma **con ADR nuevo** cuando exista un segundo caso de uso real | Nada de contenido: `RN-BO-90` y §5.9.3 ya estaban escritos contra esa salida. Sólo se cierra la pregunta, con su disparador |
+> | 2 | **`OPEN-BO-21`** (¿reautenticación en el reintento?) → **sí** | Nada: `api.md §2.10`/`§4` y `permisos.md §4.5` ya lo marcaban «Sí» |
+> | 3 | **`OPEN-BO-22`** (¿el mensaje de la excepción?) → **sí, se devuelve** | Nada: el cuerpo de `api.md §2.10.2` ya lo incluía. Queda registrada como **excepción consciente a `RN-BO-33`**, con su nota obligatoria en `SECURITY.md` |
+> | 4 | **`OPEN-BO-23`** (¿Horizon?) → **no por ahora**, y **se corrige `CLAUDE.md §1`** a la versión **2.5.2** (2026-09-16): la fila de colas distingue lo elegido de lo instalado, y se añade la regla general de que esa tabla dice qué está elegido y no qué está instalado | Fuera de este documento: `CLAUDE.md` |
+> | 5 | **Hallazgo Alta** (`queue:prune-failed`) → **entra en el alcance de `1.6d`** | **Es la única que añade diseño**: §5.9.7 nueva, `RN-BO-98`, `CA-BO-166`, más las cinco filas de documentación de otros módulos que el cambio arrastra |
+>
+> **`OPEN-BO-04` y `OPEN-BO-06` siguen abiertas y siguen sin bloquear**: la primera es un ADR que formalice el cierre de `ADR-036`, y la segunda es la retención de `admin_action_logs`, que `1.6d` no toca — la única fila nueva que este sub-paso escribe ahí es la del reintento.
