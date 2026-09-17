@@ -19,8 +19,13 @@ namespace App\Modules\Backoffice\Domain;
  * de auditoría de plataforma—; `1.6b` añade las cinco de ciclo de vida
  * de tenant (permisos.md §4.3) y `autorizacion.leer`, que respalda la
  * doble autorización que la eliminación de un tenant necesita
- * (`REQ-BO-007`). El resto se añade en `1.6c`/`1.6d`/`1.6e`, cuando
- * exista el *endpoint* que las necesite: declarar aquí una capacidad sin
+ * (`REQ-BO-007`). `1.6c` añade las tres de módulos. `1.6d` añade
+ * exactamente las tres de salud y métricas (permisos.md §4.5): la ficha
+ * de salud y el listado de trabajos fallidos (`salud.leer`), el reintento
+ * de un trabajo (`job.reintentar`, escritura, aparte de `salud.leer` —
+ * permisos.md §4.5 punto 1) y las dos métricas agregadas
+ * (`metrica.leer`). El resto se añade en `1.6e`, cuando exista el
+ * *endpoint* que las necesite: declarar aquí una capacidad sin
  * *endpoint* sería inventar superficie que no existe.
  */
 enum PlatformCapability: string
@@ -58,4 +63,12 @@ enum PlatformCapability: string
     case ModuloLeer = 'modulo.leer';
     case ModuloContratar = 'modulo.contratar';
     case ModuloContratarMasivo = 'modulo.contratar_masivo';
+
+    // 1.6d: permisos.md §3, §4.5. `job.reintentar` es aparte de
+    // `salud.leer` a propósito (permisos.md §4.5 punto 1): el recurso
+    // `salud` es de diagnóstico y `soporte` lo tiene entero, mientras
+    // que reintentar es escritura y `soporte` no puede tener ninguna.
+    case SaludLeer = 'salud.leer';
+    case JobReintentar = 'job.reintentar';
+    case MetricaLeer = 'metrica.leer';
 }

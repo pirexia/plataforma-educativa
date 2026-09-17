@@ -15,9 +15,7 @@ use App\Modules\Core\Domain\ModuleCatalog;
 use App\Modules\Core\Domain\ModuleChange;
 use App\Modules\Core\Domain\ModuleContractingOutcome;
 use App\Support\Api\ApiException;
-use App\Support\Tenancy\PlatformAccessPurpose;
 use App\Support\Tenancy\Tenant;
-use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -35,7 +33,6 @@ class ModulesController extends Controller
     public function __construct(
         private readonly ModuleSubscriptionsService $service,
         private readonly ModuleCatalog $catalog,
-        private readonly TenantContext $tenantContext,
     ) {}
 
     /**
@@ -67,10 +64,11 @@ class ModulesController extends Controller
     {
         $tenant = $this->findTenant($publicId);
 
-        $subscriptions = $this->tenantContext->runAsPlatform(
-            PlatformAccessPurpose::BackofficeLectura,
-            fn () => ModuleSubscription::query()->where('tenant_id', $tenant->id)->get()->keyBy('module_code'),
-        );
+        // `RN-BO-22`: cierre de dependencias calculado una sola vez
+        // (`ModuleSubscriptionsService::subscriptionsFor()`/
+        // `missingDependenciesOf()`), reutilizado también por la ficha de
+        // salud de `1.6d` (`api.md §2.10.1` punto 2).
+        $subscriptions = $this->service->subscriptionsFor($tenant);
 
         $data = [];
 
@@ -85,15 +83,7 @@ class ModulesController extends Controller
                 default => 'no_contratado',
             };
 
-            $missingDependencies = $descriptor->essential ? [] : array_values(array_filter(
-                $descriptor->dependsOn,
-                function (string $dependency) use ($subscriptions): bool {
-                    /** @var ModuleSubscription|null $dependencySubscription */
-                    $dependencySubscription = $subscriptions->get($dependency);
-
-                    return $dependencySubscription === null || ! $dependencySubscription->enabled;
-                },
-            ));
+            $missingDependencies = $this->service->missingDependenciesOf($descriptor, $subscriptions);
 
             $data[] = [
                 'code' => $descriptor->code,

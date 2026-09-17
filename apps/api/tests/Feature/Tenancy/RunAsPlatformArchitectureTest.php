@@ -118,16 +118,28 @@ test('CA-PERM-092: runAsPlatform() no aparece en código de app/ fuera de su lis
     //     los filtros `module_code`/`autonomous_community`, que leen
     //     `module_subscriptions`/`tenant_settings` de todos los
     //     tenants — lectura, sin escritura, sin obligación de auditoría.
-    // REQ-BO-002 (1.6c), funcional.md §5.8.4, §5.8.5: dos más —
+    // REQ-BO-002 (1.6c), funcional.md §5.8.4, §5.8.5: uno más —
     //   - ModuleSubscriptionsService.php: `BackofficeLectura` en
-    //     `preview()`/`previewBulk()` (vista previa de impacto, sin
-    //     escribir nada) y `BackofficeEscritura` en `applyChange()`
-    //     (fase 1 de contratar/descontratar, con la obligación de
-    //     `admin_action_logs` que `ADR-046 §6.5` exige).
-    //   - ModulesController.php: `BackofficeLectura` en `forTenant()`
-    //     (api.md §2.6.2), que lee `module_subscriptions` de un tenant
-    //     concreto sin sesión de ese tenant — mismo motivo exacto que
-    //     `TenantsController::index()`.
+    //     `preview()`/`previewBulk()`/`subscriptionsFor()` (vista previa
+    //     de impacto y lectura de suscripciones de un tenant sin sesión
+    //     de ese tenant, sin escribir nada) y `BackofficeEscritura` en
+    //     `applyChange()` (fase 1 de contratar/descontratar, con la
+    //     obligación de `admin_action_logs` que `ADR-046 §6.5` exige).
+    // REQ-BO-004 (1.6d), funcional.md §5.10.3: `ModulesController.php` se
+    // retira de la lista — `1.6d` extrajo su único uso de
+    // `runAsPlatform()` (la lectura de `module_subscriptions` de
+    // `forTenant()`) a `ModuleSubscriptionsService::subscriptionsFor()`,
+    // reutilizada también por la ficha de salud (`RN-BO-22` aplicado por
+    // analogía); el controlador ya no lo invoca directamente. Dos
+    // entradas nuevas —
+    //   - PlatformMetricsService.php: `BackofficeLectura` en `platform()`
+    //     y `moduleAdoption()` (api.md §2.10.4/§2.10.5, RN-BO-94) — las
+    //     dos métricas agregadas leen `module_subscriptions`/`tenants`
+    //     de todos los centros, sin escribir nada.
+    //   - FailedJobRetryService.php: `BackofficeEscritura` en
+    //     `retryForTenant()` (api.md §2.10.3, RN-BO-86) — el único
+    //     camino de escritura del sub-paso, con la obligación de
+    //     `admin_action_logs` que `ADR-046 §6.5` exige.
     $allowlist = [
         base_path('app/Support/Tenancy/TenantContext.php'),
         base_path('app/Support/Tenancy/RunsPerTenant.php'),
@@ -135,7 +147,8 @@ test('CA-PERM-092: runAsPlatform() no aparece en código de app/ fuera de su lis
         base_path('app/Modules/Backoffice/Application/TenantLifecycleService.php'),
         base_path('app/Modules/Backoffice/Http/Controllers/TenantsController.php'),
         base_path('app/Modules/Backoffice/Application/ModuleSubscriptionsService.php'),
-        base_path('app/Modules/Backoffice/Http/Controllers/ModulesController.php'),
+        base_path('app/Modules/Backoffice/Application/PlatformMetricsService.php'),
+        base_path('app/Modules/Backoffice/Application/FailedJobRetryService.php'),
     ];
 
     $appPath = base_path('app');
