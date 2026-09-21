@@ -45,6 +45,18 @@ return [
         'missing_dependencies' => 'Dependencies still need to be contracted: :modules. Confirm the cascade to continue.',
         'dependent_modules' => 'Other modules depend on this one: :modules. Confirm the cascade to continue.',
     ],
+    // REQ-BO-004 (1.6d): health / job retry error catalog.
+    'job' => [
+        'reason_required' => 'The reason is required and cannot be empty.',
+        'tenant_state_invalid' => 'The school is in a state that does not allow retrying jobs.',
+        'reason' => [
+            'retried_via_console' => 'Re-queued via bo:retry-provisioning.',
+        ],
+    ],
+    // REQ-BO-006 (1.6d): platform metrics error catalog.
+    'metrics' => [
+        'invalid_period' => 'The start of the period cannot be after its end.',
+    ],
     // Issue #173. Platform admin invitation email.
     'mail' => [
         'invitation' => [

@@ -2,20 +2,16 @@
 
 namespace App\Modules\Backoffice\Http\Resources;
 
-use App\Modules\Backoffice\Domain\AdminActionLogAction;
-use App\Modules\Backoffice\Domain\Models\AdminActionLog;
+use App\Modules\Backoffice\Domain\TenantProvisioningState;
 use App\Support\Tenancy\Tenant;
-use App\Support\Tenancy\TenantStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * api.md §2.4.1. `provisioning.state` es un enumerado de respuesta
- * derivado, nunca una columna (`ADR-034 OPEN-13`, api.md §2.4.1): con
- * `status = 'en_alta'` más la existencia o no de
- * `tenant.aprovisionamiento_fallido` está todo dicho. La consulta extra
- * solo se ejecuta para tenants en `en_alta` — la inmensa mayoría no la
- * paga.
+ * derivado, nunca una columna (`ADR-034 OPEN-13`, api.md §2.4.1) —
+ * cálculo en `TenantProvisioningState`, reutilizado también por la ficha
+ * de salud de `1.6d` (`RN-BO-22` aplicado por analogía).
  *
  * @mixin Tenant
  */
@@ -45,17 +41,8 @@ class TenantResource extends JsonResource
      */
     private function provisioning(): array
     {
-        if ($this->status !== TenantStatus::EnAlta) {
-            return ['state' => 'completado', 'started_at' => $this->created_at?->toJSON()];
-        }
-
-        $failed = AdminActionLog::query()
-            ->where('affected_tenant_id', $this->id)
-            ->where('action', AdminActionLogAction::TenantAprovisionamientoFallido)
-            ->exists();
-
         return [
-            'state' => $failed ? 'fallido' : 'en_curso',
+            'state' => TenantProvisioningState::resolve($this->resource),
             'started_at' => $this->created_at?->toJSON(),
         ];
     }

@@ -273,5 +273,34 @@ paths:
   /api/platform/v1/dual-authorizations/{publicId}/rejection:
     $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1dual-authorizations~1{publicId}~1rejection"
 
+  # REQ-BO-002 (1.6c). Módulos. Hallazgo de esta sesión (1.6d): estas seis
+  # rutas ya estaban completas en platform.yaml desde 1.6c pero nunca se
+  # habían enlazado en este índice raíz — issue de documentación,
+  # severidad Media (CLAUDE.md §6 regla 6), corregido de paso.
+  /api/platform/v1/modules:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1modules"
+  /api/platform/v1/tenants/{publicId}/modules:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1modules"
+  /api/platform/v1/tenants/{publicId}/modules/preview:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1modules~1preview"
+  /api/platform/v1/tenants/{publicId}/modules/{moduleCode}:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1modules~1{moduleCode}"
+  /api/platform/v1/module-rollouts/preview:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1module-rollouts~1preview"
+  /api/platform/v1/module-rollouts:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1module-rollouts"
+
+  # REQ-BO-004/REQ-BO-006 reducidos (1.6d). Salud y métricas de plataforma.
+  /api/platform/v1/tenants/{publicId}/health:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1health"
+  /api/platform/v1/tenants/{publicId}/failed-jobs:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1failed-jobs"
+  /api/platform/v1/tenants/{publicId}/failed-jobs/{uuid}/retry:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1tenants~1{publicId}~1failed-jobs~1{uuid}~1retry"
+  /api/platform/v1/metrics/platform:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1metrics~1platform"
+  /api/platform/v1/metrics/module-adoption:
+    $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1metrics~1module-adoption"
+
   # Los endpoints de los módulos siguientes se añaden aquí conforme se
   # implementan, cada uno con su propio apps/api/openapi/paths/<modulo>.yaml.

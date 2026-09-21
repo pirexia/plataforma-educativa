@@ -49,6 +49,18 @@ return [
         'missing_dependencies' => 'Faltan dependencias por contratar: :modules. Confirma el arrastre para continuar.',
         'dependent_modules' => 'Otros módulos dependen de éste: :modules. Confirma el arrastre para continuar.',
     ],
+    // REQ-BO-004 (1.6d): catálogo de errores de salud y reintento de trabajos.
+    'job' => [
+        'reason_required' => 'El motivo es obligatorio y no puede estar vacío.',
+        'tenant_state_invalid' => 'El centro está en un estado que no admite reintento de trabajos.',
+        'reason' => [
+            'retried_via_console' => 'Reencolado mediante bo:retry-provisioning.',
+        ],
+    ],
+    // REQ-BO-006 (1.6d): catálogo de errores de métricas de plataforma.
+    'metrics' => [
+        'invalid_period' => 'El principio del período no puede ser posterior al final.',
+    ],
     // Issue #173. Correo de invitación de un administrador de plataforma.
     'mail' => [
         'invitation' => [

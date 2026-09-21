@@ -3,6 +3,7 @@
 namespace App\Modules\Backoffice\Application;
 
 use App\Models\Module;
+use App\Models\ModuleSubscription;
 use App\Modules\Backoffice\Domain\AdminActionLogAction;
 use App\Modules\Backoffice\Domain\DualAuthorizationAction;
 use App\Modules\Backoffice\Domain\DualAuthorizationStatus;
@@ -14,12 +15,14 @@ use App\Modules\Core\Domain\ModuleChange;
 use App\Modules\Core\Domain\ModuleContracting;
 use App\Modules\Core\Domain\ModuleContractingOutcome;
 use App\Modules\Core\Domain\ModuleContractingPreview;
+use App\Modules\Core\Domain\ModuleDescriptor;
 use App\Support\Api\ApiException;
 use App\Support\Tenancy\PlatformAccessPurpose;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use App\Support\Tenancy\TenantStatus;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Throwable;
@@ -317,6 +320,73 @@ final class ModuleSubscriptionsService
                 $authorization->public_id,
             );
         });
+    }
+
+    /**
+     * `api.md §2.6.2`, `RN-BO-22`. Único lugar que lee las suscripciones
+     * de un tenant desde el backoffice — reutilizado por
+     * `ModulesController::forTenant()` y, desde `1.6d`, por la ficha de
+     * salud (`api.md §2.10.1` punto 2): "no se recalcula el grafo".
+     *
+     * @return Collection<string, ModuleSubscription>
+     */
+    public function subscriptionsFor(Tenant $tenant): Collection
+    {
+        return $this->tenantContext->runAsPlatform(
+            PlatformAccessPurpose::BackofficeLectura,
+            fn (): Collection => ModuleSubscription::query()->where('tenant_id', $tenant->id)->get()->keyBy('module_code'),
+        );
+    }
+
+    /**
+     * Cierre de dependencias de un módulo concreto frente a las
+     * suscripciones ya leídas de un tenant. Un esencial no tiene fila
+     * (`RN-BO-65`) y por tanto nunca entra en un cierre de dependencias.
+     *
+     * @param  Collection<string, ModuleSubscription>  $subscriptions
+     * @return list<string>
+     */
+    public function missingDependenciesOf(ModuleDescriptor $descriptor, Collection $subscriptions): array
+    {
+        if ($descriptor->essential) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $descriptor->dependsOn,
+            function (string $dependency) use ($subscriptions): bool {
+                /** @var ModuleSubscription|null $dependencySubscription */
+                $dependencySubscription = $subscriptions->get($dependency);
+
+                return $dependencySubscription === null || ! $dependencySubscription->enabled;
+            },
+        ));
+    }
+
+    /**
+     * `api.md §2.10.1` punto 2, sub-paso `1.6d`. Las aristas que
+     * `platform:sync-registry` haya reportado y nadie haya resuelto
+     * (`ADR-045 §4.5`), reutilizando exactamente el mismo cálculo que
+     * `ModulesController::forTenant()` — nunca recalculado (`RN-BO-22`).
+     * Sólo los módulos con alguna dependencia incumplida entran en la
+     * lista; los esenciales nunca la tienen.
+     *
+     * @return list<array{module_code: string, missing_dependencies: list<string>}>
+     */
+    public function dependencyInconsistenciesFor(Tenant $tenant): array
+    {
+        $subscriptions = $this->subscriptionsFor($tenant);
+        $inconsistencies = [];
+
+        foreach ($this->catalog->all() as $descriptor) {
+            $missing = $this->missingDependenciesOf($descriptor, $subscriptions);
+
+            if ($missing !== []) {
+                $inconsistencies[] = ['module_code' => $descriptor->code, 'missing_dependencies' => $missing];
+            }
+        }
+
+        return $inconsistencies;
     }
 
     private function guardModuleExists(string $moduleCode): void

@@ -6,6 +6,33 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-09-16/21 · `feature/REQ-BO-1.6d-salud-metricas-plataforma`
+
+Implementa el sub-paso `1.6d` (`REQ-BO-004`/`REQ-BO-006` reducidos a lo observable sin `REQ-SAAS`/`REQ-ALUM`/`REQ-SUP`) sobre la especificación aprobada de `docs/modulos/REQ-BO/funcional.md §15.4`. PR [#229](https://github.com/pirexia/plataforma-educativa/pull/229).
+
+### Añadido
+- **Ficha de salud del tenant** (`GET /tenants/{public_id}/health`): bloque de trabajos del centro, última incidencia de plataforma (`admin_action_logs` por `affected_tenant_id`, no `failed_jobs` — los trabajos del backoffice no llevan tenant activo, `RN-BO-90`), versión desplegada y migraciones (alcance global), `dependency_inconsistencies` reutilizado del servicio ya existente de `REQ-CORE`.
+- **Listado y reintento de trabajos fallidos** (`GET .../failed-jobs`, `POST .../failed-jobs/{uuid}/retry`): nunca devuelven el *payload* ni la traza (`RN-BO-84`), sí el mensaje de la excepción (`OPEN-BO-22`, decisión explícita del usuario). Reintento con capacidad `job.reintentar` y reautenticación viva; `404` uniforme para trabajo inexistente/ajeno/ya reintentado.
+- **Métricas de plataforma y de adopción por módulo** (`GET /metrics/platform`, `GET /metrics/module-adoption`): tenants por estado (incluye borrados lógicos, `RN-BO-91`), altas/bajas/eliminaciones como series separadas sin `churn` (`RN-BO-92`), adopción sobre el catálogo declarado (`RN-BO-93`). Ambas, obligatoriamente dentro de `runAsPlatform(BackofficeLectura, …)` — fuera de ese bloque, el agregado sale reducido al tenant activo en vez de fallar (`RN-BO-94`).
+- **`bo:purge-failed-jobs`**: arregla el hallazgo Alta de la especificación — `queue:prune-failed` llevaba desde la `0.7` sin poder borrar ni una fila (apuntaba a la conexión sin privilegio `DELETE`), dejando sin aplicar la segunda capa del issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73) (retención de 24h de tokens de un solo uso). Comando propio por `pgsql_platform`, sustituye al del framework en `routes/console.php`.
+- `bo:retry-provisioning` corregido de paso: usaba la conexión sin privilegios y un filtro `LIKE` que nunca casaba contra el JSON del *payload* con las comillas escapadas.
+- Tres capacidades nuevas en `PlatformCapability` (`salud.leer`, `job.reintentar`, `metrica.leer`).
+- `apps/api/openapi.yaml` enlaza ahora las rutas de módulos de `1.6c`, que existían en `platform.yaml` pero nunca se habían indexado (hallazgo propio, corregido de paso).
+
+### Corregido (revisión independiente + `/codex:review`, tercer paso de prueba real de `ADR-049 §8`)
+- **P2, `/codex:review`** — `PlatformMetricsController`/`TenantHealthController` no validaban la forma de sus filtros de fecha antes de parsearlos: una fecha mal formada producía `500` en vez de `422`. Corregido con `ShowPlatformMetricsRequest`/`IndexFailedJobsRequest` (mismo patrón que `IndexAuditLogsRequest`).
+- **P2, `/codex:review`** — `limit=0` en la paginación de `failed-jobs` producía una respuesta sin filas y sin cursor siguiente, paginación irrecuperable; valores negativos llegaban a la base de datos. Corregido con la regla `integer|min:1|max:200` de las mismas peticiones validadas.
+- **Media, `security-reviewer`/`doc-reviewer`** — `docs/modulos/REQ-AUTH/operacion.md`, `docs/modulos/REQ-CORE/operacion.md` y `RUNBOOK.md` seguían describiendo `queue:prune-failed` como una mitigación de datos personales vigente, dos meses después de que dejara de estarlo. Corregido, junto con la vigencia de `SYSADMIN.md`/`SECURITY.md`/`PRIVACY.md`/`README.md` (`CLAUDE.md §6` regla 7).
+- **Baja, `doc-reviewer`** — `api.md §5` contaba veinticuatro claves de error sin incluir `bo.metrics.invalid_period`, que el código sí introduce. Corregido a veinticinco.
+
+### Declarado, no corregido en este PR
+- **Media, `db-reviewer`** — `tenant_lifecycle_events` y `failed_jobs` sin índice que sirva las consultas nuevas de métricas y de la ficha de salud (*seq scan* completo, sin impacto con el volumen actual). Issues [#230](https://github.com/pirexia/plataforma-educativa/issues/230)/[#231](https://github.com/pirexia/plataforma-educativa/issues/231), migración futura.
+- **Baja** — doble comprobación de reautenticación en `TenantHealthController::retry()` (issue [#232](https://github.com/pirexia/plataforma-educativa/issues/232)) y esquema OpenAPI del reintento menos preciso que sus hermanos (issue [#233](https://github.com/pirexia/plataforma-educativa/issues/233)).
+
+Sin ninguna migración. 705/705 Pest de la suite completa en verde, Pint y Larastan (0 errores) limpios — verificado de forma independiente por la sesión orquestadora, no solo reportado.
+
+---
+
 ## 2026-09-15/16 · `feature/REQ-BO-002-matriz-modulos-spec`
 
 Implementa el sub-paso `1.6c` (`REQ-BO-002`, matriz de módulos) sobre la especificación aprobada de `docs/modulos/REQ-BO/funcional.md §5.8`/`§7.3.1`/`§13.3.1`.

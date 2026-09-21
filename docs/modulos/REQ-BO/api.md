@@ -437,17 +437,155 @@ Es el requisito de `REQ-BO-007` de que el registro sea «consultable por el prop
 
 > **No hay exportación.** Ni aquí ni en el lado del tenant, y es una decisión: un CSV del registro completo de acciones del proveedor es un mapa de la operación de la plataforma, y `REQ-PERM/permisos.md §2.1` ya sentó el criterio con `rol.exportar` y `permiso_efectivo.exportar`. Si algún día hace falta, es un requisito nuevo con su permiso y su propia auditoría de exportación.
 
-### 2.10 Salud y métricas (`REQ-BO-004`, `REQ-BO-006`, reducidos)
+### 2.10 Salud y métricas (`REQ-BO-004`, `REQ-BO-006`, reducidos) · sub-paso `1.6d`
 
-| Verbo · Ruta | Capacidad | Notas |
-|---|---|---|
-| `GET /tenants/{public_id}/health` | `salud.leer` | Sólo lo observable (`funcional.md §5.9`). Los campos sin fuente **no aparecen**, no van a cero |
-| `GET /tenants/{public_id}/failed-jobs` | `salud.leer` | Cursor. Filtrados por el `tenant_id` del *payload* (`ADR-033 §8`) |
-| `POST /tenants/{public_id}/failed-jobs/{uuid}/retry` | `job.reintentar` | Auditado (`REQ-SUP-004`) |
-| `GET /metrics/platform` | `metrica.leer` | Tenants por estado, altas y bajas del período |
-| `GET /metrics/module-adoption` | `metrica.leer` | Cuántos centros tienen contratado cada módulo |
+| Verbo · Ruta | Capacidad | ¿Sensible? | Notas |
+|---|---|:---:|---|
+| `GET /tenants/{public_id}/health` | `salud.leer` | No | Sólo lo observable (`funcional.md §5.9`). Los campos sin fuente **no aparecen**, no van a cero. §2.10.1 |
+| `GET /tenants/{public_id}/failed-jobs` | `salud.leer` | No | Cursor. Filtrados por el `tenant_id` del *payload* (`ADR-033 §8`). **Sin `payload` ni traza en la respuesta** (`RN-BO-84`). §2.10.2 |
+| `POST /tenants/{public_id}/failed-jobs/{uuid}/retry` | `job.reintentar` | **Sí** (`OPEN-BO-21`) | Cuerpo `{reason}`. Auditado con `job.reintentado` (`REQ-SUP-004`). §2.10.3 |
+| `GET /metrics/platform` | `metrica.leer` | No | Tenants por estado, altas, bajas y eliminaciones del período. §2.10.4 |
+| `GET /metrics/module-adoption` | `metrica.leer` | No | Cuántos centros tienen contratado cada módulo, sobre el catálogo declarado. §2.10.5 |
 
-> **Regla de honestidad, y va en la especificación porque es lo primero que se pierde**: un campo cuya fuente no existe en 1.6 **se omite de la respuesta**. No se devuelve `0`, no se devuelve `null`, no se devuelve `"n/d"`. Un cero indistinguible de «no medido» es peor que la ausencia, y los enumerados de respuesta son extensibles (`ADR-038 §7.3`), así que añadir el campo cuando exista el dato es un cambio compatible.
+> **Regla de honestidad, y va en la especificación porque es lo primero que se pierde** (`RN-BO-83`): un campo cuya fuente no existe en `1.6d` **se omite de la respuesta**. No se devuelve `0`, no se devuelve `null`, no se devuelve `"n/d"`. Un cero indistinguible de «no medido» es peor que la ausencia, y los enumerados de respuesta son extensibles (`ADR-038 §7.3`), así que añadir el campo cuando exista el dato es un cambio compatible.
+>
+> **Y la mitad que se olvida: un recuento que sí se ha medido y vale cero se devuelve.** «Este centro no tiene trabajos fallidos» es información; omitirlo lo haría indistinguible de «no lo hemos mirado».
+
+**No hay ningún *endpoint* de listado de trabajos en cola**, y es deliberado: `jobs` es una tabla que se vacía sola, un listado suyo caduca antes de que el operador lo lea, y `REQ-BO-004` pide «jobs en cola» —un número— no «los jobs en cola». El recuento va dentro de `/health`. **Tampoco hay `DELETE` de un trabajo fallido** (`funcional.md §5.9.4`): sería hacer desaparecer la prueba de que algo falló sin dejar rastro de negocio.
+
+#### 2.10.1 `GET /tenants/{public_id}/health` · la respuesta, bloque a bloque
+
+Cuatro bloques con su alcance declarado, porque mezclar en una ficha datos de plataforma y datos del centro es cómo alguien acaba buscando «la versión de este centro» (`RN-BO-97`):
+
+```jsonc
+{
+  "platform": {                                  // alcance: global, idéntico en todos los centros
+    "version": "1.4.2",                          // config('app.version') (operacion.md §2)
+    "migrations": [                              // las N últimas de la tabla `migrations`
+      { "name": "2026_09_16_100000_harden_module_subscriptions_platform_grants_delete", "batch": 41 }
+    ]
+  },
+  "tenant": {                                    // alcance: el centro
+    "status": "activo",
+    "suspended_at": null,
+    "grace_period_ends_at": null,
+    "grace_period_expired_at": null,
+    "provisioning": { "state": "completado" }    // derivado, api.md §2.4.1 — no hay columna
+  },
+  "jobs": {                                      // alcance: el centro, por payload.tenant_id
+    "queued": 3,
+    "failed": 1,
+    "failed_recent": 1,                          // en la ventana de `failed_recent_hours`
+    "failed_recent_hours": 24,
+    "last_failed_at": "2026-09-16T08:12:00Z"
+  },
+  "platform_incident": {                         // alcance: el centro, por affected_tenant_id
+    "action": "tenant.aprovisionamiento_fallido",
+    "occurred_at": "2026-09-16T08:12:00Z"
+  },
+  "modules": {
+    "contracted": 4,
+    "dependency_inconsistencies": [              // reutiliza el cálculo de 1.6c, no lo repite
+      { "module_code": "comedor", "missing_dependencies": ["fin"] }
+    ]
+  }
+}
+```
+
+**Cinco decisiones de esta respuesta que hay que poder defender:**
+
+1. **`platform_incident` existe porque `jobs` no puede cubrirlo.** Los trabajos que despacha el backoffice llevan `payload.tenant_id` nulo (`funcional.md §5.9.3`, `RN-BO-90`), así que un aprovisionamiento fallido **no** sale en `jobs` por mucho que la fila esté en `failed_jobs`. Este bloque lee `admin_action_logs` por `affected_tenant_id` y es lo que de verdad responde a «¿por qué lleva este centro dos horas en `en_alta`?». **Se omite si no hay ninguna** (`RN-BO-83`).
+2. **`dependency_inconsistencies` no se recalcula aquí.** Sale del mismo servicio de `REQ-CORE` que sirve a `GET /tenants/{public_id}/modules` (§2.6.2): `RN-BO-22` exige una sola implementación del cierre de dependencias, y eso alcanza también a leerlo. Dos cálculos del mismo grafo es cómo la ficha y la matriz acaban diciendo cosas distintas.
+3. **`failed_recent_hours` viaja en la respuesta.** Una cifra «reciente» sin su ventana no se puede comparar entre dos consultas, y esa ventana además **la acota la purga de `failed_jobs`** (`funcional.md §5.9.6`): pedir 72 horas cuando la retención es de 24 devolvería siempre lo mismo que pedir 24.
+4. **No hay bloque de recursos, certificado ni conectores.** No se omiten campos sueltos: se omiten los bloques enteros, porque ninguna de sus fuentes existe (`funcional.md §5.9`).
+5. **`provisioning.state` es el de §2.4.1, no un campo nuevo.** Sigue derivándose y sigue sin columna (`ADR-034 OPEN-13`).
+
+#### 2.10.2 `GET /tenants/{public_id}/failed-jobs` · la proyección es la mitad del diseño
+
+Cursor, orden `(failed_at DESC, id DESC)` — `id` **sí** está disponible aquí, a diferencia de lo que ocurre en §2.9: esta consulta corre por `pgsql_platform` y la restricción de columnas de `admin_action_logs` no aplica a `failed_jobs`. El campo `t` del cursor lleva el `platform_admin_id`, como el de §3.2.
+
+```jsonc
+{
+  "data": [
+    {
+      "uuid": "9f1c…",
+      "job_class": "App\\Modules\\Core\\Infrastructure\\Jobs\\SendInvitationEmail",
+      "queue": "default",
+      "connection": "database",
+      "failed_at": "2026-09-16T08:12:00Z",
+      "exception_class": "Illuminate\\Database\\QueryException",
+      "exception_message": "SQLSTATE[23505]: Unique violation…"   // OPEN-BO-22
+    }
+  ]
+}
+```
+
+> **Lo que no está es tan importante como lo que está** (`RN-BO-84`): **no hay `payload` y no hay traza**. Un *payload* serializado de `SendInvitationEmail` contiene el correo y el nombre de una persona del centro; de `SendPasswordResetEmail`, además, un token de un solo uso. `RN-BO-33` prohíbe que el backoffice devuelva datos personales de los centros y `CA-BO-074` lo comprueba recorriendo **todas** las respuestas del módulo. `job_class` sale de `payload.displayName`, que es un nombre de clase PHP y no un dato.
+>
+> **`exception_message` es el borde, y no lo decide esta especificación**: `OPEN-BO-22`. Está escrita contra devolverlo —sin él, «`QueryException`» no diagnostica nada y `REQ-BO-004` se vacía—, dicho como excepción consciente a `RN-BO-33` y no como descuido. Si se decide lo contrario, se retira este campo y no cambia nada más.
+
+**Filtros**: `failed_at_from`, `failed_at_to`, `queue`, `job_class`. **Sin `q` de texto libre**, y es deliberado: un `q` sobre esta tabla sólo puede buscar dentro de `payload` o de `exception`, que es exactamente lo que `RN-BO-84` saca de la superficie — un buscador sería un camino para leer por trozos lo que la proyección no devuelve.
+
+#### 2.10.3 `POST /tenants/{public_id}/failed-jobs/{uuid}/retry` · cuerpo, orden y respuestas
+
+Cuerpo: `{ "reason": "…" }`, obligatorio y no vacío. Nada más: **no hay `queue`, no hay `delay` y no hay `connection`** — los tres los declara la propia fila de `failed_jobs` y aceptarlos del cliente sería dejar que el operador reencole un trabajo en una cola que nadie procesa.
+
+| Caso | Respuesta |
+|---|---|
+| Reintento correcto | `200` con el bloque `jobs` de §2.10.1 actualizado |
+| Sin capacidad `job.reintentar` | `403` |
+| Sesión sin reautenticación viva (`OPEN-BO-21`) | `403` `urn:pge:error:reauthentication-required` |
+| `reason` ausente o vacío | `422` `bo.job.reason_required` |
+| Tenant en estado que no admite reintento (`eliminado`) | `409` `bo.job.tenant_state_invalid` (`RN-BO-87`) |
+| `uuid` inexistente, **o perteneciente a otro centro, o ya reintentado** | **`404`** |
+
+> **Los tres casos de la última fila devuelven lo mismo a propósito.** Un `403` para «ese trabajo es de otro centro» confirmaría que existe, y un `uuid` es adivinable por fuerza bruta mucho antes que un `slug` de centro. Mismo criterio con el que `RequirePlatformHost` responde `404` en vez de `403` (`RN-BO-48`) y con el que `RN-BO-15` reserva el `404` a «aquí no hay nadie».
+
+**El reencolado usa el *payload* literal** (`RN-BO-85`), sobre `failed_jobs.connection` y `failed_jobs.queue`, con los intentos reiniciados, y **todo el camino corre por `pgsql_platform`** dentro de `runAsPlatform(BackofficeEscritura, …)` (`RN-BO-86`). La entrada de auditoría es `job.reintentado`, con `subject_type = 'failed_job'`, `subject_public_id = uuid` y `affected_tenant_id` (`funcional.md §5.9.4`).
+
+**No existe `POST /failed-jobs/retry` ni ninguna variante masiva** (`RN-BO-88`, `CA-BO-157`).
+
+#### 2.10.4 `GET /metrics/platform` · qué devuelve y qué no
+
+Parámetros: `occurred_at_from` y `occurred_at_to`, inclusivos (`ADR-038 §5.2`), por omisión los últimos 30 días; `422` si el principio es posterior al final.
+
+```jsonc
+{
+  "tenants_by_status": {                     // foto del ahora, SIN ventana (funcional.md §5.10.1)
+    "en_alta": 1, "activo": 187, "suspendido": 4, "en_baja": 2, "eliminado": 9
+  },
+  "period": { "from": "2026-08-17", "to": "2026-09-16" },
+  "created": 6,                              // tenant_lifecycle_events, from_status IS NULL
+  "closed": 2,                               // to_status = 'en_baja'
+  "deleted": 1                               // to_status = 'eliminado' — serie APARTE de `closed`
+}
+```
+
+- **`tenants_by_status` incluye los borrados lógicos** (`RN-BO-91`). Sin eso, `eliminado` sería siempre `0`, porque la eliminación escribe `status` y `deleted_at` a la vez.
+- **`closed` y `deleted` son dos series y no se suman** (`RN-BO-92`). Entre una baja y su eliminación hay 90 días de gracia; sumadas, un mes cualquiera contaría dos veces al mismo centro.
+- **No hay `churn` y no hay `students`** (`REQ-SAAS-004` y `REQ-ALUM`, los dos fuera). Y no se devuelven a cero: se omiten (`RN-BO-83`).
+- **El recuento por estado no lleva ventana y las tres series sí**, y la respuesta lo hace evidente poniendo `period` justo entre ellos: un solo parámetro que afecte a unos campos y no a otros es la clase de cosa que se malinterpreta una vez y se arrastra para siempre.
+
+#### 2.10.5 `GET /metrics/module-adoption` · el esqueleto es el catálogo
+
+```jsonc
+{
+  "of_tenants": 192,                         // denominador: centros vivos y no `eliminado`
+  "data": [
+    { "module_code": "core",    "phase": 1, "essential": true,  "retired": false },
+    { "module_code": "comedor", "phase": 3, "essential": false, "retired": false, "contracted_tenants": 41 },
+    { "module_code": "fin",     "phase": 2, "essential": false, "retired": false, "contracted_tenants": 0 },
+    { "module_code": "viejo",   "phase": 1, "essential": false, "retired": true,  "contracted_tenants": 3 }
+  ]
+}
+```
+
+- **La lista la marca `ModuleCatalog::all()`**, el contrato que `1.6c` puso en `Core\Domain`, no las filas de `module_subscriptions` (`RN-BO-93`). Un módulo con cero contrataciones **aparece**, porque «nadie lo ha contratado» es precisamente el dato que `REQ-BO-006` pide *«para decidir inversión de producto»*, y un módulo ausente es indistinguible de uno que nadie ha construido.
+- **Un `essential` no trae `contracted_tenants`**. No tiene fila por diseño (`RN-BO-65`): un `0` diría que ningún centro tiene `core` y un valor igual al total sería un número inventado con aspecto de medido. Se omite el campo, se conserva la marca — que es `RN-BO-83` aplicado con precisión.
+- **Un `retired` sigue apareciendo, con su recuento real.** Mientras viva una suscripción suya se factura (`RMOD-007`, `RN-BO-70`), y esconderlo del panel escondería exactamente lo que hay que ver.
+- **`of_tenants` viaja en la respuesta.** Un porcentaje sin denominador es una cifra que nadie puede comprobar, y a los tres meses nadie recuerda si incluía a los suspendidos. **Incluye a suspendidos y `en_baja`, no a `eliminado`**: los dos primeros siguen siendo clientes y el tercero no.
+
+**Ni este *endpoint* ni el anterior se paginan.** El primero devuelve cinco recuentos y cuatro cifras; el segundo, una fila por módulo declarado —decenas, no miles—. Es el mismo criterio con el que §3.1 deja sin paginar `GET /tenants/{id}/feature-flags`: `ADR-038 §4.2` no exige paginar lo que es un cálculo y no una tabla.
 
 ### 2.11 *Feature flags* (`REQ-BO-005` puntos 1-2 · sub-paso `1.6e`)
 
@@ -559,7 +697,9 @@ Aplicando el criterio objetivo de `ADR-038 §4.2` —**origen de las filas**, no
 | `GET /tenants/{id}/feature-flags` | **Sin paginar** | Es el conjunto completo de *flags* evaluados para un centro — decenas de claves, no un listado. Paginarlo obligaría a recorrer páginas para responder a una pregunta que se responde de una vez, y `ADR-038 §4.2` no exige paginar lo que es un cálculo y no una tabla |
 | `GET /admin-action-logs` | **Cursor** | Flujo de eventos, tabla *append-only*. La regla operativa de `ADR-038 §4.2` es literal: «si la tabla es *append-only*, es cursor» |
 | `GET /tenants/{id}/lifecycle-events` | **Cursor** | Ídem |
-| `GET /tenants/{id}/failed-jobs` | **Cursor** | Ídem |
+| `GET /tenants/{id}/failed-jobs` | **Cursor** | Ídem: `failed_jobs` sólo crece y sólo la vacía la purga (`1.6d`) |
+| `GET /metrics/platform` · `GET /metrics/module-adoption` | **Sin paginar** | Son cálculos, no tablas: cinco recuentos el primero y una fila por módulo **declarado** el segundo. Mismo criterio que la fila de `feature-flags` de arriba (`1.6d`, §2.10.5) |
+| `GET /tenants/{id}/health` | **Sin paginar** | Es un recurso único, no un listado (`1.6d`) |
 
 ### 3.2 El cursor de `admin_action_logs` tiene una particularidad
 
@@ -578,6 +718,10 @@ Sintaxis de `ADR-038 §5.2` sin excepción: parámetros planos, valores múltipl
 | `GET /admin-action-logs` | `action`, `actor_platform_admin_id`, `affected_tenant_id`, `occurred_at_from`, `occurred_at_to` | Fijo: `-occurred_at` |
 | `GET /dual-authorizations` | `status`, `action`, `requested_by` | `-requested_at`, `expires_at` |
 | `GET /feature-flags` | `module_code`, `status`, `retired` (booleano), `q` (clave y textos) | `key`, `-key`, `-updated_at` |
+| `GET /tenants/{id}/failed-jobs` (`1.6d`) | `failed_at_from`, `failed_at_to`, `queue`, `job_class`. **Sin `q`** (§2.10.2) | Fijo: `-failed_at` |
+| `GET /metrics/platform` (`1.6d`) | `occurred_at_from`, `occurred_at_to` (por omisión, 30 días; `422` si el principio es posterior al final) | No aplica |
+
+**`GET /tenants/{id}/failed-jobs` es el único listado del módulo sin `q`**, y merece la frase porque §3.3 lo declara obligatorio para el texto libre: aquí **no hay texto libre que buscar** salvo dentro de `payload` y de `exception`, que es justo lo que `RN-BO-84` saca de la superficie. Un buscador sería un camino para leer por trozos lo que la proyección no devuelve.
 
 **`plan`, `student_count` y `regime` no son filtros de `GET /tenants`** (`funcional.md §1.3`): no existe el dato. Añadirlos cuando exista es un cambio compatible (`ADR-038 §7.2`).
 
@@ -589,7 +733,7 @@ Sintaxis de `ADR-038 §5.2` sin excepción: parámetros planos, valores múltipl
 
 Exigen sesión reautenticada dentro de la ventana (`RN-BO-08`). La lista es **cerrada y está aquí**, no repartida por los controladores, para que añadir una operación destructiva obligue a tocar este documento:
 
-`POST /tenants` · `POST /tenants/{id}/clone` · `POST /tenants/{id}/slug` · `POST /tenants/{id}/transitions` cuando `to_status ∈ {en_baja, eliminado}` · `POST /admins` · `DELETE /admins/{id}` · `DELETE /admins/{id}/mfa` · `POST` y `DELETE /ip-allowlist` · `POST /module-rollouts` · **`PUT /tenants/{id}/modules/{code}` sólo cuando `enabled: false`** (`1.6c`, `OPEN-BO-17`) · `POST /dual-authorizations/{id}/approval` y `/rejection` · `PUT /feature-flags/{key}/rules` · `PUT /feature-flags/{key}/state` **sólo cuando el destino es `activo`** (§2.12).
+`POST /tenants` · `POST /tenants/{id}/clone` · `POST /tenants/{id}/slug` · `POST /tenants/{id}/transitions` cuando `to_status ∈ {en_baja, eliminado}` · `POST /admins` · `DELETE /admins/{id}` · `DELETE /admins/{id}/mfa` · `POST` y `DELETE /ip-allowlist` · `POST /module-rollouts` · **`PUT /tenants/{id}/modules/{code}` sólo cuando `enabled: false`** (`1.6c`, `OPEN-BO-17`) · `POST /dual-authorizations/{id}/approval` y `/rejection` · `PUT /feature-flags/{key}/rules` · `PUT /feature-flags/{key}/state` **sólo cuando el destino es `activo`** (§2.12) · **`POST /tenants/{id}/failed-jobs/{uuid}/retry`** (`1.6d`, `OPEN-BO-21`).
 
 **`1.6b` no añade ninguna operación a esta lista, y conviene decir por qué no añade la que parece faltar**: el **rescate** (`en_baja` → `activo`) **no es sensible**, igual que no lo es la reactivación de una suspensión. Las dos van en la dirección de **devolver** el servicio, las dos son reversibles con una llamada más, y la reautenticación existe para lo que cuesta deshacer. Lo que sí está en la lista es la baja, que es la dirección contraria.
 
@@ -598,6 +742,12 @@ Exigen sesión reautenticada dentro de la ventana (`RN-BO-08`). La lista es **ce
 > **La asimetría es deliberada y es la única de su tipo junto a la de §2.12: sensible al descontratar, no al contratar.** Contratar va en la dirección de **dar** servicio y se deshace descontratando; descontratar es la dirección que el centro nota. Es la misma forma de razonar que §2.12 aplica a los *flags* **y sale al revés a propósito**: allí el freno de emergencia es apagar y la fricción va en encender, porque apagar un *flag* arregla un incidente; aquí **no hay ninguna emergencia que apagar un módulo resuelva**, así que la dirección peligrosa es la contraria.
 >
 > **Si `OPEN-BO-17` se resuelve en contra**, se retira esta entrada de la lista y la celda «¿sensible?» de `§2.6` y de `permisos.md §4.4` pasa a «no». **Ningún criterio de aceptación cambia de signo** y nada más de esta especificación se ve afectado.
+
+**`1.6d` añade una, y es la que hay que aprobar o rechazar** (`funcional.md`, `OPEN-BO-21`): **el reintento de un trabajo fallido**. `permisos.md §4.1` ya lo había escrito al repartir la capacidad — *«`job.reintentar` **parece** diagnóstico y **es** escritura: reejecuta un trabajo que puede enviar correos, modificar datos y disparar eventos»*—, y un reintento de `SendInvitationEmail` manda un correo a una familia real.
+
+> **La diferencia que decide, frente al freno de emergencia de §2.12 que sí va sin fricción: un reintento no se deshace.** Apagar un *flag* va en la dirección segura y se revierte con otra llamada; el correo que salió no vuelve. Es la misma forma de razonar de §2.12 y de `OPEN-BO-17`, aplicada a un caso en el que la respuesta sale distinta.
+>
+> **Si `OPEN-BO-21` se resuelve en contra**, se retira esta entrada y la celda «¿sensible?» de `§2.10` y de `permisos.md §4.5` pasa a «no». **Ningún criterio de aceptación cambia de signo.**
 
 Fallo: `403` con `type` **propio** — `urn:pge:error:reauthentication-required` — porque la interfaz tiene que distinguir «vuelve a identificarte» de «no tienes permiso» **sin analizar texto**, exactamente por el motivo con el que `ADR-038 §6.2` separó `module-disabled` de `forbidden`.
 
@@ -620,9 +770,13 @@ Los `403` de este módulo **no revelan por qué en `detail`** cuando la causa es
 
 **Códigos de `errors` propios** (clave, mensaje traducido y `params`, según `ADR-038 §6.3`):
 
-`bo.tenant.invalid_transition` · `bo.tenant.reason_required` · `bo.tenant.name_mismatch` · `bo.tenant.slug_taken` · **`bo.tenant.slug_reserved`** · **`bo.tenant.clone_source_invalid`** · `bo.tenant.last_superadmin` · `bo.module.essential` · `bo.module.missing_dependencies` · `bo.module.dependent_modules` · `bo.module.retired` · **`bo.module.reason_required`** · **`bo.module.tenant_state_invalid`** · `bo.dual_auth.same_actor` · `bo.dual_auth.expired` · `bo.dual_auth.already_resolved` · `bo.dual_auth.payload_mismatch` · `bo.admin.self_modification` · `bo.ip.allowlist_empty` · `bo.flag.retired` · `bo.flag.invalid_rule` · `bo.flag.duplicate_rule`
+`bo.tenant.invalid_transition` · `bo.tenant.reason_required` · `bo.tenant.name_mismatch` · `bo.tenant.slug_taken` · **`bo.tenant.slug_reserved`** · **`bo.tenant.clone_source_invalid`** · `bo.tenant.last_superadmin` · `bo.module.essential` · `bo.module.missing_dependencies` · `bo.module.dependent_modules` · `bo.module.retired` · **`bo.module.reason_required`** · **`bo.module.tenant_state_invalid`** · `bo.dual_auth.same_actor` · `bo.dual_auth.expired` · `bo.dual_auth.already_resolved` · `bo.dual_auth.payload_mismatch` · `bo.admin.self_modification` · `bo.ip.allowlist_empty` · `bo.flag.retired` · `bo.flag.invalid_rule` · `bo.flag.duplicate_rule` · **`bo.job.reason_required`** · **`bo.job.tenant_state_invalid`** · **`bo.metrics.invalid_period`**
 
-Los **veintidós** —diecinueve del chasis, del ciclo de vida y de los módulos, más tres de *feature flags*—, en `es-ES`, `en`, `de` y `fr` (`INV-009`, `CA-BO-073`).
+Las **veinticinco** —diecinueve del chasis, del ciclo de vida y de los módulos, tres de *feature flags* y **tres de salud y diagnóstico**—, en `es-ES`, `en`, `de` y `fr` (`INV-009`, `CA-BO-073`).
+
+**`1.6d` añade esas tres claves y ningún `type` nuevo al catálogo cerrado.** **`bo.metrics.invalid_period`** es la validación de negocio de `GET /metrics/platform` cuando `occurred_at_from` es posterior a `occurred_at_to` (`§2.10.4`) — distinta de un `occurred_at_from` simplemente mal formado, que es un `422` de forma (regla `date`) y no llega a usar esta clave. `bo.job.reason_required` es el tercer simétrico de `bo.tenant.reason_required` y existe por el mismo motivo que los otros dos: el motivo lo exige la regla y el operador tiene que saber de cuál de las tres cosas se le está hablando. **`bo.job.tenant_state_invalid`** es el estado del centro que no admite reintento —`eliminado`, `RN-BO-87`— y es distinto de `bo.module.tenant_state_invalid` aunque suenen igual: aquél habla de escribir una suscripción, éste de reejecutar trabajo dentro del centro, y los dos conjuntos de estados admitidos **no coinciden** (`en_alta` admite reintento y no admite escritura de módulos). Reutilizar una clave para dos reglas con vocabulario distinto es cómo un mensaje acaba mintiendo en uno de los dos casos.
+
+**Y `1.6d` no añade ningún `type`**, ni siquiera para el trabajo que no existe o que es de otro centro: **es un `404`**, deliberadamente indistinguible de una ruta inexistente (§2.10.3). Un `urn:pge:error:` propio ahí sería la confirmación de que ese `uuid` existe en algún sitio.
 
 **`1.6c` añade dos claves y ningún `type` nuevo al catálogo cerrado.** `bo.module.reason_required` es el simétrico de `bo.tenant.reason_required` y existe por la misma razón por la que aquél existe: el motivo lo exige `RN-BO-24` y el operador tiene que saber de cuál de las dos cosas se le está hablando. **`bo.module.tenant_state_invalid`** es el estado del centro que no admite escritura de módulos —`en_alta` o `eliminado`, `RN-BO-71`— y es distinto de `bo.tenant.invalid_transition`, que habla de una transición que aquí no existe, y distinto de un `404`, porque el centro existe y el operador lo está viendo en su inventario. **Ninguna de las dos necesita `type` propio**: son errores de una petición sobre un recurso, y `422`/`409` con su clave en `errors` es lo que `ADR-038 §6.3` prevé. Un `urn:pge:error:` se reserva para lo que la interfaz debe distinguir **sin analizar texto**, como `reauthentication-required` o `module-disabled`.
 
@@ -647,6 +801,8 @@ Los **veintidós** —diecinueve del chasis, del ciclo de vida y de los módulos
 **Obligatoria en `POST /module-rollouts` por los dos criterios**: notifica a terceros —un `ModuleContracted` por centro, y en 1.19 una notificación por centro— y opera por lotes. **El reintento con la misma clave devuelve el resultado anterior sin volver a encolar nada ni emitir eventos duplicados** (`CA-BO-043`). Con `enabled: false`, lo que la clave protege es la creación de la `dual_authorization`: sin ella, dos envíos producirían dos solicitudes pendientes de la misma operación — que el índice único parcial `(action, payload_fingerprint) WHERE status = 'pendiente'` de `datos.md §3.2` convertiría en un `409` desconcertante en vez de en una réplica de la primera respuesta.
 
 **No obligatoria** en `POST /dual-authorizations/{id}/approval`: el índice único parcial y el `CHECK` de coherencia de estado (`datos.md §3.2`) convierten el reintento en `409`, que es el resultado correcto.
+
+**No obligatoria** en `POST /tenants/{id}/failed-jobs/{uuid}/retry` (`1.6d`), y el motivo es más fuerte que en los casos anteriores: **el recurso desaparece al usarlo**. El reintento borra la fila de `failed_jobs`, así que un reenvío de la misma petición encuentra un `404` y no puede encolar un segundo trabajo. No es que la idempotencia esté protegida por un índice: es que la operación **no es repetible por construcción**. Si el trabajo reintentado vuelve a fallar, lo hace con un `uuid` **nuevo**, que es otro recurso y otra decisión del operador.
 
 **No obligatoria** en ninguna escritura de *flags*: `PUT …/rules` y `PUT …/state` declaran el estado deseado completo y son idempotentes por construcción — reenviar el mismo cuerpo deja el mismo resultado. Lo único que un reintento produce de más es un incremento de `rules_version` y una entrada de auditoría, y ninguna de las dos cosas es un efecto que haya que evitar: la primera sólo invalida caché de sobra, y la segunda es el registro fiel de que alguien envió la operación dos veces.
 
@@ -673,6 +829,8 @@ Los dos primeros **no los emite este módulo**, y no es un detalle de implementa
 **Y `1.6b` no añade ninguna fila a esta tabla: ni el alta ni la clonación emiten evento de dominio** (`ADR-048 §4.6`). Es una omisión deliberada y no un olvido. El hecho «este tenant quedó aprovisionado» **ya se registra dos veces** —la fila `en_alta` → `activo` de `tenant_lifecycle_events` y la de `admin_action_logs`—, las dos escritas por el mismo trabajo y en el mismo instante; un `TenantProvisioned` sería una tercera fuente de verdad del mismo hecho, y en cuanto alguien la escuchara habría dos caminos por los que enterarse y uno se quedaría atrás. **No contradice el párrafo anterior sobre `TenantSuspended` y compañía**: aquellas son transiciones que decide un operador y cuyo momento sólo conoce el servicio de transición; el aprovisionamiento no lo decide nadie, es la consecuencia de un alta que ya quedó escrita. Cuando `REQ-ONB` (1.24) necesite engancharse, el evento se añade en `REQ-CORE` —nunca aquí (`ADR-045 §4.8`)— con una línea y sin ADR.
 
 **Las escrituras de *feature flags* no emiten ningún evento de dominio, y aquí sí es una decisión distinta de la que se tomó con los tenants.** `TenantSuspended` y compañía se declaran aunque hoy no tengan consumidor, porque `REQ-BKP` y `REQ-COM` los necesitarán y añadirlos después obligaría a tocar el camino de escritura otra vez. Con los *flags* no ocurre eso: **el consumidor de un *flag* es el evaluador, y el evaluador lee el estado vigente, no la transición**. Ningún módulo de fase 1 ni de fase 2 necesita reaccionar al hecho de que una regla cambió — necesita saber el valor **ahora**, que es justo lo que `FeatureFlagEvaluator` responde. Declarar un evento sin consumidor posible sería inventar una extensión, no anticiparla.
+
+**`1.6d` no añade ninguna fila a esta tabla, y tampoco es un olvido.** Es un sub-paso de lectura con una sola escritura, y esa escritura —el reintento— **ya emite un evento, el del propio trabajo reencolado**: cuando el *worker* lo procese ocurrirá exactamente lo que habría ocurrido de no haber fallado, eventos de dominio incluidos. Un `JobRetried` propio anunciaría el hecho de reintentarlo, que es una decisión de operación y no un hecho de negocio, y su registro ya existe donde tiene que existir: `admin_action_logs` con `job.reintentado`, su actor y su motivo.
 
 ---
 

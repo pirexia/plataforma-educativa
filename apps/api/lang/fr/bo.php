@@ -45,6 +45,18 @@ return [
         'missing_dependencies' => 'Des dépendances restent à souscrire : :modules. Confirmez l\'entraînement pour continuer.',
         'dependent_modules' => 'D\'autres modules dépendent de celui-ci : :modules. Confirmez l\'entraînement pour continuer.',
     ],
+    // REQ-BO-004 (1.6d) : catalogue d'erreurs de santé et de nouvelle tentative des tâches.
+    'job' => [
+        'reason_required' => 'Le motif est obligatoire et ne peut pas être vide.',
+        'tenant_state_invalid' => 'L\'établissement est dans un état qui n\'autorise pas la nouvelle tentative des tâches.',
+        'reason' => [
+            'retried_via_console' => 'Remise en file via bo:retry-provisioning.',
+        ],
+    ],
+    // REQ-BO-006 (1.6d) : catalogue d'erreurs des métriques de plateforme.
+    'metrics' => [
+        'invalid_period' => 'Le début de la période ne peut pas être postérieur à sa fin.',
+    ],
     // Issue #173. Courriel d'invitation d'un administrateur de plateforme.
     'mail' => [
         'invitation' => [

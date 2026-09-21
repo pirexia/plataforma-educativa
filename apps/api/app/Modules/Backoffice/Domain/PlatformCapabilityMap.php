@@ -22,6 +22,11 @@ final class PlatformCapabilityMap
             PlatformCapability::TenantLeer,
             PlatformCapability::AuditoriaPlataformaLeer,
             PlatformCapability::ModuloLeer,
+            // permisos.md §4.5 punto 1: `salud.leer` es diagnóstico —
+            // literalmente el trabajo de soporte— y no incluye
+            // `job.reintentar`, que es escritura (§4.1: "soporte no tiene
+            // ni una escritura").
+            PlatformCapability::SaludLeer,
         ],
         'operaciones' => [
             PlatformCapability::TenantLeer,
@@ -37,12 +42,21 @@ final class PlatformCapabilityMap
             PlatformCapability::ModuloLeer,
             PlatformCapability::ModuloContratar,
             PlatformCapability::ModuloContratarMasivo,
+            // permisos.md §4.5: operaciones diagnostica, reintenta y lee
+            // métricas — las tres capacidades de 1.6d.
+            PlatformCapability::SaludLeer,
+            PlatformCapability::JobReintentar,
+            PlatformCapability::MetricaLeer,
         ],
         'comercial' => [
             PlatformCapability::TenantLeer,
             // permisos.md §4.4 punto 4: comercial necesita saber qué está
             // contratado («planes y facturación»), nunca escribir.
             PlatformCapability::ModuloLeer,
+            // permisos.md §4.5 punto 2 y 3: comercial lee métricas
+            // («planes y facturación») y NO lee la ficha de salud de un
+            // centro concreto — esa asimetría con `soporte` es deliberada.
+            PlatformCapability::MetricaLeer,
         ],
         'superadministrador' => [
             PlatformCapability::TenantLeer,
@@ -64,6 +78,9 @@ final class PlatformCapabilityMap
             PlatformCapability::ModuloLeer,
             PlatformCapability::ModuloContratar,
             PlatformCapability::ModuloContratarMasivo,
+            PlatformCapability::SaludLeer,
+            PlatformCapability::JobReintentar,
+            PlatformCapability::MetricaLeer,
         ],
     ];
 

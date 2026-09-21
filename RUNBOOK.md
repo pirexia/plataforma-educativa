@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.0** · 2026-09-04
+> **Versión 0.3.1** · 2026-09-21
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -48,6 +48,10 @@ podman compose logs -f <servicio>
 ### 2.4 Si `db-reviewer` o `security-reviewer` encuentran un hallazgo Crítico o Alto
 
 Parar el merge. Documentar el hallazgo como issue de GitHub con severidad, ficheros implicados y propuesta de solución (`CLAUDE.md` §5). Un hallazgo Alta se corrige en la misma sesión antes de mezclar; uno Crítico detiene además cualquier otro trabajo en curso.
+
+### 2.5 Si `failed_jobs` crece sin parar pese a que la purga está programada (`REQ-BO`, `1.6d`)
+
+Comando de diagnóstico rápido, desde dentro del contenedor `api` (`docs/modulos/REQ-BO/operacion.md §6.2`): comprobar que **`bo:purge-failed-jobs`** está en la lista del planificador y **`queue:prune-failed`** ya no lo está (`php artisan schedule:list`). Si sigue apareciendo el comando del framework, el despliegue no tiene el código de `1.6d` — ese comando lleva desde `0.7` sin poder borrar ni una fila (apunta a la conexión `plataforma_app`, que tiene `REVOKE DELETE` sobre `failed_jobs`), y mientras esté programado la retención de 24 horas del issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73) es solo una promesa documental, no un hecho. Purga manual de emergencia (por `pgsql_platform`, nunca por la conexión de aplicación): `DELETE FROM failed_jobs WHERE failed_at < now() - interval '24 hours';`.
 
 ## 3. Guardias (on-call)
 
@@ -123,7 +127,7 @@ Es una operación de segundos porque cada versión es una imagen inmutable en GH
 
 **Reversión de `REQ-AUTH-003` (1.3)** (`docs/modulos/REQ-AUTH/operacion.md §C.11.2`):
 
-- **Drenar la cola `auth-mail` antes de revertir** — procedimiento documentado para cuando exista un *worker* real consumiéndola. **A día de hoy no hay ningún *worker* de colas desplegado** (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128), `SYSADMIN.md`): los trabajos despachados a `auth-mail` quedan en la tabla `jobs` sin procesar, así que este procedimiento de drenado no se ha podido probar de extremo a extremo todavía. Los cinco trabajos de correo nuevos de 1.3 (código de segundo factor, código de alta, activación/desactivación, código de respaldo usado) no existen en la versión anterior: si queda alguno pendiente en la cola al revertir, un *worker* de la versión anterior fallaría por clase inexistente en cuanto se despliegue uno. `queue:prune-failed --hours=24` limita el daño, pero drenar antes evita generarlo.
+- **Drenar la cola `auth-mail` antes de revertir** — procedimiento documentado para cuando exista un *worker* real consumiéndola. **A día de hoy no hay ningún *worker* de colas desplegado** (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128), `SYSADMIN.md`): los trabajos despachados a `auth-mail` quedan en la tabla `jobs` sin procesar, así que este procedimiento de drenado no se ha podido probar de extremo a extremo todavía. Los cinco trabajos de correo nuevos de 1.3 (código de segundo factor, código de alta, activación/desactivación, código de respaldo usado) no existen en la versión anterior: si queda alguno pendiente en la cola al revertir, un *worker* de la versión anterior fallaría por clase inexistente en cuanto se despliegue uno. `bo:purge-failed-jobs` (`REQ-BO`) limita el daño, pero drenar antes evita generarlo. Sustituye desde `1.6d` (2026-09-21) al comando del framework `queue:prune-failed`, que llevaba desde `0.7` sin poder borrar nada de verdad (apuntaba a la conexión sin privilegio de `DELETE` sobre `failed_jobs`) — si `failed_jobs` sigue creciendo sin límite pese a que el planificador diga que la purga corre a diario, comprobar que es `bo:purge-failed-jobs` el comando programado y no el antiguo (`docs/modulos/REQ-BO/operacion.md §6.2`, y §2.5 de este documento).
 - **Revertir con factores MFA ya dados de alta es una degradación silenciosa de seguridad, no una pérdida de datos.** La versión anterior ignora `user_mfa_factors` y hace login de un solo paso: los usuarios que activaron MFA dejan de tener segundo factor **sin que nadie se lo diga**. No se pierde nada — las filas siguen ahí y vuelven a valer al desplegar 1.3 de nuevo — pero mientras dura la reversión, cuentas que un momento antes exigían dos factores solo exigen uno. Hay que saberlo antes de decidir revertir, no descubrirlo después.
 - La migración del `CHECK` ampliado de `login_attempts` es de un solo sentido en la práctica (tabla *append-only*, sin `DELETE`): revertir la aplicación **no** exige revertir esa migración.
 
