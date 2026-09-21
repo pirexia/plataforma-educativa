@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.5.2** · 2026-09-16 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.5.3** · 2026-09-21 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -58,7 +58,7 @@ Frases prohibidas: "¡Excelente idea!", "Tienes toda la razón" como apertura re
 - Cada subagente declara su modelo en su propia definición. No uses Opus en subagentes de ejecución.
 - **Cuota**: el plan es Pro con límite de 5 horas. Opus la consume rápido. Reserva Opus para sesiones de spec y plan; no lo uses para picar código.
 - Delega en subagentes todo lo que no necesite el contexto principal: exploración de código, lectura de documentación, revisiones. El contexto principal es un recurso escaso.
-- **Segunda opinión externa (Codex, `ADR-049`)**: el plugin `openai/codex-plugin-cc` da una revisión adicional sobre código ya implementado, contra la cuota de OpenAI y no la de este plan. Protocolo de uso completo en la skill `revision-con-codex`. Solo lectura, sin autoridad de bloqueo, nunca sustituye a `db-reviewer`/`security-reviewer`/`doc-reviewer`, y un hallazgo suyo que contradiga un ADR vigente se cierra citando el ADR sin discutirlo — Codex no ha leído ninguno. Prueba acotada y reversible: `ADR-049 §8` fija su criterio de éxito/fracaso.
+- **Segunda opinión externa (Codex, `ADR-049`/`ADR-050`)**: el plugin `openai/codex-plugin-cc` da una revisión adicional sobre código ya implementado, contra la cuota de OpenAI y no la de este plan. Protocolo de uso completo en la skill `revision-con-codex`. Solo lectura, sin autoridad de bloqueo, nunca sustituye a `db-reviewer`/`security-reviewer`/`doc-reviewer`, y un hallazgo suyo que contradiga un ADR vigente se cierra citando el ADR sin discutirlo — Codex no ha leído ninguno. **La prueba acotada de `ADR-049 §8` ya terminó** (evaluada, umbral formal no cumplido) y `ADR-050` la sustituye: uso **permanente y opcional** (no invocarla no es incumplimiento y no entra en la definición de terminado), sin revalidación periódica, con las condiciones de retirada inmediata de `ADR-050 §5.3` siempre armadas.
 
 **Aprovechamiento de la caché de prompt.** La sesión corre vía API: cada acierto de caché de Anthropic ahorra coste y tiempo; cada fallo reprocesa el contexto entero desde cero. La caché solo acierta si el *prefijo* de la petición (system prompt, definiciones de herramientas, turnos de conversación previos) coincide byte a byte con el de una petición reciente — vigencia por defecto de **5 minutos** desde el último acierto.
 
