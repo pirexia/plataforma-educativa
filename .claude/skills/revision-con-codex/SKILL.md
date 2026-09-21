@@ -5,7 +5,7 @@ description: Protocolo de uso del plugin Codex (openai/codex-plugin-cc) como seg
 
 # Revisión con Codex
 
-`ADR-049` decide esto. Esta skill es su protocolo de uso — la "interfaz propia" que `RNF-MANT-007` exige para una herramienta que no es una librería (`ADR-049 §6`). Si algo de aquí contradice el ADR, manda el ADR.
+`ADR-049` decide esto; `ADR-050` cierra la prueba y fija el régimen permanente. Esta skill es su protocolo de uso — la "interfaz propia" que `RNF-MANT-007` exige para una herramienta que no es una librería (`ADR-049 §6`). Si algo de aquí contradice alguno de los dos ADR, mandan ellos.
 
 ## Cuándo se invoca
 
@@ -39,14 +39,26 @@ Un hallazgo de Codex es un **candidato**, nunca un veredicto. Contrástalo contr
 
 `CLAUDE.md §0` manda en los dos sentidos: tampoco se acepta un hallazgo solo porque venga de Codex.
 
-## Evaluación de la prueba (`ADR-049 §8`)
+## La prueba terminó: uso permanente y opcional (`ADR-050`)
 
-Mientras la prueba esté abierta (calibrado sobre PR #204 + dos pasos siguientes), **cada ejecución se registra en `memory.md`**: hallazgos propuestos, aceptados, descartados y el motivo. Sin ese registro no hay con qué decidir si se mantiene o se revierte. El resultado por defecto, si no hay evaluación escrita al cerrar el segundo paso de prueba, es **revertir** (`ADR-049 §9`).
+Los tres puntos de medición de `ADR-049 §8` ya se ejecutaron y evaluaron (calibrado sobre PR #204 + `1.6c` + `1.6d`). El umbral formal no se cumplió (falló el eje de Cobertura, medido una sola vez en el calibrado y sin repetición posible), pero el usuario decidió expresamente mantener la herramienta a la vista del resultado completo — `ADR-050` retira `ADR-049 §8` y conserva `§9` como procedimiento **ordinario** de retirada, no como consecuencia de una prueba. **Ya no hay "prueba abierta" ni "pasos de prueba"**, y ya no se anota en `memory.md` un recuento de propuestos/aceptados/descartados como registro de evaluación.
+
+Lo que sigue vigente, sin ritual nuevo, porque ya lo exige `ADR-049 §7.2` de arriba:
+- **Todo hallazgo aceptado** lleva su procedencia (`/codex:review`, `/codex:adversarial-review`) etiquetada en el issue y en la entrada de `CHANGELOG.md` del paso.
+- **Todo hallazgo descartado** se anota con su motivo en la nota de cierre del paso.
+
+**Es opcional, no obligatoria.** No invocarla en un paso no es un incumplimiento de proceso, no bloquea un cierre y no forma parte de la definición de terminado (`CLAUDE.md §10`, `ADR-050 §5.5`). Que acierte muchas veces seguidas **no le da autoridad** — sigue siendo un candidato a triar, nunca un veredicto.
 
 ## Antes de la primera vez en una máquina nueva
 
 Comprobar la configuración **efectiva**, no el fichero (`codex doctor`, o un `codex exec` de prueba pidiendo escribir un fichero y confirmando que se bloquea). El `.codex/config.toml` de proyecto puede no aplicarse por un *bug* conocido de `openai/codex` (issue #30001) — la protección real puede depender de la réplica en `~/.codex/config.toml` (nivel de usuario, fuera del repositorio). Verificarlo, no suponerlo.
 
-## Cláusula de caducidad
+## Retirada (`ADR-050 §5.2`/`§5.3`)
 
-En el momento en que exista un dato personal real en esta máquina o en este repositorio (cierre de `OPEN-11`, llegada del centro piloto, cualquier exportación), la prueba termina y el plugin se desinstala, con independencia de cómo esté saliendo (`ADR-049 §5.6`). Los datos de `REQ-SEED-005` son ficticios y no cuentan.
+`ADR-049 §9` sigue siendo el procedimiento de retirada, palabra por palabra, pero ya no depende de un umbral de prueba. Se ejecuta **sin discusión y de inmediato** (dejar de invocar cualquier comando `/codex:*` en el acto; la ejecución material de `§9` se le pide al usuario en la misma sesión, porque toca configuración versionada) si ocurre cualquiera de estas:
+
+1. Se detecta **una sola vez** que el plugin ha escrito en el árbol de trabajo, o que se ha ejecutado `/codex:rescue`, `/codex:transfer` o la puerta de revisión `Stop`.
+2. **Aparece un dato personal real** en esta máquina o en este repositorio (cierre de `OPEN-11`, llegada del centro piloto, cualquier exportación) — los datos de `REQ-SEED-005` son ficticios y no cuentan. Es la única caducidad automática que queda, y no admite ponderación.
+3. El proyecto `openai/codex-plugin-cc` queda archivado, cambia de licencia, o aparece un aviso de seguridad sin corregir.
+
+Fuera de esas tres, **el usuario puede retirarla en cualquier momento, sin evaluación previa y sin tener que justificarlo**.

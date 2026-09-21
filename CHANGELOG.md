@@ -6,6 +6,24 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-09-21 · `chore/cierre-1.6d-memoria-plan`
+
+`ADR-050`: cierre de la prueba de Codex (`ADR-049 §8`). Los tres puntos de medición que fijaba `§8.2` (calibrado sobre PR #204 + `1.6c` + `1.6d`) ya están cerrados:
+
+| Paso | Cobertura (≥2/4) | Precisión (≤1 descartado/aceptado) | Aportación diferencial (≥1) |
+|---|---|---|---|
+| Calibrado, PR #204 | **0/4 — no cumple** | 3 propuestos, 0 descartados | — |
+| `1.6c` (PR #214) | No aplica | 3/3 aceptados, 0 descartados | Sí — issue #224 (Alta) |
+| `1.6d` (PR #229) | No aplica | 3/3 aceptados, 0 descartados | No en este paso |
+
+Como `§8.2` exigía las tres a la vez, **el resultado formal es fracaso** — la Cobertura falló en el calibrado y esa medición no se repite. `ADR-050` no declara superada la prueba: documenta el fracaso formal, argumenta por qué el umbral de Cobertura estaba mal diseñado desde el principio (medía "adivinar el pasado", con derecho de veto sobre dos tercios de la evidencia aún sin recoger) y sustituye la regla hacia delante, por decisión expresa e informada del usuario tras ver la tabla completa: *"No lo desinstalamos, lo utilizamos como herramienta extra de verificación"*.
+
+`ADR-050` sustituye `ADR-049 §8` completo y `§8.3` punto 1; conserva `§9` (procedimiento de reversión) íntegro, ahora como retirada **ordinaria** y no como consecuencia de una prueba; no instituye revalidación periódica; deja el uso como permanente y opcional, sin autoridad de bloqueo. Punto abierto para el usuario, no resuelto por `architect`: la política de datos de la capa gratuita de ChatGPT se aceptó "para esta fase de prueba", que ha terminado.
+
+De paso: cierre de `1.6d` en `memory.md`/`PLAN-IMPLEMENTACION.md`, archivado el bloque de `1.6c` a `docs/historial/1.6c-matriz-modulos.md`.
+
+---
+
 ## 2026-09-16/21 · `feature/REQ-BO-1.6d-salud-metricas-plataforma`
 
 Implementa el sub-paso `1.6d` (`REQ-BO-004`/`REQ-BO-006` reducidos a lo observable sin `REQ-SAAS`/`REQ-ALUM`/`REQ-SUP`) sobre la especificación aprobada de `docs/modulos/REQ-BO/funcional.md §15.4`. PR [#229](https://github.com/pirexia/plataforma-educativa/pull/229).
