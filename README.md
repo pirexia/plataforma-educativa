@@ -4,9 +4,9 @@ SaaS para la gestión integral de centros educativos. Segmento inicial: **centro
 
 | Campo | Valor |
 |-------|-------|
-| **Versión del documento** | 2.6.2 |
-| **Fecha** | 2026-09-14 |
-| **Estado del proyecto** | Fase 1 · MVP operativo. Bloque A (identidad y acceso) **completo y mezclado**: tenants/usuarios, autenticación local, sesiones activas, MFA (TOTP + correo), login con Google (fusión de cuentas) y SSO institucional OIDC + SAML 2.0 con aprovisionamiento por emparejamiento (`1.1`-`1.4c`, `REQ-AUTH-004` íntegro). `1.5` · Núcleo de autorización granular (`REQ-PERM`) **completo y mezclado**. `1.6` · Backoffice de superadmin — chasis de identidad, autorización y auditoría de plataforma (`REQ-BO-007`) **completo y mezclado** tras dos pasadas de revisión independiente. `1.6b` · Ciclo de vida de tenants (`REQ-BO-001`) **completo y mezclado**; `1.6c`-`1.6e` pendientes |
+| **Versión del documento** | 2.6.3 |
+| **Fecha** | 2026-09-21 |
+| **Estado del proyecto** | Fase 1 · MVP operativo. Bloque A (identidad y acceso) **completo y mezclado**: tenants/usuarios, autenticación local, sesiones activas, MFA (TOTP + correo), login con Google (fusión de cuentas) y SSO institucional OIDC + SAML 2.0 con aprovisionamiento por emparejamiento (`1.1`-`1.4c`, `REQ-AUTH-004` íntegro). `1.5` · Núcleo de autorización granular (`REQ-PERM`) **completo y mezclado**. `1.6` · Backoffice de superadmin — chasis de identidad, autorización y auditoría de plataforma (`REQ-BO-007`) **completo y mezclado** tras dos pasadas de revisión independiente. `1.6b` · Ciclo de vida de tenants (`REQ-BO-001`) **completo y mezclado**. `1.6c` · Matriz de módulos (`REQ-BO-002`) **completo y mezclado**. `1.6d` · Salud y métricas de plataforma (`REQ-BO-004`/`REQ-BO-006` reducidos) implementado, en revisión independiente antes de mezclar (PR #229); `1.6e` pendiente |
 
 ---
 

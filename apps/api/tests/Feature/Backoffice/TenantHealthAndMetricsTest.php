@@ -582,6 +582,40 @@ test('CA-BO-160b: occurred_at_from posterior a occurred_at_to responde 422', fun
     $response->assertStatus(422);
 });
 
+test('CA-BO-160c: (regresión, hallazgo de /codex:review) occurred_at_from mal formado responde 422, no 500', function (): void {
+    [$admin, $secret] = boCreateEnrolledAdmin('operaciones');
+    $this->actingAs($admin, 'platform');
+
+    $response = $this->getJson('http://'.boPlatformHost().'/api/platform/v1/metrics/platform?occurred_at_from=no-es-una-fecha');
+
+    $response->assertStatus(422);
+});
+
+test('CA-BO-152b: (regresión, hallazgo de /codex:review) failed_at_from mal formado responde 422, no 500', function (): void {
+    $tenant = Tenant::factory()->create();
+    [$admin, $secret] = boCreateEnrolledAdmin('operaciones');
+    $this->actingAs($admin, 'platform');
+
+    $response = $this->getJson('http://'.boPlatformHost().'/api/platform/v1/tenants/'.$tenant->public_id.'/failed-jobs?failed_at_from=no-es-una-fecha');
+
+    $response->assertStatus(422);
+});
+
+test('CA-BO-152c: (regresión, hallazgo de /codex:review) limit=0 y limit negativo responden 422, no paginación rota', function (): void {
+    $tenant = Tenant::factory()->create();
+    [$admin, $secret] = boCreateEnrolledAdmin('operaciones');
+    $this->actingAs($admin, 'platform');
+
+    $this->getJson('http://'.boPlatformHost().'/api/platform/v1/tenants/'.$tenant->public_id.'/failed-jobs?limit=0')
+        ->assertStatus(422);
+
+    $this->getJson('http://'.boPlatformHost().'/api/platform/v1/tenants/'.$tenant->public_id.'/failed-jobs?limit=-5')
+        ->assertStatus(422);
+
+    $this->getJson('http://'.boPlatformHost().'/api/platform/v1/tenants/'.$tenant->public_id.'/failed-jobs?limit=201')
+        ->assertStatus(422);
+});
+
 test('CA-BO-161: adopción por módulo se construye sobre el catálogo declarado, con esencial marcado y sin recuento, y un retirado con su recuento real', function (): void {
     registerHealthModuleFixtures();
 

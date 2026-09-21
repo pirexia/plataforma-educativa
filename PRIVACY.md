@@ -1,6 +1,6 @@
 # PRIVACY.md
 
-> **Versión 0.2.3** · 2026-09-08
+> **Versión 0.2.4** · 2026-09-21
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Base del Registro de Actividades de Tratamiento (RAT) exigido por el RGPD — hoy es un **esqueleto**, no un RAT completo: varias secciones dependen de decisiones que todavía no se han tomado (`OPEN-07`, entidad jurídica y contrato de encargado de tratamiento). No se rellenan con suposiciones (`CLAUDE.md` §0/§11).
 
 ---
@@ -95,6 +95,7 @@ Mínimo legal por tipo de dato y catálogo completo: responsabilidad de `REQ-PRI
 
 - **Auditoría** (`audit_logs`): retención mínima de 2 años (`REQ-CORE-005`), append-only e inmutable por diseño. El conflicto con el derecho de supresión sobre identificadores personales queda resuelto por `ADR-035`: no se escribe su valor en `changes` (se redacta desde el origen, por política de modelo), así que no hay nada que suprimir dentro de la fila; la supresión se completa por vencimiento del plazo de retención. La purga automática en sí es responsabilidad de `REQ-PRIV-006`, todavía sin implementar. Detalle completo en `docs/adr/ADR-035-datos-personales-en-el-registro-de-auditoria.md`.
 - **RCDS** (Registro Central de Delincuentes Sexuales, verificación obligatoria de personal en contacto con menores): plazo y base legal específicos de la normativa vigente, catalogar en `REQ-PRIV-006`.
+- **Trabajos fallidos de cola** (`failed_jobs`): retención de 24 horas decidida en el issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73) (2026-08-25) para no conservar los tokens de un solo uso de `SendPasswordResetEmail`/`SendAccountLockedEmail` más de lo imprescindible, ni siquiera cifrados (`ShouldBeEncrypted`). **Incidencia, con sus fechas, no un simple "ya arreglado"**: entre la `0.7` (2026-08-17, cuando la tabla quedó con `REVOKE DELETE` para `plataforma_app`) y el `1.6d` (2026-09-21), el comando programado que debía aplicar esa retención (`queue:prune-failed`) usaba precisamente esa conexión sin privilegio de borrado — **no borró una sola fila en ese periodo**, y los *payloads* cifrados con token se conservaron indefinidamente. Cerrado por `bo:purge-failed-jobs` (`REQ-BO-004`, `pgsql_platform`), verificado con test de regresión (`CA-BO-166`). Arreglarlo hacia delante no borra lo que se conservó de más durante esos dos meses.
 
 ## 6. Preguntas abiertas
 

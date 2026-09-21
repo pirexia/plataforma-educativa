@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.8.2** · 2026-09-15
+> **Versión 0.8.3** · 2026-09-21
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`); el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
@@ -263,6 +263,12 @@ php artisan bo:create-admin --email=b@proveedor.example --role=superadministrado
 Cola `backoffice-maintenance`: `RunModuleRollout` procesa una activación/desactivación masiva, una transacción por centro (nunca una sobre todos), en orden ascendente de `id` — un fallo sobre un centro no aborta el lote, se registra en `admin_action_logs` y el lote sigue (`RN-BO-78`). El resultado de un lote se consulta en `admin_action_logs` (`action = 'modulo.masivo_ejecutado'`), no en una tabla propia.
 
 Tabla nueva `platform_idempotency_keys` (`ADR-038 §8`): versión de plataforma de `idempotency_keys`, para `POST /module-rollouts` — el backoffice nunca tiene tenant activo y la tabla de tenant exige uno para cualquier consulta (issue [#216](https://github.com/pirexia/plataforma-educativa/issues/216)). Sin tarea de purga programada todavía; las filas caducadas (`expires_at`, 24 h) se acumulan hasta que se añada, igual que ocurrió con `idempotency_keys` antes de `PurgeExpiredIdempotencyKeys` — pendiente de documentar aquí cuando exista su homóloga de plataforma.
+
+### 2d.2 Salud y métricas de plataforma (`REQ-BO-004`/`REQ-BO-006` reducidos, `1.6d`)
+
+**`APP_VERSION` tiene que fijarse en el despliegue**, desde la etiqueta de imagen de `ADR-037` (`infra/quadlet`/CI de publicación) — la ficha de salud de un tenant (`GET /tenants/{public_id}/health`) la devuelve en su bloque de plataforma (`docs/modulos/REQ-BO/funcional.md §5.9.2`). Sin fijarla, `config('app.version')` cae al valor por defecto de `config/app.php` (`0.1.0`) en todos los entornos para siempre — un dato que parece medido y no lo es.
+
+**La pila de colas real**, para diagnosticar sin sorpresas: `QUEUE_CONNECTION=database` (Laravel), tablas `jobs` y `failed_jobs` — **sin ningún *worker* desplegado todavía** (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128)). `plataforma_app` tiene `REVOKE SELECT, UPDATE, DELETE` sobre ambas desde `0.7` (conserva solo `INSERT`, lo que el *worker* necesita para registrar un fallo) — por eso los comandos del propio framework, `queue:retry`/`queue:failed`/`queue:prune-failed`, **nunca han funcionado en este proyecto**: leen y escriben por esa misma conexión. Todo lo que necesita privilegio real (leer trabajos fallidos, reintentar, purgar) lo hace `REQ-BO` por la conexión `pgsql_platform`, dentro de `runAsPlatform()`. La tarea programada nueva de este sub-paso, **`bo:purge-failed-jobs`** (diaria, retención de 24 horas — issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73), constante en `config/backoffice.php`, sin variable de entorno a propósito), **sustituye** en `routes/console.php` al comando del framework, que llevaba desde `0.7` sin borrar una sola fila. Diagnóstico si `failed_jobs` crece sin parar: `RUNBOOK.md §2.5`.
 
 ## 3. Comprobación rápida
 

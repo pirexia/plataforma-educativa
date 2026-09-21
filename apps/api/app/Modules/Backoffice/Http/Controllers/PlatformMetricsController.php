@@ -4,8 +4,8 @@ namespace App\Modules\Backoffice\Http\Controllers;
 
 use App\Modules\Backoffice\Application\BoValidationError;
 use App\Modules\Backoffice\Application\PlatformMetricsService;
+use App\Modules\Backoffice\Http\Requests\ShowPlatformMetricsRequest;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Carbon;
 
@@ -25,7 +25,7 @@ class PlatformMetricsController extends Controller
      * `GET /metrics/platform`. `occurred_at_from`/`occurred_at_to`,
      * inclusivos, por omisión los últimos 30 días (`ADR-038 §5.2`).
      */
-    public function platform(Request $request): JsonResponse
+    public function platform(ShowPlatformMetricsRequest $request): JsonResponse
     {
         $from = $request->filled('occurred_at_from')
             ? Carbon::parse($request->string('occurred_at_from')->value())

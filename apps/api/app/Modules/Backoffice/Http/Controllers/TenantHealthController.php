@@ -8,11 +8,11 @@ use App\Modules\Backoffice\Application\PlatformReauthenticationCheck;
 use App\Modules\Backoffice\Application\TenantHealthService;
 use App\Modules\Backoffice\Domain\FailedJobPresentation;
 use App\Modules\Backoffice\Domain\Models\PlatformAdmin;
+use App\Modules\Backoffice\Http\Requests\IndexFailedJobsRequest;
 use App\Modules\Backoffice\Http\Requests\StoreFailedJobRetryRequest;
 use App\Support\Api\ApiException;
 use App\Support\Tenancy\Tenant;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -46,7 +46,7 @@ class TenantHealthController extends Controller
      * de texto libre a propósito (`RN-BO-84`). **Nunca** `payload` ni
      * traza en la respuesta.
      */
-    public function failedJobs(Request $request, string $publicId): JsonResponse
+    public function failedJobs(IndexFailedJobsRequest $request, string $publicId): JsonResponse
     {
         $tenant = $this->find($publicId);
         $admin = $this->actor();
@@ -76,7 +76,9 @@ class TenantHealthController extends Controller
         }
 
         $fingerprint = $this->cursorCodec->fingerprint($filters);
-        $limit = min($request->integer('limit', 50), 200);
+        // IndexFailedJobsRequest ya garantiza 1-200: un limit=0 o negativo
+        // es un 422 de forma, no llega aquí (hallazgo de /codex:review).
+        $limit = $request->integer('limit', 50);
 
         if ($request->filled('cursor')) {
             [$failedAt, $id] = $this->cursorCodec->decode($request->string('cursor')->value(), $fingerprint, $admin->id);
