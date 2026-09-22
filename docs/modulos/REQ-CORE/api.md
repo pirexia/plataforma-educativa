@@ -73,7 +73,7 @@ Identidad del centro, solo lectura. El ciclo de vida es 1.6 (`funcional.md` §1.
   },
   "branding": {
     "color_primary": "#1D4ED8",
-    "color_secondary": "#64748B",
+    "color_secondary": "#FFFFFF",
     "logo_url": "https://.../signed?...",
     "favicon_url": null,
     "login_background_url": null
@@ -98,7 +98,7 @@ Actualización parcial. Se aceptan los grupos `regional`, `fiscal` y `branding` 
 ```json
 {
   "regional": { "active_locales": ["es-ES", "en", "fr"], "default_locale": "es-ES" },
-  "branding": { "color_primary": "#1D4ED8", "color_secondary": "#475569" }
+  "branding": { "color_primary": "#1D4ED8", "color_secondary": "#FFFFFF" }
 }
 ```
 
@@ -137,7 +137,7 @@ Actualización parcial. Se aceptan los grupos `regional`, `fiscal` y `branding` 
 {
   "name": "Colegio Ficticio Miramadrid",
   "color_primary": "#1D4ED8",
-  "color_secondary": "#475569",
+  "color_secondary": "#FFFFFF",
   "logo_url": "https://.../signed?...",
   "favicon_url": null,
   "login_background_url": null,
