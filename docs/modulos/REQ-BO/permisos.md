@@ -9,6 +9,8 @@
 > **`1.6c` tampoco añade ninguna capacidad.** Las tres del recurso `modulo` —`modulo.leer`, `modulo.contratar`, `modulo.contratar_masivo`— ya estaban declaradas en §3 y repartidas en §4 desde el chasis. Lo que añade es **§4.4**, el emparejamiento operación por operación con sus tres barreras, y **seis reglas de §5 que no son capacidades**. El único punto abierto es si la descontratación individual es sensible (`OPEN-BO-17`), que es una celda de §4.4 y no un permiso.
 >
 > **`1.6d` tampoco decide ningún reparto nuevo, y conviene decir por qué parece que sí.** Las tres capacidades de salud y métricas —`salud.leer`, `job.reintentar` y `metrica.leer`— están en §3 y repartidas en §4 **desde el chasis**, con su argumento escrito en §4.1; lo que `1.6d` hace es **declararlas en el `enum` `PlatformCapability`**, que hasta ahora no las tenía porque su propio *docblock* fija la regla: una capacidad se declara *«cuando exista el *endpoint* que la necesite»*, y declarar una sin *endpoint* sería inventar superficie. Lo que añade este sub-paso es **§4.5**, el emparejamiento operación por operación, y **seis reglas de §5 que no son capacidades**. El único punto abierto es si el reintento es sensible (`OPEN-BO-21`), que es una celda de §4.5 y no un permiso.
+>
+> **`1.6e` es el cuarto sub-paso seguido que no decide ningún reparto nuevo, y el primero que sí toca el `enum`.** Las dos capacidades de *flags* —`flag.leer` y `flag.gestionar`— están en §3 y repartidas en §4 **desde el chasis**, con su argumento en §4.1, que es además el único sitio de este documento donde el reparto se apoya en una palabra **literal** del requisito: `REQ-BO-007` describe el alcance de `operaciones` como «módulos, límites, **flags**». Lo que este sub-paso añade es **§4.6**, el emparejamiento operación por operación, **la declaración de las dos capacidades en el `enum`** —verificado el 2026-09-21: hoy tiene veinticuatro casos y ninguno es de `flag`— y **cuatro reglas de §5 que no son capacidades**. No hay ningún punto abierto de permisos: las cuatro preguntas de `1.6e` —`OPEN-BO-24`, `OPEN-BO-25`, y las dos ya resueltas el 2026-09-21, `OPEN-BO-26` (caché sobre Redis) y `OPEN-BO-11` (rutas por `key`)— son de caché, de superficie pública, de despliegue y de identificadores, y **ninguna toca una celda de §3 ni de §4**. Es el cuarto sub-paso seguido del que eso es cierto, y merece decirse: **la matriz de este módulo no ha cambiado desde el chasis**.
 
 ---
 
@@ -215,6 +217,38 @@ Consecuencia concreta y aceptada: alguien con `operaciones` **y** `superadminist
 
 > **La consecuencia de un vistazo, como en §4.3 y §4.4: `soporte` puede verlo todo de un centro y no puede tocar nada; `comercial` puede ver el parque y no puede ver un centro.** Las dos mitades del rol de `REQ-BO-007` —«solo lectura y diagnóstico» frente a «planes y facturación»— quedan, por primera vez en este módulo, con superficie real que las distinga.
 
+### 4.6 Qué exige cada operación de *feature flags* (`1.6e`)
+
+§3 declara dos capacidades sobre el recurso `flag` —`flag.leer` y `flag.gestionar`— y §4 dice quién las tiene, **las dos desde el chasis**. Lo que faltaba, y lo que `implementer` necesita para no inventárselo, es el emparejamiento operación por operación con las barreras que no son la capacidad.
+
+| Operación | Capacidad | Quién la tiene | ¿Sensible? | ¿Doble autorización? |
+|---|---|---|:---:|:---:|
+| `GET /feature-flags` | `flag.leer` | `soporte`, `operaciones`, `superadministrador` | No | No |
+| `GET /feature-flags/{key}` | `flag.leer` | Ídem | No | No |
+| `POST /feature-flags/{key}/rules/preview` | `flag.leer` | Ídem | No | No |
+| `GET /tenants/{public_id}/feature-flags` | `flag.leer` | Ídem | No | No |
+| **Apagar** (`PUT …/state`, destino `forced_off`) | `flag.gestionar` | `operaciones`, `superadministrador` | **No** | No |
+| **Encender** (`PUT …/state`, destino `activo`) | `flag.gestionar` | Ídem | **Sí** | No |
+| **Escribir el conjunto de reglas** (`PUT …/rules`) | `flag.gestionar` | Ídem | **Sí** | No |
+| **Designar o retirar *early adopter*** (`PUT /tenants/{public_id}/early-adopter`) | **`tenant.actualizar`** | Ídem | No | No |
+| `GET /api/v1/feature-flags` | **Ninguna** — es del tenant, por identidad del portador | — | — | — |
+
+**Las cinco decisiones de esta tabla que hay que poder defender:**
+
+**1 · Una sola capacidad para las dos direcciones del interruptor, y la asimetría vive en la reautenticación y no en el permiso.** Es literalmente el criterio de §4.4 punto 1 —*«quien contrata tiene que poder deshacerlo»*— aplicado aquí, y con más motivo: partir `flag.apagar` de `flag.encender` produciría a alguien que puede parar una funcionalidad rota a las tres de la mañana y **no** puede volver a encenderla cuando el arreglo esté desplegado, que es la mitad del trabajo. La diferencia de peligro entre apagar y encender es real, pero es de **fricción**, y eso lo resuelve `api.md §4`, no una capacidad más.
+
+**2 · `flag.gestionar` cubre el estado **y** las reglas, y tampoco se parte.** La tentación es dar el freno de emergencia a más gente que el porcentaje. No se hace, y el motivo es que **apagar y arreglar la regla que encendió de más son la misma tarea**: quien apaga un *flag* porque está rompiendo colegios tiene que poder, acto seguido, dejar su regla como estaba. Dos capacidades obligarían a llamar a otra persona en mitad del incidente, que es exactamente lo que el freno sin fricción de `api.md §2.12` existe para evitar.
+
+**3 · La designación de *early adopter* se autoriza con `tenant.actualizar`, y eso tiene una consecuencia visible.** El motivo está en `api.md §2.11` —es un atributo **del centro**, escrito en `tenants`, no una regla de despliegue— y la consecuencia es que **`soporte` puede ver que un centro es *early adopter* y no puede convertirlo en uno**: tiene `flag.leer` y no tiene `tenant.actualizar`. Es el reparto correcto y no una casualidad: meter a un colegio en la cohorte que recibe todo antes que nadie es una decisión sobre la relación con ese cliente, no un diagnóstico.
+
+**4 · `GET /tenants/{public_id}/feature-flags` cuelga de una ruta de tenant y se autoriza con `flag.leer`, no con `tenant.leer`.** La capacidad es la del recurso que se lee, no la del segmento de la URL — mismo criterio que `§4.5` con `GET /tenants/{id}/health`. **No abre ningún camino de enumeración de centros**: los tres roles que tienen `flag.leer` tienen también `tenant.leer` y ya ven el inventario entero en `GET /tenants`.
+
+**5 · Ninguna operación de *flags* pasa por doble autorización, y hay que decir por qué no.** `REQ-BO-007` la exige para *«eliminar un tenant, purgar datos o desactivar módulos en masa»*, y **ninguna escritura de *flag* destruye nada**: se deshace con otra escritura, en segundos y sin desplegar (`RNF-MANT-005`). El argumento completo está en `api.md §2.12`, y su reverso importa: exigir dos personas para mover un porcentaje convertiría el despliegue progresivo en algo que nadie usa, y lo que se usaría en su lugar es desplegar de golpe — justo lo que `RARQ-DEP-010` quiere evitar.
+
+> **La consecuencia de un vistazo, como en §4.3, §4.4 y §4.5: `operaciones` puede exponer u ocultar una funcionalidad en los doscientos centros a la vez, y no puede cerrar ni uno.** Es la misma línea que §4.1 trazó en prosa al repartir «módulos, límites, **flags**», y la única de las cuatro tablas de este apartado en la que una sola llamada alcanza al parque entero sin pasar por una masiva ni por una segunda persona. Es también el motivo de que `api.md §4` ponga la reautenticación en las dos escrituras que exponen, y de que `operacion.md §7` vigile el uso de `forced_off` como señal de calidad.
+
+**Verificado el 2026-09-21 sobre `develop`, y no supuesto**: `PlatformCapability` declara hoy **veinticuatro** casos y **ninguno es de `flag`**. `1.6e` añade **exactamente dos** —`FlagLeer = 'flag.leer'` y `FlagGestionar = 'flag.gestionar'`—, siguiendo la regla que el propio *docblock* del `enum` fija y que `1.6d` ya aplicó: una capacidad se declara **cuando existe el *endpoint* que la necesita**. Con eso el `enum` queda en veintiséis y la matriz de §3 y §4 cuadra celda a celda (`CA-BO-167`).
+
 ---
 
 ## 5. Reglas de autorización que no son una capacidad
@@ -258,6 +292,10 @@ Igual que `REQ-CORE/permisos.md §8` y `REQ-PERM/permisos.md §8`: lo que ningun
 | **`1.6d` · No existe reintento masivo** (`RN-BO-88`) | Ausencia de ruta y de bandera | No hay capacidad que lo conceda porque **no hay camino**. Un `retry all` reejecutaría efectos secundarios —correos incluidos— sobre todos los centros a la vez: sería una acción destructiva, y `REQ-BO-007` exige doble autorización a las destructivas (`CA-BO-157`) |
 | **`1.6d` · Ninguna lectura agregada corre fuera del bloque de plataforma** (`RN-BO-94`) | `runAsPlatform(BackofficeLectura, …)` | No es una comprobación de permiso y **su fallo es silencioso**: fuera del bloque, `TenantScope` filtra y la métrica sale reducida al tenant activo **sin error**. Es lo que `CA-BO-162` existe para atrapar, y por eso ese test usa tres centros y comprueba el total |
 | **`1.6d` · El reintento reencola el *payload* literal** (`RN-BO-85`) | Servicio de reintento | Ni capacidad ni validación: es la condición para que el trabajo vuelva a correr **dentro de su tenant**. Recomponerlo lo dejaría con `tenant_id` nulo sobre `plataforma_app`, escribiendo **sin filtro de RLS** — el modo de fallo de aislamiento más grave del sub-paso, y el único que no da síntoma (`CA-BO-152`) |
+| **`1.6e` · El evaluador no acepta un tenant como argumento** (`RN-BO-100`) | Firma de `FeatureFlagEvaluator::isEnabled()`, en `App\Support\FeatureFlags` | **No es una comprobación: es la ausencia de un parámetro.** Un `isEnabled($key, ?int $tenantId)` sería una lectura entre centros disponible en cada módulo del producto, defendida sólo por que nadie pase el segundo argumento — y `INV-001` no se sostiene sobre eso. Sin contexto de tenant devuelve `false`, nunca el valor de otro (`CA-BO-168`) |
+| **`1.6e` · La interfaz que sí acepta sujeto explícito no la inyecta nadie fuera del backoffice** (`RN-BO-99`) | Test de arquitectura, más enlace que deniega por defecto | `FeatureFlagExplainer` es, por construcción, la puerta por la que se evalúa para un centro que no es el de la petición. **Ninguna capacidad la protege y ninguna la concede**: la protege que ningún fichero de `app/` fuera de `app/Modules/Backoffice` la inyecte, con el patrón de `PlatformAccessCheck` de `ADR-046 §6.3` (`CA-BO-169`) |
+| **`1.6e` · Ningún módulo del producto lee las dos tablas de *flags*** (`RN-BO-99`) | Test de arquitectura, más `REVOKE` en el motor (`datos.md §9.6`) | `plataforma_app` tiene `SELECT` sobre las dos y **es correcto** (§9.6): su contenido no es de ningún centro. Lo que no puede es **exponerlo**, y eso no lo garantiza un permiso sino que la única lectura del tenant es `GET /api/v1/feature-flags`, que devuelve sólo lo que evalúa verdadero para quien pregunta (`CA-BO-097`, `CA-BO-176`) |
+| **`1.6e` · El estado del centro decide si admite designación de *early adopter*** (`RN-BO-108`) | Servicio de designación | `409` en `eliminado`. **No es una capacidad** y ningún rol la salta. Y los estados admitidos **no son los mismos** que los de la escritura de módulos (`RN-BO-71`) ni los del reintento (`RN-BO-87`): aquí `en_alta` sí, porque la columna vive en `tenants` y el aprovisionamiento no la toca |
 
 
 ### 5.1 `RPERM-013` traducido a este módulo

@@ -14,6 +14,8 @@ use App\Modules\Backoffice\Domain\Models\PlatformAdminSession;
 use App\Modules\Backoffice\Domain\Models\PlatformIdempotencyKey;
 use App\Modules\Backoffice\Domain\Models\PlatformIpAllowlistEntry;
 use App\Modules\Backoffice\Domain\Models\TenantLifecycleEvent;
+use App\Modules\Core\Domain\Models\FeatureFlag;
+use App\Modules\Core\Domain\Models\FeatureFlagRule;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use App\Support\Tenancy\TenantMigration;
@@ -201,6 +203,17 @@ test('los modelos Eloquent de app/Modules extienden TenantModel', function (): v
         // para el porqué exacto: la versión de tenant, `IdempotencyKey`,
         // exige contexto de tenant activo, que el backoffice no tiene).
         PlatformIdempotencyKey::class,
+        // REQ-BO-005 (1.6e), RN-BO-99, datos.md §9.2/§9.3: catálogo de
+        // plataforma (mismo perfil que `modules`/`permissions`, `ADR-034
+        // §5`), sin `tenant_id` — `config('tenancy.shared_tables.
+        // reference')`, no `platform`, porque ninguna de las dos lleva
+        // `affected_tenant_id` con la política de `ADR-047`
+        // (`FeatureFlagRule::$affected_tenant_id` es una referencia sin
+        // RLS propia, datos.md §9.3.1). Viven en `App\Modules\Core`, no
+        // en `Backoffice`, así que entran en este barrido por primera vez
+        // aquí.
+        FeatureFlag::class,
+        FeatureFlagRule::class,
     ];
 
     $modulesPath = base_path('app/Modules');

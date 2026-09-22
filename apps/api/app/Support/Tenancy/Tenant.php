@@ -42,6 +42,8 @@ class Tenant extends Model
         'suspended_at' => 'datetime',
         'grace_period_ends_at' => 'datetime',
         'grace_period_expired_at' => 'datetime',
+        // REQ-BO-005 punto 2 (1.6e), datos.md §6.1.
+        'early_adopter_since' => 'datetime',
     ];
 
     public static function findBySlug(string $slug): ?self

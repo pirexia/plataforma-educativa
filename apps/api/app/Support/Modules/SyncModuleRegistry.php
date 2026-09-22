@@ -2,8 +2,10 @@
 
 namespace App\Support\Modules;
 
+use App\Modules\Core\Infrastructure\FeatureFlagCatalogCache;
 use App\Support\Authorization\Scope;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 /**
@@ -39,9 +41,11 @@ final class SyncModuleRegistry
         // `CA-BO-129`) sólo es cierto si nada se ha escrito todavía
         // cuando se detecta el problema.
         self::validateDependencyGraph($providers);
+        self::validateFeatureFlagCatalog($providers);
 
         $declaredModuleCodes = [];
         $declaredPermissionCodes = [];
+        $declaredFlagKeys = [];
 
         foreach ($providers as $provider) {
             $module = $provider->moduleDescriptor();
@@ -67,6 +71,32 @@ final class SyncModuleRegistry
                     ]
                 );
             }
+
+            // RN-BO-34, datos.md §9.1 (1.6e): mismo comando, mismo patrón
+            // — el catálogo de flags es un tercer bloque de las mismas
+            // tres fases, no un comando nuevo.
+            foreach ($module['feature_flags'] ?? [] as $flag) {
+                $declaredFlagKeys[] = $flag['key'];
+
+                $flagsTable = DB::connection('pgsql_owner')->table('feature_flags');
+                $attributes = [
+                    'module_code' => $module['code'] === 'core' ? null : $module['code'],
+                    'name_key' => $flag['name_key'],
+                    'description_key' => $flag['description_key'],
+                    'rollout_unit' => $flag['rollout_unit'] ?? 'tenant',
+                    'retired_at' => null,
+                ];
+
+                if ($flagsTable->where('key', $flag['key'])->exists()) {
+                    $flagsTable->where('key', $flag['key'])->update($attributes);
+                } else {
+                    $flagsTable->insert([
+                        'key' => $flag['key'],
+                        'public_id' => (string) Str::ulid(),
+                        ...$attributes,
+                    ]);
+                }
+            }
         }
 
         DB::connection('pgsql_owner')->table('modules')
@@ -78,6 +108,30 @@ final class SyncModuleRegistry
             ->whereNotIn('code', $declaredPermissionCodes)
             ->whereNull('retired_at')
             ->update(['retired_at' => now()]);
+
+        // RN-BO-44, RN-BO-103: retirar un flag también incrementa
+        // rules_version — sin esto, un flag retirado en un despliegue
+        // seguiría evaluando verdadero hasta que caducara la caché
+        // (CA-BO-172). Expresión SQL, nunca leer-y-escribir en PHP
+        // (datos.md §9.7).
+        $retireQuery = DB::connection('pgsql_owner')->table('feature_flags')->whereNull('retired_at');
+
+        if ($declaredFlagKeys !== []) {
+            $retireQuery->whereNotIn('key', $declaredFlagKeys);
+        }
+
+        $retireQuery->update([
+            'retired_at' => now(),
+            'rules_version' => DB::raw('rules_version + 1'),
+        ]);
+
+        // OPEN-BO-24 decisión (b): cualquier cambio del catálogo
+        // materializado (alta, actualización de descriptor o retirada)
+        // invalida la única entrada de caché del evaluador. Referencia
+        // por FQCN sin `use`: `App\Support` no depende del namespace
+        // interno de un módulo concreto (INV-007) — esta clase resuelve
+        // el servicio del contenedor, no importa su implementación.
+        app(FeatureFlagCatalogCache::class)->forget();
     }
 
     /**
@@ -145,6 +199,44 @@ final class SyncModuleRegistry
                         'esencial no tiene fila que bloquear. platform:sync-registry aborta.'
                     );
                 }
+            }
+        }
+    }
+
+    /**
+     * `RN-BO-34`, `datos.md §9.1`, `CA-BO-089`: dos módulos que declaran
+     * la misma clave, o una clave con formato inválido, abortan el
+     * despliegue **sin escribir nada** — mismo comportamiento que
+     * `validateDependencyGraph()` para `depends_on`, y en la misma pasada
+     * previa a cualquier escritura.
+     *
+     * @param  list<DeclaresModuleRegistry>  $providers
+     */
+    private static function validateFeatureFlagCatalog(array $providers): void
+    {
+        $seenKeys = [];
+
+        foreach ($providers as $provider) {
+            $module = $provider->moduleDescriptor();
+
+            foreach ($module['feature_flags'] ?? [] as $flag) {
+                $key = $flag['key'];
+
+                if (preg_match('/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/', $key) !== 1) {
+                    throw new InvalidArgumentException(
+                        "El módulo «{$module['code']}» declara el flag «{$key}» con un formato inválido ".
+                        '(datos.md §9.1: [a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*). platform:sync-registry aborta.'
+                    );
+                }
+
+                if (isset($seenKeys[$key])) {
+                    throw new InvalidArgumentException(
+                        "La clave de flag «{$key}» está declarada por más de un módulo ".
+                        "(«{$seenKeys[$key]}» y «{$module['code']}»). platform:sync-registry aborta."
+                    );
+                }
+
+                $seenKeys[$key] = $module['code'];
             }
         }
     }

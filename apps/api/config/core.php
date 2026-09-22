@@ -52,4 +52,21 @@ return [
         'validate_check_digit' => (bool) env('CORE_VALIDATE_DOCUMENT_CHECK_DIGIT', true),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Motor de feature flags (REQ-BO-005 puntos 1-2, sub-paso 1.6e)
+    |--------------------------------------------------------------------------
+    |
+    | El evaluador vive en REQ-CORE (funcional.md §5.11.8, §12.3) aunque el
+    | nombre de la variable de entorno conserve el prefijo `BO_` —
+    | operacion.md §4.3 ya la nombra así, y esta clave es la referencia
+    | canónica de implementación. OPEN-BO-24, decisión (b): TTL de la
+    | única entrada de caché del catálogo completo, no por flag ni por
+    | sujeto.
+    |
+    */
+    'feature_flags' => [
+        'cache_ttl_seconds' => (int) env('BO_FLAG_CACHE_TTL', 300),
+    ],
+
 ];

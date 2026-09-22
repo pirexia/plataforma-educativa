@@ -65,4 +65,10 @@ enum AdminActionLogAction: string
     case ModuloMasivoEjecutado = 'modulo.masivo_ejecutado';
 
     case JobReintentado = 'job.reintentado';
+
+    // 1.6e: datos.md §4.2.2. RN-BO-43, RN-BO-105.
+    case FlagEstadoCambiado = 'flag.estado_cambiado';
+    case FlagReglasCambiadas = 'flag.reglas_cambiadas';
+    case TenantEarlyAdopterDesignado = 'tenant.early_adopter_designado';
+    case TenantEarlyAdopterRetirado = 'tenant.early_adopter_retirado';
 }

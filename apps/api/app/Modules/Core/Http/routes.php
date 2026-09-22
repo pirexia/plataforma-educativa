@@ -12,6 +12,7 @@
 use App\Modules\Core\Http\Controllers\AuditLogsController;
 use App\Modules\Core\Http\Controllers\DataExportsController;
 use App\Modules\Core\Http\Controllers\EffectivePermissionsController;
+use App\Modules\Core\Http\Controllers\FeatureFlagsController;
 use App\Modules\Core\Http\Controllers\InvitationsController;
 use App\Modules\Core\Http\Controllers\MeController;
 use App\Modules\Core\Http\Controllers\ModulesController;
@@ -59,6 +60,12 @@ Route::delete('/tenant/settings/assets/{kind}', [TenantSettingsAssetsController:
 // (funcional.md §4.9, permisos.md §5) — sin middleware `permission`.
 Route::get('/me', [MeController::class, 'show'])->name('core.me.show');
 Route::patch('/me', [MeController::class, 'update'])->name('core.me.update');
+
+// api.md §2.14 (REQ-BO-005, sub-paso 1.6e): el dato es de REQ-BO —
+// funcional.md §5.11 — pero la ruta vive aquí, mismo criterio que
+// /platform-actions. Autorización por identidad, no por permiso (§2.14
+// punto 3): la respuesta depende del propio sujeto.
+Route::get('/feature-flags', [FeatureFlagsController::class, 'index'])->name('core.feature-flags.index');
 
 Route::get('/users', [UsersController::class, 'index'])
     ->middleware('permission:usuario.leer')

@@ -57,6 +57,13 @@ return [
     'metrics' => [
         'invalid_period' => 'The start of the period cannot be after its end.',
     ],
+    // REQ-BO-005 points 1-2 (1.6e): feature flag engine error catalog.
+    'flag' => [
+        'retired' => 'This flag has been retired and no longer accepts writes.',
+        'invalid_rule' => 'The rule is not coherent: check that it carries the field matching its axis and, if it names a school, that it exists.',
+        'duplicate_rule' => 'A rule of this type already exists for the same target in the submitted set.',
+        'tenant_state_invalid' => 'The school is in a state that does not allow this operation.',
+    ],
     // Issue #173. Platform admin invitation email.
     'mail' => [
         'invitation' => [

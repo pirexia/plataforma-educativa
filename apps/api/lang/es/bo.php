@@ -61,6 +61,13 @@ return [
     'metrics' => [
         'invalid_period' => 'El principio del período no puede ser posterior al final.',
     ],
+    // REQ-BO-005 puntos 1-2 (1.6e): catálogo de errores del motor de feature flags.
+    'flag' => [
+        'retired' => 'Este flag ha sido retirado y ya no admite escritura.',
+        'invalid_rule' => 'La regla no es coherente: revisa que lleve el campo correspondiente a su tipo y, si nombra un centro, que exista.',
+        'duplicate_rule' => 'Ya existe una regla de este tipo para el mismo objetivo en el conjunto enviado.',
+        'tenant_state_invalid' => 'El centro está en un estado que no admite esta operación.',
+    ],
     // Issue #173. Correo de invitación de un administrador de plataforma.
     'mail' => [
         'invitation' => [

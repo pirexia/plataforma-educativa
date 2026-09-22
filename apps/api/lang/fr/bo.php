@@ -57,6 +57,13 @@ return [
     'metrics' => [
         'invalid_period' => 'Le début de la période ne peut pas être postérieur à sa fin.',
     ],
+    // REQ-BO-005 points 1-2 (1.6e) : catalogue d'erreurs du moteur de feature flags.
+    'flag' => [
+        'retired' => 'Ce flag a été retiré et n\'accepte plus d\'écriture.',
+        'invalid_rule' => 'La règle n\'est pas cohérente : vérifiez qu\'elle porte le champ correspondant à son axe et, si elle nomme un établissement, qu\'il existe.',
+        'duplicate_rule' => 'Une règle de ce type existe déjà pour la même cible dans l\'ensemble envoyé.',
+        'tenant_state_invalid' => 'L\'établissement est dans un état qui n\'admet pas cette opération.',
+    ],
     // Issue #173. Courriel d'invitation d'un administrateur de plateforme.
     'mail' => [
         'invitation' => [

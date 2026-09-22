@@ -27,6 +27,9 @@ final class PlatformCapabilityMap
             // `job.reintentar`, que es escritura (§4.1: "soporte no tiene
             // ni una escritura").
             PlatformCapability::SaludLeer,
+            // permisos.md §4.6: soporte lee flags (diagnóstico) y no
+            // puede escribirlos — ni el interruptor ni las reglas.
+            PlatformCapability::FlagLeer,
         ],
         'operaciones' => [
             PlatformCapability::TenantLeer,
@@ -47,6 +50,12 @@ final class PlatformCapabilityMap
             PlatformCapability::SaludLeer,
             PlatformCapability::JobReintentar,
             PlatformCapability::MetricaLeer,
+            // permisos.md §4.6: «módulos, límites, flags» es literal en
+            // REQ-BO-007 para operaciones — también la designación de
+            // early adopter, autorizada con tenant.actualizar, ya
+            // concedida arriba.
+            PlatformCapability::FlagLeer,
+            PlatformCapability::FlagGestionar,
         ],
         'comercial' => [
             PlatformCapability::TenantLeer,
@@ -81,6 +90,8 @@ final class PlatformCapabilityMap
             PlatformCapability::SaludLeer,
             PlatformCapability::JobReintentar,
             PlatformCapability::MetricaLeer,
+            PlatformCapability::FlagLeer,
+            PlatformCapability::FlagGestionar,
         ],
     ];
 
