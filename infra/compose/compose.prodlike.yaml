@@ -71,6 +71,8 @@ services:
       DB_PLATFORM_USERNAME: plataforma_platform
       DB_PLATFORM_PASSWORD: prodlike-platform
       REDIS_HOST: redis
+      # Issue #236: mismo fijado que compose.yaml/plataforma.env.example.
+      CACHE_STORE: redis
       LOG_CHANNEL: stderr
       TENANCY_BASE_DOMAIN: plataforma.test
     depends_on:
