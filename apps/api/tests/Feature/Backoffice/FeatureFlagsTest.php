@@ -743,6 +743,18 @@ test('CA-BO-097, CA-BO-176: GET /api/v1/feature-flags devuelve exactamente el co
     expect($response->json('data'))->toBe(['bo_test.alpha']);
 });
 
+test('INV-002: GET /api/v1/feature-flags exige sesión, no evalúa para un visitante anónimo', function (): void {
+    [$tenant] = provisionCoreTenant();
+    registerFlagFixtures();
+    contractFlagModule($tenant);
+
+    putFixtureRule('bo_test.alpha', 'global');
+
+    $response = test()->getJson(coreApiUrl($tenant->slug, '/feature-flags'));
+
+    $response->assertStatus(401);
+});
+
 test('GET /tenants/{id}/feature-flags responde con matched_by para cada flag del catálogo', function (): void {
     boAllowCurrentTestIp();
     [$admin] = boCreateEnrolledAdmin('soporte');

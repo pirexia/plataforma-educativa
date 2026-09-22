@@ -142,6 +142,13 @@ final class FeatureFlagsService
                     context: ['exposed_tenants' => $result['impact']['exposed_tenants'] ?? null],
                 );
 
+                // Hallazgo Media de la revisión independiente (`doc-reviewer`):
+                // `affected_tenant_id` es el bigint interno de `tenants.id`
+                // (ADR-047 §4.2), necesario para admin_action_logs pero
+                // prohibido en una respuesta HTTP (ADR-029) — no documentado
+                // en api.md/OpenAPI porque nunca debió salir del servicio.
+                unset($result['affected_tenant_id']);
+
                 return $result;
             }),
         );

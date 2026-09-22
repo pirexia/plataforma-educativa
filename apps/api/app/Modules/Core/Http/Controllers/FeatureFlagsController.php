@@ -2,8 +2,11 @@
 
 namespace App\Modules\Core\Http\Controllers;
 
+use App\Models\User;
 use App\Modules\Core\Domain\ModuleCatalog;
+use App\Support\Api\ApiException;
 use App\Support\FeatureFlags\FeatureFlagEvaluator;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
 /**
@@ -27,10 +30,18 @@ class FeatureFlagsController extends Controller
      * `FeatureFlagEvaluator::isEnabled()` — el mismo camino, cacheado, que
      * usaría cualquier otro módulo del producto (`RN-BO-99`).
      *
+     * `INV-002`: la respuesta depende de la identidad del sujeto (reglas
+     * `role`/`percentage` por usuario), así que sin sesión no hay sujeto
+     * que evaluar — 401, mismo *guard* que `MeController::currentUser()`.
+     * Hallazgo Alto de la revisión independiente de `1.6e`: esta
+     * comprobación faltaba pese a que el docblock ya afirmaba seguirla.
+     *
      * @return array<string, mixed>
      */
-    public function index(): array
+    public function index(Request $request): array
     {
+        $this->currentUser($request);
+
         $exposed = [];
 
         foreach ($this->catalog->all() as $descriptor) {
@@ -42,5 +53,16 @@ class FeatureFlagsController extends Controller
         }
 
         return ['data' => $exposed];
+    }
+
+    private function currentUser(Request $request): User
+    {
+        $user = $request->user();
+
+        if (! $user instanceof User) {
+            throw ApiException::unauthenticated();
+        }
+
+        return $user;
     }
 }
