@@ -89,13 +89,28 @@ final class PlatformAdminInvitationRedemptionService
 
         $errors->throwIfAny();
 
-        DB::connection('pgsql_platform')->transaction(function () use ($invitation, $admin, $password): void {
+        // Issue #182: la lectura y el isLive() de arriba, fuera de
+        // bloqueo, solo sirven para el 410 rápido y para no filtrar por
+        // tiempo de respuesta. Dos peticiones concurrentes con el mismo
+        // token podían leer ambas isLive() === true antes de que la
+        // primera confirmara accepted_at — se repite aquí, bajo
+        // lockForUpdate() dentro de la transacción, la única
+        // comprobación que de verdad decide si se escribe.
+        DB::connection('pgsql_platform')->transaction(function () use ($invitation, $password): void {
+            $locked = PlatformAdminInvitation::query()->with('admin')->lockForUpdate()->find($invitation->id);
+
+            if ($locked === null || ! $locked->isLive() || $locked->admin === null) {
+                throw ApiException::gone();
+            }
+
+            $admin = $locked->admin;
+
             $admin->forceFill([
                 'password' => $password,
                 'password_changed_at' => now(),
             ])->save();
 
-            $invitation->update(['accepted_at' => now()]);
+            $locked->update(['accepted_at' => now()]);
 
             $this->recorder->record(action: AdminActionLogAction::AdminInvitacionCanjeada, subjectPublicId: $admin->public_id);
         });
