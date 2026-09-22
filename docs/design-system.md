@@ -3,7 +3,7 @@
 | Campo | Valor |
 |-------|-------|
 | Paso | **1.7 · Design system** (`PLAN-IMPLEMENTACION.md`, Bloque B) |
-| Estado | **BORRADOR, pendiente de aprobación.** Hay tres preguntas abiertas (§20) que condicionan tres criterios de aceptación concretos, marcados como tales |
+| Estado | **APROBADA** (2026-09-22, ratificada por el usuario: las tres preguntas de §20 resueltas con la opción recomendada — A, Sí, 1.8) |
 | Decisión de arquitectura | `ADR-052` (ACEPTADA 2026-09-22). Este documento la **desarrolla**, no la reabre |
 | Se apoya en | `ADR-023` (Tailwind + shadcn-vue + TanStack), `ADR-025`, `ADR-046`, `RNF-MANT-007`, `RNF-COMP-001` |
 | Requisitos cubiertos | `RUX-002`, `RUX-004`, `RUX-005`, `RNF-UX-002`, `RNF-UX-004`, y en cliente `RUX-BRAND-002`, `RUX-BRAND-003`, `RUX-BRAND-006` (en servidor ya los cubre `REQ-CORE`, paso 1.1) |
@@ -44,7 +44,7 @@
 | Tipografía de marca / fuente web | `0.11c` (identidad de marca) | `ADR-052 P4` resuelta: pila del sistema |
 | Estados vacíos, de carga y de error (`RUX-006`, `RNF-UX-005`) | **1.8** | Los tokens `success`/`warning`/`info` se crean aquí para que 1.8 los consuma; los componentes que los pintan, no |
 | *Layout* autenticado, navegación, menús adaptativos, *breakpoints* (`RUX-003`, `RUX-RESP-*`), *dashboards* | **1.8** | — |
-| Control visible para elegir el modo de color y selector de idioma | **1.8** (a confirmar, `OPEN-DS-03`) | Necesitan un sitio en el *layout*; ver §9.5 |
+| Control visible para elegir el modo de color y selector de idioma | **1.8** (`OPEN-DS-03` resuelta) | Necesitan un sitio en el *layout*; ver §9.5 |
 | Tablas avanzadas (TanStack Table) | **1.9** | `table` se adapta a las reglas de color, nada más |
 | Pantalla de configuración de marca (con previsualización de contraste, `ADR-052 §4`) | Posterior a 1.8 (pantallas de `REQ-CORE`, `OPEN-CORE-02`) | 1.7 deja la función reutilizable (§6) y `refresh()` (§7) listos para ella |
 | Validación de contraste en servidor contra los fondos | No se hace | `ADR-052 §4` |
@@ -157,7 +157,7 @@ Todos los valores en `oklch()`. Los valores de los tokens **nuevos** y **AA** so
 | `--info` | `oklch(0.488 0.243 264.376)` | `oklch(0.707 0.165 254.624)` | nuevo |
 | `--info-foreground` | `oklch(0.985 0 0)` | `oklch(0.205 0 0)` | nuevo |
 | `--border` | `oklch(0.922 0 0)` | `oklch(1 0 0 / 10%)` | = (decorativo, fuera de §11) |
-| `--input` | `oklch(0.922 0 0)` | `oklch(1 0 0 / 15%)` | = **si `OPEN-DS-02` se resuelve «no»**; ver §20 |
+| `--input` | ajustado a ≥ 3:1 sobre `--background` (del orden de `oklch(0.66 0 0)`; el implementador calcula el valor exacto contra `CA-DS-050` y actualiza esta fila en el mismo *commit*) | ajustado a ≥ 3:1 sobre `--background` (del orden de `oklch(1 0 0 / 34%)` o gris opaco equivalente) | AA (`OPEN-DS-02` resuelta: sí) |
 | `--ring` | `var(--primary-on-background)` (hoy `0.708`) | `var(--primary-on-background)` (hoy `0.556`) | marca, AA |
 | `--chart-1` … `--chart-5` | sin cambio | sin cambio | = (sin consumidor en 1.7; fuera de §11) |
 | `--radius` | `0.625rem` | — | = |
@@ -268,7 +268,7 @@ export function deriveOnBackground(hex: string, mode: ColorMode): string // '#RR
 
 `--primary-on-background` se usa como texto, borde y anillo de foco **sobre cualquier superficie neutra**, no solo sobre `--background`: el enlace «¿Olvidaste la contraseña?» está en una tarjeta, un radio marcado puede estar en un `popover`, un enlace puede estar sobre `bg-muted`. En modo oscuro, además, `--card` (`0.205`) y `--muted` (`0.269`) son más claros que `--background` (`0.145`), así que garantizar contra el fondo solo **no** garantiza contra la tarjeta.
 
-**`RN-DS-06`** (condicionada a `OPEN-DS-01`, recomendación): la derivación garantiza **≥ 4,5:1 contra todas las superficies neutras opacas del modo**:
+**`RN-DS-06`** (`OPEN-DS-01` resuelta: opción A): la derivación garantiza **≥ 4,5:1 contra todas las superficies neutras opacas del modo**:
 
 | Modo | Superficies (semántico → valor) |
 |------|---------------------------------|
@@ -443,7 +443,7 @@ La variante `@custom-variant dark (&:is(.dark *))` se conserva: casa con cualqui
 
 ### 9.5 Control visible
 
-1.7 **no** entrega el control para elegir el modo (ni el selector de idioma que `docs/i18n.md` situaba en «1.7/1.8»): ambos necesitan un sitio en el *layout*, que es 1.8, y sus etiquetas generan claves de traducción que pertenecen al *layout*. Con 1.7, el modo oscuro funciona siguiendo el sistema operativo (estado `system`), y `setPreference` queda listo para el control. A confirmar en `OPEN-DS-03`.
+1.7 **no** entrega el control para elegir el modo (ni el selector de idioma que `docs/i18n.md` situaba en «1.7/1.8»): ambos necesitan un sitio en el *layout*, que es 1.8, y sus etiquetas generan claves de traducción que pertenecen al *layout*. Con 1.7, el modo oscuro funciona siguiendo el sistema operativo (estado `system`), y `setPreference` queda listo para el control. Confirmado en `OPEN-DS-03`: el control entra en 1.8.
 
 ---
 
@@ -526,7 +526,7 @@ Test `src/design-system/tokens-contrast.spec.ts`. Lee `tokens.css` como texto y 
 | Texto | `primary-on-background` (neutro) | las superficies de §6.2 | 4,5 |
 | Texto | `sidebar-foreground` / `sidebar-accent-foreground` / `sidebar-primary-foreground` | `sidebar` / `sidebar-accent` / `sidebar-primary` (neutro) | 4,5 |
 | No textual | `ring` | las superficies de §6.2 | 3 (lo cumple por ser `primary-on-background`) |
-| No textual | `input` | `background` | 3 — **solo si `OPEN-DS-02` se resuelve «sí»** (`CA-DS-050`) |
+| No textual | `input` | `background` | 3 (`OPEN-DS-02` resuelta: sí; `CA-DS-050`) |
 
 Fuera a propósito: `border`/`sidebar-border` (separadores decorativos, no identifican un control) y `chart-*` (sin consumidor en 1.7; los gráficos llegarán con su propio criterio de accesibilidad).
 
@@ -543,7 +543,7 @@ Se adoptan los ocho ya vendorizados. **No se añade ninguno**: ningún entregabl
 | `button` | `link`: `text-primary` → `text-primary-on-background`. `default`: se retira `[a]:hover:bg-primary/80` (`RN-DS-17`) y `border-transparent` pasa a `border-primary-on-background` en esa variante (mitigación de `ADR-052 §Consecuencias`: con un primario muy oscuro en modo oscuro, o muy claro en claro, el botón conserva un contorno distinguible del fondo; con un primario que ya contrasta, borde y relleno coinciden y no se ve diferencia). Sin cambio en el resto de variantes |
 | `badge` | Igual que `button`: `link` y `default` |
 | `radio-group` | `data-checked:border-primary` y `aria-invalid:aria-checked:border-primary` → `…-primary-on-background`. El relleno `data-checked:bg-primary` se mantiene (con `text-primary-foreground`, que ya lleva): el estado marcado queda identificado por un borde ≥ 3:1 contra el fondo aunque el relleno no lo sea (1.4.11) |
-| `input`, `textarea` | Sin cambio de color de marca. Si `OPEN-DS-02` se resuelve «sí», `border-border` → `border-input` |
+| `input`, `textarea` | Sin cambio de color de marca. `border-border` → `border-input` (`OPEN-DS-02` resuelta: sí) |
 | `select` | Sin uso de marca detectado. Se somete a §10 como el resto |
 | `label`, `table` | Sin cambio previsto. Se someten a §10 |
 
@@ -704,38 +704,38 @@ Todos con test Vitest salvo los marcados **[Playwright]**, que necesitan cálcul
 - **`CA-DS-048`** [`INV-009`] · **Dado** `scripts/check-i18n-literals.mjs` sin la exclusión de `components/ui` y cubriendo `src/design-system`, **cuando** se ejecuta `npm run lint:i18n`, **entonces** termina sin hallazgos; y los cuatro `locales/*.json` no ganan claves en 1.7.
 - **`CA-DS-049`** · **Dado** `components.json`, **entonces** está en uno de los tres estados de §15 y el *commit* referencia `#251`.
 
-### Condicionados a preguntas abiertas
+### Resueltos por la respuesta a las preguntas abiertas (§20)
 
-- **`CA-DS-050`** [`RUX-004`] (**solo si `OPEN-DS-02` = sí**) · **Dado** los pares de §11, **entonces** `input` sobre `background` alcanza 3:1 en ambos modos, e `Input`/`Textarea` usan `border-input`.
-- `RN-DS-06` y `CA-DS-013`/`014`/`015`/`017` usan la lista de superficies de §6.2; si `OPEN-DS-01` se resuelve «solo `--background`», la lista se reduce a una superficie por modo y los casos `#808080` oscuro y `#767676` claro pasan de «ajustado» a «sin cambios».
+- **`CA-DS-050`** [`RUX-004`] (activo: `OPEN-DS-02` resuelta «sí») · **Dado** los pares de §11, **entonces** `input` sobre `background` alcanza 3:1 en ambos modos, e `Input`/`Textarea` usan `border-input`.
+- `RN-DS-06` y `CA-DS-013`/`014`/`015`/`017` usan la lista completa de superficies de §6.2 (`OPEN-DS-01` resuelta: opción A).
 
 ---
 
 ## 19. Definición de terminado de 1.7
 
-Además de `CLAUDE.md §10`: `CA-DS-001`-`050` en verde (salvo los condicionados que la respuesta a §20 descarte), `lint`, `lint:i18n`, `vue-tsc`+`build`, Vitest y Playwright en verde; comprobación manual en navegador real (no solo `curl`, lección de 1.2) de `/entrar` en ambos modos con y sin marca; documentación de §17 actualizada; revisión independiente de `doc-reviewer` y `security-reviewer` (CSP y `localStorage`).
+Además de `CLAUDE.md §10`: `CA-DS-001`-`050` en verde (las 50, §20 resuelto sin descartar ninguno), `lint`, `lint:i18n`, `vue-tsc`+`build`, Vitest y Playwright en verde; comprobación manual en navegador real (no solo `curl`, lección de 1.2) de `/entrar` en ambos modos con y sin marca; documentación de §17 actualizada; revisión independiente de `doc-reviewer` y `security-reviewer` (CSP y `localStorage`).
 
 ---
 
-## 20. Preguntas abiertas para el usuario
+## 20. Preguntas abiertas para el usuario — RESUELTAS (2026-09-22)
 
-Ninguna reabre `ADR-052`. Las tres nacen del detalle operable y cambian lo que ve un centro, así que no las decide la especificación.
+Ninguna reabre `ADR-052`. Las tres nacen del detalle operable y cambian lo que ve un centro, así que no las decidía la especificación. Las tres se resuelven con la opción recomendada; el resto de este documento ya está editado en consecuencia.
 
-### `OPEN-DS-01` · ¿Contra qué superficies se garantiza `--primary-on-background`?
+### `OPEN-DS-01` · ¿Contra qué superficies se garantiza `--primary-on-background`? → **A: todas las superficies neutras del modo**
 
 `ADR-052 §3.3` dice «contra el fondo del modo correspondiente». Leído al pie de la letra (solo `--background`), el enlace sobre una tarjeta o sobre `bg-muted` puede quedar por debajo de 4,5:1: en modo oscuro las tarjetas (`0.205`) y `muted` (`0.269`) son **más claras** que el fondo (`0.145`), y `#808080` da ≈ 5:1 contra el fondo pero ≈ 3,8:1 contra `muted`. El enlace de recuperación del login ya está sobre una tarjeta.
 
 - **A · Todas las superficies neutras del modo** (§6.2) — **recomendada**. Garantiza `RNF-UX-002` donde de verdad se pinta el color. Coste: más colores de centro se ajustan (ligeramente) respecto a su valor exacto.
 - **B · Solo `--background`**. Literalidad del ADR, mayor fidelidad al color del centro, y un incumplimiento AA conocido en tarjetas y superficies `muted`.
 
-### `OPEN-DS-02` · ¿Los bordes de los campos de formulario deben cumplir 3:1 (WCAG 1.4.11)?
+### `OPEN-DS-02` · ¿Los bordes de los campos de formulario deben cumplir 3:1 (WCAG 1.4.11)? → **Sí**
 
 Hoy `--input`/`--border` claro (`0.922`) sobre blanco da ≈ 1,3:1, y en oscuro ≈ 1,5:1. Es el valor por defecto de shadcn-vue. Que 1.4.11 obligue o no depende de si el borde es lo único que identifica el campo: en `Input`/`Textarea`/`SelectTrigger` sobre fondo blanco, lo es. `RNF-UX-002` exige AA y, para centros públicos, lo exige la Ley 11/2023.
 
 - **Sí** — **recomendada**. `--input` pasa a un gris que alcance 3:1 en ambos modos (del orden de `L ≤ 0.66` en claro; en oscuro, opacidad del blanco ≈ 34 % o un gris opaco equivalente), `Input`/`Textarea` pasan de `border-border` a `border-input`, y se revisan los usos de `dark:bg-input/30` como relleno. Cambio visible: bordes de campo notablemente más marcados en todo el producto. Activa `CA-DS-050`.
 - **No**. Se mantiene el aspecto actual y se asume el riesgo en una auditoría de accesibilidad.
 
-### `OPEN-DS-03` · ¿El control visible de modo de color entra en 1.7 o en 1.8?
+### `OPEN-DS-03` · ¿El control visible de modo de color entra en 1.7 o en 1.8? → **1.8**
 
 - **1.8** — **recomendada**. Necesita un sitio en el *layout* y claves de traducción del *layout*. Con 1.7 el modo oscuro ya funciona siguiendo el sistema operativo, que es el caso mayoritario. `RNF-UX-004` queda cubierto en su mecanismo en 1.7 y en su control en 1.8.
 - **1.7**. Obligaría a decidir ahora dónde vive el control en las pantallas públicas (sin *layout*) y adelantaría claves de i18n de 1.8.
