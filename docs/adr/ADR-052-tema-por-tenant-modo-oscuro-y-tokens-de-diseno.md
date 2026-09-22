@@ -1,6 +1,6 @@
 # ADR-052 · Tema por tenant, modo oscuro y tokens de diseño en la SPA
 
-**Estado**: **PROPUESTA** (2026-09-22). Pendiente de ratificación del usuario. Las decisiones de §1-§6 son de `architect` y no dependen de ninguna preferencia de producto; las cuatro preguntas del apartado «Preguntas abiertas» sí lo son, y **ninguna bloquea** la especificación de `1.7`: cada una tiene una respuesta por defecto que es la que el producto ya hace o la que los requisitos permiten sin inventar nada.
+**Estado**: **ACEPTADA** (2026-09-22, ratificada por el usuario: las cuatro preguntas de «Preguntas abiertas» se responden con la opción por defecto, sin cambios sobre lo que propone `architect`). Las decisiones de §1-§6 son de `architect` y no dependen de ninguna preferencia de producto; las cuatro preguntas del apartado «Preguntas abiertas» sí lo son.
 **Fecha**: 2026-09-22
 **Se apoya en**: `ADR-023` (Tailwind + shadcn-vue + TanStack Table como *design system* único), `ADR-025` (sesión por cookie), `ADR-046` (backoffice como SPA propia), `RNF-MANT-007`, `RNF-COMP-001`
 **No toca**: `ADR-023` (la librería no cambia), el modelo de datos de `REQ-CORE` (ni una columna nueva), la validación de contraste de servidor (`RN-CORE-15`, `CA-CORE-003`), el contrato de `GET /api/v1/tenant/branding` (ni un campo nuevo)
@@ -188,11 +188,11 @@ No se corrigen aquí (`architect` solo escribe en `docs/adr/` y en el índice de
 
 ---
 
-## Preguntas abiertas para el usuario
+## Preguntas abiertas para el usuario — RESUELTAS (2026-09-22)
 
-Ninguna bloquea `1.7`: entre paréntesis, lo que se hace si no hay respuesta.
+Las cuatro se responden con la opción por defecto que ya proponía este ADR, sin cambios sobre §1-§6:
 
-- **P1 · ¿`color_secondary` es «texto sobre el primario» o «segundo color de marca»?** (Texto sobre el primario, que es lo que el servidor valida y la pantalla de login ya usa.) Si es un segundo color de marca, es un cambio de `REQ-CORE` —la validación dejaría de comparar un color contra el otro y el texto sobre el primario se derivaría— y requiere su propio ADR; `1.7` solo cambiaría el mapeo de §3.1.
-- **P2 · ¿La preferencia de modo oscuro debe sincronizarse entre dispositivos del mismo usuario?** (No: solo local. Ningún requisito lo pide.)
-- **P3 · ¿Un centro debe poder forzar o desactivar el modo oscuro?** (No. `RNF-UX-004` pide soporte y no menciona control del centro; añadirlo sería inventar un requisito.)
-- **P4 · Tipografía.** (Pila del sistema hasta que `0.11c` fije identidad de marca.)
+- **P1 · ¿`color_secondary` es «texto sobre el primario» o «segundo color de marca»?** → **Texto sobre el primario.** Confirma lo que el servidor ya valida y lo que usa la pantalla de login; no hay cambio en `REQ-CORE`.
+- **P2 · ¿La preferencia de modo oscuro debe sincronizarse entre dispositivos del mismo usuario?** → **No, solo local** (`localStorage`).
+- **P3 · ¿Un centro debe poder forzar o desactivar el modo oscuro?** → **No, sin control del centro.**
+- **P4 · Tipografía.** → **Pila del sistema**, hasta que `0.11c` fije identidad de marca.
