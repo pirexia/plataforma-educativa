@@ -664,3 +664,56 @@ test('CA-BO-122: ejecutar bo:check-grace-periods varios días seguidos sobre el 
 
     expect(TenantLifecycleEvent::query()->where('affected_tenant_id', $tenant->id)->exists())->toBeFalse();
 });
+
+// Issue #211, mismo patrón que #210 (ExpireDualAuthorizations): sin
+// releer bajo lockForUpdate() dentro de su propia transacción, este
+// comando podía marcar "gracia vencida" sobre un tenant que, entre la
+// lectura inicial y la escritura, ya había dejado de cumplir la
+// condición (rescatado, o rescatado y vuelto a dar de baja — #243).
+//
+// Issue #244: una primera versión de este test mutaba el tenant *antes*
+// de lanzar el comando, con lo que la consulta inicial ya lo excluía y
+// el recheck bajo lockForUpdate() nunca llegaba a ejercitarse —
+// verificado que ese test pasaba igual con el código anterior a la
+// corrección. Esta versión provoca la mutación *dentro* de la ejecución
+// del comando, entre el turno del primer tenant procesado y el del
+// segundo, usando el evento `saved` de Eloquent (síncrono, dispara justo
+// cuando el primero se marca) — sin depender del orden en que Postgres
+// devuelva las dos filas: cualquiera que se procese primero deja al otro
+// mutado antes de su propio turno. Esto sí distingue el código corregido
+// del anterior (falla contra el `CheckGracePeriodsCommand` previo a
+// #211/#243, en el que ninguna de las dos comprobaciones existía).
+test('bo:check-grace-periods (issues #211/#243/#244): un tenant que deja de cumplir la condición entre su listado y su turno no se marca', function (): void {
+    $tenantA = Tenant::factory()->create(['status' => 'en_baja', 'grace_period_ends_at' => now()->subDay()]);
+    $tenantB = Tenant::factory()->create(['status' => 'en_baja', 'grace_period_ends_at' => now()->subDay()]);
+
+    $mutatedId = null;
+
+    Tenant::saved(function (Tenant $saved) use ($tenantA, $tenantB, &$mutatedId): void {
+        if ($mutatedId !== null || ! in_array($saved->id, [$tenantA->id, $tenantB->id], true)) {
+            return;
+        }
+
+        $other = $saved->id === $tenantA->id ? $tenantB : $tenantA;
+        $mutatedId = $other->id;
+
+        // Simula, dentro de la misma ejecución, la re-baja con un
+        // período de gracia nuevo que #243 describe.
+        DB::connection('pgsql_platform')->table('tenants')->where('id', $other->id)->update([
+            'grace_period_ends_at' => now()->addDays(90),
+        ]);
+    });
+
+    $this->artisan('bo:check-grace-periods')->run();
+
+    Tenant::flushEventListeners();
+
+    expect($mutatedId)->not->toBeNull();
+
+    $marked = AdminActionLog::query()->where('action', 'tenant.gracia_vencida')->pluck('affected_tenant_id');
+    expect($marked)->toHaveCount(1);
+    expect($marked->first())->not->toBe($mutatedId);
+
+    $mutatedTenant = Tenant::query()->find($mutatedId);
+    expect($mutatedTenant->grace_period_expired_at)->toBeNull();
+});
