@@ -56,6 +56,15 @@ class CheckGracePeriodsCommand extends Command
                 if ($tenant === null
                     || $tenant->status !== TenantStatus::EnBaja
                     || $tenant->grace_period_expired_at !== null
+                    // Issue #243: el recheck original no revalidaba
+                    // grace_period_ends_at — un tenant rescatado y vuelto
+                    // a dar de baja entre la lectura inicial y su turno
+                    // en este bucle tiene un período de gracia nuevo (+90
+                    // días desde la re-baja), y sin esto se marcaba
+                    // "vencido" sobre un período que en realidad acaba de
+                    // empezar.
+                    || $tenant->grace_period_ends_at === null
+                    || $tenant->grace_period_ends_at->isFuture()
                 ) {
                     return;
                 }

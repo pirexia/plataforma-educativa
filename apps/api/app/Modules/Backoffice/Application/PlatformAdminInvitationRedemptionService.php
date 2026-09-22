@@ -77,8 +77,6 @@ final class PlatformAdminInvitationRedemptionService
             throw ApiException::gone();
         }
 
-        $admin = $invitation->admin;
-
         $errors = new ValidationErrorBag;
 
         foreach ($this->passwordPolicy->violations($password) as $code) {
