@@ -88,7 +88,15 @@ return [
         // Solo lectura para plataforma_app, sin tenant_id. Catálogo de
         // plataforma materializado desde el código por el comando
         // idempotente de 0.8.11 (ADR-034 §2, §7) — nunca a mano.
-        'reference' => ['permissions', 'modules'],
+        //
+        // REQ-BO-005 (1.6e), datos.md §9.6: `feature_flags` es el mismo
+        // patrón exacto que `modules`/`permissions` (catálogo declarado en
+        // código, materializado por `platform:sync-registry`, GRANT SELECT
+        // para plataforma_app). `feature_flag_rules` no la materializa el
+        // comando —la escribe el backoffice— pero comparte la misma
+        // propiedad que hace caer aquí a las otras tres: sin `tenant_id`,
+        // solo lectura para plataforma_app (RN-BO-99).
+        'reference' => ['permissions', 'modules', 'feature_flags', 'feature_flag_rules'],
 
     ],
 

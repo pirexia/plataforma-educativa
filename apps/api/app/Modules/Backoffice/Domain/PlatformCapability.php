@@ -71,4 +71,13 @@ enum PlatformCapability: string
     case SaludLeer = 'salud.leer';
     case JobReintentar = 'job.reintentar';
     case MetricaLeer = 'metrica.leer';
+
+    // 1.6e: permisos.md §3, §4.6. Exactamente dos, verificado el
+    // 2026-09-21: el enum tenía veinticuatro casos y ninguno de `flag`
+    // (CA-BO-167). Una sola capacidad para las dos direcciones del
+    // interruptor y para el estado y las reglas juntos (permisos.md §4.6
+    // puntos 1-2): la asimetría de riesgo vive en la reautenticación
+    // (api.md §2.12), no en el permiso.
+    case FlagLeer = 'flag.leer';
+    case FlagGestionar = 'flag.gestionar';
 }

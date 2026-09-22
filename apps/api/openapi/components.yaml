@@ -1096,6 +1096,175 @@ components:
         executed_at: { type: string, format: date-time, nullable: true }
         execution_error: { type: string, nullable: true }
 
+    PlatformFeatureFlag:
+      type: object
+      description: >
+        REQ-BO-005 puntos 1-2, sub-paso 1.6e. api.md §2.11. Direccionado
+        por `key` (ADR-051), no por `public_id` — `public_id` se
+        conserva de todos modos para `subject_public_id` de
+        `admin_action_logs` (datos.md §9.3.1). `rollout_unit` lo declara
+        el código (RN-BO-36): nunca aparece en un cuerpo de escritura.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        key: { type: string, example: comedor.reserva_v2 }
+        module_code: { type: string, nullable: true }
+        name_key: { type: string }
+        description_key: { type: string }
+        rollout_unit: { type: string, enum: [tenant, user] }
+        status: { type: string, enum: [activo, forced_off] }
+        status_reason: { type: string, nullable: true }
+        rules_version: { type: integer }
+        retired_at: { type: string, format: date-time, nullable: true }
+        rules_count: { type: integer, description: Sólo en el listado (GET /feature-flags). }
+        rules:
+          type: array
+          description: Sólo en GET /feature-flags/{key} — el conjunto vigente.
+          items: { $ref: '#/components/schemas/PlatformFeatureFlagRule' }
+
+    PlatformFeatureFlagRule:
+      type: object
+      description: datos.md §9.3. Cada eje lleva exactamente su columna y ninguna otra.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        scope_type: { type: string, enum: [global, tenant, early_adopters, percentage, role] }
+        tenant_public_id: { $ref: '#/components/schemas/PublicId' }
+        role_code: { type: string, nullable: true }
+        percentage: { type: integer, minimum: 0, maximum: 100, nullable: true }
+        enabled: { type: boolean }
+        reason: { type: string }
+
+    PlatformFeatureFlagRuleInput:
+      type: object
+      required: [scope_type]
+      description: >
+        api.md §2.11.1. Una regla dentro del conjunto propuesto — sin
+        `id`/`public_id`: el servidor resuelve la diferencia contra lo
+        que hay (RN-BO-104).
+      properties:
+        scope_type: { type: string, enum: [global, tenant, early_adopters, percentage, role] }
+        tenant_public_id: { $ref: '#/components/schemas/PublicId' }
+        role_code: { type: string }
+        percentage: { type: integer, minimum: 0, maximum: 100 }
+        enabled: { type: boolean, default: true }
+
+    PlatformFeatureFlagRulesRequest:
+      type: object
+      required: [reason, rules]
+      description: >
+        api.md §2.11.1, §2.12 punto 1. El conjunto COMPLETO, no un
+        parche (RN-BO-104). `rules: []` es válido y significa "ninguna
+        regla" (RN-BO-35).
+      properties:
+        reason: { type: string, minLength: 1 }
+        rules:
+          type: array
+          items: { $ref: '#/components/schemas/PlatformFeatureFlagRuleInput' }
+
+    PlatformFeatureFlagRulesPreviewRequest:
+      type: object
+      required: [rules]
+      description: api.md §2.11, §2.13. El mismo conjunto que PUT .../rules, sin `reason` — no escribe nada (RN-BO-68).
+      properties:
+        rules:
+          type: array
+          items: { $ref: '#/components/schemas/PlatformFeatureFlagRuleInput' }
+
+    PlatformFeatureFlagStateRequest:
+      type: object
+      required: [status, reason]
+      description: api.md §2.11.1. El interruptor de emergencia (RNF-MANT-005).
+      properties:
+        status: { type: string, enum: [activo, forced_off] }
+        reason: { type: string, minLength: 1 }
+
+    PlatformFeatureFlagImpact:
+      type: object
+      description: >
+        api.md §2.11.1, §2.13. Mismo cálculo para la vista previa y para
+        el campo `impact` de una escritura real. Listas truncadas a
+        recuento por encima de un umbral.
+      properties:
+        rollout_unit: { type: string, enum: [tenant, user] }
+        exposed_tenants: { type: integer }
+        total_tenants: { type: integer }
+        newly_exposed: { type: array, items: { $ref: '#/components/schemas/PublicId' } }
+        newly_hidden: { type: array, items: { $ref: '#/components/schemas/PublicId' } }
+        by_rule:
+          type: object
+          properties:
+            global: { type: integer }
+            tenant: { type: integer }
+            early_adopters: { type: integer }
+            percentage: { type: integer }
+        role_filter: { type: array, items: { type: string } }
+
+    PlatformFeatureFlagRulesResult:
+      type: object
+      description: api.md §2.11.1. Dice qué quedó escrito de verdad y a quién alcanza.
+      properties:
+        data:
+          type: object
+          properties:
+            key: { type: string }
+            rules_version: { type: integer }
+            rules:
+              type: array
+              items: { $ref: '#/components/schemas/PlatformFeatureFlagRule' }
+            impact: { $ref: '#/components/schemas/PlatformFeatureFlagImpact' }
+
+    PlatformFeatureFlagStateResult:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            key: { type: string }
+            status: { type: string, enum: [activo, forced_off] }
+            status_reason: { type: string, nullable: true }
+            rules_version: { type: integer }
+
+    PlatformTenantFeatureFlagDecision:
+      type: object
+      description: >
+        api.md §2.13. `matched_by` es el vocabulario de
+        `FeatureFlagDecision` (funcional.md §5.11.8.2), enumerado
+        extensible (ADR-038 §7.3).
+      properties:
+        key: { type: string }
+        enabled: { type: boolean }
+        matched_by:
+          type: string
+          enum: [tenant, early_adopters, percentage, global, forced_off, retired, module_disabled, role_filtered, none]
+
+    PlatformTenantEarlyAdopterRequest:
+      type: object
+      required: [early_adopter, reason]
+      description: api.md §2.11.1. RN-BO-46.
+      properties:
+        early_adopter: { type: boolean }
+        reason: { type: string, minLength: 1 }
+
+    PlatformTenantEarlyAdopterResult:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            tenant_public_id: { $ref: '#/components/schemas/PublicId' }
+            early_adopter_since: { type: string, format: date-time, nullable: true }
+
+    TenantFeatureFlags:
+      type: object
+      description: >
+        api.md §2.14. Aplicación del tenant (REQ-CORE), no del
+        backoffice. Sólo las claves que evalúan verdadero para quien
+        pregunta (RN-BO-35, CA-BO-097).
+      properties:
+        data:
+          type: array
+          items: { type: string }
+          example: [comedor.reserva_v2, acad.horario_beta]
+
     PublicId:
       type: string
       format: ulid

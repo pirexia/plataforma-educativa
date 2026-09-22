@@ -1330,6 +1330,263 @@ paths:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
 
+  # REQ-BO-005 puntos 1-2 (1.6e). api.md §2.11-§2.14. El motor de
+  # feature flags: catálogo, vista previa de impacto, el interruptor de
+  # emergencia y el reemplazo de reglas por diferencia. Direccionado por
+  # `key`, no por `public_id` (ADR-051).
+  /api/platform/v1/feature-flags:
+    get:
+      operationId: listPlatformFeatureFlags
+      summary: Catálogo de feature flags
+      description: >
+        api.md §2.11. Capacidad flag.leer. Página (ADR-038 §4.2): las
+        filas nacen de una declaración en código, no de la actividad.
+        Filtros module_code, status, retired (booleano), q.
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+        - { $ref: '../components.yaml#/components/parameters/QParam' }
+        - name: module_code
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string, enum: [activo, forced_off] }
+        - name: retired
+          in: query
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Página del catálogo.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/PlatformFeatureFlag' }
+                  meta:
+                    type: object
+                    properties:
+                      current_page: { type: integer }
+                      per_page: { type: integer }
+                      total: { type: integer }
+                      last_page: { type: integer }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+
+  /api/platform/v1/feature-flags/{key}:
+    parameters:
+      - name: key
+        in: path
+        required: true
+        description: "Clave del flag (ADR-051), formato `[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*`."
+        schema: { type: string, example: comedor.reserva_v2 }
+    get:
+      operationId: showPlatformFeatureFlag
+      summary: Un flag y todas sus reglas vigentes
+      description: >
+        api.md §2.11. Capacidad flag.leer. Un `retired_at` sí devuelve
+        datos (RN-BO-44, CA-BO-091) — sus reglas siguen consultables.
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      responses:
+        '200':
+          description: El flag con sus reglas.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '../components.yaml#/components/schemas/PlatformFeatureFlag' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+
+  /api/platform/v1/feature-flags/{key}/rules/preview:
+    parameters:
+      - name: key
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      operationId: previewPlatformFeatureFlagRules
+      summary: Vista previa de impacto de un conjunto de reglas propuesto
+      description: >
+        api.md §2.11, §2.13, RN-BO-68. No escribe ni bloquea nada.
+        Capacidad flag.leer.
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../components.yaml#/components/schemas/PlatformFeatureFlagRulesPreviewRequest' }
+      responses:
+        '200':
+          description: Impacto estimado del conjunto propuesto.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PlatformFeatureFlagImpact' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422':
+          description: Clave de flag retirada, o una regla incoherente/duplicada.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/platform/v1/feature-flags/{key}/state:
+    parameters:
+      - name: key
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      operationId: updatePlatformFeatureFlagState
+      summary: El interruptor de emergencia
+      description: >
+        api.md §2.11.1, §2.12 punto 2. Capacidad flag.gestionar. Apagar
+        (`forced_off`) no es sensible; encender (`activo`) sí
+        (RNF-MANT-005) — reautenticación exigida sólo en ese sentido.
+        Incrementa `rules_version` en la misma escritura (RN-BO-42); las
+        reglas no se tocan.
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../components.yaml#/components/schemas/PlatformFeatureFlagStateRequest' }
+      responses:
+        '200':
+          description: Estado actualizado.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PlatformFeatureFlagStateResult' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/PlatformReauthenticationRequired' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422':
+          description: Motivo ausente/vacío, o el flag está retirado (`bo.flag.retired`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/platform/v1/feature-flags/{key}/rules:
+    parameters:
+      - name: key
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      operationId: replacePlatformFeatureFlagRules
+      summary: Reemplaza el conjunto completo de reglas de un flag
+      description: >
+        api.md §2.11.1, §2.12 punto 1, RN-BO-104. Capacidad
+        flag.gestionar. Siempre sensible. El conjunto COMPLETO, resuelto
+        por diferencia en una transacción, con un solo incremento de
+        `rules_version`. `rollout_unit` no es un campo de este cuerpo
+        (RN-BO-36) — enviarlo es 422.
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../components.yaml#/components/schemas/PlatformFeatureFlagRulesRequest' }
+      responses:
+        '200':
+          description: Conjunto vigente tras la escritura, con el impacto.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PlatformFeatureFlagRulesResult' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/PlatformReauthenticationRequired' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422':
+          description: Motivo ausente/vacío, regla incoherente/duplicada, flag retirado, o `rollout_unit` en el cuerpo.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/platform/v1/tenants/{publicId}/feature-flags:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: listPlatformTenantFeatureFlags
+      summary: Qué flags están expuestos en un centro, y por qué regla
+      description: >
+        api.md §2.13. Capacidad flag.leer. `matched_by` es lo que hace
+        útil este endpoint para depurar (funcional.md §5.11.8.2) — sin
+        sujeto usuario, la pregunta es «qué ve este centro», no «qué ve
+        esta persona» (RN-BO-41).
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      responses:
+        '200':
+          description: Decisión por cada flag del catálogo.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/PlatformTenantFeatureFlagDecision' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+
+  /api/platform/v1/tenants/{publicId}/early-adopter:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    put:
+      operationId: updatePlatformTenantEarlyAdopter
+      summary: Designa o retira la condición de early adopter de un centro
+      description: >
+        api.md §2.11, §2.11.1. Capacidad tenant.actualizar (es un
+        atributo del centro, no una regla de despliegue) — no
+        flag.gestionar. No sensible (RN-BO-109): reversible con otra
+        llamada y no expone nada por sí misma. No incrementa
+        `rules_version`: no cambia ninguna regla, cambia el sujeto.
+      tags: [Plataforma]
+      security: [{ PlatformSessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '../components.yaml#/components/schemas/PlatformTenantEarlyAdopterRequest' }
+      responses:
+        '200':
+          description: Designación actualizada.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/PlatformTenantEarlyAdopterResult' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: "El centro está `eliminado`: no admite designación (RN-BO-108, `bo.flag.tenant_state_invalid`)."
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '422':
+          description: Motivo ausente o vacío.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
   # REQ-BO-004/REQ-BO-006 reducidos (1.6d). api.md §2.10 a §2.10.5. Ficha
   # de salud, trabajos fallidos del centro, su único reintento (uno a
   # uno, RN-BO-88) y las dos métricas agregadas de plataforma.

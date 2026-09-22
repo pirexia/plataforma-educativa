@@ -57,6 +57,13 @@ return [
     'metrics' => [
         'invalid_period' => 'Der Beginn des Zeitraums darf nicht nach seinem Ende liegen.',
     ],
+    // REQ-BO-005 Punkte 1-2 (1.6e): Fehlerkatalog der Feature-Flag-Engine.
+    'flag' => [
+        'retired' => 'Dieses Flag wurde zurückgezogen und akzeptiert keine Schreibvorgänge mehr.',
+        'invalid_rule' => 'Die Regel ist nicht kohärent: Prüfe, ob sie das zu ihrer Achse passende Feld trägt und, falls sie eine Schule benennt, dass diese existiert.',
+        'duplicate_rule' => 'Für dasselbe Ziel existiert in der gesendeten Menge bereits eine Regel dieses Typs.',
+        'tenant_state_invalid' => 'Die Schule befindet sich in einem Zustand, der diesen Vorgang nicht zulässt.',
+    ],
     // Issue #173. Einladungs-E-Mail für einen Plattform-Administrator.
     'mail' => [
         'invitation' => [

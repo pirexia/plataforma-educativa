@@ -20,7 +20,15 @@ interface DeclaresModuleRegistry
      * ciclos, o si un `essential: true` depende de un módulo no esencial
      * (`RN-BO-63`, `RN-BO-64`).
      *
-     * @return array{code: string, name_key: string, phase: string, depends_on?: list<string>, essential?: bool}
+     * `feature_flags` (1.6e, `datos.md §9.1`, `RN-BO-34`): opcional, por
+     * omisión `[]`, aditivo puro. `platform:sync-registry` materializa
+     * cada entrada en `feature_flags` y aborta si dos módulos declaran la
+     * misma clave o si una clave no cumple el formato
+     * `[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*` (`CA-BO-089`). El
+     * `module_code` de cada *flag* es siempre el del propio módulo que lo
+     * declara (`null` sólo para `core`) — nunca una referencia cruzada.
+     *
+     * @return array{code: string, name_key: string, phase: string, depends_on?: list<string>, essential?: bool, feature_flags?: list<array{key: string, name_key: string, description_key: string, rollout_unit?: string}>}
      */
     public function moduleDescriptor(): array;
 

@@ -140,6 +140,13 @@ test('CA-PERM-092: runAsPlatform() no aparece en código de app/ fuera de su lis
     //     `retryForTenant()` (api.md §2.10.3, RN-BO-86) — el único
     //     camino de escritura del sub-paso, con la obligación de
     //     `admin_action_logs` que `ADR-046 §6.5` exige.
+    // REQ-BO-005 (1.6e), funcional.md §5.11.8: una entrada nueva —
+    //   - FeatureFlagsService.php: `BackofficeLectura` en
+    //     paginate()/find()/previewRules()/tenantFlags() (catálogo y
+    //     evaluación «para otro centro», sin escribir nada) y
+    //     `BackofficeEscritura` en setState()/replaceRules()/
+    //     setEarlyAdopter() (las tres escrituras del sub-paso, con la
+    //     obligación de `admin_action_logs` que `ADR-046 §6.5` exige).
     $allowlist = [
         base_path('app/Support/Tenancy/TenantContext.php'),
         base_path('app/Support/Tenancy/RunsPerTenant.php'),
@@ -149,6 +156,7 @@ test('CA-PERM-092: runAsPlatform() no aparece en código de app/ fuera de su lis
         base_path('app/Modules/Backoffice/Application/ModuleSubscriptionsService.php'),
         base_path('app/Modules/Backoffice/Application/PlatformMetricsService.php'),
         base_path('app/Modules/Backoffice/Application/FailedJobRetryService.php'),
+        base_path('app/Modules/Backoffice/Application/FeatureFlagsService.php'),
     ];
 
     $appPath = base_path('app');

@@ -225,6 +225,28 @@ paths:
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
 
+  /api/v1/feature-flags:
+    get:
+      operationId: getMyFeatureFlags
+      summary: Feature flags expuestos para el usuario autenticado
+      description: >
+        REQ-BO-005 puntos 1-2, sub-paso 1.6e. api.md §2.14. El dato es de
+        REQ-BO (funcional.md §5.11), la ruta vive aquí — mismo criterio
+        que `GET /platform-actions`. Autorizado por identidad, sin
+        permiso (la respuesta depende del propio sujeto, igual que
+        `GET /me`). Devuelve sólo las claves que evalúan verdadero para
+        quien pregunta (RN-BO-35, CA-BO-097); una clave ausente se trata
+        como apagada.
+      tags: [Core / Autoservicio]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Claves de flag expuestas para el usuario.
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/TenantFeatureFlags' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+
   /api/v1/users:
     get:
       operationId: listUsers

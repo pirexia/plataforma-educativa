@@ -9,6 +9,7 @@ use App\Modules\Core\Domain\AuditoriaPropiosScopeResolver;
 use App\Modules\Core\Domain\AuditQuery;
 use App\Modules\Core\Domain\BulkUserImporter;
 use App\Modules\Core\Domain\ExportRequestService;
+use App\Modules\Core\Domain\FeatureFlagAdministration;
 use App\Modules\Core\Domain\InvitationRedeemer;
 use App\Modules\Core\Domain\Models\DataExport;
 use App\Modules\Core\Domain\Models\TenantSetting;
@@ -23,6 +24,8 @@ use App\Modules\Core\Infrastructure\Console\GrantRoleAdministrationCommand;
 use App\Modules\Core\Infrastructure\Console\ProvisionTenantDefaultsCommand;
 use App\Modules\Core\Infrastructure\Console\PurgeCoreMaintenanceCommand;
 use App\Support\Authorization\ScopeResolverRegistry;
+use App\Support\FeatureFlags\FeatureFlagEvaluator;
+use App\Support\FeatureFlags\FeatureFlagExplainer;
 use App\Support\Modules\DeclaresModuleRegistry;
 use App\Support\Modules\ModuleAvailability;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -63,6 +66,16 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         // nueva (y por tanto una memoización nueva) en cada resolución.
         $this->app->singleton(ModuleCatalog::class, DeclaredModuleCatalog::class);
         $this->app->bind(ModuleContracting::class, ModuleContractingService::class);
+
+        // funcional.md §5.11.8 (1.6e): mismo precedente que
+        // ModuleAvailability. Una sola implementación sirve las dos
+        // interfaces de App\Support\FeatureFlags (RN-BO-101) — `bind()`
+        // y no `singleton()`: no memoiza nada por sí misma (el estado
+        // compartido vive en Redis, vía FeatureFlagCatalogCache), así
+        // que no hay motivo para atarla a la vida del proceso.
+        $this->app->bind(FeatureFlagEvaluator::class, EloquentFeatureFlagEvaluator::class);
+        $this->app->bind(FeatureFlagExplainer::class, EloquentFeatureFlagEvaluator::class);
+        $this->app->bind(FeatureFlagAdministration::class, EloquentFeatureFlagAdministration::class);
     }
 
     public function boot(): void

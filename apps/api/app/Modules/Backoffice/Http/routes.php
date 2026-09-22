@@ -2,6 +2,7 @@
 
 use App\Modules\Backoffice\Http\Controllers\AdminActionLogsController;
 use App\Modules\Backoffice\Http\Controllers\DualAuthorizationsController;
+use App\Modules\Backoffice\Http\Controllers\FeatureFlagsController;
 use App\Modules\Backoffice\Http\Controllers\ModulesController;
 use App\Modules\Backoffice\Http\Controllers\PlatformAdminInvitationRedemptionsController;
 use App\Modules\Backoffice\Http\Controllers\PlatformAdminsController;
@@ -174,3 +175,39 @@ Route::get('/metrics/platform', [PlatformMetricsController::class, 'platform'])
     ->middleware(['require-platform-mfa', 'require-platform-capability:metrica.leer'])->name('platform.metrics.platform.show');
 Route::get('/metrics/module-adoption', [PlatformMetricsController::class, 'moduleAdoption'])
     ->middleware(['require-platform-mfa', 'require-platform-capability:metrica.leer'])->name('platform.metrics.module-adoption.show');
+
+// §2.11-§2.14 (1.6e, REQ-BO-005 puntos 1-2). `{key}` se direcciona por la
+// clave del flag y no por `public_id` (`ADR-051`, `OPEN-BO-11`): el
+// formato admite puntos (`datos.md §9.1`), así que la ruta necesita su
+// propia restricción (`ADR-051 §2` condición C4) o Laravel no encajaría
+// `comedor.reserva_v2` como un solo segmento. Registrado en
+// FeatureFlagKeyRoutes::REGISTRY (ADR-051 §5.1).
+$flagKeyPattern = '[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*';
+
+Route::get('/feature-flags', [FeatureFlagsController::class, 'index'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:flag.leer'])->name('platform.feature-flags.index');
+Route::get('/feature-flags/{key}', [FeatureFlagsController::class, 'show'])
+    ->where('key', $flagKeyPattern)
+    ->middleware(['require-platform-mfa', 'require-platform-capability:flag.leer'])->name('platform.feature-flags.show');
+Route::post('/feature-flags/{key}/rules/preview', [FeatureFlagsController::class, 'rulesPreview'])
+    ->where('key', $flagKeyPattern)
+    ->middleware(['require-platform-mfa', 'require-platform-capability:flag.leer'])->name('platform.feature-flags.rules.preview.store');
+// api.md §2.12 punto 2: apagar (`forced_off`) va sin fricción; encender
+// (`activo`) exige reautenticación — lo comprueba el controlador, no una
+// declaración estática (mismo criterio que `ModulesController::update()`).
+Route::put('/feature-flags/{key}/state', [FeatureFlagsController::class, 'updateState'])
+    ->where('key', $flagKeyPattern)
+    ->middleware(['require-platform-mfa', 'require-platform-capability:flag.gestionar'])->name('platform.feature-flags.state.update');
+// Siempre sensible (api.md §2.12 punto 1, §4): la precedencia de
+// `funcional.md §5.11.5` es del conjunto completo.
+Route::put('/feature-flags/{key}/rules', [FeatureFlagsController::class, 'updateRules'])
+    ->where('key', $flagKeyPattern)
+    ->middleware(['require-platform-mfa', 'require-platform-capability:flag.gestionar', 'require-platform-reauthentication'])->name('platform.feature-flags.rules.update');
+
+Route::get('/tenants/{public_id}/feature-flags', [FeatureFlagsController::class, 'forTenant'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:flag.leer'])->name('platform.tenants.feature-flags.index');
+// api.md §2.11 nota, permisos.md §4.6 decisión 3: `tenant.actualizar`, no
+// `flag.gestionar` — es un atributo del centro, no una regla de
+// despliegue. No sensible (api.md §4, RN-BO-109).
+Route::put('/tenants/{public_id}/early-adopter', [FeatureFlagsController::class, 'updateEarlyAdopter'])
+    ->middleware(['require-platform-mfa', 'require-platform-capability:tenant.actualizar'])->name('platform.tenants.early-adopter.update');
