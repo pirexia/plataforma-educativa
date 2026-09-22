@@ -6,6 +6,30 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-09-22 · `feature/REQ-BO-005-feature-flags`
+
+Implementa el sub-paso `1.6e` (`REQ-BO-005` puntos 1-2, motor de *feature flags*), último de los cinco sub-pasos de `REQ-BO`, sobre la especificación aprobada de `docs/modulos/REQ-BO/funcional.md §15.5`.
+
+### Añadido
+- **Evaluador en `REQ-CORE`** (`App\Support\FeatureFlags\{FeatureFlagEvaluator,FeatureFlagExplainer}`, implementación única `EloquentFeatureFlagEvaluator`), precedente literal de `ModuleAvailability`: único código de este sub-paso que corre en el camino de petición de todos los tenants, no solo del backoffice.
+- **`FeatureFlagDecisionEngine`**: función pura, un solo algoritmo para evaluación en caliente y explicación administrativa, para que el `matched_by` que ve un operador sea siempre el motivo real.
+- **Ocho *endpoints***: siete de gestión en el backoffice (`GET/PUT /feature-flags`, vista previa y reemplazo de reglas, designación de *early adopter*) más `GET /api/v1/feature-flags` en `REQ-CORE`, autorizado por identidad del sujeto.
+- **Tres migraciones**: tablas `feature_flags`/`feature_flag_rules`, ampliación del `CHECK` de `admin_action_logs.action` con los valores `flag.*`, y `tenants.early_adopter_since`.
+- **`ADR-051` aplicado**: las cuatro rutas de *flag* se direccionan por `key`, no por `public_id`, con registro único (`CatalogKeyRouteParameters`) y su propio test de arquitectura.
+- i18n `bo.flag.*` en los cuatro idiomas; OpenAPI de los ocho *endpoints*.
+
+### Corregido (revisión independiente, `db-reviewer`/`security-reviewer`/`doc-reviewer` en paralelo)
+- **Alto**: `GET /api/v1/feature-flags` evaluaba sin comprobar sesión (`INV-002`) pese a que el propio código afirmaba seguir el *guard* de `MeController` — no lo tenía. Corregido, con test de regresión.
+- **Media**: faltaba el `CHECK (length(btrim(reason)) > 0)` de `feature_flag_rules.reason` que `datos.md §9.3` exige "en el motor". Migración aditiva.
+- **Media**: `PUT .../rules` devolvía `affected_tenant_id` como `bigint` interno en el JSON de respuesta (`ADR-029`). Retirado del payload HTTP, conservado solo para `admin_action_logs`.
+- **Media**, documentada sin corregir (`OPEN-BO-27`): `rollout_unit: 'user'` deja la vista previa y el bloque `impact` ciegos a las reglas `percentage` — decisión de alcance, no de esta sesión.
+- **Media**, sin decidir (issue [#238](https://github.com/pirexia/plataforma-educativa/issues/238)): el registro de `ADR-051` no puede cubrir `permissions.code` por el mismo mecanismo que cubre `modules.code` — `permissions.code` nunca es parámetro de ruta, y el test de arquitectura solo recorre rutas. Ambigüedad real de `ADR-051 §5.3`, comentada en el issue.
+- **Baja**, sin corregir por política (issue [#239](https://github.com/pirexia/plataforma-educativa/issues/239)): comentario obsoleto en `routes.php` referenciando una clase inexistente.
+
+741/741 Pest en verde (suite completa, verificada de forma independiente contra el contenedor de referencia — confirma que los 74 fallos vistos por el `implementer` en su *worktree* aislado eran el mismo problema de entorno ya visto en `1.6d`, no una regresión), Pint y Larastan limpios. Detalle completo en `docs/modulos/REQ-BO/funcional.md §15.5.1`.
+
+---
+
 ## 2026-09-21 · `chore/cierre-1.6d-memoria-plan`
 
 `ADR-050`: cierre de la prueba de Codex (`ADR-049 §8`). Los tres puntos de medición que fijaba `§8.2` (calibrado sobre PR #204 + `1.6c` + `1.6d`) ya están cerrados:
