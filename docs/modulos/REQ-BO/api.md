@@ -601,7 +601,11 @@ Entra por decisión del usuario del 2026-09-08. Diseño en `funcional.md §5.11`
 | `GET /tenants/{public_id}/feature-flags` | `flag.leer` | Qué *flags* están expuestos en ese centro **y por qué regla**. §2.13 |
 | `PUT /tenants/{public_id}/early-adopter` | `tenant.actualizar` | Designar o retirar, con `reason`. Escribe `tenants.early_adopter_since` (`RN-BO-46`) |
 
-**Sobre `{key}` en la ruta**: `datos.md §11` y `OPEN-BO-11` (`funcional.md §14`). Si esa pregunta se resuelve en contra, **las cuatro rutas que llevan `{key}`** pasan a `{public_id}` y nada más cambia. Las dos de `/tenants/{public_id}/…` ya usan el ULID del centro y no se ven afectadas.
+**Sobre `{key}` en la ruta · `OPEN-BO-11`, RESUELTA 2026-09-21: se aprueba.** Las **cuatro** rutas que llevan `{key}` se direccionan por la clave del *flag* —`/feature-flags/comedor.reserva_v2`—, que es lo que el código escribe y lo que un operador reconoce; un ULID no significa nada para nadie. El *flag* **conserva su `public_id` de todos modos**, y las dos rutas de `/tenants/{public_id}/…` ya usaban el ULID del centro.
+
+> **Es una aplicación de `ADR-051` (enmienda de `ADR-029`), no una excepción documentada solo aquí** (`funcional.md §14`, `datos.md §11`). `feature_flags.key` cumple las seis condiciones que `ADR-051 §2` exige a cualquier clave de catálogo para ser identificador público válido; `public_id` ULID **sigue siendo la convención por defecto** para todo lo demás: para los otros ocho recursos de este módulo, para `subject_public_id` de `admin_action_logs` —que guarda el ULID del *flag* y no su `key`— y para los otros cincuenta y dos módulos del producto. **No se hereda por analogía**: un módulo que quiera direccionar por una clave natural demuestra las seis condiciones en su propio `datos.md`, no cita este precedente. `CA-BO-071` lo comprueba con esa forma exacta.
+>
+> La `key` cumple lo que `ADR-029` persigue en un identificador expuesto —única, estable, inmutable, sin filtrar cardinalidad y sin ser una clave interna—, y su formato ya está validado por el comando de sincronización: `[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*` (`datos.md §9.1`). **Ese formato admite puntos y por tanto la ruta tiene que declararse con la restricción correspondiente**, o Laravel no encajará `comedor.reserva_v2` como un solo segmento — es el detalle de implementación que esta decisión arrastra y el único.
 
 **Por qué la designación de *early adopter* se autoriza con `tenant.actualizar` y no con `flag.gestionar`**: es un atributo **del centro**, escrito en `tenants`, no una regla de despliegue. Colgarlo de `flag.gestionar` significaría que una capacidad sobre *flags* permite modificar la ficha de un centro, que es una frontera que no conviene difuminar. En la práctica no cambia quién puede hacerlo —`operaciones` y `superadministrador` tienen ambas—, y por eso mismo es gratis elegir la correcta.
 
@@ -616,8 +620,78 @@ Entra por decisión del usuario del 2026-09-08. Diseño en `funcional.md §5.11`
 | `percentage` fuera de `0..100` | `422`, `bo.flag.invalid_rule` |
 | Motivo ausente o vacío | `422` (`RN-BO-43`) |
 | Intento de escribir `rollout_unit` | `422`: no es un campo de la API. Lo declara el código (`RN-BO-36`) |
+| **Designar *early adopter* a un centro `eliminado`** | **`409`, `bo.flag.tenant_state_invalid`** (`RN-BO-108`). Los otros cuatro estados lo admiten, **`en_alta` incluido**: la columna vive en `tenants` y el aprovisionamiento no la toca, a diferencia de lo que ocurría con las suscripciones de módulo (`RN-BO-71`) |
+| Código de rol que no existe en ningún centro, en una regla `role` | **`200`.** **No es un error** (`RN-BO-40`, `CA-BO-086`): la regla se acepta, no expone a nadie, y funcionará el día que un centro cree un rol con ese código |
 
 **No hay `POST /feature-flags` ni `DELETE`.** Un *flag* se crea escribiendo el código que lo consulta y se retira dejando de declararlo; el catálogo lo materializa `platform:sync-registry` (`RN-BO-34`, `CA-BO-090`). Un *endpoint* de creación produciría *flags* huérfanos que ningún código lee y que nadie se atreve a borrar — y es exactamente el fallo que `ADR-034 §5` evitó al no dejar que los módulos se dieran de alta desde la aplicación.
+
+#### 2.11.1 Los tres cuerpos de escritura
+
+> **Los añade la pasada de `1.6e`.** §2.11 declaraba las siete rutas y §2.13 enseñaba las dos lecturas de depuración; lo que faltaba era exactamente lo que `implementer` no puede inventarse: qué se envía y qué se recibe en las tres escrituras.
+
+**`PUT /feature-flags/{key}/rules` — el conjunto completo, no un parche** (`api.md §2.12` punto 1, `RN-BO-104`):
+
+```jsonc
+{
+  "reason": "Piloto de reserva de comedor: 30 % y fuera el centro de la incidencia",  // obligatorio, no vacío
+  "rules": [                                  // el conjunto COMPLETO; una lista vacía retira todas
+    { "scope_type": "percentage",      "percentage": 30,               "enabled": true },
+    { "scope_type": "early_adopters",                                  "enabled": true },
+    { "scope_type": "tenant", "tenant_public_id": "01J…",              "enabled": false },
+    { "scope_type": "role",   "role_code": "docente",                  "enabled": true }
+  ]
+}
+```
+
+- **`rules: []` es válido y significa «ninguna regla»**, es decir, apagado para todos (`RN-BO-35`). No se confunde con `forced_off`, que es `PUT …/state` y está por encima de todo: uno retira la exposición, el otro la suspende sin borrar lo escrito.
+- **No hay `id` ni `public_id` de regla en el cuerpo.** El servidor resuelve la diferencia contra lo que hay (`RN-BO-104`): borra lógicamente lo que desaparece, inserta lo nuevo, actualiza lo que cambia, y **incrementa `rules_version` una sola vez**. Mandar identificadores invitaría a escrituras parciales, que es justo lo que §2.12 punto 1 descarta.
+- **`tenant_public_id` y no `affected_tenant_id`**: en la API sólo viajan ULID (`ADR-029`). La traducción a clave interna es del servidor.
+- **`rollout_unit` no es un campo**, y enviarlo es `422` (`RN-BO-36`).
+
+Respuesta `200`, y **dice lo que de verdad quedó escrito y a quién alcanza**, con la misma filosofía que `§2.6.3`:
+
+```jsonc
+{
+  "data": {
+    "key": "comedor.reserva_v2",
+    "rules_version": 12,                      // incrementada UNA vez (RN-BO-104)
+    "rules": [ /* el conjunto vigente, con el public_id de cada regla */ ],
+    "impact": {                               // el mismo cálculo que la vista previa (§2.13)
+      "rollout_unit": "tenant",
+      "exposed_tenants": 23,
+      "total_tenants": 210,
+      "newly_exposed": 15,
+      "newly_hidden": 1
+    }
+  }
+}
+```
+
+> **`impact` devuelve recuentos y no listas**, a diferencia de la vista previa de §2.13, que sí lista `public_id` hasta un umbral. El motivo es la asimetría de uso: la vista previa existe para decidir **antes**, y ahí los identificadores concretos sirven; la respuesta de la escritura existe para confirmar **después**, y quien acaba de exponer a ciento cincuenta centros no va a leer ciento cincuenta ULID. Quien los necesite tiene `GET /tenants/{public_id}/feature-flags`, centro a centro y con el motivo.
+
+**`PUT /feature-flags/{key}/state` — el interruptor**:
+
+```jsonc
+{
+  "status": "forced_off",                                    // obligatorio, ∈ {activo, forced_off}
+  "reason": "La reserva v2 está duplicando comandas"         // obligatorio, no vacío
+}
+```
+
+Respuesta `200` con `key`, `status`, `status_reason` y `rules_version` —que también se incrementa (`RN-BO-42`)—. **Las reglas no se tocan**: `forced_off` suspende, no borra, y por eso volver a `activo` restituye exactamente la exposición anterior sin tener que reescribir nada. Es la mitad de la «reversión inmediata sin nuevo despliegue» que hace que el freno sea usable dos veces.
+
+**`PUT /tenants/{public_id}/early-adopter` — la cohorte**:
+
+```jsonc
+{
+  "early_adopter": true,                                     // obligatorio
+  "reason": "Acuerdo de pilotaje 2026/27 con el centro"      // obligatorio, no vacío
+}
+```
+
+Respuesta `200` con `tenant_public_id` y `early_adopter_since` —la marca de tiempo, o `null` al retirar—. **Es la única de las tres que no toca ninguna tabla de *flags***: escribe una columna de `tenants` (`datos.md §6.1`), se autoriza con `tenant.actualizar` (§2.11) y **no incrementa ningún `rules_version`**, porque no ha cambiado ninguna regla. Lo que cambia es el sujeto, no el despliegue.
+
+> **Y por eso mismo su efecto no es instantáneo del mismo modo que el de las otras dos.** Las reglas de cohorte se evalúan contra `early_adopter_since` **del centro**, así que designar a uno afecta a todos los *flags* con regla `early_adopters` a la vez — pero la entrada de caché de ese centro sigue siendo alcanzable, porque ningún `rules_version` ha cambiado. **Es la única escritura de este sub-paso cuya visibilidad depende del TTL**, y el diseño de caché que resuelva `OPEN-BO-24` tiene que decir qué hace con ella: si la caché es por sujeto (salida (a)), hay que invalidar **la de ese centro**, que es un solo prefijo y cabe en la petición (`ADR-045 §8.3`, el mecanismo de `1.6c`); si es el catálogo en una entrada (salida (b)), no hay nada que invalidar porque el dato del centro no está dentro. **Se dice aquí porque es el único punto en que las dos salidas de `OPEN-BO-24` no son intercambiables.**
 
 ### 2.12 Dos decisiones sobre las escrituras de *flag* que hay que defender
 
@@ -649,15 +723,19 @@ La precedencia de `funcional.md §5.11.5` es una propiedad **del conjunto**, no 
 
 `GET /tenants/{public_id}/feature-flags` responde a la pregunta inversa, que es la que llega por soporte —«este centro ve algo que no debería»—:
 
-```json
+```jsonc
 {
   "data": [
-    { "key": "comedor.reserva_v2", "enabled": true, "matched_by": "early_adopters" },
-    { "key": "eval.boletin_v3",   "enabled": false, "matched_by": "none" },
-    { "key": "acad.horario_beta", "enabled": true, "matched_by": "percentage" }
+    { "key": "comedor.reserva_v2", "enabled": true,  "matched_by": "early_adopters" },
+    { "key": "eval.boletin_v3",    "enabled": false, "matched_by": "none" },
+    { "key": "acad.horario_beta",  "enabled": true,  "matched_by": "percentage" },
+    { "key": "comedor.menu_v2",    "enabled": false, "matched_by": "module_disabled" },  // 1.6e
+    { "key": "acad.parte_rapido",  "enabled": false, "matched_by": "forced_off" }        // 1.6e
   ]
 }
 ```
+
+**El vocabulario de `matched_by` es el de `FeatureFlagDecision`** (`funcional.md §5.11.8.2`) y **se documenta como enumerado extensible** (`ADR-038 §7.3`): `tenant`, `early_adopters`, `percentage`, `global`, `forced_off`, `retired`, `module_disabled`, `role_filtered` y `none`. **Los cuatro últimos los añade la pasada de `1.6e`** y no son adorno: son precisamente los casos en los que el operador **no encuentra la causa mirando las reglas**, que es cuando abre este *endpoint*. `module_disabled` responde a «está al 100 % y este centro no lo ve» sin obligar a cruzar dos pantallas (`RN-BO-102`, `operacion.md §8`); `role_filtered` responde a «el centro está expuesto y esta persona no» (`RN-BO-40`); y `retired` distingue «nunca se le aplicó» de «se le aplicó y el *flag* ya no existe», que es la diferencia entre un despliegue y una reclamación.
 
 > **`matched_by` es la mitad del valor de este *endpoint***. Sin él, un operador ve que un centro tiene un *flag* encendido y no puede saber si es por regla nominal, por cohorte o porque cayó dentro del porcentaje — y acabará adivinando. Es el equivalente, para *flags*, de lo que `REQ-PERM` resolvió con la explicación de permiso efectivo: **decir el resultado sin decir la causa obliga a reproducir el cálculo a mano**.
 >
@@ -749,6 +827,16 @@ Exigen sesión reautenticada dentro de la ventana (`RN-BO-08`). La lista es **ce
 >
 > **Si `OPEN-BO-21` se resuelve en contra**, se retira esta entrada y la celda «¿sensible?» de `§2.10` y de `permisos.md §4.5` pasa a «no». **Ningún criterio de aceptación cambia de signo.**
 
+**`1.6e` no añade ninguna entrada a esta lista, y es el primer sub-paso del que eso es cierto sin matices.** Sus dos operaciones sensibles —`PUT /feature-flags/{key}/rules` y `PUT …/state` cuando el destino es `activo`— **ya están en la lista desde el chasis**, con su asimetría razonada en §2.12. Lo que sí conviene decir es lo que **no** entra y por qué, porque es la tercera vez que este documento decide lo mismo y sale distinto cada vez:
+
+| Operación de `1.6e` | ¿Sensible? | Por qué |
+|---|:---:|---|
+| Apagar un *flag* (`forced_off`) | **No** | Es el freno de emergencia. **Poner fricción en el freno es cómo se aprende a no usarlo**, y apagar va siempre en la dirección segura (§2.12) |
+| Encender un *flag* o escribir sus reglas | **Sí** | La dirección peligrosa, y la que alcanza al parque entero con una llamada |
+| Designar o retirar *early adopter* | **No** | Es un atributo de un centro, reversible con otra llamada, y **no expone nada por sí mismo**: sólo cambia el sujeto contra el que se evalúan las reglas de cohorte que ya existan (`RN-BO-109`). Si además hay una regla de cohorte activa, lo que expuso fue esa regla, y escribirla **sí** fue sensible |
+
+> **Las tres asimetrías del módulo, juntas, porque por separado parecen arbitrarias.** Contratar un módulo no es sensible y **descontratarlo sí** (`OPEN-BO-17`); apagar un *flag* no es sensible y **encenderlo sí** (§2.12); reintentar un trabajo **sí** lo es aunque parezca diagnóstico (`OPEN-BO-21`). No son tres criterios distintos: son **uno solo aplicado a tres casos** —la fricción va donde cuesta deshacer—, y sale al revés en los *flags* porque ahí lo que arregla el incidente es apagar, mientras que en los módulos apagar **es** el incidente. Quien añada una operación a este módulo tiene que responder a esa pregunta y no a la de si la operación «parece peligrosa».
+
 Fallo: `403` con `type` **propio** — `urn:pge:error:reauthentication-required` — porque la interfaz tiene que distinguir «vuelve a identificarte» de «no tienes permiso» **sin analizar texto**, exactamente por el motivo con el que `ADR-038 §6.2` separó `module-disabled` de `forbidden`.
 
 ---
@@ -770,9 +858,11 @@ Los `403` de este módulo **no revelan por qué en `detail`** cuando la causa es
 
 **Códigos de `errors` propios** (clave, mensaje traducido y `params`, según `ADR-038 §6.3`):
 
-`bo.tenant.invalid_transition` · `bo.tenant.reason_required` · `bo.tenant.name_mismatch` · `bo.tenant.slug_taken` · **`bo.tenant.slug_reserved`** · **`bo.tenant.clone_source_invalid`** · `bo.tenant.last_superadmin` · `bo.module.essential` · `bo.module.missing_dependencies` · `bo.module.dependent_modules` · `bo.module.retired` · **`bo.module.reason_required`** · **`bo.module.tenant_state_invalid`** · `bo.dual_auth.same_actor` · `bo.dual_auth.expired` · `bo.dual_auth.already_resolved` · `bo.dual_auth.payload_mismatch` · `bo.admin.self_modification` · `bo.ip.allowlist_empty` · `bo.flag.retired` · `bo.flag.invalid_rule` · `bo.flag.duplicate_rule` · **`bo.job.reason_required`** · **`bo.job.tenant_state_invalid`** · **`bo.metrics.invalid_period`**
+`bo.tenant.invalid_transition` · `bo.tenant.reason_required` · `bo.tenant.name_mismatch` · `bo.tenant.slug_taken` · **`bo.tenant.slug_reserved`** · **`bo.tenant.clone_source_invalid`** · `bo.tenant.last_superadmin` · `bo.module.essential` · `bo.module.missing_dependencies` · `bo.module.dependent_modules` · `bo.module.retired` · **`bo.module.reason_required`** · **`bo.module.tenant_state_invalid`** · `bo.dual_auth.same_actor` · `bo.dual_auth.expired` · `bo.dual_auth.already_resolved` · `bo.dual_auth.payload_mismatch` · `bo.admin.self_modification` · `bo.ip.allowlist_empty` · `bo.flag.retired` · `bo.flag.invalid_rule` · `bo.flag.duplicate_rule` · **`bo.flag.tenant_state_invalid`** · **`bo.job.reason_required`** · **`bo.job.tenant_state_invalid`** · **`bo.metrics.invalid_period`**
 
-Las **veinticinco** —diecinueve del chasis, del ciclo de vida y de los módulos, tres de *feature flags* y **tres de salud y diagnóstico**—, en `es-ES`, `en`, `de` y `fr` (`INV-009`, `CA-BO-073`).
+Las **veintiséis** —diecinueve del chasis, del ciclo de vida y de los módulos, **cuatro** de *feature flags* y tres de salud y diagnóstico—, en `es-ES`, `en`, `de` y `fr` (`INV-009`, `CA-BO-073`).
+
+**`1.6e` añade una clave y ningún `type` nuevo al catálogo cerrado.** **`bo.flag.tenant_state_invalid`** es el estado del centro que no admite designación de *early adopter* —`eliminado`, `RN-BO-108`— y es la **tercera** de la familia `tenant_state_invalid`, distinta de las otras dos aunque suenen igual. Que sean tres y no una es deliberado y ya tiene precedente escrito: `RN-BO-71` (módulos) y `RN-BO-87` (reintento) **no admiten el mismo conjunto de estados**, y ésta tampoco —`en_alta` sí lo admite aquí y no lo admite en módulos, porque el aprovisionamiento escribe suscripciones y no toca `early_adopter_since`—. Reutilizar una clave para tres reglas con vocabulario distinto es cómo un mensaje acaba mintiendo en dos de los tres casos. Las otras tres claves de *flag* ya estaban declaradas desde el chasis.
 
 **`1.6d` añade esas tres claves y ningún `type` nuevo al catálogo cerrado.** **`bo.metrics.invalid_period`** es la validación de negocio de `GET /metrics/platform` cuando `occurred_at_from` es posterior a `occurred_at_to` (`§2.10.4`) — distinta de un `occurred_at_from` simplemente mal formado, que es un `422` de forma (regla `date`) y no llega a usar esta clave. `bo.job.reason_required` es el tercer simétrico de `bo.tenant.reason_required` y existe por el mismo motivo que los otros dos: el motivo lo exige la regla y el operador tiene que saber de cuál de las tres cosas se le está hablando. **`bo.job.tenant_state_invalid`** es el estado del centro que no admite reintento —`eliminado`, `RN-BO-87`— y es distinto de `bo.module.tenant_state_invalid` aunque suenen igual: aquél habla de escribir una suscripción, éste de reejecutar trabajo dentro del centro, y los dos conjuntos de estados admitidos **no coinciden** (`en_alta` admite reintento y no admite escritura de módulos). Reutilizar una clave para dos reglas con vocabulario distinto es cómo un mensaje acaba mintiendo en uno de los dos casos.
 
