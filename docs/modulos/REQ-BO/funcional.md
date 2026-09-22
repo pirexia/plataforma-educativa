@@ -2469,7 +2469,7 @@ Durante la implementación, una regresión real de 39 tests ajenos (`REQ-AUTH`: 
 
 Ningún hallazgo Crítico ni Alto en código. Ninguno cambia una regla de negocio de `REQ-BO-004`/`REQ-BO-006`. 32/32 Pest del fichero de este sub-paso (`TenantHealthAndMetricsTest.php`) en verde tras los tres arreglos de validación, suite completa reverificada en verde tras aplicarlos.
 
-### 15.5 Sub-paso `1.6e` · motor de *feature flags* — **especificada, pendiente de aprobación**
+### 15.5 Sub-paso `1.6e` · motor de *feature flags* — **especificada y aprobada (2026-09-22)**
 
 Esta pasada especifica `REQ-BO-005` **puntos 1-2** a la altura que hace falta para implementarlos, sobre el chasis de `1.6`, el ciclo de vida de `1.6b` y la matriz de módulos de `1.6c`. **Parte de mucho más que los anteriores**: la decisión del usuario del 2026-09-08 metió los *flags* en alcance a mitad de la pasada original, y con ella se escribieron ya §5.11 entera, `RN-BO-34` a `RN-BO-47`, `CA-BO-080` a `CA-BO-097`, `datos.md §9`, `api.md §2.11`-`§2.14` y buena parte de `operacion.md`. **Lo que faltaba, y lo que trae esta pasada, es lo que separa una decisión tomada de algo implementable.** Dónde está cada cosa:
 
@@ -2505,4 +2505,4 @@ Esta pasada especifica `REQ-BO-005` **puntos 1-2** a la altura que hace falta pa
 
 **Lo que este sub-paso deja fuera, con una línea cada cosa y sin desarrollarlo**: `REQ-BO-003` (planes y facturación) depende de `REQ-SAAS`, que no existe; la impersonación de `REQ-SUP-003` es fase 2 y merece paso y ADR propios; las ventanas de mantenimiento y los avisos (`REQ-BO-005` puntos 3-4) son `REQ-OPS-001` + `REQ-COM`, paso `1.19`; la exportación durante la baja (`REQ-OPS-004`) y la purga física (`REQ-PRIV-006`) siguen donde estaban (`OPEN-BO-05`); la cuota de tenant por espacio y miembros activos (issue [#79](https://github.com/pirexia/plataforma-educativa/issues/79)) no tiene modelo de planes sobre el que apoyarse; y **la interfaz gráfica va después de `1.7`/`1.9`** (§12.5, `OPEN-BO-08`): este sub-paso **se opera sólo por API**, igual que los cuatro anteriores.
 
-> **¿Se aprueba esta especificación de `1.6e` antes de pasar a implementación?**
+> **¿Se aprueba esta especificación de `1.6e` antes de pasar a implementación? Sí — aprobada por el usuario el 2026-09-22, al ordenar el paso a `implementer`.**
