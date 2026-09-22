@@ -8,6 +8,7 @@ use App\Modules\Backoffice\Domain\AdminActionLogActorType;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantStatus;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 /**
  * RN-BO-17, RN-BO-60, operacion.md §6.2, §6.4 (1.6b). Diaria. Para cada
@@ -33,27 +34,48 @@ class CheckGracePeriodsCommand extends Command
 
     public function handle(AdminActionLogRecorder $recorder): int
     {
-        $expired = Tenant::query()
+        $ids = Tenant::query()
             ->where('status', TenantStatus::EnBaja)
             ->whereNotNull('grace_period_ends_at')
             ->where('grace_period_ends_at', '<', now())
             ->whereNull('grace_period_expired_at')
-            ->get();
+            ->pluck('id');
 
-        foreach ($expired as $tenant) {
-            $tenant->forceFill(['grace_period_expired_at' => now()])->save();
+        $marked = 0;
 
-            $recorder->record(
-                action: AdminActionLogAction::TenantGraciaVencida,
-                subjectType: 'tenant',
-                subjectId: $tenant->id,
-                subjectPublicId: $tenant->public_id,
-                affectedTenantId: $tenant->id,
-                actorType: AdminActionLogActorType::System,
-            );
+        foreach ($ids as $id) {
+            // Issue #211, mismo patrón que #210 (ExpireDualAuthorizations):
+            // el listado inicial no bloquea ninguna fila, así que sin
+            // releer bajo lockForUpdate() dentro de su propia transacción
+            // este comando podía marcar "gracia vencida" sobre un tenant
+            // que, entre la lectura y la escritura, ya había sido
+            // rescatado (en_baja → activo, que limpia este mismo campo).
+            DB::connection('pgsql_platform')->transaction(function () use ($id, $recorder, &$marked): void {
+                $tenant = Tenant::query()->lockForUpdate()->find($id);
+
+                if ($tenant === null
+                    || $tenant->status !== TenantStatus::EnBaja
+                    || $tenant->grace_period_expired_at !== null
+                ) {
+                    return;
+                }
+
+                $tenant->forceFill(['grace_period_expired_at' => now()])->save();
+
+                $recorder->record(
+                    action: AdminActionLogAction::TenantGraciaVencida,
+                    subjectType: 'tenant',
+                    subjectId: $tenant->id,
+                    subjectPublicId: $tenant->public_id,
+                    affectedTenantId: $tenant->id,
+                    actorType: AdminActionLogActorType::System,
+                );
+
+                $marked++;
+            });
         }
 
-        $this->info("Periodos de gracia vencidos marcados: {$expired->count()}.");
+        $this->info("Periodos de gracia vencidos marcados: {$marked}.");
 
         return self::SUCCESS;
     }

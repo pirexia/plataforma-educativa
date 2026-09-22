@@ -664,3 +664,28 @@ test('CA-BO-122: ejecutar bo:check-grace-periods varios días seguidos sobre el 
 
     expect(TenantLifecycleEvent::query()->where('affected_tenant_id', $tenant->id)->exists())->toBeFalse();
 });
+
+// Issue #211, mismo patrón que #210 (ExpireDualAuthorizations): sin
+// releer bajo lockForUpdate() dentro de su propia transacción, este
+// comando podía marcar "gracia vencida" sobre un tenant que, entre la
+// lectura inicial y la escritura, ya había sido rescatado (en_baja →
+// activo, que limpia este mismo campo). El arnés de tests no puede
+// solapar dos transacciones de verdad (misma limitación documentada en
+// el test de #210), así que se fuerza el estado ya-rescatado en base de
+// datos antes de ejecutar el comando — comprueba el guardarraíl real
+// (recheck de `status`/`grace_period_expired_at` bajo bloqueo), no solo
+// el `WHERE` inicial.
+test('bo:check-grace-periods (issue #211): un tenant ya rescatado no se marca como gracia vencida', function (): void {
+    $tenant = Tenant::factory()->create(['status' => 'en_baja', 'grace_period_ends_at' => now()->subDay()]);
+
+    DB::connection('pgsql_platform')->table('tenants')->where('id', $tenant->id)->update([
+        'status' => 'activo',
+        'grace_period_ends_at' => null,
+    ]);
+
+    $this->artisan('bo:check-grace-periods')->run();
+
+    $tenant->refresh();
+    expect($tenant->grace_period_expired_at)->toBeNull();
+    expect(AdminActionLog::query()->where('action', 'tenant.gracia_vencida')->where('affected_tenant_id', $tenant->id)->exists())->toBeFalse();
+});
