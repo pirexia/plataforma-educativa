@@ -1,6 +1,6 @@
 # ADR-051 · Claves de catálogo declaradas en código como identificador público (enmienda de `ADR-029`)
 
-**Estado**: **ACEPTADA en su parte decidida por el usuario** — las cuatro rutas de *feature flags* direccionadas por `key` (`OPEN-BO-11`, aprobada el 2026-09-21) — y **PROPUESTA en su generalización**: las seis condiciones de §2, la lista declarada de §5 y el test de §5.2 son decisión de `architect` y **exceden lo que el usuario aprobó**, que fue un caso concreto. La implementación de `1.6e` **no depende de esa ratificación**: las cuatro rutas están decididas por las dos vías a la vez.
+**Estado**: **ACEPTADA sin reservas** — las cuatro rutas de *feature flags* direccionadas por `key` (`OPEN-BO-11`, aprobada el 2026-09-21) y la generalización a las seis condiciones de §2, el registro de §5.1 y el test de §5.2 (`OPEN-051-01`, ratificada por el usuario el 2026-09-21, sin reservas ni cambios sobre la propuesta de `architect`). No queda ninguna parte en `PROPUESTA`.
 **Fecha**: 2026-09-21
 **Enmienda**: `ADR-029`, sección "Identificadores", tercer punto ("Las rutas y la API usan **exclusivamente** el identificador público"). También la frase «**única** excepción argumentada» de `ADR-038 §4.2` y `§4.4` punto 3, que deja de ser cierta por aritmética — **no se reabre la decisión del cursor cifrado**, que sigue íntegra y es de otra naturaleza (§4.3).
 **Se apoya en**: `ADR-034 §5` (catálogo en el código, materializado por `platform:sync-registry`), `ADR-045 §9`, `ADR-038 §4.2`
@@ -131,5 +131,5 @@ Este ADR lo regulariza hacia delante y **no lo absuelve retroactivamente**. Issu
 
 ## Preguntas abiertas
 
-- **`OPEN-051-01` · ¿Ratifica el usuario la generalización?** Lo aprobado el 2026-09-21 fue el caso de `REQ-BO-005`. Las seis condiciones, el registro y el test son decisión de `architect`. **No bloquea `1.6e`**: si la generalización se rechaza, las cuatro rutas siguen decididas y este documento se reduce a la excepción nombrada que proponía la especificación, con el hallazgo de §6 igual de abierto.
+- **`OPEN-051-01` · ¿Ratifica el usuario la generalización?** · **RESUELTA 2026-09-21: sí, sin reservas.** El usuario ratificó la regla general de seis condiciones (no solo el caso de `REQ-BO-005`), a la vista de que resuelve de forma coherente el hallazgo de §6 (`modules.code`/`permissions.code`). El ADR queda `ACEPTADA` completa, sin ninguna parte en `PROPUESTA`.
 - **`OPEN-051-02` · ¿Dónde vive exactamente el registro de §5.1?** Hay dos sitios razonables —una constante de `App\Support` o el descriptor de cada módulo— y la elección es de implementación, no de arquitectura. La decide `1.6e` al escribirlo, con una condición que sí es de arquitectura: **un solo sitio, y el test lo lee de ahí**.
