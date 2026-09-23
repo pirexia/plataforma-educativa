@@ -83,6 +83,14 @@
   --google-green: #34a853;
   --google-yellow: #fbbc05;
   --google-red: #ea4335;
+
+  /* `docs/design-system.md §10.3`/`§12`: color fijo que no depende del
+     modo — el mismo criterio que los colores de Google de arriba. La
+     capa (`sheet`, drawer/hamburguesa de 1.8, `docs/modulos/REQ-CORE/
+     funcional.md §12.7`) es siempre un velo oscuro traslúcido sobre el
+     contenido, en ambos modos: no forma parte de la paleta semántica del
+     centro ni tiene requisito de contraste (decorativo, como `--border`). */
+  --overlay: oklch(0 0 0 / 40%);
 }
 
 .dark {
@@ -138,6 +146,7 @@
   --google-green: #34a853;
   --google-yellow: #fbbc05;
   --google-red: #ea4335;
+  --overlay: oklch(0 0 0 / 40%);
 }
 
 /**

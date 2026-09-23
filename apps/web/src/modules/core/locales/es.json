@@ -28,6 +28,9 @@
     "module": {
       "enabled": "Activo",
       "disabled": "Desactivado"
+    },
+    "nav": {
+      "home": "Inicio"
     }
   }
 }

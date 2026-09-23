@@ -526,6 +526,11 @@
         },
         "lastActiveError": "You cannot retire the last active certificate of an enabled provider: disable it first."
       }
+    },
+    "nav": {
+      "passwordChange": "Password",
+      "sessions": "Open sessions",
+      "ssoAdministration": "Institutional sign-in (SSO)"
     }
   }
 }

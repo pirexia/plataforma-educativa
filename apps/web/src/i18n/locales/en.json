@@ -2,13 +2,95 @@
   "layout": {
     "title": "Educational Management Platform"
   },
+  "shell": {
+    "skipToContent": "Skip to content",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "sheetClose": "Close",
+    "nav": {
+      "ariaLabel": "Main navigation",
+      "section": {
+        "inicio": "Home",
+        "cuenta": "My account",
+        "administracion": "Administration"
+      }
+    },
+    "breadcrumb": {
+      "ariaLabel": "Breadcrumb"
+    },
+    "userMenu": {
+      "trigger": "User menu",
+      "account": "My account",
+      "logout": "Sign out",
+      "language": {
+        "label": "Language",
+        "names": {
+          "esES": "Español",
+          "en": "English",
+          "de": "Deutsch",
+          "fr": "Français"
+        }
+      },
+      "colorMode": {
+        "label": "Colour mode",
+        "system": "System",
+        "light": "Light",
+        "dark": "Dark"
+      }
+    },
+    "states": {
+      "loading": "Loading…",
+      "empty": {
+        "shortcuts": {
+          "title": "No shortcuts",
+          "text": "You don’t have any shortcut available yet."
+        }
+      },
+      "error": {
+        "retry": "Retry",
+        "requestId": "Reference: {requestId}",
+        "offline": {
+          "title": "No connection",
+          "text": "We could not reach the server. Check your connection and try again."
+        },
+        "forbidden": {
+          "title": "No access",
+          "text": "You do not have permission to see this content."
+        },
+        "moduleDisabled": {
+          "title": "Module not available"
+        },
+        "notFound": {
+          "title": "Page not found",
+          "text": "The page you are looking for does not exist or has moved."
+        },
+        "tooManyRequests": {
+          "title": "Too many requests",
+          "text": "Try again in {seconds} seconds.",
+          "textUnknown": "Try again in a moment."
+        },
+        "unexpected": {
+          "title": "Unexpected error",
+          "text": "An unexpected error occurred. Please try again."
+        }
+      }
+    },
+    "tenantNotFound": {
+      "title": "School not found",
+      "text": "We could not find a school at this address. Check the link or contact your school."
+    },
+    "documentTitleFormat": "{view} · {tenant}",
+    "localeChangeError": "The school has removed this language. The current language is kept."
+  },
   "home": {
-    "title": "API status",
-    "checking": "Checking…",
-    "retry": "Check again",
-    "status": "{status} · version {version} · {timestamp}",
-    "error": {
-      "unexpected": "Unexpected error"
+    "greeting": "Hello, {name}",
+    "mfa": {
+      "title": "Second factor pending",
+      "text": "You have one day left to set up your second sign-in factor. | You have {days} days left to set up your second sign-in factor.",
+      "link": "Go to account security"
+    },
+    "shortcuts": {
+      "title": "Shortcuts"
     }
   }
 }

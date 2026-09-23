@@ -526,6 +526,11 @@
         },
         "lastActiveError": "No puedes retirar el último certificado vigente de un proveedor activo: desactívalo antes."
       }
+    },
+    "nav": {
+      "passwordChange": "Contraseña",
+      "sessions": "Sesiones abiertas",
+      "ssoAdministration": "Inicio de sesión institucional (SSO)"
     }
   }
 }

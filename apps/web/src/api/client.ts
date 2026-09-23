@@ -78,6 +78,25 @@ async function redirectToMfaEnrollmentWall(): Promise<void> {
 }
 
 /**
+ * `docs/modulos/REQ-CORE/funcional.md §12.3.4`,
+ * `docs/adr/ADR-053-registro-de-navegacion-y-bloques-del-panel.md §6`:
+ * cualquier `403` que no sea `mfa-enrollment-required` recarga `GET /me`
+ * (deduplicada) — es la prueba de que los permisos en memoria están
+ * desfasados. Importación dinámica por el mismo motivo que la anterior:
+ * `src/session` importa `core/api`, que importa este fichero.
+ */
+async function notifySessionOfForbidden(body: unknown): Promise<void> {
+  try {
+    const { reloadSessionAfterForbidden } = await import('@/session/useSession')
+
+    void reloadSessionAfterForbidden(body)
+  } catch {
+    // Entorno sin módulo de sesión (p.ej. un test unitario aislado de este
+    // cliente): no hay nada razonable que hacer.
+  }
+}
+
+/**
  * `XSRF-TOKEN` no es `httpOnly`: se lee del `document.cookie` del propio
  * navegador, nunca de una cabecera de respuesta ni de almacenamiento
  * propio (RN-AUTH-28: prohibido guardar nada de sesión en
@@ -136,8 +155,12 @@ export async function apiFetchWithStatus<T>(
   const body = await response.json().catch(() => null)
 
   if (!response.ok) {
-    if (response.status === 403 && isMfaEnrollmentRequiredBody(body)) {
-      void redirectToMfaEnrollmentWall()
+    if (response.status === 403) {
+      if (isMfaEnrollmentRequiredBody(body)) {
+        void redirectToMfaEnrollmentWall()
+      } else {
+        void notifySessionOfForbidden(body)
+      }
     }
 
     throw new ApiError(

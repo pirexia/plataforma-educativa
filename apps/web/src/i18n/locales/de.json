@@ -2,13 +2,95 @@
   "layout": {
     "title": "Plattform für Bildungsmanagement"
   },
+  "shell": {
+    "skipToContent": "Zum Inhalt springen",
+    "openMenu": "Menü öffnen",
+    "closeMenu": "Menü schließen",
+    "sheetClose": "Schließen",
+    "nav": {
+      "ariaLabel": "Hauptnavigation",
+      "section": {
+        "inicio": "Start",
+        "cuenta": "Mein Konto",
+        "administracion": "Verwaltung"
+      }
+    },
+    "breadcrumb": {
+      "ariaLabel": "Brotkrumen-Navigation"
+    },
+    "userMenu": {
+      "trigger": "Benutzermenü",
+      "account": "Mein Konto",
+      "logout": "Abmelden",
+      "language": {
+        "label": "Sprache",
+        "names": {
+          "esES": "Español",
+          "en": "English",
+          "de": "Deutsch",
+          "fr": "Français"
+        }
+      },
+      "colorMode": {
+        "label": "Farbmodus",
+        "system": "System",
+        "light": "Hell",
+        "dark": "Dunkel"
+      }
+    },
+    "states": {
+      "loading": "Wird geladen…",
+      "empty": {
+        "shortcuts": {
+          "title": "Keine Verknüpfungen",
+          "text": "Du hast noch keine verfügbare Verknüpfung."
+        }
+      },
+      "error": {
+        "retry": "Erneut versuchen",
+        "requestId": "Referenz: {requestId}",
+        "offline": {
+          "title": "Keine Verbindung",
+          "text": "Der Server konnte nicht erreicht werden. Prüfe deine Verbindung und versuche es erneut."
+        },
+        "forbidden": {
+          "title": "Kein Zugriff",
+          "text": "Du hast keine Berechtigung, diesen Inhalt zu sehen."
+        },
+        "moduleDisabled": {
+          "title": "Modul nicht verfügbar"
+        },
+        "notFound": {
+          "title": "Seite nicht gefunden",
+          "text": "Die gesuchte Seite existiert nicht mehr oder wurde verschoben."
+        },
+        "tooManyRequests": {
+          "title": "Zu viele Anfragen",
+          "text": "Versuche es in {seconds} Sekunden erneut.",
+          "textUnknown": "Versuche es in Kürze erneut."
+        },
+        "unexpected": {
+          "title": "Unerwarteter Fehler",
+          "text": "Es ist ein unerwarteter Fehler aufgetreten. Bitte versuche es erneut."
+        }
+      }
+    },
+    "tenantNotFound": {
+      "title": "Schule nicht gefunden",
+      "text": "Unter dieser Adresse wurde keine Schule gefunden. Prüfe den Link oder wende dich an deine Schule."
+    },
+    "documentTitleFormat": "{view} · {tenant}",
+    "localeChangeError": "Die Schule hat diese Sprache entfernt. Die aktuelle Sprache bleibt erhalten."
+  },
   "home": {
-    "title": "API-Status",
-    "checking": "Wird geprüft…",
-    "retry": "Erneut prüfen",
-    "status": "{status} · Version {version} · {timestamp}",
-    "error": {
-      "unexpected": "Unerwarteter Fehler"
+    "greeting": "Hallo, {name}",
+    "mfa": {
+      "title": "Zweiter Faktor ausstehend",
+      "text": "Dir bleibt noch ein Tag, um den zweiten Anmeldefaktor einzurichten. | Dir bleiben noch {days} Tage, um den zweiten Anmeldefaktor einzurichten.",
+      "link": "Zur Kontosicherheit"
+    },
+    "shortcuts": {
+      "title": "Verknüpfungen"
     }
   }
 }
