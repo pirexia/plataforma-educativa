@@ -11,20 +11,16 @@ import { findLiterals } from './i18n-literals.mjs'
 const rootDir = fileURLToPath(new URL('..', import.meta.url))
 const srcDir = join(rootDir, 'src')
 
-// Excluidos a propósito: los componentes de shadcn-vue (fuera de
-// src/modules, no son contenido del centro ni texto de negocio).
-const IGNORED_DIRS = new Set(['components/ui'])
+// `docs/design-system.md` §14: ya no se excluye `components/ui` (ni
+// `design-system`, que no tiene ficheros `.vue`). `ADR-052 §5`/`RN-DS-24`:
+// "un componente base no tiene literales propios" — con eso garantizado
+// por construcción, el script pasa a demostrarlo en vez de suponerlo.
 
 function listVueFiles(dir) {
   const files = []
 
   for (const entry of readdirSync(dir)) {
     const fullPath = join(dir, entry)
-    const rel = relative(srcDir, fullPath)
-
-    if ([...IGNORED_DIRS].some((ignored) => rel.startsWith(ignored))) {
-      continue
-    }
 
     const stats = statSync(fullPath)
 
