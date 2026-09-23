@@ -2,53 +2,49 @@
 /**
  * funcional.md §1.6: envoltorio común de las cinco pantallas públicas.
  * Sin `AppLayout` (sin navegación, a propósito: ninguna depende del
- * *layout* de 1.8). Pinta el branding del centro y nada más de
- * `GET /tenant/branding` (`CA-AUTH-061`).
+ * *layout* de 1.8). Pinta nombre, logo y fondo de `useTenantBranding()`
+ * (capa B, `@/tenant`) — ya no recibe `branding` por *prop* (`CA-DS-045`,
+ * `docs/design-system.md` §13.1).
+ *
+ * El tema del centro es ahora **global** (`ADR-052 §1`): la capa A aplica
+ * `--brand-primary`/`--brand-primary-foreground` sobre `<html>` desde
+ * `useTenantBranding`, y la tarjeta los hereda como cualquier otro
+ * elemento — ya no liga `--primary`/`--primary-foreground` como `:style`
+ * propio. Los usos del color de marca sobre el fondo (el enlace de
+ * recuperación de `LoginView`, entre otros) pasan a
+ * `text-primary-on-background`, con contraste garantizado por
+ * `deriveOnBackground` (`RUX-BRAND-006`, §6) — la afirmación de que aquí
+ * no se recalcula contraste en cliente ya no es cierta para esos usos.
  */
 import { computed, type CSSProperties } from 'vue'
+import { useTenantBranding } from '@/tenant/useTenantBranding'
 
-interface Branding {
-  name: string
-  color_primary: string | null
-  color_secondary: string | null
-  logo_url: string | null
-  login_background_url: string | null
-}
-
-const props = defineProps<{
-  branding: Branding | null
-}>()
-
-/**
- * RUX-BRAND-002/004: colores del centro. El par `color_primary`/
- * `color_secondary` ya viene validado por `REQ-CORE` (`RN-CORE-15`:
- * contraste WCAG 2.2 AA **entre ambos**), así que se aplica tal cual como
- * el par de variables `--primary`/`--primary-foreground` de shadcn-vue —
- * es lo que permite reutilizar el color del centro en botones y enlaces
- * sin recalcular contraste en el cliente (`CA-AUTH-062`).
- */
-const brandVars = computed<CSSProperties>(() => {
-  if (!props.branding?.color_primary || !props.branding?.color_secondary) {
-    return {}
-  }
-
-  return {
-    '--primary': props.branding.color_primary,
-    '--primary-foreground': props.branding.color_secondary,
-  } as CSSProperties
-})
+const { branding, reportAssetError } = useTenantBranding()
 
 const backgroundStyle = computed<CSSProperties>(() => {
-  if (!props.branding?.login_background_url) {
+  if (!branding.value?.login_background_url) {
     return {}
   }
 
   return {
-    backgroundImage: `url(${props.branding.login_background_url})`,
+    backgroundImage: `url(${branding.value.login_background_url})`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
   }
 })
+
+/**
+ * §7.4: si el logo falla al cargar (URL firmada caducada en una sesión
+ * larga), se informa a la capa B para que renueve `GET /tenant/branding`.
+ * El fondo es CSS (`background-image`), sin evento `error` nativo: queda
+ * sin recuperación automática en 1.7 y se acepta (`docs/design-system.md`
+ * §13.1).
+ */
+function onLogoError(): void {
+  if (branding.value?.logo_url) {
+    reportAssetError(branding.value.logo_url)
+  }
+}
 </script>
 
 <template>
@@ -56,12 +52,15 @@ const backgroundStyle = computed<CSSProperties>(() => {
     class="bg-muted flex min-h-svh flex-col items-center justify-center px-4 py-10"
     :style="backgroundStyle"
   >
-    <div
-      class="border-border bg-background w-full max-w-sm rounded-xl border p-6 shadow-sm"
-      :style="brandVars"
-    >
+    <div class="border-border bg-background w-full max-w-sm rounded-xl border p-6 shadow-sm">
       <div class="mb-6 flex flex-col items-center gap-2 text-center">
-        <img v-if="branding?.logo_url" :src="branding.logo_url" alt="" class="h-10 w-auto" />
+        <img
+          v-if="branding?.logo_url"
+          :src="branding.logo_url"
+          alt=""
+          class="h-10 w-auto"
+          @error="onLogoError"
+        />
         <span v-if="branding?.name" class="font-heading text-lg font-semibold">{{
           branding.name
         }}</span>

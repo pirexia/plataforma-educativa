@@ -15,7 +15,7 @@ import { apiErrorStatus, fieldErrors, retryAfterSeconds } from '../composables/f
 import PublicAuthShell from '../components/PublicAuthShell.vue'
 
 const t = useT()
-const { branding } = usePublicAuthScreen()
+usePublicAuthScreen()
 
 const email = ref('')
 const submitting = ref(false)
@@ -55,14 +55,14 @@ async function submit() {
 </script>
 
 <template>
-  <PublicAuthShell :branding="branding">
+  <PublicAuthShell>
     <h1 class="mb-1 text-lg font-semibold">{{ t('auth.passwordResetRequest.title') }}</h1>
 
     <template v-if="succeeded">
       <p role="status" class="text-muted-foreground my-4 text-sm">
         {{ t('auth.passwordResetRequest.success') }}
       </p>
-      <RouterLink to="/entrar" class="text-primary text-sm hover:underline">
+      <RouterLink to="/entrar" class="text-primary-on-background text-sm hover:underline">
         {{ t('auth.passwordResetRequest.backToLogin') }}
       </RouterLink>
     </template>
@@ -101,7 +101,10 @@ async function submit() {
         </Button>
       </form>
 
-      <RouterLink to="/entrar" class="text-primary mt-4 block text-center text-sm hover:underline">
+      <RouterLink
+        to="/entrar"
+        class="text-primary-on-background mt-4 block text-center text-sm hover:underline"
+      >
         {{ t('auth.passwordResetRequest.backToLogin') }}
       </RouterLink>
     </template>

@@ -302,7 +302,7 @@ async function resendCode() {
       <div class="flex items-center justify-between text-sm">
         <button
           type="button"
-          class="text-primary hover:underline"
+          class="text-primary-on-background hover:underline"
           :disabled="resending || challengeExpired"
           @click="resendCode"
         >
@@ -312,7 +312,7 @@ async function resendCode() {
         <button
           v-if="challenge.has_unused_recovery_codes"
           type="button"
-          class="text-primary hover:underline"
+          class="text-primary-on-background hover:underline"
           @click="toggleRecoveryCode"
         >
           {{ t('auth.mfaChallenge.useRecoveryCode') }}
@@ -345,7 +345,7 @@ async function resendCode() {
 
       <button
         type="button"
-        class="text-primary text-sm hover:underline"
+        class="text-primary-on-background text-sm hover:underline"
         @click="toggleRecoveryCode"
       >
         {{ t('auth.mfaChallenge.useCodeInstead') }}
