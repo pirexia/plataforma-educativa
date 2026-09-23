@@ -106,7 +106,13 @@ function onLogoError(url: string): void {
       </div>
     </header>
 
-    <div class="mx-auto flex w-full max-w-7xl gap-6 px-4 py-4 lg:px-6">
+    <!--
+      RN-CORE-30: ≥1024 el contenido usa el ancho disponible (crece con
+      el viewport, "más ancho" en ≥1440); a partir de 2xl (120rem =
+      1920px, redefinido en style.css) se limita para no superar una
+      longitud de línea legible.
+    -->
+    <div class="mx-auto flex w-full gap-6 px-4 py-4 lg:px-6 2xl:max-w-7xl">
       <aside class="hidden w-64 shrink-0 lg:block">
         <AppNavList :entries="navEntries" />
       </aside>

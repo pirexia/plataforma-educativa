@@ -16,6 +16,15 @@
   --font-sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --font-heading: var(--font-sans);
   --default-transition-duration: var(--motion-duration-normal);
+
+  /* `docs/modulos/REQ-CORE/funcional.md §12.7`, `RN-CORE-29`,
+     `RUX-RESP-001`. 320px es el ancho mínimo soportado (sin punto de
+     cambio propio). `md`/`lg` coinciden con los valores por defecto de
+     Tailwind v4; `xl`/`2xl` los sustituyen (por defecto 80rem/96rem). */
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 90rem;
+  --breakpoint-2xl: 120rem;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
