@@ -6,6 +6,31 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-09-23 · `feature/1.7-design-system`
+
+Implementa el paso `1.7` (Bloque B, *design system*), sobre la especificación aprobada de `docs/design-system.md` y `ADR-052`. Solo `apps/web`: ni una línea de `apps/api`.
+
+### Añadido
+- **Hoja de tokens** propia (`design-system/tokens.css`) en tres niveles (entrada de marca, semántico, utilidad), con los añadidos `success`/`warning`/`info` (y sus `-foreground`), `--primary-on-background` y las duraciones de movimiento de `RUX-005`.
+- **Capa A** (`design-system/theme/brandPalette.ts`): aplica la paleta de marca del centro al documento por CSSOM, sin crear ningún `<style>` (compatible con CSP sin `'unsafe-inline'`).
+- **Función pura de derivación de contraste** (`design-system/color/deriveOnBackground.ts`, con `color.ts`/`contrast.ts`/`surfaces.ts`): garantiza `--primary-on-background` ≥ 4,5:1 contra **todas** las superficies neutras del modo (`OPEN-DS-01` resuelta: opción A), no solo contra el fondo.
+- **Capa B** (`tenant/useTenantBranding.ts`, `tenant/favicon.ts`): única llamadora de `GET /tenant/branding` en la SPA, caché local de los dos colores (nunca URLs), *favicon* del centro, `refresh()` deduplicado y `reportAssetError()` para URLs firmadas caducadas.
+- **Modo oscuro** (`design-system/color-mode/useColorScheme.ts`): envoltorio único de `useColorMode` de `@vueuse/core`, tres estados (`system`/`light`/`dark`), persistencia local, ortogonal a la marca. El control visible queda para **1.8** (`OPEN-DS-03` resuelta).
+- **Tests de arquitectura** (Vitest, leyendo ficheros con `node:fs`): prohibición de color de marca fuera de `*-primary-on-background`, prohibición de colores literales fuera de la hoja de tokens, frontera del *design system* (qué puede importar `design-system/**` y `components/ui/**`), puntos únicos de entrada (`useColorMode`, `getTenantBranding`, `--brand-`). Más el test de contraste de todos los pares semánticos estáticos en ambos modos.
+- **Adaptación de los ocho componentes vendorizados** (`button`, `badge`, `input`, `textarea`, `radio-group`, `select`, `label`, `table`) a las reglas anteriores; `--input` pasa a cumplir 3:1 (`OPEN-DS-02` resuelta: sí, WCAG 1.4.11).
+- **Migración de `PublicAuthShell`/`usePublicAuthScreen`** al mecanismo global: la tarjeta deja de recibir la paleta por *prop*/`:style` y hereda el tema del documento.
+- **Colores fijos de marca de terceros**: el logotipo de Google en `GoogleSignInButton`/`IdentityProviderLoginList` pasa de hexadecimales literales a tokens `--google-*` (hallazgo no anticipado por el inventario inicial, mismo patrón que preveía §10.3 en abstracto).
+- **`prefers-reduced-motion`** como regla global de movimiento.
+- **`components.json`** (issue [#251](https://github.com/pirexia/plataforma-educativa/issues/251)): retirada la clave `font` (no usada, sin campo web-font en el proyecto).
+- `scripts/check-i18n-literals.mjs` deja de excluir `src/components/ui` y cubre también `src/design-system`; sin claves nuevas de traducción (los componentes base no tienen literales propios, por construcción).
+
+### Verificado
+418/418 Vitest, 3/3 Playwright (incluidos los dos criterios que necesitan cálculo real de estilos, `CA-DS-009`/`CA-DS-036`, verificados contra un servidor de desarrollo servido desde el propio árbol de trabajo y no contra el contenedor de referencia — mismo cuidado que `1.6d` ante código servido por dos sitios distintos), ESLint y `lint:i18n` limpios, `vue-tsc -b` y `vite build` sin errores. 46 de los 50 criterios de aceptación (`CA-DS-001`-`050`) tienen test propio que los cita; los cuatro restantes (`CA-DS-047`-`050`) son de verificación procesal (suite completa en verde, `lint:i18n` sin hallazgos y sin claves nuevas, estado de `components.json`, contraste de `--input` — este último sí cubierto por el test de contraste general) y se confirmaron a mano contra el resultado real, no supuestos.
+
+Detalle completo, catálogo de tokens y los 50 criterios: `docs/design-system.md`. Pendiente antes de cerrar el paso: revisión independiente (`doc-reviewer`/`security-reviewer`).
+
+---
+
 ## 2026-09-22 · `feature/REQ-BO-005-feature-flags`
 
 Implementa el sub-paso `1.6e` (`REQ-BO-005` puntos 1-2, motor de *feature flags*), último de los cinco sub-pasos de `REQ-BO`, sobre la especificación aprobada de `docs/modulos/REQ-BO/funcional.md §15.5`.

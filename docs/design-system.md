@@ -157,7 +157,7 @@ Todos los valores en `oklch()`. Los valores de los tokens **nuevos** y **AA** so
 | `--info` | `oklch(0.488 0.243 264.376)` | `oklch(0.707 0.165 254.624)` | nuevo |
 | `--info-foreground` | `oklch(0.985 0 0)` | `oklch(0.205 0 0)` | nuevo |
 | `--border` | `oklch(0.922 0 0)` | `oklch(1 0 0 / 10%)` | = (decorativo, fuera de §11) |
-| `--input` | ajustado a ≥ 3:1 sobre `--background` (del orden de `oklch(0.66 0 0)`; el implementador calcula el valor exacto contra `CA-DS-050` y actualiza esta fila en el mismo *commit*) | ajustado a ≥ 3:1 sobre `--background` (del orden de `oklch(1 0 0 / 34%)` o gris opaco equivalente) | AA (`OPEN-DS-02` resuelta: sí) |
+| `--input` | `oklch(0.64 0 0)` (≈ 3,36:1 sobre `--background`) | `oklch(1 0 0 / 36%)` (≈ 3,25:1 sobre `--background`) | AA (`OPEN-DS-02` resuelta: sí) |
 | `--ring` | `var(--primary-on-background)` (hoy `0.708`) | `var(--primary-on-background)` (hoy `0.556`) | marca, AA |
 | `--chart-1` … `--chart-5` | sin cambio | sin cambio | = (sin consumidor en 1.7; fuera de §11) |
 | `--radius` | `0.625rem` | — | = |
@@ -190,6 +190,7 @@ Cálculo con la fórmula de WCAG (para grises OKLCH, luminancia relativa `Y = L�
 - `--muted-foreground` claro `0.556` (`Y ≈ 0.172`) sobre `--muted` `0.97` (`Y ≈ 0.913`): **≈ 4,34:1 < 4,5**. Es texto de ayuda y *placeholder* y se pinta sobre `bg-muted` (p. ej. el aviso de `LoginView`). Con `0.54`: ≈ 4,64:1.
 - `--destructive` claro `0.577 0.245 27.325` (≈ `#E7000B`) como texto sobre `bg-destructive/10` (variantes `destructive` de `button` y `badge`): ≈ **3,99:1**. Con `0.505 0.213 27.518` (≈ `#C10007`): ≈ 5,3:1. En oscuro el par actual ya cumple (≈ 5,3:1 sobre `bg-destructive/20`).
 - `--ring` claro `0.708` sobre blanco: **≈ 2,6:1 < 3** (incumple 1.4.11 como indicador de foco). Al pasar a `var(--primary-on-background)` cumple ≥ 4,5:1 por construcción, con o sin marca (el neutro de respaldo es `0.205`/`0.922`).
+- `--input` (`OPEN-DS-02`, `CA-DS-050`): el valor de partida propuesto (`oklch(0.66 0 0)` claro, `oklch(1 0 0 / 34%)` oscuro) da ≈ 3,11:1 y ≈ 3,02:1 — un margen menor al 4 % sobre el umbral de 3:1, que el redondeo a 8 bits por canal del navegador podía dejar por debajo. Se amplía el margen a `oklch(0.64 0 0)`/`oklch(1 0 0 / 36%)` (≈ 3,36:1 / ≈ 3,25:1, verificado con el redondeo real en `tokens-contrast.spec.ts`) sin cambiar el criterio.
 
 ### 4.5 Bloque previo a JavaScript
 
@@ -222,6 +223,12 @@ La segunda regla es la que anula en bloque lo que no pasa por los tokens: clases
 ### 4.7 Tipografía
 
 `--font-sans: system-ui, 'Segoe UI', Roboto, sans-serif` (ya en `@theme inline`, se mantiene). Sin `@font-face` ni petición a terceros (`ADR-052 P4`). Si `0.11c` fija tipografía, cambia este token y nada más.
+
+### 4.8 Colores de marca de un tercero (fijos)
+
+**Hallazgo de 1.7 no anticipado por el inventario de §2**: `GoogleSignInButton.vue` e `IdentityProviderLoginList.vue` (`src/modules/auth/components/`) pintan el logotipo oficial de Google como cuatro colores hexadecimales literales (`#4285F4`, `#34A853`, `#FBBC05`, `#EA4335`), fijos por la guía de marca de Google e idénticos en ambos modos — el mismo patrón que §10.3 ya preveía en abstracto («un color fijo que no dependa del modo», con el QR de MFA como candidato previsible). El QR no lo necesitaba (`QrCode.vue` ya pinta con `currentColor`, `ADR-041`); el logotipo de Google sí.
+
+Se añaden como tokens `--google-blue`/`--google-green`/`--google-yellow`/`--google-red` en `tokens.css` (mismo valor en `:root` y `.dark`, siguiendo la regla de §10.3), mapeados en `@theme inline` (`--color-google-*`) y consumidos como `class="fill-google-blue"` etc. en los dos componentes. **No** llevan el prefijo `--brand-`: ese prefijo está reservado a la entrada de marca del centro (§4.1); estos son un tercero ajeno al tenant.
 
 ---
 
@@ -542,7 +549,7 @@ Se adoptan los ocho ya vendorizados. **No se añade ninguno**: ningún entregabl
 |------------|--------------------|
 | `button` | `link`: `text-primary` → `text-primary-on-background`. `default`: se retira `[a]:hover:bg-primary/80` (`RN-DS-17`) y `border-transparent` pasa a `border-primary-on-background` en esa variante (mitigación de `ADR-052 §Consecuencias`: con un primario muy oscuro en modo oscuro, o muy claro en claro, el botón conserva un contorno distinguible del fondo; con un primario que ya contrasta, borde y relleno coinciden y no se ve diferencia). Sin cambio en el resto de variantes |
 | `badge` | Igual que `button`: `link` y `default` |
-| `radio-group` | `data-checked:border-primary` y `aria-invalid:aria-checked:border-primary` → `…-primary-on-background`. El relleno `data-checked:bg-primary` se mantiene (con `text-primary-foreground`, que ya lleva): el estado marcado queda identificado por un borde ≥ 3:1 contra el fondo aunque el relleno no lo sea (1.4.11) |
+| `radio-group` | `data-checked:border-primary` y `aria-invalid:aria-checked:border-primary` → `…-primary-on-background`. El relleno `data-checked:bg-primary` se mantiene (con `text-primary-foreground`, que ya lleva): el estado marcado queda identificado por un borde ≥ 3:1 contra el fondo aunque el relleno no lo sea (1.4.11). Se retira también `dark:data-checked:bg-primary`: era redundante (`--primary` ya cambia por modo) y, sin su `dark:data-checked:text-primary-foreground` emparejado, incumplía `RN-DS-18` |
 | `input`, `textarea` | Sin cambio de color de marca. `border-border` → `border-input` (`OPEN-DS-02` resuelta: sí) |
 | `select` | Sin uso de marca detectado. Se somete a §10 como el resto |
 | `label`, `table` | Sin cambio previsto. Se someten a §10 |
