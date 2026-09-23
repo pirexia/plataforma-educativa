@@ -27,7 +27,13 @@ Implementa el paso `1.7` (Bloque B, *design system*), sobre la especificación a
 ### Verificado
 418/418 Vitest, 3/3 Playwright (incluidos los dos criterios que necesitan cálculo real de estilos, `CA-DS-009`/`CA-DS-036`, verificados contra un servidor de desarrollo servido desde el propio árbol de trabajo y no contra el contenedor de referencia — mismo cuidado que `1.6d` ante código servido por dos sitios distintos), ESLint y `lint:i18n` limpios, `vue-tsc -b` y `vite build` sin errores. 46 de los 50 criterios de aceptación (`CA-DS-001`-`050`) tienen test propio que los cita; los cuatro restantes (`CA-DS-047`-`050`) son de verificación procesal (suite completa en verde, `lint:i18n` sin hallazgos y sin claves nuevas, estado de `components.json`, contraste de `--input` — este último sí cubierto por el test de contraste general) y se confirmaron a mano contra el resultado real, no supuestos.
 
-Detalle completo, catálogo de tokens y los 50 criterios: `docs/design-system.md`. Pendiente antes de cerrar el paso: revisión independiente (`doc-reviewer`/`security-reviewer`).
+### Corregido (revisión independiente, `doc-reviewer`/`security-reviewer` en paralelo; sin `db-reviewer`, cero migraciones)
+- **Media**: `PRIVACY.md` no catalogaba ningún dato en `localStorage` pese a que 1.7 añade dos claves nuevas (`plataforma.brand`, `plataforma.color-mode`) y `plataforma.locale` (0.9) tampoco lo estaba. Nueva §2.1b con las tres, con la clasificación de por qué ninguna es dato personal.
+- **Baja**, corregida: cabecera de `ARCHITECTURE.md` sin bump de versión/fecha pese a recibir contenido sustantivo nuevo (§3.1). `README.md` actualizado en las dos filas que este cierre tocó (`ARCHITECTURE.md`, `PRIVACY.md`); el resto de la tabla de versiones cruzada queda fuera de este paso (issue [#255](https://github.com/pirexia/plataforma-educativa/issues/255), pre-existente).
+- **Baja**, documentada sin corregir (política `CLAUDE.md §5`): issue [#253](https://github.com/pirexia/plataforma-educativa/issues/253) (`PublicAuthShell.vue`, URL de fondo sin comillas dentro de `url(...)`, no explotable), issue [#254](https://github.com/pirexia/plataforma-educativa/issues/254) (`favicon.ts` sin validar esquema antes de escribir, no explotable, dato ya de confianza), issue [#255](https://github.com/pirexia/plataforma-educativa/issues/255) (cabeceras de versión de documentos raíz desincronizadas de sus tablas cruzadas, tercera recurrencia, pre-existente).
+- Sin hallazgos Crítico/Alto en ninguna de las dos disciplinas. Sin discrepancia código↔documento en el núcleo del paso (tokens, capas A/B, modo oscuro, componentes, migración de `PublicAuthShell`, `components.json`, i18n).
+
+Detalle completo, catálogo de tokens y los 50 criterios: `docs/design-system.md`.
 
 ---
 
