@@ -227,3 +227,53 @@ Comprobaciones adicionales que ningún permiso cubre y que hay que implementar e
 - Test de catálogo: tras `platform:sync-registry`, la tabla `permissions` contiene exactamente los 25 códigos de §2 con `module_code = 'core'`, ninguno marcado `retired_at`, y cada uno con su `applicable_scopes`.
 
 Los criterios propios de `REQ-PERM` (`CA-PERM-001` a `CA-PERM-093`) están en `docs/modulos/REQ-PERM/funcional.md §17`.
+
+---
+
+## 10. Paso 1.8 (`REQ-CORE-008`): navegación y panel
+
+> Estado: **APROBADO** (2026-09-23), con `funcional.md §12`.
+
+### 10.1 Ningún permiso nuevo
+
+1.8 no declara, retira ni concede ningún permiso, y no cambia la asignación de §4.1. No ejecuta `platform:sync-registry` distinto del de cualquier despliegue. La matriz de §3 queda igual.
+
+**Motivo**: el *shell* solo **lee** —el propio perfil y el *branding* público— y decide qué **mostrar**. Mostrar no es un recurso ni una acción de `RPERM-003`. Inventar un permiso `panel.leer` sería redundante con la autenticación y crearía una forma de dejar a alguien sin poder ver su propio panel, que es exactamente lo que `§5.2` prohíbe para el autoservicio.
+
+### 10.2 Visibilidad en la interfaz: permiso, nunca rol
+
+| Elemento | Criterio de visibilidad | Quién decide de verdad |
+|----------|-------------------------|------------------------|
+| Entrada de menú / acceso directo | Se deriva de `meta.permissions` (anyOf) de la ruta que nombra (`ADR-053 §3`): la entrada no declara permisos propios | El *endpoint* de la vista, con su `permission:` (`INV-002`) |
+| Entrada de autoservicio (Inicio, Mi cuenta) | Estar autenticado. Lista cerrada (`RN-CORE-24`) | Identidad, como `/me` (§5.2) |
+| Bloque «Estado de la cuenta» | `mfa.obligated && !mfa.enrolled` | `REQ-AUTH` (1.3) |
+| Ruta con `meta.permissions` | Igual que la entrada de menú; si falla, estado «sin acceso» sin montar la vista | El servidor, con `403` |
+
+Reglas que se derivan de la *skill* `permisos-y-roles` y de `INV-002`:
+
+1. **La interfaz oculta; no protege.** Todo lo que el *shell* esconde lo sigue denegando el servidor. Ningún criterio de 1.8 sustituye a `CA-CORE-070`.
+2. **Nunca se comprueba el rol** (`RN-CORE-23`, `CA-CORE-102`). Un rol personalizado de 1.5 con los mismos permisos que `direccion` ve exactamente lo mismo que `direccion`, sin tocar el cliente.
+3. **Multi-rol y `deny`** los resuelve el servidor: `/me.permissions` ya es la unión con veto (`RPERM-007`). El cliente no recombina roles.
+4. **Módulo desactivado**: sus permisos llegan inertes y **no** aparecen en `/me.permissions` (`REQ-PERM/api.md §7.2`, `inerte_modulo`). Por eso el criterio 2 de `REQ-CORE-008` («ninguna referencia visible») se cumple sin consultar `GET /modules`, que además exige `modulo.leer` y la mayoría de usuarios no tiene.
+5. **Categoría especial**: 1.8 no muestra ningún dato de salud, NEAE ni convivencia, ni resúmenes de ellos. Un bloque futuro que lo haga lleva permiso de categoría especial propio y auditoría de lectura (`RPERM-012`, `RPERM-015`); el punto de extensión de `funcional.md §12.4` no lo exime.
+6. **Sin peticiones a ciegas** (`RN-CORE-33`): el panel no llama a *endpoints* cuyo permiso el usuario no tiene. Un `403` esperado no es un mecanismo de descubrimiento.
+
+### 10.3 Lo que ve cada rol predefinido al cerrar 1.8
+
+Con los permisos sembrados hoy (`OPEN-CORE-12` difiere las pantallas de `REQ-CORE` a `1.9b`):
+
+| Rol | Navegación |
+|-----|------------|
+| `administrador_centro` | Inicio, Mi cuenta, Administración de MFA, SSO |
+| `direccion`, `secretaria`, `administrativo` | Inicio, Mi cuenta (tienen permisos de lectura de `REQ-CORE`, pero ninguna pantalla que los use) |
+| Los otros doce | Inicio, Mi cuenta |
+
+Qué permisos exactos abren «Administración de MFA» lo fija `REQ-AUTH/permisos.md §D.6.3`; el registro de navegación los copia de ahí (`funcional.md §12.5`).
+
+### 10.4 Verificación
+
+- `CA-CORE-095` — ruta sin permiso ⇒ «sin acceso», vista no montada.
+- `CA-CORE-100`/`CA-CORE-101` — navegación por permisos efectivos; módulo desactivado sin rastro.
+- `CA-CORE-102` — ningún literal de código de rol ni decisión por `roles[].code` en `src/`.
+- `CA-CORE-105` — el panel no pide *endpoints* no permitidos.
+- Los de servidor ya existentes (`CA-CORE-070`, `CA-PERM-*`) no cambian y siguen siendo la barrera real.

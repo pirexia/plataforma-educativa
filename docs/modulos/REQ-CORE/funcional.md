@@ -11,6 +11,8 @@
 
 > Fuente de verdad: sección 5.1 de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` (`REQ-CORE-001` a `REQ-CORE-008`). Este documento **no** reabre lo decidido en `ADR-033`, `ADR-034`, `ADR-035` ni `ADR-036`.
 
+> **Paso 1.8 (`REQ-CORE-008`, *layout*, navegación y panel de inicio): §12, PROPUESTO** (2026-09-23), pendiente de aprobación. Las secciones §0-§11 son las de 1.1 y **no se reabren**; §12 se añade detrás, mismo criterio que `REQ-BO/funcional.md §15.x` para sub-pasos sucesivos del mismo módulo.
+
 ---
 
 ## 0. Resumen de la frontera del paso 1.1
@@ -524,3 +526,408 @@ La migración `create_people_table` fija `locale` con valor por defecto `'es'`, 
 2. Acotación de módulos a solo lectura por la contradicción de §2 confirmada (issue [#44](https://github.com/pirexia/plataforma-educativa/issues/44), ADR diferido a 1.6).
 3. `OPEN-CORE-06` (dígito de control de DNI/NIE): opción (b), conmutador por entorno forzado a validar en producción.
 4. `OPEN-CORE-09` (`ADR-038`, convenciones de API REST): publicado, `api.md`/`datos.md` actualizados. **Nada pendiente — listo para `implementer`.**
+
+---
+
+## 12. Paso 1.8 · *Layout*, navegación y panel de inicio (`REQ-CORE-008`)
+
+| Campo | Valor |
+|-------|-------|
+| Paso | **1.8** (`PLAN-IMPLEMENTACION.md`, Bloque B) |
+| Requisito de origen | `REQ-CORE-008` (sección 5.1), diferido aquí por §1.7 de este documento |
+| Requisitos transversales | `RUX-001` a `RUX-006`, `RUX-RESP-001` a `RUX-RESP-003`, `RUX-RESP-005` a `RUX-RESP-007`, `RUX-ICON-001`/`002`/`003`/`006` (sección **10** del documento de requisitos, no la 5), `RMOD-008`, `REQ-CORE-006` (idioma conmutable sin perder estado) |
+| Depende de | 1.1 (`GET /me`, `PATCH /me`, `GET /tenant/branding`), 1.2 (`DELETE /auth/session`, cookie de sesión), 1.3 (bloque `mfa` de `/me`, muro de alta de MFA), 1.5 (`permissions` de `/me` calculado por el motor completo, con inercia por módulo), **1.7** (`docs/design-system.md`, `ADR-052`). **Todas implementadas.** Ninguna dependencia no implementada para lo que este paso especifica; las que faltan afectan solo a lo que §12.1.2 deja fuera |
+| Código afectado | **Solo `apps/web`.** Ni un endpoint, ni un permiso, ni una migración (`api.md §12`, `permisos.md §10`, `datos.md` Parte B) |
+| Estado | **APROBADA** (2026-09-23). `OPEN-CORE-12`/`-13`/`-14`/`-17` resueltas por el usuario; `OPEN-CORE-16` resuelta por `ADR-053` (`architect`, ratificado por el usuario); `OPEN-CORE-15` abierta y no bloqueante (issue #258, servidor, fuera de 1.8) |
+
+### 12.0 Por qué esto va en `REQ-CORE` y no en un documento aparte
+
+Se valoró seguir el precedente de `docs/design-system.md` (documento propio en `docs/`). Se descarta por tres motivos:
+
+1. **Tiene requisito de módulo propio.** `docs/design-system.md` existe fuera de `docs/modulos/` porque `ADR-052 §6` declaró que 1.7 no es un *bounded context* y no tenía `REQ-*` que lo gobernara. 1.8 sí: `REQ-CORE-008` es un sub-requisito de `REQ-CORE`, y §1.7 de este mismo documento ya lo difirió aquí con nombre.
+2. **`REQ-CORE-008` es el sub-requisito de origen** y las pantallas de gestión que le quedan pendientes a `REQ-CORE` (diferidas a `1.9b`, `OPEN-CORE-12`) viven en esta misma carpeta. Separar el *layout* de ellas en dos documentos obligaría a cruzar referencias en cada criterio.
+3. **El volumen cabe.** Sin modelo de datos ni API nuevos, `datos.md`/`api.md`/`permisos.md`/`operacion.md` solo ganan una sección corta cada uno; un documento aparte tendría cuatro de sus cinco partes vacías.
+
+Coste aceptado: el código del *shell* vive en `apps/web/src/layouts` y `src/navigation`, fuera de `src/modules/core`. Es presentación de aplicación, como `src/tenant/` en 1.7 (`docs/design-system.md §3`), y la especificación la gobierna el requisito, no la carpeta.
+
+### 12.1 Alcance
+
+#### 12.1.1 Entra en 1.8
+
+| # | Qué | Requisitos |
+|---|-----|------------|
+| 1 | **Tres regímenes de *layout*** por ruta: público (pantallas sin sesión, `PublicAuthShell` de 1.7), aplicación (con sesión, *shell* con navegación) y desnudo (con sesión, sin navegación: muro de MFA) | `RUX-001`, `RUX-003` |
+| 2 | ***Shell* de aplicación responsive**: barra superior, navegación lateral persistente en escritorio, *drawer* en tableta, menú de hamburguesa en móvil, cinco *breakpoints* | `RUX-RESP-001`, `-002`, `-003`, `-006`, `-007` |
+| 3 | **Estado de sesión global en cliente** y *guard* de *router* (experiencia de usuario, no control de acceso) | `REQ-CORE-008` punto 1, `INV-002` (el servidor sigue decidiendo) |
+| 4 | **Registro de navegación** derivado de los **permisos efectivos** del usuario (`GET /me` → `permissions`), nunca del código de rol; forma y ensamblado por `ADR-053` | `REQ-CORE-008` punto 2 y criterio 2, `RMOD-008`, `RPERM-011` |
+| 4b | **Ficheros de convención de `ADR-053`**: `src/navigation/{types,modules,sections}.ts`, `src/modules/auth/shell.ts` (rutas de `auth` trasladadas desde `router/index.ts`), y los cinco tests de coherencia de `ADR-053 §2` | `ADR-053 §1-§2` |
+| 5 | ***Breadcrumb*** derivado de la ruta | `RUX-003` |
+| 6 | **Panel de inicio** (`/`) con lo que hoy tiene datos reales: saludo, centro, estado de la cuenta (MFA) y accesos directos (§12.4) | `REQ-CORE-008` puntos 1-3 (solo «accesos directos») |
+| 7 | **Menú de usuario**: cuenta, **selector de idioma** y **control de modo de color** (ambos diferidos aquí por `docs/i18n.md` y `OPEN-DS-03`), cierre de sesión | `REQ-CORE-006`, `RNF-UX-004` |
+| 8 | **Componentes de estado** vacío / carga / error reutilizables y su correspondencia con los errores de la API (`ADR-038 §6`), incluido el `403` de módulo desactivado | `RUX-006`, `RMOD-009` |
+| 9 | **Integración en el *shell* de las pantallas con sesión que ya existen** (`/cuenta/*`, `/administracion/mfa`, `/administracion/sso*`), sin cambiar su funcionalidad | `RUX-003` |
+| 10 | **Transiciones de ruta** sin recarga, respetando `prefers-reduced-motion` por el mecanismo global de 1.7 | `REQ-CORE-008` punto 5, `RUX-005` |
+| 11 | Retirada de la `HomeView` de 0.5, que llama a un *endpoint* inexistente (issue [#86](https://github.com/pirexia/plataforma-educativa/issues/86)) | — |
+
+#### 12.1.2 No entra en 1.8
+
+| Fuera | Dónde va | Motivo |
+|-------|----------|--------|
+| *Widgets* de próximos eventos y calendario | `REQ-AGENDA` (5.25, sin paso asignado en el plan) | Sin módulo que aporte los datos |
+| *Widget* de notificaciones | `REQ-COM` (1.19) / `REQ-CORE-007` | Sin motor de notificaciones (§1.6) |
+| *Widget* de tareas pendientes | **Sin dueño identificado** — ver `OPEN-CORE-13` | `REQ-CORE-008` no dice de qué son las tareas |
+| *Widgets* configurables por el usuario y *dashboards* por defecto definidos por el administrador | **Pendiente de `OPEN-CORE-13`** | Con un único tipo de bloque con datos, un motor de configuración no tendría nada que configurar |
+| Tablas de datos (TanStack Table), vista de tarjetas en móvil de `RUX-RESP-004` | **1.9** | Plan |
+| Editor de roles, matriz de permisos, vista previa de permisos efectivos | **1.5b** | Plan, `ADR-044 §6` |
+| Selector de centro para identidad federada compartida (`RMT-009`) | Sin paso | No hay identidad compartida entre tenants hoy: cada cuenta es de un único tenant (`RN-CORE-01`) |
+| *Banner* de *impersonation* (`REQ-SUP-003`) | Fase 2 | — |
+| Cualquier cosa del *backoffice* de plataforma | `apps/backoffice`, paso de interfaz de `REQ-BO` | `ADR-046 §4.1`: SPA separada, *guard* `platform` separado. **Ninguna entrada de navegación de este paso apunta a `/api/platform/v1`** |
+| Ilustraciones en estados vacíos (`RUX-ICON-005`) | Pendiente de `OPEN-CORE-17` | Recurso gráfico con licencia a registrar (`RUX-ICON-007`) |
+| Nuevas pantallas de módulos que no existen | Cada módulo, en su paso | `RN-CORE-25`: nada de «próximamente» |
+
+#### 12.1.3 Pantallas pendientes de `REQ-CORE`: diferidas a `1.9b` (`OPEN-CORE-12`, resuelta)
+
+`OPEN-CORE-02` (resuelta el 2026-08-19) decía que las pantallas de `REQ-CORE` se construyen **dentro de 1.8, no como paso «1.8b» separado**. Dos documentos posteriores lo contradecían o lo hacían inviable, contradicción registrada como `OPEN-CORE-12`:
+
+- `PLAN-IMPLEMENTACION.md` describe 1.8 como «Responsive con los *breakpoints* de `RUX-RESP-001`, menús adaptativos, estados vacíos y de error», sin pantallas de módulo.
+- `docs/design-system.md §1.2` (aprobado el 2026-09-22) sitúa la pantalla de configuración de marca «**posterior a 1.8** (pantallas de `REQ-CORE`, `OPEN-CORE-02`)».
+- Las pantallas principales de `REQ-CORE` son listados paginados y filtrables (usuarios, invitaciones, importaciones, auditoría con cursor, roles). Construirlas antes de 1.9 (TanStack Table) es el mismo error que `ADR-044 §6` evitó con `1.5b`: hacerlas dos veces.
+
+**Resuelta por el usuario el 2026-09-23 (§12.14, `OPEN-CORE-12`): van en `1.9b`**, paso propio tras 1.9, y `OPEN-CORE-02` queda reescrita por esta decisión. §12 **no contiene ni una regla ni un criterio** de las pantallas de gestión de usuarios, invitaciones, importación, roles, auditoría, configuración del centro, activos de marca, módulos contratados ni perfil propio — todas se especifican en `1.9b`. Lo que sí especifica 1.8 —*shell*, navegación, panel— es independiente de ellas: se enchufan al registro de §12.5 sin cambiar nada de lo aquí escrito.
+
+### 12.2 Actores y lo que ve cada rol predefinido hoy
+
+**El panel y la navegación no tienen variantes por rol en el código** (`RN-CORE-23`). Lo que cambia entre usuarios es el conjunto de permisos efectivos que devuelve `GET /me`, que es la unión resuelta de sus roles (`RPERM-007`, deny incluido) con la inercia por módulo ya aplicada (`REQ-PERM/api.md §7.2`). Un rol personalizado de 1.5 funciona sin tocar una línea.
+
+Consecuencia que hay que ver antes de aprobar: con los permisos sembrados hoy (`permisos.md §4.1` más los de `REQ-AUTH`), **12 de los 16 roles predefinidos no tienen ni un permiso**. Su panel es, con toda honestidad, casi vacío:
+
+| Roles | Navegación visible al cerrar 1.8 |
+|-------|------------------------------------------------------------------------------------------|
+| `administrador_centro` | Inicio · Mi cuenta (contraseña, sesiones, seguridad) · Administración: MFA, SSO (suponiendo que la siembra de `REQ-AUTH` le concede los permisos de ambas pantallas; **no verificado** contra la siembra al redactar — `CA-CORE-100` lo fija con datos de prueba, no con la siembra) |
+| `direccion`, `secretaria`, `administrativo` | Inicio · Mi cuenta. Tienen `usuario.leer` y otros permisos de lectura, pero **ninguna pantalla que los use existe todavía** |
+| Los doce restantes (`docente`, `tutor_grupo`, `orientador`, `coordinador_bienestar`, `estudiante`, `tutor_legal`, `responsable_economico`, `bibliotecario`, `monitor_extraescolares`, `personal_sanitario`, `conserjeria_pas`, `soporte_plataforma`) | Inicio · Mi cuenta. Panel con estado vacío explicativo en «Accesos directos» |
+
+Esto no es un defecto de 1.8 sino la consecuencia directa de que no exista ningún módulo académico (1.10 en adelante). La alternativa —rellenar el panel con bloques de módulos que no existen— está prohibida por `CLAUDE.md §11` y por el criterio 2 de `REQ-CORE-008`.
+
+**Sobre las seis familias de manual de usuario** (`admin`, `direccion`, `secretaria`, `docente`, `familia`, `estudiante`, `CLAUDE.md §6`): son una agrupación de **documentación por audiencia**, no de *dashboards*. No cubren a siete de los dieciséis roles (orientación, bienestar, economía, biblioteca, extraescolares, enfermería, conserjería) ni a ningún rol personalizado. Usarlas como seis variantes de panel sería exactamente el error de «comprobar el rol en lugar del permiso» de la *skill* `permisos-y-roles`. No se hace.
+
+### 12.3 Flujos
+
+#### 12.3.1 Arranque de la SPA
+
+Se conserva íntegro el orden de `docs/design-system.md §8` (modo de color, paleta cacheada, *branding*, montaje). 1.8 añade, **después** de montar:
+
+1. El *router* resuelve la ruta pedida y su régimen de *layout* (`meta.layout`: `public` | `app` | `bare`).
+2. Si la capa B de 1.7 terminó en `not-found` (host sin tenant): se pinta la pantalla de **centro no encontrado**, sin *shell* y **sin llamar a `/me`** (`RN-CORE-35`).
+3. Rutas `public`: se pintan como hoy, sin *shell*, **sin llamar a `/me`**.
+4. Rutas `app` y `bare`: el *guard* pide `GET /me` **una sola vez** (petición deduplicada, §12.3.4) y:
+   - `200` → estado de sesión cargado; se aplica el idioma (§12.3.6); continúa la navegación.
+   - `401` → redirige a `/entrar?redirect=<ruta pedida>` (`RN-CORE-28`).
+   - `403 urn:pge:error:mfa-enrollment-required` → la única ruta alcanzable es `mfa-enrollment-wall`, con régimen `bare` (§12.3.5).
+   - Error de red, `5xx`, `429` → estado de error a pantalla completa con reintento (§12.6); **no** se redirige al *login*: la sesión puede estar perfectamente viva.
+
+#### 12.3.2 Navegar
+
+1. El usuario activa una entrada del menú, un acceso directo o un elemento del *breadcrumb*.
+2. Navegación SPA (`router.push`), sin recarga (`REQ-CORE-008` punto 5).
+3. Si la ruta declara `meta.permissions` y **ninguno** está en los permisos efectivos, se pinta el estado **«sin acceso»** dentro del *shell* y **la vista de destino no se monta** (no se lanza ninguna de sus peticiones). Es experiencia de usuario, no seguridad: el servidor responde `403` igualmente si alguien la fuerza (`INV-002`, `CA-CORE-070`).
+4. Tras la navegación: el foco pasa al encabezado principal de la vista, `document.title` se actualiza a `<título de la vista> · <nombre del centro>` y, en tableta y móvil, el *drawer*/menú se cierra.
+
+#### 12.3.3 Iniciar sesión con destino
+
+1. `/entrar?redirect=/cuenta/sesiones`.
+2. Tras el *login* correcto (incluido el segundo factor), la SPA navega al destino **solo si** pasa el saneado de `RN-CORE-28`; si no, a `/`.
+3. `LoginView` recibe este cambio (única modificación funcional a una pantalla de `REQ-AUTH`; su flujo, sus errores y sus tests no cambian).
+
+#### 12.3.4 Estado de sesión y su frescura
+
+- **Única fuente**: `GET /me` (el recurso que ya comparte `POST /auth/session`, `UserProfilePresenter`). No hay endpoint nuevo.
+- **Singleton en memoria**, mismo patrón que `useTenantBranding` de 1.7 (`shallowRef` de ámbito de módulo, sin Pinia — `ADR-052`, alternativas descartadas). **Nunca** en `localStorage`/`sessionStorage` (`RN-AUTH-28`).
+- **Se recarga** (`RN-CORE-26`): tras el *login*; en el arranque; tras un `PATCH /me` correcto (con la respuesta del propio `PATCH`, sin segunda petición); y cuando cualquier petición de la API devuelve un `403` que **no** sea `mfa-enrollment-required` — señal de que los permisos pueden haber cambiado desde la carga (un administrador retiró un rol, o un módulo se descontrató: `403 module-disabled` **también** recarga, `ADR-053 §6`). Deduplicada: varias peticiones concurrentes que fallan provocan una sola recarga. **Restricción** (`ADR-053 §6`): si la recarga la disparó un `module-disabled` y la ruta actual deja de estar permitida tras ella, la vista conserva el estado «módulo no disponible» (§12.6) hasta la siguiente navegación, en vez de pasar a «sin acceso».
+- **Se vacía** al cerrar sesión y ante cualquier `401`.
+
+#### 12.3.5 Muro de MFA
+
+El muro ya existe (`REQ-AUTH` 1.3, `client.ts` redirige ante `mfa-enrollment-required`). 1.8 solo garantiza que:
+
+- la ruta `mfa-enrollment-wall` se pinta con régimen `bare`: sin navegación, sin menú de usuario salvo **cerrar sesión** (salir de la cuenta no es salir del muro);
+- el *guard* devuelve al muro cualquier intento de navegar a otra ruta `app` mientras `/me` (u otra petición) siga respondiendo `mfa-enrollment-required`;
+- no hay bucle: el *guard* no vuelve a pedir `/me` al entrar en el muro si la última respuesta ya fue ese `403`.
+
+Si `GET /me` está en la lista blanca del *middleware* del muro (y responde `200` con `mfa.enforced = true`), el efecto debe ser el mismo; el implementador lo comprueba contra `REQ-AUTH/funcional.md §C.4.9` antes de escribir el *guard* y cubre el caso que corresponda.
+
+#### 12.3.6 Idioma
+
+1. **Con sesión**: `person.locale` de `/me` si pertenece a los `active_locales` del centro (capa B de 1.7); si no, el `default_locale` del centro — la preferencia almacenada **no se modifica** (§6, fila «Idioma retirado de los activos»). Cierra la nota pendiente de `docs/i18n.md` («la preferencia del servidor pasa a tener prioridad»).
+2. **Sin sesión**: sin cambios respecto a 1.7 (`usePublicAuthScreen`, `resolveTenantLocale`).
+3. **Cambio desde el selector**: ofrece exactamente los `active_locales` del centro, con el nombre de cada idioma en su propia lengua. Al elegir: `PATCH /me` con `person.locale`; con `200`, se aplica `setLocale()` **sin recargar y sin perder el estado de la vista** (`REQ-CORE-006`); con `422` (`core.validation.locale_not_active`, el centro retiró el idioma entretanto), se mantiene el idioma actual y se muestra el mensaje del servidor.
+
+Conversión de vocabulario `es-ES` ↔ `es` exclusivamente por `localeFromDomain()` de `src/i18n` (ya existente).
+
+#### 12.3.7 Modo de color
+
+Control de tres estados (`sistema`, `claro`, `oscuro`) en el menú de usuario, sobre `useColorScheme().setPreference` de 1.7. Sin servidor (`ADR-052 P2`). No aparece en el régimen `bare`: el muro solo ofrece cerrar sesión (§12.3.5).
+
+#### 12.3.8 Cerrar sesión
+
+`DELETE /auth/session` (idempotente, `204`). Con respuesta o sin ella (error de red), la SPA **vacía el estado de sesión** y navega a `/entrar`. La paleta y el modo de color se conservan: son del centro y del navegador, no del usuario.
+
+### 12.4 Panel de inicio (`/`)
+
+Tres bloques, en este orden. Ninguno pide un *endpoint* distinto de `/me` y `/tenant/branding` (ya cargados), así que **el panel no hace ninguna petición propia** en 1.8.
+
+| Bloque | Contenido | Fuente | Cuándo se muestra |
+|--------|-----------|--------|-------------------|
+| **Bienvenida** | Saludo con `person.given_name`; nombre y logotipo del centro | `/me`, capa B de 1.7 | Siempre. Sin logotipo si `logo_url` es nulo o falla la carga (`reportAssetError`, `docs/design-system.md §7.4`) |
+| **Estado de la cuenta** | Aviso de segundo factor obligatorio con los días restantes y enlace a `/cuenta/seguridad` | `/me` → `mfa` (`REQ-AUTH/api.md §C.6`, «avisos en cada acceso») | Solo si `mfa.obligated && !mfa.enrolled`. En cualquier otro caso el bloque no se pinta (no se inventan otros avisos) |
+| **Accesos directos** | Las entradas del registro de navegación marcadas como acceso directo y permitidas | Registro de §12.5 + `/me.permissions` | Siempre; **estado vacío explicativo** si no hay ninguna (`RUX-006`) |
+
+**Punto de extensión**: los módulos futuros aportarán bloques del panel declarándolos en `dashboardBlocks` de su `shell.ts` (`ADR-053 §5`): `id`, `titleKey`, `permissions` (anyOf, nunca vacía) y un componente cargado bajo demanda que pide sus propios datos, pinta su propio estado vacío y contiene su propio error. 1.8 fija ese contrato y **no entrega ningún bloque de módulo**.
+
+### 12.5 Registro de navegación
+
+Forma, ensamblado y motivo fijados por `ADR-053` (resuelve `OPEN-CORE-16`). Resumen aplicado a 1.8:
+
+Cada entrada declara (`ADR-053 §4.1`):
+
+| Campo | Significado |
+|-------|-------------|
+| `id` | `<módulo>.<nombre>`, estable, único en todo el registro |
+| `route` | Nombre de ruta (nunca una URL literal) de una ruta `app` |
+| `labelKey` | Clave de traducción, en el espacio de nombres del módulo (`INV-009`) |
+| `icon` | Componente de `@lucide/vue` (`RUX-ICON-001`/`002`), decorativo (`aria-hidden`); el texto lo da `labelKey` |
+| `section` | Una de las del catálogo cerrado de `src/navigation/sections.ts` (`ADR-053 §4.2`) |
+| `shortcut` | Si aparece en «Accesos directos» del panel |
+
+**La entrada no declara `permissions`** (`ADR-053 §3`): su visibilidad se deriva de `meta.permissions` de la ruta a la que apunta — una entrada es visible si y solo si el *guard* dejaría montar esa ruta. Los permisos de una pantalla se declaran una sola vez, en la ruta (§12.3.2).
+
+**Secciones de 1.8** (catálogo de `src/navigation/sections.ts`, `ADR-053 §4.2`): `inicio`, `cuenta`, `administracion`. Un módulo futuro no añade la suya: se amplía el catálogo en el paso del primer módulo que la necesite, con justificación propia.
+
+Entradas de 1.8 (solo pantallas que existen, `RN-CORE-25`) y `meta.permissions` (anyOf) de su ruta:
+
+| Entrada | Ruta | `section` | `meta.permissions` (anyOf) de la ruta | Acceso directo |
+|---------|------|-----------|-----------------------------------------|----------------|
+| Inicio | `home` (`/`) | `inicio` | `[]` (identidad) | No |
+| Contraseña | `password-change` | `cuenta` | `[]` (identidad) | No |
+| Sesiones abiertas | `sessions` | `cuenta` | `[]` (identidad) | No |
+| Seguridad de la cuenta | `mfa-security` | `cuenta` | `[]` (identidad) | Sí |
+| Administración de MFA | `mfa-administration` | `administracion` | Los permisos que consumen sus cuatro áreas, según `REQ-AUTH/permisos.md §D.6.3` (el implementador los copia de ahí, no los deduce) | Sí |
+| Inicio de sesión institucional (SSO) | `sso-administration` | `administracion` | `proveedor_identidad.leer` | Sí |
+
+Las rutas `sso-administration-new`/`-edit` no son entradas de menú (sin sub-entradas, `ADR-053 §4.4`): son destino de acciones dentro de su vista y aparecen en el *breadcrumb* bajo «SSO».
+
+**Dónde vive y cómo se ensambla** (`ADR-053 §1-§2`): cada módulo declara un único `shell.ts` en su superficie pública, con tres listas (`routes`, `navigation`, `dashboardBlocks`), junto a `api/index.ts`, `types/index.ts` y `locales/`. `src/navigation/modules.ts` importa el `shell` de cada módulo en una lista explícita y ordenada (`moduleShells`) — mismo patrón que `src/i18n/index.ts`, sin descubrimiento automático — y el *router*, el registro de navegación y el panel se construyen concatenando sus listas. **Las rutas de `auth`, hoy en `src/router/index.ts`, se trasladan a `src/modules/auth/shell.ts`** en este paso (mecánico: 1.8 ya reescribe todas las rutas para añadirles `meta`); en `router/index.ts` quedan solo `home`, el *catch-all* y la pantalla de centro no encontrado. El *shell* no importa código interno de ningún módulo, solo su superficie pública (`INV-007`, `CA-CORE-152`).
+
+**Cinco tests de coherencia sobre el registro ya ensamblado** (`ADR-053 §2`, `CA-CORE-103`/`CA-CORE-106`): `id` únicos con prefijo de módulo; nombres de ruta únicos entre todos los módulos; toda entrada apunta a una ruta registrada con `meta.layout === 'app'`; toda `section` existe en el catálogo; toda ruta `app`/`bare` declara `meta.permissions` explícitamente (un `[]` escrito, nunca un campo ausente), con las vacías en la lista cerrada de `RN-CORE-24`.
+
+### 12.6 Estados de carga, vacío y error (`RUX-006`)
+
+Tres componentes de nivel de aplicación (no del *design system*: tienen textos por defecto traducidos, y `RN-DS-24` prohíbe literales en `components/ui`):
+
+| Componente | Semántica | Uso |
+|------------|-----------|-----|
+| Carga | `role="status"`, `aria-busy="true"` en la región; esqueleto con los tokens de 1.7 | Arranque de sesión, bloques del panel, cualquier vista |
+| Vacío | Icono decorativo + título + texto + acción opcional | «Sin accesos directos», y futuras listas vacías |
+| Error | `role="alert"`, título + texto + **Reintentar** + referencia `request_id` si la respuesta la trae (`INV-013`, útil para soporte) | Cualquier fallo de carga |
+
+Correspondencia con la API (`ADR-038 §6`), aplicada por una única función:
+
+| Respuesta | Estado que se pinta |
+|-----------|---------------------|
+| Sin respuesta (`status 0`) | Sin conexión, con reintento |
+| `401` | Ninguno: redirección a `/entrar` (§12.3.1) |
+| `403 urn:pge:error:mfa-enrollment-required` | Ninguno: muro (§12.3.5) |
+| `403 urn:pge:error:module-disabled` | Módulo no disponible para el centro, con el `detail` traducido del servidor (`RMOD-009`). Dispara la recarga de sesión de §12.3.4 (`ADR-053 §6`); si la ruta deja de estar permitida tras la recarga, **conserva este mensaje** hasta la siguiente navegación (no pasa a «sin acceso») |
+| Otro `403` | Sin acceso. Dispara la recarga de sesión de §12.3.4 |
+| `404` | No encontrado |
+| `429` | Demasiadas peticiones, con los segundos de `Retry-After` si vienen |
+| `5xx` | Error inesperado, con reintento y `request_id` |
+
+Rutas: `catch-all` → estado «página no encontrada», dentro del *shell* si hay sesión, en régimen público si no.
+
+### 12.7 *Layout* responsive
+
+**`RN-CORE-29` · *Breakpoints*** (`RUX-RESP-001`): 320 px es el **ancho mínimo soportado** (sin desplazamiento horizontal, WCAG 1.4.10); 768, 1024, 1440 y 1920 px son puntos de cambio. En Tailwind v4 se declaran como `--breakpoint-md: 48rem`, `--breakpoint-lg: 64rem` (coinciden con los valores por defecto), `--breakpoint-xl: 90rem` y `--breakpoint-2xl: 120rem` (**sustituyen** a los 1280/1536 por defecto). Es un cambio en `@theme` de `style.css`, dentro de la frontera del *design system*: obliga a actualizar `docs/design-system.md §4` en el mismo *commit* (fuera del ámbito de escritura de esta especificación; queda anotado para el implementador).
+
+**`RN-CORE-30` · Regímenes de navegación** (`RUX-RESP-003`):
+
+| Ancho | Navegación | Disparador |
+|-------|------------|------------|
+| < 768 | **Menú de hamburguesa**: panel a pantalla completa | Botón de hamburguesa en la barra superior |
+| 768 – 1023 | ***Drawer***: panel lateral superpuesto, parcial, con fondo atenuado | Botón en la barra superior |
+| ≥ 1024 | **Barra lateral persistente** | Ninguno |
+| ≥ 1440 | Igual, con el contenido principal más ancho | — |
+| ≥ 1920 | Igual, con anchura máxima del contenido para no superar una longitud de línea legible | — |
+
+Hamburguesa y *drawer* son diálogos modales (`role="dialog"`, `aria-modal`): foco atrapado, `Esc` cierra, el foco vuelve al disparador, `aria-expanded` en el disparador, se cierran al navegar. Se construyen con el componente `sheet` de shadcn-vue (vendorizado según `docs/design-system.md §12.2`, sin dependencia nueva: Reka UI ya está).
+
+**`RN-CORE-31` · Tipografía y medidas** (`RUX-RESP-006`): todo tamaño de fuente del *shell* en `rem`; ninguna clase de tamaño arbitrario en `px` (`text-[NNpx]`).
+
+**`RN-CORE-32` · Objetivos táctiles** (`RUX-RESP-007`): **todo control del *shell*** (hamburguesa, entradas de menú, menú de usuario, opciones de idioma y modo, elementos del *breadcrumb*, botones de los estados) mide al menos 44 × 44 px. **El alcance fuera del *shell* depende de `OPEN-CORE-14`**: los botones base de 1.7 miden hoy 32 px (`size: default` es `h-8`), así que `RUX-RESP-007` no se cumple en ningún formulario del producto.
+
+**Accesibilidad del *shell*** (`RUX-004`): enlace «saltar al contenido» como primer elemento enfocable; *landmarks* únicos (`header`, `nav` con `aria-label`, `main`); entrada activa con `aria-current="page"`; *breadcrumb* como `nav` con `aria-label` y `aria-current="page"` en el último elemento; iconos decorativos con `aria-hidden` y controles solo-icono con nombre accesible traducido (`RUX-ICON-003`/`006`).
+
+**Transiciones** (`RUX-005`): transición de ruta con `--motion-duration-normal`; sin regla propia de movimiento reducido — la regla global de `docs/design-system.md §4.6` ya la anula.
+
+### 12.8 Reglas de negocio
+
+| ID | Regla |
+|----|-------|
+| `RN-CORE-23` | La visibilidad de toda entrada de navegación, acceso directo o bloque del panel se decide **solo** por los códigos de `GET /me` → `permissions`. **Ningún fichero de `src/` decide por `roles[].code`** ni contiene los códigos de los roles predefinidos como literal. Lo que la interfaz oculta es comodidad; la autorización es del servidor (`INV-002`) |
+| `RN-CORE-24` | `meta.permissions` vacía (`[]` explícito) en una ruta `app`/`bare` significa «cualquier usuario autenticado» y **solo** se admite en rutas de autoservicio por identidad (`permisos.md §5.2`): hoy, Inicio y las tres de «Mi cuenta». Lista cerrada en un test (`ADR-053 §2`, comprobación 5) |
+| `RN-CORE-25` | El registro solo contiene entradas cuya ruta existe en el *router*. Ninguna entrada «próximamente» para módulos no implementados |
+| `RN-CORE-26` | Estado de sesión en memoria, recargado según §12.3.4. Ninguna vista vuelve a pedir `/me` para comprobar la sesión: lo hace el *guard* (se retira el `getMe()` de comprobación de `SessionsView` y análogas) |
+| `RN-CORE-27` | Cerrar sesión vacía el estado de sesión aunque `DELETE /auth/session` falle |
+| `RN-CORE-28` | `redirect` solo se acepta si es una ruta relativa del propio origen: empieza por `/`, no por `//` ni `/\`, no contiene esquema, y resuelve a una ruta registrada del régimen `app`. En otro caso se ignora y se va a `/` (evita la redirección abierta, `RSEC-OWASP`) |
+| `RN-CORE-29` | *Breakpoints* (§12.7) |
+| `RN-CORE-30` | Regímenes de navegación (§12.7) |
+| `RN-CORE-31` | Tipografía en `rem` (§12.7) |
+| `RN-CORE-32` | Objetivos táctiles del *shell* ≥ 44 × 44 px (§12.7) |
+| `RN-CORE-33` | El panel y la navegación no piden ningún *endpoint* que exija un permiso que el usuario no tenga efectivo (sin `403` de ruido, sin sondeo involuntario) |
+| `RN-CORE-34` | Precedencia de idioma con sesión: `person.locale` si está activo en el centro, si no `default_locale` del centro (§12.3.6) |
+| `RN-CORE-35` | Host sin tenant: pantalla «centro no encontrado», sin *shell* y sin `/me` |
+
+### 12.9 Casos límite
+
+| Situación | Comportamiento |
+|-----------|----------------|
+| Usuario sin ningún rol (§6, «Usuario que pierde su único rol») | Inicio y «Mi cuenta»; panel con estado vacío en accesos directos. Correcto por `RPERM-011` |
+| Un administrador retira un rol a un usuario con la sesión abierta | La siguiente petición que devuelva `403` recarga `/me`; menú y panel se actualizan; si la vista actual deja de estar permitida, pasa a «sin acceso» |
+| Cambio de permisos sin ningún `403` intermedio | El menú muestra una entrada ya no permitida hasta la siguiente recarga de `/me`; al usarla, el servidor responde `403` y se corrige. Aceptado: sin sondeo periódico (no lo pide ningún requisito) |
+| Módulo descontratado con la sesión abierta | Sus permisos pasan a inertes; la primera petición a él devuelve `403 module-disabled` (estado informativo) y **recarga `/me`** (`ADR-053 §6`, deduplicada). Si el servidor todavía devuelve el permiso (la caché de disponibilidad de módulos de `ADR-045 §8.3` aún no se ha invalidado), la entrada sigue visible hasta la siguiente recarga — sin sondeo, sin bucle: la siguiente respuesta `module-disabled` vuelve a recargar |
+| Capa B de 1.7 en `unavailable` (red, `429`, `5xx`) | *Shell* con paleta cacheada o neutra, sin nombre ni logotipo del centro; `document.title` sin sufijo de centro |
+| Nombre de centro o de usuario muy largo | Truncado con elipsis en barra superior y menú; texto completo accesible (atributo `title` y nombre accesible) |
+| Zoom al 200 % o 320 px de ancho | Sin desplazamiento horizontal; en escritorio con zoom alto se pasa al régimen de *drawer* por *breakpoint* efectivo, que es el comportamiento correcto |
+| Cierre de sesión en otra pestaña | La siguiente petición de esta pestaña recibe `401` y redirige a `/entrar` |
+| `redirect` manipulado | `RN-CORE-28` |
+| `GET /me` responde `404` | Solo ocurre con host sin tenant; se trata como `RN-CORE-35` |
+
+### 12.10 Criterio 1 de `REQ-CORE-008`: «se registra el intento»
+
+El primer criterio de aceptación de `REQ-CORE-008` pide `404` ante un recurso de otro tenant **y que se registre el intento**. La primera mitad ya la cubre `CA-CORE-073`. **La segunda no está cubierta por ningún criterio de 1.1**, y no es de interfaz sino de servidor. Además choca con el diseño de aislamiento: con RLS (`ADR-033`), la aplicación **no puede distinguir** «pertenece a otro tenant» de «no existe» sin salir del contexto de tenant, que es precisamente lo que `ADR-033` impide. Se deja como `OPEN-CORE-15`, issue [#258](https://github.com/pirexia/plataforma-educativa/issues/258); 1.8 no lo implementa.
+
+### 12.11 Criterios de aceptación
+
+Vitest salvo los marcados **[Playwright]** (necesitan *layout* real, *media queries* o medida de cajas). Cada test cita su ID (`INV-015`).
+
+#### *Layout* y responsive
+
+- **`CA-CORE-080`** [`RUX-RESP-001`, `RUX-RESP-002`] **[Playwright]** · **Dado** un usuario autenticado en `/`, **cuando** la ventana mide 320, 768, 1024, 1440 y 1920 px de ancho, **entonces** en los cinco casos `document.documentElement.scrollWidth` ≤ `clientWidth` (sin desplazamiento horizontal).
+- **`CA-CORE-081`** [`RUX-RESP-003`] **[Playwright]** · **Dado** un usuario autenticado, **cuando** la ventana mide 1024 px o más, **entonces** la navegación lateral es visible sin interacción y no existe botón de menú; **cuando** mide entre 768 y 1023, la navegación no es visible y un botón de la barra superior abre un panel lateral superpuesto; **cuando** mide menos de 768, un botón de hamburguesa abre el menú a pantalla completa.
+- **`CA-CORE-082`** [`RUX-004`] · **Dado** el menú de hamburguesa o el *drawer* abierto, **cuando** se pulsa `Tab` repetidamente, **entonces** el foco no sale del panel; **cuando** se pulsa `Esc`, se cierra y el foco vuelve al botón que lo abrió, cuyo `aria-expanded` pasa a `false`; **cuando** se activa una entrada, se navega y el panel se cierra.
+- **`CA-CORE-083`** [`RUX-RESP-006`] · **Dado** `src/layouts/**` y `src/navigation/**`, **entonces** no contienen clases de tamaño de fuente arbitrario en píxeles (`text-[…px]`); con casos fijos en el propio test que prueban que la comprobación detecta `text-[14px]` y no `text-sm`.
+- **`CA-CORE-084`** [`RUX-RESP-007`] **[Playwright]** · **Dado** un usuario autenticado a 320 y a 768 px, **cuando** se miden las cajas del botón de menú, de cada entrada de navegación, del menú de usuario y de sus opciones, **entonces** todas miden al menos 44 × 44 px. (El alcance fuera del *shell* lo añade `OPEN-CORE-14`.)
+- **`CA-CORE-085`** [`RUX-004`] · **Dado** cualquier ruta del régimen `app`, **cuando** se pulsa `Tab` desde el principio del documento, **entonces** el primer elemento enfocado es «saltar al contenido», y al activarlo el foco pasa a `main`; y el documento tiene exactamente un `header`, un `main` y una `nav` principal con `aria-label`.
+- **`CA-CORE-086`** [`RUX-004`] · **Dado** un usuario en `/`, **cuando** navega a `/cuenta/sesiones`, **entonces** el foco pasa al encabezado principal de la vista y `document.title` es `<título traducido de la vista> · <nombre del centro>`.
+- **`CA-CORE-087`** [`RUX-005`, `REQ-CORE-008`] **[Playwright]** · **Dado** una navegación entre dos rutas del *shell*, **entonces** no hay recarga de documento (el mismo objeto `window` conserva una marca puesta antes de navegar); **y cuando** el navegador emula `reducedMotion: 'reduce'`, la duración calculada de la transición de ruta es ≤ `0.01ms`.
+- **`CA-CORE-088`** [`RUX-003`] · **Dado** la ruta `sso-administration-edit`, **entonces** el *breadcrumb* es una `nav` con `aria-label` que contiene Inicio › SSO › (edición), el último con `aria-current="page"` y sin enlace, y los anteriores como enlaces a sus rutas.
+
+#### Sesión y *router*
+
+- **`CA-CORE-090`** · **Dado** un navegador sin sesión, **cuando** abre `/cuenta/sesiones`, **entonces** acaba en `/entrar?redirect=%2Fcuenta%2Fsesiones`; **y cuando** completa el *login*, llega a `/cuenta/sesiones`.
+- **`CA-CORE-091`** [`RN-CORE-28`] · **Dado** `/entrar` con `redirect` igual a `//evil.example`, `https://evil.example`, `/\evil.example`, `javascript:alert(1)` o una ruta inexistente, **cuando** el *login* se completa, **entonces** la SPA navega a `/`.
+- **`CA-CORE-092`** · **Dado** un usuario con la sesión cargada en una ruta `app`, **cuando** una petición cualquiera recibe `401`, **entonces** el estado de sesión queda vacío y se navega una sola vez a `/entrar` con `redirect` a la ruta actual, aunque fallen varias peticiones a la vez.
+- **`CA-CORE-093`** · **Dado** un usuario cuyo `GET /me` responde `403 urn:pge:error:mfa-enrollment-required`, **cuando** intenta abrir `/` o `/cuenta/sesiones`, **entonces** se pinta el muro de MFA sin navegación ni más opción de menú que cerrar sesión, y `GET /me` no se ha pedido más de una vez.
+- **`CA-CORE-094`** · **Dado** cualquier ruta del régimen `public` (`/entrar`, `/recuperar`, `/activar/:token`…), **cuando** se abre, **entonces** no se pinta el *shell* y no se pide `GET /me`.
+- **`CA-CORE-095`** [`INV-002`] · **Dado** una ruta de prueba con `meta.permissions = ['fixture.leer']` y un usuario sin ese permiso, **cuando** navega a ella, **entonces** se pinta el estado «sin acceso» dentro del *shell* y la vista de destino no se monta (ninguna de sus peticiones sale).
+- **`CA-CORE-096`** · **Dado** una ruta inexistente, **cuando** la abre un usuario con sesión, **entonces** ve «página no encontrada» dentro del *shell*; **y sin sesión**, en régimen público.
+- **`CA-CORE-097`** [`RN-CORE-27`] · **Dado** un usuario con sesión, **cuando** cierra sesión (y también cuando `DELETE /auth/session` falla por red), **entonces** el estado de sesión queda vacío, se navega a `/entrar`, y al volver atrás con el historial no aparece el nombre del usuario anterior en ninguna parte del documento.
+- **`CA-CORE-098`** [`RN-CORE-26`, `ADR-053 §6`] · **Dado** un usuario con la sesión cargada, **cuando** tres peticiones concurrentes reciben un `403` genérico, **entonces** `GET /me` se pide una sola vez; **y cuando** reciben `403 module-disabled`, también se pide una sola vez.
+- **`CA-CORE-099`** [`ADR-053 §6`] · **Dado** un usuario en una vista cuyo permiso se ha vuelto inerte, **cuando** una petición de esa vista recibe `403 module-disabled` y la recarga de `/me` confirma que la ruta actual ya no está permitida, **entonces** la vista sigue mostrando el estado «módulo no disponible» (con el `detail` del servidor) y no pasa a «sin acceso» hasta la siguiente navegación.
+
+#### Navegación y permisos
+
+- **`CA-CORE-100`** [`REQ-CORE-008`, `RPERM-011`] · **Dado** un usuario cuyo `/me.permissions` está vacío, **cuando** carga el *shell*, **entonces** la navegación contiene exactamente Inicio y las tres entradas de «Mi cuenta»; **y dado** uno con `proveedor_identidad.leer`, aparece además «SSO».
+- **`CA-CORE-101`** [`REQ-CORE-008` criterio 2, `RMOD-008`] · **Dado** un registro con una entrada de prueba de un módulo `fixture` que exige `fixture.leer`, **y** un `/me` sin ese permiso (como lo devuelve el servidor cuando el módulo está descontratado: permiso inerte, `REQ-PERM/api.md §7.2`), **cuando** se carga el panel, **entonces** el texto de esa entrada no aparece en ningún lugar del documento (menú, accesos directos, *breadcrumb*).
+- **`CA-CORE-102`** [`RN-CORE-23`] · **Dado** `src/` salvo tests, **entonces** ningún fichero contiene como literal ninguno de los 16 códigos de rol predefinidos ni accede a `roles[…].code`/`.code` de un rol para decidir; con casos fijos en el test que prueban que detecta `'administrador_centro'` y `roles.some(r => r.code === …)`.
+- **`CA-CORE-103`** [`RN-CORE-24`, `RN-CORE-25`, `ADR-053 §2`] · **Dado** el registro de navegación ensamblado, **entonces** toda entrada apunta a un nombre de ruta registrado en el *router* con `meta.layout === 'app'`, y las únicas rutas `app`/`bare` con `meta.permissions` vacía (`[]` explícito) son las de Inicio, Contraseña, Sesiones y Seguridad.
+- **`CA-CORE-106`** [`ADR-053 §2`] · **Dado** el registro ensamblado, **entonces**: (a) todo `id` de entrada y de bloque de panel es único en todo el registro y lleva el prefijo de su módulo (`auth.sessions`, `core.users`); (b) todo nombre de ruta es único entre todos los módulos; (c) toda `section` de toda entrada existe en el catálogo de `src/navigation/sections.ts`; con casos fijos en el propio test que introducen un duplicado o una sección inexistente y comprueban que el test los detecta.
+- **`CA-CORE-104`** [`RUX-004`] · **Dado** un usuario en `/cuenta/seguridad`, **entonces** la entrada correspondiente del menú lleva `aria-current="page"` y ninguna otra.
+- **`CA-CORE-105`** [`RN-CORE-33`] · **Dado** un usuario sin `modulo.leer` ni ningún otro permiso, **cuando** carga el panel, **entonces** las únicas peticiones a la API son `GET /tenant/branding` y `GET /me`.
+
+#### Panel de inicio
+
+- **`CA-CORE-110`** · **Dado** un `/me` con `given_name = 'Ana'` y un *branding* con nombre y logotipo, **cuando** se carga `/`, **entonces** el saludo contiene «Ana», aparece el nombre del centro y el logotipo con `alt` igual al nombre; **y cuando** el logotipo falla al cargar, se llama a `reportAssetError` con su URL.
+- **`CA-CORE-111`** [`REQ-AUTH-003`] · **Dado** `/me.mfa = { obligated: true, enrolled: false, days_remaining: 3 }`, **cuando** se carga `/`, **entonces** aparece el aviso con «3» y un enlace a `/cuenta/seguridad`; **y dado** `obligated: false` o `enrolled: true`, el bloque no existe en el documento.
+- **`CA-CORE-112`** [`RUX-006`] · **Dado** un usuario sin ningún acceso directo permitido, **cuando** se carga `/`, **entonces** el bloque de accesos directos muestra el estado vacío con título y texto traducidos, no una región en blanco.
+- **`CA-CORE-113`** [`RUX-006`] · **Dado** `GET /me` sin respuesta todavía, **entonces** se pinta el estado de carga con `role="status"`; **y cuando** responde `503` con `request_id`, se pinta el estado de error con `role="alert"`, el `request_id` visible y un botón «Reintentar» que repite `GET /me`.
+- **`CA-CORE-114`** · **Dado** `src/views/HomeView.vue` de 0.5, **entonces** ya no existe ni se pide `/health` desde ninguna vista (issue #86).
+
+#### Menú de usuario, idioma y modo de color
+
+- **`CA-CORE-120`** [`REQ-CORE-006`] · **Dado** un centro con `active_locales = ['es-ES','fr']`, **cuando** se abre el selector de idioma, **entonces** ofrece exactamente esos dos; **y cuando** se elige `fr`, se envía `PATCH /me` con `{"person":{"locale":"fr"}}`, la interfaz pasa a francés sin recargar el documento y un campo de texto escrito antes del cambio conserva su valor.
+- **`CA-CORE-121`** · **Dado** que `PATCH /me` responde `422 core.validation.locale_not_active`, **cuando** se elige un idioma, **entonces** la interfaz conserva el idioma anterior y muestra el mensaje del servidor con `role="alert"`.
+- **`CA-CORE-122`** [`RN-CORE-34`] · **Dado** un usuario con `person.locale = 'de'` en un centro cuyos idiomas activos son `['es-ES','en']` y por defecto `en`, **cuando** carga la aplicación con sesión, **entonces** la interfaz está en inglés y no se envía ningún `PATCH /me`.
+- **`CA-CORE-123`** [`RNF-UX-004`] · **Dado** el menú de usuario, **cuando** se abre el control de modo de color, **entonces** es un grupo de tres opciones con semántica de radio, marca la preferencia vigente, y elegir «oscuro» llama a `setPreference('dark')`.
+- **`CA-CORE-124`** · **Dado** el menú de usuario, **entonces** muestra el nombre del usuario y enlaces a contraseña, sesiones y seguridad, y la opción de cerrar sesión.
+
+#### Pantallas existentes
+
+- **`CA-CORE-130`** · **Dado** las rutas `password-change`, `sessions`, `mfa-security`, `mfa-administration` y `sso-administration*`, **cuando** se abren con sesión, **entonces** se pintan dentro del *shell* (con navegación y *breadcrumb*) y **todos sus tests preexistentes siguen en verde** sin más reescritura que la retirada de la comprobación de sesión propia (`RN-CORE-26`).
+- **`CA-CORE-131`** · **Dado** `mfa-enrollment-wall`, **entonces** usa el régimen `bare` (§12.3.5).
+
+#### Estados y errores
+
+- **`CA-CORE-140`** [`RUX-006`, `RMOD-009`] · **Dado** la función de correspondencia de §12.6, **cuando** recibe cada una de las respuestas de su tabla, **entonces** devuelve el estado indicado; para `403 module-disabled` el texto es el `detail` del servidor; para `429` con `Retry-After: 30`, el texto contiene «30».
+- **`CA-CORE-141`** [`RN-CORE-35`] · **Dado** la capa B de 1.7 en `not-found`, **cuando** se abre cualquier ruta, **entonces** se pinta «centro no encontrado» sin *shell* y no se pide `GET /me`.
+
+#### Transversales
+
+- **`CA-CORE-150`** [`INV-009`] · **Dado** los cuatro `locales/*.json`, **entonces** toda clave nueva de 1.8 existe en `es`, `en`, `de` y `fr`, y `npm run lint:i18n` termina sin hallazgos.
+- **`CA-CORE-151`** [`RN-AUTH-28`] · **Dado** el módulo del estado de sesión, **entonces** no lee ni escribe `localStorage` ni `sessionStorage` (test con ambos simulados que falla ante cualquier llamada), y tras un ciclo *login* → *logout* ninguna clave nueva queda en ninguno de los dos.
+- **`CA-CORE-152`** [`ADR-053 §1`] · **Dado** `src/layouts/**` y `src/navigation/**`, **entonces** no importan nada de `src/modules/*/` salvo su superficie pública (`api/index.ts`, `shell.ts`, `types/index.ts`) (`INV-007`); y ningún módulo importa el `shell.ts` de otro módulo.
+
+### 12.12 Documentación a actualizar al cerrar 1.8
+
+- Este documento: estado de §12 y de §12.1.3 según `OPEN-CORE-12`.
+- `docs/design-system.md §4`: *breakpoints* (`RN-CORE-29`) y los componentes vendorizados que se añadan (`sheet`, y los que necesite el menú) en §12.1.
+- `docs/i18n.md`: selector de idioma entregado; precedencia con sesión (`RN-CORE-34`).
+- `docs/manual-usuario/admin.md`: navegación, panel, selector de idioma y control de modo de color (sustituye la línea «llega con el paso 1.8»). Los otros cinco manuales no existen (issue [#65](https://github.com/pirexia/plataforma-educativa/issues/65)); si se crean en este paso, con la misma sección común.
+- `ARCHITECTURE.md` (frontend: regímenes de *layout*, registro de navegación), `CHANGELOG.md`.
+- `PRIVACY.md`: **sin cambios esperados** (ninguna clave nueva de almacenamiento del navegador, `CA-CORE-151`); `doc-reviewer` lo confirma.
+
+### 12.13 Hallazgos fuera del ámbito de esta especificación
+
+No se corrigen aquí; se reportan:
+
+1. `SessionsView.vue` (y previsiblemente otras vistas de `REQ-AUTH`) importa `useI18n` de `vue-i18n` directamente, contra la regla de `docs/i18n.md` («un componente nunca hace `import { useI18n } from 'vue-i18n'`»). No lo detecta ningún test. Reportado como issue [#259](https://github.com/pirexia/plataforma-educativa/issues/259) (Baja), no corregido a propósito.
+2. El encargo de este paso cita los `RUX-*` como «sección 5» del documento de requisitos; están en la **sección 10**. Sin efecto salvo en las referencias.
+3. `docs/design-system.md §1.2` y `OPEN-CORE-02` se contradicen sobre dónde van las pantallas de `REQ-CORE` (`OPEN-CORE-12`).
+
+### 12.14 Preguntas abiertas del paso 1.8
+
+#### `OPEN-CORE-12` · ¿Entran en 1.8 las pantallas pendientes de `REQ-CORE`? — **RESUELTO por el usuario** (2026-09-23)
+
+Contradicción descrita en §12.1.3: `OPEN-CORE-02` (aprobada) dice «dentro de 1.8, no como 1.8b»; `PLAN-IMPLEMENTACION.md` no las incluye; `docs/design-system.md §1.2` (aprobado después) las sitúa «posterior a 1.8»; y la mayoría son listados que dependen de 1.9.
+
+**Decisión: opción A.** Se diferirán a un paso propio tras 1.9 (`1.9b`, junto a `1.5b`, que ya está ahí por el mismo motivo). `OPEN-CORE-02` queda reescrita por esta decisión: las pantallas de `REQ-CORE` no van dentro de 1.8. `REQ-CORE` sigue sin cumplir `CLAUDE.md §10` en su totalidad hasta que se cierre `1.9b` — no es una regresión de 1.8, es la continuación pendiente del propio módulo, igual que `1.5b` lo es de `REQ-PERM`. `PLAN-IMPLEMENTACION.md` se actualiza con el paso `1.9b` en el mismo commit que esta especificación. No cambia nada más de §12: con esta opción, lo aquí escrito (*shell*, navegación, panel) queda exactamente igual.
+
+#### `OPEN-CORE-13` · *Widgets* configurables y *dashboards* por defecto por rol (`REQ-CORE-008` puntos 3-4) — **RESUELTO por el usuario** (2026-09-23)
+
+`REQ-CORE-008` pide *widgets* configurables (próximos eventos, tareas pendientes, notificaciones, calendario, accesos directos) y que el administrador defina *dashboards* por defecto por rol. De los cinco *widgets*, solo «accesos directos» tiene datos hoy. «Tareas pendientes» **no tiene módulo dueño identificable** en el documento de requisitos (¿tareas del LMS? ¿de secretaría? ¿aprobaciones de `REQ-PERM`?), pregunta que sigue sin responder y queda anotada para cuando corresponda decidir la opción B.
+
+**Decisión: opción A.** Se difiere la configuración (por usuario y por rol) al primer paso que aporte un segundo bloque de panel con datos reales (candidato: `REQ-COM`, 1.19, notificaciones). 1.8 entrega solo el panel fijo de §12.4 y el punto de extensión de §12.4/§12.5. Sin tabla, sin *endpoint*, sin permiso nuevo en este paso.
+
+#### `OPEN-CORE-14` · Alcance de los 44 × 44 px (`RUX-RESP-007`) — **RESUELTO por el usuario** (2026-09-23)
+
+Los componentes base de 1.7 miden 24-36 px (`button` por defecto 32 px). Hoy ninguna pantalla del producto cumple `RUX-RESP-007`. `RN-CORE-32` lo garantiza solo en el *shell*.
+
+**Decisión: opción B.** Todo el producto, solo en punteros gruesos: variante `any-pointer: coarse` en los componentes base de 1.7 que eleva la altura mínima a 44 px en dispositivos táctiles, sin cambiar el escritorio con ratón — lectura literal de «objetivos **táctiles**». Esto toca los ocho componentes base de 1.7 (fuera de la frontera estricta de `apps/web/src/layouts`/`src/navigation` de este paso, pero dentro de `apps/web`) y exige ampliar `docs/design-system.md §12` en el mismo *commit* que 1.8. `CA-CORE-084` se amplía: además de medir el *shell* a 320/768px, verifica en un componente base (`button`) que la altura mínima solo sube a 44px cuando el test emula `(any-pointer: coarse)`, no en el caso por defecto.
+
+#### `OPEN-CORE-15` · «Se registra el intento» de acceso a un recurso de otro tenant (criterio 1 de `REQ-CORE-008`) — **abierta, no bloqueante, issue [#258](https://github.com/pirexia/plataforma-educativa/issues/258)**
+
+Descrito en §12.10. Con RLS la aplicación no sabe que el recurso es de otro tenant; registrar «el intento» exigiría o bien registrar **todo** `404` por `public_id` (volumen y ruido, sin distinguir errores legítimos), o bien una comprobación con `runAsPlatform()` en cada `404`, contraria al espíritu de `ADR-033`/`ADR-046`. Ninguna de las dos es de 1.8 (interfaz), por eso no bloquea el cierre de este paso. Queda documentada como issue de servidor para cuando le toque turno; opciones registradas en el issue.
+
+#### `OPEN-CORE-16` · ¿ADR para la convención de navegación de los 53 módulos? — **RESUELTO por `ADR-053`** (2026-09-23, ratificado por el usuario)
+
+El registro de §12.5 (y el punto de extensión de bloques del panel de §12.4) es una convención transversal que copiarán todos los módulos de frontend, igual que `OPEN-CORE-09` lo fue para la API. `architect` redactó `docs/adr/ADR-053-registro-de-navegacion-y-bloques-del-panel.md`, que fija la forma de la entrada, dónde vive cada `shell.ts` y cómo se ensambla, el contrato de los bloques del panel, y que `403 module-disabled` también recarga `/me`. §12.3.4, §12.4, §12.5, §12.6, §12.8, §12.9 y los criterios de aceptación de §12.11 ya reflejan su contenido.
+
+#### `OPEN-CORE-17` · Ilustraciones en estados vacíos (`RUX-ICON-005`, `RUX-ICON-007`) — **RESUELTO por el usuario** (2026-09-23)
+
+`RUX-ICON-005` prevé ilustraciones de librerías públicas (unDraw, Humaaans, Blush) para estados vacíos. Incorporarlas exige registrar su licencia (`RUX-ICON-007`), que no existe como procedimiento, y cada una necesita variante clara/oscura o tratamiento por tokens (`RN-DS-19` prohíbe colores literales).
+
+**Decisión: solo iconos de Lucide.** Cero activos gráficos nuevos en 1.8; §12.1.2 (fila «Ilustraciones en estados vacíos») queda confirmada como fuera de alcance sin condición pendiente. El procedimiento de registro de licencia de `RUX-ICON-007` se define cuando llegue el primer paso que sí incorpore ilustraciones.
+
+### 12.15 ¿Se aprueba esta especificación?
+
+**Sí, aprobada el 2026-09-23.** `OPEN-CORE-12` (opción A, paso `1.9b`), `OPEN-CORE-13` (opción A, diferir configuración), `OPEN-CORE-14` (opción B, `any-pointer: coarse`) y `OPEN-CORE-17` (solo iconos) resueltas por el usuario; `OPEN-CORE-16` resuelta por `ADR-053` (`architect`), ratificado por el usuario sin cambios. `OPEN-CORE-15` (issue #258) no bloquea: es trabajo de servidor fuera de 1.8. Lista para pasar a `implementer`.

@@ -631,3 +631,46 @@ Listados en `funcional.md` §7 con su consumidor previsto.
 ## 11. Webhooks
 
 Ninguno en 1.1. La integración saliente por webhook no está requerida en `REQ-CORE`.
+
+---
+
+## 12. Paso 1.8 (`REQ-CORE-008`): sin *endpoints* nuevos
+
+> Estado: **APROBADO** (2026-09-23), con `funcional.md §12`.
+
+**1.8 no añade, modifica ni retira ningún *endpoint*, ni cambia la forma de ninguna respuesta.** Tampoco toca OpenAPI. Es un cliente más de la API existente (`INV-006`).
+
+### 12.1 *Endpoints* que consume el *shell*
+
+| *Endpoint* | Para qué | Autorización | Desde |
+|------------|----------|--------------|-------|
+| `GET /api/v1/tenant/branding` | Nombre, logotipo, colores e idiomas activos del centro | Anónimo, por *host* | 1.1 (lo pide la capa B de 1.7; 1.8 **no** añade llamadas) |
+| `GET /api/v1/me` | Estado de sesión: persona, roles, `permissions`, bloque `mfa` | Identidad | 1.1, ampliado en 1.3 y 1.5 |
+| `PATCH /api/v1/me` | Cambio de idioma desde el selector: **solo** `{"person":{"locale":"…"}}` | Identidad | 1.1 |
+| `DELETE /api/v1/auth/session` | Cerrar sesión | Identidad (idempotente) | 1.2 |
+
+El panel de inicio **no hace ninguna petición propia** (`funcional.md §12.4`, `RN-CORE-33`). En particular **no** llama a `GET /modules` ni a `GET /me/effective-permissions`: la lista plana de códigos de `/me` basta para decidir visibilidad, y la procedencia de `effective-permissions` es de diagnóstico (1.5b).
+
+### 12.2 Contrato de `GET /me` del que pasa a depender la navegación
+
+1.8 convierte en carga estructural tres campos que hasta ahora solo leían pantallas sueltas. Cualquier cambio futuro sobre ellos es **incompatible** en el sentido de `ADR-038 §7.2` y exige versión:
+
+| Campo | Qué asume el *shell* |
+|-------|----------------------|
+| `permissions` | Lista de códigos **efectivamente permitidos** para el sujeto, con `deny` aplicado y **sin** los inertes (retirado, módulo no utilizable, categoría especial sin acceso, sin resolutor). Es exactamente lo que devuelve hoy `PermissionResolver::effectivePermissionCodes()` (1.5). Que un permiso de un módulo descontratado **no** aparezca aquí es lo que hace cumplir el criterio 2 de `REQ-CORE-008` sin *endpoint* adicional |
+| `mfa.obligated`, `mfa.enrolled`, `mfa.days_remaining` | Bloque «Estado de la cuenta» del panel (`REQ-AUTH/api.md §C.6`) |
+| `person.given_name`, `person.locale` | Saludo e idioma con sesión (`RN-CORE-34`) |
+
+`roles` sigue en la respuesta, pero **el *shell* no lo usa para decidir nada** (`RN-CORE-23`); solo podría mostrarse como texto informativo, y 1.8 no lo muestra.
+
+### 12.3 Errores que el cliente interpreta
+
+Ninguno nuevo. La correspondencia de `funcional.md §12.6` se apoya en los `type` URN ya existentes (`ADR-038 §6`): `urn:pge:error:mfa-enrollment-required` (1.3), `urn:pge:error:module-disabled` (1.1, `RMOD-009`), y en el `request_id` que ya lleva todo `problem+json` (`INV-013`).
+
+### 12.4 Paginación
+
+No aplica: 1.8 no consume ningún listado.
+
+### 12.5 `OPEN-CORE-12` y `OPEN-CORE-13`, resueltas — sin efecto sobre este documento
+
+Ambas se resolvieron el 2026-09-23 con la opción que no añade *endpoints*: `OPEN-CORE-12` diferió las pantallas de `REQ-CORE` a `1.9b` (cuando llegue, consumirán los *endpoints* de §2-§8 de este documento **tal como están**; no se prevé ninguno nuevo) y `OPEN-CORE-13` difirió el motor de *widgets* configurables (que sí habría necesitado un recurso nuevo de disposición de panel y preferencia de usuario, con su permiso) al primer paso con un segundo bloque de panel con datos reales.
