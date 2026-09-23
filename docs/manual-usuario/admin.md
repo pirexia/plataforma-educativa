@@ -2,6 +2,10 @@
 
 > Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre lo que ya tiene código detrás: el registro de auditoría (paso 0.9), las cuentas bloqueadas y el tiempo de sesión (paso 1.2), la autenticación en dos pasos por rol (paso 1.3), y el correo como segundo factor, las excepciones temporales y la pantalla mínima de administración de MFA (paso 1.3b). El resto de secciones del manual de Administrador de Centro (usuarios, módulos contratados) llegan con `REQ-BO` (paso 1.6) y las pantallas restantes de `REQ-CORE` (1.1, `OPEN-CORE-02`, con 1.8); el editor de roles y la matriz de permisos llegan con `REQ-PERM` (paso **1.5b**, posterior a 1.9) — el núcleo de autorización granular ya está implementado desde 1.5, pero solo por API, sin interfaz todavía.
 
+## Modo oscuro
+
+La interfaz sigue automáticamente la preferencia de modo claro u oscuro del sistema operativo o navegador de cada persona; no hay ningún ajuste que configurar en el centro ni un control para cambiarlo a mano todavía (llega con el paso 1.8).
+
 ## Cuentas bloqueadas
 
 ### Qué es

@@ -170,7 +170,7 @@ async function remove(provider: IdentityProviderSummary) {
               <span v-if="!provider.secret_status.has_active" class="text-destructive">
                 {{ t('auth.ssoAdmin.secretStatus.none') }}
               </span>
-              <span v-else-if="provider.secret_status.expiring_soon" class="text-amber-600">
+              <span v-else-if="provider.secret_status.expiring_soon" class="text-warning">
                 {{ t('auth.ssoAdmin.secretStatus.expiringSoon') }}
                 <template v-if="provider.secret_status.active_expires_at">
                   ({{ formatDate(provider.secret_status.active_expires_at) }})

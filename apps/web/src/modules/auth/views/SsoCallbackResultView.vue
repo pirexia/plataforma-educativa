@@ -24,7 +24,7 @@ import MfaChallengeStep from '../components/MfaChallengeStep.vue'
 const t = useT()
 const route = useRoute()
 const router = useRouter()
-const { branding } = usePublicAuthScreen()
+usePublicAuthScreen()
 
 type StaticOutcome =
   | 'sin_cuenta'
@@ -107,7 +107,7 @@ const backLabel = computed(() =>
 </script>
 
 <template>
-  <PublicAuthShell :branding="branding">
+  <PublicAuthShell>
     <template v-if="redirecting">
       <p class="text-muted-foreground text-sm">{{ t('auth.oauthCallback.redirecting') }}</p>
     </template>
@@ -126,14 +126,14 @@ const backLabel = computed(() =>
       <RouterLink
         v-if="!challengeLostMessage"
         :to="backTo"
-        class="text-primary mt-4 inline-block text-sm hover:underline"
+        class="text-primary-on-background mt-4 inline-block text-sm hover:underline"
       >
         {{ backLabel }}
       </RouterLink>
       <RouterLink
         v-else
         :to="{ name: 'login' }"
-        class="text-primary mt-4 inline-block text-sm hover:underline"
+        class="text-primary-on-background mt-4 inline-block text-sm hover:underline"
       >
         {{ t('auth.oauthCallback.backToLogin') }}
       </RouterLink>

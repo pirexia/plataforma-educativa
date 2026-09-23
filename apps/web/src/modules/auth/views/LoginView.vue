@@ -26,7 +26,7 @@ import type { MfaChallenge } from '../types'
 const t = useT()
 const route = useRoute()
 const router = useRouter()
-const { branding } = usePublicAuthScreen()
+usePublicAuthScreen()
 
 type Step = 'credentials' | 'challenge'
 
@@ -107,7 +107,7 @@ function onChallengeLost(message: string) {
 </script>
 
 <template>
-  <PublicAuthShell :branding="branding">
+  <PublicAuthShell>
     <template v-if="step === 'credentials'">
       <h1 class="mb-4 text-lg font-semibold">{{ t('auth.login.title') }}</h1>
 
@@ -147,7 +147,7 @@ function onChallengeLost(message: string) {
       <IdentityProviderLoginList />
 
       <div class="mt-4 flex flex-col gap-1 text-center text-sm">
-        <RouterLink to="/recuperar" class="text-primary hover:underline">
+        <RouterLink to="/recuperar" class="text-primary-on-background hover:underline">
           {{ t('auth.login.forgotPassword') }}
         </RouterLink>
         <p class="text-muted-foreground">{{ t('auth.login.pendingHint') }}</p>

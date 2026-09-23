@@ -19,7 +19,7 @@ import PasswordPolicyHint from '../components/PasswordPolicyHint.vue'
 const t = useT()
 const route = useRoute()
 const router = useRouter()
-const { branding } = usePublicAuthScreen()
+usePublicAuthScreen()
 
 const token = String(route.params.token ?? '')
 const password = ref('')
@@ -67,13 +67,13 @@ async function submit() {
 </script>
 
 <template>
-  <PublicAuthShell :branding="branding">
+  <PublicAuthShell>
     <template v-if="linkInvalid">
       <h1 class="mb-4 text-lg font-semibold">{{ t('auth.activation.title') }}</h1>
       <p role="alert" class="text-destructive mb-4 text-sm">
         {{ t('auth.activation.invalidToken') }}
       </p>
-      <RouterLink to="/entrar" class="text-primary text-sm hover:underline">
+      <RouterLink to="/entrar" class="text-primary-on-background text-sm hover:underline">
         {{ t('auth.activation.backToLogin') }}
       </RouterLink>
     </template>

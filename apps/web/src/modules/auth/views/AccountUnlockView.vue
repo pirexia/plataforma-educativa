@@ -20,7 +20,7 @@ import PublicAuthShell from '../components/PublicAuthShell.vue'
 
 const t = useT()
 const route = useRoute()
-const { branding } = usePublicAuthScreen()
+usePublicAuthScreen()
 
 const token = String(route.params.token ?? '')
 const submitting = ref(false)
@@ -56,14 +56,14 @@ async function submit() {
 </script>
 
 <template>
-  <PublicAuthShell :branding="branding">
+  <PublicAuthShell>
     <h1 class="mb-4 text-lg font-semibold">{{ t('auth.accountUnlock.title') }}</h1>
 
     <template v-if="succeeded">
       <p role="status" class="text-muted-foreground mb-4 text-sm">
         {{ t('auth.accountUnlock.success') }}
       </p>
-      <RouterLink to="/entrar" class="text-primary text-sm hover:underline">
+      <RouterLink to="/entrar" class="text-primary-on-background text-sm hover:underline">
         {{ t('auth.accountUnlock.goToLogin') }}
       </RouterLink>
     </template>

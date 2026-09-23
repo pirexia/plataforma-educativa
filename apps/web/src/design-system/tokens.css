@@ -1,0 +1,181 @@
+/**
+ * `docs/design-system.md` §4. ÚNICA hoja de tokens del *design system*:
+ * `:root` (modo claro), `.dark` (modo oscuro), el bloque previo a
+ * JavaScript (§4.5) y la regla de movimiento (§4.6). `style.css` la
+ * importa y no vuelve a definir ningún semántico de color (`CA-DS-001`).
+ *
+ * Tres niveles (`RN-DS-01`, `RN-DS-02`, §4.1):
+ * - **Entrada de marca** `--brand-*`: la escribe solo
+ *   `design-system/theme/brandPalette.ts`, por CSSOM. Ningún selector de
+ *   esta hoja los declara — por eso no aparecen aquí.
+ * - **Semántico**: los de esta hoja. Solo los de «primario» dependen de
+ *   la marca, con la forma `var(--brand-…, <neutro>)`.
+ * - **Utilidad**: el mapeo a Tailwind vive en `style.css` (`@theme inline`).
+ *
+ * `--input` (claro `0.64`, oscuro `36%` de blanco) difiere del valor de
+ * partida que proponía la especificación (`≈0.66` / `≈34%`): con esos
+ * valores el margen sobre el umbral de 3:1 de `CA-DS-050` era inferior al
+ * 4 % y el redondeo a 8 bits por canal lo dejaba en riesgo. Se amplía el
+ * margen sin cambiar el criterio (`OPEN-DS-02` resuelta: sí).
+ */
+
+:root {
+  color-scheme: light;
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+
+  /* Semánticos de marca (`RN-DS-02`): dependen de `--brand-*`, con
+     neutro de respaldo cuando el centro no tiene marca (o la capa A no
+     ha aplicado nada todavía). */
+  --primary: var(--brand-primary, oklch(0.205 0 0));
+  --primary-foreground: var(--brand-primary-foreground, oklch(0.985 0 0));
+  --primary-on-background: var(--brand-primary-on-background-light, oklch(0.205 0 0));
+
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.54 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.505 0.213 27.518);
+  --success: oklch(0.527 0.154 150.069);
+  --success-foreground: oklch(0.985 0 0);
+  --warning: oklch(0.555 0.163 48.998);
+  --warning-foreground: oklch(0.985 0 0);
+  --info: oklch(0.488 0.243 264.376);
+  --info-foreground: oklch(0.985 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.64 0 0);
+  --ring: var(--primary-on-background);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: var(--brand-primary, oklch(0.205 0 0));
+  --sidebar-primary-foreground: var(--brand-primary-foreground, oklch(0.985 0 0));
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: var(--ring);
+
+  --motion-duration-fast: 100ms;
+  --motion-duration-normal: 150ms;
+  --motion-duration-slow: 300ms;
+
+  /* §10.3: colores de marca de un tercero (el logotipo oficial de
+     Google en `GoogleSignInButton.vue`/`IdentityProviderLoginList.vue`),
+     fijos por guía de marca ajena, idénticos en ambos modos — no forman
+     parte de la paleta semántica del centro. Hallazgo de 1.7 no
+     anticipado por la especificación (que preveía este patrón en
+     abstracto para "un color fijo que no dependa del modo", con el QR de
+     MFA como candidato previsible; el QR ya usa `currentColor`, así que
+     no lo necesitaba — el logotipo de Google sí). */
+  --google-blue: #4285f4;
+  --google-green: #34a853;
+  --google-yellow: #fbbc05;
+  --google-red: #ea4335;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+
+  --primary: var(--brand-primary, oklch(0.922 0 0));
+  --primary-foreground: var(--brand-primary-foreground, oklch(0.205 0 0));
+  --primary-on-background: var(--brand-primary-on-background-dark, oklch(0.922 0 0));
+
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --success: oklch(0.792 0.209 151.711);
+  --success-foreground: oklch(0.205 0 0);
+  --warning: oklch(0.828 0.189 84.429);
+  --warning-foreground: oklch(0.205 0 0);
+  --info: oklch(0.707 0.165 254.624);
+  --info-foreground: oklch(0.205 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 36%);
+  --ring: var(--primary-on-background);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: var(--brand-primary, oklch(0.488 0.243 264.376));
+  --sidebar-primary-foreground: var(--brand-primary-foreground, oklch(0.985 0 0));
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: var(--ring);
+
+  --motion-duration-fast: 100ms;
+  --motion-duration-normal: 150ms;
+  --motion-duration-slow: 300ms;
+
+  /* Mismo valor que en `:root`: ver el comentario de arriba. */
+  --google-blue: #4285f4;
+  --google-green: #34a853;
+  --google-yellow: #fbbc05;
+  --google-red: #ea4335;
+}
+
+/**
+ * §4.5. Sin JavaScript todavía (destello con preferencia `system`,
+ * `ADR-052 §2`): resuelve fondo y `color-scheme` por *media query*, antes
+ * de que `initColorScheme()` (§9) fije `.light`/`.dark` en `<html>`.
+ * `RN-DS-03`: los dos valores son idénticos a los de `.dark`
+ * (`CA-DS-007`). No se duplica el resto de la paleta oscura a propósito.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light):not(.dark) {
+    color-scheme: dark;
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+  }
+}
+
+/**
+ * §4.6 (`RUX-005`, `CA-DS-008`/`CA-DS-009`). La segunda regla anula en
+ * bloque lo que no pasa por los tokens de movimiento: clases fijas como
+ * `duration-100` de `SelectContent` y las animaciones de
+ * `tw-animate-css`. `0.01ms` y no `0`: conserva los eventos
+ * `transitionend`/`animationend` de los que dependen los componentes de
+ * Reka UI para desmontar.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-duration-fast: 0ms;
+    --motion-duration-normal: 0ms;
+    --motion-duration-slow: 0ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

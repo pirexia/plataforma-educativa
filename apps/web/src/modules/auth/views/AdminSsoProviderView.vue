@@ -473,7 +473,10 @@ function formatDate(value: string | null | undefined): string | null {
 <template>
   <div class="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-10">
     <div>
-      <RouterLink :to="{ name: 'sso-administration' }" class="text-primary text-sm hover:underline">
+      <RouterLink
+        :to="{ name: 'sso-administration' }"
+        class="text-primary-on-background text-sm hover:underline"
+      >
         {{ t('auth.ssoAdmin.back') }}
       </RouterLink>
       <h1 class="mt-2 text-lg font-semibold">
@@ -654,7 +657,7 @@ function formatDate(value: string | null | undefined): string | null {
       </p>
 
       <p v-if="saveError" role="alert" class="text-destructive text-sm">{{ saveError }}</p>
-      <p v-if="savedMessage" class="text-sm text-green-700">{{ savedMessage }}</p>
+      <p v-if="savedMessage" class="text-sm text-success">{{ savedMessage }}</p>
 
       <Button type="submit" :disabled="saving" class="w-fit">
         {{ saving ? t('auth.ssoAdmin.form.submitting') : t('auth.ssoAdmin.form.submit') }}

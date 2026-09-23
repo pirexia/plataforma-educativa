@@ -15,7 +15,10 @@ const model = defineModel<string>()
     data-slot="input"
     :class="
       cn(
-        'border-border bg-background flex h-8 w-full min-w-0 rounded-lg border px-2.5 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none',
+        // `border-input` (`OPEN-DS-02` resuelta: sí, `CA-DS-050`): el
+        // borde es lo único que identifica el campo sobre fondo blanco,
+        // así que necesita 3:1 (WCAG 1.4.11), no el `border` decorativo.
+        'border-input bg-background flex h-8 w-full min-w-0 rounded-lg border px-2.5 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none',
         'placeholder:text-muted-foreground',
         'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3',
         'aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive',

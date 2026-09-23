@@ -60,7 +60,11 @@ function clearSelection(): void {
       class="border-border flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
     >
       <span>{{ fullName(selected) }} · {{ selected.email }}</span>
-      <button type="button" class="text-primary hover:underline" @click="clearSelection">
+      <button
+        type="button"
+        class="text-primary-on-background hover:underline"
+        @click="clearSelection"
+      >
         {{ t('auth.mfaAdmin.userPicker.change') }}
       </button>
     </div>

@@ -23,7 +23,9 @@ const model = defineModel<string>()
     data-slot="textarea"
     :class="
       cn(
-        'border-border bg-background flex min-h-24 w-full rounded-lg border px-2.5 py-1.5 text-sm shadow-xs transition-[color,box-shadow] outline-none',
+        // `border-input` (`OPEN-DS-02` resuelta: sí, `CA-DS-050`): mismo
+        // criterio que `Input.vue`.
+        'border-input bg-background flex min-h-24 w-full rounded-lg border px-2.5 py-1.5 text-sm shadow-xs transition-[color,box-shadow] outline-none',
         'placeholder:text-muted-foreground',
         'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3',
         'aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive',

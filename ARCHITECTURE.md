@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |-------|-------|
-| Versión | 2.1.0 |
-| Fecha | 2026-09-09 |
+| Versión | 2.2.0 |
+| Fecha | 2026-09-23 |
 | Estado | Propuesta cerrada, pendiente de ratificación |
 | Documento de requisitos | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` |
 
@@ -80,6 +80,27 @@ Monorepo con separación real de despliegue (`A3`).
 ```
 
 Cada módulo de `apps/api/app/Modules/` es un bounded context autónomo: no importa código interno de otro módulo (`INV-007`). La comunicación es por interfaces públicas o eventos de dominio.
+
+### 3.1 Frontend: *design system* (paso 1.7, `ADR-052`)
+
+`apps/web/src/design-system/` y `apps/web/src/components/ui/` son la frontera del *design system*: no importan de `@/modules`, `@/api`, `@/tenant`, el *router* ni `vue-i18n` (verificado por test, no por revisión — `docs/design-system.md` §10). Es la pieza que se extraerá a un paquete compartido cuando exista un segundo consumidor (la SPA del backoffice, `ADR-046`).
+
+Tres niveles de tokens, todos variables CSS (`docs/design-system.md` §4):
+
+| Nivel | Quién escribe | Dónde |
+|-------|---------------|-------|
+| **Entrada de marca** (`--brand-*`) | Solo la capa A, en tiempo de ejecución (CSSOM) | Ninguna hoja de estilos los define |
+| **Semántico** (`--primary`, `--background`…) | La hoja de tokens (`design-system/tokens.css`) | `:root`/`.dark` |
+| **Utilidad** (`--color-*`, clases Tailwind) | La hoja de tokens | `@theme inline` de `style.css` |
+
+Dos capas independientes aplican el tema del centro sobre esos tokens:
+
+- **Capa A** (`design-system/theme/brandPalette.ts`): sin noción de tenant. Aplica `{ primary, primaryForeground } | null` al documento vía CSSOM, y calcula `--primary-on-background` con una función pura de derivación de contraste (`design-system/color/deriveOnBackground.ts`) que garantiza ≥ 4,5:1 contra todas las superficies neutras del modo — necesaria porque ningún color cumple AA a la vez contra los fondos claro y oscuro.
+- **Capa B** (`tenant/useTenantBranding.ts`): conoce el tenant. Único llamador de `GET /tenant/branding` en la SPA; entrega los colores a la capa A, el *favicon* al documento, y cachea los dos colores en `localStorage` para evitar el destello de tema neutro en visitas repetidas.
+
+El modo oscuro (`design-system/color-mode/useColorScheme.ts`) es ortogonal a la marca: cambiar de modo nunca llama a la capa A. Envuelve `useColorMode` de `@vueuse/core` (`RNF-MANT-007`): es el único fichero que importa esa API de VueUse.
+
+Detalle completo, catálogo de tokens y criterios de aceptación: `docs/design-system.md`.
 
 ---
 
