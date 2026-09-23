@@ -91,6 +91,23 @@ describe('CA-CORE-152: frontera de src/layouts y src/navigation (ADR-053 §1, IN
   })
 })
 
+const TEXT_PX_RE = /text-\[\s*\d+(\.\d+)?px\s*\]/
+
+describe('CA-CORE-083 (RUX-RESP-006): sin tamaño de fuente arbitrario en píxeles', () => {
+  it('ningún fichero de src/layouts/** ni src/navigation/** usa text-[…px]', () => {
+    const offenders = layoutsAndNavFiles.filter((file) =>
+      TEXT_PX_RE.test(stripComments(readFileSync(file, 'utf-8'))),
+    )
+
+    expect(offenders.map((f) => relative(srcDir, f))).toEqual([])
+  })
+
+  it('(caso fijo) detecta text-[14px] y no clases del token (text-sm)', () => {
+    expect(TEXT_PX_RE.test('class="text-[14px] font-medium"')).toBe(true)
+    expect(TEXT_PX_RE.test('class="text-sm font-medium"')).toBe(false)
+  })
+})
+
 describe('CA-CORE-152: ningún módulo importa el shell.ts de otro', () => {
   it('src/modules/**/shell.ts no importa @/modules/<otro>/shell', () => {
     const modulesDir = join(srcDir, 'modules')

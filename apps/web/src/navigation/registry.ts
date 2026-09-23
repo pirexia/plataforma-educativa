@@ -29,12 +29,21 @@ export function findNavigationEntryForRoute(routeName: string): NavigationEntry 
  * `ADR-053 §3`: una entrada es visible si y solo si el *guard* dejaría
  * montar la ruta a la que apunta — se deriva de `meta.permissions`
  * (anyOf) de esa ruta, nunca de un campo propio de la entrada.
+ *
+ * `INV-002`/`RPERM-011`, denegar por defecto: `[]` explícito es
+ * identidad (RN-CORE-24) y se admite; `undefined` (campo ausente, que no
+ * debería ocurrir en una ruta `app`/`bare` — lo exige
+ * `src/navigation/modules.spec.ts`) **deniega**, no abre.
  */
 export function hasAnyPermission(
   required: readonly string[] | undefined,
   granted: readonly string[],
 ): boolean {
-  if (!required || required.length === 0) {
+  if (required === undefined) {
+    return false
+  }
+
+  if (required.length === 0) {
     return true
   }
 

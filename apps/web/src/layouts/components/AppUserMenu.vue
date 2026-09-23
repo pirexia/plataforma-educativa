@@ -138,6 +138,7 @@ async function onLogout(): Promise<void> {
             :value="locale"
             class="min-h-11"
             :disabled="changingLocale"
+            @select="(event: Event) => event.preventDefault()"
           >
             {{ t(LOCALE_NAME_KEYS[locale]) }}
           </DropdownMenuRadioItem>

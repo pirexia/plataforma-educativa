@@ -26,15 +26,7 @@ useViewFocusAndTitle(mainRef)
 
 const permissions = computed(() => user.value?.permissions ?? [])
 
-const forbidden = computed(() => {
-  const required = route.meta.permissions
-
-  if (!required || required.length === 0) {
-    return false
-  }
-
-  return !hasAnyPermission(required, permissions.value)
-})
+const forbidden = computed(() => !hasAnyPermission(route.meta.permissions, permissions.value))
 
 const sessionErrorState = computed(() =>
   error.value ? sessionErrorToShellError(error.value) : null,
