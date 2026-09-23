@@ -8,7 +8,14 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground [a]:hover:bg-primary/80',
+        // `RN-DS-17`/`RN-DS-18`, docs/design-system.md §12.1: sin
+        // `hover:bg-primary/80` (contraste no garantizado con opacidad) y
+        // `border-primary-on-background` en vez de `border-transparent` —
+        // mitiga que, con un primario muy oscuro en modo oscuro (o muy
+        // claro en claro), el botón pierda contorno visible contra el
+        // fondo (`ADR-052 §Consecuencias`).
+        default:
+          'bg-primary text-primary-foreground border-primary-on-background hover:brightness-95 dark:hover:brightness-110',
         outline:
           'border-border bg-background hover:bg-muted hover:text-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 aria-expanded:bg-muted aria-expanded:text-foreground',
         secondary:
@@ -17,7 +24,7 @@ export const buttonVariants = cva(
           'hover:bg-muted hover:text-foreground dark:hover:bg-muted/50 aria-expanded:bg-muted aria-expanded:text-foreground',
         destructive:
           'bg-destructive/10 hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/20 text-destructive focus-visible:border-destructive/40 dark:hover:bg-destructive/30',
-        link: 'text-primary underline-offset-4 hover:underline',
+        link: 'text-primary-on-background underline-offset-4 hover:underline',
       },
       size: {
         default:
