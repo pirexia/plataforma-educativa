@@ -1,10 +1,20 @@
 # Manual de administración
 
-> Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre lo que ya tiene código detrás: el registro de auditoría (paso 0.9), las cuentas bloqueadas y el tiempo de sesión (paso 1.2), la autenticación en dos pasos por rol (paso 1.3), y el correo como segundo factor, las excepciones temporales y la pantalla mínima de administración de MFA (paso 1.3b). El resto de secciones del manual de Administrador de Centro (usuarios, módulos contratados) llegan con `REQ-BO` (paso 1.6) y las pantallas restantes de `REQ-CORE` (1.1, `OPEN-CORE-02`, con 1.8); el editor de roles y la matriz de permisos llegan con `REQ-PERM` (paso **1.5b**, posterior a 1.9) — el núcleo de autorización granular ya está implementado desde 1.5, pero solo por API, sin interfaz todavía.
+> Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre lo que ya tiene código detrás: el registro de auditoría (paso 0.9), las cuentas bloqueadas y el tiempo de sesión (paso 1.2), la autenticación en dos pasos por rol (paso 1.3), el correo como segundo factor, las excepciones temporales y la pantalla mínima de administración de MFA (paso 1.3b), y la navegación, el panel de inicio, el selector de idioma y el control de modo de color (paso 1.8). El resto de secciones del manual de Administrador de Centro (usuarios, módulos contratados, configuración del centro, activos de marca) llegan con las pantallas pendientes de `REQ-CORE`, diferidas al paso **1.9b** (`OPEN-CORE-12`); el editor de roles y la matriz de permisos llegan con `REQ-PERM` (paso **1.5b**, posterior a 1.9) — el núcleo de autorización granular ya está implementado desde 1.5, pero solo por API, sin interfaz todavía.
 
-## Modo oscuro
+## Navegación y panel de inicio
 
-La interfaz sigue automáticamente la preferencia de modo claro u oscuro del sistema operativo o navegador de cada persona; no hay ningún ajuste que configurar en el centro ni un control para cambiarlo a mano todavía (llega con el paso 1.8).
+Al entrar, ves el panel de inicio (`/`): un saludo con tu nombre y el del centro, un aviso si tienes pendiente activar el segundo factor de acceso (con el enlace directo para hacerlo), y tus accesos directos — las pantallas del menú marcadas como tales, o un mensaje si todavía no tienes ninguna disponible.
+
+El menú de navegación, a la izquierda en pantallas grandes y tras el botón de menú en móvil y tableta, muestra únicamente lo que tu perfil puede usar: si no ves una entrada que esperabas, es que tu rol no tiene el permiso correspondiente, no un error de la aplicación — pídelo a quien administre los roles del centro. La miga de pan, sobre cada pantalla, marca dónde estás dentro de esa navegación.
+
+## Menú de usuario, idioma y modo de color
+
+El menú de usuario (arriba a la derecha, con tu nombre) reúne el acceso a tu contraseña, tus sesiones abiertas, la seguridad de tu cuenta, el selector de idioma, el control de modo de color y cerrar sesión.
+
+**Idioma**: el selector ofrece los idiomas que el centro tiene activos (de los cuatro disponibles: español, inglés, alemán, francés), cada uno en su propia lengua. El cambio es inmediato, sin recargar la página. Si el centro retira mientras tanto el idioma que tenías elegido, la próxima vez que entres verás la interfaz en el idioma por defecto del centro.
+
+**Modo de color**: tres opciones — seguir el sistema operativo (por defecto), claro fijo, oscuro fijo. Es una preferencia de tu navegador, no se guarda en el servidor ni se comparte entre tus dispositivos.
 
 ## Cuentas bloqueadas
 

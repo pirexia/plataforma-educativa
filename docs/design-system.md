@@ -230,6 +230,23 @@ La segunda regla es la que anula en bloque lo que no pasa por los tokens: clases
 
 Se añaden como tokens `--google-blue`/`--google-green`/`--google-yellow`/`--google-red` en `tokens.css` (mismo valor en `:root` y `.dark`, siguiendo la regla de §10.3), mapeados en `@theme inline` (`--color-google-*`) y consumidos como `class="fill-google-blue"` etc. en los dos componentes. **No** llevan el prefijo `--brand-`: ese prefijo está reservado a la entrada de marca del centro (§4.1); estos son un tercero ajeno al tenant.
 
+### 4.9 Velo de capa (`--overlay`), añadido en 1.8
+
+Mismo criterio que §4.8: color fijo que no depende del modo. El componente `sheet` (§12.3, vendorizado en 1.8) necesita un velo oscuro traslúcido detrás del panel de navegación en móvil/tableta, en ambos modos — no forma parte de la paleta semántica del centro ni tiene requisito de contraste (decorativo, como `--border`). `--overlay: oklch(0 0 0 / 40%)` en `tokens.css` (mismo valor en `:root` y `.dark`), mapeado a `--color-overlay` en `@theme inline`, consumido como `bg-overlay` en `SheetOverlay.vue` — sustituye al `bg-black/10` literal que trae el registro de `shadcn-vue` por defecto (`RN-DS-19`).
+
+### 4.10 *Breakpoints* (`RN-CORE-29`, paso 1.8)
+
+`docs/modulos/REQ-CORE/funcional.md §12.7`. 320 px es el ancho mínimo soportado (sin desplazamiento horizontal, WCAG 1.4.10, `CA-CORE-080`); 768, 1024, 1440 y 1920 px son puntos de cambio. Declarados en `@theme` de `style.css` (no en `tokens.css`: son geometría, no color):
+
+```css
+--breakpoint-md: 48rem;   /* 768px, igual que el valor por defecto de Tailwind v4 */
+--breakpoint-lg: 64rem;   /* 1024px, igual que el valor por defecto */
+--breakpoint-xl: 90rem;   /* 1440px, sustituye los 80rem (1280px) por defecto */
+--breakpoint-2xl: 120rem; /* 1920px, sustituye los 96rem (1536px) por defecto */
+```
+
+`md`/`lg` gobiernan los regímenes de navegación de `RN-CORE-30` (`src/layouts/AppShellLayout.vue`); `2xl` limita el ancho del contenido principal a `max-w-7xl` (80rem) para no superar una longitud de línea legible en pantallas muy anchas — entre `lg` y `2xl` el contenido usa el ancho disponible.
+
 ---
 
 ## 5. Capa A · `design-system/theme/brandPalette.ts`
@@ -558,6 +575,22 @@ Se adoptan los ocho ya vendorizados. **No se añade ninguno**: ningún entregabl
 
 **`RN-DS-24`** · Un componente base no tiene texto propio: todo lo visible, incluidos `aria-label` y textos solo para lectores de pantalla, llega por *props* o *slots* (§14).
 
+### 12.1b Objetivos táctiles (`OPEN-CORE-14`, resuelta por el usuario, paso 1.8)
+
+`docs/modulos/REQ-CORE/funcional.md §12.7`, `RUX-RESP-007`: variante `any-pointer: coarse` (sintaxis arbitraria de Tailwind v4, `[@media(any-pointer:coarse)]:…`) que eleva la altura mínima a 44 px en dispositivos táctiles **sin cambiar el escritorio con ratón** — opción B de `OPEN-CORE-14`, lectura literal de «objetivos **táctiles**». Toca los ocho componentes base:
+
+| Componente | Cambio |
+|------------|--------|
+| `button` | Las ocho variantes de `size` ganan `[@media(any-pointer:coarse)]:min-h-11` (las de solo icono, además `min-w-11`) |
+| `badge` | Cuando se usa como enlace (`[a]:hover:…`), `[@media(any-pointer:coarse)]:[a]:min-h-11` |
+| `input`, `select` (`select-trigger`) | `[@media(any-pointer:coarse)]:min-h-11` |
+| `textarea` | Sin cambio: `min-h-24` (96 px) ya supera 44 px |
+| `radio-group` (`radio-group-item`) | La zona de contacto invisible que ya amplía el círculo visible (`after:-inset-x-3 after:-inset-y-2`) sube a 44×44 px exactos en punteros gruesos: `[@media(any-pointer:coarse)]:after:-inset-x-[14px] [@media(any-pointer:coarse)]:after:-inset-y-[14px]` |
+| `label` | Una etiqueta asociada activa su control al pulsarla: `[@media(any-pointer:coarse)]:inline-flex [@media(any-pointer:coarse)]:min-h-11 [@media(any-pointer:coarse)]:items-center` |
+| `table` | Sin objetivo de contacto propio (las celdas no son controles); sin cambio |
+
+`CA-CORE-084` (ampliado): comprueba en `button` que la altura mínima solo sube a 44 px cuando el test emula un puntero grueso, no en el caso por defecto (Playwright, `browser.newContext({ hasTouch: true|false })`).
+
 ### 12.2 Cómo añadir un componente (sección permanente de este documento)
 
 1. `npx shadcn-vue@latest add <componente>` desde `apps/web` (respeta `components.json`).
@@ -565,6 +598,22 @@ Se adoptan los ocho ya vendorizados. **No se añade ninguno**: ningún entregabl
 3. Si trae texto propio (`sr-only`, `aria-label` literal), convertirlo en *prop* o *slot* (`RN-DS-24`); `npm run lint:i18n` lo detecta (§14).
 4. Si necesita un semántico nuevo, se añade a `tokens.css` en ambos modos, a `@theme inline`, a la tabla de §4.3 y, si es un par de texto, a §11.
 5. Añadirlo a la tabla de §12.1.
+
+### 12.3 Componentes añadidos en 1.8: `sheet` y `dropdown-menu`
+
+Primeros componentes nuevos desde el catálogo cerrado de 1.7 (§12.1: «los candidatos obvios… los pedirá 1.8 o 1.9 cuando tengan consumidor»). El *shell* de `docs/modulos/REQ-CORE/funcional.md §12.7` los necesita: `sheet` para el panel de navegación en móvil/tableta (*drawer*/hamburguesa, `RN-CORE-30`), `dropdown-menu` para el menú de usuario (`AppUserMenu.vue`).
+
+Vendorizados **sin la CLI de `shadcn-vue`**: el `npx shadcn-vue@latest add` de §12.2 punto 1 falla en este entorno de desarrollo (`npm error code EALLOWSCRIPTS`, política de `allowScripts` del sandbox sobre paquetes ya instalados). Se descargó el JSON del registro (`https://shadcn-vue.com/r/styles/reka-nova/<componente>.json`, mismo contenido que serviría la CLI) y se escribieron los ficheros a mano en `src/components/ui/{sheet,dropdown-menu}/`. Queda anotado como hallazgo de infraestructura de desarrollo, no de este *design system*; el paso 2 de §12.2 (ejecutar `npm run test` y corregir lo que señalen los tests de §10) se hizo igual.
+
+Adaptaciones sobre el código del registro:
+
+| Componente | Adaptación |
+|------------|------------|
+| `sheet` (`SheetContent.vue`) | El botón de cierre solo-icono traía `sr-only>Close</sr-only>` como literal (inglés, y contra `RN-DS-24`): se convirtió en la *prop* obligatoria `closeLabel: string`, que quien use el componente traduce (`AppShellLayout.vue` pasa `t('shell.sheetClose')`) |
+| `sheet` (`SheetOverlay.vue`) | Traía `bg-black/10` literal (`RN-DS-19`): sustituido por el token nuevo `bg-overlay` (§4.9) |
+| `dropdown-menu` | Sin hallazgos de §10 (revisado: sin color literal, sin texto propio) |
+
+Ninguno de los dos declara `size`/altura fija en sus elementos de fila (`sheet`: el panel entero; `dropdown-menu`: `py-1` ≈ 32 px por ítem) — los usos del *shell* añaden `min-h-11` por instancia donde corresponde (`RN-CORE-32`), en vez de tocar la altura por defecto del componente base: a diferencia de §12.1b, aquí no es «todo el producto en punteros gruesos», es «todo control del *shell*, siempre» (`funcional.md §12.7`).
 
 ---
 

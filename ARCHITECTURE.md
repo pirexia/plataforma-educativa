@@ -102,6 +102,18 @@ El modo oscuro (`design-system/color-mode/useColorScheme.ts`) es ortogonal a la 
 
 Detalle completo, catálogo de tokens y criterios de aceptación: `docs/design-system.md`.
 
+### 3.2 Frontend: *shell*, navegación y panel de inicio (paso 1.8, `REQ-CORE-008`, `ADR-053`)
+
+Tres regímenes de *layout* por ruta (`src/layouts/{PublicLayout,AppShellLayout,BareLayout}.vue`), elegidos en `src/App.vue` a partir de `route.meta.layout`: **público** (pantallas sin sesión, sin *shell*, sin `GET /me`), **con aplicación** (con sesión, barra superior + navegación lateral persistente/*drawer*/hamburguesa según *breakpoint*, miga de pan) y **desnudo** (con sesión, sin navegación — hoy solo el muro de alta obligatoria de MFA).
+
+**Registro de navegación** (`ADR-053`): cada módulo declara un único `shell.ts` en su superficie pública (junto a `api/index.ts`, `types/index.ts`, `locales/`), con tres listas — `routes`, `navigation`, `dashboardBlocks` —, cualquiera vacía. `src/navigation/modules.ts` importa el `shell` de cada módulo en una lista explícita y ordenada (`moduleShells`, mismo patrón que `src/i18n/index.ts`); `src/router/index.ts` concatena sus rutas, y el registro de navegación y el panel hacen lo mismo con las otras dos listas (`src/navigation/registry.ts`). Solo `home`, el *catch-all* y la pantalla de centro no encontrado viven fuera de un `shell.ts` de módulo.
+
+Los permisos de una pantalla se declaran **una sola vez**, en `meta.permissions` (anyOf) de su ruta — la entrada de navegación no lleva permisos propios: es visible si y solo si el *guard* dejaría montar la ruta a la que apunta. `meta.permissions` vacía (`[]`) significa «cualquier usuario autenticado» y solo se admite en una lista cerrada de rutas de autoservicio por identidad, verificada por test (`src/navigation/modules.spec.ts`).
+
+**Estado de sesión** (`src/session/useSession.ts`): singleton en memoria (mismo patrón *composable* sin Pinia que la capa B del *design system*), nunca en `localStorage`/`sessionStorage`. El *guard* del *router* (`src/router/guard.ts`) pide `GET /me` una sola vez por navegación a una ruta con sesión; cualquier `403` que no sea el muro de MFA recarga la sesión (deduplicada), incluido `module-disabled`, que además dispara el estado «módulo no disponible» si la ruta actual deja de estar permitida tras la recarga; cualquier `401` (salvo el propio `GET /me`, que resuelve el *guard*) vacía la sesión y navega a `/entrar` con el destino saneado (`src/router/redirect.ts`, evita redirección abierta) — ambos mecanismos viven en `src/api/client.ts`, con importación dinámica de `@/router`/`@/session` para no crear un ciclo de módulos.
+
+Detalle completo, reglas de negocio y criterios de aceptación: `docs/modulos/REQ-CORE/funcional.md §12`; convención transversal para los módulos siguientes: `docs/adr/ADR-053-registro-de-navegacion-y-bloques-del-panel.md`.
+
 ---
 
 ## 4. Arquitectura de despliegue

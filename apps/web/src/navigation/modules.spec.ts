@@ -10,7 +10,7 @@
  * `mfa-enrollment-wall` y `not-found`, cuyo motivo está documentado en el
  * comentario de cabecera de `src/modules/auth/shell.ts` y en
  * `src/router/index.ts`. Es una discrepancia conocida y reportada
- * (issue de este paso, severidad Media): ninguna de las dos rutas tiene
+ * (issue #260, severidad Media): ninguna de las dos rutas tiene
  * un permiso real que declarar sin inventarlo (`INV-002`).
  */
 import { describe, expect, it } from 'vitest'

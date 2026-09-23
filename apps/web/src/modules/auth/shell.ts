@@ -26,7 +26,7 @@
  *   existe** ningún `permissions` con el que comparar — no hay forma de
  *   exigir un permiso real sin inventar uno ficticio, que sería peor
  *   (`INV-002`: la autorización nunca se basa en un código inventado). Se
- *   documenta como hallazgo en el issue de este paso (severidad Media,
+ *   documenta como hallazgo en el issue #260 (severidad Media,
  *   `CLAUDE.md §5`): la especificación debería ampliar su lista cerrada a
  *   cinco rutas. El test de coherencia de este repositorio
  *   (`src/navigation/modules.spec.ts`) refleja la lista de **cinco**
