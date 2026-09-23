@@ -18,14 +18,12 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
-import { getMe } from '@/modules/core/api'
 import { listSessions, revokeOtherSessions, revokeSession, type UserSessionSummary } from '../api'
 import { apiErrorStatus, retryAfterSeconds } from '../composables/formErrors'
 
 const { t, locale } = useI18n()
 const router = useRouter()
 
-const checkingSession = ref(true)
 const loading = ref(true)
 const sessions = ref<UserSessionSummary[]>([])
 const errorMessage = ref<string | null>(null)
@@ -124,22 +122,10 @@ async function loadSessions(): Promise<void> {
   }
 }
 
-onMounted(async () => {
-  try {
-    await getMe()
-  } catch (err) {
-    if (apiErrorStatus(err) === 401) {
-      await router.push({ name: 'login' })
-      return
-    }
-  } finally {
-    checkingSession.value = false
-  }
-
-  if (!checkingSession.value) {
-    await loadSessions()
-  }
-})
+// RN-CORE-26: la comprobación de sesión la hace el guard del router
+// (`src/router/guard.ts`), una sola vez, antes de montar esta vista —
+// ya no se pide `GET /me` aquí para saber si hay sesión.
+onMounted(loadSessions)
 
 async function askRevoke(session: UserSessionSummary): Promise<void> {
   errorMessage.value = null
@@ -247,7 +233,7 @@ async function confirmRevokeOthers(): Promise<void> {
 </script>
 
 <template>
-  <div v-if="!checkingSession" class="mx-auto flex min-h-svh max-w-3xl flex-col px-4 py-10">
+  <div class="mx-auto flex max-w-3xl flex-col px-4 py-10">
     <div class="border-border bg-background w-full rounded-xl border p-6 shadow-sm">
       <h1 class="mb-1 text-lg font-semibold">{{ t('auth.sessions.title') }}</h1>
       <p class="text-muted-foreground mb-4 text-sm">{{ t('auth.sessions.intro') }}</p>

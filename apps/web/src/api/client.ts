@@ -78,6 +78,48 @@ async function redirectToMfaEnrollmentWall(): Promise<void> {
 }
 
 /**
+ * `docs/modulos/REQ-CORE/funcional.md §12.3.4`, `CA-CORE-092`: cualquier
+ * petición (que no sea `GET /me`, cuyo propio `401` ya gestiona
+ * `useSession`/el *guard* con el destino correcto) que reciba `401`
+ * vacía el estado de sesión y navega **una sola vez** a `/entrar`, aunque
+ * fallen varias peticiones a la vez (deduplicada con una promesa
+ * compartida, mismo patrón que `reloadSession`).
+ */
+let unauthorizedInFlight: Promise<void> | null = null
+
+async function handleUnauthorized(): Promise<void> {
+  if (!unauthorizedInFlight) {
+    unauthorizedInFlight = doHandleUnauthorized().finally(() => {
+      unauthorizedInFlight = null
+    })
+  }
+
+  return unauthorizedInFlight
+}
+
+async function doHandleUnauthorized(): Promise<void> {
+  try {
+    const [{ clearSession }, { default: router }] = await Promise.all([
+      import('@/session/useSession'),
+      import('@/router'),
+    ])
+
+    clearSession()
+
+    if (router.currentRoute.value.name === 'login') {
+      return
+    }
+
+    const target = router.currentRoute.value.fullPath
+
+    await router.push({ name: 'login', query: { redirect: target } })
+  } catch {
+    // Entorno sin router/sesión (p.ej. un test unitario aislado de este
+    // cliente): no hay nada razonable que hacer.
+  }
+}
+
+/**
  * `docs/modulos/REQ-CORE/funcional.md §12.3.4`,
  * `docs/adr/ADR-053-registro-de-navegacion-y-bloques-del-panel.md §6`:
  * cualquier `403` que no sea `mfa-enrollment-required` recarga `GET /me`
@@ -161,6 +203,8 @@ export async function apiFetchWithStatus<T>(
       } else {
         void notifySessionOfForbidden(body)
       }
+    } else if (response.status === 401 && path !== '/me') {
+      void handleUnauthorized()
     }
 
     throw new ApiError(

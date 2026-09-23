@@ -15,6 +15,7 @@ import { useT } from '@/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { sanitizeRedirect } from '@/router/redirect'
 import { login } from '../api'
 import { usePublicAuthScreen } from '../composables/usePublicAuthScreen'
 import { apiErrorStatus, fieldErrors, retryAfterSeconds } from '../composables/formErrors'
@@ -57,7 +58,9 @@ async function submitCredentials() {
       return
     }
 
-    await router.push({ name: 'home' })
+    // RN-CORE-28, CA-CORE-090/091: solo se acepta un `redirect` que
+    // resuelva a una ruta `app` registrada; en cualquier otro caso, `/`.
+    await router.push(sanitizeRedirect(route.query.redirect, router))
   } catch (err) {
     const status = apiErrorStatus(err)
 
