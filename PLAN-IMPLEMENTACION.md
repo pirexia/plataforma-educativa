@@ -163,8 +163,9 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 
 ### Bloque B · Design system y navegación
 
-- [ ] **1.7 · Design system** [OPUS + SONNET]
+- [x] **1.7 · Design system** [OPUS + SONNET]
   Tokens, tema por tenant con variables CSS, componentes base de shadcn-vue, validación de contraste, modo oscuro.
+  Cerrado 2026-09-23: `ADR-052` + `docs/design-system.md` (50 `CA-DS-NNN`). Hoja de tokens en tres niveles, capa A (`brandPalette.ts`) por CSSOM, derivación pura de contraste (`deriveOnBackground.ts`, ≥ 4,5:1 contra todas las superficies neutras del modo), capa B (`useTenantBranding.ts`, única llamadora de `GET /tenant/branding`), modo oscuro sobre `useColorMode` de `@vueuse/core`, tests de arquitectura de la frontera del *design system*, adaptación de los ocho componentes base y migración de `PublicAuthShell`. Solo `apps/web`: cero cambios en `apps/api`, cero migraciones. 418/418 Vitest, 3/3 Playwright, lint/`lint:i18n`/`vue-tsc`/`build` limpios. Un `implementer` anterior se cortó por cuota con todo el trabajo hecho pero sin commitear; esta sesión lo verificó de cero, completó la documentación de cierre que faltaba y lo consolidó. Revisión independiente (`doc-reviewer`/`security-reviewer`, sin `db-reviewer`): sin Crítico/Alto, 1 Media corregida (`PRIVACY.md` sin catalogar `localStorage`) y 3 Baja documentadas sin corregir (issues #253-#255). Mezclado a `develop` vía PR [#256](https://github.com/pirexia/plataforma-educativa/pull/256) (*squash*), rama borrada. Detalle completo en `CHANGELOG.md`.
 - [ ] **1.8 · Layout, navegación y dashboards por rol** [SONNET]
   Responsive con los breakpoints de `RUX-RESP-001`, menús adaptativos, estados vacíos y de error.
 - [ ] **1.9 · Tablas de datos** [SONNET]
