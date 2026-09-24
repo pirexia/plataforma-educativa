@@ -29,7 +29,7 @@ Implementa el paso `1.8` (Bloque B, *layout*, navegación y panel de inicio, `RE
 `mfa-enrollment-wall` y el *catch-all* declaran `meta.permissions` vacía por diseño (alcanzables por cualquier usuario autenticado, sin permiso real que exigir sin inventarlo, `INV-002`). La prosa de `RN-CORE-24`/`CA-CORE-103` solo citaba cuatro rutas con esa forma, no las seis reales — corregido en el commit `b11e2c9` (issue [#260](https://github.com/pirexia/plataforma-educativa/issues/260), cerrado).
 
 ### Revisión independiente completa
-`db-reviewer` no aplica (cero migraciones). `security-reviewer`/`doc-reviewer` sin hallazgos Crítico/Alto. Hallazgos Media/Baja en issues [#261](https://github.com/pirexia/plataforma-educativa/issues/261) (contención de errores de bloques del panel, `ADR-053 §5.2.4` sin mecanismo de código — decisión del usuario antes de mezclar), [#262](https://github.com/pirexia/plataforma-educativa/issues/262) y [#263](https://github.com/pirexia/plataforma-educativa/issues/263) (Baja, documentados sin corregir a propósito).
+`db-reviewer` no aplica (cero migraciones). `security-reviewer`/`doc-reviewer` sin hallazgos Crítico/Alto. Issue [#261](https://github.com/pirexia/plataforma-educativa/issues/261) (Media: contención de errores de bloques del panel, `ADR-053 §5.2.4` sin mecanismo de código) diferido a propósito por decisión del usuario (2026-09-24) al primer paso que aporte un `dashboardBlocks` real (candidato `REQ-COM`/1.19); [#262](https://github.com/pirexia/plataforma-educativa/issues/262) corregido en el mismo cierre; [#263](https://github.com/pirexia/plataforma-educativa/issues/263) (Baja) documentado sin corregir a propósito.
 
 Detalle completo: `docs/modulos/REQ-CORE/funcional.md §12`.
 
