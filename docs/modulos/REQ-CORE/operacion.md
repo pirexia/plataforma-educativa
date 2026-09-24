@@ -197,7 +197,7 @@ Reversión: las migraciones de 1.1 son aditivas y su `down()` elimina tablas que
 | Tareas programadas | **Ninguna** |
 | Caché de servidor | **Ninguna nueva.** `GET /me` no se cachea (motor de permisos sin caché compartida, `ADR-044 §4.7`); `tenant:{id}:branding` (§6) sin cambios |
 | Almacenamiento del navegador | **Ninguna clave nueva** (`funcional.md` `CA-CORE-151`). Siguen `plataforma.brand`, `plataforma.color-mode` (1.7) y `plataforma.locale` (0.9) |
-| Dependencias | **Ninguna nueva.** Los componentes que se añadan (`sheet` y los que necesite el menú) se vendorizan con la CLI de shadcn-vue sobre Reka UI, ya instalada (`docs/design-system.md §12.2`); los iconos, de `@lucide/vue`, ya instalado |
+| Dependencias | **Ninguna nueva.** `sheet` y `dropdown-menu` se vendorizaron **a mano** (la CLI de shadcn-vue falla en este entorno con `EALLOWSCRIPTS`; descarga directa del JSON del registro sobre Reka UI, ya instalada — `docs/design-system.md §12.3`); los iconos, de `@lucide/vue`, ya instalado |
 
 ### 11.2 Carga sobre la API
 

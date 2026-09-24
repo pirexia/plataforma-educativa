@@ -4,9 +4,9 @@ SaaS para la gestión integral de centros educativos. Segmento inicial: **centro
 
 | Campo | Valor |
 |-------|-------|
-| **Versión del documento** | 2.6.3 |
-| **Fecha** | 2026-09-21 |
-| **Estado del proyecto** | Fase 1 · MVP operativo. Bloque A (identidad y acceso) **completo y mezclado**: tenants/usuarios, autenticación local, sesiones activas, MFA (TOTP + correo), login con Google (fusión de cuentas) y SSO institucional OIDC + SAML 2.0 con aprovisionamiento por emparejamiento (`1.1`-`1.4c`, `REQ-AUTH-004` íntegro). `1.5` · Núcleo de autorización granular (`REQ-PERM`) **completo y mezclado**. `1.6` · Backoffice de superadmin — chasis de identidad, autorización y auditoría de plataforma (`REQ-BO-007`) **completo y mezclado** tras dos pasadas de revisión independiente. `1.6b` · Ciclo de vida de tenants (`REQ-BO-001`) **completo y mezclado**. `1.6c` · Matriz de módulos (`REQ-BO-002`) **completo y mezclado**. `1.6d` · Salud y métricas de plataforma (`REQ-BO-004`/`REQ-BO-006` reducidos) implementado, en revisión independiente antes de mezclar (PR #229); `1.6e` pendiente |
+| **Versión del documento** | 2.6.4 |
+| **Fecha** | 2026-09-24 |
+| **Estado del proyecto** | Fase 1 · MVP operativo. Bloque A (identidad y acceso) **completo y mezclado**: tenants/usuarios, autenticación local, sesiones activas, MFA (TOTP + correo), login con Google (fusión de cuentas), SSO institucional OIDC + SAML 2.0 con aprovisionamiento por emparejamiento, núcleo de autorización granular (`REQ-PERM`) y los cinco sub-pasos del backoffice de plataforma (`REQ-BO`, `1.6`-`1.6e`, incluido el motor de *feature flags*) — `1.1` a `1.6e` íntegros. Bloque B (*design system* y navegación): `1.7` · *Design system* (tokens, tema por tenant, modo oscuro) **completo y mezclado**. `1.8` · Layout, navegación y panel de inicio (`REQ-CORE-008`) implementado, en revisión independiente antes de mezclar |
 
 ---
 
@@ -73,18 +73,18 @@ Lista completa: sección 0.5 del documento de requisitos (`INV-001` a `INV-015`)
 
 | Documento | Versión |
 |-----------|---------|
-| `README.md` | 2.6.2 |
-| `CLAUDE.md` | 2.5.1 |
+| `README.md` | 2.6.4 |
+| `CLAUDE.md` | 2.5.3 |
 | `ARCHITECTURE.md` | 2.2.0 |
-| `PLAN-IMPLEMENTACION.md` | 2.2.1 |
-| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | 3.2.3 |
+| `PLAN-IMPLEMENTACION.md` | 2.3.0 |
+| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | 3.2.8 |
 | `docs/SETUP-CLAUDE-CODE.md` | 1.3.0 |
 | `docs/SETUP-ENTORNO.md` | 1.3.0 |
-| `SYSADMIN.md` | 0.8.1 |
-| `SECURITY.md` | 0.3.1 |
+| `SYSADMIN.md` | 0.8.3 |
+| `SECURITY.md` | 0.3.3 |
 | `PRIVACY.md` | 0.3.0 |
-| `RUNBOOK.md` | 0.3.0 |
-| `CONTRIBUTING.md` | 0.1.0 |
+| `RUNBOOK.md` | 0.3.1 |
+| `CONTRIBUTING.md` | 0.2.0 |
 
 Historial completo en `CHANGELOG.md`.
 

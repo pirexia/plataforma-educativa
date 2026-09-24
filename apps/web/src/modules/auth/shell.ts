@@ -16,21 +16,17 @@
  *   `exencion_mfa.crear`, `exencion_mfa.leer`, `exencion_mfa.eliminar`.
  * - `sso-administration` y sus dos sub-rutas: `proveedor_identidad.leer`
  *   (`funcional.md §12.5`).
- * - `mfa-enrollment-wall`: **`[]`**, con una excepción documentada. La
- *   prosa de `RN-CORE-24`/`CA-CORE-103` enumera únicamente cuatro rutas
- *   con `[]` (Inicio, Contraseña, Sesiones, Seguridad) y no incluye esta
- *   ruta. Pero esta ruta es, por diseño, alcanzable por **cualquier**
- *   usuario autenticado sujeto a la obligación de MFA
+ * - `mfa-enrollment-wall`: **`[]`**. Esta ruta es, por diseño, alcanzable
+ *   por **cualquier** usuario autenticado sujeto a la obligación de MFA
  *   (`funcional.md §12.3.5`): el *guard* la alcanza cuando `GET /me`
  *   responde `403 mfa-enrollment-required`, un estado en el que **no
  *   existe** ningún `permissions` con el que comparar — no hay forma de
  *   exigir un permiso real sin inventar uno ficticio, que sería peor
- *   (`INV-002`: la autorización nunca se basa en un código inventado). Se
- *   documenta como hallazgo en el issue #260 (severidad Media,
- *   `CLAUDE.md §5`): la especificación debería ampliar su lista cerrada a
- *   cinco rutas. El test de coherencia de este repositorio
- *   (`src/navigation/modules.spec.ts`) refleja la lista de **cinco**
- *   rutas correctas, no las cuatro de la prosa.
+ *   (`INV-002`: la autorización nunca se basa en un código inventado). La
+ *   prosa de `RN-CORE-24`/`CA-CORE-103` (corregida por el issue #260, ya
+ *   cerrado) enumera **seis** rutas con `[]`: las cuatro de autoservicio
+ *   de arriba, esta y el *catch-all* de `src/router/index.ts`. El test de
+ *   coherencia (`src/navigation/modules.spec.ts`) verifica esas seis.
  */
 import { Building2, KeyRound, Laptop, ShieldAlert, ShieldCheck } from '@lucide/vue'
 import type { ModuleShell } from '@/navigation/types'

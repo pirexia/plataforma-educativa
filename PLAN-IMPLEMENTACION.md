@@ -1,6 +1,6 @@
 # PLAN-IMPLEMENTACION.md
 
-> **Versión 2.2.1** · 2026-09-14
+> **Versión 2.3.0** · 2026-09-24
 
 > Plan de ejecución dimensionado a **sesiones de ~5 horas** (límite del plan Pro). Cada paso cabe en una o dos sesiones y termina con el repositorio en estado compilable, tests en verde y `memory.md` actualizado.
 >

@@ -23,13 +23,13 @@ Implementa el paso `1.8` (Bloque B, *layout*, navegación y panel de inicio, `RE
 - Token `--overlay` (`docs/design-system.md §4.9`) para el velo del panel de navegación.
 
 ### Verificado
-518/518 Vitest, 10/10 Playwright (los cuatro criterios marcados `[Playwright]` de `§12.11` — `CA-CORE-080`, `081`, `084`, `087` — más los dos ya existentes de 1.7), verificados contra un servidor de desarrollo servido desde el propio árbol de trabajo, no contra el contenedor de referencia (puerto distinto al de `playwright.config.ts`, que servía otro *checkout*: mismo cuidado que `1.6d`/`1.7`). ESLint y `lint:i18n` limpios, `vue-tsc -b` y `vite build` sin errores.
+561/561 Vitest, 10/10 Playwright (los cuatro criterios marcados `[Playwright]` de `§12.11` — `CA-CORE-080`, `081`, `084`, `087` — más los dos ya existentes de 1.7), verificados contra el contenedor de referencia (`plataforma-web`) tras fusionar la rama del `implementer`, reiniciando el servidor de desarrollo para descartar caché de Vite obsoleta. ESLint y `lint:i18n` limpios, `vue-tsc -b` y `vite build` sin errores.
 
-### Hallazgo documentado, no corregido en este paso
-`mfa-enrollment-wall` y el *catch-all* declaran `meta.permissions` vacía por diseño (alcanzables por cualquier usuario autenticado, sin permiso real que exigir sin inventarlo, `INV-002`), aunque la prosa de `RN-CORE-24`/`CA-CORE-103` enumera solo cuatro rutas con esa forma, no seis. Severidad Media (`CLAUDE.md §5`); issue [#260](https://github.com/pirexia/plataforma-educativa/issues/260) con la propuesta de ampliar la lista cerrada de la especificación a seis rutas.
+### Hallazgo corregido: issue #260
+`mfa-enrollment-wall` y el *catch-all* declaran `meta.permissions` vacía por diseño (alcanzables por cualquier usuario autenticado, sin permiso real que exigir sin inventarlo, `INV-002`). La prosa de `RN-CORE-24`/`CA-CORE-103` solo citaba cuatro rutas con esa forma, no las seis reales — corregido en el commit `b11e2c9` (issue [#260](https://github.com/pirexia/plataforma-educativa/issues/260), cerrado).
 
-### Pendiente de revisión independiente
-`db-reviewer` no aplica (cero migraciones). `security-reviewer`/`doc-reviewer` no se han ejecutado todavía en esta sesión — quedan para el cierre del paso.
+### Revisión independiente completa
+`db-reviewer` no aplica (cero migraciones). `security-reviewer`/`doc-reviewer` sin hallazgos Crítico/Alto. Hallazgos Media/Baja en issues [#261](https://github.com/pirexia/plataforma-educativa/issues/261) (contención de errores de bloques del panel, `ADR-053 §5.2.4` sin mecanismo de código — decisión del usuario antes de mezclar), [#262](https://github.com/pirexia/plataforma-educativa/issues/262) y [#263](https://github.com/pirexia/plataforma-educativa/issues/263) (Baja, documentados sin corregir a propósito).
 
 Detalle completo: `docs/modulos/REQ-CORE/funcional.md §12`.
 
