@@ -3,15 +3,13 @@
  * `docs/modulos/REQ-CORE/funcional.md §12.11`
  * (`CA-CORE-103`, `CA-CORE-106`).
  *
- * Nota sobre `mfa-enrollment-wall` y `not-found`: la prosa de
- * `RN-CORE-24`/`CA-CORE-103` enumera **cuatro** rutas con
- * `meta.permissions` vacía (Inicio, Contraseña, Sesiones, Seguridad).
- * Esta suite verifica **seis**: las cuatro de la prosa más
- * `mfa-enrollment-wall` y `not-found`, cuyo motivo está documentado en el
+ * `RN-CORE-24`/`CA-CORE-103` enumeran **seis** rutas con `meta.permissions`
+ * vacía: Inicio, Contraseña, Sesiones, Seguridad, `mfa-enrollment-wall` y
+ * `not-found` — ninguna de las dos últimas tiene un permiso real que
+ * declarar sin inventarlo (`INV-002`); motivo documentado también en el
  * comentario de cabecera de `src/modules/auth/shell.ts` y en
- * `src/router/index.ts`. Es una discrepancia conocida y reportada
- * (issue #260, severidad Media): ninguna de las dos rutas tiene
- * un permiso real que declarar sin inventarlo (`INV-002`).
+ * `src/router/index.ts`. La especificación solo citaba cuatro hasta que
+ * el issue #260 (severidad Media) lo corrigió.
  */
 import { describe, expect, it } from 'vitest'
 import router from '@/router'
