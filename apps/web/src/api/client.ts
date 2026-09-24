@@ -78,6 +78,67 @@ async function redirectToMfaEnrollmentWall(): Promise<void> {
 }
 
 /**
+ * `docs/modulos/REQ-CORE/funcional.md §12.3.4`, `CA-CORE-092`: cualquier
+ * petición (que no sea `GET /me`, cuyo propio `401` ya gestiona
+ * `useSession`/el *guard* con el destino correcto) que reciba `401`
+ * vacía el estado de sesión y navega **una sola vez** a `/entrar`, aunque
+ * fallen varias peticiones a la vez (deduplicada con una promesa
+ * compartida, mismo patrón que `reloadSession`).
+ */
+let unauthorizedInFlight: Promise<void> | null = null
+
+async function handleUnauthorized(): Promise<void> {
+  if (!unauthorizedInFlight) {
+    unauthorizedInFlight = doHandleUnauthorized().finally(() => {
+      unauthorizedInFlight = null
+    })
+  }
+
+  return unauthorizedInFlight
+}
+
+async function doHandleUnauthorized(): Promise<void> {
+  try {
+    const [{ clearSession }, { default: router }] = await Promise.all([
+      import('@/session/useSession'),
+      import('@/router'),
+    ])
+
+    clearSession()
+
+    if (router.currentRoute.value.name === 'login') {
+      return
+    }
+
+    const target = router.currentRoute.value.fullPath
+
+    await router.push({ name: 'login', query: { redirect: target } })
+  } catch {
+    // Entorno sin router/sesión (p.ej. un test unitario aislado de este
+    // cliente): no hay nada razonable que hacer.
+  }
+}
+
+/**
+ * `docs/modulos/REQ-CORE/funcional.md §12.3.4`,
+ * `docs/adr/ADR-053-registro-de-navegacion-y-bloques-del-panel.md §6`:
+ * cualquier `403` que no sea `mfa-enrollment-required` recarga `GET /me`
+ * (deduplicada) — es la prueba de que los permisos en memoria están
+ * desfasados. Importación dinámica por el mismo motivo que la anterior:
+ * `src/session` importa `core/api`, que importa este fichero.
+ */
+async function notifySessionOfForbidden(body: unknown): Promise<void> {
+  try {
+    const { reloadSessionAfterForbidden } = await import('@/session/useSession')
+
+    void reloadSessionAfterForbidden(body)
+  } catch {
+    // Entorno sin módulo de sesión (p.ej. un test unitario aislado de este
+    // cliente): no hay nada razonable que hacer.
+  }
+}
+
+/**
  * `XSRF-TOKEN` no es `httpOnly`: se lee del `document.cookie` del propio
  * navegador, nunca de una cabecera de respuesta ni de almacenamiento
  * propio (RN-AUTH-28: prohibido guardar nada de sesión en
@@ -136,8 +197,14 @@ export async function apiFetchWithStatus<T>(
   const body = await response.json().catch(() => null)
 
   if (!response.ok) {
-    if (response.status === 403 && isMfaEnrollmentRequiredBody(body)) {
-      void redirectToMfaEnrollmentWall()
+    if (response.status === 403) {
+      if (isMfaEnrollmentRequiredBody(body)) {
+        void redirectToMfaEnrollmentWall()
+      } else {
+        void notifySessionOfForbidden(body)
+      }
+    } else if (response.status === 401 && path !== '/me') {
+      void handleUnauthorized()
     }
 
     throw new ApiError(

@@ -2,13 +2,95 @@
   "layout": {
     "title": "Plateforme de gestion éducative"
   },
+  "shell": {
+    "skipToContent": "Aller au contenu",
+    "openMenu": "Ouvrir le menu",
+    "closeMenu": "Fermer le menu",
+    "sheetClose": "Fermer",
+    "nav": {
+      "ariaLabel": "Navigation principale",
+      "section": {
+        "inicio": "Accueil",
+        "cuenta": "Mon compte",
+        "administracion": "Administration"
+      }
+    },
+    "breadcrumb": {
+      "ariaLabel": "Fil d'Ariane"
+    },
+    "userMenu": {
+      "trigger": "Menu utilisateur",
+      "account": "Mon compte",
+      "logout": "Se déconnecter",
+      "language": {
+        "label": "Langue",
+        "names": {
+          "esES": "Español",
+          "en": "English",
+          "de": "Deutsch",
+          "fr": "Français"
+        }
+      },
+      "colorMode": {
+        "label": "Mode de couleur",
+        "system": "Système",
+        "light": "Clair",
+        "dark": "Sombre"
+      }
+    },
+    "states": {
+      "loading": "Chargement…",
+      "empty": {
+        "shortcuts": {
+          "title": "Aucun raccourci",
+          "text": "Vous n'avez encore aucun raccourci disponible."
+        }
+      },
+      "error": {
+        "retry": "Réessayer",
+        "requestId": "Référence : {requestId}",
+        "offline": {
+          "title": "Pas de connexion",
+          "text": "Impossible de contacter le serveur. Vérifiez votre connexion et réessayez."
+        },
+        "forbidden": {
+          "title": "Accès refusé",
+          "text": "Vous n'avez pas l'autorisation de voir ce contenu."
+        },
+        "moduleDisabled": {
+          "title": "Module non disponible"
+        },
+        "notFound": {
+          "title": "Page introuvable",
+          "text": "La page que vous cherchez n'existe pas ou a été déplacée."
+        },
+        "tooManyRequests": {
+          "title": "Trop de requêtes",
+          "text": "Réessayez dans {seconds} secondes.",
+          "textUnknown": "Réessayez dans un instant."
+        },
+        "unexpected": {
+          "title": "Erreur inattendue",
+          "text": "Une erreur inattendue s'est produite. Merci de réessayer."
+        }
+      }
+    },
+    "tenantNotFound": {
+      "title": "Établissement introuvable",
+      "text": "Aucun établissement n'a été trouvé à cette adresse. Vérifiez le lien ou contactez votre établissement."
+    },
+    "documentTitleFormat": "{view} · {tenant}",
+    "localeChangeError": "L'établissement a retiré cette langue. La langue actuelle est conservée."
+  },
   "home": {
-    "title": "État de l'API",
-    "checking": "Vérification…",
-    "retry": "Vérifier à nouveau",
-    "status": "{status} · version {version} · {timestamp}",
-    "error": {
-      "unexpected": "Erreur inattendue"
+    "greeting": "Bonjour, {name}",
+    "mfa": {
+      "title": "Deuxième facteur en attente",
+      "text": "Il vous reste un jour pour activer le deuxième facteur de connexion. | Il vous reste {days} jours pour activer le deuxième facteur de connexion.",
+      "link": "Aller à la sécurité du compte"
+    },
+    "shortcuts": {
+      "title": "Raccourcis"
     }
   }
 }

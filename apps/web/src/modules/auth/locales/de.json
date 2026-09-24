@@ -526,6 +526,11 @@
         },
         "lastActiveError": "Du kannst das letzte gültige Zertifikat eines aktiven Anbieters nicht entfernen: deaktiviere ihn zuerst."
       }
+    },
+    "nav": {
+      "passwordChange": "Passwort",
+      "sessions": "Offene Sitzungen",
+      "ssoAdministration": "Institutioneller Anmeldedienst (SSO)"
     }
   }
 }

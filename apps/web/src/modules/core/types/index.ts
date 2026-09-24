@@ -86,12 +86,35 @@ export interface RoleSummary {
   name: string
 }
 
+/**
+ * `docs/modulos/REQ-AUTH/api.md §C.4`/`§C.6`; duplicado tal cual en
+ * `src/modules/auth/types/index.ts` (`MfaBlock`) — `INV-007`: un módulo no
+ * importa el interno de otro, así que este alias de valor sin lógica se
+ * declara en los dos sitios en vez de importarse.
+ */
+export interface MfaBlock {
+  enrolled: boolean
+  obligated: boolean
+  enforced: boolean
+  grace_deadline_at: string | null
+  days_remaining: number | null
+}
+
 export interface User {
   public_id: PublicId
   email: string
   status: UserStatus
   person: Person
   roles: RoleSummary[]
+  /**
+   * `docs/modulos/REQ-CORE/api.md §12.2`: lista de códigos efectivamente
+   * permitidos para el sujeto (`deny` aplicado, sin los inertes). Carga
+   * estructural desde 1.8 — el *shell* decide toda visibilidad con este
+   * campo (`RN-CORE-23`), nunca con `roles[].code`.
+   */
+  permissions: string[]
+  /** api.md §12.2: bloque «Estado de la cuenta» del panel (`REQ-AUTH-003`). */
+  mfa?: MfaBlock
   email_verified_at: string | null
   created_at: string
   updated_at: string

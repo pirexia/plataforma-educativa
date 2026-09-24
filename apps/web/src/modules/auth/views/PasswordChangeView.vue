@@ -1,22 +1,17 @@
 <script setup lang="ts">
 /**
- * `/cuenta/contrasena` (funcional.md §1.6/§4.8, api.md §5b). Con sesión,
- * sin `AppLayout` (funcional.md §1.6: no depende del *layout* de 1.8) —
- * pero si no hay sesión, redirige a `/entrar`.
- *
- * Detección de sesión: `GET /me` de `REQ-CORE` (autorizado por identidad,
- * no por permiso, igual que este mismo endpoint de cambio de contraseña)
- * a través de su interfaz pública (`modules/core/api`, no su código
- * interno — `INV-007`). Un `401` aquí significa "sin sesión" y redirige;
- * cualquier otro resultado dejar pasar y pintar el formulario.
+ * `/cuenta/contrasena` (funcional.md §1.6/§4.8, api.md §5b). Integrada en
+ * el *shell* desde 1.8 (`meta.layout: 'app'`, `docs/modulos/REQ-CORE/
+ * funcional.md §12.5`): la comprobación de sesión la hace el *guard* del
+ * router (`RN-CORE-26`), una sola vez, antes de montar esta vista — ya no
+ * se pide `GET /me` aquí.
  */
-import { onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useT } from '@/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { getMe } from '@/modules/core/api'
 import { changePassword } from '../api'
 import { apiErrorStatus, fieldErrors, retryAfterSeconds } from '../composables/formErrors'
 import PasswordPolicyHint from '../components/PasswordPolicyHint.vue'
@@ -24,7 +19,6 @@ import PasswordPolicyHint from '../components/PasswordPolicyHint.vue'
 const t = useT()
 const router = useRouter()
 
-const checkingSession = ref(true)
 const currentPassword = ref('')
 const newPassword = ref('')
 const newPasswordConfirmation = ref('')
@@ -33,19 +27,6 @@ const errorMessage = ref<string | null>(null)
 const currentPasswordErrors = ref<string[]>([])
 const newPasswordErrors = ref<string[]>([])
 const succeeded = ref(false)
-
-onMounted(async () => {
-  try {
-    await getMe()
-  } catch (err) {
-    if (apiErrorStatus(err) === 401) {
-      await router.push({ name: 'login' })
-      return
-    }
-  } finally {
-    checkingSession.value = false
-  }
-})
 
 async function submit() {
   submitting.value = true
@@ -93,10 +74,7 @@ async function submit() {
 </script>
 
 <template>
-  <div
-    v-if="!checkingSession"
-    class="flex min-h-svh flex-col items-center justify-center px-4 py-10"
-  >
+  <div class="flex flex-col items-center justify-center px-4 py-10">
     <div class="border-border bg-background w-full max-w-sm rounded-xl border p-6 shadow-sm">
       <h1 class="mb-1 text-lg font-semibold">{{ t('auth.passwordChange.title') }}</h1>
       <p class="text-muted-foreground mb-4 text-sm">{{ t('auth.passwordChange.intro') }}</p>

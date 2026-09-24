@@ -1,6 +1,6 @@
 # PLAN-IMPLEMENTACION.md
 
-> **Versión 2.2.1** · 2026-09-14
+> **Versión 2.3.0** · 2026-09-24
 
 > Plan de ejecución dimensionado a **sesiones de ~5 horas** (límite del plan Pro). Cada paso cabe en una o dos sesiones y termina con el repositorio en estado compilable, tests en verde y `memory.md` actualizado.
 >
@@ -166,10 +166,13 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 - [x] **1.7 · Design system** [OPUS + SONNET]
   Tokens, tema por tenant con variables CSS, componentes base de shadcn-vue, validación de contraste, modo oscuro.
   Cerrado 2026-09-23: `ADR-052` + `docs/design-system.md` (50 `CA-DS-NNN`). Hoja de tokens en tres niveles, capa A (`brandPalette.ts`) por CSSOM, derivación pura de contraste (`deriveOnBackground.ts`, ≥ 4,5:1 contra todas las superficies neutras del modo), capa B (`useTenantBranding.ts`, única llamadora de `GET /tenant/branding`), modo oscuro sobre `useColorMode` de `@vueuse/core`, tests de arquitectura de la frontera del *design system*, adaptación de los ocho componentes base y migración de `PublicAuthShell`. Solo `apps/web`: cero cambios en `apps/api`, cero migraciones. 418/418 Vitest, 3/3 Playwright, lint/`lint:i18n`/`vue-tsc`/`build` limpios. Un `implementer` anterior se cortó por cuota con todo el trabajo hecho pero sin commitear; esta sesión lo verificó de cero, completó la documentación de cierre que faltaba y lo consolidó. Revisión independiente (`doc-reviewer`/`security-reviewer`, sin `db-reviewer`): sin Crítico/Alto, 1 Media corregida (`PRIVACY.md` sin catalogar `localStorage`) y 3 Baja documentadas sin corregir (issues #253-#255). Mezclado a `develop` vía PR [#256](https://github.com/pirexia/plataforma-educativa/pull/256) (*squash*), rama borrada. Detalle completo en `CHANGELOG.md`.
-- [ ] **1.8 · Layout, navegación y dashboards por rol** [SONNET]
-  Responsive con los breakpoints de `RUX-RESP-001`, menús adaptativos, estados vacíos y de error.
+- [x] **1.8 · `REQ-CORE-008`: layout, navegación y panel de inicio** [SONNET]
+  Responsive con los breakpoints de `RUX-RESP-001`, menús adaptativos, estados vacíos y de error. **No incluye** las pantallas de gestión pendientes de `REQ-CORE` (usuarios, roles, auditoría, importación, configuración del centro) — decisión del usuario (`OPEN-CORE-12`, 2026-09-23): van en `1.9b`, tras TanStack Table, para no construirlas dos veces. Tampoco incluye el motor de *widgets* configurables ni *dashboards* por defecto por rol (`OPEN-CORE-13`, diferido a `1.19` o al primer paso con un segundo bloque de datos).
+  Cerrado 2026-09-24: especificación aprobada (`docs/modulos/REQ-CORE/funcional.md §12`) y `ADR-053` (registro de navegación y bloques del panel, `architect`, ratificado por el usuario) resuelven `OPEN-CORE-16`. 561/561 Vitest, 10/10 Playwright, ESLint/`lint:i18n`/`vue-tsc`/`build` limpios. Revisión independiente (`security-reviewer`/`doc-reviewer`, `db-reviewer` no aplica) sin hallazgos Crítico/Alto; issue #260 corregido, #262 corregido, #261 (Media, mecanismo de renderizado de bloques del panel sin construir) diferido a propósito al primer paso con un `dashboardBlocks` real (candidato `1.19`), #263 (Baja) documentado sin corregir. Detalle completo en `CHANGELOG.md`.
 - [ ] **1.9 · Tablas de datos** [SONNET]
   TanStack Table con filtrado, ordenación, columnas configurables, virtualización y exportación.
+- [ ] **1.9b · `REQ-CORE`: pantallas de gestión pendientes** [SONNET] · *depende de `1.9`*
+  Añadido al plan (`OPEN-CORE-12`, 2026-09-23): usuarios, invitaciones, importación, roles (solo lectura), auditoría, configuración del centro y activos de marca — la interfaz que `REQ-CORE-002`/`-003`/`-004`/`-005` dejaron pendiente en 1.1 (`OPEN-CORE-02`). Diferido hasta después de `1.9` porque casi todas son listados paginados/filtrables que dependen de TanStack Table; construirlos antes sería el mismo error que `ADR-044 §6` evitó con `1.5b`.
 - [ ] **1.5b · `REQ-PERM`: editor de roles y vista previa de permisos efectivos** [SONNET]
   `RPERM-005`/`-006`/`-009` como interfaz: alta y clonación de roles, matriz de concesión recurso × acción × ámbito, pantalla de permisos efectivos por usuario. Deliberadamente situado aquí y no justo tras `1.5` (`ADR-044 §6`, decisión del usuario 2026-09-04): construir la matriz de permisos —la tabla más compleja del producto— antes del sistema de diseño (`1.7`) y de TanStack Table (`1.9`) garantiza rehacerla. Consume únicamente la API que `1.5` ya expone por `INV-006`.
 - [ ] **1.7b · Estandarización de módulos: tests de arquitectura y generador** [OPUS + SONNET] · *candidato, no comprometido*

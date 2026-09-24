@@ -25,6 +25,9 @@ const model = defineModel<string>()
       cn(
         // `border-input` (`OPEN-DS-02` resuelta: sí, `CA-DS-050`): mismo
         // criterio que `Input.vue`.
+        // `OPEN-CORE-14` (opción B): la altura mínima ya supera 44px
+        // (`min-h-24`); sin cambio adicional necesario en punteros
+        // gruesos.
         'border-input bg-background flex min-h-24 w-full rounded-lg border px-2.5 py-1.5 text-sm shadow-xs transition-[color,box-shadow] outline-none',
         'placeholder:text-muted-foreground',
         'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3',

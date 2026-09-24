@@ -6,6 +6,35 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-09-23 · `feature/REQ-CORE-008-layout-navegacion-dashboards`
+
+Implementa el paso `1.8` (Bloque B, *layout*, navegación y panel de inicio, `REQ-CORE-008`), sobre `docs/modulos/REQ-CORE/funcional.md §12` y `docs/adr/ADR-053-registro-de-navegacion-y-bloques-del-panel.md`. Solo `apps/web`: ni un *endpoint*, ni un permiso, ni una migración.
+
+### Añadido
+- **Tres regímenes de *layout*** por ruta (`src/layouts/{PublicLayout,AppShellLayout,BareLayout}.vue`), elegidos en `src/App.vue` a partir de `route.meta.layout`.
+- **Registro de navegación** (`ADR-053`): `src/navigation/{types,sections,modules,registry}.ts`; cada módulo declara su `shell.ts` (superficie pública, junto a `api/`, `types/`, `locales/`) con `routes`/`navigation`/`dashboardBlocks`. Las 17 rutas de `auth`, antes en `src/router/index.ts`, se trasladan a `src/modules/auth/shell.ts` con `meta.layout`/`meta.permissions` explícitos; `core` aporta la entrada «Inicio».
+- **Estado de sesión en memoria** (`src/session/useSession.ts`, singleton sin Pinia, mismo patrón que la capa B de 1.7): recarga deduplicada ante cualquier `403` que no sea el muro de MFA (`ADR-053 §6`, incluido `module-disabled`), nunca en `localStorage`/`sessionStorage`.
+- **Guardas del *router*** (`src/router/{guard,redirect}.ts`): host sin tenant → «centro no encontrado» sin `GET /me`; `401` → `/entrar` con el destino saneado (`RN-CORE-28`, evita redirección abierta); *catch-all* de régimen dinámico según haya sesión o no.
+- **Barra superior, navegación lateral/*drawer*/hamburguesa** (componente `sheet` vendorizado) según los *breakpoints* nuevos (`RN-CORE-29`: 768/1024/1440/1920), **miga de pan**, **menú de usuario** (`dropdown-menu` vendorizado: cuenta, selector de idioma, control de modo de color, cerrar sesión).
+- **Panel de inicio** (`src/views/HomeView.vue`): bienvenida, aviso de segundo factor pendiente, accesos directos — sustituye la vista de 0.5 que llamaba a `/health` (issue [#86](https://github.com/pirexia/plataforma-educativa/issues/86)).
+- **Estados de carga/vacío/error** de nivel de aplicación (`src/layouts/components/{LoadingState,EmptyState,ErrorState}.vue`, `src/layouts/errorState.ts`), con la correspondencia completa de `ADR-038 §6`.
+- **`redirect` saneado tras el *login*** (`LoginView.vue`, único cambio funcional permitido a una pantalla de `REQ-AUTH` en este paso) y **`401` genérico centralizado** en `src/api/client.ts` (`CA-CORE-092`).
+- **Objetivos táctiles** (`OPEN-CORE-14`, opción B): variante `any-pointer:coarse` en los ocho componentes base de 1.7, sin cambiar el escritorio con ratón.
+- Token `--overlay` (`docs/design-system.md §4.9`) para el velo del panel de navegación.
+
+### Verificado
+561/561 Vitest, 10/10 Playwright (los cuatro criterios marcados `[Playwright]` de `§12.11` — `CA-CORE-080`, `081`, `084`, `087` — más los dos ya existentes de 1.7), verificados contra el contenedor de referencia (`plataforma-web`) tras fusionar la rama del `implementer`, reiniciando el servidor de desarrollo para descartar caché de Vite obsoleta. ESLint y `lint:i18n` limpios, `vue-tsc -b` y `vite build` sin errores.
+
+### Hallazgo corregido: issue #260
+`mfa-enrollment-wall` y el *catch-all* declaran `meta.permissions` vacía por diseño (alcanzables por cualquier usuario autenticado, sin permiso real que exigir sin inventarlo, `INV-002`). La prosa de `RN-CORE-24`/`CA-CORE-103` solo citaba cuatro rutas con esa forma, no las seis reales — corregido en el commit `b11e2c9` (issue [#260](https://github.com/pirexia/plataforma-educativa/issues/260), cerrado).
+
+### Revisión independiente completa
+`db-reviewer` no aplica (cero migraciones). `security-reviewer`/`doc-reviewer` sin hallazgos Crítico/Alto. Issue [#261](https://github.com/pirexia/plataforma-educativa/issues/261) (Media: contención de errores de bloques del panel, `ADR-053 §5.2.4` sin mecanismo de código) diferido a propósito por decisión del usuario (2026-09-24) al primer paso que aporte un `dashboardBlocks` real (candidato `REQ-COM`/1.19); [#262](https://github.com/pirexia/plataforma-educativa/issues/262) corregido en el mismo cierre; [#263](https://github.com/pirexia/plataforma-educativa/issues/263) (Baja) documentado sin corregir a propósito.
+
+Detalle completo: `docs/modulos/REQ-CORE/funcional.md §12`.
+
+---
+
 ## 2026-09-23 · `feature/1.7-design-system`
 
 Implementa el paso `1.7` (Bloque B, *design system*), sobre la especificación aprobada de `docs/design-system.md` y `ADR-052`. Solo `apps/web`: ni una línea de `apps/api`.

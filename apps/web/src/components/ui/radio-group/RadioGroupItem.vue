@@ -29,7 +29,10 @@ const forwardedProps = useForwardProps(delegatedProps)
         // redundante con `data-checked:bg-primary` (el token `--primary`
         // ya cambia por modo) y sin su `dark:data-checked:text-primary-foreground`
         // emparejado incumplía `RN-DS-18`.
-        'border-input dark:bg-input/30 data-checked:bg-primary data-checked:text-primary-foreground data-checked:border-primary-on-background aria-invalid:aria-checked:border-primary-on-background aria-invalid:border-destructive focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 dark:aria-invalid:border-destructive/50 flex size-4 rounded-full focus-visible:ring-3 aria-invalid:ring-3 group/radio-group-item peer relative aspect-square shrink-0 border outline-none after:absolute after:-inset-x-3 after:-inset-y-2 disabled:cursor-not-allowed disabled:opacity-50',
+        // `OPEN-CORE-14` (opción B): la zona de contacto invisible
+        // (`after:`) ya amplía el círculo visible; en punteros gruesos
+        // sube a 44×44px exactos sin cambiar el escritorio con ratón.
+        'border-input dark:bg-input/30 data-checked:bg-primary data-checked:text-primary-foreground data-checked:border-primary-on-background aria-invalid:aria-checked:border-primary-on-background aria-invalid:border-destructive focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 dark:aria-invalid:border-destructive/50 flex size-4 rounded-full focus-visible:ring-3 aria-invalid:ring-3 group/radio-group-item peer relative aspect-square shrink-0 border outline-none after:absolute after:-inset-x-3 after:-inset-y-2 [@media(any-pointer:coarse)]:after:-inset-x-[14px] [@media(any-pointer:coarse)]:after:-inset-y-[14px] disabled:cursor-not-allowed disabled:opacity-50',
         props.class,
       )
     "

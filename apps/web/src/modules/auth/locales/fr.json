@@ -526,6 +526,11 @@
         },
         "lastActiveError": "Vous ne pouvez pas retirer le dernier certificat valide d'un fournisseur actif : désactivez-le d'abord."
       }
+    },
+    "nav": {
+      "passwordChange": "Mot de passe",
+      "sessions": "Sessions ouvertes",
+      "ssoAdministration": "Connexion institutionnelle (SSO)"
     }
   }
 }

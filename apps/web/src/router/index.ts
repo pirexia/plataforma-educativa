@@ -1,5 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { allModuleRoutes } from '@/navigation/registry'
+import { installNavigationGuard } from './guard'
 
+/**
+ * `docs/adr/ADR-053-registro-de-navegacion-y-bloques-del-panel.md` §1:
+ * aquí quedan solo las rutas de aplicación que no pertenecen a ningún
+ * módulo — `home`, el centro no encontrado (`RN-CORE-35`) y el
+ * *catch-all* (`CA-CORE-096`). El resto se concatena desde
+ * `moduleShells` (`src/navigation/modules.ts`).
+ */
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -7,108 +16,33 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: () => import('@/views/HomeView.vue'),
+      // RN-CORE-24: autoservicio por identidad — lista cerrada.
+      meta: { layout: 'app', permissions: [], titleKey: 'core.nav.home' },
     },
-    // REQ-AUTH (1.2), funcional.md §1.6: rutas exactas de las seis
-    // pantallas. Las cinco primeras son públicas, sin `AppLayout`; la
-    // sexta exige sesión (comprobada por la propia vista, no por un
-    // guard de router — no hay estado de sesión global hasta 1.8).
+    ...allModuleRoutes(),
+    // RN-CORE-35: host sin tenant. Sin *shell*, sin `GET /me`.
     {
-      path: '/entrar',
-      name: 'login',
-      component: () => import('@/modules/auth/views/LoginView.vue'),
+      path: '/centro-no-encontrado',
+      name: 'tenant-not-found',
+      component: () => import('@/views/TenantNotFoundView.vue'),
+      meta: { layout: 'public' },
     },
-    // REQ-AUTH-002 (1.4), funcional.md §E.9, api.md §E.4.2: destino del
-    // 302 del callback de Google cuando no redirige directamente a la
-    // raíz. Pública, sin AppLayout, misma categoría que /entrar.
+    // CA-CORE-096: dentro del *shell* con sesión, en régimen público sin
+    // ella — resuelto por el *guard* (`src/router/guard.ts`), no por
+    // `meta.layout` a secas. `permissions: []` porque no hay nada que
+    // ocultar: el contenido es el mismo para cualquiera.
     {
-      path: '/entrar/google',
-      name: 'oauth-google-callback',
-      component: () => import('@/modules/auth/views/GoogleCallbackResultView.vue'),
-    },
-    // REQ-AUTH-004 (1.4b), funcional.md §F.9, api.md §F.7: destino del
-    // 302 del callback institucional. Misma categoría que /entrar/google.
-    {
-      path: '/entrar/sso',
-      name: 'oauth-sso-callback',
-      component: () => import('@/modules/auth/views/SsoCallbackResultView.vue'),
-    },
-    {
-      path: '/activar/:token',
-      name: 'invitation-redemption',
-      component: () => import('@/modules/auth/views/InvitationRedemptionView.vue'),
-    },
-    {
-      path: '/recuperar',
-      name: 'password-reset-request',
-      component: () => import('@/modules/auth/views/PasswordResetRequestView.vue'),
-    },
-    {
-      path: '/restablecer/:token',
-      name: 'password-reset',
-      component: () => import('@/modules/auth/views/PasswordResetView.vue'),
-    },
-    {
-      path: '/desbloquear/:token',
-      name: 'account-unlock',
-      component: () => import('@/modules/auth/views/AccountUnlockView.vue'),
-    },
-    {
-      path: '/cuenta/contrasena',
-      name: 'password-change',
-      component: () => import('@/modules/auth/views/PasswordChangeView.vue'),
-    },
-    // 1.2b, funcional.md §B.11: misma categoría que /cuenta/contrasena —
-    // con sesión, sin navegación, sin depender del layout de 1.8 ni del
-    // design system de 1.7.
-    {
-      path: '/cuenta/sesiones',
-      name: 'sessions',
-      component: () => import('@/modules/auth/views/SessionsView.vue'),
-    },
-    // REQ-AUTH-003 (1.3), funcional.md §C.11: misma categoría — con
-    // sesión, sin `AppLayout`. `mfa-enrollment-wall` es además el destino
-    // fijo al que `src/api/client.ts` redirige ante cualquier
-    // `403 urn:pge:error:mfa-enrollment-required` (funcional.md §C.4.9).
-    {
-      path: '/cuenta/seguridad',
-      name: 'mfa-security',
-      component: () => import('@/modules/auth/views/AccountSecurityView.vue'),
-    },
-    {
-      path: '/cuenta/seguridad/obligatorio',
-      name: 'mfa-enrollment-wall',
-      component: () => import('@/modules/auth/views/MfaEnrollmentWallView.vue'),
-    },
-    // 1.3b, pieza 3 (funcional.md §D.1.3/§D.9.1): pantalla mínima de
-    // administración de MFA. Con sesión y permiso — pero la ruta no
-    // comprueba ningún permiso en el cliente (INV-002, permisos.md
-    // §D.6.3): cada área de la vista lo hace contra el servidor.
-    // Provisional por diseño: 1.5 la absorbe en su editor de roles.
-    {
-      path: '/administracion/mfa',
-      name: 'mfa-administration',
-      component: () => import('@/modules/auth/views/AdminMfaView.vue'),
-    },
-    // REQ-AUTH-004 (1.4b), funcional.md §F.9: autoservicio del centro
-    // (ADR-043 §8.3), permiso `proveedor_identidad.*` — comprobado por el
-    // servidor, no por un guard de router (INV-002). `nuevo` distingue
-    // el alta (sin recurso) de la edición en el mismo componente.
-    {
-      path: '/administracion/sso',
-      name: 'sso-administration',
-      component: () => import('@/modules/auth/views/AdminSsoView.vue'),
-    },
-    {
-      path: '/administracion/sso/nuevo',
-      name: 'sso-administration-new',
-      component: () => import('@/modules/auth/views/AdminSsoProviderView.vue'),
-    },
-    {
-      path: '/administracion/sso/:publicId',
-      name: 'sso-administration-edit',
-      component: () => import('@/modules/auth/views/AdminSsoProviderView.vue'),
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('@/views/NotFoundView.vue'),
+      meta: { layout: 'app', permissions: [], titleKey: 'shell.states.error.notFound.title' },
     },
   ],
+  scrollBehavior() {
+    return { top: 0 }
+  },
 })
+
+installNavigationGuard(router)
 
 export default router

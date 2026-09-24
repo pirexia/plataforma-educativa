@@ -2,13 +2,95 @@
   "layout": {
     "title": "Plataforma de Gestión Educativa"
   },
+  "shell": {
+    "skipToContent": "Saltar al contenido",
+    "openMenu": "Abrir menú",
+    "closeMenu": "Cerrar menú",
+    "sheetClose": "Cerrar",
+    "nav": {
+      "ariaLabel": "Navegación principal",
+      "section": {
+        "inicio": "Inicio",
+        "cuenta": "Mi cuenta",
+        "administracion": "Administración"
+      }
+    },
+    "breadcrumb": {
+      "ariaLabel": "Migas de pan"
+    },
+    "userMenu": {
+      "trigger": "Menú de usuario",
+      "account": "Mi cuenta",
+      "logout": "Cerrar sesión",
+      "language": {
+        "label": "Idioma",
+        "names": {
+          "esES": "Español",
+          "en": "English",
+          "de": "Deutsch",
+          "fr": "Français"
+        }
+      },
+      "colorMode": {
+        "label": "Modo de color",
+        "system": "Sistema",
+        "light": "Claro",
+        "dark": "Oscuro"
+      }
+    },
+    "states": {
+      "loading": "Cargando…",
+      "empty": {
+        "shortcuts": {
+          "title": "Sin accesos directos",
+          "text": "Todavía no tienes ningún acceso directo disponible."
+        }
+      },
+      "error": {
+        "retry": "Reintentar",
+        "requestId": "Referencia: {requestId}",
+        "offline": {
+          "title": "Sin conexión",
+          "text": "No se ha podido contactar con el servidor. Comprueba tu conexión e inténtalo de nuevo."
+        },
+        "forbidden": {
+          "title": "Sin acceso",
+          "text": "No tienes permiso para ver este contenido."
+        },
+        "moduleDisabled": {
+          "title": "Módulo no disponible"
+        },
+        "notFound": {
+          "title": "Página no encontrada",
+          "text": "La página que buscas no existe o se ha movido."
+        },
+        "tooManyRequests": {
+          "title": "Demasiadas peticiones",
+          "text": "Inténtalo de nuevo en {seconds} segundos.",
+          "textUnknown": "Inténtalo de nuevo en unos instantes."
+        },
+        "unexpected": {
+          "title": "Error inesperado",
+          "text": "Ha ocurrido un error inesperado. Inténtalo de nuevo."
+        }
+      }
+    },
+    "tenantNotFound": {
+      "title": "Centro no encontrado",
+      "text": "No hemos encontrado ningún centro en esta dirección. Comprueba el enlace o contacta con tu centro."
+    },
+    "documentTitleFormat": "{view} · {tenant}",
+    "localeChangeError": "El centro ha retirado este idioma. Se mantiene el idioma actual."
+  },
   "home": {
-    "title": "Estado de la API",
-    "checking": "Comprobando…",
-    "retry": "Volver a comprobar",
-    "status": "{status} · versión {version} · {timestamp}",
-    "error": {
-      "unexpected": "Error inesperado"
+    "greeting": "Hola, {name}",
+    "mfa": {
+      "title": "Segundo factor pendiente",
+      "text": "Te queda un día para activar el segundo factor de acceso. | Te quedan {days} días para activar el segundo factor de acceso.",
+      "link": "Ir a seguridad de la cuenta"
+    },
+    "shortcuts": {
+      "title": "Accesos directos"
     }
   }
 }

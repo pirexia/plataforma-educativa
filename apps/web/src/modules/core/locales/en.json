@@ -28,6 +28,9 @@
     "module": {
       "enabled": "Enabled",
       "disabled": "Disabled"
+    },
+    "nav": {
+      "home": "Home"
     }
   }
 }

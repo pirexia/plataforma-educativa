@@ -179,3 +179,57 @@ Orden obligatorio, coherente con expand/contract (`CLAUDE.md §9`):
 4. `php artisan tenant:provision-defaults {slug}` **solo en el alta de un centro nuevo**, no en cada despliegue. Es idempotente, pero no forma parte de la entrega.
 
 Reversión: las migraciones de 1.1 son aditivas y su `down()` elimina tablas que ninguna otra referencia. Revertir el código a la versión anterior deja las tablas creadas y sin uso, que es inocuo. **Los objetos ya escritos en S3 no se revierten** y hay que borrarlos a mano si se abandona la entrega.
+
+---
+
+## 11. Paso 1.8 (`REQ-CORE-008`): *layout*, navegación y panel
+
+> Estado: **APROBADO** (2026-09-23), con `funcional.md §12`.
+
+### 11.1 Qué se despliega
+
+**Solo la imagen de `apps/web`.** Ningún cambio en `apps/api`, ninguna migración, ningún `platform:sync-registry` extraordinario, ningún comando de consola nuevo.
+
+| Aspecto | Paso 1.8 |
+|---------|----------|
+| Variables de entorno | **Ninguna nueva.** Se sigue usando `VITE_API_URL` (0.5) |
+| Colas y trabajos | **Ninguno.** Nada del paso es pesado (`INV-012` no aplica) |
+| Tareas programadas | **Ninguna** |
+| Caché de servidor | **Ninguna nueva.** `GET /me` no se cachea (motor de permisos sin caché compartida, `ADR-044 §4.7`); `tenant:{id}:branding` (§6) sin cambios |
+| Almacenamiento del navegador | **Ninguna clave nueva** (`funcional.md` `CA-CORE-151`). Siguen `plataforma.brand`, `plataforma.color-mode` (1.7) y `plataforma.locale` (0.9) |
+| Dependencias | **Ninguna nueva.** `sheet` y `dropdown-menu` se vendorizaron **a mano** (la CLI de shadcn-vue falla en este entorno con `EALLOWSCRIPTS`; descarga directa del JSON del registro sobre Reka UI, ya instalada — `docs/design-system.md §12.3`); los iconos, de `@lucide/vue`, ya instalado |
+
+### 11.2 Carga sobre la API
+
+Por carga completa de la SPA con sesión: una petición anónima a `GET /tenant/branding` (ya existente desde 1.7) y **una** a `GET /me`. Antes de 1.8, cada pantalla con sesión pedía su propio `GET /me` al montarse; ahora lo pide el *guard* una vez. La carga baja o se mantiene.
+
+`GET /me` recalcula los permisos efectivos sobre todo el catálogo en cada llamada (`PermissionResolver::decideAll`, 1.5). Con la recarga acotada de `funcional.md §12.3.4` (arranque, *login*, `PATCH /me`, `403` genérico deduplicado) no hay llamadas por navegación. Si la medición con volumen (`REQ-SEED`, 1.15b) mostrara latencia, el remedio es de servidor, no una caché en cliente.
+
+### 11.3 Seguridad operativa
+
+- **CSP**: nada nuevo inyecta `<style>` ni `<script>`; las transiciones usan clases y variables CSS existentes (`docs/design-system.md §16`). Compatible con `style-src`/`script-src` sin `'unsafe-inline'`.
+- **Redirección abierta**: `RN-CORE-28` (`CA-CORE-091`).
+- **Datos de sesión**: solo en memoria (`RN-AUTH-28`).
+
+### 11.4 Métricas y alertas
+
+Ninguna nueva en servidor. Lo que sí conviene mirar tras desplegar, con las métricas que ya existen (§7): la **tasa de `403` de `REQ-CORE`/`REQ-AUTH` debería bajar**, no subir, porque el panel ya no pide nada que el usuario no pueda ver (`RN-CORE-33`). Un aumento tras desplegar 1.8 indica una entrada de navegación con permisos mal declarados.
+
+### 11.5 Despliegue y reversión
+
+1. Construir y publicar la imagen de `apps/web` (`ADR-037`).
+2. Desplegar. No hay orden relativo con `apps/api`: el paso solo consume *endpoints* que existen desde 1.1-1.5.
+
+**Reversión**: volver a la imagen anterior de `apps/web`. Sin datos que migrar ni deshacer. Efecto visible para el usuario: desaparecen *shell*, panel, selector de idioma y control de modo; las pantallas de `/cuenta/*` y `/administracion/*` vuelven a su forma autónoma de 1.2-1.4c. La preferencia de idioma guardada por el selector en `people.locale` **se conserva** (es un dato de 1.1) y la sigue respetando el servidor en correos y documentos.
+
+**Caché del navegador**: los *assets* de Vite llevan *hash* de contenido; `index.html` debe servirse sin caché de larga duración (**no verificado** al escribir esta especificación: el implementador lo comprueba en la configuración del servidor de la imagen de `apps/web` y, si no es así, lo reporta como issue en vez de darlo por hecho), para que una reversión llegue a los usuarios en su siguiente carga.
+
+### 11.6 Problemas conocidos y diagnóstico
+
+| Síntoma | Causa probable |
+|---------|----------------|
+| Un usuario no ve una entrada que «debería» ver | Falta el permiso en su rol, el módulo no está contratado (permiso inerte) o el permiso no se sincronizó (`platform:sync-registry`). Se diagnostica con `GET /users/{id}/effective-permissions` (1.5), que da la procedencia; **no** es un fallo de la SPA |
+| El menú muestra una entrada que ya no debería | Estado de sesión anterior a un cambio de roles; se corrige en el siguiente `403` o recarga (`funcional.md §12.9`). Esperado |
+| Pantalla «centro no encontrado» | El *host* no resuelve tenant: `TENANCY_BASE_DOMAIN` o DNS (§8, `OPEN-08`) |
+| Bucle entre `/entrar` y la ruta pedida | `GET /me` responde `401` justo después de un *login* correcto: cookie de sesión no aceptada por el navegador (dominio, `SameSite`, orígenes distintos en desarrollo — issue [#71](https://github.com/pirexia/plataforma-educativa/issues/71)) |
+| En desarrollo, idioma o sesión «no se guardan» | SPA servida desde `localhost` en vez de `demo.plataforma.test` (issue #71) |

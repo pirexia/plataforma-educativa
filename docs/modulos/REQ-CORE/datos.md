@@ -331,3 +331,24 @@ Todas las claves foráneas son **compuestas** `(tenant_id, columna) REFERENCES t
 Ninguna de estas purgas toca `audit_logs`: la retención del registro de auditoría es `REQ-PRIV-006` y se ejecuta con el rol propietario (`ADR-034 §3`).
 
 **Derecho de supresión**: la anonimización de una persona (`ADR-004` nivel 2) afecta a `people`/`users`; sobre estas cuatro tablas el efecto es indirecto y ya correcto, porque ninguna guarda copia desnormalizada de un dato personal — el mismo criterio que `ADR-034 §3` aplicó al no guardar el nombre del actor en `audit_logs`.
+
+---
+
+# Parte B · Paso 1.8 (`REQ-CORE-008`): sin cambios de esquema
+
+> Estado: **APROBADO** (2026-09-23), con `funcional.md §12`.
+
+**El paso 1.8 no crea, altera ni elimina ninguna tabla, columna, índice ni restricción.** Se afirma de forma explícita, no por omisión:
+
+| Necesidad del paso | De dónde sale | Esquema nuevo |
+|--------------------|---------------|---------------|
+| Identidad, idioma y estado de MFA del usuario | `people`, `users` vía `GET /me` (0.8, 1.1, 1.3) | Ninguno |
+| Permisos efectivos para la navegación | `role_user`, `permission_role`, `permissions`, `module_subscriptions` vía el motor de 1.5 | Ninguno |
+| Nombre, logotipo, colores e idiomas del centro | `tenant_settings`, `tenants` vía `GET /tenant/branding` (1.1) | Ninguno |
+| Preferencia de idioma | `people.locale`, escrita por `PATCH /me` (1.1) | Ninguno |
+| Preferencia de modo de color | `localStorage` del navegador (`plataforma.color-mode`, 1.7) | Ninguno en servidor (`ADR-052 P2`) |
+| Estado de sesión en cliente | Memoria de la SPA | Ninguno; **ninguna clave nueva de almacenamiento del navegador** (`funcional.md` `CA-CORE-151`) |
+
+`tenant_id` y `academic_year_id`: **no aplican**, al no haber tabla nueva. El aislamiento de lo que el paso muestra lo garantizan los *endpoints* ya existentes, que resuelven el tenant por *host* (`ADR-033 §2`).
+
+**`OPEN-CORE-13` y `OPEN-CORE-12`, resueltas el 2026-09-23, confirman que no hace falta esquema nuevo en este paso**: `OPEN-CORE-13` difirió el motor de *widgets* configurables (que de construirse con la opción B habría exigido al menos una tabla de disposición por rol y una de preferencia por usuario) al primer paso con un segundo bloque de panel con datos reales — se diseñarían entonces, con la pregunta del multi-rol contestada, no por anticipado (`ADR-034` `OPEN-13`). `OPEN-CORE-12` diferió las pantallas pendientes de `REQ-CORE` a `1.9b`, que consumirán las tablas de la Parte A ya existentes, sin esquema nuevo tampoco.
