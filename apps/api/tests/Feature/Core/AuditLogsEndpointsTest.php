@@ -4,6 +4,12 @@ use App\Models\AuditLog;
 use App\Models\Person;
 use App\Models\Role;
 use App\Models\User;
+use App\Modules\Core\Domain\Models\DataExport;
+use App\Modules\Core\Domain\TenantAdministrator;
+use App\Modules\Core\Domain\TenantInitialSettings;
+use App\Modules\Core\Domain\TenantProvisioner;
+use App\Modules\Core\Infrastructure\Jobs\GenerateAuditLogExport;
+use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -105,4 +111,59 @@ test('CA-CORE-053/054: solicitar una exportación la audita como exported, se ge
 
     expect($download->json('status'))->toBe('completada')
         ->and($download->json('download_url'))->not->toBeNull();
+});
+
+// issue #268: inyección de fórmulas CSV en la exportación de auditoría.
+test('issue #268: la exportación de auditoría neutraliza valores que empiezan por un carácter de fórmula', function (): void {
+    test()->artisan('platform:sync-registry')->run();
+
+    $tenant = Tenant::factory()->create();
+    Cache::forget("tenant-resolution:{$tenant->slug}");
+
+    app(TenantProvisioner::class)->provision(
+        $tenant,
+        TenantInitialSettings::defaults(),
+        new TenantAdministrator('admin@example.com', "=cmd|'/c calc'!A1", 'Perez'),
+    );
+
+    $admin = app(TenantContext::class)->runFor(
+        $tenant->id,
+        fn () => User::query()->where('email', 'admin@example.com')->firstOrFail(),
+    );
+
+    // Genera un evento de auditoría con este administrador como actor
+    // (el nombre malicioso viaja en `actor.person`, RN-DT/GenerateAuditLogExport).
+    test()->actingAs($admin)->postJson(coreApiUrl($tenant->slug, '/users'), [
+        'email' => 'otro@example.com',
+        'person' => ['given_name' => 'Otro', 'family_name_1' => 'Usuario'],
+        'send_invitation' => false,
+    ])->assertCreated();
+
+    $exportId = test()->actingAs($admin)
+        ->postJson(coreApiUrl($tenant->slug, '/audit-logs/exports'), ['format' => 'csv'])
+        ->assertStatus(202)
+        ->json('public_id');
+
+    $objectKey = app(TenantContext::class)->runFor(
+        $tenant->id,
+        fn () => DataExport::where('public_id', $exportId)->firstOrFail()->object_key,
+    );
+
+    $csv = Storage::disk('local')->get($objectKey);
+
+    expect($csv)->toContain("'=cmd|'/c calc'!A1 Perez")
+        ->and($csv)->not->toContain(",=cmd|'/c calc'!A1 Perez");
+});
+
+// issue #268: casos fijos de la propia regla de neutralización.
+test('issue #268: GenerateAuditLogExport neutraliza los cinco caracteres de fórmula de OWASP', function (): void {
+    $neutralize = new ReflectionMethod(GenerateAuditLogExport::class, 'neutralizeCsvCell');
+
+    foreach (['=1+1', '+1', '-1', '@SUM(A1)', "\ttab", "\rcr"] as $dangerous) {
+        expect($neutralize->invoke(null, $dangerous))->toBe("'{$dangerous}");
+    }
+
+    foreach (['normal', 'Álvarez', '', null, 'user@example.com'] as $safe) {
+        expect($neutralize->invoke(null, $safe))->toBe((string) $safe);
+    }
 });
