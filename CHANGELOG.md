@@ -6,6 +6,20 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-09-29 · `fix/REQ-CORE-005-neutralizar-formulas-csv-auditoria`
+
+Corrige el issue [#268](https://github.com/pirexia/plataforma-educativa/issues/268) (severidad alta): la exportación CSV del registro de auditoría escribía con `fputcsv` valores controlados por usuarios (nombre del actor) sin neutralizar celdas que empiezan por `=`, `+`, `-`, `@`, tabulador o retorno de carro, que Excel/LibreOffice/Sheets abren como fórmula activa.
+
+### Corregido
+- `GenerateAuditLogExport::neutralizeCsvCell` antepone un apóstrofo a esas celdas, en cabecera y filas (`RN-CORE-36`, `CA-CORE-055`, `docs/modulos/REQ-CORE/funcional.md §4.6`).
+- Dos tests de regresión en `AuditLogsEndpointsTest.php`.
+- `SECURITY.md` 0.3.3 → 0.3.4 (`README.md` cruzado); `api.md` documenta el apóstrofo para consumidores del CSV.
+
+### Verificado
+744/744 Pest en verde. Revisión independiente: `security-reviewer` sin Crítico/Alta; `doc-reviewer` con 4 Media corregidas en esta rama. Cuatro hallazgos Baja (espacios iniciales, helper privado, `ValidateUserImport::writeReport`, robustez de tests) quedan en un issue aparte.
+
+---
+
 ## 2026-09-23 · `feature/REQ-CORE-008-layout-navegacion-dashboards`
 
 Implementa el paso `1.8` (Bloque B, *layout*, navegación y panel de inicio, `REQ-CORE-008`), sobre `docs/modulos/REQ-CORE/funcional.md §12` y `docs/adr/ADR-053-registro-de-navegacion-y-bloques-del-panel.md`. Solo `apps/web`: ni un *endpoint*, ni un permiso, ni una migración.

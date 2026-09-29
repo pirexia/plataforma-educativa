@@ -588,7 +588,7 @@ Descarta un lote no ejecutado y borra su fichero fuente y su informe del bucket.
 - **Cuerpo**: los mismos filtros de `GET /audit-logs` más `{ "format": "csv" }`
 - **Respuesta 202**: `{ "public_id": "01J8...", "status": "pendiente" }`
 - **Errores**: `422` si el rango supera el límite de filas configurado o si `format` es `pdf` (**diferido a 1.17**, `funcional.md` §4.6)
-- **Efecto**: encola la generación (`INV-012`) y audita la solicitud con `event = 'exported'`
+- **Efecto**: encola la generación (`INV-012`) y audita la solicitud con `event = 'exported'`. Las celdas de texto que empiezan por un carácter de fórmula (`= + - @`, tab, CR, LF) se escriben con un apóstrofo delante (`RN-CORE-36`): un consumidor que parsee el CSV verá ese apóstrofo en el dato
 
 ### `GET /api/v1/data-exports/{public_id}`
 

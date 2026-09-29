@@ -114,7 +114,7 @@ test('CA-CORE-053/054: solicitar una exportación la audita como exported, se ge
 });
 
 // issue #268: inyección de fórmulas CSV en la exportación de auditoría.
-test('issue #268: la exportación de auditoría neutraliza valores que empiezan por un carácter de fórmula', function (): void {
+test('CA-CORE-055: la exportación de auditoría neutraliza valores que empiezan por un carácter de fórmula', function (): void {
     test()->artisan('platform:sync-registry')->run();
 
     $tenant = Tenant::factory()->create();
@@ -156,7 +156,7 @@ test('issue #268: la exportación de auditoría neutraliza valores que empiezan 
 });
 
 // issue #268: casos fijos de la propia regla de neutralización.
-test('issue #268: GenerateAuditLogExport neutraliza los cinco caracteres de fórmula de OWASP', function (): void {
+test('CA-CORE-055: GenerateAuditLogExport neutraliza los caracteres de fórmula (= + - @ tab CR)', function (): void {
     $neutralize = new ReflectionMethod(GenerateAuditLogExport::class, 'neutralizeCsvCell');
 
     foreach (['=1+1', '+1', '-1', '@SUM(A1)', "\ttab", "\rcr"] as $dangerous) {
