@@ -238,7 +238,7 @@ Ninguna nueva en servidor. Lo que sí conviene mirar tras desplegar, con las mé
 
 ## 12. Paso 1.9 (tablas de datos)
 
-> Estado: **APROBADO** (2026-09-30, decisión del usuario), **ajustado a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**, con `funcional.md §13`. **Implementado** (2026-09-30, rama `feature/REQ-CORE-008-tablas-de-datos`); pendiente de revisión independiente y mezcla. Nota de implementación y comprobación de la dependencia TanStack: `funcional.md §13.24`.
+> Estado: **APROBADO** (2026-09-30, decisión del usuario), **ajustado a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**, con `funcional.md §13`. **Implementado** (2026-09-30, rama `feature/REQ-CORE-008-tablas-de-datos`); revisión independiente hecha (sin Crítico/Alto) y mezclado. Nota de implementación y comprobación de la dependencia TanStack: `funcional.md §13.24`.
 
 ### 12.1 Qué se despliega
 

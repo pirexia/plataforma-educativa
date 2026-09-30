@@ -510,3 +510,28 @@ describe('CA-CORE-202 (OPEN-CORE-25, ADR-054 §7.7): salir de la vista', () => {
     expect(addListener.mock.calls.filter((call) => call[0] === 'beforeunload')).toEqual([])
   })
 })
+
+describe('CA-CORE-190 (issue #275): esquema de la URL de descarga', () => {
+  it.each(['javascript:alert(1)', 'data:text/html,<script>1</script>'])(
+    'una download_url %s no llega a un href: estado de error de consulta',
+    async (badUrl) => {
+      vi.useFakeTimers()
+      const wrapper = mountTable({
+        canExport: true,
+        request: vi.fn().mockResolvedValue({ public_id: 'exp-1' }),
+        status: vi
+          .fn()
+          .mockResolvedValue(
+            status({ status: 'completada', download_url: badUrl, expires_at: null }),
+          ),
+      })
+      await flushPromises()
+      await click(button('Exportar'))
+      await vi.advanceTimersByTimeAsync(EXPORT_POLL_INITIAL_MS)
+      await flushPromises()
+
+      expect(wrapper.find('a[href]').exists()).toBe(false)
+      expect(wrapper.html()).not.toContain(badUrl)
+    },
+  )
+})

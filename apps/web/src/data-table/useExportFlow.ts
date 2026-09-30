@@ -36,6 +36,21 @@ export type ExportFlowState =
   /** Error inesperado al consultar el estado. */
   | { phase: 'statusError' }
 
+/** Solo http(s): Vue no filtra el esquema de `href` (issue #275, CA-CORE-190). */
+function isSafeDownloadUrl(url: string | null | undefined): url is string {
+  if (!url) {
+    return false
+  }
+
+  try {
+    const { protocol } = new URL(url, window.location.origin)
+
+    return protocol === 'https:' || protocol === 'http:'
+  } catch {
+    return false
+  }
+}
+
 function serverMessage(err: unknown): string | null {
   if (!(err instanceof ApiError) || err.status !== 422) {
     return null
@@ -119,7 +134,7 @@ export function useExportFlow(getConfig: () => DataTableExportConfig | undefined
       }
 
       if (status.status === 'completada') {
-        state.value = status.download_url
+        state.value = isSafeDownloadUrl(status.download_url)
           ? { phase: 'completed', url: status.download_url, expiresAt: status.expires_at }
           : { phase: 'statusError' }
       } else if (status.status === 'fallida') {

@@ -24,6 +24,9 @@ Implementa el paso `1.9` (Bloque B, tablas de datos, `REQ-CORE-008`), sobre `doc
 ### Verificado
 713/713 Vitest y 15/15 Playwright (10 previos + 5 de 1.9) en verde; ESLint sin errores (una advertencia `prettier` preexistente en `e2e/shell.spec.ts`, issue #263), `lint:i18n`, `vue-tsc -b` y `vite build` limpios. Vitest, ESLint, `lint:i18n`, `vue-tsc` y `build` se ejecutaron en el contenedor de referencia (`localhost/plataforma-educativa_web`) con el *worktree* montado; Playwright con el Chromium del *host* sobre un servidor de Vite propio (la instancia del contenedor sirve la copia principal, no este *worktree*).
 
+### Revisión independiente (2026-09-30)
+`security-reviewer` y `doc-reviewer`: sin Crítico/Alto. Corregido en la rama: #275 (Media, `download_url` validada a http(s) en `useExportFlow.ts`, con test de regresión; `CA-CORE-190`). Documentados sin corregir: #276 (`formatDate` con fechas inválidas), #277 (preferencias de columnas sin aislar por usuario, `noreferrer`), #278 (`@tanstack/vue-table` 8.x sin releases desde 2025-04). Recuento final: 715 Vitest y 15 Playwright en verde.
+
 ### Hallazgos para el revisor
 - **`@tanstack/vue-table` 8.x sin *releases* desde 2025-04-14**; la línea activa es la 9 (estable desde 2026-08-04) con API distinta. No se migra en 1.9; el coste de hacerlo queda acotado a `useTableModel.ts` (`funcional.md §13.24`).
 - Dos usos preexistentes de `new Blob(`/`URL.createObjectURL(` en `modules/auth` (metadatos SAML, códigos de recuperación) que no son exportaciones de listados: excepciones nominales y justificadas de `CA-CORE-192`.

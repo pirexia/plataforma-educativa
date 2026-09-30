@@ -679,7 +679,7 @@ Ambas se resolvieron el 2026-09-23 con la opción que no añade *endpoints*: `OP
 
 ## 13. Paso 1.9 (tablas de datos): sin *endpoints* nuevos
 
-> Estado: **APROBADO** (2026-09-30, decisión del usuario), **ajustado a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**, con `funcional.md §13`. **Implementado** (2026-09-30, `apps/web/src/data-table/`): el cliente consume el contrato de §13.1 y la exportación de §13.2 sin tocar ningún *endpoint*; pendiente de revisión independiente.
+> Estado: **APROBADO** (2026-09-30, decisión del usuario), **ajustado a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**, con `funcional.md §13`. **Implementado** (2026-09-30, `apps/web/src/data-table/`): el cliente consume el contrato de §13.1 y la exportación de §13.2 sin tocar ningún *endpoint*; revisión independiente hecha (sin Crítico/Alto).
 
 **1.9 no añade, modifica ni retira ningún *endpoint*, ni cambia la forma de ninguna respuesta ni de OpenAPI.** El componente de tabla **no hace peticiones por su cuenta**: recibe de cada módulo consumidor la función que llama a su *endpoint* (`funcional.md §13.5`, `RN-CORE-38`).
 
