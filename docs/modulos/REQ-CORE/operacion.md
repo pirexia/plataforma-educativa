@@ -238,7 +238,7 @@ Ninguna nueva en servidor. Lo que sí conviene mirar tras desplegar, con las mé
 
 ## 12. Paso 1.9 (tablas de datos)
 
-> Estado: **APROBADO** (2026-09-30, decisión del usuario), **ajustado a `ADR-054` (PROPUESTA) y pendiente solo de su ratificación por el usuario**, con `funcional.md §13`. Lo que procede de una precisión de `architect` va marcado **[ADR-054 · pendiente de ratificación]**.
+> Estado: **APROBADO** (2026-09-30, decisión del usuario), **ajustado a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**, con `funcional.md §13`. Listo para `implementer`.
 
 ### 12.1 Qué se despliega
 
@@ -249,21 +249,21 @@ Ninguna nueva en servidor. Lo que sí conviene mirar tras desplegar, con las mé
 | Variables de entorno | **Ninguna nueva** |
 | Colas y trabajos | **Ninguno nuevo.** El componente consume exportaciones que ya se generan en `core-exports` (§4) |
 | Tareas programadas | **Ninguna** |
-| Almacenamiento del navegador | **Una clave nueva por tabla**: `plataforma.table.<tableId>` (`RN-CORE-43`, `tableId` literal `<modulo>.<nombre>` [ADR-054 · pendiente de ratificación]), sin datos personales; no se borra al cerrar sesión. Se cataloga en `PRIVACY.md §2.1b` |
+| Almacenamiento del navegador | **Una clave nueva por tabla**: `plataforma.table.<tableId>` (`RN-CORE-43`, `tableId` literal `<modulo>.<nombre>`), sin datos personales; no se borra al cerrar sesión. Se cataloga en `PRIVACY.md §2.1b` |
 | Dependencias | **Ninguna nueva.** Sin virtualización (`OPEN-CORE-19`, opción A, decisión del usuario 2026-09-30): **no** se instala `@tanstack/vue-virtual`. `@tanstack/vue-table` ya estaba instalada. Los componentes nuevos del *design system* (`checkbox`, `popover`, si hacen falta) se vendorizan sobre Reka UI, ya instalada (`docs/design-system.md §12.2`/`§12.3`) |
-| Estado en la URL | En las rutas cuya tabla principal lo declara (opcional por tabla, como máximo una por ruta [ADR-054 · pendiente de ratificación]), la *query* lleva página, orden y filtros **salvo `q` y `cursor`** (`RN-CORE-54`). Llega a los registros de acceso del servidor web en una recarga completa: por eso nunca contiene el texto de búsqueda. `/administracion/mfa` no lo declara (paridad estricta de la migración). Sin cambios de configuración |
+| Estado en la URL | En las rutas cuya tabla principal lo declara (opcional por tabla, como máximo una por ruta), la *query* lleva página, orden y filtros **salvo `q` y `cursor`** (`RN-CORE-54`). Llega a los registros de acceso del servidor web en una recarga completa: por eso nunca contiene el texto de búsqueda. `/administracion/mfa` no lo declara (paridad estricta de la migración). Sin cambios de configuración |
 
 ### 12.2 Dependencia operativa: *worker* de colas
 
 La exportación **solo termina si hay un *worker* procesando `core-exports`**. Hoy no hay ninguno desplegado, ni en `compose.yaml` ni en `infra/quadlet/*` (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128), Alta). Sin él, toda exportación se queda en `pendiente` y la interfaz, tras la duración máxima de `RN-CORE-49`, deja de consultar y ofrece «Comprobar de nuevo». **No es un fallo de 1.9**, y no debe diagnosticarse como tal.
 
-**Discrepancia documental detectada** (`funcional.md §13.20`, punto 1): §2 de este documento dice `QUEUE_CONNECTION = redis`, y `CLAUDE.md §1` dice que hoy es `database`. No se corrige aquí; hay que contrastarlo con `config/queue.php`.
+**Discrepancia documental** (`funcional.md §13.20`, punto 1; issue [#273](https://github.com/pirexia/plataforma-educativa/issues/273)): §2 de este documento decía `QUEUE_CONNECTION = redis`; `apps/api/config/queue.php` y `CLAUDE.md §1` dicen `database`. **§2 ya está corregido.** Quedan sin corregir §3 (fila «Redis»: «Colas (Horizon)») y §8 (síntoma «Importación queda en `subido`»: «o Redis no disponible»), que siguen describiendo Redis como cola vigente; son secciones de 1.1, se reportan y no se tocan en este paso.
 
 ### 12.3 Carga sobre la API
 
 - Búsqueda con espera de 300 ms y una sola respuesta aplicada (`RN-CORE-40`/`41`): una petición por pausa al escribir, no por pulsación.
 - Consulta del estado de exportación con una sola en vuelo, espera inicial de 2 s que se duplica hasta 30 s, y parada a los 10 min (`RN-CORE-49`, `ADR-054 §7.5`): del orden de 23 consultas por exportación como máximo (cálculo sobre las esperas, sin contar la latencia), acotada por diseño incluso sin *worker*.
-- «Cargar más» solo por acción del usuario, nunca por desplazamiento (`RN-CORE-56`) [ADR-054 · pendiente de ratificación].
+- «Cargar más» solo por acción del usuario, nunca por desplazamiento (`RN-CORE-56`).
 - Sin sondeo de listados: la tabla solo pide datos ante una acción del usuario o al montarse.
 - Modo `cursor` acotado a 1.000 filas acumuladas por consulta (`RN-CORE-52`): como mucho 20 peticiones de 50 filas (o 5 de 200) antes de que la interfaz remita a acotar filtros o exportar.
 
@@ -272,7 +272,7 @@ La exportación **solo termina si hay un *worker* procesando `core-exports`**. H
 1. Construir y publicar la imagen de `apps/web` (`ADR-037`).
 2. Desplegar. Sin orden relativo con `apps/api`: 1.9 no consume nada que no exista desde 1.1.
 
-**Reversión**: volver a la imagen anterior. Efecto: `MfaComplianceArea` vuelve a su tabla propia (la migra 1.9, `OPEN-CORE-28`), los enlaces guardados con estado de tabla en la URL abren sin él (la versión anterior no lee esos parámetros; no verificado, lo comprueba el implementador al probar la reversión), y las claves `plataforma.table.*` quedan huérfanas en los navegadores, inocuas y sin datos personales. Sin datos de servidor que deshacer.
+**Reversión**: volver a la imagen anterior. Efecto: `MfaComplianceArea` vuelve a su tabla propia (la migra 1.9, `OPEN-CORE-28`; las otras tres tablas existentes no cambian en 1.9, son excepciones de `RN-CORE-53`), los enlaces guardados con estado de tabla en la URL abren sin él (la versión anterior no lee esos parámetros; no verificado, lo comprueba el implementador al probar la reversión), y las claves `plataforma.table.*` quedan huérfanas en los navegadores, inocuas y sin datos personales. Sin datos de servidor que deshacer.
 
 ### 12.5 Problemas conocidos y diagnóstico
 

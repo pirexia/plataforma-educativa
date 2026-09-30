@@ -8,11 +8,11 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ## 2026-09-30 · `feature/1.9-tablas-de-datos`
 
-Especificación del paso `1.9` (tablas de datos, TanStack Table) y `ADR-054` (propuesta). **Sin código**: la implementación va en una sesión posterior a la ratificación del ADR.
+Especificación del paso `1.9` (tablas de datos, TanStack Table) y `ADR-054` (aceptada, ratificada por el usuario el 2026-09-30). **Sin código**: la implementación va en una sesión nueva.
 
 ### Añadido
 - `docs/modulos/REQ-CORE/funcional.md §13` (`RN-CORE-37`-`58`, `CA-CORE-160`-`206`, `OPEN-CORE-18`-`29`) y secciones de 1.9 en `datos.md`, `api.md`, `permisos.md`, `operacion.md`.
-- `docs/adr/ADR-054-tablas-de-datos-y-exportacion-de-listados.md` (PROPUESTA) y su alta en la sección 18 de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` (3.2.9).
+- `docs/adr/ADR-054-tablas-de-datos-y-exportacion-de-listados.md` (ACEPTADA) y su alta en la sección 18 de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` (3.2.9).
 - `PRIVACY.md` 0.3.1: clave `plataforma.table.<tableId>` de `localStorage`. `SECURITY.md` 0.3.5: fila CSV alineada con `ADR-054`.
 
 ### Decisiones del usuario (2026-09-30)
