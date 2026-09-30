@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 beforeEach(function (): void {
     Mail::fake();
@@ -441,3 +442,28 @@ function provisionPropiosAuditTenantForExport(string $slug): array
 
     return [$tenant, $admin, $restricted];
 }
+
+// issue #267: el tope de filas cuenta lo que se exporta (mismos filtros que el trabajo).
+test('RNF-LIM-004 (#267): el tope de filas de la exportación cuenta con occurred_at_from/to y con cada filtro', function (): void {
+    [$tenant, $admin] = provisionCoreTenant('audit-tope');
+
+    config(['core.export_max_rows' => 5]);
+
+    $post = fn (array $body) => test()->actingAs($admin)
+        ->postJson(coreApiUrl($tenant->slug, '/audit-logs/exports'), ['format' => 'csv', ...$body]);
+
+    // Sin filtro, el aprovisionamiento ya supera el tope.
+    $post([])->assertStatus(422)->assertJsonPath('errors.filters.0.code', 'core.validation.export_range_too_large');
+
+    // Rango estrecho: pasa. Un rango que abarca todo vuelve a superar el tope.
+    $post(['occurred_at_from' => '2999-01-01'])->assertStatus(202);
+    $post(['occurred_at_to' => '2000-01-01'])->assertStatus(202);
+    $post(['occurred_at_from' => '2000-01-01', 'occurred_at_to' => '2999-01-01'])->assertStatus(422);
+
+    // Cada filtro nuevo, solo, deja cero filas y por tanto pasa.
+    $post(['actor_id' => (string) Str::ulid()])->assertStatus(202);
+    $post(['actor_type' => 'anonymous'])->assertStatus(202);
+    $post(['auditable_id' => (string) Str::ulid()])->assertStatus(202);
+    $post(['module' => 'no-existe'])->assertStatus(202);
+    $post(['auditable_type' => ['no_existe']])->assertStatus(202);
+});
