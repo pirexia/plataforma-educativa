@@ -1413,6 +1413,7 @@ Vitest salvo los marcados **[Playwright]**. Cada test cita su ID (`INV-015`). Co
 
 #### Retirado
 
+- *Identificadores `CA-CORE-153` a `-159` no usados (reservados, sin criterio asociado); la serie de 1.9 empieza en 160.*
 - ~~**`CA-CORE-199`**~~ · **Retirado** el 2026-09-30: el modo `local` no existe en 1.9 (`OPEN-CORE-26`, opción B; `ADR-054 §2.1`). El identificador queda reservado y no se reutiliza; el paso que añada el modo escribe sus propios criterios.
 
 ### 13.19 Documentación a actualizar al cerrar 1.9

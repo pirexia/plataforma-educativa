@@ -6,7 +6,7 @@ SaaS para la gestión integral de centros educativos. Segmento inicial: **centro
 |-------|-------|
 | **Versión del documento** | 2.6.5 |
 | **Fecha** | 2026-09-30 |
-| **Estado del proyecto** | Fase 1 · MVP operativo. Bloque A (identidad y acceso) **completo y mezclado**: tenants/usuarios, autenticación local, sesiones activas, MFA (TOTP + correo), login con Google (fusión de cuentas), SSO institucional OIDC + SAML 2.0 con aprovisionamiento por emparejamiento, núcleo de autorización granular (`REQ-PERM`) y los cinco sub-pasos del backoffice de plataforma (`REQ-BO`, `1.6`-`1.6e`, incluido el motor de *feature flags*) — `1.1` a `1.6e` íntegros. Bloque B (*design system* y navegación): `1.7` · *Design system* (tokens, tema por tenant, modo oscuro) **completo y mezclado**. `1.8` · Layout, navegación y panel de inicio (`REQ-CORE-008`) implementado y mezclado (PR #264). `1.9` (Tablas de datos): especificación y `ADR-054` (propuesta) redactados, pendientes de ratificación; sin código |
+| **Estado del proyecto** | Fase 1 · MVP operativo. Bloque A (identidad y acceso) **completo y mezclado**: tenants/usuarios, autenticación local, sesiones activas, MFA (TOTP + correo), login con Google (fusión de cuentas), SSO institucional OIDC + SAML 2.0 con aprovisionamiento por emparejamiento, núcleo de autorización granular (`REQ-PERM`) y los cinco sub-pasos del backoffice de plataforma (`REQ-BO`, `1.6`-`1.6e`, incluido el motor de *feature flags*) — `1.1` a `1.6e` íntegros. Bloque B (*design system* y navegación): `1.7` · *Design system* (tokens, tema por tenant, modo oscuro) **completo y mezclado**. `1.8` · Layout, navegación y panel de inicio (`REQ-CORE-008`) implementado y mezclado (PR #264). `1.9` (Tablas de datos): especificación y `ADR-054` (aceptada) redactados y aprobados el 2026-09-30; sin código |
 
 ---
 
@@ -73,10 +73,10 @@ Lista completa: sección 0.5 del documento de requisitos (`INV-001` a `INV-015`)
 
 | Documento | Versión |
 |-----------|---------|
-| `README.md` | 2.6.4 |
+| `README.md` | 2.6.5 |
 | `CLAUDE.md` | 2.5.3 |
 | `ARCHITECTURE.md` | 2.2.0 |
-| `PLAN-IMPLEMENTACION.md` | 2.3.0 |
+| `PLAN-IMPLEMENTACION.md` | 2.3.1 |
 | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | 3.2.9 |
 | `docs/SETUP-CLAUDE-CODE.md` | 1.3.0 |
 | `docs/SETUP-ENTORNO.md` | 1.3.0 |
