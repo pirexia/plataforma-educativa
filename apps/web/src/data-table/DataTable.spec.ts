@@ -324,6 +324,33 @@ describe('CA-CORE-163 (ADR-038 §4.4/§4.5): modo cursor', () => {
   })
 })
 
+describe('CA-CORE-185 (RUX-004, §13.11): foco en «Cargar más»', () => {
+  it('el foco se queda en el botón mientras hay más; al desaparecer el botón pasa al aviso y no se pierde en body', async () => {
+    const fetcher = vi
+      .fn<DataTableFetcher<Person>>()
+      .mockResolvedValueOnce(cursorOf(people(3, 'a'), { next_cursor: 'c1', has_more: true }))
+      .mockResolvedValueOnce(cursorOf(people(2, 'b'), { next_cursor: 'c2', has_more: true }))
+      .mockResolvedValueOnce(cursorOf(people(1, 'c'), { next_cursor: null, has_more: false }))
+    const wrapper = mountTable(fetcher, { mode: 'cursor' })
+    await flushPromises()
+
+    let more = buttonByLabel('Cargar más')
+    more.focus()
+    await click(more)
+
+    // Sigue habiendo más: el mismo botón conserva el foco.
+    more = buttonByLabel('Cargar más')
+    expect(document.activeElement).toBe(more)
+
+    await click(more)
+
+    expect(() => buttonByLabel('Cargar más')).toThrow()
+    expect(document.activeElement).not.toBe(document.body)
+    expect(document.activeElement?.textContent).toContain('No hay más filas.')
+    expect(wrapper.find('[data-slot="data-table-cursor-footer"]').exists()).toBe(true)
+  })
+})
+
 describe('CA-CORE-164 (ADR-038 §4.4 regla 2): cursor y filtros', () => {
   it('cambiar un filtro o el orden reinicia la lista sin cursor', async () => {
     const fetcher = vi
