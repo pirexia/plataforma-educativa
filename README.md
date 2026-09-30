@@ -81,7 +81,7 @@ Lista completa: sección 0.5 del documento de requisitos (`INV-001` a `INV-015`)
 | `docs/SETUP-CLAUDE-CODE.md` | 1.3.0 |
 | `docs/SETUP-ENTORNO.md` | 1.3.0 |
 | `SYSADMIN.md` | 0.8.3 |
-| `SECURITY.md` | 0.3.3 |
+| `SECURITY.md` | 0.3.4 |
 | `PRIVACY.md` | 0.3.0 |
 | `RUNBOOK.md` | 0.3.1 |
 | `CONTRIBUTING.md` | 0.2.0 |

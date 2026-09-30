@@ -83,7 +83,7 @@ class GenerateAuditLogExport implements ShouldQueue
 
         $rowCount = 0;
         $handle = fopen('php://temp', 'w+');
-        fputcsv($handle, ['occurred_at', 'actor', 'actor_type', 'auditable_type', 'auditable_public_id', 'event', 'request_id']);
+        fputcsv($handle, array_map(self::neutralizeCsvCell(...), ['occurred_at', 'actor', 'actor_type', 'auditable_type', 'auditable_public_id', 'event', 'request_id']));
 
         $query->orderBy('occurred_at')->orderBy('id')->chunk(1000, function ($chunk) use ($handle, &$rowCount): void {
             foreach ($chunk as $log) {
@@ -91,10 +91,10 @@ class GenerateAuditLogExport implements ShouldQueue
                     ? trim($log->actor->person->given_name.' '.$log->actor->person->family_name_1)
                     : '';
 
-                fputcsv($handle, [
+                fputcsv($handle, array_map(self::neutralizeCsvCell(...), [
                     $log->occurred_at->toJSON(), $actorLabel, $log->actor_type,
                     $log->auditable_type, $log->auditable_public_id, $log->event, $log->request_id,
-                ]);
+                ]));
                 $rowCount++;
             }
         });
@@ -117,5 +117,19 @@ class GenerateAuditLogExport implements ShouldQueue
             'status' => 'fallida',
             'error_code' => 'core.export.generation_failed',
         ]);
+    }
+
+    /**
+     * Neutralización de inyección de fórmulas CSV (issue #268, OWASP): un
+     * valor que empiece por `=`, `+`, `-`, `@`, tabulador, retorno de carro
+     * o salto de línea se abre como fórmula activa en Excel/LibreOffice/
+     * Sheets. Anteponer un apóstrofo lo fuerza a texto; entrecomillar (lo
+     * que ya hace fputcsv) no neutraliza nada.
+     */
+    private static function neutralizeCsvCell(string|int|float|null $value): string
+    {
+        $value = (string) $value;
+
+        return preg_match('/^[=+\-@\t\r\n]/', $value) === 1 ? "'{$value}" : $value;
     }
 }

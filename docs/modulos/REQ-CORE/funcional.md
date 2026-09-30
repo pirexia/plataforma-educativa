@@ -253,6 +253,7 @@ El esquema de columnas es fijo y se documenta en `api.md` §7. **No hay mapeo vi
 2. El trabajo genera el CSV por lotes y lo deja en el bucket con caducidad de 7 días.
 3. `GET /data-exports/{id}` devuelve el estado y, cuando está listo, una URL firmada de caducidad corta.
 4. La propia solicitud de exportación se audita como evento `exported` (`INV-003`; el vocabulario de `event` ya lo contempla).
+5. **Neutralización de fórmulas (`RN-CORE-36`, issue #268).** Toda celda de texto del CSV cuyo primer carácter sea `=`, `+`, `-`, `@`, tabulador, retorno de carro o salto de línea se escribe con un apóstrofo delante, para que Excel/LibreOffice/Sheets no la interpreten como fórmula activa (inyección de fórmulas CSV, OWASP). Aplica a la cabecera y a todas las filas.
 
 **Exportación a PDF: fuera de 1.1.** `REQ-CORE-005` pide CSV **y** PDF; el servicio contenerizado de renderizado HTML→PDF no existe (motor sin decidir, paso 1.17, explícitamente pendiente desde 0.3). Se difiere a 1.17.
 
@@ -442,6 +443,7 @@ Verificables, cada uno con test que referencia su ID (`INV-015`).
 - **`CA-CORE-052`** · *Dado* un registro cuyo `changes` contiene una entrada redactada, *cuando* se devuelve por la API, *entonces* la respuesta conserva el objeto `{"redacted": "..."}` y **no expone ningún valor** (`ADR-035`).
 - **`CA-CORE-053`** · *Dado* una solicitud de exportación, *cuando* se acepta, *entonces* devuelve `202` con el `public_id` de la exportación, la generación ocurre en cola (`INV-012`) y la propia solicitud queda auditada con `event = 'exported'`.
 - **`CA-CORE-054`** · *Dado* una exportación completada, *cuando* se solicita su descarga, *entonces* se devuelve una URL firmada de caducidad corta y **nunca** una ruta directa al bucket.
+- **`CA-CORE-055`** · *Dado* un registro de auditoría cuyo actor tiene un nombre que empieza por `=`, `+`, `-`, `@`, tabulador, CR o LF, *cuando* se genera la exportación CSV, *entonces* esa celda se escribe precedida de apóstrofo y nunca como fórmula activa (`RN-CORE-36`).
 
 ### Módulos (`RMOD-008`, `RMOD-009`)
 
@@ -786,6 +788,7 @@ Hamburguesa y *drawer* son diálogos modales (`role="dialog"`, `aria-modal`): fo
 | `RN-CORE-33` | El panel y la navegación no piden ningún *endpoint* que exija un permiso que el usuario no tenga efectivo (sin `403` de ruido, sin sondeo involuntario) |
 | `RN-CORE-34` | Precedencia de idioma con sesión: `person.locale` si está activo en el centro, si no `default_locale` del centro (§12.3.6) |
 | `RN-CORE-35` | Host sin tenant: pantalla «centro no encontrado», sin *shell* y sin `/me` |
+| `RN-CORE-36` | Exportación CSV: toda celda que empiece por `=`, `+`, `-`, `@`, tabulador, CR o LF se escribe precedida de apóstrofo (`§4.6` paso 5) |
 
 ### 12.9 Casos límite
 
