@@ -11,7 +11,9 @@
 
 > Fuente de verdad: sección 5.1 de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` (`REQ-CORE-001` a `REQ-CORE-008`). Este documento **no** reabre lo decidido en `ADR-033`, `ADR-034`, `ADR-035` ni `ADR-036`.
 
-> **Paso 1.8 (`REQ-CORE-008`, *layout*, navegación y panel de inicio): §12, APROBADA** (2026-09-23; implementada, en revisión independiente antes de mezclar). Las secciones §0-§11 son las de 1.1 y **no se reabren**; §12 se añade detrás, mismo criterio que `REQ-BO/funcional.md §15.x` para sub-pasos sucesivos del mismo módulo.
+> **Paso 1.8 (`REQ-CORE-008`, *layout*, navegación y panel de inicio): §12, APROBADA** (2026-09-23; implementada y mezclada, PR #264). Las secciones §0-§11 son las de 1.1 y **no se reabren**; §12 se añade detrás, mismo criterio que `REQ-BO/funcional.md §15.x` para sub-pasos sucesivos del mismo módulo.
+>
+> **Paso 1.9 (tablas de datos: TanStack Table, filtrado, ordenación, columnas configurables y exportación; sin virtualización, `OPEN-CORE-19`): §13, APROBADA** (2026-09-30), **ajustada a `ADR-054` (PROPUESTA) y pendiente solo de que el usuario ratifique ese ADR**. Lo que depende de la ratificación va marcado **[ADR-054 · pendiente de ratificación]**. Ubicación provisional, ver `OPEN-CORE-18` (abierta, no bloqueante). §0-§12 no se reabren.
 
 ---
 
@@ -934,3 +936,662 @@ El registro de §12.5 (y el punto de extensión de bloques del panel de §12.4) 
 ### 12.15 ¿Se aprueba esta especificación?
 
 **Sí, aprobada el 2026-09-23.** `OPEN-CORE-12` (opción A, paso `1.9b`), `OPEN-CORE-13` (opción A, diferir configuración), `OPEN-CORE-14` (opción B, `any-pointer: coarse`) y `OPEN-CORE-17` (solo iconos) resueltas por el usuario; `OPEN-CORE-16` resuelta por `ADR-053` (`architect`), ratificado por el usuario sin cambios. `OPEN-CORE-15` (issue #258) no bloquea: es trabajo de servidor fuera de 1.8. Lista para pasar a `implementer`.
+
+---
+
+## 13. Paso 1.9 · Tablas de datos
+
+| Campo | Valor |
+|-------|-------|
+| Paso | **1.9** (`PLAN-IMPLEMENTACION.md`, Bloque B): «TanStack Table con filtrado, ordenación, columnas configurables y exportación». La virtualización que enumeraba la redacción original del plan queda **fuera** por decisión del usuario (`OPEN-CORE-19`, 2026-09-30; `ADR-054 §3`); la línea del plan ya está actualizada |
+| ADR | **`ADR-054`** (`docs/adr/ADR-054-tablas-de-datos-y-exportacion-de-listados.md`), **PROPUESTA** (2026-09-30), pendiente de ratificación del usuario |
+| Requisitos de origen | **Ningún `REQ-*` propio.** Lo gobiernan requisitos transversales: `RUX-RESP-004` (tablas en móvil), `RUX-004`/`RNF-UX-002` (WCAG 2.2 AA), `RUX-006`/`RNF-UX-005` (estados), `RUX-RESP-006`/`-007`, `RNF-UX-007`, `INV-009` (i18n), `RNF-MANT-007` (dependencias tras interfaz propia), `RNF-COMP-004` (formatos de exportación), `RNF-LIM-004` (límites de exportación), `RPERM-003` (acción `exportar`), y las decisiones `ADR-023` (TanStack Table), `ADR-038 §4`/`§5`/`§13.3` (paginación, filtros, orden, encaje con TanStack) y `ADR-052` (*design system*) |
+| Requisitos de módulo que lo usan | `REQ-CORE-003`/`-004`/`-005` (pantallas de `1.9b`), `RPERM-005`/`-006`/`-009` (`1.5b`); primitiva de exportación de `REQ-CORE-005` (`data_exports`, `ExportRequestService`, §7) |
+| Depende de | 1.7 (`docs/design-system.md`, componente `table`, tokens, `RN-DS-*`), 1.8 (componentes de estado y correspondencia de errores de §12.6, *breakpoints* `RN-CORE-29`, objetivos táctiles `OPEN-CORE-14`), 1.1 (`GET /data-exports/{id}`, `POST /audit-logs/exports`). **Todas implementadas.** Ninguna dependencia no implementada para lo que este paso especifica. **Dependencia operativa no resuelta**: ninguna exportación asíncrona termina en un entorno real mientras no exista un *worker* de colas desplegado (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128), Alta) — ver §13.14.6 y riesgos |
+| Código afectado | **Solo `apps/web`** (§13.1.3 justifica por qué la regla común de CSV no se implementa aquí). Ni un *endpoint*, ni un permiso, ni una migración (`api.md §13`, `permisos.md §11`, `datos.md` Parte C, `operacion.md §12`) |
+| Estado | **APROBADA** (2026-09-30, decisión del usuario), **ajustada a `ADR-054` (estado PROPUESTA, 2026-09-30)**. `OPEN-CORE-19` a `OPEN-CORE-29` resueltas por el usuario (§13.21) y registradas en el ADR; `OPEN-CORE-18` (ubicación) sigue abierta y no bloqueante; `OPEN-054-01` (idioma del CSV) abierta, bloquea `1.9b` y no `1.9`. **Las precisiones y correcciones que `ADR-054` añade** (§2.3, §5.3, §6.2, §8.1-§8.3, §9, §10.1, §10.2 del ADR) están incorporadas aquí marcadas **[ADR-054 · pendiente de ratificación]**: no se aplican sin ratificación expresa del usuario (lección de `ADR-050`/`ADR-051`/`ADR-053`). `implementer` arranca cuando el usuario ratifique el ADR (§13.23) |
+
+> **Convención de esta sección.** La marca **[ADR-054 · pendiente de ratificación]** señala texto que procede de una precisión o corrección de `architect` en `ADR-054`, no de una decisión del usuario. Si el usuario no ratifica el ADR, o lo ratifica con cambios, esos puntos vuelven a quedar abiertos y se reescriben antes de pasar a `implementer`.
+
+### 13.0 Ubicación de esta especificación
+
+`REQ-CORE/funcional.md §12.0` justificó meter 1.8 aquí con tres motivos. **1.9 solo cumple dos de ellos, y hay que decirlo**:
+
+1. **Requisito de módulo propio: no lo tiene.** 1.9 se parece más a 1.7 que a 1.8: es infraestructura de presentación transversal, sin `REQ-*` que la gobierne. Por el criterio de `ADR-052 §6`, lo coherente sería un documento transversal (`docs/tablas-de-datos.md`, o una ampliación de `docs/design-system.md`), igual que `docs/design-system.md` y `docs/i18n.md`.
+2. **Consumidores en esta misma carpeta: sí.** Los primeros consumidores reales son las pantallas de `REQ-CORE` de `1.9b` (§12.1.3), y la exportación se apoya en una primitiva que ya es de `REQ-CORE` (`data_exports`, `ExportRequestService`, `RN-CORE-36`).
+3. **Volumen: sí.** Sin modelo de datos ni API nuevos, los otros cuatro documentos solo ganan una sección corta.
+
+Se redacta aquí de forma **provisional** por el precedente de 1.8 y porque el ámbito de escritura de quien especifica se limita a `docs/modulos/`. La ubicación definitiva la decide el usuario en `OPEN-CORE-18`. Si se muda a un documento transversal, el contenido no cambia; se renumeran los identificadores con prefijo propio (`RN-DT-*`/`CA-DT-*`) y aquí queda una referencia.
+
+### 13.1 Alcance
+
+#### 13.1.1 Entra en 1.9
+
+| # | Qué | Requisitos |
+|---|-----|------------|
+| 1 | **Componente de tabla de datos reutilizable** de nivel de aplicación sobre `components/ui/table` (shadcn-vue) y `@tanstack/vue-table`, con **`@tanstack/vue-table` envuelto**: un único punto de importación (§13.3) | `ADR-023`, `RNF-MANT-007` |
+| 2 | **Contrato de columnas propio** (§13.4), del que salen la tabla, la vista de tarjetas, el menú de columnas y la serialización de filtros y orden | `ADR-038 §13.3` |
+| 3 | **Dos modos de paginación** con criterio de `ADR-038 §4.2`: por página (paginador numerado) y por cursor («cargar más» como botón, **sin desplazamiento infinito**, sin total, con **tope de 1.000 filas acumuladas**, `RN-CORE-52`) (§13.5) | `ADR-038 §4.3`, `§4.4`, `§4.5`; `OPEN-CORE-19` |
+| 4 | **Ordenación** de una sola columna, en servidor (§13.6) | `ADR-038 §5.3` |
+| 5 | **Filtrado** en servidor con parámetros planos: texto libre `q`, enumerados múltiples por comas, rangos `_from`/`_to`, booleanos (§13.7) | `ADR-038 §5.2` |
+| 6 | **Columnas configurables**: **visibilidad más «restablecer»**, sin reordenar ni redimensionar (`OPEN-CORE-21`), con persistencia por navegador (§13.8) | Plan |
+| 7 | **Vista de tarjetas por debajo de 768 px**, con **desplazamiento horizontal interno como opción por tabla** (`OPEN-CORE-20`) (§13.9) | `RUX-RESP-004` |
+| 8 | **Estados** de carga, vacío (dos variantes) y error, reutilizando los componentes y la correspondencia de §12.6 (§13.10) | `RUX-006`, `RNF-UX-005`, `RNF-UX-007` |
+| 9 | **Accesibilidad** de tabla, tarjetas, controles y anuncios (§13.11) | `RUX-004`, `RNF-UX-002` |
+| 10 | **Disparador de exportación asíncrona en servidor** y seguimiento de su estado sobre `GET /data-exports/{id}` (§13.14). Sin generación de ficheros en el cliente | `RPERM-003`, `REQ-CORE-005`, `INV-012` |
+| 11 | **Migración de `MfaComplianceArea.vue`**, la única tabla existente, al componente nuevo, con paridad estricta (`OPEN-CORE-28`, §13.15) | `RNF-MANT-007` |
+| 12 | **Tests de arquitectura**: frontera del componente, importación única de TanStack y **toda tabla por el componente** (`RN-CORE-53`, `OPEN-CORE-29`) (§13.3) | `ADR-052 §3.3` (precedente) |
+| 13 | **Estado de la consulta en la URL** (página, `per_page`, orden, enumerados, booleanos y fechas), **nunca `q` ni `cursor`**; **opcional por tabla y como máximo una por ruta** [ADR-054 · pendiente de ratificación] (`RN-CORE-54`, `OPEN-CORE-22`) (§13.5) | `ADR-038 §6.5` (mismo motivo), `ADR-054 §6` |
+| 14 | **Valor vacío en celda** común, `dataTable.emptyValue` (`OPEN-CORE-27`) (§13.12) | `INV-009`, issue #90 |
+
+#### 13.1.2 No entra en 1.9
+
+| Fuera | Dónde va | Motivo |
+|-------|----------|--------|
+| Pantallas de usuarios, invitaciones, importación, roles, auditoría, configuración y activos | **`1.9b`** | `OPEN-CORE-12`. 1.9 entrega el componente, no pantallas de negocio |
+| Matriz de concesión de permisos (recurso × acción × ámbito) | **`1.5b`** | Rejilla de edición bidimensional, no un listado. Ver §13.15 |
+| **Virtualización** (y la dependencia `@tanstack/vue-virtual`) | **No se hace** (`OPEN-CORE-19`, opción A, decisión del usuario 2026-09-30) | §13.13: con los contratos de `ADR-038` el único caso real es el modo `cursor`, y lo resuelve el tope de `RN-CORE-52` sin coste de accesibilidad. Reversible dentro de `src/data-table` sin tocar consumidores (`RN-CORE-37`) |
+| **Nuevos *endpoints* de exportación** (`POST /users/exports` para `usuario.exportar`, etc.) | El paso que construya la pantalla que los necesite (candidato: `1.9b`) | Son `apps/api`. 1.9 solo entrega el disparador genérico en el cliente. `usuario.exportar` existe en el catálogo sin *endpoint* (`permisos.md §7`) |
+| **Clase compartida de escritura CSV y neutralización** (issue [#270](https://github.com/pirexia/plataforma-educativa/issues/270)) | Rama `fix/` propia tras la ratificación de `ADR-054` | §13.1.3 |
+| Exportación **XLSX** (`RNF-COMP-004`) | Sin paso | Exige una dependencia PHP nueva, con su justificación (`CLAUDE.md §1`). Ningún consumidor la pide todavía. Exportación PDF: 1.17 (`funcional.md §4.6`) |
+| Pantalla «Mis exportaciones» y `GET /data-exports` | Se reconsidera en `1.9b`, primer consumidor real (`OPEN-CORE-25`, opción A) | No existe *endpoint* de listado de `data_exports` (solo `GET /data-exports/{id}`). 1.9 avisa en su lugar (§13.14.4) |
+| Modo `local` (colecciones sin paginar, ordenación y filtrado en cliente) | El primer paso con un consumidor real (candidato **`1.5b`**), dentro de `src/data-table`, sin tocar `ADR-054` (`OPEN-CORE-26`, opción B; `ADR-054 §2.1`) | Sin consumidor en 1.9 ni en 1.9b. Es aditivo |
+| Desplazamiento infinito en modo `cursor` | **No se hace en ningún paso** [ADR-054 · pendiente de ratificación] | `ADR-054 §2.2` lo retira para todo el producto: deja inalcanzable con teclado lo que hay debajo de la lista y no ancla foco ni anuncios a una acción del usuario |
+| Selección de filas y acciones masivas | Sin paso | Ningún requisito ni consumidor de 1.9b/1.5b las pide. Añadirlas es aditivo |
+| Orden multicolumna, `OR` entre campos, filtros por columna con operadores | No se hace | `ADR-038 §5.2`/`§5.3`: «no» consciente |
+| Edición en línea de celdas | Sin paso | Ningún requisito |
+| Reordenar y redimensionar columnas | No se hace en 1.9 (`OPEN-CORE-21`, opción A) | Ningún consumidor conocido lo necesita. El formato versionado de `RN-CORE-43` permite añadir el orden después sin romper nada. Si llega, sin arrastre (WCAG 2.5.7) |
+
+#### 13.1.3 Por qué la regla común de CSV se decide en 1.9 pero no se implementa aquí
+
+El issue #270 pide extraer la neutralización de fórmulas a una utilidad compartida solo para cadenas, «decidir en el ADR de 1.9», y aplicarla también a `ValidateUserImport::writeReport`. `SECURITY.md` (fila «Exportaciones generadas (CSV)») promete fijarla «como norma común en el ADR de tablas de datos y exportación de listados del paso 1.9».
+
+- **La regla es transversal y la fija `ADR-054 §10`**: aquí se recoge como `RN-CORE-47` y `RN-CORE-48` (§13.14.3).
+- **Su implementación es código de `apps/api`**: extraer `neutralizeCsvCell` de `GenerateAuditLogExport`, reescribir los tests que hoy usan `ReflectionMethod` y neutralizar `report.csv`. Meterlo en 1.9 mezclaría en un paso de `apps/web` un cambio de servidor sin consumidor nuevo: 1.9 no añade ningún generador de CSV.
+- **Decidido** (`OPEN-CORE-24`, decisión del usuario 2026-09-30): #270 se resuelve en una rama `fix/REQ-CORE-005-...` propia, **después** de la ratificación de `ADR-054` y **antes** del primer paso que añada un segundo generador de CSV. Esa rama aplica también el dialecto común de §13.14.3. No forma parte de 1.9.
+
+### 13.2 Estado de partida verificado (2026-09-30, rama `feature/1.9-tablas-de-datos`)
+
+- `@tanstack/vue-table` `^8.21.3` ya es dependencia de `apps/web/package.json`. **`@tanstack/vue-virtual` no está instalada, y 1.9 no la instala** (`OPEN-CORE-19`).
+- `components/ui/table` contiene `Table`, `TableBody`, `TableCaption`, `TableCell`, `TableEmpty`, `TableFooter`, `TableHead`, `TableHeader`, `TableRow` (sin cambios de color ni de objetivo táctil en 1.7, `docs/design-system.md §12.1`/`§12.1b`).
+- **Única tabla existente**: `src/modules/auth/components/admin/MfaComplianceArea.vue`. Importa `@tanstack/vue-table` directamente, pagina por página contra `GET /mfa-compliance/users`, filtra por `state` con casillas `<input type="checkbox">` nativas, pinta `'—'` literal en celdas vacías (issue [#90](https://github.com/pirexia/plataforma-educativa/issues/90), sin convención decidida) y muestra filas antes de elegir rol (issue [#116](https://github.com/pirexia/plataforma-educativa/issues/116), Baja, no corregida a propósito). No tiene test automatizado (issue [#120](https://github.com/pirexia/plataforma-educativa/issues/120)).
+- **Exportación existente**: solo auditoría. `POST /audit-logs/exports` → `202` → `GET /data-exports/{id}` (estado `pendiente`/`generando`/`completada`/`fallida`, `download_url` firmada, `409` si aún no está lista, `410` si venció, solo el solicitante descarga). La generación la hace `GenerateAuditLogExport` en la cola `core-exports`, con `RN-CORE-36`. Su `neutralizeCsvCell` es privado, acepta `int|float` (`-5` pasa a `'-5`) y no cubre espacios iniciales (#270).
+- **Listados sin paginar que la SPA consumirá**: `GET /permissions` (deliberado, `REQ-PERM/api.md §2.1`: unos cientos de filas como máximo, la matriz lo necesita entero).
+- **Limitación de esta verificación**: la sesión de especificación no tenía herramienta de búsqueda en el árbol. No se ha comprobado si hay otros usos de `components/ui/table` en `src/`, dónde viven exactamente los componentes de estado de §12.6 ni si `src/api/client.ts` tiene ya el ayudante de construcción de *query* con listas por comas que exige `ADR-038 §13.2`. El test de arquitectura de `RN-CORE-53` (`CA-CORE-200`) es el inventario de lo primero. Lo demás lo comprueba el implementador antes de escribir y lo reporta si no coincide.
+
+### 13.3 Arquitectura del componente
+
+**Dónde vive**: `apps/web/src/data-table/`, de nivel de aplicación, como `src/tenant/` (1.7) y `src/navigation/` (1.8).
+
+- **No va en `components/ui`**: el componente tiene textos propios traducidos (paginador, menú de columnas, estados, anuncios), y `RN-DS-24`/`RN-DS-20` prohíben literales e importar `vue-i18n`/`@/i18n` dentro de la frontera del *design system*. Es el mismo motivo por el que los componentes de estado de §12.6 viven fuera de ella.
+- **No va en `src/modules/core`**: lo consumen todos los módulos, y ponerlo en la superficie pública de `core` haría que `auth`, `perm` y los 50 restantes dependieran de `core` para pintar una tabla (`INV-007`).
+
+**Reglas de frontera** (tests de arquitectura en Vitest, mismo patrón que `docs/design-system.md §10`, con casos fijos que demuestran que el test sabe fallar, §10.6):
+
+- **`RN-CORE-37`** · **Importación única de TanStack.** Solo los ficheros de `src/data-table/**` importan `@tanstack/vue-table` (estático, dinámico o de tipos; `ADR-054 §1.2`). Ningún módulo ve tipos ni funciones de TanStack: declara columnas y fuente de datos con los tipos propios de §13.4/§13.5. Motivo: `RNF-MANT-007` y el precedente de `RN-DS-13`/`RN-DS-21` (`useColorMode` envuelto). La versión 8 → 9 de TanStack cambiará su API, y con 53 módulos la diferencia entre tocar un directorio o tocar cincuenta la decide esta regla desde el primer consumidor.
+- **`RN-CORE-38`** · `src/data-table/**` no importa nada de `src/modules/**` (`INV-007`) y solo usa del resto `@/components/ui/**`, `@/design-system/**`, `@/i18n`, `@/lib/utils`, `@/api` (tipos de error y ayudante de *query*), los componentes de estado de §12.6 y `vue-router` (solo para el estado en la URL de `RN-CORE-54`, `OPEN-CORE-22`, `ADR-054 §1.3`). **Construir URLs de *endpoints* no es cosa suya**: la petición la aporta el módulo consumidor (§13.5).
+- **`RN-CORE-53`** · **Toda tabla pasa por el componente** (`OPEN-CORE-29`, opción A). Ningún fichero fuera de `src/data-table/**` importa `@/components/ui/table`, salvo las **excepciones nominales** escritas en una lista cerrada dentro del propio test (mismo criterio que `docs/design-system.md §10`). En 1.9 la lista nace **vacía**: `MfaComplianceArea.vue` se migra (§13.15) y la matriz de concesión de `1.5b` se añadirá en ese paso, con su justificación. Si el inventario del test encuentra otro uso hoy existente de `@/components/ui/table`, el implementador **lo reporta antes de añadirlo a la lista** — no decide por su cuenta si se migra o se exceptúa (§13.2, limitación de la verificación).
+
+**Componentes que harán falta y cómo se añaden**: el menú de columnas y los filtros de enumerado necesitan casillas en menú (`dropdown-menu` ya vendorizado en 1.8 tiene elemento de casilla), y probablemente `checkbox` y `popover`. Se vendorizan por `docs/design-system.md §12.2`, sobre Reka UI ya instalada: **sin dependencia npm nueva**. Cada uno se somete a los tests de `§10`, y su texto propio pasa a *prop* (`RN-DS-24`).
+
+### 13.4 Contrato de columnas
+
+Cada columna la declara el módulo consumidor con estos campos (tipo propio de `src/data-table`, no de TanStack):
+
+| Campo | Significado | Regla |
+|-------|-------------|-------|
+| `id` | Identificador estable de la columna | **Igual al nombre del parámetro de consulta** con el que se filtra u ordena (`ADR-038 §13.3`), para serializar sin tabla de correspondencias. Si la columna no filtra ni ordena, cualquier `snake_case` único |
+| `headerKey` | Clave de traducción de la cabecera | `INV-009`. Nunca texto |
+| celda | Cómo se pinta el valor | *Slot* o función del consumidor. Por defecto, el valor como texto |
+| `sortable` | Si se puede ordenar por ella | Solo si `id` está en el `enum` de `sort` del *endpoint* en OpenAPI (`ADR-038 §5.3`). El cliente no puede hacer ordenable lo que el servidor no ordena |
+| `rowHeader` | Si identifica la fila | **Exactamente una columna por tabla** (se pinta como `th scope="row"`, `RN-CORE-44`) |
+| `hideable` | Si el usuario puede ocultarla | Por defecto `true`. `false` obligatorio para la columna `rowHeader` y la de acciones |
+| `defaultHidden` | Oculta por defecto | Por defecto `false` |
+| `card` | Papel en la vista de tarjetas | `title` (una sola, suele coincidir con `rowHeader`), `subtitle`, `field`, `actions` u `omit`. Obligatorio en tablas con vista de tarjetas; no aplica a las declaradas con desplazamiento interno (§13.9, `RN-CORE-55`) |
+| `align` | Alineación | `start` por defecto; `end` para cifras |
+
+**Identidad de fila**: por `public_id` (`ADR-029`) salvo que el consumidor declare otra clave, como `code` en `GET /permissions` (`ADR-051`). Nunca por índice de posición, que cambia al paginar u ordenar y rompe el foco y las claves de Vue.
+
+### 13.5 Fuentes de datos y paginación
+
+El componente **no hace peticiones por su cuenta**: recibe del consumidor una función que, dada la consulta (página o cursor, orden y filtros), devuelve la respuesta de su *endpoint* con la forma de `ADR-038 §3.1` (`data` + `meta`). La función la escribe el módulo en su `api/`, con el ayudante de *query* de `ADR-038 §13.2`, que serializa las listas por comas en un único sitio.
+
+**Dos modos en 1.9**, y solo dos: el modo `local` **no existe en 1.9** (`OPEN-CORE-26`, opción B; `ADR-054 §2.1`). Los fija el consumidor según el `datos.md` del recurso (criterio objetivo de `ADR-038 §4.2`, no a gusto):
+
+| Modo | Cuándo | Paginación | Ordenación y filtrado |
+|------|--------|------------|-----------------------|
+| **`page`** | Catálogo de entidades (`ADR-038 §4.3`) | Paginador numerado: primera, anterior, siguiente, última; «página X de Y»; total de resultados. `per_page` elegible entre **25 (defecto), 50 y 100**. No se ofrece nada por encima de 100: el servidor responde `422` y no recorta (`ADR-038 §4.3`) | Servidor (`manualPagination`, `manualSorting`, `manualFiltering`, `enableMultiSort: false`, `ADR-038 §13.3`) |
+| **`cursor`** | Flujo de eventos (`ADR-038 §4.4`) | **«Cargar más»** (un botón), que añade filas al final con `cursor=<next_cursor>&limit`. Sin total, sin números de página, sin «última» (`ADR-038 §4.5`), sin alimentar el modelo de paginación de TanStack (`pageCount: -1`). **Sin desplazamiento infinito** [ADR-054 · pendiente de ratificación]. Tope de filas acumuladas: `RN-CORE-52` | Servidor. Cambiar orden o filtros reinicia la lista **sin cursor**: un cursor emitido con otros filtros es `422` (`ADR-038 §4.4` regla 2) |
+
+- **`RN-CORE-56`** · **Reglas del modo `cursor`** (`ADR-054 §2.2`/`§2.3`) [ADR-054 · pendiente de ratificación]:
+  1. **Sin desplazamiento infinito**, en ningún paso del producto. `ADR-038 §4.5` lo admitía como alternativa; `ADR-054 §2.2` lo retira: deja inalcanzable con teclado todo lo que hay debajo de la lista, obliga a gestionar anuncios y foco sin una acción explícita del usuario y es incompatible con el tope de `RN-CORE-52`. La única forma de pedir más filas es activar «Cargar más».
+  2. **Fallo de «cargar más»**: si la petición de una carga adicional falla, **se conservan todas las filas ya cargadas**, se muestra el error junto al control (correspondencia de §12.6) y «Reintentar» repite la petición **con el mismo `cursor`**. No reinicia la lista ni pide desde el principio.
+  3. Cambiar orden o filtros reinicia la lista **sin `cursor`** (tabla de arriba).
+  4. El `cursor` **nunca** va a la URL (`RN-CORE-54`).
+
+- **`RN-CORE-52`** · **Tope de filas acumuladas en modo `cursor`** (`OPEN-CORE-19`, opción A): **1.000 filas**, constante exportada de `src/data-table` (20 cargas del `limit` por defecto de `ADR-038 §4.4`). Cuando las filas acumuladas **alcanzan o superan** el tope, «Cargar más» se sustituye por un aviso traducido («Has cargado el máximo de 1.000 filas; acota los filtros o exporta»), con la acción de exportar si la tabla la ofrece (§13.14), y no sale ninguna petición más de paginación. Las filas ya recibidas se muestran enteras (no se recorta la última carga). Cambiar orden o filtros reinicia la cuenta. Es una cifra de diseño sin medición detrás: se revisa con volumen real (`REQ-SEED`, 1.15b).
+- **`RN-CORE-54`** · **Estado de la consulta en la URL, sin `q` ni `cursor`** (`OPEN-CORE-22`, opción A; `ADR-054 §6`). En una tabla que lo declara, página, `per_page`, orden, enumerados, booleanos y rangos de fechas se reflejan en la *query* de la ruta y se restauran al recargar, al volver atrás y al abrir un enlace compartido. **El texto de búsqueda `q` nunca va en la URL ni en `history.state`**: la *query* queda en el historial del navegador y, en una recarga completa, en los registros de acceso del servidor (mismo motivo que `ADR-038 §6.5`). Los identificadores que aparezcan en un enumerado (`role`, `actor_id`) son ULID seudónimos (`ADR-029`) y se aceptan. Un valor restaurado desde la URL que el servidor rechace (`422`) sigue `RN-CORE-42`, y «Limpiar filtros» lo resuelve. Precisiones de `ADR-054 §6.2` [ADR-054 · pendiente de ratificación]:
+  1. **Opcional por tabla** (*opt-in*): el reflejo en la URL lo declara el consumidor; por defecto, la tabla guarda su consulta solo en memoria.
+  2. **Como máximo una tabla por ruta** lo declara: dos tablas sincronizando con la misma *query* se pisarían los parámetros. La tabla principal de la vista lo declara; las demás quedan en memoria.
+  3. **El `cursor` nunca va a la URL**: es opaco, está ligado a los filtros que lo emitieron, y restaurarlo no aporta nada. Tras una recarga, la lista en modo `cursor` se reinicia desde el principio.
+
+`ADR-038 §4.5` dice que el modo cursor es «un componente distinto». Aquí se lee como **un contenedor de paginación distinto sobre el mismo contrato de columnas y el mismo pintado**, no como una segunda implementación de tabla. Cumple el motivo del ADR (un cursor no puede tener paginador numerado) sin duplicar accesibilidad, tarjetas ni estados. **`ADR-054 §2.2` confirma que esta lectura es compatible** con `ADR-038 §4.5` y `§13.3`, con la precisión de `RN-CORE-56` (sin desplazamiento infinito).
+
+### 13.6 Ordenación
+
+- **`RN-CORE-39`** · Una sola columna ordenada a la vez (`ADR-038 §5.3`). Activar la ordenación de una columna recorre **ascendente → descendente → sin orden explícito**. «Sin orden» significa **no enviar `sort`**: el servidor aplica su orden por defecto, que es explícito y determinista por contrato (`ADR-038 §5.3`, último punto). Se serializa como `sort=<id>` o `sort=-<id>`.
+- Cambiar el orden vuelve a la página 1 (modo `page`) o reinicia la lista (modo `cursor`).
+- Un `422` por `sort` fuera de la lista blanca es un error de programación del consumidor (`sortable` sin respaldo en OpenAPI). Se pinta como error y lo detecta el test del consumidor, no se oculta.
+
+### 13.7 Filtrado
+
+Los filtros van en una **barra de herramientas encima de la tabla**, no dentro de las cabeceras: en móvil no hay cabeceras (§13.9) y un campo dentro de un `th` complica la navegación con lector de pantalla. Tipos admitidos, cerrados:
+
+| Tipo | Control | Serialización (`ADR-038 §5.2`) |
+|------|---------|-------------------------------|
+| Texto libre | Un único campo de búsqueda | `q=<texto>`. Nunca otro nombre |
+| Enumerado múltiple | Grupo de casillas en menú | `<id>=a,b` (coma = `OR`). Etiquetas traducidas por el consumidor, con **rama por defecto que muestra el código en crudo** si llega un valor desconocido (`ADR-038 §7.3`) |
+| Rango de fechas | Dos campos de fecha (`input type="date"` del *design system*, sin componente de calendario nuevo) | `<id>_from`, `<id>_to`, ambos inclusivos. Fecha sin hora como `AAAA-MM-DD`; si el parámetro es de tipo `TIMESTAMPTZ`, el consumidor convierte el día local del centro a instante UTC en su función de petición |
+| Booleano | Selector de tres estados (todos, sí, no) | `<id>=true`/`false`; «todos» no envía el parámetro |
+
+- **`RN-CORE-40`** · **Búsqueda con espera.** Una sola petición cuando el usuario deja de escribir durante `SEARCH_DEBOUNCE_MS` = **300 ms**, constante exportada. Es una propuesta de diseño, no un requisito: es el orden de magnitud habitual entre «responde al teclear» y «no lanza una petición por pulsación», y se revisa si la medición con volumen (`REQ-SEED`, 1.15b) dice otra cosa.
+- **`RN-CORE-41`** · **Solo gana la última respuesta.** Si llegan respuestas fuera de orden (filtro A lanzado, filtro B lanzado, A responde después que B), solo se aplica la de la última petición emitida. Si el cliente HTTP admite cancelación, la petición superada se cancela; si no, su respuesta se descarta.
+- Cambiar un filtro vuelve a la página 1 o reinicia el cursor.
+- **Acción «Limpiar filtros»**, visible cuando hay alguno activo.
+- **`RN-CORE-42`** · **`422` de un filtro** (valor inválido, rango excesivo): se muestra el `message` ya traducido del servidor (`ADR-038 §6.3`) junto a la barra, con `role="alert"`, y **se conservan las filas anteriores sin presentarlas como filtradas**: el texto del estado deja claro que el filtro no se aplicó. No se pasa al estado de error de pantalla completa, porque la tabla sigue sirviendo. Motivo: `ADR-038 §5.2` («devolver datos que el usuario cree filtrados y no lo están es un incidente de privacidad»).
+- La validación de filtros en cliente (fecha «desde» posterior a «hasta») es solo comodidad (`INV-010`): el servidor decide.
+
+### 13.8 Columnas configurables
+
+**Alcance** (qué se configura), `OPEN-CORE-21` resuelta (opción A, decisión del usuario 2026-09-30): **visibilidad de columnas más «Restablecer columnas»**. Sin reordenar ni redimensionar en 1.9.
+
+**Persistencia**, justificada aquí y **confirmada por `ADR-054 §5.2`**:
+
+- **`RN-CORE-43`** · La configuración de columnas se guarda en **`localStorage`** del navegador, clave `plataforma.table.<tableId>`. **`tableId` es un literal** con forma `<modulo>.<nombre>` (p. ej. `auth.mfa_compliance`), declarado por el consumidor y único en toda la SPA. La unicidad y la forma las comprueba un test que **recorre las fuentes** de `src/modules/**` (misma técnica de escaneo que `docs/design-system.md §10`); un `tableId` calculado, no literal, hace fallar el test. No existe ningún «registro de tablas» de la SPA, ni se crea para esto (`ADR-054 §5.3`) [ADR-054 · pendiente de ratificación]. El valor tiene la forma exacta `{"v":1,"hidden":["<id>",…]}`; nada más (un orden de columnas futuro iría en una versión `v` nueva). Solo `id` de columna: **nunca un dato de fila, un filtro, un texto de búsqueda ni nada del usuario**. Un valor que no se pueda leer, con `v` distinto de 1 o con `id` que ya no existen, se descarta (los `id` desconocidos se ignoran y se aplica el resto). Todo acceso va en `try/catch`: navegación privada o almacenamiento bloqueado ⇒ se sigue con la configuración por defecto.
+
+  **Por qué `localStorage` y no servidor ni memoria**:
+  - **No es estado que deba ser fiable.** Perderlo cuesta volver a ocultar una columna: una molestia, no una pérdida de datos ni un fallo de seguridad. Es la misma naturaleza que la preferencia de modo de color, que `ADR-052 P2` ya decidió dejar solo en local (`RN-DS-12`).
+  - **En servidor** haría falta una tabla de preferencias por usuario, un *endpoint*, un permiso de autoservicio y una migración en `apps/api`, y **ningún requisito pide** que la configuración de columnas siga al usuario entre dispositivos. Sería el esquema que `ADR-034` `OPEN-13` prohíbe adelantar «por si acaso». Si un centro lo pide, es aditivo: un *endpoint* nuevo que siembra la clave local.
+  - **Solo en memoria** haría que la configuración se perdiera en cada recarga y convertiría la funcionalidad en inútil en la práctica.
+
+  **Consecuencias aceptadas**: la configuración es por navegador y por origen, y el origen es el centro (resolución por *host*), así que no se mezcla entre centros. **Dos usuarios que comparten navegador comparten configuración de columnas**, y la clave **no se borra al cerrar sesión**. Se acepta porque la clave no contiene nada de ninguno de los dos (`ADR-054 §5.2`). Hay que añadir la clave al inventario de `PRIVACY.md §2.1b` (lo confirma `doc-reviewer`).
+- Ocultar una columna **no cambia la petición**: el *endpoint* devuelve los mismos campos. Es presentación, no minimización de datos, y no se presenta como tal.
+- Mientras no se ha leído la configuración (antes del primer pintado) se usa la configuración por defecto: sin destello de columnas.
+
+### 13.9 Vista en móvil (`RUX-RESP-004`)
+
+`RUX-RESP-004` admite **scroll horizontal o vista de tarjetas**. `OPEN-CORE-20` resuelta (opción A, decisión del usuario 2026-09-30): **tarjetas por defecto por debajo de 768 px, con desplazamiento horizontal interno como opción por tabla**.
+
+- **`RN-CORE-55`** · Toda tabla usa la vista de tarjetas por debajo de 768 px **salvo** que el consumidor la declare explícitamente con desplazamiento interno (opción a nivel de tabla, que declara el consumidor; el valor por defecto es tarjetas).
+- Por debajo de **768 px** (`--breakpoint-md`, `RN-CORE-29`), la tabla se sustituye por una **lista de tarjetas** construida con el mismo contrato de columnas (§13.4, campo `card`). En el DOM solo hay una de las dos representaciones a la vez: pintar ambas y ocultar una con CSS duplicaría el trabajo y, si algún día fallara la ocultación, duplicaría también el contenido leído por el lector de pantalla.
+- **Tarjeta**: elemento de una lista (`ul`/`li`). El valor de la columna `title` va como encabezado de la tarjeta, cuyo nivel lo fija el consumidor según la jerarquía de su vista. `subtitle` va debajo. Los `field` se pintan como lista de descripción (`dl`, con la etiqueta traducida de la cabecera como `dt`), y `actions` al pie.
+- La ordenación en tarjetas se hace con un **selector** de la barra de herramientas (columna y sentido), porque no hay cabeceras que pulsar.
+- Paginación, «cargar más», filtros, menú de columnas y exportación: los mismos controles, reordenados en vertical.
+- **Tabla que no puede ser tarjeta**: el consumidor la declara con desplazamiento horizontal **dentro de su contenedor** (`RN-CORE-55`). **Criterio** (`ADR-054 §4`): el propósito de la tabla es comparar valores de una misma columna entre filas (calificaciones, importes, series), de modo que partirla en tarjetas destruye la comparación. La especificación del paso que declara la excepción lo justifica en una línea; «las tarjetas cuestan más» no es criterio. En ese caso se pinta la `table` a cualquier anchura y no hay lista de tarjetas. Criterio de conformidad: la página nunca se desplaza en horizontal (`CA-CORE-080`), y el contenedor con desplazamiento es enfocable, tiene nombre accesible y se puede desplazar con el teclado. WCAG 1.4.10 exceptúa las tablas de datos del *reflow*, pero no del acceso por teclado.
+
+### 13.10 Estados (`RUX-006`, `RNF-UX-005`)
+
+Se reutilizan los tres componentes de §12.6 y su función de correspondencia de errores. **No se crea un tercer juego.**
+
+| Situación | Qué se pinta |
+|-----------|--------------|
+| Primera carga | Estado de **carga** de §12.6 (`role="status"`, esqueleto con tokens) en el sitio de la tabla. La barra de herramientas ya es visible y utilizable |
+| Recarga (página, orden, filtro) | **Se conservan las filas actuales**, la región pasa a `aria-busy="true"` y aparece un indicador discreto, sin vaciar la tabla ni desplazar el diseño |
+| Sin datos y sin filtros activos | Estado **vacío** con texto del consumidor («Aún no hay invitaciones») y acción opcional |
+| Sin datos con filtros activos | Estado **vacío** propio de la tabla («Ningún resultado con estos filtros») con la acción **Limpiar filtros**. Son dos mensajes distintos porque el usuario hace cosas distintas en cada caso |
+| Error de carga | Estado de **error** de §12.6: correspondencia única de §12.6 (sin conexión, `403`, `403 module-disabled` con recarga de `/me`, `404`, `429` con `Retry-After`, `5xx` con `request_id`), con **Reintentar** que repite la última consulta |
+| `422` de filtro | `RN-CORE-42`, no el estado de error |
+| Error en «Cargar más» (modo `cursor`) | `RN-CORE-56`: se conservan las filas, error junto al control, «Reintentar» con el mismo `cursor`; no el estado de error de pantalla completa |
+| Página fuera de rango | `RN-CORE-45` |
+
+### 13.11 Accesibilidad (`RUX-004`, `RNF-UX-002`, WCAG 2.2 AA)
+
+- **`RN-CORE-44`** · **Semántica de tabla nativa**: `table` con `caption` (visible u oculta visualmente, con el nombre de la tabla que da el consumidor, traducido), cabeceras `th scope="col"` y la columna `rowHeader` como `th scope="row"`. **No se usa `role="grid"`**: una tabla de datos con controles no es una rejilla de navegación por celdas, y el patrón *grid* obliga a una navegación con flechas que el usuario de lector de pantalla no espera en un listado.
+- **Ordenación accesible**: la cabecera ordenable contiene un `button`. `aria-sort` (`ascending`/`descending`) va **solo** en el `th` de la columna ordenada. El nombre accesible del botón dice la columna y la acción que hará, traducido («Nombre, ordenar de forma descendente»). Los iconos de sentido son decorativos (`aria-hidden`).
+- **Anuncios**: una región `aria-live="polite"` anuncia, **una vez por carga completada**, el resultado («137 resultados», «Sin resultados», «50 filas más cargadas»), con plural correcto en los cuatro idiomas. Nunca un anuncio por pulsación de tecla (la espera de `RN-CORE-40` lo evita).
+- **Foco**: al cambiar de página con el paginador, el foco se queda en el control pulsado (no salta), y el anuncio informa del cambio. Si el control queda deshabilitado (se llegó a la última página), el foco pasa al siguiente control habilitado del paginador y nunca se pierde en `body`. Al «cargar más», el foco se queda en el botón y la primera fila nueva es alcanzable con `Tab` en el orden natural. Al limpiar filtros, el foco pasa al campo de búsqueda.
+- **Acciones por fila**: todo control de fila tiene un nombre accesible que **incluye la identidad de la fila** («Restablecer MFA de Ana López»), no solo el verbo repetido N veces (WCAG 2.4.6). El consumidor lo compone con la clave de traducción e interpolación.
+- **Objetivos táctiles**: controles de la tabla y de las tarjetas ≥ 44 px en puntero grueso, heredado de los componentes base (`OPEN-CORE-14`, `docs/design-system.md §12.1b`). Los que no son componente base (botón de ordenación en la cabecera, elementos del menú de columnas) añaden `min-h-11` por instancia en `any-pointer: coarse`. Mínimo absoluto de WCAG 2.5.8 (24 px) en cualquier puntero.
+- **Sin arrastre**: nada del componente exige arrastrar (WCAG 2.5.7). 1.9 no reordena columnas (`OPEN-CORE-21`).
+- **Contraste y color**: solo tokens semánticos (`RN-DS-16`/`RN-DS-19`). Estado ordenado, fila con foco y fila en recarga no se distinguen solo por color (WCAG 1.4.1).
+- **Texto largo**: se ajusta en varias líneas por defecto. Si un consumidor trunca, el texto completo es accesible (nombre accesible o `title`), como en §12.9.
+- **Tipografía** en `rem`, sin `text-[NNpx]` (`RN-CORE-31`; `CA-CORE-083` amplía su alcance a `src/data-table/**`).
+
+### 13.12 Traducción y formato (`INV-009`)
+
+- Todo texto propio del componente va en un espacio de nombres de aplicación `dataTable.*` (mismo criterio que `shell.*` de 1.8), en `es`, `en`, `de` y `fr`, y pasa `npm run lint:i18n`. Se accede con `useT` de `@/i18n`, nunca importando `vue-i18n` directamente (`docs/i18n.md`, issue [#259](https://github.com/pirexia/plataforma-educativa/issues/259)).
+- Recuentos con pluralización de `vue-i18n`. Cifras y fechas con `Intl.NumberFormat`/`Intl.DateTimeFormat` del idioma activo. El componente ofrece formateadores al consumidor para que ninguna vista cree el suyo, como hace hoy `MfaComplianceArea`.
+- **Valor vacío en celda** (`OPEN-CORE-27`, opción A, decisión del usuario 2026-09-30): una celda o un campo de tarjeta sin valor muestra la marca visual «—» **oculta al lector de pantalla** (`aria-hidden`) junto a un texto solo para lector de pantalla («Sin valor» y sus traducciones) con la clave común `dataTable.emptyValue`; la propia marca también sale de una clave del espacio `dataTable.*` (el nombre exacto lo elige el implementador). Ni el componente ni ninguna vista escriben `'—'` como literal (`INV-009`). Resuelve el issue #90 **para las tablas** y propone la convención para el resto de vistas (`SessionsView.vue` y análogas siguen con #90 abierto: no se tocan en 1.9).
+- Cambiar de idioma con la tabla montada (§12.3.6) retraduce cabeceras, controles y valores formateados **sin volver a pedir datos**: los enumerados se traducen en cliente y los datos no dependen del idioma. Si algún *endpoint* devolviera texto traducido por el servidor en las filas, lo declararía su consumidor y recargaría. En 1.9b no se prevé ninguno.
+
+### 13.13 Virtualización: evaluación y decisión (`OPEN-CORE-19`, resuelta)
+
+**Decisión del usuario (2026-09-30): opción A — no se virtualiza en 1.9**, no se instala `@tanstack/vue-virtual`, y el modo `cursor` lleva el tope de `RN-CORE-52`. Registrada en `ADR-054 §3`: el tope es la constante única `MAX_CURSOR_ROWS = 1000` de `src/data-table`, **no configurable por tabla**; si algún paso necesita virtualizar, lo decide un ADR nuevo con la diligencia de dependencia de `CLAUDE.md §1` (`ADR-054` no aprueba ninguna biblioteca). La línea de 1.9 en `PLAN-IMPLEMENTACION.md` ya no la enumera. Lo que sigue se conserva como justificación de la decisión.
+
+La redacción original del plan la enumeraba como entregable. **Ningún requisito la pide.** La pregunta es si hace falta con los contratos ya decididos:
+
+| Modo | Filas en el DOM como máximo | ¿Virtualización? |
+|------|-----------------------------|-------------------|
+| `page` | 100 (`ADR-038 §4.3`, máximo duro) × columnas visibles | **No.** Cien filas es un volumen trivial para cualquier navegador de `RNF-COMP-001`/`-002` |
+| `local` (no existe en 1.9, `OPEN-CORE-26`) | Unos cientos (`GET /permissions`) | **No** con los consumidores conocidos |
+| `cursor` | **Sin límite**: cada «cargar más» suma hasta 200 filas (`ADR-038 §4.4`) y la auditoría de un centro crece sin cota | **Es el único caso real**, y tiene dos soluciones |
+
+**Coste de virtualizar**, que no es solo una dependencia:
+
+- **Accesibilidad**: las filas fuera de pantalla no existen en el DOM. El lector de pantalla no puede recorrerlas, «buscar en la página» del navegador no las encuentra, y hay que mantener `aria-rowcount`/`aria-rowindex` correctos. Es trabajo específico y fácil de romper en un producto obligado a WCAG 2.2 AA y, para centros públicos, a la Ley 11/2023 (`RNF-UX-002`).
+- **Vista de tarjetas**: las tarjetas tienen altura variable, lo que complica la virtualización de verdad.
+- **Dependencia**: `@tanstack/vue-virtual` habría exigido la diligencia de `CLAUDE.md §1` (mantenimiento, licencia, ritmo de versiones), que no se llegó a hacer porque la opción elegida no la instala.
+
+**Solución adoptada, sin dependencia**: el **tope de filas acumuladas** en modo `cursor` (`RN-CORE-52`). Es honesto con la realidad de uso: nadie revisa a ojo diez mil entradas de auditoría, y para eso existe la exportación. Si algún día hiciera falta virtualizar, se añade dentro de `src/data-table` sin tocar a ningún consumidor (`RN-CORE-37`), con su propio ADR.
+
+### 13.14 Exportación de listados
+
+#### 13.14.1 Qué parte es del cliente y qué parte del servidor
+
+- **`RN-CORE-46`** · **La SPA nunca genera el fichero de una exportación** (ni CSV, ni XLSX, ni ningún otro formato, ni con las filas ya cargadas en pantalla). La exportación es siempre una **petición a un *endpoint* de exportación del módulo dueño del recurso**, que se ejecuta **en cola en servidor** y se descarga por URL firmada de caducidad corta.
+
+  **Motivo** (seguridad, no preferencia):
+  1. **`exportar` es una acción de permiso distinta de `leer`** (`RPERM-003`). Un botón que convierte en fichero lo que ya está en memoria dejaría exportar a quien solo puede leer, sin que el servidor intervenga (`INV-002`: la interfaz oculta, no protege).
+  2. **Toda exportación se audita** con lo que se exportó (`event = 'exported'` y `data_exports.filters`, `funcional.md §4.6` punto 4). Una exportación en cliente no deja rastro.
+  3. **El ámbito del permiso acota el artefacto dentro del propio trabajo** (`GenerateAuditLogExport`, `RN-PERM-15`), no solo el listado.
+  4. **Una página no es el listado**: exportar las 25 filas visibles se presenta como «exportar» y entrega una fracción del conjunto filtrado. `RNF-LIM-004` exige límites de filas y troceado en servidor.
+  5. `INV-012`: las exportaciones son tarea pesada.
+
+- **Parte del cliente (1.9)**: el botón de exportación en la barra de herramientas y el seguimiento del estado:
+  1. El consumidor declara si la tabla exporta (`canExport`, calculado con el permiso `<recurso>.exportar` de `/me.permissions`, nunca con el rol, `RN-CORE-23`) y aporta la función de solicitud de su módulo.
+  2. Al pulsar, la solicitud se envía con **los filtros estructurados del listado visible y nada más**: **sin `sort`**, sin `page`, `per_page` ni `cursor`, y **sin `q`** (`ADR-054 §7.3`). **Sin `sort`** porque el orden de las filas del fichero lo fija el esquema del servidor por recurso (§13.14.2, `ADR-054 §8.1`): enviarlo sería peor que no enviarlo, porque un parámetro desconocido se ignora (`ADR-038 §5.2`) y el usuario creería que el fichero sigue el orden de la pantalla [ADR-054 · pendiente de ratificación]. Un valor múltiple va como *array* JSON en el cuerpo; la traducción desde la forma por comas de la *query* la hace la función de solicitud del módulo (`ADR-054 §8.2`).
+     - **`RN-CORE-57`** · **Con una búsqueda `q` activa, el control de exportación está deshabilitado** y dice por qué con texto traducido («borra la búsqueda para exportar; los demás filtros sí se aplican»). No se exporta ignorando `q`: el usuario creería que el fichero está filtrado por su búsqueda (`ADR-054 §7.4`, consecuencia de `§9`) [ADR-054 · pendiente de ratificación].
+  3. `202` con `public_id` ⇒ el componente consulta `GET /data-exports/{public_id}` con espera creciente mientras la vista esté montada (`RN-CORE-49`), y muestra «Preparando exportación…» con `role="status"`.
+  4. `completada` ⇒ un **enlace de descarga** a `download_url`, con la caducidad visible. No se descarga el fichero a memoria con `fetch` ni se crea un `Blob`: el enlace navega a la URL firmada.
+  5. `fallida` ⇒ el mensaje traducido de `error_code` con `role="alert"`.
+  6. `410` ⇒ «La exportación ha caducado; vuelve a solicitarla».
+  7. `409` durante la consulta de estado ⇒ se trata como «aún no está lista» y se sigue esperando.
+  8. `422` en la solicitud (demasiadas filas, `RNF-LIM-004`) ⇒ `message` del servidor («acota el rango»).
+- **Parte del servidor**: cada módulo expone su `POST /<recurso>/exports` sobre la primitiva `ExportRequestService`/`data_exports` de §7. **1.9 no crea ninguno.** El único existente es el de auditoría. El de usuarios (`usuario.exportar`) no existe todavía (§13.1.2). La norma que obliga a todo *endpoint* de exportación nuevo o modificado (no a 1.9) está en `ADR-054 §8`-`§10` y se resume en §13.14.3 y en `api.md §13.4`: esquema fijo, **paridad exacta de filtros con su listado** (salvo paginación, `sort` y `q`), y **`q` rechazado con `422`** [ADR-054 · pendiente de ratificación].
+
+#### 13.14.2 Qué columnas contiene el fichero
+
+`OPEN-CORE-23` resuelta (opción A, decisión del usuario 2026-09-30): **esquema fijo por recurso, definido en servidor** y documentado en su OpenAPI, como hace hoy la auditoría, y no «las columnas visibles». El esquema fija las columnas, sus nombres, su orden **y el orden de las filas** (`ADR-054 §8.1`). La solicitud de exportación **no** envía la configuración de columnas del navegador **ni `sort`** [ADR-054 · pendiente de ratificación]. Idioma de la cabecera y de los valores enumerados del fichero: **abierto**, `OPEN-054-01` (§13.21). El fichero es un contrato estable para quien lo procesa después (una hoja de cálculo de secretaría, una importación en otro sistema). Que dependa de qué columnas ocultó cada usuario en su navegador lo hace irreproducible e inauditable (`data_exports.filters` no lo registraría).
+
+#### 13.14.3 Regla común de CSV (norma para todo generador, `ADR-054`)
+
+Aplica a `apps/api`. La fija `ADR-054 §9`-`§10` para cumplir lo que `SECURITY.md` y el issue #270 remiten a 1.9; aquí se recoge, y **se implementa fuera de 1.9** (§13.1.3):
+
+- **`RN-CORE-47`** · **Una sola vía de escritura CSV** (`ADR-054 §10.1`) [ADR-054 · pendiente de ratificación]. Todo generador de CSV del producto (exportaciones de listados, informes de errores de importación como `report.csv`, y los futuros) escribe con **una clase única** en `apps/api/app/Support/Csv/` (infraestructura compartida, como `App\Support\Audit`, para que cualquier módulo la use sin importar código interno de `Core`, `INV-007`; el nombre concreto lo elige quien la implemente). **Sin par interfaz + implementación**: `RNF-MANT-007` obliga a envolver **dependencias externas**, y `fputcsv` es PHP; no hay segunda implementación previsible y la propia clase ya es el punto único. **Test de arquitectura**, que entra con la clase: ninguna llamada a `fputcsv` ni a `SplFileObject::fputcsv` fuera de ella.
+- **`RN-CORE-48`** · **Celdas tipadas y neutralización solo sobre texto** (`ADR-054 §10.2`, amplía `RN-CORE-36`) [ADR-054 · pendiente de ratificación].
+  - **Cada generador declara el tipo de cada columna en su esquema** (§13.14.2), y la clase escribe según ese tipo. **La clase nunca deduce el tipo del contenido**: si lo dedujera, una cadena `"-5"` y un entero `-5` se tratarían igual según cómo llegaran. Tipos admitidos: texto, entero, fecha/instante y nulo. Los enteros (céntimos de `ADR-029` incluidos) se escriben sin apóstrofo (`-5` sigue siendo `-5`); los instantes, en ISO 8601 con desfase. Sin coma flotante: un decimal (una nota) lo formatea el generador como texto. Añadir un tipo decimal cuando haga falta es aditivo.
+  - **La neutralización recibe solo cadenas** y se aplica a toda celda de texto y a la cabecera. Se antepone un apóstrofo si se cumple cualquiera de estas dos condiciones: (1) el primer carácter es `=`, `+`, `-`, `@`, tabulador, retorno de carro o salto de línea (`RN-CORE-36`, vigente); (2) **el primer carácter que no es espacio en blanco** (espacios Unicode incluidos) es `=`, `+`, `-` o `@`. Expresión única: `/^(?:[=+\-@\t\r\n]|[\s\p{Z}]+[=+\-@])/u`.
+  - Sobre #270 (neutralizar todo valor que empiece por cualquier espacio en blanco): se adopta **la protección, no la regla**. La condición 2 cubre `" =1+1"` sin que `" Juan"` gane un apóstrofo inútil. Es defensa en profundidad, **no verificada** contra versiones concretas de Excel, LibreOffice o Sheets. Riesgo residual aceptado: signos de ancho completo (`＝`) y otras variantes Unicode.
+- **Dialecto CSV** (`OPEN-CORE-24`, opción A, decisión del usuario 2026-09-30; detalle en `ADR-054 §10.3`): **coma como separador, UTF-8 con BOM, fin de línea CRLF, comillas dobles de RFC 4180 (una comilla dentro del campo se duplica) y sin carácter de escape** (`escape: ''` en PHP), cabecera siempre presente y sin línea `sep=`. Hoy la auditoría se escribe con `fputcsv` por defecto (coma, sin BOM, `\n`, escape `\`); el cambio le llega en la rama `fix/` de #270 (§13.1.3), no en 1.9, va al `CHANGELOG.md`, y esa misma rama documenta en `docs/manual-usuario/admin.md` cómo abrir el fichero en Excel con configuración regional española (importación indicando el separador). No hay dato de uso real que respalde la elección (sin centro piloto, H0); si aparece, se revisa.
+- **Texto libre y `data_exports.filters`** (`ADR-054 §9`, sustituye la alternativa que aquí quedaba abierta) [ADR-054 · pendiente de ratificación]. `data_exports.filters` tiene política de auditoría `Full` (`datos.md` A.4): el `created` automático copia `filters` en `audit_logs.changes`, tabla inmutable con dos años de retención, y un `q` («López») rompería la garantía de `ADR-035 §1` (el tope de 256 caracteres de `ADR-035 §5` no lo atrapa). **Regla**: ningún texto libre introducido por un usuario llega a `audit_logs` a través de `data_exports`.
+  - **`RN-CORE-58`** · **Ningún *endpoint* de exportación acepta `q`** mientras un paso no justifique lo contrario con un caso real. Si el listado del recurso acepta `q`, su exportación responde **`422`** cuando lo recibe, con código de error propio del recurso. No se ignora: ignorarlo produciría un fichero «filtrado» que no lo está.
+  - Si un paso necesita exportar con búsqueda, la única vía admitida es la de `ADR-054 §9.2` (columna propia de `data_exports` fuera de `filters`, añadida por *expand*, y `DataExport` de `Full` a `Selective`). Descartadas: redactar `filters` entero, guardar un *hash* de `q` (prohibido por `ADR-035 §3`) y confiar en el tope de tamaño.
+  - Hoy no ocurre: la exportación de auditoría no acepta `q`. La regla existe para que el primer *endpoint* de exportación de usuarios (`1.9b`, cuyo listado sí acepta `q`) no la estrene.
+
+#### 13.14.4 Si el usuario sale de la vista
+
+El `public_id` de la exportación vive solo en la memoria de la vista. Si el usuario navega fuera antes de que termine, **el trabajo sigue en servidor y el fichero se genera**, pero **no hay forma de volver a él desde la interfaz**: no existe listado de `data_exports` (el índice «Mis exportaciones» de `datos.md` A.7 existe, el *endpoint* no). `OPEN-CORE-25` resuelta (opción A, decisión del usuario 2026-09-30; `ADR-054 §7.7`): mientras la exportación está `pendiente` o `generando`, la vista muestra **junto al estado de la exportación un aviso permanente** traducido («la exportación seguirá preparándose, pero si sales de esta vista no podrás descargarla desde aquí»), **sin bloquear la navegación**: **ningún diálogo de confirmación al salir y ningún manejador de `beforeunload`**. Un diálogo bloquearía lo que esta decisión dice no bloquear, y `beforeunload` ni siquiera se dispara en la navegación interna de la SPA. Se acepta la pérdida del enlace; «Mis exportaciones» (`GET /data-exports`) se reconsidera en `1.9b`.
+
+#### 13.14.5 Consulta del estado
+
+- **`RN-CORE-49`** · La consulta de `GET /data-exports/{id}` es **una sola en vuelo por exportación**, con espera creciente entre consultas y una duración máxima tras la cual se deja de consultar y se ofrece «Comprobar de nuevo», que reinicia el ciclo. Se detiene al desmontar la vista. `409` se trata como «aún no está lista»; `410`, como caducada. Sin consulta indefinida: con el *worker* ausente (#128), una exportación se quedaría en `pendiente` para siempre y la vista consultaría sin fin. **Valores fijados por `ADR-054 §7.5`** (los que proponía esta especificación): espera inicial de **2 s**, que se **duplica** en cada consulta hasta un máximo de **30 s**, y se deja de consultar a los **10 min** desde la solicitud. Se implementan como constantes exportadas de `src/data-table`, para que `CA-CORE-189`/`-191` no dependan de las cifras.
+
+#### 13.14.6 Dependencia operativa
+
+Sin *worker* de colas desplegado (issue #128, Alta), **ninguna exportación termina** fuera de un entorno donde alguien arranque `queue:work` a mano. 1.9 no lo arregla (es infraestructura, `ADR-028`/`ADR-037`), pero su interfaz tiene que comportarse bien en ese caso: `RN-CORE-49`. Un paso que cierre una pantalla con exportación sin #128 resuelto entrega una funcionalidad que, en producción, no funciona.
+
+### 13.15 Consumidores y migración
+
+| Consumidor | Paso | Modo | Qué usa del componente | Observaciones |
+|------------|------|------|------------------------|---------------|
+| Usuarios (`GET /users`: `status`, `role`, `q`) | 1.9b | `page` | Filtros enumerado + texto, orden, columnas, tarjetas, exportación | **Exportación sin *endpoint***: `POST /users/exports` no existe. Si 1.9b lo quiere, es trabajo de `apps/api` con `RN-CORE-47`/`48`, paridad de filtros con `GET /users` salvo `q` y `RN-CORE-58` (`q` ⇒ `422`); en la tabla, exportar queda deshabilitado con búsqueda activa (`RN-CORE-57`). Antes, el usuario decide `OPEN-054-01` (idioma del CSV) |
+| Invitaciones, importaciones | 1.9b | `page` | Filtros, orden, estados | — |
+| Roles (solo lectura en 1.1; CRUD desde 1.5) | 1.9b / 1.5b | `page` | Listado | — |
+| Auditoría (`GET /audit-logs`) | 1.9b | `cursor` | Filtros de rango, enumerados, «cargar más», tope (`RN-CORE-52`), **exportación ya existente** | Primer consumidor real de la exportación y del modo `cursor`. **Antes de conectarlo**, `1.9b` resuelve los dos hallazgos de §13.20 (puntos 5 y 6): nombres del rango `from`/`to` frente a `occurred_at_from`/`occurred_at_to`, y paridad de filtros de `POST /audit-logs/exports` con `GET /audit-logs` |
+| Permisos efectivos de un usuario (`GET /users/{id}/effective-permissions`) | 1.5b | `local` o `page` según su contrato | Listado con procedencia | El implementador de 1.5b comprueba la paginación en `REQ-PERM/api.md`. Si no está paginado, 1.5b, como primer consumidor real, añade el modo `local` dentro de `src/data-table` (`OPEN-CORE-26`, opción B; `ADR-054 §2.1`) |
+| **Matriz de concesión** (recurso × acción × ámbito) | 1.5b | — | **No es una tabla de datos** en el sentido de este paso: es una rejilla de edición con celdas que son controles | Se construye a medida en 1.5b sobre `components/ui/table`, declarada en ese paso como excepción nominal de `RN-CORE-53` |
+| `MfaComplianceArea.vue` | **1.9** | `page` | Filtro enumerado `state`, paginación, acción por fila | Se migra (`OPEN-CORE-28`, opción A, decisión del usuario 2026-09-30) |
+
+**Migración de `MfaComplianceArea.vue`** (`OPEN-CORE-28`, opción A):
+
+- **Paridad funcional estricta**: mismas peticiones (`GET /mfa-compliance/users` con `state` por comas y `page`), mismas columnas, la misma emisión de `reset-user`, el mismo tratamiento del `403` (`emit('forbidden')`) y el mismo `refresh()` expuesto. El aspecto cambia (barra de filtros en vez de casillas sueltas, paginador completo, tarjetas en móvil): es lo que se busca al unificar.
+- **No corrige #116**: #116 (filas antes de elegir rol) es Baja y no se resuelve sin que lo pida el usuario (`CLAUDE.md §5`). Si la migración obliga a tocar el comportamiento de #116, se para y se pregunta. **El `'—'` literal (#90) desaparece de esta tabla** por construcción, al usar el valor vacío común de §13.12 (`OPEN-CORE-27`); #90 sigue abierto para el resto de vistas.
+- **Estado en la URL** (`RN-CORE-54`): **la tabla migrada no lo declara**. Hoy `MfaComplianceArea.vue` no refleja nada en la URL (no importa `vue-router`; verificado sobre el fuente el 2026-09-30), y la paridad estricta (`OPEN-CORE-28`) impide añadírselo; al ser el reflejo opcional por tabla (`ADR-054 §6.2`), no hay conflicto. Tampoco usa `q` (su listado no tiene búsqueda). El primer consumidor real del estado en URL será una pantalla de `1.9b`; en 1.9, `CA-CORE-198` se prueba con la tabla de prueba [ADR-054 · pendiente de ratificación: si el ADR no se ratifica y el reflejo pasa a ser obligatorio, este punto se reabre y se pregunta].
+- **Cierra en parte #120**: la tabla migrada gana tests por construcción (`CA-CORE-187`). El resto de `/administracion/mfa` sigue sin test.
+
+### 13.16 Reglas de negocio
+
+| ID | Regla |
+|----|-------|
+| `RN-CORE-37` | Solo `src/data-table/**` importa `@tanstack/vue-table`, sea estática, dinámica o de tipos (§13.3, `ADR-054 §1.2`) |
+| `RN-CORE-38` | `src/data-table/**` no importa `src/modules/**` ni construye URLs de *endpoints* (§13.3) |
+| `RN-CORE-39` | Una sola columna ordenada; ciclo ascendente → descendente → sin `sort` (§13.6) |
+| `RN-CORE-40` | Búsqueda `q` con espera de 300 ms; una petición por pausa (§13.7) |
+| `RN-CORE-41` | Solo se aplica la respuesta de la última consulta emitida (§13.7) |
+| `RN-CORE-42` | `422` de filtro: mensaje del servidor junto a los filtros, sin presentar filas como filtradas (§13.7) |
+| `RN-CORE-43` | Configuración de columnas en `localStorage` `plataforma.table.<tableId>`, forma `{"v":1,…}` cerrada, solo `id` de columna, con `try/catch`; `tableId` literal `<modulo>.<nombre>`, único, comprobado por escaneo de fuentes [ADR-054 · pendiente de ratificación] (§13.8) |
+| `RN-CORE-44` | Tabla nativa con `caption`, `th scope="col"`, una columna `th scope="row"`, `aria-sort` solo en la ordenada, sin `role="grid"` (§13.11) |
+| `RN-CORE-45` | Modo `page`: si la respuesta trae `data: []` con `page > 1` y `total > 0` (se borraron filas mientras se paginaba), se pide `last_page` una sola vez, no en bucle |
+| `RN-CORE-46` | La SPA nunca genera ficheros de exportación; siempre *endpoint* del módulo, en cola, URL firmada (§13.14.1) |
+| `RN-CORE-47` | **(servidor, norma común)** Una sola clase de escritura CSV en `apps/api/app/Support/Csv/`, sin interfaz; ningún `fputcsv` fuera de ella [ADR-054 · pendiente de ratificación] (§13.14.3) |
+| `RN-CORE-48` | **(servidor, norma común)** Tipo de cada columna declarado por el generador, nunca deducido; neutralización solo sobre texto y cabecera, con la expresión de §13.14.3 (primer carácter `= + - @`, tabulador, CR o LF, o primer carácter no blanco `= + - @`) [ADR-054 · pendiente de ratificación] (§13.14.3) |
+| `RN-CORE-49` | Consulta del estado de una exportación: una en vuelo, 2 s duplicando hasta 30 s, parada a los 10 min con «Comprobar de nuevo», se detiene al desmontar (§13.14.5, `ADR-054 §7.5`) |
+| `RN-CORE-50` | Las filas de una tabla viven solo en la memoria del componente: **nunca** en `localStorage`, `sessionStorage`, IndexedDB ni en la URL. Al desmontar la vista o cerrar sesión se descartan |
+| `RN-CORE-51` | La visibilidad del botón de exportar se decide por `<recurso>.exportar` en `/me.permissions`, nunca por rol (`RN-CORE-23`); el servidor sigue decidiendo (`INV-002`) |
+| `RN-CORE-52` | Modo `cursor`: tope de 1.000 filas acumuladas; al alcanzarlo, aviso con acotar/exportar en lugar de «Cargar más» (§13.5, `OPEN-CORE-19`) |
+| `RN-CORE-53` | Fuera de `src/data-table/**`, nadie importa `@/components/ui/table` salvo excepciones nominales en lista cerrada, vacía en 1.9 (§13.3, `OPEN-CORE-29`) |
+| `RN-CORE-54` | Estado de la consulta en la URL (página, `per_page`, orden, enumerados, booleanos, fechas); `q` y el cursor nunca; opcional por tabla y como máximo una por ruta [ADR-054 · pendiente de ratificación] (§13.5, `OPEN-CORE-22`) |
+| `RN-CORE-55` | Tarjetas por debajo de 768 px por defecto; desplazamiento interno solo si el consumidor lo declara para esa tabla, con el criterio de comparación entre filas (§13.9, `OPEN-CORE-20`, `ADR-054 §4`) |
+| `RN-CORE-56` | Modo `cursor`: «Cargar más» como botón, sin desplazamiento infinito; un fallo de carga adicional conserva las filas y «Reintentar» repite con el mismo `cursor` [ADR-054 · pendiente de ratificación] (§13.5) |
+| `RN-CORE-57` | Con `q` activo, el control de exportación está deshabilitado y explica por qué; la solicitud nunca lleva `q` ni `sort` [ADR-054 · pendiente de ratificación] (§13.14.1) |
+| `RN-CORE-58` | **(servidor, norma común)** Ningún *endpoint* de exportación acepta `q`: `422` con código propio del recurso; ningún texto libre llega a `audit_logs` por `data_exports.filters` [ADR-054 · pendiente de ratificación] (§13.14.3) |
+
+### 13.17 Casos límite
+
+| Situación | Comportamiento |
+|-----------|----------------|
+| Se borra una fila de la última página mientras se mira | `RN-CORE-45` |
+| Llega en `meta.total` un número distinto entre páginas (altas concurrentes) | Se muestra el último recibido. Sin corrección en cliente: el modo `page` no promete consistencia ante escrituras concurrentes, y quien la necesita usa `cursor` (`ADR-038 §4.1`) |
+| Un filtro guardado en la URL (`RN-CORE-54`) con un valor que ya no existe (rol borrado) | El servidor responde `422` (valor conocido inválido) o ignora el parámetro; se aplica `RN-CORE-42` y la acción «Limpiar filtros» lo resuelve |
+| Configuración de columnas guardada con una columna que el consumidor retiró | Se ignora ese `id` (`RN-CORE-43`) |
+| Todas las columnas ocultables ocultas | Se permite: `rowHeader` y acciones no son ocultables, así que la tabla nunca queda vacía de columnas |
+| Cambio de idioma con la tabla abierta | §13.12, sin nueva petición |
+| `403` por pérdida de permiso a mitad de paginación | Correspondencia de §12.6: «sin acceso» y recarga de `/me` (`ADR-053 §6`) |
+| `403 module-disabled` | Ídem, conservando el mensaje de `RMOD-009` |
+| `401` | Redirección a `/entrar` (§12.3.1), las filas se descartan (`RN-CORE-50`) |
+| Exportación solicitada dos veces seguidas | Dos filas de `data_exports`. Sin `Idempotency-Key`: ninguno de los criterios de `ADR-038 §8.1` se cumple (no mueve dinero, no envía nada a terceros, no es un lote sobre entidades, y el duplicado es inocuo y auditado). El botón se deshabilita mientras la solicitud está en vuelo |
+| Exportación que vence mientras la vista está abierta | Al pulsar el enlace, la URL firmada falla en el almacenamiento, fuera de la SPA; `GET /data-exports/{id}` dirá `410` en la siguiente consulta. Se muestra la caducidad junto al enlace para que no sorprenda |
+| Navegador sin `localStorage` utilizable | Configuración por defecto en cada carga; el resto funciona igual (`RN-CORE-43`) |
+| 320 px con muchas columnas | Tarjetas, o desplazamiento interno si la tabla lo declara (`RN-CORE-55`); nunca desplazamiento horizontal de la página |
+| Modo `cursor` al llegar a 1.000 filas | Aviso de tope y fin de la paginación (`RN-CORE-52`); cambiar filtros u orden reinicia la cuenta |
+| Falla un «Cargar más» (`503`, sin conexión) con 400 filas ya cargadas | Las 400 filas se conservan; error junto al control; «Reintentar» repite con el mismo `cursor` (`RN-CORE-56`) |
+| Recarga de una vista con tabla en modo `cursor` | La lista empieza desde el principio: el cursor no está en la URL (`RN-CORE-54`) |
+| El usuario escribe una búsqueda y quiere exportar | Control de exportación deshabilitado con la explicación; al borrar la búsqueda se habilita y exporta con los demás filtros (`RN-CORE-57`) |
+| Dos tablas en la misma vista | Solo una, la principal, puede declarar estado en URL; la otra guarda su consulta en memoria (`RN-CORE-54`) |
+
+### 13.18 Criterios de aceptación
+
+Vitest salvo los marcados **[Playwright]**. Cada test cita su ID (`INV-015`). Con las decisiones del usuario del 2026-09-30, los que dependían de `OPEN-CORE-19`/`-20`/`-22`/`-28` pasan a firmes, `CA-CORE-199` se retira (`OPEN-CORE-26`, opción B) y `CA-CORE-200` a `CA-CORE-203` cubren decisiones que no tenían criterio. **Ajuste a `ADR-054`**: `CA-CORE-176`, `-188`, `-198` y `-202` se reescriben, y `CA-CORE-204` a `-206` se añaden; todos ellos llevan la marca [ADR-054 · pendiente de ratificación] en lo que procede del ADR. Donde dice «tabla de prueba», es una tabla declarada solo en el test, con una función de petición simulada y un módulo ficticio `fixture`.
+
+#### Paginación y datos
+
+- **`CA-CORE-160`** [`ADR-038 §4.3`] · **Dado** una tabla de prueba en modo `page` cuya primera respuesta trae `meta = {current_page: 2, per_page: 25, total: 137, last_page: 6}`, **entonces** se muestra «página 2 de 6» y el total de 137 con el formato del idioma activo; **cuando** se activa «siguiente», la función de petición recibe `page=3, per_page=25`; **y** en la página 6, «siguiente» y «última» están deshabilitados.
+- **`CA-CORE-161`** [`ADR-038 §4.3`] · **Dado** el selector de filas por página, **entonces** ofrece exactamente 25, 50 y 100 con 25 por defecto; **cuando** se elige 50 estando en la página 4, la petición lleva `page=1, per_page=50`.
+- **`CA-CORE-162`** [`RN-CORE-45`] · **Dado** el modo `page` en la página 3, **cuando** la respuesta trae `data: []` con `total: 51` y `last_page: 2`, **entonces** se pide la página 2 exactamente una vez; **y dado** `total: 0`, no se pide nada más y se pinta el estado vacío.
+- **`CA-CORE-163`** [`ADR-038 §4.4`, `§4.5`] · **Dado** una tabla en modo `cursor` cuya respuesta trae `meta = {next_cursor: "c1", has_more: true}`, **entonces** no hay números de página ni total y existe «Cargar más»; **cuando** se activa, la petición lleva `cursor=c1` y las filas nuevas se añaden detrás de las existentes; **y cuando** llega `has_more: false`, «Cargar más» desaparece.
+- **`CA-CORE-164`** [`ADR-038 §4.4` regla 2] · **Dado** el modo `cursor` con filas ya cargadas por cursor, **cuando** cambia un filtro o el orden, **entonces** la siguiente petición **no** lleva `cursor` y la lista se sustituye, no se amplía.
+- **`CA-CORE-165`** [`RN-CORE-52`, `OPEN-CORE-19`] · **Dado** el modo `cursor` con el tope de la constante exportada (1.000) y respuestas simuladas de 50 filas con `has_more: true`, **cuando** las filas acumuladas alcanzan o superan el tope, **entonces** «Cargar más» se sustituye por el aviso traducido de tope, ninguna petición más sale al pulsar nada de la paginación, y todas las filas recibidas siguen en el documento; **y dado** `canExport = true`, el aviso ofrece la acción de exportar; **y cuando** cambia un filtro, la lista se reinicia y «Cargar más» vuelve a estar disponible.
+- **`CA-CORE-166`** [`RN-CORE-41`] · **Dado** dos consultas emitidas en orden A y B, **cuando** B responde antes que A, **entonces** la tabla muestra las filas de B y, al llegar A, no cambia.
+- **`CA-CORE-204`** [`RN-CORE-56`, `ADR-054 §2.3`] [ADR-054 · pendiente de ratificación] · **Dado** el modo `cursor` con 100 filas cargadas y `next_cursor: "c2"`, **cuando** «Cargar más» responde `503`, **entonces** las 100 filas siguen en el documento, aparece el error junto al control con «Reintentar», y **cuando** se activa «Reintentar», la petición lleva `cursor=c2` (no reinicia la lista ni omite el cursor); **y dado** que el usuario desplaza la lista hasta el final sin activar ningún control, no sale ninguna petición de paginación (sin desplazamiento infinito).
+
+#### Ordenación y filtrado
+
+- **`CA-CORE-167`** [`RN-CORE-39`, `ADR-038 §5.3`] · **Dado** una columna `sortable` con `id = "family_name_1"`, **cuando** se activa su botón tres veces, **entonces** las peticiones llevan sucesivamente `sort=family_name_1`, `sort=-family_name_1` y ningún `sort`; su `th` lleva `aria-sort="ascending"`, `"descending"` y ningún `aria-sort`; y en ningún momento hay dos `th` con `aria-sort`. **Dado** una columna no `sortable`, su cabecera no contiene botón.
+- **`CA-CORE-168`** · **Dado** el modo `page` en la página 4, **cuando** cambia el orden o cualquier filtro, **entonces** la petición lleva `page=1`.
+- **`CA-CORE-169`** [`ADR-038 §5.2`, `§13.3`] · **Dado** un filtro enumerado de `id = "status"` con `activo` e `inactivo` marcados, un rango de `id = "occurred_at"` con las dos fechas y un booleano `id = "is_system"` en «sí», **entonces** la consulta lleva `status=activo,inactivo`, `occurred_at_from=…`, `occurred_at_to=…` e `is_system=true`, sin tabla de correspondencias entre `id` y parámetro; **y** con el booleano en «todos», no lleva `is_system`.
+- **`CA-CORE-170`** [`RN-CORE-40`] · **Dado** el campo de búsqueda con temporizadores simulados, **cuando** se escriben cinco caracteres con 50 ms entre cada uno, **entonces** sale una sola petición, con `q` igual al texto completo, 300 ms después de la última pulsación.
+- **`CA-CORE-171`** [`RN-CORE-42`, `ADR-038 §5.2`] · **Dado** una tabla con filas cargadas, **cuando** un cambio de filtro responde `422` con `errors.occurred_at_from[0].message`, **entonces** ese mensaje aparece junto a la barra de filtros con `role="alert"`, la tabla no pasa al estado de error de pantalla completa, y el texto de estado indica que el filtro no se ha aplicado.
+- **`CA-CORE-172`** [`ADR-038 §7.3`] · **Dado** un filtro enumerado cuya respuesta o definición trae un valor sin etiqueta traducida, **entonces** se muestra el código en crudo y no se lanza ningún error.
+
+#### Columnas configurables
+
+- **`CA-CORE-173`** [`RN-CORE-43`] · **Dado** el menú de columnas, **cuando** se oculta una columna ocultable, **entonces** desaparece de la tabla (y de las tarjetas, si aplica) y `localStorage["plataforma.table.<tableId>"]` pasa a ser exactamente `{"v":1,"hidden":["<id>"]}`; **y** la columna `rowHeader` y la de acciones no aparecen en el menú como ocultables.
+- **`CA-CORE-174`** [`RN-CORE-43`] · **Dado** en `localStorage` un valor que no se puede leer, con `v: 2` o con un `id` inexistente junto a uno válido, **cuando** se monta la tabla, **entonces** con los dos primeros se aplica la configuración por defecto y se borra la clave, y con el tercero se oculta solo la columna válida; **y dado** un `localStorage` que lanza en toda operación, la tabla se pinta con la configuración por defecto sin error.
+- **`CA-CORE-175`** · **Dado** columnas ocultas, **cuando** se activa «Restablecer columnas», **entonces** vuelve la configuración por defecto y la clave se elimina.
+- **`CA-CORE-176`** [`RN-CORE-43`, `ADR-054 §5.3`] [ADR-054 · pendiente de ratificación] · **Dado** un test que recorre las fuentes de producción de `src/modules/**` y extrae cada `tableId` declarado, **entonces** todo `tableId` es un literal de cadena con forma `<modulo>.<nombre>` y ninguno se repite; con casos fijos que prueban que el test detecta un duplicado, un `tableId` sin la forma `<modulo>.<nombre>` y un `tableId` no literal (calculado).
+
+#### Móvil (`RUX-RESP-004`, `RN-CORE-55`, `OPEN-CORE-20`)
+
+- **`CA-CORE-177`** [`RUX-RESP-004`, `RUX-RESP-001`] **[Playwright]** · **Dado** una pantalla con la tabla de prueba (o `MfaComplianceArea` migrada), **cuando** la ventana mide 320 px, **entonces** no hay ningún elemento `table` visible, existe la lista de tarjetas con una tarjeta por fila, y `scrollWidth ≤ clientWidth` del documento; **y cuando** mide 768 px, existe la `table` y no la lista.
+- **`CA-CORE-178`** [`RUX-RESP-007`] **[Playwright]** · **Dado** 320 px con `hasTouch: true`, **cuando** se miden el botón de ordenación de tarjetas, los controles del paginador, «Cargar más», el menú de columnas y una acción de tarjeta, **entonces** todos miden al menos 44 × 44 px.
+- **`CA-CORE-179`** · **Dado** la vista de tarjetas, **entonces** es una lista (`ul`) con un `li` por fila; el valor de la columna `title` es el encabezado de la tarjeta; cada `field` aparece como par `dt`/`dd` con la etiqueta traducida de su cabecera; las columnas `omit` y las ocultas no aparecen; y el orden se cambia con un selector de columna y sentido que produce el mismo `sort` que la cabecera.
+- **`CA-CORE-203`** [`RN-CORE-55`, `RUX-RESP-004`, WCAG 1.4.10/2.1.1] **[Playwright]** · **Dado** una tabla de prueba declarada con desplazamiento interno y más columnas de las que caben, **cuando** la ventana mide 320 px, **entonces** existe la `table` y no la lista de tarjetas, `scrollWidth ≤ clientWidth` del documento, el contenedor de la tabla es enfocable con `Tab`, tiene nombre accesible traducido y, con el foco en él, la tecla flecha derecha aumenta su `scrollLeft`.
+
+#### Estados
+
+- **`CA-CORE-180`** [`RUX-006`] · **Dado** la primera petición sin respuesta, **entonces** se pinta el estado de carga de §12.6 con `role="status"` y la barra de filtros ya es interactiva; **y dado** una recarga por cambio de página, las filas anteriores siguen en el documento y la región lleva `aria-busy="true"` hasta la respuesta.
+- **`CA-CORE-181`** [`RUX-006`] · **Dado** `data: []` sin filtros activos, **entonces** se pinta el texto de vacío del consumidor; **y dado** `data: []` con un filtro activo, se pinta el texto de «sin resultados con estos filtros» con la acción «Limpiar filtros», que al activarse lanza la petición sin filtros y mueve el foco al campo de búsqueda.
+- **`CA-CORE-182`** [`RUX-006`, `RNF-UX-007`] · **Dado** una respuesta `503` con `request_id`, **entonces** se pinta el estado de error de §12.6 con el `request_id` y «Reintentar», que repite **la misma** consulta (página, orden y filtros); **y** los casos `403`, `403 module-disabled` y `429` pasan por la función de correspondencia de `CA-CORE-140` (se comprueba que se invoca, no se repite su tabla).
+
+#### Accesibilidad
+
+- **`CA-CORE-183`** [`RN-CORE-44`, `RUX-004`] · **Dado** la tabla pintada, **entonces** tiene `caption` con el nombre traducido que da el consumidor, todas sus cabeceras son `th scope="col"`, la columna `rowHeader` de cada fila es `th scope="row"`, no hay ningún `role="grid"`, y el botón de ordenación tiene como nombre accesible la cabecera más la acción traducida.
+- **`CA-CORE-184`** [`RUX-004`] · **Dado** una carga completada con 137 resultados, **entonces** la región `aria-live="polite"` contiene el texto traducido de «137 resultados» con el plural correcto en `es`, `en`, `de` y `fr`; **y durante** la escritura en la búsqueda no cambia hasta que llega la respuesta de la petición única de `CA-CORE-170`.
+- **`CA-CORE-185`** [`RUX-004`] **[Playwright]** · **Dado** la pantalla con la tabla, **cuando** se recorre solo con teclado (`Tab`, `Shift+Tab`, `Enter`, `Espacio`, `Esc` en los menús), **entonces** se alcanzan y accionan, en orden de documento, búsqueda, filtros, menú de columnas, exportación, botones de ordenación, acciones de fila y paginador; los menús atrapan y devuelven el foco; y al activar «siguiente» en la penúltima página el foco no acaba en `body`.
+- **`CA-CORE-186`** [WCAG 2.4.6] · **Dado** `MfaComplianceArea` migrada con dos filas, **entonces** los dos botones de restablecimiento tienen nombres accesibles distintos, cada uno con el nombre de su usuario.
+
+#### Migración (`OPEN-CORE-28`)
+
+- **`CA-CORE-187`** [`REQ-AUTH-003`] · **Dado** `MfaComplianceArea` migrada, **cuando** se marcan los estados `pending` y `past_deadline` y se pasa a la página 2, **entonces** la petición es `GET /mfa-compliance/users` con `state=pending,past_deadline` y `page=2`; la acción de fila emite `reset-user` con el usuario de esa fila; un `403` emite `forbidden`; `refresh()` sigue expuesto; y todos los tests preexistentes de `/administracion/mfa` siguen en verde.
+
+#### Exportación
+
+- **`CA-CORE-188`** [`RN-CORE-46`, `RN-CORE-51`, `RN-CORE-57`, `ADR-054 §7.3`/`§8.1`] [ADR-054 · pendiente de ratificación en lo relativo a `sort`] · **Dado** una tabla de prueba con `canExport = false`, **entonces** no hay control de exportación en el documento; **y dado** `canExport = true` con el filtro `status=activo` y el orden `-created_at` en la página 3, **cuando** se pulsa exportar, **entonces** la función de solicitud del consumidor recibe exactamente el filtro `status` con el valor `activo` y **ninguna** de estas claves: `sort`, `page`, `per_page`, `cursor`, `q`; y el control queda deshabilitado mientras la solicitud está en vuelo.
+- **`CA-CORE-205`** [`RN-CORE-57`, `ADR-054 §7.4`] [ADR-054 · pendiente de ratificación] · **Dado** una tabla de prueba con `canExport = true` y el filtro `status=activo`, **cuando** se escribe un texto en la búsqueda y la consulta con `q` se aplica, **entonces** el control de exportación está deshabilitado (no solo con estilo: no invoca la función de solicitud al activarse), con un texto traducido asociado que explica que hay que borrar la búsqueda para exportar; **y cuando** se borra la búsqueda, el control se habilita y, al pulsarlo, la solicitud lleva `status` y no lleva `q`.
+- **`CA-CORE-189`** [`RN-CORE-49`] · **Dado** una solicitud que responde `202` con `public_id` y temporizadores simulados, **cuando** `GET /data-exports/{id}` devuelve `pendiente`, después `generando` y después `completada` con `download_url` y `expires_at`, **entonces** nunca hay dos consultas en vuelo a la vez, el intervalo entre consultas crece, se muestra el estado con `role="status"`, y al final aparece un enlace cuyo `href` es `download_url`, con la caducidad formateada.
+- **`CA-CORE-190`** · **Dado** la consulta de estado, **cuando** responde `fallida` con `error_code = "core.export.generation_failed"`, **entonces** se muestra su traducción con `role="alert"`; **cuando** responde `409`, se sigue esperando sin error; **cuando** responde `410`, se muestra el mensaje de caducada con la acción de volver a solicitar; **y cuando** la solicitud responde `422`, se muestra el `message` del servidor.
+- **`CA-CORE-191`** [`RN-CORE-49`, issue #128] · **Dado** una exportación que sigue `pendiente` indefinidamente, **cuando** se agota la duración máxima, **entonces** se deja de consultar y se ofrece «Comprobar de nuevo»; **y cuando** la vista se desmonta con una consulta programada, no sale ninguna petición más.
+- **`CA-CORE-202`** [`OPEN-CORE-25`, `ADR-054 §7.7`] · **Dado** una exportación en estado `pendiente` o `generando`, **entonces** junto al estado se muestra, de forma permanente, el aviso traducido de que no se podrá descargar desde aquí si se sale de la vista; **y cuando** el usuario navega a otra ruta, la navegación se produce sin diálogo de confirmación ni retención (ninguna guarda de navegación la cancela) y **no hay ningún manejador de `beforeunload` registrado** en `window`; **y dado** el estado `completada`, `fallida` o sin exportación en curso, el aviso no está en el documento.
+- **`CA-CORE-192`** [`RN-CORE-46`] · **Dado** `src/data-table/**` y todo `src/modules/**`, **entonces** ningún fichero de producción construye un fichero de exportación en el cliente: no aparecen `new Blob(`, `URL.createObjectURL(`, `text/csv` ni `application/vnd.openxmlformats` salvo en excepciones nominales justificadas en el propio test; con casos fijos que prueban que el test los detecta.
+
+#### Arquitectura, privacidad y traducción
+
+- **`CA-CORE-193`** [`RN-CORE-37`, `RNF-MANT-007`] · **Dado** `src/` salvo tests, **entonces** solo los ficheros bajo `src/data-table/` importan `@tanstack/vue-table`; con casos fijos que prueban que el test detecta un *import* estático, uno dinámico y uno de tipos (`import type`).
+- **`CA-CORE-194`** [`RN-CORE-38`, `INV-007`] · **Dado** `src/data-table/**`, **entonces** no importa `@/modules/**` ni rutas relativas que resuelvan a `src/modules/`, y solo usa los destinos `@/` de §13.3.
+- **`CA-CORE-195`** [`RN-CORE-50`] · **Dado** `localStorage`, `sessionStorage` e `indexedDB` simulados, **cuando** una tabla de prueba carga, pagina, filtra y se desmonta, **entonces** la única escritura es la clave de `RN-CORE-43`, y su valor no contiene ningún valor de fila ni el texto de búsqueda (el test usa valores de fila distinguibles y los busca).
+- **`CA-CORE-196`** [`INV-009`] · **Dado** los cuatro `locales/*.json`, **entonces** toda clave nueva de `dataTable.*` existe en `es`, `en`, `de` y `fr`, y `npm run lint:i18n` termina sin hallazgos; **y** `CA-CORE-083` (tipografía en `rem`) se amplía a `src/data-table/**`.
+- **`CA-CORE-197`** [`ADR-052`] · **Dado** los componentes vendorizados que añada 1.9 (§13.3), **entonces** pasan los tests de `docs/design-system.md §10` sin excepción nueva, y no tienen texto propio (`RN-DS-24`).
+- **`CA-CORE-200`** [`RN-CORE-53`, `OPEN-CORE-29`] · **Dado** `src/` salvo tests, **entonces** ningún fichero fuera de `src/data-table/` importa `@/components/ui/table` (ni por ruta relativa que resuelva a `src/components/ui/table`) salvo los de la lista cerrada de excepciones del propio test, que en 1.9 está vacía; con casos fijos que prueban que el test detecta un *import* estático, uno dinámico y uno relativo.
+- **`CA-CORE-201`** [`OPEN-CORE-27`, `INV-009`, issue #90] · **Dado** una fila de prueba con un campo nulo, **cuando** se pinta en tabla y en tarjeta, **entonces** la celda y el `dd` contienen la marca visual con `aria-hidden="true"` y un texto solo para lector de pantalla igual a la traducción de `dataTable.emptyValue` en el idioma activo (comprobado en `es`, `en`, `de` y `fr`); **y** ni `src/data-table/**` ni `MfaComplianceArea.vue` contienen `'—'` como literal.
+
+#### Estado en la URL (`RN-CORE-54`, `OPEN-CORE-22`)
+
+- **`CA-CORE-198`** [`RN-CORE-54`, `ADR-054 §6`] [ADR-054 · pendiente de ratificación en lo relativo al *opt-in* y al cursor] · **Dado** una tabla de prueba que declara el estado en URL, con página 3, `sort=-created_at` y `status=activo`, **cuando** se recarga el documento, **entonces** se restaura la misma consulta desde la URL; **y** el texto de búsqueda `q` no aparece nunca en la URL ni en `history.state`; **y dado** una tabla de prueba en modo `cursor` que declara el estado en URL, tras «cargar más» la URL no contiene `cursor` y, al recargar, la primera petición no lleva `cursor`; **y dado** una tabla de prueba que **no** declara el estado en URL, ni paginar, ni ordenar, ni filtrar modifican la URL de la ruta.
+- **`CA-CORE-206`** [`RN-CORE-54`, `OPEN-CORE-28`] [ADR-054 · pendiente de ratificación] · **Dado** `MfaComplianceArea` migrada, **cuando** se marcan filtros y se pagina, **entonces** la URL de `/administracion/mfa` no cambia (la tabla no declara estado en URL, paridad estricta).
+
+#### Retirado
+
+- ~~**`CA-CORE-199`**~~ · **Retirado** el 2026-09-30: el modo `local` no existe en 1.9 (`OPEN-CORE-26`, opción B; `ADR-054 §2.1`). El identificador queda reservado y no se reutiliza; el paso que añada el modo escribe sus propios criterios.
+
+### 13.19 Documentación a actualizar al cerrar 1.9
+
+- Este documento: estado de §13 y ubicación definitiva (`OPEN-CORE-18`).
+- `docs/adr/ADR-054-tablas-de-datos-y-exportacion-de-listados.md`: redactado (PROPUESTA, 2026-09-30); su estado pasa a ratificado cuando el usuario lo ratifique, y el índice de la sección 18 del documento de requisitos más su historial de versiones lo reflejan (hallazgo 6 del ADR).
+- `docs/design-system.md §12`: componentes vendorizados nuevos, si los hay (`checkbox`, `popover`…).
+- `docs/i18n.md`: espacio de nombres `dataTable.*`.
+- `PRIVACY.md §2.1b`: clave `plataforma.table.<tableId>` (`RN-CORE-43`).
+- `SECURITY.md`, fila «Exportaciones generadas (CSV)»: añadir el **salto de línea (LF)** a la lista de caracteres, que hoy omite aunque `RN-CORE-36` y el código lo incluyen (hallazgo 3 de `ADR-054`), y sustituir «se fijará como norma común en el ADR… cuando exista» por la referencia a `ADR-054 §9`-`§10`, a la segunda condición de neutralización (primer carácter no blanco) y a `RN-CORE-46`-`48`/`58`.
+- `ARCHITECTURE.md` (frontend: `src/data-table/`, importación única de TanStack), `CHANGELOG.md`.
+- `docs/manual-usuario/admin.md`: cómo filtrar, ordenar, configurar columnas y exportar (sección común para los manuales que existan, issue #65).
+- `PLAN-IMPLEMENTACION.md`: la línea de 1.9 **ya se actualizó** al aprobar la especificación (2026-09-30, sin virtualización, `OPEN-CORE-19`); al cerrar, se marca el paso como terminado.
+
+### 13.20 Hallazgos fuera del ámbito de esta especificación
+
+No se corrigen aquí; se reportan:
+
+1. **`operacion.md §2` dice `QUEUE_CONNECTION = redis`**, mientras `CLAUDE.md §1` dice que hoy es `database`, sin *worker* desplegado (#128). Contradicción documental entre un documento de módulo y el documento de contexto. Media como mínimo por `CLAUDE.md §6.6` si alguno de los dos no refleja el código. No se ha comprobado cuál es el correcto contra `config/queue.php` ni contra `.env`.
+2. **`data_exports.filters` con política `Full`** copiaría en `audit_logs` cualquier filtro de texto libre con un dato personal (§13.14.3, último punto). No ocurre hoy (la exportación de auditoría no acepta `q`). **Resuelto como norma por `ADR-054 §9`** (`RN-CORE-58`), pendiente de ratificación.
+3. **`MfaComplianceArea.vue` usa `'—'` literal** (issue #90) e importa `useI18n` de `vue-i18n` directamente para obtener `locale` (patrón que issue #259 señala en otras vistas). Se resuelve en esa vista con la migración (`OPEN-CORE-28`, opción A) y el valor vacío común (`OPEN-CORE-27`, opción A); #90 y #259 siguen abiertos para las demás vistas.
+4. **`SECURITY.md` promete para 1.9 una norma común de CSV** que es de servidor, en un paso que el plan y el encargo sitúan en `apps/web`. §13.1.3 lo resuelve separando decisión (`ADR-054 §10`) e implementación (#270).
+5. **Nombres del rango de fechas de auditoría** (hallazgo 1 de `ADR-054`, severidad Media, issue [#266](https://github.com/pirexia/plataforma-educativa/issues/266)): `GET /audit-logs` y `POST /audit-logs/exports` usan `from`/`to` (código y `api.md` de este módulo), no `occurred_at_from`/`occurred_at_to` como exige `ADR-038 §5.2`. Con la regla «`id` de columna = parámetro» (`ADR-038 §13.3`), la pantalla de auditoría de `1.9b` enviaría un rango que el servidor ignora en silencio. No afecta a 1.9 (no conecta esa pantalla). Propuesta del ADR: en `1.9b`, antes de la pantalla, aceptar además los nombres conformes y retirar los antiguos por *expand/contract*. Pendiente de issue.
+6. **`POST /audit-logs/exports` sin paridad de filtros con su listado** (hallazgo 2 de `ADR-054`, severidad Media, issue [#267](https://github.com/pirexia/plataforma-educativa/issues/267)): le faltan `actor_id`, `actor_type`, `auditable_id` y `module`, y por `ADR-038 §5.2` no da error; el fichero no corresponde a lo que el usuario ve filtrado (el ámbito del permiso sí se sigue aplicando en el trabajo). Incumple `ADR-054 §8.2`. Se corrige antes de que `1.9b` conecte el botón de exportar de auditoría. Pendiente de issue.
+
+### 13.21 Preguntas abiertas del paso 1.9
+
+**Decididas por el usuario el 2026-09-30** (`OPEN-CORE-19` a `OPEN-CORE-29`), todas con la opción recomendada salvo donde se indica, y **registradas en `ADR-054`**, que remite aquí. `OPEN-CORE-18` no se incluyó en esa decisión y **sigue abierta, no bloqueante**. `ADR-054` añade una pregunta nueva, **`OPEN-054-01`**, abierta: **no bloquea 1.9 y bloquea `1.9b`**. Se conservan las opciones y su argumento, no se borran, para que una revisión futura pueda leer por qué se eligió cada una.
+
+**Abiertas a 2026-09-30:**
+
+| ID | Pregunta | Bloquea | Quién decide |
+|----|----------|---------|--------------|
+| `OPEN-CORE-18` | Ubicación de esta especificación | Nada | Usuario |
+| `OPEN-054-01` | Idioma de la cabecera y de los valores enumerados del CSV | `1.9b` (antes del primer *endpoint* de exportación nuevo). **No bloquea 1.9** | Usuario |
+
+#### `OPEN-054-01` · Idioma de la cabecera y de los valores enumerados del CSV — **abierta; bloquea `1.9b`, no `1.9`**
+
+> Planteada por `ADR-054` (sección «Preguntas abiertas»), que **no la decide**. Esta especificación tampoco: no hay requisito que precise si un CSV de datos es un «documento generado» en el sentido de `CLAUDE.md §7` (cuatro idiomas obligatorios en los documentos generados), y decidirlo aquí sería inventar un requisito.
+
+La exportación de auditoría escribe hoy nombres técnicos de columna (`occurred_at`) y códigos (`event`). Es coherente con el esquema fijo como contrato estable para programas (§13.14.2, `ADR-054 §8.1`), pero poco legible para secretaría. Afecta a todo *endpoint* de exportación, no al componente de 1.9, que no escribe ficheros (`RN-CORE-46`). Las opciones no las ha formulado el ADR; no se proponen aquí para no adelantar una decisión que corresponde al usuario, con `architect` si hace falta. Se resuelve antes de que `1.9b` añada `POST /users/exports` o modifique `POST /audit-logs/exports`.
+
+#### `OPEN-CORE-18` · Ubicación de esta especificación — **abierta, no bloqueante**
+
+> Sin decisión del usuario a 2026-09-30. Mientras tanto la especificación sigue aquí (situación de hecho, no aplicación de la opción A: la recomendación no se aplica sin confirmación). Si se elige B, la mudanza la hace otro agente con permiso fuera de `docs/modulos/` y no cambia el contenido.
+
+§13.0: 1.9 no tiene `REQ-*` propio, y por el criterio de `ADR-052 §6` le correspondería un documento transversal.
+
+- **A** · Se queda en `REQ-CORE/funcional.md §13`, con las secciones cortas de `datos`/`api`/`permisos`/`operacion`. Precedente de 1.8; la exportación sí es de `REQ-CORE`.
+- **B** · Se muda a `docs/tablas-de-datos.md` (o a una ampliación de `docs/design-system.md`) con prefijos `RN-DT-*`/`CA-DT-*`/`OPEN-DT-*`, y aquí queda solo la parte de exportación (`RN-CORE-46`-`49`, `51`). Criterio de `ADR-052 §6`. Exige que otro agente con permiso fuera de `docs/modulos/` haga la mudanza.
+
+**Recomendación: A**, por coste: la mudanza no aporta nada funcional y los consumidores inmediatos están en esta carpeta. Si se prefiere la coherencia con 1.7, B es igual de válida.
+
+#### `OPEN-CORE-19` · Virtualización — **RESUELTA** (2026-09-30, decisión del usuario)
+
+> **Decisión: opción A.** No se virtualiza en 1.9 ni se instala `@tanstack/vue-virtual`; tope de 1.000 filas acumuladas en modo `cursor` (`RN-CORE-52`, `CA-CORE-165`). Se retira la virtualización del alcance (§13.1.2) y de la línea del plan (`PLAN-IMPLEMENTACION.md`, paso 1.9, ya actualizada).
+
+§13.13.
+
+- **A** · **Sin virtualización en 1.9**, sin dependencia nueva, con **tope de filas acumuladas en modo `cursor`** y aviso para acotar o exportar. Tope propuesto: **1.000 filas** (20 cargas del `limit` por defecto de `ADR-038 §4.4`). Es una cifra de diseño sin medición detrás, y se revisa con `REQ-SEED`. Se actualiza la línea del plan.
+- **B** · Virtualizar el modo `cursor` con `@tanstack/vue-virtual`, envuelta en `src/data-table`, con `aria-rowcount`/`aria-rowindex` y sin tarjetas virtualizadas. Exige que `architect` verifique antes mantenimiento, licencia y versiones (`CLAUDE.md §1`).
+- **C** · Virtualización propia sin dependencia. Descartable: el coste de accesibilidad de B, más escribirla y mantenerla.
+
+**Recomendación: A.** Resuelve el único caso real sin tocar la accesibilidad. Es reversible: B se puede añadir después dentro de `src/data-table` sin tocar a ningún consumidor, gracias a `RN-CORE-37`.
+
+#### `OPEN-CORE-20` · Tablas en móvil (`RUX-RESP-004`) — **RESUELTA** (2026-09-30, decisión del usuario)
+
+> **Decisión: opción A.** Tarjetas por debajo de 768 px, con desplazamiento horizontal interno como opción por tabla (`RN-CORE-55`, §13.9, `CA-CORE-177`-`179` y `CA-CORE-203`).
+
+El requisito admite «scroll horizontal **o** vista alternativa de tarjetas».
+
+- **A** · **Tarjetas por defecto por debajo de 768 px**, con desplazamiento horizontal interno como opción por tabla (§13.9).
+- **B** · Solo desplazamiento horizontal interno en todas las tablas: más barato, y conforme con WCAG 1.4.10 (las tablas de datos están exceptuadas), pero peor de usar a 320 px con más de tres columnas.
+- **C** · Solo tarjetas, sin opción de desplazamiento: deja sin salida a tablas comparativas.
+
+**Recomendación: A.**
+
+#### `OPEN-CORE-21` · Qué significa «columnas configurables» — **RESUELTA** (2026-09-30, decisión del usuario)
+
+> **Decisión: opción A.** Visibilidad más «Restablecer columnas»; sin reordenar ni redimensionar (§13.8, `RN-CORE-43`, `CA-CORE-173`-`176`).
+
+El plan no lo precisa y ningún requisito lo define.
+
+- **A** · Visibilidad más «restablecer».
+- **B** · A más orden, con botones subir/bajar (sin arrastre, WCAG 2.5.7).
+- **C** · B más anchura, con control accesible por teclado.
+
+**Recomendación: A.** Es lo único que cualquier consumidor conocido necesita, y el formato versionado de `RN-CORE-43` permite añadir el orden después sin romper nada.
+
+#### `OPEN-CORE-22` · ¿Estado de la tabla en la URL? — **RESUELTA** (2026-09-30, decisión del usuario)
+
+> **Decisión: opción A.** Página, `per_page`, orden, enumerados, booleanos y fechas en la URL; `q` nunca (`RN-CORE-54`, `CA-CORE-198`). `src/data-table` puede importar `vue-router` (`RN-CORE-38`). Convivencia de dos tablas en una vista y carácter opcional por tabla: los fija `ADR-054 §6.2` (opcional por tabla, como máximo una por ruta, `cursor` nunca en la URL) [ADR-054 · pendiente de ratificación].
+
+Reflejar página, orden y filtros en la *query* de la ruta permite volver atrás, recargar y compartir un enlace filtrado. Pero la *query* queda en el historial del navegador y, en una recarga completa, llega al servidor y a sus registros de acceso. Un `q=López` es un dato personal ahí (el mismo motivo por el que `ADR-038 §6.5` quita la *query* de `instance`).
+
+- **A** · Página, `per_page`, orden, enumerados, booleanos y fechas en la URL; **`q` nunca**.
+- **B** · Nada en la URL: estado solo en memoria.
+- **C** · Todo en la URL, incluido `q`. Desaconsejada.
+
+**Recomendación: A.** Si se aprueba, `src/data-table` puede importar `vue-router` (`RN-CORE-38`).
+
+#### `OPEN-CORE-23` · Contenido del fichero exportado — **RESUELTA** (2026-09-30, decisión del usuario)
+
+> **Decisión: opción A.** Esquema fijo por recurso, definido en servidor y documentado en su OpenAPI (§13.14.2). Vincula al primer *endpoint* de exportación nuevo.
+
+- **A** · Esquema fijo por recurso, definido en el servidor y documentado en su OpenAPI (como la auditoría).
+- **B** · Las columnas visibles, enviadas como parámetro `columns=` con lista blanca.
+
+**Recomendación: A** (§13.14.2).
+
+#### `OPEN-CORE-24` · Dialecto CSV común y cuándo se implementa #270 — **RESUELTA** (2026-09-30, decisión del usuario)
+
+> **Decisión: opción A** para el dialecto (coma, UTF-8 con BOM, CRLF, documentando en el manual la importación con separador en Excel), y #270 en una rama `fix/` propia tras `ADR-054` y antes del primer generador de CSV nuevo (§13.1.3, §13.14.3). Nada de esto se implementa en 1.9.
+
+Excel en configuración regional española usa `;` como separador de lista (la coma es el separador decimal), y sin BOM no reconoce UTF-8. El usuario típico de secretaría abrirá el CSV con doble clic en Excel. `RNF-COMP-004` solo dice «CSV (UTF-8)».
+
+- **A** · Coma, UTF-8 **con** BOM, CRLF: estándar RFC 4180; Excel detecta UTF-8, pero en regional española puede mostrarlo todo en una columna.
+- **B** · Punto y coma, UTF-8 con BOM: se abre bien en Excel español, pero no es RFC 4180 y el centro alemán o inglés tendría el problema inverso.
+- **C** · Separador según el idioma de quien exporta: resuelve los dos casos, pero el fichero depende de quién lo pidió.
+
+**Recomendación: A**, documentando en el manual la importación con separador en Excel. Es la opción que no cambia lo que la auditoría ya entrega (salvo el BOM) y deja el formato estable para quien lo procesa por programa. **No hay dato de uso real** que la respalde (no hay centro piloto, H0): si el usuario tiene información de cómo abren los ficheros los centros objetivo, prevalece.
+
+Sobre #270 (Baja): **recomendación** resolverlo en una rama `fix/` propia tras `ADR-054` y antes del primer generador nuevo (§13.1.3). Decide el usuario.
+
+#### `OPEN-CORE-25` · Recuperar una exportación tras salir de la vista — **RESUELTA** (2026-09-30, decisión del usuario)
+
+> **Decisión: opción A.** 1.9 avisa sin bloquear la navegación y acepta la pérdida del enlace (§13.14.4, `CA-CORE-202`); «Mis exportaciones» se reconsidera en `1.9b`. `ADR-054 §7.7` precisa la forma: aviso permanente junto al estado, sin diálogo de confirmación y sin `beforeunload`.
+
+- **A** · 1.9 avisa antes de salir y acepta la pérdida del enlace. El listado «Mis exportaciones» (`GET /data-exports` sobre el índice ya existente de `datos.md` A.7) se añade cuando lo pida un consumidor.
+- **B** · Añadir ahora `GET /data-exports` y una pantalla «Mis exportaciones». Es `apps/api` (`endpoint`, OpenAPI, test) más una pantalla: saca el paso de `apps/web`.
+
+**Recomendación: A** en 1.9. Reconsiderar en 1.9b, que es cuando aparece el primer consumidor real.
+
+#### `OPEN-CORE-26` · Modo `local` (colecciones sin paginar) — **RESUELTA** (2026-09-30, decisión del usuario)
+
+> **Decisión: opción B.** No existe en 1.9; lo añade dentro de `src/data-table` el primer paso con consumidor real (candidato `1.5b`), sin tocar `ADR-054` (`ADR-054 §2.1`). `CA-CORE-199` retirado.
+
+`GET /permissions` es deliberadamente no paginado. El listado de permisos efectivos de 1.5b quizá también (no verificado).
+
+- **A** · Incluir el modo `local` en 1.9 (ordenación con `Intl.Collator`, filtrado de texto en cliente, sin paginación).
+- **B** · Diferirlo a 1.5b, que lo añade dentro de `src/data-table` si lo necesita.
+
+**Recomendación: B.** No hay consumidor en 1.9 ni en 1.9b, y construir un modo sin consumidor es exactamente lo que dejó el issue #261 abierto en 1.8.
+
+#### `OPEN-CORE-27` · Representación de un valor vacío en una celda — **RESUELTA** (2026-09-30, decisión del usuario)
+
+> **Decisión: opción A.** Clave común `dataTable.emptyValue`: marca «—» con texto alternativo traducido (§13.12, `CA-CORE-201`). 1.9 fija la convención para las tablas; #90 sigue abierto para el resto de vistas.
+
+Depende de la convención pendiente del issue #90 (`'—'` literal en `SessionsView.vue`).
+
+- **A** · Clave común `dataTable.emptyValue`, que se muestra como «—» con texto alternativo traducido para el lector de pantalla («Sin valor»). Resuelve #90 para las tablas y propone la convención para el resto.
+- **B** · Celda vacía sin marca.
+- **C** · Decidir primero #90 de forma general y aplicarlo aquí.
+
+**Recomendación: A**, si el usuario acepta que 1.9 fije la convención que #90 dejó abierta.
+
+#### `OPEN-CORE-28` · Migrar `MfaComplianceArea.vue` en 1.9 — **RESUELTA** (2026-09-30, decisión del usuario)
+
+> **Decisión: opción A.** Se migra con paridad estricta y sin corregir #116 (§13.15, `CA-CORE-186`/`187`).
+
+- **A** · Sí, con paridad estricta (§13.15), sin corregir #116.
+- **B** · No: se migra cuando se toque `/administracion/mfa`.
+
+**Recomendación: A.** Es el único consumidor real disponible para probar el componente contra una API de verdad, y sin migrarla `RN-CORE-37` necesitaría una excepción nominal desde el primer día.
+
+#### `OPEN-CORE-29` · ¿Toda tabla pasa por el componente? — **RESUELTA** (2026-09-30, decisión del usuario)
+
+> **Decisión: opción A.** Test de arquitectura con lista cerrada de excepciones, vacía en 1.9 (`RN-CORE-53`, `CA-CORE-200`).
+
+- **A** · Test de arquitectura: fuera de `src/data-table/**`, nadie importa `@/components/ui/table`, salvo excepciones nominales (la matriz de 1.5b).
+- **B** · Sin regla: el componente es la vía recomendada, pero una vista puede usar `components/ui/table` directamente para tablas estáticas pequeñas.
+
+**Recomendación: A**, con la lista de excepciones cerrada en el test, mismo criterio que `docs/design-system.md §10`. Sin esa regla, dentro de veinte módulos habrá tablas con accesibilidad y estados propios, cada una distinta.
+
+### 13.22 Decisiones que merecen `ADR-054`
+
+`ADR-054` (`docs/adr/ADR-054-tablas-de-datos-y-exportacion-de-listados.md`) **no lo escribe esta especificación**: lo ha redactado `architect` (estado **PROPUESTA**, 2026-09-30) sobre las decisiones del usuario de esa fecha (§13.21). Son decisiones transversales que copiarán los 53 módulos, igual que `ADR-038` (API) y `ADR-053` (navegación). **Los siete puntos quedan resueltos en el ADR** y esta sección se ha ajustado a él; lo que el ADR añade por su cuenta sigue **pendiente de ratificación del usuario**:
+
+1. **Envoltura de TanStack Table** (`RN-CORE-37`, `RN-CORE-38`, `RN-CORE-53`) → `ADR-054 §1`. Registra lo ya decidido.
+2. **Lectura de `ADR-038 §4.5`** → `ADR-054 §2.2`: **compatible**, confirmada. Precisión nueva: **sin desplazamiento infinito** en todo el producto, y reglas del modo `cursor` de `§2.3` (`RN-CORE-56`, `CA-CORE-204`) [pendiente de ratificación].
+3. **Sin virtualización** → `ADR-054 §3`. Registra `OPEN-CORE-19` A; la constante `MAX_CURSOR_ROWS = 1000` no es configurable por tabla.
+4. **Tablas en móvil** → `ADR-054 §4`. Registra `OPEN-CORE-20` A y fija el criterio de la excepción (comparación entre filas) (§13.9).
+5. **Columnas y estado en URL** → `ADR-054 §5`-`§6`. `localStorage` confirmado. Correcciones [pendientes de ratificación]: `tableId` literal `<modulo>.<nombre>` comprobado por escaneo de fuentes, sin «registro de tablas» (`CA-CORE-176`); estado en URL **opcional por tabla, como máximo una por ruta, sin `cursor`** (`RN-CORE-54`, `CA-CORE-198`, `CA-CORE-206`).
+6. **Norma común de exportación y CSV** → `ADR-054 §7`, `§8`, `§10`. Valores de `RN-CORE-49` ratificados como se proponían. Correcciones [pendientes de ratificación]: la solicitud **no lleva `sort`** (`CA-CORE-188`); paridad exacta de filtros entre exportación y listado (`api.md §13.4`); `RN-CORE-47` como **una clase sin interfaz**; `RN-CORE-48` con **tipos declarados por el generador** y la **segunda condición de neutralización** (primer carácter no blanco). Pregunta nueva abierta: `OPEN-054-01` (§13.21).
+7. **Texto libre en `data_exports.filters`** → `ADR-054 §9` [pendiente de ratificación]: ningún *endpoint* de exportación acepta `q` (`422`, `RN-CORE-58`), y la SPA deshabilita exportar con búsqueda activa (`RN-CORE-57`, `CA-CORE-205`).
+
+No merecen ADR (se deciden en esta especificación): la espera de búsqueda, las opciones de filas por página, el ciclo de ordenación, los estados, la semántica de accesibilidad y la migración de `MfaComplianceArea`.
+
+### 13.23 ¿Se aprueba esta especificación?
+
+**Sí, aprobada el 2026-09-30, y ajustada a `ADR-054` (PROPUESTA) el mismo día; pendiente solo de que el usuario ratifique el ADR.** Decisiones del usuario del 2026-09-30:
+
+1. `OPEN-CORE-19` (opción A): **sin virtualización**, tope de 1.000 filas en modo `cursor` (`RN-CORE-52`). Alcance del paso y línea de `PLAN-IMPLEMENTACION.md` actualizados.
+2. `OPEN-CORE-20` (opción A): tarjetas por debajo de 768 px, con desplazamiento interno como opción por tabla (`RN-CORE-55`).
+3. `OPEN-CORE-21` (opción A): visibilidad de columnas más «Restablecer».
+4. `OPEN-CORE-22` a `OPEN-CORE-29`, con la opción recomendada: estado en URL sin `q` (A), esquema fijo por recurso (A), dialecto coma + BOM + CRLF e #270 en rama `fix/` propia (A), aviso sin «Mis exportaciones» (A), modo `local` diferido a `1.5b` (B), valor vacío común (A), migración de `MfaComplianceArea` (A) y toda tabla por el componente (A).
+
+`OPEN-CORE-18` (ubicación) sigue abierta y **no bloquea**: la especificación permanece aquí mientras el usuario no decida otra cosa.
+
+`OPEN-054-01` (idioma del CSV) está abierta y **no bloquea 1.9**: bloquea `1.9b`.
+
+**Ajuste a `ADR-054` hecho** (2026-09-30): §13.1, §13.5, §13.8, §13.9, §13.13, §13.14, §13.15, §13.16, §13.17, §13.18, §13.20, §13.21 y §13.22, más `datos.md` Parte C, `api.md §13`, `permisos.md §11` y `operacion.md §12`. Todo lo que procede de una precisión o corrección de `architect` va marcado **[ADR-054 · pendiente de ratificación]**.
+
+**Lo único que falta antes de `implementer`**: que el usuario **ratifique `ADR-054`** (lección de `ADR-050`/`ADR-051`/`ADR-053`: un ADR `PROPUESTA` no se aplica sin ella). Si lo ratifica sin cambios, se retiran las marcas y la especificación queda lista para `implementer`. Si lo ratifica con cambios, o no lo ratifica, los puntos marcados se reescriben antes.

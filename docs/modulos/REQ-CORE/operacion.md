@@ -32,7 +32,7 @@ La invalidación en escritura no es un detalle: el [issue #7](https://github.com
 | `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME` | Remitente transaccional | Ficticios (`@example.com`) |
 | `FILESYSTEM_DISK` | Disco de los activos de marca, ficheros de importación y exportaciones | `s3` (MinIO en desarrollo) |
 | `AWS_BUCKET`, `AWS_ENDPOINT`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_USE_PATH_STYLE_ENDPOINT` | Almacenamiento compatible S3 | MinIO local (perfil `full` de `compose.yaml`) |
-| `QUEUE_CONNECTION` | Colas | `redis` |
+| `QUEUE_CONNECTION` | Colas | `database` (hoy, sin *worker* desplegado, issue #128; `redis` + Horizon es lo elegido, no instalado) |
 | `CORE_INVITATION_TTL_DAYS` | Caducidad de la invitación (`RN-CORE-10`) | `7` |
 | `CORE_IMPORT_MAX_ROWS` | Límite de filas por importación | `20000` |
 | `CORE_IMPORT_RETENTION_DAYS` | Purga de ficheros de importación e informes (`RN-CORE-21`) | `30` |
@@ -233,3 +233,57 @@ Ninguna nueva en servidor. Lo que sí conviene mirar tras desplegar, con las mé
 | Pantalla «centro no encontrado» | El *host* no resuelve tenant: `TENANCY_BASE_DOMAIN` o DNS (§8, `OPEN-08`) |
 | Bucle entre `/entrar` y la ruta pedida | `GET /me` responde `401` justo después de un *login* correcto: cookie de sesión no aceptada por el navegador (dominio, `SameSite`, orígenes distintos en desarrollo — issue [#71](https://github.com/pirexia/plataforma-educativa/issues/71)) |
 | En desarrollo, idioma o sesión «no se guardan» | SPA servida desde `localhost` en vez de `demo.plataforma.test` (issue #71) |
+
+---
+
+## 12. Paso 1.9 (tablas de datos)
+
+> Estado: **APROBADO** (2026-09-30, decisión del usuario), **ajustado a `ADR-054` (PROPUESTA) y pendiente solo de su ratificación por el usuario**, con `funcional.md §13`. Lo que procede de una precisión de `architect` va marcado **[ADR-054 · pendiente de ratificación]**.
+
+### 12.1 Qué se despliega
+
+**Solo la imagen de `apps/web`.**
+
+| Aspecto | Paso 1.9 |
+|---------|----------|
+| Variables de entorno | **Ninguna nueva** |
+| Colas y trabajos | **Ninguno nuevo.** El componente consume exportaciones que ya se generan en `core-exports` (§4) |
+| Tareas programadas | **Ninguna** |
+| Almacenamiento del navegador | **Una clave nueva por tabla**: `plataforma.table.<tableId>` (`RN-CORE-43`, `tableId` literal `<modulo>.<nombre>` [ADR-054 · pendiente de ratificación]), sin datos personales; no se borra al cerrar sesión. Se cataloga en `PRIVACY.md §2.1b` |
+| Dependencias | **Ninguna nueva.** Sin virtualización (`OPEN-CORE-19`, opción A, decisión del usuario 2026-09-30): **no** se instala `@tanstack/vue-virtual`. `@tanstack/vue-table` ya estaba instalada. Los componentes nuevos del *design system* (`checkbox`, `popover`, si hacen falta) se vendorizan sobre Reka UI, ya instalada (`docs/design-system.md §12.2`/`§12.3`) |
+| Estado en la URL | En las rutas cuya tabla principal lo declara (opcional por tabla, como máximo una por ruta [ADR-054 · pendiente de ratificación]), la *query* lleva página, orden y filtros **salvo `q` y `cursor`** (`RN-CORE-54`). Llega a los registros de acceso del servidor web en una recarga completa: por eso nunca contiene el texto de búsqueda. `/administracion/mfa` no lo declara (paridad estricta de la migración). Sin cambios de configuración |
+
+### 12.2 Dependencia operativa: *worker* de colas
+
+La exportación **solo termina si hay un *worker* procesando `core-exports`**. Hoy no hay ninguno desplegado, ni en `compose.yaml` ni en `infra/quadlet/*` (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128), Alta). Sin él, toda exportación se queda en `pendiente` y la interfaz, tras la duración máxima de `RN-CORE-49`, deja de consultar y ofrece «Comprobar de nuevo». **No es un fallo de 1.9**, y no debe diagnosticarse como tal.
+
+**Discrepancia documental detectada** (`funcional.md §13.20`, punto 1): §2 de este documento dice `QUEUE_CONNECTION = redis`, y `CLAUDE.md §1` dice que hoy es `database`. No se corrige aquí; hay que contrastarlo con `config/queue.php`.
+
+### 12.3 Carga sobre la API
+
+- Búsqueda con espera de 300 ms y una sola respuesta aplicada (`RN-CORE-40`/`41`): una petición por pausa al escribir, no por pulsación.
+- Consulta del estado de exportación con una sola en vuelo, espera inicial de 2 s que se duplica hasta 30 s, y parada a los 10 min (`RN-CORE-49`, `ADR-054 §7.5`): del orden de 23 consultas por exportación como máximo (cálculo sobre las esperas, sin contar la latencia), acotada por diseño incluso sin *worker*.
+- «Cargar más» solo por acción del usuario, nunca por desplazamiento (`RN-CORE-56`) [ADR-054 · pendiente de ratificación].
+- Sin sondeo de listados: la tabla solo pide datos ante una acción del usuario o al montarse.
+- Modo `cursor` acotado a 1.000 filas acumuladas por consulta (`RN-CORE-52`): como mucho 20 peticiones de 50 filas (o 5 de 200) antes de que la interfaz remita a acotar filtros o exportar.
+
+### 12.4 Despliegue y reversión
+
+1. Construir y publicar la imagen de `apps/web` (`ADR-037`).
+2. Desplegar. Sin orden relativo con `apps/api`: 1.9 no consume nada que no exista desde 1.1.
+
+**Reversión**: volver a la imagen anterior. Efecto: `MfaComplianceArea` vuelve a su tabla propia (la migra 1.9, `OPEN-CORE-28`), los enlaces guardados con estado de tabla en la URL abren sin él (la versión anterior no lee esos parámetros; no verificado, lo comprueba el implementador al probar la reversión), y las claves `plataforma.table.*` quedan huérfanas en los navegadores, inocuas y sin datos personales. Sin datos de servidor que deshacer.
+
+### 12.5 Problemas conocidos y diagnóstico
+
+| Síntoma | Causa probable |
+|---------|----------------|
+| La exportación se queda en «Preparando…» y acaba en «Comprobar de nuevo» | Ningún *worker* procesa `core-exports` (#128), o el trabajo falló sin llegar a `failed()` |
+| Una columna ordenable devuelve `422` al ordenar | La columna se declaró `sortable` sin que su `id` esté en el `enum` de `sort` del *endpoint* en OpenAPI: error del consumidor |
+| Un filtro «no filtra» | El `id` de la columna no coincide con el nombre del parámetro de consulta (`ADR-038 §13.3`): el servidor lo ignora como parámetro desconocido (`ADR-038 §5.2`) |
+| Las columnas ocultas «vuelven» | Navegación privada, almacenamiento bloqueado u otro navegador: la configuración es solo local (`RN-CORE-43`). Esperado |
+| La auditoría deja de «cargar más» | Se alcanzó el tope de 1.000 filas acumuladas (`RN-CORE-52`). Esperado: acotar filtros o exportar |
+| Un enlace compartido no conserva la búsqueda por texto | `q` nunca va en la URL (`RN-CORE-54`). Esperado |
+| Un enlace a `/administracion/mfa` no conserva los filtros de la tabla | Esa tabla no declara estado en la URL (paridad estricta, `OPEN-CORE-28`). Esperado |
+| El botón de exportar está deshabilitado | Hay una búsqueda por texto activa: ninguna exportación acepta `q` (`RN-CORE-57`/`58`). Esperado: borrar la búsqueda |
+| Tras recargar, la auditoría vuelve al principio | El `cursor` no va a la URL (`RN-CORE-54`). Esperado |

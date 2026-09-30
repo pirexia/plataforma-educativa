@@ -674,3 +674,57 @@ No aplica: 1.8 no consume ningún listado.
 ### 12.5 `OPEN-CORE-12` y `OPEN-CORE-13`, resueltas — sin efecto sobre este documento
 
 Ambas se resolvieron el 2026-09-23 con la opción que no añade *endpoints*: `OPEN-CORE-12` diferió las pantallas de `REQ-CORE` a `1.9b` (cuando llegue, consumirán los *endpoints* de §2-§8 de este documento **tal como están**; no se prevé ninguno nuevo) y `OPEN-CORE-13` difirió el motor de *widgets* configurables (que sí habría necesitado un recurso nuevo de disposición de panel y preferencia de usuario, con su permiso) al primer paso con un segundo bloque de panel con datos reales.
+
+---
+
+## 13. Paso 1.9 (tablas de datos): sin *endpoints* nuevos
+
+> Estado: **APROBADO** (2026-09-30, decisión del usuario), **ajustado a `ADR-054` (PROPUESTA) y pendiente solo de su ratificación por el usuario**, con `funcional.md §13`. Lo que procede de una precisión de `architect` va marcado **[ADR-054 · pendiente de ratificación]**.
+
+**1.9 no añade, modifica ni retira ningún *endpoint*, ni cambia la forma de ninguna respuesta ni de OpenAPI.** El componente de tabla **no hace peticiones por su cuenta**: recibe de cada módulo consumidor la función que llama a su *endpoint* (`funcional.md §13.5`, `RN-CORE-38`).
+
+### 13.1 Contrato que el componente exige a un *endpoint* de listado
+
+Nada nuevo: es `ADR-038` aplicado. Se enumera porque el componente **falla de forma visible** si un *endpoint* no lo cumple:
+
+| Aspecto | Exigencia | Origen |
+|---------|-----------|--------|
+| Envoltura | `{"data": [...], "meta": {...}}` | `ADR-038 §3.1` |
+| Paginación por página | `page`/`per_page` (25 por defecto, 100 máximo, `422` por encima) y `meta.current_page`, `per_page`, `total`, `last_page`; página fuera de rango devuelve `200` con `data: []` | `ADR-038 §4.3` |
+| Paginación por cursor | `cursor`/`limit` y `meta.next_cursor`, `has_more`; cursor de otros filtros ⇒ `422`. El cliente pide más solo al activar «Cargar más», nunca por desplazamiento (`RN-CORE-56`) [ADR-054 · pendiente de ratificación]; tras un fallo, reintenta con **el mismo** `cursor`; deja de pedir al acumular 1.000 filas (`RN-CORE-52`). El servidor no cambia | `ADR-038 §4.4`, `ADR-054 §2` |
+| Orden | `sort` con `-` para descendente, **lista blanca declarada como `enum` en OpenAPI**; una columna solo es `sortable` en el cliente si su `id` está en ese `enum` | `ADR-038 §5.3` |
+| Filtros | Parámetro con el mismo nombre que el `id` de la columna; múltiples por comas; rangos `_from`/`_to`; texto libre siempre `q`; parámetro desconocido ignorado; valor inválido ⇒ `422` con `errors.<parámetro>[].message` ya traducido | `ADR-038 §5.2`, `§6.3`, `§13.3` |
+| Identidad de fila | `public_id` en cada elemento (o la clave de catálogo de `ADR-051`, declarada por el consumidor) | `ADR-029`, `ADR-051` |
+
+### 13.2 *Endpoints* de exportación que consume
+
+| *Endpoint* | Para qué | Autorización | Desde |
+|------------|----------|--------------|-------|
+| `POST /api/v1/<recurso>/exports` (el del módulo consumidor) | Solicitar la exportación con los filtros estructurados del listado, **sin `sort`**, sin paginación y **sin `q`** [ADR-054 · pendiente de ratificación]. `202` con `public_id` | `<recurso>.exportar` | Solo existe `POST /audit-logs/exports` (1.1). `usuario.exportar` está declarado **sin *endpoint*** (`permisos.md §7`) |
+| `GET /api/v1/data-exports/{public_id}` | Estado y `download_url` firmada. `409` si aún no está lista (el cliente lo trata como «seguir esperando»), `410` si venció | Permiso del recurso exportado **y** ser el solicitante | 1.1 (§8) |
+
+**No existe `GET /data-exports`** (listado propio), y 1.9 **no lo crea** (`OPEN-CORE-25`, opción A, decisión del usuario 2026-09-30): la interfaz avisa de que el enlace se pierde al salir de la vista (`funcional.md §13.14.4`). Se reconsidera en `1.9b`.
+
+**Cuerpo de la solicitud** (`ADR-054 §7.3`, `§8.1`, `§8.2`) [ADR-054 · pendiente de ratificación en lo relativo a `sort`, `q` y la forma del cuerpo]: **los filtros estructurados del listado y nada más**. Sin `page`/`per_page`/`cursor`, **sin `sort`**, **sin `q`** y **sin lista de columnas**: el fichero tiene esquema fijo por recurso (columnas, nombres, su orden y **el orden de las filas**), definido en el servidor y documentado en su OpenAPI (`OPEN-CORE-23`, opción A). Enviar `sort` sería peor que no enviarlo: por `ADR-038 §5.2` se ignoraría en silencio y el usuario creería que el fichero sigue el orden de la pantalla. Un valor múltiple va como *array* JSON en el cuerpo; la forma por comas de `ADR-038 §5.2` es la de la *query string*, y la traducción entre las dos la hace la función de solicitud del módulo.
+
+**Con `q` activo en la tabla**, la SPA no envía la solicitud: el control está deshabilitado (`funcional.md` `RN-CORE-57`).
+
+### 13.3 Errores que el cliente interpreta
+
+Ninguno nuevo. `422` de filtro va junto a la barra de filtros (`RN-CORE-42`); todos los demás pasan por la correspondencia única de `funcional.md §12.6`.
+
+### 13.4 Norma común de CSV para *endpoints* de exportación futuros
+
+Norma de `ADR-054 §8`-`§10` (`funcional.md` `RN-CORE-46`-`48` y `RN-CORE-58`). **Obliga a los pasos que creen o modifiquen un `POST /<recurso>/exports`, no a 1.9**, que no toca ninguno.
+
+| Aspecto | Norma | Origen |
+|---------|-------|--------|
+| Generación | Siempre en cola en servidor (`INV-012`), límite de filas con `422` (`RNF-LIM-004`), ámbito del permiso aplicado dentro del trabajo (`RN-PERM-15`), URL firmada de caducidad corta, evento `exported`, retención de siete días. Lo que ya hace 1.1 | `ADR-054 §8.3` |
+| Esquema del fichero | Fijo por recurso y documentado en OpenAPI: columnas, nombres, su orden y **el orden de las filas**. La solicitud no acepta `sort` | `OPEN-CORE-23` A, `ADR-054 §8.1` [pendiente de ratificación en lo relativo a `sort`] |
+| **Paridad de filtros** | El *endpoint* acepta **exactamente los filtros estructurados de su listado**, con los mismos nombres y la misma semántica, salvo paginación, `sort` y `q`. **Test exigible por *endpoint***: todo parámetro de filtro del listado en OpenAPI existe en el esquema de la solicitud de exportación, o el test falla. `POST /audit-logs/exports` **no cumple hoy** esta regla (`funcional.md §13.20`, punto 6) | `ADR-054 §8.2` [pendiente de ratificación] |
+| **Texto libre** | **Ningún *endpoint* de exportación acepta `q`**. Si el listado del recurso acepta `q`, la exportación responde **`422`** al recibirlo, con código de error propio del recurso; no lo ignora | `ADR-054 §9`, `RN-CORE-58` [pendiente de ratificación] |
+| Escritura CSV | Una sola clase en `apps/api/app/Support/Csv/`, sin interfaz; tipos de columna declarados por el generador; neutralización solo sobre texto y cabecera, con las dos condiciones de `RN-CORE-48` | `ADR-054 §10.1`/`§10.2` [pendiente de ratificación] |
+| Dialecto | **Coma, UTF-8 con BOM, CRLF**, comillas dobles de RFC 4180 sin carácter de escape, cabecera siempre, sin `sep=` | `OPEN-CORE-24` A, `ADR-054 §10.3` |
+| Idioma de cabecera y enumerados | **Abierto** (`OPEN-054-01`); bloquea el primer *endpoint* de exportación nuevo (`1.9b`) | `ADR-054`, «Preguntas abiertas» |
+
+**No cambia nada de `POST /audit-logs/exports` en 1.9**: el dialecto y la clase común le llegan con la rama `fix/` del issue #270, después de la ratificación de `ADR-054` (`funcional.md §13.1.3`). Cuando llegue, la salida de la exportación de auditoría ganará BOM y CRLF: un consumidor que la procese por programa debe saberlo (se anotará en su OpenAPI y en `CHANGELOG.md` en esa rama). La paridad de filtros y los nombres del rango de fechas de la auditoría (`from`/`to` frente a `occurred_at_from`/`occurred_at_to`, contra `ADR-038 §5.2`) se corrigen antes de que `1.9b` conecte su pantalla (`funcional.md §13.20`, puntos 5 y 6).
