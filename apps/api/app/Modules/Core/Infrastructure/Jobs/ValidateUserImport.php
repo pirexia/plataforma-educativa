@@ -6,6 +6,8 @@ use App\Models\Role;
 use App\Modules\Core\Application\UserImportCsvReader;
 use App\Modules\Core\Application\UserImportRowValidator;
 use App\Modules\Core\Domain\Models\UserImport;
+use App\Support\Csv\CsvColumnType;
+use App\Support\Csv\CsvWriter;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -97,21 +99,18 @@ class ValidateUserImport implements ShouldQueue
      */
     private function writeReport(string $key, array $errors): void
     {
-        $handle = fopen('php://temp', 'w+');
-
-        if ($handle === false) {
-            return;
-        }
-
-        fputcsv($handle, ['line', 'column', 'code', 'message']);
+        $csv = new CsvWriter([
+            'line' => CsvColumnType::Integer,
+            'column' => CsvColumnType::Text,
+            'code' => CsvColumnType::Text,
+            'message' => CsvColumnType::Text,
+        ]);
 
         foreach ($errors as $error) {
-            fputcsv($handle, [$error['line'], $error['column'], $error['code'], $error['message']]);
+            $csv->writeRow([$error['line'], $error['column'], $error['code'], $error['message']]);
         }
 
-        rewind($handle);
-        Storage::disk(config('filesystems.default'))->put($key, stream_get_contents($handle) ?: '');
-        fclose($handle);
+        Storage::disk(config('filesystems.default'))->put($key, $csv->finish());
     }
 
     public function failed(Throwable $exception): void

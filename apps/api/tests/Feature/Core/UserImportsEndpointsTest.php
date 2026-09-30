@@ -273,3 +273,35 @@ test('sin usuario.importar, POST /user-imports devuelve 403', function (): void 
         ->call('POST', coreApiUrl($tenant->slug, '/user-imports'), [], [], ['file' => $file])
         ->assertStatus(403);
 });
+
+// RN-CORE-47/48, issue #270: el informe de errores (report.csv) se escribe
+// con CsvWriter, igual que cualquier otro CSV del producto.
+test('RN-CORE-47/48 (#270): el report.csv del informe de importación usa CsvWriter (BOM, CRLF, cabecera y enteros sin apóstrofo)', function (): void {
+    [$tenant, $admin] = provisionCoreTenant('import-report-csv');
+
+    $file = UploadedFile::fake()->createWithContent('personal.csv', coreImportCsv());
+
+    $importId = test()->actingAs($admin)
+        ->call('POST', coreApiUrl($tenant->slug, '/user-imports'), [], [], ['file' => $file])
+        ->assertStatus(202)
+        ->json('public_id');
+
+    $reportKey = app(TenantContext::class)->runFor(
+        $tenant->id,
+        fn () => UserImport::where('public_id', $importId)->firstOrFail()->report_object_key,
+    );
+
+    $report = Storage::disk('local')->get($reportKey);
+
+    expect(str_starts_with($report, "\xEF\xBB\xBF"))->toBeTrue()
+        ->and(str_starts_with(substr($report, 3), "line,column,code,message\r\n"))->toBeTrue();
+
+    $lines = array_values(array_filter(explode("\r\n", substr($report, 3))));
+
+    // 2 filas inválidas del fichero de ejemplo ⇒ cabecera + al menos 2 errores.
+    expect(count($lines))->toBeGreaterThanOrEqual(3);
+
+    foreach (array_slice($lines, 1) as $line) {
+        expect(str_getcsv($line, ',', '"', '')[0])->toMatch('/^\d+$/');
+    }
+});
