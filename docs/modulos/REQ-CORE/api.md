@@ -539,9 +539,9 @@ Descarta un lote no ejecutado y borra su fichero fuente y su informe del bucket.
 
 | Parámetro | Nota |
 |-----------|------|
-| `from`, `to` | Rango sobre `occurred_at`, ISO 8601 con zona. Máximo configurable de ventana |
+| `occurred_at_from`, `occurred_at_to` | Rango sobre `occurred_at`, ISO 8601 con zona, ambos inclusivos. Máximo configurable de ventana. Sufijo `_from`/`_to` de `ADR-038 §5.2` (issue [#266](https://github.com/pirexia/plataforma-educativa/issues/266)); los nombres anteriores `from`/`to` **ya no existen** y, por `ADR-038 §5.2`, se ignoran sin error |
 | `actor_id` | ULID de usuario |
-| `actor_type` | `user\|system\|console\|import\|platform` |
+| `actor_type` | `user\|system\|console\|import\|platform\|anonymous` |
 | `event` | `created\|updated\|deleted\|restored\|read\|exported`, repetible |
 | `auditable_type` | Alias del *morph map* (`user`, `person`, `role`, …), repetible |
 | `auditable_id` | `public_id` de la entidad, para el historial de un registro concreto |
@@ -585,10 +585,12 @@ Descarta un lote no ejecutado y borra su fichero fuente y su informe del bucket.
 ### `POST /api/v1/audit-logs/exports`
 
 - **Permiso**: `auditoria` · `exportar` · `todos`
-- **Cuerpo**: los mismos filtros de `GET /audit-logs` más `{ "format": "csv" }`
+- **Cuerpo**: `{ "format": "csv" }` más **exactamente los filtros estructurados de `GET /audit-logs`**, con los mismos nombres y las mismas reglas de validación (`ADR-054 §8.2`, issue [#267](https://github.com/pirexia/plataforma-educativa/issues/267)): `occurred_at_from`, `occurred_at_to`, `actor_id`, `actor_type`, `event` (array), `auditable_type` (array), `auditable_id`, `module`. Sin `cursor`, `limit`, `sort` ni `q`. Las reglas escalares son las mismas (`IndexAuditLogsRequest::filterRules()`) y el filtrado lo aplica el mismo código que el listado (`AuditLogFilter`); un ULID o un `actor_type` inválido da `422` igual que en el listado
 - **Respuesta 202**: `{ "public_id": "01J8...", "status": "pendiente" }`
 - **Errores**: `422` si el rango supera el límite de filas configurado o si `format` es `pdf` (**diferido a 1.17**, `funcional.md` §4.6)
-- **Efecto**: encola la generación (`INV-012`) y audita la solicitud con `event = 'exported'`. Las celdas de texto que empiezan por un carácter de fórmula (`= + - @`, tab, CR, LF) se escriben con un apóstrofo delante (`RN-CORE-36`): un consumidor que parsee el CSV verá ese apóstrofo en el dato
+- **Efecto**: encola la generación (`INV-012`) y audita la solicitud con `event = 'exported'`. La escritura la hace la clase común `App\Support\Csv\CsvWriter` (`RN-CORE-47`/`48`, issue [#270](https://github.com/pirexia/plataforma-educativa/issues/270)): las celdas de texto que empiezan por un carácter de fórmula (`= + - @`, tab, CR, LF) o por espacio en blanco seguido de `= + - @` se escriben con un apóstrofo delante (`RN-CORE-36`/`48`): un consumidor que parsee el CSV verá ese apóstrofo en el dato
+- **Fichero** (esquema fijo, `ADR-054 §8.1`): columnas `occurred_at` (instante ISO 8601 con desfase, p. ej. `2026-01-31T09:15:00+00:00`), `actor`, `actor_type`, `auditable_type`, `auditable_public_id`, `event`, `request_id`; filas por `occurred_at` ascendente y `id`. Dialecto de `ADR-054 §10.3`: coma, UTF-8 con BOM, CRLF, comillas dobles de RFC 4180 sin carácter de escape, cabecera siempre. **Cambio visible respecto a la versión anterior**: el fichero gana BOM y CRLF, y `occurred_at` pasa de `2026-01-31T09:15:00.000000Z` (milisegundos y `Z`) a `2026-01-31T09:15:00+00:00`. Las cabeceras y los códigos (`actor_type`, `event`) siguen como estaban: el idioma de la cabecera es `OPEN-054-01` y no está decidido.
+- **Cambio de contrato (renombrado directo, sin periodo de compatibilidad)**: `from`/`to` → `occurred_at_from`/`occurred_at_to` en `GET /audit-logs` y en este cuerpo (#266). No hay producción (`H0` abierto) y el único consumidor es la SPA (`apps/web/src/modules/core/api/auditLogs.ts`), así que no se aplica expand/contract.
 
 ### `GET /api/v1/data-exports/{public_id}`
 
@@ -721,10 +723,10 @@ Norma de `ADR-054 §8`-`§10` (`funcional.md` `RN-CORE-46`-`48` y `RN-CORE-58`).
 |---------|-------|--------|
 | Generación | Siempre en cola en servidor (`INV-012`), límite de filas con `422` (`RNF-LIM-004`), ámbito del permiso aplicado dentro del trabajo (`RN-PERM-15`), URL firmada de caducidad corta, evento `exported`, retención de siete días. Lo que ya hace 1.1 | `ADR-054 §8.3` |
 | Esquema del fichero | Fijo por recurso y documentado en OpenAPI: columnas, nombres, su orden y **el orden de las filas**. La solicitud no acepta `sort` | `OPEN-CORE-23` A, `ADR-054 §8.1` |
-| **Paridad de filtros** | El *endpoint* acepta **exactamente los filtros estructurados de su listado**, con los mismos nombres y la misma semántica, salvo paginación, `sort` y `q`. **Test exigible por *endpoint***: todo parámetro de filtro del listado en OpenAPI existe en el esquema de la solicitud de exportación, o el test falla. `POST /audit-logs/exports` **no cumple hoy** esta regla (`funcional.md §13.20`, punto 6; issue [#267](https://github.com/pirexia/plataforma-educativa/issues/267)) | `ADR-054 §8.2` |
+| **Paridad de filtros** | El *endpoint* acepta **exactamente los filtros estructurados de su listado**, con los mismos nombres y la misma semántica, salvo paginación, `sort` y `q`. **Test exigible por *endpoint***: todo parámetro de filtro del listado en OpenAPI existe en el esquema de la solicitud de exportación, o el test falla. `POST /audit-logs/exports` **cumple** la regla desde el issue [#267](https://github.com/pirexia/plataforma-educativa/issues/267) (test `ADR-054 §8.2 (#267)` en `AuditLogsEndpointsTest`) | `ADR-054 §8.2` |
 | **Texto libre** | **Ningún *endpoint* de exportación acepta `q`**. Si el listado del recurso acepta `q`, la exportación responde **`422`** al recibirlo, con código de error propio del recurso; no lo ignora | `ADR-054 §9`, `RN-CORE-58` |
 | Escritura CSV | Una sola clase en `apps/api/app/Support/Csv/`, sin interfaz; tipos de columna declarados por el generador; neutralización solo sobre texto y cabecera, con las dos condiciones de `RN-CORE-48` | `ADR-054 §10.1`/`§10.2` |
 | Dialecto | **Coma, UTF-8 con BOM, CRLF**, comillas dobles de RFC 4180 sin carácter de escape, cabecera siempre, sin `sep=` | `OPEN-CORE-24` A, `ADR-054 §10.3` |
 | Idioma de cabecera y enumerados | **Abierto** (`OPEN-054-01`); bloquea el primer *endpoint* de exportación nuevo (`1.9b`) | `ADR-054`, «Preguntas abiertas» |
 
-**No cambia nada de `POST /audit-logs/exports` en 1.9**: el dialecto y la clase común le llegan con la rama `fix/` del issue #270, después de la ratificación de `ADR-054` (`funcional.md §13.1.3`). Cuando llegue, la salida de la exportación de auditoría ganará BOM y CRLF: un consumidor que la procese por programa debe saberlo (se anotará en su OpenAPI y en `CHANGELOG.md` en esa rama). La paridad de filtros y los nombres del rango de fechas de la auditoría (`from`/`to` frente a `occurred_at_from`/`occurred_at_to`, contra `ADR-038 §5.2`) se corrigen antes de que `1.9b` conecte su pantalla (`funcional.md §13.20`, puntos 5 y 6; issues [#266](https://github.com/pirexia/plataforma-educativa/issues/266) y [#267](https://github.com/pirexia/plataforma-educativa/issues/267)).
+**`POST /audit-logs/exports` no cambió en 1.9; cambió después, en la rama `fix/REQ-CORE-005-auditoria-csv-rangos-y-filtros`**: la clase común `CsvWriter` y el dialecto (#270; la salida ganó BOM y CRLF, anotado en `CHANGELOG.md`), los nombres `occurred_at_from`/`occurred_at_to` (#266) y la paridad de filtros (#267) ya están implementados. Queda abierto `OPEN-054-01` (idioma de cabecera y enumerados), que bloquea el primer *endpoint* de exportación nuevo (`1.9b`).

@@ -49,7 +49,7 @@ Ninguna es un secreto salvo las credenciales de S3 y de correo, que van por gest
 | Servicio | Uso | Si no responde |
 |----------|-----|----------------|
 | **PostgreSQL** | Todo | La API no sirve. Sin degradación posible ni deseable |
-| **Redis** | Colas (Horizon) y caché | La caché degrada a consulta directa (más lenta, correcta). Las **colas no degradan**: sin Redis no se envían invitaciones, no se validan ni ejecutan importaciones y no se generan exportaciones. Los trabajos quedan sin encolar y la petición debe fallar con `503`, nunca aceptar en silencio algo que no va a ocurrir |
+| **Redis** | Caché (prefijo por tenant, `ADR-033 §9`). **Colas: no hoy.** El *driver* vigente es `database` (`QUEUE_CONNECTION=database`, tablas `jobs`/`failed_jobs`, sin *worker* desplegado, issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128)); Redis como cola con Laravel Horizon está **elegido y no instalado** (Horizon no está en `composer.json`, no hay `config/horizon.php`; `CLAUDE.md §1`, `OPEN-BO-23`) | La caché degrada a consulta directa (más lenta, correcta). **Con el *driver* `database` las colas dependen de PostgreSQL, no de Redis**: sin PostgreSQL la API no sirve (fila anterior). Cuando las colas pasen a Redis, dejarán de degradar: sin Redis no se enviarían invitaciones, no se validarían ni ejecutarían importaciones y no se generarían exportaciones, y la petición deberá fallar con `503`, nunca aceptar en silencio algo que no va a ocurrir |
 | **S3 / MinIO** | Activos de marca, ficheros de importación, artefactos de exportación | Subida y descarga fallan con `503`. El resto del módulo (usuarios, roles, configuración no gráfica, auditoría) sigue funcionando. La configuración se devuelve con las URLs de branding a `null`, no con un error |
 | **Correo transaccional** | Invitación | Depende de `0.10c`, **sin decidir** (`OPEN-CORE-04`). El trabajo reintenta; agotados los reintentos, la invitación queda emitida y visible en `GET /invitations`, y el administrador puede reenviarla. **La invitación no se invalida por un fallo de entrega** |
 
@@ -152,7 +152,7 @@ El sobrecoste de RLS medido en 0.8.12 (media ~1,24 %) es la línea base: una reg
 | El logo desaparece tras cambiarlo | El activo anterior se purgó antes de confirmar el nuevo. La purga es diferida (24 h) precisamente para esto |
 | Enlace de invitación devuelve `404` | El host del enlace no resuelve tenant: `TENANCY_BASE_DOMAIN` mal configurado, o DNS con comodín ausente (`OPEN-08`, paso 0.10b) |
 | Enlace de invitación «no hace nada» | **Esperado en 1.1**: el canje lo implementa 1.2 (`funcional.md` §1.4, `OPEN-CORE-01`) |
-| Importación queda en `subido` para siempre | *Worker* de `core-imports` caído, o Redis no disponible |
+| Importación queda en `subido` para siempre | *Worker* de `core-imports` ausente o caído. **Hoy no hay ninguno desplegado** (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128)): con el *driver* `database` no hay Redis implicado en la cola. Cuando las colas pasen a Redis, añadir «o Redis no disponible» |
 | `403` en un endpoint de otro módulo recién desplegado | `platform:sync-registry` no ejecutado tras el despliegue: el permiso no existe y se deniega por defecto. Es el comportamiento correcto y está documentado como paso obligatorio de entrega (`ADR-034`, consecuencias) |
 | Un usuario no puede iniciar sesión | **Esperado en 1.1**: no hay login hasta 1.2 |
 
@@ -257,7 +257,7 @@ Ninguna nueva en servidor. Lo que sí conviene mirar tras desplegar, con las mé
 
 La exportación **solo termina si hay un *worker* procesando `core-exports`**. Hoy no hay ninguno desplegado, ni en `compose.yaml` ni en `infra/quadlet/*` (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128), Alta). Sin él, toda exportación se queda en `pendiente` y la interfaz, tras la duración máxima de `RN-CORE-49`, deja de consultar y ofrece «Comprobar de nuevo». **No es un fallo de 1.9**, y no debe diagnosticarse como tal.
 
-**Discrepancia documental** (`funcional.md §13.20`, punto 1; issue [#273](https://github.com/pirexia/plataforma-educativa/issues/273)): §2 de este documento decía `QUEUE_CONNECTION = redis`; `apps/api/config/queue.php` y `CLAUDE.md §1` dicen `database`. **§2 ya está corregido.** Quedan sin corregir §3 (fila «Redis»: «Colas (Horizon)») y §8 (síntoma «Importación queda en `subido`»: «o Redis no disponible»), que siguen describiendo Redis como cola vigente; son secciones de 1.1, se reportan y no se tocan en este paso.
+**Discrepancia documental** (`funcional.md §13.20`, punto 1; issue [#273](https://github.com/pirexia/plataforma-educativa/issues/273)): §2 decía `QUEUE_CONNECTION = redis`; `apps/api/config/queue.php` y `CLAUDE.md §1` dicen `database`. **Corregidas §2, §3 (fila «Redis») y §8 (síntoma «Importación queda en `subido`»)**; ninguna otra sección de `docs/modulos/REQ-CORE` describe Redis/Horizon como cola vigente (comprobado con `grep`, 2026-09-30).
 
 ### 12.3 Carga sobre la API
 
