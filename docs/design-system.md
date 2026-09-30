@@ -615,6 +615,10 @@ Adaptaciones sobre el código del registro:
 
 Ninguno de los dos declara `size`/altura fija en sus elementos de fila (`sheet`: el panel entero; `dropdown-menu`: `py-1` ≈ 32 px por ítem) — los usos del *shell* añaden `min-h-11` por instancia donde corresponde (`RN-CORE-32`), en vez de tocar la altura por defecto del componente base: a diferencia de §12.1b, aquí no es «todo el producto en punteros gruesos», es «todo control del *shell*, siempre» (`funcional.md §12.7`).
 
+### 12.3b Paso 1.9 (tablas de datos): ningún componente nuevo
+
+El componente de tabla de datos (`apps/web/src/data-table/`, `docs/modulos/REQ-CORE/funcional.md §13`) **no vendoriza ningún componente base nuevo** (`CA-CORE-197` se cumple por vacuidad, y los tests de §10 siguen sin excepción nueva): los filtros de enumerado, los de tres estados, el menú de columnas, el selector de orden de las tarjetas y el de filas por página son `dropdown-menu` (1.8: elementos de casilla y de opción única); las fechas, `input type="date"` del `input` base; y la tabla, los subcomponentes de `components/ui/table`. No hizo falta `checkbox` ni `popover`. Sus textos propios viven en `dataTable.*` (`docs/i18n.md`), no en `components/ui` (`RN-DS-24`). Los controles que no son componente base —el botón de ordenación de la cabecera y los elementos de los menús— añaden `min-h-11` por instancia en `any-pointer: coarse` (`§12.1b`, `OPEN-CORE-14`), verificado en navegador real (`CA-CORE-178`).
+
 ---
 
 ## 13. Migración de `PublicAuthShell` y `usePublicAuthScreen`

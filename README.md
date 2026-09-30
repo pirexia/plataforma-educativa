@@ -4,9 +4,9 @@ SaaS para la gestión integral de centros educativos. Segmento inicial: **centro
 
 | Campo | Valor |
 |-------|-------|
-| **Versión del documento** | 2.6.5 |
+| **Versión del documento** | 2.6.6 |
 | **Fecha** | 2026-09-30 |
-| **Estado del proyecto** | Fase 1 · MVP operativo. Bloque A (identidad y acceso) **completo y mezclado**: tenants/usuarios, autenticación local, sesiones activas, MFA (TOTP + correo), login con Google (fusión de cuentas), SSO institucional OIDC + SAML 2.0 con aprovisionamiento por emparejamiento, núcleo de autorización granular (`REQ-PERM`) y los cinco sub-pasos del backoffice de plataforma (`REQ-BO`, `1.6`-`1.6e`, incluido el motor de *feature flags*) — `1.1` a `1.6e` íntegros. Bloque B (*design system* y navegación): `1.7` · *Design system* (tokens, tema por tenant, modo oscuro) **completo y mezclado**. `1.8` · Layout, navegación y panel de inicio (`REQ-CORE-008`) implementado y mezclado (PR #264). `1.9` (Tablas de datos): especificación y `ADR-054` (aceptada) redactados y aprobados el 2026-09-30; sin código |
+| **Estado del proyecto** | Fase 1 · MVP operativo. Bloque A (identidad y acceso) **completo y mezclado**: tenants/usuarios, autenticación local, sesiones activas, MFA (TOTP + correo), login con Google (fusión de cuentas), SSO institucional OIDC + SAML 2.0 con aprovisionamiento por emparejamiento, núcleo de autorización granular (`REQ-PERM`) y los cinco sub-pasos del backoffice de plataforma (`REQ-BO`, `1.6`-`1.6e`, incluido el motor de *feature flags*) — `1.1` a `1.6e` íntegros. Bloque B (*design system* y navegación): `1.7` · *Design system* (tokens, tema por tenant, modo oscuro) **completo y mezclado**. `1.8` · Layout, navegación y panel de inicio (`REQ-CORE-008`) implementado y mezclado (PR #264). `1.9` (Tablas de datos): especificación y `ADR-054` (aceptada) aprobados el 2026-09-30; **implementado** (componente `apps/web/src/data-table/` y migración de `MfaComplianceArea.vue`), pendiente de revisión independiente y mezcla. Siguiente: `1.9b` (pantallas de gestión de `REQ-CORE`) |
 
 ---
 
@@ -73,16 +73,16 @@ Lista completa: sección 0.5 del documento de requisitos (`INV-001` a `INV-015`)
 
 | Documento | Versión |
 |-----------|---------|
-| `README.md` | 2.6.5 |
+| `README.md` | 2.6.6 |
 | `CLAUDE.md` | 2.5.3 |
-| `ARCHITECTURE.md` | 2.2.0 |
+| `ARCHITECTURE.md` | 2.3.0 |
 | `PLAN-IMPLEMENTACION.md` | 2.3.1 |
 | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | 3.2.9 |
 | `docs/SETUP-CLAUDE-CODE.md` | 1.3.0 |
 | `docs/SETUP-ENTORNO.md` | 1.3.0 |
 | `SYSADMIN.md` | 0.8.3 |
-| `SECURITY.md` | 0.3.5 |
-| `PRIVACY.md` | 0.3.1 |
+| `SECURITY.md` | 0.3.6 |
+| `PRIVACY.md` | 0.3.2 |
 | `RUNBOOK.md` | 0.3.1 |
 | `CONTRIBUTING.md` | 0.2.0 |
 

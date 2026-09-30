@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |-------|-------|
-| Versión | 2.2.0 |
-| Fecha | 2026-09-23 |
+| Versión | 2.3.0 |
+| Fecha | 2026-09-30 |
 | Estado | Propuesta cerrada, pendiente de ratificación |
 | Documento de requisitos | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` |
 
@@ -113,6 +113,20 @@ Los permisos de una pantalla se declaran **una sola vez**, en `meta.permissions`
 **Estado de sesión** (`src/session/useSession.ts`): singleton en memoria (mismo patrón *composable* sin Pinia que la capa B del *design system*), nunca en `localStorage`/`sessionStorage`. El *guard* del *router* (`src/router/guard.ts`) pide `GET /me` una sola vez por navegación a una ruta con sesión; cualquier `403` que no sea el muro de MFA recarga la sesión (deduplicada), incluido `module-disabled`, que además dispara el estado «módulo no disponible» si la ruta actual deja de estar permitida tras la recarga; cualquier `401` (salvo el propio `GET /me`, que resuelve el *guard*) vacía la sesión y navega a `/entrar` con el destino saneado (`src/router/redirect.ts`, evita redirección abierta) — ambos mecanismos viven en `src/api/client.ts`, con importación dinámica de `@/router`/`@/session` para no crear un ciclo de módulos.
 
 Detalle completo, reglas de negocio y criterios de aceptación: `docs/modulos/REQ-CORE/funcional.md §12`; convención transversal para los módulos siguientes: `docs/adr/ADR-053-registro-de-navegacion-y-bloques-del-panel.md`.
+
+### 3.3 Frontend: tablas de datos (paso 1.9, `ADR-054`)
+
+`apps/web/src/data-table/` es el componente único de tabla de datos (nivel de aplicación, como `src/tenant/` y `src/navigation/`; no va en `components/ui` porque tiene textos propios traducidos, ni en `src/modules/core` porque lo consumen todos los módulos). **`@tanstack/vue-table` se importa solo aquí** (`RN-CORE-37`, `RNF-MANT-007`): `src/data-table/useTableModel.ts` es el único punto que lo toca, y un módulo consumidor declara columnas, filtros y fuente de datos con los tipos propios del componente (`src/data-table/types.ts`, superficie pública `src/data-table/index.ts`). La versión 8 → 9 de TanStack se cambiaría en ese directorio sin tocar un consumidor.
+
+- **Paginación en servidor, dos modos** (`ADR-038 §4.2`): `page` (paginador numerado, 25/50/100 por página) y `cursor` (botón «Cargar más», sin desplazamiento infinito, tope `MAX_CURSOR_ROWS = 1000` filas acumuladas). Orden de una sola columna y filtros (texto `q`, enumerado múltiple, rango de fechas, booleano) también en servidor; el componente no hace peticiones ni construye URLs: recibe del módulo una función de petición (`RN-CORE-38`). Solo gana la respuesta de la última consulta y `q` se espera 300 ms.
+- **Sin virtualización** (`OPEN-CORE-19`): `@tanstack/vue-virtual` no está instalada; el tope del modo `cursor` resuelve el único caso real sin el coste de accesibilidad.
+- **Vista móvil**: por debajo de 768 px, lista de tarjetas construida con el mismo contrato de columnas (una sola representación en el DOM); desplazamiento horizontal interno como opción declarada por tabla (`RN-CORE-55`).
+- **Columnas configurables**: visibilidad y «Restablecer», en `localStorage` (`plataforma.table.<tableId>`, `{"v":1,"hidden":[…]}`, solo `id` de columna; `tableId` literal `<modulo>.<nombre>`). Las filas viven solo en memoria (`RN-CORE-50`).
+- **Estado de la consulta en la URL**: opcional por tabla y como máximo una por ruta; `q` y `cursor` nunca (`RN-CORE-54`).
+- **Exportación**: el componente solo dispara la solicitud al *endpoint* de exportación del módulo dueño del recurso (en cola, `INV-012`) y consulta `GET /data-exports/{id}` con espera creciente; **nunca genera el fichero** (`RN-CORE-46`).
+- **Tests de arquitectura** (`src/data-table/architecture.spec.ts`, patrón de `docs/design-system.md §10`): importación única de TanStack, frontera de `src/data-table/**` (sin `@/modules`), toda tabla nueva por el componente con lista cerrada de excepciones que solo puede reducirse (`RN-CORE-53`: `MfaExemptionsArea.vue`, `AdminSsoView.vue`, `SessionsView.vue`, hasta `1.9b`), `tableId` literal y único, y ningún fichero de exportación construido en el cliente.
+
+Detalle completo, reglas de negocio y criterios de aceptación: `docs/modulos/REQ-CORE/funcional.md §13`; decisiones: `docs/adr/ADR-054-tablas-de-datos-y-exportacion-de-listados.md`.
 
 ---
 

@@ -357,7 +357,7 @@ Ninguna de estas purgas toca `audit_logs`: la retención del registro de auditor
 
 # Parte C · Paso 1.9 (tablas de datos): sin cambios de esquema
 
-> Estado: **APROBADO** (2026-09-30, decisión del usuario), **ajustado a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**, con `funcional.md §13`. Listo para `implementer`.
+> Estado: **APROBADO** (2026-09-30, decisión del usuario), **ajustado a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**, con `funcional.md §13`. **Implementado** (2026-09-30): sin ningún cambio de esquema, como se afirma abajo; la clave `plataforma.table.<tableId>` ya figura en el inventario de `PRIVACY.md §2.1b`. Pendiente de revisión independiente.
 
 **El paso 1.9 no crea, altera ni elimina ninguna tabla, columna, índice ni restricción.** Las decisiones del usuario del 2026-09-30 lo confirman: ninguna de las opciones elegidas en `funcional.md §13.21` necesita esquema (la de `OPEN-CORE-25` que lo habría necesitado, un listado `GET /data-exports`, se descartó para 1.9; el índice que lo serviría ya existe, A.7).
 
