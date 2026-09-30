@@ -7,6 +7,7 @@
  * ficticio `fixture`.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Component } from 'vue'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { i18n, setLocale } from '@/i18n'
 import { ApiError } from '@/api/client'
@@ -94,7 +95,7 @@ function mountTable(
   props: Record<string, unknown> = {},
   slots: Record<string, unknown> = {},
 ) {
-  const wrapper = mount(DataTable as never, {
+  const wrapper = mount(DataTable as unknown as Component, {
     props: {
       tableId: 'fixture.people',
       caption: 'Personas',
@@ -853,7 +854,8 @@ describe('CA-CORE-184: anuncios de resultado', () => {
       fr: ['Aucun résultat', '1 résultat', '137 résultats'],
     } as const
 
-    for (const [locale, [zero, one, many]] of Object.entries(expectations)) {
+    for (const [localeName, [zero, one, many]] of Object.entries(expectations)) {
+      const locale = localeName as 'es' | 'en' | 'de' | 'fr'
       const t = i18n.global.t
       const options = { locale } as const
 

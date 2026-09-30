@@ -280,7 +280,9 @@
         "resetAction": "Réinitialiser",
         "previousPage": "Précédent",
         "nextPage": "Suivant",
-        "pageIndicator": "Page {page} sur {lastPage}"
+        "pageIndicator": "Page {page} sur {lastPage}",
+        "tableCaption": "Utilisateurs et état de conformité du second facteur",
+        "resetActionFor": "Réinitialiser la MFA de {name}"
       },
       "roleRequirement": {
         "title": "Obligation par rôle",

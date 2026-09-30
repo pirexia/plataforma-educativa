@@ -280,7 +280,9 @@
         "resetAction": "Restablecer",
         "previousPage": "Anterior",
         "nextPage": "Siguiente",
-        "pageIndicator": "Página {page} de {lastPage}"
+        "pageIndicator": "Página {page} de {lastPage}",
+        "tableCaption": "Usuarios y estado de cumplimiento del segundo factor",
+        "resetActionFor": "Restablecer MFA de {name}"
       },
       "roleRequirement": {
         "title": "Obligatoriedad por rol",
