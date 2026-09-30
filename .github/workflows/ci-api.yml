@@ -64,7 +64,7 @@ jobs:
           extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis
           coverage: none
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: apps/api/vendor
           key: composer-${{ runner.os }}-${{ hashFiles('apps/api/composer.lock') }}
@@ -188,7 +188,7 @@ jobs:
           php-version: "8.4"
           coverage: none
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: apps/api/vendor
           key: composer-${{ runner.os }}-${{ hashFiles('apps/api/composer.lock') }}
@@ -242,7 +242,7 @@ jobs:
           php-version: "8.4"
           coverage: none
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: apps/api/vendor
           key: composer-${{ runner.os }}-${{ hashFiles('apps/api/composer.lock') }}
