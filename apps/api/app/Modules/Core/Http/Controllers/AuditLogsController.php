@@ -12,6 +12,7 @@ use App\Support\Authorization\PermissionDecision;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -32,8 +33,8 @@ class AuditLogsController extends Controller
         $decision = $this->decision($request);
 
         $filters = array_filter([
-            'from' => $request->input('from'),
-            'to' => $request->input('to'),
+            'occurred_at_from' => $request->input('occurred_at_from'),
+            'occurred_at_to' => $request->input('occurred_at_to'),
             'actor_id' => $request->input('actor_id'),
             'actor_type' => $request->input('actor_type'),
             'event' => $request->filled('event') ? explode(',', (string) $request->string('event')) : null,
@@ -62,17 +63,20 @@ class AuditLogsController extends Controller
     }
 
     /**
-     * api.md §8, `POST /audit-logs/exports`. Mismos filtros de §4.5 más
-     * `format`. En 1.1 solo `csv` (`pdf` diferido a 1.17).
+     * api.md §8, `POST /audit-logs/exports`. Exactamente los filtros
+     * estructurados de `GET /audit-logs` (mismas reglas, ADR-054 §8.2,
+     * issue #267) más `format`; sin `cursor`, `limit` ni `q`. En 1.1 solo
+     * `csv` (`pdf` diferido a 1.17).
      */
     public function storeExport(Request $request, ExportRequestService $exports): JsonResponse
     {
-        $request->validate([
+        $validated = $request->validate([
+            ...IndexAuditLogsRequest::filterRules(),
             'format' => ['required', 'in:csv,pdf'],
-            'from' => ['sometimes', 'date'],
-            'to' => ['sometimes', 'date'],
             'event' => ['sometimes', 'array'],
+            'event.*' => ['string'],
             'auditable_type' => ['sometimes', 'array'],
+            'auditable_type.*' => ['string'],
         ]);
 
         if ($request->input('format') === 'pdf') {
@@ -87,7 +91,7 @@ class AuditLogsController extends Controller
 
         $actor = $this->actor($request);
 
-        $export = $exports->request('audit_logs', 'csv', $request->only(['from', 'to', 'event', 'auditable_type']), $actor);
+        $export = $exports->request('audit_logs', 'csv', Arr::except($validated, ['format']), $actor);
 
         return response()->json(['public_id' => $export->public_id, 'status' => $export->status], 202);
     }

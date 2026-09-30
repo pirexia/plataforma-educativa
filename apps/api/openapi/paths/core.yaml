@@ -1119,18 +1119,20 @@ paths:
       tags: [Core / Auditoría]
       security: [{ SessionCookie: [] }]
       parameters:
-        - name: from
+        - name: occurred_at_from
           in: query
+          description: Inicio del rango de `occurred_at` (inclusive). Sufijo `_from` de ADR-038 §5.2 (issue #266; antes `from`).
           schema: { type: string, format: date-time }
-        - name: to
+        - name: occurred_at_to
           in: query
+          description: Fin del rango de `occurred_at` (inclusive). Sufijo `_to` de ADR-038 §5.2 (issue #266; antes `to`).
           schema: { type: string, format: date-time }
         - name: actor_id
           in: query
           schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
         - name: actor_type
           in: query
-          schema: { type: string, enum: [user, system, console, import, platform] }
+          schema: { type: string, enum: [user, system, console, import, platform, anonymous] }
         - name: event
           in: query
           description: Repetible, separado por comas.
@@ -1171,6 +1173,14 @@ paths:
     post:
       operationId: exportAuditLogs
       summary: Solicita una exportación asíncrona del registro filtrado
+      description: |
+        Acepta exactamente los filtros estructurados de `GET /audit-logs`, con los mismos
+        nombres y reglas (ADR-054 §8.2, issue #267), salvo `cursor` y `limit`; no acepta `q`
+        ni `sort` (ADR-054 §8.1, §9). El fichero es un CSV de esquema fijo, orden
+        `occurred_at, id`, con el dialecto de ADR-054 §10.3 (UTF-8 con BOM, coma, CRLF).
+        Columnas: `occurred_at` (ISO 8601 con desfase), `actor`, `actor_type`, `auditable_type`,
+        `auditable_public_id`, `event`, `request_id`. Solo las filas que el ámbito de
+        `auditoria.exportar` del solicitante alcanza.
       tags: [Core / Auditoría]
       security: [{ SessionCookie: [] }]
       requestBody:
@@ -1182,14 +1192,18 @@ paths:
               required: [format]
               properties:
                 format: { type: string, enum: [csv, pdf], description: "pdf diferido a 1.17" }
-                from: { type: string, format: date-time }
-                to: { type: string, format: date-time }
+                occurred_at_from: { type: string, format: date-time }
+                occurred_at_to: { type: string, format: date-time }
+                actor_id: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                actor_type: { type: string, enum: [user, system, console, import, platform, anonymous] }
                 event:
                   type: array
                   items: { type: string }
                 auditable_type:
                   type: array
                   items: { type: string }
+                auditable_id: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                module: { type: string }
       responses:
         '202':
           description: Solicitud aceptada, generación en cola
