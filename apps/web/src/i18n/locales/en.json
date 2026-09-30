@@ -92,5 +92,90 @@
     "shortcuts": {
       "title": "Shortcuts"
     }
+  },
+  "dataTable": {
+    "emptyMark": "—",
+    "emptyValue": "No value",
+    "scrollRegion": "Table \"{name}\": scroll horizontally with the arrow keys",
+    "search": {
+      "label": "Search",
+      "placeholder": "Search…"
+    },
+    "filters": {
+      "clear": "Clear filters",
+      "all": "All",
+      "yes": "Yes",
+      "no": "No",
+      "from": "From",
+      "to": "To",
+      "rangeInvalid": "The \"from\" date is later than the \"to\" date.",
+      "notApplied": "The filter was not applied: the list still shows the previous results.",
+      "triggerWithCount": "{label} ({count})",
+      "booleanTrigger": "{label}: {value}"
+    },
+    "columns": {
+      "menu": "Columns",
+      "label": "Visible columns",
+      "reset": "Reset columns"
+    },
+    "sort": {
+      "ascending": "{column}, sort ascending",
+      "descending": "{column}, sort descending",
+      "remove": "{column}, remove sorting",
+      "cardsTrigger": "Sort",
+      "cardsColumn": "Sort by",
+      "cardsDirection": "Direction",
+      "none": "Not sorted",
+      "directionAscending": "Ascending",
+      "directionDescending": "Descending"
+    },
+    "pagination": {
+      "ariaLabel": "Pagination",
+      "first": "First page",
+      "previous": "Previous page",
+      "next": "Next page",
+      "last": "Last page",
+      "pageOf": "Page {page} of {lastPage}",
+      "total": "No results | {count} result | {count} results",
+      "perPage": "{count} per page",
+      "perPageLabel": "Rows per page"
+    },
+    "empty": {
+      "filteredTitle": "No results",
+      "filteredText": "No results match these filters."
+    },
+    "loadMore": {
+      "button": "Load more",
+      "loading": "Loading…",
+      "end": "There are no more rows.",
+      "cap": "You have loaded the maximum of {max} rows; narrow the filters or export."
+    },
+    "announce": {
+      "results": "No results | {count} result | {count} results",
+      "loaded": "No results | {count} row loaded | {count} rows loaded",
+      "more": "No more rows were loaded | {count} more row loaded | {count} more rows loaded"
+    },
+    "export": {
+      "button": "Export",
+      "searchActive": "Clear the search to export; the other filters are applied.",
+      "preparing": "Preparing export…",
+      "leaveWarning": "The export will keep being prepared, but if you leave this view you will not be able to download it from here.",
+      "download": "Download export",
+      "expiresAt": "Expires on {date}",
+      "timedOut": "The export is taking longer than expected.",
+      "checkAgain": "Check again",
+      "failed": "The export could not be generated.",
+      "errors": {
+        "core": {
+          "export": {
+            "generation_failed": "The export could not be generated. Please try again."
+          }
+        }
+      },
+      "expired": "The export has expired; request it again.",
+      "requestAgain": "Request again",
+      "requestError": "The export could not be requested.",
+      "statusError": "The export status could not be checked."
+    }
   }
 }

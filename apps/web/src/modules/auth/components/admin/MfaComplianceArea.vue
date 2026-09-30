@@ -7,25 +7,27 @@
  * delega en quien la embebe (`AdminMfaView`, que la enruta al área 3):
  * esta área no llama a `POST /mfa-resets`, solo elige el objetivo.
  *
- * Tabla con `@tanstack/vue-table` (modelo de filas headless) + los
- * componentes de tabla de shadcn-vue (`CLAUDE.md §1`) — filtrado y
- * paginación son del servidor; TanStack aporta el modelo de columnas
- * consistente con el resto de tablas que este paso introduce.
+ * `REQ-CORE` 1.9 (`docs/modulos/REQ-CORE/funcional.md §13.15`,
+ * `OPEN-CORE-28`): el listado individualizado pasa por el componente de
+ * tabla de datos de `src/data-table`, con **paridad funcional estricta**:
+ * mismas peticiones (`GET /mfa-compliance/users` con `state` por comas y
+ * `page`), mismas columnas, misma emisión de `reset-user`, mismo
+ * tratamiento del `403` (`emit('forbidden')`) y mismo `refresh()` expuesto.
+ * Sin estado en la URL (paridad estricta, `CA-CORE-206`). No corrige el
+ * issue #116 (filas antes de elegir rol): el listado sigue sin depender
+ * del rol.
  */
-import { computed, h, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { createColumnHelper, FlexRender, getCoreRowModel, useVueTable } from '@tanstack/vue-table'
+import { computed, ref, watch } from 'vue'
 import { useT } from '@/i18n'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  DataTable,
+  useDataTableFormatters,
+  type DataTableColumn,
+  type DataTableFetcher,
+  type DataTableFilter,
+} from '@/data-table'
 import { getMfaCompliance, getMfaComplianceUsers } from '../../api'
 import { apiErrorStatus } from '../../composables/formErrors'
 import type {
@@ -43,10 +45,11 @@ const emit = defineEmits<{
 }>()
 
 const t = useT()
-const { locale } = useI18n()
+const { formatDate } = useDataTableFormatters()
 
 const summary = ref<MfaComplianceSummary | null>(null)
 const summaryError = ref<string | null>(null)
+const table = ref<{ refresh: () => Promise<void> } | null>(null)
 
 const FILTERS: MfaComplianceFilterState[] = [
   'obligated',
@@ -56,85 +59,85 @@ const FILTERS: MfaComplianceFilterState[] = [
   'exempt',
 ]
 
-const activeFilters = ref<Set<MfaComplianceFilterState>>(new Set())
-const rows = ref<MfaComplianceUserEntry[]>([])
-const page = ref(1)
-const lastPage = ref(1)
-const loadingRows = ref(false)
-const rowsError = ref<string | null>(null)
-
-const dateFormatter = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }))
-
-function formatDate(value: string | null): string {
-  return value ? dateFormatter.value.format(new Date(value)) : '—'
-}
+const filters: DataTableFilter[] = [
+  {
+    type: 'enum',
+    id: 'state',
+    labelKey: 'auth.mfaAdmin.compliance.filterLegend',
+    options: FILTERS.map((value) => ({
+      value,
+      labelKey: `auth.mfaAdmin.compliance.state.${value}`,
+    })),
+  },
+]
 
 function fullName(user: MfaComplianceUserSummary): string {
   return [user.given_name, user.family_name_1, user.family_name_2].filter(Boolean).join(' ')
 }
 
-const columnHelper = createColumnHelper<MfaComplianceUserEntry>()
-
 // D.9: los estados no se distinguen solo por color — el texto traducido
 // va siempre dentro del Badge, el color es un refuerzo, no la señal.
-const columns = [
-  columnHelper.accessor((entry) => `${fullName(entry.user)} · ${entry.user.email}`, {
+const columns: DataTableColumn<MfaComplianceUserEntry>[] = [
+  {
     id: 'user',
-    header: () => t('auth.mfaAdmin.compliance.columnUser'),
-  }),
-  columnHelper.accessor('state', {
+    headerKey: 'auth.mfaAdmin.compliance.columnUser',
+    value: (entry) => `${fullName(entry.user)} · ${entry.user.email}`,
+    rowHeader: true,
+    hideable: false,
+    card: 'title',
+  },
+  {
     id: 'state',
-    header: () => t('auth.mfaAdmin.compliance.columnState'),
-    cell: (info) =>
-      h(Badge, { variant: info.getValue() === 'past_deadline' ? 'destructive' : 'secondary' }, () =>
-        t(`auth.mfaAdmin.compliance.state.${info.getValue()}`),
-      ),
-  }),
-  columnHelper.accessor('grace_deadline_at', {
+    headerKey: 'auth.mfaAdmin.compliance.columnState',
+    value: (entry) => entry.state,
+    card: 'subtitle',
+  },
+  {
     id: 'grace_deadline_at',
-    header: () => t('auth.mfaAdmin.compliance.columnGraceDeadline'),
-    cell: (info) => formatDate(info.getValue()),
-  }),
-  columnHelper.accessor('enrolled_methods', {
+    headerKey: 'auth.mfaAdmin.compliance.columnGraceDeadline',
+    value: (entry) => formatDate(entry.grace_deadline_at),
+    card: 'field',
+  },
+  {
     id: 'enrolled_methods',
-    header: () => t('auth.mfaAdmin.compliance.columnMethods'),
-    cell: (info) =>
-      info.getValue().length > 0
-        ? info
-            .getValue()
-            .map((method) => t(`auth.mfa.method.${method}`))
-            .join(', ')
-        : '—',
-  }),
-  columnHelper.accessor('required_by_roles', {
+    headerKey: 'auth.mfaAdmin.compliance.columnMethods',
+    value: (entry) =>
+      entry.enrolled_methods.length > 0
+        ? entry.enrolled_methods.map((method) => t(`auth.mfa.method.${method}`)).join(', ')
+        : null,
+    card: 'field',
+  },
+  {
     id: 'required_by_roles',
-    header: () => t('auth.mfaAdmin.compliance.columnRoles'),
-    cell: (info) => info.getValue().join(', ') || '—',
-  }),
-  columnHelper.display({
+    headerKey: 'auth.mfaAdmin.compliance.columnRoles',
+    value: (entry) => entry.required_by_roles.join(', ') || null,
+    card: 'field',
+  },
+  {
     id: 'actions',
-    header: () => t('auth.mfaAdmin.compliance.columnActions'),
-    cell: (info) =>
-      h(
-        Button,
-        {
-          type: 'button',
-          variant: 'outline',
-          size: 'sm',
-          onClick: () => emit('reset-user', info.row.original.user),
-        },
-        () => t('auth.mfaAdmin.compliance.resetAction'),
-      ),
-  }),
+    headerKey: 'auth.mfaAdmin.compliance.columnActions',
+    hideable: false,
+    card: 'actions',
+  },
 ]
 
-const table = useVueTable({
-  get data() {
-    return rows.value
-  },
-  columns,
-  getCoreRowModel: getCoreRowModel(),
-})
+/** `GET /mfa-compliance/users` (api.md §C.1): `state` por comas y `page`. El `403` se reenvía a quien embebe el área. */
+const fetchUsers: DataTableFetcher<MfaComplianceUserEntry> = async (query) => {
+  try {
+    return await getMfaComplianceUsers({
+      state: query.filters.state
+        ? (query.filters.state.split(',') as MfaComplianceFilterState[])
+        : undefined,
+      page: query.page,
+      per_page: query.per_page,
+    })
+  } catch (err) {
+    if (apiErrorStatus(err) === 403) {
+      emit('forbidden')
+    }
+    throw err
+  }
+}
 
 async function loadSummary(): Promise<void> {
   if (!props.role) {
@@ -157,49 +160,6 @@ async function loadSummary(): Promise<void> {
   }
 }
 
-async function loadRows(): Promise<void> {
-  loadingRows.value = true
-  rowsError.value = null
-
-  try {
-    const result = await getMfaComplianceUsers({
-      state: activeFilters.value.size > 0 ? Array.from(activeFilters.value) : undefined,
-      page: page.value,
-    })
-
-    rows.value = result.data
-    lastPage.value = result.meta.last_page
-  } catch (err) {
-    if (apiErrorStatus(err) === 403) {
-      rowsError.value = t('auth.mfaAdmin.forbidden')
-      emit('forbidden')
-      return
-    }
-    rowsError.value = t('auth.common.unexpectedError')
-  } finally {
-    loadingRows.value = false
-  }
-}
-
-function toggleFilter(value: MfaComplianceFilterState): void {
-  if (activeFilters.value.has(value)) {
-    activeFilters.value.delete(value)
-  } else {
-    activeFilters.value.add(value)
-  }
-  activeFilters.value = new Set(activeFilters.value)
-  page.value = 1
-  void loadRows()
-}
-
-function goToPage(next: number): void {
-  if (next < 1 || next > lastPage.value) {
-    return
-  }
-  page.value = next
-  void loadRows()
-}
-
 watch(
   () => props.role?.public_id,
   () => {
@@ -209,10 +169,12 @@ watch(
 )
 
 // El listado individualizado no depende del rol elegido (api.md §C.5: sin
-// parámetro `role`) — se carga una sola vez y se refiltra por `state`.
-void loadRows()
+// parámetro `role`): la tabla lo carga una sola vez y se refiltra por `state`.
+const emptyTitle = computed(() => t('auth.mfaAdmin.compliance.empty'))
 
-defineExpose({ refresh: () => Promise.all([loadSummary(), loadRows()]) })
+defineExpose({
+  refresh: () => Promise.all([loadSummary(), table.value?.refresh()]),
+})
 </script>
 
 <template>
@@ -252,67 +214,34 @@ defineExpose({ refresh: () => Promise.all([loadSummary(), loadRows()]) })
       </div>
     </dl>
 
-    <fieldset class="flex flex-wrap gap-3">
-      <legend class="mb-1 text-xs font-medium">
-        {{ t('auth.mfaAdmin.compliance.filterLegend') }}
-      </legend>
-      <label v-for="value in FILTERS" :key="value" class="flex items-center gap-1.5 text-sm">
-        <input type="checkbox" :checked="activeFilters.has(value)" @change="toggleFilter(value)" />
-        {{ t(`auth.mfaAdmin.compliance.state.${value}`) }}
-      </label>
-    </fieldset>
-
-    <p v-if="rowsError" role="alert" class="text-destructive text-sm">{{ rowsError }}</p>
-    <p v-if="loadingRows" class="text-muted-foreground text-sm">
-      {{ t('auth.mfaAdmin.compliance.loading') }}
-    </p>
-
-    <Table v-else>
-      <TableHeader>
-        <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
-          <TableHead v-for="header in headerGroup.headers" :key="header.id">
-            <FlexRender
-              v-if="!header.isPlaceholder"
-              :render="header.column.columnDef.header"
-              :props="header.getContext()"
-            />
-          </TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        <TableRow v-if="rows.length === 0">
-          <TableCell :colspan="columns.length" class="text-muted-foreground">
-            {{ t('auth.mfaAdmin.compliance.empty') }}
-          </TableCell>
-        </TableRow>
-        <TableRow v-for="row in table.getRowModel().rows" :key="row.id">
-          <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
-            <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
-          </TableCell>
-        </TableRow>
-      </TableBody>
-    </Table>
-
-    <div v-if="lastPage > 1" class="flex items-center gap-2 text-sm">
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        :disabled="page <= 1"
-        @click="goToPage(page - 1)"
-      >
-        {{ t('auth.mfaAdmin.compliance.previousPage') }}
-      </Button>
-      <span>{{ t('auth.mfaAdmin.compliance.pageIndicator', { page, lastPage }) }}</span>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        :disabled="page >= lastPage"
-        @click="goToPage(page + 1)"
-      >
-        {{ t('auth.mfaAdmin.compliance.nextPage') }}
-      </Button>
-    </div>
+    <DataTable
+      ref="table"
+      table-id="auth.mfa_compliance"
+      :caption="t('auth.mfaAdmin.compliance.tableCaption')"
+      :columns="columns"
+      mode="page"
+      :fetcher="fetchUsers"
+      :filters="filters"
+      :row-key="(entry: MfaComplianceUserEntry) => entry.user.public_id"
+      :empty-title="emptyTitle"
+      :card-heading-level="3"
+    >
+      <template #cell-state="{ row }">
+        <Badge :variant="row.state === 'past_deadline' ? 'destructive' : 'secondary'">
+          {{ t(`auth.mfaAdmin.compliance.state.${row.state}`) }}
+        </Badge>
+      </template>
+      <template #cell-actions="{ row }">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          :aria-label="t('auth.mfaAdmin.compliance.resetActionFor', { name: fullName(row.user) })"
+          @click="emit('reset-user', row.user)"
+        >
+          {{ t('auth.mfaAdmin.compliance.resetAction') }}
+        </Button>
+      </template>
+    </DataTable>
   </section>
 </template>

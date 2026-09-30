@@ -92,5 +92,90 @@
     "shortcuts": {
       "title": "Raccourcis"
     }
+  },
+  "dataTable": {
+    "emptyMark": "—",
+    "emptyValue": "Aucune valeur",
+    "scrollRegion": "Tableau « {name} » : faites défiler horizontalement avec les flèches du clavier",
+    "search": {
+      "label": "Rechercher",
+      "placeholder": "Rechercher…"
+    },
+    "filters": {
+      "clear": "Effacer les filtres",
+      "all": "Tous",
+      "yes": "Oui",
+      "no": "Non",
+      "from": "Du",
+      "to": "Au",
+      "rangeInvalid": "La date « du » est postérieure à la date « au ».",
+      "notApplied": "Le filtre n'a pas été appliqué : la liste affiche toujours les résultats précédents.",
+      "triggerWithCount": "{label} ({count})",
+      "booleanTrigger": "{label} : {value}"
+    },
+    "columns": {
+      "menu": "Colonnes",
+      "label": "Colonnes visibles",
+      "reset": "Réinitialiser les colonnes"
+    },
+    "sort": {
+      "ascending": "{column}, trier par ordre croissant",
+      "descending": "{column}, trier par ordre décroissant",
+      "remove": "{column}, supprimer le tri",
+      "cardsTrigger": "Trier",
+      "cardsColumn": "Trier par",
+      "cardsDirection": "Sens",
+      "none": "Sans tri",
+      "directionAscending": "Croissant",
+      "directionDescending": "Décroissant"
+    },
+    "pagination": {
+      "ariaLabel": "Pagination",
+      "first": "Première page",
+      "previous": "Page précédente",
+      "next": "Page suivante",
+      "last": "Dernière page",
+      "pageOf": "Page {page} sur {lastPage}",
+      "total": "Aucun résultat | {count} résultat | {count} résultats",
+      "perPage": "{count} par page",
+      "perPageLabel": "Lignes par page"
+    },
+    "empty": {
+      "filteredTitle": "Aucun résultat",
+      "filteredText": "Aucun résultat avec ces filtres."
+    },
+    "loadMore": {
+      "button": "Charger plus",
+      "loading": "Chargement…",
+      "end": "Il n'y a plus de lignes.",
+      "cap": "Vous avez chargé le maximum de {max} lignes ; affinez les filtres ou exportez."
+    },
+    "announce": {
+      "results": "Aucun résultat | {count} résultat | {count} résultats",
+      "loaded": "Aucun résultat | {count} ligne chargée | {count} lignes chargées",
+      "more": "Aucune ligne supplémentaire chargée | {count} ligne supplémentaire chargée | {count} lignes supplémentaires chargées"
+    },
+    "export": {
+      "button": "Exporter",
+      "searchActive": "Effacez la recherche pour exporter ; les autres filtres sont appliqués.",
+      "preparing": "Préparation de l'export…",
+      "leaveWarning": "L'export continuera à être préparé, mais si vous quittez cette vue, vous ne pourrez plus le télécharger d'ici.",
+      "download": "Télécharger l'export",
+      "expiresAt": "Expire le {date}",
+      "timedOut": "L'export prend plus de temps que prévu.",
+      "checkAgain": "Vérifier à nouveau",
+      "failed": "L'export n'a pas pu être généré.",
+      "errors": {
+        "core": {
+          "export": {
+            "generation_failed": "L'export n'a pas pu être généré. Veuillez réessayer."
+          }
+        }
+      },
+      "expired": "L'export a expiré ; demandez-le à nouveau.",
+      "requestAgain": "Demander à nouveau",
+      "requestError": "L'export n'a pas pu être demandé.",
+      "statusError": "L'état de l'export n'a pas pu être vérifié."
+    }
   }
 }

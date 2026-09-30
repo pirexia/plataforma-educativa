@@ -282,7 +282,7 @@ Qué permisos exactos abren «Administración de MFA» lo fija `REQ-AUTH/permiso
 
 ## 11. Paso 1.9 (tablas de datos)
 
-> Estado: **APROBADO** (2026-09-30, decisión del usuario), **ajustado a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**, con `funcional.md §13`. Listo para `implementer`. Ninguna de las decisiones del usuario de esa fecha (`OPEN-CORE-19` a `-29`) ni ninguna precisión de `ADR-054` añade, retira ni cambia un permiso.
+> Estado: **APROBADO** (2026-09-30, decisión del usuario), **ajustado a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**, con `funcional.md §13`. **Implementado** (2026-09-30); revisión independiente hecha (sin Crítico/Alto). Ninguna de las decisiones del usuario de esa fecha (`OPEN-CORE-19` a `-29`) ni ninguna precisión de `ADR-054` añade, retira ni cambia un permiso.
 
 ### 11.1 Ningún permiso nuevo
 

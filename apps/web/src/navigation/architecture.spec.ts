@@ -93,9 +93,12 @@ describe('CA-CORE-152: frontera de src/layouts y src/navigation (ADR-053 §1, IN
 
 const TEXT_PX_RE = /text-\[\s*\d+(\.\d+)?px\s*\]/
 
+// `CA-CORE-196` (1.9, `funcional.md §13.18`): `CA-CORE-083` amplía su alcance a `src/data-table/**`.
+const typographyFiles = [...layoutsAndNavFiles, ...listFiles(join(srcDir, 'data-table'))]
+
 describe('CA-CORE-083 (RUX-RESP-006): sin tamaño de fuente arbitrario en píxeles', () => {
-  it('ningún fichero de src/layouts/** ni src/navigation/** usa text-[…px]', () => {
-    const offenders = layoutsAndNavFiles.filter((file) =>
+  it('ningún fichero de src/layouts/**, src/navigation/** ni src/data-table/** usa text-[…px]', () => {
+    const offenders = typographyFiles.filter((file) =>
       TEXT_PX_RE.test(stripComments(readFileSync(file, 'utf-8'))),
     )
 

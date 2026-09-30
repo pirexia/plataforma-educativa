@@ -6,6 +6,33 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-09-30 · `feature/REQ-CORE-008-tablas-de-datos` (implementación de `1.9`)
+
+Implementa el paso `1.9` (Bloque B, tablas de datos, `REQ-CORE-008`), sobre `docs/modulos/REQ-CORE/funcional.md §13` y `docs/adr/ADR-054-tablas-de-datos-y-exportacion-de-listados.md`. Solo `apps/web`: ni un *endpoint*, ni un permiso, ni una migración, ni una dependencia nueva.
+
+### Añadido
+- **Componente de tabla de datos** (`apps/web/src/data-table/`, superficie pública `index.ts`): `@tanstack/vue-table` envuelto en un único fichero (`useTableModel.ts`, `RN-CORE-37`); paginación por página (25/50/100) y por cursor («Cargar más», sin desplazamiento infinito, tope `MAX_CURSOR_ROWS = 1000`, `RN-CORE-52`/`56`); orden de una columna y filtros (búsqueda `q` con espera de 300 ms, enumerado múltiple, rango de fechas, booleano) en servidor, con «solo gana la última respuesta» (`RN-CORE-39`-`42`); visibilidad de columnas con «Restablecer» en `localStorage` (`plataforma.table.<tableId>`, `RN-CORE-43`); vista de tarjetas por debajo de 768 px con desplazamiento interno opcional (`RN-CORE-55`); estado de la consulta en la URL, opcional y sin `q` ni `cursor` (`RN-CORE-54`); estados de carga/vacío/error reutilizando los de `§12.6`; valor vacío común `dataTable.emptyValue` (`OPEN-CORE-27`, issue #90 para las tablas); accesibilidad (`table` nativa, `aria-sort`, anuncios, foco).
+- **Disparador de exportación asíncrona** (`RN-CORE-46`/`49`/`51`/`57`): solicita al *endpoint* del módulo dueño, consulta `GET /data-exports/{id}` (una en vuelo, 2 s → 30 s, parada a los 10 min), descarga por enlace firmado y avisa de que el enlace se pierde al salir de la vista; sin generar ficheros en el cliente.
+- **Espacio de nombres `dataTable.*`** en los cuatro idiomas (`src/i18n/locales`) y dos claves de `REQ-AUTH` (`auth.mfaAdmin.compliance.tableCaption`, `.resetActionFor`).
+- **Tests de arquitectura** (`src/data-table/architecture.spec.ts`): importación única de TanStack, frontera sin `@/modules`, toda tabla por el componente con lista cerrada de tres excepciones que solo puede reducirse (`RN-CORE-53`), `tableId` literal y único, sin ficheros de exportación en el cliente; `CA-CORE-083` (tipografía en `rem`) ampliado a `src/data-table/**`.
+- **Playwright** (`e2e/data-table.spec.ts`, tabla de prueba en `e2e/fixtures/tableFixture.ts`): `CA-CORE-177`, `-178`, `-185`, `-203`.
+- Documentación: `funcional.md §13.24` (comprobación de la dependencia y notas de implementación), `docs/manual-usuario/admin.md` (filtrar, ordenar, columnas y exportar), `docs/i18n.md`, `docs/design-system.md §12.3b`, `ARCHITECTURE.md §3.3` (2.3.0), `SECURITY.md` 0.3.6, `PRIVACY.md` 0.3.2, `README.md` 2.6.6.
+
+### Cambiado
+- **`MfaComplianceArea.vue` migrada** al componente, con paridad estricta (`OPEN-CORE-28`): mismas peticiones (`GET /mfa-compliance/users` con `state` por comas y `page`; ahora también `per_page=25`, el valor por defecto del servidor), columnas, emisión de `reset-user`, tratamiento del `403` y `refresh()`. Gana barra de filtros, paginador completo, tarjetas en móvil y nombres accesibles por fila («Restablecer MFA de Ana López»). Sin estado en la URL, sin corregir el issue #116. El `'—'` literal desaparece (issue #90 sigue abierto para el resto de vistas). Cierra en parte el issue #120.
+
+### Verificado
+713/713 Vitest y 15/15 Playwright (10 previos + 5 de 1.9) en verde; ESLint sin errores (una advertencia `prettier` preexistente en `e2e/shell.spec.ts`, issue #263), `lint:i18n`, `vue-tsc -b` y `vite build` limpios. Vitest, ESLint, `lint:i18n`, `vue-tsc` y `build` se ejecutaron en el contenedor de referencia (`localhost/plataforma-educativa_web`) con el *worktree* montado; Playwright con el Chromium del *host* sobre un servidor de Vite propio (la instancia del contenedor sirve la copia principal, no este *worktree*).
+
+### Revisión independiente (2026-09-30)
+`security-reviewer` y `doc-reviewer`: sin Crítico/Alto. Corregido en la rama: #275 (Media, `download_url` validada a http(s) en `useExportFlow.ts`, con test de regresión; `CA-CORE-190`). Documentados sin corregir: #276 (`formatDate` con fechas inválidas), #277 (preferencias de columnas sin aislar por usuario, `noreferrer`), #278 (`@tanstack/vue-table` 8.x sin releases desde 2025-04). Recuento final: 715 Vitest y 15 Playwright en verde.
+
+### Hallazgos para el revisor
+- **`@tanstack/vue-table` 8.x sin *releases* desde 2025-04-14**; la línea activa es la 9 (estable desde 2026-08-04) con API distinta. No se migra en 1.9; el coste de hacerlo queda acotado a `useTableModel.ts` (`funcional.md §13.24`).
+- Dos usos preexistentes de `new Blob(`/`URL.createObjectURL(` en `modules/auth` (metadatos SAML, códigos de recuperación) que no son exportaciones de listados: excepciones nominales y justificadas de `CA-CORE-192`.
+
+---
+
 ## 2026-09-30 · `feature/1.9-tablas-de-datos`
 
 Especificación del paso `1.9` (tablas de datos, TanStack Table) y `ADR-054` (aceptada, ratificada por el usuario el 2026-09-30). **Sin código**: la implementación va en una sesión nueva.

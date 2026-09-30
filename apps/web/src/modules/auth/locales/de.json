@@ -280,7 +280,9 @@
         "resetAction": "Zurücksetzen",
         "previousPage": "Zurück",
         "nextPage": "Weiter",
-        "pageIndicator": "Seite {page} von {lastPage}"
+        "pageIndicator": "Seite {page} von {lastPage}",
+        "tableCaption": "Nutzer und Status der Einhaltung des zweiten Faktors",
+        "resetActionFor": "MFA zurücksetzen für {name}"
       },
       "roleRequirement": {
         "title": "Pflicht nach Rolle",

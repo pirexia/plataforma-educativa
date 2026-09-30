@@ -238,7 +238,7 @@ Ninguna nueva en servidor. Lo que sí conviene mirar tras desplegar, con las mé
 
 ## 12. Paso 1.9 (tablas de datos)
 
-> Estado: **APROBADO** (2026-09-30, decisión del usuario), **ajustado a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**, con `funcional.md §13`. Listo para `implementer`.
+> Estado: **APROBADO** (2026-09-30, decisión del usuario), **ajustado a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**, con `funcional.md §13`. **Implementado** (2026-09-30, rama `feature/REQ-CORE-008-tablas-de-datos`); revisión independiente hecha (sin Crítico/Alto) y mezclado. Nota de implementación y comprobación de la dependencia TanStack: `funcional.md §13.24`.
 
 ### 12.1 Qué se despliega
 
@@ -250,7 +250,7 @@ Ninguna nueva en servidor. Lo que sí conviene mirar tras desplegar, con las mé
 | Colas y trabajos | **Ninguno nuevo.** El componente consume exportaciones que ya se generan en `core-exports` (§4) |
 | Tareas programadas | **Ninguna** |
 | Almacenamiento del navegador | **Una clave nueva por tabla**: `plataforma.table.<tableId>` (`RN-CORE-43`, `tableId` literal `<modulo>.<nombre>`), sin datos personales; no se borra al cerrar sesión. Se cataloga en `PRIVACY.md §2.1b` |
-| Dependencias | **Ninguna nueva.** Sin virtualización (`OPEN-CORE-19`, opción A, decisión del usuario 2026-09-30): **no** se instala `@tanstack/vue-virtual`. `@tanstack/vue-table` ya estaba instalada. Los componentes nuevos del *design system* (`checkbox`, `popover`, si hacen falta) se vendorizan sobre Reka UI, ya instalada (`docs/design-system.md §12.2`/`§12.3`) |
+| Dependencias | **Ninguna nueva.** Sin virtualización (`OPEN-CORE-19`, opción A, decisión del usuario 2026-09-30): **no** se instala `@tanstack/vue-virtual`. `@tanstack/vue-table` `^8.21.3` ya estaba instalada (comprobación de mantenimiento, licencia y releases en `funcional.md §13.24`). **Ningún componente nuevo del *design system***: los menús de casillas y de opción única del filtrado, las columnas y el paginador usan el `dropdown-menu` ya vendorizado en 1.8, y las fechas, `input type="date"` del `input` base; no hizo falta `checkbox` ni `popover` |
 | Estado en la URL | En las rutas cuya tabla principal lo declara (opcional por tabla, como máximo una por ruta), la *query* lleva página, orden y filtros **salvo `q` y `cursor`** (`RN-CORE-54`). Llega a los registros de acceso del servidor web en una recarga completa: por eso nunca contiene el texto de búsqueda. `/administracion/mfa` no lo declara (paridad estricta de la migración). Sin cambios de configuración |
 
 ### 12.2 Dependencia operativa: *worker* de colas
@@ -272,7 +272,7 @@ La exportación **solo termina si hay un *worker* procesando `core-exports`**. H
 1. Construir y publicar la imagen de `apps/web` (`ADR-037`).
 2. Desplegar. Sin orden relativo con `apps/api`: 1.9 no consume nada que no exista desde 1.1.
 
-**Reversión**: volver a la imagen anterior. Efecto: `MfaComplianceArea` vuelve a su tabla propia (la migra 1.9, `OPEN-CORE-28`; las otras tres tablas existentes no cambian en 1.9, son excepciones de `RN-CORE-53`), los enlaces guardados con estado de tabla en la URL abren sin él (la versión anterior no lee esos parámetros; no verificado, lo comprueba el implementador al probar la reversión), y las claves `plataforma.table.*` quedan huérfanas en los navegadores, inocuas y sin datos personales. Sin datos de servidor que deshacer.
+**Reversión**: volver a la imagen anterior. Efecto: `MfaComplianceArea` vuelve a su tabla propia (la migra 1.9, `OPEN-CORE-28`; las otras tres tablas existentes no cambian en 1.9, son excepciones de `RN-CORE-53`), los enlaces guardados con estado de tabla en la URL abren sin él (la versión anterior no lee esos parámetros: comprobado sobre su fuente, `MfaComplianceArea.vue` de `fbbaf94` no importa `vue-router` ni lee la *query*, y en 1.9 ninguna otra pantalla declara estado en la URL), y las claves `plataforma.table.*` quedan huérfanas en los navegadores, inocuas y sin datos personales. Sin datos de servidor que deshacer.
 
 ### 12.5 Problemas conocidos y diagnóstico
 

@@ -280,7 +280,9 @@
         "resetAction": "Reset",
         "previousPage": "Previous",
         "nextPage": "Next",
-        "pageIndicator": "Page {page} of {lastPage}"
+        "pageIndicator": "Page {page} of {lastPage}",
+        "tableCaption": "Users and second-factor compliance status",
+        "resetActionFor": "Reset MFA for {name}"
       },
       "roleRequirement": {
         "title": "Requirement by role",
