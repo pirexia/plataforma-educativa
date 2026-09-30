@@ -277,3 +277,39 @@ Qué permisos exactos abren «Administración de MFA» lo fija `REQ-AUTH/permiso
 - `CA-CORE-102` — ningún literal de código de rol ni decisión por `roles[].code` en `src/`.
 - `CA-CORE-105` — el panel no pide *endpoints* no permitidos.
 - Los de servidor ya existentes (`CA-CORE-070`, `CA-PERM-*`) no cambian y siguen siendo la barrera real.
+
+---
+
+## 11. Paso 1.9 (tablas de datos)
+
+> Estado: **APROBADO** (2026-09-30, decisión del usuario), **ajustado a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**, con `funcional.md §13`. Listo para `implementer`. Ninguna de las decisiones del usuario de esa fecha (`OPEN-CORE-19` a `-29`) ni ninguna precisión de `ADR-054` añade, retira ni cambia un permiso.
+
+### 11.1 Ningún permiso nuevo
+
+1.9 no declara, retira ni concede ningún permiso. El componente de tabla no es un recurso: pinta lo que devuelve un *endpoint* que ya tiene su permiso.
+
+### 11.2 Matriz de lo que el componente muestra u oculta
+
+| Elemento | Criterio de visibilidad en la interfaz | Quién decide de verdad |
+|----------|----------------------------------------|------------------------|
+| La tabla entera | La ruta de la vista (`meta.permissions`, §10.2) | El *endpoint* de listado (`<recurso>.leer` con su ámbito, `INV-002`, `ADR-044`) |
+| Filas | Las que devuelve el servidor, ya acotadas por ámbito (`ScopedQuery`, 1.5) | El servidor. **El cliente no filtra filas por permisos** |
+| Botón de exportar | `<recurso>.exportar` presente en `/me.permissions` (`RN-CORE-51`), nunca por rol (`RN-CORE-23`). Con búsqueda `q` activa, presente pero deshabilitado (`RN-CORE-57`): no es una regla de permiso, sino de qué se puede exportar | `POST /<recurso>/exports` con su permiso; el trabajo en cola **vuelve a acotar por ámbito** (`GenerateAuditLogExport`, `RN-PERM-15`) |
+| Descarga | El enlace solo existe para quien pidió la exportación en esa vista | `GET /data-exports/{id}`: permiso del recurso **y** solicitante (§8) |
+| Acciones de fila | Las declara el consumidor según sus permisos de `/me` | El *endpoint* de cada acción |
+
+### 11.3 Reglas derivadas
+
+1. **Exportar no es leer.** Que un usuario vea las filas no le permite exportarlas: por eso la SPA **no genera ficheros** con lo que tiene en memoria (`RN-CORE-46`). Un fichero generado en cliente saltaría el permiso `exportar`, la auditoría `exported` y el acotado por ámbito del trabajo en cola.
+2. **Ámbito**: una tabla sobre un recurso con ámbito restringido (`propios`, y más adelante `grupo`/`clase`/`unidad familiar`) no necesita nada del cliente. El total de `meta.total` ya es el del conjunto acotado, y el componente no calcula recuentos por su cuenta.
+3. **Categoría especial**: 1.9 no muestra datos de salud, NEAE ni convivencia. Una tabla futura que los muestre lleva permiso propio y auditoría de lectura en su *endpoint* (`RPERM-012`/`RPERM-015`). Además, su configuración de columnas (`RN-CORE-43`) no guarda nada más que `id` de columna, y sus filas nunca salen de la memoria (`RN-CORE-50`).
+4. **`usuario.exportar`** sigue sin *endpoint* (§7). Si `1.9b` ofrece exportar usuarios, el *endpoint* es trabajo de `apps/api` en ese paso, con su test de `403`, de acotado por ámbito dentro del trabajo y de acceso de otro tenant (`404`), más los de la norma de `ADR-054 §8.2`/`§9` (paridad de filtros con `GET /users` y `q` ⇒ `422`, `api.md §13.4`).
+5. **Paridad de filtros y privacidad**: un *endpoint* de exportación al que le falte un filtro de su listado exporta en silencio más de lo que el usuario ve filtrado. El ámbito del permiso se sigue aplicando dentro del trabajo, así que no sale nada que el usuario no pueda leer; pero el fichero no corresponde a lo que ve. Es regla de servidor, no del cliente (`ADR-054 §8.2`, `INV-006`).
+
+### 11.4 Verificación
+
+- `CA-CORE-188` — sin `canExport` no hay control de exportación; con él, se envían los filtros del listado sin paginación, sin `sort` y sin `q`.
+- `CA-CORE-205` — con búsqueda activa, exportar está deshabilitado.
+- `CA-CORE-192` — ningún fichero de exportación generado en el cliente.
+- `CA-CORE-195` — ninguna fila persistida en almacenamiento del navegador.
+- Los de servidor (`CA-CORE-070`, `CA-PERM-*`, y los de cada *endpoint* de exportación) siguen siendo la barrera real.

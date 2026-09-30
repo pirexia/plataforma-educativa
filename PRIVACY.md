@@ -1,6 +1,6 @@
 # PRIVACY.md
 
-> **Versión 0.3.0** · 2026-09-23
+> **Versión 0.3.1** · 2026-09-30
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Base del Registro de Actividades de Tratamiento (RAT) exigido por el RGPD — hoy es un **esqueleto**, no un RAT completo: varias secciones dependen de decisiones que todavía no se han tomado (`OPEN-07`, entidad jurídica y contrato de encargado de tratamiento). No se rellenan con suposiciones (`CLAUDE.md` §0/§11).
 
 ---
@@ -41,6 +41,7 @@ A diferencia de una cookie, una clave de `localStorage` no viaja al servidor y n
 | `plataforma.locale` | i18n transversal (0.9) | Uno de los cuatro códigos de idioma activos del centro (`docs/i18n.md`) | Sin dato personal. Preferencia de interfaz, nunca un token ni credencial (`ADR-025` no se ve afectado). Sustituida por la preferencia de servidor en cuanto existe sesión (1.2) |
 | `plataforma.brand` | *Design system* (1.7, `docs/design-system.md §7.2`) | Exactamente `{"v":1,"primary":"#RRGGBB","primaryForeground":"#RRGGBB"}`: los dos colores públicos y estables de la marca del centro (`GET /tenant/branding`, sin sesión) | Sin dato personal. Nunca una URL (las firmadas caducan), ni el nombre del centro, ni los idiomas activos. Por origen del navegador — el origen ya es el tenant (resolución por *host*), así que no hay mezcla entre centros |
 | `plataforma.color-mode` | *Design system* (1.7, `docs/design-system.md §9.2`) | Una de tres cadenas fijas: `system`, `light`, `dark` | Sin dato personal. No se sincroniza con el servidor ni entre dispositivos (decisión de alcance, `ADR-052 §2`) |
+| `plataforma.table.<tableId>` | Tablas de datos (1.9, `ADR-054 §5.2`; **pendiente de implementación**) | Exactamente `{"v":1,"hidden":["<id>",…]}`: solo ids de columna, nunca datos de fila, filtros ni búsqueda | Sin dato personal. No se borra al cerrar sesión y la comparten los usuarios de un mismo navegador (aceptado: no contiene nada de ninguno); por origen, no se mezcla entre centros |
 
 ### 2.2 Datos recibidos de un proveedor de identidad externo (Google, `REQ-AUTH-002`, paso 1.4)
 

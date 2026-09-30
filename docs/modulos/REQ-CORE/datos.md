@@ -352,3 +352,31 @@ Ninguna de estas purgas toca `audit_logs`: la retención del registro de auditor
 `tenant_id` y `academic_year_id`: **no aplican**, al no haber tabla nueva. El aislamiento de lo que el paso muestra lo garantizan los *endpoints* ya existentes, que resuelven el tenant por *host* (`ADR-033 §2`).
 
 **`OPEN-CORE-13` y `OPEN-CORE-12`, resueltas el 2026-09-23, confirman que no hace falta esquema nuevo en este paso**: `OPEN-CORE-13` difirió el motor de *widgets* configurables (que de construirse con la opción B habría exigido al menos una tabla de disposición por rol y una de preferencia por usuario) al primer paso con un segundo bloque de panel con datos reales — se diseñarían entonces, con la pregunta del multi-rol contestada, no por anticipado (`ADR-034` `OPEN-13`). `OPEN-CORE-12` diferió las pantallas pendientes de `REQ-CORE` a `1.9b`, que consumirán las tablas de la Parte A ya existentes, sin esquema nuevo tampoco.
+
+---
+
+# Parte C · Paso 1.9 (tablas de datos): sin cambios de esquema
+
+> Estado: **APROBADO** (2026-09-30, decisión del usuario), **ajustado a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**, con `funcional.md §13`. Listo para `implementer`.
+
+**El paso 1.9 no crea, altera ni elimina ninguna tabla, columna, índice ni restricción.** Las decisiones del usuario del 2026-09-30 lo confirman: ninguna de las opciones elegidas en `funcional.md §13.21` necesita esquema (la de `OPEN-CORE-25` que lo habría necesitado, un listado `GET /data-exports`, se descartó para 1.9; el índice que lo serviría ya existe, A.7).
+
+| Necesidad del paso | De dónde sale | Esquema nuevo |
+|--------------------|---------------|---------------|
+| Filas de los listados | Los *endpoints* de cada módulo consumidor | Ninguno |
+| Configuración de columnas por tabla | `localStorage` del navegador, clave `plataforma.table.<tableId>` con `tableId` literal `<modulo>.<nombre>`, forma cerrada `{"v":1,"hidden":[…]}` (`funcional.md` `RN-CORE-43`, `ADR-054 §5.2`). Solo `id` de columna, ningún dato personal ni de fila. No se borra al cerrar sesión y se comparte entre usuarios del mismo navegador (aceptado: no contiene nada de ninguno) | Ninguno en servidor. **Clave nueva de almacenamiento del navegador**: hay que añadirla al inventario de `PRIVACY.md §2.1b` |
+| Estado de la consulta (página, `per_page`, orden, enumerados, booleanos, fechas) | *Query* de la ruta en el navegador, solo en la tabla que lo declara y como máximo una por ruta (`funcional.md` `RN-CORE-54`, `OPEN-CORE-22`). **`q` nunca**, ni el `cursor` | Ninguno. No es almacenamiento persistente, pero la *query* queda en el historial del navegador: por eso excluye `q` |
+| Filas de una tabla | Solo memoria del componente (`RN-CORE-50`) | Ninguno |
+| Estado de una exportación | `data_exports` (A.4), por `GET /data-exports/{id}` | Ninguno |
+
+**Lo que 1.9 no toca, pero afecta a pasos posteriores** (`funcional.md §13.14.3`):
+
+- **`data_exports.kind`**: cada *endpoint* de exportación nuevo (p. ej. `usuario.exportar`, sin *endpoint* hoy) añade su valor al `CHECK` por *expand* (A.4). Ninguno en 1.9. Su fichero tiene **esquema fijo por recurso** definido en servidor (`OPEN-CORE-23`, opción A): la configuración de columnas del navegador no viaja ni se guarda en `data_exports`.
+- **Orden de las filas del fichero**: el esquema fijo por recurso incluye también el orden de las filas; la solicitud no lleva `sort` y `data_exports.filters` nunca lo guarda (`ADR-054 §8.1`).
+- **`data_exports.filters` con política de auditoría `Full`** (`ADR-054 §9`, sustituye la alternativa que aquí quedaba abierta): el `created` automático copia `filters` entero en `audit_logs.changes` (inmutable, dos años), así que un filtro de texto libre `q` guardado aquí llevaría un dato personal a `audit_logs`, contra `ADR-035 §1`, y el tope de 256 caracteres de `ADR-035 §5` no lo atrapa. **Regla**: ningún texto libre introducido por un usuario llega a `audit_logs` a través de `data_exports`. En concreto:
+  - **Ningún *endpoint* de exportación acepta `q`** (`422` con código propio del recurso, `funcional.md` `RN-CORE-58`). `data_exports.filters` nunca contiene `q`.
+  - **Si un paso necesita exportar con búsqueda**, la única vía admitida es: el texto en una **columna propia de `data_exports`, fuera de `filters`**, añadida por *expand*, y `DataExport` de política `Full` a **`Selective`** con lista de inclusión de todo lo demás (la columna nueva se redacta como `identifier`, con sus banderas de vacío, `ADR-035 §2`). El cambio de política edita el test del registro de modelos `Full` de `ADR-035 §2`. **Ningún paso lo necesita hoy**; ningún cambio de esquema en 1.9.
+  - Descartadas: redactar `filters` entero (se pierde qué se exportó, que `funcional.md §4.6` punto 4 quiere auditar), guardar un *hash* de `q` (prohibido por `ADR-035 §3`) y confiar en el tope de tamaño.
+  - Hoy no ocurre: la exportación de auditoría no acepta `q`.
+
+`tenant_id` y `academic_year_id`: **no aplican**, al no haber tabla nueva.
