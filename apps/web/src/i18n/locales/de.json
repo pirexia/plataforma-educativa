@@ -92,5 +92,90 @@
     "shortcuts": {
       "title": "Verknüpfungen"
     }
+  },
+  "dataTable": {
+    "emptyMark": "—",
+    "emptyValue": "Kein Wert",
+    "scrollRegion": "Tabelle „{name}“: mit den Pfeiltasten horizontal scrollen",
+    "search": {
+      "label": "Suchen",
+      "placeholder": "Suchen…"
+    },
+    "filters": {
+      "clear": "Filter zurücksetzen",
+      "all": "Alle",
+      "yes": "Ja",
+      "no": "Nein",
+      "from": "Von",
+      "to": "Bis",
+      "rangeInvalid": "Das Datum „von“ liegt nach dem Datum „bis“.",
+      "notApplied": "Der Filter wurde nicht angewendet: Die Liste zeigt weiterhin die vorherigen Ergebnisse.",
+      "triggerWithCount": "{label} ({count})",
+      "booleanTrigger": "{label}: {value}"
+    },
+    "columns": {
+      "menu": "Spalten",
+      "label": "Sichtbare Spalten",
+      "reset": "Spalten zurücksetzen"
+    },
+    "sort": {
+      "ascending": "{column}, aufsteigend sortieren",
+      "descending": "{column}, absteigend sortieren",
+      "remove": "{column}, Sortierung entfernen",
+      "cardsTrigger": "Sortieren",
+      "cardsColumn": "Sortieren nach",
+      "cardsDirection": "Richtung",
+      "none": "Nicht sortiert",
+      "directionAscending": "Aufsteigend",
+      "directionDescending": "Absteigend"
+    },
+    "pagination": {
+      "ariaLabel": "Seitennavigation",
+      "first": "Erste Seite",
+      "previous": "Vorherige Seite",
+      "next": "Nächste Seite",
+      "last": "Letzte Seite",
+      "pageOf": "Seite {page} von {lastPage}",
+      "total": "Keine Ergebnisse | {count} Ergebnis | {count} Ergebnisse",
+      "perPage": "{count} pro Seite",
+      "perPageLabel": "Zeilen pro Seite"
+    },
+    "empty": {
+      "filteredTitle": "Keine Ergebnisse",
+      "filteredText": "Keine Ergebnisse für diese Filter."
+    },
+    "loadMore": {
+      "button": "Mehr laden",
+      "loading": "Wird geladen…",
+      "end": "Es gibt keine weiteren Zeilen.",
+      "cap": "Sie haben die maximale Anzahl von {max} Zeilen geladen; grenzen Sie die Filter ein oder exportieren Sie."
+    },
+    "announce": {
+      "results": "Keine Ergebnisse | {count} Ergebnis | {count} Ergebnisse",
+      "loaded": "Keine Ergebnisse | {count} Zeile geladen | {count} Zeilen geladen",
+      "more": "Keine weiteren Zeilen geladen | {count} weitere Zeile geladen | {count} weitere Zeilen geladen"
+    },
+    "export": {
+      "button": "Exportieren",
+      "searchActive": "Löschen Sie die Suche, um zu exportieren; die übrigen Filter werden angewendet.",
+      "preparing": "Export wird vorbereitet…",
+      "leaveWarning": "Der Export wird weiter vorbereitet, aber wenn Sie diese Ansicht verlassen, können Sie ihn von hier aus nicht mehr herunterladen.",
+      "download": "Export herunterladen",
+      "expiresAt": "Läuft ab am {date}",
+      "timedOut": "Der Export dauert länger als erwartet.",
+      "checkAgain": "Erneut prüfen",
+      "failed": "Der Export konnte nicht erstellt werden.",
+      "errors": {
+        "core": {
+          "export": {
+            "generation_failed": "Der Export konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
+          }
+        }
+      },
+      "expired": "Der Export ist abgelaufen; fordern Sie ihn erneut an.",
+      "requestAgain": "Erneut anfordern",
+      "requestError": "Der Export konnte nicht angefordert werden.",
+      "statusError": "Der Status des Exports konnte nicht geprüft werden."
+    }
   }
 }

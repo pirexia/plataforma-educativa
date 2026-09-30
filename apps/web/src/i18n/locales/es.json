@@ -92,5 +92,90 @@
     "shortcuts": {
       "title": "Accesos directos"
     }
+  },
+  "dataTable": {
+    "emptyMark": "—",
+    "emptyValue": "Sin valor",
+    "scrollRegion": "Tabla «{name}»: desplázate en horizontal con las flechas del teclado",
+    "search": {
+      "label": "Buscar",
+      "placeholder": "Buscar…"
+    },
+    "filters": {
+      "clear": "Limpiar filtros",
+      "all": "Todos",
+      "yes": "Sí",
+      "no": "No",
+      "from": "Desde",
+      "to": "Hasta",
+      "rangeInvalid": "La fecha «desde» es posterior a la fecha «hasta».",
+      "notApplied": "El filtro no se ha aplicado: la lista sigue mostrando los resultados anteriores.",
+      "triggerWithCount": "{label} ({count})",
+      "booleanTrigger": "{label}: {value}"
+    },
+    "columns": {
+      "menu": "Columnas",
+      "label": "Columnas visibles",
+      "reset": "Restablecer columnas"
+    },
+    "sort": {
+      "ascending": "{column}, ordenar de forma ascendente",
+      "descending": "{column}, ordenar de forma descendente",
+      "remove": "{column}, quitar la ordenación",
+      "cardsTrigger": "Ordenar",
+      "cardsColumn": "Ordenar por",
+      "cardsDirection": "Sentido",
+      "none": "Sin ordenar",
+      "directionAscending": "Ascendente",
+      "directionDescending": "Descendente"
+    },
+    "pagination": {
+      "ariaLabel": "Paginación",
+      "first": "Primera página",
+      "previous": "Página anterior",
+      "next": "Página siguiente",
+      "last": "Última página",
+      "pageOf": "Página {page} de {lastPage}",
+      "total": "Sin resultados | {count} resultado | {count} resultados",
+      "perPage": "{count} por página",
+      "perPageLabel": "Filas por página"
+    },
+    "empty": {
+      "filteredTitle": "Sin resultados",
+      "filteredText": "Ningún resultado con estos filtros."
+    },
+    "loadMore": {
+      "button": "Cargar más",
+      "loading": "Cargando…",
+      "end": "No hay más filas.",
+      "cap": "Has cargado el máximo de {max} filas; acota los filtros o exporta."
+    },
+    "announce": {
+      "results": "Sin resultados | {count} resultado | {count} resultados",
+      "loaded": "Sin resultados | {count} fila cargada | {count} filas cargadas",
+      "more": "No se han cargado más filas | {count} fila más cargada | {count} filas más cargadas"
+    },
+    "export": {
+      "button": "Exportar",
+      "searchActive": "Borra la búsqueda para exportar; los demás filtros sí se aplican.",
+      "preparing": "Preparando exportación…",
+      "leaveWarning": "La exportación seguirá preparándose, pero si sales de esta vista no podrás descargarla desde aquí.",
+      "download": "Descargar exportación",
+      "expiresAt": "Caduca el {date}",
+      "timedOut": "La exportación tarda más de lo esperado.",
+      "checkAgain": "Comprobar de nuevo",
+      "failed": "No se ha podido generar la exportación.",
+      "errors": {
+        "core": {
+          "export": {
+            "generation_failed": "No se ha podido generar la exportación. Inténtalo de nuevo."
+          }
+        }
+      },
+      "expired": "La exportación ha caducado; vuelve a solicitarla.",
+      "requestAgain": "Volver a solicitar",
+      "requestError": "No se ha podido solicitar la exportación.",
+      "statusError": "No se ha podido comprobar el estado de la exportación."
+    }
   }
 }
