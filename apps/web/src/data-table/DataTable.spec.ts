@@ -895,6 +895,28 @@ describe('CA-CORE-184: anuncios de resultado', () => {
   })
 })
 
+describe('§13.12: cambiar de idioma con la tabla montada', () => {
+  it('retraduce cabeceras, controles y cifras sin volver a pedir datos', async () => {
+    const fetcher = vi
+      .fn<DataTableFetcher<Person>>()
+      .mockResolvedValue(pageOf(people(3), { current_page: 1, total: 12345, last_page: 494 }))
+    const wrapper = mountTable(fetcher)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Página 1 de 494')
+    expect(wrapper.text()).toContain('12.345 resultados')
+    expect(fetcher).toHaveBeenCalledTimes(1)
+
+    setLocale('de')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Seite 1 von 494')
+    expect(wrapper.text()).toContain('12.345 Ergebnisse')
+    expect(buttonByLabel('Nächste Seite')).toBeTruthy()
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('CA-CORE-201 (OPEN-CORE-27, INV-009, issue #90): valor vacío común', () => {
   it.each(['es', 'en', 'de', 'fr'] as const)(
     'en tabla y en tarjeta, la marca va con aria-hidden y el texto solo para lector (%s)',
