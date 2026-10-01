@@ -75,7 +75,11 @@ defineExpose({
 })
 
 /** `ADR-038 §7.3`: sin traducción, se muestra el código en crudo antes que fallar. */
-function optionLabel(option: { value: string; labelKey?: string }): string {
+function optionLabel(option: { value: string; labelKey?: string; label?: string }): string {
+  if (option.label) {
+    return option.label
+  }
+
   if (!option.labelKey) {
     return option.value
   }
@@ -261,6 +265,26 @@ const itemClass = 'min-h-8 [@media(any-pointer:coarse)]:min-h-11'
           {{ t('dataTable.filters.rangeInvalid') }}
         </p>
       </fieldset>
+
+      <label
+        v-else-if="asBoolean(filter)?.twoState"
+        data-slot="data-table-two-state-filter"
+        class="border-border bg-background flex min-h-8 cursor-pointer items-center gap-2 rounded-lg border px-2.5 text-sm [@media(any-pointer:coarse)]:min-h-11"
+      >
+        <input
+          type="checkbox"
+          class="accent-primary-on-background size-4"
+          :checked="props.filterValues[filter.id] === 'true'"
+          @change="
+            (event: Event) =>
+              setBoolean(
+                filter as DataTableBooleanFilter,
+                (event.target as HTMLInputElement).checked ? 'true' : '',
+              )
+          "
+        />
+        {{ t(filter.labelKey) }}
+      </label>
 
       <DropdownMenu v-else-if="asBoolean(filter)">
         <DropdownMenuTrigger as-child>

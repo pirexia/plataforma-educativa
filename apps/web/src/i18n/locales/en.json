@@ -80,7 +80,10 @@
       "text": "We could not find a school at this address. Check the link or contact your school."
     },
     "documentTitleFormat": "{view} · {tenant}",
-    "localeChangeError": "The school has removed this language. The current language is kept."
+    "localeChangeError": "The school has removed this language. The current language is kept.",
+    "confirm": {
+      "cancel": "Cancel"
+    }
   },
   "home": {
     "greeting": "Hello, {name}",

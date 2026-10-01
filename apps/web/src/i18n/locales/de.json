@@ -80,7 +80,10 @@
       "text": "Unter dieser Adresse wurde keine Schule gefunden. Prüfe den Link oder wende dich an deine Schule."
     },
     "documentTitleFormat": "{view} · {tenant}",
-    "localeChangeError": "Die Schule hat diese Sprache entfernt. Die aktuelle Sprache bleibt erhalten."
+    "localeChangeError": "Die Schule hat diese Sprache entfernt. Die aktuelle Sprache bleibt erhalten.",
+    "confirm": {
+      "cancel": "Abbrechen"
+    }
   },
   "home": {
     "greeting": "Hallo, {name}",

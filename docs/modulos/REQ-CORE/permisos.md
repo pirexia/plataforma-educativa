@@ -36,7 +36,7 @@ Los **ámbitos** son los de `RPERM-004`: `todos`, `propios`, `departamento`, `gr
 | `usuario.actualizar` | `usuario` | `actualizar` | `PATCH /users/{id}`, `POST /users/{id}/status` | `todos` |
 | `usuario.eliminar` | `usuario` | `eliminar` | `DELETE /users/{id}`, `POST /users/{id}/restore`, `GET /users?include_deleted=true` | `todos` |
 | `usuario.importar` | `usuario` | `importar` | `POST /user-imports`, `GET /user-imports`, `GET /user-imports/{id}`, `POST /user-imports/{id}/execute`, `DELETE /user-imports/{id}` | `todos` |
-| `usuario.exportar` | `usuario` | `exportar` | Reservado a la exportación del listado de usuarios. **Sin endpoint en 1.1** — ver §7 | `todos` |
+| `usuario.exportar` | `usuario` | `exportar` | `POST /users/exports` y `GET /data-exports/{id}` de tipo `users` (1.9b; en 1.1 estaba reservado sin endpoint, ver §7) | `todos` |
 | `invitacion.leer` | `invitacion` | `leer` | `GET /invitations` | `todos` |
 | `invitacion.crear` | `invitacion` | `crear` | `POST /users/{id}/invitations` | `todos` |
 | `invitacion.eliminar` | `invitacion` | `eliminar` | `DELETE /invitations/{id}` | `todos` |
@@ -55,7 +55,7 @@ Los **ámbitos** son los de `RPERM-004`: `todos`, `propios`, `departamento`, `gr
 | `modulo.leer` | `modulo` | `leer` | `GET /modules` | `todos` |
 | `modulo.actualizar` | `modulo` | `actualizar` | `PATCH /module-subscriptions/{id}` (solo `settings`) — desde `1.6c` (`REQ-BO/datos.md §7`) ese alcance lo respalda un privilegio de columna (`GRANT UPDATE (settings, updated_at, updated_by, deleted_at)`), no sólo la validación de `ModulesController::updateSettings()`: un intento de escribir `enabled` lo rechaza el motor, no la aplicación | `todos` |
 | `auditoria.leer` | `auditoria` | `leer` | `GET /audit-logs` | `todos`, `propios` |
-| `auditoria.exportar` | `auditoria` | `exportar` | `POST /audit-logs/exports`, `GET /data-exports/{id}` de tipo `audit_logs` | `todos`, `propios` |
+| `auditoria.exportar` | `auditoria` | `exportar` | `POST /audit-logs/exports`, `GET /data-exports/{id}` de tipo `audit_logs` (el de tipo `users` exige `usuario.exportar`) | `todos`, `propios` |
 
 **Endpoints sin permiso, a propósito y de forma auditada:**
 
@@ -303,7 +303,7 @@ Qué permisos exactos abren «Administración de MFA» lo fija `REQ-AUTH/permiso
 1. **Exportar no es leer.** Que un usuario vea las filas no le permite exportarlas: por eso la SPA **no genera ficheros** con lo que tiene en memoria (`RN-CORE-46`). Un fichero generado en cliente saltaría el permiso `exportar`, la auditoría `exported` y el acotado por ámbito del trabajo en cola.
 2. **Ámbito**: una tabla sobre un recurso con ámbito restringido (`propios`, y más adelante `grupo`/`clase`/`unidad familiar`) no necesita nada del cliente. El total de `meta.total` ya es el del conjunto acotado, y el componente no calcula recuentos por su cuenta.
 3. **Categoría especial**: 1.9 no muestra datos de salud, NEAE ni convivencia. Una tabla futura que los muestre lleva permiso propio y auditoría de lectura en su *endpoint* (`RPERM-012`/`RPERM-015`). Además, su configuración de columnas (`RN-CORE-43`) no guarda nada más que `id` de columna, y sus filas nunca salen de la memoria (`RN-CORE-50`).
-4. **`usuario.exportar`** sigue sin *endpoint* (§7). Si `1.9b` ofrece exportar usuarios, el *endpoint* es trabajo de `apps/api` en ese paso, con su test de `403`, de acotado por ámbito dentro del trabajo y de acceso de otro tenant (`404`), más los de la norma de `ADR-054 §8.2`/`§9` (paridad de filtros con `GET /users` y `q` ⇒ `422`, `api.md §13.4`).
+4. *(Histórico: resuelto en 1.9b, véase §12.4.)* **`usuario.exportar`** seguía sin *endpoint* (§7). Si `1.9b` ofrece exportar usuarios, el *endpoint* es trabajo de `apps/api` en ese paso, con su test de `403`, de acotado por ámbito dentro del trabajo y de acceso de otro tenant (`404`), más los de la norma de `ADR-054 §8.2`/`§9` (paridad de filtros con `GET /users` y `q` ⇒ `422`, `api.md §13.4`).
 5. **Paridad de filtros y privacidad**: un *endpoint* de exportación al que le falte un filtro de su listado exporta en silencio más de lo que el usuario ve filtrado. El ámbito del permiso se sigue aplicando dentro del trabajo, así que no sale nada que el usuario no pueda leer; pero el fichero no corresponde a lo que ve. Es regla de servidor, no del cliente (`ADR-054 §8.2`, `INV-006`).
 
 ### 11.4 Verificación
@@ -318,7 +318,7 @@ Qué permisos exactos abren «Administración de MFA» lo fija `REQ-AUTH/permiso
 
 ## 12. Paso 1.9b (pantallas de gestión)
 
-> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. Cubre los cinco sub-pasos `1.9b`-`1.9f`, incluidas las pantallas de módulos contratados y perfil propio que añadió `OPEN-CORE-31` = B en `1.9e`.
+> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. Cubre los cinco sub-pasos `1.9b`-`1.9f`, incluidas las pantallas de módulos contratados y perfil propio que añadió `OPEN-CORE-31` = B en `1.9e`. **Implementado en `1.9b`** (2026-10-02): la autorización de `GET /data-exports/{id}` por `kind` (§12.4) vive en `DataExportsController::PERMISSION_BY_KIND` (la ruta ya no lleva `permission:auditoria.exportar`); un test compara las claves de esa constante con los valores del `CHECK` de `data_exports.kind`, de modo que ningún `kind` admitido quede sin permiso.
 
 ### 12.1 Ningún permiso nuevo; uno pasa a tener *endpoint*
 

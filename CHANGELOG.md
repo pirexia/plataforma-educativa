@@ -6,6 +6,27 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-02 · `feature/REQ-CORE-003-usuarios-invitaciones` (implementación de `1.9b`)
+
+Implementa el sub-paso `1.9b` (usuarios e invitaciones, `REQ-CORE-003`; exportación de usuarios, `REQ-CORE-005`), sobre `docs/modulos/REQ-CORE/funcional.md §14` (aprobada el 2026-10-01). Con una migración *expand*, sin permisos nuevos ni dependencias nuevas. Notas y desviaciones: `funcional.md §14.22`.
+
+### Añadido
+- **`POST /api/v1/users/exports`** (S1, `RN-CORE-85`): exportación asíncrona de usuarios en cola (`GenerateUserExport`, `core-exports`) con `CsvWriter`. Fichero de **doce columnas** (`public_id,status,deleted_at,created_at,email,given_name,family_name_1,family_name_2,contact_email,contact_phone,locale,roles`), códigos técnicos y cabeceras sin traducir, iguales para todos los solicitantes (`ADR-055`, `CA-CORE-207` verificado con `CA-CORE-226`). **No contiene `document_type`, `document_number` ni `birth_date`** (`OPEN-CORE-32` = B, `INV-008`). Acepta exactamente los filtros de `GET /users` (como *array*); `q` ⇒ `422` (`core.validation.export_search_not_supported`); tope de filas `CORE_EXPORT_MAX_ROWS`.
+- **Migración** `2026_10_02_100100_widen_data_exports_kind_for_users` (S2): `data_exports_kind_check` admite `users` (`NOT VALID` + `VALIDATE`, sin transacción).
+- **Regla `InList`** (`App\Support\Api\Rules`): valida cada valor de un filtro de lista por comas (`ADR-038 §5.2`).
+- **`apps/web`**: cinco pantallas en `core/shell.ts` (`/administracion/usuarios`, `/nuevo`, `/:publicId`, `/:publicId/editar`, `/administracion/invitaciones`); `alert-dialog` vendorizado y `ConfirmDialog`/`useConfirm` (`RN-CORE-64`); filtro de tabla de **dos estados** y opción `label` del filtro `enum` (ampliaciones aditivas de `OPEN-CORE-40` = A); asignación de roles en la ficha (`OPEN-CORE-43` = A). Textos en los cuatro idiomas.
+
+### Cambiado
+- **Cambio de contrato (S4, `OPEN-CORE-39` = A)**: `GET /data-exports/{id}` de una exportación `fallida` responde **`200`** con `status: "fallida"`, `error_code` y `download_url: null`, no `409` (`api.md §8` no cubría la fallida hasta 1.9b). Antes la SPA esperaba 10 minutos sin decir nada. Único cliente: la SPA; sin periodo de compatibilidad (no hay producción, `H0`).
+- **`GET /data-exports/{id}` se autoriza por `kind`** (S3, `RN-CORE-86`): `audit_logs` → `auditoria.exportar`, `users` → `usuario.exportar`, otro → `403`; la ruta ya no lleva `permission:` fijo.
+- `GET /users`: `sort` admite `-email` (S5) y `locale` admite varios valores por comas (S7). `GET /users/{id}?include_deleted=true` (S6, `CA-CORE-014`, exige además `usuario.eliminar`). `GET /invitations?status=` admite varios valores (S7); un valor fuera del vocabulario responde `422`.
+- `README.md` 2.6.11, `ARCHITECTURE.md` 2.3.2, `PRIVACY.md` 0.3.3 (§2.5: la exportación de usuarios como tratamiento), manual `admin.md` (usuarios, invitaciones y la tabla de columnas del CSV), `docs/i18n.md`, `docs/design-system.md §12.3c`, `REQ-CORE/{funcional,api,datos,permisos,operacion}.md`.
+
+### Verificado
+Pest completo en el host: **786/801**; los 15 fallos son todos de SAML (`Signature validation failed`), ajenos a este diff, y esos tests pasan en el contenedor de referencia sobre `develop`. Tests nuevos del paso: 16 Pest (`UserExportEndpointsTest`). Vitest **799/799** (717 en `develop`), Playwright **19/19** (4 nuevos), Pint, Larastan, ESLint, `lint:i18n`, `vue-tsc -b` y `vite build` limpios. Pendiente: revisión independiente (`db-reviewer`, `security-reviewer`, `doc-reviewer`).
+
+---
+
 ## 2026-10-02 · `fix/REQ-CORE-008-bucle-403-recarga-sesion` (issue #300)
 
 ### Corregido

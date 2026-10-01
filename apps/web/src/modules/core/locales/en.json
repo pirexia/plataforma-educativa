@@ -30,7 +30,173 @@
       "disabled": "Disabled"
     },
     "nav": {
-      "home": "Home"
+      "home": "Home",
+      "users": "Users",
+      "invitations": "Invitations"
+    },
+    "locale": {
+      "name": {
+        "es": "Spanish",
+        "en": "English",
+        "de": "German",
+        "fr": "French"
+      }
+    },
+    "users": {
+      "title": "Users",
+      "intro": "People with access to the platform at this school.",
+      "new": "New user",
+      "import": "Import",
+      "caption": "School users",
+      "empty": {
+        "title": "There are no users yet",
+        "text": "Add the first one to get started."
+      },
+      "filters": {
+        "status": "Status",
+        "role": "Role",
+        "locale": "Language",
+        "includeDeleted": "Include deactivated accounts"
+      },
+      "columns": {
+        "name": "Name",
+        "email": "Sign-in email",
+        "status": "Status",
+        "roles": "Roles",
+        "locale": "Language",
+        "createdAt": "Created"
+      },
+      "status": {
+        "deleted": "Removed"
+      },
+      "errors": {
+        "unexpected": "The action could not be completed. Please try again.",
+        "tooManyRequests": "Too many attempts. Wait a moment and try again.",
+        "tooManyRequestsWithSeconds": "Too many attempts. Try again in {seconds} s."
+      },
+      "detail": {
+        "title": "Profile",
+        "actions": "Actions",
+        "edit": "Edit",
+        "activate": "Activate",
+        "deactivate": "Deactivate",
+        "invite": "Send invitation",
+        "delete": "Remove",
+        "restore": "Restore",
+        "selfNote": "You cannot change your own account from here.",
+        "data": "Details",
+        "status": "Status",
+        "email": "Sign-in email",
+        "documentType": "Document type",
+        "documentNumber": "Document number",
+        "birthDate": "Date of birth",
+        "locale": "Language",
+        "contactEmail": "Contact email",
+        "contactPhone": "Contact phone",
+        "emailVerifiedAt": "Email verified",
+        "createdAt": "Created",
+        "deletedAt": "Removed",
+        "roles": "Roles",
+        "noRoles": "This user has no roles.",
+        "manageRoles": "Assigned roles",
+        "saveRoles": "Save roles"
+      },
+      "confirm": {
+        "deactivate": {
+          "title": "Deactivate {name}",
+          "description": "They will not be able to sign in until you activate the account again.",
+          "confirm": "Deactivate {name}"
+        },
+        "delete": {
+          "title": "Remove {name}",
+          "description": "The account stops being available and cannot sign in. You can restore it later.",
+          "confirm": "Remove {name}"
+        },
+        "invite": {
+          "title": "Send an invitation to {name}",
+          "description": "An activation link will be sent to {email}. The previous invitation, if any, will stop working.",
+          "confirm": "Send an invitation to {name}"
+        },
+        "removeRoles": {
+          "title": "Remove roles from {name}",
+          "description": "These roles will be removed: {roles}. They will lose the permissions those roles granted.",
+          "confirm": "Save the roles of {name}"
+        }
+      },
+      "flash": {
+        "activated": "Account activated.",
+        "deactivated": "Account deactivated.",
+        "deleted": "User removed.",
+        "restored": "User restored. The account is inactive: activate it if they need to sign in again.",
+        "invited": "Invitation sent. It expires on {date}.",
+        "rolesSaved": "Roles saved.",
+        "updated": "Changes saved.",
+        "created": "User created.",
+        "createdInvited": "User created and invitation sent. It expires on {date}."
+      },
+      "form": {
+        "titleNew": "New user",
+        "titleEdit": "Edit user",
+        "requiredHint": "Fields marked with * are required.",
+        "required": "(required)",
+        "errorSummary": "Please check the following fields:",
+        "email": "Sign-in email",
+        "givenName": "First name",
+        "familyName1": "First surname",
+        "familyName2": "Second surname",
+        "birthDate": "Date of birth",
+        "documentType": "Document type",
+        "documentTypeHint": "Free text. The format is only checked for DNI and NIE.",
+        "documentNumber": "Document number",
+        "contactEmail": "Contact email",
+        "contactPhone": "Contact phone",
+        "locale": "Preferred language",
+        "roles": "Roles",
+        "sendInvitation": "Send invitation by email",
+        "save": "Save",
+        "saving": "Saving…",
+        "cancel": "Cancel"
+      }
+    },
+    "invitations": {
+      "title": "Invitations",
+      "intro": "Activation links sent to pending users.",
+      "caption": "School invitations",
+      "empty": {
+        "title": "There are no invitations",
+        "text": "Invitations appear here when you add a user or resend their link."
+      },
+      "filters": {
+        "status": "Status"
+      },
+      "columns": {
+        "user": "User",
+        "status": "Status",
+        "expiresAt": "Expires",
+        "createdAt": "Sent",
+        "resolvedAt": "Accepted or revoked",
+        "actions": "Actions"
+      },
+      "revoke": "Revoke",
+      "reissue": "Resend",
+      "revokeFor": "Revoke the invitation of {email}",
+      "reissueFor": "Resend the invitation to {email}",
+      "confirm": {
+        "revoke": {
+          "title": "Revoke the invitation of {email}",
+          "description": "The link that was sent will stop working.",
+          "confirm": "Revoke the invitation of {email}"
+        },
+        "reissue": {
+          "title": "Resend the invitation to {email}",
+          "description": "A new link will be sent and the previous one will stop working.",
+          "confirm": "Resend the invitation to {email}"
+        }
+      },
+      "flash": {
+        "revoked": "Invitation of {email} revoked.",
+        "reissued": "Invitation sent to {email}. It expires on {date}."
+      }
     }
   }
 }

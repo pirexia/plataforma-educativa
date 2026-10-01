@@ -6,7 +6,8 @@ export interface ListUsersParams {
   q?: string
   status?: UserStatus[]
   role?: PublicId[]
-  locale?: string
+  /** S7 de 1.9b (ADR-038 §5.2): varios idiomas separados por comas. */
+  locale?: string[]
   include_deleted?: boolean
   sort?: string
   page?: number
@@ -18,7 +19,7 @@ export function listUsers(params: ListUsersParams = {}): Promise<Paginated<User>
     q: params.q,
     status: joinList(params.status),
     role: joinList(params.role),
-    locale: params.locale,
+    locale: joinList(params.locale),
     include_deleted: params.include_deleted,
     sort: params.sort,
     page: params.page,
@@ -51,8 +52,45 @@ export function createUser(payload: CreateUserPayload): Promise<CreatedUser> {
   return apiFetch<CreatedUser>('/users', { method: 'POST', body: JSON.stringify(payload) })
 }
 
-export function getUser(publicId: PublicId): Promise<User> {
-  return apiFetch<User>(`/users/${publicId}`)
+/**
+ * `include_deleted` (S6 de 1.9b, `CA-CORE-014`): la ficha de un usuario dado de
+ * baja. El servidor lo exige además de `usuario.eliminar`; sin ese permiso la
+ * vista no lo envía (`RN-CORE-62`).
+ */
+export function getUser(
+  publicId: PublicId,
+  options: { include_deleted?: boolean } = {},
+): Promise<User> {
+  const query = buildQuery({ include_deleted: options.include_deleted ? true : undefined })
+
+  return apiFetch<User>(`/users/${publicId}${query}`)
+}
+
+/**
+ * `POST /users/exports` (S1 de 1.9b, `RN-CORE-69`, `ADR-054 §8.2`). Recibe los
+ * filtros del listado en su forma de *query string* (`status=a,b`) y los
+ * traduce al *array* JSON que espera el cuerpo. Nunca `q`, `sort`, `page` ni
+ * `per_page`; sin `format` (el servidor asume `csv`).
+ */
+export function exportUsers(filters: Record<string, string>): Promise<{ public_id: PublicId }> {
+  const body: Record<string, string[] | boolean> = {}
+
+  for (const key of ['status', 'role', 'locale'] as const) {
+    const values = (filters[key] ?? '').split(',').filter((value) => value !== '')
+
+    if (values.length > 0) {
+      body[key] = values
+    }
+  }
+
+  if (filters.include_deleted === 'true') {
+    body.include_deleted = true
+  }
+
+  return apiFetch<{ public_id: PublicId }>('/users/exports', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
 }
 
 export interface UpdateUserPayload {

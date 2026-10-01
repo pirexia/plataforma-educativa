@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |-------|-------|
-| Versión | 2.3.1 |
-| Fecha | 2026-09-30 |
+| Versión | 2.3.2 |
+| Fecha | 2026-10-02 |
 | Estado | Propuesta cerrada, pendiente de ratificación |
 | Documento de requisitos | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` |
 
@@ -124,9 +124,11 @@ Detalle completo, reglas de negocio y criterios de aceptación: `docs/modulos/RE
 - **Columnas configurables**: visibilidad y «Restablecer», en `localStorage` (`plataforma.table.<tableId>`, `{"v":1,"hidden":[…]}`, solo `id` de columna; `tableId` literal `<modulo>.<nombre>`). Las filas viven solo en memoria (`RN-CORE-50`).
 - **Estado de la consulta en la URL**: opcional por tabla y como máximo una por ruta; `q` y `cursor` nunca (`RN-CORE-54`).
 - **Exportación**: el componente solo dispara la solicitud al *endpoint* de exportación del módulo dueño del recurso (en cola, `INV-012`) y consulta `GET /data-exports/{id}` con espera creciente; **nunca genera el fichero** (`RN-CORE-46`).
-- **Tests de arquitectura** (`src/data-table/architecture.spec.ts`, patrón de `docs/design-system.md §10`): importación única de TanStack, frontera de `src/data-table/**` (sin `@/modules`), toda tabla nueva por el componente con lista cerrada de excepciones que solo puede reducirse (`RN-CORE-53`: `MfaExemptionsArea.vue`, `AdminSsoView.vue`, `SessionsView.vue`, hasta `1.9b`), `tableId` literal y único, y ningún fichero de exportación construido en el cliente.
+- **Tests de arquitectura** (`src/data-table/architecture.spec.ts`, patrón de `docs/design-system.md §10`): importación única de TanStack, frontera de `src/data-table/**` (sin `@/modules`), toda tabla nueva por el componente con lista cerrada de excepciones que solo puede reducirse (`RN-CORE-53`: `MfaExemptionsArea.vue`, `AdminSsoView.vue`, `SessionsView.vue`, hasta `1.9f`), `tableId` literal y único, y ningún fichero de exportación construido en el cliente.
 
 Detalle completo, reglas de negocio y criterios de aceptación: `docs/modulos/REQ-CORE/funcional.md §13`; decisiones: `docs/adr/ADR-054-tablas-de-datos-y-exportacion-de-listados.md`.
+
+**Ampliaciones de 1.9b** (`docs/modulos/REQ-CORE/funcional.md §14`): el filtro `boolean` admite una variante de **dos estados** (`twoState`, una casilla: marcada envía `<id>=true`, desmarcada no envía el parámetro) y las opciones de un filtro `enum` admiten un `label` literal (nombres ya traducidos por el servidor). Las confirmaciones de acciones destructivas pasan por un único componente de aplicación, `src/components/ConfirmDialog.vue` + `useConfirm.ts`, sobre `alert-dialog` de shadcn-vue (`docs/design-system.md §12.3c`). Servidor: la exportación de usuarios (`POST /users/exports`, `GenerateUserExport`) usa `CsvWriter` y un esquema cerrado sin documento ni fecha de nacimiento (`ADR-055`, `OPEN-CORE-32`); `GET /data-exports/{id}` autoriza por `kind` (`DataExportsController::PERMISSION_BY_KIND`) y una exportación fallida es `200` con `status: "fallida"`.
 
 ---
 

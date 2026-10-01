@@ -30,7 +30,173 @@
       "disabled": "Deaktiviert"
     },
     "nav": {
-      "home": "Start"
+      "home": "Start",
+      "users": "Benutzer",
+      "invitations": "Einladungen"
+    },
+    "locale": {
+      "name": {
+        "es": "Spanisch",
+        "en": "Englisch",
+        "de": "Deutsch",
+        "fr": "Französisch"
+      }
+    },
+    "users": {
+      "title": "Benutzer",
+      "intro": "Personen mit Zugang zur Plattform an dieser Schule.",
+      "new": "Neuer Benutzer",
+      "import": "Importieren",
+      "caption": "Benutzer der Schule",
+      "empty": {
+        "title": "Es gibt noch keine Benutzer",
+        "text": "Lege den ersten an, um zu beginnen."
+      },
+      "filters": {
+        "status": "Status",
+        "role": "Rolle",
+        "locale": "Sprache",
+        "includeDeleted": "Deaktivierte Konten einbeziehen"
+      },
+      "columns": {
+        "name": "Name",
+        "email": "Anmelde-E-Mail",
+        "status": "Status",
+        "roles": "Rollen",
+        "locale": "Sprache",
+        "createdAt": "Angelegt"
+      },
+      "status": {
+        "deleted": "Entfernt"
+      },
+      "errors": {
+        "unexpected": "Die Aktion konnte nicht abgeschlossen werden. Bitte versuche es erneut.",
+        "tooManyRequests": "Zu viele Versuche. Warte einen Moment und versuche es erneut.",
+        "tooManyRequestsWithSeconds": "Zu viele Versuche. Versuche es in {seconds} s erneut."
+      },
+      "detail": {
+        "title": "Profil",
+        "actions": "Aktionen",
+        "edit": "Bearbeiten",
+        "activate": "Aktivieren",
+        "deactivate": "Deaktivieren",
+        "invite": "Einladung senden",
+        "delete": "Entfernen",
+        "restore": "Wiederherstellen",
+        "selfNote": "Du kannst dein eigenes Konto hier nicht ändern.",
+        "data": "Daten",
+        "status": "Status",
+        "email": "Anmelde-E-Mail",
+        "documentType": "Dokumentart",
+        "documentNumber": "Dokumentnummer",
+        "birthDate": "Geburtsdatum",
+        "locale": "Sprache",
+        "contactEmail": "Kontakt-E-Mail",
+        "contactPhone": "Kontakttelefon",
+        "emailVerifiedAt": "E-Mail bestätigt",
+        "createdAt": "Angelegt",
+        "deletedAt": "Entfernt",
+        "roles": "Rollen",
+        "noRoles": "Dieser Benutzer hat keine Rollen.",
+        "manageRoles": "Zugewiesene Rollen",
+        "saveRoles": "Rollen speichern"
+      },
+      "confirm": {
+        "deactivate": {
+          "title": "{name} deaktivieren",
+          "description": "Die Person kann sich erst wieder anmelden, wenn du das Konto erneut aktivierst.",
+          "confirm": "{name} deaktivieren"
+        },
+        "delete": {
+          "title": "{name} entfernen",
+          "description": "Das Konto steht nicht mehr zur Verfügung und kann sich nicht anmelden. Du kannst es später wiederherstellen.",
+          "confirm": "{name} entfernen"
+        },
+        "invite": {
+          "title": "Einladung an {name} senden",
+          "description": "Ein Aktivierungslink wird an {email} gesendet. Eine frühere Einladung, falls vorhanden, verliert ihre Gültigkeit.",
+          "confirm": "Einladung an {name} senden"
+        },
+        "removeRoles": {
+          "title": "Rollen von {name} entziehen",
+          "description": "Diese Rollen werden entzogen: {roles}. Die damit verbundenen Berechtigungen gehen verloren.",
+          "confirm": "Rollen von {name} speichern"
+        }
+      },
+      "flash": {
+        "activated": "Konto aktiviert.",
+        "deactivated": "Konto deaktiviert.",
+        "deleted": "Benutzer entfernt.",
+        "restored": "Benutzer wiederhergestellt. Das Konto ist inaktiv: Aktiviere es, falls die Person sich wieder anmelden soll.",
+        "invited": "Einladung gesendet. Sie läuft am {date} ab.",
+        "rolesSaved": "Rollen gespeichert.",
+        "updated": "Änderungen gespeichert.",
+        "created": "Benutzer angelegt.",
+        "createdInvited": "Benutzer angelegt und Einladung gesendet. Sie läuft am {date} ab."
+      },
+      "form": {
+        "titleNew": "Neuer Benutzer",
+        "titleEdit": "Benutzer bearbeiten",
+        "requiredHint": "Mit * markierte Felder sind Pflichtfelder.",
+        "required": "(Pflichtfeld)",
+        "errorSummary": "Bitte prüfe die folgenden Felder:",
+        "email": "Anmelde-E-Mail",
+        "givenName": "Vorname",
+        "familyName1": "Erster Nachname",
+        "familyName2": "Zweiter Nachname",
+        "birthDate": "Geburtsdatum",
+        "documentType": "Dokumentart",
+        "documentTypeHint": "Freitext. Das Format wird nur für DNI und NIE geprüft.",
+        "documentNumber": "Dokumentnummer",
+        "contactEmail": "Kontakt-E-Mail",
+        "contactPhone": "Kontakttelefon",
+        "locale": "Bevorzugte Sprache",
+        "roles": "Rollen",
+        "sendInvitation": "Einladung per E-Mail senden",
+        "save": "Speichern",
+        "saving": "Wird gespeichert…",
+        "cancel": "Abbrechen"
+      }
+    },
+    "invitations": {
+      "title": "Einladungen",
+      "intro": "An ausstehende Benutzer gesendete Aktivierungslinks.",
+      "caption": "Einladungen der Schule",
+      "empty": {
+        "title": "Es gibt keine Einladungen",
+        "text": "Einladungen erscheinen hier, wenn du einen Benutzer anlegst oder seinen Link erneut sendest."
+      },
+      "filters": {
+        "status": "Status"
+      },
+      "columns": {
+        "user": "Benutzer",
+        "status": "Status",
+        "expiresAt": "Läuft ab",
+        "createdAt": "Gesendet",
+        "resolvedAt": "Angenommen oder widerrufen",
+        "actions": "Aktionen"
+      },
+      "revoke": "Widerrufen",
+      "reissue": "Erneut senden",
+      "revokeFor": "Einladung von {email} widerrufen",
+      "reissueFor": "Einladung an {email} erneut senden",
+      "confirm": {
+        "revoke": {
+          "title": "Einladung von {email} widerrufen",
+          "description": "Der gesendete Link funktioniert nicht mehr.",
+          "confirm": "Einladung von {email} widerrufen"
+        },
+        "reissue": {
+          "title": "Einladung an {email} erneut senden",
+          "description": "Ein neuer Link wird gesendet, der bisherige verliert seine Gültigkeit.",
+          "confirm": "Einladung an {email} erneut senden"
+        }
+      },
+      "flash": {
+        "revoked": "Einladung von {email} widerrufen.",
+        "reissued": "Einladung an {email} gesendet. Sie läuft am {date} ab."
+      }
     }
   }
 }

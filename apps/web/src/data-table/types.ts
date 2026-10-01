@@ -43,8 +43,13 @@ export interface DataTableEnumFilter {
   /** Nombre del parámetro (`ADR-038 §5.2`): `<id>=a,b`. */
   id: string
   labelKey: string
-  /** `labelKey` ausente o sin traducción ⇒ se muestra el código en crudo (`ADR-038 §7.3`). */
-  options: { value: string; labelKey?: string }[]
+  /**
+   * `labelKey` ausente o sin traducción ⇒ se muestra el código en crudo (`ADR-038 §7.3`).
+   * `label` (ampliación aditiva de 1.9b): texto ya traducido por el servidor
+   * (p. ej. el nombre de un rol de `GET /roles`, `RN-CORE-63`), que no es una
+   * clave de traducción del cliente. Tiene prioridad sobre `labelKey`.
+   */
+  options: { value: string; labelKey?: string; label?: string }[]
 }
 
 export interface DataTableDateRangeFilter {
@@ -59,6 +64,13 @@ export interface DataTableBooleanFilter {
   /** `<id>=true`/`false`; «todos» no envía el parámetro. */
   id: string
   labelKey: string
+  /**
+   * Ampliación aditiva de 1.9b (`OPEN-CORE-40` = A, `RN-CORE-68`): filtro de
+   * **dos estados** — una casilla que, marcada, envía `<id>=true` y, desmarcada,
+   * no envía el parámetro; sin opción «todos». Ausente o `false`: el filtro de
+   * tres estados de 1.9, sin cambios.
+   */
+  twoState?: boolean
 }
 
 export type DataTableFilter =

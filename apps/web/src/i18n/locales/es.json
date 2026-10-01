@@ -80,7 +80,10 @@
       "text": "No hemos encontrado ningún centro en esta dirección. Comprueba el enlace o contacta con tu centro."
     },
     "documentTitleFormat": "{view} · {tenant}",
-    "localeChangeError": "El centro ha retirado este idioma. Se mantiene el idioma actual."
+    "localeChangeError": "El centro ha retirado este idioma. Se mantiene el idioma actual.",
+    "confirm": {
+      "cancel": "Cancelar"
+    }
   },
   "home": {
     "greeting": "Hola, {name}",

@@ -75,6 +75,12 @@ Route::post('/users', [UsersController::class, 'store'])
     ->middleware('permission:usuario.crear')
     ->name('core.users.store');
 
+// api.md §14.1 (1.9b, S1, RN-CORE-85). `usuario.exportar` es el permiso del
+// recurso exportado (permisos.md §2, declarado desde 1.1).
+Route::post('/users/exports', [UsersController::class, 'storeExport'])
+    ->middleware('permission:usuario.exportar')
+    ->name('core.users.exports');
+
 Route::get('/users/{publicId}', [UsersController::class, 'show'])
     ->middleware('permission:usuario.leer')
     ->name('core.users.show');
@@ -212,11 +218,10 @@ Route::get('/platform-actions', [PlatformActionsController::class, 'index'])
     ->middleware('permission:auditoria.leer')
     ->name('core.platform-actions.index');
 
-// api.md §8: "el permiso del recurso exportado" — en 1.1 el único `kind`
-// es `audit_logs`, así que se fija auditoria.exportar aquí. Cuando otro
-// módulo use ExportRequestService con un `kind` propio, este middleware
-// tendrá que resolverse por `kind`, no antes: no hay un segundo caso
-// todavía con el que acertar el diseño (funcional.md §7).
+// api.md §14.2 (1.9b, S3, RN-CORE-86): el permiso que exige el detalle es el
+// del recurso exportado, resuelto por `kind` con una correspondencia cerrada
+// dentro del controlador (`DataExportsController::PERMISSION_BY_KIND`), no
+// con un middleware fijo: con dos `kind`, ninguno de los dos permisos sirve
+// para los dos. Sin sesión, 401; `kind` sin correspondencia, 403.
 Route::get('/data-exports/{publicId}', [DataExportsController::class, 'show'])
-    ->middleware('permission:auditoria.exportar')
     ->name('core.data-exports.show');
