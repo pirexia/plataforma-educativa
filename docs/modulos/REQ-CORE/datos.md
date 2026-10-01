@@ -385,7 +385,7 @@ Ninguna de estas purgas toca `audit_logs`: la retención del registro de auditor
 
 # Parte D · Paso 1.9b (pantallas de gestión): una migración *expand*
 
-> Estado: **PROPUESTA** (2026-10-01), con `funcional.md §14`. Pendiente de aprobación.
+> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. La migración pertenece al sub-paso `1.9b`; `1.9c`-`1.9f` no tocan el esquema.
 
 **Única migración del paso**: ampliar el `CHECK` de `data_exports.kind` con el valor `users`, para `POST /users/exports` (`funcional.md §14.11`, S1-S2). Es exactamente el mecanismo que A.4 previó («cada módulo añade su valor al `CHECK` por *expand*»).
 
@@ -405,8 +405,10 @@ Ninguna de estas purgas toca `audit_logs`: la retención del registro de auditor
 | Usuarios dados de baja en el detalle | `users.deleted_at` | Ninguno |
 | Valores múltiples en filtros (`status`, `locale`, `actor_type`, `module`) | Mismas columnas, `IN (…)` en vez de `=` | Ninguno. **Índices**: ninguno nuevo; ninguno de los filtros tenía índice propio y el volumen (catálogos acotados por el tamaño del centro, `ADR-038 §4.2`) no lo justifica sin medición (`A.7`, `REQ-SEED`) |
 | Facetas de auditoría (si `OPEN-CORE-34` = B) | Catálogo en código (`ModuleCatalog`, *morph map*) | Ninguno; no consulta `audit_logs` |
-| Configuración de columnas de las tablas nuevas | `localStorage`, `plataforma.table.<tableId>` (`RN-CORE-43`), con los `tableId` literales de `funcional.md §14` (`core.users`, `core.invitations`, `core.user_imports`, `core.user_import_errors`, `core.roles`, `core.audit_logs`, `auth.mfa_exemptions`, `auth.identity_providers`, `auth.sessions`) | Ninguno en servidor; el patrón de clave ya está en `PRIVACY.md §2.1b` |
+| Configuración de columnas de las tablas nuevas | `localStorage`, `plataforma.table.<tableId>` (`RN-CORE-43`), con los `tableId` literales de `funcional.md §14` (`core.users`, `core.invitations`, `core.user_imports`, `core.user_import_errors`, `core.roles`, `core.audit_logs`, `core.modules`, `auth.mfa_exemptions`, `auth.identity_providers`, `auth.sessions`) | Ninguno en servidor; el patrón de clave ya está en `PRIVACY.md §2.1b` |
+| Módulos contratados (1.9e, solo lectura) | `module_subscriptions` y catálogo `modules` por `GET /modules` (columnas visibles para el tenant, `RN-BO-82`) | Ninguno |
+| Perfil propio (1.9e) | `people.contact_email`, `people.contact_phone` por `PATCH /me` (1.1) | Ninguno |
 
-**Datos personales en el artefacto de exportación de usuarios.** El fichero contiene datos identificativos del personal (según `OPEN-CORE-32`: correo, nombre, y quizá documento y fecha de nacimiento). Su tratamiento es el mismo que el de la exportación de auditoría: objeto privado en el *bucket*, URL firmada de caducidad corta, solo el solicitante, purga a los siete días por `PurgeExpiredExports` (A.9), sin copia en la base de datos ni en `audit_logs` (`filters` solo lleva códigos y ULID). Nada que añadir al esquema; sí a `PRIVACY.md` (`funcional.md §14.20`).
+**Datos personales en el artefacto de exportación de usuarios.** El fichero contiene datos identificativos del personal y, si lo hay, del alumnado con cuenta: correo de acceso, nombre y apellidos, correo y teléfono de contacto, idioma y roles (esquema cerrado de `funcional.md §14.11.1`). **No contiene** tipo ni número de documento ni fecha de nacimiento (`OPEN-CORE-32` = B, decisión del usuario del 2026-10-01; `INV-008`). Su tratamiento es el mismo que el de la exportación de auditoría: objeto privado en el *bucket*, URL firmada de caducidad corta, solo el solicitante, purga a los siete días por `PurgeExpiredExports` (A.9), sin copia en la base de datos ni en `audit_logs` (`filters` solo lleva códigos y ULID). Nada que añadir al esquema; sí a `PRIVACY.md` (`funcional.md §14.20`).
 
 `tenant_id`: la fila de `data_exports` ya lo lleva (`tenantTable()`); el trabajo `GenerateUserExport` fija el contexto de tenant al arrancar (`operacion.md §4`). `academic_year_id`: **no aplica** (A.4).

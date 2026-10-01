@@ -292,21 +292,21 @@ La exportación **solo termina si hay un *worker* procesando `core-exports`**. H
 
 ## 13. Paso 1.9b (pantallas de gestión)
 
-> Estado: **PROPUESTA** (2026-10-01), con `funcional.md §14`. Pendiente de aprobación. Si el usuario aprueba la división de `funcional.md §14.2` (`OPEN-CORE-30`), cada sub-paso despliega solo su parte de esta sección.
+> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. Dividido en cinco sub-pasos `1.9b`-`1.9f` (`OPEN-CORE-30` = A): cada sub-paso despliega solo su parte de esta sección.
 
 ### 13.1 Qué se despliega
 
 | Aspecto | Paso 1.9b |
 |---------|-----------|
-| Imágenes | `apps/web` en todos los sub-pasos; **`apps/api`** en 1.9b (S1-S7), 1.9c (S8, S9) y 1.9d (S7, S10 si procede) |
+| Imágenes | `apps/web` en todos los sub-pasos; **`apps/api`** en 1.9b (S1-S7), 1.9c (S8, S9 si procede) y 1.9d (S7, S10 si procede). 1.9e (configuración, marca, módulos contratados y perfil propio) y 1.9f: solo `apps/web` |
 | Migraciones | **Una**, en 1.9b: ampliación del `CHECK` de `data_exports.kind` (`datos.md` Parte D), `NOT VALID` + `VALIDATE` |
 | `platform:sync-registry` | **No hace falta extraordinario**: ningún permiso nuevo (`permisos.md §12.1`). Se ejecuta como en cualquier despliegue |
 | Variables de entorno | **Ninguna nueva.** `CORE_EXPORT_MAX_ROWS` (§2) pasa a aplicar a **toda** exportación de `REQ-CORE` (auditoría y usuarios), no solo a la de auditoría: se actualiza su descripción en §2 al implementar. `CORE_SIGNED_URL_TTL_MINUTES` (15) gobierna también la vida de `report_url` y de las URLs de activos que la interfaz renueva (`funcional.md §14.6.2`, `RN-CORE-83`) |
 | Colas y trabajos | **Uno nuevo**: `GenerateUserExport` en `core-exports` (3 reintentos, como `GenerateAuditLogExport`). Fija el contexto de tenant al arrancar, `actor_type = user` (el solicitante), escribe con `CsvWriter` y **no** llama a `__()`/`trans()` (`ADR-055 §2.2`). `ValidateUserImport` cambia solo en cómo resuelve el idioma de sus mensajes (S9, si `OPEN-CORE-38` = A) |
 | Tareas programadas | **Ninguna nueva.** `PurgeExpiredExports` ya purga cualquier `kind` (filas y objetos a los 7 días) |
-| Almacenamiento | Objetos nuevos `tenants/{tenant_public_id}/exports/{export_public_id}.csv` con `kind = users` (mismo prefijo que §5). **Contienen datos personales del personal**: mismo tratamiento que las exportaciones de auditoría (privado, URL firmada, 7 días). Excluibles de la copia, como ya dice §9 |
+| Almacenamiento | Objetos nuevos `tenants/{tenant_public_id}/exports/{export_public_id}.csv` con `kind = users` (mismo prefijo que §5). **Contienen datos personales** (nombre, correos, teléfono de contacto, idioma y roles; **sin** documento de identidad ni fecha de nacimiento, `OPEN-CORE-32` = B, `funcional.md §14.11.1`): mismo tratamiento que las exportaciones de auditoría (privado, URL firmada, 7 días). Excluibles de la copia, como ya dice §9 |
 | Navegador | Claves `plataforma.table.<tableId>` nuevas por tabla (`datos.md` Parte D), sin datos personales; ningún otro almacenamiento |
-| Dependencias | **Ninguna nueva** en npm ni en Composer. Si `OPEN-CORE-42` = A, `alert-dialog` se vendoriza sobre Reka UI, ya instalada (`docs/design-system.md §12.2`). La ULID de la `Idempotency-Key` se genera con utilidad propia si no existe ya (`funcional.md §14.0`) |
+| Dependencias | **Ninguna nueva** en npm ni en Composer. `alert-dialog` se vendoriza en 1.9b sobre Reka UI, ya instalada (`OPEN-CORE-42` = A, `docs/design-system.md §12.2`). La ULID de la `Idempotency-Key` se genera con utilidad propia si no existe ya (`funcional.md §14.0`) |
 
 ### 13.2 Orden de despliegue (1.9b, el sub-paso con migración)
 
@@ -333,6 +333,7 @@ Sin *worker* de `core-imports` y `core-exports` (issue [#128](https://github.com
 - Cambio de idioma: una petición más en las tablas de usuarios y roles (`RN-CORE-63`).
 - Pantalla de usuarios con `rol.leer`: una petición más a `GET /roles` (opciones del filtro), una vez por montaje.
 - `GET /audit-logs/facets` (si existe): una vez por montaje, sin consulta a `audit_logs`.
+- Módulos contratados: un `GET /modules` por montaje y otro al cambiar de idioma (`RN-CORE-63`). Perfil propio: ninguna lectura propia (usa el `/me` ya cargado) y un `PATCH /me` por guardado.
 
 ### 13.6 Métricas y alertas
 

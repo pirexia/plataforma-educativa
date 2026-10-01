@@ -318,7 +318,7 @@ Qué permisos exactos abren «Administración de MFA» lo fija `REQ-AUTH/permiso
 
 ## 12. Paso 1.9b (pantallas de gestión)
 
-> Estado: **PROPUESTA** (2026-10-01), con `funcional.md §14`. Pendiente de aprobación.
+> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. Cubre los cinco sub-pasos `1.9b`-`1.9f`, incluidas las pantallas de módulos contratados y perfil propio que añadió `OPEN-CORE-31` = B en `1.9e`.
 
 ### 12.1 Ningún permiso nuevo; uno pasa a tener *endpoint*
 
@@ -344,8 +344,8 @@ Qué permisos exactos abren «Administración de MFA» lo fija `REQ-AUTH/permiso
 | Usuarios | Dar de baja / restaurar | `usuario.eliminar` | `DELETE /users/{id}`, `POST /users/{id}/restore` | Servidor + `RN-CORE-06`/`07` |
 | Usuarios | Invitar / reenviar | `invitacion.crear` | `POST /users/{id}/invitations` | Servidor + `RN-CORE-12` |
 | Usuarios | Ver roles del usuario | `asignacion_rol.leer` | `GET /users/{id}/roles` | Servidor |
-| Usuarios | Cambiar roles (`OPEN-CORE-43`) | `asignacion_rol.crear` (y `asignacion_rol.eliminar` si retira alguno; la interfaz no lo comprueba por separado, lo decide el servidor) y `rol.leer` | `PUT /users/{id}/roles` | Servidor + `RPERM-013` + `RN-CORE-06`/`07` |
-| Usuarios | «Ver su actividad» (`OPEN-CORE-33`) | `auditoria.leer` | navegación | Servidor en `GET /audit-logs` |
+| Usuarios | Cambiar roles (`OPEN-CORE-43` = A) | `asignacion_rol.crear` (y `asignacion_rol.eliminar` si retira alguno; la interfaz no lo comprueba por separado, lo decide el servidor) y `rol.leer` | `PUT /users/{id}/roles` | Servidor + `RPERM-013` + `RN-CORE-06`/`07` |
+| Usuarios | «Ver su actividad» (1.9d, según `OPEN-CORE-33`, abierta) | `auditoria.leer` | navegación | Servidor en `GET /audit-logs` |
 | Invitaciones | Ver | `invitacion.leer` (ruta) | `GET /invitations` | Servidor |
 | Invitaciones | Revocar | `invitacion.eliminar` | `DELETE /invitations/{id}` | Servidor |
 | Invitaciones | Reenviar | `invitacion.crear` | `POST /users/{id}/invitations` | Servidor |
@@ -361,6 +361,9 @@ Qué permisos exactos abren «Administración de MFA» lo fija `REQ-AUTH/permiso
 | Configuración | Editar | `configuracion.actualizar` | `PATCH /tenant/settings` | Servidor |
 | Activos de marca | Ver | `configuracion.leer` (ruta) | `GET /tenant/settings` | Servidor |
 | Activos de marca | Sustituir, eliminar | `configuracion.actualizar` | `PUT`/`DELETE /tenant/settings/assets/{kind}` | Servidor |
+| Módulos contratados (1.9e) | Ver | `modulo.leer` (ruta) | `GET /modules` | Servidor |
+| Módulos contratados (1.9e) | Configurar `settings` | **Ninguna en 1.9b-1.9f**, aunque se tenga `modulo.actualizar`: la pantalla es de solo lectura (`OPEN-CORE-31` = B, `RN-CORE-87`); `PATCH /module-subscriptions/{id}` no se consume | — | — |
+| Perfil propio (1.9e) | Ver y editar correo y teléfono de contacto | **Ninguno: identidad** (§5.2). Ruta con `meta.permissions: []`, séptima de la lista cerrada de `RN-CORE-24` (`funcional.md §14.3.1`) | `PATCH /me` (y el `GET /me` del *guard*) | Servidor, por identidad del portador de la sesión; sin comprobación de permiso (errores documentados: `401`, `422`, `api.md §3`) |
 | `/administracion/mfa` (área de exenciones, migrada) | Sin cambios | `exencion_mfa.*` (`REQ-AUTH/permisos.md §D.6.3`) | `/mfa-exemptions` | Servidor |
 | `/administracion/sso` (migrada) | Sin cambios | `proveedor_identidad.*` | `/identity-providers` | Servidor |
 | `/cuenta/sesiones` (migrada) | Sin cambios | Identidad (§5.2) | `/auth/sessions` | Servidor |
@@ -386,7 +389,8 @@ La correspondencia vive en código, cerrada, junto al controlador o a `ExportReq
 
 ### 12.5 Verificación
 
-- `CA-CORE-209`, `-210`, `-211`, `-212`, `-216`, `-240`, `-248` (interfaz por permiso, nunca por rol; sin sondeo).
+- `CA-CORE-209`, `-210`, `-211`, `-212`, `-216`, `-240`, `-248`, `-267`, `-268` (interfaz por permiso, nunca por rol; sin sondeo; módulos en solo lectura).
+- `CA-CORE-264`, `-265` (perfil propio por identidad; lista cerrada de `RN-CORE-24` ampliada a siete).
 - `CA-CORE-223`, `-225`, `-228`, `-229` (servidor: `403`, `404` entre tenants, `include_deleted`, autorización por `kind`).
 - `CA-CORE-102` sigue en verde con las pantallas nuevas.
 - Test de catálogo de §9: sigue habiendo exactamente 25 códigos con `module_code = 'core'`; ninguno nuevo.

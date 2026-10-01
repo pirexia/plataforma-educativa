@@ -736,7 +736,7 @@ Norma de `ADR-054 §8`-`§10` (`funcional.md` `RN-CORE-46`-`48` y `RN-CORE-58`).
 
 ## 14. Paso 1.9b (pantallas de gestión): *endpoints* nuevos y cambios
 
-> Estado: **PROPUESTA** (2026-10-01), con `funcional.md §14`. Pendiente de aprobación y de las preguntas `OPEN-CORE-30` a `-44` (`funcional.md §14.17`). La numeración `S1`-`S10` es la de `funcional.md §14.11`.
+> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. Resueltas las preguntas que afectan a este documento: `OPEN-CORE-32` (B, esquema del CSV de usuarios de §14.1), `-39` (A, S4) y `-31` (B, §14.5). Siguen condicionados a preguntas abiertas S9 (`OPEN-CORE-38`) y S10 (`OPEN-CORE-34`). La numeración `S1`-`S10` es la de `funcional.md §14.11`.
 
 Todo lo que sigue cumple `ADR-038` (envoltura, `problem+json`, filtros por comas, `q`, `sort` en lista blanca declarada como `enum` en OpenAPI) y se documenta en `apps/api/openapi/` antes de mezclar (`CLAUDE.md §10`). Salvo S4, ningún cambio altera una respuesta que hoy sea correcta según este documento.
 
@@ -759,7 +759,24 @@ Todo lo que sigue cumple `ADR-038` (envoltura, `problem+json`, filtros por comas
 - **Respuesta 202**: `{ "public_id": "01J8...", "status": "pendiente" }`.
 - **Errores**: 401; 403 (sin `usuario.exportar`, o `include_deleted` sin `usuario.eliminar`); 422 (`q` presente, valor de filtro inválido, `format` distinto de `csv`, o el conjunto supera `CORE_EXPORT_MAX_ROWS`, `RNF-LIM-004`).
 - **Efecto**: crea la fila de `data_exports` con `kind = 'users'` y `filters` igual al cuerpo sin `format` (nunca `q`, `ADR-054 §9`), la audita (`created` automático y `exported`, como la de auditoría) y encola `GenerateUserExport` en `core-exports` (`INV-012`).
-- **Fichero** (contrato técnico, `ADR-055`; esquema fijo, `ADR-054 §8.1`): columnas, tipos y orden de columnas y filas **según `OPEN-CORE-32`** (propuesta A: `public_id`, `status`, `deleted_at`, `created_at` y las columnas de la cabecera de importación de §7, con `roles` como códigos separados por `|`; filas por `family_name_1`, `given_name`, `public_id`). Cabeceras = nombre del campo de la API; enumerados = código técnico; fechas `AAAA-MM-DD`, instantes ISO 8601 con desfase. Escritura con `App\Support\Csv\CsvWriter`, tipos declarados, dialecto de `ADR-054 §10.3`. Nombre del objeto: `tenants/{tenant_public_id}/exports/{export_public_id}.csv`.
+- **Fichero** (contrato técnico, `ADR-055`; esquema fijo, `ADR-054 §8.1`; `OPEN-CORE-32` = B, decisión del usuario del 2026-10-01). Se documenta igual en OpenAPI (respuesta `text/csv` del objeto descargado, con el esquema de columnas como descripción del fichero, como el de auditoría):
+
+  | # | Columna | Origen | Tipo | Vacío |
+  |---|---------|--------|------|-------|
+  | 1 | `public_id` | `public_id` | Texto (ULID) | Nunca |
+  | 2 | `status` | `status` (código: `pendiente`, `activo`, `inactivo`) | Texto | Nunca |
+  | 3 | `deleted_at` | `deleted_at` | Instante ISO 8601 con desfase | Si no está dado de baja |
+  | 4 | `created_at` | `created_at` | Instante ISO 8601 con desfase | Nunca |
+  | 5 | `email` | `email` | Texto | Nunca |
+  | 6 | `given_name` | `person.given_name` | Texto | Nunca |
+  | 7 | `family_name_1` | `person.family_name_1` | Texto | Nunca |
+  | 8 | `family_name_2` | `person.family_name_2` | Texto | Si no tiene |
+  | 9 | `contact_email` | `person.contact_email` | Texto | Si no tiene |
+  | 10 | `contact_phone` | `person.contact_phone` | Texto | Si no tiene |
+  | 11 | `locale` | `person.locale` | Texto | Nunca |
+  | 12 | `roles` | `roles[].code` ordenados alfabéticamente y unidos con `\|` | Texto | Si no tiene roles |
+
+  Cabecera exacta: `public_id,status,deleted_at,created_at,email,given_name,family_name_1,family_name_2,contact_email,contact_phone,locale,roles`. **Filas** ordenadas por `family_name_1`, `given_name` y `public_id`, ascendente. **No contiene** `document_type`, `document_number` ni `birth_date` (minimización, `INV-008`): añadirlos después sería un cambio aditivo (columnas al final, `ADR-055 §2.4`) que requiere decisión expresa del usuario. Enumerados = código técnico; instantes ISO 8601 con desfase; el generador no traduce (`RN-CORE-59`). Escritura con `App\Support\Csv\CsvWriter`, tipos declarados, neutralización de texto (`RN-CORE-48`), dialecto de `ADR-054 §10.3`. Nombre del objeto: `tenants/{tenant_public_id}/exports/{export_public_id}.csv`.
 - **Acotado dentro del trabajo**: el trabajo vuelve a aplicar la decisión de permiso del solicitante (`RN-PERM-15`); con el único ámbito admitido (`todos`) no reduce filas, pero la llamada existe para que un ámbito futuro no la necesite añadir.
 
 ### 14.2 `GET /api/v1/data-exports/{public_id}` (S3, S4)
@@ -812,7 +829,10 @@ Todos son aditivos en el sentido de `ADR-038 §7`: un cliente que envíe un solo
 
 ### 14.5 Lo que 1.9b consume sin cambiar
 
-Todos los *endpoints* de §2-§8 que enumera `funcional.md §14.3`, tal como están, salvo lo dicho en §14.1-§14.4. En particular, **no** se tocan `POST /users`, `PATCH /users/{id}`, `DELETE /users/{id}`, `POST /users/{id}/restore`, `POST /users/{id}/status`, `POST /users/{id}/invitations`, `DELETE /invitations/{id}`, `GET`/`PUT /users/{id}/roles`, `GET /roles`, `GET /roles/{id}`, `POST /user-imports`, `POST /user-imports/{id}/execute`, `DELETE /user-imports/{id}`, `GET`/`PATCH /tenant/settings` ni `PUT`/`DELETE /tenant/settings/assets/{kind}`. Las tres vistas migradas de `REQ-AUTH` (`funcional.md §14.13`) consumen sus *endpoints* de `REQ-AUTH` sin cambios.
+Todos los *endpoints* de §2-§8 que enumera `funcional.md §14.3`, tal como están, salvo lo dicho en §14.1-§14.4. Desde `OPEN-CORE-31` = B, también, en 1.9e:
+
+- **`GET /modules`** (§6, `modulo.leer`), en **solo lectura**. No está paginado (`{"data": [...]}` sin `meta`): el cliente lo presenta como una única página (`funcional.md` `RN-CORE-87`). `name` viene traducido por el servidor. **`PATCH /module-subscriptions/{id}` no se consume.**
+- **`PATCH /me`** (§3), autoservicio por identidad, sin permiso: la pantalla de perfil envía solo `person.contact_email` y `person.contact_phone` (el idioma lo sigue enviando el selector de 1.8, §12.1). Ningún cambio de contrato. En particular, **no** se tocan `POST /users`, `PATCH /users/{id}`, `DELETE /users/{id}`, `POST /users/{id}/restore`, `POST /users/{id}/status`, `POST /users/{id}/invitations`, `DELETE /invitations/{id}`, `GET`/`PUT /users/{id}/roles`, `GET /roles`, `GET /roles/{id}`, `POST /user-imports`, `POST /user-imports/{id}/execute`, `DELETE /user-imports/{id}`, `GET`/`PATCH /tenant/settings` ni `PUT`/`DELETE /tenant/settings/assets/{kind}`. Las tres vistas migradas de `REQ-AUTH` (`funcional.md §14.13`) consumen sus *endpoints* de `REQ-AUTH` sin cambios.
 
 ### 14.6 Errores que el cliente interpreta
 
