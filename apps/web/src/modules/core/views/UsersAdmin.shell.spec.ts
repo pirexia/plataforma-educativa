@@ -469,36 +469,28 @@ describe('CA-CORE-263 (CA-CORE-070, CA-CORE-073): 404 y 403 dentro del shell', (
     expect(fetchLog.indexOf('/me', first)).toBeGreaterThan(first)
   })
 
-  // `it.fails`: describe el comportamiento CORRECTO y hoy FALLA por el bucle
-  // de arriba. Cuando se corrija, este test pasará de verdad y `it.fails` lo
-  // pondrá en rojo: es la señal para quitar `.fails`.
-  it.fails(
-    'ficha de usuario: un 403 se pinta «sin acceso» dentro del shell, con una sola recarga de /me y sin repetir la petición',
-    async () => {
-      const forbidden = forbiddenCapped('/users/OTRO')
+  // #300 corregido en develop (`fetchMe` ya no pasa por `loading` con la sesión `ready`).
+  it('ficha de usuario: un 403 se pinta «sin acceso» dentro del shell, con una sola recarga de /me y sin repetir la petición', async () => {
+    const forbidden = forbiddenCapped('/users/OTRO')
 
-      const booted = await boot()
-      await go(booted, FICHA)
+    const booted = await boot()
+    await go(booted, FICHA)
 
-      expect(forbidden.hits()).toBe(1)
-      expect(meCalls()).toBe(2)
-      assertInsideShell()
-      expect(mainText()).toContain('Sin acceso')
-    },
-  )
+    expect(forbidden.hits()).toBe(1)
+    expect(meCalls()).toBe(2)
+    assertInsideShell()
+    expect(mainText()).toContain('Sin acceso')
+  })
 
-  it.fails(
-    'invitaciones: un 403 se pinta «sin acceso» dentro del shell, con una sola recarga de /me y sin repetir la petición',
-    async () => {
-      const forbidden = forbiddenCapped('/invitations')
+  it('invitaciones: un 403 se pinta «sin acceso» dentro del shell, con una sola recarga de /me y sin repetir la petición', async () => {
+    const forbidden = forbiddenCapped('/invitations')
 
-      const booted = await boot()
-      await go(booted, '/administracion/invitaciones')
+    const booted = await boot()
+    await go(booted, '/administracion/invitaciones')
 
-      expect(forbidden.hits()).toBe(1)
-      expect(meCalls()).toBe(2)
-      assertInsideShell()
-      expect(mainText()).toContain('Sin acceso')
-    },
-  )
+    expect(forbidden.hits()).toBe(1)
+    expect(meCalls()).toBe(2)
+    assertInsideShell()
+    expect(mainText()).toContain('Sin acceso')
+  })
 })
