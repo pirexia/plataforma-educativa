@@ -6,6 +6,14 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-02 · `fix/REQ-CORE-008-bucle-403-recarga-sesion` (issue #300)
+
+### Corregido
+- **Un `403` persistente de un recurso dentro del *shell* ya no entra en bucle** (`REQ-CORE-008`, `CA-CORE-070`/`073`, `funcional.md §12.6`/`§12.3.4`). `fetchMe` (`apps/web/src/session/useSession.ts`) pasaba siempre a `loading`, lo que hacía que `AppShellLayout` desmontara la vista y, al volver a `ready`, esta repitiera el `GET` que daba el `403` (otra recarga de `/me`, sin fin). Ahora una recarga con la sesión ya `ready` no pasa por `loading`; el arranque y la recuperación desde `error`/otros estados siguen mostrando la carga. Sin cambio de contrato.
+- Test de regresión con la pila real: `apps/web/src/layouts/AppShellLayout.forbidden.spec.ts` (una petición al recurso, una recarga de `/me`, «Sin acceso» dentro del *shell*).
+
+---
+
 ## 2026-10-01 · `feature/REQ-CORE-1.9b-pantallas-de-gestion` (especificación de `1.9b`)
 
 Especificación `REQ-CORE/funcional.md §14` (más `api.md §14`, `datos.md` Parte D, `permisos.md §12`, `operacion.md §13`) de las pantallas de gestión pendientes de `REQ-CORE` y la migración de las tres tablas exceptuadas de `RN-CORE-53`, redactada por `spec-writer`. **Aprobada por el usuario** con la división en cinco sub-pasos (1.9b a 1.9f; `OPEN-CORE-30`) y las respuestas a `OPEN-CORE-31`, `-39`, `-40`, `-42` y `-43`; `OPEN-CORE-32` = B (CSV de usuarios sin documento ni fecha de nacimiento, por minimización, `INV-008`); `OPEN-CORE-31` = B amplía 1.9e con módulos contratados (solo lectura) y perfil propio. `RN-CORE-60` a `-89`, `CA-CORE-208` a `-269`. Nueva pregunta abierta `OPEN-CORE-45` (filas de la pantalla de módulos contratados; bloquea solo 1.9e). Issues abiertos de pasada: #287 (Media), #288 (Media), #289 (Baja). Versiones: `README.md` 2.6.10, `PLAN-IMPLEMENTACION.md` 2.3.3. Solo documentación.

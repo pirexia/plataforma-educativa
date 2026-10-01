@@ -1,0 +1,148 @@
+/**
+ * `docs/modulos/REQ-CORE/funcional.md §12.6`, `§12.3.4`; REQ-CORE-008,
+ * `CA-CORE-070`, `CA-CORE-073`; issue #300. Pila real (App, *router* con su
+ * *guard*, *shell*, sesión y cliente HTTP); solo se simula `fetch`.
+ *
+ * Una vista dentro del *shell* que recibe un `403` persistente de un recurso
+ * hace UNA petición al recurso, UNA recarga de `GET /me` y pinta «Sin acceso»
+ * sin desmontarse: la recarga no debe pasar por `loading` con sesión `ready`.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { defineComponent, h, onMounted, shallowRef } from 'vue'
+
+vi.setConfig({ testTimeout: 30000 })
+
+// Tope de respuestas 403: evita que el test cuelgue si el bucle reaparece.
+const FORBIDDEN_CAP = 6
+
+let fetchLog: string[] = []
+let resourceHits = 0
+let meHits = 0
+
+function meBody() {
+  return {
+    public_id: 'ME',
+    email: 'yo@example.com',
+    status: 'activo',
+    person: { given_name: 'Admin', family_name_1: 'Prueba', locale: 'es-ES' },
+    roles: [],
+    permissions: [],
+    email_verified_at: null,
+    created_at: '2026-09-01T10:00:00Z',
+    updated_at: '2026-09-01T10:00:00Z',
+    deleted_at: null,
+  }
+}
+
+function json(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+beforeEach(() => {
+  vi.resetModules()
+  fetchLog = []
+  resourceHits = 0
+  meHits = 0
+
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((input: RequestInfo | URL) => {
+      const path = new URL(String(input)).pathname.replace(/^\/api\/v1/, '')
+
+      fetchLog.push(path)
+
+      if (path === '/me') {
+        meHits += 1
+
+        return Promise.resolve(json(200, meBody()))
+      }
+
+      if (path === '/recurso-prohibido') {
+        resourceHits += 1
+
+        return Promise.resolve(
+          resourceHits > FORBIDDEN_CAP ? json(404, { status: 404 }) : json(403, { status: 403 }),
+        )
+      }
+
+      return Promise.resolve(json(404, { status: 404 }))
+    }),
+  )
+
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: (query: string) => ({
+      matches: query.includes('min-width'),
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }),
+  })
+})
+
+afterEach(() => {
+  document.body.innerHTML = ''
+  vi.unstubAllGlobals()
+})
+
+describe('CA-CORE-070 / CA-CORE-073 (REQ-CORE-008, #300): 403 persistente dentro del shell', () => {
+  it('una sola petición al recurso, una sola recarga de /me y «Sin acceso» dentro del shell', async () => {
+    const { flushPromises, mount } = await import('@vue/test-utils')
+    const { default: router } = await import('@/router')
+    const { default: App } = await import('@/App.vue')
+    const { i18n, setLocale } = await import('@/i18n')
+    const { apiFetch } = await import('@/api/client')
+    const { default: ErrorState } = await import('@/layouts/components/ErrorState.vue')
+    const { resolveErrorState } = await import('@/layouts/errorState')
+
+    setLocale('es')
+
+    let mounts = 0
+
+    const View = defineComponent({
+      setup() {
+        const state = shallowRef<ReturnType<typeof resolveErrorState>>(null)
+
+        onMounted(async () => {
+          mounts += 1
+
+          try {
+            await apiFetch('/recurso-prohibido')
+          } catch (err) {
+            state.value = resolveErrorState(err)
+          }
+        })
+
+        return () => (state.value ? h(ErrorState, { state: state.value }) : h('p', 'cargando'))
+      },
+    })
+
+    router.addRoute({
+      path: '/prueba-403',
+      name: 'prueba-403',
+      component: View,
+      meta: { layout: 'app', permissions: [], titleKey: 'shell.states.error.notFound.title' },
+    })
+
+    const wrapper = mount(App, { global: { plugins: [i18n, router] }, attachTo: document.body })
+
+    await router.push('/prueba-403')
+    await flushPromises()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    await flushPromises()
+
+    expect(resourceHits).toBe(1)
+    expect(meHits).toBe(2) // arranque + una recarga
+    expect(mounts).toBe(1)
+    expect(fetchLog.indexOf('/me', fetchLog.indexOf('/recurso-prohibido'))).toBeGreaterThan(-1)
+    expect(document.querySelector('header')).not.toBeNull()
+    expect(document.querySelector('main#main-content [role="alert"]')).not.toBeNull()
+    expect(document.querySelector('main#main-content')?.textContent ?? '').toContain('Sin acceso')
+
+    wrapper.unmount()
+  })
+})

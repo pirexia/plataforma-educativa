@@ -749,6 +749,8 @@ Correspondencia con la API (`ADR-038 §6`), aplicada por una única función:
 | `429` | Demasiadas peticiones, con los segundos de `Retry-After` si vienen |
 | `5xx` | Error inesperado, con reintento y `request_id` |
 
+Nota (#300): la recarga de sesión que dispara un `403` **no** pone la sesión en «cargando» si ya estaba `ready` (la vista conserva su estado y no repite la petición); el estado de carga a pantalla completa es solo del arranque y de la recuperación desde error.
+
 Rutas: `catch-all` → estado «página no encontrada», dentro del *shell* si hay sesión, en régimen público si no.
 
 ### 12.7 *Layout* responsive

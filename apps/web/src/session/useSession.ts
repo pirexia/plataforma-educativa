@@ -81,7 +81,13 @@ function toErrorInfo(err: unknown): SessionErrorInfo {
 }
 
 async function fetchMe(): Promise<void> {
-  status.value = 'loading'
+  // #300: una recarga con la sesión ya `ready` (p. ej. tras un `403`, §12.3.4)
+  // no pasa por `loading`: el shell desmontaría la vista activa y, al
+  // volver a montarla, esta repetiría la petición que dio el `403`, en bucle.
+  // Solo el arranque y la recuperación desde otro estado muestran la carga.
+  if (status.value !== 'ready') {
+    status.value = 'loading'
+  }
 
   try {
     const me = await getMe()
