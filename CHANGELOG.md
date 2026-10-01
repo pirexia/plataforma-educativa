@@ -6,6 +6,10 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-01 · `feature/REQ-CORE-1.9b-pantallas-de-gestion` (especificación de `1.9b`)
+
+Especificación `REQ-CORE/funcional.md §14` (más `api.md §14`, `datos.md` Parte D, `permisos.md §12`, `operacion.md §13`) de las pantallas de gestión pendientes de `REQ-CORE` y la migración de las tres tablas exceptuadas de `RN-CORE-53`, redactada por `spec-writer`. **Aprobada por el usuario** con la división en cinco sub-pasos (1.9b a 1.9f; `OPEN-CORE-30`) y las respuestas a `OPEN-CORE-31`, `-39`, `-40`, `-42` y `-43`; `OPEN-CORE-32` = B (CSV de usuarios sin documento ni fecha de nacimiento, por minimización, `INV-008`); `OPEN-CORE-31` = B amplía 1.9e con módulos contratados (solo lectura) y perfil propio. `RN-CORE-60` a `-89`, `CA-CORE-208` a `-269`. Nueva pregunta abierta `OPEN-CORE-45` (filas de la pantalla de módulos contratados; bloquea solo 1.9e). Issues abiertos de pasada: #287 (Media), #288 (Media), #289 (Baja). Versiones: `README.md` 2.6.10, `PLAN-IMPLEMENTACION.md` 2.3.3. Solo documentación.
+
 ## 2026-10-01 · `docs/ratifica-ADR-055` (`OPEN-054-01`)
 
 `ADR-055` (el CSV de datos como contrato técnico) pasa a **`ACEPTADA`**, ratificado entero por el usuario el 2026-10-01 (opción A ahora, C como ampliación posterior; incluye las precisiones de formatos y compatibilidad y la objeción de `§3.3`). `OPEN-054-01` resuelta: `REQUISITOS` 3.2.11 (índice de ADR y fila de `ADR-054` con remisión), `REQ-CORE/funcional.md §13` (`RN-CORE-59`, `CA-CORE-207` pendiente de test hasta el primer generador nuevo de `1.9b`), `api.md §8` y manual `admin.md`. El fichero del ADR y la fila 3.2.10 de `REQUISITOS` llegaron a `develop` por error dentro del PR #284 (dependencia) como `PROPUESTA`. Solo documentación; sin cambios de código. Versiones: `README.md` 2.6.9, `PLAN-IMPLEMENTACION.md` 2.3.2, `REQUISITOS` 3.2.11. Abierto de pasada: #285 (idioma de `report.csv`, Media).
