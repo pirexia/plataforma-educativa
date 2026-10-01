@@ -13,7 +13,7 @@
 
 > **Paso 1.8 (`REQ-CORE-008`, *layout*, navegación y panel de inicio): §12, APROBADA** (2026-09-23; implementada y mezclada, PR #264). Las secciones §0-§11 son las de 1.1 y **no se reabren**; §12 se añade detrás, mismo criterio que `REQ-BO/funcional.md §15.x` para sub-pasos sucesivos del mismo módulo.
 >
-> **Paso 1.9 (tablas de datos: TanStack Table, filtrado, ordenación, columnas configurables y exportación; sin virtualización, `OPEN-CORE-19`): §13, APROBADA** (2026-09-30), **ajustada a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**. Lista para `implementer`. Ubicación definitiva: aquí (`OPEN-CORE-18`, resuelta por el usuario el 2026-09-30). §0-§12 no se reabren.
+> **Paso 1.9 (tablas de datos: TanStack Table, filtrado, ordenación, columnas configurables y exportación; sin virtualización, `OPEN-CORE-19`): §13, APROBADA** (2026-09-30), **ajustada a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**; `OPEN-054-01` resuelta el 2026-10-01 por `ADR-055` (ACEPTADA). Lista para `implementer`. Ubicación definitiva: aquí (`OPEN-CORE-18`, resuelta por el usuario el 2026-09-30). §0-§12 no se reabren.
 
 ---
 
@@ -1230,7 +1230,7 @@ La redacción original del plan la enumeraba como entregable. **Ningún requisit
 
 #### 13.14.2 Qué columnas contiene el fichero
 
-`OPEN-CORE-23` resuelta (opción A, decisión del usuario 2026-09-30): **esquema fijo por recurso, definido en servidor** y documentado en su OpenAPI, como hace hoy la auditoría, y no «las columnas visibles». El esquema fija las columnas, sus nombres, su orden **y el orden de las filas** (`ADR-054 §8.1`). La solicitud de exportación **no** envía la configuración de columnas del navegador **ni `sort`**. Idioma de la cabecera y de los valores enumerados del fichero: **abierto**, `OPEN-054-01` (§13.21). El fichero es un contrato estable para quien lo procesa después (una hoja de cálculo de secretaría, una importación en otro sistema). Que dependa de qué columnas ocultó cada usuario en su navegador lo hace irreproducible e inauditable (`data_exports.filters` no lo registraría).
+`OPEN-CORE-23` resuelta (opción A, decisión del usuario 2026-09-30): **esquema fijo por recurso, definido en servidor** y documentado en su OpenAPI, como hace hoy la auditoría, y no «las columnas visibles». El esquema fija las columnas, sus nombres, su orden **y el orden de las filas** (`ADR-054 §8.1`). La solicitud de exportación **no** envía la configuración de columnas del navegador **ni `sort`**. Idioma de la cabecera y de los valores enumerados del fichero: **resuelto**, contrato técnico sin traducir (`OPEN-054-01`, `ADR-055`, `RN-CORE-59`, §13.21). El fichero es un contrato estable para quien lo procesa después (una hoja de cálculo de secretaría, una importación en otro sistema). Que dependa de qué columnas ocultó cada usuario en su navegador lo hace irreproducible e inauditable (`data_exports.filters` no lo registraría).
 
 #### 13.14.3 Regla común de CSV (norma para todo generador, `ADR-054`)
 
@@ -1263,7 +1263,7 @@ Sin *worker* de colas desplegado (issue #128, Alta), **ninguna exportación term
 
 | Consumidor | Paso | Modo | Qué usa del componente | Observaciones |
 |------------|------|------|------------------------|---------------|
-| Usuarios (`GET /users`: `status`, `role`, `q`) | 1.9b | `page` | Filtros enumerado + texto, orden, columnas, tarjetas, exportación | **Exportación sin *endpoint***: `POST /users/exports` no existe. Si 1.9b lo quiere, es trabajo de `apps/api` con `RN-CORE-47`/`48`, paridad de filtros con `GET /users` salvo `q` y `RN-CORE-58` (`q` ⇒ `422`); en la tabla, exportar queda deshabilitado con búsqueda activa (`RN-CORE-57`). Antes, el usuario decide `OPEN-054-01` (idioma del CSV) |
+| Usuarios (`GET /users`: `status`, `role`, `q`) | 1.9b | `page` | Filtros enumerado + texto, orden, columnas, tarjetas, exportación | **Exportación sin *endpoint***: `POST /users/exports` no existe. Si 1.9b lo quiere, es trabajo de `apps/api` con `RN-CORE-47`/`48`, paridad de filtros con `GET /users` salvo `q` y `RN-CORE-58` (`q` ⇒ `422`); en la tabla, exportar queda deshabilitado con búsqueda activa (`RN-CORE-57`). Cabecera y valores técnicos sin traducir (`ADR-055`, `RN-CORE-59`; `OPEN-054-01` resuelta) |
 | Invitaciones, importaciones | 1.9b | `page` | Filtros, orden, estados | — |
 | Roles (solo lectura en 1.1; CRUD desde 1.5) | 1.9b / 1.5b | `page` | Listado | — |
 | Auditoría (`GET /audit-logs`) | 1.9b | `cursor` | Filtros de rango, enumerados, «cargar más», tope (`RN-CORE-52`), **exportación ya existente** | Primer consumidor real de la exportación y del modo `cursor`. **Antes de conectarlo**, `1.9b` resuelve los dos hallazgos de §13.20 (puntos 5 y 6): nombres del rango `from`/`to` frente a `occurred_at_from`/`occurred_at_to`, y paridad de filtros de `POST /audit-logs/exports` con `GET /audit-logs` |
@@ -1305,6 +1305,7 @@ Sin *worker* de colas desplegado (issue #128, Alta), **ninguna exportación term
 | `RN-CORE-56` | Modo `cursor`: «Cargar más» como botón, sin desplazamiento infinito; un fallo de carga adicional conserva las filas y «Reintentar» repite con el mismo `cursor` (§13.5) |
 | `RN-CORE-57` | Con `q` activo, el control de exportación está deshabilitado y explica por qué; la solicitud nunca lleva `q` ni `sort` (§13.14.1) |
 | `RN-CORE-58` | **(servidor, norma común)** Ningún *endpoint* de exportación acepta `q`: `422` con código propio del recurso; ningún texto libre llega a `audit_logs` por `data_exports.filters` (§13.14.3) |
+| `RN-CORE-59` | CSV de datos: cabeceras = `snake_case` del campo de la API, valores enumerados = código técnico sin traducir, formatos independientes del idioma; el generador no llama a ningún catálogo de traducción (`ADR-055 §2`) |
 
 **Issues relacionados con estas reglas (#266, #267 y #273 resueltos en la rama `fix/REQ-CORE-005-auditoria-csv-rangos-y-filtros`; los textos de abajo describen el estado de partida de 1.9)** (detalle en §13.20): [#266](https://github.com/pirexia/plataforma-educativa/issues/266) (nombres del rango de fechas de auditoría, contra `ADR-038 §5.2`; afecta a la regla «`id` de columna = parámetro» de §13.4 en la pantalla de auditoría de `1.9b`), [#267](https://github.com/pirexia/plataforma-educativa/issues/267) (`POST /audit-logs/exports` sin paridad de filtros con su listado, `ADR-054 §8.2`, `api.md §13.4`) y [#273](https://github.com/pirexia/plataforma-educativa/issues/273) (`QUEUE_CONNECTION` en `operacion.md §2`, que condiciona el diagnóstico de `RN-CORE-49`). Ninguno bloquea 1.9; los dos primeros se resuelven antes de que `1.9b` conecte la pantalla de auditoría.
 
@@ -1410,6 +1411,7 @@ Vitest salvo los marcados **[Playwright]**. Cada test cita su ID (`INV-015`). Co
 
 - **`CA-CORE-198`** [`RN-CORE-54`, `ADR-054 §6`] · **Dado** una tabla de prueba que declara el estado en URL, con página 3, `sort=-created_at` y `status=activo`, **cuando** se recarga el documento, **entonces** se restaura la misma consulta desde la URL; **y** el texto de búsqueda `q` no aparece nunca en la URL ni en `history.state`; **y dado** una tabla de prueba en modo `cursor` que declara el estado en URL, tras «cargar más» la URL no contiene `cursor` y, al recargar, la primera petición no lleva `cursor`; **y dado** una tabla de prueba que **no** declara el estado en URL, ni paginar, ni ordenar, ni filtrar modifican la URL de la ruta.
 - **`CA-CORE-206`** [`RN-CORE-54`, `OPEN-CORE-28`] · **Dado** `MfaComplianceArea` migrada, **cuando** se marcan filtros y se pagina, **entonces** la URL de `/administracion/mfa` no cambia (la tabla no declara estado en URL, paridad estricta).
+- **`CA-CORE-207`** [`RN-CORE-59`, `ADR-055`] · **Dado** un generador de CSV de datos y dos solicitantes con idioma distinto, **cuando** ambos exportan el mismo conjunto, **entonces** los dos ficheros son idénticos byte a byte salvo el nombre, y la cabecera coincide con el esquema documentado en OpenAPI; ningún generador de `apps/api/app` referencia `__()`/`trans()` para cabeceras ni valores. _(Verificación pendiente: se implementa con el primer generador nuevo de `1.9b`; hoy solo existe el de auditoría.)_
 
 #### Retirado
 
@@ -1448,9 +1450,13 @@ No se corrigen aquí; se reportan:
 
 | ID | Pregunta | Bloquea | Quién decide |
 |----|----------|---------|--------------|
-| `OPEN-054-01` | Idioma de la cabecera y de los valores enumerados del CSV | `1.9b` (antes del primer *endpoint* de exportación nuevo). **No bloquea 1.9** | Usuario |
+| `OPEN-054-01` | Idioma de la cabecera y de los valores enumerados del CSV | **RESUELTA** (2026-10-01, `ADR-055`) | Usuario |
 
-#### `OPEN-054-01` · Idioma de la cabecera y de los valores enumerados del CSV — **abierta; bloquea `1.9b`, no `1.9`**
+#### `OPEN-054-01` · Idioma de la cabecera y de los valores enumerados del CSV — **RESUELTA** (2026-10-01, decisión del usuario, `ADR-055` ACEPTADA)
+
+> **Decisión: opción A ahora, con C como ampliación posterior.** Un CSV de datos generado por la API es un **contrato técnico estable**, no un «documento generado» en el sentido de `ADR-021`: cabeceras = nombre `snake_case` del campo en la API, valores enumerados = código técnico sin traducir, y el fichero (formatos incluidos) no depende de quién lo solicita. La interfaz que dispara y comunica la exportación sigue en los cuatro idiomas (`INV-009`). C (columnas `<col>_label` al final, en el idioma del solicitante) queda como ampliación aditiva con demanda de un centro piloto (`ADR-055 §3`). Regla: `RN-CORE-59`; criterio: `CA-CORE-207`. **`1.9b` queda sin este bloqueo.**
+
+_Texto original de la pregunta, conservado como contexto:_
 
 > Planteada por `ADR-054` (sección «Preguntas abiertas»), que **no la decide**. Esta especificación tampoco: no hay requisito que precise si un CSV de datos es un «documento generado» en el sentido de `CLAUDE.md §7` (cuatro idiomas obligatorios en los documentos generados), y decidirlo aquí sería inventar un requisito.
 
@@ -1614,7 +1620,7 @@ No merecen ADR (se deciden en esta especificación): la espera de búsqueda, las
 6. **Tablas existentes** (precisión de `OPEN-CORE-29`): 1.9 migra solo `MfaComplianceArea.vue`, con paridad estricta; `MfaExemptionsArea.vue`, `AdminSsoView.vue` y `SessionsView.vue` quedan como excepciones explícitas de `RN-CORE-53`, se migran en `1.9b` o posterior, y la lista solo puede reducirse (§13.2, §13.3, `CA-CORE-200`).
 7. `OPEN-CORE-18` (opción A): la especificación se queda aquí.
 
-`OPEN-054-01` (idioma del CSV) sigue abierta y **no bloquea 1.9**: bloquea `1.9b`.
+`OPEN-054-01` (idioma del CSV) **resuelta** el 2026-10-01 por `ADR-055`.
 
 **Punto que el usuario debe tener presente, sin bloquear 1.9**: con «la lista de excepciones solo se reduce», la matriz de concesión de `1.5b` ya no puede entrar como excepción nominal sin más; su especificación tendrá que proponer modificar `RN-CORE-53` y el usuario aprobarlo (§13.3, §13.15).
 

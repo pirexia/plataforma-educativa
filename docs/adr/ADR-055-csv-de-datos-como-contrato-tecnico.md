@@ -1,6 +1,6 @@
 # ADR-055 · El CSV de datos como contrato técnico
 
-**Estado**: **PROPUESTA** (2026-10-01). La decisión de fondo la tomó el usuario el 2026-10-01: **opción A ahora, con C como ampliación posterior**. Este ADR la registra y la concreta. La redacción, las precisiones de §2.3 y §2.4 y las condiciones de entrada de §3 esperan su ratificación.
+**Estado**: **ACEPTADA** (2026-10-01, ratificada por el usuario). La decisión de fondo la tomó el usuario el 2026-10-01: **opción A ahora, con C como ampliación posterior**. El usuario ratificó el ADR entero, incluidas las precisiones de §2.3 y §2.4, la regla del nombre de fichero de §2.2 y la objeción de §3.3 (C contradice parcialmente el argumento de A: si se adopta, la regla pasa a decir expresamente que las columnas técnicas no dependen de quién lo solicita).
 **Fecha**: 2026-10-01
 **Resuelve**: `OPEN-054-01` (`ADR-054`, sección «Preguntas abiertas»; `docs/modulos/REQ-CORE/funcional.md §13.21`), que bloquea `1.9b`
 **Precisa, sin sustituir**: el alcance de «documentos generados» de `ADR-021` (consecuencia) y `CLAUDE.md §7` (idiomas obligatorios), solo para los ficheros de datos de §1. No cambia ninguna decisión de `ADR-021`: los boletines, facturas y notificaciones se siguen emitiendo en el idioma del destinatario.
