@@ -80,7 +80,10 @@
       "text": "Aucun établissement n'a été trouvé à cette adresse. Vérifiez le lien ou contactez votre établissement."
     },
     "documentTitleFormat": "{view} · {tenant}",
-    "localeChangeError": "L'établissement a retiré cette langue. La langue actuelle est conservée."
+    "localeChangeError": "L'établissement a retiré cette langue. La langue actuelle est conservée.",
+    "confirm": {
+      "cancel": "Annuler"
+    }
   },
   "home": {
     "greeting": "Bonjour, {name}",
