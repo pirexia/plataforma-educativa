@@ -597,7 +597,7 @@ Descarta un lote no ejecutado y borra su fichero fuente y su informe del bucket.
 
 Estado y descarga de una exportación. Primitiva compartida (`funcional.md` §7).
 
-- **Permiso**: el del recurso exportado — para una exportación de auditoría, `auditoria` · `exportar` · `todos`. Además, **solo el solicitante** puede descargarla.
+- **Permiso**: el del recurso exportado según su `kind` (tabla cerrada `DataExportsController::PERMISSION_BY_KIND`; un `kind` ausente de ella se deniega, `INV-002`): `audit_logs` → `auditoria` · `exportar`; `users` → `usuario` · `exportar` (1.9b). Además, **solo el solicitante** puede descargarla. Contrato ampliado en 1.9b (S3/S4): ver `§14.2`.
 - **Respuesta 200**
 
 ```json
@@ -611,6 +611,7 @@ Estado y descarga de una exportación. Primitiva compartida (`funcional.md` §7)
 }
 ```
 
+- **Exportación fallida** (1.9b, `OPEN-CORE-39` = A): responde `200` con `status: "fallida"`, `error_code` y `download_url: null`, no `409`.
 - **Errores**: 401, 403, 404, `409` si aún no está completada (`status` `pendiente`/`generando`) y se pide la descarga, `410` si ya venció
 
 ---

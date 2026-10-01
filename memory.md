@@ -7,7 +7,7 @@
 
 ## Estado actual
 
-**Fase**: 0 cerrada en la práctica (lo pendiente de `0.10`-`0.12` es negocio, no código — ver "Bloqueantes"). **Fase 1, bloque A COMPLETO Y MEZCLADO: 1.1 a 1.6e**. **Bloque B: `1.7` (Design system) y `1.8` (Layout, navegación y panel de inicio, `REQ-CORE-008`) CERRADOS Y MEZCLADOS** (2026-09-23/24, PR #256 y #264). **`1.9` (Tablas de datos) CERRADO Y MEZCLADO** (PR #279). `1.9b` dividido en cinco sub-pasos 1.9b-1.9f, spec `REQ-CORE/funcional.md §14` aprobada (2026-10-01). Siguiente: implementar `1.9b` (usuarios e invitaciones), en sesión nueva (`CLAUDE.md §3`).
+**Fase**: 0 cerrada en la práctica (lo pendiente de `0.10`-`0.12` es negocio, no código — ver "Bloqueantes"). **Fase 1, bloque A COMPLETO Y MEZCLADO: 1.1 a 1.6e**. **Bloque B: `1.7` (Design system) y `1.8` (Layout, navegación y panel de inicio, `REQ-CORE-008`) CERRADOS Y MEZCLADOS** (2026-09-23/24, PR #256 y #264). **`1.9` (Tablas de datos) CERRADO Y MEZCLADO** (PR #279). `1.9b` dividido en cinco sub-pasos 1.9b-1.9f, spec `REQ-CORE/funcional.md §14` aprobada (2026-10-01). `1.9b` implementado y revisado (db/security/doc-reviewer, sin Crítico/Alto), pendiente de reverificar Pest en CI (#291) y de mezcla; `document_type` en texto libre por decisión del usuario (2026-10-02), #292 prerrequisito de `1.9c`.
 
 **`1.6e · REQ-BO-005`: motor de *feature flags* — CERRADO Y MEZCLADO** (2026-09-22), y **sesión de mantenimiento posterior (2026-09-22) — CERRADA Y MEZCLADA** (7 issues de deuda técnica). Detalle completo, triage de issues incluido, en `docs/historial/1.6e-motor-feature-flags.md`.
 
