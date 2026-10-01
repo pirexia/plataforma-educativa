@@ -1662,7 +1662,7 @@ Mantenimiento: el proyecto está activo (tres mantenedores en el registro, líne
 | Decisiones vinculantes | `ADR-038`, `ADR-044`, `ADR-052`, `ADR-053`, `ADR-054`, `ADR-055` (todas ACEPTADAS) y §12/§13 de este documento |
 | Depende de | 1.1 (API de §2-§8 de `api.md`), 1.2 (sesión), 1.5 (`/me.permissions`, resolutor), 1.7 (*design system*, `useTenantBranding().refresh()`, `contrast.ts`), 1.8 (*shell*, registro de navegación, estados de §12.6), 1.9 (`src/data-table/`), `fix/` de #266/#267/#270/#273 (PR #282) y `ADR-055`. **Todas implementadas.** **Dependencia operativa no resuelta**: sin *worker* de colas (#128, Alta), ni la importación ni ninguna exportación terminan fuera de un entorno con `queue:work` arrancado a mano (§14.15) |
 | Código afectado | `apps/web` (pantallas, `shell.ts` de `core`, ampliaciones aditivas de `src/data-table` si se aprueban) **y `apps/api`** (§14.11: un *endpoint* nuevo, cinco cambios compatibles y dos correcciones de contrato) **y una migración *expand*** (`datos.md` Parte D) |
-| Estado | **PROPUESTA** (2026-10-01), pendiente de aprobación. Preguntas abiertas en §14.17. **No apta para `implementer`** hasta que el usuario resuelva al menos `OPEN-CORE-30` (división) y las marcadas «bloquea» en la tabla de §14.17 |
+| Estado | **APROBADA** (2026-10-01, decisión del usuario): división `OPEN-CORE-30` y las preguntas `-31`, `-39`, `-40`, `-42`, `-43` resueltas. **Apta para `implementer` en 1.9b salvo el CSV de usuarios**, que espera `OPEN-CORE-32`; cada sub-paso posterior espera las preguntas que lo bloquean (§14.17) |
 
 ### 14.0 Verificación del estado de partida (2026-10-01, rama `feature/REQ-CORE-1.9b-pantallas-de-gestion`, `495d19c`)
 
@@ -1998,20 +1998,20 @@ No se corrigen aquí; se reportan para que la sesión orquestadora abra el issue
 
 | ID | Pregunta | Bloquea | Recomendación |
 |----|----------|---------|---------------|
-| `OPEN-CORE-30` | División del paso | **Todo el paso** | Cinco sub-pasos de §14.2 |
-| `OPEN-CORE-31` | Módulos contratados y perfil propio | No (decide si entran) | B |
-| `OPEN-CORE-32` | Columnas del CSV de usuarios | **1.9b** | A |
+| `OPEN-CORE-30` | División del paso | **Todo el paso** | **RESUELTA** 2026-10-01: A, cinco sub-pasos |
+| `OPEN-CORE-31` | Módulos contratados y perfil propio | No (decide si entran) | **RESUELTA** 2026-10-01: B (entra en 1.9e; amplía el alcance) |
+| `OPEN-CORE-32` | Columnas del CSV de usuarios | **1.9b** | **ABIERTA**: el usuario respondió «sí» sin elegir entre A (con documento) y B (sin documento ni fecha de nacimiento); `spec-writer` recomienda A, la sesión orquestadora B por minimización (`INV-008`). **Bloquea solo el CSV de usuarios de 1.9b** |
 | `OPEN-CORE-33` | Filtro por usuario en auditoría | **1.9d** | C |
 | `OPEN-CORE-34` | Opciones de módulo y tipo de entidad en auditoría | **1.9d** | B |
 | `OPEN-CORE-35` | Zona horaria de fechas de auditoría | **1.9d** | A |
 | `OPEN-CORE-36` | Detalle de rol con concesiones | 1.9d | A |
 | `OPEN-CORE-37` | Grupo `security` en la configuración | 1.9e | B |
 | `OPEN-CORE-38` | Idioma de los mensajes de importación (#285) | **1.9c** | A |
-| `OPEN-CORE-39` | Contrato de `fallida` en `GET /data-exports` | **1.9b** | A |
-| `OPEN-CORE-40` | Ampliaciones del componente de tablas | **1.9b** (bajas), **1.9f** | A |
+| `OPEN-CORE-39` | Contrato de `fallida` en `GET /data-exports` | **1.9b** | **RESUELTA** 2026-10-01: A |
+| `OPEN-CORE-40` | Ampliaciones del componente de tablas | **1.9b** (bajas), **1.9f** | **RESUELTA** 2026-10-01: A |
 | `OPEN-CORE-41` | «Mis exportaciones» | No | A |
-| `OPEN-CORE-42` | Mecanismo de confirmación | **1.9b** | A |
-| `OPEN-CORE-43` | Asignación de roles en la ficha de usuario | **1.9b** | A |
+| `OPEN-CORE-42` | Mecanismo de confirmación | **1.9b** | **RESUELTA** 2026-10-01: A |
+| `OPEN-CORE-43` | Asignación de roles en la ficha de usuario | **1.9b** | **RESUELTA** 2026-10-01: A |
 | `OPEN-CORE-44` | Acciones de plataforma en la pantalla de auditoría | No | A |
 
 #### `OPEN-CORE-30` · División del paso
@@ -2267,15 +2267,11 @@ Cada sub-paso ejecuta la suite completa del lado que toca (Pest con `php -d memo
 - `PRIVACY.md`: el CSV de usuarios como tratamiento de exportación (qué datos personales salen, retención de siete días); lo confirma `doc-reviewer`.
 - `PLAN-IMPLEMENTACION.md`: la división que decida el usuario (`OPEN-CORE-30`), fuera del ámbito de escritura de esta especificación.
 
-### 14.21 ¿Se aprueba esta especificación?
+### 14.21 Aprobación
 
-**No está aprobada.** Estado: PROPUESTA (2026-10-01). Para pasar a `implementer` hace falta, como mínimo:
+**Aprobada el 2026-10-01** por el usuario, con las respuestas de §14.17 que constan como resueltas (`OPEN-CORE-30`, `-31`, `-39`, `-40`, `-42`, `-43`, todas según la recomendación). Quedan pendientes:
 
-1. Decidir la división (`OPEN-CORE-30`) y, para el primer sub-paso, `OPEN-CORE-32`, `-39`, `-40` (parte de bajas), `-42` y `-43`.
-2. Decidir el resto de las preguntas antes del sub-paso al que bloquean (tabla de §14.17).
-3. Abrir los issues de los hallazgos 1 a 6 y 9 de §14.16 (los crea la sesión orquestadora; esta especificación solo los describe).
+1. `OPEN-CORE-32` (columnas del CSV de usuarios): bloquea solo `POST /users/exports` dentro de 1.9b; el resto de 1.9b puede empezar.
+2. Las demás preguntas, antes del sub-paso al que bloquean (tabla de §14.17).
+3. Los issues de los hallazgos 1 a 6 y 9 de §14.16 están abiertos: #287, #288 y #289.
 4. Tener presente que, sin #128, la importación y las exportaciones de este paso no funcionan en un entorno real (§14.15).
-7. **`tableId` y escaneo** (`CA-CORE-176`): el test recorre `src/modules/**` buscando `table-id="…"`, `:table-id="'…'"` y `tableId: …`; cualquier forma no literal falla. La tabla migrada declara `auth.mfa_compliance`.
-8. **Foco.** El paginador lleva el foco al control habilitado más cercano cuando el pulsado queda deshabilitado; «Cargar más» lo deja en el botón y, al desaparecer (tope o final de la lista), lo pasa al aviso; «Limpiar filtros» lo lleva a la búsqueda (`§13.11`).
-
-**Verificación** (contra el contenedor de referencia `plataforma-educativa_web`, con el *worktree* montado; Playwright con el Chromium del *host* sobre un servidor de Vite propio): ver `CHANGELOG.md` y `memory.md` para el recuento final.
