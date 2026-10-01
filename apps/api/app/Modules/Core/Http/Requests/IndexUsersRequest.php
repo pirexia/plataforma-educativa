@@ -3,6 +3,7 @@
 namespace App\Modules\Core\Http\Requests;
 
 use App\Http\Requests\ApiFormRequest;
+use App\Support\Api\Rules\InList;
 use App\Support\Api\Rules\QueryBoolean;
 use Illuminate\Validation\Rule;
 
@@ -26,9 +27,9 @@ class IndexUsersRequest extends ApiFormRequest
             'q' => ['sometimes', 'string', 'max:255'],
             'status' => ['sometimes', 'string'],
             'role' => ['sometimes', 'string'],
-            'locale' => ['sometimes', 'string', 'in:es-ES,en,de,fr'],
+            'locale' => ['sometimes', 'string', new InList(['es-ES', 'en', 'de', 'fr'])],
             'include_deleted' => ['sometimes', new QueryBoolean],
-            'sort' => ['sometimes', Rule::in(['family_name_1', '-family_name_1', 'created_at', '-created_at', 'email'])],
+            'sort' => ['sometimes', Rule::in(['family_name_1', '-family_name_1', 'created_at', '-created_at', 'email', '-email'])],
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ];

@@ -357,6 +357,9 @@ components:
         row_count: { type: integer, nullable: true }
         download_url: { type: string, format: uri, nullable: true }
         expires_at: { type: string, format: date-time }
+        error_code:
+          type: string
+          description: Solo con `status: fallida` (S4 de 1.9b). Clave estable, sin traducir.
 
     UserImportErrorEntry:
       type: object

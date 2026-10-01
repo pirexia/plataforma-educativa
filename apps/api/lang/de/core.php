@@ -39,6 +39,8 @@ return [
         'cursor_invalid' => 'Der Paginierungs-Cursor ist für diese Abfrage nicht gültig.',
         'export_range_too_large' => 'Der angeforderte Bereich überschreitet das zulässige Zeilenlimit; grenze ihn ein und versuche es erneut.',
         'pdf_export_not_available' => 'Der PDF-Export ist noch nicht verfügbar; verwende CSV.',
+        'filter_value_invalid' => 'Der Wert „:value“ ist für diesen Filter nicht gültig.',
+        'export_search_not_supported' => 'Der Benutzerexport unterstützt keine Freitextsuche („q“); verwende die strukturierten Filter.',
         'export_not_ready' => 'Der Export wird noch erstellt; versuche es in ein paar Minuten erneut.',
         'export_failed' => 'Die Erstellung dieses Exports ist fehlgeschlagen.',
         'import_not_validated' => 'Der Stapel muss validiert sein, bevor er ausgeführt werden kann.',

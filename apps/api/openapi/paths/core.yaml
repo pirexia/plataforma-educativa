@@ -265,12 +265,19 @@ paths:
           schema: { type: string }
         - name: locale
           in: query
-          schema: { $ref: '../components.yaml#/components/schemas/Locale' }
+          description: Uno o varios idiomas separados por coma (ADR-038 §5.2, S7 de 1.9b); `422` si alguno no es de es-ES, en, de, fr.
+          schema: { type: string, example: "es-ES,en" }
         - name: include_deleted
           in: query
           description: Requiere además usuario.eliminar. ADR-038 §5.2 (true/false).
           schema: { type: boolean, default: false }
-        - { $ref: '../components.yaml#/components/parameters/SortParam' }
+        - name: sort
+          in: query
+          description: Prefijo "-" para descendente (ADR-038 §5.3). `-email` desde 1.9b (S5).
+          schema:
+            type: string
+            enum: [family_name_1, -family_name_1, email, -email, created_at, -created_at]
+            default: family_name_1
         - { $ref: '../components.yaml#/components/parameters/PageParam' }
         - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
       responses:
@@ -339,6 +346,66 @@ paths:
         '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
 
+  /api/v1/users/exports:
+    post:
+      operationId: exportUsers
+      summary: Solicita una exportación asíncrona de usuarios (CSV)
+      description: |
+        1.9b, S1 (`RN-CORE-85`). Permiso `usuario.exportar`; con `include_deleted: true`, además
+        `usuario.eliminar`. Acepta exactamente los filtros estructurados de `GET /users`, con los
+        mismos nombres y reglas (ADR-054 §8.2), los múltiples como *array*; **no acepta `q`**
+        (`422`, código `core.validation.export_search_not_supported`), ni `sort`, `page`,
+        `per_page`. Generación en cola (`core-exports`); el estado y la descarga se consultan
+        con `GET /data-exports/{publicId}`.
+
+        **Fichero** (contrato técnico estable, ADR-055; cabeceras y códigos sin traducir, iguales
+        para todos los solicitantes): CSV UTF-8 con BOM, coma, CRLF (ADR-054 §10.3), filas por
+        `family_name_1`, `given_name`, `public_id` ascendente. Cabecera exacta:
+        `public_id,status,deleted_at,created_at,email,given_name,family_name_1,family_name_2,contact_email,contact_phone,locale,roles`.
+        `status` es el código (`pendiente`, `activo`, `inactivo`); `deleted_at` y `created_at`,
+        instantes ISO 8601 con desfase (`deleted_at` vacío si no está dado de baja); `roles`, los
+        **códigos** de rol ordenados alfabéticamente y unidos con `|`. **No contiene**
+        `document_type`, `document_number` ni `birth_date` (minimización, INV-008, `OPEN-CORE-32` = B).
+        Los textos que empiezan por un carácter de fórmula llevan un apóstrofo inicial
+        (`RN-CORE-48`).
+      tags: [Core / Usuarios]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                format: { type: string, enum: [csv], default: csv }
+                status:
+                  type: array
+                  items: { type: string, enum: [pendiente, activo, inactivo] }
+                role:
+                  type: array
+                  items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                locale:
+                  type: array
+                  items: { $ref: '../components.yaml#/components/schemas/Locale' }
+                include_deleted: { type: boolean, default: false }
+      responses:
+        '202':
+          description: Solicitud aceptada, generación en cola
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  public_id: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                  status: { type: string, enum: [pendiente, generando, completada, fallida] }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '422':
+          description: Se envió `q`, un valor de filtro inválido o `format` distinto de csv; o el conjunto supera `CORE_EXPORT_MAX_ROWS` (RNF-LIM-004).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
   /api/v1/users/{publicId}:
     parameters:
       - name: publicId
@@ -350,6 +417,14 @@ paths:
       summary: Detalle de un usuario
       tags: [Core / Usuarios]
       security: [{ SessionCookie: [] }]
+      parameters:
+        - name: include_deleted
+          in: query
+          description: >
+            S6 de 1.9b (`CA-CORE-014`). Con `true` devuelve también a un usuario dado de baja y
+            exige además `usuario.eliminar` (`403` sin él). Sin el parámetro, un usuario
+            eliminado responde `404`.
+          schema: { type: boolean, default: false }
       responses:
         '200':
           description: Usuario
@@ -469,7 +544,10 @@ paths:
       parameters:
         - name: status
           in: query
-          schema: { type: string, enum: [vigente, caducada, revocada, aceptada] }
+          description: >
+            Uno o varios estados separados por coma, unidos con OR (ADR-038 §5.2, S7 de 1.9b).
+            Valores: vigente, caducada, revocada, aceptada; `422` si alguno no lo es.
+          schema: { type: string, example: "vigente,caducada" }
         - { $ref: '../components.yaml#/components/parameters/PageParam' }
         - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
       responses:
@@ -1231,12 +1309,17 @@ paths:
     get:
       operationId: getDataExport
       summary: Estado y descarga de una exportación (primitiva compartida)
-      description: Solo el solicitante puede descargarla, además del permiso del recurso exportado.
+      description: |
+        Solo el solicitante puede consultarla, además del permiso de exportar del recurso
+        exportado, resuelto por `kind` con una correspondencia cerrada en código (`RN-CORE-86`,
+        S3 de 1.9b): `audit_logs` → `auditoria.exportar`, `users` → `usuario.exportar`; un `kind`
+        sin correspondencia responde `403`. Una exportación `fallida` responde **`200`** con
+        `status: "fallida"`, `error_code` y `download_url: null` (S4, `OPEN-CORE-39`; antes `409`).
       tags: [Core / Auditoría]
       security: [{ SessionCookie: [] }]
       responses:
         '200':
-          description: Exportación
+          description: Exportación (completada con `download_url`, o fallida con `error_code`)
           content:
             application/json:
               schema: { $ref: '../components.yaml#/components/schemas/DataExport' }
@@ -1244,7 +1327,7 @@ paths:
         '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409':
-          description: Todavía no está completada.
+          description: Todavía no está completada (pendiente o generando).
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }

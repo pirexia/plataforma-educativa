@@ -42,6 +42,8 @@ return [
         'cursor_invalid' => 'El cursor de paginación no es válido para esta consulta.',
         'export_range_too_large' => 'El rango solicitado supera el límite de filas permitido; acótalo e inténtalo de nuevo.',
         'pdf_export_not_available' => 'La exportación a PDF todavía no está disponible; usa CSV.',
+        'filter_value_invalid' => 'El valor «:value» no es válido para este filtro.',
+        'export_search_not_supported' => 'La exportación de usuarios no admite búsqueda libre («q»); usa los filtros estructurados.',
         'export_not_ready' => 'La exportación todavía se está generando; inténtalo de nuevo en unos minutos.',
         'export_failed' => 'La generación de esta exportación ha fallado.',
         'import_not_validated' => 'El lote debe estar validado antes de ejecutarse.',
