@@ -30,7 +30,173 @@
       "disabled": "Désactivé"
     },
     "nav": {
-      "home": "Accueil"
+      "home": "Accueil",
+      "users": "Utilisateurs",
+      "invitations": "Invitations"
+    },
+    "locale": {
+      "name": {
+        "es": "Espagnol",
+        "en": "Anglais",
+        "de": "Allemand",
+        "fr": "Français"
+      }
+    },
+    "users": {
+      "title": "Utilisateurs",
+      "intro": "Personnes ayant accès à la plateforme dans cet établissement.",
+      "new": "Nouvel utilisateur",
+      "import": "Importer",
+      "caption": "Utilisateurs de l'établissement",
+      "empty": {
+        "title": "Il n'y a pas encore d'utilisateurs",
+        "text": "Ajoutez le premier pour commencer."
+      },
+      "filters": {
+        "status": "Statut",
+        "role": "Rôle",
+        "locale": "Langue",
+        "includeDeleted": "Inclure les comptes supprimés"
+      },
+      "columns": {
+        "name": "Nom",
+        "email": "E-mail de connexion",
+        "status": "Statut",
+        "roles": "Rôles",
+        "locale": "Langue",
+        "createdAt": "Création"
+      },
+      "status": {
+        "deleted": "Supprimé"
+      },
+      "errors": {
+        "unexpected": "L'action n'a pas pu être menée à bien. Veuillez réessayer.",
+        "tooManyRequests": "Trop de tentatives. Patientez un instant puis réessayez.",
+        "tooManyRequestsWithSeconds": "Trop de tentatives. Réessayez dans {seconds} s."
+      },
+      "detail": {
+        "title": "Fiche",
+        "actions": "Actions",
+        "edit": "Modifier",
+        "activate": "Activer",
+        "deactivate": "Désactiver",
+        "invite": "Envoyer l'invitation",
+        "delete": "Supprimer",
+        "restore": "Restaurer",
+        "selfNote": "Vous ne pouvez pas modifier votre propre compte depuis ici.",
+        "data": "Données",
+        "status": "Statut",
+        "email": "E-mail de connexion",
+        "documentType": "Type de document",
+        "documentNumber": "Numéro de document",
+        "birthDate": "Date de naissance",
+        "locale": "Langue",
+        "contactEmail": "E-mail de contact",
+        "contactPhone": "Téléphone de contact",
+        "emailVerifiedAt": "E-mail vérifié",
+        "createdAt": "Création",
+        "deletedAt": "Suppression",
+        "roles": "Rôles",
+        "noRoles": "Cet utilisateur n'a aucun rôle.",
+        "manageRoles": "Rôles attribués",
+        "saveRoles": "Enregistrer les rôles"
+      },
+      "confirm": {
+        "deactivate": {
+          "title": "Désactiver {name}",
+          "description": "Cette personne ne pourra plus se connecter tant que vous n'aurez pas réactivé son compte.",
+          "confirm": "Désactiver {name}"
+        },
+        "delete": {
+          "title": "Supprimer {name}",
+          "description": "Le compte n'est plus disponible et ne peut plus se connecter. Vous pourrez le restaurer ensuite.",
+          "confirm": "Supprimer {name}"
+        },
+        "invite": {
+          "title": "Envoyer une invitation à {name}",
+          "description": "Un lien d'activation sera envoyé à {email}. L'invitation précédente, le cas échéant, cessera d'être valable.",
+          "confirm": "Envoyer une invitation à {name}"
+        },
+        "removeRoles": {
+          "title": "Retirer des rôles à {name}",
+          "description": "Ces rôles seront retirés : {roles}. Les autorisations qu'ils accordaient seront perdues.",
+          "confirm": "Enregistrer les rôles de {name}"
+        }
+      },
+      "flash": {
+        "activated": "Compte activé.",
+        "deactivated": "Compte désactivé.",
+        "deleted": "Utilisateur supprimé.",
+        "restored": "Utilisateur restauré. Le compte est inactif : activez-le si la personne doit pouvoir se reconnecter.",
+        "invited": "Invitation envoyée. Elle expire le {date}.",
+        "rolesSaved": "Rôles enregistrés.",
+        "updated": "Modifications enregistrées.",
+        "created": "Utilisateur créé.",
+        "createdInvited": "Utilisateur créé et invitation envoyée. Elle expire le {date}."
+      },
+      "form": {
+        "titleNew": "Nouvel utilisateur",
+        "titleEdit": "Modifier l'utilisateur",
+        "requiredHint": "Les champs marqués d'un * sont obligatoires.",
+        "required": "(obligatoire)",
+        "errorSummary": "Vérifiez les champs suivants :",
+        "email": "E-mail de connexion",
+        "givenName": "Prénom",
+        "familyName1": "Premier nom de famille",
+        "familyName2": "Second nom de famille",
+        "birthDate": "Date de naissance",
+        "documentType": "Type de document",
+        "documentTypeHint": "Texte libre. Le format n'est vérifié que pour le DNI et le NIE.",
+        "documentNumber": "Numéro de document",
+        "contactEmail": "E-mail de contact",
+        "contactPhone": "Téléphone de contact",
+        "locale": "Langue préférée",
+        "roles": "Rôles",
+        "sendInvitation": "Envoyer l'invitation par e-mail",
+        "save": "Enregistrer",
+        "saving": "Enregistrement…",
+        "cancel": "Annuler"
+      }
+    },
+    "invitations": {
+      "title": "Invitations",
+      "intro": "Liens d'activation envoyés aux utilisateurs en attente.",
+      "caption": "Invitations de l'établissement",
+      "empty": {
+        "title": "Il n'y a aucune invitation",
+        "text": "Les invitations apparaissent ici lorsque vous ajoutez un utilisateur ou renvoyez son lien."
+      },
+      "filters": {
+        "status": "Statut"
+      },
+      "columns": {
+        "user": "Utilisateur",
+        "status": "Statut",
+        "expiresAt": "Expire",
+        "createdAt": "Envoyée",
+        "resolvedAt": "Acceptée ou révoquée",
+        "actions": "Actions"
+      },
+      "revoke": "Révoquer",
+      "reissue": "Renvoyer",
+      "revokeFor": "Révoquer l'invitation de {email}",
+      "reissueFor": "Renvoyer l'invitation à {email}",
+      "confirm": {
+        "revoke": {
+          "title": "Révoquer l'invitation de {email}",
+          "description": "Le lien envoyé cessera de fonctionner.",
+          "confirm": "Révoquer l'invitation de {email}"
+        },
+        "reissue": {
+          "title": "Renvoyer l'invitation à {email}",
+          "description": "Un nouveau lien sera envoyé et le précédent cessera d'être valable.",
+          "confirm": "Renvoyer l'invitation à {email}"
+        }
+      },
+      "flash": {
+        "revoked": "Invitation de {email} révoquée.",
+        "reissued": "Invitation envoyée à {email}. Elle expire le {date}."
+      }
     }
   }
 }

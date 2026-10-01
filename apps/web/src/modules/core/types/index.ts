@@ -249,6 +249,8 @@ export interface DataExport {
   row_count: number | null
   download_url: string | null
   expires_at: string
+  /** Solo con `status: 'fallida'` (S4 de 1.9b): clave estable, sin traducir. */
+  error_code?: string | null
 }
 
 export type UserImportStatus =
