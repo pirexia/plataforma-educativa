@@ -4,8 +4,11 @@ namespace App\Modules\Core\Infrastructure\Jobs;
 
 use App\Models\AuditLog;
 use App\Modules\Core\Domain\Models\DataExport;
+use App\Modules\Core\Infrastructure\AuditLogFilter;
 use App\Support\Authorization\PermissionResolver;
 use App\Support\Authorization\ScopedQuery;
+use App\Support\Csv\CsvColumnType;
+use App\Support\Csv\CsvWriter;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -55,23 +58,9 @@ class GenerateAuditLogExport implements ShouldQueue
         $export->update(['status' => 'generando']);
 
         $filters = $export->filters ?? [];
-        $query = AuditLog::query()->with('actor.person');
-
-        if (isset($filters['from'])) {
-            $query->where('occurred_at', '>=', $filters['from']);
-        }
-
-        if (isset($filters['to'])) {
-            $query->where('occurred_at', '<=', $filters['to']);
-        }
-
-        if (! empty($filters['event'])) {
-            $query->whereIn('event', (array) $filters['event']);
-        }
-
-        if (! empty($filters['auditable_type'])) {
-            $query->whereIn('auditable_type', (array) $filters['auditable_type']);
-        }
+        // Issue #267: los mismos filtros, con el mismo código, que el
+        // listado (ADR-054 §8.2). El ámbito se aplica después, aparte.
+        $query = AuditLogFilter::apply(AuditLog::query()->with('actor.person'), $filters);
 
         if ($export->requester !== null) {
             $decision = $permissions->decide($export->requester, 'auditoria.exportar');
@@ -82,26 +71,31 @@ class GenerateAuditLogExport implements ShouldQueue
         $disk = Storage::disk(config('filesystems.default'));
 
         $rowCount = 0;
-        $handle = fopen('php://temp', 'w+');
-        fputcsv($handle, array_map(self::neutralizeCsvCell(...), ['occurred_at', 'actor', 'actor_type', 'auditable_type', 'auditable_public_id', 'event', 'request_id']));
+        $csv = new CsvWriter([
+            'occurred_at' => CsvColumnType::Instant,
+            'actor' => CsvColumnType::Text,
+            'actor_type' => CsvColumnType::Text,
+            'auditable_type' => CsvColumnType::Text,
+            'auditable_public_id' => CsvColumnType::Text,
+            'event' => CsvColumnType::Text,
+            'request_id' => CsvColumnType::Text,
+        ]);
 
-        $query->orderBy('occurred_at')->orderBy('id')->chunk(1000, function ($chunk) use ($handle, &$rowCount): void {
+        $query->orderBy('occurred_at')->orderBy('id')->chunk(1000, function ($chunk) use ($csv, &$rowCount): void {
             foreach ($chunk as $log) {
                 $actorLabel = $log->actor?->person !== null
                     ? trim($log->actor->person->given_name.' '.$log->actor->person->family_name_1)
                     : '';
 
-                fputcsv($handle, array_map(self::neutralizeCsvCell(...), [
-                    $log->occurred_at->toJSON(), $actorLabel, $log->actor_type,
+                $csv->writeRow([
+                    $log->occurred_at, $actorLabel, $log->actor_type,
                     $log->auditable_type, $log->auditable_public_id, $log->event, $log->request_id,
-                ]));
+                ]);
                 $rowCount++;
             }
         });
 
-        rewind($handle);
-        $disk->put($objectKey, stream_get_contents($handle));
-        fclose($handle);
+        $disk->put($objectKey, $csv->finish());
 
         $export->update([
             'status' => 'completada',
@@ -117,19 +111,5 @@ class GenerateAuditLogExport implements ShouldQueue
             'status' => 'fallida',
             'error_code' => 'core.export.generation_failed',
         ]);
-    }
-
-    /**
-     * Neutralización de inyección de fórmulas CSV (issue #268, OWASP): un
-     * valor que empiece por `=`, `+`, `-`, `@`, tabulador, retorno de carro
-     * o salto de línea se abre como fórmula activa en Excel/LibreOffice/
-     * Sheets. Anteponer un apóstrofo lo fuerza a texto; entrecomillar (lo
-     * que ya hace fputcsv) no neutraliza nada.
-     */
-    private static function neutralizeCsvCell(string|int|float|null $value): string
-    {
-        $value = (string) $value;
-
-        return preg_match('/^[=+\-@\t\r\n]/', $value) === 1 ? "'{$value}" : $value;
     }
 }

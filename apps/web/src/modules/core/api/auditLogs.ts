@@ -3,8 +3,9 @@ import { buildQuery, joinList } from './shared'
 import type { AuditEvent, AuditLog, CursorPaginated, DataExport, PublicId } from '../types'
 
 export interface ListAuditLogsParams {
-  from?: string
-  to?: string
+  /** ADR-038 §5.2: sufijo `_from`/`_to` de los filtros de rango (issue #266). */
+  occurred_at_from?: string
+  occurred_at_to?: string
   actor_id?: PublicId
   actor_type?: string
   event?: AuditEvent[]
@@ -24,8 +25,8 @@ export function listAuditLogs(
   params: ListAuditLogsParams = {},
 ): Promise<CursorPaginated<AuditLog>> {
   const query = buildQuery({
-    from: params.from,
-    to: params.to,
+    occurred_at_from: params.occurred_at_from,
+    occurred_at_to: params.occurred_at_to,
     actor_id: params.actor_id,
     actor_type: params.actor_type,
     event: joinList(params.event),
@@ -39,12 +40,21 @@ export function listAuditLogs(
   return apiFetch<CursorPaginated<AuditLog>>(`/audit-logs${query}`)
 }
 
+/**
+ * ADR-054 §8.2 (issue #267): exactamente los filtros estructurados del
+ * listado (`ListAuditLogsParams`), salvo `cursor`/`limit`. Sin `q` ni `sort`.
+ * En el cuerpo JSON los valores múltiples van como array.
+ */
 export interface ExportAuditLogsPayload {
   format: 'csv'
-  from?: string
-  to?: string
+  occurred_at_from?: string
+  occurred_at_to?: string
+  actor_id?: PublicId
+  actor_type?: string
   event?: AuditEvent[]
   auditable_type?: string[]
+  auditable_id?: PublicId
+  module?: string
 }
 
 /** `format: 'pdf'` no está disponible en 1.1 (diferido a 1.17). */

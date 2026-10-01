@@ -19,7 +19,7 @@ use Illuminate\Support\Collection;
 interface AuditQuery
 {
     /**
-     * @param  array<string, mixed>  $filters  from, to, actor_id, actor_type, event (list), auditable_type (list), auditable_id, module
+     * @param  array<string, mixed>  $filters  occurred_at_from, occurred_at_to, actor_id, actor_type, event (list), auditable_type (list), auditable_id, module
      * @return array{logs: Collection<int, AuditLog>, next_cursor: ?string, has_more: bool}
      */
     public function search(array $filters, ?string $cursor, int $limit, ?PermissionDecision $decision, User $subject): array;

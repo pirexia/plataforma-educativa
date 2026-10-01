@@ -14,8 +14,8 @@ use Illuminate\Support\Collection;
 
 /**
  * api.md §8: orden `(occurred_at DESC, id DESC)`, paginación por cursor
- * cifrado (ADR-038 §4.4). `module` se resuelve a los alias del morph map
- * que ese módulo declara — en 1.1 solo existe `core`.
+ * cifrado (ADR-038 §4.4). Los filtros se aplican con `AuditLogFilter`
+ * (compartido con `GenerateAuditLogExport`, issue #267).
  *
  * REQ-PERM/funcional.md §6 (1.5): el resolutor real de este paso —
  * `propios` sobre `auditoria` acota a `actor_user_id = subject`. La
@@ -26,14 +26,6 @@ use Illuminate\Support\Collection;
  */
 final class EloquentAuditQuery implements AuditQuery
 {
-    /** @var array<string, list<string>> */
-    private const MODULE_ALIASES = [
-        'core' => [
-            'person', 'user', 'role', 'academic_year', 'module_subscription',
-            'tenant_setting', 'user_invitation', 'user_import', 'data_export',
-        ],
-    ];
-
     public function __construct(
         private readonly CursorCodec $cursorCodec,
         private readonly TenantContext $tenantContext,
@@ -89,41 +81,7 @@ final class EloquentAuditQuery implements AuditQuery
      */
     private function baseQuery(array $filters): Builder
     {
-        $query = AuditLog::query()->with('actor');
-
-        if (isset($filters['from'])) {
-            $query->where('occurred_at', '>=', $filters['from']);
-        }
-
-        if (isset($filters['to'])) {
-            $query->where('occurred_at', '<=', $filters['to']);
-        }
-
-        if (isset($filters['actor_id'])) {
-            $query->whereHas('actor', fn (Builder $q) => $q->where('public_id', $filters['actor_id']));
-        }
-
-        if (isset($filters['actor_type'])) {
-            $query->where('actor_type', $filters['actor_type']);
-        }
-
-        if (isset($filters['event']) && $filters['event'] !== []) {
-            $query->whereIn('event', $filters['event']);
-        }
-
-        if (isset($filters['auditable_type']) && $filters['auditable_type'] !== []) {
-            $query->whereIn('auditable_type', $filters['auditable_type']);
-        }
-
-        if (isset($filters['auditable_id'])) {
-            $query->where('auditable_public_id', $filters['auditable_id']);
-        }
-
-        if (isset($filters['module'])) {
-            $query->whereIn('auditable_type', self::MODULE_ALIASES[$filters['module']] ?? ['__none__']);
-        }
-
-        return $query;
+        return AuditLogFilter::apply(AuditLog::query()->with('actor'), $filters);
     }
 
     /**

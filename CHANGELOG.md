@@ -6,6 +6,27 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-09-30 · `fix/REQ-CORE-005-auditoria-csv-rangos-y-filtros` (issues #266, #267, #270, #273)
+
+Cuatro hallazgos de `REQ-CORE-005` (auditoría y exportación) resueltos en una sola rama, sobre `ADR-054 §8`-`§10` y `ADR-038 §5.2`. Sin migraciones ni permisos nuevos.
+
+### Añadido
+- **`App\Support\Csv\CsvWriter` y `CsvColumnType`** (`apps/api/app/Support/Csv/`, #270, `RN-CORE-47`/`48`): única vía de escribir CSV. Esquema tipado (texto, entero, instante; nunca inferido), neutralización de fórmulas solo sobre texto y cabecera con las dos condiciones de `ADR-054 §10.2` (incluido el espacio en blanco inicial seguido de `= + - @`), dialecto de `ADR-054 §10.3`. Test de arquitectura (`tests/Unit/Csv/CsvArchitectureTest.php`): ningún `fputcsv` fuera de ella.
+- **`AuditLogFilter`** (`Core/Infrastructure`): los filtros de `audit_logs` en un único sitio, compartido por el listado y por el trabajo de exportación.
+
+### Cambiado
+- **Cambio de contrato, sin periodo de compatibilidad (#266)**: `GET /audit-logs` y el cuerpo de `POST /audit-logs/exports` renombran `from`/`to` a `occurred_at_from`/`occurred_at_to` (`ADR-038 §5.2`). Se hace un renombrado directo, sin *expand/contract*, porque no hay producción (`H0` abierto) y el único consumidor es la SPA (`apps/web/src/modules/core/api/auditLogs.ts`, actualizada). Los nombres antiguos se ignoran sin error.
+- **`POST /audit-logs/exports` aplica ahora `actor_id`, `actor_type`, `auditable_id` y `module` (#267)**, además de los que ya aplicaba: valida con las mismas reglas que el listado (`IndexAuditLogsRequest::filterRules()`) y los aplica el mismo código. Antes los ignoraba en silencio y el CSV traía más filas que las filtradas en pantalla. El ámbito de `auditoria.exportar` y el tenant siguen acotando el fichero (test con otro tenant y con ámbito `propios`). `ExportAuditLogsPayload` de la SPA se amplía a la par.
+- **Formato visible del CSV de auditoría (#270)**: el fichero gana BOM UTF-8 y fin de línea CRLF, y `occurred_at` pierde los milisegundos y pasa de `toJSON()` (`…T..:..:..000000Z`) a ISO 8601 con desfase (`DATE_ATOM`, `+00:00`). Cabeceras y códigos sin cambios (`OPEN-054-01` sigue abierta). Quien procese el fichero por programa debe saberlo.
+- **`ValidateUserImport::writeReport` (`report.csv`)** escribe con `CsvWriter`: neutraliza por defensa en profundidad y gana BOM y CRLF.
+- **Tope de filas (#267)**: `EloquentExportRequestService::assertWithinRowLimit` usaba las claves `from`/`to` antiguas y no contaba los filtros nuevos; ahora aplica `AuditLogFilter`, así que el `422 export_range_too_large` cuenta exactamente lo que se exporta.
+- **Documentación**: `operacion.md §3` (fila «Redis») y `§8` (síntoma «Importación queda en `subido`») describen el *driver* `database` sin *worker* (#128) y Redis/Horizon como elegido, no instalado (#273); `api.md §8`, `funcional.md §13`, OpenAPI (`core.yaml`), `SECURITY.md` 0.3.7 (fila «Exportaciones generadas (CSV)») y `README.md` 2.6.8 (tabla de versiones) y `ARCHITECTURE.md` 2.3.1 (fila «Caché y colas»: Redis solo caché; colas `database` sin worker, #128; Redis + Horizon elegido, no instalado; también en `README.md`, #273).
+
+### Verificado
+784/784 Pest (con el servidor de simulación SSO en `:8000`, como en el contenedor de referencia) y 717/717 Vitest en verde; Pint, Larastan (`composer analyse`), ESLint (una advertencia `prettier` preexistente en `e2e/shell.spec.ts`, issue #263), `lint:i18n`, `vue-tsc -b` y Prettier sobre `src/modules/core/api` limpios.
+
+---
+
 ## 2026-09-30 · `feature/REQ-CORE-008-tablas-de-datos` (implementación de `1.9`)
 
 Implementa el paso `1.9` (Bloque B, tablas de datos, `REQ-CORE-008`), sobre `docs/modulos/REQ-CORE/funcional.md §13` y `docs/adr/ADR-054-tablas-de-datos-y-exportacion-de-listados.md`. Solo `apps/web`: ni un *endpoint*, ni un permiso, ni una migración, ni una dependencia nueva.

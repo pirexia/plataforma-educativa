@@ -71,19 +71,8 @@ final class EloquentExportRequestService implements ExportRequestService
      */
     private function assertWithinRowLimit(array $filters, User $requestedBy): void
     {
-        $query = AuditLog::query();
-
-        if (isset($filters['from'])) {
-            $query->where('occurred_at', '>=', $filters['from']);
-        }
-
-        if (isset($filters['to'])) {
-            $query->where('occurred_at', '<=', $filters['to']);
-        }
-
-        if (! empty($filters['event'])) {
-            $query->whereIn('event', (array) $filters['event']);
-        }
+        // Mismo filtrado que el trabajo (issue #267): el tope cuenta lo que se exporta.
+        $query = AuditLogFilter::apply(AuditLog::query(), $filters);
 
         $decision = $this->permissions->decide($requestedBy, 'auditoria.exportar');
         $this->scopedQuery->constrain($query, 'auditoria', $decision, $requestedBy);
