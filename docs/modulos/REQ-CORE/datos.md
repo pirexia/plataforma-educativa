@@ -385,7 +385,7 @@ Ninguna de estas purgas toca `audit_logs`: la retención del registro de auditor
 
 # Parte D · Paso 1.9b (pantallas de gestión): una migración *expand*
 
-> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. La migración pertenece al sub-paso `1.9b`; `1.9c`-`1.9f` no tocan el esquema.
+> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. La migración pertenece al sub-paso `1.9b`; `1.9c`-`1.9f` no tocan el esquema. **Implementada** (2026-10-02): `apps/api/app/Modules/Core/Database/migrations/2026_10_02_100100_widen_data_exports_kind_for_users.php`, sobre la restricción `data_exports_kind_check` leída de la migración de 1.1, con `$withinTransaction = false` (lección de `#166`). `down()` falla si ya hay filas `users` (hay que purgarlas antes). Pendiente de revisión por `db-reviewer`.
 
 **Única migración del paso**: ampliar el `CHECK` de `data_exports.kind` con el valor `users`, para `POST /users/exports` (`funcional.md §14.11`, S1-S2). Es exactamente el mecanismo que A.4 previó («cada módulo añade su valor al `CHECK` por *expand*»).
 

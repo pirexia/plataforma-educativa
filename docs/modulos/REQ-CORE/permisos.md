@@ -318,7 +318,7 @@ Qué permisos exactos abren «Administración de MFA» lo fija `REQ-AUTH/permiso
 
 ## 12. Paso 1.9b (pantallas de gestión)
 
-> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. Cubre los cinco sub-pasos `1.9b`-`1.9f`, incluidas las pantallas de módulos contratados y perfil propio que añadió `OPEN-CORE-31` = B en `1.9e`.
+> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. Cubre los cinco sub-pasos `1.9b`-`1.9f`, incluidas las pantallas de módulos contratados y perfil propio que añadió `OPEN-CORE-31` = B en `1.9e`. **Implementado en `1.9b`** (2026-10-02): la autorización de `GET /data-exports/{id}` por `kind` (§12.4) vive en `DataExportsController::PERMISSION_BY_KIND` (la ruta ya no lleva `permission:auditoria.exportar`); un test compara las claves de esa constante con los valores del `CHECK` de `data_exports.kind`, de modo que ningún `kind` admitido quede sin permiso.
 
 ### 12.1 Ningún permiso nuevo; uno pasa a tener *endpoint*
 

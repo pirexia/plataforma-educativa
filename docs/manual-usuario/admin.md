@@ -1,6 +1,6 @@
 # Manual de administración
 
-> Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre lo que ya tiene código detrás: el registro de auditoría (paso 0.9), las cuentas bloqueadas y el tiempo de sesión (paso 1.2), la autenticación en dos pasos por rol (paso 1.3), el correo como segundo factor, las excepciones temporales y la pantalla mínima de administración de MFA (paso 1.3b), la navegación, el panel de inicio, el selector de idioma y el control de modo de color (paso 1.8), y el manejo común de las tablas de datos (paso 1.9). El resto de secciones del manual de Administrador de Centro (usuarios, módulos contratados, configuración del centro, activos de marca) llegan con las pantallas pendientes de `REQ-CORE`, diferidas al paso **1.9b** (`OPEN-CORE-12`); el editor de roles y la matriz de permisos llegan con `REQ-PERM` (paso **1.5b**, posterior a 1.9) — el núcleo de autorización granular ya está implementado desde 1.5, pero solo por API, sin interfaz todavía.
+> Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre lo que ya tiene código detrás: el registro de auditoría (paso 0.9), las cuentas bloqueadas y el tiempo de sesión (paso 1.2), la autenticación en dos pasos por rol (paso 1.3), el correo como segundo factor, las excepciones temporales y la pantalla mínima de administración de MFA (paso 1.3b), la navegación, el panel de inicio, el selector de idioma y el control de modo de color (paso 1.8), el manejo común de las tablas de datos (paso 1.9), y los usuarios y las invitaciones, con la exportación de usuarios y los diálogos de confirmación (paso 1.9b). El resto de secciones del manual de Administrador de Centro (importación de usuarios, auditoría, roles, módulos contratados, configuración del centro, activos de marca, perfil propio) llegan con los demás sub-pasos de las pantallas pendientes de `REQ-CORE` (**1.9c** a **1.9f**, `OPEN-CORE-30`); el editor de roles y la matriz de permisos llegan con `REQ-PERM` (paso **1.5b**, posterior a 1.9) — el núcleo de autorización granular ya está implementado desde 1.5, pero solo por API, sin interfaz todavía.
 
 ## Navegación y panel de inicio
 
@@ -28,7 +28,78 @@ Todas las listas de la aplicación (hoy, el cumplimiento de segundo factor de `/
 - **Vínculos compartibles**. Si la pantalla lo admite, la página, el orden y los filtros quedan en la dirección del navegador: puedes volver atrás, recargar o enviar el enlace a un compañero y veréis lo mismo. **El texto de búsqueda nunca se guarda en la dirección** (puede contener nombres de personas).
 - **Exportar** (solo si tu rol tiene el permiso de exportar ese recurso). El botón «Exportar» no descarga lo que ves en pantalla: pide al servidor que prepare un fichero con **todas** las filas que cumplen los filtros estructurados actuales (sin tener en cuenta el orden de la pantalla), y te avisa cuando está listo con un enlace de descarga que caduca. **Con una búsqueda escrita, el botón queda deshabilitado**: borra la búsqueda y los demás filtros sí se aplican. La preparación se hace en segundo plano; mientras tanto puedes seguir trabajando, pero **si sales de la pantalla no podrás descargar esa exportación desde aquí** (aparece un aviso). Si la exportación tarda más de 10 minutos, la pantalla deja de comprobarla y te ofrece «Comprobar de nuevo».
 - **Abrir el CSV en Excel**. Los ficheros CSV usan la coma como separador y codificación UTF-8. En Excel con configuración regional española, un doble clic puede mostrar todo en una sola columna. Para verlo bien: abre Excel en un libro vacío, ve a *Datos > Obtener datos > Desde texto/CSV*, elige el fichero y, en el cuadro de importación, indica como delimitador la **coma** y como origen **UTF-8**. Los acentos se ven bien porque el fichero lleva marca de orden de bytes (BOM). Las celdas de texto que empezarían por `=`, `+`, `-` o `@` llevan un apóstrofo delante para que Excel no las ejecute como fórmula.
-- **Columnas y valores del CSV**. Los ficheros exportados usan nombres técnicos de columna (`occurred_at`, `actor`, `actor_type`, `auditable_type`, `auditable_public_id`, `event`, `request_id`) y códigos de evento sin traducir (la columna `actor` lleva el nombre de la persona tal como figura en el sistema), iguales para todos los usuarios y en cualquier idioma, para que puedan procesarse con programas sin sorpresas. Las columnas con texto legible por idioma no están disponibles de momento.
+- **Columnas y valores del CSV**. Los ficheros exportados usan nombres técnicos de columna (`occurred_at`, `actor`, `actor_type`, `auditable_type`, `auditable_public_id`, `event`, `request_id`) y códigos de evento sin traducir (la columna `actor` lleva el nombre de la persona tal como figura en el sistema), iguales para todos los usuarios y en cualquier idioma, para que puedan procesarse con programas sin sorpresas. Las columnas con texto legible por idioma no están disponibles de momento. Esto describe el fichero de la auditoría; el de usuarios tiene sus propias doce columnas (véase «Exportar la lista de usuarios»).
+
+## Usuarios
+
+Menú **Administración > Usuarios** (`/administracion/usuarios`). Solo lo ves si tu rol tiene el permiso de consultar usuarios; cada botón de esta pantalla y de la ficha aparece solo si tu rol tiene el permiso de esa acción concreta (si falta uno, pídelo a quien administre los roles del centro).
+
+### La lista
+
+La lista se maneja como el resto de tablas (sección «Tablas de datos»). Muestra el nombre («Apellidos, Nombre», con enlace a la ficha), el correo de acceso, el estado y los roles; el idioma y la fecha de alta están ocultos por defecto (botón «Columnas»). **No muestra el documento de identidad, la fecha de nacimiento ni los datos de contacto**: la lista sirve para localizar a una persona; esos datos están en su ficha.
+
+- **Buscar** por nombre, apellidos o correo de acceso. La búsqueda no queda en la dirección del navegador.
+- **Filtrar** por estado (pendiente, activo, inactivo), por **rol** (solo si tu rol puede consultar roles) y por idioma. **Incluir dados de baja** (solo si tu rol puede dar de baja usuarios) es una casilla: desmarcada, no se ven; marcada, aparecen con el estado «Dado de baja».
+- **Ordenar** por nombre, correo de acceso o fecha de alta.
+- **Exportar** (solo con el permiso de exportar usuarios): véase «Exportar la lista de usuarios».
+- **Nuevo usuario** abre el formulario de alta.
+
+### La ficha
+
+Muestra todos los datos de la persona: estado, correo de acceso, tipo y número de documento, fecha de nacimiento, idioma, correo y teléfono de contacto, verificación del correo, fechas de alta y de baja, y sus roles. Las acciones dependen de tu rol y del estado de la cuenta:
+
+| Acción | Cuándo está disponible |
+|--------|------------------------|
+| **Editar** | Cuenta no dada de baja |
+| **Activar / Desactivar** | Cuentas activas o inactivas. Una cuenta **pendiente** no se activa a mano: la activa la propia persona con su invitación. **Desactivar pide confirmación**; activar no |
+| **Enviar invitación** | Cuentas pendientes. Pide confirmación. Emite un enlace nuevo y el anterior deja de valer; se avisa de cuándo caduca. Hay un límite de reenvíos por hora: si lo superas, la pantalla te dice cuántos segundos esperar |
+| **Dar de baja** | Cuenta no dada de baja. Pide confirmación. La cuenta deja de estar disponible y no puede iniciar sesión; se puede restaurar |
+| **Restaurar** | Cuenta dada de baja. No pide confirmación. **La cuenta vuelve como «inactiva»**: usa «Activar» si la persona debe volver a entrar |
+
+**Tu propia cuenta**: desde la ficha de tu propia persona, desactivar, dar de baja y cambiar roles están deshabilitados («No puedes modificar tu propia cuenta desde aquí»). **Siempre debe quedar al menos un Administrador de Centro activo**: si una acción lo impide, el sistema te lo explica con su propio mensaje y no cambia nada.
+
+**Roles de la persona**: la ficha lista sus roles. Con el permiso de asignar roles, marca o desmarca roles y pulsa «Guardar roles». **No puedes conceder un rol que incluya permisos que tú no tienes**: el sistema lo rechaza y muestra el motivo junto a los roles. Quitar un rol pide confirmación, porque la persona pierde los permisos que concedía.
+
+Las confirmaciones son un diálogo que nombra a la persona y la consecuencia («Dar de baja a Ana López»). Se cierran con la tecla **Esc** o con «Cancelar», sin hacer nada, y devuelven el foco al botón que las abrió.
+
+### Alta y edición
+
+El formulario pide: correo de acceso, nombre y primer apellido (obligatorios, marcados con *), y opcionalmente segundo apellido, fecha de nacimiento, tipo y número de documento, correo y teléfono de contacto e idioma preferido (solo los idiomas activos del centro). En el alta aparecen además los **roles** (si tu rol puede asignarlos) y la casilla «Enviar invitación por correo», marcada por defecto. En la edición solo se envían los campos que cambias.
+
+- **Tipo de documento**: texto libre. El formato solo se comprueba para **DNI** y **NIE** (con su dígito de control); con otro tipo, el sistema solo exige que el número no esté vacío.
+- Si algún dato no es válido o el correo ya lo usa otra cuenta, el formulario indica cada error junto a su campo, lo resume arriba y lleva el foco al primero.
+- Al crear con invitación, la ficha te dice cuándo caduca el enlace. **El enlace en sí nunca se muestra**: solo le llega a la persona por correo.
+
+## Invitaciones
+
+Menú **Administración > Invitaciones** (`/administracion/invitaciones`). Lista los enlaces de activación enviados: usuario, estado (**vigente**, **caducada**, **revocada** o **aceptada**), caducidad, fecha de emisión y fecha de aceptación o revocación. Se filtra por uno o varios estados; no tiene búsqueda ni orden propio (siempre la más reciente primero). El correo enlaza con la ficha si tu rol puede consultar usuarios.
+
+- **Revocar** (solo invitaciones vigentes): el enlace deja de funcionar. Pide confirmación.
+- **Reenviar** (invitaciones caducadas o revocadas): emite un enlace nuevo. Pide confirmación. Si la persona ya activó su cuenta, el sistema lo indica y la fila se actualiza; si hay demasiados reenvíos seguidos, te dice cuántos segundos esperar.
+- Las invitaciones **aceptadas** no admiten ninguna acción.
+
+## Exportar la lista de usuarios
+
+El botón «Exportar» de la lista de usuarios (solo con el permiso de exportar usuarios) prepara en segundo plano un fichero **CSV con todos los usuarios que cumplen los filtros** que tienes puestos (estado, rol, idioma, dados de baja); la búsqueda de texto no se aplica y, si hay una escrita, el botón queda deshabilitado. Te avisa con un enlace de descarga que **caduca a los 7 días**. Si la preparación falla, la pantalla lo dice enseguida («No se ha podido generar la exportación») y puedes volver a pedirla.
+
+El fichero **no contiene el tipo ni el número de documento ni la fecha de nacimiento** (minimización de datos personales, sobre todo del alumnado menor de edad). Contiene exactamente estas doce columnas, con estos nombres y estos códigos, **iguales para todos los usuarios y en cualquier idioma**:
+
+| Columna | Qué contiene |
+|---------|--------------|
+| `public_id` | Identificador único de la persona usuaria |
+| `status` | Estado, como código: `pendiente`, `activo` o `inactivo` |
+| `deleted_at` | Fecha y hora de la baja (ISO 8601); vacía si no está dada de baja |
+| `created_at` | Fecha y hora del alta (ISO 8601) |
+| `email` | Correo de acceso |
+| `given_name` | Nombre |
+| `family_name_1` | Primer apellido |
+| `family_name_2` | Segundo apellido; vacío si no tiene |
+| `contact_email` | Correo de contacto; vacío si no tiene |
+| `contact_phone` | Teléfono de contacto; vacío si no tiene |
+| `locale` | Idioma preferido: `es-ES`, `en`, `de` o `fr` |
+| `roles` | **Códigos** de los roles, en orden alfabético y separados por `\|` (p. ej. `docente\|tutor`); vacío si no tiene |
+
+Las filas van ordenadas por primer apellido, nombre e identificador, no por el orden de la pantalla. Para abrirlo en Excel con configuración regional española, sigue los pasos de «Abrir el CSV en Excel» (sección «Tablas de datos»). El fichero **no sirve para reimportar usuarios** sin editarlo: le faltan columnas de la importación (documento, fecha de nacimiento) y le sobran otras.
 
 ## Cuentas bloqueadas
 

@@ -1,6 +1,6 @@
 # PRIVACY.md
 
-> **Versión 0.3.2** · 2026-09-30
+> **Versión 0.3.3** · 2026-10-02
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Base del Registro de Actividades de Tratamiento (RAT) exigido por el RGPD — hoy es un **esqueleto**, no un RAT completo: varias secciones dependen de decisiones que todavía no se han tomado (`OPEN-07`, entidad jurídica y contrato de encargado de tratamiento). No se rellenan con suposiciones (`CLAUDE.md` §0/§11).
 
 ---
@@ -87,6 +87,20 @@ Mismo mecanismo que §2.3, protocolo distinto: cada centro cataloga su propio pr
 | Clave privada de firma de nuestra plataforma (si `sign_authn_requests` está activo) | **No vive en base de datos** | Fichero de plataforma fuera del repositorio y fuera de la copia de la base de datos (`SYSADMIN.md`, `operacion.md §G.2.3`). No es un dato de ninguna persona ni de ningún centro: es un secreto operativo de la plataforma |
 
 **Ningún usuario ni persona nueva se crea a partir de este flujo**, con la misma garantía de esquema que en OIDC (`ADR-043 §10.9`, el `CHECK` de `provisioning_mode` lo impide independientemente del protocolo). Un acceso sin cuenta ya existente en el centro con ese identificador termina sin vincular y sin crear nada, con la misma respuesta genérica e indistinguible que el resto de casos "sin cuenta" (`funcional.md §G.4.5`).
+
+### 2.5 Exportación de usuarios (CSV, `REQ-CORE-003`, paso 1.9b)
+
+`POST /users/exports` (permiso propio `usuario.exportar`, concedido por defecto solo al administrador del centro) genera un CSV con las personas usuarias que cumplen los filtros del listado. Es un tratamiento de **exportación de datos personales fuera del control del sistema**, por eso:
+
+| Aspecto | Decisión |
+|---------|----------|
+| Columnas (esquema cerrado, `funcional.md §14.11.1`) | `public_id`, `status`, `deleted_at`, `created_at`, `email` (correo de acceso), `given_name`, `family_name_1`, `family_name_2`, `contact_email`, `contact_phone`, `locale`, `roles` (códigos) |
+| **Excluido a propósito** | `document_type`, `document_number` y `birth_date` (`OPEN-CORE-32` = B, decisión del usuario 2026-10-01, `INV-008`): un documento de identidad o una fecha de nacimiento exportados en bloque salen del control del sistema, y el listado incluye a alumnado menor de edad con cuenta cuando exista. **Añadirlos exige una decisión expresa del usuario con su base legal**, no solo una petición de un centro |
+| Quién descarga | Solo quien lo solicitó (`data_exports.requested_by`), y solo mientras conserve `usuario.exportar` |
+| Dónde queda el fichero | Objeto privado en el almacenamiento (`tenants/{tenant}/exports/{id}.csv`), URL firmada de caducidad corta; sin copia en la base de datos ni en `audit_logs` (`data_exports.filters` solo lleva códigos y ULID, nunca texto de búsqueda) |
+| Retención | 7 días (`CORE_EXPORT_RETENTION_DAYS`), purgado por `PurgeExpiredExports` (fila y objeto) |
+| Rastro | Cada solicitud se audita (`created` y `exported`) sin el contenido del fichero |
+| Neutralización | Los textos que empiezan por `=`, `+`, `-`, `@` (o espacio en blanco seguido de uno) llevan un apóstrofo inicial (`RN-CORE-48`), para que el fichero no ejecute fórmulas en una hoja de cálculo |
 
 ## 3. Registro de Actividades de Tratamiento (RAT) — plantilla
 

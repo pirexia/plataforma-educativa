@@ -36,7 +36,7 @@ La invalidación en escritura no es un detalle: el [issue #7](https://github.com
 | `CORE_INVITATION_TTL_DAYS` | Caducidad de la invitación (`RN-CORE-10`) | `7` |
 | `CORE_IMPORT_MAX_ROWS` | Límite de filas por importación | `20000` |
 | `CORE_IMPORT_RETENTION_DAYS` | Purga de ficheros de importación e informes (`RN-CORE-21`) | `30` |
-| `CORE_EXPORT_MAX_ROWS` | Límite de filas por exportación de auditoría | `500000` |
+| `CORE_EXPORT_MAX_ROWS` | Límite de filas por exportación (auditoría y, desde 1.9b, usuarios: `RNF-LIM-004`) | `500000` |
 | `CORE_EXPORT_RETENTION_DAYS` | Caducidad del artefacto de exportación | `7` |
 | `CORE_SIGNED_URL_TTL_MINUTES` | Caducidad de las URLs firmadas | `15` |
 
@@ -293,6 +293,8 @@ La exportación **solo termina si hay un *worker* procesando `core-exports`**. H
 ## 13. Paso 1.9b (pantallas de gestión)
 
 > Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. Dividido en cinco sub-pasos `1.9b`-`1.9f` (`OPEN-CORE-30` = A): cada sub-paso despliega solo su parte de esta sección.
+>
+> **Sub-paso `1.9b` implementado** (2026-10-02): migración `2026_10_02_100100_widen_data_exports_kind_for_users` (`NOT VALID` + `VALIDATE`, `$withinTransaction = false`), trabajo `GenerateUserExport` en `core-exports` y S1-S7 en `apps/api`; `apps/web` con las pantallas de usuarios e invitaciones. **Orden de despliegue de §13.2 sin cambios.** Pendiente de revisión independiente.
 
 ### 13.1 Qué se despliega
 

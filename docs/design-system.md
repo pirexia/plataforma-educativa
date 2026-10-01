@@ -619,6 +619,22 @@ Ninguno de los dos declara `size`/altura fija en sus elementos de fila (`sheet`:
 
 El componente de tabla de datos (`apps/web/src/data-table/`, `docs/modulos/REQ-CORE/funcional.md §13`) **no vendoriza ningún componente base nuevo** (`CA-CORE-197` se cumple por vacuidad, y los tests de §10 siguen sin excepción nueva): los filtros de enumerado, los de tres estados, el menú de columnas, el selector de orden de las tarjetas y el de filas por página son `dropdown-menu` (1.8: elementos de casilla y de opción única); las fechas, `input type="date"` del `input` base; y la tabla, los subcomponentes de `components/ui/table`. No hizo falta `checkbox` ni `popover`. Sus textos propios viven en `dataTable.*` (`docs/i18n.md`), no en `components/ui` (`RN-DS-24`). Los controles que no son componente base —el botón de ordenación de la cabecera y los elementos de los menús— añaden `min-h-11` por instancia en `any-pointer: coarse` (`§12.1b`, `OPEN-CORE-14`), verificado en navegador real (`CA-CORE-178`).
 
+### 12.3c Paso 1.9b: `alert-dialog` (`OPEN-CORE-42` = A)
+
+Primer componente nuevo desde 1.8. `docs/modulos/REQ-CORE/funcional.md §14.14`, `RN-CORE-64`: un único componente de aplicación de confirmación de acciones destructivas o masivas (`src/components/ConfirmDialog.vue` + `useConfirm.ts`) sobre `alert-dialog` de shadcn-vue (Reka UI, ya instalada: sin dependencia nueva), que sustituye a `window.confirm` y a las confirmaciones en línea.
+
+Vendorizado **sin la CLI** (mismo motivo y mismo procedimiento que §12.3: el JSON del registro `reka-nova/alert-dialog.json` se escribió a mano en `src/components/ui/alert-dialog/`). Adaptaciones sobre el código del registro:
+
+| Fichero | Adaptación |
+|---------|------------|
+| `AlertDialogAction.vue`, `AlertDialogCancel.vue` | La importación del botón apunta a `@/components/ui/button` (el registro usaba `@/styles/reka-nova/ui/button`) |
+| `AlertDialogContent.vue` | El *overlay* usa `bg-overlay` en vez de `bg-black/10` (`RN-DS-19`, mismo cambio que `SheetOverlay`) |
+| Todos | Sin texto propio (`RN-DS-24`): el título, la descripción y los botones llegan por *slot*; `ConfirmDialog` aporta el «Cancelar» común (`shell.confirm.cancel`) |
+
+`ConfirmDialog` **no usa** `AlertDialogAction`: el de Reka UI es también un cierre del diálogo y su `update:open(false)` competiría con la confirmación; el botón de confirmar es un `Button` normal y solo `useConfirm` decide. El foco entra en el diálogo al abrirlo (Reka lo lleva al botón «Cancelar», el patrón recomendado para una acción destructiva), queda atrapado y vuelve al control de origen al cerrar (`CA-CORE-220`, `ConfirmDialog.spec.ts`, `e2e/core-users.spec.ts`).
+
+Además, 1.9b usa casillas nativas (`<input type="checkbox">`) con `accent-primary-on-background` (nunca `accent-primary`, `RN-DS-16`) en el filtro de dos estados de la tabla y en los selectores de roles: no se vendoriza `checkbox`, que sigue sin consumidor que lo justifique.
+
 ---
 
 ## 13. Migración de `PublicAuthShell` y `usePublicAuthScreen`
