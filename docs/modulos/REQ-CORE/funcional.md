@@ -749,6 +749,8 @@ Correspondencia con la API (`ADR-038 §6`), aplicada por una única función:
 | `429` | Demasiadas peticiones, con los segundos de `Retry-After` si vienen |
 | `5xx` | Error inesperado, con reintento y `request_id` |
 
+Nota (#300, `CA-CORE-270`): la recarga de sesión que dispara un `403` **no** pone la sesión en «cargando» si ya estaba `ready` (la vista conserva su estado y no repite la petición); el estado de carga a pantalla completa es solo del arranque y de la recuperación desde cualquier estado distinto de `ready`. Si la recarga falla (red, `5xx`, `429`), la sesión pasa a `error` (estado de error a pantalla completa, §12.3.1) y la vista se desmonta.
+
 Rutas: `catch-all` → estado «página no encontrada», dentro del *shell* si hay sesión, en régimen público si no.
 
 ### 12.7 *Layout* responsive
@@ -782,7 +784,7 @@ Hamburguesa y *drawer* son diálogos modales (`role="dialog"`, `aria-modal`): fo
 | `RN-CORE-23` | La visibilidad de toda entrada de navegación, acceso directo o bloque del panel se decide **solo** por los códigos de `GET /me` → `permissions`. **Ningún fichero de `src/` decide por `roles[].code`** ni contiene los códigos de los roles predefinidos como literal. Lo que la interfaz oculta es comodidad; la autorización es del servidor (`INV-002`) |
 | `RN-CORE-24` | `meta.permissions` vacía (`[]` explícito) en una ruta `app`/`bare` significa «cualquier usuario autenticado» y **solo** se admite en rutas sin ningún permiso real que exigir sin inventarlo: las cuatro de autoservicio por identidad (`permisos.md §5.2`: Inicio, Contraseña, Sesiones, Seguridad de la cuenta), el muro de MFA (`mfa-enrollment-wall`, régimen `bare`: se alcanza precisamente cuando `GET /me` ya ha fallado con `403`, no hay ningún permiso previo que comprobar) y la página «no encontrada» (*catch-all*: «no encontrado» es igual para cualquiera, con o sin permisos). Lista cerrada de **seis** rutas en un test (`ADR-053 §2`, comprobación 5) — issue [#260](https://github.com/pirexia/plataforma-educativa/issues/260), corregido aquí: la redacción original solo citaba cuatro. **Ampliada a siete en `1.9e`** con `core-profile` (perfil propio, autoservicio por identidad), por decisión del usuario (`OPEN-CORE-31` = B, §14.3.1) |
 | `RN-CORE-25` | El registro solo contiene entradas cuya ruta existe en el *router*. Ninguna entrada «próximamente» para módulos no implementados |
-| `RN-CORE-26` | Estado de sesión en memoria, recargado según §12.3.4. Ninguna vista vuelve a pedir `/me` para comprobar la sesión: lo hace el *guard* (se retira el `getMe()` de comprobación de `SessionsView` y análogas) |
+| `RN-CORE-26` | Estado de sesión en memoria, recargado según §12.3.4. Ninguna vista vuelve a pedir `/me` para comprobar la sesión: lo hace el *guard* (se retira el `getMe()` de comprobación de `SessionsView` y análogas). La recarga con la sesión ya `ready` no pasa por «cargando» (nota de §12.6, `CA-CORE-270`) |
 | `RN-CORE-27` | Cerrar sesión vacía el estado de sesión aunque `DELETE /auth/session` falle |
 | `RN-CORE-28` | `redirect` solo se acepta si es una ruta relativa del propio origen: empieza por `/`, no por `//` ni `/\`, no contiene esquema, y resuelve a una ruta registrada del régimen `app`. En otro caso se ignora y se va a `/` (evita la redirección abierta, `RSEC-OWASP`) |
 | `RN-CORE-29` | *Breakpoints* (§12.7) |
@@ -841,6 +843,9 @@ Vitest salvo los marcados **[Playwright]** (necesitan *layout* real, *media quer
 - **`CA-CORE-097`** [`RN-CORE-27`] · **Dado** un usuario con sesión, **cuando** cierra sesión (y también cuando `DELETE /auth/session` falla por red), **entonces** el estado de sesión queda vacío, se navega a `/entrar`, y al volver atrás con el historial no aparece el nombre del usuario anterior en ninguna parte del documento.
 - **`CA-CORE-098`** [`RN-CORE-26`, `ADR-053 §6`] · **Dado** un usuario con la sesión cargada, **cuando** tres peticiones concurrentes reciben un `403` genérico, **entonces** `GET /me` se pide una sola vez; **y cuando** reciben `403 module-disabled`, también se pide una sola vez.
 - **`CA-CORE-099`** [`ADR-053 §6`] · **Dado** un usuario en una vista cuyo permiso se ha vuelto inerte, **cuando** una petición de esa vista recibe `403 module-disabled` y la recarga de `/me` confirma que la ruta actual ya no está permitida, **entonces** la vista sigue mostrando el estado «módulo no disponible» (con el `detail` del servidor) y no pasa a «sin acceso» hasta la siguiente navegación.
+- **`CA-CORE-270`** [`RN-CORE-26`, `CA-CORE-098`, #300] · **Dado** un usuario con la sesión `ready`, **cuando** una vista dentro del *shell* recibe un `403` persistente de un recurso, **entonces** se hace una sola petición al recurso, una sola recarga de `/me`, la vista no se desmonta y se pinta «sin acceso» dentro del *shell*, sin bucle.
+- **`CA-CORE-271`** [`RN-CORE-26`, `CA-CORE-270`, #302] · **Dado** un usuario con la sesión `ready`, **cuando** un `403` dispara la recarga de `/me` y esta responde `401`, **entonces** la sesión pasa a anónima y la SPA navega a `/entrar?redirect=<ruta actual>` (mismo manejo que cualquier `401`), sin repetir el recurso en bucle.
+- **`CA-CORE-272`** [`RN-CORE-26`, `CA-CORE-270`, #303] · **Dado** un usuario con la sesión `ready`, **cuando** la recarga de `/me` tras un `403` devuelve otra identidad (`public_id`) u otro conjunto de permisos, **entonces** la vista se remonta (no conserva datos del usuario anterior) o, si la ruta ya no está permitida, se pinta «sin acceso»; con identidad y permisos idénticos no se remonta.
 
 #### Navegación y permisos
 
