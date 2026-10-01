@@ -11,6 +11,7 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 ### Corregido
 - **Un `403` persistente de un recurso dentro del *shell* ya no entra en bucle** (`REQ-CORE-008`, `CA-CORE-270` nuevo, `funcional.md §12.6`/`§12.3.4`). `fetchMe` (`apps/web/src/session/useSession.ts`) pasaba siempre a `loading`, lo que hacía que `AppShellLayout` desmontara la vista y, al volver a `ready`, esta repitiera el `GET` que daba el `403` (otra recarga de `/me`, sin fin). Ahora una recarga con la sesión ya `ready` no pasa por `loading`; el arranque y la recuperación desde `error`/otros estados siguen mostrando la carga. Sin cambio de contrato.
 - Test de regresión con la pila real: `apps/web/src/layouts/AppShellLayout.forbidden.spec.ts` (una petición al recurso, una recarga de `/me`, «Sin acceso» dentro del *shell*).
+- **Dos regresiones del fix de #300 (issues #302, #303)**: si la recarga de `/me` tras un `403` responde `401`, la SPA navega ahora a `/entrar?redirect=` reutilizando `handleUnauthorized` (`CA-CORE-271`); y el `RouterView` del *shell* lleva una `:key` derivada de `public_id` y del conjunto de permisos, de modo que la vista se remonta si cambian identidad o permisos pero no en una recarga normal (`CA-CORE-272`).
 
 ---
 

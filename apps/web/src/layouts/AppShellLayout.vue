@@ -41,6 +41,24 @@ useViewFocusAndTitle(mainRef)
 const permissions = computed(() => user.value?.permissions ?? [])
 const navEntries = computed(() => visibleNavigationEntries(router, permissions.value))
 
+/**
+ * #303: la recarga de `/me` no remonta la vista (#300), así que si cambia la
+ * identidad o el conjunto de permisos efectivos se fuerza el remonte para que
+ * no conserve datos cargados con la sesión anterior. Estable en una recarga
+ * normal (misma identidad y mismos permisos), por lo que no reintroduce el bucle.
+ */
+let lastSessionViewKey = ''
+const sessionViewKey = computed(() => {
+  // Sin usuario (sesión perdida, #302) se conserva la clave anterior: remontar
+  // aquí repetiría el recurso, que daría otro 403 y otra recarga, hasta que la
+  // navegación a login termine.
+  if (user.value !== null) {
+    lastSessionViewKey = `${user.value.public_id}|${[...permissions.value].sort().join(',')}`
+  }
+
+  return lastSessionViewKey
+})
+
 const drawerOpen = ref(false)
 
 const forbidden = computed(() => !hasAnyPermission(route.meta.permissions, permissions.value))
@@ -137,7 +155,7 @@ function onLogoError(url: string): void {
         <ErrorState v-else-if="sessionErrorState" :state="sessionErrorState" @retry="retry" />
         <RouterView v-else v-slot="{ Component }">
           <Transition name="route" mode="out-in">
-            <component :is="Component" />
+            <component :is="Component" :key="sessionViewKey" />
           </Transition>
         </RouterView>
       </main>

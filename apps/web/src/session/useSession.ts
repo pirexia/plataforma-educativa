@@ -14,7 +14,7 @@
  * dinámica (evita el ciclo `client → session → core/api → client`).
  */
 import { shallowRef, triggerRef } from 'vue'
-import { ApiError } from '@/api/client'
+import { ApiError, handleUnauthorized } from '@/api/client'
 import { getMe, updateMe } from '@/modules/core/api'
 import type { User } from '@/modules/core/types'
 
@@ -85,7 +85,9 @@ async function fetchMe(): Promise<void> {
   // no pasa por `loading`: el shell desmontaría la vista activa y, al
   // volver a montarla, esta repetiría la petición que dio el `403`, en bucle.
   // Solo el arranque y la recuperación desde otro estado muestran la carga.
-  if (status.value !== 'ready') {
+  const wasReady = status.value === 'ready'
+
+  if (!wasReady) {
     status.value = 'loading'
   }
 
@@ -99,6 +101,14 @@ async function fetchMe(): Promise<void> {
       user.value = null
       status.value = 'anonymous'
       error.value = null
+
+      // #302: la sesión se perdió estando ya `ready` (recarga tras un `403`):
+      // no hay guard ni remonte que redirija, así que se reutiliza el manejo
+      // de `401` del cliente (`/entrar?redirect=`).
+      if (wasReady) {
+        void handleUnauthorized()
+      }
+
       return
     }
 
