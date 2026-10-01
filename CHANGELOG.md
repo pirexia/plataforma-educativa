@@ -6,6 +6,10 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-01 · `docs/ratifica-ADR-055` (`OPEN-054-01`)
+
+`ADR-055` (el CSV de datos como contrato técnico) pasa a **`ACEPTADA`**, ratificado entero por el usuario el 2026-10-01 (opción A ahora, C como ampliación posterior; incluye las precisiones de formatos y compatibilidad y la objeción de `§3.3`). `OPEN-054-01` resuelta: `REQUISITOS` 3.2.11 (índice de ADR y fila de `ADR-054` con remisión), `REQ-CORE/funcional.md §13` (`RN-CORE-59`, `CA-CORE-207` pendiente de test hasta el primer generador nuevo de `1.9b`), `api.md §8` y manual `admin.md`. El fichero del ADR y la fila 3.2.10 de `REQUISITOS` llegaron a `develop` por error dentro del PR #284 (dependencia) como `PROPUESTA`. Solo documentación; sin cambios de código. Versiones: `README.md` 2.6.9, `PLAN-IMPLEMENTACION.md` 2.3.2, `REQUISITOS` 3.2.11. Abierto de pasada: #285 (idioma de `report.csv`, Media).
+
 ## 2026-09-30 · `fix/REQ-CORE-005-auditoria-csv-rangos-y-filtros` (issues #266, #267, #270, #273)
 
 Cuatro hallazgos de `REQ-CORE-005` (auditoría y exportación) resueltos en una sola rama, sobre `ADR-054 §8`-`§10` y `ADR-038 §5.2`. Sin migraciones ni permisos nuevos.
