@@ -1,6 +1,6 @@
 /**
  * `docs/modulos/REQ-CORE/funcional.md §12.6`, `§12.3.4`; REQ-CORE-008,
- * `CA-CORE-070`, `CA-CORE-073`; issue #300. Pila real (App, *router* con su
+ * `CA-CORE-270` (`CA-CORE-098`); issue #300. Pila real (App, *router* con su
  * *guard*, *shell*, sesión y cliente HTTP); solo se simula `fetch`.
  *
  * Una vista dentro del *shell* que recibe un `403` persistente de un recurso
@@ -89,7 +89,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('CA-CORE-070 / CA-CORE-073 (REQ-CORE-008, #300): 403 persistente dentro del shell', () => {
+describe('CA-CORE-270 (REQ-CORE-008, #300): 403 persistente dentro del shell', () => {
   it('una sola petición al recurso, una sola recarga de /me y «Sin acceso» dentro del shell', async () => {
     const { flushPromises, mount } = await import('@vue/test-utils')
     const { default: router } = await import('@/router')
