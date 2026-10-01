@@ -287,3 +287,66 @@ La exportación **solo termina si hay un *worker* procesando `core-exports`**. H
 | Un enlace a `/administracion/mfa` no conserva los filtros de la tabla | Esa tabla no declara estado en la URL (paridad estricta, `OPEN-CORE-28`). Esperado |
 | El botón de exportar está deshabilitado | Hay una búsqueda por texto activa: ninguna exportación acepta `q` (`RN-CORE-57`/`58`). Esperado: borrar la búsqueda |
 | Tras recargar, la auditoría vuelve al principio | El `cursor` no va a la URL (`RN-CORE-54`). Esperado |
+
+---
+
+## 13. Paso 1.9b (pantallas de gestión)
+
+> Estado: **PROPUESTA** (2026-10-01), con `funcional.md §14`. Pendiente de aprobación. Si el usuario aprueba la división de `funcional.md §14.2` (`OPEN-CORE-30`), cada sub-paso despliega solo su parte de esta sección.
+
+### 13.1 Qué se despliega
+
+| Aspecto | Paso 1.9b |
+|---------|-----------|
+| Imágenes | `apps/web` en todos los sub-pasos; **`apps/api`** en 1.9b (S1-S7), 1.9c (S8, S9) y 1.9d (S7, S10 si procede) |
+| Migraciones | **Una**, en 1.9b: ampliación del `CHECK` de `data_exports.kind` (`datos.md` Parte D), `NOT VALID` + `VALIDATE` |
+| `platform:sync-registry` | **No hace falta extraordinario**: ningún permiso nuevo (`permisos.md §12.1`). Se ejecuta como en cualquier despliegue |
+| Variables de entorno | **Ninguna nueva.** `CORE_EXPORT_MAX_ROWS` (§2) pasa a aplicar a **toda** exportación de `REQ-CORE` (auditoría y usuarios), no solo a la de auditoría: se actualiza su descripción en §2 al implementar. `CORE_SIGNED_URL_TTL_MINUTES` (15) gobierna también la vida de `report_url` y de las URLs de activos que la interfaz renueva (`funcional.md §14.6.2`, `RN-CORE-83`) |
+| Colas y trabajos | **Uno nuevo**: `GenerateUserExport` en `core-exports` (3 reintentos, como `GenerateAuditLogExport`). Fija el contexto de tenant al arrancar, `actor_type = user` (el solicitante), escribe con `CsvWriter` y **no** llama a `__()`/`trans()` (`ADR-055 §2.2`). `ValidateUserImport` cambia solo en cómo resuelve el idioma de sus mensajes (S9, si `OPEN-CORE-38` = A) |
+| Tareas programadas | **Ninguna nueva.** `PurgeExpiredExports` ya purga cualquier `kind` (filas y objetos a los 7 días) |
+| Almacenamiento | Objetos nuevos `tenants/{tenant_public_id}/exports/{export_public_id}.csv` con `kind = users` (mismo prefijo que §5). **Contienen datos personales del personal**: mismo tratamiento que las exportaciones de auditoría (privado, URL firmada, 7 días). Excluibles de la copia, como ya dice §9 |
+| Navegador | Claves `plataforma.table.<tableId>` nuevas por tabla (`datos.md` Parte D), sin datos personales; ningún otro almacenamiento |
+| Dependencias | **Ninguna nueva** en npm ni en Composer. Si `OPEN-CORE-42` = A, `alert-dialog` se vendoriza sobre Reka UI, ya instalada (`docs/design-system.md §12.2`). La ULID de la `Idempotency-Key` se genera con utilidad propia si no existe ya (`funcional.md §14.0`) |
+
+### 13.2 Orden de despliegue (1.9b, el sub-paso con migración)
+
+1. Migración del `CHECK` (`NOT VALID`, luego `VALIDATE`). Compatible con la versión anterior de la API, que nunca escribe `kind = 'users'`.
+2. Imagen de `apps/api` (S1-S7). Hasta que esté desplegada, la SPA nueva no debe estarlo: la pantalla de usuarios llamaría a `POST /users/exports` (`404`) y enviaría `sort=-email` (`422`).
+3. Imagen de `apps/web`.
+
+Los sub-pasos sin cambios de servidor (1.9e, 1.9f) siguen `§11.5`/`§12.4`: solo `apps/web`, sin orden relativo.
+
+### 13.3 Reversión
+
+- **`apps/web`**: volver a la imagen anterior. Desaparecen las pantallas nuevas; las tres vistas migradas vuelven a su tabla propia (y su ruta vuelve a la lista de excepciones de `RN-CORE-53` en el código anterior, coherente con él). Las claves `plataforma.table.*` nuevas quedan huérfanas e inocuas.
+- **`apps/api`**: volver a la imagen anterior. `POST /users/exports` deja de existir; las exportaciones de usuarios **ya creadas** quedan con `kind = 'users'` y la API anterior solo puede consultarlas con `auditoria.exportar` (ruta fija): inocuo, caducan a los 7 días. S4 revierte a `409` para `fallida` (vuelve el defecto de `funcional.md §14.16`, hallazgo 1).
+- **Migración**: **no se revierte** al revertir la aplicación (*expand*: el `CHECK` ampliado acepta todo lo que aceptaba el anterior). Revertirla exigiría borrar antes toda fila `kind = 'users'`; solo si se abandona la entrega, a mano y tras purgar sus objetos.
+
+### 13.4 Dependencia operativa: *worker* de colas (#128)
+
+Sin *worker* de `core-imports` y `core-exports` (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128), Alta), **la importación se queda en `subido` y la exportación de usuarios en `pendiente`**, igual que la de auditoría (§12.2). La interfaz lo acota (`RN-CORE-49`, `RN-CORE-72`: deja de consultar a los 10 min y ofrece «Comprobar de nuevo»). En desarrollo, `queue:work --queue=core-imports,core-exports` a mano. **Cerrar 1.9b o 1.9c sin #128 resuelto entrega funcionalidad que no opera en un entorno real** (`funcional.md §14.15`).
+
+### 13.5 Carga sobre la API
+
+- Consulta de estado de una importación: misma cota que la de exportación (§12.3), ~23 peticiones como máximo por lote y vista abierta.
+- Listados: una petición por acción del usuario o al montar; búsqueda con espera de 300 ms (`RN-CORE-40`). El filtro de actor de auditoría (si `OPEN-CORE-33` = A/C) busca con la misma espera.
+- Cambio de idioma: una petición más en las tablas de usuarios y roles (`RN-CORE-63`).
+- Pantalla de usuarios con `rol.leer`: una petición más a `GET /roles` (opciones del filtro), una vez por montaje.
+- `GET /audit-logs/facets` (si existe): una vez por montaje, sin consulta a `audit_logs`.
+
+### 13.6 Métricas y alertas
+
+Ninguna nueva. Conviene mirar, con las de §7: profundidad de `core-exports` (ahora con dos tipos de trabajo), y la **tasa de `403` de `REQ-CORE`**, que **no** debería subir tras desplegar (`RN-CORE-62`: las pantallas no piden lo que el usuario no puede ver). Un aumento indica una acción o un filtro mostrado sin su permiso.
+
+### 13.7 Problemas conocidos y diagnóstico
+
+| Síntoma | Causa probable |
+|---------|----------------|
+| La importación se queda en «Subido» y acaba en «Comprobar de nuevo» | Ningún *worker* de `core-imports` (#128). Esperado sin él |
+| La exportación de usuarios no termina | Ningún *worker* de `core-exports` (#128) |
+| Una exportación fallida espera 10 min sin mensaje | API sin S4 desplegado (`409` para `fallida`, `funcional.md §14.16`) |
+| `403` al consultar el estado de una exportación de usuarios | API sin S3 desplegado (ruta con `auditoria.exportar` fijo), o el solicitante perdió `usuario.exportar` |
+| Los mensajes de incidencias de importación salen en inglés | `ValidateUserImport` sin S9 (#285), o lote validado antes de desplegarlo: el mensaje se guarda al validar y no se retraduce |
+| El informe de errores o un logotipo no cargan tras un rato en la pantalla | URL firmada caducada (15 min); la vista la renueva una vez (`funcional.md §14.6.2`, `RN-CORE-83`) |
+| Los nombres de rol salen en otro idioma tras cambiarlo | La tabla no ha recargado la página (`RN-CORE-63`); si persiste, es un fallo |
+| Falta el filtro de rol o de usuario en una pantalla | El usuario no tiene `rol.leer` / `usuario.leer`: comportamiento correcto (`RN-CORE-62`) |
