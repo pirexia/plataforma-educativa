@@ -249,3 +249,21 @@ describe('CA-CORE-232 (RN-CORE-70): acciones según estado', () => {
     expect(listInvitations.mock.calls.length).toBe(before + 1)
   })
 })
+
+describe('CA-CORE-263 (CA-CORE-070, CA-CORE-073): 404 y 403 del listado de invitaciones', () => {
+  it('un 404 pinta «no encontrado» dentro de la vista', async () => {
+    listInvitations.mockRejectedValue(new ApiError('HTTP 404', 404, { status: 404 }))
+    await mountView()
+
+    expect(document.body.querySelector('[role="alert"]')?.textContent).toContain(
+      'Página no encontrada',
+    )
+  })
+
+  it('un 403 pinta «sin acceso»', async () => {
+    listInvitations.mockRejectedValue(new ApiError('HTTP 403', 403, { status: 403 }))
+    await mountView()
+
+    expect(document.body.querySelector('[role="alert"]')?.textContent).toContain('Sin acceso')
+  })
+})
