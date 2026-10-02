@@ -23,6 +23,8 @@ return [
         'contrast_insufficient' => 'Der Kontrast der Farbpalette (:ratio:1) erreicht nicht das erforderliche Minimum (:required:1, WCAG 2.2 AA).',
         'document_number_invalid' => 'Die Dokumentnummer ist für den angegebenen Typ ungültig.',
         'document_duplicate' => 'In dieser Schule existiert bereits eine lebende Person mit demselben Dokumenttyp und derselben Nummer.',
+        'document_type_invalid' => 'Der Dokumenttyp „:value“ wird nicht unterstützt.',
+        'document_incomplete' => 'Geben Sie Dokumenttyp und Dokumentnummer gemeinsam an oder keines von beiden.',
         'email_duplicate' => 'In dieser Schule existiert bereits ein aktiver Benutzer mit dieser Zugangs-E-Mail.',
         'role_not_found' => 'Eine der angegebenen Rollen existiert in dieser Schule nicht.',
         'role_permission_exceeds_own' => 'Du kannst keine Rolle zuweisen, die Berechtigungen gewährt, die du selbst nicht besitzt.',
@@ -87,5 +89,7 @@ return [
         'duplicado_en_base_de_datos' => 'Der Wert der Spalte „:column" gehört bereits zu einer anderen Person oder einem anderen Benutzer der Schule.',
         'idioma_no_activo' => 'Die angegebene Sprache ist für diese Schule nicht aktiv.',
         'rol_no_encontrado' => 'Eine der angegebenen Rollen existiert in dieser Schule nicht.',
+        'tipo_documento_no_valido' => 'Der angegebene Dokumenttyp wird nicht unterstützt.',
+        'documento_incompleto' => 'Geben Sie Dokumenttyp und Dokumentnummer gemeinsam an oder keines von beiden.',
     ],
 ];

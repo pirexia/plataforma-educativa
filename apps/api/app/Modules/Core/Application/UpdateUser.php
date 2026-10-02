@@ -2,7 +2,6 @@
 
 namespace App\Modules\Core\Application;
 
-use App\Models\Person;
 use App\Models\User;
 use App\Modules\Core\Domain\Events\UserEmailChanged;
 use App\Modules\Core\Domain\Models\UserInvitation;
@@ -14,13 +13,14 @@ use Illuminate\Support\Facades\DB;
  * api.md §3, `PATCH /users/{public_id}`. RN-CORE-11: cambiar `email`
  * revoca las invitaciones vivas. Mismas comprobaciones de negocio que
  * `CreateUser` para los campos que cambian, excluyendo al propio usuario
- * de la comprobación de unicidad.
+ * de la comprobación de unicidad; el documento, por `PersonDocumentRules`
+ * (RN-CORE-90 a 93).
  */
 final class UpdateUser
 {
     public function __construct(
         private readonly TenantSettingsReader $settings,
-        private readonly DocumentNumberValidator $documentValidator,
+        private readonly PersonDocumentRules $documentRules,
     ) {}
 
     /**
@@ -45,21 +45,26 @@ final class UpdateUser
             }
         }
 
-        $documentType = $person['document_type'] ?? $user->person->document_type;
-        $documentNumberProvided = array_key_exists('document_number', $person);
-        $documentNumber = $documentNumberProvided ? $person['document_number'] : $user->person->document_number;
+        // RN-CORE-93: si llega el tipo, el número o ambos, se valida el par
+        // **resultante** (lo no enviado se toma de lo guardado). Si no llega
+        // ninguno, no se toca ni se revalida: un valor guardado anterior al
+        // catálogo no bloquea un cambio ajeno al documento.
+        $typeProvided = array_key_exists('document_type', $person);
+        $numberProvided = array_key_exists('document_number', $person);
+        $document = null;
 
-        if ($documentNumberProvided && $documentNumber !== null) {
-            if (! $this->documentValidator->isValid((string) $documentType, (string) $documentNumber)) {
-                $errors->add('person.document_number', 'core.validation.document_number_invalid', 'core.validation.document_number_invalid');
-            } elseif (Person::query()->where('document_type', $documentType)->where('document_number', $documentNumber)->whereKeyNot($user->person_id)->exists()) {
-                $errors->add('person.document_number', 'core.validation.document_duplicate', 'core.validation.document_duplicate');
-            }
+        if ($typeProvided || $numberProvided) {
+            $document = $this->documentRules->check(
+                $typeProvided ? $person['document_type'] : $user->person->document_type,
+                $numberProvided ? $person['document_number'] : $user->person->document_number,
+                $errors,
+                $user->person_id,
+            );
         }
 
         $errors->throwIfAny();
 
-        return DB::transaction(function () use ($user, $data, $person): User {
+        return DB::transaction(function () use ($user, $data, $person, $document): User {
             $emailChanged = array_key_exists('email', $data) && $data['email'] !== $user->email;
 
             if ($emailChanged) {
@@ -74,6 +79,17 @@ final class UpdateUser
                 foreach (['given_name', 'family_name_1', 'family_name_2', 'birth_date', 'document_type', 'document_number', 'contact_email', 'contact_phone', 'locale'] as $field) {
                     if (array_key_exists($field, $person)) {
                         $personUpdates[$field] = $person[$field];
+                    }
+                }
+
+                if ($document !== null) {
+                    // Valor canónico (RN-CORE-92) para los campos enviados.
+                    if (array_key_exists('document_type', $personUpdates)) {
+                        $personUpdates['document_type'] = $document['type'];
+                    }
+
+                    if (array_key_exists('document_number', $personUpdates)) {
+                        $personUpdates['document_number'] = $document['number'];
                     }
                 }
 

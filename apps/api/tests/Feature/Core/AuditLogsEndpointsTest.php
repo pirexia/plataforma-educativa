@@ -71,7 +71,7 @@ test('CA-CORE-052: un registro con changes redactado conserva el objeto redacted
         'email' => 'con-documento@example.com',
         'person' => [
             'given_name' => 'Con', 'family_name_1' => 'Documento',
-            'document_type' => 'DNI', 'document_number' => '00000000T',
+            'document_type' => 'dni', 'document_number' => '00000000T',
         ],
         'send_invitation' => false,
     ])->assertCreated();

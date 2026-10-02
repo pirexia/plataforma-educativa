@@ -317,8 +317,8 @@ paths:
                     family_name_1: { type: string }
                     family_name_2: { type: string }
                     birth_date: { type: string, format: date }
-                    document_type: { type: string }
-                    document_number: { type: string }
+                    document_type: { $ref: '../components.yaml#/components/schemas/DocumentType' }
+                    document_number: { type: string, maxLength: 32 }
                     contact_email: { type: string, format: email }
                     contact_phone: { type: string }
                     locale: { $ref: '../components.yaml#/components/schemas/Locale' }
@@ -447,7 +447,24 @@ paths:
               type: object
               properties:
                 email: { type: string, format: email }
-                person: { type: object, additionalProperties: true }
+                person:
+                  type: object
+                  description: >
+                    RN-CORE-93: si llega `document_type`, `document_number` o ambos, se
+                    valida el par resultante (lo no enviado se toma del valor guardado).
+                    Vaciar el par se hace enviando los dos a `null`.
+                  properties:
+                    given_name: { type: string }
+                    family_name_1: { type: string }
+                    family_name_2: { type: string, nullable: true }
+                    birth_date: { type: string, format: date, nullable: true }
+                    document_type:
+                      allOf: [{ $ref: '../components.yaml#/components/schemas/DocumentType' }]
+                      nullable: true
+                    document_number: { type: string, maxLength: 32, nullable: true }
+                    contact_email: { type: string, format: email, nullable: true }
+                    contact_phone: { type: string, nullable: true }
+                    locale: { $ref: '../components.yaml#/components/schemas/Locale' }
       responses:
         '200':
           description: Usuario actualizado
@@ -1081,7 +1098,13 @@ paths:
         Esquema de columnas fijo (api.md §7): email;given_name;family_name_1;
         family_name_2;document_type;document_number;birth_date;contact_email;
         contact_phone;locale;roles. La validación (fase 1) nunca escribe
-        (RN-CORE-20).
+        (RN-CORE-20). `document_type` admite los códigos del catálogo cerrado
+        (`dni`, `nie`, `pasaporte`; RN-CORE-90) sin distinguir mayúsculas y con
+        espacios alrededor (OPEN-CORE-50 = A); tipo y número van los dos o ninguno
+        (RN-CORE-91) y el número se normaliza antes de validar y de comprobar
+        duplicados (RN-CORE-92). Las incidencias nuevas son `tipo_documento_no_valido`
+        y `documento_incompleto`. El `message` de cada incidencia sale en el idioma
+        de quien subió el lote (#285).
       tags: [Core / Importación]
       security: [{ SessionCookie: [] }]
       requestBody:
