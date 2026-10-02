@@ -167,7 +167,7 @@
 **`1.9b` cerrado y mezclado el 2026-10-02** (PR #299 `72fb900`, cierre en #306 `819e107`). `develop` limpio, sin ramas ni *worktrees* abiertos.
 
 **Al arrancar la sesión de `1.9c` (importación de usuarios, `funcional.md §14.6`), en este orden:**
-1. **Decidir antes, con el usuario** (bloquean `1.9c`): (a) **#292** catálogo cerrado de tipos de documento — encargar la propuesta a `spec-writer` (Opus), el usuario la ratifica; (b) **`OPEN-CORE-38`** / issue **#285** (idioma de `report.csv` y `error_summary` de `ValidateUserImport`).
+1. **Prerrequisitos RESUELTOS el 2026-10-02**: `OPEN-CORE-38` = A (#285) y catálogo de tipos de documento aprobado en `§14.6.4` (`OPEN-CORE-46` = B: `dni`/`nie`/`pasaporte`, sin `otro`; resto A; `label` del filtro `enum` ratificada). Hallazgos F1-F7 en #308-#310. La implementación del catálogo (`RN-CORE-90`-`93`, `CA-CORE-273`-`285`) entra en 1.9c.
 2. Tras ratificar, actualizar `§14.6` si cambia el alcance y solo entonces lanzar `implementer` (Sonnet) en rama `feature/REQ-CORE-003-importacion-usuarios` con `isolation: worktree` (comprobar `git log --oneline -1` dentro del *worktree*; **verificar que parte de `develop`**).
 3. Numeración de CA: `CA-CORE-270`/`271`/`272` ya están usados (fix #300); `1.9c` debe usar los de `§14` o empezar en **273**. `CA-CORE-207` (CSV como contrato técnico, `ADR-055`) se prueba con el primer generador nuevo: ya lo cubre `1.9b`.
 4. Recordar: sin *worker* de colas (#128) importación y exportaciones no terminan fuera de un entorno con `queue:work`; las pruebas usan cola síncrona/*fakes*.

@@ -1858,6 +1858,202 @@ Muestra estado, recuentos, fechas y, cuando el lote está `validado` o `fallido`
 
 `ADR-055 §1` deja **fuera** del contrato técnico el informe de errores: su forma es la de `errors` de `ADR-038 §6.3` (código estable más mensaje legible), dirigido a quien subió el fichero. Hoy el mensaje sale en `en` (idioma del proceso) y se persiste. Cómo se resuelve es `OPEN-CORE-38`.
 
+#### 14.6.4 Catálogo cerrado de tipos de documento de identidad — **APROBADA** (2026-10-02) (issue [#292](https://github.com/pirexia/plataforma-educativa/issues/292), prerrequisito de 1.9c)
+
+> **Estado: APROBADA el 2026-10-02.** El usuario ratificó en bloque las recomendaciones de `OPEN-CORE-46` a `OPEN-CORE-53` (§14.6.4.9): **46 = B** (`dni`, `nie`, `pasaporte`; **sin `otro`**), 47 = A, 48 = A, 49 = A, 50 = A, 51 = A, 52 = A, 53 = A y `label` del filtro `enum` ratificada. Donde el texto siguiente dice «según `OPEN-CORE-NN`» rige la opción recomendada de esa pregunta. No reabre §14.4.3 ni §14.22 punto 1: los sustituye **solo si** se aprueba, y entonces se anotará allí. No toca `OPEN-CORE-38` ni `OPEN-CORE-32` (el CSV de exportación sigue sin `document_type`, `document_number` ni `birth_date`).
+
+##### 14.6.4.1 Por qué hace falta antes de 1.9c
+
+- **Estado real del código** (lectura, 2026-10-02, `develop` en `3e2c475`): `person.document_type` se acepta como texto libre de hasta 32 caracteres (`StoreUserRequest`, `UpdateUserRequest`); `DocumentNumberValidator` solo reconoce `DNI` y `NIE` (formato más letra de control módulo 23, esta última conmutable fuera de producción por `OPEN-CORE-06`) y para **cualquier otro valor** solo exige número no vacío. La columna `people.document_type` es `text` sin `CHECK` (`ADR-034 §1`), con `UNIQUE (tenant_id, document_type, document_number) WHERE document_number IS NOT NULL AND deleted_at IS NULL`.
+- **La importación sí lleva el tipo**: la cabecera fija de `UserImportCsvReader::EXPECTED_HEADER` incluye `document_type`, `document_number` y `birth_date`, y `UserImportRowValidator` valida el par con el mismo `DocumentNumberValidator`. Sin catálogo, una hoja con `D.N.I.`, `dni`, `Pasaporte` o `passport` pasa la validación con reglas distintas según cómo se escriba el tipo, y la pantalla de 1.9c tendría que explicar en el manual una columna cuyos valores admitidos **no existen**.
+- **Consecuencias que ya produce el texto libre** (hallazgos de §14.6.4.8, no se corrigen aquí): el validador compara el tipo en mayúsculas pero se guarda tal cual llega, de modo que `DNI` y `dni` son **tipos distintos para el índice único** y la misma persona puede darse de alta dos veces (`RN-CORE-03` incumplida); un `PATCH` que cambia solo el tipo no revalida el número; un número sin tipo se guarda con tipo `NULL`, que el índice único no compara.
+- **Qué dicen los requisitos**: `REQ-CORE-003` enumera como dato de usuario «**DNI/NIE**» y nada más. §6 de este documento (aprobado en 1.1) dice «se valida el formato de DNI/NIE/**pasaporte**», pero el código no valida ningún formato de pasaporte (hallazgo F6). `REQ-FAM-UNIT-005` habla de «documento identificativo» sin tipo. Ningún requisito enumera más tipos. **Cualquier valor fuera de `DNI`/`NIE` es, por tanto, decisión del usuario** (`OPEN-CORE-46`), no de esta propuesta.
+
+##### 14.6.4.2 Valores propuestos
+
+Códigos técnicos estables, sin traducir en servidor (`ADR-038 §3.2`), traducidos en el cliente con rama por defecto que muestra el código (`ADR-038 §7.3`). La grafía (minúsculas, como el resto de enumerados del producto —`pendiente`, `users`, `todos`—, o mayúsculas, como los valores que hoy reconoce el validador) es `OPEN-CORE-47`; la tabla usa minúsculas solo para fijar ideas.
+
+| Código | Qué es | Origen en requisitos | Formato (tras normalizar, §14.6.4.3) | Control | En la propuesta |
+|--------|--------|----------------------|--------------------------------------|---------|-----------------|
+| `dni` | Documento nacional de identidad español | `REQ-CORE-003` («DNI/NIE») | `^\d{8}[A-Z]$` | Letra = `TRWAGMYFPDXBNJZSQVHLCKE[n mod 23]` sobre los 8 dígitos. Conmutable fuera de producción (`OPEN-CORE-06`); el **formato se exige siempre** | Sí, sin alternativa |
+| `nie` | Número de identidad de extranjero (el que figura en la TIE o en el certificado de registro de ciudadano de la UE) | `REQ-CORE-003` | `^[XYZ]\d{7}[A-Z]$` | Igual que `dni`, sustituyendo `X`→0, `Y`→1, `Z`→2. Mismo conmutador | Sí, sin alternativa |
+| `pasaporte` | Pasaporte, de cualquier país | Solo §6 de este documento; no está en `REQ-CORE-003` | Alfanumérico sin separadores, longitud según `OPEN-CORE-51` | **Ninguno**: el número de pasaporte no lleva dígito de control propio (el de la zona MRZ no se captura) | Según `OPEN-CORE-46` |
+| `otro` | Cualquier otro documento de identidad (p. ej. documento nacional de otro Estado de la UE sin NIE todavía) | **Ninguno** | Texto no vacío, ≤ 32 caracteres | Ninguno | **Excluido** (`OPEN-CORE-46` = B, 2026-10-02); no se implementa ni se traduce |
+
+**Descartados expresamente** (no se proponen; si el usuario quiere alguno, se añade por la vía aditiva de §14.6.4.4):
+
+- **TIE** como tipo propio: la tarjeta es el soporte; el identificador es el NIE. Dos códigos para el mismo número romperían `RN-CORE-03`.
+- **NIF K/L/M** (españoles menores de 14 años sin DNI, españoles no residentes, extranjeros sin NIE): son identificadores fiscales, ningún requisito de `REQ-CORE` los pide, y su validación es distinta. Si `REQ-ALUM` o `REQ-FIN` los necesitan, los propondrán con su requisito.
+- **NIA / identificador autonómico del alumno**: no es un documento de identidad sino un código administrativo de la Consejería; es dato de la faceta `students` (`REQ-ALUM`/`REQ-SEC`), no de `people` (`ADR-034 §1`: los datos de faceta no van en `people`).
+
+**Interacción con `REQ-SEED-005`** («documentos con formato válido pero dígito de control deliberadamente incorrecto»): solo `dni` y `nie` pueden cumplirla. Un `pasaporte` sintético no tiene dígito que invalidar; si `1.15b` (`REQ-SEED`) quiere generarlos, tendrá que decidir cómo hacerlos reconociblemente ficticios. No bloquea 1.9c; se anota para la especificación de `REQ-SEED`.
+
+##### 14.6.4.3 Reglas de negocio propuestas
+
+- **`RN-CORE-90` · Catálogo cerrado.** `person.document_type` solo admite los códigos del catálogo aprobado. La única fuente de verdad en servidor es un enumerado PHP público en `App\Modules\Core\Domain` (`INV-007`: `REQ-ALUM`, `REQ-FAM-UNIT` y `REQ-RRHH` lo consumen por esa interfaz pública, nunca leyendo la tabla ni copiando la lista), del que se derivan la regla de validación, el `enum` de OpenAPI y el `CHECK` de la base de datos. El catálogo es **de plataforma**, igual para todos los centros: un centro no añade tipos.
+- **`RN-CORE-91` · Par completo** (*si `OPEN-CORE-48` = A*). Tipo y número se informan los dos o ninguno. Un número sin tipo no puede validarse por tipo ni compararse por el índice único (el `NULL` no colisiona); un tipo sin número no identifica a nadie.
+- **`RN-CORE-92` · Normalización antes de validar y guardar** (alcance exacto en `OPEN-CORE-49`). El servidor guarda el número **canónico**: sin espacios al principio ni al final y en mayúsculas en todos los tipos; además, en `dni` y `nie`, sin espacios ni guiones intermedios (`12345678-z` → `12345678Z`). La unicidad de `RN-CORE-03` se comprueba sobre el valor normalizado, en la API y en la importación por igual (hoy la importación deduplica en mayúsculas dentro del fichero pero compara en crudo contra la base de datos).
+- **`RN-CORE-93` · Revalidación al cambiar cualquiera de los dos.** Un `PATCH /users/{id}` que cambia el tipo, el número o ambos valida el par **resultante** (el campo no enviado se toma del valor guardado), y comprueba la unicidad excluyendo a la propia persona. Vaciar el par se hace enviando los dos a `null`.
+- **Sin cambio**: `RN-CORE-03` (unicidad entre personas vivas), el conmutador de `OPEN-CORE-06`, la política de auditoría de `Person` (`Selective`: `document_type` y `document_number` siguen redactados como `identifier`, `datos.md`), `OPEN-CORE-32` = B (ni el tipo ni el número salen en el CSV de usuarios) y `RN-CORE-67` (el listado no los pinta).
+
+##### 14.6.4.4 Almacenamiento
+
+**Propuesta: `text` + `CHECK` sobre `people.document_type`**, con el enumerado PHP de `RN-CORE-90` como fuente. Es el patrón que el proyecto ya usa para enumerados cerrados (`audit_logs.actor_type` y `.event`, `ADR-034 §3`; `data_exports.kind`, `datos.md` Parte D) y respeta `ADR-029` (`text`, no `varchar(n)`).
+
+| Alternativa | Por qué no |
+|-------------|------------|
+| Tipo `ENUM` de PostgreSQL | `ALTER TYPE … ADD VALUE` es aditivo, pero **no hay `DROP VALUE`**: retirar un tipo obliga a recrear el tipo y reescribir la columna. Ningún enumerado del proyecto lo usa; introducirlo aquí sería la primera excepción sin motivo |
+| Tabla de referencia compartida (categoría `reference` de `ADR-033 §7`, como `permissions`/`modules`) | Solo aporta algo si cada tipo necesita metadatos editables o si el catálogo lo gestiona alguien fuera del código. Aquí la validación por tipo **es código** (`DocumentNumberValidator`), así que la tabla duplicaría la lista sin poder sustituirla, y añadiría un comando de sincronización, una clave foránea y una tabla más a `ADR-033 §7`. Reconsiderar si un día los tipos pasan a depender de la comunidad autónoma o del país |
+
+**Añadir un tipo después** es *expand*: nuevo caso del enumerado y `CHECK` sustituido por otro con un valor más (`DROP CONSTRAINT` + `ADD CONSTRAINT … NOT VALID` + `VALIDATE CONSTRAINT`, que no bloquea escrituras). **Retirar un tipo** con personas que lo usan exige migrar sus datos: por eso la propuesta es empezar con el catálogo mínimo.
+
+**Migración en dos entregas** (`CLAUDE.md §9`; compresión posible solo por `OPEN-CORE-52`):
+
+1. **Entrega N (1.9c)**, sin `CHECK`: la aplicación valida contra el catálogo y normaliza al escribir (`RN-CORE-90`-`93`). Una migración de datos normaliza las filas existentes: tipo con variantes reconocibles (`DNI`, `dni`, ` Nie `…) al código canónico, número a su forma canónica. Antes de escribir, **comprueba** que la normalización no crea duplicados entre personas vivas y que no queda ningún tipo sin correspondencia; si encuentra cualquiera de los dos casos, **aborta con un mensaje que enumera los `public_id` afectados** y no toca nada (no hay producción: los datos son de desarrollo y se pueden resembrar; nunca se inventa una correspondencia). Compatible con N-1: la versión anterior acepta cualquier texto, también el canónico.
+2. **Entrega N+1** (cuando ya no corra ningún proceso de N-1, incluidos *workers* de `core-imports` con trabajos encolados): `CHECK (document_type IS NULL OR document_type IN (…))` añadido `NOT VALID` y validado después, y —si `OPEN-CORE-48` = A— `CHECK ((document_type IS NULL) = (document_number IS NULL))`. Añadirlo en N haría que una escritura de N-1 con un tipo libre fallase con `500` en vez de `422`.
+
+`academic_year_id`: no aplica (`people` no depende del curso, `ADR-034 §4`). `tenant_id` y el índice único existentes no cambian. Revisor obligatorio: `db-reviewer`.
+
+##### 14.6.4.5 API y OpenAPI
+
+| *Endpoint* | Cambio | Compatibilidad (`ADR-038 §7`) |
+|------------|--------|-------------------------------|
+| `POST /users` | `person.document_type` validado contra el catálogo (`422`, campo `person.document_type`, código `core.validation.document_type_invalid`); `RN-CORE-91`/`-92` | **Incompatible en sentido estricto**: deja de aceptar valores que hoy acepta. Sin más clientes que la SPA propia y sin producción (`H0`), mismo criterio que S4 (`OPEN-CORE-39`); se anota en `CHANGELOG.md` |
+| `PATCH /users/{id}` | Igual, más `RN-CORE-93` | Ídem |
+| `GET /users`, `GET /users/{id}`, `GET /me` | Sin cambio de forma; `document_type` devuelve el código canónico | Compatible |
+| `POST /user-imports` | Sin cambio en la subida; la validación de filas cambia (§14.6.4.6) | Compatible en el contrato HTTP |
+| `PATCH /me` | Sin cambio: no admite documento (`CA-CORE-018`) | — |
+
+- **OpenAPI**: `enum` cerrado en `person.document_type` del esquema de petición y de respuesta, **generado o comprobado contra el enumerado PHP** (`CA-CORE-279`), y descripción del formato por tipo. El esquema de `POST /users/exports` no cambia (`OPEN-CORE-32` = B).
+- **Errores nuevos** en el catálogo de `core` (`lang/*/core.php`, cuatro idiomas): `core.validation.document_type_invalid` («El tipo de documento «:value» no está admitido.») y, si `OPEN-CORE-48` = A, `core.validation.document_incomplete` («Indica a la vez el tipo y el número de documento, o ninguno de los dos.»). `document_number_invalid` y `document_duplicate` se conservan.
+- **Exposición a la SPA**: ninguna ruta nueva. El cliente lleva una constante con los códigos, comprobada contra el enumerado PHP con el mismo test cruzado que `RN-CORE-82` ya exige para las comunidades autónomas (y con la misma salida si la lectura cruzada no es viable en CI: el implementador lo reporta). Un *endpoint* de catálogos es la alternativa de `OPEN-CORE-53`.
+
+##### 14.6.4.6 Importación CSV (1.9c)
+
+- La cabecera **no cambia** (`EXPECTED_HEADER`): ni columnas nuevas ni otro orden.
+- `UserImportRowValidator` aplica `RN-CORE-90`-`92` a cada fila. Códigos de incidencia nuevos, en `core.import.*` (cuatro idiomas; su idioma de emisión sigue a `OPEN-CORE-38`, que esta propuesta no toca): `tipo_documento_no_valido` (columna `document_type`) y, si `OPEN-CORE-48` = A, `documento_incompleto` (columna `document_type` o `document_number`, la que falte). `formato_invalido`, `duplicado_en_fichero` y `duplicado_en_base_de_datos` se conservan, ahora sobre el valor normalizado.
+- Tolerancia en la grafía del código (`dni`, `DNI`, ` Dni `): `OPEN-CORE-50`.
+- La pantalla de subida (§14.6.1) muestra, junto a la cabecera copiable, **la lista de códigos admitidos** con su nombre traducido; el manual (`admin.md`) la recoge con el formato de cada tipo.
+- `ExecuteUserImport` revalida con las mismas reglas (ya lo hace por `UserImportRowValidator`): un lote validado antes del cambio y ejecutado después se revalida con el catálogo.
+
+##### 14.6.4.7 Interfaz y traducciones
+
+- **Alta y edición** (`UserFormView`): el campo de texto de `document_type` y su pista `core.users.form.documentTypeHint` se sustituyen por un `<select>` con «Sin indicar» (envía `null`) más los códigos de la constante, etiqueta traducida; el número queda deshabilitado mientras el tipo sea «Sin indicar» (comodidad; decide el servidor, `INV-010`). Al editar una persona con un valor anterior al catálogo, el selector **lo conserva como opción** con su código crudo, igual que ya hace con un idioma retirado: no se pierde en silencio y el `PATCH` no lo envía si no se toca. La clave `documentTypeHint` se retira de los cuatro `locales/*.json`.
+- **Ficha** (`UserDetailView`): muestra la etiqueta traducida; un código desconocido se pinta crudo (`ADR-038 §7.3`).
+- **Filtro `enum` con `label`** (§14.22 punto 2): **el catálogo no lo necesita** —sus etiquetas son claves del cliente (`labelKey`)— y no se usa en ningún filtro, porque el listado de usuarios no filtra por documento. Su ratificación es una cuestión aparte, recogida en `OPEN-CORE-53` (§14.6.4.9).
+- **Claves nuevas** en `core.person.documentType.<código>`, propuesta de texto:
+
+| Código | `es` | `en` | `de` | `fr` |
+|--------|------|------|------|------|
+| `dni` | DNI (documento nacional de identidad) | Spanish national identity card (DNI) | Spanischer Personalausweis (DNI) | Carte nationale d'identité espagnole (DNI) |
+| `nie` | NIE (número de identidad de extranjero) | Foreigner identity number (NIE) | Ausländer-Identifikationsnummer (NIE) | Numéro d'identité d'étranger (NIE) |
+| `pasaporte` | Pasaporte | Passport | Reisepass | Passeport |
+| `otro` | Otro documento de identidad | Other identity document | Anderes Ausweisdokument | Autre pièce d'identité |
+
+  Más `core.person.documentType.none` («Sin indicar» / «Not specified» / «Keine Angabe» / «Non renseigné»). Las filas `pasaporte` y `otro` solo existen si `OPEN-CORE-46` las incluye.
+
+##### 14.6.4.8 Hallazgos en el código actual (fuera del ámbito de esta propuesta; no se corrigen aquí)
+
+Para que la sesión orquestadora abra los issues que correspondan (`CLAUDE.md §5`). Lectura de código, sin ejecución:
+
+| # | Hallazgo | Ficheros | Severidad propuesta |
+|---|----------|----------|---------------------|
+| F1 | **Duplicado de identidad por mayúsculas en el tipo**: `DocumentNumberValidator` valida `strtoupper($documentType)`, pero `CreateUser`/`UpdateUser` guardan y consultan el tipo **tal como llega**. `DNI` + `12345678Z` y `dni` + `12345678Z` pasan los dos la comprobación de unicidad y el índice único (`RN-CORE-03`). Ocurre también en producción, con el dígito de control activo | `Application/DocumentNumberValidator.php`, `CreateUser.php`, `UpdateUser.php` | **Media** (invariante de negocio incumplida, sin impacto inmediato: no hay producción) |
+| F2 | **Cambiar solo el tipo no revalida**: `UpdateUser` valida únicamente si llega `document_number`; un `PATCH` con solo `document_type: "DNI"` sobre un número de pasaporte deja un par que nunca habría pasado el alta | `UpdateUser.php` | **Media** |
+| F3 | **Número sin tipo**: se valida con la rama por defecto (no vacío) y se guarda con tipo `NULL`; el índice único no compara `NULL`, así que el mismo número puede repetirse sin límite | `CreateUser.php`, `UserImportRowValidator.php` | **Media** |
+| F4 | La importación deduplica **dentro del fichero** en mayúsculas pero compara **contra la base de datos** en crudo: el mismo documento con distinta grafía es duplicado en un sitio y no en el otro | `UserImportRowValidator.php` | Baja (desaparece con F1) |
+| F5 | Con el dígito de control desactivado (desarrollo), un número en minúsculas (`12345678z`) pasa el formato y se guarda en minúsculas, distinto para el índice de `12345678Z` | `DocumentNumberValidator.php` | Baja (solo fuera de producción) |
+| F6 | §6 de este documento dice «se valida el formato de DNI/NIE/pasaporte»; el código no valida ningún formato de pasaporte. Código y documentación se contradicen (`CLAUDE.md §6.6`) | `funcional.md §6`, `DocumentNumberValidator.php` | **Media** por la regla de `CLAUDE.md §6.6`; se resuelve con `OPEN-CORE-46` |
+| F7 | El *docblock* de `DocumentNumberValidator` atribuye a `ADR-034 §1` que el tipo quede «como `text` libre a propósito»; `ADR-034 §1` solo fija el tipo `text` y el índice, no la ausencia de catálogo | `DocumentNumberValidator.php` | Baja |
+
+F1 a F3 los corrige `RN-CORE-90`-`93` **si se aprueba** la propuesta; si no, siguen abiertos por su cuenta.
+
+##### 14.6.4.9 Preguntas abiertas (para el usuario; ninguna se resuelve aquí)
+
+Todas bloquean la implementación del catálogo y, por tanto, **1.9c** (§14.2) salvo donde se dice.
+
+| ID | Pregunta | Bloquea | Recomendación |
+|----|----------|---------|---------------|
+| `OPEN-CORE-46` | Valores del catálogo | 1.9c | B — **RESUELTA** (2026-10-02) |
+| `OPEN-CORE-47` | Grafía de los códigos | 1.9c | A — **RESUELTA** (2026-10-02, ratificada en bloque) |
+| `OPEN-CORE-48` | Par tipo-número completo | 1.9c | A — **RESUELTA** (2026-10-02, ratificada en bloque) |
+| `OPEN-CORE-49` | Alcance de la normalización del número | 1.9c | A — **RESUELTA** (2026-10-02, ratificada en bloque) |
+| `OPEN-CORE-50` | Tolerancia de grafía del código en la importación | 1.9c | A — **RESUELTA** (2026-10-02, ratificada en bloque) |
+| `OPEN-CORE-51` | Formato del pasaporte (solo si entra) | 1.9c | A — **RESUELTA** (2026-10-02, ratificada en bloque) |
+| `OPEN-CORE-52` | Migración y `CHECK`: dos entregas o una | 1.9c | A — **RESUELTA** (2026-10-02, ratificada en bloque) |
+| `OPEN-CORE-53` | Exposición del catálogo a la SPA, y ratificación de `label` del filtro `enum` | 1.9c (catálogo); no (`label`) | A / ratificar — **RESUELTA** (2026-10-02, ratificada en bloque) |
+
+**`OPEN-CORE-46` · Valores del catálogo.**
+- **A** · `dni`, `nie`. Lectura literal de `REQ-CORE-003`. Deja sin forma de registrar a una persona con solo pasaporte (p. ej. un tutor extranjero recién llegado, cuando `REQ-FAM-UNIT` dé cuentas a las familias).
+- **B** · `dni`, `nie`, `pasaporte`. Añade lo que §6 de este documento ya preveía (y cierra F6).
+- **C** · B más `otro`.
+
+**Recomendación: B.** Cubre a quien no tiene documento español sin abrir una categoría comodín. `otro` (C) sin formato ni control convierte el catálogo en texto libre con otro nombre: cualquier cosa cabe y la unicidad pierde sentido. Como añadir un tipo después es *expand* (§14.6.4.4) y retirarlo no, empezar por B y ampliar con un caso real es lo barato. Es una ampliación sobre `REQ-CORE-003`: decide el usuario.
+
+**`OPEN-CORE-47` · Grafía de los códigos.**
+- **A** · Minúsculas (`dni`, `nie`, `pasaporte`), como todos los demás enumerados técnicos del producto (estados, `kind`, `event`, ámbitos).
+- **B** · Mayúsculas (`DNI`, `NIE`, `PASAPORTE`), como los valores que hoy reconoce el validador y como se escriben las siglas.
+
+**Recomendación: A**, por coherencia con `ADR-038 §3.2` tal como lo aplica el resto de la API; la etiqueta visible ya muestra las siglas en mayúsculas. Los datos existentes son de desarrollo y los normaliza la migración en cualquiera de las dos.
+
+**`OPEN-CORE-48` · ¿Tipo y número, los dos o ninguno?**
+- **A** · Sí (`RN-CORE-91`), en la API, en la importación y, en N+1, con `CHECK`.
+- **B** · No: se mantiene que el par solo se comprueba si hay número (`RN-CORE-03` literal), y un número sin tipo sigue guardándose con tipo `NULL`.
+
+**Recomendación: A.** B mantiene F3 abierto: un número sin tipo no se valida por formato y escapa del índice único.
+
+**`OPEN-CORE-49` · Normalización del número.**
+- **A** · La de `RN-CORE-92`: recorte y mayúsculas en todos los tipos; además, sin espacios ni guiones intermedios en `dni`/`nie`.
+- **B** · Solo recorte y mayúsculas; un guion o espacio intermedio en un DNI es error de formato.
+- **C** · Sin normalización: se rechaza todo lo que no venga ya en forma canónica.
+
+**Recomendación: A.** Es lo que una secretaría teclea o pega desde otro sistema (`12.345.678-Z` no se propone: los puntos no se quitan, serían un error de formato). B y C trasladan al usuario una corrección que el servidor puede hacer sin ambigüedad.
+
+**`OPEN-CORE-50` · Grafía del código de tipo en el CSV.**
+- **A** · La importación acepta el código sin distinguir mayúsculas y con espacios alrededor, y guarda el canónico; la API (cliente técnico) exige el código exacto.
+- **B** · Exacto en los dos: `DNI` en una hoja da `tipo_documento_no_valido` si el canónico es `dni`.
+
+**Recomendación: A.** La hoja la edita una persona; la API, un programa que lee OpenAPI. Más tolerancia en la importación que en la API no rompe `INV-010`: el servidor sigue decidiendo.
+
+**`OPEN-CORE-51` · Formato del pasaporte** (solo si `OPEN-CORE-46` lo incluye).
+- **A** · Alfanumérico `[A-Z0-9]`, de 1 a 32 caracteres tras normalizar, sin control. No supone nada sobre el país emisor.
+- **B** · Límite de la zona MRZ de ICAO 9303 (9 caracteres alfanuméricos).
+
+**Recomendación: A.** Ningún requisito fija un país, y B rechazaría números válidos que en la MRZ se extienden al campo opcional. Si el usuario quiere distinguir el país emisor, es un campo más (`ADR-034 §1`: añadir columna es *expand*) con su propia base legal, fuera de esta propuesta.
+
+**`OPEN-CORE-52` · Migración y `CHECK`.**
+- **A** · Dos entregas (§14.6.4.4): validación y normalización en 1.9c; `CHECK` en la entrega siguiente que toque migraciones, con un paso del plan que lo nombre.
+- **B** · Todo en 1.9c, porque no hay producción ni versiones conviviendo; se registra la excepción a `CLAUDE.md §9` como discrepancia.
+- En las dos, la migración de datos **aborta** ante tipos sin correspondencia o duplicados creados por la normalización, en vez de inventar una correspondencia.
+
+**Recomendación: A.** Cuesta una migración más y no deja un precedente de saltarse *expand/contract* «porque aún no hay producción», que es exactamente cuando se fija la costumbre.
+
+**`OPEN-CORE-53` · Exposición del catálogo a la SPA y `label` del filtro `enum`.**
+- **A** · Constante en el cliente con test cruzado contra el enumerado PHP (precedente `RN-CORE-82`).
+- **B** · *Endpoint* de catálogos (p. ej. dentro de `GET /me` o uno propio), sin constante en el cliente.
+
+**Recomendación: A**: un catálogo de cuatro valores que solo cambia con un despliegue no justifica una petición más, y el test impide la divergencia silenciosa (§14.15). **Aparte**, y sin relación técnica con el catálogo: el campo `label` que 1.9b añadió a `DataTableEnumFilter.options` (§14.22 punto 2) no figura entre las ampliaciones de `OPEN-CORE-40`; **recomendación: ratificarlo** e incorporarlo a la lista cerrada de §13.7, porque es aditivo, lo exige `RN-CORE-62`/`-63` para el filtro de rol (nombres ya traducidos por el servidor) y la alternativa —claves de cliente para nombres de roles personalizados— no existe. Si el usuario no lo ratifica, el filtro de rol de 1.9b tendría que retirarse o mostrar ULID.
+
+##### 14.6.4.10 Criterios de aceptación propuestos
+
+Se escriben ahora para que sean verificables; los que dependen de una pregunta lo dicen y se reescriben al resolverla. Pest salvo los marcados **[Vitest]**.
+
+- **`CA-CORE-273`** [`RN-CORE-90`, `INV-010`] · **Dado** `POST /users` con `person.document_type` fuera del catálogo (p. ej. `"carnet"`), **cuando** se envía, **entonces** `422` con error en `person.document_type` y código `core.validation.document_type_invalid`, y no se crea ninguna `Person` ni `User`; **y** lo mismo con `PATCH /users/{id}`, sin modificar la persona.
+- **`CA-CORE-274`** [`RN-CORE-90`, `OPEN-CORE-06`, `REQ-SEED-005`] · **Dado** cada código del catálogo, **cuando** se da de alta una persona con un número de formato válido y otro de formato inválido para ese tipo, **entonces** el primero se acepta y el segundo responde `422` en `person.document_number`; **y dado** `dni` o `nie` con formato válido y letra de control incorrecta, `422` con la comprobación de dígito activa y `201` con ella desactivada (fuera de producción) — el formato se exige en los dos casos.
+- **`CA-CORE-275`** [`RN-CORE-92`, `RN-CORE-03`, F1, F5] *(según `OPEN-CORE-49`/`-50`)* · **Dado** una persona viva con tipo `dni` y número `12345678Z` (valores de prueba de `REQ-SEED-005`), **cuando** se da de alta otra con número ` 12345678-z `, **entonces** `422` `core.validation.document_duplicate`; **y** la primera persona tiene guardado exactamente el código canónico y `12345678Z`.
+- **`CA-CORE-276`** [`RN-CORE-91`, F3] *(solo si `OPEN-CORE-48` = A)* · **Dado** `POST /users` con número y sin tipo, **entonces** `422` `core.validation.document_incomplete`; **y** con tipo y sin número, el mismo `422`; **y** sin ninguno de los dos, `201`.
+- **`CA-CORE-277`** [`RN-CORE-93`, F2] · **Dado** una persona con tipo `pasaporte` y número `AB1234567` *(o `nie` si `OPEN-CORE-46` = A)*, **cuando** `PATCH /users/{id}` envía solo `person.document_type` con el código de `dni`, **entonces** `422` en `person.document_number` y la persona no cambia.
+- **`CA-CORE-278`** [`RN-CORE-90`-`92`, §14.6.4.6] · **Dado** un CSV con una fila de tipo desconocido, una con el código en otra grafía *(según `OPEN-CORE-50`)* y dos filas con el mismo documento escrito con y sin guion, **cuando** se valida, **entonces** la primera da `tipo_documento_no_valido` en la columna `document_type`, la segunda no da error y, al ejecutarse, guarda el código canónico, y la cuarta da `duplicado_en_fichero`; **y** una fila cuyo documento coincide, normalizado, con el de una persona viva da `duplicado_en_base_de_datos`.
+- **`CA-CORE-279`** [`RN-CORE-90`, `INV-006`] · **Dado** la especificación OpenAPI, **entonces** `person.document_type` tiene en el esquema de petición de `POST /users` y `PATCH /users/{id}` y en el de respuesta del usuario un `enum` exactamente igual a los casos del enumerado PHP, en el mismo orden.
+- **`CA-CORE-280`** [`RN-CORE-90`, §14.6.4.4] · **Dado** una base de datos con filas de tipo `DNI`, `dni` y ` Nie ` y números con espacios, **cuando** se ejecuta la migración de normalización, **entonces** quedan con el código y el número canónicos; **y dado** una fila con un tipo sin correspondencia o dos personas vivas que la normalización convertiría en duplicadas, la migración falla, enumera los `public_id` afectados y no modifica ninguna fila. **Y**, en la entrega del `CHECK` *(según `OPEN-CORE-52`)*, un `INSERT` directo con un tipo fuera del catálogo falla con violación de restricción.
+- **`CA-CORE-281`** [`RN-CORE-90`, `RN-CORE-65`] **[Vitest]** · **Dado** el formulario de alta, **entonces** el tipo de documento es un selector con «Sin indicar» más exactamente los códigos de la constante, con etiqueta traducida; con «Sin indicar» el número está deshabilitado y el cuerpo de `POST /users` no contiene ni tipo ni número; **y dado** la edición de una persona con un tipo anterior al catálogo, el selector lo muestra como opción con su código crudo y, si no se toca, el `PATCH` no envía `person.document_type`.
+- **`CA-CORE-282`** [`RN-CORE-90`, `INV-009`] **[Vitest]** *(según `OPEN-CORE-53`)* · **Dado** la constante de tipos del cliente y el enumerado PHP del servidor, **entonces** contienen exactamente los mismos códigos, y cada código más `none` tiene etiqueta en `es`, `en`, `de` y `fr`; **y** la clave `core.users.form.documentTypeHint` ya no existe en ningún `locales/*.json`.
+- **`CA-CORE-283`** [`ADR-038 §7.3`] **[Vitest]** · **Dado** la ficha de un usuario con tipo `nie`, **entonces** muestra la etiqueta traducida y no el código; **y dado** un código que el cliente no conoce, muestra el código crudo.
+- **`CA-CORE-284`** [§14.6.4.6, `RN-CORE-71`] **[Vitest]** · **Dado** el formulario de subida de importación, **entonces** muestra, junto a la cabecera, la lista de códigos de tipo de documento admitidos con su nombre traducido.
+- **`CA-CORE-285`** [`INV-009`, `ADR-038 §6.3`] · **Dado** los cuatro `lang/*/core.php` del servidor, **entonces** existen en `es`, `en`, `de` y `fr` `core.validation.document_type_invalid`, `core.import.tipo_documento_no_valido` y, si `OPEN-CORE-48` = A, `core.validation.document_incomplete` y `core.import.documento_incompleto`.
+
+**Nota de numeración**: `RN-CORE-90` a `-93` y `CA-CORE-273` a `-285` se han tomado como siguientes libres según este documento (último `RN-CORE-89`, §14.14; `CA-CORE-270`-`272` ocupados según la sesión orquestadora, no localizados en este fichero). `OPEN-CORE-46` a `-53`, como siguientes a `OPEN-CORE-45`. Si alguno está ya usado en otro documento del módulo, se renumera antes de aprobar.
+
 ### 14.7 Auditoría (`core-audit`)
 
 Tabla `core.audit_logs`, **modo `cursor`** (`ADR-038 §4.2`), «Cargar más», tope de 1.000 filas (`RN-CORE-52`), estado en la URL (sin `cursor`, `RN-CORE-54`), **sin búsqueda** (el *endpoint* no acepta `q`) y **sin columnas ordenables** (orden fijo `occurred_at DESC, id DESC`, sin `sort`).
@@ -2060,7 +2256,7 @@ No se corrigen aquí; se reportan para que la sesión orquestadora abra el issue
 | `OPEN-CORE-35` | Zona horaria de fechas de auditoría | **1.9d** | A |
 | `OPEN-CORE-36` | Detalle de rol con concesiones | 1.9d | A |
 | `OPEN-CORE-37` | Grupo `security` en la configuración | 1.9e | B |
-| `OPEN-CORE-38` | Idioma de los mensajes de importación (#285) | **1.9c** | A |
+| `OPEN-CORE-38` | Idioma de los mensajes de importación (#285) | **1.9c** | A — **RESUELTA** (2026-10-02, decisión del usuario) |
 | `OPEN-CORE-39` | Contrato de `fallida` en `GET /data-exports` | — | **RESUELTA** (2026-10-01, decisión del usuario): A |
 | `OPEN-CORE-40` | Ampliaciones del componente de tablas | — | **RESUELTA** (2026-10-01, decisión del usuario): A |
 | `OPEN-CORE-41` | «Mis exportaciones» | No | A |
