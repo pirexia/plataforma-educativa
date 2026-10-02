@@ -32,7 +32,8 @@
     "nav": {
       "home": "Inicio",
       "users": "Usuarios",
-      "invitations": "Invitaciones"
+      "invitations": "Invitaciones",
+      "userImports": "Importación de usuarios"
     },
     "locale": {
       "name": {
@@ -146,7 +147,6 @@
         "familyName2": "Segundo apellido",
         "birthDate": "Fecha de nacimiento",
         "documentType": "Tipo de documento",
-        "documentTypeHint": "Texto libre. El formato solo se comprueba para DNI y NIE.",
         "documentNumber": "Número de documento",
         "contactEmail": "Correo de contacto",
         "contactPhone": "Teléfono de contacto",
@@ -196,6 +196,112 @@
       "flash": {
         "revoked": "Invitación de {email} revocada.",
         "reissued": "Invitación enviada a {email}. Caduca el {date}."
+      }
+    },
+    "person": {
+      "documentType": {
+        "dni": "DNI (documento nacional de identidad)",
+        "nie": "NIE (número de identidad de extranjero)",
+        "pasaporte": "Pasaporte",
+        "none": "Sin indicar"
+      }
+    },
+    "userImports": {
+      "title": "Importación de usuarios",
+      "intro": "Sube un fichero CSV para dar de alta usuarios en bloque. Primero se valida: no se crea nada hasta que ejecutas el lote.",
+      "caption": "Lotes de importación de usuarios",
+      "empty": {
+        "title": "No hay importaciones",
+        "text": "Los lotes aparecen aquí al subir un fichero."
+      },
+      "columns": {
+        "file": "Fichero",
+        "createdAt": "Subido",
+        "status": "Estado",
+        "rows": "Filas",
+        "errors": "Filas con error",
+        "created": "Usuarios creados"
+      },
+      "upload": {
+        "title": "Subir un fichero",
+        "file": "Fichero CSV",
+        "fileHint": "Formato CSV (.csv) en UTF-8, con separador «;» o «,», de hasta 10 MB.",
+        "sendInvitations": "Enviar invitaciones a los usuarios importados",
+        "submit": "Subir y validar",
+        "submitting": "Subiendo…",
+        "errors": {
+          "noFile": "Selecciona un fichero CSV.",
+          "extension": "El fichero debe tener la extensión .csv.",
+          "tooLarge": "El fichero supera los 10 MB."
+        }
+      },
+      "header": {
+        "title": "Cabecera exacta esperada",
+        "hint": "La primera fila del fichero debe ser exactamente esta, con las columnas en este orden.",
+        "copy": "Copiar la cabecera",
+        "copied": "Cabecera copiada.",
+        "manual": "El detalle de cada columna está en el manual de administración, apartado «Importación de usuarios»."
+      },
+      "documentTypes": {
+        "title": "Tipos de documento admitidos",
+        "hint": "En la columna document_type escribe uno de estos códigos; da igual que sea en mayúsculas o minúsculas. Si indicas el tipo debes indicar también el número, y al revés."
+      },
+      "detail": {
+        "pageTitle": "Lote de importación",
+        "title": "Importación {file}",
+        "intro": "Estado del lote y resultado de su validación.",
+        "state": "Estado",
+        "statusLine": "Estado: {status}",
+        "stalled": "El lote sigue sin avanzar. Puede que el proceso de importación no esté en marcha.",
+        "checkAgain": "Comprobar de nuevo",
+        "rows": "Filas",
+        "errors": "Filas con error",
+        "created": "Usuarios creados",
+        "uploadedAt": "Subido",
+        "validatedAt": "Validado",
+        "executedAt": "Ejecutado",
+        "incidents": "Incidencias",
+        "truncated": "Incidencias mostradas: {shown}. Filas con error en total: {total}. Descarga el informe completo para verlas todas.",
+        "report": "Descargar el informe completo",
+        "refreshReport": "Actualizar el enlace",
+        "execute": "Ejecutar",
+        "retry": "Reintentar la ejecución",
+        "discard": "Descartar",
+        "back": "Volver al listado",
+        "headerFailed": {
+          "title": "La cabecera del fichero no es válida",
+          "expected": "La cabecera esperada es:"
+        }
+      },
+      "confirm": {
+        "execute": {
+          "title": "Ejecutar la importación de {file}",
+          "creates": "Usuarios que se crearán: {count}.",
+          "skipsErrors": "Las filas con error se omiten.",
+          "invitationsYes": "Se enviarán invitaciones a los usuarios creados.",
+          "invitationsNo": "No se enviarán invitaciones.",
+          "invitationsUnknown": "Las invitaciones se envían según lo elegido al subir el fichero.",
+          "irreversible": "Una importación no se deshace.",
+          "confirm": "Ejecutar la importación de {file}"
+        },
+        "discard": {
+          "title": "Descartar la importación de {file}",
+          "description": "Se borrarán el fichero subido y el informe. No se ha creado ningún usuario.",
+          "confirm": "Descartar la importación de {file}"
+        }
+      },
+      "flash": {
+        "executing": "Importación en marcha. El estado se actualiza solo.",
+        "discarded": "Importación de {file} descartada."
+      }
+    },
+    "userImportErrors": {
+      "caption": "Incidencias de la importación",
+      "empty": "No hay incidencias",
+      "columns": {
+        "line": "Línea",
+        "column": "Columna",
+        "message": "Motivo"
       }
     }
   }

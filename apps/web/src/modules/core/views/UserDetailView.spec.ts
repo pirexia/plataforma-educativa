@@ -455,3 +455,40 @@ describe('OPEN-CORE-43 (A), CA-CORE-219: roles en la ficha', () => {
     expect(error?.getAttribute('role')).toBe('alert')
   })
 })
+
+describe('CA-CORE-283 (ADR-038 §7.3, RN-CORE-90): tipo de documento traducido, o el código crudo si el cliente no lo conoce', () => {
+  function documentTypeText(): string {
+    const term = [...document.body.querySelectorAll('dt')].find(
+      (candidate) => candidate.textContent?.trim() === 'Tipo de documento',
+    )
+
+    return term?.nextElementSibling?.textContent?.trim() ?? ''
+  }
+
+  it('un tipo del catálogo muestra la etiqueta traducida y no el código', async () => {
+    getUser.mockResolvedValue(
+      user({ person: { ...user().person, document_type: 'nie', document_number: 'X0000000T' } }),
+    )
+    await mountView()
+
+    expect(documentTypeText()).toBe('NIE (número de identidad de extranjero)')
+  })
+
+  it('un código que el cliente no conoce se pinta crudo', async () => {
+    getUser.mockResolvedValue(
+      user({ person: { ...user().person, document_type: 'carnet', document_number: 'ZZ-1' } }),
+    )
+    await mountView()
+
+    expect(documentTypeText()).toBe('carnet')
+  })
+
+  it('sin tipo se pinta el valor vacío común', async () => {
+    getUser.mockResolvedValue(
+      user({ person: { ...user().person, document_type: null, document_number: null } }),
+    )
+    await mountView()
+
+    expect(documentTypeText()).toBe(i18n.global.t('dataTable.emptyValue'))
+  })
+})

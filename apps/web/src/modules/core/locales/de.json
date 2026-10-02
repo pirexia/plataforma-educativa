@@ -32,7 +32,8 @@
     "nav": {
       "home": "Start",
       "users": "Benutzer",
-      "invitations": "Einladungen"
+      "invitations": "Einladungen",
+      "userImports": "Benutzerimport"
     },
     "locale": {
       "name": {
@@ -146,7 +147,6 @@
         "familyName2": "Zweiter Nachname",
         "birthDate": "Geburtsdatum",
         "documentType": "Dokumentart",
-        "documentTypeHint": "Freitext. Das Format wird nur für DNI und NIE geprüft.",
         "documentNumber": "Dokumentnummer",
         "contactEmail": "Kontakt-E-Mail",
         "contactPhone": "Kontakttelefon",
@@ -196,6 +196,112 @@
       "flash": {
         "revoked": "Einladung von {email} widerrufen.",
         "reissued": "Einladung an {email} gesendet. Sie läuft am {date} ab."
+      }
+    },
+    "person": {
+      "documentType": {
+        "dni": "Spanischer Personalausweis (DNI)",
+        "nie": "Ausländer-Identifikationsnummer (NIE)",
+        "pasaporte": "Reisepass",
+        "none": "Keine Angabe"
+      }
+    },
+    "userImports": {
+      "title": "Benutzerimport",
+      "intro": "Laden Sie eine CSV-Datei hoch, um Benutzer gesammelt anzulegen. Sie wird zuerst geprüft: Es wird nichts angelegt, bevor Sie den Stapel ausführen.",
+      "caption": "Stapel des Benutzerimports",
+      "empty": {
+        "title": "Keine Importe",
+        "text": "Stapel erscheinen hier, sobald Sie eine Datei hochladen."
+      },
+      "columns": {
+        "file": "Datei",
+        "createdAt": "Hochgeladen",
+        "status": "Status",
+        "rows": "Zeilen",
+        "errors": "Zeilen mit Fehlern",
+        "created": "Angelegte Benutzer"
+      },
+      "upload": {
+        "title": "Datei hochladen",
+        "file": "CSV-Datei",
+        "fileHint": "CSV-Format (.csv) in UTF-8, Trennzeichen „;“ oder „,“, bis zu 10 MB.",
+        "sendInvitations": "Einladungen an die importierten Benutzer senden",
+        "submit": "Hochladen und prüfen",
+        "submitting": "Wird hochgeladen…",
+        "errors": {
+          "noFile": "Wählen Sie eine CSV-Datei aus.",
+          "extension": "Die Datei muss die Endung .csv haben.",
+          "tooLarge": "Die Datei ist größer als 10 MB."
+        }
+      },
+      "header": {
+        "title": "Genau erwartete Kopfzeile",
+        "hint": "Die erste Zeile der Datei muss genau diese sein, mit den Spalten in dieser Reihenfolge.",
+        "copy": "Kopfzeile kopieren",
+        "copied": "Kopfzeile kopiert.",
+        "manual": "Die Einzelheiten zu jeder Spalte stehen im Administrationshandbuch, Abschnitt „Benutzerimport“."
+      },
+      "documentTypes": {
+        "title": "Unterstützte Dokumentarten",
+        "hint": "Schreiben Sie in die Spalte document_type einen dieser Codes; Groß- oder Kleinschreibung spielt keine Rolle. Wenn Sie die Art angeben, müssen Sie auch die Nummer angeben und umgekehrt."
+      },
+      "detail": {
+        "pageTitle": "Importstapel",
+        "title": "Import {file}",
+        "intro": "Status des Stapels und Ergebnis der Prüfung.",
+        "state": "Status",
+        "statusLine": "Status: {status}",
+        "stalled": "Der Stapel kommt nicht voran. Möglicherweise läuft der Importprozess nicht.",
+        "checkAgain": "Erneut prüfen",
+        "rows": "Zeilen",
+        "errors": "Zeilen mit Fehlern",
+        "created": "Angelegte Benutzer",
+        "uploadedAt": "Hochgeladen",
+        "validatedAt": "Geprüft",
+        "executedAt": "Ausgeführt",
+        "incidents": "Beanstandungen",
+        "truncated": "Angezeigte Beanstandungen: {shown}. Zeilen mit Fehlern insgesamt: {total}. Laden Sie den vollständigen Bericht herunter, um alle zu sehen.",
+        "report": "Vollständigen Bericht herunterladen",
+        "refreshReport": "Link aktualisieren",
+        "execute": "Ausführen",
+        "retry": "Ausführung wiederholen",
+        "discard": "Verwerfen",
+        "back": "Zurück zur Liste",
+        "headerFailed": {
+          "title": "Die Kopfzeile der Datei ist ungültig",
+          "expected": "Die erwartete Kopfzeile lautet:"
+        }
+      },
+      "confirm": {
+        "execute": {
+          "title": "Import von {file} ausführen",
+          "creates": "Anzulegende Benutzer: {count}.",
+          "skipsErrors": "Zeilen mit Fehlern werden übersprungen.",
+          "invitationsYes": "An die angelegten Benutzer werden Einladungen gesendet.",
+          "invitationsNo": "Es werden keine Einladungen gesendet.",
+          "invitationsUnknown": "Einladungen werden so gesendet, wie beim Hochladen der Datei gewählt.",
+          "irreversible": "Ein Import kann nicht rückgängig gemacht werden.",
+          "confirm": "Import von {file} ausführen"
+        },
+        "discard": {
+          "title": "Import von {file} verwerfen",
+          "description": "Die hochgeladene Datei und der Bericht werden gelöscht. Es wurde noch kein Benutzer angelegt.",
+          "confirm": "Import von {file} verwerfen"
+        }
+      },
+      "flash": {
+        "executing": "Import läuft. Der Status aktualisiert sich von selbst.",
+        "discarded": "Import von {file} verworfen."
+      }
+    },
+    "userImportErrors": {
+      "caption": "Beanstandungen des Imports",
+      "empty": "Keine Beanstandungen",
+      "columns": {
+        "line": "Zeile",
+        "column": "Spalte",
+        "message": "Grund"
       }
     }
   }

@@ -13,10 +13,14 @@
  *   toca el campo; vaciar uno opcional envía `null`, nunca `""`.
  * - **Un `403` de `RPERM-013`** (asignar un rol con permisos que el solicitante
  *   no tiene) muestra el `detail` del servidor junto al campo de roles.
- * - **Tipo de documento**: el servidor lo acepta como texto libre (hasta 32
- *   caracteres) y solo valida el formato de `DNI` y `NIE`
- *   (`DocumentNumberValidator`); no hay catálogo cerrado que ofrecer, así que
- *   es un campo de texto y no un selector con una lista inventada.
+ * - **Tipo de documento** (`RN-CORE-90`, `§14.6.4.7`, `OPEN-CORE-53` = A): un
+ *   selector con «Sin indicar» (no envía nada) más los códigos de la constante
+ *   `DOCUMENT_TYPES` (comprobada contra el enumerado PHP). El número queda
+ *   deshabilitado mientras el tipo sea «Sin indicar» y entonces tampoco se
+ *   envía (comodidad; decide el servidor, `INV-010`). Al editar a una persona
+ *   con un valor anterior al catálogo, el selector lo conserva como opción con
+ *   su código crudo (igual que un idioma retirado) y el `PATCH` no lo envía si
+ *   no se toca.
  * - **El token de la invitación nunca llega a la SPA** (`RN-CORE-19`): solo su
  *   caducidad (`invitation.expires_at`).
  */
@@ -31,6 +35,7 @@ import ErrorState from '@/layouts/components/ErrorState.vue'
 import LoadingState from '@/layouts/components/LoadingState.vue'
 import { resolveErrorState, type ShellErrorState } from '@/layouts/errorState'
 import { useTenantBranding } from '@/tenant/useTenantBranding'
+import { DOCUMENT_TYPES } from '../documentTypes'
 import {
   createUser,
   getUser,
@@ -102,6 +107,23 @@ function emptyValues(): FormValues {
 
 const values = reactive<FormValues>(emptyValues())
 let initial: FormValues = emptyValues()
+
+/** Sin tipo no hay número: con «Sin indicar» el número no se envía (RN-CORE-91, comodidad de cliente). */
+function effectiveNumber(): string {
+  return values.document_type === '' ? '' : values.document_number
+}
+
+/** Un tipo guardado antes del catálogo se conserva como opción, con su código crudo. */
+const legacyDocumentType = computed(() =>
+  values.document_type !== '' &&
+  !(DOCUMENT_TYPES as readonly string[]).includes(values.document_type)
+    ? values.document_type
+    : null,
+)
+
+function documentTypeName(code: string): string {
+  return translated(`core.person.documentType.${code}`, code)
+}
 
 const loading = ref(false)
 const loadError = ref<ShellErrorState | null>(null)
@@ -231,7 +253,7 @@ function createPayload(): CreateUserPayload {
   }
 
   for (const name of PERSON_FIELDS) {
-    const value = values[name].trim()
+    const value = (name === 'document_number' ? effectiveNumber() : values[name]).trim()
 
     if (value !== '' && name !== 'given_name' && name !== 'family_name_1') {
       person[name] = value
@@ -261,7 +283,7 @@ function updatePayload(): UpdateUserPayload | null {
   }
 
   for (const name of PERSON_FIELDS) {
-    const value = values[name].trim()
+    const value = (name === 'document_number' ? effectiveNumber() : values[name]).trim()
 
     if (value !== initial[name]) {
       person[name] = value === '' ? null : value
@@ -374,6 +396,8 @@ async function showError(err: unknown): Promise<void> {
 
 interface InputField {
   name: Exclude<FieldName, 'email' | 'locale'>
+  /** `documentType`: selector del catálogo cerrado en vez de un campo de texto. */
+  kind?: 'documentType'
   labelKey: string
   type?: 'date' | 'email' | 'tel'
   required?: boolean
@@ -387,12 +411,7 @@ const inputFields: readonly InputField[] = [
   { name: 'family_name_1', labelKey: 'core.users.form.familyName1', required: true },
   { name: 'family_name_2', labelKey: 'core.users.form.familyName2' },
   { name: 'birth_date', labelKey: 'core.users.form.birthDate', type: 'date' },
-  {
-    name: 'document_type',
-    labelKey: 'core.users.form.documentType',
-    maxlength: 32,
-    hintKey: 'core.users.form.documentTypeHint',
-  },
+  { name: 'document_type', labelKey: 'core.users.form.documentType', kind: 'documentType' },
   { name: 'document_number', labelKey: 'core.users.form.documentNumber', maxlength: 32 },
   { name: 'contact_email', labelKey: 'core.users.form.contactEmail', type: 'email' },
   { name: 'contact_phone', labelKey: 'core.users.form.contactPhone', type: 'tel', maxlength: 32 },
@@ -461,12 +480,30 @@ const selectClass =
               <span class="sr-only">{{ t('core.users.form.required') }}</span>
             </template>
           </Label>
+          <select
+            v-if="field.kind === 'documentType'"
+            :id="`user-form-${field.name}`"
+            v-model="values.document_type"
+            :class="selectClass"
+            :aria-invalid="invalid(field.name)"
+            :aria-describedby="fieldDescribedBy(field)"
+          >
+            <option value="">{{ t('core.person.documentType.none') }}</option>
+            <option v-for="code in DOCUMENT_TYPES" :key="code" :value="code">
+              {{ documentTypeName(code) }}
+            </option>
+            <option v-if="legacyDocumentType" :value="legacyDocumentType">
+              {{ legacyDocumentType }}
+            </option>
+          </select>
           <Input
+            v-else
             :id="`user-form-${field.name}`"
             v-model="values[field.name]"
             :type="field.type"
             :maxlength="field.maxlength"
             :required="field.required"
+            :disabled="field.name === 'document_number' && values.document_type === ''"
             autocomplete="off"
             :aria-invalid="invalid(field.name)"
             :aria-describedby="fieldDescribedBy(field)"

@@ -438,7 +438,16 @@ async function saveRoles(): Promise<void> {
           </div>
           <div>
             <dt class="text-muted-foreground text-xs">{{ t('core.users.detail.documentType') }}</dt>
-            <dd>{{ user.person.document_type ?? t('dataTable.emptyValue') }}</dd>
+            <dd>
+              {{
+                user.person.document_type
+                  ? translated(
+                      `core.person.documentType.${user.person.document_type}`,
+                      user.person.document_type,
+                    )
+                  : t('dataTable.emptyValue')
+              }}
+            </dd>
           </div>
           <div>
             <dt class="text-muted-foreground text-xs">

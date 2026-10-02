@@ -3,13 +3,16 @@
  * usuario (1.9b) — `CA-CORE-217` (errores por campo, foco y resumen),
  * `-218` (`PATCH` solo con lo modificado), `-219` (`403` de `RPERM-013`
  * junto al selector de roles), `-221` (mensaje con la caducidad, sin token)
- * y `-260` (etiquetas y marca de obligatorio no solo visual).
+ * y `-260` (etiquetas y marca de obligatorio no solo visual); y, desde 1.9c,
+ * `CA-CORE-281` (selector del catálogo cerrado de tipos de documento,
+ * `RN-CORE-90`, issue #292).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { i18n, setLocale } from '@/i18n'
 import { ApiError } from '@/api/client'
+import { DOCUMENT_TYPES } from '../documentTypes'
 
 const createUser = vi.fn()
 const updateUser = vi.fn()
@@ -182,12 +185,131 @@ describe('alta (RN-CORE-65): payload y campos', () => {
     expect(input('contact_phone').type).toBe('tel')
     expect(input('birth_date').type).toBe('date')
   })
+})
 
-  it('el tipo de documento es texto libre, no un selector', async () => {
+describe('CA-CORE-281 (RN-CORE-90, #292): el tipo de documento es un selector del catálogo cerrado', () => {
+  function optionValues(id: string): string[] {
+    return [...(input(id) as unknown as HTMLSelectElement).options].map((option) => option.value)
+  }
+
+  function optionTexts(id: string): string[] {
+    return [...(input(id) as unknown as HTMLSelectElement).options].map(
+      (option) => option.textContent?.trim() ?? '',
+    )
+  }
+
+  it('«Sin indicar» más exactamente los códigos de la constante, con etiqueta traducida', async () => {
     await mountView('/administracion/usuarios/nuevo')
 
-    expect(input('document_type').tagName).toBe('INPUT')
-    expect(input('document_type').getAttribute('maxlength')).toBe('32')
+    expect(input('document_type').tagName).toBe('SELECT')
+    expect(optionValues('document_type')).toEqual(['', ...DOCUMENT_TYPES])
+    expect(optionTexts('document_type')).toEqual([
+      'Sin indicar',
+      'DNI (documento nacional de identidad)',
+      'NIE (número de identidad de extranjero)',
+      'Pasaporte',
+    ])
+    // La pista de «texto libre» ya no existe.
+    expect(document.getElementById('user-form-document_type-hint')).toBeNull()
+  })
+
+  it('con «Sin indicar» el número está deshabilitado y el cuerpo del alta no contiene ni tipo ni número', async () => {
+    createUser.mockResolvedValue({ ...loadedUser(), invitation: null })
+    const { wrapper } = await mountView('/administracion/usuarios/nuevo')
+
+    expect(input('document_number').disabled).toBe(true)
+
+    await type('email', 'nueva@example.com')
+    await type('given_name', 'Marta')
+    await type('family_name_1', 'Ruiz')
+    await submit(wrapper)
+
+    const body = createUser.mock.calls[0]![0] as { person: Record<string, unknown> }
+
+    expect(body.person).not.toHaveProperty('document_type')
+    expect(body.person).not.toHaveProperty('document_number')
+  })
+
+  it('al elegir un tipo se habilita el número y los dos viajan; el cliente no normaliza el número (decide el servidor)', async () => {
+    createUser.mockResolvedValue({ ...loadedUser(), invitation: null })
+    const { wrapper } = await mountView('/administracion/usuarios/nuevo')
+
+    const select = input('document_type') as unknown as HTMLSelectElement
+
+    select.value = 'dni'
+    select.dispatchEvent(new Event('change', { bubbles: true }))
+    await flushPromises()
+
+    expect(input('document_number').disabled).toBe(false)
+
+    await type('document_number', ' 12345678-z ')
+    await type('email', 'nueva@example.com')
+    await type('given_name', 'Marta')
+    await type('family_name_1', 'Ruiz')
+    await submit(wrapper)
+
+    expect(createUser.mock.calls[0]![0].person).toMatchObject({
+      document_type: 'dni',
+      document_number: '12345678-z',
+    })
+  })
+
+  it('al editar a una persona con un tipo anterior al catálogo, el selector lo conserva con su código crudo y el PATCH no lo envía si no se toca', async () => {
+    const { wrapper } = await mountView('/administracion/usuarios/U1/editar')
+
+    expect(optionValues('document_type')).toContain('DNI')
+    expect(optionTexts('document_type')).toContain('DNI')
+    expect((input('document_type') as unknown as HTMLSelectElement).value).toBe('DNI')
+
+    await type('given_name', 'Anabel')
+    await submit(wrapper)
+
+    expect(updateUser).toHaveBeenCalledWith('U1', { person: { given_name: 'Anabel' } })
+  })
+
+  it('al editar, pasar a «Sin indicar» envía los dos a null (vaciar el par, RN-CORE-93)', async () => {
+    const { wrapper } = await mountView('/administracion/usuarios/U1/editar')
+
+    const select = input('document_type') as unknown as HTMLSelectElement
+
+    select.value = ''
+    select.dispatchEvent(new Event('change', { bubbles: true }))
+    await flushPromises()
+
+    expect(input('document_number').disabled).toBe(true)
+
+    await submit(wrapper)
+
+    expect(updateUser).toHaveBeenCalledWith('U1', {
+      person: { document_type: null, document_number: null },
+    })
+  })
+
+  it('un 422 del servidor en person.document_type se pinta bajo el selector con aria-invalid', async () => {
+    createUser.mockRejectedValue(
+      problem(422, {
+        errors: {
+          'person.document_type': [
+            {
+              code: 'core.validation.document_type_invalid',
+              message: 'El tipo de documento «carnet» no está admitido.',
+            },
+          ],
+        },
+      }),
+    )
+    const { wrapper } = await mountView('/administracion/usuarios/nuevo')
+
+    await type('email', 'nueva@example.com')
+    await type('given_name', 'Marta')
+    await type('family_name_1', 'Ruiz')
+    await submit(wrapper)
+
+    expect(input('document_type').getAttribute('aria-invalid')).toBe('true')
+    expect(document.getElementById('user-form-document_type-error')?.textContent).toContain(
+      'carnet',
+    )
+    expect(document.activeElement).toBe(input('document_type'))
   })
 })
 
