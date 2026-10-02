@@ -5,6 +5,7 @@ namespace App\Modules\Core\Application;
 use App\Models\Person;
 use App\Models\Role;
 use App\Models\User;
+use App\Modules\Core\Domain\DocumentType;
 use App\Modules\Core\Domain\TenantSettingsReader;
 use Illuminate\Support\Collection;
 
@@ -31,7 +32,7 @@ final class UserImportRowValidator
      * @param  array<string, bool>  $seenEmails
      * @param  array<string, bool>  $seenDocuments
      * @param  Collection<string, Role>  $rolesByCode
-     * @return array{errors: list<array{line: int, column: string, code: string, message: string}>, roles: list<string>}
+     * @return array{errors: list<array{line: int, column: string, code: string, message: string}>, roles: list<string>, document: array{type: ?string, number: ?string}}
      */
     public function validate(array $row, int $line, array &$seenEmails, array &$seenDocuments, Collection $rolesByCode): array
     {
@@ -57,21 +58,35 @@ final class UserImportRowValidator
             $seenEmails[$email] = true;
         }
 
-        $documentType = $row['document_type'] ?? null;
-        $documentNumber = $row['document_number'] ?? null;
+        // RN-CORE-90 a 92 (§14.6.4.6): catálogo cerrado con grafía tolerante
+        // en la hoja (OPEN-CORE-50 = A), par completo y valor normalizado.
+        $document = ['type' => null, 'number' => null];
+        $rawType = $row['document_type'] ?? null;
+        $rawNumber = $row['document_number'] ?? null;
 
-        if ($documentNumber !== null) {
-            $documentKey = strtoupper((string) $documentType).'|'.strtoupper($documentNumber);
+        if ($rawType !== null || $rawNumber !== null) {
+            $type = DocumentType::fromLooseCode($rawType);
 
-            if (! $this->documentValidator->isValid((string) $documentType, $documentNumber)) {
+            if ($rawType !== null && $type === null) {
+                $errors[] = $this->error($line, 'document_type', 'tipo_documento_no_valido');
+            } elseif ($type === null || $rawNumber === null) {
+                $errors[] = $this->error($line, $type === null ? 'document_type' : 'document_number', 'documento_incompleto');
+            } elseif (! $this->documentValidator->isValid($type, $rawNumber)) {
                 $errors[] = $this->error($line, 'document_number', 'formato_invalido');
-            } elseif (isset($seenDocuments[$documentKey])) {
-                $errors[] = $this->error($line, 'document_number', 'duplicado_en_fichero');
-            } elseif (Person::query()->where('document_type', $documentType)->where('document_number', $documentNumber)->exists()) {
-                $errors[] = $this->error($line, 'document_number', 'duplicado_en_base_de_datos');
-            }
+            } else {
+                $number = $this->documentValidator->normalize($type, $rawNumber);
+                $documentKey = $type->value.'|'.$number;
 
-            $seenDocuments[$documentKey] = true;
+                if (isset($seenDocuments[$documentKey])) {
+                    $errors[] = $this->error($line, 'document_number', 'duplicado_en_fichero');
+                } elseif (Person::query()->where('document_type', $type->value)->where('document_number', $number)->exists()) {
+                    $errors[] = $this->error($line, 'document_number', 'duplicado_en_base_de_datos');
+                } else {
+                    $document = ['type' => $type->value, 'number' => $number];
+                }
+
+                $seenDocuments[$documentKey] = true;
+            }
         }
 
         if ($row['birth_date'] !== null && ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $row['birth_date'])) {
@@ -94,7 +109,7 @@ final class UserImportRowValidator
             }
         }
 
-        return ['errors' => $errors, 'roles' => $roleCodes];
+        return ['errors' => $errors, 'roles' => $roleCodes, 'document' => $document];
     }
 
     /**
