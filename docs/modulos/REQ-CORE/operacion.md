@@ -353,3 +353,24 @@ Ninguna nueva. Conviene mirar, con las de §7: profundidad de `core-exports` (ah
 | El informe de errores o un logotipo no cargan tras un rato en la pantalla | URL firmada caducada (15 min); la vista la renueva una vez (`funcional.md §14.6.2`, `RN-CORE-83`) |
 | Los nombres de rol salen en otro idioma tras cambiarlo | La tabla no ha recargado la página (`RN-CORE-63`); si persiste, es un fallo |
 | Falta el filtro de rol o de usuario en una pantalla | El usuario no tiene `rol.leer` / `usuario.leer`: comportamiento correcto (`RN-CORE-62`) |
+
+## 14. Paso 1.9c (importación de usuarios y catálogo de documentos)
+
+> Estado: **IMPLEMENTADO** (2026-10-02), con `funcional.md §14.6`/`§14.6.4`. Pendiente de revisión independiente.
+
+| Aspecto | Paso 1.9c |
+|---------|-----------|
+| Imágenes | `apps/api` (S8, S9, catálogo de documentos) y `apps/web` (pantallas de importación, selector de documento) |
+| Migraciones | **Una, de datos**, sin cambio de esquema: `2026_10_02_100200_normalize_people_document_to_catalog` (`datos.md` Parte E). **Aborta sin tocar nada** si hay tipos sin correspondencia o duplicados creados por la normalización, y enumera los `public_id`: se corrigen o se resiembran a mano y se vuelve a lanzar `migrate`. El `CHECK` del catálogo es la entrega N+1, **sin paso asignado** |
+| Variables de entorno | **Ninguna nueva** |
+| Colas y trabajos | Sin trabajos nuevos. `ValidateUserImport` fija el idioma de sus mensajes al de quien subió el lote y **restaura** el del proceso al terminar (con la cola `sync` el proceso es el de la petición) |
+| Dependencias | **Ninguna nueva**. La ULID de la `Idempotency-Key` se genera con utilidad propia (`apps/web/src/lib/ulid.ts`) |
+| Navegador | Claves `plataforma.table.core.user_imports` y `plataforma.table.core.user_import_errors` (sin datos de fila) |
+
+**Orden de despliegue.** 1) Migración de datos (compatible con la versión anterior: acepta cualquier texto, también el canónico). 2) `apps/api`. 3) `apps/web`: la SPA nueva envía el código en minúsculas y la API anterior lo aceptaría; la inversa (API nueva con SPA anterior) rechazaría con `422` el tipo escrito a mano de la SPA antigua, por lo que no debe desplegarse la API nueva mucho tiempo antes que la web.
+
+**Reversión.** `apps/web` y `apps/api` a la imagen anterior sin más. La migración **no se revierte** (su `down()` está vacío): los datos normalizados siguen siendo válidos para la versión anterior.
+
+**Dependencia operativa (#128).** Sin *worker* de `core-imports` la importación se queda en `subido`; la interfaz deja de consultar a los 10 min y ofrece «Comprobar de nuevo» (`RN-CORE-72`). **Cerrar 1.9c sin #128 resuelto entrega una pantalla que no opera en producción** (`funcional.md §14.15`). En desarrollo: `php artisan queue:work --queue=core-imports,core-exports`.
+
+**Datos pendientes de purga en la base de pruebas.** Las tablas `people` de las suites de desarrollo conservan filas huérfanas de pruebas que no limpian lo que siembran (`tenants` se borra, `people` no cae con él). La migración de datos las vería: si en un entorno de desarrollo aborta por «tipos sin correspondencia», revisa primero esas filas antes de buscar un fallo en el catálogo.

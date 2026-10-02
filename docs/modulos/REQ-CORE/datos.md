@@ -412,3 +412,31 @@ Ninguna de estas purgas toca `audit_logs`: la retención del registro de auditor
 **Datos personales en el artefacto de exportación de usuarios.** El fichero contiene datos identificativos del personal y, si lo hay, del alumnado con cuenta: correo de acceso, nombre y apellidos, correo y teléfono de contacto, idioma y roles (esquema cerrado de `funcional.md §14.11.1`). **No contiene** tipo ni número de documento ni fecha de nacimiento (`OPEN-CORE-32` = B, decisión del usuario del 2026-10-01; `INV-008`). Su tratamiento es el mismo que el de la exportación de auditoría: objeto privado en el *bucket*, URL firmada de caducidad corta, solo el solicitante, purga a los siete días por `PurgeExpiredExports` (A.9), sin copia en la base de datos ni en `audit_logs` (`filters` solo lleva códigos y ULID). Nada que añadir al esquema; sí a `PRIVACY.md` (`funcional.md §14.20`).
 
 `tenant_id`: la fila de `data_exports` ya lo lleva (`tenantTable()`); el trabajo `GenerateUserExport` fija el contexto de tenant al arrancar (`operacion.md §4`). `academic_year_id`: **no aplica** (A.4).
+
+---
+
+# Parte E · Paso 1.9c (importación y catálogo de tipos de documento): una migración de datos, sin cambio de esquema
+
+> Estado: **IMPLEMENTADA** (2026-10-02), con `funcional.md §14.6.4` (aprobada, `OPEN-CORE-46` = B y `-47` a `-53` según la opción recomendada). Corrige `RN-CORE-90` a `-93` en `people` y sustituye lo dicho en la Parte D («`1.9c`-`1.9f` no tocan el esquema») **solo en lo que toca a datos**: 1.9c no añade ni modifica ninguna columna, índice ni restricción.
+
+**Catálogo cerrado** de `people.document_type` (`RN-CORE-90`): `dni`, `nie`, `pasaporte`, en minúsculas, fuente única `App\Modules\Core\Domain\DocumentType`. La columna sigue siendo `text` (`ADR-029`) con el índice único `UNIQUE (tenant_id, document_type, document_number) WHERE document_number IS NOT NULL AND deleted_at IS NULL`.
+
+| Entrega (`OPEN-CORE-52` = A) | Qué | Estado |
+|------------------------------|-----|--------|
+| **N (1.9c)** | La aplicación valida contra el catálogo y normaliza al escribir. Migración **de datos** `2026_10_02_100200_normalize_people_document_to_catalog`: lleva el tipo (`DNI`, `dni`, ` Nie `...) al código canónico y el número a su forma canónica (`upper(trim)`; en `dni`/`nie`, sin espacios ni guiones). **Sin `CHECK`** | Hecha |
+| **N+1** | `CHECK (document_type IS NULL OR document_type IN ('dni','nie','pasaporte'))`, añadido `NOT VALID` y validado después (skill `migracion-segura`), cuando ya no corra ningún proceso de N-1 (incluidos *workers* de `core-imports` con trabajos encolados). Con N+1 se retira también el uso de `DocumentType::values()` como única defensa | **Pendiente**, sin paso del plan que la nombre |
+
+**El `CHECK` de par ya existe.** `people_document_type_number_paired` (`CHECK ((document_type IS NULL) = (document_number IS NULL))`, migración `2026_08_18_101000`, hallazgo #20 de 0.8) está en la base de datos desde 0.8. §14.6.4.4 lo daba por añadir en N+1 «si `OPEN-CORE-48` = A»: no hay nada que añadir. Antes de 1.9c, un número sin tipo dado de alta por la API chocaba con él como `500`; `RN-CORE-91` lo convierte en `422` (`core.validation.document_incomplete`).
+
+**Comportamiento de la migración de datos.**
+
+- **Conexión `pgsql_platform`** (`BYPASSRLS`, `ADR-033 §5`): es una migración entre **todos** los centros, y `plataforma_owner` queda sujeto a RLS por `FORCE` (no vería ninguna fila de ningún tenant).
+- Antes de escribir **comprueba** (1) que ninguna fila queda con un tipo sin correspondencia con el catálogo (`lower(trim(tipo))` ∉ {`dni`, `nie`, `pasaporte`}) y (2) que la normalización no deja a dos personas **vivas** del mismo centro con el mismo documento. Si ocurre cualquiera, **aborta con una `RuntimeException` que enumera los `public_id` afectados y no modifica ninguna fila** (una única transacción): nunca se inventa una correspondencia. Las personas dadas de baja no cuentan como duplicado (el índice único las excluye) y el mismo documento en centros distintos tampoco.
+- Idempotente: una segunda ejecución no encuentra nada que cambiar.
+- **Sin reversión** (`down()` vacío): la forma canónica es válida también para la versión anterior de la aplicación (acepta cualquier texto) y la grafía original no se conserva.
+- El `UPDATE` no pasa por los *observers* de auditoría (`INV-003`): es una migración de datos del esquema, no una modificación hecha por una persona; `updated_at` no se toca.
+- La lista de códigos y la regla de normalización **se repiten dentro de la migración** a propósito: una migración no debe depender de código de aplicación que puede cambiar después (un tipo nuevo del enumerado no debe alterar lo que esta migración hizo en su día).
+
+**Auditoría** (`ADR-035`): sin cambio. `Person` sigue `Selective`; `document_type` y `document_number` siguen redactados como `identifier`. `OPEN-CORE-32` = B: ni el tipo ni el número salen en el CSV de exportación de usuarios.
+
+`user_imports`: sin cambio. `created_at` ya existía (S8 solo lo expone). El idioma de los mensajes (#285) se resuelve al validar (`created_by` → `people.locale`) y **no se guarda** en la tabla.

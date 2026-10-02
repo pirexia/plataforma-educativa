@@ -6,6 +6,28 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-02 · `feature/REQ-CORE-003-importacion-usuarios` (implementación de `1.9c`)
+
+Implementa el sub-paso `1.9c` (importación de usuarios, `REQ-CORE-003`) y el **catálogo cerrado de tipos de documento de identidad** (`funcional.md §14.6.4`, aprobado el 2026-10-02; issues #292, #308, #309, #310 y #285). Con una migración **de datos** (sin cambio de esquema), sin permisos nuevos ni dependencias nuevas. Notas y desviaciones: `funcional.md §14.23`.
+
+### Añadido
+- **Catálogo cerrado `person.document_type`** (`RN-CORE-90` a `-93`): enumerado público `App\Modules\Core\Domain\DocumentType` (`dni`, `nie`, `pasaporte`, minúsculas, sin `otro`); par tipo-número completo; número normalizado al guardar (recorte y mayúsculas; en `dni`/`nie`, sin espacios ni guiones); revalidación del par resultante en `PATCH` (`PersonDocumentRules`, una sola vía para alta y edición). Formato del pasaporte `^[A-Z0-9]{1,32}$` sin dígito de control. Errores nuevos `core.validation.document_type_invalid` y `core.validation.document_incomplete`; en la importación, `tipo_documento_no_valido` y `documento_incompleto` (cuatro idiomas). `enum` de OpenAPI derivado del enumerado (`CA-CORE-279`).
+- **Migración de datos** `2026_10_02_100200_normalize_people_document_to_catalog` (entrega N de `OPEN-CORE-52` = A, sin `CHECK`): normaliza tipo y número de las filas existentes; **aborta sin tocar nada** enumerando los `public_id` si hay un tipo sin correspondencia o duplicados creados por la normalización. Usa `pgsql_platform` (el rol propietario no ve filas por RLS `FORCE`).
+- **`apps/web`**: pantallas `/administracion/importaciones` (subida, cabecera copiable, lista de tipos de documento admitidos, listado de lotes) y `/administracion/importaciones/:publicId` (seguimiento con la política de `RN-CORE-49`, ejecución con `Idempotency-Key` ULID estable por confirmación, incidencias con el componente de tablas, aviso de las 50 primeras, informe firmado con renovación, descartar); selector del catálogo en el formulario de usuario y etiqueta traducida en la ficha; constante `DOCUMENT_TYPES` con test cruzado contra el enumerado PHP; `apps/web/src/lib/ulid.ts` (ULID propio, sin dependencia).
+
+### Cambiado
+- **Cambio de contrato** (`ADR-038 §7`): `POST /users` y `PATCH /users/{id}` **dejan de aceptar texto libre** en `person.document_type` (`422`); incompatible en sentido estricto, sin más clientes que la SPA propia y sin producción. `GET /users`, `GET /users/{id}` y `GET /me` devuelven el código canónico.
+- **S8**: `UserImportResource` devuelve `created_at` (`CA-CORE-238`). **S9** (`OPEN-CORE-38` = A, #285): el `message` de las incidencias —en `error_summary` y en `report.csv`— sale en el idioma de quien subió el lote (`person.locale` si está activo en el centro; si no, `default_locale`), y el trabajo restaura el idioma del proceso al terminar.
+- `UserImportRowValidator`/`ExecuteUserImport`: grafía tolerante del código en la hoja (`OPEN-CORE-50` = A), duplicados sobre el valor normalizado (dentro del fichero y contra la base de datos) y el código y número canónicos al crear.
+- Se corrigen **F1 a F7** de `§14.6.4.8` (#308, #309, #310): duplicado por mayúsculas, `PATCH` sin revalidar, número sin tipo, importación que comparaba en crudo, minúsculas con la letra de control desactivada, formato de pasaporte inexistente y *docblock* erróneo de `DocumentNumberValidator`.
+- `openapi/components.yaml`: cinco descripciones con YAML inválido entrecomilladas (impedían leer el fichero).
+- Documentación: `REQ-CORE/{funcional §14.23, api, datos Parte E, permisos §13, operacion §14}.md`, manual `admin.md` (alta y edición, «Importar usuarios»), `docs/i18n.md`.
+
+### Verificado
+Pest completo en el host (`php -d memory_limit=512M ./vendor/bin/pest`): **806/821**; los 15 fallos son todos de SAML (`SamlLoginTest` 10, `SamlAssertionValidationTest` 3, `SamlAcsTest` 1, `SamlCertificatesTest` 1), los mismos 15 que ya constaban en `1.9b` (issue #291, causa sin diagnosticar), ajenos a este diff. Las pruebas de OIDC/IdP necesitan el simulador SSO del contenedor `plataforma-api` (`http://localhost:8000`): sin él fallan 74. Tests nuevos del paso: 20 Pest (`DocumentTypeCatalogTest` 11, `UserImportCatalogTest` 6, `DocumentNumberValidatorTest` +3). Vitest **876/876** (799 en `1.9b`), ESLint sin errores (1 aviso de Prettier preexistente en `e2e/shell.spec.ts`), `lint:i18n`, `vue-tsc -b` y `npm run build` limpios, Pint y Larastan (`phpstan analyse`, nivel del proyecto) en verde. Playwright **no se ha ejecutado** (no hay pruebas e2e nuevas en este paso). Revisión independiente (`security-reviewer`, `doc-reviewer`) pendiente.
+
+---
+
 ## 2026-10-02 · `feature/REQ-CORE-003-usuarios-invitaciones` (implementación de `1.9b`)
 
 Implementa el sub-paso `1.9b` (usuarios e invitaciones, `REQ-CORE-003`; exportación de usuarios, `REQ-CORE-005`), sobre `docs/modulos/REQ-CORE/funcional.md §14` (aprobada el 2026-10-01). Con una migración *expand*, sin permisos nuevos ni dependencias nuevas. Notas y desviaciones: `funcional.md §14.22`.

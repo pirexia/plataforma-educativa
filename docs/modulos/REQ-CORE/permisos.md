@@ -394,3 +394,9 @@ La correspondencia vive en código, cerrada, junto al controlador o a `ExportReq
 - `CA-CORE-223`, `-225`, `-228`, `-229` (servidor: `403`, `404` entre tenants, `include_deleted`, autorización por `kind`).
 - `CA-CORE-102` sigue en verde con las pantallas nuevas.
 - Test de catálogo de §9: sigue habiendo exactamente 25 códigos con `module_code = 'core'`; ninguno nuevo.
+
+## 13. Paso 1.9c (importación de usuarios)
+
+1.9c **no declara, retira ni concede ningún permiso**, ni cambia la asignación de §4.1; no hace falta `platform:sync-registry` extraordinario. Las dos pantallas de importación (`/administracion/importaciones` y `/administracion/importaciones/:publicId`) exigen `usuario.importar` (ámbito `todos`) en `meta.permissions` de la ruta, el permiso de todos los *endpoints* de `/user-imports` (`api.md §7`); ninguna usa `permissions: []`. Todas las acciones del detalle (ejecutar, descartar, renovar el enlace del informe) son del mismo permiso, así que no hay acciones secundarias con permiso propio que ocultar (`RN-CORE-61`). Quien decide de verdad es el servidor (`INV-002`): un lote de otro centro responde `404`, nunca `403`.
+
+El catálogo de tipos de documento no es un permiso ni un dato por rol: es el mismo para todos los centros (`RN-CORE-90`).

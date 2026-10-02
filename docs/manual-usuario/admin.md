@@ -66,7 +66,7 @@ Las confirmaciones son un diálogo que nombra a la persona y la consecuencia («
 
 El formulario pide: correo de acceso, nombre y primer apellido (obligatorios, marcados con *), y opcionalmente segundo apellido, fecha de nacimiento, tipo y número de documento, correo y teléfono de contacto e idioma preferido (solo los idiomas activos del centro). En el alta aparecen además los **roles** (si tu rol puede asignarlos) y la casilla «Enviar invitación por correo», marcada por defecto. En la edición solo se envían los campos que cambias.
 
-- **Tipo de documento**: texto libre. El formato solo se comprueba para **DNI** y **NIE** (con su dígito de control); con otro tipo, el sistema solo exige que el número no esté vacío.
+- **Tipo de documento**: se elige de una lista cerrada (**DNI**, **NIE** o **Pasaporte**) o se deja en «Sin indicar». Tipo y número van **los dos o ninguno**: con «Sin indicar» el campo del número queda deshabilitado. Si editas a una persona cuyo tipo es anterior a esta lista, se conserva tal cual hasta que lo cambies. El sistema guarda el número **normalizado**: sin espacios al principio ni al final y en mayúsculas, y en DNI y NIE además sin espacios ni guiones intermedios (`12345678-z` se guarda como `12345678Z`; los puntos no se quitan: `12.345.678-Z` es un error de formato). Dos personas del centro no pueden tener el mismo documento aunque lo escriban distinto. Formato de cada tipo: ver la tabla de «Importar usuarios».
 - Si algún dato no es válido o el correo ya lo usa otra cuenta, el formulario indica cada error junto a su campo, lo resume arriba y lleva el foco al primero.
 - Al crear con invitación, la ficha te dice cuándo caduca el enlace. **El enlace en sí nunca se muestra**: solo le llega a la persona por correo.
 
@@ -100,6 +100,65 @@ El fichero **no contiene el tipo ni el número de documento ni la fecha de nacim
 | `roles` | **Códigos** de los roles, en orden alfabético y separados por `\|` (p. ej. `docente\|tutor`); vacío si no tiene |
 
 Las filas van ordenadas por primer apellido, nombre e identificador, no por el orden de la pantalla. Para abrirlo en Excel con configuración regional española, sigue los pasos de «Abrir el CSV en Excel» (sección «Tablas de datos»). El fichero **no sirve para reimportar usuarios** sin editarlo: le faltan columnas de la importación (documento, fecha de nacimiento) y le sobran otras.
+
+## Importar usuarios
+
+Menú **Administración > Importación de usuarios** (`/administracion/importaciones`). Solo lo ves si tu rol puede importar usuarios. Sirve para dar de alta a muchas personas a la vez desde un fichero CSV. **Una importación no se deshace**: antes de ejecutarla se valida, y hasta que la ejecutas no se crea nada.
+
+### Cómo es el fichero
+
+Un fichero **CSV** de hasta 10 MB y 20 000 filas, en UTF-8, con `;` o `,` como separador. La **primera fila** debe ser exactamente esta (la pantalla la muestra y tiene un botón «Copiar la cabecera»; no hay plantilla descargable):
+
+```
+email;given_name;family_name_1;family_name_2;document_type;document_number;birth_date;contact_email;contact_phone;locale;roles
+```
+
+| Columna | Qué poner | ¿Obligatoria? |
+|---------|-----------|---------------|
+| `email` | Correo de acceso. No puede repetirse en el fichero ni existir ya en el centro | Sí |
+| `given_name` | Nombre | Sí |
+| `family_name_1` | Primer apellido | Sí |
+| `family_name_2` | Segundo apellido | No |
+| `document_type` | Uno de los códigos de la tabla de abajo, con mayúsculas o minúsculas y con espacios alrededor si hace falta | No, pero va **junto** con `document_number` |
+| `document_number` | Número del documento (se normaliza antes de comprobarlo) | No, pero va **junto** con `document_type` |
+| `birth_date` | Fecha de nacimiento, `AAAA-MM-DD` | No |
+| `contact_email` | Correo de contacto | No |
+| `contact_phone` | Teléfono de contacto | No |
+| `locale` | Idioma: `es-ES`, `en`, `de` o `fr`, uno de los **activos del centro** | No |
+| `roles` | **Códigos** de rol separados por `\|` (p. ej. `docente\|tutor`); deben existir en el centro | No |
+
+**Tipos de documento admitidos** (columna `document_type`; la pantalla de importación los lista con su nombre en tu idioma):
+
+| Código | Documento | Formato del número (tras normalizar) | Control |
+|--------|-----------|--------------------------------------|---------|
+| `dni` | DNI (documento nacional de identidad) | 8 cifras y una letra (`12345678Z`) | Letra de control (módulo 23) |
+| `nie` | NIE (número de identidad de extranjero) | `X`, `Y` o `Z`, 7 cifras y una letra (`X1234567L`) | Letra de control, igual que el DNI |
+| `pasaporte` | Pasaporte, de cualquier país | Letras y cifras sin separadores, de 1 a 32 caracteres | Ninguno |
+
+Para DNI y NIE el sistema ignora espacios y guiones al comprobar el número (`12345678-z` vale). No hay un tipo «otro»: si una persona no tiene ninguno de estos documentos, deja las dos columnas vacías.
+
+### Subir y validar
+
+1. Elige el fichero, decide si se **enviarán invitaciones** a las personas importadas (casilla marcada por defecto) y pulsa «Subir y validar».
+2. Se abre el detalle del lote. Mientras está **subido**, **validando** o **ejecutando**, la pantalla consulta el estado sola y anuncia cada cambio. Si el lote no avanza en unos 10 minutos deja de consultar y ofrece «Comprobar de nuevo» (probablemente el proceso de importación no esté en marcha: avisa a quien administre el servidor).
+3. Al terminar la validación, el lote queda **validado** y la pantalla muestra el número de filas, cuántas tienen errores y una tabla de **incidencias** con línea, columna y motivo. Solo se muestran las 50 primeras; el aviso te lo dice y el enlace «Descargar el informe completo» baja el CSV con todas (el enlace caduca a los 15 minutos; «Actualizar el enlace» pide uno nuevo). **El texto del motivo sale en el idioma de quien subió el fichero**, y se queda así para quien abra el lote después.
+4. Si la cabecera del fichero no es la esperada, el lote queda **fallido** y se muestra el motivo y la cabecera correcta. No se puede ejecutar: descártalo y sube otro.
+
+### Incidencias de documento
+
+| Código | Columna | Significa |
+|--------|---------|-----------|
+| `tipo_documento_no_valido` | `document_type` | El tipo no es uno de los admitidos |
+| `documento_incompleto` | `document_type` o `document_number` (la que falta) | Hay tipo sin número o número sin tipo |
+| `formato_invalido` | `document_number` | El número no tiene el formato de su tipo o la letra de control no cuadra |
+| `duplicado_en_fichero` | `document_number` | Otra fila del mismo fichero tiene el mismo documento (aunque esté escrito con o sin guion) |
+| `duplicado_en_base_de_datos` | `document_number` | Una persona del centro tiene ya ese documento |
+
+### Ejecutar y descartar
+
+- **Ejecutar** solo está disponible con el lote **validado**. Pide confirmación: te dice **cuántos usuarios se crearán** (filas menos filas con error), que las filas con error se omiten, si se enviarán invitaciones y que la importación no se deshace. Las filas se revalidan al ejecutar: si entre tanto alguien creó a esa persona, la fila se omite. Si la petición falla sin respuesta (red caída), el botón «Reintentar la ejecución» repite **la misma** operación sin duplicar usuarios; una confirmación nueva es otra operación distinta.
+- **Descartar** (lotes subidos, en validación, validados o fallidos) borra el fichero y el informe, con confirmación. Un lote ya ejecutado no se puede descartar.
+- El listado de lotes muestra fichero, fecha de subida, estado, filas, filas con error y usuarios creados.
 
 ## Cuentas bloqueadas
 
