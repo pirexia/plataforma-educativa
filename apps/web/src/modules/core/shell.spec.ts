@@ -2,14 +2,15 @@
  * `docs/modulos/REQ-CORE/funcional.md §14.3`, `§14.18`: registro de las
  * pantallas de 1.9b — `CA-CORE-208` (rutas y permisos de la columna 2 de
  * §14.3, sin cambiar la lista cerrada de `RN-CORE-24`) y `CA-CORE-209`
- * (entradas de menú por permiso, derivadas de la ruta, `ADR-053 §3`).
+ * (entradas de menú por permiso, derivadas de la ruta, `ADR-053 §3`); desde
+ * 1.9c, también las dos rutas de importación de usuarios (`usuario.importar`).
  */
 import { describe, expect, it } from 'vitest'
 import router from '@/router'
 import { visibleNavigationEntries } from '@/navigation/registry'
 import { shell } from './shell'
 
-/** Columna 2 de `funcional.md §14.3`, solo las rutas de 1.9b. */
+/** Columna 2 de `funcional.md §14.3`, solo las rutas de 1.9b y 1.9c. */
 const EXPECTED: Record<string, { path: string; permissions: string[] }> = {
   'core-users': { path: '/administracion/usuarios', permissions: ['usuario.leer'] },
   'core-user-new': { path: '/administracion/usuarios/nuevo', permissions: ['usuario.crear'] },
@@ -19,9 +20,14 @@ const EXPECTED: Record<string, { path: string; permissions: string[] }> = {
     permissions: ['usuario.actualizar'],
   },
   'core-invitations': { path: '/administracion/invitaciones', permissions: ['invitacion.leer'] },
+  'core-user-imports': { path: '/administracion/importaciones', permissions: ['usuario.importar'] },
+  'core-user-import-detail': {
+    path: '/administracion/importaciones/:publicId',
+    permissions: ['usuario.importar'],
+  },
 }
 
-describe('CA-CORE-208 (RN-CORE-60, ADR-053 §2): rutas de 1.9b', () => {
+describe('CA-CORE-208 (RN-CORE-60, ADR-053 §2): rutas de 1.9b y 1.9c', () => {
   it.each(Object.entries(EXPECTED))(
     '%s existe con layout app y el permiso de §14.3',
     (name, expected) => {
@@ -53,6 +59,19 @@ describe('CA-CORE-208 (RN-CORE-60, ADR-053 §2): rutas de 1.9b', () => {
   })
 })
 
+describe('1.9c (§14.3): rutas de importación', () => {
+  it('el detalle declara como padre de la miga de pan al listado y títulos en core.*', () => {
+    const detail = router
+      .getRoutes()
+      .find((candidate) => candidate.name === 'core-user-import-detail')!
+    const list = router.getRoutes().find((candidate) => candidate.name === 'core-user-imports')!
+
+    expect(detail.meta.breadcrumbParent).toBe('core-user-imports')
+    expect(detail.meta.titleKey).toMatch(/^core\./)
+    expect(list.meta.titleKey).toMatch(/^core\./)
+  })
+})
+
 describe('CA-CORE-209 (RN-CORE-60): entradas de menú por permiso', () => {
   function entries(permissions: string[]): string[] {
     return visibleNavigationEntries(router, permissions)
@@ -70,6 +89,18 @@ describe('CA-CORE-209 (RN-CORE-60): entradas de menú por permiso', () => {
 
   it('con invitacion.leer aparece «Invitaciones»', () => {
     expect(entries(['usuario.leer', 'invitacion.leer'])).toEqual(['core.users', 'core.invitations'])
+  })
+
+  it('con usuario.importar aparece «Importación de usuarios» y no es acceso directo (§14.3)', () => {
+    expect(entries(['usuario.leer', 'usuario.importar'])).toEqual([
+      'core.users',
+      'core.userImports',
+    ])
+    expect(entries(['usuario.importar'])).toEqual(['core.userImports'])
+
+    const byId = Object.fromEntries(shell.navigation.map((entry) => [entry.id, entry.shortcut]))
+
+    expect(byId['core.userImports']).toBe(false)
   })
 
   it('«Usuarios» es acceso directo y «Invitaciones» no (§14.3)', () => {

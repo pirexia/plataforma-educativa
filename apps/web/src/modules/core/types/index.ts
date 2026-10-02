@@ -272,6 +272,8 @@ export interface UserImport {
   created_count: number | null
   error_summary: UserImportErrorEntry[] | null
   report_url: string | null
+  /** ISO 8601 UTC (S8, `CA-CORE-238`). */
+  created_at: string
   validated_at: string | null
   executed_at: string | null
 }

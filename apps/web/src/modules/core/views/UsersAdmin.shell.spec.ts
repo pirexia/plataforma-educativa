@@ -11,7 +11,9 @@
  *   de usuario y del listado de invitaciones dentro del *shell*; el `403`
  *   recarga `GET /me`.
  *
- * La importación y el rol no existen todavía (1.9c/1.9d): no se prueban.
+ * Desde 1.9c (`funcional.md §14.22` punto 7) ambos criterios cubren también
+ * el listado y el detalle de una importación (`/administracion/importaciones`);
+ * el rol no existe todavía (1.9d): no se prueba.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -20,6 +22,7 @@ vi.setConfig({ testTimeout: 30000 })
 
 const ME_PERMISSIONS = [
   'usuario.leer',
+  'usuario.importar',
   'invitacion.leer',
   'invitacion.crear',
   'invitacion.eliminar',
@@ -32,6 +35,8 @@ const ROW_NAME = 'Quintanilla'
 const ROW_DOC = 'ZZ-DOC-731'
 const ROW_PHONE = '699731731'
 const INVITATION_EMAIL = 'invitada-731@example.com'
+const IMPORT_FILE = 'fichero-secreto-731.csv'
+const IMPORT_MESSAGE = 'Motivo-secreto-731'
 
 // Claves legítimas ajenas a la tabla que la aplicación puede escribir
 // (`src/i18n/index.ts`, `src/tenant/useTenantBranding.ts` y el modo de color
@@ -141,6 +146,24 @@ function invitationBody() {
     created_at: '2026-09-01T10:00:00Z',
     accepted_at: null,
     revoked_at: null,
+  }
+}
+
+function importBody(id: string, status = 'validado') {
+  return {
+    public_id: id,
+    original_filename: IMPORT_FILE,
+    status,
+    row_count: 5,
+    error_count: 1,
+    created_count: null,
+    error_summary: [
+      { line: 3, column: 'email', code: 'formato_invalido', message: IMPORT_MESSAGE },
+    ],
+    report_url: null,
+    created_at: '2026-09-01T10:00:00Z',
+    validated_at: '2026-09-01T10:01:00Z',
+    executed_at: null,
   }
 }
 
@@ -292,6 +315,14 @@ describe('CA-CORE-262 (RN-CORE-50): nada de filas ni de búsqueda en el almacena
         return respond(200, pageOf([invitationBody()]))
       }
 
+      if (path.startsWith('/user-imports/IMP1')) {
+        return respond(200, importBody('IMP1'))
+      }
+
+      if (path.startsWith('/user-imports')) {
+        return respond(200, pageOf([importBody('IMP1')]))
+      }
+
       return undefined
     })
 
@@ -324,12 +355,28 @@ describe('CA-CORE-262 (RN-CORE-50): nada de filas ni de búsqueda en el almacena
 
     await hideFirstHideableColumn()
 
+    // 4. Listado y detalle de importaciones (1.9c).
+    await go(booted, '/administracion/importaciones')
+    expect(mainText()).toContain(IMPORT_FILE)
+
+    await hideFirstHideableColumn()
+
+    await go(booted, '/administracion/importaciones/IMP1')
+    expect(mainText()).toContain(IMPORT_MESSAGE)
+
+    await hideFirstHideableColumn()
+
     // Escrituras: al menos una por cada tabla recorrida (no vacuo) …
     const tableWrites = writes.filter((write) => write.key.startsWith('plataforma.table.'))
     const tableKeys = new Set(tableWrites.map((write) => write.key))
 
     expect(tableKeys).toEqual(
-      new Set(['plataforma.table.core.users', 'plataforma.table.core.invitations']),
+      new Set([
+        'plataforma.table.core.users',
+        'plataforma.table.core.invitations',
+        'plataforma.table.core.user_imports',
+        'plataforma.table.core.user_import_errors',
+      ]),
     )
 
     // … toda escritura es `set`/`remove` sobre una clave de tabla o una de las
@@ -350,6 +397,8 @@ describe('CA-CORE-262 (RN-CORE-50): nada de filas ni de búsqueda en el almacena
       ROW_DOC,
       ROW_PHONE,
       INVITATION_EMAIL,
+      IMPORT_FILE,
+      IMPORT_MESSAGE,
       'example.com',
     ]
 
@@ -467,6 +516,32 @@ describe('CA-CORE-263 (CA-CORE-070, CA-CORE-073): 404 y 403 dentro del shell', (
 
     expect(first).toBeGreaterThan(-1)
     expect(fetchLog.indexOf('/me', first)).toBeGreaterThan(first)
+  })
+
+  it('detalle de importación: GET 404 pinta «no encontrado» dentro del shell y no recarga /me (CA-CORE-263)', async () => {
+    responders.push((path) =>
+      path.startsWith('/user-imports/OTRO') ? respond(404, { status: 404 }) : undefined,
+    )
+
+    const booted = await boot()
+    await go(booted, '/administracion/importaciones/OTRO')
+
+    expect(fetchLog).toContain('/user-imports/OTRO')
+    assertInsideShell()
+    expect(mainText()).toContain('Página no encontrada')
+    expect(meCalls()).toBe(1)
+  })
+
+  it('detalle de importación: un 403 se pinta «sin acceso» dentro del shell, con una sola recarga de /me y sin repetir la petición (CA-CORE-263)', async () => {
+    const forbidden = forbiddenCapped('/user-imports/OTRO')
+
+    const booted = await boot()
+    await go(booted, '/administracion/importaciones/OTRO')
+
+    expect(forbidden.hits()).toBe(1)
+    expect(meCalls()).toBe(2)
+    assertInsideShell()
+    expect(mainText()).toContain('Sin acceso')
   })
 
   // #300 corregido en develop (`fetchMe` ya no pasa por `loading` con la sesión `ready`).
