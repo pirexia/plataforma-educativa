@@ -15,7 +15,7 @@
 >
 > **Paso 1.9 (tablas de datos: TanStack Table, filtrado, ordenación, columnas configurables y exportación; sin virtualización, `OPEN-CORE-19`): §13, APROBADA** (2026-09-30), **ajustada a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**; `OPEN-054-01` resuelta el 2026-10-01 por `ADR-055` (ACEPTADA). Lista para `implementer`. Ubicación definitiva: aquí (`OPEN-CORE-18`, resuelta por el usuario el 2026-09-30). §0-§12 no se reabren.
 >
-> **Paso 1.9b (pantallas de gestión pendientes de `REQ-CORE-002`/`-003`/`-004`/`-005` y migración de las tres tablas exceptuadas de `RN-CORE-53`): §14, APROBADA** (2026-10-01, decisión del usuario). Dividido en cinco sub-pasos `1.9b`-`1.9f` (`OPEN-CORE-30`, §14.2). Resueltas `OPEN-CORE-30`, `-31`, `-32`, `-39`, `-40`, `-42`, `-43`; `-33` a `-36` **resueltas el 2026-10-03** (C, B, A, A; §14.17); `-37` y `-45` **resueltas el 2026-10-03** (B, A); las demás de `OPEN-CORE-38` a `-44` siguen el estado de §14.17 y bloquean solo el sub-paso que indica §14.17. §0-§13 no se reabren: §14 **precisa** dos puntos de §13 (§14.12) y **amplía** la lista cerrada de `RN-CORE-24` de seis a siete rutas como consecuencia de `OPEN-CORE-31` (§14.3.1), y lo dice donde lo hace.
+> **Paso 1.9b (pantallas de gestión pendientes de `REQ-CORE-002`/`-003`/`-004`/`-005` y migración de las tres tablas exceptuadas de `RN-CORE-53`): §14, APROBADA** (2026-10-01, decisión del usuario). Dividido en cinco sub-pasos `1.9b`-`1.9f` (`OPEN-CORE-30`, §14.2). Resueltas `OPEN-CORE-30`, `-31`, `-32`, `-39`, `-40`, `-42`, `-43`; `-33` a `-36` **resueltas el 2026-10-03** (C, B, A, A; §14.17); `-37` y `-45` **resueltas el 2026-10-03** (B, A); el estado de las demás, en §14.17 y bloquean solo el sub-paso que indica §14.17. §0-§13 no se reabren: §14 **precisa** dos puntos de §13 (§14.12) y **amplía** la lista cerrada de `RN-CORE-24` de seis a siete rutas como consecuencia de `OPEN-CORE-31` (§14.3.1), y lo dice donde lo hace.
 
 ---
 
@@ -1667,7 +1667,7 @@ Mantenimiento: el proyecto está activo (tres mantenedores en el registro, líne
 | Decisiones vinculantes | `ADR-038`, `ADR-044`, `ADR-052`, `ADR-053`, `ADR-054`, `ADR-055` (todas ACEPTADAS) y §12/§13 de este documento |
 | Depende de | 1.1 (API de §2-§8 de `api.md`), 1.2 (sesión), 1.5 (`/me.permissions`, resolutor), 1.7 (*design system*, `useTenantBranding().refresh()`, `contrast.ts`), 1.8 (*shell*, registro de navegación, estados de §12.6), 1.9 (`src/data-table/`), `fix/` de #266/#267/#270/#273 (PR #282) y `ADR-055`. **Todas implementadas.** **Dependencia operativa no resuelta**: sin *worker* de colas (#128, Alta), ni la importación ni ninguna exportación terminan fuera de un entorno con `queue:work` arrancado a mano (§14.15) |
 | Código afectado | `apps/web` (pantallas, `shell.ts` de `core`, ampliaciones aditivas de `src/data-table` de `OPEN-CORE-40` = A) **y `apps/api`** (§14.11: dos *endpoints* nuevos —S1 y, si `OPEN-CORE-34` = B, S10—, cuatro cambios compatibles —S5 a S8— y tres correcciones —S3, S4 y S9—) **y una migración *expand*** (S2, `datos.md` Parte D) **y, en 1.9c, una migración de datos sin cambio de esquema** (`datos.md` Parte E) |
-| Estado | **APROBADA** (2026-10-01, decisión del usuario): `OPEN-CORE-30` (A), `-31` (B), `-32` (B), `-39` (A), `-40` (A), `-42` (A) y `-43` (A) resueltas. **Sub-paso `1.9b` IMPLEMENTADO** (2026-10-02; notas y desviaciones en §14.22; pendiente de revisión independiente); **Sub-paso `1.9c` IMPLEMENTADO** (2026-10-02/03; notas y desviaciones en §14.23; revisado por `db-reviewer`, `security-reviewer` y `doc-reviewer` sin hallazgos Crítico/Alto; **pendiente de mezcla**); **Sub-paso `1.9e` IMPLEMENTADO** (2026-10-03; notas y desviaciones en §14.26; pendiente de revisión independiente); cada sub-paso posterior espera las preguntas que lo bloquean (§14.17) |
+| Estado | **APROBADA** (2026-10-01, decisión del usuario): `OPEN-CORE-30` (A), `-31` (B), `-32` (B), `-39` (A), `-40` (A), `-42` (A) y `-43` (A) resueltas. **Sub-paso `1.9b` IMPLEMENTADO** (2026-10-02; notas y desviaciones en §14.22; pendiente de revisión independiente); **Sub-paso `1.9c` IMPLEMENTADO** (2026-10-02/03; notas y desviaciones en §14.23; revisado por `db-reviewer`, `security-reviewer` y `doc-reviewer` sin hallazgos Crítico/Alto; **pendiente de mezcla**); **Sub-paso `1.9d` IMPLEMENTADO y mezclado** (PR #320); **Sub-paso `1.9e` IMPLEMENTADO** (2026-10-03; notas y desviaciones en §14.26; revisado por `security-reviewer` y `doc-reviewer` sin hallazgos Crítico/Alto; pendiente de mezcla); cada sub-paso posterior espera las preguntas que lo bloquean (§14.17) |
 
 ### 14.0 Verificación del estado de partida (2026-10-01, rama `feature/REQ-CORE-1.9b-pantallas-de-gestion`, `495d19c`)
 
@@ -2423,7 +2423,7 @@ Surge al aplicar `OPEN-CORE-31` = B. `GET /modules` devuelve **todo el catálogo
 
 ### 14.18 Criterios de aceptación
 
-Vitest salvo los marcados **[Playwright]** o **[Pest]**. Cada test cita su ID (`INV-015`). Los que dependen de una pregunta todavía abierta (`OPEN-CORE-45`) lo dicen y se reescriben al resolverla; los de preguntas ya resueltas son firmes.
+Vitest salvo los marcados **[Playwright]** o **[Pest]**. Cada test cita su ID (`INV-015`). Ningún criterio depende ya de una pregunta abierta de 1.9e (`OPEN-CORE-37` y `-45` resueltas el 2026-10-03); todos son firmes.
 
 #### Navegación y permisos
 
@@ -2550,7 +2550,7 @@ Cada sub-paso ejecuta la suite completa del lado que toca (Pest con `php -d memo
 
 **Aprobada el 2026-10-01** por el usuario, con las respuestas de §14.17 que constan como resueltas: `OPEN-CORE-30` (A), `-31` (B), `-32` (B, contra la recomendación A de esta especificación), `-39` (A), `-40` (A), `-42` (A) y `-43` (A). **1.9b está listo para `implementer` sin reservas**, incluido `POST /users/exports` con el esquema de §14.11.1. Quedan pendientes:
 
-1. Las preguntas abiertas, antes del sub-paso al que bloquean: `-37` y la nueva `-45` (1.9e); `-33` a `-36` (1.9d) y `-38` (1.9c) ya resueltas; `-41` y `-44` no bloquean.
+1. Las preguntas abiertas, antes del sub-paso al que bloquean: `-37` y `-45` (1.9e), `-33` a `-36` (1.9d) y `-38` (1.9c) **ya resueltas** (2026-10-03); `-41` y `-44` no bloquean.
 2. Los issues de los hallazgos 1 a 6 y 9 de §14.16 están abiertos: #287, #288 y #289.
 3. Tener presente que, sin #128, la importación y las exportaciones de este paso no funcionan en un entorno real (§14.15).
 
