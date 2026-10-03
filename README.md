@@ -4,9 +4,9 @@ SaaS para la gestión integral de centros educativos. Segmento inicial: **centro
 
 | Campo | Valor |
 |-------|-------|
-| **Versión del documento** | 2.6.11 |
-| **Fecha** | 2026-10-02 |
-| **Estado del proyecto** | Fase 1 · MVP operativo. Bloque A (identidad y acceso) **completo y mezclado**: tenants/usuarios, autenticación local, sesiones activas, MFA (TOTP + correo), login con Google (fusión de cuentas), SSO institucional OIDC + SAML 2.0 con aprovisionamiento por emparejamiento, núcleo de autorización granular (`REQ-PERM`) y los cinco sub-pasos del backoffice de plataforma (`REQ-BO`, `1.6`-`1.6e`, incluido el motor de *feature flags*) — `1.1` a `1.6e` íntegros. Bloque B (*design system* y navegación): `1.7` · *Design system* (tokens, tema por tenant, modo oscuro) **completo y mezclado**. `1.8` · Layout, navegación y panel de inicio (`REQ-CORE-008`) implementado y mezclado (PR #264). `1.9` (Tablas de datos): especificación y `ADR-054` (aceptada) aprobados el 2026-09-30; **implementado** (componente `apps/web/src/data-table/` y migración de `MfaComplianceArea.vue`), revisión independiente hecha (sin Crítico/Alto) y mezclado. `1.9b` (usuarios e invitaciones; la especificación de las pantallas de gestión de `REQ-CORE`, aprobada el 2026-10-01, divide el trabajo en 1.9b a 1.9f) **implementado** el 2026-10-02 (pantallas de usuarios e invitaciones, exportación de usuarios, `alert-dialog`), pendiente de revisión independiente. Siguiente: `1.9c` (importación de usuarios) |
+| **Versión del documento** | 2.6.12 |
+| **Fecha** | 2026-10-03 |
+| **Estado del proyecto** | Fase 1 · MVP operativo. Bloque A (identidad y acceso) **completo y mezclado**: tenants/usuarios, autenticación local, sesiones activas, MFA (TOTP + correo), login con Google (fusión de cuentas), SSO institucional OIDC + SAML 2.0 con aprovisionamiento por emparejamiento, núcleo de autorización granular (`REQ-PERM`) y los cinco sub-pasos del backoffice de plataforma (`REQ-BO`, `1.6`-`1.6e`, incluido el motor de *feature flags*) — `1.1` a `1.6e` íntegros. Bloque B (*design system* y navegación): `1.7` · *Design system* (tokens, tema por tenant, modo oscuro) **completo y mezclado**. `1.8` · Layout, navegación y panel de inicio (`REQ-CORE-008`) implementado y mezclado (PR #264). `1.9` (Tablas de datos): especificación y `ADR-054` (aceptada) aprobados el 2026-09-30; **implementado** (componente `apps/web/src/data-table/` y migración de `MfaComplianceArea.vue`), revisión independiente hecha (sin Crítico/Alto) y mezclado. `1.9b` (usuarios e invitaciones; la especificación de las pantallas de gestión de `REQ-CORE`, aprobada el 2026-10-01, divide el trabajo en 1.9b a 1.9f) **implementado** el 2026-10-02 (pantallas de usuarios e invitaciones, exportación de usuarios, `alert-dialog`), revisión independiente hecha y mezclado. `1.9c` (importación de usuarios y catálogo cerrado de tipos de documento de identidad, `RN-CORE-90` a `-93`) **implementado** el 2026-10-02/03 (pantallas de importación, migración de datos que normaliza `people`, idioma de los mensajes de importación), revisión independiente hecha (`db-`, `security-` y `doc-reviewer`, sin Crítico/Alto), **pendiente de mezcla**. Siguiente: `1.9d` (auditoría y roles, solo lectura) |
 
 ---
 
@@ -73,17 +73,17 @@ Lista completa: sección 0.5 del documento de requisitos (`INV-001` a `INV-015`)
 
 | Documento | Versión |
 |-----------|---------|
-| `README.md` | 2.6.11 |
+| `README.md` | 2.6.12 |
 | `CLAUDE.md` | 2.5.3 |
-| `ARCHITECTURE.md` | 2.3.2 |
+| `ARCHITECTURE.md` | 2.3.3 |
 | `PLAN-IMPLEMENTACION.md` | 2.3.3 |
 | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | 3.2.11 |
 | `docs/SETUP-CLAUDE-CODE.md` | 1.3.0 |
 | `docs/SETUP-ENTORNO.md` | 1.3.0 |
-| `SYSADMIN.md` | 0.8.3 |
+| `SYSADMIN.md` | 0.8.4 |
 | `SECURITY.md` | 0.3.7 |
-| `PRIVACY.md` | 0.3.3 |
-| `RUNBOOK.md` | 0.3.1 |
+| `PRIVACY.md` | 0.3.4 |
+| `RUNBOOK.md` | 0.3.2 |
 | `CONTRIBUTING.md` | 0.2.0 |
 
 Historial completo en `CHANGELOG.md`.

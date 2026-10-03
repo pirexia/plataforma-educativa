@@ -23,6 +23,8 @@ return [
         'contrast_insufficient' => 'The palette contrast (:ratio:1) does not reach the required minimum (:required:1, WCAG 2.2 AA).',
         'document_number_invalid' => 'The document number is not valid for the given type.',
         'document_duplicate' => 'A living person with the same document type and number already exists in this school.',
+        'document_type_invalid' => 'The given document type is not supported.',
+        'document_incomplete' => 'Provide both the document type and the document number, or neither.',
         'email_duplicate' => 'A living user with this access email already exists in this school.',
         'role_not_found' => 'One of the given roles does not exist in this school.',
         'role_permission_exceeds_own' => 'You cannot assign a role that grants permissions you do not have yourself.',
@@ -87,5 +89,7 @@ return [
         'duplicado_en_base_de_datos' => 'The value of the ":column" column already belongs to another person or user of the school.',
         'idioma_no_activo' => 'The given language is not active for this school.',
         'rol_no_encontrado' => 'One of the given roles does not exist in this school.',
+        'tipo_documento_no_valido' => 'The given document type is not supported.',
+        'documento_incompleto' => 'Provide both the document type and the document number, or neither.',
     ],
 ];

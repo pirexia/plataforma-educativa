@@ -172,6 +172,12 @@ test.describe('CA-CORE-260 (RUX-004, WCAG 2.2 AA): alta y ficha de usuario', () 
       )
     }
 
+    // Con «Sin indicar» el número de documento está deshabilitado y el teclado lo salta
+    // (RN-CORE-90, CA-CORE-281): se elige un tipo para recorrer todos los campos en orden.
+    await expect(page.locator('#user-form-document_number')).toBeDisabled()
+    await page.locator('#user-form-document_type').selectOption('dni')
+    await expect(page.locator('#user-form-document_number')).toBeEnabled()
+
     await page.locator('#user-form-email').focus()
 
     const visited: string[] = ['user-form-email']

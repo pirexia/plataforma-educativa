@@ -2,10 +2,13 @@
 
 namespace App\Modules\Core\Infrastructure\Jobs;
 
+use App\Http\Middleware\ResolveApiLocale;
 use App\Models\Role;
+use App\Models\User;
 use App\Modules\Core\Application\UserImportCsvReader;
 use App\Modules\Core\Application\UserImportRowValidator;
 use App\Modules\Core\Domain\Models\UserImport;
+use App\Modules\Core\Domain\TenantSettingsReader;
 use App\Support\Csv\CsvColumnType;
 use App\Support\Csv\CsvWriter;
 use Illuminate\Bus\Queueable;
@@ -13,6 +16,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -38,13 +42,47 @@ class ValidateUserImport implements ShouldQueue
         $this->onQueue('core-imports');
     }
 
-    public function handle(UserImportCsvReader $reader, UserImportRowValidator $rowValidator): void
+    public function handle(UserImportCsvReader $reader, UserImportRowValidator $rowValidator, TenantSettingsReader $settings): void
     {
         $import = UserImport::query()->find($this->userImportId);
 
         if ($import === null) {
             return;
         }
+
+        // #285 / OPEN-CORE-38 = A (S9, RN-CORE-34): `message` y el informe se
+        // escriben en el idioma de quien subió el lote, no en el del proceso
+        // del trabajo. Se restaura al terminar: con la cola `sync` el
+        // proceso es el de la petición.
+        $previousLocale = App::getLocale();
+        App::setLocale($this->resolveLocale($import, $settings));
+
+        try {
+            $this->validate($import, $reader, $rowValidator);
+        } finally {
+            App::setLocale($previousLocale);
+        }
+    }
+
+    /**
+     * Misma precedencia que RN-CORE-34: `person.locale` de quien subió el
+     * lote si está entre los idiomas activos del centro; si no, el idioma
+     * por defecto del centro. Sin esquema nuevo (`user_imports.created_by`).
+     */
+    private function resolveLocale(UserImport $import, TenantSettingsReader $settings): string
+    {
+        $uploader = $import->created_by !== null ? User::query()->with('person')->find($import->created_by) : null;
+        $locale = $uploader?->person?->locale;
+
+        $resolved = is_string($locale) && in_array($locale, $settings->activeLocales(), true)
+            ? $locale
+            : $settings->defaultLocale();
+
+        return ResolveApiLocale::TO_LARAVEL_LOCALE[$resolved] ?? 'es';
+    }
+
+    private function validate(UserImport $import, UserImportCsvReader $reader, UserImportRowValidator $rowValidator): void
+    {
 
         $import->update(['status' => 'validando']);
 

@@ -1,6 +1,6 @@
 # PRIVACY.md
 
-> **Versión 0.3.3** · 2026-10-02
+> **Versión 0.3.4** · 2026-10-03
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Base del Registro de Actividades de Tratamiento (RAT) exigido por el RGPD — hoy es un **esqueleto**, no un RAT completo: varias secciones dependen de decisiones que todavía no se han tomado (`OPEN-07`, entidad jurídica y contrato de encargado de tratamiento). No se rellenan con suposiciones (`CLAUDE.md` §0/§11).
 
 ---
@@ -101,6 +101,22 @@ Mismo mecanismo que §2.3, protocolo distinto: cada centro cataloga su propio pr
 | Retención | 7 días (`CORE_EXPORT_RETENTION_DAYS`), purgado por `PurgeExpiredExports` (fila y objeto) |
 | Rastro | Cada solicitud se audita (`created` y `exported`) sin el contenido del fichero |
 | Neutralización | Los textos que empiezan por `=`, `+`, `-`, `@` (o espacio en blanco seguido de uno) llevan un apóstrofo inicial (`RN-CORE-48`), para que el fichero no ejecute fórmulas en una hoja de cálculo |
+
+### 2.6 Importación de usuarios (CSV, `REQ-CORE-003`, paso 1.9c)
+
+`POST /user-imports` (permiso `usuario.importar`, concedido por defecto solo al administrador del centro) recibe un CSV con las personas que se van a dar de alta. A diferencia de la exportación de §2.5, **este fichero sí contiene datos identificativos**, porque es la entrada del alta:
+
+| Aspecto | Decisión |
+|---------|----------|
+| Columnas (esquema fijo, `api.md §7`) | `email`, `given_name`, `family_name_1`, `family_name_2`, **`document_type`**, **`document_number`**, **`birth_date`**, `contact_email`, `contact_phone`, `locale`, `roles` |
+| Datos personales que viajan | Nombre y apellidos, correos, teléfono, **tipo y número de documento de identidad y fecha de nacimiento** de todo el personal (y del alumnado con cuenta, si lo hay). Es el único flujo de entrada masiva de esos datos |
+| Dónde queda el fichero fuente | Objeto privado del almacenamiento (`tenants/{tenant}/imports/{id}/source.csv`), sin URL pública; solo lo lee el trabajo de validación y el de ejecución |
+| El informe (`report.csv`, `error_summary`) | Contiene **línea, columna, código y mensaje** de cada incidencia, **nunca el valor del dato** (los mensajes nombran la columna, no su contenido). Se entrega por URL firmada de caducidad corta (15 min) a quien tiene `usuario.importar`; el texto sale en el idioma de quien subió el lote |
+| Retención | **30 días por defecto** (`CORE_IMPORT_RETENTION_DAYS`, `RN-CORE-21`): `PurgeImportArtifacts` borra el fichero fuente y el informe y deja las referencias a `NULL`; la fila del lote (recuentos y fechas) se conserva |
+| Quién actúa | Quien sube el lote (`user_imports.created_by`); `ExecuteUserImport` crea personas y usuarios con esa autoría y con `actor_type = import` |
+| Rastro | Cada `Person` y `User` creados se auditan como cualquier alta (`created`), con los identificadores redactados (`ADR-035`); el fichero no se copia a `audit_logs` |
+| Minimización y exactitud | El documento se guarda **normalizado** (`RN-CORE-92`) y de un catálogo cerrado (`RN-CORE-90`), para que no haya duplicados de la misma persona por escribirse distinto |
+| Base legal y consentimiento de menores (`INV-008`) | **Pendiente de `OPEN-07`** (entidad responsable y base legal); no se rellena con suposiciones |
 
 ## 3. Registro de Actividades de Tratamiento (RAT) — plantilla
 

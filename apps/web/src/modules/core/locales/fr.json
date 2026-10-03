@@ -32,7 +32,8 @@
     "nav": {
       "home": "Accueil",
       "users": "Utilisateurs",
-      "invitations": "Invitations"
+      "invitations": "Invitations",
+      "userImports": "Import d'utilisateurs"
     },
     "locale": {
       "name": {
@@ -146,7 +147,6 @@
         "familyName2": "Second nom de famille",
         "birthDate": "Date de naissance",
         "documentType": "Type de document",
-        "documentTypeHint": "Texte libre. Le format n'est vérifié que pour le DNI et le NIE.",
         "documentNumber": "Numéro de document",
         "contactEmail": "E-mail de contact",
         "contactPhone": "Téléphone de contact",
@@ -196,6 +196,111 @@
       "flash": {
         "revoked": "Invitation de {email} révoquée.",
         "reissued": "Invitation envoyée à {email}. Elle expire le {date}."
+      }
+    },
+    "person": {
+      "documentType": {
+        "dni": "Carte nationale d'identité espagnole (DNI)",
+        "nie": "Numéro d'identité d'étranger (NIE)",
+        "pasaporte": "Passeport",
+        "none": "Non renseigné"
+      }
+    },
+    "userImports": {
+      "title": "Import d'utilisateurs",
+      "intro": "Téléversez un fichier CSV pour créer des utilisateurs en lot. Il est d'abord validé : rien n'est créé tant que vous n'exécutez pas le lot.",
+      "caption": "Lots d'import d'utilisateurs",
+      "empty": {
+        "title": "Aucun import",
+        "text": "Les lots apparaissent ici après le téléversement d'un fichier."
+      },
+      "columns": {
+        "file": "Fichier",
+        "createdAt": "Téléversé",
+        "status": "Statut",
+        "rows": "Lignes",
+        "errors": "Lignes en erreur",
+        "created": "Utilisateurs créés"
+      },
+      "upload": {
+        "title": "Téléverser un fichier",
+        "file": "Fichier CSV",
+        "fileHint": "Format CSV (.csv) en UTF-8, séparateur « ; » ou « , », jusqu'à 10 Mo.",
+        "sendInvitations": "Envoyer des invitations aux utilisateurs importés",
+        "submit": "Téléverser et valider",
+        "submitting": "Téléversement…",
+        "errors": {
+          "noFile": "Sélectionnez un fichier CSV.",
+          "extension": "Le fichier doit avoir l'extension .csv.",
+          "tooLarge": "Le fichier dépasse 10 Mo."
+        }
+      },
+      "header": {
+        "title": "En-tête exact attendu",
+        "hint": "La première ligne du fichier doit être exactement celle-ci, avec les colonnes dans cet ordre.",
+        "copy": "Copier l'en-tête",
+        "copied": "En-tête copié.",
+        "manual": "Le détail de chaque colonne figure dans le manuel d'administration, rubrique « Import d'utilisateurs »."
+      },
+      "documentTypes": {
+        "title": "Types de document pris en charge",
+        "hint": "Dans la colonne document_type, écrivez l'un de ces codes ; majuscules ou minuscules n'ont pas d'importance. Si vous indiquez le type, vous devez aussi indiquer le numéro, et inversement."
+      },
+      "detail": {
+        "pageTitle": "Lot d'import",
+        "title": "Import {file}",
+        "intro": "Statut du lot et résultat de sa validation.",
+        "state": "Statut",
+        "statusLine": "Statut : {status}",
+        "stalled": "Le lot n'avance plus. Le processus d'import n'est peut-être pas en marche.",
+        "checkAgain": "Vérifier à nouveau",
+        "rows": "Lignes",
+        "errors": "Lignes en erreur",
+        "created": "Utilisateurs créés",
+        "uploadedAt": "Téléversé",
+        "validatedAt": "Validé",
+        "executedAt": "Exécuté",
+        "incidents": "Anomalies",
+        "truncated": "Anomalies affichées : {shown}. Lignes en erreur au total : {total}. Téléchargez le rapport complet pour toutes les voir.",
+        "report": "Télécharger le rapport complet",
+        "refreshReport": "Actualiser le lien",
+        "execute": "Exécuter",
+        "retry": "Réessayer l'exécution",
+        "discard": "Abandonner",
+        "back": "Retour à la liste",
+        "headerFailed": {
+          "title": "L'en-tête du fichier n'est pas valide",
+          "expected": "L'en-tête attendu est :"
+        }
+      },
+      "confirm": {
+        "execute": {
+          "title": "Exécuter l'import de {file}",
+          "creates": "Utilisateurs qui seront créés : {count}.",
+          "skipsErrors": "Les lignes en erreur sont ignorées.",
+          "invitationsYes": "Des invitations seront envoyées aux utilisateurs créés.",
+          "invitationsNo": "Aucune invitation ne sera envoyée.",
+          "irreversible": "Un import ne peut pas être annulé.",
+          "confirm": "Exécuter l'import de {file}"
+        },
+        "discard": {
+          "title": "Abandonner l'import de {file}",
+          "description": "Le fichier téléversé et le rapport seront supprimés. Aucun utilisateur n'a été créé.",
+          "confirm": "Abandonner l'import de {file}"
+        }
+      },
+      "flash": {
+        "executing": "Import en cours. Le statut se met à jour tout seul.",
+        "discarded": "Import de {file} abandonné."
+      }
+    },
+    "userImportErrors": {
+      "caption": "Anomalies de l'import",
+      "empty": "Aucune anomalie",
+      "columns": {
+        "line": "Ligne",
+        "column": "Colonne",
+        "message": "Motif"
       }
     }
   }

@@ -32,7 +32,8 @@
     "nav": {
       "home": "Home",
       "users": "Users",
-      "invitations": "Invitations"
+      "invitations": "Invitations",
+      "userImports": "User import"
     },
     "locale": {
       "name": {
@@ -146,7 +147,6 @@
         "familyName2": "Second surname",
         "birthDate": "Date of birth",
         "documentType": "Document type",
-        "documentTypeHint": "Free text. The format is only checked for DNI and NIE.",
         "documentNumber": "Document number",
         "contactEmail": "Contact email",
         "contactPhone": "Contact phone",
@@ -196,6 +196,111 @@
       "flash": {
         "revoked": "Invitation of {email} revoked.",
         "reissued": "Invitation sent to {email}. It expires on {date}."
+      }
+    },
+    "person": {
+      "documentType": {
+        "dni": "Spanish national identity card (DNI)",
+        "nie": "Foreigner identity number (NIE)",
+        "pasaporte": "Passport",
+        "none": "Not specified"
+      }
+    },
+    "userImports": {
+      "title": "User import",
+      "intro": "Upload a CSV file to create users in bulk. It is validated first: nothing is created until you run the batch.",
+      "caption": "User import batches",
+      "empty": {
+        "title": "No imports",
+        "text": "Batches appear here once you upload a file."
+      },
+      "columns": {
+        "file": "File",
+        "createdAt": "Uploaded",
+        "status": "Status",
+        "rows": "Rows",
+        "errors": "Rows with errors",
+        "created": "Users created"
+      },
+      "upload": {
+        "title": "Upload a file",
+        "file": "CSV file",
+        "fileHint": "CSV format (.csv) in UTF-8, with “;” or “,” as separator, up to 10 MB.",
+        "sendInvitations": "Send invitations to the imported users",
+        "submit": "Upload and validate",
+        "submitting": "Uploading…",
+        "errors": {
+          "noFile": "Select a CSV file.",
+          "extension": "The file must have the .csv extension.",
+          "tooLarge": "The file is larger than 10 MB."
+        }
+      },
+      "header": {
+        "title": "Exact header expected",
+        "hint": "The first row of the file must be exactly this one, with the columns in this order.",
+        "copy": "Copy the header",
+        "copied": "Header copied.",
+        "manual": "The details of each column are in the administration manual, section “User import”."
+      },
+      "documentTypes": {
+        "title": "Supported document types",
+        "hint": "In the document_type column, write one of these codes; upper or lower case does not matter. If you give the type you must also give the number, and the other way round."
+      },
+      "detail": {
+        "pageTitle": "Import batch",
+        "title": "Import {file}",
+        "intro": "Batch status and validation result.",
+        "state": "Status",
+        "statusLine": "Status: {status}",
+        "stalled": "The batch is not moving forward. The import process may not be running.",
+        "checkAgain": "Check again",
+        "rows": "Rows",
+        "errors": "Rows with errors",
+        "created": "Users created",
+        "uploadedAt": "Uploaded",
+        "validatedAt": "Validated",
+        "executedAt": "Executed",
+        "incidents": "Issues",
+        "truncated": "Issues shown: {shown}. Rows with errors in total: {total}. Download the full report to see them all.",
+        "report": "Download the full report",
+        "refreshReport": "Refresh the link",
+        "execute": "Run",
+        "retry": "Retry the run",
+        "discard": "Discard",
+        "back": "Back to the list",
+        "headerFailed": {
+          "title": "The file header is not valid",
+          "expected": "The expected header is:"
+        }
+      },
+      "confirm": {
+        "execute": {
+          "title": "Run the import of {file}",
+          "creates": "Users to be created: {count}.",
+          "skipsErrors": "Rows with errors are skipped.",
+          "invitationsYes": "Invitations will be sent to the users created.",
+          "invitationsNo": "No invitations will be sent.",
+          "irreversible": "An import cannot be undone.",
+          "confirm": "Run the import of {file}"
+        },
+        "discard": {
+          "title": "Discard the import of {file}",
+          "description": "The uploaded file and the report will be deleted. No user has been created.",
+          "confirm": "Discard the import of {file}"
+        }
+      },
+      "flash": {
+        "executing": "Import under way. The status updates by itself.",
+        "discarded": "Import of {file} discarded."
+      }
+    },
+    "userImportErrors": {
+      "caption": "Import issues",
+      "empty": "No issues",
+      "columns": {
+        "line": "Line",
+        "column": "Column",
+        "message": "Reason"
       }
     }
   }

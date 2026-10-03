@@ -82,8 +82,13 @@ components:
         family_name_2: { type: string, nullable: true }
         contact_email: { type: string, format: email, nullable: true }
         contact_phone: { type: string, nullable: true }
-        document_type: { type: string, nullable: true }
-        document_number: { type: string, nullable: true }
+        document_type:
+          allOf: [{ $ref: '#/components/schemas/DocumentType' }]
+          nullable: true
+        document_number:
+          type: string
+          nullable: true
+          description: Forma canónica del catálogo (RN-CORE-92); vacío si `document_type` lo está.
         birth_date: { type: string, format: date, nullable: true }
         locale: { $ref: '#/components/schemas/Locale' }
 
@@ -359,7 +364,7 @@ components:
         expires_at: { type: string, format: date-time }
         error_code:
           type: string
-          description: Solo con `status: fallida` (S4 de 1.9b). Clave estable, sin traducir.
+          description: "Solo con `status: fallida` (S4 de 1.9b). Clave estable, sin traducir."
 
     UserImportErrorEntry:
       type: object
@@ -385,6 +390,8 @@ components:
           nullable: true
           items: { $ref: '#/components/schemas/UserImportErrorEntry' }
         report_url: { type: string, format: uri, nullable: true }
+        send_invitations: { type: boolean, description: "Elegido al subir el fichero; la confirmación de ejecución lo usa (RN-CORE-73)." }
+        created_at: { type: string, format: date-time }
         validated_at: { type: string, format: date-time, nullable: true }
         executed_at: { type: string, format: date-time, nullable: true }
 
@@ -427,7 +434,7 @@ components:
           description: true en la sesión desde la que se hace la petición. Exactamente una fila lo lleva.
         started_at: { type: string, format: date-time }
         last_activity_at: { type: string, format: date-time }
-        ip_address: { type: string, nullable: true, description: IP completa del propio titular, sin enmascarar. }
+        ip_address: { type: string, nullable: true, description: "IP completa del propio titular, sin enmascarar." }
         client:
           type: object
           properties:
@@ -476,7 +483,7 @@ components:
             Solo `method=email` (1.3b). Caducidad del código de 6 dígitos
             (AUTH_MFA_CODE_TTL_MINUTES), distinta de `expires_at` del alta
             (api.md §D.6.4).
-        expires_at: { type: string, format: date-time, description: RN-AUTH-59, 10 minutos por defecto. }
+        expires_at: { type: string, format: date-time, description: "RN-AUTH-59, 10 minutos por defecto." }
 
     MfaFactor:
       type: object
@@ -563,7 +570,7 @@ components:
             método en curso del desafío entrega algo — ausente, no nulo,
             cuando `method=totp`.
           example: "a···z@e···e.com"
-        expires_at: { type: string, format: date-time, description: RN-AUTH-54, 5 minutos por defecto. }
+        expires_at: { type: string, format: date-time, description: "RN-AUTH-54, 5 minutos por defecto." }
         has_unused_recovery_codes: { type: boolean }
 
     MfaComplianceSummary:
@@ -1058,7 +1065,7 @@ components:
             to: { type: string, format: date }
         created: { type: integer, description: tenant_lifecycle_events con from_status IS NULL. }
         closed: { type: integer, description: to_status = en_baja. }
-        deleted: { type: integer, description: to_status = eliminado, serie aparte de closed. }
+        deleted: { type: integer, description: "to_status = eliminado, serie aparte de closed." }
 
     PlatformModuleAdoption:
       type: object
@@ -1277,6 +1284,19 @@ components:
     Locale:
       type: string
       enum: [es-ES, en, de, fr]
+
+    DocumentType:
+      type: string
+      enum: [dni, nie, pasaporte]
+      description: >
+        Catálogo cerrado de tipos de documento de identidad (RN-CORE-90,
+        funcional.md §14.6.4). Fuente única: `App\Modules\Core\Domain\DocumentType`
+        (el test `CA-CORE-279` lo comprueba). Formato del número tras normalizar
+        (RN-CORE-92: sin espacios al principio ni al final, en mayúsculas; en `dni` y
+        `nie`, además sin espacios ni guiones intermedios): `dni` `^\d{8}[A-Z]$` con
+        letra de control módulo 23; `nie` `^[XYZ]\d{7}[A-Z]$` con la misma letra de
+        control (X, Y, Z valen 0, 1, 2); `pasaporte` `^[A-Z0-9]{1,32}$` sin dígito de
+        control. Tipo y número se informan los dos o ninguno (RN-CORE-91).
 
   parameters:
     PageParam:

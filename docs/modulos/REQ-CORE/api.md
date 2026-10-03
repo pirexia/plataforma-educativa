@@ -184,7 +184,7 @@ Actualización parcial. Se aceptan los grupos `regional`, `fiscal` y `branding` 
         "family_name_2": "Gómez",
         "contact_email": "ana.perez@example.com",
         "contact_phone": "+34600000000",
-        "document_type": "DNI",
+        "document_type": "dni",
         "document_number": "00000000T",
         "birth_date": "1985-04-12",
         "locale": "es-ES"
@@ -219,7 +219,7 @@ Actualización parcial. Se aceptan los grupos `regional`, `fiscal` y `branding` 
     "family_name_1": "Pérez",
     "family_name_2": "Gómez",
     "birth_date": "1985-04-12",
-    "document_type": "DNI",
+    "document_type": "dni",
     "document_number": "00000000T",
     "contact_email": "ana.perez@example.com",
     "contact_phone": "+34600000000",
@@ -232,9 +232,12 @@ Actualización parcial. Se aceptan los grupos `regional`, `fiscal` y `branding` 
 
 Obligatorios: `email`, `person.given_name`, `person.family_name_1`. El resto es opcional. `person.locale` toma por defecto `tenant_settings.default_locale`.
 
+**Documento de identidad (`RN-CORE-90` a `-93`, `funcional.md §14.6.4`, desde 1.9c).** `person.document_type` solo admite el catálogo cerrado `dni`, `nie`, `pasaporte` (grafía exacta, en minúsculas; el `enum` de OpenAPI sale del enumerado `App\Modules\Core\Domain\DocumentType`). Tipo y número se informan **los dos o ninguno**. El servidor guarda el número **canónico**: sin espacios al principio ni al final y en mayúsculas, y en `dni`/`nie` además sin espacios ni guiones intermedios (`12345678-z` → `12345678Z`; los puntos no se quitan). Formato tras normalizar: `dni` `^\d{8}[A-Z]$` con letra de control módulo 23; `nie` `^[XYZ]\d{7}[A-Z]$` con la misma letra (X, Y, Z valen 0, 1, 2); `pasaporte` `^[A-Z0-9]{1,32}$`, sin dígito de control. La letra de control se comprueba salvo que `core.documents.validate_check_digit` esté desactivado (solo fuera de producción, `OPEN-CORE-06`); **el formato se exige siempre**. La unicidad (`RN-CORE-03`) se comprueba sobre el valor normalizado.
+
 - **Respuesta 201**: el recurso de usuario completo, más `invitation` si se emitió.
 - **Errores**
-  - `422` — validación: correo duplicado entre vivos (`RN-CORE-02`), documento duplicado (`RN-CORE-03`), idioma fuera de los activos (`RN-CORE-13`), formato de documento inválido, rol inexistente.
+  - `422` — validación: correo duplicado entre vivos (`RN-CORE-02`), documento duplicado (`RN-CORE-03`, `core.validation.document_duplicate`), idioma fuera de los activos (`RN-CORE-13`), tipo fuera del catálogo (campo `person.document_type`, `core.validation.document_type_invalid`; **no refleja el valor recibido**, ni en el mensaje ni en `params`), tipo sin número o número sin tipo (`core.validation.document_incomplete`, en el campo que falta), número inválido para el tipo (`person.document_number`, `core.validation.document_number_invalid`), rol inexistente.
+  - **Cambio de contrato de 1.9c** (`ADR-038 §7`): el campo deja de aceptar texto libre; es incompatible en sentido estricto, sin más clientes que la SPA propia y sin producción (`H0`). Anotado en `CHANGELOG.md`.
   - `403` — `RPERM-013`: se intenta asignar un rol con permisos que el solicitante no posee (`RN-CORE-08`).
 - **Idempotencia**: no. La unicidad de correo y documento ya impide el duplicado.
 
@@ -252,6 +255,7 @@ Obligatorios: `email`, `person.given_name`, `person.family_name_1`. El resto es 
 
 - **Permiso**: `usuario` · `actualizar` · `todos`
 - **Cuerpo**: cualquier subconjunto de `email` y de los campos de `person`. **No** acepta `status`, `roles` ni `deleted_at`.
+- **Documento (`RN-CORE-93`)**: si llega `person.document_type`, `person.document_number` o ambos, se valida el par **resultante** (el campo no enviado se toma del valor guardado) con las reglas del alta, y la unicidad excluye a la propia persona. Vaciar el par se hace enviando los dos a `null`; enviar solo uno a `null` es `core.validation.document_incomplete`. Un `PATCH` que no toca el documento no lo revalida.
 - **Efecto colateral**: cambiar `email` revoca las invitaciones vivas (`RN-CORE-11`) y emite `UserEmailChanged`.
 - **Respuesta 200**: recurso actualizado.
 - **Errores**: 401, 403, 404, 422 (mismas validaciones que el alta)
@@ -493,6 +497,7 @@ email;given_name;family_name_1;family_name_2;document_type;document_number;birth
   "public_id": "01J8...",
   "original_filename": "personal-2026.csv",
   "status": "validado",
+  "send_invitations": true,
   "row_count": 5,
   "error_count": 2,
   "created_count": null,
@@ -501,12 +506,21 @@ email;given_name;family_name_1;family_name_2;document_type;document_number;birth
     { "line": 5, "column": "document_number", "code": "formato_invalido", "message": "..." }
   ],
   "report_url": "https://.../signed?...",
+  "created_at": "2026-08-19T09:00:00Z",
   "validated_at": "2026-08-19T09:01:00Z",
   "executed_at": null
 }
 ```
 
 `error_summary` trae como mucho 50 entradas; el informe completo está en `report_url` (CSV, URL firmada de caducidad corta). Los `code` de error son claves de traducción (`INV-009`), no texto.
+
+`created_at` (instante ISO 8601 UTC) se devuelve desde 1.9c (S8, `CA-CORE-238`), en el listado y en el detalle.
+
+`send_invitations` (booleano, lo elegido al subir el fichero) se devuelve también desde 1.9c, en el listado y en el detalle: cambio **aditivo y compatible** que decidió el usuario el 2026-10-03 (S8 ampliado) para que la confirmación de «Ejecutar» diga siempre si se enviarán invitaciones (`RN-CORE-73`, `CA-CORE-235`), también para quien no subió el lote.
+
+**Idioma de `message` (S9, #285, `OPEN-CORE-38` = A, `CA-CORE-239`).** El mensaje de cada incidencia —en `error_summary` y en la columna `message` de `report.csv`— sale en el idioma de **quien subió el lote** (`user_imports.created_by` → `person.locale` si está entre los idiomas activos del centro; si no, `default_locale`, la misma precedencia que `RN-CORE-34`), no en el del proceso del trabajo. Queda persistido en ese idioma: otro administrador que abra el lote lo lee en el de quien lo subió.
+
+**Catálogo de tipos de documento en la importación (`RN-CORE-90` a `-92`, `funcional.md §14.6.4.6`).** La cabecera no cambia. `document_type` admite `dni`, `nie` y `pasaporte` **sin distinguir mayúsculas y con espacios alrededor** (`OPEN-CORE-50` = A; la API exige el código exacto) y se guarda el código canónico; el número se normaliza antes de validar y de comprobar duplicados, dentro del fichero y contra la base de datos. Incidencias de documento (`code`, columna): `tipo_documento_no_valido` (`document_type`), `documento_incompleto` (`document_type` o `document_number`, la que falte), `formato_invalido` (`document_number`), `duplicado_en_fichero` y `duplicado_en_base_de_datos` (`document_number`). `ExecuteUserImport` revalida con las mismas reglas: un lote validado antes del catálogo y ejecutado después se revalida con él.
 
 ### `POST /api/v1/user-imports/{public_id}/execute`
 
@@ -737,7 +751,7 @@ Norma de `ADR-054 §8`-`§10` (`funcional.md` `RN-CORE-46`-`48` y `RN-CORE-58`).
 
 ## 14. Paso 1.9b (pantallas de gestión): *endpoints* nuevos y cambios
 
-> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. Resueltas las preguntas que afectan a este documento: `OPEN-CORE-32` (B, esquema del CSV de usuarios de §14.1), `-39` (A, S4) y `-31` (B, §14.5). Siguen condicionados a preguntas abiertas S9 (`OPEN-CORE-38`) y S10 (`OPEN-CORE-34`). La numeración `S1`-`S10` es la de `funcional.md §14.11`.
+> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. Resueltas las preguntas que afectan a este documento: `OPEN-CORE-32` (B, esquema del CSV de usuarios de §14.1), `-39` (A, S4) y `-31` (B, §14.5). S9 (`OPEN-CORE-38` = A, resuelta) está **implementado** en 1.9c; sigue condicionado a una pregunta abierta S10 (`OPEN-CORE-34`). La numeración `S1`-`S10` es la de `funcional.md §14.11`.
 >
 > **Implementado en `1.9b`** (2026-10-02): S1 a S7 (la parte de `GET /audit-logs`/`POST /audit-logs/exports` de S7 es de `1.9d`, §14.3). Precisiones de la implementación: (a) el cuerpo de `POST /users/exports` acepta `format` **opcional** (por defecto `csv`; la SPA no lo envía, `CA-CORE-222`); (b) el `422` de `q` lleva el código `core.validation.export_search_not_supported` en `errors.q`; (c) un valor fuera de vocabulario en un filtro de lista por comas (`invitations.status`, `users.locale`) responde `422` con `core.validation.in_list` (regla `App\Support\Api\Rules\InList`, mensaje `core.validation.filter_value_invalid`); (d) `GET /users?status=` y `?role=` siguen sin validar sus valores (como antes de 1.9b, solo aceptan listas): el `POST /users/exports` sí valida `status`, `locale` y `role` (ULID) por elemento; (e) `GET /users/{id}?include_deleted=` valida el booleano con la regla común (`422` si no es `true`/`false`).
 

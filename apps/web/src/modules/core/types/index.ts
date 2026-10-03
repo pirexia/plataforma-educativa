@@ -267,11 +267,15 @@ export interface UserImport {
   public_id: PublicId
   original_filename: string
   status: UserImportStatus
+  /** Elegido al subir el fichero; la confirmación de ejecutar lo usa (`RN-CORE-73`). */
+  send_invitations: boolean
   row_count: number | null
   error_count: number | null
   created_count: number | null
   error_summary: UserImportErrorEntry[] | null
   report_url: string | null
+  /** ISO 8601 UTC (S8, `CA-CORE-238`). */
+  created_at: string
   validated_at: string | null
   executed_at: string | null
 }
