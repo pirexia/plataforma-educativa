@@ -15,7 +15,7 @@
 >
 > **Paso 1.9 (tablas de datos: TanStack Table, filtrado, ordenación, columnas configurables y exportación; sin virtualización, `OPEN-CORE-19`): §13, APROBADA** (2026-09-30), **ajustada a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**; `OPEN-054-01` resuelta el 2026-10-01 por `ADR-055` (ACEPTADA). Lista para `implementer`. Ubicación definitiva: aquí (`OPEN-CORE-18`, resuelta por el usuario el 2026-09-30). §0-§12 no se reabren.
 >
-> **Paso 1.9b (pantallas de gestión pendientes de `REQ-CORE-002`/`-003`/`-004`/`-005` y migración de las tres tablas exceptuadas de `RN-CORE-53`): §14, APROBADA** (2026-10-01, decisión del usuario). Dividido en cinco sub-pasos `1.9b`-`1.9f` (`OPEN-CORE-30`, §14.2). Resueltas `OPEN-CORE-30`, `-31`, `-32`, `-39`, `-40`, `-42`, `-43`; `-33` a `-36` **resueltas el 2026-10-03** (C, B, A, A; §14.17); las demás de `OPEN-CORE-37` a `-45` siguen abiertas y bloquean solo el sub-paso que indica §14.17. §0-§13 no se reabren: §14 **precisa** dos puntos de §13 (§14.12) y **amplía** la lista cerrada de `RN-CORE-24` de seis a siete rutas como consecuencia de `OPEN-CORE-31` (§14.3.1), y lo dice donde lo hace.
+> **Paso 1.9b (pantallas de gestión pendientes de `REQ-CORE-002`/`-003`/`-004`/`-005` y migración de las tres tablas exceptuadas de `RN-CORE-53`): §14, APROBADA** (2026-10-01, decisión del usuario). Dividido en cinco sub-pasos `1.9b`-`1.9f` (`OPEN-CORE-30`, §14.2). Resueltas `OPEN-CORE-30`, `-31`, `-32`, `-39`, `-40`, `-42`, `-43`; `-33` a `-36` **resueltas el 2026-10-03** (C, B, A, A; §14.17); `-37` y `-45` **resueltas el 2026-10-03** (B, A); las demás de `OPEN-CORE-38` a `-44` siguen el estado de §14.17 y bloquean solo el sub-paso que indica §14.17. §0-§13 no se reabren: §14 **precisa** dos puntos de §13 (§14.12) y **amplía** la lista cerrada de `RN-CORE-24` de seis a siete rutas como consecuencia de `OPEN-CORE-31` (§14.3.1), y lo dice donde lo hace.
 
 ---
 
@@ -2088,7 +2088,7 @@ Tabla `core.roles`, modo `page`, sin filtros, sin búsqueda, sin orden (el *endp
 
 ### 14.9 Configuración del centro (`core-settings`)
 
-Un formulario por grupo de `GET /tenant/settings` (`api.md §2`): **Regional** (idioma por defecto, idiomas activos, zona horaria, moneda, comunidad autónoma), **Fiscal** (razón social, NIF/CIF, dirección, código postal, municipio, provincia, país) y **Paleta** (colores primario y secundario). El grupo **Seguridad** (`security.*`, de `REQ-AUTH`) depende de `OPEN-CORE-37`. Enlace a «Activos de marca».
+Un formulario por grupo de `GET /tenant/settings` (`api.md §2`): **Regional** (idioma por defecto, idiomas activos, zona horaria, moneda, comunidad autónoma), **Fiscal** (razón social, NIF/CIF, dirección, código postal, municipio, provincia, país) y **Paleta** (colores primario y secundario). El grupo **Seguridad** (`security.*`, de `REQ-AUTH`) se resuelve por `OPEN-CORE-37` = B: la pantalla incluye solo las claves `security.*` que **no** edite ya `/administracion/mfa` (el implementador lo comprueba antes de escribir y lo reporta) y enlaza a esa pantalla para las demás; no se duplica ningún campo. Enlace a «Activos de marca».
 
 - **`RN-CORE-79` · Lectura o edición por permiso.** Con `configuracion.leer` sin `configuracion.actualizar` (p. ej. `direccion`, `permisos.md §4.1`), la pantalla se pinta en **solo lectura** (valores como texto, sin campos editables ni botón de guardar). Con `configuracion.actualizar`, cada grupo se guarda por separado con su propio `PATCH` que envía **solo las claves modificadas de ese grupo** (`RN-CORE-65`), lo que reduce el efecto de «la última escritura gana» de §6 entre dos administradores que editan grupos distintos.
 - **`RN-CORE-80` · Paleta.** Mientras se edita, la vista muestra una **vista previa** del par primario/secundario y su razón de contraste calculada con las funciones puras de 1.7 (`design-system/color/contrast.ts`), con el umbral de 4,5:1 (`RUX-BRAND-006`). Es comodidad: el servidor es la autoridad y un `422 contrast_insufficient` muestra `ratio` y `required` del servidor. La vista previa **no** aplica la paleta al documento (`applyBrandPalette` solo lo llama la capa B). Tras guardar, se llama a `useTenantBranding().refresh()` (`docs/design-system.md §7`) para que el *shell* adopte la paleta sin recargar.
@@ -2106,7 +2106,7 @@ Tres bloques (logo, *favicon*, fondo de acceso), cada uno con la imagen actual (
 
 Estado del servidor verificado (2026-10-01, `ModulesController::index()`): `GET /modules` exige `modulo.leer`, **no está paginado** (devuelve `{"data": [...]}` sin `meta`), recorre **todo el catálogo** de módulos no retirados ordenado por `code` e incluye los no contratados con `enabled: false` y `public_id: null` (`api.md §6`); `name` viene **traducido por el servidor**; nunca devuelve el `reason` interno del proveedor (`RN-BO-82`).
 
-- **`RN-CORE-87` · Pantalla de módulos de solo lectura.** Tabla `core.modules` con el componente de 1.9 (`RN-CORE-53`), con una función de petición que envuelve la respuesta sin paginar en una única página (`meta = {current_page: 1, per_page: n, total: n, last_page: 1}`), la misma técnica de `RN-CORE-74`; sin búsqueda, filtros, orden ni exportación. Columnas: nombre (`rowHeader`), estado (contratado / no contratado, traducido en el cliente) y **fecha de alta** (`enabled_at`, con `Intl`), que es el «aviso de las nuevas altas» de `REQ-CORE-002` en este paso (`ADR-045`: informativo, sin acción requerida). Qué filas se muestran (todo el catálogo o solo los contratados) es `OPEN-CORE-45`. **Ninguna acción de escritura**: la pantalla nunca llama a `PATCH /module-subscriptions/{id}`, aunque el usuario tenga `modulo.actualizar`, ni muestra `settings` ni `phase`. La tabla recarga al cambiar de idioma (`RN-CORE-63`, por `name`).
+- **`RN-CORE-87` · Pantalla de módulos de solo lectura.** Tabla `core.modules` con el componente de 1.9 (`RN-CORE-53`), con una función de petición que envuelve la respuesta sin paginar en una única página (`meta = {current_page: 1, per_page: n, total: n, last_page: 1}`), la misma técnica de `RN-CORE-74`; sin búsqueda, filtros, orden ni exportación. Columnas: nombre (`rowHeader`), estado (contratado / no contratado, traducido en el cliente) y **fecha de alta** (`enabled_at`, con `Intl`), que es el «aviso de las nuevas altas» de `REQ-CORE-002` en este paso (`ADR-045`: informativo, sin acción requerida). Filas mostradas (`OPEN-CORE-45` = A): **solo las contratadas** (`enabled: true`), filtradas en el cliente sobre la respuesta completa de `GET /modules` (no es filtrado de seguridad). **Ninguna acción de escritura**: la pantalla nunca llama a `PATCH /module-subscriptions/{id}`, aunque el usuario tenga `modulo.actualizar`, ni muestra `settings` ni `phase`. La tabla recarga al cambiar de idioma (`RN-CORE-63`, por `name`).
 
 ### 14.10c Perfil propio (`core-profile`, `OPEN-CORE-31` = B)
 
@@ -2255,7 +2255,7 @@ No se corrigen aquí; se reportan para que la sesión orquestadora abra el issue
 | `OPEN-CORE-34` | Opciones de módulo y tipo de entidad en auditoría | **1.9d** | **RESUELTA** (2026-10-03, decisión del usuario): B (`GET /audit-logs/facets`, S10) |
 | `OPEN-CORE-35` | Zona horaria de fechas de auditoría | **1.9d** | **RESUELTA** (2026-10-03, decisión del usuario): A (zona del navegador) |
 | `OPEN-CORE-36` | Detalle de rol con concesiones | 1.9d | **RESUELTA** (2026-10-03, decisión del usuario): A (solo listado; detalle en `1.5b`) |
-| `OPEN-CORE-37` | Grupo `security` en la configuración | 1.9e | B |
+| `OPEN-CORE-37` | Grupo `security` en la configuración | **1.9e** | **RESUELTA** (2026-10-03, decisión del usuario): B (solo lo que no edite ya `/administracion/mfa`; el resto se enlaza) |
 | `OPEN-CORE-38` | Idioma de los mensajes de importación (#285) | **1.9c** | A — **RESUELTA** (2026-10-02, decisión del usuario) |
 | `OPEN-CORE-39` | Contrato de `fallida` en `GET /data-exports` | — | **RESUELTA** (2026-10-01, decisión del usuario): A |
 | `OPEN-CORE-40` | Ampliaciones del componente de tablas | — | **RESUELTA** (2026-10-01, decisión del usuario): A |
@@ -2263,7 +2263,7 @@ No se corrigen aquí; se reportan para que la sesión orquestadora abra el issue
 | `OPEN-CORE-42` | Mecanismo de confirmación | — | **RESUELTA** (2026-10-01, decisión del usuario): A |
 | `OPEN-CORE-43` | Asignación de roles en la ficha de usuario | — | **RESUELTA** (2026-10-01, decisión del usuario): A |
 | `OPEN-CORE-44` | Acciones de plataforma en la pantalla de auditoría | No | A |
-| `OPEN-CORE-45` | Qué filas muestra la pantalla de módulos | **1.9e** | A (abierta, nueva: surge de aplicar `OPEN-CORE-31` = B) |
+| `OPEN-CORE-45` | Qué filas muestra la pantalla de módulos | **1.9e** | **RESUELTA** (2026-10-03, decisión del usuario): A (solo los contratados) |
 
 #### `OPEN-CORE-30` · División del paso — **RESUELTA** (2026-10-01, decisión del usuario): opción A
 
@@ -2334,7 +2334,7 @@ El filtro `module` lo exige `REQ-CORE-005`; `auditable_type` es útil pero no ex
 
 **Recomendación: A.** B construye una pantalla que `1.5b` sustituirá enseguida, con un código técnico visible para el usuario como único contenido.
 
-#### `OPEN-CORE-37` · Grupo `security` de la configuración (`REQ-AUTH`)
+#### `OPEN-CORE-37` · Grupo `security` de la configuración (`REQ-AUTH`) — **RESUELTA** (2026-10-03, decisión del usuario): opción B
 
 `PATCH /tenant/settings` admite `security.session_timeout_minutes`, `security.mfa_allowed_methods` y `security.mfa_grace_period_days` con el mismo permiso. No se ha comprobado si `/administracion/mfa` ya edita alguno (§14.0).
 
@@ -2411,7 +2411,7 @@ El alcance dice «roles (solo lectura)». La asignación de roles **a un usuario
 
 **Recomendación: A.** No está en el alcance fijado y su especificación es de `REQ-BO`.
 
-#### `OPEN-CORE-45` · Qué filas muestra la pantalla de módulos contratados (nueva, abierta; bloquea 1.9e)
+#### `OPEN-CORE-45` · Qué filas muestra la pantalla de módulos contratados — **RESUELTA** (2026-10-03, decisión del usuario): opción A
 
 Surge al aplicar `OPEN-CORE-31` = B. `GET /modules` devuelve **todo el catálogo** de módulos no retirados, incluidos los que el centro no tiene contratados (`enabled: false`, `public_id: null`, y con `disabled_at` los que se descontrataron). `REQ-CORE-002` dice «**consultar los módulos contratados**», y ningún requisito dice si el centro debe ver además lo que no tiene. Es decisión de producto (y con lectura comercial: enseñar al centro el catálogo completo), no técnica.
 
@@ -2519,7 +2519,7 @@ Vitest salvo los marcados **[Playwright]** o **[Pest]**. Cada test cita su ID (`
 - **`CA-CORE-264`** [`RN-CORE-24`, `RN-CORE-88`, `ADR-053 §2`, §14.3.1] · **Dado** el registro ensamblado tras 1.9e, **entonces** las rutas `app`/`bare` con `meta.permissions` vacía son exactamente **siete**: las seis de `CA-CORE-103` más `core-profile`; la constante del test de coherencia (`src/navigation/modules.spec.ts`, comprobación 5) contiene esas siete; y `core-modules` declara `['modulo.leer']`. Con un caso fijo que prueba que una octava ruta con `[]` hace fallar el test.
 - **`CA-CORE-265`** [`RN-CORE-88`, `REQ-CORE-003`] · **Dado** un usuario con `/me.permissions` vacío, **cuando** carga el *shell*, **entonces** la sección «Mi cuenta» contiene «Perfil» y la pantalla se abre; muestra nombre y correo de acceso sin campo editable para ellos, campos editables solo para correo y teléfono de contacto, ningún selector de idioma, y **no** sale ninguna petición `GET /me` además de la del *guard*.
 - **`CA-CORE-266`** [`RN-CORE-89`, `ADR-038 §9.2`, `CA-CORE-018`] · **Dado** el perfil con solo el teléfono cambiado y el correo de contacto vaciado, **cuando** se guarda, **entonces** el cuerpo de `PATCH /me` es exactamente `{"person":{"contact_phone":"…","contact_email":null}}`; con `200`, el estado de sesión pasa a ser la respuesta (sin otra petición a `/me`) y aparece un mensaje con `role="status"`; **y con** `422` en `person.contact_email`, el mensaje del servidor aparece bajo ese campo con `aria-invalid="true"`.
-- **`CA-CORE-267`** [`RN-CORE-87`, `ADR-045`] · **Dado** un usuario con `modulo.leer` y `modulo.actualizar`, **cuando** abre `/administracion/modulos`, **entonces** la tabla (con el componente, `CA-CORE-200` en verde) muestra nombre, estado y fecha de alta formateada; no existe ningún control de edición ni de `settings`; no sale ninguna petición `PATCH`; y una respuesta de `GET /modules` sin `meta` se pinta como una sola página sin paginador. Las filas mostradas siguen la opción de `OPEN-CORE-45` *(se completa al resolverla)*.
+- **`CA-CORE-267`** [`RN-CORE-87`, `ADR-045`] · **Dado** un usuario con `modulo.leer` y `modulo.actualizar`, **cuando** abre `/administracion/modulos`, **entonces** la tabla (con el componente, `CA-CORE-200` en verde) muestra nombre, estado y fecha de alta formateada; no existe ningún control de edición ni de `settings`; no sale ninguna petición `PATCH`; y una respuesta de `GET /modules` sin `meta` se pinta como una sola página sin paginador. Solo se muestran las filas con `enabled: true` (`OPEN-CORE-45` = A); un módulo con `enabled: false` presente en la respuesta no aparece.
 - **`CA-CORE-268`** [`RN-CORE-62`] · **Dado** un usuario sin `modulo.leer`, **entonces** no aparece la entrada «Módulos» ni se pide `GET /modules`; **y dado** el listado de módulos en `es`, al cambiar a `en` se vuelve a pedir una vez (`RN-CORE-63`).
 
 #### Ampliaciones del componente de tablas (`OPEN-CORE-40` = A)
