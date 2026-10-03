@@ -1,6 +1,6 @@
 # Manual de administración
 
-> Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre lo que ya tiene código detrás: el registro de auditoría (paso 0.9), las cuentas bloqueadas y el tiempo de sesión (paso 1.2), la autenticación en dos pasos por rol (paso 1.3), el correo como segundo factor, las excepciones temporales y la pantalla mínima de administración de MFA (paso 1.3b), la navegación, el panel de inicio, el selector de idioma y el control de modo de color (paso 1.8), el manejo común de las tablas de datos (paso 1.9), los usuarios y las invitaciones, con la exportación de usuarios y los diálogos de confirmación (paso 1.9b), la importación de usuarios con el catálogo de tipos de documento (paso 1.9c), y la pantalla de auditoría y el listado de roles (paso 1.9d). El resto de secciones del manual de Administrador de Centro (módulos contratados, configuración del centro, activos de marca, perfil propio) llegan con los demás sub-pasos de las pantallas pendientes de `REQ-CORE` (**1.9e** y **1.9f**, `OPEN-CORE-30`); el editor de roles y la matriz de permisos llegan con `REQ-PERM` (paso **1.5b**, posterior a 1.9) — el núcleo de autorización granular ya está implementado desde 1.5, pero solo por API, sin interfaz todavía.
+> Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre lo que ya tiene código detrás: el registro de auditoría (paso 0.9), las cuentas bloqueadas y el tiempo de sesión (paso 1.2), la autenticación en dos pasos por rol (paso 1.3), el correo como segundo factor, las excepciones temporales y la pantalla mínima de administración de MFA (paso 1.3b), la navegación, el panel de inicio, el selector de idioma y el control de modo de color (paso 1.8), el manejo común de las tablas de datos (paso 1.9), los usuarios y las invitaciones, con la exportación de usuarios y los diálogos de confirmación (paso 1.9b), la importación de usuarios con el catálogo de tipos de documento (paso 1.9c), la pantalla de auditoría y el listado de roles (paso 1.9d), y la configuración del centro, los activos de marca, los módulos contratados y el perfil propio (paso 1.9e). El resto de secciones del manual de Administrador de Centro llegan con el último sub-paso de las pantallas pendientes de `REQ-CORE` (**1.9f**, `OPEN-CORE-30`); el editor de roles y la matriz de permisos llegan con `REQ-PERM` (paso **1.5b**, posterior a 1.9) — el núcleo de autorización granular ya está implementado desde 1.5, pero solo por API, sin interfaz todavía.
 
 ## Navegación y panel de inicio
 
@@ -161,6 +161,34 @@ Para DNI y NIE el sistema ignora espacios y guiones al comprobar el número (`12
 - **Descartar** (lotes subidos, en validación, validados o fallidos) borra el fichero y el informe, con confirmación. Un lote ya ejecutado no se puede descartar.
 - El listado de lotes muestra fichero, fecha de subida, estado, filas, filas con error y usuarios creados.
 
+## Configuración del centro
+
+En **Administración → Centro** (`/administracion/centro`, requiere el permiso de leer la configuración) ves y, si tienes el permiso de modificarla, cambias los datos del centro. Está dividida en **cuatro bloques independientes**, cada uno con su propio botón de guardar: guardar uno no envía ni descarta lo que hayas escrito en otro. Sin el permiso de modificar, ves los mismos valores como texto, sin campos ni botones de guardar.
+
+- **Regional**: los **idiomas activos** (de los cuatro disponibles; al menos uno), el **idioma por defecto** (solo puede ser uno de los activos: si desmarcas el que era el por defecto, tienes que elegir otro antes de poder guardar), la **zona horaria** (escribe parte del nombre en «Buscar zona horaria» para acotar la lista), la **moneda** (código de tres letras mayúsculas, por ejemplo `EUR`) y la **comunidad autónoma** (o «Sin indicar»). Si retiras el idioma en el que estás viendo la aplicación, un aviso te dice, antes de guardar, que pasarás a verla en el idioma por defecto del centro. Al guardar, el selector de idioma se actualiza sin recargar la página.
+- **Fiscal**: razón social, NIF/CIF, dirección, código postal, municipio, provincia y país (código de dos letras mayúsculas, por ejemplo `ES`). Todos son opcionales; dejar uno vacío lo borra.
+- **Paleta de colores**: el color primario y el secundario, en formato `#RRGGBB`. Mientras escribes ves una **vista previa** (el primario como fondo y el secundario como texto) y el **contraste** entre ambos, por ejemplo «Contraste: 3,1:1. No alcanza el mínimo de 4,5:1». Es una ayuda: quien decide es el servidor, que rechaza una paleta con contraste insuficiente y te dice qué contraste ha calculado. La vista previa no cambia los colores de la aplicación; al **guardar**, la aplicación adopta la nueva paleta sin recargar.
+- **Seguridad**: el **cierre de sesión por inactividad** (en minutos, entre 5 y 480), los **métodos de segundo factor admitidos** (la aplicación de autenticación es obligatoria y no se puede quitar; el código por correo es opcional; el SMS no está disponible) y el **plazo de gracia** para activar el segundo factor (en días, entre 1 y 90). Lo que no está aquí —exigir MFA a un rol, las excepciones temporales y los restablecimientos— se gestiona en la pantalla de MFA, a la que este bloque enlaza si tienes permiso para abrirla.
+
+Los campos marcados con * son obligatorios. Si el servidor rechaza un valor, el mensaje aparece bajo el campo y el foco se coloca en él.
+
+### Activos de marca
+
+Desde **Configuración del centro → Activos de marca** (`/administracion/centro/marca`) gestionas tres imágenes: el **logotipo** (SVG, PNG o WebP, hasta 1 MB), el **favicon** (PNG, ICO o SVG, hasta 256 KB) y el **fondo de la pantalla de acceso** (JPEG, PNG o WebP, hasta 3 MB; no se admite SVG). Cada bloque muestra la imagen que hay ahora guardada.
+
+- **Sustituir**: elige el fichero. La aplicación avisa enseguida si supera el tamaño o no es de un tipo admitido, pero **quien decide es el servidor**, que comprueba el contenido real del fichero (una imagen renombrada no pasa) y sanea los SVG. Si lo rechaza, verás su mensaje. No hay vista previa del fichero antes de subirlo: la imagen que se muestra es siempre la ya guardada.
+- **Eliminar**: pide confirmación y deja el centro sin esa imagen.
+- Tras sustituir o eliminar, el logotipo y el favicon de la aplicación se actualizan sin recargar. Si una imagen no carga porque su enlace caducó, la pantalla vuelve a pedirlo una vez; si sigue sin cargar, muestra un aviso.
+- Sin el permiso de modificar la configuración, ves las imágenes sin botones.
+
+## Módulos contratados
+
+En **Administración → Módulos** (`/administracion/modulos`, requiere el permiso de leer módulos) ves los módulos que el centro tiene **contratados**, de **solo lectura**: su nombre, su estado y la **fecha de alta**, que es el aviso de cuándo se activó cada uno (por ejemplo, cuando se incorpora un módulo nuevo). Los módulos no contratados no aparecen. No hay ningún botón de configuración, aunque tengas permiso para modificar módulos. Los nombres se muestran en el idioma de la interfaz; al cambiar de idioma la tabla se vuelve a cargar.
+
+## Mi perfil
+
+En el menú de usuario, **Mi cuenta → Perfil** (`/cuenta/perfil`) está disponible para **cualquier persona con sesión**, sin ningún permiso especial. Muestra tu nombre completo y tu **correo de acceso** (que no se cambia desde aquí; si necesitas cambiarlo, contacta con el centro) y te deja modificar tu **correo de contacto** y tu **teléfono de contacto**. Dejar un campo vacío lo borra. Tu idioma no se cambia aquí sino con el selector de idioma del menú de usuario. Si el servidor rechaza un dato, el mensaje aparece bajo el campo.
+
 ## Roles del centro
 
 En **Administración → Roles** (`/administracion/roles`, requiere el permiso de leer roles) ves los roles del centro en una tabla de **solo lectura**: su nombre, si es **del sistema** o **personalizado**, si exige **MFA** (segundo factor), si da **acceso a datos especiales** (salud, necesidades educativas especiales, convivencia) y **cuántas personas** lo tienen.
@@ -207,7 +235,7 @@ El listado de cuentas bloqueadas se filtra por estado (vigente o ya levantado) y
 
 ### Qué es
 
-Cuánto tiempo puede estar una persona sin actividad en la aplicación antes de que su sesión se cierre sola por seguridad (entre 5 minutos y 8 horas). Es un valor único para todo el centro, no por persona ni por rol: se configura junto con el resto de opciones de seguridad del centro, y se aplica a toda sesión nueva que se abra después del cambio — no cierra de golpe las que ya estaban abiertas con el valor anterior.
+Cuánto tiempo puede estar una persona sin actividad en la aplicación antes de que su sesión se cierre sola por seguridad (entre 5 minutos y 8 horas). Es un valor único para todo el centro, no por persona ni por rol: se configura en el bloque «Seguridad» de **Administración → Centro** (véase «Configuración del centro»), y se aplica a toda sesión nueva que se abra después del cambio — no cierra de golpe las que ya estaban abiertas con el valor anterior.
 
 ## Autenticación en dos pasos (MFA)
 
