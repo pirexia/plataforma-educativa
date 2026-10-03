@@ -104,7 +104,7 @@ Actualización parcial. Se aceptan los grupos `regional`, `fiscal` y `branding` 
 
 - **Validación** (`INV-010`): `default_locale ∈ active_locales`; `active_locales ⊆ {es-ES,en,de,fr}` y no vacío (`ADR-021`); `timezone` identificador IANA; `currency` ISO 4217; `autonomous_community` del catálogo; colores `^#[0-9A-Fa-f]{6}$`; contraste de la paleta ≥ WCAG 2.2 AA (`RUX-BRAND-006`).
 - **Respuesta 200**: el recurso completo, igual que `GET`.
-- **Errores**: 401, 403, 422 (con `errors` por campo; el fallo de contraste incluye `ratio` y `required_ratio`)
+- **Errores**: 401, 403, 422 (con `errors` por campo; el fallo de contraste, código `contrast_insufficient`, va en `errors.branding[]` con `params.ratio` y `params.required`; corregido en 1.9e, el texto anterior decía `required_ratio`)
 - **Idempotencia**: no (`PATCH` con cuerpo parcial es naturalmente repetible)
 
 ---

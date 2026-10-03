@@ -31,11 +31,13 @@ describe('hasAnyPermission', () => {
 })
 
 describe('registro real ensamblado — CA-CORE-100', () => {
-  it('con permissions vacío, la navegación contiene exactamente Inicio y las tres de Mi cuenta', () => {
+  it('con permissions vacío, la navegación contiene exactamente Inicio y las cuatro de Mi cuenta (Perfil desde 1.9e, CA-CORE-265)', () => {
     const entries = visibleNavigationEntries(router, [])
     const ids = entries.map((e) => e.id).sort()
 
-    expect(ids).toEqual(['auth.mfaSecurity', 'auth.password', 'auth.sessions', 'core.home'].sort())
+    expect(ids).toEqual(
+      ['auth.mfaSecurity', 'auth.password', 'auth.sessions', 'core.home', 'core.profile'].sort(),
+    )
   })
 
   it('con proveedor_identidad.leer, aparece además SSO', () => {

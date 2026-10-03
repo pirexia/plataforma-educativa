@@ -62,7 +62,7 @@ describe('CA-CORE-261 (INV-009): las cuatro lenguas de core tienen las mismas cl
     }
   })
 
-  it('las claves nuevas de 1.9b y 1.9d no se copian del español en los demás idiomas', () => {
+  it('las claves nuevas de 1.9b, 1.9d y 1.9e no se copian del español en los demás idiomas', () => {
     const spanish = flatten(LOCALES.es!)
 
     // Cognados legítimos (p. ej. «Roles» en español e inglés); el resto no debe coincidir.
@@ -80,14 +80,32 @@ describe('CA-CORE-261 (INV-009): las cuatro lenguas de core tienen las mismas cl
       'core.audit.columns.ipAddress',
       'core.audit.changes.arrow',
       'core.audit.changes.description',
+      // 1.9e: nombres propios (comunidades autónomas) y términos idénticos en español e inglés.
+      'core.settings.regional.title',
+      'core.settings.autonomousCommunity.CB',
+      'core.settings.autonomousCommunity.CM',
+      'core.settings.autonomousCommunity.EX',
+      'core.settings.autonomousCommunity.GA',
+      'core.settings.autonomousCommunity.RI',
+      'core.settings.autonomousCommunity.CE',
+      'core.settings.autonomousCommunity.ML',
+      'core.branding.kinds.favicon.name',
     ])
 
     for (const locale of ['en', 'de']) {
       const copied = Object.entries(flatten(LOCALES[locale]!))
         .filter(([key]) =>
-          ['core.users.', 'core.invitations.', 'core.audit.', 'core.roles.', 'core.nav.'].some(
-            (prefix) => key.startsWith(prefix),
-          ),
+          [
+            'core.users.',
+            'core.invitations.',
+            'core.audit.',
+            'core.roles.',
+            'core.nav.',
+            'core.settings.',
+            'core.branding.',
+            'core.modules.',
+            'core.profile.',
+          ].some((prefix) => key.startsWith(prefix)),
         )
         .filter(([key, value]) => value === spanish[key] && !allowed.has(key))
         .map(([key]) => key)

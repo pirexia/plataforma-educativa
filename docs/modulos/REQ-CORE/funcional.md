@@ -15,7 +15,7 @@
 >
 > **Paso 1.9 (tablas de datos: TanStack Table, filtrado, ordenación, columnas configurables y exportación; sin virtualización, `OPEN-CORE-19`): §13, APROBADA** (2026-09-30), **ajustada a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**; `OPEN-054-01` resuelta el 2026-10-01 por `ADR-055` (ACEPTADA). Lista para `implementer`. Ubicación definitiva: aquí (`OPEN-CORE-18`, resuelta por el usuario el 2026-09-30). §0-§12 no se reabren.
 >
-> **Paso 1.9b (pantallas de gestión pendientes de `REQ-CORE-002`/`-003`/`-004`/`-005` y migración de las tres tablas exceptuadas de `RN-CORE-53`): §14, APROBADA** (2026-10-01, decisión del usuario). Dividido en cinco sub-pasos `1.9b`-`1.9f` (`OPEN-CORE-30`, §14.2). Resueltas `OPEN-CORE-30`, `-31`, `-32`, `-39`, `-40`, `-42`, `-43`; `-33` a `-36` **resueltas el 2026-10-03** (C, B, A, A; §14.17); las demás de `OPEN-CORE-37` a `-45` siguen abiertas y bloquean solo el sub-paso que indica §14.17. §0-§13 no se reabren: §14 **precisa** dos puntos de §13 (§14.12) y **amplía** la lista cerrada de `RN-CORE-24` de seis a siete rutas como consecuencia de `OPEN-CORE-31` (§14.3.1), y lo dice donde lo hace.
+> **Paso 1.9b (pantallas de gestión pendientes de `REQ-CORE-002`/`-003`/`-004`/`-005` y migración de las tres tablas exceptuadas de `RN-CORE-53`): §14, APROBADA** (2026-10-01, decisión del usuario). Dividido en cinco sub-pasos `1.9b`-`1.9f` (`OPEN-CORE-30`, §14.2). Resueltas `OPEN-CORE-30`, `-31`, `-32`, `-39`, `-40`, `-42`, `-43`; `-33` a `-36` **resueltas el 2026-10-03** (C, B, A, A; §14.17); `-37` y `-45` **resueltas el 2026-10-03** (B, A); el estado de las demás, en §14.17 y bloquean solo el sub-paso que indica §14.17. §0-§13 no se reabren: §14 **precisa** dos puntos de §13 (§14.12) y **amplía** la lista cerrada de `RN-CORE-24` de seis a siete rutas como consecuencia de `OPEN-CORE-31` (§14.3.1), y lo dice donde lo hace.
 
 ---
 
@@ -1667,7 +1667,7 @@ Mantenimiento: el proyecto está activo (tres mantenedores en el registro, líne
 | Decisiones vinculantes | `ADR-038`, `ADR-044`, `ADR-052`, `ADR-053`, `ADR-054`, `ADR-055` (todas ACEPTADAS) y §12/§13 de este documento |
 | Depende de | 1.1 (API de §2-§8 de `api.md`), 1.2 (sesión), 1.5 (`/me.permissions`, resolutor), 1.7 (*design system*, `useTenantBranding().refresh()`, `contrast.ts`), 1.8 (*shell*, registro de navegación, estados de §12.6), 1.9 (`src/data-table/`), `fix/` de #266/#267/#270/#273 (PR #282) y `ADR-055`. **Todas implementadas.** **Dependencia operativa no resuelta**: sin *worker* de colas (#128, Alta), ni la importación ni ninguna exportación terminan fuera de un entorno con `queue:work` arrancado a mano (§14.15) |
 | Código afectado | `apps/web` (pantallas, `shell.ts` de `core`, ampliaciones aditivas de `src/data-table` de `OPEN-CORE-40` = A) **y `apps/api`** (§14.11: dos *endpoints* nuevos —S1 y, si `OPEN-CORE-34` = B, S10—, cuatro cambios compatibles —S5 a S8— y tres correcciones —S3, S4 y S9—) **y una migración *expand*** (S2, `datos.md` Parte D) **y, en 1.9c, una migración de datos sin cambio de esquema** (`datos.md` Parte E) |
-| Estado | **APROBADA** (2026-10-01, decisión del usuario): `OPEN-CORE-30` (A), `-31` (B), `-32` (B), `-39` (A), `-40` (A), `-42` (A) y `-43` (A) resueltas. **Sub-paso `1.9b` IMPLEMENTADO** (2026-10-02; notas y desviaciones en §14.22; pendiente de revisión independiente); **Sub-paso `1.9c` IMPLEMENTADO** (2026-10-02/03; notas y desviaciones en §14.23; revisado por `db-reviewer`, `security-reviewer` y `doc-reviewer` sin hallazgos Crítico/Alto; **pendiente de mezcla**); cada sub-paso posterior espera las preguntas que lo bloquean (§14.17) |
+| Estado | **APROBADA** (2026-10-01, decisión del usuario): `OPEN-CORE-30` (A), `-31` (B), `-32` (B), `-39` (A), `-40` (A), `-42` (A) y `-43` (A) resueltas. **Sub-paso `1.9b` IMPLEMENTADO** (2026-10-02; notas y desviaciones en §14.22; pendiente de revisión independiente); **Sub-paso `1.9c` IMPLEMENTADO** (2026-10-02/03; notas y desviaciones en §14.23; revisado por `db-reviewer`, `security-reviewer` y `doc-reviewer` sin hallazgos Crítico/Alto; **pendiente de mezcla**); **Sub-paso `1.9d` IMPLEMENTADO y mezclado** (PR #320); **Sub-paso `1.9e` IMPLEMENTADO** (2026-10-03; notas y desviaciones en §14.26; revisado por `security-reviewer` y `doc-reviewer` sin hallazgos Crítico/Alto; pendiente de mezcla); cada sub-paso posterior espera las preguntas que lo bloquean (§14.17) |
 
 ### 14.0 Verificación del estado de partida (2026-10-01, rama `feature/REQ-CORE-1.9b-pantallas-de-gestion`, `495d19c`)
 
@@ -2088,7 +2088,7 @@ Tabla `core.roles`, modo `page`, sin filtros, sin búsqueda, sin orden (el *endp
 
 ### 14.9 Configuración del centro (`core-settings`)
 
-Un formulario por grupo de `GET /tenant/settings` (`api.md §2`): **Regional** (idioma por defecto, idiomas activos, zona horaria, moneda, comunidad autónoma), **Fiscal** (razón social, NIF/CIF, dirección, código postal, municipio, provincia, país) y **Paleta** (colores primario y secundario). El grupo **Seguridad** (`security.*`, de `REQ-AUTH`) depende de `OPEN-CORE-37`. Enlace a «Activos de marca».
+Un formulario por grupo de `GET /tenant/settings` (`api.md §2`): **Regional** (idioma por defecto, idiomas activos, zona horaria, moneda, comunidad autónoma), **Fiscal** (razón social, NIF/CIF, dirección, código postal, municipio, provincia, país) y **Paleta** (colores primario y secundario). El grupo **Seguridad** (`security.*`, de `REQ-AUTH`) se resuelve por `OPEN-CORE-37` = B: la pantalla incluye solo las claves `security.*` que **no** edite ya `/administracion/mfa` (el implementador lo comprueba antes de escribir y lo reporta) y enlaza a esa pantalla para las demás; no se duplica ningún campo. Enlace a «Activos de marca».
 
 - **`RN-CORE-79` · Lectura o edición por permiso.** Con `configuracion.leer` sin `configuracion.actualizar` (p. ej. `direccion`, `permisos.md §4.1`), la pantalla se pinta en **solo lectura** (valores como texto, sin campos editables ni botón de guardar). Con `configuracion.actualizar`, cada grupo se guarda por separado con su propio `PATCH` que envía **solo las claves modificadas de ese grupo** (`RN-CORE-65`), lo que reduce el efecto de «la última escritura gana» de §6 entre dos administradores que editan grupos distintos.
 - **`RN-CORE-80` · Paleta.** Mientras se edita, la vista muestra una **vista previa** del par primario/secundario y su razón de contraste calculada con las funciones puras de 1.7 (`design-system/color/contrast.ts`), con el umbral de 4,5:1 (`RUX-BRAND-006`). Es comodidad: el servidor es la autoridad y un `422 contrast_insufficient` muestra `ratio` y `required` del servidor. La vista previa **no** aplica la paleta al documento (`applyBrandPalette` solo lo llama la capa B). Tras guardar, se llama a `useTenantBranding().refresh()` (`docs/design-system.md §7`) para que el *shell* adopte la paleta sin recargar.
@@ -2106,7 +2106,7 @@ Tres bloques (logo, *favicon*, fondo de acceso), cada uno con la imagen actual (
 
 Estado del servidor verificado (2026-10-01, `ModulesController::index()`): `GET /modules` exige `modulo.leer`, **no está paginado** (devuelve `{"data": [...]}` sin `meta`), recorre **todo el catálogo** de módulos no retirados ordenado por `code` e incluye los no contratados con `enabled: false` y `public_id: null` (`api.md §6`); `name` viene **traducido por el servidor**; nunca devuelve el `reason` interno del proveedor (`RN-BO-82`).
 
-- **`RN-CORE-87` · Pantalla de módulos de solo lectura.** Tabla `core.modules` con el componente de 1.9 (`RN-CORE-53`), con una función de petición que envuelve la respuesta sin paginar en una única página (`meta = {current_page: 1, per_page: n, total: n, last_page: 1}`), la misma técnica de `RN-CORE-74`; sin búsqueda, filtros, orden ni exportación. Columnas: nombre (`rowHeader`), estado (contratado / no contratado, traducido en el cliente) y **fecha de alta** (`enabled_at`, con `Intl`), que es el «aviso de las nuevas altas» de `REQ-CORE-002` en este paso (`ADR-045`: informativo, sin acción requerida). Qué filas se muestran (todo el catálogo o solo los contratados) es `OPEN-CORE-45`. **Ninguna acción de escritura**: la pantalla nunca llama a `PATCH /module-subscriptions/{id}`, aunque el usuario tenga `modulo.actualizar`, ni muestra `settings` ni `phase`. La tabla recarga al cambiar de idioma (`RN-CORE-63`, por `name`).
+- **`RN-CORE-87` · Pantalla de módulos de solo lectura.** Tabla `core.modules` con el componente de 1.9 (`RN-CORE-53`), con una función de petición que envuelve la respuesta sin paginar en una única página (`meta = {current_page: 1, per_page: n, total: n, last_page: 1}`), la misma técnica de `RN-CORE-74`; sin búsqueda, filtros, orden ni exportación. Columnas: nombre (`rowHeader`), estado (contratado / no contratado, traducido en el cliente) y **fecha de alta** (`enabled_at`, con `Intl`), que es el «aviso de las nuevas altas» de `REQ-CORE-002` en este paso (`ADR-045`: informativo, sin acción requerida). Filas mostradas (`OPEN-CORE-45` = A): **solo las contratadas** (`enabled: true`), filtradas en el cliente sobre la respuesta completa de `GET /modules` (no es filtrado de seguridad). **Ninguna acción de escritura**: la pantalla nunca llama a `PATCH /module-subscriptions/{id}`, aunque el usuario tenga `modulo.actualizar`, ni muestra `settings` ni `phase`. La tabla recarga al cambiar de idioma (`RN-CORE-63`, por `name`).
 
 ### 14.10c Perfil propio (`core-profile`, `OPEN-CORE-31` = B)
 
@@ -2255,7 +2255,7 @@ No se corrigen aquí; se reportan para que la sesión orquestadora abra el issue
 | `OPEN-CORE-34` | Opciones de módulo y tipo de entidad en auditoría | **1.9d** | **RESUELTA** (2026-10-03, decisión del usuario): B (`GET /audit-logs/facets`, S10) |
 | `OPEN-CORE-35` | Zona horaria de fechas de auditoría | **1.9d** | **RESUELTA** (2026-10-03, decisión del usuario): A (zona del navegador) |
 | `OPEN-CORE-36` | Detalle de rol con concesiones | 1.9d | **RESUELTA** (2026-10-03, decisión del usuario): A (solo listado; detalle en `1.5b`) |
-| `OPEN-CORE-37` | Grupo `security` en la configuración | 1.9e | B |
+| `OPEN-CORE-37` | Grupo `security` en la configuración | **1.9e** | **RESUELTA** (2026-10-03, decisión del usuario): B (solo lo que no edite ya `/administracion/mfa`; el resto se enlaza) |
 | `OPEN-CORE-38` | Idioma de los mensajes de importación (#285) | **1.9c** | A — **RESUELTA** (2026-10-02, decisión del usuario) |
 | `OPEN-CORE-39` | Contrato de `fallida` en `GET /data-exports` | — | **RESUELTA** (2026-10-01, decisión del usuario): A |
 | `OPEN-CORE-40` | Ampliaciones del componente de tablas | — | **RESUELTA** (2026-10-01, decisión del usuario): A |
@@ -2263,7 +2263,7 @@ No se corrigen aquí; se reportan para que la sesión orquestadora abra el issue
 | `OPEN-CORE-42` | Mecanismo de confirmación | — | **RESUELTA** (2026-10-01, decisión del usuario): A |
 | `OPEN-CORE-43` | Asignación de roles en la ficha de usuario | — | **RESUELTA** (2026-10-01, decisión del usuario): A |
 | `OPEN-CORE-44` | Acciones de plataforma en la pantalla de auditoría | No | A |
-| `OPEN-CORE-45` | Qué filas muestra la pantalla de módulos | **1.9e** | A (abierta, nueva: surge de aplicar `OPEN-CORE-31` = B) |
+| `OPEN-CORE-45` | Qué filas muestra la pantalla de módulos | **1.9e** | **RESUELTA** (2026-10-03, decisión del usuario): A (solo los contratados) |
 
 #### `OPEN-CORE-30` · División del paso — **RESUELTA** (2026-10-01, decisión del usuario): opción A
 
@@ -2334,7 +2334,7 @@ El filtro `module` lo exige `REQ-CORE-005`; `auditable_type` es útil pero no ex
 
 **Recomendación: A.** B construye una pantalla que `1.5b` sustituirá enseguida, con un código técnico visible para el usuario como único contenido.
 
-#### `OPEN-CORE-37` · Grupo `security` de la configuración (`REQ-AUTH`)
+#### `OPEN-CORE-37` · Grupo `security` de la configuración (`REQ-AUTH`) — **RESUELTA** (2026-10-03, decisión del usuario): opción B
 
 `PATCH /tenant/settings` admite `security.session_timeout_minutes`, `security.mfa_allowed_methods` y `security.mfa_grace_period_days` con el mismo permiso. No se ha comprobado si `/administracion/mfa` ya edita alguno (§14.0).
 
@@ -2411,7 +2411,7 @@ El alcance dice «roles (solo lectura)». La asignación de roles **a un usuario
 
 **Recomendación: A.** No está en el alcance fijado y su especificación es de `REQ-BO`.
 
-#### `OPEN-CORE-45` · Qué filas muestra la pantalla de módulos contratados (nueva, abierta; bloquea 1.9e)
+#### `OPEN-CORE-45` · Qué filas muestra la pantalla de módulos contratados — **RESUELTA** (2026-10-03, decisión del usuario): opción A
 
 Surge al aplicar `OPEN-CORE-31` = B. `GET /modules` devuelve **todo el catálogo** de módulos no retirados, incluidos los que el centro no tiene contratados (`enabled: false`, `public_id: null`, y con `disabled_at` los que se descontrataron). `REQ-CORE-002` dice «**consultar los módulos contratados**», y ningún requisito dice si el centro debe ver además lo que no tiene. Es decisión de producto (y con lectura comercial: enseñar al centro el catálogo completo), no técnica.
 
@@ -2423,7 +2423,7 @@ Surge al aplicar `OPEN-CORE-31` = B. `GET /modules` devuelve **todo el catálogo
 
 ### 14.18 Criterios de aceptación
 
-Vitest salvo los marcados **[Playwright]** o **[Pest]**. Cada test cita su ID (`INV-015`). Los que dependen de una pregunta todavía abierta (`OPEN-CORE-45`) lo dicen y se reescriben al resolverla; los de preguntas ya resueltas son firmes.
+Vitest salvo los marcados **[Playwright]** o **[Pest]**. Cada test cita su ID (`INV-015`). Ningún criterio depende ya de una pregunta abierta de 1.9e (`OPEN-CORE-37` y `-45` resueltas el 2026-10-03); todos son firmes.
 
 #### Navegación y permisos
 
@@ -2519,7 +2519,7 @@ Vitest salvo los marcados **[Playwright]** o **[Pest]**. Cada test cita su ID (`
 - **`CA-CORE-264`** [`RN-CORE-24`, `RN-CORE-88`, `ADR-053 §2`, §14.3.1] · **Dado** el registro ensamblado tras 1.9e, **entonces** las rutas `app`/`bare` con `meta.permissions` vacía son exactamente **siete**: las seis de `CA-CORE-103` más `core-profile`; la constante del test de coherencia (`src/navigation/modules.spec.ts`, comprobación 5) contiene esas siete; y `core-modules` declara `['modulo.leer']`. Con un caso fijo que prueba que una octava ruta con `[]` hace fallar el test.
 - **`CA-CORE-265`** [`RN-CORE-88`, `REQ-CORE-003`] · **Dado** un usuario con `/me.permissions` vacío, **cuando** carga el *shell*, **entonces** la sección «Mi cuenta» contiene «Perfil» y la pantalla se abre; muestra nombre y correo de acceso sin campo editable para ellos, campos editables solo para correo y teléfono de contacto, ningún selector de idioma, y **no** sale ninguna petición `GET /me` además de la del *guard*.
 - **`CA-CORE-266`** [`RN-CORE-89`, `ADR-038 §9.2`, `CA-CORE-018`] · **Dado** el perfil con solo el teléfono cambiado y el correo de contacto vaciado, **cuando** se guarda, **entonces** el cuerpo de `PATCH /me` es exactamente `{"person":{"contact_phone":"…","contact_email":null}}`; con `200`, el estado de sesión pasa a ser la respuesta (sin otra petición a `/me`) y aparece un mensaje con `role="status"`; **y con** `422` en `person.contact_email`, el mensaje del servidor aparece bajo ese campo con `aria-invalid="true"`.
-- **`CA-CORE-267`** [`RN-CORE-87`, `ADR-045`] · **Dado** un usuario con `modulo.leer` y `modulo.actualizar`, **cuando** abre `/administracion/modulos`, **entonces** la tabla (con el componente, `CA-CORE-200` en verde) muestra nombre, estado y fecha de alta formateada; no existe ningún control de edición ni de `settings`; no sale ninguna petición `PATCH`; y una respuesta de `GET /modules` sin `meta` se pinta como una sola página sin paginador. Las filas mostradas siguen la opción de `OPEN-CORE-45` *(se completa al resolverla)*.
+- **`CA-CORE-267`** [`RN-CORE-87`, `ADR-045`] · **Dado** un usuario con `modulo.leer` y `modulo.actualizar`, **cuando** abre `/administracion/modulos`, **entonces** la tabla (con el componente, `CA-CORE-200` en verde) muestra nombre, estado y fecha de alta formateada; no existe ningún control de edición ni de `settings`; no sale ninguna petición `PATCH`; y una respuesta de `GET /modules` sin `meta` se pinta como una sola página; el pie del componente muestra el total, **«Página 1 de 1»** y los cuatro botones de navegación deshabilitados (decisión del usuario, 2026-10-03: el componente no se modifica en 1.9e; ocultar el pie es la issue #326). Solo se muestran las filas con `enabled: true` (`OPEN-CORE-45` = A); un módulo con `enabled: false` presente en la respuesta no aparece.
 - **`CA-CORE-268`** [`RN-CORE-62`] · **Dado** un usuario sin `modulo.leer`, **entonces** no aparece la entrada «Módulos» ni se pide `GET /modules`; **y dado** el listado de módulos en `es`, al cambiar a `en` se vuelve a pedir una vez (`RN-CORE-63`).
 
 #### Ampliaciones del componente de tablas (`OPEN-CORE-40` = A)
@@ -2550,7 +2550,7 @@ Cada sub-paso ejecuta la suite completa del lado que toca (Pest con `php -d memo
 
 **Aprobada el 2026-10-01** por el usuario, con las respuestas de §14.17 que constan como resueltas: `OPEN-CORE-30` (A), `-31` (B), `-32` (B, contra la recomendación A de esta especificación), `-39` (A), `-40` (A), `-42` (A) y `-43` (A). **1.9b está listo para `implementer` sin reservas**, incluido `POST /users/exports` con el esquema de §14.11.1. Quedan pendientes:
 
-1. Las preguntas abiertas, antes del sub-paso al que bloquean: `-37` y la nueva `-45` (1.9e); `-33` a `-36` (1.9d) y `-38` (1.9c) ya resueltas; `-41` y `-44` no bloquean.
+1. Las preguntas abiertas, antes del sub-paso al que bloquean: `-37` y `-45` (1.9e), `-33` a `-36` (1.9d) y `-38` (1.9c) **ya resueltas** (2026-10-03); `-41` y `-44` no bloquean.
 2. Los issues de los hallazgos 1 a 6 y 9 de §14.16 están abiertos: #287, #288 y #289.
 3. Tener presente que, sin #128, la importación y las exportaciones de este paso no funcionan en un entorno real (§14.15).
 
@@ -2627,3 +2627,38 @@ Lo entregado por el sub-paso `1.9d` (auditoría y roles de solo lectura) y lo qu
 2. El test de `CA-CORE-150` (`shell.i18n.spec.ts`) tenía que admitir `core.nav.roles` como cognado idéntico en español e inglés («Roles»); se añade a su lista de excepciones.
 
 **Cobertura de los criterios de 1.9d**: Pest — `CA-CORE-245` (`AuditLogsEndpointsTest`, `AuditLogFacetsTest`); Vitest — `CA-CORE-208` ampliado a `core-roles`/`core-audit` y `CA-CORE-209` a sus entradas (`shell.spec.ts`), `CA-CORE-240` y `-241` (`RolesView.spec.ts`), `CA-CORE-242` a `-247` y `-262` (`AuditView.spec.ts`), `CA-CORE-243`/`-247` (`auditQuery.spec.ts`), `CA-CORE-244` (`DataTable.entity.spec.ts`, `UserDetailView.spec.ts`), `CA-CORE-261` (`locales.spec.ts`, `i18n.spec.ts`); Playwright — `CA-CORE-259` y `-246` (`e2e/core-audit.spec.ts`).
+
+### 14.26 Notas de implementación de `1.9e` (2026-10-03)
+
+Lo entregado por el sub-paso `1.9e` (configuración del centro, activos de marca, módulos contratados en solo lectura y perfil propio) y lo que no coincide al pie de la letra con lo escrito arriba. Nada de esto reabre la especificación aprobada. **Sin cambios de servidor** (`apps/api` no se toca): solo `apps/web`, más esta documentación.
+
+**Entregado**
+
+- **Rutas** en `core/shell.ts`: `core-settings` (`/administracion/centro`, `configuracion.leer`), `core-branding-assets` (`/administracion/centro/marca`, `configuracion.leer`, sin entrada de menú, miga de pan bajo `core-settings`), `core-modules` (`/administracion/modulos`, `modulo.leer`) y `core-profile` (`/cuenta/perfil`, **`permissions: []`**, sección `cuenta`). La lista cerrada de `RN-CORE-24` pasa de seis a **siete** rutas (`CA-CORE-264`): la constante del test de coherencia (`src/navigation/modules.spec.ts`) contiene `core-profile`, con un caso fijo que prueba que una octava ruta con `[]` hace fallar la comprobación. Entradas de menú nuevas: `core.settings`, `core.modules` (ambas en `administracion`, sin acceso directo) y `core.profile` (en `cuenta`).
+- **Pantallas**: `SettingsView.vue` (cuatro formularios independientes, `RN-CORE-79` a `-82`), `BrandingAssetsView.vue` (`RN-CORE-83`, confirmación de `RN-CORE-64`), `ModulesView.vue` (`RN-CORE-87`, tabla `core.modules` con el componente de 1.9, filtrada en cliente por `enabled: true`, `OPEN-CORE-45` = A) y `ProfileView.vue` (`RN-CORE-88`/`-89`). Componente de apoyo `SettingsField.vue` (etiqueta, marca de obligatorio no solo visual, pista y mensajes del servidor con `aria-invalid`/`aria-describedby`).
+- **Catálogo de comunidades autónomas** (`autonomousCommunities.ts`, `RN-CORE-82`): los 19 códigos de `App\Modules\Core\Domain\AutonomousCommunity::CODES` en el mismo orden, con su nombre en `core.settings.autonomousCommunity.<código>` en los cuatro idiomas. `autonomousCommunities.spec.ts` lee el fichero PHP (`CA-CORE-252`).
+- **Estado de sesión**: `useSession` gana `updateSessionProfile(person)` (junto a `updateSessionLocale`), que hace `PATCH /me` y sustituye el usuario de sesión por la respuesta, sin segunda petición (`RN-CORE-89`, §12.3.4).
+- **Traducciones** `core.settings.*`, `core.branding.*`, `core.modules.*`, `core.profile.*` y `core.nav.{settings,modules,profile}` en `es`, `en`, `de` y `fr`.
+
+**`OPEN-CORE-37` = B: qué edita ya `/administracion/mfa` (comprobado en el código real de `apps/web`)**
+
+La pantalla `mfa-administration` (`auth/views/AdminMfaView.vue` y sus cuatro áreas) **no edita ninguna clave de `security.*`** de la configuración del centro: ni `session_timeout_minutes`, ni `mfa_allowed_methods`, ni `mfa_grace_period_days` aparecen en ningún fichero de producción de `apps/web` fuera de un comentario de `MfaExemptionsArea.vue`. Lo que edita es otra cosa: `mfa_required` **de cada rol** (`PATCH /roles/{id}`), las excepciones temporales (`/mfa-exemptions`), los restablecimientos del segundo factor y la consulta de cumplimiento. Por tanto el grupo **Seguridad** de `/administracion/centro` incluye **las tres claves**, sin duplicar ningún campo, y enlaza a `/administracion/mfa` (solo si el usuario tiene alguno de los permisos de esa ruta, `RN-CORE-62`) para el resto.
+
+**Precisiones y desviaciones**
+
+1. **Grupo Seguridad** (concreción de `OPEN-CORE-37`): `session_timeout_minutes` (entero, 5-480), `mfa_grace_period_days` (entero, 1-90) y `mfa_allowed_methods`. De los métodos se ofrecen **`totp` (siempre marcado y deshabilitado: el servidor exige que esté, `RN-AUTH-69`) y `email`**; `sms` **no se ofrece** porque el servidor lo rechaza mientras no haya proveedor. El `PATCH` envía `mfa_allowed_methods` completo (`["totp"]` o `["totp","email"]`) solo si cambia.
+2. **`CA-CORE-267`, «sin paginador»**: el componente de 1.9 pinta siempre su pie de paginación en modo `page` cuando hay filas (misma técnica de única página que `RN-CORE-74`); `src/data-table` no se modifica en este sub-paso. Con una sola página el pie muestra el total, **«Página 1 de 1»** y los cuatro botones de navegación **deshabilitados**; el test lo comprueba así. **Resuelto por decisión del usuario (2026-10-03, opción C):** `CA-CORE-267` se reescribe a lo que hace el componente; ocultar el pie queda como cambio aditivo posterior en la issue #326 (Baja), tras lo cual se restaurará la redacción «sin paginador».
+3. **Paleta** (`RN-CORE-80`): los colores se escriben como texto `#RRGGBB` (sin selector nativo de color); la vista previa pinta el par primario/secundario como fondo/texto y la razón se **trunca** (no se redondea) a dos decimales con el formato del idioma activo (`3,1:1` en `es`, `3.1:1` en `en`), para que 4,497 no se lea como 4,5. Vaciar un color envía `null`. El `422 contrast_insufficient` llega en `errors.branding[]` (no en `branding.color_*`) con `params.ratio` y `params.required`: la vista pinta el mensaje del servidor y esos dos valores en el resumen del grupo.
+4. **Guardado por grupo** (`RN-CORE-79`): tras guardar un grupo se repone con la respuesta, pero lo que el usuario haya escrito y no guardado en los otros tres se conserva. El botón de cada grupo está deshabilitado sin cambios; en Regional, además, mientras no haya idioma por defecto entre los activos o no haya ninguno activo (`CA-CORE-251`).
+5. **Zona horaria** (`RN-CORE-82`): un campo de búsqueda y un `<select>` nativo con `Intl.supportedValuesOf('timeZone')` filtrado; el valor guardado se conserva siempre como opción.
+6. **Activos** (`RN-CORE-83`): el `<input type="file">` va oculto y los botones «Sustituir …»/«Eliminar …» son el control accesible (texto distinto por bloque, WCAG 2.4.6). La comprobación de cliente compara el tamaño y, si el navegador informa de tipo, el tipo; si el navegador no lo informa (p. ej. `.ico` en algunos sistemas), decide el servidor. Un `413`/`415`/`422` sin cuerpo JSON cae a un texto traducido. La recarga por URL caducada es **una por visita a la pantalla** (se rearma tras sustituir o eliminar); los errores de carga que lleguen mientras esa petición está en vuelo se ignoran por ser de las URL viejas.
+7. **Perfil** (`RN-CORE-88`): el campo de teléfono tiene `maxlength` 32 (límite de `PATCH /me`); el de correo es `type="email"` con `novalidate` en el formulario (decide el servidor). Sin cambios, el botón está deshabilitado.
+8. **`CA-CORE-100`** (`src/navigation/registry.spec.ts`): «Inicio y las tres de Mi cuenta» pasa a «Inicio y las **cuatro** de Mi cuenta» porque `core.profile` aparece para todo usuario autenticado (`CA-CORE-265`). Es consecuencia directa de la especificación.
+9. **Tests con lectura cruzada** (`autonomousCommunities.spec.ts`, como `documentTypes.spec.ts`): se omiten (quedan `skipped` a la vista) en el contenedor `web`, que solo monta `apps/web`; en CI y en un contenedor con `apps/` completo se ejecutan.
+
+**Hallazgos fuera de alcance**
+
+1. **`api.md §2` decía `required_ratio`** y el servidor devuelve `params.required` (`TenantSettingsController::brandingUpdates()`; `funcional.md §14.9` ya decía `required`). Contradicción documentación/código (severidad **Media**, `CLAUDE.md §6.6`); corregido en `api.md` en este sub-paso. Issue [#321](https://github.com/pirexia/plataforma-educativa/issues/321).
+2. **Claves huérfanas `core.module.{enabled,disabled}`** (paso 1.1) sin ningún consumidor en el código tras añadir `core.modules.status.*`. Severidad **Baja**, issue [#322](https://github.com/pirexia/plataforma-educativa/issues/322), sin corregir.
+
+**Cobertura de los criterios de 1.9e**: Vitest — `CA-CORE-208`/`-264` (`shell.spec.ts`, `navigation/modules.spec.ts`), `CA-CORE-209`/`-265`/`-268` (entradas por permiso, `shell.spec.ts`), `CA-CORE-248` a `-251` (`SettingsView.spec.ts`), `CA-CORE-252` (`autonomousCommunities.spec.ts`), `CA-CORE-248`/`-253`/`-254` (`BrandingAssetsView.spec.ts`), `CA-CORE-267`/`-268` (`ModulesView.spec.ts`), `CA-CORE-265`/`-266` (`ProfileView.spec.ts`), `CA-CORE-261` (`locales.spec.ts`); Playwright — `CA-CORE-260` (configuración del centro: orden de teclado, etiquetas, obligatorios, 44 px) y `CA-CORE-265` con el *shell* real (`e2e/core-settings.spec.ts`). `CA-CORE-262` (almacenamiento) se comprueba para la configuración (`SettingsView.spec.ts`).

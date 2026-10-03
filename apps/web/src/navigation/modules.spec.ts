@@ -3,7 +3,8 @@
  * `docs/modulos/REQ-CORE/funcional.md §12.11`
  * (`CA-CORE-103`, `CA-CORE-106`).
  *
- * `RN-CORE-24`/`CA-CORE-103` enumeran **seis** rutas con `meta.permissions`
+ * `RN-CORE-24`/`CA-CORE-103` enumeran **seis** rutas (desde `1.9e`, **siete**: se añade
+ * `core-profile`, `funcional.md §14.3.1`, `CA-CORE-264`) con `meta.permissions`
  * vacía: Inicio, Contraseña, Sesiones, Seguridad, `mfa-enrollment-wall` y
  * `not-found` — ninguna de las dos últimas tiene un permiso real que
  * declarar sin inventarlo (`INV-002`); motivo documentado también en el
@@ -24,6 +25,8 @@ const EMPTY_PERMISSIONS_CLOSED_LIST = [
   'mfa-security',
   'mfa-enrollment-wall',
   'not-found',
+  // Desde 1.9e (`funcional.md §14.3.1`, `CA-CORE-264`): perfil propio, autoservicio por identidad.
+  'core-profile',
 ].sort()
 
 describe('registro de navegación ensamblado — CA-CORE-103', () => {
@@ -60,6 +63,42 @@ describe('registro de navegación ensamblado — CA-CORE-103', () => {
       .sort()
 
     expect(empty).toEqual(EMPTY_PERMISSIONS_CLOSED_LIST)
+  })
+})
+
+describe('lista cerrada de rutas con permissions vacío — CA-CORE-264 (RN-CORE-24, §14.3.1)', () => {
+  function emptyPermissionRoutes(
+    routes: {
+      name?: string | symbol
+      meta: { layout?: string; permissions?: readonly string[] }
+    }[],
+  ): string[] {
+    return routes
+      .filter((route) => route.meta.layout !== 'public' && route.meta.permissions?.length === 0)
+      .map((route) => String(route.name))
+      .sort()
+  }
+
+  it('son exactamente siete: las seis de CA-CORE-103 más core-profile', () => {
+    expect(EMPTY_PERMISSIONS_CLOSED_LIST).toHaveLength(7)
+    expect(EMPTY_PERMISSIONS_CLOSED_LIST).toContain('core-profile')
+    expect(emptyPermissionRoutes(router.getRoutes())).toEqual(EMPTY_PERMISSIONS_CLOSED_LIST)
+  })
+
+  it('core-modules declara modulo.leer', () => {
+    const route = router.getRoutes().find((candidate) => candidate.name === 'core-modules')
+
+    expect(route?.meta.permissions).toEqual(['modulo.leer'])
+  })
+
+  it('caso fijo: una octava ruta con [] haría fallar la comprobación', () => {
+    const withEighth = [
+      ...router.getRoutes(),
+      { name: 'octava-ruta', meta: { layout: 'app', permissions: [] as string[] } },
+    ]
+
+    expect(emptyPermissionRoutes(withEighth)).not.toEqual(EMPTY_PERMISSIONS_CLOSED_LIST)
+    expect(emptyPermissionRoutes(withEighth)).toContain('octava-ruta')
   })
 })
 

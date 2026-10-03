@@ -28,10 +28,29 @@
  * `core-role-detail` (`OPEN-CORE-36` = A: el detalle llega con `1.5b`). Ninguna
  * de las dos usa `permissions: []`.
  *
+ * Paso 1.9e (`funcional.md §14.3`, `§14.3.1`, `§14.9`-`§14.10c`): configuración
+ * del centro (`configuracion.leer`), activos de marca (misma ruta de permiso,
+ * sin entrada de menú: es una acción de `core-settings`), módulos contratados en
+ * solo lectura (`modulo.leer`) y perfil propio. **`core-profile` es la única ruta
+ * de `core` con `permissions: []`** (autoservicio por identidad, `permisos.md
+ * §5.2`; séptima de la lista cerrada de `RN-CORE-24`, `CA-CORE-264`): `PATCH /me`
+ * se autoriza por identidad y un permiso para editar los datos propios crearía
+ * una forma de dejar a alguien sin poder corregir su propio teléfono.
+ *
  * Sin `dashboardBlocks`: ningún módulo, incluido `core`, aporta un bloque
  * del panel en este paso (`OPEN-CORE-13`).
  */
-import { FileUp, House, KeyRound, Mail, ScrollText, Users } from '@lucide/vue'
+import {
+  Blocks,
+  Building2,
+  FileUp,
+  House,
+  KeyRound,
+  Mail,
+  ScrollText,
+  UserRound,
+  Users,
+} from '@lucide/vue'
 import type { ModuleShell } from '@/navigation/types'
 
 export const shell: ModuleShell = {
@@ -124,6 +143,42 @@ export const shell: ModuleShell = {
       component: () => import('./views/AuditView.vue'),
       meta: { layout: 'app', permissions: ['auditoria.leer'], titleKey: 'core.audit.title' },
     },
+    {
+      path: '/administracion/centro',
+      name: 'core-settings',
+      component: () => import('./views/SettingsView.vue'),
+      meta: {
+        layout: 'app',
+        permissions: ['configuracion.leer'],
+        titleKey: 'core.settings.title',
+      },
+    },
+    // ADR-053 §4.4: sin entrada de menú — acción de `core-settings`, miga de pan bajo «Centro».
+    {
+      path: '/administracion/centro/marca',
+      name: 'core-branding-assets',
+      component: () => import('./views/BrandingAssetsView.vue'),
+      meta: {
+        layout: 'app',
+        permissions: ['configuracion.leer'],
+        titleKey: 'core.branding.title',
+        breadcrumbKey: 'core.branding.title',
+        breadcrumbParent: 'core-settings',
+      },
+    },
+    {
+      path: '/administracion/modulos',
+      name: 'core-modules',
+      component: () => import('./views/ModulesView.vue'),
+      meta: { layout: 'app', permissions: ['modulo.leer'], titleKey: 'core.modules.title' },
+    },
+    // Autoservicio por identidad (RN-CORE-88, §14.3.1): la única ruta de `core` con permissions vacío.
+    {
+      path: '/cuenta/perfil',
+      name: 'core-profile',
+      component: () => import('./views/ProfileView.vue'),
+      meta: { layout: 'app', permissions: [], titleKey: 'core.profile.title' },
+    },
   ],
   navigation: [
     {
@@ -173,6 +228,30 @@ export const shell: ModuleShell = {
       icon: ScrollText,
       section: 'administracion',
       shortcut: true,
+    },
+    {
+      id: 'core.settings',
+      route: 'core-settings',
+      labelKey: 'core.nav.settings',
+      icon: Building2,
+      section: 'administracion',
+      shortcut: false,
+    },
+    {
+      id: 'core.modules',
+      route: 'core-modules',
+      labelKey: 'core.nav.modules',
+      icon: Blocks,
+      section: 'administracion',
+      shortcut: false,
+    },
+    {
+      id: 'core.profile',
+      route: 'core-profile',
+      labelKey: 'core.nav.profile',
+      icon: UserRound,
+      section: 'cuenta',
+      shortcut: false,
     },
   ],
   dashboardBlocks: [],

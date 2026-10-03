@@ -6,6 +6,23 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-03 · `1.9e` · configuración del centro, marca, módulos y perfil propio (`REQ-CORE-002`)
+
+Implementa el sub-paso `1.9e` (`funcional.md §14.9`, `§14.10`, `§14.10b`, `§14.10c`, `§14.26`; `OPEN-CORE-37` = B, `-45` = A). Solo SPA: sin migración, sin cambios de servidor, sin permisos ni dependencias nuevas.
+
+### Añadido
+- **`apps/web`**: pantallas `/administracion/centro` (grupos Regional, Fiscal, Paleta y Seguridad —solo las claves `security.*` que `/administracion/mfa` no edita, que son las tres—), `/administracion/marca` (logo, favicon y fondo de acceso), `/administracion/modulos` (solo los contratados, solo lectura) y `/cuenta/perfil` (`core-profile`, autoservicio por identidad; la lista cerrada de `RN-CORE-24` pasa de seis a siete rutas).
+- `useSession().updateSessionProfile` (`RN-CORE-89`), catálogo de comunidades autónomas del cliente con test que lo contrasta con el PHP, textos en es/en/de/fr.
+- Documentación: `REQ-CORE/{funcional §14.26, api §2, permisos}.md`, manual `admin.md`, `docs/i18n.md`, `ARCHITECTURE.md`.
+
+### Revisión
+`security-reviewer` y `doc-reviewer`: sin Crítico/Alto; los Medios documentales se corrigieron. Issues: #321 (Media, `api.md` decía `required_ratio`; corregido), #322, #323, #324 y #326 (Baja, abiertos; #326: pie de paginación de una sola página en `CA-CORE-267`, redacción alineada con el componente).
+
+### Verificado
+Vitest **996 pasan, 3 omitidos** (999; las 3 son lecturas cruzadas a PHP que el contenedor `web` no puede hacer; la de `CA-CORE-252` se comprobó aparte, 12/12); `eslint`, `lint:i18n` y `vue-tsc` limpios (reejecutados por la sesión orquestadora). Playwright 27/27 (informe del implementer).
+
+---
+
 ## 2026-10-03 · `1.9d` · auditoría y roles de solo lectura (`REQ-CORE-005`, `REQ-CORE-004`)
 
 Implementa el sub-paso `1.9d` (`funcional.md §14.7`, `§14.8`, `§14.25`; `OPEN-CORE-33` = C, `-34` = B, `-35` = A, `-36` = A). Sin migración, sin permisos nuevos ni dependencias nuevas.

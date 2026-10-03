@@ -20,18 +20,23 @@ export interface UpdateTenantSettingsPayload {
     active_locales: string[]
     timezone: string
     currency: string
-    autonomous_community: string
+    autonomous_community: string | null
   }>
   fiscal?: Partial<{
-    legal_name: string
-    tax_id: string
-    address: string
-    postal_code: string
-    city: string
-    province: string
-    country_code: string
+    legal_name: string | null
+    tax_id: string | null
+    address: string | null
+    postal_code: string | null
+    city: string | null
+    province: string | null
+    country_code: string | null
   }>
-  branding?: Partial<{ color_primary: string; color_secondary: string }>
+  branding?: Partial<{ color_primary: string | null; color_secondary: string | null }>
+  security?: Partial<{
+    session_timeout_minutes: number
+    mfa_allowed_methods: string[]
+    mfa_grace_period_days: number
+  }>
 }
 
 /**

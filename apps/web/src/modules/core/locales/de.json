@@ -35,7 +35,10 @@
       "invitations": "Einladungen",
       "userImports": "Benutzerimport",
       "audit": "Protokoll",
-      "roles": "Rollen"
+      "roles": "Rollen",
+      "settings": "Schule",
+      "modules": "Module",
+      "profile": "Profil"
     },
     "locale": {
       "name": {
@@ -411,6 +414,201 @@
       },
       "yes": "Ja",
       "no": "Nein"
+    },
+    "settings": {
+      "title": "Einstellungen der Schule",
+      "intro": "Regionale und steuerliche Angaben, Farbpalette und Sicherheitseinstellungen der Schule. Jeder Block wird einzeln gespeichert.",
+      "introReadOnly": "Regionale und steuerliche Angaben, Farbpalette und Sicherheitseinstellungen der Schule, nur lesbar. Du hast keine Berechtigung, sie zu ändern.",
+      "required": "(Pflichtfeld)",
+      "requiredHint": "Mit * markierte Felder sind Pflichtfelder.",
+      "notSet": "Nicht angegeben",
+      "saving": "Wird gespeichert…",
+      "brandingLink": "Markenelemente: Logo, Favicon und Anmeldehintergrund",
+      "errors": {
+        "unexpected": "Die Änderungen konnten nicht gespeichert werden. Bitte versuche es erneut.",
+        "tooManyRequests": "Zu viele Versuche. Warte einen Moment und versuche es erneut.",
+        "tooManyRequestsWithSeconds": "Zu viele Versuche. Versuche es in {seconds} s erneut."
+      },
+      "saved": {
+        "regional": "Regionale Einstellungen gespeichert.",
+        "fiscal": "Steuerliche Angaben gespeichert.",
+        "palette": "Farbpalette gespeichert.",
+        "security": "Sicherheitseinstellungen gespeichert."
+      },
+      "regional": {
+        "title": "Regional",
+        "defaultLocale": "Standardsprache",
+        "chooseDefaultLocale": "Sprache wählen",
+        "defaultLocaleRequired": "Wähle eine Standardsprache unter den aktiven Sprachen, um speichern zu können.",
+        "activeLocales": "Aktive Sprachen",
+        "activeLocalesHint": "Die Standardsprache muss eine der aktiven Sprachen sein.",
+        "activeLocalesRequired": "Wähle mindestens eine aktive Sprache.",
+        "interfaceLocaleWarning": "Du siehst die Oberfläche in einer Sprache, die nicht mehr aktiv sein wird: Nach dem Speichern siehst du sie in der Standardsprache der Schule.",
+        "timezoneSearch": "Zeitzone suchen",
+        "timezone": "Zeitzone",
+        "currency": "Währung",
+        "currencyHint": "Dreibuchstabiger Code in Großbuchstaben, zum Beispiel EUR.",
+        "autonomousCommunity": "Autonome Gemeinschaft",
+        "autonomousCommunityNone": "Nicht angegeben",
+        "save": "Regionale Einstellungen speichern"
+      },
+      "fiscal": {
+        "title": "Steuerliche Angaben",
+        "legalName": "Firmenname",
+        "taxId": "Steuernummer",
+        "address": "Adresse",
+        "postalCode": "Postleitzahl",
+        "city": "Ort",
+        "province": "Provinz",
+        "countryCode": "Land",
+        "countryCodeHint": "Zweibuchstabiger Code in Großbuchstaben, zum Beispiel ES.",
+        "save": "Steuerliche Angaben speichern"
+      },
+      "palette": {
+        "title": "Farbpalette",
+        "primary": "Primärfarbe",
+        "secondary": "Sekundärfarbe",
+        "hexHint": "Format #RRGGBB, zum Beispiel #1D4ED8.",
+        "preview": "Vorschau",
+        "previewEmpty": "Gib beide Farben im Format #RRGGBB ein, um die Vorschau und den Kontrast zu sehen.",
+        "sample": "Beispieltext",
+        "ratio": "Kontrast: {ratio}:1.",
+        "meets": "Erfüllt das Minimum von {required}:1.",
+        "fails": "Erreicht das Minimum von {required}:1 nicht.",
+        "serverRatio": "Der Server hat einen Kontrast von {ratio}:1 berechnet; erforderlich sind mindestens {required}:1.",
+        "save": "Farbpalette speichern"
+      },
+      "security": {
+        "title": "Sicherheit",
+        "sessionTimeout": "Abmeldung bei Inaktivität",
+        "sessionTimeoutHint": "In Minuten, zwischen 5 und 480.",
+        "minutes": "{count} Minute | {count} Minuten",
+        "allowedMethods": "Zulässige Methoden für den zweiten Faktor",
+        "allowedMethodsHint": "Die Authentifizierungs-App ist immer erforderlich. SMS ist nicht verfügbar.",
+        "method": {
+          "totp": "Authentifizierungs-App (TOTP)",
+          "email": "Code per E-Mail",
+          "sms": "SMS-Nachricht"
+        },
+        "gracePeriod": "Frist zur Einrichtung des zweiten Faktors",
+        "gracePeriodHint": "In Tagen, zwischen 1 und 90.",
+        "days": "{count} Tag | {count} Tage",
+        "save": "Sicherheitseinstellungen speichern",
+        "mfaAdminText": "Die Pflicht zum zweiten Faktor je Rolle, Ausnahmen und Zurücksetzungen werden in einer anderen Ansicht verwaltet.",
+        "mfaAdminLink": "Zur MFA-Verwaltung"
+      },
+      "autonomousCommunity": {
+        "AN": "Andalusien",
+        "AR": "Aragonien",
+        "AS": "Asturien",
+        "IB": "Balearen",
+        "CN": "Kanarische Inseln",
+        "CB": "Kantabrien",
+        "CL": "Kastilien und León",
+        "CM": "Kastilien-La Mancha",
+        "CT": "Katalonien",
+        "EX": "Extremadura",
+        "GA": "Galicien",
+        "MD": "Autonome Gemeinschaft Madrid",
+        "MC": "Region Murcia",
+        "NC": "Navarra",
+        "PV": "Baskenland",
+        "RI": "La Rioja",
+        "VC": "Valencianische Gemeinschaft",
+        "CE": "Ceuta",
+        "ML": "Melilla"
+      }
+    },
+    "branding": {
+      "title": "Markenelemente",
+      "intro": "Logo, Favicon und Anmeldehintergrund der Schule. Angezeigt wird das bereits gespeicherte Bild.",
+      "introReadOnly": "Logo, Favicon und Anmeldehintergrund der Schule, nur lesbar. Du hast keine Berechtigung, sie zu ändern.",
+      "imageError": "Das Bild konnte nicht geladen werden.",
+      "saved": "Bild gespeichert.",
+      "removed": "Bild entfernt.",
+      "errors": {
+        "tooLarge": "Die Datei ist zu groß.",
+        "unsupportedType": "Der Dateityp wird nicht unterstützt.",
+        "invalid": "Die Datei ist für diese Verwendung nicht gültig.",
+        "unexpected": "Die Aktion konnte nicht abgeschlossen werden. Bitte versuche es erneut.",
+        "tooManyRequests": "Zu viele Versuche. Warte einen Moment und versuche es erneut.",
+        "tooManyRequestsWithSeconds": "Zu viele Versuche. Versuche es in {seconds} s erneut."
+      },
+      "kinds": {
+        "logo": {
+          "name": "Logo",
+          "limits": "Unterstützte Formate: SVG, PNG oder WebP. Maximale Größe: 1 MB.",
+          "none": "Es ist kein Logo vorhanden.",
+          "alt": "Aktuelles Logo von {center}",
+          "replace": "Logo ersetzen",
+          "remove": "Logo entfernen",
+          "tooLarge": "Das Logo überschreitet das Limit von 1 MB.",
+          "wrongType": "Das Logo muss SVG, PNG oder WebP sein.",
+          "confirmTitle": "Das Logo entfernen",
+          "confirmDescription": "Die Schule wird ohne Logo angezeigt, bis du ein anderes hochlädst.",
+          "confirmButton": "Das Logo von {center} entfernen"
+        },
+        "favicon": {
+          "name": "Favicon",
+          "limits": "Unterstützte Formate: PNG, ICO oder SVG. Maximale Größe: 256 KB.",
+          "none": "Es ist kein Favicon vorhanden.",
+          "alt": "Aktuelles Favicon von {center}",
+          "replace": "Favicon ersetzen",
+          "remove": "Favicon entfernen",
+          "tooLarge": "Das Favicon überschreitet das Limit von 256 KB.",
+          "wrongType": "Das Favicon muss PNG, ICO oder SVG sein.",
+          "confirmTitle": "Das Favicon entfernen",
+          "confirmDescription": "Der Browser zeigt das Standardsymbol an, bis du ein anderes hochlädst.",
+          "confirmButton": "Das Favicon von {center} entfernen"
+        },
+        "loginBackground": {
+          "name": "Anmeldehintergrund",
+          "limits": "Unterstützte Formate: JPEG, PNG oder WebP (kein SVG). Maximale Größe: 3 MB.",
+          "none": "Es ist kein Anmeldehintergrund vorhanden.",
+          "replace": "Anmeldehintergrund ersetzen",
+          "remove": "Anmeldehintergrund entfernen",
+          "tooLarge": "Der Anmeldehintergrund überschreitet das Limit von 3 MB.",
+          "wrongType": "Der Anmeldehintergrund muss JPEG, PNG oder WebP sein.",
+          "confirmTitle": "Den Anmeldehintergrund entfernen",
+          "confirmDescription": "Der Anmeldebildschirm wird ohne Hintergrundbild angezeigt, bis du ein anderes hochlädst.",
+          "confirmButton": "Den Anmeldehintergrund von {center} entfernen"
+        }
+      }
+    },
+    "modules": {
+      "title": "Gebuchte Module",
+      "intro": "Module, die die Schule gebucht hat, nur lesbar. Das Aktivierungsdatum zeigt, wann jedes Modul aktiviert wurde.",
+      "caption": "Gebuchte Module der Schule",
+      "empty": {
+        "title": "Es sind keine Module gebucht",
+        "text": "Die Schule hat noch keine Module gebucht."
+      },
+      "columns": {
+        "name": "Modul",
+        "status": "Status",
+        "enabledAt": "Aktivierungsdatum"
+      },
+      "status": {
+        "contracted": "Gebucht",
+        "notContracted": "Nicht gebucht"
+      }
+    },
+    "profile": {
+      "title": "Mein Profil",
+      "intro": "Deine Kontodaten. Du kannst deine Kontakt-E-Mail und Telefonnummer ändern.",
+      "fullName": "Vollständiger Name",
+      "accessEmail": "Anmelde-E-Mail",
+      "accessEmailHint": "Die Anmelde-E-Mail kann hier nicht geändert werden; wenn du sie ändern musst, wende dich an die Schule.",
+      "contactEmail": "Kontakt-E-Mail",
+      "contactPhone": "Kontakttelefon",
+      "save": "Profil speichern",
+      "saving": "Wird gespeichert…",
+      "saved": "Profil gespeichert.",
+      "errors": {
+        "unexpected": "Das Profil konnte nicht gespeichert werden. Bitte versuche es erneut.",
+        "tooManyRequests": "Zu viele Versuche. Warte einen Moment und versuche es erneut.",
+        "tooManyRequestsWithSeconds": "Zu viele Versuche. Versuche es in {seconds} s erneut."
+      }
     }
   }
 }

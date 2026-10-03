@@ -35,7 +35,10 @@
       "invitations": "Invitations",
       "userImports": "Import d'utilisateurs",
       "audit": "Audit",
-      "roles": "Rôles"
+      "roles": "Rôles",
+      "settings": "Établissement",
+      "modules": "Modules",
+      "profile": "Profil"
     },
     "locale": {
       "name": {
@@ -411,6 +414,201 @@
       },
       "yes": "Oui",
       "no": "Non"
+    },
+    "settings": {
+      "title": "Paramètres de l'établissement",
+      "intro": "Données régionales et fiscales, palette de couleurs et sécurité de l'établissement. Chaque bloc est enregistré séparément.",
+      "introReadOnly": "Données régionales et fiscales, palette de couleurs et sécurité de l'établissement, en lecture seule. Vous n'avez pas l'autorisation de les modifier.",
+      "required": "(obligatoire)",
+      "requiredHint": "Les champs marqués d’un * sont obligatoires.",
+      "notSet": "Non renseigné",
+      "saving": "Enregistrement…",
+      "brandingLink": "Éléments de marque : logo, favicon et fond de connexion",
+      "errors": {
+        "unexpected": "Les modifications n'ont pas pu être enregistrées. Veuillez réessayer.",
+        "tooManyRequests": "Trop de tentatives. Patientez un instant puis réessayez.",
+        "tooManyRequestsWithSeconds": "Trop de tentatives. Réessayez dans {seconds} s."
+      },
+      "saved": {
+        "regional": "Données régionales enregistrées.",
+        "fiscal": "Données fiscales enregistrées.",
+        "palette": "Palette enregistrée.",
+        "security": "Paramètres de sécurité enregistrés."
+      },
+      "regional": {
+        "title": "Régional",
+        "defaultLocale": "Langue par défaut",
+        "chooseDefaultLocale": "Choisissez une langue",
+        "defaultLocaleRequired": "Choisissez une langue par défaut parmi les langues actives pour pouvoir enregistrer.",
+        "activeLocales": "Langues actives",
+        "activeLocalesHint": "La langue par défaut doit être l’une des langues actives.",
+        "activeLocalesRequired": "Cochez au moins une langue active.",
+        "interfaceLocaleWarning": "Vous consultez l'interface dans une langue qui ne sera plus active : après l'enregistrement, vous la verrez dans la langue par défaut de l'établissement.",
+        "timezoneSearch": "Rechercher un fuseau horaire",
+        "timezone": "Fuseau horaire",
+        "currency": "Devise",
+        "currencyHint": "Code de trois lettres majuscules, par exemple EUR.",
+        "autonomousCommunity": "Communauté autonome",
+        "autonomousCommunityNone": "Non renseignée",
+        "save": "Enregistrer les données régionales"
+      },
+      "fiscal": {
+        "title": "Données fiscales",
+        "legalName": "Raison sociale",
+        "taxId": "Numéro fiscal",
+        "address": "Adresse",
+        "postalCode": "Code postal",
+        "city": "Commune",
+        "province": "Province",
+        "countryCode": "Pays",
+        "countryCodeHint": "Code de deux lettres majuscules, par exemple ES.",
+        "save": "Enregistrer les données fiscales"
+      },
+      "palette": {
+        "title": "Palette de couleurs",
+        "primary": "Couleur primaire",
+        "secondary": "Couleur secondaire",
+        "hexHint": "Format #RRGGBB, par exemple #1D4ED8.",
+        "preview": "Aperçu",
+        "previewEmpty": "Saisissez les deux couleurs au format #RRGGBB pour voir l’aperçu et son contraste.",
+        "sample": "Texte d’exemple",
+        "ratio": "Contraste : {ratio}:1.",
+        "meets": "Atteint le minimum de {required}:1.",
+        "fails": "N’atteint pas le minimum de {required}:1.",
+        "serverRatio": "Le serveur a calculé un contraste de {ratio}:1 ; le minimum exigé est {required}:1.",
+        "save": "Enregistrer la palette"
+      },
+      "security": {
+        "title": "Sécurité",
+        "sessionTimeout": "Déconnexion pour inactivité",
+        "sessionTimeoutHint": "En minutes, entre 5 et 480.",
+        "minutes": "{count} minute | {count} minutes",
+        "allowedMethods": "Méthodes de second facteur autorisées",
+        "allowedMethodsHint": "L’application d’authentification est toujours requise. Le SMS n’est pas disponible.",
+        "method": {
+          "totp": "Application d'authentification (TOTP)",
+          "email": "Code par e-mail",
+          "sms": "Message SMS"
+        },
+        "gracePeriod": "Délai de grâce pour activer le second facteur",
+        "gracePeriodHint": "En jours, entre 1 et 90.",
+        "days": "{count} jour | {count} jours",
+        "save": "Enregistrer la sécurité",
+        "mfaAdminText": "L’obligation du second facteur par rôle, les exemptions et les réinitialisations se gèrent sur un autre écran.",
+        "mfaAdminLink": "Aller à l’administration MFA"
+      },
+      "autonomousCommunity": {
+        "AN": "Andalousie",
+        "AR": "Aragon",
+        "AS": "Asturies",
+        "IB": "Îles Baléares",
+        "CN": "Îles Canaries",
+        "CB": "Cantabrie",
+        "CL": "Castille-et-León",
+        "CM": "Castille-La Manche",
+        "CT": "Catalogne",
+        "EX": "Estrémadure",
+        "GA": "Galice",
+        "MD": "Communauté de Madrid",
+        "MC": "Région de Murcie",
+        "NC": "Navarre",
+        "PV": "Pays basque",
+        "RI": "La Rioja",
+        "VC": "Communauté valencienne",
+        "CE": "Ceuta",
+        "ML": "Melilla"
+      }
+    },
+    "branding": {
+      "title": "Éléments de marque",
+      "intro": "Logo, favicon et fond de l'écran de connexion de l'établissement. L'image déjà enregistrée est affichée.",
+      "introReadOnly": "Logo, favicon et fond de connexion de l'établissement, en lecture seule. Vous n'avez pas l'autorisation de les modifier.",
+      "imageError": "L'image n'a pas pu être chargée.",
+      "saved": "Image enregistrée.",
+      "removed": "Image supprimée.",
+      "errors": {
+        "tooLarge": "Le fichier est trop volumineux.",
+        "unsupportedType": "Le type de fichier n'est pas pris en charge.",
+        "invalid": "Le fichier n'est pas valide pour cet usage.",
+        "unexpected": "L'action n'a pas pu être menée à bien. Veuillez réessayer.",
+        "tooManyRequests": "Trop de tentatives. Patientez un instant puis réessayez.",
+        "tooManyRequestsWithSeconds": "Trop de tentatives. Réessayez dans {seconds} s."
+      },
+      "kinds": {
+        "logo": {
+          "name": "Logo",
+          "limits": "Formats pris en charge : SVG, PNG ou WebP. Taille maximale : 1 Mo.",
+          "none": "Il n'y a pas de logo.",
+          "alt": "Logo actuel de {center}",
+          "replace": "Remplacer le logo",
+          "remove": "Supprimer le logo",
+          "tooLarge": "Le logo dépasse la limite de 1 Mo.",
+          "wrongType": "Le logo doit être au format SVG, PNG ou WebP.",
+          "confirmTitle": "Supprimer le logo",
+          "confirmDescription": "L'établissement s'affichera sans logo tant que vous n'en aurez pas téléversé un autre.",
+          "confirmButton": "Supprimer le logo de {center}"
+        },
+        "favicon": {
+          "name": "Favicon",
+          "limits": "Formats pris en charge : PNG, ICO ou SVG. Taille maximale : 256 Ko.",
+          "none": "Il n'y a pas de favicon.",
+          "alt": "Favicon actuel de {center}",
+          "replace": "Remplacer le favicon",
+          "remove": "Supprimer le favicon",
+          "tooLarge": "Le favicon dépasse la limite de 256 Ko.",
+          "wrongType": "Le favicon doit être au format PNG, ICO ou SVG.",
+          "confirmTitle": "Supprimer le favicon",
+          "confirmDescription": "Le navigateur affichera l'icône par défaut tant que vous n'en aurez pas téléversé une autre.",
+          "confirmButton": "Supprimer le favicon de {center}"
+        },
+        "loginBackground": {
+          "name": "Fond de connexion",
+          "limits": "Formats pris en charge : JPEG, PNG ou WebP (pas SVG). Taille maximale : 3 Mo.",
+          "none": "Il n'y a pas de fond de connexion.",
+          "replace": "Remplacer le fond de connexion",
+          "remove": "Supprimer le fond de connexion",
+          "tooLarge": "Le fond de connexion dépasse la limite de 3 Mo.",
+          "wrongType": "Le fond de connexion doit être au format JPEG, PNG ou WebP.",
+          "confirmTitle": "Supprimer le fond de connexion",
+          "confirmDescription": "L'écran de connexion s'affichera sans image de fond tant que vous n'en aurez pas téléversé une autre.",
+          "confirmButton": "Supprimer le fond de connexion de {center}"
+        }
+      }
+    },
+    "modules": {
+      "title": "Modules souscrits",
+      "intro": "Modules souscrits par l'établissement, en lecture seule. La date d'activation indique quand chacun a été activé.",
+      "caption": "Modules souscrits par l'établissement",
+      "empty": {
+        "title": "Aucun module souscrit",
+        "text": "L'établissement n'a encore souscrit aucun module."
+      },
+      "columns": {
+        "name": "Module",
+        "status": "Statut",
+        "enabledAt": "Date d'activation"
+      },
+      "status": {
+        "contracted": "Souscrit",
+        "notContracted": "Non souscrit"
+      }
+    },
+    "profile": {
+      "title": "Mon profil",
+      "intro": "Les données de votre compte. Vous pouvez modifier votre e-mail et votre téléphone de contact.",
+      "fullName": "Nom complet",
+      "accessEmail": "E-mail de connexion",
+      "accessEmailHint": "L'e-mail de connexion ne se modifie pas ici ; si vous devez le changer, contactez l'établissement.",
+      "contactEmail": "E-mail de contact",
+      "contactPhone": "Téléphone de contact",
+      "save": "Enregistrer le profil",
+      "saving": "Enregistrement…",
+      "saved": "Profil enregistré.",
+      "errors": {
+        "unexpected": "Le profil n'a pas pu être enregistré. Veuillez réessayer.",
+        "tooManyRequests": "Trop de tentatives. Patientez un instant puis réessayez.",
+        "tooManyRequestsWithSeconds": "Trop de tentatives. Réessayez dans {seconds} s."
+      }
     }
   }
 }

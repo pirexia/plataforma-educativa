@@ -201,6 +201,15 @@ export interface TenantSettings {
     favicon_url: string | null
     login_background_url: string | null
   }
+  /**
+   * `REQ-AUTH/api.md §6` (grupo `security`, `OPEN-CORE-37` = B). Opcional por
+   * `ADR-038 §7.3`: la pantalla de configuración (`RN-CORE-79`) tolera su ausencia.
+   */
+  security?: {
+    session_timeout_minutes: number
+    mfa_allowed_methods: string[]
+    mfa_grace_period_days: number
+  }
   updated_at: string
 }
 
