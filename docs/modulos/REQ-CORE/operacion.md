@@ -294,7 +294,7 @@ La exportación **solo termina si hay un *worker* procesando `core-exports`**. H
 
 > Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. Dividido en cinco sub-pasos `1.9b`-`1.9f` (`OPEN-CORE-30` = A): cada sub-paso despliega solo su parte de esta sección.
 >
-> **Sub-paso `1.9b` implementado** (2026-10-02): migración `2026_10_02_100100_widen_data_exports_kind_for_users` (`NOT VALID` + `VALIDATE`, `$withinTransaction = false`), trabajo `GenerateUserExport` en `core-exports` y S1-S7 en `apps/api`; `apps/web` con las pantallas de usuarios e invitaciones. **Orden de despliegue de §13.2 sin cambios.** Pendiente de revisión independiente.
+> **Sub-paso `1.9b` implementado** (2026-10-02): migración `2026_10_02_100100_widen_data_exports_kind_for_users` (`NOT VALID` + `VALIDATE`, `$withinTransaction = false`), trabajo `GenerateUserExport` en `core-exports` y S1-S7 en `apps/api`; `apps/web` con las pantallas de usuarios e invitaciones. **Orden de despliegue de §13.2 sin cambios.** Pendiente de revisión independiente. **Sub-paso `1.9c` implementado** (2026-10-02/03): ver §14 (revisado sin Crítico/Alto; pendiente de mezcla).
 
 ### 13.1 Qué se despliega
 
@@ -356,7 +356,7 @@ Ninguna nueva. Conviene mirar, con las de §7: profundidad de `core-exports` (ah
 
 ## 14. Paso 1.9c (importación de usuarios y catálogo de documentos)
 
-> Estado: **IMPLEMENTADO** (2026-10-02), con `funcional.md §14.6`/`§14.6.4`. Pendiente de revisión independiente.
+> Estado: **IMPLEMENTADO** (2026-10-02/03), con `funcional.md §14.6`/`§14.6.4`. Revisado por `db-reviewer`, `security-reviewer` y `doc-reviewer` sin hallazgos Crítico/Alto; **pendiente de mezcla**.
 
 | Aspecto | Paso 1.9c |
 |---------|-----------|
@@ -374,3 +374,11 @@ Ninguna nueva. Conviene mirar, con las de §7: profundidad de `core-exports` (ah
 **Dependencia operativa (#128).** Sin *worker* de `core-imports` la importación se queda en `subido`; la interfaz deja de consultar a los 10 min y ofrece «Comprobar de nuevo» (`RN-CORE-72`). **Cerrar 1.9c sin #128 resuelto entrega una pantalla que no opera en producción** (`funcional.md §14.15`). En desarrollo: `php artisan queue:work --queue=core-imports,core-exports`.
 
 **Datos pendientes de purga en la base de pruebas.** Las tablas `people` de las suites de desarrollo conservan filas huérfanas de pruebas que no limpian lo que siembran (`tenants` se borra, `people` no cae con él). La migración de datos las vería: si en un entorno de desarrollo aborta por «tipos sin correspondencia», revisa primero esas filas antes de buscar un fallo en el catálogo.
+
+### 14.1 Migración de datos de documentos: cómo se ejecuta y cómo se vuelve atrás
+
+- **Quién la ejecuta.** El contenedor que corre `php artisan migrate` necesita las variables **`DB_PLATFORM_*`** (usuario `plataforma_platform`, `BYPASSRLS`): la migración lee y escribe `people` de **todos** los centros por `pgsql_platform`, y `plataforma_owner` no ve ninguna fila por RLS `FORCE`. Sin ellas, la migración falla al conectar (no corrompe nada).
+- **Con los *workers* parados.** Ejecútala con los *workers* de `core-imports` (y los procesos de la API, si es posible) parados o drenados. La migración lee con `lockForUpdate()` dentro de una transacción, de modo que una escritura concurrente espera y no puede cambiar un valor entre la lectura y el `UPDATE`, pero un trabajo de importación de N-1 en vuelo podría escribir después un tipo con otra grafía que ya no se normalizaría hasta la entrega N+1 (`CHECK`, issue [#312](https://github.com/pirexia/plataforma-educativa/issues/312)).
+- **Irreversible a propósito** (`OPEN-CORE-52` = A): `down()` está vacío porque la grafía original no se conserva. **La reversión se apoya en la copia de seguridad / PITR** previa al despliegue (`REQ-BKP`), no en `down()`. La forma canónica es válida para la versión anterior de la aplicación, así que volver a la imagen anterior no exige deshacer datos.
+- **Excepción consciente a `INV-003`.** El `UPDATE` no pasa por los *observers* de auditoría ni toca `updated_at`: es una migración de datos del esquema, no una modificación hecha por una persona (`datos.md` Parte E).
+- **Si aborta** (`RuntimeException` con los `public_id` de los tipos sin correspondencia o de los duplicados): no ha modificado nada. Corrige o fusiona esas personas desde la aplicación (o resiembra en desarrollo) y vuelve a lanzar `migrate`. Procedimiento: `RUNBOOK.md §3b.6`; orden de despliegue y variables: `SYSADMIN.md §2e`.

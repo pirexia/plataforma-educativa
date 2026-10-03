@@ -385,7 +385,7 @@ Ninguna de estas purgas toca `audit_logs`: la retención del registro de auditor
 
 # Parte D · Paso 1.9b (pantallas de gestión): una migración *expand*
 
-> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. La migración pertenece al sub-paso `1.9b`; `1.9c`-`1.9f` no tocan el esquema. **Implementada** (2026-10-02): `apps/api/app/Modules/Core/Database/migrations/2026_10_02_100100_widen_data_exports_kind_for_users.php`, sobre la restricción `data_exports_kind_check` leída de la migración de 1.1, con `$withinTransaction = false` (lección de `#166`). `down()` falla si ya hay filas `users` (hay que purgarlas antes). Pendiente de revisión por `db-reviewer`.
+> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. La migración pertenece al sub-paso `1.9b`; `1.9c` añade solo una migración **de datos** (Parte E, sin cambio de esquema) y `1.9d`-`1.9f` no tocan el esquema. **Implementada** (2026-10-02): `apps/api/app/Modules/Core/Database/migrations/2026_10_02_100100_widen_data_exports_kind_for_users.php`, sobre la restricción `data_exports_kind_check` leída de la migración de 1.1, con `$withinTransaction = false` (lección de `#166`). `down()` falla si ya hay filas `users` (hay que purgarlas antes). Pendiente de revisión por `db-reviewer`.
 
 **Única migración del paso**: ampliar el `CHECK` de `data_exports.kind` con el valor `users`, para `POST /users/exports` (`funcional.md §14.11`, S1-S2). Es exactamente el mecanismo que A.4 previó («cada módulo añade su valor al `CHECK` por *expand*»).
 
@@ -417,7 +417,7 @@ Ninguna de estas purgas toca `audit_logs`: la retención del registro de auditor
 
 # Parte E · Paso 1.9c (importación y catálogo de tipos de documento): una migración de datos, sin cambio de esquema
 
-> Estado: **IMPLEMENTADA** (2026-10-02), con `funcional.md §14.6.4` (aprobada, `OPEN-CORE-46` = B y `-47` a `-53` según la opción recomendada). Corrige `RN-CORE-90` a `-93` en `people` y sustituye lo dicho en la Parte D («`1.9c`-`1.9f` no tocan el esquema») **solo en lo que toca a datos**: 1.9c no añade ni modifica ninguna columna, índice ni restricción.
+> Estado: **IMPLEMENTADA** (2026-10-02/03; revisada por `db-reviewer` sin Crítico/Alto, pendiente de mezcla), con `funcional.md §14.6.4` (aprobada, `OPEN-CORE-46` = B y `-47` a `-53` según la opción recomendada). Corrige `RN-CORE-90` a `-93` en `people` y sustituye lo dicho en la Parte D («`1.9c`-`1.9f` no tocan el esquema») **solo en lo que toca a datos**: 1.9c no añade ni modifica ninguna columna, índice ni restricción.
 
 **Catálogo cerrado** de `people.document_type` (`RN-CORE-90`): `dni`, `nie`, `pasaporte`, en minúsculas, fuente única `App\Modules\Core\Domain\DocumentType`. La columna sigue siendo `text` (`ADR-029`) con el índice único `UNIQUE (tenant_id, document_type, document_number) WHERE document_number IS NOT NULL AND deleted_at IS NULL`.
 
@@ -433,8 +433,9 @@ Ninguna de estas purgas toca `audit_logs`: la retención del registro de auditor
 - **Conexión `pgsql_platform`** (`BYPASSRLS`, `ADR-033 §5`): es una migración entre **todos** los centros, y `plataforma_owner` queda sujeto a RLS por `FORCE` (no vería ninguna fila de ningún tenant).
 - Antes de escribir **comprueba** (1) que ninguna fila queda con un tipo sin correspondencia con el catálogo (`lower(trim(tipo))` ∉ {`dni`, `nie`, `pasaporte`}) y (2) que la normalización no deja a dos personas **vivas** del mismo centro con el mismo documento. Si ocurre cualquiera, **aborta con una `RuntimeException` que enumera los `public_id` afectados y no modifica ninguna fila** (una única transacción): nunca se inventa una correspondencia. Las personas dadas de baja no cuentan como duplicado (el índice único las excluye) y el mismo documento en centros distintos tampoco.
 - Idempotente: una segunda ejecución no encuentra nada que cambiar.
-- **Sin reversión** (`down()` vacío): la forma canónica es válida también para la versión anterior de la aplicación (acepta cualquier texto) y la grafía original no se conserva.
-- El `UPDATE` no pasa por los *observers* de auditoría (`INV-003`): es una migración de datos del esquema, no una modificación hecha por una persona; `updated_at` no se toca.
+- **Irreversible a propósito** (`down()` vacío, `OPEN-CORE-52` = A): la forma canónica es válida también para la versión anterior de la aplicación (acepta cualquier texto) y la grafía original no se conserva. **La reversión se apoya en la copia de seguridad / PITR**, no en `down()` (`operacion.md §14.1`).
+- Lee con `lockForUpdate()` dentro de su transacción (`db-reviewer` D1).
+- **Excepción consciente a `INV-003`**: el `UPDATE` no pasa por los *observers* de auditoría ni toca `updated_at`. Es una migración de datos del esquema, no una modificación hecha por una persona, y reescribir el rastro de `audit_logs` (append-only) con valores redactados no aportaría nada: `document_type` y `document_number` ya se registran como `identifier` redactado (`ADR-035`).
 - La lista de códigos y la regla de normalización **se repiten dentro de la migración** a propósito: una migración no debe depender de código de aplicación que puede cambiar después (un tipo nuevo del enumerado no debe alterar lo que esta migración hizo en su día).
 
 **Auditoría** (`ADR-035`): sin cambio. `Person` sigue `Selective`; `document_type` y `document_number` siguen redactados como `identifier`. `OPEN-CORE-32` = B: ni el tipo ni el número salen en el CSV de exportación de usuarios.
