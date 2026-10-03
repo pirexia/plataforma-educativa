@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.8.3** · 2026-09-21
+> **Versión 0.8.4** · 2026-10-03
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`); el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
@@ -269,6 +269,15 @@ Tabla nueva `platform_idempotency_keys` (`ADR-038 §8`): versión de plataforma 
 **`APP_VERSION` tiene que fijarse en el despliegue**, desde la etiqueta de imagen de `ADR-037` (`infra/quadlet`/CI de publicación) — la ficha de salud de un tenant (`GET /tenants/{public_id}/health`) la devuelve en su bloque de plataforma (`docs/modulos/REQ-BO/funcional.md §5.9.2`). Sin fijarla, `config('app.version')` cae al valor por defecto de `config/app.php` (`0.1.0`) en todos los entornos para siempre — un dato que parece medido y no lo es.
 
 **La pila de colas real**, para diagnosticar sin sorpresas: `QUEUE_CONNECTION=database` (Laravel), tablas `jobs` y `failed_jobs` — **sin ningún *worker* desplegado todavía** (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128)). `plataforma_app` tiene `REVOKE SELECT, UPDATE, DELETE` sobre ambas desde `0.7` (conserva solo `INSERT`, lo que el *worker* necesita para registrar un fallo) — por eso los comandos del propio framework, `queue:retry`/`queue:failed`/`queue:prune-failed`, **nunca han funcionado en este proyecto**: leen y escriben por esa misma conexión. Todo lo que necesita privilegio real (leer trabajos fallidos, reintentar, purgar) lo hace `REQ-BO` por la conexión `pgsql_platform`, dentro de `runAsPlatform()`. La tarea programada nueva de este sub-paso, **`bo:purge-failed-jobs`** (diaria, retención de 24 horas — issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73), constante en `config/backoffice.php`, sin variable de entorno a propósito), **sustituye** en `routes/console.php` al comando del framework, que llevaba desde `0.7` sin borrar una sola fila. Diagnóstico si `failed_jobs` crece sin parar: `RUNBOOK.md §2.5`.
+
+## 2e. Migración de datos de documentos de identidad (`REQ-CORE-003`, `1.9c`)
+
+La entrega `1.9c` incluye una migración **de datos** (`2026_10_02_100200_normalize_people_document_to_catalog`, `docs/modulos/REQ-CORE/datos.md` Parte E) que lleva `people.document_type`/`document_number` a la forma canónica del catálogo cerrado. Para quien despliega:
+
+- **Variables**: el contenedor que corre `php artisan migrate` necesita **`DB_PLATFORM_*`** (rol `plataforma_platform`, `BYPASSRLS`): la migración recorre `people` de todos los centros y `plataforma_owner` no ve filas por RLS `FORCE`.
+- **Puede abortar**, sin modificar nada, si hay un tipo de documento sin correspondencia en el catálogo o dos personas vivas del mismo centro que la normalización convertiría en duplicadas; el mensaje enumera los `public_id`. Procedimiento: `RUNBOOK.md §3b.6`.
+- **Orden de despliegue**: migración de datos → imagen de `apps/api` → imagen de `apps/web`. No dejes la API nueva mucho tiempo con la web anterior (la API rechaza con `422` el texto libre de la SPA antigua). Con los *workers* de `core-imports` parados durante la migración (`docs/modulos/REQ-CORE/operacion.md §14.1`).
+- **Sin `down()`**: la reversión es copia de seguridad / PITR previa al despliegue.
 
 ## 3. Comprobación rápida
 

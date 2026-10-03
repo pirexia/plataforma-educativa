@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |-------|-------|
-| Versión | 2.3.2 |
-| Fecha | 2026-10-02 |
+| Versión | 2.3.3 |
+| Fecha | 2026-10-03 |
 | Estado | Propuesta cerrada, pendiente de ratificación |
 | Documento de requisitos | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` |
 
@@ -127,6 +127,8 @@ Detalle completo, reglas de negocio y criterios de aceptación: `docs/modulos/RE
 - **Tests de arquitectura** (`src/data-table/architecture.spec.ts`, patrón de `docs/design-system.md §10`): importación única de TanStack, frontera de `src/data-table/**` (sin `@/modules`), toda tabla nueva por el componente con lista cerrada de excepciones que solo puede reducirse (`RN-CORE-53`: `MfaExemptionsArea.vue`, `AdminSsoView.vue`, `SessionsView.vue`, hasta `1.9f`), `tableId` literal y único, y ningún fichero de exportación construido en el cliente.
 
 Detalle completo, reglas de negocio y criterios de aceptación: `docs/modulos/REQ-CORE/funcional.md §13`; decisiones: `docs/adr/ADR-054-tablas-de-datos-y-exportacion-de-listados.md`.
+
+**Interfaz pública de `core` desde 1.9c** (`INV-007`, `docs/modulos/REQ-CORE/funcional.md §14.6.4`): el enumerado `App\Modules\Core\Domain\DocumentType` (`dni`, `nie`, `pasaporte`) es la **única fuente de verdad** del catálogo cerrado de tipos de documento de identidad; los módulos posteriores (`REQ-ALUM`, `REQ-FAM-UNIT`, `REQ-RRHH`) lo consumen por esa interfaz, nunca leyendo `people.document_type` ni copiando la lista. De él salen la validación del servidor, el `enum` de OpenAPI y —en la entrega siguiente, issue #312— el `CHECK` de la base de datos; el cliente lleva una constante comprobada contra él (`apps/web/src/modules/core/documentTypes.ts`). La importación de usuarios (`UserImportRowValidator`, trabajos `ValidateUserImport`/`ExecuteUserImport` en `core-imports`) aplica las mismas reglas que la API.
 
 **Ampliaciones de 1.9b** (`docs/modulos/REQ-CORE/funcional.md §14`): el filtro `boolean` admite una variante de **dos estados** (`twoState`, una casilla: marcada envía `<id>=true`, desmarcada no envía el parámetro) y las opciones de un filtro `enum` admiten un `label` literal (nombres ya traducidos por el servidor). Las confirmaciones de acciones destructivas pasan por un único componente de aplicación, `src/components/ConfirmDialog.vue` + `useConfirm.ts`, sobre `alert-dialog` de shadcn-vue (`docs/design-system.md §12.3c`). Servidor: la exportación de usuarios (`POST /users/exports`, `GenerateUserExport`) usa `CsvWriter` y un esquema cerrado sin documento ni fecha de nacimiento (`ADR-055`, `OPEN-CORE-32`); `GET /data-exports/{id}` autoriza por `kind` (`DataExportsController::PERMISSION_BY_KIND`) y una exportación fallida es `200` con `status: "fallida"`.
 

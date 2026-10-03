@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.1** · 2026-09-21
+> **Versión 0.3.2** · 2026-10-03
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -158,6 +158,16 @@ Es una operación de segundos porque cada versión es una imagen inmutable en GH
 4. Confirmar con `auth.saml.acs.outcome` que ningún proveedor con firma activa empieza a fallar tras el reinicio.
 
 **Reversión de una incidencia con la clave** (comprometida o corrupta): retirar `AUTH_SAML_SP_SIGNING_KEY_PATH`/`AUTH_SAML_SP_SIGNING_CERT_PATH` y reiniciar. Ningún proveedor deja de funcionar — `sign_authn_requests` pasa a no poder activarse (`409` si alguien lo intenta) y los que ya lo tenían activo empiezan a enviar `AuthnRequest` sin firmar, que la mayoría de IdP aceptan igualmente (`funcional.md §G.3.7`). **No es una maniobra inocua para los que exigen la firma** (algunos despliegues de ADFS/Shibboleth): esos centros pierden su SSO hasta que se reconfigure la clave, aunque su acceso con contraseña local sigue intacto (`RN-AUTH-96`).
+
+### 3b.6 Si la migración de datos de documentos aborta (`REQ-CORE-003`, `1.9c`)
+
+Síntoma: `php artisan migrate` falla en `2026_10_02_100200_normalize_people_document_to_catalog` con «Migración de documentos abortada sin modificar ninguna fila», y dos listas de `public_id`. **No se ha modificado ningún dato** (una sola transacción).
+
+1. Si el error es de conexión, comprueba que el contenedor tiene las variables `DB_PLATFORM_*` (`SYSADMIN.md §2e`).
+2. **Tipos sin correspondencia** (primera lista): son personas cuyo `document_type` no es `dni`, `nie` ni `pasaporte` (ni una variante de mayúsculas/espacios). Consulta cada una con su `public_id` y corrige el tipo desde la aplicación (la API ya solo admite el catálogo) o, en desarrollo, resiembra. No inventes una correspondencia.
+3. **Duplicados creados por la normalización** (segunda lista): dos personas vivas del mismo centro con el mismo documento escrito distinto (`12345678-Z` y `12345678z`). Decide cuál es la persona real, fusiona o corrige la otra y da de baja la sobrante.
+4. Vuelve a lanzar `migrate`. Es idempotente.
+5. Para volver atrás tras una ejecución correcta no hay `down()`: restaura la copia de seguridad / PITR previa al despliegue (`docs/modulos/REQ-CORE/operacion.md §14.1`).
 
 ## 4. Copias de seguridad y recuperación
 
