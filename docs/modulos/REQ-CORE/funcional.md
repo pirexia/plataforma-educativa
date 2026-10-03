@@ -15,7 +15,7 @@
 >
 > **Paso 1.9 (tablas de datos: TanStack Table, filtrado, ordenación, columnas configurables y exportación; sin virtualización, `OPEN-CORE-19`): §13, APROBADA** (2026-09-30), **ajustada a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**; `OPEN-054-01` resuelta el 2026-10-01 por `ADR-055` (ACEPTADA). Lista para `implementer`. Ubicación definitiva: aquí (`OPEN-CORE-18`, resuelta por el usuario el 2026-09-30). §0-§12 no se reabren.
 >
-> **Paso 1.9b (pantallas de gestión pendientes de `REQ-CORE-002`/`-003`/`-004`/`-005` y migración de las tres tablas exceptuadas de `RN-CORE-53`): §14, APROBADA** (2026-10-01, decisión del usuario). Dividido en cinco sub-pasos `1.9b`-`1.9f` (`OPEN-CORE-30`, §14.2). Resueltas `OPEN-CORE-30`, `-31`, `-32`, `-39`, `-40`, `-42`, `-43`; las demás de `OPEN-CORE-33` a `-45` siguen abiertas y bloquean solo el sub-paso que indica §14.17. §0-§13 no se reabren: §14 **precisa** dos puntos de §13 (§14.12) y **amplía** la lista cerrada de `RN-CORE-24` de seis a siete rutas como consecuencia de `OPEN-CORE-31` (§14.3.1), y lo dice donde lo hace.
+> **Paso 1.9b (pantallas de gestión pendientes de `REQ-CORE-002`/`-003`/`-004`/`-005` y migración de las tres tablas exceptuadas de `RN-CORE-53`): §14, APROBADA** (2026-10-01, decisión del usuario). Dividido en cinco sub-pasos `1.9b`-`1.9f` (`OPEN-CORE-30`, §14.2). Resueltas `OPEN-CORE-30`, `-31`, `-32`, `-39`, `-40`, `-42`, `-43`; `-33` a `-36` **resueltas el 2026-10-03** (C, B, A, A; §14.17); las demás de `OPEN-CORE-37` a `-45` siguen abiertas y bloquean solo el sub-paso que indica §14.17. §0-§13 no se reabren: §14 **precisa** dos puntos de §13 (§14.12) y **amplía** la lista cerrada de `RN-CORE-24` de seis a siete rutas como consecuencia de `OPEN-CORE-31` (§14.3.1), y lo dice donde lo hace.
 
 ---
 
@@ -1813,7 +1813,7 @@ Muestra todos los campos de `GET /users/{id}`, incluidos `document_type`/`docume
 | Enviar / reenviar invitación | `invitacion.crear` | `POST /users/{id}/invitations` | `status = pendiente` y no dado de baja |
 | Ver sus roles | `asignacion_rol.leer` | `GET /users/{id}/roles` | Siempre (con el permiso) |
 | Gestionar roles (`OPEN-CORE-43` = A) | `asignacion_rol.crear` (y `rol.leer` para las opciones; retirar roles exige además `asignacion_rol.eliminar`, que decide el servidor) | `PUT /users/{id}/roles` | No dado de baja |
-| Ver su actividad | `auditoria.leer` | navegación a `core-audit` con `actor_id` | Según `OPEN-CORE-33` (abierta, bloquea 1.9d): la acción se añade en 1.9d, no en 1.9b |
+| Ver su actividad | `auditoria.leer` | navegación a `core-audit` con `actor_id` | `OPEN-CORE-33` = C (resuelta): la acción se añade en 1.9d, no en 1.9b |
 
 - **`RN-CORE-61` · Acciones por permiso, nunca por rol, y sin anticipar reglas de servidor.** Una acción se muestra si y solo si `/me.permissions` contiene el permiso de su *endpoint*. La interfaz **no** reproduce `RN-CORE-06` (no tocarse a uno mismo) ni `RN-CORE-07` (último administrador) comprobando códigos de rol (`RN-CORE-23`, `CA-CORE-102`): el servidor responde `409` y la vista muestra su `detail` traducido. **Única excepción admitida, por identidad y no por rol**: si el `public_id` de la ficha es el de `/me`, las acciones de estado, baja y roles se muestran deshabilitadas con la explicación «no puedes modificar tu propia cuenta desde aquí» — comodidad, el servidor sigue decidiendo.
 - **Restaurar** devuelve el usuario en `inactivo` (`api.md §3`): la vista lo dice tras la restauración y ofrece «Activar» si procede. `409` (correo o documento ocupados) muestra el `detail`.
@@ -2060,7 +2060,7 @@ Tabla `core.audit_logs`, **modo `cursor`** (`ADR-038 §4.2`), «Cargar más», t
 
 | `id` | Cabecera | Contenido | Tarjeta |
 |------|----------|-----------|---------|
-| `occurred_at` | Fecha y hora | Instante con `Intl`, zona según `OPEN-CORE-35`. `rowHeader` | `title` |
+| `occurred_at` | Fecha y hora | Instante con `Intl`, zona del navegador (`OPEN-CORE-35` = A). `rowHeader` | `title` |
 | `event` | Operación | Etiqueta traducida de los **nueve** valores (`datos.md`, `ADR-039`; ver hallazgo 9 de §14.16), rama por defecto con el código crudo (`ADR-038 §7.3`) | `subtitle` |
 | `actor` | Usuario | `actor.display_name`; para `actor_type ≠ user`, la etiqueta traducida del tipo (sistema, consola, importación, plataforma, anónimo) | `field` |
 | `auditable_type` | Entidad | Etiqueta traducida del alias si existe en el catálogo del cliente; si no, el alias crudo | `field` |
@@ -2070,11 +2070,11 @@ Tabla `core.audit_logs`, **modo `cursor`** (`ADR-038 §4.2`), «Cargar más», t
 | `actions` | — | «Ver cambios» | `actions` |
 
 - **`RN-CORE-76` · Filtros de auditoría** (`REQ-CORE-005`: «fecha, usuario, tipo de operación, módulo»):
-  - **Fecha**: `dateRange` con `id = occurred_at` → `occurred_at_from`/`occurred_at_to`. Como el parámetro es `TIMESTAMPTZ`, la función de petición del módulo convierte el día elegido (inicio del día «desde», fin del día «hasta», inclusivos) a instante ISO 8601 en la zona que fije `OPEN-CORE-35` (`§13.7`).
+  - **Fecha**: `dateRange` con `id = occurred_at` → `occurred_at_from`/`occurred_at_to`. Como el parámetro es `TIMESTAMPTZ`, la función de petición del módulo convierte el día elegido (inicio del día «desde», fin del día «hasta», inclusivos) a instante ISO 8601 en la zona del navegador (`OPEN-CORE-35` = A, resuelta; `§13.7`); se documenta en el manual.
   - **Tipo de operación**: `enum` `event` con los nueve valores.
   - **Tipo de actor**: `enum` `actor_type` con los seis valores (requiere varios valores en servidor, §14.11).
-  - **Usuario**: `actor_id`. **El componente de 1.9 no tiene un filtro para elegir una entidad**: `OPEN-CORE-33`.
-  - **Módulo** (`module`) y **tipo de entidad** (`auditable_type`): las opciones no las expone ningún *endpoint* al que tenga acceso todo usuario con `auditoria.leer`: `OPEN-CORE-34`.
+  - **Usuario**: `actor_id`. **`OPEN-CORE-33` = C (resuelta)**: tipo de filtro nuevo **`entity`** en `src/data-table` (aditivo; amplía la lista cerrada de §13.7), selección única por búsqueda asíncrona con función aportada por el consumidor (`GET /users?q=`, requiere `usuario.leer`; sin él el filtro no se ofrece, `RN-CORE-62`), serializado como `actor_id=<ulid>`; la etiqueta se resuelve con `GET /users/{id}` al restaurar desde la URL. Además, «Ver su actividad» en la ficha del usuario (`auditoria.leer`) navega a `core-audit` con `actor_id` y el indicador «Filtrado por: {nombre}» con acción de quitarlo.
+  - **Módulo** (`module`) y **tipo de entidad** (`auditable_type`): `OPEN-CORE-34` = B (resuelta): las opciones salen de `GET /audit-logs/facets` (S10, `auditoria.leer`, `api.md §14.4`); el cliente traduce con rama por defecto.
 - **`RN-CORE-77` · Detalle de cambios.** «Ver cambios» abre un panel modal (`sheet` ya vendorizado en 1.8, `role="dialog"`, foco atrapado, `Esc` cierra, foco vuelve al botón) con `changes` **tal como llega** (`CA-CORE-052`): por atributo, `from` → `to` como texto (un valor no escalar, p. ej. `active_locales`, como JSON compacto); una entrada redactada se muestra como «valor no registrado» más el motivo traducido (`secret`, `special`, `identifier`, `oversized`) y, si existen, «antes vacío / después vacío» a partir de `from_empty`/`to_empty`. **Nunca** intenta reconstruir un valor redactado ni pide nada más al servidor. `changes: null` (eventos `read`, `exported`, `login`…) muestra «sin cambios registrados». El nombre del atributo se muestra tal cual (es el nombre técnico de la columna): traducir los atributos de todos los modelos auditables de todos los módulos es un catálogo sin dueño que este paso no inventa.
 - **`RN-CORE-78` · Exportación de auditoría.** `canExport` = `auditoria.exportar`; la solicitud lleva exactamente los filtros estructurados del listado (`api.md §8`, #267 ya resuelto). Al tope de `RN-CORE-52`, el aviso ofrece exportar.
 
@@ -2084,7 +2084,7 @@ Tabla `core.roles`, modo `page`, sin filtros, sin búsqueda, sin orden (el *endp
 
 - **`RN-CORE-75` · Solo lectura.** Ninguna acción de escritura sobre roles en 1.9b, **aunque** la API de 1.5 las admita y el usuario tenga `rol.crear`/`rol.actualizar`/`rol.eliminar`: el editor es `1.5b`. La edición de `mfa_required` ya existe en `/administracion/mfa` y no se duplica.
 - **`RN-CORE-63` · Texto traducido por el servidor.** `GET /roles` (`name` de los roles del sistema) y `GET /users` (`roles[].name`) devuelven texto traducido en el idioma de la petición (`api.md §3`). Las tablas que lo muestran **vuelven a pedir la página actual** al cambiar el idioma de la interfaz (precisión de §13.12, último punto, que preveía «en 1.9b no se prevé ninguno»: sí lo hay).
-- **Detalle de un rol** con sus concesiones: `OPEN-CORE-36`.
+- **Detalle de un rol** con sus concesiones: **fuera de 1.9d** (`OPEN-CORE-36` = A, resuelta): llega con la matriz de `1.5b`. No se crea `core-role-detail` ni se llama a `GET /roles/{id}`.
 
 ### 14.9 Configuración del centro (`core-settings`)
 
@@ -2251,10 +2251,10 @@ No se corrigen aquí; se reportan para que la sesión orquestadora abra el issue
 | `OPEN-CORE-30` | División del paso | — | **RESUELTA** (2026-10-01, decisión del usuario): A, cinco sub-pasos |
 | `OPEN-CORE-31` | Módulos contratados y perfil propio | — | **RESUELTA** (2026-10-01, decisión del usuario): B, entran en 1.9e |
 | `OPEN-CORE-32` | Columnas del CSV de usuarios | — | **RESUELTA** (2026-10-01, decisión del usuario): B, sin `document_type`, `document_number` ni `birth_date` (esquema en §14.11.1) |
-| `OPEN-CORE-33` | Filtro por usuario en auditoría | **1.9d** | C |
-| `OPEN-CORE-34` | Opciones de módulo y tipo de entidad en auditoría | **1.9d** | B |
-| `OPEN-CORE-35` | Zona horaria de fechas de auditoría | **1.9d** | A |
-| `OPEN-CORE-36` | Detalle de rol con concesiones | 1.9d | A |
+| `OPEN-CORE-33` | Filtro por usuario en auditoría | **1.9d** | **RESUELTA** (2026-10-03, decisión del usuario): C (filtro `entity` + «Ver su actividad») |
+| `OPEN-CORE-34` | Opciones de módulo y tipo de entidad en auditoría | **1.9d** | **RESUELTA** (2026-10-03, decisión del usuario): B (`GET /audit-logs/facets`, S10) |
+| `OPEN-CORE-35` | Zona horaria de fechas de auditoría | **1.9d** | **RESUELTA** (2026-10-03, decisión del usuario): A (zona del navegador) |
+| `OPEN-CORE-36` | Detalle de rol con concesiones | 1.9d | **RESUELTA** (2026-10-03, decisión del usuario): A (solo listado; detalle en `1.5b`) |
 | `OPEN-CORE-37` | Grupo `security` en la configuración | 1.9e | B |
 | `OPEN-CORE-38` | Idioma de los mensajes de importación (#285) | **1.9c** | A — **RESUELTA** (2026-10-02, decisión del usuario) |
 | `OPEN-CORE-39` | Contrato de `fallida` en `GET /data-exports` | — | **RESUELTA** (2026-10-01, decisión del usuario): A |

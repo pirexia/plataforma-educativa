@@ -404,7 +404,7 @@ Ninguna de estas purgas toca `audit_logs`: la retención del registro de auditor
 | `created_at` en el recurso de importación | Columna existente de `tenantTable()` | Ninguno |
 | Usuarios dados de baja en el detalle | `users.deleted_at` | Ninguno |
 | Valores múltiples en filtros (`status`, `locale`, `actor_type`, `module`) | Mismas columnas, `IN (…)` en vez de `=` | Ninguno. **Índices**: ninguno nuevo; ninguno de los filtros tenía índice propio y el volumen (catálogos acotados por el tamaño del centro, `ADR-038 §4.2`) no lo justifica sin medición (`A.7`, `REQ-SEED`) |
-| Facetas de auditoría (si `OPEN-CORE-34` = B) | Catálogo en código (`ModuleCatalog`, *morph map*) | Ninguno; no consulta `audit_logs` |
+| Facetas de auditoría (`OPEN-CORE-34` = B, resuelta) | Catálogo en código (`ModuleCatalog`, *morph map*) | Ninguno; no consulta `audit_logs` |
 | Configuración de columnas de las tablas nuevas | `localStorage`, `plataforma.table.<tableId>` (`RN-CORE-43`), con los `tableId` literales de `funcional.md §14` (`core.users`, `core.invitations`, `core.user_imports`, `core.user_import_errors`, `core.roles`, `core.audit_logs`, `core.modules`, `auth.mfa_exemptions`, `auth.identity_providers`, `auth.sessions`) | Ninguno en servidor; el patrón de clave ya está en `PRIVACY.md §2.1b` |
 | Módulos contratados (1.9e, solo lectura) | `module_subscriptions` y catálogo `modules` por `GET /modules` (columnas visibles para el tenant, `RN-BO-82`) | Ninguno |
 | Perfil propio (1.9e) | `people.contact_email`, `people.contact_phone` por `PATCH /me` (1.1) | Ninguno |
