@@ -87,6 +87,7 @@ async function mountView(publicId = 'U1'): Promise<VueWrapper> {
     history: createMemoryHistory(),
     routes: [
       { path: '/administracion/usuarios', name: 'core-users', component: stub },
+      { path: '/administracion/auditoria', name: 'core-audit', component: stub },
       {
         path: '/administracion/usuarios/:publicId',
         name: 'core-user-detail',
@@ -490,5 +491,26 @@ describe('CA-CORE-283 (ADR-038 §7.3, RN-CORE-90): tipo de documento traducido, 
     await mountView()
 
     expect(documentTypeText()).toBe(i18n.global.t('dataTable.emptyValue'))
+  })
+})
+
+describe('CA-CORE-244 (OPEN-CORE-33 = C, RN-CORE-76): «Ver su actividad»', () => {
+  it('con auditoria.leer enlaza con la auditoría filtrada por el usuario, con nombre accesible que lo identifica', async () => {
+    session.__setSession(['usuario.leer', 'auditoria.leer'])
+    await mountView()
+
+    const link = [...document.body.querySelectorAll('a')].find(
+      (candidate) => candidate.textContent?.trim() === 'Ver su actividad',
+    )!
+
+    expect(link.getAttribute('href')).toBe('/administracion/auditoria?actor_id=U1')
+    expect(link.getAttribute('aria-label')).toBe('Ver su actividad: Ana López')
+  })
+
+  it('sin auditoria.leer no existe el enlace', async () => {
+    session.__setSession(['usuario.leer'])
+    await mountView()
+
+    expect(document.body.textContent).not.toContain('Ver su actividad')
   })
 })

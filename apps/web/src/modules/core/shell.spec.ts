@@ -3,7 +3,8 @@
  * pantallas de 1.9b — `CA-CORE-208` (rutas y permisos de la columna 2 de
  * §14.3, sin cambiar la lista cerrada de `RN-CORE-24`) y `CA-CORE-209`
  * (entradas de menú por permiso, derivadas de la ruta, `ADR-053 §3`); desde
- * 1.9c, también las dos rutas de importación de usuarios (`usuario.importar`).
+ * 1.9c, también las dos rutas de importación de usuarios (`usuario.importar`) y
+ * desde 1.9d las de roles (`rol.leer`) y auditoría (`auditoria.leer`).
  */
 import { describe, expect, it } from 'vitest'
 import router from '@/router'
@@ -25,6 +26,9 @@ const EXPECTED: Record<string, { path: string; permissions: string[] }> = {
     path: '/administracion/importaciones/:publicId',
     permissions: ['usuario.importar'],
   },
+  // 1.9d
+  'core-roles': { path: '/administracion/roles', permissions: ['rol.leer'] },
+  'core-audit': { path: '/administracion/auditoria', permissions: ['auditoria.leer'] },
 }
 
 describe('CA-CORE-208 (RN-CORE-60, ADR-053 §2): rutas de 1.9b y 1.9c', () => {
@@ -72,6 +76,17 @@ describe('1.9c (§14.3): rutas de importación', () => {
   })
 })
 
+describe('1.9d (§14.3, OPEN-CORE-36 = A): roles y auditoría', () => {
+  it('no existe core-role-detail ni ninguna ruta de detalle de un rol', () => {
+    expect(
+      router.getRoutes().find((candidate) => candidate.name === 'core-role-detail'),
+    ).toBeUndefined()
+    expect(
+      router.getRoutes().filter((candidate) => candidate.path.startsWith('/administracion/roles/')),
+    ).toEqual([])
+  })
+})
+
 describe('CA-CORE-209 (RN-CORE-60): entradas de menú por permiso', () => {
   function entries(permissions: string[]): string[] {
     return visibleNavigationEntries(router, permissions)
@@ -108,5 +123,15 @@ describe('CA-CORE-209 (RN-CORE-60): entradas de menú por permiso', () => {
 
     expect(byId['core.users']).toBe(true)
     expect(byId['core.invitations']).toBe(false)
+  })
+
+  it('con rol.leer aparece «Roles» y con auditoria.leer «Auditoría» (acceso directo), cada una solo con su permiso', () => {
+    expect(entries(['rol.leer'])).toEqual(['core.roles'])
+    expect(entries(['auditoria.leer'])).toEqual(['core.audit'])
+
+    const byId = Object.fromEntries(shell.navigation.map((entry) => [entry.id, entry.shortcut]))
+
+    expect(byId['core.audit']).toBe(true)
+    expect(byId['core.roles']).toBe(false)
   })
 })

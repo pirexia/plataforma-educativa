@@ -33,7 +33,9 @@
       "home": "Inicio",
       "users": "Usuarios",
       "invitations": "Invitaciones",
-      "userImports": "Importación de usuarios"
+      "userImports": "Importación de usuarios",
+      "audit": "Auditoría",
+      "roles": "Roles"
     },
     "locale": {
       "name": {
@@ -100,7 +102,9 @@
         "roles": "Roles",
         "noRoles": "Este usuario no tiene ningún rol.",
         "manageRoles": "Roles asignados",
-        "saveRoles": "Guardar roles"
+        "saveRoles": "Guardar roles",
+        "viewActivity": "Ver su actividad",
+        "viewActivityFor": "Ver su actividad: {name}"
       },
       "confirm": {
         "deactivate": {
@@ -302,6 +306,111 @@
         "column": "Columna",
         "message": "Motivo"
       }
+    },
+    "audit": {
+      "title": "Registro de auditoría",
+      "intro": "Quién hizo qué y cuándo en este centro. Las fechas se muestran en la zona horaria de su navegador.",
+      "caption": "Registro de auditoría del centro",
+      "empty": {
+        "title": "No hay registros",
+        "text": "No hay ningún registro de auditoría que mostrar."
+      },
+      "filters": {
+        "occurredAt": "Fecha",
+        "event": "Operación",
+        "actorType": "Tipo de actor",
+        "actor": "Usuario",
+        "module": "Módulo",
+        "auditableType": "Entidad"
+      },
+      "columns": {
+        "occurredAt": "Fecha y hora",
+        "event": "Operación",
+        "actor": "Usuario",
+        "auditableType": "Entidad",
+        "auditablePublicId": "Identificador",
+        "ipAddress": "IP",
+        "requestId": "Petición",
+        "actions": "Acciones"
+      },
+      "viewChanges": "Ver cambios",
+      "viewChangesFor": "Ver cambios: {event}, {entity}, {date}",
+      "event": {
+        "created": "Alta",
+        "updated": "Modificación",
+        "deleted": "Baja",
+        "restored": "Restauración",
+        "read": "Lectura",
+        "exported": "Exportación",
+        "login": "Inicio de sesión",
+        "logout": "Cierre de sesión",
+        "password_reset_requested": "Solicitud de restablecimiento de contraseña"
+      },
+      "actorType": {
+        "user": "Usuario",
+        "system": "Sistema",
+        "console": "Consola",
+        "import": "Importación",
+        "platform": "Plataforma",
+        "anonymous": "Anónimo"
+      },
+      "entity": {
+        "person": "Persona",
+        "user": "Usuario",
+        "role": "Rol",
+        "academic_year": "Curso académico",
+        "module_subscription": "Módulo contratado",
+        "tenant_setting": "Configuración del centro",
+        "user_invitation": "Invitación",
+        "user_import": "Importación de usuarios",
+        "data_export": "Exportación de datos",
+        "permission_role": "Permiso de un rol"
+      },
+      "module": {
+        "core": "Centro y usuarios",
+        "auth": "Acceso y seguridad"
+      },
+      "changes": {
+        "title": "Cambios del registro",
+        "description": "{event} · {entity} · {date}",
+        "close": "Cerrar",
+        "none": "Sin cambios registrados.",
+        "before": "Antes",
+        "after": "Después",
+        "arrow": "{from} → {to}",
+        "emptyValue": "vacío",
+        "hadValue": "con valor",
+        "notRecorded": "Valor no registrado",
+        "reasonLabel": "Motivo: {reason}",
+        "reason": {
+          "secret": "dato secreto",
+          "special": "categoría especial de datos",
+          "identifier": "dato identificativo",
+          "oversized": "valor demasiado grande"
+        }
+      }
+    },
+    "roles": {
+      "title": "Roles",
+      "intro": "Roles del centro, de solo lectura. La edición de roles llegará más adelante.",
+      "caption": "Roles del centro",
+      "empty": {
+        "title": "No hay roles",
+        "text": "El centro todavía no tiene ningún rol."
+      },
+      "columns": {
+        "name": "Nombre",
+        "type": "Tipo",
+        "mfaRequired": "MFA obligatorio",
+        "specialData": "Acceso a datos especiales",
+        "users": "Usuarios"
+      },
+      "type": {
+        "system": "Del sistema",
+        "custom": "Personalizado"
+      },
+      "yes": "Sí",
+      "no": "No"
     }
   }
 }

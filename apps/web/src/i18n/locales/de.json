@@ -114,7 +114,15 @@
       "rangeInvalid": "Das Datum „von“ liegt nach dem Datum „bis“.",
       "notApplied": "Der Filter wurde nicht angewendet: Die Liste zeigt weiterhin die vorherigen Ergebnisse.",
       "triggerWithCount": "{label} ({count})",
-      "booleanTrigger": "{label}: {value}"
+      "booleanTrigger": "{label}: {value}",
+      "entitySearch": "Suchen: {label}",
+      "entityPlaceholder": "Zum Suchen eingeben",
+      "entityActive": "Gefiltert nach: {name}",
+      "entityRemove": "Filter „{label}“ entfernen",
+      "entityLoading": "Wird geladen …",
+      "entityUnknown": "Eintrag nicht verfügbar",
+      "entityResults": "Keine Ergebnisse | Ein Ergebnis | {count} Ergebnisse",
+      "entityError": "Die Suche konnte nicht durchgeführt werden. Bitte versuchen Sie es erneut."
     },
     "columns": {
       "menu": "Spalten",

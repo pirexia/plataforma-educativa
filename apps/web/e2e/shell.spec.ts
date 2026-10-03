@@ -34,7 +34,9 @@ const ME = {
     birth_date: null,
     locale: 'es-ES',
   },
-  roles: [{ public_id: '01J-ROLE', code: 'administrador_centro', name: 'Administrador del centro' }],
+  roles: [
+    { public_id: '01J-ROLE', code: 'administrador_centro', name: 'Administrador del centro' },
+  ],
   // `mfa.leer`: entrada "Administración de MFA" visible como acceso
   // directo, para que el panel de accesos directos no esté vacío.
   permissions: ['mfa.leer'],

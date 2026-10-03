@@ -114,7 +114,15 @@
       "rangeInvalid": "The \"from\" date is later than the \"to\" date.",
       "notApplied": "The filter was not applied: the list still shows the previous results.",
       "triggerWithCount": "{label} ({count})",
-      "booleanTrigger": "{label}: {value}"
+      "booleanTrigger": "{label}: {value}",
+      "entitySearch": "Search: {label}",
+      "entityPlaceholder": "Type to search",
+      "entityActive": "Filtered by: {name}",
+      "entityRemove": "Remove the \"{label}\" filter",
+      "entityLoading": "Loading…",
+      "entityUnknown": "Item not available",
+      "entityResults": "No results | One result | {count} results",
+      "entityError": "The search could not be completed. Please try again."
     },
     "columns": {
       "menu": "Columns",

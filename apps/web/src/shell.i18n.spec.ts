@@ -55,6 +55,8 @@ const EXPECTED_IDENTICAL_ACROSS_LOCALES = new Set([
   'userMenu.language.names.de',
   'userMenu.language.names.fr',
   'documentTitleFormat',
+  // `core.nav.roles` (1.9d): «Roles» es un cognado, igual en español e inglés.
+  'roles',
 ])
 
 function subtree(root: Json, path: string): unknown {

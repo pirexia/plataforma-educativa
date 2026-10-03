@@ -25,6 +25,8 @@ export type {
   DataTableCursorMeta,
   DataTableCursorResponse,
   DataTableDateRangeFilter,
+  DataTableEntityFilter,
+  DataTableEntityOption,
   DataTableEnumFilter,
   DataTableExportConfig,
   DataTableExportState,

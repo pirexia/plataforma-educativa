@@ -33,7 +33,9 @@
       "home": "Start",
       "users": "Benutzer",
       "invitations": "Einladungen",
-      "userImports": "Benutzerimport"
+      "userImports": "Benutzerimport",
+      "audit": "Protokoll",
+      "roles": "Rollen"
     },
     "locale": {
       "name": {
@@ -100,7 +102,9 @@
         "roles": "Rollen",
         "noRoles": "Dieser Benutzer hat keine Rollen.",
         "manageRoles": "Zugewiesene Rollen",
-        "saveRoles": "Rollen speichern"
+        "saveRoles": "Rollen speichern",
+        "viewActivity": "Aktivität anzeigen",
+        "viewActivityFor": "Aktivität anzeigen: {name}"
       },
       "confirm": {
         "deactivate": {
@@ -302,6 +306,111 @@
         "column": "Spalte",
         "message": "Grund"
       }
+    },
+    "audit": {
+      "title": "Audit-Protokoll",
+      "intro": "Wer in dieser Schule was und wann getan hat. Datum und Uhrzeit werden in der Zeitzone Ihres Browsers angezeigt.",
+      "caption": "Audit-Protokoll der Schule",
+      "empty": {
+        "title": "Keine Einträge",
+        "text": "Es gibt keine Protokolleinträge, die angezeigt werden könnten."
+      },
+      "filters": {
+        "occurredAt": "Datum",
+        "event": "Vorgang",
+        "actorType": "Akteurtyp",
+        "actor": "Benutzer",
+        "module": "Modul",
+        "auditableType": "Objekt"
+      },
+      "columns": {
+        "occurredAt": "Datum und Uhrzeit",
+        "event": "Vorgang",
+        "actor": "Benutzer",
+        "auditableType": "Objekt",
+        "auditablePublicId": "Kennung",
+        "ipAddress": "IP",
+        "requestId": "Anfrage",
+        "actions": "Aktionen"
+      },
+      "viewChanges": "Änderungen anzeigen",
+      "viewChangesFor": "Änderungen anzeigen: {event}, {entity}, {date}",
+      "event": {
+        "created": "Angelegt",
+        "updated": "Geändert",
+        "deleted": "Gelöscht",
+        "restored": "Wiederhergestellt",
+        "read": "Gelesen",
+        "exported": "Exportiert",
+        "login": "Anmeldung",
+        "logout": "Abmeldung",
+        "password_reset_requested": "Zurücksetzen des Passworts angefordert"
+      },
+      "actorType": {
+        "user": "Benutzer",
+        "system": "System",
+        "console": "Konsole",
+        "import": "Import",
+        "platform": "Plattform",
+        "anonymous": "Anonym"
+      },
+      "entity": {
+        "person": "Person",
+        "user": "Benutzer",
+        "role": "Rolle",
+        "academic_year": "Schuljahr",
+        "module_subscription": "Gebuchtes Modul",
+        "tenant_setting": "Schuleinstellungen",
+        "user_invitation": "Einladung",
+        "user_import": "Benutzerimport",
+        "data_export": "Datenexport",
+        "permission_role": "Berechtigung einer Rolle"
+      },
+      "module": {
+        "core": "Schule und Benutzer",
+        "auth": "Zugang und Sicherheit"
+      },
+      "changes": {
+        "title": "Änderungen des Eintrags",
+        "description": "{event} · {entity} · {date}",
+        "close": "Schließen",
+        "none": "Keine Änderungen aufgezeichnet.",
+        "before": "Vorher",
+        "after": "Nachher",
+        "arrow": "{from} → {to}",
+        "emptyValue": "leer",
+        "hadValue": "mit Wert",
+        "notRecorded": "Wert nicht aufgezeichnet",
+        "reasonLabel": "Grund: {reason}",
+        "reason": {
+          "secret": "geheime Daten",
+          "special": "besondere Datenkategorie",
+          "identifier": "identifizierende Daten",
+          "oversized": "Wert zu groß"
+        }
+      }
+    },
+    "roles": {
+      "title": "Rollen",
+      "intro": "Rollen der Schule, nur lesbar. Das Bearbeiten von Rollen folgt später.",
+      "caption": "Rollen der Schule",
+      "empty": {
+        "title": "Keine Rollen",
+        "text": "Die Schule hat noch keine Rollen."
+      },
+      "columns": {
+        "name": "Name",
+        "type": "Typ",
+        "mfaRequired": "MFA erforderlich",
+        "specialData": "Zugriff auf besondere Daten",
+        "users": "Benutzer"
+      },
+      "type": {
+        "system": "Systemrolle",
+        "custom": "Benutzerdefiniert"
+      },
+      "yes": "Ja",
+      "no": "Nein"
     }
   }
 }

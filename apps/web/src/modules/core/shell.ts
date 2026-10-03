@@ -23,10 +23,15 @@
  * rutas exigen `usuario.importar`, el permiso de los *endpoints* de
  * `/user-imports`; ninguna usa `permissions: []`.
  *
+ * Paso 1.9d (`funcional.md §14.3`, `§14.7`, `§14.8`): auditoría (`auditoria.leer`,
+ * con acceso directo) y roles en solo lectura (`rol.leer`). No existe
+ * `core-role-detail` (`OPEN-CORE-36` = A: el detalle llega con `1.5b`). Ninguna
+ * de las dos usa `permissions: []`.
+ *
  * Sin `dashboardBlocks`: ningún módulo, incluido `core`, aporta un bloque
  * del panel en este paso (`OPEN-CORE-13`).
  */
-import { FileUp, House, Mail, Users } from '@lucide/vue'
+import { FileUp, House, KeyRound, Mail, ScrollText, Users } from '@lucide/vue'
 import type { ModuleShell } from '@/navigation/types'
 
 export const shell: ModuleShell = {
@@ -107,6 +112,18 @@ export const shell: ModuleShell = {
         breadcrumbParent: 'core-user-imports',
       },
     },
+    {
+      path: '/administracion/roles',
+      name: 'core-roles',
+      component: () => import('./views/RolesView.vue'),
+      meta: { layout: 'app', permissions: ['rol.leer'], titleKey: 'core.roles.title' },
+    },
+    {
+      path: '/administracion/auditoria',
+      name: 'core-audit',
+      component: () => import('./views/AuditView.vue'),
+      meta: { layout: 'app', permissions: ['auditoria.leer'], titleKey: 'core.audit.title' },
+    },
   ],
   navigation: [
     {
@@ -140,6 +157,22 @@ export const shell: ModuleShell = {
       icon: FileUp,
       section: 'administracion',
       shortcut: false,
+    },
+    {
+      id: 'core.roles',
+      route: 'core-roles',
+      labelKey: 'core.nav.roles',
+      icon: KeyRound,
+      section: 'administracion',
+      shortcut: false,
+    },
+    {
+      id: 'core.audit',
+      route: 'core-audit',
+      labelKey: 'core.nav.audit',
+      icon: ScrollText,
+      section: 'administracion',
+      shortcut: true,
     },
   ],
   dashboardBlocks: [],

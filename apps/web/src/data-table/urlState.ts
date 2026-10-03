@@ -89,6 +89,12 @@ export function parseUrlState(query: LocationQuery, options: UrlStateOptions): U
         continue
       }
 
+      // `entity` (1.9d): el valor es un identificador público (ULID, `ADR-029`);
+      // cualquier otra cosa en la URL se ignora en vez de llegar al servidor.
+      if (filter.type === 'entity' && !/^[0-9A-Za-z]{26}$/.test(value)) {
+        continue
+      }
+
       state.filters[param] = value
     }
   }

@@ -396,6 +396,20 @@ async function saveRoles(): Promise<void> {
             {{ t('core.users.detail.invite') }}
           </Button>
 
+          <!--
+            1.9d, `OPEN-CORE-33` = C (`RN-CORE-76`): navegación a la auditoría
+            filtrada por este usuario. Permiso del *endpoint* destino; no es una
+            petición, solo un enlace, así que no hay llamada a ciegas.
+          -->
+          <Button v-if="can('auditoria.leer')" variant="outline" as-child>
+            <RouterLink
+              :to="{ name: 'core-audit', query: { actor_id: user.public_id } }"
+              :aria-label="t('core.users.detail.viewActivityFor', { name: displayName })"
+            >
+              {{ t('core.users.detail.viewActivity') }}
+            </RouterLink>
+          </Button>
+
           <Button
             v-if="can('usuario.eliminar') && !isDeleted"
             type="button"

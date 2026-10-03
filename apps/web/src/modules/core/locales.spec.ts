@@ -62,7 +62,7 @@ describe('CA-CORE-261 (INV-009): las cuatro lenguas de core tienen las mismas cl
     }
   })
 
-  it('las claves nuevas de 1.9b no se copian del español en los demás idiomas', () => {
+  it('las claves nuevas de 1.9b y 1.9d no se copian del español en los demás idiomas', () => {
     const spanish = flatten(LOCALES.es!)
 
     // Cognados legítimos (p. ej. «Roles» en español e inglés); el resto no debe coincidir.
@@ -73,11 +73,22 @@ describe('CA-CORE-261 (INV-009): las cuatro lenguas de core tienen las mismas cl
       'core.users.columns.roles',
       'core.users.detail.roles',
       'core.users.form.roles',
+      // 1.9d: cognados, siglas y plantillas solo de parámetros.
+      'core.nav.roles',
+      'core.roles.title',
+      'core.roles.no',
+      'core.audit.columns.ipAddress',
+      'core.audit.changes.arrow',
+      'core.audit.changes.description',
     ])
 
     for (const locale of ['en', 'de']) {
       const copied = Object.entries(flatten(LOCALES[locale]!))
-        .filter(([key]) => key.startsWith('core.users.') || key.startsWith('core.invitations.'))
+        .filter(([key]) =>
+          ['core.users.', 'core.invitations.', 'core.audit.', 'core.roles.', 'core.nav.'].some(
+            (prefix) => key.startsWith(prefix),
+          ),
+        )
         .filter(([key, value]) => value === spanish[key] && !allowed.has(key))
         .map(([key]) => key)
 

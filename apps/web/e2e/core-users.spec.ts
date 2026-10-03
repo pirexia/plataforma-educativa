@@ -6,8 +6,9 @@ import { test, expect, type Page } from '@playwright/test'
  * (tarjetas a 320 px en el listado de usuarios) y `CA-CORE-260` (recorrido
  * solo con teclado, etiquetas y objetivos táctiles en el alta y la ficha de
  * usuario). Sin backend real: se intercepta la API con `page.route`, mismo
- * patrón que `e2e/shell.spec.ts`. Auditoría, configuración del centro y
- * sesiones son de 1.9d/1.9e/1.9f: sus comprobaciones llegan con ellos.
+ * patrón que `e2e/shell.spec.ts`. La auditoría y los roles (1.9d) están en `e2e/core-audit.spec.ts`;
+ * configuración del centro y sesiones son de 1.9e/1.9f: sus comprobaciones
+ * llegan con ellos.
  */
 
 const BRANDING = {
