@@ -35,7 +35,10 @@
       "invitations": "Invitaciones",
       "userImports": "Importación de usuarios",
       "audit": "Auditoría",
-      "roles": "Roles"
+      "roles": "Roles",
+      "settings": "Centro",
+      "modules": "Módulos",
+      "profile": "Perfil"
     },
     "locale": {
       "name": {
@@ -411,6 +414,201 @@
       },
       "yes": "Sí",
       "no": "No"
+    },
+    "settings": {
+      "title": "Configuración del centro",
+      "intro": "Datos regionales, fiscales, paleta de colores y seguridad del centro. Cada bloque se guarda por separado.",
+      "introReadOnly": "Datos regionales, fiscales, paleta de colores y seguridad del centro, de solo lectura. No tienes permiso para modificarlos.",
+      "required": "(obligatorio)",
+      "requiredHint": "Los campos marcados con * son obligatorios.",
+      "notSet": "Sin indicar",
+      "saving": "Guardando…",
+      "brandingLink": "Activos de marca: logotipo, favicon y fondo de acceso",
+      "errors": {
+        "unexpected": "No se han podido guardar los cambios. Inténtalo de nuevo.",
+        "tooManyRequests": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
+        "tooManyRequestsWithSeconds": "Demasiados intentos. Vuelve a intentarlo dentro de {seconds} s."
+      },
+      "saved": {
+        "regional": "Datos regionales guardados.",
+        "fiscal": "Datos fiscales guardados.",
+        "palette": "Paleta guardada.",
+        "security": "Ajustes de seguridad guardados."
+      },
+      "regional": {
+        "title": "Regional",
+        "defaultLocale": "Idioma por defecto",
+        "chooseDefaultLocale": "Elige un idioma",
+        "defaultLocaleRequired": "Elige un idioma por defecto entre los activos para poder guardar.",
+        "activeLocales": "Idiomas activos",
+        "activeLocalesHint": "El idioma por defecto solo puede ser uno de los idiomas activos.",
+        "activeLocalesRequired": "Marca al menos un idioma activo.",
+        "interfaceLocaleWarning": "Estás viendo la interfaz en un idioma que dejará de estar activo: al guardar pasarás a verla en el idioma por defecto del centro.",
+        "timezoneSearch": "Buscar zona horaria",
+        "timezone": "Zona horaria",
+        "currency": "Moneda",
+        "currencyHint": "Código de tres letras mayúsculas, por ejemplo EUR.",
+        "autonomousCommunity": "Comunidad autónoma",
+        "autonomousCommunityNone": "Sin indicar",
+        "save": "Guardar datos regionales"
+      },
+      "fiscal": {
+        "title": "Fiscal",
+        "legalName": "Razón social",
+        "taxId": "NIF/CIF",
+        "address": "Dirección",
+        "postalCode": "Código postal",
+        "city": "Municipio",
+        "province": "Provincia",
+        "countryCode": "País",
+        "countryCodeHint": "Código de dos letras mayúsculas, por ejemplo ES.",
+        "save": "Guardar datos fiscales"
+      },
+      "palette": {
+        "title": "Paleta de colores",
+        "primary": "Color primario",
+        "secondary": "Color secundario",
+        "hexHint": "Formato #RRGGBB, por ejemplo #1D4ED8.",
+        "preview": "Vista previa",
+        "previewEmpty": "Indica los dos colores en formato #RRGGBB para ver la vista previa y su contraste.",
+        "sample": "Texto de ejemplo",
+        "ratio": "Contraste: {ratio}:1.",
+        "meets": "Cumple el mínimo de {required}:1.",
+        "fails": "No alcanza el mínimo de {required}:1.",
+        "serverRatio": "El servidor ha calculado un contraste de {ratio}:1; el mínimo exigido es {required}:1.",
+        "save": "Guardar paleta"
+      },
+      "security": {
+        "title": "Seguridad",
+        "sessionTimeout": "Cierre de sesión por inactividad",
+        "sessionTimeoutHint": "En minutos, entre 5 y 480.",
+        "minutes": "{count} minuto | {count} minutos",
+        "allowedMethods": "Métodos de segundo factor admitidos",
+        "allowedMethodsHint": "La aplicación de autenticación es siempre obligatoria. El envío por SMS no está disponible.",
+        "method": {
+          "totp": "Aplicación de autenticación (TOTP)",
+          "email": "Código por correo electrónico",
+          "sms": "Mensaje SMS"
+        },
+        "gracePeriod": "Plazo de gracia para activar el segundo factor",
+        "gracePeriodHint": "En días, entre 1 y 90.",
+        "days": "{count} día | {count} días",
+        "save": "Guardar seguridad",
+        "mfaAdminText": "La obligatoriedad del segundo factor por rol, las exenciones y los restablecimientos se gestionan en otra pantalla.",
+        "mfaAdminLink": "Ir a la administración de MFA"
+      },
+      "autonomousCommunity": {
+        "AN": "Andalucía",
+        "AR": "Aragón",
+        "AS": "Principado de Asturias",
+        "IB": "Illes Balears",
+        "CN": "Canarias",
+        "CB": "Cantabria",
+        "CL": "Castilla y León",
+        "CM": "Castilla-La Mancha",
+        "CT": "Cataluña",
+        "EX": "Extremadura",
+        "GA": "Galicia",
+        "MD": "Comunidad de Madrid",
+        "MC": "Región de Murcia",
+        "NC": "Comunidad Foral de Navarra",
+        "PV": "País Vasco",
+        "RI": "La Rioja",
+        "VC": "Comunidad Valenciana",
+        "CE": "Ceuta",
+        "ML": "Melilla"
+      }
+    },
+    "branding": {
+      "title": "Activos de marca",
+      "intro": "Logotipo, favicon y fondo de la pantalla de acceso del centro. Se muestra la imagen ya guardada.",
+      "introReadOnly": "Logotipo, favicon y fondo de acceso del centro, de solo lectura. No tienes permiso para modificarlos.",
+      "imageError": "No se ha podido cargar la imagen.",
+      "saved": "Imagen guardada.",
+      "removed": "Imagen eliminada.",
+      "errors": {
+        "tooLarge": "El fichero es demasiado grande.",
+        "unsupportedType": "El tipo de fichero no está admitido.",
+        "invalid": "El fichero no es válido para este uso.",
+        "unexpected": "No se ha podido completar la acción. Inténtalo de nuevo.",
+        "tooManyRequests": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
+        "tooManyRequestsWithSeconds": "Demasiados intentos. Vuelve a intentarlo dentro de {seconds} s."
+      },
+      "kinds": {
+        "logo": {
+          "name": "Logotipo",
+          "limits": "Formatos admitidos: SVG, PNG o WebP. Tamaño máximo: 1 MB.",
+          "none": "No hay logotipo.",
+          "alt": "Logotipo actual de {center}",
+          "replace": "Sustituir logotipo",
+          "remove": "Eliminar logotipo",
+          "tooLarge": "El logotipo supera el límite de 1 MB.",
+          "wrongType": "El logotipo debe ser SVG, PNG o WebP.",
+          "confirmTitle": "Eliminar el logotipo",
+          "confirmDescription": "El centro se mostrará sin logotipo hasta que subas otro.",
+          "confirmButton": "Eliminar el logotipo de {center}"
+        },
+        "favicon": {
+          "name": "Favicon",
+          "limits": "Formatos admitidos: PNG, ICO o SVG. Tamaño máximo: 256 KB.",
+          "none": "No hay favicon.",
+          "alt": "Favicon actual de {center}",
+          "replace": "Sustituir favicon",
+          "remove": "Eliminar favicon",
+          "tooLarge": "El favicon supera el límite de 256 KB.",
+          "wrongType": "El favicon debe ser PNG, ICO o SVG.",
+          "confirmTitle": "Eliminar el favicon",
+          "confirmDescription": "El navegador mostrará el icono por defecto hasta que subas otro.",
+          "confirmButton": "Eliminar el favicon de {center}"
+        },
+        "loginBackground": {
+          "name": "Fondo de acceso",
+          "limits": "Formatos admitidos: JPEG, PNG o WebP (no SVG). Tamaño máximo: 3 MB.",
+          "none": "No hay fondo de acceso.",
+          "replace": "Sustituir fondo de acceso",
+          "remove": "Eliminar fondo de acceso",
+          "tooLarge": "El fondo de acceso supera el límite de 3 MB.",
+          "wrongType": "El fondo de acceso debe ser JPEG, PNG o WebP.",
+          "confirmTitle": "Eliminar el fondo de acceso",
+          "confirmDescription": "La pantalla de acceso se mostrará sin imagen de fondo hasta que subas otra.",
+          "confirmButton": "Eliminar el fondo de acceso de {center}"
+        }
+      }
+    },
+    "modules": {
+      "title": "Módulos contratados",
+      "intro": "Módulos que el centro tiene contratados, de solo lectura. La fecha de alta indica cuándo se activó cada uno.",
+      "caption": "Módulos contratados del centro",
+      "empty": {
+        "title": "No hay módulos contratados",
+        "text": "El centro todavía no tiene ningún módulo contratado."
+      },
+      "columns": {
+        "name": "Módulo",
+        "status": "Estado",
+        "enabledAt": "Fecha de alta"
+      },
+      "status": {
+        "contracted": "Contratado",
+        "notContracted": "No contratado"
+      }
+    },
+    "profile": {
+      "title": "Mi perfil",
+      "intro": "Tus datos de la cuenta. Puedes cambiar tu correo y tu teléfono de contacto.",
+      "fullName": "Nombre completo",
+      "accessEmail": "Correo de acceso",
+      "accessEmailHint": "El correo de acceso no se cambia desde aquí; si necesitas cambiarlo, contacta con el centro.",
+      "contactEmail": "Correo de contacto",
+      "contactPhone": "Teléfono de contacto",
+      "save": "Guardar perfil",
+      "saving": "Guardando…",
+      "saved": "Perfil guardado.",
+      "errors": {
+        "unexpected": "No se ha podido guardar el perfil. Inténtalo de nuevo.",
+        "tooManyRequests": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
+        "tooManyRequestsWithSeconds": "Demasiados intentos. Vuelve a intentarlo dentro de {seconds} s."
+      }
     }
   }
 }

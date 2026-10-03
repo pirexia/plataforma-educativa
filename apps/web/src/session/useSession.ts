@@ -199,6 +199,19 @@ export async function updateSessionLocale(locale: string): Promise<User> {
   return updated
 }
 
+/**
+ * `RN-CORE-89`, `funcional.md §12.3.4`: aplica la respuesta de un `PATCH /me` del
+ * perfil propio (correo y teléfono de contacto) sin una segunda petición.
+ */
+export async function updateSessionProfile(
+  person: NonNullable<Parameters<typeof updateMe>[0]['person']>,
+): Promise<User> {
+  const updated = await updateMe({ person })
+  user.value = updated
+  triggerRef(user)
+  return updated
+}
+
 /** `RN-CORE-27`: vacía el estado aunque `DELETE /auth/session` falle. */
 export function clearSession(): void {
   user.value = null
@@ -218,6 +231,7 @@ export function useSession() {
     reloadSessionAfterForbidden,
     clearModuleUnavailableDetail,
     updateSessionLocale,
+    updateSessionProfile,
     clearSession,
   }
 }

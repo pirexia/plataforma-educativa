@@ -35,7 +35,10 @@
       "invitations": "Invitations",
       "userImports": "User import",
       "audit": "Audit log",
-      "roles": "Roles"
+      "roles": "Roles",
+      "settings": "School",
+      "modules": "Modules",
+      "profile": "Profile"
     },
     "locale": {
       "name": {
@@ -411,6 +414,201 @@
       },
       "yes": "Yes",
       "no": "No"
+    },
+    "settings": {
+      "title": "School settings",
+      "intro": "Regional and tax details, colour palette and security settings of the school. Each block is saved separately.",
+      "introReadOnly": "Regional and tax details, colour palette and security settings of the school, read only. You do not have permission to change them.",
+      "required": "(required)",
+      "requiredHint": "Fields marked with * are required.",
+      "notSet": "Not set",
+      "saving": "Saving…",
+      "brandingLink": "Brand assets: logo, favicon and sign-in background",
+      "errors": {
+        "unexpected": "The changes could not be saved. Please try again.",
+        "tooManyRequests": "Too many attempts. Wait a moment and try again.",
+        "tooManyRequestsWithSeconds": "Too many attempts. Try again in {seconds} s."
+      },
+      "saved": {
+        "regional": "Regional settings saved.",
+        "fiscal": "Tax details saved.",
+        "palette": "Palette saved.",
+        "security": "Security settings saved."
+      },
+      "regional": {
+        "title": "Regional",
+        "defaultLocale": "Default language",
+        "chooseDefaultLocale": "Choose a language",
+        "defaultLocaleRequired": "Choose a default language among the active ones to be able to save.",
+        "activeLocales": "Active languages",
+        "activeLocalesHint": "The default language must be one of the active languages.",
+        "activeLocalesRequired": "Select at least one active language.",
+        "interfaceLocaleWarning": "You are viewing the interface in a language that will no longer be active: after saving you will see it in the school’s default language.",
+        "timezoneSearch": "Search time zone",
+        "timezone": "Time zone",
+        "currency": "Currency",
+        "currencyHint": "Three-letter uppercase code, for example EUR.",
+        "autonomousCommunity": "Autonomous community",
+        "autonomousCommunityNone": "Not set",
+        "save": "Save regional settings"
+      },
+      "fiscal": {
+        "title": "Tax details",
+        "legalName": "Legal name",
+        "taxId": "Tax ID",
+        "address": "Address",
+        "postalCode": "Postal code",
+        "city": "City",
+        "province": "Province",
+        "countryCode": "Country",
+        "countryCodeHint": "Two-letter uppercase code, for example ES.",
+        "save": "Save tax details"
+      },
+      "palette": {
+        "title": "Colour palette",
+        "primary": "Primary colour",
+        "secondary": "Secondary colour",
+        "hexHint": "Format #RRGGBB, for example #1D4ED8.",
+        "preview": "Preview",
+        "previewEmpty": "Enter both colours in #RRGGBB format to see the preview and its contrast.",
+        "sample": "Sample text",
+        "ratio": "Contrast: {ratio}:1.",
+        "meets": "Meets the minimum of {required}:1.",
+        "fails": "Does not reach the minimum of {required}:1.",
+        "serverRatio": "The server calculated a contrast of {ratio}:1; the required minimum is {required}:1.",
+        "save": "Save palette"
+      },
+      "security": {
+        "title": "Security",
+        "sessionTimeout": "Sign-out after inactivity",
+        "sessionTimeoutHint": "In minutes, between 5 and 480.",
+        "minutes": "{count} minute | {count} minutes",
+        "allowedMethods": "Allowed second-factor methods",
+        "allowedMethodsHint": "The authenticator app is always required. SMS is not available.",
+        "method": {
+          "totp": "Authenticator app (TOTP)",
+          "email": "Code by email",
+          "sms": "SMS message"
+        },
+        "gracePeriod": "Grace period to set up the second factor",
+        "gracePeriodHint": "In days, between 1 and 90.",
+        "days": "{count} day | {count} days",
+        "save": "Save security settings",
+        "mfaAdminText": "Requiring the second factor per role, exemptions and resets are managed on another screen.",
+        "mfaAdminLink": "Go to MFA administration"
+      },
+      "autonomousCommunity": {
+        "AN": "Andalusia",
+        "AR": "Aragon",
+        "AS": "Asturias",
+        "IB": "Balearic Islands",
+        "CN": "Canary Islands",
+        "CB": "Cantabria",
+        "CL": "Castile and León",
+        "CM": "Castilla-La Mancha",
+        "CT": "Catalonia",
+        "EX": "Extremadura",
+        "GA": "Galicia",
+        "MD": "Community of Madrid",
+        "MC": "Region of Murcia",
+        "NC": "Navarre",
+        "PV": "Basque Country",
+        "RI": "La Rioja",
+        "VC": "Valencian Community",
+        "CE": "Ceuta",
+        "ML": "Melilla"
+      }
+    },
+    "branding": {
+      "title": "Brand assets",
+      "intro": "The school’s logo, favicon and sign-in background. The image already saved is shown.",
+      "introReadOnly": "The school’s logo, favicon and sign-in background, read only. You do not have permission to change them.",
+      "imageError": "The image could not be loaded.",
+      "saved": "Image saved.",
+      "removed": "Image removed.",
+      "errors": {
+        "tooLarge": "The file is too large.",
+        "unsupportedType": "The file type is not supported.",
+        "invalid": "The file is not valid for this use.",
+        "unexpected": "The action could not be completed. Please try again.",
+        "tooManyRequests": "Too many attempts. Wait a moment and try again.",
+        "tooManyRequestsWithSeconds": "Too many attempts. Try again in {seconds} s."
+      },
+      "kinds": {
+        "logo": {
+          "name": "Logo",
+          "limits": "Supported formats: SVG, PNG or WebP. Maximum size: 1 MB.",
+          "none": "There is no logo.",
+          "alt": "Current logo of {center}",
+          "replace": "Replace logo",
+          "remove": "Remove logo",
+          "tooLarge": "The logo exceeds the 1 MB limit.",
+          "wrongType": "The logo must be SVG, PNG or WebP.",
+          "confirmTitle": "Remove the logo",
+          "confirmDescription": "The school will be shown without a logo until you upload another one.",
+          "confirmButton": "Remove the logo of {center}"
+        },
+        "favicon": {
+          "name": "Favicon",
+          "limits": "Supported formats: PNG, ICO or SVG. Maximum size: 256 KB.",
+          "none": "There is no favicon.",
+          "alt": "Current favicon of {center}",
+          "replace": "Replace favicon",
+          "remove": "Remove favicon",
+          "tooLarge": "The favicon exceeds the 256 KB limit.",
+          "wrongType": "The favicon must be PNG, ICO or SVG.",
+          "confirmTitle": "Remove the favicon",
+          "confirmDescription": "The browser will show the default icon until you upload another one.",
+          "confirmButton": "Remove the favicon of {center}"
+        },
+        "loginBackground": {
+          "name": "Sign-in background",
+          "limits": "Supported formats: JPEG, PNG or WebP (not SVG). Maximum size: 3 MB.",
+          "none": "There is no sign-in background.",
+          "replace": "Replace sign-in background",
+          "remove": "Remove sign-in background",
+          "tooLarge": "The sign-in background exceeds the 3 MB limit.",
+          "wrongType": "The sign-in background must be JPEG, PNG or WebP.",
+          "confirmTitle": "Remove the sign-in background",
+          "confirmDescription": "The sign-in screen will be shown without a background image until you upload another one.",
+          "confirmButton": "Remove the sign-in background of {center}"
+        }
+      }
+    },
+    "modules": {
+      "title": "Contracted modules",
+      "intro": "Modules the school has contracted, read only. The activation date shows when each one was enabled.",
+      "caption": "Contracted modules of the school",
+      "empty": {
+        "title": "There are no contracted modules",
+        "text": "The school has no contracted modules yet."
+      },
+      "columns": {
+        "name": "Module",
+        "status": "Status",
+        "enabledAt": "Activation date"
+      },
+      "status": {
+        "contracted": "Contracted",
+        "notContracted": "Not contracted"
+      }
+    },
+    "profile": {
+      "title": "My profile",
+      "intro": "Your account details. You can change your contact email and phone.",
+      "fullName": "Full name",
+      "accessEmail": "Sign-in email",
+      "accessEmailHint": "The sign-in email cannot be changed here; if you need to change it, contact the school.",
+      "contactEmail": "Contact email",
+      "contactPhone": "Contact phone",
+      "save": "Save profile",
+      "saving": "Saving…",
+      "saved": "Profile saved.",
+      "errors": {
+        "unexpected": "The profile could not be saved. Please try again.",
+        "tooManyRequests": "Too many attempts. Wait a moment and try again.",
+        "tooManyRequestsWithSeconds": "Too many attempts. Try again in {seconds} s."
+      }
     }
   }
 }

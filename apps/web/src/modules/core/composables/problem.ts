@@ -59,3 +59,25 @@ export function problemRetryAfter(err: unknown): number | null {
 
   return Number.isFinite(seconds) ? seconds : null
 }
+
+/** `params` de la primera entrada con ese `code` en cualquier campo de un `422` (`ADR-038 §6.3`); `null` si no hay. */
+export function problemErrorParams(err: unknown, code: string): Record<string, unknown> | null {
+  const errors = problemBody(err)?.errors
+
+  if (!errors || typeof errors !== 'object') {
+    return null
+  }
+
+  for (const entries of Object.values(errors)) {
+    for (const entry of Array.isArray(entries) ? entries : []) {
+      // Código de error de validación del servidor, no un código de rol (`RN-CORE-23`).
+      const { code: errorCode, params } = entry ?? {}
+
+      if (errorCode === code && params && typeof params === 'object') {
+        return params
+      }
+    }
+  }
+
+  return null
+}
