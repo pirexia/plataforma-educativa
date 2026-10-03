@@ -467,3 +467,61 @@ test('RNF-LIM-004 (#267): el tope de filas de la exportación cuenta con occurre
     $post(['module' => 'no-existe'])->assertStatus(202);
     $post(['auditable_type' => ['no_existe']])->assertStatus(202);
 });
+
+// CA-CORE-245 [Pest], S7 de 1.9d (ADR-038 §5.2).
+test('CA-CORE-245: GET /audit-logs admite varios actor_type y module por comas (unión) y los rechaza si no son del vocabulario', function (): void {
+    [$tenant, $admin] = provisionCoreTenant('audit-245');
+
+    test()->actingAs($admin)->postJson(coreApiUrl($tenant->slug, '/users'), [
+        'email' => 'uno-245@example.com',
+        'person' => ['given_name' => 'Uno', 'family_name_1' => 'Test'],
+        'send_invitation' => false,
+    ])->assertCreated();
+
+    $types = fn (string $query) => collect(test()->actingAs($admin)
+        ->getJson(coreApiUrl($tenant->slug, '/audit-logs?limit=200&'.$query))
+        ->assertOk()->json('data'))->pluck('actor_type')->unique()->sort()->values()->all();
+
+    $all = $types('event=created');
+    expect($all)->toContain('user')->toContain('console');
+
+    expect($types('actor_type=user'))->toBe(['user'])
+        ->and($types('actor_type=console'))->toBe(['console'])
+        ->and($types('actor_type=user,console'))->toBe(['console', 'user']);
+
+    // module: la unión; un código desconocido en la lista no la vacía ni la rompe.
+    $core = $types('module=core');
+    expect($core)->not->toBeEmpty()
+        ->and($types('module=core,no-existe'))->toBe($core)
+        ->and($types('module=no-existe'))->toBe([]);
+
+    test()->actingAs($admin)
+        ->getJson(coreApiUrl($tenant->slug, '/audit-logs?actor_type=user,inventado'))
+        ->assertStatus(422);
+});
+
+test('CA-CORE-245: POST /audit-logs/exports acepta actor_type y module como array (paridad) y el escalar anterior', function (): void {
+    [$tenant, $admin] = provisionCoreTenant('audit-245x');
+
+    $rowsOf = fn (array $body) => array_slice(parseAuditCsv(exportAuditCsv($tenant, $admin, $body)), 1);
+
+    // Cada exportación se audita a sí misma (filas `user` nuevas), así que se
+    // comparan los valores presentes, no los recuentos totales.
+    $values = fn (array $rows, int $column) => collect($rows)->pluck($column)->unique()->sort()->values()->all();
+
+    $user = $rowsOf(['actor_type' => ['user']]);
+    $console = $rowsOf(['actor_type' => ['console']]);
+    $both = $rowsOf(['actor_type' => ['user', 'console']]);
+
+    expect($console)->not->toBeEmpty()
+        ->and($values($user, 2))->toBe(['user'])
+        ->and($values($console, 2))->toBe(['console'])
+        ->and($values($both, 2))->toBe(['console', 'user'])
+        ->and($rowsOf(['actor_type' => 'console']))->toEqual($console)
+        ->and($values($rowsOf(['module' => ['core', 'no-existe']]), 3))->toBe($values($rowsOf(['module' => 'core']), 3))
+        ->and($rowsOf(['module' => ['no-existe']]))->toBe([]);
+
+    test()->actingAs($admin)
+        ->postJson(coreApiUrl($tenant->slug, '/audit-logs/exports'), ['format' => 'csv', 'actor_type' => ['user', 'inventado']])
+        ->assertStatus(422);
+});

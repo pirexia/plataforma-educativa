@@ -73,8 +73,39 @@ export interface DataTableBooleanFilter {
   twoState?: boolean
 }
 
+/** Opción devuelta por la búsqueda de un filtro `entity`. */
+export interface DataTableEntityOption {
+  /** Valor que se serializa como `<id>=<value>` (un identificador público, `ADR-029`). */
+  value: string
+  /** Texto ya traducido o nombre propio de la entidad; se muestra tal cual. */
+  label: string
+}
+
+/**
+ * Ampliación aditiva de 1.9d (`OPEN-CORE-33` = C, `RN-CORE-76`, amplía la
+ * lista cerrada de §13.7): **selección única por búsqueda asíncrona** de una
+ * entidad (p. ej. el usuario autor de un registro de auditoría). El componente
+ * no conoce el *endpoint*: la búsqueda y la resolución de la etiqueta las
+ * aporta el consumidor (`RN-CORE-38`). Se serializa como `<id>=<valor>`.
+ * Un consumidor que no tiene el permiso del *endpoint* de búsqueda no declara
+ * el filtro (`RN-CORE-62`).
+ */
+export interface DataTableEntityFilter {
+  type: 'entity'
+  /** Nombre del parámetro: `<id>=<public_id>`. */
+  id: string
+  labelKey: string
+  /** Búsqueda por texto libre. Se llama con el texto ya recortado y tras el *debounce*. */
+  search: (text: string, options: { signal: AbortSignal }) => Promise<DataTableEntityOption[]>
+  /**
+   * Etiqueta de un valor que viene de fuera (la URL): `null` si ya no existe o
+   * no es accesible. Se llama una sola vez por valor.
+   */
+  resolve: (value: string) => Promise<string | null>
+}
+
 export type DataTableFilter =
-  DataTableEnumFilter | DataTableDateRangeFilter | DataTableBooleanFilter
+  DataTableEnumFilter | DataTableDateRangeFilter | DataTableBooleanFilter | DataTableEntityFilter
 
 /**
  * Consulta que el componente entrega a la función de petición del

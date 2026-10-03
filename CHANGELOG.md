@@ -6,6 +6,24 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-03 · `1.9d` · auditoría y roles de solo lectura (`REQ-CORE-005`, `REQ-CORE-004`)
+
+Implementa el sub-paso `1.9d` (`funcional.md §14.7`, `§14.8`, `§14.25`; `OPEN-CORE-33` = C, `-34` = B, `-35` = A, `-36` = A). Sin migración, sin permisos nuevos ni dependencias nuevas.
+
+### Añadido
+- **Servidor**: `GET /audit-logs/facets` (S10, `auditoria.leer`; catálogo declarado en código, sin consultar `audit_logs`) y, en `GET /audit-logs` y `POST /audit-logs/exports`, valores múltiples de `actor_type` y `module` (parte de auditoría de S7; el cuerpo de la exportación los admite como *array* y sigue aceptando el escalar anterior). `AuditCatalog` es la única fuente de los valores filtrables.
+- **`apps/web`**: pantalla `/administracion/auditoria` (modo `cursor`, filtros de fecha, operación, tipo de actor, usuario, módulo y entidad, panel «Ver cambios», exportación) y `/administracion/roles` (solo lectura, sin detalle); tipo de filtro **`entity`** en `src/data-table` (aditivo); acción «Ver su actividad» en la ficha de usuario; traducciones en `es`, `en`, `de` y `fr`; `e2e/core-audit.spec.ts`.
+- Documentación: `REQ-CORE/{funcional §14.25, api, permisos, operacion}.md`, OpenAPI, manual `admin.md` («Roles del centro», «Consultar el registro de auditoría»), `docs/i18n.md`, `ARCHITECTURE.md`.
+
+### Cambiado
+- Los tipos de cliente `AuditEvent` y `AuditActorType` pasan a los nueve y seis valores de `ADR-039`.
+- `e2e/shell.spec.ts`: se aplica el formato de Prettier (elimina el aviso preexistente).
+
+### Verificado
+Pest completo en el host (`php -d memory_limit=512M ./vendor/bin/pest`): **815 de 830** pasan; los **15 fallos son los mismos de SAML** de 1.9c (`SamlLoginTest` 10, `SamlAssertionValidationTest` 3, `SamlAcsTest` 1, `SamlCertificatesTest` 1; issue #291), ajenos a este diff. Las pruebas nuevas (`AuditLogFacetsTest`, `CA-CORE-245` en `AuditLogsEndpointsTest`) pasan. Vitest 926 pasan y 2 omitidos (928), Playwright **23/23** (ejecutado completo), ESLint sin avisos, `lint:i18n`, `vue-tsc -b`, `npm run build`, Pint y Larastan (con `SESSION_LIFETIME=480`, ver nota del informe) limpios. Reverificado en los contenedores de referencia: Pest `Core` 208/208, Vitest 926 + 2 omitidos, `vue-tsc`/ESLint/`lint:i18n`/Pint limpios. Revisión independiente (`security-reviewer`, `doc-reviewer`; sin Crítico/Alto, `db-reviewer` no aplica): 8 Media de documentación desincronizada corregidas; Baja abiertas #318 (catálogo de módulos incompleto) y #319 (validación de `module` y paridad GET/POST del export).
+
+---
+
 ## 2026-10-03 · `fix/REQ-CORE-003-importacion-tope-y-roles` (#313, #314)
 
 Correcciones Media de la importación de usuarios, preexistentes de 1.9b y detectadas en la revisión de 1.9c. Sin cambio de esquema ni de permisos.

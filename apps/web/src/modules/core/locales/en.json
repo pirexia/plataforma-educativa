@@ -33,7 +33,9 @@
       "home": "Home",
       "users": "Users",
       "invitations": "Invitations",
-      "userImports": "User import"
+      "userImports": "User import",
+      "audit": "Audit log",
+      "roles": "Roles"
     },
     "locale": {
       "name": {
@@ -100,7 +102,9 @@
         "roles": "Roles",
         "noRoles": "This user has no roles.",
         "manageRoles": "Assigned roles",
-        "saveRoles": "Save roles"
+        "saveRoles": "Save roles",
+        "viewActivity": "View their activity",
+        "viewActivityFor": "View their activity: {name}"
       },
       "confirm": {
         "deactivate": {
@@ -302,6 +306,111 @@
         "column": "Column",
         "message": "Reason"
       }
+    },
+    "audit": {
+      "title": "Audit log",
+      "intro": "Who did what and when in this school. Dates are shown in your browser's time zone.",
+      "caption": "School audit log",
+      "empty": {
+        "title": "No records",
+        "text": "There are no audit records to show."
+      },
+      "filters": {
+        "occurredAt": "Date",
+        "event": "Operation",
+        "actorType": "Actor type",
+        "actor": "User",
+        "module": "Module",
+        "auditableType": "Entity"
+      },
+      "columns": {
+        "occurredAt": "Date and time",
+        "event": "Operation",
+        "actor": "User",
+        "auditableType": "Entity",
+        "auditablePublicId": "Identifier",
+        "ipAddress": "IP",
+        "requestId": "Request",
+        "actions": "Actions"
+      },
+      "viewChanges": "View changes",
+      "viewChangesFor": "View changes: {event}, {entity}, {date}",
+      "event": {
+        "created": "Created",
+        "updated": "Updated",
+        "deleted": "Deleted",
+        "restored": "Restored",
+        "read": "Read",
+        "exported": "Exported",
+        "login": "Sign-in",
+        "logout": "Sign-out",
+        "password_reset_requested": "Password reset requested"
+      },
+      "actorType": {
+        "user": "User",
+        "system": "System",
+        "console": "Console",
+        "import": "Import",
+        "platform": "Platform",
+        "anonymous": "Anonymous"
+      },
+      "entity": {
+        "person": "Person",
+        "user": "User",
+        "role": "Role",
+        "academic_year": "Academic year",
+        "module_subscription": "Subscribed module",
+        "tenant_setting": "School settings",
+        "user_invitation": "Invitation",
+        "user_import": "User import",
+        "data_export": "Data export",
+        "permission_role": "Role permission"
+      },
+      "module": {
+        "core": "School and users",
+        "auth": "Access and security"
+      },
+      "changes": {
+        "title": "Record changes",
+        "description": "{event} · {entity} · {date}",
+        "close": "Close",
+        "none": "No changes recorded.",
+        "before": "Before",
+        "after": "After",
+        "arrow": "{from} → {to}",
+        "emptyValue": "empty",
+        "hadValue": "had a value",
+        "notRecorded": "Value not recorded",
+        "reasonLabel": "Reason: {reason}",
+        "reason": {
+          "secret": "secret data",
+          "special": "special category of data",
+          "identifier": "identifying data",
+          "oversized": "value too large"
+        }
+      }
+    },
+    "roles": {
+      "title": "Roles",
+      "intro": "School roles, read-only. Role editing will arrive later.",
+      "caption": "School roles",
+      "empty": {
+        "title": "No roles",
+        "text": "The school does not have any roles yet."
+      },
+      "columns": {
+        "name": "Name",
+        "type": "Type",
+        "mfaRequired": "MFA required",
+        "specialData": "Special data access",
+        "users": "Users"
+      },
+      "type": {
+        "system": "System",
+        "custom": "Custom"
+      },
+      "yes": "Yes",
+      "no": "No"
     }
   }
 }

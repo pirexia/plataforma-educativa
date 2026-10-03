@@ -223,8 +223,19 @@ export interface Tenant {
   status: string
 }
 
-export type AuditActorType = 'user' | 'system' | 'console' | 'import' | 'platform'
-export type AuditEvent = 'created' | 'updated' | 'deleted' | 'restored' | 'read' | 'exported'
+/** ADR-039 §4.1: seis valores (`anonymous` desde `OPEN-AUTH-12`). Extensible (ADR-038 §7.3). */
+export type AuditActorType = 'user' | 'system' | 'console' | 'import' | 'platform' | 'anonymous'
+/** ADR-039 / `datos.md` Parte 0.9: nueve valores. Extensible (ADR-038 §7.3). */
+export type AuditEvent =
+  | 'created'
+  | 'updated'
+  | 'deleted'
+  | 'restored'
+  | 'read'
+  | 'exported'
+  | 'login'
+  | 'logout'
+  | 'password_reset_requested'
 
 export interface AuditLog {
   public_id: PublicId
@@ -238,6 +249,29 @@ export interface AuditLog {
   ip_address: string | null
   user_agent: string | null
   request_id: string | null
+}
+
+/**
+ * `GET /audit-logs/facets` (S10 de 1.9d, `api.md §14.4`): valores filtrables
+ * del registro, sin traducir (`ADR-038 §3.2`).
+ */
+export interface AuditFacets {
+  modules: string[]
+  auditable_types: { alias: string; module: string }[]
+  events: string[]
+  actor_types: string[]
+}
+
+/**
+ * `changes` de una entrada de auditoría tal como llega (`ADR-035`, `CA-CORE-052`):
+ * por atributo, o bien `{from, to}`, o bien un objeto redactado con el motivo.
+ */
+export interface AuditChangeEntry {
+  from?: unknown
+  to?: unknown
+  redacted?: string
+  from_empty?: boolean
+  to_empty?: boolean
 }
 
 export type DataExportStatus = 'pendiente' | 'generando' | 'completada' | 'fallida'

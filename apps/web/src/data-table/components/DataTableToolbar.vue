@@ -29,9 +29,11 @@ import type {
   DataTableBooleanFilter,
   DataTableColumn,
   DataTableDateRangeFilter,
+  DataTableEntityFilter,
   DataTableEnumFilter,
   DataTableFilter,
 } from '../types'
+import EntityFilterField from './DataTableEntityFilter.vue'
 
 const props = defineProps<{
   columns: readonly DataTableColumn<Row>[]
@@ -99,6 +101,14 @@ function asRange(filter: DataTableFilter): DataTableDateRangeFilter | null {
 
 function asBoolean(filter: DataTableFilter): DataTableBooleanFilter | null {
   return filter.type === 'boolean' ? filter : null
+}
+
+function asEntity(filter: DataTableFilter): DataTableEntityFilter | null {
+  return filter.type === 'entity' ? filter : null
+}
+
+function setEntity(filter: DataTableEntityFilter, value: string): void {
+  emit('update:filterValues', withParam(props.filterValues, filter.id, value))
 }
 
 function toggleOption(filter: DataTableEnumFilter, value: string, checked: boolean): void {
@@ -265,6 +275,13 @@ const itemClass = 'min-h-8 [@media(any-pointer:coarse)]:min-h-11'
           {{ t('dataTable.filters.rangeInvalid') }}
         </p>
       </fieldset>
+
+      <EntityFilterField
+        v-else-if="asEntity(filter)"
+        :filter="filter as DataTableEntityFilter"
+        :value="props.filterValues[filter.id]"
+        @update:value="(value: string) => setEntity(filter as DataTableEntityFilter, value)"
+      />
 
       <label
         v-else-if="asBoolean(filter)?.twoState"

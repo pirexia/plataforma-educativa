@@ -1,17 +1,26 @@
 import { apiFetch } from '@/api/client'
 import { buildQuery, joinList } from './shared'
-import type { AuditEvent, AuditLog, CursorPaginated, DataExport, PublicId } from '../types'
+import type {
+  AuditEvent,
+  AuditFacets,
+  AuditLog,
+  CursorPaginated,
+  DataExport,
+  PublicId,
+} from '../types'
 
 export interface ListAuditLogsParams {
   /** ADR-038 §5.2: sufijo `_from`/`_to` de los filtros de rango (issue #266). */
   occurred_at_from?: string
   occurred_at_to?: string
   actor_id?: PublicId
-  actor_type?: string
+  /** S7 de 1.9d (ADR-038 §5.2): varios tipos de actor separados por comas. */
+  actor_type?: string[]
   event?: AuditEvent[]
   auditable_type?: string[]
   auditable_id?: PublicId
-  module?: string
+  /** S7 de 1.9d: varios módulos separados por comas. */
+  module?: string[]
   cursor?: string
   limit?: number
 }
@@ -28,11 +37,11 @@ export function listAuditLogs(
     occurred_at_from: params.occurred_at_from,
     occurred_at_to: params.occurred_at_to,
     actor_id: params.actor_id,
-    actor_type: params.actor_type,
+    actor_type: joinList(params.actor_type),
     event: joinList(params.event),
     auditable_type: joinList(params.auditable_type),
     auditable_id: params.auditable_id,
-    module: params.module,
+    module: joinList(params.module),
     cursor: params.cursor,
     limit: params.limit,
   })
@@ -50,11 +59,11 @@ export interface ExportAuditLogsPayload {
   occurred_at_from?: string
   occurred_at_to?: string
   actor_id?: PublicId
-  actor_type?: string
+  actor_type?: string[]
   event?: AuditEvent[]
   auditable_type?: string[]
   auditable_id?: PublicId
-  module?: string
+  module?: string[]
 }
 
 /** `format: 'pdf'` no está disponible en 1.1 (diferido a 1.17). */
@@ -70,4 +79,13 @@ export function exportAuditLogs(
 /** Primitiva compartida (funcional.md §7): estado y descarga de cualquier exportación, no solo de auditoría. */
 export function getDataExport(publicId: PublicId): Promise<DataExport> {
   return apiFetch<DataExport>(`/data-exports/${publicId}`)
+}
+
+/**
+ * `GET /audit-logs/facets` (S10 de 1.9d, `OPEN-CORE-34` = B, `auditoria.leer`):
+ * las opciones de los filtros de módulo y tipo de entidad, del catálogo del
+ * servidor, sin traducir. Una sola petición por montaje de la pantalla.
+ */
+export function getAuditFacets(): Promise<AuditFacets> {
+  return apiFetch<AuditFacets>('/audit-logs/facets')
 }

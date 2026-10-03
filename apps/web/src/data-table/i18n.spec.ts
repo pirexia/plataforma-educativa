@@ -76,7 +76,13 @@ describe('CA-CORE-196 (INV-009): dataTable.* completo en los cuatro idiomas', ()
   })
 
   it('las claves con plural usan las tres formas (cero | uno | otros) en los cuatro idiomas', () => {
-    const pluralKeys = ['pagination.total', 'announce.results', 'announce.loaded', 'announce.more']
+    const pluralKeys = [
+      'pagination.total',
+      'announce.results',
+      'announce.loaded',
+      'announce.more',
+      'filters.entityResults',
+    ]
 
     for (const locale of ['es', 'en', 'de', 'fr']) {
       const messages = flatten(locales[locale]!.dataTable)

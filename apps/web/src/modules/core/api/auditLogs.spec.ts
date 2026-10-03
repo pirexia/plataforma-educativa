@@ -5,7 +5,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const apiFetchMock = vi.hoisted(() => vi.fn())
 vi.mock('@/api/client', () => ({ apiFetch: apiFetchMock }))
 
-import { exportAuditLogs, listAuditLogs, type ExportAuditLogsPayload } from './auditLogs'
+import {
+  exportAuditLogs,
+  getAuditFacets,
+  listAuditLogs,
+  type ExportAuditLogsPayload,
+} from './auditLogs'
 
 describe('auditLogs api', () => {
   beforeEach(() => {
@@ -31,11 +36,11 @@ describe('auditLogs api', () => {
       occurred_at_from: '2026-01-01',
       occurred_at_to: '2026-01-31',
       actor_id: '01HZX0000000000000000000AA',
-      actor_type: 'user',
+      actor_type: ['user', 'system'],
       event: ['created'],
       auditable_type: ['user'],
       auditable_id: '01HZX0000000000000000000BB',
-      module: 'core',
+      module: ['core'],
     }
 
     await exportAuditLogs(payload)
@@ -45,5 +50,20 @@ describe('auditLogs api', () => {
     expect(url).toBe('/audit-logs/exports')
     expect(init.method).toBe('POST')
     expect(JSON.parse(init.body)).toEqual(payload)
+  })
+
+  it('CA-CORE-245: listAuditLogs envía actor_type y module separados por comas', async () => {
+    await listAuditLogs({ actor_type: ['user', 'system'], module: ['auth', 'core'] })
+
+    const params = new URLSearchParams((apiFetchMock.mock.calls[0][0] as string).split('?')[1])
+
+    expect(params.get('actor_type')).toBe('user,system')
+    expect(params.get('module')).toBe('auth,core')
+  })
+
+  it('CA-CORE-245: getAuditFacets pide GET /audit-logs/facets', async () => {
+    await getAuditFacets()
+
+    expect(apiFetchMock).toHaveBeenCalledWith('/audit-logs/facets')
   })
 })

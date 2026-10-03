@@ -206,6 +206,11 @@ Route::get('/audit-logs', [AuditLogsController::class, 'index'])
     ->middleware('permission:auditoria.leer')
     ->name('core.audit-logs.index');
 
+// api.md §14.4 (1.9d, S10, OPEN-CORE-34 = B): sin consultar audit_logs.
+Route::get('/audit-logs/facets', [AuditLogsController::class, 'facets'])
+    ->middleware('permission:auditoria.leer')
+    ->name('core.audit-logs.facets');
+
 Route::post('/audit-logs/exports', [AuditLogsController::class, 'storeExport'])
     ->middleware('permission:auditoria.exportar')
     ->name('core.audit-logs.exports');

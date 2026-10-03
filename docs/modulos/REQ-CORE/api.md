@@ -752,7 +752,7 @@ Norma de `ADR-054 §8`-`§10` (`funcional.md` `RN-CORE-46`-`48` y `RN-CORE-58`).
 
 ## 14. Paso 1.9b (pantallas de gestión): *endpoints* nuevos y cambios
 
-> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. Resueltas las preguntas que afectan a este documento: `OPEN-CORE-32` (B, esquema del CSV de usuarios de §14.1), `-39` (A, S4) y `-31` (B, §14.5). S9 (`OPEN-CORE-38` = A, resuelta) está **implementado** en 1.9c; sigue condicionado a una pregunta abierta S10 (`OPEN-CORE-34`). La numeración `S1`-`S10` es la de `funcional.md §14.11`.
+> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. Resueltas las preguntas que afectan a este documento: `OPEN-CORE-32` (B, esquema del CSV de usuarios de §14.1), `-39` (A, S4) y `-31` (B, §14.5). S9 (`OPEN-CORE-38` = A, resuelta) está **implementado** en 1.9c; S10 (`OPEN-CORE-34` = B) y la parte de auditoría de S7 están **implementados** en 1.9d (`funcional.md §14.25`). La numeración `S1`-`S10` es la de `funcional.md §14.11`.
 >
 > **Implementado en `1.9b`** (2026-10-02): S1 a S7 (la parte de `GET /audit-logs`/`POST /audit-logs/exports` de S7 es de `1.9d`, §14.3). Precisiones de la implementación: (a) el cuerpo de `POST /users/exports` acepta `format` **opcional** (por defecto `csv`; la SPA no lo envía, `CA-CORE-222`); (b) el `422` de `q` lleva el código `core.validation.export_search_not_supported` en `errors.q`; (c) un valor fuera de vocabulario en un filtro de lista por comas (`invitations.status`, `users.locale`) responde `422` con `core.validation.in_list` (regla `App\Support\Api\Rules\InList`, mensaje `core.validation.filter_value_invalid`); (d) `GET /users?status=` y `?role=` siguen sin validar sus valores (como antes de 1.9b, solo aceptan listas): el `POST /users/exports` sí valida `status`, `locale` y `role` (ULID) por elemento; (e) `GET /users/{id}?include_deleted=` valida el booleano con la regla común (`422` si no es `true`/`false`).
 
@@ -825,7 +825,7 @@ S4 es un **cambio de contrato** respecto al código, no respecto a este document
 
 Todos son aditivos en el sentido de `ADR-038 §7`: un cliente que envíe un solo valor, o que no envíe el parámetro nuevo, obtiene lo mismo que antes.
 
-### 14.4 `GET /api/v1/audit-logs/facets` (S10, solo si `OPEN-CORE-34` = B)
+### 14.4 `GET /api/v1/audit-logs/facets` (S10, `OPEN-CORE-34` = B resuelta)
 
 - **Permiso**: `auditoria` · `leer` (con su ámbito; las facetas no revelan filas, solo los valores filtrables del catálogo).
 - **Respuesta 200** (recurso desnudo, `ADR-038 §3.1`; sin traducir, `ADR-038 §3.2`):
@@ -842,7 +842,7 @@ Todos son aditivos en el sentido de `ADR-038 §7`: un cliente que envíe un solo
 }
 ```
 
-- Los valores del ejemplo son ilustrativos: los reales los fija el código. Sale del catálogo declarado en código (`ModuleCatalog`, *morph map* y vocabularios del `CHECK`), no de consultar `audit_logs`: sin coste por volumen y sin revelar qué entidades tienen registros.
+- **Implementado en `1.9d`.** Los valores del ejemplo son ilustrativos: los reales los fija el código (`App\Modules\Core\Domain\AuditCatalog`, que usan también el filtro y la validación de `GET /audit-logs`). Hoy `modules` solo contiene `core`. Sale del catálogo declarado en código (`ModuleCatalog`, *morph map* y vocabularios del `CHECK`), no de consultar `audit_logs`: sin coste por volumen y sin revelar qué entidades tienen registros.
 - **Errores**: 401, 403.
 
 ### 14.5 Lo que 1.9b consume sin cambiar

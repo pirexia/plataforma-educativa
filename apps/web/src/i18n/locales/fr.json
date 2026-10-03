@@ -114,7 +114,15 @@
       "rangeInvalid": "La date « du » est postérieure à la date « au ».",
       "notApplied": "Le filtre n'a pas été appliqué : la liste affiche toujours les résultats précédents.",
       "triggerWithCount": "{label} ({count})",
-      "booleanTrigger": "{label} : {value}"
+      "booleanTrigger": "{label} : {value}",
+      "entitySearch": "Rechercher : {label}",
+      "entityPlaceholder": "Saisir pour rechercher",
+      "entityActive": "Filtré par : {name}",
+      "entityRemove": "Retirer le filtre « {label} »",
+      "entityLoading": "Chargement…",
+      "entityUnknown": "Élément indisponible",
+      "entityResults": "Aucun résultat | Un résultat | {count} résultats",
+      "entityError": "La recherche n’a pas pu aboutir. Veuillez réessayer."
     },
     "columns": {
       "menu": "Colonnes",
