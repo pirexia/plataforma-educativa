@@ -345,7 +345,7 @@ Qué permisos exactos abren «Administración de MFA» lo fija `REQ-AUTH/permiso
 | Usuarios | Invitar / reenviar | `invitacion.crear` | `POST /users/{id}/invitations` | Servidor + `RN-CORE-12` |
 | Usuarios | Ver roles del usuario | `asignacion_rol.leer` | `GET /users/{id}/roles` | Servidor |
 | Usuarios | Cambiar roles (`OPEN-CORE-43` = A) | `asignacion_rol.crear` (y `asignacion_rol.eliminar` si retira alguno; la interfaz no lo comprueba por separado, lo decide el servidor) y `rol.leer` | `PUT /users/{id}/roles` | Servidor + `RPERM-013` + `RN-CORE-06`/`07` |
-| Usuarios | «Ver su actividad» (1.9d, según `OPEN-CORE-33`, abierta) | `auditoria.leer` | navegación | Servidor en `GET /audit-logs` |
+| Usuarios | «Ver su actividad» (1.9d, `OPEN-CORE-33` = C, resuelta) | `auditoria.leer` | navegación | Servidor en `GET /audit-logs` |
 | Invitaciones | Ver | `invitacion.leer` (ruta) | `GET /invitations` | Servidor |
 | Invitaciones | Revocar | `invitacion.eliminar` | `DELETE /invitations/{id}` | Servidor |
 | Invitaciones | Reenviar | `invitacion.crear` | `POST /users/{id}/invitations` | Servidor |

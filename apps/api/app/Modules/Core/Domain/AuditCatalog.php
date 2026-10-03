@@ -7,7 +7,7 @@ namespace App\Modules\Core\Domain;
  * código de los valores filtrables del registro de auditoría. Una sola
  * fuente para el filtro (`AuditLogFilter`), la validación
  * (`IndexAuditLogsRequest`) y el endpoint de facetas
- * (`AuditLogFacetsController`), de modo que lo que la pantalla ofrece y lo
+ * (`AuditLogsController::facets`), de modo que lo que la pantalla ofrece y lo
  * que el servidor acepta no puedan divergir. No consulta `audit_logs`.
  */
 final class AuditCatalog
