@@ -497,6 +497,7 @@ email;given_name;family_name_1;family_name_2;document_type;document_number;birth
   "public_id": "01J8...",
   "original_filename": "personal-2026.csv",
   "status": "validado",
+  "send_invitations": true,
   "row_count": 5,
   "error_count": 2,
   "created_count": null,
@@ -514,6 +515,8 @@ email;given_name;family_name_1;family_name_2;document_type;document_number;birth
 `error_summary` trae como mucho 50 entradas; el informe completo está en `report_url` (CSV, URL firmada de caducidad corta). Los `code` de error son claves de traducción (`INV-009`), no texto.
 
 `created_at` (instante ISO 8601 UTC) se devuelve desde 1.9c (S8, `CA-CORE-238`), en el listado y en el detalle.
+
+`send_invitations` (booleano, lo elegido al subir el fichero) se devuelve también desde 1.9c, en el listado y en el detalle: cambio **aditivo y compatible** que decidió el usuario el 2026-10-03 (S8 ampliado) para que la confirmación de «Ejecutar» diga siempre si se enviarán invitaciones (`RN-CORE-73`, `CA-CORE-235`), también para quien no subió el lote.
 
 **Idioma de `message` (S9, #285, `OPEN-CORE-38` = A, `CA-CORE-239`).** El mensaje de cada incidencia —en `error_summary` y en la columna `message` de `report.csv`— sale en el idioma de **quien subió el lote** (`user_imports.created_by` → `person.locale` si está entre los idiomas activos del centro; si no, `default_locale`, la misma precedencia que `RN-CORE-34`), no en el del proceso del trabajo. Queda persistido en ese idioma: otro administrador que abra el lote lo lee en el de quien lo subió.
 

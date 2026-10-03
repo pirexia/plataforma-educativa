@@ -390,6 +390,7 @@ components:
           nullable: true
           items: { $ref: '#/components/schemas/UserImportErrorEntry' }
         report_url: { type: string, format: uri, nullable: true }
+        send_invitations: { type: boolean, description: "Elegido al subir el fichero; la confirmación de ejecución lo usa (RN-CORE-73)." }
         created_at: { type: string, format: date-time }
         validated_at: { type: string, format: date-time, nullable: true }
         executed_at: { type: string, format: date-time, nullable: true }

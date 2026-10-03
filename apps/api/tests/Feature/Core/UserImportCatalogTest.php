@@ -246,3 +246,21 @@ test('CA-CORE-239 (S9, #285): el mensaje de cabecera desconocida también sale e
     expect($show['status'])->toBe('fallido')
         ->and($show['error_summary'][0]['message'])->toBe('The file header does not match the expected format.');
 });
+
+// S8 (ampliación aditiva), RN-CORE-73, CA-CORE-235
+test('CA-CORE-235 (S8): GET /user-imports y GET /user-imports/{id} devuelven send_invitations tal como se eligió al subir', function (): void {
+    [$tenant, $admin] = provisionCoreTenant('uic-235');
+
+    foreach ([true, false] as $choice) {
+        $file = UploadedFile::fake()->createWithContent('personal.csv', uicCsv([['uno@example.com', 'Uno']]));
+        $id = test()->actingAs($admin)
+            ->call('POST', coreApiUrl($tenant->slug, '/user-imports'), ['send_invitations' => $choice ? '1' : '0'], [], ['file' => $file])
+            ->assertStatus(202)
+            ->json('public_id');
+
+        expect(uicShow($tenant, $admin, $id)['send_invitations'])->toBe($choice);
+
+        $row = collect(test()->actingAs($admin)->getJson(coreApiUrl($tenant->slug, '/user-imports'))->json('data'))->firstWhere('public_id', $id);
+        expect($row['send_invitations'])->toBe($choice);
+    }
+});
