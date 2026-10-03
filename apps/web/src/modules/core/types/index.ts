@@ -267,6 +267,8 @@ export interface UserImport {
   public_id: PublicId
   original_filename: string
   status: UserImportStatus
+  /** Elegido al subir el fichero; la confirmación de ejecutar lo usa (`RN-CORE-73`). */
+  send_invitations: boolean
   row_count: number | null
   error_count: number | null
   created_count: number | null

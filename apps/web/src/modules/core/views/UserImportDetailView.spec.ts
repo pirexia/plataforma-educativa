@@ -29,7 +29,6 @@ vi.mock('../api', () => ({
   deleteUserImport: (...args: unknown[]) => deleteUserImport(...args),
 }))
 
-const { rememberImportInvitations } = await import('../composables/importInvitations')
 const { takeFlash } = await import('../composables/useFlash')
 const { default: UserImportDetailView } = await import('./UserImportDetailView.vue')
 
@@ -40,6 +39,7 @@ function lot(overrides: Record<string, unknown> = {}) {
     public_id: 'IMP1',
     original_filename: 'personal.csv',
     status: 'validado',
+    send_invitations: true,
     row_count: 5,
     error_count: 2,
     created_count: null,
@@ -303,7 +303,6 @@ describe('CA-CORE-234 (RN-CORE-72, RN-CORE-49): seguimiento del estado', () => {
 
 describe('CA-CORE-235 (RN-CORE-73, INV-011): ejecución con confirmación e Idempotency-Key', () => {
   it('la confirmación dice cuántas filas se crearán, que las erróneas se omiten, las invitaciones y que no se deshace', async () => {
-    rememberImportInvitations('IMP1', true)
     await mountView()
 
     await click(button('Ejecutar'))
@@ -317,20 +316,16 @@ describe('CA-CORE-235 (RN-CORE-73, INV-011): ejecución con confirmación e Idem
     expect(executeUserImport).not.toHaveBeenCalled()
   })
 
-  it('si no se sabe si hay invitaciones, la confirmación usa el texto neutro; si se eligió no enviarlas, lo dice', async () => {
-    getUserImport.mockResolvedValue(lot({ public_id: 'IMP-NEUTRAL' }))
-    await mountView('IMP-NEUTRAL')
-    await click(button('Ejecutar'))
-    expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain(
-      'según lo elegido al subir el fichero',
-    )
-    await click(dialogButton('Cancelar'))
+  it('si el lote se subió sin invitaciones (send_invitations de la API), la confirmación lo dice', async () => {
+    getUserImport.mockResolvedValue(lot({ send_invitations: false }))
+    await mountView()
 
-    rememberImportInvitations('IMP-NEUTRAL', false)
     await click(button('Ejecutar'))
-    expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain(
-      'No se enviarán invitaciones',
-    )
+
+    const text = document.querySelector('[role="alertdialog"]')?.textContent ?? ''
+
+    expect(text).toContain('No se enviarán invitaciones')
+    expect(text).not.toContain('Se enviarán invitaciones')
   })
 
   it('al confirmar sale una petición con una Idempotency-Key ULID; si falla por red y se reintenta, lleva la misma; una confirmación nueva lleva otra', async () => {
@@ -471,6 +466,24 @@ describe('CA-CORE-237 (RN-CORE-74, RN-CORE-53): incidencias', () => {
     )!
 
     expect(report.getAttribute('href')).toBe('https://files.example.com/report.csv?sig=abc')
+  })
+
+  it('30 filas con 2 errores cada una: 50 entradas con error_count = 30 también muestran el aviso de las 50 primeras (RN-CORE-74)', async () => {
+    getUserImport.mockResolvedValue(
+      lot({ error_count: 30, row_count: 80, error_summary: manyErrors(50) }),
+    )
+    await mountView()
+
+    expect(document.body.querySelector('[role="note"]')).not.toBeNull()
+  })
+
+  it('con menos de 50 entradas y error_count igual a las entradas no hay aviso', async () => {
+    getUserImport.mockResolvedValue(
+      lot({ error_count: 49, row_count: 80, error_summary: manyErrors(49) }),
+    )
+    await mountView()
+
+    expect(document.body.querySelector('[role="note"]')).toBeNull()
   })
 
   it('sin truncar no hay aviso de las 50 primeras', async () => {

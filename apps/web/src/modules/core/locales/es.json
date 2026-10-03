@@ -280,7 +280,6 @@
           "skipsErrors": "Las filas con error se omiten.",
           "invitationsYes": "Se enviarán invitaciones a los usuarios creados.",
           "invitationsNo": "No se enviarán invitaciones.",
-          "invitationsUnknown": "Las invitaciones se envían según lo elegido al subir el fichero.",
           "irreversible": "Una importación no se deshace.",
           "confirm": "Ejecutar la importación de {file}"
         },

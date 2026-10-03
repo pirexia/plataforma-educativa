@@ -280,7 +280,6 @@
           "skipsErrors": "Rows with errors are skipped.",
           "invitationsYes": "Invitations will be sent to the users created.",
           "invitationsNo": "No invitations will be sent.",
-          "invitationsUnknown": "Invitations are sent as chosen when the file was uploaded.",
           "irreversible": "An import cannot be undone.",
           "confirm": "Run the import of {file}"
         },

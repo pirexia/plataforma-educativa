@@ -280,7 +280,6 @@
           "skipsErrors": "Les lignes en erreur sont ignorées.",
           "invitationsYes": "Des invitations seront envoyées aux utilisateurs créés.",
           "invitationsNo": "Aucune invitation ne sera envoyée.",
-          "invitationsUnknown": "Les invitations sont envoyées selon le choix fait lors du téléversement du fichier.",
           "irreversible": "Un import ne peut pas être annulé.",
           "confirm": "Exécuter l'import de {file}"
         },

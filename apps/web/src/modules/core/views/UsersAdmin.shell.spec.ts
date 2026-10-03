@@ -154,6 +154,7 @@ function importBody(id: string, status = 'validado') {
     public_id: id,
     original_filename: IMPORT_FILE,
     status,
+    send_invitations: true,
     row_count: 5,
     error_count: 1,
     created_count: null,

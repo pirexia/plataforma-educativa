@@ -280,7 +280,6 @@
           "skipsErrors": "Zeilen mit Fehlern werden übersprungen.",
           "invitationsYes": "An die angelegten Benutzer werden Einladungen gesendet.",
           "invitationsNo": "Es werden keine Einladungen gesendet.",
-          "invitationsUnknown": "Einladungen werden so gesendet, wie beim Hochladen der Datei gewählt.",
           "irreversible": "Ein Import kann nicht rückgängig gemacht werden.",
           "confirm": "Import von {file} ausführen"
         },

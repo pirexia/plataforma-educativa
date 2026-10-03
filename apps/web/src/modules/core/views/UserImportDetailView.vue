@@ -45,7 +45,6 @@ import { resolveErrorState } from '@/layouts/errorState'
 import { ulid } from '@/lib/ulid'
 import { deleteUserImport, executeUserImport } from '../api'
 import { problemDetail, problemRetryAfter, problemStatus } from '../composables/problem'
-import { recallImportInvitations } from '../composables/importInvitations'
 import { setFlash } from '../composables/useFlash'
 import { useUserImport } from '../composables/useUserImport'
 import { USER_IMPORT_HEADER } from '../userImportHeader'
@@ -102,8 +101,19 @@ const showErrors = computed(
     ['validado', 'fallido'].includes(data.value.status) &&
     entries.value.length > 0,
 )
+/** `error_summary` trae como mucho 50 entradas (`api.md §7`). */
+const ERROR_SUMMARY_CAP = 50
+
+/**
+ * `RN-CORE-74`: hay más incidencias de las mostradas si `error_count` supera las
+ * recibidas **o** si las entradas llegan al tope de 50 (`error_count` cuenta filas,
+ * no incidencias: 30 filas con 2 errores se truncan a 50 con `error_count` = 30).
+ */
 const truncated = computed(
-  () => data.value !== null && (data.value.error_count ?? 0) > entries.value.length,
+  () =>
+    data.value !== null &&
+    ((data.value.error_count ?? 0) > entries.value.length ||
+      entries.value.length >= ERROR_SUMMARY_CAP),
 )
 /** Lote `fallido` por cabecera: se muestra el motivo y la cabecera esperada, sin «Ejecutar». */
 const headerFailed = computed(
@@ -229,17 +239,15 @@ async function execute(): Promise<void> {
     return
   }
 
-  const invitations = recallImportInvitations(current.public_id)
+  const invitations = current.send_invitations
   const confirmed = await confirmation.ask({
     title: t('core.userImports.confirm.execute.title', { file: current.original_filename }),
     description: [
       t('core.userImports.confirm.execute.creates', { count: willCreate.value }),
       t('core.userImports.confirm.execute.skipsErrors'),
-      invitations === null
-        ? t('core.userImports.confirm.execute.invitationsUnknown')
-        : invitations
-          ? t('core.userImports.confirm.execute.invitationsYes')
-          : t('core.userImports.confirm.execute.invitationsNo'),
+      invitations
+        ? t('core.userImports.confirm.execute.invitationsYes')
+        : t('core.userImports.confirm.execute.invitationsNo'),
       t('core.userImports.confirm.execute.irreversible'),
     ].join(' '),
     confirmLabel: t('core.userImports.confirm.execute.confirm', {

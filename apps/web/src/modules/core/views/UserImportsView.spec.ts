@@ -22,7 +22,6 @@ vi.mock('../api', () => ({
 }))
 
 const { setFlash } = await import('../composables/useFlash')
-const { recallImportInvitations } = await import('../composables/importInvitations')
 const { default: UserImportsView } = await import('./UserImportsView.vue')
 
 function importRow(id: string, overrides: Record<string, unknown> = {}) {
@@ -35,6 +34,7 @@ function importRow(id: string, overrides: Record<string, unknown> = {}) {
     created_count: null,
     error_summary: null,
     report_url: null,
+    send_invitations: true,
     created_at: '2026-09-01T10:00:00Z',
     validated_at: '2026-09-01T10:01:00Z',
     executed_at: null,
@@ -152,10 +152,9 @@ describe('CA-CORE-233 (RN-CORE-71): formulario de subida', () => {
     expect(createUserImport).toHaveBeenCalledWith(file, true)
     expect(router.currentRoute.value.name).toBe('core-user-import-detail')
     expect(router.currentRoute.value.params.publicId).toBe('NEW1')
-    expect(recallImportInvitations('NEW1')).toBe(true)
   })
 
-  it('desmarcada, la casilla envía send_invitations = false y se recuerda para la confirmación', async () => {
+  it('desmarcada, la casilla envía send_invitations = false', async () => {
     const { wrapper } = await mountView()
     const file = csv()
 
@@ -165,7 +164,6 @@ describe('CA-CORE-233 (RN-CORE-71): formulario de subida', () => {
     await submit(wrapper)
 
     expect(createUserImport).toHaveBeenCalledWith(file, false)
-    expect(recallImportInvitations('NEW1')).toBe(false)
   })
 
   it('con 415 muestra el mensaje del servidor sin navegar', async () => {

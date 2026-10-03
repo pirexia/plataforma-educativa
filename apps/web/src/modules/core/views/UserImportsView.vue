@@ -37,7 +37,6 @@ import {
   problemRetryAfter,
   problemStatus,
 } from '../composables/problem'
-import { rememberImportInvitations } from '../composables/importInvitations'
 import { takeFlash } from '../composables/useFlash'
 import { DOCUMENT_TYPES } from '../documentTypes'
 import { USER_IMPORT_HEADER, USER_IMPORT_MAX_BYTES } from '../userImportHeader'
@@ -169,8 +168,6 @@ async function submit(): Promise<void> {
 
   try {
     const created = await createUserImport(file.value, sendInvitations.value)
-
-    rememberImportInvitations(created.public_id, sendInvitations.value)
     await router.push({ name: 'core-user-import-detail', params: { publicId: created.public_id } })
   } catch (err) {
     showError(err)
