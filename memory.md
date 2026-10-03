@@ -164,6 +164,10 @@
 
 ## Siguiente paso concreto
 
+**`1.9c` (importación de usuarios + catálogo de tipos de documento) implementado y revisado, PENDIENTE DE MEZCLA** (2026-10-03, rama `feature/REQ-CORE-003-importacion-usuarios`, último commit verificado `830de8e`: Pest 807/822 con 15 fallos SAML preexistentes #291 en local, Vitest 879/879, ESLint/i18n/vue-tsc/build/Pint/Larastan limpios; CI del PR decide). Revisión independiente hecha (db/security/doc-reviewer, sin Crítico/Alto) y corregida. Spec: `funcional.md §14.6`/`§14.6.4`/`§14.23`. Decisiones del usuario: `OPEN-CORE-38` = A, catálogo `dni`/`nie`/`pasaporte` (sin `otro`), `accept=".csv"`, sin enlace al manual, `send_invitations` en la API, aviso de las 50 primeras también en el tope. Issues abiertos: #308-#310 (F1-F7, resueltos por el catálogo), #312 (CHECK del catálogo, entrega N+1), **#313 y #314 (Media, preexistentes de 1.9b: tope de 20.000 filas sin aplicar; roles no concedibles descartados en silencio — decisión pendiente de si entran en un fix propio)**. Tras mezclar: siguiente `1.9d` (auditoría + roles RO), en sesión nueva; la BD de pruebas tiene ~33 filas huérfanas de `people` (limpiar/recrear antes de un `migrate` real).
+
+**Histórico del cierre de `1.9b` (para contexto):**
+
 **`1.9b` cerrado y mezclado el 2026-10-02** (PR #299 `72fb900`, cierre en #306 `819e107`). `develop` limpio, sin ramas ni *worktrees* abiertos.
 
 **Al arrancar la sesión de `1.9c` (importación de usuarios, `funcional.md §14.6`), en este orden:**
