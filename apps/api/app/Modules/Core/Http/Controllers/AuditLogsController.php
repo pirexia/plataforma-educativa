@@ -3,6 +3,7 @@
 namespace App\Modules\Core\Http\Controllers;
 
 use App\Models\User;
+use App\Modules\Core\Domain\AuditCatalog;
 use App\Modules\Core\Domain\AuditQuery;
 use App\Modules\Core\Domain\ExportRequestService;
 use App\Modules\Core\Http\Requests\IndexAuditLogsRequest;
@@ -14,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 /**
  * api.md §8 (`REQ-CORE-005`). Paginación por cursor, no por página
@@ -36,11 +38,11 @@ class AuditLogsController extends Controller
             'occurred_at_from' => $request->input('occurred_at_from'),
             'occurred_at_to' => $request->input('occurred_at_to'),
             'actor_id' => $request->input('actor_id'),
-            'actor_type' => $request->input('actor_type'),
+            'actor_type' => $request->filled('actor_type') ? explode(',', (string) $request->string('actor_type')) : null,
             'event' => $request->filled('event') ? explode(',', (string) $request->string('event')) : null,
             'auditable_type' => $request->filled('auditable_type') ? explode(',', (string) $request->string('auditable_type')) : null,
             'auditable_id' => $request->input('auditable_id'),
-            'module' => $request->input('module'),
+            'module' => $request->filled('module') ? explode(',', (string) $request->string('module')) : null,
         ], fn ($value) => $value !== null);
 
         // funcional.md §6.1, RN-PERM-14 (CA-PERM-011): auditable_id es el
@@ -70,8 +72,22 @@ class AuditLogsController extends Controller
      */
     public function storeExport(Request $request, ExportRequestService $exports): JsonResponse
     {
+        // 1.9d, S7: `actor_type` y `module` admiten varios valores (array en
+        // el cuerpo, paridad con `GET`, ADR-054 §8.2). Un valor escalar —la
+        // forma anterior— sigue aceptándose y equivale a una lista de uno
+        // (aditivo, ADR-038 §7).
+        foreach (['actor_type', 'module'] as $key) {
+            if (is_string($request->input($key))) {
+                $request->merge([$key => [$request->input($key)]]);
+            }
+        }
+
         $validated = $request->validate([
             ...IndexAuditLogsRequest::filterRules(),
+            'actor_type' => ['sometimes', 'array'],
+            'actor_type.*' => ['string', Rule::in(AuditCatalog::ACTOR_TYPES)],
+            'module' => ['sometimes', 'array'],
+            'module.*' => ['string'],
             'format' => ['required', 'in:csv,pdf'],
             'event' => ['sometimes', 'array'],
             'event.*' => ['string'],
@@ -94,6 +110,23 @@ class AuditLogsController extends Controller
         $export = $exports->request('audit_logs', 'csv', Arr::except($validated, ['format']), $actor);
 
         return response()->json(['public_id' => $export->public_id, 'status' => $export->status], 202);
+    }
+
+    /**
+     * api.md §14.4 (1.9d, S10, `OPEN-CORE-34` = B). Valores filtrables del
+     * registro, del catálogo declarado en código (`AuditCatalog`): no consulta
+     * `audit_logs`, así que no cuesta nada por volumen y no revela qué
+     * entidades tienen registros. Sin traducir (ADR-038 §3.2). El permiso
+     * (`auditoria.leer`) lo exige la ruta.
+     */
+    public function facets(): JsonResponse
+    {
+        return response()->json([
+            'modules' => AuditCatalog::modules(),
+            'auditable_types' => AuditCatalog::auditableTypes(),
+            'events' => AuditCatalog::EVENTS,
+            'actor_types' => AuditCatalog::ACTOR_TYPES,
+        ]);
     }
 
     private function actor(Request $request): User

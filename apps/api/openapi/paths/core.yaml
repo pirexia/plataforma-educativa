@@ -1233,7 +1233,8 @@ paths:
           schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
         - name: actor_type
           in: query
-          schema: { type: string, enum: [user, system, console, import, platform, anonymous] }
+          description: Uno o varios tipos de actor separados por coma (ADR-038 §5.2, S7 de 1.9d); `422` si alguno no es de user, system, console, import, platform, anonymous.
+          schema: { type: string, example: "user,system" }
         - name: event
           in: query
           description: Repetible, separado por comas.
@@ -1247,7 +1248,8 @@ paths:
           schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
         - name: module
           in: query
-          schema: { type: string }
+          description: Uno o varios códigos de módulo separados por coma (ADR-038 §5.2, S7 de 1.9d); la unión de las entidades que declaran. Un código sin correspondencia no aporta ninguna.
+          schema: { type: string, example: "core" }
         - { $ref: '../components.yaml#/components/parameters/CursorParam' }
         - { $ref: '../components.yaml#/components/parameters/LimitParam' }
       responses:
@@ -1269,6 +1271,47 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/audit-logs/facets:
+    get:
+      operationId: getAuditLogFacets
+      summary: Valores filtrables del registro de auditoría (S10, OPEN-CORE-34 = B)
+      description: |
+        Los módulos, los alias de `auditable_type` (con su módulo), los valores de `event` y
+        los de `actor_type` que `GET /audit-logs` acepta como filtro. Sale del catálogo
+        declarado en código, no de consultar `audit_logs`: sin coste por volumen y sin revelar
+        qué entidades tienen registros. Sin traducir (ADR-038 §3.2): el cliente traduce con
+        rama por defecto. Permiso `auditoria.leer`.
+      tags: [Core / Auditoría]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Catálogo de valores filtrables
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [modules, auditable_types, events, actor_types]
+                properties:
+                  modules:
+                    type: array
+                    items: { type: string }
+                  auditable_types:
+                    type: array
+                    items:
+                      type: object
+                      required: [alias, module]
+                      properties:
+                        alias: { type: string }
+                        module: { type: string }
+                  events:
+                    type: array
+                    items: { type: string }
+                  actor_types:
+                    type: array
+                    items: { type: string }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
 
   /api/v1/audit-logs/exports:
     post:
@@ -1296,7 +1339,10 @@ paths:
                 occurred_at_from: { type: string, format: date-time }
                 occurred_at_to: { type: string, format: date-time }
                 actor_id: { $ref: '../components.yaml#/components/schemas/PublicId' }
-                actor_type: { type: string, enum: [user, system, console, import, platform, anonymous] }
+                actor_type:
+                  description: Array (S7 de 1.9d, paridad con `GET`); un valor escalar sigue aceptándose y equivale a una lista de uno.
+                  type: array
+                  items: { type: string, enum: [user, system, console, import, platform, anonymous] }
                 event:
                   type: array
                   items: { type: string }
@@ -1304,7 +1350,10 @@ paths:
                   type: array
                   items: { type: string }
                 auditable_id: { $ref: '../components.yaml#/components/schemas/PublicId' }
-                module: { type: string }
+                module:
+                  description: Array (S7 de 1.9d); un valor escalar sigue aceptándose.
+                  type: array
+                  items: { type: string }
       responses:
         '202':
           description: Solicitud aceptada, generación en cola

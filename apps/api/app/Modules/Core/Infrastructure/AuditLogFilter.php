@@ -3,6 +3,7 @@
 namespace App\Modules\Core\Infrastructure;
 
 use App\Models\AuditLog;
+use App\Modules\Core\Domain\AuditCatalog;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -12,20 +13,13 @@ use Illuminate\Database\Eloquent\Builder;
  * issue #267). No acota por ámbito: eso lo hace `ScopedQuery` aparte.
  *
  * Claves: `occurred_at_from`, `occurred_at_to` (ADR-038 §5.2, issue #266),
- * `actor_id`, `actor_type`, `event` (lista), `auditable_type` (lista),
- * `auditable_id`, `module`. `module` se resuelve a los alias del morph map
- * que ese módulo declara — en 1.1 solo existe `core`.
+ * `actor_id`, `actor_type` (lista), `event` (lista), `auditable_type` (lista),
+ * `auditable_id`, `module` (lista, 1.9d S7). `module` se resuelve a los alias
+ * del morph map que esos módulos declaran (`AuditCatalog`) — en 1.1 solo
+ * existe `core`.
  */
 final class AuditLogFilter
 {
-    /** @var array<string, list<string>> */
-    private const MODULE_ALIASES = [
-        'core' => [
-            'person', 'user', 'role', 'academic_year', 'module_subscription',
-            'tenant_setting', 'user_invitation', 'user_import', 'data_export',
-        ],
-    ];
-
     /**
      * @param  Builder<AuditLog>  $query
      * @param  array<string, mixed>  $filters
@@ -46,7 +40,7 @@ final class AuditLogFilter
         }
 
         if (isset($filters['actor_type'])) {
-            $query->where('actor_type', $filters['actor_type']);
+            $query->whereIn('actor_type', (array) $filters['actor_type']);
         }
 
         if (isset($filters['event']) && $filters['event'] !== []) {
@@ -62,7 +56,7 @@ final class AuditLogFilter
         }
 
         if (isset($filters['module'])) {
-            $query->whereIn('auditable_type', self::MODULE_ALIASES[$filters['module']] ?? ['__none__']);
+            $query->whereIn('auditable_type', AuditCatalog::aliasesOf((array) $filters['module']) ?: ['__none__']);
         }
 
         return $query;
