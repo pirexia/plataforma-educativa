@@ -1,6 +1,6 @@
 # Manual de administración
 
-> Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre lo que ya tiene código detrás: el registro de auditoría (paso 0.9), las cuentas bloqueadas y el tiempo de sesión (paso 1.2), la autenticación en dos pasos por rol (paso 1.3), el correo como segundo factor, las excepciones temporales y la pantalla mínima de administración de MFA (paso 1.3b), la navegación, el panel de inicio, el selector de idioma y el control de modo de color (paso 1.8), el manejo común de las tablas de datos (paso 1.9), los usuarios y las invitaciones, con la exportación de usuarios y los diálogos de confirmación (paso 1.9b), y la importación de usuarios con el catálogo de tipos de documento (paso 1.9c). El resto de secciones del manual de Administrador de Centro (auditoría, roles, módulos contratados, configuración del centro, activos de marca, perfil propio) llegan con los demás sub-pasos de las pantallas pendientes de `REQ-CORE` (**1.9d** a **1.9f**, `OPEN-CORE-30`); el editor de roles y la matriz de permisos llegan con `REQ-PERM` (paso **1.5b**, posterior a 1.9) — el núcleo de autorización granular ya está implementado desde 1.5, pero solo por API, sin interfaz todavía.
+> Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre lo que ya tiene código detrás: el registro de auditoría (paso 0.9), las cuentas bloqueadas y el tiempo de sesión (paso 1.2), la autenticación en dos pasos por rol (paso 1.3), el correo como segundo factor, las excepciones temporales y la pantalla mínima de administración de MFA (paso 1.3b), la navegación, el panel de inicio, el selector de idioma y el control de modo de color (paso 1.8), el manejo común de las tablas de datos (paso 1.9), los usuarios y las invitaciones, con la exportación de usuarios y los diálogos de confirmación (paso 1.9b), la importación de usuarios con el catálogo de tipos de documento (paso 1.9c), y la pantalla de auditoría y el listado de roles (paso 1.9d). El resto de secciones del manual de Administrador de Centro (módulos contratados, configuración del centro, activos de marca, perfil propio) llegan con los demás sub-pasos de las pantallas pendientes de `REQ-CORE` (**1.9e** y **1.9f**, `OPEN-CORE-30`); el editor de roles y la matriz de permisos llegan con `REQ-PERM` (paso **1.5b**, posterior a 1.9) — el núcleo de autorización granular ya está implementado desde 1.5, pero solo por API, sin interfaz todavía.
 
 ## Navegación y panel de inicio
 
@@ -55,6 +55,7 @@ Muestra todos los datos de la persona: estado, correo de acceso, tipo y número 
 | **Enviar invitación** | Cuentas pendientes. Pide confirmación. Emite un enlace nuevo y el anterior deja de valer; se avisa de cuándo caduca. Hay un límite de reenvíos por hora: si lo superas, la pantalla te dice cuántos segundos esperar |
 | **Dar de baja** | Cuenta no dada de baja. Pide confirmación. La cuenta deja de estar disponible y no puede iniciar sesión; se puede restaurar |
 | **Restaurar** | Cuenta dada de baja. No pide confirmación. **La cuenta vuelve como «inactiva»**: usa «Activar» si la persona debe volver a entrar |
+| **Ver su actividad** | Solo si tu rol puede leer la auditoría. Abre el registro de auditoría filtrado por esta persona (véase «Consultar el registro de auditoría») |
 
 **Tu propia cuenta**: desde la ficha de tu propia persona, desactivar, dar de baja y cambiar roles están deshabilitados («No puedes modificar tu propia cuenta desde aquí»). **Siempre debe quedar al menos un Administrador de Centro activo**: si una acción lo impide, el sistema te lo explica con su propio mensaje y no cambia nada.
 
@@ -159,6 +160,38 @@ Para DNI y NIE el sistema ignora espacios y guiones al comprobar el número (`12
 - **Ejecutar** solo está disponible con el lote **validado**. Pide confirmación: te dice **cuántos usuarios se crearán** (filas menos filas con error), que las filas con error se omiten, si se enviarán invitaciones y que la importación no se deshace. Las filas se revalidan al ejecutar: si entre tanto alguien creó a esa persona, la fila se omite. Si la petición falla sin respuesta (red caída), el botón «Reintentar la ejecución» repite **la misma** operación sin duplicar usuarios; una confirmación nueva es otra operación distinta.
 - **Descartar** (lotes subidos, en validación, validados o fallidos) borra el fichero y el informe, con confirmación. Un lote ya ejecutado no se puede descartar.
 - El listado de lotes muestra fichero, fecha de subida, estado, filas, filas con error y usuarios creados.
+
+## Roles del centro
+
+En **Administración → Roles** (`/administracion/roles`, requiere el permiso de leer roles) ves los roles del centro en una tabla de **solo lectura**: su nombre, si es **del sistema** o **personalizado**, si exige **MFA** (segundo factor), si da **acceso a datos especiales** (salud, necesidades educativas especiales, convivencia) y **cuántas personas** lo tienen.
+
+- **No hay botones de crear, clonar, editar ni borrar roles**, aunque tengas esos permisos: el editor de roles y la matriz de permisos llegan en un paso posterior. Tampoco se abre el detalle de un rol ni sus concesiones.
+- Para exigir MFA a un rol, usa la pantalla de MFA (véase «Hacer obligatorio el segundo factor para un rol»); aquí solo se consulta.
+- Los nombres de los roles del sistema se muestran en el idioma de la interfaz: al cambiar de idioma la tabla se vuelve a cargar.
+
+## Consultar el registro de auditoría
+
+En **Administración → Auditoría** (`/administracion/auditoria`, requiere el permiso de leer la auditoría) consultas quién hizo qué y cuándo. Es el mismo registro que describe la sección «Registro de auditoría» de más abajo, con sus valores redactados.
+
+**La tabla**: de la más reciente a la más antigua, con **fecha y hora**, **operación**, **usuario**, **entidad** y el botón **Ver cambios**. Muestra 50 entradas y se amplía con **Cargar más**; el máximo en pantalla es de **1.000 filas**: al llegar, el aviso te ofrece **exportar** (si tienes ese permiso) o refinar los filtros. No tiene búsqueda de texto ni columnas ordenables. Las columnas **Identificador**, **IP** y **Petición** están ocultas por defecto; las activas con el menú «Columnas». Si una acción la hizo el sistema, la consola, una importación, la plataforma o alguien sin sesión, en la columna de usuario verás ese tipo de actor.
+
+**Filtros** (se combinan; la dirección de la pantalla los recuerda, así que puedes copiarla y compartirla):
+
+| Filtro | Qué hace |
+|--------|----------|
+| Fecha | Un rango «desde» y «hasta», ambos días incluidos |
+| Operación | Alta, modificación, baja, restauración, lectura, exportación, inicio y cierre de sesión, solicitud de restablecimiento de contraseña |
+| Tipo de actor | Usuario, sistema, consola, importación, plataforma, anónimo |
+| Usuario | Elige a una persona escribiendo parte de su nombre o correo. **Solo aparece si puedes ver usuarios** |
+| Módulo y Entidad | Las opciones las da el propio sistema |
+
+**Zona horaria**: las fechas se muestran, y el rango de fechas se interpreta, **en la zona horaria de tu navegador**, no en la del centro. «Desde el 1 de marzo hasta el 3 de marzo» significa desde las 00:00 del día 1 hasta las 23:59:59 del día 3 *en tu zona*. Si consultas desde otra zona horaria, el mismo rango abarcará instantes distintos.
+
+**Ver la actividad de una persona**: en la ficha de un usuario, el botón **Ver su actividad** (si puedes leer la auditoría) abre esta pantalla ya filtrada por esa persona, con el texto «Filtrado por: nombre» y un botón para quitar el filtro.
+
+**Ver cambios**: abre un panel con lo que cambió en esa entrada, atributo por atributo, como «antes → después». Un valor que el sistema no guarda por diseño se muestra como **«Valor no registrado»** con su motivo (dato secreto, categoría especial, dato identificativo o valor demasiado grande) y, cuando se sabe, si el campo estaba **vacío o con valor** antes y después; nunca se reconstruye el dato. Las entradas sin cambios (lecturas, inicios de sesión, exportaciones) indican «Sin cambios registrados». El panel se cierra con **Esc** o con el botón de cerrar, y el foco vuelve al botón con el que lo abriste.
+
+**Exportar**: con el permiso de exportar la auditoría, el botón **Exportar** pide un CSV con **los mismos filtros** que tienes aplicados (no con el orden ni con las filas ya cargadas). El fichero se prepara en segundo plano; cuando está listo aparece el enlace de descarga, que caduca. Cada exportación queda registrada en la propia auditoría.
 
 ## Cuentas bloqueadas
 

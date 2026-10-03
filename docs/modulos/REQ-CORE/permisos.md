@@ -351,11 +351,12 @@ Qué permisos exactos abren «Administración de MFA» lo fija `REQ-AUTH/permiso
 | Invitaciones | Reenviar | `invitacion.crear` | `POST /users/{id}/invitations` | Servidor |
 | Invitaciones | Enlace a la ficha del usuario | `usuario.leer` | navegación | Servidor |
 | Importación | Ver, subir, ejecutar, descartar | `usuario.importar` (ruta y acciones) | `GET`/`POST /user-imports`, `GET /user-imports/{id}`, `POST …/execute`, `DELETE …` | Servidor |
-| Roles | Ver | `rol.leer` (ruta) | `GET /roles` (y `GET /roles/{id}` si `OPEN-CORE-36` = B) | Servidor |
+| Roles | Ver | `rol.leer` (ruta) | `GET /roles` (no `GET /roles/{id}`: `OPEN-CORE-36` = A) | Servidor |
 | Roles | Crear, editar, borrar | **Ninguna en 1.9b**, aunque se tengan `rol.crear`/`actualizar`/`eliminar` (`RN-CORE-75`) | — | — |
 | Auditoría | Ver | `auditoria.leer` (ruta) | `GET /audit-logs` | Servidor, con ámbito |
 | Auditoría | Filtro por usuario (`OPEN-CORE-33`) | `usuario.leer` | `GET /users?q=`, `GET /users/{id}` | Servidor |
-| Auditoría | Filtro de módulo / tipo de entidad (`OPEN-CORE-34`) | B: `auditoria.leer`; A: `modulo.leer` | `GET /audit-logs/facets` o `GET /modules` | Servidor |
+| Auditoría | Filtro de módulo / tipo de entidad (`OPEN-CORE-34` = B) | `auditoria.leer` | `GET /audit-logs/facets` | Servidor |
+| Auditoría | Ver su actividad (ficha de usuario) | `auditoria.leer` | navegación | Servidor |
 | Auditoría | Exportar | `auditoria.exportar` | `POST /audit-logs/exports`, `GET /data-exports/{id}` | Servidor + solicitante, ámbito en el trabajo |
 | Configuración | Ver | `configuracion.leer` (ruta) | `GET /tenant/settings` | Servidor |
 | Configuración | Editar | `configuracion.actualizar` | `PATCH /tenant/settings` | Servidor |

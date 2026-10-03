@@ -334,7 +334,7 @@ Sin *worker* de `core-imports` y `core-exports` (issue [#128](https://github.com
 - Listados: una petición por acción del usuario o al montar; búsqueda con espera de 300 ms (`RN-CORE-40`). El filtro de actor de auditoría (si `OPEN-CORE-33` = A/C) busca con la misma espera.
 - Cambio de idioma: una petición más en las tablas de usuarios y roles (`RN-CORE-63`).
 - Pantalla de usuarios con `rol.leer`: una petición más a `GET /roles` (opciones del filtro), una vez por montaje.
-- `GET /audit-logs/facets` (si existe): una vez por montaje, sin consulta a `audit_logs`.
+- `GET /audit-logs/facets`: una vez por montaje, sin consulta a `audit_logs` (catálogo declarado en código; `CA-CORE-245`).
 - Módulos contratados: un `GET /modules` por montaje y otro al cambiar de idioma (`RN-CORE-63`). Perfil propio: ninguna lectura propia (usa el `/me` ya cargado) y un `PATCH /me` por guardado.
 
 ### 13.6 Métricas y alertas
