@@ -16,7 +16,7 @@ Implementa el sub-paso `1.9e` (`funcional.md §14.9`, `§14.10`, `§14.10b`, `§
 - Documentación: `REQ-CORE/{funcional §14.26, api §2, permisos}.md`, manual `admin.md`, `docs/i18n.md`, `ARCHITECTURE.md`.
 
 ### Revisión
-`security-reviewer` y `doc-reviewer`: sin Crítico/Alto; los Medios documentales se corrigieron. Issues: #321 (Media, `api.md` decía `required_ratio`; corregido), #322, #323 y #324 (Baja, abiertos).
+`security-reviewer` y `doc-reviewer`: sin Crítico/Alto; los Medios documentales se corrigieron. Issues: #321 (Media, `api.md` decía `required_ratio`; corregido), #322, #323, #324 y #326 (Baja, abiertos; #326: pie de paginación de una sola página en `CA-CORE-267`, redacción alineada con el componente).
 
 ### Verificado
 Vitest **996 pasan, 3 omitidos** (999; las 3 son lecturas cruzadas a PHP que el contenedor `web` no puede hacer; la de `CA-CORE-252` se comprobó aparte, 12/12); `eslint`, `lint:i18n` y `vue-tsc` limpios (reejecutados por la sesión orquestadora). Playwright 27/27 (informe del implementer).
