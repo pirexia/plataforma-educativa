@@ -11,7 +11,7 @@ import router from '@/router'
 import { visibleNavigationEntries } from '@/navigation/registry'
 import { shell } from './shell'
 
-/** Columna 2 de `funcional.md §14.3`, solo las rutas de 1.9b y 1.9c. */
+/** Columna 2 de `funcional.md §14.3`, las rutas de 1.9b a 1.9e. */
 const EXPECTED: Record<string, { path: string; permissions: string[] }> = {
   'core-users': { path: '/administracion/usuarios', permissions: ['usuario.leer'] },
   'core-user-new': { path: '/administracion/usuarios/nuevo', permissions: ['usuario.crear'] },
@@ -29,9 +29,18 @@ const EXPECTED: Record<string, { path: string; permissions: string[] }> = {
   // 1.9d
   'core-roles': { path: '/administracion/roles', permissions: ['rol.leer'] },
   'core-audit': { path: '/administracion/auditoria', permissions: ['auditoria.leer'] },
+  // 1.9e
+  'core-settings': { path: '/administracion/centro', permissions: ['configuracion.leer'] },
+  'core-branding-assets': {
+    path: '/administracion/centro/marca',
+    permissions: ['configuracion.leer'],
+  },
+  'core-modules': { path: '/administracion/modulos', permissions: ['modulo.leer'] },
+  // Única ruta de core con `[]`: autoservicio por identidad (RN-CORE-88, §14.3.1).
+  'core-profile': { path: '/cuenta/perfil', permissions: [] },
 }
 
-describe('CA-CORE-208 (RN-CORE-60, ADR-053 §2): rutas de 1.9b y 1.9c', () => {
+describe('CA-CORE-208 (RN-CORE-60, ADR-053 §2): rutas de 1.9b a 1.9e', () => {
   it.each(Object.entries(EXPECTED))(
     '%s existe con layout app y el permiso de §14.3',
     (name, expected) => {
@@ -44,13 +53,12 @@ describe('CA-CORE-208 (RN-CORE-60, ADR-053 §2): rutas de 1.9b y 1.9c', () => {
     },
   )
 
-  it('ninguna ruta de core declara permissions vacío (la lista cerrada de RN-CORE-24 no cambia en 1.9b)', () => {
-    for (const route of shell.routes) {
-      expect(
-        (route.meta as { permissions?: string[] }).permissions?.length,
-        String(route.name),
-      ).toBeGreaterThan(0)
-    }
+  it('solo core-profile declara permissions vacío (CA-CORE-264: la lista cerrada de RN-CORE-24 gana exactamente esa ruta en 1.9e)', () => {
+    const empty = shell.routes
+      .filter((route) => (route.meta as { permissions?: string[] }).permissions?.length === 0)
+      .map((route) => String(route.name))
+
+    expect(empty).toEqual(['core-profile'])
   })
 
   it('las rutas secundarias declaran su padre de miga de pan y títulos en core.*', () => {
@@ -133,5 +141,52 @@ describe('CA-CORE-209 (RN-CORE-60): entradas de menú por permiso', () => {
 
     expect(byId['core.audit']).toBe(true)
     expect(byId['core.roles']).toBe(false)
+  })
+})
+
+describe('1.9e (§14.3): configuración, marca, módulos y perfil', () => {
+  it('core-branding-assets cuelga de core-settings en la miga de pan y no tiene entrada de menú', () => {
+    const route = router.getRoutes().find((candidate) => candidate.name === 'core-branding-assets')!
+
+    expect(route.meta.breadcrumbParent).toBe('core-settings')
+    expect(route.meta.titleKey).toMatch(/^core\./)
+    expect(shell.navigation.map((entry) => entry.route)).not.toContain('core-branding-assets')
+  })
+
+  it('core-profile va en la sección «Mi cuenta» (cuenta), el resto de las nuevas en administracion', () => {
+    const sections = Object.fromEntries(shell.navigation.map((entry) => [entry.id, entry.section]))
+
+    expect(sections['core.profile']).toBe('cuenta')
+    expect(sections['core.settings']).toBe('administracion')
+    expect(sections['core.modules']).toBe('administracion')
+  })
+
+  it('ninguna de las entradas nuevas es acceso directo (§14.3)', () => {
+    const byId = Object.fromEntries(shell.navigation.map((entry) => [entry.id, entry.shortcut]))
+
+    expect(byId['core.settings']).toBe(false)
+    expect(byId['core.modules']).toBe(false)
+    expect(byId['core.profile']).toBe(false)
+  })
+
+  it('CA-CORE-268 (RN-CORE-62): «Módulos» y «Centro» aparecen solo con su permiso', () => {
+    const ids = (permissions: string[], section: string): string[] =>
+      visibleNavigationEntries(router, permissions)
+        .filter((entry) => entry.section === section)
+        .map((entry) => entry.id)
+
+    expect(ids([], 'administracion')).toEqual([])
+    expect(ids(['modulo.leer'], 'administracion')).toEqual(['core.modules'])
+    expect(ids(['configuracion.leer'], 'administracion')).toEqual(['core.settings'])
+    // `modulo.actualizar` no concede la entrada: la pantalla es de solo lectura (RN-CORE-87).
+    expect(ids(['modulo.actualizar'], 'administracion')).toEqual([])
+  })
+
+  it('CA-CORE-265 (RN-CORE-88): con /me.permissions vacío, «Mi cuenta» contiene «Perfil»', () => {
+    const cuenta = visibleNavigationEntries(router, [])
+      .filter((entry) => entry.section === 'cuenta')
+      .map((entry) => entry.id)
+
+    expect(cuenta).toContain('core.profile')
   })
 })
