@@ -141,6 +141,30 @@ final class CreateUser
      */
     private function assertActorCanGrant(User $actor, Collection $roles): void
     {
+        $denied = $this->firstUngrantable($actor, $roles);
+
+        if ($denied !== null) {
+            throw ApiException::forbidden('core.authorization.cannot_grant_unheld_permission', $denied);
+        }
+    }
+
+    /**
+     * RPERM-013 sin lanzar: lo usa la validación de la importación (#314)
+     * para avisar en la fase 1 de lo que la fase 2 rechazaría.
+     *
+     * @param  Collection<int, Role>  $roles
+     */
+    public function canGrant(User $actor, Collection $roles): bool
+    {
+        return $this->firstUngrantable($actor, $roles) === null;
+    }
+
+    /**
+     * @param  Collection<int, Role>  $roles
+     * @return array{code: string, scope: string}|null
+     */
+    private function firstUngrantable(User $actor, Collection $roles): ?array
+    {
         $grants = PermissionRole::query()
             ->whereIn('role_id', $roles->pluck('id'))
             ->where('effect', 'allow')
@@ -154,11 +178,10 @@ final class CreateUser
             }
 
             if (! $this->permissions->ownsScope($actor, $grant->permission_code, $scope)) {
-                throw ApiException::forbidden('core.authorization.cannot_grant_unheld_permission', [
-                    'code' => $grant->permission_code,
-                    'scope' => $scope->value,
-                ]);
+                return ['code' => $grant->permission_code, 'scope' => $scope->value];
             }
         }
+
+        return null;
     }
 }

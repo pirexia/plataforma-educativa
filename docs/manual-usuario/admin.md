@@ -107,7 +107,7 @@ Menú **Administración > Importación de usuarios** (`/administracion/importaci
 
 ### Cómo es el fichero
 
-Un fichero **CSV** de hasta 10 MB y 20 000 filas, en UTF-8, con `;` o `,` como separador. La **primera fila** debe ser exactamente esta (la pantalla la muestra y tiene un botón «Copiar la cabecera»; no hay plantilla descargable):
+Un fichero **CSV** de hasta 10 MB y 20 000 filas (si tiene más, el lote falla y debes dividirlo), en UTF-8, con `;` o `,` como separador. La **primera fila** debe ser exactamente esta (la pantalla la muestra y tiene un botón «Copiar la cabecera»; no hay plantilla descargable):
 
 ```
 email;given_name;family_name_1;family_name_2;document_type;document_number;birth_date;contact_email;contact_phone;locale;roles

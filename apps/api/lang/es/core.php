@@ -99,6 +99,8 @@ return [
         'duplicado_en_base_de_datos' => 'El valor de la columna «:column» ya pertenece a otra persona o usuario del centro.',
         'idioma_no_activo' => 'El idioma indicado no está activo en este centro.',
         'rol_no_encontrado' => 'Uno de los roles indicados no existe en este centro.',
+        'rol_no_concedible' => 'La columna «:column» incluye un rol que no puedes conceder: tú mismo no tienes todos sus permisos.',
+        'limite_filas_superado' => 'El fichero supera el máximo de :max filas de datos. Divídelo en varios ficheros.',
         'tipo_documento_no_valido' => 'El tipo de documento indicado no está admitido.',
         'documento_incompleto' => 'Indica a la vez el tipo y el número de documento, o ninguno de los dos.',
     ],

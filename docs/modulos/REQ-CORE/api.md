@@ -485,6 +485,7 @@ email;given_name;family_name_1;family_name_2;document_type;document_number;birth
 ```
 
 - **Errores**: 401, 403, 413, 415, 422
+- **Incidencias del lote** (`error_summary`/`report.csv`, no son errores HTTP): entre otras, `rol_no_concedible` (el actor no posee todos los permisos del rol, `RPERM-013`) y `limite_filas_superado` (más de `core.import_max_rows` filas: lote `fallido`).
 
 ### `GET /api/v1/user-imports` · `GET /api/v1/user-imports/{public_id}`
 
