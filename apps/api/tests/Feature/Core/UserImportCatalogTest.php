@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\PermissionRole;
 use App\Models\Person;
+use App\Models\Role;
 use App\Models\User;
 use App\Modules\Core\Domain\Models\UserImport;
 use App\Modules\Core\Infrastructure\Jobs\ValidateUserImport;
@@ -263,4 +265,75 @@ test('CA-CORE-235 (S8): GET /user-imports y GET /user-imports/{id} devuelven sen
         $row = collect(test()->actingAs($admin)->getJson(coreApiUrl($tenant->slug, '/user-imports'))->json('data'))->firstWhere('public_id', $id);
         expect($row['send_invitations'])->toBe($choice);
     }
+});
+
+// CA-CORE-286
+test('CA-CORE-286 (RNF-LIM-004, #313): un fichero con más filas que core.import_max_rows deja el lote fallido con limite_filas_superado y sin validar ninguna fila', function (): void {
+    [$tenant, $admin] = provisionCoreTenant('uic-286');
+    config(['core.import_max_rows' => 2]);
+
+    $importId = uicUpload($tenant, $admin, uicCsv([
+        ['a@example.com', 'A'],
+        ['b@example.com', 'B'],
+        ['c@example.com', 'C'],
+    ]));
+
+    $import = uicShow($tenant, $admin, $importId);
+
+    expect($import['status'])->toBe('fallido')
+        ->and($import['row_count'])->toBe(0)
+        ->and($import['error_summary'][0]['code'])->toBe('limite_filas_superado')
+        ->and($import['error_summary'][0]['message'])->toContain('2');
+
+    // En el tope exacto sigue siendo válido.
+    $okId = uicUpload($tenant, $admin, uicCsv([
+        ['d@example.com', 'D'],
+        ['e@example.com', 'E'],
+    ]));
+
+    expect(uicShow($tenant, $admin, $okId)['status'])->toBe('validado');
+});
+
+function uicUserWithRole(object $tenant, string $email, string $roleCode): User
+{
+    return app(TenantContext::class)->runFor($tenant->id, function () use ($email, $roleCode): User {
+        $user = User::factory()->for(Person::factory()->create(['contact_email' => $email]))->create(['email' => $email]);
+        $user->roles()->attach(Role::where('code', $roleCode)->firstOrFail()->id);
+
+        return $user;
+    });
+}
+
+// CA-CORE-287
+test('CA-CORE-287 (RPERM-013, #314): una fila con un rol que el actor no puede conceder se reporta en la fase 1 como rol_no_concedible y no se crea', function (): void {
+    [$tenant, $admin] = provisionCoreTenant('uic-287');
+    $secretaria = uicUserWithRole($tenant, 'secretaria-287@example.com', 'secretaria');
+
+    app(TenantContext::class)->runFor($tenant->id, function (): void {
+        $role = Role::where('code', 'secretaria')->firstOrFail();
+        foreach (['usuario.importar', 'usuario.crear', 'asignacion_rol.crear'] as $code) {
+            PermissionRole::create(['role_id' => $role->id, 'permission_code' => $code, 'effect' => 'allow', 'scope' => 'todos']);
+        }
+    });
+
+    $lines = [
+        'email;given_name;family_name_1;family_name_2;document_type;document_number;birth_date;contact_email;contact_phone;locale;roles',
+        'concedible@example.com;Ok;Sintetica;;;;;;;;secretaria',
+        'prohibido@example.com;No;Sintetica;;;;;;;;administrador_centro',
+    ];
+    $importId = uicUpload($tenant, $secretaria, implode("\n", $lines));
+
+    $import = uicShow($tenant, $secretaria, $importId);
+
+    expect($import['status'])->toBe('validado')
+        ->and($import['error_count'])->toBe(1)
+        ->and($import['error_summary'][0]['line'])->toBe(3)
+        ->and($import['error_summary'][0]['code'])->toBe('rol_no_concedible');
+
+    test()->actingAs($secretaria)
+        ->postJson(coreApiUrl($tenant->slug, "/user-imports/{$importId}/execute"), [], ['Idempotency-Key' => (string) Str::ulid()])
+        ->assertStatus(202);
+
+    expect(uicShow($tenant, $secretaria, $importId)['created_count'])->toBe(1)
+        ->and(app(TenantContext::class)->runFor($tenant->id, fn () => User::query()->where('email', 'prohibido@example.com')->exists()))->toBeFalse();
 });

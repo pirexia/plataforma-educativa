@@ -106,13 +106,31 @@ class ValidateUserImport implements ShouldQueue
             return;
         }
 
+        if ($parsed['too_many_rows']) {
+            $import->update([
+                'status' => 'fallido',
+                'row_count' => 0,
+                'error_count' => 1,
+                'error_summary' => [[
+                    'line' => 1,
+                    'column' => 'file',
+                    'code' => 'limite_filas_superado',
+                    'message' => __('core.import.limite_filas_superado', ['max' => config('core.import_max_rows')]),
+                ]],
+                'validated_at' => now(),
+            ]);
+
+            return;
+        }
+
+        $actor = $import->created_by !== null ? User::query()->find($import->created_by) : null;
         $rolesByCode = Role::query()->get()->keyBy('code');
         $seenEmails = [];
         $seenDocuments = [];
         $allErrors = [];
 
         foreach ($parsed['rows'] as $row) {
-            $result = $rowValidator->validate($row['data'], $row['line'], $seenEmails, $seenDocuments, $rolesByCode);
+            $result = $rowValidator->validate($row['data'], $row['line'], $seenEmails, $seenDocuments, $rolesByCode, $actor);
 
             foreach ($result['errors'] as $error) {
                 $allErrors[] = $error;

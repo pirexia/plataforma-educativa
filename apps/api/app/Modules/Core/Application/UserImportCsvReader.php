@@ -19,7 +19,7 @@ final class UserImportCsvReader
     ];
 
     /**
-     * @return array{header_valid: bool, rows: list<array{line: int, data: array<string, ?string>}>}
+     * @return array{header_valid: bool, too_many_rows: bool, rows: list<array{line: int, data: array<string, ?string>}>}
      */
     public function parse(string $content): array
     {
@@ -31,21 +31,28 @@ final class UserImportCsvReader
         }
 
         if ($lines === []) {
-            return ['header_valid' => false, 'rows' => []];
+            return ['header_valid' => false, 'too_many_rows' => false, 'rows' => []];
         }
 
         $delimiter = $this->detectDelimiter($lines[0]);
         $header = array_map(trim(...), str_getcsv($lines[0], $delimiter));
 
         if ($header !== self::EXPECTED_HEADER) {
-            return ['header_valid' => false, 'rows' => []];
+            return ['header_valid' => false, 'too_many_rows' => false, 'rows' => []];
         }
 
+        // #313 (RNF-LIM-004): `core.import_max_rows` filas de datos; al pasar
+        // de ahí se corta sin seguir troceando en memoria.
+        $maxRows = (int) config('core.import_max_rows');
         $rows = [];
 
         foreach (array_slice($lines, 1) as $index => $line) {
             if (trim($line) === '') {
                 continue;
+            }
+
+            if ($maxRows > 0 && count($rows) >= $maxRows) {
+                return ['header_valid' => true, 'too_many_rows' => true, 'rows' => []];
             }
 
             $values = str_getcsv($line, $delimiter);
@@ -61,7 +68,7 @@ final class UserImportCsvReader
             $rows[] = ['line' => $index + 2, 'data' => $row];
         }
 
-        return ['header_valid' => true, 'rows' => $rows];
+        return ['header_valid' => true, 'too_many_rows' => false, 'rows' => $rows];
     }
 
     private function detectDelimiter(string $headerLine): string

@@ -78,7 +78,7 @@ class ExecuteUserImport implements ShouldQueue
             $parsed, $rowValidator, &$seenEmails, &$seenDocuments, $rolesByCode, $createUser, $import, $actor, &$createdCount,
         ): void {
             foreach ($parsed['rows'] as $row) {
-                $result = $rowValidator->validate($row['data'], $row['line'], $seenEmails, $seenDocuments, $rolesByCode);
+                $result = $rowValidator->validate($row['data'], $row['line'], $seenEmails, $seenDocuments, $rolesByCode, $actor);
 
                 if ($result['errors'] !== []) {
                     continue;

@@ -89,6 +89,8 @@ return [
         'duplicado_en_base_de_datos' => 'La valeur de la colonne « :column » appartient déjà à une autre personne ou un autre utilisateur de l\'établissement.',
         'idioma_no_activo' => 'La langue indiquée n\'est pas active pour cet établissement.',
         'rol_no_encontrado' => 'Un des rôles indiqués n\'existe pas dans cet établissement.',
+        'rol_no_concedible' => 'La colonne « :column » contient un rôle que vous ne pouvez pas attribuer : vous ne détenez pas toutes ses permissions.',
+        'limite_filas_superado' => 'Le fichier dépasse le maximum de :max lignes de données. Scindez-le en plusieurs fichiers.',
         'tipo_documento_no_valido' => 'Le type de document indiqué n\'est pas pris en charge.',
         'documento_incompleto' => 'Indiquez à la fois le type et le numéro de document, ou aucun des deux.',
     ],

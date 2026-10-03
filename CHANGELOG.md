@@ -6,6 +6,16 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-03 · `fix/REQ-CORE-003-importacion-tope-y-roles` (#313, #314)
+
+Correcciones Media de la importación de usuarios, preexistentes de 1.9b y detectadas en la revisión de 1.9c. Sin cambio de esquema ni de permisos.
+
+### Corregido
+- **#313**: el tope `core.import_max_rows` (20 000) se aplica al leer el CSV; por encima, lote `fallido` con `limite_filas_superado` (`CA-CORE-286`).
+- **#314**: `rol_no_concedible` se reporta en la fase 1 cuando quien importa no puede conceder un rol (`RPERM-013`), en vez de descartar la fila en silencio al ejecutar (`CA-CORE-287`). `CreateUser::canGrant` comparte regla con `assertActorCanGrant`. Mensajes en los cuatro idiomas.
+
+---
+
 ## 2026-10-02 · `feature/REQ-CORE-003-importacion-usuarios` (implementación de `1.9c`)
 
 Implementa el sub-paso `1.9c` (importación de usuarios, `REQ-CORE-003`) y el **catálogo cerrado de tipos de documento de identidad** (`funcional.md §14.6.4`, aprobado el 2026-10-02; issues #292, #308, #309, #310 y #285). Con una migración **de datos** (sin cambio de esquema), sin permisos nuevos ni dependencias nuevas. Notas y desviaciones: `funcional.md §14.23`.

@@ -89,6 +89,8 @@ return [
         'duplicado_en_base_de_datos' => 'The value of the ":column" column already belongs to another person or user of the school.',
         'idioma_no_activo' => 'The given language is not active for this school.',
         'rol_no_encontrado' => 'One of the given roles does not exist in this school.',
+        'rol_no_concedible' => 'Column “:column” includes a role you cannot grant: you do not hold all of its permissions yourself.',
+        'limite_filas_superado' => 'The file exceeds the maximum of :max data rows. Split it into several files.',
         'tipo_documento_no_valido' => 'The given document type is not supported.',
         'documento_incompleto' => 'Provide both the document type and the document number, or neither.',
     ],
