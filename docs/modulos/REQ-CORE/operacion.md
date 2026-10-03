@@ -361,7 +361,7 @@ Ninguna nueva. Conviene mirar, con las de §7: profundidad de `core-exports` (ah
 | Aspecto | Paso 1.9c |
 |---------|-----------|
 | Imágenes | `apps/api` (S8, S9, catálogo de documentos) y `apps/web` (pantallas de importación, selector de documento) |
-| Migraciones | **Una, de datos**, sin cambio de esquema: `2026_10_02_100200_normalize_people_document_to_catalog` (`datos.md` Parte E). **Aborta sin tocar nada** si hay tipos sin correspondencia o duplicados creados por la normalización, y enumera los `public_id`: se corrigen o se resiembran a mano y se vuelve a lanzar `migrate`. El `CHECK` del catálogo es la entrega N+1, **sin paso asignado** |
+| Migraciones | **Una, de datos**, sin cambio de esquema: `2026_10_02_100200_normalize_people_document_to_catalog` (`datos.md` Parte E). **Aborta sin tocar nada** si hay tipos sin correspondencia o duplicados creados por la normalización, y enumera los `public_id`: se corrigen o se resiembran a mano y se vuelve a lanzar `migrate`. El `CHECK` del catálogo es la entrega N+1, en el issue [#312](https://github.com/pirexia/plataforma-educativa/issues/312) |
 | Variables de entorno | **Ninguna nueva** |
 | Colas y trabajos | Sin trabajos nuevos. `ValidateUserImport` fija el idioma de sus mensajes al de quien subió el lote y **restaura** el del proceso al terminar (con la cola `sync` el proceso es el de la petición) |
 | Dependencias | **Ninguna nueva**. La ULID de la `Idempotency-Key` se genera con utilidad propia (`apps/web/src/lib/ulid.ts`) |
