@@ -62,7 +62,9 @@ test('CA-CORE-273 (RN-CORE-90, INV-010, #308): un tipo fuera del catálogo da 42
         ->assertStatus(422);
 
     expect(dtcError($response, 'person.document_type'))->toBe('core.validation.document_type_invalid')
-        ->and($response->json('errors')['person.document_type'][0]['params']['value'])->toBe('carnet');
+        // S3: el valor recibido no se refleja ni en `params` ni en el mensaje.
+        ->and($response->json('errors')['person.document_type'][0]['params'])->toBe([])
+        ->and($response->json('errors')['person.document_type'][0]['message'])->not->toContain('carnet');
 
     app(TenantContext::class)->runFor($tenant->id, function (): void {
         expect(User::query()->where('email', 'carnet@example.com')->exists())->toBeFalse();
@@ -318,7 +320,7 @@ test('CA-CORE-285 (INV-009): los cuatro lang/*/core.php tienen los errores nuevo
         expect($catalog['validation'])->toHaveKeys(['document_type_invalid', 'document_incomplete'])
             ->and($catalog['import'])->toHaveKeys(['tipo_documento_no_valido', 'documento_incompleto']);
 
-        expect($catalog['validation']['document_type_invalid'])->toContain(':value');
+        expect($catalog['validation']['document_type_invalid'])->not->toContain(':value');
     }
 });
 

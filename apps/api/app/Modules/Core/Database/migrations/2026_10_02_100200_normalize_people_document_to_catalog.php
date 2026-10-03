@@ -60,6 +60,9 @@ return new class extends Migration
                 ->where(fn ($query) => $query->whereNotNull('document_type')->orWhereNotNull('document_number'))
                 ->when($tenantIds !== null, fn ($query) => $query->whereIn('tenant_id', $tenantIds))
                 ->orderBy('id')
+                // Bloquea las filas leídas hasta el final de la transacción: una escritura
+                // concurrente no puede cambiar el valor entre la lectura y el UPDATE.
+                ->lockForUpdate()
                 ->get(['id', 'public_id', 'tenant_id', 'document_type', 'document_number', 'deleted_at']);
 
             $unknown = [];

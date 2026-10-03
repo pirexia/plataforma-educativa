@@ -23,7 +23,7 @@ return [
         'contrast_insufficient' => 'Le contraste de la palette (:ratio:1) n\'atteint pas le minimum requis (:required:1, WCAG 2.2 AA).',
         'document_number_invalid' => 'Le numéro de document n\'est pas valide pour le type indiqué.',
         'document_duplicate' => 'Une personne active avec le même type et numéro de document existe déjà dans cet établissement.',
-        'document_type_invalid' => 'Le type de document « :value » n\'est pas pris en charge.',
+        'document_type_invalid' => 'Le type de document indiqué n\'est pas pris en charge.',
         'document_incomplete' => 'Indiquez à la fois le type et le numéro de document, ou aucun des deux.',
         'email_duplicate' => 'Un utilisateur actif avec cet e-mail de connexion existe déjà dans cet établissement.',
         'role_not_found' => 'Un des rôles indiqués n\'existe pas dans cet établissement.',

@@ -26,7 +26,7 @@ return [
         'contrast_insufficient' => 'El contraste de la paleta (:ratio:1) no alcanza el mínimo exigido (:required:1, WCAG 2.2 AA).',
         'document_number_invalid' => 'El número de documento no es válido para el tipo indicado.',
         'document_duplicate' => 'Ya existe una persona viva en este centro con el mismo tipo y número de documento.',
-        'document_type_invalid' => 'El tipo de documento «:value» no está admitido.',
+        'document_type_invalid' => 'El tipo de documento indicado no está admitido.',
         'document_incomplete' => 'Indica a la vez el tipo y el número de documento, o ninguno de los dos.',
         'email_duplicate' => 'Ya existe un usuario vivo en este centro con este correo de acceso.',
         'role_not_found' => 'Uno de los roles indicados no existe en este centro.',

@@ -121,7 +121,12 @@ const headerFailed = computed(
     data.value?.status === 'fallido' && entries.value.some((entry) => entry.column === 'header'),
 )
 
-/** Solo http(s): Vue no filtra el esquema de `href` (issue #275, `CA-CORE-190`). */
+/**
+ * Solo `https:`: Vue no filtra el esquema de `href` (issue #275, `CA-CORE-190`). `http:`
+ * únicamente en desarrollo (MinIO local sin TLS, `import.meta.env.DEV`); en un
+ * despliegue de producción una URL firmada con `http:` no se ofrece
+ * (security-reviewer S5).
+ */
 const reportHref = computed<string | null>(() => {
   const url = data.value?.report_url
 
@@ -132,7 +137,7 @@ const reportHref = computed<string | null>(() => {
   try {
     const { protocol } = new URL(url, window.location.origin)
 
-    return protocol === 'https:' || protocol === 'http:' ? url : null
+    return protocol === 'https:' || (import.meta.env.DEV && protocol === 'http:') ? url : null
   } catch {
     return null
   }
@@ -493,7 +498,7 @@ onBeforeUnmount(() => {
       <div v-if="reportHref" class="flex flex-wrap items-center gap-3">
         <a
           :href="reportHref"
-          rel="noopener"
+          rel="noreferrer noopener"
           class="text-primary-on-background focus-visible:ring-ring/50 rounded-sm text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-3"
         >
           {{ t('core.userImports.detail.report') }}

@@ -23,7 +23,7 @@ return [
         'contrast_insufficient' => 'The palette contrast (:ratio:1) does not reach the required minimum (:required:1, WCAG 2.2 AA).',
         'document_number_invalid' => 'The document number is not valid for the given type.',
         'document_duplicate' => 'A living person with the same document type and number already exists in this school.',
-        'document_type_invalid' => 'The document type “:value” is not supported.',
+        'document_type_invalid' => 'The given document type is not supported.',
         'document_incomplete' => 'Provide both the document type and the document number, or neither.',
         'email_duplicate' => 'A living user with this access email already exists in this school.',
         'role_not_found' => 'One of the given roles does not exist in this school.',

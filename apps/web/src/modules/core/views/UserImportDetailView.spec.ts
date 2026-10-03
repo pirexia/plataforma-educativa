@@ -493,6 +493,29 @@ describe('CA-CORE-237 (RN-CORE-74, RN-CORE-53): incidencias', () => {
     expect(document.body.querySelectorAll('table tbody tr')).toHaveLength(2)
   })
 
+  it('S5: con http: el enlace del informe solo se ofrece en desarrollo; con https: siempre; lleva rel="noreferrer noopener"', async () => {
+    const reportLink = () =>
+      [...document.body.querySelectorAll('a')].find(
+        (anchor) => anchor.textContent?.trim() === 'Descargar el informe completo',
+      )
+
+    vi.stubEnv('DEV', false)
+    getUserImport.mockResolvedValue(lot({ report_url: 'http://files.example.com/report.csv' }))
+    const first = await mountView()
+
+    expect(reportLink()).toBeUndefined()
+    first.wrapper.unmount()
+    wrappers.pop()
+
+    vi.stubEnv('DEV', true)
+    await mountView()
+
+    expect(reportLink()?.getAttribute('href')).toBe('http://files.example.com/report.csv')
+    expect(reportLink()?.getAttribute('rel')).toBe('noreferrer noopener')
+
+    vi.unstubAllEnvs()
+  })
+
   it('el enlace del informe solo admite http(s)', async () => {
     getUserImport.mockResolvedValue(lot({ report_url: 'javascript:alert(1)' }))
     await mountView()

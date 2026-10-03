@@ -23,7 +23,7 @@ return [
         'contrast_insufficient' => 'Der Kontrast der Farbpalette (:ratio:1) erreicht nicht das erforderliche Minimum (:required:1, WCAG 2.2 AA).',
         'document_number_invalid' => 'Die Dokumentnummer ist für den angegebenen Typ ungültig.',
         'document_duplicate' => 'In dieser Schule existiert bereits eine lebende Person mit demselben Dokumenttyp und derselben Nummer.',
-        'document_type_invalid' => 'Der Dokumenttyp „:value“ wird nicht unterstützt.',
+        'document_type_invalid' => 'Der angegebene Dokumenttyp wird nicht unterstützt.',
         'document_incomplete' => 'Geben Sie Dokumenttyp und Dokumentnummer gemeinsam an oder keines von beiden.',
         'email_duplicate' => 'In dieser Schule existiert bereits ein aktiver Benutzer mit dieser Zugangs-E-Mail.',
         'role_not_found' => 'Eine der angegebenen Rollen existiert in dieser Schule nicht.',

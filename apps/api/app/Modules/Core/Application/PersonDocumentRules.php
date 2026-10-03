@@ -13,6 +13,9 @@ use App\Support\Api\ValidationErrorBag;
  * normalizado. Un único sitio para `CreateUser` y `UpdateUser`, de modo
  * que alta y edición no puedan divergir (issues #308, #309, #310).
  *
+ * El 422 de tipo no admitido **no refleja** el valor recibido (ni en el mensaje ni en
+ * `params`): sería texto del cliente devuelto sin sanear (security-reviewer S3).
+ *
  * Devuelve los valores **canónicos** que hay que guardar; si añade algún
  * error al `ValidationErrorBag`, los valores devueltos no deben usarse.
  */
@@ -38,7 +41,7 @@ final class PersonDocumentRules
             $type = DocumentType::fromCode($rawType);
 
             if ($type === null) {
-                $errors->add('person.document_type', 'core.validation.document_type_invalid', 'core.validation.document_type_invalid', ['value' => $rawType]);
+                $errors->add('person.document_type', 'core.validation.document_type_invalid', 'core.validation.document_type_invalid');
 
                 return ['type' => null, 'number' => null];
             }
