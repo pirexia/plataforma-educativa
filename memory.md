@@ -165,7 +165,7 @@ Nada en curso salvo la rama `fix/REQ-CORE-ajustes-security-1-9e-1-9b` (documenta
 
 ## Siguiente paso concreto
 
-**`1.5b` · `REQ-PERM`: editor de roles y vista previa de permisos efectivos** [SONNET, tras especificación en OPUS], en sesión nueva (`CLAUDE.md §3`). Antes, mezclar la rama `fix/REQ-CORE-ajustes-security-1-9e-1-9b` (PR, CI en verde; cierra #280, #323, #324).
+**`1.5b` · `REQ-PERM`: editor de roles y vista previa de permisos efectivos** [SONNET, tras especificación en OPUS], en sesión nueva (`CLAUDE.md §3`). La rama `fix/REQ-CORE-ajustes-security-1-9e-1-9b` (PR [#341](https://github.com/pirexia/plataforma-educativa/pull/341), cierra #280, #323, #324) se mezcla antes de cerrar esta sesión; si `develop` no la contiene al arrancar, mezclarla primero.
 
 1. **Arranque**: leer `CLAUDE.md`, este fichero y el paso `1.5b` de `PLAN-IMPLEMENTACION.md`; comprobar modelo activo y rama.
 2. **El paso NO tiene especificación de interfaz** (verificado el 2026-10-05: `REQ-PERM/{funcional,api,permisos}.md` cubren el núcleo y la API; `REQ-CORE/funcional.md §14.8` deja `core-roles` en solo lectura, `RN-CORE-75`, `OPEN-CORE-36` = A). **Empezar con `spec-writer` (Opus)**: añadir la especificación de UI (en `REQ-PERM/funcional.md` o, como `REQ-CORE §14`, en sección propia), con pantallas, rutas, `RN`/`CA`, y **decisiones abiertas numeradas para el usuario**. No lanzar `implementer` hasta que la apruebe.
