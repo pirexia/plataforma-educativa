@@ -1,4 +1,5 @@
 import { apiFetch } from '@/api/client'
+import { buildQuery } from '@/modules/core/api'
 import type { PublicId } from '../types'
 
 /**
@@ -32,8 +33,12 @@ export interface UserSessionsPage {
  * api.md §B.2. Sin permiso — por identidad del portador de la cookie.
  * Solo las sesiones activas del usuario autenticado.
  */
-export function listSessions(): Promise<UserSessionsPage> {
-  return apiFetch<UserSessionsPage>('/auth/sessions')
+export function listSessions(
+  params: { page?: number; per_page?: number } = {},
+): Promise<UserSessionsPage> {
+  const query = buildQuery({ page: params.page, per_page: params.per_page })
+
+  return apiFetch<UserSessionsPage>(`/auth/sessions${query}`)
 }
 
 /**

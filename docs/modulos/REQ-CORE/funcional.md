@@ -15,7 +15,7 @@
 >
 > **Paso 1.9 (tablas de datos: TanStack Table, filtrado, ordenación, columnas configurables y exportación; sin virtualización, `OPEN-CORE-19`): §13, APROBADA** (2026-09-30), **ajustada a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**; `OPEN-054-01` resuelta el 2026-10-01 por `ADR-055` (ACEPTADA). Lista para `implementer`. Ubicación definitiva: aquí (`OPEN-CORE-18`, resuelta por el usuario el 2026-09-30). §0-§12 no se reabren.
 >
-> **Paso 1.9b (pantallas de gestión pendientes de `REQ-CORE-002`/`-003`/`-004`/`-005` y migración de las tres tablas exceptuadas de `RN-CORE-53`): §14, APROBADA** (2026-10-01, decisión del usuario). Dividido en cinco sub-pasos `1.9b`-`1.9f` (`OPEN-CORE-30`, §14.2). Resueltas `OPEN-CORE-30`, `-31`, `-32`, `-39`, `-40`, `-42`, `-43`; `-33` a `-36` **resueltas el 2026-10-03** (C, B, A, A; §14.17); `-37` y `-45` **resueltas el 2026-10-03** (B, A); el estado de las demás, en §14.17 y bloquean solo el sub-paso que indica §14.17. §0-§13 no se reabren: §14 **precisa** dos puntos de §13 (§14.12) y **amplía** la lista cerrada de `RN-CORE-24` de seis a siete rutas como consecuencia de `OPEN-CORE-31` (§14.3.1), y lo dice donde lo hace.
+> **Paso 1.9b (pantallas de gestión pendientes de `REQ-CORE-002`/`-003`/`-004`/`-005` y migración de las tres tablas exceptuadas de `RN-CORE-53`): §14, APROBADA** (2026-10-01, decisión del usuario). Dividido en cinco sub-pasos `1.9b`-`1.9f` (`OPEN-CORE-30`, §14.2). Resueltas `OPEN-CORE-30`, `-31`, `-32`, `-39`, `-40`, `-42`, `-43`; `-33` a `-36` **resueltas el 2026-10-03** (C, B, A, A; §14.17); `-37` y `-45` **resueltas el 2026-10-03** (B, A); el estado de las demás, en §14.17 y bloquean solo el sub-paso que indica §14.17. §0-§13 no se reabren: §14 **precisa** dos puntos de §13 (§14.12) y **amplía** la lista cerrada de `RN-CORE-24` de seis a siete rutas como consecuencia de `OPEN-CORE-31` (§14.3.1), y lo dice donde lo hace. **Sub-paso 1.9f implementado el 2026-10-04** (`OPEN-CORE-54`/`-55`/`-56` resueltas = A, A, A): con él se cierra la serie 1.9b-1.9f y la lista de excepciones de `RN-CORE-53` queda vacía.
 
 ---
 
@@ -1667,7 +1667,7 @@ Mantenimiento: el proyecto está activo (tres mantenedores en el registro, líne
 | Decisiones vinculantes | `ADR-038`, `ADR-044`, `ADR-052`, `ADR-053`, `ADR-054`, `ADR-055` (todas ACEPTADAS) y §12/§13 de este documento |
 | Depende de | 1.1 (API de §2-§8 de `api.md`), 1.2 (sesión), 1.5 (`/me.permissions`, resolutor), 1.7 (*design system*, `useTenantBranding().refresh()`, `contrast.ts`), 1.8 (*shell*, registro de navegación, estados de §12.6), 1.9 (`src/data-table/`), `fix/` de #266/#267/#270/#273 (PR #282) y `ADR-055`. **Todas implementadas.** **Dependencia operativa no resuelta**: sin *worker* de colas (#128, Alta), ni la importación ni ninguna exportación terminan fuera de un entorno con `queue:work` arrancado a mano (§14.15) |
 | Código afectado | `apps/web` (pantallas, `shell.ts` de `core`, ampliaciones aditivas de `src/data-table` de `OPEN-CORE-40` = A) **y `apps/api`** (§14.11: dos *endpoints* nuevos —S1 y, si `OPEN-CORE-34` = B, S10—, cuatro cambios compatibles —S5 a S8— y tres correcciones —S3, S4 y S9—) **y una migración *expand*** (S2, `datos.md` Parte D) **y, en 1.9c, una migración de datos sin cambio de esquema** (`datos.md` Parte E) |
-| Estado | **APROBADA** (2026-10-01, decisión del usuario): `OPEN-CORE-30` (A), `-31` (B), `-32` (B), `-39` (A), `-40` (A), `-42` (A) y `-43` (A) resueltas. **Sub-paso `1.9b` IMPLEMENTADO** (2026-10-02; notas y desviaciones en §14.22; pendiente de revisión independiente); **Sub-paso `1.9c` IMPLEMENTADO** (2026-10-02/03; notas y desviaciones en §14.23; revisado por `db-reviewer`, `security-reviewer` y `doc-reviewer` sin hallazgos Crítico/Alto; **pendiente de mezcla**); **Sub-paso `1.9d` IMPLEMENTADO y mezclado** (PR #320); **Sub-paso `1.9e` IMPLEMENTADO** (2026-10-03; notas y desviaciones en §14.26; revisado por `security-reviewer` y `doc-reviewer` sin hallazgos Crítico/Alto; pendiente de mezcla); cada sub-paso posterior espera las preguntas que lo bloquean (§14.17) |
+| Estado | **APROBADA** (2026-10-01, decisión del usuario): `OPEN-CORE-30` (A), `-31` (B), `-32` (B), `-39` (A), `-40` (A), `-42` (A) y `-43` (A) resueltas. **Sub-paso `1.9b` IMPLEMENTADO** (2026-10-02; notas y desviaciones en §14.22; pendiente de revisión independiente); **Sub-paso `1.9c` IMPLEMENTADO** (2026-10-02/03; notas y desviaciones en §14.23; revisado por `db-reviewer`, `security-reviewer` y `doc-reviewer` sin hallazgos Crítico/Alto; **pendiente de mezcla**); **Sub-paso `1.9d` IMPLEMENTADO y mezclado** (PR #320); **Sub-paso `1.9e` IMPLEMENTADO** (2026-10-03; notas y desviaciones en §14.26; revisado por `security-reviewer` y `doc-reviewer` sin hallazgos Crítico/Alto; pendiente de mezcla); **Sub-paso `1.9f` IMPLEMENTADO** (2026-10-04; `OPEN-CORE-54`/`-55`/`-56` = A; cobertura en §14.13.6; revisado por `security-reviewer` y `doc-reviewer` sin hallazgos Crítico/Alto; pendiente de mezcla), que **cierra la serie 1.9b-1.9f** |
 
 ### 14.0 Verificación del estado de partida (2026-10-01, rama `feature/REQ-CORE-1.9b-pantallas-de-gestion`, `495d19c`)
 
@@ -1982,6 +1982,9 @@ Todas bloquean la implementación del catálogo y, por tanto, **1.9c** (§14.2) 
 | `OPEN-CORE-51` | Formato del pasaporte (solo si entra) | 1.9c | A — **RESUELTA** (2026-10-02, ratificada en bloque) |
 | `OPEN-CORE-52` | Migración y `CHECK`: dos entregas o una | 1.9c | A — **RESUELTA** (2026-10-02, ratificada en bloque) |
 | `OPEN-CORE-53` | Exposición del catálogo a la SPA, y ratificación de `label` del filtro `enum` | 1.9c (catálogo); no (`label`) | A / ratificar — **RESUELTA** (2026-10-02, ratificada en bloque) |
+| `OPEN-CORE-54` | Qué es «sin filtrar» en un `enum` con `initial` | **1.9f** | **RESUELTA** (2026-10-04, usuario): A, `initial` es el estado de reposo |
+| `OPEN-CORE-55` | `initial` combinado con `urlState` | — | **RESUELTA** (2026-10-04, usuario): A, no se admite en 1.9f |
+| `OPEN-CORE-56` | Volver a «página 1, `live`» tras conceder una excepción | **1.9f** | **RESUELTA** (2026-10-04, usuario): A, re-montar con `key`, sin `reset()` |
 
 **`OPEN-CORE-46` · Valores del catálogo.**
 - **A** · `dni`, `nie`. Lectura literal de `REQ-CORE-003`. Deja sin forma de registrar a una persona con solo pasaporte (p. ej. un tutor extranjero recién llegado, cuando `REQ-FAM-UNIT` dé cuentas a las familias).
@@ -2173,6 +2176,186 @@ Criterio común, el mismo que §13.15 aplicó a `MfaComplianceArea.vue`:
 | `AdminSsoView.vue` (`/administracion/sso`) | `page` | Hoy pide `per_page=100` y no pagina: pasa a paginar de 25 en 25 con el paginador del componente (cambio por construcción). La confirmación de borrado con `window.confirm` se sustituye por el diálogo de `RN-CORE-64` (`OPEN-CORE-42` = A), con el aviso adicional para SAML que ya existe. `tableId` `auth.identity_providers` |
 | `SessionsView.vue` (`/cuenta/sesiones`) | `page` | Hoy pinta solo la primera página de `GET /auth/sessions`: pasa a paginar. «Cerrar las demás sesiones» queda fuera de la tabla. Las confirmaciones (por fila y de «cerrar las demás») pasan al diálogo de `RN-CORE-64` (`OPEN-CORE-42` = A), que asume la gestión de foco que hoy hace la vista a mano. IP nula: valor vacío común. Revocar la sesión actual sigue llevando a `/entrar`. `tableId` `auth.sessions` |
 
+> **Especificación propia de 1.9f** (§14.13.1 a §14.13.7, añadida el 2026-10-04 sobre el código real de las tres vistas, sus tests y `src/data-table`). No reabre `RN-CORE-84` ni la tabla de arriba: las concreta. Lo que no se puede concretar sin decisión del usuario va a §14.13.6 y **bloquea solo lo que allí se dice**.
+
+#### 14.13.1 Estado de partida verificado (2026-10-04)
+
+| Vista | Petición actual | Acciones y confirmación actuales | Errores actuales | Tests actuales |
+|-------|-----------------|----------------------------------|------------------|----------------|
+| `MfaExemptionsArea.vue` (`auth/components/admin/`) | `GET /mfa-exemptions?state=<valor>&page=<n>` (`listMfaExemptions`), **sin `per_page`**; valor inicial `live`, «todos» no envía `state`. Paginador propio con `last_page` | «Conceder» abre un formulario fuera de la tabla (`POST /mfa-exemptions`); tras `201`, vuelve a la **página 1 con `state=live`**. «Revocar» solo en filas `live`, con confirmación en línea dentro de la celda (`DELETE /mfa-exemptions/{id}`); tras `204`, recarga **con el mismo filtro y la misma página**. Filas no `live`: `'—'` literal en la celda de acciones. Ningún control se oculta por permiso (`REQ-AUTH/permisos.md §D.6.3` regla 1, `CA-AUTH-176`) | Listado: `403` ⇒ `auth.mfaAdmin.forbidden`; otro ⇒ `auth.common.unexpectedError`. Revocar: cualquier error ⇒ `auth.common.unexpectedError`, sin recargar. Conceder: `403` ⇒ `detail` o `forbidden`; `409` ⇒ `exemptions.alreadyLive`; `422` ⇒ mensajes de `reason`/`expires_at`; `404` ⇒ `reset.userNotFound` | **Ninguno propio** (issue #120: el resto de `/administracion/mfa` sigue sin test). Importa `vue-i18n` para `locale` (#259) |
+| `AdminSsoView.vue` | `GET /identity-providers?per_page=100` una sola vez, sin paginar | «Nuevo proveedor» (enlace, fuera de la tabla). Por fila: «Editar» (enlace a `sso-administration-edit`) y «Eliminar» con `window.confirm` (texto `confirmDelete` + `confirmDeleteSaml` en SAML); tras `204`, **quita la fila en memoria sin volver a pedir**. Botones de fila **sin nombre accesible con la identidad**. Ningún control se oculta por permiso | Carga: `401` ⇒ navega a `login`; otro ⇒ `auth.ssoAdmin.loadError`. Eliminar: cualquier error ⇒ `auth.ssoAdmin.loadError` (la fila no desaparece) | `AdminSsoView.spec.ts`, 13 casos; cinco usan `window.confirm` simulado |
+| `SessionsView.vue` | `GET /auth/sessions` **sin parámetros** (`listSessions`): solo la primera página (25 por defecto en servidor) | «Cerrar sesión» por fila (`DELETE /auth/sessions/{id}`) y «Cerrar las demás sesiones» (`DELETE /auth/sessions?scope=others`, deshabilitado sin otras sesiones), ambas con confirmación en línea y foco gestionado a mano; tras éxito, `role="status"` con `revokedSuccess`/`revokeOthersSuccess` y recarga; revocar la `current` navega a `login`. Nombre accesible de fila = `revoke` + `' — '` literal + dispositivo | Carga: `401` ⇒ `login`; otro ⇒ `unexpectedError`. Revocar: `401` ⇒ `login`; `404`/`409` ⇒ recarga sin error; `429` ⇒ segundos de `Retry-After`; otro ⇒ `unexpectedError`. «Las demás»: `401`, `429`, otro, igual | **No se ha localizado** ningún `SessionsView.spec.ts` (ni junto a la vista ni en `__tests__/`); el implementador lo comprueba con una búsqueda antes de empezar. Importa `vue-i18n` (#259) y escribe `'—'` para la IP nula (#90) |
+
+Servidor, verificado para lo que la migración necesita: `IndexMfaExemptionsRequest` acepta `per_page` (1-100) además de `state` por comas y `page`. `GET /identity-providers` acepta `page`/`per_page` (la vista ya envía `per_page`). `GET /auth/sessions` acepta `page`, `per_page` (25 por defecto, máximo 100) y `sort` (`REQ-AUTH/api.md §B.2`; **solo comprobado en la documentación**, no en el `FormRequest`: el implementador lo verifica y, si no coincide, para y lo reporta). **1.9f no toca `apps/api`.**
+
+#### 14.13.2 Ampliación del filtro `enum`: selección única y valor inicial (`OPEN-CORE-40` = A)
+
+- **`RN-CORE-94` · Filtro `enum` de selección única con valor inicial.** Ampliación **aditiva** de `DataTableEnumFilter` (amplía la lista cerrada de §13.7, como ya hicieron `twoState` de 1.9b, `label` ratificado en `OPEN-CORE-53` y `entity` de 1.9d), con dos campos opcionales nuevos:
+
+  | Campo | Tipo | Por defecto | Contrato |
+  |-------|------|-------------|----------|
+  | `multiple` | booleano | `true` | `true` o ausente: el filtro de 1.9 sin ningún cambio (casillas, valores por comas). `false`: **selección única** |
+  | `initial` | texto | ausente | Solo con `multiple: false`. Valor con el que arranca el filtro cuando no hay estado previo (sin `urlState`, siempre). Debe ser el `value` de una de `options`; si no lo es, o si se declara con `multiple` distinto de `false`, el componente lo **ignora** (el filtro arranca en «todos») y avisa por consola, con el mismo mecanismo que el aviso de `urlState` duplicado de `useDataTableController` — nunca lanza ni envía un valor no declarado |
+
+  Comportamiento con `multiple: false`:
+  1. **Control**: grupo de opciones **exclusivas** (`DropdownMenuRadioGroup`, ya vendorizado y usado por el filtro `boolean` de tres estados), con una primera opción «Todos» (`dataTable.filters.all`, ya existente) seguida de `options` en el orden declarado. Etiqueta de cada opción con la misma regla de `optionLabel` (`label` > `labelKey` > código crudo, `ADR-038 §7.3`).
+  2. **Disparador**: botón con el nombre del filtro (`labelKey`) y el valor elegido o «Todos», con la misma forma que el disparador del booleano de tres estados (`dataTable.filters.booleanTrigger` o una clave hermana de `dataTable.filters.*`; el nombre lo elige el implementador, en `es`, `en`, `de` y `fr`, §13.12). El nombre accesible del disparador **empieza** por el texto de `labelKey`, para que un test lo localice igual que el de un `enum` múltiple.
+  3. **Serialización**: un valor ⇒ `<id>=<valor>`; «Todos» ⇒ el parámetro no se envía (`CA-CORE-269`). Nunca hay dos valores a la vez, tampoco si llegan por otra vía (un valor con coma en el estado se trata como no declarado y se descarta).
+  4. Cambiar el valor reinicia a la página 1 (`CA-CORE-168`) y lanza una sola petición.
+  5. **Qué es «sin filtrar»** para un filtro con `initial` (`OPEN-CORE-54` = A, resuelta el 2026-10-04): `initial` es el **estado de reposo**. Recién montada la tabla no hay «Limpiar filtros» y el texto de vacío es el del consumidor; elegir «Todos» activa «Limpiar filtros», que devuelve el filtro a `initial`.
+  6. **Con `urlState`** (`OPEN-CORE-55` = A, resuelta el 2026-10-04): no se admite en 1.9f. Con `urlState` se **ignora `initial`** (la primera petición no lleva el parámetro y la URL no lo contiene) y se **avisa por consola**. Ningún consumidor de 1.9f lo necesita (las tres vistas no declaran estado en la URL).
+  7. Las tablas existentes (sin `multiple` ni `initial`) no cambian de comportamiento ni de petición: `MfaComplianceArea`, usuarios, invitaciones, importaciones, auditoría, módulos y las tablas de prueba de 1.9 mantienen sus tests en verde.
+
+  Se exportan desde `src/data-table/index.ts` solo los tipos ya existentes (los campos nuevos viven en `DataTableEnumFilter`); ningún módulo importa `src/data-table/` por ruta interna (`§13.3`).
+
+#### 14.13.3 `MfaExemptionsArea.vue` (`auth.mfa_exemptions`)
+
+Sigue siendo un área embebida en `AdminMfaView.vue`, sin ruta propia. `mode="page"`, sin `urlState`, sin búsqueda, sin columnas ordenables (`GET /mfa-exemptions` no acepta `sort`; orden del servidor: vivas primero y por `granted_at` descendente), sin exportación. `card-heading-level` 3 (la sección ya tiene un `h2`). Texto de vacío del consumidor: `auth.mfaAdmin.exemptions.empty` (el actual). `caption`: clave nueva `auth.mfaAdmin.exemptions.tableCaption` (hermana de `auth.mfaAdmin.compliance.tableCaption`).
+
+**Columnas** (las seis de hoy, mismo orden):
+
+| `id` | Cabecera (clave actual) | Valor | Tarjeta | Ocultable |
+|------|-------------------------|-------|---------|-----------|
+| `user` | `columnUser` | «Nombre Apellido · correo», como hoy (`given_name`, `family_name_1`, `email`). `rowHeader` | `title` | No |
+| `state` | `columnState` | Insignia con el texto traducido de `auth.mfaAdmin.exemptions.state.<valor>` (rama por defecto: código crudo), variante `default` en `live` y `secondary` en el resto, como hoy; el color no es la única señal (D.9) | `subtitle` | Sí |
+| `reason` | `columnReason` | Texto tal cual, en varias líneas (§13.11) | `field` | Sí |
+| `expires_at` | `columnExpiresAt` | `formatDateTime` de `useDataTableFormatters` (fecha **y hora**, como hoy: la caducidad efectiva es las 00:00 del día, `REQ-AUTH/api.md §D.4`) | `field` | Sí |
+| `granted_by` | `columnGrantedBy` | «Nombre Apellido» de `granted_by` | `field` | Sí |
+| `actions` | `columnActions` | Ver abajo | `actions` | No |
+
+**Valor vacío**: toda celda sin valor usa el valor vacío común (`dataTable.emptyValue`, `CA-CORE-201`); en particular, **la celda de acciones de una fila no `live` pinta `DataTableEmptyValue`** (exportado por `src/data-table`) en lugar del `'—'` literal actual, lo que resuelve #90 en esta vista.
+
+**Filtro**: `{ type: 'enum', id: 'state', labelKey: 'auth.mfaAdmin.exemptions.filterLegend', multiple: false, initial: 'live', options: live, expired, revoked }` con las etiquetas `auth.mfaAdmin.exemptions.state.<valor>` (§14.13.2).
+
+**Función de petición**: `GET /mfa-exemptions` con `state` (el valor del filtro, o ausente con «Todos»), `page` y **`per_page` explícito** (§13.24 punto 5); `listMfaExemptions` del cliente del módulo gana el parámetro `per_page` (aditivo). Ningún otro parámetro (no envía `user`, como hoy). Primera petición al montar: `state=live&page=1&per_page=25` (`CA-CORE-256`).
+
+**Acción por fila «Revocar»** (solo `state = live`, como hoy, sin ocultarla por permiso: regla 1 de `REQ-AUTH/permisos.md §D.6.3`, que `RN-CORE-84` conserva):
+- Texto visible: `revokeAction` (el actual). **Nombre accesible** con la identidad de la fila: clave nueva con parámetro de nombre («Revocar la excepción de Ana López»), del mismo patrón que `auth.mfaAdmin.compliance.resetActionFor` (WCAG 2.4.6, `CA-CORE-186`).
+- **Confirmación** con `useConfirm` + `ConfirmDialog` (`RN-CORE-64`, `OPEN-CORE-42` = A): título que nombra a la persona («Revocar la excepción de Ana López»), descripción = el texto actual de `auth.mfaAdmin.exemptions.confirmRevoke`, botón de confirmar con la identidad, `destructive: true`. Desaparece la confirmación en línea (`revokingId` como estado de «fila en confirmación»).
+- Mientras la petición está en vuelo, el botón «Revocar» de esa fila está deshabilitado (paridad de `revokeSubmitting`).
+- `204` ⇒ `refresh()` de la tabla (**misma consulta**: mismo filtro y misma página, como hoy; `RN-CORE-45` cubre la página que se queda vacía).
+- Error ⇒ `auth.common.unexpectedError` con `role="alert"` debajo de la tabla, como hoy, **sin recargar** (paridad; un `404` de «ya revocada» se comporta igual que hoy).
+
+**Formulario de concesión**: sin cambios de campos, validación, peticiones ni mensajes (fuera de la tabla, `CA-CORE-256`). Tras `201`, la tabla vuelve a la **página 1 con `state=live`** (paridad): el mecanismo depende de **`OPEN-CORE-56`**.
+
+**Errores del listado**: pasan a los estados de error de §13.10/§12.6 del componente (precedente de `MfaComplianceArea`, §13.15): un `403` pinta el estado «sin acceso» **dentro del área**, sin ocultarla ni redirigir (sigue cumpliendo `CA-AUTH-176`), y un `5xx`, el estado de error con `request_id` y «Reintentar». **No** se conservan los textos `auth.mfaAdmin.forbidden`/`unexpectedError` del listado (ver `RN-CORE-95`). Los mensajes de las **acciones** (revocar, conceder) sí se conservan literalmente.
+
+**Limpieza por construcción**: deja de importar `useI18n` de `vue-i18n` (usa `useT` y los formateadores de `src/data-table`, #259) y de escribir `'—'` (#90); `MAX_EXEMPTION_DAYS` y su comentario no cambian.
+
+#### 14.13.4 `AdminSsoView.vue` (`auth.identity_providers`)
+
+`mode="page"`, sin `urlState`, sin búsqueda, sin columnas ordenables (la vista no ordena hoy; no se añade), sin filtros, sin exportación. `card-heading-level` 2 (la vista tiene `h1`). Texto de vacío: `auth.ssoAdmin.empty` (el actual; el test «catálogo vacío muestra el estado vacío, no una tabla» sigue valiendo). `caption`: clave nueva `auth.ssoAdmin.tableCaption`. Cabecera de la vista (título, introducción y enlace «Nuevo proveedor») **fuera** de la tabla, sin cambios.
+
+**Columnas** (las siete de hoy, mismo orden; la última sin cabecera visible hoy pasa a tener una, porque el componente exige `headerKey`: clave nueva `auth.ssoAdmin.columns.actions`):
+
+| `id` | Cabecera | Valor | Tarjeta | Ocultable |
+|------|----------|-------|---------|-----------|
+| `display_name` | `columns.displayName` | `display_name`. `rowHeader` | `title` | No |
+| `protocol` | `columns.protocol` | `auth.ssoAdmin.protocolLabel.<protocol>` (rama por defecto: código crudo) | `subtitle` | Sí |
+| `issuer` | `columns.issuer` | `issuer`; hoy se trunca con `truncate`: si se mantiene el truncado, el texto completo es accesible (`title` o nombre accesible, §13.11 «Texto largo»); vacío ⇒ valor vacío común | `field` | Sí |
+| `status` | `columns.status` | `status.enabled`/`status.disabled` según `is_enabled` | `field` | Sí |
+| `provisioning_mode` | `columns.provisioningMode` | `auth.ssoAdmin.provisioningMode.<valor>` | `field` | Sí |
+| `secret` | `columns.secret` | Mismo contenido que hoy por *slot*: en SAML, `certificateStatus.none` (con `text-destructive`) o `certificateStatus.active` más `nextExpiry`; en OIDC, `secretStatus.none`/`expiringSoon` (con fecha si la hay)/`active`. **OIDC sin `secret_status`** (hoy celda vacía) ⇒ valor vacío común | `field` | Sí |
+| `actions` | `columns.actions` (nueva) | «Editar» y «Eliminar» | `actions` | No |
+
+Las fechas de esta columna pasan de `toLocaleDateString()` a `formatDate` de `src/data-table` (§13.12: ninguna vista crea su formateador).
+
+**Función de petición**: `GET /identity-providers` con `page` y `per_page` del componente (25 por defecto; `CA-CORE-257`). Un `401` en la carga **sigue navegando a `login`** (paridad y test existente): la función de petición lo detecta, navega y relanza el error, del mismo modo que `MfaComplianceArea` reenvía su `403`. Los demás errores de carga pasan al estado de error del componente (`RN-CORE-95`).
+
+**Acciones por fila** (visibles siempre, como hoy; el servidor decide con `proveedor_identidad.*`, `INV-002`):
+- **Editar**: enlace a `sso-administration-edit` con el `public_id`. Texto visible `auth.ssoAdmin.edit`; **nombre accesible** con el nombre del proveedor (clave nueva con parámetro, «Editar Entra ID del centro»).
+- **Eliminar**: texto visible `auth.ssoAdmin.delete`; nombre accesible con el nombre del proveedor (clave nueva). **Confirmación** con `useConfirm` + `ConfirmDialog` en lugar de `window.confirm` (`OPEN-CORE-42` = A): título con el nombre del proveedor, descripción = `confirmDelete` y, **solo en SAML**, además `confirmDeleteSaml` (el aviso de la URL del ACS, `REQ-AUTH funcional.md §G.9`), botón de confirmar con el nombre, `destructive: true`. Mientras la petición está en vuelo, el botón de esa fila está deshabilitado (paridad de `deletingId`).
+- `204` ⇒ `refresh()` de la tabla. **Cambio por construcción**: hoy la fila se quita en memoria sin volver a pedir; con paginación en servidor la página tiene que volver a pedirse (si queda vacía y no es la primera, `RN-CORE-45`). Es una petición `GET` más tras eliminar, sin cambio de *endpoint*.
+- Error ⇒ `auth.ssoAdmin.loadError` con `role="alert"` (paridad literal, aunque el texto hable de «cargar»; no se corrige aquí, ver hallazgo 2 de §14.13.7) y la fila sigue en la tabla.
+
+**Tests existentes** (`AdminSsoView.spec.ts`): los cinco casos que simulan `window.confirm` se reescriben para el diálogo (lo exige el cambio de componente, §14.19, último párrafo); conservan lo que prueban (se pide confirmación, cancelar no llama a la API, el aviso de SAML aparece solo en SAML, el error deja la fila). El de «al retirar… desaparece la fila» pasa a comprobar que, tras `204`, se vuelve a pedir el catálogo y se pinta lo que devuelve. Los demás no cambian de aserción.
+
+#### 14.13.5 `SessionsView.vue` (`auth.sessions`)
+
+`mode="page"`, sin `urlState`, sin búsqueda, sin filtros, sin exportación. **Sin columnas ordenables**: el servidor admite `sort` (`started_at`, `last_activity_at`), pero la vista no ordena hoy y `RN-CORE-84` exige las mismas peticiones; añadir orden es un cambio de comportamiento fuera de este paso. `card-heading-level` 2. `caption`: `auth.sessions.title` (el actual, ya en `caption sr-only`). Texto de vacío: clave nueva `auth.sessions.empty` (el componente lo exige; en la práctica no se ve, porque la sesión actual siempre está en la lista). Título, introducción, mensajes `role="status"`/`role="alert"` y «Cerrar las demás sesiones» **fuera** de la tabla, encima, como hoy.
+
+**Columnas** (las cinco de hoy, mismo orden y mismas claves de cabecera):
+
+| `id` | Cabecera | Valor | Tarjeta | Ocultable |
+|------|----------|-------|---------|-----------|
+| `device` | `columnDevice` | Primera línea: `browser · platform`; segunda, en texto secundario: el resumen actual (tipo de dispositivo traducido con rama por defecto, más «esta sesión» si `current` y «dispositivo no reconocido» si `!device_known`), por *slot*. `rowHeader` | `title` | No |
+| `started_at` | `columnStarted` | `formatDateTime` | `field` | Sí |
+| `last_activity_at` | `columnLastActivity` | `formatDateTime` | `field` | Sí |
+| `ip_address` | `columnIp` | `ip_address`; `null` ⇒ valor vacío común (`CA-CORE-258`, resuelve #90 aquí) | `field` | Sí |
+| `actions` | `columnActions` | «Cerrar sesión» | `actions` | No |
+
+`location` sigue sin mostrarse (siempre `null`, `REQ-AUTH/api.md §B.7.3`).
+
+**Función de petición**: `GET /auth/sessions` con `page` y `per_page` del componente; `listSessions` gana esos dos parámetros (aditivo). Sin `sort`. Un `401` en la carga navega a `login` desde la función de petición (paridad, mismo mecanismo que §14.13.4).
+
+**«Cerrar las demás sesiones» habilitado** si y solo si hay otras sesiones. Como la vista ya no tiene las filas, se calcula con el `meta.total` de la última respuesta que capture la función de petición: habilitado si `total > 1` (exactamente una fila es `current`, `CA-AUTH-082`). Mientras no haya respuesta, deshabilitado. Es más exacto que hoy, que solo miraba la primera página.
+
+**Acción por fila «Cerrar sesión»**:
+- Texto visible `auth.sessions.revoke`. **Nombre accesible** con una clave nueva con parámetros que identifique la fila **de forma única**: dispositivo **y** fecha de inicio formateada («Cerrar sesión de Chrome · Windows iniciada el 3 oct 2026, 10:15»). El dispositivo solo no basta: dos sesiones del mismo navegador y sistema darían el mismo nombre (WCAG 2.4.6, `CA-CORE-186`). Sustituye la concatenación actual con `' — '` literal (`INV-009`).
+- **Confirmación** con `useConfirm` + `ConfirmDialog` (`OPEN-CORE-42` = A): título con la identidad de la fila; descripción = `confirmRevokeCurrent` si la fila es `current` y `confirmRevoke` si no (los textos actuales); botón de confirmar con la identidad; `destructive: true`. Sustituye a la confirmación en línea y a la gestión manual de foco (`rowTriggerEls`, `rowConfirmEls`, `focusFirstButton`): la apertura y la devolución del foco las hace el diálogo (`RN-CORE-64`).
+- Mientras la petición está en vuelo, el botón de esa fila está deshabilitado.
+- `204` y fila `current` ⇒ navega a `login` (sin recargar). `204` y otra fila ⇒ `revokedSuccess` con `role="status"` y `refresh()`. `401` ⇒ `login`. `404`/`409` ⇒ `refresh()` sin mensaje de error. `429` ⇒ `tooManyRequestsWithSeconds` con los segundos de `Retry-After` o `tooManyRequests`. Otro ⇒ `unexpectedError`. Todo igual que hoy.
+
+**«Cerrar las demás sesiones»**: mismo *endpoint* (`DELETE /auth/sessions?scope=others`), confirmación con el mismo diálogo (título `revokeOthers`, descripción `confirmRevokeOthers`, botón de confirmar `revokeOthers`; es una acción masiva sin identidad de fila), `destructive: true`. Éxito ⇒ `revokeOthersSuccess` con `role="status"` y `refresh()`. Errores igual que hoy.
+
+**Limpieza por construcción**: deja de importar `vue-i18n` (usa `useT` y `useDataTableFormatters`, `CA-CORE-258`, #259) y de escribir `'—'` (#90).
+
+#### 14.13.6 Reglas, preguntas abiertas y criterios de 1.9f
+
+- **`RN-CORE-95` · Errores en las vistas migradas.** Los errores de **carga del listado** pasan al tratamiento de §13.10/§12.6 del componente (estado de error con `request_id` y «Reintentar», «sin acceso» en `403`), igual que en la migración de `MfaComplianceArea` (§13.15), salvo el `401` de carga, que conserva la navegación a `login` donde la vista la hacía (`AdminSsoView`, `SessionsView`). Los mensajes de las **acciones** (revocar, eliminar, cerrar sesiones, conceder) se conservan literalmente, con sus claves actuales. Es la lectura que esta especificación hace de «mismos mensajes y mismo tratamiento de errores» (`RN-CORE-84`) junto con «cambia el aspecto por construcción»; si el usuario no la acepta, ver la «Nota sobre `RN-CORE-95`» tras las preguntas abiertas.
+- **`RN-CORE-96` · Acción por fila tras éxito.** En las tres vistas, una acción por fila que termina bien vuelve a pedir la página con `refresh()` del componente (nunca muta las filas en memoria, que son del componente, `RN-CORE-50`); si la página queda vacía, aplica `RN-CORE-45`. Ningún botón de fila se oculta por permiso en estas tres vistas (paridad, `REQ-AUTH/permisos.md §D.6.3` regla 1).
+
+**Preguntas** (resueltas el 2026-10-04 por el usuario, que aprobó la especificación con las recomendaciones indicadas, salvo `OPEN-CORE-56`, donde se eligió A y no la recomendación B de `spec-writer`). Numeradas como siguientes a `OPEN-CORE-53`; si alguna está usada en otro documento del módulo, se renumera antes de aprobar.
+
+| ID | Pregunta | Bloquea | Recomendación |
+|----|----------|---------|---------------|
+| `OPEN-CORE-54` | Qué es «sin filtrar» en un `enum` con `initial` | **1.9f** (`CA-CORE-289`, `MfaExemptionsArea`) | **RESUELTA: A** |
+| `OPEN-CORE-55` | `initial` combinado con `urlState` | No (ningún consumidor de 1.9f) | **RESUELTA: A** |
+| `OPEN-CORE-56` | Cómo vuelve la tabla de excepciones a «página 1, `live`» tras conceder | **1.9f** (`CA-CORE-292`) | **RESUELTA: A** (re-montar con `key`, sin `reset()`) |
+
+**`OPEN-CORE-54` · Qué es «sin filtrar» en un filtro `enum` con `initial`.** Hoy el componente considera activo todo filtro con valor (`hasActiveFilters`) y «Limpiar filtros» deja el mapa vacío. Con `initial: 'live'`, la tabla de excepciones **arranca** con un filtro activo, y eso cambia lo que el administrador ve al entrar.
+- **A** · El valor inicial es el **estado de reposo**: el filtro cuenta como activo solo si difiere de `initial` («Todos» incluido); «Limpiar filtros» vuelve a `initial`, no a «Todos»; con el filtro en `initial` y sin filas se pinta el texto de vacío del consumidor (`exemptions.empty`, paridad). Tablas sin `initial`: sin cambio (su reposo es el mapa vacío).
+- **B** · El valor inicial es solo el **primer valor**: cuenta como filtro activo desde la carga; el botón «Limpiar filtros» se ve al entrar y lleva a «Todos»; sin filas se pinta «sin resultados con estos filtros».
+
+**Recomendación: A.** Es la que conserva lo que hoy ve el administrador de MFA al entrar (`OPEN-CORE-40` = A se eligió precisamente por la paridad de `MfaExemptionsArea`) y la única en la que «Limpiar filtros» devuelve la pantalla a como estaba al abrirla. B es más simple de implementar, pero enseña al entrar un botón de «limpiar» que nadie ha pedido.
+
+**`OPEN-CORE-55` · `initial` con `urlState`.** Con estado en la URL, un parámetro ausente significa hoy «sin filtro»; con `initial`, ausente tendría que significar `initial`, y «Todos» necesitaría un valor propio en la URL (`ADR-054 §6`/`RN-CORE-54` no lo prevén).
+- **A** · No se admite en 1.9f: si una tabla declara `urlState` y un `enum` con `initial`, el componente ignora `initial` (el filtro arranca en «Todos») y avisa por consola. Se diseña con el primer consumidor real.
+- **B** · Diseñarlo ahora, con un valor reservado para «Todos» en la URL.
+
+**Recomendación: A.** Ningún consumidor lo necesita y B fija un contrato de URL sin caso real.
+
+**`OPEN-CORE-56` · Volver a «página 1, `state=live`» tras conceder una excepción.** El componente solo expone `refresh()` (repite la consulta actual) y `focusSearch()`; la vista ya no puede fijar página ni filtro.
+- **A** · La vista vuelve a montar la tabla (cambio de `key`), que arranca en su estado inicial. Sin tocar el componente; a cambio, pinta el estado de carga completo en vez del de recarga y vuelve a leer la configuración de columnas.
+- **B** · Ampliación aditiva del componente: `reset()` expuesto, que vuelve al estado inicial de la consulta (página 1, filtros de reposo según `OPEN-CORE-54`, sin búsqueda) y pide una vez. No figura entre las ampliaciones de `OPEN-CORE-40`, así que necesita ratificación expresa (como `label` en `OPEN-CORE-53`).
+- **C** · Solo `refresh()`: la tabla se queda con el filtro y la página que tuviera. Pierde paridad: si el administrador estaba mirando las caducadas, la excepción recién concedida no aparece.
+
+**Resolución: A** (2026-10-04). Se evita ampliar el componente compartido por un único consumidor (`RN-CORE-37`, #278); si aparece un segundo caso, se reconsidera `reset()`. Recomendación original de `spec-writer`: B.
+
+**Nota sobre `RN-CORE-95`**: no se plantea como pregunta porque sigue el precedente ya aceptado de §13.15; si el usuario quiere conservar **literalmente** los textos de error de carga (`auth.mfaAdmin.forbidden`, `auth.ssoAdmin.loadError`, `auth.common.unexpectedError`), el componente necesitaría un mecanismo para que el consumidor sustituya su estado de error, que no existe y no se propone aquí.
+
+**Criterios de aceptación de 1.9f** (complementan `CA-CORE-255` a `-259` y la parte de `enum` de `CA-CORE-269`, que no se reescriben). Vitest salvo indicación; cada test cita su ID (`INV-015`). Numerados como siguientes a `CA-CORE-287` (§14.24); si alguno está usado en otro documento del módulo, se renumera antes de aprobar.
+
+- **`CA-CORE-288`** [`RN-CORE-94`, §13.7] · **Dado** una tabla de prueba con un `enum` de `multiple: false`, `initial: 'b'` y opciones `a`, `b`, `c`, **entonces** el control es un grupo de opciones exclusivas con «Todos» en primer lugar y `a`, `b`, `c` después, con `b` marcada; el disparador tiene un nombre accesible que empieza por la etiqueta del filtro e incluye la opción elegida; **cuando** se elige `c`, sale una sola petición con `<id>=c` y `page=1`, y `b` deja de estar marcada; **cuando** se elige «Todos», la petición no lleva `<id>`. **Y dado** `initial: 'z'` (no declarado) o `initial` con `multiple` ausente, el filtro arranca en «Todos», la primera petición no lleva `<id>` y se emite un aviso por consola, sin error.
+- **`CA-CORE-289`** [`RN-CORE-94`, `OPEN-CORE-54`] · **Dado** la tabla de prueba de `CA-CORE-288` recién montada, **entonces** no hay botón «Limpiar filtros»; **cuando** se elige «Todos», aparece, y al activarlo la petición vuelve a llevar `<id>=b` y el botón desaparece; **y dado** `data: []` con el filtro en `b`, se pinta el texto de vacío del consumidor, no el de «sin resultados con estos filtros».
+- **`CA-CORE-290`** [`RN-CORE-94`, `OPEN-CORE-55`] · **Dado** una tabla de prueba con `urlState` y un `enum` con `initial`, **entonces** la primera petición no lleva el parámetro del filtro, la URL no lo contiene y se emite un aviso por consola.
+- **`CA-CORE-291`** [`RN-CORE-84`, `RN-CORE-64`, `RN-CORE-96`, `REQ-AUTH-003`] · **Dado** `MfaExemptionsArea` con una fila `live` de Ana López y otra `expired`, **entonces** la primera petición es `GET /mfa-exemptions` con `state=live`, `page=1` y `per_page=25`; la celda de acciones de la fila `expired` contiene el valor vacío común y ningún botón; el botón de la fila `live` tiene como nombre accesible el texto de revocar con «Ana López»; **cuando** se activa, no sale ninguna petición hasta confirmar, el diálogo nombra a Ana López, `Esc` lo cierra sin petición y devuelve el foco al botón; **cuando** se confirma, sale exactamente un `DELETE /mfa-exemptions/{id}` y, con `204`, una petición `GET /mfa-exemptions` con el mismo `state` y la misma `page` que la anterior; **y cuando** el `DELETE` responde `500`, aparece `auth.common.unexpectedError` con `role="alert"` y no sale ningún `GET`.
+- **`CA-CORE-292`** [`RN-CORE-84`, `OPEN-CORE-56`] · **Dado** `MfaExemptionsArea` con el filtro en la opción `expired` y la página 2, **cuando** se concede una excepción y `POST /mfa-exemptions` responde `201`, **entonces** la siguiente petición del listado lleva `state=live` y `page=1`, y el filtro muestra seleccionada la opción `live` (etiqueta `auth.mfaAdmin.exemptions.state.live`).
+- **`CA-CORE-293`** [`RN-CORE-84`, `RN-CORE-95`, `RN-CORE-96`, `REQ-AUTH-004`] · **Dado** `AdminSsoView` con un proveedor OIDC sin `secret_status` y un proveedor SAML, **entonces** la celda de credencial del OIDC contiene el valor vacío común; «Editar» y «Eliminar» de cada fila tienen nombres accesibles distintos con el nombre de su proveedor; **cuando** se confirma «Eliminar» y el `DELETE` responde `204`, se vuelve a pedir `GET /identity-providers` con la misma `page` y `per_page`; **cuando** responde con error, la fila sigue y aparece `auth.ssoAdmin.loadError` con `role="alert"`; **y dado** que la carga responde `401`, la ruta pasa a `login`, y que responde `503`, se pinta el estado de error del componente con «Reintentar».
+- **`CA-CORE-294`** [`RN-CORE-84`, `RN-CORE-64`, `REQ-AUTH-005`, WCAG 2.4.6] · **Dado** `SessionsView` con dos sesiones `Chrome · Windows` iniciadas en fechas distintas, una de ellas `current`, **entonces** la primera petición es `GET /auth/sessions` con `page=1` y `per_page=25` y sin `sort`; los dos botones de cerrar sesión tienen nombres accesibles distintos; el diálogo de la fila `current` usa el texto de `confirmRevokeCurrent` y el de la otra el de `confirmRevoke`; **cuando** el `DELETE` de la otra responde `409`, se vuelve a pedir el listado sin mensaje de error, y **cuando** responde `429` con `Retry-After: 30`, el mensaje contiene «30»; **y dado** una respuesta con `meta.total = 1`, «Cerrar las demás sesiones» está deshabilitado, y con `meta.total = 2` en una página que solo contiene la `current`, habilitado.
+- **`CA-CORE-295`** [`INV-009`, `CA-CORE-201`, `CA-CORE-261`, #90, #259] · **Dado** `MfaExemptionsArea.vue`, `AdminSsoView.vue` y `SessionsView.vue`, **entonces** ninguno contiene `'—'` como literal ni importa `vue-i18n`; **y** toda clave nueva de 1.9f en `auth.*` y `dataTable.*` existe en `es`, `en`, `de` y `fr`, y `npm run lint:i18n` termina sin hallazgos.
+- **`CA-CORE-176`** (ya existente) se cumple con los tres `tableId` nuevos (`auth.mfa_exemptions`, `auth.identity_providers`, `auth.sessions`), sin cambiar su texto.
+
+**Cobertura real** (1.9f, 2026-10-04): `CA-CORE-255` en `src/data-table/architecture.spec.ts` (lista de excepciones vacía); `CA-CORE-288`, `-289` y `-290` (y `CA-CORE-269`, parte `enum`) en `src/data-table/DataTable.singleEnum.spec.ts`; `CA-CORE-256`, `-291` y `-292` en `modules/auth/components/admin/MfaExemptionsArea.spec.ts` (nuevo; avance sobre #120); `CA-CORE-257` y `-293` en `modules/auth/views/AdminSsoView.spec.ts`; `CA-CORE-258` y `-294` en `modules/auth/views/SessionsView.spec.ts` (nuevo); `CA-CORE-259` (parte de sesiones) en `e2e/auth-sessions.spec.ts` (Playwright); `CA-CORE-295` en `modules/auth/locales/migration19f.i18n.spec.ts`.
+
+#### 14.13.7 Hallazgos fuera de alcance de 1.9f
+
+No se corrigen aquí (`CLAUDE.md §5`); para que la sesión orquestadora abra el issue que corresponda:
+
+1. **Foco tras una acción que retira la fila.** `useConfirm`/`ConfirmDialog` devuelven el foco al botón que abrió la confirmación, pero si la acción termina bien y el `refresh()` retira esa fila (revocar, eliminar, cerrar sesión; también revocar una invitación en 1.9b), el botón ya no existe y el foco cae en `body` (WCAG 2.4.3). No lo resuelve ninguna regla de §14; 1.9f sigue el precedente de `InvitationsView.vue`, que tampoco lo gestiona. **Severidad propuesta: Baja**; propuesta: llevar el foco al mensaje de resultado (`role="status"`) o al `caption` de la tabla.
+2. **`auth.ssoAdmin.loadError` como mensaje de error de borrado** («No se ha podido cargar el catálogo…» cuando falla un `DELETE`): el texto no describe lo que ha pasado. Se conserva por paridad. **Baja**; propuesta: clave propia de error de borrado, con el `detail` del servidor si existe.
+3. **Índices**: `RN-CORE-94` a `-96` y `OPEN-CORE-54` a `-56` añadidos al índice de §14.14 y a §14.17 al aprobar (2026-10-04).
+
 ### 14.14 Reglas transversales de las pantallas
 
 - **`RN-CORE-62` · Sin peticiones a ciegas.** Ninguna vista pide un *endpoint* auxiliar cuyo permiso el usuario no tiene efectivo (extensión de `RN-CORE-33` a las pantallas): si falta, la parte de la interfaz que lo usaría (filtro de rol, selector de roles, enlace a la ficha, búsqueda de usuario) no se ofrece. Un `403` esperado no es un mecanismo de descubrimiento.
@@ -2215,6 +2398,9 @@ Criterio común, el mismo que §13.15 aplicó a `MfaComplianceArea.vue`:
 | `RN-CORE-87` | Módulos contratados en solo lectura, página única sintética, fecha de alta como aviso | §14.10b |
 | `RN-CORE-88` | Perfil propio de autoservicio: solo contacto editable, sin `GET /me` propio | §14.10c |
 | `RN-CORE-89` | Guardado del perfil con `PATCH /me` parcial y sustitución del estado de sesión | §14.10c |
+| `RN-CORE-94` | Filtro `enum` de selección única con valor inicial | §14.13.2 |
+| `RN-CORE-95` | Errores de carga de las vistas migradas, con el tratamiento del componente | §14.13.6 |
+| `RN-CORE-96` | Acción por fila tras éxito: `refresh()` | §14.13.6 |
 
 ### 14.15 Riesgos y dependencias operativas
 

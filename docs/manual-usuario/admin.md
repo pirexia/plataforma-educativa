@@ -16,6 +16,11 @@ El menú de usuario (arriba a la derecha, con tu nombre) reúne el acceso a tu c
 
 **Modo de color**: tres opciones — seguir el sistema operativo (por defecto), claro fijo, oscuro fijo. Es una preferencia de tu navegador, no se guarda en el servidor ni se comparte entre tus dispositivos.
 
+
+### Mis sesiones abiertas
+
+En **Mis sesiones** (`/cuenta/sesiones`, desde el menú de usuario) ves los dispositivos con los que tienes la sesión abierta. Cada una tiene un botón **«Cerrar sesión»**, y arriba hay **«Cerrar todas las demás sesiones»** (conserva solo la actual). Ambas acciones piden confirmación en un diálogo (`Esc` lo cierra sin hacer nada). En una pantalla estrecha, como la de un móvil, cada sesión se muestra como una **tarjeta**; en una ancha, como una fila de tabla paginada.
+
 ## Tablas de datos: filtrar, ordenar, elegir columnas y exportar
 
 Todas las listas de la aplicación (hoy, el cumplimiento de segundo factor de `/administracion/mfa`; después, usuarios, invitaciones o auditoría) se manejan igual. Esta sección es común a los manuales de todos los perfiles.
@@ -292,6 +297,8 @@ Mientras dura una excepción, la persona **también puede desactivar su segundo 
 
 Puedes consultar en cualquier momento quién tiene una excepción viva, por qué se le concedió y quién la concedió, y revocarla antes de su caducidad si la situación cambia. Revocarla no borra el registro: queda constancia de que existió y de cuándo se retiró, igual que con un bloqueo de cuenta levantado.
 
+La lista de excepciones es una tabla paginada (25 por página) con un **filtro de estado**: al entrar muestra solo las **vigentes**; elige «Todos» para ver también las caducadas y las revocadas, y «Limpiar filtros» para volver a las vigentes. Al **revocar**, el sistema abre un diálogo que **nombra a la persona** afectada y pide confirmación; puedes cancelarlo con el botón «Cancelar» o con la tecla `Esc`, y no se revoca nada hasta que confirmes. Tras conceder una excepción nueva, la tabla vuelve a la primera página con las vigentes, para que veas la que acabas de crear.
+
 ## Inicio de sesión único (SSO) institucional
 
 ### Qué es
@@ -319,6 +326,8 @@ Tras guardar, la pantalla te muestra los datos que tienes que copiar en la confi
 **Con SAML**, el certificado con el que se comprueban las respuestas de tu sistema de identidad se recoge normalmente solo con pegar la URL o el XML de metadatos, y se mantiene al día en solitario si diste la URL (el sistema la revisa periódicamente). Si tu proveedor rota su certificado y prefieres subir el nuevo tú mismo, o si diste el XML pegado y necesitas actualizarlo a mano, puedes cargar un certificado adicional en cualquier momento — al igual que con la credencial OIDC, puedes tener varios vigentes a la vez para no cortar el acceso durante una rotación. Retirar un certificado **no lo anula en tu propio sistema de identidad**: si quieres invalidarlo del todo, también tienes que hacerlo allí. Si tu sistema de identidad exige que las peticiones de acceso vayan firmadas por nosotros (algunos lo exigen, la mayoría no), activa «Firmar peticiones de acceso» en la configuración del proveedor.
 
 ### Activar, editar y retirar un proveedor
+
+El catálogo de proveedores se muestra paginado **de 25 en 25**. «Editar» y «Eliminar» indican en su nombre a qué proveedor se refieren. Al eliminar, se abre el **mismo diálogo de confirmación** que en el resto de la administración (nombra al proveedor; `Esc` lo cierra sin borrar nada).
 
 Un proveedor no activo no aparece como opción de acceso para nadie. Puedes editarlo en cualquier momento (nombre, dominios admitidos, modo de aprovisionamiento) y retirarlo si tu centro deja de usarlo — al retirarlo, los vínculos ya creados con esa identidad siguen viéndose desde el perfil de cada persona, pero nadie podrá volver a entrar por ese proveedor. **Con SAML hay una particularidad a tener en cuenta**: si retiras un proveedor y luego das de alta otro con el mismo nombre para sustituirlo, la dirección a la que tu sistema de identidad tiene que enviar la respuesta cambia, así que tendrás que volver a configurarlo por su lado — el aviso aparece en la pantalla antes de confirmar el borrado.
 
