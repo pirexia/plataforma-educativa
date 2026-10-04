@@ -422,6 +422,7 @@
       "brandingLink": "Markenelemente: Logo, Favicon und Anmeldehintergrund",
       "errors": {
         "unexpected": "Die Änderungen konnten nicht gespeichert werden. Bitte versuche es erneut.",
+        "notInteger": "Gib eine ganze Zahl ein.",
         "tooManyRequests": "Zu viele Versuche. Warte einen Moment und versuche es erneut.",
         "tooManyRequestsWithSeconds": "Zu viele Versuche. Versuche es in {seconds} s erneut."
       },

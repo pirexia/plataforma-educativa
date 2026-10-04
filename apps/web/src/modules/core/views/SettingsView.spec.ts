@@ -484,6 +484,67 @@ describe('OPEN-CORE-37 = B: grupo security (lo que /administracion/mfa no edita)
     })
   })
 
+  it('issue #324: un valor no entero no se envía y se muestra el error bajo el campo', async () => {
+    const wrapper = await mountView()
+
+    await type('security', 'mfa_grace_period_days', '')
+    await saveGroup(wrapper, 'security')
+
+    expect(updateTenantSettings).not.toHaveBeenCalled()
+    expect(
+      document.getElementById('settings-security-mfa_grace_period_days-error')?.textContent,
+    ).toContain('Introduce un número entero.')
+
+    await type('security', 'mfa_grace_period_days', '1.5')
+    await saveGroup(wrapper, 'security')
+
+    expect(updateTenantSettings).not.toHaveBeenCalled()
+
+    await type('security', 'mfa_grace_period_days', '10')
+    await saveGroup(wrapper, 'security')
+
+    expect(updateTenantSettings).toHaveBeenCalledWith({ security: { mfa_grace_period_days: 10 } })
+  })
+
+  it('issue #323: alternar el correo conserva el resto de métodos que devuelve el servidor', async () => {
+    getTenantSettings.mockResolvedValue(
+      settings({
+        security: {
+          session_timeout_minutes: 30,
+          mfa_allowed_methods: ['totp', 'sms'],
+          mfa_grace_period_days: 7,
+        },
+      }),
+    )
+    let wrapper = await mountView()
+
+    await check('security', 'mfa_allowed_methods', true)
+    await saveGroup(wrapper, 'security')
+
+    expect(updateTenantSettings).toHaveBeenLastCalledWith({
+      security: { mfa_allowed_methods: ['totp', 'sms', 'email'] },
+    })
+
+    wrapper.unmount()
+    getTenantSettings.mockResolvedValue(
+      settings({
+        security: {
+          session_timeout_minutes: 30,
+          mfa_allowed_methods: ['totp', 'email', 'sms'],
+          mfa_grace_period_days: 7,
+        },
+      }),
+    )
+    wrapper = await mountView()
+
+    await check('security', 'mfa_allowed_methods', false)
+    await saveGroup(wrapper, 'security')
+
+    expect(updateTenantSettings).toHaveBeenLastCalledWith({
+      security: { mfa_allowed_methods: ['totp', 'sms'] },
+    })
+  })
+
   it('enlaza a /administracion/mfa solo con algún permiso de esa pantalla (RN-CORE-62)', async () => {
     let wrapper = await mountView()
 

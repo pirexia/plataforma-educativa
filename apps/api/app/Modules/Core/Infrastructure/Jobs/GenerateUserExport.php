@@ -59,6 +59,17 @@ class GenerateUserExport implements ShouldQueue
             return;
         }
 
+        // INV-002, denegar por defecto (issue #280): sin solicitante (borrado entre la
+        // solicitud y la ejecución) no hay ámbito que aplicar, así que no se exporta nada.
+        if ($export->requester === null) {
+            $export->update([
+                'status' => 'fallida',
+                'error_code' => 'core.export.generation_failed',
+            ]);
+
+            return;
+        }
+
         $export->update(['status' => 'generando']);
 
         $query = UserListFilter::apply(
@@ -66,10 +77,8 @@ class GenerateUserExport implements ShouldQueue
             $export->filters ?? [],
         );
 
-        if ($export->requester !== null) {
-            $decision = $permissions->decide($export->requester, 'usuario.exportar');
-            $query = $scopedQuery->constrain($query, 'usuario', $decision, $export->requester);
-        }
+        $decision = $permissions->decide($export->requester, 'usuario.exportar');
+        $query = $scopedQuery->constrain($query, 'usuario', $decision, $export->requester);
 
         // ADR-054 §8.1: orden fijo, independiente del `sort` de la pantalla;
         // `public_id` desempata de forma única.

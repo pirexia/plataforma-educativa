@@ -150,6 +150,8 @@ let initialRegional = { ...regional, active_locales: [] as Locale[] }
 let initialFiscal = { ...fiscal }
 let initialPalette = { ...palette }
 let initialSecurity = { ...security }
+// Lista de métodos tal como la devuelve el servidor (issue #323): solo se alterna `email` sobre ella.
+let initialMfaMethods: string[] = []
 
 function fill(data: TenantSettings): void {
   settings.value = data
@@ -187,6 +189,7 @@ function fill(data: TenantSettings): void {
       mfa_grace_period_days: String(data.security.mfa_grace_period_days),
     })
     initialSecurity = { ...security }
+    initialMfaMethods = [...data.security.mfa_allowed_methods]
   }
 }
 
@@ -374,7 +377,9 @@ function securityPayload(): UpdateTenantSettingsPayload['security'] | null {
   }
 
   if (security.email_method !== initialSecurity.email_method) {
-    payload.mfa_allowed_methods = security.email_method ? ['totp', 'email'] : ['totp']
+    const others = initialMfaMethods.filter((method) => method !== 'email')
+
+    payload.mfa_allowed_methods = security.email_method ? [...others, 'email'] : others
   }
 
   if (security.mfa_grace_period_days.trim() !== initialSecurity.mfa_grace_period_days) {
@@ -382,6 +387,21 @@ function securityPayload(): UpdateTenantSettingsPayload['security'] | null {
   }
 
   return Object.keys(payload).length > 0 ? payload : null
+}
+
+const INTEGER = /^-?\d+$/
+
+/** Issue #324: un valor que no es entero no se envía (`Number('')` daría `0`); el rango lo valida el servidor. */
+function securityClientErrors(): Record<string, string[]> {
+  const found: Record<string, string[]> = {}
+
+  for (const name of ['session_timeout_minutes', 'mfa_grace_period_days'] as const) {
+    if (security[name].trim() !== initialSecurity[name] && !INTEGER.test(security[name].trim())) {
+      found[name] = [t('core.settings.errors.notInteger')]
+    }
+  }
+
+  return found
 }
 
 // -- Cambios y guardado -----------------------------------------------------
@@ -507,6 +527,15 @@ async function save(group: GroupId): Promise<void> {
 
     if (payload) body.branding = payload
   } else {
+    const clientErrors = securityClientErrors()
+
+    if (Object.keys(clientErrors).length > 0) {
+      errors.security = clientErrors
+      await focusFirstError('security')
+
+      return
+    }
+
     const payload = securityPayload()
 
     if (payload) body.security = payload
