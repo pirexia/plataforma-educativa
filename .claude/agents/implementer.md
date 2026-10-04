@@ -2,7 +2,6 @@
 name: implementer
 description: Implementa un módulo o funcionalidad ya especificada. Úsalo solo cuando exista la especificación aprobada en docs/modulos/REQ-XXX/.
 model: sonnet
-isolation: worktree
 skills:
   - aislamiento-tenant
   - permisos-y-roles
