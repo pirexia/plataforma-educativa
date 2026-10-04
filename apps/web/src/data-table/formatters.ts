@@ -7,6 +7,17 @@
 import { computed } from 'vue'
 import { i18n } from '@/i18n'
 
+/** Fecha inválida ⇒ `null` (issue #276): `Intl.DateTimeFormat.format` lanza `RangeError` con `Invalid Date`. */
+function formatValid(format: Intl.DateTimeFormat, value: string | null | undefined): string | null {
+  if (!value) {
+    return null
+  }
+
+  const date = new Date(value)
+
+  return Number.isNaN(date.getTime()) ? null : format.format(date)
+}
+
 export function useDataTableFormatters() {
   const locale = computed(() => i18n.global.locale.value)
 
@@ -20,8 +31,8 @@ export function useDataTableFormatters() {
     formatNumber: (value: number): string => numberFormat.value.format(value),
     /** `null`/vacío ⇒ `null`: la celda pinta el valor vacío común (`dataTable.emptyValue`). */
     formatDate: (value: string | null | undefined): string | null =>
-      value ? dateFormat.value.format(new Date(value)) : null,
+      formatValid(dateFormat.value, value),
     formatDateTime: (value: string | null | undefined): string | null =>
-      value ? dateTimeFormat.value.format(new Date(value)) : null,
+      formatValid(dateTimeFormat.value, value),
   }
 }

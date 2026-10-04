@@ -64,6 +64,8 @@ const props = withDefaults(
     exportConfig?: DataTableExportConfig
     /** Nivel del encabezado de cada tarjeta, según la jerarquía de la vista del consumidor. */
     cardHeadingLevel?: 2 | 3 | 4 | 5
+    /** Issue #326: con una sola página no se pinta el pie (total, «Página 1 de 1» y botones inertes). */
+    hideSinglePageFooter?: boolean
   }>(),
   {
     rowKey: (row: Row) => String((row as { public_id?: string }).public_id),
@@ -75,6 +77,7 @@ const props = withDefaults(
     emptyActionLabel: undefined,
     exportConfig: undefined,
     cardHeadingLevel: 3,
+    hideSinglePageFooter: false,
   },
 )
 
@@ -351,7 +354,13 @@ defineExpose({
     </div>
 
     <DataTablePagination
-      v-if="props.mode === 'page' && pageMeta && pageMeta.total > 0 && !error"
+      v-if="
+        props.mode === 'page' &&
+        pageMeta &&
+        pageMeta.total > 0 &&
+        !error &&
+        !(props.hideSinglePageFooter && pageMeta.last_page <= 1)
+      "
       :current="pageMeta.current_page"
       :last="Math.max(pageMeta.last_page, 1)"
       :total="pageMeta.total"
