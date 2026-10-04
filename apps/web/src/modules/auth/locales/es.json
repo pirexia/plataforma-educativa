@@ -93,7 +93,9 @@
         "tableta": "Tableta",
         "bot": "Bot",
         "desconocido": "Desconocido"
-      }
+      },
+      "empty": "No hay sesiones activas.",
+      "revokeFor": "Cerrar la sesión de {device} iniciada el {date}"
     },
     "mfa": {
       "method": {
@@ -337,7 +339,9 @@
         "empty": "No hay excepciones con este filtro.",
         "revokeAction": "Revocar",
         "confirmRevoke": "¿Revocar esta excepción?",
-        "confirmYes": "Sí, revocar"
+        "confirmYes": "Sí, revocar",
+        "tableCaption": "Excepciones temporales de MFA",
+        "revokeActionFor": "Revocar la excepción de {name}"
       },
       "userPicker": {
         "label": "Buscar usuario",
@@ -363,7 +367,8 @@
         "status": "Estado",
         "provisioningMode": "Aprovisionamiento",
         "secret": "Credencial",
-        "protocol": "Protocolo"
+        "protocol": "Protocolo",
+        "actions": "Acciones"
       },
       "status": {
         "enabled": "Activo",
@@ -527,7 +532,10 @@
           "manual": "Cargado a mano"
         },
         "lastActiveError": "No puedes retirar el último certificado vigente de un proveedor activo: desactívalo antes."
-      }
+      },
+      "tableCaption": "Catálogo de proveedores de identidad",
+      "editFor": "Editar {name}",
+      "deleteFor": "Eliminar {name}"
     },
     "nav": {
       "passwordChange": "Contraseña",

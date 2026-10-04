@@ -324,14 +324,13 @@ const ORIGINAL_EXCEPTIONS = [
  * pantallas al componente (`1.9b` o un paso posterior), se retira su
  * entrada de aquí (el test lo exige: una excepción que ya no incumple
  * falla).
- *   - `MfaExemptionsArea.vue` (importa `@/components/ui/table`).
+ *   - `MfaExemptionsArea.vue` (migrada en 1.9f, retirada).
  *   - `AdminSsoView.vue` (importa `@/components/ui/table`).
  *   - `SessionsView.vue` (`<table>` HTML crudo).
  * Motivo común (decisión del usuario, 2026-09-30): acotar 1.9 a un único
  * consumidor real con paridad estricta.
  */
 const EXCEPTIONS: readonly string[] = [
-  'modules/auth/components/admin/MfaExemptionsArea.vue',
   'modules/auth/views/AdminSsoView.vue',
   'modules/auth/views/SessionsView.vue',
 ]

@@ -72,9 +72,19 @@ export function createMfaExemption(payload: {
 
 /** api.md §D.4 `GET /mfa-exemptions`: las vivas primero, paginado. */
 export function listMfaExemptions(
-  params: { state?: MfaExemptionState[]; user?: PublicId; page?: number } = {},
+  params: {
+    state?: MfaExemptionState[]
+    user?: PublicId
+    page?: number
+    per_page?: number
+  } = {},
 ): Promise<MfaExemptionsPage> {
-  const query = buildQuery({ state: joinList(params.state), user: params.user, page: params.page })
+  const query = buildQuery({
+    state: joinList(params.state),
+    user: params.user,
+    page: params.page,
+    per_page: params.per_page,
+  })
 
   return apiFetch<MfaExemptionsPage>(`/mfa-exemptions${query}`)
 }

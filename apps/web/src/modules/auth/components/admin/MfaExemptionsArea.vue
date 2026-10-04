@@ -15,21 +15,28 @@
  * validación real, como siempre, la hace el servidor (`INV-010`) — si el
  * valor de entorno cambia algún día, este número hay que actualizarlo a
  * mano aquí.
+ *
+ * `REQ-CORE` 1.9f (`docs/modulos/REQ-CORE/funcional.md §14.13.3`,
+ * `RN-CORE-84`/`-94`/`-95`/`-96`): el listado pasa por el componente de
+ * tabla de `src/data-table` con paridad de peticiones (salvo `per_page`,
+ * ahora explícito), de acciones y de mensajes de las acciones. El
+ * formulario de concesión queda fuera de la tabla, sin cambios.
  */
-import { computed, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { ref } from 'vue'
 import { useT } from '@/i18n'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import { useConfirm } from '@/components/useConfirm'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+  DataTable,
+  DataTableEmptyValue,
+  useDataTableFormatters,
+  type DataTableColumn,
+  type DataTableFetcher,
+  type DataTableFilter,
+} from '@/data-table'
 import { createMfaExemption, listMfaExemptions, revokeMfaExemption } from '../../api'
 import { apiErrorDetail, apiErrorStatus, fieldErrors } from '../../composables/formErrors'
 import MfaUserPicker from './MfaUserPicker.vue'
@@ -38,15 +45,8 @@ import type { MfaComplianceUserSummary, MfaExemption, MfaExemptionState } from '
 const MAX_EXEMPTION_DAYS = 90
 
 const t = useT()
-const { locale } = useI18n()
-
-const dateTimeFormatter = computed(
-  () => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }),
-)
-
-function formatDateTime(value: string): string {
-  return dateTimeFormatter.value.format(new Date(value))
-}
+const { formatDateTime } = useDataTableFormatters()
+const confirmation = useConfirm()
 
 function fullName(person: { given_name: string; family_name_1: string }): string {
   return `${person.given_name} ${person.family_name_1}`
@@ -55,50 +55,74 @@ function fullName(person: { given_name: string; family_name_1: string }): string
 // -- Listado ----------------------------------------------------------------
 
 const STATE_FILTERS: MfaExemptionState[] = ['live', 'expired', 'revoked']
-const stateFilter = ref<MfaExemptionState | null>('live')
-const exemptions = ref<MfaExemption[]>([])
-const page = ref(1)
-const lastPage = ref(1)
-const loadingList = ref(false)
-const listError = ref<string | null>(null)
 
-async function loadList(): Promise<void> {
-  loadingList.value = true
-  listError.value = null
+/** `OPEN-CORE-54` = A: «live» es el estado de reposo del filtro; «Todos» no envía `state`. */
+const filters: DataTableFilter[] = [
+  {
+    type: 'enum',
+    id: 'state',
+    labelKey: 'auth.mfaAdmin.exemptions.filterLegend',
+    multiple: false,
+    initial: 'live',
+    options: STATE_FILTERS.map((value) => ({
+      value,
+      labelKey: `auth.mfaAdmin.exemptions.state.${value}`,
+    })),
+  },
+]
 
-  try {
-    const result = await listMfaExemptions({
-      state: stateFilter.value ? [stateFilter.value] : undefined,
-      page: page.value,
-    })
-    exemptions.value = result.data
-    lastPage.value = result.meta.last_page
-  } catch (err) {
-    if (apiErrorStatus(err) === 403) {
-      listError.value = t('auth.mfaAdmin.forbidden')
-      return
-    }
-    listError.value = t('auth.common.unexpectedError')
-  } finally {
-    loadingList.value = false
-  }
-}
+/** Cambiar la `key` vuelve a montar la tabla en su estado inicial: página 1, `state=live` (`OPEN-CORE-56` = A). */
+const tableKey = ref(0)
+const table = ref<{ refresh: () => Promise<void> } | null>(null)
 
-function setFilter(value: MfaExemptionState | null): void {
-  stateFilter.value = value
-  page.value = 1
-  void loadList()
-}
+const columns: DataTableColumn<MfaExemption>[] = [
+  {
+    id: 'user',
+    headerKey: 'auth.mfaAdmin.exemptions.columnUser',
+    value: (row) => `${fullName(row.user)} · ${row.user.email}`,
+    rowHeader: true,
+    hideable: false,
+    card: 'title',
+  },
+  {
+    id: 'state',
+    headerKey: 'auth.mfaAdmin.exemptions.columnState',
+    value: (row) => row.state,
+    card: 'subtitle',
+  },
+  {
+    id: 'reason',
+    headerKey: 'auth.mfaAdmin.exemptions.columnReason',
+    value: (row) => row.reason,
+    card: 'field',
+  },
+  {
+    id: 'expires_at',
+    headerKey: 'auth.mfaAdmin.exemptions.columnExpiresAt',
+    value: (row) => formatDateTime(row.expires_at),
+    card: 'field',
+  },
+  {
+    id: 'granted_by',
+    headerKey: 'auth.mfaAdmin.exemptions.columnGrantedBy',
+    value: (row) => fullName(row.granted_by),
+    card: 'field',
+  },
+  {
+    id: 'actions',
+    headerKey: 'auth.mfaAdmin.exemptions.columnActions',
+    hideable: false,
+    card: 'actions',
+  },
+]
 
-function goToPage(next: number): void {
-  if (next < 1 || next > lastPage.value) {
-    return
-  }
-  page.value = next
-  void loadList()
-}
-
-void loadList()
+/** `GET /mfa-exemptions` (api.md §D.4): `state`, `page` y `per_page`. Los errores los trata el componente (`RN-CORE-95`). */
+const fetchExemptions: DataTableFetcher<MfaExemption> = (query) =>
+  listMfaExemptions({
+    state: query.filters.state ? [query.filters.state as MfaExemptionState] : undefined,
+    page: query.page,
+    per_page: query.per_page,
+  })
 
 // -- Conceder -----------------------------------------------------------
 
@@ -145,9 +169,7 @@ async function submitGrant(): Promise<void> {
     })
 
     grantOpen.value = false
-    page.value = 1
-    stateFilter.value = 'live'
-    await loadList()
+    tableKey.value += 1
   } catch (err) {
     const status = apiErrorStatus(err)
 
@@ -176,34 +198,32 @@ async function submitGrant(): Promise<void> {
 // -- Revocar --------------------------------------------------------------
 
 const revokingId = ref<string | null>(null)
-const revokeSubmitting = ref(false)
 const revokeError = ref<string | null>(null)
 
-function askRevoke(publicId: string): void {
-  revokingId.value = publicId
-  revokeError.value = null
-}
+async function revoke(exemption: MfaExemption): Promise<void> {
+  const name = fullName(exemption.user)
+  const confirmed = await confirmation.ask({
+    title: t('auth.mfaAdmin.exemptions.revokeActionFor', { name }),
+    description: t('auth.mfaAdmin.exemptions.confirmRevoke'),
+    confirmLabel: t('auth.mfaAdmin.exemptions.revokeActionFor', { name }),
+    destructive: true,
+  })
 
-function cancelRevoke(): void {
-  revokingId.value = null
-}
-
-async function confirmRevoke(): Promise<void> {
-  if (!revokingId.value) {
+  if (!confirmed) {
     return
   }
 
-  revokeSubmitting.value = true
+  revokingId.value = exemption.public_id
   revokeError.value = null
 
   try {
-    await revokeMfaExemption(revokingId.value)
-    revokingId.value = null
-    await loadList()
+    await revokeMfaExemption(exemption.public_id)
+    // `RN-CORE-96`: la misma consulta (mismo filtro y página), nunca mutar filas.
+    await table.value?.refresh()
   } catch {
     revokeError.value = t('auth.common.unexpectedError')
   } finally {
-    revokeSubmitting.value = false
+    revokingId.value = null
   }
 }
 </script>
@@ -282,121 +302,46 @@ async function confirmRevoke(): Promise<void> {
       </div>
     </form>
 
-    <fieldset class="flex flex-wrap gap-3">
-      <legend class="mb-1 text-xs font-medium">
-        {{ t('auth.mfaAdmin.exemptions.filterLegend') }}
-      </legend>
-      <label class="flex items-center gap-1.5 text-sm">
-        <input
-          type="radio"
-          name="exemption-state"
-          :checked="stateFilter === null"
-          @change="setFilter(null)"
-        />
-        {{ t('auth.mfaAdmin.exemptions.filterAll') }}
-      </label>
-      <label v-for="value in STATE_FILTERS" :key="value" class="flex items-center gap-1.5 text-sm">
-        <input
-          type="radio"
-          name="exemption-state"
-          :checked="stateFilter === value"
-          @change="setFilter(value)"
-        />
-        {{ t(`auth.mfaAdmin.exemptions.state.${value}`) }}
-      </label>
-    </fieldset>
-
-    <p v-if="listError" role="alert" class="text-destructive text-sm">{{ listError }}</p>
-    <p v-if="loadingList" class="text-muted-foreground text-sm">
-      {{ t('auth.mfaAdmin.exemptions.loading') }}
-    </p>
-
-    <Table v-else>
-      <TableHeader>
-        <TableRow>
-          <TableHead>{{ t('auth.mfaAdmin.exemptions.columnUser') }}</TableHead>
-          <TableHead>{{ t('auth.mfaAdmin.exemptions.columnState') }}</TableHead>
-          <TableHead>{{ t('auth.mfaAdmin.exemptions.columnReason') }}</TableHead>
-          <TableHead>{{ t('auth.mfaAdmin.exemptions.columnExpiresAt') }}</TableHead>
-          <TableHead>{{ t('auth.mfaAdmin.exemptions.columnGrantedBy') }}</TableHead>
-          <TableHead>{{ t('auth.mfaAdmin.exemptions.columnActions') }}</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        <TableRow v-if="exemptions.length === 0">
-          <TableCell colspan="6" class="text-muted-foreground">
-            {{ t('auth.mfaAdmin.exemptions.empty') }}
-          </TableCell>
-        </TableRow>
-        <TableRow v-for="exemption in exemptions" :key="exemption.public_id">
-          <TableCell>{{ fullName(exemption.user) }} · {{ exemption.user.email }}</TableCell>
-          <TableCell>
-            <Badge :variant="exemption.state === 'live' ? 'default' : 'secondary'">
-              {{ t(`auth.mfaAdmin.exemptions.state.${exemption.state}`) }}
-            </Badge>
-          </TableCell>
-          <TableCell class="max-w-xs whitespace-normal">{{ exemption.reason }}</TableCell>
-          <TableCell>{{ formatDateTime(exemption.expires_at) }}</TableCell>
-          <TableCell>{{ fullName(exemption.granted_by) }}</TableCell>
-          <TableCell>
-            <template v-if="exemption.state === 'live'">
-              <Button
-                v-if="revokingId !== exemption.public_id"
-                type="button"
-                variant="outline"
-                size="sm"
-                @click="askRevoke(exemption.public_id)"
-              >
-                {{ t('auth.mfaAdmin.exemptions.revokeAction') }}
-              </Button>
-              <div v-else class="flex flex-col gap-1">
-                <p role="alert" class="text-xs">
-                  {{ t('auth.mfaAdmin.exemptions.confirmRevoke') }}
-                </p>
-                <div class="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    :disabled="revokeSubmitting"
-                    @click="confirmRevoke"
-                  >
-                    {{ t('auth.mfaAdmin.exemptions.confirmYes') }}
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" @click="cancelRevoke">
-                    {{ t('auth.mfaAdmin.exemptions.cancel') }}
-                  </Button>
-                </div>
-              </div>
-            </template>
-            <span v-else class="text-muted-foreground">—</span>
-          </TableCell>
-        </TableRow>
-      </TableBody>
-    </Table>
+    <DataTable
+      :key="tableKey"
+      ref="table"
+      table-id="auth.mfa_exemptions"
+      :caption="t('auth.mfaAdmin.exemptions.tableCaption')"
+      :columns="columns"
+      mode="page"
+      :fetcher="fetchExemptions"
+      :filters="filters"
+      :empty-title="t('auth.mfaAdmin.exemptions.empty')"
+      :card-heading-level="3"
+    >
+      <template #cell-state="{ row }">
+        <Badge :variant="row.state === 'live' ? 'default' : 'secondary'">
+          {{ t(`auth.mfaAdmin.exemptions.state.${row.state}`) }}
+        </Badge>
+      </template>
+      <template #cell-actions="{ row }">
+        <Button
+          v-if="row.state === 'live'"
+          type="button"
+          variant="outline"
+          size="sm"
+          :disabled="revokingId === row.public_id"
+          :aria-label="t('auth.mfaAdmin.exemptions.revokeActionFor', { name: fullName(row.user) })"
+          @click="revoke(row)"
+        >
+          {{ t('auth.mfaAdmin.exemptions.revokeAction') }}
+        </Button>
+        <DataTableEmptyValue v-else />
+      </template>
+    </DataTable>
 
     <p v-if="revokeError" role="alert" class="text-destructive text-sm">{{ revokeError }}</p>
 
-    <div v-if="lastPage > 1" class="flex items-center gap-2 text-sm">
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        :disabled="page <= 1"
-        @click="goToPage(page - 1)"
-      >
-        {{ t('auth.mfaAdmin.compliance.previousPage') }}
-      </Button>
-      <span>{{ t('auth.mfaAdmin.compliance.pageIndicator', { page, lastPage }) }}</span>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        :disabled="page >= lastPage"
-        @click="goToPage(page + 1)"
-      >
-        {{ t('auth.mfaAdmin.compliance.nextPage') }}
-      </Button>
-    </div>
+    <ConfirmDialog
+      :open="confirmation.open.value"
+      :request="confirmation.request.value"
+      @confirm="confirmation.confirm"
+      @cancel="confirmation.cancel"
+    />
   </section>
 </template>

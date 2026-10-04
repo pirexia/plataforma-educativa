@@ -93,7 +93,9 @@
         "tableta": "Tablet",
         "bot": "Bot",
         "desconocido": "Unbekannt"
-      }
+      },
+      "empty": "Es gibt keine aktiven Sitzungen.",
+      "revokeFor": "Sitzung auf {device}, gestartet am {date}, beenden"
     },
     "mfa": {
       "method": {
@@ -337,7 +339,9 @@
         "empty": "Keine Ausnahmen mit diesem Filter.",
         "revokeAction": "Widerrufen",
         "confirmRevoke": "Diese Ausnahme widerrufen?",
-        "confirmYes": "Ja, widerrufen"
+        "confirmYes": "Ja, widerrufen",
+        "tableCaption": "Befristete MFA-Ausnahmen",
+        "revokeActionFor": "Ausnahme von {name} widerrufen"
       },
       "userPicker": {
         "label": "Nutzer suchen",
@@ -363,7 +367,8 @@
         "status": "Status",
         "provisioningMode": "Bereitstellung",
         "secret": "Zugangsdaten",
-        "protocol": "Protokoll"
+        "protocol": "Protokoll",
+        "actions": "Aktionen"
       },
       "status": {
         "enabled": "Aktiv",
@@ -527,7 +532,10 @@
           "manual": "Manuell hochgeladen"
         },
         "lastActiveError": "Du kannst das letzte gültige Zertifikat eines aktiven Anbieters nicht entfernen: deaktiviere ihn zuerst."
-      }
+      },
+      "tableCaption": "Katalog der Identitätsanbieter",
+      "editFor": "{name} bearbeiten",
+      "deleteFor": "{name} löschen"
     },
     "nav": {
       "passwordChange": "Passwort",
