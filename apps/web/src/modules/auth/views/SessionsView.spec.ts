@@ -145,7 +145,7 @@ describe('CA-CORE-294 (RN-CORE-84, RN-CORE-64, REQ-AUTH-005, WCAG 2.4.6): migrac
     expect(new Set(names).size).toBe(2)
 
     for (const name of names) {
-      expect(name).toMatch(/^Cerrar la sesión de Chrome · Windows iniciada el /)
+      expect(name).toMatch(/^Cerrar sesión de Chrome · Windows iniciada el /)
     }
   })
 

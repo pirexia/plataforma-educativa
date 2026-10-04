@@ -95,7 +95,7 @@
         "desconocido": "Desconocido"
       },
       "empty": "No hay sesiones activas.",
-      "revokeFor": "Cerrar la sesión de {device} iniciada el {date}"
+      "revokeFor": "Cerrar sesión de {device} iniciada el {date}"
     },
     "mfa": {
       "method": {

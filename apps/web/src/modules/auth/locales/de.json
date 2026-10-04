@@ -95,7 +95,7 @@
         "desconocido": "Unbekannt"
       },
       "empty": "Es gibt keine aktiven Sitzungen.",
-      "revokeFor": "Sitzung auf {device}, gestartet am {date}, beenden"
+      "revokeFor": "Sitzung beenden: {device}, gestartet am {date}"
     },
     "mfa": {
       "method": {
