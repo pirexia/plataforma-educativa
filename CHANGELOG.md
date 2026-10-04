@@ -6,6 +6,34 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-05 · Batida de issues posterior a `1.9f` (`REQ-CORE-002`, `REQ-CORE-005`)
+
+Tanda de correcciones y cierres del 2026-10-04/05. Sin migración, sin permisos ni dependencias nuevas. Los cambios de código van en la rama `fix/REQ-CORE-ajustes-security-1-9e-1-9b` (los issues #280, #323 y #324 se cierran al mezclarla).
+
+### Corregido
+- **#280 (`INV-002`)**: `GenerateUserExport` y `GenerateAuditLogExport` ya no exportan todo el centro si el solicitante no se resuelve al ejecutarse el trabajo: la exportación queda `fallida` con `core.export.generation_failed`, sin fichero (`CA-CORE-296`/`-297`, `REQ-CORE/funcional.md §14.27`, `operacion.md`). Pest `Core` 209/209.
+- **#323**: `SettingsView` conserva el resto de `mfa_allowed_methods` que devuelve el servidor y solo alterna `email`.
+- **#324**: `SettingsView` no envía enteros inválidos en `session_timeout_minutes` ni `mfa_grace_period_days`; error de cliente `core.settings.errors.notInteger` en es/en/de/fr, el rango sigue en el servidor (`funcional.md §14.9`). Vitest 1043/1043.
+- Mezclados antes ese mismo día: PR #335 (`1.9f`), #336, #337 (cierra #331, #253, #322, #239) y #338 (cierra #276 y #326). #332, corregido en #335.
+
+### Cerrados por ya resueltos
+#90, #259, #327, #300, #302, #303, #293, #321, #248, #251, #263 y #275.
+
+### Reabierto
+- **#62** se cerró por error y está **reabierto**: conserva 4 tareas pendientes reales en su sección «Pendiente». Lección: no cerrar un issue por su título.
+
+### Hallazgos (Baja, abiertos)
+- [#339](https://github.com/pirexia/plataforma-educativa/issues/339): `ValidateUserImport` pasa un actor nulo al validador de filas.
+- [#340](https://github.com/pirexia/plataforma-educativa/issues/340): una exportación termina `completada` con 0 filas si el solicitante pierde `*.exportar` antes de ejecutarse el trabajo.
+
+### Revisión
+`security-reviewer`: sin Crítico/Alto. Pint, Larastan, eslint, `vue-tsc` y `lint:i18n` limpios. Versiones: `README.md` 2.6.14, `PLAN-IMPLEMENTACION.md` 2.3.5, `ARCHITECTURE.md` 2.3.4.
+
+### Documentación
+`memory.md` archiva el detalle de 1.9b-1.9f en `docs/historial/1.9b-1.9f-interfaz-core.md`. `PLAN-IMPLEMENTACION.md` y `memory.md` dejan preparado `1.5b`: sin especificación de interfaz todavía, empieza con `spec-writer`.
+
+---
+
 ## 2026-10-04 · `1.9f` · migración de las tres tablas de `REQ-AUTH` (`REQ-CORE-002`)
 
 Implementa el sub-paso `1.9f` (`funcional.md §14.13`, `RN-CORE-84`, `-94`, `-95`, `-96`; `OPEN-CORE-54`, `-55` y `-56` = A, A, A, decisión del usuario 2026-10-04). Solo SPA: sin migración, sin cambios de servidor, sin permisos ni dependencias nuevas. **Cierra la serie 1.9b-1.9f de `REQ-CORE`** (interfaz completa).
