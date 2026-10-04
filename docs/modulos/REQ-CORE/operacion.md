@@ -347,6 +347,7 @@ Ninguna nueva. Conviene mirar, con las de §7: profundidad de `core-exports` (ah
 |---------|----------------|
 | La importación se queda en «Subido» y acaba en «Comprobar de nuevo» | Ningún *worker* de `core-imports` (#128). Esperado sin él |
 | La exportación de usuarios no termina | Ningún *worker* de `core-exports` (#128) |
+| Una exportación (usuarios o auditoría) queda `fallida` con `core.export.generation_failed` y sin fichero | Entre la solicitud y la ejecución del trabajo el solicitante dejó de existir (borrado lógico): el trabajo no exporta nada sin ámbito (`INV-002`, `CA-CORE-296`/`-297`). Se solicita de nuevo con un usuario vigente |
 | Una exportación fallida espera 10 min sin mensaje | API sin S4 desplegado (`409` para `fallida`, `funcional.md §14.16`) |
 | `403` al consultar el estado de una exportación de usuarios | API sin S3 desplegado (ruta con `auditoria.exportar` fijo), o el solicitante perdió `usuario.exportar` |
 | Los mensajes de incidencias de importación salen en inglés | `ValidateUserImport` sin S9 (#285), o lote validado antes de desplegarlo: el mensaje se guarda al validar y no se retraduce |
