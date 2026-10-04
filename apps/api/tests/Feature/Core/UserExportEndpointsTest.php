@@ -639,7 +639,8 @@ test('CA-CORE-296 y CA-CORE-297: si el solicitante ya no existe al ejecutarse el
 
             expect($export->status)->toBe('fallida')
                 ->and($export->error_code)->toBe('core.export.generation_failed')
-                ->and($export->object_key)->toBeNull();
+                ->and($export->object_key)->toBeNull()
+                ->and(Storage::disk('local')->exists("tenants/{$tenant->public_id}/exports/{$export->public_id}.csv"))->toBeFalse();
         });
 
         // Restaura al solicitante para la siguiente vuelta.
