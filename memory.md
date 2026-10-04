@@ -159,7 +159,6 @@ Nada en curso salvo la rama `fix/REQ-CORE-ajustes-security-1-9e-1-9b` (documenta
 | [#330](https://github.com/pirexia/plataforma-educativa/issues/330) | (1.9f) El foco cae en `body` tras retirar una fila (WCAG 2.4.3) en tablas con acción por fila. | Baja |
 | [#333](https://github.com/pirexia/plataforma-educativa/issues/333) | (1.9f) `SessionsView`: `revokingId` único y `totalSessions` desfasado con revocaciones concurrentes. | Baja |
 | [#334](https://github.com/pirexia/plataforma-educativa/issues/334) | (1.9f) Doble navegación a `login` en `401` en `SessionsView` y `AdminSsoView`. | Baja |
-| [#280](https://github.com/pirexia/plataforma-educativa/issues/280), [#323](https://github.com/pirexia/plataforma-educativa/issues/323), [#324](https://github.com/pirexia/plataforma-educativa/issues/324) | Corregidos en la rama `fix/REQ-CORE-ajustes-security-1-9e-1-9b` (exportación sin solicitante falla; `SettingsView` de seguridad). **Siguen abiertos hasta mezclar la rama.** | Baja |
 
 ## Siguiente paso concreto
 
