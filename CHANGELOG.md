@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-05 · Cierre de #62 (`SESSION_LIFETIME`)
+
+`apps/api/.env.example` y `apps/api/.env` pasan de `SESSION_LIFETIME=120` a `480` (`RN-AUTH-30`, `SessionEnvironmentGuard`), de modo que un entorno nuevo ya no tumba el contenedor `api` al arrancar. Se retira de `compose.yaml` el parche temporal. Verificado recreando la pila (`down` + `up -d`, sin `-v`): los cuatro contenedores `healthy`, `GET /api/health` 200 y `SESSION_LIFETIME=480` dentro de `api`. `SYSADMIN.md` actualizado.
+
+---
+
 ## 2026-10-05 · Correcciones #339 y #340 (`REQ-CORE-003`, `REQ-CORE-005`)
 
 `ValidateUserImport` falla el lote (`fallido`) si quien lo subió ya no resuelve (#339, `CA-CORE-299`) y `GenerateUserExport`/`GenerateAuditLogExport` fallan (`fallida`) si el solicitante perdió el permiso `*.exportar` antes de ejecutarse el trabajo (#340, `CA-CORE-298`), ambos por `INV-002`. Sin migración ni cambios de contrato. Pest `Core` 211/211. Detalle en `funcional.md §14.27`.
