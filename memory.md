@@ -7,7 +7,7 @@
 
 ## Estado actual
 
-**Fase**: 0 cerrada en la práctica (lo pendiente de `0.10`-`0.12` es negocio, no código — ver "Bloqueantes"). **Fase 1, bloque A COMPLETO Y MEZCLADO: 1.1 a 1.6e**. **Bloque B: `1.7`, `1.8`, `1.9` y la serie `1.9b`-`1.9f` CERRADOS Y MEZCLADOS (2026-09-23 a 2026-10-04): la interfaz de `REQ-CORE` está completa** y la lista de excepciones de `RN-CORE-53` queda vacía. Tanda de issues del 2026-10-04/05 hecha (ver `CHANGELOG.md`): rama `fix/REQ-CORE-ajustes-security-1-9e-1-9b` con #280/#323/#324, pendiente de PR y merge. **Siguiente del plan: `1.5b` (`REQ-PERM`, editor de roles y vista previa de permisos efectivos), en sesión nueva (`CLAUDE.md §3`); empieza con `spec-writer`: ver "Siguiente paso concreto".**
+**Fase**: 0 cerrada en la práctica (lo pendiente de `0.10`-`0.12` es negocio, no código — ver "Bloqueantes"). **Fase 1, bloque A COMPLETO Y MEZCLADO: 1.1 a 1.6e**. **Bloque B: `1.7`, `1.8`, `1.9` y la serie `1.9b`-`1.9f` CERRADOS Y MEZCLADOS (2026-09-23 a 2026-10-04): la interfaz de `REQ-CORE` está completa** y la lista de excepciones de `RN-CORE-53` queda vacía. Tanda de issues del 2026-10-04/05 hecha y mezclada (ver `CHANGELOG.md`). **Paso activo: `1.5b` (`REQ-PERM`, editor de roles y vista previa de permisos efectivos), rama `feature/REQ-PERM-ui-roles`; especificación APROBADA 2026-10-05, implementación pendiente (ver "Trabajo en curso").**
 
 **`1.6e · REQ-BO-005`: motor de *feature flags* — CERRADO Y MEZCLADO** (2026-09-22), y **sesión de mantenimiento posterior (2026-09-22) — CERRADA Y MEZCLADA** (7 issues de deuda técnica). Detalle completo, triage de issues incluido, en `docs/historial/1.6e-motor-feature-flags.md`.
 
@@ -69,7 +69,7 @@
 ---
 ## Trabajo en curso
 
-Nada en curso salvo la rama `fix/REQ-CORE-ajustes-security-1-9e-1-9b` (documentación de la tanda del 2026-10-05, sin PR todavía). Un puntero por paso cerrado; el detalle completo de `1.7` a `1.9f` está en `docs/historial/1.9b-1.9f-interfaz-core.md` y en `CHANGELOG.md`:
+**`1.5b` (nota viva, 2026-10-05):** especificación de interfaz aprobada y commiteada en `feature/REQ-PERM-ui-roles` (`REQ-PERM/funcional.md §20`); decisiones del usuario: #170 estricto, `OPEN-PERM-08` = A (aprueba modificar `RN-CORE-53`, §20.12), resto de OPEN según recomendación, `RN-PERM-47` incluida (issue #348), alcance con `apps/api`. Sin código todavía. **Siguiente: `implementer` con `§20` al pie de la letra**, luego `test-writer`, `security-reviewer`, `doc-reviewer`; notas pendientes en `REQ-CORE` listadas en el plan. Un puntero por paso cerrado; el detalle completo de `1.7` a `1.9f` está en `docs/historial/1.9b-1.9f-interfaz-core.md` y en `CHANGELOG.md`:
 
 - **`1.7` Design system** — cerrado y mezclado 2026-09-23 (PR #256, `ADR-052`, `docs/design-system.md`). Baja abiertas #254, #255.
 - **`1.8` Layout, navegación y panel (`REQ-CORE-008`)** — 2026-09-24 (PR #264, `ADR-053`). #261 (punto de extensión del panel) diferido a propósito.
