@@ -98,6 +98,7 @@ watch(
       :empty-title="t('core.modules.empty.title')"
       :empty-text="t('core.modules.empty.text')"
       :card-heading-level="2"
+      hide-single-page-footer
     />
   </div>
 </template>

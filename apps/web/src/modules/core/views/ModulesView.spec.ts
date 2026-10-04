@@ -122,17 +122,11 @@ describe('CA-CORE-267 (RN-CORE-87, ADR-045, OPEN-CORE-45 = A): módulos contrata
     expect(updateModuleSubscriptionSettings).not.toHaveBeenCalled()
   })
 
-  it('una respuesta sin meta se pinta como una sola página: «Página 1 de 1» y sin nada que paginar', async () => {
+  it('una respuesta sin meta se pinta como una sola página, sin paginador', async () => {
     const wrapper = await mountView()
 
-    // El componente de 1.9 pinta siempre su pie en modo `page` (misma técnica que RN-CORE-74): con una
-    // única página queda «Página 1 de 1» y los cuatro botones de navegación deshabilitados.
-    expect(wrapper.get('[data-slot="data-table-page-indicator"]').text()).toBe('Página 1 de 1')
-    expect(
-      wrapper
-        .findAll('nav button[aria-label]')
-        .map((button) => button.attributes('disabled') !== undefined),
-    ).toEqual([true, true, true, true])
+    expect(wrapper.find('[data-slot="data-table-page-indicator"]').exists()).toBe(false)
+    expect(wrapper.find('nav button[aria-label]').exists()).toBe(false)
     expect(wrapper.find('input[type="search"]').exists()).toBe(false)
     expect(wrapper.find('thead button').exists()).toBe(false)
   })
