@@ -422,6 +422,7 @@
       "brandingLink": "Éléments de marque : logo, favicon et fond de connexion",
       "errors": {
         "unexpected": "Les modifications n'ont pas pu être enregistrées. Veuillez réessayer.",
+        "notInteger": "Saisissez un nombre entier.",
         "tooManyRequests": "Trop de tentatives. Patientez un instant puis réessayez.",
         "tooManyRequestsWithSeconds": "Trop de tentatives. Réessayez dans {seconds} s."
       },

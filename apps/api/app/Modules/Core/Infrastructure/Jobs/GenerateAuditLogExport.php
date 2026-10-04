@@ -55,6 +55,17 @@ class GenerateAuditLogExport implements ShouldQueue
             return;
         }
 
+        // INV-002, denegar por defecto (issue #280): sin solicitante (borrado entre la
+        // solicitud y la ejecución) no hay ámbito que aplicar, así que no se exporta nada.
+        if ($export->requester === null) {
+            $export->update([
+                'status' => 'fallida',
+                'error_code' => 'core.export.generation_failed',
+            ]);
+
+            return;
+        }
+
         $export->update(['status' => 'generando']);
 
         $filters = $export->filters ?? [];
@@ -62,10 +73,8 @@ class GenerateAuditLogExport implements ShouldQueue
         // listado (ADR-054 §8.2). El ámbito se aplica después, aparte.
         $query = AuditLogFilter::apply(AuditLog::query()->with('actor.person'), $filters);
 
-        if ($export->requester !== null) {
-            $decision = $permissions->decide($export->requester, 'auditoria.exportar');
-            $query = $scopedQuery->constrain($query, 'auditoria', $decision, $export->requester);
-        }
+        $decision = $permissions->decide($export->requester, 'auditoria.exportar');
+        $query = $scopedQuery->constrain($query, 'auditoria', $decision, $export->requester);
 
         $objectKey = "tenants/{$this->tenantPublicId}/exports/{$export->public_id}.csv";
         $disk = Storage::disk(config('filesystems.default'));

@@ -422,6 +422,7 @@
       "brandingLink": "Brand assets: logo, favicon and sign-in background",
       "errors": {
         "unexpected": "The changes could not be saved. Please try again.",
+        "notInteger": "Enter a whole number.",
         "tooManyRequests": "Too many attempts. Wait a moment and try again.",
         "tooManyRequestsWithSeconds": "Too many attempts. Try again in {seconds} s."
       },

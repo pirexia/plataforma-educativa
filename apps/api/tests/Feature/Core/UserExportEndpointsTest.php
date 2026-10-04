@@ -10,6 +10,8 @@ use App\Modules\Core\Domain\Models\UserInvitation;
 use App\Modules\Core\Http\Controllers\DataExportsController;
 use App\Modules\Core\Infrastructure\Jobs\GenerateAuditLogExport;
 use App\Modules\Core\Infrastructure\Jobs\GenerateUserExport;
+use App\Support\Authorization\PermissionResolver;
+use App\Support\Authorization\ScopedQuery;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Cache;
@@ -604,4 +606,44 @@ test('CA-CORE-231 (S7): GET /users?locale=a,b devuelve la unión y un idioma inv
     resetSessionState();
     // Un solo valor sigue funcionando como antes.
     expect(test()->actingAs($admin)->getJson(coreApiUrl($tenant->slug, '/users?locale=en'))->assertOk()->json('data.*.email'))->toBe(['en@example.com']);
+});
+
+// CA-CORE-296, CA-CORE-297 (issue #280, INV-002): sin solicitante, la exportación falla y no exporta todo el tenant
+test('CA-CORE-296 y CA-CORE-297: si el solicitante ya no existe al ejecutarse el trabajo, la exportación queda fallida y sin fichero', function (): void {
+    [$tenant, $admin] = provisionCoreTenant('uexp-296');
+
+    foreach ([['/users/exports', [], GenerateUserExport::class], ['/audit-logs/exports', ['format' => 'csv'], GenerateAuditLogExport::class]] as [$path, $body, $jobClass]) {
+        Queue::fake();
+
+        $id = test()->actingAs($admin)
+            ->postJson(coreApiUrl($tenant->slug, $path), $body)
+            ->assertStatus(202)
+            ->json('public_id');
+
+        resetSessionState();
+
+        app(TenantContext::class)->runFor($tenant->id, function () use ($id, $tenant, $jobClass): void {
+            $export = DataExport::where('public_id', $id)->firstOrFail();
+            $requesterId = $export->requested_by;
+
+            // El solicitante deja de resolverse (borrado lógico) entre la solicitud y la ejecución.
+            User::query()->whereKey($requesterId)->firstOrFail()->delete();
+            expect($export->fresh()->requester)->toBeNull();
+
+            (new $jobClass($export->id, $tenant->public_id))->handle(
+                app(PermissionResolver::class),
+                app(ScopedQuery::class),
+            );
+
+            $export = $export->fresh();
+
+            expect($export->status)->toBe('fallida')
+                ->and($export->error_code)->toBe('core.export.generation_failed')
+                ->and($export->object_key)->toBeNull()
+                ->and(Storage::disk('local')->exists("tenants/{$tenant->public_id}/exports/{$export->public_id}.csv"))->toBeFalse();
+        });
+
+        // Restaura al solicitante para la siguiente vuelta.
+        app(TenantContext::class)->runFor($tenant->id, fn () => User::withTrashed()->whereKey($admin->id)->restore());
+    }
 });

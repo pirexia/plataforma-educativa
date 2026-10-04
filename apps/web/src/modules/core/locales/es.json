@@ -422,6 +422,7 @@
       "brandingLink": "Activos de marca: logotipo, favicon y fondo de acceso",
       "errors": {
         "unexpected": "No se han podido guardar los cambios. Inténtalo de nuevo.",
+        "notInteger": "Introduce un número entero.",
         "tooManyRequests": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
         "tooManyRequestsWithSeconds": "Demasiados intentos. Vuelve a intentarlo dentro de {seconds} s."
       },
