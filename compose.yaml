@@ -82,22 +82,10 @@ services:
       # puerto de Vite. Requiere "127.0.0.1 demo.plataforma.test" en el
       # hosts de Windows (documentado en SYSADMIN.md §2c).
       CORS_ALLOWED_ORIGINS: "http://demo.plataforma.test:5173"
-      # REQ-AUTH (1.2), RN-AUTH-30: SessionEnvironmentGuard exige
-      # SESSION_LIFETIME >= AUTH_SESSION_TIMEOUT_MAX_MINUTES (480 por
-      # defecto) en TODOS los entornos. apps/api/.env traía 120 (valor de
-      # partida del starter kit), lo que tumbaba la aplicación entera al
-      # arrancar cualquier proveedor — incidencia real de esta sesión,
-      # corregida aquí como parche temporal porque .env no es editable
-      # desde esta sesión (bloqueo de permisos). TODO: mover este valor a
-      # apps/api/.env y retirarlo de aquí — `environment:` en este fichero
-      # es solo para wiring de infraestructura (ver DB_HOST/REDIS_HOST/
-      # TENANCY_BASE_DOMAIN de arriba), no para configuración de aplicación.
-      SESSION_LIFETIME: "480"
       # REQ-AUTH-002 (1.4), operacion.md §E.2.1, issue #140: AUTH_OAUTH_DRIVER
       # ya no hereda `fake` de un valor por defecto implícito (el defecto del
       # código es ahora `none`, seguro en cualquier entorno) — el entorno de
-      # desarrollo lo declara a mano. Mismo patrón de parche temporal que
-      # SESSION_LIFETIME arriba: pertenece a apps/api/.env, no editable desde
+      # desarrollo lo declara a mano. Parche temporal: pertenece a apps/api/.env, no editable desde
       # esta sesión (bloqueo de permisos). TODO: mover cuando sea editable.
       AUTH_OAUTH_DRIVER: "fake"
       # REQ-AUTH-004 (1.4b), operacion.md §F.2.1, §F.10: sin dominio
@@ -141,7 +129,7 @@ services:
     env_file: apps/web/.env
     environment:
       # Issue #71 (2026-08-25), mismo patrón de parche temporal que
-      # SESSION_LIFETIME en el servicio `api`: apps/web/.env fija
+      # AUTH_OAUTH_DRIVER en el servicio `api`: apps/web/.env fija
       # VITE_API_URL a un host plano ("localhost"), pero
       # TenantHost::slugFrom() exige que el host de la petición termine en
       # TENANCY_BASE_DOMAIN (plataforma.test) — sin esto, cualquier login
