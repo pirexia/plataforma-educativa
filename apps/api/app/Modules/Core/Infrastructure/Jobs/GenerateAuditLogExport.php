@@ -74,6 +74,18 @@ class GenerateAuditLogExport implements ShouldQueue
         $query = AuditLogFilter::apply(AuditLog::query()->with('actor.person'), $filters);
 
         $decision = $permissions->decide($export->requester, 'auditoria.exportar');
+
+        // INV-002 (issue #340): el permiso se puede revocar entre la solicitud y la
+        // ejecución; sin él la exportación falla en vez de completarse con 0 filas.
+        if (! $decision->permitted) {
+            $export->update([
+                'status' => 'fallida',
+                'error_code' => 'core.export.generation_failed',
+            ]);
+
+            return;
+        }
+
         $query = $scopedQuery->constrain($query, 'auditoria', $decision, $export->requester);
 
         $objectKey = "tenants/{$this->tenantPublicId}/exports/{$export->public_id}.csv";

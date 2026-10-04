@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-05 · Correcciones #339 y #340 (`REQ-CORE-003`, `REQ-CORE-005`)
+
+`ValidateUserImport` falla el lote (`fallido`) si quien lo subió ya no resuelve (#339, `CA-CORE-299`) y `GenerateUserExport`/`GenerateAuditLogExport` fallan (`fallida`) si el solicitante perdió el permiso `*.exportar` antes de ejecutarse el trabajo (#340, `CA-CORE-298`), ambos por `INV-002`. Sin migración ni cambios de contrato. Pest `Core` 211/211. Detalle en `funcional.md §14.27`.
+
+---
+
 ## 2026-10-05 · Batida de issues posterior a `1.9f` (`REQ-CORE-002`, `REQ-CORE-005`)
 
 Tanda de correcciones y cierres del 2026-10-04/05. Sin migración, sin permisos ni dependencias nuevas. Los cambios de código van en la rama `fix/REQ-CORE-ajustes-security-1-9e-1-9b` (los issues #280, #323 y #324 se cierran al mezclarla).

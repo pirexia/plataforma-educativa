@@ -78,6 +78,18 @@ class GenerateUserExport implements ShouldQueue
         );
 
         $decision = $permissions->decide($export->requester, 'usuario.exportar');
+
+        // INV-002 (issue #340): el permiso se puede revocar entre la solicitud y la
+        // ejecución; sin él la exportación falla en vez de completarse con 0 filas.
+        if (! $decision->permitted) {
+            $export->update([
+                'status' => 'fallida',
+                'error_code' => 'core.export.generation_failed',
+            ]);
+
+            return;
+        }
+
         $query = $scopedQuery->constrain($query, 'usuario', $decision, $export->requester);
 
         // ADR-054 §8.1: orden fijo, independiente del `sort` de la pantalla;

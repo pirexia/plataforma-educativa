@@ -337,3 +337,25 @@ test('CA-CORE-287 (RPERM-013, #314): una fila con un rol que el actor no puede c
     expect(uicShow($tenant, $secretaria, $importId)['created_count'])->toBe(1)
         ->and(app(TenantContext::class)->runFor($tenant->id, fn () => User::query()->where('email', 'prohibido@example.com')->exists()))->toBeFalse();
 });
+
+// CA-CORE-299 (issue #339, INV-002): sin quien subió el lote, la validación falla en cerrado
+test('CA-CORE-299: si quien subió el lote ya no resuelve al validarse, el lote queda fallido y no se valida con comprobaciones de menos', function (): void {
+    [$tenant, $admin] = provisionCoreTenant('uic-299');
+
+    $importId = uicUpload($tenant, $admin, uicCsv([['uno@example.com', 'Uno']]));
+
+    app(TenantContext::class)->runFor($tenant->id, function () use ($tenant, $importId, $admin): void {
+        $import = UserImport::query()->where('public_id', $importId)->firstOrFail();
+        $import->update(['status' => 'subido', 'error_count' => 0, 'row_count' => null]);
+
+        User::query()->whereKey($admin->id)->firstOrFail()->delete();
+
+        app()->call([new ValidateUserImport($import->id, $tenant->public_id), 'handle']);
+
+        $import = $import->fresh();
+
+        expect($import->status)->toBe('fallido')
+            ->and($import->validated_at)->not->toBeNull()
+            ->and($import->row_count)->toBeNull();
+    });
+});

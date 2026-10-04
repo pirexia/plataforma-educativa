@@ -159,13 +159,10 @@ Nada en curso salvo la rama `fix/REQ-CORE-ajustes-security-1-9e-1-9b` (documenta
 | [#330](https://github.com/pirexia/plataforma-educativa/issues/330) | (1.9f) El foco cae en `body` tras retirar una fila (WCAG 2.4.3) en tablas con acción por fila. | Baja |
 | [#333](https://github.com/pirexia/plataforma-educativa/issues/333) | (1.9f) `SessionsView`: `revokingId` único y `totalSessions` desfasado con revocaciones concurrentes. | Baja |
 | [#334](https://github.com/pirexia/plataforma-educativa/issues/334) | (1.9f) Doble navegación a `login` en `401` en `SessionsView` y `AdminSsoView`. | Baja |
-| [#339](https://github.com/pirexia/plataforma-educativa/issues/339) | (#280, `security-reviewer`) `ValidateUserImport` pasa un actor nulo al validador de filas. | Baja |
-| [#340](https://github.com/pirexia/plataforma-educativa/issues/340) | (#280, `security-reviewer`) Exportación `completada` con 0 filas si el solicitante pierde `*.exportar` antes de ejecutarse el trabajo. | Baja |
-| [#280](https://github.com/pirexia/plataforma-educativa/issues/280), [#323](https://github.com/pirexia/plataforma-educativa/issues/323), [#324](https://github.com/pirexia/plataforma-educativa/issues/324) | Corregidos en la rama `fix/REQ-CORE-ajustes-security-1-9e-1-9b` (exportación sin solicitante falla; `SettingsView` de seguridad). **Siguen abiertos hasta mezclar la rama.** | Baja |
 
 ## Siguiente paso concreto
 
-**`1.5b` · `REQ-PERM`: editor de roles y vista previa de permisos efectivos** [SONNET, tras especificación en OPUS], en sesión nueva (`CLAUDE.md §3`). La rama `fix/REQ-CORE-ajustes-security-1-9e-1-9b` (PR [#341](https://github.com/pirexia/plataforma-educativa/pull/341), cierra #280, #323, #324) se mezcla antes de cerrar esta sesión; si `develop` no la contiene al arrancar, mezclarla primero.
+**`1.5b` · `REQ-PERM`: editor de roles y vista previa de permisos efectivos** [SONNET, tras especificación en OPUS], en sesión nueva (`CLAUDE.md §3`). Mezclados antes de empezar: PR [#341](https://github.com/pirexia/plataforma-educativa/pull/341) (cierra #280, #323, #324) y el PR de #339/#340 (`CA-CORE-298`/`-299`); #62 tratado en esa misma tanda (ver «Problemas abiertos»).
 
 1. **Arranque**: leer `CLAUDE.md`, este fichero y el paso `1.5b` de `PLAN-IMPLEMENTACION.md`; comprobar modelo activo y rama.
 2. **El paso NO tiene especificación de interfaz** (verificado el 2026-10-05: `REQ-PERM/{funcional,api,permisos}.md` cubren el núcleo y la API; `REQ-CORE/funcional.md §14.8` deja `core-roles` en solo lectura, `RN-CORE-75`, `OPEN-CORE-36` = A). **Empezar con `spec-writer` (Opus)**: añadir la especificación de UI (en `REQ-PERM/funcional.md` o, como `REQ-CORE §14`, en sección propia), con pantallas, rutas, `RN`/`CA`, y **decisiones abiertas numeradas para el usuario**. No lanzar `implementer` hasta que la apruebe.
