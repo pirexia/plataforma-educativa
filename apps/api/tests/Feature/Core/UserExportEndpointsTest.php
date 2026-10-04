@@ -647,3 +647,43 @@ test('CA-CORE-296 y CA-CORE-297: si el solicitante ya no existe al ejecutarse el
         app(TenantContext::class)->runFor($tenant->id, fn () => User::withTrashed()->whereKey($admin->id)->restore());
     }
 });
+
+// CA-CORE-298 (issue #340, INV-002): sin el permiso al ejecutarse el trabajo, la exportación falla y no completa con 0 filas
+test('CA-CORE-298: si el solicitante pierde usuario.exportar o auditoria.exportar antes de ejecutarse el trabajo, la exportación queda fallida y sin fichero', function (): void {
+    [$tenant, $admin] = provisionCoreTenant('uexp-298');
+
+    foreach ([
+        ['usuario.exportar', '/users/exports', [], GenerateUserExport::class],
+        ['auditoria.exportar', '/audit-logs/exports', ['format' => 'csv'], GenerateAuditLogExport::class],
+    ] as $i => [$permission, $path, $body, $jobClass]) {
+        $requester = ue_userWith($tenant, $admin, "pierde-permiso-{$i}@example.com", [$permission]);
+
+        Queue::fake();
+
+        $id = test()->actingAs($requester)
+            ->postJson(coreApiUrl($tenant->slug, $path), $body)
+            ->assertStatus(202)
+            ->json('public_id');
+
+        resetSessionState();
+
+        app(TenantContext::class)->runFor($tenant->id, function () use ($id, $tenant, $jobClass, $requester): void {
+            // El permiso se revoca entre la solicitud y la ejecución.
+            $requester->roles()->detach();
+
+            $export = DataExport::where('public_id', $id)->firstOrFail();
+
+            (new $jobClass($export->id, $tenant->public_id))->handle(
+                app(PermissionResolver::class),
+                app(ScopedQuery::class),
+            );
+
+            $export = $export->fresh();
+
+            expect($export->status)->toBe('fallida')
+                ->and($export->error_code)->toBe('core.export.generation_failed')
+                ->and($export->object_key)->toBeNull()
+                ->and(Storage::disk('local')->exists("tenants/{$tenant->public_id}/exports/{$export->public_id}.csv"))->toBeFalse();
+        });
+    }
+});

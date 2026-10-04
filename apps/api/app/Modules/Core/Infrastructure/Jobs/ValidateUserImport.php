@@ -124,6 +124,16 @@ class ValidateUserImport implements ShouldQueue
         }
 
         $actor = $import->created_by !== null ? User::query()->find($import->created_by) : null;
+
+        // INV-002 (issue #339): sin quien subió el lote no se puede comprobar RPERM-013
+        // sobre los roles de cada fila, así que no se valida con comprobaciones de menos.
+        // Mismo criterio que `ExecuteUserImport`.
+        if ($actor === null) {
+            $import->update(['status' => 'fallido', 'validated_at' => now()]);
+
+            return;
+        }
+
         $rolesByCode = Role::query()->get()->keyBy('code');
         $seenEmails = [];
         $seenDocuments = [];
