@@ -25,10 +25,6 @@
         "completado": "Completed"
       }
     },
-    "module": {
-      "enabled": "Enabled",
-      "disabled": "Disabled"
-    },
     "nav": {
       "home": "Home",
       "users": "Users",

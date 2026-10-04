@@ -132,8 +132,7 @@ async function remove(provider: IdentityProviderSummary) {
     // `RN-CORE-96`: se vuelve a pedir la página; nunca se mutan las filas del componente.
     await table.value?.refresh()
   } catch {
-    // Paridad (§14.13.4): el texto de `loadError` se conserva aunque hable de «cargar».
-    actionError.value = t('auth.ssoAdmin.loadError')
+    actionError.value = t('auth.ssoAdmin.deleteError')
   } finally {
     deletingId.value = null
   }

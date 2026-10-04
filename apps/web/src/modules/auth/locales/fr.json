@@ -359,6 +359,7 @@
       "intro": "Configurez les systèmes d'identité institutionnels (Entra ID, Google Workspace, etc.) que votre personnel peut utiliser pour se connecter avec les identifiants de l'établissement.",
       "loading": "Chargement du catalogue…",
       "loadError": "Le catalogue des fournisseurs n'a pas pu être chargé.",
+      "deleteError": "Le fournisseur d'identité n'a pas pu être supprimé.",
       "empty": "Cet établissement n'a encore aucun fournisseur d'identité catalogué.",
       "create": "Ajouter un fournisseur",
       "columns": {

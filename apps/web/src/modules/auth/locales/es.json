@@ -359,6 +359,7 @@
       "intro": "Configura los sistemas de identidad institucionales (Entra ID, Google Workspace, etc.) con los que tu personal puede entrar con las credenciales del centro.",
       "loading": "Cargando el catálogo…",
       "loadError": "No se ha podido cargar el catálogo de proveedores.",
+      "deleteError": "No se ha podido eliminar el proveedor de identidad.",
       "empty": "Este centro todavía no tiene ningún proveedor de identidad catalogado.",
       "create": "Añadir proveedor",
       "columns": {

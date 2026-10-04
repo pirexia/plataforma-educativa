@@ -359,6 +359,7 @@
       "intro": "Configure the institutional identity systems (Entra ID, Google Workspace, etc.) your staff can use to sign in with the school's credentials.",
       "loading": "Loading the catalogue…",
       "loadError": "The provider catalogue could not be loaded.",
+      "deleteError": "The identity provider could not be deleted.",
       "empty": "This school does not have any identity provider catalogued yet.",
       "create": "Add provider",
       "columns": {
