@@ -19,7 +19,7 @@ volumes:
 
 services:
   postgres:
-    image: docker.io/library/postgres:17
+    image: docker.io/library/postgres:18
     container_name: plataforma-postgres
     restart: unless-stopped
     env_file: .env
