@@ -27,7 +27,7 @@ Implementa el sub-paso `1.9f` (`funcional.md §14.13`, `RN-CORE-84`, `-94`, `-95
 - **Resueltos para estas vistas**: #90 (guion literal en `SessionsView`) y #259 (`useI18n` directo en `SessionsView`). Avance en #120 (`MfaExemptionsArea.spec.ts` cubre el área de `CA-AUTH-176` en el cliente).
 
 ### Revisión
-`security-reviewer`: sin Crítico/Alto/Medio. `doc-reviewer`: 3 Media de documentación desincronizada, corregidas. `db-reviewer` no aplica (sin migración).
+`security-reviewer`: sin Crítico/Alto/Medio. `doc-reviewer`: 3 Media de documentación desincronizada, corregidas. `db-reviewer` no aplica (sin migración). Versiones: `README.md` 2.6.13, `ARCHITECTURE.md` 2.3.4, `PLAN-IMPLEMENTACION.md` 2.3.4.
 
 ### Verificado
 Vitest **1037/1037** y Playwright **28/28** (verificados por la sesión orquestadora).
