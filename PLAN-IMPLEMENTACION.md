@@ -1,6 +1,6 @@
 # PLAN-IMPLEMENTACION.md
 
-> **Versión 2.3.3** · 2026-10-01
+> **Versión 2.3.4** · 2026-10-04
 
 > Plan de ejecución dimensionado a **sesiones de ~5 horas** (límite del plan Pro). Cada paso cabe en una o dos sesiones y termina con el repositorio en estado compilable, tests en verde y `memory.md` actualizado.
 >
@@ -177,7 +177,7 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 - [x] **1.9c · `REQ-CORE`: importación de usuarios** [SONNET] · *depende de 1.9b* — `§14.6`; prerrequisitos resueltos el 2026-10-02: `OPEN-CORE-38` = A (#285) y catálogo de tipos de documento aprobado (`§14.6.4`, #292; `dni`/`nie`/`pasaporte`). Issues de hallazgos #308-#310.
 - [x] **1.9d · `REQ-CORE`: auditoría y roles (solo lectura)** [SONNET] · *depende de 1.9b* — `§14.7`/`§14.8`; `OPEN-CORE-33` a `-36` resueltas el 2026-10-03 (C, B, A, A); implementado 2026-10-03 (PR pendiente de mezcla); revisión sin Crítico/Alto, Baja #318/#319.
 - [x] **1.9e · `REQ-CORE`: configuración del centro, marca, módulos contratados y perfil propio** [SONNET] — `§14.9`/`§14.10`; `OPEN-CORE-31` = B (módulos y perfil entran); decidir antes `OPEN-CORE-37` y `OPEN-CORE-45` (qué filas muestra la pantalla de módulos contratados).
-- [ ] **1.9f · `REQ-CORE`: migración de `MfaExemptionsArea`, `AdminSsoView` y `SessionsView`** [SONNET] · *depende de las ampliaciones del componente (`OPEN-CORE-40` = A)* — `§14.13`. División decidida por el usuario el 2026-10-01 (`OPEN-CORE-30`): cinco sub-pasos, cada uno con su revisión y cierre (`CLAUDE.md §3`).
+- [x] **1.9f · `REQ-CORE`: migración de `MfaExemptionsArea`, `AdminSsoView` y `SessionsView`** [SONNET] · *depende de las ampliaciones del componente (`OPEN-CORE-40` = A)* — `§14.13`; `OPEN-CORE-54`/`-55`/`-56` = A (2026-10-04); implementado 2026-10-04 (PR pendiente de mezcla); revisión sin Crítico/Alto, Baja #330-#334; cierra la serie 1.9b-1.9f. División decidida por el usuario el 2026-10-01 (`OPEN-CORE-30`): cinco sub-pasos, cada uno con su revisión y cierre (`CLAUDE.md §3`).
 - [ ] **1.5b · `REQ-PERM`: editor de roles y vista previa de permisos efectivos** [SONNET]
   `RPERM-005`/`-006`/`-009` como interfaz: alta y clonación de roles, matriz de concesión recurso × acción × ámbito, pantalla de permisos efectivos por usuario. Deliberadamente situado aquí y no justo tras `1.5` (`ADR-044 §6`, decisión del usuario 2026-09-04): construir la matriz de permisos —la tabla más compleja del producto— antes del sistema de diseño (`1.7`) y de TanStack Table (`1.9`) garantiza rehacerla. Consume únicamente la API que `1.5` ya expone por `INV-006`.
 - [ ] **1.7b · Estandarización de módulos: tests de arquitectura y generador** [OPUS + SONNET] · *candidato, no comprometido*
