@@ -2860,4 +2860,8 @@ Tres correcciones de severidad Baja detectadas en revisiones de 1.9b/1.9e. Sin m
 
 **Cobertura real**: `CA-CORE-296` y `-297` en `apps/api/tests/Feature/Core/UserExportEndpointsTest.php` (un solo test que recorre ambos trabajos y comprueba estado, código de error, ausencia de `object_key` y de fichero). Pest `Core` 209/209 y Vitest 1043/1043 verificados al cierre de la corrección.
 
-**Hallazgos de la revisión de seguridad (Baja, abiertos)**: [#339](https://github.com/pirexia/plataforma-educativa/issues/339) (`ValidateUserImport` pasa un actor nulo al validador de filas) y [#340](https://github.com/pirexia/plataforma-educativa/issues/340) (una exportación termina `completada` con 0 filas si el solicitante pierde `*.exportar` antes de ejecutarse el trabajo).
+**Hallazgos de la revisión de seguridad (Baja), corregidos el 2026-10-05 (rama `fix/REQ-CORE-339-340-62-pendientes`)**: [#339](https://github.com/pirexia/plataforma-educativa/issues/339) y [#340](https://github.com/pirexia/plataforma-educativa/issues/340).
+
+- **`CA-CORE-298`** [`INV-002`, issue #340] · **Dado** una exportación de usuarios o de auditoría cuyo solicitante existe pero ya no tiene `usuario.exportar`/`auditoria.exportar` cuando se ejecuta el trabajo, **entonces** queda `fallida` con `core.export.generation_failed`, sin `object_key` y sin fichero (antes, `completada` con 0 filas).
+- **`CA-CORE-299`** [`INV-002`, issue #339] · **Dado** un lote de importación cuyo autor ya no se resuelve cuando se ejecuta `ValidateUserImport`, **entonces** el lote queda `fallido` con `validated_at` y no se valida ninguna fila (antes se validaba sin la comprobación `RPERM-013`). Mismo criterio que `ExecuteUserImport`.
+- **Cobertura real**: `CA-CORE-298` en `UserExportEndpointsTest.php` y `CA-CORE-299` en `UserImportCatalogTest.php`; ambos fallan sin la corrección. Pest `Core` 211/211, Pint y Larastan limpios.
