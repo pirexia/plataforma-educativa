@@ -25,10 +25,6 @@
         "completado": "Terminé"
       }
     },
-    "module": {
-      "enabled": "Activé",
-      "disabled": "Désactivé"
-    },
     "nav": {
       "home": "Accueil",
       "users": "Utilisateurs",

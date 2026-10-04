@@ -27,7 +27,7 @@ const backgroundStyle = computed<CSSProperties>(() => {
   }
 
   return {
-    backgroundImage: `url(${branding.value.login_background_url})`,
+    backgroundImage: `url(${JSON.stringify(branding.value.login_background_url)})`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
   }

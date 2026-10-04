@@ -359,6 +359,7 @@
       "intro": "Konfiguriere die institutionellen Identitätssysteme (Entra ID, Google Workspace usw.), mit denen sich dein Personal mit den Zugangsdaten der Schule anmelden kann.",
       "loading": "Katalog wird geladen…",
       "loadError": "Der Anbieterkatalog konnte nicht geladen werden.",
+      "deleteError": "Der Identitätsanbieter konnte nicht gelöscht werden.",
       "empty": "Diese Schule hat noch keinen Identitätsanbieter katalogisiert.",
       "create": "Anbieter hinzufügen",
       "columns": {

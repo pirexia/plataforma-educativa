@@ -256,7 +256,7 @@ describe('AdminSsoView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Entra ID del centro')
-    expect(wrapper.text()).toContain('No se ha podido cargar el catálogo de proveedores.')
+    expect(wrapper.text()).toContain('No se ha podido eliminar el proveedor de identidad.')
     expect(
       document.body.querySelector('p[role="alert"]')?.textContent?.includes('No se ha podido'),
     ).toBe(true)
