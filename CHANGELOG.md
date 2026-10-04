@@ -30,7 +30,7 @@ Implementa el sub-paso `1.9f` (`funcional.md §14.13`, `RN-CORE-84`, `-94`, `-95
 `security-reviewer`: sin Crítico/Alto/Medio. `doc-reviewer`: 3 Media de documentación desincronizada, corregidas. `db-reviewer` no aplica (sin migración).
 
 ### Verificado
-Vitest **1037/1037** y Playwright **28/28** (reejecutados por la sesión orquestadora). `eslint`, `lint:i18n` y `vue-tsc` limpios.
+Vitest **1037/1037** y Playwright **28/28** (verificados por la sesión orquestadora).
 
 ---
 
