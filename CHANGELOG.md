@@ -6,6 +6,34 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-04 · `1.9f` · migración de las tres tablas de `REQ-AUTH` (`REQ-CORE-002`)
+
+Implementa el sub-paso `1.9f` (`funcional.md §14.13`, `RN-CORE-84`, `-94`, `-95`, `-96`; `OPEN-CORE-54`, `-55` y `-56` = A, A, A, decisión del usuario 2026-10-04). Solo SPA: sin migración, sin cambios de servidor, sin permisos ni dependencias nuevas. **Cierra la serie 1.9b-1.9f de `REQ-CORE`** (interfaz completa).
+
+### Añadido
+- **`apps/web/src/data-table`**: filtro `enum` de selección única (`multiple: false`) con valor `initial` de reposo (`RN-CORE-94`, ampliación aditiva de `DataTableEnumFilter`): grupo de opciones exclusivas con «Todos», disparador que reutiliza `dataTable.filters.booleanTrigger`; con `initial`, «sin filtrar» es el valor de reposo (`OPEN-CORE-54`); con `urlState` se ignora `initial` y se avisa por consola (`OPEN-CORE-55`).
+- **Migración de las tres vistas** de `REQ-AUTH` al componente de tabla, con lo que la lista de excepciones de `RN-CORE-53` queda **vacía** (`CA-CORE-255`): `MfaExemptionsArea` (filtro de estado, `live` por defecto), `AdminSsoView` y `SessionsView` (tarjetas en pantalla estrecha, tabla en ancha). Acción por fila tras éxito con `refresh()` (`RN-CORE-96`); errores de carga del componente (`RN-CORE-95`), salvo el `401`, que sigue navegando a `login`.
+- **Diálogo de confirmación común** (`ConfirmDialog`/`useConfirm`, `RN-CORE-64`) en revocar excepción, eliminar proveedor SSO y cerrar sesiones; nombra al elemento afectado y se cierra con `Esc`.
+- Tras conceder una excepción, la tabla vuelve a «página 1, `live`» **re-montando con `key`**, sin `reset()` (`OPEN-CORE-56`).
+- Textos en es/en/de/fr (`auth.sessions.*`, `auth.mfaAdmin.exemptions.*`, `auth.ssoAdmin.*`) y guardián `migration19f.i18n.spec.ts`.
+- Documentación: `REQ-CORE/funcional.md §14.13` (spec propia de 1.9f, cobertura real), manual `admin.md`, `docs/i18n.md`, `docs/design-system.md`, `ARCHITECTURE.md`.
+
+### Cambiado
+- `AdminSsoView` pagina el catálogo de proveedores **de 25 en 25** (antes cargaba todo de una vez).
+
+### Hallazgos
+- **`§14.13.7` (Baja, abiertos)**: #330 (el foco cae en `body` tras retirar una fila, WCAG 2.4.3) y #331 (un fallo de `DELETE` muestra `auth.ssoAdmin.loadError`).
+- **Revisión independiente (Baja, abiertos)**: #332 (nombre accesible del botón de revocar sin el texto visible en es/de, WCAG 2.5.3), #333 (`revokingId` único y `totalSessions` desfasado con revocaciones concurrentes) y #334 (doble navegación a `login` en `401`).
+- **Resueltos para estas vistas**: #90 (guion literal en `SessionsView`) y #259 (`useI18n` directo en `SessionsView`). Avance en #120 (`MfaExemptionsArea.spec.ts` cubre el área de `CA-AUTH-176` en el cliente).
+
+### Revisión
+`security-reviewer`: sin Crítico/Alto/Medio. `doc-reviewer`: 3 Media de documentación desincronizada, corregidas. `db-reviewer` no aplica (sin migración).
+
+### Verificado
+Vitest **1037/1037** y Playwright **28/28** (reejecutados por la sesión orquestadora). `eslint`, `lint:i18n` y `vue-tsc` limpios.
+
+---
+
 ## 2026-10-03 · `1.9e` · configuración del centro, marca, módulos y perfil propio (`REQ-CORE-002`)
 
 Implementa el sub-paso `1.9e` (`funcional.md §14.9`, `§14.10`, `§14.10b`, `§14.10c`, `§14.26`; `OPEN-CORE-37` = B, `-45` = A). Solo SPA: sin migración, sin cambios de servidor, sin permisos ni dependencias nuevas.
