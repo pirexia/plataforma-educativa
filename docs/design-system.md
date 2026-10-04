@@ -633,6 +633,8 @@ Vendorizado **sin la CLI** (mismo motivo y mismo procedimiento que §12.3: el JS
 
 `ConfirmDialog` **no usa** `AlertDialogAction`: el de Reka UI es también un cierre del diálogo y su `update:open(false)` competiría con la confirmación; el botón de confirmar es un `Button` normal y solo `useConfirm` decide. El foco entra en el diálogo al abrirlo (Reka lo lleva al botón «Cancelar», el patrón recomendado para una acción destructiva), queda atrapado y vuelve al control de origen al cerrar (`CA-CORE-220`, `ConfirmDialog.spec.ts`, `e2e/core-users.spec.ts`).
 
+**Consumidores** (inventario): `core-users` e `InvitationsView` (1.9b) y, desde 1.9f (`RN-CORE-64`, `RN-CORE-84`), `MfaExemptionsArea` (revocar excepción), `AdminSsoView` (eliminar proveedor) y `SessionsView` (cerrar una sesión y «Cerrar todas las demás sesiones»), todos con `ConfirmDialog` + `useConfirm` y con el nombre del elemento afectado en el diálogo. Ampliación de 1.9f en `src/data-table` (no es un componente de `ui/`): el filtro `enum` admite `multiple: false` (grupo de opciones exclusivas `DropdownMenuRadioGroup` con «Todos») y `initial` de reposo (`RN-CORE-94`, `funcional.md §14.13.2`).
+
 Además, 1.9b usa casillas nativas (`<input type="checkbox">`) con `accent-primary-on-background` (nunca `accent-primary`, `RN-DS-16`) en el filtro de dos estados de la tabla y en los selectores de roles: no se vendoriza `checkbox`, que sigue sin consumidor que lo justifique.
 
 ---
