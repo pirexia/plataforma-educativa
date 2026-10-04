@@ -326,13 +326,11 @@ const ORIGINAL_EXCEPTIONS = [
  * falla).
  *   - `MfaExemptionsArea.vue` (migrada en 1.9f, retirada).
  *   - `AdminSsoView.vue` (migrada en 1.9f, retirada).
- *   - `SessionsView.vue` (`<table>` HTML crudo).
+ *   - `SessionsView.vue` (migrada en 1.9f, retirada). La lista queda vacía (`CA-CORE-255`).
  * Motivo común (decisión del usuario, 2026-09-30): acotar 1.9 a un único
  * consumidor real con paridad estricta.
  */
-const EXCEPTIONS: readonly string[] = [
-  'modules/auth/views/SessionsView.vue',
-]
+const EXCEPTIONS: readonly string[] = []
 
 const RAW_TABLE_RE = /<table(?=[\s>/])/
 
@@ -475,6 +473,10 @@ describe('CA-CORE-200 (RN-CORE-53, OPEN-CORE-29): barrido de src/', () => {
     })
 
     expect(problems).toEqual([])
+  })
+
+  it('CA-CORE-255 (1.9f): la lista de excepciones de RN-CORE-53 está vacía', () => {
+    expect(EXCEPTIONS).toEqual([])
   })
 
   it('MfaComplianceArea.vue (migrada en 1.9) no está en la lista', () => {

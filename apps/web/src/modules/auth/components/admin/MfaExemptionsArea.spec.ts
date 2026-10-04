@@ -54,7 +54,7 @@ const wrappers: VueWrapper[] = []
 const PickerStub = {
   emits: ['select', 'clear'],
   template:
-    '<button data-pick type="button" @click="$emit(\'select\', { public_id: \'u-new\', given_name: \'Nuria\', family_name_1: \'Gil\', family_name_2: null, email: \'n@example.com\' })">pick</button>',
+    "<button data-pick type=\"button\" @click=\"$emit('select', { public_id: 'u-new', given_name: 'Nuria', family_name_1: 'Gil', family_name_2: null, email: 'n@example.com' })\">pick</button>",
 }
 
 function mountArea() {
@@ -117,7 +117,7 @@ beforeEach(() => {
   })
   listResponse = () =>
     pageOf([exemption('e1', 'Ana', 'López', 'live'), exemption('e2', 'Luis', 'Pérez', 'expired')])
-  apiFetchMock.mockImplementation(async (path: string, init?: { method?: string }) => {
+  apiFetchMock.mockImplementation(async (_path: string, init?: { method?: string }) => {
     if (init?.method === 'DELETE' || init?.method === 'POST') {
       return undefined
     }

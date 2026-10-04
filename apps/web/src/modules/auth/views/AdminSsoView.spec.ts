@@ -82,7 +82,9 @@ function cancelButton(): HTMLButtonElement {
   ) as HTMLButtonElement
 }
 
-async function openDelete(wrapper: { findAll: (s: string) => { text: () => string; trigger: (e: string) => Promise<void> }[] }) {
+async function openDelete(wrapper: {
+  findAll: (s: string) => { text: () => string; trigger: (e: string) => Promise<void> }[]
+}) {
   const deleteButton = wrapper.findAll('button').find((b) => b.text() === 'Eliminar')
   await deleteButton?.trigger('click')
   await flushPromises()
@@ -152,7 +154,8 @@ describe('AdminSsoView', () => {
   })
 
   it('CA-AUTH-268: una credencial a menos de 30 días de caducar se muestra con el aviso y la fecha', async () => {
-    getIdentityProvidersCatalog.mockResolvedValue(page([
+    getIdentityProvidersCatalog.mockResolvedValue(
+      page([
         provider({
           secret_status: {
             has_active: true,
@@ -160,7 +163,8 @@ describe('AdminSsoView', () => {
             expiring_soon: true,
           },
         }),
-      ]))
+      ]),
+    )
     const { wrapper } = await mountView()
 
     expect(wrapper.text()).toContain('Caduca pronto')
@@ -168,11 +172,13 @@ describe('AdminSsoView', () => {
   })
 
   it('sin credencial vigente se avisa aunque no haya ninguna a punto de caducar', async () => {
-    getIdentityProvidersCatalog.mockResolvedValue(page([
+    getIdentityProvidersCatalog.mockResolvedValue(
+      page([
         provider({
           secret_status: { has_active: false, active_expires_at: null, expiring_soon: false },
         }),
-      ]))
+      ]),
+    )
     const { wrapper } = await mountView()
 
     expect(wrapper.text()).toContain('Sin credencial vigente')
@@ -189,10 +195,12 @@ describe('AdminSsoView', () => {
   })
 
   it('un proveedor no activo se distingue del activo en la misma tabla', async () => {
-    getIdentityProvidersCatalog.mockResolvedValue(page([
+    getIdentityProvidersCatalog.mockResolvedValue(
+      page([
         provider({ public_id: '01J-A', display_name: 'Activo', is_enabled: true }),
         provider({ public_id: '01J-B', display_name: 'Inactivo', is_enabled: false }),
-      ]))
+      ]),
+    )
     const { wrapper } = await mountView()
 
     expect(wrapper.text()).toContain('Activo')
@@ -360,12 +368,14 @@ describe('AdminSsoView — proveedor SAML', () => {
   })
 
   it('un proveedor SAML sin ningún certificado vigente se distingue del que sí tiene', async () => {
-    getIdentityProvidersCatalog.mockResolvedValue(page([
+    getIdentityProvidersCatalog.mockResolvedValue(
+      page([
         samlProvider({
           public_id: '01J-SAML-A',
           certificate_status: { vigentes: 0, proximo_vencimiento: null },
         }),
-      ]))
+      ]),
+    )
     const { wrapper } = await mountView()
 
     expect(wrapper.text()).toContain('Sin certificado de firma vigente')

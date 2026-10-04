@@ -101,6 +101,10 @@ function asEnum(filter: DataTableFilter): DataTableEnumFilter | null {
   return filter.type === 'enum' ? filter : null
 }
 
+function asSingle(filter: DataTableFilter): DataTableEnumFilter | null {
+  return isSingleEnum(filter) ? filter : null
+}
+
 function asRange(filter: DataTableFilter): DataTableDateRangeFilter | null {
   return filter.type === 'dateRange' ? filter : null
 }
@@ -221,7 +225,7 @@ const itemClass = 'min-h-8 [@media(any-pointer:coarse)]:min-h-11'
     </div>
 
     <template v-for="filter in props.filters" :key="filter.id">
-      <DropdownMenu v-if="isSingleEnum(filter)">
+      <DropdownMenu v-if="asSingle(filter)">
         <DropdownMenuTrigger as-child>
           <Button type="button" variant="outline">
             <ListFilter aria-hidden="true" />
