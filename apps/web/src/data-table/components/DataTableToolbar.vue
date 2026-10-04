@@ -24,7 +24,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { selectedEnumValues, withEnumValue, withParam, type FilterValues } from '../filterState'
+import {
+  isSingleEnum,
+  selectedEnumValues,
+  withEnumValue,
+  withParam,
+  type FilterValues,
+} from '../filterState'
 import type {
   DataTableBooleanFilter,
   DataTableColumn,
@@ -126,6 +132,29 @@ function rangeInvalid(filter: DataTableDateRangeFilter): boolean {
   return Boolean(from && to && from > to)
 }
 
+/** `RN-CORE-94`: valor elegido de un `enum` de selección única; uno no declarado cuenta como «Todos». */
+function singleValue(filter: DataTableEnumFilter): string {
+  const current = props.filterValues[filter.id]
+
+  return current !== undefined && filter.options.some((option) => option.value === current)
+    ? current
+    : ''
+}
+
+function singleLabel(filter: DataTableEnumFilter): string {
+  const current = singleValue(filter)
+  const option = filter.options.find((candidate) => candidate.value === current)
+
+  return t('dataTable.filters.booleanTrigger', {
+    label: t(filter.labelKey),
+    value: option ? optionLabel(option) : t('dataTable.filters.all'),
+  })
+}
+
+function setSingle(filter: DataTableEnumFilter, value: string): void {
+  emit('update:filterValues', withParam(props.filterValues, filter.id, value))
+}
+
 function setBoolean(filter: DataTableBooleanFilter, value: string): void {
   emit('update:filterValues', withParam(props.filterValues, filter.id, value))
 }
@@ -192,7 +221,35 @@ const itemClass = 'min-h-8 [@media(any-pointer:coarse)]:min-h-11'
     </div>
 
     <template v-for="filter in props.filters" :key="filter.id">
-      <DropdownMenu v-if="asEnum(filter)">
+      <DropdownMenu v-if="isSingleEnum(filter)">
+        <DropdownMenuTrigger as-child>
+          <Button type="button" variant="outline">
+            <ListFilter aria-hidden="true" />
+            {{ singleLabel(filter as DataTableEnumFilter) }}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuLabel>{{ t(filter.labelKey) }}</DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            :model-value="singleValue(filter as DataTableEnumFilter)"
+            @update:model-value="(value) => setSingle(filter as DataTableEnumFilter, String(value))"
+          >
+            <DropdownMenuRadioItem value="" :class="itemClass">{{
+              t('dataTable.filters.all')
+            }}</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem
+              v-for="option in (filter as DataTableEnumFilter).options"
+              :key="option.value"
+              :value="option.value"
+              :class="itemClass"
+            >
+              {{ optionLabel(option) }}
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <DropdownMenu v-else-if="asEnum(filter)">
         <DropdownMenuTrigger as-child>
           <Button type="button" variant="outline">
             <ListFilter aria-hidden="true" />

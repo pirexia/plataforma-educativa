@@ -50,6 +50,20 @@ export interface DataTableEnumFilter {
    * clave de traducción del cliente. Tiene prioridad sobre `labelKey`.
    */
   options: { value: string; labelKey?: string; label?: string }[]
+  /**
+   * Ampliación aditiva de 1.9f (`OPEN-CORE-40` = A, `RN-CORE-94`): `false` =
+   * **selección única** (grupo de opciones exclusivas con «Todos» delante).
+   * `true` o ausente: el filtro de 1.9, sin cambios (casillas, valores por comas).
+   */
+  multiple?: boolean
+  /**
+   * Solo con `multiple: false` y sin `urlState`: valor con el que arranca el
+   * filtro y que es su **estado de reposo** (`OPEN-CORE-54` = A): cuenta como
+   * activo solo si difiere de él y «Limpiar filtros» vuelve a él. Debe ser el
+   * `value` de una de `options`; si no, o si se declara con otro `multiple` o
+   * con `urlState` (`OPEN-CORE-55` = A), se ignora y se avisa por consola.
+   */
+  initial?: string
 }
 
 export interface DataTableDateRangeFilter {

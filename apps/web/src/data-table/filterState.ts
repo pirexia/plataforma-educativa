@@ -64,3 +64,38 @@ export function withEnumValue(
 
   return withParam(values, filter.id, [...selected].sort((a, b) => rank(a) - rank(b)).join(','))
 }
+
+/** `RN-CORE-94`: filtro `enum` de selección única (`multiple: false`). */
+export function isSingleEnum(
+  filter: DataTableFilter,
+): filter is Extract<DataTableFilter, { type: 'enum' }> {
+  return filter.type === 'enum' && filter.multiple === false
+}
+
+/**
+ * `RN-CORE-94`: un filtro de selección única nunca lleva dos valores ni uno
+ * no declarado, tampoco si llegan por otra vía (la URL): se descartan.
+ */
+export function sanitizeSingleEnums(
+  values: FilterValues,
+  filters: readonly DataTableFilter[],
+): FilterValues {
+  let next = values
+
+  for (const filter of filters) {
+    if (!isSingleEnum(filter)) {
+      continue
+    }
+
+    const value = values[filter.id]
+
+    if (
+      value !== undefined &&
+      (value.includes(',') || !filter.options.some((option) => option.value === value))
+    ) {
+      next = withParam(next, filter.id, undefined)
+    }
+  }
+
+  return next
+}

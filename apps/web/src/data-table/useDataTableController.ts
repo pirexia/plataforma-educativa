@@ -15,7 +15,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ApiError } from '@/api/client'
 import { resolveErrorState, type ShellErrorState } from '@/layouts/errorState'
 import { DEFAULT_PER_PAGE, MAX_CURSOR_ROWS, SEARCH_DEBOUNCE_MS } from './constants'
-import { type FilterValues } from './filterState'
+import { isSingleEnum, sanitizeSingleEnums, type FilterValues } from './filterState'
 import {
   defaultUrlState,
   mergeIntoRouteQuery,
@@ -111,7 +111,56 @@ export function useDataTableController<Row>(options: ControllerOptions<Row>) {
 
   // --- Estado de la consulta ---------------------------------------------
 
-  const initial = urlEnabled && route ? parseUrlState(route.query, urlOptions()) : defaultUrlState()
+  /**
+   * `RN-CORE-94`/`OPEN-CORE-54`/`-55`: valor de reposo de los `enum` de
+   * selección única con `initial` válido. Con `urlState` (declarado, aunque
+   * otra tabla ya tenga la URL de la ruta) o con `multiple` distinto de
+   * `false`, o con un valor no declarado, `initial` se ignora.
+   */
+  function restFilters(): FilterValues {
+    const rest: FilterValues = {}
+
+    if (options.urlState) {
+      return rest
+    }
+
+    for (const filter of options.filters()) {
+      if (
+        isSingleEnum(filter) &&
+        filter.initial !== undefined &&
+        filter.options.some((option) => option.value === filter.initial)
+      ) {
+        rest[filter.id] = filter.initial
+      }
+    }
+
+    return rest
+  }
+
+  for (const filter of options.filters()) {
+    if (filter.type !== 'enum' || filter.initial === undefined) {
+      continue
+    }
+
+    if (options.urlState) {
+      console.warn(
+        `data-table: \`initial\` del filtro «${filter.id}» ignorado: no se admite con \`urlState\` (OPEN-CORE-55).`,
+      )
+    } else if (filter.multiple !== false) {
+      console.warn(
+        `data-table: \`initial\` del filtro «${filter.id}» ignorado: solo se admite con \`multiple: false\` (RN-CORE-94).`,
+      )
+    } else if (!filter.options.some((option) => option.value === filter.initial)) {
+      console.warn(
+        `data-table: \`initial\` del filtro «${filter.id}» ignorado: no es el valor de ninguna opción (RN-CORE-94).`,
+      )
+    }
+  }
+
+  const initial =
+    urlEnabled && route
+      ? parseUrlState(route.query, urlOptions())
+      : { ...defaultUrlState(), filters: restFilters() }
 
   const page = ref(initial.page)
   const perPage = ref(initial.perPage || DEFAULT_PER_PAGE)
@@ -139,12 +188,14 @@ export function useDataTableController<Row>(options: ControllerOptions<Row>) {
   let searchTimer: ReturnType<typeof setTimeout> | null = null
   let overflowRetried = false
 
-  const hasActiveFilters = computed(
-    () =>
-      Object.keys(filters.value).length > 0 ||
-      searchText.value.trim() !== '' ||
-      appliedQ.value !== '',
-  )
+  /** `OPEN-CORE-54` = A: un filtro con valor de reposo cuenta como activo solo si difiere de él. */
+  const hasActiveFilters = computed(() => {
+    const rest = restFilters()
+    const ids = new Set([...Object.keys(filters.value), ...Object.keys(rest)])
+    const filtered = [...ids].some((id) => (filters.value[id] ?? '') !== (rest[id] ?? ''))
+
+    return filtered || searchText.value.trim() !== '' || appliedQ.value !== ''
+  })
   /** `RN-CORE-57`: hay una búsqueda escrita o aplicada. */
   const searchActive = computed(() => searchText.value.trim() !== '' || appliedQ.value !== '')
   const capReached = computed(
@@ -152,7 +203,9 @@ export function useDataTableController<Row>(options: ControllerOptions<Row>) {
   )
 
   function currentQuery(cursor?: string): DataTableQuery {
-    const query: DataTableQuery = { filters: { ...filters.value } }
+    const query: DataTableQuery = {
+      filters: { ...sanitizeSingleEnums(filters.value, options.filters()) },
+    }
 
     if (options.mode === 'page') {
       query.page = page.value
@@ -444,7 +497,7 @@ export function useDataTableController<Row>(options: ControllerOptions<Row>) {
     clearSearchTimer()
     searchText.value = ''
     appliedQ.value = ''
-    filters.value = {}
+    filters.value = restFilters()
     restart()
     pushToUrl()
   }
