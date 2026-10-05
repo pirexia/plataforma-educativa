@@ -1205,7 +1205,7 @@ describe('estados de carga y error (§12.6)', () => {
     expect(wrapper.text()).toContain('No hay permisos en el catálogo')
   })
 
-  it('«Guardar» se deshabilita mientras se guarda y una segunda pulsación no repite la petición', async () => {
+  it('mientras se guarda, «Guardar» sigue enfocable (aria-busy) y una segunda pulsación no repite la petición', async () => {
     let finish: (value: unknown) => void = () => undefined
 
     replaceRolePermissions.mockReturnValue(new Promise((resolve) => (finish = resolve)))
@@ -1218,11 +1218,19 @@ describe('estados de carga y error (§12.6)', () => {
     buttonIn(alertDialog()!, 'Guardar concesiones de «Coordinación pastoral»').click()
     await flush()
 
-    expect(saveButton(wrapper).attributes('disabled')).toBeDefined()
+    // Un botón deshabilitado pierde el foco: «Guardar» no se deshabilita (CA-PERM-112, foco devuelto).
+    expect(saveButton(wrapper).attributes('disabled')).toBeUndefined()
+    expect(saveButton(wrapper).attributes('aria-busy')).toBe('true')
+
+    await saveButton(wrapper).trigger('click')
+    await flush()
+
+    expect(alertDialog()).toBeNull()
 
     finish(role())
     await flush()
 
     expect(replaceRolePermissions).toHaveBeenCalledTimes(1)
+    expect(saveButton(wrapper).attributes('aria-busy')).toBeUndefined()
   })
 })

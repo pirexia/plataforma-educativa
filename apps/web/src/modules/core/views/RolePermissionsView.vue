@@ -899,7 +899,17 @@ const selectClass =
           <p aria-live="polite" class="text-sm" data-slot="role-editor-changes">
             {{ t('core.roles.editor.changes', { count: dirtyCount }, dirtyCount) }}
           </p>
-          <Button type="button" :disabled="dirtyCount === 0 || saving" @click="save">
+          <!--
+            Sin `disabled` mientras se guarda: un botón deshabilitado pierde el foco y, al
+            cerrar la confirmación con `Esc`, el foco no podría volver a «Guardar» (`CA-PERM-112`).
+            `save()` ignora las pulsaciones mientras hay una operación en curso.
+          -->
+          <Button
+            type="button"
+            :disabled="dirtyCount === 0"
+            :aria-busy="saving ? 'true' : undefined"
+            @click="save"
+          >
             {{ t('core.roles.editor.save') }}
           </Button>
         </div>
