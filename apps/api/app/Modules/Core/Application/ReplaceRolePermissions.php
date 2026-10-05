@@ -40,26 +40,30 @@ final class ReplaceRolePermissions
         $desired = $this->validateEntries($input, $errors);
         $errors->throwIfAny();
 
-        /** @var Collection<string, PermissionRole> $existingByCode */
-        $existingByCode = $role !== null
-            ? $role->permissionGrants()->get()->keyBy('permission_code')
-            : collect();
-
-        $this->assertOwnsChanges($actor, $existingByCode, $desired);
-
         if ($role === null) {
+            // Orden de api.md §5.1: la autorización (7) va antes que la
+            // existencia del rol (8). Sin rol no hay filas que proteger: se
+            // evalúa contra un conjunto vacío y después se responde 404.
+            $this->assertOwnsChanges($actor, collect(), $desired);
+
             throw ApiException::notFound();
         }
 
-        // RN-PERM-47 (1.5b, §20.2.1): después de la forma (422) y de
-        // RPERM-013 (403), antes de que nada quede guardado. El guard
-        // serializa por tenant y deshace la transacción con 409 si el
-        // centro dejaría de tener un titular completo de la administración.
-        // Las concesiones actuales se vuelven a leer ya con el bloqueo
-        // tomado: el diff se calcula sobre lo que hay, no sobre lo que
-        // había antes de esperar el turno.
-        $changed = $this->capacityGuard->protect(function () use ($role, $desired): bool {
+        // RN-PERM-47 (1.5b, §20.2.1): después de la forma (422), antes de
+        // que nada quede guardado. El guard serializa por tenant y deshace
+        // la transacción con 409 si el centro dejaría de tener un titular
+        // completo de la administración.
+        //
+        // RPERM-013 / RN-PERM-24 (issue #350): las concesiones actuales se
+        // releen ya con el bloqueo tomado y `assertOwnsChanges` se evalúa
+        // sobre ESAS filas, no sobre una lectura previa a esperar el turno:
+        // una entrada «idéntica» a lo que había antes de un cambio
+        // concurrente ya no se salta la comprobación. El `403` dentro del
+        // cierre deshace la transacción.
+        $changed = $this->capacityGuard->protect(function () use ($role, $desired, $actor): bool {
             $current = $role->permissionGrants()->get()->keyBy('permission_code');
+
+            $this->assertOwnsChanges($actor, $current, $desired);
 
             return $this->applyDiff($role, $current, $desired);
         });

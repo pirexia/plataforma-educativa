@@ -12,7 +12,6 @@ use App\Support\Audit\AuditRecorder;
 use App\Support\Authorization\PermissionResolver;
 use App\Support\Authorization\Scope;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 /**
  * REQ-PERM/api.md §8 (`PUT /users/{public_id}/roles`). Ruta, verbo y
@@ -83,31 +82,44 @@ final class ReplaceUserRoles
             throw ApiException::conflict('core.validation.last_school_administrator');
         }
 
-        $fromCodes = $currentRoles->pluck('code')->sort()->values()->all();
-        $toCodes = $roles->pluck('code')->sort()->values()->all();
+        $write = function () use ($target, $roles, $actor): void {
+            // Issue #350 (H2): el estado se relee con el bloqueo ya tomado.
+            // Lo que se compara, se audita y se comprueba para RPERM-013 es
+            // lo que hay AHORA, no lo leído antes de esperar el turno.
+            $target->unsetRelation('roles');
+            $lockedRoles = $target->roles()->get();
 
-        $write = function () use ($target, $newRoleIds, $fromCodes, $toCodes): void {
-            $target->roles()->sync($newRoleIds);
+            $fromCodes = $lockedRoles->pluck('code')->sort()->values()->all();
+            $toCodes = $roles->pluck('code')->sort()->values()->all();
 
-            // datos.md §5.3: solo si hay cambio efectivo (ADR-038 §9.3), con
-            // el estado anterior leído ANTES del sync() (RN-PERM-20) — ya lo
-            // está, en $fromCodes, calculado antes de esta transacción.
-            if ($fromCodes !== $toCodes) {
-                $this->auditRecorder->record($target, 'updated', [
-                    'roles' => [$fromCodes, $toCodes],
-                ]);
+            $lockedAdded = $roles->whereNotIn('id', $lockedRoles->pluck('id')->all());
+
+            if ($lockedAdded->isNotEmpty()) {
+                $this->assertActorCanGrant($actor, $lockedAdded);
             }
+
+            // Sin cambio efectivo del conjunto de roles: ni escritura ni
+            // auditoría (ADR-038 §9.3).
+            if ($fromCodes === $toCodes) {
+                return;
+            }
+
+            // datos.md §5.3: estado anterior leído ANTES del sync() (RN-PERM-20).
+            $target->roles()->sync($roles->pluck('id'));
+
+            $this->auditRecorder->record($target, 'updated', [
+                'roles' => [$fromCodes, $toCodes],
+            ]);
         };
 
         // RN-PERM-47 (1.5b, §20.2.1): después de RN-CORE-06/-07 y de
         // RPERM-013, antes de guardar. Asignar un rol con `deny` también
-        // puede reducir la posesión efectiva, no solo retirar uno. Sin
-        // cambio efectivo del conjunto de roles no hay nada que proteger.
-        if ($fromCodes !== $toCodes) {
-            $this->capacityGuard->protect($write);
-        } else {
-            DB::transaction($write);
-        }
+        // puede reducir la posesión efectiva, no solo retirar uno. Siempre
+        // se pasa por el guard (issue #350): si el cambio efectivo solo se
+        // conoce con el bloqueo tomado, no se puede decidir antes si hace
+        // falta protegerlo; sin cambio efectivo el guard no tiene nada que
+        // rechazar.
+        $this->capacityGuard->protect($write);
 
         event(new UserRolesChanged($target->tenant_id, $target->public_id));
 
