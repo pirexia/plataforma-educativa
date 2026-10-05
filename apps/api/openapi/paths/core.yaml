@@ -831,7 +831,15 @@ paths:
             application/json:
               schema: { $ref: '../components.yaml#/components/schemas/Role' }
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
-        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '403':
+          description: >
+            Alguna concesión `allow` pide un par (código, ámbito) que el solicitante
+            no posee (RPERM-013, RN-PERM-24; datos en `errors.grant[0].params` =
+            `{code, scope}` del primer par que lo provoca, api.md §9.2.1; sin `params`
+            de primer nivel). Un `deny` no se comprueba.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409':
           description: >
