@@ -5,12 +5,13 @@
  * `aria-current="page"`; los anteriores, enlaces a su ruta.
  */
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ChevronRight } from '@lucide/vue'
 import { useT } from '@/i18n'
 import { findNavigationEntryForRoute } from '@/navigation/registry'
 
 const route = useRoute()
+const router = useRouter()
 const t = useT()
 
 interface Crumb {
@@ -30,8 +31,13 @@ const crumbs = computed<Crumb[]>(() => {
 
   if (parentName) {
     const parentEntry = findNavigationEntryForRoute(parentName)
+    // Un padre sin entrada de menú (la ficha de un rol, de la que cuelgan sus pantallas de edición,
+    // `REQ-PERM §20.3`) se nombra con la clave de su propia ruta antes que con su nombre técnico.
+    const parentMeta = router.getRoutes().find((candidate) => candidate.name === parentName)?.meta
+    const parentKey = parentMeta?.breadcrumbKey ?? parentMeta?.titleKey
+
     items.push({
-      label: parentEntry ? t(parentEntry.labelKey) : parentName,
+      label: parentEntry ? t(parentEntry.labelKey) : parentKey ? t(parentKey) : parentName,
       to: { name: parentName },
     })
   }

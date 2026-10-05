@@ -144,6 +144,75 @@ describe('registro de navegación ensamblado — CA-CORE-106', () => {
   })
 })
 
+describe('CA-PERM-100 (RN-PERM-25, ADR-053 §2): rutas de 1.5b', () => {
+  /** `REQ-PERM/funcional.md §20.3`, columna 2: el permiso de la lectura o escritura principal de cada pantalla. */
+  const EXPECTED: Record<string, readonly string[]> = {
+    'core-role-new': ['rol.crear'],
+    'core-role-detail': ['rol.leer'],
+    'core-role-clone': ['rol.crear'],
+    'core-role-edit': ['rol.actualizar'],
+    'core-role-permissions': ['rol.actualizar'],
+    'core-user-effective-permissions': ['permiso_efectivo.leer'],
+  }
+
+  it('existen las seis rutas nuevas con meta.layout === "app" y meta.permissions exactamente igual a §20.3', () => {
+    for (const [name, permissions] of Object.entries(EXPECTED)) {
+      const route = router.getRoutes().find((candidate) => candidate.name === name)
+
+      expect(route, `falta la ruta ${name}`).toBeDefined()
+      expect(route?.meta.layout, name).toBe('app')
+      expect(route?.meta.permissions, name).toEqual(permissions)
+    }
+  })
+
+  it('la lista cerrada de rutas con [] sigue teniendo siete entradas y ninguna es de 1.5b', () => {
+    expect(EMPTY_PERMISSIONS_CLOSED_LIST).toHaveLength(7)
+
+    for (const name of Object.keys(EXPECTED)) {
+      expect(EMPTY_PERMISSIONS_CLOSED_LIST).not.toContain(name)
+    }
+  })
+
+  it('las rutas secundarias declaran su padre de miga de pan y títulos en core.*', () => {
+    const parents: Record<string, string> = {
+      'core-role-new': 'core-roles',
+      'core-role-detail': 'core-roles',
+      'core-role-clone': 'core-role-detail',
+      'core-role-edit': 'core-role-detail',
+      'core-role-permissions': 'core-role-detail',
+      'core-user-effective-permissions': 'core-user-detail',
+    }
+
+    for (const [name, parent] of Object.entries(parents)) {
+      const route = router.getRoutes().find((candidate) => candidate.name === name)!
+
+      expect(route.meta.breadcrumbParent, name).toBe(parent)
+      expect(route.meta.titleKey, name).toMatch(/^core\./)
+      expect(route.meta.breadcrumbKey, name).toMatch(/^core\./)
+    }
+  })
+
+  it('ninguna de las seis tiene entrada de menú (son destinos de acciones)', () => {
+    const routes = new Set(allNavigationEntries().map((entry) => entry.route))
+
+    for (const name of Object.keys(EXPECTED)) {
+      expect(routes.has(name), name).toBe(false)
+    }
+  })
+
+  it('el padre de cada ruta secundaria existe y es una ruta app', () => {
+    for (const name of Object.keys(EXPECTED)) {
+      const route = router.getRoutes().find((candidate) => candidate.name === name)!
+      const parent = router
+        .getRoutes()
+        .find((candidate) => candidate.name === route.meta.breadcrumbParent)
+
+      expect(parent, `${name}: padre inexistente`).toBeDefined()
+      expect(parent?.meta.layout).toBe('app')
+    }
+  })
+})
+
 describe('src/modules/core/shell.ts y src/modules/auth/shell.ts (ADR-053 §1)', () => {
   it('ningún bloque de panel de 1.8 tiene permissions vacía (ADR-053 §5.1)', () => {
     for (const block of allDashboardBlocks()) {
