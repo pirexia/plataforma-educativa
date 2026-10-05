@@ -5,8 +5,14 @@
  * (`RN-CORE-37`, `RNF-MANT-007`).
  */
 
-/** `ADR-038 §4.2`: `page` para catálogos de entidades, `cursor` para flujos de eventos. */
-export type DataTableMode = 'page' | 'cursor'
+/**
+ * `ADR-038 §4.2`: `page` para catálogos de entidades, `cursor` para flujos de
+ * eventos. **`local`** (ampliación aditiva de 1.5b, `REQ-PERM funcional.md
+ * §20.11`, `RN-PERM-43`/`-44`): colección documentada como no paginada o campo
+ * de un recurso — se pide entera una vez y la paginación, el orden, los filtros
+ * y la búsqueda se hacen en cliente.
+ */
+export type DataTableMode = 'page' | 'cursor' | 'local'
 
 /** `§13.4`, campo `card`: papel de la columna en la vista de tarjetas. */
 export type DataTableCardRole = 'title' | 'subtitle' | 'field' | 'actions' | 'omit'
@@ -35,10 +41,17 @@ export interface DataTableColumn<Row> {
   /** Obligatorio en tablas con vista de tarjetas (`RN-CORE-55`). */
   card?: DataTableCardRole
   align?: 'start' | 'end'
+  /**
+   * Solo modo `local` (`RN-PERM-44` E3): comparador propio de la columna
+   * (orden de dominio, p. ej. el de las acciones de `RPERM-003`). Recibe las dos
+   * filas completas, en sentido ascendente; el componente invierte el signo en
+   * el descendente. Sin él, se compara el valor de la columna con `Intl.Collator`.
+   */
+  compare?: (a: Row, b: Row) => number
 }
 
 /** `§13.7`: tipos de filtro admitidos, cerrados. `q` (búsqueda) no es un filtro declarado: es la prop `searchable`. */
-export interface DataTableEnumFilter {
+export interface DataTableEnumFilter<Row = unknown> {
   type: 'enum'
   /** Nombre del parámetro (`ADR-038 §5.2`): `<id>=a,b`. */
   id: string
@@ -64,6 +77,12 @@ export interface DataTableEnumFilter {
    * con `urlState` (`OPEN-CORE-55` = A), se ignora y se avisa por consola.
    */
   initial?: string
+  /**
+   * Solo modo `local` (`RN-PERM-44` E4): valor (o valores) de la fila para este
+   * filtro. Una fila pasa si alguno de sus valores está entre los elegidos.
+   * Sin él, un filtro `enum` de una tabla `local` no filtra nada.
+   */
+  rowValue?: (row: Row) => string | readonly string[]
 }
 
 export interface DataTableDateRangeFilter {
@@ -73,7 +92,7 @@ export interface DataTableDateRangeFilter {
   labelKey: string
 }
 
-export interface DataTableBooleanFilter {
+export interface DataTableBooleanFilter<Row = unknown> {
   type: 'boolean'
   /** `<id>=true`/`false`; «todos» no envía el parámetro. */
   id: string
@@ -85,6 +104,8 @@ export interface DataTableBooleanFilter {
    * tres estados de 1.9, sin cambios.
    */
   twoState?: boolean
+  /** Solo modo `local` (`RN-PERM-44` E4): valor booleano de la fila para este filtro. */
+  rowValue?: (row: Row) => boolean
 }
 
 /** Opción devuelta por la búsqueda de un filtro `entity`. */
@@ -118,8 +139,18 @@ export interface DataTableEntityFilter {
   resolve: (value: string) => Promise<string | null>
 }
 
-export type DataTableFilter =
-  DataTableEnumFilter | DataTableDateRangeFilter | DataTableBooleanFilter | DataTableEntityFilter
+export type DataTableFilter<Row = unknown> =
+  | DataTableEnumFilter<Row>
+  | DataTableDateRangeFilter
+  | DataTableBooleanFilter<Row>
+  | DataTableEntityFilter
+
+/**
+ * Un filtro de cualquier tabla, sin importar su tipo de fila: para las funciones
+ * que no usan `rowValue` (estado, URL, barra de herramientas). `never` hace
+ * asignable cualquier `DataTableFilter<Row>` (parámetro contravariante).
+ */
+export type AnyDataTableFilter = DataTableFilter<never>
 
 /**
  * Consulta que el componente entrega a la función de petición del
@@ -175,6 +206,15 @@ export type DataTableFetcher<Row> = (
   query: DataTableQuery,
   options: { signal: AbortSignal },
 ) => Promise<DataTablePageResponse<Row> | DataTableCursorResponse<Row>>
+
+/**
+ * Función de petición de una tabla en modo `local` (`RN-PERM-44` E1): sin
+ * `page`/`per_page`/`sort`/`filters`/`q` (todo eso se hace en cliente) y con
+ * una respuesta sin `meta`. Se llama una vez al montar y en cada `refresh()`.
+ */
+export type DataTableLocalFetcher<Row> = (options: {
+  signal: AbortSignal
+}) => Promise<{ data: Row[] }>
 
 /** `GET /data-exports/{public_id}` (`api.md §8`). */
 export type DataTableExportState = 'pendiente' | 'generando' | 'completada' | 'fallida'

@@ -33,6 +33,7 @@ export type {
   DataTableExportStatus,
   DataTableFetcher,
   DataTableFilter,
+  DataTableLocalFetcher,
   DataTableMode,
   DataTablePageMeta,
   DataTablePageResponse,

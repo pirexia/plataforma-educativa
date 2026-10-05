@@ -11,7 +11,7 @@
 import type { LocationQuery, LocationQueryRaw } from 'vue-router'
 import { DEFAULT_PER_PAGE, PER_PAGE_OPTIONS } from './constants'
 import { filterParams, type FilterValues } from './filterState'
-import type { DataTableFilter, DataTableMode } from './types'
+import type { AnyDataTableFilter, DataTableMode } from './types'
 
 /** Claves que **nunca** viajan a la URL (`RN-CORE-54`). */
 export const NEVER_IN_URL = ['q', 'cursor'] as const
@@ -25,7 +25,7 @@ export interface UrlState {
 
 export interface UrlStateOptions {
   mode: DataTableMode
-  filters: readonly DataTableFilter[]
+  filters: readonly AnyDataTableFilter[]
   /** `id` de las columnas `sortable`. */
   sortableIds: readonly string[]
 }
