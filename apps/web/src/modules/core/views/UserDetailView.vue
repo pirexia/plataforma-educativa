@@ -410,6 +410,24 @@ async function saveRoles(): Promise<void> {
             </RouterLink>
           </Button>
 
+          <!--
+            1.5b, `RN-PERM-41`/`RN-CORE-61`: permisos efectivos de esta persona, con
+            procedencia. Solo con `permiso_efectivo.leer`; es un enlace, no una petición.
+          -->
+          <Button v-if="can('permiso_efectivo.leer') && !isDeleted" variant="outline" as-child>
+            <RouterLink
+              :to="{
+                name: 'core-user-effective-permissions',
+                params: { publicId: user.public_id },
+              }"
+              :aria-label="
+                t('core.users.detail.viewEffectivePermissionsFor', { name: displayName })
+              "
+            >
+              {{ t('core.users.detail.viewEffectivePermissions') }}
+            </RouterLink>
+          </Button>
+
           <Button
             v-if="can('usuario.eliminar') && !isDeleted"
             type="button"
