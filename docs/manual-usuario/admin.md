@@ -61,6 +61,7 @@ Muestra todos los datos de la persona: estado, correo de acceso, tipo y número 
 | **Dar de baja** | Cuenta no dada de baja. Pide confirmación. La cuenta deja de estar disponible y no puede iniciar sesión; se puede restaurar |
 | **Restaurar** | Cuenta dada de baja. No pide confirmación. **La cuenta vuelve como «inactiva»**: usa «Activar» si la persona debe volver a entrar |
 | **Ver su actividad** | Solo si tu rol puede leer la auditoría. Abre el registro de auditoría filtrado por esta persona (véase «Consultar el registro de auditoría») |
+| **Ver permisos efectivos** | Solo si tu rol tiene el permiso de ver permisos efectivos (por defecto, el Administrador de Centro). Abre qué puede hacer la persona y por qué (véase «Ver los permisos efectivos de una persona») |
 
 **Tu propia cuenta**: desde la ficha de tu propia persona, desactivar, dar de baja y cambiar roles están deshabilitados («No puedes modificar tu propia cuenta desde aquí»). **Siempre debe quedar al menos un Administrador de Centro activo**: si una acción lo impide, el sistema te lo explica con su propio mensaje y no cambia nada.
 
@@ -196,11 +197,45 @@ En el menú de usuario, **Mi cuenta → Perfil** (`/cuenta/perfil`) está dispon
 
 ## Roles del centro
 
-En **Administración → Roles** (`/administracion/roles`, requiere el permiso de leer roles) ves los roles del centro en una tabla de **solo lectura**: su nombre, si es **del sistema** o **personalizado**, si exige **MFA** (segundo factor), si da **acceso a datos especiales** (salud, necesidades educativas especiales, convivencia) y **cuántas personas** lo tienen.
+En **Administración → Roles** (`/administracion/roles`, requiere el permiso de leer roles) ves los roles del centro en una tabla: su nombre (un enlace a su **ficha**), si es **del sistema** o **personalizado**, si exige **MFA** (segundo factor), si da **acceso a datos especiales** (salud, necesidades educativas especiales, convivencia) y **cuántas personas** lo tienen. Con el permiso de crear roles aparece **«Nuevo rol»**.
 
-- **No hay botones de crear, clonar, editar ni borrar roles**, aunque tengas esos permisos: el editor de roles y la matriz de permisos llegan en un paso posterior. Tampoco se abre el detalle de un rol ni sus concesiones.
-- Para exigir MFA a un rol, usa la pantalla de MFA (véase «Hacer obligatorio el segundo factor para un rol»); aquí solo se consulta.
 - Los nombres de los roles del sistema se muestran en el idioma de la interfaz: al cambiar de idioma la tabla se vuelve a cargar.
+- Los roles **del sistema** no se modifican desde aquí: para tener una versión propia, **clónalo**. Un rol **personalizado** se crea, se edita y se elimina.
+
+### La ficha de un rol
+
+Muestra el código interno, el tipo, si exige MFA, si da acceso a datos de categoría especial, cuántas personas lo tienen y la tabla de sus **concesiones** (recurso, acción, efecto «Permitir» o «Denegar», ámbito; con permiso para ver el catálogo, también una marca de «Categoría especial» y un aviso de **inerte** si el rol no tiene ese acceso). Las acciones dependen de tus permisos:
+
+| Acción | Cuándo está disponible |
+|--------|------------------------|
+| **Editar datos** | Permiso de actualizar roles. En un rol del sistema no se edita el nombre |
+| **Editar concesiones** | Permiso de actualizar roles y rol **personalizado**. En uno del sistema, un texto te remite a «Clonar» |
+| **Clonar** | Permiso de crear roles |
+| **Eliminar** | Permiso de eliminar roles y rol **personalizado**. Si el rol tiene personas asignadas aparece **deshabilitado** con el motivo y un enlace a **«Ver usuarios con este rol»**; pide confirmación y no se deshace desde la interfaz |
+| **Ver usuarios con este rol** | Permiso de ver usuarios |
+
+### Crear, clonar y editar un rol
+
+- **Nuevo rol**: escribe el **nombre** (se muestra igual en todos los idiomas) y el **código**, que se propone solo a partir del nombre y es un identificador interno que **no podrá cambiarse**. Puedes marcar **MFA obligatorio**. Al guardar vas directamente al editor de concesiones del rol nuevo.
+- **Clonar**: copia las concesiones y la obligación de MFA, **no** a las personas que tienen el rol, y el rol nuevo queda desligado del original. Si el original da acceso a datos de categoría especial, solo podrás clonarlo si tú puedes activar ese acceso. **No puedes clonar un rol que conceda algo que tú no tienes**: el sistema te dice qué permiso y qué ámbito y no crea nada.
+- **Acceso a datos de categoría especial**: el control solo aparece si tienes permiso para cambiarlo y solo se puede activar si **alguno de tus roles ya lo tiene** (por defecto, el Administrador de Centro no lo tiene). Activarlo o desactivarlo pide confirmación y dice a cuántas personas afecta. Las concesiones de datos de categoría especial solo surten efecto en roles con este acceso.
+- **MFA obligatorio** de un rol existente se cambia en la administración de MFA, no aquí.
+
+### Editar las concesiones de un rol
+
+La pantalla muestra **una matriz por módulo**: una fila por recurso y una columna por acción. Cada celda indica «Sin conceder», «Permitir · ámbito» o «Denegar»; pulsa una celda para abrir su panel, elige el estado y, si es «Permitir», el **ámbito**, y pulsa **Aplicar**. **No se guarda nada hasta que pulses «Guardar»**; un contador te dice cuántos cambios llevas.
+
+- **Qué puedes conceder**: no puedes conceder un permiso, ni con un ámbito, que tú no tengas. Esos ámbitos aparecen **deshabilitados con el motivo** («no puedes concederlo: tú no tienes este permiso con este ámbito» o «todavía no se puede conceder: lo aportará un módulo que aún no está disponible»). Si no tienes un permiso, solo puedes **denegarlo o dejarlo sin conceder**. Lo que el rol ya concede siempre puedes conservarlo.
+- **Denegar** anula el permiso para todas las personas del rol, en cualquier ámbito y aunque otro de sus roles lo conceda.
+- **Avisos**: una concesión de datos de categoría especial en un rol sin ese acceso, o de un módulo no contratado, se marca como **inerte** (no surte efecto) pero se puede guardar.
+- **Guardar**: la pantalla comprueba antes que nadie más haya cambiado el rol y te pide confirmación con el resumen (concedidos, ámbito cambiado, denegados y retirados), la lista de cambios y a cuántas personas afecta **de inmediato**. Si tú eres titular del rol, te avisa de que los cambios también te afectan.
+- **Si el sistema rechaza el guardado** no se guarda nada y tus cambios siguen en pantalla, con el motivo en la celda o en el resumen. Un rechazo especial: **el centro nunca puede quedarse sin nadie que conserve todos los permisos de administración**. Si lo que guardas lo provocaría, el sistema lo explica, lista los permisos afectados y te pide que los concedas primero a otra persona.
+- Si sales con cambios sin guardar, la pantalla pide confirmación.
+- Los roles del sistema se muestran en solo lectura.
+
+### Ver los permisos efectivos de una persona
+
+Desde la ficha de una persona, **«Ver permisos efectivos»** (permiso específico) abre qué puede hacer ahora mismo, calculado con las mismas reglas que aplica la plataforma en cada petición. Indica sus roles, cuándo se calculó (**«Recalcular»** vuelve a calcularlo) y, para cada permiso, el resultado (**Permitido** o **Denegado**), los ámbitos y la **procedencia**: qué roles lo conceden o lo deniegan. Explica los casos que confunden: un permiso **denegado por otro rol** («una denegación anula cualquier concesión») y uno **concedido pero sin efecto** (con el motivo). Por defecto solo se muestran los permisos con alguna concesión o denegación; marca «Incluir permisos sin ninguna concesión» para ver el catálogo completo. Se puede buscar sin importar tildes ni mayúsculas. **No se puede exportar ni imprimir.**
 
 ## Consultar el registro de auditoría
 
