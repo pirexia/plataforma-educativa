@@ -15,6 +15,12 @@ export interface ConfirmRequest {
   title: string
   /** La consecuencia, en una frase. */
   description: string
+  /**
+   * Ampliación aditiva de 1.5b (`REQ-PERM/funcional.md RN-PERM-36` punto 2): una
+   * lista bajo la descripción (p. ej. los cambios que se van a guardar). Sin ella,
+   * el diálogo es el de siempre.
+   */
+  details?: readonly string[]
   /** Botón de confirmar: incluye la identidad de la fila (`RN-CORE-64`, WCAG 2.4.6). */
   confirmLabel: string
   /** Por defecto, el «Cancelar» común (`shell.confirm.cancel`). */

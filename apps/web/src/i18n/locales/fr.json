@@ -164,7 +164,8 @@
     "announce": {
       "results": "Aucun résultat | {count} résultat | {count} résultats",
       "loaded": "Aucun résultat | {count} ligne chargée | {count} lignes chargées",
-      "more": "Aucune ligne supplémentaire chargée | {count} ligne supplémentaire chargée | {count} lignes supplémentaires chargées"
+      "more": "Aucune ligne supplémentaire chargée | {count} ligne supplémentaire chargée | {count} lignes supplémentaires chargées",
+      "local": "{count} sur {total} résultats | {count} sur {total} résultat | {count} sur {total} résultats"
     },
     "export": {
       "button": "Exporter",

@@ -4,7 +4,7 @@
  * un catálogo propio de mensajes), errores por campo y `Retry-After`.
  */
 import { ApiError } from '@/api/client'
-import type { ApiProblemBody } from '../types'
+import type { ApiProblemBody, ProblemErrorEntry } from '../types'
 
 export function problemStatus(err: unknown): number | null {
   return err instanceof ApiError ? err.status : null
@@ -80,4 +80,38 @@ export function problemErrorParams(err: unknown, code: string): Record<string, u
   }
 
   return null
+}
+
+/**
+ * Primera entrada de `errors.<clave>` (`ADR-038 §6.3`, `REQ-PERM/api.md §9.2.1`):
+ * los `403`/`409` de `RPERM-013`, `RN-PERM-17` y `RN-PERM-47` llevan sus datos
+ * en `errors.grant[0]`, `errors.role[0]` y `errors.administration_capacity[0]`
+ * (`code`, `message`, `params`), **nunca** en un `params` de primer nivel.
+ */
+export function problemErrorEntry(err: unknown, key: string): ProblemErrorEntry | null {
+  const entries = problemBody(err)?.errors?.[key]
+  const first = Array.isArray(entries) ? entries[0] : undefined
+
+  return first && typeof first === 'object' ? first : null
+}
+
+/**
+ * Como `problemErrorEntry`, pero solo si el `code` de esa entrada es el esperado.
+ * El `code` es un código de **error** del servidor (`ADR-038 §6.3`), no un código de
+ * rol (`RN-CORE-23`): se compara aquí, tras desestructurar, como el resto de este fichero.
+ */
+export function problemErrorEntryWithCode(
+  err: unknown,
+  key: string,
+  expectedCode: string,
+): ProblemErrorEntry | null {
+  const entry = problemErrorEntry(err, key)
+
+  if (entry === null) {
+    return null
+  }
+
+  const { code: errorCode } = entry
+
+  return errorCode === expectedCode ? entry : null
 }

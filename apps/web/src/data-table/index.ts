@@ -17,6 +17,7 @@ export {
   SEARCH_DEBOUNCE_MS,
 } from './constants'
 export { useDataTableFormatters } from './formatters'
+export { normalizeSearchText } from './localModel'
 export type {
   DataTableBooleanFilter,
   DataTableCardRole,
@@ -33,6 +34,7 @@ export type {
   DataTableExportStatus,
   DataTableFetcher,
   DataTableFilter,
+  DataTableLocalFetcher,
   DataTableMode,
   DataTablePageMeta,
   DataTablePageResponse,

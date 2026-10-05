@@ -143,6 +143,12 @@ export interface RolePermission {
   action: string
   effect: 'allow' | 'deny'
   scope: string
+  /**
+   * S-PERM-2 (`REQ-PERM/api.md §14.3`): etiqueta del recurso traducida por el
+   * módulo dueño. Opcional por `ADR-038 §7.3` (despliegue escalonado): sin ella,
+   * el código del recurso en crudo (`RN-PERM-28`).
+   */
+  resource_label?: string
 }
 
 export interface Role {
@@ -162,7 +168,46 @@ export interface Permission {
   action: string
   module_code: string
   is_special_category: boolean
+  /** `REQ-PERM/api.md §2.1`: ámbitos que el permiso admite (el vocabulario cerrado de seis, `RN-PERM-01`). */
+  applicable_scopes: string[]
+  /** Los de `applicable_scopes` con resolutor registrado: los que se pueden conceder hoy. */
+  grantable_scopes: string[]
+  /** S-PERM-2: etiqueta del recurso traducida por el servidor; opcional (`RN-PERM-28`). */
+  resource_label?: string
   retired_at: string | null
+}
+
+/** `REQ-PERM/api.md §7.1`: una fuente (concesión de un rol) de la decisión sobre un código. */
+export interface EffectivePermissionSource {
+  role: RoleSummary
+  effect: 'allow' | 'deny'
+  scope: string
+  inert: boolean
+  /** Enumerado extensible (`api.md §7.2`, `ADR-038 §7.3`): rama por defecto en el cliente. */
+  inert_reason: string | null
+}
+
+/** `REQ-PERM/api.md §7.1`: una fila por cada código no retirado del catálogo, concedido o no. */
+export interface EffectivePermission {
+  code: string
+  resource: string
+  action: string
+  module_code: string
+  is_special_category: boolean
+  resource_label?: string
+  decision: 'permitido' | 'denegado'
+  scopes: string[]
+  unrestricted: boolean
+  sources: EffectivePermissionSource[]
+}
+
+export interface EffectivePermissionsResponse {
+  data: EffectivePermission[]
+  meta: {
+    subject: { public_id: PublicId; display_name: string }
+    roles: RoleSummary[]
+    computed_at: string
+  }
 }
 
 export interface ModuleSubscription {

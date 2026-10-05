@@ -164,7 +164,8 @@
     "announce": {
       "results": "No results | {count} result | {count} results",
       "loaded": "No results | {count} row loaded | {count} rows loaded",
-      "more": "No more rows were loaded | {count} more row loaded | {count} more rows loaded"
+      "more": "No more rows were loaded | {count} more row loaded | {count} more rows loaded",
+      "local": "{count} of {total} results | {count} of {total} result | {count} of {total} results"
     },
     "export": {
       "button": "Export",

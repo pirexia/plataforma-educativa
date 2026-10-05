@@ -5,12 +5,12 @@
  * URL (`RN-CORE-54`), sin tabla de correspondencias entre `id` de columna y
  * parámetro.
  */
-import type { DataTableFilter } from './types'
+import type { AnyDataTableFilter } from './types'
 
 export type FilterValues = Record<string, string>
 
 /** Nombres de parámetro que posee un filtro. */
-export function filterParams(filter: DataTableFilter): string[] {
+export function filterParams(filter: AnyDataTableFilter): string[] {
   return filter.type === 'dateRange' ? [`${filter.id}_from`, `${filter.id}_to`] : [filter.id]
 }
 
@@ -45,7 +45,7 @@ export function withParam(
  */
 export function withEnumValue(
   values: FilterValues,
-  filter: Extract<DataTableFilter, { type: 'enum' }>,
+  filter: Extract<AnyDataTableFilter, { type: 'enum' }>,
   option: string,
   checked: boolean,
 ): FilterValues {
@@ -67,8 +67,8 @@ export function withEnumValue(
 
 /** `RN-CORE-94`: filtro `enum` de selección única (`multiple: false`). */
 export function isSingleEnum(
-  filter: DataTableFilter,
-): filter is Extract<DataTableFilter, { type: 'enum' }> {
+  filter: AnyDataTableFilter,
+): filter is Extract<AnyDataTableFilter, { type: 'enum' }> {
   return filter.type === 'enum' && filter.multiple === false
 }
 
@@ -78,7 +78,7 @@ export function isSingleEnum(
  */
 export function sanitizeSingleEnums(
   values: FilterValues,
-  filters: readonly DataTableFilter[],
+  filters: readonly AnyDataTableFilter[],
 ): FilterValues {
   let next = values
 

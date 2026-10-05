@@ -24,9 +24,14 @@
  * `/user-imports`; ninguna usa `permissions: []`.
  *
  * Paso 1.9d (`funcional.md §14.3`, `§14.7`, `§14.8`): auditoría (`auditoria.leer`,
- * con acceso directo) y roles en solo lectura (`rol.leer`). No existe
- * `core-role-detail` (`OPEN-CORE-36` = A: el detalle llega con `1.5b`). Ninguna
- * de las dos usa `permissions: []`.
+ * con acceso directo) y roles (`rol.leer`; en solo lectura en 1.9d, ampliado por
+ * 1.5b). Ninguna de las dos usa `permissions: []`.
+ *
+ * Paso 1.5b (`REQ-PERM/funcional.md §20.3`, `RN-PERM-25`): las pantallas de roles
+ * (`core-role-new`, `-detail`, `-clone`, `-edit`, `-permissions`) y la de permisos
+ * efectivos de un usuario (`core-user-effective-permissions`). **No existe un módulo
+ * de frontend `perm`**: los *endpoints* son de `REQ-CORE` (`ADR-044 §4.10`).
+ * Ninguna usa `permissions: []`: la lista cerrada de `RN-CORE-24` sigue en siete.
  *
  * Paso 1.9e (`funcional.md §14.3`, `§14.3.1`, `§14.9`-`§14.10c`): configuración
  * del centro (`configuracion.leer`), activos de marca (misma ruta de permiso,
@@ -98,6 +103,19 @@ export const shell: ModuleShell = {
         breadcrumbParent: 'core-users',
       },
     },
+    // 1.5b (`RN-PERM-25`, `RPERM-009`): sin entrada de menú — acción de la ficha de usuario.
+    {
+      path: '/administracion/usuarios/:publicId/permisos',
+      name: 'core-user-effective-permissions',
+      component: () => import('./views/UserEffectivePermissionsView.vue'),
+      meta: {
+        layout: 'app',
+        permissions: ['permiso_efectivo.leer'],
+        titleKey: 'core.effectivePermissions.title',
+        breadcrumbKey: 'core.effectivePermissions.title',
+        breadcrumbParent: 'core-user-detail',
+      },
+    },
     {
       path: '/administracion/invitaciones',
       name: 'core-invitations',
@@ -136,6 +154,70 @@ export const shell: ModuleShell = {
       name: 'core-roles',
       component: () => import('./views/RolesView.vue'),
       meta: { layout: 'app', permissions: ['rol.leer'], titleKey: 'core.roles.title' },
+    },
+    // 1.5b (`REQ-PERM/funcional.md §20.3`, `RN-PERM-25`): las pantallas de roles. `meta.permissions` es
+    // el permiso de la lectura o escritura **principal** de cada pantalla; el que falte para el contenido
+    // (p. ej. `permiso.leer` en el editor de concesiones) lo trata la vista con un estado propio y sin
+    // petición. Ninguna usa `permissions: []`. Sin entrada de menú: destinos de acciones de `core-roles`.
+    {
+      path: '/administracion/roles/nuevo',
+      name: 'core-role-new',
+      component: () => import('./views/RoleFormView.vue'),
+      meta: {
+        layout: 'app',
+        permissions: ['rol.crear'],
+        titleKey: 'core.roles.form.titleNew',
+        breadcrumbKey: 'core.roles.form.titleNew',
+        breadcrumbParent: 'core-roles',
+      },
+    },
+    {
+      path: '/administracion/roles/:publicId',
+      name: 'core-role-detail',
+      component: () => import('./views/RoleDetailView.vue'),
+      meta: {
+        layout: 'app',
+        permissions: ['rol.leer'],
+        titleKey: 'core.roles.detail.title',
+        breadcrumbKey: 'core.roles.detail.title',
+        breadcrumbParent: 'core-roles',
+      },
+    },
+    {
+      path: '/administracion/roles/:publicId/clonar',
+      name: 'core-role-clone',
+      component: () => import('./views/RoleFormView.vue'),
+      meta: {
+        layout: 'app',
+        permissions: ['rol.crear'],
+        titleKey: 'core.roles.form.titleClone',
+        breadcrumbKey: 'core.roles.form.titleClone',
+        breadcrumbParent: 'core-role-detail',
+      },
+    },
+    {
+      path: '/administracion/roles/:publicId/editar',
+      name: 'core-role-edit',
+      component: () => import('./views/RoleFormView.vue'),
+      meta: {
+        layout: 'app',
+        permissions: ['rol.actualizar'],
+        titleKey: 'core.roles.form.titleEdit',
+        breadcrumbKey: 'core.roles.form.titleEdit',
+        breadcrumbParent: 'core-role-detail',
+      },
+    },
+    {
+      path: '/administracion/roles/:publicId/permisos',
+      name: 'core-role-permissions',
+      component: () => import('./views/RolePermissionsView.vue'),
+      meta: {
+        layout: 'app',
+        permissions: ['rol.actualizar'],
+        titleKey: 'core.roles.editor.pageTitle',
+        breadcrumbKey: 'core.roles.editor.pageTitle',
+        breadcrumbParent: 'core-role-detail',
+      },
     },
     {
       path: '/administracion/auditoria',
