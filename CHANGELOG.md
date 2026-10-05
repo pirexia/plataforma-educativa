@@ -14,7 +14,7 @@ Interfaz de roles y permisos efectivos de `REQ-PERM` y tres cambios de servidor,
 - **S-PERM-1**: `users_count` en `GET /roles/{public_id}`.
 - **S-PERM-2**: `resource_label` (traducido por el servidor) en cada permiso del detalle de rol y de los permisos efectivos.
 - **`RN-PERM-47`**: `409 core.validation.administration_capacity_lost` si una escritura dejaría al centro sin ningún usuario activo con la capacidad completa de administración (cinco rutas; `CA-PERM-046` a `-049`). Comprobación y escritura serializadas por tenant con `pg_advisory_xact_lock`. `CA-PERM-049` cubre el mecanismo del bloqueo y una escritura secuencial, no dos transacciones solapadas reales.
-- **#170**: `ReplaceRolePermissions` deja de exigir posesión al estrechar un ámbito (`CA-PERM-045`, `api.md §5.4`).
+- **#170**: se mantiene el comportamiento estricto de `ReplaceRolePermissions` (estrechar a un ámbito no poseído responde `403`, sin cambio de código de producción); `CA-PERM-045` lo fija con un test y se corrige la redacción de `api.md §5.4`.
 - **Corrección de contrato**: los datos de los errores `403 grant`, `409 role` y `409 administration_capacity` van en `errors[].params`, como define `ADR-038 §6.3`, y no en un `params` de primer nivel que el servidor nunca emitió (`api.md §9.2.1`); `ApiException::forbidden()`/`conflict()` aceptan `errors`.
 
 ### Interfaz (`apps/web`)
