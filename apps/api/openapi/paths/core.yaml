@@ -113,7 +113,18 @@ paths:
             application/json:
               schema: { $ref: '../components.yaml#/components/schemas/TenantSettings' }
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
-        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '403':
+          description: >
+            Falta permiso, o `role_ids` incluye un rol que concede un par
+            (código, ámbito) que el solicitante no posee (RPERM-013,
+            RN-CORE-08). En este último caso `errors.grant[0]` =
+            `{code: "core.authorization.cannot_grant_unheld_role_permission",
+            message}` **sin `params`** y con un `detail` genérico: no revela
+            el código ni el ámbito de las concesiones del rol (issue #352,
+            REQ-PERM/api.md §8.4).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
 
   /api/v1/tenant/settings/assets/{kind}:
@@ -940,8 +951,10 @@ paths:
         '403':
           description: >
             Algún rol añadido concede un par (código, ámbito) que el
-            solicitante no posee (RPERM-013, ADR-044 §4.8; datos en
-            `errors.grant[0].params` = `{code, scope}`, api.md §9.2.1); o se retira
+            solicitante no posee (RPERM-013, ADR-044 §4.8; `errors.grant[0]`
+            = `{code: "core.authorization.cannot_grant_unheld_role_permission",
+            message}` **sin `params`** y `detail` genérico: no se revela el
+            código ni el ámbito, issue #352, api.md §8.4); o se retira
             al menos un rol y el solicitante no tiene
             `asignacion_rol.eliminar` (REQ-PERM/api.md §8.2, hallazgo
             corregido en 1.5).

@@ -6,6 +6,13 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-05 · Corrección tras la revisión de 1.5b: #352 y hueco residual de #350 (`REQ-PERM-005`)
+
+- **#352**: el `403` de `RPERM-013` en `PUT /users/{id}/roles` y `POST /users` con `role_ids` ya no lleva `errors.grant[0].params` ni nombra el código o el ámbito en `detail` (clave nueva `core.authorization.cannot_grant_unheld_role_permission`, cuatro idiomas); se mantienen el `403` y `errors.grant[0].code`. `PUT /roles/{id}/permissions`, `POST /roles` y la clonación, sin cambio. Documentado en `REQ-PERM/api.md §8.4`, `funcional.md` (`RN-PERM-24`, `CA-PERM-042`), `permisos.md` y OpenAPI.
+- **#350 (hueco residual)**: `asignacion_rol.eliminar` se recalcula dentro de `protect()` sobre los roles releídos con el bloqueo (`RPERM-013`, `RN-PERM-20`), con test de regresión determinista en `ConcurrentSnapshotTest`.
+
+---
+
 ## 2026-10-05 · Paso 1.5b implementado, pendiente de revisión y merge (`REQ-PERM-005`)
 
 Interfaz de roles y permisos efectivos de `REQ-PERM` y tres cambios de servidor, en la rama `feature/REQ-PERM-ui-roles`. **Pendiente de revisión independiente y de merge: no se declara cerrado.** Sin migraciones, sin permisos nuevos y sin dependencias nuevas.
