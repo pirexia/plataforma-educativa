@@ -79,6 +79,8 @@ describe('CA-CORE-261 (INV-009): las cuatro lenguas de core tienen las mismas cl
       'core.roles.no',
       // 1.5b: cognado.
       'core.roles.editor.marks.error',
+      // Plantilla solo de parámetros.
+      'core.roles.editor.confirm.item',
       'core.audit.columns.ipAddress',
       'core.audit.changes.arrow',
       'core.audit.changes.description',

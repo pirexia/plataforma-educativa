@@ -103,7 +103,9 @@
         "manageRoles": "Rôles attribués",
         "saveRoles": "Enregistrer les rôles",
         "viewActivity": "Voir son activité",
-        "viewActivityFor": "Voir son activité : {name}"
+        "viewActivityFor": "Voir son activité : {name}",
+        "viewEffectivePermissions": "Voir les permissions effectives",
+        "viewEffectivePermissionsFor": "Voir les permissions effectives de {name}"
       },
       "confirm": {
         "deactivate": {
@@ -391,7 +393,7 @@
     },
     "roles": {
       "title": "Rôles",
-      "intro": "Rôles de l’établissement, en lecture seule. La modification des rôles viendra plus tard.",
+      "intro": "Rôles de l'établissement. Consultez ce que chacun accorde, créez un rôle propre ou clonez un rôle existant.",
       "caption": "Rôles de l’établissement",
       "empty": {
         "title": "Aucun rôle",
@@ -454,6 +456,175 @@
           "onlyInert": "Vous ne pouvez que refuser cette permission ou ne pas l'accorder : votre droit est sans effet ({reason})",
           "specialInert": "Ce droit restera sans effet : le rôle n'a pas accès aux données de catégorie particulière",
           "moduleInert": "Ce droit restera sans effet tant que le module n'est pas souscrit"
+        },
+        "pageTitle": "Droits du rôle",
+        "title": "Droits de « {name} »",
+        "intro": "Choisissez pour chaque permission si le rôle l’accorde, la refuse ou ne dit rien. Les modifications ne sont enregistrées qu’après avoir cliqué sur « Enregistrer ».",
+        "legend": {
+          "title": "Quels périmètres vous pouvez accorder",
+          "rule": "Vous ne pouvez accorder ni une permission ni un périmètre que vous n’avez pas vous-même. Vous pouvez toujours la retirer ou la refuser.",
+          "notHeld": "« Vous ne l’avez pas » : vous n’avez pas cette permission avec ce périmètre.",
+          "noResolver": "« N’existe pas encore » : un module pas encore disponible l’apportera."
+        },
+        "toolbar": {
+          "module": "Module",
+          "allModules": "Tous les modules",
+          "search": "Rechercher une ressource",
+          "searchPlaceholder": "Rechercher une ressource…",
+          "onlyChanged": "Seulement les ressources avec des modifications non enregistrées"
+        },
+        "changes": "Aucune modification non enregistrée | {count} modification non enregistrée | {count} modifications non enregistrées",
+        "save": "Enregistrer",
+        "saved": "Droits enregistrés.",
+        "empty": {
+          "title": "Aucune permission dans le catalogue",
+          "text": "Le catalogue des permissions est vide."
+        },
+        "noMatches": {
+          "title": "Aucune ressource ne correspond",
+          "text": "Modifiez le module, la recherche ou le filtre des modifications."
+        },
+        "missing": "Pour modifier les droits, vous avez aussi besoin de la permission {permission}.",
+        "orphans": "Ces droits ne figurent plus dans le catalogue et sont conservés tels quels : {codes}",
+        "confirm": {
+          "title": "Enregistrer les droits de « {name} »",
+          "counts": "Accordés : {granted} · Périmètre modifié : {scopeChanged} · Refusés : {denied} · Retirés : {removed}",
+          "consequence": "S'applique immédiatement à {count} titulaires | S'applique immédiatement à {count} titulaire | S'applique immédiatement à {count} titulaires",
+          "holder": "Vous êtes titulaire de ce rôle : les modifications vous concernent aussi, et vous ne pourrez pas accorder de nouveau ce que vous retirez.",
+          "item": "{name} : {from} → {to}",
+          "confirm": "Enregistrer les droits de « {name} »"
+        },
+        "conflict": {
+          "title": "Une autre personne a modifié les droits de ce rôle depuis que vous l’avez ouvert",
+          "codes": "Permissions modifiées :",
+          "reload": "Recharger",
+          "reloadConfirm": {
+            "title": "Recharger et abandonner vos modifications",
+            "description": "Vous perdrez les modifications non enregistrées de cet écran et verrez les droits actuels du rôle.",
+            "confirm": "Recharger et abandonner"
+          }
+        },
+        "errors": {
+          "summary": "Les droits n'ont pas été enregistrés.",
+          "capacity": "Si vous enregistrez cela, plus personne dans l'établissement ne conserverait toutes les permissions d'administration. Accordez d'abord ces permissions à une autre personne.",
+          "capacityList": "Permissions concernées :",
+          "grantDetail": "Permission : {permission}. Périmètre : {scope}."
+        },
+        "leave": {
+          "title": "Quitter sans enregistrer",
+          "description": "Vous avez {count} modifications non enregistrées. Si vous quittez, elles seront perdues. | Vous avez {count} modification non enregistrée. Si vous quittez, elle sera perdue. | Vous avez {count} modifications non enregistrées. Si vous quittez, elles seront perdues.",
+          "confirm": "Quitter et abandonner",
+          "cancel": "Continuer à modifier"
+        },
+        "backToList": "Retour à la liste des rôles"
+      },
+      "actions": {
+        "new": "Nouveau rôle"
+      },
+      "flash": {
+        "created": "Rôle « {name} » créé. Vous pouvez maintenant lui accorder des permissions.",
+        "cloned": "Rôle « {name} » créé comme copie de « {source} ».",
+        "updated": "Données du rôle enregistrées.",
+        "deleted": "Rôle « {name} » supprimé."
+      },
+      "systemNotice": "Les rôles système ne se modifient pas ici. Clonez-le pour créer votre propre version.",
+      "errors": {
+        "unexpected": "L'action n'a pas pu être menée à bien. Veuillez réessayer.",
+        "tooManyRequests": "Trop de tentatives. Patientez un instant et réessayez.",
+        "tooManyRequestsWithSeconds": "Trop de tentatives. Réessayez dans {seconds} s.",
+        "hasAssignments": "Le rôle a des titulaires ({count}). Retirez-le d’abord à chaque utilisateur."
+      },
+      "detail": {
+        "title": "Fiche du rôle",
+        "actions": "Actions",
+        "data": "Données",
+        "editData": "Modifier les données",
+        "editGrants": "Modifier les droits",
+        "clone": "Cloner",
+        "delete": "Supprimer",
+        "viewUsers": "Voir les utilisateurs ayant ce rôle",
+        "code": "Code interne",
+        "type": "Type",
+        "mfaRequired": "MFA obligatoire",
+        "specialData": "Accès aux données de catégorie particulière",
+        "users": "Titulaires",
+        "deleteBlocked": "Impossible de supprimer un rôle ayant des titulaires ({count}). Retirez-le d’abord à chaque utilisateur",
+        "grantsTitle": "Droits",
+        "confirmDelete": {
+          "title": "Supprimer le rôle « {name} »",
+          "description": "La suppression ne s'annule pas depuis l'interface : le rôle cesse d'exister et les rôles supprimés ne sont pas restaurés.",
+          "confirm": "Supprimer le rôle « {name} »"
+        }
+      },
+      "grants": {
+        "caption": "Droits du rôle {name}",
+        "columns": {
+          "resource": "Ressource",
+          "action": "Action",
+          "effect": "Effet",
+          "scope": "Périmètre",
+          "special": "Catégorie particulière",
+          "code": "Code"
+        },
+        "anyScope": "Tout périmètre",
+        "specialBadge": "Catégorie particulière",
+        "specialInert": "Inerte : ce rôle n'a pas accès aux données particulières",
+        "filters": {
+          "effect": "Effet"
+        },
+        "empty": {
+          "title": "Aucun droit",
+          "text": "Ce rôle n'accorde ni ne refuse aucune permission"
+        }
+      },
+      "form": {
+        "titleNew": "Nouveau rôle",
+        "titleClone": "Cloner le rôle",
+        "titleEdit": "Modifier les données du rôle",
+        "requiredHint": "Les champs marqués d’un * sont obligatoires.",
+        "required": "obligatoire",
+        "name": "Nom",
+        "nameHelp": "Il s’affiche à l’identique dans toutes les langues.",
+        "code": "Code",
+        "codeHelp": "Identifiant interne ; il ne pourra pas être modifié.",
+        "mfaRequired": "MFA obligatoire",
+        "mfaHelp": "Les personnes ayant ce rôle devront configurer un second facteur.",
+        "mfaReadOnly": "MFA obligatoire : {value}",
+        "mfaLink": "Modifier dans la configuration MFA",
+        "specialData": "Accès aux données de catégorie particulière",
+        "specialNotHeld": "Vous ne pouvez pas activer cet attribut : aucun de vos rôles n'a accès aux données de catégorie particulière",
+        "specialHint": "Les droits sur les données de catégorie particulière ne prennent effet que dans les rôles ayant cet attribut.",
+        "nameSystem": "Le nom d'un rôle système ne se modifie pas.",
+        "submit": {
+          "new": "Créer le rôle",
+          "clone": "Créer la copie",
+          "edit": "Enregistrer les modifications"
+        },
+        "cancel": "Annuler",
+        "errorSummary": "Vérifiez les champs signalés.",
+        "missing": "Pour consulter le rôle, vous avez aussi besoin de la permission {permission}.",
+        "errors": {
+          "codeFormat": "Le code doit commencer par une lettre minuscule et comporter de 3 à 64 caractères : minuscules, chiffres et tiret bas."
+        },
+        "source": {
+          "title": "Rôle d'origine",
+          "summary": "{count} droits · MFA obligatoire : {mfa} · Accès aux données de catégorie particulière : {special}",
+          "explanation": "Les droits et l'obligation de MFA sont copiés. Les titulaires ne le sont pas. Le nouveau rôle est détaché de l'origine : modifier l'un ensuite ne modifie pas l'autre.",
+          "specialWarning": "Le rôle d'origine a accès aux données de catégorie particulière : vous ne pourrez le cloner que si vous pouvez activer cet attribut."
+        },
+        "grant": {
+          "denied": "Le rôle d'origine accorde quelque chose que vous n'avez pas ; rien n'a été créé.",
+          "detail": "Permission : {permission}. Périmètre : {scope}."
+        },
+        "confirmSpecial": {
+          "activateTitle": "Activer l'accès aux données de catégorie particulière dans « {name} »",
+          "activateDescription": "Le rôle rendra effectifs ses droits de catégorie particulière pour {count} titulaires.",
+          "activateDescriptionUnknown": "Le rôle rendra effectifs ses droits de catégorie particulière pour ses titulaires.",
+          "activateConfirm": "Activer dans « {name} »",
+          "deactivateTitle": "Désactiver l'accès aux données de catégorie particulière dans « {name} »",
+          "deactivateDescription": "Les droits de catégorie particulière du rôle cesseront de prendre effet pour {count} titulaires.",
+          "deactivateDescriptionUnknown": "Les droits de catégorie particulière du rôle cesseront de prendre effet pour ses titulaires.",
+          "deactivateConfirm": "Désactiver dans « {name} »"
         }
       }
     },
@@ -688,6 +859,44 @@
           "inerte_datos_especiales": "le rôle n'a pas accès aux données de catégorie particulière",
           "inerte_sin_resolutor": "aucun module n'applique encore ce périmètre"
         }
+      }
+    },
+    "effectivePermissions": {
+      "title": "Permissions effectives",
+      "heading": "Permissions effectives de {name}",
+      "intro": "Ce que cette personne peut faire en ce moment, calculé avec les mêmes règles que la plateforme applique à chaque requête.",
+      "roles": "Rôles",
+      "noRoles": "Aucun rôle attribué.",
+      "computedAt": "Calculé le {date}",
+      "recalculate": "Recalculer",
+      "caption": "Permissions effectives de {name}",
+      "columns": {
+        "resource": "Ressource",
+        "action": "Action",
+        "decision": "Résultat",
+        "scopes": "Périmètres",
+        "sources": "Provenance",
+        "module": "Module",
+        "code": "Code"
+      },
+      "special": "Catégorie particulière",
+      "unrestricted": "Sans restriction",
+      "anyScope": "Tout périmètre",
+      "sources": {
+        "allows": "Autorise",
+        "denies": "Refuse",
+        "inert": "Sans effet : {reason}"
+      },
+      "vetoedBy": "Refusé par « {role} » : un refus annule tout droit accordé",
+      "grantedInert": "Accordé, mais sans effet : {reason}",
+      "filters": {
+        "decision": "Résultat",
+        "module": "Module",
+        "includeEmpty": "Inclure les permissions sans aucun droit accordé"
+      },
+      "empty": {
+        "title": "Aucune permission",
+        "text": "Cette personne n'a aucune permission accordée ni refusée par ses rôles."
       }
     }
   }

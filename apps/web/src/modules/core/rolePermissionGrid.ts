@@ -21,7 +21,8 @@ export interface GridRow {
 }
 
 export interface GridModule {
-  code: string
+  /** Código del módulo dueño (`core`, `auth`…). */
+  moduleCode: string
   /** Acciones presentes en el módulo, en el orden de `RPERM-003`. */
   actions: string[]
   rows: GridRow[]
@@ -57,7 +58,7 @@ export function buildGrid(catalog: readonly Permission[], locale: string): GridM
     )
 
     return {
-      code,
+      moduleCode: code,
       actions,
       rows: [...rows.values()].sort(
         (a, b) => collator.compare(a.label, b.label) || collator.compare(a.resource, b.resource),

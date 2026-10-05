@@ -245,7 +245,7 @@ describe('buildGrid (§20.8.1): una matriz por módulo, filas por etiqueta, acci
   it('agrupa por módulo en el orden del catálogo y ordena las acciones por RPERM-003 (las desconocidas, al final)', () => {
     const grid = buildGrid(catalog, 'es')
 
-    expect(grid.map((module) => module.code)).toEqual(['core', 'auth'])
+    expect(grid.map((module) => module.moduleCode)).toEqual(['core', 'auth'])
     expect(grid[0]!.actions).toEqual(['crear', 'leer', 'eliminar'])
     expect(grid[1]!.actions).toEqual(['publicar', 'archivar'])
   })

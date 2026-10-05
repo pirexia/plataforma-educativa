@@ -94,3 +94,24 @@ export function problemErrorEntry(err: unknown, key: string): ProblemErrorEntry 
 
   return first && typeof first === 'object' ? first : null
 }
+
+/**
+ * Como `problemErrorEntry`, pero solo si el `code` de esa entrada es el esperado.
+ * El `code` es un código de **error** del servidor (`ADR-038 §6.3`), no un código de
+ * rol (`RN-CORE-23`): se compara aquí, tras desestructurar, como el resto de este fichero.
+ */
+export function problemErrorEntryWithCode(
+  err: unknown,
+  key: string,
+  expectedCode: string,
+): ProblemErrorEntry | null {
+  const entry = problemErrorEntry(err, key)
+
+  if (entry === null) {
+    return null
+  }
+
+  const { code: errorCode } = entry
+
+  return errorCode === expectedCode ? entry : null
+}
