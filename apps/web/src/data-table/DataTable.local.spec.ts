@@ -382,6 +382,48 @@ describe('CA-PERM-125 (RN-PERM-44 E4): filtros en cliente', () => {
     ).toHaveLength(4)
   })
 
+  it('un boolean de inclusión desmarcado deja pasar solo rowValue true; marcado, todas las filas (CA-PERM-121)', async () => {
+    const inclusion: DataTableFilter<Item>[] = [
+      {
+        type: 'boolean',
+        id: 'include_empty',
+        labelKey: 'fixture.flag',
+        twoState: true,
+        inclusion: true,
+        rowValue: (row) => row.flag,
+      },
+    ]
+    const rows = items(4)
+
+    expect(
+      filterLocalRows(rows, { filters: inclusion, filterValues: {}, query: '', locale: 'es' }).map(
+        (row) => row.name,
+      ),
+    ).toEqual(['Fila 0', 'Fila 2'])
+    expect(
+      filterLocalRows(rows, {
+        filters: inclusion,
+        filterValues: { include_empty: 'true' },
+        query: '',
+        locale: 'es',
+      }),
+    ).toHaveLength(4)
+
+    const fetcher = vi.fn<DataTableLocalFetcher<Item>>().mockResolvedValue({ data: rows })
+    const wrapper = mountTable(fetcher, { filters: inclusion })
+    await flushPromises()
+
+    expect(rowNames(wrapper)).toEqual(['Fila 0', 'Fila 2'])
+    expect(announcer(wrapper)).toBe('2 de 4 resultados')
+
+    await wrapper.get<HTMLInputElement>('input[type="checkbox"]').setValue(true)
+    await flushPromises()
+
+    expect(rowNames(wrapper)).toHaveLength(4)
+    expect(announcer(wrapper)).toBe('4 de 4 resultados')
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
   it('en el componente: marcar la casilla filtra sin otra petición', async () => {
     const fetcher = vi.fn<DataTableLocalFetcher<Item>>().mockResolvedValue({ data: items(4) })
     const wrapper = mountTable(fetcher, { filters })

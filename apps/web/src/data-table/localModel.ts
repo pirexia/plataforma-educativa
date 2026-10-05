@@ -63,7 +63,16 @@ function passesBoolean<Row>(
 ): boolean {
   const chosen = values[filter.id]
 
-  if ((chosen !== 'true' && chosen !== 'false') || !filter.rowValue) {
+  if (!filter.rowValue) {
+    return true
+  }
+
+  // Filtro de inclusión (`twoState`): desmarcado restringe; marcado lo incluye todo.
+  if (filter.inclusion === true && filter.twoState === true) {
+    return chosen === 'true' || filter.rowValue(row)
+  }
+
+  if (chosen !== 'true' && chosen !== 'false') {
     return true
   }
 

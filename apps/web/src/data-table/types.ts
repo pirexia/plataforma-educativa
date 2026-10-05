@@ -106,6 +106,15 @@ export interface DataTableBooleanFilter<Row = unknown> {
   twoState?: boolean
   /** Solo modo `local` (`RN-PERM-44` E4): valor booleano de la fila para este filtro. */
   rowValue?: (row: Row) => boolean
+  /**
+   * Solo modo `local` y con `twoState` (precisión de E4 que `CA-PERM-121` exige,
+   * `REQ-PERM/funcional.md §20.10`, «Incluir permisos sin ninguna concesión»):
+   * filtro de **inclusión**. **Marcado**: pasan todas las filas. **Desmarcado**
+   * (estado de reposo): solo pasan las filas con `rowValue(row) === true`. Sin
+   * esta marca, un filtro `boolean` marcado deja pasar solo las filas cuyo
+   * `rowValue` coincide con el valor elegido, y desmarcado no filtra.
+   */
+  inclusion?: boolean
 }
 
 /** Opción devuelta por la búsqueda de un filtro `entity`. */
