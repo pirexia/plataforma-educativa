@@ -70,6 +70,22 @@ final class ApiException extends RuntimeException
         ]);
     }
 
+    /**
+     * REQ-PERM-005, api.md §9.2.1 (RPERM-013, issue #352): variante de las
+     * rutas que asignan un rol a un usuario (`PUT /users/{id}/roles`,
+     * `POST /users` con `role_ids`). Las concesiones salen del rol, no del
+     * cuerpo, y quien asigna roles puede no poder leerlos: ni `params` ni
+     * el `detail` nombran el código ni el ámbito.
+     */
+    public static function cannotGrantUnheldRolePermission(): self
+    {
+        $key = 'core.authorization.cannot_grant_unheld_role_permission';
+
+        return self::forbidden($key, [], [
+            'grant' => [['code' => $key, 'message' => __($key)]],
+        ]);
+    }
+
     public static function moduleDisabled(): self
     {
         return new self(403, 'module-disabled');

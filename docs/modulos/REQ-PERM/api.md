@@ -421,6 +421,8 @@ A partir de 1.5 compara **pares (código, ámbito)** con la regla de absorción 
 
 **La ruta declara únicamente `permission:asignacion_rol.crear`.** La comprobación de `asignacion_rol.eliminar` al retirar un rol **no está implementada**. Hoy no tiene consecuencia práctica —el único rol con `asignacion_rol.crear` es `administrador_centro`, que también tiene `eliminar`— pero 1.5 es precisamente el paso que hace posible un rol personalizado con uno y no con el otro, y a partir de ahí la documentación mentiría sobre una comprobación de autorización.
 
+> **Aplicado en 1.5/1.5b.** La comprobación de `asignacion_rol.eliminar` está implementada y, desde el issue #350 (hueco residual, 2026-10-05), se evalúa **también** dentro de `protect()` sobre los roles releídos con el bloqueo tomado (`RN-PERM-20`): un rol que un cambio concurrente añadió y el `PUT` va a retirar exige ese permiso. El orden de errores no cambia.
+
 Está reportado aparte como hallazgo (severidad **Media**, `CLAUDE.md §5`) y **no lo resuelvo aquí**: o se implementa la comprobación en 1.5, o se corrige la documentación de `REQ-CORE`. Es una decisión, no una omisión que pueda tomar la especificación de otro módulo.
 
 ### 8.3 Auditoría
@@ -428,6 +430,15 @@ Está reportado aparte como hallazgo (severidad **Media**, `CLAUDE.md §5`) y **
 `updated` sobre `user` con `changes.roles.{from,to}` como listas de códigos de rol (`datos.md §5.3`). Nada si no hubo cambio efectivo.
 
 Siguen vigentes sin cambios `RN-CORE-06` (`409` al modificarse a sí mismo) y `RN-CORE-07` (`409` si dejaría al centro sin administrador vivo).
+
+### 8.4 El `403` de `RPERM-013` en estas rutas no revela las concesiones del rol (issue #352, decisión del usuario del 2026-10-05)
+
+En `PUT /users/{id}/roles` y en `POST /users` con `role_ids`, las concesiones que provocan el `403` **salen del rol asignado**, no del cuerpo, y quien asigna roles (`asignacion_rol.crear`) puede no poder leerlos (`rol.leer`, `permiso.leer`). Devolver el código y el ámbito permitiría enumerar por tanteo las concesiones de un rol. Por eso, **solo en estas dos rutas**:
+
+- `403` con `errors.grant[0]` = `{code: "core.authorization.cannot_grant_unheld_role_permission", message}`: **sin `params`**.
+- `detail` genérico y traducido (es/en/de/fr): «No puedes asignar este rol: concede algún permiso que tú mismo no tienes.» No nombra el código ni el ámbito.
+
+**No cambia** `PUT /roles/{id}/permissions` ni `POST /roles` con `permissions` propias (§5.4, §9.2.1): allí el código lo ha enviado el propio solicitante y la respuesta sigue llevando `errors.grant[0].params = {code, scope}`. La clonación (`POST /roles` con `clone_from`) también se mantiene sin cambio; ver el informe del issue #352 sobre si reproduce la misma fuga.
 
 ---
 
@@ -484,6 +495,7 @@ Los `403` de `RPERM-013` y de `special_data_access` necesitan **decir por qué**
 | Clave de `detail` | Cuándo |
 |-------------------|--------|
 | `core.authorization.cannot_grant_unheld_permission` | `RPERM-013`. Datos en `errors.grant[0].params`: `{ "code": "...", "scope": "..." }` (§9.2.1; nunca `params` de primer nivel) |
+| `core.authorization.cannot_grant_unheld_role_permission` | `RPERM-013` en las **rutas de asignación de rol** (`PUT /users/{id}/roles`, `POST /users` con `role_ids`; §8.4, issue #352). **Sin datos**: ni `params` ni el código o el ámbito en `detail` |
 | `core.authorization.special_data_access_not_held` | Se intentó activar `special_data_access` sin poseerlo |
 
 **Es un cambio compatible**: añadir `detail` donde antes había uno genérico no rompe a ningún cliente (`ADR-038 §7.2`). Y **no se filtra nada**: el mensaje habla de lo que el solicitante intentaba hacer, no de datos ajenos.
@@ -499,6 +511,7 @@ Los `403` de `RPERM-013` y de `special_data_access` necesitan **decir por qué**
 | Error | Estado | Clave de `errors` | `errors.<clave>[0].code` | `errors.<clave>[0].params` |
 |-------|--------|-------------------|--------------------------|----------------------------|
 | `RPERM-013` / `RN-PERM-24` | `403` | **`grant`** — la concesión que se intenta | `core.authorization.cannot_grant_unheld_permission` | `{ "code": "<permiso>", "scope": "<ámbito>" }` del **primer** par que lo provoca |
+| `RPERM-013` en asignación de rol (#352) | `403` | **`grant`** | `core.authorization.cannot_grant_unheld_role_permission` | **Ninguno**: la entrada lleva solo `code` y `message` (§8.4) |
 | `RN-PERM-17` | `409` | **`role`** — el rol que se intenta eliminar | `core.validation.role_has_assignments` | `{ "users_count": <entero> }` |
 | `RN-PERM-47` | `409` | **`administration_capacity`** — la capacidad del centro que se perdería | `core.validation.administration_capacity_lost` | `{ "codes": ["<permiso>", …] }` — **lista (*array*)** de cadenas, ordenada (§14.5) |
 

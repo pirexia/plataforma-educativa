@@ -67,6 +67,7 @@ return [
 
     'authorization' => [
         'cannot_grant_unheld_permission' => 'You cannot grant permission ":code" with scope ":scope": you do not have it yourself.',
+        'cannot_grant_unheld_role_permission' => 'You cannot assign this role: it grants a permission you do not have yourself.',
         'special_data_access_not_held' => 'You cannot activate access to special category data: you do not have it yourself.',
     ],
 

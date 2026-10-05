@@ -74,6 +74,7 @@ return [
     // que el administrador pueda corregir algo con la respuesta.
     'authorization' => [
         'cannot_grant_unheld_permission' => 'No puedes conceder el permiso «:code» con ámbito «:scope»: tú mismo no lo tienes.',
+        'cannot_grant_unheld_role_permission' => 'No puedes asignar este rol: concede algún permiso que tú mismo no tienes.',
         'special_data_access_not_held' => 'No puedes activar el acceso a datos de categoría especial: tú mismo no lo tienes.',
     ],
 

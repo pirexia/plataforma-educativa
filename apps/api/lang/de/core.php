@@ -67,6 +67,7 @@ return [
 
     'authorization' => [
         'cannot_grant_unheld_permission' => 'Du kannst die Berechtigung „:code" mit Geltungsbereich „:scope" nicht vergeben: Du besitzt sie selbst nicht.',
+        'cannot_grant_unheld_role_permission' => 'Du kannst diese Rolle nicht zuweisen: Sie gewährt eine Berechtigung, die Du selbst nicht besitzt.',
         'special_data_access_not_held' => 'Du kannst den Zugriff auf besonders geschützte Daten nicht aktivieren: Du besitzt ihn selbst nicht.',
     ],
 

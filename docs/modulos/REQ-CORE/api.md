@@ -238,7 +238,7 @@ Obligatorios: `email`, `person.given_name`, `person.family_name_1`. El resto es 
 - **Errores**
   - `422` — validación: correo duplicado entre vivos (`RN-CORE-02`), documento duplicado (`RN-CORE-03`, `core.validation.document_duplicate`), idioma fuera de los activos (`RN-CORE-13`), tipo fuera del catálogo (campo `person.document_type`, `core.validation.document_type_invalid`; **no refleja el valor recibido**, ni en el mensaje ni en `params`), tipo sin número o número sin tipo (`core.validation.document_incomplete`, en el campo que falta), número inválido para el tipo (`person.document_number`, `core.validation.document_number_invalid`), rol inexistente.
   - **Cambio de contrato de 1.9c** (`ADR-038 §7`): el campo deja de aceptar texto libre; es incompatible en sentido estricto, sin más clientes que la SPA propia y sin producción (`H0`). Anotado en `CHANGELOG.md`.
-  - `403` — `RPERM-013`: se intenta asignar un rol con permisos que el solicitante no posee (`RN-CORE-08`).
+  - `403` — `RPERM-013`: se intenta asignar un rol con permisos que el solicitante no posee (`RN-CORE-08`). Sin `params` ni código/ámbito en `detail` (issue #352, `REQ-PERM/api.md §8.4`).
 - **Idempotencia**: no. La unicidad de correo y documento ya impide el duplicado.
 
 ---
@@ -418,7 +418,7 @@ Reemplaza el conjunto completo de roles del usuario. Se usa `PUT` y no `POST`/`D
 - **Cuerpo**: `{ "role_ids": ["01J8...", "01J8..."] }`
 - **Respuesta 200**: los roles resultantes
 - **Errores**
-  - `403` — algún rol concede un permiso que el solicitante no posee (`RPERM-013`, `RN-CORE-08`)
+  - `403` — algún rol concede un permiso que el solicitante no posee (`RPERM-013`, `RN-CORE-08`); sin `params` ni código/ámbito en `detail` (issue #352, `REQ-PERM/api.md §8.4`)
   - `409` — retiraría el rol `administrador_centro` al último que lo tiene (`RN-CORE-07`) o dejaría al centro sin la capacidad completa de administración (`RN-PERM-47`, 1.5b), o el solicitante se está modificando a sí mismo (`RN-CORE-06`)
   - `422` — algún `role_id` no existe en el tenant
   - `404` — algún `role_id` pertenece a otro tenant (indistinguible de inexistente, por diseño)

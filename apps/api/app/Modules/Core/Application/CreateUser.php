@@ -144,7 +144,7 @@ final class CreateUser
         $denied = $this->firstUngrantable($actor, $roles);
 
         if ($denied !== null) {
-            throw ApiException::cannotGrantUnheldPermission($denied['code'], $denied['scope']);
+            throw ApiException::cannotGrantUnheldRolePermission();
         }
     }
 
