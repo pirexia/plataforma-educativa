@@ -164,7 +164,8 @@
     "announce": {
       "results": "Sin resultados | {count} resultado | {count} resultados",
       "loaded": "Sin resultados | {count} fila cargada | {count} filas cargadas",
-      "more": "No se han cargado más filas | {count} fila más cargada | {count} filas más cargadas"
+      "more": "No se han cargado más filas | {count} fila más cargada | {count} filas más cargadas",
+      "local": "{count} de {total} resultados | {count} de {total} resultado | {count} de {total} resultados"
     },
     "export": {
       "button": "Exportar",

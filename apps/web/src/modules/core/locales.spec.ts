@@ -77,6 +77,10 @@ describe('CA-CORE-261 (INV-009): las cuatro lenguas de core tienen las mismas cl
       'core.nav.roles',
       'core.roles.title',
       'core.roles.no',
+      // 1.5b: cognado.
+      'core.roles.editor.marks.error',
+      // Plantilla solo de parámetros.
+      'core.roles.editor.confirm.item',
       'core.audit.columns.ipAddress',
       'core.audit.changes.arrow',
       'core.audit.changes.description',
@@ -153,6 +157,11 @@ describe('CA-CORE-261: toda clave literal usada en el código de core existe', (
     }
 
     // Rutas de la API y nombres de rol no son claves: se descartan los que no cuelgan de `core.<área>.`.
-    expect(missing.filter((entry) => !/: core\.(?:export|validation)\./.test(entry))).toEqual([])
+    // `core.authorization.*` y `core.validation.*` son **códigos de error** del servidor
+    // (`errors.<clave>[].code`, `ADR-038 §6.3`, `REQ-PERM/api.md §9.2.1`), que la vista compara
+    // y nunca traduce (el mensaje ya llega traducido).
+    expect(
+      missing.filter((entry) => !/: core\.(?:export|validation|authorization)\./.test(entry)),
+    ).toEqual([])
   })
 })

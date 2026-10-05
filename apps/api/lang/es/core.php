@@ -66,6 +66,8 @@ return [
         'permission_duplicated' => 'El código de permiso «:code» aparece más de una vez.',
         'role_is_system' => 'Un rol del aprovisionamiento del centro no se puede eliminar.',
         'role_has_assignments' => 'Este rol tiene :users_count usuario(s) asignado(s) y no se puede eliminar.',
+        // REQ-PERM/funcional.md §20.2.1 (1.5b, RN-PERM-47).
+        'administration_capacity_lost' => 'Esta operación dejaría al centro sin ningún usuario activo con todos los permisos de administración. Permisos afectados: :codes. Concede antes esos permisos a otra persona activa del centro.',
     ],
 
     // REQ-PERM/api.md §9.2 (1.5): motivo de un 403 de autorización, para
@@ -83,6 +85,23 @@ return [
         'inerte_modulo' => 'El módulo de este permiso no está activo en este centro.',
         'inerte_datos_especiales' => 'La concesión viene de un rol sin acceso a datos de categoría especial.',
         'inerte_sin_resolutor' => 'El ámbito de esta concesión todavía no tiene resolutor.',
+    ],
+
+    // REQ-PERM/api.md §14.3 (1.5b, S-PERM-2): nombre de cada recurso de los
+    // permisos que declara este módulo (`resource_label_key`).
+    'permissions' => [
+        'resources' => [
+            'usuario' => 'Usuarios',
+            'invitacion' => 'Invitaciones',
+            'asignacion_rol' => 'Asignaciones de rol',
+            'rol' => 'Roles',
+            'permiso' => 'Permisos',
+            'configuracion' => 'Configuración',
+            'modulo' => 'Módulos',
+            'auditoria' => 'Auditoría',
+            'rol_datos_especiales' => 'Datos de categoría especial de un rol',
+            'permiso_efectivo' => 'Permisos efectivos',
+        ],
     ],
 
     'idempotency' => [

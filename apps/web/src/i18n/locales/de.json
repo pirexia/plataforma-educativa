@@ -164,7 +164,8 @@
     "announce": {
       "results": "Keine Ergebnisse | {count} Ergebnis | {count} Ergebnisse",
       "loaded": "Keine Ergebnisse | {count} Zeile geladen | {count} Zeilen geladen",
-      "more": "Keine weiteren Zeilen geladen | {count} weitere Zeile geladen | {count} weitere Zeilen geladen"
+      "more": "Keine weiteren Zeilen geladen | {count} weitere Zeile geladen | {count} weitere Zeilen geladen",
+      "local": "{count} von {total} Ergebnissen | {count} von {total} Ergebnis | {count} von {total} Ergebnissen"
     },
     "export": {
       "button": "Exportieren",

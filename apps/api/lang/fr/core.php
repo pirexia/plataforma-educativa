@@ -61,6 +61,8 @@ return [
         'permission_duplicated' => 'Le code de permission « :code » apparaît plus d\'une fois.',
         'role_is_system' => 'Un rôle du provisionnement de l\'établissement ne peut pas être supprimé.',
         'role_has_assignments' => 'Ce rôle a :users_count utilisateur(s) assigné(s) et ne peut pas être supprimé.',
+        // REQ-PERM/funcional.md §20.2.1 (1.5b, RN-PERM-47).
+        'administration_capacity_lost' => 'Cette opération laisserait l\'établissement sans aucun utilisateur actif possédant toutes les permissions d\'administration. Permissions concernées : :codes. Accordez d\'abord ces permissions à une autre personne active de l\'établissement.',
     ],
 
     'authorization' => [
@@ -73,6 +75,23 @@ return [
         'inerte_modulo' => 'Le module de cette permission n\'est pas activé pour cet établissement.',
         'inerte_datos_especiales' => 'L\'attribution provient d\'un rôle sans accès aux données de catégorie spéciale.',
         'inerte_sin_resolutor' => 'Le périmètre de cette attribution n\'a pas encore de résolveur.',
+    ],
+
+    // REQ-PERM/api.md §14.3 (1.5b, S-PERM-2) : nom de chaque ressource des
+    // permissions déclarées par ce module (`resource_label_key`).
+    'permissions' => [
+        'resources' => [
+            'usuario' => 'Utilisateurs',
+            'invitacion' => 'Invitations',
+            'asignacion_rol' => 'Attributions de rôle',
+            'rol' => 'Rôles',
+            'permiso' => 'Permissions',
+            'configuracion' => 'Configuration',
+            'modulo' => 'Modules',
+            'auditoria' => 'Audit',
+            'rol_datos_especiales' => 'Données de catégorie spéciale d\'un rôle',
+            'permiso_efectivo' => 'Permissions effectives',
+        ],
     ],
 
     'idempotency' => [

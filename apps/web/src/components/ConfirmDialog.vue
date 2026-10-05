@@ -43,6 +43,13 @@ function onOpenChange(next: boolean): void {
         <AlertDialogTitle>{{ props.request?.title }}</AlertDialogTitle>
         <AlertDialogDescription>{{ props.request?.description }}</AlertDialogDescription>
       </AlertDialogHeader>
+      <ul
+        v-if="props.request?.details && props.request.details.length > 0"
+        data-slot="confirm-dialog-details"
+        class="max-h-60 list-disc overflow-y-auto pl-5 text-sm"
+      >
+        <li v-for="detail in props.request.details" :key="detail">{{ detail }}</li>
+      </ul>
       <AlertDialogFooter>
         <AlertDialogCancel @click="emit('cancel')">
           {{ props.request?.cancelLabel ?? t('shell.confirm.cancel') }}

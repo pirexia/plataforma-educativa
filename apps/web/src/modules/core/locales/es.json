@@ -103,7 +103,9 @@
         "manageRoles": "Roles asignados",
         "saveRoles": "Guardar roles",
         "viewActivity": "Ver su actividad",
-        "viewActivityFor": "Ver su actividad: {name}"
+        "viewActivityFor": "Ver su actividad: {name}",
+        "viewEffectivePermissions": "Ver permisos efectivos",
+        "viewEffectivePermissionsFor": "Ver permisos efectivos de {name}"
       },
       "confirm": {
         "deactivate": {
@@ -391,7 +393,7 @@
     },
     "roles": {
       "title": "Roles",
-      "intro": "Roles del centro, de solo lectura. La edición de roles llegará más adelante.",
+      "intro": "Roles del centro. Consulta las concesiones de cada uno, crea un rol propio o clona uno existente.",
       "caption": "Roles del centro",
       "empty": {
         "title": "No hay roles",
@@ -409,7 +411,222 @@
         "custom": "Personalizado"
       },
       "yes": "Sí",
-      "no": "No"
+      "no": "No",
+      "editor": {
+        "matrix": {
+          "resource": "Recurso",
+          "special": "Categoría especial",
+          "caption": "Concesiones de {module} para {role}",
+          "scrollLabel": "Matriz de concesiones de {module}, desplazable",
+          "notContracted": "Módulo no contratado: estas concesiones no surten efecto mientras no se contrate"
+        },
+        "state": {
+          "none": "Sin conceder",
+          "allow": "Permitir · {scope}"
+        },
+        "marks": {
+          "modified": "Modificado",
+          "inert": "Inerte",
+          "onlyRemove": "Solo retirar o denegar",
+          "error": "Error"
+        },
+        "cell": {
+          "name": "{resource} · {action}: {state}. Modificar",
+          "nameMarks": "{resource} · {action}: {state} ({marks}). Modificar"
+        },
+        "panel": {
+          "close": "Cerrar el panel",
+          "code": "Código técnico:",
+          "groupLabel": "Concesión de {name}",
+          "scope": "Ámbito",
+          "scopePlaceholder": "Elige un ámbito",
+          "anyScope": "Cualquier ámbito",
+          "denyExplanation": "Denegar anula este permiso para todos los titulares del rol, en cualquier ámbito y aunque otro de sus roles lo conceda.",
+          "apply": "Aplicar",
+          "cancel": "Cancelar"
+        },
+        "option": {
+          "current": "{scope} (actual)",
+          "notHeld": "{scope} — no puedes concederlo: tú no tienes este permiso con este ámbito",
+          "noResolver": "{scope} — todavía no se puede conceder: lo aportará un módulo que aún no está disponible"
+        },
+        "notes": {
+          "onlyNotHeld": "Solo puedes denegar o dejar sin conceder este permiso: tú no lo tienes",
+          "onlyVetoed": "Solo puedes denegar o dejar sin conceder este permiso: lo tienes vetado por una denegación",
+          "onlyInert": "Solo puedes denegar o dejar sin conceder este permiso: tu concesión no surte efecto ({reason})",
+          "specialInert": "Esta concesión no surtirá efecto: el rol no tiene acceso a datos de categoría especial",
+          "moduleInert": "Esta concesión no surtirá efecto mientras no se contrate el módulo"
+        },
+        "pageTitle": "Concesiones del rol",
+        "title": "Concesiones de «{name}»",
+        "intro": "Elige para cada permiso si el rol lo concede, lo deniega o no dice nada. Los cambios no se guardan hasta que pulses «Guardar».",
+        "legend": {
+          "title": "Qué ámbitos puedes conceder",
+          "rule": "No puedes conceder un permiso, ni con un ámbito, que tú no tengas. Siempre puedes retirarlo o denegarlo.",
+          "notHeld": "«No lo tienes»: tú no tienes este permiso con ese ámbito.",
+          "noResolver": "«Aún no existe»: lo aportará un módulo que aún no está disponible."
+        },
+        "toolbar": {
+          "module": "Módulo",
+          "allModules": "Todos los módulos",
+          "search": "Buscar recurso",
+          "searchPlaceholder": "Buscar recurso…",
+          "onlyChanged": "Solo recursos con cambios sin guardar"
+        },
+        "changes": "Sin cambios sin guardar | {count} cambio sin guardar | {count} cambios sin guardar",
+        "save": "Guardar",
+        "saved": "Concesiones guardadas.",
+        "empty": {
+          "title": "No hay permisos en el catálogo",
+          "text": "El catálogo de permisos está vacío."
+        },
+        "noMatches": {
+          "title": "Ningún recurso coincide",
+          "text": "Cambia el módulo, la búsqueda o el filtro de cambios."
+        },
+        "missing": "Para editar las concesiones necesitas además el permiso {permission}.",
+        "orphans": "Estas concesiones ya no están en el catálogo y se conservan sin cambios: {codes}",
+        "confirm": {
+          "title": "Guardar las concesiones de «{name}»",
+          "counts": "Concedidos: {granted} · Ámbito cambiado: {scopeChanged} · Denegados: {denied} · Retirados: {removed}",
+          "consequence": "Afecta de inmediato a {count} titulares | Afecta de inmediato a {count} titular | Afecta de inmediato a {count} titulares",
+          "holder": "Eres titular de este rol: los cambios también te afectan a ti, y no podrás volver a conceder lo que te retires.",
+          "item": "{name}: {from} → {to}",
+          "confirm": "Guardar concesiones de «{name}»"
+        },
+        "conflict": {
+          "title": "Otra persona ha cambiado las concesiones de este rol desde que lo abriste",
+          "codes": "Permisos que han cambiado:",
+          "reload": "Recargar",
+          "reloadConfirm": {
+            "title": "Recargar y descartar tus cambios",
+            "description": "Perderás los cambios sin guardar de esta pantalla y verás las concesiones actuales del rol.",
+            "confirm": "Recargar y descartar"
+          }
+        },
+        "errors": {
+          "summary": "No se han guardado las concesiones.",
+          "capacity": "Si guardas esto, nadie del centro conservaría todos los permisos de administración. Concede primero esos permisos a otra persona.",
+          "capacityList": "Permisos afectados:",
+          "grantDetail": "Permiso: {permission}. Ámbito: {scope}."
+        },
+        "leave": {
+          "title": "Salir sin guardar",
+          "description": "Tienes {count} cambios sin guardar. Si sales, se perderán. | Tienes {count} cambio sin guardar. Si sales, se perderá. | Tienes {count} cambios sin guardar. Si sales, se perderán.",
+          "confirm": "Salir y descartar",
+          "cancel": "Seguir editando"
+        },
+        "backToList": "Volver al listado de roles"
+      },
+      "actions": {
+        "new": "Nuevo rol"
+      },
+      "flash": {
+        "created": "Rol «{name}» creado. Ahora puedes concederle permisos.",
+        "cloned": "Rol «{name}» creado como copia de «{source}».",
+        "updated": "Datos del rol guardados.",
+        "deleted": "Rol «{name}» eliminado."
+      },
+      "systemNotice": "Los roles del sistema no se modifican desde aquí. Clónalo para crear una versión propia.",
+      "errors": {
+        "unexpected": "La acción no se ha podido completar. Inténtalo de nuevo.",
+        "tooManyRequests": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
+        "tooManyRequestsWithSeconds": "Demasiados intentos. Inténtalo de nuevo en {seconds} s.",
+        "hasAssignments": "El rol tiene titulares ({count}). Retíraselo antes a cada usuario."
+      },
+      "detail": {
+        "title": "Ficha del rol",
+        "actions": "Acciones",
+        "data": "Datos",
+        "editData": "Editar datos",
+        "editGrants": "Editar concesiones",
+        "clone": "Clonar",
+        "delete": "Eliminar",
+        "viewUsers": "Ver usuarios con este rol",
+        "code": "Código interno",
+        "type": "Tipo",
+        "mfaRequired": "MFA obligatorio",
+        "specialData": "Acceso a datos de categoría especial",
+        "users": "Titulares",
+        "deleteBlocked": "No se puede eliminar un rol con titulares ({count}). Retíraselo antes a cada usuario",
+        "grantsTitle": "Concesiones",
+        "confirmDelete": {
+          "title": "Eliminar el rol «{name}»",
+          "description": "La baja no se deshace desde la interfaz: el rol deja de existir y los roles eliminados no se restauran.",
+          "confirm": "Eliminar el rol «{name}»"
+        }
+      },
+      "grants": {
+        "caption": "Concesiones del rol {name}",
+        "columns": {
+          "resource": "Recurso",
+          "action": "Acción",
+          "effect": "Efecto",
+          "scope": "Ámbito",
+          "special": "Categoría especial",
+          "code": "Código"
+        },
+        "anyScope": "Cualquier ámbito",
+        "specialBadge": "Categoría especial",
+        "specialInert": "Inerte: este rol no tiene acceso a datos especiales",
+        "filters": {
+          "effect": "Efecto"
+        },
+        "empty": {
+          "title": "Sin concesiones",
+          "text": "Este rol no concede ni deniega ningún permiso"
+        }
+      },
+      "form": {
+        "titleNew": "Nuevo rol",
+        "titleClone": "Clonar rol",
+        "titleEdit": "Editar datos del rol",
+        "requiredHint": "Los campos marcados con * son obligatorios.",
+        "required": "obligatorio",
+        "name": "Nombre",
+        "nameHelp": "Se muestra igual en todos los idiomas.",
+        "code": "Código",
+        "codeHelp": "Identificador interno; no podrá cambiarse.",
+        "mfaRequired": "MFA obligatorio",
+        "mfaHelp": "Quienes tengan este rol deberán configurar un segundo factor.",
+        "mfaReadOnly": "MFA obligatorio: {value}",
+        "mfaLink": "Cambiar en la configuración de MFA",
+        "specialData": "Acceso a datos de categoría especial",
+        "specialNotHeld": "No puedes activar este atributo: ninguno de tus roles tiene acceso a datos de categoría especial",
+        "specialHint": "Las concesiones de datos de categoría especial solo surten efecto en roles con este atributo.",
+        "nameSystem": "El nombre de un rol del sistema no se edita.",
+        "submit": {
+          "new": "Crear rol",
+          "clone": "Crear copia",
+          "edit": "Guardar cambios"
+        },
+        "cancel": "Cancelar",
+        "errorSummary": "Revisa los campos marcados.",
+        "missing": "Para ver el rol necesitas además el permiso {permission}.",
+        "errors": {
+          "codeFormat": "El código debe empezar por una letra minúscula y tener entre 3 y 64 caracteres: minúsculas, números y guion bajo."
+        },
+        "source": {
+          "title": "Rol de origen",
+          "summary": "{count} concesiones · MFA obligatorio: {mfa} · Acceso a datos de categoría especial: {special}",
+          "explanation": "Se copian las concesiones y la obligación de MFA. No se copian los titulares. El rol nuevo queda desligado del origen: cambiar uno después no cambia el otro.",
+          "specialWarning": "El rol de origen tiene acceso a datos de categoría especial: solo podrás clonarlo si puedes activar ese atributo."
+        },
+        "grant": {
+          "denied": "El rol de origen concede algo que tú no tienes; no se ha creado nada.",
+          "detail": "Permiso: {permission}. Ámbito: {scope}."
+        },
+        "confirmSpecial": {
+          "activateTitle": "Activar el acceso a datos de categoría especial en «{name}»",
+          "activateDescription": "El rol pasará a hacer efectivas sus concesiones de categoría especial para {count} titulares.",
+          "activateDescriptionUnknown": "El rol pasará a hacer efectivas sus concesiones de categoría especial para sus titulares.",
+          "activateConfirm": "Activar en «{name}»",
+          "deactivateTitle": "Desactivar el acceso a datos de categoría especial en «{name}»",
+          "deactivateDescription": "Las concesiones de categoría especial del rol dejarán de surtir efecto para {count} titulares.",
+          "deactivateDescriptionUnknown": "Las concesiones de categoría especial del rol dejarán de surtir efecto para sus titulares.",
+          "deactivateConfirm": "Desactivar en «{name}»"
+        }
+      }
     },
     "settings": {
       "title": "Configuración del centro",
@@ -605,6 +822,81 @@
         "unexpected": "No se ha podido guardar el perfil. Inténtalo de nuevo.",
         "tooManyRequests": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
         "tooManyRequestsWithSeconds": "Demasiados intentos. Vuelve a intentarlo dentro de {seconds} s."
+      }
+    },
+    "permissions": {
+      "vocabulary": {
+        "actions": {
+          "crear": "Crear",
+          "leer": "Leer",
+          "actualizar": "Actualizar",
+          "eliminar": "Eliminar",
+          "exportar": "Exportar",
+          "importar": "Importar",
+          "aprobar": "Aprobar",
+          "firmar": "Firmar",
+          "publicar": "Publicar"
+        },
+        "scopes": {
+          "todos": "Todos",
+          "propios": "Propios",
+          "departamento": "Departamento",
+          "grupo": "Grupo",
+          "clase": "Clase",
+          "unidad_familiar": "Unidad familiar"
+        },
+        "effects": {
+          "allow": "Permitir",
+          "deny": "Denegar"
+        },
+        "decisions": {
+          "permitido": "Permitido",
+          "denegado": "Denegado"
+        },
+        "inertReasons": {
+          "inerte_permiso_retirado": "el permiso ya no existe en el catálogo",
+          "inerte_modulo": "el centro no tiene contratado el módulo",
+          "inerte_datos_especiales": "el rol no tiene acceso a datos de categoría especial",
+          "inerte_sin_resolutor": "ningún módulo aplica todavía este ámbito"
+        }
+      }
+    },
+    "effectivePermissions": {
+      "title": "Permisos efectivos",
+      "heading": "Permisos efectivos de {name}",
+      "intro": "Lo que esta persona puede hacer ahora mismo, calculado con las mismas reglas que aplica la plataforma en cada petición.",
+      "roles": "Roles",
+      "noRoles": "Sin roles asignados.",
+      "computedAt": "Calculado el {date}",
+      "recalculate": "Recalcular",
+      "caption": "Permisos efectivos de {name}",
+      "columns": {
+        "resource": "Recurso",
+        "action": "Acción",
+        "decision": "Resultado",
+        "scopes": "Ámbitos",
+        "sources": "Procedencia",
+        "module": "Módulo",
+        "code": "Código"
+      },
+      "special": "Categoría especial",
+      "unrestricted": "Sin restricción",
+      "anyScope": "Cualquier ámbito",
+      "sources": {
+        "allows": "Permite",
+        "denies": "Deniega",
+        "inert": "No surte efecto: {reason}"
+      },
+      "vetoedBy": "Denegado por «{role}»: una denegación anula cualquier concesión",
+      "grantedInert": "Concedido, pero sin efecto: {reason}",
+      "filters": {
+        "decision": "Resultado",
+        "module": "Módulo",
+        "includeEmpty": "Incluir permisos sin ninguna concesión"
+      },
+      "empty": {
+        "title": "Sin permisos",
+        "text": "Esta persona no tiene ningún permiso concedido ni denegado por sus roles."
       }
     }
   }

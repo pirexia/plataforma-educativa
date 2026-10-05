@@ -3,6 +3,7 @@
 namespace App\Modules\Core\Http\Resources;
 
 use App\Models\Role;
+use App\Support\Modules\PermissionResourceLabels;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -30,9 +31,12 @@ class RoleResource extends JsonResource
         ];
 
         if ($this->relationLoaded('permissionGrants')) {
+            $labels = app(PermissionResourceLabels::class);
+
             $data['permissions'] = $this->permissionGrants->map(fn ($grant) => [
                 'code' => $grant->permission_code,
                 'resource' => $grant->permission->resource,
+                'resource_label' => $labels->label($grant->permission->resource),
                 'action' => $grant->permission->action,
                 'effect' => $grant->effect,
                 'scope' => $grant->scope,

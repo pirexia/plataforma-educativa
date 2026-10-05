@@ -98,6 +98,11 @@ async function mountView(publicId = 'U1'): Promise<VueWrapper> {
         name: 'core-user-edit',
         component: stub,
       },
+      {
+        path: '/administracion/usuarios/:publicId/permisos',
+        name: 'core-user-effective-permissions',
+        component: stub,
+      },
     ],
   })
 
@@ -512,5 +517,26 @@ describe('CA-CORE-244 (OPEN-CORE-33 = C, RN-CORE-76): «Ver su actividad»', () 
     await mountView()
 
     expect(document.body.textContent).not.toContain('Ver su actividad')
+  })
+})
+
+describe('CA-PERM-119 (RN-PERM-41, RN-CORE-61): «Ver permisos efectivos»', () => {
+  it('con permiso_efectivo.leer enlaza con la pantalla de permisos efectivos de este usuario, con nombre accesible que lo identifica', async () => {
+    session.__setSession(['usuario.leer', 'permiso_efectivo.leer'])
+    await mountView()
+
+    const link = [...document.body.querySelectorAll('a')].find(
+      (candidate) => candidate.textContent?.trim() === 'Ver permisos efectivos',
+    )!
+
+    expect(link.getAttribute('href')).toBe('/administracion/usuarios/U1/permisos')
+    expect(link.getAttribute('aria-label')).toBe('Ver permisos efectivos de Ana López')
+  })
+
+  it('sin permiso_efectivo.leer la acción no existe', async () => {
+    session.__setSession(['usuario.leer'])
+    await mountView()
+
+    expect(document.body.textContent).not.toContain('Ver permisos efectivos')
   })
 })

@@ -103,7 +103,9 @@
         "manageRoles": "Assigned roles",
         "saveRoles": "Save roles",
         "viewActivity": "View their activity",
-        "viewActivityFor": "View their activity: {name}"
+        "viewActivityFor": "View their activity: {name}",
+        "viewEffectivePermissions": "View effective permissions",
+        "viewEffectivePermissionsFor": "View effective permissions of {name}"
       },
       "confirm": {
         "deactivate": {
@@ -391,7 +393,7 @@
     },
     "roles": {
       "title": "Roles",
-      "intro": "School roles, read-only. Role editing will arrive later.",
+      "intro": "School roles. Review what each one grants, create your own role or clone an existing one.",
       "caption": "School roles",
       "empty": {
         "title": "No roles",
@@ -409,7 +411,222 @@
         "custom": "Custom"
       },
       "yes": "Yes",
-      "no": "No"
+      "no": "No",
+      "editor": {
+        "matrix": {
+          "resource": "Resource",
+          "special": "Special category",
+          "caption": "Grants of {module} for {role}",
+          "scrollLabel": "Grants matrix for {module}, scrollable",
+          "notContracted": "Module not contracted: these grants have no effect until it is contracted"
+        },
+        "state": {
+          "none": "Not granted",
+          "allow": "Allow · {scope}"
+        },
+        "marks": {
+          "modified": "Modified",
+          "inert": "Inert",
+          "onlyRemove": "Only remove or deny",
+          "error": "Error"
+        },
+        "cell": {
+          "name": "{resource} · {action}: {state}. Edit",
+          "nameMarks": "{resource} · {action}: {state} ({marks}). Edit"
+        },
+        "panel": {
+          "close": "Close the panel",
+          "code": "Technical code:",
+          "groupLabel": "Grant for {name}",
+          "scope": "Scope",
+          "scopePlaceholder": "Choose a scope",
+          "anyScope": "Any scope",
+          "denyExplanation": "Deny overrides this permission for everyone who holds the role, in any scope and even if another of their roles grants it.",
+          "apply": "Apply",
+          "cancel": "Cancel"
+        },
+        "option": {
+          "current": "{scope} (current)",
+          "notHeld": "{scope} — you cannot grant it: you do not have this permission with this scope",
+          "noResolver": "{scope} — cannot be granted yet: a module that is not available yet will provide it"
+        },
+        "notes": {
+          "onlyNotHeld": "You can only deny this permission or leave it ungranted: you do not have it",
+          "onlyVetoed": "You can only deny this permission or leave it ungranted: it is vetoed for you by a denial",
+          "onlyInert": "You can only deny this permission or leave it ungranted: your grant has no effect ({reason})",
+          "specialInert": "This grant will have no effect: the role has no access to special-category data",
+          "moduleInert": "This grant will have no effect until the module is contracted"
+        },
+        "pageTitle": "Role grants",
+        "title": "Grants of “{name}”",
+        "intro": "For each permission, choose whether the role grants it, denies it or says nothing. Changes are not saved until you press “Save”.",
+        "legend": {
+          "title": "Which scopes you can grant",
+          "rule": "You cannot grant a permission, or a scope, that you do not have yourself. You can always remove it or deny it.",
+          "notHeld": "“You do not have it”: you do not have this permission with that scope.",
+          "noResolver": "“Does not exist yet”: a module that is not available yet will provide it."
+        },
+        "toolbar": {
+          "module": "Module",
+          "allModules": "All modules",
+          "search": "Search resource",
+          "searchPlaceholder": "Search resource…",
+          "onlyChanged": "Only resources with unsaved changes"
+        },
+        "changes": "No unsaved changes | {count} unsaved change | {count} unsaved changes",
+        "save": "Save",
+        "saved": "Grants saved.",
+        "empty": {
+          "title": "No permissions in the catalog",
+          "text": "The permission catalog is empty."
+        },
+        "noMatches": {
+          "title": "No resource matches",
+          "text": "Change the module, the search or the changes filter."
+        },
+        "missing": "To edit the grants you also need the permission {permission}.",
+        "orphans": "These grants are no longer in the catalog and are kept unchanged: {codes}",
+        "confirm": {
+          "title": "Save the grants of “{name}”",
+          "counts": "Granted: {granted} · Scope changed: {scopeChanged} · Denied: {denied} · Removed: {removed}",
+          "consequence": "It takes effect immediately for {count} holders | It takes effect immediately for {count} holder | It takes effect immediately for {count} holders",
+          "holder": "You hold this role: the changes also affect you, and you will not be able to grant back what you remove.",
+          "item": "{name}: {from} → {to}",
+          "confirm": "Save grants of “{name}”"
+        },
+        "conflict": {
+          "title": "Someone else has changed this role’s grants since you opened it",
+          "codes": "Permissions that changed:",
+          "reload": "Reload",
+          "reloadConfirm": {
+            "title": "Reload and discard your changes",
+            "description": "You will lose the unsaved changes on this screen and see the role’s current grants.",
+            "confirm": "Reload and discard"
+          }
+        },
+        "errors": {
+          "summary": "The grants have not been saved.",
+          "capacity": "If you save this, nobody at the school would keep all the administration permissions. Grant those permissions to someone else first.",
+          "capacityList": "Affected permissions:",
+          "grantDetail": "Permission: {permission}. Scope: {scope}."
+        },
+        "leave": {
+          "title": "Leave without saving",
+          "description": "You have {count} unsaved changes. If you leave, they will be lost. | You have {count} unsaved change. If you leave, it will be lost. | You have {count} unsaved changes. If you leave, they will be lost.",
+          "confirm": "Leave and discard",
+          "cancel": "Keep editing"
+        },
+        "backToList": "Back to the role list"
+      },
+      "actions": {
+        "new": "New role"
+      },
+      "flash": {
+        "created": "Role “{name}” created. You can now grant it permissions.",
+        "cloned": "Role “{name}” created as a copy of “{source}”.",
+        "updated": "Role details saved.",
+        "deleted": "Role “{name}” deleted."
+      },
+      "systemNotice": "System roles cannot be changed from here. Clone it to create your own version.",
+      "errors": {
+        "unexpected": "The action could not be completed. Please try again.",
+        "tooManyRequests": "Too many attempts. Wait a moment and try again.",
+        "tooManyRequestsWithSeconds": "Too many attempts. Try again in {seconds} s.",
+        "hasAssignments": "The role has holders ({count}). Remove it from each user first."
+      },
+      "detail": {
+        "title": "Role details",
+        "actions": "Actions",
+        "data": "Details",
+        "editData": "Edit details",
+        "editGrants": "Edit grants",
+        "clone": "Clone",
+        "delete": "Delete",
+        "viewUsers": "View users with this role",
+        "code": "Internal code",
+        "type": "Type",
+        "mfaRequired": "MFA required",
+        "specialData": "Access to special-category data",
+        "users": "Holders",
+        "deleteBlocked": "A role with holders ({count}) cannot be deleted. Remove it from each user first",
+        "grantsTitle": "Grants",
+        "confirmDelete": {
+          "title": "Delete the role “{name}”",
+          "description": "Deletion cannot be undone from the interface: the role ceases to exist and deleted roles are not restored.",
+          "confirm": "Delete the role “{name}”"
+        }
+      },
+      "grants": {
+        "caption": "Grants of the role {name}",
+        "columns": {
+          "resource": "Resource",
+          "action": "Action",
+          "effect": "Effect",
+          "scope": "Scope",
+          "special": "Special category",
+          "code": "Code"
+        },
+        "anyScope": "Any scope",
+        "specialBadge": "Special category",
+        "specialInert": "Inert: this role has no access to special data",
+        "filters": {
+          "effect": "Effect"
+        },
+        "empty": {
+          "title": "No grants",
+          "text": "This role neither grants nor denies any permission"
+        }
+      },
+      "form": {
+        "titleNew": "New role",
+        "titleClone": "Clone role",
+        "titleEdit": "Edit role details",
+        "requiredHint": "Fields marked with * are required.",
+        "required": "required",
+        "name": "Name",
+        "nameHelp": "It is shown the same in all languages.",
+        "code": "Code",
+        "codeHelp": "Internal identifier; it cannot be changed later.",
+        "mfaRequired": "MFA required",
+        "mfaHelp": "People with this role must set up a second factor.",
+        "mfaReadOnly": "MFA required: {value}",
+        "mfaLink": "Change in the MFA settings",
+        "specialData": "Access to special-category data",
+        "specialNotHeld": "You cannot enable this attribute: none of your roles has access to special-category data",
+        "specialHint": "Grants on special-category data only take effect in roles with this attribute.",
+        "nameSystem": "The name of a system role cannot be edited.",
+        "submit": {
+          "new": "Create role",
+          "clone": "Create copy",
+          "edit": "Save changes"
+        },
+        "cancel": "Cancel",
+        "errorSummary": "Check the marked fields.",
+        "missing": "To view the role you also need the permission {permission}.",
+        "errors": {
+          "codeFormat": "The code must start with a lowercase letter and be 3 to 64 characters long: lowercase letters, numbers and underscore."
+        },
+        "source": {
+          "title": "Source role",
+          "summary": "{count} grants · MFA required: {mfa} · Access to special-category data: {special}",
+          "explanation": "The grants and the MFA requirement are copied. The holders are not. The new role is detached from the source: changing one later does not change the other.",
+          "specialWarning": "The source role has access to special-category data: you can only clone it if you can enable that attribute."
+        },
+        "grant": {
+          "denied": "The source role grants something you do not have; nothing has been created.",
+          "detail": "Permission: {permission}. Scope: {scope}."
+        },
+        "confirmSpecial": {
+          "activateTitle": "Enable access to special-category data in “{name}”",
+          "activateDescription": "The role will start applying its special-category grants for {count} holders.",
+          "activateDescriptionUnknown": "The role will start applying its special-category grants for its holders.",
+          "activateConfirm": "Enable in “{name}”",
+          "deactivateTitle": "Disable access to special-category data in “{name}”",
+          "deactivateDescription": "The role’s special-category grants will stop taking effect for {count} holders.",
+          "deactivateDescriptionUnknown": "The role’s special-category grants will stop taking effect for its holders.",
+          "deactivateConfirm": "Disable in “{name}”"
+        }
+      }
     },
     "settings": {
       "title": "School settings",
@@ -605,6 +822,81 @@
         "unexpected": "The profile could not be saved. Please try again.",
         "tooManyRequests": "Too many attempts. Wait a moment and try again.",
         "tooManyRequestsWithSeconds": "Too many attempts. Try again in {seconds} s."
+      }
+    },
+    "permissions": {
+      "vocabulary": {
+        "actions": {
+          "crear": "Create",
+          "leer": "Read",
+          "actualizar": "Update",
+          "eliminar": "Delete",
+          "exportar": "Export",
+          "importar": "Import",
+          "aprobar": "Approve",
+          "firmar": "Sign",
+          "publicar": "Publish"
+        },
+        "scopes": {
+          "todos": "All",
+          "propios": "Own",
+          "departamento": "Department",
+          "grupo": "Group",
+          "clase": "Class",
+          "unidad_familiar": "Family unit"
+        },
+        "effects": {
+          "allow": "Allow",
+          "deny": "Deny"
+        },
+        "decisions": {
+          "permitido": "Allowed",
+          "denegado": "Denied"
+        },
+        "inertReasons": {
+          "inerte_permiso_retirado": "the permission no longer exists in the catalog",
+          "inerte_modulo": "the school has not contracted the module",
+          "inerte_datos_especiales": "the role has no access to special-category data",
+          "inerte_sin_resolutor": "no module applies this scope yet"
+        }
+      }
+    },
+    "effectivePermissions": {
+      "title": "Effective permissions",
+      "heading": "Effective permissions of {name}",
+      "intro": "What this person can do right now, calculated with the same rules the platform applies on every request.",
+      "roles": "Roles",
+      "noRoles": "No roles assigned.",
+      "computedAt": "Calculated on {date}",
+      "recalculate": "Recalculate",
+      "caption": "Effective permissions of {name}",
+      "columns": {
+        "resource": "Resource",
+        "action": "Action",
+        "decision": "Result",
+        "scopes": "Scopes",
+        "sources": "Source",
+        "module": "Module",
+        "code": "Code"
+      },
+      "special": "Special category",
+      "unrestricted": "Unrestricted",
+      "anyScope": "Any scope",
+      "sources": {
+        "allows": "Allows",
+        "denies": "Denies",
+        "inert": "Has no effect: {reason}"
+      },
+      "vetoedBy": "Denied by “{role}”: a denial overrides any grant",
+      "grantedInert": "Granted, but with no effect: {reason}",
+      "filters": {
+        "decision": "Result",
+        "module": "Module",
+        "includeEmpty": "Include permissions with no grant at all"
+      },
+      "empty": {
+        "title": "No permissions",
+        "text": "This person has no permission granted or denied by their roles."
       }
     }
   }

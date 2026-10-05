@@ -32,18 +32,18 @@ import {
   type FilterValues,
 } from '../filterState'
 import type {
+  AnyDataTableFilter,
   DataTableBooleanFilter,
   DataTableColumn,
   DataTableDateRangeFilter,
   DataTableEntityFilter,
   DataTableEnumFilter,
-  DataTableFilter,
 } from '../types'
 import EntityFilterField from './DataTableEntityFilter.vue'
 
 const props = defineProps<{
   columns: readonly DataTableColumn<Row>[]
-  filters: readonly DataTableFilter[]
+  filters: readonly AnyDataTableFilter[]
   filterValues: FilterValues
   searchable: boolean
   searchText: string
@@ -97,23 +97,23 @@ function optionLabel(option: { value: string; labelKey?: string; label?: string 
   return label === option.labelKey ? option.value : label
 }
 
-function asEnum(filter: DataTableFilter): DataTableEnumFilter | null {
+function asEnum(filter: AnyDataTableFilter): DataTableEnumFilter<never> | null {
   return filter.type === 'enum' ? filter : null
 }
 
-function asSingle(filter: DataTableFilter): DataTableEnumFilter | null {
+function asSingle(filter: AnyDataTableFilter): DataTableEnumFilter<never> | null {
   return isSingleEnum(filter) ? filter : null
 }
 
-function asRange(filter: DataTableFilter): DataTableDateRangeFilter | null {
+function asRange(filter: AnyDataTableFilter): DataTableDateRangeFilter | null {
   return filter.type === 'dateRange' ? filter : null
 }
 
-function asBoolean(filter: DataTableFilter): DataTableBooleanFilter | null {
+function asBoolean(filter: AnyDataTableFilter): DataTableBooleanFilter<never> | null {
   return filter.type === 'boolean' ? filter : null
 }
 
-function asEntity(filter: DataTableFilter): DataTableEntityFilter | null {
+function asEntity(filter: AnyDataTableFilter): DataTableEntityFilter | null {
   return filter.type === 'entity' ? filter : null
 }
 

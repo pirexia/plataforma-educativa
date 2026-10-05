@@ -6,6 +6,7 @@ use App\Models\Permission;
 use App\Support\Api\Rules\QueryBoolean;
 use App\Support\Authorization\Scope;
 use App\Support\Authorization\ScopeResolverRegistry;
+use App\Support\Modules\PermissionResourceLabels;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -24,6 +25,7 @@ class PermissionsController extends Controller
 {
     public function __construct(
         private readonly ScopeResolverRegistry $scopeResolvers,
+        private readonly PermissionResourceLabels $resourceLabels,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -61,6 +63,7 @@ class PermissionsController extends Controller
                 return [
                     'code' => $permission->code,
                     'resource' => $permission->resource,
+                    'resource_label' => $this->resourceLabels->label($permission->resource),
                     'action' => $permission->action,
                     'module_code' => $permission->module_code,
                     'is_special_category' => $permission->is_special_category,

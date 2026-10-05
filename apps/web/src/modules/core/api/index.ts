@@ -4,6 +4,7 @@
  * de `@/api/client` con rutas escritas a mano.
  */
 export * from './auditLogs'
+export * from './effectivePermissions'
 export * from './invitations'
 export * from './me'
 export * from './modules'

@@ -170,6 +170,7 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
                     'resource' => $resource,
                     'action' => $action,
                     'is_special_category' => false,
+                    'resource_label_key' => "core.permissions.resources.{$resource}",
                     // REQ-PERM/permisos.md §3.1 (1.5): 'auditoria.leer' y
                     // 'auditoria.exportar' son el único caso real de 1.5
                     // (funcional.md §6) — el resto se queda en la regla
@@ -189,6 +190,7 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             'resource' => 'rol_datos_especiales',
             'action' => 'actualizar',
             'is_special_category' => false,
+            'resource_label_key' => 'core.permissions.resources.rol_datos_especiales',
         ];
 
         $permissions[] = [
@@ -196,6 +198,7 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             'resource' => 'permiso_efectivo',
             'action' => 'leer',
             'is_special_category' => false,
+            'resource_label_key' => 'core.permissions.resources.permiso_efectivo',
         ];
 
         return $permissions;

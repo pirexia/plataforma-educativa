@@ -6,6 +6,29 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-05 · Paso 1.5b implementado, pendiente de revisión y merge (`REQ-PERM-005`)
+
+Interfaz de roles y permisos efectivos de `REQ-PERM` y tres cambios de servidor, en la rama `feature/REQ-PERM-ui-roles`. **Pendiente de revisión independiente y de merge: no se declara cerrado.** Sin migraciones, sin permisos nuevos y sin dependencias nuevas.
+
+### Servidor (`apps/api`)
+- **S-PERM-1**: `users_count` en `GET /roles/{public_id}`.
+- **S-PERM-2**: `resource_label` (traducido por el servidor) en cada permiso del detalle de rol y de los permisos efectivos.
+- **`RN-PERM-47`**: `409 core.validation.administration_capacity_lost` si una escritura dejaría al centro sin ningún usuario activo con la capacidad completa de administración (cinco rutas; `CA-PERM-046` a `-049`). Comprobación y escritura serializadas por tenant con `pg_advisory_xact_lock`. `CA-PERM-049` cubre el mecanismo del bloqueo y una escritura secuencial, no dos transacciones solapadas reales.
+- **#170**: se mantiene el comportamiento estricto de `ReplaceRolePermissions` (estrechar a un ámbito no poseído responde `403`, sin cambio de código de producción); `CA-PERM-045` lo fija con un test y se corrige la redacción de `api.md §5.4`.
+- **Corrección de contrato**: los datos de los errores `403 grant`, `409 role` y `409 administration_capacity` van en `errors[].params`, como define `ADR-038 §6.3`, y no en un `params` de primer nivel que el servidor nunca emitió (`api.md §9.2.1`); `ApiException::forbidden()`/`conflict()` aceptan `errors`.
+
+### Interfaz (`apps/web`)
+- Pantallas de roles (listado con alta y enlaces, ficha con concesiones, matriz recurso × acción × ámbito) y permisos efectivos de un usuario con procedencia y acción en su ficha (`RN-PERM-25`, `-26`, `-41` a `-45`).
+- **Modo `local` del componente de tablas** (ampliación aditiva de `src/data-table/`, `RN-PERM-44`): primer consumidor, sobre campos de un recurso ya cargado.
+- **Segunda lista de `RN-CORE-53`**: rejillas de edición, aprobada expresamente por el usuario; contiene solo `RolePermissionMatrix.vue` (`REQ-PERM/funcional.md §20.12`).
+- Dos claves nuevas de `localStorage`: `plataforma.table.core.role_grants` y `plataforma.table.core.effective_permissions` (solo ids de columna; `PRIVACY.md`).
+
+### Documentación y hallazgos
+- Cabeceras y contenido de `docs/modulos/REQ-PERM/`, `REQ-CORE` (`RN-PERM-47` junto a `RN-CORE-07`; `RN-CORE-75` y `CA-CORE-240` sustituidos), `README.md` 2.6.15, `SECURITY.md` 0.3.8, `ARCHITECTURE.md` 2.3.5, `PRIVACY.md` 0.3.5 y `RUNBOOK.md` 0.3.3.
+- Issues abiertos derivados: [#348](https://github.com/pirexia/plataforma-educativa/issues/348) (`PUT /roles/{id}/permissions` permitía dejar al centro sin forma de administrar roles; lo cubre `RN-PERM-47`) y [#349](https://github.com/pirexia/plataforma-educativa/issues/349) (`SchoolAdministratorGuard` de `RN-CORE-07` no serializa).
+
+---
+
 ## 2026-10-05 · Cierre de #62 (`SESSION_LIFETIME`)
 
 `apps/api/.env.example` y `apps/api/.env` pasan de `SESSION_LIFETIME=120` a `480` (`RN-AUTH-30`, `SessionEnvironmentGuard`), de modo que un entorno nuevo ya no tumba el contenedor `api` al arrancar. Se retira de `compose.yaml` el parche temporal. Verificado recreando la pila (`down` + `up -d`, sin `-v`): los cuatro contenedores `healthy`, `GET /api/health` 200 y `SESSION_LIFETIME=480` dentro de `api`. `SYSADMIN.md` actualizado.

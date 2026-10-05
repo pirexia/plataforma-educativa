@@ -1,6 +1,10 @@
 # REQ-PERM · API
 
+> **Estado del paso 1.5b**: implementado en `feature/REQ-PERM-ui-roles` (`apps/api` y `apps/web` hechas; pendiente solo de revisión y merge).
+>
 > Paso **1.5**. Prefijo `/api/v1`. **Todo es API** (`INV-006`): 1.5b construirá la interfaz sobre exactamente estos endpoints, sin necesitar nada más del backend.
+>
+> **Paso 1.5b (APROBADO el 2026-10-05, decisión del usuario)**: la frase anterior se cumple para todo lo que la interfaz **necesita**, pero 1.5b **sí toca el servidor** en tres puntos decididos por el usuario: `users_count` en `GET /roles/{public_id}` (S-PERM-1, corrige la contradicción con §2.2), `resource_label` (S-PERM-2) y la regla `RN-PERM-47` (`409` cuando una escritura dejaría al centro sin la capacidad completa de administración). Detalle en §14. §5.4 se corrigió el mismo día (issue #170).
 >
 > Todo lo que sigue se ajusta a **`ADR-038`** (convenciones de la API REST): envoltura (§3), paginación (§4), filtrado y orden (§5), error RFC 9457 con `type` como URN (§6), versionado (§7), idempotencia (§8) y semántica de `PATCH`/`PUT` (§9). Este documento **no repite** el ADR; sólo señala dónde este paso lo usa de forma menos obvia.
 >
@@ -227,15 +231,22 @@ El orden importa: las comprobaciones de forma van antes que la de autorización,
 
 ### 5.4 `RPERM-013` en este endpoint
 
-Se compara **sólo lo que se añade o amplía**:
+> **Redacción corregida el 2026-10-05** (issue [#170](https://github.com/pirexia/plataforma-educativa/issues/170), decisión del usuario: se mantiene el comportamiento actual y estricto de `ReplaceRolePermissions`). La versión anterior decía «Restringir siempre se permite», y era **falso** respecto del código implementado y aprobado: estrechar una entrada a un ámbito que el solicitante no posee responde `403`. Regla vigente: `RN-PERM-24` (`funcional.md §20.2`); test que la fija: `CA-PERM-045`.
 
-- Una entrada `allow` nueva, o una cuyo `scope` pasa a uno que el solicitante no posee ⇒ se comprueba.
-- Retirar una entrada, o estrecharla a un ámbito que el solicitante sí posee ⇒ **no se comprueba nada**. Restringir siempre se permite.
-- Las entradas `deny` **no se comprueban nunca** (`funcional.md §7.7`): nadie necesita poseer un permiso para prohibírselo a otro.
+Se comparan **pares (código, ámbito)** con `todos` como **única** absorción (`ADR-044 §4.8`, `funcional.md §8`: orden parcial, no retícula). «Estrechar» o «ampliar» **no son categorías** de esta comprobación: el núcleo no sabe si `grupo` está contenido en `departamento`, y por tanto no puede saber qué es «más estrecho».
 
-La comparación es de pares: el ámbito concedido debe estar en el conjunto efectivo del solicitante para ese código, **con `todos` absorbiendo cualquier ámbito** (`ADR-044 §4.8`).
+| Entrada del cuerpo frente a lo guardado | ¿Se comprueba? | Pasa si… |
+|------------------------------------------|----------------|----------|
+| `allow` **nueva** (el código no tenía fila) | **Sí** | El solicitante posee de forma efectiva ese código con ese ámbito (o con `todos`) |
+| `allow` cuyo **ámbito cambia** (sea a uno «más amplio», «más estrecho» o no comparable) | **Sí** | Ídem, con el ámbito **nuevo** |
+| `allow` que antes era `deny` (cambia el **efecto**) | **Sí** | Ídem |
+| `allow` **idéntica** a la guardada (mismo efecto y ámbito) | **No** | Siempre. Así se puede editar el resto de un rol que concede cosas que el solicitante no tiene |
+| Entrada **retirada** (estaba guardada y no viene en el cuerpo) | **No** | Siempre |
+| Cualquier entrada **`deny`** (nueva o cambiada) | **No** (`funcional.md §7.7`) | Siempre: nadie necesita poseer un permiso para prohibírselo a otro |
 
-Fallo ⇒ `403` con `detail` que nombra el primer código y ámbito que lo provoca. **`403` y no `422`**: es una decisión de autorización, no de forma del cuerpo.
+«Poseer de forma efectiva» es el resultado de `funcional.md §4.1` sobre el propio solicitante, **con sus inercias y sus `deny`**: un solicitante cuyo código está vetado por un `deny` o cuya concesión es inerte no posee ese código con ningún ámbito.
+
+Fallo ⇒ `403` con `detail` traducido y `errors.grant[0]` = `{code: "core.authorization.cannot_grant_unheld_permission", message, params: {code, scope}}` del **primer** par que lo provoca (§9.2.1), sin guardar nada (todo o nada). **`403` y no `422`**: es una decisión de autorización, no de forma del cuerpo.
 
 ---
 
@@ -245,7 +256,7 @@ Fallo ⇒ `403` con `detail` que nombra el primer código y ámbito que lo provo
 - **Respuesta 204**
 - **Errores**
   - `409` `core.validation.role_is_system` — es un rol del aprovisionamiento (`is_system = true`)
-  - `409` `core.validation.role_has_assignments` — tiene asignaciones vivas. El cuerpo incluye `params.users_count` para que el cliente pueda decirlo con un número
+  - `409` `core.validation.role_has_assignments` — tiene asignaciones vivas. El cuerpo incluye `errors.role[0].params.users_count` para que el cliente pueda decirlo con un número (§9.2.1; corregido el 2026-10-05: decía `params.users_count` de primer nivel, que el servidor nunca emitió)
   - `404` — inexistente o de otro tenant
   - 401, 403
 - **Efecto**: borrado **lógico** (`INV-004`) del rol y de sus concesiones
@@ -460,6 +471,7 @@ Siguen vigentes sin cambios `RN-CORE-06` (`409` al modificarse a sí mismo) y `R
 | `core.validation.clone_requires_special_data_access` | 422 | Clonar un rol con `special_data_access` sin poder activarlo |
 | `core.validation.role_is_system` | 409 | Se intentó eliminar un rol del aprovisionamiento |
 | `core.validation.role_has_assignments` | 409 | Se intentó eliminar un rol con asignaciones vivas |
+| `core.validation.administration_capacity_lost` | 409 | **1.5b** (`RN-PERM-47`, §14.5): la escritura dejaría al centro sin ningún usuario activo con la capacidad completa de administración. Datos en `errors.administration_capacity[0].params.codes` (lista, §9.2.1) |
 
 **Los cuatro mensajes van traducidos a los cuatro idiomas** (`INV-009`, `ADR-021`), renderizados por el servidor (`ADR-038 §6.3`). Ni uno solo se escribe en el código.
 
@@ -467,14 +479,33 @@ Siguen vigentes sin cambios `RN-CORE-06` (`409` al modificarse a sí mismo) y `R
 
 Los `403` de `RPERM-013` y de `special_data_access` necesitan **decir por qué**, o el administrador no puede corregir nada.
 
-Hoy `ApiException::forbidden()` no acepta clave de detalle, mientras que `ApiException::conflict()` sí. 1.5 le añade una clave opcional, con la misma forma:
+`ApiException::forbidden()` acepta una clave de detalle opcional (añadida en 1.5, con la misma forma que `ApiException::conflict()`):
 
 | Clave de `detail` | Cuándo |
 |-------------------|--------|
-| `core.authorization.cannot_grant_unheld_permission` | `RPERM-013`. `params`: `{ "code": "...", "scope": "..." }` |
+| `core.authorization.cannot_grant_unheld_permission` | `RPERM-013`. Datos en `errors.grant[0].params`: `{ "code": "...", "scope": "..." }` (§9.2.1; nunca `params` de primer nivel) |
 | `core.authorization.special_data_access_not_held` | Se intentó activar `special_data_access` sin poseerlo |
 
 **Es un cambio compatible**: añadir `detail` donde antes había uno genérico no rompe a ningún cliente (`ADR-038 §7.2`). Y **no se filtra nada**: el mensaje habla de lo que el solicitante intentaba hacer, no de datos ajenos.
+
+### 9.2.1 Dónde van los datos de estos errores: `errors[].params` (corrección del 2026-10-05, decisión del usuario, opción B)
+
+> **Corrección de contrato.** Esta especificación daba por hecho un `params` **de primer nivel** en tres errores (`params.code`/`params.scope`, `params.users_count`, `params.codes`). **El servidor no emite `params` de primer nivel en ningún error** (verificado en código por `implementer`), y `ADR-038 §6.3` solo define `params` **dentro de cada entrada de `errors`** (`{code, message, params}`). Decisión del usuario (2026-10-05): esos tres errores llevan sus datos en `errors`, como define el ADR. **Sin campo nuevo y sin enmienda de ADR.**
+
+**Forma común** (los tres): `type`, `title`, `detail` (traducido, puede interpolar solo valores escalares) y **`errors: { <clave>: [ { "code": …, "message": …, "params": { … } } ] }`**, con una sola entrada.
+
+**Criterio de la clave**: los tres son errores de **autorización o de estado**, no de formato de un campo; se emiten también en rutas **sin cuerpo** (`DELETE /roles/{id}`, `DELETE /users/{id}`) o por el **efecto conjunto** de varias entradas (`RN-PERM-47`), y el mismo error sale de rutas cuyos cuerpos tienen campos distintos (`permissions[]`, `clone_from`, `role_ids`). Una clave con la ruta del campo variaría por ruta y no existiría en la mitad de los casos. Por tanto, **la clave es un nombre estable del objeto de negocio afectado, en `snake_case` y en singular, igual en todas las rutas que emiten el error**; nunca una ruta de campo. Es compatible con `ADR-038 §6.3` (que fija la forma de cada entrada, no restringe las claves a campos) y con §6.5 (las claves de parámetros de consulta ya no son campos del cuerpo).
+
+| Error | Estado | Clave de `errors` | `errors.<clave>[0].code` | `errors.<clave>[0].params` |
+|-------|--------|-------------------|--------------------------|----------------------------|
+| `RPERM-013` / `RN-PERM-24` | `403` | **`grant`** — la concesión que se intenta | `core.authorization.cannot_grant_unheld_permission` | `{ "code": "<permiso>", "scope": "<ámbito>" }` del **primer** par que lo provoca |
+| `RN-PERM-17` | `409` | **`role`** — el rol que se intenta eliminar | `core.validation.role_has_assignments` | `{ "users_count": <entero> }` |
+| `RN-PERM-47` | `409` | **`administration_capacity`** — la capacidad del centro que se perdería | `core.validation.administration_capacity_lost` | `{ "codes": ["<permiso>", …] }` — **lista (*array*)** de cadenas, ordenada (§14.5) |
+
+- **`ApiException`**: `detailParams` admite **solo escalares** (`string|int|float`), por eso una lista no puede ir tal cual en `detail`; esa limitación **no** aplica a `errors[].params` (tipado `array<string, mixed>`). `forbidden()` y `conflict()` aceptan `errors` desde 1.5b (ampliación aditiva ya implementada, sin cambio de forma de la respuesta ni del `type`).
+- `detail` sigue presente y traducido. Para `administration_capacity_lost`, el servidor interpola `:codes` en el `detail` como **texto** (`implode(', ', $codes)`, un escalar): el `detail` sí enumera los códigos, separados por comas, y el dato estructurado (la lista) va en `errors.administration_capacity[0].params.codes`.
+- **Compatibilidad** (`ADR-038 §7.2`): añadir `errors` a un `403`/`409` que antes no lo llevaba es **añadir un campo**: compatible. El `type` y el estado no cambian. Ningún cliente leía el `params` de primer nivel, porque nunca existió.
+- El otro `403` con detalle, `core.authorization.special_data_access_not_held`, no lleva datos y **no cambia**: solo `detail`.
 
 ### 9.3 `403` frente a `404`, y la regla que este paso añade
 
@@ -518,3 +549,69 @@ Ninguno. Ningún requisito los pide para este módulo.
 ## 13. OpenAPI
 
 Todos los endpoints nuevos y los tres modificados se documentan en `apps/api/openapi/paths/core.yaml` **antes** de implementarlos (`INV-006`, `CLAUDE.md §10`), referenciando por `$ref` los componentes comunes de `apps/api/openapi/components.yaml` (`Problem`, `PageMeta`, formato `ulid`) en lugar de redefinirlos (`ADR-038 §12.2`). La comprobación de paridad de rutas en CI debe seguir en verde.
+
+---
+
+## 14. Paso 1.5b · Consumo de la interfaz y cambios de servidor
+
+> **APROBADO el 2026-10-05** (`funcional.md §20`); **implementado** en `feature/REQ-PERM-ui-roles`, pendiente de revisión y merge. En alcance: S-PERM-1, S-PERM-2 y `RN-PERM-47` (§14.3, §14.5). Fuera: S-PERM-3 (`OPEN-PERM-12` = A).
+
+### 14.1 Qué consume cada pantalla de 1.5b
+
+Ningún *endpoint* **nuevo**: todo lo que 1.5b consume existe desde 1.1/1.5; cambian tres respuestas y cinco rutas ganan un `409` (§14.3, §14.5).
+
+| *Endpoint* | Pantalla(s) | Paginación | Notas para el cliente |
+|------------|-------------|------------|-----------------------|
+| `GET /roles` | Listado de roles; selector de origen de la clonación; derivación de la posesión de `special_data_access` (`funcional.md RN-PERM-31`) | Por página (`page`, `per_page` ≤ 100) | Sin filtros, búsqueda ni `sort` (orden por `code`). `name` traducido por el servidor (`RN-CORE-63`) |
+| `GET /roles/{public_id}` | Detalle de rol; editor de concesiones (estado inicial y comprobación previa de concurrencia) | — | `permissions[]` con `code`, `resource`, `action`, `effect`, `scope` y, con S-PERM-2, `resource_label`. Con S-PERM-1, `users_count` |
+| `POST /roles` | Alta; clonación | — | `clone_from` y `permissions` mutuamente excluyentes (§3.2). El alta de la interfaz envía `permissions: []` u omite la clave (`funcional.md RN-PERM-29`) |
+| `PATCH /roles/{public_id}` | Edición de datos del rol | — | Solo las claves modificadas (`ADR-038 §9.2`). Nunca `code` ni `permissions` |
+| `PUT /roles/{public_id}/permissions` | Editor de concesiones | — | Conjunto **completo** deseado. Las entradas `allow` no tocadas se envían **idénticas** a como llegaron, para que no se comprueben (§5.4). Errores de forma indexados por posición: `permissions.<i>.scope`; el cliente conserva la correspondencia posición → código |
+| `DELETE /roles/{public_id}` | Detalle de rol | — | `409` con `errors.role[0].params.users_count` (§9.2.1) |
+| `GET /permissions` | Editor de concesiones; enriquecimiento del detalle (`is_special_category`) | **Sin paginar** (§2.1) | `applicable_scopes` y `grantable_scopes`. Exige `permiso.leer`: sin él, la interfaz no lo pide (`RN-CORE-62`) |
+| `GET /users/{public_id}/effective-permissions` | Permisos efectivos de un usuario | **Sin paginar** (§7.3) | **Una fila por código del catálogo no retirado**, también los no concedidos (`decision: "denegado"`, `sources: []`) |
+| `GET /me/effective-permissions` | Editor de concesiones (qué ámbitos posee el solicitante) | **Sin paginar** | Sin permiso. Única fuente fiable de lo que el solicitante **posee** con ámbito; `GET /me.permissions` solo lleva códigos |
+| `GET /me` | Todas (estado de sesión ya cargado) | — | `roles[].public_id` del solicitante: aviso «eres titular de este rol» (`funcional.md RN-PERM-36`) |
+
+### 14.2 Lectura de `RPERM-013` que la interfaz necesita (sin cambio de servidor)
+
+La interfaz deshabilita en la matriz lo que el servidor rechazaría (`funcional.md RN-PERM-33`). Para hacerlo **sin una segunda implementación de la regla**, lee `GET /me/effective-permissions`, que se calcula con el mismo código que la comprobación de §5.4 (`RN-PERM-22`): el solicitante posee `(code, scope)` si y solo si la fila de `code` tiene `decision = "permitido"` y (`unrestricted = true` o `scope ∈ scopes`). Es comodidad: **el servidor sigue decidiendo** y un `403` de §5.4 se muestra siempre (`funcional.md RN-PERM-36`).
+
+### 14.3 Cambios de servidor de 1.5b
+
+| # | Cambio | Tipo (`ADR-038 §7`) | Motivo | Estado |
+|---|--------|---------------------|--------|--------|
+| **S-PERM-1** | `GET /roles/{public_id}` y las respuestas de `POST /roles`, `PATCH /roles/{id}` y `PUT /roles/{id}/permissions` (que reutilizan el mismo recurso) devuelven `users_count` (entero ≥ 0; recuento de asignaciones vivas, el mismo cálculo que `GET /roles`) | **Corrección**: §2.2 lo documenta y `RolesController::show()` no carga el recuento (`withCount('users')` solo está en `index()`; `RoleResource` usa `whenCounted`, así que la clave **no aparece**). Código y documentación se contradicen (`CLAUDE.md §6.6`, Media) | El detalle de rol y la baja lo necesitan (`funcional.md RN-PERM-39`) | **En alcance** (`OPEN-PERM-17` = A). `CA-PERM-135` |
+| **S-PERM-2** | Campo aditivo **`resource_label`** (texto, nunca vacío; traducido por el servidor al idioma de la petición, `ADR-021`) en: `GET /permissions`, cada fila de `GET /users/{id}/effective-permissions` y `GET /me/effective-permissions`, y cada elemento de `permissions[]` de `GET /roles/{public_id}` (y de las respuestas de escritura del rol). La clave de traducción la declara el **módulo dueño** junto a cada recurso de su `declaredPermissions()` (p. ej. `core.permissions.resources.usuario`, `auth.permissions.resources.mfa`), en sus `lang/{es,en,de,fr}`. **El valor técnico `resource` no cambia ni se traduce** (`ADR-038 §3.2`). Un test de servidor recorre el catálogo y exige la etiqueta en los cuatro idiomas para todo recurso no retirado; si un módulo futuro no la declara, la respuesta lleva el código del recurso como `resource_label` (rama por defecto en servidor) y el test **falla**, no la respuesta | Compatible (añadir un campo) | Un solo dueño de cada nombre; ninguna lista de recursos ajenos en el cliente de `core` (`INV-007`) | **En alcance** (`OPEN-PERM-09` = A). `CA-PERM-134` |
+| ~~S-PERM-3~~ | Concurrencia optimista (`ETag`/`If-Match`, `412`) en `PUT /roles/{id}/permissions` y `PATCH /roles/{id}` | Exigiría ADR que precise `ADR-038 §10` | — | **Fuera de 1.5b** (`OPEN-PERM-12` = A: comprobación previa en cliente). Queda como posible decisión de arquitectura posterior, para todo `PUT` de colección |
+
+**Ninguno exige migración.** S-PERM-1 es un recuento sobre un índice existente (`datos.md §6`); S-PERM-2, claves de traducción y un campo calculado. Cambian la OpenAPI de las cinco respuestas afectadas. `security-reviewer` revisa la parte de servidor; `db-reviewer` no hace falta.
+
+### 14.4 Lo que 1.5b **no** pide al servidor, a propósito
+
+- **Ni paginar `GET /permissions` ni los permisos efectivos.** §2.1 y §7.3 siguen vigentes: la matriz consume `GET /permissions` entero (`funcional.md §20.8.1`) y los permisos efectivos se pintan con el modo `local` de `src/data-table` (`funcional.md §20.11`).
+- **Ni un *endpoint* de exportación** de concesiones o permisos efectivos (`permisos.md §2.1`).
+- **Ni una comprobación «previa» de `RPERM-013`** (p. ej. `POST /roles/{id}/permissions/check`): la interfaz deriva lo que necesita de `GET /me/effective-permissions` (§14.2) y el `PUT` es la única autoridad.
+- **Ni `special_data_access` del solicitante en `GET /me`**: la interfaz lo deriva cruzando `GET /me.roles[].public_id` con `GET /roles` (que ya devuelve `special_data_access` por rol) cuando tiene `rol.leer` (`funcional.md RN-PERM-31`); si no lo tiene, muestra el control y el servidor decide.
+- **Ni una comprobación previa de `RN-PERM-47`**: la interfaz no la anticipa; muestra el `409` (§14.5).
+
+### 14.5 `RN-PERM-47` · La capacidad completa de administración no se pierde (`409`)
+
+Regla y motivo completos en `funcional.md §20.2.1`. Contrato:
+
+| Aspecto | Contrato |
+|---------|----------|
+| Rutas | `PUT /roles/{id}/permissions`, `PATCH /roles/{id}` (si cambia `special_data_access`), `PUT /users/{id}/roles`, `DELETE /users/{id}`, `POST /users/{id}/status` (paso a `inactivo`). **No**: `POST /roles`, `DELETE /roles/{id}` |
+| Conjunto protegido | `ProvisionTenantDefaults::ADMIN_CENTRO_PERMISSIONS` ∩ catálogo no retirado ∩ módulos utilizables por el tenant |
+| Condición | Tras la escritura, existe al menos **un mismo** usuario vivo y `activo` con **todos** los códigos del conjunto `permitido` y `unrestricted` según el resolutor (`RN-PERM-22`) |
+| Cuándo rechaza | Solo si el centro cumplía **antes** y no cumpliría **después**. Un centro que ya no cumplía no ve rechazada ninguna escritura por esta regla |
+| Respuesta | **`409`** con `type` `urn:pge:error:conflict` (`ADR-038 §6.2`, el mismo que `RN-CORE-07`), `detail` traducido (que enumera los códigos como texto, separados por comas) y **`errors.administration_capacity[0]`** = `{code: "core.validation.administration_capacity_lost", message, params: {codes: [...]}}` (§9.2.1). `codes` es una **lista** de cadenas: la **unión, ordenada alfabéticamente y sin repetidos**, de los códigos del conjunto que, tras la escritura, **no posee** cada usuario que cumplía la condición antes de ella; un usuario que la escritura da de baja o pasa a `inactivo` cuenta como que no posee ninguno (ajuste (a), 2026-10-05). Mensaje traducido en los cuatro idiomas (`ADR-038 §6.3`). **Nada se guarda** |
+| Cuándo se evalúa (ajuste (b), 2026-10-05) | `PATCH /roles/{id}`: solo si `special_data_access` **cambia de valor**. `POST /users/{id}/status`: solo al pasar a `inactivo`. `PUT /users/{id}/roles` **sin cambio efectivo** del conjunto de roles: no pasa por la comprobación. En los tres casos excluidos el estado resultante es idéntico al anterior o más amplio, así que no puede pasar de cumplir a no cumplir |
+| Orden | Después de las validaciones de forma (`422`), de la puerta (`403`), de `RPERM-013`/`RN-PERM-24` (`403`) y, en las rutas de usuario, de `RN-CORE-06`/`-07` (`409`, que conservan su código). Antes de escribir |
+| Concurrencia | Comprobación y escritura serializadas por tenant en la misma transacción (bloqueo de transacción por tenant); de dos escrituras concurrentes que juntas incumplirían, una termina bien y la otra recibe `409` |
+| Auditoría | Un `409` no escribe nada (ni la escritura ni una fila de rechazo) |
+| Idempotencia | Sin cambios: ninguna de estas rutas lleva `Idempotency-Key` |
+
+**`409` y no `422`**: el cuerpo es válido y el solicitante está autorizado; lo que impide la operación es el estado del centro, igual que en `RN-CORE-07` y `RN-PERM-17`. **No es `403`**: al solicitante no le falta ningún permiso.
+
+**OpenAPI**: las cinco rutas declaran la respuesta `409` con este código; `DELETE /users/{id}`, `POST /users/{id}/status` y `PUT /users/{id}/roles` ya declaraban `409` por `RN-CORE-06`/`-07` y ganan el código nuevo en su descripción.

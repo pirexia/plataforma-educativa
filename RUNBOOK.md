@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.2** · 2026-10-03
+> **Versión 0.3.3** · 2026-10-05
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -52,6 +52,10 @@ Parar el merge. Documentar el hallazgo como issue de GitHub con severidad, fiche
 ### 2.5 Si `failed_jobs` crece sin parar pese a que la purga está programada (`REQ-BO`, `1.6d`)
 
 Comando de diagnóstico rápido, desde dentro del contenedor `api` (`docs/modulos/REQ-BO/operacion.md §6.2`): comprobar que **`bo:purge-failed-jobs`** está en la lista del planificador y **`queue:prune-failed`** ya no lo está (`php artisan schedule:list`). Si sigue apareciendo el comando del framework, el despliegue no tiene el código de `1.6d` — ese comando lleva desde `0.7` sin poder borrar ni una fila (apunta a la conexión `plataforma_app`, que tiene `REVOKE DELETE` sobre `failed_jobs`), y mientras esté programado la retención de 24 horas del issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73) es solo una promesa documental, no un hecho. Purga manual de emergencia (por `pgsql_platform`, nunca por la conexión de aplicación): `DELETE FROM failed_jobs WHERE failed_at < now() - interval '24 hours';`.
+
+### 2.6 Si una escritura de roles o usuarios responde `409 administration_capacity_lost` (`REQ-PERM`, `1.5b`, `RN-PERM-47`)
+
+Síntoma: al retirar permisos a un rol, asignar o quitar roles, desactivar o dar de baja a un usuario, el centro recibe `409` con `core.validation.administration_capacity_lost` y la lista de permisos afectados (en el `detail` y en `errors.administration_capacity[0].params.codes`). **No es un fallo**: la escritura dejaría al centro sin ningún usuario activo con la capacidad completa de administración y no se ha guardado nada. Resolución: conceder antes esos permisos a otra persona activa del centro y repetir la operación. Si el centro **ya** no cumplía antes de la escritura, la regla no la rechaza. Detalle: `docs/modulos/REQ-PERM/operacion.md`.
 
 ## 3. Guardias (on-call)
 

@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Support\Authorization\PermissionResolver;
 use App\Support\Authorization\ScopeResolverRegistry;
+use App\Support\Modules\PermissionResourceLabels;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -30,6 +31,7 @@ class AuthorizationServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(ScopeResolverRegistry::class);
+        $this->app->singleton(PermissionResourceLabels::class);
 
         $this->app->scoped(PermissionResolver::class);
         $this->app->terminating(fn () => $this->app->forgetScopedInstances());

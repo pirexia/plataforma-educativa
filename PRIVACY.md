@@ -1,6 +1,6 @@
 # PRIVACY.md
 
-> **Versión 0.3.4** · 2026-10-03
+> **Versión 0.3.5** · 2026-10-05
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Base del Registro de Actividades de Tratamiento (RAT) exigido por el RGPD — hoy es un **esqueleto**, no un RAT completo: varias secciones dependen de decisiones que todavía no se han tomado (`OPEN-07`, entidad jurídica y contrato de encargado de tratamiento). No se rellenan con suposiciones (`CLAUDE.md` §0/§11).
 
 ---
@@ -42,6 +42,8 @@ A diferencia de una cookie, una clave de `localStorage` no viaja al servidor y n
 | `plataforma.brand` | *Design system* (1.7, `docs/design-system.md §7.2`) | Exactamente `{"v":1,"primary":"#RRGGBB","primaryForeground":"#RRGGBB"}`: los dos colores públicos y estables de la marca del centro (`GET /tenant/branding`, sin sesión) | Sin dato personal. Nunca una URL (las firmadas caducan), ni el nombre del centro, ni los idiomas activos. Por origen del navegador — el origen ya es el tenant (resolución por *host*), así que no hay mezcla entre centros |
 | `plataforma.color-mode` | *Design system* (1.7, `docs/design-system.md §9.2`) | Una de tres cadenas fijas: `system`, `light`, `dark` | Sin dato personal. No se sincroniza con el servidor ni entre dispositivos (decisión de alcance, `ADR-052 §2`) |
 | `plataforma.table.<tableId>` | Tablas de datos (1.9, `ADR-054 §5.2`; implementado en `apps/web/src/data-table/columnPreferences.ts`, `CA-CORE-173`-`175`/`-195`) | Exactamente `{"v":1,"hidden":["<id>",…]}`: solo ids de columna, nunca datos de fila, filtros ni búsqueda | Sin dato personal. No se borra al cerrar sesión y la comparten los usuarios de un mismo navegador (aceptado: no contiene nada de ninguno); por origen, no se mezcla entre centros |
+| `plataforma.table.core.role_grants` | Concesiones de la ficha de un rol (1.5b, `REQ-PERM funcional.md §20.5`, tabla en modo `local`) | La misma forma cerrada `{"v":1,"hidden":["<id>",…]}`: solo ids de columna | Sin dato personal. Nunca se guardan las concesiones del rol, el estado de la matriz de edición ni lo que se esté editando (`RN-CORE-50`, `§20.13`); la matriz no es una tabla del componente y no guarda nada |
+| `plataforma.table.core.effective_permissions` | Permisos efectivos de un usuario (1.5b, `REQ-PERM funcional.md §20.10`, tabla en modo `local`) | La misma forma cerrada, solo ids de columna | Sin dato personal. El mapa de capacidades de una persona es información de ataque: ni se exporta, ni se imprime, ni se copia al navegador, y no lleva ni siquiera filtros en la URL (`RN-PERM-45`) |
 
 ### 2.2 Datos recibidos de un proveedor de identidad externo (Google, `REQ-AUTH-002`, paso 1.4)
 

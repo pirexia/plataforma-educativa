@@ -1,8 +1,12 @@
 /**
- * `docs/modulos/REQ-CORE/funcional.md §14.8`, `§14.18`: roles en solo lectura
- * (1.9d) — `CA-CORE-240` (`RN-CORE-75`, sin controles de escritura aunque el
- * usuario tenga los permisos), `CA-CORE-241` (`RN-CORE-63`, recarga al cambiar
- * de idioma) y `OPEN-CORE-36` = A (ni detalle ni `GET /roles/{id}`).
+ * `docs/modulos/REQ-CORE/funcional.md §14.8`, `§14.18` y
+ * `docs/modulos/REQ-PERM/funcional.md §20.4`: listado de roles.
+ * `CA-CORE-241` (`RN-CORE-63`, recarga al cambiar de idioma) sigue vigente.
+ * **`CA-CORE-240` (`RN-CORE-75`, «solo lectura») queda retirado en este mismo
+ * *commit* y sustituido por `CA-PERM-101`** (1.5b): el listado tiene «Nuevo rol»
+ * con `rol.crear` y el nombre de cada rol es un enlace a su ficha. Ya no hay
+ * `OPEN-CORE-36` = A: la ficha existe, pero el listado nunca llama a
+ * `GET /roles/{id}`.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
@@ -56,7 +60,19 @@ const wrappers: VueWrapper[] = []
 async function mountView(): Promise<VueWrapper> {
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/administracion/roles', name: 'core-roles', component: RolesView }],
+    routes: [
+      { path: '/administracion/roles', name: 'core-roles', component: RolesView },
+      {
+        path: '/administracion/roles/nuevo',
+        name: 'core-role-new',
+        component: { template: '<div/>' },
+      },
+      {
+        path: '/administracion/roles/:publicId',
+        name: 'core-role-detail',
+        component: { template: '<div/>' },
+      },
+    ],
   })
 
   await router.push('/administracion/roles')
@@ -108,8 +124,9 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
-describe('CA-CORE-240 (RN-CORE-75): roles de solo lectura', () => {
-  it('con rol.leer y todos los permisos de escritura, el listado muestra las cinco columnas y ningún control de crear, clonar, editar ni borrar', async () => {
+describe('CA-PERM-101 (RN-PERM-26, sustituye a CA-CORE-240): listado de roles con alta y enlaces', () => {
+  it('con rol.leer y sin rol.crear no hay «Nuevo rol» ni ningún otro control de escritura, y cada nombre es un enlace a su ficha', async () => {
+    session.__setPermissions(['rol.leer'])
     const wrapper = await mountView()
 
     expect(wrapper.find('caption').text()).toBe('Roles del centro')
@@ -121,6 +138,33 @@ describe('CA-CORE-240 (RN-CORE-75): roles de solo lectura', () => {
       'Usuarios',
     ])
 
+    const links = wrapper.findAll('tbody th a')
+
+    expect(links.map((link) => link.text())).toEqual([
+      'Administrador del centro',
+      'Docente',
+      'Coordinación pastoral',
+    ])
+    expect(links.map((link) => link.attributes('href'))).toEqual([
+      '/administracion/roles/R1',
+      '/administracion/roles/R2',
+      '/administracion/roles/R3',
+    ])
+    expect(document.body.textContent).not.toContain('Nuevo rol')
+    expect(document.body.querySelectorAll('tbody button, main button, form')).toHaveLength(0)
+    expect(document.body.textContent).not.toMatch(/Clonar|Editar|Borrar|Eliminar/)
+  })
+
+  it('con rol.crear existe «Nuevo rol» y lleva a core-role-new', async () => {
+    const wrapper = await mountView()
+    const action = wrapper.findAll('a').find((link) => link.text() === 'Nuevo rol')!
+
+    expect(action).toBeDefined()
+    expect(action.attributes('href')).toBe('/administracion/roles/nuevo')
+  })
+
+  it('el listado muestra las cinco columnas con sus valores', async () => {
+    const wrapper = await mountView()
     const rows = wrapper
       .findAll('tbody tr')
       .map((tr) => tr.findAll('th, td').map((cell) => cell.text()))
@@ -130,12 +174,7 @@ describe('CA-CORE-240 (RN-CORE-75): roles de solo lectura', () => {
       ['Docente', 'Del sistema', 'No', 'No', '3'],
       ['Coordinación pastoral', 'Personalizado', 'No', 'No', '12'],
     ])
-
     expect(wrapper.find('tbody th').attributes('scope')).toBe('row')
-    expect(document.body.querySelectorAll('tbody button, tbody a, main button, form')).toHaveLength(
-      0,
-    )
-    expect(document.body.textContent).not.toMatch(/Crear|Clonar|Editar|Borrar|Eliminar|Nuevo/)
   })
 
   it('el número de usuarios va alineado a la derecha', async () => {
@@ -154,7 +193,7 @@ describe('CA-CORE-240 (RN-CORE-75): roles de solo lectura', () => {
     expect(listRoles).toHaveBeenCalledWith({ page: 1, per_page: 25 })
   })
 
-  it('nunca llama a GET /roles/{id}: no hay detalle de rol (OPEN-CORE-36 = A)', async () => {
+  it('el listado nunca llama a GET /roles/{id}: el detalle lo pide la ficha, no el listado', async () => {
     await mountView()
 
     expect(getRole).not.toHaveBeenCalled()

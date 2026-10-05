@@ -160,3 +160,38 @@ describe('CA-CORE-220 (RN-CORE-64): ConfirmDialog', () => {
     }
   })
 })
+
+describe('RN-PERM-36 (REQ-PERM, ampliación aditiva de 1.5b): lista de detalles', () => {
+  it('con `details` el diálogo pinta la lista bajo la descripción; sin ella no hay lista', async () => {
+    const wrapper = mount(ConfirmDialog, {
+      props: {
+        open: true,
+        request: {
+          title: 'Guardar',
+          description: 'Resumen',
+          confirmLabel: 'Guardar',
+          details: ['Usuarios · leer: Sin conceder → Permitir · Todos', 'Roles · leer: Denegar'],
+        },
+      },
+      global: { plugins: [i18n] },
+      attachTo: document.body,
+    }) as VueWrapper
+
+    wrappers.push(wrapper)
+    await flushPromises()
+
+    const items = [...document.body.querySelectorAll('[data-slot="confirm-dialog-details"] li')]
+
+    expect(items.map((li) => li.textContent)).toEqual([
+      'Usuarios · leer: Sin conceder → Permitir · Todos',
+      'Roles · leer: Denegar',
+    ])
+
+    await wrapper.setProps({
+      request: { title: 'Guardar', description: 'Resumen', confirmLabel: 'Guardar' },
+    })
+    await flushPromises()
+
+    expect(document.body.querySelector('[data-slot="confirm-dialog-details"]')).toBeNull()
+  })
+})

@@ -211,7 +211,7 @@ Comprobaciones adicionales que ningún permiso cubre y que hay que implementar e
 |-------|-------|
 | `RPERM-013` — nadie concede un permiso que no posee | `POST /users` con `role_ids` y `PUT /users/{id}/roles`. Se compara el conjunto de permisos concedidos por los roles destino contra los permisos efectivos del solicitante. Falta alguno ⇒ `403` (`CA-CORE-017`) |
 | `RN-CORE-06` — nadie se da de baja ni se cambia los roles a sí mismo | `DELETE /users/{id}`, `POST /users/{id}/status`, `PUT /users/{id}/roles` ⇒ `409` |
-| `RN-CORE-07` — siempre al menos un `administrador_centro` vivo y activo | Mismas rutas ⇒ `409` |
+| `RN-CORE-07` — siempre al menos un `administrador_centro` vivo y activo | Mismas rutas ⇒ `409`. Desde 1.5b se añade `RN-PERM-47` (el centro conserva al menos un usuario activo con la capacidad completa de administración; `REQ-PERM/funcional.md §20.2.1`), con su propio código `core.validation.administration_capacity_lost` |
 | Aislamiento de tenant | RLS más *scope* global (`INV-001`). Un `public_id` de otro tenant ⇒ `404`, nunca `403` |
 | Descarga de exportaciones | Solo el usuario que la solicitó, además del permiso (`GET /data-exports/{id}`) |
 
@@ -352,7 +352,7 @@ Qué permisos exactos abren «Administración de MFA» lo fija `REQ-AUTH/permiso
 | Invitaciones | Enlace a la ficha del usuario | `usuario.leer` | navegación | Servidor |
 | Importación | Ver, subir, ejecutar, descartar | `usuario.importar` (ruta y acciones) | `GET`/`POST /user-imports`, `GET /user-imports/{id}`, `POST …/execute`, `DELETE …` | Servidor |
 | Roles | Ver | `rol.leer` (ruta) | `GET /roles` (no `GET /roles/{id}`: `OPEN-CORE-36` = A) | Servidor |
-| Roles | Crear, editar, borrar | **Ninguna en 1.9b**, aunque se tengan `rol.crear`/`actualizar`/`eliminar` (`RN-CORE-75`) | — | — |
+| Roles | Crear, editar, borrar | **Ninguna en 1.9b** (`RN-CORE-75`, **sustituida por `REQ-PERM §20` desde 1.5b**: con 1.5b la interfaz ofrece alta, edición, baja y concesiones por permiso, `REQ-PERM/permisos.md §12`) | — | — |
 | Auditoría | Ver | `auditoria.leer` (ruta) | `GET /audit-logs` | Servidor, con ámbito |
 | Auditoría | Filtro por usuario (`OPEN-CORE-33`) | `usuario.leer` | `GET /users?q=`, `GET /users/{id}` | Servidor |
 | Auditoría | Filtro de módulo / tipo de entidad (`OPEN-CORE-34` = B) | `auditoria.leer` | `GET /audit-logs/facets` | Servidor |
@@ -390,7 +390,7 @@ La correspondencia vive en código, cerrada, junto al controlador o a `ExportReq
 
 ### 12.5 Verificación
 
-- `CA-CORE-209`, `-210`, `-211`, `-212`, `-216`, `-240`, `-248`, `-267`, `-268` (interfaz por permiso, nunca por rol; sin sondeo; módulos en solo lectura).
+- `CA-CORE-209`, `-210`, `-211`, `-212`, `-216`, `-240`, `-248`, `-267`, `-268` (interfaz por permiso, nunca por rol; sin sondeo; módulos en solo lectura). `CA-CORE-240` está **retirado** y sustituido por `CA-PERM-101` (`REQ-PERM/funcional.md §20.17.2`).
 - `CA-CORE-264`, `-265` (perfil propio por identidad; lista cerrada de `RN-CORE-24` ampliada a siete).
 - `CA-CORE-223`, `-225`, `-228`, `-229` (servidor: `403`, `404` entre tenants, `include_deleted`, autorización por `kind`).
 - `CA-CORE-102` sigue en verde con las pantallas nuevas.

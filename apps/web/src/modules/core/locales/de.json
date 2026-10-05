@@ -103,7 +103,9 @@
         "manageRoles": "Zugewiesene Rollen",
         "saveRoles": "Rollen speichern",
         "viewActivity": "Aktivität anzeigen",
-        "viewActivityFor": "Aktivität anzeigen: {name}"
+        "viewActivityFor": "Aktivität anzeigen: {name}",
+        "viewEffectivePermissions": "Effektive Berechtigungen anzeigen",
+        "viewEffectivePermissionsFor": "Effektive Berechtigungen von {name} anzeigen"
       },
       "confirm": {
         "deactivate": {
@@ -391,7 +393,7 @@
     },
     "roles": {
       "title": "Rollen",
-      "intro": "Rollen der Schule, nur lesbar. Das Bearbeiten von Rollen folgt später.",
+      "intro": "Rollen der Einrichtung. Sieh dir an, was jede Rolle erteilt, lege eine eigene Rolle an oder klone eine bestehende.",
       "caption": "Rollen der Schule",
       "empty": {
         "title": "Keine Rollen",
@@ -409,7 +411,222 @@
         "custom": "Benutzerdefiniert"
       },
       "yes": "Ja",
-      "no": "Nein"
+      "no": "Nein",
+      "editor": {
+        "matrix": {
+          "resource": "Ressource",
+          "special": "Besondere Kategorie",
+          "caption": "Berechtigungen von {module} für {role}",
+          "scrollLabel": "Berechtigungsmatrix für {module}, scrollbar",
+          "notContracted": "Modul nicht gebucht: Diese Berechtigungen wirken erst, wenn es gebucht wird"
+        },
+        "state": {
+          "none": "Nicht erteilt",
+          "allow": "Erlauben · {scope}"
+        },
+        "marks": {
+          "modified": "Geändert",
+          "inert": "Wirkungslos",
+          "onlyRemove": "Nur entziehen oder verweigern",
+          "error": "Fehler"
+        },
+        "cell": {
+          "name": "{resource} · {action}: {state}. Bearbeiten",
+          "nameMarks": "{resource} · {action}: {state} ({marks}). Bearbeiten"
+        },
+        "panel": {
+          "close": "Panel schließen",
+          "code": "Technischer Code:",
+          "groupLabel": "Berechtigung für {name}",
+          "scope": "Geltungsbereich",
+          "scopePlaceholder": "Geltungsbereich wählen",
+          "anyScope": "Beliebiger Geltungsbereich",
+          "denyExplanation": "Verweigern hebt diese Berechtigung für alle Inhaber der Rolle auf, in jedem Geltungsbereich und auch dann, wenn eine andere ihrer Rollen sie erteilt.",
+          "apply": "Übernehmen",
+          "cancel": "Abbrechen"
+        },
+        "option": {
+          "current": "{scope} (aktuell)",
+          "notHeld": "{scope} — du kannst ihn nicht erteilen: Du hast diese Berechtigung mit diesem Geltungsbereich nicht",
+          "noResolver": "{scope} — kann noch nicht erteilt werden: Ein noch nicht verfügbares Modul wird ihn bereitstellen"
+        },
+        "notes": {
+          "onlyNotHeld": "Du kannst diese Berechtigung nur verweigern oder nicht erteilen: Du hast sie nicht",
+          "onlyVetoed": "Du kannst diese Berechtigung nur verweigern oder nicht erteilen: Sie ist für dich durch eine Verweigerung gesperrt",
+          "onlyInert": "Du kannst diese Berechtigung nur verweigern oder nicht erteilen: Deine Berechtigung ist wirkungslos ({reason})",
+          "specialInert": "Diese Berechtigung bleibt wirkungslos: Die Rolle hat keinen Zugriff auf besondere Datenkategorien",
+          "moduleInert": "Diese Berechtigung bleibt wirkungslos, solange das Modul nicht gebucht ist"
+        },
+        "pageTitle": "Berechtigungen der Rolle",
+        "title": "Berechtigungen von „{name}“",
+        "intro": "Wähle für jede Berechtigung, ob die Rolle sie erteilt, verweigert oder nichts dazu sagt. Änderungen werden erst gespeichert, wenn du „Speichern“ drückst.",
+        "legend": {
+          "title": "Welche Geltungsbereiche du erteilen kannst",
+          "rule": "Du kannst keine Berechtigung und keinen Geltungsbereich erteilen, die du selbst nicht hast. Du kannst sie jederzeit entziehen oder verweigern.",
+          "notHeld": "„Du hast sie nicht“: Du hast diese Berechtigung mit diesem Geltungsbereich nicht.",
+          "noResolver": "„Existiert noch nicht“: Ein noch nicht verfügbares Modul wird ihn bereitstellen."
+        },
+        "toolbar": {
+          "module": "Modul",
+          "allModules": "Alle Module",
+          "search": "Ressource suchen",
+          "searchPlaceholder": "Ressource suchen…",
+          "onlyChanged": "Nur Ressourcen mit ungespeicherten Änderungen"
+        },
+        "changes": "Keine ungespeicherten Änderungen | {count} ungespeicherte Änderung | {count} ungespeicherte Änderungen",
+        "save": "Speichern",
+        "saved": "Berechtigungen gespeichert.",
+        "empty": {
+          "title": "Keine Berechtigungen im Katalog",
+          "text": "Der Berechtigungskatalog ist leer."
+        },
+        "noMatches": {
+          "title": "Keine Ressource passt",
+          "text": "Ändere das Modul, die Suche oder den Änderungsfilter."
+        },
+        "missing": "Um die Berechtigungen zu bearbeiten, benötigst du zusätzlich die Berechtigung {permission}.",
+        "orphans": "Diese Berechtigungen stehen nicht mehr im Katalog und bleiben unverändert erhalten: {codes}",
+        "confirm": {
+          "title": "Berechtigungen von „{name}“ speichern",
+          "counts": "Erteilt: {granted} · Geltungsbereich geändert: {scopeChanged} · Verweigert: {denied} · Entzogen: {removed}",
+          "consequence": "Wirkt sofort für {count} Inhaber | Wirkt sofort für {count} Inhaber | Wirkt sofort für {count} Inhaber",
+          "holder": "Du hast diese Rolle: Die Änderungen betreffen auch dich, und du kannst das Entzogene nicht wieder erteilen.",
+          "item": "{name}: {from} → {to}",
+          "confirm": "Berechtigungen von „{name}“ speichern"
+        },
+        "conflict": {
+          "title": "Eine andere Person hat die Berechtigungen dieser Rolle geändert, seit du sie geöffnet hast",
+          "codes": "Geänderte Berechtigungen:",
+          "reload": "Neu laden",
+          "reloadConfirm": {
+            "title": "Neu laden und deine Änderungen verwerfen",
+            "description": "Du verlierst die ungespeicherten Änderungen dieser Seite und siehst die aktuellen Berechtigungen der Rolle.",
+            "confirm": "Neu laden und verwerfen"
+          }
+        },
+        "errors": {
+          "summary": "Die Berechtigungen wurden nicht gespeichert.",
+          "capacity": "Wenn du das speicherst, würde niemand in der Einrichtung mehr alle Verwaltungsberechtigungen behalten. Erteile diese Berechtigungen zuerst einer anderen Person.",
+          "capacityList": "Betroffene Berechtigungen:",
+          "grantDetail": "Berechtigung: {permission}. Geltungsbereich: {scope}."
+        },
+        "leave": {
+          "title": "Ohne Speichern verlassen",
+          "description": "Du hast {count} ungespeicherte Änderungen. Wenn du gehst, gehen sie verloren. | Du hast {count} ungespeicherte Änderung. Wenn du gehst, geht sie verloren. | Du hast {count} ungespeicherte Änderungen. Wenn du gehst, gehen sie verloren.",
+          "confirm": "Verlassen und verwerfen",
+          "cancel": "Weiter bearbeiten"
+        },
+        "backToList": "Zurück zur Rollenliste"
+      },
+      "actions": {
+        "new": "Neue Rolle"
+      },
+      "flash": {
+        "created": "Rolle „{name}“ angelegt. Du kannst ihr jetzt Berechtigungen erteilen.",
+        "cloned": "Rolle „{name}“ als Kopie von „{source}“ angelegt.",
+        "updated": "Rollendaten gespeichert.",
+        "deleted": "Rolle „{name}“ gelöscht."
+      },
+      "systemNotice": "Systemrollen werden hier nicht geändert. Klone sie, um eine eigene Version zu erstellen.",
+      "errors": {
+        "unexpected": "Die Aktion konnte nicht abgeschlossen werden. Bitte versuche es erneut.",
+        "tooManyRequests": "Zu viele Versuche. Warte einen Moment und versuche es erneut.",
+        "tooManyRequestsWithSeconds": "Zu viele Versuche. Versuche es in {seconds} s erneut.",
+        "hasAssignments": "Die Rolle hat Inhaber ({count}). Entziehe sie zuerst jedem Benutzer."
+      },
+      "detail": {
+        "title": "Rollendetails",
+        "actions": "Aktionen",
+        "data": "Daten",
+        "editData": "Daten bearbeiten",
+        "editGrants": "Berechtigungen bearbeiten",
+        "clone": "Klonen",
+        "delete": "Löschen",
+        "viewUsers": "Benutzer mit dieser Rolle anzeigen",
+        "code": "Interner Code",
+        "type": "Typ",
+        "mfaRequired": "MFA erforderlich",
+        "specialData": "Zugriff auf besondere Datenkategorien",
+        "users": "Inhaber",
+        "deleteBlocked": "Eine Rolle mit Inhabern ({count}) kann nicht gelöscht werden. Entziehe sie zuerst jedem Benutzer",
+        "grantsTitle": "Berechtigungen",
+        "confirmDelete": {
+          "title": "Rolle „{name}“ löschen",
+          "description": "Das Löschen lässt sich über die Oberfläche nicht rückgängig machen: Die Rolle existiert nicht mehr, gelöschte Rollen werden nicht wiederhergestellt.",
+          "confirm": "Rolle „{name}“ löschen"
+        }
+      },
+      "grants": {
+        "caption": "Berechtigungen der Rolle {name}",
+        "columns": {
+          "resource": "Ressource",
+          "action": "Aktion",
+          "effect": "Wirkung",
+          "scope": "Geltungsbereich",
+          "special": "Besondere Kategorie",
+          "code": "Code"
+        },
+        "anyScope": "Beliebiger Geltungsbereich",
+        "specialBadge": "Besondere Kategorie",
+        "specialInert": "Wirkungslos: Diese Rolle hat keinen Zugriff auf besondere Daten",
+        "filters": {
+          "effect": "Wirkung"
+        },
+        "empty": {
+          "title": "Keine Berechtigungen",
+          "text": "Diese Rolle erteilt und verweigert keine Berechtigung"
+        }
+      },
+      "form": {
+        "titleNew": "Neue Rolle",
+        "titleClone": "Rolle klonen",
+        "titleEdit": "Rollendaten bearbeiten",
+        "requiredHint": "Mit * markierte Felder sind Pflichtfelder.",
+        "required": "Pflichtfeld",
+        "name": "Name",
+        "nameHelp": "Er wird in allen Sprachen gleich angezeigt.",
+        "code": "Code",
+        "codeHelp": "Interner Bezeichner; er kann später nicht geändert werden.",
+        "mfaRequired": "MFA erforderlich",
+        "mfaHelp": "Personen mit dieser Rolle müssen einen zweiten Faktor einrichten.",
+        "mfaReadOnly": "MFA erforderlich: {value}",
+        "mfaLink": "In den MFA-Einstellungen ändern",
+        "specialData": "Zugriff auf besondere Datenkategorien",
+        "specialNotHeld": "Du kannst dieses Attribut nicht aktivieren: Keine deiner Rollen hat Zugriff auf besondere Datenkategorien",
+        "specialHint": "Berechtigungen für besondere Datenkategorien wirken nur in Rollen mit diesem Attribut.",
+        "nameSystem": "Der Name einer Systemrolle wird nicht bearbeitet.",
+        "submit": {
+          "new": "Rolle anlegen",
+          "clone": "Kopie anlegen",
+          "edit": "Änderungen speichern"
+        },
+        "cancel": "Abbrechen",
+        "errorSummary": "Prüfe die markierten Felder.",
+        "missing": "Um die Rolle anzuzeigen, benötigst du zusätzlich die Berechtigung {permission}.",
+        "errors": {
+          "codeFormat": "Der Code muss mit einem Kleinbuchstaben beginnen und 3 bis 64 Zeichen lang sein: Kleinbuchstaben, Ziffern und Unterstrich."
+        },
+        "source": {
+          "title": "Ausgangsrolle",
+          "summary": "{count} Berechtigungen · MFA erforderlich: {mfa} · Zugriff auf besondere Datenkategorien: {special}",
+          "explanation": "Die Berechtigungen und die MFA-Pflicht werden kopiert, die Inhaber nicht. Die neue Rolle ist von der Ausgangsrolle losgelöst: Eine spätere Änderung der einen ändert die andere nicht.",
+          "specialWarning": "Die Ausgangsrolle hat Zugriff auf besondere Datenkategorien: Du kannst sie nur klonen, wenn du dieses Attribut aktivieren kannst."
+        },
+        "grant": {
+          "denied": "Die Ausgangsrolle erteilt etwas, das du nicht hast; es wurde nichts angelegt.",
+          "detail": "Berechtigung: {permission}. Geltungsbereich: {scope}."
+        },
+        "confirmSpecial": {
+          "activateTitle": "Zugriff auf besondere Datenkategorien in „{name}“ aktivieren",
+          "activateDescription": "Die Rolle wendet ihre Berechtigungen für besondere Datenkategorien künftig für {count} Inhaber an.",
+          "activateDescriptionUnknown": "Die Rolle wendet ihre Berechtigungen für besondere Datenkategorien künftig für ihre Inhaber an.",
+          "activateConfirm": "In „{name}“ aktivieren",
+          "deactivateTitle": "Zugriff auf besondere Datenkategorien in „{name}“ deaktivieren",
+          "deactivateDescription": "Die Berechtigungen der Rolle für besondere Datenkategorien wirken für {count} Inhaber nicht mehr.",
+          "deactivateDescriptionUnknown": "Die Berechtigungen der Rolle für besondere Datenkategorien wirken für ihre Inhaber nicht mehr.",
+          "deactivateConfirm": "In „{name}“ deaktivieren"
+        }
+      }
     },
     "settings": {
       "title": "Einstellungen der Schule",
@@ -605,6 +822,81 @@
         "unexpected": "Das Profil konnte nicht gespeichert werden. Bitte versuche es erneut.",
         "tooManyRequests": "Zu viele Versuche. Warte einen Moment und versuche es erneut.",
         "tooManyRequestsWithSeconds": "Zu viele Versuche. Versuche es in {seconds} s erneut."
+      }
+    },
+    "permissions": {
+      "vocabulary": {
+        "actions": {
+          "crear": "Erstellen",
+          "leer": "Lesen",
+          "actualizar": "Aktualisieren",
+          "eliminar": "Löschen",
+          "exportar": "Exportieren",
+          "importar": "Importieren",
+          "aprobar": "Genehmigen",
+          "firmar": "Unterzeichnen",
+          "publicar": "Veröffentlichen"
+        },
+        "scopes": {
+          "todos": "Alle",
+          "propios": "Eigene",
+          "departamento": "Abteilung",
+          "grupo": "Gruppe",
+          "clase": "Klasse",
+          "unidad_familiar": "Familieneinheit"
+        },
+        "effects": {
+          "allow": "Erlauben",
+          "deny": "Verweigern"
+        },
+        "decisions": {
+          "permitido": "Erlaubt",
+          "denegado": "Verweigert"
+        },
+        "inertReasons": {
+          "inerte_permiso_retirado": "die Berechtigung existiert nicht mehr im Katalog",
+          "inerte_modulo": "die Einrichtung hat das Modul nicht gebucht",
+          "inerte_datos_especiales": "die Rolle hat keinen Zugriff auf besondere Kategorien personenbezogener Daten",
+          "inerte_sin_resolutor": "noch kein Modul wendet diesen Geltungsbereich an"
+        }
+      }
+    },
+    "effectivePermissions": {
+      "title": "Effektive Berechtigungen",
+      "heading": "Effektive Berechtigungen von {name}",
+      "intro": "Was diese Person jetzt gerade tun kann, berechnet mit denselben Regeln, die die Plattform bei jeder Anfrage anwendet.",
+      "roles": "Rollen",
+      "noRoles": "Keine Rollen zugewiesen.",
+      "computedAt": "Berechnet am {date}",
+      "recalculate": "Neu berechnen",
+      "caption": "Effektive Berechtigungen von {name}",
+      "columns": {
+        "resource": "Ressource",
+        "action": "Aktion",
+        "decision": "Ergebnis",
+        "scopes": "Geltungsbereiche",
+        "sources": "Herkunft",
+        "module": "Modul",
+        "code": "Code"
+      },
+      "special": "Besondere Kategorie",
+      "unrestricted": "Unbeschränkt",
+      "anyScope": "Beliebiger Geltungsbereich",
+      "sources": {
+        "allows": "Erlaubt",
+        "denies": "Verweigert",
+        "inert": "Ohne Wirkung: {reason}"
+      },
+      "vetoedBy": "Verweigert durch „{role}“: Eine Verweigerung hebt jede Erteilung auf",
+      "grantedInert": "Erteilt, aber ohne Wirkung: {reason}",
+      "filters": {
+        "decision": "Ergebnis",
+        "module": "Modul",
+        "includeEmpty": "Berechtigungen ganz ohne Erteilung einbeziehen"
+      },
+      "empty": {
+        "title": "Keine Berechtigungen",
+        "text": "Diese Person hat durch ihre Rollen keine Berechtigung erteilt oder verweigert bekommen."
       }
     }
   }

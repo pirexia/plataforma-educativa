@@ -61,6 +61,8 @@ return [
         'permission_duplicated' => 'Der Berechtigungscode „:code" kommt mehr als einmal vor.',
         'role_is_system' => 'Eine Rolle aus der Bereitstellung der Schule kann nicht gelöscht werden.',
         'role_has_assignments' => 'Dieser Rolle sind :users_count Benutzer zugewiesen und sie kann nicht gelöscht werden.',
+        // REQ-PERM/funcional.md §20.2.1 (1.5b, RN-PERM-47).
+        'administration_capacity_lost' => 'Dieser Vorgang würde die Schule ohne aktive Person zurücklassen, die alle Verwaltungsberechtigungen besitzt. Betroffene Berechtigungen: :codes. Vergib diese Berechtigungen zuerst an eine andere aktive Person der Schule.',
     ],
 
     'authorization' => [
@@ -73,6 +75,23 @@ return [
         'inerte_modulo' => 'Das Modul dieser Berechtigung ist für diese Schule nicht aktiviert.',
         'inerte_datos_especiales' => 'Die Gewährung stammt von einer Rolle ohne Zugriff auf besonders geschützte Daten.',
         'inerte_sin_resolutor' => 'Der Geltungsbereich dieser Gewährung hat noch keinen Resolver.',
+    ],
+
+    // REQ-PERM/api.md §14.3 (1.5b, S-PERM-2): Name jedes Ressourcentyps der
+    // Berechtigungen dieses Moduls (`resource_label_key`).
+    'permissions' => [
+        'resources' => [
+            'usuario' => 'Benutzer',
+            'invitacion' => 'Einladungen',
+            'asignacion_rol' => 'Rollenzuweisungen',
+            'rol' => 'Rollen',
+            'permiso' => 'Berechtigungen',
+            'configuracion' => 'Konfiguration',
+            'modulo' => 'Module',
+            'auditoria' => 'Audit',
+            'rol_datos_especiales' => 'Besondere Datenkategorien einer Rolle',
+            'permiso_efectivo' => 'Wirksame Berechtigungen',
+        ],
     ],
 
     'idempotency' => [

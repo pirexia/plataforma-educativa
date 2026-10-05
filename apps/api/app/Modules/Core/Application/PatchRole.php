@@ -26,6 +26,7 @@ final class PatchRole
         private readonly PermissionResolver $permissions,
         private readonly SpecialDataAccessGuard $specialDataAccessGuard,
         private readonly TenantContext $tenantContext,
+        private readonly AdministrationCapacityGuard $capacityGuard,
     ) {}
 
     /**
@@ -57,7 +58,10 @@ final class PatchRole
             $role->name = $body['name'];
         }
 
+        $changesSpecialDataAccess = false;
+
         if (array_key_exists('special_data_access', $body)) {
+            $changesSpecialDataAccess = (bool) $body['special_data_access'] !== (bool) $role->special_data_access;
             $this->applySpecialDataAccess($role, (bool) $body['special_data_access'], $actor);
         }
 
@@ -67,7 +71,16 @@ final class PatchRole
             $role->mfa_required = (bool) $body['mfa_required'];
         }
 
-        $role->save();
+        // RN-PERM-47 (1.5b, §20.2.1): solo cuando cambia
+        // `special_data_access`, después de las validaciones (422) y de
+        // las comprobaciones de permiso (403). Hoy no afecta al conjunto
+        // protegido (no contiene permisos de categoría especial) y se
+        // evalúa igualmente para que la regla no dependa de esa casualidad.
+        if ($changesSpecialDataAccess) {
+            $this->capacityGuard->protect(fn () => $role->save());
+        } else {
+            $role->save();
+        }
 
         // funcional.md §C.4.8 (1.3, sin cambios de semántica en 1.5): solo
         // cuando la obligación EMPIEZA (false→true) hace falta

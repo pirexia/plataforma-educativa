@@ -25,7 +25,13 @@ final class DeleteRole
         $usersCount = $role->users()->count();
 
         if ($usersCount > 0) {
-            throw ApiException::conflict('core.validation.role_has_assignments', ['users_count' => $usersCount]);
+            throw ApiException::conflict('core.validation.role_has_assignments', ['users_count' => $usersCount], [
+                'role' => [[
+                    'code' => 'core.validation.role_has_assignments',
+                    'message' => __('core.validation.role_has_assignments', ['users_count' => $usersCount]),
+                    'params' => ['users_count' => $usersCount],
+                ]],
+            ]);
         }
 
         DB::transaction(function () use ($role): void {

@@ -1,5 +1,7 @@
 # REQ-PERM · Núcleo de autorización granular
 
+> **Estado de 1.5b**: implementado en `feature/REQ-PERM-ui-roles` (`apps/api` y `apps/web` hechas; pendiente solo de revisión y merge).
+>
 > **Estado**: especificación del paso **1.5**, redactada el 2026-09-04. **ACEPTADA** por el usuario el 2026-09-04 (`funcional.md §19`) e **implementada** el 2026-09-07 (`memory.md`, commit `57f6f85`).
 >
 > **Sin preguntas bloqueantes.** Las cinco que lo eran se resolvieron el 2026-09-04 y están aplicadas en los cinco documentos; quedan dos cuestiones vivas y ninguna bloquea. El registro completo, con la decisión de cada una y dónde está aplicada, está en `funcional.md §18` y `§19.1`.
@@ -44,6 +46,6 @@ Ese documento sigue siendo el catálogo de permisos **del módulo `Core`** y no 
 ## 4. Alcance de 1.5 frente a 1.5b
 
 - **1.5 (este documento)**: núcleo y **API**. Todo es consumible por API (`INV-006`).
-- **1.5b** (posterior a `1.9`, `ADR-044 §6`): editor de roles, matriz de concesión y pantalla de permisos efectivos, como **interfaz**. Consume únicamente lo que 1.5 expone; no necesita nada de backend adicional.
+- **1.5b** (posterior a `1.9`, `ADR-044 §6`): editor de roles, matriz de concesión y pantalla de permisos efectivos, como **interfaz** (`apps/web`), **implementada** en `feature/REQ-PERM-ui-roles`, pendiente de revisión y merge. **Sí toca `apps/api`** (`funcional.md §20`): S-PERM-1 (`users_count` en `GET /roles/{public_id}`), S-PERM-2 (`resource_label` en los permisos) y la regla `RN-PERM-47` (`409` si una escritura dejaría al centro sin la capacidad completa de administración).
 
-Entre 1.5 y 1.5b, los roles personalizados se crean **por API y no por pantalla**. Es un coste conocido y aceptado por el usuario el 2026-09-04.
+Hasta el merge de 1.5b, los roles personalizados se crean **por API y no por pantalla**; con él hay editor gráfico. Era un coste conocido y aceptado por el usuario el 2026-09-04.

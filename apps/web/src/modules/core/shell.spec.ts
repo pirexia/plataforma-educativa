@@ -84,14 +84,15 @@ describe('1.9c (§14.3): rutas de importación', () => {
   })
 })
 
-describe('1.9d (§14.3, OPEN-CORE-36 = A): roles y auditoría', () => {
-  it('no existe core-role-detail ni ninguna ruta de detalle de un rol', () => {
-    expect(
-      router.getRoutes().find((candidate) => candidate.name === 'core-role-detail'),
-    ).toBeUndefined()
-    expect(
-      router.getRoutes().filter((candidate) => candidate.path.startsWith('/administracion/roles/')),
-    ).toEqual([])
+describe('1.9d (§14.3) → 1.5b (REQ-PERM §20.3, OPEN-CORE-36 = A): roles', () => {
+  // En 1.9d este bloque comprobaba que no existía `core-role-detail`; 1.5b lo crea, con las cuatro
+  // pantallas que cuelgan de la ficha (`CA-PERM-100` cubre el detalle de permisos y padres en
+  // `src/navigation/modules.spec.ts`).
+  it('existe core-role-detail y las rutas de rol cuelgan de /administracion/roles', () => {
+    const detail = router.getRoutes().find((candidate) => candidate.name === 'core-role-detail')
+
+    expect(detail?.path).toBe('/administracion/roles/:publicId')
+    expect(detail?.meta.permissions).toEqual(['rol.leer'])
   })
 })
 

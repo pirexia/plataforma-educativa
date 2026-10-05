@@ -486,7 +486,11 @@ paths:
         '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409':
-          description: Es el propio solicitante, o el último Administrador de Centro vivo.
+          description: >
+            Es el propio solicitante, o el último Administrador de Centro vivo (RN-CORE-06/-07);
+            o, REQ-PERM/api.md §14.5 (1.5b, RN-PERM-47), la baja dejaría al centro sin ningún
+            usuario activo con todos los permisos de administración
+            (`core.validation.administration_capacity_lost`).
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
@@ -547,7 +551,11 @@ paths:
         '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409':
-          description: Transición no permitida, dejaría sin Administrador de Centro, o es el propio solicitante.
+          description: >
+            Transición no permitida, dejaría sin Administrador de Centro, o es el propio
+            solicitante (RN-CORE-06/-07); o, solo en el paso a `inactivo`, REQ-PERM/api.md §14.5
+            (1.5b, RN-PERM-47): dejaría al centro sin ningún usuario activo con todos los
+            permisos de administración (`core.validation.administration_capacity_lost`).
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
@@ -673,7 +681,9 @@ paths:
         REQ-PERM/api.md §3 (RPERM-005/006). `clone_from` y `permissions`
         son mutuamente excluyentes. `is_system` es siempre `false` y no es
         un campo del cuerpo. Cada concesión pasa por RPERM-013 (subconjunto
-        de lo que el solicitante posee, con `todos` absorbiendo).
+        de lo que el solicitante posee, con `todos` absorbiendo). El `403` por
+        RPERM-013 lleva `errors.grant[0]` = `{code, message, params: {code, scope}}`
+        del primer par que lo provoca (api.md §9.2.1; sin `params` de primer nivel).
       tags: [Core / Roles]
       security: [{ SessionCookie: [] }]
       requestBody:
@@ -758,6 +768,15 @@ paths:
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
         '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: >
+            REQ-PERM/api.md §14.5 (1.5b, RN-PERM-47): solo si cambia `special_data_access`, y
+            solo si la escritura dejaría al centro sin ningún usuario activo con todos los
+            permisos de administración (`core.validation.administration_capacity_lost`).
+            No se guarda nada.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
     delete:
       operationId: deleteRole
@@ -765,7 +784,8 @@ paths:
       description: >
         REQ-PERM/api.md §6 (RN-PERM-16/17). Un rol `is_system` responde
         `409`; un rol con asignaciones vivas también, con
-        `params.users_count`. Sin cascada sobre las asignaciones.
+        `errors.role[0].params.users_count` (ADR-038 §6.3, api.md §9.2.1; sin `params`
+        de primer nivel). Sin cascada sobre las asignaciones.
       tags: [Core / Roles]
       security: [{ SessionCookie: [] }]
       responses:
@@ -811,8 +831,26 @@ paths:
             application/json:
               schema: { $ref: '../components.yaml#/components/schemas/Role' }
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
-        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '403':
+          description: >
+            Alguna concesión `allow` pide un par (código, ámbito) que el solicitante
+            no posee (RPERM-013, RN-PERM-24; datos en `errors.grant[0].params` =
+            `{code, scope}` del primer par que lo provoca, api.md §9.2.1; sin `params`
+            de primer nivel). Un `deny` no se comprueba.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: >
+            REQ-PERM/api.md §14.5 (1.5b, RN-PERM-47): la escritura dejaría al centro sin ningún
+            usuario activo que posea, de forma efectiva y con ámbito `todos`, todos los
+            permisos de administración sembrados para `administrador_centro`
+            (`core.validation.administration_capacity_lost`; los códigos afectados van en
+            `errors.administration_capacity[0].params.codes`, lista ordenada, api.md §9.2.1). Solo si el centro cumplía antes. No se guarda nada, ni auditoría.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
 
   /api/v1/permissions:
@@ -902,7 +940,8 @@ paths:
         '403':
           description: >
             Algún rol añadido concede un par (código, ámbito) que el
-            solicitante no posee (RPERM-013, ADR-044 §4.8); o se retira
+            solicitante no posee (RPERM-013, ADR-044 §4.8; datos en
+            `errors.grant[0].params` = `{code, scope}`, api.md §9.2.1); o se retira
             al menos un rol y el solicitante no tiene
             `asignacion_rol.eliminar` (REQ-PERM/api.md §8.2, hallazgo
             corregido en 1.5).
@@ -911,7 +950,11 @@ paths:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409':
-          description: Retiraría el último administrador_centro, o el solicitante se modifica a sí mismo.
+          description: >
+            Retiraría el último administrador_centro, o el solicitante se modifica a sí mismo
+            (RN-CORE-06/-07); o, REQ-PERM/api.md §14.5 (1.5b, RN-PERM-47), la asignación dejaría
+            al centro sin ningún usuario activo con todos los permisos de administración
+            (`core.validation.administration_capacity_lost`).
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
