@@ -409,7 +409,53 @@
         "custom": "Benutzerdefiniert"
       },
       "yes": "Ja",
-      "no": "Nein"
+      "no": "Nein",
+      "editor": {
+        "matrix": {
+          "resource": "Ressource",
+          "special": "Besondere Kategorie",
+          "caption": "Berechtigungen von {module} für {role}",
+          "scrollLabel": "Berechtigungsmatrix für {module}, scrollbar",
+          "notContracted": "Modul nicht gebucht: Diese Berechtigungen wirken erst, wenn es gebucht wird"
+        },
+        "state": {
+          "none": "Nicht erteilt",
+          "allow": "Erlauben · {scope}"
+        },
+        "marks": {
+          "modified": "Geändert",
+          "inert": "Wirkungslos",
+          "onlyRemove": "Nur entziehen oder verweigern",
+          "error": "Fehler"
+        },
+        "cell": {
+          "name": "{resource} · {action}: {state}. Bearbeiten",
+          "nameMarks": "{resource} · {action}: {state} ({marks}). Bearbeiten"
+        },
+        "panel": {
+          "close": "Panel schließen",
+          "code": "Technischer Code:",
+          "groupLabel": "Berechtigung für {name}",
+          "scope": "Geltungsbereich",
+          "scopePlaceholder": "Geltungsbereich wählen",
+          "anyScope": "Beliebiger Geltungsbereich",
+          "denyExplanation": "Verweigern hebt diese Berechtigung für alle Inhaber der Rolle auf, in jedem Geltungsbereich und auch dann, wenn eine andere ihrer Rollen sie erteilt.",
+          "apply": "Übernehmen",
+          "cancel": "Abbrechen"
+        },
+        "option": {
+          "current": "{scope} (aktuell)",
+          "notHeld": "{scope} — du kannst ihn nicht erteilen: Du hast diese Berechtigung mit diesem Geltungsbereich nicht",
+          "noResolver": "{scope} — kann noch nicht erteilt werden: Ein noch nicht verfügbares Modul wird ihn bereitstellen"
+        },
+        "notes": {
+          "onlyNotHeld": "Du kannst diese Berechtigung nur verweigern oder nicht erteilen: Du hast sie nicht",
+          "onlyVetoed": "Du kannst diese Berechtigung nur verweigern oder nicht erteilen: Sie ist für dich durch eine Verweigerung gesperrt",
+          "onlyInert": "Du kannst diese Berechtigung nur verweigern oder nicht erteilen: Deine Berechtigung ist wirkungslos ({reason})",
+          "specialInert": "Diese Berechtigung bleibt wirkungslos: Die Rolle hat keinen Zugriff auf besondere Datenkategorien",
+          "moduleInert": "Diese Berechtigung bleibt wirkungslos, solange das Modul nicht gebucht ist"
+        }
+      }
     },
     "settings": {
       "title": "Einstellungen der Schule",

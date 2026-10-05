@@ -409,7 +409,53 @@
         "custom": "Personalizado"
       },
       "yes": "Sí",
-      "no": "No"
+      "no": "No",
+      "editor": {
+        "matrix": {
+          "resource": "Recurso",
+          "special": "Categoría especial",
+          "caption": "Concesiones de {module} para {role}",
+          "scrollLabel": "Matriz de concesiones de {module}, desplazable",
+          "notContracted": "Módulo no contratado: estas concesiones no surten efecto mientras no se contrate"
+        },
+        "state": {
+          "none": "Sin conceder",
+          "allow": "Permitir · {scope}"
+        },
+        "marks": {
+          "modified": "Modificado",
+          "inert": "Inerte",
+          "onlyRemove": "Solo retirar o denegar",
+          "error": "Error"
+        },
+        "cell": {
+          "name": "{resource} · {action}: {state}. Modificar",
+          "nameMarks": "{resource} · {action}: {state} ({marks}). Modificar"
+        },
+        "panel": {
+          "close": "Cerrar el panel",
+          "code": "Código técnico:",
+          "groupLabel": "Concesión de {name}",
+          "scope": "Ámbito",
+          "scopePlaceholder": "Elige un ámbito",
+          "anyScope": "Cualquier ámbito",
+          "denyExplanation": "Denegar anula este permiso para todos los titulares del rol, en cualquier ámbito y aunque otro de sus roles lo conceda.",
+          "apply": "Aplicar",
+          "cancel": "Cancelar"
+        },
+        "option": {
+          "current": "{scope} (actual)",
+          "notHeld": "{scope} — no puedes concederlo: tú no tienes este permiso con este ámbito",
+          "noResolver": "{scope} — todavía no se puede conceder: lo aportará un módulo que aún no está disponible"
+        },
+        "notes": {
+          "onlyNotHeld": "Solo puedes denegar o dejar sin conceder este permiso: tú no lo tienes",
+          "onlyVetoed": "Solo puedes denegar o dejar sin conceder este permiso: lo tienes vetado por una denegación",
+          "onlyInert": "Solo puedes denegar o dejar sin conceder este permiso: tu concesión no surte efecto ({reason})",
+          "specialInert": "Esta concesión no surtirá efecto: el rol no tiene acceso a datos de categoría especial",
+          "moduleInert": "Esta concesión no surtirá efecto mientras no se contrate el módulo"
+        }
+      }
     },
     "settings": {
       "title": "Configuración del centro",

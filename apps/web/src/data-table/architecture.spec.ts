@@ -9,7 +9,9 @@
  * - `CA-CORE-192` (`RN-CORE-46`): nada construye un fichero de exportación en el cliente.
  * - `CA-CORE-193` (`RN-CORE-37`): solo `src/data-table/**` importa `@tanstack/vue-table`.
  * - `CA-CORE-194` (`RN-CORE-38`): `src/data-table/**` no importa módulos.
- * - `CA-CORE-200` (`RN-CORE-53`): toda tabla pasa por el componente, con lista cerrada de excepciones.
+ * - `CA-CORE-200` (`RN-CORE-53`): toda tabla pasa por el componente, con lista cerrada de excepciones
+ *   de tablas de datos **y**, desde 1.5b, una **segunda lista cerrada de rejillas de edición**
+ *   (`CA-PERM-129`, `REQ-PERM/funcional.md §20.12`, modificación aprobada por el usuario el 2026-10-05).
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -363,6 +365,91 @@ function exemptFromTableRule(path: string): boolean {
   return path.startsWith('data-table/') || path.startsWith('components/ui/')
 }
 
+// =========================================================================
+// CA-PERM-129 · RN-CORE-53 modificada (REQ-PERM §20.12): rejillas de edición
+// =========================================================================
+
+/**
+ * Una rejilla de edición es una vista cuyas celdas son **controles de formulario**
+ * que editan un único recurso, y cuyo propósito es comparar ese recurso en dos
+ * ejes a la vez. Solo ellas pueden importar `@/components/ui/table` fuera del
+ * componente, y solo si figuran en esta **lista cerrada**, separada de la de
+ * excepciones de tablas de datos.
+ */
+interface EditGridEntry {
+  path: string
+  /** Especificación que la justifica. */
+  spec: string
+  /** Aprobación expresa del usuario. */
+  approval: string
+}
+
+/**
+ * Lista aprobada, como constante: añadir una entrada a `EDIT_GRIDS` sin que figure
+ * aquí hace fallar el test. **Solo crece con una especificación aprobada
+ * expresamente por el usuario que nombre la rejilla; ninguna sesión de
+ * implementación la amplía.**
+ */
+const APPROVED_EDIT_GRIDS = ['modules/core/components/roles/RolePermissionMatrix.vue'] as const
+
+const EDIT_GRIDS: readonly EditGridEntry[] = [
+  {
+    path: 'modules/core/components/roles/RolePermissionMatrix.vue',
+    spec: 'REQ-PERM/funcional.md §20.8 (matriz de concesiones recurso × acción de un rol)',
+    approval: 'OPEN-PERM-08 = A, aprobada expresamente por el usuario el 2026-10-05',
+  },
+]
+
+/** Una rejilla puede importar la tabla base; nunca TanStack ni un `<table` crudo (`RN-CORE-37`). */
+function editGridViolations(file: { path: string; cleaned: string }): string[] {
+  return violatesTableRule(file).filter(
+    (reason) => reason.includes(TANSTACK) || reason === 'contiene <table',
+  )
+}
+
+function importsBaseTable(file: { path: string; cleaned: string }): boolean {
+  return violatesTableRule(file).some(
+    (reason) => reason.startsWith('importa ') && !reason.includes(TANSTACK),
+  )
+}
+
+function exemptFromTableRuleAsEditGrid(path: string, grids: readonly EditGridEntry[]): boolean {
+  return grids.some((grid) => grid.path === path)
+}
+
+/** Comprobación de la lista de rejillas, parametrizada para poder probar que sabe fallar. */
+function checkEditGridList(
+  grids: readonly EditGridEntry[],
+  approved: readonly string[],
+  stillImportsBaseTable: (path: string) => boolean,
+): string[] {
+  const problems: string[] = []
+
+  for (const grid of grids) {
+    if (!approved.includes(grid.path)) {
+      problems.push(
+        `${grid.path}: no está en la lista aprobada (solo crece con aprobación expresa)`,
+      )
+    } else if (!stillImportsBaseTable(grid.path)) {
+      problems.push(`${grid.path}: ya no importa @/components/ui/table; retírala de la lista`)
+    }
+
+    if (grid.spec.trim() === '' || grid.approval.trim() === '') {
+      problems.push(`${grid.path}: debe nombrar su especificación y la aprobación del usuario`)
+    }
+  }
+
+  const listed = grids.map((grid) => grid.path)
+
+  for (const path of approved) {
+    if (!listed.includes(path)) {
+      problems.push(`${path}: está aprobada pero falta en la lista de rejillas`)
+    }
+  }
+
+  return problems
+}
+
 /** Comprobación de la lista de excepciones, parametrizada para poder probar que sabe fallar. */
 function checkExceptionList(
   exceptions: readonly string[],
@@ -455,6 +542,17 @@ describe('CA-CORE-200 (RN-CORE-53, OPEN-CORE-29): barrido de src/', () => {
         continue
       }
 
+      // Una rejilla de edición aprobada solo queda exenta de importar la tabla base.
+      if (exemptFromTableRuleAsEditGrid(file.path, EDIT_GRIDS)) {
+        const gridReasons = editGridViolations(file)
+
+        if (gridReasons.length > 0) {
+          offenders.push(`${file.path}: ${gridReasons.join(', ')}`)
+        }
+
+        continue
+      }
+
       const reasons = violatesTableRule(file)
 
       if (reasons.length > 0) {
@@ -482,6 +580,96 @@ describe('CA-CORE-200 (RN-CORE-53, OPEN-CORE-29): barrido de src/', () => {
   it('MfaComplianceArea.vue (migrada en 1.9) no está en la lista', () => {
     expect(EXCEPTIONS).not.toContain('modules/auth/components/admin/MfaComplianceArea.vue')
     expect(fileByPath.has('modules/auth/components/admin/MfaComplianceArea.vue')).toBe(true)
+  })
+})
+
+describe('CA-PERM-129 (RN-CORE-53 modificada, §20.12): casos fijos de la lista de rejillas de edición', () => {
+  const grid = (path: string): EditGridEntry => ({ path, spec: 'spec', approval: 'aprobada' })
+  const importsTable = {
+    path: 'modules/x/Grid.vue',
+    cleaned: "import { Table } from '@/components/ui/table'",
+  }
+
+  it('una rejilla no listada que importa @/components/ui/table incumple la regla', () => {
+    expect(violatesTableRule(importsTable).length).toBeGreaterThan(0)
+    expect(exemptFromTableRuleAsEditGrid(importsTable.path, EDIT_GRIDS)).toBe(false)
+  })
+
+  it('una segunda entrada añadida a la lista sin cambiar la constante aprobada hace fallar la comprobación', () => {
+    const problems = checkEditGridList(
+      [...EDIT_GRIDS, grid('modules/x/Grid.vue')],
+      APPROVED_EDIT_GRIDS,
+      () => true,
+    )
+
+    expect(problems).toHaveLength(1)
+    expect(problems[0]).toContain('modules/x/Grid.vue')
+  })
+
+  it('una entrada de la lista que ya no importa @/components/ui/table hace fallar la comprobación', () => {
+    const problems = checkEditGridList(EDIT_GRIDS, APPROVED_EDIT_GRIDS, () => false)
+
+    expect(problems).toHaveLength(1)
+    expect(problems[0]).toContain('RolePermissionMatrix.vue')
+  })
+
+  it('una entrada aprobada que desaparece de la lista también hace fallar la comprobación', () => {
+    expect(checkEditGridList([], APPROVED_EDIT_GRIDS, () => true)).toHaveLength(1)
+  })
+
+  it('una rejilla listada no puede importar TanStack ni contener un <table crudo', () => {
+    expect(
+      editGridViolations({
+        path: 'x.vue',
+        cleaned: "import { useVueTable } from '@tanstack/vue-table'",
+      }).length,
+    ).toBeGreaterThan(0)
+    expect(
+      editGridViolations({ path: 'x.vue', cleaned: '<template><table></table></template>' }).length,
+    ).toBeGreaterThan(0)
+    expect(editGridViolations(importsTable)).toEqual([])
+    expect(importsBaseTable(importsTable)).toBe(true)
+  })
+
+  it('cada entrada debe nombrar su especificación y la aprobación del usuario', () => {
+    expect(
+      checkEditGridList(
+        [{ path: APPROVED_EDIT_GRIDS[0], spec: '', approval: '' }],
+        APPROVED_EDIT_GRIDS,
+        () => true,
+      ),
+    ).toHaveLength(1)
+  })
+})
+
+describe('CA-PERM-129 (RN-CORE-53 modificada, §20.12): barrido de src/', () => {
+  const fileByPath = new Map(FILES.map((file) => [file.path, file] as const))
+
+  it('la lista de rejillas de edición es exactamente la constante aprobada: RolePermissionMatrix.vue', () => {
+    expect(EDIT_GRIDS.map((entry) => entry.path)).toEqual([...APPROVED_EDIT_GRIDS])
+    expect(APPROVED_EDIT_GRIDS).toEqual(['modules/core/components/roles/RolePermissionMatrix.vue'])
+  })
+
+  it('la lista de excepciones de tablas de datos sigue vacía y es independiente de la de rejillas', () => {
+    expect(EXCEPTIONS).toEqual([])
+    expect(EXCEPTIONS.filter((path) => EDIT_GRIDS.some((entry) => entry.path === path))).toEqual([])
+  })
+
+  it('cada rejilla existe, importa @/components/ui/table y no importa TanStack ni contiene <table', () => {
+    const problems = checkEditGridList(EDIT_GRIDS, APPROVED_EDIT_GRIDS, (path) => {
+      const file = fileByPath.get(path)
+
+      return file !== undefined && importsBaseTable(file)
+    })
+
+    expect(problems).toEqual([])
+
+    for (const entry of EDIT_GRIDS) {
+      const file = fileByPath.get(entry.path)
+
+      expect(file, `${entry.path} no existe`).toBeDefined()
+      expect(editGridViolations(file!)).toEqual([])
+    }
   })
 })
 

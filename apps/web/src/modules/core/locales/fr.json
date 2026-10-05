@@ -409,7 +409,53 @@
         "custom": "Personnalisé"
       },
       "yes": "Oui",
-      "no": "Non"
+      "no": "Non",
+      "editor": {
+        "matrix": {
+          "resource": "Ressource",
+          "special": "Catégorie particulière",
+          "caption": "Droits du module {module} pour {role}",
+          "scrollLabel": "Matrice des droits du module {module}, défilable",
+          "notContracted": "Module non souscrit : ces droits sont sans effet tant qu'il n'est pas souscrit"
+        },
+        "state": {
+          "none": "Non accordé",
+          "allow": "Autoriser · {scope}"
+        },
+        "marks": {
+          "modified": "Modifié",
+          "inert": "Inerte",
+          "onlyRemove": "Retirer ou refuser seulement",
+          "error": "Erreur"
+        },
+        "cell": {
+          "name": "{resource} · {action} : {state}. Modifier",
+          "nameMarks": "{resource} · {action} : {state} ({marks}). Modifier"
+        },
+        "panel": {
+          "close": "Fermer le panneau",
+          "code": "Code technique :",
+          "groupLabel": "Droit pour {name}",
+          "scope": "Périmètre",
+          "scopePlaceholder": "Choisissez un périmètre",
+          "anyScope": "Tout périmètre",
+          "denyExplanation": "Refuser annule cette permission pour tous les titulaires du rôle, dans tout périmètre et même si un autre de leurs rôles l'accorde.",
+          "apply": "Appliquer",
+          "cancel": "Annuler"
+        },
+        "option": {
+          "current": "{scope} (actuel)",
+          "notHeld": "{scope} — vous ne pouvez pas l'accorder : vous n'avez pas cette permission avec ce périmètre",
+          "noResolver": "{scope} — ne peut pas encore être accordé : un module pas encore disponible l'apportera"
+        },
+        "notes": {
+          "onlyNotHeld": "Vous ne pouvez que refuser cette permission ou ne pas l'accorder : vous ne l'avez pas",
+          "onlyVetoed": "Vous ne pouvez que refuser cette permission ou ne pas l'accorder : elle vous est interdite par un refus",
+          "onlyInert": "Vous ne pouvez que refuser cette permission ou ne pas l'accorder : votre droit est sans effet ({reason})",
+          "specialInert": "Ce droit restera sans effet : le rôle n'a pas accès aux données de catégorie particulière",
+          "moduleInert": "Ce droit restera sans effet tant que le module n'est pas souscrit"
+        }
+      }
     },
     "settings": {
       "title": "Paramètres de l'établissement",

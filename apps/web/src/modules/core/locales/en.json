@@ -409,7 +409,53 @@
         "custom": "Custom"
       },
       "yes": "Yes",
-      "no": "No"
+      "no": "No",
+      "editor": {
+        "matrix": {
+          "resource": "Resource",
+          "special": "Special category",
+          "caption": "Grants of {module} for {role}",
+          "scrollLabel": "Grants matrix for {module}, scrollable",
+          "notContracted": "Module not contracted: these grants have no effect until it is contracted"
+        },
+        "state": {
+          "none": "Not granted",
+          "allow": "Allow · {scope}"
+        },
+        "marks": {
+          "modified": "Modified",
+          "inert": "Inert",
+          "onlyRemove": "Only remove or deny",
+          "error": "Error"
+        },
+        "cell": {
+          "name": "{resource} · {action}: {state}. Edit",
+          "nameMarks": "{resource} · {action}: {state} ({marks}). Edit"
+        },
+        "panel": {
+          "close": "Close the panel",
+          "code": "Technical code:",
+          "groupLabel": "Grant for {name}",
+          "scope": "Scope",
+          "scopePlaceholder": "Choose a scope",
+          "anyScope": "Any scope",
+          "denyExplanation": "Deny overrides this permission for everyone who holds the role, in any scope and even if another of their roles grants it.",
+          "apply": "Apply",
+          "cancel": "Cancel"
+        },
+        "option": {
+          "current": "{scope} (current)",
+          "notHeld": "{scope} — you cannot grant it: you do not have this permission with this scope",
+          "noResolver": "{scope} — cannot be granted yet: a module that is not available yet will provide it"
+        },
+        "notes": {
+          "onlyNotHeld": "You can only deny this permission or leave it ungranted: you do not have it",
+          "onlyVetoed": "You can only deny this permission or leave it ungranted: it is vetoed for you by a denial",
+          "onlyInert": "You can only deny this permission or leave it ungranted: your grant has no effect ({reason})",
+          "specialInert": "This grant will have no effect: the role has no access to special-category data",
+          "moduleInert": "This grant will have no effect until the module is contracted"
+        }
+      }
     },
     "settings": {
       "title": "School settings",
