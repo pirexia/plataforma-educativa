@@ -48,10 +48,26 @@ final class ApiException extends RuntimeException
 
     /**
      * @param  array<string, string|int|float>  $detailParams
+     * @param  array<string, list<array{code: string, message: string, params?: array<string, mixed>}>>  $errors
      */
-    public static function forbidden(?string $detailKey = null, array $detailParams = []): self
+    public static function forbidden(?string $detailKey = null, array $detailParams = [], array $errors = []): self
     {
-        return new self(403, 'forbidden', $detailKey, $detailParams);
+        return new self(403, 'forbidden', $detailKey, $detailParams, $errors);
+    }
+
+    /**
+     * REQ-PERM-005, api.md §9.2.1 (RPERM-013 / RN-PERM-24): nadie concede
+     * un permiso que no posee. Los datos van en `errors.grant[0].params`
+     * (ADR-038 §6.3), nunca como `params` de primer nivel.
+     */
+    public static function cannotGrantUnheldPermission(string $code, string $scope): self
+    {
+        $key = 'core.authorization.cannot_grant_unheld_permission';
+        $params = ['code' => $code, 'scope' => $scope];
+
+        return self::forbidden($key, $params, [
+            'grant' => [['code' => $key, 'message' => __($key, $params), 'params' => $params]],
+        ]);
     }
 
     public static function moduleDisabled(): self
@@ -81,10 +97,11 @@ final class ApiException extends RuntimeException
 
     /**
      * @param  array<string, string|int|float>  $detailParams
+     * @param  array<string, list<array{code: string, message: string, params?: array<string, mixed>}>>  $errors
      */
-    public static function conflict(string $detailKey, array $detailParams = []): self
+    public static function conflict(string $detailKey, array $detailParams = [], array $errors = []): self
     {
-        return new self(409, 'conflict', $detailKey, $detailParams);
+        return new self(409, 'conflict', $detailKey, $detailParams, $errors);
     }
 
     public static function gone(): self
