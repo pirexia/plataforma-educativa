@@ -4,6 +4,7 @@ namespace App\Modules\Core\Http\Controllers;
 
 use App\Models\User;
 use App\Models\UserStatus;
+use App\Modules\Core\Application\AdministrationCapacityGuard;
 use App\Modules\Core\Application\CreateUser;
 use App\Modules\Core\Application\SchoolAdministratorGuard;
 use App\Modules\Core\Application\UpdateUser;
@@ -36,6 +37,7 @@ class UsersController extends Controller
     public function __construct(
         private readonly SchoolAdministratorGuard $adminGuard,
         private readonly PermissionResolver $permissions,
+        private readonly AdministrationCapacityGuard $capacityGuard,
     ) {}
 
     public function index(IndexUsersRequest $request): JsonResponse
@@ -161,9 +163,14 @@ class UsersController extends Controller
             throw ApiException::conflict('core.validation.last_school_administrator');
         }
 
-        $user->status = UserStatus::Inactivo;
-        $user->save();
-        $user->delete();
+        // RN-PERM-47 (1.5b, §20.2.1): después de RN-CORE-06/-07, antes de
+        // guardar. Dar de baja al único usuario con el conjunto completo de
+        // administración se rechaza aunque RN-CORE-07 lo permitiera.
+        $this->capacityGuard->protect(function () use ($user): void {
+            $user->status = UserStatus::Inactivo;
+            $user->save();
+            $user->delete();
+        });
 
         event(new UserDeactivated($user->tenant_id, $user->public_id));
 
@@ -214,8 +221,17 @@ class UsersController extends Controller
             throw ApiException::conflict('core.validation.last_school_administrator');
         }
 
-        $user->status = $newStatus;
-        $user->save();
+        // RN-PERM-47 (1.5b, §20.2.1): solo el paso a `inactivo` puede
+        // quitar a alguien del conjunto de candidatos; después de RN-CORE-07.
+        if ($newStatus === UserStatus::Inactivo) {
+            $this->capacityGuard->protect(function () use ($user, $newStatus): void {
+                $user->status = $newStatus;
+                $user->save();
+            });
+        } else {
+            $user->status = $newStatus;
+            $user->save();
+        }
 
         return new UserResource($user->fresh(['person', 'roles']));
     }

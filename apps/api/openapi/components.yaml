@@ -162,7 +162,13 @@ components:
         is_system: { type: boolean }
         mfa_required: { type: boolean }
         special_data_access: { type: boolean }
-        users_count: { type: integer }
+        users_count:
+          type: integer
+          minimum: 0
+          description: >
+            Asignaciones vivas. REQ-PERM/api.md §14.3 (1.5b, S-PERM-1): también en el detalle
+            (`GET /roles/{publicId}`) y en las respuestas de `POST /roles`, `PATCH /roles/{publicId}`
+            y `PUT /roles/{publicId}/permissions`; antes solo salía en el listado.
         permissions:
           type: array
           items:
@@ -170,6 +176,12 @@ components:
             properties:
               code: { type: string }
               resource: { type: string }
+              resource_label:
+                type: string
+                description: >
+                  REQ-PERM/api.md §14.3 (1.5b, S-PERM-2). Nombre del recurso traducido por el
+                  servidor al idioma de la petición; lo declara el módulo dueño. Nunca vacío:
+                  si el módulo no lo declara, lleva el código del recurso.
               action: { type: string }
               effect: { type: string, enum: [allow, deny] }
               scope: { type: string }
@@ -183,6 +195,11 @@ components:
       properties:
         code: { type: string }
         resource: { type: string }
+        resource_label:
+          type: string
+          description: >
+            REQ-PERM/api.md §14.3 (1.5b, S-PERM-2). Nombre del recurso traducido por el servidor
+            (`ADR-021`); el valor técnico `resource` no se traduce. Nunca vacío.
         action: { type: string }
         module_code: { type: string }
         is_special_category: { type: boolean }
@@ -230,6 +247,11 @@ components:
       properties:
         code: { type: string }
         resource: { type: string }
+        resource_label:
+          type: string
+          description: >
+            REQ-PERM/api.md §14.3 (1.5b, S-PERM-2). Nombre del recurso traducido por el servidor.
+            Nunca vacío.
         action: { type: string }
         module_code: { type: string }
         is_special_category: { type: boolean }

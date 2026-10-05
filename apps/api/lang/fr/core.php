@@ -61,6 +61,8 @@ return [
         'permission_duplicated' => 'Le code de permission « :code » apparaît plus d\'une fois.',
         'role_is_system' => 'Un rôle du provisionnement de l\'établissement ne peut pas être supprimé.',
         'role_has_assignments' => 'Ce rôle a :users_count utilisateur(s) assigné(s) et ne peut pas être supprimé.',
+        // REQ-PERM/funcional.md §20.2.1 (1.5b, RN-PERM-47).
+        'administration_capacity_lost' => 'Cette opération laisserait l\'établissement sans aucun utilisateur actif possédant toutes les permissions d\'administration. Permissions concernées : :codes. Accordez d\'abord ces permissions à une autre personne active de l\'établissement.',
     ],
 
     'authorization' => [

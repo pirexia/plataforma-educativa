@@ -13,7 +13,6 @@ use App\Support\Authorization\PermissionResolver;
 use App\Support\Authorization\Scope;
 use App\Support\Authorization\ScopeResolverRegistry;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 /**
  * REQ-PERM/api.md §5, funcional.md §7.7 (`PUT /roles/{public_id}/permissions`).
@@ -29,6 +28,7 @@ final class ReplaceRolePermissions
     public function __construct(
         private readonly PermissionResolver $permissions,
         private readonly ScopeResolverRegistry $scopeResolvers,
+        private readonly AdministrationCapacityGuard $capacityGuard,
     ) {}
 
     /**
@@ -51,15 +51,24 @@ final class ReplaceRolePermissions
             throw ApiException::notFound();
         }
 
-        return DB::transaction(function () use ($role, $existingByCode, $desired): Role {
-            $changed = $this->applyDiff($role, $existingByCode, $desired);
+        // RN-PERM-47 (1.5b, §20.2.1): después de la forma (422) y de
+        // RPERM-013 (403), antes de que nada quede guardado. El guard
+        // serializa por tenant y deshace la transacción con 409 si el
+        // centro dejaría de tener un titular completo de la administración.
+        // Las concesiones actuales se vuelven a leer ya con el bloqueo
+        // tomado: el diff se calcula sobre lo que hay, no sobre lo que
+        // había antes de esperar el turno.
+        $changed = $this->capacityGuard->protect(function () use ($role, $desired): bool {
+            $current = $role->permissionGrants()->get()->keyBy('permission_code');
 
-            if ($changed) {
-                event(new RolePermissionsChanged($role->tenant_id, $role->public_id));
-            }
-
-            return $role->fresh(['permissionGrants.permission']);
+            return $this->applyDiff($role, $current, $desired);
         });
+
+        if ($changed) {
+            event(new RolePermissionsChanged($role->tenant_id, $role->public_id));
+        }
+
+        return $role->fresh(['permissionGrants.permission']);
     }
 
     /**

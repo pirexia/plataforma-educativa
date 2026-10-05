@@ -37,6 +37,7 @@ final class ReplaceUserRoles
         private readonly SchoolAdministratorGuard $adminGuard,
         private readonly PermissionResolver $permissions,
         private readonly AuditRecorder $auditRecorder,
+        private readonly AdministrationCapacityGuard $capacityGuard,
     ) {}
 
     /**
@@ -85,7 +86,7 @@ final class ReplaceUserRoles
         $fromCodes = $currentRoles->pluck('code')->sort()->values()->all();
         $toCodes = $roles->pluck('code')->sort()->values()->all();
 
-        DB::transaction(function () use ($target, $newRoleIds, $fromCodes, $toCodes): void {
+        $write = function () use ($target, $newRoleIds, $fromCodes, $toCodes): void {
             $target->roles()->sync($newRoleIds);
 
             // datos.md §5.3: solo si hay cambio efectivo (ADR-038 §9.3), con
@@ -96,7 +97,17 @@ final class ReplaceUserRoles
                     'roles' => [$fromCodes, $toCodes],
                 ]);
             }
-        });
+        };
+
+        // RN-PERM-47 (1.5b, §20.2.1): después de RN-CORE-06/-07 y de
+        // RPERM-013, antes de guardar. Asignar un rol con `deny` también
+        // puede reducir la posesión efectiva, no solo retirar uno. Sin
+        // cambio efectivo del conjunto de roles no hay nada que proteger.
+        if ($fromCodes !== $toCodes) {
+            $this->capacityGuard->protect($write);
+        } else {
+            DB::transaction($write);
+        }
 
         event(new UserRolesChanged($target->tenant_id, $target->public_id));
 

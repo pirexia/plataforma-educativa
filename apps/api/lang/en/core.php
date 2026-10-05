@@ -61,6 +61,8 @@ return [
         'permission_duplicated' => 'The permission code ":code" appears more than once.',
         'role_is_system' => 'A role from the school\'s provisioning cannot be deleted.',
         'role_has_assignments' => 'This role has :users_count assigned user(s) and cannot be deleted.',
+        // REQ-PERM/funcional.md §20.2.1 (1.5b, RN-PERM-47).
+        'administration_capacity_lost' => 'This operation would leave the school with no active user holding all the administration permissions. Affected permissions: :codes. First grant those permissions to another active person at the school.',
     ],
 
     'authorization' => [

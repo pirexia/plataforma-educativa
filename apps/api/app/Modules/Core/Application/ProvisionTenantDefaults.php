@@ -77,7 +77,14 @@ final class ProvisionTenantDefaults implements TenantProvisioner
         'rol.crear', 'rol.eliminar', 'rol_datos_especiales.actualizar', 'permiso_efectivo.leer',
     ];
 
-    private const ADMIN_CENTRO_PERMISSIONS = [
+    /**
+     * `public` (1.5b, `RN-PERM-47`, `funcional.md §20.2.1`) solo para que
+     * `AdministrationCapacityGuard` lea la **misma** lista que aprovisiona,
+     * sin duplicarla. No cambia lo que se aprovisiona.
+     *
+     * @var list<string>
+     */
+    public const ADMIN_CENTRO_PERMISSIONS = [
         'usuario.leer', 'usuario.crear', 'usuario.actualizar', 'usuario.eliminar', 'usuario.importar', 'usuario.exportar',
         'invitacion.leer', 'invitacion.crear', 'invitacion.eliminar',
         'asignacion_rol.leer', 'asignacion_rol.crear', 'asignacion_rol.eliminar',

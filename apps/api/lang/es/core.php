@@ -66,6 +66,8 @@ return [
         'permission_duplicated' => 'El código de permiso «:code» aparece más de una vez.',
         'role_is_system' => 'Un rol del aprovisionamiento del centro no se puede eliminar.',
         'role_has_assignments' => 'Este rol tiene :users_count usuario(s) asignado(s) y no se puede eliminar.',
+        // REQ-PERM/funcional.md §20.2.1 (1.5b, RN-PERM-47).
+        'administration_capacity_lost' => 'Esta operación dejaría al centro sin ningún usuario activo con todos los permisos de administración. Permisos afectados: :codes. Concede antes esos permisos a otra persona activa del centro.',
     ],
 
     // REQ-PERM/api.md §9.2 (1.5): motivo de un 403 de autorización, para

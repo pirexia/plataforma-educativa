@@ -61,6 +61,8 @@ return [
         'permission_duplicated' => 'Der Berechtigungscode „:code" kommt mehr als einmal vor.',
         'role_is_system' => 'Eine Rolle aus der Bereitstellung der Schule kann nicht gelöscht werden.',
         'role_has_assignments' => 'Dieser Rolle sind :users_count Benutzer zugewiesen und sie kann nicht gelöscht werden.',
+        // REQ-PERM/funcional.md §20.2.1 (1.5b, RN-PERM-47).
+        'administration_capacity_lost' => 'Dieser Vorgang würde die Schule ohne aktive Person zurücklassen, die alle Verwaltungsberechtigungen besitzt. Betroffene Berechtigungen: :codes. Vergib diese Berechtigungen zuerst an eine andere aktive Person der Schule.',
     ],
 
     'authorization' => [

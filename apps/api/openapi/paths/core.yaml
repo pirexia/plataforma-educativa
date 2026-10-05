@@ -486,7 +486,11 @@ paths:
         '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409':
-          description: Es el propio solicitante, o el último Administrador de Centro vivo.
+          description: >
+            Es el propio solicitante, o el último Administrador de Centro vivo (RN-CORE-06/-07);
+            o, REQ-PERM/api.md §14.5 (1.5b, RN-PERM-47), la baja dejaría al centro sin ningún
+            usuario activo con todos los permisos de administración
+            (`core.validation.administration_capacity_lost`).
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
@@ -547,7 +551,11 @@ paths:
         '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409':
-          description: Transición no permitida, dejaría sin Administrador de Centro, o es el propio solicitante.
+          description: >
+            Transición no permitida, dejaría sin Administrador de Centro, o es el propio
+            solicitante (RN-CORE-06/-07); o, solo en el paso a `inactivo`, REQ-PERM/api.md §14.5
+            (1.5b, RN-PERM-47): dejaría al centro sin ningún usuario activo con todos los
+            permisos de administración (`core.validation.administration_capacity_lost`).
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
@@ -758,6 +766,15 @@ paths:
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
         '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: >
+            REQ-PERM/api.md §14.5 (1.5b, RN-PERM-47): solo si cambia `special_data_access`, y
+            solo si la escritura dejaría al centro sin ningún usuario activo con todos los
+            permisos de administración (`core.validation.administration_capacity_lost`).
+            No se guarda nada.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
     delete:
       operationId: deleteRole
@@ -813,6 +830,16 @@ paths:
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
         '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: >
+            REQ-PERM/api.md §14.5 (1.5b, RN-PERM-47): la escritura dejaría al centro sin ningún
+            usuario activo que posea, de forma efectiva y con ámbito `todos`, todos los
+            permisos de administración sembrados para `administrador_centro`
+            (`core.validation.administration_capacity_lost`; los códigos afectados van en el
+            `detail`). Solo si el centro cumplía antes. No se guarda nada, ni auditoría.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
 
   /api/v1/permissions:
@@ -911,7 +938,11 @@ paths:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409':
-          description: Retiraría el último administrador_centro, o el solicitante se modifica a sí mismo.
+          description: >
+            Retiraría el último administrador_centro, o el solicitante se modifica a sí mismo
+            (RN-CORE-06/-07); o, REQ-PERM/api.md §14.5 (1.5b, RN-PERM-47), la asignación dejaría
+            al centro sin ningún usuario activo con todos los permisos de administración
+            (`core.validation.administration_capacity_lost`).
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
