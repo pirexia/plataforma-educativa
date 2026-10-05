@@ -81,7 +81,7 @@ watch(
 
 const idBase = computed(() => `role-cell-${props.code.replace(/[^a-zA-Z0-9_-]/g, '-')}`)
 const notesId = computed(() => `${idBase.value}-notes`)
-const denyId = computed(() => `${idBase.value}-deny`)
+const denyId = computed(() => `${idBase.value}-deny-explanation`)
 const errorId = computed(() => `${idBase.value}-error`)
 
 const describedBy = computed(() =>
