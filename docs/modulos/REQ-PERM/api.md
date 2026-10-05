@@ -1,5 +1,7 @@
 # REQ-PERM · API
 
+> **Estado del paso 1.5b**: implementado en `feature/REQ-PERM-ui-roles` (`apps/api` y `apps/web` hechas; pendiente solo de revisión y merge).
+>
 > Paso **1.5**. Prefijo `/api/v1`. **Todo es API** (`INV-006`): 1.5b construirá la interfaz sobre exactamente estos endpoints, sin necesitar nada más del backend.
 >
 > **Paso 1.5b (APROBADO el 2026-10-05, decisión del usuario)**: la frase anterior se cumple para todo lo que la interfaz **necesita**, pero 1.5b **sí toca el servidor** en tres puntos decididos por el usuario: `users_count` en `GET /roles/{public_id}` (S-PERM-1, corrige la contradicción con §2.2), `resource_label` (S-PERM-2) y la regla `RN-PERM-47` (`409` cuando una escritura dejaría al centro sin la capacidad completa de administración). Detalle en §14. §5.4 se corrigió el mismo día (issue #170).
@@ -477,7 +479,7 @@ Siguen vigentes sin cambios `RN-CORE-06` (`409` al modificarse a sí mismo) y `R
 
 Los `403` de `RPERM-013` y de `special_data_access` necesitan **decir por qué**, o el administrador no puede corregir nada.
 
-Hoy `ApiException::forbidden()` no acepta clave de detalle, mientras que `ApiException::conflict()` sí. 1.5 le añade una clave opcional, con la misma forma:
+`ApiException::forbidden()` acepta una clave de detalle opcional (añadida en 1.5, con la misma forma que `ApiException::conflict()`):
 
 | Clave de `detail` | Cuándo |
 |-------------------|--------|
@@ -500,8 +502,8 @@ Hoy `ApiException::forbidden()` no acepta clave de detalle, mientras que `ApiExc
 | `RN-PERM-17` | `409` | **`role`** — el rol que se intenta eliminar | `core.validation.role_has_assignments` | `{ "users_count": <entero> }` |
 | `RN-PERM-47` | `409` | **`administration_capacity`** — la capacidad del centro que se perdería | `core.validation.administration_capacity_lost` | `{ "codes": ["<permiso>", …] }` — **lista (*array*)** de cadenas, ordenada (§14.5) |
 
-- **`ApiException` hoy**: `detailParams` admite **solo escalares** (`string|int|float`), por eso una lista no puede ir en `detail`; esa limitación **no** aplica a `errors[].params` (tipado `array<string, mixed>`). Hoy, además, solo la fábrica `validation()` acepta `errors`; `forbidden()` y `conflict()` necesitan una ampliación **aditiva** para aceptarlos (trabajo de implementación, sin cambio de forma de la respuesta ni del `type`).
-- `detail` sigue presente y traducido; para `administration_capacity_lost` no enumera los códigos (no puede: no son escalares) y dice cuántos son, si se quiere, con un escalar.
+- **`ApiException`**: `detailParams` admite **solo escalares** (`string|int|float`), por eso una lista no puede ir tal cual en `detail`; esa limitación **no** aplica a `errors[].params` (tipado `array<string, mixed>`). `forbidden()` y `conflict()` aceptan `errors` desde 1.5b (ampliación aditiva ya implementada, sin cambio de forma de la respuesta ni del `type`).
+- `detail` sigue presente y traducido. Para `administration_capacity_lost`, el servidor interpola `:codes` en el `detail` como **texto** (`implode(', ', $codes)`, un escalar): el `detail` sí enumera los códigos, separados por comas, y el dato estructurado (la lista) va en `errors.administration_capacity[0].params.codes`.
 - **Compatibilidad** (`ADR-038 §7.2`): añadir `errors` a un `403`/`409` que antes no lo llevaba es **añadir un campo**: compatible. El `type` y el estado no cambian. Ningún cliente leía el `params` de primer nivel, porque nunca existió.
 - El otro `403` con detalle, `core.authorization.special_data_access_not_held`, no lleva datos y **no cambia**: solo `detail`.
 
@@ -552,7 +554,7 @@ Todos los endpoints nuevos y los tres modificados se documentan en `apps/api/ope
 
 ## 14. Paso 1.5b · Consumo de la interfaz y cambios de servidor
 
-> **APROBADO el 2026-10-05** (`funcional.md §20`), sin implementar todavía. En alcance: S-PERM-1, S-PERM-2 y `RN-PERM-47` (§14.3, §14.5). Fuera: S-PERM-3 (`OPEN-PERM-12` = A).
+> **APROBADO el 2026-10-05** (`funcional.md §20`); **implementado** en `feature/REQ-PERM-ui-roles`, pendiente de revisión y merge. En alcance: S-PERM-1, S-PERM-2 y `RN-PERM-47` (§14.3, §14.5). Fuera: S-PERM-3 (`OPEN-PERM-12` = A).
 
 ### 14.1 Qué consume cada pantalla de 1.5b
 
@@ -561,7 +563,7 @@ Ningún *endpoint* **nuevo**: todo lo que 1.5b consume existe desde 1.1/1.5; cam
 | *Endpoint* | Pantalla(s) | Paginación | Notas para el cliente |
 |------------|-------------|------------|-----------------------|
 | `GET /roles` | Listado de roles; selector de origen de la clonación; derivación de la posesión de `special_data_access` (`funcional.md RN-PERM-31`) | Por página (`page`, `per_page` ≤ 100) | Sin filtros, búsqueda ni `sort` (orden por `code`). `name` traducido por el servidor (`RN-CORE-63`) |
-| `GET /roles/{public_id}` | Detalle de rol; editor de concesiones (estado inicial y comprobación previa de concurrencia) | — | `permissions[]` con `code`, `resource`, `action`, `effect`, `scope` y, con S-PERM-2, `resource_label`. Con S-PERM-1, `users_count` (hoy falta) |
+| `GET /roles/{public_id}` | Detalle de rol; editor de concesiones (estado inicial y comprobación previa de concurrencia) | — | `permissions[]` con `code`, `resource`, `action`, `effect`, `scope` y, con S-PERM-2, `resource_label`. Con S-PERM-1, `users_count` |
 | `POST /roles` | Alta; clonación | — | `clone_from` y `permissions` mutuamente excluyentes (§3.2). El alta de la interfaz envía `permissions: []` u omite la clave (`funcional.md RN-PERM-29`) |
 | `PATCH /roles/{public_id}` | Edición de datos del rol | — | Solo las claves modificadas (`ADR-038 §9.2`). Nunca `code` ni `permissions` |
 | `PUT /roles/{public_id}/permissions` | Editor de concesiones | — | Conjunto **completo** deseado. Las entradas `allow` no tocadas se envían **idénticas** a como llegaron, para que no se comprueben (§5.4). Errores de forma indexados por posición: `permissions.<i>.scope`; el cliente conserva la correspondencia posición → código |
@@ -603,7 +605,7 @@ Regla y motivo completos en `funcional.md §20.2.1`. Contrato:
 | Conjunto protegido | `ProvisionTenantDefaults::ADMIN_CENTRO_PERMISSIONS` ∩ catálogo no retirado ∩ módulos utilizables por el tenant |
 | Condición | Tras la escritura, existe al menos **un mismo** usuario vivo y `activo` con **todos** los códigos del conjunto `permitido` y `unrestricted` según el resolutor (`RN-PERM-22`) |
 | Cuándo rechaza | Solo si el centro cumplía **antes** y no cumpliría **después**. Un centro que ya no cumplía no ve rechazada ninguna escritura por esta regla |
-| Respuesta | **`409`** con `type` `urn:pge:error:conflict` (`ADR-038 §6.2`, el mismo que `RN-CORE-07`), `detail` traducido y **`errors.administration_capacity[0]`** = `{code: "core.validation.administration_capacity_lost", message, params: {codes: [...]}}` (§9.2.1). `codes` es una **lista** de cadenas: la **unión, ordenada alfabéticamente y sin repetidos**, de los códigos del conjunto que, tras la escritura, **no posee** cada usuario que cumplía la condición antes de ella; un usuario que la escritura da de baja o pasa a `inactivo` cuenta como que no posee ninguno (ajuste (a), 2026-10-05). Mensaje traducido en los cuatro idiomas (`ADR-038 §6.3`). **Nada se guarda** |
+| Respuesta | **`409`** con `type` `urn:pge:error:conflict` (`ADR-038 §6.2`, el mismo que `RN-CORE-07`), `detail` traducido (que enumera los códigos como texto, separados por comas) y **`errors.administration_capacity[0]`** = `{code: "core.validation.administration_capacity_lost", message, params: {codes: [...]}}` (§9.2.1). `codes` es una **lista** de cadenas: la **unión, ordenada alfabéticamente y sin repetidos**, de los códigos del conjunto que, tras la escritura, **no posee** cada usuario que cumplía la condición antes de ella; un usuario que la escritura da de baja o pasa a `inactivo` cuenta como que no posee ninguno (ajuste (a), 2026-10-05). Mensaje traducido en los cuatro idiomas (`ADR-038 §6.3`). **Nada se guarda** |
 | Cuándo se evalúa (ajuste (b), 2026-10-05) | `PATCH /roles/{id}`: solo si `special_data_access` **cambia de valor**. `POST /users/{id}/status`: solo al pasar a `inactivo`. `PUT /users/{id}/roles` **sin cambio efectivo** del conjunto de roles: no pasa por la comprobación. En los tres casos excluidos el estado resultante es idéntico al anterior o más amplio, así que no puede pasar de cumplir a no cumplir |
 | Orden | Después de las validaciones de forma (`422`), de la puerta (`403`), de `RPERM-013`/`RN-PERM-24` (`403`) y, en las rutas de usuario, de `RN-CORE-06`/`-07` (`409`, que conservan su código). Antes de escribir |
 | Concurrencia | Comprobación y escritura serializadas por tenant en la misma transacción (bloqueo de transacción por tenant); de dos escrituras concurrentes que juntas incumplirían, una termina bien y la otra recibe `409` |

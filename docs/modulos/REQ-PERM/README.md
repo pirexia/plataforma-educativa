@@ -1,5 +1,7 @@
 # REQ-PERM · Núcleo de autorización granular
 
+> **Estado de 1.5b**: implementado en `feature/REQ-PERM-ui-roles` (`apps/api` y `apps/web` hechas; pendiente solo de revisión y merge).
+>
 > **Estado**: especificación del paso **1.5**, redactada el 2026-09-04. **ACEPTADA** por el usuario el 2026-09-04 (`funcional.md §19`) e **implementada** el 2026-09-07 (`memory.md`, commit `57f6f85`).
 >
 > **Sin preguntas bloqueantes.** Las cinco que lo eran se resolvieron el 2026-09-04 y están aplicadas en los cinco documentos; quedan dos cuestiones vivas y ninguna bloquea. El registro completo, con la decisión de cada una y dónde está aplicada, está en `funcional.md §18` y `§19.1`.

@@ -1,6 +1,6 @@
 # REQ-PERM · Modelo de datos
 
-> **Paso 1.5b (APROBADO el 2026-10-05)**: sin cambios de esquema; §9 deja constancia (`funcional.md §20`).
+> **Paso 1.5b (APROBADO el 2026-10-05; implementado en `feature/REQ-PERM-ui-roles`, pendiente de revisión y merge)**: sin cambios de esquema; §9 deja constancia (`funcional.md §20`).
 >
 > Paso **1.5**. **No se crea ninguna tabla nueva.** Este paso da semántica a cinco tablas que existen desde 0.8 (`ADR-034 §2`) y toca el esquema en **dos** puntos, ambos aditivos y ambos argumentados abajo.
 >

@@ -1,6 +1,6 @@
 # REQ-PERM · Permisos
 
-> **Paso 1.5b (APROBADO el 2026-10-05)**: §12 fija los permisos de las pantallas de la interfaz (`funcional.md §20`) y §8 gana la regla `RN-PERM-47`. No declara ni siembra ningún permiso nuevo. La fila de `deny` de §8 se corrigió el mismo día (issue #170).
+> **Paso 1.5b (APROBADO el 2026-10-05; implementado en `feature/REQ-PERM-ui-roles`, pendiente de revisión y merge)**: §12 fija los permisos de las pantallas de la interfaz (`funcional.md §20`) y §8 gana la regla `RN-PERM-47`. No declara ni siembra ningún permiso nuevo. La fila de `deny` de §8 se corrigió el mismo día (issue #170).
 >
 > Paso **1.5**. Este documento es doblemente peculiar y conviene decirlo antes de nada: `REQ-PERM` es **el módulo que define cómo funcionan los permisos** y, a la vez, **tiene permisos propios** que se resuelven con su propia maquinaria.
 >
@@ -372,4 +372,4 @@ Nada nuevo se concede. Con la siembra vigente (§5 y `REQ-CORE/permisos.md §4.1
 
 ### 12.4 Verificación de `RN-PERM-47`
 
-`CA-PERM-046` a `CA-PERM-049` (Pest, `funcional.md §20.17.1`): retirada y `deny` sobre el rol que da el conjunto completo; `deny` asignado por rol a otro usuario; desactivación y baja del último titular completo aunque `RN-CORE-07` lo permitiría; centro que no cumplía antes; permisos retirados y de módulos no utilizables fuera del conjunto; y serialización ante escrituras concurrentes. `CA-PERM-137` (Vitest) cubre cómo lo muestra la interfaz.
+`CA-PERM-046` a `CA-PERM-049` (Pest, `funcional.md §20.17.1`): retirada y `deny` sobre el rol que da el conjunto completo; `deny` asignado por rol a otro usuario; desactivación y baja del último titular completo aunque `RN-CORE-07` lo permitiría; centro que no cumplía antes; permisos retirados y de módulos no utilizables fuera del conjunto; y serialización ante escrituras concurrentes (`CA-PERM-049` cubre el **mecanismo** del bloqueo por tenant y una escritura secuencial que ve el estado de la anterior; no solapa dos transacciones reales). `CA-PERM-137` (Vitest) cubre cómo lo muestra la interfaz.

@@ -1,6 +1,6 @@
 # REQ-PERM · Operación
 
-> **Paso 1.5b (APROBADO el 2026-10-05)**: §10 (`funcional.md §20`): sin variables, colas, tareas ni migraciones nuevas; despliega `api` y `web`.
+> **Paso 1.5b (APROBADO el 2026-10-05; implementado en `feature/REQ-PERM-ui-roles`, pendiente de revisión y merge)**: §10 (`funcional.md §20`): sin variables, colas, tareas ni migraciones nuevas; despliega `api` y `web`.
 >
 > Paso **1.5**. Complementa `SYSADMIN.md`; aquí sólo lo específico de este paso.
 >
