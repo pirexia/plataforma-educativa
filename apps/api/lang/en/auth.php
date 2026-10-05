@@ -158,4 +158,15 @@ return [
         ],
     ],
 
+    // REQ-PERM/api.md §14.3 (1.5b, S-PERM-2): name of each resource of the
+    // permissions this module declares (`resource_label_key`).
+    'permissions' => [
+        'resources' => [
+            'bloqueo_cuenta' => 'Account lockouts',
+            'mfa' => 'Two-factor authentication (MFA)',
+            'exencion_mfa' => 'MFA exemptions',
+            'proveedor_identidad' => 'Identity providers',
+        ],
+    ],
+
 ];

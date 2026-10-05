@@ -75,6 +75,23 @@ return [
         'inerte_sin_resolutor' => 'Der Geltungsbereich dieser Gewährung hat noch keinen Resolver.',
     ],
 
+    // REQ-PERM/api.md §14.3 (1.5b, S-PERM-2): Name jedes Ressourcentyps der
+    // Berechtigungen dieses Moduls (`resource_label_key`).
+    'permissions' => [
+        'resources' => [
+            'usuario' => 'Benutzer',
+            'invitacion' => 'Einladungen',
+            'asignacion_rol' => 'Rollenzuweisungen',
+            'rol' => 'Rollen',
+            'permiso' => 'Berechtigungen',
+            'configuracion' => 'Konfiguration',
+            'modulo' => 'Module',
+            'auditoria' => 'Audit',
+            'rol_datos_especiales' => 'Besondere Datenkategorien einer Rolle',
+            'permiso_efectivo' => 'Wirksame Berechtigungen',
+        ],
+    ],
+
     'idempotency' => [
         'missing' => 'Der Header Idempotency-Key fehlt und ist für diesen Vorgang erforderlich.',
         'malformed' => 'Der Header Idempotency-Key muss eine ULID sein.',

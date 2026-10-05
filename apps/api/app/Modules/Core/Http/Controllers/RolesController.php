@@ -40,6 +40,7 @@ class RolesController extends Controller
     public function show(string $publicId): RoleResource
     {
         $role = Role::with('permissionGrants.permission')
+            ->withCount('users')
             ->where('public_id', $publicId)
             ->first();
 
@@ -58,7 +59,7 @@ class RolesController extends Controller
     public function store(StoreRoleRequest $request): JsonResponse
     {
         $role = app(CreateRole::class)->create($request->validated(), $this->actor());
-        $role->load('permissionGrants.permission');
+        $role->load('permissionGrants.permission')->loadCount('users');
 
         return (new RoleResource($role))->response()
             ->setStatusCode(201)
@@ -80,7 +81,7 @@ class RolesController extends Controller
 
         $role = app(PatchRole::class)->apply($role, $request->all(), $this->actor());
 
-        return new RoleResource($role);
+        return new RoleResource($role->loadCount('users'));
     }
 
     /**
@@ -115,7 +116,7 @@ class RolesController extends Controller
             $this->actor(),
         );
 
-        return new RoleResource($updated);
+        return new RoleResource($updated->loadCount('users'));
     }
 
     private function actor(): User

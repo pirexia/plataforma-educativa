@@ -85,6 +85,23 @@ return [
         'inerte_sin_resolutor' => 'El ámbito de esta concesión todavía no tiene resolutor.',
     ],
 
+    // REQ-PERM/api.md §14.3 (1.5b, S-PERM-2): nombre de cada recurso de los
+    // permisos que declara este módulo (`resource_label_key`).
+    'permissions' => [
+        'resources' => [
+            'usuario' => 'Usuarios',
+            'invitacion' => 'Invitaciones',
+            'asignacion_rol' => 'Asignaciones de rol',
+            'rol' => 'Roles',
+            'permiso' => 'Permisos',
+            'configuracion' => 'Configuración',
+            'modulo' => 'Módulos',
+            'auditoria' => 'Auditoría',
+            'rol_datos_especiales' => 'Datos de categoría especial de un rol',
+            'permiso_efectivo' => 'Permisos efectivos',
+        ],
+    ],
+
     'idempotency' => [
         'missing' => 'Falta la cabecera Idempotency-Key, obligatoria para esta operación.',
         'malformed' => 'La cabecera Idempotency-Key debe ser un ULID.',

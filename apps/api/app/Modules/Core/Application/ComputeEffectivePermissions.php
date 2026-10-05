@@ -8,6 +8,7 @@ use App\Support\Authorization\PermissionDecision;
 use App\Support\Authorization\PermissionResolver;
 use App\Support\Authorization\PermissionSource;
 use App\Support\Authorization\Scope;
+use App\Support\Modules\PermissionResourceLabels;
 
 /**
  * REQ-PERM/funcional.md §7.10/§7.11, api.md §7 (`RPERM-009`). Un solo
@@ -21,6 +22,7 @@ final class ComputeEffectivePermissions
 {
     public function __construct(
         private readonly PermissionResolver $permissions,
+        private readonly PermissionResourceLabels $resourceLabels,
     ) {}
 
     /**
@@ -39,6 +41,7 @@ final class ComputeEffectivePermissions
             return [
                 'code' => $code,
                 'resource' => $permission?->resource,
+                'resource_label' => $permission !== null ? $this->resourceLabels->label($permission->resource) : null,
                 'action' => $permission?->action,
                 'module_code' => $permission?->module_code,
                 'is_special_category' => (bool) $permission?->is_special_category,

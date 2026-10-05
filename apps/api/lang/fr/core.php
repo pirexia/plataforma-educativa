@@ -75,6 +75,23 @@ return [
         'inerte_sin_resolutor' => 'Le périmètre de cette attribution n\'a pas encore de résolveur.',
     ],
 
+    // REQ-PERM/api.md §14.3 (1.5b, S-PERM-2) : nom de chaque ressource des
+    // permissions déclarées par ce module (`resource_label_key`).
+    'permissions' => [
+        'resources' => [
+            'usuario' => 'Utilisateurs',
+            'invitacion' => 'Invitations',
+            'asignacion_rol' => 'Attributions de rôle',
+            'rol' => 'Rôles',
+            'permiso' => 'Permissions',
+            'configuracion' => 'Configuration',
+            'modulo' => 'Modules',
+            'auditoria' => 'Audit',
+            'rol_datos_especiales' => 'Données de catégorie spéciale d\'un rôle',
+            'permiso_efectivo' => 'Permissions effectives',
+        ],
+    ],
+
     'idempotency' => [
         'missing' => 'L\'en-tête Idempotency-Key est absent et obligatoire pour cette opération.',
         'malformed' => 'L\'en-tête Idempotency-Key doit être un ULID.',

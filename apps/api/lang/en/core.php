@@ -75,6 +75,23 @@ return [
         'inerte_sin_resolutor' => 'This grant\'s scope does not have a resolver yet.',
     ],
 
+    // REQ-PERM/api.md §14.3 (1.5b, S-PERM-2): name of each resource of the
+    // permissions this module declares (`resource_label_key`).
+    'permissions' => [
+        'resources' => [
+            'usuario' => 'Users',
+            'invitacion' => 'Invitations',
+            'asignacion_rol' => 'Role assignments',
+            'rol' => 'Roles',
+            'permiso' => 'Permissions',
+            'configuracion' => 'Settings',
+            'modulo' => 'Modules',
+            'auditoria' => 'Audit',
+            'rol_datos_especiales' => 'Special-category data of a role',
+            'permiso_efectivo' => 'Effective permissions',
+        ],
+    ],
+
     'idempotency' => [
         'missing' => 'The Idempotency-Key header is missing and required for this operation.',
         'malformed' => 'The Idempotency-Key header must be a ULID.',
