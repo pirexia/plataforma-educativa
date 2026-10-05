@@ -606,6 +606,43 @@
         "tooManyRequests": "Zu viele Versuche. Warte einen Moment und versuche es erneut.",
         "tooManyRequestsWithSeconds": "Zu viele Versuche. Versuche es in {seconds} s erneut."
       }
+    },
+    "permissions": {
+      "vocabulary": {
+        "actions": {
+          "crear": "Erstellen",
+          "leer": "Lesen",
+          "actualizar": "Aktualisieren",
+          "eliminar": "Löschen",
+          "exportar": "Exportieren",
+          "importar": "Importieren",
+          "aprobar": "Genehmigen",
+          "firmar": "Unterzeichnen",
+          "publicar": "Veröffentlichen"
+        },
+        "scopes": {
+          "todos": "Alle",
+          "propios": "Eigene",
+          "departamento": "Abteilung",
+          "grupo": "Gruppe",
+          "clase": "Klasse",
+          "unidad_familiar": "Familieneinheit"
+        },
+        "effects": {
+          "allow": "Erlauben",
+          "deny": "Verweigern"
+        },
+        "decisions": {
+          "permitido": "Erlaubt",
+          "denegado": "Verweigert"
+        },
+        "inertReasons": {
+          "inerte_permiso_retirado": "die Berechtigung existiert nicht mehr im Katalog",
+          "inerte_modulo": "die Einrichtung hat das Modul nicht gebucht",
+          "inerte_datos_especiales": "die Rolle hat keinen Zugriff auf besondere Kategorien personenbezogener Daten",
+          "inerte_sin_resolutor": "noch kein Modul wendet diesen Geltungsbereich an"
+        }
+      }
     }
   }
 }

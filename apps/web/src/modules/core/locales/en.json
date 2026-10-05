@@ -606,6 +606,43 @@
         "tooManyRequests": "Too many attempts. Wait a moment and try again.",
         "tooManyRequestsWithSeconds": "Too many attempts. Try again in {seconds} s."
       }
+    },
+    "permissions": {
+      "vocabulary": {
+        "actions": {
+          "crear": "Create",
+          "leer": "Read",
+          "actualizar": "Update",
+          "eliminar": "Delete",
+          "exportar": "Export",
+          "importar": "Import",
+          "aprobar": "Approve",
+          "firmar": "Sign",
+          "publicar": "Publish"
+        },
+        "scopes": {
+          "todos": "All",
+          "propios": "Own",
+          "departamento": "Department",
+          "grupo": "Group",
+          "clase": "Class",
+          "unidad_familiar": "Family unit"
+        },
+        "effects": {
+          "allow": "Allow",
+          "deny": "Deny"
+        },
+        "decisions": {
+          "permitido": "Allowed",
+          "denegado": "Denied"
+        },
+        "inertReasons": {
+          "inerte_permiso_retirado": "the permission no longer exists in the catalog",
+          "inerte_modulo": "the school has not contracted the module",
+          "inerte_datos_especiales": "the role has no access to special-category data",
+          "inerte_sin_resolutor": "no module applies this scope yet"
+        }
+      }
     }
   }
 }

@@ -606,6 +606,43 @@
         "tooManyRequests": "Trop de tentatives. Patientez un instant puis réessayez.",
         "tooManyRequestsWithSeconds": "Trop de tentatives. Réessayez dans {seconds} s."
       }
+    },
+    "permissions": {
+      "vocabulary": {
+        "actions": {
+          "crear": "Créer",
+          "leer": "Lire",
+          "actualizar": "Mettre à jour",
+          "eliminar": "Supprimer",
+          "exportar": "Exporter",
+          "importar": "Importer",
+          "aprobar": "Approuver",
+          "firmar": "Signer",
+          "publicar": "Publier"
+        },
+        "scopes": {
+          "todos": "Tous",
+          "propios": "Propres",
+          "departamento": "Département",
+          "grupo": "Groupe",
+          "clase": "Classe",
+          "unidad_familiar": "Unité familiale"
+        },
+        "effects": {
+          "allow": "Autoriser",
+          "deny": "Refuser"
+        },
+        "decisions": {
+          "permitido": "Autorisé",
+          "denegado": "Refusé"
+        },
+        "inertReasons": {
+          "inerte_permiso_retirado": "la permission n'existe plus dans le catalogue",
+          "inerte_modulo": "l'établissement n'a pas souscrit le module",
+          "inerte_datos_especiales": "le rôle n'a pas accès aux données de catégorie particulière",
+          "inerte_sin_resolutor": "aucun module n'applique encore ce périmètre"
+        }
+      }
     }
   }
 }

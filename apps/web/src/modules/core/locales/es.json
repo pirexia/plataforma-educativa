@@ -606,6 +606,43 @@
         "tooManyRequests": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
         "tooManyRequestsWithSeconds": "Demasiados intentos. Vuelve a intentarlo dentro de {seconds} s."
       }
+    },
+    "permissions": {
+      "vocabulary": {
+        "actions": {
+          "crear": "Crear",
+          "leer": "Leer",
+          "actualizar": "Actualizar",
+          "eliminar": "Eliminar",
+          "exportar": "Exportar",
+          "importar": "Importar",
+          "aprobar": "Aprobar",
+          "firmar": "Firmar",
+          "publicar": "Publicar"
+        },
+        "scopes": {
+          "todos": "Todos",
+          "propios": "Propios",
+          "departamento": "Departamento",
+          "grupo": "Grupo",
+          "clase": "Clase",
+          "unidad_familiar": "Unidad familiar"
+        },
+        "effects": {
+          "allow": "Permitir",
+          "deny": "Denegar"
+        },
+        "decisions": {
+          "permitido": "Permitido",
+          "denegado": "Denegado"
+        },
+        "inertReasons": {
+          "inerte_permiso_retirado": "el permiso ya no existe en el catálogo",
+          "inerte_modulo": "el centro no tiene contratado el módulo",
+          "inerte_datos_especiales": "el rol no tiene acceso a datos de categoría especial",
+          "inerte_sin_resolutor": "ningún módulo aplica todavía este ámbito"
+        }
+      }
     }
   }
 }
