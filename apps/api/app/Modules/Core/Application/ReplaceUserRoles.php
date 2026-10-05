@@ -132,10 +132,7 @@ final class ReplaceUserRoles
             }
 
             if (! $this->permissions->ownsScope($actor, $grant->permission_code, $scope)) {
-                throw ApiException::forbidden('core.authorization.cannot_grant_unheld_permission', [
-                    'code' => $grant->permission_code,
-                    'scope' => $scope->value,
-                ]);
+                throw ApiException::cannotGrantUnheldPermission($grant->permission_code, $scope->value);
             }
         }
     }

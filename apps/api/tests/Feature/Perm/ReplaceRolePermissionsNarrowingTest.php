@@ -91,7 +91,15 @@ test('CA-PERM-045: RPERM-013 estricto: estrechar sin poseer el ámbito nuevo da 
         'permissions' => [['code' => 'auditoria.leer', 'effect' => 'allow', 'scope' => 'propios']],
     ])->assertForbidden();
 
-    expect($response->json('detail'))->toBe(__('core.authorization.cannot_grant_unheld_permission', ['code' => 'auditoria.leer', 'scope' => 'propios']))
+    $entries = $response->json('errors.grant');
+
+    expect($response->json('type'))->toBe('urn:pge:error:forbidden')
+        ->and($response->json())->not->toHaveKey('params')
+        ->and($entries)->toHaveCount(1)
+        ->and($entries[0]['code'])->toBe('core.authorization.cannot_grant_unheld_permission')
+        ->and($entries[0]['message'])->not->toBe('')
+        ->and($entries[0]['params'])->toBe(['code' => 'auditoria.leer', 'scope' => 'propios'])
+        ->and($response->json('detail'))->toBe(__('core.authorization.cannot_grant_unheld_permission', ['code' => 'auditoria.leer', 'scope' => 'propios']))
         ->and(narrowingGrantOf($tenant, 'auditoria.leer'))->toBe('allow|todos')
         ->and(app(TenantContext::class)->runFor($tenant->id, fn () => AuditLog::query()->count()))->toBe($auditBefore);
 

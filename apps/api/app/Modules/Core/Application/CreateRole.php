@@ -209,10 +209,7 @@ final class CreateRole
             $scope = Scope::from($grant['scope']);
 
             if (! $this->permissions->ownsScope($actor, $grant['code'], $scope)) {
-                throw ApiException::forbidden('core.authorization.cannot_grant_unheld_permission', [
-                    'code' => $grant['code'],
-                    'scope' => $scope->value,
-                ]);
+                throw ApiException::cannotGrantUnheldPermission($grant['code'], $scope->value);
             }
         }
     }

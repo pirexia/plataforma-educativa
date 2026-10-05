@@ -119,6 +119,25 @@ function capacityPutRole(object $tenant, User $actor, string $rolePublicId, arra
     return capacityAs($actor)->putJson(coreApiUrl($tenant->slug, "/roles/{$rolePublicId}/permissions"), $body);
 }
 
+/**
+ * RN-PERM-47, api.md §9.2.1: el `409` lleva sus datos en
+ * `errors.administration_capacity[0]` (ADR-038 §6.3), sin `params` de
+ * primer nivel.
+ *
+ * @param  list<string>  $codes
+ */
+function expectCapacityLost(mixed $response, array $codes): void
+{
+    $entries = $response->json('errors.administration_capacity');
+
+    expect($response->json('type'))->toBe('urn:pge:error:conflict')
+        ->and($response->json())->not->toHaveKey('params')
+        ->and($entries)->toHaveCount(1)
+        ->and($entries[0]['code'])->toBe('core.validation.administration_capacity_lost')
+        ->and($entries[0]['message'])->not->toBe('')
+        ->and($entries[0]['params'])->toBe(['codes' => $codes]);
+}
+
 function capacityAuditCount(object $tenant): int
 {
     return app(TenantContext::class)->runFor($tenant->id, fn () => AuditLog::query()->count());
@@ -159,8 +178,9 @@ test('CA-PERM-046: retirar o denegar un permiso de administración al único tit
     $response = capacityPutRole($tenant, $ana, $adminRole, without: ['rol.actualizar'])
         ->assertStatus(409);
 
-    expect($response->json('type'))->toBe('urn:pge:error:conflict')
-        ->and($response->json('detail'))->toContain('rol.actualizar')
+    expectCapacityLost($response, ['rol.actualizar']);
+
+    expect($response->json('detail'))->toContain('rol.actualizar')
         ->and(capacityGrantsOf($tenant, 'administrador_centro'))->toBe($grantsBefore)
         ->and(capacityAuditCount($tenant))->toBe($auditBefore);
 
@@ -170,14 +190,26 @@ test('CA-PERM-046: retirar o denegar un permiso de administración al único tit
     $response = capacityPutRole($tenant, $ana, $adminRole, overrides: ['usuario.crear' => ['deny', 'todos']])
         ->assertStatus(409);
 
+    expectCapacityLost($response, ['usuario.crear']);
+
     expect($response->json('detail'))->toContain('usuario.crear')
         ->and(capacityGrantsOf($tenant, 'administrador_centro'))->toBe($grantsBefore);
+
+    // Retirar a la vez rol.actualizar y usuario.crear → unión ordenada.
+    resetSessionState();
+
+    $response = capacityPutRole($tenant, $ana, $adminRole, without: ['rol.actualizar', 'usuario.crear'])
+        ->assertStatus(409);
+
+    expectCapacityLost($response, ['rol.actualizar', 'usuario.crear']);
 
     // Con un segundo administrador activo (mismo rol) sigue siendo 409: ambos lo pierden.
     $luis = capacityCreateUser($tenant, $ana, 'luis@example.com', [$adminRole]);
 
     $response = capacityPutRole($tenant, $ana, $adminRole, without: ['rol.actualizar'])
         ->assertStatus(409);
+
+    expectCapacityLost($response, ['rol.actualizar']);
 
     expect($response->json('detail'))->toContain('rol.actualizar');
 
@@ -240,6 +272,8 @@ test('CA-PERM-047: asignar un rol con deny, desactivar o dar de baja al último 
         'role_ids' => [$adminRole, $restriccion],
     ])->assertStatus(409);
 
+    expectCapacityLost($response, ['mfa.eliminar']);
+
     expect($response->json('detail'))->toContain('mfa.eliminar')
         ->and(app(TenantContext::class)->runFor($tenant->id, fn () => $ana->roles()->pluck('roles.id')->sort()->values()->all()))->toBe($rolesBefore);
 
@@ -249,7 +283,8 @@ test('CA-PERM-047: asignar un rol con deny, desactivar o dar de baja al último 
     $response = capacityAs($luis)->postJson(coreApiUrl($tenant->slug, "/users/{$ana->public_id}/status"), ['status' => 'inactivo'])
         ->assertStatus(409);
 
-    expect($response->json('detail'))->toContain('mfa.eliminar');
+    expect($response->json('detail'))->toContain('mfa.eliminar')
+        ->and($response->json('errors.administration_capacity.0.params.codes'))->toBeArray()->not->toBeEmpty();
     expect(capacityUser($tenant, 'admin@example.com')->status->value)->toBe('activo');
 
     // DELETE igual.

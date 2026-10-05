@@ -197,8 +197,14 @@ final class AdministrationCapacityGuard
         $codes = array_values(array_unique($missing));
         sort($codes);
 
-        throw ApiException::conflict('core.validation.administration_capacity_lost', [
-            'codes' => implode(', ', $codes),
+        $detailParams = ['codes' => implode(', ', $codes)];
+
+        throw ApiException::conflict('core.validation.administration_capacity_lost', $detailParams, [
+            'administration_capacity' => [[
+                'code' => 'core.validation.administration_capacity_lost',
+                'message' => __('core.validation.administration_capacity_lost', $detailParams),
+                'params' => ['codes' => $codes],
+            ]],
         ]);
     }
 }

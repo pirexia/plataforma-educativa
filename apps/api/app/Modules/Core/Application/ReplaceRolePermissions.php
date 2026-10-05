@@ -155,10 +155,7 @@ final class ReplaceRolePermissions
             $scope = Scope::from($entry['scope']);
 
             if (! $this->permissions->ownsScope($actor, $entry['code'], $scope)) {
-                throw ApiException::forbidden('core.authorization.cannot_grant_unheld_permission', [
-                    'code' => $entry['code'],
-                    'scope' => $scope->value,
-                ]);
+                throw ApiException::cannotGrantUnheldPermission($entry['code'], $scope->value);
             }
         }
     }
