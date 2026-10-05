@@ -98,6 +98,17 @@ final class ReplaceUserRoles
                 $this->assertActorCanGrant($actor, $lockedAdded);
             }
 
+            // Issue #350 (hueco residual), RPERM-013/RN-PERM-20: retirar un
+            // rol exige asignacion_rol.eliminar sobre los roles releídos con
+            // el bloqueo. La comprobación previa (arriba) se conserva para no
+            // alterar el orden de errores; esta cubre el rol que un cambio
+            // concurrente añadió y el PUT va a retirar.
+            $lockedRemoved = $lockedRoles->whereNotIn('id', $roles->pluck('id')->all());
+
+            if ($lockedRemoved->isNotEmpty() && ! $this->permissions->can($actor, 'asignacion_rol.eliminar')) {
+                throw ApiException::forbidden();
+            }
+
             // Sin cambio efectivo del conjunto de roles: ni escritura ni
             // auditoría (ADR-038 §9.3).
             if ($fromCodes === $toCodes) {
@@ -144,7 +155,7 @@ final class ReplaceUserRoles
             }
 
             if (! $this->permissions->ownsScope($actor, $grant->permission_code, $scope)) {
-                throw ApiException::cannotGrantUnheldPermission($grant->permission_code, $scope->value);
+                throw ApiException::cannotGrantUnheldRolePermission();
             }
         }
     }

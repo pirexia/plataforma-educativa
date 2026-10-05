@@ -140,6 +140,116 @@ test('RPERM-013: H2 las concesiones de un rol añadido se comprueban con el bloq
     $codes = $tc->runFor($tenant->id, fn () => $target->fresh()->roles()->pluck('code')->all());
 
     expect($codes)->not->toContain('r2_350');
+
+    // Issue #352: ni errors.grant[0].params ni el detail nombran el código
+    // ni el ámbito de las concesiones del rol asignado.
+    expect($response->json('errors.grant.0.code'))->toBe('core.authorization.cannot_grant_unheld_role_permission')
+        ->and($response->json('errors.grant.0'))->not->toHaveKey('params')
+        ->and($response->json('detail'))->not->toContain('auditoria.leer')
+        ->and($response->json('detail'))->not->toContain('todos');
+});
+
+// RPERM-013, RN-PERM-24, issue #352
+test('RPERM-013: #352 las dos rutas de asignación de rol no revelan código ni ámbito de las concesiones del rol', function (): void {
+    [$tenant, $admin] = provisionCoreTenant('perm-352');
+    $tc = app(TenantContext::class);
+
+    $roleId = snapAs($admin)->postJson(coreApiUrl($tenant->slug, '/roles'), [
+        'code' => 'rol_asigna_352', 'name' => 'Asigna 352',
+        'permissions' => [
+            ['code' => 'asignacion_rol.crear', 'effect' => 'allow', 'scope' => 'todos'],
+            ['code' => 'usuario.crear', 'effect' => 'allow', 'scope' => 'todos'],
+        ],
+    ])->assertCreated()->json('public_id');
+
+    snapAs($admin)->postJson(coreApiUrl($tenant->slug, '/users'), [
+        'email' => 'asignador-352@example.com',
+        'person' => ['given_name' => 'Persona', 'family_name_1' => 'Prueba'],
+        'send_invitation' => false,
+        'role_ids' => [$roleId],
+    ])->assertCreated();
+
+    snapAs($admin)->postJson(coreApiUrl($tenant->slug, '/users'), [
+        'email' => 'objetivo-352@example.com',
+        'person' => ['given_name' => 'Persona', 'family_name_1' => 'Prueba'],
+        'send_invitation' => false,
+    ])->assertCreated();
+
+    $requester = $tc->runFor($tenant->id, fn () => User::query()->where('email', 'asignador-352@example.com')->firstOrFail());
+    $target = $tc->runFor($tenant->id, fn () => User::query()->where('email', 'objetivo-352@example.com')->firstOrFail());
+
+    $heavy = $tc->runFor($tenant->id, function (): string {
+        $role = Role::create(['code' => 'pesado_352', 'name' => 'Pesado 352']);
+        PermissionRole::create(['role_id' => $role->id, 'permission_code' => 'auditoria.leer', 'effect' => 'allow', 'scope' => 'todos']);
+
+        return (string) $role->public_id;
+    });
+
+    $assertGeneric = function ($response): void {
+        $response->assertForbidden();
+
+        expect($response->json('errors.grant.0.code'))->toBe('core.authorization.cannot_grant_unheld_role_permission')
+            ->and($response->json('errors.grant.0.message'))->not->toBeEmpty()
+            ->and($response->json('errors.grant.0'))->not->toHaveKey('params')
+            ->and($response->json())->not->toHaveKey('params')
+            ->and($response->json('detail'))->not->toContain('auditoria.leer')
+            ->and($response->json('detail'))->not->toContain('todos');
+    };
+
+    $assertGeneric(snapAs($requester)->putJson(coreApiUrl($tenant->slug, "/users/{$target->public_id}/roles"), [
+        'role_ids' => [$heavy],
+    ]));
+
+    $assertGeneric(snapAs($requester)->postJson(coreApiUrl($tenant->slug, '/users'), [
+        'email' => 'nuevo-352@example.com',
+        'person' => ['given_name' => 'Persona', 'family_name_1' => 'Prueba'],
+        'send_invitation' => false,
+        'role_ids' => [$heavy],
+    ]));
+});
+
+// RPERM-013, RN-PERM-20, issue #350 (hueco residual)
+test('RPERM-013: #350 retirar un rol que un cambio concurrente añadió exige asignacion_rol.eliminar con el bloqueo tomado', function (): void {
+    [$tenant, $admin] = provisionCoreTenant('perm-350e');
+    $tc = app(TenantContext::class);
+
+    // Solicitante con asignacion_rol.crear pero SIN asignacion_rol.eliminar.
+    $roleId = snapAs($admin)->postJson(coreApiUrl($tenant->slug, '/roles'), [
+        'code' => 'rol_asigna_350e', 'name' => 'Asigna 350e',
+        'permissions' => [['code' => 'asignacion_rol.crear', 'effect' => 'allow', 'scope' => 'todos']],
+    ])->assertCreated()->json('public_id');
+
+    foreach (['asignador-350e', 'objetivo-350e'] as $slug) {
+        snapAs($admin)->postJson(coreApiUrl($tenant->slug, '/users'), [
+            'email' => "{$slug}@example.com",
+            'person' => ['given_name' => 'Persona', 'family_name_1' => 'Prueba'],
+            'send_invitation' => false,
+            'role_ids' => [$roleId],
+        ])->assertCreated();
+    }
+
+    $requester = $tc->runFor($tenant->id, fn () => User::query()->where('email', 'asignador-350e@example.com')->firstOrFail());
+    $target = $tc->runFor($tenant->id, fn () => User::query()->where('email', 'objetivo-350e@example.com')->firstOrFail());
+    $extra = $tc->runFor($tenant->id, fn () => Role::create(['code' => 'extra_350e', 'name' => 'Extra 350e']));
+
+    resetSessionState();
+
+    // Tras la lectura previa de los roles del objetivo, otro administrador le
+    // añade `extra`, que el PUT (solo [rol_asigna]) va a retirar.
+    snapInjectOnce(
+        fn (string $sql): bool => str_starts_with($sql, 'select')
+            && str_contains($sql, 'pivot_user_id')
+            && DB::transactionLevel() <= 1,
+        fn () => $target->roles()->attach($extra->id),
+    );
+
+    test()->actingAs($requester)->putJson(coreApiUrl($tenant->slug, "/users/{$target->public_id}/roles"), [
+        'role_ids' => [$roleId],
+    ])->assertForbidden();
+
+    $codes = $tc->runFor($tenant->id, fn () => $target->fresh()->roles()->pluck('code')->sort()->values()->all());
+
+    expect($codes)->toBe(['extra_350e', 'rol_asigna_350e']);
 });
 
 // RN-PERM-20, ADR-038 §9.3

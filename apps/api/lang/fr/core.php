@@ -67,6 +67,7 @@ return [
 
     'authorization' => [
         'cannot_grant_unheld_permission' => 'Vous ne pouvez pas accorder la permission « :code » avec le périmètre « :scope » : vous ne la possédez pas vous-même.',
+        'cannot_grant_unheld_role_permission' => 'Vous ne pouvez pas attribuer ce rôle : il accorde une permission que vous ne possédez pas vous-même.',
         'special_data_access_not_held' => 'Vous ne pouvez pas activer l\'accès aux données de catégorie spéciale : vous ne le possédez pas vous-même.',
     ],
 
