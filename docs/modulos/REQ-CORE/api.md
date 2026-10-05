@@ -269,7 +269,7 @@ Baja **lógica** (`INV-004`): `deleted_at` informado y `status = 'inactivo'`.
 - **Permiso**: `usuario` · `eliminar` · `todos`
 - **Respuesta 204**
 - **Errores**
-  - `409` — es el propio solicitante (`RN-CORE-06`), o es el último Administrador de Centro vivo (`RN-CORE-07`).
+  - `409` — es el propio solicitante (`RN-CORE-06`), o es el último Administrador de Centro vivo (`RN-CORE-07`), o dejaría al centro sin ningún usuario activo con la capacidad completa de administración (`RN-PERM-47`, 1.5b; código `core.validation.administration_capacity_lost`).
   - 401, 403, 404
 
 ---
@@ -289,7 +289,7 @@ Alta y baja administrativa entre `activo` e `inactivo`. Separado de `PATCH` porq
 - **Permiso**: `usuario` · `actualizar` · `todos`
 - **Cuerpo**: `{ "status": "activo" }`
 - **Errores**
-  - `409` — transición no permitida (`pendiente` solo sale por canje de invitación, `RN-CORE-04`), o dejaría al centro sin Administrador de Centro activo (`RN-CORE-07`), o es el propio solicitante (`RN-CORE-06`).
+  - `409` — transición no permitida (`pendiente` solo sale por canje de invitación, `RN-CORE-04`), o dejaría al centro sin Administrador de Centro activo (`RN-CORE-07`) o sin la capacidad completa de administración (`RN-PERM-47`, 1.5b), o es el propio solicitante (`RN-CORE-06`).
 
 ---
 
@@ -419,7 +419,7 @@ Reemplaza el conjunto completo de roles del usuario. Se usa `PUT` y no `POST`/`D
 - **Respuesta 200**: los roles resultantes
 - **Errores**
   - `403` — algún rol concede un permiso que el solicitante no posee (`RPERM-013`, `RN-CORE-08`)
-  - `409` — retiraría el rol `administrador_centro` al último que lo tiene (`RN-CORE-07`), o el solicitante se está modificando a sí mismo (`RN-CORE-06`)
+  - `409` — retiraría el rol `administrador_centro` al último que lo tiene (`RN-CORE-07`) o dejaría al centro sin la capacidad completa de administración (`RN-PERM-47`, 1.5b), o el solicitante se está modificando a sí mismo (`RN-CORE-06`)
   - `422` — algún `role_id` no existe en el tenant
   - `404` — algún `role_id` pertenece a otro tenant (indistinguible de inexistente, por diseño)
 - **Emite**: `UserRolesChanged`

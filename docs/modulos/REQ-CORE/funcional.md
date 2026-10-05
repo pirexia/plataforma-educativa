@@ -1714,7 +1714,7 @@ Lectura de código, no ejecución. La sesión de especificación no tenía herra
 |-------|----------|--------|
 | **Configuración de `settings` de un módulo** (`PATCH /module-subscriptions/{id}`) | Paso del primer módulo que declare `settings` configurables | `OPEN-CORE-31` = B: la pantalla de módulos es de **solo lectura**; hoy ningún módulo tiene `settings` que configurar y un formulario sería una pantalla vacía |
 | Notificación *in-app* de un módulo recién contratado | `REQ-COM-003` (1.19) | `ADR-045`: el aviso de 1.9e es la fecha de alta visible en la lista, no una notificación |
-| Editor de roles, clonación, matriz de concesión, permisos efectivos por usuario | `1.5b` | Plan, `ADR-044 §6`. En 1.9b los roles son de solo lectura aunque la API de 1.5 ya admita escritura (`RN-CORE-75`) |
+| Editor de roles, clonación, matriz de concesión, permisos efectivos por usuario | `1.5b` | Plan, `ADR-044 §6`. **Entregado en 1.5b** (`REQ-PERM/funcional.md §20`; `RN-CORE-75` sustituida). En 1.9b los roles eran de solo lectura aunque la API de 1.5 ya admitiera escritura |
 | Edición de `mfa_required` de un rol | Ya existe en `/administracion/mfa` (`REQ-AUTH` 1.3) | No se duplica |
 | Foto de perfil | Sin paso | `OPEN-CORE-08` |
 | Mapeo visual de columnas, plantillas, reversibilidad del lote de importación | `REQ-ONB` (1.24) | §1.10 |
@@ -1817,6 +1817,7 @@ Muestra todos los campos de `GET /users/{id}`, incluidos `document_type`/`docume
 | Restaurar | `usuario.eliminar` | `POST /users/{id}/restore` | Dado de baja |
 | Enviar / reenviar invitación | `invitacion.crear` | `POST /users/{id}/invitations` | `status = pendiente` y no dado de baja |
 | Ver sus roles | `asignacion_rol.leer` | `GET /users/{id}/roles` | Siempre (con el permiso) |
+| Ver permisos efectivos (1.5b) | `permiso_efectivo.leer` | navegación a la pantalla de permisos efectivos (`GET /users/{id}/effective-permissions`; `REQ-PERM/funcional.md §20`) | Siempre (con el permiso) |
 | Gestionar roles (`OPEN-CORE-43` = A) | `asignacion_rol.crear` (y `rol.leer` para las opciones; retirar roles exige además `asignacion_rol.eliminar`, que decide el servidor) | `PUT /users/{id}/roles` | No dado de baja |
 | Ver su actividad | `auditoria.leer` | navegación a `core-audit` con `actor_id` | `OPEN-CORE-33` = C (resuelta): la acción se añade en 1.9d, no en 1.9b |
 
@@ -2391,7 +2392,7 @@ No se corrigen aquí (`CLAUDE.md §5`); para que la sesión orquestadora abra el
 | `RN-CORE-72` | Seguimiento del estado de un lote (política de `RN-CORE-49`) | §14.6.2 |
 | `RN-CORE-73` | Ejecución con confirmación e `Idempotency-Key` estable por confirmación | §14.6.2 |
 | `RN-CORE-74` | Incidencias de importación con el componente, aviso de 50, informe | §14.6.2 |
-| `RN-CORE-75` | Roles solo lectura en 1.9b | §14.8 |
+| `RN-CORE-75` | Roles solo lectura en 1.9b. **SUSTITUIDA** por `REQ-PERM/funcional.md §20.4` y `RN-PERM-26` (1.5b) | §14.8 |
 | `RN-CORE-76` | Filtros de auditoría | §14.7 |
 | `RN-CORE-77` | Detalle de cambios sin reconstruir valores redactados | §14.7 |
 | `RN-CORE-78` | Exportación de auditoría desde la tabla | §14.7 |
