@@ -1,6 +1,6 @@
 # PRIVACY.md
 
-> **Versión 0.3.4** · 2026-10-03
+> **Versión 0.3.5** · 2026-10-05
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Base del Registro de Actividades de Tratamiento (RAT) exigido por el RGPD — hoy es un **esqueleto**, no un RAT completo: varias secciones dependen de decisiones que todavía no se han tomado (`OPEN-07`, entidad jurídica y contrato de encargado de tratamiento). No se rellenan con suposiciones (`CLAUDE.md` §0/§11).
 
 ---
