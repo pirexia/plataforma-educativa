@@ -24,7 +24,6 @@
  * contenedor de PostgreSQL de desarrollo, a partir del `tenant_id` que este
  * script devuelve. El `tenant_id` y el slug se validan antes de usarse.
  */
-
 if (PHP_SAPI !== 'cli') {
     exit(1);
 }
