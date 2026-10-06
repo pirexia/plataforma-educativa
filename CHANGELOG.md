@@ -9,6 +9,7 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 ## 2026-10-06 · Correcciones tras la revisión de 1.5b: #356, #349, #351, #353 (`REQ-PERM-005`, `REQ-CORE-001`)
 
 - **#356**: el `403` de `POST /roles` con `clone_from` ya no lleva `errors.grant[0].params` ni nombra código/ámbito (reutiliza `cannot_grant_unheld_role_permission`, como #352). `POST /roles` con concesiones propias y `PUT /roles/{id}/permissions`, sin cambio. `REQ-PERM/api.md §8.4`, `funcional.md` (`RN-PERM-24`), `permisos.md` y OpenAPI.
+- **#349**: `RN-CORE-07` (`SchoolAdministratorGuard`) se vuelve a comprobar dentro de `AdministrationCapacityGuard::protect()`, con el bloqueo por tenant tomado y sobre lecturas frescas, en `DELETE /users/{id}`, `POST /users/{id}/status` y `PUT /users/{id}/roles`; el orden de errores y el contrato público no cambian. Test de regresión determinista (`SchoolAdministratorSerializationTest`). `REQ-CORE` (`permisos.md`, `api.md`, `operacion.md`) y `REQ-PERM` actualizados.
 
 ---
 

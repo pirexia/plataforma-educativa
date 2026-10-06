@@ -41,6 +41,11 @@ use Illuminate\Support\Facades\DB;
  * pero juntas no, se ejecutan una detrás de otra: la segunda ve el estado
  * de la primera (READ COMMITTED, una instantánea nueva por sentencia).
  *
+ * **`RN-CORE-07` bajo el mismo bloqueo** (issue #349): las rutas que
+ * llaman a `protect()` repiten dentro de `$write` la comprobación de
+ * `SchoolAdministratorGuard` sobre lecturas frescas; el bloqueo serializa
+ * ambas reglas por tenant.
+ *
  * **Cálculo del «después»**: la escritura se ejecuta dentro de la
  * transacción y se evalúa su resultado; si el centro dejaría de cumplir,
  * la excepción deshace la transacción entera (`409`, nada se guarda, ni

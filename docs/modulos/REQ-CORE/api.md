@@ -269,7 +269,7 @@ Baja **lógica** (`INV-004`): `deleted_at` informado y `status = 'inactivo'`.
 - **Permiso**: `usuario` · `eliminar` · `todos`
 - **Respuesta 204**
 - **Errores**
-  - `409` — es el propio solicitante (`RN-CORE-06`), o es el último Administrador de Centro vivo (`RN-CORE-07`), o dejaría al centro sin ningún usuario activo con la capacidad completa de administración (`RN-PERM-47`, 1.5b; código `core.validation.administration_capacity_lost`).
+  - `409` — es el propio solicitante (`RN-CORE-06`), o es el último Administrador de Centro vivo (`RN-CORE-07`; comprobada de nuevo bajo el bloqueo por tenant, issue #349, sin cambio de contrato), o dejaría al centro sin ningún usuario activo con la capacidad completa de administración (`RN-PERM-47`, 1.5b; código `core.validation.administration_capacity_lost`).
   - 401, 403, 404
 
 ---
