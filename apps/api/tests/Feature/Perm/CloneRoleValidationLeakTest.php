@@ -18,8 +18,27 @@ use Illuminate\Testing\TestResponse;
  * `permission_not_found` no es alcanzable con un origen real:
  * `permission_role.permission_code` tiene clave foránea a `permissions`.
  */
+/**
+ * Catálogo global (`permissions` no es de tenant y estos tests no corren en
+ * transacción): se guarda el estado real de `auditoria.leer` antes de
+ * mutarlo y se restaura exacto, también si el test falla.
+ *
+ * @return array{retired_at: mixed, applicable_scopes: mixed}
+ */
+function cloneLeakCatalogOriginal(): array
+{
+    static $original = null;
+
+    return $original ??= (array) DB::connection('pgsql_owner')->table('permissions')
+        ->where('code', 'auditoria.leer')->first(['retired_at', 'applicable_scopes']);
+}
+
+beforeEach(function (): void {
+    cloneLeakCatalogOriginal();
+});
+
 afterEach(function (): void {
-    DB::connection('pgsql_owner')->table('permissions')->where('code', 'auditoria.leer')->update(['retired_at' => null, 'applicable_scopes' => json_encode(['todos'])]);
+    DB::connection('pgsql_owner')->table('permissions')->where('code', 'auditoria.leer')->update(cloneLeakCatalogOriginal());
     DB::connection('pgsql_platform')->table('tenants')->delete();
 });
 
