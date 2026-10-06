@@ -58,6 +58,12 @@ return [
         'scope_resolver_missing' => 'The scope ":scope" cannot be granted yet: its resolver is not registered.',
         'permission_not_found' => 'The permission code ":code" does not exist in the catalog.',
         'permission_retired' => 'The permission code ":code" is no longer available.',
+        // Issue #359: mensajes genéricos de POST /roles con clone_from (sin código ni ámbito del origen).
+        'clone_source_permission_retired' => 'The source role contains a permission that is no longer available; it cannot be cloned.',
+        'clone_source_permission_not_found' => 'The source role contains a permission that does not exist in the catalog; it cannot be cloned.',
+        'clone_source_scope_not_applicable' => 'The source role contains a grant with a scope that cannot be granted; it cannot be cloned.',
+        'clone_source_scope_resolver_missing' => 'The source role contains a grant with a scope that cannot be granted yet; it cannot be cloned.',
+        'clone_source_not_clonable' => 'You cannot clone this role: it grants something you cannot activate.',
         'permission_duplicated' => 'The permission code ":code" appears more than once.',
         'role_is_system' => 'A role from the school\'s provisioning cannot be deleted.',
         'role_has_assignments' => 'This role has :users_count assigned user(s) and cannot be deleted.',

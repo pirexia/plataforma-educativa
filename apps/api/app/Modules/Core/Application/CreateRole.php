@@ -69,7 +69,7 @@ final class CreateRole
             ])->all()
             : ($data['permissions'] ?? []);
 
-        $validatedGrants = $this->validateGrants($grantInputs, $errors);
+        $validatedGrants = $this->validateGrants($grantInputs, $errors, $cloneSource !== null);
 
         $errors->throwIfAny();
 
@@ -78,7 +78,7 @@ final class CreateRole
         // degrada en silencio (CLAUDE.md §5).
         if ($cloneSource !== null && (bool) $cloneSource->special_data_access && ! $this->canActivateSpecialDataAccess($actor)) {
             (new ValidationErrorBag)
-                ->add('special_data_access', 'core.validation.clone_requires_special_data_access', 'core.validation.clone_requires_special_data_access')
+                ->add('special_data_access', 'core.validation.clone_requires_special_data_access', 'core.validation.clone_source_not_clonable')
                 ->throwIfAny();
         }
 
@@ -131,13 +131,36 @@ final class CreateRole
     }
 
     /**
+     * Con `$fromClone` las concesiones salen del rol origen, no del cuerpo, y
+     * quien crea roles puede no poder leerlo (issue #359, mismo principio que
+     * #352/#356): el 422 conserva su `code` estable pero va en el campo
+     * `clone_from`, con mensaje genérico y sin `params` — ni el código de
+     * permiso, ni el ámbito, ni la posición de la concesión en el origen.
+     * Una sola entrada por `code`, para no revelar cuántas concesiones fallan.
+     * Con concesiones propias del cuerpo no cambia nada: las envió quien
+     * solicita.
+     *
      * @param  list<array<string, mixed>>  $grants
      * @return list<array{code: string, effect: string, scope: string}>
      */
-    private function validateGrants(array $grants, ValidationErrorBag $errors): array
+    private function validateGrants(array $grants, ValidationErrorBag $errors, bool $fromClone = false): array
     {
         $validated = [];
         $seen = [];
+        $reportedFromClone = [];
+
+        $reject = function (string $field, string $code, array $params) use ($errors, $fromClone, &$reportedFromClone): void {
+            if (! $fromClone) {
+                $errors->add($field, "core.validation.{$code}", "core.validation.{$code}", $params);
+
+                return;
+            }
+
+            if (! isset($reportedFromClone[$code])) {
+                $reportedFromClone[$code] = true;
+                $errors->add('clone_from', "core.validation.{$code}", "core.validation.clone_source_{$code}");
+            }
+        };
 
         foreach ($grants as $i => $grant) {
             $code = (string) ($grant['code'] ?? '');
@@ -154,13 +177,13 @@ final class CreateRole
             $permission = Permission::query()->find($code);
 
             if ($permission === null) {
-                $errors->add("permissions.{$i}.code", 'core.validation.permission_not_found', 'core.validation.permission_not_found', ['code' => $code]);
+                $reject("permissions.{$i}.code", 'permission_not_found', ['code' => $code]);
 
                 continue;
             }
 
             if ($permission->retired_at !== null) {
-                $errors->add("permissions.{$i}.code", 'core.validation.permission_retired', 'core.validation.permission_retired', ['code' => $code]);
+                $reject("permissions.{$i}.code", 'permission_retired', ['code' => $code]);
 
                 continue;
             }
@@ -168,19 +191,19 @@ final class CreateRole
             $scope = Scope::tryFrom($scopeValue);
 
             if ($scope === null) {
-                $errors->add("permissions.{$i}.scope", 'core.validation.scope_not_applicable', 'core.validation.scope_not_applicable', ['scope' => $scopeValue]);
+                $reject("permissions.{$i}.scope", 'scope_not_applicable', ['scope' => $scopeValue]);
 
                 continue;
             }
 
             if (! in_array($scope, $permission->applicableScopes(), true)) {
-                $errors->add("permissions.{$i}.scope", 'core.validation.scope_not_applicable', 'core.validation.scope_not_applicable', ['scope' => $scopeValue, 'resource' => $permission->resource]);
+                $reject("permissions.{$i}.scope", 'scope_not_applicable', ['scope' => $scopeValue, 'resource' => $permission->resource]);
 
                 continue;
             }
 
             if (! $this->scopeResolvers->has($permission->resource, $scope)) {
-                $errors->add("permissions.{$i}.scope", 'core.validation.scope_resolver_missing', 'core.validation.scope_resolver_missing', ['scope' => $scopeValue, 'resource' => $permission->resource]);
+                $reject("permissions.{$i}.scope", 'scope_resolver_missing', ['scope' => $scopeValue, 'resource' => $permission->resource]);
 
                 continue;
             }
