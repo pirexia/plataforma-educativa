@@ -13,11 +13,21 @@
  * El slug por defecto es `demo`, el centro para el que está configurado el
  * entorno de desarrollo (`VITE_API_URL=http://demo.plataforma.test:8000`).
  *
- * Seguridad: solo datos sintéticos (`@example.com`, ADR-030, REQ-SEED-005) y
- * solo contra una base de desarrollo o de test. `teardown` borra el centro
- * y su cascada, así que se niega a tocar un centro que no haya creado este
- * script (el nombre lleva la marca de abajo).
+ * Seguridad: solo datos sintéticos (`@example.com`, ADR-030, REQ-SEED-005).
+ * Escribe y borra de verdad, así que exige a la vez: ejecución por CLI,
+ * `E2E_ALLOW_DESTRUCTIVE=1` (lo pasa `apps/web/scripts/e2e-real-api.sh`),
+ * entorno `local`/`testing` y base `plataforma`/`plataforma_test`. `teardown`
+ * solo borra la fila de `tenants` de un centro que lleve la marca de abajo;
+ * las filas del centro NO tienen cascada (31 tablas con `tenant_id`, sin
+ * `ON DELETE CASCADE`) y el rol de plataforma no puede borrar de las tablas
+ * de solo anexar: las purga `e2e-real-api.sh` con el superusuario del
+ * contenedor de PostgreSQL de desarrollo, a partir del `tenant_id` que este
+ * script devuelve. El `tenant_id` y el slug se validan antes de usarse.
  */
+
+if (PHP_SAPI !== 'cli') {
+    exit(1);
+}
 
 use App\Models\Person;
 use App\Models\User;
@@ -42,8 +52,13 @@ const E2E_TARGET_EMAIL = 'e2e-docente@example.com';
 $mode = $argv[1] ?? '';
 $slug = $argv[2] ?? 'demo';
 
-if (! in_array($mode, ['setup', 'teardown'], true)) {
-    fwrite(STDERR, "Uso: php tests/Support/e2e-real-tenant.php setup|teardown [slug]\n");
+if (! in_array($mode, ['setup', 'teardown'], true) || preg_match('/^[a-z0-9][a-z0-9-]{0,39}$/', $slug) !== 1) {
+    fwrite(STDERR, "Uso: php tests/Support/e2e-real-tenant.php setup|teardown [slug] (slug: minúsculas, dígitos y guiones, hasta 40)\n");
+    exit(2);
+}
+
+if (getenv('E2E_ALLOW_DESTRUCTIVE') !== '1') {
+    fwrite(STDERR, "e2e-real-tenant aborta: falta E2E_ALLOW_DESTRUCTIVE=1 (lo define apps/web/scripts/e2e-real-api.sh).\n");
     exit(2);
 }
 
@@ -76,7 +91,7 @@ if ($mode === 'teardown') {
 
     $platform->table('tenants')->where('slug', $slug)->delete();
     Cache::forget("tenant-resolution:{$slug}");
-    echo json_encode(['outcome' => 'removed', 'slug' => $slug]), "\n";
+    echo json_encode(['outcome' => 'removed', 'slug' => $slug, 'tenant_id' => (int) $existing->id]), "\n";
     exit(0);
 }
 
@@ -122,6 +137,7 @@ app(TenantContext::class)->runFor($tenant->id, function () use ($password): void
 echo json_encode([
     'outcome' => 'created',
     'slug' => $slug,
+    'tenant_id' => $tenant->id,
     'admin_email' => E2E_ADMIN_EMAIL,
     'admin_password' => $password,
     'target_email' => E2E_TARGET_EMAIL,
