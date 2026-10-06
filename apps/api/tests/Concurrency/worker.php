@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Proceso hijo de `tests/Feature/Perm/RealConcurrencyTest.php` (issue #351).
+ * Proceso hijo de `tests/Concurrency/RealConcurrencyTest.php` (issue #351).
  * No es un test: arranca la aplicación en su propio proceso y, por tanto,
  * en su propia conexión a PostgreSQL, y ejecuta UNA operación de usuarios
  * llamando al mismo controlador/servicio que la ruta HTTP, con el actor ya
@@ -21,6 +21,7 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 
 [, $tenantId, $actorPublicId, $operation, $targetPublicId] = $argv;
@@ -33,6 +34,14 @@ require __DIR__.'/../../vendor/autoload.php';
 
 $app = require __DIR__.'/../../bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
+
+// Escribe de verdad: solo contra la base de test (issue #360).
+$database = DB::connection()->selectOne('select current_database() as name')->name;
+
+if (! $app->environment('testing') || $database !== 'plataforma_test') {
+    fwrite(STDERR, "worker.php aborta: entorno «{$app->environment()}» y base «{$database}», se esperaba «testing» y «plataforma_test».\n");
+    exit(2);
+}
 
 $result = app(TenantContext::class)->runFor((int) $tenantId, function () use ($actorPublicId, $operation, $targetPublicId): array {
     $actor = User::query()->where('public_id', $actorPublicId)->firstOrFail();
