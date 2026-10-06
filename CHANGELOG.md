@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-06 · `CA-PERM-133` completo y ejecutable contra la API real (`REQ-PERM-005`)
+
+- El test de `apps/web/e2e/core-roles.spec.ts` solo cubría login, alta del rol y una concesión. Ahora recorre el criterio entero contra la API real: alta de «Revisión propia», `auditoria.leer` con «Propios», asignación a un usuario desde su ficha, permisos efectivos con «Permitido», «Propios» y procedencia, `rol_datos_especiales.actualizar` con «Permitir · Todos» y `special_data_access` deshabilitado en la edición del rol (comprobado con un control negativo: con `toBeEnabled()` el test falla).
+- Nuevo `apps/api/tests/Support/e2e-real-tenant.php` (`setup`/`teardown`): crea el centro sintético `demo` con `TenantProvisioner`, activa al administrador con contraseña aleatoria y una excepción de MFA viva (`REQ-AUTH-003`) y añade un usuario `@example.com`. Solo corre con `APP_ENV` `local`/`testing` y base `plataforma`/`plataforma_test`, y `teardown` se niega a tocar un centro que no creó él.
+- Nuevo `npm run test:e2e:real` (`apps/web/scripts/e2e-real-api.sh`): prepara el centro, ejecuta el test y lo retira al terminar, también si falla.
+
 ## 2026-10-06 · Correcciones de seguridad menores de `POST /roles`: #359 (`REQ-PERM-005`)
 
 - **#359**: con `clone_from`, los `422` `permission_retired`, `permission_not_found`, `scope_not_applicable`, `scope_resolver_missing` y `clone_requires_special_data_access` ya no llevan `params` ni nombran el código, el ámbito ni el atributo `special_data_access` del rol origen: mismo `code` estable, campo `errors.clone_from`, mensaje genérico traducido (claves `core.validation.clone_source_*`) y una sola entrada por `code`. Con `permissions` propias en el cuerpo, sin cambio. Alcanzables hoy con un origen real: retirado, ámbito no aplicable, ámbito sin resolutor y `special_data_access`; `permission_not_found` no (clave foránea). Tests `CloneRoleValidationLeakTest`. `REQ-PERM/api.md §8.4`, `funcional.md` (`RN-PERM-24`), `permisos.md` y OpenAPI.

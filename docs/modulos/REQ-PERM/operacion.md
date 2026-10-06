@@ -246,3 +246,13 @@ La guía de §7 sigue valiendo; la pantalla `core-user-effective-permissions` es
 | «No me deja activar el acceso a datos especiales» | Ningún rol del solicitante tiene `special_data_access` (`permisos.md §7.4`); es el caso por defecto de `administrador_centro`, a propósito |
 | «Al guardar me dice que nadie conservaría la administración» (`409 administration_capacity_lost`) | `RN-PERM-47`: el cambio dejaría sin ningún usuario activo con todos los permisos de administración sembrados. `errors.administration_capacity[0].params.codes` (lista) dice cuáles. Solución: conceder antes esos permisos (rol personalizado o asignación) a otra persona activa |
 | «Un centro recién creado no aplica la protección» | Su administrador sigue `pendiente`: el centro aún no cumplía y `RN-PERM-47` solo rechaza pasar de cumplir a no cumplir. Se activa sola cuando el administrador canjea la invitación |
+
+### 10.2 Ejecutar `CA-PERM-133` (Playwright contra la API real)
+
+Con la pila de desarrollo levantada (`plataforma-api` en `:8000`, `plataforma-web` en `:5173`) y `demo.plataforma.test` apuntando a `127.0.0.1`:
+
+```
+cd apps/web && npm run test:e2e:real
+```
+
+`scripts/e2e-real-api.sh` ejecuta `podman exec plataforma-api php tests/Support/e2e-real-tenant.php setup`, que crea el centro sintético `demo` (administrador `e2e-admin@example.com` con contraseña aleatoria y excepción de MFA viva, y un usuario `e2e-docente@example.com`), lanza el test con `E2E_REAL_API=1` y las credenciales en el entorno y retira el centro al terminar, también si falla. Si el centro `demo` ya existe y no lo creó el script, aborta sin tocarlo. El script de soporte solo corre con `APP_ENV` `local`/`testing` y contra la base `plataforma` o `plataforma_test`. Todo el dato es sintético (`@example.com`, `ADR-030`). No está enganchado a CI.
