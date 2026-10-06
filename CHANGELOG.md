@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-06 · Correcciones tras la revisión de 1.5b: #356, #349, #351, #353 (`REQ-PERM-005`, `REQ-CORE-001`)
+
+- **#356**: el `403` de `POST /roles` con `clone_from` ya no lleva `errors.grant[0].params` ni nombra código/ámbito (reutiliza `cannot_grant_unheld_role_permission`, como #352). `POST /roles` con concesiones propias y `PUT /roles/{id}/permissions`, sin cambio. `REQ-PERM/api.md §8.4`, `funcional.md` (`RN-PERM-24`), `permisos.md` y OpenAPI.
+
+---
+
 ## 2026-10-05 · Corrección tras la revisión de 1.5b: #352 y hueco residual de #350 (`REQ-PERM-005`)
 
 - **#352**: el `403` de `RPERM-013` en `PUT /users/{id}/roles` y `POST /users` con `role_ids` ya no lleva `errors.grant[0].params` ni nombra el código o el ámbito en `detail` (clave nueva `core.authorization.cannot_grant_unheld_role_permission`, cuatro idiomas); se mantienen el `403` y `errors.grant[0].code`. `PUT /roles/{id}/permissions`, `POST /roles` y la clonación, sin cambio. Documentado en `REQ-PERM/api.md §8.4`, `funcional.md` (`RN-PERM-24`, `CA-PERM-042`), `permisos.md` y OpenAPI.

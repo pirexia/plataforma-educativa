@@ -82,7 +82,7 @@ final class CreateRole
                 ->throwIfAny();
         }
 
-        $this->assertOwnsGrants($actor, $validatedGrants);
+        $this->assertOwnsGrants($actor, $validatedGrants, $cloneSource !== null);
 
         $mfaRequired = match (true) {
             array_key_exists('mfa_required', $data) => (bool) $data['mfa_required'],
@@ -197,9 +197,13 @@ final class CreateRole
      * (`funcional.md §7.7`): nadie necesita poseer un permiso para
      * prohibírselo a otro.
      *
+     * Con `$fromClone` las concesiones salen del rol origen, no del cuerpo, y
+     * quien crea roles puede no poder leerlo (issue #356): el 403 es el
+     * genérico, sin código ni ámbito, como en la asignación de roles (#352).
+     *
      * @param  list<array{code: string, effect: string, scope: string}>  $grants
      */
-    private function assertOwnsGrants(User $actor, array $grants): void
+    private function assertOwnsGrants(User $actor, array $grants, bool $fromClone): void
     {
         foreach ($grants as $grant) {
             if ($grant['effect'] === 'deny') {
@@ -209,6 +213,10 @@ final class CreateRole
             $scope = Scope::from($grant['scope']);
 
             if (! $this->permissions->ownsScope($actor, $grant['code'], $scope)) {
+                if ($fromClone) {
+                    throw ApiException::cannotGrantUnheldRolePermission();
+                }
+
                 throw ApiException::cannotGrantUnheldPermission($grant['code'], $scope->value);
             }
         }
