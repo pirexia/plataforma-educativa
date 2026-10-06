@@ -155,7 +155,7 @@ Sin cambios de forma: ya devuelve `scope` por concesión desde 1.1. Lo que cambi
 - `clone_from` y `permissions` son **mutuamente excluyentes** ⇒ `422`. Mezclarlos haría ambiguo si la lista sustituye o amplía lo clonado, y una ambigüedad en la tabla más sensible del sistema no se resuelve con una convención implícita.
 - **La copia es completa: no hay herencia.** Editar el origen después **no afecta** al clon (`ADR-044 §4.6`).
 
-- **Errores adicionales**: `422` si `clone_from` no existe o es de otro tenant (`core.validation.clone_source_not_found` — indistinguible, por `ADR-038 §6.4`), `403` si el rol origen concede algo que el solicitante no tiene (`RPERM-013`)
+- **Errores adicionales**: `422` si `clone_from` no existe o es de otro tenant (`core.validation.clone_source_not_found` — indistinguible, por `ADR-038 §6.4`), `403` si el rol origen concede algo que el solicitante no tiene (`RPERM-013`): **genérico, sin `params` ni código o ámbito en `detail`** (§8.4, issue #356)
 
 ---
 
@@ -438,7 +438,9 @@ En `PUT /users/{id}/roles` y en `POST /users` con `role_ids`, las concesiones qu
 - `403` con `errors.grant[0]` = `{code: "core.authorization.cannot_grant_unheld_role_permission", message}`: **sin `params`**.
 - `detail` genérico y traducido (es/en/de/fr): «No puedes asignar este rol: concede algún permiso que tú mismo no tienes.» No nombra el código ni el ámbito.
 
-**No cambia** `PUT /roles/{id}/permissions` ni `POST /roles` con `permissions` propias (§5.4, §9.2.1): allí el código lo ha enviado el propio solicitante y la respuesta sigue llevando `errors.grant[0].params = {code, scope}`. La clonación (`POST /roles` con `clone_from`) también se mantiene sin cambio; ver el informe del issue #352 sobre si reproduce la misma fuga.
+**Clonación (issue #356, decisión del usuario del 2026-10-06)**: `POST /roles` con `clone_from` tiene la misma fuga —las concesiones salen del rol origen, no del cuerpo, y `rol.crear` no implica `rol.leer`— y recibe el mismo tratamiento: `403` con `errors.grant[0]` = `{code: "core.authorization.cannot_grant_unheld_role_permission", message}` sin `params` y el mismo `detail` genérico. No se exige `rol.leer` para clonar.
+
+**No cambia** `PUT /roles/{id}/permissions` ni `POST /roles` con `permissions` propias (§5.4, §9.2.1): allí el código lo ha enviado el propio solicitante y la respuesta sigue llevando `errors.grant[0].params = {code, scope}`.
 
 ---
 
@@ -495,7 +497,7 @@ Los `403` de `RPERM-013` y de `special_data_access` necesitan **decir por qué**
 | Clave de `detail` | Cuándo |
 |-------------------|--------|
 | `core.authorization.cannot_grant_unheld_permission` | `RPERM-013`. Datos en `errors.grant[0].params`: `{ "code": "...", "scope": "..." }` (§9.2.1; nunca `params` de primer nivel) |
-| `core.authorization.cannot_grant_unheld_role_permission` | `RPERM-013` en las **rutas de asignación de rol** (`PUT /users/{id}/roles`, `POST /users` con `role_ids`; §8.4, issue #352). **Sin datos**: ni `params` ni el código o el ámbito en `detail` |
+| `core.authorization.cannot_grant_unheld_role_permission` | `RPERM-013` en las **rutas de asignación de rol** (`PUT /users/{id}/roles`, `POST /users` con `role_ids` y `POST /roles` con `clone_from`; §8.4, issues #352 y #356). **Sin datos**: ni `params` ni el código o el ámbito en `detail` |
 | `core.authorization.special_data_access_not_held` | Se intentó activar `special_data_access` sin poseerlo |
 
 **Es un cambio compatible**: añadir `detail` donde antes había uno genérico no rompe a ningún cliente (`ADR-038 §7.2`). Y **no se filtra nada**: el mensaje habla de lo que el solicitante intentaba hacer, no de datos ajenos.
@@ -511,7 +513,7 @@ Los `403` de `RPERM-013` y de `special_data_access` necesitan **decir por qué**
 | Error | Estado | Clave de `errors` | `errors.<clave>[0].code` | `errors.<clave>[0].params` |
 |-------|--------|-------------------|--------------------------|----------------------------|
 | `RPERM-013` / `RN-PERM-24` | `403` | **`grant`** — la concesión que se intenta | `core.authorization.cannot_grant_unheld_permission` | `{ "code": "<permiso>", "scope": "<ámbito>" }` del **primer** par que lo provoca |
-| `RPERM-013` en asignación de rol (#352) | `403` | **`grant`** | `core.authorization.cannot_grant_unheld_role_permission` | **Ninguno**: la entrada lleva solo `code` y `message` (§8.4) |
+| `RPERM-013` en asignación de rol y clonación (#352, #356) | `403` | **`grant`** | `core.authorization.cannot_grant_unheld_role_permission` | **Ninguno**: la entrada lleva solo `code` y `message` (§8.4) |
 | `RN-PERM-17` | `409` | **`role`** — el rol que se intenta eliminar | `core.validation.role_has_assignments` | `{ "users_count": <entero> }` |
 | `RN-PERM-47` | `409` | **`administration_capacity`** — la capacidad del centro que se perdería | `core.validation.administration_capacity_lost` | `{ "codes": ["<permiso>", …] }` — **lista (*array*)** de cadenas, ordenada (§14.5) |
 

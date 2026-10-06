@@ -166,7 +166,12 @@ class UsersController extends Controller
         // RN-PERM-47 (1.5b, §20.2.1): después de RN-CORE-06/-07, antes de
         // guardar. Dar de baja al único usuario con el conjunto completo de
         // administración se rechaza aunque RN-CORE-07 lo permitiera.
+        // Issue #349: RN-CORE-07 se vuelve a comprobar dentro, con el bloqueo
+        // por tenant tomado y sobre lecturas frescas; lo de arriba es solo
+        // el rechazo temprano que conserva el orden de errores.
         $this->capacityGuard->protect(function () use ($user): void {
+            $this->adminGuard->assertNotLastLivingAdministrator($user);
+
             $user->status = UserStatus::Inactivo;
             $user->save();
             $user->delete();
@@ -225,6 +230,9 @@ class UsersController extends Controller
         // quitar a alguien del conjunto de candidatos; después de RN-CORE-07.
         if ($newStatus === UserStatus::Inactivo) {
             $this->capacityGuard->protect(function () use ($user, $newStatus): void {
+                // Issue #349: RN-CORE-07 releída con el bloqueo tomado.
+                $this->adminGuard->assertNotLastActiveAdministrator($user);
+
                 $user->status = $newStatus;
                 $user->save();
             });

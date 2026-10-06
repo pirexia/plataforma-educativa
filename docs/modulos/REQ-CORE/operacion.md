@@ -154,6 +154,7 @@ El sobrecoste de RLS medido en 0.8.12 (media ~1,24 %) es la línea base: una reg
 | Enlace de invitación «no hace nada» | **Esperado en 1.1**: el canje lo implementa 1.2 (`funcional.md` §1.4, `OPEN-CORE-01`) |
 | Importación queda en `subido` para siempre | *Worker* de `core-imports` ausente o caído. **Hoy no hay ninguno desplegado** (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128)): con el *driver* `database` no hay Redis implicado en la cola. Cuando las colas pasen a Redis, añadir «o Redis no disponible» |
 | `403` en un endpoint de otro módulo recién desplegado | `platform:sync-registry` no ejecutado tras el despliegue: el permiso no existe y se deniega por defecto. Es el comportamiento correcto y está documentado como paso obligatorio de entrega (`ADR-034`, consecuencias) |
+| `409` `last_school_administrator` en una baja/desactivación que «parecía» permitida | `RN-CORE-07` se relee bajo el bloqueo por tenant (issue #349): otra baja o desactivación del otro administrador se confirmó un instante antes. Es correcto; las escrituras de usuarios y roles de un mismo centro se serializan con `RN-PERM-47` (mismo coste, operaciones poco frecuentes) |
 | Un usuario no puede iniciar sesión | **Esperado en 1.1**: no hay login hasta 1.2 |
 
 ---

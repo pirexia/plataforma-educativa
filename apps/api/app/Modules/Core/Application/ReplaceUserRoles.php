@@ -109,6 +109,14 @@ final class ReplaceUserRoles
                 throw ApiException::forbidden();
             }
 
+            // Issue #349, RN-CORE-07: releída con el bloqueo tomado y sobre
+            // los roles releídos. La comprobación previa (arriba) se conserva
+            // como rechazo temprano que no altera el orden de errores.
+            $this->adminGuard->assertRoleRemovalKeepsAdministrator(
+                $target,
+                $lockedRoles->contains('code', 'administrador_centro') && ! $roles->contains('code', 'administrador_centro'),
+            );
+
             // Sin cambio efectivo del conjunto de roles: ni escritura ni
             // auditoría (ADR-038 §9.3).
             if ($fromCodes === $toCodes) {

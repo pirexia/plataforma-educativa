@@ -695,6 +695,10 @@ paths:
         de lo que el solicitante posee, con `todos` absorbiendo). El `403` por
         RPERM-013 lleva `errors.grant[0]` = `{code, message, params: {code, scope}}`
         del primer par que lo provoca (api.md §9.2.1; sin `params` de primer nivel).
+        Excepción con `clone_from` (issue #356): las concesiones salen del rol
+        origen, no del cuerpo, y el `403` lleva `errors.grant[0]` =
+        `{code: "core.authorization.cannot_grant_unheld_role_permission", message}`
+        **sin `params`** y con `detail` genérico (api.md §8.4).
       tags: [Core / Roles]
       security: [{ SessionCookie: [] }]
       requestBody:
