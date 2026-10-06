@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use PragmaRX\Google2FA\Google2FA;
+use Tests\ConcurrentTestCase;
 use Tests\TestCase;
 
 /*
@@ -33,6 +34,9 @@ use Tests\TestCase;
 pest()->extend(TestCase::class)
  // ->use(RefreshDatabase::class)
     ->in('Feature');
+
+// Concurrencia real (issue #351): sin transacción envolvente, ver ConcurrentTestCase.
+pest()->extend(ConcurrentTestCase::class)->in('Concurrency');
 
 /*
 |--------------------------------------------------------------------------

@@ -366,8 +366,9 @@ test('CA-PERM-049: la comprobación y la escritura se serializan por tenant con 
     // Mecanismo: antes de `protect()` el bloqueo de ese tenant está libre;
     // mientras `protect()` ejecuta la escritura, otra conexión no puede
     // tomarlo, y el de otro tenant sigue libre. Es el criterio de
-    // serialización de §20.17.1 cubierto a nivel de mecanismo: el entorno
-    // de test no solapa transacciones de dos procesos de forma fiable.
+    // serialización de §20.17.1 cubierto a nivel de mecanismo: el solapamiento
+    // de dos procesos reales lo cubre tests/Concurrency/RealConcurrencyTest.php
+    // (issue #351).
     // Que el bloqueo se libera al cerrar la transacción es semántica de
     // `pg_advisory_xact_lock`; aquí no se puede observar porque cada test
     // corre dentro de una transacción externa (`DatabaseTransactions`).
