@@ -26,8 +26,9 @@ use Illuminate\Support\Facades\DB;
  * posee de forma efectiva (con `deny`, inercias y todo) todos los códigos
  * de A con ámbito `todos`. El cálculo usa el mismo `PermissionResolver`
  * que autoriza las peticiones (`RN-PERM-22`), con una instancia nueva por
- * evaluación: el resolutor registrado como `scoped()` memoiza las
- * concesiones por sujeto y devolvería el estado anterior a la escritura.
+ * fase de evaluación (antes / después de la escritura; `newResolver()`): el
+ * resolutor registrado como `scoped()` memoiza las concesiones por sujeto y
+ * devolvería el estado anterior a la escritura.
  *
  * **Cuándo rechaza**: solo si el centro cumplía antes y no cumpliría
  * después. Un centro que ya no cumplía (p. ej. administrador todavía
@@ -137,6 +138,7 @@ final class AdministrationCapacityGuard
     private function compliantUserIds(array $required): array
     {
         $anchor = $required[0];
+        $resolver = $this->newResolver();
 
         $candidates = User::query()
             ->where('status', UserStatus::Activo)
@@ -149,7 +151,7 @@ final class AdministrationCapacityGuard
         $compliant = [];
 
         foreach ($candidates as $candidate) {
-            if ($this->missingCodes($candidate, $required) === []) {
+            if ($this->missingCodes($candidate, $required, $resolver) === []) {
                 $compliant[] = $candidate->id;
             }
         }
@@ -158,13 +160,36 @@ final class AdministrationCapacityGuard
     }
 
     /**
+     * Un resolutor por **fase** de evaluación (candidatos de antes, usuarios
+     * de después), no por usuario (issue #353): el catálogo
+     * (`Permission::all()`) se carga una vez por fase y no cambia dentro de
+     * ella; las concesiones se memoizan por usuario y cada usuario se evalúa
+     * una sola vez por fase. La fase «después» necesita una instancia nueva:
+     * la escritura cambió las concesiones y la memoria de la fase anterior
+     * devolvería el estado previo. Mismo resultado que una instancia por
+     * usuario (`AdministrationCapacityPerformanceTest`).
+     *
+     * Medición del issue #353 (PostgreSQL de desarrollo, tenant sintético,
+     * `protect(fn () => null)` con N titulares del código ancla): antes,
+     * 200 titulares = 1250-1285 ms (810 consultas), 1000 = 8365-8620 ms
+     * (4010 consultas); después, 1003-1052 ms (611) y 7239-7414 ms (3011):
+     * −14 % a −20 %. El coste sigue siendo lineal (≈5 ms por titular); con 5 titulares
+     * son ≈36 ms. No se optimiza más: el ancla la tienen en la práctica los
+     * administradores (unidades) y un precargado por lotes exigiría tocar
+     * `PermissionResolver`, compartido por toda la autorización (operacion.md
+     * de REQ-PERM, «Coste de RN-PERM-47»).
+     */
+    private function newResolver(): PermissionResolver
+    {
+        return new PermissionResolver($this->scopeResolvers, $this->moduleAvailability);
+    }
+
+    /**
      * @param  list<string>  $required
      * @return list<string> los códigos de A que el usuario no posee con `todos`
      */
-    private function missingCodes(User $user, array $required): array
+    private function missingCodes(User $user, array $required, PermissionResolver $resolver): array
     {
-        $resolver = new PermissionResolver($this->scopeResolvers, $this->moduleAvailability);
-
         return array_values(array_filter($required, function (string $code) use ($resolver, $user): bool {
             $decision = $resolver->decide($user, $code);
 
@@ -179,6 +204,7 @@ final class AdministrationCapacityGuard
     private function assertStillComplies(array $required, array $before): void
     {
         $missing = [];
+        $resolver = $this->newResolver();
 
         foreach ($before as $userId) {
             $user = User::query()->where('status', UserStatus::Activo)->find($userId);
@@ -190,7 +216,7 @@ final class AdministrationCapacityGuard
                 continue;
             }
 
-            $userMissing = $this->missingCodes($user, $required);
+            $userMissing = $this->missingCodes($user, $required, $resolver);
 
             if ($userMissing === []) {
                 return;
