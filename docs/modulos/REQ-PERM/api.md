@@ -149,13 +149,13 @@ Sin cambios de forma: ya devuelve `scope` por concesión desde 1.1. Lo que cambi
 
 - `clone_from` es el `public_id` del rol origen, **del mismo tenant**.
 - Se copian **las concesiones** (`code`, `effect`, `scope`) y **`mfa_required`**.
-- Se copia `special_data_access` **sólo si el solicitante puede activarlo**; si no, `422` con `core.validation.clone_requires_special_data_access` y **no se crea nada**. No se degrada en silencio (`funcional.md §7.5`).
+- Se copia `special_data_access` **sólo si el solicitante puede activarlo**; si no, `422` con `core.validation.clone_requires_special_data_access` (mensaje genérico, sin `params`, §8.4) y **no se crea nada**. No se degrada en silencio (`funcional.md §7.5`).
 - **No** se copian `code`, `name`, `is_system` (siempre `false`) ni las asignaciones a usuarios.
 - Se puede clonar un rol `is_system`; lo que no se puede es **crear** uno `is_system`.
 - `clone_from` y `permissions` son **mutuamente excluyentes** ⇒ `422`. Mezclarlos haría ambiguo si la lista sustituye o amplía lo clonado, y una ambigüedad en la tabla más sensible del sistema no se resuelve con una convención implícita.
 - **La copia es completa: no hay herencia.** Editar el origen después **no afecta** al clon (`ADR-044 §4.6`).
 
-- **Errores adicionales**: `422` si `clone_from` no existe o es de otro tenant (`core.validation.clone_source_not_found` — indistinguible, por `ADR-038 §6.4`), `403` si el rol origen concede algo que el solicitante no tiene (`RPERM-013`): **genérico, sin `params` ni código o ámbito en `detail`** (§8.4, issue #356)
+- **Errores adicionales**: `422` si `clone_from` no existe o es de otro tenant (`core.validation.clone_source_not_found` — indistinguible, por `ADR-038 §6.4`), `403` si el rol origen concede algo que el solicitante no tiene (`RPERM-013`): **genérico, sin `params` ni código o ámbito en `detail`** (§8.4, issue #356); y `422` de validación de las concesiones del origen (`permission_retired`, `scope_not_applicable`, `scope_resolver_missing`, `permission_not_found`) en `errors.clone_from`, con mensaje genérico y `params` vacío (§8.4, issue #359)
 
 ---
 
@@ -440,6 +440,15 @@ En `PUT /users/{id}/roles` y en `POST /users` con `role_ids`, las concesiones qu
 
 **Clonación (issue #356, decisión del usuario del 2026-10-06)**: `POST /roles` con `clone_from` tiene la misma fuga —las concesiones salen del rol origen, no del cuerpo, y `rol.crear` no implica `rol.leer`— y recibe el mismo tratamiento: `403` con `errors.grant[0]` = `{code: "core.authorization.cannot_grant_unheld_role_permission", message}` sin `params` y el mismo `detail` genérico. No se exige `rol.leer` para clonar.
 
+**Los `422` de validación con `clone_from` tampoco nombran lo clonado (issue #359, decisión del usuario del 2026-10-06)**: `validateGrants` corre antes de `RPERM-013` y, con `clone_from`, valida las concesiones del rol origen. Los errores `core.validation.permission_retired`, `permission_not_found`, `scope_not_applicable` y `scope_resolver_missing` (y el `core.validation.clone_requires_special_data_access` de §3.2) se devuelven entonces con:
+
+- el **mismo `code` estable** (el cliente sigue distinguiéndolos), pero en el campo **`errors.clone_from`** —no `permissions.<i>.code|scope`, cuyo índice y nombre aludirían a una concesión del origen que el solicitante no envió—;
+- `message` **genérico y traducido** (es/en/de/fr; claves `core.validation.clone_source_<código>` y `core.validation.clone_source_not_clonable`) que no nombra el código de permiso ni el ámbito ni el atributo `special_data_access` del origen;
+- **`params` vacío**: ni `params.code` ni `params.scope` ni `params.resource`;
+- **una sola entrada por `code`**, aunque fallen varias concesiones del origen, para no revelar cuántas son.
+
+Se mantienen el `422`, el orden de comprobaciones (validación → `clone_requires_special_data_access` → `RPERM-013`) y que no se crea nada. Con `permissions` propias en el cuerpo **no cambia nada**: el código lo envió el solicitante y los `422` siguen en `errors.permissions.<i>.<campo>` con `params`. `permission_not_found` es inalcanzable con un origen real (clave foránea `permission_role.permission_code → permissions.code`); el tratamiento está implementado por simetría. `permission_duplicated` también es inalcanzable con un origen (índice único parcial) y no cambia.
+
 **No cambia** `PUT /roles/{id}/permissions` ni `POST /roles` con `permissions` propias (§5.4, §9.2.1): allí el código lo ha enviado el propio solicitante y la respuesta sigue llevando `errors.grant[0].params = {code, scope}`.
 
 ---
@@ -481,7 +490,7 @@ En `PUT /users/{id}/roles` y en `POST /users` con `role_ids`, las concesiones qu
 | `core.validation.role_code_immutable` | 422 | Se intentó cambiar el `code` |
 | `core.validation.role_name_system` | 422 | Se intentó poner `name` a un rol `is_system` |
 | `core.validation.clone_source_not_found` | 422 | `clone_from` inexistente o de otro tenant |
-| `core.validation.clone_requires_special_data_access` | 422 | Clonar un rol con `special_data_access` sin poder activarlo |
+| `core.validation.clone_requires_special_data_access` | 422 | Clonar un rol con `special_data_access` sin poder activarlo (mensaje genérico, sin `params`; §8.4, #359) |
 | `core.validation.role_is_system` | 409 | Se intentó eliminar un rol del aprovisionamiento |
 | `core.validation.role_has_assignments` | 409 | Se intentó eliminar un rol con asignaciones vivas |
 | `core.validation.administration_capacity_lost` | 409 | **1.5b** (`RN-PERM-47`, §14.5): la escritura dejaría al centro sin ningún usuario activo con la capacidad completa de administración. Datos en `errors.administration_capacity[0].params.codes` (lista, §9.2.1) |

@@ -63,6 +63,12 @@ return [
         'scope_resolver_missing' => 'El ámbito «:scope» no puede concederse todavía: su resolutor no está registrado.',
         'permission_not_found' => 'El código de permiso «:code» no existe en el catálogo.',
         'permission_retired' => 'El código de permiso «:code» ya no está disponible.',
+        // Issue #359: mensajes genéricos de POST /roles con clone_from (sin código ni ámbito del origen).
+        'clone_source_permission_retired' => 'El rol de origen contiene un permiso que ya no está disponible; no se puede clonar.',
+        'clone_source_permission_not_found' => 'El rol de origen contiene un permiso que no existe en el catálogo; no se puede clonar.',
+        'clone_source_scope_not_applicable' => 'El rol de origen contiene una concesión con un ámbito que no se puede conceder; no se puede clonar.',
+        'clone_source_scope_resolver_missing' => 'El rol de origen contiene una concesión con un ámbito que todavía no puede concederse; no se puede clonar.',
+        'clone_source_not_clonable' => 'No puedes clonar este rol: concede algo que no puedes activar.',
         'permission_duplicated' => 'El código de permiso «:code» aparece más de una vez.',
         'role_is_system' => 'Un rol del aprovisionamiento del centro no se puede eliminar.',
         'role_has_assignments' => 'Este rol tiene :users_count usuario(s) asignado(s) y no se puede eliminar.',

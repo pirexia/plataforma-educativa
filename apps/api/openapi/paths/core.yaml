@@ -699,6 +699,13 @@ paths:
         origen, no del cuerpo, y el `403` lleva `errors.grant[0]` =
         `{code: "core.authorization.cannot_grant_unheld_role_permission", message}`
         **sin `params`** y con `detail` genérico (api.md §8.4).
+        Con `clone_from`, los `422` de validación de lo clonado
+        (`core.validation.permission_retired`, `permission_not_found`,
+        `scope_not_applicable`, `scope_resolver_missing` y
+        `clone_requires_special_data_access`) conservan su `code` pero van en
+        `errors.clone_from` (el último, en `errors.special_data_access`), con
+        mensaje genérico y `params` vacío: no nombran el código ni el ámbito
+        del rol origen (issue #359, api.md §8.4).
       tags: [Core / Roles]
       security: [{ SessionCookie: [] }]
       requestBody:

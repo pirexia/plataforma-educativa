@@ -58,6 +58,12 @@ return [
         'scope_resolver_missing' => 'Der Geltungsbereich „:scope" kann noch nicht vergeben werden: Sein Resolver ist nicht registriert.',
         'permission_not_found' => 'Der Berechtigungscode „:code" existiert nicht im Katalog.',
         'permission_retired' => 'Der Berechtigungscode „:code" ist nicht mehr verfügbar.',
+        // Issue #359: mensajes genéricos de POST /roles con clone_from (sin código ni ámbito del origen).
+        'clone_source_permission_retired' => 'Die Quellrolle enthält eine Berechtigung, die nicht mehr verfügbar ist; sie kann nicht geklont werden.',
+        'clone_source_permission_not_found' => 'Die Quellrolle enthält eine Berechtigung, die im Katalog nicht existiert; sie kann nicht geklont werden.',
+        'clone_source_scope_not_applicable' => 'Die Quellrolle enthält eine Vergabe mit einem Geltungsbereich, der nicht vergeben werden kann; sie kann nicht geklont werden.',
+        'clone_source_scope_resolver_missing' => 'Die Quellrolle enthält eine Vergabe mit einem Geltungsbereich, der noch nicht vergeben werden kann; sie kann nicht geklont werden.',
+        'clone_source_not_clonable' => 'Du kannst diese Rolle nicht klonen: Sie gewährt etwas, das du nicht aktivieren kannst.',
         'permission_duplicated' => 'Der Berechtigungscode „:code" kommt mehr als einmal vor.',
         'role_is_system' => 'Eine Rolle aus der Bereitstellung der Schule kann nicht gelöscht werden.',
         'role_has_assignments' => 'Dieser Rolle sind :users_count Benutzer zugewiesen und sie kann nicht gelöscht werden.',
