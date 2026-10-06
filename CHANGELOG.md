@@ -6,6 +6,10 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-06 · Correcciones de seguridad menores de `POST /roles`: #359 (`REQ-PERM-005`)
+
+- **#359**: con `clone_from`, los `422` `permission_retired`, `permission_not_found`, `scope_not_applicable`, `scope_resolver_missing` y `clone_requires_special_data_access` ya no llevan `params` ni nombran el código, el ámbito ni el atributo `special_data_access` del rol origen: mismo `code` estable, campo `errors.clone_from`, mensaje genérico traducido (claves `core.validation.clone_source_*`) y una sola entrada por `code`. Con `permissions` propias en el cuerpo, sin cambio. Alcanzables hoy con un origen real: retirado, ámbito no aplicable, ámbito sin resolutor y `special_data_access`; `permission_not_found` no (clave foránea). Tests `CloneRoleValidationLeakTest`. `REQ-PERM/api.md §8.4`, `funcional.md` (`RN-PERM-24`), `permisos.md` y OpenAPI.
+
 ## 2026-10-06 · Correcciones tras la revisión de 1.5b: #356, #349, #351, #353 (`REQ-PERM-005`, `REQ-CORE-001`)
 
 - **#356**: el `403` de `POST /roles` con `clone_from` ya no lleva `errors.grant[0].params` ni nombra código/ámbito (reutiliza `cannot_grant_unheld_role_permission`, como #352). `POST /roles` con concesiones propias y `PUT /roles/{id}/permissions`, sin cambio. `REQ-PERM/api.md §8.4`, `funcional.md` (`RN-PERM-24`), `permisos.md` y OpenAPI.
