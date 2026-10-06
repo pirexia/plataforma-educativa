@@ -58,6 +58,12 @@ return [
         'scope_resolver_missing' => 'Le périmètre « :scope » ne peut pas encore être accordé : son résolveur n\'est pas enregistré.',
         'permission_not_found' => 'Le code de permission « :code » n\'existe pas dans le catalogue.',
         'permission_retired' => 'Le code de permission « :code » n\'est plus disponible.',
+        // Issue #359: mensajes genéricos de POST /roles con clone_from (sin código ni ámbito del origen).
+        'clone_source_permission_retired' => 'Le rôle d\'origine contient une permission qui n\'est plus disponible ; il ne peut pas être cloné.',
+        'clone_source_permission_not_found' => 'Le rôle d\'origine contient une permission qui n\'existe pas dans le catalogue ; il ne peut pas être cloné.',
+        'clone_source_scope_not_applicable' => 'Le rôle d\'origine contient une concession avec un périmètre qui ne peut pas être accordé ; il ne peut pas être cloné.',
+        'clone_source_scope_resolver_missing' => 'Le rôle d\'origine contient une concession avec un périmètre qui ne peut pas encore être accordé ; il ne peut pas être cloné.',
+        'clone_source_not_clonable' => 'Vous ne pouvez pas cloner ce rôle : il accorde quelque chose que vous ne pouvez pas activer.',
         'permission_duplicated' => 'Le code de permission « :code » apparaît plus d\'une fois.',
         'role_is_system' => 'Un rôle du provisionnement de l\'établissement ne peut pas être supprimé.',
         'role_has_assignments' => 'Ce rôle a :users_count utilisateur(s) assigné(s) et ne peut pas être supprimé.',
