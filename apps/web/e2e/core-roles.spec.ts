@@ -8,9 +8,9 @@ import { test, expect, type Page } from '@playwright/test'
  * alta, ficha, editor y permisos efectivos: orden, motivos de las opciones
  * deshabilitadas en el árbol de accesibilidad, diálogos que atrapan y devuelven
  * el foco) y `CA-PERM-133` (flujo completo **contra la API real**, solo con
- * `E2E_REAL_API=1`: este entorno no la levanta). Sin backend real en los dos
- * primeros: se intercepta la API con `page.route`, mismo patrón que
- * `e2e/core-users.spec.ts`.
+ * `E2E_REAL_API=1`: `npm run test:e2e:real` prepara el centro de pruebas y lo
+ * retira). Sin backend real en los dos primeros: se intercepta la API con
+ * `page.route`, mismo patrón que `e2e/core-users.spec.ts`.
  */
 
 const BRANDING = {
@@ -420,35 +420,78 @@ test.describe('CA-PERM-132 (RUX-004, WCAG 2.2 AA): recorrido solo con teclado', 
 test.describe('CA-PERM-133 (RPERM-005, RPERM-009, RPERM-013): flujo completo contra la API real', () => {
   test.skip(
     process.env.E2E_REAL_API !== '1',
-    'Necesita la API real con un centro recién aprovisionado (E2E_REAL_API=1, E2E_ADMIN_EMAIL, E2E_ADMIN_PASSWORD).',
+    'Necesita la API real y un centro de pruebas: ejecútalo con `npm run test:e2e:real` (apps/web/scripts/e2e-real-api.sh), que lo prepara con apps/api/tests/Support/e2e-real-tenant.php y define E2E_REAL_API=1, E2E_ADMIN_EMAIL, E2E_ADMIN_PASSWORD y E2E_TARGET_EMAIL.',
   )
+
+  // El centro «demo» es el de VITE_API_URL en desarrollo: SPA y API comparten
+  // el sitio demo.plataforma.test (cookie de sesión del mismo sitio).
+  test.use({ baseURL: process.env.E2E_BASE_URL ?? 'http://demo.plataforma.test:5173' })
 
   test('un administrador crea «Revisión propia», le concede auditoria.leer con propios, lo asigna y ve los permisos efectivos', async ({
     page,
   }) => {
     const email = process.env.E2E_ADMIN_EMAIL ?? ''
     const password = process.env.E2E_ADMIN_PASSWORD ?? ''
+    const targetEmail = process.env.E2E_TARGET_EMAIL ?? ''
+    const roleName = `Revisión propia ${Date.now()}`
 
     await page.goto('/entrar')
     await page.getByLabel(/correo/i).fill(email)
     await page.getByLabel(/contraseña/i).fill(password)
     await page.getByRole('button', { name: /entrar|acceder/i }).click()
+    await expect(page).not.toHaveURL(/\/entrar/)
 
+    // 1. Alta del rol sin concesiones y paso directo al editor (OPEN-PERM-16 = A).
     await page.goto('/administracion/roles/nuevo')
-    await page.getByLabel(/^Nombre/).fill('Revisión propia')
+    await page.getByLabel(/^Nombre/).fill(roleName)
     await page.getByRole('button', { name: 'Crear rol' }).click()
-
-    // Alta sin concesiones y paso directo al editor (OPEN-PERM-16 = A).
     await expect(page).toHaveURL(/\/administracion\/roles\/[^/]+\/permisos$/)
 
+    // 2. auditoria.leer con «Propios».
     await page.locator('button[data-code="auditoria.leer"]').click()
     await page.getByRole('radio', { name: 'Permitir' }).click()
+    await page.getByRole('combobox').click()
+    await page.getByRole('option', { name: /^Propios/ }).click()
     await page.getByRole('button', { name: 'Aplicar' }).click()
     await page.getByRole('button', { name: 'Guardar', exact: true }).click()
     await page.getByRole('button', { name: /^Guardar concesiones de/ }).click()
     await expect(page.getByRole('status')).toContainText('Concesiones guardadas')
+    const roleEditUrl = page.url().replace(/\/permisos$/, '/editar')
 
-    // El control de special_data_access del administrador está deshabilitado (permisos.md §5).
-    await page.getByRole('link', { name: 'Roles' }).first().click()
+    // 3. Asignación del rol a un usuario desde su ficha.
+    await page.goto('/administracion/usuarios')
+    await page
+      .getByRole('row', { name: new RegExp(targetEmail) })
+      .getByRole('link')
+      .first()
+      .click()
+    await page.getByRole('checkbox', { name: roleName }).check()
+    await page
+      .getByRole('region', { name: 'Roles' })
+      .getByRole('button', { name: /Guardar/ })
+      .click()
+    await expect(page.getByRole('status')).toBeVisible()
+
+    // 4. Permisos efectivos: «Permitido», «Propios» y procedencia = el rol.
+    await page.getByRole('link', { name: /^Ver permisos efectivos/ }).click()
+    const row = page.getByRole('row', { name: /^Auditoría Leer/ })
+    await expect(row).toContainText('Permitido')
+    await expect(row).toContainText('Propios')
+    await expect(row).toContainText(roleName)
+
+    // 5. En el editor del mismo rol, `rol_datos_especiales.actualizar` del
+    // administrador permite «Permitir» con `todos`…
+    await page.goto(roleEditUrl.replace(/\/editar$/, '/permisos'))
+    const specialCell = page.locator('button[data-code="rol_datos_especiales.actualizar"]')
+    await specialCell.click()
+    await expect(page.getByRole('radio', { name: 'Permitir' })).toBeEnabled()
+    await page.getByRole('radio', { name: 'Permitir' }).click()
+    await page.getByRole('button', { name: 'Aplicar' }).click()
+    await expect(specialCell).toContainText('Permitir · Todos')
+
+    // …mientras que el control de `special_data_access` en la edición del rol
+    // está deshabilitado: el administrador no posee el atributo (permisos.md §5).
+    await page.goto(roleEditUrl)
+    await expect(page.getByLabel(/categoría especial/i)).toBeDisabled()
   })
 })

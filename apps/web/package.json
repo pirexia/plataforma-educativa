@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:real": "bash scripts/e2e-real-api.sh",
     "lint": "eslint .",
     "lint:i18n": "node scripts/check-i18n-literals.mjs",
     "format": "prettier --write ."
