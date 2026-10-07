@@ -168,14 +168,14 @@ Los detectores de llamadas y literales comparten **un único escáner de tokens*
 
 | Patrón | Referencia | Lo fija |
 |--------|-----------|---------|
-| Declaración de módulo y permisos con `applicable_scopes` explícito por entrada | `AuthServiceProvider::declaredPermissions()` (`apps/api/app/Modules/Auth/Infrastructure/AuthServiceProvider.php`) | `PermissionCatalogTest`, `SyncModuleRegistryTest` |
-| Listado + detalle + exportación de un recurso con ámbito restringido | Auditoría de `Core`: `AuditLogsController`, `EloquentAuditQuery`, `AuditoriaPropiosScopeResolver`, `GenerateAuditLogExport` (`apps/api/app/Modules/Core/`) | `AuditoriaScopeTest`, `AR-10` |
-| Recurso de tenant con `public_id`, `Auditable` y 404 entre tenants | Invitaciones de `Core`: `Domain/Models/UserInvitation.php`, `Http/Controllers/InvitationsController.php` | Sus criterios de aceptación de `REQ-CORE` |
-| Tarea en cola por tenant (`INV-012`) | `apps/api/app/Modules/Core/Infrastructure/Jobs/GenerateUserExport.php` | `UserExportEndpointsTest` |
+| Declaración de módulo y permisos con `applicable_scopes` explícito por entrada | `CoreServiceProvider::declaredPermissions()` (`apps/api/app/Modules/Core/Infrastructure/CoreServiceProvider.php`); `AuthServiceProvider` (`apps/api/app/Modules/Auth/Infrastructure/AuthServiceProvider.php`) declara el suyo, con todo `['todos']` explícito | Para `CoreServiceProvider`: `apps/api/tests/Feature/Core/PermissionCatalogTest.php` y `apps/api/tests/Feature/Core/SyncModuleRegistryTest.php`; `AR-07a`, `AR-09` y `AR-10` leen el catálogo de todos los módulos |
+| Listado + detalle + exportación de un recurso con ámbito restringido | Auditoría de `Core`: `AuditLogsController`, `EloquentAuditQuery`, `AuditoriaPropiosScopeResolver`, `GenerateAuditLogExport` (`apps/api/app/Modules/Core/`) | `apps/api/tests/Feature/Core/AuditoriaScopeTest.php`, `AR-10` |
+| Recurso de tenant con `public_id`, `Auditable` y 404 entre tenants | Invitaciones de `Core`: `Domain/Models/UserInvitation.php`, `Http/Controllers/InvitationsController.php` | `apps/api/tests/Feature/Core/InvitationsEndpointsTest.php` (y `apps/api/tests/Feature/Auth/InvitationRedemptionTest.php` para el canje) |
+| Tarea en cola por tenant (`INV-012`) | `apps/api/app/Modules/Core/Infrastructure/Jobs/GenerateUserExport.php` | `apps/api/tests/Feature/Core/UserExportEndpointsTest.php` |
 | Interfaz pública consumida por otro módulo | `apps/api/app/Modules/Core/Domain/TenantSettingsReader.php` (la consume `Auth`) | `AR-01` |
-| Evento de dominio entre módulos | `apps/api/app/Modules/Core/Domain/Events/UserDeactivated.php` → `apps/api/app/Modules/Auth/Infrastructure/Listeners/RevokeSessionsOnUserDeactivated.php` | Sus tests de `REQ-AUTH` |
+| Evento de dominio entre módulos | `apps/api/app/Modules/Core/Domain/Events/UserDeactivated.php` → `apps/api/app/Modules/Auth/Infrastructure/Listeners/RevokeSessionsOnUserDeactivated.php` | Ningún test localizado la ejercita por el nombre del evento; `AR-01` vigila la frontera entre módulos |
 | Migración de tabla de tenant | `apps/api/app/Modules/Core/Database/migrations/2026_08_19_100200_create_user_invitations_table.php` | `AR-04`, `AR-05`, `IsolationBatteryTest` |
-| Módulo de frontend | `apps/web/src/modules/core` (`shell.ts`, tabla de datos) | `AR-11`, `navigation/architecture.spec.ts` |
+| Módulo de frontend | `apps/web/src/modules/core` (`shell.ts`, tabla de datos) | `AR-11` (`apps/web/src/modules/architecture.spec.ts`), `apps/web/src/navigation/architecture.spec.ts` |
 | **Antirreferencia** para módulos de tenant | `Backoffice`: de plataforma, sin tenant, sin catálogo | — |
 
 **Disparador de revisión**: al cerrar `1.11` (`REQ-ACAD`, el segundo módulo de negocio tras `REQ-CURSO`) esta tabla se revisa y el primer módulo de negocio sustituye a `Core` en las filas donde sea más representativo. El generador `make:module`, que codifica un patrón que aún no existe, se difiere al paso `1.11b`.

@@ -31,7 +31,7 @@ Una capa no se crea hasta que tiene contenido. **No existen** `Tests/` ni `Datab
 | `Http/routes.php`, **requerido a mano** desde `routes/api-v1.php` (o `routes/api.php` si es de plataforma). Todo endpoint con `permission:`; módulo no esencial con `module-enabled:<código>` **antes** de `permission:` | `AR-07a`, `AR-07b` |
 | `lang/{es,en,de,fr}/<código>.php` y la entrada `name_key` del módulo en `lang/{es,en,de,fr}/modules.php`, con los cuatro nombres reales traducidos | `AR-12` (paridad de claves; no detecta un nombre sin traducir copiado a los cuatro) |
 | Cada modelo de tenant: migración con `TenantMigration::tenantTable(...)`, `$table->ulid('public_id')->unique()`, `text` y no `varchar`, `timestampTz` y no `timestamp`, sin `ENUM` | `AR-04`, `AR-05` |
-| Cada modelo de tenant: `extends TenantModel`, `implements Auditable` (`ADR-035`) y alias en `Relation::enforceMorphMap([...])` del `boot()` | `AR-06` |
+| Cada modelo de tenant: `extends TenantModel`, `implements Auditable` (`ADR-035`) y alias en `Relation::enforceMorphMap([...])` del `boot()` de su `ServiceProvider` (los modelos de `App\Models` los registra `app/Providers/AppServiceProvider.php`; `Backoffice` no registra ninguno) | `AR-06` |
 | Consultas de un recurso con ámbito restringido solo por `ScopedQuery`; un recurso nuevo con ámbito distinto de `todos` entra en el mapa cerrado de `AR-10` con su especificación | `AR-10` |
 | Documentación: `docs/modulos/REQ-XXX/{funcional,datos,api,permisos,operacion}.md` (**cinco** ficheros, plantilla en `docs/modulos/_PLANTILLA/`) | `doc-reviewer` |
 
