@@ -21,7 +21,7 @@
 
 1. Migraciones, ejecutadas por el rol propietario como todas (`TenantMigration`): 1.10 trae **una**, la función del bloqueo de escritura (§6).
 2. `platform:sync-registry`, **antes** de abrir tráfico: las FK de `permission_role` apuntan a `permissions`.
-3. Siembra de los permisos nuevos en los roles predefinidos de los **centros ya existentes**: comando idempotente de migración de datos del mismo tipo que el de `REQ-PERM/operacion.md §4.3` (añade las concesiones de `permisos.md §4` a los roles predefinidos que no las tengan y **no** toca roles personalizados; como los cinco permisos son nuevos, ningún centro ha podido quitarlos antes, así que no hay decisión del centro que pisar). Los centros nuevos los reciben de `ProvisionTenantDefaults`.
+3. Siembra de los permisos nuevos en los roles predefinidos de los **centros ya existentes**: `php artisan curso:grant-year-permissions`, que **vive en el módulo Core** (`App\Modules\Core\Infrastructure\Console\GrantAcademicYearPermissionsCommand`) aunque su prefijo sea `curso:` (la escritura en `roles`/`permission_role` es de Core, `INV-007`); comando idempotente de migración de datos del mismo tipo que el de `REQ-PERM/operacion.md §4.3` (añade las concesiones de `permisos.md §4` a los roles predefinidos que no las tengan y **no** toca roles personalizados; como los cinco permisos son nuevos, ningún centro ha podido quitarlos antes, así que no hay decisión del centro que pisar). Los centros nuevos los reciben de `ProvisionTenantDefaults`.
 4. Abrir tráfico.
 
 **Si `sync-registry` aborta**: las causas posibles con este módulo son un ciclo en `depends_on` (si se declarara `['acad','alum']`, `OPEN-CURSO-01`), un esencial que dependa de un no esencial, o un ámbito fuera del vocabulario. Ninguna se corrige en el servidor: se corrige el descriptor y se vuelve a desplegar.
@@ -44,6 +44,8 @@ Ninguna métrica nueva. Señales operativas útiles, a consultar en la auditorí
 ## 6. Migraciones
 
 **Una sola migración** (`ADR-057 §5.2`, `datos.md §1.4`): crea la función `app.assert_academic_year_writable()` en `apps/api/database/migrations/` (junto a la de `academic_years`), con `down()` que la elimina. No crea ni altera tablas ni columnas, ni engancha el disparador a ninguna tabla real (en 1.10 ninguna tiene `academic_year_id`). Es la primera función PL/pgSQL del proyecto: **`db-reviewer` es obligatorio** en el paso. Es aditiva y compatible con la versión anterior del código (*expand*): la versión anterior no la invoca.
+
+**Requisito previo**: `GRANT CREATE ON SCHEMA app TO <rol propietario>` (`RUNBOOK.md` paso 0); sin él la migración aborta con el comando exacto. **Retirar la columna** `academic_year_id` de una tabla en una migración futura exige `DROP TRIGGER academic_year_write_guard ON <tabla>` **antes** de `DROP COLUMN` (`AR-13` falla si el disparador sobrevive).
 
 Cambios asociados que **no** son migración: `TenantMigration::tenantTable()`/`tenantTableAppendOnly()` enganchan el disparador a toda tabla nueva con `academic_year_id`, y `TenantMigration::guardAcademicYearWrites()` lo hace para tablas existentes; la regla `AR-13` lo vigila. Las migraciones que rellenen columnas de tablas de curso en entregas futuras se ejecutan, como todas, por el rol propietario, exento del bloqueo.
 

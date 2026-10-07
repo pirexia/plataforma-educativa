@@ -33,17 +33,17 @@ Migración: `apps/api/database/migrations/2026_08_18_100100_create_academic_year
 
 ### 1.2 Modelo y enumerado (`OPEN-CURSO-03`, aprobada)
 
-| Hoy | Decisión aprobada |
+| Antes de 1.10 | Resultado (hecho) |
 |-----|-----------|
 | `App\Models\AcademicYear` (`TenantModel`, `Auditable`, `AuditValuePolicy::Full`, `HasPublicId`) | `App\Modules\Curso\Domain\Models\AcademicYear`, sin cambiar nada más |
 | `App\Models\AcademicYearStatus` | `App\Modules\Curso\Domain\AcademicYearStatus` (fuera de `Domain\Models`, para que otros módulos puedan usar el vocabulario sin tocar el modelo, `AR-01`) |
-| Alias `academic_year` en `AppServiceProvider` | El **mismo** alias, registrado en `CursoServiceProvider::boot()` con `Relation::enforceMorphMap` (precedente `CoreServiceProvider`) |
+| Alias `academic_year` en `AppServiceProvider` | El **mismo** alias, ya registrado en `CursoServiceProvider::boot()` con `Relation::enforceMorphMap` (precedente `CoreServiceProvider`) |
 
 Mover el modelo **no es un cambio de esquema** y no toca `audit_logs` (que guarda el alias, nunca el FQCN, `ADR-034 §3`). La migración **no se mueve**.
 
 ### 1.3 Tabla sonda de test (solo en la suite, nunca en producción)
 
-Para probar el contrato transversal sin consumidor real (`funcional.md §1.3`): tabla creada dentro del test con `TenantMigration::tenantTable()` + `tenantForeignId('academic_year_id', 'academic_years')`, con su modelo de test. Al crearse con el ayudante, **recibe el disparador `academic_year_write_guard`** (§1.4). Precedente: `tenant_model_probes` (0.7/0.8, bug 4 de `docs/historial/0.8-modelo-de-datos-nucleo.md`: crear el *fixture* con el ayudante real, no con `Schema::create()` a mano). Ojo al bug 3 de 0.7 (crear y borrar por la misma conexión que la usa).
+Para probar el contrato transversal sin consumidor real (`funcional.md §1.3`): tabla creada dentro del test con `TenantMigration::tenantTable()` + `tenantForeignId($table, 'academic_year_id', 'academic_years')`, con su modelo de test. Al crearse con el ayudante, **recibe el disparador `academic_year_write_guard`** (§1.4). Precedente: `tenant_model_probes` (0.7/0.8, bug 4 de `docs/historial/0.8-modelo-de-datos-nucleo.md`: crear el *fixture* con el ayudante real, no con `Schema::create()` a mano). Ojo al bug 3 de 0.7 (crear y borrar por la misma conexión que la usa).
 
 Una **segunda sonda, creada a propósito sin el ayudante** (`Schema::create` con columna `academic_year_id`), sirve a los casos fijos de `AR-13`: su presencia debe hacer fallar la regla (`CA-CURSO-043`, `CA-057-06`).
 
@@ -62,6 +62,8 @@ Una **segunda sonda, creada a propósito sin el ayudante** (`Schema::create` con
 | Vocabulario de estados | Duplicado en SQL y en el enumerado `AcademicYearStatus`, unido por test de paridad (`CA-057-07`). Añadir un estado ya exige migración (`CHECK`), y la función se actualiza en la misma entrega |
 | Enganche | `TenantMigration::tenantTable()` y `tenantTableAppendOnly()` crean el disparador `academic_year_write_guard` (`BEFORE INSERT OR UPDATE OR DELETE … FOR EACH ROW EXECUTE FUNCTION app.assert_academic_year_writable()`) si la tabla tiene `academic_year_id`; `TenantMigration::guardAcademicYearWrites(string $table)` cubre añadir la columna a una tabla existente. Las particiones heredan el disparador del padre |
 | Privilegios necesarios | `UPDATE` sobre `academic_years` para el `FOR SHARE` (los dos roles de aplicación lo tienen). **Ningún rol de aplicación tiene `TRUNCATE`** sobre tablas de curso (`TRUNCATE` no dispara disparadores de fila); concederlo sería una regresión (`CA-057-10`) |
+| Retirar la columna | `DROP TRIGGER academic_year_write_guard ON <tabla>` **antes** de `DROP COLUMN academic_year_id` (y, en *contract*, de `DROP TABLE` no hace falta). Un disparador que sobrevive a la columna leería `NEW.academic_year_id` inexistente y fallaría en cada escritura; `AR-13` lo vigila (tabla con el disparador sin la columna) |
+| Requisito previo de despliegue | El rol propietario necesita `CREATE` sobre el esquema `app` (`GRANT CREATE ON SCHEMA app TO <propietario>`, `RUNBOOK.md` paso 0); la migración lo comprueba y aborta con el comando exacto. La función fija `SET search_path = pg_catalog, pg_temp` |
 | Excepciones al bloqueo | Ninguna en 1.10. Su forma futura (variable de configuración local a la transacción con pares `tabla:operación`, fijada solo desde `Curso\Domain`) está en `ADR-057 §5.7`; no se construye ahora |
 
 ---
@@ -73,7 +75,7 @@ Lo fija `ADR-034 §4` y se repite aquí porque este módulo es su dueño. **Ning
 | Regla | Origen |
 |-------|--------|
 | `academic_year_id` es `NOT NULL` o no existe. Nunca anulable | `ADR-034 §4`; test de esquema de 0.8.10 |
-| Se declara con `TenantMigration::tenantForeignId('academic_year_id', 'academic_years')`: columna, índice y FK compuesta `(tenant_id, academic_year_id) → academic_years (tenant_id, id)` | `ADR-034 §7`, `ADR-033 §6` |
+| Se declara con `TenantMigration::tenantForeignId(Blueprint $blueprint, 'academic_year_id', 'academic_years')` (firma real: `Blueprint $blueprint, string $column, string $referencedTable, ?string $constraintName = null`): columna, índice y FK compuesta `(tenant_id, academic_year_id) → academic_years (tenant_id, id)` | `ADR-034 §7`, `ADR-033 §6` |
 | Índice compuesto con `tenant_id` primero y `academic_year_id` segundo en las consultas frecuentes | `RDB-009`, `§16.3` regla 2 |
 | «Ante la duda, la entidad no es del curso: su matrícula sí lo es» | `ADR-034 §4`, `§16.3` regla 4 |
 | **[Nueva]** Una hija no pertenece a un curso distinto del de su padre; se recomienda imponerlo con FK compuesta que incluya `academic_year_id` | `RN-CURSO-27` |

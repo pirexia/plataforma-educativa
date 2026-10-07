@@ -30,7 +30,7 @@ Se señalan aquí, antes del alcance, porque condicionan todo lo demás. Ninguna
 
 ## 1. Alcance
 
-### 1.1 Qué entra en 1.10 (propuesta, `OPEN-CURSO-02`)
+### 1.1 Qué entra en 1.10 (aprobado, `OPEN-CURSO-02`)
 
 **Todo `REQ-CURSO-001` y el contrato transversal que lo hace útil a los módulos posteriores.** Nada de `REQ-CURSO-002` a `-005` salvo los puntos de extensión que evitan migrar después.
 
@@ -42,11 +42,11 @@ Se señalan aquí, antes del alcance, porque condicionan todo lo demás. Ninguna
 | Un solo activo por tenant | Ya impuesto en base de datos desde 0.8.2 (índice único parcial). 1.10 lo **traduce a errores de API** y lo prueba de punta a punta | `REQ-CURSO-001` punto 2 |
 | Contrato transversal | Interfaces públicas en `Curso\Domain` para que los demás módulos: (a) resuelvan el curso activo y un curso por `public_id`, (b) **impidan escribir** en un curso cerrado, (c) **autoricen la lectura** de un curso cerrado. Convención de API para recursos dependientes del curso | `REQ-CURSO-001` puntos 2-3, criterio de aceptación 1 de `§5.28`, `ADR-034 §4` (`AcademicYearContext`) |
 | Pantallas de administración | Listado, alta, ficha (con acciones de transición) y edición de cursos | `REQ-CURSO-001` punto 1, `INV-006` |
-| Selector de curso | **Propuesta: especificado aquí, construido en 1.11** con su primer consumidor (`OPEN-CURSO-17`) | `REQ-CURSO-001` punto 3 |
+| Selector de curso | **Aprobado: especificado aquí, construido en 1.11** con su primer consumidor (`OPEN-CURSO-17`) | `REQ-CURSO-001` punto 3 |
 
 ### 1.2 Qué NO entra, explícitamente
 
-| Fuera de alcance | Requisito | Por qué | Dónde se retoma (propuesta, `OPEN-CURSO-21`) |
+| Fuera de alcance | Requisito | Por qué | Dónde se retoma (aprobado, `OPEN-CURSO-21`) |
 |------------------|-----------|---------|-----------------------------------------------|
 | **Rollover** (asistente, copia de estructura, *dry-run*, ejecución asíncrona, reversión) | `REQ-CURSO-002` | Copia «niveles, cursos, grupos, asignaturas, plantillas de horario, tarifas, criterios de evaluación»: **ninguna de esas entidades existe** (`ACAD` 1.11-1.12, `CALIF` 1.16, tarifas `REQ-FIN` fase 2) | Paso nuevo tras `1.12` (horarios), p. ej. **`1.12b · REQ-CURSO-002`**, copiando solo lo que exista entonces; tarifas al llegar `REQ-FIN` |
 | **Promoción, repetición y titulación** | `REQ-CURSO-003` | Necesita alumnos y matrícula (`ALUM` 1.15), calificaciones (`CALIF` 1.16), firma digital (`REQ-DOC-002`, fase 2) y exportación a Raíces (`REQ-SEC`, fase 2) | Tras `1.16`/`1.17`, p. ej. **`1.17b · REQ-CURSO-003`** sin firma ni exportación; firma y exportación en fase 2 |
@@ -57,13 +57,13 @@ Se señalan aquí, antes del alcance, porque condicionan todo lo demás. Ninguna
 | **Reapertura de un curso cerrado** | — | **No está en ningún requisito** (`OPEN-CURSO-08`) | Sin paso: decisión del usuario |
 | **Rectificación de datos de un curso cerrado** (p. ej. reclamación de una nota tras el cierre) | — | No está en ningún requisito; es de `CALIF` (`OPEN-CURSO-19`) | `1.16` |
 | **`RPERM-008`** (permisos condicionales «solo durante el período de evaluación») | `RPERM-008` | Diferido a `REQ-CALIF` 1.16 por `ADR-044 §4.5`; depende de períodos de evaluación, no del ciclo del curso | `1.16` |
-| **Eventos de dominio emitidos** | `INV-007`, `RARQ-ARC-006` | Se **especifican** aquí; propuesta de emitirlos con su primer consumidor (`OPEN-CURSO-18`, precedente `ADR-048`) | `1.11` o el primer consumidor |
+| **Eventos de dominio emitidos** | `INV-007`, `RARQ-ARC-006` | Se **especifican** aquí; aprobado emitirlos con su primer consumidor (`OPEN-CURSO-18`, precedente `ADR-048`) | `1.11` o el primer consumidor |
 
 ### 1.3 Dependencias no implementadas y cómo se tratan
 
 1.10 se adelanta a `ACAD` y `ALUM` por diseño (`ADR-034 §4`, plan): **ningún dato de negocio depende todavía del curso**. Eso tiene dos consecuencias que la especificación no esconde:
 
-1. **El contrato transversal (§7) no tiene consumidor real en 1.10.** Se prueba con una tabla sonda de test creada con `TenantMigration::tenantTable()` y `tenantForeignId('academic_year_id', 'academic_years')` (precedente: `tenant_model_probes` de 0.7/0.8), que **recibe por tanto el disparador `academic_year_write_guard`** de `ADR-057 §5.3`. Una **segunda sonda creada sin el ayudante** (`Schema::create`) sirve a los casos fijos de `AR-13` (debe hacer fallar la regla). Es la única forma de cumplir `INV-015` sin inventar un recurso de negocio. Lo valida de verdad `1.11`.
+1. **El contrato transversal (§7) no tiene consumidor real en 1.10.** Se prueba con una tabla sonda de test creada con `TenantMigration::tenantTable()` y `tenantForeignId($table, 'academic_year_id', 'academic_years')` (precedente: `tenant_model_probes` de 0.7/0.8), que **recibe por tanto el disparador `academic_year_write_guard`** de `ADR-057 §5.3`. Una **segunda sonda creada sin el ayudante** (`Schema::create`) sirve a los casos fijos de `AR-13` (debe hacer fallar la regla). Es la única forma de cumplir `INV-015` sin inventar un recurso de negocio. Lo valida de verdad `1.11`.
 2. **El selector de curso no tiene nada que seleccionar** hasta que exista un dato por curso. Ver `OPEN-CURSO-17`.
 
 ---
@@ -72,8 +72,8 @@ Se señalan aquí, antes del alcance, porque condicionan todo lo demás. Ninguna
 
 | Actor | Qué hace en este módulo |
 |-------|--------------------------|
-| **Administrador de Centro** (`administrador_centro`) | Crea y edita cursos, los activa y los cierra (propuesta de siembra, `OPEN-CURSO-14`) |
-| **Dirección / Jefatura**, **Secretaría** | Consultan cursos y datos de cursos cerrados (propuesta, `OPEN-CURSO-14`) |
+| **Administrador de Centro** (`administrador_centro`) | Crea y edita cursos, los activa y los cierra (siembra aprobada, `OPEN-CURSO-14`) |
+| **Dirección / Jefatura**, **Secretaría** | Consultan cursos y datos de cursos cerrados (aprobado, `OPEN-CURSO-14`) |
 | **Cualquier usuario autenticado** | Necesita saber cuál es el curso activo (selector, cabeceras de pantalla). Propuesta: por autoservicio (`OPEN-CURSO-15`) |
 | **Roles personalizados** | Ciudadanos de primera: nada de esta especificación compara códigos de rol (`RN-PERM-46`, skill `permisos-y-roles` regla 6) |
 | **Módulos de negocio** (`ACAD`, `ALUM`, `CALIF`, `FIN`…) | Consumidores del contrato de §6: asocian sus datos al curso y respetan el bloqueo de escritura |
@@ -102,7 +102,7 @@ stateDiagram-v2
     cerrado --> archivado : (fuera de 1.10, OPEN-CURSO-09)
 ```
 
-Cualquier otra transición —`activo → planificacion`, `cerrado → activo` (reapertura, `OPEN-CURSO-08`), `planificacion → cerrado`, `* → archivado`, `X → X`— responde `409` (`RN-CURSO-12`).
+Con destino admitido por el *endpoint* (`activo`, `cerrado`), toda transición que no sea una de las dos válidas responde `409` según el estado de origen: `planificacion → cerrado`, `cerrado → activo` (reapertura, `OPEN-CURSO-08`), `activo → activo` y `archivado → activo`/`cerrado` (`RN-CURSO-12`). Un `status` de destino distinto de `activo`/`cerrado` (`planificacion`, `archivado`) **no es una transición**: es `422` de validación (`api.md §2`).
 
 ### 3.2 Curso «de referencia» de una petición
 
@@ -175,7 +175,7 @@ Esto es convención transversal para 50 módulos: **ratificada sin cambios por `
 |----|-------|
 | `RN-CURSO-10` | Las transiciones válidas son exactamente `planificacion → activo` y `activo → cerrado` (§3.1). Las ejecuta un único servicio de aplicación del módulo; ningún otro código escribe `academic_years.status` |
 | `RN-CURSO-11` | Como mucho **un** curso `activo` por centro (`REQ-CURSO-001`). Activar con otro activo responde `409 curso.conflict.active_exists`. La garantía última es el índice único parcial; la carrera se traduce al mismo `409` |
-| `RN-CURSO-12` | Cualquier otra transición, incluida la identidad (`activo → activo`), responde `409 curso.conflict.invalid_transition` con `params.from` y `params.to` |
+| `RN-CURSO-12` | Con `status` destino ∈ {`activo`, `cerrado`}, todo par distinto de los válidos (`planificacion → cerrado`, `cerrado → activo`, `activo → activo`, `archivado → activo`, `archivado → cerrado`) responde `409 curso.conflict.invalid_transition` con `params.from` y `params.to`. Un `status` destino fuera de {`activo`, `cerrado`} es `422` de validación (`api.md §2`), no `409` |
 | `RN-CURSO-13` | Toda transición queda en `audit_logs` como evento `updated` con `changes.status` = `{from, to}` (política `Full` de `AcademicYear`, `ADR-035`). No se añade columna de fecha de transición: el registro de auditoría ya la tiene (`occurred_at`), y añadirla sería duplicar lo que `ADR-034 §6` decidió no duplicar. Si una pantalla la necesita, se lee de la auditoría o se añade después (expand) |
 | `RN-CURSO-14` | La activación no tiene condición de fecha (no exige haber llegado a `starts_on`) ni se dispara sola por calendario: **ningún requisito lo pide** y una activación automática cambiaría el curso de referencia de todo el centro sin que nadie lo decidiera |
 
@@ -267,7 +267,7 @@ Nada de otros módulos de negocio. Del núcleo: `TenantModel`, `TenantMigration`
 
 ## 9. Comportamiento con el módulo desactivado
 
-Si `essential: true` (propuesta), **no puede desactivarse**: `module-enabled:` no se aplica a sus rutas (`AR-07b` solo lo exige a los no esenciales) y sus pantallas siempre están disponibles para quien tenga permiso. Si el usuario decidiera `essential: false`, todas sus rutas llevarían `module-enabled:curso` antes de `permission:` (`AR-07b`), sus pantallas desaparecerían (`RMOD-008`) y **habría que decidir qué hacen los módulos dependientes**, que hoy no tienen respuesta en ningún documento.
+Si `essential: true` (aprobado), **no puede desactivarse**: `module-enabled:` no se aplica a sus rutas (`AR-07b` solo lo exige a los no esenciales) y sus pantallas siempre están disponibles para quien tenga permiso. Si se decidiera `essential: false` (descartado), todas sus rutas llevarían `module-enabled:curso` antes de `permission:` (`AR-07b`), sus pantallas desaparecerían (`RMOD-008`) y **habría que decidir qué hacen los módulos dependientes**, que hoy no tienen respuesta en ningún documento.
 
 ---
 
@@ -341,7 +341,7 @@ Formato Dado/Cuando/Entonces. Todos los de API con test Pest en `apps/api/tests/
 - **`CA-CURSO-003`** — *Dado* un curso en `planificacion` en el centro, *cuando* se crea otro, *entonces* `409` con `code` `curso.conflict.planning_exists` (`RN-CURSO-04`).
 - **`CA-CURSO-004`** — *Dado* un código ya usado por un curso del mismo centro, *entonces* `422` `curso.validation.code_taken`; *dado* el mismo código en **otro** centro, *entonces* `201` (`RMT-009`, unicidad por tenant).
 - **`CA-CURSO-005`** — *Dado* `ends_on` igual o anterior a `starts_on`, *entonces* `422` `curso.validation.ends_before_start` y el error no llega a ser una violación del `CHECK` (`INV-010`).
-- **`CA-CURSO-006`** — *(si se aprueba `RN-CURSO-05`)* *Dado* un curso del 2026-09-01 al 2027-08-31, *cuando* se crea otro que empieza el 2027-06-01, *entonces* `422` `curso.validation.dates_overlap` con `params.code` del curso solapado.
+- **`CA-CURSO-006`** — *(`RN-CURSO-05`, aprobada)* *Dado* un curso del 2026-09-01 al 2027-08-31, *cuando* se crea otro que empieza el 2027-06-01, *entonces* `422` `curso.validation.dates_overlap` con `params.code` del curso solapado.
 - **`CA-CURSO-007`** — *Dado* un curso en `planificacion`, *cuando* `PATCH` cambia código y fechas, *entonces* `200` con el recurso completo y una entrada `updated` con los valores anterior y nuevo.
 - **`CA-CURSO-008`** — *Dado* un curso `activo` o `cerrado`, *cuando* se envía `PATCH`, *entonces* `409` `curso.conflict.not_editable` y la fila no cambia (`RN-CURSO-06`).
 - **`CA-CURSO-009`** — *Dadas* dos peticiones simultáneas de alta en un centro sin curso en planificación, *entonces* exactamente una obtiene `201` y la otra `409` `curso.conflict.planning_exists`, nunca `500` (prueba con dos procesos reales en `tests/Concurrency/`, precedente issue #351).
@@ -351,7 +351,7 @@ Formato Dado/Cuando/Entonces. Todos los de API con test Pest en `apps/api/tests/
 - **`CA-CURSO-020`** — *Dado* un curso en `planificacion` y ninguno activo, *cuando* un usuario con `estado_curso_academico.actualizar` envía `{"status": "activo"}`, *entonces* `200`, el curso queda `activo` y `audit_logs` tiene `updated` con `changes.status = {from: "planificacion", to: "activo"}`.
 - **`CA-CURSO-021`** — *Dado* un curso `activo` y otro en `planificacion`, *cuando* se activa el segundo, *entonces* `409` `curso.conflict.active_exists` con `params.public_id` y `params.code` del activo, y ninguno cambia (`RN-CURSO-11`).
 - **`CA-CURSO-022`** — *Dado* un curso `activo`, *cuando* se envía `{"status": "cerrado"}`, *entonces* `200` y queda `cerrado`; *y* `GET /academic-years/current` responde `404` con `code` `curso.no_active_year`.
-- **`CA-CURSO-023`** — *Para cada* transición no admitida (`planificacion→cerrado`, `activo→planificacion`, `cerrado→activo`, `cerrado→archivado`, `activo→activo`), *entonces* `409` `curso.conflict.invalid_transition` con `params.from`/`params.to` (`RN-CURSO-12`).
+- **`CA-CURSO-023`** — *Para cada* par no admitido con destino `activo`/`cerrado` (`planificacion→cerrado`, `cerrado→activo`, `activo→activo`, `archivado→activo`, `archivado→cerrado`), *entonces* `409` `curso.conflict.invalid_transition` con `params.from`/`params.to` (`RN-CURSO-12`); *y para* un `status` destino `planificacion` o `archivado`, *entonces* `422` de validación (`api.md §2`).
 - **`CA-CURSO-024`** — *Dado* un usuario con `curso_academico.actualizar` pero **sin** `estado_curso_academico.actualizar`, *cuando* intenta activar o cerrar, *entonces* `403` (`permisos.md §2`). *Y a la inversa*: con solo `estado_curso_academico.actualizar`, `PATCH` responde `403`.
 - **`CA-CURSO-025`** — *Dado* un intento de insertar directamente en base de datos un segundo curso `activo` en el mismo centro, *entonces* el motor lo rechaza (test existente de 0.8.2, se conserva y se referencia desde aquí).
 - **`CA-CURSO-026`** — *Dada* una validación de cierre registrada en test que falla, *cuando* se cierra el curso activo, *entonces* `409` con una entrada en `errors.closure[]` con el `code` de la validación, y el curso sigue `activo` (`RN-CURSO-30`). *Y con el registro vacío* (estado de 1.10), el cierre se permite.
@@ -386,7 +386,7 @@ Cada test referencia su `CA-057-NN`, `ADR-057` y el `RN-CURSO-*` correspondiente
 
 ### 13.4 Permisos y aislamiento (`INV-001`, `INV-002`)
 
-- **`CA-CURSO-060`** — Todo *endpoint* del módulo responde `401` sin sesión y `403` sin su permiso (salvo `GET /academic-years/current` si se aprueba como autoservicio, `OPEN-CURSO-15`, que responde `200` a un usuario sin ningún permiso).
+- **`CA-CURSO-060`** — Todo *endpoint* del módulo responde `401` sin sesión y `403` sin su permiso (salvo `GET /academic-years/current`, autoservicio aprobado, `OPEN-CURSO-15`, que responde `200` a un usuario sin ningún permiso).
 - **`CA-CURSO-061`** — *Con dos centros* con cursos equivalentes, ningún *endpoint* del módulo devuelve, modifica, cuenta ni activa cursos del otro; `GET/PATCH/POST …/status` sobre un `public_id` ajeno responden `404`, nunca `403`.
 - **`CA-CURSO-062`** — *Dado* que todos los permisos del módulo son de ámbito `todos`, no hay recurso con ámbito restringido y `curso` **no** entra en el mapa de `AR-10` (se comprueba que el test sigue en verde sin ampliarlo).
 - **`CA-CURSO-063`** — Tras `platform:sync-registry`, `permissions` contiene exactamente los códigos de `permisos.md §2` con `module_code = 'curso'` y `applicable_scopes = ['todos']`, y `modules` contiene `curso` con `essential` según la decisión de `OPEN-CURSO-01`.

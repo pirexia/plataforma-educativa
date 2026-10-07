@@ -44,3 +44,7 @@ Un cambio destructivo se reparte en tres entregas:
 - Importes en enteros de céntimos o decimal exacto. Nunca coma flotante.
 - Fechas en UTC.
 - Particionado por curso académico en tablas de alto crecimiento: asistencia, calificaciones, auditoría, notificaciones.
+
+## Tablas con disparador `academic_year_write_guard` (`ADR-057`)
+
+Al retirar `academic_year_id` de una tabla (fase *contract*), `DROP TRIGGER academic_year_write_guard ON <tabla>` va **antes** de `DROP COLUMN academic_year_id`. El disparador lee `NEW.academic_year_id`: si sobrevive a la columna, cada escritura de esa tabla falla. `AR-13` lo detecta (tabla con el disparador y sin la columna). Crear la columna y el disparador se hace siempre con los ayudantes de `TenantMigration`, nunca con `CREATE TRIGGER` a mano.
