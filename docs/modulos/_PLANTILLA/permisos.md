@@ -2,7 +2,7 @@
 
 ## Recursos que aporta el módulo
 
-Para cada permiso del catálogo (`declaredPermissions()`): `code`, `resource`, `action`, `is_special_category`, **`applicable_scopes` explícito** (vocabulario cerrado y central de `ADR-044 §4.1`; omitirlo equivale a `['todos']`, así que se declara siempre) y `resource_label_key` (la clave de traducción del nombre del recurso, en los cuatro idiomas del módulo dueño). *`PermissionCatalogTest` falla si falta la etiqueta; `AR-07a`, `AR-07b`, `AR-09` y `AR-10` vigilan el resto.*
+Para cada permiso del catálogo (`declaredPermissions()`): `code`, `resource`, `action`, `is_special_category`, **`applicable_scopes` explícito** (vocabulario cerrado y central de `ADR-044 §4.1`; omitirlo equivale a `['todos']`, así que se declara siempre) y `resource_label_key` (la clave de traducción del nombre del recurso, en los cuatro idiomas del módulo dueño). *`CA-PERM-134` (`apps/api/tests/Feature/Perm/RoleResponseFieldsTest.php`) falla si un recurso del catálogo no trae su etiqueta en los cuatro idiomas; `AR-07a`, `AR-07b`, `AR-09` y `AR-10` vigilan el resto.*
 
 ### Ámbito restringido (`ADR-044 §4.2`, `AR-10`)
 Por cada recurso con `applicable_scopes` distinto de `['todos']`:
