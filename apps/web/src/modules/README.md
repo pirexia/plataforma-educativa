@@ -20,11 +20,11 @@ Un módulo nuevo queda vigilado sin tocar el test: se enumeran los directorios d
 3. Está **registrado** en `src/navigation/modules.ts` (importa su `shell`) y en `src/i18n/index.ts` (importa sus cuatro `locales`). Añadir un módulo es añadir esas líneas; el test falla si se olvida cualquiera.
 4. **De otro módulo solo importa su superficie pública**: `@/modules/<otro>/api`, `@/modules/<otro>/types` y `@/modules/<otro>/shell` (con o sin `/index`), por alias o por ruta relativa, incluidos los `import()` dinámicos y las reexportaciones. Un fichero interno como `@/modules/<otro>/api/users` o una vista, no. Los `*.spec.ts` no se escanean.
 
-Otros tests de la web complementan la frontera: `src/navigation/architecture.spec.ts` (`layouts/` y `navigation/` solo ven la superficie pública), `src/design-system/architecture.spec.ts` (el *design system* no importa `@/modules`), `src/data-table/architecture.spec.ts` y `src/roleLiterals.spec.ts` (sin códigos de rol como literal).
+Otros tests de la web complementan la frontera: `src/navigation/architecture.spec.ts` (`layouts/` y `navigation/` solo ven la superficie pública), `src/design-system/architecture.spec.ts` (el _design system_ no importa `@/modules`), `src/data-table/architecture.spec.ts` y `src/roleLiterals.spec.ts` (sin códigos de rol como literal).
 
 ## `core/`
 
-Primer módulo real (`REQ-CORE`) y la referencia de módulo de frontend de `ARCHITECTURE.md §3.4`: `shell.ts`, `api/`, `types/`, `locales/` y las pantallas de `views/` y `components/` que llegaron con los pasos 1.8 y 1.9, sobre el *design system* (1.7) y el layout (1.8). Sus literales se ensamblan en `@/i18n` bajo el espacio de nombres `core`.
+Primer módulo real (`REQ-CORE`) y la referencia de módulo de frontend de `ARCHITECTURE.md §3.4`: `shell.ts`, `api/`, `types/`, `locales/` y las pantallas de `views/` y `components/` que llegaron con los pasos 1.8 y 1.9, sobre el _design system_ (1.7) y el layout (1.8). Sus literales se ensamblan en `@/i18n` bajo el espacio de nombres `core`.
 
 ## `auth/`
 
