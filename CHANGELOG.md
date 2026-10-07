@@ -6,9 +6,9 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
-## 2026-10-07 · Paso 1.7b implementado, pendiente de revisión y merge: reglas de arquitectura comprobadas por test (`ADR-056`, `INV-007`, `RNF-MANT-003`)
+## 2026-10-07 · Paso 1.7b cerrado y mezclado (PR #379): reglas de arquitectura comprobadas por test (`ADR-056`, `INV-007`, `RNF-MANT-003`)
 
-Implementa las piezas 1 a 8 de `ADR-056` Anexo A (el generador `make:module` y su *job* de CI se difieren al paso nuevo `1.11b`). Rama `feature/REQ-ARQ-1-7b-estandarizacion-modulos`; **pendiente de revisión independiente (`db-reviewer`, `security-reviewer`, `doc-reviewer`) y de merge: no se declara cerrado.** Issue [#163](https://github.com/pirexia/plataforma-educativa/issues/163).
+Implementa las piezas 1 a 8 de `ADR-056` Anexo A (el generador `make:module` y su *job* de CI se difieren al paso nuevo `1.11b`). Rama `feature/REQ-ARQ-1-7b-estandarizacion-modulos`; **revisión independiente hecha (`db-reviewer`, `security-reviewer` y `doc-reviewer`, sin Crítico ni Alta; Bajas en #377 y #378) y mezclado en el PR #379.** Issue [#163](https://github.com/pirexia/plataforma-educativa/issues/163).
 
 - **Doce reglas, todas nacidas en verde** (`AR-01` a `AR-12`; `apps/api/tests/Feature/Architecture/` y `apps/web/src/modules/architecture.spec.ts`; catálogo con el nombre de su test en `ARCHITECTURE.md §3.4`): frontera entre módulos y del núcleo, convención de `ServiceProvider`, `ADR-029` en el esquema real (`pg_catalog`), forma de `public_id`, `Auditable` en todo modelo de tenant, `permission:` y `module-enabled:` en toda ruta de `api/v1`, confinamiento de `Role` y de dos códigos de rol, cable trampa de categoría especial, `ScopedQuery`, frontera y registro de los módulos web, y paridad de los cuatro idiomas. Cada excepción es una lista cerrada y nominal dentro del test, solo puede reducirse y falla si una entrada sobra (`CA-056-15`). Cada regla tiene un control negativo (se comprobó que falla al introducir una violación y que vuelve a verde al revertirla). Un único escáner de tokens compartido (`tests/Support/PhpScanner.php`) con casos fijos (`CA-056-14`).
 - **Corrección de la medición de `ADR-056 §3.3` (`CA-056-01`).** Medidas todas las cifras con tests reales antes de escribir ninguna regla, coincidieron todas **salvo `AR-05`**: el ADR decía 0 violaciones en 30 tablas con `public_id` y eran **2** (`feature_flags.public_id` y `feature_flag_rules.public_id` eran `text`, migración de `1.6e`). El ADR dice además que el paso no lleva migraciones; **lleva una**. Decisión del usuario (2026-10-07): corregirlas, no registrar una excepción. `ADR-056` es inmutable (`ACEPTADA`), así que la corrección vive aquí y en `ARCHITECTURE.md §3.4`.
@@ -47,7 +47,7 @@ Implementa las piezas 1 a 8 de `ADR-056` Anexo A (el generador `make:module` y s
 
 ---
 
-## 2026-10-05 · Paso 1.5b implementado, pendiente de revisión y merge (`REQ-PERM-005`)
+## 2026-10-05 · Paso 1.5b cerrado y mezclado (PR #354) (`REQ-PERM-005`)
 
 Interfaz de roles y permisos efectivos de `REQ-PERM` y tres cambios de servidor, en la rama `feature/REQ-PERM-ui-roles`. **Pendiente de revisión independiente y de merge: no se declara cerrado.** Sin migraciones, sin permisos nuevos y sin dependencias nuevas.
 
