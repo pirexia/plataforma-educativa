@@ -239,11 +239,16 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 
 **Salida de fase 1**: el centro piloto opera un trimestre real. Sin ese hito, no se abre la fase 2.
 
+> ⚠️ **No olvidar — purga física de un tenant (issue [#371](https://github.com/pirexia/plataforma-educativa/issues/371))**: dar de baja un centro lo deja inaccesible pero **conserva todos sus datos**, y el borrado no es en cascada (31 tablas con `tenant_id`, ninguna `ON DELETE CASCADE`). El procedimiento de purga (`REQ-PRIV-006`, tercer nivel de `ADR-004`) está en la fase 2 sin paso asignado y **debe existir antes de la primera baja real de un centro con datos reales**, es decir, antes de que el piloto de H0 maneje datos reales sin un procedimiento de supresión. Hasta entonces, solo datos sintéticos (`ADR-030`). Ver el paso candidato `2.x · REQ-PRIV` en la fase 2.
+
 ---
 
 # FASE 2 · Cumplimiento y gestión
 
 `REQ-FIN` · `REQ-BEC` · `REQ-DOC` · `REQ-AUT` · `REQ-OFE` · `REQ-RRHH` · `REQ-JOR` · `REQ-GUAR` · `REQ-CONV` · `REQ-NEAE` · `REQ-SALUD` · `REQ-SEC` · `REQ-PRL` · `REQ-PRIV` · `REQ-BI` · `REQ-API` · `REQ-SAAS` · `REQ-SUP` · `REQ-OPS`
+
+- [ ] **2.x · `REQ-PRIV-006`: retención y purga física de un tenant** [OPUS + SONNET] ⚠️ *obligatorio antes de datos reales, issue [#371](https://github.com/pirexia/plataforma-educativa/issues/371)* · *candidato, sin numerar; adelantable a la fase 1 si el piloto se acerca a datos reales*
+  Catálogo de retención por entidad (cada una declara su regla y su estrategia de supresión, `ADR-004`) y procedimiento de purga de un tenant completo: orden por dependencias (no hay `ON DELETE CASCADE`), qué se hace con las tablas de solo anexar (`audit_logs`, `login_attempts`, `mfa_resets`; `ADR-035`), plazo desde la baja, doble autorización (`REQ-BO`), auditoría de la propia purga fuera del tenant (`admin_action_logs`) e informe de purgas. Incluye `RSEC-GDPR-002` (derecho a la eliminación) y se coordina con `REQ-OPS-004` (exportación durante la baja). Hoy solo existe un parche de **desarrollo** (`apps/web/scripts/e2e-real-api.sh`, superusuario del contenedor de PostgreSQL), que no es la solución. Requiere ADR propio (`CLAUDE.md §6.3`) con `architect`, y `db-reviewer` y `security-reviewer`.
 
 `REQ-TRAN` (transporte escolar) entra también en esta fase (`ADR-031`).
 
