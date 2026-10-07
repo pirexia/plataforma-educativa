@@ -2,9 +2,6 @@
 
 namespace App\Modules\Backoffice\Infrastructure;
 
-use App\Modules\Auth\Domain\MfaVerifier;
-use App\Modules\Auth\Domain\TotpProvisioner;
-use App\Modules\Auth\Infrastructure\Google2FaTotpVerifier;
 use App\Modules\Backoffice\Infrastructure\Console\AllowIpCommand;
 use App\Modules\Backoffice\Infrastructure\Console\CheckGracePeriodsCommand;
 use App\Modules\Backoffice\Infrastructure\Console\CloseOrphanedPlatformSessionsCommand;
@@ -33,10 +30,11 @@ class BackofficeServiceProvider extends ServiceProvider
         // backoffice) por la implementación real.
         $this->app->singleton(PlatformAccessCheck::class, BackofficeAccessCheck::class);
 
-        // funcional.md §2.3: se reutiliza el mecanismo (ADR-041), no el
-        // almacenamiento — misma implementación que enlaza `AuthServiceProvider`.
-        $this->app->bind(MfaVerifier::class, Google2FaTotpVerifier::class);
-        $this->app->bind(TotpProvisioner::class, Google2FaTotpVerifier::class);
+        // funcional.md §2.3: se reutiliza el mecanismo TOTP (ADR-041), no el
+        // almacenamiento. `MfaVerifier` y `TotpProvisioner` NO se enlazan
+        // aquí: `AuthServiceProvider` ya los enlaza a su adaptador y
+        // repetirlo obligaba a importar `Auth\Infrastructure` (ADR-056 AR-01,
+        // INV-007: un módulo solo usa de otro su `Domain`).
     }
 
     public function boot(): void
