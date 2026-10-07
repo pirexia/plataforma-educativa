@@ -31,6 +31,7 @@ function routesWithoutPermissionExceptions(): array
         'core.me.update' => $me,
         'core.me.effective-permissions' => $me,
         'core.feature-flags.index' => 'REQ-CORE: evaluación de feature flags del propio usuario/centro',
+        'curso.academic-years.current' => 'REQ-CURSO: curso activo del centro, dato del centro y no de una persona; autoservicio por identidad como GET /me (OPEN-CURSO-15, ampliación aprobada por el usuario el 2026-10-07, ADR-056 §3.2)',
         'core.data-exports.show' => 'REQ-CORE: autoriza por `kind` en el controlador (el permiso depende del tipo de exportación)',
         'auth.csrf-cookie' => $auth,
         'auth.session.store' => $auth,
@@ -222,7 +223,7 @@ test('AR-07a CA-056-15: cada excepción nominal existe como ruta de api/v1 y sig
     }
 
     expect($stale)->toBe([], "excepciones de AR-07a que ya no hacen falta, retirarlas de la lista:\n".implode("\n", $stale))
-        ->and(routesWithoutPermissionExceptions())->toHaveCount(33);
+        ->and(routesWithoutPermissionExceptions())->toHaveCount(34);
 });
 
 test('AR-07b CA-056-08 RMOD-009: toda ruta de un módulo no esencial lleva module-enabled:<código> antes de permission:', function (): void {
