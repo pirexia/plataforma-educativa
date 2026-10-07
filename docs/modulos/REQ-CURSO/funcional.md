@@ -74,7 +74,7 @@ Se señalan aquí, antes del alcance, porque condicionan todo lo demás. Ninguna
 |-------|--------------------------|
 | **Administrador de Centro** (`administrador_centro`) | Crea y edita cursos, los activa y los cierra (siembra aprobada, `OPEN-CURSO-14`) |
 | **Dirección / Jefatura**, **Secretaría** | Consultan cursos y datos de cursos cerrados (aprobado, `OPEN-CURSO-14`) |
-| **Cualquier usuario autenticado** | Necesita saber cuál es el curso activo (selector, cabeceras de pantalla). Propuesta: por autoservicio (`OPEN-CURSO-15`) |
+| **Cualquier usuario autenticado** | Necesita saber cuál es el curso activo (selector, cabeceras de pantalla). Aprobado: por autoservicio (`OPEN-CURSO-15`) |
 | **Roles personalizados** | Ciudadanos de primera: nada de esta especificación compara códigos de rol (`RN-PERM-46`, skill `permisos-y-roles` regla 6) |
 | **Módulos de negocio** (`ACAD`, `ALUM`, `CALIF`, `FIN`…) | Consumidores del contrato de §6: asocian sus datos al curso y respetan el bloqueo de escritura |
 | **`soporte_plataforma`**, **`super_administrador`** | Sin permisos de este módulo (mismo criterio que `REQ-PERM/permisos.md §5.4`/`§5.5`) |
