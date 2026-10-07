@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Versión** | 3.2.12 |
+| **Versión** | 3.2.13 |
 | **Fecha** | 2026-10-07 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
@@ -3352,6 +3352,7 @@ Se mantendrá una matriz de trazabilidad (generada automáticamente desde las re
 | Versión | Fecha | Autor | Descripción |
 |---------|-------|-------|-------------|
 | 3.2.10 | 2026-10-01 | Product Owner | `ADR-055` (**`PROPUESTA`**): el CSV de datos como contrato técnico, añadido al índice de la sección 18. Resuelve `OPEN-054-01` según la decisión del usuario del 2026-10-01 (opción A ahora, C como ampliación posterior). Pendiente de ratificación. Ningún requisito de las secciones 1-17 se reescribe y `ADR-054` no se modifica. |
+| 3.2.13 | 2026-10-07 | Product Owner | `ADR-057` (bloqueo de escritura de cursos cerrados por disparador de PostgreSQL) añadido al índice de la sección 18, **`ACEPTADA`**; resuelve `OPEN-CURSO-04`. Errata en `REQ-CURSO-005`: el archivado en frío cita `RDB-012` y no `RDB-010` (`OPEN-CURSO-22`). Ningún otro requisito de las secciones 1-17 se reescribe. |
 | 3.2.12 | 2026-10-07 | Product Owner | `ADR-056` pasa de **`PROPUESTA`** a **`ACEPTADA`** (el usuario aprobó tal cual las nueve recomendaciones, `OPEN-056-01` a `-09`, todas resueltas). Generador `make:module` diferido a `1.11b`. `AR-05` se corrige con una migración (`feature_flags` y `feature_flag_rules`, `public_id` a `character(26)`), no con una excepción: el ADR decía «0 violaciones» y «sin migraciones». Sin cambios en las secciones 1-17. |
 | 3.2.11 | 2026-10-01 | Product Owner | `ADR-055` pasa a **`ACEPTADA`** (ratificado entero por el usuario). `OPEN-054-01` resuelta. Sin cambios en las secciones 1-17; `ADR-054` no se modifica. |
 | 3.2.9 | 2026-09-30 | Product Owner | `ADR-054` (aceptada): tablas de datos y exportación de listados, añadido al índice de la sección 18. Decisiones del usuario 2026-09-30 sobre `REQ-CORE §13` (sin virtualización, tarjetas en móvil, visibilidad de columnas). |

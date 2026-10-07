@@ -1,6 +1,6 @@
 # PRIVACY.md
 
-> **Versión 0.3.5** · 2026-10-05
+> **Versión 0.3.6** · 2026-10-07
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Base del Registro de Actividades de Tratamiento (RAT) exigido por el RGPD — hoy es un **esqueleto**, no un RAT completo: varias secciones dependen de decisiones que todavía no se han tomado (`OPEN-07`, entidad jurídica y contrato de encargado de tratamiento). No se rellenan con suposiciones (`CLAUDE.md` §0/§11).
 
 ---
@@ -144,4 +144,5 @@ Mínimo legal por tipo de dato y catálogo completo: responsabilidad de `REQ-PRI
 
 - **`OPEN-12`** — **cerrada por `ADR-035`**: el derecho de supresión no se ejerce dentro de `audit_logs`; se evita que entre en la fila cualquier valor identificativo (ver sección 5) y la supresión se completa por retención. Queda pendiente de `REQ-PRIV-006` la ejecución real de la purga por vencimiento de plazo, exigible antes del primer dato real.
 - **`OPEN-13`**: lista definitiva de columnas de `Person` y su base legal por campo, responsabilidad de `REQ-PRIV-006`.
+- **`OPEN-057-04`** (`ADR-057 §7`, `REQ-CURSO`): suprimir o anonimizar datos personales en tablas de un curso cerrado choca con el bloqueo de escritura del motor; lo decide `REQ-PRIV-006` (tarea del propietario o excepción declarada de `ADR-057 §5.7`) y debe resolverse antes de admitir datos reales.
 - **`OPEN-07`**: entidad jurídica, encargado de tratamiento y DPO — bloquea las secciones 3 y 4 de este documento y la entrada de cualquier dato real.

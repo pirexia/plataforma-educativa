@@ -1,6 +1,6 @@
 # PLAN-IMPLEMENTACION.md
 
-> **Versión 2.3.6** · 2026-10-07
+> **Versión 2.3.7** · 2026-10-07
 
 > Plan de ejecución dimensionado a **sesiones de ~5 horas** (límite del plan Pro). Cada paso cabe en una o dos sesiones y termina con el repositorio en estado compilable, tests en verde y `memory.md` actualizado.
 >
@@ -218,9 +218,9 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 
 - [ ] **1.16 · `REQ-CALIF`: calificaciones** [SONNET]
 - [ ] **1.17 · `REQ-CALIF`: boletines en PDF** [SONNET]
+  Branding por tenant, firma del tutor, publicación controlada, **emisión en el idioma del destinatario**.
 - [ ] **1.17b · `REQ-CURSO-003`/`-005`: promoción y paquete de cierre** [OPUS + SONNET] · *diferido desde `1.10`*
   Sin firma digital ni cierre contable (dependen de `REQ-DOC` y `REQ-FIN`).
-  Branding por tenant, firma del tutor, publicación controlada, **emisión en el idioma del destinatario**.
 - [ ] **1.18 · `REQ-INF`: primer ciclo de Infantil 0-3** [OPUS + SONNET]
   Evaluación cualitativa, informes de desarrollo, agenda diaria del aula, ratios.
 

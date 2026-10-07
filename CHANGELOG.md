@@ -6,6 +6,13 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-07 · Paso 1.10: correcciones de la revisión de `doc-reviewer` y `db-reviewer` (`REQ-CURSO-001`)
+
+- **Base de datos**: la migración de la función comprueba `has_schema_privilege(current_user, 'app', 'CREATE')` y, si falta, aborta con el comando exacto (`RUNBOOK.md` paso 0 de `§3b.2`); la función fija `SET search_path = pg_catalog, pg_temp`; `AR-13` gana la vigilancia «ninguna tabla con el disparador carece de `academic_year_id`» (con control negativo) y un test de que `plataforma_app`/`plataforma_platform` no tienen `CREATE` sobre `app`. `DROP TRIGGER` antes de `DROP COLUMN` documentado en `datos.md`, `operacion.md` y las skills `migracion-segura`/`modulo-nuevo`.
+- **Documentación**: `funcional.md` acota el `409 invalid_transition` a destinos `activo`/`cerrado` (otro destino es `422`, `api.md §2`) y retira los «propuesta» obsoletos; firma real de `tenantForeignId(Blueprint $blueprint, …)`; `curso:grant-year-permissions` vive en Core; `PLAN-IMPLEMENTACION.md` recoloca la línea de boletines bajo 1.17; `SECURITY.md` 0.3.10 (bloqueo por disparador, `curso_historico.leer`, excepción `AR-07a`), `PRIVACY.md` 0.3.6 (`OPEN-057-04`), `RUNBOOK.md` 0.3.4, `SYSADMIN.md` 0.8.5, `ARCHITECTURE.md` 2.4.1, `PLAN-IMPLEMENTACION.md` 2.3.7, `docs/REQUISITOS-...` 3.2.13 (`ADR-057`, errata `RDB-012`), `README.md` 2.6.17.
+
+---
+
 ## 2026-10-07 · Paso 1.10 implementado: ciclo de vida del curso académico y bloqueo de escritura de cursos cerrados (`REQ-CURSO-001`, `ADR-057`)
 
 Implementa `REQ-CURSO-001` y el contrato transversal según la especificación aprobada (`docs/modulos/REQ-CURSO/`, `ADR-057` aceptada). Rama `feature/REQ-CURSO-1-10-ciclo-vida-curso`; pendiente de `db-reviewer`, `security-reviewer` y `doc-reviewer`.
