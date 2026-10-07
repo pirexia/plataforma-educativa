@@ -15,7 +15,7 @@ Cada casilla dice si la **vigila un test** o depende de revisión (`ADR-056`, `A
 
 - [ ] `tenant_id` presente e indexado como primera columna de las consultas frecuentes
 - [ ] **Política de RLS declarada para cada tabla nueva de negocio** (`INV-001`, `ADR-033`): el aislamiento va en base de datos, no solo en el framework. *Lo comprueba `IsolationBatteryTest` #8 (RLS en toda tabla con `tenant_id`).*
-- [ ] `academic_year_id` si la entidad depende del curso, obligatorio-o-ausente, nunca *nullable* (`ADR-034`)
+- [ ] `academic_year_id` si la entidad depende del curso, obligatorio-o-ausente, nunca *nullable* (`ADR-034`), declarado con `TenantMigration::tenantForeignId()`. **Lo comprueba `AR-13`**: la tabla lleva el disparador `academic_year_write_guard` (`ADR-057`), que ponen solos `TenantMigration::tenantTable()`/`tenantTableAppendOnly()` (y `guardAcademicYearWrites()` si se añade la columna a una tabla existente); nunca se escribe el `CREATE TRIGGER` a mano
 - [ ] `created_at`, `updated_at`, `deleted_at`, `created_by`, `updated_by` (`INV-005`)
 - [ ] Claves foráneas, `CHECK` y restricciones declaradas en base de datos, no solo en la aplicación
 - [ ] **Política de valor de auditoría del modelo** (`ADR-035`): `Full`, `Selective` o `None`, con los atributos registrados, y cuáles se redactan o no se registran. **Y alias estable del modelo en el *morph map*** (`Relation::enforceMorphMap`, `ADR-034 §3`). *`AR-06` comprueba que todo modelo de tenant implementa `Auditable`; la política y el alias dependen de revisión (`enforceMorphMap()` falla en el primer test que cree el modelo sin alias).*

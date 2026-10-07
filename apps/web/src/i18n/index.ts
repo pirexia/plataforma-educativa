@@ -7,6 +7,10 @@ import coreEs from '@/modules/core/locales/es.json'
 import coreEn from '@/modules/core/locales/en.json'
 import coreDe from '@/modules/core/locales/de.json'
 import coreFr from '@/modules/core/locales/fr.json'
+import cursoEs from '@/modules/curso/locales/es.json'
+import cursoEn from '@/modules/curso/locales/en.json'
+import cursoDe from '@/modules/curso/locales/de.json'
+import cursoFr from '@/modules/curso/locales/fr.json'
 import authEs from '@/modules/auth/locales/es.json'
 import authEn from '@/modules/auth/locales/en.json'
 import authDe from '@/modules/auth/locales/de.json'
@@ -84,10 +88,10 @@ export const i18n = createI18n({
   locale: resolveInitialLocale(),
   fallbackLocale: DEFAULT_LOCALE,
   messages: {
-    es: { ...es, ...coreEs, ...authEs },
-    en: { ...en, ...coreEn, ...authEn },
-    de: { ...de, ...coreDe, ...authDe },
-    fr: { ...fr, ...coreFr, ...authFr },
+    es: { ...es, ...coreEs, ...cursoEs, ...authEs },
+    en: { ...en, ...coreEn, ...cursoEn, ...authEn },
+    de: { ...de, ...coreDe, ...cursoDe, ...authDe },
+    fr: { ...fr, ...coreFr, ...cursoFr, ...authFr },
   },
 })
 

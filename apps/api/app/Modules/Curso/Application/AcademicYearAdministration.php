@@ -5,6 +5,7 @@ namespace App\Modules\Curso\Application;
 use App\Modules\Curso\Domain\AcademicYearStatus;
 use App\Modules\Curso\Domain\Models\AcademicYear;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -72,11 +73,11 @@ final class AcademicYearAdministration
         }
 
         if (array_key_exists('starts_on', $input)) {
-            $year->starts_on = $input['starts_on'];
+            $year->starts_on = Carbon::parse($input['starts_on']);
         }
 
         if (array_key_exists('ends_on', $input)) {
-            $year->ends_on = $input['ends_on'];
+            $year->ends_on = Carbon::parse($input['ends_on']);
         }
 
         try {

@@ -369,11 +369,11 @@ final class ProvisionTenantDefaults implements TenantProvisioner
      */
     private function seedPermissionGrants(int $tenantId, array $roleIds): void
     {
-        $grants = [...self::CORE_PERMISSION_GRANTS, 'administrador_centro' => self::ADMIN_CENTRO_PERMISSIONS];
-
-        foreach (self::ACADEMIC_YEAR_PERMISSION_GRANTS as $roleCode => $permissionCodes) {
-            $grants[$roleCode] = [...($grants[$roleCode] ?? []), ...$permissionCodes];
-        }
+        // REQ-CURSO (1.10): las concesiones de `curso` se suman a las de cada rol.
+        $grants = array_merge_recursive(
+            [...self::CORE_PERMISSION_GRANTS, 'administrador_centro' => self::ADMIN_CENTRO_PERMISSIONS],
+            self::ACADEMIC_YEAR_PERMISSION_GRANTS,
+        );
 
         foreach ($grants as $roleCode => $permissionCodes) {
             foreach ($permissionCodes as $permissionCode) {

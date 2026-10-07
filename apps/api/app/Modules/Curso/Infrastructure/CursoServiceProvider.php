@@ -14,7 +14,6 @@ use App\Support\Modules\DeclaresModuleRegistry;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Exceptions\Handler;
 use Illuminate\Support\ServiceProvider;
 use Throwable;
 
@@ -65,9 +64,12 @@ class CursoServiceProvider extends ServiceProvider implements DeclaresModuleRegi
      */
     private function registerErrorTranslation(): void
     {
+        /** @var object $handler Larastan lo tipa como el decorador de Collision (solo consola); en HTTP es `Illuminate\Foundation\Exceptions\Handler`. */
         $handler = $this->app->make(ExceptionHandler::class);
 
-        if (! $handler instanceof Handler) {
+        // En consola el manejador es el decorador de Collision, que no tiene
+        // `map()` ni renderiza respuestas HTTP: no hay nada que traducir.
+        if (! method_exists($handler, 'map')) {
             return;
         }
 

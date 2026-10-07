@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ejecuta los tests e2e que necesitan la API real (CA-PERM-133, E2E_REAL_API=1):
+# Ejecuta los tests e2e que necesitan la API real (CA-PERM-133 y CA-CURSO-086, E2E_REAL_API=1):
 # prepara un centro de pruebas sintético en el contenedor de la API, lanza
 # Playwright con sus credenciales y lo retira por completo al terminar, también
 # si falla.
@@ -87,4 +87,4 @@ E2E_ADMIN_PASSWORD="$(printf '%s' "$json" | field admin_password)"
 E2E_TARGET_EMAIL="$(printf '%s' "$json" | field target_email)"
 export E2E_ADMIN_EMAIL E2E_ADMIN_PASSWORD E2E_TARGET_EMAIL
 
-npx playwright test e2e/core-roles.spec.ts -g "CA-PERM-133" "$@"
+npx playwright test e2e/core-roles.spec.ts e2e/curso-academic-years.spec.ts -g "CA-PERM-133|CA-CURSO-086" "$@"

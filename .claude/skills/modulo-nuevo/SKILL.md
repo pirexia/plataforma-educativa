@@ -5,7 +5,7 @@ description: Estructura y pasos para crear un módulo (bounded context) nuevo en
 
 # Crear un módulo nuevo
 
-Esta skill describe la forma **real** de los tres módulos que existen (`Auth`, `Backoffice`, `Core`; `ADR-056 §1.2`) y qué regla de CI vigila cada pieza. Ninguno es un módulo de negocio: la forma de uno de negocio se fijará con `REQ-CURSO`/`REQ-ACAD`. El generador `make:module` está diferido al paso `1.11b`: **hoy el módulo se crea a mano**, y las reglas `AR-*` fallan si se omite algo.
+Esta skill describe la forma **real** de los módulos que existen (`Auth`, `Backoffice`, `Core` —`ADR-056 §1.2`— y `Curso` desde `1.10`) y qué regla de CI vigila cada pieza. Ninguno es todavía un módulo de negocio con tablas por curso propias: `Curso` es el dueño del contrato transversal del curso (`ADR-057`) y la forma de uno de negocio se fijará con `REQ-ACAD` (`1.11`). El generador `make:module` está diferido al paso `1.11b`: **hoy el módulo se crea a mano**, y las reglas `AR-*` fallan si se omite algo.
 
 ## Estructura en la API
 
@@ -31,6 +31,7 @@ Una capa no se crea hasta que tiene contenido. **No existen** `Tests/` ni `Datab
 | `Http/routes.php`, **requerido a mano** desde `routes/api-v1.php` (o `routes/api.php` si es de plataforma). Todo endpoint con `permission:`; módulo no esencial con `module-enabled:<código>` **antes** de `permission:` | `AR-07a`, `AR-07b` |
 | `lang/{es,en,de,fr}/<código>.php` y la entrada `name_key` del módulo en `lang/{es,en,de,fr}/modules.php`, con los cuatro nombres reales traducidos | `AR-12` (paridad de claves; no detecta un nombre sin traducir copiado a los cuatro) |
 | Cada modelo de tenant: migración con `TenantMigration::tenantTable(...)`, `$table->ulid('public_id')->unique()`, `text` y no `varchar`, `timestampTz` y no `timestamp`, sin `ENUM` | `AR-04`, `AR-05` |
+| **Tablas que dependen del curso** (`academic_year_id`): se crean **con el ayudante** `TenantMigration::tenantTable()`/`tenantTableAppendOnly()` y `TenantMigration::tenantForeignId($table, 'academic_year_id', 'academic_years')`, que engancha solo el disparador `academic_year_write_guard` (bloqueo de escritura de un curso cerrado, `ADR-057`). Nunca `Schema::create` a mano ni un `CREATE TRIGGER` propio; al añadir la columna a una tabla existente, `TenantMigration::guardAcademicYearWrites($table)`. El módulo accede al curso solo por las interfaces de `Curso\Domain` (`AcademicYearContext`, `AcademicYearDirectory`, `AcademicYearReadAccess`…), nunca por el modelo ni consultando `academic_years`; la lectura de un curso cerrado invoca `AcademicYearReadAccess` en cada endpoint (`RN-CURSO-25`) | `AR-13` (escritura); la lectura es criterio de aceptación de cada módulo (`OPEN-057-03`) |
 | Cada modelo de tenant: `extends TenantModel`, `implements Auditable` (`ADR-035`) y alias en `Relation::enforceMorphMap([...])` del `boot()` de su `ServiceProvider` (los modelos de `App\Models` los registra `app/Providers/AppServiceProvider.php`; `Backoffice` no registra ninguno) | `AR-06` |
 | Consultas de un recurso con ámbito restringido solo por `ScopedQuery`; un recurso nuevo con ámbito distinto de `todos` entra en el mapa cerrado de `AR-10` con su especificación | `AR-10` |
 | Documentación: `docs/modulos/REQ-XXX/{funcional,datos,api,permisos,operacion}.md` (**cinco** ficheros, plantilla en `docs/modulos/_PLANTILLA/`) | `doc-reviewer` |
