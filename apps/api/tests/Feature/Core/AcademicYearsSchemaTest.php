@@ -24,7 +24,7 @@ function insertAcademicYear(string $code, string $status, string $startsOn = '20
     ]);
 }
 
-test('no se pueden crear dos cursos activos en el mismo tenant', function (): void {
+test('CA-CURSO-025 RN-CURSO-11 REQ-CURSO-001: no se pueden crear dos cursos activos en el mismo tenant', function (): void {
     $tenant = Tenant::factory()->create();
     $context = app(TenantContext::class);
     $context->enter($tenant->id);

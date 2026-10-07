@@ -2,6 +2,7 @@
 
 namespace App\Modules\Curso\Http\Controllers;
 
+use App\Models\User;
 use App\Modules\Curso\Application\AcademicYearAdministration;
 use App\Modules\Curso\Application\AcademicYearTransitions;
 use App\Modules\Curso\Application\CursoErrors;
@@ -13,8 +14,10 @@ use App\Modules\Curso\Http\Requests\StoreAcademicYearRequest;
 use App\Modules\Curso\Http\Requests\TransitionAcademicYearRequest;
 use App\Modules\Curso\Http\Requests\UpdateAcademicYearRequest;
 use App\Modules\Curso\Http\Resources\AcademicYearResource;
+use App\Support\Api\ApiException;
 use App\Support\Api\PagePaginatedResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
 /**
@@ -46,8 +49,14 @@ class AcademicYearsController extends Controller
      * curso.no_active_year` cuando no hay curso activo (estado legítimo
      * entre un cierre y la siguiente activación, `funcional.md §4.4`).
      */
-    public function current(AcademicYearContext $context): AcademicYearResource
+    public function current(Request $request, AcademicYearContext $context): AcademicYearResource
     {
+        // Sin `permission:` la ruta no autentica sola: «autoservicio» exige
+        // sesión (`401` sin ella), no es una ruta pública.
+        if (! $request->user() instanceof User) {
+            throw ApiException::unauthenticated();
+        }
+
         $active = $context->active();
 
         if ($active === null) {
