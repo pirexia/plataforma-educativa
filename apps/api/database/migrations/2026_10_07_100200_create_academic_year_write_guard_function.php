@@ -77,7 +77,7 @@ return new class extends Migration
         $owner = DB::connection('pgsql_owner');
 
         if (! $owner->selectOne("SELECT pg_catalog.has_schema_privilege(current_user, 'app', 'CREATE') AS ok")->ok) {
-            throw new \RuntimeException(self::missingCreatePrivilegeMessage());
+            throw new RuntimeException(self::missingCreatePrivilegeMessage());
         }
 
         $owner->unprepared(<<<'SQL'
