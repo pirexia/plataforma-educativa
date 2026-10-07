@@ -128,7 +128,7 @@ La autorización pasa a tener **dos salidas obligatorias y una sola fuente**:
 **Consecuencia que hay que decir en voz alta y que esta especificación no disimula**: el paso 2 **no lo garantiza el framework** como sí garantiza el aislamiento de tenant. `INV-001` se cumple con un *global scope* más RLS porque «este dato es de otro colegio» es una condición uniforme sobre una columna; «este alumno no es de tu grupo» no lo es. Se compensa con tres cosas explícitas y ninguna afirmación tranquilizadora:
 
 1. Una **única API sancionada**. Cualquier otra forma de listar un recurso permisionado es una desviación, no un estilo alternativo.
-2. Un **test de arquitectura** que falle si un controlador de módulo consulta un modelo permisionado sin pasar por ella. Es el candidato (3) de `ADR-044 §8`, recogido por `1.7b`/[#163](https://github.com/pirexia/plataforma-educativa/issues/163) — **no se implementa en 1.5**, porque hoy solo hay un recurso con ámbito restringido y el patrón que el test tendría que reconocer aún no ha aparecido en varios módulos.
+2. Un **test de arquitectura** que falle si un controlador de módulo consulta un modelo permisionado sin pasar por ella. Es el candidato (3) de `ADR-044 §8`; **no se implementó en 1.5** y lo implementa `1.7b`/[#163](https://github.com/pirexia/plataforma-educativa/issues/163) como `AR-10` (`apps/api/tests/Feature/Architecture/ScopedQueryConfinementTest.php`, `ADR-056`): un mapa cerrado recurso → modelo y ficheros sancionados. No ve el acceso por relación ni `DB::table(...)`; eso lo cubre el criterio de acceso denegado en listado y detalle.
 3. Un **criterio de aceptación por recurso con ámbito restringido**: test de acceso denegado en **listado y en detalle**. Sin los dos, `INV-015` no se cumple.
 
 Esta es la mayor deuda estructural que el paso deja abierta, y queda escrita en lugar de supuesta (`ADR-044 §8`).
@@ -259,7 +259,7 @@ Es una comprobación de sujeto, no de concesión, y es deliberadamente distinta 
 
 > **Todo módulo que exponga un permiso con `is_special_category = true` emite un evento `read` en `audit_logs` en cada lectura de ese dato.**
 
-Y lo verificará el test de arquitectura (2) de `ADR-044 §8`, que recoge `1.7b`.
+Hoy lo vigila `AR-09` (`apps/api/tests/Feature/Architecture/SpecialCategoryTripwireTest.php`, `1.7b`, candidato (2) de `ADR-044 §8`) como **cable trampa**: falla en cuanto un permiso declarado tenga `is_special_category = true`, y la especificación de ese primer permiso diseña el mecanismo y lo sustituye por la regla real.
 
 **Pero 1.5 no tiene ningún recurso de categoría especial que auditar.** `REQ-CORE` no expone ninguno (`REQ-CORE/permisos.md §6`) y `REQ-AUTH` tampoco (`REQ-AUTH/permisos.md §6`). Se fija el contrato y **no se simula el consumidor**: inventar hoy un recurso de salud para poder probar el mecanismo sería exactamente el andamiaje sin consumidor que `ADR-044` reprocha en otros sitios.
 

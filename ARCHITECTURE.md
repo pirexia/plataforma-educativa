@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |-------|-------|
-| Versión | 2.3.5 |
-| Fecha | 2026-10-05 |
+| Versión | 2.4.0 |
+| Fecha | 2026-10-07 |
 | Estado | Propuesta cerrada, pendiente de ratificación |
 | Documento de requisitos | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` |
 
@@ -59,7 +59,7 @@ Monorepo con separación real de despliegue (`A3`).
 │   ├── api/                    # Laravel
 │   │   ├── app/Modules/        # un directorio por bounded context
 │   │   │   ├── Core/ Auth/ Academico/ Calificaciones/ ...
-│   │   │   └── <Modulo>/{Domain,Application,Infrastructure,Http}
+│   │   │   └── <Modulo>/{Domain,Application,Infrastructure,Http,Database}
 │   │   └── tests/
 │   └── web/                    # Vue 3 + TS
 │       ├── src/components/ui/  # shadcn-vue (código propio)
@@ -131,6 +131,54 @@ Detalle completo, reglas de negocio y criterios de aceptación: `docs/modulos/RE
 **Interfaz pública de `core` desde 1.9c** (`INV-007`, `docs/modulos/REQ-CORE/funcional.md §14.6.4`): el enumerado `App\Modules\Core\Domain\DocumentType` (`dni`, `nie`, `pasaporte`) es la **única fuente de verdad** del catálogo cerrado de tipos de documento de identidad; los módulos posteriores (`REQ-ALUM`, `REQ-FAM-UNIT`, `REQ-RRHH`) lo consumen por esa interfaz, nunca leyendo `people.document_type` ni copiando la lista. De él salen la validación del servidor, el `enum` de OpenAPI y —en la entrega siguiente, issue #312— el `CHECK` de la base de datos; el cliente lleva una constante comprobada contra él (`apps/web/src/modules/core/documentTypes.ts`). La importación de usuarios (`UserImportRowValidator`, trabajos `ValidateUserImport`/`ExecuteUserImport` en `core-imports`) aplica las mismas reglas que la API.
 
 **Pantallas de 1.9e** (`funcional.md §14.26`): `core` registra en `shell.ts` `core-settings`, `core-branding-assets`, `core-modules` y `core-profile`; esta última es la **séptima** ruta con `meta.permissions: []` (autoservicio por identidad, `RN-CORE-24`, `CA-CORE-264`). La configuración se guarda **por grupo** (`PATCH /tenant/settings` con solo las claves modificadas) y refresca la capa B (`useTenantBranding().refresh()`); el perfil sustituye el estado de sesión con la respuesta de `PATCH /me` (`useSession().updateSessionProfile`). Sin cambios de servidor. **Ampliación de 1.9d** (`funcional.md §14.25`): tipo de filtro `entity` (selección única por búsqueda asíncrona con `search`/`resolve` aportadas por el consumidor, serializado como `<id>=<ulid>`; `DataTableEntityFilter.vue`). **Ampliaciones de 1.9b** (`docs/modulos/REQ-CORE/funcional.md §14`): el filtro `boolean` admite una variante de **dos estados** (`twoState`, una casilla: marcada envía `<id>=true`, desmarcada no envía el parámetro) y las opciones de un filtro `enum` admiten un `label` literal (nombres ya traducidos por el servidor). Las confirmaciones de acciones destructivas pasan por un único componente de aplicación, `src/components/ConfirmDialog.vue` + `useConfirm.ts`, sobre `alert-dialog` de shadcn-vue (`docs/design-system.md §12.3c`). Servidor: la exportación de usuarios (`POST /users/exports`, `GenerateUserExport`) usa `CsvWriter` y un esquema cerrado sin documento ni fecha de nacimiento (`ADR-055`, `OPEN-CORE-32`); `GET /data-exports/{id}` autoriza por `kind` (`DataExportsController::PERMISSION_BY_KIND`) y una exportación fallida es `200` con `status: "fallida"`.
+
+### 3.4 Módulos de la API: forma, reglas comprobadas y referencias (paso 1.7b, `ADR-056`)
+
+**Forma real** (contada sobre `Auth`, `Backoffice` y `Core`, `ADR-056 §1.2`). El esqueleto común es pequeño; todo lo demás es contenido:
+
+- `Infrastructure/<Modulo>ServiceProvider.php`, descubierto por `ModuleServiceProviderDiscovery` (sin registro a mano), que carga `Database/migrations` con `loadMigrationsFrom` e implementa `DeclaresModuleRegistry` (`moduleDescriptor()` + `declaredPermissions()`; `Backoffice` es el único que no, porque es de plataforma).
+- `Http/routes.php`, **requerido a mano** desde `routes/api-v1.php` (o `routes/api.php` en `Backoffice`).
+- `Database/migrations/`. Los modelos Eloquent viven en `Domain/Models/`; las factorías, cuando existen, en `apps/api/database/factories/`, y los tests en `apps/api/tests/Feature/<Modulo>/` (ni `Tests/` ni `Database/factories` dentro del módulo).
+- `lang/{es,en,de,fr}/<código>.php` y la entrada `name_key` del módulo en `lang/*/modules.php`.
+- Ninguna capa vacía por adelantado: `Domain/`, `Application/` y `Http/{Controllers,Requests,Resources}` aparecen cuando hay contenido.
+
+**Reglas comprobadas por test.** Cada regla usa la técnica que ve la verdad de lo que comprueba (`ADR-056 §3.1`) y viven en el grupo `arch` (`./vendor/bin/pest --group=arch`; las de la web, en Vitest). Todas nacen en verde: cada violación existente se corrigió o es una **excepción nominal dentro del propio test**, con motivo, que solo puede reducirse (el test falla si una entrada ya no hace falta) y cuya ampliación exige especificación aprobada expresamente por el usuario (`ADR-056 §3.2`, `OPEN-056-02`).
+
+| Regla | Qué comprueba | Test |
+|-------|---------------|------|
+| `AR-01` (`INV-007`) | un módulo solo usa de otro su `Domain`, **excluido `Domain\Models`** | `apps/api/tests/Feature/Architecture/ModuleBoundariesTest.php` |
+| `AR-02` | el núcleo (`App\Support`, `App\Http`, `App\Models`, `App\Providers`) no usa internos de módulo; 3 excepciones nominales | `CoreBoundariesTest.php` |
+| `AR-03` | `ServiceProvider` por convención, descubierto, con catálogo y migraciones cargadas; excepción: `Backoffice` | `ModuleConventionsTest.php` |
+| `AR-04` (`ADR-029`) | en el esquema real (`pg_catalog`): ni `varchar`, ni `timestamp` sin zona, ni `ENUM`, ni `character(n≠26)`; 13 columnas de 7 tablas de Laravel como excepción | `SchemaConventionsTest.php` |
+| `AR-05` | toda `public_id` es `character(26) NOT NULL` con índice único propio; **sin excepciones** | `SchemaConventionsTest.php` |
+| `AR-06` (`INV-003`) | todo `TenantModel`/`AppendOnlyModel` concreto implementa `Auditable`; 6 excepciones | `AuditableModelsTest.php` |
+| `AR-07a` (`INV-002`) | toda ruta de `api/v1` lleva `permission:`; 33 rutas de autoservicio o públicas como excepción por nombre | `RouteAuthorizationTest.php` |
+| `AR-07b` (`RMOD-009`) | toda ruta de un módulo no esencial lleva `module-enabled:<código>` antes de `permission:` | `RouteAuthorizationTest.php` |
+| `AR-08` | `App\Models\Role` confinado a `Core`/núcleo y los literales `'administrador_centro'`/`'soporte_plataforma'` a una lista; 5 clases y 6 ficheros de excepción | `RoleConfinementTest.php` |
+| `AR-09` | cable trampa: ningún permiso declarado es de categoría especial hasta que se diseñe la auditoría de lectura (`ADR-044 §4.4`) | `SpecialCategoryTripwireTest.php` |
+| `AR-10` | todo recurso con ámbito restringido está en un mapa cerrado y solo `ScopedQuery` lo consulta; límite: no ve relaciones ni `DB::table` | `ScopedQueryConfinementTest.php` |
+| `AR-11` | web: `shell.ts`, `locales/{es,en,de,fr}.json`, registro en `navigation/modules.ts` e `i18n/index.ts`, solo superficie pública de otro módulo (`api/`, `types/`, `shell`) | `apps/web/src/modules/architecture.spec.ts` |
+| `AR-12` (`INV-009`) | cada `lang/es/*.php` tiene gemelo en `en`, `de` y `fr` con las mismas claves y sin literales vacíos | `TranslationParityTest.php` |
+
+Los detectores de llamadas y literales comparten **un único escáner de tokens** (`apps/api/tests/Support/PhpScanner.php`, con casos fijos en `Architecture/PhpScannerTest.php`). Dos trampas de `arch()` descubiertas en este paso, ya tenidas en cuenta: con **varios objetivos** en una sola llamada, `not->toUse` pasa en vacío (por eso hay un `arch()` por objetivo), y `information_schema` solo muestra las tablas sobre las que el rol de la conexión tiene privilegios (por eso el esquema se consulta en `pg_catalog`). Fuera de la automatización, y por qué: `ADR-056 §3.4`.
+
+**Corrección de la medición de `ADR-056 §3.3`.** El ADR dice que `AR-05` tenía 0 violaciones y que el paso no lleva migraciones. Al medir con tests reales (`CA-056-01`) eran **2**: `feature_flags.public_id` y `feature_flag_rules.public_id` eran `text`. Decisión del usuario (2026-10-07): corregirlas, no registrar una excepción. El paso incluye por tanto una migración (`2026_10_07_100100_narrow_feature_flags_public_id_to_char26`), con `down()` que restaura `text`, y `db-reviewer` es obligatorio en él. El `ADR-056` es inmutable: la corrección vive aquí y en `CHANGELOG.md`.
+
+**Referencias por patrón, no por módulo.** Ninguno de los tres módulos es representativo entero (`Core` es el cimiento, `Auth` el más cargado de seguridad y `Backoffice` es de plataforma), así que se señalan ficheros concretos. Cada entrada apunta a código **bajo test**; son ficheros y clases, nunca números de línea. `doc-reviewer` comprueba que toda ruta citada existe.
+
+| Patrón | Referencia | Lo fija |
+|--------|-----------|---------|
+| Declaración de módulo y permisos con `applicable_scopes` explícito por entrada | `CoreServiceProvider::declaredPermissions()` (`apps/api/app/Modules/Core/Infrastructure/CoreServiceProvider.php`); `AuthServiceProvider` (`apps/api/app/Modules/Auth/Infrastructure/AuthServiceProvider.php`) declara el suyo, con todo `['todos']` explícito | Para `CoreServiceProvider`: `apps/api/tests/Feature/Core/PermissionCatalogTest.php` y `apps/api/tests/Feature/Core/SyncModuleRegistryTest.php`; `AR-07a`, `AR-09` y `AR-10` leen el catálogo de todos los módulos |
+| Listado + detalle + exportación de un recurso con ámbito restringido | Auditoría de `Core`: `AuditLogsController`, `EloquentAuditQuery`, `AuditoriaPropiosScopeResolver`, `GenerateAuditLogExport` (`apps/api/app/Modules/Core/`) | `apps/api/tests/Feature/Core/AuditoriaScopeTest.php`, `AR-10` |
+| Recurso de tenant con `public_id`, `Auditable` y 404 entre tenants | Invitaciones de `Core`: `Domain/Models/UserInvitation.php`, `Http/Controllers/InvitationsController.php` | `apps/api/tests/Feature/Core/InvitationsEndpointsTest.php` (y `apps/api/tests/Feature/Auth/InvitationRedemptionTest.php` para el canje) |
+| Tarea en cola por tenant (`INV-012`) | `apps/api/app/Modules/Core/Infrastructure/Jobs/GenerateUserExport.php` | `apps/api/tests/Feature/Core/UserExportEndpointsTest.php` |
+| Interfaz pública consumida por otro módulo | `apps/api/app/Modules/Core/Domain/TenantSettingsReader.php` (la consume `Auth`) | `AR-01` |
+| Evento de dominio entre módulos | `apps/api/app/Modules/Core/Domain/Events/UserDeactivated.php` → `apps/api/app/Modules/Auth/Infrastructure/Listeners/RevokeSessionsOnUserDeactivated.php` | Ningún test localizado la ejercita por el nombre del evento; `AR-01` vigila la frontera entre módulos |
+| Migración de tabla de tenant | `apps/api/app/Modules/Core/Database/migrations/2026_08_19_100200_create_user_invitations_table.php` | `AR-04`, `AR-05`, `IsolationBatteryTest` |
+| Módulo de frontend | `apps/web/src/modules/core` (`shell.ts`, tabla de datos) | `AR-11` (`apps/web/src/modules/architecture.spec.ts`), `apps/web/src/navigation/architecture.spec.ts` |
+| **Antirreferencia** para módulos de tenant | `Backoffice`: de plataforma, sin tenant, sin catálogo | — |
+
+**Disparador de revisión**: al cerrar `1.11` (`REQ-ACAD`, el segundo módulo de negocio tras `REQ-CURSO`) esta tabla se revisa y el primer módulo de negocio sustituye a `Core` en las filas donde sea más representativo. El generador `make:module`, que codifica un patrón que aún no existe, se difiere al paso `1.11b`.
 
 ---
 

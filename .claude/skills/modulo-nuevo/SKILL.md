@@ -5,39 +5,71 @@ description: Estructura y pasos para crear un módulo (bounded context) nuevo en
 
 # Crear un módulo nuevo
 
+Esta skill describe la forma **real** de los tres módulos que existen (`Auth`, `Backoffice`, `Core`; `ADR-056 §1.2`) y qué regla de CI vigila cada pieza. Ninguno es un módulo de negocio: la forma de uno de negocio se fijará con `REQ-CURSO`/`REQ-ACAD`. El generador `make:module` está diferido al paso `1.11b`: **hoy el módulo se crea a mano**, y las reglas `AR-*` fallan si se omite algo.
+
 ## Estructura en la API
 
 ```
 apps/api/app/Modules/<Modulo>/
-├── Domain/          entidades, objetos de valor, eventos de dominio, interfaces
+├── Domain/          entidades, objetos de valor, eventos, interfaces públicas; Domain/Models/ = modelos Eloquent
 ├── Application/     casos de uso, DTOs
-├── Infrastructure/  repositorios, adaptadores, integraciones externas
-├── Http/            controladores, requests, resources, rutas
-├── Database/        migraciones, factories, seeders
-└── Tests/
+├── Infrastructure/  <Modulo>ServiceProvider.php, repositorios, adaptadores, listeners, jobs, comandos
+├── Http/            controladores, requests, resources y routes.php
+└── Database/
+    └── migrations/
 ```
+
+Una capa no se crea hasta que tiene contenido. **No existen** `Tests/` ni `Database/factories` ni `Database/seeders` dentro del módulo: los tests viven en `apps/api/tests/Feature/<Modulo>/` y las factorías, cuando haga falta alguna, en `apps/api/database/factories/`.
+
+## Piezas del esqueleto y quién las vigila
+
+| Pieza | Regla que la vigila |
+|-------|---------------------|
+| `Infrastructure/<Modulo>ServiceProvider.php`, extiende `ServiceProvider`, autodescubierto (no se registra en `bootstrap/providers.php`); ninguna otra clase `*ServiceProvider` en el módulo | `AR-03` |
+| `boot()` con `loadMigrationsFrom(app_path('Modules/<Modulo>/Database/migrations'))` | `AR-03` |
+| `implements DeclaresModuleRegistry`: `moduleDescriptor()` (`code`, `name_key`, `phase`, `depends_on`, `essential`) y `declaredPermissions()` con `applicable_scopes` por entrada; `Backoffice` es la única excepción (módulo de plataforma) | `AR-03`, `AR-09`, `AR-10` |
+| `Http/routes.php`, **requerido a mano** desde `routes/api-v1.php` (o `routes/api.php` si es de plataforma). Todo endpoint con `permission:`; módulo no esencial con `module-enabled:<código>` **antes** de `permission:` | `AR-07a`, `AR-07b` |
+| `lang/{es,en,de,fr}/<código>.php` y la entrada `name_key` del módulo en `lang/{es,en,de,fr}/modules.php`, con los cuatro nombres reales traducidos | `AR-12` (paridad de claves; no detecta un nombre sin traducir copiado a los cuatro) |
+| Cada modelo de tenant: migración con `TenantMigration::tenantTable(...)`, `$table->ulid('public_id')->unique()`, `text` y no `varchar`, `timestampTz` y no `timestamp`, sin `ENUM` | `AR-04`, `AR-05` |
+| Cada modelo de tenant: `extends TenantModel`, `implements Auditable` (`ADR-035`) y alias en `Relation::enforceMorphMap([...])` del `boot()` de su `ServiceProvider` (los modelos de `App\Models` los registra `app/Providers/AppServiceProvider.php`; `Backoffice` no registra ninguno) | `AR-06` |
+| Consultas de un recurso con ámbito restringido solo por `ScopedQuery`; un recurso nuevo con ámbito distinto de `todos` entra en el mapa cerrado de `AR-10` con su especificación | `AR-10` |
+| Documentación: `docs/modulos/REQ-XXX/{funcional,datos,api,permisos,operacion}.md` (**cinco** ficheros, plantilla en `docs/modulos/_PLANTILLA/`) | `doc-reviewer` |
 
 ## Estructura en el frontend
 
 ```
 apps/web/src/modules/<modulo>/
-├── views/  components/  composables/  api/  types/  locales/
+├── shell.ts          rutas, navegación y bloques del panel (ADR-053); tres listas, cualquiera vacía
+├── api/index.ts      superficie pública: cliente tipado
+├── types/index.ts    superficie pública: formas de los recursos
+├── locales/{es,en,de,fr}.json
+└── views/ components/ composables/   internos
 ```
 
-## Reglas de frontera (`INV-007`)
+Dos registros que se editan a mano: la línea del `shell` en `src/navigation/modules.ts` y los cuatro imports de `locales` en `src/i18n/index.ts`. `AR-11` (`src/modules/architecture.spec.ts`) falla si falta cualquiera de las siete piezas o los dos registros, o si el módulo importa de otro algo que no sea `api/`, `types/` o `shell`. El generador no escribirá la parte web: el contenedor de la API no ve `apps/web`.
 
-- Un módulo **no importa** clases internas de otro. Solo interfaces públicas expuestas en `Domain`.
-- La comunicación entre módulos es por **eventos de dominio**. Ejemplo: `MatriculaCreada` la emite Alumnos y la consume Económico, que no conoce a Alumnos.
+## Reglas de frontera (`INV-007`, `AR-01`, `AR-02`)
+
+- Un módulo **no importa** clases internas de otro. De otro módulo solo usa su `Domain`, **excluido `Domain\Models`**: una interfaz pública, un evento o un enumerado. Un `belongsTo` hacia el modelo Eloquent de otro módulo no vale: la clave foránea en base de datos sigue permitida, pero la lectura va por una interfaz de `Domain`.
+- Si un módulo necesita saber algo de roles, lo pide por una interfaz de `Core\Domain`: `App\Models\Role` y los códigos `administrador_centro`/`soporte_plataforma` están confinados (`AR-08`). Se comprueban permisos, nunca roles.
+- El núcleo (`App\Support`, `App\Http`, `App\Models`, `App\Providers`) no depende de internos de ningún módulo.
+- La comunicación entre módulos es por **eventos de dominio** (p. ej. `UserDeactivated`, emitido por `Core` y consumido por `Auth`) o por interfaces públicas (p. ej. `TenantSettingsReader`).
 - Si dos módulos necesitan compartir mucho, probablemente son el mismo módulo o falta uno común. Plantéalo antes de acoplarlos.
 - Prohibido consultar directamente tablas de otro módulo.
+- Las listas de excepciones de los tests de arquitectura son cerradas y solo se amplían con especificación aprobada expresamente por el usuario.
+
+## Referencias por patrón
+
+`ARCHITECTURE.md §3.4` apunta a ficheros concretos (declaración de permisos, recurso con ámbito, recurso de tenant, tarea en cola, interfaz pública, evento, migración, módulo web). Copia el patrón de ahí, no de «el módulo de referencia»: no existe.
 
 ## Checklist de alta
 
 - [ ] Especificación aprobada en `docs/modulos/REQ-XXX/`
-- [ ] Registro del módulo en el catálogo de módulos activables (`RMOD-001`)
-- [ ] Dependencias declaradas (`RMOD-006`)
-- [ ] Permisos definidos: recurso, acciones y ámbitos
-- [ ] Comportamiento con el módulo desactivado: oculto en la interfaz y 403 informativo en la API (`RMOD-008`, `RMOD-009`)
+- [ ] Registro del módulo en el catálogo de módulos activables (`RMOD-001`): `moduleDescriptor()` y entrada en `modules.php`
+- [ ] Dependencias declaradas (`RMOD-006`): `depends_on`
+- [ ] Permisos definidos: recurso, acciones y ámbitos (`applicable_scopes` y `resource_label_key` por permiso)
+- [ ] Comportamiento con el módulo desactivado: oculto en la interfaz y 403 informativo en la API (`RMOD-008`, `RMOD-009`), `module-enabled:` en cada ruta
 - [ ] Traducciones en los cuatro idiomas
-- [ ] Tests, incluido el de aislamiento entre tenants
-- [ ] Documentación de los cuatro ficheros del módulo
+- [ ] Tests en `tests/Feature/<Modulo>/`, incluido el de aislamiento entre tenants en listado y detalle
+- [ ] `./vendor/bin/pest --group=arch` en verde (y `AR-11` en la web)
+- [ ] Documentación de los cinco ficheros del módulo (`funcional`, `datos`, `api`, `permisos`, `operacion`)

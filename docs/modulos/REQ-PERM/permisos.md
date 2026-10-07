@@ -215,7 +215,7 @@ No hay salud, NEAE ni convivencia en `roles`, `role_user`, `permissions` ni `per
 
 > **Todo módulo que exponga un permiso con `is_special_category = true` emite un evento `read` en `audit_logs` en cada lectura de ese dato.**
 
-El mecanismo existe desde 0.9 (`read` está en el `CHECK` de `audit_logs.event` y `changes` va a `NULL` en ese evento). El test de arquitectura que lo hará cumplir es el candidato (2) de `ADR-044 §8`, que recoge `1.7b`/[#163](https://github.com/pirexia/plataforma-educativa/issues/163).
+El mecanismo existe desde 0.9 (`read` está en el `CHECK` de `audit_logs.event` y `changes` va a `NULL` en ese evento). Lo que hay hoy para hacerlo cumplir es `AR-09` (`apps/api/tests/Feature/Architecture/SpecialCategoryTripwireTest.php`, `ADR-056`, candidato (2) de `ADR-044 §8`, `1.7b`/[#163](https://github.com/pirexia/plataforma-educativa/issues/163)): **un cable trampa, no la regla real**. Hoy ningún permiso declarado es de categoría especial; el primero que aparezca hace fallar ese test hasta que su especificación diseñe el mecanismo de auditoría de lectura y lo sustituya por la regla de «todo permiso especial emite `read`».
 
 **Y 1.5 no tiene ningún consumidor que auditar.** Ni `REQ-CORE` ni `REQ-AUTH` exponen categoría especial. Se fija el contrato y **no se simula el consumidor**: inventar hoy un recurso de salud para poder probar el mecanismo sería el andamiaje sin consumidor que `ADR-044` reprocha en otros sitios.
 
