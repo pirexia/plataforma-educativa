@@ -3,6 +3,7 @@
 use App\Modules\Auth\Domain\MfaVerifier;
 use App\Modules\Auth\Domain\TotpProvisioner;
 use App\Modules\Auth\Infrastructure\Google2FaTotpVerifier;
+use Tests\Support\ArchitectureModules;
 
 pest()->group('arch');
 
@@ -18,21 +19,7 @@ pest()->group('arch');
 // inversión lo da por bueno). Con un objetivo y varias dependencias sí
 // funciona, y es lo que se usa aquí.
 
-/**
- * Directorios de `app/Modules/`. Función de colección: `base_path()` aún no
- * existe cuando Pest carga el fichero.
- *
- * @return list<string>
- */
-function architectureModuleNames(): array
-{
-    $names = array_map('basename', glob(dirname(__DIR__, 3).'/app/Modules/*', GLOB_ONLYDIR) ?: []);
-    sort($names);
-
-    return $names;
-}
-
-$moduleNames = architectureModuleNames();
+$moduleNames = ArchitectureModules::names();
 
 foreach ($moduleNames as $module) {
     $forbidden = [];
@@ -49,7 +36,7 @@ foreach ($moduleNames as $module) {
 }
 
 test('AR-01 CA-056-02: la enumeración de módulos no es vacía y cubre los tres existentes', function (): void {
-    expect(architectureModuleNames())->toContain('Auth', 'Backoffice', 'Core');
+    expect(ArchitectureModules::names())->toContain('Auth', 'Backoffice', 'Core');
 });
 
 // CA-056-02: al retirar el enlace redundante de `BackofficeServiceProvider`
