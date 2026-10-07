@@ -164,6 +164,8 @@
 
 ## Siguiente paso concreto
 
+**Actualización 2026-10-07 (tarde): `1.10` (`REQ-CURSO`) EN CURSO en `feature/REQ-CURSO-1-10-ciclo-vida-curso`. Especificación APROBADA (`docs/modulos/REQ-CURSO/`) y `ADR-057` ACEPTADA (disparador PostgreSQL, `AR-13`, una migración, `db-reviewer` obligatorio). Siguiente: `implementer` (Sonnet) según la spec. Pendiente de decidir antes de `1.11`: `OPEN-CURSO-06`, `-08`. Issues nuevos: #380, #381.**
+
 **Actualización 2026-10-07: `1.7b` está cerrado y mezclado (PR #379); el texto de `1.5b` de abajo es histórico (cerrado y mezclado, PR #354). Siguiente del plan: `1.10` (`REQ-CURSO`), o `2.x` si el piloto se acerca a datos reales (purga física, issue #371); sesión nueva (`CLAUDE.md §3`).**
 
 **`1.5b` · `REQ-PERM`: editor de roles y vista previa de permisos efectivos** [SONNET, tras especificación en OPUS], en sesión nueva (`CLAUDE.md §3`). Mezclados antes de empezar: PR [#341](https://github.com/pirexia/plataforma-educativa/pull/341) (cierra #280, #323, #324) y el PR de #339/#340 (`CA-CORE-298`/`-299`); #62 resuelto el 2026-10-05 (`SESSION_LIFETIME=480` en `.env` y `.env.example`, parche de `compose.yaml` retirado).
