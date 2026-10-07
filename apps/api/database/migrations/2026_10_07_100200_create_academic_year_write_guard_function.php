@@ -19,7 +19,10 @@ use Illuminate\Support\Facades\DB;
  * Decisiones (ADR-057 §5.2):
  * - `SECURITY INVOKER`: sujeta a RLS como quien escribe. Nunca `DEFINER`.
  * - Nombres totalmente cualificados (`public.academic_years`,
- *   `pg_catalog.*`): ninguna dependencia de `search_path`.
+ *   `pg_catalog.*`) y `SET search_path = pg_catalog, pg_temp` en la propia
+ *   función: ninguna dependencia del `search_path` de quien escribe, ni
+ *   siquiera para operadores y tipos (db-reviewer B-1). La migración no está
+ *   desplegada en ningún entorno, así que se incorpora sin migración nueva.
  * - Exención del PROPIETARIO REAL de la tabla (`pg_class.relowner` de
  *   `TG_RELID`), no de un nombre de rol escrito en SQL (`DB_OWNER_USERNAME`
  *   es configurable): migraciones de relleno, purga física de un tenant
@@ -44,6 +47,11 @@ use Illuminate\Support\Facades\DB;
  * `TRUNCATE` no dispara disparadores de fila: ningún rol de aplicación lo
  * tiene sobre tablas de curso (`CA-057-10`); concederlo sería una regresión.
  *
+ * Requisito previo: el rol propietario necesita `CREATE` sobre el esquema
+ * `app` (`GRANT CREATE ON SCHEMA app TO plataforma_owner`, paso 0 de
+ * `RUNBOOK.md`). `up()` lo comprueba antes y, si falta, falla con el comando
+ * exacto en lugar de un `permission denied for schema app` opaco (M-1).
+ *
  * Reversión: `down()` elimina la función, solo posible mientras ninguna
  * tabla tenga un disparador que la use (cierto en 1.10, falso desde 1.11).
  * Para apagar el bloqueo en todas las tablas a la vez la vía es una
@@ -52,11 +60,30 @@ use Illuminate\Support\Facades\DB;
  */
 return new class extends Migration
 {
+    /**
+     * Mensaje de la comprobación previa (también lo usa el test).
+     */
+    public static function missingCreatePrivilegeMessage(): string
+    {
+        return 'El rol propietario no tiene CREATE sobre el esquema app, necesario para crear '
+            .'app.assert_academic_year_writable() (ADR-057 §5.2). Ejecuta una sola vez, como superusuario, '
+            .'sobre esta base de datos: GRANT CREATE ON SCHEMA app TO <rol propietario>; '
+            .'(en desarrollo: podman exec -i plataforma-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" '
+            ."-c 'GRANT CREATE ON SCHEMA app TO plataforma_owner'). Ver RUNBOOK.md, paso 0 del despliegue.";
+    }
+
     public function up(): void
     {
-        DB::connection('pgsql_owner')->unprepared(<<<'SQL'
+        $owner = DB::connection('pgsql_owner');
+
+        if (! $owner->selectOne("SELECT pg_catalog.has_schema_privilege(current_user, 'app', 'CREATE') AS ok")->ok) {
+            throw new \RuntimeException(self::missingCreatePrivilegeMessage());
+        }
+
+        $owner->unprepared(<<<'SQL'
             CREATE FUNCTION app.assert_academic_year_writable() RETURNS trigger
             LANGUAGE plpgsql
+            SET search_path = pg_catalog, pg_temp
             AS $fn$
             DECLARE
                 v_status    text;

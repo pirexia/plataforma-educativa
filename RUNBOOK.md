@@ -107,6 +107,8 @@ No hay salida por la aplicación: es intervención directa sobre la base de dato
 
 ### 3b.2 Desplegar una versión
 
+**Paso 0, una sola vez por base de datos (`REQ-CURSO`, `1.10`, `ADR-057 §5.2`)**: la migración `2026_10_07_100200_create_academic_year_write_guard_function` crea `app.assert_academic_year_writable()` en el esquema `app` y el rol propietario solo tiene `USAGE` sobre él. Antes de la primera migración que la incluya, como superusuario sobre la base de la aplicación: `GRANT CREATE ON SCHEMA app TO <rol propietario>;` (en desarrollo `plataforma_owner`: `podman exec -i plataforma-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c 'GRANT CREATE ON SCHEMA app TO plataforma_owner'`). Es idempotente. Si se omite, `migrate` aborta con un mensaje que contiene este mismo comando, sin tocar nada. Detalle en `SYSADMIN.md`.
+
 ```bash
 ./infra/install.sh <tag>              # producción/staging real, systemd de sistema
 ./infra/install.sh <tag> --user       # WSL2, systemd de usuario

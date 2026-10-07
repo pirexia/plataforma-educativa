@@ -183,3 +183,84 @@ test('AR-13 CA-CURSO-043 CA-057-06 control negativo: detecta tabla sin disparado
         $owner->rollBack();
     }
 });
+
+/**
+ * Tablas con el disparador `academic_year_write_guard` (o cualquiera que
+ * ejecute `app.assert_academic_year_writable()`) que NO tienen la columna
+ * `academic_year_id`: el disparador leería `NEW.academic_year_id` y fallaría
+ * en cada escritura (db-reviewer M-2). Típico de un `DROP COLUMN` sin
+ * `DROP TRIGGER` previo.
+ *
+ * @return list<string>
+ */
+function tablesWithGuardButNoAcademicYearColumn(string $schema, string $tablePrefix = ''): array
+{
+    $rows = DB::connection('pgsql_owner')->select(<<<'SQL'
+        SELECT DISTINCT c.relname AS tabla
+        FROM pg_trigger t
+        JOIN pg_class c ON c.oid = t.tgrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = ?
+        JOIN pg_proc p ON p.oid = t.tgfoid AND p.proname = 'assert_academic_year_writable'
+        JOIN pg_namespace pn ON pn.oid = p.pronamespace AND pn.nspname = 'app'
+        WHERE NOT t.tgisinternal
+          AND c.relname LIKE ?
+          AND NOT EXISTS (
+              SELECT 1 FROM pg_attribute a
+              WHERE a.attrelid = c.oid AND a.attname = 'academic_year_id' AND NOT a.attisdropped
+          )
+        ORDER BY c.relname
+        SQL, [$schema, $tablePrefix.'%']);
+
+    return array_map(static fn (object $r): string => $r->tabla, $rows);
+}
+
+test('AR-13 CA-057-06 db-reviewer M-2: ninguna tabla con el disparador carece de la columna academic_year_id', function (): void {
+    AcademicYearProbe::ensureTable();
+
+    expect(tablesWithGuardButNoAcademicYearColumn('public'))->toBe([], 'tablas con el disparador pero sin academic_year_id: haz DROP TRIGGER academic_year_write_guard antes de DROP COLUMN academic_year_id');
+});
+
+test('AR-13 CA-057-06 M-2 control negativo: detecta el disparador que sobrevive a DROP COLUMN academic_year_id', function (): void {
+    $owner = DB::connection('pgsql_owner');
+    $p = 'arch_control_ay_huerfano_';
+
+    $owner->beginTransaction();
+
+    try {
+        TenantMigration::tenantTable("{$p}x", function (Blueprint $table): void {
+            TenantMigration::tenantForeignId($table, 'academic_year_id', 'academic_years');
+        });
+        $owner->statement("ALTER TABLE {$p}x DROP COLUMN academic_year_id CASCADE");
+
+        expect(tablesWithGuardButNoAcademicYearColumn('public', $p))->toBe([$p.'x']);
+
+        // Orden correcto: DROP TRIGGER antes de DROP COLUMN.
+        $owner->statement("DROP TRIGGER academic_year_write_guard ON {$p}x");
+
+        expect(tablesWithGuardButNoAcademicYearColumn('public', $p))->toBe([]);
+    } finally {
+        $owner->rollBack();
+    }
+});
+
+test('AR-13 CA-057-10 db-reviewer B-6: ningún rol de aplicación puede crear objetos en el esquema app', function (): void {
+    // Quien pudiera crear en `app` podría sombrear la función de guarda.
+    foreach (['plataforma_app', 'plataforma_platform'] as $role) {
+        $row = DB::connection('pgsql_owner')->selectOne("SELECT pg_catalog.has_schema_privilege(?, 'app', 'CREATE') AS ok", [$role]);
+
+        expect($row->ok)->toBeFalse("{$role} tiene CREATE sobre el esquema app");
+    }
+});
+
+test('RN-CURSO-23 db-reviewer M-1: la migración de la función detalla el comando exacto si falta CREATE sobre app', function (): void {
+    $migration = require database_path('migrations/2026_10_07_100200_create_academic_year_write_guard_function.php');
+    $message = $migration::missingCreatePrivilegeMessage();
+
+    expect($message)->toContain('GRANT CREATE ON SCHEMA app TO')
+        ->and($message)->toContain('plataforma_owner')
+        ->and($message)->toContain('RUNBOOK.md');
+
+    // El propietario del entorno de test sí lo tiene (la comprobación previa pasa).
+    $row = DB::connection('pgsql_owner')->selectOne("SELECT pg_catalog.has_schema_privilege(current_user, 'app', 'CREATE') AS ok");
+    expect($row->ok)->toBeTrue();
+});
