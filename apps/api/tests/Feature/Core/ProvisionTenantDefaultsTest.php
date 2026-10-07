@@ -101,7 +101,7 @@ test('administrador_centro recibe los 32 permisos previos más los cuatro de REQ
 
         $direccionRole = Role::where('code', 'direccion')->firstOrFail();
         $direccionPermissions = PermissionRole::where('role_id', $direccionRole->id)->pluck('permission_code')->sort()->values()->all();
-        expect($direccionPermissions)->toBe(['asignacion_rol.leer', 'configuracion.leer', 'modulo.leer', 'rol.leer', 'usuario.leer']);
+        expect($direccionPermissions)->toBe(['asignacion_rol.leer', 'configuracion.leer', 'curso_academico.leer', 'curso_historico.leer', 'modulo.leer', 'rol.leer', 'usuario.leer']);
 
         $docenteRole = Role::where('code', 'docente')->firstOrFail();
         expect(PermissionRole::where('role_id', $docenteRole->id)->count())->toBe(0);

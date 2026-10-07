@@ -1,6 +1,6 @@
 # Manual de administración
 
-> Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre lo que ya tiene código detrás: el registro de auditoría (paso 0.9), las cuentas bloqueadas y el tiempo de sesión (paso 1.2), la autenticación en dos pasos por rol (paso 1.3), el correo como segundo factor, las excepciones temporales y la pantalla mínima de administración de MFA (paso 1.3b), la navegación, el panel de inicio, el selector de idioma y el control de modo de color (paso 1.8), el manejo común de las tablas de datos (paso 1.9), los usuarios y las invitaciones, con la exportación de usuarios y los diálogos de confirmación (paso 1.9b), la importación de usuarios con el catálogo de tipos de documento (paso 1.9c), la pantalla de auditoría y el listado de roles (paso 1.9d), y la configuración del centro, los activos de marca, los módulos contratados y el perfil propio (paso 1.9e). El resto de secciones del manual de Administrador de Centro llegan con el último sub-paso de las pantallas pendientes de `REQ-CORE` (**1.9f**, `OPEN-CORE-30`); el editor de roles y la matriz de permisos llegan con `REQ-PERM` (paso **1.5b**, posterior a 1.9) — el núcleo de autorización granular ya está implementado desde 1.5, pero solo por API, sin interfaz todavía.
+> Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre lo que ya tiene código detrás: el registro de auditoría (paso 0.9), las cuentas bloqueadas y el tiempo de sesión (paso 1.2), la autenticación en dos pasos por rol (paso 1.3), el correo como segundo factor, las excepciones temporales y la pantalla mínima de administración de MFA (paso 1.3b), la navegación, el panel de inicio, el selector de idioma y el control de modo de color (paso 1.8), el manejo común de las tablas de datos (paso 1.9), los usuarios y las invitaciones, con la exportación de usuarios y los diálogos de confirmación (paso 1.9b), la importación de usuarios con el catálogo de tipos de documento (paso 1.9c), la pantalla de auditoría y el listado de roles (paso 1.9d), y la configuración del centro, los activos de marca, los módulos contratados y el perfil propio (paso 1.9e), y los cursos académicos con su ciclo de vida (paso 1.10). El resto de secciones del manual de Administrador de Centro llegan con el último sub-paso de las pantallas pendientes de `REQ-CORE` (**1.9f**, `OPEN-CORE-30`); el editor de roles y la matriz de permisos llegan con `REQ-PERM` (paso **1.5b**, posterior a 1.9) — el núcleo de autorización granular ya está implementado desde 1.5, pero solo por API, sin interfaz todavía.
 
 ## Navegación y panel de inicio
 
@@ -190,6 +190,27 @@ Desde **Configuración del centro → Activos de marca** (`/administracion/centr
 ## Módulos contratados
 
 En **Administración → Módulos** (`/administracion/modulos`, requiere el permiso de leer módulos) ves los módulos que el centro tiene **contratados**, de **solo lectura**: su nombre, su estado y la **fecha de alta**, que es el aviso de cuándo se activó cada uno (por ejemplo, cuando se incorpora un módulo nuevo). Los módulos no contratados no aparecen. No hay ningún botón de configuración, aunque tengas permiso para modificar módulos. Los nombres se muestran en el idioma de la interfaz; al cambiar de idioma la tabla se vuelve a cargar.
+
+## Cursos académicos
+
+En **Administración → Cursos académicos** (`/administracion/cursos`, requiere el permiso de leer cursos) ves los cursos del centro en una tabla —código, fechas de inicio y fin y **estado**— ordenada por defecto del más reciente al más antiguo; puedes filtrar por estado. Los estados se muestran siempre con su nombre, no solo con color. La entrada solo aparece en el menú si tu perfil tiene el permiso.
+
+**Qué significa cada estado:**
+
+- **En planificación**: el curso que se está preparando (el siguiente). Como mucho hay uno por centro. Es el único estado en el que se puede **editar** el código y las fechas.
+- **Activo**: el curso en marcha. Como mucho hay uno por centro.
+- **Cerrado**: curso terminado. **Sus datos son de solo lectura en todos los módulos del centro**: nadie —tenga el permiso que tenga— puede crear, modificar ni borrar datos de un curso cerrado. Si se intenta, la aplicación lo rechaza e indica el motivo («el curso 2025-2026 está cerrado y sus datos son de solo lectura»).
+- **Archivado**: curso en almacenamiento frío. Todavía no se puede llegar a este estado.
+
+**Crear un curso.** Con el permiso de crear cursos, **«Nuevo curso»** pide un código (texto libre, único en el centro, por ejemplo `2026-2027`), la fecha de inicio y la de fin. El curso nace siempre **en planificación**; el estado no se elige. Si ya hay un curso en planificación, la aplicación lo indica y enlaza con él; si las fechas se solapan con las de otro curso o el código ya existe, el mensaje aparece bajo el campo.
+
+**Editar.** En la ficha de un curso en planificación, **«Editar»** (permiso de actualizar cursos). Un curso activo o cerrado ya no se edita.
+
+**Activar el curso.** En la ficha de un curso en planificación, **«Activar curso»** (permiso propio de cambiar el estado de los cursos, que solo tiene por defecto el Administrador de Centro). Pide confirmación. **Solo puede haber un curso activo: si ya hay otro, hay que cerrarlo antes**; la aplicación te lo dice y te enlaza con el curso activo. Si la fecha de fin del curso ya ha pasado, el diálogo te lo advierte, pero te deja continuar. El curso no se activa solo por calendario.
+
+**Cerrar el curso.** En la ficha del curso activo, **«Cerrar curso»**. El diálogo te advierte de que **el cierre no se puede deshacer desde la aplicación** y de que, a partir de ahí, todos los datos del curso quedan en solo lectura; hay que confirmarlo explícitamente, y cancelar no hace nada. Tras cerrar un curso el centro se queda **sin curso activo** hasta que actives el siguiente: es un estado normal. Si algún módulo tiene una comprobación de cierre pendiente de cumplir, la aplicación lista cuáles y el curso sigue activo.
+
+**Quién ve qué.** Los cursos cerrados se pueden consultar con el permiso de leer el histórico de cursos cerrados, **además** del permiso del módulo que guarda el dato. Por defecto lo tienen el Administrador de Centro, la Dirección y la Secretaría (que además pueden ver el listado y la ficha de los cursos, sin crearlos ni cambiarles el estado); un centro puede dárselo a otros roles creando un rol personalizado.
 
 ## Mi perfil
 
