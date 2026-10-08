@@ -6,6 +6,11 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-08 · `ADR-059`: reapertura de un curso cerrado (`OPEN-CURSO-08`, `REQ-CURSO`)
+
+- **`ADR-059` ACEPTADA**: opción B (reapertura por la API del centro, acotada por hechos: ningún otro curso activo y solo el cerrado más reciente), permiso propio `reapertura_curso_academico.actualizar`, motivo obligatorio en la tabla *append-only* `academic_year_reopenings`, registro vacío de validaciones de reapertura. No toca el disparador ni `YC001`. Resuelve `OPEN-CURSO-08`; `OPEN-059-05` y `-06` siguen abiertas.
+- **Especificación de `REQ-CURSO`** ampliada (`RN-CURSO-40..48`, `CA-CURSO-087` y `-100..-107`, `OPEN-CURSO-24`), `SYSADMIN.md` 0.8.6, manual de administración y `REQUISITOS` 3.2.14. **Solo documentación: la reapertura aún no está implementada.**
+
 ## 2026-10-08 · Redistribución de modelos entre Haiku, Sonnet y Opus (`CLAUDE.md` 2.6.0)
 
 - **Copia de seguridad previa**: etiqueta de Git `config-claude-2026-10-08` (commit `0ecd3a2`, publicada) con `CLAUDE.md`, `.claude/agents/`, `.claude/skills/`, `.claude/settings.json` y la tabla de agentes de `PLAN-IMPLEMENTACION.md` tal como estaban. Procedimiento de vuelta atrás en `CLAUDE.md §2`.
