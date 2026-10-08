@@ -9,9 +9,11 @@ use Tests\Support\PhpScanner;
 pest()->group('arch');
 
 // AR-14 (issue #383, ADR-057 §5.2, ADR-056 §3.2, INV-001, INV-003, INV-015).
-// La conexión `pgsql_owner` es la del PROPIETARIO del esquema: está exenta de
-// RLS y del disparador `academic_year_write_guard` (ADR-057 §5.2: la exención
-// es por `pg_class.relowner`). En tiempo de ejecución solo el texto del
+// La conexión `pgsql_owner` es la del PROPIETARIO del esquema: está exenta del
+// disparador `academic_year_write_guard` (ADR-057 §5.2: la exención es por
+// `pg_class.relowner`). NO está exenta de RLS (las tablas tienen FORCE ROW
+// LEVEL SECURITY, también para el propietario); BYPASSRLS lo tiene
+// `plataforma_platform`, no el propietario. En tiempo de ejecución solo el texto del
 // ADR prohibía usarla sobre tablas de curso; esta regla lo comprueba:
 //
 // 1. Ningún fichero de `app/` menciona la cadena constante `pgsql_owner`
@@ -30,7 +32,11 @@ pest()->group('arch');
 // busca el nombre de la tabla en el cuerpo (`prosrc`), no dependencias
 // indirectas (función que llama a otra). Tampoco ve las acciones
 // referenciales (`ON DELETE CASCADE`), que PostgreSQL ejecuta como el
-// propietario de la tabla hija: ver `ARCHITECTURE.md §3.4` y el issue #383.
+// propietario de la tabla hija: eso lo cubre AR-13 sobre el esquema (ver
+// `ARCHITECTURE.md §3.4` y el issue #383). Límites no cubiertos por AR-14
+// (declarados, sin ampliar alcance): solo escanea `app/` (no `database/`,
+// `routes/`, `config/` ni `tests/`), y `TenantMigration` sigue siendo
+// invocable desde fuera de una migración.
 
 /**
  * Excepciones de AR-14: lista CERRADA y nominal (ADR-056 §3.2), fichero
@@ -127,7 +133,8 @@ test('AR-14 #383 ADR-056 §3.2: cada excepción existe y sigue usando pgsql_owne
             ->and(mentionsOwnerConnection($sources[$file]))->toBeTrue("{$file} ya no usa pgsql_owner: retirarlo de la lista de AR-14");
     }
 
-    expect(count(ownerConnectionExceptions()))->toBe(5);
+    // Ratchet real: la lista solo puede reducirse (<= 5), nunca crecer.
+    expect(count(ownerConnectionExceptions()))->toBeLessThanOrEqual(5, 'la lista de excepciones de AR-14 solo puede reducirse: tenía 5 entradas y ahora tiene más');
 });
 
 test('AR-14 #383 CA-056-14 control negativo: detecta la mención real y no la de un comentario, ni una migración, ni un fichero de la lista', function (): void {

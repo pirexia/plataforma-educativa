@@ -188,7 +188,9 @@ final class MfaEnrollmentService
             UserMfaObligation::query()
                 ->where('user_id', $user->id)
                 ->whereNull('resolved_at')
+                ->lockForUpdate()
                 ->get()
+                ->filter(fn (UserMfaObligation $obligation): bool => $obligation->resolved_at === null)
                 ->each(fn (UserMfaObligation $obligation) => $obligation->update(['resolved_at' => now()]));
 
             return $wasFirstConfirmedFactor ? $this->recoveryCodes->generateInitialBatch($user) : null;

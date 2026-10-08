@@ -66,7 +66,9 @@ final class MfaExemptionService
             UserMfaObligation::query()
                 ->where('user_id', $target->id)
                 ->whereNull('resolved_at')
+                ->lockForUpdate()
                 ->get()
+                ->filter(fn (UserMfaObligation $obligation): bool => $obligation->resolved_at === null)
                 ->each(fn (UserMfaObligation $obligation) => $obligation->update(['resolved_at' => now()]));
 
             return $exemption;

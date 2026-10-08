@@ -299,3 +299,106 @@ test('RN-CURSO-23 #385: guardAcademicYearWrites() dice con claridad que el dispa
         $owner->rollBack();
     }
 });
+
+/**
+ * Excepciones de la comprobación referencial de AR-13 (security-reviewer M-1):
+ * lista CERRADA y nominal `tabla => motivo`, **vacía al nacer**; solo puede
+ * reducirse y ampliarla exige especificación aprobada expresamente por el
+ * usuario (ADR-056 §3.2).
+ *
+ * @return array<string, string>
+ */
+function referentialActionExceptions(): array
+{
+    return [];
+}
+
+/**
+ * Claves foráneas de tablas con `academic_year_id` cuya acción referencial
+ * (ON DELETE o ON UPDATE) no es NO ACTION/RESTRICT: CASCADE, SET NULL o SET
+ * DEFAULT. PostgreSQL ejecuta esas acciones con los privilegios del
+ * PROPIETARIO de la tabla hija, que está exento del disparador
+ * `academic_year_write_guard` (ADR-057 §5.2): saltarían el bloqueo de un curso
+ * cerrado sin que el disparador lo vea.
+ *
+ * @return list<string> `tabla.restricción`
+ */
+function referentialActionViolations(string $schema, string $tablePrefix = ''): array
+{
+    $violations = [];
+
+    foreach (tablesWithAcademicYearColumn($schema, $tablePrefix) as $table) {
+        $rows = DB::connection('pgsql_owner')->select(<<<'SQL'
+            SELECT con.conname AS nombre
+            FROM pg_constraint con
+            JOIN pg_class c ON c.oid = con.conrelid
+            JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = ?
+            WHERE con.contype = 'f'
+              AND c.relname = ?
+              AND (con.confdeltype IN ('c', 'n', 'd') OR con.confupdtype IN ('c', 'n', 'd'))
+            ORDER BY con.conname
+            SQL, [$schema, $table]);
+
+        foreach ($rows as $row) {
+            $violations[] = "{$table}.{$row->nombre}";
+        }
+    }
+
+    return $violations;
+}
+
+test('AR-13 CA-057-06 security-reviewer M-1 ADR-057 §5.2: ninguna FK de una tabla con academic_year_id tiene acción referencial CASCADE, SET NULL ni SET DEFAULT (corren como propietario y saltan el disparador)', function (): void {
+    AcademicYearProbe::ensureTable();
+
+    $exceptions = array_keys(referentialActionExceptions());
+    $violations = array_values(array_filter(
+        referentialActionViolations('public'),
+        static fn (string $v): bool => ! in_array(explode('.', $v, 2)[0], $exceptions, true),
+    ));
+
+    expect($violations)->toBe([], "claves foráneas con ON DELETE/ON UPDATE CASCADE, SET NULL o SET DEFAULT en tablas con academic_year_id (saltan el disparador: la acción corre como propietario, ADR-057 §5.2). Usa NO ACTION (sin cascadeOnDelete/nullOnDelete/cascadeOnUpdate):\n".implode("\n", $violations));
+});
+
+test('AR-13 CA-057-06 M-1: la lista de excepciones referenciales está vacía y solo puede reducirse', function (): void {
+    expect(referentialActionExceptions())->toBe([]);
+});
+
+test('AR-13 CA-057-06 M-1 control negativo: detecta CASCADE, SET NULL y ON UPDATE CASCADE; no detecta NO ACTION', function (): void {
+    $owner = DB::connection('pgsql_owner');
+    $p = 'arch_control_ay_fk_';
+
+    $owner->beginTransaction();
+
+    try {
+        $owner->statement("CREATE TABLE {$p}padre (id bigint PRIMARY KEY)");
+
+        foreach ([
+            'cascade' => 'ON DELETE CASCADE',
+            'set_null' => 'ON DELETE SET NULL',
+            'upd_cascade' => 'ON UPDATE CASCADE',
+            'no_action' => 'ON DELETE NO ACTION ON UPDATE NO ACTION',
+        ] as $name => $action) {
+            $owner->statement("CREATE TABLE {$p}{$name} (id bigint PRIMARY KEY, academic_year_id bigint, padre_id bigint REFERENCES {$p}padre(id) {$action})");
+        }
+
+        expect(referentialActionViolations('public', $p))->toBe([
+            "{$p}cascade.{$p}cascade_padre_id_fkey",
+            "{$p}set_null.{$p}set_null_padre_id_fkey",
+            "{$p}upd_cascade.{$p}upd_cascade_padre_id_fkey",
+        ]);
+    } finally {
+        $owner->rollBack();
+    }
+});
+
+test('RN-CURSO-23 #385 B-2: guardAcademicYearWrites() exige transacción de pgsql_owner y lo dice', function (): void {
+    $owner = DB::connection('pgsql_owner');
+
+    // Fuera de transacción el tope local no protegería el CREATE TRIGGER.
+    while ($owner->transactionLevel() > 0) {
+        $owner->rollBack();
+    }
+
+    expect(fn () => TenantMigration::guardAcademicYearWrites('arch_control_ay_sin_tx'))
+        ->toThrow(RuntimeException::class, TenantMigration::guardRequiresTransactionMessage('arch_control_ay_sin_tx'));
+});

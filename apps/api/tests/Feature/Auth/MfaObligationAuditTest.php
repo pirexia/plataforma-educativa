@@ -111,3 +111,44 @@ test('INV-003 #381: conceder una excepción MFA cierra la obligación abierta y 
             ->and(obligationResolvedAuditRows($obligation->id))->toHaveCount(1);
     });
 });
+
+test('INV-003 #381 B-1: un segundo cierre sobre una obligación ya cerrada no la toca ni audita un cambio falso', function (): void {
+    Queue::fake();
+    [$tenant, $admin] = provisionCoreTenant('mfa-381-c');
+
+    $role = app(TenantContext::class)->runFor($tenant->id, fn () => Role::create([
+        'code' => 'rol-381c', 'name' => 'Rol 381c', 'is_system' => false, 'mfa_required' => true,
+    ]));
+
+    // Obligación ya cerrada (otra petición ganó la carrera): el cierre
+    // filtra por resolved_at nulo bajo lockForUpdate(), así que no la reescribe.
+    [$target, $closedAt] = app(TenantContext::class)->runFor($tenant->id, function () use ($role): array {
+        $user = User::factory()->for(Person::factory()->create())->create(['status' => UserStatus::Activo]);
+        $user->roles()->attach($role->id);
+        $closedAt = now()->subHour()->startOfSecond();
+        UserMfaObligation::create([
+            'user_id' => $user->id,
+            'obligated_since' => now()->subDays(20),
+            'grace_deadline_at' => now()->subDay(),
+            'trigger' => 'rol_asignado',
+            'resolved_at' => $closedAt,
+        ]);
+
+        return [$user, $closedAt];
+    });
+
+    test()->actingAs($admin)
+        ->postJson(coreApiUrl($tenant->slug, '/mfa-exemptions'), [
+            'user' => $target->public_id,
+            'reason' => 'Sin dispositivo compatible, pendiente de sustitución.',
+            'expires_at' => now()->addDays(30)->toISOString(),
+        ])
+        ->assertStatus(201);
+
+    app(TenantContext::class)->runFor($tenant->id, function () use ($target, $closedAt): void {
+        $obligation = UserMfaObligation::query()->where('user_id', $target->id)->firstOrFail();
+
+        expect($obligation->resolved_at->equalTo($closedAt))->toBeTrue()
+            ->and(obligationResolvedAuditRows($obligation->id))->toHaveCount(0);
+    });
+});

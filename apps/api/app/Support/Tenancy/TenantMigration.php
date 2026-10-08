@@ -159,6 +159,13 @@ final class TenantMigration
 
         $owner = DB::connection('pgsql_owner');
 
+        // El tope de bloqueo es `SET LOCAL` (set_config(..., true)): fuera de una
+        // transacción valdría solo para la sentencia suelta y no protegería el
+        // CREATE TRIGGER. Se exige transacción de forma explícita (B-2).
+        if ($owner->transactionLevel() < 1) {
+            throw new RuntimeException(self::guardRequiresTransactionMessage($table));
+        }
+
         // Idempotencia explícita (#385): un segundo CREATE TRIGGER fallaría con
         // un error genérico de PostgreSQL ("trigger ... already exists"); aquí
         // se dice qué ocurre y qué hacer.
@@ -191,6 +198,13 @@ final class TenantMigration
 
     /** Tope de espera de bloqueo para enganchar el disparador (#385). */
     public const GUARD_LOCK_TIMEOUT = '5s';
+
+    public static function guardRequiresTransactionMessage(string $table): string
+    {
+        return "guardAcademicYearWrites({$table}) debe ejecutarse dentro de una transacción de pgsql_owner: "
+            .'el tope de bloqueo (lock_timeout) es local a la transacción y sin ella no protege el CREATE TRIGGER. '
+            .'Las migraciones de Laravel ya corren en transacción; no lo llames desde fuera de una.';
+    }
 
     public static function guardAlreadyExistsMessage(string $table): string
     {
