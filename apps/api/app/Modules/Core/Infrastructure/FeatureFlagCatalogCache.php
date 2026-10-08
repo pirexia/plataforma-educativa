@@ -2,6 +2,7 @@
 
 namespace App\Modules\Core\Infrastructure;
 
+use App\Support\FeatureFlags\FeatureFlagCatalogInvalidator;
 use Illuminate\Redis\Connections\Connection;
 use Illuminate\Support\Facades\Redis;
 
@@ -42,7 +43,7 @@ use Illuminate\Support\Facades\Redis;
  * contra la base de datos, y el cálculo sin reglas da `false` (`RN-BO-35`,
  * `operacion.md §3`).
  */
-final class FeatureFlagCatalogCache
+final class FeatureFlagCatalogCache implements FeatureFlagCatalogInvalidator
 {
     private const KEY = 'feature-flags:catalog:v1';
 
