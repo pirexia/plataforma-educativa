@@ -6,6 +6,7 @@ use App\Models\PermissionRole;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserStatus;
+use App\Modules\Core\Infrastructure\Console\GrantAcademicYearPermissionsCommand;
 use App\Modules\Curso\Domain\AcademicYearClosureCheck;
 use App\Modules\Curso\Domain\AcademicYearClosureFailure;
 use App\Modules\Curso\Domain\AcademicYearClosureRegistry;
@@ -14,6 +15,7 @@ use App\Modules\Curso\Domain\AcademicYearSummary;
 use App\Modules\Curso\Domain\Models\AcademicYear;
 use App\Modules\Curso\Infrastructure\CursoServiceProvider;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ArchitectureModules;
@@ -537,6 +539,32 @@ test('CA-CURSO-064 OPEN-CURSO-14: el comando curso:grant-year-permissions conced
     $customRoleCodes = app(TenantContext::class)->runFor($tenant->id, fn () => PermissionRole::query()->whereHas('role', fn ($q) => $q->where('code', 'rol_custom064b'))->pluck('permission_code')->all());
     expect($customRoleCodes)->toBe(['usuario.leer']);
     expect($custom)->toBeInstanceOf(User::class);
+});
+
+test('CA-CURSO-064 #385: el comando curso:grant-year-permissions se niega con un mensaje claro si el registro de permisos no está sincronizado, y no concede nada', function (): void {
+    [$tenant] = provisionCoreTenant('cur-064c');
+
+    // Un registro sin sincronizar: el comando de producción con su comprobación
+    // previa, pero con el catálogo vacío (el rol de aplicación no puede borrar permisos).
+    $unsynced = new class extends GrantAcademicYearPermissionsCommand
+    {
+        protected function registeredPermissionCodes(array $codes): array
+        {
+            return [];
+        }
+    };
+    Artisan::registerCommand($unsynced);
+
+    app(TenantContext::class)->runFor($tenant->id, function (): void {
+        PermissionRole::query()->where(fn ($q) => $q->where('permission_code', 'like', 'curso%')->orWhere('permission_code', 'like', 'estado_curso%'))->get()->each->delete();
+    });
+
+    test()->artisan('curso:grant-year-permissions')
+        ->expectsOutputToContain('platform:sync-registry')
+        ->assertFailed();
+
+    $count = app(TenantContext::class)->runFor($tenant->id, fn () => PermissionRole::query()->where(fn ($q) => $q->where('permission_code', 'like', 'curso%')->orWhere('permission_code', 'like', 'estado_curso%'))->count());
+    expect($count)->toBe(0);
 });
 
 test('CA-CURSO-065 CA-PERM-134: las etiquetas de los tres recursos de curso existen en los cuatro idiomas', function (): void {

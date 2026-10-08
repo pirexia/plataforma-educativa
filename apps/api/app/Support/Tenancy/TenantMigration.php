@@ -7,6 +7,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use InvalidArgumentException;
+use RuntimeException;
 
 /**
  * ADR-033 §5, §6, §9 y ADR-034 §6, §7: lo que toda tabla de negocio necesita,
@@ -156,10 +157,47 @@ final class TenantMigration
     {
         self::assertSafeIdentifier($table);
 
-        DB::connection('pgsql_owner')->statement(
+        $owner = DB::connection('pgsql_owner');
+
+        // Idempotencia explícita (#385): un segundo CREATE TRIGGER fallaría con
+        // un error genérico de PostgreSQL ("trigger ... already exists"); aquí
+        // se dice qué ocurre y qué hacer.
+        $exists = $owner->selectOne(
+            'SELECT 1 AS ok FROM pg_trigger t WHERE t.tgrelid = ?::regclass AND t.tgname = ? AND NOT t.tgisinternal',
+            [$table, 'academic_year_write_guard'],
+        );
+
+        if ($exists !== null) {
+            throw new RuntimeException(self::guardAlreadyExistsMessage($table));
+        }
+
+        // CREATE TRIGGER toma SHARE ROW EXCLUSIVE sobre la tabla: sin tope,
+        // una transacción larga sobre ella bloquearía el despliegue
+        // indefinidamente y, detrás, todas las escrituras. Tope breve y local
+        // a la transacción de la migración (SET LOCAL), restaurado después
+        // para no afectar al resto de la migración. Si el bloqueo no se
+        // obtiene, PostgreSQL aborta la transacción (55P03) y el valor local
+        // desaparece con ella.
+        $previous = $owner->selectOne("SELECT current_setting('lock_timeout') AS v")->v;
+        $owner->selectOne("SELECT set_config('lock_timeout', ?, true)", [self::GUARD_LOCK_TIMEOUT]);
+
+        $owner->statement(
             "CREATE TRIGGER academic_year_write_guard BEFORE INSERT OR UPDATE OR DELETE ON {$table} "
             .'FOR EACH ROW EXECUTE FUNCTION app.assert_academic_year_writable()'
         );
+
+        $owner->selectOne("SELECT set_config('lock_timeout', ?, true)", [$previous]);
+    }
+
+    /** Tope de espera de bloqueo para enganchar el disparador (#385). */
+    public const GUARD_LOCK_TIMEOUT = '5s';
+
+    public static function guardAlreadyExistsMessage(string $table): string
+    {
+        return "La tabla {$table} ya tiene el disparador academic_year_write_guard: guardAcademicYearWrites() "
+            .'no es reejecutable. Si la migración se está repitiendo tras un fallo parcial, comprueba el estado '
+            .'real (\\d+ '.$table.') antes de reintentar; si la tabla se creó con tenantTable()/tenantTableAppendOnly() '
+            .'y ya tenía la columna academic_year_id, el disparador viene puesto y esta llamada sobra.';
     }
 
     private static function guardAcademicYearWritesIfApplicable(string $table): void

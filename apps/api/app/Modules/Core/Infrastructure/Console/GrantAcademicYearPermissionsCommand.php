@@ -2,6 +2,7 @@
 
 namespace App\Modules\Core\Infrastructure\Console;
 
+use App\Models\Permission;
 use App\Models\PermissionRole;
 use App\Models\Role;
 use App\Modules\Core\Application\ProvisionTenantDefaults;
@@ -28,7 +29,12 @@ use Illuminate\Console\Command;
  * `attach()`/`sync()`, para que quede auditada (issue #165).
  *
  * Requiere `platform:sync-registry` ejecutado antes (`permission_role`
- * apunta por clave foránea a `permissions`).
+ * apunta por clave foránea a `permissions`): el comando lo comprueba al
+ * empezar y, si falta algún permiso, falla con el motivo y el remedio en
+ * lugar de una violación de clave foránea a mitad del recorrido (#385).
+ * **Solo recorre los centros en estado `Activo`** (`RunsPerTenant`): un
+ * centro suspendido, en baja o aún aprovisionándose no recibe las
+ * concesiones; al reactivarlo hay que volver a ejecutar el comando.
  *
  * Vive en `Core` y no en `Curso` porque `AR-08` confina la clase `Role` a
  * `Core`.
@@ -43,6 +49,16 @@ class GrantAcademicYearPermissionsCommand extends Command
 
     public function handle(): int
     {
+        $required = collect(ProvisionTenantDefaults::ACADEMIC_YEAR_PERMISSION_GRANTS)->flatten()->unique()->values()->all();
+        $missing = array_values(array_diff($required, $this->registeredPermissionCodes($required)));
+
+        if ($missing !== []) {
+            $this->error('El registro de permisos no está sincronizado: faltan '.implode(', ', $missing).'. '
+                .'Ejecuta primero `php artisan platform:sync-registry` y vuelve a lanzar este comando (REQ-CURSO/operacion.md §3).');
+
+            return self::FAILURE;
+        }
+
         $this->eachTenant(function (Tenant $tenant): void {
             AuditActor::actingAs('console', function () use ($tenant): void {
                 foreach (ProvisionTenantDefaults::ACADEMIC_YEAR_PERMISSION_GRANTS as $roleCode => $permissionCodes) {
@@ -74,5 +90,14 @@ class GrantAcademicYearPermissionsCommand extends Command
         });
 
         return self::SUCCESS;
+    }
+
+    /**
+     * @param  list<string>  $codes
+     * @return list<string> los de `$codes` que figuran en `permissions`
+     */
+    protected function registeredPermissionCodes(array $codes): array
+    {
+        return Permission::query()->whereIn('code', $codes)->pluck('code')->all();
     }
 }

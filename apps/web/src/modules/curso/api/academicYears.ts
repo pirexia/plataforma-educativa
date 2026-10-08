@@ -1,6 +1,11 @@
 /**
  * REQ-CURSO/api.md §2 (paso 1.10): los seis endpoints de cursos. Sin
  * `DELETE`, sin transición a `archivado` y sin reapertura (no existen en 1.10).
+ *
+ * `#385`: todo identificador que entra en una ruta se codifica con
+ * `encodeURIComponent`. Un `public_id` es un ULID (alfabeto cerrado), pero el
+ * cliente no debe depender de eso: un valor con `/`, `?` o `#` no puede alterar
+ * la ruta que se pide.
  */
 import { apiFetch } from '@/api/client'
 import type { AcademicYear, AcademicYearStatus, Paginated, PublicId } from '../types'
@@ -37,7 +42,7 @@ export function listAcademicYears(
 }
 
 export function getAcademicYear(publicId: PublicId): Promise<AcademicYear> {
-  return apiFetch<AcademicYear>(`/academic-years/${publicId}`)
+  return apiFetch<AcademicYear>(`/academic-years/${encodeURIComponent(publicId)}`)
 }
 
 /**
@@ -68,7 +73,7 @@ export function updateAcademicYear(
   publicId: PublicId,
   payload: Partial<AcademicYearPayload>,
 ): Promise<AcademicYear> {
-  return apiFetch<AcademicYear>(`/academic-years/${publicId}`, {
+  return apiFetch<AcademicYear>(`/academic-years/${encodeURIComponent(publicId)}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
   })
@@ -79,7 +84,7 @@ export function transitionAcademicYear(
   publicId: PublicId,
   status: Extract<AcademicYearStatus, 'activo' | 'cerrado'>,
 ): Promise<AcademicYear> {
-  return apiFetch<AcademicYear>(`/academic-years/${publicId}/status`, {
+  return apiFetch<AcademicYear>(`/academic-years/${encodeURIComponent(publicId)}/status`, {
     method: 'POST',
     body: JSON.stringify({ status }),
   })

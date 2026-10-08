@@ -264,3 +264,38 @@ test('RN-CURSO-23 db-reviewer M-1: la migración de la función detalla el coman
     $row = DB::connection('pgsql_owner')->selectOne("SELECT pg_catalog.has_schema_privilege(current_user, 'app', 'CREATE') AS ok");
     expect($row->ok)->toBeTrue();
 });
+
+test('RN-CURSO-23 #385: guardAcademicYearWrites() dice con claridad que el disparador ya existe y no deja lock_timeout cambiado', function (): void {
+    $owner = DB::connection('pgsql_owner');
+    $p = 'arch_control_ay_idem_';
+
+    $owner->beginTransaction();
+
+    try {
+        $before = $owner->selectOne("SELECT current_setting('lock_timeout') AS v")->v;
+
+        // Tabla con la columna añadida a posteriori: primera llamada correcta.
+        TenantMigration::tenantTable("{$p}t", function (Blueprint $table): void {
+            $table->text('name');
+        });
+        Schema::connection('pgsql_owner')->table("{$p}t", function (Blueprint $table): void {
+            $table->unsignedBigInteger('academic_year_id')->nullable();
+        });
+        TenantMigration::guardAcademicYearWrites("{$p}t");
+
+        expect($owner->selectOne("SELECT current_setting('lock_timeout') AS v")->v)->toBe($before, 'el tope de bloqueo no se restaura');
+
+        // Segunda llamada: error explícito de producto, no el genérico de PostgreSQL.
+        expect(fn () => TenantMigration::guardAcademicYearWrites("{$p}t"))
+            ->toThrow(RuntimeException::class, TenantMigration::guardAlreadyExistsMessage("{$p}t"));
+
+        // Una tabla creada con el ayudante con la columna ya trae el disparador: llamar a mano sobra y lo dice.
+        TenantMigration::tenantTable("{$p}u", function (Blueprint $table): void {
+            TenantMigration::tenantForeignId($table, 'academic_year_id', 'academic_years');
+        });
+        expect(fn () => TenantMigration::guardAcademicYearWrites("{$p}u"))
+            ->toThrow(RuntimeException::class, 'ya tiene el disparador academic_year_write_guard');
+    } finally {
+        $owner->rollBack();
+    }
+});
