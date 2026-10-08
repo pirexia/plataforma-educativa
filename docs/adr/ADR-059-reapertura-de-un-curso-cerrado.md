@@ -1,11 +1,11 @@
 # ADR-059 · Reapertura de un curso académico cerrado
 
-**Estado**: **PROPUESTA** (2026-10-08). Pendiente de decisión del usuario sobre `OPEN-059-01` a `-06` (`§10`). Mientras no se acepte, rige `OPEN-CURSO-08` opción **A** (no hay reapertura), aprobada para `1.10`.
+**Estado**: **ACEPTADA** (2026-10-08). El usuario aceptó la opción **B** y las respuestas propuestas para `OPEN-059-02` a `-04` (`§10`). `OPEN-059-05` y `-06` quedan abiertas por diseño, con dueño y paso (`1.19`, `1.17b`/`REQ-SEC`).
 **Fecha**: 2026-10-08
-**Paso**: decisión previa a `1.11` de `PLAN-IMPLEMENTACION.md`. Resuelve, si se acepta, `OPEN-CURSO-08` de `docs/modulos/REQ-CURSO/funcional.md §15`.
+**Paso**: decisión previa a `1.11` de `PLAN-IMPLEMENTACION.md`. Resuelve `OPEN-CURSO-08` de `docs/modulos/REQ-CURSO/funcional.md §15`.
 **Se apoya en**: `INV-002`, `INV-003`, `INV-007`, `INV-012`; `ADR-034 §4` (un activo por centro, índice único parcial); `ADR-035 §8`; `ADR-039 §4.5`, `§5.3`; `ADR-044`; `ADR-046 §6`; `ADR-048 §4.9`; `ADR-057 §5.2`, `§5.4`, `§5.7`; `ADR-058`.
 **No sustituye** ningún ADR. **No cambia** ninguna regla de `ADR-057` ni de `ADR-058`: aplica la previsión de `ADR-057 §5.7` («si se decide la reapertura, es una transición de estado de `academic_years` […] y no necesita excepción»).
-**Afecta a** (si se acepta): `REQ-CURSO-001`, `REQ-CURSO-005`; `RN-CURSO-10`, `-12`, `-13`; `CA-CURSO-023`, `-084`; `permisos.md §1`, `§2`, `§4`; y como restricción, a los pasos diferidos `1.12b` (rollover) y `1.17b` (promoción y paquete de cierre).
+**Afecta a**: `REQ-CURSO-001`, `REQ-CURSO-005`; `RN-CURSO-10`, `-12`, `-13`; `CA-CURSO-023`, `-084`; `permisos.md §1`, `§2`, `§4`; y como restricción, a los pasos diferidos `1.12b` (rollover) y `1.17b` (promoción y paquete de cierre).
 
 ---
 
@@ -208,9 +208,9 @@ Alternativa más simple, si el usuario prefiere no construir el registro ahora: 
 
 | ID | Pregunta | Opciones | Recomendación | Bloquea |
 |---|---|---|---|---|
-| **`OPEN-059-01`** | ¿Se acepta la reapertura (opción B) frente a A o C? | A / B / C (`§3`) | **B** (`§4`, `§6`) | `1.11` |
-| **`OPEN-059-02`** | ¿Permiso propio o el de cierre? ¿Algún freno adicional? | (a) recurso nuevo `reapertura_curso_academico`; (b) reutilizar `estado_curso_academico.actualizar`; además, opcional: doble confirmación por otra persona del centro | **(a)**, sin doble confirmación (no hay mecanismo ni requisito; la ventana estrecha y el motivo bastan) | Especificación |
-| **`OPEN-059-03`** | ¿Ventana acotada por hechos (sin otro activo + cerrado más reciente) o también por plazo? | (a) solo hechos; (b) además un plazo en días desde el cierre, configurable o fijo | **(a)**. Si el usuario conoce un plazo normativo (p. ej. de reclamaciones o de entrega de actas), es él quien lo da: no se inventa | Especificación |
-| **`OPEN-059-04`** | ¿Se construye ya el registro de validaciones de reapertura (`§5.5`)? | (a) sí, vacío, como el de cierre; (b) no, lo añade `1.17b` | **(a)**, por coherencia con `OPEN-CURSO-07`; (b) es igual de reversible | No |
+| **`OPEN-059-01`** | ¿Se acepta la reapertura (opción B) frente a A o C? | A / B / C (`§3`) | **B** (`§4`, `§6`) | `1.11` **Resuelta 2026-10-08: B.** |
+| **`OPEN-059-02`** | ¿Permiso propio o el de cierre? ¿Algún freno adicional? | (a) recurso nuevo `reapertura_curso_academico`; (b) reutilizar `estado_curso_academico.actualizar`; además, opcional: doble confirmación por otra persona del centro | **(a)**, sin doble confirmación (no hay mecanismo ni requisito; la ventana estrecha y el motivo bastan) | Especificación **Resuelta 2026-10-08: (a) recurso nuevo, sin doble confirmación.** |
+| **`OPEN-059-03`** | ¿Ventana acotada por hechos (sin otro activo + cerrado más reciente) o también por plazo? | (a) solo hechos; (b) además un plazo en días desde el cierre, configurable o fijo | **(a)**. Si el usuario conoce un plazo normativo (p. ej. de reclamaciones o de entrega de actas), es él quien lo da: no se inventa | Especificación **Resuelta 2026-10-08: (a) solo hechos.** |
+| **`OPEN-059-04`** | ¿Se construye ya el registro de validaciones de reapertura (`§5.5`)? | (a) sí, vacío, como el de cierre; (b) no, lo añade `1.17b` | **(a)**, por coherencia con `OPEN-CURSO-07`; (b) es igual de reversible | No **Resuelta 2026-10-08: (a) registro vacío ahora.** |
 | **`OPEN-059-05`** | ¿Debe avisarse a alguien de una reapertura? | (a) no; (b) sí, a quienes tengan `estado_curso_academico.actualizar` o `curso_historico.leer`, cuando exista `REQ-COM` (`1.19`) | Decidirlo en `1.19`; hasta entonces basta la auditoría y la tabla de reaperturas | No |
 | **`OPEN-059-06`** | **Implicaciones legales de reabrir tras promoción, actas o exportación a Raíces (T3/T4).** ¿Hay norma (Comunidad de Madrid, Raíces) que fije cuándo un curso es definitivo? | La conoce el usuario o el centro, no este ADR | Que la especificación de `1.17b` y la de `REQ-SEC` (fase 2) la respondan y registren la validación correspondiente. **Este ADR no la presupone** | `1.17b` |
