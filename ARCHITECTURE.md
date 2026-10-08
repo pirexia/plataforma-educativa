@@ -147,7 +147,7 @@ Detalle completo, reglas de negocio y criterios de aceptación: `docs/modulos/RE
 | Regla | Qué comprueba | Test |
 |-------|---------------|------|
 | `AR-01` (`INV-007`) | un módulo solo usa de otro su `Domain`, **excluido `Domain\Models`** | `apps/api/tests/Feature/Architecture/ModuleBoundariesTest.php` |
-| `AR-02` | el núcleo (`App\Support`, `App\Http`, `App\Models`, `App\Providers`) no usa internos de módulo; 3 excepciones nominales | `CoreBoundariesTest.php` |
+| `AR-02` | el núcleo (`App\Support`, `App\Http`, `App\Models`, `App\Providers`) no usa internos de módulo; **0 excepciones** desde #375 (los *middleware* de sesión y `SyncModuleRegistry` dependen de `App\Support\Sessions\ActiveSessionCloser` y `App\Support\FeatureFlags\FeatureFlagCatalogInvalidator`, que implementan Auth y Core) | `CoreBoundariesTest.php` |
 | `AR-03` | `ServiceProvider` por convención, descubierto, con catálogo y migraciones cargadas; excepción: `Backoffice` | `ModuleConventionsTest.php` |
 | `AR-04` (`ADR-029`) | en el esquema real (`pg_catalog`): ni `varchar`, ni `timestamp` sin zona, ni `ENUM`, ni `character(n≠26)`; 13 columnas de 7 tablas de Laravel como excepción | `SchemaConventionsTest.php` |
 | `AR-05` | toda `public_id` es `character(26) NOT NULL` con índice único propio; **sin excepciones** | `SchemaConventionsTest.php` |

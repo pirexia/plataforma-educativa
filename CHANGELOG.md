@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-08 · `AR-02` sin excepciones (#375, `INV-007`)
+
+`EnforceSessionIdleTimeout` y `VerifySessionTenant` cierran la sesión por `App\Support\Sessions\ActiveSessionCloser` (implementación `Auth\Infrastructure\EloquentActiveSessionCloser`); `SyncModuleRegistry` invalida la caché por `App\Support\FeatureFlags\FeatureFlagCatalogInvalidator` (lo implementa `FeatureFlagCatalogCache`). `CoreBoundariesTest`: lista de excepciones vacía y test de resolución de las interfaces. Sin cambio de comportamiento. `ADR-056 §3.3`, `OPEN-056-03` y `CA-056-03`/`CA-056-15` quedan superados en esta parte (el ADR no se edita).
+
+---
+
 ## 2026-10-08 · Redistribución de modelos entre Haiku, Sonnet y Opus (`CLAUDE.md` 2.6.0)
 
 - **Copia de seguridad previa**: etiqueta de Git `config-claude-2026-10-08` (commit `0ecd3a2`, publicada) con `CLAUDE.md`, `.claude/agents/`, `.claude/skills/`, `.claude/settings.json` y la tabla de agentes de `PLAN-IMPLEMENTACION.md` tal como estaban. Procedimiento de vuelta atrás en `CLAUDE.md §2`.
