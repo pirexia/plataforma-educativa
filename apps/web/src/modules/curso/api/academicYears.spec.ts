@@ -10,7 +10,8 @@ vi.mock('@/api/client', () => ({
   apiFetch: (...args: unknown[]) => apiFetch(...args),
 }))
 
-const { getAcademicYear, transitionAcademicYear, updateAcademicYear } = await import('./academicYears')
+const { getAcademicYear, transitionAcademicYear, updateAcademicYear } =
+  await import('./academicYears')
 
 const HOSTILE = '01ABC/../x?y=1#z'
 const ENCODED = encodeURIComponent(HOSTILE)
