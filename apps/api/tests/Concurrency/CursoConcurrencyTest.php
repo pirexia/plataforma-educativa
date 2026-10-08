@@ -2,6 +2,7 @@
 
 use App\Modules\Curso\Domain\AcademicYearStatus;
 use App\Modules\Curso\Domain\Models\AcademicYear;
+use App\Modules\Curso\Infrastructure\AcademicYearClosedTranslator;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\AcademicYearProbe;
@@ -190,7 +191,7 @@ test('RN-CURSO-10 RN-CURSO-11: dos activaciones simultáneas del mismo curso: un
 });
 
 // CA-CURSO-046, CA-057-08, RN-CURSO-32, ADR-057 §5.4
-test('CA-CURSO-046 CA-057-08 RN-CURSO-32: una escritura que llega con el cierre ya en curso espera, ve el curso cerrado y recibe CY001; no queda ninguna fila escrita', function (): void {
+test('CA-CURSO-046 CA-057-08 RN-CURSO-32: una escritura que llega con el cierre ya en curso espera, ve el curso cerrado y recibe YC001; no queda ninguna fila escrita', function (): void {
     AcademicYearProbe::ensureTable();
     [$tenant] = provisionCoreTenant('cur-046a');
     $year = CursoTestHelpers::year($tenant, '2025-2026', AcademicYearStatus::Activo);
@@ -210,7 +211,7 @@ test('CA-CURSO-046 CA-057-08 RN-CURSO-32: una escritura que llega con el cierre 
     $gate->prepare('select pg_advisory_unlock(?)')->execute([$key]);
 
     expect(cursoCollect($closer))->toMatchArray(['outcome' => 'ok'])
-        ->and(cursoCollect($writer))->toMatchArray(['outcome' => 'sql_error', 'sqlstate' => 'CY001']);
+        ->and(cursoCollect($writer))->toMatchArray(['outcome' => 'sql_error', 'sqlstate' => AcademicYearClosedTranslator::SQLSTATE]);
 
     $state = app(TenantContext::class)->runFor($tenant->id, fn () => [
         AcademicYear::query()->firstOrFail()->status,
@@ -257,5 +258,5 @@ test('CA-CURSO-046 CA-057-08 RN-CURSO-32: una escritura confirmada antes de que 
 
     // Y con el curso ya cerrado, cualquier escritura posterior falla.
     $late = cursoSpawn($tenant->id, 'write', (string) $year->id, 'posterior');
-    expect(cursoCollect($late))->toMatchArray(['outcome' => 'sql_error', 'sqlstate' => 'CY001']);
+    expect(cursoCollect($late))->toMatchArray(['outcome' => 'sql_error', 'sqlstate' => AcademicYearClosedTranslator::SQLSTATE]);
 });

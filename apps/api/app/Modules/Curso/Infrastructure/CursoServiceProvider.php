@@ -59,7 +59,7 @@ class CursoServiceProvider extends ServiceProvider implements DeclaresModuleRegi
 
     /**
      * ADR-057 §5.5: el módulo registra el mapeo de `QueryException` con
-     * `SQLSTATE CY001` (y de sus dos excepciones de dominio) a la respuesta
+     * `SQLSTATE YC001` (y de sus dos excepciones de dominio) a la respuesta
      * de error de la API. El núcleo no conoce el `SQLSTATE`.
      */
     private function registerErrorTranslation(): void

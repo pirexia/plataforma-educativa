@@ -31,10 +31,10 @@ use Illuminate\Support\Facades\DB;
  * - `FOR SHARE` sobre la fila del curso: choca con el `FOR UPDATE` del
  *   cierre (RN-CURSO-32). Exige `UPDATE` sobre `academic_years`, que
  *   `plataforma_app` y `plataforma_platform` tienen.
- * - `SQLSTATE` propio `CY001`. La clase `CY` no figura en el apéndice A
+ * - `SQLSTATE` propio `YC001`. La clase `YC` no figura en el apéndice A
  *   («PostgreSQL Error Codes») de PostgreSQL 17: las clases definidas por
- *   el producto no deben coincidir con ninguna del motor; la clase `CY`
- *   («curso») no la usa ninguna versión publicada. El mensaje lo compone el
+ *   el producto no deben coincidir con ninguna del motor; la clase `YC`
+ *   («year/curso») no la usa ninguna versión publicada. El mensaje lo compone el
  *   producto (`academic_year_closed:<public_id>`) y no depende de
  *   `lc_messages`.
  * - Vocabulario de estados de solo lectura DUPLICADO a sabiendas aquí y en
@@ -114,7 +114,7 @@ return new class extends Migration
 
                     IF v_status IN ('cerrado', 'archivado') THEN
                         RAISE EXCEPTION USING
-                            ERRCODE = 'CY001',
+                            ERRCODE = 'YC001',
                             MESSAGE = 'academic_year_closed:' || v_public_id;
                     END IF;
                 END IF;
@@ -143,7 +143,7 @@ return new class extends Migration
 
                     IF v_status IN ('cerrado', 'archivado') THEN
                         RAISE EXCEPTION USING
-                            ERRCODE = 'CY001',
+                            ERRCODE = 'YC001',
                             MESSAGE = 'academic_year_closed:' || v_public_id;
                     END IF;
                 END IF;

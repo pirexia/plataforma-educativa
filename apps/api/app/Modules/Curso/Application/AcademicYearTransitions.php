@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\DB;
  * validaciones de cierre; cambia `status`; confirma. Frente a eso, toda
  * escritura sobre una tabla de curso toma `FOR SHARE` en el disparador: una
  * escritura concurrente con el cierre o confirma antes, o espera y recibe
- * `CY001`. Lo que el propio cierre tenga que escribir en tablas del curso
+ * `YC001`. Lo que el propio cierre tenga que escribir en tablas del curso
  * se escribe ANTES de cambiar `status`, en esta misma transacción.
  *
  * RN-CURSO-13: la auditoría la registra el observer (`updated`,

@@ -11,7 +11,7 @@ namespace App\Modules\Curso\Domain;
  *
  * Sirve para fallar antes de efectos laterales (p. ej. antes de generar un
  * PDF), para que un proceso por lotes salte filas sin dejar abortada su
- * transacción (`QueryException` con `CY001` la aborta) y para que la
+ * transacción (`QueryException` con `YC001` la aborta) y para que la
  * interfaz oculte acciones.
  */
 interface AcademicYearWriteGuard

@@ -3,6 +3,7 @@
 use App\Modules\Core\Domain\Models\TenantSetting;
 use App\Modules\Curso\Domain\AcademicYearStatus;
 use App\Modules\Curso\Domain\Models\AcademicYear;
+use App\Modules\Curso\Infrastructure\AcademicYearClosedTranslator;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\QueryException;
@@ -113,7 +114,7 @@ foreach (writePaths() as $label => $_) {
     // CA-CURSO-040 / CA-057-01 (RN-CURSO-20, RN-CURSO-23): es el criterio de
     // aceptación 1 de §5.28 («modificar en un curso cerrado: el sistema lo
     // impide e indica el motivo») sobre el único recurso por curso que hay.
-    test("CA-CURSO-040 CA-057-01 RN-CURSO-23 ADR-057: en un curso cerrado, «{$label}» falla con SQLSTATE CY001 y la fila no cambia", function () use ($label): void {
+    test("CA-CURSO-040 CA-057-01 RN-CURSO-23 ADR-057: en un curso cerrado, «{$label}» falla con SQLSTATE YC001 y la fila no cambia", function () use ($label): void {
         ['year' => $year, 'id' => $id, 'trashedId' => $trashedId] = probeFixture($this->tenant, AcademicYearStatus::Cerrado);
 
         app(TenantContext::class)->enter($this->tenant->id);
@@ -123,7 +124,7 @@ foreach (writePaths() as $label => $_) {
 
         $error = attempt(fn () => writePaths()[$label]($year, $id, $trashedId));
 
-        expect(sqlState($error))->toBe('CY001')
+        expect(sqlState($error))->toBe(AcademicYearClosedTranslator::SQLSTATE)
             ->and($error->getMessage())->toContain("academic_year_closed:{$year->public_id}")
             ->and(probeSnapshot($id))->toEqual($before)
             ->and(probeSnapshot($trashedId))->toEqual($beforeTrashed)
@@ -148,11 +149,11 @@ test('CA-CURSO-040 ADR-057 §5.1: archivado es de solo lectura igual que cerrado
 
     app(TenantContext::class)->enter($this->tenant->id);
 
-    expect(sqlState(attempt(fn () => DB::table(AcademicYearProbe::TABLE)->where('id', $id)->update(['name' => 'x']))))->toBe('CY001')
-        ->and(sqlState(attempt(fn () => DB::table(AcademicYearProbe::TABLE)->insert(['name' => 'x', 'academic_year_id' => $year->id]))))->toBe('CY001');
+    expect(sqlState(attempt(fn () => DB::table(AcademicYearProbe::TABLE)->where('id', $id)->update(['name' => 'x']))))->toBe(AcademicYearClosedTranslator::SQLSTATE)
+        ->and(sqlState(attempt(fn () => DB::table(AcademicYearProbe::TABLE)->insert(['name' => 'x', 'academic_year_id' => $year->id]))))->toBe(AcademicYearClosedTranslator::SQLSTATE);
 });
 
-test('CA-057-02 ADR-057 §5.1: mover una fila hacia o desde un curso cerrado falla con CY001', function (): void {
+test('CA-057-02 ADR-057 §5.1: mover una fila hacia o desde un curso cerrado falla con YC001', function (): void {
     $planning = CursoTestHelpers::year($this->tenant, '2026-2027', AcademicYearStatus::Planificacion, '2026-07-01', '2026-08-31');
     $closing = CursoTestHelpers::year($this->tenant, '2025-2026', AcademicYearStatus::Activo, '2025-09-01', '2026-06-30');
 
@@ -168,8 +169,8 @@ test('CA-057-02 ADR-057 §5.1: mover una fila hacia o desde un curso cerrado fal
     $toClosed = attempt(fn () => DB::table(AcademicYearProbe::TABLE)->where('id', $inOpen)->update(['academic_year_id' => $closing->id]));
     $fromClosed = attempt(fn () => DB::table(AcademicYearProbe::TABLE)->where('id', $inClosing)->update(['academic_year_id' => $planning->id]));
 
-    expect(sqlState($toClosed))->toBe('CY001')
-        ->and(sqlState($fromClosed))->toBe('CY001')
+    expect(sqlState($toClosed))->toBe(AcademicYearClosedTranslator::SQLSTATE)
+        ->and(sqlState($fromClosed))->toBe(AcademicYearClosedTranslator::SQLSTATE)
         ->and(probeSnapshot($inOpen)->academic_year_id)->toBe($planning->id)
         ->and(probeSnapshot($inClosing)->academic_year_id)->toBe($closing->id);
 });
@@ -211,7 +212,7 @@ test('CA-057-03 ADR-057 §5.2: el propietario de la tabla está exento (relleno 
         } catch (QueryException $e) {
             $blocked = $e;
         }
-        expect(sqlState($blocked))->toBe('CY001');
+        expect(sqlState($blocked))->toBe(AcademicYearClosedTranslator::SQLSTATE);
 
         // FORCE RLS obliga también al propietario: necesita el GUC del tenant.
         $owner->statement("select set_config('app.tenant_id', ?, false)", [(string) $tenantId]);
@@ -250,7 +251,7 @@ test('CA-057-07 ADR-057 §5.2: paridad SQL ↔ PHP, la función bloquea si y sol
 
         $error = attempt(fn () => DB::table(AcademicYearProbe::TABLE)->insert(['name' => 'p', 'academic_year_id' => $year->id]));
 
-        expect(sqlState($error) === 'CY001')->toBe($status->isReadOnly(), "estado «{$status->value}»");
+        expect(sqlState($error) === AcademicYearClosedTranslator::SQLSTATE)->toBe($status->isReadOnly(), "estado «{$status->value}»");
     }
 
     expect(AcademicYearStatus::readOnlyValues())->toBe(['cerrado', 'archivado']);
@@ -324,7 +325,7 @@ test('CA-CURSO-041 RN-CURSO-21 api.md §4: si no se puede resolver el curso resp
         // transacción abortada): la traducción no puede resolver el curso y
         // degrada a un detail sin código.
         $pdo = new PDOException('academic_year_closed:');
-        $pdo->errorInfo = ['CY001', 7, 'academic_year_closed:'];
+        $pdo->errorInfo = [AcademicYearClosedTranslator::SQLSTATE, 7, 'academic_year_closed:'];
 
         throw new QueryException('pgsql', 'insert', [], $pdo);
     });
@@ -349,4 +350,23 @@ test('CA-057-05 RN-CURSO-21: cualquier otro QueryException no se traduce y sigue
     test()->postJson('http://'.$this->tenant->slug.'.'.config('tenancy.base_domain').'/api/v1/_test/curso-guard-otro')
         ->assertStatus(500)
         ->assertJsonPath('type', 'urn:pge:error:internal');
+});
+
+test('CA-057-11 ADR-058: la clase del SQLSTATE propio no está en los rangos reservados ni coincide con ninguna clase de PostgreSQL', function (): void {
+    $sqlstate = AcademicYearClosedTranslator::SQLSTATE;
+    $class = substr($sqlstate, 0, 2);
+
+    // Clases definidas por PostgreSQL 17 (apéndice A, «PostgreSQL Error Codes»).
+    $postgresClasses = [
+        '00', '01', '02', '03', '08', '09', '0A', '0B', '0F', '0L', '0P', '0Z',
+        '20', '21', '22', '23', '24', '25', '26', '27', '28', '2B', '2D', '2F',
+        '34', '38', '39', '3B', '3D', '3F', '40', '42', '44', '53', '54', '55',
+        '57', '58', '72', 'F0', 'HV', 'P0', 'XX',
+    ];
+
+    expect($sqlstate)->toMatch('/^[0-9A-Z]{5}$/')
+        // Regla del estándar SQL: 0-4 y A-H quedan reservadas a clases estándar.
+        ->and($class[0])->not->toMatch('/[0-4A-H]/')
+        ->and($postgresClasses)->not->toContain($class)
+        ->and($class)->toBe('YC');
 });

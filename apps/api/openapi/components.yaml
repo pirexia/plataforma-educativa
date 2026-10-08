@@ -1490,7 +1490,7 @@ components:
         No es `403`: el usuario puede tener el permiso; lo que falla es el estado del dato.
         `errors.academic_year[0]` lleva `code` `curso.academic_year_closed` y `params`
         `{code, status}` (el código y el estado del curso). Lo impone un disparador de
-        PostgreSQL (`SQLSTATE CY001`), que `Curso` traduce a esta respuesta.
+        PostgreSQL (`SQLSTATE YC001`), que `Curso` traduce a esta respuesta.
       headers:
         X-Request-Id: { $ref: '#/components/headers/XRequestId' }
       content:

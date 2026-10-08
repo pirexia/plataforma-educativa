@@ -13,7 +13,7 @@ use Throwable;
  * ADR-057 §5.5, RN-CURSO-21, `api.md §4`: traduce a la forma de error de la
  * API lo que Curso produce por tres caminos:
  *
- * - el error de motor `SQLSTATE CY001` del disparador
+ * - el error de motor `SQLSTATE YC001` del disparador
  *   `academic_year_write_guard` (`academic_year_closed:<public_id>`), que
  *   llega como `QueryException` desde cualquier módulo y cualquier camino de
  *   escritura;
@@ -28,7 +28,7 @@ use Throwable;
  */
 final class AcademicYearClosedTranslator
 {
-    public const SQLSTATE = 'CY001';
+    public const SQLSTATE = 'YC001';
 
     public function translate(Throwable $e): Throwable
     {
