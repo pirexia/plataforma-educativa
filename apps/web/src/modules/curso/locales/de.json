@@ -1,0 +1,95 @@
+{
+  "curso": {
+    "status": {
+      "planificacion": "In Planung",
+      "activo": "Aktiv",
+      "cerrado": "Abgeschlossen",
+      "archivado": "Archiviert"
+    },
+    "nav": {
+      "academicYears": "Schuljahre"
+    },
+    "academicYears": {
+      "title": "Schuljahre",
+      "intro": "Die Schuljahre der Schule: das in Vorbereitung, das laufende und die bereits abgeschlossenen.",
+      "new": "Neues Schuljahr",
+      "caption": "Schuljahre der Schule",
+      "empty": {
+        "title": "Es gibt noch kein Schuljahr",
+        "text": "Lege das erste Schuljahr an, um zu beginnen."
+      },
+      "filters": {
+        "status": "Status"
+      },
+      "columns": {
+        "code": "Code",
+        "startsOn": "Beginn",
+        "endsOn": "Ende",
+        "status": "Status"
+      }
+    },
+    "form": {
+      "titleNew": "Neues Schuljahr",
+      "titleEdit": "Schuljahr bearbeiten",
+      "requiredHint": "Mit * markierte Felder sind Pflichtfelder.",
+      "required": "Pflichtfeld",
+      "errorSummary": "Prüfe diese Angaben vor dem Speichern:",
+      "code": "Code",
+      "codeHint": "Freier Text, in der Schule eindeutig, zum Beispiel 2026-2027.",
+      "startsOn": "Startdatum",
+      "endsOn": "Enddatum",
+      "save": "Speichern",
+      "saving": "Wird gespeichert…",
+      "cancel": "Abbrechen",
+      "notEditable": {
+        "title": "Dieses Schuljahr kann nicht mehr bearbeitet werden",
+        "text": "Ein Schuljahr kann nur bearbeitet werden, solange es in Planung ist.",
+        "back": "Zurück zum Schuljahr"
+      },
+      "planningExists": "Es gibt bereits ein Schuljahr in Planung: {code}.",
+      "openPlanning": "Schuljahr in Planung öffnen ({code})"
+    },
+    "detail": {
+      "title": "Schuljahr",
+      "actions": "Aktionen",
+      "edit": "Bearbeiten",
+      "activate": "Schuljahr aktivieren",
+      "close": "Schuljahr abschließen",
+      "refresh": "Neu laden",
+      "fields": {
+        "code": "Code",
+        "startsOn": "Startdatum",
+        "endsOn": "Enddatum",
+        "status": "Status",
+        "createdAt": "Erstellt",
+        "updatedAt": "Zuletzt geändert"
+      },
+      "readOnly": "Schuljahr {status}: Seine Daten sind schreibgeschützt.",
+      "openActive": "Aktives Schuljahr öffnen ({code})",
+      "closureTitle": "Das Schuljahr kann noch nicht abgeschlossen werden:",
+      "noActions": "Dieses Schuljahr lässt keine weiteren Aktionen zu."
+    },
+    "confirm": {
+      "activate": {
+        "title": "Schuljahr {code} aktivieren",
+        "description": "Das Schuljahr wird zum aktiven Schuljahr der Schule.",
+        "descriptionEnded": "Das Enddatum dieses Schuljahres ist bereits verstrichen. Es wird dennoch zum aktiven Schuljahr der Schule.",
+        "confirm": "Schuljahr {code} aktivieren"
+      },
+      "close": {
+        "title": "Schuljahr {code} abschließen",
+        "description": "Der Abschluss kann in der Anwendung nicht rückgängig gemacht werden: Ab jetzt sind die Daten dieses Schuljahres in allen Modulen der Schule schreibgeschützt.",
+        "confirm": "Schuljahr {code} abschließen"
+      }
+    },
+    "flash": {
+      "created": "Schuljahr „{code}“ in Planung angelegt.",
+      "updated": "Schuljahr aktualisiert.",
+      "activated": "Schuljahr „{code}“ aktiviert.",
+      "closed": "Schuljahr „{code}“ abgeschlossen."
+    },
+    "errors": {
+      "unexpected": "Der Vorgang konnte nicht abgeschlossen werden. Bitte versuche es erneut."
+    }
+  }
+}

@@ -58,6 +58,7 @@ final class TenantMigration
         });
 
         self::applyTenantDefaultsAndRls($table);
+        self::guardAcademicYearWritesIfApplicable($table);
 
         // hasColumn, no hasTable: hasta 0.8.4 existe un `users` heredado del
         // starter kit de Laravel sin tenant_id ni UNIQUE (tenant_id, id) —
@@ -94,6 +95,7 @@ final class TenantMigration
         });
 
         self::applyTenantDefaultsAndRls($table);
+        self::guardAcademicYearWritesIfApplicable($table);
 
         // De los dos roles, no solo plataforma_app: plataforma_platform
         // tiene BYPASSRLS (ADR-033 §5) y es la conexión que más fácil
@@ -139,6 +141,32 @@ final class TenantMigration
 
         $blueprint->foreignId($column);
         $blueprint->foreign(['tenant_id', $column], $constraintName)->references(['tenant_id', 'id'])->on($referencedTable);
+    }
+
+    /**
+     * ADR-057 §5.3, RN-CURSO-23: engancha el disparador
+     * `academic_year_write_guard` (`BEFORE INSERT OR UPDATE OR DELETE … FOR
+     * EACH ROW`, función `app.assert_academic_year_writable()`) a una tabla
+     * que YA existe y a la que se acaba de añadir la columna
+     * `academic_year_id` (en una tabla nueva lo hacen solos `tenantTable()`/
+     * `tenantTableAppendOnly()`). Ningún módulo escribe el `CREATE TRIGGER`
+     * a mano. `AR-13` comprueba el resultado sobre el esquema real.
+     */
+    public static function guardAcademicYearWrites(string $table): void
+    {
+        self::assertSafeIdentifier($table);
+
+        DB::connection('pgsql_owner')->statement(
+            "CREATE TRIGGER academic_year_write_guard BEFORE INSERT OR UPDATE OR DELETE ON {$table} "
+            .'FOR EACH ROW EXECUTE FUNCTION app.assert_academic_year_writable()'
+        );
+    }
+
+    private static function guardAcademicYearWritesIfApplicable(string $table): void
+    {
+        if (Schema::connection('pgsql_owner')->hasColumn($table, 'academic_year_id')) {
+            self::guardAcademicYearWrites($table);
+        }
     }
 
     /**

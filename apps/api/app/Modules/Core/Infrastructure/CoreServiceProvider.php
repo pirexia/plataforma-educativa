@@ -20,6 +20,7 @@ use App\Modules\Core\Domain\ModuleContracting;
 use App\Modules\Core\Domain\TenantProvisioner;
 use App\Modules\Core\Domain\TenantSettingsReader;
 use App\Modules\Core\Domain\UserDirectory;
+use App\Modules\Core\Infrastructure\Console\GrantAcademicYearPermissionsCommand;
 use App\Modules\Core\Infrastructure\Console\GrantRoleAdministrationCommand;
 use App\Modules\Core\Infrastructure\Console\ProvisionTenantDefaultsCommand;
 use App\Modules\Core\Infrastructure\Console\PurgeCoreMaintenanceCommand;
@@ -109,6 +110,7 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
                 ProvisionTenantDefaultsCommand::class,
                 PurgeCoreMaintenanceCommand::class,
                 GrantRoleAdministrationCommand::class,
+                GrantAcademicYearPermissionsCommand::class,
             ]);
         }
     }

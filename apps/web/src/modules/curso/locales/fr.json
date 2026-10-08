@@ -1,0 +1,95 @@
+{
+  "curso": {
+    "status": {
+      "planificacion": "En planification",
+      "activo": "Actif",
+      "cerrado": "Clôturé",
+      "archivado": "Archivé"
+    },
+    "nav": {
+      "academicYears": "Années scolaires"
+    },
+    "academicYears": {
+      "title": "Années scolaires",
+      "intro": "Les années scolaires de l'établissement : celle en préparation, celle en cours et celles déjà clôturées.",
+      "new": "Nouvelle année scolaire",
+      "caption": "Années scolaires de l'établissement",
+      "empty": {
+        "title": "Il n'y a encore aucune année scolaire",
+        "text": "Créez la première année scolaire pour commencer."
+      },
+      "filters": {
+        "status": "Statut"
+      },
+      "columns": {
+        "code": "Code",
+        "startsOn": "Début",
+        "endsOn": "Fin",
+        "status": "Statut"
+      }
+    },
+    "form": {
+      "titleNew": "Nouvelle année scolaire",
+      "titleEdit": "Modifier l'année scolaire",
+      "requiredHint": "Les champs marqués d’un * sont obligatoires.",
+      "required": "obligatoire",
+      "errorSummary": "Vérifiez ces données avant d’enregistrer :",
+      "code": "Code",
+      "codeHint": "Texte libre, unique dans l'établissement, par exemple 2026-2027.",
+      "startsOn": "Date de début",
+      "endsOn": "Date de fin",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "cancel": "Annuler",
+      "notEditable": {
+        "title": "Cette année scolaire ne peut plus être modifiée",
+        "text": "Une année scolaire ne peut être modifiée que tant qu'elle est en planification.",
+        "back": "Retour à l'année scolaire"
+      },
+      "planningExists": "Il existe déjà une année scolaire en planification : {code}.",
+      "openPlanning": "Ouvrir l'année scolaire en planification ({code})"
+    },
+    "detail": {
+      "title": "Année scolaire",
+      "actions": "Actions",
+      "edit": "Modifier",
+      "activate": "Activer l'année scolaire",
+      "close": "Clôturer l'année scolaire",
+      "refresh": "Recharger",
+      "fields": {
+        "code": "Code",
+        "startsOn": "Date de début",
+        "endsOn": "Date de fin",
+        "status": "Statut",
+        "createdAt": "Créée",
+        "updatedAt": "Dernière modification"
+      },
+      "readOnly": "Année scolaire {status} : ses données sont en lecture seule.",
+      "openActive": "Ouvrir l'année scolaire active ({code})",
+      "closureTitle": "L'année scolaire ne peut pas encore être clôturée :",
+      "noActions": "Cette année scolaire n'admet plus d'autres actions."
+    },
+    "confirm": {
+      "activate": {
+        "title": "Activer l'année scolaire {code}",
+        "description": "L'année scolaire deviendra l'année scolaire active de l'établissement.",
+        "descriptionEnded": "La date de fin de cette année scolaire est déjà passée. Elle deviendra tout de même l'année scolaire active de l'établissement.",
+        "confirm": "Activer l'année scolaire {code}"
+      },
+      "close": {
+        "title": "Clôturer l'année scolaire {code}",
+        "description": "La clôture ne peut pas être annulée depuis l'application : à partir de maintenant, les données de cette année scolaire sont en lecture seule dans tous les modules de l'établissement.",
+        "confirm": "Clôturer l'année scolaire {code}"
+      }
+    },
+    "flash": {
+      "created": "Année scolaire « {code} » créée en planification.",
+      "updated": "Année scolaire mise à jour.",
+      "activated": "Année scolaire « {code} » activée.",
+      "closed": "Année scolaire « {code} » clôturée."
+    },
+    "errors": {
+      "unexpected": "L'opération n'a pas pu être menée à bien. Veuillez réessayer."
+    }
+  }
+}

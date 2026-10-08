@@ -13,51 +13,6 @@
 
 namespace App\Models{
 /**
- * ADR-034 §4: del tenant, nunca catálogo compartido — cada centro fija sus
- * propias fechas. academic_year_id es NOT NULL o no existe la columna en
- * cualquier tabla que la referencie; nunca nullable (regla verificada por
- * el test de esquema de 0.8.10, no por este modelo).
- *
- * ADR-035 §8: Full — sin datos personales.
- *
- * @property int $id
- * @property int $tenant_id
- * @property string $public_id
- * @property string $code
- * @property \Illuminate\Support\Carbon $starts_on
- * @property \Illuminate\Support\Carbon $ends_on
- * @property \App\Models\AcademicYearStatus $status
- * @property int|null $created_by
- * @property int|null $updated_by
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property \Illuminate\Support\Carbon|null $deleted_at
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear onlyTrashed()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereCode($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereCreatedBy($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereDeletedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereEndsOn($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear wherePublicId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereStartsOn($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereStatus($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereTenantId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereUpdatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereUpdatedBy($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear withTrashed(bool $withTrashed = true)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear withoutTrashed()
- * @mixin \Eloquent
- */
-	#[\AllowDynamicProperties]
-	class IdeHelperAcademicYear {}
-}
-
-namespace App\Models{
-/**
  * ADR-034 §3: tabla única polimórfica, append-only. El registro
  * automático desde el ciclo de vida del ORM (con la lista de redacción
  * por modelo) lo escribe el paso 0.9 — este modelo solo fija el esquema y
@@ -2172,6 +2127,56 @@ namespace App\Modules\Core\Domain\Models{
  */
 	#[\AllowDynamicProperties]
 	class IdeHelperUserInvitation {}
+}
+
+namespace App\Modules\Curso\Domain\Models{
+/**
+ * REQ-CURSO/datos.md §1.2 (1.10, OPEN-CURSO-03): movido desde `App\Models`
+ * al módulo `curso`. Los demás módulos NO lo usan (`AR-01`, RN-CURSO-26):
+ * acceden al curso por las interfaces de `Curso\Domain`
+ * (`AcademicYearContext`, `AcademicYearDirectory`…).
+ *
+ * ADR-034 §4: del tenant, nunca catálogo compartido — cada centro fija sus
+ * propias fechas. academic_year_id es NOT NULL o no existe la columna en
+ * cualquier tabla que la referencie; nunca nullable (regla verificada por
+ * el test de esquema de 0.8.10, no por este modelo).
+ *
+ * ADR-035 §8: Full — sin datos personales.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property string $code
+ * @property \Illuminate\Support\Carbon $starts_on
+ * @property \Illuminate\Support\Carbon $ends_on
+ * @property \App\Modules\Curso\Domain\AcademicYearStatus $status
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereEndsOn($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereStartsOn($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYear withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperAcademicYear {}
 }
 
 namespace App\Support\Tenancy{

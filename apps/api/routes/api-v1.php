@@ -6,3 +6,4 @@
 
 require base_path('app/Modules/Core/Http/routes.php');
 require base_path('app/Modules/Auth/Http/routes.php');
+require base_path('app/Modules/Curso/Http/routes.php');

@@ -1,0 +1,246 @@
+# REQ-CURSO (paso 1.10). Convenciones transversales en
+# docs/adr/ADR-038-convenciones-api-rest.md — este fichero no las repite,
+# solo las aplica. Todos los endpoints bajo /api/v1, referenciados desde
+# apps/api/openapi.yaml. Contrato completo en docs/modulos/REQ-CURSO/api.md.
+# Módulo esencial (OPEN-CURSO-01): sus rutas no llevan `module-enabled:`.
+# `DELETE`, la transición a `archivado` y la reapertura NO existen en 1.10.
+
+paths:
+  /api/v1/academic-years:
+    get:
+      operationId: listAcademicYears
+      summary: Lista los cursos académicos del centro
+      description: >
+        Permiso `curso_academico.leer`. Paginación por página (ADR-038 §4.2). Sin `q`
+        (decenas de filas por centro). Orden por defecto `-starts_on`, desempate por
+        `id DESC` (determinista, ADR-038 §5.3).
+      tags: [Curso / Cursos académicos]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: status
+          in: query
+          description: >
+            Uno o varios estados separados por coma (ADR-038 §5.2, `form`, `explode: false`);
+            `422` si alguno no es del vocabulario.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { type: string, enum: [planificacion, activo, cerrado, archivado] }
+          example: "activo,cerrado"
+        - name: sort
+          in: query
+          description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada.
+          schema:
+            type: string
+            enum: [starts_on, -starts_on, code, -code]
+            default: -starts_on
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de cursos
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/AcademicYear' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createAcademicYear
+      summary: Crea un curso académico (siempre en planificación)
+      description: >
+        Permiso `curso_academico.crear`. RN-CURSO-03: el curso se crea siempre en
+        `planificacion`; `status` no es campo de entrada (`422 curso.validation.status_not_editable`).
+        Validación (INV-010): `code` obligatorio, recortado, no vacío y único en el centro;
+        fechas `AAAA-MM-DD` con `ends_on > starts_on`; sin solape con otro curso del centro
+        (RN-CURSO-05). Como mucho un curso en planificación por centro (RN-CURSO-04); una
+        carrera entre dos altas se traduce al mismo `409`, nunca a `500`. Sin
+        `Idempotency-Key`: la unicidad del código y del índice de planificación hacen que un
+        reintento produzca `409`/`422`, no un duplicado.
+      tags: [Curso / Cursos académicos]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, starts_on, ends_on]
+              additionalProperties: false
+              properties:
+                code: { type: string, example: "2027-2028" }
+                starts_on: { type: string, format: date, example: "2027-09-01" }
+                ends_on: { type: string, format: date, example: "2028-08-31" }
+      responses:
+        '201':
+          description: Curso creado, en `planificacion`
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/AcademicYear' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '409':
+          description: >
+            `curso.conflict.planning_exists` — ya hay un curso en planificación
+            (`errors.academic_year[0].params`: `public_id` y `code` del existente).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '422':
+          description: >
+            `curso.validation.code_required`, `code_taken`, `ends_before_start`,
+            `dates_overlap` (`params.code` del curso solapado) o `status_not_editable`;
+            o forma inválida (`core.validation.required`, `core.validation.date_format`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/academic-years/current:
+    get:
+      operationId: getCurrentAcademicYear
+      summary: Curso activo del centro
+      description: >
+        **Autoservicio sin permiso**, por identidad del portador de la cookie (como `GET /me`):
+        `OPEN-CURSO-15`, ampliación expresamente aprobada de la lista cerrada de excepciones de
+        `AR-07a`. Devuelve un dato del centro, no de una persona (código y fechas del curso
+        activo). Sin curso activo (centro nuevo, o entre un cierre y la siguiente activación):
+        `404 urn:pge:error:not-found` con `errors.academic_year[0].code = curso.no_active_year`
+        — un estado legítimo que el cliente trata por su `code`. Se registra antes que
+        `/{publicId}`.
+      tags: [Curso / Cursos académicos]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: El curso activo
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/AcademicYear' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '404':
+          description: Sin curso activo (`curso.no_active_year`)
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/academic-years/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getAcademicYear
+      summary: Detalle de un curso académico
+      description: Permiso `curso_academico.leer`. Un `public_id` de otro centro es `404` (INV-001).
+      tags: [Curso / Cursos académicos]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: El curso
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/AcademicYear' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: updateAcademicYear
+      summary: Edita código y fechas de un curso en planificación
+      description: >
+        Permiso `curso_academico.actualizar`. Cualquier subconjunto de `code`, `starts_on`,
+        `ends_on` (semántica de `PATCH`, ADR-038). Solo en `planificacion` (RN-CURSO-06): en
+        cualquier otro estado `409 curso.conflict.not_editable`. `status` en el cuerpo es
+        `422 curso.validation.status_not_editable` (una clave conocida del recurso enviada donde
+        no se admite: no se ignora en silencio). Mismas validaciones que el alta, excluyendo el
+        propio curso de la unicidad y del solape.
+      tags: [Curso / Cursos académicos]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                code: { type: string }
+                starts_on: { type: string, format: date }
+                ends_on: { type: string, format: date }
+      responses:
+        '200':
+          description: El curso completo, ya actualizado
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/AcademicYear' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: '`curso.conflict.not_editable` — el curso no está en planificación.'
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/academic-years/{publicId}/status:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: transitionAcademicYear
+      summary: Activa o cierra un curso
+      description: >
+        Permiso `estado_curso_academico.actualizar` (recurso propio: quien corrige una fecha no
+        puede cerrar el curso de todo el centro, OPEN-CURSO-13). Transiciones válidas
+        exactamente `planificacion → activo` y `activo → cerrado` (RN-CURSO-10/-12). El cierre
+        toma `FOR UPDATE` sobre la fila del curso antes que ningún otro bloqueo y ejecuta las
+        validaciones de cierre registradas por los módulos (vacías en 1.10, RN-CURSO-30); una
+        vez cerrado, toda escritura sobre datos del curso responde
+        `409 urn:pge:error:academic-year-closed` (RN-CURSO-21). El cierre **no se puede deshacer
+        desde la aplicación** (OPEN-CURSO-08). No es idempotente: repetir una transición ya hecha
+        da `409 curso.conflict.invalid_transition`. Auditoría: `updated` con
+        `changes.status = {from, to}` (RN-CURSO-13).
+      tags: [Curso / Cursos académicos]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [activo, cerrado] }
+      responses:
+        '200':
+          description: El curso con el estado nuevo
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/AcademicYear' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: >
+            `curso.conflict.active_exists` (activar con otro activo; `params`: `public_id` y
+            `code` del activo), `curso.conflict.invalid_transition` (`params`: `from`, `to`) o
+            `curso.conflict.closure_checks_failed` (una entrada por validación fallida en
+            `errors.closure[]`, con el `code`/`message`/`params` del módulo dueño; vacío en 1.10).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }

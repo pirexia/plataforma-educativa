@@ -1,7 +1,9 @@
 <?php
 
-namespace App\Models;
+namespace App\Modules\Curso\Domain\Models;
 
+use App\Modules\Curso\Domain\AcademicYearStatus;
+use App\Modules\Curso\Domain\AcademicYearSummary;
 use App\Support\Audit\Auditable;
 use App\Support\Audit\AuditValuePolicy;
 use App\Support\Audit\HasAuditableAttributes;
@@ -10,6 +12,11 @@ use App\Support\Database\HasPublicId;
 use App\Support\Tenancy\TenantModel;
 
 /**
+ * REQ-CURSO/datos.md §1.2 (1.10, OPEN-CURSO-03): movido desde `App\Models`
+ * al módulo `curso`. Los demás módulos NO lo usan (`AR-01`, RN-CURSO-26):
+ * acceden al curso por las interfaces de `Curso\Domain`
+ * (`AcademicYearContext`, `AcademicYearDirectory`…).
+ *
  * ADR-034 §4: del tenant, nunca catálogo compartido — cada centro fija sus
  * propias fechas. academic_year_id es NOT NULL o no existe la columna en
  * cualquier tabla que la referencie; nunca nullable (regla verificada por
@@ -48,4 +55,16 @@ class AcademicYear extends TenantModel implements Auditable
         'ends_on' => 'date',
         'status' => AcademicYearStatus::class,
     ];
+
+    public function toSummary(): AcademicYearSummary
+    {
+        return new AcademicYearSummary(
+            id: $this->id,
+            publicId: $this->public_id,
+            code: $this->code,
+            status: $this->status,
+            startsOn: $this->starts_on->toImmutable()->startOfDay(),
+            endsOn: $this->ends_on->toImmutable()->startOfDay(),
+        );
+    }
 }

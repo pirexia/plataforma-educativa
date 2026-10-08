@@ -45,6 +45,14 @@ WHERE EXISTS (SELECT FROM pg_roles WHERE rolname = 'plataforma_platform') \gexec
 -- migraciones y queda sujeto a sus propias políticas RLS por FORCE.
 GRANT ALL ON SCHEMA public TO plataforma_owner;
 GRANT USAGE ON SCHEMA app TO plataforma_owner, plataforma_app, plataforma_platform;
+
+-- ADR-057 §5.2 (REQ-CURSO, 1.10): la migración que crea
+-- app.assert_academic_year_writable() corre como plataforma_owner y la
+-- función debe quedar en el esquema `app`, propiedad del rol propietario.
+-- Hasta 1.10 `app` solo tenía USAGE para plataforma_owner (la función
+-- app.current_tenant_id() la crea el rol de arranque). CREATE es mínimo
+-- necesario; no cede la propiedad del esquema.
+GRANT CREATE ON SCHEMA app TO plataforma_owner;
 GRANT CONNECT ON DATABASE :"dbname" TO plataforma_owner, plataforma_app, plataforma_platform;
 
 -- plataforma_app y plataforma_platform solo hacen DML sobre lo que cree

@@ -54,7 +54,7 @@ final class ProblemResponseFactory
 
         $body = array_filter([
             'type' => "urn:pge:error:{$type}",
-            'title' => __("errors.title.{$type}"),
+            'title' => $e instanceof ApiException && $e->titleKey !== null ? __($e->titleKey) : __("errors.title.{$type}"),
             'status' => $status,
             'detail' => $detail,
             'instance' => $request->path() === '/' ? '/' : '/'.ltrim($request->path(), '/'),

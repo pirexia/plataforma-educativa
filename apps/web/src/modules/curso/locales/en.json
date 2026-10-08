@@ -1,0 +1,95 @@
+{
+  "curso": {
+    "status": {
+      "planificacion": "Planning",
+      "activo": "Active",
+      "cerrado": "Closed",
+      "archivado": "Archived"
+    },
+    "nav": {
+      "academicYears": "Academic years"
+    },
+    "academicYears": {
+      "title": "Academic years",
+      "intro": "The school's academic years: the one being prepared, the one under way and those already closed.",
+      "new": "New academic year",
+      "caption": "Academic years of the school",
+      "empty": {
+        "title": "There are no academic years yet",
+        "text": "Create the first academic year to get started."
+      },
+      "filters": {
+        "status": "Status"
+      },
+      "columns": {
+        "code": "Code",
+        "startsOn": "Start",
+        "endsOn": "End",
+        "status": "Status"
+      }
+    },
+    "form": {
+      "titleNew": "New academic year",
+      "titleEdit": "Edit academic year",
+      "requiredHint": "Fields marked with * are required.",
+      "required": "required",
+      "errorSummary": "Review this data before saving:",
+      "code": "Code",
+      "codeHint": "Free text, unique in the school, for example 2026-2027.",
+      "startsOn": "Start date",
+      "endsOn": "End date",
+      "save": "Save",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "notEditable": {
+        "title": "This academic year can no longer be edited",
+        "text": "An academic year can only be edited while it is in planning.",
+        "back": "Back to the academic year"
+      },
+      "planningExists": "There is already an academic year in planning: {code}.",
+      "openPlanning": "Open the academic year in planning ({code})"
+    },
+    "detail": {
+      "title": "Academic year",
+      "actions": "Actions",
+      "edit": "Edit",
+      "activate": "Activate academic year",
+      "close": "Close academic year",
+      "refresh": "Reload",
+      "fields": {
+        "code": "Code",
+        "startsOn": "Start date",
+        "endsOn": "End date",
+        "status": "Status",
+        "createdAt": "Created",
+        "updatedAt": "Last modified"
+      },
+      "readOnly": "Academic year {status}: its data is read-only.",
+      "openActive": "Open the active academic year ({code})",
+      "closureTitle": "The academic year cannot be closed yet:",
+      "noActions": "This academic year admits no further actions."
+    },
+    "confirm": {
+      "activate": {
+        "title": "Activate academic year {code}",
+        "description": "The academic year will become the school's active academic year.",
+        "descriptionEnded": "The end date of this academic year has already passed. It will still become the school's active academic year.",
+        "confirm": "Activate academic year {code}"
+      },
+      "close": {
+        "title": "Close academic year {code}",
+        "description": "Closing cannot be undone from the application: from now on the data of this academic year becomes read-only in all of the school's modules.",
+        "confirm": "Close academic year {code}"
+      }
+    },
+    "flash": {
+      "created": "Academic year \"{code}\" created in planning.",
+      "updated": "Academic year updated.",
+      "activated": "Academic year \"{code}\" activated.",
+      "closed": "Academic year \"{code}\" closed."
+    },
+    "errors": {
+      "unexpected": "The operation could not be completed. Please try again."
+    }
+  }
+}

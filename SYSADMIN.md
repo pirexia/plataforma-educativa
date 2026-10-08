@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.8.4** · 2026-10-03
+> **Versión 0.8.5** · 2026-10-07
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`); el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
@@ -222,6 +222,16 @@ Más allá de credenciales de base de datos/Redis (`.env.example`), la aplicaci�
 4. **Verificación** (cuatro comprobaciones de una línea, `operacion.md §4.4`): ninguna fila de `permission_role` con `scope` nulo o fuera del vocabulario; los cuatro permisos nuevos existen sin `retired_at`; `auditoria.leer` tiene `applicable_scopes = ["todos","propios"]`; `administrador_centro` tiene las cuatro concesiones nuevas en cada tenant.
 
 Sin caché de permisos (`ADR-044 §4.7`): una restauración de copia de seguridad no necesita reconstruir nada de autorización, pero si la restauración es anterior al despliegue de 1.5, hay que **volver a ejecutar los pasos 2 y 3**.
+
+**Nota de despliegue de 1.10** (`REQ-CURSO`, ciclo de vida del curso y bloqueo de escritura de cursos cerrados — `docs/modulos/REQ-CURSO/operacion.md §3`, `ADR-057`): **cinco pasos, en este orden exacto**, sin variable de entorno nueva.
+
+0. **Requisito previo, una sola vez por base de datos**: la migración crea la primera función PL/pgSQL del proyecto, `app.assert_academic_year_writable()`, en el esquema `app`, y el rol propietario (`plataforma_owner`) solo tenía `USAGE` sobre `app` (el esquema y `app.current_tenant_id()` los crea el rol de arranque). `01-tenancy.sql.tpl` gana `GRANT CREATE ON SCHEMA app TO plataforma_owner;` (idempotente). En un volumen ya existente hay que volver a aplicar el script (ver `§2b`) o, mínimo, ejecutar esa sentencia como superusuario sobre la base de datos de la aplicación (y sobre `plataforma_test` en desarrollo): `podman exec -i plataforma-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c 'GRANT CREATE ON SCHEMA app TO plataforma_owner'`. **Sin este paso, la migración aborta con un mensaje que contiene este mismo comando** (comprobación previa con `has_schema_privilege`; `RUNBOOK.md` `§3b.2`, paso 0).
+1. **Migración de esquema** — una, aditiva: crea la función. No crea tablas ni columnas; ninguna tabla real tiene todavía `academic_year_id`, así que ningún disparador la usa (`1.11` en adelante). Reversión: `down()` la elimina, solo posible mientras ningún disparador la use; para apagar el bloqueo en todas las tablas a la vez la vía es una migración nueva que reescriba la función, **nunca** `ALTER TABLE … DISABLE TRIGGER`.
+2. **`php artisan platform:sync-registry`** — materializa el módulo `curso` (esencial, `depends_on []`) y sus cinco permisos (`curso_academico.leer|crear|actualizar`, `estado_curso_academico.actualizar`, `curso_historico.leer`), todos de ámbito `todos`.
+3. **`php artisan curso:grant-year-permissions`** — **el paso que se olvida** (mismo patrón que `perm:grant-role-administration`): concede, en cada centro **ya existente**, los cinco permisos a `administrador_centro` y `curso_academico.leer` + `curso_historico.leer` a `direccion` y `secretaria`; no toca roles personalizados; idempotente. `tenant:provision-defaults` solo los siembra en centros nuevos. **Sin este paso los centros existentes ven `403` inexplicables en `/administracion/cursos`.** Ningún centro tiene curso al darse de alta (`OPEN-CURSO-23`): el administrador crea el primero.
+4. **Verificación**: `SELECT proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'app' AND proname = 'assert_academic_year_writable'` devuelve una fila; `modules` tiene `curso` con `essential = true`; `permissions` tiene los cinco códigos con `module_code = 'curso'` y sin `retired_at`.
+
+**Diagnóstico del bloqueo de escritura** (`REQ-CURSO/operacion.md §7`): `409 urn:pge:error:academic-year-closed` en la API, o `SQLSTATE YC001` (`academic_year_closed:<public_id>`) en el registro, significa que se ha intentado escribir un dato de un curso `cerrado`/`archivado`; lo rechaza el disparador `academic_year_write_guard` y es el comportamiento correcto. Se identifica el curso por el `public_id` del mensaje. **No se resuelve desactivando el disparador ni escribiendo como propietario desde un proceso de aplicación** (prohibido, `ADR-057 §5.7`). `SQLSTATE YC001` con `500` en una petición HTTP es un defecto (la traducción de `Curso` no se aplicó). Una migración de relleno que falla con `YC001` se está ejecutando con un rol que no es el propietario de la tabla: ejecutarla con `pgsql_owner`. **Un curso cerrado por error no se reabre con SQL a mano** (saltaría la auditoría, `INV-003`): no hay reapertura hasta que se decida `OPEN-CURSO-08`. Coste medido del disparador: ver `CHANGELOG.md` (issue [#382](https://github.com/pirexia/plataforma-educativa/issues/382)).
 
 ## 2d. Backoffice de plataforma (`REQ-BO`, `1.6`)
 

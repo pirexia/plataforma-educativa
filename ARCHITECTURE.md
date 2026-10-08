@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| Versión | 2.4.0 |
+| Versión | 2.4.1 |
 | Fecha | 2026-10-07 |
 | Estado | Propuesta cerrada, pendiente de ratificación |
 | Documento de requisitos | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` |
@@ -142,7 +142,7 @@ Detalle completo, reglas de negocio y criterios de aceptación: `docs/modulos/RE
 - `lang/{es,en,de,fr}/<código>.php` y la entrada `name_key` del módulo en `lang/*/modules.php`.
 - Ninguna capa vacía por adelantado: `Domain/`, `Application/` y `Http/{Controllers,Requests,Resources}` aparecen cuando hay contenido.
 
-**Reglas comprobadas por test.** Cada regla usa la técnica que ve la verdad de lo que comprueba (`ADR-056 §3.1`) y viven en el grupo `arch` (`./vendor/bin/pest --group=arch`; las de la web, en Vitest). Todas nacen en verde: cada violación existente se corrigió o es una **excepción nominal dentro del propio test**, con motivo, que solo puede reducirse (el test falla si una entrada ya no hace falta) y cuya ampliación exige especificación aprobada expresamente por el usuario (`ADR-056 §3.2`, `OPEN-056-02`).
+**Reglas comprobadas por test** (`AR-01` a `AR-12` de `ADR-056`, más `AR-13` de `ADR-057` desde `1.10`). Cada regla usa la técnica que ve la verdad de lo que comprueba (`ADR-056 §3.1`) y viven en el grupo `arch` (`./vendor/bin/pest --group=arch`; las de la web, en Vitest). Todas nacen en verde: cada violación existente se corrigió o es una **excepción nominal dentro del propio test**, con motivo, que solo puede reducirse (el test falla si una entrada ya no hace falta) y cuya ampliación exige especificación aprobada expresamente por el usuario (`ADR-056 §3.2`, `OPEN-056-02`).
 
 | Regla | Qué comprueba | Test |
 |-------|---------------|------|
@@ -152,13 +152,14 @@ Detalle completo, reglas de negocio y criterios de aceptación: `docs/modulos/RE
 | `AR-04` (`ADR-029`) | en el esquema real (`pg_catalog`): ni `varchar`, ni `timestamp` sin zona, ni `ENUM`, ni `character(n≠26)`; 13 columnas de 7 tablas de Laravel como excepción | `SchemaConventionsTest.php` |
 | `AR-05` | toda `public_id` es `character(26) NOT NULL` con índice único propio; **sin excepciones** | `SchemaConventionsTest.php` |
 | `AR-06` (`INV-003`) | todo `TenantModel`/`AppendOnlyModel` concreto implementa `Auditable`; 6 excepciones | `AuditableModelsTest.php` |
-| `AR-07a` (`INV-002`) | toda ruta de `api/v1` lleva `permission:`; 33 rutas de autoservicio o públicas como excepción por nombre | `RouteAuthorizationTest.php` |
+| `AR-07a` (`INV-002`) | toda ruta de `api/v1` lleva `permission:`; 34 rutas de autoservicio o públicas como excepción por nombre (las 33 de `1.7b` más `GET /academic-years/current`, ampliación aprobada de `1.10`) | `RouteAuthorizationTest.php` |
 | `AR-07b` (`RMOD-009`) | toda ruta de un módulo no esencial lleva `module-enabled:<código>` antes de `permission:` | `RouteAuthorizationTest.php` |
 | `AR-08` | `App\Models\Role` confinado a `Core`/núcleo y los literales `'administrador_centro'`/`'soporte_plataforma'` a una lista; 5 clases y 6 ficheros de excepción | `RoleConfinementTest.php` |
 | `AR-09` | cable trampa: ningún permiso declarado es de categoría especial hasta que se diseñe la auditoría de lectura (`ADR-044 §4.4`) | `SpecialCategoryTripwireTest.php` |
 | `AR-10` | todo recurso con ámbito restringido está en un mapa cerrado y solo `ScopedQuery` lo consulta; límite: no ve relaciones ni `DB::table` | `ScopedQueryConfinementTest.php` |
 | `AR-11` | web: `shell.ts`, `locales/{es,en,de,fr}.json`, registro en `navigation/modules.ts` e `i18n/index.ts`, solo superficie pública de otro módulo (`api/`, `types/`, `shell`) | `apps/web/src/modules/architecture.spec.ts` |
 | `AR-12` (`INV-009`) | cada `lang/es/*.php` tiene gemelo en `en`, `de` y `fr` con las mismas claves y sin literales vacíos | `TranslationParityTest.php` |
+| `AR-13` (`ADR-057 §5.3`, `RN-CURSO-23`, 1.10) | en el esquema real (`pg_catalog`: `pg_attribute` + `pg_trigger` + `pg_proc`), toda tabla del esquema `public` con columna `academic_year_id` tiene un disparador **habilitado** `academic_year_write_guard`, `BEFORE … FOR EACH ROW` sobre `INSERT`, `UPDATE` y `DELETE`, que ejecuta `app.assert_academic_year_writable()`; los ayudantes de `TenantMigration` lo crean solos. Lista de excepciones **vacía** (ampliarla exige especificación aprobada expresamente por el usuario); no vacuidad sobre la unión de esquema real y tabla sonda (`1.11` añade la aserción sobre el esquema real solo) | `AcademicYearWriteGuardTest.php` (grupo `arch`) |
 
 Los detectores de llamadas y literales comparten **un único escáner de tokens** (`apps/api/tests/Support/PhpScanner.php`, con casos fijos en `Architecture/PhpScannerTest.php`). Dos trampas de `arch()` descubiertas en este paso, ya tenidas en cuenta: con **varios objetivos** en una sola llamada, `not->toUse` pasa en vacío (por eso hay un `arch()` por objetivo), y `information_schema` solo muestra las tablas sobre las que el rol de la conexión tiene privilegios (por eso el esquema se consulta en `pg_catalog`). Fuera de la automatización, y por qué: `ADR-056 §3.4`.
 
@@ -173,12 +174,13 @@ Los detectores de llamadas y literales comparten **un único escáner de tokens*
 | Recurso de tenant con `public_id`, `Auditable` y 404 entre tenants | Invitaciones de `Core`: `Domain/Models/UserInvitation.php`, `Http/Controllers/InvitationsController.php` | `apps/api/tests/Feature/Core/InvitationsEndpointsTest.php` (y `apps/api/tests/Feature/Auth/InvitationRedemptionTest.php` para el canje) |
 | Tarea en cola por tenant (`INV-012`) | `apps/api/app/Modules/Core/Infrastructure/Jobs/GenerateUserExport.php` | `apps/api/tests/Feature/Core/UserExportEndpointsTest.php` |
 | Interfaz pública consumida por otro módulo | `apps/api/app/Modules/Core/Domain/TenantSettingsReader.php` (la consume `Auth`) | `AR-01` |
+| Contrato transversal por curso y bloqueo de escritura por disparador de PostgreSQL (`ADR-057`) | Interfaces `AcademicYearContext`, `AcademicYearDirectory`, `AcademicYearWriteGuard`, `AcademicYearReadAccess` y `AcademicYearClosureRegistry` en `apps/api/app/Modules/Curso/Domain/`; función en `apps/api/database/migrations/2026_10_07_100200_create_academic_year_write_guard_function.php`; enganche en `TenantMigration::tenantTable()`/`tenantTableAppendOnly()`/`guardAcademicYearWrites()` (`apps/api/app/Support/Tenancy/TenantMigration.php`); traducción de `SQLSTATE YC001` a `409 urn:pge:error:academic-year-closed` en `Curso/Infrastructure/AcademicYearClosedTranslator.php` | `apps/api/tests/Feature/Curso/AcademicYearWriteGuardTest.php`, `AcademicYearContractTest.php`, `apps/api/tests/Concurrency/CursoConcurrencyTest.php`; `AR-13` |
 | Evento de dominio entre módulos | `apps/api/app/Modules/Core/Domain/Events/UserDeactivated.php` → `apps/api/app/Modules/Auth/Infrastructure/Listeners/RevokeSessionsOnUserDeactivated.php` | Ningún test localizado la ejercita por el nombre del evento; `AR-01` vigila la frontera entre módulos |
 | Migración de tabla de tenant | `apps/api/app/Modules/Core/Database/migrations/2026_08_19_100200_create_user_invitations_table.php` | `AR-04`, `AR-05`, `IsolationBatteryTest` |
 | Módulo de frontend | `apps/web/src/modules/core` (`shell.ts`, tabla de datos) | `AR-11` (`apps/web/src/modules/architecture.spec.ts`), `apps/web/src/navigation/architecture.spec.ts` |
 | **Antirreferencia** para módulos de tenant | `Backoffice`: de plataforma, sin tenant, sin catálogo | — |
 
-**Disparador de revisión**: al cerrar `1.11` (`REQ-ACAD`, el segundo módulo de negocio tras `REQ-CURSO`) esta tabla se revisa y el primer módulo de negocio sustituye a `Core` en las filas donde sea más representativo. El generador `make:module`, que codifica un patrón que aún no existe, se difiere al paso `1.11b`.
+**Disparador de revisión**: al cerrar `1.11` (`REQ-ACAD`, el segundo módulo de negocio tras `REQ-CURSO`) esta tabla se revisa y el primer módulo de negocio sustituye a `Core` en las filas donde sea más representativo. Con `1.10` entra `Curso`, que **no** es todavía un módulo de negocio representativo (no tiene tablas por curso propias): es el dueño del contrato transversal que las tablas de `ACAD`, `ALUM`, `CALIF`… heredarán, y `1.11` debe repetir `CA-CURSO-040` con su primera entidad real y añadir a `AR-13` la aserción de no vacuidad sobre el esquema real solo (`ADR-057 §5.3`). El generador `make:module`, que codifica un patrón que aún no existe, se difiere al paso `1.11b`.
 
 ---
 

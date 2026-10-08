@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\AcademicYear;
 use App\Models\AuditLog;
 use App\Models\ModuleSubscription;
 use App\Models\PermissionRole;
@@ -13,6 +12,7 @@ use App\Modules\Auth\Domain\Models\SamlIdentityProviderSettings;
 use App\Modules\Auth\Domain\Models\UserMfaExemption;
 use App\Modules\Auth\Domain\Models\UserMfaObligation;
 use App\Modules\Core\Domain\Models\DataExport;
+use App\Modules\Curso\Domain\Models\AcademicYear;
 use App\Support\Audit\Auditable;
 use App\Support\Audit\AuditValuePolicy;
 use App\Support\Tenancy\Tenant;

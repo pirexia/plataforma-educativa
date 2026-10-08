@@ -6,6 +6,31 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-08 · Paso 1.10: el `SQLSTATE` propio pasa de `CY001` a `YC001` (`REQ-CURSO-001`, #384)
+
+`ADR-058` cambia el `SQLSTATE` del bloqueo de escritura de cursos cerrados de `CY001` a `YC001` (decisión del usuario, opción A de #384); `ADR-057` es inmutable y conserva el valor antiguo en su texto. Se sustituye en código, migración, tests, OpenAPI, documentación del módulo y documentos raíz. El valor vive en una sola constante (`AcademicYearClosedTranslator::SQLSTATE`) que usan los tests. Nuevo test `CA-057-11`: la clase `YC` no está en los rangos reservados (0-4, A-H) ni coincide con ninguna clase de PostgreSQL. La migración aún no estaba en ningún entorno desplegado; en las bases locales `plataforma` y `plataforma_test` se reemplazó la función a mano (`CREATE OR REPLACE`, mismo cuerpo).
+
+---
+
+## 2026-10-07 · Paso 1.10: correcciones de la revisión de `doc-reviewer` y `db-reviewer` (`REQ-CURSO-001`)
+
+- **Base de datos**: la migración de la función comprueba `has_schema_privilege(current_user, 'app', 'CREATE')` y, si falta, aborta con el comando exacto (`RUNBOOK.md` paso 0 de `§3b.2`); la función fija `SET search_path = pg_catalog, pg_temp`; `AR-13` gana la vigilancia «ninguna tabla con el disparador carece de `academic_year_id`» (con control negativo) y un test de que `plataforma_app`/`plataforma_platform` no tienen `CREATE` sobre `app`. `DROP TRIGGER` antes de `DROP COLUMN` documentado en `datos.md`, `operacion.md` y las skills `migracion-segura`/`modulo-nuevo`.
+- **Documentación**: `funcional.md` acota el `409 invalid_transition` a destinos `activo`/`cerrado` (otro destino es `422`, `api.md §2`) y retira los «propuesta» obsoletos; firma real de `tenantForeignId(Blueprint $blueprint, …)`; `curso:grant-year-permissions` vive en Core; `PLAN-IMPLEMENTACION.md` recoloca la línea de boletines bajo 1.17; `SECURITY.md` 0.3.10 (bloqueo por disparador, `curso_historico.leer`, excepción `AR-07a`), `PRIVACY.md` 0.3.6 (`OPEN-057-04`), `RUNBOOK.md` 0.3.4, `SYSADMIN.md` 0.8.5, `ARCHITECTURE.md` 2.4.1, `PLAN-IMPLEMENTACION.md` 2.3.7, `docs/REQUISITOS-...` 3.2.13 (`ADR-057`, errata `RDB-012`), `README.md` 2.6.17.
+
+---
+
+## 2026-10-07 · Paso 1.10 implementado: ciclo de vida del curso académico y bloqueo de escritura de cursos cerrados (`REQ-CURSO-001`, `ADR-057`)
+
+Implementa `REQ-CURSO-001` y el contrato transversal según la especificación aprobada (`docs/modulos/REQ-CURSO/`, `ADR-057` aceptada). Rama `feature/REQ-CURSO-1-10-ciclo-vida-curso`; pendiente de `db-reviewer`, `security-reviewer` y `doc-reviewer`.
+
+- **Módulo `curso`** (esencial, `depends_on []`, `OPEN-CURSO-01`): `AcademicYear` y `AcademicYearStatus` pasan de `App\Models` a `Curso\Domain` (mismo alias `academic_year` en el *morph map*, `audit_logs` no cambia); seis endpoints (`GET/POST /academic-years`, `GET /academic-years/current`, `GET/PATCH /academic-years/{id}`, `POST /academic-years/{id}/status`) y OpenAPI; permisos `curso_academico.*`, `estado_curso_academico.actualizar`, `curso_historico.leer` y su siembra (`ProvisionTenantDefaults` + comando `curso:grant-year-permissions` para centros existentes).
+- **Bloqueo por el motor**: única migración, `app.assert_academic_year_writable()` (primera función PL/pgSQL del proyecto, `SECURITY INVOKER`, exención del propietario real de la tabla, `FOR SHARE` sobre el curso, `SQLSTATE YC001`); `TenantMigration::tenantTable()`/`tenantTableAppendOnly()`/`guardAcademicYearWrites()` enganchan el disparador `academic_year_write_guard`; regla **`AR-13`** (lista de excepciones vacía) en `ARCHITECTURE.md §3.4`. `Curso` traduce `YC001` a `409 urn:pge:error:academic-year-closed` (catálogo de `ADR-038 §6.2` ampliado). Contrato en `Curso\Domain`: `AcademicYearContext`, `AcademicYearDirectory`, `AcademicYearWriteGuard`, `AcademicYearReadAccess`, registro de validaciones de cierre (vacío). Cierre con `FOR UPDATE` del curso antes que cualquier otro bloqueo (`RN-CURSO-32`).
+- **Web**: listado, alta/edición y ficha (activar/cerrar con `ConfirmDialog`) en `apps/web/src/modules/curso/`, cuatro idiomas; `CA-CURSO-086` contra la API real (`npm run test:e2e:real`).
+- **Decisiones y desviaciones a revisar**: (1) la migración exige `GRANT CREATE ON SCHEMA app TO plataforma_owner` (añadido a `01-tenancy.sql.tpl`; aplicar a mano en bases existentes, `SYSADMIN.md`); (2) `CA-CURSO-023` y `api.md §2` se contradicen sobre `status` ∈ {`planificacion`,`archivado`} en `POST …/status` (409 frente a 422): se implementó `api.md` (422); (3) `ApiException` gana `titleKey`/`academicYearClosed()` y `notFound()` admite `errors` (aditivo); (4) `AR-07a` pasa de 33 a 34 rutas (`GET /academic-years/current`, ampliación aprobada).
+- **Sobrecarga del disparador (`CA-057-09`)**: inserción masiva de 20.000 filas **+182 % a +195 %** (≈ 16 µs por fila; 0,50 s frente a 0,17 s); fila a fila (1.000 sentencias) entre −1,7 % y +4,0 %, dentro del ruido. Supera el +1,24 % de RLS de `0.8.12` en escritura masiva: registrado como issue [#382](https://github.com/pirexia/plataforma-educativa/issues/382) (Baja), sin ajustar la cifra.
+- **Verificación**: Pest **1062/1062**, Vitest 1337 (+3 omitidos), Pint, Larastan, `vue-tsc`, ESLint y `lint:i18n` limpios; `npm run test:e2e:real` (`CA-CURSO-086` y `CA-PERM-133`) en verde.
+- **Tests**: `tests/Feature/Curso/` (escrituras por catorce caminos con `YC001`, paridad SQL↔PHP, exención del propietario, `TRUNCATE`, HTTP en cuatro idiomas, endpoints, contrato, OpenAPI), `AR-13` en `tests/Feature/Architecture/`, concurrencia real en `tests/Concurrency/CursoConcurrencyTest.php` (alta simultánea, activación simultánea y cierre frente a escritura en las dos órdenes) y Vitest del módulo web.
+
 ## 2026-10-07 · Paso 1.7b cerrado y mezclado (PR #379): reglas de arquitectura comprobadas por test (`ADR-056`, `INV-007`, `RNF-MANT-003`)
 
 Implementa las piezas 1 a 8 de `ADR-056` Anexo A (el generador `make:module` y su *job* de CI se difieren al paso nuevo `1.11b`). Rama `feature/REQ-ARQ-1-7b-estandarizacion-modulos`; **revisión independiente hecha (`db-reviewer`, `security-reviewer` y `doc-reviewer`, sin Crítico ni Alta; Bajas en #377 y #378) y mezclado en el PR #379.** Issue [#163](https://github.com/pirexia/plataforma-educativa/issues/163).

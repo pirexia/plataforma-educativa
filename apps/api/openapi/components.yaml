@@ -61,6 +61,31 @@ components:
         total: { type: integer, minimum: 0 }
         last_page: { type: integer, minimum: 0 }
 
+    AcademicYear:
+      type: object
+      description: >
+        REQ-CURSO/api.md §1 (1.10). `status` viaja sin traducir (ADR-038 §3.2). No se
+        exponen `id`, `tenant_id`, `created_by`, `updated_by` ni `deleted_at`.
+      required: [public_id, code, starts_on, ends_on, status, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        code:
+          type: string
+          description: Código del curso, p. ej. `2026-2027`. Contenido del centro, formato libre, único por centro.
+          example: "2026-2027"
+        starts_on: { type: string, format: date, example: "2026-09-01" }
+        ends_on: { type: string, format: date, example: "2027-08-31" }
+        status:
+          type: string
+          description: >
+            Enumerado **extensible** (ADR-038 §7.3): los clientes tratan un valor desconocido
+            como «solo lectura». `cerrado` y `archivado` son de solo lectura (RN-CURSO-20);
+            `archivado` no es alcanzable en 1.10.
+          enum: [planificacion, activo, cerrado, archivado]
+          x-extensible-enum: true
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
     CursorMeta:
       type: object
       description: Metadatos de paginación por cursor (ADR-038 §4.4). Flujos de eventos append-only.
@@ -1457,6 +1482,31 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+    AcademicYearClosed:
+      description: >
+        ADR-057 §5.5, RN-CURSO-21 (REQ-CURSO, 1.10). Escritura sobre datos de un curso
+        `cerrado` o `archivado`, desde cualquier módulo: `409` con el `type` propio
+        `urn:pge:error:academic-year-closed` (amplía el catálogo cerrado de ADR-038 §6.2).
+        No es `403`: el usuario puede tener el permiso; lo que falla es el estado del dato.
+        `errors.academic_year[0]` lleva `code` `curso.academic_year_closed` y `params`
+        `{code, status}` (el código y el estado del curso). Lo impone un disparador de
+        PostgreSQL (`SQLSTATE YC001`), que `Curso` traduce a esta respuesta.
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: "urn:pge:error:academic-year-closed"
+            title: "El curso académico es de solo lectura"
+            status: 409
+            detail: "El curso «2025-2026» está cerrado y sus datos son de solo lectura. No se pueden crear, modificar ni eliminar datos de un curso cerrado."
+            instance: "/api/v1/…"
+            errors:
+              academic_year:
+                - code: "curso.academic_year_closed"
+                  message: "El curso «2025-2026» está cerrado y sus datos son de solo lectura."
+                  params: { code: "2025-2026", status: "cerrado" }
     PlatformReauthenticationRequired:
       description: >
         REQ-BO-007 (1.6), api.md §4, RN-BO-08. Operación sensible sin

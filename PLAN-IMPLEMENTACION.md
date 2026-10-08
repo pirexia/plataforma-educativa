@@ -1,6 +1,6 @@
 # PLAN-IMPLEMENTACION.md
 
-> **Versión 2.3.6** · 2026-10-07
+> **Versión 2.3.7** · 2026-10-07
 
 > Plan de ejecución dimensionado a **sesiones de ~5 horas** (límite del plan Pro). Cada paso cabe en una o dos sesiones y termina con el repositorio en estado compilable, tests en verde y `memory.md` actualizado.
 >
@@ -189,13 +189,16 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 
 ### Bloque C · Estructura académica
 
-- [ ] **1.10 · `REQ-CURSO`: ciclo de vida del curso** [OPUS + SONNET] ⚠️ *paso crítico*
+- [x] **1.10 · `REQ-CURSO`: ciclo de vida del curso** [OPUS + SONNET] ⚠️ *paso crítico*
   Es dimensión transversal: si se hace después, hay que migrar el esquema entero.
+  **Actualización 2026-10-07: especificación APROBADA** (`docs/modulos/REQ-CURSO/`, `RN-CURSO-01..32`, `CA-CURSO-001..086`, `OPEN-CURSO-01..23` aceptadas) **y `ADR-057` ACEPTADA** (bloqueo de escritura de cursos cerrados por disparador de PostgreSQL, regla `AR-13`; sustituye al rasgo de modelo de la primera propuesta). Alcance de `1.10`: `REQ-CURSO-001` completo (módulo esencial `curso`, seis endpoints, contrato transversal en `Curso\Domain`, error `academic-year-closed`, cuatro pantallas de administración) y **una migración** (función y disparador; `db-reviewer` obligatorio). Se difiere: rollover (`REQ-CURSO-002`) a `1.12b`; promoción y paquete de cierre (`-003`/`-005`) a `1.17b`; renovación (`-004`) a fase 2; archivado a un paso con ADR propio; selector visual a `1.11`. **Decidir antes de `1.11`**: `OPEN-CURSO-06` (activar el curso siguiente con uno activo) y `OPEN-CURSO-08` (reabrir un curso cerrado). Rama `feature/REQ-CURSO-1-10-ciclo-vida-curso`. **Nota de cierre (2026-10-08): implementado, revisado y mezclado (PR #386); `ADR-058` cambia el SQLSTATE a `YC001`.**
 - [ ] **1.11 · `REQ-ACAD`: estructura académica** [SONNET]
 - [ ] **1.11b · Generador `php artisan make:module`** [SONNET] · *diferido desde `1.7b` por `ADR-056` (`OPEN-056-01`, aprobado el 2026-10-07)*
   Se construye cuando existan los primeros módulos de negocio (`1.11`) de los que observar la forma real, porque hoy los tres módulos existentes son atípicos y las reglas de `ADR-056` ya atrapan las omisiones que el generador evitaría. Diseño mínimo ya especificado en `ADR-056 §3.5` y `Anexo A` (`CA-056-30` a `-35`): sin capa HTTP, `--audit-policy` obligatoria y los cuatro nombres traducidos como opciones obligatorias, `--entity` con migración, modelo, factoría y test de aislamiento a nivel de modelo, sin parte web, y un *job* de CI que genere un módulo, lo compruebe y lo descarte. Revisores: `db-reviewer` (plantilla de migración) y `security-reviewer`. Al cerrar `1.11` se revisa la tabla de referencias de `ARCHITECTURE.md §3.4`.
 - [ ] **1.12 · `REQ-ACAD`: horarios** [SONNET]
   Rejilla a medida con CSS Grid, detección de conflictos.
+- [ ] **1.12b · `REQ-CURSO-002`: apertura del curso siguiente (rollover)** [OPUS + SONNET] · *diferido desde `1.10`*
+  Contrato síncrono por módulo siguiendo el precedente de `ADR-048`; simulación previa y reversión mientras el curso siga en planificación.
 - [ ] **1.13 · `REQ-ACAD`: asistencia** [SONNET]
   El paso de lista es la operación más frecuente del sistema: optimizar para pocos toques y funcionamiento offline.
 
@@ -216,6 +219,8 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 - [ ] **1.16 · `REQ-CALIF`: calificaciones** [SONNET]
 - [ ] **1.17 · `REQ-CALIF`: boletines en PDF** [SONNET]
   Branding por tenant, firma del tutor, publicación controlada, **emisión en el idioma del destinatario**.
+- [ ] **1.17b · `REQ-CURSO-003`/`-005`: promoción y paquete de cierre** [OPUS + SONNET] · *diferido desde `1.10`*
+  Sin firma digital ni cierre contable (dependen de `REQ-DOC` y `REQ-FIN`).
 - [ ] **1.18 · `REQ-INF`: primer ciclo de Infantil 0-3** [OPUS + SONNET]
   Evaluación cualitativa, informes de desarrollo, agenda diaria del aula, ratios.
 

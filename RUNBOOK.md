@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.3** · 2026-10-05
+> **Versión 0.3.4** · 2026-10-07
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -106,6 +106,8 @@ No hay salida por la aplicación: es intervención directa sobre la base de dato
 **Matiz de `REQ-AUTH-003` (1.3b, `docs/modulos/REQ-AUTH/operacion.md §D.10`):** en este mismo escenario, **un usuario con factor de correo activado sí puede entrar** — su verificación no depende de `APP_KEY` (el código se compara por hash SHA-256, no se descifra). No convierte el escenario en recuperable por sí solo (depende de que ese usuario tenga el correo activado y de que el correo transaccional funcione), pero puede ser la diferencia entre "nadie entra" y "un administrador con correo activado entra y restablece el MFA de los demás" antes de recurrir a la intervención directa sobre la base de datos.
 
 ### 3b.2 Desplegar una versión
+
+**Paso 0, una sola vez por base de datos (`REQ-CURSO`, `1.10`, `ADR-057 §5.2`)**: la migración `2026_10_07_100200_create_academic_year_write_guard_function` crea `app.assert_academic_year_writable()` en el esquema `app` y el rol propietario solo tiene `USAGE` sobre él. Antes de la primera migración que la incluya, como superusuario sobre la base de la aplicación: `GRANT CREATE ON SCHEMA app TO <rol propietario>;` (en desarrollo `plataforma_owner`: `podman exec -i plataforma-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c 'GRANT CREATE ON SCHEMA app TO plataforma_owner'`). Es idempotente. Si se omite, `migrate` aborta con un mensaje que contiene este mismo comando, sin tocar nada. Detalle en `SYSADMIN.md`.
 
 ```bash
 ./infra/install.sh <tag>              # producción/staging real, systemd de sistema

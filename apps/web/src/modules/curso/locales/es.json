@@ -1,0 +1,95 @@
+{
+  "curso": {
+    "status": {
+      "planificacion": "En planificación",
+      "activo": "Activo",
+      "cerrado": "Cerrado",
+      "archivado": "Archivado"
+    },
+    "nav": {
+      "academicYears": "Cursos académicos"
+    },
+    "academicYears": {
+      "title": "Cursos académicos",
+      "intro": "Los cursos del centro: el que se prepara, el que está en marcha y los ya cerrados.",
+      "new": "Nuevo curso",
+      "caption": "Cursos académicos del centro",
+      "empty": {
+        "title": "Aún no hay ningún curso",
+        "text": "Crea el primer curso para empezar."
+      },
+      "filters": {
+        "status": "Estado"
+      },
+      "columns": {
+        "code": "Código",
+        "startsOn": "Inicio",
+        "endsOn": "Fin",
+        "status": "Estado"
+      }
+    },
+    "form": {
+      "titleNew": "Nuevo curso",
+      "titleEdit": "Editar curso",
+      "requiredHint": "Los campos marcados con * son obligatorios.",
+      "required": "obligatorio",
+      "errorSummary": "Revisa estos datos antes de guardar:",
+      "code": "Código",
+      "codeHint": "Texto libre y único en el centro, por ejemplo 2026-2027.",
+      "startsOn": "Fecha de inicio",
+      "endsOn": "Fecha de fin",
+      "save": "Guardar",
+      "saving": "Guardando…",
+      "cancel": "Cancelar",
+      "notEditable": {
+        "title": "Este curso ya no se puede editar",
+        "text": "Solo se puede editar un curso mientras está en planificación.",
+        "back": "Volver a la ficha del curso"
+      },
+      "planningExists": "Ya hay un curso en planificación: {code}.",
+      "openPlanning": "Abrir el curso en planificación ({code})"
+    },
+    "detail": {
+      "title": "Ficha del curso",
+      "actions": "Acciones",
+      "edit": "Editar",
+      "activate": "Activar curso",
+      "close": "Cerrar curso",
+      "refresh": "Volver a cargar",
+      "fields": {
+        "code": "Código",
+        "startsOn": "Fecha de inicio",
+        "endsOn": "Fecha de fin",
+        "status": "Estado",
+        "createdAt": "Creado",
+        "updatedAt": "Última modificación"
+      },
+      "readOnly": "Curso {status}: sus datos son de solo lectura.",
+      "openActive": "Abrir el curso activo ({code})",
+      "closureTitle": "El curso no se puede cerrar todavía:",
+      "noActions": "Este curso no admite más acciones."
+    },
+    "confirm": {
+      "activate": {
+        "title": "Activar el curso {code}",
+        "description": "El curso pasará a ser el curso activo del centro.",
+        "descriptionEnded": "La fecha de fin de este curso ya ha pasado. Aun así, el curso pasará a ser el curso activo del centro.",
+        "confirm": "Activar el curso {code}"
+      },
+      "close": {
+        "title": "Cerrar el curso {code}",
+        "description": "El cierre no se puede deshacer desde la aplicación: a partir de ahora los datos de este curso quedan en solo lectura en todos los módulos del centro.",
+        "confirm": "Cerrar el curso {code}"
+      }
+    },
+    "flash": {
+      "created": "Curso «{code}» creado en planificación.",
+      "updated": "Curso actualizado.",
+      "activated": "Curso «{code}» activado.",
+      "closed": "Curso «{code}» cerrado."
+    },
+    "errors": {
+      "unexpected": "No se ha podido completar la operación. Inténtalo de nuevo."
+    }
+  }
+}
