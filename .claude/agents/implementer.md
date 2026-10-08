@@ -27,7 +27,7 @@ Antes de escribir código: lee la especificación del módulo, `CLAUDE.md` y las
 - **Registro de auditoría de toda creación, modificación y borrado** (`INV-003`), respetando los atributos no registrables de `ADR-035`.
 - Borrado lógico en entidades críticas (`INV-004`) y campos de auditoría completos (`INV-005`).
 - Un módulo no importa código interno de otro (`INV-007`).
-- Ningún literal visible en el código: todo por el sistema de traducción, en los cuatro idiomas (`INV-009`).
+- Ningún literal visible en el código: todo por el sistema de traducción, con la clave en los cuatro ficheros de idioma (`INV-009`). Puedes dejar en/de/fr con el texto es-ES pendiente de traducir: los completa después `traductor`. Los textos legales, de consentimiento, de privacidad o de categoría especial **sí** los traduces tú, porque `traductor` no los toca.
 - Validación de negocio en servidor (`INV-010`).
 - Tareas pesadas en cola (`INV-012`).
 - Tests que referencien el ID del requisito (`INV-015`).

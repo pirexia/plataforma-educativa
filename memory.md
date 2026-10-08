@@ -25,6 +25,8 @@
 
 **Decisiones de la serie `0.10`-`0.10e`, recogidas punto a punto con el usuario (2026-08-19), ninguna bloquea seguir desarrollando en local**: `0.10` → dirección decidida, **VPS Linux europeo**, proveedor concreto todavía sin elegir. `0.10b` → pendiente de `0.11c` (nombre de marca, sin decidir). `0.10c` (correo transaccional) → pendiente. `0.10d` (destino de copias) → pendiente. `0.10e` (staging) → pendiente de `0.10`. No hace falta re-preguntar todo esto salvo que el usuario traiga una decisión nueva.
 
+**Configuración de modelos (2026-10-08, `CLAUDE.md` 2.6.0)**: redistribución hacia Haiku (`verificador`, `traductor`, `doc-precheck`, `janitor` y `explorer` ampliados) y Sonnet por defecto. **Copia de la configuración anterior en la etiqueta `config-claude-2026-10-08`**; si el usuario pide "volver a la configuración del 08/10/2026", seguir el procedimiento de `CLAUDE.md §2` ("Copia de seguridad de la configuración"). Vigilar en las próximas sesiones si los agentes Haiku dan informes poco fiables (cifras de tests inventadas, traducciones que rompen parámetros, órdenes de escritura desde `explorer`).
+
 **Normas de proceso vigentes** (en `CLAUDE.md`/skills, se cargan solas, no hace falta repetirlas aquí): cierre automático de sesión al aparecer el aviso de límite de cuota (`CLAUDE.md §3`, skill `cierre-de-sesion` v1.1.2) — la hora de reset **no llega al modelo**, preguntársela siempre al usuario salvo que ya la haya dado.
 
 ---

@@ -6,6 +6,13 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-08 · Redistribución de modelos entre Haiku, Sonnet y Opus (`CLAUDE.md` 2.6.0)
+
+- **Copia de seguridad previa**: etiqueta de Git `config-claude-2026-10-08` (commit `0ecd3a2`, publicada) con `CLAUDE.md`, `.claude/agents/`, `.claude/skills/`, `.claude/settings.json` y la tabla de agentes de `PLAN-IMPLEMENTACION.md` tal como estaban. Procedimiento de vuelta atrás en `CLAUDE.md §2`.
+- **`CLAUDE.md §2`**: plan Pro con límite de 5 horas y Sonnet como modelo por defecto de la sesión principal (`"model": "sonnet"` en `.claude/settings.json`); se elimina la mención contradictoria a "la sesión corre vía API". Tabla de agentes con su modelo; reglas para no heredar Opus en `fork`/`general-purpose`/`Plan` en trabajo de ejecución; alias de modelo en vez de ID de versión.
+- **Agentes nuevos en Haiku**: `verificador` (suite y linters con informe literal, sin corregir), `traductor` (en/de/fr a partir de es-ES, excluidos textos legales y de consentimiento) y `doc-precheck` (pasada mecánica previa a `doc-reviewer`, que sigue siendo obligatorio).
+- **Agentes ampliados**: `janitor` (issues de hallazgos ya clasificados, PR, borrado de ramas mezcladas, entrada de `CHANGELOG.md`; nunca decide severidad ni escribe `memory.md`), `explorer` (`Bash` con lista cerrada de órdenes de consulta de Git y GitHub). `implementer`, `doc-reviewer` y las skills `cierre-de-sesion` e `i18n-cuatro-idiomas` ajustadas al nuevo reparto. Revisores y `test-writer` siguen en Sonnet.
+
 ## 2026-10-08 · `AR-15`: escrituras masivas sobre modelos auditables (`INV-003`, #380)
 
 - **`AR-15` (#380)**: nueva regla de arquitectura (grupo `arch`) que prohíbe en `app/` la escritura masiva por modelo (`Modelo::query()->where()…->update()/delete()/forceDelete()/upsert()…`) sobre modelos `Auditable`, porque una sola sentencia SQL no dispara el *observer* y no deja rastro en `audit_logs`. Alcance acotado por decisión del usuario (2026-10-08) respecto al enunciado original del issue: **no** cubre `DB::table()`/SQL crudo. Lista de excepciones cerrada de cuatro jobs de purga física por retención, con motivo y *ratchet*, más control negativo. Medido: 8 ficheros / 9 sitios de escritura masiva sobre modelos auditables.
