@@ -90,11 +90,14 @@ final class MfaEnrollmentService
     {
         // RN-AUTH-76: como mucho un alta sin confirmar viva por (usuario,
         // método de entrega) — abrir una nueva invalida la anterior.
+        // INV-003, #380 (AR-15): por instancia, no con `query()->delete()` (que
+        // no dispara los eventos de modelo y dejaría la invalidación sin auditar).
         MfaFactor::query()
             ->where('user_id', $user->id)
             ->where('method', $method)
             ->whereNull('confirmed_at')
-            ->delete();
+            ->get()
+            ->each(fn (MfaFactor $pending) => $pending->delete());
 
         $code = MfaDeliveryCode::generate();
         $codeTtlMinutes = (int) config('auth-local.mfa.code_ttl_minutes');

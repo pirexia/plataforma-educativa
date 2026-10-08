@@ -55,7 +55,9 @@ final class MfaRecoveryCodeService
         }
 
         return DB::transaction(function () use ($user): array {
-            MfaRecoveryCode::query()->where('user_id', $user->id)->delete();
+            // INV-003, #380 (AR-15): por instancia, no con `query()->delete()` (que no
+            // dispara los eventos de modelo y dejaría el borrado sin auditar).
+            MfaRecoveryCode::query()->where('user_id', $user->id)->get()->each(fn (MfaRecoveryCode $code) => $code->delete());
 
             return $this->generate($user);
         });
