@@ -72,7 +72,9 @@ final class MfaFactorRemovalService
             // §C.4.6 punto 3: si era su último factor confirmado, los
             // códigos de respaldo tampoco protegen nada — se borran.
             if (! $hasOtherUsableFactor) {
-                MfaRecoveryCode::query()->where('user_id', $user->id)->delete();
+                // INV-003, #380 (AR-15): por instancia, no con `query()->delete()` (que no
+                // dispara los eventos de modelo y dejaría el borrado sin auditar).
+                MfaRecoveryCode::query()->where('user_id', $user->id)->get()->each(fn (MfaRecoveryCode $code) => $code->delete());
             }
         });
 

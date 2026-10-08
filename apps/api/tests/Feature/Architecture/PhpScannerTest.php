@@ -102,3 +102,18 @@ test('CA-056-14: phpFiles recorre app/ (no vacío) y devuelve rutas ordenadas', 
     sort($sorted);
     expect($files)->toBe($sorted);
 });
+
+test('CA-056-14 AR-15: chainsFromStaticCallOn devuelve la cadena del mismo nivel, sin argumentos ni cierres, y se detiene en ; o al cerrar la expresión', function (): void {
+    $fqcn = 'App\Models\Foo';
+    $source = phpScannerFixture("namespace App\\Z;\nuse App\\Models\\Foo;\nclass A { function f() {\n"
+        ."Foo::query()->where('a', \$x->first())->whereIn('b', fn (\$q) => \$q->update([]))->delete();\n"
+        ."Foo::find(1)?->update([]);\n"
+        ."g(Foo::query())->delete();\n"
+        ."return [Foo::class, Foo::CONST];\n} }");
+
+    expect(PhpScanner::chainsFromStaticCallOn($source, $fqcn))->toBe([
+        ['query', 'where', 'whereIn', 'delete'],
+        ['find', 'update'],
+        ['query'],
+    ]);
+});

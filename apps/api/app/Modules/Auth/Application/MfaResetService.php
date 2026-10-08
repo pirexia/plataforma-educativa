@@ -54,7 +54,9 @@ final class MfaResetService
                 $factor->delete();
             }
 
-            MfaRecoveryCode::query()->where('user_id', $target->id)->delete();
+            // INV-003, #380 (AR-15): por instancia, no con `query()->delete()` (que no
+            // dispara los eventos de modelo y dejaría el borrado sin auditar).
+            MfaRecoveryCode::query()->where('user_id', $target->id)->get()->each(fn (MfaRecoveryCode $code) => $code->delete());
 
             $this->sessionRevoker->revokeAllForUser($target, SessionEndReason::CambioCredencial);
 

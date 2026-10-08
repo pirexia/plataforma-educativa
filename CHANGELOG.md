@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-08 · `AR-15`: escrituras masivas sobre modelos auditables (`INV-003`, #380)
+
+- **`AR-15` (#380)**: nueva regla de arquitectura (grupo `arch`) que prohíbe en `app/` la escritura masiva por modelo (`Modelo::query()->where()…->update()/delete()/forceDelete()/upsert()…`) sobre modelos `Auditable`, porque una sola sentencia SQL no dispara el *observer* y no deja rastro en `audit_logs`. Alcance acotado por decisión del usuario (2026-10-08) respecto al enunciado original del issue: **no** cubre `DB::table()`/SQL crudo. Lista de excepciones cerrada de cuatro jobs de purga física por retención, con motivo y *ratchet*, más control negativo. Medido: 8 ficheros / 9 sitios de escritura masiva sobre modelos auditables.
+- **Corregidos cuatro fallos reales de auditoría** (borrado lógico masivo sin rastro): `MfaRecoveryCodeService::regenerate`, `MfaResetService::reset`, `MfaFactorRemovalService::remove` (códigos de respaldo) y `MfaEnrollmentService` (alta pendiente anterior), ahora por instancia. Cada código o factor borrado deja su fila `deleted` en `audit_logs` (un lote de códigos genera una fila por código). Test de regresión `BulkDeleteAuditTest`.
+- `docs/modulos/REQ-CURSO/funcional.md §6` corregida: describe `AR-15` y su alcance real; el DML crudo sobre tablas de curso sigue cubierto solo por el disparador. `ARCHITECTURE.md §3.4`, `Modules/README.md` y la skill `modulo-nuevo` documentan la regla.
+
 ## 2026-10-08 · Cierre de pendientes previos a `1.11` (`REQ-CURSO-001`, #383, #381, #385, #382, `OPEN-057-03`)
 
 - **`AR-14` (#383)**: nueva regla de arquitectura que confina la conexión `pgsql_owner` en tiempo de ejecución a una lista cerrada de cinco ficheros (`SyncModuleRegistry`, `TenantMigration`, `PurgeLoginAttempts`, `PurgeSamlAuthRequests`, `PurgeSamlConsumedAssertions`) y comprueba en el esquema que ninguna función `SECURITY DEFINER` del propietario menciona una tabla con `academic_year_id`. Medido: las acciones referenciales (`ON DELETE CASCADE`) corren como propietario de la tabla hija y saltan el disparador (hallazgo documentado en `ARCHITECTURE.md §3.4`).

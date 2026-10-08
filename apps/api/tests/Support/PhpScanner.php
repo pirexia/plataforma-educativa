@@ -181,6 +181,86 @@ final class PhpScanner
     }
 
     /**
+     * Cadenas de llamadas que arrancan en una llamada estática sobre `$class`
+     * (`Clase::m(...)->a(...)->b(...)`): por cada aparición, la lista
+     * ordenada `[m, a, b]` de los métodos encadenados en el MISMO nivel de
+     * anidamiento y la MISMA sentencia (se detiene en `;` o al cerrarse el
+     * paréntesis/corchete/llave que contiene la expresión). Los argumentos y
+     * los cierres pasados a una llamada no entran en la cadena. `Clase::class`
+     * o una constante (sin `(`) no producen cadena. Se usa en AR-15 para
+     * distinguir `Modelo::where(..)->delete()` (masivo) de
+     * `Modelo::find(..)->delete()` (por instancia).
+     *
+     * Límites declarados: no sigue una cadena partida en varias sentencias
+     * (`$q = Modelo::query(); $q->delete();`) ni una que arranca en una
+     * relación o en una instancia (`$user->sessions()->delete()`).
+     *
+     * @param  class-string|string  $class  FQCN sin barra inicial
+     * @return list<list<string>>
+     */
+    public static function chainsFromStaticCallOn(string $source, string $class): array
+    {
+        $tokens = self::tokens($source);
+        [$namespace, $imports] = self::namespaceAndImports($tokens);
+        $count = count($tokens);
+        $chains = [];
+
+        for ($i = 0; $i < $count; $i++) {
+            $token = $tokens[$i];
+
+            if (! $token->is([T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED])
+                || ! ($tokens[$i + 1] ?? null)?->is(T_DOUBLE_COLON)
+                || self::resolve($token, $namespace, $imports) !== ltrim($class, '\\')) {
+                continue;
+            }
+
+            $method = $tokens[$i + 2] ?? null;
+
+            if ($method === null || ! $method->is(T_STRING) || ! self::isOpenParen($tokens[$i + 3] ?? null)) {
+                continue;
+            }
+
+            $chain = [$method->text];
+            $depth = 0;
+
+            for ($j = $i + 3; $j < $count; $j++) {
+                $text = $tokens[$j]->text;
+
+                if (in_array($text, ['(', '[', '{'], true) || $tokens[$j]->is(T_CURLY_OPEN) || $tokens[$j]->is(T_DOLLAR_OPEN_CURLY_BRACES)) {
+                    $depth++;
+
+                    continue;
+                }
+
+                if (in_array($text, [')', ']', '}'], true)) {
+                    $depth--;
+
+                    if ($depth < 0) {
+                        break;
+                    }
+
+                    continue;
+                }
+
+                if ($text === ';' && $depth === 0) {
+                    break;
+                }
+
+                if ($depth === 0
+                    && $tokens[$j]->is([T_OBJECT_OPERATOR, T_NULLSAFE_OBJECT_OPERATOR])
+                    && ($tokens[$j + 1] ?? null)?->is(T_STRING)
+                    && self::isOpenParen($tokens[$j + 2] ?? null)) {
+                    $chain[] = $tokens[$j + 1]->text;
+                }
+            }
+
+            $chains[] = $chain;
+        }
+
+        return $chains;
+    }
+
+    /**
      * @param  list<PhpToken>  $tokens
      * @return array{0: string, 1: array<string, string>}
      */
