@@ -6,6 +6,17 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-08 · Cierre de pendientes previos a `1.11` (`REQ-CURSO-001`, #383, #381, #385, #382, `OPEN-057-03`)
+
+- **`AR-14` (#383)**: nueva regla de arquitectura que confina la conexión `pgsql_owner` en tiempo de ejecución a una lista cerrada de cinco ficheros (`SyncModuleRegistry`, `TenantMigration`, `PurgeLoginAttempts`, `PurgeSamlAuthRequests`, `PurgeSamlConsumedAssertions`) y comprueba en el esquema que ninguna función `SECURITY DEFINER` del propietario menciona una tabla con `academic_year_id`. Medido: las acciones referenciales (`ON DELETE CASCADE`) corren como propietario de la tabla hija y saltan el disparador (hallazgo documentado en `ARCHITECTURE.md §3.4`).
+- **Auditoría de la obligación MFA (#381, `INV-003`)**: `MfaEnrollmentService` y `MfaExemptionService` cerraban `user_mfa_obligations` con `query()->update()`, sin auditoría; ahora actualizan por instancia (`MfaObligationAuditTest`).
+- **Endurecimientos (#385)**: `guardAcademicYearWrites()` con `lock_timeout` de 5 s e idempotencia explícita; `curso:grant-year-permissions` comprueba `platform:sync-registry`; `encodeURIComponent` en `academicYears.ts`; reintento `40P01` documentado en `REQ-CURSO/operacion.md`.
+- **`OPEN-057-03` resuelta**: `RN-CURSO-33`, criterio de lectura denegada de curso cerrado obligatorio en toda especificación con datos por curso (plantilla, skill `modulo-nuevo`, `ARCHITECTURE.md §3.4`).
+- **#382**: `1.11` y `1.15` en `PLAN-IMPLEMENTACION.md` heredan la obligación de repetir `AcademicYearWriteGuardOverheadTest` con la primera tabla real.
+- **Pendiente, parado** (#380): la regla de DML crudo de `ADR-034 §3` no se ha implementado; la medición da 38 sitios de escritura masiva en 31 ficheros más 30 ficheros con `DB::`, por encima del umbral de 15 fijado para el paso.
+
+---
+
 ## 2026-10-08 · Paso 1.10: el `SQLSTATE` propio pasa de `CY001` a `YC001` (`REQ-CURSO-001`, #384)
 
 `ADR-058` cambia el `SQLSTATE` del bloqueo de escritura de cursos cerrados de `CY001` a `YC001` (decisión del usuario, opción A de #384); `ADR-057` es inmutable y conserva el valor antiguo en su texto. Se sustituye en código, migración, tests, OpenAPI, documentación del módulo y documentos raíz. El valor vive en una sola constante (`AcademicYearClosedTranslator::SQLSTATE`) que usan los tests. Nuevo test `CA-057-11`: la clase `YC` no está en los rangos reservados (0-4, A-H) ni coincide con ninguna clase de PostgreSQL. La migración aún no estaba en ningún entorno desplegado; en las bases locales `plataforma` y `plataforma_test` se reemplazó la función a mano (`CREATE OR REPLACE`, mismo cuerpo).
