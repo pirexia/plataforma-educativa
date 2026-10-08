@@ -143,7 +143,7 @@ El nombre del parámetro, `academic_year`, sigue `snake_case` y el criterio de `
 
 `title`, `detail` y `message` salen del catálogo de `curso` en el idioma resuelto (`ADR-038 §6.3`, `§11`). Es el «indica el motivo» del criterio de aceptación de `§5.28`.
 
-**Origen del error** (`ADR-057 §5.5`): el disparador de base de datos lanza `SQLSTATE` **`CY001`** con el `public_id` del curso en el mensaje. El módulo `curso` registra en su `ServiceProvider` el mapeo de `QueryException` con `CY001` a su excepción de dominio de solo lectura, que el `ProblemResponseFactory` existente presenta como cualquier otro error de API; el núcleo no conoce el `SQLSTATE`. El traductor resuelve `params.code` y `params.status` por el modelo de `Curso`; si no puede (p. ej. transacción abortada sin revertir), responde igualmente `409` con el mismo `type` y un `detail` sin código de curso. La comprobación previa consultiva `AcademicYearWriteGuard` produce la misma respuesta.
+**Origen del error** (`ADR-057 §5.5`): el disparador de base de datos lanza `SQLSTATE` **`YC001`** con el `public_id` del curso en el mensaje. El módulo `curso` registra en su `ServiceProvider` el mapeo de `QueryException` con `YC001` a su excepción de dominio de solo lectura, que el `ProblemResponseFactory` existente presenta como cualquier otro error de API; el núcleo no conoce el `SQLSTATE`. El traductor resuelve `params.code` y `params.status` por el modelo de `Curso`; si no puede (p. ej. transacción abortada sin revertir), responde igualmente `409` con el mismo `type` y un `detail` sin código de curso. La comprobación previa consultiva `AcademicYearWriteGuard` produce la misma respuesta.
 
 ---
 
@@ -162,7 +162,7 @@ El nombre del parámetro, `academic_year`, sigue `snake_case` y el criterio de `
 | `urn:pge:error:conflict` | 409 | `curso.conflict.not_editable` | `PATCH` fuera de `planificacion` |
 | `urn:pge:error:conflict` | 409 | `curso.conflict.closure_checks_failed` | Checklist de cierre (vacío en 1.10) |
 | `urn:pge:error:not-found` | 404 | `curso.no_active_year` | Sin curso activo (`current` y lecturas por omisión) |
-| **`urn:pge:error:academic-year-closed`** (nuevo: ampliación del catálogo cerrado de `ADR-038 §6.2` por `ADR-057 §5.5`) | 409 | `curso.academic_year_closed` | Escritura sobre datos de un curso `cerrado`/`archivado`, desde cualquier módulo; traducido desde `SQLSTATE` `CY001` del disparador (§4) |
+| **`urn:pge:error:academic-year-closed`** (nuevo: ampliación del catálogo cerrado de `ADR-038 §6.2` por `ADR-057 §5.5`) | 409 | `curso.academic_year_closed` | Escritura sobre datos de un curso `cerrado`/`archivado`, desde cualquier módulo; traducido desde `SQLSTATE` `YC001` del disparador (§4) |
 
 **Riesgo conocido**: issue #60 (`ValidationErrorFormatter` antepone `core.` al `code` de cualquier módulo). `curso` es el primer módulo de negocio con códigos propios y lo comprobará de verdad (`funcional.md §14`).
 
