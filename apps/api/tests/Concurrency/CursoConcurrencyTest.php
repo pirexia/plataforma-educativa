@@ -4,6 +4,8 @@ use App\Modules\Curso\Domain\AcademicYearStatus;
 use App\Modules\Curso\Domain\Models\AcademicYear;
 use App\Modules\Curso\Infrastructure\AcademicYearClosedTranslator;
 use App\Support\Tenancy\TenantContext;
+use App\Support\Tenancy\TenantMigration;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\AcademicYearProbe;
 use Tests\Support\CursoTestHelpers;
@@ -259,4 +261,43 @@ test('CA-CURSO-046 CA-057-08 RN-CURSO-32: una escritura confirmada antes de que 
     // Y con el curso ya cerrado, cualquier escritura posterior falla.
     $late = cursoSpawn($tenant->id, 'write', (string) $year->id, 'posterior');
     expect(cursoCollect($late))->toMatchArray(['outcome' => 'sql_error', 'sqlstate' => AcademicYearClosedTranslator::SQLSTATE]);
+});
+
+test('RN-CURSO-23 #385 B-2: guardAcademicYearWrites() aborta con 55P03 (lock_timeout) si otra sesión retiene un bloqueo sobre la tabla', function (): void {
+    $holder = cursoPdo();
+    $table = 'ay_guard_lock_probe';
+    $holder->exec("DROP TABLE IF EXISTS {$table}");
+    $holder->exec("CREATE TABLE {$table} (id bigint PRIMARY KEY, academic_year_id bigint)");
+
+    try {
+        // Segunda conexión: retiene ACCESS EXCLUSIVE hasta su ROLLBACK.
+        $holder->beginTransaction();
+        $holder->exec("LOCK TABLE {$table} IN ACCESS EXCLUSIVE MODE");
+
+        $owner = DB::connection('pgsql_owner');
+        $owner->beginTransaction();
+
+        try {
+            $started = microtime(true);
+
+            $message = null;
+
+            try {
+                TenantMigration::guardAcademicYearWrites($table);
+            } catch (QueryException $e) {
+                $message = $e->getMessage();
+            }
+
+            expect($message)->not->toBeNull('el CREATE TRIGGER no abortó')
+                ->and($message)->toContain('55P03');
+            expect(microtime(true) - $started)->toBeLessThan(30.0);
+        } finally {
+            $owner->rollBack();
+        }
+    } finally {
+        if ($holder->inTransaction()) {
+            $holder->rollBack();
+        }
+        $holder->exec("DROP TABLE IF EXISTS {$table}");
+    }
 });

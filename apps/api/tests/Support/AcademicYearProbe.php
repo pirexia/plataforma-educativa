@@ -6,6 +6,7 @@ use App\Support\Tenancy\TenantMigration;
 use App\Support\Tenancy\TenantModel;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -43,9 +44,13 @@ final class AcademicYearProbe extends TenantModel
             return;
         }
 
-        TenantMigration::tenantTable(self::TABLE, function (Blueprint $table): void {
-            $table->text('name');
-            TenantMigration::tenantForeignId($table, 'academic_year_id', 'academic_years');
+        // `guardAcademicYearWrites()` exige transacción de `pgsql_owner` (como las
+        // migraciones de Laravel): se crea y confirma en una propia.
+        DB::connection('pgsql_owner')->transaction(function (): void {
+            TenantMigration::tenantTable(self::TABLE, function (Blueprint $table): void {
+                $table->text('name');
+                TenantMigration::tenantForeignId($table, 'academic_year_id', 'academic_years');
+            });
         });
     }
 }
