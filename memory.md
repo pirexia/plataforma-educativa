@@ -168,7 +168,12 @@
 
 ## Siguiente paso concreto
 
-**Actualización 2026-10-08: `1.10` cerrado (PR #386). Siguiente del plan: `1.11` (`REQ-ACAD`), tras resolver #383 y decidir `OPEN-CURSO-08`; sesión nueva (`CLAUDE.md §3`).**
+**Actualización 2026-10-08 (cierre de sesión): `1.10` cerrado (PR #386) y todos los pendientes previos a `1.11` mezclados (PR #388 y #389; `develop` en `2dcc3b5`). Siguiente del plan: `1.11` (`REQ-ACAD`), en sesión nueva (`CLAUDE.md §3`).**
+
+**Para investigar al empezar la próxima sesión (decisión del usuario, 2026-10-08):**
+1. **`OPEN-CURSO-08`: reabrir un curso cerrado.** Sin reapertura, un cierre por error no tiene marcha atrás. Es lo único que falta decidir antes de `1.11` (ver `docs/modulos/REQ-CURSO/funcional.md §15`). Investigar: quién podría reabrir y con qué permiso, ventana temporal, qué pasa con el bloqueo de escritura (`ADR-057`: el disparador impide escribir en cursos cerrados, la reapertura es una transición de estado del propio curso), auditoría y si exige ADR nuevo.
+2. **Issues abiertos a revisar**: #387 (Baja, hallazgos menores de `AR-14`), #371 (purga física de un tenant, obligatoria antes de datos reales; ojo con las cascadas y el disparador, `AR-13`), #366 (avisos de `npm audit` sin arreglo, dev-only) y #374-#378 (seguimiento de `1.7b`; #375 es Media: el núcleo depende de 3 internos de módulos).
+3. Antes de escribir `1.11`: repetir `AcademicYearWriteGuardOverheadTest` con la primera tabla real (#382, anotado en el plan) y exigir en su especificación un criterio de lectura denegada de curso cerrado (`RN-CURSO-33`).
 
 **Actualización 2026-10-07: `1.7b` está cerrado y mezclado (PR #379); el texto de `1.5b` de abajo es histórico (cerrado y mezclado, PR #354). Siguiente del plan: `1.10` (`REQ-CURSO`), o `2.x` si el piloto se acerca a datos reales (purga física, issue #371); sesión nueva (`CLAUDE.md §3`).**
 
