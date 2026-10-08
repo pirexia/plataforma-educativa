@@ -352,7 +352,7 @@ test('CA-057-05 RN-CURSO-21: cualquier otro QueryException no se traduce y sigue
         ->assertJsonPath('type', 'urn:pge:error:internal');
 });
 
-test('CA-057-11 ADR-058: la clase del SQLSTATE propio no está en los rangos reservados ni coincide con ninguna clase de PostgreSQL', function (): void {
+test('CA-058-02 ADR-058: la clase del SQLSTATE propio no está en los rangos reservados ni coincide con ninguna clase de PostgreSQL', function (): void {
     $sqlstate = AcademicYearClosedTranslator::SQLSTATE;
     $class = substr($sqlstate, 0, 2);
 
@@ -363,6 +363,16 @@ test('CA-057-11 ADR-058: la clase del SQLSTATE propio no está en los rangos res
         '34', '38', '39', '3B', '3D', '3F', '40', '42', '44', '53', '54', '55',
         '57', '58', '72', 'F0', 'HV', 'P0', 'XX',
     ];
+
+    // Lo que emite la función instalada, no un literal repetido en el test.
+    $definition = (string) DB::connection('pgsql_owner')
+        ->selectOne("select pg_get_functiondef('app.assert_academic_year_writable()'::regprocedure) as def")->def;
+    expect($definition)->toContain($sqlstate);
+
+    // La lista de arriba es la de PostgreSQL 17: al subir de versión mayor este
+    // test falla a propósito hasta que alguien la repase contra el apéndice A.
+    $major = (int) (DB::connection('pgsql_owner')->selectOne('show server_version_num')->server_version_num / 10000);
+    expect($major)->toBe(17);
 
     expect($sqlstate)->toMatch('/^[0-9A-Z]{5}$/')
         // Regla del estándar SQL: 0-4 y A-H quedan reservadas a clases estándar.
