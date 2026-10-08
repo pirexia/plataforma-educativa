@@ -127,10 +127,10 @@ final class SyncModuleRegistry
 
         // OPEN-BO-24 decisión (b): cualquier cambio del catálogo
         // materializado (alta, actualización de descriptor o retirada)
-        // invalida la única entrada de caché del evaluador. Referencia
-        // por FQCN sin `use`: `App\Support` no depende del namespace
-        // interno de un módulo concreto (INV-007, ADR-056 AR-02): resuelve
-        // la interfaz `FeatureFlagCatalogInvalidator`, que implementa Core.
+        // invalida la única entrada de caché del evaluador. `App\Support` no
+        // depende del namespace interno de un módulo concreto (INV-007,
+        // ADR-056 AR-02): resuelve la interfaz `FeatureFlagCatalogInvalidator`,
+        // que implementa Core.
         app(FeatureFlagCatalogInvalidator::class)->forget();
     }
 
