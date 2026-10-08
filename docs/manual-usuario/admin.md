@@ -199,7 +199,7 @@ En **Administración → Cursos académicos** (`/administracion/cursos`, requier
 
 - **En planificación**: el curso que se está preparando (el siguiente). Como mucho hay uno por centro. Es el único estado en el que se puede **editar** el código y las fechas.
 - **Activo**: el curso en marcha. Como mucho hay uno por centro.
-- **Cerrado**: curso terminado. **Sus datos son de solo lectura en todos los módulos del centro**: nadie —tenga el permiso que tenga— puede crear, modificar ni borrar datos de un curso cerrado. Si se intenta, la aplicación lo rechaza e indica el motivo («el curso 2025-2026 está cerrado y sus datos son de solo lectura»).
+- **Cerrado**: curso terminado. **Sus datos son de solo lectura en todos los módulos del centro**: nadie —tenga el permiso que tenga— puede crear, modificar ni borrar datos de un curso cerrado. Si se intenta, la aplicación lo rechaza e indica el motivo («el curso 2025-2026 está cerrado y sus datos son de solo lectura»). Un cierre hecho por error puede deshacerse solo en la ventana que explica «Reabrir un curso cerrado por error».
 - **Archivado**: curso en almacenamiento frío. Todavía no se puede llegar a este estado.
 
 **Crear un curso.** Con el permiso de crear cursos, **«Nuevo curso»** pide un código (texto libre, único en el centro, por ejemplo `2026-2027`), la fecha de inicio y la de fin. El curso nace siempre **en planificación**; el estado no se elige. Si ya hay un curso en planificación, la aplicación lo indica y enlaza con él; si las fechas se solapan con las de otro curso o el código ya existe, el mensaje aparece bajo el campo.
@@ -208,7 +208,19 @@ En **Administración → Cursos académicos** (`/administracion/cursos`, requier
 
 **Activar el curso.** En la ficha de un curso en planificación, **«Activar curso»** (permiso propio de cambiar el estado de los cursos, que solo tiene por defecto el Administrador de Centro). Pide confirmación. **Solo puede haber un curso activo: si ya hay otro, hay que cerrarlo antes**; la aplicación te lo dice y te enlaza con el curso activo. Si la fecha de fin del curso ya ha pasado, el diálogo te lo advierte, pero te deja continuar. El curso no se activa solo por calendario.
 
-**Cerrar el curso.** En la ficha del curso activo, **«Cerrar curso»**. El diálogo te advierte de que **el cierre no se puede deshacer desde la aplicación** y de que, a partir de ahí, todos los datos del curso quedan en solo lectura; hay que confirmarlo explícitamente, y cancelar no hace nada. Tras cerrar un curso el centro se queda **sin curso activo** hasta que actives el siguiente: es un estado normal. Si algún módulo tiene una comprobación de cierre pendiente de cumplir, la aplicación lista cuáles y el curso sigue activo.
+**Cerrar el curso.** En la ficha del curso activo, **«Cerrar curso»**. El diálogo te advierte de que, a partir de ahí, todos los datos del curso quedan en solo lectura y de que **el cierre solo se puede deshacer mientras no actives otro curso** (véase «Reabrir un curso cerrado por error»); hay que confirmarlo explícitamente, y cancelar no hace nada. Tras cerrar un curso el centro se queda **sin curso activo** hasta que actives el siguiente: es un estado normal. Si algún módulo tiene una comprobación de cierre pendiente de cumplir, la aplicación lista cuáles y el curso sigue activo.
+
+**Reabrir un curso cerrado por error.** *(Decidido y especificado; la acción aparecerá en la aplicación con la entrega que la implemente. Hasta entonces no hay forma de reabrir un curso.)* En la ficha de un curso cerrado, **«Reabrir curso»** (permiso propio de reabrir cursos, distinto del de cerrarlos; por defecto solo lo tiene el Administrador de Centro). Sirve para deshacer un **cierre hecho antes de tiempo**, y solo es posible en esta ventana:
+
+- **No hay ningún otro curso activo.** En cuanto actives el curso siguiente, el anterior ya no se puede reabrir.
+- **Es el último curso cerrado** del centro. Un curso cerrado más antiguo no se reabre.
+- Ningún módulo tiene una comprobación que impida la reapertura (hoy no hay ninguna).
+
+No hay un plazo en días: la ventana la marcan esos hechos. Un curso archivado no se reabre nunca.
+
+El diálogo te pide un **motivo, obligatorio**, que queda guardado junto con tu nombre y la fecha. **No escribas datos personales en el motivo** (nombres de alumnos, datos de salud…): describe la situación, por ejemplo «Cerrado por error antes de las evaluaciones extraordinarias». Al confirmar, el curso vuelve a ser **el curso activo del centro** y **todos sus datos, en todos los módulos, vuelven a admitir cambios** de quien tenga permiso para hacerlos. Para volver a cerrarlo, usa «Cerrar curso» como siempre.
+
+**No reabras un curso para corregir un dato concreto** (por ejemplo, una nota tras una reclamación): reabrir abre el curso entero a todo el centro, no solo ese dato. La corrección de datos de un curso cerrado tendrá su propio procedimiento en el módulo correspondiente. Si la aplicación no te deja reabrir (hay otro curso activo, o no es el último cerrado), no existe otra vía: **nadie debe intentar reabrirlo modificando la base de datos**, y soporte de la plataforma no lo hace por ti.
 
 **Quién ve qué.** Los cursos cerrados se pueden consultar con el permiso de leer el histórico de cursos cerrados, **además** del permiso del módulo que guarda el dato. Por defecto lo tienen el Administrador de Centro, la Dirección y la Secretaría (que además pueden ver el listado y la ficha de los cursos, sin crearlos ni cambiarles el estado); un centro puede dárselo a otros roles creando un rol personalizado.
 
