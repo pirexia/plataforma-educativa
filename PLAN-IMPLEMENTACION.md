@@ -1,6 +1,6 @@
 # PLAN-IMPLEMENTACION.md
 
-> **Versión 2.3.7** · 2026-10-07
+> **Versión 2.3.8** · 2026-10-08
 
 > Plan de ejecución dimensionado a **sesiones de ~5 horas** (límite del plan Pro). Cada paso cabe en una o dos sesiones y termina con el repositorio en estado compilable, tests en verde y `memory.md` actualizado.
 >
@@ -297,10 +297,13 @@ El transporte va inmediatamente después de `FIN` porque comparte la línea de f
 | `security-reviewer` | Sonnet | Revisión OWASP, aislamiento de tenant, permisos, datos especiales |
 | `doc-reviewer` | Sonnet | Coherencia entre requisito, código, API y manual |
 | `db-reviewer` | Sonnet | Revisión de migraciones: expand/contract, índices, bloqueos |
-| `explorer` | Haiku | Búsquedas en el código, inventarios, listados |
-| `janitor` | Haiku | `.gitignore`, formateo, limpieza de ramas, commits rutinarios |
+| `explorer` | Haiku | Búsquedas en el código, inventarios, listados, historial de Git y GitHub (solo lectura) |
+| `verificador` | Haiku | Ejecuta suite y linters y devuelve el resultado literal, sin corregir |
+| `traductor` | Haiku | Completa en/de/fr a partir de es-ES (nunca textos legales ni de consentimiento) |
+| `doc-precheck` | Haiku | Pasada mecánica previa a `doc-reviewer` (no lo sustituye) |
+| `janitor` | Haiku | `.gitignore`, formateo, limpieza de ramas, commits rutinarios, issues ya clasificados, PR, entrada de `CHANGELOG.md` |
 
-Los subagentes de revisión (`security-reviewer`, `doc-reviewer`, `db-reviewer`) se ejecutan **antes de cada merge a `develop`**, no al final de la fase.
+Los subagentes de revisión (`security-reviewer`, `doc-reviewer`, `db-reviewer`) se ejecutan **antes de cada merge a `develop`**, no al final de la fase. Modelos y reparto de tareas: `CLAUDE.md §2` (redistribución del 2026-10-08; copia de la configuración anterior en la etiqueta `config-claude-2026-10-08`).
 
 ## Anexo B · Ritmo realista
 

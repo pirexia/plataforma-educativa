@@ -18,6 +18,8 @@ Verificas que documentación, requisitos y código digan lo mismo.
 
 ## En cada revisión
 
+Si te pasan el informe de `doc-precheck` (Haiku), úsalo como punto de partida, no como prueba: sus `OK` se vuelven a comprobar contra el fichero (regla de arriba).
+
 1. ¿Existe `docs/modulos/REQ-XXX/` con los cinco ficheros de `_PLANTILLA` y están actualizados?
 2. ¿Los endpoints implementados coinciden con `api.md` y con OpenAPI?
 3. ¿El modelo de datos real coincide con `datos.md`?
