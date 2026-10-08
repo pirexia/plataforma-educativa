@@ -435,7 +435,7 @@ El usuario aprobó el 2026-10-07 **las 23 recomendaciones** de la tabla de §15.
 | `OPEN-CURSO-03` | **APROBADA** | A: modelo y enumerado a `Curso\Domain`; la migración no se mueve |
 | `OPEN-CURSO-04` | **APROBADA, con mecanismo sustituido por `ADR-057`** | El bloqueo es un **disparador de PostgreSQL** (opción **C**), no el rasgo de modelo (B) que recomendaba §15.3: B no cumplía `RN-CURSO-23` ni `RN-CURSO-32` (`ADR-057 §4`). `ADR-057` ratifica además la convención de §3.2 y el tipo de error de `OPEN-CURSO-05`. Ver `RN-CURSO-23`, `RN-CURSO-32` |
 | `OPEN-CURSO-05` | **APROBADA** | A: `urn:pge:error:academic-year-closed` (409), ampliación de `ADR-038 §6.2` por `ADR-057 §5.5` |
-| `OPEN-CURSO-06` | **APROBADA para 1.10; pendiente de decidir antes de `1.11`** | A en 1.10 (cerrar el activo antes de activar el siguiente). El hueco operativo (curso nuevo que empieza con el anterior sin poder cerrarse) **requiere decisión de producto antes de `1.11`** |
+| `OPEN-CURSO-06` | **RESUELTA (2026-10-08, decisión del usuario)** | **A** definitiva: el curso activo se cierra antes de activar el siguiente (dos operaciones). **B** (transición atómica «cerrar actual y activar siguiente») queda **diferida**: se añadiría como operación adicional, sin migración, solo si el uso real la pide (candidata junto a `1.12b`). Con A, entre el cierre y la activación el centro no tiene curso activo: los módulos deben tolerar `GET /academic-years/current` vacío |
 | `OPEN-CURSO-07` | **APROBADA** | A: registro y contrato de validaciones de cierre, vacíos |
 | `OPEN-CURSO-08` | **APROBADA para 1.10; pendiente de decidir antes de `1.11`** | A en 1.10 (no hay reapertura). **Decidir B o C antes de `1.11`**. Si se elige B, no necesita excepción al bloqueo: al volver a `activo`, el disparador deja de bloquear (`ADR-057 §5.7`) |
 | `OPEN-CURSO-09` | **APROBADA** | A: `archivado` inalcanzable; requiere ADR de almacenamiento frío |
@@ -458,7 +458,7 @@ El usuario aprobó el 2026-10-07 **las 23 recomendaciones** de la tabla de §15.
 
 | ID | Pregunta | Recomendación | Bloquea |
 |----|----------|---------------|---------|
-| `OPEN-CURSO-06` | Hueco operativo entre el inicio del curso nuevo y el cierre del anterior (ver §15.3) | Decisión de producto | **Antes de `1.11`** |
+| `OPEN-CURSO-06` | ~~Hueco operativo entre el inicio del curso nuevo y el cierre del anterior~~ | **Resuelta 2026-10-08** (A; B diferida) | — |
 | `OPEN-CURSO-08` | Reapertura de un curso cerrado: B (por API, con permiso propio y motivo) o C (procedimiento de soporte) | Ver §15.3 | **Antes de `1.11`** |
 | `OPEN-057-03` | **RESUELTA** (2026-10-08, recomendación aceptada; regla en `RN-CURSO-33`).  **Asimetría con la lectura**: `RN-CURSO-25` depende de que cada *endpoint* de lectura invoque `AcademicYearReadAccess`, el modelo que `RN-CURSO-23` rechaza para la escritura (`ADR-057 §10`) | Mantener el contrato invocado y exigir en la especificación de cada módulo con datos por curso un criterio de aceptación de denegación de lectura de curso cerrado en listado y en detalle | Resuelta; la regla obliga a `1.11` y a todo módulo con datos por curso |
 | `OPEN-057-04` | Supresión y anonimización de datos personales en tablas de cursos cerrados, que choca con el bloqueo (`ADR-057 §7`) | Decidirlo en `REQ-PRIV-006`, con la forma de `ADR-057 §5.7` o como tarea del propietario | No `1.10`; sí antes de datos reales |
