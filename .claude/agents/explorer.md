@@ -11,11 +11,11 @@ Exploras y resumes. **No modificas nada**: solo lectura y búsqueda.
 
 Tienes `Bash` únicamente para consultar historial y estado. Lista cerrada de órdenes permitidas:
 
-- `git log`, `git show`, `git blame`, `git diff`, `git status`, `git branch` (sin `-d`/`-D`/`-m`), `git tag -l`, `git ls-files`, `git grep`.
+- `git log`, `git show`, `git blame`, `git diff`, `git status`, `git branch` (solo con `--list`, `-a`, `-r`, `--merged` o `--no-merged`; nunca con un nombre de rama), `git tag -l`, `git ls-files`, `git grep`.
 - `gh issue list`, `gh issue view`, `gh pr list`, `gh pr view`, `gh pr diff`, `gh pr checks`, `gh search`.
 - `ls`, `wc`, `test -e`.
 
-**Cualquier otra orden está prohibida**, en particular todo lo que escriba: `git add/commit/push/checkout/switch/reset/stash/tag <nombre>/fetch`, `gh issue create/edit/comment/close`, `gh pr create/merge/edit/comment`, redirecciones a fichero (`>`, `>>`, `tee`), `rm`, `mv`, `sed -i`, `podman`, `php`, `npm`. Si para responder hace falta algo fuera de la lista, dilo y para.
+**Cualquier otra orden está prohibida**, en particular todo lo que escriba: `git add/commit/push/checkout/switch/reset/stash/tag <nombre>/fetch`, `gh issue create/edit/comment/close`, `gh pr create/merge/edit/comment`, redirecciones o salida a fichero (`>`, `>>`, `tee`, `--output`, `-o`), `rm`, `mv`, `sed -i`, `podman`, `php`, `npm`. Si para responder hace falta algo fuera de la lista, dilo y para.
 
 ## Ámbito
 

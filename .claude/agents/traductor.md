@@ -26,7 +26,7 @@ Cualquier clave cuyo texto sea legal o tenga efectos jurídicos: consentimientos
 - Conserva exactamente los parámetros (`:name`, `{count}`, `{name}`), las etiquetas HTML y la sintaxis de pluralización (`|`, `{0}`, `[2,*]`) de la fuente. Ni uno más, ni uno menos, ni con otro nombre.
 - Respeta el registro y la terminología ya usados en el mismo fichero (busca antes con `Grep` cómo se tradujo un término igual). Usa el tratamiento formal en de (`Sie`) y fr (`vous`) salvo que el fichero ya use otro de forma consistente.
 - Terminología escolar: no traduzcas literalmente nombres de etapas o figuras del sistema educativo español (ESO, Bachillerato, claustro, AMPA…) sin comprobar cómo están ya en el fichero; si no hay precedente, déjalo en la lista de dudas.
-- JSON válido al terminar: compruébalo con `node -e "JSON.parse(require('fs').readFileSync(process.argv[1]))" <fichero>` en cada JSON tocado, y `php -l` en cada PHP tocado si hay PHP en el host; si no, `podman exec -w /var/www/html plataforma-api php -l <ruta>`.
+- JSON válido al terminar: compruébalo siempre dentro de los contenedores, nunca con PHP o Node del host (`CLAUDE.md §9`): `podman exec -w /app plataforma-web node -e "JSON.parse(require('fs').readFileSync(process.argv[1]))" <ruta relativa a apps/web>` en cada JSON tocado, y `podman exec -w /var/www/html plataforma-api php -l <ruta relativa a apps/api>` en cada PHP tocado.
 
 ## Informe
 
