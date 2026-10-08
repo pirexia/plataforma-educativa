@@ -37,6 +37,7 @@ Si el módulo tiene pantallas: sus **rutas** (cada una con `meta.layout` y `meta
 ## Criterios de aceptación
 - *Dado* … *cuando* … *entonces* …
 - **Por cada recurso con ámbito restringido, acceso denegado en listado Y en detalle** (`ADR-044 §4.2`): *dado* un usuario con el permiso solo sobre su ámbito, *cuando* pide el listado, *entonces* solo ve lo suyo, y *cuando* pide por `public_id` un recurso fuera de su ámbito, *entonces* recibe la misma respuesta que si no existiera. Ningún test estático lo comprueba (`AR-10` ve consultas, no endpoints): es criterio de aceptación y de revisión.
+- **Si el módulo tiene datos por curso (`academic_year_id`): lectura denegada de curso cerrado, en listado Y en detalle** (`RN-CURSO-33`, `OPEN-057-03`, `ADR-057 §10`): *dado* un usuario con el permiso de lectura del módulo pero sin `curso_historico.leer`, *cuando* pide el listado de un curso `cerrado`/`archivado` y *cuando* pide por `public_id` un registro de ese curso, *entonces* recibe `404` como si no existiera; con `curso_historico.leer` recibe los datos. Lo garantiza el contrato `AcademicYearReadAccess` invocado desde cada *endpoint* de lectura; ningún test estático lo comprueba (no hay equivalente a `AR-13`, que cubre solo la escritura): es criterio de aceptación y de revisión. Si el módulo no tiene datos por curso, escribe «no aplica».
 - **Aislamiento entre tenants** (`INV-001`): con dos centros con datos equivalentes, ningún endpoint del módulo devuelve, modifica ni cuenta datos del otro.
 
 ## Preguntas abiertas

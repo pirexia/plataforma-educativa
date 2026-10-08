@@ -181,6 +181,8 @@ Los detectores de llamadas y literales comparten **un único escáner de tokens*
 | Módulo de frontend | `apps/web/src/modules/core` (`shell.ts`, tabla de datos) | `AR-11` (`apps/web/src/modules/architecture.spec.ts`), `apps/web/src/navigation/architecture.spec.ts` |
 | **Antirreferencia** para módulos de tenant | `Backoffice`: de plataforma, sin tenant, sin catálogo | — |
 
+**Regla de especificación (`RN-CURSO-33`, `OPEN-057-03` resuelta 2026-10-08)**: toda especificación de módulo con datos por curso (`academic_year_id`) incluye un criterio de aceptación de **lectura denegada de curso cerrado** (usuario sin `curso_historico.leer` recibe `404` en el listado y en el detalle de un curso `cerrado`/`archivado`): la escritura la cubre el disparador (`AR-13`), pero la lectura depende de que cada *endpoint* invoque `AcademicYearReadAccess` y ningún test estático lo ve. Está en `docs/modulos/_PLANTILLA/funcional.md` y en la skill `modulo-nuevo`; `1.11` es el primero que debe cumplirlo, con su primera entidad real.
+
 **Disparador de revisión**: al cerrar `1.11` (`REQ-ACAD`, el segundo módulo de negocio tras `REQ-CURSO`) esta tabla se revisa y el primer módulo de negocio sustituye a `Core` en las filas donde sea más representativo. Con `1.10` entra `Curso`, que **no** es todavía un módulo de negocio representativo (no tiene tablas por curso propias): es el dueño del contrato transversal que las tablas de `ACAD`, `ALUM`, `CALIF`… heredarán, y `1.11` debe repetir `CA-CURSO-040` con su primera entidad real y añadir a `AR-13` la aserción de no vacuidad sobre el esquema real solo (`ADR-057 §5.3`). El generador `make:module`, que codifica un patrón que aún no existe, se difiere al paso `1.11b`.
 
 ---

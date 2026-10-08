@@ -85,7 +85,7 @@ Denegación por defecto (`RPERM-011`): lo que no aparece no se concede. Se siemb
 | Regla | Dónde | Efecto |
 |-------|-------|--------|
 | **Curso de solo lectura** — nadie escribe datos de un curso `cerrado`/`archivado`, tenga los permisos que tenga | Toda tabla con `academic_year_id`, por el disparador de `ADR-057` (`academic_year_write_guard`), sea cual sea el camino de escritura; solo el propietario de la tabla está exento | `409 urn:pge:error:academic-year-closed` (`RN-CURSO-20`/`-21`), traducido desde `SQLSTATE` `YC001`. No es `403`: es estado del dato, no falta de permiso |
-| **Lectura de curso cerrado** — exige `curso_historico.leer` **además** del permiso del módulo | Contrato `AcademicYearReadAccess`, en los *endpoints* de lectura de otros módulos | `404`, nunca `403` (no se confirma que haya datos, `ADR-038 §6.4`) |
+| **Lectura de curso cerrado** — exige `curso_historico.leer` **además** del permiso del módulo | Contrato `AcademicYearReadAccess`, en los *endpoints* de lectura de otros módulos | `404`, nunca `403` (no se confirma que haya datos, `ADR-038 §6.4`) Todo módulo con datos por curso lo comprueba con un criterio de aceptación de lectura denegada en listado **y** en detalle (`RN-CURSO-33`, `OPEN-057-03` resuelta) |
 | **Un activo y un en planificación** | Índice único parcial + servicio | `409` |
 | **Solo transiciones válidas** | Servicio de transiciones | `409 invalid_transition` |
 | **Edición solo en `planificacion`** | Servicio | `409 not_editable` |
