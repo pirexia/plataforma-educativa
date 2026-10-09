@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.8.5** · 2026-10-07
+> **Versión 0.8.6** · 2026-10-09
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`); el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
@@ -78,6 +78,7 @@ Credenciales en `.env` (gitignored), a partir de `.env.example`.
 **Pendiente, a propósito:**
 - El servicio de renderizado HTML→PDF no está definido todavía: falta decidir el motor concreto (ver paso 1.17 del plan). No se ha fijado una dependencia sin esa decisión.
 - **No hay ningún worker de colas desplegado** (ni Horizon ni `queue:work`), en `compose.yaml` ni en `infra/quadlet/*`, pese a que 1.1-1.3b ya despachan colas reales (`auth-mail` entre otras, 32 clases `ShouldQueue`) con `QUEUE_CONNECTION` por defecto `database` — no `sync`. Sin worker, esos trabajos quedan encolados sin procesar. Ver issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128).
+- **Cuando existan *workers* de colas u Octane** (#128), reiniciarlos tras cada migración que cambie el tipo de una columna: un `ALTER TYPE` puede hacer fallar un *statement* preparado de lado servidor reutilizado («cached plan must not change result type»), p. ej. el de `2026_10_07_100100_narrow_feature_flags_public_id_to_char26` (#377 B-3, supuesto no reproducido).
 
 ---
 

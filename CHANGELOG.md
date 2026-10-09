@@ -6,6 +6,11 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-09 · Test de la migración de `public_id` sin estado residual (`ADR-056 AR-05`, `CA-056-06`, #377)
+
+- **`FeatureFlagsPublicIdMigrationTest` (#377 B-1, B-2)**: `down()`, `up()` y la fila de prueba corren dentro de una transacción de `pgsql_owner` que siempre termina en `ROLLBACK` (el DDL de PostgreSQL es transaccional). Un `kill` del proceso ya no deja las columnas en `text` ni la fila `test.migration.short_public_id`.
+- **#377 B-3**: no se implementa; `SYSADMIN.md` 0.8.6 anota que los *workers*/Octane, cuando existan (#128), deben reiniciarse tras migraciones que cambien el tipo de una columna. `README.md` actualizado a `SYSADMIN.md` 0.8.6.
+
 ## 2026-10-08 · Redistribución de modelos entre Haiku, Sonnet y Opus (`CLAUDE.md` 2.6.0)
 
 - **Copia de seguridad previa**: etiqueta de Git `config-claude-2026-10-08` (commit `0ecd3a2`, publicada) con `CLAUDE.md`, `.claude/agents/`, `.claude/skills/`, `.claude/settings.json` y la tabla de agentes de `PLAN-IMPLEMENTACION.md` tal como estaban. Procedimiento de vuelta atrás en `CLAUDE.md §2`.
