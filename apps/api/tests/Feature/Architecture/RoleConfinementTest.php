@@ -6,6 +6,7 @@ use App\Modules\Auth\Http\Controllers\MfaComplianceController;
 use App\Modules\Auth\Infrastructure\Console\GrantLockoutPermissionsCommand;
 use App\Modules\Auth\Infrastructure\EloquentMfaComplianceDirectory;
 use App\Modules\Auth\Infrastructure\Listeners\MaterializeMfaObligationsForRole;
+use Pest\Arch\Exceptions\ArchExpectationFailedException;
 use Tests\Support\PhpScanner;
 
 pest()->group('arch');
@@ -66,17 +67,25 @@ function roleLiteralExceptions(): array
 
 const ROLE_CODE_LITERALS = ['administrador_centro', 'soporte_plataforma'];
 
+/**
+ * @return list<string> los espacios de nombres y clases que pueden usar `Role` (AR-08)
+ */
+function roleAllowedUsers(): array
+{
+    return [
+        'App\\Modules\\Core',
+        'App\\Support\\Authorization',
+        'App\\Models',
+        'App\\Providers',
+        ...array_keys(roleUsageExceptions()),
+    ];
+}
+
 // Un solo objetivo (`Role`); la lista de usuarios permitidos es la de §3.3
 // más las cinco clases nominales.
 arch('AR-08 CA-056-09 ADR-044 §8: App\Models\Role solo se usa en Core, Support\Authorization, Models, Providers y las excepciones nominales')
     ->expect(Role::class)
-    ->toOnlyBeUsedIn([
-        'App\Modules\Core',
-        'App\Support\Authorization',
-        'App\Models',
-        'App\Providers',
-        ...array_keys(roleUsageExceptions()),
-    ]);
+    ->toOnlyBeUsedIn(roleAllowedUsers());
 
 foreach (array_keys(roleUsageExceptions()) as $class) {
     arch("AR-08 CA-056-15: la excepción {$class} sigue usando Role, si no, retirarla de la lista")
@@ -111,4 +120,18 @@ test('AR-08 CA-056-09: los literales de código de rol administrador_centro / so
 test('AR-08 CA-056-09: las listas de excepciones son las de ADR-056 §3.3 (5 clases y 6 ficheros)', function (): void {
     expect(roleUsageExceptions())->toHaveCount(5)
         ->and(roleLiteralExceptions())->toHaveCount(6);
+});
+
+// #378 B1: control negativo PERMANENTE de la parte `arch()` de AR-08. Pest
+// no escanea `Tests\`, así que un fixture no sirve aquí: se aplica la MISMA
+// regla (`toOnlyBeUsedIn`) con una lista deliberadamente demasiado estrecha.
+// `Role` se usa hoy fuera de `App\Modules\Core` (Models, Providers,
+// Support\Authorization…), así que la regla DEBE lanzar; si una versión de
+// Pest la dejara pasar en vacío, este control fallaría. Con la lista real,
+// además, la regla debe ver al menos un uso (no está vacía).
+test('AR-08 CA-056-09 #378 B1: la regla muerde — con una lista demasiado estrecha toOnlyBeUsedIn lanza', function (): void {
+    expect(fn () => expect(Role::class)->toOnlyBeUsedIn(['App\\Modules\\Core']))
+        ->toThrow(ArchExpectationFailedException::class)
+        ->and(fn () => expect(Role::class)->toOnlyBeUsedIn(roleAllowedUsers()))
+        ->not->toThrow(ArchExpectationFailedException::class);
 });
