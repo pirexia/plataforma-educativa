@@ -8,9 +8,9 @@ use App\Modules\Backoffice\Domain\Models\PlatformAdminSession;
 use App\Modules\Backoffice\Domain\Models\PlatformIpAllowlistEntry;
 use App\Modules\Backoffice\Domain\PlatformAdminStatus;
 use App\Modules\Backoffice\Domain\PlatformRole;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
+use Tests\Support\TestPasswordHash;
 
 // currentTotpCode() está definida globalmente en tests/Pest.php (REQ-AUTH-003).
 
@@ -40,7 +40,7 @@ function createEnrolledPlatformAdmin(string $role = 'superadministrador'): array
     $admin = PlatformAdmin::create([
         'email' => Str::random(10).'@example.com',
         'name' => 'Admin de prueba',
-        'password' => Hash::make('contraseña-larga-de-prueba'),
+        'password' => TestPasswordHash::of('contraseña-larga-de-prueba'),
         'status' => PlatformAdminStatus::Activo,
         'password_changed_at' => now(),
         'mfa_enrolled_at' => now(),
@@ -146,7 +146,7 @@ test('CA-BO-005: sin segundo factor confirmado, solo se alcanzan las rutas de al
     $admin = PlatformAdmin::create([
         'email' => Str::random(10).'@example.com',
         'name' => 'Sin MFA',
-        'password' => Hash::make('contraseña-larga-de-prueba'),
+        'password' => TestPasswordHash::of('contraseña-larga-de-prueba'),
         'status' => PlatformAdminStatus::Activo,
         'password_changed_at' => now(),
     ]);

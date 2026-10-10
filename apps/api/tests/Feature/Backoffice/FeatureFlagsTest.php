@@ -179,6 +179,12 @@ afterEach(function (): void {
     DB::connection('pgsql_platform')->table('tenants')->delete();
     forgetFlagCatalogCache();
     Cache::flush();
+
+    // ADR-060 §4.3.2: `registerFlagFixtures()` sincroniza con un proveedor de
+    // prueba, lo que retira del catálogo los permisos reales. La suite ya no
+    // re-sincroniza en cada test (`syncRegistryOnce()`): este fichero deja el
+    // registro como lo encontró.
+    test()->artisan('platform:sync-registry')->run();
 });
 
 // ---------------------------------------------------------------------

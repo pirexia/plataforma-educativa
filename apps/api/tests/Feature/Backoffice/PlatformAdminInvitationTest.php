@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
+use Tests\Support\TestPasswordHash;
 
 // currentTotpCode(), withSessionCookie() y sessionCookieValue() están
 // definidas globalmente en tests/Pest.php (REQ-AUTH-003).
@@ -55,7 +56,7 @@ function piCreateEnrolledAdmin(string $role = 'superadministrador'): array
     $admin = PlatformAdmin::create([
         'email' => Str::random(10).'@example.com',
         'name' => 'Admin de prueba',
-        'password' => Hash::make('contraseña-larga-de-prueba'),
+        'password' => TestPasswordHash::of('contraseña-larga-de-prueba'),
         'status' => PlatformAdminStatus::Activo,
         'password_changed_at' => now(),
         'mfa_enrolled_at' => now(),

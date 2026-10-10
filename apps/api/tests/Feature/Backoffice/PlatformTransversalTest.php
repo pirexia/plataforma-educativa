@@ -9,9 +9,9 @@ use App\Modules\Backoffice\Domain\PlatformAdminStatus;
 use App\Modules\Backoffice\Domain\PlatformRole;
 use App\Modules\Backoffice\Http\Resources\AdminActionLogResource;
 use App\Modules\Backoffice\Http\Resources\PlatformAdminResource;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
+use Tests\Support\TestPasswordHash;
 
 /**
  * REQ-BO-007, api.md §3.6/CLAUDE.md §7. CA-BO-070 a CA-BO-074:
@@ -38,7 +38,7 @@ function ttCreateEnrolledAdmin(string $role = 'superadministrador'): array
     $admin = PlatformAdmin::create([
         'email' => Str::random(10).'@example.com',
         'name' => 'Admin de prueba',
-        'password' => Hash::make('contraseña-larga-de-prueba'),
+        'password' => TestPasswordHash::of('contraseña-larga-de-prueba'),
         'status' => PlatformAdminStatus::Activo,
         'password_changed_at' => now(),
         'mfa_enrolled_at' => now(),

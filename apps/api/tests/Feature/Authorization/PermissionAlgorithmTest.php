@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\DB;
 beforeEach(function (): void {
     $this->tenant = Tenant::factory()->create();
     app(TenantContext::class)->enter($this->tenant->id);
-    $this->artisan('platform:sync-registry')->run();
+    syncRegistryOnce();
 });
 
 // Sin TenantContext::leave() aquí a propósito (ver
