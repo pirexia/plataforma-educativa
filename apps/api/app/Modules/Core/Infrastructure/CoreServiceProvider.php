@@ -25,6 +25,7 @@ use App\Modules\Core\Infrastructure\Console\GrantRoleAdministrationCommand;
 use App\Modules\Core\Infrastructure\Console\ProvisionTenantDefaultsCommand;
 use App\Modules\Core\Infrastructure\Console\PurgeCoreMaintenanceCommand;
 use App\Support\Authorization\ScopeResolverRegistry;
+use App\Support\FeatureFlags\FeatureFlagCatalogInvalidator;
 use App\Support\FeatureFlags\FeatureFlagEvaluator;
 use App\Support\FeatureFlags\FeatureFlagExplainer;
 use App\Support\Modules\DeclaresModuleRegistry;
@@ -44,6 +45,8 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
     {
         $this->app->singleton(TenantSettingsCache::class);
         $this->app->bind(TenantSettingsReader::class, EloquentTenantSettingsReader::class);
+        // INV-007, ADR-056 AR-02: SyncModuleRegistry (App\Support) invalida la caché por esta interfaz.
+        $this->app->bind(FeatureFlagCatalogInvalidator::class, FeatureFlagCatalogCache::class);
         $this->app->bind(AuditQuery::class, EloquentAuditQuery::class);
         $this->app->bind(ExportRequestService::class, EloquentExportRequestService::class);
         $this->app->bind(BulkUserImporter::class, EloquentBulkUserImporter::class);

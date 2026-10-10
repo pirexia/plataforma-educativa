@@ -1,10 +1,9 @@
 <?php
 
-use App\Http\Middleware\EnforceSessionIdleTimeout;
-use App\Http\Middleware\VerifySessionTenant;
-use App\Modules\Auth\Domain\Models\UserSession;
+use App\Modules\Auth\Infrastructure\EloquentActiveSessionCloser;
 use App\Modules\Core\Infrastructure\FeatureFlagCatalogCache;
-use App\Support\Modules\SyncModuleRegistry;
+use App\Support\FeatureFlags\FeatureFlagCatalogInvalidator;
+use App\Support\Sessions\ActiveSessionCloser;
 use Tests\Support\ArchitectureModules;
 
 pest()->group('arch');
@@ -26,29 +25,19 @@ pest()->group('arch');
 // es siempre un FQCN completo.
 
 /**
- * Excepciones de AR-02: lista CERRADA y nominal (ADR-056 §3.2). Solo puede
- * reducirse; añadir una exige especificación aprobada por el usuario
- * (OPEN-056-02). Su refactorización es el issue de severidad Media del
- * hallazgo 5 de ADR-056 §8, no de este paso.
+ * Excepciones de AR-02: lista CERRADA y nominal (ADR-056 §3.2). Vacía desde
+ * el issue #375: las tres excepciones originales (`EnforceSessionIdleTimeout`
+ * y `VerifySessionTenant` hacia `UserSession`, `SyncModuleRegistry` hacia
+ * `FeatureFlagCatalogCache`) se eliminaron con las interfaces
+ * `App\Support\Sessions\ActiveSessionCloser` y
+ * `App\Support\FeatureFlags\FeatureFlagCatalogInvalidator`. Añadir una
+ * exige especificación aprobada por el usuario (OPEN-056-02).
  *
  * @return array<class-string, array{dependency: class-string, reason: string}>
  */
 function coreToModuleExceptions(): array
 {
-    return [
-        EnforceSessionIdleTimeout::class => [
-            'dependency' => UserSession::class,
-            'reason' => 'middleware de seguridad que lee la sesión de Auth (REQ-AUTH-005); refactorizarlo no es de 1.7b',
-        ],
-        VerifySessionTenant::class => [
-            'dependency' => UserSession::class,
-            'reason' => 'middleware de seguridad que lee la sesión de Auth (RN-AUTH-31); refactorizarlo no es de 1.7b',
-        ],
-        SyncModuleRegistry::class => [
-            'dependency' => FeatureFlagCatalogCache::class,
-            'reason' => 'invalida la caché del catálogo de flags de Core al sincronizar el registro (REQ-BO-005)',
-        ],
-    ];
+    return [];
 }
 
 /**
@@ -90,8 +79,15 @@ foreach (coreToModuleExceptions() as $class => $exception) {
         ->toUse($exception['dependency']);
 }
 
-test('AR-02 CA-056-03: la lista de excepciones es la de ADR-056 §3.3 (3 entradas) y la enumeración de módulos no es vacía', function (): void {
-    expect(coreToModuleExceptions())->toHaveCount(3)
+test('AR-02 CA-056-03 #375: la lista de excepciones está vacía y la enumeración de módulos no es vacía', function (): void {
+    expect(coreToModuleExceptions())->toBeEmpty()
         ->and(forbiddenModuleLayers())->toHaveCount(count(ArchitectureModules::names()) * 5)
         ->and(ArchitectureModules::names())->toContain('Auth', 'Backoffice', 'Core');
+});
+
+test('AR-02 INV-007 #375: las interfaces del núcleo se resuelven a su implementación del módulo', function (): void {
+    expect(app(ActiveSessionCloser::class))
+        ->toBeInstanceOf(EloquentActiveSessionCloser::class)
+        ->and(app(FeatureFlagCatalogInvalidator::class))
+        ->toBeInstanceOf(FeatureFlagCatalogCache::class);
 });
