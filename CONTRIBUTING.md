@@ -1,6 +1,6 @@
 # CONTRIBUTING.md
 
-> **Versión 0.2.0** · 2026-09-15
+> **Versión 0.3.0** · 2026-10-10
 > Estilo de código, flujo de trabajo Git y revisión de código. Extraído de `CLAUDE.md`, que es la fuente de verdad si algo difiere.
 
 ---
@@ -35,7 +35,7 @@ Un hallazgo se clasifica por severidad (`CLAUDE.md` §5) y se documenta en un is
 |------|-------------|---------|
 | PHP | Pint | `./vendor/bin/pint` |
 | PHP (análisis estático) | Larastan (nivel 6) | `./vendor/bin/phpstan analyse` |
-| PHP (tests) | Pest | `php artisan test` |
+| PHP (tests) | Pest | `php artisan test <ruta>` durante el trabajo; `composer test` la suite completa (§3.2) |
 | TypeScript/Vue | ESLint + Prettier | `npm run lint` |
 | TypeScript/Vue (tests) | Vitest, Playwright | `npm run test` |
 
@@ -48,6 +48,25 @@ Reglas que el linter no puede verificar por sí solo:
 - **Un módulo no importa código interno de otro** (`INV-007`): comunicación por interfaces o eventos de dominio.
 
 Lista completa de invariantes: sección 0.5 de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
+
+### 3.2. Ejecutar la suite de tests (`ADR-060`)
+
+Todos los comandos, dentro del contenedor `api` (`podman exec plataforma-api …`), en `apps/api`:
+
+| Comando | Cuándo |
+|---------|--------|
+| `php artisan test <ruta> [--filter=…]` | **Durante el trabajo**: solo los ficheros o directorios afectados, en serie, contra `plataforma_test` |
+| `composer test` | **Una vez, en local, antes de abrir el PR**: `Unit` + `Feature` en paralelo (`PEST_PROCESOS`, 6 por defecto) y después `Concurrency` en serie |
+| `composer test:paralelo` / `composer test:concurrencia` | Cada mitad por separado |
+| `composer test:serie` | Diagnosticar un fallo que suena a paralelo, o volver a serie (`ADR-060 §10`) |
+
+Reglas:
+
+- La suite completa no se relanza varias veces por paso: CI la ejecuta en cada *push* al PR y el merge exige CI en verde. Los revisores no la relanzan salvo que su revisión lo requiera (reproducir un hallazgo); se apoyan en el resultado del `verificador` atado a un hash de commit y en CI, y pueden ejecutar tests concretos.
+- El mensaje `Verificado: X/X Pest en verde` dice el alcance: `(suite completa)` o `(ficheros afectados: …)`.
+- **Antes de la primera ejecución en paralelo** (y tras editar en sitio una migración no publicada, con `--recrear`) hay que crear las bases `plataforma_test_1..N` con `infra/containers/postgres/bases-test-paralelo.sh`; el procedimiento y la tabla de comandos completa están en `SYSADMIN.md` («Bases de la suite en paralelo»).
+- **Ningún *helper* compartido vive en un fichero de test**: una función que use más de un fichero va a `tests/Support/` (o a `tests/Pest.php` si es una función de preparación genérica). Un proceso paralelo que no carga el fichero que la define no la tiene; `CA-060-08` lo comprueba. Cada test debe ser independiente del orden y del fichero vecino.
+- El hash de la contraseña de prueba se memoriza con `Tests\Support\TestPasswordHash::of()` (bcrypt coste 12 real, `RN-AUTH-03`); los tests que prueban el hash en sí llaman a `Hash` directamente. `platform:sync-registry` se ejecuta una vez por proceso (`syncRegistryOnce()`); el test que altere el registro y lo necesite de nuevo lo invoca él.
 
 ### 3.1. Regenerar `_ide_helper_models.php` tras una migración nueva
 
