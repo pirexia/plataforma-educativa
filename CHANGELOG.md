@@ -6,6 +6,357 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-10 · Suite de tests en paralelo y norma de ejecución (`ADR-060`, rama `chore/tests-paralelos`)
+
+- **Implementación de `ADR-060` (aceptada)**: `composer test` ejecuta `Unit` + `Feature` en paralelo (una base `plataforma_test_N` y una base Redis de caché por proceso; 6 procesos en desarrollo, 4 en CI, `PEST_PROCESOS`) y después `Concurrency` en serie; `test:paralelo`, `test:concurrencia` y `test:serie` (camino de vuelta). Script idempotente `infra/containers/postgres/bases-test-paralelo.sh N [--recrear]`; `tests/bootstrap.php` con guarda (`^plataforma_test_[0-9]+$` y `APP_ENV=testing`, aborta antes del primer test); paso de bases en `ci-api.yml` antes de `artisan serve`. Las guardas de `Concurrency` no cambian.
+- **Arreglos de la suite (`§4.2`)**: los *helpers* `bo*()` pasan de ficheros de test a `tests/Support/BackofficeTestHelpers.php`. Causa del `TypeError` de Collision (`AfterLastTestMethodErrored`): los **dos** `afterAll()` del repositorio (`AdminActionLogsTest`, `PlatformSchemaGrantsTest`; el «4» del ADR contaba también dos comentarios) llamaban a `DB::connection()` con la aplicación ya destruida (`Target class [config] does not exist`); ahora usan `Tests\Support\StandaloneDatabase`. En serie nunca se manifestó.
+- **Trabajo no repetido (`§4.3`)**: `Tests\Support\TestPasswordHash` memoriza bcrypt coste 12 por proceso (`RN-AUTH-03` intacto, coste sin tocar); `platform:sync-registry` una vez por proceso (`syncRegistryOnce()`), con restauración explícita en `SyncModuleRegistryTest` y `FeatureFlagsTest` (sincronizan con proveedores de prueba y retiraban los permisos reales) y sincronización explícita en `CA-PERM-134` (recorre el catálogo entero).
+- **Hallazgo propio, `#199`**: cada test reconstruía la aplicación y dejaba abiertas las conexiones de la anterior (tres roles) hasta el recolector de basura; con 6 procesos, el primer intento de paralelo agotó `max_connections=100` (481 fallos). `TestCase` cierra ahora las conexiones al destruir la aplicación (`beforeApplicationDestroyed`, tras el *rollback* de `DatabaseTransactions`): pico medido de **17 conexiones de 100** en `composer test`. No se cierra el issue desde esta rama.
+- **Cifras medidas** (contenedor `plataforma-api`, 6 CPU): `composer test` = 1105 tests (1096 `Unit`+`Feature` y 9 `Concurrency`), **136-146 s** de pared en cinco ejecuciones seguidas, todas en verde; `composer test:serie` sobre el mismo código = 1105 tests, **388 s** (antes de esta rama: 1084 tests de `Unit`+`Feature` en 465 s, sin `Concurrency`). Relación paralelo/serie ≈ 36 % (media de las cinco: 141 s; `CA-060-03` exige ≤ 50 %).
+- **Revisión de seguridad**: el script de bases solo acepta la plantilla `plataforma_test` (M-1); el bootstrap en paralelo exige `DB_HOST` local o el contenedor `postgres` (M-2); `StandaloneDatabase` lanza excepción si `DB_DATABASE` no es una base de test (B-1).
+- **Comando parcial**: `CONTRIBUTING.md` y `SYSADMIN.md` usan `php -d memory_limit=-1 vendor/bin/pest <ruta>`, igual que `CLAUDE.md §3` y `verificador` (issue #106); `ADR-060 §4.1.6` y `§9` dicen `php artisan test <ruta>` y, como el ADR es inmutable, prevalece esta nota.
+- **#401**: `ci-api.yml`, `ci-web.yml` y `build-images.yml` declaran `permissions: contents: read` a nivel de workflow (los jobs que escriben ya tenían los suyos). `.claude/settings.json` autoriza `composer test`. #199 cerrado (cierre de conexiones en `TestCase`).
+- `SYSADMIN.md` 0.8.8, `CONTRIBUTING.md` 0.3.0 y `README.md` 2.6.18. `CLAUDE.md` 2.7.0 (`§3`: cuándo se ejecuta la suite, alcance del `Verificado`) y agentes `implementer`, `test-writer`, `verificador` (modos **afectados**/**completa**) y `security-reviewer`/`db-reviewer`/`doc-reviewer` (no relanzan la suite completa sin justificarlo), según `ADR-060 §4.4`.
+
+---
+
+## 2026-10-10 · Cobertura de las reglas de arquitectura `AR-01`, `AR-02` y `AR-08` (`INV-007`, `ADR-056`, #378 B1 y B2)
+
+- **B1, control negativo permanente**: fixtures en `apps/api/tests/Fixtures/Architecture/` que violan a propósito la frontera de módulo (`Infrastructure` y `Domain\Models` de otro módulo) y un fixture que solo usa el `Domain` permitido (control positivo, para que la regla no pase por lanzar siempre). `AR-01` y `AR-02` comprueban con `toThrow` que `not->toUse(...)` muerde; la parte `arch()` de `AR-08` (Pest no escanea `Tests\`) lo comprueba aplicando `toOnlyBeUsedIn` con una lista deliberadamente estrecha. Un cambio de Pest que vacíe las reglas ya no pasa desapercibido.
+- **B2, `AR-01` invertida**: `ArchitectureModules::forbiddenFor()` calcula lo vedado por sistema de ficheros (todo lo que cuelgue de la raíz de otro módulo salvo `Domain`, más `Domain\Models`); una carpeta o clase nueva (`Console`, `Support`, `Listeners`…) queda vedada sin tocar el test. Sin violaciones reales hoy. `AR-02` no se modifica (B3-B5 y la inversión de `AR-02` fuera de alcance).
+- `ARCHITECTURE.md` 2.4.2 y `README.md` actualizados.
+
+---
+
+## 2026-10-10 · Test de la migración de `public_id` sin estado residual (`ADR-056 AR-05`, `CA-056-06`, #377)
+
+- **`FeatureFlagsPublicIdMigrationTest` (#377 B-1, B-2)**: `down()`, `up()` y la fila de prueba corren dentro de una transacción de `pgsql_owner` que siempre termina en `ROLLBACK` (el DDL de PostgreSQL es transaccional). Un `kill` del proceso ya no deja las columnas en `text` ni la fila `test.migration.short_public_id`.
+- **#377 B-3**: no se implementa; `SYSADMIN.md` 0.8.7 anota que los *workers*/Octane, cuando existan (#128), deben reiniciarse tras migraciones que cambien el tipo de una columna. `README.md` actualizado a `SYSADMIN.md` 0.8.7.
+
+---
+
+## 2026-10-08 · `AR-02` sin excepciones (#375, `INV-007`)
+
+`EnforceSessionIdleTimeout` y `VerifySessionTenant` cierran la sesión por `App\Support\Sessions\ActiveSessionCloser` (implementación `Auth\Infrastructure\EloquentActiveSessionCloser`); `SyncModuleRegistry` invalida la caché por `App\Support\FeatureFlags\FeatureFlagCatalogInvalidator` (lo implementa `FeatureFlagCatalogCache`). `CoreBoundariesTest`: lista de excepciones vacía y test de resolución de las interfaces. Sin cambio de comportamiento. `ADR-056 §3.3`, `OPEN-056-03` y `CA-056-03`/`CA-056-15` quedan superados en esta parte (el ADR no se edita).
+
+---
+
+## 2026-10-08 · `ADR-059`: reapertura de un curso cerrado (`OPEN-CURSO-08`, `REQ-CURSO`)
+
+- **`ADR-059` ACEPTADA**: opción B (reapertura por la API del centro, acotada por hechos: ningún otro curso activo y solo el cerrado más reciente), permiso propio `reapertura_curso_academico.actualizar`, motivo obligatorio en la tabla *append-only* `academic_year_reopenings`, registro vacío de validaciones de reapertura. No toca el disparador ni `YC001`. Resuelve `OPEN-CURSO-08`; `OPEN-059-05` y `-06` siguen abiertas.
+- **Especificación de `REQ-CURSO`** ampliada (`RN-CURSO-40..48`, `CA-CURSO-087` y `-100..-107`, `OPEN-CURSO-24`), `SYSADMIN.md` 0.8.6, manual de administración y `REQUISITOS` 3.2.14. **Solo documentación: la reapertura aún no está implementada.**
+
+---
+
+## 2026-10-08 · Redistribución de modelos entre Haiku, Sonnet y Opus (`CLAUDE.md` 2.6.0)
+
+- **Copia de seguridad previa**: etiqueta de Git `config-claude-2026-10-08` (commit `0ecd3a2`, publicada) con `CLAUDE.md`, `.claude/agents/`, `.claude/skills/`, `.claude/settings.json` y la tabla de agentes de `PLAN-IMPLEMENTACION.md` tal como estaban. Procedimiento de vuelta atrás en `CLAUDE.md §2`.
+- **`CLAUDE.md §2`**: plan Pro con límite de 5 horas y Sonnet como modelo por defecto de la sesión principal (`"model": "sonnet"` en `.claude/settings.json`); se elimina la mención contradictoria a "la sesión corre vía API". Tabla de agentes con su modelo; reglas para no heredar Opus en `fork`/`general-purpose`/`Plan` en trabajo de ejecución; alias de modelo en vez de ID de versión.
+- **Agentes nuevos en Haiku**: `verificador` (suite y linters con informe literal, sin corregir), `traductor` (en/de/fr a partir de es-ES, excluidos textos legales y de consentimiento) y `doc-precheck` (pasada mecánica previa a `doc-reviewer`, que sigue siendo obligatorio).
+- **Agentes ampliados**: `janitor` (issues de hallazgos ya clasificados, PR, borrado de ramas mezcladas, entrada de `CHANGELOG.md`; nunca decide severidad ni escribe `memory.md`), `explorer` (`Bash` con lista cerrada de órdenes de consulta de Git y GitHub). `implementer`, `doc-reviewer` y las skills `cierre-de-sesion` e `i18n-cuatro-idiomas` ajustadas al nuevo reparto. Revisores y `test-writer` siguen en Sonnet.
+
+## 2026-10-08 · `AR-15`: escrituras masivas sobre modelos auditables (`INV-003`, #380)
+
+- **`AR-15` (#380)**: nueva regla de arquitectura (grupo `arch`) que prohíbe en `app/` la escritura masiva por modelo (`Modelo::query()->where()…->update()/delete()/forceDelete()/upsert()…`) sobre modelos `Auditable`, porque una sola sentencia SQL no dispara el *observer* y no deja rastro en `audit_logs`. Alcance acotado por decisión del usuario (2026-10-08) respecto al enunciado original del issue: **no** cubre `DB::table()`/SQL crudo. Lista de excepciones cerrada de cuatro jobs de purga física por retención, con motivo y *ratchet*, más control negativo. Medido: 8 ficheros / 9 sitios de escritura masiva sobre modelos auditables.
+- **Corregidos cuatro fallos reales de auditoría** (borrado lógico masivo sin rastro): `MfaRecoveryCodeService::regenerate`, `MfaResetService::reset`, `MfaFactorRemovalService::remove` (códigos de respaldo) y `MfaEnrollmentService` (alta pendiente anterior), ahora por instancia. Cada código o factor borrado deja su fila `deleted` en `audit_logs` (un lote de códigos genera una fila por código). Test de regresión `BulkDeleteAuditTest`.
+- `docs/modulos/REQ-CURSO/funcional.md §6` corregida: describe `AR-15` y su alcance real; el DML crudo sobre tablas de curso sigue cubierto solo por el disparador. `ARCHITECTURE.md §3.4`, `Modules/README.md` y la skill `modulo-nuevo` documentan la regla.
+
+## 2026-10-08 · Cierre de pendientes previos a `1.11` (`REQ-CURSO-001`, #383, #381, #385, #382, `OPEN-057-03`)
+
+- **`AR-14` (#383)**: nueva regla de arquitectura que confina la conexión `pgsql_owner` en tiempo de ejecución a una lista cerrada de cinco ficheros (`SyncModuleRegistry`, `TenantMigration`, `PurgeLoginAttempts`, `PurgeSamlAuthRequests`, `PurgeSamlConsumedAssertions`) y comprueba en el esquema que ninguna función `SECURITY DEFINER` del propietario menciona una tabla con `academic_year_id`. Medido: las acciones referenciales (`ON DELETE CASCADE`) corren como propietario de la tabla hija y saltan el disparador (hallazgo documentado en `ARCHITECTURE.md §3.4`).
+- **Auditoría de la obligación MFA (#381, `INV-003`)**: `MfaEnrollmentService` y `MfaExemptionService` cerraban `user_mfa_obligations` con `query()->update()`, sin auditoría; ahora actualizan por instancia (`MfaObligationAuditTest`).
+- **Endurecimientos (#385)**: `guardAcademicYearWrites()` con `lock_timeout` de 5 s e idempotencia explícita; `curso:grant-year-permissions` comprueba `platform:sync-registry`; `encodeURIComponent` en `academicYears.ts`; reintento `40P01` documentado en `REQ-CURSO/operacion.md`.
+- **`OPEN-057-03` resuelta**: `RN-CURSO-33`, criterio de lectura denegada de curso cerrado obligatorio en toda especificación con datos por curso (plantilla, skill `modulo-nuevo`, `ARCHITECTURE.md §3.4`).
+- **#382**: `1.11` y `1.15` en `PLAN-IMPLEMENTACION.md` heredan la obligación de repetir `AcademicYearWriteGuardOverheadTest` con la primera tabla real.
+- **Pendiente, parado** (#380): la regla de DML crudo de `ADR-034 §3` no se ha implementado; la medición da 38 sitios de escritura masiva en 31 ficheros más 30 ficheros con `DB::`, por encima del umbral de 15 fijado para el paso.
+
+---
+
+## 2026-10-08 · Paso 1.10: el `SQLSTATE` propio pasa de `CY001` a `YC001` (`REQ-CURSO-001`, #384)
+
+`ADR-058` cambia el `SQLSTATE` del bloqueo de escritura de cursos cerrados de `CY001` a `YC001` (decisión del usuario, opción A de #384); `ADR-057` es inmutable y conserva el valor antiguo en su texto. Se sustituye en código, migración, tests, OpenAPI, documentación del módulo y documentos raíz. El valor vive en una sola constante (`AcademicYearClosedTranslator::SQLSTATE`) que usan los tests. Nuevo test `CA-057-11`: la clase `YC` no está en los rangos reservados (0-4, A-H) ni coincide con ninguna clase de PostgreSQL. La migración aún no estaba en ningún entorno desplegado; en las bases locales `plataforma` y `plataforma_test` se reemplazó la función a mano (`CREATE OR REPLACE`, mismo cuerpo).
+
+---
+
+## 2026-10-07 · Paso 1.10: correcciones de la revisión de `doc-reviewer` y `db-reviewer` (`REQ-CURSO-001`)
+
+- **Base de datos**: la migración de la función comprueba `has_schema_privilege(current_user, 'app', 'CREATE')` y, si falta, aborta con el comando exacto (`RUNBOOK.md` paso 0 de `§3b.2`); la función fija `SET search_path = pg_catalog, pg_temp`; `AR-13` gana la vigilancia «ninguna tabla con el disparador carece de `academic_year_id`» (con control negativo) y un test de que `plataforma_app`/`plataforma_platform` no tienen `CREATE` sobre `app`. `DROP TRIGGER` antes de `DROP COLUMN` documentado en `datos.md`, `operacion.md` y las skills `migracion-segura`/`modulo-nuevo`.
+- **Documentación**: `funcional.md` acota el `409 invalid_transition` a destinos `activo`/`cerrado` (otro destino es `422`, `api.md §2`) y retira los «propuesta» obsoletos; firma real de `tenantForeignId(Blueprint $blueprint, …)`; `curso:grant-year-permissions` vive en Core; `PLAN-IMPLEMENTACION.md` recoloca la línea de boletines bajo 1.17; `SECURITY.md` 0.3.10 (bloqueo por disparador, `curso_historico.leer`, excepción `AR-07a`), `PRIVACY.md` 0.3.6 (`OPEN-057-04`), `RUNBOOK.md` 0.3.4, `SYSADMIN.md` 0.8.5, `ARCHITECTURE.md` 2.4.1, `PLAN-IMPLEMENTACION.md` 2.3.7, `docs/REQUISITOS-...` 3.2.13 (`ADR-057`, errata `RDB-012`), `README.md` 2.6.17.
+
+---
+
+## 2026-10-07 · Paso 1.10 implementado: ciclo de vida del curso académico y bloqueo de escritura de cursos cerrados (`REQ-CURSO-001`, `ADR-057`)
+
+Implementa `REQ-CURSO-001` y el contrato transversal según la especificación aprobada (`docs/modulos/REQ-CURSO/`, `ADR-057` aceptada). Rama `feature/REQ-CURSO-1-10-ciclo-vida-curso`; pendiente de `db-reviewer`, `security-reviewer` y `doc-reviewer`.
+
+- **Módulo `curso`** (esencial, `depends_on []`, `OPEN-CURSO-01`): `AcademicYear` y `AcademicYearStatus` pasan de `App\Models` a `Curso\Domain` (mismo alias `academic_year` en el *morph map*, `audit_logs` no cambia); seis endpoints (`GET/POST /academic-years`, `GET /academic-years/current`, `GET/PATCH /academic-years/{id}`, `POST /academic-years/{id}/status`) y OpenAPI; permisos `curso_academico.*`, `estado_curso_academico.actualizar`, `curso_historico.leer` y su siembra (`ProvisionTenantDefaults` + comando `curso:grant-year-permissions` para centros existentes).
+- **Bloqueo por el motor**: única migración, `app.assert_academic_year_writable()` (primera función PL/pgSQL del proyecto, `SECURITY INVOKER`, exención del propietario real de la tabla, `FOR SHARE` sobre el curso, `SQLSTATE YC001`); `TenantMigration::tenantTable()`/`tenantTableAppendOnly()`/`guardAcademicYearWrites()` enganchan el disparador `academic_year_write_guard`; regla **`AR-13`** (lista de excepciones vacía) en `ARCHITECTURE.md §3.4`. `Curso` traduce `YC001` a `409 urn:pge:error:academic-year-closed` (catálogo de `ADR-038 §6.2` ampliado). Contrato en `Curso\Domain`: `AcademicYearContext`, `AcademicYearDirectory`, `AcademicYearWriteGuard`, `AcademicYearReadAccess`, registro de validaciones de cierre (vacío). Cierre con `FOR UPDATE` del curso antes que cualquier otro bloqueo (`RN-CURSO-32`).
+- **Web**: listado, alta/edición y ficha (activar/cerrar con `ConfirmDialog`) en `apps/web/src/modules/curso/`, cuatro idiomas; `CA-CURSO-086` contra la API real (`npm run test:e2e:real`).
+- **Decisiones y desviaciones a revisar**: (1) la migración exige `GRANT CREATE ON SCHEMA app TO plataforma_owner` (añadido a `01-tenancy.sql.tpl`; aplicar a mano en bases existentes, `SYSADMIN.md`); (2) `CA-CURSO-023` y `api.md §2` se contradicen sobre `status` ∈ {`planificacion`,`archivado`} en `POST …/status` (409 frente a 422): se implementó `api.md` (422); (3) `ApiException` gana `titleKey`/`academicYearClosed()` y `notFound()` admite `errors` (aditivo); (4) `AR-07a` pasa de 33 a 34 rutas (`GET /academic-years/current`, ampliación aprobada).
+- **Sobrecarga del disparador (`CA-057-09`)**: inserción masiva de 20.000 filas **+182 % a +195 %** (≈ 16 µs por fila; 0,50 s frente a 0,17 s); fila a fila (1.000 sentencias) entre −1,7 % y +4,0 %, dentro del ruido. Supera el +1,24 % de RLS de `0.8.12` en escritura masiva: registrado como issue [#382](https://github.com/pirexia/plataforma-educativa/issues/382) (Baja), sin ajustar la cifra.
+- **Verificación**: Pest **1062/1062**, Vitest 1337 (+3 omitidos), Pint, Larastan, `vue-tsc`, ESLint y `lint:i18n` limpios; `npm run test:e2e:real` (`CA-CURSO-086` y `CA-PERM-133`) en verde.
+- **Tests**: `tests/Feature/Curso/` (escrituras por catorce caminos con `YC001`, paridad SQL↔PHP, exención del propietario, `TRUNCATE`, HTTP en cuatro idiomas, endpoints, contrato, OpenAPI), `AR-13` en `tests/Feature/Architecture/`, concurrencia real en `tests/Concurrency/CursoConcurrencyTest.php` (alta simultánea, activación simultánea y cierre frente a escritura en las dos órdenes) y Vitest del módulo web.
+
+## 2026-10-07 · Paso 1.7b cerrado y mezclado (PR #379): reglas de arquitectura comprobadas por test (`ADR-056`, `INV-007`, `RNF-MANT-003`)
+
+Implementa las piezas 1 a 8 de `ADR-056` Anexo A (el generador `make:module` y su *job* de CI se difieren al paso nuevo `1.11b`). Rama `feature/REQ-ARQ-1-7b-estandarizacion-modulos`; **revisión independiente hecha (`db-reviewer`, `security-reviewer` y `doc-reviewer`, sin Crítico ni Alta; Bajas en #377 y #378) y mezclado en el PR #379.** Issue [#163](https://github.com/pirexia/plataforma-educativa/issues/163).
+
+- **Doce reglas, todas nacidas en verde** (`AR-01` a `AR-12`; `apps/api/tests/Feature/Architecture/` y `apps/web/src/modules/architecture.spec.ts`; catálogo con el nombre de su test en `ARCHITECTURE.md §3.4`): frontera entre módulos y del núcleo, convención de `ServiceProvider`, `ADR-029` en el esquema real (`pg_catalog`), forma de `public_id`, `Auditable` en todo modelo de tenant, `permission:` y `module-enabled:` en toda ruta de `api/v1`, confinamiento de `Role` y de dos códigos de rol, cable trampa de categoría especial, `ScopedQuery`, frontera y registro de los módulos web, y paridad de los cuatro idiomas. Cada excepción es una lista cerrada y nominal dentro del test, solo puede reducirse y falla si una entrada sobra (`CA-056-15`). Cada regla tiene un control negativo (se comprobó que falla al introducir una violación y que vuelve a verde al revertirla). Un único escáner de tokens compartido (`tests/Support/PhpScanner.php`) con casos fijos (`CA-056-14`).
+- **Corrección de la medición de `ADR-056 §3.3` (`CA-056-01`).** Medidas todas las cifras con tests reales antes de escribir ninguna regla, coincidieron todas **salvo `AR-05`**: el ADR decía 0 violaciones en 30 tablas con `public_id` y eran **2** (`feature_flags.public_id` y `feature_flag_rules.public_id` eran `text`, migración de `1.6e`). El ADR dice además que el paso no lleva migraciones; **lleva una**. Decisión del usuario (2026-10-07): corregirlas, no registrar una excepción. `ADR-056` es inmutable (`ACEPTADA`), así que la corrección vive aquí y en `ARCHITECTURE.md §3.4`.
+- **Migración nueva** `2026_10_07_100100_narrow_feature_flags_public_id_to_char26`: `text` → `character(26)` en las dos columnas, con comprobación previa de que ninguna fila tiene longitud distinta de 26 (aborta si la hay) y `down()` que restaura `text`. Conserva el índice único de una sola columna, los privilegios de tabla y de columna de `plataforma_platform`/`plataforma_app` y el `NOT NULL`; transaccional. Desviación consciente de «no cambiar el tipo sin columna intermedia» (`migracion-segura`): tablas de catálogo diminutas, reescritura instantánea, escritores que ya generan ULID de 26 caracteres. Test `FeatureFlagsPublicIdMigrationTest` (tipo, `NOT NULL`, índice único y privilegios tras migrar y tras `down()`, y el aborto). `AR-05` nace **sin excepciones**.
+- **Corrección de `AR-01`**: `BackofficeServiceProvider` retira el enlace redundante de `MfaVerifier`/`TotpProvisioner` y el `use` de `Auth\Infrastructure` (`AuthServiceProvider` ya los enlaza); test explícito de que el contenedor sigue resolviéndolos a `Google2FaTotpVerifier`. Es el único cambio de código de aplicación, aparte de la migración.
+- **Dos trampas descubiertas y ya tenidas en cuenta**: `expect([A, B])->not->toUse(...)` con varios objetivos **pasa en vacío** en Pest `4.7.8` (se escribe un `arch()` por objetivo), e `information_schema` solo muestra las tablas sobre las que el rol de la conexión tiene privilegios (24 de 30 tablas con `public_id` para `plataforma_app`; se usa `pg_catalog`). La consulta de `timestamp` sin zona usa `like 'timestamp%without time zone'` porque Laravel crea `timestamp(0)`.
+- **Documentación**: `ARCHITECTURE.md §3.4` (forma real, reglas con su test, referencias por patrón y el disparador de revisión al cerrar `1.11`; `§3` añade `Database/`), `apps/api/app/Modules/README.md`, `apps/web/src/modules/README.md`, la skill `modulo-nuevo` (reescrita contra la realidad: tests en `tests/Feature/<Modulo>/`, factorías en `database/factories/`, cinco ficheros de documentación, las dos ediciones de ficheros compartidos y la parte web), los siete desfases de `docs/modulos/_PLANTILLA/` de `ADR-056 §3.7` con la regla que vigila cada casilla, y la comprobación 12 de `doc-reviewer` (rutas citadas en `ARCHITECTURE.md §3.4`). Las cabeceras de versión de `ARCHITECTURE.md` y la tabla de `README.md` no se han tocado: las sube el cierre de fase.
+- **Issues** (`CA-056-24`): [#373](https://github.com/pirexia/plataforma-educativa/issues/373) (skill y README de módulos, corregido en este paso), [#374](https://github.com/pirexia/plataforma-educativa/issues/374) (comentarios desfasados de `IsolationBatteryTest`), [#375](https://github.com/pirexia/plataforma-educativa/issues/375) (tres dependencias del núcleo hacia módulos, `AR-02`) y [#376](https://github.com/pirexia/plataforma-educativa/issues/376) (`roleLiterals.spec.ts`).
+- **Tiempo del grupo `arch`** (`CA-056-13`): medido con `./vendor/bin/pest --group=arch` en tres ejecuciones consecutivas, **82 tests y 415 aserciones en 6,08 s, 6,14 s y 6,35 s** (≈ 6 s en total, incluidos los casos fijos y los controles negativos; sin carga adicional). Se ejecutan también en `composer test` (suite completa). Si con decenas de módulos el coste de `AR-01` (un `arch()` por módulo) se volviera un problema, pasa al escáner de tokens compartido, que recorre `app/` una sola vez (`ADR-056 §5`).
+- Verificación: `apps/api`: Pest **950/950** (13.227 aserciones, 487 s), Pint y Larastan limpios (`phpstan analyse`, 0 errores). `apps/web`: Vitest **1.281/1.281**, `vue-tsc -b`, ESLint, Prettier (`src/modules/README.md` reformateado; `test-results/` es un artefacto ignorado) y `lint:i18n` limpios. `db-reviewer` pasa a ser obligatorio en este paso (migración nueva).
+
+## 2026-10-06 · `CA-PERM-133` completo y ejecutable contra la API real (`REQ-PERM-005`)
+
+- El test de `apps/web/e2e/core-roles.spec.ts` solo cubría login, alta del rol y una concesión. Ahora recorre el criterio entero contra la API real: alta de «Revisión propia», `auditoria.leer` con «Propios», asignación a un usuario desde su ficha, permisos efectivos con «Permitido», «Propios» y procedencia, `rol_datos_especiales.actualizar` con «Permitir · Todos» y `special_data_access` deshabilitado en la edición del rol (comprobado con un control negativo: con `toBeEnabled()` el test falla).
+- Nuevo `apps/api/tests/Support/e2e-real-tenant.php` (`setup`/`teardown`): crea el centro sintético `demo` con `TenantProvisioner`, activa al administrador con contraseña aleatoria y una excepción de MFA viva (`REQ-AUTH-003`) y añade un usuario `@example.com`. Exige a la vez CLI, `E2E_ALLOW_DESTRUCTIVE=1`, `APP_ENV` `local`/`testing`, base `plataforma`/`plataforma_test` y un slug válido; `teardown` se niega a tocar un centro que no creó él. Está excluido de la imagen de producción (`apps/api/.dockerignore`).
+- Nuevo `npm run test:e2e:real` (`apps/web/scripts/e2e-real-api.sh`): prepara el centro, ejecuta el test y lo retira al terminar, también si falla. **El borrado de un centro no es en cascada** (31 tablas con `tenant_id`, 85 claves foráneas entre ellas, ninguna `ON DELETE CASCADE`, y el rol de plataforma no puede borrar de las tablas de solo anexar): el script purga las filas del tenant con el superusuario del contenedor de PostgreSQL de desarrollo. La purga física de un tenant real sigue pendiente (`REQ-PRIV-006`).
+- Revisión de `security-reviewer` aplicada: guarda de CLI y bandera explícita, validación del slug, `trap` antes de `setup`, credenciales por stdin y no por argumentos, y limpieza de las filas huérfanas que dejaban las primeras ejecuciones.
+
+## 2026-10-06 · Correcciones de seguridad menores de `POST /roles`: #359 (`REQ-PERM-005`)
+
+- **#359**: con `clone_from`, los `422` `permission_retired`, `permission_not_found`, `scope_not_applicable`, `scope_resolver_missing` y `clone_requires_special_data_access` ya no llevan `params` ni nombran el código, el ámbito ni el atributo `special_data_access` del rol origen: mismo `code` estable, campo `errors.clone_from`, mensaje genérico traducido (claves `core.validation.clone_source_*`) y una sola entrada por `code`. Con `permissions` propias en el cuerpo, sin cambio. Alcanzables hoy con un origen real: retirado, ámbito no aplicable, ámbito sin resolutor y `special_data_access`; `permission_not_found` no (clave foránea). Tests `CloneRoleValidationLeakTest`. `REQ-PERM/api.md §8.4`, `funcional.md` (`RN-PERM-24`), `permisos.md` y OpenAPI.
+
+## 2026-10-06 · Correcciones tras la revisión de 1.5b: #356, #349, #351, #353 (`REQ-PERM-005`, `REQ-CORE-001`)
+
+- **#356**: el `403` de `POST /roles` con `clone_from` ya no lleva `errors.grant[0].params` ni nombra código/ámbito (reutiliza `cannot_grant_unheld_role_permission`, como #352). `POST /roles` con concesiones propias y `PUT /roles/{id}/permissions`, sin cambio. `REQ-PERM/api.md §8.4`, `funcional.md` (`RN-PERM-24`), `permisos.md` y OpenAPI.
+- **#349**: `RN-CORE-07` (`SchoolAdministratorGuard`) se vuelve a comprobar dentro de `AdministrationCapacityGuard::protect()`, con el bloqueo por tenant tomado y sobre lecturas frescas, en `DELETE /users/{id}`, `POST /users/{id}/status` y `PUT /users/{id}/roles`; el orden de errores y el contrato público no cambian. Test de regresión determinista (`SchoolAdministratorSerializationTest`). `REQ-CORE` (`permisos.md`, `api.md`, `operacion.md`) y `REQ-PERM` actualizados.
+- **#351**: nueva carpeta `apps/api/tests/Concurrency` (suite `Concurrency` de `phpunit.xml`, base `ConcurrentTestCase` sin transacción envolvente) con un test de concurrencia real de `RN-PERM-47` y `RN-CORE-07`: dos procesos PHP solapados, sincronizados con `pg_locks`. `REQ-PERM` (`permisos.md §12.4`, `CA-PERM-049`) dice con exactitud qué cubre.
+- **#353**: medido el coste de `AdministrationCapacityGuard` bajo el bloqueo (lineal, ≈6 ms por titular del ancla; 8,5 s con 1000 titulares sintéticos, 36 ms con 5). Un único `PermissionResolver` por fase de evaluación (−14 % a −20 %), mismo resultado (`AdministrationCapacityResolverTest`); sin más optimización. Medición en `REQ-PERM/operacion.md` y en el código.
+
+---
+
+## 2026-10-05 · Corrección tras la revisión de 1.5b: #352 y hueco residual de #350 (`REQ-PERM-005`)
+
+- **#352**: el `403` de `RPERM-013` en `PUT /users/{id}/roles` y `POST /users` con `role_ids` ya no lleva `errors.grant[0].params` ni nombra el código o el ámbito en `detail` (clave nueva `core.authorization.cannot_grant_unheld_role_permission`, cuatro idiomas); se mantienen el `403` y `errors.grant[0].code`. `PUT /roles/{id}/permissions`, `POST /roles` y la clonación, sin cambio. Documentado en `REQ-PERM/api.md §8.4`, `funcional.md` (`RN-PERM-24`, `CA-PERM-042`), `permisos.md` y OpenAPI.
+- **#350 (hueco residual)**: `asignacion_rol.eliminar` se recalcula dentro de `protect()` sobre los roles releídos con el bloqueo (`RPERM-013`, `RN-PERM-20`), con test de regresión determinista en `ConcurrentSnapshotTest`.
+
+---
+
+## 2026-10-05 · Paso 1.5b cerrado y mezclado (PR #354) (`REQ-PERM-005`)
+
+Interfaz de roles y permisos efectivos de `REQ-PERM` y tres cambios de servidor, en la rama `feature/REQ-PERM-ui-roles`. **Pendiente de revisión independiente y de merge: no se declara cerrado.** Sin migraciones, sin permisos nuevos y sin dependencias nuevas.
+
+### Servidor (`apps/api`)
+- **S-PERM-1**: `users_count` en `GET /roles/{public_id}`.
+- **S-PERM-2**: `resource_label` (traducido por el servidor) en cada permiso del detalle de rol y de los permisos efectivos.
+- **`RN-PERM-47`**: `409 core.validation.administration_capacity_lost` si una escritura dejaría al centro sin ningún usuario activo con la capacidad completa de administración (cinco rutas; `CA-PERM-046` a `-049`). Comprobación y escritura serializadas por tenant con `pg_advisory_xact_lock`. `CA-PERM-049` cubre el mecanismo del bloqueo y una escritura secuencial, no dos transacciones solapadas reales.
+- **#170**: se mantiene el comportamiento estricto de `ReplaceRolePermissions` (estrechar a un ámbito no poseído responde `403`, sin cambio de código de producción); `CA-PERM-045` lo fija con un test y se corrige la redacción de `api.md §5.4`.
+- **Corrección de contrato**: los datos de los errores `403 grant`, `409 role` y `409 administration_capacity` van en `errors[].params`, como define `ADR-038 §6.3`, y no en un `params` de primer nivel que el servidor nunca emitió (`api.md §9.2.1`); `ApiException::forbidden()`/`conflict()` aceptan `errors`.
+
+### Interfaz (`apps/web`)
+- Pantallas de roles (listado con alta y enlaces, ficha con concesiones, matriz recurso × acción × ámbito) y permisos efectivos de un usuario con procedencia y acción en su ficha (`RN-PERM-25`, `-26`, `-41` a `-45`).
+- **Modo `local` del componente de tablas** (ampliación aditiva de `src/data-table/`, `RN-PERM-44`): primer consumidor, sobre campos de un recurso ya cargado.
+- **Segunda lista de `RN-CORE-53`**: rejillas de edición, aprobada expresamente por el usuario; contiene solo `RolePermissionMatrix.vue` (`REQ-PERM/funcional.md §20.12`).
+- Dos claves nuevas de `localStorage`: `plataforma.table.core.role_grants` y `plataforma.table.core.effective_permissions` (solo ids de columna; `PRIVACY.md`).
+
+### Documentación y hallazgos
+- Cabeceras y contenido de `docs/modulos/REQ-PERM/`, `REQ-CORE` (`RN-PERM-47` junto a `RN-CORE-07`; `RN-CORE-75` y `CA-CORE-240` sustituidos), `README.md` 2.6.15, `SECURITY.md` 0.3.8, `ARCHITECTURE.md` 2.3.5, `PRIVACY.md` 0.3.5 y `RUNBOOK.md` 0.3.3.
+- Issues abiertos derivados: [#348](https://github.com/pirexia/plataforma-educativa/issues/348) (`PUT /roles/{id}/permissions` permitía dejar al centro sin forma de administrar roles; lo cubre `RN-PERM-47`) y [#349](https://github.com/pirexia/plataforma-educativa/issues/349) (`SchoolAdministratorGuard` de `RN-CORE-07` no serializa).
+
+---
+
+## 2026-10-05 · Cierre de #62 (`SESSION_LIFETIME`)
+
+`apps/api/.env.example` y `apps/api/.env` pasan de `SESSION_LIFETIME=120` a `480` (`RN-AUTH-30`, `SessionEnvironmentGuard`), de modo que un entorno nuevo ya no tumba el contenedor `api` al arrancar. Se retira de `compose.yaml` el parche temporal. Verificado recreando la pila (`down` + `up -d`, sin `-v`): los cuatro contenedores `healthy`, `GET /api/health` 200 y `SESSION_LIFETIME=480` dentro de `api`. `SYSADMIN.md` actualizado.
+
+---
+
+## 2026-10-05 · Correcciones #339 y #340 (`REQ-CORE-003`, `REQ-CORE-005`)
+
+`ValidateUserImport` falla el lote (`fallido`) si quien lo subió ya no resuelve (#339, `CA-CORE-299`) y `GenerateUserExport`/`GenerateAuditLogExport` fallan (`fallida`) si el solicitante perdió el permiso `*.exportar` antes de ejecutarse el trabajo (#340, `CA-CORE-298`), ambos por `INV-002`. Sin migración ni cambios de contrato. Pest `Core` 211/211. Detalle en `funcional.md §14.27`.
+
+---
+
+## 2026-10-05 · Batida de issues posterior a `1.9f` (`REQ-CORE-002`, `REQ-CORE-005`)
+
+Tanda de correcciones y cierres del 2026-10-04/05. Sin migración, sin permisos ni dependencias nuevas. Los cambios de código van en la rama `fix/REQ-CORE-ajustes-security-1-9e-1-9b` (los issues #280, #323 y #324 se cierran al mezclarla).
+
+### Corregido
+- **#280 (`INV-002`)**: `GenerateUserExport` y `GenerateAuditLogExport` ya no exportan todo el centro si el solicitante no se resuelve al ejecutarse el trabajo: la exportación queda `fallida` con `core.export.generation_failed`, sin fichero (`CA-CORE-296`/`-297`, `REQ-CORE/funcional.md §14.27`, `operacion.md`). Pest `Core` 209/209.
+- **#323**: `SettingsView` conserva el resto de `mfa_allowed_methods` que devuelve el servidor y solo alterna `email`.
+- **#324**: `SettingsView` no envía enteros inválidos en `session_timeout_minutes` ni `mfa_grace_period_days`; error de cliente `core.settings.errors.notInteger` en es/en/de/fr, el rango sigue en el servidor (`funcional.md §14.9`). Vitest 1043/1043.
+- Mezclados antes ese mismo día: PR #335 (`1.9f`), #336, #337 (cierra #331, #253, #322, #239) y #338 (cierra #276 y #326). #332, corregido en #335.
+
+### Cerrados por ya resueltos
+#90, #259, #327, #300, #302, #303, #293, #321, #248, #251, #263 y #275.
+
+### Reabierto
+- **#62** se cerró por error y está **reabierto**: conserva 4 tareas pendientes reales en su sección «Pendiente». Lección: no cerrar un issue por su título.
+
+### Hallazgos (Baja, abiertos)
+- [#339](https://github.com/pirexia/plataforma-educativa/issues/339): `ValidateUserImport` pasa un actor nulo al validador de filas.
+- [#340](https://github.com/pirexia/plataforma-educativa/issues/340): una exportación termina `completada` con 0 filas si el solicitante pierde `*.exportar` antes de ejecutarse el trabajo.
+
+### Revisión
+`security-reviewer`: sin Crítico/Alto. Pint, Larastan, eslint, `vue-tsc` y `lint:i18n` limpios. Versiones: `README.md` 2.6.14, `PLAN-IMPLEMENTACION.md` 2.3.5, `ARCHITECTURE.md` 2.3.4.
+
+### Documentación
+`memory.md` archiva el detalle de 1.9b-1.9f en `docs/historial/1.9b-1.9f-interfaz-core.md`. `PLAN-IMPLEMENTACION.md` y `memory.md` dejan preparado `1.5b`: sin especificación de interfaz todavía, empieza con `spec-writer`.
+
+---
+
+## 2026-10-04 · `1.9f` · migración de las tres tablas de `REQ-AUTH` (`REQ-CORE-002`)
+
+Implementa el sub-paso `1.9f` (`funcional.md §14.13`, `RN-CORE-84`, `-94`, `-95`, `-96`; `OPEN-CORE-54`, `-55` y `-56` = A, A, A, decisión del usuario 2026-10-04). Solo SPA: sin migración, sin cambios de servidor, sin permisos ni dependencias nuevas. **Cierra la serie 1.9b-1.9f de `REQ-CORE`** (interfaz completa).
+
+### Añadido
+- **`apps/web/src/data-table`**: filtro `enum` de selección única (`multiple: false`) con valor `initial` de reposo (`RN-CORE-94`, ampliación aditiva de `DataTableEnumFilter`): grupo de opciones exclusivas con «Todos», disparador que reutiliza `dataTable.filters.booleanTrigger`; con `initial`, «sin filtrar» es el valor de reposo (`OPEN-CORE-54`); con `urlState` se ignora `initial` y se avisa por consola (`OPEN-CORE-55`).
+- **Migración de las tres vistas** de `REQ-AUTH` al componente de tabla, con lo que la lista de excepciones de `RN-CORE-53` queda **vacía** (`CA-CORE-255`): `MfaExemptionsArea` (filtro de estado, `live` por defecto), `AdminSsoView` y `SessionsView` (tarjetas en pantalla estrecha, tabla en ancha). Acción por fila tras éxito con `refresh()` (`RN-CORE-96`); errores de carga del componente (`RN-CORE-95`), salvo el `401`, que sigue navegando a `login`.
+- **Diálogo de confirmación común** (`ConfirmDialog`/`useConfirm`, `RN-CORE-64`) en revocar excepción, eliminar proveedor SSO y cerrar sesiones; nombra al elemento afectado y se cierra con `Esc`.
+- Tras conceder una excepción, la tabla vuelve a «página 1, `live`» **re-montando con `key`**, sin `reset()` (`OPEN-CORE-56`).
+- Textos en es/en/de/fr (`auth.sessions.*`, `auth.mfaAdmin.exemptions.*`, `auth.ssoAdmin.*`) y guardián `migration19f.i18n.spec.ts`.
+- Documentación: `REQ-CORE/funcional.md §14.13` (spec propia de 1.9f, cobertura real), manual `admin.md`, `docs/i18n.md`, `docs/design-system.md`, `ARCHITECTURE.md`.
+
+### Cambiado
+- `AdminSsoView` pagina el catálogo de proveedores **de 25 en 25** (antes cargaba todo de una vez).
+
+### Hallazgos
+- **`§14.13.7` (Baja, abiertos)**: #330 (el foco cae en `body` tras retirar una fila, WCAG 2.4.3) y #331 (un fallo de `DELETE` muestra `auth.ssoAdmin.loadError`).
+- **Revisión independiente (Baja, abiertos)**: #332 (nombre accesible del botón de revocar sin el texto visible en es/de, WCAG 2.5.3), #333 (`revokingId` único y `totalSessions` desfasado con revocaciones concurrentes) y #334 (doble navegación a `login` en `401`).
+- **Resueltos para estas vistas**: #90 (guion literal en `SessionsView`) y #259 (`useI18n` directo en `SessionsView`). Avance en #120 (`MfaExemptionsArea.spec.ts` cubre el área de `CA-AUTH-176` en el cliente).
+
+### Revisión
+`security-reviewer`: sin Crítico/Alto/Medio. `doc-reviewer`: 3 Media de documentación desincronizada, corregidas. `db-reviewer` no aplica (sin migración). Versiones: `README.md` 2.6.13, `ARCHITECTURE.md` 2.3.4, `PLAN-IMPLEMENTACION.md` 2.3.4.
+
+### Verificado
+Vitest **1037/1037** y Playwright **28/28** (verificados por la sesión orquestadora).
+
+---
+
+## 2026-10-03 · `1.9e` · configuración del centro, marca, módulos y perfil propio (`REQ-CORE-002`)
+
+Implementa el sub-paso `1.9e` (`funcional.md §14.9`, `§14.10`, `§14.10b`, `§14.10c`, `§14.26`; `OPEN-CORE-37` = B, `-45` = A). Solo SPA: sin migración, sin cambios de servidor, sin permisos ni dependencias nuevas.
+
+### Añadido
+- **`apps/web`**: pantallas `/administracion/centro` (grupos Regional, Fiscal, Paleta y Seguridad —solo las claves `security.*` que `/administracion/mfa` no edita, que son las tres—), `/administracion/marca` (logo, favicon y fondo de acceso), `/administracion/modulos` (solo los contratados, solo lectura) y `/cuenta/perfil` (`core-profile`, autoservicio por identidad; la lista cerrada de `RN-CORE-24` pasa de seis a siete rutas).
+- `useSession().updateSessionProfile` (`RN-CORE-89`), catálogo de comunidades autónomas del cliente con test que lo contrasta con el PHP, textos en es/en/de/fr.
+- Documentación: `REQ-CORE/{funcional §14.26, api §2, permisos}.md`, manual `admin.md`, `docs/i18n.md`, `ARCHITECTURE.md`.
+
+### Revisión
+`security-reviewer` y `doc-reviewer`: sin Crítico/Alto; los Medios documentales se corrigieron. Issues: #321 (Media, `api.md` decía `required_ratio`; corregido), #322, #323, #324 y #326 (Baja, abiertos; #326: pie de paginación de una sola página en `CA-CORE-267`, redacción alineada con el componente).
+
+### Verificado
+Vitest **996 pasan, 3 omitidos** (999; las 3 son lecturas cruzadas a PHP que el contenedor `web` no puede hacer; la de `CA-CORE-252` se comprobó aparte, 12/12); `eslint`, `lint:i18n` y `vue-tsc` limpios (reejecutados por la sesión orquestadora). Playwright 27/27 (informe del implementer).
+
+---
+
+## 2026-10-03 · `1.9d` · auditoría y roles de solo lectura (`REQ-CORE-005`, `REQ-CORE-004`)
+
+Implementa el sub-paso `1.9d` (`funcional.md §14.7`, `§14.8`, `§14.25`; `OPEN-CORE-33` = C, `-34` = B, `-35` = A, `-36` = A). Sin migración, sin permisos nuevos ni dependencias nuevas.
+
+### Añadido
+- **Servidor**: `GET /audit-logs/facets` (S10, `auditoria.leer`; catálogo declarado en código, sin consultar `audit_logs`) y, en `GET /audit-logs` y `POST /audit-logs/exports`, valores múltiples de `actor_type` y `module` (parte de auditoría de S7; el cuerpo de la exportación los admite como *array* y sigue aceptando el escalar anterior). `AuditCatalog` es la única fuente de los valores filtrables.
+- **`apps/web`**: pantalla `/administracion/auditoria` (modo `cursor`, filtros de fecha, operación, tipo de actor, usuario, módulo y entidad, panel «Ver cambios», exportación) y `/administracion/roles` (solo lectura, sin detalle); tipo de filtro **`entity`** en `src/data-table` (aditivo); acción «Ver su actividad» en la ficha de usuario; traducciones en `es`, `en`, `de` y `fr`; `e2e/core-audit.spec.ts`.
+- Documentación: `REQ-CORE/{funcional §14.25, api, permisos, operacion}.md`, OpenAPI, manual `admin.md` («Roles del centro», «Consultar el registro de auditoría»), `docs/i18n.md`, `ARCHITECTURE.md`.
+
+### Cambiado
+- Los tipos de cliente `AuditEvent` y `AuditActorType` pasan a los nueve y seis valores de `ADR-039`.
+- `e2e/shell.spec.ts`: se aplica el formato de Prettier (elimina el aviso preexistente).
+
+### Verificado
+Pest completo en el host (`php -d memory_limit=512M ./vendor/bin/pest`): **815 de 830** pasan; los **15 fallos son los mismos de SAML** de 1.9c (`SamlLoginTest` 10, `SamlAssertionValidationTest` 3, `SamlAcsTest` 1, `SamlCertificatesTest` 1; issue #291), ajenos a este diff. Las pruebas nuevas (`AuditLogFacetsTest`, `CA-CORE-245` en `AuditLogsEndpointsTest`) pasan. Vitest 926 pasan y 2 omitidos (928), Playwright **23/23** (ejecutado completo), ESLint sin avisos, `lint:i18n`, `vue-tsc -b`, `npm run build`, Pint y Larastan (con `SESSION_LIFETIME=480`, ver nota del informe) limpios. Reverificado en los contenedores de referencia: Pest `Core` 208/208, Vitest 926 + 2 omitidos, `vue-tsc`/ESLint/`lint:i18n`/Pint limpios. Revisión independiente (`security-reviewer`, `doc-reviewer`; sin Crítico/Alto, `db-reviewer` no aplica): 8 Media de documentación desincronizada corregidas; Baja abiertas #318 (catálogo de módulos incompleto) y #319 (validación de `module` y paridad GET/POST del export).
+
+---
+
+## 2026-10-03 · `fix/REQ-CORE-003-importacion-tope-y-roles` (#313, #314)
+
+Correcciones Media de la importación de usuarios, preexistentes de 1.9b y detectadas en la revisión de 1.9c. Sin cambio de esquema ni de permisos.
+
+### Corregido
+- **#313**: el tope `core.import_max_rows` (20 000) se aplica al leer el CSV; por encima, lote `fallido` con `limite_filas_superado` (`CA-CORE-286`).
+- **#314**: `rol_no_concedible` se reporta en la fase 1 cuando quien importa no puede conceder un rol (`RPERM-013`), en vez de descartar la fila en silencio al ejecutar (`CA-CORE-287`). `CreateUser::canGrant` comparte regla con `assertActorCanGrant`. Mensajes en los cuatro idiomas.
+
+---
+
+## 2026-10-02 · `feature/REQ-CORE-003-importacion-usuarios` (implementación de `1.9c`)
+
+Implementa el sub-paso `1.9c` (importación de usuarios, `REQ-CORE-003`) y el **catálogo cerrado de tipos de documento de identidad** (`funcional.md §14.6.4`, aprobado el 2026-10-02; issues #292, #308, #309, #310 y #285). Con una migración **de datos** (sin cambio de esquema), sin permisos nuevos ni dependencias nuevas. Notas y desviaciones: `funcional.md §14.23`.
+
+### Añadido
+- **Catálogo cerrado `person.document_type`** (`RN-CORE-90` a `-93`): enumerado público `App\Modules\Core\Domain\DocumentType` (`dni`, `nie`, `pasaporte`, minúsculas, sin `otro`); par tipo-número completo; número normalizado al guardar (recorte y mayúsculas; en `dni`/`nie`, sin espacios ni guiones); revalidación del par resultante en `PATCH` (`PersonDocumentRules`, una sola vía para alta y edición). Formato del pasaporte `^[A-Z0-9]{1,32}$` sin dígito de control. Errores nuevos `core.validation.document_type_invalid` y `core.validation.document_incomplete`; en la importación, `tipo_documento_no_valido` y `documento_incompleto` (cuatro idiomas). `enum` de OpenAPI derivado del enumerado (`CA-CORE-279`).
+- **Migración de datos** `2026_10_02_100200_normalize_people_document_to_catalog` (entrega N de `OPEN-CORE-52` = A, sin `CHECK`): normaliza tipo y número de las filas existentes; **aborta sin tocar nada** enumerando los `public_id` si hay un tipo sin correspondencia o duplicados creados por la normalización. Usa `pgsql_platform` (el rol propietario no ve filas por RLS `FORCE`).
+- **`apps/web`**: pantallas `/administracion/importaciones` (subida, cabecera copiable, lista de tipos de documento admitidos, listado de lotes) y `/administracion/importaciones/:publicId` (seguimiento con la política de `RN-CORE-49`, ejecución con `Idempotency-Key` ULID estable por confirmación, incidencias con el componente de tablas, aviso de las 50 primeras, informe firmado con renovación, descartar); selector del catálogo en el formulario de usuario y etiqueta traducida en la ficha; constante `DOCUMENT_TYPES` con test cruzado contra el enumerado PHP; `apps/web/src/lib/ulid.ts` (ULID propio, sin dependencia).
+
+### Cambiado
+- **Cambio de contrato** (`ADR-038 §7`): `POST /users` y `PATCH /users/{id}` **dejan de aceptar texto libre** en `person.document_type` (`422`); incompatible en sentido estricto, sin más clientes que la SPA propia y sin producción. `GET /users`, `GET /users/{id}` y `GET /me` devuelven el código canónico.
+- **S8**: `UserImportResource` devuelve `created_at` (`CA-CORE-238`) y, por decisión del usuario del 2026-10-03, `send_invitations` (aditivo; la confirmación de ejecutar lo lee siempre de la API, `CA-CORE-235`). **S9** (`OPEN-CORE-38` = A, #285): el `message` de las incidencias —en `error_summary` y en `report.csv`— sale en el idioma de quien subió el lote (`person.locale` si está activo en el centro; si no, `default_locale`), y el trabajo restaura el idioma del proceso al terminar.
+- `UserImportRowValidator`/`ExecuteUserImport`: grafía tolerante del código en la hoja (`OPEN-CORE-50` = A), duplicados sobre el valor normalizado (dentro del fichero y contra la base de datos) y el código y número canónicos al crear.
+- Se corrigen **F1 a F7** de `§14.6.4.8` (#308, #309, #310): duplicado por mayúsculas, `PATCH` sin revalidar, número sin tipo, importación que comparaba en crudo, minúsculas con la letra de control desactivada, formato de pasaporte inexistente y *docblock* erróneo de `DocumentNumberValidator`.
+- **Revisión independiente de `1.9c` (2026-10-03, sin Crítico/Alto)**: `lockForUpdate()` en la migración de datos (D1), documentada su irreversibilidad a propósito y la excepción a `INV-003` (D2, D3), el `422` de tipo de documento no admitido deja de reflejar el valor recibido (S3), el enlace del informe exige `https:` salvo en desarrollo y lleva `rel="noreferrer noopener"` (S5); manual renombrado a «Importación de usuarios», cabeceras de estado y documentos raíz actualizados (`README.md` 2.6.12, `ARCHITECTURE.md` 2.3.3, `PRIVACY.md` 0.3.4 con §2.6, `SYSADMIN.md` 0.8.4 con §2e, `RUNBOOK.md` 0.3.2 con §3b.6). No se tocan S1 (tope de 20 000 filas) ni S2 (roles no concedibles en silencio), preexistentes de 1.9b.
+- **Decisiones del usuario (2026-10-03) sobre `1.9c`**: `accept=".csv"` se mantiene sin excepción nueva en `CA-CORE-192`; sin enlace al manual (remite al apartado por nombre); aviso de las 50 primeras también cuando las entradas llegan al tope de 50 (`RN-CORE-74`); el `CHECK` del catálogo (entrega N+1) queda en el issue #312 y el `CHECK` de par ya existía desde 0.8. Spec corregida en `funcional.md §14.6.1`/`§14.6.2`/`§14.6.4.4`/`§14.11`/`§14.23`.
+- `openapi/components.yaml`: cinco descripciones con YAML inválido entrecomilladas (impedían leer el fichero).
+- Documentación: `REQ-CORE/{funcional §14.23, api, datos Parte E, permisos §13, operacion §14}.md`, manual `admin.md` (alta y edición, «Importar usuarios»), `docs/i18n.md`.
+
+### Verificado
+Pest completo en el host (`php -d memory_limit=512M ./vendor/bin/pest`): **807 de 822** pasan; los **15 fallos son todos de SAML** (`SamlLoginTest` 10, `SamlAssertionValidationTest` 3, `SamlAcsTest` 1, `SamlCertificatesTest` 1), preexistentes desde `1.9b` y ajenos a este diff (issue #291, causa sin diagnosticar). Core, OpenAPI (`CA-CORE-279`) y las 21 pruebas nuevas del paso pasan; las pruebas de OIDC/IdP necesitan el simulador SSO del contenedor `plataforma-api` (`http://localhost:8000`) arrancado. Vitest **879/879**, ESLint sin errores (1 aviso de Prettier preexistente en `e2e/shell.spec.ts`), `lint:i18n`, `vue-tsc -b`, `npm run build`, Pint y Larastan limpios. Playwright **no se ha ejecutado** (sin e2e nuevos). Revisión independiente hecha (`db-reviewer`, `security-reviewer`, `doc-reviewer`; sin Crítico/Alto, hallazgos corregidos arriba); **pendiente de mezcla**.
+
+---
+
+## 2026-10-02 · `feature/REQ-CORE-003-usuarios-invitaciones` (implementación de `1.9b`)
+
+Implementa el sub-paso `1.9b` (usuarios e invitaciones, `REQ-CORE-003`; exportación de usuarios, `REQ-CORE-005`), sobre `docs/modulos/REQ-CORE/funcional.md §14` (aprobada el 2026-10-01). Con una migración *expand*, sin permisos nuevos ni dependencias nuevas. Notas y desviaciones: `funcional.md §14.22`.
+
+### Añadido
+- **`POST /api/v1/users/exports`** (S1, `RN-CORE-85`): exportación asíncrona de usuarios en cola (`GenerateUserExport`, `core-exports`) con `CsvWriter`. Fichero de **doce columnas** (`public_id,status,deleted_at,created_at,email,given_name,family_name_1,family_name_2,contact_email,contact_phone,locale,roles`), códigos técnicos y cabeceras sin traducir, iguales para todos los solicitantes (`ADR-055`, `CA-CORE-207` verificado con `CA-CORE-226`). **No contiene `document_type`, `document_number` ni `birth_date`** (`OPEN-CORE-32` = B, `INV-008`). Acepta exactamente los filtros de `GET /users` (como *array*); `q` ⇒ `422` (`core.validation.export_search_not_supported`); tope de filas `CORE_EXPORT_MAX_ROWS`.
+- **Migración** `2026_10_02_100100_widen_data_exports_kind_for_users` (S2): `data_exports_kind_check` admite `users` (`NOT VALID` + `VALIDATE`, sin transacción).
+- **Regla `InList`** (`App\Support\Api\Rules`): valida cada valor de un filtro de lista por comas (`ADR-038 §5.2`).
+- **`apps/web`**: cinco pantallas en `core/shell.ts` (`/administracion/usuarios`, `/nuevo`, `/:publicId`, `/:publicId/editar`, `/administracion/invitaciones`); `alert-dialog` vendorizado y `ConfirmDialog`/`useConfirm` (`RN-CORE-64`); filtro de tabla de **dos estados** y opción `label` del filtro `enum` (ampliaciones aditivas de `OPEN-CORE-40` = A); asignación de roles en la ficha (`OPEN-CORE-43` = A). Textos en los cuatro idiomas.
+
+### Cambiado
+- **Cambio de contrato (S4, `OPEN-CORE-39` = A)**: `GET /data-exports/{id}` de una exportación `fallida` responde **`200`** con `status: "fallida"`, `error_code` y `download_url: null`, no `409` (`api.md §8` no cubría la fallida hasta 1.9b). Antes la SPA esperaba 10 minutos sin decir nada. Único cliente: la SPA; sin periodo de compatibilidad (no hay producción, `H0`).
+- **`GET /data-exports/{id}` se autoriza por `kind`** (S3, `RN-CORE-86`): `audit_logs` → `auditoria.exportar`, `users` → `usuario.exportar`, otro → `403`; la ruta ya no lleva `permission:` fijo.
+- `GET /users`: `sort` admite `-email` (S5) y `locale` admite varios valores por comas (S7). `GET /users/{id}?include_deleted=true` (S6, `CA-CORE-014`, exige además `usuario.eliminar`). `GET /invitations?status=` admite varios valores (S7); un valor fuera del vocabulario responde `422`.
+- `README.md` 2.6.11, `ARCHITECTURE.md` 2.3.2, `PRIVACY.md` 0.3.3 (§2.5: la exportación de usuarios como tratamiento), manual `admin.md` (usuarios, invitaciones y la tabla de columnas del CSV), `docs/i18n.md`, `docs/design-system.md §12.3c`, `REQ-CORE/{funcional,api,datos,permisos,operacion}.md`.
+
+### Verificado
+Pest completo en el host: **786/801**; los 15 fallos son todos de SAML (`Signature validation failed`), ajenos a este diff, y esos tests pasan en el contenedor de referencia sobre `develop`. Tests nuevos del paso: 16 Pest (`UserExportEndpointsTest`). Vitest **799/799** (717 en `develop`), Playwright **19/19** (4 nuevos), Pint, Larastan, ESLint, `lint:i18n`, `vue-tsc -b` y `vite build` limpios. Pendiente: revisión independiente (`db-reviewer`, `security-reviewer`, `doc-reviewer`).
+
+---
+
+## 2026-10-02 · `fix/REQ-CORE-008-bucle-403-recarga-sesion` (issue #300)
+
+### Corregido
+- **Un `403` persistente de un recurso dentro del *shell* ya no entra en bucle** (`REQ-CORE-008`, `CA-CORE-270` nuevo, `funcional.md §12.6`/`§12.3.4`). `fetchMe` (`apps/web/src/session/useSession.ts`) pasaba siempre a `loading`, lo que hacía que `AppShellLayout` desmontara la vista y, al volver a `ready`, esta repitiera el `GET` que daba el `403` (otra recarga de `/me`, sin fin). Ahora una recarga con la sesión ya `ready` no pasa por `loading`; el arranque y la recuperación desde `error`/otros estados siguen mostrando la carga. Sin cambio de contrato.
+- Test de regresión con la pila real: `apps/web/src/layouts/AppShellLayout.forbidden.spec.ts` (una petición al recurso, una recarga de `/me`, «Sin acceso» dentro del *shell*).
+- **Dos regresiones del fix de #300 (issues #302, #303)**: si la recarga de `/me` tras un `403` responde `401`, la SPA navega ahora a `/entrar?redirect=` reutilizando `handleUnauthorized` (`CA-CORE-271`); y el `RouterView` del *shell* lleva una `:key` derivada de `public_id` y del conjunto de permisos, de modo que la vista se remonta si cambian identidad o permisos pero no en una recarga normal (`CA-CORE-272`).
+
+---
+
+## 2026-10-01 · `feature/REQ-CORE-1.9b-pantallas-de-gestion` (especificación de `1.9b`)
+
+Especificación `REQ-CORE/funcional.md §14` (más `api.md §14`, `datos.md` Parte D, `permisos.md §12`, `operacion.md §13`) de las pantallas de gestión pendientes de `REQ-CORE` y la migración de las tres tablas exceptuadas de `RN-CORE-53`, redactada por `spec-writer`. **Aprobada por el usuario** con la división en cinco sub-pasos (1.9b a 1.9f; `OPEN-CORE-30`) y las respuestas a `OPEN-CORE-31`, `-39`, `-40`, `-42` y `-43`; `OPEN-CORE-32` = B (CSV de usuarios sin documento ni fecha de nacimiento, por minimización, `INV-008`); `OPEN-CORE-31` = B amplía 1.9e con módulos contratados (solo lectura) y perfil propio. `RN-CORE-60` a `-89`, `CA-CORE-208` a `-269`. Nueva pregunta abierta `OPEN-CORE-45` (filas de la pantalla de módulos contratados; bloquea solo 1.9e). Issues abiertos de pasada: #287 (Media), #288 (Media), #289 (Baja). Versiones: `README.md` 2.6.10, `PLAN-IMPLEMENTACION.md` 2.3.3. Solo documentación.
+
+## 2026-10-01 · `docs/ratifica-ADR-055` (`OPEN-054-01`)
+
+`ADR-055` (el CSV de datos como contrato técnico) pasa a **`ACEPTADA`**, ratificado entero por el usuario el 2026-10-01 (opción A ahora, C como ampliación posterior; incluye las precisiones de formatos y compatibilidad y la objeción de `§3.3`). `OPEN-054-01` resuelta: `REQUISITOS` 3.2.11 (índice de ADR y fila de `ADR-054` con remisión), `REQ-CORE/funcional.md §13` (`RN-CORE-59`, `CA-CORE-207` pendiente de test hasta el primer generador nuevo de `1.9b`), `api.md §8` y manual `admin.md`. El fichero del ADR y la fila 3.2.10 de `REQUISITOS` llegaron a `develop` por error dentro del PR #284 (dependencia) como `PROPUESTA`. Solo documentación; sin cambios de código. Versiones: `README.md` 2.6.9, `PLAN-IMPLEMENTACION.md` 2.3.2, `REQUISITOS` 3.2.11. Abierto de pasada: #285 (idioma de `report.csv`, Media).
+
+## 2026-09-30 · `fix/REQ-CORE-005-auditoria-csv-rangos-y-filtros` (issues #266, #267, #270, #273)
+
+Cuatro hallazgos de `REQ-CORE-005` (auditoría y exportación) resueltos en una sola rama, sobre `ADR-054 §8`-`§10` y `ADR-038 §5.2`. Sin migraciones ni permisos nuevos.
+
+### Añadido
+- **`App\Support\Csv\CsvWriter` y `CsvColumnType`** (`apps/api/app/Support/Csv/`, #270, `RN-CORE-47`/`48`): única vía de escribir CSV. Esquema tipado (texto, entero, instante; nunca inferido), neutralización de fórmulas solo sobre texto y cabecera con las dos condiciones de `ADR-054 §10.2` (incluido el espacio en blanco inicial seguido de `= + - @`), dialecto de `ADR-054 §10.3`. Test de arquitectura (`tests/Unit/Csv/CsvArchitectureTest.php`): ningún `fputcsv` fuera de ella.
+- **`AuditLogFilter`** (`Core/Infrastructure`): los filtros de `audit_logs` en un único sitio, compartido por el listado y por el trabajo de exportación.
+
+### Cambiado
+- **Cambio de contrato, sin periodo de compatibilidad (#266)**: `GET /audit-logs` y el cuerpo de `POST /audit-logs/exports` renombran `from`/`to` a `occurred_at_from`/`occurred_at_to` (`ADR-038 §5.2`). Se hace un renombrado directo, sin *expand/contract*, porque no hay producción (`H0` abierto) y el único consumidor es la SPA (`apps/web/src/modules/core/api/auditLogs.ts`, actualizada). Los nombres antiguos se ignoran sin error.
+- **`POST /audit-logs/exports` aplica ahora `actor_id`, `actor_type`, `auditable_id` y `module` (#267)**, además de los que ya aplicaba: valida con las mismas reglas que el listado (`IndexAuditLogsRequest::filterRules()`) y los aplica el mismo código. Antes los ignoraba en silencio y el CSV traía más filas que las filtradas en pantalla. El ámbito de `auditoria.exportar` y el tenant siguen acotando el fichero (test con otro tenant y con ámbito `propios`). `ExportAuditLogsPayload` de la SPA se amplía a la par.
+- **Formato visible del CSV de auditoría (#270)**: el fichero gana BOM UTF-8 y fin de línea CRLF, y `occurred_at` pierde los milisegundos y pasa de `toJSON()` (`…T..:..:..000000Z`) a ISO 8601 con desfase (`DATE_ATOM`, `+00:00`). Cabeceras y códigos sin cambios (`OPEN-054-01` sigue abierta). Quien procese el fichero por programa debe saberlo.
+- **`ValidateUserImport::writeReport` (`report.csv`)** escribe con `CsvWriter`: neutraliza por defensa en profundidad y gana BOM y CRLF.
+- **Tope de filas (#267)**: `EloquentExportRequestService::assertWithinRowLimit` usaba las claves `from`/`to` antiguas y no contaba los filtros nuevos; ahora aplica `AuditLogFilter`, así que el `422 export_range_too_large` cuenta exactamente lo que se exporta.
+- **Documentación**: `operacion.md §3` (fila «Redis») y `§8` (síntoma «Importación queda en `subido`») describen el *driver* `database` sin *worker* (#128) y Redis/Horizon como elegido, no instalado (#273); `api.md §8`, `funcional.md §13`, OpenAPI (`core.yaml`), `SECURITY.md` 0.3.7 (fila «Exportaciones generadas (CSV)») y `README.md` 2.6.8 (tabla de versiones) y `ARCHITECTURE.md` 2.3.1 (fila «Caché y colas»: Redis solo caché; colas `database` sin worker, #128; Redis + Horizon elegido, no instalado; también en `README.md`, #273).
+
+### Verificado
+784/784 Pest (con el servidor de simulación SSO en `:8000`, como en el contenedor de referencia) y 717/717 Vitest en verde; Pint, Larastan (`composer analyse`), ESLint (una advertencia `prettier` preexistente en `e2e/shell.spec.ts`, issue #263), `lint:i18n`, `vue-tsc -b` y Prettier sobre `src/modules/core/api` limpios.
+
+---
+
 ## 2026-09-30 · `feature/REQ-CORE-008-tablas-de-datos` (implementación de `1.9`)
 
 Implementa el paso `1.9` (Bloque B, tablas de datos, `REQ-CORE-008`), sobre `docs/modulos/REQ-CORE/funcional.md §13` y `docs/adr/ADR-054-tablas-de-datos-y-exportacion-de-listados.md`. Solo `apps/web`: ni un *endpoint*, ni un permiso, ni una migración, ni una dependencia nueva.

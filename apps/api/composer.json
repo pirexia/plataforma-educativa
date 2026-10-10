@@ -52,8 +52,23 @@
             "@php artisan dev"
         ],
         "test": [
-            "@php artisan config:clear --ansi @no_additional_args",
-            "@php artisan test"
+            "@test:paralelo",
+            "@test:concurrencia"
+        ],
+        "test:paralelo": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan config:clear --ansi",
+            "@php -d memory_limit=-1 vendor/bin/pest --parallel --processes=${PEST_PROCESOS:-6} --passthru-php=\"'-d' 'memory_limit=-1'\" --testsuite=Unit,Feature @no_additional_args"
+        ],
+        "test:concurrencia": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan config:clear --ansi",
+            "@php -d memory_limit=-1 vendor/bin/pest --testsuite=Concurrency @no_additional_args"
+        ],
+        "test:serie": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan config:clear --ansi",
+            "@php -d memory_limit=-1 vendor/bin/pest @no_additional_args"
         ],
         "lint": "pint --test",
         "analyse": "phpstan analyse --memory-limit=1G",

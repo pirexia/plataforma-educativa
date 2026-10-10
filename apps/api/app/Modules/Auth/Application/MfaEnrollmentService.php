@@ -90,11 +90,14 @@ final class MfaEnrollmentService
     {
         // RN-AUTH-76: como mucho un alta sin confirmar viva por (usuario,
         // método de entrega) — abrir una nueva invalida la anterior.
+        // INV-003, #380 (AR-15): por instancia, no con `query()->delete()` (que
+        // no dispara los eventos de modelo y dejaría la invalidación sin auditar).
         MfaFactor::query()
             ->where('user_id', $user->id)
             ->where('method', $method)
             ->whereNull('confirmed_at')
-            ->delete();
+            ->get()
+            ->each(fn (MfaFactor $pending) => $pending->delete());
 
         $code = MfaDeliveryCode::generate();
         $codeTtlMinutes = (int) config('auth-local.mfa.code_ttl_minutes');
@@ -183,10 +186,15 @@ final class MfaEnrollmentService
             // user_mfa_obligations — si había una abierta, MfaPolicy ya
             // evalúa NoObligado a partir de aquí (hasUsableFactor), y esta
             // fila deja de reflejar el estado real si no se cierra.
+            // INV-003, #381: por instancia, no con `query()->update()` (que no
+            // dispara los eventos de modelo y dejaría el cierre sin auditar).
             UserMfaObligation::query()
                 ->where('user_id', $user->id)
                 ->whereNull('resolved_at')
-                ->update(['resolved_at' => now()]);
+                ->lockForUpdate()
+                ->get()
+                ->filter(fn (UserMfaObligation $obligation): bool => $obligation->resolved_at === null)
+                ->each(fn (UserMfaObligation $obligation) => $obligation->update(['resolved_at' => now()]));
 
             return $wasFirstConfirmedFactor ? $this->recoveryCodes->generateInitialBatch($user) : null;
         });

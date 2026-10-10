@@ -29,6 +29,7 @@ final class ApiException extends RuntimeException
         public readonly array $detailParams = [],
         public readonly array $errors = [],
         public readonly array $headers = [],
+        public readonly ?string $titleKey = null,
     ) {
         parent::__construct($type);
     }
@@ -48,10 +49,42 @@ final class ApiException extends RuntimeException
 
     /**
      * @param  array<string, string|int|float>  $detailParams
+     * @param  array<string, list<array{code: string, message: string, params?: array<string, mixed>}>>  $errors
      */
-    public static function forbidden(?string $detailKey = null, array $detailParams = []): self
+    public static function forbidden(?string $detailKey = null, array $detailParams = [], array $errors = []): self
     {
-        return new self(403, 'forbidden', $detailKey, $detailParams);
+        return new self(403, 'forbidden', $detailKey, $detailParams, $errors);
+    }
+
+    /**
+     * REQ-PERM-005, api.md §9.2.1 (RPERM-013 / RN-PERM-24): nadie concede
+     * un permiso que no posee. Los datos van en `errors.grant[0].params`
+     * (ADR-038 §6.3), nunca como `params` de primer nivel.
+     */
+    public static function cannotGrantUnheldPermission(string $code, string $scope): self
+    {
+        $key = 'core.authorization.cannot_grant_unheld_permission';
+        $params = ['code' => $code, 'scope' => $scope];
+
+        return self::forbidden($key, $params, [
+            'grant' => [['code' => $key, 'message' => __($key, $params), 'params' => $params]],
+        ]);
+    }
+
+    /**
+     * REQ-PERM-005, api.md §9.2.1 (RPERM-013, issue #352): variante de las
+     * rutas que asignan un rol a un usuario (`PUT /users/{id}/roles`,
+     * `POST /users` con `role_ids`). Las concesiones salen del rol, no del
+     * cuerpo, y quien asigna roles puede no poder leerlos: ni `params` ni
+     * el `detail` nombran el código ni el ámbito.
+     */
+    public static function cannotGrantUnheldRolePermission(): self
+    {
+        $key = 'core.authorization.cannot_grant_unheld_role_permission';
+
+        return self::forbidden($key, [], [
+            'grant' => [['code' => $key, 'message' => __($key)]],
+        ]);
     }
 
     public static function moduleDisabled(): self
@@ -69,9 +102,13 @@ final class ApiException extends RuntimeException
         return new self(403, 'mfa-enrollment-required');
     }
 
-    public static function notFound(): self
+    /**
+     * @param  array<string, string|int|float>  $detailParams
+     * @param  array<string, list<array{code: string, message: string, params?: array<string, mixed>}>>  $errors
+     */
+    public static function notFound(?string $detailKey = null, array $detailParams = [], array $errors = []): self
     {
-        return new self(404, 'not-found');
+        return new self(404, 'not-found', $detailKey, $detailParams, $errors);
     }
 
     public static function methodNotAllowed(): self
@@ -81,10 +118,11 @@ final class ApiException extends RuntimeException
 
     /**
      * @param  array<string, string|int|float>  $detailParams
+     * @param  array<string, list<array{code: string, message: string, params?: array<string, mixed>}>>  $errors
      */
-    public static function conflict(string $detailKey, array $detailParams = []): self
+    public static function conflict(string $detailKey, array $detailParams = [], array $errors = []): self
     {
-        return new self(409, 'conflict', $detailKey, $detailParams);
+        return new self(409, 'conflict', $detailKey, $detailParams, $errors);
     }
 
     public static function gone(): self
@@ -144,6 +182,21 @@ final class ApiException extends RuntimeException
     public static function ipNotAllowed(): self
     {
         return new self(403, 'ip-not-allowed');
+    }
+
+    /**
+     * ADR-057 §5.5 (REQ-CURSO, 1.10): `type` propio ampliando el catálogo
+     * cerrado de ADR-038 §6.2 — el cliente de 50 módulos distingue «este
+     * curso es de solo lectura» de cualquier otro conflicto sin analizar
+     * texto. El `title` sale del catálogo del módulo (`$titleKey`), no del
+     * genérico de `errors.title.*`. Solo lo emite `Curso`.
+     *
+     * @param  array<string, string|int|float>  $detailParams
+     * @param  array<string, list<array{code: string, message: string, params?: array<string, mixed>}>>  $errors
+     */
+    public static function academicYearClosed(string $titleKey, string $detailKey, array $detailParams = [], array $errors = []): self
+    {
+        return new self(409, 'academic-year-closed', $detailKey, $detailParams, $errors, [], $titleKey);
     }
 
     public static function tooManyRequests(int $retryAfterSeconds): self

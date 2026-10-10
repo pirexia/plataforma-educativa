@@ -80,7 +80,10 @@
       "text": "We could not find a school at this address. Check the link or contact your school."
     },
     "documentTitleFormat": "{view} · {tenant}",
-    "localeChangeError": "The school has removed this language. The current language is kept."
+    "localeChangeError": "The school has removed this language. The current language is kept.",
+    "confirm": {
+      "cancel": "Cancel"
+    }
   },
   "home": {
     "greeting": "Hello, {name}",
@@ -111,7 +114,15 @@
       "rangeInvalid": "The \"from\" date is later than the \"to\" date.",
       "notApplied": "The filter was not applied: the list still shows the previous results.",
       "triggerWithCount": "{label} ({count})",
-      "booleanTrigger": "{label}: {value}"
+      "booleanTrigger": "{label}: {value}",
+      "entitySearch": "Search: {label}",
+      "entityPlaceholder": "Type to search",
+      "entityActive": "Filtered by: {name}",
+      "entityRemove": "Remove the \"{label}\" filter",
+      "entityLoading": "Loading…",
+      "entityUnknown": "Item not available",
+      "entityResults": "No results | One result | {count} results",
+      "entityError": "The search could not be completed. Please try again."
     },
     "columns": {
       "menu": "Columns",
@@ -153,7 +164,8 @@
     "announce": {
       "results": "No results | {count} result | {count} results",
       "loaded": "No results | {count} row loaded | {count} rows loaded",
-      "more": "No more rows were loaded | {count} more row loaded | {count} more rows loaded"
+      "more": "No more rows were loaded | {count} more row loaded | {count} more rows loaded",
+      "local": "{count} of {total} results | {count} of {total} result | {count} of {total} results"
     },
     "export": {
       "button": "Export",

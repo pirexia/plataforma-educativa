@@ -93,7 +93,9 @@
         "tableta": "Tablet",
         "bot": "Bot",
         "desconocido": "Unknown"
-      }
+      },
+      "empty": "There are no active sessions.",
+      "revokeFor": "Sign out the session on {device} started on {date}"
     },
     "mfa": {
       "method": {
@@ -337,7 +339,9 @@
         "empty": "No exemptions with this filter.",
         "revokeAction": "Revoke",
         "confirmRevoke": "Revoke this exemption?",
-        "confirmYes": "Yes, revoke"
+        "confirmYes": "Yes, revoke",
+        "tableCaption": "Temporary MFA exemptions",
+        "revokeActionFor": "Revoke the exemption of {name}"
       },
       "userPicker": {
         "label": "Search user",
@@ -355,6 +359,7 @@
       "intro": "Configure the institutional identity systems (Entra ID, Google Workspace, etc.) your staff can use to sign in with the school's credentials.",
       "loading": "Loading the catalogue…",
       "loadError": "The provider catalogue could not be loaded.",
+      "deleteError": "The identity provider could not be deleted.",
       "empty": "This school does not have any identity provider catalogued yet.",
       "create": "Add provider",
       "columns": {
@@ -363,7 +368,8 @@
         "status": "Status",
         "provisioningMode": "Provisioning",
         "secret": "Credential",
-        "protocol": "Protocol"
+        "protocol": "Protocol",
+        "actions": "Actions"
       },
       "status": {
         "enabled": "Enabled",
@@ -527,7 +533,10 @@
           "manual": "Uploaded manually"
         },
         "lastActiveError": "You cannot retire the last active certificate of an enabled provider: disable it first."
-      }
+      },
+      "tableCaption": "Identity provider catalogue",
+      "editFor": "Edit {name}",
+      "deleteFor": "Delete {name}"
     },
     "nav": {
       "passwordChange": "Password",

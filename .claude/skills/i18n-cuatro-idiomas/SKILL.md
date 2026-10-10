@@ -22,4 +22,5 @@ La capa 2 es la que se olvida y la que no se puede añadir después sin reescrib
 - Nunca construyas frases concatenando fragmentos traducidos: el orden cambia entre idiomas. Usa una clave por frase completa con parámetros.
 - Cuidado con plurales y géneros: usa el sistema de pluralización, no condicionales.
 - Toda clave nueva se añade a los cuatro ficheros de idioma en el mismo commit, aunque sea con el texto en castellano pendiente de traducir.
+- La traducción a en/de/fr de esas claves pendientes la hace el subagente `traductor` (Haiku), lanzado por la sesión orquestadora después de `implementer`. **Excepción**: textos legales, de consentimiento, de privacidad, de categoría especial o de documentos oficiales los traduce Sonnet (o una persona), nunca `traductor`.
 - Antes de cerrar un módulo, ejecuta el informe de cobertura de traducción.

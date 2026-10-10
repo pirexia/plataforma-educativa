@@ -25,6 +25,7 @@ class UserImportResource extends JsonResource
             'public_id' => $this->public_id,
             'original_filename' => $this->original_filename,
             'status' => $this->status,
+            'send_invitations' => $this->send_invitations,
             'row_count' => $this->row_count,
             'error_count' => $this->error_count,
             'created_count' => $this->created_count,
@@ -35,6 +36,7 @@ class UserImportResource extends JsonResource
                     now()->addMinutes((int) config('core.signed_url_ttl_minutes')),
                 )
                 : null,
+            'created_at' => $this->created_at,
             'validated_at' => $this->validated_at,
             'executed_at' => $this->executed_at,
         ];

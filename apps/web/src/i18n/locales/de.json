@@ -80,7 +80,10 @@
       "text": "Unter dieser Adresse wurde keine Schule gefunden. Prüfe den Link oder wende dich an deine Schule."
     },
     "documentTitleFormat": "{view} · {tenant}",
-    "localeChangeError": "Die Schule hat diese Sprache entfernt. Die aktuelle Sprache bleibt erhalten."
+    "localeChangeError": "Die Schule hat diese Sprache entfernt. Die aktuelle Sprache bleibt erhalten.",
+    "confirm": {
+      "cancel": "Abbrechen"
+    }
   },
   "home": {
     "greeting": "Hallo, {name}",
@@ -111,7 +114,15 @@
       "rangeInvalid": "Das Datum „von“ liegt nach dem Datum „bis“.",
       "notApplied": "Der Filter wurde nicht angewendet: Die Liste zeigt weiterhin die vorherigen Ergebnisse.",
       "triggerWithCount": "{label} ({count})",
-      "booleanTrigger": "{label}: {value}"
+      "booleanTrigger": "{label}: {value}",
+      "entitySearch": "Suchen: {label}",
+      "entityPlaceholder": "Zum Suchen eingeben",
+      "entityActive": "Gefiltert nach: {name}",
+      "entityRemove": "Filter „{label}“ entfernen",
+      "entityLoading": "Wird geladen …",
+      "entityUnknown": "Eintrag nicht verfügbar",
+      "entityResults": "Keine Ergebnisse | Ein Ergebnis | {count} Ergebnisse",
+      "entityError": "Die Suche konnte nicht durchgeführt werden. Bitte versuchen Sie es erneut."
     },
     "columns": {
       "menu": "Spalten",
@@ -153,7 +164,8 @@
     "announce": {
       "results": "Keine Ergebnisse | {count} Ergebnis | {count} Ergebnisse",
       "loaded": "Keine Ergebnisse | {count} Zeile geladen | {count} Zeilen geladen",
-      "more": "Keine weiteren Zeilen geladen | {count} weitere Zeile geladen | {count} weitere Zeilen geladen"
+      "more": "Keine weiteren Zeilen geladen | {count} weitere Zeile geladen | {count} weitere Zeilen geladen",
+      "local": "{count} von {total} Ergebnissen | {count} von {total} Ergebnis | {count} von {total} Ergebnissen"
     },
     "export": {
       "button": "Exportieren",

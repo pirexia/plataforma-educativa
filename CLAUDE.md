@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.5.3** · 2026-09-21 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.7.0** · 2026-10-10 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -48,22 +48,47 @@ Frases prohibidas: "¡Excelente idea!", "Tienes toda la razón" como apertura re
 
 ## 2. Modelos y agentes
 
+**Plan y modelo por defecto.** El plan es **Pro con límite de 5 horas**. El modelo por defecto de la sesión principal es **Sonnet** (fijado en `.claude/settings.json`, `"model": "sonnet"`). Opus se activa a mano (`/model opus`) solo para sesiones de especificación, arquitectura y planificación, y se vuelve a Sonnet al terminarlas. Los agentes se declaran con alias (`haiku`, `sonnet`, `opus`), nunca con un ID de versión: el alias apunta siempre a la versión vigente (hoy, la familia 5.5).
+
 | Tarea | Modelo |
 |-------|--------|
 | Especificaciones, arquitectura, planificación, decisiones de diseño, revisión crítica | **Opus** |
-| Implementación, refactor, tests, revisión de código, documentación | **Sonnet** |
-| Tareas mecánicas: formateo, renombrados, búsquedas, listados, commits rutinarios | **Haiku** |
+| Implementación, refactor, tests, revisión de código y de seguridad, coherencia de documentación, depuración, `memory.md` | **Sonnet** |
+| Tareas mecánicas: búsquedas e inventarios, ejecución de tests y linters con informe literal, traducción de claves de interfaz no legales, trámites de Git y GitHub (issues ya clasificados, PR, borrado de ramas, entrada de `CHANGELOG.md`), comprobaciones de existencia en documentación, formateo, renombrados | **Haiku** |
+
+| Agente | Modelo | Para qué |
+|--------|--------|----------|
+| `spec-writer`, `architect` | Opus | Especificación y ADR |
+| `implementer`, `test-writer` | Sonnet | Código y tests |
+| `security-reviewer`, `db-reviewer`, `doc-reviewer` | Sonnet | Revisiones obligatorias (nunca se rebajan a Haiku) |
+| `explorer` | Haiku | Búsquedas, inventarios, historial de Git y de GitHub (solo lectura) |
+| `verificador` | Haiku | Ejecuta suite y linters y devuelve el resultado literal; no corrige |
+| `traductor` | Haiku | Completa en/de/fr a partir de es-ES; nunca textos legales ni de consentimiento |
+| `doc-precheck` | Haiku | Pasada mecánica previa a `doc-reviewer`; no lo sustituye |
+| `janitor` | Haiku | `.gitignore`, formateo, commits rutinarios, issues ya clasificados, PR, ramas, `CHANGELOG.md` |
 
 - Trabaja en **modo auto**.
 - Cada subagente declara su modelo en su propia definición. No uses Opus en subagentes de ejecución.
-- **Cuota**: el plan es Pro con límite de 5 horas. Opus la consume rápido. Reserva Opus para sesiones de spec y plan; no lo uses para picar código.
-- Delega en subagentes todo lo que no necesite el contexto principal: exploración de código, lectura de documentación, revisiones. El contexto principal es un recurso escaso.
+- **Cuota**: Opus la consume rápido. Reserva Opus para sesiones de spec y plan; no lo uses para picar código.
+- Delega en subagentes todo lo que no necesite el contexto principal: exploración de código, lectura de documentación, revisiones, ejecución de la suite. El contexto principal es un recurso escaso.
+- **Subagentes que heredan el modelo de la sesión.** `fork`, `general-purpose` y `Plan` corren con el modelo de la sesión que los lanza. Para buscar usa siempre `explorer`, no `general-purpose`; para ejecutar tests o linters, `verificador`. Un `fork` solo se usa si el modelo de la sesión es el adecuado para la tarea: en una sesión Opus, el trabajo de ejecución va a un agente con nombre aunque se pierda la caché.
+- **Un subagente no lanza subagentes.** Quien encadena `implementer` → `traductor` → `verificador` → revisores es la sesión orquestadora.
 - **Segunda opinión externa (Codex, `ADR-049`/`ADR-050`)**: el plugin `openai/codex-plugin-cc` da una revisión adicional sobre código ya implementado, contra la cuota de OpenAI y no la de este plan. Protocolo de uso completo en la skill `revision-con-codex`. Solo lectura, sin autoridad de bloqueo, nunca sustituye a `db-reviewer`/`security-reviewer`/`doc-reviewer`, y un hallazgo suyo que contradiga un ADR vigente se cierra citando el ADR sin discutirlo — Codex no ha leído ninguno. **La prueba acotada de `ADR-049 §8` ya terminó** (evaluada, umbral formal no cumplido) y `ADR-050` la sustituye: uso **permanente y opcional** (no invocarla no es incumplimiento y no entra en la definición de terminado), sin revalidación periódica, con las condiciones de retirada inmediata de `ADR-050 §5.3` siempre armadas.
 
-**Aprovechamiento de la caché de prompt.** La sesión corre vía API: cada acierto de caché de Anthropic ahorra coste y tiempo; cada fallo reprocesa el contexto entero desde cero. La caché solo acierta si el *prefijo* de la petición (system prompt, definiciones de herramientas, turnos de conversación previos) coincide byte a byte con el de una petición reciente — vigencia por defecto de **5 minutos** desde el último acierto.
+**Copia de seguridad de la configuración de modelos y agentes.** La configuración anterior a la redistribución de modelos (este `CLAUDE.md`, `.claude/agents/`, `.claude/skills/`, `.claude/settings.json` y la tabla de agentes de `PLAN-IMPLEMENTACION.md`) está guardada en la etiqueta de Git **`config-claude-2026-10-08`** (commit `0ecd3a2`, publicada en el remoto). Si el usuario pide "volver a la configuración del 08/10/2026", en una rama `chore/` colgada de `develop`:
+
+```bash
+git fetch --tags
+git rm -r -q .claude/agents .claude/skills          # quita también los agentes añadidos después
+git checkout config-claude-2026-10-08 -- CLAUDE.md .claude/agents .claude/skills .claude/settings.json
+```
+
+`PLAN-IMPLEMENTACION.md` **no** se restaura entero, porque perdería el progreso del plan posterior a esa fecha: su tabla de agentes ("Anexo A · Subagentes recomendados") se copia a mano desde `git show config-claude-2026-10-08:PLAN-IMPLEMENTACION.md`. Después, PR a `develop` como cualquier otro cambio. La etiqueta no se mueve ni se borra.
+
+**Aprovechamiento de la caché de prompt.** Cada acierto de caché ahorra cuota y tiempo; cada fallo reprocesa el contexto entero desde cero. La caché solo acierta si el *prefijo* de la petición (system prompt, definiciones de herramientas, turnos de conversación previos) coincide byte a byte con el de una petición reciente — vigencia por defecto de **5 minutos** desde el último acierto.
 
 - Al programar cualquier espera de la sesión (`ScheduleWakeup` u otro mecanismo de pausa), evita duraciones alrededor de 300 s: pagan el fallo de caché sin amortizarlo. Usa menos de ~270 s si hace falta mantener la caché caliente, o 1200-1800 s si la espera es de fondo — nunca un valor redondo intermedio sin motivo.
-- Prefiere lanzar un subagente `fork` en vez de uno nuevo cuando la tarea necesita el contexto ya acumulado en la sesión: un `fork` comparte la caché de quien lo lanza; un subagente nuevo empieza siempre en frío.
+- Prefiere lanzar un subagente `fork` en vez de uno nuevo cuando la tarea necesita el contexto ya acumulado en la sesión y el modelo de la sesión es el adecuado para ella (ver arriba): un `fork` comparte la caché de quien lo lanza; un subagente nuevo empieza siempre en frío.
 - No cargues herramientas adicionales a mitad de sesión más veces de las necesarias (`ToolSearch` sobre herramientas diferidas, activar una skill que añade herramientas nuevas): cada herramienta nueva cambia el bloque de definiciones y invalida el prefijo cacheado para el resto de la sesión. Decide de una vez qué hará falta, no de forma incremental.
 - Esto no releva el protocolo de cierre de sesión de la sección 3 (cierre por cuota, cierre entre pasos del plan): esas normas son de higiene de contexto y priman sobre el ahorro de caché, aunque reabrir sesión pague un fallo de caché inevitable en el primer mensaje.
 
@@ -99,6 +124,8 @@ Frases prohibidas: "¡Excelente idea!", "Tienes toda la razón" como apertura re
 2. Mientras el paso esté en curso, `memory.md` mantiene una única nota viva por paso en su sección "Trabajo en curso" (se sobrescribe al actualizarse, no se acumula) con el hash hasta el que está verificado, la fecha, y qué queda con certeza por hacer.
 
 Un relanzamiento que encuentra esa nota confía en los commits que cubre sin volver a ejecutar la suite sobre ellos, y solo verifica de verdad lo que quede sin commitear o sea posterior a la nota. Esto **no** afloja la norma anterior: ahorra reverificación de lo ya confirmado, no habilita recortar, ampliar ni reinterpretar alcance por su cuenta — eso sigue estando fuera de lo que decide un subagente relanzado.
+
+**Cuándo se ejecuta la suite (`ADR-060 §4.4`).** Durante el trabajo, solo los ficheros o directorios afectados (`php -d memory_limit=-1 vendor/bin/pest <rutas>`). La suite completa (`composer test`: Unit y Feature en paralelo, una base `plataforma_test_N` por proceso, y `Concurrency` en serie) se ejecuta **una vez en local antes de abrir el PR**, y CI la repite en cada *push*. Los revisores no la relanzan salvo necesidad justificada en su informe. El mensaje `Verificado` dice su alcance: `(suite completa)` o `(ficheros afectados: …)`, y un relanzamiento solo da por buena la suite completa con un `Verificado` de suite completa. Las bases por proceso se crean con el script de `SYSADMIN.md`; `composer test:serie` queda como vuelta atrás.
 
 ---
 

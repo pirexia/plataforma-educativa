@@ -22,7 +22,8 @@ use Illuminate\Support\Str;
 /**
  * funcional.md §4.3, api.md §3 `POST /users`. Validación de negocio
  * (INV-010) que no expresa una regla de Laravel sobre un campo aislado:
- * unicidad entre vivos (RN-CORE-02/03), formato/dígito de documento,
+ * unicidad entre vivos (RN-CORE-02/03), catálogo y formato/dígito de
+ * documento (RN-CORE-90 a 93, `PersonDocumentRules`),
  * pertenencia del idioma a los activos (RN-CORE-13), y RPERM-013
  * (RN-CORE-08) sobre los roles solicitados.
  */
@@ -30,7 +31,7 @@ final class CreateUser
 {
     public function __construct(
         private readonly TenantSettingsReader $settings,
-        private readonly DocumentNumberValidator $documentValidator,
+        private readonly PersonDocumentRules $documentRules,
         private readonly PermissionResolver $permissions,
     ) {}
 
@@ -53,16 +54,12 @@ final class CreateUser
             $errors->add('email', 'core.validation.email_duplicate', 'core.validation.email_duplicate');
         }
 
-        $documentType = $person['document_type'] ?? null;
-        $documentNumber = $person['document_number'] ?? null;
-
-        if ($documentNumber !== null) {
-            if (! $this->documentValidator->isValid((string) $documentType, (string) $documentNumber)) {
-                $errors->add('person.document_number', 'core.validation.document_number_invalid', 'core.validation.document_number_invalid');
-            } elseif (Person::query()->where('document_type', $documentType)->where('document_number', $documentNumber)->exists()) {
-                $errors->add('person.document_number', 'core.validation.document_duplicate', 'core.validation.document_duplicate');
-            }
-        }
+        // RN-CORE-90 a 92: catálogo cerrado, par completo y valor canónico.
+        $document = $this->documentRules->check(
+            $person['document_type'] ?? null,
+            $person['document_number'] ?? null,
+            $errors,
+        );
 
         $roles = $this->resolveRoles($data['role_ids'] ?? [], $errors);
 
@@ -72,14 +69,14 @@ final class CreateUser
             $this->assertActorCanGrant($actor, $roles);
         }
 
-        return DB::transaction(function () use ($data, $person, $locale, $roles): array {
+        return DB::transaction(function () use ($data, $person, $locale, $roles, $document): array {
             $personModel = Person::create([
                 'given_name' => $person['given_name'],
                 'family_name_1' => $person['family_name_1'],
                 'family_name_2' => $person['family_name_2'] ?? null,
                 'birth_date' => $person['birth_date'] ?? null,
-                'document_type' => $person['document_type'] ?? null,
-                'document_number' => $person['document_number'] ?? null,
+                'document_type' => $document['type'],
+                'document_number' => $document['number'],
                 'contact_email' => $person['contact_email'] ?? null,
                 'contact_phone' => $person['contact_phone'] ?? null,
                 'locale' => $locale,
@@ -144,6 +141,30 @@ final class CreateUser
      */
     private function assertActorCanGrant(User $actor, Collection $roles): void
     {
+        $denied = $this->firstUngrantable($actor, $roles);
+
+        if ($denied !== null) {
+            throw ApiException::cannotGrantUnheldRolePermission();
+        }
+    }
+
+    /**
+     * RPERM-013 sin lanzar: lo usa la validación de la importación (#314)
+     * para avisar en la fase 1 de lo que la fase 2 rechazaría.
+     *
+     * @param  Collection<int, Role>  $roles
+     */
+    public function canGrant(User $actor, Collection $roles): bool
+    {
+        return $this->firstUngrantable($actor, $roles) === null;
+    }
+
+    /**
+     * @param  Collection<int, Role>  $roles
+     * @return array{code: string, scope: string}|null
+     */
+    private function firstUngrantable(User $actor, Collection $roles): ?array
+    {
         $grants = PermissionRole::query()
             ->whereIn('role_id', $roles->pluck('id'))
             ->where('effect', 'allow')
@@ -157,11 +178,10 @@ final class CreateUser
             }
 
             if (! $this->permissions->ownsScope($actor, $grant->permission_code, $scope)) {
-                throw ApiException::forbidden('core.authorization.cannot_grant_unheld_permission', [
-                    'code' => $grant->permission_code,
-                    'scope' => $scope->value,
-                ]);
+                return ['code' => $grant->permission_code, 'scope' => $scope->value];
             }
         }
+
+        return null;
     }
 }

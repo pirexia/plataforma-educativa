@@ -1,5 +1,7 @@
 # REQ-PERM · Permisos
 
+> **Paso 1.5b (APROBADO el 2026-10-05; implementado en `feature/REQ-PERM-ui-roles`, pendiente de revisión y merge)**: §12 fija los permisos de las pantallas de la interfaz (`funcional.md §20`) y §8 gana la regla `RN-PERM-47`. No declara ni siembra ningún permiso nuevo. La fila de `deny` de §8 se corrigió el mismo día (issue #170).
+>
 > Paso **1.5**. Este documento es doblemente peculiar y conviene decirlo antes de nada: `REQ-PERM` es **el módulo que define cómo funcionan los permisos** y, a la vez, **tiene permisos propios** que se resuelven con su propia maquinaria.
 >
 > **`REQ-PERM` no declara un catálogo propio.** No es un *bounded context* (`ADR-044 §4.10`), no tiene `module_code`, y no hay un `PermServiceProvider`. Los cuatro permisos nuevos de este paso los declara **`REQ-CORE`**, que es el dueño del recurso `roles`. Esta tabla es el reflejo documental de lo que `CoreServiceProvider::declaredPermissions()` pasará a declarar; **la fuente de verdad es el código** (`INV-007`, `ADR-034 §2`).
@@ -213,7 +215,7 @@ No hay salud, NEAE ni convivencia en `roles`, `role_user`, `permissions` ni `per
 
 > **Todo módulo que exponga un permiso con `is_special_category = true` emite un evento `read` en `audit_logs` en cada lectura de ese dato.**
 
-El mecanismo existe desde 0.9 (`read` está en el `CHECK` de `audit_logs.event` y `changes` va a `NULL` en ese evento). El test de arquitectura que lo hará cumplir es el candidato (2) de `ADR-044 §8`, que recoge `1.7b`/[#163](https://github.com/pirexia/plataforma-educativa/issues/163).
+El mecanismo existe desde 0.9 (`read` está en el `CHECK` de `audit_logs.event` y `changes` va a `NULL` en ese evento). Lo que hay hoy para hacerlo cumplir es `AR-09` (`apps/api/tests/Feature/Architecture/SpecialCategoryTripwireTest.php`, `ADR-056`, candidato (2) de `ADR-044 §8`, `1.7b`/[#163](https://github.com/pirexia/plataforma-educativa/issues/163)): **un cable trampa, no la regla real**. Hoy ningún permiso declarado es de categoría especial; el primero que aparezca hace fallar ese test hasta que su especificación diseñe el mecanismo de auditoría de lectura y lo sustituya por la regla de «todo permiso especial emite `read`».
 
 **Y 1.5 no tiene ningún consumidor que auditar.** Ni `REQ-CORE` ni `REQ-AUTH` exponen categoría especial. Se fija el contrato y **no se simula el consumidor**: inventar hoy un recurso de salud para poder probar el mecanismo sería el andamiaje sin consumidor que `ADR-044` reprocha en otros sitios.
 
@@ -235,16 +237,17 @@ Ampliación de `REQ-CORE/permisos.md §8`. Son las comprobaciones que **ningún 
 
 | Regla | Dónde | Efecto |
 |-------|-------|--------|
-| **`RPERM-013` con ámbitos** — nadie concede lo que no tiene, comparando pares `(código, ámbito)` con `todos` absorbiendo | `POST /roles`, `PUT /roles/{id}/permissions`, `PUT /users/{id}/roles`, `POST /users` con `role_ids` | `403` con `detail` que nombra el par que lo provoca (`api.md §9.2`) |
+| **`RPERM-013` con ámbitos** — nadie concede lo que no tiene, comparando pares `(código, ámbito)` con `todos` absorbiendo | `POST /roles`, `PUT /roles/{id}/permissions`, `PUT /users/{id}/roles`, `POST /users` con `role_ids` | `403` con `detail` y `errors.grant[0].params` = `{code, scope}` del par que lo provoca (`api.md §9.2`, `§9.2.1`) en `POST /roles` con `permissions` propias y `PUT /roles/{id}/permissions`; en `PUT /users/{id}/roles`, `POST /users` y `POST /roles` con `clone_from` el `403` es **genérico, sin `params` ni código o ámbito en `detail`** (issues #352 y #356, `api.md §8.4`): quien asigna o clona roles puede no poder leerlos. Con `clone_from`, los `422` de validación de lo clonado (`permission_retired`, `scope_not_applicable`, `scope_resolver_missing`, `permission_not_found`, `clone_requires_special_data_access`) siguen el mismo criterio: `code` estable, `errors.clone_from`, mensaje genérico y `params` vacío (issue #359) |
 | **`RPERM-013` sobre el atributo** — nadie activa `special_data_access` si él mismo no lo tiene | `POST /roles`, `PATCH /roles/{id}` | `403`. Es comprobación de **sujeto**, no de par |
-| **Las filas `deny` no están sujetas a `RPERM-013`** | `PUT /roles/{id}/permissions` | Se aceptan siempre. Restringir nunca necesita poseer |
+| **Las filas `deny` no están sujetas a `RPERM-013`** | `PUT /roles/{id}/permissions` | Se aceptan siempre. **Denegar** nunca necesita poseer. *(Corregido el 2026-10-05, issue [#170](https://github.com/pirexia/plataforma-educativa/issues/170): decía «Restringir nunca necesita poseer», que se leía como si estrechar un `allow` tampoco se comprobara. Estrechar un `allow` a un ámbito que el solicitante no posee **sí** da `403`: `RN-PERM-24`, `api.md §5.4`)* |
 | **Un `deny` nunca se hace inerte** | Resolutor | Aunque su módulo esté desactivado, su permiso retirado, su ámbito sin resolutor o su rol sin `special_data_access` (`funcional.md §4.3`) |
 | **La restricción de ámbito se comprueba en listado, detalle y exportación** | Todo recurso con ámbito restringido | Detalle que no la satisface ⇒ **`404`**, nunca `403` (`api.md §9.3`) |
 | **Módulo no utilizable ⇒ `403` antes que el permiso** | `EnsureModuleEnabled` | `urn:pge:error:module-disabled`, distinguible de `forbidden` sin analizar texto |
 | `RN-CORE-06` *(vigente)* — nadie se cambia los roles a sí mismo | `PUT /users/{id}/roles` | `409` |
-| `RN-CORE-07` *(vigente)* — siempre al menos un `administrador_centro` vivo y activo | `DELETE /users/{id}`, `POST /users/{id}/status`, `PUT /users/{id}/roles` | `409` |
+| `RN-CORE-07` *(vigente)* — siempre al menos un `administrador_centro` vivo y activo | `DELETE /users/{id}`, `POST /users/{id}/status`, `PUT /users/{id}/roles` | `409`. Serializada por tenant con el mismo bloqueo que `RN-PERM-47` y releída bajo él (issue #349) |
+| **`RN-PERM-47`** *(1.5b, decisión del usuario del 2026-10-05)* — el centro no pasa nunca de tener a no tener **un mismo** usuario vivo y activo que posea de forma efectiva, con `todos`, **todos** los permisos de `ProvisionTenantDefaults::ADMIN_CENTRO_PERMISSIONS` (no retirados, de módulos utilizables). Complementa `RN-CORE-07`: aquella protege la **titularidad del rol**; esta, los **permisos**, que `RPERM-013` haría irrecuperables. No compara códigos de rol | `PUT /roles/{id}/permissions`, `PATCH /roles/{id}` (con `special_data_access`), `PUT /users/{id}/roles`, `DELETE /users/{id}`, `POST /users/{id}/status` | `409` con `errors.administration_capacity[0].code` = `core.validation.administration_capacity_lost` y `errors.administration_capacity[0].params.codes` (lista); nada se guarda (`api.md §9.2.1`, `§14.5`, `funcional.md §20.2.1`) |
 | **Un rol `is_system` no se crea, no se elimina, no cambia de `code` ni de `name`** | `POST`/`PATCH`/`DELETE /roles` | `409` o `422` según el caso |
-| **Un rol con asignaciones vivas no se elimina** | `DELETE /roles/{id}` | `409` con `params.users_count` |
+| **Un rol con asignaciones vivas no se elimina** | `DELETE /roles/{id}` | `409` con `errors.role[0].params.users_count` (`api.md §9.2.1`; corregido el 2026-10-05, decía `params.users_count` de primer nivel) |
 | Aislamiento de tenant | Todas las rutas | Un `public_id` de otro tenant ⇒ `404`, nunca `403` |
 
 ---
@@ -317,3 +320,56 @@ Los criterios completos están en `funcional.md §17`. Los que verifican **esta*
 - **`CA-PERM-073`/`CA-PERM-074`** — `GET /me/effective-permissions` responde `200` a un usuario **sin ningún permiso**, y `GET /users/{id}/effective-permissions` responde `403` sin `permiso_efectivo.leer` **aunque el `public_id` sea el suyo propio** (§2.2, `funcional.md §7.11`).
 - **Test del bloqueo que `OPEN-PERM-07` evita**: `administrador_centro`, recién sembrado, **puede conceder** `rol_datos_especiales.actualizar` a otro rol (tiene el permiso) y **no puede** activar `special_data_access` por sí mismo (le falta el atributo). Los dos lados en el mismo test, porque el valor de la decisión está en que se cumplan a la vez.
 - **Test de rol personalizado**: crear por API un rol con `auditoria.leer` de ámbito `propios`, asignarlo, y comprobar el listado y el detalle. **Es el test que demuestra que la regla 6 de la *skill* se cumple**: ninguna parte del motor conoce el código de ese rol, porque no existía cuando se escribió.
+
+---
+
+## 12. Paso 1.5b · Permisos de las pantallas (APROBADO el 2026-10-05)
+
+> `funcional.md §20`. **1.5b no declara ningún permiso nuevo, no cambia ninguna siembra y no cambia ningún `applicable_scopes`.** Lo que sigue es la matriz pantalla × acción × permiso que la interfaz aplica. La interfaz oculta y deshabilita; **el servidor decide** (`INV-002`): todo lo de esta tabla lo vuelve a comprobar el *endpoint* correspondiente.
+
+### 12.1 Pantallas y acciones
+
+| Pantalla (ruta) | Acción | Permiso exigido en la interfaz | Lo comprueba además el servidor | Notas |
+|-----------------|--------|--------------------------------|----------------------------------|-------|
+| `core-roles` | Ver listado | `rol.leer` (ruta) | `GET /roles` | Existe desde 1.9d |
+| `core-roles` | «Nuevo rol» | `rol.crear` | `POST /roles` | Sustituye `RN-CORE-75` |
+| `core-role-new` | Crear rol | `rol.crear` (ruta) | `POST /roles` | — |
+| `core-role-new` / `core-role-edit` | Control `special_data_access` | `rol_datos_especiales.actualizar`; deshabilitado si la posesión derivada es «no» (`funcional.md RN-PERM-31`) | `POST`/`PATCH /roles` + posesión (`RN-PERM-11`) | Nunca por código de rol |
+| `core-role-detail` | Ver ficha y concesiones | `rol.leer` (ruta) | `GET /roles/{id}` | — |
+| `core-role-detail` | Marcar categoría especial | `permiso.leer` (sin él, no se pide `GET /permissions` y la columna no se pinta) | `GET /permissions` | `RN-CORE-62` |
+| `core-role-detail` | «Editar datos» | `rol.actualizar` | `PATCH /roles/{id}` | — |
+| `core-role-detail` | «Editar concesiones» | `rol.actualizar` y `is_system = false` (`OPEN-PERM-10` = B: los del sistema, en solo lectura; se clonan) | `PUT /roles/{id}/permissions` + `RN-PERM-24` + `RN-PERM-47` | La API sigue admitiendo editar roles del sistema; `RN-PERM-47` es lo que protege al centro |
+| `core-role-detail` | «Clonar» | `rol.crear` | `POST /roles` + `RPERM-013` sobre lo clonado | — |
+| `core-role-detail` | «Eliminar» | `rol.eliminar` y `is_system = false`; deshabilitado con `users_count > 0` | `DELETE /roles/{id}` (`409`) | `is_system` es un dato, no un código de rol |
+| `core-role-detail` | «Ver usuarios con este rol» | `usuario.leer` | `GET /users?role=` | Navegación al listado existente |
+| `core-role-clone` | Clonar | `rol.crear` (ruta) + `rol.leer` para cargar el origen | `POST /roles` con `clone_from` | — |
+| `core-role-edit` | Editar datos | `rol.actualizar` (ruta) + `rol.leer` para cargar | `PATCH /roles/{id}` | — |
+| `core-role-permissions` | Editar concesiones (matriz, rejilla de edición de `RN-CORE-53`) | `rol.actualizar` (ruta) + `rol.leer` + `permiso.leer` para cargar; ámbitos según lo efectivo del solicitante (`GET /me/effective-permissions`, sin permiso); marca de módulo no contratado solo con `modulo.leer` | `PUT /roles/{id}/permissions` con `RN-PERM-24` y `RN-PERM-47` | Sin `rol.leer`/`permiso.leer`, estado propio, sin petición (`RN-PERM-25`). Rol del sistema: matriz en solo lectura |
+| `core-user-detail` | «Ver permisos efectivos» | `permiso_efectivo.leer` | — | Acción nueva en la ficha de 1.9b |
+| `core-user-effective-permissions` | Ver permisos efectivos de otro usuario | `permiso_efectivo.leer` (ruta) | `GET /users/{id}/effective-permissions` | Sin exportación (§2.1) |
+
+**Ninguna ruta nueva usa `permissions: []`**: la lista cerrada de `RN-CORE-24` sigue en siete (`OPEN-PERM-14` = A: sin pantalla «Mis permisos» en 1.5b).
+
+### 12.2 Qué cambia en quién ve qué, por rol predefinido
+
+Nada nuevo se concede. Con la siembra vigente (§5 y `REQ-CORE/permisos.md §4.1`):
+
+| Rol | Ve en 1.5b |
+|-----|------------|
+| `administrador_centro` | Todas las pantallas y acciones de §12.1. El control de `special_data_access` aparece **deshabilitado** (tiene el permiso, no el atributo: §5, §7.4); puede **delegar** `rol_datos_especiales.actualizar` en el editor |
+| `direccion` | Listado y ficha de roles (`rol.leer`), sin columna de categoría especial (no tiene `permiso.leer`) y sin ninguna acción de escritura. **No** ve permisos efectivos de nadie (§5.2) |
+| Resto | Nada de 1.5b |
+
+### 12.3 Reglas de autorización de la interfaz que no son un permiso
+
+| Regla | Efecto en la interfaz |
+|-------|------------------------|
+| `RN-PERM-24` (#170) | En el editor, los ámbitos que el solicitante no posee aparecen deshabilitados con su motivo, salvo el valor ya guardado de la fila; «Denegar» y «Sin conceder» siempre disponibles (`funcional.md RN-PERM-33`) |
+| `RN-PERM-11` | `special_data_access` deshabilitado sin posesión derivada |
+| `RN-PERM-16`/`-17` | «Eliminar» ausente en roles del sistema y deshabilitado con titulares |
+| `RN-PERM-46` | Ninguna decisión por código de rol (`CA-CORE-102`) |
+| `RN-PERM-47` | La interfaz **no** la anticipa (`RN-CORE-61`): muestra el `409` con los permisos afectados y cómo resolverlo, conservando los cambios sin guardar |
+
+### 12.4 Verificación de `RN-PERM-47`
+
+`CA-PERM-046` a `CA-PERM-049` (Pest, `funcional.md §20.17.1`): retirada y `deny` sobre el rol que da el conjunto completo; `deny` asignado por rol a otro usuario; desactivación y baja del último titular completo aunque `RN-CORE-07` lo permitiría; centro que no cumplía antes; permisos retirados y de módulos no utilizables fuera del conjunto; y serialización ante escrituras concurrentes (`CA-PERM-049` tiene tres niveles: el **mecanismo** del bloqueo por tenant y una escritura secuencial en `AdministrationCapacityTest`; las ventanas deterministas dentro de una conexión en `ConcurrentSnapshotTest`; y, desde el issue #351, **dos procesos PHP reales, con conexión y transacción propias, solapados** en `tests/Concurrency/RealConcurrencyTest.php`, que cubre dos **bajas** (`DELETE /users/{id}`, llamando al controlador, sin pasar por HTTP) de los dos únicos titulares completos. **No** solapa dos `PUT /roles/{id}/permissions` reales: comparten `protect()`, pero ese camino solo lo cubren los niveles anteriores). `CA-PERM-137` (Vitest) cubre cómo lo muestra la interfaz.

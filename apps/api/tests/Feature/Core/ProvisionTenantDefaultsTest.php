@@ -88,11 +88,12 @@ test('administrador_centro recibe los 32 permisos previos más los cuatro de REQ
         // actualizar/eliminar de 1.4b, permisos.md §F.7, mismo criterio)
         // más los cuatro de REQ-PERM/permisos.md §5 (1.5, OPEN-PERM-07):
         // rol.crear, rol.eliminar, rol_datos_especiales.actualizar,
-        // permiso_efectivo.leer.
+        // permiso_efectivo.leer, más los cinco de REQ-CURSO/permisos.md §4
+        // (1.10, OPEN-CURSO-14, CA-CURSO-064).
         expect(Role::where('code', 'administrador_centro')->first()
             ->getConnection()->table('permission_role')
             ->join('roles', 'roles.id', '=', 'permission_role.role_id')
-            ->where('roles.code', 'administrador_centro')->count())->toBe(36);
+            ->where('roles.code', 'administrador_centro')->count())->toBe(41);
 
         foreach (['rol.crear', 'rol.eliminar', 'rol_datos_especiales.actualizar', 'permiso_efectivo.leer'] as $code) {
             expect($codesFor('administrador_centro'))->toContain($code);
@@ -100,7 +101,7 @@ test('administrador_centro recibe los 32 permisos previos más los cuatro de REQ
 
         $direccionRole = Role::where('code', 'direccion')->firstOrFail();
         $direccionPermissions = PermissionRole::where('role_id', $direccionRole->id)->pluck('permission_code')->sort()->values()->all();
-        expect($direccionPermissions)->toBe(['asignacion_rol.leer', 'configuracion.leer', 'modulo.leer', 'rol.leer', 'usuario.leer']);
+        expect($direccionPermissions)->toBe(['asignacion_rol.leer', 'configuracion.leer', 'curso_academico.leer', 'curso_historico.leer', 'modulo.leer', 'rol.leer', 'usuario.leer']);
 
         $docenteRole = Role::where('code', 'docente')->firstOrFail();
         expect(PermissionRole::where('role_id', $docenteRole->id)->count())->toBe(0);

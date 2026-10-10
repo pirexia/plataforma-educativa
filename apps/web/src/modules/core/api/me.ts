@@ -9,8 +9,8 @@ export function getMe(): Promise<User> {
 export interface UpdateMePayload {
   person?: Partial<{
     locale: string
-    contact_email: string
-    contact_phone: string
+    contact_email: string | null
+    contact_phone: string | null
   }>
 }
 

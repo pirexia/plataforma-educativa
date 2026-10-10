@@ -2,7 +2,6 @@
 
 namespace App\Providers;
 
-use App\Models\AcademicYear;
 use App\Models\ModuleSubscription;
 use App\Models\Person;
 use App\Models\Role;
@@ -41,7 +40,6 @@ class AppServiceProvider extends ServiceProvider
             'person' => Person::class,
             'user' => User::class,
             'role' => Role::class,
-            'academic_year' => AcademicYear::class,
             'module_subscription' => ModuleSubscription::class,
         ]);
     }

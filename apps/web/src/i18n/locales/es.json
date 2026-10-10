@@ -80,7 +80,10 @@
       "text": "No hemos encontrado ningún centro en esta dirección. Comprueba el enlace o contacta con tu centro."
     },
     "documentTitleFormat": "{view} · {tenant}",
-    "localeChangeError": "El centro ha retirado este idioma. Se mantiene el idioma actual."
+    "localeChangeError": "El centro ha retirado este idioma. Se mantiene el idioma actual.",
+    "confirm": {
+      "cancel": "Cancelar"
+    }
   },
   "home": {
     "greeting": "Hola, {name}",
@@ -111,7 +114,15 @@
       "rangeInvalid": "La fecha «desde» es posterior a la fecha «hasta».",
       "notApplied": "El filtro no se ha aplicado: la lista sigue mostrando los resultados anteriores.",
       "triggerWithCount": "{label} ({count})",
-      "booleanTrigger": "{label}: {value}"
+      "booleanTrigger": "{label}: {value}",
+      "entitySearch": "Buscar: {label}",
+      "entityPlaceholder": "Escriba para buscar",
+      "entityActive": "Filtrado por: {name}",
+      "entityRemove": "Quitar el filtro «{label}»",
+      "entityLoading": "Cargando…",
+      "entityUnknown": "Elemento no disponible",
+      "entityResults": "Ningún resultado | Un resultado | {count} resultados",
+      "entityError": "No se ha podido buscar. Inténtelo de nuevo."
     },
     "columns": {
       "menu": "Columnas",
@@ -153,7 +164,8 @@
     "announce": {
       "results": "Sin resultados | {count} resultado | {count} resultados",
       "loaded": "Sin resultados | {count} fila cargada | {count} filas cargadas",
-      "more": "No se han cargado más filas | {count} fila más cargada | {count} filas más cargadas"
+      "more": "No se han cargado más filas | {count} fila más cargada | {count} filas más cargadas",
+      "local": "{count} de {total} resultados | {count} de {total} resultado | {count} de {total} resultados"
     },
     "export": {
       "button": "Exportar",

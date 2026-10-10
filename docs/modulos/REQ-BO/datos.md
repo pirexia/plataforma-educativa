@@ -40,7 +40,7 @@
 | Campo | Tipo | Nulo | Defecto | Descripción |
 |-------|------|------|---------|-------------|
 | `id` | `bigserial` | No | | Clave interna |
-| `public_id` | `text` | No | | ULID, `UNIQUE`. Único identificador expuesto (`ADR-029`) |
+| `public_id` | `character(26)` | No | | ULID, `UNIQUE`. Único identificador expuesto (`ADR-029`) |
 | `email` | `text` | No | | Correo de acceso. `UNIQUE` sobre `lower(email)` entre los vivos |
 | `name` | `text` | No | | Nombre para mostrar y para la auditoría |
 | `password` | `text` | No | | Hash. Nunca viaja en ninguna respuesta |
@@ -109,7 +109,7 @@ Pivote entre administrador y rol interno. Los roles son **cuatro y fijos** (`REQ
 | Campo | Tipo | Nulo | Descripción |
 |-------|------|------|-------------|
 | `id` | `bigserial` | No | |
-| `public_id` | `text` | No | ULID, `UNIQUE` |
+| `public_id` | `character(26)` | No | ULID, `UNIQUE` |
 | `cidr` | `cidr` | No | Rango permitido. **Tipo nativo de PostgreSQL**, no `text` |
 | `description` | `text` | No | «Oficina», «VPN». Obligatorio: una entrada sin descripción nadie se atreve a retirarla |
 | `enabled` | `boolean` | No | `DEFAULT true` |
@@ -254,7 +254,7 @@ Verificado por `CA-BO-104`.
 | Campo | Tipo | Nulo | Descripción |
 |---|---|---|---|
 | `id` | `bigserial` | No | |
-| `public_id` | `text` | No | ULID, `UNIQUE` |
+| `public_id` | `character(26)` | No | ULID, `UNIQUE` |
 | `platform_admin_id` | `bigint` | No | FK → `platform_admins.id`, `ON DELETE CASCADE` |
 | `token_hash` | `text` | No | Sólo el hash SHA-256 (mismo criterio que `RN-CORE-19`, sin equivalente numerado propio de `REQ-BO`). El token en claro no se persiste en ningún sitio: sólo viaja en el *payload* de `SendPlatformAdminInvitationEmail` y en el correo generado |
 | `expires_at` | `timestamptz` | No | `now() + config('backoffice.invitation_ttl_days')` (`BO_INVITATION_TTL_DAYS`, por defecto 7 — mismo valor por defecto que `CORE_INVITATION_TTL_DAYS`, configurado por separado) |
@@ -281,7 +281,7 @@ La tabla que sostiene «ninguna acción destructiva en un solo paso» (`REQ-BO-0
 | Campo | Tipo | Nulo | Descripción |
 |-------|------|------|-------------|
 | `id` | `bigserial` | No | |
-| `public_id` | `text` | No | ULID, `UNIQUE` |
+| `public_id` | `character(26)` | No | ULID, `UNIQUE` |
 | `action` | `text` | No | Vocabulario **cerrado** por `CHECK`: `tenant.eliminar`, `tenant.baja`, `modulo.descontratar_masivo`. Se amplía por migración, nunca por dato |
 | `payload` | `jsonb` | No | La operación **congelada**: sus parámetros exactos, resueltos a `public_id` |
 | `payload_fingerprint` | `text` | No | Hash de `payload` normalizado. Es lo que ata la aprobación a **esta** operación (`RN-BO-20`) |
@@ -334,7 +334,7 @@ La tabla que `ADR-033 §7` reservó y `ADR-036` fechó en este paso.
 | Campo | Tipo | Nulo | Descripción |
 |-------|------|------|-------------|
 | `id` | `bigserial` | No | |
-| `public_id` | `text` | No | ULID, `UNIQUE` |
+| `public_id` | `character(26)` | No | ULID, `UNIQUE` |
 | `occurred_at` | `timestamptz` | No | Cuándo. **No hay `created_at`**: la fila no se crea después del hecho, mismo criterio que `audit_logs` |
 | `actor_type` | `text` | No | `CHECK IN ('platform_admin','console','system')`. Vocabulario **propio y cerrado**, distinto del de `audit_logs` (`ADR-039`) |
 | `actor_platform_admin_id` | `bigint` | Sí | FK → `platform_admins.id`. Nulo para `console` y `system`. `CHECK ((actor_type = 'platform_admin') = (actor_platform_admin_id IS NOT NULL))` |
@@ -516,7 +516,7 @@ Leer el vencimiento de un período de gracia de una tabla de auditoría signific
 | Campo | Tipo | Nulo | Descripción |
 |-------|------|------|-------------|
 | `id` | `bigserial` | No | |
-| `public_id` | `text` | No | ULID, `UNIQUE` |
+| `public_id` | `character(26)` | No | ULID, `UNIQUE` |
 | `affected_tenant_id` | `bigint` | **No** | FK → `tenants.id`. **Referencia, no propiedad** (`ADR-047 §4.2`). Se llamaba `tenant_id` hasta la aplicación de `ADR-047`: ese nombre queda reservado a la columna de propiedad —la que lleva `DEFAULT app.current_tenant_id()`, la política `tenant_isolation` y la clave foránea compuesta de `ADR-033 §6`—, y usarlo aquí hacía fallar **dos** tests de esquema (`ADR-047 §1.1`, puntos 1 y 2) |
 | `from_status` | `text` | Sí | Nulo sólo en el alta. `CHECK` contra los cinco valores de `TenantStatus` |
 | `to_status` | `text` | No | Ídem |
@@ -804,7 +804,7 @@ Mismo reparto que el catálogo de módulos (`ADR-034 §5`, `ADR-045 §9`) y que 
 | Campo | Tipo | Nulo | Defecto | Descripción |
 |-------|------|------|---------|-------------|
 | `id` | `bigserial` | No | | |
-| `public_id` | `text` | No | | ULID, `UNIQUE` |
+| `public_id` | `character(26)` | No | | ULID, `UNIQUE`. Era `text` en la migración de 1.6e; `2026_10_07_100100_narrow_feature_flags_public_id_to_char26` (1.7b, `ADR-056` AR-05) lo estrecha a `character(26)` |
 | `key` | `text` | No | | `UNIQUE`. Es el identificador que usa el código: `flag('comedor.reserva_v2')` |
 | `module_code` | `text` | Sí | | FK → `modules.code`. Nulo para *flags* del núcleo |
 | `name_key`, `description_key` | `text` | No | | Claves de traducción |
@@ -826,7 +826,7 @@ Una sola tabla con discriminador, y no cuatro tablas por eje. Motivo: **la prece
 | Campo | Tipo | Nulo | Descripción |
 |-------|------|------|-------------|
 | `id` | `bigserial` | No | |
-| `public_id` | `text` | No | ULID, `UNIQUE` |
+| `public_id` | `character(26)` | No | ULID, `UNIQUE`. Era `text`; estrechado a `character(26)` por la migración de 1.7b (`ADR-056` AR-05) |
 | `feature_flag_id` | `bigint` | No | FK → `feature_flags.id`, `ON DELETE CASCADE` |
 | `scope_type` | `text` | No | `CHECK IN ('global','tenant','early_adopters','percentage','role')`. Vocabulario **cerrado**, se amplía por migración |
 | `affected_tenant_id` | `bigint` | Sí | FK → `tenants.id`. **Sólo** con `scope_type = 'tenant'`. **Referencia, no propiedad** (mismo criterio que §4.3). Se llamaba `tenant_id` hasta la aplicación de `ADR-047 §4.2`; §9.3.1 explica por qué lleva el nombre de la categoría sin llevar su política |

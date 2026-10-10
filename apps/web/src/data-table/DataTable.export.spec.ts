@@ -325,6 +325,38 @@ describe('CA-CORE-190: errores de la exportación', () => {
     expect(alert.text()).toBe('No se ha podido generar la exportación. Inténtalo de nuevo.')
   })
 
+  it('CA-CORE-230 (S4, OPEN-CORE-39): la respuesta real `200 fallida` (kind, row_count y download_url nulos) pasa al fallo sin esperar a la duración máxima', async () => {
+    vi.useFakeTimers()
+    const statusFn = vi.fn().mockResolvedValue({
+      public_id: 'exp-1',
+      kind: 'users',
+      status: 'fallida',
+      row_count: null,
+      download_url: null,
+      expires_at: '2026-10-08T10:00:00Z',
+      error_code: 'core.export.generation_failed',
+    })
+    const wrapper = mountTable({
+      canExport: true,
+      request: vi.fn().mockResolvedValue({ public_id: 'exp-1' }),
+      status: statusFn,
+    })
+    await flushPromises()
+    await click(button('Exportar'))
+    await vi.advanceTimersByTimeAsync(EXPORT_POLL_INITIAL_MS)
+    await flushPromises()
+
+    expect(statusFn).toHaveBeenCalledTimes(1)
+    expect(wrapper.get('[data-slot="data-table-export-status"] [role="alert"]').text()).toBe(
+      'No se ha podido generar la exportación. Inténtalo de nuevo.',
+    )
+
+    // No se sigue consultando: tras mucho más que la espera inicial no hay otra consulta.
+    await vi.advanceTimersByTimeAsync(EXPORT_POLL_MAX_MS * 2)
+
+    expect(statusFn).toHaveBeenCalledTimes(1)
+  })
+
   it('409 se trata como «aún no está lista» y se sigue esperando, sin error', async () => {
     vi.useFakeTimers()
     const statusFn = vi

@@ -104,7 +104,7 @@ Actualización parcial. Se aceptan los grupos `regional`, `fiscal` y `branding` 
 
 - **Validación** (`INV-010`): `default_locale ∈ active_locales`; `active_locales ⊆ {es-ES,en,de,fr}` y no vacío (`ADR-021`); `timezone` identificador IANA; `currency` ISO 4217; `autonomous_community` del catálogo; colores `^#[0-9A-Fa-f]{6}$`; contraste de la paleta ≥ WCAG 2.2 AA (`RUX-BRAND-006`).
 - **Respuesta 200**: el recurso completo, igual que `GET`.
-- **Errores**: 401, 403, 422 (con `errors` por campo; el fallo de contraste incluye `ratio` y `required_ratio`)
+- **Errores**: 401, 403, 422 (con `errors` por campo; el fallo de contraste, código `contrast_insufficient`, va en `errors.branding[]` con `params.ratio` y `params.required`; corregido en 1.9e, el texto anterior decía `required_ratio`)
 - **Idempotencia**: no (`PATCH` con cuerpo parcial es naturalmente repetible)
 
 ---
@@ -184,7 +184,7 @@ Actualización parcial. Se aceptan los grupos `regional`, `fiscal` y `branding` 
         "family_name_2": "Gómez",
         "contact_email": "ana.perez@example.com",
         "contact_phone": "+34600000000",
-        "document_type": "DNI",
+        "document_type": "dni",
         "document_number": "00000000T",
         "birth_date": "1985-04-12",
         "locale": "es-ES"
@@ -219,7 +219,7 @@ Actualización parcial. Se aceptan los grupos `regional`, `fiscal` y `branding` 
     "family_name_1": "Pérez",
     "family_name_2": "Gómez",
     "birth_date": "1985-04-12",
-    "document_type": "DNI",
+    "document_type": "dni",
     "document_number": "00000000T",
     "contact_email": "ana.perez@example.com",
     "contact_phone": "+34600000000",
@@ -232,10 +232,13 @@ Actualización parcial. Se aceptan los grupos `regional`, `fiscal` y `branding` 
 
 Obligatorios: `email`, `person.given_name`, `person.family_name_1`. El resto es opcional. `person.locale` toma por defecto `tenant_settings.default_locale`.
 
+**Documento de identidad (`RN-CORE-90` a `-93`, `funcional.md §14.6.4`, desde 1.9c).** `person.document_type` solo admite el catálogo cerrado `dni`, `nie`, `pasaporte` (grafía exacta, en minúsculas; el `enum` de OpenAPI sale del enumerado `App\Modules\Core\Domain\DocumentType`). Tipo y número se informan **los dos o ninguno**. El servidor guarda el número **canónico**: sin espacios al principio ni al final y en mayúsculas, y en `dni`/`nie` además sin espacios ni guiones intermedios (`12345678-z` → `12345678Z`; los puntos no se quitan). Formato tras normalizar: `dni` `^\d{8}[A-Z]$` con letra de control módulo 23; `nie` `^[XYZ]\d{7}[A-Z]$` con la misma letra (X, Y, Z valen 0, 1, 2); `pasaporte` `^[A-Z0-9]{1,32}$`, sin dígito de control. La letra de control se comprueba salvo que `core.documents.validate_check_digit` esté desactivado (solo fuera de producción, `OPEN-CORE-06`); **el formato se exige siempre**. La unicidad (`RN-CORE-03`) se comprueba sobre el valor normalizado.
+
 - **Respuesta 201**: el recurso de usuario completo, más `invitation` si se emitió.
 - **Errores**
-  - `422` — validación: correo duplicado entre vivos (`RN-CORE-02`), documento duplicado (`RN-CORE-03`), idioma fuera de los activos (`RN-CORE-13`), formato de documento inválido, rol inexistente.
-  - `403` — `RPERM-013`: se intenta asignar un rol con permisos que el solicitante no posee (`RN-CORE-08`).
+  - `422` — validación: correo duplicado entre vivos (`RN-CORE-02`), documento duplicado (`RN-CORE-03`, `core.validation.document_duplicate`), idioma fuera de los activos (`RN-CORE-13`), tipo fuera del catálogo (campo `person.document_type`, `core.validation.document_type_invalid`; **no refleja el valor recibido**, ni en el mensaje ni en `params`), tipo sin número o número sin tipo (`core.validation.document_incomplete`, en el campo que falta), número inválido para el tipo (`person.document_number`, `core.validation.document_number_invalid`), rol inexistente.
+  - **Cambio de contrato de 1.9c** (`ADR-038 §7`): el campo deja de aceptar texto libre; es incompatible en sentido estricto, sin más clientes que la SPA propia y sin producción (`H0`). Anotado en `CHANGELOG.md`.
+  - `403` — `RPERM-013`: se intenta asignar un rol con permisos que el solicitante no posee (`RN-CORE-08`). Sin `params` ni código/ámbito en `detail` (issue #352, `REQ-PERM/api.md §8.4`).
 - **Idempotencia**: no. La unicidad de correo y documento ya impide el duplicado.
 
 ---
@@ -252,6 +255,7 @@ Obligatorios: `email`, `person.given_name`, `person.family_name_1`. El resto es 
 
 - **Permiso**: `usuario` · `actualizar` · `todos`
 - **Cuerpo**: cualquier subconjunto de `email` y de los campos de `person`. **No** acepta `status`, `roles` ni `deleted_at`.
+- **Documento (`RN-CORE-93`)**: si llega `person.document_type`, `person.document_number` o ambos, se valida el par **resultante** (el campo no enviado se toma del valor guardado) con las reglas del alta, y la unicidad excluye a la propia persona. Vaciar el par se hace enviando los dos a `null`; enviar solo uno a `null` es `core.validation.document_incomplete`. Un `PATCH` que no toca el documento no lo revalida.
 - **Efecto colateral**: cambiar `email` revoca las invitaciones vivas (`RN-CORE-11`) y emite `UserEmailChanged`.
 - **Respuesta 200**: recurso actualizado.
 - **Errores**: 401, 403, 404, 422 (mismas validaciones que el alta)
@@ -265,7 +269,7 @@ Baja **lógica** (`INV-004`): `deleted_at` informado y `status = 'inactivo'`.
 - **Permiso**: `usuario` · `eliminar` · `todos`
 - **Respuesta 204**
 - **Errores**
-  - `409` — es el propio solicitante (`RN-CORE-06`), o es el último Administrador de Centro vivo (`RN-CORE-07`).
+  - `409` — es el propio solicitante (`RN-CORE-06`), o es el último Administrador de Centro vivo (`RN-CORE-07`; comprobada de nuevo bajo el bloqueo por tenant, issue #349, sin cambio de contrato), o dejaría al centro sin ningún usuario activo con la capacidad completa de administración (`RN-PERM-47`, 1.5b; código `core.validation.administration_capacity_lost`).
   - 401, 403, 404
 
 ---
@@ -285,7 +289,7 @@ Alta y baja administrativa entre `activo` e `inactivo`. Separado de `PATCH` porq
 - **Permiso**: `usuario` · `actualizar` · `todos`
 - **Cuerpo**: `{ "status": "activo" }`
 - **Errores**
-  - `409` — transición no permitida (`pendiente` solo sale por canje de invitación, `RN-CORE-04`), o dejaría al centro sin Administrador de Centro activo (`RN-CORE-07`), o es el propio solicitante (`RN-CORE-06`).
+  - `409` — transición no permitida (`pendiente` solo sale por canje de invitación, `RN-CORE-04`), o dejaría al centro sin Administrador de Centro activo (`RN-CORE-07`) o sin la capacidad completa de administración (`RN-PERM-47`, 1.5b), o es el propio solicitante (`RN-CORE-06`).
 
 ---
 
@@ -414,8 +418,8 @@ Reemplaza el conjunto completo de roles del usuario. Se usa `PUT` y no `POST`/`D
 - **Cuerpo**: `{ "role_ids": ["01J8...", "01J8..."] }`
 - **Respuesta 200**: los roles resultantes
 - **Errores**
-  - `403` — algún rol concede un permiso que el solicitante no posee (`RPERM-013`, `RN-CORE-08`)
-  - `409` — retiraría el rol `administrador_centro` al último que lo tiene (`RN-CORE-07`), o el solicitante se está modificando a sí mismo (`RN-CORE-06`)
+  - `403` — algún rol concede un permiso que el solicitante no posee (`RPERM-013`, `RN-CORE-08`); sin `params` ni código/ámbito en `detail` (issue #352, `REQ-PERM/api.md §8.4`)
+  - `409` — retiraría el rol `administrador_centro` al último que lo tiene (`RN-CORE-07`) o dejaría al centro sin la capacidad completa de administración (`RN-PERM-47`, 1.5b), o el solicitante se está modificando a sí mismo (`RN-CORE-06`)
   - `422` — algún `role_id` no existe en el tenant
   - `404` — algún `role_id` pertenece a otro tenant (indistinguible de inexistente, por diseño)
 - **Emite**: `UserRolesChanged`
@@ -481,6 +485,7 @@ email;given_name;family_name_1;family_name_2;document_type;document_number;birth
 ```
 
 - **Errores**: 401, 403, 413, 415, 422
+- **Incidencias del lote** (`error_summary`/`report.csv`, no son errores HTTP): entre otras, `rol_no_concedible` (el actor no posee todos los permisos del rol, `RPERM-013`) y `limite_filas_superado` (más de `core.import_max_rows` filas: lote `fallido`).
 
 ### `GET /api/v1/user-imports` · `GET /api/v1/user-imports/{public_id}`
 
@@ -493,6 +498,7 @@ email;given_name;family_name_1;family_name_2;document_type;document_number;birth
   "public_id": "01J8...",
   "original_filename": "personal-2026.csv",
   "status": "validado",
+  "send_invitations": true,
   "row_count": 5,
   "error_count": 2,
   "created_count": null,
@@ -501,12 +507,21 @@ email;given_name;family_name_1;family_name_2;document_type;document_number;birth
     { "line": 5, "column": "document_number", "code": "formato_invalido", "message": "..." }
   ],
   "report_url": "https://.../signed?...",
+  "created_at": "2026-08-19T09:00:00Z",
   "validated_at": "2026-08-19T09:01:00Z",
   "executed_at": null
 }
 ```
 
 `error_summary` trae como mucho 50 entradas; el informe completo está en `report_url` (CSV, URL firmada de caducidad corta). Los `code` de error son claves de traducción (`INV-009`), no texto.
+
+`created_at` (instante ISO 8601 UTC) se devuelve desde 1.9c (S8, `CA-CORE-238`), en el listado y en el detalle.
+
+`send_invitations` (booleano, lo elegido al subir el fichero) se devuelve también desde 1.9c, en el listado y en el detalle: cambio **aditivo y compatible** que decidió el usuario el 2026-10-03 (S8 ampliado) para que la confirmación de «Ejecutar» diga siempre si se enviarán invitaciones (`RN-CORE-73`, `CA-CORE-235`), también para quien no subió el lote.
+
+**Idioma de `message` (S9, #285, `OPEN-CORE-38` = A, `CA-CORE-239`).** El mensaje de cada incidencia —en `error_summary` y en la columna `message` de `report.csv`— sale en el idioma de **quien subió el lote** (`user_imports.created_by` → `person.locale` si está entre los idiomas activos del centro; si no, `default_locale`, la misma precedencia que `RN-CORE-34`), no en el del proceso del trabajo. Queda persistido en ese idioma: otro administrador que abra el lote lo lee en el de quien lo subió.
+
+**Catálogo de tipos de documento en la importación (`RN-CORE-90` a `-92`, `funcional.md §14.6.4.6`).** La cabecera no cambia. `document_type` admite `dni`, `nie` y `pasaporte` **sin distinguir mayúsculas y con espacios alrededor** (`OPEN-CORE-50` = A; la API exige el código exacto) y se guarda el código canónico; el número se normaliza antes de validar y de comprobar duplicados, dentro del fichero y contra la base de datos. Incidencias de documento (`code`, columna): `tipo_documento_no_valido` (`document_type`), `documento_incompleto` (`document_type` o `document_number`, la que falte), `formato_invalido` (`document_number`), `duplicado_en_fichero` y `duplicado_en_base_de_datos` (`document_number`). `ExecuteUserImport` revalida con las mismas reglas: un lote validado antes del catálogo y ejecutado después se revalida con él.
 
 ### `POST /api/v1/user-imports/{public_id}/execute`
 
@@ -539,9 +554,9 @@ Descarta un lote no ejecutado y borra su fichero fuente y su informe del bucket.
 
 | Parámetro | Nota |
 |-----------|------|
-| `from`, `to` | Rango sobre `occurred_at`, ISO 8601 con zona. Máximo configurable de ventana |
+| `occurred_at_from`, `occurred_at_to` | Rango sobre `occurred_at`, ISO 8601 con zona, ambos inclusivos. Máximo configurable de ventana. Sufijo `_from`/`_to` de `ADR-038 §5.2` (issue [#266](https://github.com/pirexia/plataforma-educativa/issues/266)); los nombres anteriores `from`/`to` **ya no existen** y, por `ADR-038 §5.2`, se ignoran sin error |
 | `actor_id` | ULID de usuario |
-| `actor_type` | `user\|system\|console\|import\|platform` |
+| `actor_type` | `user\|system\|console\|import\|platform\|anonymous` |
 | `event` | `created\|updated\|deleted\|restored\|read\|exported`, repetible |
 | `auditable_type` | Alias del *morph map* (`user`, `person`, `role`, …), repetible |
 | `auditable_id` | `public_id` de la entidad, para el historial de un registro concreto |
@@ -585,16 +600,19 @@ Descarta un lote no ejecutado y borra su fichero fuente y su informe del bucket.
 ### `POST /api/v1/audit-logs/exports`
 
 - **Permiso**: `auditoria` · `exportar` · `todos`
-- **Cuerpo**: los mismos filtros de `GET /audit-logs` más `{ "format": "csv" }`
+- **Cuerpo**: `{ "format": "csv" }` más **exactamente los filtros estructurados de `GET /audit-logs`**, con los mismos nombres y las mismas reglas de validación (`ADR-054 §8.2`, issue [#267](https://github.com/pirexia/plataforma-educativa/issues/267)): `occurred_at_from`, `occurred_at_to`, `actor_id`, `actor_type`, `event` (array), `auditable_type` (array), `auditable_id`, `module`. Sin `cursor`, `limit`, `sort` ni `q`. Las reglas escalares son las mismas (`IndexAuditLogsRequest::filterRules()`) y el filtrado lo aplica el mismo código que el listado (`AuditLogFilter`); un ULID o un `actor_type` inválido da `422` igual que en el listado
 - **Respuesta 202**: `{ "public_id": "01J8...", "status": "pendiente" }`
 - **Errores**: `422` si el rango supera el límite de filas configurado o si `format` es `pdf` (**diferido a 1.17**, `funcional.md` §4.6)
-- **Efecto**: encola la generación (`INV-012`) y audita la solicitud con `event = 'exported'`. Las celdas de texto que empiezan por un carácter de fórmula (`= + - @`, tab, CR, LF) se escriben con un apóstrofo delante (`RN-CORE-36`): un consumidor que parsee el CSV verá ese apóstrofo en el dato
+- **Efecto**: encola la generación (`INV-012`) y audita la solicitud con `event = 'exported'`. La escritura la hace la clase común `App\Support\Csv\CsvWriter` (`RN-CORE-47`/`48`, issue [#270](https://github.com/pirexia/plataforma-educativa/issues/270)): las celdas de texto que empiezan por un carácter de fórmula (`= + - @`, tab, CR, LF) o por espacio en blanco seguido de `= + - @` se escriben con un apóstrofo delante (`RN-CORE-36`/`48`): un consumidor que parsee el CSV verá ese apóstrofo en el dato
+- **Fichero** (esquema fijo, `ADR-054 §8.1`): columnas `occurred_at` (instante ISO 8601 con desfase, p. ej. `2026-01-31T09:15:00+00:00`), `actor`, `actor_type`, `auditable_type`, `auditable_public_id`, `event`, `request_id`; filas por `occurred_at` ascendente y `id`. Dialecto de `ADR-054 §10.3`: coma, UTF-8 con BOM, CRLF, comillas dobles de RFC 4180 sin carácter de escape, cabecera siempre. **Cambio visible respecto a la versión anterior**: el fichero gana BOM y CRLF, y `occurred_at` pasa de `2026-01-31T09:15:00.000000Z` (milisegundos y `Z`) a `2026-01-31T09:15:00+00:00`. Las cabeceras y los códigos (`actor_type`, `event`) siguen como estaban: el idioma de la cabecera quedó decidido por `ADR-055` (`OPEN-054-01` resuelta): son identificadores técnicos.
+- **Contrato técnico** (`ADR-055`, `RN-CORE-59`): cabeceras y valores enumerados son los identificadores técnicos de la API, iguales para todos los usuarios y en cualquier idioma, y no dependen de quién lo solicita (la columna `actor` es el nombre de la persona, un dato y no un código; formatos incluidos: ISO 8601, punto decimal). Añadir una columna al final es compatible y consta en `CHANGELOG.md`; renombrar, quitar o reordenar columnas no lo es. Las columnas legibles `<col>_label` (opción C) son una ampliación futura, no implementada.
+- **Cambio de contrato (renombrado directo, sin periodo de compatibilidad)**: `from`/`to` → `occurred_at_from`/`occurred_at_to` en `GET /audit-logs` y en este cuerpo (#266). No hay producción (`H0` abierto) y el único consumidor es la SPA (`apps/web/src/modules/core/api/auditLogs.ts`), así que no se aplica expand/contract.
 
 ### `GET /api/v1/data-exports/{public_id}`
 
 Estado y descarga de una exportación. Primitiva compartida (`funcional.md` §7).
 
-- **Permiso**: el del recurso exportado — para una exportación de auditoría, `auditoria` · `exportar` · `todos`. Además, **solo el solicitante** puede descargarla.
+- **Permiso**: el del recurso exportado según su `kind` (tabla cerrada `DataExportsController::PERMISSION_BY_KIND`; un `kind` ausente de ella se deniega, `INV-002`): `audit_logs` → `auditoria` · `exportar`; `users` → `usuario` · `exportar` (1.9b). Además, **solo el solicitante** puede descargarla. Contrato ampliado en 1.9b (S3/S4): ver `§14.2`.
 - **Respuesta 200**
 
 ```json
@@ -608,6 +626,7 @@ Estado y descarga de una exportación. Primitiva compartida (`funcional.md` §7)
 }
 ```
 
+- **Exportación fallida** (1.9b, `OPEN-CORE-39` = A): responde `200` con `status: "fallida"`, `error_code` y `download_url: null`, no `409`.
 - **Errores**: 401, 403, 404, `409` si aún no está completada (`status` `pendiente`/`generando`) y se pide la descarga, `410` si ya venció
 
 ---
@@ -721,10 +740,122 @@ Norma de `ADR-054 §8`-`§10` (`funcional.md` `RN-CORE-46`-`48` y `RN-CORE-58`).
 |---------|-------|--------|
 | Generación | Siempre en cola en servidor (`INV-012`), límite de filas con `422` (`RNF-LIM-004`), ámbito del permiso aplicado dentro del trabajo (`RN-PERM-15`), URL firmada de caducidad corta, evento `exported`, retención de siete días. Lo que ya hace 1.1 | `ADR-054 §8.3` |
 | Esquema del fichero | Fijo por recurso y documentado en OpenAPI: columnas, nombres, su orden y **el orden de las filas**. La solicitud no acepta `sort` | `OPEN-CORE-23` A, `ADR-054 §8.1` |
-| **Paridad de filtros** | El *endpoint* acepta **exactamente los filtros estructurados de su listado**, con los mismos nombres y la misma semántica, salvo paginación, `sort` y `q`. **Test exigible por *endpoint***: todo parámetro de filtro del listado en OpenAPI existe en el esquema de la solicitud de exportación, o el test falla. `POST /audit-logs/exports` **no cumple hoy** esta regla (`funcional.md §13.20`, punto 6; issue [#267](https://github.com/pirexia/plataforma-educativa/issues/267)) | `ADR-054 §8.2` |
+| **Paridad de filtros** | El *endpoint* acepta **exactamente los filtros estructurados de su listado**, con los mismos nombres y la misma semántica, salvo paginación, `sort` y `q`. **Test exigible por *endpoint***: todo parámetro de filtro del listado en OpenAPI existe en el esquema de la solicitud de exportación, o el test falla. `POST /audit-logs/exports` **cumple** la regla desde el issue [#267](https://github.com/pirexia/plataforma-educativa/issues/267) (test `ADR-054 §8.2 (#267)` en `AuditLogsEndpointsTest`) | `ADR-054 §8.2` |
 | **Texto libre** | **Ningún *endpoint* de exportación acepta `q`**. Si el listado del recurso acepta `q`, la exportación responde **`422`** al recibirlo, con código de error propio del recurso; no lo ignora | `ADR-054 §9`, `RN-CORE-58` |
 | Escritura CSV | Una sola clase en `apps/api/app/Support/Csv/`, sin interfaz; tipos de columna declarados por el generador; neutralización solo sobre texto y cabecera, con las dos condiciones de `RN-CORE-48` | `ADR-054 §10.1`/`§10.2` |
 | Dialecto | **Coma, UTF-8 con BOM, CRLF**, comillas dobles de RFC 4180 sin carácter de escape, cabecera siempre, sin `sep=` | `OPEN-CORE-24` A, `ADR-054 §10.3` |
-| Idioma de cabecera y enumerados | **Abierto** (`OPEN-054-01`); bloquea el primer *endpoint* de exportación nuevo (`1.9b`) | `ADR-054`, «Preguntas abiertas» |
+| Idioma de cabecera y enumerados | **Resuelto** (`OPEN-054-01`): contrato técnico, sin traducir (`RN-CORE-59`) | `ADR-055` |
 
-**No cambia nada de `POST /audit-logs/exports` en 1.9**: el dialecto y la clase común le llegan con la rama `fix/` del issue #270, después de la ratificación de `ADR-054` (`funcional.md §13.1.3`). Cuando llegue, la salida de la exportación de auditoría ganará BOM y CRLF: un consumidor que la procese por programa debe saberlo (se anotará en su OpenAPI y en `CHANGELOG.md` en esa rama). La paridad de filtros y los nombres del rango de fechas de la auditoría (`from`/`to` frente a `occurred_at_from`/`occurred_at_to`, contra `ADR-038 §5.2`) se corrigen antes de que `1.9b` conecte su pantalla (`funcional.md §13.20`, puntos 5 y 6; issues [#266](https://github.com/pirexia/plataforma-educativa/issues/266) y [#267](https://github.com/pirexia/plataforma-educativa/issues/267)).
+**`POST /audit-logs/exports` no cambió en 1.9; cambió después, en la rama `fix/REQ-CORE-005-auditoria-csv-rangos-y-filtros`**: la clase común `CsvWriter` y el dialecto (#270; la salida ganó BOM y CRLF, anotado en `CHANGELOG.md`), los nombres `occurred_at_from`/`occurred_at_to` (#266) y la paridad de filtros (#267) ya están implementados. `OPEN-054-01` (idioma de cabecera y enumerados) quedó resuelta por `ADR-055`: `1.9b` no tiene este bloqueo.
+
+---
+
+## 14. Paso 1.9b (pantallas de gestión): *endpoints* nuevos y cambios
+
+> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. Resueltas las preguntas que afectan a este documento: `OPEN-CORE-32` (B, esquema del CSV de usuarios de §14.1), `-39` (A, S4) y `-31` (B, §14.5). S9 (`OPEN-CORE-38` = A, resuelta) está **implementado** en 1.9c; S10 (`OPEN-CORE-34` = B) y la parte de auditoría de S7 están **implementados** en 1.9d (`funcional.md §14.25`). La numeración `S1`-`S10` es la de `funcional.md §14.11`.
+>
+> **Implementado en `1.9b`** (2026-10-02): S1 a S7 (la parte de `GET /audit-logs`/`POST /audit-logs/exports` de S7 es de `1.9d`, §14.3). Precisiones de la implementación: (a) el cuerpo de `POST /users/exports` acepta `format` **opcional** (por defecto `csv`; la SPA no lo envía, `CA-CORE-222`); (b) el `422` de `q` lleva el código `core.validation.export_search_not_supported` en `errors.q`; (c) un valor fuera de vocabulario en un filtro de lista por comas (`invitations.status`, `users.locale`) responde `422` con `core.validation.in_list` (regla `App\Support\Api\Rules\InList`, mensaje `core.validation.filter_value_invalid`); (d) `GET /users?status=` y `?role=` siguen sin validar sus valores (como antes de 1.9b, solo aceptan listas): el `POST /users/exports` sí valida `status`, `locale` y `role` (ULID) por elemento; (e) `GET /users/{id}?include_deleted=` valida el booleano con la regla común (`422` si no es `true`/`false`).
+
+Todo lo que sigue cumple `ADR-038` (envoltura, `problem+json`, filtros por comas, `q`, `sort` en lista blanca declarada como `enum` en OpenAPI) y se documenta en `apps/api/openapi/` antes de mezclar (`CLAUDE.md §10`). Salvo S4, ningún cambio altera una respuesta que hoy sea correcta según este documento.
+
+### 14.1 `POST /api/v1/users/exports` (S1, nuevo)
+
+- **Permiso**: `usuario` · `exportar` · `todos` (`permisos.md §2`, declarado desde 1.1 sin *endpoint*). Con `include_deleted: true`, además `usuario` · `eliminar` · `todos` (igual que `GET /users`).
+- **Cuerpo** (JSON): `{ "format": "csv" }` más **exactamente los filtros estructurados de `GET /users`**, con los mismos nombres y reglas (`ADR-054 §8.2`); los múltiples como *array*:
+
+```json
+{
+  "format": "csv",
+  "status": ["activo", "inactivo"],
+  "role": ["01J8..."],
+  "locale": ["es-ES", "en"],
+  "include_deleted": false
+}
+```
+
+- **No acepta** `q` (⇒ `422` con código propio del recurso, `RN-CORE-58`), ni `sort`, `page`, `per_page` (parámetros desconocidos: se ignoran por `ADR-038 §5.2`, salvo `q`, que es conocido del recurso y por eso se rechaza).
+- **Respuesta 202**: `{ "public_id": "01J8...", "status": "pendiente" }`.
+- **Errores**: 401; 403 (sin `usuario.exportar`, o `include_deleted` sin `usuario.eliminar`); 422 (`q` presente, valor de filtro inválido, `format` distinto de `csv`, o el conjunto supera `CORE_EXPORT_MAX_ROWS`, `RNF-LIM-004`).
+- **Efecto**: crea la fila de `data_exports` con `kind = 'users'` y `filters` igual al cuerpo sin `format` (nunca `q`, `ADR-054 §9`), la audita (`created` automático y `exported`, como la de auditoría) y encola `GenerateUserExport` en `core-exports` (`INV-012`).
+- **Fichero** (contrato técnico, `ADR-055`; esquema fijo, `ADR-054 §8.1`; `OPEN-CORE-32` = B, decisión del usuario del 2026-10-01). Se documenta igual en OpenAPI (respuesta `text/csv` del objeto descargado, con el esquema de columnas como descripción del fichero, como el de auditoría):
+
+  | # | Columna | Origen | Tipo | Vacío |
+  |---|---------|--------|------|-------|
+  | 1 | `public_id` | `public_id` | Texto (ULID) | Nunca |
+  | 2 | `status` | `status` (código: `pendiente`, `activo`, `inactivo`) | Texto | Nunca |
+  | 3 | `deleted_at` | `deleted_at` | Instante ISO 8601 con desfase | Si no está dado de baja |
+  | 4 | `created_at` | `created_at` | Instante ISO 8601 con desfase | Nunca |
+  | 5 | `email` | `email` | Texto | Nunca |
+  | 6 | `given_name` | `person.given_name` | Texto | Nunca |
+  | 7 | `family_name_1` | `person.family_name_1` | Texto | Nunca |
+  | 8 | `family_name_2` | `person.family_name_2` | Texto | Si no tiene |
+  | 9 | `contact_email` | `person.contact_email` | Texto | Si no tiene |
+  | 10 | `contact_phone` | `person.contact_phone` | Texto | Si no tiene |
+  | 11 | `locale` | `person.locale` | Texto | Nunca |
+  | 12 | `roles` | `roles[].code` ordenados alfabéticamente y unidos con `\|` | Texto | Si no tiene roles |
+
+  Cabecera exacta: `public_id,status,deleted_at,created_at,email,given_name,family_name_1,family_name_2,contact_email,contact_phone,locale,roles`. **Filas** ordenadas por `family_name_1`, `given_name` y `public_id`, ascendente. **No contiene** `document_type`, `document_number` ni `birth_date` (minimización, `INV-008`): añadirlos después sería un cambio aditivo (columnas al final, `ADR-055 §2.4`) que requiere decisión expresa del usuario. Enumerados = código técnico; instantes ISO 8601 con desfase; el generador no traduce (`RN-CORE-59`). Escritura con `App\Support\Csv\CsvWriter`, tipos declarados, neutralización de texto (`RN-CORE-48`), dialecto de `ADR-054 §10.3`. Nombre del objeto: `tenants/{tenant_public_id}/exports/{export_public_id}.csv`.
+- **Acotado dentro del trabajo**: el trabajo vuelve a aplicar la decisión de permiso del solicitante (`RN-PERM-15`); con el único ámbito admitido (`todos`) no reduce filas, pero la llamada existe para que un ámbito futuro no la necesite añadir.
+
+### 14.2 `GET /api/v1/data-exports/{public_id}` (S3, S4)
+
+Sustituye la descripción de §8 en dos puntos; el resto no cambia.
+
+| Aspecto | Antes (código en `495d19c`) | Después |
+|---------|-----------------------------|---------|
+| Permiso | `auditoria.exportar` fijo en la ruta | El del `kind` de la exportación, por correspondencia cerrada en código: `audit_logs` → `auditoria.exportar`; `users` → `usuario.exportar`. `kind` sin correspondencia ⇒ `403`. Sigue exigiendo ser el solicitante |
+| `status = fallida` | `409` con `core.validation.export_failed` | **`200`** con `{ "public_id", "kind", "status": "fallida", "row_count": null, "download_url": null, "expires_at", "error_code": "<clave>" }` (**`OPEN-CORE-39`**) |
+| `pendiente` / `generando` | `409 core.validation.export_not_ready` | Igual (el cliente de 1.9 lo trata como «seguir esperando») |
+| `completada` | `200` con `download_url` firmada | Igual |
+| Vencida | `410` | Igual |
+
+S4 es un **cambio de contrato** respecto al código, no respecto a este documento (que ya describía `200` con `status`): se anota en `CHANGELOG.md`. Único cliente: la SPA (`H0` abierto).
+
+### 14.3 Cambios compatibles en *endpoints* existentes
+
+| # | *Endpoint* | Cambio | Error nuevo |
+|---|-----------|--------|-------------|
+| S5 | `GET /users` | `sort` admite `-email` (`enum` completo: `family_name_1`, `-family_name_1`, `email`, `-email`, `created_at`, `-created_at`) | — |
+| S6 | `GET /users/{public_id}` | Parámetro `include_deleted` (`true`/`false`, `ADR-038 §5.2`). Con `true` exige además `usuario.eliminar`; un usuario eliminado sin él sigue siendo `404` (`CA-CORE-014`) | `403` si `include_deleted=true` sin `usuario.eliminar` |
+| S7 | `GET /invitations` | `status` admite varios valores por comas (`OR`) | `422` si algún valor no es del enumerado |
+| S7 | `GET /users` | `locale` admite varios valores por comas; mismo cambio en el cuerpo de `POST /users/exports` (*array*) | `422` ídem |
+| S7 | `GET /audit-logs` | `actor_type` y `module` admiten varios valores por comas; en `POST /audit-logs/exports` pasan a admitir *array* (paridad, `ADR-054 §8.2`) | `422` ídem |
+| S8 | `GET /user-imports`, `GET /user-imports/{public_id}`, `POST /user-imports` | Cada recurso incluye `created_at` (ya aparecía en el ejemplo de §7) | — |
+| S9 | — (trabajo `ValidateUserImport`) | `error_summary[].message` y la columna `message` de `report.csv` en el idioma de quien subió el lote (`OPEN-CORE-38`, issue #285). La forma no cambia | — |
+
+Todos son aditivos en el sentido de `ADR-038 §7`: un cliente que envíe un solo valor, o que no envíe el parámetro nuevo, obtiene lo mismo que antes.
+
+### 14.4 `GET /api/v1/audit-logs/facets` (S10, `OPEN-CORE-34` = B resuelta)
+
+- **Permiso**: `auditoria` · `leer` (con su ámbito; las facetas no revelan filas, solo los valores filtrables del catálogo).
+- **Respuesta 200** (recurso desnudo, `ADR-038 §3.1`; sin traducir, `ADR-038 §3.2`):
+
+```json
+{
+  "modules": ["auth", "core"],
+  "auditable_types": [
+    { "alias": "user", "module": "core" },
+    { "alias": "role", "module": "core" }
+  ],
+  "events": ["created", "updated", "deleted", "restored", "read", "exported", "login", "logout", "password_reset_requested"],
+  "actor_types": ["user", "system", "console", "import", "platform", "anonymous"]
+}
+```
+
+- **Implementado en `1.9d`.** Los valores del ejemplo son ilustrativos: los reales los fija el código (`App\Modules\Core\Domain\AuditCatalog`, que usan también el filtro y la validación de `GET /audit-logs`). Hoy `modules` solo contiene `core`. Sale del catálogo declarado en código (`ModuleCatalog`, *morph map* y vocabularios del `CHECK`), no de consultar `audit_logs`: sin coste por volumen y sin revelar qué entidades tienen registros.
+- **Errores**: 401, 403.
+
+### 14.5 Lo que 1.9b consume sin cambiar
+
+Todos los *endpoints* de §2-§8 que enumera `funcional.md §14.3`, tal como están, salvo lo dicho en §14.1-§14.4. Desde `OPEN-CORE-31` = B, también, en 1.9e:
+
+- **`GET /modules`** (§6, `modulo.leer`), en **solo lectura**. No está paginado (`{"data": [...]}` sin `meta`): el cliente lo presenta como una única página (`funcional.md` `RN-CORE-87`). `name` viene traducido por el servidor. **`PATCH /module-subscriptions/{id}` no se consume.**
+- **`PATCH /me`** (§3), autoservicio por identidad, sin permiso: la pantalla de perfil envía solo `person.contact_email` y `person.contact_phone` (el idioma lo sigue enviando el selector de 1.8, §12.1). Ningún cambio de contrato. En particular, **no** se tocan `POST /users`, `PATCH /users/{id}`, `DELETE /users/{id}`, `POST /users/{id}/restore`, `POST /users/{id}/status`, `POST /users/{id}/invitations`, `DELETE /invitations/{id}`, `GET`/`PUT /users/{id}/roles`, `GET /roles`, `GET /roles/{id}`, `POST /user-imports`, `POST /user-imports/{id}/execute`, `DELETE /user-imports/{id}`, `GET`/`PATCH /tenant/settings` ni `PUT`/`DELETE /tenant/settings/assets/{kind}`. Las tres vistas migradas de `REQ-AUTH` (`funcional.md §14.13`) consumen sus *endpoints* de `REQ-AUTH` sin cambios.
+
+### 14.6 Errores que el cliente interpreta
+
+Ninguno nuevo en la correspondencia de `funcional.md §12.6`. Los `409` de reglas de negocio (`cannot_modify_self`, `last_school_administrator`, `invitation_requires_pending_user`, `import_not_validated`, `import_already_executed`, `invitation_already_accepted`, `email_duplicate`) se muestran con su `detail` ya traducido por el servidor, sin interpretar el código en el cliente (`ADR-038 §6.3`).
+
+### 14.7 Documentación desincronizada detectada
+
+`§8` (`GET /audit-logs`, parámetro `event`) enumera seis valores; el vocabulario vigente tiene nueve (`datos.md` Parte 0.9, `ADR-039`). No se corrige en esta sección (`funcional.md §14.16`, hallazgo 9).

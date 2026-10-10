@@ -23,6 +23,8 @@ return [
         'contrast_insufficient' => 'The palette contrast (:ratio:1) does not reach the required minimum (:required:1, WCAG 2.2 AA).',
         'document_number_invalid' => 'The document number is not valid for the given type.',
         'document_duplicate' => 'A living person with the same document type and number already exists in this school.',
+        'document_type_invalid' => 'The given document type is not supported.',
+        'document_incomplete' => 'Provide both the document type and the document number, or neither.',
         'email_duplicate' => 'A living user with this access email already exists in this school.',
         'role_not_found' => 'One of the given roles does not exist in this school.',
         'role_permission_exceeds_own' => 'You cannot assign a role that grants permissions you do not have yourself.',
@@ -39,6 +41,8 @@ return [
         'cursor_invalid' => 'The pagination cursor is not valid for this query.',
         'export_range_too_large' => 'The requested range exceeds the allowed row limit; narrow it and try again.',
         'pdf_export_not_available' => 'PDF export is not available yet; use CSV.',
+        'filter_value_invalid' => 'The value ":value" is not valid for this filter.',
+        'export_search_not_supported' => 'The user export does not support free-text search ("q"); use the structured filters.',
         'export_not_ready' => 'The export is still being generated; try again in a few minutes.',
         'export_failed' => 'The generation of this export has failed.',
         'import_not_validated' => 'The batch must be validated before it can be executed.',
@@ -54,13 +58,22 @@ return [
         'scope_resolver_missing' => 'The scope ":scope" cannot be granted yet: its resolver is not registered.',
         'permission_not_found' => 'The permission code ":code" does not exist in the catalog.',
         'permission_retired' => 'The permission code ":code" is no longer available.',
+        // Issue #359: mensajes genéricos de POST /roles con clone_from (sin código ni ámbito del origen).
+        'clone_source_permission_retired' => 'The source role contains a permission that is no longer available; it cannot be cloned.',
+        'clone_source_permission_not_found' => 'The source role contains a permission that does not exist in the catalog; it cannot be cloned.',
+        'clone_source_scope_not_applicable' => 'The source role contains a grant with a scope that cannot be granted; it cannot be cloned.',
+        'clone_source_scope_resolver_missing' => 'The source role contains a grant with a scope that cannot be granted yet; it cannot be cloned.',
+        'clone_source_not_clonable' => 'You cannot clone this role: it grants something you cannot activate.',
         'permission_duplicated' => 'The permission code ":code" appears more than once.',
         'role_is_system' => 'A role from the school\'s provisioning cannot be deleted.',
         'role_has_assignments' => 'This role has :users_count assigned user(s) and cannot be deleted.',
+        // REQ-PERM/funcional.md §20.2.1 (1.5b, RN-PERM-47).
+        'administration_capacity_lost' => 'This operation would leave the school with no active user holding all the administration permissions. Affected permissions: :codes. First grant those permissions to another active person at the school.',
     ],
 
     'authorization' => [
         'cannot_grant_unheld_permission' => 'You cannot grant permission ":code" with scope ":scope": you do not have it yourself.',
+        'cannot_grant_unheld_role_permission' => 'You cannot assign this role: it grants a permission you do not have yourself.',
         'special_data_access_not_held' => 'You cannot activate access to special category data: you do not have it yourself.',
     ],
 
@@ -69,6 +82,23 @@ return [
         'inerte_modulo' => 'This permission\'s module is not enabled for this school.',
         'inerte_datos_especiales' => 'The grant comes from a role without access to special category data.',
         'inerte_sin_resolutor' => 'This grant\'s scope does not have a resolver yet.',
+    ],
+
+    // REQ-PERM/api.md §14.3 (1.5b, S-PERM-2): name of each resource of the
+    // permissions this module declares (`resource_label_key`).
+    'permissions' => [
+        'resources' => [
+            'usuario' => 'Users',
+            'invitacion' => 'Invitations',
+            'asignacion_rol' => 'Role assignments',
+            'rol' => 'Roles',
+            'permiso' => 'Permissions',
+            'configuracion' => 'Settings',
+            'modulo' => 'Modules',
+            'auditoria' => 'Audit',
+            'rol_datos_especiales' => 'Special-category data of a role',
+            'permiso_efectivo' => 'Effective permissions',
+        ],
     ],
 
     'idempotency' => [
@@ -85,5 +115,9 @@ return [
         'duplicado_en_base_de_datos' => 'The value of the ":column" column already belongs to another person or user of the school.',
         'idioma_no_activo' => 'The given language is not active for this school.',
         'rol_no_encontrado' => 'One of the given roles does not exist in this school.',
+        'rol_no_concedible' => 'Column “:column” includes a role you cannot grant: you do not hold all of its permissions yourself.',
+        'limite_filas_superado' => 'The file exceeds the maximum of :max data rows. Split it into several files.',
+        'tipo_documento_no_valido' => 'The given document type is not supported.',
+        'documento_incompleto' => 'Provide both the document type and the document number, or neither.',
     ],
 ];

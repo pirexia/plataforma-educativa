@@ -1,6 +1,6 @@
 # Manual de administración
 
-> Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre lo que ya tiene código detrás: el registro de auditoría (paso 0.9), las cuentas bloqueadas y el tiempo de sesión (paso 1.2), la autenticación en dos pasos por rol (paso 1.3), el correo como segundo factor, las excepciones temporales y la pantalla mínima de administración de MFA (paso 1.3b), la navegación, el panel de inicio, el selector de idioma y el control de modo de color (paso 1.8), y el manejo común de las tablas de datos (paso 1.9). El resto de secciones del manual de Administrador de Centro (usuarios, módulos contratados, configuración del centro, activos de marca) llegan con las pantallas pendientes de `REQ-CORE`, diferidas al paso **1.9b** (`OPEN-CORE-12`); el editor de roles y la matriz de permisos llegan con `REQ-PERM` (paso **1.5b**, posterior a 1.9) — el núcleo de autorización granular ya está implementado desde 1.5, pero solo por API, sin interfaz todavía.
+> Documento vivo, se amplía en cada fase con las pantallas que existan. Hoy cubre lo que ya tiene código detrás: el registro de auditoría (paso 0.9), las cuentas bloqueadas y el tiempo de sesión (paso 1.2), la autenticación en dos pasos por rol (paso 1.3), el correo como segundo factor, las excepciones temporales y la pantalla mínima de administración de MFA (paso 1.3b), la navegación, el panel de inicio, el selector de idioma y el control de modo de color (paso 1.8), el manejo común de las tablas de datos (paso 1.9), los usuarios y las invitaciones, con la exportación de usuarios y los diálogos de confirmación (paso 1.9b), la importación de usuarios con el catálogo de tipos de documento (paso 1.9c), la pantalla de auditoría y el listado de roles (paso 1.9d), y la configuración del centro, los activos de marca, los módulos contratados y el perfil propio (paso 1.9e), y los cursos académicos con su ciclo de vida (paso 1.10). El resto de secciones del manual de Administrador de Centro llegan con el último sub-paso de las pantallas pendientes de `REQ-CORE` (**1.9f**, `OPEN-CORE-30`); el editor de roles y la matriz de permisos llegan con `REQ-PERM` (paso **1.5b**, posterior a 1.9) — el núcleo de autorización granular ya está implementado desde 1.5, pero solo por API, sin interfaz todavía.
 
 ## Navegación y panel de inicio
 
@@ -16,6 +16,11 @@ El menú de usuario (arriba a la derecha, con tu nombre) reúne el acceso a tu c
 
 **Modo de color**: tres opciones — seguir el sistema operativo (por defecto), claro fijo, oscuro fijo. Es una preferencia de tu navegador, no se guarda en el servidor ni se comparte entre tus dispositivos.
 
+
+### Mis sesiones abiertas
+
+En **Mis sesiones** (`/cuenta/sesiones`, desde el menú de usuario) ves los dispositivos con los que tienes la sesión abierta. Cada una tiene un botón **«Cerrar sesión»**, y arriba hay **«Cerrar todas las demás sesiones»** (conserva solo la actual). Ambas acciones piden confirmación en un diálogo (`Esc` lo cierra sin hacer nada). En una pantalla estrecha, como la de un móvil, cada sesión se muestra como una **tarjeta**; en una ancha, como una fila de tabla paginada.
+
 ## Tablas de datos: filtrar, ordenar, elegir columnas y exportar
 
 Todas las listas de la aplicación (hoy, el cumplimiento de segundo factor de `/administracion/mfa`; después, usuarios, invitaciones o auditoría) se manejan igual. Esta sección es común a los manuales de todos los perfiles.
@@ -27,6 +32,268 @@ Todas las listas de la aplicación (hoy, el cumplimiento de segundo factor de `/
 - **En el móvil**. Por debajo de 768 píxeles, cada fila se muestra como una tarjeta con sus datos en lista. Algunas tablas de comparación (por ejemplo, calificaciones) se muestran siempre como tabla, con desplazamiento horizontal dentro de ella; se puede llegar a esa tabla y moverse por ella con el teclado.
 - **Vínculos compartibles**. Si la pantalla lo admite, la página, el orden y los filtros quedan en la dirección del navegador: puedes volver atrás, recargar o enviar el enlace a un compañero y veréis lo mismo. **El texto de búsqueda nunca se guarda en la dirección** (puede contener nombres de personas).
 - **Exportar** (solo si tu rol tiene el permiso de exportar ese recurso). El botón «Exportar» no descarga lo que ves en pantalla: pide al servidor que prepare un fichero con **todas** las filas que cumplen los filtros estructurados actuales (sin tener en cuenta el orden de la pantalla), y te avisa cuando está listo con un enlace de descarga que caduca. **Con una búsqueda escrita, el botón queda deshabilitado**: borra la búsqueda y los demás filtros sí se aplican. La preparación se hace en segundo plano; mientras tanto puedes seguir trabajando, pero **si sales de la pantalla no podrás descargar esa exportación desde aquí** (aparece un aviso). Si la exportación tarda más de 10 minutos, la pantalla deja de comprobarla y te ofrece «Comprobar de nuevo».
+- **Abrir el CSV en Excel**. Los ficheros CSV usan la coma como separador y codificación UTF-8. En Excel con configuración regional española, un doble clic puede mostrar todo en una sola columna. Para verlo bien: abre Excel en un libro vacío, ve a *Datos > Obtener datos > Desde texto/CSV*, elige el fichero y, en el cuadro de importación, indica como delimitador la **coma** y como origen **UTF-8**. Los acentos se ven bien porque el fichero lleva marca de orden de bytes (BOM). Las celdas de texto que empezarían por `=`, `+`, `-` o `@` llevan un apóstrofo delante para que Excel no las ejecute como fórmula.
+- **Columnas y valores del CSV**. Los ficheros exportados usan nombres técnicos de columna (`occurred_at`, `actor`, `actor_type`, `auditable_type`, `auditable_public_id`, `event`, `request_id`) y códigos de evento sin traducir (la columna `actor` lleva el nombre de la persona tal como figura en el sistema), iguales para todos los usuarios y en cualquier idioma, para que puedan procesarse con programas sin sorpresas. Las columnas con texto legible por idioma no están disponibles de momento. Esto describe el fichero de la auditoría; el de usuarios tiene sus propias doce columnas (véase «Exportar la lista de usuarios»).
+
+## Usuarios
+
+Menú **Administración > Usuarios** (`/administracion/usuarios`). Solo lo ves si tu rol tiene el permiso de consultar usuarios; cada botón de esta pantalla y de la ficha aparece solo si tu rol tiene el permiso de esa acción concreta (si falta uno, pídelo a quien administre los roles del centro).
+
+### La lista
+
+La lista se maneja como el resto de tablas (sección «Tablas de datos»). Muestra el nombre («Apellidos, Nombre», con enlace a la ficha), el correo de acceso, el estado y los roles; el idioma y la fecha de alta están ocultos por defecto (botón «Columnas»). **No muestra el documento de identidad, la fecha de nacimiento ni los datos de contacto**: la lista sirve para localizar a una persona; esos datos están en su ficha.
+
+- **Buscar** por nombre, apellidos o correo de acceso. La búsqueda no queda en la dirección del navegador.
+- **Filtrar** por estado (pendiente, activo, inactivo), por **rol** (solo si tu rol puede consultar roles) y por idioma. **Incluir dados de baja** (solo si tu rol puede dar de baja usuarios) es una casilla: desmarcada, no se ven; marcada, aparecen con el estado «Dado de baja».
+- **Ordenar** por nombre, correo de acceso o fecha de alta.
+- **Exportar** (solo con el permiso de exportar usuarios): véase «Exportar la lista de usuarios».
+- **Nuevo usuario** abre el formulario de alta.
+
+### La ficha
+
+Muestra todos los datos de la persona: estado, correo de acceso, tipo y número de documento, fecha de nacimiento, idioma, correo y teléfono de contacto, verificación del correo, fechas de alta y de baja, y sus roles. Las acciones dependen de tu rol y del estado de la cuenta:
+
+| Acción | Cuándo está disponible |
+|--------|------------------------|
+| **Editar** | Cuenta no dada de baja |
+| **Activar / Desactivar** | Cuentas activas o inactivas. Una cuenta **pendiente** no se activa a mano: la activa la propia persona con su invitación. **Desactivar pide confirmación**; activar no |
+| **Enviar invitación** | Cuentas pendientes. Pide confirmación. Emite un enlace nuevo y el anterior deja de valer; se avisa de cuándo caduca. Hay un límite de reenvíos por hora: si lo superas, la pantalla te dice cuántos segundos esperar |
+| **Dar de baja** | Cuenta no dada de baja. Pide confirmación. La cuenta deja de estar disponible y no puede iniciar sesión; se puede restaurar |
+| **Restaurar** | Cuenta dada de baja. No pide confirmación. **La cuenta vuelve como «inactiva»**: usa «Activar» si la persona debe volver a entrar |
+| **Ver su actividad** | Solo si tu rol puede leer la auditoría. Abre el registro de auditoría filtrado por esta persona (véase «Consultar el registro de auditoría») |
+| **Ver permisos efectivos** | Solo si tu rol tiene el permiso de ver permisos efectivos (por defecto, el Administrador de Centro). Abre qué puede hacer la persona y por qué (véase «Ver los permisos efectivos de una persona») |
+
+**Tu propia cuenta**: desde la ficha de tu propia persona, desactivar, dar de baja y cambiar roles están deshabilitados («No puedes modificar tu propia cuenta desde aquí»). **Siempre debe quedar al menos un Administrador de Centro activo**: si una acción lo impide, el sistema te lo explica con su propio mensaje y no cambia nada.
+
+**Roles de la persona**: la ficha lista sus roles. Con el permiso de asignar roles, marca o desmarca roles y pulsa «Guardar roles». **No puedes conceder un rol que incluya permisos que tú no tienes**: el sistema lo rechaza y muestra el motivo junto a los roles. Quitar un rol pide confirmación, porque la persona pierde los permisos que concedía.
+
+Las confirmaciones son un diálogo que nombra a la persona y la consecuencia («Dar de baja a Ana López»). Se cierran con la tecla **Esc** o con «Cancelar», sin hacer nada, y devuelven el foco al botón que las abrió.
+
+### Alta y edición
+
+El formulario pide: correo de acceso, nombre y primer apellido (obligatorios, marcados con *), y opcionalmente segundo apellido, fecha de nacimiento, tipo y número de documento, correo y teléfono de contacto e idioma preferido (solo los idiomas activos del centro). En el alta aparecen además los **roles** (si tu rol puede asignarlos) y la casilla «Enviar invitación por correo», marcada por defecto. En la edición solo se envían los campos que cambias.
+
+- **Tipo de documento**: se elige de una lista cerrada (**DNI**, **NIE** o **Pasaporte**) o se deja en «Sin indicar». Tipo y número van **los dos o ninguno**: con «Sin indicar» el campo del número queda deshabilitado. El sistema guarda el número **normalizado**: sin espacios al principio ni al final y en mayúsculas, y en DNI y NIE además sin espacios ni guiones intermedios (`12345678-z` se guarda como `12345678Z`; los puntos no se quitan: `12.345.678-Z` es un error de formato). Dos personas del centro no pueden tener el mismo documento aunque lo escriban distinto. Formato de cada tipo: ver la tabla de «Importación de usuarios».
+- Si algún dato no es válido o el correo ya lo usa otra cuenta, el formulario indica cada error junto a su campo, lo resume arriba y lleva el foco al primero.
+- Al crear con invitación, la ficha te dice cuándo caduca el enlace. **El enlace en sí nunca se muestra**: solo le llega a la persona por correo.
+
+## Invitaciones
+
+Menú **Administración > Invitaciones** (`/administracion/invitaciones`). Lista los enlaces de activación enviados: usuario, estado (**vigente**, **caducada**, **revocada** o **aceptada**), caducidad, fecha de emisión y fecha de aceptación o revocación. Se filtra por uno o varios estados; no tiene búsqueda ni orden propio (siempre la más reciente primero). El correo enlaza con la ficha si tu rol puede consultar usuarios.
+
+- **Revocar** (solo invitaciones vigentes): el enlace deja de funcionar. Pide confirmación.
+- **Reenviar** (invitaciones caducadas o revocadas): emite un enlace nuevo. Pide confirmación. Si la persona ya activó su cuenta, el sistema lo indica y la fila se actualiza; si hay demasiados reenvíos seguidos, te dice cuántos segundos esperar.
+- Las invitaciones **aceptadas** no admiten ninguna acción.
+
+## Exportar la lista de usuarios
+
+El botón «Exportar» de la lista de usuarios (solo con el permiso de exportar usuarios) prepara en segundo plano un fichero **CSV con todos los usuarios que cumplen los filtros** que tienes puestos (estado, rol, idioma, dados de baja); la búsqueda de texto no se aplica y, si hay una escrita, el botón queda deshabilitado. Te avisa con un enlace de descarga que **caduca a los 7 días**. Si la preparación falla, la pantalla lo dice enseguida («No se ha podido generar la exportación») y puedes volver a pedirla.
+
+El fichero **no contiene el tipo ni el número de documento ni la fecha de nacimiento** (minimización de datos personales, sobre todo del alumnado menor de edad). Contiene exactamente estas doce columnas, con estos nombres y estos códigos, **iguales para todos los usuarios y en cualquier idioma**:
+
+| Columna | Qué contiene |
+|---------|--------------|
+| `public_id` | Identificador único de la persona usuaria |
+| `status` | Estado, como código: `pendiente`, `activo` o `inactivo` |
+| `deleted_at` | Fecha y hora de la baja (ISO 8601); vacía si no está dada de baja |
+| `created_at` | Fecha y hora del alta (ISO 8601) |
+| `email` | Correo de acceso |
+| `given_name` | Nombre |
+| `family_name_1` | Primer apellido |
+| `family_name_2` | Segundo apellido; vacío si no tiene |
+| `contact_email` | Correo de contacto; vacío si no tiene |
+| `contact_phone` | Teléfono de contacto; vacío si no tiene |
+| `locale` | Idioma preferido: `es-ES`, `en`, `de` o `fr` |
+| `roles` | **Códigos** de los roles, en orden alfabético y separados por `\|` (p. ej. `docente\|tutor`); vacío si no tiene |
+
+Las filas van ordenadas por primer apellido, nombre e identificador, no por el orden de la pantalla. Para abrirlo en Excel con configuración regional española, sigue los pasos de «Abrir el CSV en Excel» (sección «Tablas de datos»). El fichero **no sirve para reimportar usuarios** sin editarlo: le faltan columnas de la importación (documento, fecha de nacimiento) y le sobran otras.
+
+## Importación de usuarios
+
+Menú **Administración > Importación de usuarios** (`/administracion/importaciones`). Solo lo ves si tu rol puede importar usuarios. Sirve para dar de alta a muchas personas a la vez desde un fichero CSV. **Una importación no se deshace**: antes de ejecutarla se valida, y hasta que la ejecutas no se crea nada.
+
+### Cómo es el fichero
+
+Un fichero **CSV** de hasta 10 MB y 20 000 filas (si tiene más, el lote falla y debes dividirlo), en UTF-8, con `;` o `,` como separador. La **primera fila** debe ser exactamente esta (la pantalla la muestra y tiene un botón «Copiar la cabecera»; no hay plantilla descargable):
+
+```
+email;given_name;family_name_1;family_name_2;document_type;document_number;birth_date;contact_email;contact_phone;locale;roles
+```
+
+| Columna | Qué poner | ¿Obligatoria? |
+|---------|-----------|---------------|
+| `email` | Correo de acceso. No puede repetirse en el fichero ni existir ya en el centro | Sí |
+| `given_name` | Nombre | Sí |
+| `family_name_1` | Primer apellido | Sí |
+| `family_name_2` | Segundo apellido | No |
+| `document_type` | Uno de los códigos de la tabla de abajo, con mayúsculas o minúsculas y con espacios alrededor si hace falta | No, pero va **junto** con `document_number` |
+| `document_number` | Número del documento (se normaliza antes de comprobarlo) | No, pero va **junto** con `document_type` |
+| `birth_date` | Fecha de nacimiento, `AAAA-MM-DD` | No |
+| `contact_email` | Correo de contacto | No |
+| `contact_phone` | Teléfono de contacto | No |
+| `locale` | Idioma: `es-ES`, `en`, `de` o `fr`, uno de los **activos del centro** | No |
+| `roles` | **Códigos** de rol separados por `\|` (p. ej. `docente\|tutor`); deben existir en el centro | No |
+
+**Tipos de documento admitidos** (columna `document_type`; la pantalla de importación los lista con su nombre en tu idioma):
+
+| Código | Documento | Formato del número (tras normalizar) | Control |
+|--------|-----------|--------------------------------------|---------|
+| `dni` | DNI (documento nacional de identidad) | 8 cifras y una letra (`12345678Z`) | Letra de control (módulo 23) |
+| `nie` | NIE (número de identidad de extranjero) | `X`, `Y` o `Z`, 7 cifras y una letra (`X1234567L`) | Letra de control, igual que el DNI |
+| `pasaporte` | Pasaporte, de cualquier país | Letras y cifras sin separadores, de 1 a 32 caracteres | Ninguno |
+
+Para DNI y NIE el sistema ignora espacios y guiones al comprobar el número (`12345678-z` vale). No hay un tipo «otro»: si una persona no tiene ninguno de estos documentos, deja las dos columnas vacías.
+
+### Subir y validar
+
+1. Elige el fichero, decide si se **enviarán invitaciones** a las personas importadas (casilla marcada por defecto) y pulsa «Subir y validar».
+2. Se abre el detalle del lote. Mientras está **subido**, **validando** o **ejecutando**, la pantalla consulta el estado sola y anuncia cada cambio. Si el lote no avanza en unos 10 minutos deja de consultar y ofrece «Comprobar de nuevo» (probablemente el proceso de importación no esté en marcha: avisa a quien administre el servidor).
+3. Al terminar la validación, el lote queda **validado** y la pantalla muestra el número de filas, cuántas tienen errores y una tabla de **incidencias** con línea, columna y motivo. Solo se muestran las 50 primeras; el aviso te lo dice y el enlace «Descargar el informe completo» baja el CSV con todas (el enlace caduca a los 15 minutos; «Actualizar el enlace» pide uno nuevo). **El texto del motivo sale en el idioma de quien subió el fichero**, y se queda así para quien abra el lote después.
+4. Si la cabecera del fichero no es la esperada, el lote queda **fallido** y se muestra el motivo y la cabecera correcta. No se puede ejecutar: descártalo y sube otro.
+
+### Incidencias de documento
+
+| Código | Columna | Significa |
+|--------|---------|-----------|
+| `tipo_documento_no_valido` | `document_type` | El tipo no es uno de los admitidos |
+| `documento_incompleto` | `document_type` o `document_number` (la que falta) | Hay tipo sin número o número sin tipo |
+| `formato_invalido` | `document_number` | El número no tiene el formato de su tipo o la letra de control no cuadra |
+| `duplicado_en_fichero` | `document_number` | Otra fila del mismo fichero tiene el mismo documento (aunque esté escrito con o sin guion) |
+| `duplicado_en_base_de_datos` | `document_number` | Una persona del centro tiene ya ese documento |
+
+### Ejecutar y descartar
+
+- **Ejecutar** solo está disponible con el lote **validado**. Pide confirmación: te dice **cuántos usuarios se crearán** (filas menos filas con error), que las filas con error se omiten, si se enviarán invitaciones y que la importación no se deshace. Las filas se revalidan al ejecutar: si entre tanto alguien creó a esa persona, la fila se omite. Si la petición falla sin respuesta (red caída), el botón «Reintentar la ejecución» repite **la misma** operación sin duplicar usuarios; una confirmación nueva es otra operación distinta.
+- **Descartar** (lotes subidos, en validación, validados o fallidos) borra el fichero y el informe, con confirmación. Un lote ya ejecutado no se puede descartar.
+- El listado de lotes muestra fichero, fecha de subida, estado, filas, filas con error y usuarios creados.
+
+## Configuración del centro
+
+En **Administración → Centro** (`/administracion/centro`, requiere el permiso de leer la configuración) ves y, si tienes el permiso de modificarla, cambias los datos del centro. Está dividida en **cuatro bloques independientes**, cada uno con su propio botón de guardar: guardar uno no envía ni descarta lo que hayas escrito en otro. Sin el permiso de modificar, ves los mismos valores como texto, sin campos ni botones de guardar.
+
+- **Regional**: los **idiomas activos** (de los cuatro disponibles; al menos uno), el **idioma por defecto** (solo puede ser uno de los activos: si desmarcas el que era el por defecto, tienes que elegir otro antes de poder guardar), la **zona horaria** (escribe parte del nombre en «Buscar zona horaria» para acotar la lista), la **moneda** (código de tres letras mayúsculas, por ejemplo `EUR`) y la **comunidad autónoma** (o «Sin indicar»). Si retiras el idioma en el que estás viendo la aplicación, un aviso te dice, antes de guardar, que pasarás a verla en el idioma por defecto del centro. Al guardar, el selector de idioma se actualiza sin recargar la página.
+- **Fiscal**: razón social, NIF/CIF, dirección, código postal, municipio, provincia y país (código de dos letras mayúsculas, por ejemplo `ES`). Todos son opcionales; dejar uno vacío lo borra.
+- **Paleta de colores**: el color primario y el secundario, en formato `#RRGGBB`. Mientras escribes ves una **vista previa** (el primario como fondo y el secundario como texto) y el **contraste** entre ambos, por ejemplo «Contraste: 3,1:1. No alcanza el mínimo de 4,5:1». Es una ayuda: quien decide es el servidor, que rechaza una paleta con contraste insuficiente y te dice qué contraste ha calculado. La vista previa no cambia los colores de la aplicación; al **guardar**, la aplicación adopta la nueva paleta sin recargar.
+- **Seguridad**: el **cierre de sesión por inactividad** (en minutos, entre 5 y 480), los **métodos de segundo factor admitidos** (la aplicación de autenticación es obligatoria y no se puede quitar; el código por correo es opcional; el SMS no está disponible) y el **plazo de gracia** para activar el segundo factor (en días, entre 1 y 90). Lo que no está aquí —exigir MFA a un rol, las excepciones temporales y los restablecimientos— se gestiona en la pantalla de MFA, a la que este bloque enlaza si tienes permiso para abrirla.
+
+Los campos marcados con * son obligatorios. Si el servidor rechaza un valor, el mensaje aparece bajo el campo y el foco se coloca en él.
+
+### Activos de marca
+
+Desde **Configuración del centro → Activos de marca** (`/administracion/centro/marca`) gestionas tres imágenes: el **logotipo** (SVG, PNG o WebP, hasta 1 MB), el **favicon** (PNG, ICO o SVG, hasta 256 KB) y el **fondo de la pantalla de acceso** (JPEG, PNG o WebP, hasta 3 MB; no se admite SVG). Cada bloque muestra la imagen que hay ahora guardada.
+
+- **Sustituir**: elige el fichero. La aplicación avisa enseguida si supera el tamaño o no es de un tipo admitido, pero **quien decide es el servidor**, que comprueba el contenido real del fichero (una imagen renombrada no pasa) y sanea los SVG. Si lo rechaza, verás su mensaje. No hay vista previa del fichero antes de subirlo: la imagen que se muestra es siempre la ya guardada.
+- **Eliminar**: pide confirmación y deja el centro sin esa imagen.
+- Tras sustituir o eliminar, el logotipo y el favicon de la aplicación se actualizan sin recargar. Si una imagen no carga porque su enlace caducó, la pantalla vuelve a pedirlo una vez; si sigue sin cargar, muestra un aviso.
+- Sin el permiso de modificar la configuración, ves las imágenes sin botones.
+
+## Módulos contratados
+
+En **Administración → Módulos** (`/administracion/modulos`, requiere el permiso de leer módulos) ves los módulos que el centro tiene **contratados**, de **solo lectura**: su nombre, su estado y la **fecha de alta**, que es el aviso de cuándo se activó cada uno (por ejemplo, cuando se incorpora un módulo nuevo). Los módulos no contratados no aparecen. No hay ningún botón de configuración, aunque tengas permiso para modificar módulos. Los nombres se muestran en el idioma de la interfaz; al cambiar de idioma la tabla se vuelve a cargar.
+
+## Cursos académicos
+
+En **Administración → Cursos académicos** (`/administracion/cursos`, requiere el permiso de leer cursos) ves los cursos del centro en una tabla —código, fechas de inicio y fin y **estado**— ordenada por defecto del más reciente al más antiguo; puedes filtrar por estado. Los estados se muestran siempre con su nombre, no solo con color. La entrada solo aparece en el menú si tu perfil tiene el permiso.
+
+**Qué significa cada estado:**
+
+- **En planificación**: el curso que se está preparando (el siguiente). Como mucho hay uno por centro. Es el único estado en el que se puede **editar** el código y las fechas.
+- **Activo**: el curso en marcha. Como mucho hay uno por centro.
+- **Cerrado**: curso terminado. **Sus datos son de solo lectura en todos los módulos del centro**: nadie —tenga el permiso que tenga— puede crear, modificar ni borrar datos de un curso cerrado. Si se intenta, la aplicación lo rechaza e indica el motivo («el curso 2025-2026 está cerrado y sus datos son de solo lectura»). Hoy un cierre no se puede deshacer desde la aplicación; cuando se entregue la reapertura (ver «Reabrir un curso cerrado por error»), podrá deshacerse solo en la ventana que allí se explica.
+- **Archivado**: curso en almacenamiento frío. Todavía no se puede llegar a este estado.
+
+**Crear un curso.** Con el permiso de crear cursos, **«Nuevo curso»** pide un código (texto libre, único en el centro, por ejemplo `2026-2027`), la fecha de inicio y la de fin. El curso nace siempre **en planificación**; el estado no se elige. Si ya hay un curso en planificación, la aplicación lo indica y enlaza con él; si las fechas se solapan con las de otro curso o el código ya existe, el mensaje aparece bajo el campo.
+
+**Editar.** En la ficha de un curso en planificación, **«Editar»** (permiso de actualizar cursos). Un curso activo o cerrado ya no se edita.
+
+**Activar el curso.** En la ficha de un curso en planificación, **«Activar curso»** (permiso propio de cambiar el estado de los cursos, que solo tiene por defecto el Administrador de Centro). Pide confirmación. **Solo puede haber un curso activo: si ya hay otro, hay que cerrarlo antes**; la aplicación te lo dice y te enlaza con el curso activo. Si la fecha de fin del curso ya ha pasado, el diálogo te lo advierte, pero te deja continuar. El curso no se activa solo por calendario.
+
+**Cerrar el curso.** En la ficha del curso activo, **«Cerrar curso»**. El diálogo te advierte de que, a partir de ahí, todos los datos del curso quedan en solo lectura y de que el cierre no se puede deshacer desde la aplicación (cuando se entregue la reapertura, el diálogo dirá que solo se puede deshacer mientras no actives otro curso; véase «Reabrir un curso cerrado por error»); hay que confirmarlo explícitamente, y cancelar no hace nada. Tras cerrar un curso el centro se queda **sin curso activo** hasta que actives el siguiente: es un estado normal. Si algún módulo tiene una comprobación de cierre pendiente de cumplir, la aplicación lista cuáles y el curso sigue activo.
+
+**Reabrir un curso cerrado por error.** *(Decidido y especificado; la acción aparecerá en la aplicación con la entrega que la implemente. Hasta entonces no hay forma de reabrir un curso.)* En la ficha de un curso cerrado, **«Reabrir curso»** (permiso propio de reabrir cursos, distinto del de cerrarlos; por defecto solo lo tiene el Administrador de Centro). Sirve para deshacer un **cierre hecho antes de tiempo**, y solo es posible en esta ventana:
+
+- **No hay ningún otro curso activo.** En cuanto actives el curso siguiente, el anterior ya no se puede reabrir.
+- **Es el último curso cerrado** del centro. Un curso cerrado más antiguo no se reabre.
+- Ningún módulo tiene una comprobación que impida la reapertura (hoy no hay ninguna).
+
+No hay un plazo en días: la ventana la marcan esos hechos. Un curso archivado no se reabre nunca.
+
+El diálogo te pide un **motivo, obligatorio**, que queda guardado junto con tu nombre y la fecha. **No escribas datos personales en el motivo** (nombres de alumnos, datos de salud…): describe la situación, por ejemplo «Cerrado por error antes de las evaluaciones extraordinarias». Al confirmar, el curso vuelve a ser **el curso activo del centro** y **todos sus datos, en todos los módulos, vuelven a admitir cambios** de quien tenga permiso para hacerlos. Para volver a cerrarlo, usa «Cerrar curso» como siempre.
+
+**No reabras un curso para corregir un dato concreto** (por ejemplo, una nota tras una reclamación): reabrir abre el curso entero a todo el centro, no solo ese dato. La corrección de datos de un curso cerrado tendrá su propio procedimiento en el módulo correspondiente. Si la aplicación no te deja reabrir (hay otro curso activo, o no es el último cerrado), no existe otra vía: **nadie debe intentar reabrirlo modificando la base de datos**, y soporte de la plataforma no lo hace por ti.
+
+**Quién ve qué.** Los cursos cerrados se pueden consultar con el permiso de leer el histórico de cursos cerrados, **además** del permiso del módulo que guarda el dato. Por defecto lo tienen el Administrador de Centro, la Dirección y la Secretaría (que además pueden ver el listado y la ficha de los cursos, sin crearlos ni cambiarles el estado); un centro puede dárselo a otros roles creando un rol personalizado.
+
+## Mi perfil
+
+En el menú de usuario, **Mi cuenta → Perfil** (`/cuenta/perfil`) está disponible para **cualquier persona con sesión**, sin ningún permiso especial. Muestra tu nombre completo y tu **correo de acceso** (que no se cambia desde aquí; si necesitas cambiarlo, contacta con el centro) y te deja modificar tu **correo de contacto** y tu **teléfono de contacto**. Dejar un campo vacío lo borra. Tu idioma no se cambia aquí sino con el selector de idioma del menú de usuario. Si el servidor rechaza un dato, el mensaje aparece bajo el campo.
+
+## Roles del centro
+
+En **Administración → Roles** (`/administracion/roles`, requiere el permiso de leer roles) ves los roles del centro en una tabla: su nombre (un enlace a su **ficha**), si es **del sistema** o **personalizado**, si exige **MFA** (segundo factor), si da **acceso a datos especiales** (salud, necesidades educativas especiales, convivencia) y **cuántas personas** lo tienen. Con el permiso de crear roles aparece **«Nuevo rol»**.
+
+- Los nombres de los roles del sistema se muestran en el idioma de la interfaz: al cambiar de idioma la tabla se vuelve a cargar.
+- Los roles **del sistema** no se modifican desde aquí: para tener una versión propia, **clónalo**. Un rol **personalizado** se crea, se edita y se elimina.
+
+### La ficha de un rol
+
+Muestra el código interno, el tipo, si exige MFA, si da acceso a datos de categoría especial, cuántas personas lo tienen y la tabla de sus **concesiones** (recurso, acción, efecto «Permitir» o «Denegar», ámbito; con permiso para ver el catálogo, también una marca de «Categoría especial» y un aviso de **inerte** si el rol no tiene ese acceso). Las acciones dependen de tus permisos:
+
+| Acción | Cuándo está disponible |
+|--------|------------------------|
+| **Editar datos** | Permiso de actualizar roles. En un rol del sistema no se edita el nombre |
+| **Editar concesiones** | Permiso de actualizar roles y rol **personalizado**. En uno del sistema, un texto te remite a «Clonar» |
+| **Clonar** | Permiso de crear roles |
+| **Eliminar** | Permiso de eliminar roles y rol **personalizado**. Si el rol tiene personas asignadas aparece **deshabilitado** con el motivo y un enlace a **«Ver usuarios con este rol»**; pide confirmación y no se deshace desde la interfaz |
+| **Ver usuarios con este rol** | Permiso de ver usuarios |
+
+### Crear, clonar y editar un rol
+
+- **Nuevo rol**: escribe el **nombre** (se muestra igual en todos los idiomas) y el **código**, que se propone solo a partir del nombre y es un identificador interno que **no podrá cambiarse**. Puedes marcar **MFA obligatorio**. Al guardar vas directamente al editor de concesiones del rol nuevo.
+- **Clonar**: copia las concesiones y la obligación de MFA, **no** a las personas que tienen el rol, y el rol nuevo queda desligado del original. Si el original da acceso a datos de categoría especial, solo podrás clonarlo si tú puedes activar ese acceso. **No puedes clonar un rol que conceda algo que tú no tienes**: el sistema te dice qué permiso y qué ámbito y no crea nada.
+- **Acceso a datos de categoría especial**: el control solo aparece si tienes permiso para cambiarlo y solo se puede activar si **alguno de tus roles ya lo tiene** (por defecto, el Administrador de Centro no lo tiene). Activarlo o desactivarlo pide confirmación y dice a cuántas personas afecta. Las concesiones de datos de categoría especial solo surten efecto en roles con este acceso.
+- **MFA obligatorio** de un rol existente se cambia en la administración de MFA, no aquí.
+
+### Editar las concesiones de un rol
+
+La pantalla muestra **una matriz por módulo**: una fila por recurso y una columna por acción. Cada celda indica «Sin conceder», «Permitir · ámbito» o «Denegar»; pulsa una celda para abrir su panel, elige el estado y, si es «Permitir», el **ámbito**, y pulsa **Aplicar**. **No se guarda nada hasta que pulses «Guardar»**; un contador te dice cuántos cambios llevas.
+
+- **Qué necesitas para abrir el editor**: además del permiso de actualizar roles, tu perfil debe poder **ver roles** y **ver el catálogo de permisos**. Si te falta alguno, en lugar de la matriz la pantalla muestra «Para editar las concesiones necesitas además el permiso {permiso}», con el permiso que falta; no es un error, y no se guarda ni se pide nada. Lo mismo ocurre en el formulario de edición del rol si no puedes ver roles.
+- **Qué puedes conceder**: no puedes conceder un permiso, ni con un ámbito, que tú no tengas. Esos ámbitos aparecen **deshabilitados con el motivo** («no puedes concederlo: tú no tienes este permiso con este ámbito» o «todavía no se puede conceder: lo aportará un módulo que aún no está disponible»). Si no tienes un permiso, solo puedes **denegarlo o dejarlo sin conceder**. Lo que el rol ya concede siempre puedes conservarlo.
+- **Denegar** anula el permiso para todas las personas del rol, en cualquier ámbito y aunque otro de sus roles lo conceda.
+- **Avisos**: una concesión de datos de categoría especial en un rol sin ese acceso, o de un módulo no contratado, se marca como **inerte** (no surte efecto) pero se puede guardar.
+- **Guardar**: la pantalla comprueba antes que nadie más haya cambiado el rol y te pide confirmación con el resumen (concedidos, ámbito cambiado, denegados y retirados), la lista de cambios y a cuántas personas afecta **de inmediato**. Si tú eres titular del rol, te avisa de que los cambios también te afectan.
+- **Si el sistema rechaza el guardado** no se guarda nada y tus cambios siguen en pantalla, con el motivo en la celda o en el resumen. Un rechazo especial: **el centro nunca puede quedarse sin nadie que conserve todos los permisos de administración**. Si lo que guardas lo provocaría, el sistema lo explica, lista los permisos afectados y te pide que los concedas primero a otra persona.
+- Si sales con cambios sin guardar, la pantalla pide confirmación.
+- Los roles del sistema se muestran en solo lectura.
+
+### Ver los permisos efectivos de una persona
+
+Desde la ficha de una persona, **«Ver permisos efectivos»** (permiso específico) abre qué puede hacer ahora mismo, calculado con las mismas reglas que aplica la plataforma en cada petición. Indica sus roles, cuándo se calculó (**«Recalcular»** vuelve a calcularlo) y, para cada permiso, el resultado (**Permitido** o **Denegado**), los ámbitos y la **procedencia**: qué roles lo conceden o lo deniegan. Explica los casos que confunden: un permiso **denegado por otro rol** («una denegación anula cualquier concesión») y uno **concedido pero sin efecto** (con el motivo). Por defecto solo se muestran los permisos con alguna concesión o denegación; marca «Incluir permisos sin ninguna concesión» para ver el catálogo completo. Se puede buscar sin importar tildes ni mayúsculas. **No se puede exportar ni imprimir.**
+
+## Consultar el registro de auditoría
+
+En **Administración → Auditoría** (`/administracion/auditoria`, requiere el permiso de leer la auditoría) consultas quién hizo qué y cuándo. Es el mismo registro que describe la sección «Registro de auditoría» de más abajo, con sus valores redactados.
+
+**La tabla**: de la más reciente a la más antigua, con **fecha y hora**, **operación**, **usuario**, **entidad** y el botón **Ver cambios**. Muestra 50 entradas y se amplía con **Cargar más**; el máximo en pantalla es de **1.000 filas**: al llegar, el aviso te ofrece **exportar** (si tienes ese permiso) o refinar los filtros. No tiene búsqueda de texto ni columnas ordenables. Las columnas **Identificador**, **IP** y **Petición** están ocultas por defecto; las activas con el menú «Columnas». Si una acción la hizo el sistema, la consola, una importación, la plataforma o alguien sin sesión, en la columna de usuario verás ese tipo de actor.
+
+**Filtros** (se combinan; la dirección de la pantalla los recuerda, así que puedes copiarla y compartirla):
+
+| Filtro | Qué hace |
+|--------|----------|
+| Fecha | Un rango «desde» y «hasta», ambos días incluidos |
+| Operación | Alta, modificación, baja, restauración, lectura, exportación, inicio y cierre de sesión, solicitud de restablecimiento de contraseña |
+| Tipo de actor | Usuario, sistema, consola, importación, plataforma, anónimo |
+| Usuario | Elige a una persona escribiendo parte de su nombre o correo. **Solo aparece si puedes ver usuarios** |
+| Módulo y Entidad | Las opciones las da el propio sistema |
+
+**Zona horaria**: las fechas se muestran, y el rango de fechas se interpreta, **en la zona horaria de tu navegador**, no en la del centro. «Desde el 1 de marzo hasta el 3 de marzo» significa desde las 00:00 del día 1 hasta las 23:59:59 del día 3 *en tu zona*. Si consultas desde otra zona horaria, el mismo rango abarcará instantes distintos.
+
+**Ver la actividad de una persona**: en la ficha de un usuario, el botón **Ver su actividad** (si puedes leer la auditoría) abre esta pantalla ya filtrada por esa persona, con el texto «Filtrado por: nombre» y un botón para quitar el filtro.
+
+**Ver cambios**: abre un panel con lo que cambió en esa entrada, atributo por atributo, como «antes → después». Un valor que el sistema no guarda por diseño se muestra como **«Valor no registrado»** con su motivo (dato secreto, categoría especial, dato identificativo o valor demasiado grande) y, cuando se sabe, si el campo estaba **vacío o con valor** antes y después; nunca se reconstruye el dato. Las entradas sin cambios (lecturas, inicios de sesión, exportaciones) indican «Sin cambios registrados». El panel se cierra con **Esc** o con el botón de cerrar, y el foco vuelve al botón con el que lo abriste.
+
+**Exportar**: con el permiso de exportar la auditoría, el botón **Exportar** pide un CSV con **los mismos filtros** que tienes aplicados (no con el orden ni con las filas ya cargadas). El fichero se prepara en segundo plano; cuando está listo aparece el enlace de descarga, que caduca. Cada exportación queda registrada en la propia auditoría.
 
 ## Cuentas bloqueadas
 
@@ -42,7 +309,7 @@ El listado de cuentas bloqueadas se filtra por estado (vigente o ya levantado) y
 
 ### Qué es
 
-Cuánto tiempo puede estar una persona sin actividad en la aplicación antes de que su sesión se cierre sola por seguridad (entre 5 minutos y 8 horas). Es un valor único para todo el centro, no por persona ni por rol: se configura junto con el resto de opciones de seguridad del centro, y se aplica a toda sesión nueva que se abra después del cambio — no cierra de golpe las que ya estaban abiertas con el valor anterior.
+Cuánto tiempo puede estar una persona sin actividad en la aplicación antes de que su sesión se cierre sola por seguridad (entre 5 minutos y 8 horas). Es un valor único para todo el centro, no por persona ni por rol: se configura en el bloque «Seguridad» de **Administración → Centro** (véase «Configuración del centro»), y se aplica a toda sesión nueva que se abra después del cambio — no cierra de golpe las que ya estaban abiertas con el valor anterior.
 
 ## Autenticación en dos pasos (MFA)
 
@@ -99,6 +366,8 @@ Mientras dura una excepción, la persona **también puede desactivar su segundo 
 
 Puedes consultar en cualquier momento quién tiene una excepción viva, por qué se le concedió y quién la concedió, y revocarla antes de su caducidad si la situación cambia. Revocarla no borra el registro: queda constancia de que existió y de cuándo se retiró, igual que con un bloqueo de cuenta levantado.
 
+La lista de excepciones es una tabla paginada (25 por página) con un **filtro de estado**: al entrar muestra solo las **vigentes**; elige «Todos» para ver también las caducadas y las revocadas, y «Limpiar filtros» para volver a las vigentes. Al **revocar**, el sistema abre un diálogo que **nombra a la persona** afectada y pide confirmación; puedes cancelarlo con el botón «Cancelar» o con la tecla `Esc`, y no se revoca nada hasta que confirmes. Tras conceder una excepción nueva, la tabla vuelve a la primera página con las vigentes, para que veas la que acabas de crear.
+
 ## Inicio de sesión único (SSO) institucional
 
 ### Qué es
@@ -126,6 +395,8 @@ Tras guardar, la pantalla te muestra los datos que tienes que copiar en la confi
 **Con SAML**, el certificado con el que se comprueban las respuestas de tu sistema de identidad se recoge normalmente solo con pegar la URL o el XML de metadatos, y se mantiene al día en solitario si diste la URL (el sistema la revisa periódicamente). Si tu proveedor rota su certificado y prefieres subir el nuevo tú mismo, o si diste el XML pegado y necesitas actualizarlo a mano, puedes cargar un certificado adicional en cualquier momento — al igual que con la credencial OIDC, puedes tener varios vigentes a la vez para no cortar el acceso durante una rotación. Retirar un certificado **no lo anula en tu propio sistema de identidad**: si quieres invalidarlo del todo, también tienes que hacerlo allí. Si tu sistema de identidad exige que las peticiones de acceso vayan firmadas por nosotros (algunos lo exigen, la mayoría no), activa «Firmar peticiones de acceso» en la configuración del proveedor.
 
 ### Activar, editar y retirar un proveedor
+
+El catálogo de proveedores se muestra paginado **de 25 en 25**. «Editar» y «Eliminar» indican en su nombre a qué proveedor se refieren. Al eliminar, se abre el **mismo diálogo de confirmación** que en el resto de la administración (nombra al proveedor; `Esc` lo cierra sin borrar nada).
 
 Un proveedor no activo no aparece como opción de acceso para nadie. Puedes editarlo en cualquier momento (nombre, dominios admitidos, modo de aprovisionamiento) y retirarlo si tu centro deja de usarlo — al retirarlo, los vínculos ya creados con esa identidad siguen viéndose desde el perfil de cada persona, pero nadie podrá volver a entrar por ese proveedor. **Con SAML hay una particularidad a tener en cuenta**: si retiras un proveedor y luego das de alta otro con el mismo nombre para sustituirlo, la dirección a la que tu sistema de identidad tiene que enviar la respuesta cambia, así que tendrás que volver a configurarlo por su lado — el aviso aparece en la pantalla antes de confirmar el borrado.
 

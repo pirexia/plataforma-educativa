@@ -25,12 +25,879 @@
         "completado": "Terminé"
       }
     },
-    "module": {
-      "enabled": "Activé",
-      "disabled": "Désactivé"
-    },
     "nav": {
-      "home": "Accueil"
+      "home": "Accueil",
+      "users": "Utilisateurs",
+      "invitations": "Invitations",
+      "userImports": "Import d'utilisateurs",
+      "audit": "Audit",
+      "roles": "Rôles",
+      "settings": "Établissement",
+      "modules": "Modules",
+      "profile": "Profil"
+    },
+    "locale": {
+      "name": {
+        "es": "Espagnol",
+        "en": "Anglais",
+        "de": "Allemand",
+        "fr": "Français"
+      }
+    },
+    "users": {
+      "title": "Utilisateurs",
+      "intro": "Personnes ayant accès à la plateforme dans cet établissement.",
+      "new": "Nouvel utilisateur",
+      "import": "Importer",
+      "caption": "Utilisateurs de l'établissement",
+      "empty": {
+        "title": "Il n'y a pas encore d'utilisateurs",
+        "text": "Ajoutez le premier pour commencer."
+      },
+      "filters": {
+        "status": "Statut",
+        "role": "Rôle",
+        "locale": "Langue",
+        "includeDeleted": "Inclure les comptes supprimés"
+      },
+      "columns": {
+        "name": "Nom",
+        "email": "E-mail de connexion",
+        "status": "Statut",
+        "roles": "Rôles",
+        "locale": "Langue",
+        "createdAt": "Création"
+      },
+      "status": {
+        "deleted": "Supprimé"
+      },
+      "errors": {
+        "unexpected": "L'action n'a pas pu être menée à bien. Veuillez réessayer.",
+        "tooManyRequests": "Trop de tentatives. Patientez un instant puis réessayez.",
+        "tooManyRequestsWithSeconds": "Trop de tentatives. Réessayez dans {seconds} s."
+      },
+      "detail": {
+        "title": "Fiche",
+        "actions": "Actions",
+        "edit": "Modifier",
+        "activate": "Activer",
+        "deactivate": "Désactiver",
+        "invite": "Envoyer l'invitation",
+        "delete": "Supprimer",
+        "restore": "Restaurer",
+        "selfNote": "Vous ne pouvez pas modifier votre propre compte depuis ici.",
+        "data": "Données",
+        "status": "Statut",
+        "email": "E-mail de connexion",
+        "documentType": "Type de document",
+        "documentNumber": "Numéro de document",
+        "birthDate": "Date de naissance",
+        "locale": "Langue",
+        "contactEmail": "E-mail de contact",
+        "contactPhone": "Téléphone de contact",
+        "emailVerifiedAt": "E-mail vérifié",
+        "createdAt": "Création",
+        "deletedAt": "Suppression",
+        "roles": "Rôles",
+        "noRoles": "Cet utilisateur n'a aucun rôle.",
+        "manageRoles": "Rôles attribués",
+        "saveRoles": "Enregistrer les rôles",
+        "viewActivity": "Voir son activité",
+        "viewActivityFor": "Voir son activité : {name}",
+        "viewEffectivePermissions": "Voir les permissions effectives",
+        "viewEffectivePermissionsFor": "Voir les permissions effectives de {name}"
+      },
+      "confirm": {
+        "deactivate": {
+          "title": "Désactiver {name}",
+          "description": "Cette personne ne pourra plus se connecter tant que vous n'aurez pas réactivé son compte.",
+          "confirm": "Désactiver {name}"
+        },
+        "delete": {
+          "title": "Supprimer {name}",
+          "description": "Le compte n'est plus disponible et ne peut plus se connecter. Vous pourrez le restaurer ensuite.",
+          "confirm": "Supprimer {name}"
+        },
+        "invite": {
+          "title": "Envoyer une invitation à {name}",
+          "description": "Un lien d'activation sera envoyé à {email}. L'invitation précédente, le cas échéant, cessera d'être valable.",
+          "confirm": "Envoyer une invitation à {name}"
+        },
+        "removeRoles": {
+          "title": "Retirer des rôles à {name}",
+          "description": "Ces rôles seront retirés : {roles}. Les autorisations qu'ils accordaient seront perdues.",
+          "confirm": "Enregistrer les rôles de {name}"
+        }
+      },
+      "flash": {
+        "activated": "Compte activé.",
+        "deactivated": "Compte désactivé.",
+        "deleted": "Utilisateur supprimé.",
+        "restored": "Utilisateur restauré. Le compte est inactif : activez-le si la personne doit pouvoir se reconnecter.",
+        "invited": "Invitation envoyée. Elle expire le {date}.",
+        "rolesSaved": "Rôles enregistrés.",
+        "updated": "Modifications enregistrées.",
+        "created": "Utilisateur créé.",
+        "createdInvited": "Utilisateur créé et invitation envoyée. Elle expire le {date}."
+      },
+      "form": {
+        "titleNew": "Nouvel utilisateur",
+        "titleEdit": "Modifier l'utilisateur",
+        "requiredHint": "Les champs marqués d'un * sont obligatoires.",
+        "required": "(obligatoire)",
+        "errorSummary": "Vérifiez les champs suivants :",
+        "email": "E-mail de connexion",
+        "givenName": "Prénom",
+        "familyName1": "Premier nom de famille",
+        "familyName2": "Second nom de famille",
+        "birthDate": "Date de naissance",
+        "documentType": "Type de document",
+        "documentNumber": "Numéro de document",
+        "contactEmail": "E-mail de contact",
+        "contactPhone": "Téléphone de contact",
+        "locale": "Langue préférée",
+        "roles": "Rôles",
+        "sendInvitation": "Envoyer l'invitation par e-mail",
+        "save": "Enregistrer",
+        "saving": "Enregistrement…",
+        "cancel": "Annuler"
+      }
+    },
+    "invitations": {
+      "title": "Invitations",
+      "intro": "Liens d'activation envoyés aux utilisateurs en attente.",
+      "caption": "Invitations de l'établissement",
+      "empty": {
+        "title": "Il n'y a aucune invitation",
+        "text": "Les invitations apparaissent ici lorsque vous ajoutez un utilisateur ou renvoyez son lien."
+      },
+      "filters": {
+        "status": "Statut"
+      },
+      "columns": {
+        "user": "Utilisateur",
+        "status": "Statut",
+        "expiresAt": "Expire",
+        "createdAt": "Envoyée",
+        "resolvedAt": "Acceptée ou révoquée",
+        "actions": "Actions"
+      },
+      "revoke": "Révoquer",
+      "reissue": "Renvoyer",
+      "revokeFor": "Révoquer l'invitation de {email}",
+      "reissueFor": "Renvoyer l'invitation à {email}",
+      "confirm": {
+        "revoke": {
+          "title": "Révoquer l'invitation de {email}",
+          "description": "Le lien envoyé cessera de fonctionner.",
+          "confirm": "Révoquer l'invitation de {email}"
+        },
+        "reissue": {
+          "title": "Renvoyer l'invitation à {email}",
+          "description": "Un nouveau lien sera envoyé et le précédent cessera d'être valable.",
+          "confirm": "Renvoyer l'invitation à {email}"
+        }
+      },
+      "flash": {
+        "revoked": "Invitation de {email} révoquée.",
+        "reissued": "Invitation envoyée à {email}. Elle expire le {date}."
+      }
+    },
+    "person": {
+      "documentType": {
+        "dni": "Carte nationale d'identité espagnole (DNI)",
+        "nie": "Numéro d'identité d'étranger (NIE)",
+        "pasaporte": "Passeport",
+        "none": "Non renseigné"
+      }
+    },
+    "userImports": {
+      "title": "Import d'utilisateurs",
+      "intro": "Téléversez un fichier CSV pour créer des utilisateurs en lot. Il est d'abord validé : rien n'est créé tant que vous n'exécutez pas le lot.",
+      "caption": "Lots d'import d'utilisateurs",
+      "empty": {
+        "title": "Aucun import",
+        "text": "Les lots apparaissent ici après le téléversement d'un fichier."
+      },
+      "columns": {
+        "file": "Fichier",
+        "createdAt": "Téléversé",
+        "status": "Statut",
+        "rows": "Lignes",
+        "errors": "Lignes en erreur",
+        "created": "Utilisateurs créés"
+      },
+      "upload": {
+        "title": "Téléverser un fichier",
+        "file": "Fichier CSV",
+        "fileHint": "Format CSV (.csv) en UTF-8, séparateur « ; » ou « , », jusqu'à 10 Mo.",
+        "sendInvitations": "Envoyer des invitations aux utilisateurs importés",
+        "submit": "Téléverser et valider",
+        "submitting": "Téléversement…",
+        "errors": {
+          "noFile": "Sélectionnez un fichier CSV.",
+          "extension": "Le fichier doit avoir l'extension .csv.",
+          "tooLarge": "Le fichier dépasse 10 Mo."
+        }
+      },
+      "header": {
+        "title": "En-tête exact attendu",
+        "hint": "La première ligne du fichier doit être exactement celle-ci, avec les colonnes dans cet ordre.",
+        "copy": "Copier l'en-tête",
+        "copied": "En-tête copié.",
+        "manual": "Le détail de chaque colonne figure dans le manuel d'administration, rubrique « Import d'utilisateurs »."
+      },
+      "documentTypes": {
+        "title": "Types de document pris en charge",
+        "hint": "Dans la colonne document_type, écrivez l'un de ces codes ; majuscules ou minuscules n'ont pas d'importance. Si vous indiquez le type, vous devez aussi indiquer le numéro, et inversement."
+      },
+      "detail": {
+        "pageTitle": "Lot d'import",
+        "title": "Import {file}",
+        "intro": "Statut du lot et résultat de sa validation.",
+        "state": "Statut",
+        "statusLine": "Statut : {status}",
+        "stalled": "Le lot n'avance plus. Le processus d'import n'est peut-être pas en marche.",
+        "checkAgain": "Vérifier à nouveau",
+        "rows": "Lignes",
+        "errors": "Lignes en erreur",
+        "created": "Utilisateurs créés",
+        "uploadedAt": "Téléversé",
+        "validatedAt": "Validé",
+        "executedAt": "Exécuté",
+        "incidents": "Anomalies",
+        "truncated": "Anomalies affichées : {shown}. Lignes en erreur au total : {total}. Téléchargez le rapport complet pour toutes les voir.",
+        "report": "Télécharger le rapport complet",
+        "refreshReport": "Actualiser le lien",
+        "execute": "Exécuter",
+        "retry": "Réessayer l'exécution",
+        "discard": "Abandonner",
+        "back": "Retour à la liste",
+        "headerFailed": {
+          "title": "L'en-tête du fichier n'est pas valide",
+          "expected": "L'en-tête attendu est :"
+        }
+      },
+      "confirm": {
+        "execute": {
+          "title": "Exécuter l'import de {file}",
+          "creates": "Utilisateurs qui seront créés : {count}.",
+          "skipsErrors": "Les lignes en erreur sont ignorées.",
+          "invitationsYes": "Des invitations seront envoyées aux utilisateurs créés.",
+          "invitationsNo": "Aucune invitation ne sera envoyée.",
+          "irreversible": "Un import ne peut pas être annulé.",
+          "confirm": "Exécuter l'import de {file}"
+        },
+        "discard": {
+          "title": "Abandonner l'import de {file}",
+          "description": "Le fichier téléversé et le rapport seront supprimés. Aucun utilisateur n'a été créé.",
+          "confirm": "Abandonner l'import de {file}"
+        }
+      },
+      "flash": {
+        "executing": "Import en cours. Le statut se met à jour tout seul.",
+        "discarded": "Import de {file} abandonné."
+      }
+    },
+    "userImportErrors": {
+      "caption": "Anomalies de l'import",
+      "empty": "Aucune anomalie",
+      "columns": {
+        "line": "Ligne",
+        "column": "Colonne",
+        "message": "Motif"
+      }
+    },
+    "audit": {
+      "title": "Journal d’audit",
+      "intro": "Qui a fait quoi et quand dans cet établissement. Les dates sont affichées dans le fuseau horaire de votre navigateur.",
+      "caption": "Journal d’audit de l’établissement",
+      "empty": {
+        "title": "Aucune entrée",
+        "text": "Il n’y a aucune entrée du journal d’audit à afficher."
+      },
+      "filters": {
+        "occurredAt": "Date",
+        "event": "Opération",
+        "actorType": "Type d’acteur",
+        "actor": "Utilisateur",
+        "module": "Module",
+        "auditableType": "Entité"
+      },
+      "columns": {
+        "occurredAt": "Date et heure",
+        "event": "Opération",
+        "actor": "Utilisateur",
+        "auditableType": "Entité",
+        "auditablePublicId": "Identifiant",
+        "ipAddress": "IP",
+        "requestId": "Requête",
+        "actions": "Actions"
+      },
+      "viewChanges": "Voir les modifications",
+      "viewChangesFor": "Voir les modifications : {event}, {entity}, {date}",
+      "event": {
+        "created": "Création",
+        "updated": "Modification",
+        "deleted": "Suppression",
+        "restored": "Restauration",
+        "read": "Lecture",
+        "exported": "Exportation",
+        "login": "Connexion",
+        "logout": "Déconnexion",
+        "password_reset_requested": "Demande de réinitialisation du mot de passe"
+      },
+      "actorType": {
+        "user": "Utilisateur",
+        "system": "Système",
+        "console": "Console",
+        "import": "Importation",
+        "platform": "Plateforme",
+        "anonymous": "Anonyme"
+      },
+      "entity": {
+        "person": "Personne",
+        "user": "Utilisateur",
+        "role": "Rôle",
+        "academic_year": "Année scolaire",
+        "module_subscription": "Module souscrit",
+        "tenant_setting": "Paramètres de l’établissement",
+        "user_invitation": "Invitation",
+        "user_import": "Importation d’utilisateurs",
+        "data_export": "Exportation de données",
+        "permission_role": "Permission d’un rôle"
+      },
+      "module": {
+        "core": "Établissement et utilisateurs",
+        "auth": "Accès et sécurité"
+      },
+      "changes": {
+        "title": "Modifications de l’entrée",
+        "description": "{event} · {entity} · {date}",
+        "close": "Fermer",
+        "none": "Aucune modification enregistrée.",
+        "before": "Avant",
+        "after": "Après",
+        "arrow": "{from} → {to}",
+        "emptyValue": "vide",
+        "hadValue": "avec une valeur",
+        "notRecorded": "Valeur non enregistrée",
+        "reasonLabel": "Motif : {reason}",
+        "reason": {
+          "secret": "donnée secrète",
+          "special": "catégorie particulière de données",
+          "identifier": "donnée d’identification",
+          "oversized": "valeur trop volumineuse"
+        }
+      }
+    },
+    "roles": {
+      "title": "Rôles",
+      "intro": "Rôles de l'établissement. Consultez ce que chacun accorde, créez un rôle propre ou clonez un rôle existant.",
+      "caption": "Rôles de l’établissement",
+      "empty": {
+        "title": "Aucun rôle",
+        "text": "L’établissement n’a encore aucun rôle."
+      },
+      "columns": {
+        "name": "Nom",
+        "type": "Type",
+        "mfaRequired": "MFA obligatoire",
+        "specialData": "Accès aux données particulières",
+        "users": "Utilisateurs"
+      },
+      "type": {
+        "system": "Du système",
+        "custom": "Personnalisé"
+      },
+      "yes": "Oui",
+      "no": "Non",
+      "editor": {
+        "matrix": {
+          "resource": "Ressource",
+          "special": "Catégorie particulière",
+          "caption": "Droits du module {module} pour {role}",
+          "scrollLabel": "Matrice des droits du module {module}, défilable",
+          "notContracted": "Module non souscrit : ces droits sont sans effet tant qu'il n'est pas souscrit"
+        },
+        "state": {
+          "none": "Non accordé",
+          "allow": "Autoriser · {scope}"
+        },
+        "marks": {
+          "modified": "Modifié",
+          "inert": "Inerte",
+          "onlyRemove": "Retirer ou refuser seulement",
+          "error": "Erreur"
+        },
+        "cell": {
+          "name": "{resource} · {action} : {state}. Modifier",
+          "nameMarks": "{resource} · {action} : {state} ({marks}). Modifier"
+        },
+        "panel": {
+          "close": "Fermer le panneau",
+          "code": "Code technique :",
+          "groupLabel": "Droit pour {name}",
+          "scope": "Périmètre",
+          "scopePlaceholder": "Choisissez un périmètre",
+          "anyScope": "Tout périmètre",
+          "denyExplanation": "Refuser annule cette permission pour tous les titulaires du rôle, dans tout périmètre et même si un autre de leurs rôles l'accorde.",
+          "apply": "Appliquer",
+          "cancel": "Annuler"
+        },
+        "option": {
+          "current": "{scope} (actuel)",
+          "notHeld": "{scope} — vous ne pouvez pas l'accorder : vous n'avez pas cette permission avec ce périmètre",
+          "noResolver": "{scope} — ne peut pas encore être accordé : un module pas encore disponible l'apportera"
+        },
+        "notes": {
+          "onlyNotHeld": "Vous ne pouvez que refuser cette permission ou ne pas l'accorder : vous ne l'avez pas",
+          "onlyVetoed": "Vous ne pouvez que refuser cette permission ou ne pas l'accorder : elle vous est interdite par un refus",
+          "onlyInert": "Vous ne pouvez que refuser cette permission ou ne pas l'accorder : votre droit est sans effet ({reason})",
+          "specialInert": "Ce droit restera sans effet : le rôle n'a pas accès aux données de catégorie particulière",
+          "moduleInert": "Ce droit restera sans effet tant que le module n'est pas souscrit"
+        },
+        "pageTitle": "Droits du rôle",
+        "title": "Droits de « {name} »",
+        "intro": "Choisissez pour chaque permission si le rôle l’accorde, la refuse ou ne dit rien. Les modifications ne sont enregistrées qu’après avoir cliqué sur « Enregistrer ».",
+        "legend": {
+          "title": "Quels périmètres vous pouvez accorder",
+          "rule": "Vous ne pouvez accorder ni une permission ni un périmètre que vous n’avez pas vous-même. Vous pouvez toujours la retirer ou la refuser.",
+          "notHeld": "« Vous ne l’avez pas » : vous n’avez pas cette permission avec ce périmètre.",
+          "noResolver": "« N’existe pas encore » : un module pas encore disponible l’apportera."
+        },
+        "toolbar": {
+          "module": "Module",
+          "allModules": "Tous les modules",
+          "search": "Rechercher une ressource",
+          "searchPlaceholder": "Rechercher une ressource…",
+          "onlyChanged": "Seulement les ressources avec des modifications non enregistrées"
+        },
+        "changes": "Aucune modification non enregistrée | {count} modification non enregistrée | {count} modifications non enregistrées",
+        "save": "Enregistrer",
+        "saved": "Droits enregistrés.",
+        "empty": {
+          "title": "Aucune permission dans le catalogue",
+          "text": "Le catalogue des permissions est vide."
+        },
+        "noMatches": {
+          "title": "Aucune ressource ne correspond",
+          "text": "Modifiez le module, la recherche ou le filtre des modifications."
+        },
+        "missing": "Pour modifier les droits, vous avez aussi besoin de la permission {permission}.",
+        "orphans": "Ces droits ne figurent plus dans le catalogue et sont conservés tels quels : {codes}",
+        "confirm": {
+          "title": "Enregistrer les droits de « {name} »",
+          "counts": "Accordés : {granted} · Périmètre modifié : {scopeChanged} · Refusés : {denied} · Retirés : {removed}",
+          "consequence": "S'applique immédiatement à {count} titulaires | S'applique immédiatement à {count} titulaire | S'applique immédiatement à {count} titulaires",
+          "holder": "Vous êtes titulaire de ce rôle : les modifications vous concernent aussi, et vous ne pourrez pas accorder de nouveau ce que vous retirez.",
+          "item": "{name} : {from} → {to}",
+          "confirm": "Enregistrer les droits de « {name} »"
+        },
+        "conflict": {
+          "title": "Une autre personne a modifié les droits de ce rôle depuis que vous l’avez ouvert",
+          "codes": "Permissions modifiées :",
+          "reload": "Recharger",
+          "reloadConfirm": {
+            "title": "Recharger et abandonner vos modifications",
+            "description": "Vous perdrez les modifications non enregistrées de cet écran et verrez les droits actuels du rôle.",
+            "confirm": "Recharger et abandonner"
+          }
+        },
+        "errors": {
+          "summary": "Les droits n'ont pas été enregistrés.",
+          "capacity": "Si vous enregistrez cela, plus personne dans l'établissement ne conserverait toutes les permissions d'administration. Accordez d'abord ces permissions à une autre personne.",
+          "capacityList": "Permissions concernées :",
+          "grantDetail": "Permission : {permission}. Périmètre : {scope}."
+        },
+        "leave": {
+          "title": "Quitter sans enregistrer",
+          "description": "Vous avez {count} modifications non enregistrées. Si vous quittez, elles seront perdues. | Vous avez {count} modification non enregistrée. Si vous quittez, elle sera perdue. | Vous avez {count} modifications non enregistrées. Si vous quittez, elles seront perdues.",
+          "confirm": "Quitter et abandonner",
+          "cancel": "Continuer à modifier"
+        },
+        "backToList": "Retour à la liste des rôles"
+      },
+      "actions": {
+        "new": "Nouveau rôle"
+      },
+      "flash": {
+        "created": "Rôle « {name} » créé. Vous pouvez maintenant lui accorder des permissions.",
+        "cloned": "Rôle « {name} » créé comme copie de « {source} ».",
+        "updated": "Données du rôle enregistrées.",
+        "deleted": "Rôle « {name} » supprimé."
+      },
+      "systemNotice": "Les rôles système ne se modifient pas ici. Clonez-le pour créer votre propre version.",
+      "errors": {
+        "unexpected": "L'action n'a pas pu être menée à bien. Veuillez réessayer.",
+        "tooManyRequests": "Trop de tentatives. Patientez un instant et réessayez.",
+        "tooManyRequestsWithSeconds": "Trop de tentatives. Réessayez dans {seconds} s.",
+        "hasAssignments": "Le rôle a des titulaires ({count}). Retirez-le d’abord à chaque utilisateur."
+      },
+      "detail": {
+        "title": "Fiche du rôle",
+        "actions": "Actions",
+        "data": "Données",
+        "editData": "Modifier les données",
+        "editGrants": "Modifier les droits",
+        "clone": "Cloner",
+        "delete": "Supprimer",
+        "viewUsers": "Voir les utilisateurs ayant ce rôle",
+        "code": "Code interne",
+        "type": "Type",
+        "mfaRequired": "MFA obligatoire",
+        "specialData": "Accès aux données de catégorie particulière",
+        "users": "Titulaires",
+        "deleteBlocked": "Impossible de supprimer un rôle ayant des titulaires ({count}). Retirez-le d’abord à chaque utilisateur",
+        "grantsTitle": "Droits",
+        "confirmDelete": {
+          "title": "Supprimer le rôle « {name} »",
+          "description": "La suppression ne s'annule pas depuis l'interface : le rôle cesse d'exister et les rôles supprimés ne sont pas restaurés.",
+          "confirm": "Supprimer le rôle « {name} »"
+        }
+      },
+      "grants": {
+        "caption": "Droits du rôle {name}",
+        "columns": {
+          "resource": "Ressource",
+          "action": "Action",
+          "effect": "Effet",
+          "scope": "Périmètre",
+          "special": "Catégorie particulière",
+          "code": "Code"
+        },
+        "anyScope": "Tout périmètre",
+        "specialBadge": "Catégorie particulière",
+        "specialInert": "Inerte : ce rôle n'a pas accès aux données particulières",
+        "filters": {
+          "effect": "Effet"
+        },
+        "empty": {
+          "title": "Aucun droit",
+          "text": "Ce rôle n'accorde ni ne refuse aucune permission"
+        }
+      },
+      "form": {
+        "titleNew": "Nouveau rôle",
+        "titleClone": "Cloner le rôle",
+        "titleEdit": "Modifier les données du rôle",
+        "requiredHint": "Les champs marqués d’un * sont obligatoires.",
+        "required": "obligatoire",
+        "name": "Nom",
+        "nameHelp": "Il s’affiche à l’identique dans toutes les langues.",
+        "code": "Code",
+        "codeHelp": "Identifiant interne ; il ne pourra pas être modifié.",
+        "mfaRequired": "MFA obligatoire",
+        "mfaHelp": "Les personnes ayant ce rôle devront configurer un second facteur.",
+        "mfaReadOnly": "MFA obligatoire : {value}",
+        "mfaLink": "Modifier dans la configuration MFA",
+        "specialData": "Accès aux données de catégorie particulière",
+        "specialNotHeld": "Vous ne pouvez pas activer cet attribut : aucun de vos rôles n'a accès aux données de catégorie particulière",
+        "specialHint": "Les droits sur les données de catégorie particulière ne prennent effet que dans les rôles ayant cet attribut.",
+        "nameSystem": "Le nom d'un rôle système ne se modifie pas.",
+        "submit": {
+          "new": "Créer le rôle",
+          "clone": "Créer la copie",
+          "edit": "Enregistrer les modifications"
+        },
+        "cancel": "Annuler",
+        "errorSummary": "Vérifiez les champs signalés.",
+        "missing": "Pour consulter le rôle, vous avez aussi besoin de la permission {permission}.",
+        "errors": {
+          "codeFormat": "Le code doit commencer par une lettre minuscule et comporter de 3 à 64 caractères : minuscules, chiffres et tiret bas."
+        },
+        "source": {
+          "title": "Rôle d'origine",
+          "summary": "{count} droits · MFA obligatoire : {mfa} · Accès aux données de catégorie particulière : {special}",
+          "explanation": "Les droits et l'obligation de MFA sont copiés. Les titulaires ne le sont pas. Le nouveau rôle est détaché de l'origine : modifier l'un ensuite ne modifie pas l'autre.",
+          "specialWarning": "Le rôle d'origine a accès aux données de catégorie particulière : vous ne pourrez le cloner que si vous pouvez activer cet attribut."
+        },
+        "grant": {
+          "denied": "Le rôle d'origine accorde quelque chose que vous n'avez pas ; rien n'a été créé.",
+          "detail": "Permission : {permission}. Périmètre : {scope}."
+        },
+        "confirmSpecial": {
+          "activateTitle": "Activer l'accès aux données de catégorie particulière dans « {name} »",
+          "activateDescription": "Le rôle rendra effectifs ses droits de catégorie particulière pour {count} titulaires.",
+          "activateDescriptionUnknown": "Le rôle rendra effectifs ses droits de catégorie particulière pour ses titulaires.",
+          "activateConfirm": "Activer dans « {name} »",
+          "deactivateTitle": "Désactiver l'accès aux données de catégorie particulière dans « {name} »",
+          "deactivateDescription": "Les droits de catégorie particulière du rôle cesseront de prendre effet pour {count} titulaires.",
+          "deactivateDescriptionUnknown": "Les droits de catégorie particulière du rôle cesseront de prendre effet pour ses titulaires.",
+          "deactivateConfirm": "Désactiver dans « {name} »"
+        }
+      }
+    },
+    "settings": {
+      "title": "Paramètres de l'établissement",
+      "intro": "Données régionales et fiscales, palette de couleurs et sécurité de l'établissement. Chaque bloc est enregistré séparément.",
+      "introReadOnly": "Données régionales et fiscales, palette de couleurs et sécurité de l'établissement, en lecture seule. Vous n'avez pas l'autorisation de les modifier.",
+      "required": "(obligatoire)",
+      "requiredHint": "Les champs marqués d’un * sont obligatoires.",
+      "notSet": "Non renseigné",
+      "saving": "Enregistrement…",
+      "brandingLink": "Éléments de marque : logo, favicon et fond de connexion",
+      "errors": {
+        "unexpected": "Les modifications n'ont pas pu être enregistrées. Veuillez réessayer.",
+        "notInteger": "Saisissez un nombre entier.",
+        "tooManyRequests": "Trop de tentatives. Patientez un instant puis réessayez.",
+        "tooManyRequestsWithSeconds": "Trop de tentatives. Réessayez dans {seconds} s."
+      },
+      "saved": {
+        "regional": "Données régionales enregistrées.",
+        "fiscal": "Données fiscales enregistrées.",
+        "palette": "Palette enregistrée.",
+        "security": "Paramètres de sécurité enregistrés."
+      },
+      "regional": {
+        "title": "Régional",
+        "defaultLocale": "Langue par défaut",
+        "chooseDefaultLocale": "Choisissez une langue",
+        "defaultLocaleRequired": "Choisissez une langue par défaut parmi les langues actives pour pouvoir enregistrer.",
+        "activeLocales": "Langues actives",
+        "activeLocalesHint": "La langue par défaut doit être l’une des langues actives.",
+        "activeLocalesRequired": "Cochez au moins une langue active.",
+        "interfaceLocaleWarning": "Vous consultez l'interface dans une langue qui ne sera plus active : après l'enregistrement, vous la verrez dans la langue par défaut de l'établissement.",
+        "timezoneSearch": "Rechercher un fuseau horaire",
+        "timezone": "Fuseau horaire",
+        "currency": "Devise",
+        "currencyHint": "Code de trois lettres majuscules, par exemple EUR.",
+        "autonomousCommunity": "Communauté autonome",
+        "autonomousCommunityNone": "Non renseignée",
+        "save": "Enregistrer les données régionales"
+      },
+      "fiscal": {
+        "title": "Données fiscales",
+        "legalName": "Raison sociale",
+        "taxId": "Numéro fiscal",
+        "address": "Adresse",
+        "postalCode": "Code postal",
+        "city": "Commune",
+        "province": "Province",
+        "countryCode": "Pays",
+        "countryCodeHint": "Code de deux lettres majuscules, par exemple ES.",
+        "save": "Enregistrer les données fiscales"
+      },
+      "palette": {
+        "title": "Palette de couleurs",
+        "primary": "Couleur primaire",
+        "secondary": "Couleur secondaire",
+        "hexHint": "Format #RRGGBB, par exemple #1D4ED8.",
+        "preview": "Aperçu",
+        "previewEmpty": "Saisissez les deux couleurs au format #RRGGBB pour voir l’aperçu et son contraste.",
+        "sample": "Texte d’exemple",
+        "ratio": "Contraste : {ratio}:1.",
+        "meets": "Atteint le minimum de {required}:1.",
+        "fails": "N’atteint pas le minimum de {required}:1.",
+        "serverRatio": "Le serveur a calculé un contraste de {ratio}:1 ; le minimum exigé est {required}:1.",
+        "save": "Enregistrer la palette"
+      },
+      "security": {
+        "title": "Sécurité",
+        "sessionTimeout": "Déconnexion pour inactivité",
+        "sessionTimeoutHint": "En minutes, entre 5 et 480.",
+        "minutes": "{count} minute | {count} minutes",
+        "allowedMethods": "Méthodes de second facteur autorisées",
+        "allowedMethodsHint": "L’application d’authentification est toujours requise. Le SMS n’est pas disponible.",
+        "method": {
+          "totp": "Application d'authentification (TOTP)",
+          "email": "Code par e-mail",
+          "sms": "Message SMS"
+        },
+        "gracePeriod": "Délai de grâce pour activer le second facteur",
+        "gracePeriodHint": "En jours, entre 1 et 90.",
+        "days": "{count} jour | {count} jours",
+        "save": "Enregistrer la sécurité",
+        "mfaAdminText": "L’obligation du second facteur par rôle, les exemptions et les réinitialisations se gèrent sur un autre écran.",
+        "mfaAdminLink": "Aller à l’administration MFA"
+      },
+      "autonomousCommunity": {
+        "AN": "Andalousie",
+        "AR": "Aragon",
+        "AS": "Asturies",
+        "IB": "Îles Baléares",
+        "CN": "Îles Canaries",
+        "CB": "Cantabrie",
+        "CL": "Castille-et-León",
+        "CM": "Castille-La Manche",
+        "CT": "Catalogne",
+        "EX": "Estrémadure",
+        "GA": "Galice",
+        "MD": "Communauté de Madrid",
+        "MC": "Région de Murcie",
+        "NC": "Navarre",
+        "PV": "Pays basque",
+        "RI": "La Rioja",
+        "VC": "Communauté valencienne",
+        "CE": "Ceuta",
+        "ML": "Melilla"
+      }
+    },
+    "branding": {
+      "title": "Éléments de marque",
+      "intro": "Logo, favicon et fond de l'écran de connexion de l'établissement. L'image déjà enregistrée est affichée.",
+      "introReadOnly": "Logo, favicon et fond de connexion de l'établissement, en lecture seule. Vous n'avez pas l'autorisation de les modifier.",
+      "imageError": "L'image n'a pas pu être chargée.",
+      "saved": "Image enregistrée.",
+      "removed": "Image supprimée.",
+      "errors": {
+        "tooLarge": "Le fichier est trop volumineux.",
+        "unsupportedType": "Le type de fichier n'est pas pris en charge.",
+        "invalid": "Le fichier n'est pas valide pour cet usage.",
+        "unexpected": "L'action n'a pas pu être menée à bien. Veuillez réessayer.",
+        "tooManyRequests": "Trop de tentatives. Patientez un instant puis réessayez.",
+        "tooManyRequestsWithSeconds": "Trop de tentatives. Réessayez dans {seconds} s."
+      },
+      "kinds": {
+        "logo": {
+          "name": "Logo",
+          "limits": "Formats pris en charge : SVG, PNG ou WebP. Taille maximale : 1 Mo.",
+          "none": "Il n'y a pas de logo.",
+          "alt": "Logo actuel de {center}",
+          "replace": "Remplacer le logo",
+          "remove": "Supprimer le logo",
+          "tooLarge": "Le logo dépasse la limite de 1 Mo.",
+          "wrongType": "Le logo doit être au format SVG, PNG ou WebP.",
+          "confirmTitle": "Supprimer le logo",
+          "confirmDescription": "L'établissement s'affichera sans logo tant que vous n'en aurez pas téléversé un autre.",
+          "confirmButton": "Supprimer le logo de {center}"
+        },
+        "favicon": {
+          "name": "Favicon",
+          "limits": "Formats pris en charge : PNG, ICO ou SVG. Taille maximale : 256 Ko.",
+          "none": "Il n'y a pas de favicon.",
+          "alt": "Favicon actuel de {center}",
+          "replace": "Remplacer le favicon",
+          "remove": "Supprimer le favicon",
+          "tooLarge": "Le favicon dépasse la limite de 256 Ko.",
+          "wrongType": "Le favicon doit être au format PNG, ICO ou SVG.",
+          "confirmTitle": "Supprimer le favicon",
+          "confirmDescription": "Le navigateur affichera l'icône par défaut tant que vous n'en aurez pas téléversé une autre.",
+          "confirmButton": "Supprimer le favicon de {center}"
+        },
+        "loginBackground": {
+          "name": "Fond de connexion",
+          "limits": "Formats pris en charge : JPEG, PNG ou WebP (pas SVG). Taille maximale : 3 Mo.",
+          "none": "Il n'y a pas de fond de connexion.",
+          "replace": "Remplacer le fond de connexion",
+          "remove": "Supprimer le fond de connexion",
+          "tooLarge": "Le fond de connexion dépasse la limite de 3 Mo.",
+          "wrongType": "Le fond de connexion doit être au format JPEG, PNG ou WebP.",
+          "confirmTitle": "Supprimer le fond de connexion",
+          "confirmDescription": "L'écran de connexion s'affichera sans image de fond tant que vous n'en aurez pas téléversé une autre.",
+          "confirmButton": "Supprimer le fond de connexion de {center}"
+        }
+      }
+    },
+    "modules": {
+      "title": "Modules souscrits",
+      "intro": "Modules souscrits par l'établissement, en lecture seule. La date d'activation indique quand chacun a été activé.",
+      "caption": "Modules souscrits par l'établissement",
+      "empty": {
+        "title": "Aucun module souscrit",
+        "text": "L'établissement n'a encore souscrit aucun module."
+      },
+      "columns": {
+        "name": "Module",
+        "status": "Statut",
+        "enabledAt": "Date d'activation"
+      },
+      "status": {
+        "contracted": "Souscrit",
+        "notContracted": "Non souscrit"
+      }
+    },
+    "profile": {
+      "title": "Mon profil",
+      "intro": "Les données de votre compte. Vous pouvez modifier votre e-mail et votre téléphone de contact.",
+      "fullName": "Nom complet",
+      "accessEmail": "E-mail de connexion",
+      "accessEmailHint": "L'e-mail de connexion ne se modifie pas ici ; si vous devez le changer, contactez l'établissement.",
+      "contactEmail": "E-mail de contact",
+      "contactPhone": "Téléphone de contact",
+      "save": "Enregistrer le profil",
+      "saving": "Enregistrement…",
+      "saved": "Profil enregistré.",
+      "errors": {
+        "unexpected": "Le profil n'a pas pu être enregistré. Veuillez réessayer.",
+        "tooManyRequests": "Trop de tentatives. Patientez un instant puis réessayez.",
+        "tooManyRequestsWithSeconds": "Trop de tentatives. Réessayez dans {seconds} s."
+      }
+    },
+    "permissions": {
+      "vocabulary": {
+        "actions": {
+          "crear": "Créer",
+          "leer": "Lire",
+          "actualizar": "Mettre à jour",
+          "eliminar": "Supprimer",
+          "exportar": "Exporter",
+          "importar": "Importer",
+          "aprobar": "Approuver",
+          "firmar": "Signer",
+          "publicar": "Publier"
+        },
+        "scopes": {
+          "todos": "Tous",
+          "propios": "Propres",
+          "departamento": "Département",
+          "grupo": "Groupe",
+          "clase": "Classe",
+          "unidad_familiar": "Unité familiale"
+        },
+        "effects": {
+          "allow": "Autoriser",
+          "deny": "Refuser"
+        },
+        "decisions": {
+          "permitido": "Autorisé",
+          "denegado": "Refusé"
+        },
+        "inertReasons": {
+          "inerte_permiso_retirado": "la permission n'existe plus dans le catalogue",
+          "inerte_modulo": "l'établissement n'a pas souscrit le module",
+          "inerte_datos_especiales": "le rôle n'a pas accès aux données de catégorie particulière",
+          "inerte_sin_resolutor": "aucun module n'applique encore ce périmètre"
+        }
+      }
+    },
+    "effectivePermissions": {
+      "title": "Permissions effectives",
+      "heading": "Permissions effectives de {name}",
+      "intro": "Ce que cette personne peut faire en ce moment, calculé avec les mêmes règles que la plateforme applique à chaque requête.",
+      "roles": "Rôles",
+      "noRoles": "Aucun rôle attribué.",
+      "computedAt": "Calculé le {date}",
+      "recalculate": "Recalculer",
+      "caption": "Permissions effectives de {name}",
+      "columns": {
+        "resource": "Ressource",
+        "action": "Action",
+        "decision": "Résultat",
+        "scopes": "Périmètres",
+        "sources": "Provenance",
+        "module": "Module",
+        "code": "Code"
+      },
+      "special": "Catégorie particulière",
+      "unrestricted": "Sans restriction",
+      "anyScope": "Tout périmètre",
+      "sources": {
+        "allows": "Autorise",
+        "denies": "Refuse",
+        "inert": "Sans effet : {reason}"
+      },
+      "vetoedBy": "Refusé par « {role} » : un refus annule tout droit accordé",
+      "grantedInert": "Accordé, mais sans effet : {reason}",
+      "filters": {
+        "decision": "Résultat",
+        "module": "Module",
+        "includeEmpty": "Inclure les permissions sans aucun droit accordé"
+      },
+      "empty": {
+        "title": "Aucune permission",
+        "text": "Cette personne n'a aucune permission accordée ni refusée par ses rôles."
+      }
     }
   }
 }

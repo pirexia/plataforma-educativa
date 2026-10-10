@@ -14,7 +14,7 @@
  * dinámica (evita el ciclo `client → session → core/api → client`).
  */
 import { shallowRef, triggerRef } from 'vue'
-import { ApiError } from '@/api/client'
+import { ApiError, handleUnauthorized } from '@/api/client'
 import { getMe, updateMe } from '@/modules/core/api'
 import type { User } from '@/modules/core/types'
 
@@ -81,7 +81,15 @@ function toErrorInfo(err: unknown): SessionErrorInfo {
 }
 
 async function fetchMe(): Promise<void> {
-  status.value = 'loading'
+  // #300: una recarga con la sesión ya `ready` (p. ej. tras un `403`, §12.3.4)
+  // no pasa por `loading`: el shell desmontaría la vista activa y, al
+  // volver a montarla, esta repetiría la petición que dio el `403`, en bucle.
+  // Solo el arranque y la recuperación desde otro estado muestran la carga.
+  const wasReady = status.value === 'ready'
+
+  if (!wasReady) {
+    status.value = 'loading'
+  }
 
   try {
     const me = await getMe()
@@ -93,6 +101,14 @@ async function fetchMe(): Promise<void> {
       user.value = null
       status.value = 'anonymous'
       error.value = null
+
+      // #302: la sesión se perdió estando ya `ready` (recarga tras un `403`):
+      // no hay guard ni remonte que redirija, así que se reutiliza el manejo
+      // de `401` del cliente (`/entrar?redirect=`).
+      if (wasReady) {
+        void handleUnauthorized()
+      }
+
       return
     }
 
@@ -183,6 +199,19 @@ export async function updateSessionLocale(locale: string): Promise<User> {
   return updated
 }
 
+/**
+ * `RN-CORE-89`, `funcional.md §12.3.4`: aplica la respuesta de un `PATCH /me` del
+ * perfil propio (correo y teléfono de contacto) sin una segunda petición.
+ */
+export async function updateSessionProfile(
+  person: NonNullable<Parameters<typeof updateMe>[0]['person']>,
+): Promise<User> {
+  const updated = await updateMe({ person })
+  user.value = updated
+  triggerRef(user)
+  return updated
+}
+
 /** `RN-CORE-27`: vacía el estado aunque `DELETE /auth/session` falle. */
 export function clearSession(): void {
   user.value = null
@@ -202,6 +231,7 @@ export function useSession() {
     reloadSessionAfterForbidden,
     clearModuleUnavailableDetail,
     updateSessionLocale,
+    updateSessionProfile,
     clearSession,
   }
 }

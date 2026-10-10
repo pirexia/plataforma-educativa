@@ -87,7 +87,7 @@ async function redirectToMfaEnrollmentWall(): Promise<void> {
  */
 let unauthorizedInFlight: Promise<void> | null = null
 
-async function handleUnauthorized(): Promise<void> {
+export async function handleUnauthorized(): Promise<void> {
   if (!unauthorizedInFlight) {
     unauthorizedInFlight = doHandleUnauthorized().finally(() => {
       unauthorizedInFlight = null

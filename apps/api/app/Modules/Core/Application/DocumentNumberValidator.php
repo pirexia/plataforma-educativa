@@ -2,14 +2,20 @@
 
 namespace App\Modules\Core\Application;
 
+use App\Modules\Core\Domain\DocumentType;
+
 /**
- * Caso límite de funcional.md §6 / OPEN-CORE-06: formato de DNI/NIE
- * (único par documentado con algoritmo de dígito de control en la
- * especificación; otros `document_type` solo se validan por no estar
- * vacíos, sin lista cerrada — el esquema los deja como `text` libre a
- * propósito, ADR-034 §1). `config('core.documents.validate_check_digit')`
+ * Caso límite de funcional.md §6 / OPEN-CORE-06 y RN-CORE-90 a 93
+ * (§14.6.4): formato de cada tipo del catálogo cerrado `DocumentType` y,
+ * en `dni`/`nie`, dígito de control. `pasaporte` solo exige formato
+ * alfanumérico (`[A-Z0-9]`, 1 a 32 caracteres, OPEN-CORE-51 = A): no lleva
+ * dígito de control propio. `config('core.documents.validate_check_digit')`
  * decide si el dígito se comprueba (desactivable solo fuera de
- * producción, forzado por CoreServiceProvider).
+ * producción, forzado por CoreServiceProvider); **el formato se exige
+ * siempre**.
+ *
+ * Trabaja sobre el tipo ya resuelto y normaliza el número antes de validar
+ * (RN-CORE-92): quien guarda debe guardar `normalize()`.
  */
 final class DocumentNumberValidator
 {
@@ -17,20 +23,25 @@ final class DocumentNumberValidator
 
     private const NIE_PREFIX_DIGIT = ['X' => '0', 'Y' => '1', 'Z' => '2'];
 
-    public function isValidFormat(string $documentType, string $number): bool
+    public function normalize(DocumentType $type, string $number): string
     {
-        $number = strtoupper(trim($number));
+        return $type->normalizeNumber($number);
+    }
 
-        return match (strtoupper($documentType)) {
-            'DNI' => (bool) preg_match('/^\d{8}[A-Z]$/', $number),
-            'NIE' => (bool) preg_match('/^[XYZ]\d{7}[A-Z]$/', $number),
-            default => $number !== '',
+    public function isValidFormat(DocumentType $type, string $number): bool
+    {
+        $number = $this->normalize($type, $number);
+
+        return match ($type) {
+            DocumentType::Dni => (bool) preg_match('/^\d{8}[A-Z]$/', $number),
+            DocumentType::Nie => (bool) preg_match('/^[XYZ]\d{7}[A-Z]$/', $number),
+            DocumentType::Pasaporte => (bool) preg_match('/^[A-Z0-9]{1,32}$/', $number),
         };
     }
 
-    public function isValid(string $documentType, string $number): bool
+    public function isValid(DocumentType $type, string $number): bool
     {
-        if (! $this->isValidFormat($documentType, $number)) {
+        if (! $this->isValidFormat($type, $number)) {
             return false;
         }
 
@@ -38,10 +49,12 @@ final class DocumentNumberValidator
             return true;
         }
 
-        return match (strtoupper($documentType)) {
-            'DNI' => $this->isValidDniCheckDigit($number),
-            'NIE' => $this->isValidNieCheckDigit($number),
-            default => true,
+        $number = $this->normalize($type, $number);
+
+        return match ($type) {
+            DocumentType::Dni => $this->isValidDniCheckDigit($number),
+            DocumentType::Nie => $this->isValidNieCheckDigit($number),
+            DocumentType::Pasaporte => true,
         };
     }
 

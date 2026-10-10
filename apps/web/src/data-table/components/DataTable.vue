@@ -11,6 +11,11 @@
  * `src/data-table` y aporta la función de petición (`RN-CORE-38`): este
  * componente no construye URLs de *endpoints*, no genera ficheros
  * (`RN-CORE-46`) y no ve los tipos de TanStack (`RN-CORE-37`).
+ *
+ * Modo `local` (1.5b, `REQ-PERM funcional.md §20.11`, `RN-PERM-43`/`-44`): la
+ * colección se pide entera una vez y la paginación, el orden, los filtros y la
+ * búsqueda se hacen en cliente. Sin exportación (`E8`) y sin filtros de rango de
+ * fechas ni de entidad (`E4`): si se declaran, se ignoran y se avisa por consola.
  */
 import { computed, nextTick, ref, watch } from 'vue'
 import { SearchX } from '@lucide/vue'
@@ -32,6 +37,7 @@ import type {
   DataTableExportConfig,
   DataTableFetcher,
   DataTableFilter,
+  DataTableLocalFetcher,
   DataTableMode,
 } from '../types'
 import DataTableExportStatus from './DataTableExportStatus.vue'
@@ -47,12 +53,15 @@ const props = withDefaults(
     caption: string
     columns: readonly DataTableColumn<Row>[]
     mode: DataTableMode
-    fetcher: DataTableFetcher<Row>
+    /** Con `mode="local"`, un `DataTableLocalFetcher` (`RN-PERM-44` E1); con los demás, un `DataTableFetcher`. */
+    fetcher: DataTableFetcher<Row> | DataTableLocalFetcher<Row>
     /** Identidad de la fila: por `public_id` (`ADR-029`) salvo que el consumidor declare otra clave. */
     rowKey?: (row: Row) => string
-    filters?: readonly DataTableFilter[]
+    filters?: readonly DataTableFilter<Row>[]
     /** Campo de búsqueda `q` (`RN-CORE-40`). */
     searchable?: boolean
+    /** Solo modo `local` (`RN-PERM-44` E5): texto de la fila contra el que se busca. */
+    searchText?: (row: Row) => string
     /** `RN-CORE-54`: opcional; como máximo una tabla por ruta. */
     urlState?: boolean
     /** `RN-CORE-55`: por defecto, tarjetas por debajo de 768 px; `scroll` = desplazamiento horizontal interno. */
@@ -64,17 +73,21 @@ const props = withDefaults(
     exportConfig?: DataTableExportConfig
     /** Nivel del encabezado de cada tarjeta, según la jerarquía de la vista del consumidor. */
     cardHeadingLevel?: 2 | 3 | 4 | 5
+    /** Issue #326: con una sola página no se pinta el pie (total, «Página 1 de 1» y botones inertes). */
+    hideSinglePageFooter?: boolean
   }>(),
   {
     rowKey: (row: Row) => String((row as { public_id?: string }).public_id),
     filters: () => [],
     searchable: false,
+    searchText: undefined,
     urlState: false,
     mobile: 'cards',
     emptyText: '',
     emptyActionLabel: undefined,
     exportConfig: undefined,
     cardHeadingLevel: 3,
+    hideSinglePageFooter: false,
   },
 )
 
@@ -140,14 +153,44 @@ function resetColumns(): void {
   clearHiddenColumns(props.tableId)
 }
 
+// --- Modo `local`: lo que no admite (`RN-PERM-44` E4/E8) -------------------
+
+const isLocal = props.mode === 'local'
+
+/** E4: `dateRange` y `entity` no se admiten en `local`: se ignoran y se avisa por consola (como `RN-CORE-94`). */
+const effectiveFilters = computed<readonly DataTableFilter<Row>[]>(() =>
+  isLocal
+    ? props.filters.filter((filter) => filter.type === 'enum' || filter.type === 'boolean')
+    : props.filters,
+)
+
+if (isLocal) {
+  for (const filter of props.filters) {
+    if (filter.type === 'dateRange' || filter.type === 'entity') {
+      console.warn(
+        `data-table: el filtro «${filter.id}» (${filter.type}) se ignora: no se admite en modo \`local\` (RN-PERM-44 E4).`,
+      )
+    }
+  }
+
+  if (props.exportConfig !== undefined) {
+    console.warn(
+      'data-table: `exportConfig` se ignora en modo `local`: la SPA no genera ficheros y el modo local no exporta (RN-PERM-44 E8, RN-CORE-46).',
+    )
+  }
+}
+
 // --- Consulta y datos -----------------------------------------------------
 
 const controller = useDataTableController<Row>({
   mode: props.mode,
   fetcher: () => props.fetcher,
-  filters: () => props.filters,
+  filters: () => effectiveFilters.value,
   sortableIds: () => props.columns.filter((column) => column.sortable).map((column) => column.id),
   urlState: props.urlState,
+  columns: () => props.columns,
+  rowKey: (row) => props.rowKey(row),
+  searchText: () => props.searchText,
 })
 
 const {
@@ -163,7 +206,7 @@ const {
   capReached,
   announcement,
   filters: filterValues,
-  searchText,
+  searchText: typedSearch,
   hasActiveFilters,
   searchActive,
   sort,
@@ -189,6 +232,15 @@ const announcementText = computed(() => {
     return ''
   }
 
+  if (current.kind === 'local') {
+    // `RN-PERM-44` E6: «12 de 35 …»; el plural sigue el recuento filtrado.
+    return t(
+      'dataTable.announce.local',
+      { count: formatNumber(current.count), total: formatNumber(current.total) },
+      current.count,
+    )
+  }
+
   return t(
     `dataTable.announce.${current.kind}`,
     { count: formatNumber(current.count) },
@@ -198,8 +250,8 @@ const announcementText = computed(() => {
 
 // --- Exportación (`RN-CORE-46`) -------------------------------------------
 
-const exportFlow = useExportFlow(() => props.exportConfig)
-const canExport = computed(() => props.exportConfig?.canExport === true)
+const exportFlow = useExportFlow(() => (isLocal ? undefined : props.exportConfig))
+const canExport = computed(() => !isLocal && props.exportConfig?.canExport === true)
 
 function onExport(): void {
   // `RN-CORE-57`: con búsqueda activa no se invoca la solicitud (no solo con estilo).
@@ -263,10 +315,10 @@ defineExpose({
     <DataTableToolbar
       ref="toolbar"
       :columns="props.columns"
-      :filters="props.filters"
+      :filters="effectiveFilters"
       :filter-values="filterValues"
       :searchable="props.searchable"
-      :search-text="searchText"
+      :search-text="typedSearch"
       :has-active-filters="hasActiveFilters"
       :hidden-columns="hiddenColumns"
       :show-columns-menu="hideableIds().length > 0"
@@ -351,7 +403,13 @@ defineExpose({
     </div>
 
     <DataTablePagination
-      v-if="props.mode === 'page' && pageMeta && pageMeta.total > 0 && !error"
+      v-if="
+        props.mode !== 'cursor' &&
+        pageMeta &&
+        pageMeta.total > 0 &&
+        !error &&
+        !(props.hideSinglePageFooter && pageMeta.last_page <= 1)
+      "
       :current="pageMeta.current_page"
       :last="Math.max(pageMeta.last_page, 1)"
       :total="pageMeta.total"

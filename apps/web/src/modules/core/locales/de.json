@@ -25,12 +25,879 @@
         "completado": "Abgeschlossen"
       }
     },
-    "module": {
-      "enabled": "Aktiviert",
-      "disabled": "Deaktiviert"
-    },
     "nav": {
-      "home": "Start"
+      "home": "Start",
+      "users": "Benutzer",
+      "invitations": "Einladungen",
+      "userImports": "Benutzerimport",
+      "audit": "Protokoll",
+      "roles": "Rollen",
+      "settings": "Schule",
+      "modules": "Module",
+      "profile": "Profil"
+    },
+    "locale": {
+      "name": {
+        "es": "Spanisch",
+        "en": "Englisch",
+        "de": "Deutsch",
+        "fr": "Französisch"
+      }
+    },
+    "users": {
+      "title": "Benutzer",
+      "intro": "Personen mit Zugang zur Plattform an dieser Schule.",
+      "new": "Neuer Benutzer",
+      "import": "Importieren",
+      "caption": "Benutzer der Schule",
+      "empty": {
+        "title": "Es gibt noch keine Benutzer",
+        "text": "Lege den ersten an, um zu beginnen."
+      },
+      "filters": {
+        "status": "Status",
+        "role": "Rolle",
+        "locale": "Sprache",
+        "includeDeleted": "Deaktivierte Konten einbeziehen"
+      },
+      "columns": {
+        "name": "Name",
+        "email": "Anmelde-E-Mail",
+        "status": "Status",
+        "roles": "Rollen",
+        "locale": "Sprache",
+        "createdAt": "Angelegt"
+      },
+      "status": {
+        "deleted": "Entfernt"
+      },
+      "errors": {
+        "unexpected": "Die Aktion konnte nicht abgeschlossen werden. Bitte versuche es erneut.",
+        "tooManyRequests": "Zu viele Versuche. Warte einen Moment und versuche es erneut.",
+        "tooManyRequestsWithSeconds": "Zu viele Versuche. Versuche es in {seconds} s erneut."
+      },
+      "detail": {
+        "title": "Profil",
+        "actions": "Aktionen",
+        "edit": "Bearbeiten",
+        "activate": "Aktivieren",
+        "deactivate": "Deaktivieren",
+        "invite": "Einladung senden",
+        "delete": "Entfernen",
+        "restore": "Wiederherstellen",
+        "selfNote": "Du kannst dein eigenes Konto hier nicht ändern.",
+        "data": "Daten",
+        "status": "Status",
+        "email": "Anmelde-E-Mail",
+        "documentType": "Dokumentart",
+        "documentNumber": "Dokumentnummer",
+        "birthDate": "Geburtsdatum",
+        "locale": "Sprache",
+        "contactEmail": "Kontakt-E-Mail",
+        "contactPhone": "Kontakttelefon",
+        "emailVerifiedAt": "E-Mail bestätigt",
+        "createdAt": "Angelegt",
+        "deletedAt": "Entfernt",
+        "roles": "Rollen",
+        "noRoles": "Dieser Benutzer hat keine Rollen.",
+        "manageRoles": "Zugewiesene Rollen",
+        "saveRoles": "Rollen speichern",
+        "viewActivity": "Aktivität anzeigen",
+        "viewActivityFor": "Aktivität anzeigen: {name}",
+        "viewEffectivePermissions": "Effektive Berechtigungen anzeigen",
+        "viewEffectivePermissionsFor": "Effektive Berechtigungen von {name} anzeigen"
+      },
+      "confirm": {
+        "deactivate": {
+          "title": "{name} deaktivieren",
+          "description": "Die Person kann sich erst wieder anmelden, wenn du das Konto erneut aktivierst.",
+          "confirm": "{name} deaktivieren"
+        },
+        "delete": {
+          "title": "{name} entfernen",
+          "description": "Das Konto steht nicht mehr zur Verfügung und kann sich nicht anmelden. Du kannst es später wiederherstellen.",
+          "confirm": "{name} entfernen"
+        },
+        "invite": {
+          "title": "Einladung an {name} senden",
+          "description": "Ein Aktivierungslink wird an {email} gesendet. Eine frühere Einladung, falls vorhanden, verliert ihre Gültigkeit.",
+          "confirm": "Einladung an {name} senden"
+        },
+        "removeRoles": {
+          "title": "Rollen von {name} entziehen",
+          "description": "Diese Rollen werden entzogen: {roles}. Die damit verbundenen Berechtigungen gehen verloren.",
+          "confirm": "Rollen von {name} speichern"
+        }
+      },
+      "flash": {
+        "activated": "Konto aktiviert.",
+        "deactivated": "Konto deaktiviert.",
+        "deleted": "Benutzer entfernt.",
+        "restored": "Benutzer wiederhergestellt. Das Konto ist inaktiv: Aktiviere es, falls die Person sich wieder anmelden soll.",
+        "invited": "Einladung gesendet. Sie läuft am {date} ab.",
+        "rolesSaved": "Rollen gespeichert.",
+        "updated": "Änderungen gespeichert.",
+        "created": "Benutzer angelegt.",
+        "createdInvited": "Benutzer angelegt und Einladung gesendet. Sie läuft am {date} ab."
+      },
+      "form": {
+        "titleNew": "Neuer Benutzer",
+        "titleEdit": "Benutzer bearbeiten",
+        "requiredHint": "Mit * markierte Felder sind Pflichtfelder.",
+        "required": "(Pflichtfeld)",
+        "errorSummary": "Bitte prüfe die folgenden Felder:",
+        "email": "Anmelde-E-Mail",
+        "givenName": "Vorname",
+        "familyName1": "Erster Nachname",
+        "familyName2": "Zweiter Nachname",
+        "birthDate": "Geburtsdatum",
+        "documentType": "Dokumentart",
+        "documentNumber": "Dokumentnummer",
+        "contactEmail": "Kontakt-E-Mail",
+        "contactPhone": "Kontakttelefon",
+        "locale": "Bevorzugte Sprache",
+        "roles": "Rollen",
+        "sendInvitation": "Einladung per E-Mail senden",
+        "save": "Speichern",
+        "saving": "Wird gespeichert…",
+        "cancel": "Abbrechen"
+      }
+    },
+    "invitations": {
+      "title": "Einladungen",
+      "intro": "An ausstehende Benutzer gesendete Aktivierungslinks.",
+      "caption": "Einladungen der Schule",
+      "empty": {
+        "title": "Es gibt keine Einladungen",
+        "text": "Einladungen erscheinen hier, wenn du einen Benutzer anlegst oder seinen Link erneut sendest."
+      },
+      "filters": {
+        "status": "Status"
+      },
+      "columns": {
+        "user": "Benutzer",
+        "status": "Status",
+        "expiresAt": "Läuft ab",
+        "createdAt": "Gesendet",
+        "resolvedAt": "Angenommen oder widerrufen",
+        "actions": "Aktionen"
+      },
+      "revoke": "Widerrufen",
+      "reissue": "Erneut senden",
+      "revokeFor": "Einladung von {email} widerrufen",
+      "reissueFor": "Einladung an {email} erneut senden",
+      "confirm": {
+        "revoke": {
+          "title": "Einladung von {email} widerrufen",
+          "description": "Der gesendete Link funktioniert nicht mehr.",
+          "confirm": "Einladung von {email} widerrufen"
+        },
+        "reissue": {
+          "title": "Einladung an {email} erneut senden",
+          "description": "Ein neuer Link wird gesendet, der bisherige verliert seine Gültigkeit.",
+          "confirm": "Einladung an {email} erneut senden"
+        }
+      },
+      "flash": {
+        "revoked": "Einladung von {email} widerrufen.",
+        "reissued": "Einladung an {email} gesendet. Sie läuft am {date} ab."
+      }
+    },
+    "person": {
+      "documentType": {
+        "dni": "Spanischer Personalausweis (DNI)",
+        "nie": "Ausländer-Identifikationsnummer (NIE)",
+        "pasaporte": "Reisepass",
+        "none": "Keine Angabe"
+      }
+    },
+    "userImports": {
+      "title": "Benutzerimport",
+      "intro": "Laden Sie eine CSV-Datei hoch, um Benutzer gesammelt anzulegen. Sie wird zuerst geprüft: Es wird nichts angelegt, bevor Sie den Stapel ausführen.",
+      "caption": "Stapel des Benutzerimports",
+      "empty": {
+        "title": "Keine Importe",
+        "text": "Stapel erscheinen hier, sobald Sie eine Datei hochladen."
+      },
+      "columns": {
+        "file": "Datei",
+        "createdAt": "Hochgeladen",
+        "status": "Status",
+        "rows": "Zeilen",
+        "errors": "Zeilen mit Fehlern",
+        "created": "Angelegte Benutzer"
+      },
+      "upload": {
+        "title": "Datei hochladen",
+        "file": "CSV-Datei",
+        "fileHint": "CSV-Format (.csv) in UTF-8, Trennzeichen „;“ oder „,“, bis zu 10 MB.",
+        "sendInvitations": "Einladungen an die importierten Benutzer senden",
+        "submit": "Hochladen und prüfen",
+        "submitting": "Wird hochgeladen…",
+        "errors": {
+          "noFile": "Wählen Sie eine CSV-Datei aus.",
+          "extension": "Die Datei muss die Endung .csv haben.",
+          "tooLarge": "Die Datei ist größer als 10 MB."
+        }
+      },
+      "header": {
+        "title": "Genau erwartete Kopfzeile",
+        "hint": "Die erste Zeile der Datei muss genau diese sein, mit den Spalten in dieser Reihenfolge.",
+        "copy": "Kopfzeile kopieren",
+        "copied": "Kopfzeile kopiert.",
+        "manual": "Die Einzelheiten zu jeder Spalte stehen im Administrationshandbuch, Abschnitt „Benutzerimport“."
+      },
+      "documentTypes": {
+        "title": "Unterstützte Dokumentarten",
+        "hint": "Schreiben Sie in die Spalte document_type einen dieser Codes; Groß- oder Kleinschreibung spielt keine Rolle. Wenn Sie die Art angeben, müssen Sie auch die Nummer angeben und umgekehrt."
+      },
+      "detail": {
+        "pageTitle": "Importstapel",
+        "title": "Import {file}",
+        "intro": "Status des Stapels und Ergebnis der Prüfung.",
+        "state": "Status",
+        "statusLine": "Status: {status}",
+        "stalled": "Der Stapel kommt nicht voran. Möglicherweise läuft der Importprozess nicht.",
+        "checkAgain": "Erneut prüfen",
+        "rows": "Zeilen",
+        "errors": "Zeilen mit Fehlern",
+        "created": "Angelegte Benutzer",
+        "uploadedAt": "Hochgeladen",
+        "validatedAt": "Geprüft",
+        "executedAt": "Ausgeführt",
+        "incidents": "Beanstandungen",
+        "truncated": "Angezeigte Beanstandungen: {shown}. Zeilen mit Fehlern insgesamt: {total}. Laden Sie den vollständigen Bericht herunter, um alle zu sehen.",
+        "report": "Vollständigen Bericht herunterladen",
+        "refreshReport": "Link aktualisieren",
+        "execute": "Ausführen",
+        "retry": "Ausführung wiederholen",
+        "discard": "Verwerfen",
+        "back": "Zurück zur Liste",
+        "headerFailed": {
+          "title": "Die Kopfzeile der Datei ist ungültig",
+          "expected": "Die erwartete Kopfzeile lautet:"
+        }
+      },
+      "confirm": {
+        "execute": {
+          "title": "Import von {file} ausführen",
+          "creates": "Anzulegende Benutzer: {count}.",
+          "skipsErrors": "Zeilen mit Fehlern werden übersprungen.",
+          "invitationsYes": "An die angelegten Benutzer werden Einladungen gesendet.",
+          "invitationsNo": "Es werden keine Einladungen gesendet.",
+          "irreversible": "Ein Import kann nicht rückgängig gemacht werden.",
+          "confirm": "Import von {file} ausführen"
+        },
+        "discard": {
+          "title": "Import von {file} verwerfen",
+          "description": "Die hochgeladene Datei und der Bericht werden gelöscht. Es wurde noch kein Benutzer angelegt.",
+          "confirm": "Import von {file} verwerfen"
+        }
+      },
+      "flash": {
+        "executing": "Import läuft. Der Status aktualisiert sich von selbst.",
+        "discarded": "Import von {file} verworfen."
+      }
+    },
+    "userImportErrors": {
+      "caption": "Beanstandungen des Imports",
+      "empty": "Keine Beanstandungen",
+      "columns": {
+        "line": "Zeile",
+        "column": "Spalte",
+        "message": "Grund"
+      }
+    },
+    "audit": {
+      "title": "Audit-Protokoll",
+      "intro": "Wer in dieser Schule was und wann getan hat. Datum und Uhrzeit werden in der Zeitzone Ihres Browsers angezeigt.",
+      "caption": "Audit-Protokoll der Schule",
+      "empty": {
+        "title": "Keine Einträge",
+        "text": "Es gibt keine Protokolleinträge, die angezeigt werden könnten."
+      },
+      "filters": {
+        "occurredAt": "Datum",
+        "event": "Vorgang",
+        "actorType": "Akteurtyp",
+        "actor": "Benutzer",
+        "module": "Modul",
+        "auditableType": "Objekt"
+      },
+      "columns": {
+        "occurredAt": "Datum und Uhrzeit",
+        "event": "Vorgang",
+        "actor": "Benutzer",
+        "auditableType": "Objekt",
+        "auditablePublicId": "Kennung",
+        "ipAddress": "IP",
+        "requestId": "Anfrage",
+        "actions": "Aktionen"
+      },
+      "viewChanges": "Änderungen anzeigen",
+      "viewChangesFor": "Änderungen anzeigen: {event}, {entity}, {date}",
+      "event": {
+        "created": "Angelegt",
+        "updated": "Geändert",
+        "deleted": "Gelöscht",
+        "restored": "Wiederhergestellt",
+        "read": "Gelesen",
+        "exported": "Exportiert",
+        "login": "Anmeldung",
+        "logout": "Abmeldung",
+        "password_reset_requested": "Zurücksetzen des Passworts angefordert"
+      },
+      "actorType": {
+        "user": "Benutzer",
+        "system": "System",
+        "console": "Konsole",
+        "import": "Import",
+        "platform": "Plattform",
+        "anonymous": "Anonym"
+      },
+      "entity": {
+        "person": "Person",
+        "user": "Benutzer",
+        "role": "Rolle",
+        "academic_year": "Schuljahr",
+        "module_subscription": "Gebuchtes Modul",
+        "tenant_setting": "Schuleinstellungen",
+        "user_invitation": "Einladung",
+        "user_import": "Benutzerimport",
+        "data_export": "Datenexport",
+        "permission_role": "Berechtigung einer Rolle"
+      },
+      "module": {
+        "core": "Schule und Benutzer",
+        "auth": "Zugang und Sicherheit"
+      },
+      "changes": {
+        "title": "Änderungen des Eintrags",
+        "description": "{event} · {entity} · {date}",
+        "close": "Schließen",
+        "none": "Keine Änderungen aufgezeichnet.",
+        "before": "Vorher",
+        "after": "Nachher",
+        "arrow": "{from} → {to}",
+        "emptyValue": "leer",
+        "hadValue": "mit Wert",
+        "notRecorded": "Wert nicht aufgezeichnet",
+        "reasonLabel": "Grund: {reason}",
+        "reason": {
+          "secret": "geheime Daten",
+          "special": "besondere Datenkategorie",
+          "identifier": "identifizierende Daten",
+          "oversized": "Wert zu groß"
+        }
+      }
+    },
+    "roles": {
+      "title": "Rollen",
+      "intro": "Rollen der Einrichtung. Sieh dir an, was jede Rolle erteilt, lege eine eigene Rolle an oder klone eine bestehende.",
+      "caption": "Rollen der Schule",
+      "empty": {
+        "title": "Keine Rollen",
+        "text": "Die Schule hat noch keine Rollen."
+      },
+      "columns": {
+        "name": "Name",
+        "type": "Typ",
+        "mfaRequired": "MFA erforderlich",
+        "specialData": "Zugriff auf besondere Daten",
+        "users": "Benutzer"
+      },
+      "type": {
+        "system": "Systemrolle",
+        "custom": "Benutzerdefiniert"
+      },
+      "yes": "Ja",
+      "no": "Nein",
+      "editor": {
+        "matrix": {
+          "resource": "Ressource",
+          "special": "Besondere Kategorie",
+          "caption": "Berechtigungen von {module} für {role}",
+          "scrollLabel": "Berechtigungsmatrix für {module}, scrollbar",
+          "notContracted": "Modul nicht gebucht: Diese Berechtigungen wirken erst, wenn es gebucht wird"
+        },
+        "state": {
+          "none": "Nicht erteilt",
+          "allow": "Erlauben · {scope}"
+        },
+        "marks": {
+          "modified": "Geändert",
+          "inert": "Wirkungslos",
+          "onlyRemove": "Nur entziehen oder verweigern",
+          "error": "Fehler"
+        },
+        "cell": {
+          "name": "{resource} · {action}: {state}. Bearbeiten",
+          "nameMarks": "{resource} · {action}: {state} ({marks}). Bearbeiten"
+        },
+        "panel": {
+          "close": "Panel schließen",
+          "code": "Technischer Code:",
+          "groupLabel": "Berechtigung für {name}",
+          "scope": "Geltungsbereich",
+          "scopePlaceholder": "Geltungsbereich wählen",
+          "anyScope": "Beliebiger Geltungsbereich",
+          "denyExplanation": "Verweigern hebt diese Berechtigung für alle Inhaber der Rolle auf, in jedem Geltungsbereich und auch dann, wenn eine andere ihrer Rollen sie erteilt.",
+          "apply": "Übernehmen",
+          "cancel": "Abbrechen"
+        },
+        "option": {
+          "current": "{scope} (aktuell)",
+          "notHeld": "{scope} — du kannst ihn nicht erteilen: Du hast diese Berechtigung mit diesem Geltungsbereich nicht",
+          "noResolver": "{scope} — kann noch nicht erteilt werden: Ein noch nicht verfügbares Modul wird ihn bereitstellen"
+        },
+        "notes": {
+          "onlyNotHeld": "Du kannst diese Berechtigung nur verweigern oder nicht erteilen: Du hast sie nicht",
+          "onlyVetoed": "Du kannst diese Berechtigung nur verweigern oder nicht erteilen: Sie ist für dich durch eine Verweigerung gesperrt",
+          "onlyInert": "Du kannst diese Berechtigung nur verweigern oder nicht erteilen: Deine Berechtigung ist wirkungslos ({reason})",
+          "specialInert": "Diese Berechtigung bleibt wirkungslos: Die Rolle hat keinen Zugriff auf besondere Datenkategorien",
+          "moduleInert": "Diese Berechtigung bleibt wirkungslos, solange das Modul nicht gebucht ist"
+        },
+        "pageTitle": "Berechtigungen der Rolle",
+        "title": "Berechtigungen von „{name}“",
+        "intro": "Wähle für jede Berechtigung, ob die Rolle sie erteilt, verweigert oder nichts dazu sagt. Änderungen werden erst gespeichert, wenn du „Speichern“ drückst.",
+        "legend": {
+          "title": "Welche Geltungsbereiche du erteilen kannst",
+          "rule": "Du kannst keine Berechtigung und keinen Geltungsbereich erteilen, die du selbst nicht hast. Du kannst sie jederzeit entziehen oder verweigern.",
+          "notHeld": "„Du hast sie nicht“: Du hast diese Berechtigung mit diesem Geltungsbereich nicht.",
+          "noResolver": "„Existiert noch nicht“: Ein noch nicht verfügbares Modul wird ihn bereitstellen."
+        },
+        "toolbar": {
+          "module": "Modul",
+          "allModules": "Alle Module",
+          "search": "Ressource suchen",
+          "searchPlaceholder": "Ressource suchen…",
+          "onlyChanged": "Nur Ressourcen mit ungespeicherten Änderungen"
+        },
+        "changes": "Keine ungespeicherten Änderungen | {count} ungespeicherte Änderung | {count} ungespeicherte Änderungen",
+        "save": "Speichern",
+        "saved": "Berechtigungen gespeichert.",
+        "empty": {
+          "title": "Keine Berechtigungen im Katalog",
+          "text": "Der Berechtigungskatalog ist leer."
+        },
+        "noMatches": {
+          "title": "Keine Ressource passt",
+          "text": "Ändere das Modul, die Suche oder den Änderungsfilter."
+        },
+        "missing": "Um die Berechtigungen zu bearbeiten, benötigst du zusätzlich die Berechtigung {permission}.",
+        "orphans": "Diese Berechtigungen stehen nicht mehr im Katalog und bleiben unverändert erhalten: {codes}",
+        "confirm": {
+          "title": "Berechtigungen von „{name}“ speichern",
+          "counts": "Erteilt: {granted} · Geltungsbereich geändert: {scopeChanged} · Verweigert: {denied} · Entzogen: {removed}",
+          "consequence": "Wirkt sofort für {count} Inhaber | Wirkt sofort für {count} Inhaber | Wirkt sofort für {count} Inhaber",
+          "holder": "Du hast diese Rolle: Die Änderungen betreffen auch dich, und du kannst das Entzogene nicht wieder erteilen.",
+          "item": "{name}: {from} → {to}",
+          "confirm": "Berechtigungen von „{name}“ speichern"
+        },
+        "conflict": {
+          "title": "Eine andere Person hat die Berechtigungen dieser Rolle geändert, seit du sie geöffnet hast",
+          "codes": "Geänderte Berechtigungen:",
+          "reload": "Neu laden",
+          "reloadConfirm": {
+            "title": "Neu laden und deine Änderungen verwerfen",
+            "description": "Du verlierst die ungespeicherten Änderungen dieser Seite und siehst die aktuellen Berechtigungen der Rolle.",
+            "confirm": "Neu laden und verwerfen"
+          }
+        },
+        "errors": {
+          "summary": "Die Berechtigungen wurden nicht gespeichert.",
+          "capacity": "Wenn du das speicherst, würde niemand in der Einrichtung mehr alle Verwaltungsberechtigungen behalten. Erteile diese Berechtigungen zuerst einer anderen Person.",
+          "capacityList": "Betroffene Berechtigungen:",
+          "grantDetail": "Berechtigung: {permission}. Geltungsbereich: {scope}."
+        },
+        "leave": {
+          "title": "Ohne Speichern verlassen",
+          "description": "Du hast {count} ungespeicherte Änderungen. Wenn du gehst, gehen sie verloren. | Du hast {count} ungespeicherte Änderung. Wenn du gehst, geht sie verloren. | Du hast {count} ungespeicherte Änderungen. Wenn du gehst, gehen sie verloren.",
+          "confirm": "Verlassen und verwerfen",
+          "cancel": "Weiter bearbeiten"
+        },
+        "backToList": "Zurück zur Rollenliste"
+      },
+      "actions": {
+        "new": "Neue Rolle"
+      },
+      "flash": {
+        "created": "Rolle „{name}“ angelegt. Du kannst ihr jetzt Berechtigungen erteilen.",
+        "cloned": "Rolle „{name}“ als Kopie von „{source}“ angelegt.",
+        "updated": "Rollendaten gespeichert.",
+        "deleted": "Rolle „{name}“ gelöscht."
+      },
+      "systemNotice": "Systemrollen werden hier nicht geändert. Klone sie, um eine eigene Version zu erstellen.",
+      "errors": {
+        "unexpected": "Die Aktion konnte nicht abgeschlossen werden. Bitte versuche es erneut.",
+        "tooManyRequests": "Zu viele Versuche. Warte einen Moment und versuche es erneut.",
+        "tooManyRequestsWithSeconds": "Zu viele Versuche. Versuche es in {seconds} s erneut.",
+        "hasAssignments": "Die Rolle hat Inhaber ({count}). Entziehe sie zuerst jedem Benutzer."
+      },
+      "detail": {
+        "title": "Rollendetails",
+        "actions": "Aktionen",
+        "data": "Daten",
+        "editData": "Daten bearbeiten",
+        "editGrants": "Berechtigungen bearbeiten",
+        "clone": "Klonen",
+        "delete": "Löschen",
+        "viewUsers": "Benutzer mit dieser Rolle anzeigen",
+        "code": "Interner Code",
+        "type": "Typ",
+        "mfaRequired": "MFA erforderlich",
+        "specialData": "Zugriff auf besondere Datenkategorien",
+        "users": "Inhaber",
+        "deleteBlocked": "Eine Rolle mit Inhabern ({count}) kann nicht gelöscht werden. Entziehe sie zuerst jedem Benutzer",
+        "grantsTitle": "Berechtigungen",
+        "confirmDelete": {
+          "title": "Rolle „{name}“ löschen",
+          "description": "Das Löschen lässt sich über die Oberfläche nicht rückgängig machen: Die Rolle existiert nicht mehr, gelöschte Rollen werden nicht wiederhergestellt.",
+          "confirm": "Rolle „{name}“ löschen"
+        }
+      },
+      "grants": {
+        "caption": "Berechtigungen der Rolle {name}",
+        "columns": {
+          "resource": "Ressource",
+          "action": "Aktion",
+          "effect": "Wirkung",
+          "scope": "Geltungsbereich",
+          "special": "Besondere Kategorie",
+          "code": "Code"
+        },
+        "anyScope": "Beliebiger Geltungsbereich",
+        "specialBadge": "Besondere Kategorie",
+        "specialInert": "Wirkungslos: Diese Rolle hat keinen Zugriff auf besondere Daten",
+        "filters": {
+          "effect": "Wirkung"
+        },
+        "empty": {
+          "title": "Keine Berechtigungen",
+          "text": "Diese Rolle erteilt und verweigert keine Berechtigung"
+        }
+      },
+      "form": {
+        "titleNew": "Neue Rolle",
+        "titleClone": "Rolle klonen",
+        "titleEdit": "Rollendaten bearbeiten",
+        "requiredHint": "Mit * markierte Felder sind Pflichtfelder.",
+        "required": "Pflichtfeld",
+        "name": "Name",
+        "nameHelp": "Er wird in allen Sprachen gleich angezeigt.",
+        "code": "Code",
+        "codeHelp": "Interner Bezeichner; er kann später nicht geändert werden.",
+        "mfaRequired": "MFA erforderlich",
+        "mfaHelp": "Personen mit dieser Rolle müssen einen zweiten Faktor einrichten.",
+        "mfaReadOnly": "MFA erforderlich: {value}",
+        "mfaLink": "In den MFA-Einstellungen ändern",
+        "specialData": "Zugriff auf besondere Datenkategorien",
+        "specialNotHeld": "Du kannst dieses Attribut nicht aktivieren: Keine deiner Rollen hat Zugriff auf besondere Datenkategorien",
+        "specialHint": "Berechtigungen für besondere Datenkategorien wirken nur in Rollen mit diesem Attribut.",
+        "nameSystem": "Der Name einer Systemrolle wird nicht bearbeitet.",
+        "submit": {
+          "new": "Rolle anlegen",
+          "clone": "Kopie anlegen",
+          "edit": "Änderungen speichern"
+        },
+        "cancel": "Abbrechen",
+        "errorSummary": "Prüfe die markierten Felder.",
+        "missing": "Um die Rolle anzuzeigen, benötigst du zusätzlich die Berechtigung {permission}.",
+        "errors": {
+          "codeFormat": "Der Code muss mit einem Kleinbuchstaben beginnen und 3 bis 64 Zeichen lang sein: Kleinbuchstaben, Ziffern und Unterstrich."
+        },
+        "source": {
+          "title": "Ausgangsrolle",
+          "summary": "{count} Berechtigungen · MFA erforderlich: {mfa} · Zugriff auf besondere Datenkategorien: {special}",
+          "explanation": "Die Berechtigungen und die MFA-Pflicht werden kopiert, die Inhaber nicht. Die neue Rolle ist von der Ausgangsrolle losgelöst: Eine spätere Änderung der einen ändert die andere nicht.",
+          "specialWarning": "Die Ausgangsrolle hat Zugriff auf besondere Datenkategorien: Du kannst sie nur klonen, wenn du dieses Attribut aktivieren kannst."
+        },
+        "grant": {
+          "denied": "Die Ausgangsrolle erteilt etwas, das du nicht hast; es wurde nichts angelegt.",
+          "detail": "Berechtigung: {permission}. Geltungsbereich: {scope}."
+        },
+        "confirmSpecial": {
+          "activateTitle": "Zugriff auf besondere Datenkategorien in „{name}“ aktivieren",
+          "activateDescription": "Die Rolle wendet ihre Berechtigungen für besondere Datenkategorien künftig für {count} Inhaber an.",
+          "activateDescriptionUnknown": "Die Rolle wendet ihre Berechtigungen für besondere Datenkategorien künftig für ihre Inhaber an.",
+          "activateConfirm": "In „{name}“ aktivieren",
+          "deactivateTitle": "Zugriff auf besondere Datenkategorien in „{name}“ deaktivieren",
+          "deactivateDescription": "Die Berechtigungen der Rolle für besondere Datenkategorien wirken für {count} Inhaber nicht mehr.",
+          "deactivateDescriptionUnknown": "Die Berechtigungen der Rolle für besondere Datenkategorien wirken für ihre Inhaber nicht mehr.",
+          "deactivateConfirm": "In „{name}“ deaktivieren"
+        }
+      }
+    },
+    "settings": {
+      "title": "Einstellungen der Schule",
+      "intro": "Regionale und steuerliche Angaben, Farbpalette und Sicherheitseinstellungen der Schule. Jeder Block wird einzeln gespeichert.",
+      "introReadOnly": "Regionale und steuerliche Angaben, Farbpalette und Sicherheitseinstellungen der Schule, nur lesbar. Du hast keine Berechtigung, sie zu ändern.",
+      "required": "(Pflichtfeld)",
+      "requiredHint": "Mit * markierte Felder sind Pflichtfelder.",
+      "notSet": "Nicht angegeben",
+      "saving": "Wird gespeichert…",
+      "brandingLink": "Markenelemente: Logo, Favicon und Anmeldehintergrund",
+      "errors": {
+        "unexpected": "Die Änderungen konnten nicht gespeichert werden. Bitte versuche es erneut.",
+        "notInteger": "Gib eine ganze Zahl ein.",
+        "tooManyRequests": "Zu viele Versuche. Warte einen Moment und versuche es erneut.",
+        "tooManyRequestsWithSeconds": "Zu viele Versuche. Versuche es in {seconds} s erneut."
+      },
+      "saved": {
+        "regional": "Regionale Einstellungen gespeichert.",
+        "fiscal": "Steuerliche Angaben gespeichert.",
+        "palette": "Farbpalette gespeichert.",
+        "security": "Sicherheitseinstellungen gespeichert."
+      },
+      "regional": {
+        "title": "Regional",
+        "defaultLocale": "Standardsprache",
+        "chooseDefaultLocale": "Sprache wählen",
+        "defaultLocaleRequired": "Wähle eine Standardsprache unter den aktiven Sprachen, um speichern zu können.",
+        "activeLocales": "Aktive Sprachen",
+        "activeLocalesHint": "Die Standardsprache muss eine der aktiven Sprachen sein.",
+        "activeLocalesRequired": "Wähle mindestens eine aktive Sprache.",
+        "interfaceLocaleWarning": "Du siehst die Oberfläche in einer Sprache, die nicht mehr aktiv sein wird: Nach dem Speichern siehst du sie in der Standardsprache der Schule.",
+        "timezoneSearch": "Zeitzone suchen",
+        "timezone": "Zeitzone",
+        "currency": "Währung",
+        "currencyHint": "Dreibuchstabiger Code in Großbuchstaben, zum Beispiel EUR.",
+        "autonomousCommunity": "Autonome Gemeinschaft",
+        "autonomousCommunityNone": "Nicht angegeben",
+        "save": "Regionale Einstellungen speichern"
+      },
+      "fiscal": {
+        "title": "Steuerliche Angaben",
+        "legalName": "Firmenname",
+        "taxId": "Steuernummer",
+        "address": "Adresse",
+        "postalCode": "Postleitzahl",
+        "city": "Ort",
+        "province": "Provinz",
+        "countryCode": "Land",
+        "countryCodeHint": "Zweibuchstabiger Code in Großbuchstaben, zum Beispiel ES.",
+        "save": "Steuerliche Angaben speichern"
+      },
+      "palette": {
+        "title": "Farbpalette",
+        "primary": "Primärfarbe",
+        "secondary": "Sekundärfarbe",
+        "hexHint": "Format #RRGGBB, zum Beispiel #1D4ED8.",
+        "preview": "Vorschau",
+        "previewEmpty": "Gib beide Farben im Format #RRGGBB ein, um die Vorschau und den Kontrast zu sehen.",
+        "sample": "Beispieltext",
+        "ratio": "Kontrast: {ratio}:1.",
+        "meets": "Erfüllt das Minimum von {required}:1.",
+        "fails": "Erreicht das Minimum von {required}:1 nicht.",
+        "serverRatio": "Der Server hat einen Kontrast von {ratio}:1 berechnet; erforderlich sind mindestens {required}:1.",
+        "save": "Farbpalette speichern"
+      },
+      "security": {
+        "title": "Sicherheit",
+        "sessionTimeout": "Abmeldung bei Inaktivität",
+        "sessionTimeoutHint": "In Minuten, zwischen 5 und 480.",
+        "minutes": "{count} Minute | {count} Minuten",
+        "allowedMethods": "Zulässige Methoden für den zweiten Faktor",
+        "allowedMethodsHint": "Die Authentifizierungs-App ist immer erforderlich. SMS ist nicht verfügbar.",
+        "method": {
+          "totp": "Authentifizierungs-App (TOTP)",
+          "email": "Code per E-Mail",
+          "sms": "SMS-Nachricht"
+        },
+        "gracePeriod": "Frist zur Einrichtung des zweiten Faktors",
+        "gracePeriodHint": "In Tagen, zwischen 1 und 90.",
+        "days": "{count} Tag | {count} Tage",
+        "save": "Sicherheitseinstellungen speichern",
+        "mfaAdminText": "Die Pflicht zum zweiten Faktor je Rolle, Ausnahmen und Zurücksetzungen werden in einer anderen Ansicht verwaltet.",
+        "mfaAdminLink": "Zur MFA-Verwaltung"
+      },
+      "autonomousCommunity": {
+        "AN": "Andalusien",
+        "AR": "Aragonien",
+        "AS": "Asturien",
+        "IB": "Balearen",
+        "CN": "Kanarische Inseln",
+        "CB": "Kantabrien",
+        "CL": "Kastilien und León",
+        "CM": "Kastilien-La Mancha",
+        "CT": "Katalonien",
+        "EX": "Extremadura",
+        "GA": "Galicien",
+        "MD": "Autonome Gemeinschaft Madrid",
+        "MC": "Region Murcia",
+        "NC": "Navarra",
+        "PV": "Baskenland",
+        "RI": "La Rioja",
+        "VC": "Valencianische Gemeinschaft",
+        "CE": "Ceuta",
+        "ML": "Melilla"
+      }
+    },
+    "branding": {
+      "title": "Markenelemente",
+      "intro": "Logo, Favicon und Anmeldehintergrund der Schule. Angezeigt wird das bereits gespeicherte Bild.",
+      "introReadOnly": "Logo, Favicon und Anmeldehintergrund der Schule, nur lesbar. Du hast keine Berechtigung, sie zu ändern.",
+      "imageError": "Das Bild konnte nicht geladen werden.",
+      "saved": "Bild gespeichert.",
+      "removed": "Bild entfernt.",
+      "errors": {
+        "tooLarge": "Die Datei ist zu groß.",
+        "unsupportedType": "Der Dateityp wird nicht unterstützt.",
+        "invalid": "Die Datei ist für diese Verwendung nicht gültig.",
+        "unexpected": "Die Aktion konnte nicht abgeschlossen werden. Bitte versuche es erneut.",
+        "tooManyRequests": "Zu viele Versuche. Warte einen Moment und versuche es erneut.",
+        "tooManyRequestsWithSeconds": "Zu viele Versuche. Versuche es in {seconds} s erneut."
+      },
+      "kinds": {
+        "logo": {
+          "name": "Logo",
+          "limits": "Unterstützte Formate: SVG, PNG oder WebP. Maximale Größe: 1 MB.",
+          "none": "Es ist kein Logo vorhanden.",
+          "alt": "Aktuelles Logo von {center}",
+          "replace": "Logo ersetzen",
+          "remove": "Logo entfernen",
+          "tooLarge": "Das Logo überschreitet das Limit von 1 MB.",
+          "wrongType": "Das Logo muss SVG, PNG oder WebP sein.",
+          "confirmTitle": "Das Logo entfernen",
+          "confirmDescription": "Die Schule wird ohne Logo angezeigt, bis du ein anderes hochlädst.",
+          "confirmButton": "Das Logo von {center} entfernen"
+        },
+        "favicon": {
+          "name": "Favicon",
+          "limits": "Unterstützte Formate: PNG, ICO oder SVG. Maximale Größe: 256 KB.",
+          "none": "Es ist kein Favicon vorhanden.",
+          "alt": "Aktuelles Favicon von {center}",
+          "replace": "Favicon ersetzen",
+          "remove": "Favicon entfernen",
+          "tooLarge": "Das Favicon überschreitet das Limit von 256 KB.",
+          "wrongType": "Das Favicon muss PNG, ICO oder SVG sein.",
+          "confirmTitle": "Das Favicon entfernen",
+          "confirmDescription": "Der Browser zeigt das Standardsymbol an, bis du ein anderes hochlädst.",
+          "confirmButton": "Das Favicon von {center} entfernen"
+        },
+        "loginBackground": {
+          "name": "Anmeldehintergrund",
+          "limits": "Unterstützte Formate: JPEG, PNG oder WebP (kein SVG). Maximale Größe: 3 MB.",
+          "none": "Es ist kein Anmeldehintergrund vorhanden.",
+          "replace": "Anmeldehintergrund ersetzen",
+          "remove": "Anmeldehintergrund entfernen",
+          "tooLarge": "Der Anmeldehintergrund überschreitet das Limit von 3 MB.",
+          "wrongType": "Der Anmeldehintergrund muss JPEG, PNG oder WebP sein.",
+          "confirmTitle": "Den Anmeldehintergrund entfernen",
+          "confirmDescription": "Der Anmeldebildschirm wird ohne Hintergrundbild angezeigt, bis du ein anderes hochlädst.",
+          "confirmButton": "Den Anmeldehintergrund von {center} entfernen"
+        }
+      }
+    },
+    "modules": {
+      "title": "Gebuchte Module",
+      "intro": "Module, die die Schule gebucht hat, nur lesbar. Das Aktivierungsdatum zeigt, wann jedes Modul aktiviert wurde.",
+      "caption": "Gebuchte Module der Schule",
+      "empty": {
+        "title": "Es sind keine Module gebucht",
+        "text": "Die Schule hat noch keine Module gebucht."
+      },
+      "columns": {
+        "name": "Modul",
+        "status": "Status",
+        "enabledAt": "Aktivierungsdatum"
+      },
+      "status": {
+        "contracted": "Gebucht",
+        "notContracted": "Nicht gebucht"
+      }
+    },
+    "profile": {
+      "title": "Mein Profil",
+      "intro": "Deine Kontodaten. Du kannst deine Kontakt-E-Mail und Telefonnummer ändern.",
+      "fullName": "Vollständiger Name",
+      "accessEmail": "Anmelde-E-Mail",
+      "accessEmailHint": "Die Anmelde-E-Mail kann hier nicht geändert werden; wenn du sie ändern musst, wende dich an die Schule.",
+      "contactEmail": "Kontakt-E-Mail",
+      "contactPhone": "Kontakttelefon",
+      "save": "Profil speichern",
+      "saving": "Wird gespeichert…",
+      "saved": "Profil gespeichert.",
+      "errors": {
+        "unexpected": "Das Profil konnte nicht gespeichert werden. Bitte versuche es erneut.",
+        "tooManyRequests": "Zu viele Versuche. Warte einen Moment und versuche es erneut.",
+        "tooManyRequestsWithSeconds": "Zu viele Versuche. Versuche es in {seconds} s erneut."
+      }
+    },
+    "permissions": {
+      "vocabulary": {
+        "actions": {
+          "crear": "Erstellen",
+          "leer": "Lesen",
+          "actualizar": "Aktualisieren",
+          "eliminar": "Löschen",
+          "exportar": "Exportieren",
+          "importar": "Importieren",
+          "aprobar": "Genehmigen",
+          "firmar": "Unterzeichnen",
+          "publicar": "Veröffentlichen"
+        },
+        "scopes": {
+          "todos": "Alle",
+          "propios": "Eigene",
+          "departamento": "Abteilung",
+          "grupo": "Gruppe",
+          "clase": "Klasse",
+          "unidad_familiar": "Familieneinheit"
+        },
+        "effects": {
+          "allow": "Erlauben",
+          "deny": "Verweigern"
+        },
+        "decisions": {
+          "permitido": "Erlaubt",
+          "denegado": "Verweigert"
+        },
+        "inertReasons": {
+          "inerte_permiso_retirado": "die Berechtigung existiert nicht mehr im Katalog",
+          "inerte_modulo": "die Einrichtung hat das Modul nicht gebucht",
+          "inerte_datos_especiales": "die Rolle hat keinen Zugriff auf besondere Kategorien personenbezogener Daten",
+          "inerte_sin_resolutor": "noch kein Modul wendet diesen Geltungsbereich an"
+        }
+      }
+    },
+    "effectivePermissions": {
+      "title": "Effektive Berechtigungen",
+      "heading": "Effektive Berechtigungen von {name}",
+      "intro": "Was diese Person jetzt gerade tun kann, berechnet mit denselben Regeln, die die Plattform bei jeder Anfrage anwendet.",
+      "roles": "Rollen",
+      "noRoles": "Keine Rollen zugewiesen.",
+      "computedAt": "Berechnet am {date}",
+      "recalculate": "Neu berechnen",
+      "caption": "Effektive Berechtigungen von {name}",
+      "columns": {
+        "resource": "Ressource",
+        "action": "Aktion",
+        "decision": "Ergebnis",
+        "scopes": "Geltungsbereiche",
+        "sources": "Herkunft",
+        "module": "Modul",
+        "code": "Code"
+      },
+      "special": "Besondere Kategorie",
+      "unrestricted": "Unbeschränkt",
+      "anyScope": "Beliebiger Geltungsbereich",
+      "sources": {
+        "allows": "Erlaubt",
+        "denies": "Verweigert",
+        "inert": "Ohne Wirkung: {reason}"
+      },
+      "vetoedBy": "Verweigert durch „{role}“: Eine Verweigerung hebt jede Erteilung auf",
+      "grantedInert": "Erteilt, aber ohne Wirkung: {reason}",
+      "filters": {
+        "decision": "Ergebnis",
+        "module": "Modul",
+        "includeEmpty": "Berechtigungen ganz ohne Erteilung einbeziehen"
+      },
+      "empty": {
+        "title": "Keine Berechtigungen",
+        "text": "Diese Person hat durch ihre Rollen keine Berechtigung erteilt oder verweigert bekommen."
+      }
     }
   }
 }

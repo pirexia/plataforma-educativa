@@ -17,6 +17,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use PragmaRX\Google2FA\Google2FA;
+use Tests\ConcurrentTestCase;
+use Tests\Support\TestPasswordHash;
 use Tests\TestCase;
 
 /*
@@ -30,9 +32,15 @@ use Tests\TestCase;
 |
 */
 
+// ADR-060 §4.2.1: ayudantes compartidos entre ficheros, cargados en todo proceso.
+require_once __DIR__.'/Support/BackofficeTestHelpers.php';
+
 pest()->extend(TestCase::class)
  // ->use(RefreshDatabase::class)
     ->in('Feature');
+
+// Concurrencia real (issue #351): sin transacción envolvente, ver ConcurrentTestCase.
+pest()->extend(ConcurrentTestCase::class)->in('Concurrency');
 
 /*
 |--------------------------------------------------------------------------
@@ -71,6 +79,24 @@ function coreApiUrl(string $slug, string $path): string
 }
 
 /**
+ * ADR-060 §4.3.2: `platform:sync-registry` una vez por proceso, no una por
+ * test (~85 ms cada una). Escribe por `pgsql_owner` (SyncModuleRegistry), es
+ * decir, confirmado y fuera de la transacción del test, así que sobrevive
+ * entre tests; lo comprueba SuiteParalelaTest (CA-060-06). El test cuyo
+ * objeto es la propia sincronización, o que altera el registro y la
+ * necesita de nuevo, invoca `platform:sync-registry` él mismo.
+ */
+function syncRegistryOnce(): void
+{
+    static $synced = false;
+
+    if (! $synced) {
+        test()->artisan('platform:sync-registry')->run();
+        $synced = true;
+    }
+}
+
+/**
  * Aprovisiona un tenant completo (`tenant:provision-defaults`, funcional.md
  * §4.7) para los tests HTTP de REQ-CORE: siembra los 16 roles, sus
  * permisos y el primer Administrador de Centro. Requiere
@@ -81,7 +107,7 @@ function coreApiUrl(string $slug, string $path): string
  */
 function provisionCoreTenant(?string $slug = null): array
 {
-    test()->artisan('platform:sync-registry')->run();
+    syncRegistryOnce();
 
     $tenant = Tenant::factory()->create($slug !== null ? ['slug' => $slug] : []);
 
@@ -143,7 +169,8 @@ function provisionActiveUser(?string $slug = null, array $userAttrs = [], array 
         $person = Person::factory()->create($personAttrs);
 
         return User::factory()->for($person)->create([
-            'password' => $rawPassword,
+            // ADR-060 §4.3.1: bcrypt coste 12 real, calculado una vez por proceso.
+            'password' => TestPasswordHash::of($rawPassword),
             'status' => UserStatus::Activo,
             ...$userAttrs,
         ]);

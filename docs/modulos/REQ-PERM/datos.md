@@ -1,5 +1,7 @@
 # REQ-PERM · Modelo de datos
 
+> **Paso 1.5b (APROBADO el 2026-10-05; implementado en `feature/REQ-PERM-ui-roles`, pendiente de revisión y merge)**: sin cambios de esquema; §9 deja constancia (`funcional.md §20`).
+>
 > Paso **1.5**. **No se crea ninguna tabla nueva.** Este paso da semántica a cinco tablas que existen desde 0.8 (`ADR-034 §2`) y toca el esquema en **dos** puntos, ambos aditivos y ambos argumentados abajo.
 >
 > Estado del código verificado sobre la rama `feature/REQ-PERM-nucleo-autorizacion` el 2026-09-04, leyendo las migraciones y los modelos reales, no el historial.
@@ -309,3 +311,15 @@ Las consultas que introduce este paso y el índice que ya las sirve:
 **Las filas de `audit_logs` que este paso empieza a escribir** siguen el régimen de `ADR-035`: no se editan, no se suprimen dirigidamente, y desaparecen por **vencimiento del plazo de retención** (`REQ-CORE-005`, mínimo dos años). Como su `changes` contiene únicamente códigos de rol y de permiso, **no hay ningún valor que redactar**: es el caso fácil de `ADR-035`, y es la razón por la que la política `Full` es la correcta aquí.
 
 **Sin base legal específica que registrar** (`INV-008`): estas tablas no tratan datos de menores ni de ninguna persona identificada. La base legal del tratamiento de los usuarios a los que se asignan roles es la de `REQ-CORE`, no la de este paso.
+
+---
+
+## 9. Paso 1.5b (interfaz y tres cambios de servidor) · APROBADO el 2026-10-05
+
+> `funcional.md §20`. Esta sección deja constancia de lo que 1.5b **no** toca en el esquema y de lo poco que guarda en el cliente.
+
+- **Ningún cambio de esquema, ninguna tabla, ninguna migración, ningún índice.** S-PERM-1 es un `withCount` sobre el índice de `role_user` que ya sirve a `GET /roles` (§6); S-PERM-2, claves de traducción y un campo calculado; `RN-PERM-47`, una comprobación sobre el resolutor existente. `db-reviewer` no hace falta.
+- **`RN-PERM-47` y concurrencia**: la serialización por tenant de la comprobación y la escritura se hace con un **bloqueo de transacción** (p. ej. `pg_advisory_xact_lock` con clave derivada del tenant), que no crea objetos en el esquema ni filas; se libera al terminar la transacción. Si la implementación necesitara otra cosa (una fila de bloqueo, una columna), **para y lo reporta**: sería esquema nuevo con `db-reviewer`. Las consultas de candidatos usan los índices de §6 (`role_user`, `permission_role`).
+- **Concurrencia de edición** (`OPEN-PERM-12` = A): se resuelve en cliente; ninguna columna de versión. S-PERM-3 fuera de 1.5b.
+- **Datos en el navegador**: solo las preferencias de columnas de `RN-CORE-43` bajo `plataforma.table.core.role_grants` y `plataforma.table.core.effective_permissions`, con la forma cerrada `{"v":1,"hidden":[…]}`, sin ningún dato de fila. La matriz de concesiones no es una tabla del componente y no guarda nada. Ni concesiones, ni permisos efectivos, ni el estado del editor se guardan en `localStorage`, `sessionStorage`, IndexedDB ni en la URL (`RN-CORE-50`, `funcional.md §20.13`). Las dos claves entran en el inventario de `PRIVACY.md §2.1b` al cerrar el paso.
+- **Auditoría**: la interfaz no escribe nada por su cuenta; cada operación deja las filas de §5.4 por los mismos *endpoints*. El alta con concesiones posteriores (`OPEN-PERM-16` = A) deja un `created` de `Role` y después uno por concesión, en dos peticiones.

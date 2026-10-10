@@ -77,7 +77,14 @@ final class ProvisionTenantDefaults implements TenantProvisioner
         'rol.crear', 'rol.eliminar', 'rol_datos_especiales.actualizar', 'permiso_efectivo.leer',
     ];
 
-    private const ADMIN_CENTRO_PERMISSIONS = [
+    /**
+     * `public` (1.5b, `RN-PERM-47`, `funcional.md §20.2.1`) solo para que
+     * `AdministrationCapacityGuard` lea la **misma** lista que aprovisiona,
+     * sin duplicarla. No cambia lo que se aprovisiona.
+     *
+     * @var list<string>
+     */
+    public const ADMIN_CENTRO_PERMISSIONS = [
         'usuario.leer', 'usuario.crear', 'usuario.actualizar', 'usuario.eliminar', 'usuario.importar', 'usuario.exportar',
         'invitacion.leer', 'invitacion.crear', 'invitacion.eliminar',
         'asignacion_rol.leer', 'asignacion_rol.crear', 'asignacion_rol.eliminar',
@@ -111,6 +118,28 @@ final class ProvisionTenantDefaults implements TenantProvisioner
         'direccion' => ['usuario.leer', 'rol.leer', 'asignacion_rol.leer', 'configuracion.leer', 'modulo.leer'],
         'secretaria' => ['usuario.leer', 'invitacion.leer'],
         'administrativo' => ['usuario.leer'],
+    ];
+
+    /**
+     * REQ-CURSO/permisos.md §4 (1.10, `OPEN-CURSO-14`): la siembra de los
+     * cinco permisos de `curso`. `administrador_centro` los cinco;
+     * `direccion` y `secretaria` solo lectura de cursos y de histórico; el
+     * resto, nada (`RPERM-011`). Constante propia (no dentro de
+     * `ADMIN_CENTRO_PERMISSIONS`, que define la «capacidad de
+     * administración» de `RN-PERM-47`): la lee también
+     * `GrantAcademicYearPermissionsCommand` (comando de migración de datos
+     * para los centros ya existentes), una sola lista por los dos caminos.
+     * Ninguna regla de código compara estos códigos de rol (`RN-PERM-46`).
+     *
+     * @var array<string, list<string>>
+     */
+    public const ACADEMIC_YEAR_PERMISSION_GRANTS = [
+        'administrador_centro' => [
+            'curso_academico.leer', 'curso_academico.crear', 'curso_academico.actualizar',
+            'estado_curso_academico.actualizar', 'curso_historico.leer',
+        ],
+        'direccion' => ['curso_academico.leer', 'curso_historico.leer'],
+        'secretaria' => ['curso_academico.leer', 'curso_historico.leer'],
     ];
 
     /**
@@ -340,7 +369,11 @@ final class ProvisionTenantDefaults implements TenantProvisioner
      */
     private function seedPermissionGrants(int $tenantId, array $roleIds): void
     {
-        $grants = [...self::CORE_PERMISSION_GRANTS, 'administrador_centro' => self::ADMIN_CENTRO_PERMISSIONS];
+        // REQ-CURSO (1.10): las concesiones de `curso` se suman a las de cada rol.
+        $grants = array_merge_recursive(
+            [...self::CORE_PERMISSION_GRANTS, 'administrador_centro' => self::ADMIN_CENTRO_PERMISSIONS],
+            self::ACADEMIC_YEAR_PERMISSION_GRANTS,
+        );
 
         foreach ($grants as $roleCode => $permissionCodes) {
             foreach ($permissionCodes as $permissionCode) {

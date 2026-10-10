@@ -158,4 +158,15 @@ return [
         ],
     ],
 
+    // REQ-PERM/api.md §14.3 (1.5b, S-PERM-2): Name jedes Ressourcentyps der
+    // Berechtigungen dieses Moduls (`resource_label_key`).
+    'permissions' => [
+        'resources' => [
+            'bloqueo_cuenta' => 'Kontosperren',
+            'mfa' => 'Zwei-Faktor-Authentifizierung (MFA)',
+            'exencion_mfa' => 'MFA-Ausnahmen',
+            'proveedor_identidad' => 'Identitätsanbieter',
+        ],
+    ],
+
 ];

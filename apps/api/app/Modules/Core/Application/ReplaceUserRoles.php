@@ -12,7 +12,6 @@ use App\Support\Audit\AuditRecorder;
 use App\Support\Authorization\PermissionResolver;
 use App\Support\Authorization\Scope;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 /**
  * REQ-PERM/api.md §8 (`PUT /users/{public_id}/roles`). Ruta, verbo y
@@ -37,6 +36,7 @@ final class ReplaceUserRoles
         private readonly SchoolAdministratorGuard $adminGuard,
         private readonly PermissionResolver $permissions,
         private readonly AuditRecorder $auditRecorder,
+        private readonly AdministrationCapacityGuard $capacityGuard,
     ) {}
 
     /**
@@ -82,21 +82,63 @@ final class ReplaceUserRoles
             throw ApiException::conflict('core.validation.last_school_administrator');
         }
 
-        $fromCodes = $currentRoles->pluck('code')->sort()->values()->all();
-        $toCodes = $roles->pluck('code')->sort()->values()->all();
+        $write = function () use ($target, $roles, $actor): void {
+            // Issue #350 (H2): el estado se relee con el bloqueo ya tomado.
+            // Lo que se compara, se audita y se comprueba para RPERM-013 es
+            // lo que hay AHORA, no lo leído antes de esperar el turno.
+            $target->unsetRelation('roles');
+            $lockedRoles = $target->roles()->get();
 
-        DB::transaction(function () use ($target, $newRoleIds, $fromCodes, $toCodes): void {
-            $target->roles()->sync($newRoleIds);
+            $fromCodes = $lockedRoles->pluck('code')->sort()->values()->all();
+            $toCodes = $roles->pluck('code')->sort()->values()->all();
 
-            // datos.md §5.3: solo si hay cambio efectivo (ADR-038 §9.3), con
-            // el estado anterior leído ANTES del sync() (RN-PERM-20) — ya lo
-            // está, en $fromCodes, calculado antes de esta transacción.
-            if ($fromCodes !== $toCodes) {
-                $this->auditRecorder->record($target, 'updated', [
-                    'roles' => [$fromCodes, $toCodes],
-                ]);
+            $lockedAdded = $roles->whereNotIn('id', $lockedRoles->pluck('id')->all());
+
+            if ($lockedAdded->isNotEmpty()) {
+                $this->assertActorCanGrant($actor, $lockedAdded);
             }
-        });
+
+            // Issue #350 (hueco residual), RPERM-013/RN-PERM-20: retirar un
+            // rol exige asignacion_rol.eliminar sobre los roles releídos con
+            // el bloqueo. La comprobación previa (arriba) se conserva para no
+            // alterar el orden de errores; esta cubre el rol que un cambio
+            // concurrente añadió y el PUT va a retirar.
+            $lockedRemoved = $lockedRoles->whereNotIn('id', $roles->pluck('id')->all());
+
+            if ($lockedRemoved->isNotEmpty() && ! $this->permissions->can($actor, 'asignacion_rol.eliminar')) {
+                throw ApiException::forbidden();
+            }
+
+            // Issue #349, RN-CORE-07: releída con el bloqueo tomado y sobre
+            // los roles releídos. La comprobación previa (arriba) se conserva
+            // como rechazo temprano que no altera el orden de errores.
+            $this->adminGuard->assertRoleRemovalKeepsAdministrator(
+                $target,
+                $lockedRoles->contains('code', 'administrador_centro') && ! $roles->contains('code', 'administrador_centro'),
+            );
+
+            // Sin cambio efectivo del conjunto de roles: ni escritura ni
+            // auditoría (ADR-038 §9.3).
+            if ($fromCodes === $toCodes) {
+                return;
+            }
+
+            // datos.md §5.3: estado anterior leído ANTES del sync() (RN-PERM-20).
+            $target->roles()->sync($roles->pluck('id'));
+
+            $this->auditRecorder->record($target, 'updated', [
+                'roles' => [$fromCodes, $toCodes],
+            ]);
+        };
+
+        // RN-PERM-47 (1.5b, §20.2.1): después de RN-CORE-06/-07 y de
+        // RPERM-013, antes de guardar. Asignar un rol con `deny` también
+        // puede reducir la posesión efectiva, no solo retirar uno. Siempre
+        // se pasa por el guard (issue #350): si el cambio efectivo solo se
+        // conoce con el bloqueo tomado, no se puede decidir antes si hace
+        // falta protegerlo; sin cambio efectivo el guard no tiene nada que
+        // rechazar.
+        $this->capacityGuard->protect($write);
 
         event(new UserRolesChanged($target->tenant_id, $target->public_id));
 
@@ -121,10 +163,7 @@ final class ReplaceUserRoles
             }
 
             if (! $this->permissions->ownsScope($actor, $grant->permission_code, $scope)) {
-                throw ApiException::forbidden('core.authorization.cannot_grant_unheld_permission', [
-                    'code' => $grant->permission_code,
-                    'scope' => $scope->value,
-                ]);
+                throw ApiException::cannotGrantUnheldRolePermission();
             }
         }
     }

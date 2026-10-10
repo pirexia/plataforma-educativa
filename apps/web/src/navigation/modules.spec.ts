@@ -3,7 +3,8 @@
  * `docs/modulos/REQ-CORE/funcional.md §12.11`
  * (`CA-CORE-103`, `CA-CORE-106`).
  *
- * `RN-CORE-24`/`CA-CORE-103` enumeran **seis** rutas con `meta.permissions`
+ * `RN-CORE-24`/`CA-CORE-103` enumeran **seis** rutas (desde `1.9e`, **siete**: se añade
+ * `core-profile`, `funcional.md §14.3.1`, `CA-CORE-264`) con `meta.permissions`
  * vacía: Inicio, Contraseña, Sesiones, Seguridad, `mfa-enrollment-wall` y
  * `not-found` — ninguna de las dos últimas tiene un permiso real que
  * declarar sin inventarlo (`INV-002`); motivo documentado también en el
@@ -24,6 +25,8 @@ const EMPTY_PERMISSIONS_CLOSED_LIST = [
   'mfa-security',
   'mfa-enrollment-wall',
   'not-found',
+  // Desde 1.9e (`funcional.md §14.3.1`, `CA-CORE-264`): perfil propio, autoservicio por identidad.
+  'core-profile',
 ].sort()
 
 describe('registro de navegación ensamblado — CA-CORE-103', () => {
@@ -60,6 +63,42 @@ describe('registro de navegación ensamblado — CA-CORE-103', () => {
       .sort()
 
     expect(empty).toEqual(EMPTY_PERMISSIONS_CLOSED_LIST)
+  })
+})
+
+describe('lista cerrada de rutas con permissions vacío — CA-CORE-264 (RN-CORE-24, §14.3.1)', () => {
+  function emptyPermissionRoutes(
+    routes: {
+      name?: string | symbol
+      meta: { layout?: string; permissions?: readonly string[] }
+    }[],
+  ): string[] {
+    return routes
+      .filter((route) => route.meta.layout !== 'public' && route.meta.permissions?.length === 0)
+      .map((route) => String(route.name))
+      .sort()
+  }
+
+  it('son exactamente siete: las seis de CA-CORE-103 más core-profile', () => {
+    expect(EMPTY_PERMISSIONS_CLOSED_LIST).toHaveLength(7)
+    expect(EMPTY_PERMISSIONS_CLOSED_LIST).toContain('core-profile')
+    expect(emptyPermissionRoutes(router.getRoutes())).toEqual(EMPTY_PERMISSIONS_CLOSED_LIST)
+  })
+
+  it('core-modules declara modulo.leer', () => {
+    const route = router.getRoutes().find((candidate) => candidate.name === 'core-modules')
+
+    expect(route?.meta.permissions).toEqual(['modulo.leer'])
+  })
+
+  it('caso fijo: una octava ruta con [] haría fallar la comprobación', () => {
+    const withEighth = [
+      ...router.getRoutes(),
+      { name: 'octava-ruta', meta: { layout: 'app', permissions: [] as string[] } },
+    ]
+
+    expect(emptyPermissionRoutes(withEighth)).not.toEqual(EMPTY_PERMISSIONS_CLOSED_LIST)
+    expect(emptyPermissionRoutes(withEighth)).toContain('octava-ruta')
   })
 })
 
@@ -102,6 +141,75 @@ describe('registro de navegación ensamblado — CA-CORE-106', () => {
     const fixtureSection = 'inexistente' as unknown as (typeof SECTION_IDS)[number]
 
     expect(SECTION_IDS).not.toContain(fixtureSection)
+  })
+})
+
+describe('CA-PERM-100 (RN-PERM-25, ADR-053 §2): rutas de 1.5b', () => {
+  /** `REQ-PERM/funcional.md §20.3`, columna 2: el permiso de la lectura o escritura principal de cada pantalla. */
+  const EXPECTED: Record<string, readonly string[]> = {
+    'core-role-new': ['rol.crear'],
+    'core-role-detail': ['rol.leer'],
+    'core-role-clone': ['rol.crear'],
+    'core-role-edit': ['rol.actualizar'],
+    'core-role-permissions': ['rol.actualizar'],
+    'core-user-effective-permissions': ['permiso_efectivo.leer'],
+  }
+
+  it('existen las seis rutas nuevas con meta.layout === "app" y meta.permissions exactamente igual a §20.3', () => {
+    for (const [name, permissions] of Object.entries(EXPECTED)) {
+      const route = router.getRoutes().find((candidate) => candidate.name === name)
+
+      expect(route, `falta la ruta ${name}`).toBeDefined()
+      expect(route?.meta.layout, name).toBe('app')
+      expect(route?.meta.permissions, name).toEqual(permissions)
+    }
+  })
+
+  it('la lista cerrada de rutas con [] sigue teniendo siete entradas y ninguna es de 1.5b', () => {
+    expect(EMPTY_PERMISSIONS_CLOSED_LIST).toHaveLength(7)
+
+    for (const name of Object.keys(EXPECTED)) {
+      expect(EMPTY_PERMISSIONS_CLOSED_LIST).not.toContain(name)
+    }
+  })
+
+  it('las rutas secundarias declaran su padre de miga de pan y títulos en core.*', () => {
+    const parents: Record<string, string> = {
+      'core-role-new': 'core-roles',
+      'core-role-detail': 'core-roles',
+      'core-role-clone': 'core-role-detail',
+      'core-role-edit': 'core-role-detail',
+      'core-role-permissions': 'core-role-detail',
+      'core-user-effective-permissions': 'core-user-detail',
+    }
+
+    for (const [name, parent] of Object.entries(parents)) {
+      const route = router.getRoutes().find((candidate) => candidate.name === name)!
+
+      expect(route.meta.breadcrumbParent, name).toBe(parent)
+      expect(route.meta.titleKey, name).toMatch(/^core\./)
+      expect(route.meta.breadcrumbKey, name).toMatch(/^core\./)
+    }
+  })
+
+  it('ninguna de las seis tiene entrada de menú (son destinos de acciones)', () => {
+    const routes = new Set(allNavigationEntries().map((entry) => entry.route))
+
+    for (const name of Object.keys(EXPECTED)) {
+      expect(routes.has(name), name).toBe(false)
+    }
+  })
+
+  it('el padre de cada ruta secundaria existe y es una ruta app', () => {
+    for (const name of Object.keys(EXPECTED)) {
+      const route = router.getRoutes().find((candidate) => candidate.name === name)!
+      const parent = router
+        .getRoutes()
+        .find((candidate) => candidate.name === route.meta.breadcrumbParent)
+
+      expect(parent, `${name}: padre inexistente`).toBeDefined()
+      expect(parent?.meta.layout).toBe('app')
+    }
   })
 })
 

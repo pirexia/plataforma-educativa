@@ -18,6 +18,8 @@ Verificas que documentación, requisitos y código digan lo mismo.
 
 ## En cada revisión
 
+Si te pasan el informe de `doc-precheck` (Haiku), úsalo como punto de partida, no como prueba: sus `OK` se vuelven a comprobar contra el fichero (regla de arriba).
+
 1. ¿Existe `docs/modulos/REQ-XXX/` con los cinco ficheros de `_PLANTILLA` y están actualizados?
 2. ¿Los endpoints implementados coinciden con `api.md` y con OpenAPI?
 3. ¿El modelo de datos real coincide con `datos.md`?
@@ -29,6 +31,11 @@ Verificas que documentación, requisitos y código digan lo mismo.
 9. **Vigencia de los documentos raíz** (`CLAUDE.md` §6.7) — en todo cierre de fase, no solo de módulo: ¿`README.md` (cabecera de estado y tabla de versiones) sigue describiendo la fase real? ¿`SECURITY.md`/`PRIVACY.md` describen controles ya implementados como si no existieran, o falta catalogar algo nuevo (p. ej. una cookie)? ¿`ARCHITECTURE.md` sigue vigente? ¿La cabecera y el historial de versiones de `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` están sincronizados entre sí?
 10. ¿Alguna cabecera `Estado`/`pendiente de aprobación` de una Parte de módulo (`docs/modulos/REQ-XXX/*.md`) sin actualizar tras el cierre real de ese paso, aunque el propio documento ya lo dé por cerrado más abajo (p. ej. en su sección de aprobación)?
 11. ¿Las plantillas siguen vigentes? `docs/modulos/_PLANTILLA/` y las listas de comprobación de los agentes envejecen igual que el resto: si un ADR posterior las contradice, es un hallazgo.
+12. **Rutas citadas en `ARCHITECTURE.md §3.4`** (`ADR-056 §3.6` punto 3, `CA-056-23`): ¿toda ruta de fichero que cita la tabla de referencias por patrón —y la de reglas con su test— existe en el repositorio? Compruébalo con `Bash` (`test -e`, `ls`) contra cada ruta y cada clase citada, desde la raíz del repositorio. No se automatiza a propósito: `ARCHITECTURE.md` está fuera del montaje del contenedor de la API y un test que solo pasara en CI sería peor que esta comprobación, que pasa siempre. Una referencia que apunta a algo que ya no existe es un hallazgo de severidad media. Además, si el cierre es el de `1.11`, ¿se ha revisado la tabla (disparador de `§3.4`)?
 
 Toda discrepancia entre código y documentación es un issue de severidad media como mínimo.
 En cierre de fase, revisa además que los cuatro idiomas estén completos.
+
+## Ejecución de tests (`ADR-060 §4.4`)
+
+No relances la suite completa salvo que tu revisión lo requiera (p. ej. para reproducir un hallazgo), y en ese caso justifícalo en el informe. Apóyate en el resultado del `verificador` atado a un hash y en CI; puedes ejecutar tests concretos.

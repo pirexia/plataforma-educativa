@@ -93,7 +93,9 @@
         "tableta": "Tablette",
         "bot": "Robot",
         "desconocido": "Inconnu"
-      }
+      },
+      "empty": "Aucune session active.",
+      "revokeFor": "Fermer la session sur {device} commencée le {date}"
     },
     "mfa": {
       "method": {
@@ -337,7 +339,9 @@
         "empty": "Aucune exemption avec ce filtre.",
         "revokeAction": "Révoquer",
         "confirmRevoke": "Révoquer cette exemption ?",
-        "confirmYes": "Oui, révoquer"
+        "confirmYes": "Oui, révoquer",
+        "tableCaption": "Exceptions temporaires MFA",
+        "revokeActionFor": "Révoquer l'exception de {name}"
       },
       "userPicker": {
         "label": "Rechercher un utilisateur",
@@ -355,6 +359,7 @@
       "intro": "Configurez les systèmes d'identité institutionnels (Entra ID, Google Workspace, etc.) que votre personnel peut utiliser pour se connecter avec les identifiants de l'établissement.",
       "loading": "Chargement du catalogue…",
       "loadError": "Le catalogue des fournisseurs n'a pas pu être chargé.",
+      "deleteError": "Le fournisseur d'identité n'a pas pu être supprimé.",
       "empty": "Cet établissement n'a encore aucun fournisseur d'identité catalogué.",
       "create": "Ajouter un fournisseur",
       "columns": {
@@ -363,7 +368,8 @@
         "status": "Statut",
         "provisioningMode": "Approvisionnement",
         "secret": "Identifiant",
-        "protocol": "Protocole"
+        "protocol": "Protocole",
+        "actions": "Actions"
       },
       "status": {
         "enabled": "Actif",
@@ -527,7 +533,10 @@
           "manual": "Chargé manuellement"
         },
         "lastActiveError": "Vous ne pouvez pas retirer le dernier certificat valide d'un fournisseur actif : désactivez-le d'abord."
-      }
+      },
+      "tableCaption": "Catalogue des fournisseurs d'identité",
+      "editFor": "Modifier {name}",
+      "deleteFor": "Supprimer {name}"
     },
     "nav": {
       "passwordChange": "Mot de passe",

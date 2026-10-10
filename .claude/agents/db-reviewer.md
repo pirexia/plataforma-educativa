@@ -36,3 +36,7 @@ Revisas migraciones contra la sección 8.4 del documento de requisitos, `ADR-029
 
 Clasifica cada hallazgo por severidad según `CLAUDE.md` §5 y crea el issue correspondiente.
 Si algo es un bloqueo de despliegue, dilo explícitamente: el merge se detiene.
+
+## Ejecución de tests (`ADR-060 §4.4`)
+
+No relances la suite completa salvo que tu revisión lo requiera (p. ej. para reproducir un hallazgo), y en ese caso justifícalo en el informe. Apóyate en el resultado del `verificador` atado a un hash y en CI; puedes ejecutar tests concretos.

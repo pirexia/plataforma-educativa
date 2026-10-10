@@ -13,9 +13,11 @@
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ApiError } from '@/api/client'
+import { i18n } from '@/i18n'
 import { resolveErrorState, type ShellErrorState } from '@/layouts/errorState'
 import { DEFAULT_PER_PAGE, MAX_CURSOR_ROWS, SEARCH_DEBOUNCE_MS } from './constants'
-import { type FilterValues } from './filterState'
+import { isSingleEnum, sanitizeSingleEnums, type FilterValues } from './filterState'
+import { filterLocalRows, pageLocalRows, sortLocalRows } from './localModel'
 import {
   defaultUrlState,
   mergeIntoRouteQuery,
@@ -25,9 +27,11 @@ import {
   type UrlStateOptions,
 } from './urlState'
 import type {
+  DataTableColumn,
   DataTableCursorMeta,
   DataTableFetcher,
   DataTableFilter,
+  DataTableLocalFetcher,
   DataTableMode,
   DataTablePageMeta,
   DataTableQuery,
@@ -35,15 +39,21 @@ import type {
 
 export interface ControllerOptions<Row> {
   mode: DataTableMode
-  fetcher: () => DataTableFetcher<Row>
-  filters: () => readonly DataTableFilter[]
+  /** Modo `local`: `DataTableLocalFetcher` (`RN-PERM-44` E1); los demás, `DataTableFetcher`. */
+  fetcher: () => DataTableFetcher<Row> | DataTableLocalFetcher<Row>
+  filters: () => readonly DataTableFilter<Row>[]
   sortableIds: () => readonly string[]
   /** `RN-CORE-54`: opcional por tabla. */
   urlState: boolean
+  /** Solo modo `local` (`RN-PERM-44` E3-E5): las columnas, la identidad de fila y la búsqueda del consumidor. */
+  columns?: () => readonly DataTableColumn<Row>[]
+  rowKey?: (row: Row) => string
+  searchText?: () => ((row: Row) => string) | undefined
 }
 
 export type Announcement =
   | { kind: 'results'; count: number }
+  | { kind: 'local'; count: number; total: number }
   | { kind: 'loaded'; count: number }
   | { kind: 'more'; count: number }
 
@@ -101,9 +111,12 @@ export function useDataTableController<Row>(options: ControllerOptions<Row>) {
 
   const urlEnabled = urlClaimed && route !== null && router !== null
 
+  const isLocal = options.mode === 'local'
+
   function urlOptions(): UrlStateOptions {
     return {
-      mode: options.mode,
+      // `RN-PERM-44` E7: el modo `local` serializa la URL como el modo `page`.
+      mode: options.mode === 'cursor' ? 'cursor' : 'page',
       filters: options.filters(),
       sortableIds: options.sortableIds(),
     }
@@ -111,7 +124,56 @@ export function useDataTableController<Row>(options: ControllerOptions<Row>) {
 
   // --- Estado de la consulta ---------------------------------------------
 
-  const initial = urlEnabled && route ? parseUrlState(route.query, urlOptions()) : defaultUrlState()
+  /**
+   * `RN-CORE-94`/`OPEN-CORE-54`/`-55`: valor de reposo de los `enum` de
+   * selección única con `initial` válido. Con `urlState` (declarado, aunque
+   * otra tabla ya tenga la URL de la ruta) o con `multiple` distinto de
+   * `false`, o con un valor no declarado, `initial` se ignora.
+   */
+  function restFilters(): FilterValues {
+    const rest: FilterValues = {}
+
+    if (options.urlState) {
+      return rest
+    }
+
+    for (const filter of options.filters()) {
+      if (
+        isSingleEnum(filter) &&
+        filter.initial !== undefined &&
+        filter.options.some((option) => option.value === filter.initial)
+      ) {
+        rest[filter.id] = filter.initial
+      }
+    }
+
+    return rest
+  }
+
+  for (const filter of options.filters()) {
+    if (filter.type !== 'enum' || filter.initial === undefined) {
+      continue
+    }
+
+    if (options.urlState) {
+      console.warn(
+        `data-table: \`initial\` del filtro «${filter.id}» ignorado: no se admite con \`urlState\` (OPEN-CORE-55).`,
+      )
+    } else if (filter.multiple !== false) {
+      console.warn(
+        `data-table: \`initial\` del filtro «${filter.id}» ignorado: solo se admite con \`multiple: false\` (RN-CORE-94).`,
+      )
+    } else if (!filter.options.some((option) => option.value === filter.initial)) {
+      console.warn(
+        `data-table: \`initial\` del filtro «${filter.id}» ignorado: no es el valor de ninguna opción (RN-CORE-94).`,
+      )
+    }
+  }
+
+  const initial =
+    urlEnabled && route
+      ? parseUrlState(route.query, urlOptions())
+      : { ...defaultUrlState(), filters: restFilters() }
 
   const page = ref(initial.page)
   const perPage = ref(initial.perPage || DEFAULT_PER_PAGE)
@@ -123,6 +185,8 @@ export function useDataTableController<Row>(options: ControllerOptions<Row>) {
   // --- Estado de los datos -----------------------------------------------
 
   const rows = shallowRef<Row[]>([])
+  /** Modo `local`: la colección entera tal como llegó (`RN-PERM-44` E1). */
+  const localAll = shallowRef<Row[]>([])
   const pageMeta = ref<DataTablePageMeta | null>(null)
   const nextCursor = ref<string | null>(null)
   const hasMore = ref(false)
@@ -139,12 +203,14 @@ export function useDataTableController<Row>(options: ControllerOptions<Row>) {
   let searchTimer: ReturnType<typeof setTimeout> | null = null
   let overflowRetried = false
 
-  const hasActiveFilters = computed(
-    () =>
-      Object.keys(filters.value).length > 0 ||
-      searchText.value.trim() !== '' ||
-      appliedQ.value !== '',
-  )
+  /** `OPEN-CORE-54` = A: un filtro con valor de reposo cuenta como activo solo si difiere de él. */
+  const hasActiveFilters = computed(() => {
+    const rest = restFilters()
+    const ids = new Set([...Object.keys(filters.value), ...Object.keys(rest)])
+    const filtered = [...ids].some((id) => (filters.value[id] ?? '') !== (rest[id] ?? ''))
+
+    return filtered || searchText.value.trim() !== '' || appliedQ.value !== ''
+  })
   /** `RN-CORE-57`: hay una búsqueda escrita o aplicada. */
   const searchActive = computed(() => searchText.value.trim() !== '' || appliedQ.value !== '')
   const capReached = computed(
@@ -152,7 +218,9 @@ export function useDataTableController<Row>(options: ControllerOptions<Row>) {
   )
 
   function currentQuery(cursor?: string): DataTableQuery {
-    const query: DataTableQuery = { filters: { ...filters.value } }
+    const query: DataTableQuery = {
+      filters: { ...sanitizeSingleEnums(filters.value, options.filters()) },
+    }
 
     if (options.mode === 'page') {
       query.page = page.value
@@ -217,7 +285,12 @@ export function useDataTableController<Row>(options: ControllerOptions<Row>) {
         sort.value = fromUrl.sort
         filters.value = { ...fromUrl.filters }
         overflowRetried = false
-        void load()
+
+        if (isLocal) {
+          applyLocal()
+        } else {
+          void load()
+        }
       },
     )
   }
@@ -228,7 +301,74 @@ export function useDataTableController<Row>(options: ControllerOptions<Row>) {
     return resolveErrorState(err)
   }
 
+  /** `RN-PERM-44` E2-E6: filtra, ordena y pagina en cliente sin tocar el servidor. */
+  function applyLocal(): void {
+    const locale = i18n.global.locale.value
+    const columns = options.columns?.() ?? []
+    const rowKey =
+      options.rowKey ?? ((row: Row) => String((row as { public_id?: string }).public_id))
+    const filtered = filterLocalRows(localAll.value, {
+      filters: options.filters(),
+      filterValues: sanitizeSingleEnums(filters.value, options.filters()),
+      searchText: options.searchText?.(),
+      query: appliedQ.value,
+      locale,
+    })
+    const sorted = sortLocalRows(filtered, sort.value, columns, rowKey, locale)
+    const paged = pageLocalRows(sorted, page.value, perPage.value)
+
+    rows.value = paged.rows
+    pageMeta.value = paged.meta
+    page.value = paged.meta.current_page
+    announcement.value = { kind: 'local', count: filtered.length, total: localAll.value.length }
+  }
+
+  async function loadLocal(): Promise<void> {
+    abort?.abort()
+    abort = new AbortController()
+
+    const mySeq = ++seq
+
+    loading.value = true
+
+    try {
+      const fetcher = options.fetcher() as DataTableLocalFetcher<Row>
+      const response = await fetcher({ signal: abort.signal })
+
+      if (mySeq !== seq) {
+        return
+      }
+
+      error.value = null
+      filterError.value = null
+      localAll.value = response.data
+      applyLocal()
+      hasLoaded.value = true
+    } catch (err) {
+      if (mySeq !== seq) {
+        return
+      }
+
+      error.value = classify(err)
+      hasLoaded.value = true
+
+      if (error.value === null) {
+        // `401`: el guard ya redirige a /entrar; las filas se descartan (`RN-CORE-50`).
+        localAll.value = []
+        rows.value = []
+      }
+    } finally {
+      if (mySeq === seq) {
+        loading.value = false
+      }
+    }
+  }
+
   async function load(): Promise<void> {
+    if (isLocal) {
+      return loadLocal()
+    }
+
     abort?.abort()
     abort = new AbortController()
 
@@ -239,7 +379,9 @@ export function useDataTableController<Row>(options: ControllerOptions<Row>) {
     loadMoreError.value = null
 
     try {
-      const response = await options.fetcher()(currentQuery(), { signal: abort.signal })
+      const response = await (options.fetcher() as DataTableFetcher<Row>)(currentQuery(), {
+        signal: abort.signal,
+      })
 
       if (mySeq !== seq) {
         return
@@ -334,7 +476,7 @@ export function useDataTableController<Row>(options: ControllerOptions<Row>) {
     loadMoreError.value = null
 
     try {
-      const response = await options.fetcher()(currentQuery(cursor), {
+      const response = await (options.fetcher() as DataTableFetcher<Row>)(currentQuery(cursor), {
         signal: (abort ??= new AbortController()).signal,
       })
 
@@ -372,13 +514,21 @@ export function useDataTableController<Row>(options: ControllerOptions<Row>) {
 
     // Cambiar orden o filtros reinicia la lista **sin cursor** (`ADR-038 §4.4` regla 2).
     nextCursor.value = null
+
+    if (isLocal) {
+      // `RN-PERM-44` E2: sin petición; solo se recalcula la vista.
+      applyLocal()
+
+      return
+    }
+
     void load()
   }
 
   function setPage(next: number): void {
     const last = Math.max(pageMeta.value?.last_page ?? 1, 1)
 
-    if (options.mode !== 'page' || next < 1 || next > last || next === page.value) {
+    if (options.mode === 'cursor' || next < 1 || next > last || next === page.value) {
       return
     }
 
@@ -444,7 +594,7 @@ export function useDataTableController<Row>(options: ControllerOptions<Row>) {
     clearSearchTimer()
     searchText.value = ''
     appliedQ.value = ''
-    filters.value = {}
+    filters.value = restFilters()
     restart()
     pushToUrl()
   }

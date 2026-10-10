@@ -35,6 +35,25 @@ async function mountAt(path: string) {
         name: 'sessions',
         component: { template: '<div/>' },
       },
+      // Padre sin entrada de menú, con su propia clave de título (`REQ-PERM §20.3`).
+      {
+        path: '/administracion/roles/:publicId',
+        name: 'core-role-detail',
+        component: { template: '<div/>' },
+        meta: { layout: 'app', permissions: ['rol.leer'], titleKey: 'core.roles.detail.title' },
+      },
+      {
+        path: '/administracion/roles/:publicId/permisos',
+        name: 'core-role-permissions',
+        component: { template: '<div/>' },
+        meta: {
+          layout: 'app',
+          permissions: ['rol.actualizar'],
+          titleKey: 'core.roles.editor.pageTitle',
+          breadcrumbKey: 'core.roles.editor.pageTitle',
+          breadcrumbParent: 'core-role-detail',
+        },
+      },
     ],
   })
 
@@ -68,6 +87,17 @@ describe('AppBreadcrumb — CA-CORE-088', () => {
     expect(items[2]!.get('[aria-current="page"]')).toBeTruthy()
     expect(items[0]!.find('a').exists()).toBe(true)
     expect(items[1]!.find('a').exists()).toBe(true)
+  })
+
+  it('un padre sin entrada de menú se nombra con la clave de su ruta, no con su nombre técnico (REQ-PERM §20.3)', async () => {
+    const wrapper = await mountAt('/administracion/roles/01J-ROL/permisos')
+
+    const items = wrapper.findAll('li')
+
+    expect(items).toHaveLength(3)
+    expect(items[1]!.text()).toContain('Ficha del rol')
+    expect(items[1]!.text()).not.toContain('core-role-detail')
+    expect(items[2]!.text()).toContain('Concesiones del rol')
   })
 
   it('en Inicio, un único elemento actual sin enlace', async () => {

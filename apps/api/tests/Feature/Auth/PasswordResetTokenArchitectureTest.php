@@ -8,9 +8,8 @@ use App\Modules\Auth\Infrastructure\DatabasePasswordResetTokenRepository;
 // (RN-AUTH-07) — prohibido por test de arquitectura, no solo por
 // convención, para que el hallazgo no vuelva dentro de seis meses por la
 // puerta de otro módulo. pestphp/pest-plugin-arch está instalado
-// (vendor/pestphp/pest-plugin-arch), a diferencia de lo que anota
-// tests/Feature/Tenancy/IsolationBatteryTest.php para `toExtend` (no
-// existe en esta versión), `toBeUsedIn`/`not->toBeUsedIn` sí.
+// (vendor/pestphp/pest-plugin-arch) y ofrece `toExtend`, `toBeUsedIn`,
+// `not->toBeUsedIn`, etc.
 
 arch('CA-AUTH-034: apps/api/app no usa el PasswordBroker de Laravel ni su DatabaseTokenRepository')
     ->expect([

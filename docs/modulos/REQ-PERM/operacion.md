@@ -1,5 +1,7 @@
 # REQ-PERM · Operación
 
+> **Paso 1.5b (APROBADO el 2026-10-05; implementado en `feature/REQ-PERM-ui-roles`, pendiente de revisión y merge)**: §10 (`funcional.md §20`): sin variables, colas, tareas ni migraciones nuevas; despliega `api` y `web`.
+>
 > Paso **1.5**. Complementa `SYSADMIN.md`; aquí sólo lo específico de este paso.
 >
 > La conclusión primero, porque condiciona todo lo demás: **este paso no añade ninguna variable de entorno, ningún servicio externo, ninguna cola y ninguna tarea programada.** Lo que sí añade es un **orden de despliegue de cuatro pasos que no se puede alterar** (§4) y un **comando de migración de datos que es el paso más fácil de olvidar** (§4.3).
@@ -214,3 +216,47 @@ Trabajo de cierre del paso, no opcional (`CLAUDE.md §6`):
 | `docs/modulos/REQ-CORE/permisos.md` | La lista completa de `permisos.md §9` de esta carpeta |
 | `docs/modulos/REQ-AUTH/permisos.md` | `§5.6`, `§B.1` y `§C.7.6` quedan marcados como cerrados por 1.5, **no borrados** (`permisos.md §9.2`) |
 | `docs/modulos/REQ-CORE/datos.md` | Añadir `PermissionRole` a la tabla de modelos auditables (`datos.md §5.5`) y `roles` a la lista de inclusión de auditoría de `User` (`datos.md §5.3.1`) |
+
+---
+
+## 10. Paso 1.5b (interfaz y tres cambios de servidor) · APROBADO el 2026-10-05
+
+> `funcional.md §20`.
+
+| Aspecto | 1.5b |
+|---------|------|
+| Variables de entorno | **Ninguna nueva**, ni en `apps/web` ni en `apps/api` |
+| Colas y tareas programadas | **Ninguna.** Ninguna pantalla de 1.5b encola nada: no hay exportación (`permisos.md §2.1`), y el cálculo de permisos efectivos es síncrono y acotado al catálogo (`api.md §7.3`). No depende del *worker* ausente del issue #128 |
+| Servicios externos | Ninguno nuevo. Sin Redis en la autorización (§3) |
+| Migraciones | **Ninguna** (`datos.md §9`) |
+| Despliegue | Imágenes de `api` (S-PERM-1, S-PERM-2, `RN-PERM-47`) y `web`, sin pasos de datos: las claves de traducción de `resource_label` viajan en la imagen. **No hace falta** volver a ejecutar `platform:sync-registry` ni `perm:grant-role-administration`: no hay permisos nuevos. Si en el futuro la declaración de la clave de `resource_label` se materializara en `permissions` (no lo prevé esta especificación), `platform:sync-registry` pasaría a ser obligatorio y se diría aquí |
+| Orden | `api` antes que `web`. La interfaz tolera la ausencia de `resource_label` (rama por defecto, `funcional.md RN-PERM-28`) y de `users_count` (botón de baja habilitado, `RN-PERM-39`), así que el orden inverso degrada, no rompe |
+| Compatibilidad con la versión anterior (`CLAUDE.md §9`) | Los dos campos nuevos son aditivos. `RN-PERM-47` solo **añade** un `409` en rutas que ya respondían `409`/`403`; un cliente de la versión anterior lo trata como cualquier conflicto |
+| Reversión | Desplegar las imágenes anteriores. No hay datos que revertir. **Al revertir `api` desaparece la protección de `RN-PERM-47`**: durante la ventana de reversión, el centro vuelve a poder quedarse sin capacidad de administración por API; se dice para que la decisión de revertir lo tenga en cuenta |
+| Observabilidad | Se mantiene la señal de §6.1 «tasa de `422` con `scope_resolver_missing`»: con la interfaz de 1.5b debería ser **cero** (los ámbitos sin resolutor no se ofrecen); un pico indica una interfaz desfasada o un cliente que no es la SPA. Se añaden, informativas y sin alarma: la tasa de `403` `cannot_grant_unheld_permission` en `PUT /roles/{id}/permissions` (con la interfaz debería ser casi cero, `funcional.md RN-PERM-33`) y el número de `409` `administration_capacity_lost` (`RN-PERM-47`): cada uno es un intento de dejar al centro sin administración que la regla ha parado, y una serie seguida en un mismo centro merece una mirada de soporte |
+| Coste de `RN-PERM-47` | La comprobación resuelve permisos efectivos de candidatos dentro de la transacción de escritura y serializa las escrituras de roles y usuarios de un mismo centro. Son operaciones administrativas poco frecuentes; se registra su latencia y **no** se optimiza sin medición (`ADR-044 §4.7`). **Medido el 2026-10-06 (issue #353)**, `protect(fn () => null)` en PostgreSQL de desarrollo con un tenant sintético y N titulares del código ancla: 5 = 36-40 ms; 20 = 106-108 ms; 200 = 1,25-1,29 s (810 consultas) antes y 1,00-1,05 s (611) después; 1000 = 8,4-8,6 s (4010) antes y 7,2-7,4 s (3011) después. El coste es lineal (≈6 ms por titular antes, ≈5 ms después: 3 consultas por usuario). Cambio aplicado: un `PermissionResolver` por fase (catálogo cargado una vez por fase en vez de una por usuario; −14 % a −20 %), con resultado idéntico (`AdministrationCapacityResolverTest`). **No se optimiza más**: el ancla (el primer código de A por orden alfabético, concedido con `todos`) lo tienen en la práctica los administradores —unidades de usuarios—, así que el caso de cientos de titulares es sintético; un precargado por lotes de las concesiones exigiría tocar `PermissionResolver` (compartido por toda la autorización) sin que la medición lo justifique. Si un centro llegara a tener cientos de titulares del ancla, es el punto a revisar |
+
+### 10.1 Diagnóstico con la interfaz
+
+La guía de §7 sigue valiendo; la pantalla `core-user-effective-permissions` es ahora su herramienta visual (columna «Procedencia» y motivo de inercia). Dos síntomas nuevos posibles:
+
+| Síntoma | Causa probable |
+|---------|----------------|
+| «En el editor no me deja elegir un ámbito» | Lo explica el propio texto de la opción: o el solicitante no lo posee (`RPERM-013`, #170), o el ámbito aún no tiene resolutor (`grantable_scopes`) |
+| «No me deja activar el acceso a datos especiales» | Ningún rol del solicitante tiene `special_data_access` (`permisos.md §7.4`); es el caso por defecto de `administrador_centro`, a propósito |
+| «Al guardar me dice que nadie conservaría la administración» (`409 administration_capacity_lost`) | `RN-PERM-47`: el cambio dejaría sin ningún usuario activo con todos los permisos de administración sembrados. `errors.administration_capacity[0].params.codes` (lista) dice cuáles. Solución: conceder antes esos permisos (rol personalizado o asignación) a otra persona activa |
+| «Un centro recién creado no aplica la protección» | Su administrador sigue `pendiente`: el centro aún no cumplía y `RN-PERM-47` solo rechaza pasar de cumplir a no cumplir. Se activa sola cuando el administrador canjea la invitación |
+
+### 10.2 Ejecutar `CA-PERM-133` (Playwright contra la API real)
+
+Con la pila de desarrollo levantada (`plataforma-api` en `:8000`, `plataforma-web` en `:5173`) y `demo.plataforma.test` apuntando a `127.0.0.1`:
+
+```
+cd apps/web && npm run test:e2e:real
+```
+
+`scripts/e2e-real-api.sh` ejecuta `podman exec plataforma-api php tests/Support/e2e-real-tenant.php setup`, que crea el centro sintético `demo` (administrador `e2e-admin@example.com` con contraseña aleatoria y excepción de MFA viva, y un usuario `e2e-docente@example.com`), lanza el test con `E2E_REAL_API=1` y las credenciales en el entorno y retira el centro al terminar, también si falla. Si el centro `demo` ya existe y no lo creó el script, aborta sin tocarlo.
+
+**Retirada**: el borrado de un centro **no es en cascada** (31 tablas con `tenant_id`, sin `ON DELETE CASCADE`, y el rol de plataforma no puede borrar de las tablas de solo anexar). El script de la API borra solo la fila de `tenants` y devuelve el `tenant_id`; el envoltorio purga las filas de ese tenant con el superusuario del contenedor `plataforma-postgres` (de desarrollo). La purga física de un tenant real sigue pendiente (`REQ-PRIV-006`).
+
+**Seguridad**: el script de soporte exige CLI, `E2E_ALLOW_DESTRUCTIVE=1` (lo pasa el envoltorio), `APP_ENV` `local`/`testing`, base `plataforma` o `plataforma_test` y un slug válido, y está excluido de la imagen de producción por `apps/api/.dockerignore`. Todo el dato es sintético (`@example.com`, `ADR-030`). No está enganchado a CI.

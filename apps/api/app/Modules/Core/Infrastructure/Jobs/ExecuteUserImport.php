@@ -78,7 +78,7 @@ class ExecuteUserImport implements ShouldQueue
             $parsed, $rowValidator, &$seenEmails, &$seenDocuments, $rolesByCode, $createUser, $import, $actor, &$createdCount,
         ): void {
             foreach ($parsed['rows'] as $row) {
-                $result = $rowValidator->validate($row['data'], $row['line'], $seenEmails, $seenDocuments, $rolesByCode);
+                $result = $rowValidator->validate($row['data'], $row['line'], $seenEmails, $seenDocuments, $rolesByCode, $actor);
 
                 if ($result['errors'] !== []) {
                     continue;
@@ -95,8 +95,10 @@ class ExecuteUserImport implements ShouldQueue
                             'family_name_1' => $data['family_name_1'],
                             'family_name_2' => $data['family_name_2'],
                             'birth_date' => $data['birth_date'],
-                            'document_type' => $data['document_type'],
-                            'document_number' => $data['document_number'],
+                            // Valores canónicos del catálogo (RN-CORE-90/92): la API
+                            // exige el código exacto y el número normalizado.
+                            'document_type' => $result['document']['type'],
+                            'document_number' => $result['document']['number'],
                             'contact_email' => $data['contact_email'],
                             'contact_phone' => $data['contact_phone'],
                             'locale' => $data['locale'],

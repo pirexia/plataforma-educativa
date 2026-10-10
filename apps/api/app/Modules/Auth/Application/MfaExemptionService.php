@@ -61,10 +61,15 @@ final class MfaExemptionService
             // RN-AUTH-82: cierra la obligación abierta, si la hay, para
             // que la reapertura (caducidad o revocación) dé plazo
             // completo en vez de reutilizar un grace_deadline_at vencido.
+            // INV-003, #381: por instancia, no con `query()->update()` (que no
+            // dispara los eventos de modelo y dejaría el cierre sin auditar).
             UserMfaObligation::query()
                 ->where('user_id', $target->id)
                 ->whereNull('resolved_at')
-                ->update(['resolved_at' => now()]);
+                ->lockForUpdate()
+                ->get()
+                ->filter(fn (UserMfaObligation $obligation): bool => $obligation->resolved_at === null)
+                ->each(fn (UserMfaObligation $obligation) => $obligation->update(['resolved_at' => now()]));
 
             return $exemption;
         });

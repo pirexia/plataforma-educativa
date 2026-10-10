@@ -50,6 +50,7 @@ use App\Modules\Core\Domain\Events\RoleMfaRequirementChanged;
 use App\Modules\Core\Domain\Events\TenantSettingsUpdated;
 use App\Modules\Core\Domain\Events\UserDeactivated;
 use App\Support\Modules\DeclaresModuleRegistry;
+use App\Support\Sessions\ActiveSessionCloser;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -74,6 +75,8 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         // OPEN-AUTH-13 sin resolver: siempre "desconocida" (funcional.md §B.7).
         $this->app->bind(IpGeolocator::class, NullIpGeolocator::class);
         $this->app->bind(UserSessionDirectory::class, EloquentUserSessionDirectory::class);
+        // INV-007, ADR-056 AR-02: cierre de sesión para los middleware del núcleo.
+        $this->app->bind(ActiveSessionCloser::class, EloquentActiveSessionCloser::class);
 
         // `ADR-041`. Google2FaTotpVerifier es el único adaptador de las
         // dos interfaces — mismo patrón que IpGeolocator/NullIpGeolocator.
@@ -271,13 +274,13 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
     public function declaredPermissions(): array
     {
         return [
-            ['code' => 'bloqueo_cuenta.leer', 'resource' => 'bloqueo_cuenta', 'action' => 'leer', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
-            ['code' => 'bloqueo_cuenta.eliminar', 'resource' => 'bloqueo_cuenta', 'action' => 'eliminar', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
+            ['code' => 'bloqueo_cuenta.leer', 'resource' => 'bloqueo_cuenta', 'action' => 'leer', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.bloqueo_cuenta'],
+            ['code' => 'bloqueo_cuenta.eliminar', 'resource' => 'bloqueo_cuenta', 'action' => 'eliminar', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.bloqueo_cuenta'],
             // REQ-AUTH-003 (1.3), funcional.md §C.4.10, §C.1.1 punto 9.
             // 'leer': GET /mfa-compliance (vista previa y cumplimiento).
             // 'eliminar': POST /mfa-resets (restablecimiento).
-            ['code' => 'mfa.leer', 'resource' => 'mfa', 'action' => 'leer', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
-            ['code' => 'mfa.eliminar', 'resource' => 'mfa', 'action' => 'eliminar', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
+            ['code' => 'mfa.leer', 'resource' => 'mfa', 'action' => 'leer', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.mfa'],
+            ['code' => 'mfa.eliminar', 'resource' => 'mfa', 'action' => 'eliminar', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.mfa'],
             // REQ-AUTH-003 (1.3b), permisos.md §D.2-§D.5. Recurso propio
             // (no una acción más de `mfa`): la excepción es una entidad
             // con ciclo de vida propio (motivo, caducidad, autor, traza de
@@ -286,19 +289,19 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             // y `mfa.eliminar`: describe lo que el actor hace desde fuera
             // (retirar algo vigente), no la operación SQL (`RN-AUTH-83`:
             // revocar no borra, deja `revoked_at`/`revoked_by`).
-            ['code' => 'exencion_mfa.crear', 'resource' => 'exencion_mfa', 'action' => 'crear', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
-            ['code' => 'exencion_mfa.leer', 'resource' => 'exencion_mfa', 'action' => 'leer', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
-            ['code' => 'exencion_mfa.eliminar', 'resource' => 'exencion_mfa', 'action' => 'eliminar', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
+            ['code' => 'exencion_mfa.crear', 'resource' => 'exencion_mfa', 'action' => 'crear', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.exencion_mfa'],
+            ['code' => 'exencion_mfa.leer', 'resource' => 'exencion_mfa', 'action' => 'leer', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.exencion_mfa'],
+            ['code' => 'exencion_mfa.eliminar', 'resource' => 'exencion_mfa', 'action' => 'eliminar', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.exencion_mfa'],
             // REQ-AUTH-004 (1.4b), permisos.md §F.2-§F.3. Recurso propio:
             // un proveedor de identidad es una entidad con ciclo de vida
             // completo (se crea, se consulta, se modifica, se retira),
             // no una acción más de `configuracion` (REQ-CORE). Las
             // credenciales no tienen permiso propio (permisos.md §F.4):
             // cargar/retirar una viaja con `proveedor_identidad.actualizar`.
-            ['code' => 'proveedor_identidad.leer', 'resource' => 'proveedor_identidad', 'action' => 'leer', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
-            ['code' => 'proveedor_identidad.crear', 'resource' => 'proveedor_identidad', 'action' => 'crear', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
-            ['code' => 'proveedor_identidad.actualizar', 'resource' => 'proveedor_identidad', 'action' => 'actualizar', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
-            ['code' => 'proveedor_identidad.eliminar', 'resource' => 'proveedor_identidad', 'action' => 'eliminar', 'is_special_category' => false, 'applicable_scopes' => ['todos']],
+            ['code' => 'proveedor_identidad.leer', 'resource' => 'proveedor_identidad', 'action' => 'leer', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.proveedor_identidad'],
+            ['code' => 'proveedor_identidad.crear', 'resource' => 'proveedor_identidad', 'action' => 'crear', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.proveedor_identidad'],
+            ['code' => 'proveedor_identidad.actualizar', 'resource' => 'proveedor_identidad', 'action' => 'actualizar', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.proveedor_identidad'],
+            ['code' => 'proveedor_identidad.eliminar', 'resource' => 'proveedor_identidad', 'action' => 'eliminar', 'is_special_category' => false, 'applicable_scopes' => ['todos'], 'resource_label_key' => 'auth.permissions.resources.proveedor_identidad'],
         ];
     }
 }

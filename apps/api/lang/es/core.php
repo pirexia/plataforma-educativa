@@ -26,6 +26,8 @@ return [
         'contrast_insufficient' => 'El contraste de la paleta (:ratio:1) no alcanza el mínimo exigido (:required:1, WCAG 2.2 AA).',
         'document_number_invalid' => 'El número de documento no es válido para el tipo indicado.',
         'document_duplicate' => 'Ya existe una persona viva en este centro con el mismo tipo y número de documento.',
+        'document_type_invalid' => 'El tipo de documento indicado no está admitido.',
+        'document_incomplete' => 'Indica a la vez el tipo y el número de documento, o ninguno de los dos.',
         'email_duplicate' => 'Ya existe un usuario vivo en este centro con este correo de acceso.',
         'role_not_found' => 'Uno de los roles indicados no existe en este centro.',
         'role_permission_exceeds_own' => 'No puedes asignar un rol que concede permisos que tú no tienes.',
@@ -42,6 +44,8 @@ return [
         'cursor_invalid' => 'El cursor de paginación no es válido para esta consulta.',
         'export_range_too_large' => 'El rango solicitado supera el límite de filas permitido; acótalo e inténtalo de nuevo.',
         'pdf_export_not_available' => 'La exportación a PDF todavía no está disponible; usa CSV.',
+        'filter_value_invalid' => 'El valor «:value» no es válido para este filtro.',
+        'export_search_not_supported' => 'La exportación de usuarios no admite búsqueda libre («q»); usa los filtros estructurados.',
         'export_not_ready' => 'La exportación todavía se está generando; inténtalo de nuevo en unos minutos.',
         'export_failed' => 'La generación de esta exportación ha fallado.',
         'import_not_validated' => 'El lote debe estar validado antes de ejecutarse.',
@@ -59,15 +63,24 @@ return [
         'scope_resolver_missing' => 'El ámbito «:scope» no puede concederse todavía: su resolutor no está registrado.',
         'permission_not_found' => 'El código de permiso «:code» no existe en el catálogo.',
         'permission_retired' => 'El código de permiso «:code» ya no está disponible.',
+        // Issue #359: mensajes genéricos de POST /roles con clone_from (sin código ni ámbito del origen).
+        'clone_source_permission_retired' => 'El rol de origen contiene un permiso que ya no está disponible; no se puede clonar.',
+        'clone_source_permission_not_found' => 'El rol de origen contiene un permiso que no existe en el catálogo; no se puede clonar.',
+        'clone_source_scope_not_applicable' => 'El rol de origen contiene una concesión con un ámbito que no se puede conceder; no se puede clonar.',
+        'clone_source_scope_resolver_missing' => 'El rol de origen contiene una concesión con un ámbito que todavía no puede concederse; no se puede clonar.',
+        'clone_source_not_clonable' => 'No puedes clonar este rol: concede algo que no puedes activar.',
         'permission_duplicated' => 'El código de permiso «:code» aparece más de una vez.',
         'role_is_system' => 'Un rol del aprovisionamiento del centro no se puede eliminar.',
         'role_has_assignments' => 'Este rol tiene :users_count usuario(s) asignado(s) y no se puede eliminar.',
+        // REQ-PERM/funcional.md §20.2.1 (1.5b, RN-PERM-47).
+        'administration_capacity_lost' => 'Esta operación dejaría al centro sin ningún usuario activo con todos los permisos de administración. Permisos afectados: :codes. Concede antes esos permisos a otra persona activa del centro.',
     ],
 
     // REQ-PERM/api.md §9.2 (1.5): motivo de un 403 de autorización, para
     // que el administrador pueda corregir algo con la respuesta.
     'authorization' => [
         'cannot_grant_unheld_permission' => 'No puedes conceder el permiso «:code» con ámbito «:scope»: tú mismo no lo tienes.',
+        'cannot_grant_unheld_role_permission' => 'No puedes asignar este rol: concede algún permiso que tú mismo no tienes.',
         'special_data_access_not_held' => 'No puedes activar el acceso a datos de categoría especial: tú mismo no lo tienes.',
     ],
 
@@ -79,6 +92,23 @@ return [
         'inerte_modulo' => 'El módulo de este permiso no está activo en este centro.',
         'inerte_datos_especiales' => 'La concesión viene de un rol sin acceso a datos de categoría especial.',
         'inerte_sin_resolutor' => 'El ámbito de esta concesión todavía no tiene resolutor.',
+    ],
+
+    // REQ-PERM/api.md §14.3 (1.5b, S-PERM-2): nombre de cada recurso de los
+    // permisos que declara este módulo (`resource_label_key`).
+    'permissions' => [
+        'resources' => [
+            'usuario' => 'Usuarios',
+            'invitacion' => 'Invitaciones',
+            'asignacion_rol' => 'Asignaciones de rol',
+            'rol' => 'Roles',
+            'permiso' => 'Permisos',
+            'configuracion' => 'Configuración',
+            'modulo' => 'Módulos',
+            'auditoria' => 'Auditoría',
+            'rol_datos_especiales' => 'Datos de categoría especial de un rol',
+            'permiso_efectivo' => 'Permisos efectivos',
+        ],
     ],
 
     'idempotency' => [
@@ -95,5 +125,9 @@ return [
         'duplicado_en_base_de_datos' => 'El valor de la columna «:column» ya pertenece a otra persona o usuario del centro.',
         'idioma_no_activo' => 'El idioma indicado no está activo en este centro.',
         'rol_no_encontrado' => 'Uno de los roles indicados no existe en este centro.',
+        'rol_no_concedible' => 'La columna «:column» incluye un rol que no puedes conceder: tú mismo no tienes todos sus permisos.',
+        'limite_filas_superado' => 'El fichero supera el máximo de :max filas de datos. Divídelo en varios ficheros.',
+        'tipo_documento_no_valido' => 'El tipo de documento indicado no está admitido.',
+        'documento_incompleto' => 'Indica a la vez el tipo y el número de documento, o ninguno de los dos.',
     ],
 ];

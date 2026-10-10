@@ -380,3 +380,64 @@ Ninguna de estas purgas toca `audit_logs`: la retención del registro de auditor
   - Hoy no ocurre: la exportación de auditoría no acepta `q`.
 
 `tenant_id` y `academic_year_id`: **no aplican**, al no haber tabla nueva.
+
+---
+
+# Parte D · Paso 1.9b (pantallas de gestión): una migración *expand*
+
+> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. La migración pertenece al sub-paso `1.9b`; `1.9c` añade solo una migración **de datos** (Parte E, sin cambio de esquema) y `1.9d`-`1.9f` no tocan el esquema. **Implementada** (2026-10-02): `apps/api/app/Modules/Core/Database/migrations/2026_10_02_100100_widen_data_exports_kind_for_users.php`, sobre la restricción `data_exports_kind_check` leída de la migración de 1.1, con `$withinTransaction = false` (lección de `#166`). `down()` falla si ya hay filas `users` (hay que purgarlas antes). Pendiente de revisión por `db-reviewer`.
+
+**Única migración del paso**: ampliar el `CHECK` de `data_exports.kind` con el valor `users`, para `POST /users/exports` (`funcional.md §14.11`, S1-S2). Es exactamente el mecanismo que A.4 previó («cada módulo añade su valor al `CHECK` por *expand*»).
+
+| Tabla | Cambio | Tipo | Compatibilidad |
+|-------|--------|------|----------------|
+| `data_exports` | `CHECK (kind IN ('audit_logs'))` → `CHECK (kind IN ('audit_logs', 'users'))` | *Expand* | La versión anterior de la aplicación nunca escribe `users`; la nueva puede convivir con el esquema viejo solo si no se despliega antes de la migración (`operacion.md §13`). Sin *contract* posterior: no se retira nada |
+
+**Forma de la migración** (skill `migracion-segura`, lección de `#166`): sustituir un `CHECK` es `ALTER TABLE … DROP CONSTRAINT` + `ADD CONSTRAINT`, y añadirlo valida todas las filas con bloqueo `ACCESS EXCLUSIVE`. `data_exports` es pequeña (filas de siete días, `A.9`), así que el coste real es mínimo, pero la migración sigue el patrón seguro: `ADD CONSTRAINT … NOT VALID` y después `VALIDATE CONSTRAINT` en una sentencia aparte (bloqueo `SHARE UPDATE EXCLUSIVE`), con `$withinTransaction = false` si el patrón del proyecto lo exige para `VALIDATE`. El nombre del `CHECK` existente se lee de la migración de 1.1, no se supone. Lo revisa `db-reviewer`.
+
+**Lo que no cambia, afirmado de forma explícita:**
+
+| Necesidad del paso | De dónde sale | Esquema nuevo |
+|--------------------|---------------|---------------|
+| Exportación de usuarios: estado, solicitante, filtros, artefacto | `data_exports` (A.4), con `kind = 'users'` | Solo el `CHECK` de arriba. `filters` sigue sin `q` (`ADR-054 §9`, `RN-CORE-58`): **no** hace falta la columna aparte de `ADR-054 §9.2` ni pasar `DataExport` de `Full` a `Selective` |
+| Idioma de los mensajes de importación (#285, si `OPEN-CORE-38` = A) | `user_imports.created_by` → `users` → `people.locale`, con la precedencia de `RN-CORE-34` | **Ninguno**: no se guarda el idioma en `user_imports` |
+| `created_at` en el recurso de importación | Columna existente de `tenantTable()` | Ninguno |
+| Usuarios dados de baja en el detalle | `users.deleted_at` | Ninguno |
+| Valores múltiples en filtros (`status`, `locale`, `actor_type`, `module`) | Mismas columnas, `IN (…)` en vez de `=` | Ninguno. **Índices**: ninguno nuevo; ninguno de los filtros tenía índice propio y el volumen (catálogos acotados por el tamaño del centro, `ADR-038 §4.2`) no lo justifica sin medición (`A.7`, `REQ-SEED`) |
+| Facetas de auditoría (`OPEN-CORE-34` = B, resuelta) | Catálogo en código (`ModuleCatalog`, *morph map*) | Ninguno; no consulta `audit_logs` |
+| Configuración de columnas de las tablas nuevas | `localStorage`, `plataforma.table.<tableId>` (`RN-CORE-43`), con los `tableId` literales de `funcional.md §14` (`core.users`, `core.invitations`, `core.user_imports`, `core.user_import_errors`, `core.roles`, `core.audit_logs`, `core.modules`, `auth.mfa_exemptions`, `auth.identity_providers`, `auth.sessions`) | Ninguno en servidor; el patrón de clave ya está en `PRIVACY.md §2.1b` |
+| Módulos contratados (1.9e, solo lectura) | `module_subscriptions` y catálogo `modules` por `GET /modules` (columnas visibles para el tenant, `RN-BO-82`) | Ninguno |
+| Perfil propio (1.9e) | `people.contact_email`, `people.contact_phone` por `PATCH /me` (1.1) | Ninguno |
+
+**Datos personales en el artefacto de exportación de usuarios.** El fichero contiene datos identificativos del personal y, si lo hay, del alumnado con cuenta: correo de acceso, nombre y apellidos, correo y teléfono de contacto, idioma y roles (esquema cerrado de `funcional.md §14.11.1`). **No contiene** tipo ni número de documento ni fecha de nacimiento (`OPEN-CORE-32` = B, decisión del usuario del 2026-10-01; `INV-008`). Su tratamiento es el mismo que el de la exportación de auditoría: objeto privado en el *bucket*, URL firmada de caducidad corta, solo el solicitante, purga a los siete días por `PurgeExpiredExports` (A.9), sin copia en la base de datos ni en `audit_logs` (`filters` solo lleva códigos y ULID). Nada que añadir al esquema; sí a `PRIVACY.md` (`funcional.md §14.20`).
+
+`tenant_id`: la fila de `data_exports` ya lo lleva (`tenantTable()`); el trabajo `GenerateUserExport` fija el contexto de tenant al arrancar (`operacion.md §4`). `academic_year_id`: **no aplica** (A.4).
+
+---
+
+# Parte E · Paso 1.9c (importación y catálogo de tipos de documento): una migración de datos, sin cambio de esquema
+
+> Estado: **IMPLEMENTADA** (2026-10-02/03; revisada por `db-reviewer` sin Crítico/Alto, pendiente de mezcla), con `funcional.md §14.6.4` (aprobada, `OPEN-CORE-46` = B y `-47` a `-53` según la opción recomendada). Corrige `RN-CORE-90` a `-93` en `people` y sustituye lo dicho en la Parte D («`1.9c`-`1.9f` no tocan el esquema») **solo en lo que toca a datos**: 1.9c no añade ni modifica ninguna columna, índice ni restricción.
+
+**Catálogo cerrado** de `people.document_type` (`RN-CORE-90`): `dni`, `nie`, `pasaporte`, en minúsculas, fuente única `App\Modules\Core\Domain\DocumentType`. La columna sigue siendo `text` (`ADR-029`) con el índice único `UNIQUE (tenant_id, document_type, document_number) WHERE document_number IS NOT NULL AND deleted_at IS NULL`.
+
+| Entrega (`OPEN-CORE-52` = A) | Qué | Estado |
+|------------------------------|-----|--------|
+| **N (1.9c)** | La aplicación valida contra el catálogo y normaliza al escribir. Migración **de datos** `2026_10_02_100200_normalize_people_document_to_catalog`: lleva el tipo (`DNI`, `dni`, ` Nie `...) al código canónico y el número a su forma canónica (`upper(trim)`; en `dni`/`nie`, sin espacios ni guiones). **Sin `CHECK`** | Hecha |
+| **N+1** | `CHECK (document_type IS NULL OR document_type IN ('dni','nie','pasaporte'))`, añadido `NOT VALID` y validado después (skill `migracion-segura`), cuando ya no corra ningún proceso de N-1 (incluidos *workers* de `core-imports` con trabajos encolados). Con N+1 se retira también el uso de `DocumentType::values()` como única defensa | **Pendiente**, seguimiento en el issue [#312](https://github.com/pirexia/plataforma-educativa/issues/312) |
+
+**El `CHECK` de par ya existe.** `people_document_type_number_paired` (`CHECK ((document_type IS NULL) = (document_number IS NULL))`, migración `2026_08_18_101000`, hallazgo #20 de 0.8) está en la base de datos desde 0.8. §14.6.4.4 lo daba por añadir en N+1 «si `OPEN-CORE-48` = A»: no hay nada que añadir. Antes de 1.9c, un número sin tipo dado de alta por la API chocaba con él como `500`; `RN-CORE-91` lo convierte en `422` (`core.validation.document_incomplete`).
+
+**Comportamiento de la migración de datos.**
+
+- **Conexión `pgsql_platform`** (`BYPASSRLS`, `ADR-033 §5`): es una migración entre **todos** los centros, y `plataforma_owner` queda sujeto a RLS por `FORCE` (no vería ninguna fila de ningún tenant).
+- Antes de escribir **comprueba** (1) que ninguna fila queda con un tipo sin correspondencia con el catálogo (`lower(trim(tipo))` ∉ {`dni`, `nie`, `pasaporte`}) y (2) que la normalización no deja a dos personas **vivas** del mismo centro con el mismo documento. Si ocurre cualquiera, **aborta con una `RuntimeException` que enumera los `public_id` afectados y no modifica ninguna fila** (una única transacción): nunca se inventa una correspondencia. Las personas dadas de baja no cuentan como duplicado (el índice único las excluye) y el mismo documento en centros distintos tampoco.
+- Idempotente: una segunda ejecución no encuentra nada que cambiar.
+- **Irreversible a propósito** (`down()` vacío, `OPEN-CORE-52` = A): la forma canónica es válida también para la versión anterior de la aplicación (acepta cualquier texto) y la grafía original no se conserva. **La reversión se apoya en la copia de seguridad / PITR**, no en `down()` (`operacion.md §14.1`).
+- Lee con `lockForUpdate()` dentro de su transacción (`db-reviewer` D1).
+- **Excepción consciente a `INV-003`**: el `UPDATE` no pasa por los *observers* de auditoría ni toca `updated_at`. Es una migración de datos del esquema, no una modificación hecha por una persona, y reescribir el rastro de `audit_logs` (append-only) con valores redactados no aportaría nada: `document_type` y `document_number` ya se registran como `identifier` redactado (`ADR-035`).
+- La lista de códigos y la regla de normalización **se repiten dentro de la migración** a propósito: una migración no debe depender de código de aplicación que puede cambiar después (un tipo nuevo del enumerado no debe alterar lo que esta migración hizo en su día).
+
+**Auditoría** (`ADR-035`): sin cambio. `Person` sigue `Selective`; `document_type` y `document_number` siguen redactados como `identifier`. `OPEN-CORE-32` = B: ni el tipo ni el número salen en el CSV de exportación de usuarios.
+
+`user_imports`: sin cambio. `created_at` ya existía (S8 solo lo expone). El idioma de los mensajes (#285) se resuelve al validar (`created_by` → `people.locale`) y **no se guarda** en la tabla.

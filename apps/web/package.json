@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:real": "bash scripts/e2e-real-api.sh",
     "lint": "eslint .",
     "lint:i18n": "node scripts/check-i18n-literals.mjs",
     "format": "prettier --write ."
@@ -32,7 +33,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",
     "@vitejs/plugin-vue": "^6.0.8",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^5.0.3",
     "@vue/compiler-dom": "^3.5.41",
     "@vue/compiler-sfc": "^3.5.41",
     "@vue/eslint-config-prettier": "^10.2.0",
@@ -47,7 +48,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.2.0",
-    "vitest": "^4.1.10",
+    "vitest": "^5.0.3",
     "vue-tsc": "^3.3.8"
   }
 }

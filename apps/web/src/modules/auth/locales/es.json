@@ -93,7 +93,9 @@
         "tableta": "Tableta",
         "bot": "Bot",
         "desconocido": "Desconocido"
-      }
+      },
+      "empty": "No hay sesiones activas.",
+      "revokeFor": "Cerrar sesión de {device} iniciada el {date}"
     },
     "mfa": {
       "method": {
@@ -337,7 +339,9 @@
         "empty": "No hay excepciones con este filtro.",
         "revokeAction": "Revocar",
         "confirmRevoke": "¿Revocar esta excepción?",
-        "confirmYes": "Sí, revocar"
+        "confirmYes": "Sí, revocar",
+        "tableCaption": "Excepciones temporales de MFA",
+        "revokeActionFor": "Revocar la excepción de {name}"
       },
       "userPicker": {
         "label": "Buscar usuario",
@@ -355,6 +359,7 @@
       "intro": "Configura los sistemas de identidad institucionales (Entra ID, Google Workspace, etc.) con los que tu personal puede entrar con las credenciales del centro.",
       "loading": "Cargando el catálogo…",
       "loadError": "No se ha podido cargar el catálogo de proveedores.",
+      "deleteError": "No se ha podido eliminar el proveedor de identidad.",
       "empty": "Este centro todavía no tiene ningún proveedor de identidad catalogado.",
       "create": "Añadir proveedor",
       "columns": {
@@ -363,7 +368,8 @@
         "status": "Estado",
         "provisioningMode": "Aprovisionamiento",
         "secret": "Credencial",
-        "protocol": "Protocolo"
+        "protocol": "Protocolo",
+        "actions": "Acciones"
       },
       "status": {
         "enabled": "Activo",
@@ -527,7 +533,10 @@
           "manual": "Cargado a mano"
         },
         "lastActiveError": "No puedes retirar el último certificado vigente de un proveedor activo: desactívalo antes."
-      }
+      },
+      "tableCaption": "Catálogo de proveedores de identidad",
+      "editFor": "Editar {name}",
+      "deleteFor": "Eliminar {name}"
     },
     "nav": {
       "passwordChange": "Contraseña",

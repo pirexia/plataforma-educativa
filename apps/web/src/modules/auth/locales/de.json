@@ -93,7 +93,9 @@
         "tableta": "Tablet",
         "bot": "Bot",
         "desconocido": "Unbekannt"
-      }
+      },
+      "empty": "Es gibt keine aktiven Sitzungen.",
+      "revokeFor": "Sitzung beenden: {device}, gestartet am {date}"
     },
     "mfa": {
       "method": {
@@ -337,7 +339,9 @@
         "empty": "Keine Ausnahmen mit diesem Filter.",
         "revokeAction": "Widerrufen",
         "confirmRevoke": "Diese Ausnahme widerrufen?",
-        "confirmYes": "Ja, widerrufen"
+        "confirmYes": "Ja, widerrufen",
+        "tableCaption": "Befristete MFA-Ausnahmen",
+        "revokeActionFor": "Ausnahme von {name} widerrufen"
       },
       "userPicker": {
         "label": "Nutzer suchen",
@@ -355,6 +359,7 @@
       "intro": "Konfiguriere die institutionellen Identitätssysteme (Entra ID, Google Workspace usw.), mit denen sich dein Personal mit den Zugangsdaten der Schule anmelden kann.",
       "loading": "Katalog wird geladen…",
       "loadError": "Der Anbieterkatalog konnte nicht geladen werden.",
+      "deleteError": "Der Identitätsanbieter konnte nicht gelöscht werden.",
       "empty": "Diese Schule hat noch keinen Identitätsanbieter katalogisiert.",
       "create": "Anbieter hinzufügen",
       "columns": {
@@ -363,7 +368,8 @@
         "status": "Status",
         "provisioningMode": "Bereitstellung",
         "secret": "Zugangsdaten",
-        "protocol": "Protokoll"
+        "protocol": "Protokoll",
+        "actions": "Aktionen"
       },
       "status": {
         "enabled": "Aktiv",
@@ -527,7 +533,10 @@
           "manual": "Manuell hochgeladen"
         },
         "lastActiveError": "Du kannst das letzte gültige Zertifikat eines aktiven Anbieters nicht entfernen: deaktiviere ihn zuerst."
-      }
+      },
+      "tableCaption": "Katalog der Identitätsanbieter",
+      "editFor": "{name} bearbeiten",
+      "deleteFor": "{name} löschen"
     },
     "nav": {
       "passwordChange": "Passwort",

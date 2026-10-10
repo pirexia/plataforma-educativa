@@ -23,6 +23,8 @@ return [
         'contrast_insufficient' => 'Le contraste de la palette (:ratio:1) n\'atteint pas le minimum requis (:required:1, WCAG 2.2 AA).',
         'document_number_invalid' => 'Le numéro de document n\'est pas valide pour le type indiqué.',
         'document_duplicate' => 'Une personne active avec le même type et numéro de document existe déjà dans cet établissement.',
+        'document_type_invalid' => 'Le type de document indiqué n\'est pas pris en charge.',
+        'document_incomplete' => 'Indiquez à la fois le type et le numéro de document, ou aucun des deux.',
         'email_duplicate' => 'Un utilisateur actif avec cet e-mail de connexion existe déjà dans cet établissement.',
         'role_not_found' => 'Un des rôles indiqués n\'existe pas dans cet établissement.',
         'role_permission_exceeds_own' => 'Vous ne pouvez pas attribuer un rôle qui accorde des permissions que vous ne possédez pas vous-même.',
@@ -39,6 +41,8 @@ return [
         'cursor_invalid' => 'Le curseur de pagination n\'est pas valide pour cette requête.',
         'export_range_too_large' => 'La plage demandée dépasse la limite de lignes autorisée ; réduisez-la et réessayez.',
         'pdf_export_not_available' => 'L\'export PDF n\'est pas encore disponible ; utilisez CSV.',
+        'filter_value_invalid' => 'La valeur « :value » n\'est pas valide pour ce filtre.',
+        'export_search_not_supported' => 'L\'export des utilisateurs ne prend pas en charge la recherche libre (« q ») ; utilisez les filtres structurés.',
         'export_not_ready' => 'L\'export est encore en cours de génération ; réessayez dans quelques minutes.',
         'export_failed' => 'La génération de cet export a échoué.',
         'import_not_validated' => 'Le lot doit être validé avant de pouvoir être exécuté.',
@@ -54,13 +58,22 @@ return [
         'scope_resolver_missing' => 'Le périmètre « :scope » ne peut pas encore être accordé : son résolveur n\'est pas enregistré.',
         'permission_not_found' => 'Le code de permission « :code » n\'existe pas dans le catalogue.',
         'permission_retired' => 'Le code de permission « :code » n\'est plus disponible.',
+        // Issue #359: mensajes genéricos de POST /roles con clone_from (sin código ni ámbito del origen).
+        'clone_source_permission_retired' => 'Le rôle d\'origine contient une permission qui n\'est plus disponible ; il ne peut pas être cloné.',
+        'clone_source_permission_not_found' => 'Le rôle d\'origine contient une permission qui n\'existe pas dans le catalogue ; il ne peut pas être cloné.',
+        'clone_source_scope_not_applicable' => 'Le rôle d\'origine contient une concession avec un périmètre qui ne peut pas être accordé ; il ne peut pas être cloné.',
+        'clone_source_scope_resolver_missing' => 'Le rôle d\'origine contient une concession avec un périmètre qui ne peut pas encore être accordé ; il ne peut pas être cloné.',
+        'clone_source_not_clonable' => 'Vous ne pouvez pas cloner ce rôle : il accorde quelque chose que vous ne pouvez pas activer.',
         'permission_duplicated' => 'Le code de permission « :code » apparaît plus d\'une fois.',
         'role_is_system' => 'Un rôle du provisionnement de l\'établissement ne peut pas être supprimé.',
         'role_has_assignments' => 'Ce rôle a :users_count utilisateur(s) assigné(s) et ne peut pas être supprimé.',
+        // REQ-PERM/funcional.md §20.2.1 (1.5b, RN-PERM-47).
+        'administration_capacity_lost' => 'Cette opération laisserait l\'établissement sans aucun utilisateur actif possédant toutes les permissions d\'administration. Permissions concernées : :codes. Accordez d\'abord ces permissions à une autre personne active de l\'établissement.',
     ],
 
     'authorization' => [
         'cannot_grant_unheld_permission' => 'Vous ne pouvez pas accorder la permission « :code » avec le périmètre « :scope » : vous ne la possédez pas vous-même.',
+        'cannot_grant_unheld_role_permission' => 'Vous ne pouvez pas attribuer ce rôle : il accorde une permission que vous ne possédez pas vous-même.',
         'special_data_access_not_held' => 'Vous ne pouvez pas activer l\'accès aux données de catégorie spéciale : vous ne le possédez pas vous-même.',
     ],
 
@@ -69,6 +82,23 @@ return [
         'inerte_modulo' => 'Le module de cette permission n\'est pas activé pour cet établissement.',
         'inerte_datos_especiales' => 'L\'attribution provient d\'un rôle sans accès aux données de catégorie spéciale.',
         'inerte_sin_resolutor' => 'Le périmètre de cette attribution n\'a pas encore de résolveur.',
+    ],
+
+    // REQ-PERM/api.md §14.3 (1.5b, S-PERM-2) : nom de chaque ressource des
+    // permissions déclarées par ce module (`resource_label_key`).
+    'permissions' => [
+        'resources' => [
+            'usuario' => 'Utilisateurs',
+            'invitacion' => 'Invitations',
+            'asignacion_rol' => 'Attributions de rôle',
+            'rol' => 'Rôles',
+            'permiso' => 'Permissions',
+            'configuracion' => 'Configuration',
+            'modulo' => 'Modules',
+            'auditoria' => 'Audit',
+            'rol_datos_especiales' => 'Données de catégorie spéciale d\'un rôle',
+            'permiso_efectivo' => 'Permissions effectives',
+        ],
     ],
 
     'idempotency' => [
@@ -85,5 +115,9 @@ return [
         'duplicado_en_base_de_datos' => 'La valeur de la colonne « :column » appartient déjà à une autre personne ou un autre utilisateur de l\'établissement.',
         'idioma_no_activo' => 'La langue indiquée n\'est pas active pour cet établissement.',
         'rol_no_encontrado' => 'Un des rôles indiqués n\'existe pas dans cet établissement.',
+        'rol_no_concedible' => 'La colonne « :column » contient un rôle que vous ne pouvez pas attribuer : vous ne détenez pas toutes ses permissions.',
+        'limite_filas_superado' => 'Le fichier dépasse le maximum de :max lignes de données. Scindez-le en plusieurs fichiers.',
+        'tipo_documento_no_valido' => 'Le type de document indiqué n\'est pas pris en charge.',
+        'documento_incompleto' => 'Indiquez à la fois le type et le numéro de document, ou aucun des deux.',
     ],
 ];

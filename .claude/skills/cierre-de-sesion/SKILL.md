@@ -38,6 +38,8 @@ En cuanto aparezca el aviso de sistema, **no esperes a que el usuario lo pida** 
 
 ## Al cerrar
 
+**Reparto**: la verificación del punto 4 la ejecuta `verificador` (Haiku) y los trámites de Git y GitHub del punto 1 (push, PR, borrado de la rama ya mezclada) los hace `janitor` (Haiku). `memory.md` y `PLAN-IMPLEMENTACION.md` los escribe siempre la sesión principal, nunca un subagente: recogen decisiones y estado, y un error ahí se arrastra a la sesión siguiente. Con poca cuota, si lanzar el subagente cuesta más que hacerlo directamente, se hace directamente.
+
 1. Commit y push de todo lo funcional.
 2. Actualiza `memory.md`:
    - Qué se completó

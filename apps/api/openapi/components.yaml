@@ -61,6 +61,31 @@ components:
         total: { type: integer, minimum: 0 }
         last_page: { type: integer, minimum: 0 }
 
+    AcademicYear:
+      type: object
+      description: >
+        REQ-CURSO/api.md §1 (1.10). `status` viaja sin traducir (ADR-038 §3.2). No se
+        exponen `id`, `tenant_id`, `created_by`, `updated_by` ni `deleted_at`.
+      required: [public_id, code, starts_on, ends_on, status, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        code:
+          type: string
+          description: Código del curso, p. ej. `2026-2027`. Contenido del centro, formato libre, único por centro.
+          example: "2026-2027"
+        starts_on: { type: string, format: date, example: "2026-09-01" }
+        ends_on: { type: string, format: date, example: "2027-08-31" }
+        status:
+          type: string
+          description: >
+            Enumerado **extensible** (ADR-038 §7.3): los clientes tratan un valor desconocido
+            como «solo lectura». `cerrado` y `archivado` son de solo lectura (RN-CURSO-20);
+            `archivado` no es alcanzable en 1.10.
+          enum: [planificacion, activo, cerrado, archivado]
+          x-extensible-enum: true
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
     CursorMeta:
       type: object
       description: Metadatos de paginación por cursor (ADR-038 §4.4). Flujos de eventos append-only.
@@ -82,8 +107,13 @@ components:
         family_name_2: { type: string, nullable: true }
         contact_email: { type: string, format: email, nullable: true }
         contact_phone: { type: string, nullable: true }
-        document_type: { type: string, nullable: true }
-        document_number: { type: string, nullable: true }
+        document_type:
+          allOf: [{ $ref: '#/components/schemas/DocumentType' }]
+          nullable: true
+        document_number:
+          type: string
+          nullable: true
+          description: Forma canónica del catálogo (RN-CORE-92); vacío si `document_type` lo está.
         birth_date: { type: string, format: date, nullable: true }
         locale: { $ref: '#/components/schemas/Locale' }
 
@@ -157,7 +187,13 @@ components:
         is_system: { type: boolean }
         mfa_required: { type: boolean }
         special_data_access: { type: boolean }
-        users_count: { type: integer }
+        users_count:
+          type: integer
+          minimum: 0
+          description: >
+            Asignaciones vivas. REQ-PERM/api.md §14.3 (1.5b, S-PERM-1): también en el detalle
+            (`GET /roles/{publicId}`) y en las respuestas de `POST /roles`, `PATCH /roles/{publicId}`
+            y `PUT /roles/{publicId}/permissions`; antes solo salía en el listado.
         permissions:
           type: array
           items:
@@ -165,6 +201,12 @@ components:
             properties:
               code: { type: string }
               resource: { type: string }
+              resource_label:
+                type: string
+                description: >
+                  REQ-PERM/api.md §14.3 (1.5b, S-PERM-2). Nombre del recurso traducido por el
+                  servidor al idioma de la petición; lo declara el módulo dueño. Nunca vacío:
+                  si el módulo no lo declara, lleva el código del recurso.
               action: { type: string }
               effect: { type: string, enum: [allow, deny] }
               scope: { type: string }
@@ -178,6 +220,11 @@ components:
       properties:
         code: { type: string }
         resource: { type: string }
+        resource_label:
+          type: string
+          description: >
+            REQ-PERM/api.md §14.3 (1.5b, S-PERM-2). Nombre del recurso traducido por el servidor
+            (`ADR-021`); el valor técnico `resource` no se traduce. Nunca vacío.
         action: { type: string }
         module_code: { type: string }
         is_special_category: { type: boolean }
@@ -225,6 +272,11 @@ components:
       properties:
         code: { type: string }
         resource: { type: string }
+        resource_label:
+          type: string
+          description: >
+            REQ-PERM/api.md §14.3 (1.5b, S-PERM-2). Nombre del recurso traducido por el servidor.
+            Nunca vacío.
         action: { type: string }
         module_code: { type: string }
         is_special_category: { type: boolean }
@@ -357,6 +409,9 @@ components:
         row_count: { type: integer, nullable: true }
         download_url: { type: string, format: uri, nullable: true }
         expires_at: { type: string, format: date-time }
+        error_code:
+          type: string
+          description: "Solo con `status: fallida` (S4 de 1.9b). Clave estable, sin traducir."
 
     UserImportErrorEntry:
       type: object
@@ -382,6 +437,8 @@ components:
           nullable: true
           items: { $ref: '#/components/schemas/UserImportErrorEntry' }
         report_url: { type: string, format: uri, nullable: true }
+        send_invitations: { type: boolean, description: "Elegido al subir el fichero; la confirmación de ejecución lo usa (RN-CORE-73)." }
+        created_at: { type: string, format: date-time }
         validated_at: { type: string, format: date-time, nullable: true }
         executed_at: { type: string, format: date-time, nullable: true }
 
@@ -424,7 +481,7 @@ components:
           description: true en la sesión desde la que se hace la petición. Exactamente una fila lo lleva.
         started_at: { type: string, format: date-time }
         last_activity_at: { type: string, format: date-time }
-        ip_address: { type: string, nullable: true, description: IP completa del propio titular, sin enmascarar. }
+        ip_address: { type: string, nullable: true, description: "IP completa del propio titular, sin enmascarar." }
         client:
           type: object
           properties:
@@ -473,7 +530,7 @@ components:
             Solo `method=email` (1.3b). Caducidad del código de 6 dígitos
             (AUTH_MFA_CODE_TTL_MINUTES), distinta de `expires_at` del alta
             (api.md §D.6.4).
-        expires_at: { type: string, format: date-time, description: RN-AUTH-59, 10 minutos por defecto. }
+        expires_at: { type: string, format: date-time, description: "RN-AUTH-59, 10 minutos por defecto." }
 
     MfaFactor:
       type: object
@@ -560,7 +617,7 @@ components:
             método en curso del desafío entrega algo — ausente, no nulo,
             cuando `method=totp`.
           example: "a···z@e···e.com"
-        expires_at: { type: string, format: date-time, description: RN-AUTH-54, 5 minutos por defecto. }
+        expires_at: { type: string, format: date-time, description: "RN-AUTH-54, 5 minutos por defecto." }
         has_unused_recovery_codes: { type: boolean }
 
     MfaComplianceSummary:
@@ -1055,7 +1112,7 @@ components:
             to: { type: string, format: date }
         created: { type: integer, description: tenant_lifecycle_events con from_status IS NULL. }
         closed: { type: integer, description: to_status = en_baja. }
-        deleted: { type: integer, description: to_status = eliminado, serie aparte de closed. }
+        deleted: { type: integer, description: "to_status = eliminado, serie aparte de closed." }
 
     PlatformModuleAdoption:
       type: object
@@ -1275,6 +1332,19 @@ components:
       type: string
       enum: [es-ES, en, de, fr]
 
+    DocumentType:
+      type: string
+      enum: [dni, nie, pasaporte]
+      description: >
+        Catálogo cerrado de tipos de documento de identidad (RN-CORE-90,
+        funcional.md §14.6.4). Fuente única: `App\Modules\Core\Domain\DocumentType`
+        (el test `CA-CORE-279` lo comprueba). Formato del número tras normalizar
+        (RN-CORE-92: sin espacios al principio ni al final, en mayúsculas; en `dni` y
+        `nie`, además sin espacios ni guiones intermedios): `dni` `^\d{8}[A-Z]$` con
+        letra de control módulo 23; `nie` `^[XYZ]\d{7}[A-Z]$` con la misma letra de
+        control (X, Y, Z valen 0, 1, 2); `pasaporte` `^[A-Z0-9]{1,32}$` sin dígito de
+        control. Tipo y número se informan los dos o ninguno (RN-CORE-91).
+
   parameters:
     PageParam:
       name: page
@@ -1412,6 +1482,31 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+    AcademicYearClosed:
+      description: >
+        ADR-057 §5.5, RN-CURSO-21 (REQ-CURSO, 1.10). Escritura sobre datos de un curso
+        `cerrado` o `archivado`, desde cualquier módulo: `409` con el `type` propio
+        `urn:pge:error:academic-year-closed` (amplía el catálogo cerrado de ADR-038 §6.2).
+        No es `403`: el usuario puede tener el permiso; lo que falla es el estado del dato.
+        `errors.academic_year[0]` lleva `code` `curso.academic_year_closed` y `params`
+        `{code, status}` (el código y el estado del curso). Lo impone un disparador de
+        PostgreSQL (`SQLSTATE YC001`), que `Curso` traduce a esta respuesta.
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          example:
+            type: "urn:pge:error:academic-year-closed"
+            title: "El curso académico es de solo lectura"
+            status: 409
+            detail: "El curso «2025-2026» está cerrado y sus datos son de solo lectura. No se pueden crear, modificar ni eliminar datos de un curso cerrado."
+            instance: "/api/v1/…"
+            errors:
+              academic_year:
+                - code: "curso.academic_year_closed"
+                  message: "El curso «2025-2026» está cerrado y sus datos son de solo lectura."
+                  params: { code: "2025-2026", status: "cerrado" }
     PlatformReauthenticationRequired:
       description: >
         REQ-BO-007 (1.6), api.md §4, RN-BO-08. Operación sensible sin

@@ -34,3 +34,7 @@ Revisas el cambio propuesto contra la sección 7 del documento de requisitos y l
 Clasifica cada hallazgo por severidad según `CLAUDE.md` §5 y crea el issue correspondiente.
 Si encuentras algo crítico, di explícitamente que el merge debe bloquearse.
 No des por buena una comprobación que no has hecho: si no has podido verificar un punto, dilo.
+
+## Ejecución de tests (`ADR-060 §4.4`)
+
+No relances la suite completa salvo que tu revisión lo requiera (p. ej. para reproducir un hallazgo), y en ese caso justifícalo en el informe. Apóyate en el resultado del `verificador` atado a un hash y en CI; puedes ejecutar tests concretos.

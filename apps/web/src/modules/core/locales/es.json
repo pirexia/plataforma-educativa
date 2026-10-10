@@ -25,12 +25,879 @@
         "completado": "Completado"
       }
     },
-    "module": {
-      "enabled": "Activo",
-      "disabled": "Desactivado"
-    },
     "nav": {
-      "home": "Inicio"
+      "home": "Inicio",
+      "users": "Usuarios",
+      "invitations": "Invitaciones",
+      "userImports": "Importación de usuarios",
+      "audit": "Auditoría",
+      "roles": "Roles",
+      "settings": "Centro",
+      "modules": "Módulos",
+      "profile": "Perfil"
+    },
+    "locale": {
+      "name": {
+        "es": "Español",
+        "en": "Inglés",
+        "de": "Alemán",
+        "fr": "Francés"
+      }
+    },
+    "users": {
+      "title": "Usuarios",
+      "intro": "Personas con acceso a la plataforma en este centro.",
+      "new": "Nuevo usuario",
+      "import": "Importar",
+      "caption": "Usuarios del centro",
+      "empty": {
+        "title": "Aún no hay usuarios",
+        "text": "Da de alta al primero para empezar."
+      },
+      "filters": {
+        "status": "Estado",
+        "role": "Rol",
+        "locale": "Idioma",
+        "includeDeleted": "Incluir dados de baja"
+      },
+      "columns": {
+        "name": "Nombre",
+        "email": "Correo de acceso",
+        "status": "Estado",
+        "roles": "Roles",
+        "locale": "Idioma",
+        "createdAt": "Alta"
+      },
+      "status": {
+        "deleted": "Dado de baja"
+      },
+      "errors": {
+        "unexpected": "No se ha podido completar la acción. Inténtalo de nuevo.",
+        "tooManyRequests": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
+        "tooManyRequestsWithSeconds": "Demasiados intentos. Vuelve a intentarlo dentro de {seconds} s."
+      },
+      "detail": {
+        "title": "Ficha",
+        "actions": "Acciones",
+        "edit": "Editar",
+        "activate": "Activar",
+        "deactivate": "Desactivar",
+        "invite": "Enviar invitación",
+        "delete": "Dar de baja",
+        "restore": "Restaurar",
+        "selfNote": "No puedes modificar tu propia cuenta desde aquí.",
+        "data": "Datos",
+        "status": "Estado",
+        "email": "Correo de acceso",
+        "documentType": "Tipo de documento",
+        "documentNumber": "Número de documento",
+        "birthDate": "Fecha de nacimiento",
+        "locale": "Idioma",
+        "contactEmail": "Correo de contacto",
+        "contactPhone": "Teléfono de contacto",
+        "emailVerifiedAt": "Correo verificado",
+        "createdAt": "Alta",
+        "deletedAt": "Baja",
+        "roles": "Roles",
+        "noRoles": "Este usuario no tiene ningún rol.",
+        "manageRoles": "Roles asignados",
+        "saveRoles": "Guardar roles",
+        "viewActivity": "Ver su actividad",
+        "viewActivityFor": "Ver su actividad: {name}",
+        "viewEffectivePermissions": "Ver permisos efectivos",
+        "viewEffectivePermissionsFor": "Ver permisos efectivos de {name}"
+      },
+      "confirm": {
+        "deactivate": {
+          "title": "Desactivar a {name}",
+          "description": "No podrá iniciar sesión hasta que vuelvas a activar su cuenta.",
+          "confirm": "Desactivar a {name}"
+        },
+        "delete": {
+          "title": "Dar de baja a {name}",
+          "description": "La cuenta deja de estar disponible y no podrá iniciar sesión. Podrás restaurarla después.",
+          "confirm": "Dar de baja a {name}"
+        },
+        "invite": {
+          "title": "Enviar invitación a {name}",
+          "description": "Se enviará un enlace de activación a {email}. La invitación anterior, si la hay, dejará de valer.",
+          "confirm": "Enviar invitación a {name}"
+        },
+        "removeRoles": {
+          "title": "Retirar roles a {name}",
+          "description": "Se retirarán estos roles: {roles}. Perderá los permisos que concedían.",
+          "confirm": "Guardar los roles de {name}"
+        }
+      },
+      "flash": {
+        "activated": "Cuenta activada.",
+        "deactivated": "Cuenta desactivada.",
+        "deleted": "Usuario dado de baja.",
+        "restored": "Usuario restaurado. Queda inactivo: actívalo si debe volver a entrar.",
+        "invited": "Invitación enviada. Caduca el {date}.",
+        "rolesSaved": "Roles guardados.",
+        "updated": "Cambios guardados.",
+        "created": "Usuario creado.",
+        "createdInvited": "Usuario creado e invitación enviada. Caduca el {date}."
+      },
+      "form": {
+        "titleNew": "Nuevo usuario",
+        "titleEdit": "Editar usuario",
+        "requiredHint": "Los campos marcados con * son obligatorios.",
+        "required": "(obligatorio)",
+        "errorSummary": "Revisa los campos indicados:",
+        "email": "Correo de acceso",
+        "givenName": "Nombre",
+        "familyName1": "Primer apellido",
+        "familyName2": "Segundo apellido",
+        "birthDate": "Fecha de nacimiento",
+        "documentType": "Tipo de documento",
+        "documentNumber": "Número de documento",
+        "contactEmail": "Correo de contacto",
+        "contactPhone": "Teléfono de contacto",
+        "locale": "Idioma preferido",
+        "roles": "Roles",
+        "sendInvitation": "Enviar invitación por correo",
+        "save": "Guardar",
+        "saving": "Guardando…",
+        "cancel": "Cancelar"
+      }
+    },
+    "invitations": {
+      "title": "Invitaciones",
+      "intro": "Enlaces de activación enviados a los usuarios pendientes.",
+      "caption": "Invitaciones del centro",
+      "empty": {
+        "title": "No hay invitaciones",
+        "text": "Las invitaciones aparecen aquí al dar de alta un usuario o al reenviar su enlace."
+      },
+      "filters": {
+        "status": "Estado"
+      },
+      "columns": {
+        "user": "Usuario",
+        "status": "Estado",
+        "expiresAt": "Caduca",
+        "createdAt": "Emitida",
+        "resolvedAt": "Aceptada o revocada",
+        "actions": "Acciones"
+      },
+      "revoke": "Revocar",
+      "reissue": "Reenviar",
+      "revokeFor": "Revocar la invitación de {email}",
+      "reissueFor": "Reenviar la invitación a {email}",
+      "confirm": {
+        "revoke": {
+          "title": "Revocar la invitación de {email}",
+          "description": "El enlace enviado dejará de funcionar.",
+          "confirm": "Revocar la invitación de {email}"
+        },
+        "reissue": {
+          "title": "Reenviar la invitación a {email}",
+          "description": "Se enviará un enlace nuevo y el anterior dejará de valer.",
+          "confirm": "Reenviar la invitación a {email}"
+        }
+      },
+      "flash": {
+        "revoked": "Invitación de {email} revocada.",
+        "reissued": "Invitación enviada a {email}. Caduca el {date}."
+      }
+    },
+    "person": {
+      "documentType": {
+        "dni": "DNI (documento nacional de identidad)",
+        "nie": "NIE (número de identidad de extranjero)",
+        "pasaporte": "Pasaporte",
+        "none": "Sin indicar"
+      }
+    },
+    "userImports": {
+      "title": "Importación de usuarios",
+      "intro": "Sube un fichero CSV para dar de alta usuarios en bloque. Primero se valida: no se crea nada hasta que ejecutas el lote.",
+      "caption": "Lotes de importación de usuarios",
+      "empty": {
+        "title": "No hay importaciones",
+        "text": "Los lotes aparecen aquí al subir un fichero."
+      },
+      "columns": {
+        "file": "Fichero",
+        "createdAt": "Subido",
+        "status": "Estado",
+        "rows": "Filas",
+        "errors": "Filas con error",
+        "created": "Usuarios creados"
+      },
+      "upload": {
+        "title": "Subir un fichero",
+        "file": "Fichero CSV",
+        "fileHint": "Formato CSV (.csv) en UTF-8, con separador «;» o «,», de hasta 10 MB.",
+        "sendInvitations": "Enviar invitaciones a los usuarios importados",
+        "submit": "Subir y validar",
+        "submitting": "Subiendo…",
+        "errors": {
+          "noFile": "Selecciona un fichero CSV.",
+          "extension": "El fichero debe tener la extensión .csv.",
+          "tooLarge": "El fichero supera los 10 MB."
+        }
+      },
+      "header": {
+        "title": "Cabecera exacta esperada",
+        "hint": "La primera fila del fichero debe ser exactamente esta, con las columnas en este orden.",
+        "copy": "Copiar la cabecera",
+        "copied": "Cabecera copiada.",
+        "manual": "El detalle de cada columna está en el manual de administración, apartado «Importación de usuarios»."
+      },
+      "documentTypes": {
+        "title": "Tipos de documento admitidos",
+        "hint": "En la columna document_type escribe uno de estos códigos; da igual que sea en mayúsculas o minúsculas. Si indicas el tipo debes indicar también el número, y al revés."
+      },
+      "detail": {
+        "pageTitle": "Lote de importación",
+        "title": "Importación {file}",
+        "intro": "Estado del lote y resultado de su validación.",
+        "state": "Estado",
+        "statusLine": "Estado: {status}",
+        "stalled": "El lote sigue sin avanzar. Puede que el proceso de importación no esté en marcha.",
+        "checkAgain": "Comprobar de nuevo",
+        "rows": "Filas",
+        "errors": "Filas con error",
+        "created": "Usuarios creados",
+        "uploadedAt": "Subido",
+        "validatedAt": "Validado",
+        "executedAt": "Ejecutado",
+        "incidents": "Incidencias",
+        "truncated": "Incidencias mostradas: {shown}. Filas con error en total: {total}. Descarga el informe completo para verlas todas.",
+        "report": "Descargar el informe completo",
+        "refreshReport": "Actualizar el enlace",
+        "execute": "Ejecutar",
+        "retry": "Reintentar la ejecución",
+        "discard": "Descartar",
+        "back": "Volver al listado",
+        "headerFailed": {
+          "title": "La cabecera del fichero no es válida",
+          "expected": "La cabecera esperada es:"
+        }
+      },
+      "confirm": {
+        "execute": {
+          "title": "Ejecutar la importación de {file}",
+          "creates": "Usuarios que se crearán: {count}.",
+          "skipsErrors": "Las filas con error se omiten.",
+          "invitationsYes": "Se enviarán invitaciones a los usuarios creados.",
+          "invitationsNo": "No se enviarán invitaciones.",
+          "irreversible": "Una importación no se deshace.",
+          "confirm": "Ejecutar la importación de {file}"
+        },
+        "discard": {
+          "title": "Descartar la importación de {file}",
+          "description": "Se borrarán el fichero subido y el informe. No se ha creado ningún usuario.",
+          "confirm": "Descartar la importación de {file}"
+        }
+      },
+      "flash": {
+        "executing": "Importación en marcha. El estado se actualiza solo.",
+        "discarded": "Importación de {file} descartada."
+      }
+    },
+    "userImportErrors": {
+      "caption": "Incidencias de la importación",
+      "empty": "No hay incidencias",
+      "columns": {
+        "line": "Línea",
+        "column": "Columna",
+        "message": "Motivo"
+      }
+    },
+    "audit": {
+      "title": "Registro de auditoría",
+      "intro": "Quién hizo qué y cuándo en este centro. Las fechas se muestran en la zona horaria de su navegador.",
+      "caption": "Registro de auditoría del centro",
+      "empty": {
+        "title": "No hay registros",
+        "text": "No hay ningún registro de auditoría que mostrar."
+      },
+      "filters": {
+        "occurredAt": "Fecha",
+        "event": "Operación",
+        "actorType": "Tipo de actor",
+        "actor": "Usuario",
+        "module": "Módulo",
+        "auditableType": "Entidad"
+      },
+      "columns": {
+        "occurredAt": "Fecha y hora",
+        "event": "Operación",
+        "actor": "Usuario",
+        "auditableType": "Entidad",
+        "auditablePublicId": "Identificador",
+        "ipAddress": "IP",
+        "requestId": "Petición",
+        "actions": "Acciones"
+      },
+      "viewChanges": "Ver cambios",
+      "viewChangesFor": "Ver cambios: {event}, {entity}, {date}",
+      "event": {
+        "created": "Alta",
+        "updated": "Modificación",
+        "deleted": "Baja",
+        "restored": "Restauración",
+        "read": "Lectura",
+        "exported": "Exportación",
+        "login": "Inicio de sesión",
+        "logout": "Cierre de sesión",
+        "password_reset_requested": "Solicitud de restablecimiento de contraseña"
+      },
+      "actorType": {
+        "user": "Usuario",
+        "system": "Sistema",
+        "console": "Consola",
+        "import": "Importación",
+        "platform": "Plataforma",
+        "anonymous": "Anónimo"
+      },
+      "entity": {
+        "person": "Persona",
+        "user": "Usuario",
+        "role": "Rol",
+        "academic_year": "Curso académico",
+        "module_subscription": "Módulo contratado",
+        "tenant_setting": "Configuración del centro",
+        "user_invitation": "Invitación",
+        "user_import": "Importación de usuarios",
+        "data_export": "Exportación de datos",
+        "permission_role": "Permiso de un rol"
+      },
+      "module": {
+        "core": "Centro y usuarios",
+        "auth": "Acceso y seguridad"
+      },
+      "changes": {
+        "title": "Cambios del registro",
+        "description": "{event} · {entity} · {date}",
+        "close": "Cerrar",
+        "none": "Sin cambios registrados.",
+        "before": "Antes",
+        "after": "Después",
+        "arrow": "{from} → {to}",
+        "emptyValue": "vacío",
+        "hadValue": "con valor",
+        "notRecorded": "Valor no registrado",
+        "reasonLabel": "Motivo: {reason}",
+        "reason": {
+          "secret": "dato secreto",
+          "special": "categoría especial de datos",
+          "identifier": "dato identificativo",
+          "oversized": "valor demasiado grande"
+        }
+      }
+    },
+    "roles": {
+      "title": "Roles",
+      "intro": "Roles del centro. Consulta las concesiones de cada uno, crea un rol propio o clona uno existente.",
+      "caption": "Roles del centro",
+      "empty": {
+        "title": "No hay roles",
+        "text": "El centro todavía no tiene ningún rol."
+      },
+      "columns": {
+        "name": "Nombre",
+        "type": "Tipo",
+        "mfaRequired": "MFA obligatorio",
+        "specialData": "Acceso a datos especiales",
+        "users": "Usuarios"
+      },
+      "type": {
+        "system": "Del sistema",
+        "custom": "Personalizado"
+      },
+      "yes": "Sí",
+      "no": "No",
+      "editor": {
+        "matrix": {
+          "resource": "Recurso",
+          "special": "Categoría especial",
+          "caption": "Concesiones de {module} para {role}",
+          "scrollLabel": "Matriz de concesiones de {module}, desplazable",
+          "notContracted": "Módulo no contratado: estas concesiones no surten efecto mientras no se contrate"
+        },
+        "state": {
+          "none": "Sin conceder",
+          "allow": "Permitir · {scope}"
+        },
+        "marks": {
+          "modified": "Modificado",
+          "inert": "Inerte",
+          "onlyRemove": "Solo retirar o denegar",
+          "error": "Error"
+        },
+        "cell": {
+          "name": "{resource} · {action}: {state}. Modificar",
+          "nameMarks": "{resource} · {action}: {state} ({marks}). Modificar"
+        },
+        "panel": {
+          "close": "Cerrar el panel",
+          "code": "Código técnico:",
+          "groupLabel": "Concesión de {name}",
+          "scope": "Ámbito",
+          "scopePlaceholder": "Elige un ámbito",
+          "anyScope": "Cualquier ámbito",
+          "denyExplanation": "Denegar anula este permiso para todos los titulares del rol, en cualquier ámbito y aunque otro de sus roles lo conceda.",
+          "apply": "Aplicar",
+          "cancel": "Cancelar"
+        },
+        "option": {
+          "current": "{scope} (actual)",
+          "notHeld": "{scope} — no puedes concederlo: tú no tienes este permiso con este ámbito",
+          "noResolver": "{scope} — todavía no se puede conceder: lo aportará un módulo que aún no está disponible"
+        },
+        "notes": {
+          "onlyNotHeld": "Solo puedes denegar o dejar sin conceder este permiso: tú no lo tienes",
+          "onlyVetoed": "Solo puedes denegar o dejar sin conceder este permiso: lo tienes vetado por una denegación",
+          "onlyInert": "Solo puedes denegar o dejar sin conceder este permiso: tu concesión no surte efecto ({reason})",
+          "specialInert": "Esta concesión no surtirá efecto: el rol no tiene acceso a datos de categoría especial",
+          "moduleInert": "Esta concesión no surtirá efecto mientras no se contrate el módulo"
+        },
+        "pageTitle": "Concesiones del rol",
+        "title": "Concesiones de «{name}»",
+        "intro": "Elige para cada permiso si el rol lo concede, lo deniega o no dice nada. Los cambios no se guardan hasta que pulses «Guardar».",
+        "legend": {
+          "title": "Qué ámbitos puedes conceder",
+          "rule": "No puedes conceder un permiso, ni con un ámbito, que tú no tengas. Siempre puedes retirarlo o denegarlo.",
+          "notHeld": "«No lo tienes»: tú no tienes este permiso con ese ámbito.",
+          "noResolver": "«Aún no existe»: lo aportará un módulo que aún no está disponible."
+        },
+        "toolbar": {
+          "module": "Módulo",
+          "allModules": "Todos los módulos",
+          "search": "Buscar recurso",
+          "searchPlaceholder": "Buscar recurso…",
+          "onlyChanged": "Solo recursos con cambios sin guardar"
+        },
+        "changes": "Sin cambios sin guardar | {count} cambio sin guardar | {count} cambios sin guardar",
+        "save": "Guardar",
+        "saved": "Concesiones guardadas.",
+        "empty": {
+          "title": "No hay permisos en el catálogo",
+          "text": "El catálogo de permisos está vacío."
+        },
+        "noMatches": {
+          "title": "Ningún recurso coincide",
+          "text": "Cambia el módulo, la búsqueda o el filtro de cambios."
+        },
+        "missing": "Para editar las concesiones necesitas además el permiso {permission}.",
+        "orphans": "Estas concesiones ya no están en el catálogo y se conservan sin cambios: {codes}",
+        "confirm": {
+          "title": "Guardar las concesiones de «{name}»",
+          "counts": "Concedidos: {granted} · Ámbito cambiado: {scopeChanged} · Denegados: {denied} · Retirados: {removed}",
+          "consequence": "Afecta de inmediato a {count} titulares | Afecta de inmediato a {count} titular | Afecta de inmediato a {count} titulares",
+          "holder": "Eres titular de este rol: los cambios también te afectan a ti, y no podrás volver a conceder lo que te retires.",
+          "item": "{name}: {from} → {to}",
+          "confirm": "Guardar concesiones de «{name}»"
+        },
+        "conflict": {
+          "title": "Otra persona ha cambiado las concesiones de este rol desde que lo abriste",
+          "codes": "Permisos que han cambiado:",
+          "reload": "Recargar",
+          "reloadConfirm": {
+            "title": "Recargar y descartar tus cambios",
+            "description": "Perderás los cambios sin guardar de esta pantalla y verás las concesiones actuales del rol.",
+            "confirm": "Recargar y descartar"
+          }
+        },
+        "errors": {
+          "summary": "No se han guardado las concesiones.",
+          "capacity": "Si guardas esto, nadie del centro conservaría todos los permisos de administración. Concede primero esos permisos a otra persona.",
+          "capacityList": "Permisos afectados:",
+          "grantDetail": "Permiso: {permission}. Ámbito: {scope}."
+        },
+        "leave": {
+          "title": "Salir sin guardar",
+          "description": "Tienes {count} cambios sin guardar. Si sales, se perderán. | Tienes {count} cambio sin guardar. Si sales, se perderá. | Tienes {count} cambios sin guardar. Si sales, se perderán.",
+          "confirm": "Salir y descartar",
+          "cancel": "Seguir editando"
+        },
+        "backToList": "Volver al listado de roles"
+      },
+      "actions": {
+        "new": "Nuevo rol"
+      },
+      "flash": {
+        "created": "Rol «{name}» creado. Ahora puedes concederle permisos.",
+        "cloned": "Rol «{name}» creado como copia de «{source}».",
+        "updated": "Datos del rol guardados.",
+        "deleted": "Rol «{name}» eliminado."
+      },
+      "systemNotice": "Los roles del sistema no se modifican desde aquí. Clónalo para crear una versión propia.",
+      "errors": {
+        "unexpected": "La acción no se ha podido completar. Inténtalo de nuevo.",
+        "tooManyRequests": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
+        "tooManyRequestsWithSeconds": "Demasiados intentos. Inténtalo de nuevo en {seconds} s.",
+        "hasAssignments": "El rol tiene titulares ({count}). Retíraselo antes a cada usuario."
+      },
+      "detail": {
+        "title": "Ficha del rol",
+        "actions": "Acciones",
+        "data": "Datos",
+        "editData": "Editar datos",
+        "editGrants": "Editar concesiones",
+        "clone": "Clonar",
+        "delete": "Eliminar",
+        "viewUsers": "Ver usuarios con este rol",
+        "code": "Código interno",
+        "type": "Tipo",
+        "mfaRequired": "MFA obligatorio",
+        "specialData": "Acceso a datos de categoría especial",
+        "users": "Titulares",
+        "deleteBlocked": "No se puede eliminar un rol con titulares ({count}). Retíraselo antes a cada usuario",
+        "grantsTitle": "Concesiones",
+        "confirmDelete": {
+          "title": "Eliminar el rol «{name}»",
+          "description": "La baja no se deshace desde la interfaz: el rol deja de existir y los roles eliminados no se restauran.",
+          "confirm": "Eliminar el rol «{name}»"
+        }
+      },
+      "grants": {
+        "caption": "Concesiones del rol {name}",
+        "columns": {
+          "resource": "Recurso",
+          "action": "Acción",
+          "effect": "Efecto",
+          "scope": "Ámbito",
+          "special": "Categoría especial",
+          "code": "Código"
+        },
+        "anyScope": "Cualquier ámbito",
+        "specialBadge": "Categoría especial",
+        "specialInert": "Inerte: este rol no tiene acceso a datos especiales",
+        "filters": {
+          "effect": "Efecto"
+        },
+        "empty": {
+          "title": "Sin concesiones",
+          "text": "Este rol no concede ni deniega ningún permiso"
+        }
+      },
+      "form": {
+        "titleNew": "Nuevo rol",
+        "titleClone": "Clonar rol",
+        "titleEdit": "Editar datos del rol",
+        "requiredHint": "Los campos marcados con * son obligatorios.",
+        "required": "obligatorio",
+        "name": "Nombre",
+        "nameHelp": "Se muestra igual en todos los idiomas.",
+        "code": "Código",
+        "codeHelp": "Identificador interno; no podrá cambiarse.",
+        "mfaRequired": "MFA obligatorio",
+        "mfaHelp": "Quienes tengan este rol deberán configurar un segundo factor.",
+        "mfaReadOnly": "MFA obligatorio: {value}",
+        "mfaLink": "Cambiar en la configuración de MFA",
+        "specialData": "Acceso a datos de categoría especial",
+        "specialNotHeld": "No puedes activar este atributo: ninguno de tus roles tiene acceso a datos de categoría especial",
+        "specialHint": "Las concesiones de datos de categoría especial solo surten efecto en roles con este atributo.",
+        "nameSystem": "El nombre de un rol del sistema no se edita.",
+        "submit": {
+          "new": "Crear rol",
+          "clone": "Crear copia",
+          "edit": "Guardar cambios"
+        },
+        "cancel": "Cancelar",
+        "errorSummary": "Revisa los campos marcados.",
+        "missing": "Para ver el rol necesitas además el permiso {permission}.",
+        "errors": {
+          "codeFormat": "El código debe empezar por una letra minúscula y tener entre 3 y 64 caracteres: minúsculas, números y guion bajo."
+        },
+        "source": {
+          "title": "Rol de origen",
+          "summary": "{count} concesiones · MFA obligatorio: {mfa} · Acceso a datos de categoría especial: {special}",
+          "explanation": "Se copian las concesiones y la obligación de MFA. No se copian los titulares. El rol nuevo queda desligado del origen: cambiar uno después no cambia el otro.",
+          "specialWarning": "El rol de origen tiene acceso a datos de categoría especial: solo podrás clonarlo si puedes activar ese atributo."
+        },
+        "grant": {
+          "denied": "El rol de origen concede algo que tú no tienes; no se ha creado nada.",
+          "detail": "Permiso: {permission}. Ámbito: {scope}."
+        },
+        "confirmSpecial": {
+          "activateTitle": "Activar el acceso a datos de categoría especial en «{name}»",
+          "activateDescription": "El rol pasará a hacer efectivas sus concesiones de categoría especial para {count} titulares.",
+          "activateDescriptionUnknown": "El rol pasará a hacer efectivas sus concesiones de categoría especial para sus titulares.",
+          "activateConfirm": "Activar en «{name}»",
+          "deactivateTitle": "Desactivar el acceso a datos de categoría especial en «{name}»",
+          "deactivateDescription": "Las concesiones de categoría especial del rol dejarán de surtir efecto para {count} titulares.",
+          "deactivateDescriptionUnknown": "Las concesiones de categoría especial del rol dejarán de surtir efecto para sus titulares.",
+          "deactivateConfirm": "Desactivar en «{name}»"
+        }
+      }
+    },
+    "settings": {
+      "title": "Configuración del centro",
+      "intro": "Datos regionales, fiscales, paleta de colores y seguridad del centro. Cada bloque se guarda por separado.",
+      "introReadOnly": "Datos regionales, fiscales, paleta de colores y seguridad del centro, de solo lectura. No tienes permiso para modificarlos.",
+      "required": "(obligatorio)",
+      "requiredHint": "Los campos marcados con * son obligatorios.",
+      "notSet": "Sin indicar",
+      "saving": "Guardando…",
+      "brandingLink": "Activos de marca: logotipo, favicon y fondo de acceso",
+      "errors": {
+        "unexpected": "No se han podido guardar los cambios. Inténtalo de nuevo.",
+        "notInteger": "Introduce un número entero.",
+        "tooManyRequests": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
+        "tooManyRequestsWithSeconds": "Demasiados intentos. Vuelve a intentarlo dentro de {seconds} s."
+      },
+      "saved": {
+        "regional": "Datos regionales guardados.",
+        "fiscal": "Datos fiscales guardados.",
+        "palette": "Paleta guardada.",
+        "security": "Ajustes de seguridad guardados."
+      },
+      "regional": {
+        "title": "Regional",
+        "defaultLocale": "Idioma por defecto",
+        "chooseDefaultLocale": "Elige un idioma",
+        "defaultLocaleRequired": "Elige un idioma por defecto entre los activos para poder guardar.",
+        "activeLocales": "Idiomas activos",
+        "activeLocalesHint": "El idioma por defecto solo puede ser uno de los idiomas activos.",
+        "activeLocalesRequired": "Marca al menos un idioma activo.",
+        "interfaceLocaleWarning": "Estás viendo la interfaz en un idioma que dejará de estar activo: al guardar pasarás a verla en el idioma por defecto del centro.",
+        "timezoneSearch": "Buscar zona horaria",
+        "timezone": "Zona horaria",
+        "currency": "Moneda",
+        "currencyHint": "Código de tres letras mayúsculas, por ejemplo EUR.",
+        "autonomousCommunity": "Comunidad autónoma",
+        "autonomousCommunityNone": "Sin indicar",
+        "save": "Guardar datos regionales"
+      },
+      "fiscal": {
+        "title": "Fiscal",
+        "legalName": "Razón social",
+        "taxId": "NIF/CIF",
+        "address": "Dirección",
+        "postalCode": "Código postal",
+        "city": "Municipio",
+        "province": "Provincia",
+        "countryCode": "País",
+        "countryCodeHint": "Código de dos letras mayúsculas, por ejemplo ES.",
+        "save": "Guardar datos fiscales"
+      },
+      "palette": {
+        "title": "Paleta de colores",
+        "primary": "Color primario",
+        "secondary": "Color secundario",
+        "hexHint": "Formato #RRGGBB, por ejemplo #1D4ED8.",
+        "preview": "Vista previa",
+        "previewEmpty": "Indica los dos colores en formato #RRGGBB para ver la vista previa y su contraste.",
+        "sample": "Texto de ejemplo",
+        "ratio": "Contraste: {ratio}:1.",
+        "meets": "Cumple el mínimo de {required}:1.",
+        "fails": "No alcanza el mínimo de {required}:1.",
+        "serverRatio": "El servidor ha calculado un contraste de {ratio}:1; el mínimo exigido es {required}:1.",
+        "save": "Guardar paleta"
+      },
+      "security": {
+        "title": "Seguridad",
+        "sessionTimeout": "Cierre de sesión por inactividad",
+        "sessionTimeoutHint": "En minutos, entre 5 y 480.",
+        "minutes": "{count} minuto | {count} minutos",
+        "allowedMethods": "Métodos de segundo factor admitidos",
+        "allowedMethodsHint": "La aplicación de autenticación es siempre obligatoria. El envío por SMS no está disponible.",
+        "method": {
+          "totp": "Aplicación de autenticación (TOTP)",
+          "email": "Código por correo electrónico",
+          "sms": "Mensaje SMS"
+        },
+        "gracePeriod": "Plazo de gracia para activar el segundo factor",
+        "gracePeriodHint": "En días, entre 1 y 90.",
+        "days": "{count} día | {count} días",
+        "save": "Guardar seguridad",
+        "mfaAdminText": "La obligatoriedad del segundo factor por rol, las exenciones y los restablecimientos se gestionan en otra pantalla.",
+        "mfaAdminLink": "Ir a la administración de MFA"
+      },
+      "autonomousCommunity": {
+        "AN": "Andalucía",
+        "AR": "Aragón",
+        "AS": "Principado de Asturias",
+        "IB": "Illes Balears",
+        "CN": "Canarias",
+        "CB": "Cantabria",
+        "CL": "Castilla y León",
+        "CM": "Castilla-La Mancha",
+        "CT": "Cataluña",
+        "EX": "Extremadura",
+        "GA": "Galicia",
+        "MD": "Comunidad de Madrid",
+        "MC": "Región de Murcia",
+        "NC": "Comunidad Foral de Navarra",
+        "PV": "País Vasco",
+        "RI": "La Rioja",
+        "VC": "Comunidad Valenciana",
+        "CE": "Ceuta",
+        "ML": "Melilla"
+      }
+    },
+    "branding": {
+      "title": "Activos de marca",
+      "intro": "Logotipo, favicon y fondo de la pantalla de acceso del centro. Se muestra la imagen ya guardada.",
+      "introReadOnly": "Logotipo, favicon y fondo de acceso del centro, de solo lectura. No tienes permiso para modificarlos.",
+      "imageError": "No se ha podido cargar la imagen.",
+      "saved": "Imagen guardada.",
+      "removed": "Imagen eliminada.",
+      "errors": {
+        "tooLarge": "El fichero es demasiado grande.",
+        "unsupportedType": "El tipo de fichero no está admitido.",
+        "invalid": "El fichero no es válido para este uso.",
+        "unexpected": "No se ha podido completar la acción. Inténtalo de nuevo.",
+        "tooManyRequests": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
+        "tooManyRequestsWithSeconds": "Demasiados intentos. Vuelve a intentarlo dentro de {seconds} s."
+      },
+      "kinds": {
+        "logo": {
+          "name": "Logotipo",
+          "limits": "Formatos admitidos: SVG, PNG o WebP. Tamaño máximo: 1 MB.",
+          "none": "No hay logotipo.",
+          "alt": "Logotipo actual de {center}",
+          "replace": "Sustituir logotipo",
+          "remove": "Eliminar logotipo",
+          "tooLarge": "El logotipo supera el límite de 1 MB.",
+          "wrongType": "El logotipo debe ser SVG, PNG o WebP.",
+          "confirmTitle": "Eliminar el logotipo",
+          "confirmDescription": "El centro se mostrará sin logotipo hasta que subas otro.",
+          "confirmButton": "Eliminar el logotipo de {center}"
+        },
+        "favicon": {
+          "name": "Favicon",
+          "limits": "Formatos admitidos: PNG, ICO o SVG. Tamaño máximo: 256 KB.",
+          "none": "No hay favicon.",
+          "alt": "Favicon actual de {center}",
+          "replace": "Sustituir favicon",
+          "remove": "Eliminar favicon",
+          "tooLarge": "El favicon supera el límite de 256 KB.",
+          "wrongType": "El favicon debe ser PNG, ICO o SVG.",
+          "confirmTitle": "Eliminar el favicon",
+          "confirmDescription": "El navegador mostrará el icono por defecto hasta que subas otro.",
+          "confirmButton": "Eliminar el favicon de {center}"
+        },
+        "loginBackground": {
+          "name": "Fondo de acceso",
+          "limits": "Formatos admitidos: JPEG, PNG o WebP (no SVG). Tamaño máximo: 3 MB.",
+          "none": "No hay fondo de acceso.",
+          "replace": "Sustituir fondo de acceso",
+          "remove": "Eliminar fondo de acceso",
+          "tooLarge": "El fondo de acceso supera el límite de 3 MB.",
+          "wrongType": "El fondo de acceso debe ser JPEG, PNG o WebP.",
+          "confirmTitle": "Eliminar el fondo de acceso",
+          "confirmDescription": "La pantalla de acceso se mostrará sin imagen de fondo hasta que subas otra.",
+          "confirmButton": "Eliminar el fondo de acceso de {center}"
+        }
+      }
+    },
+    "modules": {
+      "title": "Módulos contratados",
+      "intro": "Módulos que el centro tiene contratados, de solo lectura. La fecha de alta indica cuándo se activó cada uno.",
+      "caption": "Módulos contratados del centro",
+      "empty": {
+        "title": "No hay módulos contratados",
+        "text": "El centro todavía no tiene ningún módulo contratado."
+      },
+      "columns": {
+        "name": "Módulo",
+        "status": "Estado",
+        "enabledAt": "Fecha de alta"
+      },
+      "status": {
+        "contracted": "Contratado",
+        "notContracted": "No contratado"
+      }
+    },
+    "profile": {
+      "title": "Mi perfil",
+      "intro": "Tus datos de la cuenta. Puedes cambiar tu correo y tu teléfono de contacto.",
+      "fullName": "Nombre completo",
+      "accessEmail": "Correo de acceso",
+      "accessEmailHint": "El correo de acceso no se cambia desde aquí; si necesitas cambiarlo, contacta con el centro.",
+      "contactEmail": "Correo de contacto",
+      "contactPhone": "Teléfono de contacto",
+      "save": "Guardar perfil",
+      "saving": "Guardando…",
+      "saved": "Perfil guardado.",
+      "errors": {
+        "unexpected": "No se ha podido guardar el perfil. Inténtalo de nuevo.",
+        "tooManyRequests": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
+        "tooManyRequestsWithSeconds": "Demasiados intentos. Vuelve a intentarlo dentro de {seconds} s."
+      }
+    },
+    "permissions": {
+      "vocabulary": {
+        "actions": {
+          "crear": "Crear",
+          "leer": "Leer",
+          "actualizar": "Actualizar",
+          "eliminar": "Eliminar",
+          "exportar": "Exportar",
+          "importar": "Importar",
+          "aprobar": "Aprobar",
+          "firmar": "Firmar",
+          "publicar": "Publicar"
+        },
+        "scopes": {
+          "todos": "Todos",
+          "propios": "Propios",
+          "departamento": "Departamento",
+          "grupo": "Grupo",
+          "clase": "Clase",
+          "unidad_familiar": "Unidad familiar"
+        },
+        "effects": {
+          "allow": "Permitir",
+          "deny": "Denegar"
+        },
+        "decisions": {
+          "permitido": "Permitido",
+          "denegado": "Denegado"
+        },
+        "inertReasons": {
+          "inerte_permiso_retirado": "el permiso ya no existe en el catálogo",
+          "inerte_modulo": "el centro no tiene contratado el módulo",
+          "inerte_datos_especiales": "el rol no tiene acceso a datos de categoría especial",
+          "inerte_sin_resolutor": "ningún módulo aplica todavía este ámbito"
+        }
+      }
+    },
+    "effectivePermissions": {
+      "title": "Permisos efectivos",
+      "heading": "Permisos efectivos de {name}",
+      "intro": "Lo que esta persona puede hacer ahora mismo, calculado con las mismas reglas que aplica la plataforma en cada petición.",
+      "roles": "Roles",
+      "noRoles": "Sin roles asignados.",
+      "computedAt": "Calculado el {date}",
+      "recalculate": "Recalcular",
+      "caption": "Permisos efectivos de {name}",
+      "columns": {
+        "resource": "Recurso",
+        "action": "Acción",
+        "decision": "Resultado",
+        "scopes": "Ámbitos",
+        "sources": "Procedencia",
+        "module": "Módulo",
+        "code": "Código"
+      },
+      "special": "Categoría especial",
+      "unrestricted": "Sin restricción",
+      "anyScope": "Cualquier ámbito",
+      "sources": {
+        "allows": "Permite",
+        "denies": "Deniega",
+        "inert": "No surte efecto: {reason}"
+      },
+      "vetoedBy": "Denegado por «{role}»: una denegación anula cualquier concesión",
+      "grantedInert": "Concedido, pero sin efecto: {reason}",
+      "filters": {
+        "decision": "Resultado",
+        "module": "Módulo",
+        "includeEmpty": "Incluir permisos sin ninguna concesión"
+      },
+      "empty": {
+        "title": "Sin permisos",
+        "text": "Esta persona no tiene ningún permiso concedido ni denegado por sus roles."
+      }
     }
   }
 }

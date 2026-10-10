@@ -16,6 +16,13 @@ Todo lo que sigue se ajusta a `ADR-038` (convenciones de la API REST), que es de
 ## Paginación, filtrado y ordenación
 Según `ADR-038` §4 y §5. Indica cuál de las dos paginaciones usa cada listado y por qué, y qué campos admiten filtro y orden.
 
+## Exportación de listados (`ADR-054`, `ADR-055`)
+Solo si el recurso se exporta (`exportar` es la acción que más datos mueve y la que más se olvida):
+- Se ejecuta **en cola** (`INV-012`) y entrega un enlace caducable; verifica permiso y se audita con el detalle de lo exportado.
+- **Paridad de filtros** (`ADR-054 §8.2`): acepta exactamente los filtros estructurados de su listado, con los mismos nombres y semántica, salvo paginación, `sort` y `q`.
+- **Sin `q`** (`ADR-054 §9`): la exportación responde `422` con un código de error propio del recurso si recibe `q`. No se ignora.
+- **El CSV de datos es un contrato técnico estable** (`ADR-055`): esquema cerrado, declarado aquí, sin literales de interfaz ni datos que el listado no muestre; los campos de texto libre se neutralizan contra inyección de fórmulas (`CsvWriter`).
+
 ## Eventos de dominio emitidos
 
 ## Webhooks disponibles

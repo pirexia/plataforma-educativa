@@ -39,7 +39,15 @@ interface DeclaresModuleRegistry
      * `App\Support\Authorization\Scope`; `SyncModuleRegistry` aborta el
      * despliegue si no es así (RN-PERM-01, operacion.md §4.2).
      *
-     * @return list<array{code: string, resource: string, action: string, is_special_category?: bool, applicable_scopes?: list<string>}>
+     * REQ-PERM/api.md §14.3 (1.5b, S-PERM-2): `resource_label_key` es la
+     * clave de traducción del nombre del recurso, que declara el módulo
+     * **dueño** del recurso en sus propios `lang/{es,en,de,fr}`. No se
+     * materializa en `permissions` (`operacion.md §10`): se lee en tiempo
+     * de petición (`PermissionResourceLabels`). Omitirla no rompe nada —
+     * la respuesta lleva el código del recurso como etiqueta —, pero el
+     * test del catálogo falla (`CA-PERM-134`).
+     *
+     * @return list<array{code: string, resource: string, action: string, is_special_category?: bool, applicable_scopes?: list<string>, resource_label_key?: string}>
      */
     public function declaredPermissions(): array;
 }

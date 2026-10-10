@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Modules\Core\Domain\ExportRequestService;
 use App\Modules\Core\Domain\Models\DataExport;
 use App\Modules\Core\Infrastructure\Jobs\GenerateAuditLogExport;
+use App\Modules\Core\Infrastructure\Jobs\GenerateUserExport;
 use App\Support\Api\ApiException;
 use App\Support\Audit\AuditRecorder;
 use App\Support\Authorization\PermissionResolver;
@@ -40,6 +41,10 @@ final class EloquentExportRequestService implements ExportRequestService
             $this->assertWithinRowLimit($filters, $requestedBy);
         }
 
+        if ($kind === 'users') {
+            $this->assertUsersWithinRowLimit($filters, $requestedBy);
+        }
+
         $export = DataExport::create([
             'kind' => $kind,
             'format' => $format,
@@ -60,6 +65,7 @@ final class EloquentExportRequestService implements ExportRequestService
 
         match ($kind) {
             'audit_logs' => GenerateAuditLogExport::dispatch($export->id, $tenant->public_id ?? ''),
+            'users' => GenerateUserExport::dispatch($export->id, $tenant->public_id ?? ''),
             default => null,
         };
 
@@ -67,23 +73,36 @@ final class EloquentExportRequestService implements ExportRequestService
     }
 
     /**
+     * RNF-LIM-004: mismo filtrado que el trabajo — el tope cuenta lo que se
+     * exporta (RN-CORE-85, `CORE_EXPORT_MAX_ROWS`).
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    private function assertUsersWithinRowLimit(array $filters, User $requestedBy): void
+    {
+        $query = UserListFilter::apply(User::query(), $filters);
+
+        $decision = $this->permissions->decide($requestedBy, 'usuario.exportar');
+        $this->scopedQuery->constrain($query, 'usuario', $decision, $requestedBy);
+
+        if ($query->count() > (int) config('core.export_max_rows')) {
+            throw ApiException::validation([
+                'filters' => [[
+                    'code' => 'core.validation.export_range_too_large',
+                    'message' => __('core.validation.export_range_too_large'),
+                    'params' => ['max_rows' => (int) config('core.export_max_rows')],
+                ]],
+            ]);
+        }
+    }
+
+    /**
      * @param  array<string, mixed>  $filters
      */
     private function assertWithinRowLimit(array $filters, User $requestedBy): void
     {
-        $query = AuditLog::query();
-
-        if (isset($filters['from'])) {
-            $query->where('occurred_at', '>=', $filters['from']);
-        }
-
-        if (isset($filters['to'])) {
-            $query->where('occurred_at', '<=', $filters['to']);
-        }
-
-        if (! empty($filters['event'])) {
-            $query->whereIn('event', (array) $filters['event']);
-        }
+        // Mismo filtrado que el trabajo (issue #267): el tope cuenta lo que se exporta.
+        $query = AuditLogFilter::apply(AuditLog::query(), $filters);
 
         $decision = $this->permissions->decide($requestedBy, 'auditoria.exportar');
         $this->scopedQuery->constrain($query, 'auditoria', $decision, $requestedBy);

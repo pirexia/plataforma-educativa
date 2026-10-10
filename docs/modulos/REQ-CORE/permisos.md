@@ -36,7 +36,7 @@ Los **ámbitos** son los de `RPERM-004`: `todos`, `propios`, `departamento`, `gr
 | `usuario.actualizar` | `usuario` | `actualizar` | `PATCH /users/{id}`, `POST /users/{id}/status` | `todos` |
 | `usuario.eliminar` | `usuario` | `eliminar` | `DELETE /users/{id}`, `POST /users/{id}/restore`, `GET /users?include_deleted=true` | `todos` |
 | `usuario.importar` | `usuario` | `importar` | `POST /user-imports`, `GET /user-imports`, `GET /user-imports/{id}`, `POST /user-imports/{id}/execute`, `DELETE /user-imports/{id}` | `todos` |
-| `usuario.exportar` | `usuario` | `exportar` | Reservado a la exportación del listado de usuarios. **Sin endpoint en 1.1** — ver §7 | `todos` |
+| `usuario.exportar` | `usuario` | `exportar` | `POST /users/exports` y `GET /data-exports/{id}` de tipo `users` (1.9b; en 1.1 estaba reservado sin endpoint, ver §7) | `todos` |
 | `invitacion.leer` | `invitacion` | `leer` | `GET /invitations` | `todos` |
 | `invitacion.crear` | `invitacion` | `crear` | `POST /users/{id}/invitations` | `todos` |
 | `invitacion.eliminar` | `invitacion` | `eliminar` | `DELETE /invitations/{id}` | `todos` |
@@ -55,7 +55,7 @@ Los **ámbitos** son los de `RPERM-004`: `todos`, `propios`, `departamento`, `gr
 | `modulo.leer` | `modulo` | `leer` | `GET /modules` | `todos` |
 | `modulo.actualizar` | `modulo` | `actualizar` | `PATCH /module-subscriptions/{id}` (solo `settings`) — desde `1.6c` (`REQ-BO/datos.md §7`) ese alcance lo respalda un privilegio de columna (`GRANT UPDATE (settings, updated_at, updated_by, deleted_at)`), no sólo la validación de `ModulesController::updateSettings()`: un intento de escribir `enabled` lo rechaza el motor, no la aplicación | `todos` |
 | `auditoria.leer` | `auditoria` | `leer` | `GET /audit-logs` | `todos`, `propios` |
-| `auditoria.exportar` | `auditoria` | `exportar` | `POST /audit-logs/exports`, `GET /data-exports/{id}` de tipo `audit_logs` | `todos`, `propios` |
+| `auditoria.exportar` | `auditoria` | `exportar` | `POST /audit-logs/exports`, `GET /data-exports/{id}` de tipo `audit_logs` (el de tipo `users` exige `usuario.exportar`) | `todos`, `propios` |
 
 **Endpoints sin permiso, a propósito y de forma auditada:**
 
@@ -211,7 +211,7 @@ Comprobaciones adicionales que ningún permiso cubre y que hay que implementar e
 |-------|-------|
 | `RPERM-013` — nadie concede un permiso que no posee | `POST /users` con `role_ids` y `PUT /users/{id}/roles`. Se compara el conjunto de permisos concedidos por los roles destino contra los permisos efectivos del solicitante. Falta alguno ⇒ `403` (`CA-CORE-017`) |
 | `RN-CORE-06` — nadie se da de baja ni se cambia los roles a sí mismo | `DELETE /users/{id}`, `POST /users/{id}/status`, `PUT /users/{id}/roles` ⇒ `409` |
-| `RN-CORE-07` — siempre al menos un `administrador_centro` vivo y activo | Mismas rutas ⇒ `409` |
+| `RN-CORE-07` — siempre al menos un `administrador_centro` vivo y activo | Mismas rutas ⇒ `409`. Desde 1.5b se añade `RN-PERM-47` (el centro conserva al menos un usuario activo con la capacidad completa de administración; `REQ-PERM/funcional.md §20.2.1`), con su propio código `core.validation.administration_capacity_lost`. **Serialización (issue #349)**: `RN-CORE-07` se vuelve a comprobar dentro de `AdministrationCapacityGuard::protect()`, con el bloqueo por tenant tomado (`pg_advisory_xact_lock`) y sobre lecturas frescas, antes de escribir; la comprobación previa se conserva solo como rechazo temprano que fija el orden de errores. Dos bajas o desactivaciones simultáneas de los dos últimos administradores se ejecutan una detrás de otra y la segunda responde `409`. |
 | Aislamiento de tenant | RLS más *scope* global (`INV-001`). Un `public_id` de otro tenant ⇒ `404`, nunca `403` |
 | Descarga de exportaciones | Solo el usuario que la solicitó, además del permiso (`GET /data-exports/{id}`) |
 
@@ -303,7 +303,7 @@ Qué permisos exactos abren «Administración de MFA» lo fija `REQ-AUTH/permiso
 1. **Exportar no es leer.** Que un usuario vea las filas no le permite exportarlas: por eso la SPA **no genera ficheros** con lo que tiene en memoria (`RN-CORE-46`). Un fichero generado en cliente saltaría el permiso `exportar`, la auditoría `exported` y el acotado por ámbito del trabajo en cola.
 2. **Ámbito**: una tabla sobre un recurso con ámbito restringido (`propios`, y más adelante `grupo`/`clase`/`unidad familiar`) no necesita nada del cliente. El total de `meta.total` ya es el del conjunto acotado, y el componente no calcula recuentos por su cuenta.
 3. **Categoría especial**: 1.9 no muestra datos de salud, NEAE ni convivencia. Una tabla futura que los muestre lleva permiso propio y auditoría de lectura en su *endpoint* (`RPERM-012`/`RPERM-015`). Además, su configuración de columnas (`RN-CORE-43`) no guarda nada más que `id` de columna, y sus filas nunca salen de la memoria (`RN-CORE-50`).
-4. **`usuario.exportar`** sigue sin *endpoint* (§7). Si `1.9b` ofrece exportar usuarios, el *endpoint* es trabajo de `apps/api` en ese paso, con su test de `403`, de acotado por ámbito dentro del trabajo y de acceso de otro tenant (`404`), más los de la norma de `ADR-054 §8.2`/`§9` (paridad de filtros con `GET /users` y `q` ⇒ `422`, `api.md §13.4`).
+4. *(Histórico: resuelto en 1.9b, véase §12.4.)* **`usuario.exportar`** seguía sin *endpoint* (§7). Si `1.9b` ofrece exportar usuarios, el *endpoint* es trabajo de `apps/api` en ese paso, con su test de `403`, de acotado por ámbito dentro del trabajo y de acceso de otro tenant (`404`), más los de la norma de `ADR-054 §8.2`/`§9` (paridad de filtros con `GET /users` y `q` ⇒ `422`, `api.md §13.4`).
 5. **Paridad de filtros y privacidad**: un *endpoint* de exportación al que le falte un filtro de su listado exporta en silencio más de lo que el usuario ve filtrado. El ámbito del permiso se sigue aplicando dentro del trabajo, así que no sale nada que el usuario no pueda leer; pero el fichero no corresponde a lo que ve. Es regla de servidor, no del cliente (`ADR-054 §8.2`, `INV-006`).
 
 ### 11.4 Verificación
@@ -313,3 +313,91 @@ Qué permisos exactos abren «Administración de MFA» lo fija `REQ-AUTH/permiso
 - `CA-CORE-192` — ningún fichero de exportación generado en el cliente.
 - `CA-CORE-195` — ninguna fila persistida en almacenamiento del navegador.
 - Los de servidor (`CA-CORE-070`, `CA-PERM-*`, y los de cada *endpoint* de exportación) siguen siendo la barrera real.
+
+---
+
+## 12. Paso 1.9b (pantallas de gestión)
+
+> Estado: **APROBADA** (2026-10-01, decisión del usuario), con `funcional.md §14`. Cubre los cinco sub-pasos `1.9b`-`1.9f`, incluidas las pantallas de módulos contratados y perfil propio que añadió `OPEN-CORE-31` = B en `1.9e`. **Implementado en `1.9b`** (2026-10-02): la autorización de `GET /data-exports/{id}` por `kind` (§12.4) vive en `DataExportsController::PERMISSION_BY_KIND` (la ruta ya no lleva `permission:auditoria.exportar`); **`1.9d` y `1.9e` implementados** (2026-10-03, sin permisos nuevos; la ruta `core-profile` se autoriza por identidad, §5.2); **`1.9c` implementado** (2026-10-02/03, sin permisos nuevos, §13; revisado sin Crítico/Alto, pendiente de mezcla); un test compara las claves de esa constante con los valores del `CHECK` de `data_exports.kind`, de modo que ningún `kind` admitido quede sin permiso.
+
+### 12.1 Ningún permiso nuevo; uno pasa a tener *endpoint*
+
+1.9b **no declara, retira ni concede ningún permiso**, ni cambia la asignación de §4.1. No hace falta `platform:sync-registry` extraordinario.
+
+- **`usuario.exportar`** deja de estar «declarado sin *endpoint*» (§7): lo exige `POST /users/exports` y, por `kind = users`, `GET /data-exports/{id}` (`api.md §14.1`-`§14.2`). Sigue concedido solo a `administrador_centro` por defecto (§4.1, «todos los de §2»).
+- **`GET /data-exports/{id}`** deja de exigir `auditoria.exportar` fijo y pasa a exigir **el permiso de exportar del `kind`** (§12.4).
+
+### 12.2 Matriz pantalla × acción × permiso × ámbito
+
+Ámbito: `todos` en todas las filas, el único que admiten estos permisos (§2), salvo `auditoria.*`, que admite `todos` y `propios` y cuyo acotado aplica el servidor en el listado y dentro del trabajo de exportación (`RN-PERM-15`); la interfaz no hace nada distinto con `propios` (§11.3 punto 2).
+
+| Pantalla | Acción en la interfaz | Permiso que la hace visible (`/me.permissions`) | *Endpoint* | Quién decide de verdad |
+|----------|-----------------------|--------------------------------------------------|------------|------------------------|
+| Usuarios | Ver la pantalla y la ficha | `usuario.leer` (ruta) | `GET /users`, `GET /users/{id}` | Servidor |
+| Usuarios | Filtro de rol, nombres de rol en opciones | `rol.leer` | `GET /roles` | Servidor |
+| Usuarios | Ver dados de baja | `usuario.eliminar` (además de `usuario.leer`) | `GET /users?include_deleted=true`, `GET /users/{id}?include_deleted=true` | Servidor (§2) |
+| Usuarios | Exportar | `usuario.exportar` | `POST /users/exports`, `GET /data-exports/{id}` | Servidor + solicitante (§8) |
+| Usuarios | Nuevo | `usuario.crear` (ruta) | `POST /users` | Servidor |
+| Usuarios | Asignar roles en el alta | `asignacion_rol.crear` y `rol.leer` | `POST /users` con `role_ids` | Servidor + `RPERM-013` |
+| Usuarios | Editar | `usuario.actualizar` (ruta) | `PATCH /users/{id}` | Servidor |
+| Usuarios | Activar / desactivar | `usuario.actualizar` | `POST /users/{id}/status` | Servidor + `RN-CORE-06`/`07` |
+| Usuarios | Dar de baja / restaurar | `usuario.eliminar` | `DELETE /users/{id}`, `POST /users/{id}/restore` | Servidor + `RN-CORE-06`/`07` |
+| Usuarios | Invitar / reenviar | `invitacion.crear` | `POST /users/{id}/invitations` | Servidor + `RN-CORE-12` |
+| Usuarios | Ver roles del usuario | `asignacion_rol.leer` | `GET /users/{id}/roles` | Servidor |
+| Usuarios | Cambiar roles (`OPEN-CORE-43` = A) | `asignacion_rol.crear` (y `asignacion_rol.eliminar` si retira alguno; la interfaz no lo comprueba por separado, lo decide el servidor) y `rol.leer` | `PUT /users/{id}/roles` | Servidor + `RPERM-013` + `RN-CORE-06`/`07` |
+| Usuarios | «Ver su actividad» (1.9d, `OPEN-CORE-33` = C, resuelta) | `auditoria.leer` | navegación | Servidor en `GET /audit-logs` |
+| Invitaciones | Ver | `invitacion.leer` (ruta) | `GET /invitations` | Servidor |
+| Invitaciones | Revocar | `invitacion.eliminar` | `DELETE /invitations/{id}` | Servidor |
+| Invitaciones | Reenviar | `invitacion.crear` | `POST /users/{id}/invitations` | Servidor |
+| Invitaciones | Enlace a la ficha del usuario | `usuario.leer` | navegación | Servidor |
+| Importación | Ver, subir, ejecutar, descartar | `usuario.importar` (ruta y acciones) | `GET`/`POST /user-imports`, `GET /user-imports/{id}`, `POST …/execute`, `DELETE …` | Servidor |
+| Roles | Ver | `rol.leer` (ruta) | `GET /roles` (no `GET /roles/{id}`: `OPEN-CORE-36` = A) | Servidor |
+| Roles | Crear, editar, borrar | **Ninguna en 1.9b** (`RN-CORE-75`, **sustituida por `REQ-PERM §20` desde 1.5b**: con 1.5b la interfaz ofrece alta, edición, baja y concesiones por permiso, `REQ-PERM/permisos.md §12`) | — | — |
+| Auditoría | Ver | `auditoria.leer` (ruta) | `GET /audit-logs` | Servidor, con ámbito |
+| Auditoría | Filtro por usuario (`OPEN-CORE-33`) | `usuario.leer` | `GET /users?q=`, `GET /users/{id}` | Servidor |
+| Auditoría | Filtro de módulo / tipo de entidad (`OPEN-CORE-34` = B) | `auditoria.leer` | `GET /audit-logs/facets` | Servidor |
+| Auditoría | Ver su actividad (ficha de usuario) | `auditoria.leer` | navegación | Servidor |
+| Auditoría | Exportar | `auditoria.exportar` | `POST /audit-logs/exports`, `GET /data-exports/{id}` | Servidor + solicitante, ámbito en el trabajo |
+| Configuración | Ver | `configuracion.leer` (ruta) | `GET /tenant/settings` | Servidor |
+| Configuración | Editar | `configuracion.actualizar` | `PATCH /tenant/settings` | Servidor |
+| Activos de marca | Ver | `configuracion.leer` (ruta) | `GET /tenant/settings` | Servidor |
+| Activos de marca | Sustituir, eliminar | `configuracion.actualizar` | `PUT`/`DELETE /tenant/settings/assets/{kind}` | Servidor |
+| Módulos contratados (1.9e) | Ver | `modulo.leer` (ruta) | `GET /modules` | Servidor |
+| Módulos contratados (1.9e) | Configurar `settings` | **Ninguna en 1.9b-1.9f**, aunque se tenga `modulo.actualizar`: la pantalla es de solo lectura (`OPEN-CORE-31` = B, `RN-CORE-87`); `PATCH /module-subscriptions/{id}` no se consume | — | — |
+| Perfil propio (1.9e) | Ver y editar correo y teléfono de contacto | **Ninguno: identidad** (§5.2). Ruta con `meta.permissions: []`, séptima de la lista cerrada de `RN-CORE-24` (`funcional.md §14.3.1`) | `PATCH /me` (y el `GET /me` del *guard*) | Servidor, por identidad del portador de la sesión; sin comprobación de permiso (errores documentados: `401`, `422`, `api.md §3`) |
+| `/administracion/mfa` (área de exenciones, migrada) | Sin cambios | `exencion_mfa.*` (`REQ-AUTH/permisos.md §D.6.3`) | `/mfa-exemptions` | Servidor |
+| `/administracion/sso` (migrada) | Sin cambios | `proveedor_identidad.*` | `/identity-providers` | Servidor |
+| `/cuenta/sesiones` (migrada) | Sin cambios | Identidad (§5.2) | `/auth/sessions` | Servidor |
+
+### 12.3 Reglas derivadas
+
+1. **La interfaz oculta; no protege** (`INV-002`). Cada fila de la matriz tiene su barrera en el servidor, ya probada desde 1.1/1.5; 1.9b añade las de §12.4 y las de `POST /users/exports`.
+2. **Permiso, nunca rol** (`RN-CORE-23`, `RN-CORE-61`). Las reglas de «no a uno mismo» y «último administrador» las aplica el servidor; la interfaz solo deshabilita por **identidad** (mismo `public_id` que `/me`), nunca por código de rol.
+3. **Sin sondeo** (`RN-CORE-62`): una vista no llama a un *endpoint* auxiliar cuyo permiso el usuario no tiene; la parte de la interfaz que lo usaría no se ofrece.
+4. **Nadie concede lo que no tiene** (`RPERM-013`): la interfaz no filtra los roles ofrecidos por los permisos del solicitante (no tiene con qué: `GET /roles` no trae concesiones). Ofrece los de `GET /roles` y muestra el `403` del servidor. Filtrarlos en cliente exigiría `GET /roles/{id}` por rol, y seguiría sin ser la barrera.
+5. **Exportar no es leer** (§11.3 punto 1): ver el listado de usuarios no permite exportarlo; la exportación exige `usuario.exportar` en servidor, se audita y se ejecuta en cola.
+6. **Datos de categoría especial**: 1.9b no muestra salud, NEAE ni convivencia. El atributo `special_data_access` de un rol se muestra (es un atributo del rol, no un dato especial). Los valores redactados de auditoría (`special`) **nunca** se reconstruyen (`RN-CORE-77`, `ADR-035`).
+
+### 12.4 Autorización de `GET /data-exports/{id}` por `kind` (`RN-CORE-86`)
+
+| `kind` | Permiso exigido | Además |
+|--------|-----------------|--------|
+| `audit_logs` | `auditoria.exportar` | Ser el solicitante (`requested_by`) |
+| `users` | `usuario.exportar` | Ser el solicitante |
+| Cualquier otro | **Denegado** (`403`) hasta que el paso que lo añada amplíe la correspondencia | — |
+
+La correspondencia vive en código, cerrada, junto al controlador o a `ExportRequestService`; nunca se deduce del nombre del `kind`. Un `public_id` de otro tenant sigue siendo `404` (RLS, `CA-CORE-073`); uno del mismo tenant solicitado por otro usuario, `403` (§8). **Por qué es necesaria**: con la ruta actual, quien tiene `usuario.exportar` y no `auditoria.exportar` no podría consultar su propia exportación de usuarios (fallo funcional), y quien hubiera perdido `usuario.exportar` después de solicitarla podría seguir descargándola mientras conserve `auditoria.exportar` (autorización por el permiso equivocado). Hoy no ocurre porque no existe ningún `kind` distinto de `audit_logs`.
+
+### 12.5 Verificación
+
+- `CA-CORE-209`, `-210`, `-211`, `-212`, `-216`, `-240`, `-248`, `-267`, `-268` (interfaz por permiso, nunca por rol; sin sondeo; módulos en solo lectura). `CA-CORE-240` está **retirado** y sustituido por `CA-PERM-101` (`REQ-PERM/funcional.md §20.17.2`).
+- `CA-CORE-264`, `-265` (perfil propio por identidad; lista cerrada de `RN-CORE-24` ampliada a siete).
+- `CA-CORE-223`, `-225`, `-228`, `-229` (servidor: `403`, `404` entre tenants, `include_deleted`, autorización por `kind`).
+- `CA-CORE-102` sigue en verde con las pantallas nuevas.
+- Test de catálogo de §9: sigue habiendo exactamente 25 códigos con `module_code = 'core'`; ninguno nuevo.
+
+## 13. Paso 1.9c (importación de usuarios)
+
+1.9c **no declara, retira ni concede ningún permiso**, ni cambia la asignación de §4.1; no hace falta `platform:sync-registry` extraordinario. Las dos pantallas de importación (`/administracion/importaciones` y `/administracion/importaciones/:publicId`) exigen `usuario.importar` (ámbito `todos`) en `meta.permissions` de la ruta, el permiso de todos los *endpoints* de `/user-imports` (`api.md §7`); ninguna usa `permissions: []`. Todas las acciones del detalle (ejecutar, descartar, renovar el enlace del informe) son del mismo permiso, así que no hay acciones secundarias con permiso propio que ocultar (`RN-CORE-61`). Quien decide de verdad es el servidor (`INV-002`): un lote de otro centro responde `404`, nunca `403`.
+
+El catálogo de tipos de documento no es un permiso ni un dato por rol: es el mismo para todos los centros (`RN-CORE-90`).

@@ -1,5 +1,7 @@
 /**
  * `docs/modulos/REQ-CORE/funcional.md §12.11`, `CA-CORE-102`, `RN-CORE-23`.
+ * Cubre también `CA-PERM-131` (`RN-PERM-46`): ningún fichero nuevo de 1.5b
+ * contiene un literal de código de rol.
  * Ningún fichero de `src/` decide por `roles[].code` ni contiene los 16
  * códigos de rol predefinidos como literal — la visibilidad se deriva
  * siempre de `permissions` (`GET /me`), nunca del rol.
@@ -78,7 +80,7 @@ function findOffenses(source: string): string[] {
 
 const files = listFiles(srcDir)
 
-describe('CA-CORE-102 (RN-CORE-23): ningún fichero de src/ decide por el código de un rol', () => {
+describe('CA-CORE-102 CA-PERM-131 (RN-CORE-23, RN-PERM-46): ningún fichero de src/ decide por el código de un rol', () => {
   it('ningún fichero fuera de tests contiene un literal de rol predefinido ni un roles[].code', () => {
     const offenders: string[] = []
 

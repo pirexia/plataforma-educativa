@@ -20,10 +20,12 @@ use App\Modules\Core\Domain\ModuleContracting;
 use App\Modules\Core\Domain\TenantProvisioner;
 use App\Modules\Core\Domain\TenantSettingsReader;
 use App\Modules\Core\Domain\UserDirectory;
+use App\Modules\Core\Infrastructure\Console\GrantAcademicYearPermissionsCommand;
 use App\Modules\Core\Infrastructure\Console\GrantRoleAdministrationCommand;
 use App\Modules\Core\Infrastructure\Console\ProvisionTenantDefaultsCommand;
 use App\Modules\Core\Infrastructure\Console\PurgeCoreMaintenanceCommand;
 use App\Support\Authorization\ScopeResolverRegistry;
+use App\Support\FeatureFlags\FeatureFlagCatalogInvalidator;
 use App\Support\FeatureFlags\FeatureFlagEvaluator;
 use App\Support\FeatureFlags\FeatureFlagExplainer;
 use App\Support\Modules\DeclaresModuleRegistry;
@@ -43,6 +45,8 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
     {
         $this->app->singleton(TenantSettingsCache::class);
         $this->app->bind(TenantSettingsReader::class, EloquentTenantSettingsReader::class);
+        // INV-007, ADR-056 AR-02: SyncModuleRegistry (App\Support) invalida la caché por esta interfaz.
+        $this->app->bind(FeatureFlagCatalogInvalidator::class, FeatureFlagCatalogCache::class);
         $this->app->bind(AuditQuery::class, EloquentAuditQuery::class);
         $this->app->bind(ExportRequestService::class, EloquentExportRequestService::class);
         $this->app->bind(BulkUserImporter::class, EloquentBulkUserImporter::class);
@@ -109,6 +113,7 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
                 ProvisionTenantDefaultsCommand::class,
                 PurgeCoreMaintenanceCommand::class,
                 GrantRoleAdministrationCommand::class,
+                GrantAcademicYearPermissionsCommand::class,
             ]);
         }
     }
@@ -170,6 +175,7 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
                     'resource' => $resource,
                     'action' => $action,
                     'is_special_category' => false,
+                    'resource_label_key' => "core.permissions.resources.{$resource}",
                     // REQ-PERM/permisos.md §3.1 (1.5): 'auditoria.leer' y
                     // 'auditoria.exportar' son el único caso real de 1.5
                     // (funcional.md §6) — el resto se queda en la regla
@@ -189,6 +195,7 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             'resource' => 'rol_datos_especiales',
             'action' => 'actualizar',
             'is_special_category' => false,
+            'resource_label_key' => 'core.permissions.resources.rol_datos_especiales',
         ];
 
         $permissions[] = [
@@ -196,6 +203,7 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             'resource' => 'permiso_efectivo',
             'action' => 'leer',
             'is_special_category' => false,
+            'resource_label_key' => 'core.permissions.resources.permiso_efectivo',
         ];
 
         return $permissions;

@@ -9,7 +9,6 @@ use App\Modules\Backoffice\Application\DualAuthorizationService;
 use App\Modules\Backoffice\Application\TenantLifecycleService;
 use App\Modules\Backoffice\Domain\Models\AdminActionLog;
 use App\Modules\Backoffice\Domain\Models\DualAuthorization;
-use App\Modules\Backoffice\Domain\Models\PlatformAdmin;
 use App\Modules\Backoffice\Domain\Models\TenantLifecycleEvent;
 use App\Modules\Backoffice\Infrastructure\Jobs\ProvisionTenant;
 use App\Modules\Core\Domain\TenantAdministrator;
@@ -34,7 +33,7 @@ use Illuminate\Support\Str;
  */
 beforeEach(function (): void {
     Mail::fake();
-    $this->artisan('platform:sync-registry')->run();
+    syncRegistryOnce();
     boAllowCurrentTestIp();
 });
 
@@ -79,18 +78,6 @@ function boValidTenantPayload(array $overrides = []): array
             'family_name' => 'Pérez',
         ],
     ], $overrides);
-}
-
-/**
- * Reautentica y devuelve un cliente de test listo para una operación
- * sensible (api.md §4). Ver PlatformAdminManagementTest.php para el
- * detalle de por qué es un round-trip HTTP real y no un `session()->put()`.
- */
-function boSensitiveClient(PlatformAdmin $admin, string $secret): mixed
-{
-    $cookie = boReauthenticatedSessionCookie($admin, $secret);
-
-    return boWithReauthenticatedCookie($cookie);
 }
 
 // ---------------------------------------------------------------------

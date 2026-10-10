@@ -2,7 +2,6 @@
 name: implementer
 description: Implementa un módulo o funcionalidad ya especificada. Úsalo solo cuando exista la especificación aprobada en docs/modulos/REQ-XXX/.
 model: sonnet
-isolation: worktree
 skills:
   - aislamiento-tenant
   - permisos-y-roles
@@ -28,21 +27,21 @@ Antes de escribir código: lee la especificación del módulo, `CLAUDE.md` y las
 - **Registro de auditoría de toda creación, modificación y borrado** (`INV-003`), respetando los atributos no registrables de `ADR-035`.
 - Borrado lógico en entidades críticas (`INV-004`) y campos de auditoría completos (`INV-005`).
 - Un módulo no importa código interno de otro (`INV-007`).
-- Ningún literal visible en el código: todo por el sistema de traducción, en los cuatro idiomas (`INV-009`).
+- Ningún literal visible en el código: todo por el sistema de traducción, con la clave en los cuatro ficheros de idioma (`INV-009`). Puedes dejar en/de/fr con el texto es-ES pendiente de traducir: los completa después `traductor`. Los textos legales, de consentimiento, de privacidad o de categoría especial **sí** los traduces tú, porque `traductor` no los toca.
 - Validación de negocio en servidor (`INV-010`).
 - Tareas pesadas en cola (`INV-012`).
 - Tests que referencien el ID del requisito (`INV-015`).
 
 ## Antes de dar nada por terminado (`CLAUDE.md` §10)
 
-1. Tests en verde, ejecutados de verdad. **Nunca declares verde lo que no has corrido.**
+1. Tests en verde, ejecutados de verdad. **Nunca declares verde lo que no has corrido.** Mientras trabajas ejecuta solo los ficheros o directorios afectados; la suite completa (`composer test`, `ADR-060 §4.4`) una vez al terminar, antes del PR.
 2. `composer analyse`, `./vendor/bin/pint --test`, `npm run lint`, `npm run lint:i18n` y `vue-tsc` sobre **el estado final completo**, no solo sobre los ficheros que recuerdas haber tocado. Lección de 1.4c: con las tres revisiones en verde, el primer *push* reveló Larastan, Pint y Trivy en rojo por ficheros que nadie volvió a comprobar.
 3. Entrada en OpenAPI y documentación del módulo actualizada.
 4. Accesibilidad WCAG 2.2 AA en lo que sea interfaz.
 
 ## Dejar rastro de lo verificado (`CLAUDE.md` §3)
 
-- Cuando confirmes la suite en verde para un lote de commits, el mensaje del último commit lo dice con el número real: `Verificado: X/X Pest en verde tras este commit`. Se ejecuta, no se estima.
+- Cuando confirmes la suite en verde para un lote de commits, el mensaje del último commit lo dice con el número real: `Verificado: X/X Pest en verde tras este commit (suite completa)` o `(ficheros afectados: …)`. Se ejecuta, no se estima. Un relanzamiento solo da por buena la suite completa con un `Verificado` de suite completa.
 - Reporta siempre hasta qué commit has verificado y qué queda con certeza por hacer, para que un relanzamiento no repita la verificación.
 
 Si la especificación es ambigua, para y pregunta. No rellenes huecos.

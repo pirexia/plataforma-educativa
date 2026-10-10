@@ -11,7 +11,7 @@
 import type { LocationQuery, LocationQueryRaw } from 'vue-router'
 import { DEFAULT_PER_PAGE, PER_PAGE_OPTIONS } from './constants'
 import { filterParams, type FilterValues } from './filterState'
-import type { DataTableFilter, DataTableMode } from './types'
+import type { AnyDataTableFilter, DataTableMode } from './types'
 
 /** Claves que **nunca** viajan a la URL (`RN-CORE-54`). */
 export const NEVER_IN_URL = ['q', 'cursor'] as const
@@ -25,7 +25,7 @@ export interface UrlState {
 
 export interface UrlStateOptions {
   mode: DataTableMode
-  filters: readonly DataTableFilter[]
+  filters: readonly AnyDataTableFilter[]
   /** `id` de las columnas `sortable`. */
   sortableIds: readonly string[]
 }
@@ -86,6 +86,12 @@ export function parseUrlState(query: LocationQuery, options: UrlStateOptions): U
       }
 
       if (filter.type === 'boolean' && value !== 'true' && value !== 'false') {
+        continue
+      }
+
+      // `entity` (1.9d): el valor es un identificador público (ULID, `ADR-029`);
+      // cualquier otra cosa en la URL se ignora en vez de llegar al servidor.
+      if (filter.type === 'entity' && !/^[0-9A-Za-z]{26}$/.test(value)) {
         continue
       }
 

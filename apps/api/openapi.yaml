@@ -24,6 +24,7 @@ tags:
   - name: Core / Importación
   - name: Core / Auditoría
   - name: Core / Autoservicio
+  - name: Curso / Cursos académicos
   - name: Auth / Sesión
   - name: Auth / Canje
   - name: Auth / Recuperación
@@ -301,6 +302,16 @@ paths:
     $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1metrics~1platform"
   /api/platform/v1/metrics/module-adoption:
     $ref: "openapi/paths/platform.yaml#/paths/~1api~1platform~1v1~1metrics~1module-adoption"
+
+  # REQ-CURSO (paso 1.10). apps/api/openapi/paths/curso.yaml
+  /api/v1/academic-years:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-years"
+  /api/v1/academic-years/current:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-years~1current"
+  /api/v1/academic-years/{publicId}:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-years~1{publicId}"
+  /api/v1/academic-years/{publicId}/status:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-years~1{publicId}~1status"
 
   # Los endpoints de los módulos siguientes se añaden aquí conforme se
   # implementan, cada uno con su propio apps/api/openapi/paths/<modulo>.yaml.

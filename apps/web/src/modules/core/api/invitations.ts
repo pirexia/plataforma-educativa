@@ -1,9 +1,10 @@
 import { apiFetch } from '@/api/client'
-import { buildQuery } from './shared'
+import { buildQuery, joinList } from './shared'
 import type { Invitation, InvitationStatus, Paginated, PublicId } from '../types'
 
 export interface ListInvitationsParams {
-  status?: InvitationStatus
+  /** S7 de 1.9b (ADR-038 §5.2): varios estados separados por comas, unidos con OR. */
+  status?: InvitationStatus[]
   page?: number
   per_page?: number
 }
@@ -11,7 +12,11 @@ export interface ListInvitationsParams {
 export function listInvitations(
   params: ListInvitationsParams = {},
 ): Promise<Paginated<Invitation>> {
-  const query = buildQuery({ status: params.status, page: params.page, per_page: params.per_page })
+  const query = buildQuery({
+    status: joinList(params.status),
+    page: params.page,
+    per_page: params.per_page,
+  })
 
   return apiFetch<Paginated<Invitation>>(`/invitations${query}`)
 }

@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.1** · 2026-09-21
+> **Versión 0.3.4** · 2026-10-07
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -53,6 +53,10 @@ Parar el merge. Documentar el hallazgo como issue de GitHub con severidad, fiche
 
 Comando de diagnóstico rápido, desde dentro del contenedor `api` (`docs/modulos/REQ-BO/operacion.md §6.2`): comprobar que **`bo:purge-failed-jobs`** está en la lista del planificador y **`queue:prune-failed`** ya no lo está (`php artisan schedule:list`). Si sigue apareciendo el comando del framework, el despliegue no tiene el código de `1.6d` — ese comando lleva desde `0.7` sin poder borrar ni una fila (apunta a la conexión `plataforma_app`, que tiene `REVOKE DELETE` sobre `failed_jobs`), y mientras esté programado la retención de 24 horas del issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73) es solo una promesa documental, no un hecho. Purga manual de emergencia (por `pgsql_platform`, nunca por la conexión de aplicación): `DELETE FROM failed_jobs WHERE failed_at < now() - interval '24 hours';`.
 
+### 2.6 Si una escritura de roles o usuarios responde `409 administration_capacity_lost` (`REQ-PERM`, `1.5b`, `RN-PERM-47`)
+
+Síntoma: al retirar permisos a un rol, asignar o quitar roles, desactivar o dar de baja a un usuario, el centro recibe `409` con `core.validation.administration_capacity_lost` y la lista de permisos afectados (en el `detail` y en `errors.administration_capacity[0].params.codes`). **No es un fallo**: la escritura dejaría al centro sin ningún usuario activo con la capacidad completa de administración y no se ha guardado nada. Resolución: conceder antes esos permisos a otra persona activa del centro y repetir la operación. Si el centro **ya** no cumplía antes de la escritura, la regla no la rechaza. Detalle: `docs/modulos/REQ-PERM/operacion.md`.
+
 ## 3. Guardias (on-call)
 
 **No aplica todavía.** No hay entorno de producción, no hay usuarios reales, no hay SLA que cumplir. Esta sección se escribe cuando exista alojamiento del piloto (`OPEN-11`) y el primer centro real.
@@ -102,6 +106,8 @@ No hay salida por la aplicación: es intervención directa sobre la base de dato
 **Matiz de `REQ-AUTH-003` (1.3b, `docs/modulos/REQ-AUTH/operacion.md §D.10`):** en este mismo escenario, **un usuario con factor de correo activado sí puede entrar** — su verificación no depende de `APP_KEY` (el código se compara por hash SHA-256, no se descifra). No convierte el escenario en recuperable por sí solo (depende de que ese usuario tenga el correo activado y de que el correo transaccional funcione), pero puede ser la diferencia entre "nadie entra" y "un administrador con correo activado entra y restablece el MFA de los demás" antes de recurrir a la intervención directa sobre la base de datos.
 
 ### 3b.2 Desplegar una versión
+
+**Paso 0, una sola vez por base de datos (`REQ-CURSO`, `1.10`, `ADR-057 §5.2`)**: la migración `2026_10_07_100200_create_academic_year_write_guard_function` crea `app.assert_academic_year_writable()` en el esquema `app` y el rol propietario solo tiene `USAGE` sobre él. Antes de la primera migración que la incluya, como superusuario sobre la base de la aplicación: `GRANT CREATE ON SCHEMA app TO <rol propietario>;` (en desarrollo `plataforma_owner`: `podman exec -i plataforma-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c 'GRANT CREATE ON SCHEMA app TO plataforma_owner'`). Es idempotente. Si se omite, `migrate` aborta con un mensaje que contiene este mismo comando, sin tocar nada. Detalle en `SYSADMIN.md`.
 
 ```bash
 ./infra/install.sh <tag>              # producción/staging real, systemd de sistema
@@ -158,6 +164,16 @@ Es una operación de segundos porque cada versión es una imagen inmutable en GH
 4. Confirmar con `auth.saml.acs.outcome` que ningún proveedor con firma activa empieza a fallar tras el reinicio.
 
 **Reversión de una incidencia con la clave** (comprometida o corrupta): retirar `AUTH_SAML_SP_SIGNING_KEY_PATH`/`AUTH_SAML_SP_SIGNING_CERT_PATH` y reiniciar. Ningún proveedor deja de funcionar — `sign_authn_requests` pasa a no poder activarse (`409` si alguien lo intenta) y los que ya lo tenían activo empiezan a enviar `AuthnRequest` sin firmar, que la mayoría de IdP aceptan igualmente (`funcional.md §G.3.7`). **No es una maniobra inocua para los que exigen la firma** (algunos despliegues de ADFS/Shibboleth): esos centros pierden su SSO hasta que se reconfigure la clave, aunque su acceso con contraseña local sigue intacto (`RN-AUTH-96`).
+
+### 3b.6 Si la migración de datos de documentos aborta (`REQ-CORE-003`, `1.9c`)
+
+Síntoma: `php artisan migrate` falla en `2026_10_02_100200_normalize_people_document_to_catalog` con «Migración de documentos abortada sin modificar ninguna fila», y dos listas de `public_id`. **No se ha modificado ningún dato** (una sola transacción).
+
+1. Si el error es de conexión, comprueba que el contenedor tiene las variables `DB_PLATFORM_*` (`SYSADMIN.md §2e`).
+2. **Tipos sin correspondencia** (primera lista): son personas cuyo `document_type` no es `dni`, `nie` ni `pasaporte` (ni una variante de mayúsculas/espacios). Consulta cada una con su `public_id` y corrige el tipo desde la aplicación (la API ya solo admite el catálogo) o, en desarrollo, resiembra. No inventes una correspondencia.
+3. **Duplicados creados por la normalización** (segunda lista): dos personas vivas del mismo centro con el mismo documento escrito distinto (`12345678-Z` y `12345678z`). Decide cuál es la persona real, fusiona o corrige la otra y da de baja la sobrante.
+4. Vuelve a lanzar `migrate`. Es idempotente.
+5. Para volver atrás tras una ejecución correcta no hay `down()`: restaura la copia de seguridad / PITR previa al despliegue (`docs/modulos/REQ-CORE/operacion.md §14.1`).
 
 ## 4. Copias de seguridad y recuperación
 

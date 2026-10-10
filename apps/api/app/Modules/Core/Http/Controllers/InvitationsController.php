@@ -9,6 +9,7 @@ use App\Modules\Core\Domain\Models\UserInvitation;
 use App\Modules\Core\Http\Resources\InvitationResource;
 use App\Support\Api\ApiException;
 use App\Support\Api\PagePaginatedResponse;
+use App\Support\Api\Rules\InList;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -24,18 +25,24 @@ class InvitationsController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $request->validate(['status' => ['sometimes', 'in:vigente,caducada,revocada,aceptada']]);
+        // S7 (ADR-038 §5.2): varios estados separados por comas, unidos con OR.
+        $request->validate(['status' => ['sometimes', 'string', new InList(['vigente', 'caducada', 'revocada', 'aceptada'])]]);
 
         $query = UserInvitation::query()->with('user')->latest('id');
 
         if ($request->filled('status')) {
-            match ($request->string('status')->value()) {
-                'aceptada' => $query->whereNotNull('accepted_at'),
-                'revocada' => $query->whereNull('accepted_at')->whereNotNull('revoked_at'),
-                'caducada' => $query->whereNull('accepted_at')->whereNull('revoked_at')->where('expires_at', '<', now()),
-                'vigente' => $query->whereNull('accepted_at')->whereNull('revoked_at')->where('expires_at', '>=', now()),
-                default => null,
-            };
+            $statuses = array_unique(explode(',', (string) $request->string('status')));
+
+            $query->where(function ($outer) use ($statuses): void {
+                foreach ($statuses as $status) {
+                    $outer->orWhere(fn ($q) => match ($status) {
+                        'aceptada' => $q->whereNotNull('accepted_at'),
+                        'revocada' => $q->whereNull('accepted_at')->whereNotNull('revoked_at'),
+                        'caducada' => $q->whereNull('accepted_at')->whereNull('revoked_at')->where('expires_at', '<', now()),
+                        default => $q->whereNull('accepted_at')->whereNull('revoked_at')->where('expires_at', '>=', now()),
+                    });
+                }
+            });
         }
 
         $paginator = $query->paginate($request->integer('per_page', 25))->withQueryString();

@@ -22,7 +22,7 @@ use Symfony\Component\HttpFoundation\Response;
 class ResolveApiLocale
 {
     /** @var array<string, string> Código de negocio (ADR-021) -> carpeta lang/ de Laravel. */
-    private const TO_LARAVEL_LOCALE = [
+    public const TO_LARAVEL_LOCALE = [
         'es-ES' => 'es',
         'en' => 'en',
         'de' => 'de',

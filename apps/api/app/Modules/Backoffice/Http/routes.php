@@ -181,7 +181,7 @@ Route::get('/metrics/module-adoption', [PlatformMetricsController::class, 'modul
 // formato admite puntos (`datos.md §9.1`), así que la ruta necesita su
 // propia restricción (`ADR-051 §2` condición C4) o Laravel no encajaría
 // `comedor.reserva_v2` como un solo segmento. Registrado en
-// FeatureFlagKeyRoutes::REGISTRY (ADR-051 §5.1).
+// CatalogKeyRouteParameters (ADR-051 §5.1).
 $flagKeyPattern = '[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*';
 
 Route::get('/feature-flags', [FeatureFlagsController::class, 'index'])

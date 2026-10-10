@@ -1,6 +1,6 @@
 # PRIVACY.md
 
-> **Versión 0.3.2** · 2026-09-30
+> **Versión 0.3.6** · 2026-10-07
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Base del Registro de Actividades de Tratamiento (RAT) exigido por el RGPD — hoy es un **esqueleto**, no un RAT completo: varias secciones dependen de decisiones que todavía no se han tomado (`OPEN-07`, entidad jurídica y contrato de encargado de tratamiento). No se rellenan con suposiciones (`CLAUDE.md` §0/§11).
 
 ---
@@ -42,6 +42,8 @@ A diferencia de una cookie, una clave de `localStorage` no viaja al servidor y n
 | `plataforma.brand` | *Design system* (1.7, `docs/design-system.md §7.2`) | Exactamente `{"v":1,"primary":"#RRGGBB","primaryForeground":"#RRGGBB"}`: los dos colores públicos y estables de la marca del centro (`GET /tenant/branding`, sin sesión) | Sin dato personal. Nunca una URL (las firmadas caducan), ni el nombre del centro, ni los idiomas activos. Por origen del navegador — el origen ya es el tenant (resolución por *host*), así que no hay mezcla entre centros |
 | `plataforma.color-mode` | *Design system* (1.7, `docs/design-system.md §9.2`) | Una de tres cadenas fijas: `system`, `light`, `dark` | Sin dato personal. No se sincroniza con el servidor ni entre dispositivos (decisión de alcance, `ADR-052 §2`) |
 | `plataforma.table.<tableId>` | Tablas de datos (1.9, `ADR-054 §5.2`; implementado en `apps/web/src/data-table/columnPreferences.ts`, `CA-CORE-173`-`175`/`-195`) | Exactamente `{"v":1,"hidden":["<id>",…]}`: solo ids de columna, nunca datos de fila, filtros ni búsqueda | Sin dato personal. No se borra al cerrar sesión y la comparten los usuarios de un mismo navegador (aceptado: no contiene nada de ninguno); por origen, no se mezcla entre centros |
+| `plataforma.table.core.role_grants` | Concesiones de la ficha de un rol (1.5b, `REQ-PERM funcional.md §20.5`, tabla en modo `local`) | La misma forma cerrada `{"v":1,"hidden":["<id>",…]}`: solo ids de columna | Sin dato personal. Nunca se guardan las concesiones del rol, el estado de la matriz de edición ni lo que se esté editando (`RN-CORE-50`, `§20.13`); la matriz no es una tabla del componente y no guarda nada |
+| `plataforma.table.core.effective_permissions` | Permisos efectivos de un usuario (1.5b, `REQ-PERM funcional.md §20.10`, tabla en modo `local`) | La misma forma cerrada, solo ids de columna | Sin dato personal. El mapa de capacidades de una persona es información de ataque: ni se exporta, ni se imprime, ni se copia al navegador, y no lleva ni siquiera filtros en la URL (`RN-PERM-45`) |
 
 ### 2.2 Datos recibidos de un proveedor de identidad externo (Google, `REQ-AUTH-002`, paso 1.4)
 
@@ -88,6 +90,36 @@ Mismo mecanismo que §2.3, protocolo distinto: cada centro cataloga su propio pr
 
 **Ningún usuario ni persona nueva se crea a partir de este flujo**, con la misma garantía de esquema que en OIDC (`ADR-043 §10.9`, el `CHECK` de `provisioning_mode` lo impide independientemente del protocolo). Un acceso sin cuenta ya existente en el centro con ese identificador termina sin vincular y sin crear nada, con la misma respuesta genérica e indistinguible que el resto de casos "sin cuenta" (`funcional.md §G.4.5`).
 
+### 2.5 Exportación de usuarios (CSV, `REQ-CORE-003`, paso 1.9b)
+
+`POST /users/exports` (permiso propio `usuario.exportar`, concedido por defecto solo al administrador del centro) genera un CSV con las personas usuarias que cumplen los filtros del listado. Es un tratamiento de **exportación de datos personales fuera del control del sistema**, por eso:
+
+| Aspecto | Decisión |
+|---------|----------|
+| Columnas (esquema cerrado, `funcional.md §14.11.1`) | `public_id`, `status`, `deleted_at`, `created_at`, `email` (correo de acceso), `given_name`, `family_name_1`, `family_name_2`, `contact_email`, `contact_phone`, `locale`, `roles` (códigos) |
+| **Excluido a propósito** | `document_type`, `document_number` y `birth_date` (`OPEN-CORE-32` = B, decisión del usuario 2026-10-01, `INV-008`): un documento de identidad o una fecha de nacimiento exportados en bloque salen del control del sistema, y el listado incluye a alumnado menor de edad con cuenta cuando exista. **Añadirlos exige una decisión expresa del usuario con su base legal**, no solo una petición de un centro |
+| Quién descarga | Solo quien lo solicitó (`data_exports.requested_by`), y solo mientras conserve `usuario.exportar` |
+| Dónde queda el fichero | Objeto privado en el almacenamiento (`tenants/{tenant}/exports/{id}.csv`), URL firmada de caducidad corta; sin copia en la base de datos ni en `audit_logs` (`data_exports.filters` solo lleva códigos y ULID, nunca texto de búsqueda) |
+| Retención | 7 días (`CORE_EXPORT_RETENTION_DAYS`), purgado por `PurgeExpiredExports` (fila y objeto) |
+| Rastro | Cada solicitud se audita (`created` y `exported`) sin el contenido del fichero |
+| Neutralización | Los textos que empiezan por `=`, `+`, `-`, `@` (o espacio en blanco seguido de uno) llevan un apóstrofo inicial (`RN-CORE-48`), para que el fichero no ejecute fórmulas en una hoja de cálculo |
+
+### 2.6 Importación de usuarios (CSV, `REQ-CORE-003`, paso 1.9c)
+
+`POST /user-imports` (permiso `usuario.importar`, concedido por defecto solo al administrador del centro) recibe un CSV con las personas que se van a dar de alta. A diferencia de la exportación de §2.5, **este fichero sí contiene datos identificativos**, porque es la entrada del alta:
+
+| Aspecto | Decisión |
+|---------|----------|
+| Columnas (esquema fijo, `api.md §7`) | `email`, `given_name`, `family_name_1`, `family_name_2`, **`document_type`**, **`document_number`**, **`birth_date`**, `contact_email`, `contact_phone`, `locale`, `roles` |
+| Datos personales que viajan | Nombre y apellidos, correos, teléfono, **tipo y número de documento de identidad y fecha de nacimiento** de todo el personal (y del alumnado con cuenta, si lo hay). Es el único flujo de entrada masiva de esos datos |
+| Dónde queda el fichero fuente | Objeto privado del almacenamiento (`tenants/{tenant}/imports/{id}/source.csv`), sin URL pública; solo lo lee el trabajo de validación y el de ejecución |
+| El informe (`report.csv`, `error_summary`) | Contiene **línea, columna, código y mensaje** de cada incidencia, **nunca el valor del dato** (los mensajes nombran la columna, no su contenido). Se entrega por URL firmada de caducidad corta (15 min) a quien tiene `usuario.importar`; el texto sale en el idioma de quien subió el lote |
+| Retención | **30 días por defecto** (`CORE_IMPORT_RETENTION_DAYS`, `RN-CORE-21`): `PurgeImportArtifacts` borra el fichero fuente y el informe y deja las referencias a `NULL`; la fila del lote (recuentos y fechas) se conserva |
+| Quién actúa | Quien sube el lote (`user_imports.created_by`); `ExecuteUserImport` crea personas y usuarios con esa autoría y con `actor_type = import` |
+| Rastro | Cada `Person` y `User` creados se auditan como cualquier alta (`created`), con los identificadores redactados (`ADR-035`); el fichero no se copia a `audit_logs` |
+| Minimización y exactitud | El documento se guarda **normalizado** (`RN-CORE-92`) y de un catálogo cerrado (`RN-CORE-90`), para que no haya duplicados de la misma persona por escribirse distinto |
+| Base legal y consentimiento de menores (`INV-008`) | **Pendiente de `OPEN-07`** (entidad responsable y base legal); no se rellena con suposiciones |
+
 ## 3. Registro de Actividades de Tratamiento (RAT) — plantilla
 
 Se completa cuando exista entidad jurídica responsable del tratamiento (`OPEN-07`). Estructura prevista:
@@ -112,4 +144,5 @@ Mínimo legal por tipo de dato y catálogo completo: responsabilidad de `REQ-PRI
 
 - **`OPEN-12`** — **cerrada por `ADR-035`**: el derecho de supresión no se ejerce dentro de `audit_logs`; se evita que entre en la fila cualquier valor identificativo (ver sección 5) y la supresión se completa por retención. Queda pendiente de `REQ-PRIV-006` la ejecución real de la purga por vencimiento de plazo, exigible antes del primer dato real.
 - **`OPEN-13`**: lista definitiva de columnas de `Person` y su base legal por campo, responsabilidad de `REQ-PRIV-006`.
+- **`OPEN-057-04`** (`ADR-057 §7`, `REQ-CURSO`): suprimir o anonimizar datos personales en tablas de un curso cerrado choca con el bloqueo de escritura del motor; lo decide `REQ-PRIV-006` (tarea del propietario o excepción declarada de `ADR-057 §5.7`) y debe resolverse antes de admitir datos reales.
 - **`OPEN-07`**: entidad jurídica, encargado de tratamiento y DPO — bloquea las secciones 3 y 4 de este documento y la entrada de cualquier dato real.

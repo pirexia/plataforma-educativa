@@ -80,7 +80,10 @@
       "text": "Aucun établissement n'a été trouvé à cette adresse. Vérifiez le lien ou contactez votre établissement."
     },
     "documentTitleFormat": "{view} · {tenant}",
-    "localeChangeError": "L'établissement a retiré cette langue. La langue actuelle est conservée."
+    "localeChangeError": "L'établissement a retiré cette langue. La langue actuelle est conservée.",
+    "confirm": {
+      "cancel": "Annuler"
+    }
   },
   "home": {
     "greeting": "Bonjour, {name}",
@@ -111,7 +114,15 @@
       "rangeInvalid": "La date « du » est postérieure à la date « au ».",
       "notApplied": "Le filtre n'a pas été appliqué : la liste affiche toujours les résultats précédents.",
       "triggerWithCount": "{label} ({count})",
-      "booleanTrigger": "{label} : {value}"
+      "booleanTrigger": "{label} : {value}",
+      "entitySearch": "Rechercher : {label}",
+      "entityPlaceholder": "Saisir pour rechercher",
+      "entityActive": "Filtré par : {name}",
+      "entityRemove": "Retirer le filtre « {label} »",
+      "entityLoading": "Chargement…",
+      "entityUnknown": "Élément indisponible",
+      "entityResults": "Aucun résultat | Un résultat | {count} résultats",
+      "entityError": "La recherche n’a pas pu aboutir. Veuillez réessayer."
     },
     "columns": {
       "menu": "Colonnes",
@@ -153,7 +164,8 @@
     "announce": {
       "results": "Aucun résultat | {count} résultat | {count} résultats",
       "loaded": "Aucun résultat | {count} ligne chargée | {count} lignes chargées",
-      "more": "Aucune ligne supplémentaire chargée | {count} ligne supplémentaire chargée | {count} lignes supplémentaires chargées"
+      "more": "Aucune ligne supplémentaire chargée | {count} ligne supplémentaire chargée | {count} lignes supplémentaires chargées",
+      "local": "{count} sur {total} résultats | {count} sur {total} résultat | {count} sur {total} résultats"
     },
     "export": {
       "button": "Exporter",

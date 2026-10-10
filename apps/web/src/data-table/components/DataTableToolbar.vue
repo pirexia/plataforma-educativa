@@ -24,18 +24,26 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { selectedEnumValues, withEnumValue, withParam, type FilterValues } from '../filterState'
+import {
+  isSingleEnum,
+  selectedEnumValues,
+  withEnumValue,
+  withParam,
+  type FilterValues,
+} from '../filterState'
 import type {
+  AnyDataTableFilter,
   DataTableBooleanFilter,
   DataTableColumn,
   DataTableDateRangeFilter,
+  DataTableEntityFilter,
   DataTableEnumFilter,
-  DataTableFilter,
 } from '../types'
+import EntityFilterField from './DataTableEntityFilter.vue'
 
 const props = defineProps<{
   columns: readonly DataTableColumn<Row>[]
-  filters: readonly DataTableFilter[]
+  filters: readonly AnyDataTableFilter[]
   filterValues: FilterValues
   searchable: boolean
   searchText: string
@@ -75,7 +83,11 @@ defineExpose({
 })
 
 /** `ADR-038 §7.3`: sin traducción, se muestra el código en crudo antes que fallar. */
-function optionLabel(option: { value: string; labelKey?: string }): string {
+function optionLabel(option: { value: string; labelKey?: string; label?: string }): string {
+  if (option.label) {
+    return option.label
+  }
+
   if (!option.labelKey) {
     return option.value
   }
@@ -85,16 +97,28 @@ function optionLabel(option: { value: string; labelKey?: string }): string {
   return label === option.labelKey ? option.value : label
 }
 
-function asEnum(filter: DataTableFilter): DataTableEnumFilter | null {
+function asEnum(filter: AnyDataTableFilter): DataTableEnumFilter<never> | null {
   return filter.type === 'enum' ? filter : null
 }
 
-function asRange(filter: DataTableFilter): DataTableDateRangeFilter | null {
+function asSingle(filter: AnyDataTableFilter): DataTableEnumFilter<never> | null {
+  return isSingleEnum(filter) ? filter : null
+}
+
+function asRange(filter: AnyDataTableFilter): DataTableDateRangeFilter | null {
   return filter.type === 'dateRange' ? filter : null
 }
 
-function asBoolean(filter: DataTableFilter): DataTableBooleanFilter | null {
+function asBoolean(filter: AnyDataTableFilter): DataTableBooleanFilter<never> | null {
   return filter.type === 'boolean' ? filter : null
+}
+
+function asEntity(filter: AnyDataTableFilter): DataTableEntityFilter | null {
+  return filter.type === 'entity' ? filter : null
+}
+
+function setEntity(filter: DataTableEntityFilter, value: string): void {
+  emit('update:filterValues', withParam(props.filterValues, filter.id, value))
 }
 
 function toggleOption(filter: DataTableEnumFilter, value: string, checked: boolean): void {
@@ -110,6 +134,29 @@ function rangeInvalid(filter: DataTableDateRangeFilter): boolean {
   const to = props.filterValues[`${filter.id}_to`]
 
   return Boolean(from && to && from > to)
+}
+
+/** `RN-CORE-94`: valor elegido de un `enum` de selección única; uno no declarado cuenta como «Todos». */
+function singleValue(filter: DataTableEnumFilter): string {
+  const current = props.filterValues[filter.id]
+
+  return current !== undefined && filter.options.some((option) => option.value === current)
+    ? current
+    : ''
+}
+
+function singleLabel(filter: DataTableEnumFilter): string {
+  const current = singleValue(filter)
+  const option = filter.options.find((candidate) => candidate.value === current)
+
+  return t('dataTable.filters.booleanTrigger', {
+    label: t(filter.labelKey),
+    value: option ? optionLabel(option) : t('dataTable.filters.all'),
+  })
+}
+
+function setSingle(filter: DataTableEnumFilter, value: string): void {
+  emit('update:filterValues', withParam(props.filterValues, filter.id, value))
 }
 
 function setBoolean(filter: DataTableBooleanFilter, value: string): void {
@@ -178,7 +225,35 @@ const itemClass = 'min-h-8 [@media(any-pointer:coarse)]:min-h-11'
     </div>
 
     <template v-for="filter in props.filters" :key="filter.id">
-      <DropdownMenu v-if="asEnum(filter)">
+      <DropdownMenu v-if="asSingle(filter)">
+        <DropdownMenuTrigger as-child>
+          <Button type="button" variant="outline">
+            <ListFilter aria-hidden="true" />
+            {{ singleLabel(filter as DataTableEnumFilter) }}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuLabel>{{ t(filter.labelKey) }}</DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            :model-value="singleValue(filter as DataTableEnumFilter)"
+            @update:model-value="(value) => setSingle(filter as DataTableEnumFilter, String(value))"
+          >
+            <DropdownMenuRadioItem value="" :class="itemClass">{{
+              t('dataTable.filters.all')
+            }}</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem
+              v-for="option in (filter as DataTableEnumFilter).options"
+              :key="option.value"
+              :value="option.value"
+              :class="itemClass"
+            >
+              {{ optionLabel(option) }}
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <DropdownMenu v-else-if="asEnum(filter)">
         <DropdownMenuTrigger as-child>
           <Button type="button" variant="outline">
             <ListFilter aria-hidden="true" />
@@ -261,6 +336,33 @@ const itemClass = 'min-h-8 [@media(any-pointer:coarse)]:min-h-11'
           {{ t('dataTable.filters.rangeInvalid') }}
         </p>
       </fieldset>
+
+      <EntityFilterField
+        v-else-if="asEntity(filter)"
+        :filter="filter as DataTableEntityFilter"
+        :value="props.filterValues[filter.id]"
+        @update:value="(value: string) => setEntity(filter as DataTableEntityFilter, value)"
+      />
+
+      <label
+        v-else-if="asBoolean(filter)?.twoState"
+        data-slot="data-table-two-state-filter"
+        class="border-border bg-background flex min-h-8 cursor-pointer items-center gap-2 rounded-lg border px-2.5 text-sm [@media(any-pointer:coarse)]:min-h-11"
+      >
+        <input
+          type="checkbox"
+          class="accent-primary-on-background size-4"
+          :checked="props.filterValues[filter.id] === 'true'"
+          @change="
+            (event: Event) =>
+              setBoolean(
+                filter as DataTableBooleanFilter,
+                (event.target as HTMLInputElement).checked ? 'true' : '',
+              )
+          "
+        />
+        {{ t(filter.labelKey) }}
+      </label>
 
       <DropdownMenu v-else-if="asBoolean(filter)">
         <DropdownMenuTrigger as-child>

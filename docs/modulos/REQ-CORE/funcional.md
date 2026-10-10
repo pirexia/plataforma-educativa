@@ -13,7 +13,9 @@
 
 > **Paso 1.8 (`REQ-CORE-008`, *layout*, navegación y panel de inicio): §12, APROBADA** (2026-09-23; implementada y mezclada, PR #264). Las secciones §0-§11 son las de 1.1 y **no se reabren**; §12 se añade detrás, mismo criterio que `REQ-BO/funcional.md §15.x` para sub-pasos sucesivos del mismo módulo.
 >
-> **Paso 1.9 (tablas de datos: TanStack Table, filtrado, ordenación, columnas configurables y exportación; sin virtualización, `OPEN-CORE-19`): §13, APROBADA** (2026-09-30), **ajustada a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**. Lista para `implementer`. Ubicación definitiva: aquí (`OPEN-CORE-18`, resuelta por el usuario el 2026-09-30). §0-§12 no se reabren.
+> **Paso 1.9 (tablas de datos: TanStack Table, filtrado, ordenación, columnas configurables y exportación; sin virtualización, `OPEN-CORE-19`): §13, APROBADA** (2026-09-30), **ajustada a `ADR-054`, ratificado entero por el usuario el 2026-09-30 (ACEPTADA)**; `OPEN-054-01` resuelta el 2026-10-01 por `ADR-055` (ACEPTADA). Lista para `implementer`. Ubicación definitiva: aquí (`OPEN-CORE-18`, resuelta por el usuario el 2026-09-30). §0-§12 no se reabren.
+>
+> **Paso 1.9b (pantallas de gestión pendientes de `REQ-CORE-002`/`-003`/`-004`/`-005` y migración de las tres tablas exceptuadas de `RN-CORE-53`): §14, APROBADA** (2026-10-01, decisión del usuario). Dividido en cinco sub-pasos `1.9b`-`1.9f` (`OPEN-CORE-30`, §14.2). Resueltas `OPEN-CORE-30`, `-31`, `-32`, `-39`, `-40`, `-42`, `-43`; `-33` a `-36` **resueltas el 2026-10-03** (C, B, A, A; §14.17); `-37` y `-45` **resueltas el 2026-10-03** (B, A); el estado de las demás, en §14.17 y bloquean solo el sub-paso que indica §14.17. §0-§13 no se reabren: §14 **precisa** dos puntos de §13 (§14.12) y **amplía** la lista cerrada de `RN-CORE-24` de seis a siete rutas como consecuencia de `OPEN-CORE-31` (§14.3.1), y lo dice donde lo hace. **Sub-paso 1.9f implementado el 2026-10-04** (`OPEN-CORE-54`/`-55`/`-56` resueltas = A, A, A): con él se cierra la serie 1.9b-1.9f y la lista de excepciones de `RN-CORE-53` queda vacía.
 
 ---
 
@@ -255,7 +257,7 @@ El esquema de columnas es fijo y se documenta en `api.md` §7. **No hay mapeo vi
 2. El trabajo genera el CSV por lotes y lo deja en el bucket con caducidad de 7 días.
 3. `GET /data-exports/{id}` devuelve el estado y, cuando está listo, una URL firmada de caducidad corta.
 4. La propia solicitud de exportación se audita como evento `exported` (`INV-003`; el vocabulario de `event` ya lo contempla).
-5. **Neutralización de fórmulas (`RN-CORE-36`, issue #268).** Toda celda de texto del CSV cuyo primer carácter sea `=`, `+`, `-`, `@`, tabulador, retorno de carro o salto de línea se escribe con un apóstrofo delante, para que Excel/LibreOffice/Sheets no la interpreten como fórmula activa (inyección de fórmulas CSV, OWASP). Aplica a la cabecera y a todas las filas.
+5. **Neutralización de fórmulas (`RN-CORE-36`, issue #268; ampliada y movida a `CsvWriter` por `RN-CORE-47`/`48`, issue #270).** Toda celda de texto del CSV cuyo primer carácter sea `=`, `+`, `-`, `@`, tabulador, retorno de carro o salto de línea se escribe con un apóstrofo delante, para que Excel/LibreOffice/Sheets no la interpreten como fórmula activa (inyección de fórmulas CSV, OWASP). Aplica a la cabecera y a todas las filas.
 
 **Exportación a PDF: fuera de 1.1.** `REQ-CORE-005` pide CSV **y** PDF; el servicio contenerizado de renderizado HTML→PDF no existe (motor sin decidir, paso 1.17, explícitamente pendiente desde 0.3). Se difiere a 1.17.
 
@@ -747,6 +749,8 @@ Correspondencia con la API (`ADR-038 §6`), aplicada por una única función:
 | `429` | Demasiadas peticiones, con los segundos de `Retry-After` si vienen |
 | `5xx` | Error inesperado, con reintento y `request_id` |
 
+Nota (#300, `CA-CORE-270`): la recarga de sesión que dispara un `403` **no** pone la sesión en «cargando» si ya estaba `ready` (la vista conserva su estado y no repite la petición); el estado de carga a pantalla completa es solo del arranque y de la recuperación desde cualquier estado distinto de `ready`. Si la recarga falla (red, `5xx`, `429`), la sesión pasa a `error` (estado de error a pantalla completa, §12.3.1) y la vista se desmonta.
+
 Rutas: `catch-all` → estado «página no encontrada», dentro del *shell* si hay sesión, en régimen público si no.
 
 ### 12.7 *Layout* responsive
@@ -778,9 +782,9 @@ Hamburguesa y *drawer* son diálogos modales (`role="dialog"`, `aria-modal`): fo
 | ID | Regla |
 |----|-------|
 | `RN-CORE-23` | La visibilidad de toda entrada de navegación, acceso directo o bloque del panel se decide **solo** por los códigos de `GET /me` → `permissions`. **Ningún fichero de `src/` decide por `roles[].code`** ni contiene los códigos de los roles predefinidos como literal. Lo que la interfaz oculta es comodidad; la autorización es del servidor (`INV-002`) |
-| `RN-CORE-24` | `meta.permissions` vacía (`[]` explícito) en una ruta `app`/`bare` significa «cualquier usuario autenticado» y **solo** se admite en rutas sin ningún permiso real que exigir sin inventarlo: las cuatro de autoservicio por identidad (`permisos.md §5.2`: Inicio, Contraseña, Sesiones, Seguridad de la cuenta), el muro de MFA (`mfa-enrollment-wall`, régimen `bare`: se alcanza precisamente cuando `GET /me` ya ha fallado con `403`, no hay ningún permiso previo que comprobar) y la página «no encontrada» (*catch-all*: «no encontrado» es igual para cualquiera, con o sin permisos). Lista cerrada de **seis** rutas en un test (`ADR-053 §2`, comprobación 5) — issue [#260](https://github.com/pirexia/plataforma-educativa/issues/260), corregido aquí: la redacción original solo citaba cuatro |
+| `RN-CORE-24` | `meta.permissions` vacía (`[]` explícito) en una ruta `app`/`bare` significa «cualquier usuario autenticado» y **solo** se admite en rutas sin ningún permiso real que exigir sin inventarlo: las cuatro de autoservicio por identidad (`permisos.md §5.2`: Inicio, Contraseña, Sesiones, Seguridad de la cuenta), el muro de MFA (`mfa-enrollment-wall`, régimen `bare`: se alcanza precisamente cuando `GET /me` ya ha fallado con `403`, no hay ningún permiso previo que comprobar) y la página «no encontrada» (*catch-all*: «no encontrado» es igual para cualquiera, con o sin permisos). Lista cerrada de **seis** rutas en un test (`ADR-053 §2`, comprobación 5) — issue [#260](https://github.com/pirexia/plataforma-educativa/issues/260), corregido aquí: la redacción original solo citaba cuatro. **Ampliada a siete en `1.9e`** con `core-profile` (perfil propio, autoservicio por identidad), por decisión del usuario (`OPEN-CORE-31` = B, §14.3.1) |
 | `RN-CORE-25` | El registro solo contiene entradas cuya ruta existe en el *router*. Ninguna entrada «próximamente» para módulos no implementados |
-| `RN-CORE-26` | Estado de sesión en memoria, recargado según §12.3.4. Ninguna vista vuelve a pedir `/me` para comprobar la sesión: lo hace el *guard* (se retira el `getMe()` de comprobación de `SessionsView` y análogas) |
+| `RN-CORE-26` | Estado de sesión en memoria, recargado según §12.3.4. Ninguna vista vuelve a pedir `/me` para comprobar la sesión: lo hace el *guard* (se retira el `getMe()` de comprobación de `SessionsView` y análogas). La recarga con la sesión ya `ready` no pasa por «cargando» (nota de §12.6, `CA-CORE-270`) |
 | `RN-CORE-27` | Cerrar sesión vacía el estado de sesión aunque `DELETE /auth/session` falle |
 | `RN-CORE-28` | `redirect` solo se acepta si es una ruta relativa del propio origen: empieza por `/`, no por `//` ni `/\`, no contiene esquema, y resuelve a una ruta registrada del régimen `app`. En otro caso se ignora y se va a `/` (evita la redirección abierta, `RSEC-OWASP`) |
 | `RN-CORE-29` | *Breakpoints* (§12.7) |
@@ -839,13 +843,16 @@ Vitest salvo los marcados **[Playwright]** (necesitan *layout* real, *media quer
 - **`CA-CORE-097`** [`RN-CORE-27`] · **Dado** un usuario con sesión, **cuando** cierra sesión (y también cuando `DELETE /auth/session` falla por red), **entonces** el estado de sesión queda vacío, se navega a `/entrar`, y al volver atrás con el historial no aparece el nombre del usuario anterior en ninguna parte del documento.
 - **`CA-CORE-098`** [`RN-CORE-26`, `ADR-053 §6`] · **Dado** un usuario con la sesión cargada, **cuando** tres peticiones concurrentes reciben un `403` genérico, **entonces** `GET /me` se pide una sola vez; **y cuando** reciben `403 module-disabled`, también se pide una sola vez.
 - **`CA-CORE-099`** [`ADR-053 §6`] · **Dado** un usuario en una vista cuyo permiso se ha vuelto inerte, **cuando** una petición de esa vista recibe `403 module-disabled` y la recarga de `/me` confirma que la ruta actual ya no está permitida, **entonces** la vista sigue mostrando el estado «módulo no disponible» (con el `detail` del servidor) y no pasa a «sin acceso» hasta la siguiente navegación.
+- **`CA-CORE-270`** [`RN-CORE-26`, `CA-CORE-098`, #300] · **Dado** un usuario con la sesión `ready`, **cuando** una vista dentro del *shell* recibe un `403` persistente de un recurso, **entonces** se hace una sola petición al recurso, una sola recarga de `/me`, la vista no se desmonta y se pinta «sin acceso» dentro del *shell*, sin bucle.
+- **`CA-CORE-271`** [`RN-CORE-26`, `CA-CORE-270`, #302] · **Dado** un usuario con la sesión `ready`, **cuando** un `403` dispara la recarga de `/me` y esta responde `401`, **entonces** la sesión pasa a anónima y la SPA navega a `/entrar?redirect=<ruta actual>` (mismo manejo que cualquier `401`), sin repetir el recurso en bucle.
+- **`CA-CORE-272`** [`RN-CORE-26`, `CA-CORE-270`, #303] · **Dado** un usuario con la sesión `ready`, **cuando** la recarga de `/me` tras un `403` devuelve otra identidad (`public_id`) u otro conjunto de permisos, **entonces** la vista se remonta (no conserva datos del usuario anterior) o, si la ruta ya no está permitida, se pinta «sin acceso»; con identidad y permisos idénticos no se remonta.
 
 #### Navegación y permisos
 
 - **`CA-CORE-100`** [`REQ-CORE-008`, `RPERM-011`] · **Dado** un usuario cuyo `/me.permissions` está vacío, **cuando** carga el *shell*, **entonces** la navegación contiene exactamente Inicio y las tres entradas de «Mi cuenta»; **y dado** uno con `proveedor_identidad.leer`, aparece además «SSO».
 - **`CA-CORE-101`** [`REQ-CORE-008` criterio 2, `RMOD-008`] · **Dado** un registro con una entrada de prueba de un módulo `fixture` que exige `fixture.leer`, **y** un `/me` sin ese permiso (como lo devuelve el servidor cuando el módulo está descontratado: permiso inerte, `REQ-PERM/api.md §7.2`), **cuando** se carga el panel, **entonces** el texto de esa entrada no aparece en ningún lugar del documento (menú, accesos directos, *breadcrumb*).
 - **`CA-CORE-102`** [`RN-CORE-23`] · **Dado** `src/` salvo tests, **entonces** ningún fichero contiene como literal ninguno de los 16 códigos de rol predefinidos ni accede a `roles[…].code`/`.code` de un rol para decidir; con casos fijos en el test que prueban que detecta `'administrador_centro'` y `roles.some(r => r.code === …)`.
-- **`CA-CORE-103`** [`RN-CORE-24`, `RN-CORE-25`, `ADR-053 §2`] · **Dado** el registro de navegación ensamblado, **entonces** toda entrada apunta a un nombre de ruta registrado en el *router* con `meta.layout === 'app'`, y las únicas rutas `app`/`bare` con `meta.permissions` vacía (`[]` explícito) son las de Inicio, Contraseña, Sesiones, Seguridad, el muro de MFA (`mfa-enrollment-wall`, `bare`) y el *catch-all* — **seis**, no cuatro (`RN-CORE-24`).
+- **`CA-CORE-103`** [`RN-CORE-24`, `RN-CORE-25`, `ADR-053 §2`] · **Dado** el registro de navegación ensamblado, **entonces** toda entrada apunta a un nombre de ruta registrado en el *router* con `meta.layout === 'app'`, y las únicas rutas `app`/`bare` con `meta.permissions` vacía (`[]` explícito) son las de Inicio, Contraseña, Sesiones, Seguridad, el muro de MFA (`mfa-enrollment-wall`, `bare`) y el *catch-all* — **seis**, no cuatro (`RN-CORE-24`). *(Desde `1.9e`, siete: se añade `core-profile`, §14.3.1, `CA-CORE-264`.)*
 - **`CA-CORE-106`** [`ADR-053 §2`] · **Dado** el registro ensamblado, **entonces**: (a) todo `id` de entrada y de bloque de panel es único en todo el registro y lleva el prefijo de su módulo (`auth.sessions`, `core.users`); (b) todo nombre de ruta es único entre todos los módulos; (c) toda `section` de toda entrada existe en el catálogo de `src/navigation/sections.ts`; con casos fijos en el propio test que introducen un duplicado o una sección inexistente y comprueban que el test los detecta.
 - **`CA-CORE-104`** [`RUX-004`] · **Dado** un usuario en `/cuenta/seguridad`, **entonces** la entrada correspondiente del menú lleva `aria-current="page"` y ninguna otra.
 - **`CA-CORE-105`** [`RN-CORE-33`] · **Dado** un usuario sin `modulo.leer` ni ningún otro permiso, **cuando** carga el panel, **entonces** las únicas peticiones a la API son `GET /tenant/branding` y `GET /me`.
@@ -1006,8 +1013,8 @@ Se redactó aquí por el precedente de 1.8 y porque el ámbito de escritura de q
 El issue #270 pide extraer la neutralización de fórmulas a una utilidad compartida solo para cadenas, «decidir en el ADR de 1.9», y aplicarla también a `ValidateUserImport::writeReport`. `SECURITY.md` (fila «Exportaciones generadas (CSV)») promete fijarla «como norma común en el ADR de tablas de datos y exportación de listados del paso 1.9».
 
 - **La regla es transversal y la fija `ADR-054 §10`**: aquí se recoge como `RN-CORE-47` y `RN-CORE-48` (§13.14.3).
-- **Su implementación es código de `apps/api`**: extraer `neutralizeCsvCell` de `GenerateAuditLogExport`, reescribir los tests que hoy usan `ReflectionMethod` y neutralizar `report.csv`. Meterlo en 1.9 mezclaría en un paso de `apps/web` un cambio de servidor sin consumidor nuevo: 1.9 no añade ningún generador de CSV.
-- **Decidido** (`OPEN-CORE-24`, decisión del usuario 2026-09-30): #270 se resuelve en una rama `fix/REQ-CORE-005-...` propia, **después** de la ratificación de `ADR-054` y **antes** del primer paso que añada un segundo generador de CSV. Esa rama aplica también el dialecto común de §13.14.3. No forma parte de 1.9.
+- *(Estado de partida; resuelto en #270, donde `neutralizeCsvCell` ya no existe.)* **Su implementación es código de `apps/api`**: extraer `neutralizeCsvCell` de `GenerateAuditLogExport`, reescribir los tests que hoy usan `ReflectionMethod` y neutralizar `report.csv`. Meterlo en 1.9 mezclaría en un paso de `apps/web` un cambio de servidor sin consumidor nuevo: 1.9 no añade ningún generador de CSV.
+- **Decidido** (`OPEN-CORE-24`, decisión del usuario 2026-09-30): #270 se resuelve en una rama `fix/REQ-CORE-005-...` propia, **después** de la ratificación de `ADR-054` y **antes** del primer paso que añada un segundo generador de CSV. Esa rama aplica también el dialecto común de §13.14.3. No forma parte de 1.9. **Implementado** en la rama `fix/REQ-CORE-005-auditoria-csv-rangos-y-filtros`: `App\Support\Csv\CsvWriter` (+ `CsvColumnType`), migración de `GenerateAuditLogExport` y `ValidateUserImport::writeReport`, y test de arquitectura `tests/Unit/Csv/CsvArchitectureTest.php` (`RN-CORE-47`/`48`, #270).
 
 ### 13.2 Estado de partida verificado (2026-09-30, rama `feature/1.9-tablas-de-datos`)
 
@@ -1024,7 +1031,7 @@ El issue #270 pide extraer la neutralización de fórmulas a una utilidad compar
 
   **Motivo de las tres excepciones** (decisión del usuario 2026-09-30): acotar 1.9 a un solo consumidor real con paridad estricta, en vez de migrar cuatro pantallas de `REQ-AUTH` sin tests de regresión suficientes en todas (issue #120 para `/administracion/mfa`). Las excepciones no son permanentes: la lista del test solo puede reducirse (`RN-CORE-53`).
 - **`MfaComplianceArea.vue`**, la que se migra: pagina por página contra `GET /mfa-compliance/users`, filtra por `state` con casillas `<input type="checkbox">` nativas, pinta `'—'` literal en celdas vacías (issue [#90](https://github.com/pirexia/plataforma-educativa/issues/90), sin convención decidida) y muestra filas antes de elegir rol (issue [#116](https://github.com/pirexia/plataforma-educativa/issues/116), Baja, no corregida a propósito). No tiene test automatizado (issue [#120](https://github.com/pirexia/plataforma-educativa/issues/120)).
-- **Exportación existente**: solo auditoría. `POST /audit-logs/exports` → `202` → `GET /data-exports/{id}` (estado `pendiente`/`generando`/`completada`/`fallida`, `download_url` firmada, `409` si aún no está lista, `410` si venció, solo el solicitante descarga). La generación la hace `GenerateAuditLogExport` en la cola `core-exports`, con `RN-CORE-36`. Su `neutralizeCsvCell` es privado, acepta `int|float` (`-5` pasa a `'-5`) y no cubre espacios iniciales (#270).
+- *(Estado de partida; `neutralizeCsvCell` ya no existe, resuelto en #270.)* **Exportación existente**: solo auditoría. `POST /audit-logs/exports` → `202` → `GET /data-exports/{id}` (estado `pendiente`/`generando`/`completada`/`fallida`, `download_url` firmada, `409` si aún no está lista, `410` si venció, solo el solicitante descarga). La generación la hace `GenerateAuditLogExport` en la cola `core-exports`, con `RN-CORE-36`. Su `neutralizeCsvCell` es privado, acepta `int|float` (`-5` pasa a `'-5`) y no cubre espacios iniciales (#270).
 - **Listados sin paginar que la SPA consumirá**: `GET /permissions` (deliberado, `REQ-PERM/api.md §2.1`: unos cientos de filas como máximo, la matriz lo necesita entero).
 - **Limitación de esta verificación**: la sesión de especificación no tenía herramienta de búsqueda en el árbol; el inventario de tablas de arriba lo aportó la sesión orquestadora. No se ha comprobado dónde viven exactamente los componentes de estado de §12.6 ni si `src/api/client.ts` tiene ya el ayudante de construcción de *query* con listas por comas que exige `ADR-038 §13.2`. Lo comprueba el implementador antes de escribir y lo reporta si no coincide. Si el test de `RN-CORE-53` (`CA-CORE-200`) encuentra **otra** tabla existente fuera de las cuatro, el implementador **para y lo reporta**: no la añade a la lista de excepciones ni la migra por su cuenta.
 
@@ -1050,6 +1057,8 @@ El issue #270 pide extraer la neutralización de fórmulas a una utilidad compar
   - `src/modules/auth/views/SessionsView.vue` (`<table>` crudo).
 
   **La lista solo puede reducirse, nunca crecer.** El test lo hace cumplir de dos formas: (a) la lista de excepciones debe ser un subconjunto de esas tres rutas, escritas como constante en el propio test, así que añadir una cuarta hace fallar el test; (b) toda excepción de la lista debe seguir incumpliendo la regla, así que un fichero ya migrado que siga en la lista también hace fallar el test y obliga a retirarlo. Las tres se migran en `1.9b` o en un paso posterior. **Consecuencia que el usuario debe tener presente**: §13.15 preveía que la matriz de concesión de `1.5b` entrase como excepción nominal; con esta regla, eso exige que la especificación de `1.5b` proponga modificar `RN-CORE-53` y que el usuario lo apruebe expresamente. Si el test encuentra otra tabla existente fuera de las tres y de `MfaComplianceArea.vue`, el implementador para y lo reporta (§13.2).
+
+  > **Nota de 1.5b (2026-10-05, modificación APROBADA expresamente por el usuario, `REQ-PERM/funcional.md §20.12`, `OPEN-PERM-08` = A)**: se añade a `RN-CORE-53` un párrafo y una **segunda lista**, distinta de la de excepciones de tablas de datos. «**Rejillas de edición.** Una rejilla de edición es una vista cuyas celdas son **controles de formulario** que editan un único recurso (no un listado de filas que se leen), y cuyo propósito es comparar ese recurso en dos ejes a la vez. Las rejillas de edición pueden importar `@/components/ui/table`, y solo ellas, si figuran en una **lista cerrada de rejillas de edición** escrita en el propio test, separada de la lista de excepciones de tablas de datos. Cada entrada nombra el fichero, la especificación que la justifica y la aprobación del usuario. **La lista de rejillas solo crece con una especificación aprobada expresamente por el usuario que la nombre**; ninguna sesión de implementación la amplía. La lista de excepciones de tablas de datos sigue vacía y sigue sin poder crecer. Una rejilla de edición no puede contener `<table` crudo ni importar `@tanstack/vue-table` (`RN-CORE-37` no tiene excepciones), y cumple `RN-CORE-44` salvo `rowHeader` único, con `th scope="row"` por recurso y `th scope="col"` por acción.» **Lista inicial**: `src/modules/core/components/roles/RolePermissionMatrix.vue`. `ADR-054 §1.4` no se edita (es inmutable): la precisión se registra aquí. Lo anterior de este apartado describe la lista de excepciones de tablas de datos y sigue vigente para ella.
 
 **Componentes que harán falta y cómo se añaden**: el menú de columnas y los filtros de enumerado necesitan casillas en menú (`dropdown-menu` ya vendorizado en 1.8 tiene elemento de casilla), y probablemente `checkbox` y `popover`. Se vendorizan por `docs/design-system.md §12.2`, sobre Reka UI ya instalada: **sin dependencia npm nueva**. Cada uno se somete a los tests de `§10`, y su texto propio pasa a *prop* (`RN-DS-24`).
 
@@ -1081,6 +1090,8 @@ El componente **no hace peticiones por su cuenta**: recibe del consumidor una fu
 |------|--------|------------|-----------------------|
 | **`page`** | Catálogo de entidades (`ADR-038 §4.3`) | Paginador numerado: primera, anterior, siguiente, última; «página X de Y»; total de resultados. `per_page` elegible entre **25 (defecto), 50 y 100**. No se ofrece nada por encima de 100: el servidor responde `422` y no recorta (`ADR-038 §4.3`) | Servidor (`manualPagination`, `manualSorting`, `manualFiltering`, `enableMultiSort: false`, `ADR-038 §13.3`) |
 | **`cursor`** | Flujo de eventos (`ADR-038 §4.4`) | **«Cargar más»** (un botón), que añade filas al final con `cursor=<next_cursor>&limit`. Sin total, sin números de página, sin «última» (`ADR-038 §4.5`), sin alimentar el modelo de paginación de TanStack (`pageCount: -1`). **Sin desplazamiento infinito**. Tope de filas acumuladas: `RN-CORE-52` | Servidor. Cambiar orden o filtros reinicia la lista **sin cursor**: un cursor emitido con otros filtros es `422` (`ADR-038 §4.4` regla 2) |
+
+> **Nota de 1.5b (2026-10-05, `REQ-PERM/funcional.md §20.11`, `RN-PERM-43`/`-44`)**: con `1.5b` los modos son **tres**. El modo **`local`** existe desde ese paso (`OPEN-CORE-26` = B; `ADR-054 §2.1`: aditivo, sin tocar el ADR): solo para colecciones documentadas como no paginadas o campos de un recurso, pidiéndolas enteras **una vez**; paginación, orden, filtros (`enum`, `boolean`) y búsqueda en cliente, sin exportación (`RN-CORE-46`). Lo anterior de este apartado («dos modos en 1.9, y solo dos») describe 1.9 y queda precisado, no derogado: `page` y `cursor` no cambian.
 
 - **`RN-CORE-56`** · **Reglas del modo `cursor`** (`ADR-054 §2.2`/`§2.3`):
   1. **Sin desplazamiento infinito**, en ningún paso del producto. `ADR-038 §4.5` lo admitía como alternativa; `ADR-054 §2.2` lo retira: deja inalcanzable con teclado todo lo que hay debajo de la lista, obliga a gestionar anuncios y foco sin una acción explícita del usuario y es incompatible con el tope de `RN-CORE-52`. La única forma de pedir más filas es activar «Cargar más».
@@ -1230,7 +1241,7 @@ La redacción original del plan la enumeraba como entregable. **Ningún requisit
 
 #### 13.14.2 Qué columnas contiene el fichero
 
-`OPEN-CORE-23` resuelta (opción A, decisión del usuario 2026-09-30): **esquema fijo por recurso, definido en servidor** y documentado en su OpenAPI, como hace hoy la auditoría, y no «las columnas visibles». El esquema fija las columnas, sus nombres, su orden **y el orden de las filas** (`ADR-054 §8.1`). La solicitud de exportación **no** envía la configuración de columnas del navegador **ni `sort`**. Idioma de la cabecera y de los valores enumerados del fichero: **abierto**, `OPEN-054-01` (§13.21). El fichero es un contrato estable para quien lo procesa después (una hoja de cálculo de secretaría, una importación en otro sistema). Que dependa de qué columnas ocultó cada usuario en su navegador lo hace irreproducible e inauditable (`data_exports.filters` no lo registraría).
+`OPEN-CORE-23` resuelta (opción A, decisión del usuario 2026-09-30): **esquema fijo por recurso, definido en servidor** y documentado en su OpenAPI, como hace hoy la auditoría, y no «las columnas visibles». El esquema fija las columnas, sus nombres, su orden **y el orden de las filas** (`ADR-054 §8.1`). La solicitud de exportación **no** envía la configuración de columnas del navegador **ni `sort`**. Idioma de la cabecera y de los valores enumerados del fichero: **resuelto**, contrato técnico sin traducir (`OPEN-054-01`, `ADR-055`, `RN-CORE-59`, §13.21). El fichero es un contrato estable para quien lo procesa después (una hoja de cálculo de secretaría, una importación en otro sistema). Que dependa de qué columnas ocultó cada usuario en su navegador lo hace irreproducible e inauditable (`data_exports.filters` no lo registraría).
 
 #### 13.14.3 Regla común de CSV (norma para todo generador, `ADR-054`)
 
@@ -1241,7 +1252,7 @@ Aplica a `apps/api`. La fija `ADR-054 §9`-`§10` para cumplir lo que `SECURITY.
   - **Cada generador declara el tipo de cada columna en su esquema** (§13.14.2), y la clase escribe según ese tipo. **La clase nunca deduce el tipo del contenido**: si lo dedujera, una cadena `"-5"` y un entero `-5` se tratarían igual según cómo llegaran. Tipos admitidos: texto, entero, fecha/instante y nulo. Los enteros (céntimos de `ADR-029` incluidos) se escriben sin apóstrofo (`-5` sigue siendo `-5`); los instantes, en ISO 8601 con desfase. Sin coma flotante: un decimal (una nota) lo formatea el generador como texto. Añadir un tipo decimal cuando haga falta es aditivo.
   - **La neutralización recibe solo cadenas** y se aplica a toda celda de texto y a la cabecera. Se antepone un apóstrofo si se cumple cualquiera de estas dos condiciones: (1) el primer carácter es `=`, `+`, `-`, `@`, tabulador, retorno de carro o salto de línea (`RN-CORE-36`, vigente); (2) **el primer carácter que no es espacio en blanco** (espacios Unicode incluidos) es `=`, `+`, `-` o `@`. Expresión única: `/^(?:[=+\-@\t\r\n]|[\s\p{Z}]+[=+\-@])/u`.
   - Sobre #270 (neutralizar todo valor que empiece por cualquier espacio en blanco): se adopta **la protección, no la regla**. La condición 2 cubre `" =1+1"` sin que `" Juan"` gane un apóstrofo inútil. Es defensa en profundidad, **no verificada** contra versiones concretas de Excel, LibreOffice o Sheets. Riesgo residual aceptado: signos de ancho completo (`＝`) y otras variantes Unicode.
-- **Dialecto CSV** (`OPEN-CORE-24`, opción A, decisión del usuario 2026-09-30; detalle en `ADR-054 §10.3`): **coma como separador, UTF-8 con BOM, fin de línea CRLF, comillas dobles de RFC 4180 (una comilla dentro del campo se duplica) y sin carácter de escape** (`escape: ''` en PHP), cabecera siempre presente y sin línea `sep=`. Hoy la auditoría se escribe con `fputcsv` por defecto (coma, sin BOM, `\n`, escape `\`); el cambio le llega en la rama `fix/` de #270 (§13.1.3), no en 1.9, va al `CHANGELOG.md`, y esa misma rama documenta en `docs/manual-usuario/admin.md` cómo abrir el fichero en Excel con configuración regional española (importación indicando el separador). No hay dato de uso real que respalde la elección (sin centro piloto, H0); si aparece, se revisa.
+- **Dialecto CSV** (`OPEN-CORE-24`, opción A, decisión del usuario 2026-09-30; detalle en `ADR-054 §10.3`): **coma como separador, UTF-8 con BOM, fin de línea CRLF, comillas dobles de RFC 4180 (una comilla dentro del campo se duplica) y sin carácter de escape** (`escape: ''` en PHP), cabecera siempre presente y sin línea `sep=`. Antes la auditoría se escribía con `fputcsv` por defecto (coma, sin BOM, `\n`, escape `\`); `CsvWriter` ya aplica este dialecto (rama `fix/REQ-CORE-005-auditoria-csv-rangos-y-filtros`, #270), el cambio consta en `CHANGELOG.md` y `docs/manual-usuario/admin.md` documenta cómo abrir el fichero en Excel con configuración regional española (importación indicando el separador). No hay dato de uso real que respalde la elección (sin centro piloto, H0); si aparece, se revisa.
 - **Texto libre y `data_exports.filters`** (`ADR-054 §9`, sustituye la alternativa que aquí quedaba abierta). `data_exports.filters` tiene política de auditoría `Full` (`datos.md` A.4): el `created` automático copia `filters` en `audit_logs.changes`, tabla inmutable con dos años de retención, y un `q` («López») rompería la garantía de `ADR-035 §1` (el tope de 256 caracteres de `ADR-035 §5` no lo atrapa). **Regla**: ningún texto libre introducido por un usuario llega a `audit_logs` a través de `data_exports`.
   - **`RN-CORE-58`** · **Ningún *endpoint* de exportación acepta `q`** mientras un paso no justifique lo contrario con un caso real. Si el listado del recurso acepta `q`, su exportación responde **`422`** cuando lo recibe, con código de error propio del recurso. No se ignora: ignorarlo produciría un fichero «filtrado» que no lo está.
   - Si un paso necesita exportar con búsqueda, la única vía admitida es la de `ADR-054 §9.2` (columna propia de `data_exports` fuera de `filters`, añadida por *expand*, y `DataExport` de `Full` a `Selective`). Descartadas: redactar `filters` entero, guardar un *hash* de `q` (prohibido por `ADR-035 §3`) y confiar en el tope de tamaño.
@@ -1263,12 +1274,12 @@ Sin *worker* de colas desplegado (issue #128, Alta), **ninguna exportación term
 
 | Consumidor | Paso | Modo | Qué usa del componente | Observaciones |
 |------------|------|------|------------------------|---------------|
-| Usuarios (`GET /users`: `status`, `role`, `q`) | 1.9b | `page` | Filtros enumerado + texto, orden, columnas, tarjetas, exportación | **Exportación sin *endpoint***: `POST /users/exports` no existe. Si 1.9b lo quiere, es trabajo de `apps/api` con `RN-CORE-47`/`48`, paridad de filtros con `GET /users` salvo `q` y `RN-CORE-58` (`q` ⇒ `422`); en la tabla, exportar queda deshabilitado con búsqueda activa (`RN-CORE-57`). Antes, el usuario decide `OPEN-054-01` (idioma del CSV) |
+| Usuarios (`GET /users`: `status`, `role`, `q`) | 1.9b | `page` | Filtros enumerado + texto, orden, columnas, tarjetas, exportación | **Exportación sin *endpoint***: `POST /users/exports` no existe. Si 1.9b lo quiere, es trabajo de `apps/api` con `RN-CORE-47`/`48`, paridad de filtros con `GET /users` salvo `q` y `RN-CORE-58` (`q` ⇒ `422`); en la tabla, exportar queda deshabilitado con búsqueda activa (`RN-CORE-57`). Cabecera y valores técnicos sin traducir (`ADR-055`, `RN-CORE-59`; `OPEN-054-01` resuelta) |
 | Invitaciones, importaciones | 1.9b | `page` | Filtros, orden, estados | — |
 | Roles (solo lectura en 1.1; CRUD desde 1.5) | 1.9b / 1.5b | `page` | Listado | — |
 | Auditoría (`GET /audit-logs`) | 1.9b | `cursor` | Filtros de rango, enumerados, «cargar más», tope (`RN-CORE-52`), **exportación ya existente** | Primer consumidor real de la exportación y del modo `cursor`. **Antes de conectarlo**, `1.9b` resuelve los dos hallazgos de §13.20 (puntos 5 y 6): nombres del rango `from`/`to` frente a `occurred_at_from`/`occurred_at_to`, y paridad de filtros de `POST /audit-logs/exports` con `GET /audit-logs` |
-| Permisos efectivos de un usuario (`GET /users/{id}/effective-permissions`) | 1.5b | `local` o `page` según su contrato | Listado con procedencia | El implementador de 1.5b comprueba la paginación en `REQ-PERM/api.md`. Si no está paginado, 1.5b, como primer consumidor real, añade el modo `local` dentro de `src/data-table` (`OPEN-CORE-26`, opción B; `ADR-054 §2.1`) |
-| **Matriz de concesión** (recurso × acción × ámbito) | 1.5b | — | **No es una tabla de datos** en el sentido de este paso: es una rejilla de edición con celdas que son controles | Se preveía construirla a medida en 1.5b sobre `components/ui/table` como excepción nominal de `RN-CORE-53`. Con la regla vigente (la lista de excepciones solo se reduce), **1.5b tiene que proponer la modificación de `RN-CORE-53` y el usuario aprobarla** antes de construirla así |
+| Permisos efectivos de un usuario (`GET /users/{id}/effective-permissions`) | 1.5b | `local` o `page` según su contrato | Listado con procedencia | El implementador de 1.5b comprueba la paginación en `REQ-PERM/api.md`. Si no está paginado, 1.5b, como primer consumidor real, añade el modo `local` dentro de `src/data-table` (`OPEN-CORE-26`, opción B; `ADR-054 §2.1`). **Implementado en 1.5b** (`REQ-PERM/funcional.md §20.10`, `§20.11`): la respuesta no está paginada (`api.md §7.3`), así que la pantalla usa el modo `local` (`tableId` `core.effective_permissions`); las concesiones de la ficha de un rol son el segundo consumidor (`core.role_grants`) |
+| **Matriz de concesión** (recurso × acción × ámbito) | 1.5b | — | **No es una tabla de datos** en el sentido de este paso: es una rejilla de edición con celdas que son controles | Se preveía construirla a medida en 1.5b sobre `components/ui/table` como excepción nominal de `RN-CORE-53`. Con la regla vigente (la lista de excepciones solo se reduce), **1.5b tiene que proponer la modificación de `RN-CORE-53` y el usuario aprobarla** antes de construirla así. **Implementada en 1.5b** (`REQ-PERM/funcional.md §20.8`/`§20.12`): `RolePermissionMatrix.vue`, rejilla de edición aprobada el 2026-10-05, segunda lista de `RN-CORE-53` |
 | `MfaComplianceArea.vue` | **1.9** | `page` | Filtro enumerado `state`, paginación, acción por fila | Se migra (`OPEN-CORE-28`, opción A, decisión del usuario 2026-09-30) |
 | `MfaExemptionsArea.vue`, `AdminSsoView.vue`, `SessionsView.vue` | **1.9b** o posterior | Por decidir en ese paso | Por decidir en ese paso | **Excepciones explícitas** de `RN-CORE-53` en 1.9 (§13.2, decisión del usuario 2026-09-30). Su migración retira la entrada correspondiente de la lista del test |
 
@@ -1305,8 +1316,9 @@ Sin *worker* de colas desplegado (issue #128, Alta), **ninguna exportación term
 | `RN-CORE-56` | Modo `cursor`: «Cargar más» como botón, sin desplazamiento infinito; un fallo de carga adicional conserva las filas y «Reintentar» repite con el mismo `cursor` (§13.5) |
 | `RN-CORE-57` | Con `q` activo, el control de exportación está deshabilitado y explica por qué; la solicitud nunca lleva `q` ni `sort` (§13.14.1) |
 | `RN-CORE-58` | **(servidor, norma común)** Ningún *endpoint* de exportación acepta `q`: `422` con código propio del recurso; ningún texto libre llega a `audit_logs` por `data_exports.filters` (§13.14.3) |
+| `RN-CORE-59` | CSV de datos: cabeceras = `snake_case` del campo de la API, valores enumerados = código técnico sin traducir, formatos independientes del idioma; el generador no llama a ningún catálogo de traducción (`ADR-055 §2`) |
 
-**Issues abiertos relacionados con estas reglas** (detalle en §13.20): [#266](https://github.com/pirexia/plataforma-educativa/issues/266) (nombres del rango de fechas de auditoría, contra `ADR-038 §5.2`; afecta a la regla «`id` de columna = parámetro» de §13.4 en la pantalla de auditoría de `1.9b`), [#267](https://github.com/pirexia/plataforma-educativa/issues/267) (`POST /audit-logs/exports` sin paridad de filtros con su listado, `ADR-054 §8.2`, `api.md §13.4`) y [#273](https://github.com/pirexia/plataforma-educativa/issues/273) (`QUEUE_CONNECTION` en `operacion.md §2`, que condiciona el diagnóstico de `RN-CORE-49`). Ninguno bloquea 1.9; los dos primeros se resuelven antes de que `1.9b` conecte la pantalla de auditoría.
+**Issues relacionados con estas reglas (#266, #267 y #273 resueltos en la rama `fix/REQ-CORE-005-auditoria-csv-rangos-y-filtros`; los textos de abajo describen el estado de partida de 1.9)** (detalle en §13.20): [#266](https://github.com/pirexia/plataforma-educativa/issues/266) (nombres del rango de fechas de auditoría, contra `ADR-038 §5.2`; afecta a la regla «`id` de columna = parámetro» de §13.4 en la pantalla de auditoría de `1.9b`), [#267](https://github.com/pirexia/plataforma-educativa/issues/267) (`POST /audit-logs/exports` sin paridad de filtros con su listado, `ADR-054 §8.2`, `api.md §13.4`) y [#273](https://github.com/pirexia/plataforma-educativa/issues/273) (`QUEUE_CONNECTION` en `operacion.md §2`, que condiciona el diagnóstico de `RN-CORE-49`). Ninguno bloquea 1.9; los dos primeros se resuelven antes de que `1.9b` conecte la pantalla de auditoría.
 
 ### 13.17 Casos límite
 
@@ -1404,12 +1416,14 @@ Vitest salvo los marcados **[Playwright]**. Cada test cita su ID (`INV-015`). Co
 - **`CA-CORE-196`** [`INV-009`] · **Dado** los cuatro `locales/*.json`, **entonces** toda clave nueva de `dataTable.*` existe en `es`, `en`, `de` y `fr`, y `npm run lint:i18n` termina sin hallazgos; **y** `CA-CORE-083` (tipografía en `rem`) se amplía a `src/data-table/**`.
 - **`CA-CORE-197`** [`ADR-052`] · **Dado** los componentes vendorizados que añada 1.9 (§13.3), **entonces** pasan los tests de `docs/design-system.md §10` sin excepción nueva, y no tienen texto propio (`RN-DS-24`).
 - **`CA-CORE-200`** [`RN-CORE-53`, `OPEN-CORE-29`] · **Dado** los ficheros de producción de `src/` salvo tests, fuera de `src/data-table/` y fuera de la lista cerrada de excepciones del propio test, **entonces** ninguno importa `@/components/ui/table` (ni por ruta relativa que resuelva a `src/components/ui/table`) ni `@tanstack/vue-table`, y ningún `.vue` fuera además de `src/components/ui/` contiene `<table`; **y dado** la lista de excepciones, **entonces** es un subconjunto de exactamente estas tres rutas, escritas como constante en el test: `src/modules/auth/components/admin/MfaExemptionsArea.vue`, `src/modules/auth/views/AdminSsoView.vue` y `src/modules/auth/views/SessionsView.vue` (una cuarta ruta hace fallar el test); **y** cada ruta que siga en la lista sigue incumpliendo la regla (un fichero ya migrado que siga en la lista hace fallar el test); **y** `MfaComplianceArea.vue` no está en la lista. Con casos fijos que prueban que el test detecta un *import* estático, uno dinámico y uno relativo de `@/components/ui/table`, un `<table` crudo en un `.vue`, una excepción añadida fuera de las tres y una excepción que ya no incumple.
+  > **Nota de 1.5b (2026-10-05)**: `CA-CORE-200` se reescribe para comprobar **dos listas** (`REQ-PERM/funcional.md §20.12`, `CA-PERM-129`): la de excepciones de tablas de datos (subconjunto de las tres rutas originales; **vacía** desde 1.9f, `CA-CORE-255`) y la de rejillas de edición (igual a la constante aprobada, `RolePermissionMatrix.vue`), con casos fijos que prueban que una rejilla no listada que importa `@/components/ui/table` falla, que añadir una segunda entrada sin cambiar la constante falla y que una entrada que ya no importa la tabla base falla. El test vigente está en `apps/web/src/data-table/architecture.spec.ts`.
 - **`CA-CORE-201`** [`OPEN-CORE-27`, `INV-009`, issue #90] · **Dado** una fila de prueba con un campo nulo, **cuando** se pinta en tabla y en tarjeta, **entonces** la celda y el `dd` contienen la marca visual con `aria-hidden="true"` y un texto solo para lector de pantalla igual a la traducción de `dataTable.emptyValue` en el idioma activo (comprobado en `es`, `en`, `de` y `fr`); **y** ni `src/data-table/**` ni `MfaComplianceArea.vue` contienen `'—'` como literal.
 
 #### Estado en la URL (`RN-CORE-54`, `OPEN-CORE-22`)
 
 - **`CA-CORE-198`** [`RN-CORE-54`, `ADR-054 §6`] · **Dado** una tabla de prueba que declara el estado en URL, con página 3, `sort=-created_at` y `status=activo`, **cuando** se recarga el documento, **entonces** se restaura la misma consulta desde la URL; **y** el texto de búsqueda `q` no aparece nunca en la URL ni en `history.state`; **y dado** una tabla de prueba en modo `cursor` que declara el estado en URL, tras «cargar más» la URL no contiene `cursor` y, al recargar, la primera petición no lleva `cursor`; **y dado** una tabla de prueba que **no** declara el estado en URL, ni paginar, ni ordenar, ni filtrar modifican la URL de la ruta.
 - **`CA-CORE-206`** [`RN-CORE-54`, `OPEN-CORE-28`] · **Dado** `MfaComplianceArea` migrada, **cuando** se marcan filtros y se pagina, **entonces** la URL de `/administracion/mfa` no cambia (la tabla no declara estado en URL, paridad estricta).
+- **`CA-CORE-207`** [`RN-CORE-59`, `ADR-055`] · **Dado** un generador de CSV de datos y dos solicitantes con idioma distinto, **cuando** ambos exportan el mismo conjunto, **entonces** los dos ficheros son idénticos byte a byte salvo el nombre, y la cabecera coincide con el esquema documentado en OpenAPI; ningún generador de `apps/api/app` referencia `__()`/`trans()` para cabeceras ni valores. _(Verificación pendiente: se implementa con el primer generador nuevo de `1.9b`; hoy solo existe el de auditoría.)_
 
 #### Retirado
 
@@ -1423,7 +1437,7 @@ Vitest salvo los marcados **[Playwright]**. Cada test cita su ID (`INV-015`). Co
 - `docs/design-system.md §12`: componentes vendorizados nuevos, si los hay (`checkbox`, `popover`…).
 - `docs/i18n.md`: espacio de nombres `dataTable.*`.
 - `PRIVACY.md §2.1b`: clave `plataforma.table.<tableId>` (`RN-CORE-43`).
-- `SECURITY.md`, fila «Exportaciones generadas (CSV)»: añadir el **salto de línea (LF)** a la lista de caracteres, que hoy omite aunque `RN-CORE-36` y el código lo incluyen (hallazgo 3 de `ADR-054`), y sustituir «se fijará como norma común en el ADR… cuando exista» por la referencia a `ADR-054 §9`-`§10`, a la segunda condición de neutralización (primer carácter no blanco) y a `RN-CORE-46`-`48`/`58`.
+- *(Hecho: `SECURITY.md` 0.3.7 ya está corregido.)* `SECURITY.md`, fila «Exportaciones generadas (CSV)»: añadir el **salto de línea (LF)** a la lista de caracteres, que hoy omite aunque `RN-CORE-36` y el código lo incluyen (hallazgo 3 de `ADR-054`), y sustituir «se fijará como norma común en el ADR… cuando exista» por la referencia a `ADR-054 §9`-`§10`, a la segunda condición de neutralización (primer carácter no blanco) y a `RN-CORE-46`-`48`/`58`.
 - `ARCHITECTURE.md` (frontend: `src/data-table/`, importación única de TanStack), `CHANGELOG.md`.
 - `docs/manual-usuario/admin.md`: cómo filtrar, ordenar, configurar columnas y exportar (sección común para los manuales que existan, issue #65).
 - `PLAN-IMPLEMENTACION.md`: la línea de 1.9 **ya se actualizó** al aprobar la especificación (2026-09-30, sin virtualización, `OPEN-CORE-19`); al cerrar, se marca el paso como terminado.
@@ -1432,12 +1446,12 @@ Vitest salvo los marcados **[Playwright]**. Cada test cita su ID (`INV-015`). Co
 
 No se corrigen aquí; se reportan:
 
-1. **`operacion.md §2` decía `QUEUE_CONNECTION = redis`**, mientras `CLAUDE.md §1` y `apps/api/config/queue.php` dicen `database`, sin *worker* desplegado (#128). Issue [#273](https://github.com/pirexia/plataforma-educativa/issues/273) (Media, detectado por `doc-reviewer`): **`operacion.md §2` ya está corregido** en la rama `feature/1.9-tablas-de-datos`. Queda un resto en `operacion.md §3` y §8, que siguen describiendo Redis/Horizon como sistema de colas vigente (fila «Redis» de §3 y síntoma «Importación queda en `subido`» de §8). Son secciones de 1.1, fuera de §13: se reportan, no se corrigen aquí.
+1. **`operacion.md §2` decía `QUEUE_CONNECTION = redis`**, mientras `CLAUDE.md §1` y `apps/api/config/queue.php` dicen `database`, sin *worker* desplegado (#128). Issue [#273](https://github.com/pirexia/plataforma-educativa/issues/273) (Media, detectado por `doc-reviewer`): **`operacion.md §2` ya está corregido** en la rama `feature/1.9-tablas-de-datos`. El resto en `operacion.md §3` y §8 (fila «Redis» y síntoma «Importación queda en `subido`») **se corrigió después** en la rama `fix/REQ-CORE-005-auditoria-csv-rangos-y-filtros` (#273, cerrado).
 2. **`data_exports.filters` con política `Full`** copiaría en `audit_logs` cualquier filtro de texto libre con un dato personal (§13.14.3, último punto). No ocurre hoy (la exportación de auditoría no acepta `q`). **Resuelto como norma por `ADR-054 §9`** (`RN-CORE-58`), ratificado.
 3. **`MfaComplianceArea.vue` usa `'—'` literal** (issue #90) e importa `useI18n` de `vue-i18n` directamente para obtener `locale` (patrón que issue #259 señala en otras vistas). Se resuelve en esa vista con la migración (`OPEN-CORE-28`, opción A) y el valor vacío común (`OPEN-CORE-27`, opción A); #90 y #259 siguen abiertos para las demás vistas.
 4. **`SECURITY.md` promete para 1.9 una norma común de CSV** que es de servidor, en un paso que el plan y el encargo sitúan en `apps/web`. §13.1.3 lo resuelve separando decisión (`ADR-054 §10`) e implementación (#270).
-5. **Nombres del rango de fechas de auditoría** (hallazgo 1 de `ADR-054`, severidad Media, issue [#266](https://github.com/pirexia/plataforma-educativa/issues/266)): `GET /audit-logs` y `POST /audit-logs/exports` usan `from`/`to` (código y `api.md` de este módulo), no `occurred_at_from`/`occurred_at_to` como exige `ADR-038 §5.2`. Con la regla «`id` de columna = parámetro» (`ADR-038 §13.3`), la pantalla de auditoría de `1.9b` enviaría un rango que el servidor ignora en silencio. No afecta a 1.9 (no conecta esa pantalla). Propuesta del ADR: en `1.9b`, antes de la pantalla, aceptar además los nombres conformes y retirar los antiguos por *expand/contract*.
-6. **`POST /audit-logs/exports` sin paridad de filtros con su listado** (hallazgo 2 de `ADR-054`, severidad Media, issue [#267](https://github.com/pirexia/plataforma-educativa/issues/267)): le faltan `actor_id`, `actor_type`, `auditable_id` y `module`, y por `ADR-038 §5.2` no da error; el fichero no corresponde a lo que el usuario ve filtrado (el ámbito del permiso sí se sigue aplicando en el trabajo). Incumple `ADR-054 §8.2`. Se corrige antes de que `1.9b` conecte el botón de exportar de auditoría.
+5. **Nombres del rango de fechas de auditoría** (hallazgo 1 de `ADR-054`, severidad Media, issue [#266](https://github.com/pirexia/plataforma-educativa/issues/266)): `GET /audit-logs` y `POST /audit-logs/exports` usan `from`/`to` (código y `api.md` de este módulo), no `occurred_at_from`/`occurred_at_to` como exige `ADR-038 §5.2`. Con la regla «`id` de columna = parámetro» (`ADR-038 §13.3`), la pantalla de auditoría de `1.9b` enviaría un rango que el servidor ignora en silencio. No afecta a 1.9 (no conecta esa pantalla). Propuesta del ADR: en `1.9b`, antes de la pantalla, aceptar además los nombres conformes y retirar los antiguos por *expand/contract*. **Resuelto** en la rama `fix/REQ-CORE-005-auditoria-csv-rangos-y-filtros` (#266) con un renombrado directo, sin periodo de compatibilidad, porque no hay producción (`H0` abierto) y el único consumidor es la SPA.
+6. **`POST /audit-logs/exports` sin paridad de filtros con su listado** (hallazgo 2 de `ADR-054`, severidad Media, issue [#267](https://github.com/pirexia/plataforma-educativa/issues/267)): le faltan `actor_id`, `actor_type`, `auditable_id` y `module`, y por `ADR-038 §5.2` no da error; el fichero no corresponde a lo que el usuario ve filtrado (el ámbito del permiso sí se sigue aplicando en el trabajo). Incumple `ADR-054 §8.2`. Se corrige antes de que `1.9b` conecte el botón de exportar de auditoría. **Resuelto** en la rama `fix/REQ-CORE-005-auditoria-csv-rangos-y-filtros` (#267).
 7. **Tres tablas existentes fuera del componente** (`MfaExemptionsArea.vue`, `AdminSsoView.vue`, `SessionsView.vue`, §13.2): no se migran en 1.9 por decisión del usuario (2026-09-30) y quedan como excepciones explícitas de `RN-CORE-53`. Su migración es trabajo de `1.9b` o de un paso posterior; `PLAN-IMPLEMENTACION.md` debería recogerlo en la línea de `1.9b` (fuera del ámbito de escritura de esta especificación).
 
 ### 13.21 Preguntas abiertas del paso 1.9
@@ -1448,9 +1462,13 @@ No se corrigen aquí; se reportan:
 
 | ID | Pregunta | Bloquea | Quién decide |
 |----|----------|---------|--------------|
-| `OPEN-054-01` | Idioma de la cabecera y de los valores enumerados del CSV | `1.9b` (antes del primer *endpoint* de exportación nuevo). **No bloquea 1.9** | Usuario |
+| `OPEN-054-01` | Idioma de la cabecera y de los valores enumerados del CSV | **RESUELTA** (2026-10-01, `ADR-055`) | Usuario |
 
-#### `OPEN-054-01` · Idioma de la cabecera y de los valores enumerados del CSV — **abierta; bloquea `1.9b`, no `1.9`**
+#### `OPEN-054-01` · Idioma de la cabecera y de los valores enumerados del CSV — **RESUELTA** (2026-10-01, decisión del usuario, `ADR-055` ACEPTADA)
+
+> **Decisión: opción A ahora, con C como ampliación posterior.** Un CSV de datos generado por la API es un **contrato técnico estable**, no un «documento generado» en el sentido de `ADR-021`: cabeceras = nombre `snake_case` del campo en la API, valores enumerados = código técnico sin traducir, y el fichero (formatos incluidos) no depende de quién lo solicita. La interfaz que dispara y comunica la exportación sigue en los cuatro idiomas (`INV-009`). C (columnas `<col>_label` al final, en el idioma del solicitante) queda como ampliación aditiva con demanda de un centro piloto (`ADR-055 §3`). Regla: `RN-CORE-59`; criterio: `CA-CORE-207`. **`1.9b` queda sin este bloqueo.**
+
+_Texto original de la pregunta, conservado como contexto:_
 
 > Planteada por `ADR-054` (sección «Preguntas abiertas»), que **no la decide**. Esta especificación tampoco: no hay requisito que precise si un CSV de datos es un «documento generado» en el sentido de `CLAUDE.md §7` (cuatro idiomas obligatorios en los documentos generados), y decidirlo aquí sería inventar un requisito.
 
@@ -1614,7 +1632,7 @@ No merecen ADR (se deciden en esta especificación): la espera de búsqueda, las
 6. **Tablas existentes** (precisión de `OPEN-CORE-29`): 1.9 migra solo `MfaComplianceArea.vue`, con paridad estricta; `MfaExemptionsArea.vue`, `AdminSsoView.vue` y `SessionsView.vue` quedan como excepciones explícitas de `RN-CORE-53`, se migran en `1.9b` o posterior, y la lista solo puede reducirse (§13.2, §13.3, `CA-CORE-200`).
 7. `OPEN-CORE-18` (opción A): la especificación se queda aquí.
 
-`OPEN-054-01` (idioma del CSV) sigue abierta y **no bloquea 1.9**: bloquea `1.9b`.
+`OPEN-054-01` (idioma del CSV) **resuelta** el 2026-10-01 por `ADR-055`.
 
 **Punto que el usuario debe tener presente, sin bloquear 1.9**: con «la lista de excepciones solo se reduce», la matriz de concesión de `1.5b` ya no puede entrar como excepción nominal sin más; su especificación tendrá que proponer modificar `RN-CORE-53` y el usuario aprobarlo (§13.3, §13.15).
 
@@ -1641,7 +1659,1219 @@ Mantenimiento: el proyecto está activo (tres mantenedores en el registro, líne
 4. **Importaciones de `src/data-table/**`.** Además de los destinos de `§13.3`, importa los tres componentes de estado de `§12.6` (`@/layouts/components/{EmptyState,ErrorState,LoadingState}.vue`) y `@/layouts/errorState` — los «componentes de estado de §12.6» que `RN-CORE-38` permite, nombrados uno a uno en el test (`CA-CORE-194`). Para el idioma activo usa `i18n.global.locale` de `@/i18n` (no importa `vue-i18n`).
 5. **`per_page` en `MfaComplianceArea`.** La tabla migrada envía siempre `per_page` (25 por defecto, `ADR-038 §4.3`); antes la petición lo omitía. Es el mismo valor que aplica el servidor, así que el resultado no cambia (paridad de `OPEN-CORE-28`).
 6. **Claves nuevas de `REQ-AUTH`.** `auth.mfaAdmin.compliance.tableCaption` y `.resetActionFor` («Restablecer MFA de {name}», `CA-CORE-186`), en los cuatro idiomas. Las claves `previousPage`/`nextPage`/`pageIndicator` de esa misma sección se conservan: siguen en uso por `MfaExemptionsArea.vue`.
-7. **`tableId` y escaneo** (`CA-CORE-176`): el test recorre `src/modules/**` buscando `table-id="…"`, `:table-id="'…'"` y `tableId: …`; cualquier forma no literal falla. La tabla migrada declara `auth.mfa_compliance`.
-8. **Foco.** El paginador lleva el foco al control habilitado más cercano cuando el pulsado queda deshabilitado; «Cargar más» lo deja en el botón y, al desaparecer (tope o final de la lista), lo pasa al aviso; «Limpiar filtros» lo lleva a la búsqueda (`§13.11`).
 
-**Verificación** (contra el contenedor de referencia `plataforma-educativa_web`, con el *worktree* montado; Playwright con el Chromium del *host* sobre un servidor de Vite propio): ver `CHANGELOG.md` y `memory.md` para el recuento final.
+---
+
+## 14. Paso 1.9b · Pantallas de gestión pendientes de `REQ-CORE`
+
+| Campo | Valor |
+|-------|-------|
+| Paso | **1.9b** (`PLAN-IMPLEMENTACION.md`, Bloque B), añadido por `OPEN-CORE-12` (§12.14), dividido en `1.9b`-`1.9f` (§14.2); **1.9c** (importación de usuarios y catálogo de tipos de documento) y **1.9d** (auditoría y roles de solo lectura, §14.25) implementados |
+| Requisitos de origen | `REQ-CORE-002` (configuración, *branding*, consulta de módulos contratados), `REQ-CORE-003` (usuarios, invitaciones, importación y perfil propio, §4.9), `REQ-CORE-004` (roles, solo lectura en este paso), `REQ-CORE-005` (auditoría y su exportación). Transversales: `RUX-003`/`-004`/`-006`, `RUX-RESP-004`/`-005`/`-007`, `RUX-BRAND-001` a `-004` y `-006`, `RNF-UX-002`, `RNF-LIM-004`, `RPERM-003`/`-011`/`-013`, `INV-002`/`-003`/`-006`/`-009`/`-010`/`-011`/`-012` |
+| Alcance | **Fijado por el usuario**: usuarios, invitaciones, importación, roles (solo lectura), auditoría, configuración del centro y activos de marca, con el componente de 1.9 (`RN-CORE-53`), **más** la migración al componente de `MfaExemptionsArea.vue`, `AdminSsoView.vue` y `SessionsView.vue`, **más** (ampliación decidida por el usuario el 2026-10-01, `OPEN-CORE-31` = B) la pantalla de módulos contratados en solo lectura y el perfil propio de autoservicio, ambos en `1.9e` |
+| Decisiones vinculantes | `ADR-038`, `ADR-044`, `ADR-052`, `ADR-053`, `ADR-054`, `ADR-055` (todas ACEPTADAS) y §12/§13 de este documento |
+| Depende de | 1.1 (API de §2-§8 de `api.md`), 1.2 (sesión), 1.5 (`/me.permissions`, resolutor), 1.7 (*design system*, `useTenantBranding().refresh()`, `contrast.ts`), 1.8 (*shell*, registro de navegación, estados de §12.6), 1.9 (`src/data-table/`), `fix/` de #266/#267/#270/#273 (PR #282) y `ADR-055`. **Todas implementadas.** **Dependencia operativa no resuelta**: sin *worker* de colas (#128, Alta), ni la importación ni ninguna exportación terminan fuera de un entorno con `queue:work` arrancado a mano (§14.15) |
+| Código afectado | `apps/web` (pantallas, `shell.ts` de `core`, ampliaciones aditivas de `src/data-table` de `OPEN-CORE-40` = A) **y `apps/api`** (§14.11: dos *endpoints* nuevos —S1 y, si `OPEN-CORE-34` = B, S10—, cuatro cambios compatibles —S5 a S8— y tres correcciones —S3, S4 y S9—) **y una migración *expand*** (S2, `datos.md` Parte D) **y, en 1.9c, una migración de datos sin cambio de esquema** (`datos.md` Parte E) |
+| Estado | **APROBADA** (2026-10-01, decisión del usuario): `OPEN-CORE-30` (A), `-31` (B), `-32` (B), `-39` (A), `-40` (A), `-42` (A) y `-43` (A) resueltas. **Sub-paso `1.9b` IMPLEMENTADO** (2026-10-02; notas y desviaciones en §14.22; pendiente de revisión independiente); **Sub-paso `1.9c` IMPLEMENTADO** (2026-10-02/03; notas y desviaciones en §14.23; revisado por `db-reviewer`, `security-reviewer` y `doc-reviewer` sin hallazgos Crítico/Alto; **pendiente de mezcla**); **Sub-paso `1.9d` IMPLEMENTADO y mezclado** (PR #320); **Sub-paso `1.9e` IMPLEMENTADO** (2026-10-03; notas y desviaciones en §14.26; revisado por `security-reviewer` y `doc-reviewer` sin hallazgos Crítico/Alto; pendiente de mezcla); **Sub-paso `1.9f` IMPLEMENTADO** (2026-10-04; `OPEN-CORE-54`/`-55`/`-56` = A; cobertura en §14.13.6; revisado por `security-reviewer` y `doc-reviewer` sin hallazgos Crítico/Alto; pendiente de mezcla), que **cierra la serie 1.9b-1.9f** |
+
+### 14.0 Verificación del estado de partida (2026-10-01, rama `feature/REQ-CORE-1.9b-pantallas-de-gestion`, `495d19c`)
+
+Lectura de código, no ejecución. La sesión de especificación no tenía herramienta de búsqueda en el árbol: se leyeron los ficheros por ruta conocida y lo que no se pudo localizar queda dicho como tal.
+
+- **Frontend**: `src/modules/core/` tiene `api/` (clientes tipados de todos los *endpoints* de 1.1, incluidos `listUsers`, `listUserImports`, `executeUserImport`, `listAuditLogs` con `occurred_at_from/to`, `exportAuditLogs`, `getDataExport`), `types/`, `locales/` y un `shell.ts` con **una sola** entrada de navegación (`core.home`) y **ninguna ruta**. No hay ninguna vista de `REQ-CORE`. El catálogo de secciones (`src/navigation/sections.ts`) ya tiene `administracion`. `RouteMeta` ya admite `titleKey`, `breadcrumbKey` y `breadcrumbParent` (los usa `src/modules/auth/shell.ts`).
+- **`src/data-table/`** (1.9): filtros cerrados `enum` (siempre **múltiple**), `dateRange` y `boolean` (tres estados); **sin valor inicial de filtro**, sin filtro de selección única y sin filtro de entidad. `DataTableExportConfig.status` trata **todo `409`** como «aún no está lista» (`useExportFlow.ts`).
+- **Servidor**: rutas en `apps/api/app/Modules/Core/Http/routes.php`. Hallazgos que condicionan este paso (todos detallados en §14.16):
+  1. `GET /data-exports/{id}` responde **`409 core.validation.export_failed`** a una exportación `fallida` (`DataExportsController::show()`), no `200` con `status: "fallida"` como describen `api.md §8` y §13.14.1 punto 5. Con el cliente de 1.9, una exportación fallida **se queda en «Preparando…» hasta agotar los 10 minutos** de `RN-CORE-49`.
+  2. La ruta `GET /data-exports/{id}` lleva fijo `permission:auditoria.exportar` («cuando otro módulo use `ExportRequestService` con un `kind` propio, este *middleware* tendrá que resolverse por `kind`», comentario en `routes.php`). Ningún segundo `kind` funciona sin cambiarla.
+  3. `GET /users` acepta `sort ∈ {family_name_1, -family_name_1, created_at, -created_at, email}`: **falta `-email`**. Una columna `email` ordenable enviaría `-email` en su segundo estado (`RN-CORE-39`) y recibiría `422`.
+  4. `GET /users/{id}` **no** admite `include_deleted` (`UsersController::show()`), aunque `CA-CORE-014` dice que el detalle de un usuario eliminado responde `404` «salvo que se pida explícitamente incluir los eliminados».
+  5. `GET /invitations?status=`, `GET /users?locale=` y `GET /audit-logs?actor_type=` validan **un solo valor** con `in:`/`Rule::in` (una lista por comas da `422`). `GET /audit-logs?module=` **no valida contra ninguna lista** (`'string'`): una lista por comas no da error, sino que llega a `AuditQuery` como un único código de módulo desconocido, sin aviso (**verificado en 1.9d**: devuelve lista vacía, sin error; ver §14.25). El filtro `enum` de 1.9 envía siempre lista por comas.
+  6. `UserImportResource` **no devuelve `created_at`**, aunque `api.md §7` lo muestra en la respuesta.
+  7. `ValidateUserImport` escribe `message` con `__()` en el idioma por defecto del proceso (issue [#285](https://github.com/pirexia/plataforma-educativa/issues/285)), y lo **persiste** en `user_imports.error_summary`: el texto queda congelado en un idioma, sea quien sea quien lo mire después.
+- **No localizado**: si la SPA tiene ya una utilidad que genere ULID (la necesita la `Idempotency-Key` de la importación, `api.md §7`; el comentario de `executeUserImport()` dice que «quien llama lo aporta»); si existe un componente de diálogo de confirmación vendorizado (`alert-dialog`); y si alguna pantalla existente ya edita el grupo `security` de `PATCH /tenant/settings`. El implementador lo comprueba antes de escribir y lo reporta si no coincide con lo que aquí se supone.
+
+### 14.1 Alcance
+
+#### 14.1.1 Entra en 1.9b
+
+| # | Qué | Requisitos |
+|---|-----|------------|
+| 1 | **Usuarios**: listado (filtros, búsqueda, orden, exportación), ficha, alta, edición, cambio de estado, baja lógica y restauración, reemisión de invitación desde la ficha, y asignación de roles en el alta y en la ficha (`OPEN-CORE-43` = A) | `REQ-CORE-002`/`-003`/`-004` (asignación múltiple), `RPERM-013` |
+| 2 | **Invitaciones**: listado con filtro de estado, revocación y reemisión | `REQ-CORE-003` |
+| 3 | **Importación de usuarios**: subida, seguimiento de la validación, incidencias, informe, ejecución idempotente, descarte, listado de lotes | `REQ-CORE-003`, `INV-011`, `INV-012` |
+| 4 | **Roles**: listado de solo lectura (detalle según `OPEN-CORE-36`) | `REQ-CORE-004` (parte de 1.1) |
+| 5 | **Auditoría**: listado en modo `cursor` con los filtros que exige `REQ-CORE-005` (fecha, usuario, tipo de operación, módulo), detalle de cambios y exportación | `REQ-CORE-005` |
+| 6 | **Configuración del centro**: regional, fiscal y paleta, en lectura o edición según permiso | `REQ-CORE-002`, `RUX-BRAND-002`/`-006` |
+| 7 | **Activos de marca**: logo, *favicon* y fondo de acceso | `RUX-BRAND-001`/`-003`/`-004` |
+| 7b | **Módulos contratados**, solo lectura, con la fecha de alta como aviso (`OPEN-CORE-31` = B, §14.10b) | `REQ-CORE-002`, `RMOD-008`, `ADR-045` |
+| 7c | **Perfil propio** de autoservicio: correo y teléfono de contacto (`OPEN-CORE-31` = B, §14.10c) | `REQ-CORE-003`, §4.9 |
+| 8 | **Migración al componente** de `MfaExemptionsArea.vue`, `AdminSsoView.vue` y `SessionsView.vue`, retirando cada una de la lista de excepciones de `RN-CORE-53` | `RN-CORE-53`, `ADR-054 §1.4` |
+| 9 | **Servidor**: `POST /users/exports` (primer generador de CSV de datos nuevo, prueba de `CA-CORE-207`), autorización por `kind` en `GET /data-exports/{id}`, corrección del contrato de `fallida`, y los cambios compatibles de §14.11 | `RPERM-003`, `ADR-054 §8`-`§10`, `ADR-055`, `INV-006` |
+
+#### 14.1.2 No entra en 1.9b
+
+| Fuera | Dónde va | Motivo |
+|-------|----------|--------|
+| **Configuración de `settings` de un módulo** (`PATCH /module-subscriptions/{id}`) | Paso del primer módulo que declare `settings` configurables | `OPEN-CORE-31` = B: la pantalla de módulos es de **solo lectura**; hoy ningún módulo tiene `settings` que configurar y un formulario sería una pantalla vacía |
+| Notificación *in-app* de un módulo recién contratado | `REQ-COM-003` (1.19) | `ADR-045`: el aviso de 1.9e es la fecha de alta visible en la lista, no una notificación |
+| Editor de roles, clonación, matriz de concesión, permisos efectivos por usuario | `1.5b` | Plan, `ADR-044 §6`. **Entregado en 1.5b** (`REQ-PERM/funcional.md §20`; `RN-CORE-75` sustituida). En 1.9b los roles eran de solo lectura aunque la API de 1.5 ya admitiera escritura |
+| Edición de `mfa_required` de un rol | Ya existe en `/administracion/mfa` (`REQ-AUTH` 1.3) | No se duplica |
+| Foto de perfil | Sin paso | `OPEN-CORE-08` |
+| Mapeo visual de columnas, plantillas, reversibilidad del lote de importación | `REQ-ONB` (1.24) | §1.10 |
+| Plantilla CSV descargable para la importación | Sin paso | Ningún requisito la pide. La pantalla muestra la cabecera exacta, copiable, y remite al manual (§14.6.1). Generarla en el cliente chocaría con `CA-CORE-192` |
+| Exportación PDF de auditoría, XLSX | 1.17 / sin paso | §4.6, §13.1.2 |
+| «Mis exportaciones» (`GET /data-exports`) | Sin decidir: `OPEN-CORE-41` | `OPEN-CORE-25` lo remitía a 1.9b |
+| Columnas `<col>_label` en los CSV | Con demanda de centro piloto | `ADR-055 §3` |
+| Dominio personalizado, textos de sistema personalizables (`RUX-BRAND-005`), parámetros académicos | §1.2, sin paso, 1.10/1.11/1.16 | No hay servidor que los soporte |
+| Acciones de plataforma visibles para el centro (`GET /platform-actions`) | Sin decidir: `OPEN-CORE-44` | Es `REQ-BO-007` (1.6); su interfaz no está en el alcance fijado |
+
+### 14.2 Tamaño y división (`OPEN-CORE-30`, resuelta: cinco sub-pasos)
+
+**El paso no cabe en un solo `implementer` ni en una sola revisión.** Medido por lo que hay que construir: nueve pantallas principales (siete del alcance inicial más módulos y perfil) y seis secundarias (ficha, alta, edición, detalle de importación, detalle de rol, activos), tres migraciones de pantallas de `REQ-AUTH` con sus tests preexistentes, un *endpoint* nuevo con su trabajo en cola y su migración, cinco cambios de contrato en servidor y hasta tres ampliaciones del componente de tablas. El precedente más parecido, 1.9, era **solo** el componente más una migración y ya ocupó una sesión entera de implementación y otra de revisión. Además mezcla `apps/api` y `apps/web`, lo que exige `db-reviewer` (hay migración) en una parte y no en otras.
+
+**División decidida por el usuario el 2026-10-01** (`OPEN-CORE-30` = A). Cada sub-paso cierra con suite en verde, documentación y revisión independiente, como `1.6`-`1.6e`:
+
+| Sub-paso | Contenido | Servidor | Depende de | Revisores |
+|----------|-----------|----------|------------|-----------|
+| **1.9b** | **Usuarios e invitaciones**: §14.4, §14.5, exportación de usuarios (esquema de §14.11.1), asignación de roles; además el diálogo de confirmación común (`RN-CORE-64`) y el filtro booleano de dos estados (`RN-CORE-68`) | `POST /users/exports` + trabajo + migración del `CHECK` de `kind`; `GET /data-exports` por `kind` y contrato de `fallida`; `-email`; `include_deleted` en el detalle; `status` múltiple en invitaciones; `locale` múltiple en usuarios | 1.9 | `db-reviewer`, `security-reviewer`, `doc-reviewer` |
+| **1.9c** | **Importación**: §14.6 | `created_at` y `send_invitations` en `UserImportResource`; idioma de `ValidateUserImport` (#285, `OPEN-CORE-38` = A, resuelta) | 1.9b (navegación a usuarios, utilidad ULID) | `security-reviewer`, `doc-reviewer` |
+| **1.9d** | **Auditoría y roles (solo lectura)**: §14.7, §14.8 | `actor_type`/`module` múltiples; *endpoint* de facetas (S10, `OPEN-CORE-34` = B) | 1.9b (selector de usuario para el filtro de actor, `OPEN-CORE-33` = C) | `security-reviewer`, `doc-reviewer` (`db-reviewer` solo si hay índice nuevo) |
+| **1.9e** | **Configuración del centro, activos de marca, módulos contratados (solo lectura) y perfil propio**: §14.9, §14.10, §14.10b, §14.10c. Incluye ampliar la lista cerrada de `RN-CORE-24` de seis a siete rutas (§14.3.1) | Ninguno | 1.9 | `security-reviewer` (subida de ficheros), `doc-reviewer` |
+| **1.9f** | **Migración de las tres tablas de `REQ-AUTH`**: §14.13 | Ninguno | Ampliaciones del componente de `OPEN-CORE-40` (A) | `doc-reviewer`, `security-reviewer` |
+
+**Orden y motivo**: 1.9b primero porque contiene el primer generador de CSV nuevo (`CA-CORE-207`, con el esquema ya fijado por `OPEN-CORE-32` = B), las dos correcciones de `GET /data-exports` que también afectan a la exportación de auditoría ya existente, y la búsqueda de usuarios que reutiliza 1.9d. 1.9e y 1.9f no dependen de nada de este paso y pueden ir en cualquier punto. Las ampliaciones del componente de `OPEN-CORE-40` = A se reparten así: el filtro booleano de dos estados (dados de baja) entra en 1.9b, que es su primer consumidor; el filtro `enum` de selección única con valor inicial entra en 1.9f (`MfaExemptionsArea`). Si 1.9f se adelanta a 1.9d, la ampliación de selección única gana un consumidor con tests preexistentes antes; no es obligatorio. La numeración `1.9c`-`1.9f` no colisiona con ningún paso del plan.
+
+**Alternativa descartada** (tres sub-pasos): {usuarios+invitaciones+importación}, {auditoría+roles+migraciones}, {configuración+marca}. Ahorraba dos cierres pero la primera supera con holgura lo que cabe en una sesión de 5 horas con Sonnet, y un corte de cuota a mitad de un sub-paso con migración es el peor caso de `CLAUDE.md §3`.
+
+### 14.3 Inventario de pantallas y rutas
+
+Todas en el régimen `app`, registradas en `src/modules/core/shell.ts` (`ADR-053 §1`), en la sección `administracion` salvo el perfil propio, que va en `cuenta`. **Los permisos se declaran una sola vez, en `meta.permissions` de la ruta** (anyOf, `ADR-053 §3`); la entrada de menú no lleva permisos. **Una sola ruta nueva usa `[]`**: `core-profile` (perfil propio, autoservicio por identidad), que amplía la lista cerrada de `RN-CORE-24` de seis a siete rutas como consecuencia de `OPEN-CORE-31` = B (§14.3.1). Ninguna otra la amplía.
+
+| Ruta (nombre · ruta) | `meta.permissions` (anyOf) | Entrada de menú (`id`, acceso directo) | *Endpoints* que consume | Sub-paso |
+|----------------------|-----------------------------|----------------------------------------|-------------------------|----------|
+| `core-users` · `/administracion/usuarios` | `usuario.leer` | `core.users`, **sí** | `GET /users`; `GET /roles` (opciones del filtro, solo con `rol.leer`); `POST /users/exports` + `GET /data-exports/{id}` (solo con `usuario.exportar`) | 1.9b |
+| `core-user-new` · `/administracion/usuarios/nuevo` | `usuario.crear` | — (acción del listado) | `POST /users`; `GET /roles` (solo con `rol.leer` y `asignacion_rol.crear`) | 1.9b |
+| `core-user-detail` · `/administracion/usuarios/:publicId` | `usuario.leer` | — | `GET /users/{id}` (con `include_deleted=true` solo con `usuario.eliminar`); `POST /users/{id}/status`; `DELETE /users/{id}`; `POST /users/{id}/restore`; `POST /users/{id}/invitations`; `GET`/`PUT /users/{id}/roles` (`OPEN-CORE-43` = A) | 1.9b |
+| `core-user-edit` · `/administracion/usuarios/:publicId/editar` | `usuario.actualizar` | — | `GET /users/{id}`, `PATCH /users/{id}` | 1.9b |
+| `core-invitations` · `/administracion/invitaciones` | `invitacion.leer` | `core.invitations`, no | `GET /invitations`; `DELETE /invitations/{id}`; `POST /users/{id}/invitations` | 1.9b |
+| `core-user-imports` · `/administracion/importaciones` | `usuario.importar` | `core.userImports`, no | `GET /user-imports`; `POST /user-imports` | 1.9c |
+| `core-user-import-detail` · `/administracion/importaciones/:publicId` | `usuario.importar` | — | `GET /user-imports/{id}`; `POST /user-imports/{id}/execute`; `DELETE /user-imports/{id}` | 1.9c |
+| `core-roles` · `/administracion/roles` | `rol.leer` | `core.roles`, no | `GET /roles` | 1.9d |
+| `core-role-detail` · `/administracion/roles/:publicId` | `rol.leer` | — | **no se crea** (`OPEN-CORE-36` = A; llega con `1.5b`) | 1.9d |
+| `core-audit` · `/administracion/auditoria` | `auditoria.leer` | `core.audit`, **sí** | `GET /audit-logs`; `POST /audit-logs/exports` + `GET /data-exports/{id}` (solo con `auditoria.exportar`); `GET /users?q=` (filtro de actor, solo con `usuario.leer`, `OPEN-CORE-33` = C); `GET /audit-logs/facets` (`OPEN-CORE-34` = B) | 1.9d |
+| `core-settings` · `/administracion/centro` | `configuracion.leer` | `core.settings`, no | `GET /tenant/settings`; `PATCH /tenant/settings` (solo con `configuracion.actualizar`) | 1.9e |
+| `core-branding-assets` · `/administracion/centro/marca` | `configuracion.leer` | — (acción de `core-settings`, miga de pan bajo «Centro») | `GET /tenant/settings`; `PUT`/`DELETE /tenant/settings/assets/{kind}` (solo con `configuracion.actualizar`) | 1.9e |
+| `core-modules` · `/administracion/modulos` | `modulo.leer` | `core.modules`, no | `GET /modules` (solo lectura; **nunca** `PATCH /module-subscriptions/{id}`, aunque el usuario tenga `modulo.actualizar`) | 1.9e |
+| `core-profile` · `/cuenta/perfil` | **`[]`** (autoservicio por identidad, `permisos.md §5.2`; no existe ni se inventa permiso granular) | `core.profile`, no — sección **`cuenta`** | Estado de sesión de `GET /me` (ya cargado por el *guard*, `RN-CORE-26`); `PATCH /me` con `person.contact_email`/`person.contact_phone` | 1.9e |
+
+Las rutas secundarias declaran `breadcrumbParent` (la principal de su fila) y `titleKey`/`breadcrumbKey` en el espacio de nombres `core.*`, como hacen las de SSO. Accesos directos: usuarios y auditoría (`shortcut: true`), el resto no. Es presentación sin requisito detrás; cambiarlos es tocar el campo `shortcut` y nada más.
+
+#### 14.3.1 Ampliación de la lista cerrada de `RN-CORE-24` (consecuencia de `OPEN-CORE-31` = B)
+
+`RN-CORE-24` (§12.8) y `CA-CORE-103` (§12.11) fijan una lista cerrada de **seis** rutas `app`/`bare` con `meta.permissions` vacía, y `funcional.md` §14 en su redacción inicial afirmaba que 1.9b no la ampliaba. Con la decisión del usuario de incluir el perfil propio, **la lista pasa a siete**: las seis de §12.8 más `core-profile`. Cumple el criterio de entrada de `RN-CORE-24` —autoservicio por identidad sin ningún permiso real que exigir sin inventarlo— por el mismo motivo que `password-change`, `sessions` y `mfa-security`: `PATCH /me` se autoriza por identidad del sujeto, nunca por permiso (`MeController`, `permisos.md §5.2`), y un permiso para editar los datos propios crearía una forma de dejar a alguien sin poder corregir su propio teléfono.
+
+- **Qué cambia**: la constante con las rutas de `[]` del test de coherencia de `ADR-053 §2` (comprobación 5), hoy en `apps/web/src/navigation/modules.spec.ts` (lo cita el comentario de cabecera de `src/modules/auth/shell.ts`), gana `core-profile`. Se actualiza **en 1.9e**, en el mismo *commit* que añade la ruta; antes de ese *commit* el test fallaría si la ruta existiera, y después fallaría si no se ampliara la constante.
+- `RN-CORE-24` y `CA-CORE-103` de §12 llevan una nota que remite aquí; su texto original se conserva (precedente del issue #260).
+- La pantalla de módulos **no** usa `[]`: exige `modulo.leer`.
+
+**`RN-CORE-60` · Registro.** Toda pantalla de 1.9b se registra en `src/modules/core/shell.ts`, no en `src/router/index.ts`; `meta.permissions` de cada ruta es exactamente el permiso del *endpoint* que la vista necesita para pintar su contenido principal (columna 2), nunca un rol ni la unión de permisos de sus acciones secundarias; la única excepción es `core-profile`, con `[]` por identidad (§14.3.1). Las acciones secundarias se gobiernan por `RN-CORE-61`. Los cinco tests de coherencia de `ADR-053 §2` cubren las rutas nuevas; el único cambio en ellos es la constante de rutas con `[]` de la comprobación 5, que gana `core-profile` en 1.9e (§14.3.1).
+
+### 14.4 Usuarios
+
+#### 14.4.1 Listado (`core-users`)
+
+Tabla `core.users`, modo `page`, **estado en la URL** (`urlState`, tabla principal de la ruta, `RN-CORE-54`), búsqueda `q` (nombre, apellidos y correo de acceso, `api.md §3`), tarjetas por debajo de 768 px.
+
+**`RN-CORE-67` · Columnas del listado de usuarios** (criterio de minimización, skill `datos-personales`):
+
+| `id` | Cabecera | Contenido | Ordenable | Tarjeta | Por defecto |
+|------|----------|-----------|-----------|---------|-------------|
+| `family_name_1` | Nombre | «Apellido1 Apellido2, Nombre», enlace a la ficha. `rowHeader` | Sí | `title` | Visible, no ocultable |
+| `email` | Correo de acceso | `email` | Sí (requiere `-email`, §14.11) | `subtitle` | Visible |
+| `status` | Estado | Etiqueta traducida de `pendiente`/`activo`/`inactivo`; «dado de baja» si `deleted_at` | No | `field` | Visible |
+| `role` | Roles | `roles[].name` separados por coma | No | `field` | Visible |
+| `locale` | Idioma | Nombre del idioma en el idioma de la interfaz | No | `field` | Oculta |
+| `created_at` | Alta | Fecha con `Intl` | Sí | `field` | Oculta |
+
+**No** se muestran en el listado `document_number`, `birth_date`, `contact_email` ni `contact_phone`, aunque el *endpoint* los devuelve (§14.16, hallazgo 8): el listado es para localizar a una persona, no para leer sus datos identificativos en bloque; la ficha los muestra uno por uno. Ocultarlos no es minimización en la API (`§13.8`, último punto): solo no los pinta.
+
+**Filtros**: `status` (`enum`: `pendiente`, `activo`, `inactivo`); `role` (`enum` con las opciones de `GET /roles?per_page=100`, **solo si** el usuario tiene `rol.leer`, `RN-CORE-62`); `locale` (`enum` con los idiomas activos del centro de la capa B; requiere que `GET /users` acepte varios valores, §14.11); **dados de baja** (`include_deleted`) solo si el usuario tiene `usuario.eliminar` (`RN-CORE-68`).
+
+- **`RN-CORE-68` · Usuarios dados de baja.** El filtro que incluye a los dados de baja solo se ofrece con `usuario.eliminar` (el servidor lo exige además de `usuario.leer`, `permisos.md §2`). Es un filtro **booleano de dos estados** («incluir dados de baja», desmarcado por defecto, que con la casilla marcada envía `include_deleted=true` y desmarcada no envía el parámetro), ampliación aditiva de `src/data-table` decidida en `OPEN-CORE-40` = A: el filtro `boolean` de 1.9 tiene tres estados y «todos» y «no» darían el mismo resultado con etiquetas distintas. La ampliación se construye en 1.9b, su primer consumidor. La fila de un usuario dado de baja muestra el estado «dado de baja» y su ficha se abre con `include_deleted=true` (§14.11).
+
+**Exportación**: `canExport` = `usuario.exportar` en `/me.permissions` (`RN-CORE-51`); deshabilitada con `q` activo (`RN-CORE-57`).
+
+- **`RN-CORE-69` · Exportación de usuarios.** La solicitud lleva los filtros estructurados del listado (`status`, `role`, `locale`, `include_deleted`) como *arrays* JSON donde son múltiples, nunca `q`, `sort`, `page` ni `per_page` (`ADR-054 §7.3`, `§8.2`). La función de solicitud vive en `src/modules/core/api/` y traduce la forma por comas a *array* (`ADR-054 §8.2`). El contenido del fichero lo fija §14.11.1 (`OPEN-CORE-32` = B): **no contiene** tipo ni número de documento ni fecha de nacimiento. El texto que acompaña al control de exportación no promete esas columnas, y el manual describe las que sí contiene.
+
+**Acciones de la barra**: «Nuevo usuario» (con `usuario.crear`) y «Importar» (enlace a `core-user-imports`, con `usuario.importar`).
+
+#### 14.4.2 Ficha (`core-user-detail`)
+
+Muestra todos los campos de `GET /users/{id}`, incluidos `document_type`/`document_number`, `birth_date`, `contact_email`, `contact_phone`, `locale`, `email_verified_at`, fechas de alta y baja, y sus roles. Acciones, cada una visible solo con su permiso (`RN-CORE-61`):
+
+| Acción | Permiso | *Endpoint* | Visible cuando |
+|--------|---------|------------|----------------|
+| Editar | `usuario.actualizar` | navegación a `core-user-edit` | No dado de baja |
+| Activar / desactivar | `usuario.actualizar` | `POST /users/{id}/status` | `status` ∈ {`activo`, `inactivo`} y no dado de baja (`pendiente` solo sale por canje, `RN-CORE-04`) |
+| Dar de baja | `usuario.eliminar` | `DELETE /users/{id}` | No dado de baja |
+| Restaurar | `usuario.eliminar` | `POST /users/{id}/restore` | Dado de baja |
+| Enviar / reenviar invitación | `invitacion.crear` | `POST /users/{id}/invitations` | `status = pendiente` y no dado de baja |
+| Ver sus roles | `asignacion_rol.leer` | `GET /users/{id}/roles` | Siempre (con el permiso) |
+| Ver permisos efectivos (1.5b) | `permiso_efectivo.leer` | navegación a la pantalla de permisos efectivos (`GET /users/{id}/effective-permissions`; `REQ-PERM/funcional.md §20`) | Siempre (con el permiso) |
+| Gestionar roles (`OPEN-CORE-43` = A) | `asignacion_rol.crear` (y `rol.leer` para las opciones; retirar roles exige además `asignacion_rol.eliminar`, que decide el servidor) | `PUT /users/{id}/roles` | No dado de baja |
+| Ver su actividad | `auditoria.leer` | navegación a `core-audit` con `actor_id` | `OPEN-CORE-33` = C (resuelta): la acción se añade en 1.9d, no en 1.9b |
+
+- **`RN-CORE-61` · Acciones por permiso, nunca por rol, y sin anticipar reglas de servidor.** Una acción se muestra si y solo si `/me.permissions` contiene el permiso de su *endpoint*. La interfaz **no** reproduce `RN-CORE-06` (no tocarse a uno mismo) ni `RN-CORE-07` (último administrador) comprobando códigos de rol (`RN-CORE-23`, `CA-CORE-102`): el servidor responde `409` y la vista muestra su `detail` traducido. **Única excepción admitida, por identidad y no por rol**: si el `public_id` de la ficha es el de `/me`, las acciones de estado, baja y roles se muestran deshabilitadas con la explicación «no puedes modificar tu propia cuenta desde aquí» — comodidad, el servidor sigue decidiendo.
+- **Restaurar** devuelve el usuario en `inactivo` (`api.md §3`): la vista lo dice tras la restauración y ofrece «Activar» si procede. `409` (correo o documento ocupados) muestra el `detail`.
+
+#### 14.4.3 Alta y edición (`core-user-new`, `core-user-edit`)
+
+Formulario con los campos de `POST /users` (`api.md §3`): correo de acceso, nombre, primer y segundo apellido, fecha de nacimiento, tipo y número de documento, correo y teléfono de contacto, idioma preferido (solo idiomas activos del centro, por defecto el `default_locale`), roles (selector múltiple, `OPEN-CORE-43` = A, visible solo con `rol.leer` y `asignacion_rol.crear`) y «enviar invitación» (marcado por defecto). La edición usa el mismo formulario sin roles ni invitación y envía `PATCH` (`RN-CORE-65`).
+
+- **Tipo de documento**: el servidor lo acepta como texto libre de hasta 32 caracteres (`StoreUserRequest`) y valida el formato por tipo en `CreateUser`. **No se ha localizado un catálogo cerrado de tipos expuesto a la SPA.** El implementador lee `CreateUser` y usa como opciones del selector exactamente los tipos que el servidor valida; si no hay lista cerrada en servidor, para y lo reporta (no inventa una). **Sustituido en 1.9c por §14.6.4** (catálogo cerrado `RN-CORE-90`, selector en el formulario).
+- **`RN-CORE-65` · Formularios.** La validación de cliente es solo comodidad (`INV-010`). Un `422` pinta cada `errors.<campo>[].message` (ya traducido por el servidor, `ADR-038 §6.3`) bajo su campo, con `aria-invalid="true"` y `aria-describedby`; el foco va al primer campo con error y un resumen con `role="alert"` enumera los errores. `PATCH` envía **solo las claves modificadas** (`ADR-038 §9.2`: clave ausente no toca el campo; vaciar un campo opcional envía `null`, nunca `""`). Un `403` de `RPERM-013` (asignar un rol con permisos que el solicitante no tiene) muestra el `detail` del servidor junto al campo de roles. Los campos usan el tipo de entrada adecuado para teclado táctil (`type="email"`, `type="tel"`, `type="date"`, `RUX-RESP-005`).
+- **`RN-CORE-66` · Resultado de una escritura.** Tras una escritura correcta: mensaje con `role="status"`, navegación a la ficha (alta, edición) o actualización del dato en pantalla (acciones de la ficha). Al volver al listado, la consulta se conserva (estado en la URL, `RN-CORE-54`).
+- Si el alta incluía invitación, la ficha muestra la caducidad devuelta en `invitation.expires_at`. El token **nunca** llega a la SPA (`RN-CORE-19`).
+
+### 14.5 Invitaciones (`core-invitations`)
+
+Tabla `core.invitations`, modo `page`, estado en la URL. Columnas: correo del usuario (`rowHeader`, enlace a su ficha si se tiene `usuario.leer`), estado (`vigente`/`caducada`/`revocada`/`aceptada`, traducido), caducidad, emisión, aceptación o revocación. Sin búsqueda (`GET /invitations` no acepta `q`) y sin columnas ordenables (no acepta `sort`; orden del servidor: más reciente primero). Filtro `status` (`enum`, requiere que el servidor acepte varios valores, §14.11).
+
+- **`RN-CORE-70` · Acciones sobre invitaciones.** «Revocar» (`invitacion.eliminar`) solo en las `vigente`. «Reenviar» (`invitacion.crear`, `POST /users/{user}/invitations`) en las `caducada` y `revocada`; si el usuario ya no está `pendiente`, el servidor responde `409` (`RN-CORE-12`) y la vista muestra su `detail` y refresca la fila. `429` (límite de reenvíos, `api.md §4`) muestra los segundos de `Retry-After` (§12.6). Las dos acciones piden confirmación (`RN-CORE-64`).
+
+### 14.6 Importación de usuarios
+
+#### 14.6.1 Listado y subida (`core-user-imports`)
+
+Tabla `core.user_imports`, modo `page`, sin filtros ni orden (el *endpoint* no los acepta). Columnas: fichero (`original_filename`, `rowHeader`, enlace al detalle), fecha de subida (`created_at`, requiere el cambio de §14.11), estado (traducido), filas, filas con error, usuarios creados.
+
+Formulario de subida encima de la tabla: un campo de fichero (`accept=".csv"`: el literal `text/csv` está prohibido en el cliente por `CA-CORE-192`, sin excepciones, decisión del usuario del 2026-10-03; el servidor decide el tipo real, `415`), la casilla «enviar invitaciones» (marcada por defecto, igual que el servidor) y la **cabecera exacta esperada** en un bloque copiable (`api.md §7`). **Sin enlace al manual** (la SPA no publica el manual; decisión del usuario del 2026-10-03): la pantalla remite al apartado «Importación de usuarios» del manual de administración por su nombre.
+
+- **`RN-CORE-71` · Subida.** Las comprobaciones de extensión y tamaño (≤ 10 MB) en cliente son comodidad; el servidor decide (`413`, `415`, `422`, `RN-CORE-18`). Tras `202`, la vista navega al detalle del lote.
+
+#### 14.6.2 Detalle de un lote (`core-user-import-detail`)
+
+Muestra estado, recuentos, fechas y, cuando el lote está `validado` o `fallido`, las incidencias.
+
+- **`RN-CORE-72` · Seguimiento del estado.** Mientras el lote está en `subido`, `validando` o `ejecutando`, la vista consulta `GET /user-imports/{id}` con la **misma política que `RN-CORE-49`** y las mismas constantes exportadas de `src/data-table` (una consulta en vuelo, 2 s duplicando hasta 30 s, parada a los 10 min con «Comprobar de nuevo», se detiene al desmontar). A diferencia de una exportación, **salir de la vista no pierde nada**: el lote aparece en el listado. El estado se anuncia con `role="status"` en cada cambio, no en cada consulta.
+- **`RN-CORE-73` · Ejecución idempotente.** «Ejecutar» (con `usuario.importar`) solo en `validado`. Pide confirmación (`RN-CORE-64`) que dice **cuántas filas se crearán** (`row_count − error_count`), que las filas con error se omiten, **si se enviarán invitaciones** y que **una importación no se deshace** (§1.10). Al confirmar se genera **una** `Idempotency-Key` ULID (`ADR-038 §8`); si la petición falla sin respuesta (red, `5xx`) y el usuario reintenta **la misma confirmación**, se reutiliza la misma clave; una confirmación nueva genera una clave nueva. Una respuesta con `Idempotency-Replayed: true` se trata como éxito. `409` muestra el `detail` (`import_not_validated`, clave reutilizada con otro cuerpo o ejecución en curso). La ULID se genera sin dependencia nueva (`CLAUDE.md §1`, `RNF-MANT-007`): utilidad propia mínima si no existe ya (§14.0).
+- **`RN-CORE-74` · Incidencias.** Se pinta `error_summary` como tabla `core.user_import_errors` (modo `page` de una sola página, ver la nota) con línea, columna y motivo; si `error_count` supera las incidencias recibidas **o** las entradas recibidas llegan al tope de 50 (`error_count` cuenta filas, no incidencias: 30 filas con 2 errores se truncan a 50 con `error_count` = 30; decisión del usuario del 2026-10-03), un aviso dice que solo se muestran las 50 primeras y ofrece el informe completo (`report_url`, enlace a la URL firmada, `RN-CORE-46`: sin `Blob`). El texto del motivo es `message` tal como llega; su idioma es el de quien subió el lote (`OPEN-CORE-38` = A, S9, #285). Si el lote está `fallido` por cabecera, se muestra el motivo y la cabecera esperada, sin «Ejecutar».
+  - *Nota*: `error_summary` no es un listado paginado de ningún *endpoint* sino un campo de un recurso (como mucho 50 entradas). El componente de 1.9 no tiene modo `local` (`OPEN-CORE-26`). **Se pinta con el componente** igualmente (`RN-CORE-53` no admite una cuarta excepción), con una función de petición que devuelve las entradas ya recibidas como una única página (`meta = {current_page: 1, per_page: 50, total: n, last_page: 1}`), sin filtros, orden ni exportación. No es el modo `local`: no ordena ni filtra en cliente. El modo `local` sigue sin construirse (`OPEN-CORE-40` = A; queda para `1.5b`, `OPEN-CORE-26`). La misma técnica de página única sirve a la pantalla de módulos (§14.10b).
+- **Descartar** (`DELETE /user-imports/{id}`) en `subido`, `validando`, `validado` y `fallido`, con confirmación; `409` si ya se ejecutó.
+- **Informe caducado**: `report_url` caduca a los 15 min (`CORE_SIGNED_URL_TTL_MINUTES`). La vista vuelve a pedir el detalle antes de mostrar el enlace si han pasado más de 10 min desde la última respuesta (margen sobre el TTL), y ofrece «Actualizar» si el enlace falla.
+
+#### 14.6.3 Idioma de los mensajes (issue #285)
+
+`ADR-055 §1` deja **fuera** del contrato técnico el informe de errores: su forma es la de `errors` de `ADR-038 §6.3` (código estable más mensaje legible), dirigido a quien subió el fichero. El mensaje sale en el idioma de quien subió el lote (`OPEN-CORE-38` = A, S9; precedencia de `RN-CORE-34`), se persiste en ese idioma y se muestra tal cual en la pantalla y en `report.csv`.
+
+#### 14.6.4 Catálogo cerrado de tipos de documento de identidad — **APROBADA** (2026-10-02) (issue [#292](https://github.com/pirexia/plataforma-educativa/issues/292), prerrequisito de 1.9c)
+
+> **Implementada en `1.9c`** (2026-10-02; notas y desviaciones en §14.23). **Estado: APROBADA el 2026-10-02.** El usuario ratificó en bloque las recomendaciones de `OPEN-CORE-46` a `OPEN-CORE-53` (§14.6.4.9): **46 = B** (`dni`, `nie`, `pasaporte`; **sin `otro`**), 47 = A, 48 = A, 49 = A, 50 = A, 51 = A, 52 = A, 53 = A y `label` del filtro `enum` ratificada. Donde el texto siguiente dice «según `OPEN-CORE-NN`» rige la opción recomendada de esa pregunta. No reabre §14.4.3 ni §14.22 punto 1: los sustituye **solo si** se aprueba, y entonces se anotará allí. No toca `OPEN-CORE-38` ni `OPEN-CORE-32` (el CSV de exportación sigue sin `document_type`, `document_number` ni `birth_date`).
+
+##### 14.6.4.1 Por qué hace falta antes de 1.9c
+
+- **Estado real del código** (lectura, 2026-10-02, `develop` en `3e2c475`): `person.document_type` se acepta como texto libre de hasta 32 caracteres (`StoreUserRequest`, `UpdateUserRequest`); `DocumentNumberValidator` solo reconoce `DNI` y `NIE` (formato más letra de control módulo 23, esta última conmutable fuera de producción por `OPEN-CORE-06`) y para **cualquier otro valor** solo exige número no vacío. La columna `people.document_type` es `text` sin `CHECK` (`ADR-034 §1`), con `UNIQUE (tenant_id, document_type, document_number) WHERE document_number IS NOT NULL AND deleted_at IS NULL`.
+- **La importación sí lleva el tipo**: la cabecera fija de `UserImportCsvReader::EXPECTED_HEADER` incluye `document_type`, `document_number` y `birth_date`, y `UserImportRowValidator` valida el par con el mismo `DocumentNumberValidator`. Sin catálogo, una hoja con `D.N.I.`, `dni`, `Pasaporte` o `passport` pasa la validación con reglas distintas según cómo se escriba el tipo, y la pantalla de 1.9c tendría que explicar en el manual una columna cuyos valores admitidos **no existen**.
+- **Consecuencias que ya produce el texto libre** (hallazgos de §14.6.4.8, no se corrigen aquí): el validador compara el tipo en mayúsculas pero se guarda tal cual llega, de modo que `DNI` y `dni` son **tipos distintos para el índice único** y la misma persona puede darse de alta dos veces (`RN-CORE-03` incumplida); un `PATCH` que cambia solo el tipo no revalida el número; un número sin tipo se guarda con tipo `NULL`, que el índice único no compara.
+- **Qué dicen los requisitos**: `REQ-CORE-003` enumera como dato de usuario «**DNI/NIE**» y nada más. §6 de este documento (aprobado en 1.1) dice «se valida el formato de DNI/NIE/**pasaporte**», pero el código no valida ningún formato de pasaporte (hallazgo F6). `REQ-FAM-UNIT-005` habla de «documento identificativo» sin tipo. Ningún requisito enumera más tipos. **Cualquier valor fuera de `DNI`/`NIE` es, por tanto, decisión del usuario** (`OPEN-CORE-46`), no de esta propuesta.
+
+##### 14.6.4.2 Valores propuestos
+
+Códigos técnicos estables, sin traducir en servidor (`ADR-038 §3.2`), traducidos en el cliente con rama por defecto que muestra el código (`ADR-038 §7.3`). La grafía (minúsculas, como el resto de enumerados del producto —`pendiente`, `users`, `todos`—, o mayúsculas, como los valores que hoy reconoce el validador) es `OPEN-CORE-47`; la tabla usa minúsculas solo para fijar ideas.
+
+| Código | Qué es | Origen en requisitos | Formato (tras normalizar, §14.6.4.3) | Control | En la propuesta |
+|--------|--------|----------------------|--------------------------------------|---------|-----------------|
+| `dni` | Documento nacional de identidad español | `REQ-CORE-003` («DNI/NIE») | `^\d{8}[A-Z]$` | Letra = `TRWAGMYFPDXBNJZSQVHLCKE[n mod 23]` sobre los 8 dígitos. Conmutable fuera de producción (`OPEN-CORE-06`); el **formato se exige siempre** | Sí, sin alternativa |
+| `nie` | Número de identidad de extranjero (el que figura en la TIE o en el certificado de registro de ciudadano de la UE) | `REQ-CORE-003` | `^[XYZ]\d{7}[A-Z]$` | Igual que `dni`, sustituyendo `X`→0, `Y`→1, `Z`→2. Mismo conmutador | Sí, sin alternativa |
+| `pasaporte` | Pasaporte, de cualquier país | Solo §6 de este documento; no está en `REQ-CORE-003` | Alfanumérico sin separadores, longitud según `OPEN-CORE-51` | **Ninguno**: el número de pasaporte no lleva dígito de control propio (el de la zona MRZ no se captura) | Según `OPEN-CORE-46` |
+| `otro` | Cualquier otro documento de identidad (p. ej. documento nacional de otro Estado de la UE sin NIE todavía) | **Ninguno** | Texto no vacío, ≤ 32 caracteres | Ninguno | **Excluido** (`OPEN-CORE-46` = B, 2026-10-02); no se implementa ni se traduce |
+
+**Descartados expresamente** (no se proponen; si el usuario quiere alguno, se añade por la vía aditiva de §14.6.4.4):
+
+- **TIE** como tipo propio: la tarjeta es el soporte; el identificador es el NIE. Dos códigos para el mismo número romperían `RN-CORE-03`.
+- **NIF K/L/M** (españoles menores de 14 años sin DNI, españoles no residentes, extranjeros sin NIE): son identificadores fiscales, ningún requisito de `REQ-CORE` los pide, y su validación es distinta. Si `REQ-ALUM` o `REQ-FIN` los necesitan, los propondrán con su requisito.
+- **NIA / identificador autonómico del alumno**: no es un documento de identidad sino un código administrativo de la Consejería; es dato de la faceta `students` (`REQ-ALUM`/`REQ-SEC`), no de `people` (`ADR-034 §1`: los datos de faceta no van en `people`).
+
+**Interacción con `REQ-SEED-005`** («documentos con formato válido pero dígito de control deliberadamente incorrecto»): solo `dni` y `nie` pueden cumplirla. Un `pasaporte` sintético no tiene dígito que invalidar; si `1.15b` (`REQ-SEED`) quiere generarlos, tendrá que decidir cómo hacerlos reconociblemente ficticios. No bloquea 1.9c; se anota para la especificación de `REQ-SEED`.
+
+##### 14.6.4.3 Reglas de negocio propuestas
+
+- **`RN-CORE-90` · Catálogo cerrado.** `person.document_type` solo admite los códigos del catálogo aprobado. La única fuente de verdad en servidor es un enumerado PHP público en `App\Modules\Core\Domain` (`INV-007`: `REQ-ALUM`, `REQ-FAM-UNIT` y `REQ-RRHH` lo consumen por esa interfaz pública, nunca leyendo la tabla ni copiando la lista), del que se derivan la regla de validación, el `enum` de OpenAPI y el `CHECK` de la base de datos. El catálogo es **de plataforma**, igual para todos los centros: un centro no añade tipos.
+- **`RN-CORE-91` · Par completo** (`OPEN-CORE-48` = A). Tipo y número se informan los dos o ninguno. Un número sin tipo no puede validarse por tipo ni compararse por el índice único (el `NULL` no colisiona); un tipo sin número no identifica a nadie.
+- **`RN-CORE-92` · Normalización antes de validar y guardar** (alcance exacto en `OPEN-CORE-49`). El servidor guarda el número **canónico**: sin espacios al principio ni al final y en mayúsculas en todos los tipos; además, en `dni` y `nie`, sin espacios ni guiones intermedios (`12345678-z` → `12345678Z`). La unicidad de `RN-CORE-03` se comprueba sobre el valor normalizado, en la API y en la importación por igual (hoy la importación deduplica en mayúsculas dentro del fichero pero compara en crudo contra la base de datos).
+- **`RN-CORE-93` · Revalidación al cambiar cualquiera de los dos.** Un `PATCH /users/{id}` que cambia el tipo, el número o ambos valida el par **resultante** (el campo no enviado se toma del valor guardado), y comprueba la unicidad excluyendo a la propia persona. Vaciar el par se hace enviando los dos a `null`.
+- **Sin cambio**: `RN-CORE-03` (unicidad entre personas vivas), el conmutador de `OPEN-CORE-06`, la política de auditoría de `Person` (`Selective`: `document_type` y `document_number` siguen redactados como `identifier`, `datos.md`), `OPEN-CORE-32` = B (ni el tipo ni el número salen en el CSV de usuarios) y `RN-CORE-67` (el listado no los pinta).
+
+##### 14.6.4.4 Almacenamiento
+
+**Propuesta: `text` + `CHECK` sobre `people.document_type`**, con el enumerado PHP de `RN-CORE-90` como fuente. Es el patrón que el proyecto ya usa para enumerados cerrados (`audit_logs.actor_type` y `.event`, `ADR-034 §3`; `data_exports.kind`, `datos.md` Parte D) y respeta `ADR-029` (`text`, no `varchar(n)`).
+
+| Alternativa | Por qué no |
+|-------------|------------|
+| Tipo `ENUM` de PostgreSQL | `ALTER TYPE … ADD VALUE` es aditivo, pero **no hay `DROP VALUE`**: retirar un tipo obliga a recrear el tipo y reescribir la columna. Ningún enumerado del proyecto lo usa; introducirlo aquí sería la primera excepción sin motivo |
+| Tabla de referencia compartida (categoría `reference` de `ADR-033 §7`, como `permissions`/`modules`) | Solo aporta algo si cada tipo necesita metadatos editables o si el catálogo lo gestiona alguien fuera del código. Aquí la validación por tipo **es código** (`DocumentNumberValidator`), así que la tabla duplicaría la lista sin poder sustituirla, y añadiría un comando de sincronización, una clave foránea y una tabla más a `ADR-033 §7`. Reconsiderar si un día los tipos pasan a depender de la comunidad autónoma o del país |
+
+**Añadir un tipo después** es *expand*: nuevo caso del enumerado y `CHECK` sustituido por otro con un valor más (`DROP CONSTRAINT` + `ADD CONSTRAINT … NOT VALID` + `VALIDATE CONSTRAINT`, que no bloquea escrituras). **Retirar un tipo** con personas que lo usan exige migrar sus datos: por eso la propuesta es empezar con el catálogo mínimo.
+
+**Migración en dos entregas** (`CLAUDE.md §9`; compresión posible solo por `OPEN-CORE-52`):
+
+1. **Entrega N (1.9c)**, sin `CHECK`: la aplicación valida contra el catálogo y normaliza al escribir (`RN-CORE-90`-`93`). Una migración de datos normaliza las filas existentes: tipo con variantes reconocibles (`DNI`, `dni`, ` Nie `…) al código canónico, número a su forma canónica. Antes de escribir, **comprueba** que la normalización no crea duplicados entre personas vivas y que no queda ningún tipo sin correspondencia; si encuentra cualquiera de los dos casos, **aborta con un mensaje que enumera los `public_id` afectados** y no toca nada (no hay producción: los datos son de desarrollo y se pueden resembrar; nunca se inventa una correspondencia). Compatible con N-1: la versión anterior acepta cualquier texto, también el canónico.
+2. **Entrega N+1** (cuando ya no corra ningún proceso de N-1, incluidos *workers* de `core-imports` con trabajos encolados): `CHECK (document_type IS NULL OR document_type IN (…))` añadido `NOT VALID` y validado después, (el `CHECK` de par **ya existía desde 0.8**, `people_document_type_number_paired`, migración `2026_08_18_101000`: no hay nada que añadir; la entrega N+1 queda en el issue [#312](https://github.com/pirexia/plataforma-educativa/issues/312)). Añadirlo en N haría que una escritura de N-1 con un tipo libre fallase con `500` en vez de `422`.
+
+`academic_year_id`: no aplica (`people` no depende del curso, `ADR-034 §4`). `tenant_id` y el índice único existentes no cambian. Revisor obligatorio: `db-reviewer`.
+
+##### 14.6.4.5 API y OpenAPI
+
+| *Endpoint* | Cambio | Compatibilidad (`ADR-038 §7`) |
+|------------|--------|-------------------------------|
+| `POST /users` | `person.document_type` validado contra el catálogo (`422`, campo `person.document_type`, código `core.validation.document_type_invalid`); `RN-CORE-91`/`-92` | **Incompatible en sentido estricto**: deja de aceptar valores que hoy acepta. Sin más clientes que la SPA propia y sin producción (`H0`), mismo criterio que S4 (`OPEN-CORE-39`); se anota en `CHANGELOG.md` |
+| `PATCH /users/{id}` | Igual, más `RN-CORE-93` | Ídem |
+| `GET /users`, `GET /users/{id}`, `GET /me` | Sin cambio de forma; `document_type` devuelve el código canónico | Compatible |
+| `POST /user-imports` | Sin cambio en la subida; la validación de filas cambia (§14.6.4.6) | Compatible en el contrato HTTP |
+| `PATCH /me` | Sin cambio: no admite documento (`CA-CORE-018`) | — |
+
+- **OpenAPI**: `enum` cerrado en `person.document_type` del esquema de petición y de respuesta, **generado o comprobado contra el enumerado PHP** (`CA-CORE-279`), y descripción del formato por tipo. El esquema de `POST /users/exports` no cambia (`OPEN-CORE-32` = B).
+- **Errores nuevos** en el catálogo de `core` (`lang/*/core.php`, cuatro idiomas): `core.validation.document_type_invalid` («El tipo de documento indicado no está admitido.», **sin reflejar el valor recibido**, `security-reviewer` S3) y `core.validation.document_incomplete` («Indica a la vez el tipo y el número de documento, o ninguno de los dos.»). `document_number_invalid` y `document_duplicate` se conservan.
+- **Exposición a la SPA**: ninguna ruta nueva. El cliente lleva una constante con los códigos, comprobada contra el enumerado PHP con el mismo test cruzado que `RN-CORE-82` ya exige para las comunidades autónomas (y con la misma salida si la lectura cruzada no es viable en CI: el implementador lo reporta). Un *endpoint* de catálogos es la alternativa de `OPEN-CORE-53`.
+
+##### 14.6.4.6 Importación CSV (1.9c)
+
+- La cabecera **no cambia** (`EXPECTED_HEADER`): ni columnas nuevas ni otro orden.
+- `UserImportRowValidator` aplica `RN-CORE-90`-`92` a cada fila. Códigos de incidencia nuevos, en `core.import.*` (cuatro idiomas; su idioma de emisión es el de quien subió el lote, `OPEN-CORE-38` = A): `tipo_documento_no_valido` (columna `document_type`) y `documento_incompleto` (columna `document_type` o `document_number`, la que falte). `formato_invalido`, `duplicado_en_fichero` y `duplicado_en_base_de_datos` se conservan, ahora sobre el valor normalizado.
+- Tolerancia en la grafía del código (`dni`, `DNI`, ` Dni `): `OPEN-CORE-50`.
+- La pantalla de subida (§14.6.1) muestra, junto a la cabecera copiable, **la lista de códigos admitidos** con su nombre traducido; el manual (`admin.md`) la recoge con el formato de cada tipo.
+- `ExecuteUserImport` revalida con las mismas reglas (ya lo hace por `UserImportRowValidator`): un lote validado antes del cambio y ejecutado después se revalida con el catálogo.
+
+##### 14.6.4.7 Interfaz y traducciones
+
+- **Alta y edición** (`UserFormView`): el campo de texto de `document_type` y su pista `core.users.form.documentTypeHint` se sustituyen por un `<select>` con «Sin indicar» (envía `null`) más los códigos de la constante, etiqueta traducida; el número queda deshabilitado mientras el tipo sea «Sin indicar» (comodidad; decide el servidor, `INV-010`). Al editar una persona con un valor anterior al catálogo, el selector **lo conserva como opción** con su código crudo, igual que ya hace con un idioma retirado: no se pierde en silencio y el `PATCH` no lo envía si no se toca. La clave `documentTypeHint` se retira de los cuatro `locales/*.json`.
+- **Ficha** (`UserDetailView`): muestra la etiqueta traducida; un código desconocido se pinta crudo (`ADR-038 §7.3`).
+- **Filtro `enum` con `label`** (§14.22 punto 2): **el catálogo no lo necesita** —sus etiquetas son claves del cliente (`labelKey`)— y no se usa en ningún filtro, porque el listado de usuarios no filtra por documento. Su ratificación es una cuestión aparte, recogida en `OPEN-CORE-53` (§14.6.4.9).
+- **Claves nuevas** en `core.person.documentType.<código>`, propuesta de texto:
+
+| Código | `es` | `en` | `de` | `fr` |
+|--------|------|------|------|------|
+| `dni` | DNI (documento nacional de identidad) | Spanish national identity card (DNI) | Spanischer Personalausweis (DNI) | Carte nationale d'identité espagnole (DNI) |
+| `nie` | NIE (número de identidad de extranjero) | Foreigner identity number (NIE) | Ausländer-Identifikationsnummer (NIE) | Numéro d'identité d'étranger (NIE) |
+| `pasaporte` | Pasaporte | Passport | Reisepass | Passeport |
+| `otro` | Otro documento de identidad | Other identity document | Anderes Ausweisdokument | Autre pièce d'identité |
+
+  Más `core.person.documentType.none` («Sin indicar» / «Not specified» / «Keine Angabe» / «Non renseigné»). Las filas `pasaporte` y `otro` solo existen si `OPEN-CORE-46` las incluye.
+
+##### 14.6.4.8 Hallazgos en el código actual (fuera del ámbito de esta propuesta; no se corrigen aquí)
+
+Para que la sesión orquestadora abra los issues que correspondan (`CLAUDE.md §5`). Lectura de código, sin ejecución:
+
+| # | Hallazgo | Ficheros | Severidad propuesta |
+|---|----------|----------|---------------------|
+| F1 | **Duplicado de identidad por mayúsculas en el tipo**: `DocumentNumberValidator` valida `strtoupper($documentType)`, pero `CreateUser`/`UpdateUser` guardan y consultan el tipo **tal como llega**. `DNI` + `12345678Z` y `dni` + `12345678Z` pasan los dos la comprobación de unicidad y el índice único (`RN-CORE-03`). Ocurre también en producción, con el dígito de control activo | `Application/DocumentNumberValidator.php`, `CreateUser.php`, `UpdateUser.php` | **Media** (invariante de negocio incumplida, sin impacto inmediato: no hay producción) |
+| F2 | **Cambiar solo el tipo no revalida**: `UpdateUser` valida únicamente si llega `document_number`; un `PATCH` con solo `document_type: "DNI"` sobre un número de pasaporte deja un par que nunca habría pasado el alta | `UpdateUser.php` | **Media** |
+| F3 | **Número sin tipo**: se valida con la rama por defecto (no vacío) y se guarda con tipo `NULL`; el índice único no compara `NULL`, así que el mismo número puede repetirse sin límite | `CreateUser.php`, `UserImportRowValidator.php` | **Media** |
+| F4 | La importación deduplica **dentro del fichero** en mayúsculas pero compara **contra la base de datos** en crudo: el mismo documento con distinta grafía es duplicado en un sitio y no en el otro | `UserImportRowValidator.php` | Baja (desaparece con F1) |
+| F5 | Con el dígito de control desactivado (desarrollo), un número en minúsculas (`12345678z`) pasa el formato y se guarda en minúsculas, distinto para el índice de `12345678Z` | `DocumentNumberValidator.php` | Baja (solo fuera de producción) |
+| F6 | §6 de este documento dice «se valida el formato de DNI/NIE/pasaporte»; el código no valida ningún formato de pasaporte. Código y documentación se contradicen (`CLAUDE.md §6.6`) | `funcional.md §6`, `DocumentNumberValidator.php` | **Media** por la regla de `CLAUDE.md §6.6`; se resuelve con `OPEN-CORE-46` |
+| F7 | El *docblock* de `DocumentNumberValidator` atribuye a `ADR-034 §1` que el tipo quede «como `text` libre a propósito»; `ADR-034 §1` solo fija el tipo `text` y el índice, no la ausencia de catálogo | `DocumentNumberValidator.php` | Baja |
+
+F1 a F3 los corrige `RN-CORE-90`-`93` **si se aprueba** la propuesta; si no, siguen abiertos por su cuenta.
+
+##### 14.6.4.9 Preguntas abiertas (para el usuario; ninguna se resuelve aquí)
+
+Todas bloquean la implementación del catálogo y, por tanto, **1.9c** (§14.2) salvo donde se dice.
+
+| ID | Pregunta | Bloquea | Recomendación |
+|----|----------|---------|---------------|
+| `OPEN-CORE-46` | Valores del catálogo | 1.9c | B — **RESUELTA** (2026-10-02) |
+| `OPEN-CORE-47` | Grafía de los códigos | 1.9c | A — **RESUELTA** (2026-10-02, ratificada en bloque) |
+| `OPEN-CORE-48` | Par tipo-número completo | 1.9c | A — **RESUELTA** (2026-10-02, ratificada en bloque) |
+| `OPEN-CORE-49` | Alcance de la normalización del número | 1.9c | A — **RESUELTA** (2026-10-02, ratificada en bloque) |
+| `OPEN-CORE-50` | Tolerancia de grafía del código en la importación | 1.9c | A — **RESUELTA** (2026-10-02, ratificada en bloque) |
+| `OPEN-CORE-51` | Formato del pasaporte (solo si entra) | 1.9c | A — **RESUELTA** (2026-10-02, ratificada en bloque) |
+| `OPEN-CORE-52` | Migración y `CHECK`: dos entregas o una | 1.9c | A — **RESUELTA** (2026-10-02, ratificada en bloque) |
+| `OPEN-CORE-53` | Exposición del catálogo a la SPA, y ratificación de `label` del filtro `enum` | 1.9c (catálogo); no (`label`) | A / ratificar — **RESUELTA** (2026-10-02, ratificada en bloque) |
+| `OPEN-CORE-54` | Qué es «sin filtrar» en un `enum` con `initial` | **1.9f** | **RESUELTA** (2026-10-04, usuario): A, `initial` es el estado de reposo |
+| `OPEN-CORE-55` | `initial` combinado con `urlState` | — | **RESUELTA** (2026-10-04, usuario): A, no se admite en 1.9f |
+| `OPEN-CORE-56` | Volver a «página 1, `live`» tras conceder una excepción | **1.9f** | **RESUELTA** (2026-10-04, usuario): A, re-montar con `key`, sin `reset()` |
+
+**`OPEN-CORE-46` · Valores del catálogo.**
+- **A** · `dni`, `nie`. Lectura literal de `REQ-CORE-003`. Deja sin forma de registrar a una persona con solo pasaporte (p. ej. un tutor extranjero recién llegado, cuando `REQ-FAM-UNIT` dé cuentas a las familias).
+- **B** · `dni`, `nie`, `pasaporte`. Añade lo que §6 de este documento ya preveía (y cierra F6).
+- **C** · B más `otro`.
+
+**Recomendación: B.** Cubre a quien no tiene documento español sin abrir una categoría comodín. `otro` (C) sin formato ni control convierte el catálogo en texto libre con otro nombre: cualquier cosa cabe y la unicidad pierde sentido. Como añadir un tipo después es *expand* (§14.6.4.4) y retirarlo no, empezar por B y ampliar con un caso real es lo barato. Es una ampliación sobre `REQ-CORE-003`: decide el usuario.
+
+**`OPEN-CORE-47` · Grafía de los códigos.**
+- **A** · Minúsculas (`dni`, `nie`, `pasaporte`), como todos los demás enumerados técnicos del producto (estados, `kind`, `event`, ámbitos).
+- **B** · Mayúsculas (`DNI`, `NIE`, `PASAPORTE`), como los valores que hoy reconoce el validador y como se escriben las siglas.
+
+**Recomendación: A**, por coherencia con `ADR-038 §3.2` tal como lo aplica el resto de la API; la etiqueta visible ya muestra las siglas en mayúsculas. Los datos existentes son de desarrollo y los normaliza la migración en cualquiera de las dos.
+
+**`OPEN-CORE-48` · ¿Tipo y número, los dos o ninguno?**
+- **A** · Sí (`RN-CORE-91`), en la API, en la importación y, en N+1, con `CHECK`.
+- **B** · No: se mantiene que el par solo se comprueba si hay número (`RN-CORE-03` literal), y un número sin tipo sigue guardándose con tipo `NULL`.
+
+**Recomendación: A.** B mantiene F3 abierto: un número sin tipo no se valida por formato y escapa del índice único.
+
+**`OPEN-CORE-49` · Normalización del número.**
+- **A** · La de `RN-CORE-92`: recorte y mayúsculas en todos los tipos; además, sin espacios ni guiones intermedios en `dni`/`nie`.
+- **B** · Solo recorte y mayúsculas; un guion o espacio intermedio en un DNI es error de formato.
+- **C** · Sin normalización: se rechaza todo lo que no venga ya en forma canónica.
+
+**Recomendación: A.** Es lo que una secretaría teclea o pega desde otro sistema (`12.345.678-Z` no se propone: los puntos no se quitan, serían un error de formato). B y C trasladan al usuario una corrección que el servidor puede hacer sin ambigüedad.
+
+**`OPEN-CORE-50` · Grafía del código de tipo en el CSV.**
+- **A** · La importación acepta el código sin distinguir mayúsculas y con espacios alrededor, y guarda el canónico; la API (cliente técnico) exige el código exacto.
+- **B** · Exacto en los dos: `DNI` en una hoja da `tipo_documento_no_valido` si el canónico es `dni`.
+
+**Recomendación: A.** La hoja la edita una persona; la API, un programa que lee OpenAPI. Más tolerancia en la importación que en la API no rompe `INV-010`: el servidor sigue decidiendo.
+
+**`OPEN-CORE-51` · Formato del pasaporte** (solo si `OPEN-CORE-46` lo incluye).
+- **A** · Alfanumérico `[A-Z0-9]`, de 1 a 32 caracteres tras normalizar, sin control. No supone nada sobre el país emisor.
+- **B** · Límite de la zona MRZ de ICAO 9303 (9 caracteres alfanuméricos).
+
+**Recomendación: A.** Ningún requisito fija un país, y B rechazaría números válidos que en la MRZ se extienden al campo opcional. Si el usuario quiere distinguir el país emisor, es un campo más (`ADR-034 §1`: añadir columna es *expand*) con su propia base legal, fuera de esta propuesta.
+
+**`OPEN-CORE-52` · Migración y `CHECK`.**
+- **A** · Dos entregas (§14.6.4.4): validación y normalización en 1.9c; `CHECK` en la entrega siguiente que toque migraciones, con un paso del plan que lo nombre.
+- **B** · Todo en 1.9c, porque no hay producción ni versiones conviviendo; se registra la excepción a `CLAUDE.md §9` como discrepancia.
+- En las dos, la migración de datos **aborta** ante tipos sin correspondencia o duplicados creados por la normalización, en vez de inventar una correspondencia.
+
+**Recomendación: A.** Cuesta una migración más y no deja un precedente de saltarse *expand/contract* «porque aún no hay producción», que es exactamente cuando se fija la costumbre.
+
+**`OPEN-CORE-53` · Exposición del catálogo a la SPA y `label` del filtro `enum`.**
+- **A** · Constante en el cliente con test cruzado contra el enumerado PHP (precedente `RN-CORE-82`).
+- **B** · *Endpoint* de catálogos (p. ej. dentro de `GET /me` o uno propio), sin constante en el cliente.
+
+**Recomendación: A**: un catálogo de cuatro valores que solo cambia con un despliegue no justifica una petición más, y el test impide la divergencia silenciosa (§14.15). **Aparte**, y sin relación técnica con el catálogo: el campo `label` que 1.9b añadió a `DataTableEnumFilter.options` (§14.22 punto 2) no figura entre las ampliaciones de `OPEN-CORE-40`; **recomendación: ratificarlo** e incorporarlo a la lista cerrada de §13.7, porque es aditivo, lo exige `RN-CORE-62`/`-63` para el filtro de rol (nombres ya traducidos por el servidor) y la alternativa —claves de cliente para nombres de roles personalizados— no existe. Si el usuario no lo ratifica, el filtro de rol de 1.9b tendría que retirarse o mostrar ULID.
+
+##### 14.6.4.10 Criterios de aceptación propuestos
+
+Se escriben ahora para que sean verificables; los que dependen de una pregunta lo dicen y se reescriben al resolverla. Pest salvo los marcados **[Vitest]**.
+
+- **`CA-CORE-273`** [`RN-CORE-90`, `INV-010`] · **Dado** `POST /users` con `person.document_type` fuera del catálogo (p. ej. `"carnet"`), **cuando** se envía, **entonces** `422` con error en `person.document_type` y código `core.validation.document_type_invalid`, y no se crea ninguna `Person` ni `User`; **y** lo mismo con `PATCH /users/{id}`, sin modificar la persona.
+- **`CA-CORE-274`** [`RN-CORE-90`, `OPEN-CORE-06`, `REQ-SEED-005`] · **Dado** cada código del catálogo, **cuando** se da de alta una persona con un número de formato válido y otro de formato inválido para ese tipo, **entonces** el primero se acepta y el segundo responde `422` en `person.document_number`; **y dado** `dni` o `nie` con formato válido y letra de control incorrecta, `422` con la comprobación de dígito activa y `201` con ella desactivada (fuera de producción) — el formato se exige en los dos casos.
+- **`CA-CORE-275`** [`RN-CORE-92`, `RN-CORE-03`, F1, F5] *(según `OPEN-CORE-49`/`-50`)* · **Dado** una persona viva con tipo `dni` y número `12345678Z` (valores de prueba de `REQ-SEED-005`), **cuando** se da de alta otra con número ` 12345678-z `, **entonces** `422` `core.validation.document_duplicate`; **y** la primera persona tiene guardado exactamente el código canónico y `12345678Z`.
+- **`CA-CORE-276`** [`RN-CORE-91`, F3] · **Dado** `POST /users` con número y sin tipo, **entonces** `422` `core.validation.document_incomplete`; **y** con tipo y sin número, el mismo `422`; **y** sin ninguno de los dos, `201`.
+- **`CA-CORE-277`** [`RN-CORE-93`, F2] · **Dado** una persona con tipo `pasaporte` y número `AB1234567` *(o `nie` si `OPEN-CORE-46` = A)*, **cuando** `PATCH /users/{id}` envía solo `person.document_type` con el código de `dni`, **entonces** `422` en `person.document_number` y la persona no cambia.
+- **`CA-CORE-278`** [`RN-CORE-90`-`92`, §14.6.4.6] · **Dado** un CSV con una fila de tipo desconocido, una con el código en otra grafía *(según `OPEN-CORE-50`)* y dos filas con el mismo documento escrito con y sin guion, **cuando** se valida, **entonces** la primera da `tipo_documento_no_valido` en la columna `document_type`, la segunda no da error y, al ejecutarse, guarda el código canónico, y la cuarta da `duplicado_en_fichero`; **y** una fila cuyo documento coincide, normalizado, con el de una persona viva da `duplicado_en_base_de_datos`.
+- **`CA-CORE-279`** [`RN-CORE-90`, `INV-006`] · **Dado** la especificación OpenAPI, **entonces** `person.document_type` tiene en el esquema de petición de `POST /users` y `PATCH /users/{id}` y en el de respuesta del usuario un `enum` exactamente igual a los casos del enumerado PHP, en el mismo orden.
+- **`CA-CORE-280`** [`RN-CORE-90`, §14.6.4.4] · **Dado** una base de datos con filas de tipo `DNI`, `dni` y ` Nie ` y números con espacios, **cuando** se ejecuta la migración de normalización, **entonces** quedan con el código y el número canónicos; **y dado** una fila con un tipo sin correspondencia o dos personas vivas que la normalización convertiría en duplicadas, la migración falla, enumera los `public_id` afectados y no modifica ninguna fila. **Y**, en la entrega del `CHECK` *(según `OPEN-CORE-52`)*, un `INSERT` directo con un tipo fuera del catálogo falla con violación de restricción.
+- **`CA-CORE-281`** [`RN-CORE-90`, `RN-CORE-65`] **[Vitest]** · **Dado** el formulario de alta, **entonces** el tipo de documento es un selector con «Sin indicar» más exactamente los códigos de la constante, con etiqueta traducida; con «Sin indicar» el número está deshabilitado y el cuerpo de `POST /users` no contiene ni tipo ni número; **y dado** la edición de una persona con un tipo anterior al catálogo, el selector lo muestra como opción con su código crudo y, si no se toca, el `PATCH` no envía `person.document_type`.
+- **`CA-CORE-282`** [`RN-CORE-90`, `INV-009`] **[Vitest]** *(según `OPEN-CORE-53`)* · **Dado** la constante de tipos del cliente y el enumerado PHP del servidor, **entonces** contienen exactamente los mismos códigos, y cada código más `none` tiene etiqueta en `es`, `en`, `de` y `fr`; **y** la clave `core.users.form.documentTypeHint` ya no existe en ningún `locales/*.json`.
+- **`CA-CORE-283`** [`ADR-038 §7.3`] **[Vitest]** · **Dado** la ficha de un usuario con tipo `nie`, **entonces** muestra la etiqueta traducida y no el código; **y dado** un código que el cliente no conoce, muestra el código crudo.
+- **`CA-CORE-284`** [§14.6.4.6, `RN-CORE-71`] **[Vitest]** · **Dado** el formulario de subida de importación, **entonces** muestra, junto a la cabecera, la lista de códigos de tipo de documento admitidos con su nombre traducido.
+- **`CA-CORE-285`** [`INV-009`, `ADR-038 §6.3`] · **Dado** los cuatro `lang/*/core.php` del servidor, **entonces** existen en `es`, `en`, `de` y `fr` `core.validation.document_type_invalid`, `core.import.tipo_documento_no_valido` y, `core.validation.document_incomplete` y `core.import.documento_incompleto`.
+
+**Nota de numeración**: `RN-CORE-90` a `-93` y `CA-CORE-273` a `-285` se han tomado como siguientes libres según este documento (último `RN-CORE-89`, §14.14; `CA-CORE-270`-`272` ocupados según la sesión orquestadora, no localizados en este fichero). `OPEN-CORE-46` a `-53`, como siguientes a `OPEN-CORE-45`. Si alguno está ya usado en otro documento del módulo, se renumera antes de aprobar.
+
+### 14.7 Auditoría (`core-audit`)
+
+Tabla `core.audit_logs`, **modo `cursor`** (`ADR-038 §4.2`), «Cargar más», tope de 1.000 filas (`RN-CORE-52`), estado en la URL (sin `cursor`, `RN-CORE-54`), **sin búsqueda** (el *endpoint* no acepta `q`) y **sin columnas ordenables** (orden fijo `occurred_at DESC, id DESC`, sin `sort`).
+
+| `id` | Cabecera | Contenido | Tarjeta |
+|------|----------|-----------|---------|
+| `occurred_at` | Fecha y hora | Instante con `Intl`, zona del navegador (`OPEN-CORE-35` = A). `rowHeader` | `title` |
+| `event` | Operación | Etiqueta traducida de los **nueve** valores (`datos.md`, `ADR-039`; ver hallazgo 9 de §14.16), rama por defecto con el código crudo (`ADR-038 §7.3`) | `subtitle` |
+| `actor` | Usuario | `actor.display_name`; para `actor_type ≠ user`, la etiqueta traducida del tipo (sistema, consola, importación, plataforma, anónimo) | `field` |
+| `auditable_type` | Entidad | Etiqueta traducida del alias si existe en el catálogo del cliente; si no, el alias crudo | `field` |
+| `auditable_public_id` | Identificador | ULID, oculta por defecto | `field` |
+| `ip_address` | IP | Oculta por defecto | `field` |
+| `request_id` | Petición | Oculta por defecto | `field` |
+| `actions` | — | «Ver cambios» | `actions` |
+
+- **`RN-CORE-76` · Filtros de auditoría** (`REQ-CORE-005`: «fecha, usuario, tipo de operación, módulo»):
+  - **Fecha**: `dateRange` con `id = occurred_at` → `occurred_at_from`/`occurred_at_to`. Como el parámetro es `TIMESTAMPTZ`, la función de petición del módulo convierte el día elegido (inicio del día «desde», fin del día «hasta», inclusivos) a instante ISO 8601 en la zona del navegador (`OPEN-CORE-35` = A, resuelta; `§13.7`); se documenta en el manual.
+  - **Tipo de operación**: `enum` `event` con los nueve valores.
+  - **Tipo de actor**: `enum` `actor_type` con los seis valores (requiere varios valores en servidor, §14.11).
+  - **Usuario**: `actor_id`. **`OPEN-CORE-33` = C (resuelta)**: tipo de filtro nuevo **`entity`** en `src/data-table` (aditivo; amplía la lista cerrada de §13.7), selección única por búsqueda asíncrona con función aportada por el consumidor (`GET /users?q=`, requiere `usuario.leer`; sin él el filtro no se ofrece, `RN-CORE-62`), serializado como `actor_id=<ulid>`; la etiqueta se resuelve con `GET /users/{id}` al restaurar desde la URL. Además, «Ver su actividad» en la ficha del usuario (`auditoria.leer`) navega a `core-audit` con `actor_id` y el indicador «Filtrado por: {nombre}» con acción de quitarlo.
+  - **Módulo** (`module`) y **tipo de entidad** (`auditable_type`): `OPEN-CORE-34` = B (resuelta): las opciones salen de `GET /audit-logs/facets` (S10, `auditoria.leer`, `api.md §14.4`); el cliente traduce con rama por defecto.
+- **`RN-CORE-77` · Detalle de cambios.** «Ver cambios» abre un panel modal (`sheet` ya vendorizado en 1.8, `role="dialog"`, foco atrapado, `Esc` cierra, foco vuelve al botón) con `changes` **tal como llega** (`CA-CORE-052`): por atributo, `from` → `to` como texto (un valor no escalar, p. ej. `active_locales`, como JSON compacto); una entrada redactada se muestra como «valor no registrado» más el motivo traducido (`secret`, `special`, `identifier`, `oversized`) y, si existen, «antes vacío / después vacío» a partir de `from_empty`/`to_empty`. **Nunca** intenta reconstruir un valor redactado ni pide nada más al servidor. `changes: null` (eventos `read`, `exported`, `login`…) muestra «sin cambios registrados». El nombre del atributo se muestra tal cual (es el nombre técnico de la columna): traducir los atributos de todos los modelos auditables de todos los módulos es un catálogo sin dueño que este paso no inventa.
+- **`RN-CORE-78` · Exportación de auditoría.** `canExport` = `auditoria.exportar`; la solicitud lleva exactamente los filtros estructurados del listado (`api.md §8`, #267 ya resuelto). Al tope de `RN-CORE-52`, el aviso ofrece exportar.
+
+### 14.8 Roles, solo lectura (`core-roles`)
+
+Tabla `core.roles`, modo `page`, sin filtros, sin búsqueda, sin orden (el *endpoint* no los acepta; orden por `code`). Columnas: nombre (`rowHeader`), tipo (del sistema / personalizado, de `is_system`), MFA obligatorio, acceso a datos especiales, usuarios (`users_count`, alineado a la derecha).
+
+- **`RN-CORE-75` · Solo lectura.** Ninguna acción de escritura sobre roles en 1.9b, **aunque** la API de 1.5 las admita y el usuario tenga `rol.crear`/`rol.actualizar`/`rol.eliminar`: el editor es `1.5b`. La edición de `mfa_required` ya existe en `/administracion/mfa` y no se duplica.
+
+  > **Nota de 1.5b (2026-10-05): `RN-CORE-75` queda SUSTITUIDA** por `REQ-PERM/funcional.md §20.4` y `RN-PERM-26`. Con 1.5b el listado deja de ser de solo lectura: el nombre de cada rol es un enlace a la ficha (`core-role-detail`, que cierra `OPEN-CORE-36` = A) y la barra ofrece **«Nuevo rol»** con `rol.crear`. El editor, la clonación, la baja y las concesiones viven en las pantallas de §20.3 de `REQ-PERM`. La edición de `mfa_required` sigue en `/administracion/mfa` y no se duplica (`OPEN-PERM-11` = A).
+- **`RN-CORE-63` · Texto traducido por el servidor.** `GET /roles` (`name` de los roles del sistema) y `GET /users` (`roles[].name`) devuelven texto traducido en el idioma de la petición (`api.md §3`). Las tablas que lo muestran **vuelven a pedir la página actual** al cambiar el idioma de la interfaz (precisión de §13.12, último punto, que preveía «en 1.9b no se prevé ninguno»: sí lo hay).
+- **Detalle de un rol** con sus concesiones: **fuera de 1.9d** (`OPEN-CORE-36` = A, resuelta): llega con la matriz de `1.5b`. No se crea `core-role-detail` ni se llama a `GET /roles/{id}`.
+
+### 14.9 Configuración del centro (`core-settings`)
+
+Un formulario por grupo de `GET /tenant/settings` (`api.md §2`): **Regional** (idioma por defecto, idiomas activos, zona horaria, moneda, comunidad autónoma), **Fiscal** (razón social, NIF/CIF, dirección, código postal, municipio, provincia, país) y **Paleta** (colores primario y secundario). El grupo **Seguridad** (`security.*`, de `REQ-AUTH`) se resuelve por `OPEN-CORE-37` = B: la pantalla incluye solo las claves `security.*` que **no** edite ya `/administracion/mfa` (el implementador lo comprueba antes de escribir y lo reporta) y enlaza a esa pantalla para las demás; no se duplica ningún campo. Enlace a «Activos de marca».
+
+- **`RN-CORE-79` · Lectura o edición por permiso.** Con `configuracion.leer` sin `configuracion.actualizar` (p. ej. `direccion`, `permisos.md §4.1`), la pantalla se pinta en **solo lectura** (valores como texto, sin campos editables ni botón de guardar). Con `configuracion.actualizar`, cada grupo se guarda por separado con su propio `PATCH` que envía **solo las claves modificadas de ese grupo** (`RN-CORE-65`), lo que reduce el efecto de «la última escritura gana» de §6 entre dos administradores que editan grupos distintos.
+- **`RN-CORE-80` · Paleta.** Mientras se edita, la vista muestra una **vista previa** del par primario/secundario y su razón de contraste calculada con las funciones puras de 1.7 (`design-system/color/contrast.ts`), con el umbral de 4,5:1 (`RUX-BRAND-006`). Es comodidad: el servidor es la autoridad y un `422 contrast_insufficient` muestra `ratio` y `required` del servidor. La vista previa **no** aplica la paleta al documento (`applyBrandPalette` solo lo llama la capa B). Tras guardar, se llama a `useTenantBranding().refresh()` (`docs/design-system.md §7`) para que el *shell* adopte la paleta sin recargar.
+- **`RN-CORE-81` · Idiomas.** «Idiomas activos» es un grupo de casillas de los cuatro de `ADR-021`, al menos una marcada; «idioma por defecto» solo ofrece los marcados. Si se retira el idioma en el que el usuario ve la interfaz, la vista avisa antes de guardar de que pasará a ver el idioma por defecto (`RN-CORE-34`). Tras guardar, `refresh()` de la capa B (el selector de idioma de 1.8 lee de ahí los activos).
+- **`RN-CORE-82` · Catálogos en el cliente.** Zona horaria: lista de `Intl.supportedValuesOf('timeZone')` con búsqueda por texto (el servidor valida con `timezone:all`). Moneda: campo de tres letras mayúsculas (el servidor solo exige `^[A-Z]{3}$`; no hay catálogo de monedas que inventar). Comunidad autónoma: **constante en el cliente con exactamente los códigos de `App\Modules\Core\Domain\AutonomousCommunity::CODES`** y su nombre en los cuatro idiomas, más la opción «sin indicar» (`null`). Un test de Vitest lee ese fichero PHP del repositorio y comprueba que los códigos coinciden; si la lectura cruzada entre aplicaciones no es viable en CI, el implementador lo reporta y se decide otra vía.
+- **Actualización 2026-10-05 (issues #323 y #324, §14.27), grupo Seguridad.** (1) Al guardar `mfa_allowed_methods`, la pantalla parte de la lista que devolvió el servidor y **solo alterna `email`**: cualquier otro método que el servidor ya tuviera se conserva, no se fija en el cliente. (2) `session_timeout_minutes` y `mfa_grace_period_days` **no se envían si no son enteros** (texto vacío, decimales, no numérico): el cliente muestra bajo el campo `core.settings.errors.notInteger` («Introduce un número entero.», en es/en/de/fr) y no hace la petición. El **rango** (5-480 y 1-90) sigue decidiéndolo solo el servidor (`INV-010`).
+
+### 14.10 Activos de marca (`core-branding-assets`)
+
+Tres bloques (logo, *favicon*, fondo de acceso), cada uno con la imagen actual (URL firmada de `GET /tenant/settings`), los tipos y tamaños admitidos (`api.md §2`: logo SVG/PNG/WebP ≤ 1 MB; *favicon* PNG/ICO/SVG ≤ 256 KB; fondo JPEG/PNG/WebP ≤ 3 MB, sin SVG) y, con `configuracion.actualizar`, «Sustituir» y «Eliminar».
+
+- **`RN-CORE-83` · Activos.** Las comprobaciones de tipo y tamaño en cliente son comodidad; el servidor decide por **contenido** (`413`, `415`, `422`, `RN-CORE-18`) y la vista muestra su mensaje. Eliminar pide confirmación (`RN-CORE-64`). Tras sustituir o eliminar: se vuelve a pedir `GET /tenant/settings` y se llama a `useTenantBranding().refresh()` (logo del *shell*, *favicon*). La imagen se pinta con `alt` traducido («Logotipo actual de {centro}»; el fondo es decorativo). Si una URL firmada falla al cargar (caducada), la vista vuelve a pedir la configuración **una sola vez** y, si vuelve a fallar, muestra el estado de error sin bucle.
+- La SPA **nunca** sanea ni inspecciona el SVG: lo hace el servidor (`§4.2`). La vista previa local antes de subir (`URL.createObjectURL` del fichero elegido) **no se hace**: además de estar vetado por `CA-CORE-192`, pintaría en el origen del centro un SVG sin sanear. La vista previa es la del activo ya guardado.
+
+### 14.10b Módulos contratados, solo lectura (`core-modules`, `OPEN-CORE-31` = B)
+
+Estado del servidor verificado (2026-10-01, `ModulesController::index()`): `GET /modules` exige `modulo.leer`, **no está paginado** (devuelve `{"data": [...]}` sin `meta`), recorre **todo el catálogo** de módulos no retirados ordenado por `code` e incluye los no contratados con `enabled: false` y `public_id: null` (`api.md §6`); `name` viene **traducido por el servidor**; nunca devuelve el `reason` interno del proveedor (`RN-BO-82`).
+
+- **`RN-CORE-87` · Pantalla de módulos de solo lectura.** Tabla `core.modules` con el componente de 1.9 (`RN-CORE-53`), con una función de petición que envuelve la respuesta sin paginar en una única página (`meta = {current_page: 1, per_page: n, total: n, last_page: 1}`), la misma técnica de `RN-CORE-74`; sin búsqueda, filtros, orden ni exportación. Columnas: nombre (`rowHeader`), estado (contratado / no contratado, traducido en el cliente) y **fecha de alta** (`enabled_at`, con `Intl`), que es el «aviso de las nuevas altas» de `REQ-CORE-002` en este paso (`ADR-045`: informativo, sin acción requerida). Filas mostradas (`OPEN-CORE-45` = A): **solo las contratadas** (`enabled: true`), filtradas en el cliente sobre la respuesta completa de `GET /modules` (no es filtrado de seguridad). **Ninguna acción de escritura**: la pantalla nunca llama a `PATCH /module-subscriptions/{id}`, aunque el usuario tenga `modulo.actualizar`, ni muestra `settings` ni `phase`. La tabla recarga al cambiar de idioma (`RN-CORE-63`, por `name`).
+
+### 14.10c Perfil propio (`core-profile`, `OPEN-CORE-31` = B)
+
+Estado del servidor verificado (2026-10-01, `MeController`): `PATCH /me` **no tiene permiso granular**: se autoriza por identidad del portador de la sesión (`permisos.md §5.2`) y solo acepta `person.locale`, `person.contact_email` (correo válido o `null`) y `person.contact_phone` (texto de hasta 32 caracteres o `null`); cualquier otro campo se ignora en silencio (`CA-CORE-018`). Responde con el mismo recurso que `GET /me`.
+
+- **`RN-CORE-88` · Perfil propio de autoservicio.** Ruta `core-profile` en la sección `cuenta`, con `meta.permissions: []` (§14.3.1). Muestra en solo lectura el nombre completo y el correo de acceso (este último con la explicación de que no se cambia desde aquí, §4.9), y en un formulario editable **solo** el correo y el teléfono de contacto. El idioma **no** se edita aquí: ya lo cambia el selector del menú de usuario de 1.8 (§12.3.6), y dos controles para el mismo dato divergirían. Los datos se leen del estado de sesión ya cargado (`RN-CORE-26`): la pantalla **no** pide `GET /me` por su cuenta.
+- **`RN-CORE-89` · Guardado del perfil.** `PATCH /me` envía solo las claves modificadas de `person` (`RN-CORE-65`; vaciar un campo envía `null`); un `422` pinta los mensajes del servidor por campo. Con `200`, el estado de sesión se sustituye por la respuesta del propio `PATCH`, sin segunda petición (§12.3.4), y se muestra un mensaje con `role="status"`. La interfaz **nunca** envía `email`, `status`, `roles` ni ningún otro campo.
+
+### 14.11 Cambios en servidor
+
+Detalle de contratos en `api.md §14`. Recuento: **dos *endpoints* nuevos** (S1; S10, `OPEN-CORE-34` = B, resuelta), **una migración** (S2), **tres correcciones** (S3 y S4, que alinean el código con el contrato documentado —S4 cambia la respuesta de `fallida`, por eso va en negrita—, y S9, `OPEN-CORE-38` = A, resuelta) y **cuatro cambios compatibles** en el sentido de `ADR-038 §7` (S5 a S8). 1.9e no añade nada al servidor: módulos y perfil consumen `GET /modules` y `PATCH /me` tal como están.
+
+| # | Cambio | Tipo | Sub-paso |
+|---|--------|------|----------|
+| S1 | **`POST /api/v1/users/exports`** (nuevo) y trabajo `GenerateUserExport` en `core-exports` | Nuevo | 1.9b |
+| S2 | `data_exports.kind`: añadir `users` al `CHECK` (*expand*, `datos.md` Parte D) | Migración | 1.9b |
+| S3 | `GET /data-exports/{id}`: autorización **por `kind`** (`audit_logs` → `auditoria.exportar`, `users` → `usuario.exportar`; `kind` sin correspondencia → `403`) en lugar de `auditoria.exportar` fijo | Corrección (necesaria para S1) | 1.9b |
+| S4 | `GET /data-exports/{id}`: una exportación `fallida` responde **`200` con `status: "fallida"` y `error_code`**, no `409` (`OPEN-CORE-39`) | **Corrección de contrato** | 1.9b |
+| S5 | `GET /users`: `sort` admite `-email` | Compatible | 1.9b |
+| S6 | `GET /users/{id}?include_deleted=true`, exigiendo además `usuario.eliminar` (cumple `CA-CORE-014`) | Compatible | 1.9b |
+| S7 | Valores múltiples por comas (`ADR-038 §5.2`) en `GET /invitations?status=`, `GET /users?locale=` (1.9b) y `GET /audit-logs?actor_type=`/`module=` (1.9d), con la misma regla en `POST /users/exports` y `POST /audit-logs/exports` (paridad, `ADR-054 §8.2`) | Compatible | 1.9b / 1.9d |
+| S8 | `UserImportResource` devuelve `created_at` (ya documentado en `api.md §7`) **y `send_invitations`** (ampliación aditiva decidida por el usuario el 2026-10-03: la confirmación de ejecutar, `RN-CORE-73`/`CA-CORE-235`, lo lee siempre de la API) | Compatible | 1.9c |
+| S9 | Idioma de `message` en `ValidateUserImport` (#285, `OPEN-CORE-38` = A, resuelta) | Corrección | 1.9c |
+| S10 | *Endpoint* de facetas de auditoría (`OPEN-CORE-34` = B, implementado) | Nuevo | 1.9d |
+
+#### 14.11.1 `POST /users/exports`: norma aplicable
+
+- **`RN-CORE-85` · Exportación de usuarios en servidor.** Cumple entera la norma de `ADR-054 §8`-`§10` y `ADR-055`, sin excepciones: permiso `usuario.exportar` (ámbito `todos`, el único que admite, `permisos.md §2`); `include_deleted=true` exige además `usuario.eliminar`, igual que el listado; paridad exacta de filtros con `GET /users` (`status`, `role`, `locale`, `include_deleted`), con test que recorre los parámetros de filtro del listado en OpenAPI; **`q` ⇒ `422`** con un código propio del recurso en el catálogo de `core` (`RN-CORE-58`; el nombre de la clave lo fija el implementador y se documenta en OpenAPI); sin `sort`; generación en cola (`INV-012`) con `CsvWriter` (`RN-CORE-47`/`48`), tipos de columna declarados, dialecto de `ADR-054 §10.3`; cabeceras y valores técnicos sin traducir (`RN-CORE-59`) — el trabajo **no** llama a `__()`/`trans()`; límite de filas con `422` (`RNF-LIM-004`, §14.15); auditoría `exported`; URL firmada; caducidad de siete días; nombre de fichero `<public_id>.csv`. **Esquema del fichero** (`OPEN-CORE-32` = B, resuelta el 2026-10-01), documentado igual en OpenAPI y en `api.md §14.1`:
+
+  | # | Columna | Origen en la API (`GET /users`) | Tipo (`CsvColumnType`, `ADR-054 §10.2`) | Vacío |
+  |---|---------|----------------------------------|------------------------------------------|-------|
+  | 1 | `public_id` | `public_id` | Texto (ULID) | Nunca |
+  | 2 | `status` | `status` (código técnico: `pendiente`, `activo`, `inactivo`) | Texto | Nunca |
+  | 3 | `deleted_at` | `deleted_at` | Instante ISO 8601 con desfase | Si no está dado de baja |
+  | 4 | `created_at` | `created_at` | Instante ISO 8601 con desfase | Nunca |
+  | 5 | `email` | `email` (correo de acceso) | Texto | Nunca |
+  | 6 | `given_name` | `person.given_name` | Texto | Nunca |
+  | 7 | `family_name_1` | `person.family_name_1` | Texto | Nunca |
+  | 8 | `family_name_2` | `person.family_name_2` | Texto | Si no tiene |
+  | 9 | `contact_email` | `person.contact_email` | Texto | Si no tiene |
+  | 10 | `contact_phone` | `person.contact_phone` | Texto (nunca entero: un `+34…` es texto y se neutraliza, `RN-CORE-48`) | Si no tiene |
+  | 11 | `locale` | `person.locale` (`es-ES`, `en`, `de`, `fr`) | Texto | Nunca |
+  | 12 | `roles` | `roles[].code`, **códigos** técnicos (nunca `name`) ordenados alfabéticamente y unidos con `\|`, como en la cabecera de importación (`api.md §7`) | Texto | Si no tiene roles |
+
+  - **Orden de las filas**: `family_name_1`, después `given_name`, después `public_id` (desempate único), ascendente, con la colación de la base de datos. No depende del `sort` de la pantalla (`ADR-054 §8.1`).
+  - **Columnas que el fichero NO contiene, por decisión del usuario**: `document_type`, `document_number` y `birth_date`, ni ninguna otra que no esté en la tabla (`email_verified_at`, `updated_at`…). Motivo: minimización; el listado de usuarios incluye a cuentas de alumnado menor de edad cuando existan (`INV-008`), y un documento de identidad o una fecha de nacimiento exportados en bloque salen del control del sistema. **Añadirlas después** sería un cambio **aditivo** (columnas al final, `ADR-055 §2.4`), pero exige una **decisión expresa del usuario** con su base legal (`INV-008`), no solo una petición de un centro; no lo decide ningún paso por su cuenta.
+  - **Consecuencia aceptada**: el fichero no coincide con la cabecera de importación (le faltan tres columnas y le sobran cuatro), así que no sirve para reimportar sin editarlo. Ningún requisito pide esa ida y vuelta.
+- **`RN-CORE-86` · `GET /data-exports/{id}` por `kind`.** El permiso que exige el detalle de una exportación es el del recurso exportado, resuelto por su `kind` con una correspondencia cerrada en código; un `kind` sin correspondencia se deniega (`RPERM-011`). Sigue exigiendo además ser el solicitante (`permisos.md §8`). Se mantiene `409` para «aún no está lista» (el cliente de 1.9 ya lo trata así) y `410` para caducada; `fallida` según S4.
+
+### 14.12 Precisiones a §13 (sin reabrirlo)
+
+1. **`CA-CORE-207`** dice «ningún generador de `apps/api/app` referencia `__()`/`trans()`». `ADR-055 §1` excluye expresamente de esa regla el informe de errores de importación (`report.csv`), que **sí** debe llevar un mensaje legible. Al implementar `CA-CORE-207` en 1.9b, la comprobación se aplica a los **generadores de CSV de datos** (los que escriben un artefacto de `data_exports`), no a `ValidateUserImport`. Si el usuario prefiere corregir el texto de `CA-CORE-207`, es una edición de §13 que esta especificación no hace por su cuenta.
+2. **§13.12, último punto** («en 1.9b no se prevé ninguno» *endpoint* con texto traducido en las filas): sí los hay, `GET /users` y `GET /roles` (`RN-CORE-63`).
+
+### 14.13 Migración de las tres tablas exceptuadas de `RN-CORE-53`
+
+Criterio común, el mismo que §13.15 aplicó a `MfaComplianceArea.vue`:
+
+- **`RN-CORE-84` · Migración con paridad.** Mismas peticiones (salvo `per_page`, que pasa a enviarse explícito, §13.24 punto 5), mismas acciones con los mismos *endpoints*, mismos mensajes y mismo tratamiento de errores. Cambia el aspecto por construcción (barra de filtros, paginador, tarjetas, valor vacío común de `dataTable.emptyValue`, nombres accesibles de acción por fila con la identidad de la fila, WCAG 2.4.6). **En el mismo *commit*** que migra cada vista, su ruta se retira de la lista de excepciones del test de `RN-CORE-53` (`CA-CORE-200`), que de otro modo falla. Ninguna de las tres declara estado en la URL (paridad, como `CA-CORE-206`). Los tests preexistentes de cada vista siguen en verde. Los issues Baja que la reescritura elimine **por construcción** en esa vista (#90 el `'—'` literal, #259 el `import { useI18n } from 'vue-i18n'`) quedan resueltos para esa vista y se anota en el issue; no se buscan ni corrigen en otras vistas (`CLAUDE.md §5`).
+
+| Vista | Modo | Particularidades |
+|-------|------|------------------|
+| `MfaExemptionsArea.vue` (`/administracion/mfa`, área 4) | `page` | Filtro de estado **de selección única** con valor inicial `live` y opción «todos», con la ampliación aditiva del filtro `enum` (`multiple: false`, `initial`) de `OPEN-CORE-40` = A, construida en 1.9f. Formulario de concesión fuera de la tabla, sin cambios. La confirmación de revocación pasa al diálogo de `RN-CORE-64`. `tableId` `auth.mfa_exemptions` |
+| `AdminSsoView.vue` (`/administracion/sso`) | `page` | Hoy pide `per_page=100` y no pagina: pasa a paginar de 25 en 25 con el paginador del componente (cambio por construcción). La confirmación de borrado con `window.confirm` se sustituye por el diálogo de `RN-CORE-64` (`OPEN-CORE-42` = A), con el aviso adicional para SAML que ya existe. `tableId` `auth.identity_providers` |
+| `SessionsView.vue` (`/cuenta/sesiones`) | `page` | Hoy pinta solo la primera página de `GET /auth/sessions`: pasa a paginar. «Cerrar las demás sesiones» queda fuera de la tabla. Las confirmaciones (por fila y de «cerrar las demás») pasan al diálogo de `RN-CORE-64` (`OPEN-CORE-42` = A), que asume la gestión de foco que hoy hace la vista a mano. IP nula: valor vacío común. Revocar la sesión actual sigue llevando a `/entrar`. `tableId` `auth.sessions` |
+
+> **Especificación propia de 1.9f** (§14.13.1 a §14.13.7, añadida el 2026-10-04 sobre el código real de las tres vistas, sus tests y `src/data-table`). No reabre `RN-CORE-84` ni la tabla de arriba: las concreta. Lo que no se puede concretar sin decisión del usuario va a §14.13.6 y **bloquea solo lo que allí se dice**.
+
+#### 14.13.1 Estado de partida verificado (2026-10-04)
+
+| Vista | Petición actual | Acciones y confirmación actuales | Errores actuales | Tests actuales |
+|-------|-----------------|----------------------------------|------------------|----------------|
+| `MfaExemptionsArea.vue` (`auth/components/admin/`) | `GET /mfa-exemptions?state=<valor>&page=<n>` (`listMfaExemptions`), **sin `per_page`**; valor inicial `live`, «todos» no envía `state`. Paginador propio con `last_page` | «Conceder» abre un formulario fuera de la tabla (`POST /mfa-exemptions`); tras `201`, vuelve a la **página 1 con `state=live`**. «Revocar» solo en filas `live`, con confirmación en línea dentro de la celda (`DELETE /mfa-exemptions/{id}`); tras `204`, recarga **con el mismo filtro y la misma página**. Filas no `live`: `'—'` literal en la celda de acciones. Ningún control se oculta por permiso (`REQ-AUTH/permisos.md §D.6.3` regla 1, `CA-AUTH-176`) | Listado: `403` ⇒ `auth.mfaAdmin.forbidden`; otro ⇒ `auth.common.unexpectedError`. Revocar: cualquier error ⇒ `auth.common.unexpectedError`, sin recargar. Conceder: `403` ⇒ `detail` o `forbidden`; `409` ⇒ `exemptions.alreadyLive`; `422` ⇒ mensajes de `reason`/`expires_at`; `404` ⇒ `reset.userNotFound` | **Ninguno propio** (issue #120: el resto de `/administracion/mfa` sigue sin test). Importa `vue-i18n` para `locale` (#259) |
+| `AdminSsoView.vue` | `GET /identity-providers?per_page=100` una sola vez, sin paginar | «Nuevo proveedor» (enlace, fuera de la tabla). Por fila: «Editar» (enlace a `sso-administration-edit`) y «Eliminar» con `window.confirm` (texto `confirmDelete` + `confirmDeleteSaml` en SAML); tras `204`, **quita la fila en memoria sin volver a pedir**. Botones de fila **sin nombre accesible con la identidad**. Ningún control se oculta por permiso | Carga: `401` ⇒ navega a `login`; otro ⇒ `auth.ssoAdmin.loadError`. Eliminar: cualquier error ⇒ `auth.ssoAdmin.loadError` (la fila no desaparece) | `AdminSsoView.spec.ts`, 13 casos; cinco usan `window.confirm` simulado |
+| `SessionsView.vue` | `GET /auth/sessions` **sin parámetros** (`listSessions`): solo la primera página (25 por defecto en servidor) | «Cerrar sesión» por fila (`DELETE /auth/sessions/{id}`) y «Cerrar las demás sesiones» (`DELETE /auth/sessions?scope=others`, deshabilitado sin otras sesiones), ambas con confirmación en línea y foco gestionado a mano; tras éxito, `role="status"` con `revokedSuccess`/`revokeOthersSuccess` y recarga; revocar la `current` navega a `login`. Nombre accesible de fila = `revoke` + `' — '` literal + dispositivo | Carga: `401` ⇒ `login`; otro ⇒ `unexpectedError`. Revocar: `401` ⇒ `login`; `404`/`409` ⇒ recarga sin error; `429` ⇒ segundos de `Retry-After`; otro ⇒ `unexpectedError`. «Las demás»: `401`, `429`, otro, igual | **No se ha localizado** ningún `SessionsView.spec.ts` (ni junto a la vista ni en `__tests__/`); el implementador lo comprueba con una búsqueda antes de empezar. Importa `vue-i18n` (#259) y escribe `'—'` para la IP nula (#90) |
+
+Servidor, verificado para lo que la migración necesita: `IndexMfaExemptionsRequest` acepta `per_page` (1-100) además de `state` por comas y `page`. `GET /identity-providers` acepta `page`/`per_page` (la vista ya envía `per_page`). `GET /auth/sessions` acepta `page`, `per_page` (25 por defecto, máximo 100) y `sort` (`REQ-AUTH/api.md §B.2`; **solo comprobado en la documentación**, no en el `FormRequest`: el implementador lo verifica y, si no coincide, para y lo reporta). **1.9f no toca `apps/api`.**
+
+#### 14.13.2 Ampliación del filtro `enum`: selección única y valor inicial (`OPEN-CORE-40` = A)
+
+- **`RN-CORE-94` · Filtro `enum` de selección única con valor inicial.** Ampliación **aditiva** de `DataTableEnumFilter` (amplía la lista cerrada de §13.7, como ya hicieron `twoState` de 1.9b, `label` ratificado en `OPEN-CORE-53` y `entity` de 1.9d), con dos campos opcionales nuevos:
+
+  | Campo | Tipo | Por defecto | Contrato |
+  |-------|------|-------------|----------|
+  | `multiple` | booleano | `true` | `true` o ausente: el filtro de 1.9 sin ningún cambio (casillas, valores por comas). `false`: **selección única** |
+  | `initial` | texto | ausente | Solo con `multiple: false`. Valor con el que arranca el filtro cuando no hay estado previo (sin `urlState`, siempre). Debe ser el `value` de una de `options`; si no lo es, o si se declara con `multiple` distinto de `false`, el componente lo **ignora** (el filtro arranca en «todos») y avisa por consola, con el mismo mecanismo que el aviso de `urlState` duplicado de `useDataTableController` — nunca lanza ni envía un valor no declarado |
+
+  Comportamiento con `multiple: false`:
+  1. **Control**: grupo de opciones **exclusivas** (`DropdownMenuRadioGroup`, ya vendorizado y usado por el filtro `boolean` de tres estados), con una primera opción «Todos» (`dataTable.filters.all`, ya existente) seguida de `options` en el orden declarado. Etiqueta de cada opción con la misma regla de `optionLabel` (`label` > `labelKey` > código crudo, `ADR-038 §7.3`).
+  2. **Disparador**: botón con el nombre del filtro (`labelKey`) y el valor elegido o «Todos», con la misma forma que el disparador del booleano de tres estados (`dataTable.filters.booleanTrigger` o una clave hermana de `dataTable.filters.*`; el nombre lo elige el implementador, en `es`, `en`, `de` y `fr`, §13.12). El nombre accesible del disparador **empieza** por el texto de `labelKey`, para que un test lo localice igual que el de un `enum` múltiple.
+  3. **Serialización**: un valor ⇒ `<id>=<valor>`; «Todos» ⇒ el parámetro no se envía (`CA-CORE-269`). Nunca hay dos valores a la vez, tampoco si llegan por otra vía (un valor con coma en el estado se trata como no declarado y se descarta).
+  4. Cambiar el valor reinicia a la página 1 (`CA-CORE-168`) y lanza una sola petición.
+  5. **Qué es «sin filtrar»** para un filtro con `initial` (`OPEN-CORE-54` = A, resuelta el 2026-10-04): `initial` es el **estado de reposo**. Recién montada la tabla no hay «Limpiar filtros» y el texto de vacío es el del consumidor; elegir «Todos» activa «Limpiar filtros», que devuelve el filtro a `initial`.
+  6. **Con `urlState`** (`OPEN-CORE-55` = A, resuelta el 2026-10-04): no se admite en 1.9f. Con `urlState` se **ignora `initial`** (la primera petición no lleva el parámetro y la URL no lo contiene) y se **avisa por consola**. Ningún consumidor de 1.9f lo necesita (las tres vistas no declaran estado en la URL).
+  7. Las tablas existentes (sin `multiple` ni `initial`) no cambian de comportamiento ni de petición: `MfaComplianceArea`, usuarios, invitaciones, importaciones, auditoría, módulos y las tablas de prueba de 1.9 mantienen sus tests en verde.
+
+  Se exportan desde `src/data-table/index.ts` solo los tipos ya existentes (los campos nuevos viven en `DataTableEnumFilter`); ningún módulo importa `src/data-table/` por ruta interna (`§13.3`).
+
+#### 14.13.3 `MfaExemptionsArea.vue` (`auth.mfa_exemptions`)
+
+Sigue siendo un área embebida en `AdminMfaView.vue`, sin ruta propia. `mode="page"`, sin `urlState`, sin búsqueda, sin columnas ordenables (`GET /mfa-exemptions` no acepta `sort`; orden del servidor: vivas primero y por `granted_at` descendente), sin exportación. `card-heading-level` 3 (la sección ya tiene un `h2`). Texto de vacío del consumidor: `auth.mfaAdmin.exemptions.empty` (el actual). `caption`: clave nueva `auth.mfaAdmin.exemptions.tableCaption` (hermana de `auth.mfaAdmin.compliance.tableCaption`).
+
+**Columnas** (las seis de hoy, mismo orden):
+
+| `id` | Cabecera (clave actual) | Valor | Tarjeta | Ocultable |
+|------|-------------------------|-------|---------|-----------|
+| `user` | `columnUser` | «Nombre Apellido · correo», como hoy (`given_name`, `family_name_1`, `email`). `rowHeader` | `title` | No |
+| `state` | `columnState` | Insignia con el texto traducido de `auth.mfaAdmin.exemptions.state.<valor>` (rama por defecto: código crudo), variante `default` en `live` y `secondary` en el resto, como hoy; el color no es la única señal (D.9) | `subtitle` | Sí |
+| `reason` | `columnReason` | Texto tal cual, en varias líneas (§13.11) | `field` | Sí |
+| `expires_at` | `columnExpiresAt` | `formatDateTime` de `useDataTableFormatters` (fecha **y hora**, como hoy: la caducidad efectiva es las 00:00 del día, `REQ-AUTH/api.md §D.4`) | `field` | Sí |
+| `granted_by` | `columnGrantedBy` | «Nombre Apellido» de `granted_by` | `field` | Sí |
+| `actions` | `columnActions` | Ver abajo | `actions` | No |
+
+**Valor vacío**: toda celda sin valor usa el valor vacío común (`dataTable.emptyValue`, `CA-CORE-201`); en particular, **la celda de acciones de una fila no `live` pinta `DataTableEmptyValue`** (exportado por `src/data-table`) en lugar del `'—'` literal actual, lo que resuelve #90 en esta vista.
+
+**Filtro**: `{ type: 'enum', id: 'state', labelKey: 'auth.mfaAdmin.exemptions.filterLegend', multiple: false, initial: 'live', options: live, expired, revoked }` con las etiquetas `auth.mfaAdmin.exemptions.state.<valor>` (§14.13.2).
+
+**Función de petición**: `GET /mfa-exemptions` con `state` (el valor del filtro, o ausente con «Todos»), `page` y **`per_page` explícito** (§13.24 punto 5); `listMfaExemptions` del cliente del módulo gana el parámetro `per_page` (aditivo). Ningún otro parámetro (no envía `user`, como hoy). Primera petición al montar: `state=live&page=1&per_page=25` (`CA-CORE-256`).
+
+**Acción por fila «Revocar»** (solo `state = live`, como hoy, sin ocultarla por permiso: regla 1 de `REQ-AUTH/permisos.md §D.6.3`, que `RN-CORE-84` conserva):
+- Texto visible: `revokeAction` (el actual). **Nombre accesible** con la identidad de la fila: clave nueva con parámetro de nombre («Revocar la excepción de Ana López»), del mismo patrón que `auth.mfaAdmin.compliance.resetActionFor` (WCAG 2.4.6, `CA-CORE-186`).
+- **Confirmación** con `useConfirm` + `ConfirmDialog` (`RN-CORE-64`, `OPEN-CORE-42` = A): título que nombra a la persona («Revocar la excepción de Ana López»), descripción = el texto actual de `auth.mfaAdmin.exemptions.confirmRevoke`, botón de confirmar con la identidad, `destructive: true`. Desaparece la confirmación en línea (`revokingId` como estado de «fila en confirmación»).
+- Mientras la petición está en vuelo, el botón «Revocar» de esa fila está deshabilitado (paridad de `revokeSubmitting`).
+- `204` ⇒ `refresh()` de la tabla (**misma consulta**: mismo filtro y misma página, como hoy; `RN-CORE-45` cubre la página que se queda vacía).
+- Error ⇒ `auth.common.unexpectedError` con `role="alert"` debajo de la tabla, como hoy, **sin recargar** (paridad; un `404` de «ya revocada» se comporta igual que hoy).
+
+**Formulario de concesión**: sin cambios de campos, validación, peticiones ni mensajes (fuera de la tabla, `CA-CORE-256`). Tras `201`, la tabla vuelve a la **página 1 con `state=live`** (paridad): el mecanismo depende de **`OPEN-CORE-56`**.
+
+**Errores del listado**: pasan a los estados de error de §13.10/§12.6 del componente (precedente de `MfaComplianceArea`, §13.15): un `403` pinta el estado «sin acceso» **dentro del área**, sin ocultarla ni redirigir (sigue cumpliendo `CA-AUTH-176`), y un `5xx`, el estado de error con `request_id` y «Reintentar». **No** se conservan los textos `auth.mfaAdmin.forbidden`/`unexpectedError` del listado (ver `RN-CORE-95`). Los mensajes de las **acciones** (revocar, conceder) sí se conservan literalmente.
+
+**Limpieza por construcción**: deja de importar `useI18n` de `vue-i18n` (usa `useT` y los formateadores de `src/data-table`, #259) y de escribir `'—'` (#90); `MAX_EXEMPTION_DAYS` y su comentario no cambian.
+
+#### 14.13.4 `AdminSsoView.vue` (`auth.identity_providers`)
+
+`mode="page"`, sin `urlState`, sin búsqueda, sin columnas ordenables (la vista no ordena hoy; no se añade), sin filtros, sin exportación. `card-heading-level` 2 (la vista tiene `h1`). Texto de vacío: `auth.ssoAdmin.empty` (el actual; el test «catálogo vacío muestra el estado vacío, no una tabla» sigue valiendo). `caption`: clave nueva `auth.ssoAdmin.tableCaption`. Cabecera de la vista (título, introducción y enlace «Nuevo proveedor») **fuera** de la tabla, sin cambios.
+
+**Columnas** (las siete de hoy, mismo orden; la última sin cabecera visible hoy pasa a tener una, porque el componente exige `headerKey`: clave nueva `auth.ssoAdmin.columns.actions`):
+
+| `id` | Cabecera | Valor | Tarjeta | Ocultable |
+|------|----------|-------|---------|-----------|
+| `display_name` | `columns.displayName` | `display_name`. `rowHeader` | `title` | No |
+| `protocol` | `columns.protocol` | `auth.ssoAdmin.protocolLabel.<protocol>` (rama por defecto: código crudo) | `subtitle` | Sí |
+| `issuer` | `columns.issuer` | `issuer`; hoy se trunca con `truncate`: si se mantiene el truncado, el texto completo es accesible (`title` o nombre accesible, §13.11 «Texto largo»); vacío ⇒ valor vacío común | `field` | Sí |
+| `status` | `columns.status` | `status.enabled`/`status.disabled` según `is_enabled` | `field` | Sí |
+| `provisioning_mode` | `columns.provisioningMode` | `auth.ssoAdmin.provisioningMode.<valor>` | `field` | Sí |
+| `secret` | `columns.secret` | Mismo contenido que hoy por *slot*: en SAML, `certificateStatus.none` (con `text-destructive`) o `certificateStatus.active` más `nextExpiry`; en OIDC, `secretStatus.none`/`expiringSoon` (con fecha si la hay)/`active`. **OIDC sin `secret_status`** (hoy celda vacía) ⇒ valor vacío común | `field` | Sí |
+| `actions` | `columns.actions` (nueva) | «Editar» y «Eliminar» | `actions` | No |
+
+Las fechas de esta columna pasan de `toLocaleDateString()` a `formatDate` de `src/data-table` (§13.12: ninguna vista crea su formateador).
+
+**Función de petición**: `GET /identity-providers` con `page` y `per_page` del componente (25 por defecto; `CA-CORE-257`). Un `401` en la carga **sigue navegando a `login`** (paridad y test existente): la función de petición lo detecta, navega y relanza el error, del mismo modo que `MfaComplianceArea` reenvía su `403`. Los demás errores de carga pasan al estado de error del componente (`RN-CORE-95`).
+
+**Acciones por fila** (visibles siempre, como hoy; el servidor decide con `proveedor_identidad.*`, `INV-002`):
+- **Editar**: enlace a `sso-administration-edit` con el `public_id`. Texto visible `auth.ssoAdmin.edit`; **nombre accesible** con el nombre del proveedor (clave nueva con parámetro, «Editar Entra ID del centro»).
+- **Eliminar**: texto visible `auth.ssoAdmin.delete`; nombre accesible con el nombre del proveedor (clave nueva). **Confirmación** con `useConfirm` + `ConfirmDialog` en lugar de `window.confirm` (`OPEN-CORE-42` = A): título con el nombre del proveedor, descripción = `confirmDelete` y, **solo en SAML**, además `confirmDeleteSaml` (el aviso de la URL del ACS, `REQ-AUTH funcional.md §G.9`), botón de confirmar con el nombre, `destructive: true`. Mientras la petición está en vuelo, el botón de esa fila está deshabilitado (paridad de `deletingId`).
+- `204` ⇒ `refresh()` de la tabla. **Cambio por construcción**: hoy la fila se quita en memoria sin volver a pedir; con paginación en servidor la página tiene que volver a pedirse (si queda vacía y no es la primera, `RN-CORE-45`). Es una petición `GET` más tras eliminar, sin cambio de *endpoint*.
+- Error ⇒ `auth.ssoAdmin.loadError` con `role="alert"` (paridad literal, aunque el texto hable de «cargar»; no se corrige aquí, ver hallazgo 2 de §14.13.7) y la fila sigue en la tabla.
+
+**Tests existentes** (`AdminSsoView.spec.ts`): los cinco casos que simulan `window.confirm` se reescriben para el diálogo (lo exige el cambio de componente, §14.19, último párrafo); conservan lo que prueban (se pide confirmación, cancelar no llama a la API, el aviso de SAML aparece solo en SAML, el error deja la fila). El de «al retirar… desaparece la fila» pasa a comprobar que, tras `204`, se vuelve a pedir el catálogo y se pinta lo que devuelve. Los demás no cambian de aserción.
+
+#### 14.13.5 `SessionsView.vue` (`auth.sessions`)
+
+`mode="page"`, sin `urlState`, sin búsqueda, sin filtros, sin exportación. **Sin columnas ordenables**: el servidor admite `sort` (`started_at`, `last_activity_at`), pero la vista no ordena hoy y `RN-CORE-84` exige las mismas peticiones; añadir orden es un cambio de comportamiento fuera de este paso. `card-heading-level` 2. `caption`: `auth.sessions.title` (el actual, ya en `caption sr-only`). Texto de vacío: clave nueva `auth.sessions.empty` (el componente lo exige; en la práctica no se ve, porque la sesión actual siempre está en la lista). Título, introducción, mensajes `role="status"`/`role="alert"` y «Cerrar las demás sesiones» **fuera** de la tabla, encima, como hoy.
+
+**Columnas** (las cinco de hoy, mismo orden y mismas claves de cabecera):
+
+| `id` | Cabecera | Valor | Tarjeta | Ocultable |
+|------|----------|-------|---------|-----------|
+| `device` | `columnDevice` | Primera línea: `browser · platform`; segunda, en texto secundario: el resumen actual (tipo de dispositivo traducido con rama por defecto, más «esta sesión» si `current` y «dispositivo no reconocido» si `!device_known`), por *slot*. `rowHeader` | `title` | No |
+| `started_at` | `columnStarted` | `formatDateTime` | `field` | Sí |
+| `last_activity_at` | `columnLastActivity` | `formatDateTime` | `field` | Sí |
+| `ip_address` | `columnIp` | `ip_address`; `null` ⇒ valor vacío común (`CA-CORE-258`, resuelve #90 aquí) | `field` | Sí |
+| `actions` | `columnActions` | «Cerrar sesión» | `actions` | No |
+
+`location` sigue sin mostrarse (siempre `null`, `REQ-AUTH/api.md §B.7.3`).
+
+**Función de petición**: `GET /auth/sessions` con `page` y `per_page` del componente; `listSessions` gana esos dos parámetros (aditivo). Sin `sort`. Un `401` en la carga navega a `login` desde la función de petición (paridad, mismo mecanismo que §14.13.4).
+
+**«Cerrar las demás sesiones» habilitado** si y solo si hay otras sesiones. Como la vista ya no tiene las filas, se calcula con el `meta.total` de la última respuesta que capture la función de petición: habilitado si `total > 1` (exactamente una fila es `current`, `CA-AUTH-082`). Mientras no haya respuesta, deshabilitado. Es más exacto que hoy, que solo miraba la primera página.
+
+**Acción por fila «Cerrar sesión»**:
+- Texto visible `auth.sessions.revoke`. **Nombre accesible** con una clave nueva con parámetros que identifique la fila **de forma única**: dispositivo **y** fecha de inicio formateada («Cerrar sesión de Chrome · Windows iniciada el 3 oct 2026, 10:15»). El dispositivo solo no basta: dos sesiones del mismo navegador y sistema darían el mismo nombre (WCAG 2.4.6, `CA-CORE-186`). Sustituye la concatenación actual con `' — '` literal (`INV-009`).
+- **Confirmación** con `useConfirm` + `ConfirmDialog` (`OPEN-CORE-42` = A): título con la identidad de la fila; descripción = `confirmRevokeCurrent` si la fila es `current` y `confirmRevoke` si no (los textos actuales); botón de confirmar con la identidad; `destructive: true`. Sustituye a la confirmación en línea y a la gestión manual de foco (`rowTriggerEls`, `rowConfirmEls`, `focusFirstButton`): la apertura y la devolución del foco las hace el diálogo (`RN-CORE-64`).
+- Mientras la petición está en vuelo, el botón de esa fila está deshabilitado.
+- `204` y fila `current` ⇒ navega a `login` (sin recargar). `204` y otra fila ⇒ `revokedSuccess` con `role="status"` y `refresh()`. `401` ⇒ `login`. `404`/`409` ⇒ `refresh()` sin mensaje de error. `429` ⇒ `tooManyRequestsWithSeconds` con los segundos de `Retry-After` o `tooManyRequests`. Otro ⇒ `unexpectedError`. Todo igual que hoy.
+
+**«Cerrar las demás sesiones»**: mismo *endpoint* (`DELETE /auth/sessions?scope=others`), confirmación con el mismo diálogo (título `revokeOthers`, descripción `confirmRevokeOthers`, botón de confirmar `revokeOthers`; es una acción masiva sin identidad de fila), `destructive: true`. Éxito ⇒ `revokeOthersSuccess` con `role="status"` y `refresh()`. Errores igual que hoy.
+
+**Limpieza por construcción**: deja de importar `vue-i18n` (usa `useT` y `useDataTableFormatters`, `CA-CORE-258`, #259) y de escribir `'—'` (#90).
+
+#### 14.13.6 Reglas, preguntas abiertas y criterios de 1.9f
+
+- **`RN-CORE-95` · Errores en las vistas migradas.** Los errores de **carga del listado** pasan al tratamiento de §13.10/§12.6 del componente (estado de error con `request_id` y «Reintentar», «sin acceso» en `403`), igual que en la migración de `MfaComplianceArea` (§13.15), salvo el `401` de carga, que conserva la navegación a `login` donde la vista la hacía (`AdminSsoView`, `SessionsView`). Los mensajes de las **acciones** (revocar, eliminar, cerrar sesiones, conceder) se conservan literalmente, con sus claves actuales. Es la lectura que esta especificación hace de «mismos mensajes y mismo tratamiento de errores» (`RN-CORE-84`) junto con «cambia el aspecto por construcción»; si el usuario no la acepta, ver la «Nota sobre `RN-CORE-95`» tras las preguntas abiertas.
+- **`RN-CORE-96` · Acción por fila tras éxito.** En las tres vistas, una acción por fila que termina bien vuelve a pedir la página con `refresh()` del componente (nunca muta las filas en memoria, que son del componente, `RN-CORE-50`); si la página queda vacía, aplica `RN-CORE-45`. Ningún botón de fila se oculta por permiso en estas tres vistas (paridad, `REQ-AUTH/permisos.md §D.6.3` regla 1).
+
+**Preguntas** (resueltas el 2026-10-04 por el usuario, que aprobó la especificación con las recomendaciones indicadas, salvo `OPEN-CORE-56`, donde se eligió A y no la recomendación B de `spec-writer`). Numeradas como siguientes a `OPEN-CORE-53`; si alguna está usada en otro documento del módulo, se renumera antes de aprobar.
+
+| ID | Pregunta | Bloquea | Recomendación |
+|----|----------|---------|---------------|
+| `OPEN-CORE-54` | Qué es «sin filtrar» en un `enum` con `initial` | **1.9f** (`CA-CORE-289`, `MfaExemptionsArea`) | **RESUELTA: A** |
+| `OPEN-CORE-55` | `initial` combinado con `urlState` | No (ningún consumidor de 1.9f) | **RESUELTA: A** |
+| `OPEN-CORE-56` | Cómo vuelve la tabla de excepciones a «página 1, `live`» tras conceder | **1.9f** (`CA-CORE-292`) | **RESUELTA: A** (re-montar con `key`, sin `reset()`) |
+
+**`OPEN-CORE-54` · Qué es «sin filtrar» en un filtro `enum` con `initial`.** Hoy el componente considera activo todo filtro con valor (`hasActiveFilters`) y «Limpiar filtros» deja el mapa vacío. Con `initial: 'live'`, la tabla de excepciones **arranca** con un filtro activo, y eso cambia lo que el administrador ve al entrar.
+- **A** · El valor inicial es el **estado de reposo**: el filtro cuenta como activo solo si difiere de `initial` («Todos» incluido); «Limpiar filtros» vuelve a `initial`, no a «Todos»; con el filtro en `initial` y sin filas se pinta el texto de vacío del consumidor (`exemptions.empty`, paridad). Tablas sin `initial`: sin cambio (su reposo es el mapa vacío).
+- **B** · El valor inicial es solo el **primer valor**: cuenta como filtro activo desde la carga; el botón «Limpiar filtros» se ve al entrar y lleva a «Todos»; sin filas se pinta «sin resultados con estos filtros».
+
+**Recomendación: A.** Es la que conserva lo que hoy ve el administrador de MFA al entrar (`OPEN-CORE-40` = A se eligió precisamente por la paridad de `MfaExemptionsArea`) y la única en la que «Limpiar filtros» devuelve la pantalla a como estaba al abrirla. B es más simple de implementar, pero enseña al entrar un botón de «limpiar» que nadie ha pedido.
+
+**`OPEN-CORE-55` · `initial` con `urlState`.** Con estado en la URL, un parámetro ausente significa hoy «sin filtro»; con `initial`, ausente tendría que significar `initial`, y «Todos» necesitaría un valor propio en la URL (`ADR-054 §6`/`RN-CORE-54` no lo prevén).
+- **A** · No se admite en 1.9f: si una tabla declara `urlState` y un `enum` con `initial`, el componente ignora `initial` (el filtro arranca en «Todos») y avisa por consola. Se diseña con el primer consumidor real.
+- **B** · Diseñarlo ahora, con un valor reservado para «Todos» en la URL.
+
+**Recomendación: A.** Ningún consumidor lo necesita y B fija un contrato de URL sin caso real.
+
+**`OPEN-CORE-56` · Volver a «página 1, `state=live`» tras conceder una excepción.** El componente solo expone `refresh()` (repite la consulta actual) y `focusSearch()`; la vista ya no puede fijar página ni filtro.
+- **A** · La vista vuelve a montar la tabla (cambio de `key`), que arranca en su estado inicial. Sin tocar el componente; a cambio, pinta el estado de carga completo en vez del de recarga y vuelve a leer la configuración de columnas.
+- **B** · Ampliación aditiva del componente: `reset()` expuesto, que vuelve al estado inicial de la consulta (página 1, filtros de reposo según `OPEN-CORE-54`, sin búsqueda) y pide una vez. No figura entre las ampliaciones de `OPEN-CORE-40`, así que necesita ratificación expresa (como `label` en `OPEN-CORE-53`).
+- **C** · Solo `refresh()`: la tabla se queda con el filtro y la página que tuviera. Pierde paridad: si el administrador estaba mirando las caducadas, la excepción recién concedida no aparece.
+
+**Resolución: A** (2026-10-04). Se evita ampliar el componente compartido por un único consumidor (`RN-CORE-37`, #278); si aparece un segundo caso, se reconsidera `reset()`. Recomendación original de `spec-writer`: B.
+
+**Nota sobre `RN-CORE-95`**: no se plantea como pregunta porque sigue el precedente ya aceptado de §13.15; si el usuario quiere conservar **literalmente** los textos de error de carga (`auth.mfaAdmin.forbidden`, `auth.ssoAdmin.loadError`, `auth.common.unexpectedError`), el componente necesitaría un mecanismo para que el consumidor sustituya su estado de error, que no existe y no se propone aquí.
+
+**Criterios de aceptación de 1.9f** (complementan `CA-CORE-255` a `-259` y la parte de `enum` de `CA-CORE-269`, que no se reescriben). Vitest salvo indicación; cada test cita su ID (`INV-015`). Numerados como siguientes a `CA-CORE-287` (§14.24); si alguno está usado en otro documento del módulo, se renumera antes de aprobar.
+
+- **`CA-CORE-288`** [`RN-CORE-94`, §13.7] · **Dado** una tabla de prueba con un `enum` de `multiple: false`, `initial: 'b'` y opciones `a`, `b`, `c`, **entonces** el control es un grupo de opciones exclusivas con «Todos» en primer lugar y `a`, `b`, `c` después, con `b` marcada; el disparador tiene un nombre accesible que empieza por la etiqueta del filtro e incluye la opción elegida; **cuando** se elige `c`, sale una sola petición con `<id>=c` y `page=1`, y `b` deja de estar marcada; **cuando** se elige «Todos», la petición no lleva `<id>`. **Y dado** `initial: 'z'` (no declarado) o `initial` con `multiple` ausente, el filtro arranca en «Todos», la primera petición no lleva `<id>` y se emite un aviso por consola, sin error.
+- **`CA-CORE-289`** [`RN-CORE-94`, `OPEN-CORE-54`] · **Dado** la tabla de prueba de `CA-CORE-288` recién montada, **entonces** no hay botón «Limpiar filtros»; **cuando** se elige «Todos», aparece, y al activarlo la petición vuelve a llevar `<id>=b` y el botón desaparece; **y dado** `data: []` con el filtro en `b`, se pinta el texto de vacío del consumidor, no el de «sin resultados con estos filtros».
+- **`CA-CORE-290`** [`RN-CORE-94`, `OPEN-CORE-55`] · **Dado** una tabla de prueba con `urlState` y un `enum` con `initial`, **entonces** la primera petición no lleva el parámetro del filtro, la URL no lo contiene y se emite un aviso por consola.
+- **`CA-CORE-291`** [`RN-CORE-84`, `RN-CORE-64`, `RN-CORE-96`, `REQ-AUTH-003`] · **Dado** `MfaExemptionsArea` con una fila `live` de Ana López y otra `expired`, **entonces** la primera petición es `GET /mfa-exemptions` con `state=live`, `page=1` y `per_page=25`; la celda de acciones de la fila `expired` contiene el valor vacío común y ningún botón; el botón de la fila `live` tiene como nombre accesible el texto de revocar con «Ana López»; **cuando** se activa, no sale ninguna petición hasta confirmar, el diálogo nombra a Ana López, `Esc` lo cierra sin petición y devuelve el foco al botón; **cuando** se confirma, sale exactamente un `DELETE /mfa-exemptions/{id}` y, con `204`, una petición `GET /mfa-exemptions` con el mismo `state` y la misma `page` que la anterior; **y cuando** el `DELETE` responde `500`, aparece `auth.common.unexpectedError` con `role="alert"` y no sale ningún `GET`.
+- **`CA-CORE-292`** [`RN-CORE-84`, `OPEN-CORE-56`] · **Dado** `MfaExemptionsArea` con el filtro en la opción `expired` y la página 2, **cuando** se concede una excepción y `POST /mfa-exemptions` responde `201`, **entonces** la siguiente petición del listado lleva `state=live` y `page=1`, y el filtro muestra seleccionada la opción `live` (etiqueta `auth.mfaAdmin.exemptions.state.live`).
+- **`CA-CORE-293`** [`RN-CORE-84`, `RN-CORE-95`, `RN-CORE-96`, `REQ-AUTH-004`] · **Dado** `AdminSsoView` con un proveedor OIDC sin `secret_status` y un proveedor SAML, **entonces** la celda de credencial del OIDC contiene el valor vacío común; «Editar» y «Eliminar» de cada fila tienen nombres accesibles distintos con el nombre de su proveedor; **cuando** se confirma «Eliminar» y el `DELETE` responde `204`, se vuelve a pedir `GET /identity-providers` con la misma `page` y `per_page`; **cuando** responde con error, la fila sigue y aparece `auth.ssoAdmin.loadError` con `role="alert"`; **y dado** que la carga responde `401`, la ruta pasa a `login`, y que responde `503`, se pinta el estado de error del componente con «Reintentar».
+- **`CA-CORE-294`** [`RN-CORE-84`, `RN-CORE-64`, `REQ-AUTH-005`, WCAG 2.4.6] · **Dado** `SessionsView` con dos sesiones `Chrome · Windows` iniciadas en fechas distintas, una de ellas `current`, **entonces** la primera petición es `GET /auth/sessions` con `page=1` y `per_page=25` y sin `sort`; los dos botones de cerrar sesión tienen nombres accesibles distintos; el diálogo de la fila `current` usa el texto de `confirmRevokeCurrent` y el de la otra el de `confirmRevoke`; **cuando** el `DELETE` de la otra responde `409`, se vuelve a pedir el listado sin mensaje de error, y **cuando** responde `429` con `Retry-After: 30`, el mensaje contiene «30»; **y dado** una respuesta con `meta.total = 1`, «Cerrar las demás sesiones» está deshabilitado, y con `meta.total = 2` en una página que solo contiene la `current`, habilitado.
+- **`CA-CORE-295`** [`INV-009`, `CA-CORE-201`, `CA-CORE-261`, #90, #259] · **Dado** `MfaExemptionsArea.vue`, `AdminSsoView.vue` y `SessionsView.vue`, **entonces** ninguno contiene `'—'` como literal ni importa `vue-i18n`; **y** toda clave nueva de 1.9f en `auth.*` y `dataTable.*` existe en `es`, `en`, `de` y `fr`, y `npm run lint:i18n` termina sin hallazgos.
+- **`CA-CORE-176`** (ya existente) se cumple con los tres `tableId` nuevos (`auth.mfa_exemptions`, `auth.identity_providers`, `auth.sessions`), sin cambiar su texto.
+
+**Cobertura real** (1.9f, 2026-10-04): `CA-CORE-255` en `src/data-table/architecture.spec.ts` (lista de excepciones vacía); `CA-CORE-288`, `-289` y `-290` (y `CA-CORE-269`, parte `enum`) en `src/data-table/DataTable.singleEnum.spec.ts`; `CA-CORE-256`, `-291` y `-292` en `modules/auth/components/admin/MfaExemptionsArea.spec.ts` (nuevo; avance sobre #120); `CA-CORE-257` y `-293` en `modules/auth/views/AdminSsoView.spec.ts`; `CA-CORE-258` y `-294` en `modules/auth/views/SessionsView.spec.ts` (nuevo); `CA-CORE-259` (parte de sesiones) en `e2e/auth-sessions.spec.ts` (Playwright); `CA-CORE-295` en `modules/auth/locales/migration19f.i18n.spec.ts`.
+
+#### 14.13.7 Hallazgos fuera de alcance de 1.9f
+
+No se corrigen aquí (`CLAUDE.md §5`); para que la sesión orquestadora abra el issue que corresponda:
+
+1. **Foco tras una acción que retira la fila.** `useConfirm`/`ConfirmDialog` devuelven el foco al botón que abrió la confirmación, pero si la acción termina bien y el `refresh()` retira esa fila (revocar, eliminar, cerrar sesión; también revocar una invitación en 1.9b), el botón ya no existe y el foco cae en `body` (WCAG 2.4.3). No lo resuelve ninguna regla de §14; 1.9f sigue el precedente de `InvitationsView.vue`, que tampoco lo gestiona. **Severidad propuesta: Baja**; propuesta: llevar el foco al mensaje de resultado (`role="status"`) o al `caption` de la tabla.
+2. **`auth.ssoAdmin.loadError` como mensaje de error de borrado** («No se ha podido cargar el catálogo…» cuando falla un `DELETE`): el texto no describe lo que ha pasado. Se conserva por paridad. **Baja**; propuesta: clave propia de error de borrado, con el `detail` del servidor si existe.
+3. **Índices**: `RN-CORE-94` a `-96` y `OPEN-CORE-54` a `-56` añadidos al índice de §14.14 y a §14.17 al aprobar (2026-10-04).
+
+### 14.14 Reglas transversales de las pantallas
+
+- **`RN-CORE-62` · Sin peticiones a ciegas.** Ninguna vista pide un *endpoint* auxiliar cuyo permiso el usuario no tiene efectivo (extensión de `RN-CORE-33` a las pantallas): si falta, la parte de la interfaz que lo usaría (filtro de rol, selector de roles, enlace a la ficha, búsqueda de usuario) no se ofrece. Un `403` esperado no es un mecanismo de descubrimiento.
+- **`RN-CORE-64` · Confirmación de acciones destructivas o masivas.** Dar de baja, desactivar, revocar invitación, reenviar, ejecutar y descartar una importación, eliminar un activo y retirar roles piden confirmación explícita antes de la petición: texto que nombra la entidad afectada y la consecuencia, botón de confirmar con nombre que incluye la identidad de la fila («Dar de baja a Ana López»), `Esc` cancela, el foco va a la confirmación al abrirla y vuelve al control que la abrió al cerrarla. **Mecanismo** (`OPEN-CORE-42` = A): un único componente de aplicación de confirmación sobre `alert-dialog` de shadcn-vue, vendorizado sobre Reka UI ya instalada (`docs/design-system.md §12.2`, sin dependencia nueva), diálogo modal con foco atrapado; se usa en todas las pantallas de 1.9b-1.9f y sustituye a `window.confirm` y a las confirmaciones en línea de las tres vistas migradas. Se vendoriza en 1.9b, su primer consumidor. Restaurar y activar no la piden (son reversibles y no dejan a nadie sin acceso).
+- **Estados**: toda vista usa los componentes y la correspondencia de errores de §12.6 (carga, vacío, error, sin acceso, módulo no disponible, `429`, `5xx` con `request_id`), y toda tabla los de §13.10. Una ficha cuyo `GET` responde `404` pinta «no encontrado» (también para un `public_id` de otro centro, `CA-CORE-073`).
+- **`RN-CORE-50` se extiende a fichas y formularios**: ningún dato de usuario, invitación, importación o auditoría se guarda en `localStorage`, `sessionStorage`, IndexedDB ni en la URL; en la URL solo van `public_id` en la ruta y los filtros de `RN-CORE-54` (nunca `q`).
+- **i18n**: todo texto nuevo en el espacio `core.*` del módulo (`core.users.*`, `core.invitations.*`, `core.userImports.*`, `core.roles.*`, `core.audit.*`, `core.settings.*`, `core.branding.*`, `core.modules.*`, `core.profile.*`), en `es`, `en`, `de` y `fr`, accedido con `useT` de `@/i18n` (nunca `vue-i18n` directo, issue #259). Los enumerados (estados de usuario, invitación e importación, `event`, `actor_type`, motivos de redacción, nombres de idioma, comunidades autónomas) se traducen en el cliente con rama por defecto que muestra el código (`ADR-038 §3.2`, `§7.3`). Fechas y cifras con los formateadores de `src/data-table` (`§13.12`).
+
+**Índice de reglas de 1.9b**
+
+| ID | Regla | Dónde |
+|----|-------|-------|
+| `RN-CORE-60` | Registro de rutas en `core/shell.ts`, permiso de la ruta = permiso del contenido principal | §14.3 |
+| `RN-CORE-61` | Acciones por permiso, nunca por rol; sin anticipar `RN-CORE-06`/`07`; excepción por identidad propia | §14.4.2 |
+| `RN-CORE-62` | Sin peticiones a ciegas en las pantallas | §14.14 |
+| `RN-CORE-63` | Tablas con texto traducido por el servidor recargan al cambiar de idioma | §14.8 |
+| `RN-CORE-64` | Confirmación accesible de acciones destructivas o masivas | §14.14 |
+| `RN-CORE-65` | Formularios: errores por campo, foco, `PATCH` solo con lo modificado | §14.4.3 |
+| `RN-CORE-66` | Resultado de una escritura: `role="status"`, navegación, consulta conservada | §14.4.3 |
+| `RN-CORE-67` | Columnas del listado de usuarios, sin datos identificativos | §14.4.1 |
+| `RN-CORE-68` | Dados de baja solo con `usuario.eliminar` | §14.4.1 |
+| `RN-CORE-69` | Solicitud de exportación de usuarios desde la tabla | §14.4.1 |
+| `RN-CORE-70` | Acciones sobre invitaciones según estado | §14.5 |
+| `RN-CORE-71` | Subida de importación | §14.6.1 |
+| `RN-CORE-72` | Seguimiento del estado de un lote (política de `RN-CORE-49`) | §14.6.2 |
+| `RN-CORE-73` | Ejecución con confirmación e `Idempotency-Key` estable por confirmación | §14.6.2 |
+| `RN-CORE-74` | Incidencias de importación con el componente, aviso de 50, informe | §14.6.2 |
+| `RN-CORE-75` | Roles solo lectura en 1.9b. **SUSTITUIDA** por `REQ-PERM/funcional.md §20.4` y `RN-PERM-26` (1.5b) | §14.8 |
+| `RN-CORE-76` | Filtros de auditoría | §14.7 |
+| `RN-CORE-77` | Detalle de cambios sin reconstruir valores redactados | §14.7 |
+| `RN-CORE-78` | Exportación de auditoría desde la tabla | §14.7 |
+| `RN-CORE-79` | Configuración en lectura o edición por permiso; un `PATCH` por grupo | §14.9 |
+| `RN-CORE-80` | Paleta: vista previa de contraste en cliente, servidor como autoridad, `refresh()` | §14.9 |
+| `RN-CORE-81` | Idiomas activos y por defecto | §14.9 |
+| `RN-CORE-82` | Catálogos de cliente con comprobación cruzada | §14.9 |
+| `RN-CORE-83` | Activos de marca | §14.10 |
+| `RN-CORE-84` | Migración con paridad y retirada de la excepción en el mismo *commit* | §14.13 |
+| `RN-CORE-85` | **(servidor)** `POST /users/exports` conforme a `ADR-054 §8`-`§10` y `ADR-055` | §14.11.1 |
+| `RN-CORE-86` | **(servidor)** `GET /data-exports/{id}` autorizado por `kind` | §14.11.1 |
+| `RN-CORE-87` | Módulos contratados en solo lectura, página única sintética, fecha de alta como aviso | §14.10b |
+| `RN-CORE-88` | Perfil propio de autoservicio: solo contacto editable, sin `GET /me` propio | §14.10c |
+| `RN-CORE-89` | Guardado del perfil con `PATCH /me` parcial y sustitución del estado de sesión | §14.10c |
+| `RN-CORE-94` | Filtro `enum` de selección única con valor inicial | §14.13.2 |
+| `RN-CORE-95` | Errores de carga de las vistas migradas, con el tratamiento del componente | §14.13.6 |
+| `RN-CORE-96` | Acción por fila tras éxito: `refresh()` | §14.13.6 |
+
+### 14.15 Riesgos y dependencias operativas
+
+| Riesgo | Efecto | Mitigación |
+|--------|--------|------------|
+| **#128: sin *worker* de colas** (Alta) | La importación se queda en `subido` y toda exportación en `pendiente`; en un entorno real **las dos pantallas no funcionan** | `RN-CORE-72`/`RN-CORE-49` acotan la consulta y lo comunican. Cerrar un sub-paso con importación o exportación sin #128 resuelto entrega funcionalidad que no opera en producción: el usuario debe saberlo al aprobar |
+| Tamaño del paso | Corte de cuota a mitad, revisión inabarcable | División de §14.2 (`OPEN-CORE-30`) |
+| Contrato de `fallida` (S4) | Hoy una exportación de auditoría fallida espera 10 min sin decir nada | Corregir en el primer sub-paso; issue propio (§14.16) |
+| Catálogos duplicados en el cliente (comunidades autónomas, tipos de documento, alias de auditoría) | Divergencia silenciosa con el servidor | Test cruzado (`RN-CORE-82`) o *endpoint* de facetas (`OPEN-CORE-34`); para los tipos de documento, lectura de `CreateUser` antes de implementar |
+| URLs firmadas de 15 min en pantallas largas (informe, activos) | Enlaces o imágenes rotas | Renovación de §14.6.2 y `RN-CORE-83` |
+| Datos personales en el CSV de usuarios | Salen del sistema nombre, correos, teléfono de contacto, idioma y roles del personal (y del alumnado con cuenta, si lo hay). **No** salen documento de identidad ni fecha de nacimiento (`OPEN-CORE-32` = B) | Esquema cerrado de §14.11.1 con test de ausencia (`CA-CORE-227`), permiso propio, auditoría `exported`, caducidad de siete días. Ampliar el esquema con datos identificativos exige decisión expresa del usuario (`INV-008`) |
+| `@tanstack/vue-table` 8.x sin *releases* (#278) | Más consumidores sobre una línea parada | `RN-CORE-37`: el cambio a 9.x sigue siendo un solo directorio, se consuma o no en 1.9b |
+| `CORE_EXPORT_MAX_ROWS` (500 000) pasa a aplicar también a usuarios | Ninguno práctico: un centro no tiene 500 000 usuarios | Se reutiliza la variable (§14.11, `operacion.md §13`); `RNF-LIM-004` queda cubierto |
+
+### 14.16 Hallazgos fuera del ámbito de esta especificación
+
+No se corrigen aquí; se reportan para que la sesión orquestadora abra el issue que corresponda (`CLAUDE.md §5`):
+
+1. **`GET /data-exports/{id}` responde `409` a una exportación `fallida`** y el cliente de 1.9 trata todo `409` como «aún no está lista»: una exportación fallida espera 10 min y acaba en «Comprobar de nuevo», sin mensaje de error. Contradice `api.md §8` (respuesta `200` con `status`) y §13.14.1 punto 5. `CA-CORE-190` pasa porque se probó con una respuesta simulada `200 fallida`. **Severidad propuesta: Media** (fallo funcional con rodeo; código y documentación se contradicen, `CLAUDE.md §6.6`). Afecta ya hoy a la exportación de auditoría. Corrección propuesta: S4 (`OPEN-CORE-39`).
+2. `routes.php` fija `permission:auditoria.exportar` en `GET /data-exports/{id}`: ningún segundo `kind` puede consultarse. No es un fallo hoy (solo existe `audit_logs`); lo es en cuanto exista S1. Corrección: S3.
+3. `GET /users` no admite `sort=-email` (`IndexUsersRequest`). **Baja** hasta que una columna `email` sea ordenable. Corrección: S5.
+4. `GET /users/{id}` no admite `include_deleted`, contra `CA-CORE-014`. **Media** (código y especificación se contradicen). Corrección: S6.
+5. Cuatro filtros de enumerado admiten un solo valor (`invitations.status`, `users.locale` y `audit-logs.actor_type` lo validan con `in:`; `audit-logs.module` no valida y trata la lista entera como un solo código desconocido, sin error), mientras `ADR-038 §5.2` define la coma para valores múltiples de enumerados e identificadores y el componente de 1.9 siempre la usa. No es contradicción con el ADR (no obliga a aceptar varios), pero impide el filtro. Corrección: S7.
+6. `UserImportResource` no devuelve `created_at`, que `api.md §7` muestra. **Baja.** Corrección: S8.
+7. `CA-CORE-207` (§13.18) es más amplio que `ADR-055 §1` (§14.12 punto 1).
+8. `GET /users` devuelve en cada fila del listado `document_number`, `birth_date`, `contact_email` y `contact_phone`. No es un fallo de seguridad (exige `usuario.leer` y el ámbito es `todos`), pero el listado expone en bloque más datos identificativos de los que una pantalla de localización necesita. Reducir la respuesta es un cambio **incompatible** (`ADR-038 §7`) y no se propone en 1.9b; se anota para una revisión de minimización con `REQ-PRIV`.
+9. `api.md §8` documenta `event` con seis valores (`created|updated|deleted|restored|read|exported`); `datos.md` y `ADR-039` fijan nueve (`+login`, `+logout`, `+password_reset_requested`). Documentación del módulo desincronizada, **Baja**. 1.9b usa los nueve.
+10. ~~§12.1.3 enumeraba «módulos contratados» y «perfil propio» entre las pantallas diferidas a 1.9b; el alcance fijado por el usuario no las incluía.~~ **Resuelto** por la decisión del usuario del 2026-10-01 (`OPEN-CORE-31` = B): entran en 1.9e (§14.10b, §14.10c).
+
+### 14.17 Preguntas del paso 1.9b
+
+| ID | Pregunta | Bloquea | Estado / recomendación |
+|----|----------|---------|------------------------|
+| `OPEN-CORE-30` | División del paso | — | **RESUELTA** (2026-10-01, decisión del usuario): A, cinco sub-pasos |
+| `OPEN-CORE-31` | Módulos contratados y perfil propio | — | **RESUELTA** (2026-10-01, decisión del usuario): B, entran en 1.9e |
+| `OPEN-CORE-32` | Columnas del CSV de usuarios | — | **RESUELTA** (2026-10-01, decisión del usuario): B, sin `document_type`, `document_number` ni `birth_date` (esquema en §14.11.1) |
+| `OPEN-CORE-33` | Filtro por usuario en auditoría | **1.9d** | **RESUELTA** (2026-10-03, decisión del usuario): C (filtro `entity` + «Ver su actividad») |
+| `OPEN-CORE-34` | Opciones de módulo y tipo de entidad en auditoría | **1.9d** | **RESUELTA** (2026-10-03, decisión del usuario): B (`GET /audit-logs/facets`, S10) |
+| `OPEN-CORE-35` | Zona horaria de fechas de auditoría | **1.9d** | **RESUELTA** (2026-10-03, decisión del usuario): A (zona del navegador) |
+| `OPEN-CORE-36` | Detalle de rol con concesiones | 1.9d | **RESUELTA** (2026-10-03, decisión del usuario): A (solo listado; detalle en `1.5b`) |
+| `OPEN-CORE-37` | Grupo `security` en la configuración | **1.9e** | **RESUELTA** (2026-10-03, decisión del usuario): B (solo lo que no edite ya `/administracion/mfa`; el resto se enlaza) |
+| `OPEN-CORE-38` | Idioma de los mensajes de importación (#285) | **1.9c** | A — **RESUELTA** (2026-10-02, decisión del usuario) |
+| `OPEN-CORE-39` | Contrato de `fallida` en `GET /data-exports` | — | **RESUELTA** (2026-10-01, decisión del usuario): A |
+| `OPEN-CORE-40` | Ampliaciones del componente de tablas | — | **RESUELTA** (2026-10-01, decisión del usuario): A |
+| `OPEN-CORE-41` | «Mis exportaciones» | No | A |
+| `OPEN-CORE-42` | Mecanismo de confirmación | — | **RESUELTA** (2026-10-01, decisión del usuario): A |
+| `OPEN-CORE-43` | Asignación de roles en la ficha de usuario | — | **RESUELTA** (2026-10-01, decisión del usuario): A |
+| `OPEN-CORE-44` | Acciones de plataforma en la pantalla de auditoría | No | A |
+| `OPEN-CORE-45` | Qué filas muestra la pantalla de módulos | **1.9e** | **RESUELTA** (2026-10-03, decisión del usuario): A (solo los contratados) |
+
+#### `OPEN-CORE-30` · División del paso — **RESUELTA** (2026-10-01, decisión del usuario): opción A
+
+§14.2. **A** · Cinco sub-pasos (1.9b usuarios+invitaciones con su servidor; 1.9c importación; 1.9d auditoría+roles; 1.9e configuración+marca; 1.9f migración de las tres tablas). **B** · Tres sub-pasos más gruesos. **C** · Un solo paso.
+
+**Recomendación: A.** Es la única en la que cada sub-paso cabe en una sesión con margen para la revisión, y aísla la única migración de esquema en un sub-paso con `db-reviewer`. C repite el riesgo de corte de cuota que motivó las normas de relanzamiento de `CLAUDE.md §3`.
+
+#### `OPEN-CORE-31` · Módulos contratados y perfil propio — **RESUELTA** (2026-10-01, decisión del usuario): opción B
+
+> Aplicada en §14.1.1 (filas 7b y 7c), §14.2 (1.9e), §14.3 y §14.3.1 (ampliación de `RN-CORE-24` a siete rutas), §14.10b, §14.10c, `RN-CORE-87`-`89`, `CA-CORE-264`-`269`, `permisos.md §12.2` y `api.md §14.5`. De su aplicación surge una pregunta nueva, `OPEN-CORE-45`.
+
+`REQ-CORE-002` pide «consultar los módulos contratados… recibir aviso de las nuevas altas y configurar los que estén contratados» (MUST); la API existe (`GET /modules`, `PATCH /module-subscriptions/{id}`). El perfil propio (`PATCH /me`: correo y teléfono de contacto; el idioma ya lo cubre el selector de 1.8) también. §12.1.3 los remitía a 1.9b; el alcance fijado no los nombra, y esta especificación no los añade por su cuenta.
+
+- **A** · Fuera de 1.9b; se les asigna paso más adelante (`REQ-CORE` sigue sin cumplir `CLAUDE.md §10` hasta entonces).
+- **B** · Añadirlos a 1.9e: módulos en **solo lectura** (no hay hoy ningún módulo con `settings` que configurar, así que un formulario de `settings` sería una pantalla vacía) con la fecha de alta como «aviso» (`ADR-045`, `enabled_at`), y perfil propio como una ruta de autoservicio `[]` más (amplía la lista cerrada de `RN-CORE-24` de seis a siete, con su justificación).
+- **C** · Solo el perfil propio en 1.9e.
+
+**Recomendación: B.** Son dos pantallas pequeñas sobre API ya existente, sin servidor nuevo, y con ellas `REQ-CORE` puede cerrarse completo al terminar 1.9b-1.9f. Pero amplía el alcance fijado: decide el usuario.
+
+#### `OPEN-CORE-32` · Columnas del CSV de usuarios — **RESUELTA** (2026-10-01, decisión del usuario): opción B
+
+> El fichero **no** contiene `document_type`, `document_number` ni `birth_date`. Esquema completo, orden de columnas y filas y tipos en §14.11.1 (`RN-CORE-85`); verificación de la ausencia en `CA-CORE-227`. Añadir esas columnas más adelante es aditivo (`ADR-055 §2.4`) pero requiere decisión expresa del usuario (`INV-008`). La recomendación original (A) se conserva abajo como contexto; no rige.
+
+`ADR-054 §8.1` exige esquema fijo; `ADR-055` exige nombres técnicos iguales a los de la API. Qué campos salen del sistema es una decisión de producto con peso de protección de datos.
+
+- **A** · `public_id`, `status`, `deleted_at`, `created_at` más **exactamente las columnas de la cabecera de importación** (`email`, `given_name`, `family_name_1`, `family_name_2`, `document_type`, `document_number`, `birth_date`, `contact_email`, `contact_phone`, `locale`, `roles` con códigos de rol separados por `|`, como en la importación), en ese orden; filas por `family_name_1`, `given_name`, `public_id`. Permite reimportar un fichero editado (salvo el dialecto: la importación ya acepta coma).
+- **B** · Igual que A **sin** `document_type`, `document_number` ni `birth_date`.
+- **C** · Solo las columnas visibles por defecto en el listado (`RN-CORE-67`).
+
+**Recomendación: A**, porque el caso de uso real de secretaría con un listado de personal suele incluir el documento, el permiso es exclusivo del administrador por defecto, la exportación queda auditada con sus filtros y caduca en siete días, y la coincidencia con la cabecera de importación evita un segundo esquema. **B** si el usuario prefiere que el documento de identidad no salga nunca en bloque; es aditivo pasar de B a A (`ADR-055 §2.4`), no al revés.
+
+#### `OPEN-CORE-33` · Filtro por usuario en auditoría (`REQ-CORE-005`) — RESUELTA (2026-10-03): C
+
+El requisito exige filtrar por usuario. El parámetro existe (`actor_id`, ULID). El componente de 1.9 solo tiene `enum`, `dateRange` y `boolean`, cerrados por §13.7.
+
+- **A** · Nuevo tipo de filtro **`entity`** en `src/data-table` (aditivo): selección única por búsqueda asíncrona con una función de búsqueda que aporta el consumidor (aquí, `GET /users?q=`, que exige `usuario.leer`; sin él, el filtro no se ofrece, `RN-CORE-62`), serializado como `actor_id=<ulid>`; la etiqueta se resuelve con `GET /users/{id}` al restaurar desde la URL. Amplía la lista cerrada de §13.7.
+- **B** · Sin control en la barra: solo se llega filtrado por usuario desde su ficha («Ver su actividad», navegación con `actor_id` en la URL y un indicador «Filtrado por: {nombre}» con la acción de quitarlo).
+- **C** · A y B.
+
+**Recomendación: C.** A es lo que pide el requisito; B cuesta casi nada sobre A y es el camino que usará quien investiga a una persona concreta. Si el usuario prefiere no ampliar el componente aún, B solo cumple el requisito a medias: hay que decirlo.
+
+#### `OPEN-CORE-34` · Opciones de los filtros de módulo y tipo de entidad en auditoría — RESUELTA (2026-10-03): B
+
+El filtro `module` lo exige `REQ-CORE-005`; `auditable_type` es útil pero no exigido. Ninguno tiene hoy un *endpoint* de opciones accesible con `auditoria.leer`: `GET /modules` exige `modulo.leer` (un rol personalizado con `auditoria.leer` y sin `modulo.leer` se quedaría sin el filtro), y los alias de `auditable_type` viven en el *morph map* de PHP.
+
+- **A** · `module` con las opciones de `GET /modules` solo si el usuario tiene `modulo.leer`; sin filtro de `auditable_type`.
+- **B** · *Endpoint* nuevo de solo lectura, `GET /audit-logs/facets` (`auditoria.leer`), que devuelve los códigos de módulo filtrables y los alias de `auditable_type` con su módulo. Sin traducción en servidor (`ADR-038 §3.2`); el cliente traduce con rama por defecto.
+- **C** · Constantes en el cliente.
+
+**Recomendación: B.** Cumple el requisito para cualquier rol con `auditoria.leer`, no duplica catálogos de servidor en el cliente (C diverge en silencio en cuanto un módulo nuevo declare sus alias) y cuesta un controlador de lectura sin esquema. A es aceptable si se asume que solo administradores consultan la auditoría.
+
+#### `OPEN-CORE-35` · Zona horaria de los filtros y fechas de auditoría — RESUELTA (2026-10-03): A
+
+§13.7 dice que el consumidor convierte «el día local del centro» a instante UTC, pero la SPA **no conoce la zona horaria del centro** salvo con `configuracion.leer` (`GET /tenant/settings`); `GET /tenant/branding` no la incluye y su contrato prohíbe añadir campos sin justificarlos como información pública.
+
+- **A** · Zona del navegador, para filtrar **y** para mostrar (coherentes entre sí), documentado en el manual.
+- **B** · Añadir la zona del centro a `GET /me` (cambio compatible) y usarla para filtrar y mostrar.
+- **C** · Enviar fechas sin hora y que el servidor las interprete en la zona del centro (cambia la semántica documentada del parámetro).
+
+**Recomendación: A** para 1.9b: los centros objetivo están en la península y su personal consulta desde allí; es coherente con cómo ya pinta fechas todo el producto (`Intl` del navegador). B si el usuario prevé personal que consulte desde otra zona; es aditivo.
+
+#### `OPEN-CORE-36` · Detalle de un rol con sus concesiones — RESUELTA (2026-10-03): A
+
+`GET /roles/{id}` devuelve las concesiones con `code`, `resource`, `action`, `effect` y `scope`. No hay catálogo de nombres legibles de recursos en el cliente.
+
+- **A** · 1.9b solo con el listado; el detalle con concesiones llega con la matriz de `1.5b`, que tiene que construir ese catálogo de todas formas.
+- **B** · Detalle en 1.9b mostrando el código del permiso tal cual, con `effect` y `scope` traducidos.
+
+**Recomendación: A.** B construye una pantalla que `1.5b` sustituirá enseguida, con un código técnico visible para el usuario como único contenido.
+
+#### `OPEN-CORE-37` · Grupo `security` de la configuración (`REQ-AUTH`) — **RESUELTA** (2026-10-03, decisión del usuario): opción B
+
+`PATCH /tenant/settings` admite `security.session_timeout_minutes`, `security.mfa_allowed_methods` y `security.mfa_grace_period_days` con el mismo permiso. No se ha comprobado si `/administracion/mfa` ya edita alguno (§14.0).
+
+- **A** · Incluir el grupo completo en la pantalla de configuración.
+- **B** · Incluir solo lo que **no** edite ya otra pantalla, comprobado por el implementador antes de escribir; lo que ya se edite en `/administracion/mfa` se enlaza, no se duplica.
+- **C** · Dejarlo fuera de 1.9b.
+
+**Recomendación: B.** Dos formularios para el mismo dato terminan divergiendo en validación y mensajes.
+
+#### `OPEN-CORE-38` · Idioma de los mensajes de importación (#285)
+
+`message` se escribe en el idioma del proceso del trabajo (`en`) y se persiste en `error_summary` y en `report.csv`. `ADR-055 §1` dice que es un mensaje legible dirigido a quien subió el fichero.
+
+- **A** · Corregir el trabajo (S9): resuelve el idioma de quien subió el lote (`user_imports.created_by` → `person.locale` si está entre los activos del centro, si no `default_locale`, la misma precedencia que `RN-CORE-34`), **sin esquema nuevo**. La pantalla muestra `message` tal cual. Limitación aceptada: otro administrador que abra el lote lo lee en el idioma de quien lo subió.
+- **B** · La pantalla ignora `message` y traduce `code` en el cliente con un catálogo propio de los códigos de error de importación; `report.csv` queda como está.
+- **C** · A y B.
+
+**Recomendación: A.** Cierra #285 donde nace, para la pantalla y el informe a la vez, y evita el catálogo duplicado que `ADR-038 §6.3` desaconseja. La limitación de un segundo lector es la misma que ya tiene cualquier mensaje persistido.
+
+#### `OPEN-CORE-39` · Contrato de `fallida` en `GET /data-exports/{id}` — **RESUELTA** (2026-10-01, decisión del usuario): opción A
+
+§14.16 hallazgo 1. Aplicada como S4 (§14.11, `api.md §14.2`, `CA-CORE-230`).
+
+- **A** · Servidor: `fallida` responde `200` con `status: "fallida"` y `error_code` (alinea el código con `api.md §8` y §13.14.1). Sin cambio en el cliente de 1.9.
+- **B** · Cliente: distinguir el `409` por su código (`core.validation.export_failed`) y tratarlo como fallida. El servidor sigue contradiciendo su documentación.
+
+**Recomendación: A.** El documento aprobado describe A, el cliente ya está escrito para A, y no hay producción ni más clientes que el propio (`H0`).
+
+#### `OPEN-CORE-40` · Ampliaciones del componente de tablas — **RESUELTA** (2026-10-01, decisión del usuario): opción A
+
+> Booleano de dos estados en 1.9b (`RN-CORE-68`); `enum` de selección única con valor inicial en 1.9f (`MfaExemptionsArea`); página única sintética para `error_summary` (1.9c) y módulos (1.9e). Sin modo `local`. Las tres son ampliaciones de la lista cerrada de filtros de §13.7, con tests propios.
+
+Tres necesidades que el componente de 1.9 no cubre: (1) filtro de **selección única con valor inicial** (paridad de `MfaExemptionsArea`: `live` por defecto, con «todos»); (2) filtro de **dos estados** para «incluir dados de baja» (`RN-CORE-68`); (3) presentar `error_summary` sin modo `local` (`RN-CORE-74`).
+
+- **A** · Ampliar `src/data-table` de forma aditiva: opción `multiple: false` y `initial` en el filtro `enum`; variante de dos estados del filtro `boolean`; (3) con la función de petición de página única de `RN-CORE-74`. Precisa la lista cerrada de §13.7 (no `ADR-054`, que no la enumera). Con tests propios y sin tocar a los consumidores existentes.
+- **B** · Como A, y además el **modo `local`** que §13.21 (`OPEN-CORE-26`) dejó para su primer consumidor real.
+- **C** · No ampliar: `MfaExemptionsArea` pierde su valor inicial (muestra todas al entrar), «incluir dados de baja» usa el filtro de tres estados, y `error_summary` como en A.
+
+**Recomendación: A.** Mantiene la paridad que §13.15 exigió en la primera migración y no construye `local` sin la necesidad real de `1.5b`. C es más barata pero cambia lo que ve el administrador de MFA al entrar, sin que nadie lo haya pedido.
+
+#### `OPEN-CORE-41` · «Mis exportaciones» (`GET /data-exports`)
+
+`OPEN-CORE-25` lo remitía a 1.9b. Con dos pantallas exportables, el aviso de §13.14.4 aparece en dos sitios; el índice ya existe (`datos.md` A.7).
+
+- **A** · Seguir sin él en 1.9b.
+- **B** · Añadir `GET /data-exports` (por identidad: solo las propias, y de cada `kind` solo si se tiene su permiso de exportar) y una pantalla en «Mi cuenta».
+
+**Recomendación: A.** Mientras #128 siga abierto ninguna exportación termina en un entorno real, y B añade un *endpoint*, una regla de autorización mixta y una pantalla a un paso ya demasiado grande. Reconsiderar al cerrar #128.
+
+#### `OPEN-CORE-42` · Mecanismo de confirmación (`RN-CORE-64`) — **RESUELTA** (2026-10-01, decisión del usuario): opción A
+
+Hoy conviven confirmación en línea (`SessionsView`, `MfaExemptionsArea`) y `window.confirm` (`AdminSsoView`, sin control de foco ni estilo, y con texto del navegador).
+
+- **A** · Vendorizar `alert-dialog` de shadcn-vue sobre Reka UI (ya instalada, sin dependencia nueva, `docs/design-system.md §12.2`), un único componente de aplicación de confirmación, y usarlo en todas las pantallas de 1.9b y en las tres migradas.
+- **B** · Generalizar la confirmación en línea de `SessionsView`.
+
+**Recomendación: A.** Un diálogo modal con foco atrapado es el patrón accesible estándar para una acción destructiva y sustituye `window.confirm`; la confirmación en línea dentro de una fila de tabla no encaja en la vista de tarjetas.
+
+#### `OPEN-CORE-43` · Asignación de roles en la ficha de usuario — **RESUELTA** (2026-10-01, decisión del usuario): opción A
+
+El alcance dice «roles (solo lectura)». La asignación de roles **a un usuario** (`PUT /users/{id}/roles`, `asignacion_rol.*`, `RPERM-013`) no es edición del rol, sino de su relación con el usuario, y `REQ-CORE-004` pide «asignación múltiple de roles por usuario».
+
+- **A** · Entra en 1.9b: selector múltiple de roles en el alta y sección «Roles» en la ficha, con `RN-CORE-06`/`07`/`RPERM-013` decididos por el servidor.
+- **B** · Fuera: los roles de un usuario se ven en la ficha pero solo se asignan por API hasta `1.5b`.
+
+**Recomendación: A.** Sin ella, dar de alta un usuario desde la interfaz produce una cuenta sin permisos que solo puede completarse por API, y la API ya existe y está probada desde 1.1/1.5.
+
+#### `OPEN-CORE-44` · Acciones de plataforma en la pantalla de auditoría
+
+`GET /platform-actions` (`REQ-BO-007`, `auditoria.leer`) muestra al centro lo que el Super Administrador hizo sobre él.
+
+- **A** · Fuera de 1.9b; lo recoge el paso de interfaz de `REQ-BO` o uno de cierre de `REQ-CORE`.
+- **B** · Segunda tabla en la pantalla de auditoría (en memoria, sin estado en URL, `RN-CORE-54`).
+
+**Recomendación: A.** No está en el alcance fijado y su especificación es de `REQ-BO`.
+
+#### `OPEN-CORE-45` · Qué filas muestra la pantalla de módulos contratados — **RESUELTA** (2026-10-03, decisión del usuario): opción A
+
+Surge al aplicar `OPEN-CORE-31` = B. `GET /modules` devuelve **todo el catálogo** de módulos no retirados, incluidos los que el centro no tiene contratados (`enabled: false`, `public_id: null`, y con `disabled_at` los que se descontrataron). `REQ-CORE-002` dice «**consultar los módulos contratados**», y ningún requisito dice si el centro debe ver además lo que no tiene. Es decisión de producto (y con lectura comercial: enseñar al centro el catálogo completo), no técnica.
+
+- **A** · Solo los contratados (`enabled: true`). La función de petición filtra en el cliente sobre la respuesta completa (no es filtrado de seguridad: el servidor ya entrega el catálogo a quien tiene `modulo.leer`).
+- **B** · Todo el catálogo, con el estado (contratado / no contratado / descontratado el {fecha}).
+- **C** · Contratados por defecto, con un filtro para ver también los demás.
+
+**Recomendación: A**, por ser la lectura literal del requisito y la que no convierte una pantalla de consulta en un escaparate comercial sin que nadie lo haya decidido. B o C si el usuario quiere que el centro vea lo que podría contratar.
+
+### 14.18 Criterios de aceptación
+
+Vitest salvo los marcados **[Playwright]** o **[Pest]**. Cada test cita su ID (`INV-015`). Ningún criterio depende ya de una pregunta abierta de 1.9e (`OPEN-CORE-37` y `-45` resueltas el 2026-10-03); todos son firmes.
+
+#### Navegación y permisos
+
+- **`CA-CORE-208`** [`RN-CORE-60`, `ADR-053 §2`] · **Dado** el registro ensamblado, **entonces** existen las rutas de §14.3 del sub-paso entregado, todas con `meta.layout === 'app'` y `meta.permissions` igual a la columna 2 de §14.3 —no vacía en todas salvo `core-profile`—, y los cinco tests de coherencia de `ADR-053 §2` siguen en verde; la lista cerrada de `RN-CORE-24` no cambia en 1.9b, 1.9c, 1.9d ni 1.9f, y en 1.9e gana exactamente `core-profile` (`CA-CORE-264`).
+- **`CA-CORE-209`** [`RN-CORE-60`, `REQ-CORE-008`] · **Dado** un `/me.permissions` con solo `usuario.leer`, **cuando** se carga el *shell*, **entonces** la sección «Administración» contiene «Usuarios» y ninguna otra entrada de §14.3; **y dado** uno sin ningún permiso de `REQ-CORE`, ninguna entrada de §14.3 aparece en el documento.
+- **`CA-CORE-210`** [`RN-CORE-61`, `RN-CORE-23`] · **Dado** la ficha de un usuario y un `/me.permissions` con `usuario.leer` y sin `usuario.actualizar`, `usuario.eliminar` ni `invitacion.crear`, **entonces** no hay en el documento ningún control de editar, activar, desactivar, dar de baja, restaurar ni invitar; **y** `CA-CORE-102` sigue en verde (ningún literal de código de rol en `src/`).
+- **`CA-CORE-211`** [`RN-CORE-61`] · **Dado** un usuario cuya ficha es la suya propia (mismo `public_id` que `/me`), **entonces** las acciones de estado, baja y roles están deshabilitadas con la explicación traducida; **y dado** otra ficha cuyo `DELETE` responde `409` con `detail`, ese `detail` se muestra con `role="alert"` y la ficha no cambia.
+- **`CA-CORE-212`** [`RN-CORE-62`] · **Dado** un usuario con `usuario.leer` y sin `rol.leer`, **cuando** abre el listado de usuarios, **entonces** no se pide `GET /roles` y no existe el filtro de rol; **y con** `rol.leer`, se pide una vez y el filtro ofrece los roles recibidos.
+
+#### Usuarios
+
+- **`CA-CORE-213`** [`RN-CORE-67`, `REQ-CORE-003`] · **Dado** `GET /users` con dos usuarios, **entonces** la tabla tiene `caption` traducido, la columna «Nombre» es `th scope="row"` con enlace a la ficha, y el documento **no** contiene el `document_number` ni la `birth_date` de ninguno.
+- **`CA-CORE-214`** [`RN-CORE-67`, `RN-CORE-39`, S5] · **Dado** la columna «Correo de acceso», **cuando** se activa su ordenación dos veces, **entonces** las peticiones llevan `sort=email` y `sort=-email`; **y** [Pest] `GET /users?sort=-email` responde `200` ordenado de forma descendente.
+- **`CA-CORE-215`** [`RN-CORE-54`] · **Dado** el listado de usuarios con `status=activo`, página 2 y `sort=-created_at`, **cuando** se abre la ficha de un usuario y se vuelve atrás, **entonces** la tabla restaura la misma consulta y la URL no contiene `q`.
+- **`CA-CORE-216`** [`RN-CORE-68`, S6] · **Dado** un usuario con `usuario.leer` y sin `usuario.eliminar`, **entonces** no existe el filtro de dados de baja; **y con** `usuario.eliminar`, al activarlo la petición lleva `include_deleted=true` y la ficha de un usuario dado de baja se pide con `include_deleted=true` y muestra «Restaurar»; **y** [Pest] `GET /users/{id}?include_deleted=true` de un usuario eliminado responde `200` con `usuario.eliminar` y `403` sin él, y sin el parámetro responde `404` (`CA-CORE-014`).
+- **`CA-CORE-217`** [`RN-CORE-65`, `INV-010`] · **Dado** el formulario de alta, **cuando** `POST /users` responde `422` con errores en `email` y `person.locale`, **entonces** cada mensaje del servidor aparece bajo su campo con `aria-invalid="true"` y `aria-describedby`, el foco pasa al campo de correo y un resumen con `role="alert"` enumera los dos.
+- **`CA-CORE-218`** [`RN-CORE-65`, `ADR-038 §9.2`] · **Dado** la edición de un usuario en la que solo se cambia el teléfono de contacto y se vacía el segundo apellido, **cuando** se guarda, **entonces** el cuerpo de `PATCH /users/{id}` es exactamente `{"person":{"contact_phone":"…","family_name_2":null}}`.
+- **`CA-CORE-219`** [`RN-CORE-08`, `RPERM-013`, `OPEN-CORE-43`] · **Dado** el alta con roles, **cuando** `POST /users` responde `403` por `RPERM-013`, **entonces** el `detail` del servidor aparece junto al selector de roles y no se navega.
+- **`CA-CORE-220`** [`RN-CORE-64`] · **Dado** la ficha de un usuario activo, **cuando** se pulsa «Dar de baja», **entonces** no sale ninguna petición hasta confirmar; la confirmación nombra al usuario, recibe el foco, `Esc` la cierra sin petición y devuelve el foco al botón; **y al confirmar** sale exactamente un `DELETE /users/{id}`.
+- **`CA-CORE-221`** [`RN-CORE-66`, `RN-CORE-19`] · **Dado** un alta con invitación, **cuando** `POST /users` responde `201` con `invitation.expires_at`, **entonces** se navega a la ficha, aparece un mensaje con `role="status"` con la caducidad formateada, y ningún texto del documento ni del almacenamiento del navegador contiene un token.
+
+#### Exportación de usuarios
+
+- **`CA-CORE-222`** [`RN-CORE-69`, `RN-CORE-51`, `RN-CORE-57`] · **Dado** el listado con `usuario.exportar`, `status=activo,inactivo` y `role=<ulid>`, **cuando** se pulsa exportar, **entonces** `POST /users/exports` recibe `{"status":["activo","inactivo"],"role":["<ulid>"]}` sin `q`, `sort`, `page` ni `per_page`; **y sin** `usuario.exportar` no hay control de exportación.
+- **`CA-CORE-223`** [Pest] [`RN-CORE-85`, `RPERM-003`, `INV-002`] · **Dado** un usuario sin `usuario.exportar`, **cuando** pide `POST /users/exports`, **entonces** `403`; **y con** él, `202` con `public_id`, una fila en `data_exports` con `kind = users`, el trabajo encolado en `core-exports` (no ejecutado en la petición, `INV-012`) y un registro `exported` en `audit_logs`.
+- **`CA-CORE-224`** [Pest] [`RN-CORE-58`, `RN-CORE-85`] · **Dado** `POST /users/exports` con `q`, **entonces** `422` con el código propio del recurso y no se crea ninguna fila en `data_exports`; **y** `data_exports.filters` de cualquier exportación de usuarios no contiene nunca la clave `q`.
+- **`CA-CORE-225`** [Pest] [`ADR-054 §8.2`, `RN-CORE-85`] · **Dado** la especificación OpenAPI, **entonces** todo parámetro de filtro de `GET /users` (salvo `q`, `sort`, `page`, `per_page`) existe en el esquema del cuerpo de `POST /users/exports` con el mismo nombre; **y** `include_deleted=true` sin `usuario.eliminar` responde `403`, igual que en el listado.
+- **`CA-CORE-226`** [Pest] [`RN-CORE-59`, `ADR-055`, `CA-CORE-207`] · **Dado** dos solicitantes con `person.locale` `es-ES` y `de`, **cuando** exportan usuarios con los mismos filtros y se ejecuta el trabajo, **entonces** los dos ficheros son idénticos byte a byte, la cabecera coincide con el esquema documentado en OpenAPI y los valores de `status` son los códigos técnicos; **y** el generador no referencia `__()` ni `trans()`. **Este test es la verificación pendiente de `CA-CORE-207`** (§14.12 punto 1).
+- **`CA-CORE-227`** [Pest] [`RN-CORE-85`, `RN-CORE-48`, `RN-CORE-36`, `OPEN-CORE-32`, `INV-008`] · **Dado** tres usuarios con `document_type`, `document_number` y `birth_date` informados (valores distinguibles de prueba, `REQ-SEED-005`), uno cuyo `given_name` empieza por `=`, otro cuyo `contact_phone` empieza por ` +`, y uno con dos roles, **cuando** se genera el CSV, **entonces**: la cabecera es exactamente `public_id,status,deleted_at,created_at,email,given_name,family_name_1,family_name_2,contact_email,contact_phone,locale,roles`, en ese orden; **ninguna** cabecera es `document_type`, `document_number` ni `birth_date` y **ningún** valor de documento ni fecha de nacimiento de los tres usuarios aparece en ninguna celda del fichero; las filas siguen el orden `family_name_1`, `given_name`, `public_id`; `roles` contiene los códigos ordenados y unidos con `|`; las dos celdas peligrosas llevan apóstrofo; y el fichero tiene BOM y CRLF.
+- **`CA-CORE-228`** [Pest] [`INV-001`] · **Dado** una exportación de usuarios del tenant A, **cuando** un usuario del tenant B con `usuario.exportar` pide `GET /data-exports/{id}`, **entonces** `404`; **y** el trabajo del tenant A no incluye ninguna fila del tenant B.
+
+#### `GET /data-exports/{id}`
+
+- **`CA-CORE-229`** [Pest] [`RN-CORE-86`, S3] · **Dado** una exportación `kind = users` solicitada por un usuario con `usuario.exportar` y sin `auditoria.exportar`, **cuando** él mismo pide su estado, **entonces** `200`/`409` según su estado (no `403`); **y dado** una `kind = audit_logs` y un solicitante que ha perdido `auditoria.exportar`, `403`; **y** otro usuario del mismo centro con el permiso recibe `403` (no es el solicitante).
+- **`CA-CORE-230`** [Pest] [`RN-CORE-86`, S4, `OPEN-CORE-39`] · **Dado** una exportación `fallida` con `error_code`, **cuando** su solicitante pide el estado, **entonces** `200` con `status: "fallida"`, `error_code` y `download_url: null`; **y** una `pendiente` sigue respondiendo `409`. **[Vitest]** Con esa respuesta real simulada, el componente de 1.9 pasa al estado de fallo con el mensaje traducido de `error_code` sin esperar a la duración máxima.
+
+#### Invitaciones
+
+- **`CA-CORE-231`** [`RN-CORE-70`, S7] · **Dado** el filtro de estado con `vigente` y `caducada` marcados, **entonces** la petición lleva `status=vigente,caducada`; **y** [Pest] `GET /invitations?status=vigente,caducada` devuelve la unión de ambos y `status=vigente,otro` responde `422`.
+- **`CA-CORE-232`** [`RN-CORE-70`] · **Dado** una fila `vigente`, **entonces** ofrece «Revocar» y no «Reenviar»; **dado** una `caducada`, ofrece «Reenviar» y no «Revocar»; **dado** una `aceptada`, ninguna; **y cuando** «Reenviar» responde `429` con `Retry-After: 120`, el mensaje contiene «120».
+
+#### Importación
+
+- **`CA-CORE-233`** [`RN-CORE-71`] · **Dado** el formulario de subida, **entonces** muestra la cabecera exacta de `api.md §7` y la casilla de invitaciones marcada; **cuando** se sube un fichero y `POST /user-imports` responde `202`, se navega al detalle del lote; **y cuando** responde `415`, se muestra el mensaje del servidor sin navegar.
+- **`CA-CORE-234`** [`RN-CORE-72`] · **Dado** un lote que responde `subido`, luego `validando` y luego `validado`, con temporizadores simulados, **entonces** nunca hay dos consultas en vuelo, la espera crece con las constantes de `src/data-table`, el cambio de estado se anuncia con `role="status"`, y tras `validado` no sale ninguna consulta más; **y dado** un lote que sigue en `subido` hasta agotar la duración máxima, aparece «Comprobar de nuevo» y se deja de consultar.
+- **`CA-CORE-235`** [`RN-CORE-73`, `INV-011`] · **Dado** un lote `validado` con `row_count = 5` y `error_count = 2`, **cuando** se pulsa «Ejecutar», **entonces** la confirmación dice que se crearán 3 usuarios, si se enviarán invitaciones y que la importación no se deshace; **cuando** se confirma y la petición falla por red y se reintenta, **entonces** las dos peticiones llevan la **misma** `Idempotency-Key`, con formato ULID; **y** una confirmación posterior lleva una clave distinta.
+- **`CA-CORE-236`** [`RN-CORE-73`] · **Dado** que `POST /user-imports/{id}/execute` responde `202` con `Idempotency-Replayed: true`, **entonces** la vista lo trata como éxito y pasa a seguir el estado; **y dado** `409`, muestra el `detail` y no reintenta.
+- **`CA-CORE-237`** [`RN-CORE-74`, `RN-CORE-53`] · **Dado** un lote con `error_count = 60` y 50 entradas en `error_summary`, **entonces** las incidencias se pintan con el componente de tablas (no con `<table>` propio, `CA-CORE-200` en verde) con línea, columna y motivo, el aviso de «solo las 50 primeras» y un enlace cuyo `href` es `report_url`; **y dado** un lote `fallido` por cabecera, no existe «Ejecutar».
+- **`CA-CORE-238`** [Pest] [S8] · **Dado** `GET /user-imports` y `GET /user-imports/{id}`, **entonces** cada recurso incluye `created_at` en ISO 8601 UTC.
+- **`CA-CORE-239`** [Pest] [`OPEN-CORE-38` = A, S9, #285] · **Dado** un lote subido por un usuario con `person.locale = 'fr'` en un centro con `fr` activo, **cuando** se valida un fichero con un correo duplicado, **entonces** `error_summary[].message` y la columna `message` de `report.csv` están en francés; **y dado** un usuario con un idioma no activo en el centro, en el `default_locale` del centro.
+
+#### Roles
+
+- **`CA-CORE-240`** [`RN-CORE-75`] · **Dado** un usuario con `rol.leer`, `rol.crear`, `rol.actualizar` y `rol.eliminar`, **cuando** abre `/administracion/roles`, **entonces** ve el listado con nombre, tipo, MFA obligatorio, acceso a datos especiales y número de usuarios, y no existe en el documento ningún control de crear, clonar, editar ni borrar roles.
+
+  > **Nota de 1.5b (2026-10-05): `CA-CORE-240` queda RETIRADO y sustituido por `CA-PERM-101`** (`REQ-PERM/funcional.md §20.17.2`), en el mismo *commit* que añade «Nuevo rol» al listado, porque fallaría por construcción: con `rol.leer` y sin `rol.crear` no hay «Nuevo rol» y cada nombre es un enlace a su ficha; con `rol.crear`, existe y lleva a `core-role-new`. Las columnas y la recarga al cambiar de idioma (`CA-CORE-241`) no cambian.
+- **`CA-CORE-241`** [`RN-CORE-63`] · **Dado** el listado de roles cargado en `es`, **cuando** se cambia el idioma a `en` con el selector de 1.8, **entonces** se vuelve a pedir la página actual (una sola petición) y se muestran los nombres que devuelve el servidor; **y** el listado de usuarios hace lo mismo con su columna de roles.
+
+#### Auditoría
+
+- **`CA-CORE-242`** [`RN-CORE-76`, `ADR-038 §4.4`] · **Dado** `/administracion/auditoria`, **entonces** la tabla está en modo `cursor` («Cargar más», sin paginador ni total), no tiene búsqueda ni cabeceras ordenables, y la URL nunca contiene `cursor`.
+- **`CA-CORE-243`** [`RN-CORE-76`, `OPEN-CORE-35`] · **Dado** un rango de fechas del 1 al 3 de marzo, **entonces** la petición lleva `occurred_at_from` y `occurred_at_to` como instantes ISO 8601 que corresponden al inicio del día 1 y al final del día 3 en la zona fijada por `OPEN-CORE-35`; **y** los nueve valores de `event` aparecen como opciones del filtro con su etiqueta traducida en los cuatro idiomas.
+- **`CA-CORE-244`** [`REQ-CORE-005`, `OPEN-CORE-33`] · **Dado** un usuario con `auditoria.leer` y `usuario.leer`, **cuando** filtra por un usuario elegido en el filtro de actor (A) o llega desde «Ver su actividad» de su ficha (B), **entonces** la petición lleva `actor_id=<ulid>` y el filtro activo muestra el nombre del usuario; **y sin** `usuario.leer` no se ofrece el filtro ni se pide `GET /users`. *(Se ajusta a la opción elegida.)*
+- **`CA-CORE-245`** [`REQ-CORE-005`, `OPEN-CORE-34`, S7] · **Dado** el filtro de módulo con dos módulos marcados, **entonces** la petición lleva `module=<a>,<b>`; **y** [Pest] `GET /audit-logs?module=a,b` devuelve la unión y `actor_type=user,system` la unión de ambos tipos; **y** `POST /audit-logs/exports` acepta los mismos valores como *array* (paridad). *(El origen de las opciones se ajusta a la opción elegida.)*
+- **`CA-CORE-246`** [`RN-CORE-77`, `CA-CORE-052`, `ADR-035`] · **Dado** una entrada cuyo `changes` contiene `status {from: pendiente, to: activo}` y `document_number {redacted: identifier, from_empty: false, to_empty: false}`, **cuando** se abre «Ver cambios», **entonces** el panel es un diálogo con foco atrapado que muestra `pendiente → activo` y, para `document_number`, «valor no registrado» con el motivo traducido, sin ningún otro valor; `Esc` lo cierra y el foco vuelve al botón; **y** no sale ninguna petición al abrirlo.
+- **`CA-CORE-247`** [`RN-CORE-78`, `RN-CORE-52`] · **Dado** la tabla de auditoría con `auditoria.exportar` y filtros de `event` y `actor_type`, **cuando** se exporta, **entonces** `POST /audit-logs/exports` recibe esos filtros como *arrays* y nada más; **y al** alcanzar 1.000 filas, el aviso de tope ofrece exportar.
+
+#### Configuración del centro y marca
+
+- **`CA-CORE-248`** [`RN-CORE-79`] · **Dado** un usuario con `configuracion.leer` y sin `configuracion.actualizar`, **entonces** `/administracion/centro` muestra los valores y no contiene ningún campo editable, botón de guardar ni acción de «Sustituir»/«Eliminar» activo; **y** no sale ninguna petición `PATCH`/`PUT`/`DELETE`.
+- **`CA-CORE-249`** [`RN-CORE-79`, `ADR-038 §9.2`] · **Dado** el grupo «Fiscal» con solo el municipio cambiado, **cuando** se guarda, **entonces** el cuerpo es exactamente `{"fiscal":{"city":"…"}}` y los demás grupos no se envían.
+- **`CA-CORE-250`** [`RN-CORE-80`, `RUX-BRAND-006`] · **Dado** una paleta editada con contraste 3,1:1, **entonces** la vista previa muestra «3,1:1» (formato del idioma activo) y el aviso de que no alcanza 4,5:1; **cuando** se guarda y el servidor responde `422 contrast_insufficient` con `ratio` y `required`, se muestran los valores del servidor; **y cuando** una paleta válida responde `200`, se llama una vez a `useTenantBranding().refresh()`.
+- **`CA-CORE-251`** [`RN-CORE-81`, `RN-CORE-13`] · **Dado** los idiomas activos `es-ES` y `en` con `en` por defecto, **cuando** se desmarca `en`, **entonces** «idioma por defecto» deja de ofrecer `en` y el formulario no permite guardar hasta elegir otro; **y dado** que la interfaz está en `en`, aparece el aviso de que pasará a verse en el idioma por defecto.
+- **`CA-CORE-252`** [`RN-CORE-82`] · **Dado** la constante de comunidades autónomas del cliente y `AutonomousCommunity::CODES` del servidor, **entonces** contienen exactamente los mismos códigos, y cada código tiene nombre en `es`, `en`, `de` y `fr`.
+- **`CA-CORE-253`** [`RN-CORE-83`, `RSEC-OWASP-012`] · **Dado** «Sustituir logo» con un fichero de 2 MB, **entonces** la vista avisa del límite de 1 MB sin enviar nada; **y dado** un fichero válido cuya subida responde `422` (tipo real distinto), se muestra el mensaje del servidor; **y cuando** responde `200`, se vuelve a pedir `GET /tenant/settings` y se llama a `refresh()` una vez; **y** no se usa `URL.createObjectURL` en ningún fichero de la pantalla (`CA-CORE-192` sin excepción nueva).
+- **`CA-CORE-254`** [`RN-CORE-83`] · **Dado** la imagen de un activo cuya carga falla, **entonces** se pide `GET /tenant/settings` exactamente una vez; **y si** vuelve a fallar, se pinta el estado de error y no hay más peticiones.
+
+#### Migración de las tres tablas
+
+- **`CA-CORE-255`** [`RN-CORE-84`, `RN-CORE-53`, `CA-CORE-200`] · **Dado** cada vista migrada, **entonces** no importa `@/components/ui/table` ni contiene `<table`, su ruta ya no está en la lista de excepciones del test de `RN-CORE-53`, y el test sigue en verde; **y** al terminar 1.9f la lista de excepciones está **vacía**.
+- **`CA-CORE-256`** [`RN-CORE-84`, `REQ-AUTH-003`] · **Dado** `MfaExemptionsArea` migrada, **entonces** al entrar la primera petición es `GET /mfa-exemptions` con `state=live` y el filtro de estado es de selección única con «todos» disponible, la revocación sigue pidiendo confirmación (diálogo de `RN-CORE-64`) y llama al mismo *endpoint*, el formulario de concesión no cambia, y todos sus tests preexistentes siguen en verde.
+- **`CA-CORE-257`** [`RN-CORE-84`, `REQ-AUTH-004`] · **Dado** `AdminSsoView` migrada con 30 proveedores, **entonces** la primera petición lleva `per_page=25` y el paginador muestra 2 páginas; «Eliminar» de un proveedor SAML muestra el aviso adicional de SAML en la confirmación de `RN-CORE-64` y no usa `window.confirm`; y cada botón de fila tiene un nombre accesible con el nombre del proveedor.
+- **`CA-CORE-258`** [`RN-CORE-84`, `REQ-AUTH-005`] · **Dado** `SessionsView` migrada, **entonces** una sesión con `ip_address: null` muestra el valor vacío común (`CA-CORE-201`), revocar la sesión actual navega a `/entrar`, «Cerrar las demás sesiones» sigue fuera de la tabla con su confirmación, y la vista ya no importa `vue-i18n` directamente.
+- **`CA-CORE-259`** [`RUX-RESP-004`] **[Playwright]** · **Dado** `/administracion/usuarios`, `/administracion/auditoria` y `/cuenta/sesiones` a 320 px, **entonces** en las tres hay lista de tarjetas y no `table`, y `scrollWidth ≤ clientWidth` del documento; **y** a 1024 px, `table`.
+
+#### Transversales
+
+- **`CA-CORE-260`** [`RUX-004`, WCAG 2.2 AA] **[Playwright]** · **Dado** el alta de usuario, la ficha y la configuración del centro, **cuando** se recorren solo con teclado, **entonces** todos los campos y acciones se alcanzan en orden de documento, todo campo tiene etiqueta asociada, los obligatorios están marcados de forma no solo visual, y ningún control queda por debajo de 44 × 44 px con puntero grueso (`OPEN-CORE-14`).
+- **`CA-CORE-261`** [`INV-009`] · **Dado** los cuatro `locales/*.json` de `core`, **entonces** toda clave nueva de 1.9b existe en `es`, `en`, `de` y `fr`, y `npm run lint:i18n` termina sin hallazgos.
+- **`CA-CORE-262`** [`RN-CORE-50`] · **Dado** `localStorage`, `sessionStorage` e `indexedDB` simulados, **cuando** se recorren el listado y la ficha de usuarios, el detalle de una importación y la auditoría, **entonces** las únicas escrituras son claves `plataforma.table.<tableId>` y no contienen ningún dato de fila ni texto de búsqueda.
+- **`CA-CORE-263`** [`CA-CORE-070`, `CA-CORE-073`] · **Dado** cada ficha de §14.3 (usuario, importación, rol si existe), **cuando** su `GET` responde `404`, **entonces** se pinta «no encontrado» dentro del *shell*; **y cuando** responde `403`, «sin acceso» con recarga de `/me` (§12.6).
+
+#### Módulos contratados y perfil propio (1.9e, `OPEN-CORE-31` = B)
+
+- **`CA-CORE-264`** [`RN-CORE-24`, `RN-CORE-88`, `ADR-053 §2`, §14.3.1] · **Dado** el registro ensamblado tras 1.9e, **entonces** las rutas `app`/`bare` con `meta.permissions` vacía son exactamente **siete**: las seis de `CA-CORE-103` más `core-profile`; la constante del test de coherencia (`src/navigation/modules.spec.ts`, comprobación 5) contiene esas siete; y `core-modules` declara `['modulo.leer']`. Con un caso fijo que prueba que una octava ruta con `[]` hace fallar el test.
+- **`CA-CORE-265`** [`RN-CORE-88`, `REQ-CORE-003`] · **Dado** un usuario con `/me.permissions` vacío, **cuando** carga el *shell*, **entonces** la sección «Mi cuenta» contiene «Perfil» y la pantalla se abre; muestra nombre y correo de acceso sin campo editable para ellos, campos editables solo para correo y teléfono de contacto, ningún selector de idioma, y **no** sale ninguna petición `GET /me` además de la del *guard*.
+- **`CA-CORE-266`** [`RN-CORE-89`, `ADR-038 §9.2`, `CA-CORE-018`] · **Dado** el perfil con solo el teléfono cambiado y el correo de contacto vaciado, **cuando** se guarda, **entonces** el cuerpo de `PATCH /me` es exactamente `{"person":{"contact_phone":"…","contact_email":null}}`; con `200`, el estado de sesión pasa a ser la respuesta (sin otra petición a `/me`) y aparece un mensaje con `role="status"`; **y con** `422` en `person.contact_email`, el mensaje del servidor aparece bajo ese campo con `aria-invalid="true"`.
+- **`CA-CORE-267`** [`RN-CORE-87`, `ADR-045`] · **Dado** un usuario con `modulo.leer` y `modulo.actualizar`, **cuando** abre `/administracion/modulos`, **entonces** la tabla (con el componente, `CA-CORE-200` en verde) muestra nombre, estado y fecha de alta formateada; no existe ningún control de edición ni de `settings`; no sale ninguna petición `PATCH`; y una respuesta de `GET /modules` sin `meta` se pinta como una sola página; no se pinta el pie de paginación (propiedad aditiva `hideSinglePageFooter` del componente, issue #326, 2026-10-04; antes, por decisión del usuario del 2026-10-03, «Página 1 de 1» con los botones deshabilitados). Solo se muestran las filas con `enabled: true` (`OPEN-CORE-45` = A); un módulo con `enabled: false` presente en la respuesta no aparece.
+- **`CA-CORE-268`** [`RN-CORE-62`] · **Dado** un usuario sin `modulo.leer`, **entonces** no aparece la entrada «Módulos» ni se pide `GET /modules`; **y dado** el listado de módulos en `es`, al cambiar a `en` se vuelve a pedir una vez (`RN-CORE-63`).
+
+#### Ampliaciones del componente de tablas (`OPEN-CORE-40` = A)
+
+- **`CA-CORE-269`** [`RN-CORE-68`, `RN-CORE-84`, §13.7] · **Dado** una tabla de prueba con un filtro booleano de dos estados, **entonces** desmarcado no envía el parámetro y marcado envía `<id>=true`, sin opción «todos»; **y dado** un filtro `enum` con `multiple: false` e `initial: 'live'`, la primera petición lleva `<id>=live`, solo puede haber un valor elegido a la vez y la opción «todos» no envía el parámetro; **y** las tablas existentes (`MfaComplianceArea`, tablas de prueba de 1.9) no cambian de comportamiento (sus tests siguen en verde).
+
+### 14.19 Estrategia de pruebas
+
+| Capa | Herramienta | Qué cubre | Criterios |
+|------|-------------|-----------|-----------|
+| Servidor | **Pest**, contra PostgreSQL real con RLS (como toda la suite) | S1-S10: permiso, `403`/`404`, aislamiento entre tenants, paridad de filtros contra OpenAPI, `q` ⇒ `422`, cola (`Queue::fake` para «encolado, no ejecutado»), contenido del CSV byte a byte (esquema de §14.11.1 y ausencia de documento y fecha de nacimiento), neutralización, `exported` en auditoría, migración del `CHECK` | 214 (parte), 216 (parte), 223, 224, 225, 226, 227, 228, 229, 230 (parte), 231 (parte), 238, 239, 245 (parte) |
+| Pantallas | **Vitest** con las funciones de `api/` del módulo simuladas (sin red), temporizadores simulados para las consultas de estado | Permisos de interfaz, formularios, errores, confirmaciones, foco, i18n, almacenamiento, ampliaciones del componente | 208-213, 214 (parte), 215, 216 (parte), 217-222, 230 (parte), 231 (parte), 232-237, 240-244, 245 (parte), 246-258, 261-269 |
+| Navegador real | **Playwright** con `page.route` para las respuestas de la API (mismo patrón que 1.9: sin servidor de API), contra el servidor de Vite | Tarjetas a 320 px, teclado, objetivos táctiles | 259, 260 |
+| Arquitectura | **Vitest** (tests existentes de 1.8/1.9, ampliados) | `RN-CORE-53` (lista que se reduce a cero), `RN-CORE-37`, `CA-CORE-102`, `CA-CORE-176` (`tableId` nuevos), `CA-CORE-192` sin excepciones nuevas, constante de rutas con `[]` de `ADR-053 §2` ampliada a siete en 1.9e | 200, 255, 264 |
+
+Cada sub-paso ejecuta la suite completa del lado que toca (Pest con `php -d memory_limit=512M ./vendor/bin/pest`, issue #106; Vitest y Playwright en el contenedor `web`), y el mensaje del último *commit* del lote cita el número real (`CLAUDE.md §3`). Los tests preexistentes de `/administracion/mfa`, `/administracion/sso` y `/cuenta/sesiones` no se reescriben salvo lo que exija el cambio de componente.
+
+### 14.20 Documentación a actualizar al cerrar cada sub-paso
+
+- Este documento: estado de §14 y del sub-paso; `api.md §14`, `datos.md` Parte D, `permisos.md §12`, `operacion.md §13`.
+- OpenAPI (`apps/api/openapi/`): S1-S10, incluido el **esquema del fichero** de `POST /users/exports` (`ADR-054 §8.1`).
+- `docs/manual-usuario/admin.md`: cada pantalla; para la exportación de usuarios, la **tabla de columnas y códigos** que exige `ADR-055` (Consecuencias), y cómo abrir el CSV en Excel con configuración regional española (§13.14.3). `secretaria.md`/`direccion.md` no existen (issue #65): si se crean, con las pantallas que sus roles pueden ver.
+- `docs/i18n.md` (espacios `core.*` nuevos), `docs/design-system.md §12` (`alert-dialog` vendorizado en 1.9b, `OPEN-CORE-42` = A), `ARCHITECTURE.md`, `CHANGELOG.md` (con el cambio de contrato de S4 y el esquema nuevo de CSV).
+- `PRIVACY.md`: el CSV de usuarios como tratamiento de exportación (las columnas de §14.11.1, sin documento ni fecha de nacimiento; retención de siete días); lo confirma `doc-reviewer`.
+- `PLAN-IMPLEMENTACION.md`: los cinco sub-pasos `1.9b`-`1.9f` decididos (`OPEN-CORE-30` = A), con módulos y perfil en `1.9e`; fuera del ámbito de escritura de esta especificación.
+
+### 14.21 Aprobación
+
+**Aprobada el 2026-10-01** por el usuario, con las respuestas de §14.17 que constan como resueltas: `OPEN-CORE-30` (A), `-31` (B), `-32` (B, contra la recomendación A de esta especificación), `-39` (A), `-40` (A), `-42` (A) y `-43` (A). **1.9b está listo para `implementer` sin reservas**, incluido `POST /users/exports` con el esquema de §14.11.1. Quedan pendientes:
+
+1. Las preguntas abiertas, antes del sub-paso al que bloquean: `-37` y `-45` (1.9e), `-33` a `-36` (1.9d) y `-38` (1.9c) **ya resueltas** (2026-10-03); `-41` y `-44` no bloquean.
+2. Los issues de los hallazgos 1 a 6 y 9 de §14.16 están abiertos: #287, #288 y #289.
+3. Tener presente que, sin #128, la importación y las exportaciones de este paso no funcionan en un entorno real (§14.15).
+
+### 14.22 Notas de implementación de `1.9b` (2026-10-02)
+
+Lo entregado por el sub-paso `1.9b` y lo que **no** coincide al pie de la letra con lo escrito arriba. Nada de esto reabre la especificación aprobada; cada punto queda a decisión de la sesión orquestadora o del usuario.
+
+**Entregado**: S1 a S7 en `apps/api` (la parte de `GET /audit-logs`/`POST /audit-logs/exports` de S7 es de `1.9d`, como fija la columna «Sub-paso» de §14.11); migración de S2; `apps/web`: `alert-dialog` vendorizado (`src/components/ui/alert-dialog/`), `ConfirmDialog` + `useConfirm` (`src/components/`), las ampliaciones del componente de tablas de `OPEN-CORE-40` = A que corresponden a este sub-paso, y las cinco rutas de usuarios e invitaciones de §14.3 en `core/shell.ts`.
+
+**Desviaciones y puntos que la especificación no resolvía**:
+
+1. **Tipo de documento** (§14.4.3). El servidor lo acepta como texto libre (≤ 32) y solo valida el formato de `DNI` y `NIE` (`DocumentNumberValidator`); **no hay catálogo cerrado**. §14.4.3 manda parar y reportar en ese caso. Se ha **seguido adelante con el contrato real del servidor**: un campo de texto (`maxlength` 32) con una pista, sin inventar una lista de tipos. Si el usuario quiere un selector, necesita antes un catálogo en servidor. **Sustituido en 1.9c por §14.6.4** (catálogo cerrado y selector).
+2. **Opción `label` del filtro `enum`** (§14.4.1, `RN-CORE-62`/`-63`). Las opciones del filtro de rol son nombres **ya traducidos por el servidor**, no claves del cliente; `labelKey` solo admite claves y, sin traducción, muestra el código (un ULID). Se añadió a `DataTableEnumFilter.options` el campo opcional `label` (texto literal, con prioridad sobre `labelKey`). Es aditivo, pero **no figura entre las tres ampliaciones que enumera `OPEN-CORE-40`**. **Ratificado el 2026-10-02** (`OPEN-CORE-53`, §14.6.4.9); sigue vigente en 1.9c.
+3. **«Importar»** (§14.4.1) enlaza con `core-user-imports`, ruta de `1.9c`. Mientras no esté registrada (`router.hasRoute`), el enlace no se pinta, para no ofrecer uno roto.
+4. **`status` y `role` de `GET /users`** siguen sin validar sus valores (como antes); `locale` sí (`InList`, S7). `POST /users/exports` valida los tres por elemento. Es una asimetría heredada: validar `status`/`role` en el listado cambiaría respuestas hoy correctas (`200` vacío) y no figura en S1-S7.
+5. **`format`** en `POST /users/exports` es opcional (por defecto `csv`): `CA-CORE-222` da el cuerpo `{"status":[…],"role":[…]}` sin `format`.
+6. **Autorización de `GET /data-exports/{id}`** (`RN-CORE-86`): la ruta ya no lleva `permission:` y la comprobación vive en el controlador; sin sesión responde `401` (igual que antes) y un `kind` sin correspondencia, `403`.
+7. **`CA-CORE-241`** se prueba solo para el listado de usuarios (el de roles es de `1.9d`); **`CA-CORE-259`**, para el listado de usuarios (auditoría y sesiones llegan con `1.9d` y `1.9f`); **`CA-CORE-260`**, para el alta y la ficha (la configuración del centro llega con `1.9e`); **`CA-CORE-262`** y **`-263`**, para listado, ficha e invitaciones (`UsersAdmin.shell.spec.ts`, pila real, con `indexedDB` espiado y la recarga de `/me` en el `403`; importación y rol llegan en `1.9c`/`1.9d`); **`CA-CORE-269`**, solo la parte del booleano de dos estados (la del `enum` de selección única es de `1.9f`).
+8. **Pest completo en el host** (`php -d memory_limit=512M ./vendor/bin/pest`): 786/801. Los 15 fallos son **todos** de SAML (`Signature validation failed`), ajenos a este diff (no toca `Auth`); `SamlCertificatesTest` pasa 9/9 en el contenedor `plataforma-api` sobre `develop`. Causa sin diagnosticar (hipótesis: OpenSSL del anfitrión), issue [#291](https://github.com/pirexia/plataforma-educativa/issues/291); hay que reverificar la suite en el contenedor de referencia o en CI. Los puntos 1 y 2 de arriba, a decisión, en el issue [#292](https://github.com/pirexia/plataforma-educativa/issues/292). Esta implementación corrige en código los hallazgos de [#287](https://github.com/pirexia/plataforma-educativa/issues/287) (S4), [#288](https://github.com/pirexia/plataforma-educativa/issues/288) (S5/S6) y la parte de ruta de [#289](https://github.com/pirexia/plataforma-educativa/issues/289) (S3); el cierre de los issues lo decide la sesión orquestadora tras la revisión.
+
+**Cobertura de los criterios de 1.9b**: `CA-CORE-208` a `-232` con test (Pest o Vitest, `CA-CORE-214`/`-216`/`-230`/`-231` en ambos), `-241` (usuarios), `-259` y `-260` (Playwright), `-261` (`src/modules/core/locales.spec.ts` y `npm run lint:i18n`), `-262`, `-263` y `-269` (booleano). `CA-CORE-102` sigue en verde sin excepciones nuevas.
+
+### 14.23 Notas de implementación de `1.9c` (2026-10-02)
+
+Lo entregado por el sub-paso `1.9c` y lo que **no** coincide al pie de la letra con lo escrito arriba. Nada de esto reabre la especificación aprobada; cada punto queda a decisión de la sesión orquestadora o del usuario.
+
+**Entregado**: §14.6.1 y §14.6.2 (listado y subida, detalle con seguimiento, ejecución idempotente, incidencias, descartar, renovación del enlace del informe) con `RN-CORE-71` a `-74`; S8 (`created_at`), S9 (idioma de los mensajes, `OPEN-CORE-38` = A, #285) y el catálogo cerrado de tipos de documento de §14.6.4 (`RN-CORE-90` a `-93`): enumerado `App\Modules\Core\Domain\DocumentType`, `PersonDocumentRules` (alta y edición por la misma vía), `UserImportRowValidator` con grafía tolerante (`OPEN-CORE-50` = A), migración de datos de la entrega N (`OPEN-CORE-52` = A, `datos.md` Parte E), `enum` de OpenAPI, selector en el formulario de usuario, etiqueta traducida en la ficha, constante `DOCUMENT_TYPES` del cliente con test cruzado (`OPEN-CORE-53` = A) y traducciones `es`/`en`/`de`/`fr`.
+
+**Desviaciones y puntos que la especificación no resolvía**:
+
+1. **`accept=".csv"` (§14.6.1) y `CA-CORE-192`.** El test de `CA-CORE-192` prohíbe el literal `text/csv` en `src/modules/**` sin excepciones. **Decisión del usuario (2026-10-03)**: se mantiene `accept=".csv"` y no se añade ninguna excepción en `architecture.spec.ts`; §14.6.1 queda corregido.
+2. **Sin enlace al manual (§14.6.1).** La SPA no publica el manual. **Decisión del usuario (2026-10-03)**: la pantalla remite al apartado por su nombre; §14.6.1 queda corregido.
+3. **`send_invitations` en `UserImportResource` (`RN-CORE-73`, `CA-CORE-235`).** **Decisión del usuario (2026-10-03)**: se expone en el listado y el detalle (aditivo, S8 ampliado en §14.11, `api.md §7`, OpenAPI) y la confirmación de ejecutar lo lee **siempre** de la API; se retira el recuerdo en memoria de la subida. Prueba: `CA-CORE-235` en Pest (`UserImportCatalogTest`) y Vitest (`UserImportDetailView.spec.ts`).
+4. **Aviso de las 50 primeras (`RN-CORE-74`).** **Decisión del usuario (2026-10-03)**: el aviso sale si `error_count` supera las entradas recibidas **o** si las entradas llegan al tope de 50 (`error_count` cuenta filas y `error_summary` incidencias). Prueba del caso 30 filas × 2 errores en `UserImportDetailView.spec.ts`; §14.6.2 corregido.
+5. **`table-id`**: `core.user_imports` y `core.user_import_errors` (snake_case, forma de `RN-CORE-43`; las claves de traducción siguen en camelCase, `core.userImports.*`).
+6. **Pest completo en el host**: ver `CHANGELOG.md`. Los fallos son de pruebas de `Auth` (OIDC/SAML) que necesitan red o criptografía del contenedor de referencia, ajenos a este diff.
+7. **OpenAPI** (`openapi/components.yaml`) tenía **cinco líneas con YAML inválido** (descripciones con `:` o `,` sin comillas, de 1.9b y de `REQ-AUTH`: `Solo con \`status: fallida\``, `IP completa del propio titular, sin enmascarar.`, `RN-AUTH-59, 10 minutos por defecto.`, `RN-AUTH-54, 5 minutos por defecto.` y `to_status = eliminado, serie aparte de closed.`) que impedían leer el fichero con un analizador YAML; `CA-CORE-279` lo necesita. Se han entrecomillado, sin cambiar su contenido.
+8. **Migración de datos y `pgsql_platform`**: `plataforma_owner` queda sujeto a RLS por `FORCE` y no ve ninguna fila de ningún tenant, así que la migración de datos de entrega N usa `pgsql_platform` (`datos.md` Parte E). `CA-CORE-280` la prueba acotada por tenant (método `normalize()`, que `up()` llama sin acotar).
+9. **El `CHECK` de par ya existía** (`people_document_type_number_paired`, 0.8): §14.6.4.4 lo daba por añadir en la entrega N+1 y ya está corregido allí. Queda solo el `CHECK` del catálogo (entrega N+1), en el issue [#312](https://github.com/pirexia/plataforma-educativa/issues/312).
+
+10. **Revisión independiente (2026-10-03)** (`db-reviewer`, `security-reviewer`, `doc-reviewer`; sin hallazgos Crítico/Alto). Corregido: **D1** la migración lee con `lockForUpdate()` dentro de su transacción; **S3** el `422` de `core.validation.document_type_invalid` ya **no refleja el valor recibido** (ni en el mensaje ni en `params`; el mensaje es el mismo para cualquier valor); **S5** el enlace del informe exige `https:` salvo en desarrollo (`import.meta.env.DEV`) y lleva `rel="noreferrer noopener"`. Documentado: **D2** la migración de datos es **irreversible a propósito** (`down()` vacío, `OPEN-CORE-52` = A): la reversión se apoya en la copia de seguridad / PITR (`operacion.md §14`); **D3** el `UPDATE` de la migración no pasa por la auditoría ni toca `updated_at`, excepción consciente a `INV-003` (`datos.md` Parte E). **No se tocan en 1.9c** S1 (el tope de 20 000 filas no se aplica) ni S2 (los roles no concedibles de una fila fallan en silencio), preexistentes de 1.9b y a decisión del usuario; **se corrigen después** en rama `fix/` propia (#313, #314, ver `CA-CORE-286`/`-287` abajo).
+
+**Cobertura de los criterios de 1.9c**: Pest — `CA-CORE-238`, `-239` (`UserImportCatalogTest`), `-273` a `-280` y `-285` (`DocumentTypeCatalogTest`, `DocumentNumberValidatorTest`, `UserImportCatalogTest`); Vitest — `CA-CORE-233` a `-237` (`UserImportsView.spec.ts`, `UserImportDetailView.spec.ts`), `-262` y `-263` para la importación (`UsersAdmin.shell.spec.ts`), `-281` (`UserFormView.spec.ts`), `-282` (`documentTypes.spec.ts`), `-283` (`UserDetailView.spec.ts`), `-284` (`UserImportsView.spec.ts`); `CA-CORE-208` ampliado a las rutas de importación (`shell.spec.ts`). `CA-CORE-279` también comprueba que el `enum` de OpenAPI es el del enumerado PHP. Regresión de los issues #308, #309 y #310: los tests de `CA-CORE-273` a `-278` llevan sus referencias (F1 a F5).
+
+### 14.24 Correcciones posteriores a 1.9c (2026-10-03)
+
+- **#313 · `CA-CORE-286`** (`RNF-LIM-004`): `UserImportCsvReader` aplica `core.import_max_rows` (20 000 por defecto) a las filas de datos. Por encima, el lote queda `fallido` con una única incidencia `limite_filas_superado` (línea 1, columna `file`), `row_count` 0, sin validar ninguna fila ni generar informe. En el tope exacto el lote es válido. Pest: `UserImportCatalogTest`.
+- **#314 · `CA-CORE-287`** (`RPERM-013`, `RN-CORE-08`): `UserImportRowValidator` comprueba, con el actor que subió el lote, que puede conceder cada rol de la fila (`CreateUser::canGrant`, misma regla que `assertActorCanGrant`). Si no puede, incidencia `rol_no_concedible` en la fase 1 (y también al revalidar en la fase 2), de modo que «se crearán N» coincide con lo que se crea. Pest: `UserImportCatalogTest`.
+
+### 14.25 Notas de implementación de `1.9d` (2026-10-03)
+
+Lo entregado por el sub-paso `1.9d` (auditoría y roles de solo lectura) y lo que no coincide al pie de la letra con lo escrito arriba. Nada de esto reabre la especificación aprobada.
+
+**Entregado**
+
+- **Servidor.** S10: `GET /audit-logs/facets` (`auditoria.leer`, `api.md §14.4`) y la parte de auditoría de S7: `GET /audit-logs?actor_type=`/`?module=` admiten varios valores por comas y `POST /audit-logs/exports` los admite como *array* (paridad, `ADR-054 §8.2`). El catálogo de valores filtrables vive en una única clase, `App\Modules\Core\Domain\AuditCatalog` (módulo → alias de `auditable_type`, los nueve valores de `event`, los seis de `actor_type`), que usan el filtro (`AuditLogFilter`), la validación (`IndexAuditLogsRequest`) y el *endpoint* de facetas, de modo que lo que la pantalla ofrece y lo que el servidor acepta no pueden divergir. No hay migración ni índice nuevo (no hace falta `db-reviewer`). Pest: `AuditLogFacetsTest` (catálogo, **sin ninguna consulta a `audit_logs`**, `403`/`401`, aislamiento entre tenants) y `AuditLogsEndpointsTest` (`CA-CORE-245`).
+- **Cliente.** Rutas `core-audit` (`auditoria.leer`, acceso directo) y `core-roles` (`rol.leer`) en `shell.ts`; **no** se crea `core-role-detail` ni se llama a `GET /roles/{id}` (`OPEN-CORE-36` = A; test en `shell.spec.ts` y `RolesView.spec.ts`). Pantalla de auditoría (`AuditView.vue`, §14.7) con modo `cursor`, los seis filtros de `RN-CORE-76`, panel «Ver cambios» (`RN-CORE-77`) y exportación (`RN-CORE-78`); listado de roles (`RolesView.vue`, §14.8). Tipo de filtro nuevo **`entity`** en `src/data-table` (`DataTableEntityFilter.vue`; ampliación aditiva, amplía la lista cerrada de §13.7; `OPEN-CORE-33` = C). Acción «Ver su actividad» en la ficha de usuario (`auditoria.leer`). Traducciones `core.audit.*`, `core.roles.*`, `core.nav.{audit,roles}`, `core.users.detail.viewActivity*` y `dataTable.filters.entity*` en `es`, `en`, `de` y `fr`.
+
+**Precisiones y desviaciones**
+
+1. **Contrato del filtro `entity`** (§13.7, ampliado). `{ type: 'entity', id, labelKey, search(texto, {signal}) → [{value, label}], resolve(valor) → etiqueta|null }`. Selección única, serializada como `<id>=<ulid>`. La búsqueda sale con la espera de `SEARCH_DEBOUNCE_MS` y el texto recortado; la etiqueta de un valor que viene de la URL se resuelve **una sola vez** (si falla o devuelve `null`, el filtro sigue aplicado y se muestra «Elemento no disponible»). Un valor de la URL que no es un identificador de 26 caracteres se ignora sin llegar al servidor. El control es un campo de búsqueda con etiqueta y una lista de botones (patrón de divulgación, no un `combobox` completo) y, con valor, el texto «Filtrado por: {nombre}» con un botón para quitarlo; ese texto cumple el «indicador "Filtrado por: {nombre}"» de §14.7 sin duplicarlo.
+2. **Etiqueta del usuario en el filtro.** «Nombre Apellido (correo)»: dos personas con el mismo nombre se distinguen por el correo, que el usuario ya ve en el listado de usuarios (`usuario.leer`). Es la misma cadena al elegir y al restaurar desde la URL.
+3. **La tabla no se monta hasta que las facetas terminan** (con éxito o con error): el estado de la URL solo se interpreta con los filtros ya declarados (`parseUrlState`), y un `module=core` de la URL se perdería si el filtro apareciera después. Si `GET /audit-logs/facets` falla, la tabla funciona sin los filtros de módulo y entidad.
+4. **`event` y `actor_type`** se ofrecen desde constantes del cliente (los vocabularios cerrados de `ADR-039`, como fija §14.7) a las que se **añade**, al final, cualquier valor nuevo que devuelvan las facetas (`ADR-038 §7.3`). Solo `module` y `auditable_type` salen íntegramente de las facetas (`OPEN-CORE-34` = B).
+5. **Catálogo de nombres del cliente** (§14.7, columna «Entidad»): los diez alias de `core` (los nueve de `module=core` más `permission_role`) y dos módulos (`core`, `auth`); cualquier otro alias o código se muestra crudo. Las entidades de `auth` (`user_session`, `mfa_factor`…) aparecen en los registros pero **no** en el filtro de entidad (ver el hallazgo 1 de abajo).
+6. **Zona horaria** (`OPEN-CORE-35` = A, `auditQuery.ts`): el día «hasta» se convierte al último instante del día local **con microsegundos** (`…:59.999999Z`), no a `.999`, para que un registro de la última milésima del día no quede fuera. Documentado en el manual.
+7. **`POST /audit-logs/exports`** sigue aceptando un `actor_type` o un `module` **escalar** (la forma anterior a S7) y lo trata como una lista de uno (aditivo, `ADR-038 §7`); la SPA envía siempre *arrays*.
+8. **Tope de 1.000 filas** (`CA-CORE-247`): el aviso de tope y su botón de exportar son del componente de 1.9; `AuditView.spec.ts` lo comprueba cargando 20 páginas de 50 (≈ 10 s: es la prueba más lenta del módulo).
+9. **Playwright** (`CA-CORE-259`, parte de 1.9d, y `CA-CORE-246` con foco real): `e2e/core-audit.spec.ts` (auditoría y roles en tarjetas a 320 px y como tabla a 1024 px, sin desplazamiento horizontal; el panel atrapa el foco, `Esc` lo cierra y el foco vuelve al botón; los filtros tienen etiqueta accesible).
+
+**Hallazgos fuera de alcance** (no se corrigen aquí; `CLAUDE.md §5`):
+
+1. **`AuditCatalog::MODULE_ALIASES` solo declara `core`.** `GET /audit-logs?module=auth` no devuelve ninguna fila aunque `auth` tiene entidades auditables (`user_session`, `mfa_factor`, `identity_provider`…) y el catálogo del cliente ya traduce `auth`. Además `permission_role` (de `core`) no está en la lista del módulo `core`: `module=core` no devuelve sus registros. **Severidad: Baja, issue [#318](https://github.com/pirexia/plataforma-educativa/issues/318)** (el filtro por módulo es incompleto, no incorrecto, y el de entidad sí acepta cualquier alias). Corrección propuesta: que cada módulo declare sus alias de auditoría (como ya declara su *morph map*, `INV-007`) y `AuditCatalog` los agregue.
+2. El test de `CA-CORE-150` (`shell.i18n.spec.ts`) tenía que admitir `core.nav.roles` como cognado idéntico en español e inglés («Roles»); se añade a su lista de excepciones.
+
+**Cobertura de los criterios de 1.9d**: Pest — `CA-CORE-245` (`AuditLogsEndpointsTest`, `AuditLogFacetsTest`); Vitest — `CA-CORE-208` ampliado a `core-roles`/`core-audit` y `CA-CORE-209` a sus entradas (`shell.spec.ts`), `CA-CORE-240` y `-241` (`RolesView.spec.ts`), `CA-CORE-242` a `-247` y `-262` (`AuditView.spec.ts`), `CA-CORE-243`/`-247` (`auditQuery.spec.ts`), `CA-CORE-244` (`DataTable.entity.spec.ts`, `UserDetailView.spec.ts`), `CA-CORE-261` (`locales.spec.ts`, `i18n.spec.ts`); Playwright — `CA-CORE-259` y `-246` (`e2e/core-audit.spec.ts`).
+
+### 14.26 Notas de implementación de `1.9e` (2026-10-03)
+
+Lo entregado por el sub-paso `1.9e` (configuración del centro, activos de marca, módulos contratados en solo lectura y perfil propio) y lo que no coincide al pie de la letra con lo escrito arriba. Nada de esto reabre la especificación aprobada. **Sin cambios de servidor** (`apps/api` no se toca): solo `apps/web`, más esta documentación.
+
+**Entregado**
+
+- **Rutas** en `core/shell.ts`: `core-settings` (`/administracion/centro`, `configuracion.leer`), `core-branding-assets` (`/administracion/centro/marca`, `configuracion.leer`, sin entrada de menú, miga de pan bajo `core-settings`), `core-modules` (`/administracion/modulos`, `modulo.leer`) y `core-profile` (`/cuenta/perfil`, **`permissions: []`**, sección `cuenta`). La lista cerrada de `RN-CORE-24` pasa de seis a **siete** rutas (`CA-CORE-264`): la constante del test de coherencia (`src/navigation/modules.spec.ts`) contiene `core-profile`, con un caso fijo que prueba que una octava ruta con `[]` hace fallar la comprobación. Entradas de menú nuevas: `core.settings`, `core.modules` (ambas en `administracion`, sin acceso directo) y `core.profile` (en `cuenta`).
+- **Pantallas**: `SettingsView.vue` (cuatro formularios independientes, `RN-CORE-79` a `-82`), `BrandingAssetsView.vue` (`RN-CORE-83`, confirmación de `RN-CORE-64`), `ModulesView.vue` (`RN-CORE-87`, tabla `core.modules` con el componente de 1.9, filtrada en cliente por `enabled: true`, `OPEN-CORE-45` = A) y `ProfileView.vue` (`RN-CORE-88`/`-89`). Componente de apoyo `SettingsField.vue` (etiqueta, marca de obligatorio no solo visual, pista y mensajes del servidor con `aria-invalid`/`aria-describedby`).
+- **Catálogo de comunidades autónomas** (`autonomousCommunities.ts`, `RN-CORE-82`): los 19 códigos de `App\Modules\Core\Domain\AutonomousCommunity::CODES` en el mismo orden, con su nombre en `core.settings.autonomousCommunity.<código>` en los cuatro idiomas. `autonomousCommunities.spec.ts` lee el fichero PHP (`CA-CORE-252`).
+- **Estado de sesión**: `useSession` gana `updateSessionProfile(person)` (junto a `updateSessionLocale`), que hace `PATCH /me` y sustituye el usuario de sesión por la respuesta, sin segunda petición (`RN-CORE-89`, §12.3.4).
+- **Traducciones** `core.settings.*`, `core.branding.*`, `core.modules.*`, `core.profile.*` y `core.nav.{settings,modules,profile}` en `es`, `en`, `de` y `fr`.
+
+**`OPEN-CORE-37` = B: qué edita ya `/administracion/mfa` (comprobado en el código real de `apps/web`)**
+
+La pantalla `mfa-administration` (`auth/views/AdminMfaView.vue` y sus cuatro áreas) **no edita ninguna clave de `security.*`** de la configuración del centro: ni `session_timeout_minutes`, ni `mfa_allowed_methods`, ni `mfa_grace_period_days` aparecen en ningún fichero de producción de `apps/web` fuera de un comentario de `MfaExemptionsArea.vue`. Lo que edita es otra cosa: `mfa_required` **de cada rol** (`PATCH /roles/{id}`), las excepciones temporales (`/mfa-exemptions`), los restablecimientos del segundo factor y la consulta de cumplimiento. Por tanto el grupo **Seguridad** de `/administracion/centro` incluye **las tres claves**, sin duplicar ningún campo, y enlaza a `/administracion/mfa` (solo si el usuario tiene alguno de los permisos de esa ruta, `RN-CORE-62`) para el resto.
+
+**Precisiones y desviaciones**
+
+1. **Grupo Seguridad** (concreción de `OPEN-CORE-37`): `session_timeout_minutes` (entero, 5-480), `mfa_grace_period_days` (entero, 1-90) y `mfa_allowed_methods`. De los métodos se ofrecen **`totp` (siempre marcado y deshabilitado: el servidor exige que esté, `RN-AUTH-69`) y `email`**; `sms` **no se ofrece** porque el servidor lo rechaza mientras no haya proveedor. El `PATCH` envía `mfa_allowed_methods` completo (`["totp"]` o `["totp","email"]`) solo si cambia.
+2. **`CA-CORE-267`, «sin paginador»**: el componente de 1.9 pinta siempre su pie de paginación en modo `page` cuando hay filas (misma técnica de única página que `RN-CORE-74`); `src/data-table` no se modifica en este sub-paso. Con una sola página el pie muestra el total, **«Página 1 de 1»** y los cuatro botones de navegación **deshabilitados**; el test lo comprueba así. **Resuelto por decisión del usuario (2026-10-03, opción C):** `CA-CORE-267` se reescribe a lo que hace el componente; ocultar el pie queda como cambio aditivo posterior en la issue #326 (Baja), tras lo cual se restaurará la redacción «sin paginador». **Actualización 2026-10-04 (issue #326):** el componente gana `hideSinglePageFooter` (opt-in, `ModulesView` lo activa; las demás tablas conservan el pie y su selector de filas por página) y `CA-CORE-267` recupera la redacción «sin paginador»; cubierto en `DataTable.singlePage.spec.ts` y `ModulesView.spec.ts`.
+3. **Paleta** (`RN-CORE-80`): los colores se escriben como texto `#RRGGBB` (sin selector nativo de color); la vista previa pinta el par primario/secundario como fondo/texto y la razón se **trunca** (no se redondea) a dos decimales con el formato del idioma activo (`3,1:1` en `es`, `3.1:1` en `en`), para que 4,497 no se lea como 4,5. Vaciar un color envía `null`. El `422 contrast_insufficient` llega en `errors.branding[]` (no en `branding.color_*`) con `params.ratio` y `params.required`: la vista pinta el mensaje del servidor y esos dos valores en el resumen del grupo.
+4. **Guardado por grupo** (`RN-CORE-79`): tras guardar un grupo se repone con la respuesta, pero lo que el usuario haya escrito y no guardado en los otros tres se conserva. El botón de cada grupo está deshabilitado sin cambios; en Regional, además, mientras no haya idioma por defecto entre los activos o no haya ninguno activo (`CA-CORE-251`).
+5. **Zona horaria** (`RN-CORE-82`): un campo de búsqueda y un `<select>` nativo con `Intl.supportedValuesOf('timeZone')` filtrado; el valor guardado se conserva siempre como opción.
+6. **Activos** (`RN-CORE-83`): el `<input type="file">` va oculto y los botones «Sustituir …»/«Eliminar …» son el control accesible (texto distinto por bloque, WCAG 2.4.6). La comprobación de cliente compara el tamaño y, si el navegador informa de tipo, el tipo; si el navegador no lo informa (p. ej. `.ico` en algunos sistemas), decide el servidor. Un `413`/`415`/`422` sin cuerpo JSON cae a un texto traducido. La recarga por URL caducada es **una por visita a la pantalla** (se rearma tras sustituir o eliminar); los errores de carga que lleguen mientras esa petición está en vuelo se ignoran por ser de las URL viejas.
+7. **Perfil** (`RN-CORE-88`): el campo de teléfono tiene `maxlength` 32 (límite de `PATCH /me`); el de correo es `type="email"` con `novalidate` en el formulario (decide el servidor). Sin cambios, el botón está deshabilitado.
+8. **`CA-CORE-100`** (`src/navigation/registry.spec.ts`): «Inicio y las tres de Mi cuenta» pasa a «Inicio y las **cuatro** de Mi cuenta» porque `core.profile` aparece para todo usuario autenticado (`CA-CORE-265`). Es consecuencia directa de la especificación.
+9. **Tests con lectura cruzada** (`autonomousCommunities.spec.ts`, como `documentTypes.spec.ts`): se omiten (quedan `skipped` a la vista) en el contenedor `web`, que solo monta `apps/web`; en CI y en un contenedor con `apps/` completo se ejecutan.
+
+**Hallazgos fuera de alcance**
+
+1. **`api.md §2` decía `required_ratio`** y el servidor devuelve `params.required` (`TenantSettingsController::brandingUpdates()`; `funcional.md §14.9` ya decía `required`). Contradicción documentación/código (severidad **Media**, `CLAUDE.md §6.6`); corregido en `api.md` en este sub-paso. Issue [#321](https://github.com/pirexia/plataforma-educativa/issues/321).
+2. **Claves huérfanas `core.module.{enabled,disabled}`** (paso 1.1) sin ningún consumidor en el código tras añadir `core.modules.status.*`. Severidad **Baja**, issue [#322](https://github.com/pirexia/plataforma-educativa/issues/322), sin corregir.
+
+**Cobertura de los criterios de 1.9e**: Vitest — `CA-CORE-208`/`-264` (`shell.spec.ts`, `navigation/modules.spec.ts`), `CA-CORE-209`/`-265`/`-268` (entradas por permiso, `shell.spec.ts`), `CA-CORE-248` a `-251` (`SettingsView.spec.ts`), `CA-CORE-252` (`autonomousCommunities.spec.ts`), `CA-CORE-248`/`-253`/`-254` (`BrandingAssetsView.spec.ts`), `CA-CORE-267`/`-268` (`ModulesView.spec.ts`), `CA-CORE-265`/`-266` (`ProfileView.spec.ts`), `CA-CORE-261` (`locales.spec.ts`); Playwright — `CA-CORE-260` (configuración del centro: orden de teclado, etiquetas, obligatorios, 44 px) y `CA-CORE-265` con el *shell* real (`e2e/core-settings.spec.ts`). `CA-CORE-262` (almacenamiento) se comprueba para la configuración (`SettingsView.spec.ts`).
+
+### 14.27 Correcciones posteriores a 1.9f (2026-10-05, rama `fix/REQ-CORE-ajustes-security-1-9e-1-9b`)
+
+Tres correcciones de severidad Baja detectadas en revisiones de 1.9b/1.9e. Sin migración, sin permisos nuevos, sin cambios de contrato de API.
+
+- **`CA-CORE-296`** [`INV-002`, issue #280] · **Dado** una exportación de usuarios (`GenerateUserExport`) cuyo solicitante ya no se resuelve cuando se ejecuta el trabajo (p. ej. borrado lógico entre la solicitud y la ejecución), **entonces** la exportación queda en estado `fallida` con `error_code = "core.export.generation_failed"`, sin `object_key` y **sin fichero** en el almacenamiento; no se exporta el tenant entero. Denegar por defecto: sin solicitante no hay ámbito que aplicar.
+- **`CA-CORE-297`** [`INV-002`, issue #280] · Lo mismo para la exportación de auditoría (`GenerateAuditLogExport`).
+- **Issues #323 y #324 (`SettingsView`, grupo Seguridad)**: ver la actualización de `§14.9`. Cubiertos por los tests «issue #324» e «issue #323» de `SettingsView.spec.ts` (sin `CA-CORE` propio: corrigen el comportamiento de `RN-CORE-79`/`CA-CORE-249`).
+
+**Cobertura real**: `CA-CORE-296` y `-297` en `apps/api/tests/Feature/Core/UserExportEndpointsTest.php` (un solo test que recorre ambos trabajos y comprueba estado, código de error, ausencia de `object_key` y de fichero). Pest `Core` 209/209 y Vitest 1043/1043 verificados al cierre de la corrección.
+
+**Hallazgos de la revisión de seguridad (Baja), corregidos el 2026-10-05 (rama `fix/REQ-CORE-339-340-62-pendientes`)**: [#339](https://github.com/pirexia/plataforma-educativa/issues/339) y [#340](https://github.com/pirexia/plataforma-educativa/issues/340).
+
+- **`CA-CORE-298`** [`INV-002`, issue #340] · **Dado** una exportación de usuarios o de auditoría cuyo solicitante existe pero ya no tiene `usuario.exportar`/`auditoria.exportar` cuando se ejecuta el trabajo, **entonces** queda `fallida` con `core.export.generation_failed`, sin `object_key` y sin fichero (antes, `completada` con 0 filas).
+- **`CA-CORE-299`** [`INV-002`, issue #339] · **Dado** un lote de importación cuyo autor ya no se resuelve cuando se ejecuta `ValidateUserImport`, **entonces** el lote queda `fallido` con `validated_at` y no se valida ninguna fila (antes se validaba sin la comprobación `RPERM-013`). Mismo criterio que `ExecuteUserImport`.
+- **Cobertura real**: `CA-CORE-298` en `UserExportEndpointsTest.php` y `CA-CORE-299` en `UserImportCatalogTest.php`; ambos fallan sin la corrección. Pest `Core` 211/211, Pint y Larastan limpios.
