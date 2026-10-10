@@ -1,0 +1,93 @@
+# REQ-ACAD · Operación
+
+> **Estado**: **PROPUESTA** (2026-10-10), paso **1.11**, con las recomendaciones de `funcional.md §15` aprobadas y `ADR-062`/`ADR-063` en PROPUESTA.
+
+## 1. Variables de entorno
+
+Ninguna.
+
+## 2. Servicios externos de los que depende
+
+Ninguno. Solo PostgreSQL. Sin Redis (nada se cachea entre peticiones; el curso activo y los resúmenes de curso académico se memoizan por petición, `RN-CURSO-24`), sin almacenamiento de objetos, sin cola, sin PDF.
+
+## 3. Despliegue: registro de módulos y permisos (`ADR-034 §5`)
+
+`php artisan platform:sync-registry` materializa por primera vez:
+
+- En `modules`: `acad` con `name_key = 'modules.acad'`, `phase = '1'`, `depends_on = ['curso']`, `essential = false` (aprobado, `OPEN-ACAD-10`).
+- En `permissions`: los cuatro códigos de `permisos.md §2`, `module_code = 'acad'`, `applicable_scopes = ['todos']`.
+
+**Orden obligatorio**:
+
+1. Migraciones del módulo, por el rol propietario (§6).
+2. `platform:sync-registry`, antes de abrir tráfico.
+3. **Contratación**: al ser no esencial, ningún centro lo tiene hasta que el Super Administrador lo contrate desde el *backoffice* (`ADR-045`, `REQ-BO-002`). En desarrollo y para el piloto, contratarlo explícitamente.
+4. **Siembra de permisos en centros existentes**: comando nuevo `php artisan acad:grant-structure-permissions`, del mismo tipo que `curso:grant-year-permissions` y, como él, **en el módulo `Core`** (la escritura en `roles`/`permission_role` es de `Core`, `INV-007`): idempotente, solo roles predefinidos, no toca roles personalizados, solo centros en estado `Activo`, y **comprueba antes** que los cuatro permisos existen en `permissions` **con `retired_at IS NULL`** (issue #387, B-5; `CA-ACAD-036`). Si no, falla diciendo qué falta y no concede nada. Los centros nuevos los reciben de `ProvisionTenantDefaults`. En la misma entrega, `curso:grant-year-permissions` gana la misma comprobación (`OPEN-ACAD-14` = A, `CA-ACAD-041`); su comportamiento en el caso normal no cambia.
+5. Abrir tráfico.
+
+**Si `sync-registry` aborta**: un `depends_on` con código inexistente, un ciclo, o un ámbito fuera del vocabulario. Se corrige el descriptor y se vuelve a desplegar.
+
+## 4. Tareas programadas y jobs
+
+Ninguno. Toda operación es síncrona sobre pocas filas (`INV-012` no aplica). `RMOD-005`: el módulo no tiene *jobs* ni *listeners*.
+
+## 5. Métricas y alertas
+
+Ninguna nueva. Señal útil en el log: picos de `409 academic-year-closed` desde rutas de `acad` (pantalla que no respeta el modo solo lectura).
+
+## 6. Migraciones
+
+Seis migraciones aditivas (*expand*), una por tabla, en `apps/api/app/Modules/Acad/Database/migrations/`, cargadas por `AcadServiceProvider::boot()` con `loadMigrationsFrom` (`AR-03`). Orden: `education_levels` → `courses` → `groups` → `subjects` → `subgroups` → `group_subjects`.
+
+- Todas con `TenantMigration::tenantTable()` y `tenantForeignId($table, 'academic_year_id', 'academic_years')`; el ayudante engancha el disparador `academic_year_write_guard` (con `lock_timeout` local) porque la tabla tiene la columna, y desde `1.11` crea también el índice `(tenant_id, academic_year_id)` (issue #407, `CA-ACAD-038`). Nunca `Schema::create` ni `CREATE TRIGGER` a mano (`AR-13`).
+- Columnas `name_translations` con el ayudante de columna traducible de `TenantMigration` (`ADR-062 §5.1`), que emite el `CHECK`; nunca escrito a mano (`AR-16`).
+- FK de tres columnas hacia el padre declaradas a mano (el ayudante solo emite dos; excepción justificada a la convención de #104), **sin** `cascadeOnDelete()`/`nullOnDelete()`/`cascadeOnUpdate()` (`AR-13`, `ADR-057 §5.2`).
+- Índices de `datos.md §3` que no crea el ayudante, declarados explícitamente. Los únicos parciales requieren SQL o `->where()` según lo que admita la versión de Laravel; revisa `db-reviewer`.
+- Tablas nuevas y vacías: crear índices sin `CONCURRENTLY` es correcto (no hay bloqueo apreciable). Las migraciones corren en transacción (necesario para `guardAcademicYearWrites`, que lo exige).
+- **`db-reviewer` obligatorio.** Son las primeras tablas reales con el disparador.
+
+Cambios asociados que no son migración (aprobados, `funcional.md §1.2`): `tenantForeignId()` crea el índice (#407, no retroactivo: las tablas ya migradas se inventarían en el cierre y, si alguna lo necesita, va en issue aparte con su propia migración); ayudante de columna traducible; regla `AR-16` (`ADR-062 §5.8`, `CA-ACAD-015`); aserción de no vacuidad de `AR-13` sobre el esquema real (`CA-ACAD-021`); regla `arch()` «solo migraciones y fixtures usan `TenantMigration`» y escaneo de `AR-14` ampliado a `database/`, `routes/` y `bootstrap/` (#387 B-4, `CA-ACAD-040`); validación del código de `permission:` contra el catálogo en `AR-07a` (#378 B3, `CA-ACAD-039`).
+
+### 6.1 Medición del disparador con tabla real (issue #382, `CA-057-09`, `CA-ACAD-023`)
+
+`AcademicYearWriteGuardOverheadTest` se amplía para medir sobre una tabla real del módulo (propuesta `subjects`, la más simple con FK de tres columnas) frente a una tabla de control idéntica sin disparador, con los mismos volúmenes de `1.10` (`CURSO_OVERHEAD_BULK`/`CURSO_OVERHEAD_SINGLE`): tres corridas, mediana de cinco repeticiones. La cifra va a `CHANGELOG.md` (entrada del paso) y a `memory.md`. Si difiere de la de la sonda de `1.10` más allá del ruido, se abre issue; la cifra no se ajusta. El issue #382 está cerrado, pero la obligación sigue en `PLAN-IMPLEMENTACION.md` (`1.11` y `1.15`).
+
+## 7. Impacto en copias de seguridad y restauración
+
+Tablas de tenant ordinarias: PITR y exportación lógica por tenant (`ADR-022`). Orden de restauración por FK: `academic_years` → `education_levels` → `courses` → `groups`, `subjects` → `subgroups`, `group_subjects`. Restaurar como propietario (exento del disparador; necesario para filas de cursos cerrados).
+
+## 8. Problemas conocidos y diagnóstico
+
+| Síntoma | Causa probable | Qué hacer |
+|---------|----------------|-----------|
+| `403 module-disabled` en todas las pantallas de estructura | `acad` no contratado para el centro | Contratarlo desde el *backoffice* |
+| `404 curso.no_active_year` al abrir «Estructura académica» | Sin curso activo | Elegir curso en el selector o activar el de planificación |
+| `404` en una ficha que existe | Curso cerrado y el usuario sin `curso_historico.leer` | Comportamiento correcto (`RN-ACAD-08`) |
+| `409 academic-year-closed` al editar | Curso cerrado | Correcto; si es un error de cierre, reapertura en ventana T1 (`REQ-CURSO`, `1.11c`) |
+| `409 has_dependents` al borrar | Hijos vivos | Borrar antes los hijos (`RN-ACAD-20`) |
+| `500` con `23503` en un alta | Padre de otro curso académico colado por un fallo de servicio: la FK compuesta lo para | Bug: el servicio debe responder `422 parent_not_found` |
+| Un usuario no puede conceder un permiso de otro módulo con ámbito `grupo` o `clase` | No hay resolutor (`ADR-063 §5.1`) | Correcto: falla en cerrado hasta que exista la asignación docente (`ADR-063 §5.4`). No se resuelve dando `todos` |
+| `422 translations.default_locale_required` al guardar un nombre | Falta el idioma por defecto del centro, o el centro cambió de idioma por defecto y la fila no lo tiene | Añadir el nombre en el idioma por defecto (`ADR-062 §5.2`) |
+| Un nombre aparece en otro idioma que el de la pantalla | Falta la traducción en ese idioma: se muestra la caída (`ADR-062 §5.3`) | Correcto; añadir la traducción |
+| El comando de siembra no concede nada | `sync-registry` no se ejecutó o algún permiso está retirado | Ejecutar `sync-registry`; revisar `retired_at` |
+
+## 9. Reversión de la entrega
+
+Desplegar la imagen anterior (`RUNBOOK.md`). **Las migraciones no se revierten**: son aditivas, la versión anterior no usa las tablas, y su `down()` borraría datos de estructura del centro. El siguiente `sync-registry` de la versión anterior marca `modules.acad` y sus permisos con `retired_at` (concesiones inertes). Los cambios en `curso` (`OPEN-ACAD-11`/`-12`) y en `Core` (comandos) se revierten con la imagen: `AcademicYearDirectory` gana métodos (aditivo) y `GET /academic-years/selectable` desaparece sin consumidores fuera de la SPA de la misma versión. Los ayudantes de `TenantMigration` y el desglose de auditoría también vuelven atrás; las filas de `audit_logs` ya escritas con claves desglosadas (`name_translations.es-ES`) se quedan (`audit_logs` es inmutable) y la versión anterior las muestra como claves desconocidas, sin fallar **[DERIVADA; comprobar al probar la reversión]**. Procedimiento a probar antes de mezclar (`CLAUDE.md §9`).
+
+## 10. Documentación a actualizar en el cierre
+
+- `docs/manual-usuario/admin.md`: actualizar (estructura académica, selector, nombres en varios idiomas).
+- `docs/manual-usuario/direccion.md`, `secretaria.md` y `docente.md`: **ficheros nuevos** (no existen todavía), con la consulta de la estructura que les da la siembra aprobada (`CLAUDE.md §6.4`).
+- `SYSADMIN.md`: módulo nuevo en `sync-registry`, contratación, comando de siembra y su comprobación de `retired_at`.
+- `ARCHITECTURE.md §3.4`, en una sola pasada:
+  - referencias de patrón: primer módulo de negocio con tablas por curso (migración con FK de tres columnas, lectura con `AcademicYearReadAccess`) y ayudante de columna traducible; revisión de la tabla de referencias que `PLAN 1.11b` pide al cerrar `1.11`;
+  - fila de **`AR-07a`**: la lista cerrada de excepciones (hoy 34 rutas) gana `GET /academic-years/selectable`, y la regla gana la validación del código de `permission:` contra el catálogo (#378 B3);
+  - fila de **`AR-13`**: aserción de no vacuidad sobre el esquema real;
+  - fila de **`AR-14`**: escaneo ampliado a `database/`, `routes/` y `bootstrap/` (#387 B-4);
+  - filas nuevas: **`AR-16`** (`ADR-062 §5.8`) y la regla `arch()` «solo migraciones y *fixtures* usan `TenantMigration`».
+- `apps/api/app/Modules/README.md` («hoy hay cuatro») y `apps/web/src/modules/README.md` (dice «hoy hay dos», sin `curso`: issue #408, `CA-ACAD-052`).
+- `docs/i18n.md`: contenido del centro traducible según `ADR-062` (columna, validación, resolutor, códigos `translations.*`, componente de la SPA); retirar la línea de «Qué falta».
+- `CHANGELOG.md`, con la cifra de `CA-ACAD-023`.
+- `docs/modulos/REQ-CURSO/` (`GET /academic-years/selectable`, ampliación de `AcademicYearDirectory`, comprobación de `retired_at`; lo hace la sesión principal).
+- `PLAN-IMPLEMENTACION.md` (sub-paso `1.11d`, orden `1.13`/`1.15` de `OPEN-ACAD-22`, y la obligación y el plazo de `ADR-063 §5.4` en `1.12`, `1.13` y `1.16`; lo hace la sesión principal).
