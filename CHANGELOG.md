@@ -6,6 +6,15 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-10 · Actualización de PostgreSQL 17 a 18 (`ADR-061`, rama `chore/postgres-18`, PR de Renovate [#347](https://github.com/pirexia/plataforma-educativa/pull/347))
+
+- **`ADR-061` (aceptado)**: la imagen oficial `postgres:18` cambia `PGDATA` a `/var/lib/postgresql/18/docker` y se niega a arrancar con el montaje antiguo o con datos de 17, así que el PR de Renovate solo no era desplegable. `compose.yaml`, `infra/compose/compose.prodlike.yaml` e `infra/quadlet/postgres.container` pasan a `postgres:18` con un volumen nuevo `postgres-cluster` montado en `/var/lib/postgresql` (`postgres-cluster.volume` sustituye a `postgres-data.volume`; en `compose.yaml` `postgres-data` sigue declarado sin montar como camino de vuelta). `ci-api.yml` usa `postgres:18` en sus tres servicios. Sustituye solo una fila de `ADR-037`.
+- **`CA-058-02`** (`AcademicYearWriteGuardTest`): lista de clases de `SQLSTATE` de PostgreSQL 18 (añade la clase `10`) y versión mayor esperada 18.
+- **Documentación**: `RUNBOOK.md §2.7` (procedimiento `pg_dump`/`pg_restore --create`, prueba de reversión, reversión y producción) y síntoma nuevo en `§2.2`; `SYSADMIN.md §2`, `§2b` y tabla de CI; `README.md`, `ARCHITECTURE.md` («PostgreSQL 18») y `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` 3.2.16.
+- **Ejecutado en desarrollo el 2026-10-10** (`ADR-061 §4.2`): inventario idéntico antes y después (`CA-061-04`), `server_version` 18.6 y `data_checksums` on (`CA-061-03`), 0 contraseñas MD5 (`CA-061-05`), `plataforma_test_1..6` recreadas, 0 migraciones pendientes, `composer test` 1105/1105 en verde y reversión probada arrancando un 17 desechable sobre el volumen antiguo (`CA-061-08`). El volumen `plataforma-educativa_postgres-data` y el respaldo se conservan al menos una semana tras mezclar; su borrado lo decide el usuario.
+
+---
+
 ## 2026-10-10 · Pest 5 y PHPUnit 13 (#346, rama `chore/deps-pest-5`)
 
 - `pestphp/pest` `^5.0` (5.3.1), `pestphp/pest-plugin-laravel` `^5.0` (5.0.1), `phpunit/phpunit` `^13.0.0` (13.4.1), con `pest-plugin-arch` 5.0.0 y `laravel/boost` 2.10.3 (Pest 5.3.1 exige `boost >= 2.6.0`, lo que bloqueaba a Renovate). Sin cambios en tests, `phpunit.xml`, `composer.json` (scripts) ni `bootstrap.php`: 1105 tests en verde, igual que antes.

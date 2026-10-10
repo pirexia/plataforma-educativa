@@ -23,11 +23,11 @@ networks:
     name: plataforma-prodlike-net
 
 volumes:
-  prodlike-postgres-data:
+  prodlike-postgres-cluster:
 
 services:
   postgres:
-    image: docker.io/library/postgres:17
+    image: docker.io/library/postgres:18
     environment:
       POSTGRES_DB: plataforma
       POSTGRES_USER: plataforma
@@ -36,7 +36,7 @@ services:
       TENANCY_APP_PASSWORD: prodlike-app
       TENANCY_PLATFORM_PASSWORD: prodlike-platform
     volumes:
-      - prodlike-postgres-data:/var/lib/postgresql/data:Z
+      - prodlike-postgres-cluster:/var/lib/postgresql:Z
       - ../containers/postgres/init:/docker-entrypoint-initdb.d:Z,ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U plataforma"]

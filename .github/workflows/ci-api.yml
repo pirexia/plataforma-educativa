@@ -24,7 +24,7 @@ jobs:
     # con las políticas ausentes.
     services:
       postgres:
-        image: postgres:17
+        image: postgres:18
         env:
           POSTGRES_DB: plataforma_test
           POSTGRES_USER: plataforma
@@ -175,7 +175,7 @@ jobs:
     # (issue #132) — sin ellos el job se cuelga en vez de fallar rápido.
     services:
       postgres:
-        image: postgres:17
+        image: postgres:18
         env:
           POSTGRES_DB: plataforma_test
           POSTGRES_USER: plataforma
@@ -229,7 +229,7 @@ jobs:
     # Ver comentario del job "lint" sobre los servicios.
     services:
       postgres:
-        image: postgres:17
+        image: postgres:18
         env:
           POSTGRES_DB: plataforma_test
           POSTGRES_USER: plataforma

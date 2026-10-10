@@ -13,13 +13,17 @@ networks:
     external: true
 
 volumes:
+  # PostgreSQL 18 (ADR-061): montaje en /var/lib/postgresql (PGDATA = 18/docker).
+  postgres-cluster:
+  # Volumen de PostgreSQL 17, sin montar: camino de vuelta (ADR-061 §8.1).
+  # No se borra salvo decisión expresa del usuario.
   postgres-data:
   redis-data:
   minio-data:
 
 services:
   postgres:
-    image: docker.io/library/postgres:17
+    image: docker.io/library/postgres:18
     container_name: plataforma-postgres
     restart: unless-stopped
     env_file: .env
@@ -31,7 +35,7 @@ services:
       TENANCY_APP_PASSWORD: ${TENANCY_APP_PASSWORD:?falta TENANCY_APP_PASSWORD en .env}
       TENANCY_PLATFORM_PASSWORD: ${TENANCY_PLATFORM_PASSWORD:?falta TENANCY_PLATFORM_PASSWORD en .env}
     volumes:
-      - postgres-data:/var/lib/postgresql/data:Z
+      - postgres-cluster:/var/lib/postgresql:Z
       - ./infra/containers/postgres/init:/docker-entrypoint-initdb.d:Z,ro
     ports:
       - "127.0.0.1:5432:5432"

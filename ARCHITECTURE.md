@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| Versión | 2.4.2 |
+| Versión | 2.4.3 |
 | Fecha | 2026-10-09 |
 | Estado | Propuesta cerrada, pendiente de ratificación |
 | Documento de requisitos | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` |
@@ -27,7 +27,7 @@ Plataforma SaaS multi-tenant para la gestión integral de centros educativos. Mo
 | **API** | REST + OpenAPI, versionada | `INV-006`, `REQ-API-001` |
 | **Frontend** | Vue 3 + TypeScript + Vite, SPA | Separación real de capas, preparado para equipo, reutilizable en móvil |
 | **UI** | Tailwind CSS + shadcn-vue (Reka UI) + TanStack Table | `ADR-023` |
-| **Base de datos** | PostgreSQL 17+ | Único motor que cubre a la vez particionado por curso, seguridad a nivel de fila, full-text y PITR |
+| **Base de datos** | PostgreSQL 18 | Único motor que cubre a la vez particionado por curso, seguridad a nivel de fila, full-text y PITR |
 | **Caché y colas** | Redis (caché); colas: `database` hoy sin worker (#128), Redis + Horizon elegido, no instalado | `INV-012` |
 | **Almacenamiento** | Compatible S3 (MinIO en desarrollo) | `ADR-013` |
 | **Buscador** | Full-text nativo de PostgreSQL | `ADR-010` |
