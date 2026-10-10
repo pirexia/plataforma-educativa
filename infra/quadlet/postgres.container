@@ -6,10 +6,10 @@ After=plataforma-network.service
 Wants=plataforma-network.service
 
 [Container]
-Image=docker.io/library/postgres:17
+Image=docker.io/library/postgres:18
 ContainerName=plataforma-postgres
 Network=plataforma.network
-Volume=postgres-data.volume:/var/lib/postgresql/data:Z
+Volume=postgres-cluster.volume:/var/lib/postgresql:Z
 # Scripts de aprovisionamiento de tenancy (roles, RLS) — install.sh los
 # copia desde infra/containers/postgres/init/ del repositorio a esta ruta
 # del host (RUNBOOK.md). No se versiona un host path en el propio repo.
