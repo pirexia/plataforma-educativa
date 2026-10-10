@@ -35,3 +35,7 @@ Si te pasan el informe de `doc-precheck` (Haiku), úsalo como punto de partida, 
 
 Toda discrepancia entre código y documentación es un issue de severidad media como mínimo.
 En cierre de fase, revisa además que los cuatro idiomas estén completos.
+
+## Ejecución de tests (`ADR-060 §4.4`)
+
+No relances la suite completa salvo que tu revisión lo requiera (p. ej. para reproducir un hallazgo), y en ese caso justifícalo en el informe. Apóyate en el resultado del `verificador` atado a un hash y en CI; puedes ejecutar tests concretos.
