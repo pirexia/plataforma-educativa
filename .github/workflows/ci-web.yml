@@ -6,6 +6,11 @@ on:
   push:
     branches: [develop, main]
 
+# Issue #401: el GITHUB_TOKEN solo lee por defecto; los jobs que escriben
+# declaran sus propios permisos.
+permissions:
+  contents: read
+
 defaults:
   run:
     working-directory: apps/web
