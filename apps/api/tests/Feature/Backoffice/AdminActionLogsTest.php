@@ -12,9 +12,10 @@ use App\Modules\Backoffice\Domain\PlatformAdminStatus;
 use App\Modules\Backoffice\Domain\PlatformRole;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
+use Tests\Support\StandaloneDatabase;
+use Tests\Support\TestPasswordHash;
 
 /**
  * REQ-BO-007, api.md §2.9, §2.14. CA-BO-020, CA-BO-022: toda escritura de
@@ -46,7 +47,7 @@ function alCreateEnrolledAdmin(string $role = 'superadministrador'): array
     $admin = PlatformAdmin::create([
         'email' => Str::random(10).'@example.com',
         'name' => 'Admin de prueba',
-        'password' => Hash::make('contraseña-larga-de-prueba'),
+        'password' => TestPasswordHash::of('contraseña-larga-de-prueba'),
         'status' => PlatformAdminStatus::Activo,
         'password_changed_at' => now(),
         'mfa_enrolled_at' => now(),
@@ -84,14 +85,16 @@ beforeEach(function (): void {
     DB::connection('pgsql_platform')->table('tenants')->delete();
 });
 
+// ADR-060 §4.2.2: `afterAll()` corre con la aplicación ya destruida, así
+// que no puede usar `DB::connection()`; conexiones propias (StandaloneDatabase).
 afterAll(function (): void {
-    DB::connection('pgsql_owner')->statement('TRUNCATE admin_action_logs');
-    DB::connection('pgsql_platform')->table('platform_admin_mfa_factors')->delete();
-    DB::connection('pgsql_platform')->table('platform_admin_roles')->delete();
-    DB::connection('pgsql_platform')->table('platform_admin_invitations')->delete();
-    DB::connection('pgsql_platform')->table('platform_admins')->delete();
-    DB::connection('pgsql_platform')->table('platform_ip_allowlist')->delete();
-    DB::connection('pgsql_platform')->table('tenants')->delete();
+    StandaloneDatabase::owner()->exec('TRUNCATE admin_action_logs');
+
+    $platform = StandaloneDatabase::platform();
+
+    foreach (['platform_admin_mfa_factors', 'platform_admin_roles', 'platform_admin_invitations', 'platform_admins', 'platform_ip_allowlist', 'tenants'] as $table) {
+        $platform->exec("DELETE FROM {$table}");
+    }
 });
 
 // CA-BO-020: toda operación de escritura del backoffice que termina con

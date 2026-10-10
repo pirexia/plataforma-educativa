@@ -5,6 +5,7 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Tests\Support\StandaloneDatabase;
 
 /**
  * REQ-BO-007, ADR-047 §4.3/§4.4, datos.md §11, §12.1. "Un REVOKE que no
@@ -49,9 +50,12 @@ beforeEach(function (): void {
 // para la última pasada — sin ella, un tenant de este fichero quedaría
 // permanentemente sin borrar y bloquearía el `DELETE FROM tenants` de
 // limpieza de otros ficheros de la suite.
+//
+// ADR-060 §4.2.2: `afterAll()` corre con la aplicación ya destruida, así que
+// no puede usar `DB::connection()`; conexiones propias (StandaloneDatabase).
 afterAll(function (): void {
-    DB::connection('pgsql_owner')->statement('TRUNCATE admin_action_logs, tenant_lifecycle_events');
-    DB::connection('pgsql_platform')->table('tenants')->delete();
+    StandaloneDatabase::owner()->exec('TRUNCATE admin_action_logs, tenant_lifecycle_events');
+    StandaloneDatabase::platform()->exec('DELETE FROM tenants');
 });
 
 /**
