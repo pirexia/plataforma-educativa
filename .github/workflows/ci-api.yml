@@ -61,7 +61,7 @@ jobs:
       # arranque sin esto (issue #132).
       SESSION_LIFETIME: "480"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -204,7 +204,7 @@ jobs:
       REDIS_HOST: 127.0.0.1
       SESSION_LIFETIME: "480"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -258,7 +258,7 @@ jobs:
       REDIS_HOST: 127.0.0.1
       SESSION_LIFETIME: "480"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
