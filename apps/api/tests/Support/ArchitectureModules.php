@@ -27,6 +27,55 @@ final class ArchitectureModules
     }
 
     /**
+     * Espacios de nombres vedados de UN módulo para los demás (ADR-056
+     * AR-01, #378 B2): todo lo que cuelgue de su raíz EXCEPTO `Domain`, más
+     * `Domain\Models`. Es la regla invertida («de otro módulo solo `Domain`
+     * sin `Models`»): una carpeta o clase nueva en la raíz del módulo
+     * (`Console`, `Support`, `Listeners`…) queda vedada sin tocar el test.
+     *
+     * @param  string|null  $modulesPath  raíz de `Modules/` (solo para probar el propio cálculo)
+     * @return list<string>
+     */
+    public static function forbiddenNamespacesOf(string $module, ?string $modulesPath = null): array
+    {
+        $root = ($modulesPath ?? dirname(__DIR__, 2).'/app/Modules')."/{$module}";
+        $forbidden = ["App\\Modules\\{$module}\\Domain\\Models"];
+
+        foreach (scandir($root) ?: [] as $entry) {
+            if ($entry === '.' || $entry === '..' || $entry === 'Domain') {
+                continue;
+            }
+
+            if (is_dir("{$root}/{$entry}")) {
+                $forbidden[] = "App\\Modules\\{$module}\\{$entry}";
+            } elseif (str_ends_with($entry, '.php')) {
+                $forbidden[] = "App\\Modules\\{$module}\\".substr($entry, 0, -4);
+            }
+        }
+
+        sort($forbidden);
+
+        return $forbidden;
+    }
+
+    /**
+     * Lo vedado a `$module` (AR-01): la unión de `forbiddenNamespacesOf()`
+     * de todos los demás módulos.
+     *
+     * @return list<string>
+     */
+    public static function forbiddenFor(string $module): array
+    {
+        $forbidden = [];
+
+        foreach (array_diff(self::names(), [$module]) as $other) {
+            array_push($forbidden, ...self::forbiddenNamespacesOf($other));
+        }
+
+        return $forbidden;
+    }
+
+    /**
      * `declaredPermissions()` de todos los módulos que declaran catálogo,
      * tal como los descubre `platform:sync-registry` (requiere la aplicación
      * arrancada, no se puede llamar al cargar el fichero).

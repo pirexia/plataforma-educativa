@@ -4,6 +4,10 @@ use App\Modules\Auth\Infrastructure\EloquentActiveSessionCloser;
 use App\Modules\Core\Infrastructure\FeatureFlagCatalogCache;
 use App\Support\FeatureFlags\FeatureFlagCatalogInvalidator;
 use App\Support\Sessions\ActiveSessionCloser;
+use PHPUnit\Framework\ExpectationFailedException;
+use Tests\Fixtures\Architecture\UsesAuthDomainContract;
+use Tests\Fixtures\Architecture\UsesAuthDomainModels;
+use Tests\Fixtures\Architecture\UsesAuthInfrastructure;
 use Tests\Support\ArchitectureModules;
 
 pest()->group('arch');
@@ -83,6 +87,21 @@ test('AR-02 CA-056-03 #375: la lista de excepciones está vacía y la enumeraci�
     expect(coreToModuleExceptions())->toBeEmpty()
         ->and(forbiddenModuleLayers())->toHaveCount(count(ArchitectureModules::names()) * 5)
         ->and(ArchitectureModules::names())->toContain('Auth', 'Backoffice', 'Core');
+});
+
+// #378 B1: control negativo PERMANENTE de AR-02, con la misma cadena
+// (`not->toUse($forbidden)->ignoring($excepted)`) que los `arch()` de arriba.
+test('AR-02 CA-056-03 #378 B1: la regla muerde — usar Infrastructure o Domain\\Models de un módulo lanza', function (string $fixture): void {
+    expect(fn () => expect($fixture)->not->toUse(forbiddenModuleLayers())->ignoring(array_keys(coreToModuleExceptions())))
+        ->toThrow(ExpectationFailedException::class);
+})->with([
+    'Infrastructure' => [UsesAuthInfrastructure::class],
+    'Domain\\Models' => [UsesAuthDomainModels::class],
+]);
+
+test('AR-02 CA-056-03 #378 B1: la regla no muerde por el Domain permitido (control positivo)', function (): void {
+    expect(fn () => expect(UsesAuthDomainContract::class)->not->toUse(forbiddenModuleLayers())->ignoring(array_keys(coreToModuleExceptions())))
+        ->not->toThrow(ExpectationFailedException::class);
 });
 
 test('AR-02 INV-007 #375: las interfaces del núcleo se resuelven a su implementación del módulo', function (): void {
