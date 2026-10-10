@@ -1,6 +1,6 @@
 # ADR-062 · Contenido del centro traducible: una columna `jsonb` `<campo>_translations` por campo, resuelta en servidor
 
-**Estado**: **PROPUESTA** (2026-10-10). La opción (A) la aprobó el usuario al aceptar las recomendaciones de la especificación de `1.11` (`OPEN-ACAD-05`). El usuario decidió el 2026-10-10 `OPEN-062-01` (idioma por defecto del centro al escribir). Lo que este ADR somete a ratificación es el **contrato** que la opción no fijaba (`§5`) y las dos precisiones de `§10`, que se apartan de la letra del Anexo A de la especificación.
+**Estado**: **ACEPTADA** (2026-10-10; ratificada por el usuario con `OPEN-062-02` = sí). La opción (A) la aprobó el usuario al aceptar las recomendaciones de la especificación de `1.11` (`OPEN-ACAD-05`). El usuario decidió el 2026-10-10 `OPEN-062-01` (idioma por defecto del centro al escribir). Lo que este ADR somete a ratificación es el **contrato** que la opción no fijaba (`§5`) y las dos precisiones de `§10`, que se apartan de la letra del Anexo A de la especificación.
 **Fecha**: 2026-10-10
 **Paso**: entrada de `1.11` (`REQ-ACAD`). Resuelve `OPEN-ACAD-05` de `docs/modulos/REQ-ACAD/funcional.md §15` (bloqueante de la primera migración). El Anexo A de esa especificación es el material de partida.
 **Se apoya en**: `INV-009`, `INV-010`, `INV-003`, `INV-007`, `INV-006`; `ADR-021` (tres capas de i18n, «desde el primer día»); `ADR-029` (tipos); `ADR-035 §2`, `§4`, `§5`; `ADR-038 §3.2`, `§5.2`, `§5.3`, `§9.2`, `§11`; `ADR-054 §8.1`; `ADR-055 §2`; `ADR-056 §3.3`; `RN-CORE-13`.

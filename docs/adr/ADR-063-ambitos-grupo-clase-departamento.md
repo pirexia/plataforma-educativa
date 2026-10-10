@@ -1,6 +1,6 @@
 # ADR-063 · Ámbitos `grupo`, `clase` y `departamento`: no se registran en `1.11`; significado de `clase` y paso en que nace la asignación docente
 
-**Estado**: **PROPUESTA** (2026-10-10). La decisión de fondo (no registrar ningún resolutor en `1.11`) la aprobó el usuario al aceptar las recomendaciones de la especificación de `1.11` (`OPEN-ACAD-08`, opción A). El usuario decidió el 2026-10-10 `OPEN-063-01` (fijar ya el significado de `clase`). Lo que este ADR somete a ratificación es la **aclaración de `ADR-044 §3`** (`§5.2`), la **definición de `clase`** (`§5.3`) y el **plazo** de `§5.4`.
+**Estado**: **ACEPTADA** (2026-10-10; ratificada por el usuario con `OPEN-063-02` = sí). La decisión de fondo (no registrar ningún resolutor en `1.11`) la aprobó el usuario al aceptar las recomendaciones de la especificación de `1.11` (`OPEN-ACAD-08`, opción A). El usuario decidió el 2026-10-10 `OPEN-063-01` (fijar ya el significado de `clase`). Lo que este ADR somete a ratificación es la **aclaración de `ADR-044 §3`** (`§5.2`), la **definición de `clase`** (`§5.3`) y el **plazo** de `§5.4`.
 **Fecha**: 2026-10-10
 **Paso**: entrada de `1.11` (`REQ-ACAD`). Resuelve `OPEN-ACAD-08` de `docs/modulos/REQ-ACAD/funcional.md §15` y las contradicciones C2/C3 de su `§0.2`.
 **Se apoya en**: `RPERM-004`, `§11.1` (rol «Tutor de grupo»); `INV-002`, `INV-007`, `INV-015`; `ADR-044 §1.2`, `§3`, `§4.1`, `§4.2`, `§4.8`, `§8`; `ADR-048` (sin consumidor no se construye); `REQ-ACAD-001`, `REQ-ACAD-002`, `REQ-ALUM-003`.

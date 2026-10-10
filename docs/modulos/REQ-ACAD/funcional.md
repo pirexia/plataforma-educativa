@@ -7,7 +7,7 @@
 | Fase | 1 · paso **1.11** del plan y sub-paso nuevo **`1.11d`** (períodos lectivos y escalas, `OPEN-ACAD-01` = A, aprobada) |
 | Depende de | Documento: `CORE`. Real: `CORE` (esencial) y `CURSO` (esencial; toda tabla de este módulo lleva `academic_year_id`). Aprobado: `depends_on: ['curso']` (`OPEN-ACAD-10`) |
 | Esencial | Aprobado: **`essential: false`** (`OPEN-ACAD-10`) |
-| Estado | **PROPUESTA** (2026-10-10). El usuario aprobó el 2026-10-10 las recomendaciones de `OPEN-ACAD-01` a `-23` (§15). `OPEN-ACAD-05` y `-08` se resuelven por **`ADR-062`** y **`ADR-063`**, ambos en estado PROPUESTA, con dos decisiones del usuario ya tomadas sobre ellos (`OPEN-062-01`: se exige al escribir el idioma por defecto del centro; `OPEN-063-01`: se fija ya el significado de `clase`). Falta la aprobación formal de esta especificación y la ratificación de los dos ADR |
+| Estado | **APROBADA** (2026-10-10). El usuario aprobó el 2026-10-10 las recomendaciones de `OPEN-ACAD-01` a `-23` (§15). `OPEN-ACAD-05` y `-08` se resuelven por **`ADR-062`** y **`ADR-063`**, ambos ACEPTADOS el 2026-10-10, con dos decisiones del usuario ya tomadas sobre ellos (`OPEN-062-01`: se exige al escribir el idioma por defecto del centro; `OPEN-063-01`: se fija ya el significado de `clase`). Falta la aprobación formal de esta especificación y la ratificación de los dos ADR |
 | Decisiones vinculantes de partida | `ADR-020` (régimen por etapa), `ADR-021` (idiomas, también del contenido del centro), `ADR-029`, `ADR-033`, `ADR-034 §4`/`§6`/`§7`, `ADR-035`, `ADR-038`, `ADR-044` (enmendado en `§3` por `ADR-063`), `ADR-045`, `ADR-048 §4.9`, `ADR-051`, `ADR-053`, `ADR-054`, `ADR-055`, `ADR-056`, **`ADR-057`** (bloqueo de escritura por disparador, `AR-13`), `ADR-058`, `ADR-059`, **`ADR-062`** (contenido del centro traducible, `AR-16`), **`ADR-063`** (ámbitos `grupo`/`clase`/`departamento`); contrato de `REQ-CURSO` (`RN-CURSO-20..33`, `funcional.md §3.2`, `§7.1`, `§10.2`) |
 
 > Donde esta especificación añade algo que ni los requisitos ni un ADR fijan, se marca **[DERIVADA]** y se argumenta.
@@ -44,7 +44,7 @@ Reglas de nombre:
 | # | Hallazgo | Fuentes | Resolución |
 |---|----------|---------|------------|
 | C1 | **Reparto de entidades entre `ACAD` y `CALIF`** (períodos, escalas, competencias; `§5.5` declara `EvaluationPeriod` y `Competency` de `CALIF`; `REQ-CORE-002` habla de «períodos de evaluación») | `§5.4`, `§5.5`, `REQ-CORE-002` | **Resuelta** por `OPEN-ACAD-17`/`-18`/`-19` (aprobadas): períodos lectivos y escalas en `acad` (`1.11d`), `CALIF` define sus períodos de evaluación referenciando los lectivos, competencias en `1.16` |
-| C2 | **«Grupos/clases» como sinónimos frente a dos ámbitos distintos**; `departamento` sin entidad | `REQ-ACAD-001`, `RPERM-004`, `ADR-044 §3` | **Resuelta por `ADR-063`** (PROPUESTA): `clase` = pares (grupo, asignatura) que el usuario imparte (`§5.3`, `OPEN-063-01` = fijarlo); `departamento` queda en el vocabulario sin dueño ni resolutor (`§5.5`) |
+| C2 | **«Grupos/clases» como sinónimos frente a dos ámbitos distintos**; `departamento` sin entidad | `REQ-ACAD-001`, `RPERM-004`, `ADR-044 §3` | **Resuelta por `ADR-063`** (ACEPTADA): `clase` = pares (grupo, asignatura) que el usuario imparte (`§5.3`, `OPEN-063-01` = fijarlo); `departamento` queda en el vocabulario sin dueño ni resolutor (`§5.5`) |
 | C3 | **Ámbitos sin la relación que los resuelve** (`REQ-ACAD-001` no pide asignar profesorado ni tutor) | `REQ-ACAD-001`, `§11.1`, `ADR-044 §3` | **Resuelta por `ADR-063`**: `1.11` no registra resolutores (`§5.1`); `acad` aportará la asignación docente y una interfaz de pertenencia, y cada módulo dueño de un recurso registra su resolutor (`§5.2`); la asignación nace en el paso candidato `1.12`, especificada y aprobada antes de aprobar la especificación de `1.13` o `1.16` (`§5.4`) |
 | C4 | **Lista de niveles frente a régimen por etapa** (Infantil como un solo nivel) | `REQ-ACAD-001`, `ADR-020`, `REQ-INF-001` | **Resuelta** por `OPEN-ACAD-04` = A: el centro crea sus etapas con un `stage` cerrado de seis valores y `regime` propio; parte Infantil en dos |
 | C5 | **¿Las etapas dependen del curso académico?** | `§16.1`, `ADR-034 §4`, `REQ-CURSO-002` | **Resuelta** por `OPEN-ACAD-03` = B: por curso académico |
@@ -117,7 +117,7 @@ Reglas de nombre:
 
 - **`REQ-CURSO` está implementado** (1.10) salvo la reapertura (`1.11c`), que no afecta: la reapertura cambia `academic_years.status` y el disparador deja de bloquear (`RN-CURSO-46`).
 - **Cambios en el módulo `curso`** aprobados para este paso: §1.2 (búsqueda por identificador interno, `GET /academic-years/selectable`, comprobación de `retired_at` en su comando de siembra). La sesión principal actualiza `docs/modulos/REQ-CURSO/` (no es carpeta de esta especificación).
-- **`ADR-062` y `ADR-063` están en PROPUESTA**: la implementación de `1.11` no arranca hasta que se ratifiquen.
+- **`ADR-062` y `ADR-063` ACEPTADOS** el 2026-10-10 (ratificados por el usuario, `OPEN-062-02` y `OPEN-063-02` = sí). La implementación se divide en dos entregas: `1.11-a` (infraestructura compartida de `§1.2`) y `1.11-b` (módulo `acad`).
 - **Primera tabla real con `academic_year_id`** del producto (si `1.11c` no se adelanta).
 
 ---
@@ -526,7 +526,7 @@ Forma común: *dado* un usuario con `estructura_academica.leer` **sin** `curso_h
 
 ## 15. Preguntas abiertas
 
-**Todas resueltas** por decisión del usuario el 2026-10-10 (recomendación aceptada en cada una). `05` y `08` se resuelven además por `ADR-062` y `ADR-063`, en PROPUESTA hasta su ratificación.
+**Todas resueltas** por decisión del usuario el 2026-10-10 (recomendación aceptada en cada una). `05` y `08` se resuelven además por `ADR-062` y `ADR-063`, ACEPTADOS el 2026-10-10.
 
 | ID | Pregunta | Decisión aprobada |
 |----|----------|-------------------|
@@ -534,10 +534,10 @@ Forma común: *dado* un usuario con `estructura_academica.leer` **sin** `curso_h
 | `OPEN-ACAD-02` | Nombres y terminología | **A**: se conserva `Course`; desambiguación en el texto (§0.1). Sin ADR |
 | `OPEN-ACAD-03` | ¿Etapas por curso académico? | **B**: por curso académico |
 | `OPEN-ACAD-04` | Tipo de etapa y régimen | **A**: etapas del centro con `stage` cerrado de seis valores y `regime` obligatorio |
-| `OPEN-ACAD-05` | Contenido del centro traducible | **A**, contrato en **`ADR-062`** (PROPUESTA): `jsonb` por campo con claves `es-ES`/`en`/`de`/`fr`; al escribir se exige el **idioma por defecto del centro** (`OPEN-062-01`); resolución en servidor con caída; `PATCH` por fusión; desglose por idioma en auditoría; `AR-16` |
+| `OPEN-ACAD-05` | Contenido del centro traducible | **A**, contrato en **`ADR-062`** (ACEPTADA): `jsonb` por campo con claves `es-ES`/`en`/`de`/`fr`; al escribir se exige el **idioma por defecto del centro** (`OPEN-062-01`); resolución en servidor con caída; `PATCH` por fusión; desglose por idioma en auditoría; `AR-16` |
 | `OPEN-ACAD-06` | Subgrupos | **A**: un solo grupo; sin relación con asignaturas |
 | `OPEN-ACAD-07` | Asignación de asignaturas a grupos | **A**: explícita |
-| `OPEN-ACAD-08` | Ámbitos `grupo`, `clase`, `departamento` | **A**, contrato en **`ADR-063`** (PROPUESTA): `1.11` no registra resolutores; `clase` = pares (grupo, asignatura) que el usuario imparte (`OPEN-063-01`); `acad` aporta la pertenencia y cada dueño de recurso su resolutor; asignación docente candidata en `1.12` con plazo antes de `1.13`/`1.16`; `departamento` sin dueño |
+| `OPEN-ACAD-08` | Ámbitos `grupo`, `clase`, `departamento` | **A**, contrato en **`ADR-063`** (ACEPTADA): `1.11` no registra resolutores; `clase` = pares (grupo, asignatura) que el usuario imparte (`OPEN-063-01`); `acad` aporta la pertenencia y cada dueño de recurso su resolutor; asignación docente candidata en `1.12` con plazo antes de `1.13`/`1.16`; `departamento` sin dueño |
 | `OPEN-ACAD-09` | Recurso y siembra | **A + X**: `estructura_academica`; administrador los cuatro; `direccion`, `secretaria`, `docente`, `tutor_grupo`, `orientador`: `leer` |
 | `OPEN-ACAD-10` | Esencialidad y `depends_on` | **A**: `essential: false`, `depends_on: ['curso']` |
 | `OPEN-ACAD-11` | Selector: qué cursos lista y a quién | **A**: `GET /academic-years/selectable` de autoservicio, con ampliación de `AR-07a` aprobada, y `meta.academicYearScoped` (#409) |
