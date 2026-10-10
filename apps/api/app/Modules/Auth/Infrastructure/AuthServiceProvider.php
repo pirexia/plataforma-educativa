@@ -50,6 +50,7 @@ use App\Modules\Core\Domain\Events\RoleMfaRequirementChanged;
 use App\Modules\Core\Domain\Events\TenantSettingsUpdated;
 use App\Modules\Core\Domain\Events\UserDeactivated;
 use App\Support\Modules\DeclaresModuleRegistry;
+use App\Support\Sessions\ActiveSessionCloser;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -74,6 +75,8 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         // OPEN-AUTH-13 sin resolver: siempre "desconocida" (funcional.md §B.7).
         $this->app->bind(IpGeolocator::class, NullIpGeolocator::class);
         $this->app->bind(UserSessionDirectory::class, EloquentUserSessionDirectory::class);
+        // INV-007, ADR-056 AR-02: cierre de sesión para los middleware del núcleo.
+        $this->app->bind(ActiveSessionCloser::class, EloquentActiveSessionCloser::class);
 
         // `ADR-041`. Google2FaTotpVerifier es el único adaptador de las
         // dos interfaces — mismo patrón que IpGeolocator/NullIpGeolocator.

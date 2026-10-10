@@ -1,6 +1,6 @@
 # REQ-CURSO · API
 
-> **Estado**: **APROBADA** (2026-10-07), paso **1.10**, con los ajustes de `ADR-057` (aceptado).
+> **Estado**: **APROBADA** (2026-10-07), paso **1.10**, con los ajustes de `ADR-057` (aceptado). **Ampliada el 2026-10-08 por `ADR-059`** (aceptado): *endpoint* de reapertura `POST /academic-years/{public_id}/reopen` y sus códigos de error.
 
 Prefijo: `/api/v1`. Resolución de tenant por *host* antes de cualquier consulta (`ADR-033 §2`). Todo lo que sigue se ajusta a `ADR-038`: recurso individual desnudo, colección en `{data, meta}` (§3), paginación por página (§4.3), filtros planos con valores múltiples separados por comas (§5.2), orden por lista blanca (§5.3), errores `application/problem+json` con `type` URN y `errors[].{code,message,params}` (§6), `403` frente a `404` (§6.4).
 
@@ -89,18 +89,42 @@ Transición de estado. Forma del precedente `POST /users/{public_id}/status` de 
 - **Errores**:
   - 401, 403, 404
   - 409 `curso.conflict.active_exists` — activar con otro activo; `params`: `public_id`, `code` del activo
-  - 409 `curso.conflict.invalid_transition` — `params`: `from`, `to`
+  - 409 `curso.conflict.invalid_transition` — `params`: `from`, `to`. Incluye `cerrado → activo`: la reapertura no se ejecuta por este *endpoint* sino por `…/reopen` (`funcional.md RN-CURSO-12`, `RN-CURSO-40`)
   - 409 `curso.conflict.closure_checks_failed` — alguna validación de cierre registrada falla; una entrada por validación en `errors.closure[]`, cada una con el `code`/`message`/`params` que aporte el módulo dueño de la validación (`RN-CURSO-30`; vacío en 1.10)
   - 422 — `status` ausente o fuera de {`activo`, `cerrado`}
 - **Idempotencia**: no. Repetir una transición ya hecha da `409 invalid_transition` (`activo → activo`), que es lo correcto: el cliente sabe que no ha cambiado nada.
 
-### Endpoints que **no** existen en 1.10
+### `POST /api/v1/academic-years/{public_id}/reopen`
+
+Reapertura de un curso cerrado (`cerrado → activo`), `ADR-059`; flujo en `funcional.md §4.6`, reglas `RN-CURSO-40` a `-48`. *Endpoint* propio y no un valor más de `…/status` (`ADR-059 §5.1`): exige un campo obligatorio que las otras transiciones no tienen y un permiso distinto, y autorizar según el cuerpo no lo ve `AR-07`.
+
+- **Permiso**: `reapertura_curso_academico` · `actualizar` · `todos` (`OPEN-059-02`, resuelta). `estado_curso_academico.actualizar` no basta.
+- **Cuerpo**:
+
+```json
+{ "reason": "Se cerró por error antes de las evaluaciones extraordinarias." }
+```
+
+- **Validación** (`INV-010`): `reason` obligatorio, texto, recortado, no vacío (`RN-CURSO-43`).
+- **Precondiciones**, comprobadas dentro de la transacción tras el `FOR UPDATE` sobre la fila del curso, en este orden **[DERIVADA]** (`RN-CURSO-41`): curso en `cerrado`; ningún otro curso `activo`; es el cerrado más reciente del centro; ninguna validación de reapertura registrada falla. **Sin plazo de fecha** (`OPEN-059-03`, resuelta).
+- **Respuesta 200**: `AcademicYear` con `status: "activo"` (`CA-059-01`). La fila de `academic_year_reopenings` no se expone: ningún requisito pide un *endpoint* de lectura de reaperturas; la consulta es por `audit_logs` (`created` de `academic_year_reopening`) **[DERIVADA]**.
+- **Errores**:
+  - 401, 403, 404 (inexistente o de otro centro, `CA-059-08`)
+  - 409 `curso.conflict.invalid_transition` — el curso no está en `cerrado` (`planificacion`, `activo`, `archivado`); `params`: `from`, `to`
+  - 409 `curso.conflict.active_exists` — hay otro curso `activo`, incluida la carrera con una activación simultánea traducida desde el índice único; `params`: `public_id`, `code` del activo
+  - 409 `curso.conflict.reopen_not_latest` — existe un curso `cerrado` o `archivado` con `starts_on` posterior; `params`: `public_id`, `code` de ese curso **[DERIVADA]**
+  - 409 `curso.conflict.reopen_checks_failed` — alguna validación de reapertura registrada falla; una entrada por validación en `errors.reopen[]`, con el `code`/`message`/`params` del módulo dueño (`RN-CURSO-45`; vacío hoy). Forma simétrica a `closure_checks_failed` **[DERIVADA]**
+  - 422 `curso.validation.reason_required` — `reason` ausente o vacío tras recortar
+- **Idempotencia**: no. Repetir una reapertura ya hecha da `409 invalid_transition` (`activo → activo`): el cliente sabe que no ha cambiado nada y no se crea una segunda fila de reapertura.
+
+### Endpoints que **no** existen
 
 | No existe | Motivo |
 |-----------|--------|
 | `DELETE /academic-years/{id}` | `OPEN-CURSO-12` |
 | Transición a `archivado` | `OPEN-CURSO-09` |
-| Reapertura (`cerrado → activo`) | `OPEN-CURSO-08` |
+| Reapertura fuera de la ventana T1, o de un curso `archivado` | `ADR-059 §3`, `RN-CURSO-47` |
+| Lectura o modificación de `academic_year_reopenings` | *Append-only*; ningún requisito pide su lectura por API |
 | `POST /academic-years/exports` | Sin `curso_academico.exportar` (`permisos.md §2.1`) |
 | Rollover, promoción, renovación, paquete de cierre | `funcional.md §1.2` |
 
@@ -156,11 +180,14 @@ El nombre del parámetro, `academic_year`, sigue `snake_case` y el criterio de `
 | `urn:pge:error:validation` | 422 | `curso.validation.ends_before_start` | `ends_on <= starts_on` |
 | `urn:pge:error:validation` | 422 | `curso.validation.dates_overlap` | Solape (`RN-CURSO-05`); `params.code` |
 | `urn:pge:error:validation` | 422 | `curso.validation.status_not_editable` | `status` en `POST`/`PATCH` |
+| `urn:pge:error:validation` | 422 | `curso.validation.reason_required` | Reapertura sin motivo o con motivo vacío tras recortar (`ADR-059`, `RN-CURSO-43`) |
 | `urn:pge:error:conflict` | 409 | `curso.conflict.planning_exists` | Ya hay un curso en planificación |
 | `urn:pge:error:conflict` | 409 | `curso.conflict.active_exists` | Ya hay un curso activo |
 | `urn:pge:error:conflict` | 409 | `curso.conflict.invalid_transition` | Transición no admitida |
 | `urn:pge:error:conflict` | 409 | `curso.conflict.not_editable` | `PATCH` fuera de `planificacion` |
 | `urn:pge:error:conflict` | 409 | `curso.conflict.closure_checks_failed` | Checklist de cierre (vacío en 1.10) |
+| `urn:pge:error:conflict` | 409 | `curso.conflict.reopen_not_latest` | Reapertura de un curso que no es el cerrado más reciente (`ADR-059`, `RN-CURSO-41`) |
+| `urn:pge:error:conflict` | 409 | `curso.conflict.reopen_checks_failed` | Validaciones de reapertura (vacías hoy, `RN-CURSO-45`) |
 | `urn:pge:error:not-found` | 404 | `curso.no_active_year` | Sin curso activo (`current` y lecturas por omisión) |
 | **`urn:pge:error:academic-year-closed`** (nuevo: ampliación del catálogo cerrado de `ADR-038 §6.2` por `ADR-057 §5.5`) | 409 | `curso.academic_year_closed` | Escritura sobre datos de un curso `cerrado`/`archivado`, desde cualquier módulo; traducido desde `SQLSTATE` `YC001` del disparador (§4) |
 
@@ -172,7 +199,7 @@ Todos los mensajes, en `lang/{es,en,de,fr}/curso.php` (`INV-009`, `AR-12`).
 
 ## 6. Eventos de dominio emitidos
 
-Especificados en `funcional.md §7.2` (`AcademicYearActivated`, `AcademicYearClosed`). **No se emiten en 1.10** (aprobado, `OPEN-CURSO-18`): se emiten con su primer consumidor.
+Especificados en `funcional.md §7.2` (`AcademicYearActivated`, `AcademicYearClosed` y, desde `ADR-059`, `AcademicYearReopened`). **No se emiten en 1.10** (aprobado, `OPEN-CURSO-18`): se emiten con su primer consumidor.
 
 ## 7. Webhooks disponibles
 
@@ -180,4 +207,4 @@ Ninguno (`REQ-API-002` es de fase 2).
 
 ## 8. OpenAPI
 
-Los seis *endpoints* de §2 en `apps/api/openapi.yaml` antes del merge (`CLAUDE.md §10`), con el esquema `AcademicYear`, el enumerado extensible de `status`, la lista blanca de `sort`, el filtro `status` en estilo `form, explode: false`, y el `type` nuevo de §5 añadido al catálogo de errores documentado. Comprobar al tocarlo el problema de validación YAML preexistente del issue #97.
+Los seis *endpoints* de §2 de 1.10, más `POST /academic-years/{public_id}/reopen` de `ADR-059` en la entrega que lo implemente, en `apps/api/openapi.yaml` antes del merge (`CLAUDE.md §10`), con el esquema `AcademicYear`, el enumerado extensible de `status`, la lista blanca de `sort`, el filtro `status` en estilo `form, explode: false`, y el `type` nuevo de §5 añadido al catálogo de errores documentado. Comprobar al tocarlo el problema de validación YAML preexistente del issue #97.

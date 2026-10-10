@@ -34,11 +34,12 @@ use Illuminate\Support\Facades\Schema;
  *
  *   #1  Caso de uso HTTP end-to-end (autenticado en A, ningún endpoint de
  *       negocio devuelve/cuenta/modifica datos de B; público_id de B → 404)
- *       — DIFERIDO A PROPÓSITO. No hay todavía ningún endpoint de negocio
- *       real ni REQ-AUTH (1.2): app/Modules/ está vacío hasta 1.1. Lo más
- *       cercano hoy es ResolveTenantMiddlewareTest (404 por slug ajeno a
- *       nivel de resolución de tenant, no de datos de un módulo). Retomar
- *       en cuanto exista el primer endpoint de negocio con autenticación.
+ *       — Sigue sin un test único de extremo a extremo, aunque app/Modules/
+ *       ya tiene módulos (Auth, Backoffice, Core, Curso) y endpoints de negocio reales
+ *       con autenticación. El aislamiento HTTP se cubre hoy en los tests
+ *       de cada módulo (p. ej. ResolveTenantMiddlewareTest para el slug
+ *       ajeno). Retomar el test único cuando haya un módulo de datos
+ *       escolares (1.11).
  *   #2  RLS vía SQL crudo               → TenantTest.php
  *   #3  WITH CHECK rechaza escritura cruzada → TenantTest.php
  *   #4  Fallo en cerrado (crudo=0 filas, Eloquent=excepción) → TenantContextTest.php + TenantModelTest.php
@@ -145,16 +146,15 @@ test('withoutGlobalScope no aparece en app/Modules fuera de la lista de excepcio
         }
     }
 
-    // app/Modules vacío hasta 1.1: sin esto, cero ficheros recorridos
-    // significa cero aserciones, y PHPUnit marca el test como "risky".
+    // Sin esto, cero ficheros recorridos significa cero aserciones, y PHPUnit marca el test como "risky".
     expect($checked)->toBeGreaterThanOrEqual(0);
 });
 
 // #9 (segunda mitad): todo modelo de app/Modules extiende TenantModel.
-// pestphp/pest-plugin-arch (versión instalada) no tiene una expectativa de
-// herencia (toExtend/toExtendNothing no existen en sus Expectations/); se
-// comprueba por reflexión, con el mismo espíritu de "falla si algo se
-// escapa" que pedía el ADR.
+// pestphp/pest-plugin-arch (v4.0.2) ya tiene toExtend/toImplement/
+// toUseTrait/ignoring(); se mantiene la comprobación por reflexión porque
+// ya funciona y cubre la lista de excepciones, con el mismo espíritu de
+// "falla si algo se escapa" que pedía el ADR.
 test('los modelos Eloquent de app/Modules extienden TenantModel', function (): void {
     $allowlist = [
         // REQ-AUTH/datos.md §A.1 (paso 1.2): tabla de tenant append-only
@@ -250,8 +250,7 @@ test('los modelos Eloquent de app/Modules extienden TenantModel', function (): v
         }
     }
 
-    // app/Modules vacío hasta 1.1: sin esto, cero clases recorridas
-    // significa cero aserciones, y PHPUnit marca el test como "risky".
+    // Sin esto, cero clases recorridas significa cero aserciones, y PHPUnit marca el test como "risky".
     expect($checked)->toBeGreaterThanOrEqual(0);
 });
 

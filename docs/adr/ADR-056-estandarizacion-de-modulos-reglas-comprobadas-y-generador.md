@@ -374,3 +374,10 @@ Ejecución por `implementer` (Sonnet). Sin migraciones de esquema. Revisores: `s
 9. *Condicional*: generador y *job* de CI (CA-056-30 a -35), en PR propio después de lo anterior mezclado.
 
 Cada punto en commits pequeños con la suite en verde y el número real de tests en el mensaje (`CLAUDE.md §3`).
+
+---
+
+## Estado posterior (nota, no modifica ninguna decisión)
+
+- **2026-10-10 · `#375`**: `AR-02` pasa de 3 a **0 excepciones nominales**. Los *middleware* de sesión y `SyncModuleRegistry` dependen ya de las interfaces `App\Support\Sessions\ActiveSessionCloser` y `App\Support\FeatureFlags\FeatureFlagCatalogInvalidator`, que implementan Auth y Core. Con la lista vacía se cumplen `CA-056-03` y `CA-056-15`; `OPEN-056-03` y el hallazgo 5 de §8 quedan resueltos. Las menciones a las tres excepciones en §3.3, §5 y §8 describen el estado en que se aceptó el ADR.
+- **2026-10-10 · `#378` (B1, B2)**: `AR-01` pasa a vedar todo lo que cuelgue de la raíz de otro módulo salvo `Domain` sin `Models` (no solo cinco capas fijas), y `AR-01`, `AR-02` y la parte `arch()` de `AR-08` tienen control negativo permanente. B3-B5 siguen abiertos.
