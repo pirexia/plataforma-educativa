@@ -6,6 +6,15 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-10 · Actualización de PostgreSQL 17 a 18 (`ADR-061`, rama `chore/postgres-18`, PR de Renovate [#347](https://github.com/pirexia/plataforma-educativa/pull/347))
+
+- **`ADR-061` (aceptado)**: la imagen oficial `postgres:18` cambia `PGDATA` a `/var/lib/postgresql/18/docker` y se niega a arrancar con el montaje antiguo o con datos de 17, así que el PR de Renovate solo no era desplegable. `compose.yaml`, `infra/compose/compose.prodlike.yaml` e `infra/quadlet/postgres.container` pasan a `postgres:18` con un volumen nuevo `postgres-cluster` montado en `/var/lib/postgresql` (`postgres-cluster.volume` sustituye a `postgres-data.volume`; en `compose.yaml` `postgres-data` sigue declarado sin montar como camino de vuelta). `ci-api.yml` usa `postgres:18` en sus tres servicios. Sustituye solo una fila de `ADR-037`.
+- **`CA-058-02`** (`AcademicYearWriteGuardTest`): lista de clases de `SQLSTATE` de PostgreSQL 18 (añade la clase `10`) y versión mayor esperada 18.
+- **Documentación**: `RUNBOOK.md §2.7` (procedimiento `pg_dump`/`pg_restore --create`, prueba de reversión, reversión y producción) y síntoma nuevo en `§2.2`; `SYSADMIN.md §2`, `§2b` y tabla de CI; `README.md`, `ARCHITECTURE.md` («PostgreSQL 18») y `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` 3.2.16.
+- **Pendiente de ejecutar** (lo hace la sesión principal en WSL2, `ADR-061 §4.2`): migración de los datos del volumen de desarrollo, prueba de reversión (`CA-061-08`) y suite completa en verde con el número real de tests; no consta aquí como hecho.
+
+---
+
 ## 2026-10-10 · Suite de tests en paralelo y norma de ejecución (`ADR-060`, rama `chore/tests-paralelos`)
 
 - **Implementación de `ADR-060` (aceptada)**: `composer test` ejecuta `Unit` + `Feature` en paralelo (una base `plataforma_test_N` y una base Redis de caché por proceso; 6 procesos en desarrollo, 4 en CI, `PEST_PROCESOS`) y después `Concurrency` en serie; `test:paralelo`, `test:concurrencia` y `test:serie` (camino de vuelta). Script idempotente `infra/containers/postgres/bases-test-paralelo.sh N [--recrear]`; `tests/bootstrap.php` con guarda (`^plataforma_test_[0-9]+$` y `APP_ENV=testing`, aborta antes del primer test); paso de bases en `ci-api.yml` antes de `artisan serve`. Las guardas de `Concurrency` no cambian.

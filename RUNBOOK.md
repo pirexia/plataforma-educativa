@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.4** · 2026-10-07
+> **Versión 0.3.5** · 2026-10-10
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -38,7 +38,8 @@ podman compose logs -f <servicio>
 3. Ver `docs/historial/0.7-nucleo-multitenant.md` y `docs/historial/0.8-modelo-de-datos-nucleo.md` — catálogo de bugs de entorno ya encontrados y su solución (deadlocks de test entre conexiones, `.env`/`storage/` ausentes en un *worktree* nuevo, purga agresiva de paquetes `-dev` en el `Containerfile`, etc.). No repetir un diagnóstico ya hecho.
 4. **`api` sano un momento y `500`/`unhealthy` al siguiente, sin haber tocado nada del servicio a propósito** (issue [#62](https://github.com/pirexia/plataforma-educativa/issues/62), 2026-08-22): revisar `apps/api/.env` — `SESSION_LIFETIME` debe ser `>= AUTH_SESSION_TIMEOUT_MAX_MINUTES` (`SYSADMIN.md §2c`) desde `REQ-AUTH` (1.2). El código se interpreta por petición (sin *build*), así que un `git pull`/*merge* que traiga 1.2 sin ese valor ajustado tumba el contenedor en la siguiente petición. Si `podman rm`/`--force-recreate` falla con *"has dependent containers"* (acoplamiento `web` → `api` vía `depends_on`), no forzar más: `podman-compose down && podman-compose up -d` recrea la pila completa sin tocar la red externa (`external: true`) ni el volumen `postgres-data`.
 5. **Login por navegador da `404` o `419`, aunque la API responda bien por `curl`** (issue [#71](https://github.com/pirexia/plataforma-educativa/issues/71), 2026-08-25): entra por `http://demo.plataforma.test:5173/`, no por `localhost:5173` — la SPA y la API deben compartir host (aunque no puerto) para que la cookie `XSRF-TOKEN` sea legible desde la página (`SYSADMIN.md §2c`, fila `VITE_API_URL`). Requiere `127.0.0.1 demo.plataforma.test` en el `hosts` de **Windows** (no el de la distribución WSL2).
-6. Para cualquier otro síntoma: skill `depuracion` (método de diagnóstico y catálogo de fallos característicos del stack).
+6. **`plataforma-postgres` sale con error al arrancar tras actualizar a `postgres:18`** (`ADR-061`): el *entrypoint* de 18 se niega a arrancar si encuentra datos antiguos (`PG_VERSION`) en `/var/lib/postgresql` o en `/var/lib/postgresql/data`, o si `/var/lib/postgresql/data` es un punto de montaje aunque esté vacío (mensaje `unused mount/volume`; el caso habitual que cita es actualizar la imagen sin `pg_upgrade`). Causa: se montó el volumen de 17 (o el montaje antiguo `.../data`) con la imagen 18. El fallo es seguro, no toca los datos. Solución: no forzar nada; montar el volumen nuevo `postgres-cluster` en `/var/lib/postgresql` (`compose.yaml` de la rama actual) y seguir `§2.7`. Un error de `runc` con enlace simbólico al montar sobre `.../data` tiene el mismo origen (`docker-library/postgres#1370`, `#1377`).
+7. Para cualquier otro síntoma: skill `depuracion` (método de diagnóstico y catálogo de fallos característicos del stack).
 
 ### 2.3 Si CI falla en un PR
 
@@ -56,6 +57,91 @@ Comando de diagnóstico rápido, desde dentro del contenedor `api` (`docs/modulo
 ### 2.6 Si una escritura de roles o usuarios responde `409 administration_capacity_lost` (`REQ-PERM`, `1.5b`, `RN-PERM-47`)
 
 Síntoma: al retirar permisos a un rol, asignar o quitar roles, desactivar o dar de baja a un usuario, el centro recibe `409` con `core.validation.administration_capacity_lost` y la lista de permisos afectados (en el `detail` y en `errors.administration_capacity[0].params.codes`). **No es un fallo**: la escritura dejaría al centro sin ningún usuario activo con la capacidad completa de administración y no se ha guardado nada. Resolución: conceder antes esos permisos a otra persona activa del centro y repetir la operación. Si el centro **ya** no cumplía antes de la escritura, la regla no la rechaza. Detalle: `docs/modulos/REQ-PERM/operacion.md`.
+
+### 2.7 Subida de versión mayor de PostgreSQL (`ADR-061`: 17 → 18)
+
+Método: `pg_dump` de la base de aplicación con el cliente de la versión nueva y `pg_restore --create` sobre un clúster nuevo con volumen nuevo. El volumen antiguo **no se toca**: es la vuelta atrás. Patrón para la próxima subida mayor mientras no haya otro ADR. **Nunca** `podman compose down`, `podman rm -v` ni `podman volume rm` (`ADR-028`). El volcado contiene *hashes* de contraseñas (y en producción datos personales): va fuera del repositorio, con permisos `700`/`600`.
+
+```bash
+# 0. Preparación (inventario.sql: la consulta de inventario de ADR-061 §4.2, paso 0)
+DIR="$HOME/plataforma-respaldos/pg17-a-pg18-$(date +%Y%m%d-%H%M)"
+mkdir -p "$DIR" && chmod 700 "$DIR"
+PGPW="$(podman exec plataforma-postgres printenv POSTGRES_PASSWORD)"
+podman pull docker.io/library/postgres:18
+# crear "$DIR/inventario.sql" con la consulta de inventario de ADR-061 §4.2
+
+# 1. Parar a los clientes de la base (no la base)
+podman stop plataforma-web plataforma-api
+
+# 2. Inventario en 17 y volcados con el cliente de 18
+podman exec -i plataforma-postgres psql -U plataforma -d plataforma -At -v ON_ERROR_STOP=1 \
+  < "$DIR/inventario.sql" > "$DIR/inventario-antes.txt"
+podman run --rm --network plataforma-net -e PGPASSWORD="$PGPW" docker.io/library/postgres:18 \
+  pg_dump -h plataforma-postgres -U plataforma -d plataforma -Fc > "$DIR/plataforma.dump"
+podman run --rm --network plataforma-net -e PGPASSWORD="$PGPW" docker.io/library/postgres:18 \
+  pg_dumpall -h plataforma-postgres -U plataforma --exclude-database='plataforma_test*' \
+  > "$DIR/respaldo-completo-pg17.sql"
+chmod 600 "$DIR"/*
+# El volcado custom se puede leer (si falla, parar aquí: nada se ha tocado todavía)
+podman run --rm -i docker.io/library/postgres:18 pg_restore --list < "$DIR/plataforma.dump" | tail -n 3
+
+# 3. Retirar los contenedores (sin -v: los volúmenes se quedan)
+podman stop plataforma-postgres
+podman rm plataforma-web plataforma-api plataforma-postgres
+
+# 4. Arrancar 18 sobre el volumen nuevo (01-tenancy.sh y 02-tenancy-test-db.sh crean roles y bases)
+podman compose up -d postgres
+timeout 180 sh -c 'until podman healthcheck run plataforma-postgres >/dev/null 2>&1; do sleep 2; done'
+podman logs plataforma-postgres 2>&1 | grep -E 'PostgreSQL init process complete|ERROR|FATAL'
+
+# 5. Sustituir la `plataforma` recién creada por la restaurada
+podman exec plataforma-postgres dropdb -U plataforma plataforma
+podman exec -i plataforma-postgres pg_restore -U plataforma --create --exit-on-error -d postgres \
+  < "$DIR/plataforma.dump"
+
+# 6. Comprobaciones (CA-061-03 a CA-061-06): el diff debe salir vacío
+podman exec -i plataforma-postgres psql -U plataforma -d plataforma -At -v ON_ERROR_STOP=1 \
+  < "$DIR/inventario.sql" > "$DIR/inventario-despues.txt"
+diff "$DIR/inventario-antes.txt" "$DIR/inventario-despues.txt" && echo "inventario idéntico"
+podman exec plataforma-postgres psql -U plataforma -d plataforma -At \
+  -c 'SHOW server_version' -c 'SHOW data_checksums' \
+  -c "SELECT count(*) FROM pg_authid WHERE rolpassword LIKE 'md5%'"
+
+# 7. Bases de test por proceso (ADR-060): el clúster es nuevo, se crean de cero
+podman exec -i plataforma-postgres sh -s -- 6 < infra/containers/postgres/bases-test-paralelo.sh
+
+# 8. Volver a levantar el resto
+podman compose up -d
+podman exec plataforma-api php artisan migrate:status | grep -c Pending   # debe dar 0
+```
+
+Después, `composer test` (suite completa, `ADR-060`). Si el paso 5 o el 6 fallan, no seguir: aplicar la reversión de abajo. El volumen nuevo queda para diagnóstico; repetir desde el paso 3 borrándolo exige autorización expresa del usuario (`podman volume rm plataforma-educativa_postgres-cluster`).
+
+**Prueba de la reversión** (`CA-061-08`), sin tocar el contenedor de 18:
+
+```bash
+podman run -d --rm --name plataforma-pg17-reversion \
+  -v plataforma-educativa_postgres-data:/var/lib/postgresql/data:Z docker.io/library/postgres:17
+timeout 120 sh -c 'until podman exec plataforma-pg17-reversion pg_isready -U plataforma >/dev/null 2>&1; do sleep 2; done'
+podman exec -i plataforma-pg17-reversion psql -U plataforma -d plataforma -At -v ON_ERROR_STOP=1 \
+  < "$DIR/inventario.sql" > "$DIR/inventario-reversion.txt"
+diff "$DIR/inventario-antes.txt" "$DIR/inventario-reversion.txt" && echo "volumen 17 utilizable"
+podman stop plataforma-pg17-reversion
+```
+
+**Reversión en desarrollo** (`ADR-061 §8.1`): `podman stop` y `podman rm` de `plataforma-web`, `plataforma-api` y `plataforma-postgres` (sin `-v`), volver a la rama con la definición de 17 y `podman compose up -d`: arranca 17 sobre `postgres-data`, intacto. Lo escrito sobre 18 se pierde (datos sintéticos). Después de mezclar, mediante un PR que restaure imagen, montaje y volumen, con un ADR que sustituya a `ADR-061`. En CI: volver a `postgres:17` en los tres servicios y revertir `CA-058-02`.
+
+**Conservación**: `plataforma-educativa_postgres-data` y `$DIR` se conservan al menos hasta que la rama esté mezclada y se haya trabajado una semana sobre 18. Borrarlos es decisión del usuario. El volumen antiguo de prodlike (`plataforma-prodlike_prodlike-postgres-data`) es desechable; su borrado también se deja al usuario.
+
+**Producción (Quadlet)**: hoy no aplica (sin producción ni datos reales, `§4`); la primera instalación nacerá en 18 con `postgres-cluster` vacío. Para un host con un clúster 17 con datos, **condición previa**: ensayar entero, reversión incluida, en `compose.prodlike.yaml` con datos sintéticos (`ADR-030`) y anotar el resultado en `SYSADMIN.md`.
+
+1. Ventana de mantenimiento: `systemctl stop api@1.service web.service` (y cualquier *worker* que exista).
+2. Inventario y volcados con el cliente de 18, como en los pasos 0 y 2 de arriba. El volcado contiene datos personales reales: se trata como copia de seguridad (cifrado, fuera del host de aplicación cuando `REQ-BKP`/`OPEN-10` lo permitan, borrado al cerrar la ventana de reversión) y nunca se lleva a desarrollo (`ADR-030`).
+3. `systemctl stop postgres.service`; `./infra/install.sh <tag con 18>`; `systemctl daemon-reload`; `systemctl start postgres.service` (inicialización sobre `postgres-cluster` con los *scripts* de `/opt/plataforma/postgres-init`).
+4. `dropdb` + `pg_restore --create --exit-on-error` + inventario + `diff` + comprobaciones, como en los pasos 5 y 6.
+5. Decidir continuar o volver **antes** de reabrir el tráfico. Continuar: `systemctl start api@1.service web.service` y prueba de humo. Volver: `systemctl stop postgres.service`, `./infra/install.sh <tag anterior>`, `systemctl daemon-reload`, `systemctl start postgres.service` (17 sobre el volumen antiguo, intacto), `systemctl start api@1.service web.service`. **Después de reabrir el tráfico**, volver a 17 pierde lo escrito en 18.
+
+---
 
 ## 3. Guardias (on-call)
 

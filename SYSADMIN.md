@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.8.8** · 2026-10-10
+> **Versión 0.8.9** · 2026-10-10
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`); el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
@@ -49,11 +49,13 @@ Vive en la raíz del repositorio. Perfil reducido por defecto (`ADR-030`): solo 
 
 | Servicio | Perfil | Puerto (solo loopback) |
 |----------|--------|------------------------|
-| `postgres` (17) | por defecto | `127.0.0.1:5432` |
+| `postgres` (18) | por defecto | `127.0.0.1:5432` |
 | `redis` (7) | por defecto | `127.0.0.1:6379` |
 | `api` (Laravel, PHP 8.4) | por defecto | `127.0.0.1:8000` |
 | `web` (Vue 3 + Vite) | por defecto | `127.0.0.1:5173` |
 | `minio` | `full` | `127.0.0.1:9000` (API), `127.0.0.1:9001` (consola) |
+
+**Volumen de PostgreSQL (`ADR-061`)**: la imagen `postgres:18` guarda los datos en `/var/lib/postgresql/18/docker` y se niega a arrancar con el montaje antiguo o con datos de 17. El volumen nombrado `postgres-cluster` se monta en **`/var/lib/postgresql`** (no en `.../data`). `postgres-data` (el volumen de 17) sigue declarado en `compose.yaml` **sin montar**: es el camino de vuelta y no se borra salvo decisión expresa del usuario. Pasar un entorno existente de 17 a 18 es el procedimiento de `RUNBOOK.md §2.7`. El mismo cambio de nombre aplica a Quadlet (`postgres-cluster.volume`, que sustituye a `postgres-data.volume`) y a prodlike (`prodlike-postgres-cluster`, desechable).
 
 `api` monta `apps/api/` como volumen (código en vivo, sin rebuild para cada cambio) y usa `apps/api/.env`, con `DB_HOST` y `REDIS_HOST` sobreescritos a los nombres de servicio (`postgres`, `redis`) porque dentro de la red de contenedores no valen `127.0.0.1`. Para Artisan desde el host (`php artisan migrate`, etc.) el `.env` sigue apuntando a `127.0.0.1` con los puertos publicados.
 
@@ -86,7 +88,7 @@ Credenciales en `.env` (gitignored), a partir de `.env.example`.
 
 El aislamiento multi-tenant (paso 0.7) necesita, además de la base de datos, un esquema `app`, una función auxiliar y **tres roles de PostgreSQL** que no crea Laravel: son objetos de clúster, no del ORM.
 
-`infra/containers/postgres/init/01-tenancy.sh` + `01-tenancy.sql.tpl` los provisionan. La imagen oficial de `postgres` ejecuta automáticamente cualquier script en `docker-entrypoint-initdb.d/` (montado ahí por `compose.yaml`) **solo cuando el volumen se inicializa por primera vez**. En un volumen ya existente (el caso normal al añadir esto a un entorno en marcha) hay que aplicarlo a mano una vez:
+`infra/containers/postgres/init/01-tenancy.sh` + `01-tenancy.sql.tpl` los provisionan. Desde PostgreSQL 18 (`ADR-061`), `initdb` crea además todo clúster nuevo con *checksums* de datos activos (`SHOW data_checksums` = `on`); no se pasa `POSTGRES_INITDB_ARGS`. La imagen oficial de `postgres` ejecuta automáticamente cualquier script en `docker-entrypoint-initdb.d/` (montado ahí por `compose.yaml`) **solo cuando el volumen se inicializa por primera vez**. En un volumen ya existente (el caso normal al añadir esto a un entorno en marcha) hay que aplicarlo a mano una vez:
 
 ```bash
 podman exec -i plataforma-postgres psql -v ON_ERROR_STOP=1 \
@@ -332,7 +334,7 @@ Tres workflows en `.github/workflows/`, disparados por `push`/`pull_request` sob
 
 | Workflow | Jobs (nombre mostrado en GitHub) | Qué cubre |
 |----------|------|-----------|
-| `ci-api.yml` | `Tests (Pest)`, `Lint (Pint)`, `Análisis estático (Larastan)` | Pest (`composer test`: `Unit` + `Feature` en paralelo con 4 procesos, y `Concurrency` en serie; el paso «Crear las bases de la suite en paralelo» va antes de arrancar `artisan serve`, `ADR-060`), Pint (`composer lint`), Larastan nivel 6 (`composer analyse`). PHP 8.4, sin contenedor: runner nativo con `shivammathur/setup-php`. Los tests corren contra **PostgreSQL 17 real** como *service* del job, aprovisionado con el mismo script de roles/RLS que desarrollo (`infra/containers/postgres/init/01-tenancy.sql.tpl`) — no SQLite: `ADR-033` §10 exige que la batería de aislamiento se ejecute contra RLS de verdad, que SQLite no tiene. |
+| `ci-api.yml` | `Tests (Pest)`, `Lint (Pint)`, `Análisis estático (Larastan)` | Pest (`composer test`: `Unit` + `Feature` en paralelo con 4 procesos, y `Concurrency` en serie; el paso «Crear las bases de la suite en paralelo» va antes de arrancar `artisan serve`, `ADR-060`), Pint (`composer lint`), Larastan nivel 6 (`composer analyse`). PHP 8.4, sin contenedor: runner nativo con `shivammathur/setup-php`. Los tests corren contra **PostgreSQL 18 real** como *service* del job, aprovisionado con el mismo script de roles/RLS que desarrollo (`infra/containers/postgres/init/01-tenancy.sql.tpl`) — no SQLite: `ADR-033` §10 exige que la batería de aislamiento se ejecute contra RLS de verdad, que SQLite no tiene. |
 | `ci-web.yml` | `Lint (ESLint)`, `Typecheck y build (vue-tsc + Vite)`, `Tests unitarios (Vitest)`, `Tests e2e (Playwright)` | ESLint + comprobación de literales sin traducir (`INV-009`, `npm run lint:i18n`, mismo job a propósito — ver comentario en `ci-web.yml`), `vue-tsc -b` + build de Vite, Vitest, Playwright (Chromium, instalado con `--with-deps` en el propio job). El test e2e no depende de la API real: `HomeView` degrada a un mensaje de error visible si la petición falla, que es lo que el test comprueba. |
 | `dependency-scan.yml` | `Trivy (composer.lock, package-lock.json)` | `aquasecurity/trivy-action` escanea `composer.lock` y `package-lock.json` en modo filesystem. Falla en severidad `HIGH`/`CRITICAL` con corrección disponible (`ignore-unfixed: true`). |
 
