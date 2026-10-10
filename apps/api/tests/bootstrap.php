@@ -56,6 +56,14 @@ require __DIR__.'/../vendor/autoload.php';
         $abort('TEST_TOKEN presente pero APP_ENV no es "testing" ('.var_export($environment, true).').');
     }
 
+    // security-reviewer, ADR-060, M-2: el paralelo solo escribe en un
+    // PostgreSQL local o de contenedor (desarrollo y CI), nunca en uno remoto.
+    $dbHost = $_SERVER['DB_HOST'] ?? $_ENV['DB_HOST'] ?? getenv('DB_HOST');
+
+    if (! in_array($dbHost, ['127.0.0.1', '::1', 'localhost', 'postgres'], true)) {
+        $abort('TEST_TOKEN presente pero DB_HOST no es local ni el contenedor postgres ('.var_export($dbHost, true).').');
+    }
+
     $set('DB_DATABASE', $database);
     $set('REDIS_CACHE_DB', (string) (2 + (int) $token));
     $set('LARAVEL_PARALLEL_TESTING_WITHOUT_DATABASES', '1');

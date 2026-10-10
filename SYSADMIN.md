@@ -148,7 +148,6 @@ Las migraciones de test corren una vez por proceso vía la conexión `pgsql_owne
 
 `CACHE_STORE=redis` en los tests (no `array`): el prefijo de caché por tenant se aplica reconstruyendo el store con `Cache::forgetDriver()`, y el store `array` pierde todo su contenido en cada reconstrucción (es un array en memoria de la instancia, no un backend compartido), así que un test de aislamiento de caché sobre `array` daría verde sin haber probado nada. `REDIS_CACHE_DB=2` en tests, distinto del `1` de desarrollo, para no compartir claves.
 
-
 ### Bases de la suite en paralelo (`ADR-060`)
 
 `composer test` reparte `Unit` + `Feature` entre procesos de Pest (paratest) y después ejecuta `Concurrency` en serie. **Cada proceso usa su propia base**, `plataforma_test_1 … plataforma_test_N` (`N` = `TEST_TOKEN`), clon de `plataforma_test`, y su propia base Redis de caché (`REDIS_CACHE_DB = 2 + N`; con 16 bases Redis caben hasta 13 procesos). `ADR-033 §10` sigue íntegro: cada proceso ve el mismo motor, los mismos tres roles y RLS. El mecanismo propio de Laravel (`ParallelTesting`) no sirve porque exigiría `CREATEDB` al rol de la aplicación; las bases las crea fuera de la suite el superusuario del clúster con `infra/containers/postgres/bases-test-paralelo.sh`.
@@ -163,11 +162,11 @@ El argumento es el número de procesos (1 a 13). Sin `--recrear` crea las que fa
 
 | Comando (dentro del contenedor `api`, en `apps/api`) | Qué hace |
 |---|---|
-| `composer test` | `Unit` + `Feature` en paralelo y después `Concurrency` en serie. Falla si falla cualquiera |
+| `composer test` | `Unit` + `Feature` en paralelo y después `Concurrency` en serie. Falla si falla cualquiera; si falla la parte paralela, `Concurrency` no llega a ejecutarse |
 | `composer test:paralelo` | Solo `Unit` + `Feature` en paralelo |
 | `composer test:concurrencia` | Solo `Concurrency`, en serie, contra `plataforma_test` |
 | `composer test:serie` | La suite entera en serie. Diagnóstico y reversión (`ADR-060 §10`) |
-| `php artisan test <ruta> [--filter=…]` | Ejecución parcial durante el trabajo, en serie, contra `plataforma_test` |
+| `php -d memory_limit=-1 vendor/bin/pest <ruta> [--filter=…]` | Ejecución parcial durante el trabajo, en serie, contra `plataforma_test` |
 
 Procesos: `PEST_PROCESOS` (por defecto **6** en desarrollo, **4** en CI). Si supera las bases creadas, `tests/bootstrap.php` aborta con un mensaje que nombra el script. Los hijos corren con `memory_limit=-1`; **`composer test:serie` y `test:concurrencia` también**, porque `php artisan test` lanza `pest` en un proceso hijo sin ese ajuste y la suite entera agota los 128 MB por defecto. `tests/Concurrency` sigue exigiendo exactamente `plataforma_test` (`ConcurrentTestCase`, *workers*). Conexiones: cada proceso abre al menos tres; con 6 procesos son ≥ 18 frente a `max_connections=100`.
 

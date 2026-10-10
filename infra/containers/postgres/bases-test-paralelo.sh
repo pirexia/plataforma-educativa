@@ -49,6 +49,16 @@ fi
 SUPERUSER="${POSTGRES_USER:-${PGUSER:-plataforma}}"
 TEMPLATE_DB="${POSTGRES_TEST_DB:-plataforma_test}"
 
+# Solo plantillas de test: con --recrear el script borra "<plantilla>_N", y el
+# nombre se interpola en SQL (security-reviewer, ADR-060, M-1).
+case "$TEMPLATE_DB" in
+    plataforma_test) ;;
+    *)
+        echo "POSTGRES_TEST_DB='$TEMPLATE_DB' no permitido: solo 'plataforma_test'." >&2
+        exit 2
+        ;;
+esac
+
 # Conexión de mantenimiento a `postgres`, nunca a la plantilla: una conexión
 # propia a la plantilla impediría clonarla.
 sql() {

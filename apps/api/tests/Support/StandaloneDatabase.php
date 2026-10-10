@@ -3,6 +3,7 @@
 namespace Tests\Support;
 
 use PDO;
+use RuntimeException;
 
 /**
  * Conexiones PDO propias, sin contenedor de Laravel, para los `afterAll()`
@@ -38,13 +39,28 @@ final class StandaloneDatabase
             'pgsql:host=%s;port=%s;dbname=%s;sslmode=%s',
             self::env('DB_HOST', '127.0.0.1'),
             self::env('DB_PORT', '5432'),
-            self::env('DB_DATABASE', 'laravel'),
+            self::testDatabase(),
             self::env('DB_SSLMODE', 'prefer'),
         );
 
         return new PDO($dsn, self::env($userKey, $userDefault), self::env($passwordKey, ''), [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         ]);
+    }
+
+    /**
+     * security-reviewer, ADR-060, B-1: sin caída a una base que no sea de
+     * test.
+     */
+    private static function testDatabase(): string
+    {
+        $database = self::env('DB_DATABASE', '');
+
+        if (preg_match('/^plataforma_test(_[0-9]+)?$/', $database) !== 1) {
+            throw new RuntimeException("StandaloneDatabase solo trabaja sobre bases de test; DB_DATABASE='{$database}'.");
+        }
+
+        return $database;
     }
 
     private static function env(string $key, string $default): string
