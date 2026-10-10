@@ -10,8 +10,11 @@ use Illuminate\Support\Facades\DB;
  * revertir (`down()`), que el índice único de una sola columna y los
  * privilegios sobreviven, y que la comprobación previa de longitud aborta.
  *
- * Ejecutan `down()`/`up()` de la migración directamente sobre la base de
- * test y SIEMPRE la dejan migrada (`finally`).
+ * Ejecutan `down()`/`up()` de la migración dentro de una transacción de
+ * `pgsql_owner` que SIEMPRE se revierte (`ROLLBACK`; el DDL de PostgreSQL es
+ * transaccional), incluida la fila de prueba del último test (#377 B-1, B-2).
+ * Si el proceso muere a mitad, PostgreSQL revierte la transacción abierta y
+ * la base de test no queda con columnas `text` ni filas sobrantes.
  */
 function ffPublicIdMigration(): object
 {
@@ -72,6 +75,9 @@ test('CA-056-06: down() restaura text y up() lo vuelve a character(26) sin perde
         ->and($grantsBefore['app INSERT flags'])->toBeFalse()
         ->and($grantsBefore['app UPDATE rules'])->toBeFalse();
 
+    $owner = DB::connection('pgsql_owner');
+    $owner->beginTransaction();
+
     try {
         $migration->down();
 
@@ -79,20 +85,27 @@ test('CA-056-06: down() restaura text y up() lo vuelve a character(26) sin perde
             expect(ffPublicIdShape($table))->toBe(['type' => 'text', 'notnull' => true, 'unique_single' => 1]);
         }
         expect(ffGrantSnapshot())->toBe($grantsBefore);
-    } finally {
+
         $migration->up();
+
+        foreach (['feature_flags', 'feature_flag_rules'] as $table) {
+            expect(ffPublicIdShape($table))->toBe(['type' => 'character(26)', 'notnull' => true, 'unique_single' => 1]);
+        }
+        expect(ffGrantSnapshot())->toBe($grantsBefore);
+    } finally {
+        $owner->rollBack();
     }
 
-    foreach (['feature_flags', 'feature_flag_rules'] as $table) {
-        expect(ffPublicIdShape($table))->toBe(['type' => 'character(26)', 'notnull' => true, 'unique_single' => 1]);
-    }
-    expect(ffGrantSnapshot())->toBe($grantsBefore);
+    // Tras el ROLLBACK la base sigue como estaba (#377 B-1).
+    expect(ffPublicIdShape('feature_flags')['type'])->toBe('character(26)');
 });
 
 test('CA-056-06: la migración aborta si alguna fila no tiene public_id de 26 caracteres', function (): void {
     $migration = ffPublicIdMigration();
     $owner = DB::connection('pgsql_owner');
     $key = 'test.migration.short_public_id';
+
+    $owner->beginTransaction();
 
     try {
         $migration->down();
@@ -103,9 +116,11 @@ test('CA-056-06: la migración aborta si alguna fila no tiene public_id de 26 ca
 
         expect(fn () => $migration->up())->toThrow(RuntimeException::class, 'longitud distinta de 26');
     } finally {
-        $owner->statement('DELETE FROM feature_flags WHERE key = ?', [$key]);
-        $migration->up();
+        // La fila de prueba y el down() viven solo dentro de la transacción (#377 B-2).
+        $owner->rollBack();
     }
+
+    expect($owner->selectOne('SELECT count(*) AS n FROM feature_flags WHERE key = ?', [$key])->n)->toBe(0);
 
     expect(ffPublicIdShape('feature_flags')['type'])->toBe('character(26)');
 });
