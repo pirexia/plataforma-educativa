@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.6.0** · 2026-10-08 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.7.0** · 2026-10-10 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -124,6 +124,8 @@ git checkout config-claude-2026-10-08 -- CLAUDE.md .claude/agents .claude/skills
 2. Mientras el paso esté en curso, `memory.md` mantiene una única nota viva por paso en su sección "Trabajo en curso" (se sobrescribe al actualizarse, no se acumula) con el hash hasta el que está verificado, la fecha, y qué queda con certeza por hacer.
 
 Un relanzamiento que encuentra esa nota confía en los commits que cubre sin volver a ejecutar la suite sobre ellos, y solo verifica de verdad lo que quede sin commitear o sea posterior a la nota. Esto **no** afloja la norma anterior: ahorra reverificación de lo ya confirmado, no habilita recortar, ampliar ni reinterpretar alcance por su cuenta — eso sigue estando fuera de lo que decide un subagente relanzado.
+
+**Cuándo se ejecuta la suite (`ADR-060 §4.4`).** Durante el trabajo, solo los ficheros o directorios afectados (`php -d memory_limit=-1 vendor/bin/pest <rutas>`). La suite completa (`composer test`: Unit y Feature en paralelo, una base `plataforma_test_N` por proceso, y `Concurrency` en serie) se ejecuta **una vez en local antes de abrir el PR**, y CI la repite en cada *push*. Los revisores no la relanzan salvo necesidad justificada en su informe. El mensaje `Verificado` dice su alcance: `(suite completa)` o `(ficheros afectados: …)`, y un relanzamiento solo da por buena la suite completa con un `Verificado` de suite completa. Las bases por proceso se crean con el script de `SYSADMIN.md`; `composer test:serie` queda como vuelta atrás.
 
 ---
 

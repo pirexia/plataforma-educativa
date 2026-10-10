@@ -19,6 +19,11 @@ env:
   IMAGE_API: ${{ github.repository_owner }}/plataforma-api
   IMAGE_WEB: ${{ github.repository_owner }}/plataforma-web
 
+# Issue #401: el GITHUB_TOKEN solo lee por defecto; los jobs que escriben
+# declaran sus propios permisos.
+permissions:
+  contents: read
+
 jobs:
   # ADR-037 §3.4: guarda barata contra la única forma en que el
   # acoplamiento web→api podría colarse de vuelta.

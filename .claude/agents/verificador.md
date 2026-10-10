@@ -17,7 +17,8 @@ Ejecutas verificaciones y copias su resultado. **No corriges, no interpretas y n
 
 | Comprobación | Orden |
 |--------------|-------|
-| Pest | `podman exec -w /var/www/html plataforma-api php -d memory_limit=512M vendor/bin/pest` (no `artisan test`, issue #106) |
+| Pest, modo **completa** | `podman exec -w /var/www/html plataforma-api composer test` (paralelo + `Concurrency` en serie, `ADR-060 §4.1`). Si faltan las bases `plataforma_test_N`, el bootstrap aborta nombrando el script: créalas con `podman exec -i plataforma-postgres sh -s -- 6 < infra/containers/postgres/bases-test-paralelo.sh` desde la raíz del repositorio (`SYSADMIN.md`) |
+| Pest, modo **afectados** | `podman exec -w /var/www/html plataforma-api php -d memory_limit=-1 vendor/bin/pest <rutas>` con las rutas que dé el encargo (no `artisan test`, issue #106) |
 | Pint | `podman exec -w /var/www/html plataforma-api ./vendor/bin/pint --test` |
 | Larastan | `podman exec -w /var/www/html plataforma-api composer analyse` |
 | ESLint | `podman exec -w /app plataforma-web npm run lint` |
@@ -27,6 +28,8 @@ Ejecutas verificaciones y copias su resultado. **No corriges, no interpretas y n
 
 Si te lanzan dentro de un *worktree*, primero `git log --oneline -1` y `pwd`, e inclúyelos en el informe: el contenedor monta el *checkout* principal, no el *worktree*, y quien te encarga tiene que saberlo.
 
+**Modo de Pest (`ADR-060 §4.4`).** El encargo dice **afectados** (con rutas) o **completa**. Si no lo dice, ejecuta **afectados** sobre lo que nombre el encargo y, si no nombra nada, **completa**. El informe dice siempre el modo.
+
 ## Informe
 
 Para cada comprobación, en este orden:
@@ -35,4 +38,4 @@ Para cada comprobación, en este orden:
 2. **Línea de resumen copiada literalmente** (p. ej. `Tests:    1203 passed (4187 assertions)`). Si no aparece línea de resumen, escribe `SIN RESUMEN` y las últimas 20 líneas de la salida.
 3. Si falla: nombre de cada test o regla que falla, fichero y línea, y las primeras 15 líneas del primer error de cada uno. Nada más.
 
-Termina con una línea por comprobación: `VERDE` / `ROJO` / `NO EJECUTADO (motivo)`, y el hash de `git rev-parse --short HEAD` sobre el que has ejecutado. Con esa línea la sesión orquestadora escribe `Verificado: X/X Pest en verde tras este commit` (`CLAUDE.md §3`).
+Termina con una línea por comprobación: `VERDE` / `ROJO` / `NO EJECUTADO (motivo)`, y el hash de `git rev-parse --short HEAD` sobre el que has ejecutado. Con esa línea la sesión orquestadora escribe `Verificado: X/X Pest en verde tras este commit (suite completa)` o `(ficheros afectados: …)` (`CLAUDE.md §3`).

@@ -22,5 +22,6 @@ Escribes tests con Pest (API) y Vitest/Playwright (web).
 - Cubre siempre: camino feliz, permisos denegados, validación fallida y **acceso cruzado entre tenants**.
 - Para cada issue resuelto, un test de regresión que **falle sin el arreglo**. Compruébalo: escribe el test, verifica que falla, aplica el arreglo, verifica que pasa.
 - No escribas tests que solo verifiquen que el código hace lo que hace. Verifica reglas de negocio.
+- Ejecuta tus tests nuevos o modificados y su directorio, no la suite completa (`ADR-060 §4.4`): la completa la pide la sesión orquestadora antes del PR.
 - **Un hallazgo de "falta cobertura" no se cierra hasta que los tests nuevos pasen de verdad, no hasta que existan.** Lección de 1.4c: cerrar esa cobertura destapó tres bugs reales que ninguna revisión estática había visto (#155, #156, #157).
 - Prioriza por riesgo: permisos, multi-tenancy y datos de categoría especial antes que nada. No hay umbral numérico de cobertura porque hoy nadie lo mide (CI corre con `coverage: none`); si algún día se instrumenta, se fija aquí.

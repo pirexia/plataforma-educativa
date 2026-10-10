@@ -28,7 +28,7 @@ use Illuminate\Support\Str;
  */
 beforeEach(function (): void {
     Mail::fake();
-    $this->artisan('platform:sync-registry')->run();
+    syncRegistryOnce();
     boAllowCurrentTestIp();
 });
 

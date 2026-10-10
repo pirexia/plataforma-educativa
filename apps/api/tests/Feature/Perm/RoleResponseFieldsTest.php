@@ -85,6 +85,12 @@ test('CA-PERM-135: GET /roles/{id} devuelve users_count igual que el listado, y 
 test('CA-PERM-134: todo recurso del catálogo trae resource_label no vacío en los cuatro idiomas', function (): void {
     [$tenant, $admin] = provisionCoreTenant('perm-134');
 
+    // ADR-060 §4.3.2: este test recorre el catálogo entero, así que lo necesita
+    // tal como lo declara el código. Otros tests dejan permisos de prueba
+    // (`modulo_test.leer`, `salud_test.leer`, `sondeo_test.leer`) sin retirar, y
+    // el registro ya no se re-sincroniza en cada `provisionCoreTenant()`.
+    test()->artisan('platform:sync-registry')->run();
+
     $labels = app(PermissionResourceLabels::class);
     $resources = Permission::query()->whereNull('retired_at')->distinct()->pluck('resource');
 

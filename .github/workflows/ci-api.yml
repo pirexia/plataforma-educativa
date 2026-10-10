@@ -6,6 +6,11 @@ on:
   push:
     branches: [develop, main]
 
+# Issue #401: el GITHUB_TOKEN solo lee por defecto; los jobs que escriben
+# declaran sus propios permisos.
+permissions:
+  contents: read
+
 defaults:
   run:
     working-directory: apps/api
@@ -99,6 +104,19 @@ jobs:
             -v dbname=plataforma_test \
             -f infra/containers/postgres/init/01-tenancy.sql.tpl
 
+      # ADR-060 §4.1: una base por proceso de Pest (plataforma_test_1..N),
+      # clon de plataforma_test. Va ANTES de arrancar `artisan serve` (paso
+      # siguiente): CREATE DATABASE ... TEMPLATE falla si la plantilla tiene
+      # conexiones abiertas, y `serve` deja una contra plataforma_test. El
+      # número de bases es el de procesos de `composer test` (PEST_PROCESOS).
+      - name: Crear las bases de la suite en paralelo (ADR-060)
+        working-directory: .
+        env:
+          PGHOST: 127.0.0.1
+          PGUSER: plataforma
+          PGPASSWORD: ci-postgres
+        run: sh infra/containers/postgres/bases-test-paralelo.sh 4
+
       # REQ-AUTH-004 (1.4b), operacion.md §F.10: el emisor OIDC simulado
       # se sirve por la propia API en local/testing, y la suite Pest lo
       # alcanza por HTTP real (no en proceso) para probar de verdad las
@@ -141,7 +159,12 @@ jobs:
           cat /tmp/artisan-serve.log
           exit 1
 
-      - run: composer test
+      # ADR-060 §4.1: Unit + Feature en paralelo (4 procesos, los del runner)
+      # y Concurrency en serie después.
+      - name: Suite de tests (composer test)
+        env:
+          PEST_PROCESOS: "4"
+        run: composer test
 
   lint:
     name: Lint (Pint)
