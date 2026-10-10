@@ -3,11 +3,11 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
-use App\Modules\Auth\Domain\Models\UserSession;
 use App\Modules\Auth\Domain\SessionEndReason;
 use App\Modules\Core\Domain\TenantSettingsReader;
 use App\Support\Api\ApiException;
 use App\Support\Audit\AuditRecorder;
+use App\Support\Sessions\ActiveSessionCloser;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,6 +30,7 @@ class EnforceSessionIdleTimeout
     public function __construct(
         private readonly TenantSettingsReader $settings,
         private readonly AuditRecorder $auditRecorder,
+        private readonly ActiveSessionCloser $sessionCloser,
     ) {}
 
     public function handle(Request $request, Closure $next): Response
@@ -49,11 +50,7 @@ class EnforceSessionIdleTimeout
             // funcional.md §B.4.6, RN-AUTH-44: cierre por inactividad,
             // antes de invalidar la sesión (mismo orden que el registro
             // de auditoría de arriba, ADR-039 §4.5).
-            UserSession::query()
-                ->where('session_id', $request->session()->getId())
-                ->whereNull('ended_at')
-                ->first()
-                ?->close(SessionEndReason::Inactividad);
+            $this->sessionCloser->closeBySessionId($request->session()->getId(), SessionEndReason::Inactividad);
 
             Auth::guard('web')->logout();
             $request->session()->invalidate();

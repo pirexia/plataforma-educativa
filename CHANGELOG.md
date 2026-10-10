@@ -6,11 +6,33 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
-## 2026-10-09 · Cobertura de las reglas de arquitectura `AR-01`, `AR-02` y `AR-08` (`INV-007`, `ADR-056`, #378 B1 y B2)
+## 2026-10-10 · Cobertura de las reglas de arquitectura `AR-01`, `AR-02` y `AR-08` (`INV-007`, `ADR-056`, #378 B1 y B2)
 
 - **B1, control negativo permanente**: fixtures en `apps/api/tests/Fixtures/Architecture/` que violan a propósito la frontera de módulo (`Infrastructure` y `Domain\Models` de otro módulo) y un fixture que solo usa el `Domain` permitido (control positivo, para que la regla no pase por lanzar siempre). `AR-01` y `AR-02` comprueban con `toThrow` que `not->toUse(...)` muerde; la parte `arch()` de `AR-08` (Pest no escanea `Tests\`) lo comprueba aplicando `toOnlyBeUsedIn` con una lista deliberadamente estrecha. Un cambio de Pest que vacíe las reglas ya no pasa desapercibido.
 - **B2, `AR-01` invertida**: `ArchitectureModules::forbiddenFor()` calcula lo vedado por sistema de ficheros (todo lo que cuelgue de la raíz de otro módulo salvo `Domain`, más `Domain\Models`); una carpeta o clase nueva (`Console`, `Support`, `Listeners`…) queda vedada sin tocar el test. Sin violaciones reales hoy. `AR-02` no se modifica (B3-B5 y la inversión de `AR-02` fuera de alcance).
 - `ARCHITECTURE.md` 2.4.2 y `README.md` actualizados.
+
+---
+
+## 2026-10-10 · Test de la migración de `public_id` sin estado residual (`ADR-056 AR-05`, `CA-056-06`, #377)
+
+- **`FeatureFlagsPublicIdMigrationTest` (#377 B-1, B-2)**: `down()`, `up()` y la fila de prueba corren dentro de una transacción de `pgsql_owner` que siempre termina en `ROLLBACK` (el DDL de PostgreSQL es transaccional). Un `kill` del proceso ya no deja las columnas en `text` ni la fila `test.migration.short_public_id`.
+- **#377 B-3**: no se implementa; `SYSADMIN.md` 0.8.7 anota que los *workers*/Octane, cuando existan (#128), deben reiniciarse tras migraciones que cambien el tipo de una columna. `README.md` actualizado a `SYSADMIN.md` 0.8.7.
+
+---
+
+## 2026-10-08 · `AR-02` sin excepciones (#375, `INV-007`)
+
+`EnforceSessionIdleTimeout` y `VerifySessionTenant` cierran la sesión por `App\Support\Sessions\ActiveSessionCloser` (implementación `Auth\Infrastructure\EloquentActiveSessionCloser`); `SyncModuleRegistry` invalida la caché por `App\Support\FeatureFlags\FeatureFlagCatalogInvalidator` (lo implementa `FeatureFlagCatalogCache`). `CoreBoundariesTest`: lista de excepciones vacía y test de resolución de las interfaces. Sin cambio de comportamiento. `ADR-056 §3.3`, `OPEN-056-03` y `CA-056-03`/`CA-056-15` quedan superados en esta parte (el ADR no se edita).
+
+---
+
+## 2026-10-08 · `ADR-059`: reapertura de un curso cerrado (`OPEN-CURSO-08`, `REQ-CURSO`)
+
+- **`ADR-059` ACEPTADA**: opción B (reapertura por la API del centro, acotada por hechos: ningún otro curso activo y solo el cerrado más reciente), permiso propio `reapertura_curso_academico.actualizar`, motivo obligatorio en la tabla *append-only* `academic_year_reopenings`, registro vacío de validaciones de reapertura. No toca el disparador ni `YC001`. Resuelve `OPEN-CURSO-08`; `OPEN-059-05` y `-06` siguen abiertas.
+- **Especificación de `REQ-CURSO`** ampliada (`RN-CURSO-40..48`, `CA-CURSO-087` y `-100..-107`, `OPEN-CURSO-24`), `SYSADMIN.md` 0.8.6, manual de administración y `REQUISITOS` 3.2.14. **Solo documentación: la reapertura aún no está implementada.**
+
+---
 
 ## 2026-10-08 · Redistribución de modelos entre Haiku, Sonnet y Opus (`CLAUDE.md` 2.6.0)
 

@@ -3,10 +3,10 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
-use App\Modules\Auth\Domain\Models\UserSession;
 use App\Modules\Auth\Domain\SessionEndReason;
 use App\Support\Api\ApiException;
 use App\Support\Audit\AuditRecorder;
+use App\Support\Sessions\ActiveSessionCloser;
 use App\Support\Tenancy\TenantContext;
 use Closure;
 use Illuminate\Http\Request;
@@ -28,6 +28,7 @@ class VerifySessionTenant
     public function __construct(
         private readonly TenantContext $tenantContext,
         private readonly AuditRecorder $auditRecorder,
+        private readonly ActiveSessionCloser $sessionCloser,
     ) {}
 
     public function handle(Request $request, Closure $next): Response
@@ -83,11 +84,7 @@ class VerifySessionTenant
                 // 'tenant_incoherente' es la única razón de cierre que no
                 // ocurre en operación normal (operacion.md §B.5) —
                 // cualquier valor distinto de cero es un incidente.
-                UserSession::query()
-                    ->where('session_id', $sessionId)
-                    ->whereNull('ended_at')
-                    ->first()
-                    ?->close(SessionEndReason::TenantIncoherente);
+                $this->sessionCloser->closeBySessionId($sessionId, SessionEndReason::TenantIncoherente);
 
                 // `Auth::guard('web')->logout()` también tiene que
                 // ejecutarse aquí dentro, no después: si hay "remember

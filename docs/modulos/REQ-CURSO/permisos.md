@@ -1,6 +1,6 @@
 # REQ-CURSO · Permisos
 
-> **Estado**: **APROBADA** (2026-10-07), paso **1.10**, con los ajustes de `ADR-057` (aceptado). Nombres de recurso y siembra aprobados (`OPEN-CURSO-13`, `OPEN-CURSO-14`). **La fuente de verdad será `CursoServiceProvider::declaredPermissions()`** (`INV-007`, `ADR-034 §2`); esta tabla es su reflejo documental.
+> **Estado**: **APROBADA** (2026-10-07), paso **1.10**, con los ajustes de `ADR-057` (aceptado). Nombres de recurso y siembra aprobados (`OPEN-CURSO-13`, `OPEN-CURSO-14`). **La fuente de verdad será `CursoServiceProvider::declaredPermissions()`** (`INV-007`, `ADR-034 §2`); esta tabla es su reflejo documental. **Ampliada el 2026-10-08 por `ADR-059`** (aceptado): recurso `reapertura_curso_academico` (`OPEN-059-02`, resuelta: recurso propio, sin doble confirmación).
 
 ---
 
@@ -11,6 +11,7 @@
 | `curso_academico` | La ficha de un curso: código y fechas | Recurso principal |
 | `estado_curso_academico` | El **estado** de un curso: activarlo y cerrarlo | Cerrar un curso bloquea la escritura de todos los datos de ese curso en todos los módulos del centro. Separarlo de `curso_academico.actualizar` evita que quien corrige una fecha pueda cerrar el curso de todo el centro. **No se inventa acción** (`RPERM-003` es cerrado): mismo patrón que `rol_datos_especiales` (`REQ-PERM/permisos.md §1`) |
 | `curso_historico` | El acceso a datos de **cualquier módulo** pertenecientes a un curso `cerrado` o `archivado` | Lectura literal de `REQ-CURSO-001`: «el usuario **con permiso** puede consultar datos de cursos cerrados». Se exige **además** del permiso de lectura del módulo dueño del dato, nunca en su lugar (`RN-CURSO-25`, `OPEN-CURSO-16`) |
+| `reapertura_curso_academico` | La **reapertura** de un curso cerrado (`cerrado → activo`, `ADR-059`) | Reabrir deshace la garantía de solo lectura de **todo** el centro para un curso entero; un centro que delega el cierre (`estado_curso_academico`) no tiene por qué delegar también deshacerlo. Mismo patrón que separó `estado_curso_academico` de `curso_academico` (`OPEN-CURSO-13`). Empezar separado es denegar por defecto: fusionarlos después es aditivo; separarlos después dejaría sin capacidad a los roles personalizados que ya la tuvieran (`ADR-059 §5.2`) |
 
 Acciones solo de `RPERM-003`. **No se inventa ninguna.**
 
@@ -27,6 +28,7 @@ Acciones solo de `RPERM-003`. **No se inventa ninguna.**
 | `curso_academico.actualizar` | `curso_academico` | `actualizar` | `['todos']` | `PATCH /academic-years/{id}` |
 | `estado_curso_academico.actualizar` | `estado_curso_academico` | `actualizar` | `['todos']` | `POST /academic-years/{id}/status` |
 | `curso_historico.leer` | `curso_historico` | `leer` | `['todos']` | **Ningún *endpoint* propio**: lo comprueba el contrato `AcademicYearReadAccess` desde los *endpoints* de lectura de otros módulos (desde 1.11). En 1.10 solo lo ejercita la ruta de test del contrato (`CA-CURSO-044`) |
+| `reapertura_curso_academico.actualizar` | `reapertura_curso_academico` | `actualizar` | `['todos']` | `POST /academic-years/{id}/reopen` (`ADR-059`). Acción de `RPERM-003`, ninguna inventada |
 
 **Todos `['todos']`, y no es pereza.** Un curso es del centro entero: no existe «los cursos de mi grupo». `curso_historico.leer` con `grupo` («el histórico de mi grupo») sería tentador, pero el ámbito del **dato** lo pone el permiso del módulo dueño (`calificacion.leer` con `grupo`); `curso_historico` solo responde «¿puede asomarse a cursos cerrados?». Con `todos` en ambos, la combinación ya da «el histórico de mi grupo» sin que este módulo sepa qué es un grupo.
 
@@ -56,6 +58,7 @@ Acciones solo de `RPERM-003`. **No se inventa ninguna.**
 | `curso_academico` | `todos` | `todos` | `todos` | — | — | — | — | — | — |
 | `estado_curso_academico` | — | — | `todos` | — | — | — | — | — | — |
 | `curso_historico` | — | `todos` | — | — | — | — | — | — | — |
+| `reapertura_curso_academico` | — | — | `todos` | — | — | — | — | — | — |
 
 ### 3.1 Ámbito restringido
 
@@ -69,14 +72,16 @@ Denegación por defecto (`RPERM-011`): lo que no aparece no se concede. Se siemb
 
 | Rol (`code`) | Permisos | Ámbito | Motivo |
 |--------------|----------|--------|--------|
-| `administrador_centro` | Los cinco | `todos` | `§11.1`: «gestión completa de su tenant». Criterio constante del proyecto: las capacidades que afectan al centro entero, solo al administrador (`REQ-PERM/permisos.md §5.1`) |
+| `administrador_centro` | Los seis (los cinco de 1.10 y `reapertura_curso_academico.actualizar`, `ADR-059 §5.2`) | `todos` | `§11.1`: «gestión completa de su tenant». Criterio constante del proyecto: las capacidades que afectan al centro entero, solo al administrador (`REQ-PERM/permisos.md §5.1`) |
 | `direccion` | `curso_academico.leer`, `curso_historico.leer` | `todos` | `§11.1`: «informes académicos», que son de cursos anteriores tanto como del actual |
 | `secretaria` | `curso_academico.leer`, `curso_historico.leer` | `todos` | `§11.1`: «documentación oficial, certificados, matrícula, traslados», que consultan cursos cerrados |
 | Los 13 restantes | — | — | Sin base en `§11.1`. Un centro que quiera dárselo a docentes o tutores lo hace con un rol personalizado o ampliando el suyo |
 
 **Consecuencia que conviene ver ahora**: con esta siembra, un **docente no puede consultar las calificaciones de cursos cerrados** aunque fueran sus alumnos, hasta que el centro se lo conceda. Es la opción restrictiva; la otra (dárselo a `docente`/`tutor_grupo`) es razonable y está en `OPEN-CURSO-14`. Lo mismo para familias y alumnado (`OPEN-CURSO-16`, a decidir con `REQ-FAM-PORTAL`/`REQ-EST`).
 
-`soporte_plataforma`: sin permisos de este módulo (`REQ-PERM/permisos.md §5.4`). `super_administrador`: no es fila de `roles` (`ADR-034 §2`).
+`soporte_plataforma`: sin permisos de este módulo (`REQ-PERM/permisos.md §5.4`). `super_administrador`: no es fila de `roles` (`ADR-034 §2`). La reapertura **no** tiene vía de plataforma (*backoffice*): la opción C de `ADR-059` se descartó y queda solo como ampliación aditiva futura.
+
+**Centros ya existentes**: cómo reciben `reapertura_curso_academico.actualizar` está pendiente de `OPEN-CURSO-24` (`funcional.md §15.2`); los centros nuevos lo reciben de `ProvisionTenantDefaults`.
 
 ---
 
@@ -88,30 +93,31 @@ Denegación por defecto (`RPERM-011`): lo que no aparece no se concede. Se siemb
 | **Lectura de curso cerrado** — exige `curso_historico.leer` **además** del permiso del módulo | Contrato `AcademicYearReadAccess`, en los *endpoints* de lectura de otros módulos | `404`, nunca `403` (no se confirma que haya datos, `ADR-038 §6.4`). Todo módulo con datos por curso lo comprueba con un criterio de aceptación de lectura denegada en listado **y** en detalle (`RN-CURSO-33`, `OPEN-057-03` resuelta) |
 | **Un activo y un en planificación** | Índice único parcial + servicio | `409` |
 | **Solo transiciones válidas** | Servicio de transiciones | `409 invalid_transition` |
+| **Ventana de reapertura (T1)** — aun con `reapertura_curso_academico.actualizar`, solo se reabre el cerrado más reciente, sin otro curso activo y sin validaciones de reapertura fallidas (`RN-CURSO-41`, `-45`) | Servicio de transiciones, tras `FOR UPDATE` | `409 active_exists` / `reopen_not_latest` / `reopen_checks_failed`. No es `403`: es estado del centro, no falta de permiso |
 | **Edición solo en `planificacion`** | Servicio | `409 not_editable` |
 | **Aislamiento de tenant** | Todas las rutas | `public_id` de otro centro ⇒ `404` |
-| `RPERM-013` | Concesión de cualquiera de los cinco permisos a un rol | Sin cambios: nadie concede lo que no tiene. Al ser todos `todos`, sin matices de ámbito |
+| `RPERM-013` | Concesión de cualquiera de los seis permisos a un rol | Sin cambios: nadie concede lo que no tiene. Al ser todos `todos`, sin matices de ámbito |
 
 ---
 
 ## 6. Datos de categoría especial
 
-**Ninguno.** `academic_years` no contiene salud, NEAE ni convivencia. Los cinco permisos llevan `is_special_category = false`; `AR-09` (cable trampa) no se activa. `curso_historico.leer` **no** da acceso a categoría especial: el dato especial de un curso cerrado sigue exigiendo su permiso especial y `special_data_access` en el rol que concede (`RPERM-012`, `ADR-044`), además de `curso_historico.leer`.
+**Ninguno.** `academic_years` no contiene salud, NEAE ni convivencia. Los seis permisos (cinco de 1.10 y el de reapertura de `ADR-059`) llevan `is_special_category = false`; `AR-09` (cable trampa) no se activa. `curso_historico.leer` **no** da acceso a categoría especial: el dato especial de un curso cerrado sigue exigiendo su permiso especial y `special_data_access` en el rol que concede (`RPERM-012`, `ADR-044`), además de `curso_historico.leer`.
 
 ---
 
 ## 7. MFA
 
-Ningún rol nuevo y ningún cambio de `mfa_required`. `estado_curso_academico.actualizar` es la capacidad más peligrosa del módulo y en la siembra aprobada solo la tiene `administrador_centro`, que ya lleva `mfa_required = true` desde 1.1.
+Ningún rol nuevo y ningún cambio de `mfa_required`. `estado_curso_academico.actualizar` y `reapertura_curso_academico.actualizar` son las capacidades más peligrosas del módulo y en la siembra aprobada solo las tiene `administrador_centro`, que ya lleva `mfa_required = true` desde 1.1. **Sin reautenticación reforzada (*step-up*)** para la reapertura: no existe el mecanismo en la aplicación de centros ni hay requisito que lo pida (`ADR-059 §5.2`, `REQ-AUTH/funcional.md`).
 
 ---
 
 ## 8. Traducciones (`INV-009`, `ADR-021`)
 
-En `lang/{es,en,de,fr}/curso.php`: las tres etiquetas de recurso (`curso.permissions.resources.*`), las cuatro etiquetas de estado, y todos los mensajes de `api.md §5`. En `lang/{es,en,de,fr}/modules.php`: `modules.curso`. Paridad de claves vigilada por `AR-12`; la calidad de las cuatro traducciones, por revisión (el test no detecta un texto en español copiado a los cuatro).
+En `lang/{es,en,de,fr}/curso.php`: las cuatro etiquetas de recurso (`curso.permissions.resources.*`, la cuarta `reapertura_curso_academico` de `ADR-059`), las cuatro etiquetas de estado, y todos los mensajes de `api.md §5`. En `lang/{es,en,de,fr}/modules.php`: `modules.curso`. Paridad de claves vigilada por `AR-12`; la calidad de las cuatro traducciones, por revisión (el test no detecta un texto en español copiado a los cuatro).
 
 ---
 
 ## 9. Verificación
 
-`funcional.md §13.4`: `CA-CURSO-060` a `CA-CURSO-065`. Además, el test de catálogo general (`PermissionCatalogTest`) debe conocer los cinco códigos nuevos con `module_code = 'curso'`; si falla, alguien ha declarado un permiso que esta especificación dice que no existe.
+`funcional.md §13.4`: `CA-CURSO-060` a `CA-CURSO-065`; reapertura, `CA-CURSO-101` (`403` sin el permiso, también con `estado_curso_academico.actualizar`) y `CA-CURSO-107` (aislamiento). Además, el test de catálogo general (`PermissionCatalogTest`) debe conocer los códigos del módulo (cinco de 1.10 más `reapertura_curso_academico.actualizar`) con `module_code = 'curso'`; si falla, alguien ha declarado un permiso que esta especificación dice que no existe.

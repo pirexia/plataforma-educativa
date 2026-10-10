@@ -2,8 +2,8 @@
 
 namespace App\Support\Modules;
 
-use App\Modules\Core\Infrastructure\FeatureFlagCatalogCache;
 use App\Support\Authorization\Scope;
+use App\Support\FeatureFlags\FeatureFlagCatalogInvalidator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -127,11 +127,11 @@ final class SyncModuleRegistry
 
         // OPEN-BO-24 decisión (b): cualquier cambio del catálogo
         // materializado (alta, actualización de descriptor o retirada)
-        // invalida la única entrada de caché del evaluador. Referencia
-        // por FQCN sin `use`: `App\Support` no depende del namespace
-        // interno de un módulo concreto (INV-007) — esta clase resuelve
-        // el servicio del contenedor, no importa su implementación.
-        app(FeatureFlagCatalogCache::class)->forget();
+        // invalida la única entrada de caché del evaluador. `App\Support` no
+        // depende del namespace interno de un módulo concreto (INV-007,
+        // ADR-056 AR-02): resuelve la interfaz `FeatureFlagCatalogInvalidator`,
+        // que implementa Core.
+        app(FeatureFlagCatalogInvalidator::class)->forget();
     }
 
     /**
