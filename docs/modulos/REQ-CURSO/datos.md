@@ -3,6 +3,8 @@
 > **Estado**: **APROBADA** (2026-10-07), paso **1.10**, con los ajustes de `ADR-057` (aceptado). Ver `funcional.md` para alcance y preguntas abiertas.
 >
 > **Resumen**: 1.10 **no crea ninguna tabla ni altera ninguna columna**. `academic_years` existe desde 0.8.2 (`ADR-034 §4`) con la forma que `REQ-CURSO-001` necesita, y las entidades de `REQ-CURSO-002` a `-005` (`YearRollover`, `PromotionDecision`, `RenewalCampaign`, `YearArchive`) quedan fuera de alcance (`funcional.md §1.2`). **Sí trae una migración**: la que crea la función `app.assert_academic_year_writable()` del bloqueo de escritura (`ADR-057 §5.2`, §1.4). Lo que además añade este documento es el contrato de datos que deben cumplir **las tablas de los demás módulos** que dependen del curso, y el traslado del modelo al módulo (que no es esquema, `OPEN-CURSO-03`).
+>
+> **Ampliación por `ADR-059`** (aceptado el 2026-10-08, reapertura de un curso cerrado, `OPEN-CURSO-08`): **una tabla nueva**, `academic_year_reopenings` (§1.5), *append-only* y con `academic_year_id`. **No altera** `academic_years`, la función del bloqueo ni ningún disparador. El paso de implementación lo fija `PLAN-IMPLEMENTACION.md`.
 
 ---
 
@@ -64,7 +66,31 @@ Una **segunda sonda, creada a propósito sin el ayudante** (`Schema::create` con
 | Privilegios necesarios | `UPDATE` sobre `academic_years` para el `FOR SHARE` (los dos roles de aplicación lo tienen). **Ningún rol de aplicación tiene `TRUNCATE`** sobre tablas de curso (`TRUNCATE` no dispara disparadores de fila); concederlo sería una regresión (`CA-057-10`) |
 | Retirar la columna | `DROP TRIGGER academic_year_write_guard ON <tabla>` **antes** de `DROP COLUMN academic_year_id` (y, en *contract*, de `DROP TABLE` no hace falta). Un disparador que sobrevive a la columna leería `NEW.academic_year_id` inexistente y fallaría en cada escritura; `AR-13` lo vigila (tabla con el disparador sin la columna) |
 | Requisito previo de despliegue | El rol propietario necesita `CREATE` sobre el esquema `app` (`GRANT CREATE ON SCHEMA app TO <propietario>`, `RUNBOOK.md` paso 0); la migración lo comprueba y aborta con el comando exacto. La función fija `SET search_path = pg_catalog, pg_temp` |
-| Excepciones al bloqueo | Ninguna en 1.10. Su forma futura (variable de configuración local a la transacción con pares `tabla:operación`, fijada solo desde `Curso\Domain`) está en `ADR-057 §5.7`; no se construye ahora |
+| Excepciones al bloqueo | Ninguna en 1.10. Su forma futura (variable de configuración local a la transacción con pares `tabla:operación`, fijada solo desde `Curso\Domain`) está en `ADR-057 §5.7`; no se construye ahora. La reapertura (`ADR-059`) **no** es una excepción: cambia `academic_years.status`, tabla sin disparador (§1.5) |
+
+### 1.5 `academic_year_reopenings` (nueva, `ADR-059 §5.4`)
+
+Registro *append-only* de cada reapertura de un curso cerrado (`funcional.md §4.6`, `RN-CURSO-43`). Responde «quién reabrió, cuándo y por qué» sin leer `audit_logs` y sin depender de que `AuditRecorder` escriba `audit_logs.context` (no lo hace hoy). Precedente: `mfa_resets`.
+
+Migración del módulo (`apps/api/app/Modules/Curso/Database/migrations/`) con **`TenantMigration::tenantTableAppendOnly()`** y `TenantMigration::tenantForeignId($table, 'academic_year_id', 'academic_years')`: RLS `ENABLE`+`FORCE`, `UNIQUE (tenant_id, id)`, y **el disparador `academic_year_write_guard`**, sin excepción en `AR-13` (es dato del curso).
+
+| Columna | Tipo | Nulo | Por defecto | Descripción |
+|---------|------|------|-------------|-------------|
+| `id` | `bigint` | No | secuencia | Clave interna. No sale de la API (`ADR-029`) |
+| `tenant_id` | `bigint` | No | `app.current_tenant_id()` | `ADR-033` |
+| `public_id` | `character(26)` | No | — | ULID, único (`AR-05`) |
+| `academic_year_id` | `bigint` | No | — | Curso reabierto. FK compuesta `(tenant_id, academic_year_id) → academic_years (tenant_id, id)`, **`NO ACTION`** (prohibidas las acciones referenciales en tablas con `academic_year_id`, `AR-13`) |
+| `reason` | `text` | No | — | Motivo de la reapertura, recortado y no vacío (validado en servidor, `INV-010`). Contenido del centro; el manual advierte de no escribir datos personales |
+| `created_by` | `bigint` | **[DERIVADA]** ver nota | — | Usuario que reabrió. FK compuesta a `users`, también **`NO ACTION`**: en una tabla con `academic_year_id` está prohibido `nullOnDelete`/`cascadeOnDelete` (`AR-13`) |
+| `created_at` | `timestamptz` | No | — | Momento de la reapertura |
+
+Sin `updated_at`, `updated_by` ni `deleted_at`: es *append-only* (lo que dé `tenantTableAppendOnly()`, igual que `mfa_resets`). No se añade columna de motivo a `academic_years`: se sobrescribiría en la segunda reapertura y mezclaría histórico con estado (`ADR-059 §8`).
+
+**Nota sobre `created_by`**: el único camino de alta es el *endpoint* autenticado, así que en la práctica siempre lleva valor; si se declara `NOT NULL` o anulable lo fija la implementación con el mismo criterio que `mfa_resets`. No se propone `CHECK` de motivo no vacío en el motor: hay un único escritor y la validación de servidor basta (mismo criterio que `code` en §1.1).
+
+**Orden de escritura** (`ADR-059 §5.3`): la fila se inserta **después** de cambiar `academic_years.status` a `activo`, en la misma transacción; el disparador lee el estado ya actualizado por la propia transacción y la admite. Si el curso se vuelve a cerrar, sus filas quedan inmutables, que es lo deseado.
+
+**Modelo**: `Curso\Domain\Models\AcademicYearReopening` **[DERIVADA: nombre]**, `extends TenantModel`, `implements Auditable` con `AuditValuePolicy::Full` (`ADR-035 §8`, criterio de `user_mfa_exemptions.reason`), alias de *morph map* `academic_year_reopening` registrado en `CursoServiceProvider::boot()` (`AR-06`). Su alta queda como `created` en `audit_logs`; sin evento nuevo (`ADR-039 §5.3`).
 
 ---
 
@@ -93,6 +119,8 @@ erDiagram
     USERS |o--o{ ACADEMIC_YEARS : "created_by / updated_by (FK compuesta)"
     ACADEMIC_YEARS ||--o{ "TABLAS DE CURSO DE OTROS MÓDULOS (1.11+)" : "(tenant_id, academic_year_id) FK compuesta, NOT NULL"
     ACADEMIC_YEARS ||..o{ AUDIT_LOGS : "auditable (polimórfica, alias academic_year, sin FK)"
+    ACADEMIC_YEARS ||--o{ ACADEMIC_YEAR_REOPENINGS : "(tenant_id, academic_year_id) FK compuesta, NOT NULL (ADR-059)"
+    USERS |o--o{ ACADEMIC_YEAR_REOPENINGS : "created_by (FK compuesta, NO ACTION)"
 ```
 
 Futuras (fuera de 1.10, todas con `academic_year_id NOT NULL`): `year_rollovers` (`REQ-CURSO-002`), `promotion_decisions` (`-003`), `renewal_campaigns` (`-004`), y lo que decida el ADR de archivado para `YearArchive` (`-005`).
@@ -111,6 +139,8 @@ Existentes, y suficientes para 1.10. **No se propone ninguno nuevo.**
 | `UNIQUE (public_id)` | Detalle por `public_id` |
 
 El listado (`ORDER BY starts_on DESC, id DESC`) no lleva índice propio: un centro tiene un curso por año y la tabla tendrá decenas de filas por tenant en toda su vida. Un índice para eso es deuda (plantilla `datos.md`).
+
+**Reapertura (`ADR-059`)**: la condición «es el cerrado más reciente» (`RN-CURSO-41`) es una consulta sobre `academic_years` del centro filtrada por estado y `starts_on`; con decenas de filas por centro no justifica índice. `academic_year_reopenings` lleva el índice `(tenant_id, academic_year_id)` que crea `tenantForeignId()` y el único de `public_id`; ninguno más (pocas filas por curso).
 
 ---
 
@@ -131,6 +161,13 @@ El listado (`ORDER BY starts_on DESC, id DESC`) no lleva índice propio: un cent
 - [x] `public_id` `character(26)` con índice único. *`AR-05`.* **Línea de `public_id`: ninguna clave de catálogo expuesta**; `code` **no** se usa como identificador de ruta (fallaría C1 y C2 de `ADR-051`: lo escribe el centro y es único por centro)
 - [ ] `NULLS NOT DISTINCT` — no aplica (ninguna columna anulable en las claves únicas)
 
+### `academic_year_reopenings` (`ADR-059`, §1.5)
+- [ ] `tenant_id` + RLS por `tenantTableAppendOnly()`; `academic_year_id NOT NULL` con `tenantForeignId()` y disparador `academic_year_write_guard` (*`AR-13`*, sin excepción)
+- [ ] Sin acciones referenciales (`NO ACTION`) en ninguna FK, incluida la de `created_by` (*`AR-13`*)
+- [ ] `public_id` ULID único (*`AR-05`*), `text`, `timestamptz` (*`AR-04`*)
+- [ ] `Auditable`, política `Full`, alias `academic_year_reopening` (*`AR-06`*)
+- [ ] *Append-only*: sin `updated_at`/`deleted_at`; ningún *endpoint* de modificación ni de borrado
+
 ### Resto
 - [ ] Datos de categoría especial — **no aplica**
 - [ ] Particionado — **no aplica** a `academic_years` (decenas de filas por centro). Sí condiciona a las tablas de otros módulos (§2, aviso)
@@ -142,5 +179,7 @@ El listado (`ORDER BY starts_on DESC, id DESC`) no lleva índice propio: un cent
 `academic_years` **no contiene datos personales**. Su retención la gobierna la de los datos que cuelgan de ella: un curso no puede purgarse mientras existan actas, historiales o facturas de ese curso con obligación legal de conservación (`ADR-004` niveles 1 y 3). El catálogo de retención por entidad es de `REQ-PRIV-006` (paso `2.x`, issue #371); esta tabla debe aparecer en él como **«se conserva mientras exista cualquier dato dependiente; sin supresión propia»**. Borrado lógico únicamente (`INV-004`); en 1.10 ni siquiera lógico (`OPEN-CURSO-12`).
 
 Las filas de `academic_years` entran en la purga física de un tenant (issue #371) **después** de todas las tablas que las referencian, por el orden de dependencias de las FK (no hay `ON DELETE CASCADE`, y no puede haberlo: **prohibido `cascadeOnDelete`/`nullOnDelete`/`ON UPDATE CASCADE` en cualquier tabla con `academic_year_id`**, porque PostgreSQL ejecuta las acciones referenciales como propietario de la tabla hija, exento del disparador, y saltarían el bloqueo; lo comprueba `AR-13`). La purga de filas de cursos cerrados la ejecuta el propietario de las tablas, exento del disparador (§1.4).
+
+**`academic_year_reopenings`** (`ADR-059`): dato del curso; se conserva con el curso y entra en la purga física de un tenant antes que `academic_years` (FK). `reason` es texto libre del centro: aunque el manual advierte de no escribir datos personales, si los contuviera quedaría sujeto a lo mismo que el resto de datos de un curso cerrado (siguiente párrafo).
 
 **Pendiente (`OPEN-057-04`)**: suprimir o anonimizar datos personales en tablas de un curso cerrado choca con el bloqueo de escritura. Lo decide `REQ-PRIV-006` (como tarea del propietario o con excepción declarada de `ADR-057 §5.7`) antes de admitir datos reales.
