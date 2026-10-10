@@ -72,7 +72,9 @@
 ---
 ## Trabajo en curso
 
-Ninguno. Cierre de sesión del 2026-10-10: `develop` limpio, sin PR abiertos ni ramas sueltas. Notas anteriores archivadas en `docs/historial/memory-archivo-2026-10-10.md`.
+**`1.11` (`REQ-ACAD-001`) · nota viva (2026-10-10)**: especificación APROBADA y `ADR-062`/`ADR-063` ACEPTADOS (commits `9372dfe`, `129786f` en `feature/REQ-ACAD-1-11-estructura-academica`; `doc-reviewer` sin Críticos/Altos). Issues abiertos por los hallazgos: #407 (índice de `tenantForeignId`), #408 (README web), #409 (selector). Decisiones del usuario: todas las recomendaciones `OPEN-ACAD-01..23`; `OPEN-062-01` = `default_locale`; `OPEN-063-01` = fijar «clase»; implementación en **dos entregas**: `1.11-a` (infraestructura compartida, rama `feature/REQ-ACAD-1-11a-infraestructura-compartida`, `implementer` lanzado, sin verificar) y `1.11-b` (módulo `acad`, AR-16 con no vacuidad, componente web, selector visual, README web, `acad:grant-structure-permissions`). Pendiente para la implementación: cifra «34 rutas» de `AR-07a` y trato de claves desconocidas en `CA-ACAD-060`. Al cerrar `1.11-b`: repetir `AcademicYearWriteGuardOverheadTest` con `subjects` (#382) y anotar la cifra en `CHANGELOG.md`; inventariar tablas sin índice por #407; enlazar #104 y #387.
+
+Antes: cierre de sesión del 2026-10-10 con `develop` limpio. Notas anteriores archivadas en `docs/historial/memory-archivo-2026-10-10.md`.
 
 **Hecho en la sesión del 2026-10-08/10** (todo mezclado en `develop`):
 - `ADR-059` (reapertura de curso cerrado, PR #394): `OPEN-CURSO-08` resuelta; la implementación es el paso `1.11c`.
