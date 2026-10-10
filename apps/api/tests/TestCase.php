@@ -46,6 +46,20 @@ abstract class TestCase extends BaseTestCase
             $this->artisan('migrate', ['--database' => 'pgsql_owner', '--force' => true])->run();
             self::$migrated = true;
         }
+
+        // ADR-060 §4.1 / CA-060-07 (issue #199): cada test reconstruye la
+        // aplicación, y las conexiones de la anterior (tres roles, ADR-033 §5)
+        // no se cierran hasta que el recolector de basura las alcanza. Con un
+        // solo proceso eso rozaba `max_connections`; con N procesos lo supera.
+        // Se cierran aquí, después de que `DatabaseTransactions` haya hecho su
+        // ROLLBACK (su callback se registró en `parent::setUp()`, antes que este).
+        $this->beforeApplicationDestroyed(function (): void {
+            $db = $this->app->make('db');
+
+            foreach (array_keys($db->getConnections()) as $name) {
+                $db->purge($name);
+            }
+        });
     }
 
     /**
