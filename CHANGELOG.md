@@ -15,6 +15,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-10 · Pest 5 y PHPUnit 13 (#346, rama `chore/deps-pest-5`)
+
+- `pestphp/pest` `^5.0` (5.3.1), `pestphp/pest-plugin-laravel` `^5.0` (5.0.1), `phpunit/phpunit` `^13.0.0` (13.4.1), con `pest-plugin-arch` 5.0.0 y `laravel/boost` 2.10.3 (Pest 5.3.1 exige `boost >= 2.6.0`, lo que bloqueaba a Renovate). Sin cambios en tests, `phpunit.xml`, `composer.json` (scripts) ni `bootstrap.php`: 1105 tests en verde, igual que antes.
+
+---
+
 ## 2026-10-10 · Suite de tests en paralelo y norma de ejecución (`ADR-060`, rama `chore/tests-paralelos`)
 
 - **Implementación de `ADR-060` (aceptada)**: `composer test` ejecuta `Unit` + `Feature` en paralelo (una base `plataforma_test_N` y una base Redis de caché por proceso; 6 procesos en desarrollo, 4 en CI, `PEST_PROCESOS`) y después `Concurrency` en serie; `test:paralelo`, `test:concurrencia` y `test:serie` (camino de vuelta). Script idempotente `infra/containers/postgres/bases-test-paralelo.sh N [--recrear]`; `tests/bootstrap.php` con guarda (`^plataforma_test_[0-9]+$` y `APP_ENV=testing`, aborta antes del primer test); paso de bases en `ci-api.yml` antes de `artisan serve`. Las guardas de `Concurrency` no cambian.
