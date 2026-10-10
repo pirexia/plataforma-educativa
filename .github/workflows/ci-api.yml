@@ -61,7 +61,7 @@ jobs:
       # arranque sin esto (issue #132).
       SESSION_LIFETIME: "480"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -69,7 +69,7 @@ jobs:
           extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis
           coverage: none
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: apps/api/vendor
           key: composer-${{ runner.os }}-${{ hashFiles('apps/api/composer.lock') }}
@@ -204,14 +204,14 @@ jobs:
       REDIS_HOST: 127.0.0.1
       SESSION_LIFETIME: "480"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
           coverage: none
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: apps/api/vendor
           key: composer-${{ runner.os }}-${{ hashFiles('apps/api/composer.lock') }}
@@ -258,14 +258,14 @@ jobs:
       REDIS_HOST: 127.0.0.1
       SESSION_LIFETIME: "480"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
           coverage: none
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: apps/api/vendor
           key: composer-${{ runner.os }}-${{ hashFiles('apps/api/composer.lock') }}
