@@ -2,6 +2,7 @@
 
 namespace App\Support\Tenancy;
 
+use App\Support\I18n\Locales;
 use Closure;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -60,6 +61,7 @@ final class TenantMigration
 
         self::applyTenantDefaultsAndRls($table);
         self::guardAcademicYearWritesIfApplicable($table);
+        self::applyPendingTranslationChecks($table);
 
         // hasColumn, no hasTable: hasta 0.8.4 existe un `users` heredado del
         // starter kit de Laravel sin tenant_id ni UNIQUE (tenant_id, id) —
@@ -97,6 +99,7 @@ final class TenantMigration
 
         self::applyTenantDefaultsAndRls($table);
         self::guardAcademicYearWritesIfApplicable($table);
+        self::applyPendingTranslationChecks($table);
 
         // De los dos roles, no solo plataforma_app: plataforma_platform
         // tiene BYPASSRLS (ADR-033 §5) y es la conexión que más fácil
@@ -110,15 +113,25 @@ final class TenantMigration
     }
 
     /**
-     * Columna + índice + clave foránea compuesta (tenant_id, $column)
-     * REFERENCES $referencedTable (tenant_id, id) en una sola llamada
-     * (ADR-033 §6, ADR-034 §4/§7). $column es NOT NULL siempre —
+     * Columna + clave foránea compuesta (tenant_id, $column) REFERENCES
+     * $referencedTable (tenant_id, id) + índice (tenant_id, $column) en una
+     * sola llamada (ADR-033 §6, ADR-034 §4/§7). $column es NOT NULL siempre —
      * ADR-034 §4: "academic_year_id es NOT NULL o no existe la columna,
      * nunca nullable"; el mismo criterio aplica a cualquier referencia
      * obligatoria entre tablas de tenant. Una referencia opcional no usa
      * este helper: se declara a mano, como created_by/updated_by.
-     */
-    /**
+     *
+     * Índice (issue #407, CA-ACAD-038): hasta 1.10 el docblock prometía un
+     * índice que el código no creaba (PostgreSQL no indexa por sí solo el
+     * lado hijo de una clave foránea). Desde 1.11 se crea
+     * `(tenant_id, $column)`, con nombre explícito de a lo sumo 63 bytes
+     * (ver `indexName()`): el nombre automático de Laravel
+     * `{tabla}_{columnas}_index` se trunca en silencio como el de la FK.
+     * **No es retroactivo**: las tablas ya migradas no lo ganan, igual que
+     * `$constraintName` no cambió el DDL de las migraciones mezcladas. Una
+     * migración que ya declare a mano un índice sobre las mismas columnas
+     * con otro nombre quedaría con uno duplicado; las nuevas no lo declaran.
+     *
      * `$constraintName`: hallazgo de `db-reviewer` (REQ-AUTH-004, 1.4c,
      * punto de control 1). El nombre por defecto de Laravel para esta FK
      * compuesta (`{tabla}_tenant_id_{columna}_foreign`) supera los 63
@@ -142,6 +155,117 @@ final class TenantMigration
 
         $blueprint->foreignId($column);
         $blueprint->foreign(['tenant_id', $column], $constraintName)->references(['tenant_id', 'id'])->on($referencedTable);
+        $blueprint->index(['tenant_id', $column], self::indexName($blueprint->getTable(), $column));
+    }
+
+    /**
+     * Longitud máxima de un identificador de PostgreSQL, en bytes.
+     */
+    public const IDENTIFIER_MAX_BYTES = 63;
+
+    /**
+     * Nombre del índice `(tenant_id, $column)` de `tenantForeignId()`:
+     * `{tabla}_{columna}_tenant_idx`, y si supera los 63 bytes, el prefijo
+     * recortado más un sufijo `_` + 8 hex de `md5` del nombre completo, para
+     * que sea determinista, único y entre en el límite sin truncado
+     * silencioso del motor. El sufijo `_tenant_idx` (y no el
+     * `_tenant_id_{columna}_index` automático de Laravel) evita chocar con un
+     * índice homónimo declarado a mano en una migración.
+     */
+    public static function indexName(string $table, string $column): string
+    {
+        return self::boundedIdentifier("{$table}_{$column}", '_tenant_idx');
+    }
+
+    /**
+     * ADR-062 §5.1: añade `<campo>_translations jsonb NOT NULL` y registra su
+     * `CHECK` para crearlo justo después de la tabla (`tenantTable()` y
+     * `tenantTableAppendOnly()` lo aplican). Nadie escribe el `CHECK` a mano
+     * (`AR-16`). Se llama dentro del cierre de columnas:
+     *
+     *     TenantMigration::tenantTable('subjects', function (Blueprint $t): void {
+     *         TenantMigration::translatableColumn($t, 'name');   // name_translations
+     *     });
+     *
+     * Para una tabla que ya existe (fase *expand* con filas), no sirve: la
+     * columna `NOT NULL` sin valor por defecto fallaría; ese caso lo decide la
+     * especificación del módulo que lo necesite.
+     */
+    public static function translatableColumn(Blueprint $blueprint, string $field): void
+    {
+        self::assertSafeIdentifier($field);
+
+        $column = "{$field}_translations";
+
+        $blueprint->jsonb($column);
+
+        self::$pendingTranslationChecks[$blueprint->getTable()][] = $column;
+    }
+
+    /** @var array<string, list<string>> tabla => columnas `*_translations` pendientes de su CHECK */
+    private static array $pendingTranslationChecks = [];
+
+    /**
+     * Nombre de la restricción `CHECK` de una columna traducible
+     * (`{tabla}_{columna}_check`, el que PostgreSQL daría por defecto, acotado
+     * a 63 bytes).
+     */
+    public static function translationsCheckName(string $table, string $column): string
+    {
+        return self::boundedIdentifier("{$table}_{$column}", '_check');
+    }
+
+    /**
+     * ADR-062 §5.1: el `CHECK` del motor de una columna traducible, en línea y
+     * sin función SQL compartida. Sobre tabla nueva o vacía (el
+     * `ADD CONSTRAINT` sin `NOT VALID` valida todas las filas bajo
+     * `ACCESS EXCLUSIVE`; sobre una tabla con filas usa el patrón de
+     * `migracion-segura`). Un valor que no es un objeto JSON falla con
+     * `check_violation` (23514), no con un error de operador (`CASE`).
+     *
+     * 1. objeto JSON; 2. no vacío; 3. claves dentro del vocabulario cerrado;
+     * 4. ningún valor que no sea cadena.
+     */
+    public static function addTranslationsCheck(string $table, string $column): void
+    {
+        self::assertSafeIdentifier($table);
+        self::assertSafeIdentifier($column);
+
+        $keys = implode(',', array_map(static fn (string $l): string => "'{$l}'", Locales::VOCABULARY));
+        $name = self::translationsCheckName($table, $column);
+
+        DB::connection('pgsql_owner')->statement(
+            "ALTER TABLE {$table} ADD CONSTRAINT {$name} CHECK ("
+            ."CASE WHEN jsonb_typeof({$column}) = 'object' THEN ("
+            ."{$column} <> '{}'::jsonb "
+            ."AND ({$column} - ARRAY[{$keys}]) = '{}'::jsonb "
+            ."AND NOT jsonb_path_exists({$column}, 'strict \$.* ? (@.type() != \"string\")')"
+            .') ELSE false END)'
+        );
+    }
+
+    private static function applyPendingTranslationChecks(string $table): void
+    {
+        $columns = self::$pendingTranslationChecks[$table] ?? [];
+        unset(self::$pendingTranslationChecks[$table]);
+
+        foreach ($columns as $column) {
+            self::addTranslationsCheck($table, $column);
+        }
+    }
+
+    private static function boundedIdentifier(string $base, string $suffix): string
+    {
+        $name = $base.$suffix;
+
+        if (strlen($name) <= self::IDENTIFIER_MAX_BYTES) {
+            return $name;
+        }
+
+        $hash = substr(md5($name), 0, 8);
+        $room = self::IDENTIFIER_MAX_BYTES - strlen($suffix) - strlen($hash) - 1;
+
+        return substr($base, 0, $room).'_'.$hash.$suffix;
     }
 
     /**
