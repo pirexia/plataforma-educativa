@@ -1,6 +1,6 @@
 # src/modules/
 
-Espejo de `apps/api/app/Modules/` (`ARCHITECTURE.md` §3 y §3.4): un directorio por bounded context, con sus vistas, componentes y llamadas a la API propias del módulo. `src/components/ui/` es aparte — son los componentes de shadcn-vue, compartidos por todos los módulos. Hoy hay dos: `auth` y `core` (el backoffice de plataforma tendrá SPA propia, `ADR-046`, no un directorio aquí).
+Espejo de `apps/api/app/Modules/` (`ARCHITECTURE.md` §3 y §3.4): un directorio por bounded context, con sus vistas, componentes y llamadas a la API propias del módulo. `src/components/ui/` es aparte — son los componentes de shadcn-vue, compartidos por todos los módulos. Hoy hay cuatro: `auth`, `core`, `curso` y `acad` (el backoffice de plataforma tendrá SPA propia, `ADR-046`, no un directorio aquí).
 
 ```
 src/modules/<modulo>/
@@ -29,3 +29,16 @@ Primer módulo real (`REQ-CORE`) y la referencia de módulo de frontend de `ARCH
 ## `auth/`
 
 `REQ-AUTH`: `shell.ts` con todas las rutas del módulo, `api/`, `types/`, `locales/` (espacio de nombres `auth`), `views/`, `components/` y `composables/`. Importa de `core` solo `@/modules/core/api`, que es superficie pública.
+
+## `curso/`
+
+`REQ-CURSO` (paso 1.10): ciclo de vida del curso académico. `shell.ts` (cuatro rutas y una entrada de menú), `api/` (incluye `GET /academic-years/selectable`, la fuente del selector de curso), `types/`, `locales/` (espacio de nombres `curso`), `views/` y `composables/`. Importa de `core` solo `@/modules/core/types`, que es superficie pública. El selector visual de curso académico **no** vive aquí sino en `src/academic-year/` (estado, componente y _composable_ de aplicación, reutilizable por cualquier pantalla con datos por curso).
+
+## `acad/`
+
+`REQ-ACAD-001` (paso 1.11-b): estructura académica (etapas, cursos de etapa, grupos, subgrupos, asignaturas y su asignación a grupos). `shell.ts` con cinco rutas (`/academico/estructura` y cuatro fichas) y una entrada de menú en «Administración», todas con `meta.permissions: ['estructura_academica.leer']` y `meta.academicYearScoped: true` (el _shell_ muestra el selector de curso académico, fijo en las fichas), `api/`, `types/`, `locales/` (espacio de nombres `acad`), `views/`, `components/` (`EntityFormDialog`, `StructureNotices`) y `composables/`. Los nombres de etapa, curso de etapa y asignatura se editan con `src/components/TranslatableField.vue` y se presentan con `TranslatedText.vue` (`ADR-062 §5.7`). Importa de `curso` solo lo público: la lectura de cursos seleccionables la hace `src/academic-year/` mediante `@/modules/curso/api`.
+
+## Piezas de aplicación fuera de `modules/`
+
+- `src/academic-year/`: selector de curso académico (`RN-ACAD-40..42`). El curso vive en la URL (`?academic_year=`), nada en `localStorage`. Lo usa el _layout_ (`AppShellLayout`) en rutas con `meta.academicYearScoped`.
+- `src/components/TranslatableField.vue`, `TranslatedText.vue` y `src/lib/translatable.ts`: edición y presentación de contenido del centro traducible (`ADR-062`).
