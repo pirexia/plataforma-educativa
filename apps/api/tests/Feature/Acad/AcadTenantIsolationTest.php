@@ -102,7 +102,7 @@ test('CA-ACAD-033 INV-001: modificar o borrar por el id de una fila del otro cen
 test('CA-ACAD-033 INV-001: una escritura con tenant_id ajeno la rechaza RLS (WITH CHECK)', function (): void {
     app(TenantContext::class)->enter($this->a->id);
 
-    $state = AcadTestHelpers::sqlState(fn () => DB::table('subjects')->insert([
+    $state = AcadTestHelpers::sqlStateOf(fn () => DB::table('subjects')->insert([
         'tenant_id' => $this->b->id,
         'public_id' => (string) Str::ulid(),
         'academic_year_id' => $this->treeB['subject']->academic_year_id,
@@ -120,7 +120,7 @@ test('CA-ACAD-033 INV-001 ADR-033 §6: la FK compuesta con tenant_id impide colg
     app(TenantContext::class)->enter($this->a->id);
 
     // El padre ajeno ni siquiera es visible para la comprobación del propio tenant: la FK incluye tenant_id.
-    $state = AcadTestHelpers::sqlState(fn () => DB::table('courses')->insert([
+    $state = AcadTestHelpers::sqlStateOf(fn () => DB::table('courses')->insert([
         'public_id' => (string) Str::ulid(),
         'academic_year_id' => $this->treeA['level']->academic_year_id,
         'education_level_id' => $this->treeB['level']->id,

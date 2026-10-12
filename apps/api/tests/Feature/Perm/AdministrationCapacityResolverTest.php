@@ -34,6 +34,10 @@ afterEach(function (): void {
 function acr353Setup(string $slug): array
 {
     [$tenant, $owner] = provisionCoreTenant($slug);
+    // 1.11-b: los roles predefinidos llevan permisos de `acad` (no esencial). Sin el
+    // módulo contratado son inertes y el actor no los «posee» (RPERM-013); este test
+    // trabaja con un centro que ya lo tiene contratado.
+    contractModule($tenant, 'acad');
     $tc = app(TenantContext::class);
 
     $adminRole = $tc->runFor($tenant->id, fn () => Role::query()->where('code', 'administrador_centro')->firstOrFail());

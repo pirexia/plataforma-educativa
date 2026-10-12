@@ -65,12 +65,12 @@ foreach (['cerrado' => AcademicYearStatus::Cerrado, 'archivado' => AcademicYearS
             app(TenantContext::class)->enter($this->tenant->id);
             $before = (array) DB::table($table)->where('id', $id)->first();
 
-            $update = AcadTestHelpers::sqlState(function () use ($class, $id, $key): void {
+            $update = AcadTestHelpers::sqlStateOf(function () use ($class, $id, $key): void {
                 $model = $class::query()->findOrFail($id);
                 acadChange($key, $model);
                 $model->save();
             });
-            $delete = AcadTestHelpers::sqlState(fn () => $class::query()->findOrFail($id)->delete());
+            $delete = AcadTestHelpers::sqlStateOf(fn () => $class::query()->findOrFail($id)->delete());
 
             expect($update)->toBe(AcademicYearClosedTranslator::SQLSTATE)
                 ->and($delete)->toBe(AcademicYearClosedTranslator::SQLSTATE)
@@ -111,12 +111,12 @@ foreach (['cerrado' => AcademicYearStatus::Cerrado, 'archivado' => AcademicYearS
         foreach ($inserts as $table => $write) {
             $counted = DB::table($table)->count();
 
-            expect(AcadTestHelpers::sqlState($write))->toBe(AcademicYearClosedTranslator::SQLSTATE, $table)
+            expect(AcadTestHelpers::sqlStateOf($write))->toBe(AcademicYearClosedTranslator::SQLSTATE, $table)
                 ->and(DB::table($table)->count())->toBe($counted, $table);
         }
 
         // La asignación ya existe (unicidad parcial), pero el disparador es BEFORE INSERT y salta antes que cualquier índice único.
-        $state = AcadTestHelpers::sqlState(fn () => DB::table('group_subjects')->insert([
+        $state = AcadTestHelpers::sqlStateOf(fn () => DB::table('group_subjects')->insert([
             'public_id' => (string) Str::ulid(), 'academic_year_id' => $year,
             'course_id' => $tree['course']->id, 'group_id' => $tree['group']->id, 'subject_id' => $tree['subject']->id,
         ]));

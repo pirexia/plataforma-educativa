@@ -80,7 +80,7 @@ final class AcadTestHelpers
      * Ejecuta una escritura en un punto de guardado: un error de PostgreSQL
      * no aborta la transacción del test. Devuelve el `SQLSTATE` o `null`.
      */
-    public static function sqlState(\Closure $write): ?string
+    public static function sqlStateOf(\Closure $write): ?string
     {
         try {
             DB::transaction($write);

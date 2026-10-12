@@ -110,7 +110,7 @@ test('CA-ACAD-014 ADR-062 §5.1: el motor rechaza name_translations vacío, con 
         'valor que no es cadena' => '{"es-ES": 5}',
         'no es un objeto' => '["Lengua"]',
     ] as $label => $json) {
-        $state = AcadTestHelpers::sqlState(fn () => DB::table('subjects')->insert(subjectRow([
+        $state = AcadTestHelpers::sqlStateOf(fn () => DB::table('subjects')->insert(subjectRow([
             'academic_year_id' => $this->year->id,
             'course_id' => $this->tree['course']->id,
             'name_translations' => $json,
@@ -120,7 +120,7 @@ test('CA-ACAD-014 ADR-062 §5.1: el motor rechaza name_translations vacío, con 
     }
 
     // Control positivo: la misma fila con un objeto válido se inserta.
-    expect(AcadTestHelpers::sqlState(fn () => DB::table('subjects')->insert(subjectRow([
+    expect(AcadTestHelpers::sqlStateOf(fn () => DB::table('subjects')->insert(subjectRow([
         'academic_year_id' => $this->year->id,
         'course_id' => $this->tree['course']->id,
     ]))))->toBeNull();
@@ -156,7 +156,7 @@ test('CA-ACAD-019 RN-ACAD-30: la FK compuesta rechaza group_subjects con grupo y
     });
 
     // Asignatura del otro curso de etapa, grupo del primero.
-    $state = AcadTestHelpers::sqlState(fn () => DB::table('group_subjects')->insert([
+    $state = AcadTestHelpers::sqlStateOf(fn () => DB::table('group_subjects')->insert([
         'public_id' => (string) Str::ulid(),
         'academic_year_id' => $this->year->id,
         'course_id' => $this->tree['course']->id,
@@ -167,7 +167,7 @@ test('CA-ACAD-019 RN-ACAD-30: la FK compuesta rechaza group_subjects con grupo y
     expect($state)->toBe('23503');
 
     // Y con el course_id del segundo, falla la FK del grupo.
-    $state = AcadTestHelpers::sqlState(fn () => DB::table('group_subjects')->insert([
+    $state = AcadTestHelpers::sqlStateOf(fn () => DB::table('group_subjects')->insert([
         'public_id' => (string) Str::ulid(),
         'academic_year_id' => $this->year->id,
         'course_id' => $other['course']->id,
@@ -208,7 +208,7 @@ test('CA-ACAD-060 CA-ACAD-061 RN-CURSO-27 RN-ACAD-15 RN-ACAD-16 RN-ACAD-17: un p
     ];
 
     foreach ($attempts as $label => $write) {
-        expect(AcadTestHelpers::sqlState($write))->toBe('23503', $label);
+        expect(AcadTestHelpers::sqlStateOf($write))->toBe('23503', $label);
     }
 });
 
@@ -219,11 +219,11 @@ test('RN-ACAD-01 datos.md §3: el código es único entre hermanos vivos (23505)
         'academic_year_id' => $this->year->id, 'course_id' => $courseId, 'code' => $code,
     ]));
 
-    expect(AcadTestHelpers::sqlState(fn () => $dupSubject($tree['course']->id, 'MAT')))->toBe('23505');
+    expect(AcadTestHelpers::sqlStateOf(fn () => $dupSubject($tree['course']->id, 'MAT')))->toBe('23505');
 
     // Hermano borrado (borrado lógico por instancia, AR-15): el código se libera.
     app(TenantContext::class)->runFor($this->tenant->id, fn () => $tree['subject']->delete());
-    expect(AcadTestHelpers::sqlState(fn () => $dupSubject($tree['course']->id, 'MAT')))->toBeNull();
+    expect(AcadTestHelpers::sqlStateOf(fn () => $dupSubject($tree['course']->id, 'MAT')))->toBeNull();
 
     // Etapa: mismo código en otro curso académico, sí; en el mismo, no.
     $otherYear = CursoTestHelpers::year($this->tenant, '2027-2028', AcademicYearStatus::Planificacion, '2027-09-01', '2028-06-30');
@@ -232,8 +232,8 @@ test('RN-ACAD-01 datos.md §3: el código es único entre hermanos vivos (23505)
         'name_translations' => json_encode(['es-ES' => 'ESO']), 'stage' => 'eso', 'regime' => 'publico', 'position' => 2,
     ]);
 
-    expect(AcadTestHelpers::sqlState(fn () => $level($this->year->id)))->toBe('23505')
-        ->and(AcadTestHelpers::sqlState(fn () => $level($otherYear->id)))->toBeNull();
+    expect(AcadTestHelpers::sqlStateOf(fn () => $level($this->year->id)))->toBe('23505')
+        ->and(AcadTestHelpers::sqlStateOf(fn () => $level($otherYear->id)))->toBeNull();
 });
 
 test('datos.md §3: una asignatura se asigna una sola vez a un grupo vivo (23505); tras la baja, puede volver a asignarse', function (): void {
@@ -243,11 +243,11 @@ test('datos.md §3: una asignatura se asigna una sola vez a un grupo vivo (23505
         'course_id' => $tree['course']->id, 'group_id' => $tree['group']->id, 'subject_id' => $tree['subject']->id,
     ]);
 
-    expect(AcadTestHelpers::sqlState($insert))->toBe('23505');
+    expect(AcadTestHelpers::sqlStateOf($insert))->toBe('23505');
 
     app(TenantContext::class)->runFor($this->tenant->id, fn () => $tree['groupSubject']->delete());
 
-    expect(AcadTestHelpers::sqlState($insert))->toBeNull();
+    expect(AcadTestHelpers::sqlStateOf($insert))->toBeNull();
 });
 
 test('datos.md §1.1-§1.5: CHECK de stage, regime y position (>= 1) en base de datos', function (): void {
@@ -256,16 +256,16 @@ test('datos.md §1.1-§1.5: CHECK de stage, regime y position (>= 1) en base de 
         'name_translations' => json_encode(['es-ES' => 'N']), 'stage' => 'eso', 'regime' => 'publico', 'position' => 1,
     ], $o));
 
-    expect(AcadTestHelpers::sqlState(fn () => $level(['stage' => 'otra'])))->toBe('23514')
-        ->and(AcadTestHelpers::sqlState(fn () => $level(['regime' => 'otro'])))->toBe('23514')
-        ->and(AcadTestHelpers::sqlState(fn () => $level(['position' => 0])))->toBe('23514')
-        ->and(AcadTestHelpers::sqlState(fn () => DB::table('groups')->insert([
+    expect(AcadTestHelpers::sqlStateOf(fn () => $level(['stage' => 'otra'])))->toBe('23514')
+        ->and(AcadTestHelpers::sqlStateOf(fn () => $level(['regime' => 'otro'])))->toBe('23514')
+        ->and(AcadTestHelpers::sqlStateOf(fn () => $level(['position' => 0])))->toBe('23514')
+        ->and(AcadTestHelpers::sqlStateOf(fn () => DB::table('groups')->insert([
             'public_id' => (string) Str::ulid(), 'academic_year_id' => $this->year->id,
             'course_id' => $this->tree['course']->id, 'code' => 'Z', 'name' => 'Z', 'position' => 0,
         ])))->toBe('23514');
 
     foreach (['infantil', 'primaria', 'eso', 'bachillerato', 'fp', 'universidad'] as $stage) {
-        expect(AcadTestHelpers::sqlState(fn () => $level(['stage' => $stage])))->toBeNull($stage);
+        expect(AcadTestHelpers::sqlStateOf(fn () => $level(['stage' => $stage])))->toBeNull($stage);
     }
 });
 
