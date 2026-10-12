@@ -1,6 +1,6 @@
 # REQ-CURSO · Permisos
 
-> **Estado**: **APROBADA** (2026-10-07), paso **1.10**, con los ajustes de `ADR-057` (aceptado). Nombres de recurso y siembra aprobados (`OPEN-CURSO-13`, `OPEN-CURSO-14`). **La fuente de verdad será `CursoServiceProvider::declaredPermissions()`** (`INV-007`, `ADR-034 §2`); esta tabla es su reflejo documental. **Ampliada el 2026-10-08 por `ADR-059`** (aceptado): recurso `reapertura_curso_academico` (`OPEN-059-02`, resuelta: recurso propio, sin doble confirmación).
+> **Estado**: **APROBADA** (2026-10-07), paso **1.10**, con los ajustes de `ADR-057` (aceptado). Nombres de recurso y siembra aprobados (`OPEN-CURSO-13`, `OPEN-CURSO-14`). **La fuente de verdad será `CursoServiceProvider::declaredPermissions()`** (`INV-007`, `ADR-034 §2`); esta tabla es su reflejo documental. **Ampliada el 2026-10-08 por `ADR-059`** (aceptado): recurso `reapertura_curso_academico` (`OPEN-059-02`, resuelta: recurso propio, sin doble confirmación). **Ampliada el 2026-10-12 por `1.11-a`** (`REQ-ACAD-001`, `OPEN-ACAD-11`/`-12`, #409, #387 B-5): `GET /academic-years/selectable`, `AcademicYearDirectory` por identificador interno y comprobación de `retired_at` en `curso:grant-year-permissions`.
 
 ---
 
@@ -45,7 +45,7 @@ Acciones solo de `RPERM-003`. **No se inventa ninguna.**
 
 | *Endpoint* | Por qué no lleva permiso |
 |------------|---------------------------|
-| `GET /academic-years/current` | Devuelve **un dato del centro, no de una persona** (código y fechas del curso activo) que **todo** usuario autenticado necesita para entender su propia pantalla. Un permiso podría ponerse a `false` y dejar a un rol sin saber en qué curso trabaja (argumento de `REQ-PERM/permisos.md §2.2`). **Amplía la lista cerrada de excepciones de `AR-07a`** (hoy 33 rutas) con esta única ruta; ampliación aprobada por el usuario el 2026-10-07 al aceptar `OPEN-CURSO-15` (`ADR-056 §3.2`) |
+| `GET /academic-years/current` | Devuelve **un dato del centro, no de una persona** (código y fechas del curso activo) que **todo** usuario autenticado necesita para entender su propia pantalla. Un permiso podría ponerse a `false` y dejar a un rol sin saber en qué curso trabaja (argumento de `REQ-PERM/permisos.md §2.2`). **Amplía la lista cerrada de excepciones de `AR-07a`** (33 en `1.7b`; 34 tras `current`, `1.10`; 35 con `selectable`, `1.11-a`) con esta única ruta; ampliación aprobada por el usuario el 2026-10-07 al aceptar `OPEN-CURSO-15` (`ADR-056 §3.2`) |
 | `GET /academic-years/selectable` | Opciones del selector de curso académico (`1.11-a`, `REQ-ACAD-001`, `OPEN-ACAD-11`, issue #409, `CA-ACAD-043`). Devuelve datos del centro, no de una persona (código, fechas y estado de sus cursos) que todo usuario necesita para elegir en qué curso trabaja; con `curso_academico.leer` como exigencia, casi ningún rol podría usar el selector. **Amplía la lista cerrada de excepciones de `AR-07a`** (de 34 a 35 rutas) con esta única ruta, ampliación aprobada por el usuario con la especificación de `1.11`. El permiso `curso_historico.leer` no autoriza la ruta: solo decide si la lista incluye también `cerrado` y `archivado` (el mismo criterio de `RN-CURSO-25`). No concede la lectura de los datos de un curso cerrado, que sigue exigiendo `curso_historico.leer` en cada módulo (`AcademicYearReadAccess`) |
 
 ---

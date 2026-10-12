@@ -1,6 +1,6 @@
 # REQ-CURSO · Operación
 
-> **Estado**: **APROBADA** (2026-10-07), paso **1.10**, con los ajustes de `ADR-057` (aceptado). **Ampliada el 2026-10-08 por `ADR-059`** (aceptado, reapertura de un curso cerrado): ver §3.1, §6.1, §7 y §9.1.
+> **Estado**: **APROBADA** (2026-10-07), paso **1.10**, con los ajustes de `ADR-057` (aceptado). **Ampliada el 2026-10-08 por `ADR-059`** (aceptado, reapertura de un curso cerrado): ver §3.1, §6.1, §7 y §9.1. **Ampliada el 2026-10-12 por `1.11-a`** (`REQ-ACAD-001`, `OPEN-ACAD-11`/`-12`, #409, #387 B-5): `GET /academic-years/selectable`, `AcademicYearDirectory` por identificador interno y comprobación de `retired_at` en `curso:grant-year-permissions`.
 
 ## 1. Variables de entorno
 

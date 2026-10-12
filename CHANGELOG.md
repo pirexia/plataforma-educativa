@@ -13,6 +13,8 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 - **Auditoría**: `AuditChangeBuilder` desglosa `*_translations` por idioma (`ADR-062 §5.5`, `CA-ACAD-013`).
 - **`curso`**: `AcademicYearDirectory::findById()`/`findManyById()`, memoizadas por petición y centro (`CA-ACAD-042`); `GET /academic-years/selectable` (autoservicio, #409, `CA-ACAD-043`; **`AR-07a` pasa de 34 a 35 rutas**, la cifra de 34 se comprobó contra el test antes de ampliarla); OpenAPI y `docs/modulos/REQ-CURSO/` actualizados. `curso:grant-year-permissions` comprueba `retired_at IS NULL` (#387 B-5, `CA-ACAD-041`).
 - **Reglas de arquitectura**: `AR-07a` valida que el código de cada `permission:` esté declarado (#378 B3, `CA-ACAD-039`); nueva regla de que solo las migraciones usan `TenantMigration` (`CA-ACAD-040`); `AR-14` escanea además `database/`, `routes/` y `bootstrap/` (#387 B-4).
+- **Correcciones de las revisiones de `1.11-a`**: el validador rechaza NUL y controles C0 con `translations.invalid_characters` (seguridad M-1; PostgreSQL lanzaba `22P05`); `translatableColumn()` lanza fuera de `tenantTable()`/`tenantTableAppendOnly()` y el estado pendiente se limpia siempre (`db-reviewer`); `AcademicYearDirectory` no memoiza la inexistencia (B-3); se documenta que el motor no garantiza cadenas no vacías, el escapado obligatorio al presentar (B-2) y que las claves `name_translations.es-ES` de `changes` no son columnas (B-7).
+- `ARCHITECTURE.md` 2.4.4 y `README.md` (tabla de versiones) actualizados.
 - **Fuera de esta entrega** (`1.11-b`): módulo `acad`, `AR-16`, componente web, selector visual, README de módulos web (#408), `acad:grant-structure-permissions`.
 
 ---

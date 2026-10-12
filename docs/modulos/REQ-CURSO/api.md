@@ -217,4 +217,4 @@ Ninguno (`REQ-API-002` es de fase 2).
 
 ## 8. OpenAPI
 
-Los seis *endpoints* de §2 de 1.10, más `GET /academic-years/selectable` (`1.11-a`), más `POST /academic-years/{public_id}/reopen` de `ADR-059` en la entrega que lo implemente, en `apps/api/openapi.yaml` antes del merge (`CLAUDE.md §10`), con el esquema `AcademicYear`, el enumerado extensible de `status`, la lista blanca de `sort`, el filtro `status` en estilo `form, explode: false`, y el `type` nuevo de §5 añadido al catálogo de errores documentado. Comprobar al tocarlo el problema de validación YAML preexistente del issue #97.
+Los siete *endpoints* de §2 implementados (los seis de `1.10` más `GET /academic-years/selectable` de `1.11-a`), más `POST /academic-years/{public_id}/reopen` de `ADR-059` en la entrega que lo implemente, en `apps/api/openapi.yaml` antes del merge (`CLAUDE.md §10`), con el esquema `AcademicYear`, el enumerado extensible de `status`, la lista blanca de `sort`, el filtro `status` en estilo `form, explode: false`, y el `type` nuevo de §5 añadido al catálogo de errores documentado. Comprobar al tocarlo el problema de validación YAML preexistente del issue #97.
