@@ -32,6 +32,9 @@ use Illuminate\Console\Command;
  * apunta por clave foránea a `permissions`): el comando lo comprueba al
  * empezar y, si falta algún permiso, falla con el motivo y el remedio en
  * lugar de una violación de clave foránea a mitad del recorrido (#385).
+ * Comprueba también que ninguno esté retirado (`retired_at IS NULL`, issue
+ * #387 B-5, `CA-ACAD-041`): si alguno lo está, falla diciéndolo y no concede
+ * nada.
  * **Solo recorre los centros en estado `Activo`** (`RunsPerTenant`): un
  * centro suspendido, en baja o aún aprovisionándose no recibe las
  * concesiones; al reactivarlo hay que volver a ejecutar el comando.
@@ -50,7 +53,18 @@ class GrantAcademicYearPermissionsCommand extends Command
     public function handle(): int
     {
         $required = collect(ProvisionTenantDefaults::ACADEMIC_YEAR_PERMISSION_GRANTS)->flatten()->unique()->values()->all();
-        $missing = array_values(array_diff($required, $this->registeredPermissionCodes($required)));
+        $retired = $this->retiredPermissionCodes($required);
+        $missing = array_values(array_diff($required, $this->registeredPermissionCodes($required), $retired));
+
+        // Issue #387 B-5, CA-ACAD-041: un permiso retirado (`retired_at`) sigue
+        // en `permissions` pero ya no se declara; concederlo dejaría
+        // concesiones a algo que `platform:sync-registry` ha dado de baja.
+        if ($retired !== []) {
+            $this->error('Hay permisos retirados en el registro (retired_at informado): '.implode(', ', $retired).'. '
+                .'No se concede nada. Revisa el catálogo declarado y vuelve a ejecutar `php artisan platform:sync-registry` (REQ-CURSO/operacion.md §3).');
+
+            return self::FAILURE;
+        }
 
         if ($missing !== []) {
             $this->error('El registro de permisos no está sincronizado: faltan '.implode(', ', $missing).'. '
@@ -94,10 +108,19 @@ class GrantAcademicYearPermissionsCommand extends Command
 
     /**
      * @param  list<string>  $codes
-     * @return list<string> los de `$codes` que figuran en `permissions`
+     * @return list<string> los de `$codes` que figuran en `permissions` y no están retirados
      */
     protected function registeredPermissionCodes(array $codes): array
     {
-        return Permission::query()->whereIn('code', $codes)->pluck('code')->all();
+        return Permission::query()->whereIn('code', $codes)->whereNull('retired_at')->pluck('code')->all();
+    }
+
+    /**
+     * @param  list<string>  $codes
+     * @return list<string> los de `$codes` que figuran en `permissions` con `retired_at` informado
+     */
+    protected function retiredPermissionCodes(array $codes): array
+    {
+        return Permission::query()->whereIn('code', $codes)->whereNotNull('retired_at')->pluck('code')->all();
     }
 }
