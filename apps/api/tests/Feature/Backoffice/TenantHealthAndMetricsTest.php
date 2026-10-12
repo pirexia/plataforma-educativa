@@ -858,3 +858,23 @@ test('CA-BO-166: bo:purge-failed-jobs borra lo anterior a 24 horas y conserva lo
     expect($purgeEvent->expression)->toBe('0 0 * * *');
     expect($legacyEvent)->toBeNull();
 });
+
+// Regresión (1.11-b, REQ-ACAD-001): `acad` (no esencial) depende de `curso`
+// (esencial, sin fila de suscripción por RN-BO-65). Una dependencia esencial
+// nunca es una dependencia incumplida.
+test('RN-BO-65 REQ-ACAD-001: un módulo no esencial con depends_on esencial no aparece en dependency_inconsistencies, contratado o no', function (): void {
+    $without = Tenant::factory()->create();
+    $with = Tenant::factory()->create();
+    // Antes de autenticar al administrador de plataforma: la suscripción no lleva autoría.
+    contractModule($with, 'acad');
+
+    [$admin] = boCreateEnrolledAdmin('soporte');
+    $this->actingAs($admin, 'platform');
+
+    foreach ([$without, $with] as $tenant) {
+        $url = 'http://'.boPlatformHost()."/api/platform/v1/tenants/{$tenant->public_id}/health";
+        $codes = array_column($this->getJson($url)->assertOk()->json('modules.dependency_inconsistencies'), 'module_code');
+
+        expect($codes)->not->toContain('acad');
+    }
+});

@@ -355,6 +355,12 @@ final class ModuleSubscriptionsService
         return array_values(array_filter(
             $descriptor->dependsOn,
             function (string $dependency) use ($subscriptions): bool {
+                // Una dependencia esencial siempre está disponible y no tiene fila
+                // de suscripción (`RN-BO-65`): nunca es una dependencia incumplida.
+                if ($this->catalog->find($dependency)?->essential === true) {
+                    return false;
+                }
+
                 /** @var ModuleSubscription|null $dependencySubscription */
                 $dependencySubscription = $subscriptions->get($dependency);
 
