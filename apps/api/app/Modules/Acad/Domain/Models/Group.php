@@ -8,6 +8,7 @@ use App\Support\Audit\HasAuditableAttributes;
 use App\Support\Audit\RecordsAuditTrail;
 use App\Support\Database\HasPublicId;
 use App\Support\Tenancy\TenantModel;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * REQ-ACAD/datos.md §1.3 (1.11-b, `REQ-ACAD-001`). Grupo de un curso de etapa. `name` es texto simple, no traducible.
@@ -49,4 +50,12 @@ class Group extends TenantModel implements Auditable
     protected $casts = [
         'position' => 'integer',
     ];
+
+    /**
+     * @return BelongsTo<Course, $this>
+     */
+    public function course(): BelongsTo
+    {
+        return $this->belongsTo(Course::class, 'course_id');
+    }
 }

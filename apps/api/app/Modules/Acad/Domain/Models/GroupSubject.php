@@ -8,6 +8,7 @@ use App\Support\Audit\HasAuditableAttributes;
 use App\Support\Audit\RecordsAuditTrail;
 use App\Support\Database\HasPublicId;
 use App\Support\Tenancy\TenantModel;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * REQ-ACAD/datos.md §1.6 (1.11-b, `REQ-ACAD-001`). Asignatura que cursa un grupo; el par es la «clase» de ADR-063 §5.3. `course_id` lo fija el servicio a partir del grupo.
@@ -44,4 +45,20 @@ class GroupSubject extends TenantModel implements Auditable
         'group_id',
         'subject_id',
     ];
+
+    /**
+     * @return BelongsTo<Group, $this>
+     */
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(Group::class, 'group_id');
+    }
+
+    /**
+     * @return BelongsTo<Subject, $this>
+     */
+    public function subject(): BelongsTo
+    {
+        return $this->belongsTo(Subject::class, 'subject_id');
+    }
 }

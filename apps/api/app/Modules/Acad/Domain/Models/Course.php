@@ -8,6 +8,7 @@ use App\Support\Audit\HasAuditableAttributes;
 use App\Support\Audit\RecordsAuditTrail;
 use App\Support\Database\HasPublicId;
 use App\Support\Tenancy\TenantModel;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * REQ-ACAD/datos.md §1.2 (1.11-b, `REQ-ACAD-001`). Curso de etapa, colgado de una etapa del mismo curso académico.
@@ -50,4 +51,12 @@ class Course extends TenantModel implements Auditable
         'name_translations' => 'array',
         'position' => 'integer',
     ];
+
+    /**
+     * @return BelongsTo<EducationLevel, $this>
+     */
+    public function educationLevel(): BelongsTo
+    {
+        return $this->belongsTo(EducationLevel::class, 'education_level_id');
+    }
 }

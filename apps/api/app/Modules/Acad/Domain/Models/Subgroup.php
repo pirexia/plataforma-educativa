@@ -8,6 +8,7 @@ use App\Support\Audit\HasAuditableAttributes;
 use App\Support\Audit\RecordsAuditTrail;
 use App\Support\Database\HasPublicId;
 use App\Support\Tenancy\TenantModel;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * REQ-ACAD/datos.md §1.4 (1.11-b, `REQ-ACAD-001`). Subgrupo de un único grupo (RN-ACAD-16).
@@ -49,4 +50,12 @@ class Subgroup extends TenantModel implements Auditable
     protected $casts = [
         'position' => 'integer',
     ];
+
+    /**
+     * @return BelongsTo<Group, $this>
+     */
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(Group::class, 'group_id');
+    }
 }
