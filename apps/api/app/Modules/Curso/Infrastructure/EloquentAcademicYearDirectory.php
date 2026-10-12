@@ -19,7 +19,7 @@ use App\Support\Tenancy\TenantContext;
  */
 final class EloquentAcademicYearDirectory implements AcademicYearDirectory
 {
-    /** @var array<int, array<int, ?AcademicYearSummary>> tenant_id => id => resumen */
+    /** @var array<int, array<int, AcademicYearSummary>> tenant_id => id => resumen (solo encontrados) */
     private array $memo = [];
 
     public function __construct(private readonly TenantContext $tenantContext) {}
@@ -44,7 +44,11 @@ final class EloquentAcademicYearDirectory implements AcademicYearDirectory
             $found = AcademicYear::query()->whereIn('id', $missing)->get()->keyBy('id');
 
             foreach ($missing as $id) {
-                $this->memo[$tenantId][$id] = $found->get($id)?->toSummary();
+                $year = $found->get($id);
+
+                if ($year !== null) {
+                    $this->memo[$tenantId][$id] = $year->toSummary();
+                }
             }
         }
 

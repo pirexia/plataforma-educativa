@@ -92,11 +92,11 @@ test('CA-ACAD-042 RN-CURSO-24: la base de datos se consulta una vez por identifi
             $directory->findManyById([$one->id, $two->id]);   // solo $two es nuevo
             $directory->findManyById([$one->id, $two->id]);
             $directory->findById(999999999);
-            $directory->findById(999999999);                  // la inexistencia también se memoiza
+            $directory->findById(999999999);                  // la inexistencia NO se memoiza (B-3)
             app(AcademicYearDirectory::class)->findById($two->id);
         });
 
-        expect($queries)->toHaveCount(3);
+        expect($queries)->toHaveCount(4);
     });
 });
 
@@ -112,4 +112,21 @@ test('CA-ACAD-042 INV-001: la memoización es por centro: el mismo id no se comp
 
     expect($inA?->code)->toBe('2025-2026')
         ->and($inB)->toBeNull();
+});
+
+test('CA-ACAD-042 (seguridad B-3): la inexistencia no se memoiza: un curso creado después en la misma petición se encuentra', function (): void {
+    [$tenant] = provisionCoreTenant('acad-042h');
+
+    app(TenantContext::class)->runFor($tenant->id, function () use ($tenant): void {
+        $directory = app(AcademicYearDirectory::class);
+        $nextId = (int) DB::connection('pgsql_owner')->selectOne('SELECT CASE WHEN is_called THEN last_value + 1 ELSE last_value END AS n FROM academic_years_id_seq')->n;
+
+        expect($directory->findById($nextId))->toBeNull();
+
+        $year = CursoTestHelpers::year($tenant, '2025-2026', AcademicYearStatus::Activo);
+
+        expect($year->id)->toBe($nextId)
+            ->and($directory->findById($nextId)?->code)->toBe('2025-2026')
+            ->and($directory->findManyById([$nextId]))->toHaveKey($nextId);
+    });
 });

@@ -9,6 +9,14 @@ use App\Support\I18n\Locales;
  * `audit_logs.changes`. Ningún otro código de la aplicación serializa
  * atributos hacia esa columna. Los cinco pasos de evaluación son
  * deterministas y se ejecutan en este orden exacto — no reordenar.
+ *
+ * Columnas `*_translations` (ADR-062 §5.5): se desglosan por idioma y la clave
+ * resultante lleva un punto (`name_translations.es-ES`). **Esa clave no es una
+ * columna ni un atributo del modelo**, solo una etiqueta de `changes`; la
+ * política del modelo (`Selective`, `$auditRecordedAttributes`) se evalúa
+ * siempre por el atributo real `<campo>_translations`, nunca por la clave con
+ * punto. Quien consuma `changes` no debe tratar esa clave como nombre de
+ * columna.
  */
 final class AuditChangeBuilder
 {
