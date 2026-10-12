@@ -43,6 +43,12 @@ return new class extends Migration
                 WHERE deleted_at IS NULL
             SQL);
 
+        // Índices no parciales que cubren las dos claves foráneas de tres columnas
+        // (comprobación de integridad ante un DELETE físico del padre, p. ej. la
+        // purga de un tenant; un parcial no las cubre, operacion.md §6.2, #407).
+        $owner->statement('CREATE INDEX group_subjects_tenant_course_group_idx ON group_subjects (tenant_id, course_id, group_id)');
+        $owner->statement('CREATE INDEX group_subjects_tenant_course_subject_idx ON group_subjects (tenant_id, course_id, subject_id)');
+
         // Borrado de una asignatura (RN-ACAD-20), ficha con sus grupos.
         $owner->statement(<<<'SQL'
             CREATE INDEX group_subjects_tenant_subject_idx

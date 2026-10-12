@@ -39,7 +39,7 @@ use Illuminate\Support\Facades\DB;
 // parciales»), porque una clave foránea solo puede apuntar a una restricción
 // única completa y la FK debe seguir resolviendo un padre ya borrado
 // lógicamente en filas históricas.
-test('toda restricción única sobre tabla con borrado lógico es parcial, salvo las dos excepciones de ADR-034 §6', function (): void {
+test('toda restricción única sobre tabla con borrado lógico es parcial, salvo las excepciones nominales (ADR-034 §6 y los destinos de FK)', function (): void {
     $namedExceptions = [
         'user_invitations_tenant_token_unique',
         'idempotency_keys_tenant_endpoint_key_unique',

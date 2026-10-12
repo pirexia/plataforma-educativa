@@ -278,3 +278,34 @@ test('REQ-ACAD-001 ADR-004 INV-004: el borrado de una entidad es lógico (delete
 
     expect($row)->not->toBeNull()->and($row->deleted_at)->not->toBeNull();
 });
+
+test('#407 db-reviewer BAJO-1: cada FK de las seis tablas hacia otra tabla de acad o academic_years tiene un índice no parcial válido que empieza por sus dos primeras columnas, y las dos de group_subjects hacia groups y subjects, por las tres', function (): void {
+    $owner = DB::connection('pgsql_owner');
+    $foreignKeys = $owner->select(<<<'SQL'
+        SELECT con.conrelid::regclass::text AS tabla, con.conname, con.confrelid::regclass::text AS destino, con.conkey,
+               (SELECT array_agg(a.attname ORDER BY k.ord) FROM unnest(con.conkey) WITH ORDINALITY k(attnum, ord) JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = k.attnum) AS columnas
+        FROM pg_constraint con
+        WHERE con.contype = 'f' AND con.conrelid::regclass::text = ANY (?) AND con.confrelid::regclass::text <> 'users'
+        SQL, ['{'.implode(',', ACAD_TABLES).'}']);
+
+    expect(count($foreignKeys))->toBe(13);
+
+    foreach ($foreignKeys as $fk) {
+        $columns = array_map('trim', explode(',', trim($fk->columnas, '{}')));
+        $needed = in_array($fk->tabla.'>'.$fk->destino, ['group_subjects>groups', 'group_subjects>subjects'], true) ? 3 : 2;
+        $prefix = array_slice($columns, 0, $needed);
+
+        $covering = array_filter($owner->select(<<<'SQL'
+            SELECT (SELECT array_agg(a.attname ORDER BY k.ord) FROM unnest(i.indkey::int2[]) WITH ORDINALITY k(attnum, ord) JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = k.attnum) AS columnas
+            FROM pg_index i
+            JOIN pg_class c ON c.oid = i.indrelid
+            WHERE c.relname = ? AND i.indisvalid AND i.indpred IS NULL AND i.indexprs IS NULL
+            SQL, [$fk->tabla]), function (object $index) use ($prefix): bool {
+            $cols = array_map('trim', explode(',', trim($index->columnas, '{}')));
+
+            return array_slice($cols, 0, count($prefix)) === $prefix;
+        });
+
+        expect($covering)->not->toBeEmpty("{$fk->tabla}.{$fk->conname} sin índice no parcial que empiece por (".implode(', ', $prefix).')');
+    }
+});

@@ -41,8 +41,9 @@ return new class extends Migration
                 WHERE deleted_at IS NULL
             SQL);
 
-        // Listado ?education_level=, hijos vivos de una etapa (RN-ACAD-20);
-        // cubre además la FK de tres columnas.
+        // Listado ?education_level= e hijos vivos de una etapa (RN-ACAD-20). Al ser
+        // parcial no cubre la FK de tres columnas; esa la sirve el índice
+        // (tenant_id, academic_year_id) del ayudante, por prefijo.
         $owner->statement(<<<'SQL'
             CREATE INDEX courses_tenant_level_idx
                 ON courses (tenant_id, education_level_id)
