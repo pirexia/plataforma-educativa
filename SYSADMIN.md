@@ -316,6 +316,10 @@ La entrega `1.9c` incluye una migración **de datos** (`2026_10_02_100200_normal
 - **Orden de despliegue**: migración de datos → imagen de `apps/api` → imagen de `apps/web`. No dejes la API nueva mucho tiempo con la web anterior (la API rechaza con `422` el texto libre de la SPA antigua). Con los *workers* de `core-imports` parados durante la migración (`docs/modulos/REQ-CORE/operacion.md §14.1`).
 - **Sin `down()`**: la reversión es copia de seguridad / PITR previa al despliegue.
 
+## 2f. Índices de clave foránea de `1.11-a` (issue #412)
+
+Al desplegar `1.11-a` sobre una base ya migrada, `php artisan migrate` crea hasta 18 índices `(tenant_id, columna)` con `CREATE INDEX CONCURRENTLY` (no bloquea escrituras; no se ejecuta en transacción). Es idempotente y, si se interrumpe, basta repetir el comando. Una instalación nueva no necesita nada. Detalle y candidatos a retirar en `docs/modulos/REQ-ACAD/operacion.md §6.2`. Las bases de test por proceso (`ADR-060`) se recrean con el script de §2b para recibirla.
+
 ## 3. Comprobación rápida
 
 ```bash

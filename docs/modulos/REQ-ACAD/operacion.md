@@ -46,7 +46,7 @@ Seis migraciones aditivas (*expand*), una por tabla, en `apps/api/app/Modules/Ac
 - Tablas nuevas y vacías: crear índices sin `CONCURRENTLY` es correcto (no hay bloqueo apreciable). Las migraciones corren en transacción (necesario para `guardAcademicYearWrites`, que lo exige).
 - **`db-reviewer` obligatorio.** Son las primeras tablas reales con el disparador.
 
-Cambios asociados que no son migración (aprobados, `funcional.md §1.2`): `tenantForeignId()` crea el índice (#407, no retroactivo: las tablas ya migradas se inventarían en el cierre y, si alguna lo necesita, va en issue aparte con su propia migración); ayudante de columna traducible; regla `AR-16` (`ADR-062 §5.8`, `CA-ACAD-015`); aserción de no vacuidad de `AR-13` sobre el esquema real (`CA-ACAD-021`); regla `arch()` «solo migraciones y fixtures usan `TenantMigration`» y escaneo de `AR-14` ampliado a `database/`, `routes/` y `bootstrap/` (#387 B-4, `CA-ACAD-040`); validación del código de `permission:` contra el catálogo en `AR-07a` (#378 B3, `CA-ACAD-039`).
+Cambios asociados que no son migración (aprobados, `funcional.md §1.2`): `tenantForeignId()` crea el índice (#407, no retroactivo en las migraciones antiguas; el inventario de las 22 llamadas ya mezcladas y su convergencia están en `1.11-a` con la migración `2026_10_12_100000_add_tenant_foreign_key_indexes`, #412, ver más abajo); ayudante de columna traducible; regla `AR-16` (`ADR-062 §5.8`, `CA-ACAD-015`); aserción de no vacuidad de `AR-13` sobre el esquema real (`CA-ACAD-021`); regla `arch()` «solo migraciones y fixtures usan `TenantMigration`» y escaneo de `AR-14` ampliado a `database/`, `routes/` y `bootstrap/` (#387 B-4, `CA-ACAD-040`); validación del código de `permission:` contra el catálogo en `AR-07a` (#378 B3, `CA-ACAD-039`).
 
 ### 6.1 Medición del disparador con tabla real (issue #382, `CA-057-09`, `CA-ACAD-023`)
 
@@ -91,3 +91,13 @@ Desplegar la imagen anterior (`RUNBOOK.md`). **Las migraciones no se revierten**
 - `CHANGELOG.md`, con la cifra de `CA-ACAD-023`.
 - `docs/modulos/REQ-CURSO/` (`GET /academic-years/selectable`, ampliación de `AcademicYearDirectory`, comprobación de `retired_at`; lo hace la sesión principal).
 - `PLAN-IMPLEMENTACION.md` (sub-paso `1.11d`, orden `1.13`/`1.15` de `OPEN-ACAD-22`, y la obligación y el plazo de `ADR-063 §5.4` en `1.12`, `1.13` y `1.16`; lo hace la sesión principal).
+
+### 6.2 Convergencia de índices de clave foránea ya mezclada (`1.11-a`, issue #412)
+
+`tenantForeignId()` crea el índice `(tenant_id, columna)` desde `1.11-a`, pero las **22** llamadas que ya estaban en `develop` se ejecutaron antes: una base migrada con la versión anterior no lo tiene y una instalación nueva sí. La migración *expand* `database/migrations/2026_10_12_100000_add_tenant_foreign_key_indexes.php` lo crea donde falta, con **el mismo nombre** (`TenantMigration::indexName()`) que una instalación nueva:
+
+- Un índice «cubre» la clave foránea si es válido, `btree`, **no parcial**, sin expresiones y empieza por `(tenant_id, columna)`. Un índice parcial (`WHERE deleted_at IS NULL`…) no la cubre. Solo se crea donde nada la cubre: en una base migrada con la versión anterior, **18 de las 22**; en una instalación nueva, ninguno (los crea el ayudante).
+- `CREATE INDEX CONCURRENTLY IF NOT EXISTS` con `$withinTransaction = false` (no bloquea escrituras). Idempotente; un índice homónimo INVÁLIDO por un fallo anterior se elimina y se recrea. Si se interrumpe, basta repetir `php artisan migrate`.
+- `down()`: `DROP INDEX CONCURRENTLY IF EXISTS` de los 22 nombres.
+- **No se retira ningún índice existente** (fase *contract*, decisión del usuario). Los índices que la migración habría dejado redundantes no existen: el índice del ayudante solo es redundante en las 4 claves que ya tenían un índice completo (`user_known_devices.user_id`, `mfa_resets.user_id`, `saml_consumed_assertions.identity_provider_id`, `data_exports.requested_by`), donde la migración no lo crea (una instalación nueva sí lo tiene). Candidatos a retirar, con evidencia de catálogo (sin estadísticas de uso en desarrollo): `user_mfa_recovery_codes_tenant_user_unused_idx` y `user_mfa_factors_tenant_user_confirmed_idx`, prefijo estricto, con el mismo predicado, de otro índice.
+- Tests: `tests/Feature/Core/TenantForeignKeyIndexesMigrationTest.php`.
