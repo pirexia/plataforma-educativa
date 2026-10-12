@@ -432,6 +432,8 @@ El permiso que lo protege es **`permiso_efectivo.leer`**, concedido sólo a `adm
 
 Es una relación de orden parcial con una sola excepción, no una retícula: se explica en una frase y se puede probar. Cualquier otra contención (¿`departamento` incluye `grupo`?) exigiría saber qué es un departamento, que es precisamente lo que el núcleo no debe saber (§3.1).
 
+Desde 1.11-b (`REQ-ACAD-001`, `PermissionResolver::canGrant()`) la comprobación **ignora los permisos de módulos NO contratados por el centro**: son inertes también para el destinatario (`inerte_modulo`), así que concederlos no entrega capacidad y exigir poseerlos impedía asignar o clonar cualquier rol sembrado con permisos de un módulo no esencial sin contratar. Los de un módulo contratado, y los de código desconocido o retirado, se exigen igual.
+
 **Dónde se aplica**, sin excepciones:
 
 | Operación | Qué se compara |

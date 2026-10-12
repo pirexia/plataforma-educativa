@@ -136,6 +136,25 @@ final class PermissionResolver
     }
 
     /**
+     * `RPERM-013` («nadie concede lo que no tiene»), 1.11-b: ¿puede `$subject`
+     * conceder `$code` con `$scope`? Un permiso de un módulo NO contratado por
+     * el centro es inerte también para quien lo recibe (`inerte_modulo`), así
+     * que concederlo no entrega ninguna capacidad y no se exige poseerlo; si el
+     * módulo está contratado, se exige igual que siempre (`ownsScope()`). Un
+     * código desconocido o retirado sigue exigiéndose (falla en cerrado).
+     */
+    public function canGrant(User $subject, string $code, Scope $scope): bool
+    {
+        $permission = $this->catalog()->get($code);
+
+        if ($permission !== null && $permission->retired_at === null && ! $this->moduleAvailability->isEnabled($permission->module_code)) {
+            return true;
+        }
+
+        return $this->ownsScope($subject, $code, $scope);
+    }
+
+    /**
      * @return array{0: bool, 1: ?string}
      */
     private function inertiaReason(?Permission $permission, PermissionRole $grant, ?Scope $scope): array

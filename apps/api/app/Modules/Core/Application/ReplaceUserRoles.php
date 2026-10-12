@@ -162,7 +162,7 @@ final class ReplaceUserRoles
                 continue;
             }
 
-            if (! $this->permissions->ownsScope($actor, $grant->permission_code, $scope)) {
+            if (! $this->permissions->canGrant($actor, $grant->permission_code, $scope)) {
                 throw ApiException::cannotGrantUnheldRolePermission();
             }
         }

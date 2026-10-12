@@ -235,7 +235,7 @@ final class CreateRole
 
             $scope = Scope::from($grant['scope']);
 
-            if (! $this->permissions->ownsScope($actor, $grant['code'], $scope)) {
+            if (! $this->permissions->canGrant($actor, $grant['code'], $scope)) {
                 if ($fromClone) {
                     throw ApiException::cannotGrantUnheldRolePermission();
                 }

@@ -160,10 +160,6 @@ function capacityGrantsOf(object $tenant, string $roleCode): array
 // CA-PERM-046
 test('CA-PERM-046: retirar o denegar un permiso de administración al único titular completo responde 409 y no guarda nada', function (): void {
     [$tenant, $ana] = provisionCoreTenant('perm-046');
-    // 1.11-b: los roles predefinidos llevan permisos de `acad` (no esencial). Sin el
-    // módulo contratado son inertes y el actor no los «posee» (RPERM-013); este test
-    // trabaja con un centro que ya lo tiene contratado.
-    contractModule($tenant, 'acad');
     capacityActivate($tenant, 'admin@example.com');
 
     $adminRole = capacityRolePublicId($tenant, 'administrador_centro');
@@ -248,10 +244,6 @@ test('CA-PERM-046: retirar o denegar un permiso de administración al único tit
 // CA-PERM-047
 test('CA-PERM-047: asignar un rol con deny, desactivar o dar de baja al último titular completo responde 409 aunque RN-CORE-07 lo permitiera', function (): void {
     [$tenant, $ana] = provisionCoreTenant('perm-047');
-    // 1.11-b: los roles predefinidos llevan permisos de `acad` (no esencial). Sin el
-    // módulo contratado son inertes y el actor no los «posee» (RPERM-013); este test
-    // trabaja con un centro que ya lo tiene contratado.
-    contractModule($tenant, 'acad');
     capacityActivate($tenant, 'admin@example.com');
 
     $adminRole = capacityRolePublicId($tenant, 'administrador_centro');
@@ -366,10 +358,6 @@ test('CA-PERM-048: un centro que aún no cumplía no ve rechazada ninguna escrit
 // CA-PERM-049
 test('CA-PERM-049: la comprobación y la escritura se serializan por tenant con un bloqueo de transacción, y la segunda escritura ve el estado de la primera', function (): void {
     [$tenant, $ana] = provisionCoreTenant('perm-049');
-    // 1.11-b: los roles predefinidos llevan permisos de `acad` (no esencial). Sin el
-    // módulo contratado son inertes y el actor no los «posee» (RPERM-013); este test
-    // trabaja con un centro que ya lo tiene contratado.
-    contractModule($tenant, 'acad');
     capacityActivate($tenant, 'admin@example.com');
 
     $adminRole = capacityRolePublicId($tenant, 'administrador_centro');

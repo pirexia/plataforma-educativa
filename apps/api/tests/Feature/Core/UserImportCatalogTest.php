@@ -307,10 +307,6 @@ function uicUserWithRole(object $tenant, string $email, string $roleCode): User
 // CA-CORE-287
 test('CA-CORE-287 (RPERM-013, #314): una fila con un rol que el actor no puede conceder se reporta en la fase 1 como rol_no_concedible y no se crea', function (): void {
     [$tenant, $admin] = provisionCoreTenant('uic-287');
-    // 1.11-b: los roles predefinidos llevan permisos de `acad` (no esencial). Sin el
-    // módulo contratado son inertes y el actor no los «posee» (RPERM-013); este test
-    // trabaja con un centro que ya lo tiene contratado.
-    contractModule($tenant, 'acad');
     $secretaria = uicUserWithRole($tenant, 'secretaria-287@example.com', 'secretaria');
 
     app(TenantContext::class)->runFor($tenant->id, function (): void {

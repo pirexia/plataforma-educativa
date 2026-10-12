@@ -95,10 +95,6 @@ test('CA-CORE-043: asignar a un usuario un rol de otro tenant falla y no crea la
 
 test('PUT /users/{id}/roles reemplaza el conjunto y emite UserRolesChanged', function (): void {
     [$tenant, $admin] = provisionCoreTenant('roles-put');
-    // 1.11-b: los roles predefinidos llevan permisos de `acad` (no esencial). Sin el
-    // módulo contratado son inertes y el actor no los «posee» (RPERM-013); este test
-    // trabaja con un centro que ya lo tiene contratado.
-    contractModule($tenant, 'acad');
 
     $docente = app(TenantContext::class)->runFor($tenant->id, fn () => Role::where('code', 'docente')->firstOrFail());
     $secretaria = app(TenantContext::class)->runFor($tenant->id, fn () => Role::where('code', 'secretaria')->firstOrFail());
