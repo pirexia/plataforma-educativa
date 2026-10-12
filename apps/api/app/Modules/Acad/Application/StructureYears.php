@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Curso\Domain\AcademicYearContext;
 use App\Modules\Curso\Domain\AcademicYearDirectory;
 use App\Modules\Curso\Domain\AcademicYearReadAccess;
+use App\Modules\Curso\Domain\AcademicYearReadDeniedException;
 use App\Modules\Curso\Domain\AcademicYearSummary;
 use App\Support\Api\ApiException;
 
@@ -49,6 +50,21 @@ final class StructureYears
         $this->readAccess->assertCanRead($year, $actor);
 
         return $year;
+    }
+
+    /**
+     * Curso de un padre que llega en el cuerpo (`education_level`, `course`).
+     * Si el curso es de solo lectura y el usuario no puede leerlo, el padre
+     * es indistinguible de uno inexistente: `422 parent_not_found` (api.md §6,
+     * `CA-ACAD-007`); el `404` es solo para recursos de la ruta.
+     */
+    public function forBodyParent(int $academicYearId, User $actor, string $field): AcademicYearSummary
+    {
+        try {
+            return $this->forRow($academicYearId, $actor);
+        } catch (AcademicYearReadDeniedException|ApiException) {
+            throw StructureErrors::invalid($field, 'acad.validation.parent_not_found');
+        }
     }
 
     /**

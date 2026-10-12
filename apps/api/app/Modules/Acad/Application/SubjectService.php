@@ -44,7 +44,7 @@ final class SubjectService
                 throw StructureErrors::invalid('course', 'acad.validation.parent_not_found');
             }
 
-            $this->years->forRow($course->academic_year_id, $actor);
+            $this->years->forBodyParent($course->academic_year_id, $actor, 'course');
 
             $siblings = Subject::query()->where('course_id', $course->id);
             $this->assertCodeFree(clone $siblings, $input['code']);

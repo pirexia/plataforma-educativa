@@ -162,7 +162,7 @@ test('CA-ACAD-007: padre del cuerpo ausente, borrado, inexistente o de otro cent
         ->and($treeA['group'])->not->toBeEmpty();
 });
 
-test('CA-ACAD-007 RN-ACAD-08: el grupo de la ruta de un curso cerrado sin curso_historico.leer es 404 al escribir; con él, 409 academic-year-closed', function (): void {
+test('CA-ACAD-007 RN-ACAD-08: el grupo de la ruta de un curso cerrado sin curso_historico.leer es 404 al escribir (con él, 409); un padre del cuerpo ilegible es 422 parent_not_found', function (): void {
     [$tenant, $admin, $year] = Api::setup('acad-007c');
     $tree = Api::tree($tenant, $admin, $year);
     CursoTestHelpers::setStatus($tenant, $year, AcademicYearStatus::Cerrado);
@@ -171,8 +171,19 @@ test('CA-ACAD-007 RN-ACAD-08: el grupo de la ruta de un curso cerrado sin curso_
 
     acadPost($tenant, $writer, "/groups/{$tree['group']}/subgroups", ['code' => 'N', 'name' => 'N'])->assertNotFound();
     expect(acadPost($tenant, $historian, "/groups/{$tree['group']}/subgroups", ['code' => 'N', 'name' => 'N'])->assertStatus(409)->json('type'))->toBe('urn:pge:error:academic-year-closed');
-    // Un padre del cuerpo en un curso cerrado que el usuario no puede leer también es 404.
-    acadPost($tenant, $writer, '/courses', ['education_level' => $tree['level'], 'code' => 'N', 'name_translations' => ['es-ES' => 'N']])->assertNotFound();
+    // Un padre del cuerpo en un curso cerrado que el usuario no puede leer es indistinguible de uno inexistente: 422 parent_not_found (CA-ACAD-007).
+    foreach ([
+        ['/courses', 'education_level', $tree['level'], ['name_translations' => ['es-ES' => 'N']]],
+        ['/groups', 'course', $tree['course'], ['name' => 'N']],
+        ['/subjects', 'course', $tree['course'], ['name_translations' => ['es-ES' => 'N']]],
+    ] as [$path, $field, $parent, $rest]) {
+        $denied = acadPost($tenant, $writer, $path, [$field => $parent, 'code' => 'N'] + $rest)->assertStatus(422);
+        $missing = acadPost($tenant, $writer, $path, [$field => '01JA0000000000000000000099', 'code' => 'N'] + $rest)->assertStatus(422);
+
+        expect($denied->json('errors'))->toBe($missing->json('errors'), $path);
+        // Con curso_historico.leer el padre se ve y la escritura la rechaza el disparador.
+        expect(acadPost($tenant, $historian, $path, [$field => $parent, 'code' => 'N'] + $rest)->assertStatus(409)->json('type'))->toBe('urn:pge:error:academic-year-closed');
+    }
 });
 
 test('CA-ACAD-008 RN-ACAD-20: borrar con hijos vivos es 409 has_dependents con params.dependents (curso de etapa, grupo, asignatura); sin hijos, 204', function (): void {

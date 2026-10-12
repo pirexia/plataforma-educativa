@@ -182,7 +182,7 @@ No hay. No se declara `estructura_academica.exportar` (`permisos.md §2.1`).
 | `urn:pge:error:validation` | 422 | `acad.validation.academic_year_required` | Alta de etapa sin `academic_year` |
 | `urn:pge:error:validation` | 422 | `acad.validation.academic_year_not_found` | `academic_year` del cuerpo inexistente o de otro centro |
 | `urn:pge:error:validation` | 422 | `acad.validation.academic_year_not_allowed` | `academic_year` en el alta de un hijo (`RN-ACAD-05`) |
-| `urn:pge:error:validation` | 422 | `acad.validation.parent_not_found` | Padre **del cuerpo** (`education_level`, `course`) ausente, inexistente, borrado o de otro centro. Un padre **de la ruta** (`/groups/{public_id}/…`) en esa situación es `404`, no este código |
+| `urn:pge:error:validation` | 422 | `acad.validation.parent_not_found` | Padre **del cuerpo** (`education_level`, `course`) ausente, inexistente, borrado o de otro centro, o de un curso de solo lectura que el usuario no puede leer (sin `curso_historico.leer`; indistinguible de uno inexistente). Un padre **de la ruta** (`/groups/{public_id}/…`) en esa situación es `404`, no este código |
 | `urn:pge:error:validation` | 422 | `acad.validation.parent_immutable` | `PATCH` con padre o curso académico (`RN-ACAD-06`) |
 | `urn:pge:error:validation` | 422 | `acad.validation.subject_not_in_course` | `PUT /groups/{id}/subjects` con una asignatura ajena al curso de etapa (`RN-ACAD-30`) |
 | `urn:pge:error:conflict` | 409 | `acad.conflict.has_dependents` | `RN-ACAD-20`; `params.dependents` |

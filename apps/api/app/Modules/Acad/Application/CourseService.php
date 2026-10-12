@@ -47,7 +47,7 @@ final class CourseService
                 throw StructureErrors::invalid('education_level', 'acad.validation.parent_not_found');
             }
 
-            $this->years->forRow($level->academic_year_id, $actor);
+            $this->years->forBodyParent($level->academic_year_id, $actor, 'education_level');
 
             $siblings = Course::query()->where('academic_year_id', $level->academic_year_id);
             $this->assertCodeFree(clone $siblings, $input['code']);
