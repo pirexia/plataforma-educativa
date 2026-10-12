@@ -6,4 +6,5 @@ return [
     'core' => 'Núcleo de la plataforma',
     'auth' => 'Autenticación y sesiones',
     'curso' => 'Curso académico',
+    'acad' => 'Gestión académica',
 ];

@@ -6,6 +6,12 @@ use App\Models\PermissionRole;
 use App\Models\Person;
 use App\Models\Role;
 use App\Models\User;
+use App\Modules\Acad\Domain\Models\Course;
+use App\Modules\Acad\Domain\Models\EducationLevel;
+use App\Modules\Acad\Domain\Models\Group;
+use App\Modules\Acad\Domain\Models\GroupSubject;
+use App\Modules\Acad\Domain\Models\Subgroup;
+use App\Modules\Acad\Domain\Models\Subject;
 use App\Modules\Auth\Domain\Models\IdentityProvider;
 use App\Modules\Auth\Domain\Models\MfaReset;
 use App\Modules\Auth\Domain\Models\SamlIdentityProviderSettings;
@@ -58,6 +64,8 @@ test('todo modelo de tenant núcleo está en el morph map', function (): void {
 // PermissionRole (REQ-PERM/datos.md §5.2, 1.5, issue #165) se suma en
 // Full: un código de permiso, un código de rol, un efecto y un ámbito no
 // son datos personales.
+// Los seis modelos de `acad` (REQ-ACAD/datos.md §4, 1.11-b) se suman en Full:
+// estructura académica del centro, sin datos personales (RN-ACAD-09).
 test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR-035 §8', function (): void {
     $map = Relation::morphMap();
 
@@ -76,6 +84,7 @@ test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR
         AcademicYear::class, Role::class, ModuleSubscription::class, DataExport::class,
         MfaReset::class, UserMfaObligation::class, UserMfaExemption::class, IdentityProvider::class,
         SamlIdentityProviderSettings::class, PermissionRole::class,
+        EducationLevel::class, Course::class, Group::class, Subgroup::class, Subject::class, GroupSubject::class,
     ]);
 });
 
