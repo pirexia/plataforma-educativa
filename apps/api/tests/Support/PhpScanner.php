@@ -32,10 +32,15 @@ use RecursiveIteratorIterator;
  *   buscada, y los invocables por literal: `[Clase::class, 'm']`,
  *   `['Fqcn', 'm']` y `'Fqcn::m'` (con `call_user_func`, `array_map`…).
  *
+ * Desde la revisión de seguridad de 1.11-a: `stringValues()` decodifica los
+ * escapes de las cadenas (`\xNN`, octal, `\u{…}`, `\n`, `\\`…), `staticCallsOn()` compara
+ * nombres sin distinguir mayúsculas (PHP no lo hace), acepta `array(Clase::class,
+ * 'm')`, la coma final y la concatenación de literales dentro de un invocable.
+ *
  * Límites que ningún análisis estático supera, declarados (ADR-056 §3.4):
  * `$clase::m()` con la clase en una variable, `config($variable)` o un nombre
- * armado en tiempo de ejecución (`'pgsql_'.$sufijo`), la reflexión y el
- * `eval`. Eso lo cubre el motor, no el escáner (p. ej. `plataforma_app` no
+ * armado en tiempo de ejecución (`'pgsql_'.$sufijo`), `class_alias()`, la
+ * reflexión y el `eval`. Eso lo cubre el motor, no el escáner (p. ej. `plataforma_app` no
  * puede crear objetos: `DatabaseCapabilitiesTest`).
  */
 final class PhpScanner
@@ -130,6 +135,28 @@ final class PhpScanner
     }
 
     /**
+     * ¿Declara el fichero una clase (o clase anónima) que extiende
+     * `Illuminate\Database\Migrations\Migration`? Para acotar la exención por
+     * ruta de las reglas de arquitectura a clases de migración reales, no a
+     * cualquier fichero colocado bajo `Database/migrations/` (revisión de 1.11-a).
+     */
+    public static function declaresMigrationClass(string $source): bool
+    {
+        $tokens = self::tokens($source);
+        $analysis = self::analyze($tokens);
+
+        foreach ($tokens as $i => $token) {
+            if ($token->is(T_EXTENDS)
+                && ($tokens[$i + 1] ?? null)?->is([T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED])
+                && strtolower(self::resolveAt($tokens[$i + 1], $i, $analysis)) === 'illuminate\\database\\migrations\\migration') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Valores (sin comillas) de todas las cadenas constantes del fichero.
      *
      * @return list<string>
@@ -173,12 +200,12 @@ final class PhpScanner
             $token = $tokens[$i];
 
             if ($token->is(T_CONSTANT_ENCAPSED_STRING)) {
-                $value = self::unquote($token->text);
+                $value = self::decodeLiteral($token->text);
                 $values[] = $value;
                 $j = $i;
 
                 while (($tokens[$j + 1] ?? null)?->text === '.' && ($tokens[$j + 2] ?? null)?->is(T_CONSTANT_ENCAPSED_STRING)) {
-                    $value .= self::unquote($tokens[$j + 2]->text);
+                    $value .= self::decodeLiteral($tokens[$j + 2]->text);
                     $j += 2;
                 }
 
@@ -198,6 +225,7 @@ final class PhpScanner
             }
 
             $fragments = [];
+            $raw = $token->is(T_START_HEREDOC) && str_contains($token->text, "'");   // nowdoc: sin escapes
 
             for ($j = $i + 1; $j < $count; $j++) {
                 if ($closing === '"' ? $tokens[$j]->text === '"' : $tokens[$j]->is(T_END_HEREDOC)) {
@@ -205,7 +233,7 @@ final class PhpScanner
                 }
 
                 if ($tokens[$j]->is(T_ENCAPSED_AND_WHITESPACE)) {
-                    $fragments[] = $tokens[$j]->text;
+                    $fragments[] = $raw ? $tokens[$j]->text : self::decodeDoubleQuoted($tokens[$j]->text, $closing === '"');
                 }
             }
 
@@ -235,8 +263,7 @@ final class PhpScanner
     {
         $tokens = self::tokens($source);
         $analysis = self::analyze($tokens);
-        $target = ltrim($class, '\\');
-        $count = count($tokens);
+        $target = strtolower(ltrim($class, '\\'));
         $methods = [];
 
         foreach ($tokens as $i => $token) {
@@ -254,31 +281,24 @@ final class PhpScanner
                 continue;
             }
 
-            // Invocable por literal: `[Clase::class, 'm']`.
-            if ($token->text === '[' && $i + 6 < $count
-                && $tokens[$i + 1]->is([T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED])
-                && $tokens[$i + 2]->is(T_DOUBLE_COLON) && $tokens[$i + 3]->is(T_CLASS)
-                && $tokens[$i + 4]->text === ',' && $tokens[$i + 5]->is(T_CONSTANT_ENCAPSED_STRING)
-                && $tokens[$i + 6]->text === ']'
-                && self::resolveAt($tokens[$i + 1], $i, $analysis) === $target) {
-                $methods[] = self::unquote($tokens[$i + 5]->text);
+            // Invocable por literal: `[Clase::class, 'm']`, `array(Clase::class, 'm')`,
+            // `['Fqcn', 'm']`, con coma final y con literales concatenados.
+            $opener = self::arrayOpenerLength($tokens, $i);
+
+            if ($opener > 0) {
+                $callable = self::callableFromArray($tokens, $i + $opener, $i, $analysis);
+
+                if ($callable !== null && $callable[0] === $target) {
+                    $methods[] = $callable[1];
+                }
 
                 continue;
             }
 
-            // Invocable por literal: `['Fqcn', 'm']`.
-            if ($token->text === '[' && $i + 4 < $count
-                && $tokens[$i + 1]->is(T_CONSTANT_ENCAPSED_STRING) && $tokens[$i + 2]->text === ','
-                && $tokens[$i + 3]->is(T_CONSTANT_ENCAPSED_STRING) && $tokens[$i + 4]->text === ']'
-                && self::normalizeClassString(self::unquote($tokens[$i + 1]->text)) === $target) {
-                $methods[] = self::unquote($tokens[$i + 3]->text);
-
-                continue;
-            }
-
-            // Invocable por cadena: `'Fqcn::m'`.
+            // Invocable por cadena: `'Fqcn::m'` (también concatenada: `'A\\B' . '\\C::m'`).
             if ($token->is(T_CONSTANT_ENCAPSED_STRING)) {
-                $value = self::unquote($token->text);
+                $folded = self::foldLiterals($tokens, $i);
+                $value = $folded[0];
 
                 if (str_contains($value, '::')) {
                     [$left, $right] = explode('::', $value, 2);
@@ -293,9 +313,136 @@ final class PhpScanner
         return $methods;
     }
 
+    /**
+     * Longitud (en tokens) del abridor de array en `$i` (`[` → 1, `array (` → 2) o 0.
+     *
+     * @param  list<PhpToken>  $tokens
+     */
+    private static function arrayOpenerLength(array $tokens, int $i): int
+    {
+        if ($tokens[$i]->text === '[') {
+            return 1;
+        }
+
+        return $tokens[$i]->is(T_ARRAY) && ($tokens[$i + 1] ?? null)?->text === '(' ? 2 : 0;
+    }
+
+    /**
+     * Cadena de literales concatenados en `$i` (`'a' . 'b'`), decodificada, y el
+     * índice del último token que consume.
+     *
+     * @param  list<PhpToken>  $tokens
+     * @return array{0: string, 1: int}
+     */
+    private static function foldLiterals(array $tokens, int $i): array
+    {
+        $value = self::decodeLiteral($tokens[$i]->text);
+        $j = $i;
+
+        while (($tokens[$j + 1] ?? null)?->text === '.' && ($tokens[$j + 2] ?? null)?->is(T_CONSTANT_ENCAPSED_STRING)) {
+            $value .= self::decodeLiteral($tokens[$j + 2]->text);
+            $j += 2;
+        }
+
+        return [$value, $j];
+    }
+
+    /**
+     * `[Clase::class, 'm' ,]` / `['Fqcn', 'm']` desde el token tras el abridor:
+     * [clase en minúsculas, método] o null si no es un invocable por literal.
+     *
+     * @param  list<PhpToken>  $tokens
+     * @param  array{scopes: list<array{0: int, 1: string, 2: array<string, string>}>, classes: list<array{0: int, 1: int, 2: ?string}>}  $analysis
+     * @return array{0: string, 1: string}|null
+     */
+    private static function callableFromArray(array $tokens, int $j, int $openerIndex, array $analysis): ?array
+    {
+        $first = $tokens[$j] ?? null;
+
+        if ($first === null) {
+            return null;
+        }
+
+        if ($first->is([T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED])
+            && ($tokens[$j + 1] ?? null)?->is(T_DOUBLE_COLON) && ($tokens[$j + 2] ?? null)?->is(T_CLASS)) {
+            $class = strtolower(self::resolveAt($first, $openerIndex, $analysis));
+            $next = $j + 3;
+        } elseif ($first->is(T_CONSTANT_ENCAPSED_STRING)) {
+            [$value, $last] = self::foldLiterals($tokens, $j);
+            $class = self::normalizeClassString($value);
+            $next = $last + 1;
+        } else {
+            return null;
+        }
+
+        if (($tokens[$next] ?? null)?->text !== ',' || ! ($tokens[$next + 1] ?? null)?->is(T_CONSTANT_ENCAPSED_STRING)) {
+            return null;
+        }
+
+        [$method, $last] = self::foldLiterals($tokens, $next + 1);
+        $after = $tokens[$last + 1] ?? null;
+
+        if ($after?->text === ',') {
+            $after = $tokens[$last + 2] ?? null;
+        }
+
+        return in_array($after?->text, [']', ')'], true) ? [$class, $method] : null;
+    }
+
+    /**
+     * Valor de un literal entre comillas: simples (`\\` y `\'`) o dobles
+     * (todos los escapes de PHP).
+     */
+    private static function decodeLiteral(string $quoted): string
+    {
+        $inner = substr($quoted, 1, -1);
+
+        if ($quoted[0] === "'") {
+            return str_replace(['\\\\', "\\'"], ['\\', "'"], $inner);
+        }
+
+        return self::decodeDoubleQuoted($inner, true);
+    }
+
+    /**
+     * Escapes de una cadena de comillas dobles o de un heredoc: `\n \r \t \v
+     * \e \f \\ \$ \"` (este último solo con comillas dobles), `\NNN` octal,
+     * `\xNN` y `\u{N…}`. Una secuencia no reconocida se deja tal cual, como PHP.
+     */
+    private static function decodeDoubleQuoted(string $text, bool $quoted): string
+    {
+        $out = preg_replace_callback(
+            '/\\\\(?:([nrtvef\\\\$"])|([0-7]{1,3})|x([0-9A-Fa-f]{1,2})|u\{([0-9A-Fa-f]+)\})/',
+            static function (array $m) use ($quoted): string {
+                if (($m[1] ?? '') !== '') {
+                    return match ($m[1]) {
+                        'n' => "\n", 'r' => "\r", 't' => "\t", 'v' => "\v", 'e' => "\e", 'f' => "\f",
+                        '"' => $quoted ? '"' : $m[0],
+                        default => $m[1],
+                    };
+                }
+
+                if (($m[2] ?? '') !== '') {
+                    return chr(octdec($m[2]) & 0xFF);
+                }
+
+                if (($m[3] ?? '') !== '') {
+                    return chr((int) hexdec($m[3]));
+                }
+
+                $code = (int) hexdec($m[4]);
+
+                return $code <= 0x10FFFF ? (mb_chr($code, 'UTF-8') ?: '') : $m[0];
+            },
+            $text,
+        );
+
+        return $out ?? $text;
+    }
+
     private static function normalizeClassString(string $value): string
     {
-        return ltrim(str_replace('\\\\', '\\', $value), '\\');
+        return strtolower(ltrim(str_replace('\\\\', '\\', $value), '\\'));
     }
 
     /**
@@ -309,7 +456,7 @@ final class PhpScanner
     {
         if ($token->is(T_STATIC) || in_array(strtolower($token->text), ['self', 'parent'], true)) {
             foreach ($analysis['classes'] as [$start, $end, $extends]) {
-                if ($index > $start && $index < $end && $extends === $target) {
+                if ($index > $start && $index < $end && $extends !== null && strtolower($extends) === $target) {
                     return true;
                 }
             }
@@ -317,7 +464,7 @@ final class PhpScanner
             return false;
         }
 
-        return self::resolveAt($token, $index, $analysis) === $target;
+        return strtolower(self::resolveAt($token, $index, $analysis)) === $target;
     }
 
     /**
@@ -428,7 +575,8 @@ final class PhpScanner
         $addImport = static function (string $name, ?string $alias) use (&$imports): void {
             $name = ltrim($name, '\\');
             $separator = strrpos($name, '\\');
-            $imports[$alias ?? ($separator === false ? $name : substr($name, $separator + 1))] = $name;
+            // Las clases no distinguen mayúsculas en PHP: la clave del alias va en minúsculas.
+            $imports[strtolower($alias ?? ($separator === false ? $name : substr($name, $separator + 1)))] = $name;
         };
 
         for ($i = 0; $i < $count; $i++) {
@@ -577,8 +725,8 @@ final class PhpScanner
         $first = strstr($text, '\\', true);
         $first = $first === false ? $text : $first;
 
-        if (isset($imports[$first])) {
-            return $imports[$first].substr($text, strlen($first));
+        if (isset($imports[strtolower($first)])) {
+            return $imports[strtolower($first)].substr($text, strlen($first));
         }
 
         return ($namespace !== '' ? $namespace.'\\' : '').$text;

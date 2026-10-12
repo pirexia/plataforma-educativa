@@ -3,6 +3,8 @@
 namespace Tests\Support;
 
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
+use RuntimeException;
 
 /**
  * Tablas de prueba creadas por un test mediante `TenantMigration` (conexión
@@ -36,6 +38,14 @@ final class ProbeTables
      */
     public static function dropAndReportLeftovers(array $tables, array $before): array
     {
+        // Solo en las bases de test (revisión de seguridad B4): un DROP ... CASCADE
+        // por el propietario contra otra base sería destructivo.
+        $database = DB::connection('pgsql_owner')->selectOne('SELECT current_database() AS d')->d;
+
+        if (preg_match('/^plataforma_test(_[0-9]+)?$/', $database) !== 1) {
+            throw new RuntimeException("ProbeTables solo opera en bases plataforma_test*, no en «{$database}».");
+        }
+
         $connection = DB::connection();
 
         while ($connection->transactionLevel() > 0) {
@@ -43,7 +53,12 @@ final class ProbeTables
         }
 
         foreach ($tables as $table) {
-            DB::connection('pgsql_owner')->statement('DROP TABLE IF EXISTS '.$table.' CASCADE');
+            // Identificador acotado y esquema calificado: nunca el nombre sin comprobar.
+            if (preg_match('/^[a-z][a-z0-9_]*$/', $table) !== 1) {
+                throw new InvalidArgumentException("Nombre de tabla de prueba no válido: {$table}");
+            }
+
+            DB::connection('pgsql_owner')->statement('DROP TABLE IF EXISTS public.'.$table.' CASCADE');
         }
 
         return array_values(array_diff(self::snapshot(), $before));

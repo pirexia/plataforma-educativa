@@ -184,3 +184,58 @@ test('#414: staticCallsOn() NO confunde: otra clase homónima, static::/self:: s
     'dinamica con la clase en una variable (limite declarado)' => ["use App\\Support\\Tenancy\\TenantMigration;\nclass X { function f(\$clase) { \$clase::tenantTable('t'); } }"],
     'nombre armado en ejecucion (limite declarado)' => ["class X { function f(\$m) { call_user_func('App\\\\Support\\\\Tenancy\\\\TenantMigration::'.\$m); } }"],
 ]);
+
+// ───────── Revisión de seguridad de 1.11-a (M1/M2/B2) ─────────
+
+test('#414 M1: stringValues() decodifica los escapes de comillas dobles (hex, octal, unicode, secuencias) antes de comparar', function (string $code): void {
+    $found = array_filter(PhpScanner::stringValues(phpScannerFixture($code)), static fn (string $v): bool => str_contains($v, 'pgsql_owner'));
+
+    expect($found)->not->toBe([]);
+})->with([
+    'hexadecimal' => ['$c = "pgsql_\x6fwner";'],
+    'octal' => ['$c = "pgsql_\157wner";'],
+    'unicode' => ['$c = "pgsql_\u{6f}wner";'],
+    'todo en hexadecimal' => ['$c = "\x70\x67\x73\x71\x6c\x5f\x6f\x77\x6e\x65\x72";'],
+    'concatenado con escapes' => ['$c = "pgsql_" . "\x6fwner";'],
+    'heredoc con escapes' => ["\$c = <<<TXT\npgsql_\\x6fwner\nTXT;\n"],
+    'comilla simple con barra escapada' => ["\$c = 'pgsql_owner\\\\';"],
+]);
+
+test('#414 M1: los escapes de comillas simples y los nowdoc NO se decodifican como dobles', function (): void {
+    $values = PhpScanner::stringValues(phpScannerFixture("\$a = 'pgsql_\\x6fwner'; \$b = <<<'TXT'\npgsql_\\x6fwner\nTXT;\n"));
+
+    expect(array_filter($values, static fn (string $v): bool => str_contains($v, 'pgsql_owner')))->toBe([]);
+});
+
+test('#414 M2: staticCallsOn() no distingue mayúsculas (PHP tampoco), acepta array(), coma final y literales concatenados en el invocable', function (string $code): void {
+    expect(PhpScanner::staticCallsOn(phpScannerFixture($code), SCANNER_TARGET))->not->toBe([]);
+})->with([
+    'clase en otras mayusculas' => ["use app\\support\\tenancy\\tenantmigration;\nclass X { function f() { TENANTMIGRATION::tenantTable('t'); } }"],
+    'use en otras mayusculas, llamada normal' => ["use APP\\SUPPORT\\TENANCY\\TENANTMIGRATION;\nclass X { function f() { TenantMigration::tenantTable('t'); } }"],
+    'array() con Clase::class' => ["use App\\Support\\Tenancy\\TenantMigration;\ncall_user_func(array(TenantMigration::class, 'tenantTable'));"],
+    'corchetes con coma final' => ["use App\\Support\\Tenancy\\TenantMigration;\ncall_user_func([TenantMigration::class, 'tenantTable',]);"],
+    'cadenas con coma final' => ["call_user_func(['App\\\\Support\\\\Tenancy\\\\TenantMigration', 'tenantTable',]);"],
+    'array() de cadenas' => ["call_user_func(array('App\\\\Support\\\\Tenancy\\\\TenantMigration', 'tenantTable'));"],
+    'FQCN concatenado en el array' => ["call_user_func(['App\\\\Support\\\\' . 'Tenancy\\\\TenantMigration', 'tenant' . 'Table']);"],
+    'FQCN concatenado en Clase::metodo' => ["call_user_func('App\\\\Support\\\\Tenancy' . '\\\\TenantMigration::tenantTable');"],
+    'FQCN en mayusculas' => ["call_user_func('APP\\\\SUPPORT\\\\TENANCY\\\\TENANTMIGRATION::tenantTable');"],
+    'parent:: con extends en otras mayusculas' => ["use App\\Support\\Tenancy\\tenantmigration;\nclass X extends TenantMigration { function f() { parent::tenantTable('t'); } }"],
+]);
+
+test('#414 M2: staticCallsOn() sigue sin confundir clases homónimas, ni arrays incompletos o de otra clase (class_alias y dinámicos: límite declarado)', function (string $code): void {
+    expect(PhpScanner::staticCallsOn(phpScannerFixture($code), SCANNER_TARGET))->toBe([]);
+})->with([
+    'array de otra clase' => ["call_user_func(['Other\\\\Thing', 'tenantTable']);"],
+    'array sin metodo' => ["use App\\Support\\Tenancy\\TenantMigration;\n\$a = [TenantMigration::class];"],
+    'array con tres elementos' => ["use App\\Support\\Tenancy\\TenantMigration;\n\$a = [TenantMigration::class, 'a', 'b'];"],
+    'class_alias (limite declarado)' => ["class_alias('App\\\\Support\\\\Tenancy\\\\TenantMigration', 'Otra');\nOtra::tenantTable('t');"],
+    'concatenacion con variable (limite declarado)' => ["call_user_func(['App\\\\Support\\\\Tenancy\\\\TenantMigration', 'tenant' . \$sufijo]);"],
+]);
+
+test('#414 B2: declaresMigrationClass() distingue una migración real de un fichero cualquiera', function (): void {
+    expect(PhpScanner::declaresMigrationClass(phpScannerFixture("use Illuminate\\Database\\Migrations\\Migration;\nreturn new class extends Migration {};")))->toBeTrue()
+        ->and(PhpScanner::declaresMigrationClass(phpScannerFixture('return new class extends \\Illuminate\\Database\\Migrations\\Migration {};')))->toBeTrue()
+        ->and(PhpScanner::declaresMigrationClass(phpScannerFixture('class Ayuda {}')))->toBeFalse()
+        ->and(PhpScanner::declaresMigrationClass(phpScannerFixture("use Other\\Migration;\nclass X extends Migration {}")))->toBeFalse()
+        ->and(PhpScanner::declaresMigrationClass(phpScannerFixture('// class X extends Migration {}')))->toBeFalse();
+});

@@ -68,14 +68,20 @@ function ownerConnectionExceptions(): array
  * ¿Es un fichero de migración de módulo? Solo corren por CLI con la conexión
  * del propietario.
  */
-function isModuleMigration(string $relativePath): bool
+function isModuleMigration(string $relativePath, string $source): bool
 {
     // Claves relativas a `app/` (módulos) o, desde 1.11-a (#387 B-4,
     // CA-ACAD-040), a la raíz de la API para `database/`, `routes/` y
     // `bootstrap/`: las migraciones del esquema del núcleo son
-    // `database/migrations/`.
-    return preg_match('#^Modules/[^/]+/Database/migrations/#', $relativePath) === 1
+    // `database/migrations/`. La exención es por ruta Y por forma (revisión de
+    // seguridad B2): nombre `AAAA_MM_DD_HHMMSS_*.php` y una clase que extiende
+    // `Migration`; un fichero cualquiera colocado ahí no queda exento.
+    $inMigrations = preg_match('#^Modules/[^/]+/Database/migrations/#', $relativePath) === 1
         || str_starts_with($relativePath, 'database/migrations/');
+
+    return $inMigrations
+        && preg_match('/^\d{4}_\d{2}_\d{2}_\d{6}_[a-z0-9_]+\.php$/', basename($relativePath)) === 1
+        && PhpScanner::declaresMigrationClass($source);
 }
 
 /**
@@ -88,7 +94,7 @@ function unsanctionedOwnerConnectionUsers(array $sources, array $allowed): array
     $found = [];
 
     foreach ($sources as $path => $source) {
-        if (isModuleMigration($path) || in_array($path, $allowed, true)) {
+        if (isModuleMigration($path, $source) || in_array($path, $allowed, true)) {
             continue;
         }
 
@@ -105,7 +111,9 @@ function mentionsOwnerConnection(string $source): bool
     // `stringValues()` (#414): también concatenaciones estáticas de literales,
     // heredoc/nowdoc y fragmentos de cadenas interpoladas.
     foreach (PhpScanner::stringValues($source) as $literal) {
-        if (str_contains($literal, 'pgsql_owner')) {
+        // `DB_OWNER…`: la variable de entorno de las credenciales del propietario
+        // (`env('DB_OWNER_USERNAME')`) es otra forma de abrir esa conexión (B1).
+        if (str_contains($literal, 'pgsql_owner') || str_contains($literal, 'DB_OWNER')) {
             return true;
         }
     }
@@ -184,13 +192,19 @@ test('AR-14 #383 CA-056-14 control negativo: detecta la mención real y no la de
         'A/MalaConfig.php' => "<?php\nclass MalaConfig { function f() { return config(\"database.connections.pgsql_owner\"); } }",
         'A/Comentario.php' => "<?php\n// DB::connection('pgsql_owner')\n/* 'pgsql_owner' */\nclass Comentario {}",
         'A/Otra.php' => "<?php\nclass Otra { function f() { return DB::connection('pgsql'); } }",
-        'Modules/M/Database/migrations/2026_01_01_000000_x.php' => "<?php\nreturn DB::connection('pgsql_owner');",
+        'Modules/M/Database/migrations/2026_01_01_000000_x.php' => "<?php\nuse Illuminate\\Database\\Migrations\\Migration;\nreturn new class extends Migration { function up() { DB::connection('pgsql_owner'); } };",
         'A/Listada.php' => "<?php\nclass Listada { function f() { return DB::connection('pgsql_owner'); } }",
         // CA-ACAD-040 (#387 B-4): el escaneo ampliado a database/, routes/ y bootstrap/.
         'database/seeders/MalSeeder.php' => "<?php\nclass MalSeeder { function run() { DB::connection('pgsql_owner')->table('x')->delete(); } }",
         'routes/web.php' => "<?php\nRoute::get('/x', fn () => DB::connection('pgsql_owner')->table('x')->get());",
         'bootstrap/app.php' => "<?php\nreturn config('database.connections.pgsql_owner');",
-        'database/migrations/2026_01_01_000000_x.php' => "<?php\nreturn DB::connection('pgsql_owner');",
+        'database/migrations/2026_01_01_000000_x.php' => "<?php\nuse Illuminate\\Database\\Migrations\\Migration;\nreturn new class extends Migration { function up() { DB::connection('pgsql_owner'); } };",
+        // B2: bajo database/migrations pero NO es una migración (no extiende Migration / nombre libre).
+        'database/migrations/ayuda.php' => "<?php\nreturn DB::connection('pgsql_owner');",
+        'database/migrations/2026_01_01_000001_clase_cualquiera.php' => "<?php\nclass Cualquiera { function f() { return DB::connection('pgsql_owner'); } }",
+        'Modules/M/Database/migrations/Helper.php' => "<?php\nclass Helper { function f() { return DB::connection('pgsql_owner'); } }",
+        // B1: la variable de entorno del propietario.
+        'A/Entorno.php' => "<?php\nclass Entorno { function f() { return env('DB_OWNER_USERNAME'); } }",
         // #414: formas que el detector de literales simples no veía.
         'A/Concatenada.php' => "<?php\nclass Concatenada { function f() { return DB::connection('pgsql_'.'owner'); } }",
         'A/ConcatenadaLarga.php' => "<?php\nclass ConcatenadaLarga { function f() { return config('database.connections.'.'pgsql'.'_owner'); } }",
@@ -201,7 +215,7 @@ test('AR-14 #383 CA-056-14 control negativo: detecta la mención real y no la de
         'database/factories/LimpiaFactory.php' => "<?php\nclass LimpiaFactory { function definition() { return []; } }",
     ];
 
-    expect(unsanctionedOwnerConnectionUsers($sources, ['A/Listada.php']))->toBe([
+    expect(unsanctionedOwnerConnectionUsers($sources, ['A/Listada.php']))->toEqualCanonicalizing([
         'A/Mala.php',
         'A/MalaConfig.php',
         'database/seeders/MalSeeder.php',
@@ -212,6 +226,10 @@ test('AR-14 #383 CA-056-14 control negativo: detecta la mención real y no la de
         'A/Heredoc.php',
         'A/Nowdoc.php',
         'A/Interpolada.php',
+        'database/migrations/ayuda.php',
+        'database/migrations/2026_01_01_000001_clase_cualquiera.php',
+        'Modules/M/Database/migrations/Helper.php',
+        'A/Entorno.php',
         // 'A/Variable.php' NO se detecta: límite declarado (nombre armado en ejecución).
     ]);
 });

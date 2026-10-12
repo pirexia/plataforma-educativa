@@ -36,10 +36,16 @@ function tenantMigrationPathExemptions(): array
     ];
 }
 
-function isMigrationPath(string $path): bool
+function isMigrationPath(string $path, string $source): bool
 {
-    return str_starts_with($path, 'database/migrations/')
+    // Por ruta Y por forma (revisión de seguridad B2): nombre de migración y una
+    // clase que extiende `Migration`; un fichero cualquiera bajo esas carpetas no queda exento.
+    $inMigrations = str_starts_with($path, 'database/migrations/')
         || preg_match('#^app/Modules/[^/]+/Database/migrations/#', $path) === 1;
+
+    return $inMigrations
+        && preg_match('/^\d{4}_\d{2}_\d{2}_\d{6}_[a-z0-9_]+\.php$/', basename($path)) === 1
+        && PhpScanner::declaresMigrationClass($source);
 }
 
 function usesTenantMigration(string $source): bool
@@ -57,7 +63,7 @@ function unsanctionedTenantMigrationUsers(array $sources, array $exempt): array
     $found = [];
 
     foreach ($sources as $path => $source) {
-        if (isMigrationPath($path) || in_array($path, $exempt, true)) {
+        if (isMigrationPath($path, $source) || in_array($path, $exempt, true)) {
             continue;
         }
 
@@ -93,7 +99,7 @@ test('CA-ACAD-040 #387 B-4: solo las migraciones usan TenantMigration (ni app/, 
 
     // No vacuidad: el escaneo ve migraciones que SÍ lo usan (si no, el patrón
     // de detección o las rutas habrían dejado de funcionar).
-    $inMigrations = array_filter($sources, static fn (string $source, string $path): bool => isMigrationPath($path) && usesTenantMigration($source), ARRAY_FILTER_USE_BOTH);
+    $inMigrations = array_filter($sources, static fn (string $source, string $path): bool => isMigrationPath($path, $source) && usesTenantMigration($source), ARRAY_FILTER_USE_BOTH);
 
     expect(count($inMigrations))->toBeGreaterThan(10, 'CA-ACAD-040 pasaría en vacío: el escáner no ve ninguna migración que use TenantMigration');
 
@@ -114,14 +120,19 @@ test('CA-ACAD-040 ADR-056 §3.2: cada exención de ruta existe y sigue siendo ne
 });
 
 test('CA-ACAD-040 control negativo: detecta el uso real fuera de migraciones y no el de una migración, una exención, un comentario ni otra clase', function (): void {
+    $migration = "<?php\nuse Illuminate\\Database\\Migrations\\Migration;\nuse App\\Support\\Tenancy\\TenantMigration;\nreturn new class extends Migration { function up() { TenantMigration::tenantTable('t', fn () => null); } };";
     $uses = "<?php\nuse App\\Support\\Tenancy\\TenantMigration;\nclass X { function f() { TenantMigration::tenantTable('t', fn () => null); } }";
 
     $sources = [
         'app/Modules/Acad/Http/Controllers/MalController.php' => $uses,
         'database/seeders/MalSeeder.php' => $uses,
         'routes/web.php' => "<?php\n\\App\\Support\\Tenancy\\TenantMigration::guardAcademicYearWrites('t');",
-        'database/migrations/2026_01_01_000000_x.php' => $uses,
-        'app/Modules/Acad/Database/migrations/2026_01_01_000000_y.php' => $uses,
+        'database/migrations/2026_01_01_000000_x.php' => $migration,
+        'app/Modules/Acad/Database/migrations/2026_01_01_000000_y.php' => $migration,
+        // B2: bajo una carpeta de migraciones pero sin ser una migración (nombre libre / sin extender Migration).
+        'database/migrations/ayuda.php' => $uses,
+        'app/Modules/Acad/Database/migrations/2026_01_01_000002_clase.php' => $uses,
+        'app/Modules/Acad/Database/migrations/Helper.php' => $migration,
         'app/Support/Tenancy/Listada.php' => $uses,
         'app/Modules/Acad/Http/Controllers/Comentario.php' => "<?php\n// TenantMigration::tenantTable('t', fn () => null);\nclass C {}",
         // #414: formas que el detector de llamada simple no veía.
@@ -141,6 +152,9 @@ test('CA-ACAD-040 control negativo: detecta el uso real fuera de migraciones y n
         'app/Modules/Acad/Http/Controllers/MalController.php',
         'database/seeders/MalSeeder.php',
         'routes/web.php',
+        'database/migrations/ayuda.php',
+        'app/Modules/Acad/Database/migrations/2026_01_01_000002_clase.php',
+        'app/Modules/Acad/Database/migrations/Helper.php',
         'app/Modules/Acad/Http/Controllers/UseAgrupado.php',
         'app/Modules/Acad/Http/Controllers/NamespaceConLlaves.php',
         'app/Modules/Acad/Http/Controllers/DosNamespaces.php',
