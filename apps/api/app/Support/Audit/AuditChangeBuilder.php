@@ -2,6 +2,8 @@
 
 namespace App\Support\Audit;
 
+use App\Support\I18n\Locales;
+
 /**
  * ADR-035 §4: único camino por el que un valor de atributo puede llegar a
  * `audit_logs.changes`. Ningún otro código de la aplicación serializa
@@ -27,10 +29,77 @@ final class AuditChangeBuilder
         $entries = [];
 
         foreach ($rawChanges as $attribute => [$from, $to]) {
-            $entries[$attribute] = $this->buildEntry($model, $attribute, $from, $to);
+            $perLocale = $this->translationsBreakdown($attribute, $from, $to);
+
+            if ($perLocale === null) {
+                $entries[$attribute] = $this->buildEntry($model, $attribute, $from, $to);
+
+                continue;
+            }
+
+            // ADR-062 §5.5: una entrada por idioma que cambió, con la política
+            // del modelo y el tope aplicados a cada una (los pasos 1-3 miran el
+            // atributo `<campo>_translations`; el paso 4, el valor del idioma).
+            foreach ($perLocale as $locale => [$localeFrom, $localeTo]) {
+                $entries["{$attribute}.{$locale}"] = $this->buildEntry($model, $attribute, $localeFrom, $localeTo);
+            }
         }
 
         return $entries;
+    }
+
+    /**
+     * ADR-062 §5.5, ADR-035 §4 (ampliación): las columnas cuyo nombre termina
+     * en `_translations` se desglosan por idioma. `null` si el atributo no es
+     * de ese tipo o alguno de los dos lados no es un objeto JSON legible
+     * (entonces se aplica el camino ordinario al valor entero). Acepta el
+     * valor como `array` (original con *cast*) o como cadena JSON (lo
+     * serializado por `getDirty()`).
+     *
+     * @return array<string, array{0: mixed, 1: mixed}>|null idioma => [from, to], solo los que cambian
+     */
+    private function translationsBreakdown(string $attribute, mixed $from, mixed $to): ?array
+    {
+        if (! str_ends_with($attribute, '_translations')) {
+            return null;
+        }
+
+        $before = $this->decodeTranslations($from);
+        $after = $this->decodeTranslations($to);
+
+        if ($before === null || $after === null) {
+            return null;
+        }
+
+        $locales = array_values(array_unique([...Locales::VOCABULARY, ...array_keys($before), ...array_keys($after)]));
+        $changed = [];
+
+        foreach ($locales as $locale) {
+            $localeFrom = $before[$locale] ?? null;
+            $localeTo = $after[$locale] ?? null;
+
+            if ($localeFrom !== $localeTo) {
+                $changed[(string) $locale] = [$localeFrom, $localeTo];
+            }
+        }
+
+        return $changed;
+    }
+
+    /**
+     * @return array<array-key, mixed>|null `[]` para ausente (alta), `null` si no es un objeto legible
+     */
+    private function decodeTranslations(mixed $value): ?array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        if (is_string($value)) {
+            $value = json_decode($value, true);
+        }
+
+        return is_array($value) ? $value : null;
     }
 
     /**
