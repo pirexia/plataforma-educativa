@@ -264,6 +264,12 @@ final class TenantMigration
      * `migracion-segura`). Un valor que no es un objeto JSON falla con
      * `check_violation` (23514), no con un error de operador (`CASE`).
      *
+     * **Lo que el motor NO garantiza**: que los valores sean cadenas no vacías
+     * (`{"en": ""}` y `{"en": "  "}` lo acepta), ni que las claves sean
+     * idiomas activos o incluyan el idioma por defecto del centro. Eso varía por
+     * centro o es validación de negocio y lo hace `TranslationsValidator`
+     * (`ADR-062 §5.1` punto 4 y `§5.2`, `INV-010`); los tests lo fijan.
+     *
      * 1. objeto JSON; 2. no vacío; 3. claves dentro del vocabulario cerrado;
      * 4. ningún valor que no sea cadena.
      */
@@ -295,6 +301,16 @@ final class TenantMigration
         }
     }
 
+    /**
+     * Límite conocido, aceptado (revisión de `db-reviewer`, Baja 4): el nombre
+     * se forma por concatenación `{base}{sufijo}`, así que dos pares distintos
+     * (tabla, columna) podrían dar la misma cadena (`a_b` + `c` frente a `a` +
+     * `b_c`). Dentro de una misma tabla es imposible por construcción (la
+     * columna es única); entre tablas, el nombre de un índice o restricción
+     * solo ha de ser único por tabla (CHECK) o por esquema (índice), y la
+     * colisión real exigiría tablas y columnas con esa coincidencia exacta; si
+     * ocurre, PostgreSQL falla en voz alta al crearlo, nunca en silencio.
+     */
     private static function boundedIdentifier(string $base, string $suffix): string
     {
         $name = $base.$suffix;
