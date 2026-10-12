@@ -44,7 +44,7 @@ return [
     ],
 
     'conflict' => [
-        'has_dependents' => 'Impossible de supprimer l\'élément «:entity» «:code» : il a des éléments dépendants (:dependents). Supprimez-les d\'abord.',
+        'has_dependents' => 'Impossible de supprimer « :code » (:entity) : il a des éléments dépendants (:dependents). Supprimez-les d\'abord.',
     ],
 
     'entities' => [

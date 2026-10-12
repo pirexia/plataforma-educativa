@@ -43,7 +43,7 @@ return [
     ],
 
     'conflict' => [
-        'has_dependents' => 'No se puede borrar el :entity «:code»: tiene elementos dependientes (:dependents). Bórralos antes.',
+        'has_dependents' => 'No se puede borrar «:code» (:entity): tiene elementos dependientes (:dependents). Bórralos antes.',
     ],
 
     'entities' => [

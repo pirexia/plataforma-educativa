@@ -44,7 +44,7 @@ return [
     ],
 
     'conflict' => [
-        'has_dependents' => 'Das Element «:entity» «:code» kann nicht gelöscht werden: Es hat abhängige Elemente (:dependents). Löschen Sie diese zuerst.',
+        'has_dependents' => 'Das Element „:code“ (:entity) kann nicht gelöscht werden: Es hat abhängige Elemente (:dependents). Löschen Sie diese zuerst.',
     ],
 
     'entities' => [

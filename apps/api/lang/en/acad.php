@@ -44,7 +44,7 @@ return [
     ],
 
     'conflict' => [
-        'has_dependents' => 'Cannot delete the :entity ":code": it has dependent items (:dependents). Delete them first.',
+        'has_dependents' => 'Cannot delete ":code" (:entity): it has dependent items (:dependents). Delete them first.',
     ],
 
     'entities' => [
