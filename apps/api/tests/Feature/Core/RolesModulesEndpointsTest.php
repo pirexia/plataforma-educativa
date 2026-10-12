@@ -41,8 +41,8 @@ test('GET /roles devuelve los 16 roles predefinidos y GET /roles/{id} sus permis
     // solo administrador_centro los recibe) + los cuatro de REQ-PERM/
     // permisos.md §5 (1.5): rol.crear, rol.eliminar,
     // rol_datos_especiales.actualizar, permiso_efectivo.leer + los cinco de
-    // REQ-CURSO/permisos.md §4 (1.10, OPEN-CURSO-14).
-    expect($detail->json('permissions'))->toHaveCount(41);
+    // REQ-CURSO/permisos.md §4 (1.10, OPEN-CURSO-14) + los cuatro de REQ-ACAD/permisos.md §4 (1.11-b, OPEN-ACAD-09 = X).
+    expect($detail->json('permissions'))->toHaveCount(45);
 });
 
 // CA-CORE-041 (REQ-AUTH-003, 1.3, RN-AUTH-70) / CA-PERM-053, CA-PERM-056
@@ -95,6 +95,10 @@ test('CA-CORE-043: asignar a un usuario un rol de otro tenant falla y no crea la
 
 test('PUT /users/{id}/roles reemplaza el conjunto y emite UserRolesChanged', function (): void {
     [$tenant, $admin] = provisionCoreTenant('roles-put');
+    // 1.11-b: los roles predefinidos llevan permisos de `acad` (no esencial). Sin el
+    // módulo contratado son inertes y el actor no los «posee» (RPERM-013); este test
+    // trabaja con un centro que ya lo tiene contratado.
+    contractModule($tenant, 'acad');
 
     $docente = app(TenantContext::class)->runFor($tenant->id, fn () => Role::where('code', 'docente')->firstOrFail());
     $secretaria = app(TenantContext::class)->runFor($tenant->id, fn () => Role::where('code', 'secretaria')->firstOrFail());

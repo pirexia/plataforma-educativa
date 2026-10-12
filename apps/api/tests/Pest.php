@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ModuleSubscription;
 use App\Models\Person;
 use App\Models\User;
 use App\Models\UserStatus;
@@ -94,6 +95,26 @@ function syncRegistryOnce(): void
         test()->artisan('platform:sync-registry')->run();
         $synced = true;
     }
+}
+
+/**
+ * REQ-ACAD (1.11-b): contrata un módulo no esencial para un tenant de prueba
+ * (`module_subscriptions` solo lo escribe la plataforma, `::on('pgsql_platform')`).
+ * Sin contratar, los permisos del módulo son inertes (`PermissionResolver`,
+ * `inerte_modulo`) aunque un rol los tenga sembrados.
+ */
+function contractModule(Tenant $tenant, string $moduleCode): void
+{
+    app(TenantContext::class)->runFor($tenant->id, function () use ($moduleCode): void {
+        ModuleSubscription::on('pgsql_platform')->create([
+            'module_code' => $moduleCode,
+            'enabled' => true,
+            'enabled_at' => now(),
+            'reason' => 'Contratación de prueba',
+        ]);
+
+        Cache::forget("modules:{$moduleCode}:enabled");
+    });
 }
 
 /**

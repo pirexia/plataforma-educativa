@@ -143,6 +143,30 @@ final class ProvisionTenantDefaults implements TenantProvisioner
     ];
 
     /**
+     * REQ-ACAD/permisos.md §4 (1.11-b, `OPEN-ACAD-09` = X): la siembra de los
+     * cuatro permisos de `estructura_academica`. `administrador_centro` los
+     * cuatro; `direccion`, `secretaria`, `docente`, `tutor_grupo` y
+     * `orientador` solo `leer`; el resto, nada (`RPERM-011`). Todos de ámbito
+     * `todos`: la estructura es del centro entero y no contiene datos
+     * personales (`RN-ACAD-09`). Una sola lista por los dos caminos: la lee
+     * también `GrantStructurePermissionsCommand` (centros ya existentes).
+     * Ninguna regla de código compara estos códigos de rol (`RN-PERM-46`).
+     *
+     * @var array<string, list<string>>
+     */
+    public const STRUCTURE_PERMISSION_GRANTS = [
+        'administrador_centro' => [
+            'estructura_academica.leer', 'estructura_academica.crear',
+            'estructura_academica.actualizar', 'estructura_academica.eliminar',
+        ],
+        'direccion' => ['estructura_academica.leer'],
+        'secretaria' => ['estructura_academica.leer'],
+        'docente' => ['estructura_academica.leer'],
+        'tutor_grupo' => ['estructura_academica.leer'],
+        'orientador' => ['estructura_academica.leer'],
+    ];
+
+    /**
      * ADR-048 §4.5: columnas "operativas" de `tenant_settings` que
      * `provisionFromTemplate()` copia del origen. Nunca identidad fiscal
      * ni marca (funcional.md §5.6.2): esta lista vive aquí porque
@@ -369,10 +393,12 @@ final class ProvisionTenantDefaults implements TenantProvisioner
      */
     private function seedPermissionGrants(int $tenantId, array $roleIds): void
     {
-        // REQ-CURSO (1.10): las concesiones de `curso` se suman a las de cada rol.
+        // REQ-CURSO (1.10) y REQ-ACAD (1.11-b): las concesiones de `curso` y de
+        // `estructura_academica` se suman a las de cada rol.
         $grants = array_merge_recursive(
             [...self::CORE_PERMISSION_GRANTS, 'administrador_centro' => self::ADMIN_CENTRO_PERMISSIONS],
             self::ACADEMIC_YEAR_PERMISSION_GRANTS,
+            self::STRUCTURE_PERMISSION_GRANTS,
         );
 
         foreach ($grants as $roleCode => $permissionCodes) {

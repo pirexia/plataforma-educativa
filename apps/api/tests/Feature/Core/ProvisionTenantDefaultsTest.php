@@ -89,11 +89,12 @@ test('administrador_centro recibe los 32 permisos previos más los cuatro de REQ
         // más los cuatro de REQ-PERM/permisos.md §5 (1.5, OPEN-PERM-07):
         // rol.crear, rol.eliminar, rol_datos_especiales.actualizar,
         // permiso_efectivo.leer, más los cinco de REQ-CURSO/permisos.md §4
-        // (1.10, OPEN-CURSO-14, CA-CURSO-064).
+        // (1.10, OPEN-CURSO-14, CA-CURSO-064), más los cuatro de
+        // REQ-ACAD/permisos.md §4 (1.11-b, OPEN-ACAD-09 = X, CA-ACAD-036).
         expect(Role::where('code', 'administrador_centro')->first()
             ->getConnection()->table('permission_role')
             ->join('roles', 'roles.id', '=', 'permission_role.role_id')
-            ->where('roles.code', 'administrador_centro')->count())->toBe(41);
+            ->where('roles.code', 'administrador_centro')->count())->toBe(45);
 
         foreach (['rol.crear', 'rol.eliminar', 'rol_datos_especiales.actualizar', 'permiso_efectivo.leer'] as $code) {
             expect($codesFor('administrador_centro'))->toContain($code);
@@ -101,10 +102,13 @@ test('administrador_centro recibe los 32 permisos previos más los cuatro de REQ
 
         $direccionRole = Role::where('code', 'direccion')->firstOrFail();
         $direccionPermissions = PermissionRole::where('role_id', $direccionRole->id)->pluck('permission_code')->sort()->values()->all();
-        expect($direccionPermissions)->toBe(['asignacion_rol.leer', 'configuracion.leer', 'curso_academico.leer', 'curso_historico.leer', 'modulo.leer', 'rol.leer', 'usuario.leer']);
+        expect($direccionPermissions)->toBe(['asignacion_rol.leer', 'configuracion.leer', 'curso_academico.leer', 'curso_historico.leer', 'estructura_academica.leer', 'modulo.leer', 'rol.leer', 'usuario.leer']);
 
-        $docenteRole = Role::where('code', 'docente')->firstOrFail();
-        expect(PermissionRole::where('role_id', $docenteRole->id)->count())->toBe(0);
+        // REQ-ACAD/permisos.md §4: docente, tutor_grupo y orientador solo leen la estructura.
+        foreach (['docente', 'tutor_grupo', 'orientador'] as $code) {
+            $role = Role::where('code', $code)->firstOrFail();
+            expect(PermissionRole::where('role_id', $role->id)->pluck('permission_code')->all())->toBe(['estructura_academica.leer'], $code);
+        }
     });
 });
 
