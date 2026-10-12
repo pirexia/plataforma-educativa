@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Curso\Domain\AcademicYearStatus;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\AcadApiHelpers as Api;
 use Tests\Support\CursoTestHelpers;
@@ -192,7 +193,7 @@ test('CA-ACAD-020 RN-ACAD-07 ADR-057: en un curso cerrado, toda escritura sobre 
     }
 
     // Una asignación sigue viva.
-    expect(app(App\Support\Tenancy\TenantContext::class)->runFor($tenant->id, fn () => DB::table('group_subjects')->whereNull('deleted_at')->count()))->toBe(1);
+    expect(app(TenantContext::class)->runFor($tenant->id, fn () => DB::table('group_subjects')->whereNull('deleted_at')->count()))->toBe(1);
 
     // PATCH sin cambios en un curso cerrado: 200 sin escritura [DERIVADA].
     resetSessionState();

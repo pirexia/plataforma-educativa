@@ -2,6 +2,7 @@
 
 use App\Models\AuditLog;
 use App\Modules\Curso\Domain\AcademicYearStatus;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\AcadApiHelpers as Api;
 use Tests\Support\CursoTestHelpers;
@@ -44,7 +45,7 @@ test('CA-ACAD-001: POST /education-levels crea la etapa con public_id ULID, curs
         ->and(array_keys($response->json()))->toBe(['public_id', 'academic_year', 'code', 'name', 'name_translations', 'stage', 'regime', 'position', 'created_at', 'updated_at'])
         ->and($response->headers->get('Location'))->toEndWith('/api/v1/education-levels/'.$response->json('public_id'));
 
-    $logged = app(App\Support\Tenancy\TenantContext::class)->runFor($tenant->id, fn () => AuditLog::query()->where('auditable_type', 'education_level')->where('event', 'created')->count());
+    $logged = app(TenantContext::class)->runFor($tenant->id, fn () => AuditLog::query()->where('auditable_type', 'education_level')->where('event', 'created')->count());
 
     expect($logged)->toBe(1);
 });
@@ -81,7 +82,7 @@ test('CA-ACAD-005 CA-ACAD-055 CA-ACAD-056 CA-ACAD-058: validación de stage, reg
     expect($post($noYear)->assertStatus(422)->json('errors.academic_year.0.code'))->toBe('acad.validation.academic_year_required')
         ->and($post(levelBody($year, ['academic_year' => '01JA0000000000000000000000']))->assertStatus(422)->json('errors.academic_year.0.code'))->toBe('acad.validation.academic_year_not_found');
 
-    expect(app(App\Support\Tenancy\TenantContext::class)->runFor($tenant->id, fn () => DB::table('education_levels')->count()))->toBe(0);
+    expect(app(TenantContext::class)->runFor($tenant->id, fn () => DB::table('education_levels')->count()))->toBe(0);
 
     $created = $post(levelBody($year, ['code' => '  ESO  ']))->assertCreated();
     expect($created->json('code'))->toBe('ESO');
@@ -149,7 +150,7 @@ test('CA-ACAD-011 CA-ACAD-012 ADR-062 §5.3: name se resuelve en el idioma de la
 
     // El idioma de la petición es el de la persona autenticada (ADR-038 §11).
     $name = function (string $lang) use ($tenant, $admin, $id): string {
-        app(App\Support\Tenancy\TenantContext::class)->runFor($tenant->id, fn () => $admin->person->update(['locale' => $lang]));
+        app(TenantContext::class)->runFor($tenant->id, fn () => $admin->person->update(['locale' => $lang]));
         resetSessionState();
 
         return test()->actingAs($admin->unsetRelation('person'))->getJson(Api::url($tenant, "/education-levels/{$id}"))->assertOk()->json('name');
@@ -165,7 +166,7 @@ test('CA-ACAD-013 ADR-062 §5.5: un PATCH que cambia es-ES y añade fr deja exac
 
     test()->actingAs($admin)->patchJson(Api::url($tenant, "/education-levels/{$id}"), ['name_translations' => ['es-ES' => 'Lengua Castellana', 'fr' => 'Langue']])->assertOk();
 
-    $changes = app(App\Support\Tenancy\TenantContext::class)->runFor($tenant->id, fn () => AuditLog::query()->where('auditable_type', 'education_level')->where('event', 'updated')->firstOrFail()->changes);
+    $changes = app(TenantContext::class)->runFor($tenant->id, fn () => AuditLog::query()->where('auditable_type', 'education_level')->where('event', 'updated')->firstOrFail()->changes);
 
     expect(array_keys($changes))->toEqualCanonicalizing(['name_translations.es-ES', 'name_translations.fr']);
 });

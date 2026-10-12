@@ -8,6 +8,7 @@ use App\Modules\Curso\Domain\AcademicYearStatus;
 use App\Modules\Curso\Domain\Models\AcademicYear;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Support\Facades\DB;
 
 /**
  * REQ-ACAD (1.11-b): ayudantes de los tests HTTP del módulo. Métodos
@@ -74,7 +75,7 @@ final class AcadApiHelpers
     /** Fila de una tabla del módulo por `public_id`, leída dentro del contexto del centro (RLS). */
     public static function row(object $tenant, string $table, string $publicId): ?object
     {
-        return app(TenantContext::class)->runFor($tenant->id, fn (): ?object => \Illuminate\Support\Facades\DB::table($table)->where('public_id', $publicId)->first());
+        return app(TenantContext::class)->runFor($tenant->id, fn (): ?object => DB::table($table)->where('public_id', $publicId)->first());
     }
 
     /** Idiomas del centro (`PATCH /tenant/settings`). */
