@@ -27,6 +27,7 @@ function translatableTestTables(): array
         'fk_index_children', 'fk_index_parents', 'fk_index_long_child_probe_table_name', 'fk_index_long_parent_probe_table',
         'translatable_append_only_probe', 'translatable_two_columns_probe',
         'translatable_failure_probe', 'translatable_wrong_table_probe', 'translatable_closure_failure', 'fk_index_twice_probe',
+        'cx_a_b', 'cx_a', 'cx_parent',
     ];
 }
 
@@ -205,7 +206,7 @@ test('CA-ACAD-038 issue #407: tenantForeignId() crea columna NOT NULL, FK compue
 });
 
 test('CA-ACAD-038 issue #407: el nombre del índice cabe en 63 bytes, sin truncado silencioso, con tabla y columna largas', function (): void {
-    expect(TenantMigration::indexName('subjects', 'course_id'))->toBe('subjects_course_id_tenant_idx');
+    expect(TenantMigration::indexName('subjects', 'course_id'))->toBe('subjects__course_id_tenant_idx');
 
     $long = TenantMigration::indexName('identity_provider_certificates_probe_table', 'a_really_long_reference_column_id');
 
@@ -374,4 +375,39 @@ test('CA-ACAD-038 (db-reviewer Baja 5): tenantForeignId() dos veces con la misma
     }))->toThrow(QueryException::class, 'specified more than once');
 
     expect(Schema::connection('pgsql_owner')->hasTable('fk_index_twice_probe'))->toBeFalse();
+});
+
+test('CA-ACAD-038 issue #415: (a_b, c_id) y (a, b_c_id) dan nombres de índice y de CHECK distintos', function (): void {
+    expect(TenantMigration::indexName('a_b', 'c_id'))->toBe('a_b__c_id_tenant_idx')
+        ->and(TenantMigration::indexName('a', 'b_c_id'))->toBe('a__b_c_id_tenant_idx')
+        ->and(TenantMigration::indexName('a_b', 'c_id'))->not->toBe(TenantMigration::indexName('a', 'b_c_id'))
+        ->and(TenantMigration::translationsCheckName('a_b', 'c_translations'))->not->toBe(TenantMigration::translationsCheckName('a', 'b_c_translations'));
+});
+
+test('CA-ACAD-038 issue #415: los dos pares colisionantes pueden coexistir en el mismo esquema (los índices se crean de verdad)', function (): void {
+    foreach (['cx_a_b' => 'c_id', 'cx_a' => 'b_c_id'] as $table => $column) {
+        Schema::connection('pgsql_owner')->dropIfExists($table);
+    }
+
+    TenantMigration::tenantTable('cx_parent', function (Blueprint $table): void {
+        $table->text('name');
+    });
+    TenantMigration::tenantTable('cx_a_b', function (Blueprint $table): void {
+        TenantMigration::tenantForeignId($table, 'c_id', 'cx_parent');
+    });
+    TenantMigration::tenantTable('cx_a', function (Blueprint $table): void {
+        TenantMigration::tenantForeignId($table, 'b_c_id', 'cx_parent');
+    });
+
+    expect(indexColumnsOf('cx_a_b'))->toHaveKey(TenantMigration::indexName('cx_a_b', 'c_id'))
+        ->and(indexColumnsOf('cx_a'))->toHaveKey(TenantMigration::indexName('cx_a', 'b_c_id'));
+});
+
+test('CA-ACAD-038 issue #415: el nombre con hash sigue en 63 bytes y distingue pares que solo difieren en la frontera tabla/columna', function (): void {
+    $one = TenantMigration::indexName('identity_provider_certificates_probe_ab', 'c_reference_column_long_id');
+    $two = TenantMigration::indexName('identity_provider_certificates_probe_a', 'b_c_reference_column_long_id');
+
+    expect(strlen($one))->toBeLessThanOrEqual(63)
+        ->and(strlen($two))->toBeLessThanOrEqual(63)
+        ->and($one)->not->toBe($two);
 });

@@ -178,7 +178,9 @@ final class TenantMigration
 
     /**
      * Nombre del índice `(tenant_id, $column)` de `tenantForeignId()`:
-     * `{tabla}_{columna}_tenant_idx`, y si supera los 63 bytes, el prefijo
+     * `{tabla}__{columna}_tenant_idx` (doble guion bajo entre tabla y columna: ningún
+     * nombre de tabla ni de columna del proyecto lo contiene, así que dos pares
+     * distintos no dan el mismo nombre, #415), y si supera los 63 bytes, el prefijo
      * recortado más un sufijo `_` + 8 hex de `md5` del nombre completo, para
      * que sea determinista, único y entre en el límite sin truncado
      * silencioso del motor. El sufijo `_tenant_idx` (y no el
@@ -187,7 +189,7 @@ final class TenantMigration
      */
     public static function indexName(string $table, string $column): string
     {
-        return self::boundedIdentifier("{$table}_{$column}", '_tenant_idx');
+        return self::boundedIdentifier("{$table}__{$column}", '_tenant_idx');
     }
 
     /**
@@ -248,12 +250,12 @@ final class TenantMigration
 
     /**
      * Nombre de la restricción `CHECK` de una columna traducible
-     * (`{tabla}_{columna}_check`, el que PostgreSQL daría por defecto, acotado
-     * a 63 bytes).
+     * (`{tabla}__{columna}_check`, mismo separador no ambiguo que `indexName()`,
+     * acotado a 63 bytes).
      */
     public static function translationsCheckName(string $table, string $column): string
     {
-        return self::boundedIdentifier("{$table}_{$column}", '_check');
+        return self::boundedIdentifier("{$table}__{$column}", '_check');
     }
 
     /**
@@ -302,14 +304,10 @@ final class TenantMigration
     }
 
     /**
-     * Límite conocido, aceptado (revisión de `db-reviewer`, Baja 4): el nombre
-     * se forma por concatenación `{base}{sufijo}`, así que dos pares distintos
-     * (tabla, columna) podrían dar la misma cadena (`a_b` + `c` frente a `a` +
-     * `b_c`). Dentro de una misma tabla es imposible por construcción (la
-     * columna es única); entre tablas, el nombre de un índice o restricción
-     * solo ha de ser único por tabla (CHECK) o por esquema (índice), y la
-     * colisión real exigiría tablas y columnas con esa coincidencia exacta; si
-     * ocurre, PostgreSQL falla en voz alta al crearlo, nunca en silencio.
+     * `{base}{sufijo}` con `base` = `{tabla}__{columna}`: el doble guion bajo
+     * hace el nombre no ambiguo (issue #415; antes `a_b` + `c_id` y `a` +
+     * `b_c_id` daban el mismo). Si no cabe en 63 bytes, prefijo recortado +
+     * `_` + 8 hex de `md5` del nombre completo (que incluye el separador).
      */
     private static function boundedIdentifier(string $base, string $suffix): string
     {
