@@ -174,6 +174,7 @@ No hay. No se declara `estructura_academica.exportar` (`permisos.md §2.1`).
 | `urn:pge:error:validation` | 422 | `translations.locale_not_active` | Código común: clave de un idioma no activo en el centro |
 | `urn:pge:error:validation` | 422 | `translations.empty_value` | Código común: valor vacío tras recortar |
 | `urn:pge:error:validation` | 422 | `translations.invalid_characters` | Código común (añadido en `1.11-a`): el valor contiene NUL, controles C0 (salvo tabulación y saltos de línea), DEL o UTF-8 inválido; PostgreSQL no puede guardarlo en `jsonb` |
+| `urn:pge:error:validation` | 422 | `translations.too_long` | Código común (añadido en `1.11-a`, #413): el valor supera la longitud máxima (en caracteres, tras recortar) que declara el módulo; cada módulo pasa `maxLength` al validador |
 | `urn:pge:error:validation` | 422 | `acad.validation.name_required` | Nombre vacío (grupo, subgrupo; no traducible) |
 | `urn:pge:error:validation` | 422 | `acad.validation.stage_invalid` | `RN-ACAD-10` |
 | `urn:pge:error:validation` | 422 | `acad.validation.regime_invalid` | `RN-ACAD-11` |
