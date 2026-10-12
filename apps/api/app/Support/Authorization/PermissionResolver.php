@@ -136,19 +136,30 @@ final class PermissionResolver
     }
 
     /**
-     * `RPERM-013` («nadie concede lo que no tiene»), 1.11-b: ¿puede `$subject`
-     * conceder `$code` con `$scope`? Un permiso de un módulo NO contratado por
-     * el centro es inerte también para quien lo recibe (`inerte_modulo`), así
-     * que concederlo no entrega ninguna capacidad y no se exige poseerlo; si el
-     * módulo está contratado, se exige igual que siempre (`ownsScope()`). Un
-     * código desconocido o retirado sigue exigiéndose (falla en cerrado).
+     * `RPERM-013` («nadie concede lo que no tiene»), 1.11-b, ACOTADA: solo para
+     * conceder lo que un rol **ya contiene** (asignar un rol existente a un
+     * usuario, clonar un rol). Un permiso de un módulo NO contratado por el
+     * centro es inerte también para quien lo recibe (`inerte_modulo`), así que
+     * esa concesión no entrega capacidad y no se exige poseerlo; si el módulo
+     * está contratado, se exige igual que siempre (`ownsScope()`). No se
+     * ignora si `$subject` tiene un `deny` explícito sobre el código
+     * (`RPERM-007`), ni un código desconocido o retirado (falla en cerrado).
+     *
+     * **No vale para introducir un permiso inerte NUEVO en un rol**
+     * (`POST /roles` con lista explícita, `PUT /roles/{id}/permissions`):
+     * entonces se exige `ownsScope()`, porque al contratar el módulo ese
+     * permiso se activaría con una escalada que nadie autorizó.
      */
     public function canGrant(User $subject, string $code, Scope $scope): bool
     {
         $permission = $this->catalog()->get($code);
 
         if ($permission !== null && $permission->retired_at === null && ! $this->moduleAvailability->isEnabled($permission->module_code)) {
-            return true;
+            $denied = collect($this->decide($subject, $code)->sources)->contains(static fn (PermissionSource $source): bool => $source->effect === 'deny');
+
+            if (! $denied) {
+                return true;
+            }
         }
 
         return $this->ownsScope($subject, $code, $scope);

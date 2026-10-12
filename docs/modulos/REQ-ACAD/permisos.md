@@ -79,7 +79,7 @@ Se descartó la alternativa Y (`direccion` con los cuatro); el centro puede hace
 | Curso académico de solo lectura | Disparador `academic_year_write_guard` | `409 academic-year-closed`, no `403` |
 | Lectura de curso cerrado | `AcademicYearReadAccess` en cada lectura | `404` sin `curso_historico.leer` (`RN-CURSO-25`, `RN-ACAD-08`) |
 | Aislamiento de tenant | RLS + `TenantModel` | `404` para `public_id` ajeno |
-| `RPERM-013` | Concesión de los permisos de `acad` | **Cambia en `Core` (1.11-b, decisión del usuario)**: la comprobación «nadie concede lo que no tiene» ignora los permisos de módulos no contratados (inertes también para el destinatario). `acad` es no esencial y se siembra en roles predefinidos: sin este cambio, un centro sin `acad` contratado no podía asignar ni clonar `administrador_centro`, `direccion`, `secretaria`, `docente`, `tutor_grupo` ni `orientador`. Con `acad` contratado se exige igual (todos `todos`) |
+| `RPERM-013` | Concesión de los permisos de `acad` | **Cambia en `Core` (1.11-b, decisión del usuario), acotado**: al asignar o clonar un rol que **ya contiene** permisos de `acad` sin que el centro haya contratado el módulo, esos permisos (inertes también para el destinatario) no se exigen al asignador, salvo `deny` explícito suyo (`RPERM-007`). `acad` es no esencial y se siembra en roles predefinidos: sin esto, un centro sin `acad` no podía asignar ni clonar `administrador_centro`, `direccion`, `secretaria`, `docente`, `tutor_grupo` ni `orientador`. **Introducir un permiso de `acad` nuevo en un rol** (lista explícita, `PUT` de concesiones) exige poseerlo como siempre: evita una escalada latente al contratar. Con `acad` contratado se exige todo igual (todos `todos`) |
 
 ## 6. Datos de categoría especial
 

@@ -158,7 +158,7 @@ final class ReplaceRolePermissions
 
             $scope = Scope::from($entry['scope']);
 
-            if (! $this->permissions->canGrant($actor, $entry['code'], $scope)) {
+            if (! $this->permissions->ownsScope($actor, $entry['code'], $scope)) {
                 throw ApiException::cannotGrantUnheldPermission($entry['code'], $scope->value);
             }
         }

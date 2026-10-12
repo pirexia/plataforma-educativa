@@ -235,7 +235,13 @@ final class CreateRole
 
             $scope = Scope::from($grant['scope']);
 
-            if (! $this->permissions->canGrant($actor, $grant['code'], $scope)) {
+            // Un clon copia lo que el rol origen ya contiene (se toleran sus permisos inertes,
+            // `canGrant`); una lista explícita introduce permisos nuevos: se exige poseerlos.
+            $allowed = $fromClone
+                ? $this->permissions->canGrant($actor, $grant['code'], $scope)
+                : $this->permissions->ownsScope($actor, $grant['code'], $scope);
+
+            if (! $allowed) {
                 if ($fromClone) {
                     throw ApiException::cannotGrantUnheldRolePermission();
                 }

@@ -68,3 +68,77 @@ test('RPERM-013 REQ-ACAD-001: el administrador de un centro sin acad contratado 
         'clone_from' => $docente->public_id, 'code' => 'clon_doc_13', 'name' => 'Clon docente',
     ])->assertCreated();
 });
+
+test('RPERM-013 REQ-ACAD-001 S-1: introducir un permiso inerte NUEVO en un rol (lista explícita o PUT) exige poseerlo; mantener el que el rol ya tenía y clonar, no', function (): void {
+    [$tenant, $admin] = provisionCoreTenant('perm-013-new');
+
+    $docente = app(TenantContext::class)->runFor($tenant->id, fn () => Role::where('code', 'docente')->firstOrFail());
+
+    // Lista explícita con un permiso inerte que el solicitante no posee (acad sin contratar): 403.
+    $explicit = test()->actingAs($admin)->postJson(coreApiUrl($tenant->slug, '/roles'), [
+        'code' => 'rol_nuevo_013', 'name' => 'Nuevo',
+        'permissions' => [['code' => 'estructura_academica.eliminar', 'effect' => 'allow', 'scope' => 'todos']],
+    ])->assertForbidden();
+    expect($explicit->json('errors.grant.0.params.code'))->toBe('estructura_academica.eliminar');
+
+    // Clonar sí (copia lo que el rol origen ya contiene).
+    resetSessionState();
+    $clone = test()->actingAs($admin)->postJson(coreApiUrl($tenant->slug, '/roles'), [
+        'clone_from' => $docente->public_id, 'code' => 'clon_013', 'name' => 'Clon',
+    ])->assertCreated()->json('public_id');
+
+    // PUT: mantener lo que ya tenía (idéntico) se tolera...
+    resetSessionState();
+    test()->actingAs($admin)->putJson(coreApiUrl($tenant->slug, "/roles/{$clone}/permissions"), [
+        'permissions' => [['code' => 'estructura_academica.leer', 'effect' => 'allow', 'scope' => 'todos']],
+    ])->assertOk();
+
+    // ...añadir uno inerte nuevo, no.
+    resetSessionState();
+    test()->actingAs($admin)->putJson(coreApiUrl($tenant->slug, "/roles/{$clone}/permissions"), [
+        'permissions' => [
+            ['code' => 'estructura_academica.leer', 'effect' => 'allow', 'scope' => 'todos'],
+            ['code' => 'estructura_academica.eliminar', 'effect' => 'allow', 'scope' => 'todos'],
+        ],
+    ])->assertForbidden();
+
+    // Tras contratar el módulo (sin sesión: la suscripción no lleva autoría), el administrador lo posee y puede añadirlo.
+    resetSessionState();
+    contractModule($tenant, 'acad');
+    test()->actingAs($admin)->putJson(coreApiUrl($tenant->slug, "/roles/{$clone}/permissions"), [
+        'permissions' => [
+            ['code' => 'estructura_academica.leer', 'effect' => 'allow', 'scope' => 'todos'],
+            ['code' => 'estructura_academica.eliminar', 'effect' => 'allow', 'scope' => 'todos'],
+        ],
+    ])->assertOk();
+});
+
+test('RPERM-013 RPERM-007 REQ-ACAD-001 S-1: un deny explícito del asignador sobre un permiso inerte impide ignorarlo', function (): void {
+    [$tenant, $admin] = provisionCoreTenant('perm-013-deny');
+
+    $denyRole = test()->actingAs($admin)->postJson(coreApiUrl($tenant->slug, '/roles'), [
+        'code' => 'rol_deny_013', 'name' => 'Deny',
+        'permissions' => [['code' => 'estructura_academica.leer', 'effect' => 'deny', 'scope' => 'todos']],
+    ])->assertCreated();
+    $role = app(TenantContext::class)->runFor($tenant->id, fn () => Role::where('code', 'rol_deny_013')->firstOrFail());
+
+    [$actor, $other] = app(TenantContext::class)->runFor($tenant->id, function () use ($role): array {
+        $make = function (string $email, ?Role $with): User {
+            $user = User::factory()->for(Person::factory()->create(['contact_email' => $email]))->create(['email' => $email]);
+            $with === null || $user->roles()->attach($with->id);
+
+            return $user;
+        };
+
+        return [$make('deny13@example.com', $role), $make('free13@example.com', null)];
+    });
+
+    app(TenantContext::class)->runFor($tenant->id, function () use ($actor, $other): void {
+        $resolver = app(PermissionResolver::class);
+
+        expect($resolver->canGrant($other, 'estructura_academica.leer', Scope::Todos))->toBeTrue()
+            ->and($resolver->canGrant($actor, 'estructura_academica.leer', Scope::Todos))->toBeFalse();
+    });
+
+    expect($denyRole->json('public_id'))->not->toBeEmpty();
+});
