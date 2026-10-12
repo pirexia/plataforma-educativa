@@ -33,10 +33,12 @@ pest()->group('arch');
 // indirectas (función que llama a otra). Tampoco ve las acciones
 // referenciales (`ON DELETE CASCADE`), que PostgreSQL ejecuta como el
 // propietario de la tabla hija: eso lo cubre AR-13 sobre el esquema (ver
-// `ARCHITECTURE.md §3.4` y el issue #383). Límites no cubiertos por AR-14
-// (declarados, sin ampliar alcance): solo escanea `app/` (no `database/`,
-// `routes/`, `config/` ni `tests/`), y `TenantMigration` sigue siendo
-// invocable desde fuera de una migración.
+// `ARCHITECTURE.md §3.4` y el issue #383). Alcance del escaneo: `app/` y,
+// desde 1.11-a (#387 B-4, CA-ACAD-040), `database/` (salvo
+// `database/migrations/`, que corre por CLI con el propietario), `routes/` y
+// `bootstrap/`. Límites declarados: no escanea `config/` ni `tests/`, y que
+// `TenantMigration` solo se use desde migraciones lo comprueba otra regla
+// (`TenantMigrationConfinementTest`).
 
 /**
  * Excepciones de AR-14: lista CERRADA y nominal (ADR-056 §3.2), fichero
@@ -63,7 +65,12 @@ function ownerConnectionExceptions(): array
  */
 function isModuleMigration(string $relativePath): bool
 {
-    return preg_match('#^Modules/[^/]+/Database/migrations/#', $relativePath) === 1;
+    // Claves relativas a `app/` (módulos) o, desde 1.11-a (#387 B-4,
+    // CA-ACAD-040), a la raíz de la API para `database/`, `routes/` y
+    // `bootstrap/`: las migraciones del esquema del núcleo son
+    // `database/migrations/`.
+    return preg_match('#^Modules/[^/]+/Database/migrations/#', $relativePath) === 1
+        || str_starts_with($relativePath, 'database/migrations/');
 }
 
 /**
@@ -100,7 +107,19 @@ function mentionsOwnerConnection(string $source): bool
 }
 
 /**
- * @return array<string, string> ruta relativa a `app/` => código
+ * Directorios de la API fuera de `app/` que también se escanean desde 1.11-a
+ * (#387 B-4, CA-ACAD-040): un seeder, una ruta o el arranque podrían abrir la
+ * conexión del propietario igual que una clase de `app/`.
+ *
+ * @return list<string>
+ */
+function ownerScanExtraDirectories(): array
+{
+    return ['database', 'routes', 'bootstrap'];
+}
+
+/**
+ * @return array<string, string> ruta (relativa a `app/`; a la raíz de la API para `database/`, `routes/` y `bootstrap/`) => código
  */
 function ownerScanSources(): array
 {
@@ -111,6 +130,14 @@ function ownerScanSources(): array
         $sources[substr($file, strlen($appPath) + 1)] = file_get_contents($file);
     }
 
+    foreach (ownerScanExtraDirectories() as $directory) {
+        $absolute = base_path($directory);
+
+        foreach (PhpScanner::phpFiles($absolute) as $file) {
+            $sources[$directory.substr($file, strlen($absolute))] = file_get_contents($file);
+        }
+    }
+
     return $sources;
 }
 
@@ -118,6 +145,13 @@ test('AR-14 #383 ADR-057: ningún fichero de app/ fuera de migraciones y de la l
     $sources = ownerScanSources();
 
     expect(count($sources))->toBeGreaterThan(100);
+
+    // CA-ACAD-040: no vacuidad del escaneo ampliado.
+    foreach (ownerScanExtraDirectories() as $directory) {
+        $inDirectory = array_filter(array_keys($sources), static fn (string $path): bool => str_starts_with($path, $directory.'/'));
+
+        expect($inDirectory)->not->toBe([], "AR-14 pasaría en vacío: no se escanea nada de {$directory}/");
+    }
 
     $violations = unsanctionedOwnerConnectionUsers($sources, array_keys(ownerConnectionExceptions()));
 
@@ -145,9 +179,21 @@ test('AR-14 #383 CA-056-14 control negativo: detecta la mención real y no la de
         'A/Otra.php' => "<?php\nclass Otra { function f() { return DB::connection('pgsql'); } }",
         'Modules/M/Database/migrations/2026_01_01_000000_x.php' => "<?php\nreturn DB::connection('pgsql_owner');",
         'A/Listada.php' => "<?php\nclass Listada { function f() { return DB::connection('pgsql_owner'); } }",
+        // CA-ACAD-040 (#387 B-4): el escaneo ampliado a database/, routes/ y bootstrap/.
+        'database/seeders/MalSeeder.php' => "<?php\nclass MalSeeder { function run() { DB::connection('pgsql_owner')->table('x')->delete(); } }",
+        'routes/web.php' => "<?php\nRoute::get('/x', fn () => DB::connection('pgsql_owner')->table('x')->get());",
+        'bootstrap/app.php' => "<?php\nreturn config('database.connections.pgsql_owner');",
+        'database/migrations/2026_01_01_000000_x.php' => "<?php\nreturn DB::connection('pgsql_owner');",
+        'database/factories/LimpiaFactory.php' => "<?php\nclass LimpiaFactory { function definition() { return []; } }",
     ];
 
-    expect(unsanctionedOwnerConnectionUsers($sources, ['A/Listada.php']))->toBe(['A/Mala.php', 'A/MalaConfig.php']);
+    expect(unsanctionedOwnerConnectionUsers($sources, ['A/Listada.php']))->toBe([
+        'A/Mala.php',
+        'A/MalaConfig.php',
+        'database/seeders/MalSeeder.php',
+        'routes/web.php',
+        'bootstrap/app.php',
+    ]);
 });
 
 /**
