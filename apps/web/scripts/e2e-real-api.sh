@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ejecuta los tests e2e que necesitan la API real (CA-PERM-133 y CA-CURSO-086, E2E_REAL_API=1):
+# Ejecuta los tests e2e que necesitan la API real (CA-PERM-133, CA-CURSO-086 y CA-ACAD-053, E2E_REAL_API=1):
 # prepara un centro de pruebas sintético en el contenedor de la API, lanza
 # Playwright con sus credenciales y lo retira por completo al terminar, también
 # si falla.
@@ -75,16 +75,27 @@ cleanup() {
 # también se limpia.
 trap cleanup EXIT
 
-# Un «demo» anterior de este script (ejecución interrumpida) se retira; si no
-# lo creó el script, teardown se niega y la ejecución aborta en setup.
-cleanup
+# Prepara un centro limpio y exporta sus credenciales. Cada suite recibe el
+# suyo: los tests de curso y de estructura académica crean cursos académicos
+# con el mismo código y se estorbarían en un centro compartido.
+prepare_tenant() {
+  # Un «demo» anterior de este script (ejecución interrumpida o suite previa) se
+  # retira; si no lo creó el script, teardown se niega y la ejecución aborta en setup.
+  cleanup
 
-json="$(support setup "$SLUG")"
+  local json
+  json="$(support setup "$SLUG")"
 
-export E2E_REAL_API=1
-E2E_ADMIN_EMAIL="$(printf '%s' "$json" | field admin_email)"
-E2E_ADMIN_PASSWORD="$(printf '%s' "$json" | field admin_password)"
-E2E_TARGET_EMAIL="$(printf '%s' "$json" | field target_email)"
-export E2E_ADMIN_EMAIL E2E_ADMIN_PASSWORD E2E_TARGET_EMAIL
+  export E2E_REAL_API=1
+  E2E_ADMIN_EMAIL="$(printf '%s' "$json" | field admin_email)"
+  E2E_ADMIN_PASSWORD="$(printf '%s' "$json" | field admin_password)"
+  E2E_TARGET_EMAIL="$(printf '%s' "$json" | field target_email)"
+  export E2E_ADMIN_EMAIL E2E_ADMIN_PASSWORD E2E_TARGET_EMAIL
+}
 
-npx playwright test e2e/core-roles.spec.ts e2e/curso-academic-years.spec.ts -g "CA-PERM-133|CA-CURSO-086" "$@"
+prepare_tenant
+npx playwright test e2e/core-roles.spec.ts e2e/curso-academic-years.spec.ts -g "CA-PERM-133|CA-CURSO-086" --workers=1 "$@"
+
+# REQ-ACAD (1.11-b), CA-ACAD-053: centro propio, con `acad` contratado por el setup.
+prepare_tenant
+npx playwright test e2e/acad-structure.spec.ts -g "CA-ACAD-053" --workers=1 "$@"

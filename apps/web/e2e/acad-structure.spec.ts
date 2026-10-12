@@ -40,7 +40,7 @@ test.describe('CA-ACAD-053 (REQ-ACAD-001): estructura académica contra la API r
     await page.getByRole('button', { name: 'Guardar' }).click()
     await page.getByRole('button', { name: 'Activar curso' }).click()
     await page.getByRole('button', { name: 'Activar el curso 2026-2027' }).click()
-    await expect(page.getByRole('status')).toContainText('activado')
+    await expect(page.getByRole('status').filter({ hasText: 'activado' })).toBeVisible()
 
     await page.goto('/administracion/cursos/nuevo')
     await page.getByLabel(/^Código/).fill('2027-2028')
@@ -51,7 +51,7 @@ test.describe('CA-ACAD-053 (REQ-ACAD-001): estructura académica contra la API r
 
     // 1. Etapa con nombre en dos idiomas (el segundo, si el centro lo tiene activo).
     await page.goto('/academico/estructura')
-    await page.getByRole('button', { name: 'Nueva etapa' }).click()
+    await page.getByRole('button', { name: 'Nueva etapa' }).first().click()
     const dialog = page.getByRole('dialog')
     await dialog.getByLabel(/^Código/).fill('ESO')
     await dialog.getByLabel(/^Nombre \(Español\)/).fill('Educación Secundaria Obligatoria')
@@ -64,7 +64,7 @@ test.describe('CA-ACAD-053 (REQ-ACAD-001): estructura académica contra la API r
     await dialog.getByLabel(/^Régimen/).click()
     await page.getByRole('option', { name: 'Concertado' }).click()
     await dialog.getByRole('button', { name: 'Crear' }).click()
-    await expect(page.getByRole('status')).toContainText('Etapa creada')
+    await expect(page.getByRole('status').filter({ hasText: 'Etapa creada' })).toBeVisible()
     await page.getByRole('link', { name: 'ESO' }).click()
 
     // 2. Curso de etapa.
@@ -78,7 +78,7 @@ test.describe('CA-ACAD-053 (REQ-ACAD-001): estructura académica contra la API r
       .getByLabel(/^Nombre \(Español\)/)
       .fill('2.º ESO')
     await page.getByRole('dialog').getByRole('button', { name: 'Crear' }).click()
-    await expect(page.getByRole('status')).toContainText('Curso creado')
+    await expect(page.getByRole('status').filter({ hasText: 'Curso creado' })).toBeVisible()
     await page.getByRole('link', { name: '2ESO' }).click()
 
     // 3. Grupo y dos asignaturas.
@@ -92,7 +92,7 @@ test.describe('CA-ACAD-053 (REQ-ACAD-001): estructura académica contra la API r
       .getByLabel(/^Nombre/)
       .fill('2.º ESO A')
     await page.getByRole('dialog').getByRole('button', { name: 'Crear' }).click()
-    await expect(page.getByRole('status')).toContainText('Grupo creado')
+    await expect(page.getByRole('status').filter({ hasText: 'Grupo creado' })).toBeVisible()
 
     for (const [code, name] of [
       ['MAT', 'Matemáticas'],
@@ -108,7 +108,7 @@ test.describe('CA-ACAD-053 (REQ-ACAD-001): estructura académica contra la API r
         .getByLabel(/^Nombre \(Español\)/)
         .fill(name!)
       await page.getByRole('dialog').getByRole('button', { name: 'Crear' }).click()
-      await expect(page.getByRole('status')).toContainText('Asignatura creada')
+      await expect(page.getByRole('status').filter({ hasText: 'Asignatura creada' })).toBeVisible()
     }
 
     // 4. Subgrupo y asignación de una asignatura al grupo.
@@ -123,16 +123,21 @@ test.describe('CA-ACAD-053 (REQ-ACAD-001): estructura académica contra la API r
       .getByLabel(/^Nombre/)
       .fill('Desdoble 1')
     await page.getByRole('dialog').getByRole('button', { name: 'Crear' }).click()
-    await expect(page.getByRole('status')).toContainText('Subgrupo creado')
+    await expect(page.getByRole('status').filter({ hasText: 'Subgrupo creado' })).toBeVisible()
 
     await page.getByRole('button', { name: 'Editar asignaturas' }).click()
     await page.getByLabel(/MAT/).check()
     await page.getByRole('button', { name: 'Guardar' }).click()
-    await expect(page.getByRole('status')).toContainText('Asignaturas del grupo actualizadas')
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Asignaturas del grupo actualizadas' }),
+    ).toBeVisible()
     await expect(page.getByRole('list', { name: 'Asignaturas que cursa' })).toContainText('MAT')
 
     // 5. Borrar el curso de etapa con hijos: 409 junto a la acción.
     await page.getByRole('link', { name: /Volver al curso/ }).click()
+    // Espera a que la ficha termine de cargar (grupos y asignaturas): el clic antes de eso se pierde.
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByRole('heading', { name: /2ESO/ })).toBeVisible()
     await page.getByRole('button', { name: 'Borrar', exact: true }).click()
     await page.getByRole('button', { name: 'Borrar 2ESO' }).click()
     await expect(page.getByRole('alert')).toContainText('Grupos')
@@ -142,6 +147,10 @@ test.describe('CA-ACAD-053 (REQ-ACAD-001): estructura académica contra la API r
     await page.getByLabel('Curso académico').click()
     await page.getByRole('option', { name: /2027-2028/ }).click()
     await expect(page).toHaveURL(/academic_year=/)
-    await expect(page.getByRole('table')).toHaveCount(1)
+    // El curso en planificación no tiene etapas; al volver al activo reaparece la estructura.
+    await expect(page.getByText('Este curso académico no tiene etapas')).toBeVisible()
+    await page.getByLabel('Curso académico').click()
+    await page.getByRole('option', { name: /2026-2027/ }).click()
+    await expect(page.getByRole('link', { name: 'ESO' })).toBeVisible()
   })
 })
