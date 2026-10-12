@@ -8,6 +8,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use InvalidArgumentException;
+use LogicException;
 use RuntimeException;
 
 /**
@@ -39,29 +40,35 @@ final class TenantMigration
     {
         self::assertSafeIdentifier($table);
 
-        Schema::connection('pgsql_owner')->create($table, function (Blueprint $blueprint) use ($columns): void {
-            $blueprint->id();
-            $blueprint->foreignId('tenant_id');
+        self::$tableInProgress = $table;
 
-            $columns($blueprint);
+        try {
+            Schema::connection('pgsql_owner')->create($table, function (Blueprint $blueprint) use ($columns): void {
+                $blueprint->id();
+                $blueprint->foreignId('tenant_id');
 
-            $blueprint->unsignedBigInteger('created_by')->nullable();
-            $blueprint->unsignedBigInteger('updated_by')->nullable();
+                $columns($blueprint);
 
-            $blueprint->timestampsTz();
-            $blueprint->softDeletesTz();
+                $blueprint->unsignedBigInteger('created_by')->nullable();
+                $blueprint->unsignedBigInteger('updated_by')->nullable();
 
-            // Clave foránea compuesta (ADR-033 §6): RLS no protege la
-            // integridad referencial, la comprobación de un FK la ejecuta
-            // el sistema saltándose las políticas. Sin este índice único,
-            // un hijo no puede declarar FOREIGN KEY (tenant_id, padre_id)
-            // REFERENCES padre (tenant_id, id).
-            $blueprint->unique(['tenant_id', 'id']);
-        });
+                $blueprint->timestampsTz();
+                $blueprint->softDeletesTz();
 
-        self::applyTenantDefaultsAndRls($table);
-        self::guardAcademicYearWritesIfApplicable($table);
-        self::applyPendingTranslationChecks($table);
+                // Clave foránea compuesta (ADR-033 §6): RLS no protege la
+                // integridad referencial, la comprobación de un FK la ejecuta
+                // el sistema saltándose las políticas. Sin este índice único,
+                // un hijo no puede declarar FOREIGN KEY (tenant_id, padre_id)
+                // REFERENCES padre (tenant_id, id).
+                $blueprint->unique(['tenant_id', 'id']);
+            });
+
+            self::applyTenantDefaultsAndRls($table);
+            self::guardAcademicYearWritesIfApplicable($table);
+            self::applyPendingTranslationChecks($table);
+        } finally {
+            self::clearCreationState($table);
+        }
 
         // hasColumn, no hasTable: hasta 0.8.4 existe un `users` heredado del
         // starter kit de Laravel sin tenant_id ni UNIQUE (tenant_id, id) —
@@ -88,18 +95,24 @@ final class TenantMigration
     {
         self::assertSafeIdentifier($table);
 
-        Schema::connection('pgsql_owner')->create($table, function (Blueprint $blueprint) use ($columns): void {
-            $blueprint->id();
-            $blueprint->foreignId('tenant_id');
+        self::$tableInProgress = $table;
 
-            $columns($blueprint);
+        try {
+            Schema::connection('pgsql_owner')->create($table, function (Blueprint $blueprint) use ($columns): void {
+                $blueprint->id();
+                $blueprint->foreignId('tenant_id');
 
-            $blueprint->unique(['tenant_id', 'id']);
-        });
+                $columns($blueprint);
 
-        self::applyTenantDefaultsAndRls($table);
-        self::guardAcademicYearWritesIfApplicable($table);
-        self::applyPendingTranslationChecks($table);
+                $blueprint->unique(['tenant_id', 'id']);
+            });
+
+            self::applyTenantDefaultsAndRls($table);
+            self::guardAcademicYearWritesIfApplicable($table);
+            self::applyPendingTranslationChecks($table);
+        } finally {
+            self::clearCreationState($table);
+        }
 
         // De los dos roles, no solo plataforma_app: plataforma_platform
         // tiene BYPASSRLS (ADR-033 §5) y es la conexión que más fácil
@@ -195,6 +208,19 @@ final class TenantMigration
     {
         self::assertSafeIdentifier($field);
 
+        // Sin un `tenantTable()`/`tenantTableAppendOnly()` en curso sobre esta
+        // misma tabla nadie aplicaría el CHECK: se falla en voz alta, nunca se
+        // omite en silencio (revisión de `db-reviewer`, `AR-16` lo vigila
+        // además sobre el esquema).
+        if (self::$tableInProgress === null || self::$tableInProgress !== $blueprint->getTable()) {
+            throw new LogicException(
+                "translatableColumn({$field}) solo puede llamarse dentro del cierre de columnas de "
+                .'TenantMigration::tenantTable() o tenantTableAppendOnly() sobre la misma tabla: '
+                .'fuera de ellos el CHECK de ADR-062 §5.1 no se crearía. Para una tabla existente, '
+                .'añade la columna y llama a addTranslationsCheck().'
+            );
+        }
+
         $column = "{$field}_translations";
 
         $blueprint->jsonb($column);
@@ -204,6 +230,21 @@ final class TenantMigration
 
     /** @var array<string, list<string>> tabla => columnas `*_translations` pendientes de su CHECK */
     private static array $pendingTranslationChecks = [];
+
+    /** Tabla que `tenantTable()`/`tenantTableAppendOnly()` está creando ahora mismo; `null` fuera de ellos. */
+    private static ?string $tableInProgress = null;
+
+    /**
+     * Limpia el estado de creación pase lo que pase (también si el `create`
+     * falla): un estado huérfano haría que el CHECK de una tabla se aplicara a
+     * otra posterior del mismo nombre, o que `translatableColumn()` creyera
+     * estar dentro de una creación que ya terminó.
+     */
+    private static function clearCreationState(string $table): void
+    {
+        unset(self::$pendingTranslationChecks[$table]);
+        self::$tableInProgress = null;
+    }
 
     /**
      * Nombre de la restricción `CHECK` de una columna traducible

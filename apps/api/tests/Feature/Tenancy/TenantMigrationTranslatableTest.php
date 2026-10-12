@@ -3,6 +3,7 @@
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use App\Support\Tenancy\TenantMigration;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -35,15 +36,15 @@ function ensureTranslatableProbe(): void
  * Inserta directamente en la tabla (sin pasar por Eloquent ni validación) y
  * devuelve el SQLSTATE si el motor la rechaza, o null si la acepta.
  */
-function insertTranslatableProbe(string $json): ?string
+function insertTranslatableProbe(string $json, string $table = 'translatable_probes', string $column = 'name_translations'): ?string
 {
     $tenant = Tenant::factory()->create();
     $state = null;
 
-    app(TenantContext::class)->runFor($tenant->id, function () use ($json, &$state): void {
+    app(TenantContext::class)->runFor($tenant->id, function () use ($json, $table, $column, &$state): void {
         try {
             // Savepoint: el rechazo del motor aborta la transacción del test.
-            DB::transaction(fn () => DB::statement('INSERT INTO translatable_probes (name_translations) VALUES (?::jsonb)', [$json]));
+            DB::transaction(fn () => DB::statement("INSERT INTO {$table} ({$column}) VALUES (?::jsonb)", [$json]));
         } catch (Throwable $e) {
             $state = $e->getCode();
         }
@@ -207,4 +208,148 @@ test('CA-ACAD-038 issue #407: el nombre del índice cabe en 63 bytes, sin trunca
 
     expect($indexes)->toHaveKey($expected)
         ->and($indexes[$expected])->toBe(['tenant_id', 'a_really_long_reference_column_id']);
+});
+
+/** Blueprint suelto (sin ejecutar) sobre la conexión del propietario, con su gramática ya resuelta. */
+function bareBlueprint(string $table): Blueprint
+{
+    return new Blueprint(Schema::connection('pgsql_owner')->getConnection(), $table);
+}
+
+// ───────── Revisión de db-reviewer (1.11-a): estado de creación y casos límite ─────────
+
+test('CA-ACAD-014 (db-reviewer Media 2): translatableColumn() fuera de tenantTable()/tenantTableAppendOnly() lanza; nunca omite el CHECK en silencio', function (): void {
+    $blueprint = bareBlueprint('una_tabla_cualquiera');
+
+    expect(fn () => TenantMigration::translatableColumn($blueprint, 'name'))->toThrow(LogicException::class, 'tenantTable()');
+});
+
+test('CA-ACAD-014 (db-reviewer Media 2): dentro de una creación, solo vale para la tabla que se está creando', function (): void {
+    $other = bareBlueprint('otra_tabla_distinta');
+
+    expect(fn () => TenantMigration::tenantTable('translatable_wrong_table_probe', function (Blueprint $table) use ($other): void {
+        $table->text('x');
+        TenantMigration::translatableColumn($other, 'name');
+    }))->toThrow(LogicException::class);
+
+    expect(Schema::connection('pgsql_owner')->hasTable('translatable_wrong_table_probe'))->toBeFalse();
+});
+
+test('CA-ACAD-014 (db-reviewer Baja 3): si el create falla no queda estado: ni tabla ni CHECK pendiente que se aplique a una creación posterior', function (): void {
+    Schema::connection('pgsql_owner')->dropIfExists('translatable_failure_probe');
+
+    // Falla al crear (FK a una tabla inexistente) después de registrar la columna.
+    expect(fn () => TenantMigration::tenantTable('translatable_failure_probe', function (Blueprint $table): void {
+        TenantMigration::translatableColumn($table, 'name');
+        TenantMigration::tenantForeignId($table, 'missing_id', 'tabla_que_no_existe_nunca');
+    }))->toThrow(QueryException::class);
+
+    // El `create` ya se había ejecutado cuando falla la FK (fuera de la transacción de una migración real, que lo revertiría).
+    Schema::connection('pgsql_owner')->dropIfExists('translatable_failure_probe');
+
+    // Tampoco queda «una creación en curso»: la llamada suelta vuelve a lanzar.
+    $blueprint = bareBlueprint('translatable_failure_probe');
+
+    expect(fn () => TenantMigration::translatableColumn($blueprint, 'name'))->toThrow(LogicException::class);
+
+    // Y una creación posterior de la misma tabla, sin columna traducible, no hereda el CHECK huérfano.
+    TenantMigration::tenantTable('translatable_failure_probe', function (Blueprint $table): void {
+        $table->text('name_translations');
+    });
+
+    $checks = DB::connection('pgsql_owner')->selectOne("SELECT count(*) AS n FROM pg_constraint WHERE conrelid = 'translatable_failure_probe'::regclass AND contype = 'c'")->n;
+
+    expect((int) $checks)->toBe(0);
+
+    Schema::connection('pgsql_owner')->dropIfExists('translatable_failure_probe');
+});
+
+test('CA-ACAD-014 (db-reviewer Baja 3): una excepción lanzada por el cierre de columnas también limpia el estado', function (): void {
+    expect(fn () => TenantMigration::tenantTableAppendOnly('translatable_closure_failure', function (Blueprint $table): void {
+        TenantMigration::translatableColumn($table, 'name');
+
+        throw new RuntimeException('fallo del cierre');
+    }))->toThrow(RuntimeException::class, 'fallo del cierre');
+
+    $blueprint = bareBlueprint('translatable_closure_failure');
+
+    expect(fn () => TenantMigration::translatableColumn($blueprint, 'name'))->toThrow(LogicException::class);
+});
+
+test('CA-ACAD-014 (db-reviewer Baja 5): translatableColumn() funciona dentro de tenantTableAppendOnly() y el CHECK muerde', function (): void {
+    if (! Schema::connection('pgsql_owner')->hasTable('translatable_append_only_probe')) {
+        TenantMigration::tenantTableAppendOnly('translatable_append_only_probe', function (Blueprint $table): void {
+            TenantMigration::translatableColumn($table, 'label');
+        });
+    }
+
+    expect(insertTranslatableProbe('{"es": "x"}', 'translatable_append_only_probe', 'label_translations'))->toBe('23514')
+        ->and(insertTranslatableProbe('{"es-ES": "x"}', 'translatable_append_only_probe', 'label_translations'))->toBeNull();
+});
+
+function insertTwoColumnsProbe(string $name, string $description): ?string
+{
+    $tenant = Tenant::factory()->create();
+    $state = null;
+
+    app(TenantContext::class)->runFor($tenant->id, function () use ($name, $description, &$state): void {
+        try {
+            DB::transaction(fn () => DB::statement('INSERT INTO translatable_two_columns_probe (name_translations, description_translations) VALUES (?::jsonb, ?::jsonb)', [$name, $description]));
+        } catch (Throwable $e) {
+            $state = (string) $e->getCode();
+        }
+    });
+
+    return $state;
+}
+
+test('CA-ACAD-014 (db-reviewer Baja 5): dos columnas traducibles en una tabla tienen cada una su CHECK', function (): void {
+    if (! Schema::connection('pgsql_owner')->hasTable('translatable_two_columns_probe')) {
+        TenantMigration::tenantTable('translatable_two_columns_probe', function (Blueprint $table): void {
+            TenantMigration::translatableColumn($table, 'name');
+            TenantMigration::translatableColumn($table, 'description');
+        });
+    }
+
+    $names = collect(DB::connection('pgsql_owner')->select("SELECT conname FROM pg_constraint WHERE conrelid = 'translatable_two_columns_probe'::regclass AND contype = 'c'"))->pluck('conname')->all();
+
+    expect($names)->toContain(TenantMigration::translationsCheckName('translatable_two_columns_probe', 'name_translations'))
+        ->and($names)->toContain(TenantMigration::translationsCheckName('translatable_two_columns_probe', 'description_translations'))
+        ->and(insertTwoColumnsProbe('{"es-ES": "ok"}', '{"xx": "x"}'))->toBe('23514')
+        ->and(insertTwoColumnsProbe('{"xx": "x"}', '{"es-ES": "ok"}'))->toBe('23514')
+        ->and(insertTwoColumnsProbe('{"es-ES": "ok"}', '{"en": "ok"}'))->toBeNull();
+});
+
+test('CA-ACAD-014 (db-reviewer Baja 5): las claves con otra grafía («es_ES», «ES-es», «es-es») las rechaza el motor: el vocabulario distingue mayúsculas y guion', function (): void {
+    ensureTranslatableProbe();
+
+    foreach (['{"es_ES": "x"}', '{"ES-es": "x"}', '{"es-es": "x"}', '{"EN": "x"}', '{"es-ES ": "x"}'] as $json) {
+        expect(insertTranslatableProbe($json))->toBe('23514', $json);
+    }
+});
+
+test('CA-ACAD-014 ADR-062 §5.1 (db-reviewer Baja 6): el motor NO garantiza cadenas no vacías, lo hace el validador de servidor', function (): void {
+    ensureTranslatableProbe();
+
+    // Hecho documentado, no un deseo: el CHECK de §5.1 tiene cuatro condiciones y
+    // «no vacío» no es una; lo exige TranslationsValidator (§5.2, translations.empty_value).
+    expect(insertTranslatableProbe('{"en": ""}'))->toBeNull()
+        ->and(insertTranslatableProbe('{"en": "   "}'))->toBeNull();
+});
+
+test('CA-ACAD-038 (db-reviewer Baja 5): tenantForeignId() dos veces con la misma columna falla al crear y no deja tabla a medias', function (): void {
+    if (! Schema::connection('pgsql_owner')->hasTable('fk_index_parents')) {
+        TenantMigration::tenantTable('fk_index_parents', function (Blueprint $table): void {
+            $table->text('name');
+        });
+    }
+
+    Schema::connection('pgsql_owner')->dropIfExists('fk_index_twice_probe');
+
+    expect(fn () => TenantMigration::tenantTable('fk_index_twice_probe', function (Blueprint $table): void {
+        TenantMigration::tenantForeignId($table, 'x_id', 'fk_index_parents');
+        TenantMigration::tenantForeignId($table, 'x_id', 'fk_index_parents');
+    }))->toThrow(QueryException::class, 'specified more than once');
+
+    expect(Schema::connection('pgsql_owner')->hasTable('fk_index_twice_probe'))->toBeFalse();
 });
