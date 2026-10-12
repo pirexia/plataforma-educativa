@@ -97,7 +97,9 @@ return [
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            'search_path' => 'public',
+            // `pg_temp` al final: PostgreSQL lo busca PRIMERO si no figura (una tabla temporal
+            // podría ocultar una de `public`); además TEMP está revocado a PUBLIC (#414).
+            'search_path' => 'public,pg_temp',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
@@ -114,7 +116,9 @@ return [
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            'search_path' => 'public',
+            // `pg_temp` al final: PostgreSQL lo busca PRIMERO si no figura (una tabla temporal
+            // podría ocultar una de `public`); además TEMP está revocado a PUBLIC (#414).
+            'search_path' => 'public,pg_temp',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
@@ -131,7 +135,9 @@ return [
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            'search_path' => 'public',
+            // `pg_temp` al final: PostgreSQL lo busca PRIMERO si no figura (una tabla temporal
+            // podría ocultar una de `public`); además TEMP está revocado a PUBLIC (#414).
+            'search_path' => 'public,pg_temp',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 

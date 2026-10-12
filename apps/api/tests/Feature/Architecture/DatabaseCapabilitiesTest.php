@@ -12,10 +12,12 @@ pest()->group('arch');
 // así que ni un `TenantMigration` colado en tiempo de ejecución ni DDL a mano
 // funcionan con él. Solo el propietario (`pgsql_owner`, por CLI) migra.
 //
-// Excepción conocida y aceptada, fijada aquí para que no cambie sin querer:
-// PUBLIC tiene `TEMP` por defecto en PostgreSQL, así que se pueden crear
-// tablas temporales; son locales a la sesión y desaparecen con ella, no
-// alteran el esquema compartido.
+// TEMP (decisión del usuario sobre la revisión de 1.11-a): PostgreSQL lo
+// concede a PUBLIC por defecto, y las tablas temporales se buscan antes que
+// `public` salvo que `pg_temp` esté al final del `search_path`. Se revoca a
+// PUBLIC en el aprovisionamiento (01-tenancy.sql.tpl, bases-test-paralelo.sh;
+// SYSADMIN.md §2b para bases ya existentes) y config/database.php pone
+// `pg_temp` al final. Ningún código de la aplicación usa tablas temporales.
 
 function createAttemptSqlState(string $sql): ?string
 {
@@ -57,10 +59,19 @@ test('#414: no puede alterar ni borrar tablas del esquema (ALTER/DROP exigen ser
         ->and(createAttemptSqlState('CREATE INDEX cap_probe_never ON tenant_settings (tenant_id)'))->toBe('42501');
 });
 
-test('#414: la excepción conocida: sí puede crear tablas TEMP, locales a la sesión (no alteran el esquema compartido)', function (): void {
-    expect(createAttemptSqlState('CREATE TEMP TABLE cap_probe_temp (id int)'))->toBeNull();
+test('#414: sin TEMP: plataforma_app no puede crear tablas temporales (42501); sondas con ON COMMIT DROP por si algún día pudiera', function (): void {
+    $privileges = DB::connection('pgsql')->selectOne("SELECT has_database_privilege(current_user, current_database(), 'TEMP') AS temp_privilege");
 
-    $persisted = DB::connection('pgsql_owner')->selectOne("SELECT count(*) AS n FROM pg_tables WHERE tablename = 'cap_probe_temp' AND schemaname = 'public'")->n;
+    expect($privileges->temp_privilege)->toBeFalse()
+        ->and(createAttemptSqlState('CREATE TEMP TABLE cap_probe_temp (id int) ON COMMIT DROP'))->toBe('42501');
+});
 
-    expect((int) $persisted)->toBe(0);
+test('#414: pg_temp va al final del search_path de las tres conexiones, no implícito al principio', function (): void {
+    foreach (['pgsql', 'pgsql_owner', 'pgsql_platform'] as $connection) {
+        expect(config("database.connections.{$connection}.search_path"))->toBe('public,pg_temp');
+
+        $path = DB::connection($connection)->selectOne("SELECT current_setting('search_path') AS p")->p;
+
+        expect(str_replace(' ', '', $path))->toBe('public,pg_temp', "{$connection}: search_path real");
+    }
 });

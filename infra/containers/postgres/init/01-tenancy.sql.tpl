@@ -55,6 +55,17 @@ GRANT USAGE ON SCHEMA app TO plataforma_owner, plataforma_app, plataforma_platfo
 GRANT CREATE ON SCHEMA app TO plataforma_owner;
 GRANT CONNECT ON DATABASE :"dbname" TO plataforma_owner, plataforma_app, plataforma_platform;
 
+-- Endurecimiento de TEMP (revisión de 1.11-a, #414): PostgreSQL concede
+-- TEMPORARY a PUBLIC por defecto, así que plataforma_app podía crear tablas
+-- temporales. Son locales a la sesión, pero se buscan ANTES que `public`
+-- salvo que `pg_temp` figure en el `search_path` (config/database.php lo
+-- pone al final), y ningún código de la aplicación las usa. Se revoca a
+-- PUBLIC y solo el propietario (migraciones) conserva el privilegio.
+-- Idempotente. CREATE DATABASE ... TEMPLATE no copia los privilegios de base:
+-- bases-test-paralelo.sh lo reaplica a cada clon.
+REVOKE TEMPORARY ON DATABASE :"dbname" FROM PUBLIC;
+GRANT TEMPORARY ON DATABASE :"dbname" TO plataforma_owner;
+
 -- plataforma_app y plataforma_platform solo hacen DML sobre lo que cree
 -- plataforma_owner: privilegios por defecto para tablas y secuencias futuras.
 ALTER DEFAULT PRIVILEGES FOR ROLE plataforma_owner IN SCHEMA public

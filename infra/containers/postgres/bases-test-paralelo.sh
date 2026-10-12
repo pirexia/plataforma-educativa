@@ -6,7 +6,7 @@
 # Crea `plataforma_test_1 .. plataforma_test_N` como clones de la plantilla
 # `plataforma_test` (CREATE DATABASE ... TEMPLATE) y reaplica a cada una el
 # `GRANT CONNECT` a los tres roles de tenancy (CREATE DATABASE ... TEMPLATE
-# no copia los privilegios de base). Cada proceso de Pest usa la suya
+# no copia los privilegios de base; también reaplica el REVOKE de TEMP a PUBLIC). Cada proceso de Pest usa la suya
 # (tests/bootstrap.php, TEST_TOKEN); migra su propia base en el primer
 # setUp(), así que el esquema del clon no necesita estar al día.
 #
@@ -100,11 +100,15 @@ for i in $PENDIENTES; do
     echo "Creada $DB"
 done
 
-# GRANT CONNECT en todas (idempotente), incluidas las que ya existían.
+# GRANT CONNECT y endurecimiento de TEMP en todas (idempotente), incluidas las que ya existían.
 i=1
 while [ "$i" -le "$N" ]; do
     DB="${TEMPLATE_DB}_$i"
     sql -c "GRANT CONNECT ON DATABASE \"$DB\" TO plataforma_owner, plataforma_app, plataforma_platform"
+    # TEMP (revisión de 1.11-a, #414): sin PUBLIC; solo el propietario. Un clon
+    # recibe los privilegios por defecto de una base nueva, no los de la plantilla.
+    sql -c "REVOKE TEMPORARY ON DATABASE \"$DB\" FROM PUBLIC"
+    sql -c "GRANT TEMPORARY ON DATABASE \"$DB\" TO plataforma_owner"
     i=$((i + 1))
 done
 
