@@ -37,7 +37,9 @@ class CursoServiceProvider extends ServiceProvider implements DeclaresModuleRegi
         $this->app->scoped(EloquentAcademicYearContext::class);
         $this->app->bind(AcademicYearContext::class, static fn ($app): AcademicYearContext => $app->make(EloquentAcademicYearContext::class));
 
-        $this->app->bind(AcademicYearDirectory::class, EloquentAcademicYearDirectory::class);
+        // CA-ACAD-042: memoiza la búsqueda por identificador por petición.
+        $this->app->scoped(EloquentAcademicYearDirectory::class);
+        $this->app->bind(AcademicYearDirectory::class, static fn ($app): AcademicYearDirectory => $app->make(EloquentAcademicYearDirectory::class));
         $this->app->bind(AcademicYearWriteGuard::class, EloquentAcademicYearWriteGuard::class);
         $this->app->bind(AcademicYearReadAccess::class, PermissionAcademicYearReadAccess::class);
 
