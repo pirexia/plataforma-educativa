@@ -127,3 +127,49 @@ test('CA-ACAD-043: la ruta no se confunde con /{publicId} (devuelve la lista, no
         ->assertOk()
         ->assertJsonPath('data', []);
 });
+
+test('CA-ACAD-043 INV-001 (#416): la cookie de sesión de un centro presentada en el host de otro no devuelve sus cursos (401)', function (): void {
+    [$tenantA, $userA, $passwordA] = provisionActiveUser('acad-043g');
+    [$tenantB] = provisionCoreTenant('acad-043h');
+    CursoTestHelpers::year($tenantA, 'curso-secreto-de-A', AcademicYearStatus::Activo);
+    CursoTestHelpers::year($tenantB, 'curso-de-B', AcademicYearStatus::Activo);
+
+    // Sesión real de un usuario del centro A.
+    $cookie = sessionCookieValue(loginFor($tenantA->slug, $userA->email, $passwordA));
+
+    // Sanidad: en su propio host la sesión sirve.
+    withSessionCookie($cookie);
+    test()->getJson(coreApiUrl($tenantA->slug, '/academic-years/selectable'))->assertOk()->assertJsonPath('data.0.code', 'curso-secreto-de-A');
+
+    // La misma cookie en el host del centro B.
+    withSessionCookie($cookie);
+    $response = test()->getJson(coreApiUrl($tenantB->slug, '/academic-years/selectable'));
+
+    // Comportamiento real: el usuario de A no existe para el ámbito de B (`TenantScope`), así que la petición es anónima.
+    $response->assertUnauthorized();
+
+    expect($response->getContent())->not->toContain('curso-secreto-de-A')
+        ->and($response->getContent())->not->toContain('curso-de-B');
+});
+
+test('CA-ACAD-043 INV-001 (#416): defensa en profundidad: aunque Auth::user() resolviera al usuario de A, verify-session-tenant responde 401 en el host de B sin cursos', function (): void {
+    [$tenantA, $userA, $passwordA] = provisionActiveUser('acad-043i');
+    [$tenantB] = provisionCoreTenant('acad-043j');
+    CursoTestHelpers::year($tenantA, 'curso-secreto-de-A', AcademicYearStatus::Activo);
+    CursoTestHelpers::year($tenantB, 'curso-de-B', AcademicYearStatus::Activo);
+
+    $cookie = sessionCookieValue(loginFor($tenantA->slug, $userA->email, $passwordA));
+
+    // Mismo montaje que SessionLifecycleTest (RN-AUTH-31): cookie real de A y
+    // el guard forzado a A, lo que solo ocurriría si TenantScope fallara.
+    resetSessionState();
+    test()->withCredentials()->withUnencryptedCookie(config('session.cookie'), $cookie);
+    test()->actingAs($userA);
+
+    $response = test()->getJson(coreApiUrl($tenantB->slug, '/academic-years/selectable'));
+
+    $response->assertUnauthorized();
+
+    expect($response->getContent())->not->toContain('curso-secreto-de-A')
+        ->and($response->getContent())->not->toContain('curso-de-B');
+});
