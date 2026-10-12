@@ -7,4 +7,5 @@ return [
     'default_locale_required' => 'Der Text in der Standardsprache der Schule (:locale) fehlt.',
     'locale_not_active' => 'Die Sprache „:locale“ ist für diese Schule nicht aktiv.',
     'empty_value' => 'Der Text in „:locale“ darf nicht leer sein.',
+    'invalid_characters' => 'Der Text in „:locale“ enthält unzulässige Steuerzeichen.',
 ];

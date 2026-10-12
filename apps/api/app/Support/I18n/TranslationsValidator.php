@@ -30,7 +30,11 @@ use App\Support\Api\ValidationErrorBag;
  *   del centro (alta) o la edición lo quita o lo deja sin él (`PATCH`);
  * - `translations.locale_not_active`: clave que no es de un idioma activo
  *   del centro (o fuera del vocabulario cerrado);
- * - `translations.empty_value`: valor vacío tras recortar, o que no es cadena.
+ * - `translations.empty_value`: valor vacío tras recortar, o que no es cadena;
+ * - `translations.invalid_characters`: el valor contiene NUL o un carácter de
+ *   control C0 (salvo tabulación y saltos de línea, que admite un párrafo,
+ *   ADR-062 §2), DEL, o no es UTF-8 válido. PostgreSQL rechaza `\u0000` en un
+ *   `jsonb` con `22P05` (un `500`): el servidor lo ataja antes, `INV-010`.
  */
 final class TranslationsValidator
 {
@@ -39,6 +43,8 @@ final class TranslationsValidator
     public const LOCALE_NOT_ACTIVE = 'translations.locale_not_active';
 
     public const EMPTY_VALUE = 'translations.empty_value';
+
+    public const INVALID_CHARACTERS = 'translations.invalid_characters';
 
     public function __construct(
         private readonly TenantSettingsReader $settings,
@@ -80,10 +86,9 @@ final class TranslationsValidator
                 continue;
             }
 
-            $text = $this->cleanText($value);
+            $text = $this->cleanText($value, $errors, "{$field}.{$locale}", $locale);
 
             if ($text === null) {
-                $this->fail($errors, "{$field}.{$locale}", self::EMPTY_VALUE, $locale);
                 $valid = false;
 
                 continue;
@@ -156,10 +161,9 @@ final class TranslationsValidator
                 continue;
             }
 
-            $text = $this->cleanText($value);
+            $text = $this->cleanText($value, $errors, "{$field}.{$locale}", $locale);
 
             if ($text === null) {
-                $this->fail($errors, "{$field}.{$locale}", self::EMPTY_VALUE, $locale);
                 $valid = false;
 
                 continue;
@@ -181,15 +185,34 @@ final class TranslationsValidator
         return Locales::isKnown($locale) && in_array($locale, $this->settings->activeLocales(), true);
     }
 
-    private function cleanText(mixed $value): ?string
+    /**
+     * El valor recortado, o `null` tras añadir el error que corresponde
+     * (`empty_value` o `invalid_characters`).
+     */
+    private function cleanText(mixed $value, ValidationErrorBag $errors, string $path, string $locale): ?string
     {
         if (! is_string($value)) {
+            $this->fail($errors, $path, self::EMPTY_VALUE, $locale);
+
+            return null;
+        }
+
+        // Antes de recortar y de decidir si queda vacío: un NUL no es espacio.
+        if (! mb_check_encoding($value, 'UTF-8') || preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $value) === 1) {
+            $this->fail($errors, $path, self::INVALID_CHARACTERS, $locale);
+
             return null;
         }
 
         $text = trim($value);
 
-        return $text === '' ? null : $text;
+        if ($text === '') {
+            $this->fail($errors, $path, self::EMPTY_VALUE, $locale);
+
+            return null;
+        }
+
+        return $text;
     }
 
     private function fail(ValidationErrorBag $errors, string $field, string $code, string $locale): void

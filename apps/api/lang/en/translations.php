@@ -7,4 +7,5 @@ return [
     'default_locale_required' => 'The text in the school\'s default language (:locale) is missing.',
     'locale_not_active' => 'The language ":locale" is not active for this school.',
     'empty_value' => 'The text in ":locale" cannot be empty.',
+    'invalid_characters' => 'The text in ":locale" contains control characters that are not allowed.',
 ];

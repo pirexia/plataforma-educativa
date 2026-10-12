@@ -260,3 +260,40 @@ test('CA-ACAD-009 ADR-062 §5.2: el error lleva el code translations.* completo,
         ->and($entry['params'])->toBe(['locale' => 'es-ES'])
         ->and($entry['message'])->not->toBe('translations.empty_value');
 });
+
+test('CA-ACAD-009 INV-010 (revisión de seguridad M-1): NUL y controles C0 se rechazan con translations.invalid_characters, no llegan a jsonb', function (): void {
+    foreach (["a\u{0000}b", "\u{0000}", "x\u{0001}", "x\u{001F}y", "x\u{007F}", "\u{0008}", "\u{000B}", "\u{000C}", "\xC3\x28"] as $bad) {
+        $errors = new ValidationErrorBag;
+
+        $result = validatorFor('es-ES', ['es-ES'])->validateForCreate(['es-ES' => $bad], 'name_translations', $errors);
+
+        expect($result)->toBeNull()
+            ->and(codesOf($errors))->toBe(['name_translations.es-ES' => ['translations.invalid_characters']]);
+    }
+});
+
+test('CA-ACAD-009 (M-1): el PATCH también rechaza NUL y controles, y deja el resto como estaba', function (): void {
+    $errors = new ValidationErrorBag;
+
+    $merged = validatorFor('es-ES', ['es-ES', 'en'])->validateForPatch(['en' => "Lang\u{0000}uage"], ['es-ES' => 'Lengua'], 'name_translations', $errors);
+
+    expect($merged)->toBeNull()
+        ->and(codesOf($errors))->toBe(['name_translations.en' => ['translations.invalid_characters']]);
+});
+
+test('CA-ACAD-009 (M-1): tabulación y saltos de línea se admiten (texto de un párrafo, ADR-062 §2); Unicode ordinario también', function (): void {
+    $errors = new ValidationErrorBag;
+
+    $result = validatorFor('es-ES', ['es-ES'])->validateForCreate(['es-ES' => "Lengua\ny\tLiteratura — ñ 数学"], 'name_translations', $errors);
+
+    expect($errors->isEmpty())->toBeTrue()
+        ->and($result)->toBe(['es-ES' => "Lengua\ny\tLiteratura — ñ 数学"]);
+});
+
+test('CA-ACAD-009 (M-1) INV-009: translations.invalid_characters existe en los cuatro idiomas', function (): void {
+    foreach (['es', 'en', 'de', 'fr'] as $locale) {
+        $message = __('translations.invalid_characters', ['locale' => 'xx'], $locale);
+
+        expect($message)->not->toBe('translations.invalid_characters')->and($message)->toContain('xx');
+    }
+});

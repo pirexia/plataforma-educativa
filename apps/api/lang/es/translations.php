@@ -9,4 +9,5 @@ return [
     'default_locale_required' => 'Falta el texto en el idioma por defecto del centro (:locale).',
     'locale_not_active' => 'El idioma «:locale» no está activo en el centro.',
     'empty_value' => 'El texto en «:locale» no puede estar vacío.',
+    'invalid_characters' => 'El texto en «:locale» contiene caracteres de control no permitidos.',
 ];
