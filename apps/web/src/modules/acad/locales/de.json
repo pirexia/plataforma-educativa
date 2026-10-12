@@ -13,7 +13,7 @@
       "code": "Kürzel",
       "name": "Name",
       "stage": "Stufenart",
-      "regime": "Rechtsform",
+      "regime": "Trägerschaft",
       "position": "Position",
       "actions": "Aktionen"
     },
@@ -44,7 +44,7 @@
       "new": "Neue Stufe",
       "filters": {
         "stage": "Stufenart",
-        "regime": "Rechtsform"
+        "regime": "Trägerschaft"
       },
       "empty": {
         "title": "Dieses Schuljahr hat keine Stufen",

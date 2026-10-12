@@ -32,7 +32,7 @@ return [
         'code_taken' => 'Unter den gleichrangigen Elementen existiert bereits ein Element mit diesem Code.',
         'name_required' => 'Der Name ist erforderlich.',
         'stage_invalid' => 'Die Stufenart ist ungültig.',
-        'regime_invalid' => 'Die Trägerform ist ungültig.',
+        'regime_invalid' => 'Die Trägerschaft ist ungültig.',
         'position_invalid' => 'Die Position muss eine ganze Zahl größer oder gleich 1 sein.',
         'academic_year_required' => 'Das Schuljahr ist erforderlich.',
         'academic_year_not_found' => 'Das angegebene Schuljahr existiert nicht.',

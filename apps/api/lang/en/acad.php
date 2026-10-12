@@ -47,7 +47,7 @@ return [
     ],
 
     'entities' => [
-        'education_level' => 'education level',
+        'education_level' => 'stage',
         'course' => 'course',
         'group' => 'group',
         'subject' => 'subject',
