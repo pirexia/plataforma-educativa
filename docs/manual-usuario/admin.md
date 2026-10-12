@@ -224,6 +224,24 @@ El diálogo te pide un **motivo, obligatorio**, que queda guardado junto con tu 
 
 **Quién ve qué.** Los cursos cerrados se pueden consultar con el permiso de leer el histórico de cursos cerrados, **además** del permiso del módulo que guarda el dato. Por defecto lo tienen el Administrador de Centro, la Dirección y la Secretaría (que además pueden ver el listado y la ficha de los cursos, sin crearlos ni cambiarles el estado); un centro puede dárselo a otros roles creando un rol personalizado.
 
+## Estructura académica
+
+En **Administración → Estructura académica** (`/academico/estructura`) defines cómo se organiza el centro **en cada curso académico**: **etapas** (Infantil, Primaria, ESO…), **cursos de etapa** (1.º ESO, 2.º ESO…), **grupos** (A, B…), **subgrupos** (desdobles) y **asignaturas**. Es un módulo que el centro debe tener contratado (si no, la entrada del menú no aparece y la aplicación responde que el módulo no está disponible; pídelo a quien administra la plataforma). Necesitas el permiso de leer la estructura para verla, y los de crear, actualizar y borrar para cambiarla; por defecto los cuatro los tiene solo el Administrador de Centro; la Dirección, la Secretaría, el profesorado, las tutorías y la orientación solo pueden consultarla.
+
+**El selector de curso académico.** En la barra superior, **«Curso académico»** muestra el curso que estás viendo (por defecto, el activo) con su estado. Al elegir otro, la pantalla se recarga con la estructura de ese curso y la dirección de la página incluye `?academic_year=…`: puedes guardar o compartir ese enlace, y recargar conserva la elección. No se guarda nada en tu perfil. Los cursos **cerrados** y **archivados** solo aparecen si tienes el permiso de leer el histórico de cursos cerrados; sin él, aunque tengas el enlace, la aplicación responde como si no existieran. Si el centro no tiene ningún curso activo, la pantalla te pide elegir uno.
+
+**Un curso cerrado es de solo lectura.** Si seleccionas un curso cerrado, aparece un aviso permanente y desaparecen «Nuevo…», «Editar» y «Borrar». Nadie puede cambiar la estructura de un curso cerrado, tenga el permiso que tenga.
+
+**Crear.** «Nueva etapa» pide: **código** (texto libre, una sola línea, único entre las etapas del curso; por ejemplo `ESO`), **nombre**, **tipo de etapa** (Infantil, Primaria, ESO, Bachillerato, Formación Profesional o Universidad), **régimen** (público, privado o concertado) y, opcionalmente, la **posición** (si se deja vacía, queda al final). Entrando en una etapa creas sus **cursos**; en un curso, sus **grupos** y **asignaturas**; en un grupo, sus **subgrupos**. El curso académico de cada elemento es el de su elemento superior y **no se puede cambiar después**, como tampoco el elemento superior.
+
+**El nombre en varios idiomas.** El nombre de etapas, cursos y asignaturas se escribe en **una entrada por idioma activo del centro**: el **idioma por defecto del centro** es obligatorio (el centro puede tener otro distinto del castellano) y los demás son opcionales; si falta alguno, cada persona ve el nombre en su idioma si existe y, si no, en el idioma por defecto. Al editar, solo cambias los idiomas que modificas: los demás se conservan, incluso los de un idioma que el centro ya no tenga activo. Los **grupos y subgrupos** llevan un nombre simple, sin traducciones.
+
+**Asignaturas de un grupo.** En la ficha de un grupo, **«Editar asignaturas»** muestra las asignaturas de su curso con casillas: marca las que cursa el grupo y guarda. Crear una asignatura después **no** la añade a los grupos existentes: hay que asignarla.
+
+**Borrar.** **«Borrar»** pide confirmación y es un borrado lógico. **No se puede borrar un elemento que tiene elementos dentro**: una etapa con cursos, un curso con grupos o asignaturas, un grupo con subgrupos o con asignaturas asignadas, una asignatura asignada a algún grupo. La aplicación te lo dice junto al botón y lista lo que lo impide; hay que borrar antes lo de dentro.
+
+**Si algo no cuadra.** «El código ya existe» = hay otro elemento vivo con ese código entre los hermanos (un elemento borrado libera su código). «Falta el nombre en el idioma por defecto» = rellena esa entrada. El código y el nombre simple no admiten caracteres de control; el código tampoco saltos de línea.
+
 ## Mi perfil
 
 En el menú de usuario, **Mi cuenta → Perfil** (`/cuenta/perfil`) está disponible para **cualquier persona con sesión**, sin ningún permiso especial. Muestra tu nombre completo y tu **correo de acceso** (que no se cambia desde aquí; si necesitas cambiarlo, contacta con el centro) y te deja modificar tu **correo de contacto** y tu **teléfono de contacto**. Dejar un campo vacío lo borra. Tu idioma no se cambia aquí sino con el selector de idioma del menú de usuario. Si el servidor rechaza un dato, el mensaje aparece bajo el campo.

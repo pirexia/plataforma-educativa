@@ -1,6 +1,6 @@
 # REQ-ACAD · Operación
 
-> **Estado**: **APROBADA** (2026-10-10), paso **1.11**, con las recomendaciones de `funcional.md §15` aprobadas y `ADR-062`/`ADR-063` ACEPTADOS.
+> **Estado**: **APROBADA** (2026-10-10), paso **1.11**, con las recomendaciones de `funcional.md §15` aprobadas y `ADR-062`/`ADR-063` ACEPTADOS. **Implementado en `1.11-b`** (2026-10-12/13): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 
 ## 1. Variables de entorno
 

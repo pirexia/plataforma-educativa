@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.8.9** · 2026-10-10
+> **Versión 0.8.10** · 2026-10-12
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`); el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
@@ -341,6 +341,30 @@ La entrega `1.9c` incluye una migración **de datos** (`2026_10_02_100200_normal
 ## 2f. Índices de clave foránea de `1.11-a` (issue #412)
 
 Al desplegar `1.11-a` sobre una base ya migrada, `php artisan migrate` crea hasta 18 índices `(tenant_id, columna)` con `CREATE INDEX CONCURRENTLY` (no bloquea escrituras; no se ejecuta en transacción). Es idempotente y, si se interrumpe, basta repetir el comando; lanzar con `php artisan migrate --isolated` (nunca dos `migrate` a la vez). Una instalación nueva no necesita nada. Detalle y candidatos a retirar en `docs/modulos/REQ-ACAD/operacion.md §6.2`. Las bases de test por proceso (`ADR-060`) se recrean con el script de §2b para recibirla.
+
+## 2g. Módulo `acad`: estructura académica (`REQ-ACAD-001`, `1.11-b`)
+
+Módulo **no esencial** (`depends_on ['curso']`): ningún centro lo tiene hasta que el Super Administrador lo contrata. Seis tablas nuevas, aditivas; detalle en `docs/modulos/REQ-ACAD/operacion.md`.
+
+```bash
+# 1. Migraciones del módulo (seis tablas, con el disparador academic_year_write_guard y la RLS).
+php artisan migrate --database=pgsql_owner
+# 2. Registra el módulo y sus cuatro permisos (estructura_academica.leer|crear|actualizar|eliminar).
+php artisan platform:sync-registry
+# 3. Contratar acad en cada centro: backoffice (REQ-BO-002), activar el módulo «acad» del centro.
+# 4. Centros que YA existían: siembra de los permisos en los roles predefinidos (idempotente;
+#    no toca roles personalizados; solo centros Activo; NO concede nada si falta o está
+#    retirado algún permiso, e imprime cuál: ejecuta antes platform:sync-registry).
+php artisan acad:grant-structure-permissions
+```
+
+Los centros **nuevos** reciben las concesiones de `tenant:provision-defaults` (`administrador_centro` los cuatro; `direccion`, `secretaria`, `docente`, `tutor_grupo` y `orientador`, solo `leer`). Sin `acad` contratado esos permisos son inertes: las pantallas y las rutas responden `403 module-disabled`. **Orden**: migrar → `sync-registry` → contratar → siembra. En un centro con `acad` sin contratar **sí se pueden** asignar y clonar los roles predefinidos (`RPERM-013` acotada, `docs/modulos/REQ-PERM/funcional.md §8`).
+
+Síntomas: `403` en todas las pantallas de estructura = módulo sin contratar (o siembra pendiente en un centro antiguo); `404 curso.no_active_year` al abrir «Estructura académica» = sin curso activo (elegir curso en el selector); `409 academic-year-closed` al editar = curso cerrado.
+
+**Reversión**: desplegar la imagen anterior. Las migraciones **no se revierten** (aditivas, la versión anterior no usa las tablas y su `down()` borraría datos de estructura); el siguiente `sync-registry` de la versión anterior marca `acad` y sus permisos con `retired_at` (concesiones inertes). Procedimiento a probar antes de producción (`CLAUDE.md §9`): `RUNBOOK.md`.
+
+**E2E contra la API real** (`CA-ACAD-053`): `npm run test:e2e:real` (en `apps/web`) prepara un centro `demo` sintético por suite, con `acad` contratado, y lo retira al terminar; requiere `npx playwright install chromium` la primera vez.
 
 ## 3. Comprobación rápida
 
