@@ -6,6 +6,17 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-12 · `REQ-ACAD-001` entrega `1.11-a`: infraestructura compartida (`ADR-062`, rama `feature/REQ-ACAD-1-11a-infraestructura-compartida`)
+
+- **`TenantMigration`**: `translatableColumn()` añade `<campo>_translations jsonb NOT NULL` con su `CHECK` generado (`ADR-062 §5.1`, `CA-ACAD-014`; el valor no objeto falla con `23514`, no con un error de operador; la comprobación de valores usa modo `strict` porque en el laxo `$.*` desenvuelve arrays). `tenantForeignId()` crea además el índice `(tenant_id, <columna>)` con nombre explícito de a lo sumo 63 bytes (`{tabla}_{columna}_tenant_idx`, #407, `CA-ACAD-038`); **no retroactivo**: las tablas ya migradas no lo ganan. Docblock huérfano corregido.
+- **`App\Support\I18n`**: `Locales`, `TranslationsValidator` (alta y `PATCH` por fusión), `TranslationResolver` (caída de `ADR-062 §5.3`) y códigos comunes `translations.*` en los cuatro idiomas (`CA-ACAD-009`, `-010`, `-012`; la parte HTTP se prueba en `1.11-b`).
+- **Auditoría**: `AuditChangeBuilder` desglosa `*_translations` por idioma (`ADR-062 §5.5`, `CA-ACAD-013`).
+- **`curso`**: `AcademicYearDirectory::findById()`/`findManyById()`, memoizadas por petición y centro (`CA-ACAD-042`); `GET /academic-years/selectable` (autoservicio, #409, `CA-ACAD-043`; **`AR-07a` pasa de 34 a 35 rutas**, la cifra de 34 se comprobó contra el test antes de ampliarla); OpenAPI y `docs/modulos/REQ-CURSO/` actualizados. `curso:grant-year-permissions` comprueba `retired_at IS NULL` (#387 B-5, `CA-ACAD-041`).
+- **Reglas de arquitectura**: `AR-07a` valida que el código de cada `permission:` esté declarado (#378 B3, `CA-ACAD-039`); nueva regla de que solo las migraciones usan `TenantMigration` (`CA-ACAD-040`); `AR-14` escanea además `database/`, `routes/` y `bootstrap/` (#387 B-4).
+- **Fuera de esta entrega** (`1.11-b`): módulo `acad`, `AR-16`, componente web, selector visual, README de módulos web (#408), `acad:grant-structure-permissions`.
+
+---
+
 ## 2026-10-10 · Actualización de PostgreSQL 17 a 18 (`ADR-061`, rama `chore/postgres-18`, PR de Renovate [#347](https://github.com/pirexia/plataforma-educativa/pull/347))
 
 - **`ADR-061` (aceptado)**: la imagen oficial `postgres:18` cambia `PGDATA` a `/var/lib/postgresql/18/docker` y se niega a arrancar con el montaje antiguo o con datos de 17, así que el PR de Renovate solo no era desplegable. `compose.yaml`, `infra/compose/compose.prodlike.yaml` e `infra/quadlet/postgres.container` pasan a `postgres:18` con un volumen nuevo `postgres-cluster` montado en `/var/lib/postgresql` (`postgres-cluster.volume` sustituye a `postgres-data.volume`; en `compose.yaml` `postgres-data` sigue declarado sin montar como camino de vuelta). `ci-api.yml` usa `postgres:18` en sus tres servicios. Sustituye solo una fila de `ADR-037`.

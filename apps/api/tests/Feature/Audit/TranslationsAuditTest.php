@@ -44,6 +44,9 @@ class TranslatableAuditProbe extends TenantModel implements Auditable
 }
 
 beforeEach(function (): void {
+    // El mapa polimórfico es global del proceso y otros tests lo comparan
+    // entero (CoreModelsTest): se amplía solo mientras dura cada test.
+    $GLOBALS['translations_audit_morph_map'] = Relation::morphMap();
     Relation::morphMap(['audit_translatable_probe' => TranslatableAuditProbe::class]);
 
     if (Schema::connection('pgsql_owner')->hasTable('audit_translatable_probes')) {
@@ -57,6 +60,7 @@ beforeEach(function (): void {
 });
 
 afterEach(function (): void {
+    Relation::morphMap($GLOBALS['translations_audit_morph_map'], false);
     DB::connection('pgsql_platform')->table('tenants')->delete();
 });
 
