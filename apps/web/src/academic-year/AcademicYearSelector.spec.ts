@@ -52,9 +52,9 @@ async function mountAt(url: string) {
         path: '/academico/estructura',
         name: 'scoped',
         component: stub,
-        meta: { academicYearScoped: true },
+        meta: { layout: 'app', academicYearScoped: true },
       },
-      { path: '/otra', name: 'other', component: stub, meta: {} },
+      { path: '/otra', name: 'other', component: stub, meta: { layout: 'app' } },
     ],
   })
 

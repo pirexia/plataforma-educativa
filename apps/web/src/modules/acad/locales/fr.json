@@ -1,0 +1,175 @@
+{
+  "acad": {
+    "nav": {
+      "structure": "Structure académique",
+      "backToStructure": "Retour à la structure académique",
+      "backToLevel": "Retour à l'étape {code}",
+      "backToLevelGeneric": "Retour à l'étape",
+      "backToCourse": "Retour au niveau {code}",
+      "backToCourseGeneric": "Retour au niveau"
+    },
+    "readOnly": "Cette année scolaire est en lecture seule : sa structure ne peut être ni créée, ni modifiée, ni supprimée.",
+    "fields": {
+      "code": "Code",
+      "name": "Nom",
+      "stage": "Type d'étape",
+      "regime": "Régime",
+      "position": "Position",
+      "actions": "Actions"
+    },
+    "stage": {
+      "infantil": "Éducation de la petite enfance",
+      "primaria": "Enseignement primaire",
+      "eso": "Enseignement secondaire obligatoire (ESO)",
+      "bachillerato": "Lycée (Bachillerato)",
+      "fp": "Formation professionnelle",
+      "universidad": "Université"
+    },
+    "regime": {
+      "publico": "Public",
+      "privado": "Privé",
+      "concertado": "Sous contrat"
+    },
+    "dependents": {
+      "courses": "Niveaux",
+      "groups": "Groupes",
+      "subjects": "Matières",
+      "subgroups": "Sous-groupes",
+      "group_subjects": "Matières affectées à des groupes"
+    },
+    "structure": {
+      "title": "Structure académique",
+      "intro": "Étapes, niveaux, groupes, sous-groupes et matières de l'année scolaire sélectionnée.",
+      "caption": "Étapes de l'année scolaire",
+      "new": "Nouvelle étape",
+      "filters": {
+        "stage": "Type d'étape",
+        "regime": "Régime"
+      },
+      "empty": {
+        "title": "Cette année scolaire n'a aucune étape",
+        "text": "Créez la première étape pour commencer à définir la structure."
+      },
+      "noActive": {
+        "title": "Aucune année scolaire n'est active",
+        "text": "Choisissez une année scolaire dans le sélecteur de la barre supérieure pour consulter sa structure."
+      }
+    },
+    "level": {
+      "title": "Étape",
+      "courses": "Niveaux de l'étape",
+      "coursesCaption": "Niveaux de l'étape",
+      "newCourse": "Nouveau niveau",
+      "noCourses": "Cette étape n'a aucun niveau"
+    },
+    "course": {
+      "title": "Niveau",
+      "groups": "Groupes",
+      "groupsCaption": "Groupes du niveau",
+      "newGroup": "Nouveau groupe",
+      "noGroups": "Ce niveau n'a aucun groupe",
+      "subjects": "Matières",
+      "subjectsCaption": "Matières du niveau",
+      "newSubject": "Nouvelle matière",
+      "noSubjects": "Ce niveau n'a aucune matière"
+    },
+    "group": {
+      "title": "Groupe",
+      "subjects": "Matières suivies",
+      "editSubjects": "Modifier les matières",
+      "chooseSubjects": "Matières du niveau suivies par ce groupe",
+      "noAvailable": "Le niveau n'a aucune matière à affecter.",
+      "noSubjects": "Ce groupe ne suit aucune matière.",
+      "subgroups": "Sous-groupes",
+      "subgroupsCaption": "Sous-groupes du groupe",
+      "newSubgroup": "Nouveau sous-groupe",
+      "noSubgroups": "Ce groupe n'a aucun sous-groupe"
+    },
+    "subject": {
+      "title": "Matière",
+      "groups": "Groupes qui la suivent",
+      "noGroups": "Aucun groupe ne suit cette matière."
+    },
+    "detail": {
+      "actions": "Actions",
+      "data": "Données",
+      "edit": "Modifier",
+      "delete": "Supprimer"
+    },
+    "form": {
+      "close": "Fermer",
+      "cancel": "Annuler",
+      "create": "Créer",
+      "save": "Enregistrer",
+      "choose": "Choisir une option",
+      "description": "Les champs obligatoires sont signalés. L'année scolaire et l'élément parent ne peuvent pas être modifiés ensuite.",
+      "positionHint": "Facultatif. Si vide, l'élément est placé en dernier.",
+      "title": {
+        "create": {
+          "level": "Nouvelle étape",
+          "course": "Nouveau niveau",
+          "subject": "Nouvelle matière",
+          "group": "Nouveau groupe",
+          "subgroup": "Nouveau sous-groupe"
+        },
+        "edit": {
+          "level": "Modifier l'étape",
+          "course": "Modifier le niveau",
+          "subject": "Modifier la matière",
+          "group": "Modifier le groupe",
+          "subgroup": "Modifier le sous-groupe"
+        }
+      },
+      "errors": {
+        "defaultLocaleRequired": "Le nom dans la langue par défaut de l'établissement est manquant."
+      }
+    },
+    "confirm": {
+      "delete": {
+        "confirm": "Supprimer {code}",
+        "level": {
+          "title": "Supprimer l'étape {code}",
+          "description": "L'étape est supprimée de l'année scolaire. Elle ne peut pas être supprimée si elle a des niveaux."
+        },
+        "course": {
+          "title": "Supprimer le niveau {code}",
+          "description": "Le niveau est supprimé de l'année scolaire. Il ne peut pas être supprimé s'il a des groupes ou des matières."
+        },
+        "group": {
+          "title": "Supprimer le groupe {code}",
+          "description": "Le groupe est supprimé. Il ne peut pas être supprimé s'il a des sous-groupes ou des matières affectées."
+        },
+        "subgroup": {
+          "title": "Supprimer le sous-groupe {code}",
+          "description": "Le sous-groupe est supprimé du groupe."
+        },
+        "subject": {
+          "title": "Supprimer la matière {code}",
+          "description": "La matière est supprimée. Elle ne peut pas être supprimée si elle est affectée à un groupe."
+        }
+      }
+    },
+    "flash": {
+      "levelCreated": "Étape créée.",
+      "levelUpdated": "Étape mise à jour.",
+      "levelDeleted": "Étape supprimée.",
+      "courseCreated": "Niveau créé.",
+      "courseUpdated": "Niveau mis à jour.",
+      "courseDeleted": "Niveau supprimé.",
+      "groupCreated": "Groupe créé.",
+      "groupUpdated": "Groupe mis à jour.",
+      "groupDeleted": "Groupe supprimé.",
+      "subgroupCreated": "Sous-groupe créé.",
+      "subgroupUpdated": "Sous-groupe mis à jour.",
+      "subgroupDeleted": "Sous-groupe supprimé.",
+      "subjectCreated": "Matière créée.",
+      "subjectUpdated": "Matière mise à jour.",
+      "subjectDeleted": "Matière supprimée.",
+      "subjectsAssigned": "Matières du groupe mises à jour."
+    },
+    "errors": {
+      "unexpected": "L'action n'a pas pu être menée à bien. Veuillez réessayer.",
+      "dependentsTitle": "Éléments qui l'empêchent :"
+    }
+  }
+}

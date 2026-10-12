@@ -11,6 +11,10 @@ import cursoEs from '@/modules/curso/locales/es.json'
 import cursoEn from '@/modules/curso/locales/en.json'
 import cursoDe from '@/modules/curso/locales/de.json'
 import cursoFr from '@/modules/curso/locales/fr.json'
+import acadEs from '@/modules/acad/locales/es.json'
+import acadEn from '@/modules/acad/locales/en.json'
+import acadDe from '@/modules/acad/locales/de.json'
+import acadFr from '@/modules/acad/locales/fr.json'
 import authEs from '@/modules/auth/locales/es.json'
 import authEn from '@/modules/auth/locales/en.json'
 import authDe from '@/modules/auth/locales/de.json'
@@ -88,10 +92,10 @@ export const i18n = createI18n({
   locale: resolveInitialLocale(),
   fallbackLocale: DEFAULT_LOCALE,
   messages: {
-    es: { ...es, ...coreEs, ...cursoEs, ...authEs },
-    en: { ...en, ...coreEn, ...cursoEn, ...authEn },
-    de: { ...de, ...coreDe, ...cursoDe, ...authDe },
-    fr: { ...fr, ...coreFr, ...cursoFr, ...authFr },
+    es: { ...es, ...coreEs, ...cursoEs, ...acadEs, ...authEs },
+    en: { ...en, ...coreEn, ...cursoEn, ...acadEn, ...authEn },
+    de: { ...de, ...coreDe, ...cursoDe, ...acadDe, ...authDe },
+    fr: { ...fr, ...coreFr, ...cursoFr, ...acadFr, ...authFr },
   },
 })
 
