@@ -411,3 +411,26 @@ test('CA-ACAD-038 issue #415: el nombre con hash sigue en 63 bytes y distingue p
         ->and(strlen($two))->toBeLessThanOrEqual(63)
         ->and($one)->not->toBe($two);
 });
+
+test('CA-ACAD-038 issue #412: tenantForeignId(withIndex: false) crea columna y FK compuesta pero no el índice del ayudante', function (): void {
+    if (! Schema::connection('pgsql_owner')->hasTable('fk_index_parents')) {
+        TenantMigration::tenantTable('fk_index_parents', function (Blueprint $table): void {
+            $table->text('name');
+        });
+    }
+
+    TenantMigration::tenantTable('fk_index_children', function (Blueprint $table): void {
+        TenantMigration::tenantForeignId($table, 'x_id', 'fk_index_parents', withIndex: false);
+        TenantMigration::tenantForeignId($table, 'y_id', 'fk_index_parents');
+    });
+
+    $indexes = indexColumnsOf('fk_index_children');
+
+    expect(array_values($indexes))->not->toContain(['tenant_id', 'x_id'])
+        ->and(array_values($indexes))->toContain(['tenant_id', 'y_id'])
+        ->and(Schema::connection('pgsql_owner')->hasColumn('fk_index_children', 'x_id'))->toBeTrue();
+
+    $fks = collect(DB::connection('pgsql_owner')->select("SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint WHERE conrelid = 'fk_index_children'::regclass AND contype = 'f'"))->pluck('def');
+
+    expect($fks->contains(fn (string $def): bool => str_contains($def, 'FOREIGN KEY (tenant_id, x_id) REFERENCES')))->toBeTrue();
+});

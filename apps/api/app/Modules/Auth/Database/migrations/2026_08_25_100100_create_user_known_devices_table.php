@@ -16,7 +16,9 @@ return new class extends Migration
     public function up(): void
     {
         TenantMigration::tenantTable('user_known_devices', function (Blueprint $table): void {
-            TenantMigration::tenantForeignId($table, 'user_id', 'users');
+            // #412: esta migración declara a mano un índice completo que empieza por
+            // (tenant_id, columna); el del ayudante sería redundante.
+            TenantMigration::tenantForeignId($table, 'user_id', 'users', withIndex: false);
             // RN-AUTH-45, RN-AUTH-09: solo el hash. El valor en claro de la
             // cookie pge_device no está en base de datos. El nombre de la
             // columna (con "token" dentro) dispara la redacción automática

@@ -141,9 +141,20 @@ final class TenantMigration
      * (ver `indexName()`): el nombre automático de Laravel
      * `{tabla}_{columnas}_index` se trunca en silencio como el de la FK.
      * **No es retroactivo**: las tablas ya migradas no lo ganan, igual que
-     * `$constraintName` no cambió el DDL de las migraciones mezcladas. Una
-     * migración que ya declare a mano un índice sobre las mismas columnas
-     * con otro nombre quedaría con uno duplicado; las nuevas no lo declaran.
+     * `$constraintName` no cambió el DDL de las migraciones mezcladas (las
+     * converge `2026_10_12_100000_add_tenant_foreign_key_indexes`, #412).
+     *
+     * `$withIndex = false` (#412): omite ese índice cuando la propia migración
+     * declara a mano, **en la misma migración**, un índice **completo** (no
+     * parcial) que empiece por `(tenant_id, $column)` y ya cubre la FK; si no,
+     * el del ayudante sería redundante. Solo se usa en las cinco migraciones
+     * antiguas que ya lo tenían a mano (excepción deliberada a «las migraciones
+     * mezcladas no cambian»: no altera el esquema de ninguna base ya migrada,
+     * no existe producción, y es la única forma de que una instalación nueva
+     * converja con una migrada). Una migración nueva no lo necesita: no declara
+     * ese índice a mano, y `TenantForeignKeyIndexesMigrationTest` y `AR-16`
+     * vigilan que toda FK compuesta quede cubierta. Un índice parcial NO vale
+     * para pedir la omisión.
      *
      * `$constraintName`: hallazgo de `db-reviewer` (REQ-AUTH-004, 1.4c,
      * punto de control 1). El nombre por defecto de Laravel para esta FK
@@ -162,13 +173,16 @@ final class TenantMigration
      * Cada llamada nueva que lo necesite pasa su propio nombre corto y
      * explícito.
      */
-    public static function tenantForeignId(Blueprint $blueprint, string $column, string $referencedTable, ?string $constraintName = null): void
+    public static function tenantForeignId(Blueprint $blueprint, string $column, string $referencedTable, ?string $constraintName = null, bool $withIndex = true): void
     {
         self::assertSafeIdentifier($referencedTable);
 
         $blueprint->foreignId($column);
         $blueprint->foreign(['tenant_id', $column], $constraintName)->references(['tenant_id', 'id'])->on($referencedTable);
-        $blueprint->index(['tenant_id', $column], self::indexName($blueprint->getTable(), $column));
+
+        if ($withIndex) {
+            $blueprint->index(['tenant_id', $column], self::indexName($blueprint->getTable(), $column));
+        }
     }
 
     /**

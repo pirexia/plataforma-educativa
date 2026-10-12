@@ -18,7 +18,9 @@ return new class extends Migration
     public function up(): void
     {
         TenantMigration::tenantTableAppendOnly('mfa_resets', function (Blueprint $table): void {
-            TenantMigration::tenantForeignId($table, 'user_id', 'users');
+            // #412: `mfa_resets_tenant_user_performed_idx` (tenant_id, user_id, performed_at)
+            // ya cubre esta FK; el índice del ayudante sería redundante.
+            TenantMigration::tenantForeignId($table, 'user_id', 'users', withIndex: false);
             $table->text('reason');
             $table->smallInteger('factors_removed');
             TenantMigration::tenantForeignId($table, 'performed_by', 'users');

@@ -124,9 +124,17 @@ test('#412 convergencia: desde una base «anterior» crea exactamente los índic
             coveredByAnotherIndex($table, $column, $name) ? $expectedAbsent[] = $name : $expectedCreated[] = $name;
         }
 
-        // No vacuidad: el inventario real tiene claves con y sin cobertura previa.
-        expect(count($expectedCreated))->toBeGreaterThan(10)
-            ->and(count($expectedAbsent))->toBeGreaterThan(0);
+        // Inventario exacto (#412): 18 a crear y 4 ya cubiertas por un índice completo a mano.
+        // `saml_identity_provider_settings` NO está entre las cubiertas: su único índice con
+        // (tenant_id, identity_provider_id) es parcial (`WHERE deleted_at IS NULL`).
+        expect($expectedCreated)->toHaveCount(18)
+            ->and($expectedAbsent)->toBe([
+                TenantMigration::indexName('data_exports', 'requested_by'),
+                TenantMigration::indexName('user_known_devices', 'user_id'),
+                TenantMigration::indexName('mfa_resets', 'user_id'),
+                TenantMigration::indexName('saml_consumed_assertions', 'identity_provider_id'),
+            ])
+            ->and(array_keys($fresh))->toEqualCanonicalizing($expectedCreated);
 
         indexMigration()->up();
 
@@ -142,7 +150,7 @@ test('#412 convergencia: desde una base «anterior» crea exactamente los índic
             expect($after)->not->toHaveKey($name);
         }
     } finally {
-        // Se deja la base como una instalación nueva: también los índices que la migración no necesita.
+        // Se deja la base como una instalación nueva.
         foreach ($fresh as $name => $definition) {
             DB::connection('pgsql_owner')->statement(str_replace('CREATE INDEX', 'CREATE INDEX IF NOT EXISTS', $definition));
         }
@@ -162,7 +170,7 @@ test('#412: sobre un esquema ya completo (instalación nueva) la migración no d
     }
 });
 
-test('#412: down() elimina los 22 índices de nombre generado y up() los restablece', function (): void {
+test('#412: down() elimina los 18 índices que up() puede crear (no toca los de las 4 claves ya cubiertas) y up() los restablece', function (): void {
     $before = allIndexDefinitions();
 
     try {
@@ -170,15 +178,79 @@ test('#412: down() elimina los 22 índices de nombre generado y up() los restabl
 
         $names = array_map(fn (array $pair): string => TenantMigration::indexName($pair[0], $pair[1]), tenantForeignKeyPairs());
 
-        expect(array_intersect($names, array_keys(allIndexDefinitions())))->toBe([]);
+        expect(array_intersect($names, array_keys(allIndexDefinitions())))->toBe([])
+            // Los índices manuales que cubren las 4 claves siguen ahí.
+            ->and(allIndexDefinitions())->toHaveKeys(['data_exports_tenant_requested_by_idx', 'user_known_devices_tenant_user_last_seen_idx', 'mfa_resets_tenant_user_performed_idx', 'saml_consumed_assertions_tenant_provider_assertion_unique']);
     } finally {
         indexMigration()->up();
 
-        // Los índices que la migración no necesita (claves ya cubiertas) los creó el ayudante en la instalación: se restituyen.
-        foreach (array_diff_key($before, allIndexDefinitions()) as $definition) {
-            DB::connection('pgsql_owner')->statement(str_replace('CREATE INDEX', 'CREATE INDEX IF NOT EXISTS', $definition));
-        }
     }
 
     expect(allIndexDefinitions())->toBe($before);
+});
+
+// ───────── Robustez de ensureIndex() (db-reviewer B1/B2) y parámetro withIndex ─────────
+
+function ensureIndexProbeTable(): void
+{
+    $owner = DB::connection('pgsql_owner');
+
+    $owner->statement('DROP TABLE IF EXISTS idx_probe_invalid CASCADE');
+    $owner->statement('CREATE TABLE idx_probe_invalid (tenant_id bigint NOT NULL, col_id bigint NOT NULL)');
+    // Duplicados: un UNIQUE CONCURRENTLY sobre ellos falla y deja un índice INVÁLIDO.
+    $owner->statement('INSERT INTO idx_probe_invalid VALUES (1, 1), (1, 1)');
+}
+
+afterEach(function (): void {
+    DB::connection('pgsql_owner')->statement('DROP TABLE IF EXISTS idx_probe_invalid CASCADE');
+});
+
+test('#412 db-reviewer B1: un índice homónimo INVÁLIDO (creación concurrente fallida) se elimina y se recrea válido', function (): void {
+    ensureIndexProbeTable();
+    $owner = DB::connection('pgsql_owner');
+    $name = TenantMigration::indexName('idx_probe_invalid', 'col_id');
+
+    try {
+        $owner->statement("CREATE UNIQUE INDEX CONCURRENTLY {$name} ON idx_probe_invalid (tenant_id, col_id)");
+    } catch (Throwable) {
+        // Esperado: 23505. Deja el índice inválido.
+    }
+
+    $state = $owner->selectOne('SELECT i.indisvalid AS valid FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid WHERE c.relname = ?', [$name]);
+
+    expect($state)->not->toBeNull()
+        ->and($state->valid)->toBeFalse();
+
+    indexMigration()->ensureIndex('idx_probe_invalid', 'col_id');
+
+    $after = $owner->selectOne('SELECT i.indisvalid AS valid, i.indisunique AS uniq FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid WHERE c.relname = ?', [$name]);
+
+    expect($after->valid)->toBeTrue()
+        ->and($after->uniq)->toBeFalse();
+});
+
+test('#412 db-reviewer B2: un homónimo VÁLIDO con otra definición (parcial) no se acepta en silencio: la reverificación lanza', function (): void {
+    ensureIndexProbeTable();
+    $name = TenantMigration::indexName('idx_probe_invalid', 'col_id');
+
+    DB::connection('pgsql_owner')->statement("CREATE INDEX {$name} ON idx_probe_invalid (tenant_id, col_id) WHERE col_id > 0");
+
+    expect(fn () => indexMigration()->ensureIndex('idx_probe_invalid', 'col_id'))
+        ->toThrow(RuntimeException::class, 'sigue sin un índice completo');
+});
+
+test('#412: ensureIndex() sobre una clave sin cobertura crea el del ayudante, y sobre una con índice completo propio no crea nada', function (): void {
+    ensureIndexProbeTable();
+    $owner = DB::connection('pgsql_owner');
+    $name = TenantMigration::indexName('idx_probe_invalid', 'col_id');
+
+    $owner->statement('CREATE INDEX idx_probe_manual ON idx_probe_invalid (tenant_id, col_id, tenant_id)');
+    indexMigration()->ensureIndex('idx_probe_invalid', 'col_id');
+
+    expect(allIndexDefinitions())->not->toHaveKey($name);
+
+    $owner->statement('DROP INDEX idx_probe_manual');
+    indexMigration()->ensureIndex('idx_probe_invalid', 'col_id');
+
+    expect(allIndexDefinitions())->toHaveKey($name);
 });

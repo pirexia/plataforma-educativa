@@ -23,7 +23,9 @@ return new class extends Migration
             $table->text('object_key')->nullable();
             $table->integer('row_count')->nullable();
             $table->text('error_code')->nullable();
-            TenantMigration::tenantForeignId($table, 'requested_by', 'users');
+            // #412: esta migración declara a mano un índice completo que empieza por
+            // (tenant_id, columna); el del ayudante sería redundante.
+            TenantMigration::tenantForeignId($table, 'requested_by', 'users', withIndex: false);
             $table->timestampTz('expires_at');
             $table->timestampTz('completed_at')->nullable();
         });

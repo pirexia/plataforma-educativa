@@ -318,7 +318,7 @@ La entrega `1.9c` incluye una migración **de datos** (`2026_10_02_100200_normal
 
 ## 2f. Índices de clave foránea de `1.11-a` (issue #412)
 
-Al desplegar `1.11-a` sobre una base ya migrada, `php artisan migrate` crea hasta 18 índices `(tenant_id, columna)` con `CREATE INDEX CONCURRENTLY` (no bloquea escrituras; no se ejecuta en transacción). Es idempotente y, si se interrumpe, basta repetir el comando. Una instalación nueva no necesita nada. Detalle y candidatos a retirar en `docs/modulos/REQ-ACAD/operacion.md §6.2`. Las bases de test por proceso (`ADR-060`) se recrean con el script de §2b para recibirla.
+Al desplegar `1.11-a` sobre una base ya migrada, `php artisan migrate` crea hasta 18 índices `(tenant_id, columna)` con `CREATE INDEX CONCURRENTLY` (no bloquea escrituras; no se ejecuta en transacción). Es idempotente y, si se interrumpe, basta repetir el comando; lanzar con `php artisan migrate --isolated` (nunca dos `migrate` a la vez). Una instalación nueva no necesita nada. Detalle y candidatos a retirar en `docs/modulos/REQ-ACAD/operacion.md §6.2`. Las bases de test por proceso (`ADR-060`) se recrean con el script de §2b para recibirla.
 
 ## 3. Comprobación rápida
 

@@ -19,23 +19,41 @@ use Illuminate\Support\Facades\DB;
  * Cuándo se crea. Un índice «cubre» la clave foránea si es válido, de
  * `btree`, **no parcial**, sin expresiones y empieza por `(tenant_id, columna)`
  * (basta ese prefijo: `(tenant_id, user_id, started_at)` sirve). Un índice
- * parcial (`WHERE deleted_at IS NULL`…) NO la cubre: la comprobación de la FK
- * al borrar o actualizar el padre, y cualquier consulta sin ese predicado, no
- * lo pueden usar. Solo se crea donde ningún índice la cubre. No se retira
- * ningún índice existente (calendario *contract*: decisión aparte).
+ * parcial (`WHERE deleted_at IS NULL`…) NO la cubre. Solo se crea donde ningún
+ * índice la cubre: **18 de las 22** en una base migrada con la versión
+ * anterior; las otras 4 (`user_known_devices.user_id`, `mfa_resets.user_id`,
+ * `saml_consumed_assertions.identity_provider_id`, `data_exports.requested_by`)
+ * ya tenían un índice completo a mano y sus migraciones piden desde 1.11-a
+ * `withIndex: false`, de modo que una instalación nueva también tiene 18 y las
+ * dos convergen. No se retira ningún índice existente (fase *contract*).
+ *
+ * Por qué un parcial no basta (`ON DELETE`/`ON UPDATE NO ACTION`, `AR-13`): el
+ * disparador de integridad referencial ejecuta, sobre la tabla hija,
+ * `SELECT 1 FROM ONLY hija WHERE tenant_id = $1 AND col = $2 FOR KEY SHARE`,
+ * sin el predicado del índice parcial (`deleted_at IS NULL`, `revoked_at IS
+ * NULL`…), así que el planificador no puede usarlo. Solo se dispara al borrar
+ * físicamente (o cambiar la clave de) la fila padre: purga de tenant, derecho
+ * al olvido físico. Sin índice completo, cada borrado físico recorre la tabla
+ * hija entera.
  *
  * `$withinTransaction = false`: `CREATE INDEX CONCURRENTLY` no se ejecuta
- * dentro de una transacción (`migracion-segura`); no bloquea escrituras.
- * Idempotente: un segundo `up()` no hace nada; un índice que una ejecución
- * anterior dejó INVÁLIDO (fallo de una creación concurrente) se elimina y se
- * recrea. En una instalación nueva no hace nada (los índices ya los creó el
- * ayudante al crear cada tabla).
+ * dentro de una transacción (`migracion-segura`); no bloquea escrituras (toma
+ * `SHARE UPDATE EXCLUSIVE`). Aun así espera a las transacciones largas que
+ * tengan la tabla abierta: lánzala en una ventana sin transacciones largas y,
+ * si hay riesgo de espera, con `SET lock_timeout` de sesión. **No se ejecutan
+ * dos `migrate` a la vez**: usa `php artisan migrate --isolated` (bloqueo por
+ * `cache`). Idempotente: un segundo `up()` no hace nada; un índice homónimo
+ * que una ejecución anterior dejó INVÁLIDO (fallo de una creación concurrente)
+ * se elimina y se recrea, y al final se **reverifica** que cada clave quede
+ * cubierta (si un índice homónimo válido tiene otra definición, lanza). En una
+ * instalación nueva no hace nada (los índices ya los creó el ayudante).
  *
- * `down()`: `DROP INDEX CONCURRENTLY IF EXISTS` de los 22 nombres. En una
- * instalación nueva esos índices los creó el ayudante, no esta migración; se
- * retiran igualmente (el esquema anterior no los tenía y el código anterior no
- * los usa), y las migraciones antiguas que se reviertan después borran sus
- * tablas enteras.
+ * `down()`: `DROP INDEX CONCURRENTLY IF EXISTS` de los 18 nombres que `up()`
+ * puede crear (los de las 4 claves ya cubiertas nunca los crea esta migración
+ * ni el ayudante; no se tocan). En una instalación nueva esos 18 los creó el
+ * ayudante, no esta migración; se retiran igualmente (el esquema anterior no
+ * los tenía y el código anterior no los usa), y las migraciones antiguas que se
+ * reviertan después borran sus tablas enteras.
  */
 return new class extends Migration
 {
@@ -72,28 +90,56 @@ return new class extends Migration
         ['saml_consumed_assertions', 'identity_provider_id'],
     ];
 
+    /**
+     * Las 4 claves con índice completo declarado a mano (sus migraciones piden
+     * `withIndex: false`): ni el ayudante ni esta migración crean el suyo.
+     *
+     * @var list<array{0: string, 1: string}>
+     */
+    private const COVERED_BY_MANUAL_INDEX = [
+        ['user_known_devices', 'user_id'],
+        ['mfa_resets', 'user_id'],
+        ['saml_consumed_assertions', 'identity_provider_id'],
+        ['data_exports', 'requested_by'],
+    ];
+
     public function up(): void
     {
-        $owner = DB::connection('pgsql_owner');
-
         foreach (self::FOREIGN_KEYS as [$table, $column]) {
-            $name = TenantMigration::indexName($table, $column);
+            $this->ensureIndex($table, $column);
+        }
+    }
 
-            // Un índice homónimo inválido (creación concurrente fallida) no sirve: fuera.
-            $invalid = $owner->selectOne(
-                'SELECT 1 AS found FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid WHERE c.relname = ? AND NOT i.indisvalid',
-                [$name],
-            );
+    /**
+     * Garantiza que `(tenant_id, $column)` queda cubierta en `$table`, con el
+     * índice del ayudante si ningún otro la cubre. Lanza si, tras intentarlo,
+     * sigue sin cobertura.
+     *
+     * @throws RuntimeException
+     */
+    public function ensureIndex(string $table, string $column): void
+    {
+        $owner = DB::connection('pgsql_owner');
+        $name = TenantMigration::indexName($table, $column);
 
-            if ($invalid !== null) {
-                $owner->statement("DROP INDEX CONCURRENTLY IF EXISTS {$name}");
-            }
+        // Un índice homónimo inválido (creación concurrente fallida) no sirve: fuera.
+        $invalid = $owner->selectOne(
+            'SELECT 1 AS found FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid WHERE c.relname = ? AND NOT i.indisvalid',
+            [$name],
+        );
 
-            if (self::isCovered($table, $column)) {
-                continue;
-            }
+        if ($invalid !== null) {
+            $owner->statement("DROP INDEX CONCURRENTLY IF EXISTS {$name}");
+        }
 
+        if (! self::isCovered($table, $column)) {
             $owner->statement("CREATE INDEX CONCURRENTLY IF NOT EXISTS {$name} ON {$table} (tenant_id, {$column})");
+        }
+
+        // Reverificación: un homónimo VÁLIDO con otra definición haría que el
+        // `IF NOT EXISTS` no creara nada y la clave siguiera sin cobertura.
+        if (! self::isCovered($table, $column)) {
+            throw new RuntimeException("{$table}.{$column}: sigue sin un índice completo que empiece por (tenant_id, {$column}) tras la migración (¿un índice homónimo {$name} con otra definición?).");
         }
     }
 
@@ -102,6 +148,10 @@ return new class extends Migration
         $owner = DB::connection('pgsql_owner');
 
         foreach (self::FOREIGN_KEYS as [$table, $column]) {
+            if (in_array([$table, $column], self::COVERED_BY_MANUAL_INDEX, true)) {
+                continue;
+            }
+
             $owner->statement('DROP INDEX CONCURRENTLY IF EXISTS '.TenantMigration::indexName($table, $column));
         }
     }
@@ -110,7 +160,7 @@ return new class extends Migration
      * ¿Hay un índice válido, btree, no parcial y sin expresiones que empiece
      * por `(tenant_id, $column)`?
      */
-    private static function isCovered(string $table, string $column): bool
+    public static function isCovered(string $table, string $column): bool
     {
         $row = DB::connection('pgsql_owner')->selectOne(<<<'SQL'
             SELECT 1 AS found
