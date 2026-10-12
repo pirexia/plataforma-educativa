@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\Support\ProbeTables;
 
 // REQ-ACAD-001, 1.11-a. CA-ACAD-013 (ADR-062 §5.5, ADR-035 §4): desglose por
 // idioma en `audit_logs.changes`, con un modelo Auditable de prueba (no hay
@@ -44,6 +45,8 @@ class TranslatableAuditProbe extends TenantModel implements Auditable
 }
 
 beforeEach(function (): void {
+    $this->tablesBefore = ProbeTables::snapshot();
+
     // El mapa polimórfico es global del proceso y otros tests lo comparan
     // entero (CoreModelsTest): se amplía solo mientras dura cada test.
     $GLOBALS['translations_audit_morph_map'] = Relation::morphMap();
@@ -61,7 +64,13 @@ beforeEach(function (): void {
 
 afterEach(function (): void {
     Relation::morphMap($GLOBALS['translations_audit_morph_map'], false);
+
+    // La tabla la crea el propietario fuera de la transacción del test: se borra siempre.
+    $leftovers = ProbeTables::dropAndReportLeftovers(['audit_translatable_probes'], $this->tablesBefore);
+
     DB::connection('pgsql_platform')->table('tenants')->delete();
+
+    expect($leftovers)->toBe([], 'el test deja tablas en la base de test');
 });
 
 test('CA-ACAD-013 ADR-062 §5.5 INV-003: un cambio real de es-ES y un fr nuevo dejan exactamente dos entradas en audit_logs.changes', function (): void {

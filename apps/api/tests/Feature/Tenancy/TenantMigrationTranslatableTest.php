@@ -7,6 +7,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\Support\ProbeTables;
 
 // REQ-ACAD-001, 1.11-a: ayudantes de TenantMigration. CA-ACAD-014 (ADR-062
 // §5.1: columna traducible con CHECK del motor) y CA-ACAD-038 (issue #407:
@@ -16,8 +17,29 @@ use Illuminate\Support\Facades\Schema;
 // se borran (mismo motivo que TenantMigrationTest: DROP desde otra conexión
 // espera el lock de la transacción de test).
 
+// Las tablas de este fichero se borran siempre y se comprueba que no queda
+// ninguna (Tests\Support\ProbeTables): la causa de las huérfanas era que el
+// propietario crea y altera fuera de la transacción del test.
+function translatableTestTables(): array
+{
+    return [
+        'translatable_probes', 'long_name_translatable_probe_table_for_checks',
+        'fk_index_children', 'fk_index_parents', 'fk_index_long_child_probe_table_name', 'fk_index_long_parent_probe_table',
+        'translatable_append_only_probe', 'translatable_two_columns_probe',
+        'translatable_failure_probe', 'translatable_wrong_table_probe', 'translatable_closure_failure', 'fk_index_twice_probe',
+    ];
+}
+
+beforeEach(function (): void {
+    $this->tablesBefore = ProbeTables::snapshot();
+});
+
 afterEach(function (): void {
+    $leftovers = ProbeTables::dropAndReportLeftovers(translatableTestTables(), $this->tablesBefore);
+
     DB::connection('pgsql_platform')->table('tenants')->delete();
+
+    expect($leftovers)->toBe([], 'el test deja tablas en la base de test');
 });
 
 function ensureTranslatableProbe(): void
