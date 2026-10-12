@@ -36,7 +36,12 @@ pest()->group('arch');
 // `ARCHITECTURE.md §3.4` y el issue #383). Alcance del escaneo: `app/` y,
 // desde 1.11-a (#387 B-4, CA-ACAD-040), `database/` (salvo
 // `database/migrations/`, que corre por CLI con el propietario), `routes/` y
-// `bootstrap/`. Límites declarados: no escanea `config/` ni `tests/`, y que
+// `bootstrap/`. Desde #414 ve también la concatenación estática de literales
+// (`'pgsql_'.'owner'`), heredoc/nowdoc y cadenas interpoladas. Límites
+// declarados (ningún análisis estático los supera): `config($variable)`,
+// `'pgsql_'.$sufijo` y cualquier nombre armado en tiempo de ejecución; los
+// cubre el motor (`DatabaseCapabilitiesTest`: `plataforma_app` no crea
+// objetos). No escanea `config/` ni `tests/`, y que
 // `TenantMigration` solo se use desde migraciones lo comprueba otra regla
 // (`TenantMigrationConfinementTest`).
 
@@ -97,7 +102,9 @@ function unsanctionedOwnerConnectionUsers(array $sources, array $allowed): array
 
 function mentionsOwnerConnection(string $source): bool
 {
-    foreach (PhpScanner::stringLiterals($source) as $literal) {
+    // `stringValues()` (#414): también concatenaciones estáticas de literales,
+    // heredoc/nowdoc y fragmentos de cadenas interpoladas.
+    foreach (PhpScanner::stringValues($source) as $literal) {
         if (str_contains($literal, 'pgsql_owner')) {
             return true;
         }
@@ -184,6 +191,13 @@ test('AR-14 #383 CA-056-14 control negativo: detecta la mención real y no la de
         'routes/web.php' => "<?php\nRoute::get('/x', fn () => DB::connection('pgsql_owner')->table('x')->get());",
         'bootstrap/app.php' => "<?php\nreturn config('database.connections.pgsql_owner');",
         'database/migrations/2026_01_01_000000_x.php' => "<?php\nreturn DB::connection('pgsql_owner');",
+        // #414: formas que el detector de literales simples no veía.
+        'A/Concatenada.php' => "<?php\nclass Concatenada { function f() { return DB::connection('pgsql_'.'owner'); } }",
+        'A/ConcatenadaLarga.php' => "<?php\nclass ConcatenadaLarga { function f() { return config('database.connections.'.'pgsql'.'_owner'); } }",
+        'A/Heredoc.php' => "<?php\nclass Heredoc { function f() { return <<<TXT\nCONNECTION pgsql_owner\nTXT; } }",
+        'A/Nowdoc.php' => "<?php\nclass Nowdoc { function f() { return <<<'TXT'\nCONNECTION pgsql_owner\nTXT; } }",
+        'A/Interpolada.php' => "<?php\nclass Interpolada { function f(\$t) { return \"conexion pgsql_owner para {\$t}\"; } }",
+        'A/Variable.php' => "<?php\nclass Variable { function f(\$s) { return DB::connection('pgsql_'.\$s); } }",
         'database/factories/LimpiaFactory.php' => "<?php\nclass LimpiaFactory { function definition() { return []; } }",
     ];
 
@@ -193,6 +207,12 @@ test('AR-14 #383 CA-056-14 control negativo: detecta la mención real y no la de
         'database/seeders/MalSeeder.php',
         'routes/web.php',
         'bootstrap/app.php',
+        'A/Concatenada.php',
+        'A/ConcatenadaLarga.php',
+        'A/Heredoc.php',
+        'A/Nowdoc.php',
+        'A/Interpolada.php',
+        // 'A/Variable.php' NO se detecta: límite declarado (nombre armado en ejecución).
     ]);
 });
 

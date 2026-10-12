@@ -13,9 +13,15 @@ pest()->group('arch');
 // (`tests/`, que esta regla no escanea). Cualquier otro uso en `app/`,
 // `database/`, `routes/`, `bootstrap/` o `config/` es un fallo.
 //
-// Límite declarado (ADR-056 §3.4): ve `TenantMigration::método(` resuelto
-// contra los `use` del fichero, no `$clase::método()` ni una referencia por
-// cadena (`'App\\Support\\Tenancy\\TenantMigration'`).
+// Ve (#414) `TenantMigration::método(` resuelto contra el `namespace` y los
+// `use` vigentes (incluidos `use` agrupado y `namespace X { }` con llaves),
+// `parent::`/`static::`/`self::` en una clase que lo extienda, y los
+// invocables por literal (`[TenantMigration::class, 'm']`, `['Fqcn', 'm']`,
+// `'Fqcn::m'`, con `call_user_func` o sin él). Límite declarado, que ningún
+// análisis estático supera: `$clase::método()` con la clase en una variable y
+// la reflexión; la capa que lo cubre es el motor (`DatabaseCapabilitiesTest`).
+// La exención de `database/migrations/` y de `app/Modules/*/Database/migrations/`
+// es por ruta y sigue acotada a este ayudante.
 
 /**
  * Exenciones por ruta (relativa a la raíz de la API). Lista CERRADA y nominal
@@ -118,6 +124,16 @@ test('CA-ACAD-040 control negativo: detecta el uso real fuera de migraciones y n
         'app/Modules/Acad/Database/migrations/2026_01_01_000000_y.php' => $uses,
         'app/Support/Tenancy/Listada.php' => $uses,
         'app/Modules/Acad/Http/Controllers/Comentario.php' => "<?php\n// TenantMigration::tenantTable('t', fn () => null);\nclass C {}",
+        // #414: formas que el detector de llamada simple no veía.
+        'app/Modules/Acad/Http/Controllers/UseAgrupado.php' => "<?php\nnamespace App\\Modules\\Acad;\nuse App\\Support\\Tenancy\\{Tenant, TenantMigration as TM};\nclass A { function f() { TM::tenantTable('t', fn () => null); } }",
+        'app/Modules/Acad/Http/Controllers/NamespaceConLlaves.php' => "<?php\nnamespace App\\Modules\\Acad {\n    use App\\Support\\Tenancy\\TenantMigration;\n    class B { function f() { TenantMigration::guardAcademicYearWrites('t'); } }\n}",
+        'app/Modules/Acad/Http/Controllers/DosNamespaces.php' => "<?php\nnamespace One { use Other\\TenantMigration; class X {} }\nnamespace Two { use App\\Support\\Tenancy\\TenantMigration; class Y { function f() { TenantMigration::tenantTable('t', fn () => null); } } }",
+        'app/Modules/Acad/Http/Controllers/Heredada.php' => "<?php\nuse App\\Support\\Tenancy\\TenantMigration;\nclass Hija extends TenantMigration { function f() { parent::tenantTable('t', fn () => null); static::tenantTable('t', fn () => null); } }",
+        'app/Modules/Acad/Http/Controllers/CallUserFunc.php' => "<?php\nuse App\\Support\\Tenancy\\TenantMigration;\nclass C { function f() { call_user_func([TenantMigration::class, 'tenantTable'], 't', fn () => null); } }",
+        'app/Modules/Acad/Http/Controllers/CallUserFuncCadena.php' => "<?php\nclass D { function f() { call_user_func('App\\\\Support\\\\Tenancy\\\\TenantMigration::tenantTable', 't', fn () => null); } }",
+        'app/Modules/Acad/Http/Controllers/ArrayCadenas.php' => "<?php\nclass E { function f() { array_map(['\\\\App\\\\Support\\\\Tenancy\\\\TenantMigration', 'tenantTable'], []); } }",
+        'app/Modules/Acad/Http/Controllers/Dinamica.php' => "<?php\nuse App\\Support\\Tenancy\\TenantMigration;\nclass F { function f(\$clase) { \$clase::tenantTable('t', fn () => null); } }",
+        'app/Modules/Acad/Http/Controllers/OtroNamespace.php' => "<?php\nnamespace Other;\nuse Other\\Libre;\nclass G { function f() { TenantMigration::tenantTable('t', fn () => null); static::algo(); self::otro(); } }",
         'app/Modules/Acad/Http/Controllers/Otra.php' => "<?php\nuse Illuminate\\Support\\Facades\\Schema;\nclass O { function f() { Schema::create('t', fn () => null); } }",
     ];
 
@@ -125,5 +141,14 @@ test('CA-ACAD-040 control negativo: detecta el uso real fuera de migraciones y n
         'app/Modules/Acad/Http/Controllers/MalController.php',
         'database/seeders/MalSeeder.php',
         'routes/web.php',
+        'app/Modules/Acad/Http/Controllers/UseAgrupado.php',
+        'app/Modules/Acad/Http/Controllers/NamespaceConLlaves.php',
+        'app/Modules/Acad/Http/Controllers/DosNamespaces.php',
+        'app/Modules/Acad/Http/Controllers/Heredada.php',
+        'app/Modules/Acad/Http/Controllers/CallUserFunc.php',
+        'app/Modules/Acad/Http/Controllers/CallUserFuncCadena.php',
+        'app/Modules/Acad/Http/Controllers/ArrayCadenas.php',
+        // 'Dinamica.php' NO se detecta: `$clase::método()` es un límite declarado.
+        // 'OtroNamespace.php' NO se detecta: `TenantMigration` resuelve a Other\TenantMigration (otra clase).
     ]);
 });

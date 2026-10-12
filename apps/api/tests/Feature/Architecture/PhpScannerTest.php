@@ -117,3 +117,70 @@ test('CA-056-14 AR-15: chainsFromStaticCallOn devuelve la cadena del mismo nivel
         ['query'],
     ]);
 });
+
+// ───────── #414 (1.11-a): ampliación del escáner, cada caso con su control negativo ─────────
+
+test('#414: stringValues() ve la concatenación estática, el heredoc, el nowdoc y la cadena interpolada', function (string $code, string $needle): void {
+    $found = array_filter(PhpScanner::stringValues(phpScannerFixture($code)), static fn (string $v): bool => str_contains($v, $needle));
+
+    expect($found)->not->toBe([]);
+})->with([
+    'concatenacion de dos literales' => ["\$c = 'pgsql_'.'owner';", 'pgsql_owner'],
+    'concatenacion de tres, con espacios y saltos' => ["\$c = 'pgsql'\n    . '_'\n    . 'owner';", 'pgsql_owner'],
+    'comillas dobles concatenadas' => ['$c = "pgsql_" . "owner";', 'pgsql_owner'],
+    'heredoc' => ["\$c = <<<TXT\nconexion pgsql_owner\nTXT;\n", 'conexion pgsql_owner'],
+    'nowdoc' => ["\$c = <<<'TXT'\nconexion pgsql_owner\nTXT;\n", 'conexion pgsql_owner'],
+    'interpolada: fragmento literal' => ['$c = "usar pgsql_owner para {$t}";', 'usar pgsql_owner para '],
+    'interpolada: fragmentos unidos sin la variable' => ['$c = "pgsql_{$t}owner";', 'pgsql_owner'],
+]);
+
+test('#414: stringValues() NO ve lo que depende de una variable ni los comentarios (límite declarado)', function (string $code): void {
+    expect(PhpScanner::stringValues(phpScannerFixture($code)))->not->toContain('pgsql_owner');
+})->with([
+    'literal mas variable' => ["\$c = 'pgsql_'.\$sufijo;"],
+    'variable mas literal' => ["\$c = \$prefijo.'owner';"],
+    'config con variable' => ['$c = config($nombre);'],
+    'comentario' => ["// 'pgsql_'.'owner'\n/* 'pgsql_owner' */"],
+    'literales separados por una llamada' => ["\$c = ['pgsql_', 'owner'];"],
+]);
+
+test('#414: stringLiterals() conserva su contrato exacto (no incluye concatenaciones)', function (): void {
+    expect(PhpScanner::stringLiterals(phpScannerFixture("\$c = 'a'.'b';")))->toBe(['a', 'b']);
+});
+
+const SCANNER_TARGET = 'App\\Support\\Tenancy\\TenantMigration';
+
+test('#414: staticCallsOn() resuelve use agrupado, namespace con llaves, parent::/static::/self:: heredados e invocables por literal', function (string $code): void {
+    expect(PhpScanner::staticCallsOn(phpScannerFixture($code), SCANNER_TARGET))->not->toBe([]);
+})->with([
+    'use agrupado' => ["namespace A;\nuse App\\Support\\Tenancy\\{Tenant, TenantMigration};\nclass X { function f() { TenantMigration::tenantTable('t'); } }"],
+    'use agrupado con alias' => ["namespace A;\nuse App\\Support\\Tenancy\\{Tenant, TenantMigration as TM};\nclass X { function f() { TM::tenantTable('t'); } }"],
+    'use varios en una sentencia' => ["namespace A;\nuse Foo\\Bar, App\\Support\\Tenancy\\TenantMigration;\nclass X { function f() { TenantMigration::tenantTable('t'); } }"],
+    'namespace con llaves' => ["namespace A {\n    use App\\Support\\Tenancy\\TenantMigration;\n    class X { function f() { TenantMigration::tenantTable('t'); } }\n}"],
+    'segundo namespace con llaves' => ["namespace One { use Other\\TenantMigration; class P {} }\nnamespace Two { use App\\Support\\Tenancy\\TenantMigration; class Q { function f() { TenantMigration::tenantTable('t'); } } }"],
+    'parent::' => ["use App\\Support\\Tenancy\\TenantMigration;\nclass X extends TenantMigration { function f() { parent::tenantTable('t'); } }"],
+    'static:: en subclase' => ["use App\\Support\\Tenancy\\TenantMigration;\nclass X extends TenantMigration { function f() { static::tenantTable('t'); } }"],
+    'self:: en subclase' => ["use App\\Support\\Tenancy\\TenantMigration;\nclass X extends TenantMigration { function f() { self::tenantTable('t'); } }"],
+    'call_user_func con Clase::class' => ["use App\\Support\\Tenancy\\TenantMigration;\nclass X { function f() { call_user_func([TenantMigration::class, 'tenantTable'], 't'); } }"],
+    'invocable con cadenas' => ["class X { function f() { call_user_func(['App\\\\Support\\\\Tenancy\\\\TenantMigration', 'tenantTable'], 't'); } }"],
+    'invocable cadena Clase::metodo' => ["class X { function f() { call_user_func('App\\\\Support\\\\Tenancy\\\\TenantMigration::tenantTable', 't'); } }"],
+    'invocable cadena con barra inicial' => ["class X { function f() { array_map('\\\\App\\\\Support\\\\Tenancy\\\\TenantMigration::tenantTable', []); } }"],
+    'first-class callable' => ["use App\\Support\\Tenancy\\TenantMigration;\nclass X { function f() { \$g = TenantMigration::tenantTable(...); } }"],
+]);
+
+test('#414: staticCallsOn() NO confunde: otra clase homónima, static::/self:: sin extender, la clase sola, ni lo dinámico (límite declarado)', function (string $code): void {
+    expect(PhpScanner::staticCallsOn(phpScannerFixture($code), SCANNER_TARGET))->toBe([]);
+})->with([
+    'homonima de otro namespace' => ["namespace Other;\nclass X { function f() { TenantMigration::tenantTable('t'); } }"],
+    'use de otra clase homonima' => ["namespace A;\nuse Other\\TenantMigration;\nclass X { function f() { TenantMigration::tenantTable('t'); } }"],
+    'use de la primera llave no vale en la segunda' => ["namespace One { use App\\Support\\Tenancy\\TenantMigration; class P {} }\nnamespace Two { class Q { function f() { TenantMigration::tenantTable('t'); } } }"],
+    'static:: en clase que no extiende' => ["use App\\Support\\Tenancy\\TenantMigration;\nclass X { function f() { static::tenantTable('t'); self::otro(); } }"],
+    'parent:: de otro padre' => ["class X extends Other\\Base { function f() { parent::tenantTable('t'); } }"],
+    'la clase sola sin llamada' => ["use App\\Support\\Tenancy\\TenantMigration;\n\$c = TenantMigration::class;"],
+    'invocable de otra clase' => ["use Other\\Thing;\ncall_user_func([Thing::class, 'tenantTable']);"],
+    'cadena de otra clase' => ["call_user_func('Other\\\\Thing::tenantTable');"],
+    'cadena sin metodo' => ["\$c = 'App\\\\Support\\\\Tenancy\\\\TenantMigration::';"],
+    'comentario' => ["// TenantMigration::tenantTable('t');\n/* call_user_func([TenantMigration::class, 'tenantTable']); */"],
+    'dinamica con la clase en una variable (limite declarado)' => ["use App\\Support\\Tenancy\\TenantMigration;\nclass X { function f(\$clase) { \$clase::tenantTable('t'); } }"],
+    'nombre armado en ejecucion (limite declarado)' => ["class X { function f(\$m) { call_user_func('App\\\\Support\\\\Tenancy\\\\TenantMigration::'.\$m); } }"],
+]);
