@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\RequireAuthenticatedUser;
 use App\Modules\Curso\Domain\AcademicYearStatus;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
@@ -57,7 +58,7 @@ function acadEndpoints(array $t, string $yearPublicId): array
     ];
 }
 
-test('api.md §2: son exactamente 27 endpoints y las 27 rutas están registradas con auth, module-enabled:acad y permission: en ese orden', function (): void {
+test('api.md §2: son exactamente 27 endpoints y las 27 rutas están registradas con autenticación, module-enabled:acad y permission: en ese orden', function (): void {
     $routes = collect(Route::getRoutes()->getRoutes())->filter(fn ($r) => str_starts_with((string) $r->getName(), 'acad.'));
 
     expect($routes)->toHaveCount(27);
@@ -67,7 +68,7 @@ test('api.md §2: son exactamente 27 endpoints y las 27 rutas están registradas
         $permission = collect($middleware)->first(fn (string $m) => str_starts_with($m, 'permission:estructura_academica.'));
 
         expect($permission)->not->toBeNull($route->getName());
-        expect(array_search('auth', $middleware, true))->toBeLessThan(array_search('module-enabled:acad', $middleware, true))
+        expect(array_search(RequireAuthenticatedUser::class, $middleware, true))->toBeLessThan(array_search('module-enabled:acad', $middleware, true))
             ->and(array_search('module-enabled:acad', $middleware, true))->toBeLessThan(array_search($permission, $middleware, true));
     }
 });
@@ -259,4 +260,24 @@ test('CA-ACAD-030 CA-ACAD-031: con el curso en planificacion o activo, las lectu
     CursoTestHelpers::setStatus($tenant, $year, AcademicYearStatus::Planificacion);
     resetSessionState();
     test()->actingAs($reader)->getJson(Api::url($tenant, "/subjects?academic_year={$year->public_id}"))->assertOk();
+});
+
+test('INV-002 INV-001 REQ-ACAD-001 (hallazgo del E2E real): en la pila ORDENADA por el router, el tenant se resuelve y la sesión arranca ANTES de comprobar la autenticación', function (): void {
+    // `actingAs()` de los tests se salta este orden: el alias `auth` de Laravel se colocaba antes
+    // de `resolve-tenant` y daba 500 (`TenantContextMissing`) en una petición real con cookie.
+    $router = app('router');
+
+    foreach (Route::getRoutes()->getRoutes() as $route) {
+        if (! str_starts_with((string) $route->getName(), 'acad.')) {
+            continue;
+        }
+
+        $stack = array_values(array_filter($router->gatherRouteMiddleware($route), 'is_string'));
+        $position = fn (string $class): int|false => array_search($class, $stack, true);
+
+        expect($position('resolve-tenant'))->not->toBeFalse($route->getName())
+            ->and($position('resolve-tenant'))->toBeLessThan($position(RequireAuthenticatedUser::class), $route->getName())
+            ->and($position('start-session'))->toBeLessThan($position(RequireAuthenticatedUser::class), $route->getName())
+            ->and($position(RequireAuthenticatedUser::class))->toBeLessThan($position('module-enabled:acad'), $route->getName());
+    }
 });

@@ -7,10 +7,12 @@
 //
 // Módulo NO esencial (OPEN-ACAD-10): toda ruta lleva la cadena
 // autenticación -> module-enabled:acad -> permission:<código> (AR-07a,
-// AR-07b, RMOD-009). `auth` va primero para que una petición anónima sea
-// 401 aunque el módulo no esté contratado. Los permisos son del recurso
+// AR-07b, RMOD-009). `RequireAuthenticatedUser` va primero para que una
+// petición anónima sea 401 aunque el módulo no esté contratado; no se usa el
+// alias `auth` porque Laravel lo ordena antes de `resolve-tenant` (500 real). Los permisos son del recurso
 // `estructura_academica`, ámbito `todos` (permisos.md §2).
 
+use App\Http\Middleware\RequireAuthenticatedUser;
 use App\Modules\Acad\Http\Controllers\CoursesController;
 use App\Modules\Acad\Http\Controllers\EducationLevelsController;
 use App\Modules\Acad\Http\Controllers\GroupsController;
@@ -19,7 +21,7 @@ use App\Modules\Acad\Http\Controllers\SubgroupsController;
 use App\Modules\Acad\Http\Controllers\SubjectsController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth', 'module-enabled:acad'])->group(function (): void {
+Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:acad'])->group(function (): void {
     Route::get('/education-levels', [EducationLevelsController::class, 'index'])->middleware('permission:estructura_academica.leer')->name('acad.education-levels.index');
     Route::post('/education-levels', [EducationLevelsController::class, 'store'])->middleware('permission:estructura_academica.crear')->name('acad.education-levels.store');
     Route::get('/education-levels/{publicId}', [EducationLevelsController::class, 'show'])->middleware('permission:estructura_academica.leer')->name('acad.education-levels.show');
