@@ -20,6 +20,13 @@ Route::get('/academic-years', [AcademicYearsController::class, 'index'])
 Route::get('/academic-years/current', [AcademicYearsController::class, 'current'])
     ->name('curso.academic-years.current');
 
+// REQ-ACAD-001 (1.11-a), OPEN-ACAD-11, issue #409, CA-ACAD-043: opciones del
+// selector de curso académico. Autoservicio por identidad, sin permiso: amplía
+// con esta única ruta la lista cerrada de excepciones de AR-07a (aprobado).
+// Se registra ANTES que `/{publicId}`.
+Route::get('/academic-years/selectable', [AcademicYearsController::class, 'selectable'])
+    ->name('curso.academic-years.selectable');
+
 Route::get('/academic-years/{publicId}', [AcademicYearsController::class, 'show'])
     ->middleware('permission:curso_academico.leer')
     ->name('curso.academic-years.show');

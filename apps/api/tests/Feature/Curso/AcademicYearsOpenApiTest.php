@@ -4,11 +4,11 @@ use Illuminate\Support\Facades\Route;
 use Symfony\Component\Yaml\Yaml;
 
 // CLAUDE.md §10 («el endpoint está documentado en OpenAPI»), REQ-CURSO/api.md
-// §8, INV-006, INV-015. Los seis endpoints de api.md §2, con el esquema y el
+// §8, INV-006, INV-015. Los seis endpoints de api.md §2 más el selector (1.11-a), con el esquema y el
 // tipo de error nuevo, y ningún endpoint documentado que no exista (ni al
 // revés).
 
-test('REQ-CURSO-001 api.md §8: los seis endpoints de cursos están documentados en OpenAPI, y solo ellos', function (): void {
+test('REQ-CURSO-001 api.md §8: los siete endpoints de cursos están documentados en OpenAPI, y solo ellos', function (): void {
     $root = Yaml::parseFile(base_path('openapi.yaml'));
     $paths = Yaml::parseFile(base_path('openapi/paths/curso.yaml'))['paths'];
 
@@ -37,6 +37,7 @@ test('REQ-CURSO-001 api.md §8: los seis endpoints de cursos están documentados
     expect($documented)->toBe([
         'GET /api/v1/academic-years',
         'GET /api/v1/academic-years/current',
+        'GET /api/v1/academic-years/selectable',
         'GET /api/v1/academic-years/{publicId}',
         'PATCH /api/v1/academic-years/{publicId}',
         'POST /api/v1/academic-years',

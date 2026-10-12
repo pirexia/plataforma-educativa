@@ -134,6 +134,34 @@ paths:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
 
+  /api/v1/academic-years/selectable:
+    get:
+      operationId: listSelectableAcademicYears
+      summary: Cursos académicos que el usuario puede elegir en el selector
+      description: >
+        **Autoservicio sin permiso**, por identidad del portador de la cookie (como `GET /me`):
+        `OPEN-ACAD-11`, issue #409, `CA-ACAD-043`, ampliación expresamente aprobada de la lista
+        cerrada de excepciones de `AR-07a`. Devuelve siempre los cursos `activo` y `planificacion`
+        del centro y, con el permiso `curso_historico.leer`, también `cerrado` y `archivado`
+        (`RN-CURSO-25`). Nunca cursos de otro centro. Sin paginar (decenas de filas por centro) y
+        sin parámetros; orden `-starts_on`, desempate por `id DESC`. Se registra antes que
+        `/{publicId}`.
+      tags: [Curso / Cursos académicos]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Los cursos seleccionables
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/AcademicYear' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+
   /api/v1/academic-years/{publicId}:
     parameters:
       - name: publicId

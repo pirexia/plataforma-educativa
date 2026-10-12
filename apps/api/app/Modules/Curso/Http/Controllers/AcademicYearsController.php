@@ -14,8 +14,10 @@ use App\Modules\Curso\Http\Requests\StoreAcademicYearRequest;
 use App\Modules\Curso\Http\Requests\TransitionAcademicYearRequest;
 use App\Modules\Curso\Http\Requests\UpdateAcademicYearRequest;
 use App\Modules\Curso\Http\Resources\AcademicYearResource;
+use App\Modules\Curso\Infrastructure\PermissionAcademicYearReadAccess;
 use App\Support\Api\ApiException;
 use App\Support\Api\PagePaginatedResponse;
+use App\Support\Authorization\PermissionResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -64,6 +66,38 @@ class AcademicYearsController extends Controller
         }
 
         return new AcademicYearResource(AcademicYear::query()->findOrFail($active->id));
+    }
+
+    /**
+     * `OPEN-ACAD-11`, issue #409, `CA-ACAD-043`: las opciones del selector de
+     * curso académico, sin exigir `curso_academico.leer` (que casi ningún rol
+     * tiene). Siempre `activo` y `planificacion`; con `curso_historico.leer`
+     * (el mismo criterio de `AcademicYearReadAccess`, `RN-CURSO-25`) también
+     * `cerrado` y `archivado`. Sin paginar (decenas de filas por centro),
+     * orden `-starts_on`. El filtrado de centro lo hace `TenantScope`.
+     */
+    public function selectable(Request $request, PermissionResolver $permissions): JsonResponse
+    {
+        $user = $request->user();
+
+        // Autoservicio sin `permission:`: exige sesión (`401`), no es pública.
+        if (! $user instanceof User) {
+            throw ApiException::unauthenticated();
+        }
+
+        $statuses = [AcademicYearStatus::Activo, AcademicYearStatus::Planificacion];
+
+        if ($permissions->can($user, PermissionAcademicYearReadAccess::HISTORY_PERMISSION)) {
+            $statuses = AcademicYearStatus::cases();
+        }
+
+        $years = AcademicYear::query()
+            ->whereIn('status', $statuses)
+            ->orderByDesc('starts_on')
+            ->orderByDesc('id')
+            ->get();
+
+        return response()->json(['data' => AcademicYearResource::collection($years)->resolve()]);
     }
 
     public function show(string $publicId): AcademicYearResource
