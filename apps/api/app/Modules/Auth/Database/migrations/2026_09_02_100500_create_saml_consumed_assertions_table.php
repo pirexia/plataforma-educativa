@@ -22,7 +22,9 @@ return new class extends Migration
     public function up(): void
     {
         TenantMigration::tenantTable('saml_consumed_assertions', function (Blueprint $table): void {
-            TenantMigration::tenantForeignId($table, 'identity_provider_id', 'identity_providers');
+            // #412: esta migración declara a mano un índice completo que empieza por
+            // (tenant_id, columna); el del ayudante sería redundante.
+            TenantMigration::tenantForeignId($table, 'identity_provider_id', 'identity_providers', withIndex: false);
             $table->text('assertion_id');
             $table->timestampTz('not_on_or_after');
         });

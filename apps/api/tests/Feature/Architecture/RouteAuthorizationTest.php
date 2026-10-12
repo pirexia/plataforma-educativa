@@ -32,6 +32,7 @@ function routesWithoutPermissionExceptions(): array
         'core.me.effective-permissions' => $me,
         'core.feature-flags.index' => 'REQ-CORE: evaluación de feature flags del propio usuario/centro',
         'curso.academic-years.current' => 'REQ-CURSO: curso activo del centro, dato del centro y no de una persona; autoservicio por identidad como GET /me (OPEN-CURSO-15, ampliación aprobada por el usuario el 2026-10-07, ADR-056 §3.2)',
+        'curso.academic-years.selectable' => 'REQ-CURSO: opciones del selector de curso académico, dato del centro y no de una persona; autoservicio por identidad (OPEN-ACAD-11, issue #409, CA-ACAD-043, ampliación aprobada por el usuario el 2026-10-10, ADR-056 §3.2)',
         'core.data-exports.show' => 'REQ-CORE: autoriza por `kind` en el controlador (el permiso depende del tipo de exportación)',
         'auth.csrf-cookie' => $auth,
         'auth.session.store' => $auth,
@@ -223,7 +224,95 @@ test('AR-07a CA-056-15: cada excepción nominal existe como ruta de api/v1 y sig
     }
 
     expect($stale)->toBe([], "excepciones de AR-07a que ya no hacen falta, retirarlas de la lista:\n".implode("\n", $stale))
-        ->and(routesWithoutPermissionExceptions())->toHaveCount(34);
+        ->and(routesWithoutPermissionExceptions())->toHaveCount(35);
+});
+
+/**
+ * Códigos de permiso declarados por los módulos (`declaredPermissions()` de
+ * cada `DeclaresModuleRegistry`), que `platform:sync-registry` materializa.
+ *
+ * @return list<string>
+ */
+function declaredPermissionCodes(): array
+{
+    $codes = [];
+
+    foreach (ModuleServiceProviderDiscovery::discover(app_path('Modules')) as $provider) {
+        $instance = new $provider(app());
+
+        if ($instance instanceof DeclaresModuleRegistry) {
+            foreach ($instance->declaredPermissions() as $permission) {
+                $codes[] = $permission['code'];
+            }
+        }
+    }
+
+    return array_values(array_unique($codes));
+}
+
+/**
+ * Issue #378 B3, CA-ACAD-039 (OPEN-ACAD-15): una errata en `permission:<código>`
+ * hace que la ruta exija un permiso que nadie puede conceder (siempre `403`),
+ * y hoy solo se descubre en ejecución. Devuelve las rutas de `api/v1` cuyo
+ * `permission:` nombra un código que ningún módulo declara.
+ *
+ * @param  list<array{name: ?string, uri: string, middleware: list<string>, module: ?string}>  $routes
+ * @param  list<string>  $declared
+ * @return list<string>
+ */
+function routesWithUndeclaredPermission(array $routes, array $declared): array
+{
+    $violations = [];
+
+    foreach ($routes as $route) {
+        if (! str_starts_with($route['uri'], 'api/v1')) {
+            continue;
+        }
+
+        foreach ($route['middleware'] as $middleware) {
+            if (! str_starts_with($middleware, 'permission:')) {
+                continue;
+            }
+
+            $code = substr($middleware, strlen('permission:'));
+
+            if (! in_array($code, $declared, true)) {
+                $violations[] = ($route['name'] ?? '(sin nombre)').' '.$route['uri'].": permission:{$code} no está declarado por ningún módulo";
+            }
+        }
+    }
+
+    return $violations;
+}
+
+test('AR-07a CA-ACAD-039 #378 B3: el código de cada permission: de api/v1 está declarado en el catálogo de algún módulo', function (): void {
+    $declared = declaredPermissionCodes();
+    $table = registeredRouteTable();
+    $withPermission = array_filter($table, static fn (array $r): bool => str_starts_with($r['uri'], 'api/v1')
+        && array_filter($r['middleware'], static fn (string $m): bool => str_starts_with($m, 'permission:')) !== []);
+
+    // No vacuidad: hay catálogo y hay rutas con permission: que comprobar.
+    expect(count($declared))->toBeGreaterThan(30)
+        ->and(count($withPermission))->toBeGreaterThan(50);
+
+    $violations = routesWithUndeclaredPermission($table, $declared);
+
+    expect($violations)->toBe([], "rutas con un permission: que ningún módulo declara (errata o permiso retirado):\n".implode("\n", $violations));
+});
+
+test('AR-07a CA-ACAD-039 control negativo: detecta un permission: no declarado, también en un módulo no esencial, y no uno declarado ni una ruta fuera de api/v1', function (): void {
+    $routes = [
+        ['name' => 'x.ok', 'uri' => 'api/v1/x', 'middleware' => ['module-enabled:x', 'permission:x.leer'], 'module' => 'x'],
+        ['name' => 'x.errata', 'uri' => 'api/v1/x/a', 'middleware' => ['module-enabled:x', 'permission:x.lear'], 'module' => 'x'],
+        ['name' => 'x.sin-nombre', 'uri' => 'api/v1/x/b', 'middleware' => ['permission:fantasma.crear'], 'module' => null],
+        ['name' => 'x.sin-permiso', 'uri' => 'api/v1/x/c', 'middleware' => ['module-enabled:x'], 'module' => 'x'],
+        ['name' => 'fuera', 'uri' => 'api/platform/z', 'middleware' => ['permission:no.declarado'], 'module' => null],
+    ];
+
+    expect(routesWithUndeclaredPermission($routes, ['x.leer']))->toBe([
+        'x.errata api/v1/x/a: permission:x.lear no está declarado por ningún módulo',
+        'x.sin-nombre api/v1/x/b: permission:fantasma.crear no está declarado por ningún módulo',
+    ]);
 });
 
 test('AR-07b CA-056-08 RMOD-009: toda ruta de un módulo no esencial lleva module-enabled:<código> antes de permission:', function (): void {

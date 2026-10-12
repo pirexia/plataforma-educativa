@@ -150,6 +150,28 @@ Las migraciones de test corren una vez por proceso vía la conexión `pgsql_owne
 
 `CACHE_STORE=redis` en los tests (no `array`): el prefijo de caché por tenant se aplica reconstruyendo el store con `Cache::forgetDriver()`, y el store `array` pierde todo su contenido en cada reconstrucción (es un array en memoria de la instancia, no un backend compartido), así que un test de aislamiento de caché sobre `array` daría verde sin haber probado nada. `REDIS_CACHE_DB=2` en tests, distinto del `1` de desarrollo, para no compartir claves.
 
+### Endurecimiento de `TEMP` (revisión de `1.11-a`, issue #414)
+
+PostgreSQL concede `TEMPORARY` sobre la base de datos a `PUBLIC` por defecto, así que `plataforma_app` podía crear tablas temporales. Son locales a la sesión, pero una tabla temporal se busca **antes** que `public` si `pg_temp` no figura en el `search_path`, y ningún código de la aplicación las usa. Desde `1.11-a`: `01-tenancy.sql.tpl` hace `REVOKE TEMPORARY ON DATABASE … FROM PUBLIC` y `GRANT TEMPORARY … TO plataforma_owner`; `bases-test-paralelo.sh` lo reaplica a cada clon (un `CREATE DATABASE … TEMPLATE` no copia los privilegios de base); `config/database.php` pone `pg_temp` **al final** del `search_path` de las tres conexiones (`public,pg_temp`). `DatabaseCapabilitiesTest` exige que `plataforma_app` no pueda crear tablas temporales.
+
+**Bases ya existentes**, una vez, con el superusuario del clúster (`$POSTGRES_USER`).
+
+*Producción o *staging* (una sola base, la de la aplicación):*
+
+```bash
+podman exec -i plataforma-postgres psql --username "$POSTGRES_USER" --dbname postgres \
+  -c "REVOKE TEMPORARY ON DATABASE \"$POSTGRES_DB\" FROM PUBLIC" \
+  -c "GRANT TEMPORARY ON DATABASE \"$POSTGRES_DB\" TO plataforma_owner"
+```
+
+*Desarrollo* (la base `$POSTGRES_DB` con el bloque anterior, y las de test con el script idempotente, que ya reaplica el `REVOKE`/`GRANT` a cada clon):
+
+```bash
+podman exec -i plataforma-postgres sh -s -- 6 --recrear < infra/containers/postgres/bases-test-paralelo.sh
+```
+
+Equivale a volver a aplicar `01-tenancy.sql.tpl` (§2b) o a `bases-test-paralelo.sh N` (idempotente). Comprobación: `SELECT has_database_privilege('plataforma_app', current_database(), 'TEMP')` debe dar `f`. Un volumen nuevo y el CI ya lo reciben del script de aprovisionamiento.
+
 ### Bases de la suite en paralelo (`ADR-060`)
 
 `composer test` reparte `Unit` + `Feature` entre procesos de Pest (paratest) y después ejecuta `Concurrency` en serie. **Cada proceso usa su propia base**, `plataforma_test_1 … plataforma_test_N` (`N` = `TEST_TOKEN`), clon de `plataforma_test`, y su propia base Redis de caché (`REDIS_CACHE_DB = 2 + N`; con 16 bases Redis caben hasta 13 procesos). `ADR-033 §10` sigue íntegro: cada proceso ve el mismo motor, los mismos tres roles y RLS. El mecanismo propio de Laravel (`ParallelTesting`) no sirve porque exigiría `CREATEDB` al rol de la aplicación; las bases las crea fuera de la suite el superusuario del clúster con `infra/containers/postgres/bases-test-paralelo.sh`.
@@ -315,6 +337,10 @@ La entrega `1.9c` incluye una migración **de datos** (`2026_10_02_100200_normal
 - **Puede abortar**, sin modificar nada, si hay un tipo de documento sin correspondencia en el catálogo o dos personas vivas del mismo centro que la normalización convertiría en duplicadas; el mensaje enumera los `public_id`. Procedimiento: `RUNBOOK.md §3b.6`.
 - **Orden de despliegue**: migración de datos → imagen de `apps/api` → imagen de `apps/web`. No dejes la API nueva mucho tiempo con la web anterior (la API rechaza con `422` el texto libre de la SPA antigua). Con los *workers* de `core-imports` parados durante la migración (`docs/modulos/REQ-CORE/operacion.md §14.1`).
 - **Sin `down()`**: la reversión es copia de seguridad / PITR previa al despliegue.
+
+## 2f. Índices de clave foránea de `1.11-a` (issue #412)
+
+Al desplegar `1.11-a` sobre una base ya migrada, `php artisan migrate` crea hasta 18 índices `(tenant_id, columna)` con `CREATE INDEX CONCURRENTLY` (no bloquea escrituras; no se ejecuta en transacción). Es idempotente y, si se interrumpe, basta repetir el comando; lanzar con `php artisan migrate --isolated` (nunca dos `migrate` a la vez). Una instalación nueva no necesita nada. Detalle y candidatos a retirar en `docs/modulos/REQ-ACAD/operacion.md §6.2`. Las bases de test por proceso (`ADR-060`) se recrean con el script de §2b para recibirla.
 
 ## 3. Comprobación rápida
 

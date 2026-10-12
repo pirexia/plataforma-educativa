@@ -610,3 +610,32 @@ test('RN-CURSO-14: el servidor no activa un curso por calendario ni exige haber 
     test()->actingAs($admin)->getJson(yearsUrl($tenant, '/current'))->assertNotFound();
     test()->actingAs($admin)->postJson(yearsUrl($tenant, "/{$future->public_id}/status"), ['status' => 'activo'])->assertOk();
 });
+
+test('CA-ACAD-041 issue #387 B-5: curso:grant-year-permissions no concede nada si algún permiso está retirado, con un mensaje que lo dice', function (): void {
+    [$tenant] = provisionCoreTenant('cur-041');
+
+    app(TenantContext::class)->runFor($tenant->id, function (): void {
+        PermissionRole::query()->where(fn ($q) => $q->where('permission_code', 'like', 'curso%')->orWhere('permission_code', 'like', 'estado_curso%'))->get()->each->delete();
+    });
+
+    $count = fn (): int => app(TenantContext::class)->runFor($tenant->id, fn () => PermissionRole::query()->where(fn ($q) => $q->where('permission_code', 'like', 'curso%')->orWhere('permission_code', 'like', 'estado_curso%'))->count());
+
+    // `permissions` es una tabla de referencia que solo escribe el propietario
+    // (SyncModuleRegistry); se retira un permiso y se restaura en `finally`.
+    $owner = DB::connection('pgsql_owner');
+    $owner->table('permissions')->where('code', 'curso_historico.leer')->update(['retired_at' => now()]);
+
+    try {
+        test()->artisan('curso:grant-year-permissions')
+            ->expectsOutputToContain('permisos retirados en el registro (retired_at informado): curso_historico.leer')
+            ->assertFailed();
+
+        expect($count())->toBe(0);
+    } finally {
+        $owner->table('permissions')->where('code', 'curso_historico.leer')->update(['retired_at' => null]);
+    }
+
+    // Caso normal sin cambios: con el permiso vigente concede las nueve.
+    test()->artisan('curso:grant-year-permissions')->assertSuccessful();
+    expect($count())->toBe(9);
+});

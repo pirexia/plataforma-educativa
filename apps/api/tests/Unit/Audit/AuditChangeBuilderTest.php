@@ -124,3 +124,78 @@ test('el orden de evaluación es secreto antes que política, y política antes 
 
     expect($changes['user_token'])->toBe(['redacted' => 'secret']);
 });
+
+// ADR-062 §5.5 (REQ-ACAD-001, 1.11-a), CA-ACAD-013: las columnas
+// `*_translations` se desglosan por idioma; solo los que cambian.
+test('CA-ACAD-013 ADR-062 §5.5: cambiar es-ES y añadir fr produce exactamente dos entradas {from,to}', function (): void {
+    $model = fakeAuditable(AuditValuePolicy::Full);
+
+    $changes = builder()->build($model, ['name_translations' => [
+        ['es-ES' => 'Lengua', 'en' => 'Language'],
+        ['es-ES' => 'Lengua Castellana', 'en' => 'Language', 'fr' => 'Langue castillane'],
+    ]]);
+
+    expect(array_keys($changes))->toBe(['name_translations.es-ES', 'name_translations.fr'])
+        ->and($changes['name_translations.es-ES'])->toBe(['from' => 'Lengua', 'to' => 'Lengua Castellana'])
+        ->and($changes['name_translations.fr'])->toBe(['from' => null, 'to' => 'Langue castillane'])
+        ->and($changes)->not->toHaveKey('name_translations');
+});
+
+test('CA-ACAD-013 ADR-062 §5.5: acepta el valor serializado como JSON (lo que entrega getDirty()) y registra la baja de un idioma', function (): void {
+    $model = fakeAuditable(AuditValuePolicy::Full);
+
+    $changes = builder()->build($model, ['name_translations' => [
+        ['es-ES' => 'Lengua', 'fr' => 'Langue'],
+        '{"es-ES":"Lengua"}',
+    ]]);
+
+    expect($changes)->toBe(['name_translations.fr' => ['from' => 'Langue', 'to' => null]]);
+});
+
+test('CA-ACAD-013 ADR-062 §5.5: el alta desglosa cada idioma con from null', function (): void {
+    $model = fakeAuditable(AuditValuePolicy::Full);
+
+    $changes = builder()->build($model, ['name_translations' => [null, '{"es-ES":"Lengua","en":"Language"}']]);
+
+    expect($changes)->toBe([
+        'name_translations.es-ES' => ['from' => null, 'to' => 'Lengua'],
+        'name_translations.en' => ['from' => null, 'to' => 'Language'],
+    ]);
+});
+
+test('CA-ACAD-013 ADR-062 §5.5: el tope de ADR-035 §5 se aplica por entrada, y se redacta oversized solo en su idioma', function (): void {
+    $model = fakeAuditable(AuditValuePolicy::Full);
+    $long = str_repeat('a', 300);
+
+    $changes = builder(maxLength: 256)->build($model, ['name_translations' => [
+        ['es-ES' => 'Lengua'],
+        ['es-ES' => $long, 'en' => 'Language'],
+    ]]);
+
+    expect($changes['name_translations.es-ES'])->toBe(['redacted' => 'oversized', 'from_empty' => false, 'to_empty' => false])
+        ->and($changes['name_translations.en'])->toBe(['from' => null, 'to' => 'Language'])
+        ->and(json_encode($changes))->not->toContain($long);
+});
+
+test('CA-ACAD-013 ADR-062 §5.5: la política Redacted redacta cada entrada como special y Selective fuera de lista como identifier', function (): void {
+    $changes = builder()->build(fakeAuditable(AuditValuePolicy::Redacted), ['name_translations' => [['es-ES' => 'A'], ['es-ES' => 'B', 'en' => 'C']]]);
+
+    expect($changes['name_translations.es-ES'])->toBe(['redacted' => 'special', 'from_empty' => false, 'to_empty' => false])
+        ->and($changes['name_translations.en'])->toBe(['redacted' => 'special', 'from_empty' => true, 'to_empty' => false]);
+
+    $selective = builder()->build(fakeAuditable(AuditValuePolicy::Selective, recorded: []), ['name_translations' => [null, ['es-ES' => 'A']]]);
+
+    expect($selective['name_translations.es-ES'])->toBe(['redacted' => 'identifier', 'from_empty' => true, 'to_empty' => false]);
+
+    $included = builder()->build(fakeAuditable(AuditValuePolicy::Selective, recorded: ['name_translations']), ['name_translations' => [null, ['es-ES' => 'A']]]);
+
+    expect($included['name_translations.es-ES'])->toBe(['from' => null, 'to' => 'A']);
+});
+
+test('CA-ACAD-013 ADR-062 §5.5: un atributo que no termina en _translations no se desglosa, aunque sea un array', function (): void {
+    $model = fakeAuditable(AuditValuePolicy::Full);
+
+    $changes = builder()->build($model, ['settings' => [['a' => 1], ['a' => 2]]]);
+
+    expect(array_keys($changes))->toBe(['settings']);
+});

@@ -308,6 +308,8 @@ paths:
     $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-years"
   /api/v1/academic-years/current:
     $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-years~1current"
+  /api/v1/academic-years/selectable:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-years~1selectable"
   /api/v1/academic-years/{publicId}:
     $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-years~1{publicId}"
   /api/v1/academic-years/{publicId}/status:

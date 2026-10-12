@@ -1,6 +1,6 @@
 # REQ-CURSO · API
 
-> **Estado**: **APROBADA** (2026-10-07), paso **1.10**, con los ajustes de `ADR-057` (aceptado). **Ampliada el 2026-10-08 por `ADR-059`** (aceptado): *endpoint* de reapertura `POST /academic-years/{public_id}/reopen` y sus códigos de error.
+> **Estado**: **APROBADA** (2026-10-07), paso **1.10**, con los ajustes de `ADR-057` (aceptado). **Ampliada el 2026-10-08 por `ADR-059`** (aceptado): *endpoint* de reapertura `POST /academic-years/{public_id}/reopen` y sus códigos de error. **Ampliada el 2026-10-12 por `1.11-a`** (`REQ-ACAD-001`): `GET /academic-years/selectable`.
 
 Prefijo: `/api/v1`. Resolución de tenant por *host* antes de cualquier consulta (`ADR-033 §2`). Todo lo que sigue se ajusta a `ADR-038`: recurso individual desnudo, colección en `{data, meta}` (§3), paginación por página (§4.3), filtros planos con valores múltiples separados por comas (§5.2), orden por lista blanca (§5.3), errores `application/problem+json` con `type` URN y `errors[].{code,message,params}` (§6), `403` frente a `404` (§6.4).
 
@@ -49,6 +49,16 @@ Curso **activo** del centro. Consumidor: el selector y la cabecera de las pantal
 - **Respuesta 200**: el `AcademicYear` activo.
 - **Errores**: 401; **404** `urn:pge:error:not-found` con `errors.academic_year[0].code = "curso.no_active_year"` cuando no hay curso activo (`funcional.md §6`). [DERIVADA] Se elige `404` y no `200` con cuerpo `null` para mantener el recurso individual desnudo (`ADR-038 §3.1`) y que el cliente lo trate como estado conocido por `code`.
 - **Orden de rutas**: se registra **antes** que `/{public_id}` (o con restricción de formato ULID en el parámetro) para que `current` no se interprete como un `public_id`.
+
+### `GET /api/v1/academic-years/selectable`
+
+Opciones del selector de curso académico (añadido en `1.11-a`, `REQ-ACAD-001`, `OPEN-ACAD-11`, issue #409, `CA-ACAD-043`). `GET /academic-years` exige `curso_academico.leer`, que casi ningún rol tiene, y un selector que solo funcionara para el administrador no serviría.
+
+- **Permiso**: **autoservicio sin permiso** (por identidad del portador de la cookie), como `current`. Amplía con esta única ruta la lista cerrada de excepciones de `AR-07a` (hoy 35 rutas), ampliación aprobada por el usuario con la especificación de `1.11`.
+- **Respuesta 200**: `{"data": [AcademicYear…]}`, sin `meta` (no se pagina: decenas de filas por centro) y sin parámetros. Siempre los cursos `activo` y `planificacion` del centro; con `curso_historico.leer` (`RN-CURSO-25`), también `cerrado` y `archivado`. Orden `-starts_on`, desempate `id DESC`. Nunca cursos de otro centro (`TenantScope`).
+- **Errores**: 401. Sin `403`: no hay permiso que comprobar; el permiso solo decide qué estados incluye.
+- **Orden de rutas**: se registra **antes** que `/{public_id}`.
+- **No sustituye a `GET /academic-years`**: quien no tiene `curso_academico.leer` sigue recibiendo `403` allí. La lectura de los *datos* de un curso cerrado sigue protegida por `AcademicYearReadAccess` en cada módulo: que el selector ofrezca un curso no concede su lectura.
 
 ### `GET /api/v1/academic-years/{public_id}`
 
@@ -207,4 +217,4 @@ Ninguno (`REQ-API-002` es de fase 2).
 
 ## 8. OpenAPI
 
-Los seis *endpoints* de §2 de 1.10, más `POST /academic-years/{public_id}/reopen` de `ADR-059` en la entrega que lo implemente, en `apps/api/openapi.yaml` antes del merge (`CLAUDE.md §10`), con el esquema `AcademicYear`, el enumerado extensible de `status`, la lista blanca de `sort`, el filtro `status` en estilo `form, explode: false`, y el `type` nuevo de §5 añadido al catálogo de errores documentado. Comprobar al tocarlo el problema de validación YAML preexistente del issue #97.
+Los siete *endpoints* de §2 implementados (los seis de `1.10` más `GET /academic-years/selectable` de `1.11-a`), más `POST /academic-years/{public_id}/reopen` de `ADR-059` en la entrega que lo implemente, en `apps/api/openapi.yaml` antes del merge (`CLAUDE.md §10`), con el esquema `AcademicYear`, el enumerado extensible de `status`, la lista blanca de `sort`, el filtro `status` en estilo `form, explode: false`, y el `type` nuevo de §5 añadido al catálogo de errores documentado. Comprobar al tocarlo el problema de validación YAML preexistente del issue #97.

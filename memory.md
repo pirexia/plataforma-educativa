@@ -7,7 +7,7 @@
 
 ## Estado actual
 
-**Fase**: 0 cerrada en la práctica (lo pendiente de `0.10`-`0.12` es negocio, no código — ver "Bloqueantes"). **Fase 1, bloque A COMPLETO Y MEZCLADO: 1.1 a 1.6e**. **Bloque B: `1.7`, `1.8`, `1.9` y la serie `1.9b`-`1.9f` CERRADOS Y MEZCLADOS (2026-09-23 a 2026-10-04): la interfaz de `REQ-CORE` está completa** y la lista de excepciones de `RN-CORE-53` queda vacía. Tanda de issues del 2026-10-04/05 hecha y mezclada (ver `CHANGELOG.md`). `1.5b` (`REQ-PERM`, editor de roles y permisos efectivos) **CERRADO Y MEZCLADO el 2026-10-05** (PR #354, *squash* `277d47c`, 14/14 checks de CI en verde, ramas borradas). **`1.7b` (estandarización de módulos, `ADR-056` ACEPTADA 2026-10-07) CERRADO Y MEZCLADO el 2026-10-07 (PR #379).** **`1.10` (`REQ-CURSO`, ciclo de vida del curso) CERRADO Y MEZCLADO el 2026-10-08 (PR #386)**; limpieza previa a `1.11` (issues, `ADR-059`, `ADR-060`, `ADR-061`, dependencias) mezclada el 2026-10-10. **Siguiente: `1.11` (`REQ-ACAD`), ver «Siguiente paso concreto»; sesión nueva con Opus (`CLAUDE.md §3`).**
+**Fase**: 0 cerrada en la práctica (lo pendiente de `0.10`-`0.12` es negocio, no código — ver "Bloqueantes"). **Fase 1, bloque A COMPLETO Y MEZCLADO: 1.1 a 1.6e**. **Bloque B: `1.7`, `1.8`, `1.9` y la serie `1.9b`-`1.9f` CERRADOS Y MEZCLADOS (2026-09-23 a 2026-10-04): la interfaz de `REQ-CORE` está completa** y la lista de excepciones de `RN-CORE-53` queda vacía. Tanda de issues del 2026-10-04/05 hecha y mezclada (ver `CHANGELOG.md`). `1.5b` (`REQ-PERM`, editor de roles y permisos efectivos) **CERRADO Y MEZCLADO el 2026-10-05** (PR #354, *squash* `277d47c`, 14/14 checks de CI en verde, ramas borradas). **`1.7b` (estandarización de módulos, `ADR-056` ACEPTADA 2026-10-07) CERRADO Y MEZCLADO el 2026-10-07 (PR #379).** **`1.10` (`REQ-CURSO`, ciclo de vida del curso) CERRADO Y MEZCLADO el 2026-10-08 (PR #386)**; limpieza previa a `1.11` (issues, `ADR-059`, `ADR-060`, `ADR-061`, dependencias) mezclada el 2026-10-10. **`1.11` (`REQ-ACAD`): especificación aprobada, `ADR-062`/`ADR-063` aceptados y entrega `1.11-a` (infraestructura compartida) mezclada el 2026-10-12 (PR #417). Siguiente: `1.11-b` (módulo `acad`), ver «Siguiente paso concreto»; sesión nueva con Sonnet (`CLAUDE.md §3`).**
 
 **`1.6e · REQ-BO-005`: motor de *feature flags* — CERRADO Y MEZCLADO** (2026-09-22), y **sesión de mantenimiento posterior (2026-09-22) — CERRADA Y MEZCLADA** (7 issues de deuda técnica). Detalle completo, triage de issues incluido, en `docs/historial/1.6e-motor-feature-flags.md`.
 
@@ -72,7 +72,9 @@
 ---
 ## Trabajo en curso
 
-Ninguno. Cierre de sesión del 2026-10-10: `develop` limpio, sin PR abiertos ni ramas sueltas. Notas anteriores archivadas en `docs/historial/memory-archivo-2026-10-10.md`.
+**`1.11-a` · cerrada (2026-10-12)**: PR [#417](https://github.com/pirexia/plataforma-educativa/pull/417) mezclado con CI en verde (ver `CHANGELOG.md`). Verificado: suite completa 1257+9 Pest, Pint y Larastan en verde sobre `fe71ea8` más cambios solo de documentación y un comentario. Sin trabajo a medias. Resuelve #412 a #416 (cierre al mezclar). Decisiones del usuario: `OPEN-ACAD-01..23` con las recomendaciones; `OPEN-062-01` = `default_locale`; `OPEN-063-01` = fijar «clase»; dos entregas; endurecer `TEMP` ahora; `withIndex` en el ayudante (4 migraciones antiguas, excepción documentada). El db-reviewer erró 17/5: son 18 a crear y 4 cubiertas (el UNIQUE de `saml_identity_provider_settings` es parcial).
+
+Antes: cierre de sesión del 2026-10-10 con `develop` limpio. Notas anteriores archivadas en `docs/historial/memory-archivo-2026-10-10.md`.
 
 **Hecho en la sesión del 2026-10-08/10** (todo mezclado en `develop`):
 - `ADR-059` (reapertura de curso cerrado, PR #394): `OPEN-CURSO-08` resuelta; la implementación es el paso `1.11c`.
@@ -153,13 +155,13 @@ Ninguno. Cierre de sesión del 2026-10-10: `develop` limpio, sin PR abiertos ni 
 
 ## Siguiente paso concreto
 
-**`1.11 · REQ-ACAD`: estructura académica**, en **sesión nueva con Opus** para la especificación (`CLAUDE.md §2`, §3), luego Sonnet para implementar.
+**`1.11-b · REQ-ACAD-001`: módulo `acad`** (especificación aprobada en `docs/modulos/REQ-ACAD/`, `CA-ACAD-001..062`; sesión nueva con **Sonnet**, la especificación no se reabre).
 
-1. Arranque: leer `CLAUDE.md`, este fichero y el paso `1.11` de `PLAN-IMPLEMENTACION.md`; comprobar modelo y rama (`develop` limpio).
-2. Antes de redactar la especificación: repetir `AcademicYearWriteGuardOverheadTest` con la primera tabla real (#382) y exigir en la especificación el criterio de lectura denegada de curso cerrado (`RN-CURSO-33`).
-3. En la especificación decidir #376 y #387 si aparece su primer caso.
-4. Rama `feature/REQ-ACAD-...` desde `develop` → `spec-writer` (Opus) → aprobación del usuario → `implementer` → revisores → PR.
-5. Después del orden del plan: `1.11b` (generador `make:module`), `1.11c` (reapertura, `ADR-059`).
+1. Arranque: leer `CLAUDE.md`, este fichero y `docs/modulos/REQ-ACAD/funcional.md §1.2/§13`; rama `feature/REQ-ACAD-1-11b-modulo-acad` desde `develop`.
+2. `implementer` (Sonnet) con el alcance de `1.11-b`: módulo `acad` con seis tablas (`education_levels`, `courses`, `groups`, `subgroups`, `subjects`, `group_subjects`) y disparador `academic_year_write_guard`; 27 endpoints; cinco pantallas; selector visual en `src/academic-year/`; componente web de campo traducible; `AR-16` con no vacuidad; `acad:grant-structure-permissions` (con `retired_at`); `README` web (#408); `RN-CURSO-33` por recurso. `TranslationsValidator` exige `maxLength` y los FormRequest del módulo lo pasan.
+3. Al cerrar: repetir `AcademicYearWriteGuardOverheadTest` con `subjects` y anotar la cifra en `CHANGELOG.md` (#382); inventariar tablas sin índice (#407) y cerrar #407 y #409; enlazar #104 y #387; subir la versión de `README.md`; `doc-reviewer` de cierre.
+4. Pendientes que no bloquean: comprobar el trato de claves desconocidas en `CA-ACAD-060` y la cifra de rutas de `AR-07a` (hoy 35); abrir issue Baja para retirar `user_mfa_recovery_codes_tenant_user_unused_idx` y `user_mfa_factors_tenant_user_confirmed_idx` (migración contract posterior, tras medir `idx_scan` real).
+5. Después, por el orden del plan: `1.11d` (períodos y escalas, con especificación en Opus), `1.11b` (generador `make:module`), `1.11c` (reapertura, `ADR-059`), `1.12` (horarios; decide la asignación docente de `ADR-063 §5.4`).
 
 **Prueba de Codex cerrada y resuelta: `ADR-050` (2026-09-21).** Detalle completo en `docs/historial/adr-050-cierre-prueba-codex.md`. Dos puntos todavía sin resolver, no bloqueantes: (1) política de datos de la capa gratuita de ChatGPT tras terminar la fase de prueba, decisión pendiente del usuario; (2) `SECURITY.md`/`PRIVACY.md` sin actualizar para reflejar la salida permanente de código hacia Codex — corresponde a `doc-reviewer` en el siguiente cierre de fase.
 
