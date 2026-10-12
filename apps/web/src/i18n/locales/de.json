@@ -189,5 +189,34 @@
       "requestError": "Der Export konnte nicht angefordert werden.",
       "statusError": "Der Status des Exports konnte nicht geprüft werden."
     }
+  },
+  "academicYear": {
+    "status": {
+      "planificacion": "In Planung",
+      "activo": "Aktiv",
+      "cerrado": "Abgeschlossen",
+      "archivado": "Archiviert"
+    },
+    "selector": {
+      "label": "Schuljahr",
+      "placeholder": "Schuljahr auswählen",
+      "option": "{code} · {status}",
+      "optionReadOnly": "{code} · {status} (schreibgeschützt)",
+      "changed": "Schuljahr geändert auf {code}",
+      "loadError": "Die Schuljahre konnten nicht geladen werden."
+    }
+  },
+  "translatable": {
+    "required": "erforderlich",
+    "defaultLocale": "Standardsprache der Schule",
+    "entryLabel": "{label} ({language})",
+    "hint": "Geben Sie den Text in jeder aktiven Sprache der Schule ein. Die Standardsprache ist erforderlich.",
+    "groupLabel": "{label}: ein Eintrag pro Sprache",
+    "locales": {
+      "es-ES": "Spanisch",
+      "en": "Englisch",
+      "de": "Deutsch",
+      "fr": "Französisch"
+    }
   }
 }

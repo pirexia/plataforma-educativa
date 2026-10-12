@@ -33,6 +33,12 @@ export interface AppRouteMeta {
    * `breadcrumbParent: 'sso-administration'`.
    */
   breadcrumbParent?: string
+  /**
+   * `docs/modulos/REQ-ACAD/funcional.md §10.2` (aprobada): la ruta muestra el
+   * selector de curso académico en la barra superior del *shell*. Amplía el
+   * contenido de `meta`, no las tres listas de `ADR-053`.
+   */
+  academicYearScoped?: boolean
 }
 
 // Ampliación del módulo de vue-router: `meta` queda tipado en todo el

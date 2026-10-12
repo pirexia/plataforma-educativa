@@ -15,6 +15,7 @@ import router from '@/router'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { useT } from '@/i18n'
+import { AcademicYearSelector } from '@/academic-year'
 import { useTenantBranding } from '@/tenant/useTenantBranding'
 import { reloadSession, useSession } from '@/session/useSession'
 import { hasAnyPermission, visibleNavigationEntries } from '@/navigation/registry'
@@ -111,7 +112,11 @@ function onLogoError(url: string): void {
         </span>
       </RouterLink>
 
-      <div class="ml-auto flex items-center gap-2">
+      <div class="ml-auto flex min-w-0 items-center gap-2">
+        <!-- REQ-ACAD §10.2: solo en rutas con `meta.academicYearScoped` y con la vista montada. -->
+        <AcademicYearSelector
+          v-if="status !== 'loading' && !forbidden && moduleUnavailableDetail === null"
+        />
         <AppUserMenu />
       </div>
     </header>

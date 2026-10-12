@@ -189,5 +189,34 @@
       "requestError": "The export could not be requested.",
       "statusError": "The export status could not be checked."
     }
+  },
+  "academicYear": {
+    "status": {
+      "planificacion": "Planning",
+      "activo": "Active",
+      "cerrado": "Closed",
+      "archivado": "Archived"
+    },
+    "selector": {
+      "label": "Academic year",
+      "placeholder": "Choose an academic year",
+      "option": "{code} · {status}",
+      "optionReadOnly": "{code} · {status} (read-only)",
+      "changed": "Academic year changed to {code}",
+      "loadError": "The academic years could not be loaded."
+    }
+  },
+  "translatable": {
+    "required": "required",
+    "defaultLocale": "school default language",
+    "entryLabel": "{label} ({language})",
+    "hint": "Enter the text in each of the school's active languages. The default language is required.",
+    "groupLabel": "{label}: one entry per language",
+    "locales": {
+      "es-ES": "Spanish",
+      "en": "English",
+      "de": "German",
+      "fr": "French"
+    }
   }
 }
