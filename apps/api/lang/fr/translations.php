@@ -8,4 +8,5 @@ return [
     'locale_not_active' => 'La langue « :locale » n\'est pas active pour cet établissement.',
     'empty_value' => 'Le texte en « :locale » ne peut pas être vide.',
     'invalid_characters' => 'Le texte en « :locale » contient des caractères de contrôle non autorisés.',
+    'too_long' => 'Le texte en « :locale » ne peut pas dépasser :max caractères.',
 ];

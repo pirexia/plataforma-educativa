@@ -31,6 +31,8 @@ use App\Support\Api\ValidationErrorBag;
  * - `translations.locale_not_active`: clave que no es de un idioma activo
  *   del centro (o fuera del vocabulario cerrado);
  * - `translations.empty_value`: valor vacío tras recortar, o que no es cadena;
+ * - `translations.too_long`: el valor recortado supera `$maxLength` caracteres
+ *   (obligatorio en cada llamada, #413: un módulo no puede olvidarlo);
  * - `translations.invalid_characters`: el valor contiene NUL o un carácter de
  *   control C0 (salvo tabulación y saltos de línea, que admite un párrafo,
  *   ADR-062 §2), DEL, o no es UTF-8 válido. PostgreSQL rechaza `\u0000` en un
@@ -46,6 +48,18 @@ final class TranslationsValidator
 
     public const INVALID_CHARACTERS = 'translations.invalid_characters';
 
+    public const TOO_LONG = 'translations.too_long';
+
+    /**
+     * Tope de errores `locale_not_active` por llamada (issue #413): una petición
+     * con miles de claves desconocidas no amplifica la respuesta de error. Los
+     * demás errores solo pueden darse en las cuatro claves del vocabulario.
+     */
+    public const MAX_UNKNOWN_KEY_ERRORS = 5;
+
+    /** Longitud máxima (caracteres) de una clave ecoada en el campo o en `params`. */
+    private const MAX_ECHOED_KEY_LENGTH = 16;
+
     public function __construct(
         private readonly TenantSettingsReader $settings,
     ) {}
@@ -53,11 +67,12 @@ final class TranslationsValidator
     /**
      * Alta (`POST`): el objeto es obligatorio; contiene el idioma por defecto
      * del centro; toda clave es de un idioma activo; cada valor, recortado,
-     * no queda vacío.
+     * no queda vacío ni supera `$maxLength` caracteres (la fija la especificación
+     * del módulo; obligatoria).
      *
      * @return array<string, string>|null el objeto normalizado (valores recortados, claves en el orden del vocabulario), o `null` si hay errores
      */
-    public function validateForCreate(mixed $input, string $field, ValidationErrorBag $errors): ?array
+    public function validateForCreate(mixed $input, string $field, ValidationErrorBag $errors, int $maxLength): ?array
     {
         $default = $this->settings->defaultLocale();
 
@@ -75,18 +90,19 @@ final class TranslationsValidator
 
         $clean = [];
         $valid = true;
+        $unknownReported = 0;
 
         foreach ($input as $locale => $value) {
             $locale = (string) $locale;
 
             if (! $this->isActive($locale)) {
-                $this->fail($errors, "{$field}.{$locale}", self::LOCALE_NOT_ACTIVE, $locale);
+                $this->failUnknownKey($errors, $field, $locale, $unknownReported);
                 $valid = false;
 
                 continue;
             }
 
-            $text = $this->cleanText($value, $errors, "{$field}.{$locale}", $locale);
+            $text = $this->cleanText($value, $errors, "{$field}.{$locale}", $locale, $maxLength);
 
             if ($text === null) {
                 $valid = false;
@@ -116,7 +132,7 @@ final class TranslationsValidator
      * @param  array<string, mixed>  $stored  el objeto almacenado hoy
      * @return array<string, string>|null el objeto resultante de la fusión, o `null` si hay errores
      */
-    public function validateForPatch(mixed $input, array $stored, string $field, ValidationErrorBag $errors): ?array
+    public function validateForPatch(mixed $input, array $stored, string $field, ValidationErrorBag $errors, int $maxLength): ?array
     {
         $default = $this->settings->defaultLocale();
 
@@ -135,6 +151,7 @@ final class TranslationsValidator
         }
 
         $valid = true;
+        $unknownReported = 0;
 
         foreach ($input as $locale => $value) {
             $locale = (string) $locale;
@@ -143,7 +160,7 @@ final class TranslationsValidator
                 // Quitar un idioma retirado del centro es legítimo; una clave
                 // fuera del vocabulario no existe en ningún objeto válido.
                 if (! Locales::isKnown($locale)) {
-                    $this->fail($errors, "{$field}.{$locale}", self::LOCALE_NOT_ACTIVE, $locale);
+                    $this->failUnknownKey($errors, $field, $locale, $unknownReported);
                     $valid = false;
 
                     continue;
@@ -155,13 +172,13 @@ final class TranslationsValidator
             }
 
             if (! $this->isActive($locale)) {
-                $this->fail($errors, "{$field}.{$locale}", self::LOCALE_NOT_ACTIVE, $locale);
+                $this->failUnknownKey($errors, $field, $locale, $unknownReported);
                 $valid = false;
 
                 continue;
             }
 
-            $text = $this->cleanText($value, $errors, "{$field}.{$locale}", $locale);
+            $text = $this->cleanText($value, $errors, "{$field}.{$locale}", $locale, $maxLength);
 
             if ($text === null) {
                 $valid = false;
@@ -189,7 +206,7 @@ final class TranslationsValidator
      * El valor recortado, o `null` tras añadir el error que corresponde
      * (`empty_value` o `invalid_characters`).
      */
-    private function cleanText(mixed $value, ValidationErrorBag $errors, string $path, string $locale): ?string
+    private function cleanText(mixed $value, ValidationErrorBag $errors, string $path, string $locale, int $maxLength): ?string
     {
         if (! is_string($value)) {
             $this->fail($errors, $path, self::EMPTY_VALUE, $locale);
@@ -212,7 +229,30 @@ final class TranslationsValidator
             return null;
         }
 
+        if (mb_strlen($text) > $maxLength) {
+            $errors->add($path, self::TOO_LONG, self::TOO_LONG, ['locale' => $locale, 'max' => $maxLength]);
+
+            return null;
+        }
+
         return $text;
+    }
+
+    /**
+     * Una clave que no es de un idioma activo. Como mucho
+     * `MAX_UNKNOWN_KEY_ERRORS` por llamada, y la clave que se ecoa (en el
+     * campo y en `params.locale`) se acota en longitud: es entrada arbitraria.
+     */
+    private function failUnknownKey(ValidationErrorBag $errors, string $field, string $key, int &$reported): void
+    {
+        if ($reported >= self::MAX_UNKNOWN_KEY_ERRORS) {
+            return;
+        }
+
+        $reported++;
+        $echo = mb_substr($key, 0, self::MAX_ECHOED_KEY_LENGTH);
+
+        $this->fail($errors, "{$field}.{$echo}", self::LOCALE_NOT_ACTIVE, $echo);
     }
 
     private function fail(ValidationErrorBag $errors, string $field, string $code, string $locale): void

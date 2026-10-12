@@ -8,4 +8,5 @@ return [
     'locale_not_active' => 'Die Sprache „:locale“ ist für diese Schule nicht aktiv.',
     'empty_value' => 'Der Text in „:locale“ darf nicht leer sein.',
     'invalid_characters' => 'Der Text in „:locale“ enthält unzulässige Steuerzeichen.',
+    'too_long' => 'Der Text in „:locale“ darf höchstens :max Zeichen lang sein.',
 ];

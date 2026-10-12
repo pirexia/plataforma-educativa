@@ -32,7 +32,7 @@ function codesOf(ValidationErrorBag $errors): array
 test('CA-ACAD-009 ADR-062 §5.2: un alta sin la clave del idioma por defecto es translations.default_locale_required', function (): void {
     $errors = new ValidationErrorBag;
 
-    $result = validatorFor('es-ES', ['es-ES', 'en'])->validateForCreate(['en' => 'Language'], 'name_translations', $errors);
+    $result = validatorFor('es-ES', ['es-ES', 'en'])->validateForCreate(['en' => 'Language'], 'name_translations', $errors, 100);
 
     expect($result)->toBeNull()
         ->and(codesOf($errors))->toBe(['name_translations' => ['translations.default_locale_required']]);
@@ -41,7 +41,7 @@ test('CA-ACAD-009 ADR-062 §5.2: un alta sin la clave del idioma por defecto es 
 test('CA-ACAD-009 ADR-062 §5.2: un alta sin objeto (null) es translations.default_locale_required', function (): void {
     $errors = new ValidationErrorBag;
 
-    expect(validatorFor('es-ES', ['es-ES'])->validateForCreate(null, 'name_translations', $errors))->toBeNull()
+    expect(validatorFor('es-ES', ['es-ES'])->validateForCreate(null, 'name_translations', $errors, 100))->toBeNull()
         ->and(codesOf($errors))->toBe(['name_translations' => ['translations.default_locale_required']]);
 });
 
@@ -51,7 +51,7 @@ test('CA-ACAD-009 ADR-062 §5.2: una clave de un idioma no activo es translation
     $result = validatorFor('es-ES', ['es-ES', 'en'])->validateForCreate(
         ['es-ES' => 'Lengua', 'fr' => 'Langue', 'es' => 'Lengua', 'it' => 'Lingua'],
         'name_translations',
-        $errors,
+        $errors, 100,
     );
 
     expect($result)->toBeNull()
@@ -68,7 +68,7 @@ test('CA-ACAD-009 ADR-062 §5.2: un valor vacío tras recortar, o que no es cade
     $result = validatorFor('es-ES', ['es-ES', 'en', 'de'])->validateForCreate(
         ['es-ES' => 'Lengua', 'en' => "  \t ", 'de' => 5],
         'name_translations',
-        $errors,
+        $errors, 100,
     );
 
     expect($result)->toBeNull()
@@ -81,7 +81,7 @@ test('CA-ACAD-009 ADR-062 §5.2: un valor vacío tras recortar, o que no es cade
 test('CA-ACAD-009 ADR-062 §5.2: el idioma por defecto presente pero vacío da solo empty_value, no además default_locale_required', function (): void {
     $errors = new ValidationErrorBag;
 
-    validatorFor('es-ES', ['es-ES'])->validateForCreate(['es-ES' => ''], 'name_translations', $errors);
+    validatorFor('es-ES', ['es-ES'])->validateForCreate(['es-ES' => ''], 'name_translations', $errors, 100);
 
     expect(codesOf($errors))->toBe(['name_translations.es-ES' => ['translations.empty_value']]);
 });
@@ -89,7 +89,7 @@ test('CA-ACAD-009 ADR-062 §5.2: el idioma por defecto presente pero vacío da s
 test('CA-ACAD-009 OPEN-062-01: con default_locale = en y active_locales = [en], un alta con solo en es válida; es-ES no se exige', function (): void {
     $errors = new ValidationErrorBag;
 
-    $result = validatorFor('en', ['en'])->validateForCreate(['en' => '  Mathematics '], 'name_translations', $errors);
+    $result = validatorFor('en', ['en'])->validateForCreate(['en' => '  Mathematics '], 'name_translations', $errors, 100);
 
     expect($errors->isEmpty())->toBeTrue()
         ->and($result)->toBe(['en' => 'Mathematics']);
@@ -98,7 +98,7 @@ test('CA-ACAD-009 OPEN-062-01: con default_locale = en y active_locales = [en], 
 test('CA-ACAD-009 OPEN-062-01: con default_locale = en, un alta solo con es-ES falla (es-ES no está activo ni es el por defecto)', function (): void {
     $errors = new ValidationErrorBag;
 
-    validatorFor('en', ['en'])->validateForCreate(['es-ES' => 'Matemáticas'], 'name_translations', $errors);
+    validatorFor('en', ['en'])->validateForCreate(['es-ES' => 'Matemáticas'], 'name_translations', $errors, 100);
 
     expect(codesOf($errors))->toBe(['name_translations.es-ES' => ['translations.locale_not_active']]);
 });
@@ -109,7 +109,7 @@ test('CA-ACAD-009 ADR-062 §5.2: el alta devuelve el objeto recortado y con las 
     $result = validatorFor('es-ES', ['es-ES', 'en', 'de', 'fr'])->validateForCreate(
         ['fr' => ' Langue ', 'es-ES' => ' Lengua', 'en' => 'Language '],
         'name_translations',
-        $errors,
+        $errors, 100,
     );
 
     expect($result)->toBe(['es-ES' => 'Lengua', 'en' => 'Language', 'fr' => 'Langue'])
@@ -123,7 +123,7 @@ test('CA-ACAD-010 ADR-062 §5.2 punto 2: PATCH {fr} añade solo fr y deja es-ES 
         ['fr' => ' Langue '],
         ['es-ES' => 'Lengua', 'en' => 'Language'],
         'name_translations',
-        $errors,
+        $errors, 100,
     );
 
     expect($errors->isEmpty())->toBeTrue()
@@ -137,7 +137,7 @@ test('CA-ACAD-010 ADR-062 §5.2 punto 2: PATCH {fr: null} quita solo fr', functi
         ['fr' => null],
         ['es-ES' => 'Lengua', 'en' => 'Language', 'fr' => 'Langue'],
         'name_translations',
-        $errors,
+        $errors, 100,
     );
 
     expect($errors->isEmpty())->toBeTrue()
@@ -151,7 +151,7 @@ test('CA-ACAD-010 ADR-062 §5.2: PATCH {es-ES: null} siendo es-ES el idioma por 
         ['es-ES' => null],
         ['es-ES' => 'Lengua', 'en' => 'Language'],
         'name_translations',
-        $errors,
+        $errors, 100,
     );
 
     expect($merged)->toBeNull()
@@ -165,7 +165,7 @@ test('CA-ACAD-010 ADR-062 §5.2: PATCH con cadena vacía es translations.empty_v
         ['en' => '', 'fr' => 'Langue'],
         ['es-ES' => 'Lengua'],
         'name_translations',
-        $errors,
+        $errors, 100,
     );
 
     expect($merged)->toBeNull()
@@ -183,7 +183,7 @@ test('CA-ACAD-010 ADR-062 §5.2 punto 3: un idioma retirado de active_locales co
         ['en' => 'Language v2'],
         ['es-ES' => 'Lengua', 'de' => 'Sprache'],
         'name_translations',
-        $errors,
+        $errors, 100,
     );
 
     expect($errors->isEmpty())->toBeTrue()
@@ -197,7 +197,7 @@ test('CA-ACAD-010 ADR-062 §5.2: un idioma retirado se puede quitar con null aun
         ['de' => null],
         ['es-ES' => 'Lengua', 'de' => 'Sprache'],
         'name_translations',
-        $errors,
+        $errors, 100,
     );
 
     expect($errors->isEmpty())->toBeTrue()
@@ -212,7 +212,7 @@ test('CA-ACAD-010 ADR-062 §5.2 punto 3: tras cambiar default_locale, la siguien
         ['en' => 'Language v2'],
         ['es-ES' => 'Lengua', 'en' => 'Language'],
         'name_translations',
-        $errors,
+        $errors, 100,
     );
 
     expect($merged)->toBeNull()
@@ -223,7 +223,7 @@ test('CA-ACAD-010 ADR-062 §5.2 punto 3: tras cambiar default_locale, la siguien
         ['fr' => 'Langue'],
         ['es-ES' => 'Lengua', 'en' => 'Language'],
         'name_translations',
-        $errors,
+        $errors, 100,
     );
 
     expect($errors->isEmpty())->toBeTrue()
@@ -233,7 +233,7 @@ test('CA-ACAD-010 ADR-062 §5.2 punto 3: tras cambiar default_locale, la siguien
 test('CA-ACAD-010 ADR-062 §5.2: PATCH con una clave null fuera del vocabulario es locale_not_active', function (): void {
     $errors = new ValidationErrorBag;
 
-    validatorFor('es-ES', ['es-ES'])->validateForPatch(['es' => null], ['es-ES' => 'Lengua'], 'name_translations', $errors);
+    validatorFor('es-ES', ['es-ES'])->validateForPatch(['es' => null], ['es-ES' => 'Lengua'], 'name_translations', $errors, 100);
 
     expect(codesOf($errors))->toBe(['name_translations.es' => ['translations.locale_not_active']]);
 });
@@ -252,7 +252,7 @@ test('CA-ACAD-009 INV-009: los tres mensajes comunes existen y se interpolan en 
 test('CA-ACAD-009 ADR-062 §5.2: el error lleva el code translations.* completo, el mensaje traducido y el idioma en params', function (): void {
     $errors = new ValidationErrorBag;
 
-    validatorFor('es-ES', ['es-ES'])->validateForCreate(['es-ES' => ''], 'name_translations', $errors);
+    validatorFor('es-ES', ['es-ES'])->validateForCreate(['es-ES' => ''], 'name_translations', $errors, 100);
 
     $entry = $errors->toArray()['name_translations.es-ES'][0];
 
@@ -265,7 +265,7 @@ test('CA-ACAD-009 INV-010 (revisión de seguridad M-1): NUL y controles C0 se re
     foreach (["a\u{0000}b", "\u{0000}", "x\u{0001}", "x\u{001F}y", "x\u{007F}", "\u{0008}", "\u{000B}", "\u{000C}", "\xC3\x28"] as $bad) {
         $errors = new ValidationErrorBag;
 
-        $result = validatorFor('es-ES', ['es-ES'])->validateForCreate(['es-ES' => $bad], 'name_translations', $errors);
+        $result = validatorFor('es-ES', ['es-ES'])->validateForCreate(['es-ES' => $bad], 'name_translations', $errors, 100);
 
         expect($result)->toBeNull()
             ->and(codesOf($errors))->toBe(['name_translations.es-ES' => ['translations.invalid_characters']]);
@@ -275,7 +275,7 @@ test('CA-ACAD-009 INV-010 (revisión de seguridad M-1): NUL y controles C0 se re
 test('CA-ACAD-009 (M-1): el PATCH también rechaza NUL y controles, y deja el resto como estaba', function (): void {
     $errors = new ValidationErrorBag;
 
-    $merged = validatorFor('es-ES', ['es-ES', 'en'])->validateForPatch(['en' => "Lang\u{0000}uage"], ['es-ES' => 'Lengua'], 'name_translations', $errors);
+    $merged = validatorFor('es-ES', ['es-ES', 'en'])->validateForPatch(['en' => "Lang\u{0000}uage"], ['es-ES' => 'Lengua'], 'name_translations', $errors, 100);
 
     expect($merged)->toBeNull()
         ->and(codesOf($errors))->toBe(['name_translations.en' => ['translations.invalid_characters']]);
@@ -284,7 +284,7 @@ test('CA-ACAD-009 (M-1): el PATCH también rechaza NUL y controles, y deja el re
 test('CA-ACAD-009 (M-1): tabulación y saltos de línea se admiten (texto de un párrafo, ADR-062 §2); Unicode ordinario también', function (): void {
     $errors = new ValidationErrorBag;
 
-    $result = validatorFor('es-ES', ['es-ES'])->validateForCreate(['es-ES' => "Lengua\ny\tLiteratura — ñ 数学"], 'name_translations', $errors);
+    $result = validatorFor('es-ES', ['es-ES'])->validateForCreate(['es-ES' => "Lengua\ny\tLiteratura — ñ 数学"], 'name_translations', $errors, 100);
 
     expect($errors->isEmpty())->toBeTrue()
         ->and($result)->toBe(['es-ES' => "Lengua\ny\tLiteratura — ñ 数学"]);
@@ -295,5 +295,73 @@ test('CA-ACAD-009 (M-1) INV-009: translations.invalid_characters existe en los c
         $message = __('translations.invalid_characters', ['locale' => 'xx'], $locale);
 
         expect($message)->not->toBe('translations.invalid_characters')->and($message)->toContain('xx');
+    }
+});
+
+test('CA-ACAD-009 INV-010 (#413): un valor por encima de maxLength es translations.too_long, en alta y en PATCH; justo en el límite se acepta', function (): void {
+    $errors = new ValidationErrorBag;
+
+    $result = validatorFor('es-ES', ['es-ES', 'en'])->validateForCreate(['es-ES' => str_repeat('a', 11), 'en' => str_repeat('b', 10)], 'name_translations', $errors, 10);
+
+    expect($result)->toBeNull()
+        ->and(codesOf($errors))->toBe(['name_translations.es-ES' => ['translations.too_long']])
+        ->and($errors->toArray()['name_translations.es-ES'][0]['params'])->toBe(['locale' => 'es-ES', 'max' => 10]);
+
+    $errors = new ValidationErrorBag;
+
+    expect(validatorFor('es-ES', ['es-ES'])->validateForPatch(['es-ES' => str_repeat('a', 11)], ['es-ES' => 'Lengua'], 'name_translations', $errors, 10))->toBeNull()
+        ->and(codesOf($errors))->toBe(['name_translations.es-ES' => ['translations.too_long']]);
+
+    $errors = new ValidationErrorBag;
+
+    expect(validatorFor('es-ES', ['es-ES'])->validateForPatch(['es-ES' => str_repeat('a', 10)], ['es-ES' => 'Lengua'], 'name_translations', $errors, 10))->toBe(['es-ES' => str_repeat('a', 10)]);
+});
+
+test('CA-ACAD-009 (#413): la longitud se cuenta en caracteres, no en bytes, y sobre el valor ya recortado', function (): void {
+    $errors = new ValidationErrorBag;
+
+    $result = validatorFor('es-ES', ['es-ES'])->validateForCreate(['es-ES' => '  '.str_repeat('ñ', 10).'  '], 'name_translations', $errors, 10);
+
+    expect($errors->isEmpty())->toBeTrue()
+        ->and($result)->toBe(['es-ES' => str_repeat('ñ', 10)]);
+});
+
+test('CA-ACAD-009 (#413): miles de claves desconocidas producen como máximo MAX_UNKNOWN_KEY_ERRORS errores, en alta y en PATCH', function (): void {
+    $keys = [];
+
+    for ($i = 0; $i < 3000; $i++) {
+        $keys["clave-{$i}"] = 'x';
+    }
+
+    $errors = new ValidationErrorBag;
+    validatorFor('es-ES', ['es-ES'])->validateForCreate(['es-ES' => 'Lengua'] + $keys, 'name_translations', $errors, 100);
+
+    expect($errors->toArray())->toHaveCount(TranslationsValidator::MAX_UNKNOWN_KEY_ERRORS);
+
+    $errors = new ValidationErrorBag;
+    validatorFor('es-ES', ['es-ES'])->validateForPatch($keys, ['es-ES' => 'Lengua'], 'name_translations', $errors, 100);
+
+    expect($errors->toArray())->toHaveCount(TranslationsValidator::MAX_UNKNOWN_KEY_ERRORS);
+});
+
+test('CA-ACAD-009 (#413): la clave desconocida que se ecoa (campo y params.locale) se acota en longitud', function (): void {
+    $errors = new ValidationErrorBag;
+    $long = str_repeat('k', 5000);
+
+    validatorFor('es-ES', ['es-ES'])->validateForCreate(['es-ES' => 'Lengua', $long => 'x'], 'name_translations', $errors, 100);
+
+    $entries = $errors->toArray();
+    $field = array_key_first($entries);
+
+    expect(mb_strlen($field))->toBeLessThanOrEqual(mb_strlen('name_translations.') + 16)
+        ->and(mb_strlen($entries[$field][0]['params']['locale']))->toBe(16)
+        ->and(strlen(json_encode($entries)))->toBeLessThan(1000);
+});
+
+test('CA-ACAD-009 INV-009 (#413): translations.too_long existe en los cuatro idiomas con :locale y :max', function (): void {
+    foreach (['es', 'en', 'de', 'fr'] as $locale) {
+        $message = __('translations.too_long', ['locale' => 'xx', 'max' => 77], $locale);
+
+        expect($message)->not->toBe('translations.too_long')->and($message)->toContain('xx')->and($message)->toContain('77');
     }
 });
