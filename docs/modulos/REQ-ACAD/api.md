@@ -173,6 +173,7 @@ No hay. No se declara `estructura_academica.exportar` (`permisos.md §2.1`).
 | `urn:pge:error:validation` | 422 | `translations.default_locale_required` | **Código común** (`ADR-062 §5.2` punto 4, no de `acad`): falta, o se quita en `PATCH`, el idioma por defecto del centro |
 | `urn:pge:error:validation` | 422 | `translations.locale_not_active` | Código común: clave de un idioma no activo en el centro |
 | `urn:pge:error:validation` | 422 | `translations.empty_value` | Código común: valor vacío tras recortar |
+| `urn:pge:error:validation` | 422 | `translations.invalid_characters` | Código común (añadido en `1.11-a`): el valor contiene NUL, controles C0 (salvo tabulación y saltos de línea), DEL o UTF-8 inválido; PostgreSQL no puede guardarlo en `jsonb` |
 | `urn:pge:error:validation` | 422 | `acad.validation.name_required` | Nombre vacío (grupo, subgrupo; no traducible) |
 | `urn:pge:error:validation` | 422 | `acad.validation.stage_invalid` | `RN-ACAD-10` |
 | `urn:pge:error:validation` | 422 | `acad.validation.regime_invalid` | `RN-ACAD-11` |
