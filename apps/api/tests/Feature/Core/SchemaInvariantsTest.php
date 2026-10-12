@@ -32,7 +32,13 @@ use Illuminate\Support\Facades\DB;
 // reenviada contra otra petición viva lo produce la violación de este
 // índice, no una lectura previa (`RN-AUTH-122`, `CA-AUTH-344`) — parcial
 // dejaría reutilizar un `assertion_id` ya visto en cuanto su fila se
-// borrara lógicamente.
+// borrara lógicamente. Y, desde 1.11-b (REQ-ACAD/datos.md §1.1-§1.5), los
+// cinco destinos de las claves foráneas de tres columnas de `acad`
+// (`(tenant_id, academic_year_id, id)` y `(tenant_id, course_id, id)`):
+// no parciales a propósito (`ADR-034 §6`, «las de destino de FK no son
+// parciales»), porque una clave foránea solo puede apuntar a una restricción
+// única completa y la FK debe seguir resolviendo un padre ya borrado
+// lógicamente en filas históricas.
 test('toda restricción única sobre tabla con borrado lógico es parcial, salvo las dos excepciones de ADR-034 §6', function (): void {
     $namedExceptions = [
         'user_invitations_tenant_token_unique',
@@ -41,6 +47,11 @@ test('toda restricción única sobre tabla con borrado lógico es parcial, salvo
         'user_mfa_recovery_codes_tenant_hash_unique',
         'saml_auth_requests_tenant_request_id_unique',
         'saml_consumed_assertions_tenant_provider_assertion_unique',
+        'education_levels_tenant_year_id_unique',
+        'courses_tenant_year_id_unique',
+        'groups_tenant_year_id_unique',
+        'groups_tenant_course_id_unique',
+        'subjects_tenant_course_id_unique',
     ];
 
     $tablesWithDeletedAt = collect(DB::select(<<<'SQL'
@@ -86,6 +97,11 @@ test('ninguna columna academic_year_id es nullable', function (): void {
 // (c) Toda columna *_id que referencia una tabla de tenant lleva clave
 // foránea COMPUESTA (tenant_id, columna) — nunca una FK simple, que RLS
 // no protege desde el otro lado (ADR-033 §6).
+// Desde 1.11-b también vale una FK de tres o más columnas que incluya
+// `tenant_id` y la columna (REQ-ACAD/datos.md §1.2: `(tenant_id,
+// academic_year_id, education_level_id)` hacia el padre del mismo curso
+// académico, RN-CURSO-27): sigue siendo composite con tenant_id, que es lo
+// que esta regla protege.
 test('toda columna *_id de una tabla de tenant tiene FK compuesta con tenant_id', function (): void {
     // Solo bigint: una FK interna real siempre es bigint (ADR-029), que es
     // como se filtran solas las columnas *_id que no son referencias —
@@ -115,7 +131,11 @@ test('toda columna *_id de una tabla de tenant tiene FK compuesta con tenant_id'
         SELECT conrelid::regclass::text AS table_name, a.attname AS column_name
         FROM pg_constraint con
         JOIN pg_attribute a ON a.attnum = ANY (con.conkey) AND a.attrelid = con.conrelid
-        WHERE con.contype = 'f' AND array_length(con.conkey, 1) = 2 AND a.attname <> 'tenant_id'
+        WHERE con.contype = 'f' AND array_length(con.conkey, 1) >= 2 AND a.attname <> 'tenant_id'
+          AND EXISTS (
+              SELECT 1 FROM pg_attribute t
+              WHERE t.attrelid = con.conrelid AND t.attname = 'tenant_id' AND t.attnum = ANY (con.conkey)
+          )
         SQL))->map(fn ($row) => "{$row->table_name}.{$row->column_name}");
 
     foreach ($candidates as $candidate) {
