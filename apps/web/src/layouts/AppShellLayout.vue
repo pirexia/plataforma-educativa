@@ -112,14 +112,21 @@ function onLogoError(url: string): void {
         </span>
       </RouterLink>
 
-      <div class="ml-auto flex min-w-0 items-center gap-2">
-        <!-- REQ-ACAD §10.2: solo en rutas con `meta.academicYearScoped` y con la vista montada. -->
-        <AcademicYearSelector
-          v-if="status !== 'loading' && !forbidden && moduleUnavailableDetail === null"
-        />
+      <div class="ml-auto flex items-center gap-2">
         <AppUserMenu />
       </div>
     </header>
+
+    <!--
+      REQ-ACAD §10.2: el selector de curso académico es una franja propia bajo la
+      barra superior (solo en rutas con `meta.academicYearScoped`): a 320 px no
+      cabe junto al menú, el logo y la cuenta sin desplazamiento horizontal
+      (WCAG 1.4.10).
+    -->
+    <AcademicYearSelector
+      v-if="status !== 'loading' && !forbidden && moduleUnavailableDetail === null"
+      class="border-border bg-background border-b px-4 py-2 lg:px-6"
+    />
 
     <!--
       RN-CORE-30: ≥1024 el contenido usa el ancho disponible (crece con

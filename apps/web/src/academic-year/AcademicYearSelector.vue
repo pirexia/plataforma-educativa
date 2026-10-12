@@ -70,23 +70,23 @@ function onSelect(value: unknown): void {
   <div
     v-if="visible"
     data-slot="academic-year-selector"
-    class="flex min-w-0 items-center gap-2 text-sm"
+    class="flex min-w-0 flex-wrap items-center gap-2 text-sm"
   >
-    <Label for="academic-year-select" class="max-sm:sr-only">
+    <Label for="academic-year-select">
       {{ t('academicYear.selector.label') }}
     </Label>
 
     <p
       v-if="isPinned && selected"
       id="academic-year-select"
-      class="truncate font-medium"
+      class="min-w-0 font-medium break-words"
       data-slot="academic-year-pinned"
     >
       {{ optionLabel(selected.code, selected.status) }}
     </p>
 
     <Select v-else :model-value="selectedId ?? ''" @update:model-value="onSelect">
-      <SelectTrigger id="academic-year-select" class="min-w-40 max-sm:min-w-32">
+      <SelectTrigger id="academic-year-select" class="min-w-40 max-w-full">
         <SelectValue :placeholder="t('academicYear.selector.placeholder')" />
       </SelectTrigger>
       <SelectContent>
