@@ -175,12 +175,13 @@ No hay. No se declara `estructura_academica.exportar` (`permisos.md §2.1`).
 | `urn:pge:error:validation` | 422 | `translations.empty_value` | Código común: valor vacío tras recortar |
 | `urn:pge:error:validation` | 422 | `translations.invalid_characters` | Código común (añadido en `1.11-a`): el valor contiene NUL, controles C0 (salvo tabulación y saltos de línea), DEL o UTF-8 inválido; PostgreSQL no puede guardarlo en `jsonb` |
 | `urn:pge:error:validation` | 422 | `translations.too_long` | Código común (añadido en `1.11-a`, #413): el valor supera la longitud máxima (en caracteres, tras recortar) que declara el módulo; cada módulo pasa `maxLength` al validador |
+| `urn:pge:error:validation` | 422 | `acad.validation.invalid_characters` | `code` o `name` (texto simple) con NUL, controles C0 (salvo tabulación y saltos de línea), DEL o UTF-8 inválido, antes de recortar; además, `code` con saltos de línea. Añadido en la ronda de revisión de `1.11-b` (S-2): el código común `translations.invalid_characters` es por idioma y no encaja con un texto simple. Los parámetros de consulta y `public_id` con esos caracteres son `422` (`core.validation.plain_text`) o se tratan como inexistentes |
 | `urn:pge:error:validation` | 422 | `acad.validation.name_required` | Nombre vacío (grupo, subgrupo; no traducible) |
 | `urn:pge:error:validation` | 422 | `acad.validation.stage_invalid` | `RN-ACAD-10` |
 | `urn:pge:error:validation` | 422 | `acad.validation.regime_invalid` | `RN-ACAD-11` |
 | `urn:pge:error:validation` | 422 | `acad.validation.position_invalid` | `position < 1` |
 | `urn:pge:error:validation` | 422 | `acad.validation.academic_year_required` | Alta de etapa sin `academic_year` |
-| `urn:pge:error:validation` | 422 | `acad.validation.academic_year_not_found` | `academic_year` del cuerpo inexistente o de otro centro |
+| `urn:pge:error:validation` | 422 | `acad.validation.academic_year_not_found` | `academic_year` del cuerpo inexistente, de otro centro o de un curso de solo lectura que el usuario no puede leer (sin `curso_historico.leer`; indistinguible de uno inexistente) |
 | `urn:pge:error:validation` | 422 | `acad.validation.academic_year_not_allowed` | `academic_year` en el alta de un hijo (`RN-ACAD-05`) |
 | `urn:pge:error:validation` | 422 | `acad.validation.parent_not_found` | Padre **del cuerpo** (`education_level`, `course`) ausente, inexistente, borrado o de otro centro, o de un curso de solo lectura que el usuario no puede leer (sin `curso_historico.leer`; indistinguible de uno inexistente). Un padre **de la ruta** (`/groups/{public_id}/…`) en esa situación es `404`, no este código |
 | `urn:pge:error:validation` | 422 | `acad.validation.parent_immutable` | `PATCH` con padre o curso académico (`RN-ACAD-06`) |

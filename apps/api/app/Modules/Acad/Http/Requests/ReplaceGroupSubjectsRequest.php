@@ -2,6 +2,8 @@
 
 namespace App\Modules\Acad\Http\Requests;
 
+use App\Modules\Acad\Http\Requests\Rules\PlainText;
+
 /**
  * REQ-ACAD/api.md §2.1, `PUT /groups/{public_id}/subjects`:
  * `{"subjects": ["<public_id>", …]}`. Lista vacía = quitar todas.
@@ -15,7 +17,7 @@ class ReplaceGroupSubjectsRequest extends StructureRequest
     {
         return [
             'subjects' => ['present', 'array'],
-            'subjects.*' => ['string'],
+            'subjects.*' => ['string', new PlainText],
         ];
     }
 

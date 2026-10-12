@@ -29,6 +29,7 @@ return [
 
     'validation' => [
         'code_required' => 'Der Code ist erforderlich.',
+        'invalid_characters' => 'Der Text enthält unzulässige Steuerzeichen oder Zeilenumbrüche an unzulässiger Stelle.',
         'code_taken' => 'Unter den gleichrangigen Elementen existiert bereits ein Element mit diesem Code.',
         'name_required' => 'Der Name ist erforderlich.',
         'stage_invalid' => 'Die Stufenart ist ungültig.',

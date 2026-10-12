@@ -408,3 +408,68 @@ test('CA-ACAD-004 RN-ACAD-01: reintentar un alta con el mismo código produce 42
     expect(acadPost($tenant, $admin, '/groups', $body)->assertStatus(422)->json('errors.code.0.code'))->toBe('acad.validation.code_taken');
     expect(app(TenantContext::class)->runFor($tenant->id, fn () => DB::table('groups')->where('code', 'DUP')->count()))->toBe(1);
 });
+
+test('S-2 REQ-ACAD-001: code y name rechazan NUL, controles, DEL y, en code, saltos de línea (422 invalid_characters, antes del trim); un NUL interior ya no da 500', function (): void {
+    [$tenant, $admin, $year] = Api::setup('acad-s2');
+    $tree = Api::tree($tenant, $admin, $year);
+
+    $bodies = [
+        '/education-levels' => ['academic_year' => $year->public_id, 'name_translations' => ['es-ES' => 'X'], 'stage' => 'eso', 'regime' => 'publico'],
+        '/courses' => ['education_level' => $tree['level'], 'name_translations' => ['es-ES' => 'X']],
+        '/groups' => ['course' => $tree['course'], 'name' => 'X'],
+        "/groups/{$tree['group']}/subgroups" => ['name' => 'X'],
+        '/subjects' => ['course' => $tree['course'], 'name_translations' => ['es-ES' => 'X']],
+    ];
+
+    foreach ($bodies as $path => $body) {
+        foreach (["A\u{0000}B", "A\u{0007}", "A\u{007F}", "A\nB", "A\r\nB", "\u{0000}"] as $code) {
+            $response = acadPost($tenant, $admin, $path, $body + ['code' => $code])->assertStatus(422);
+
+            expect($response->json('errors.code.0.code'))->toBe('acad.validation.invalid_characters', $path.' '.json_encode($code));
+        }
+
+        // La tabulación sí es un carácter admitido.
+        acadPost($tenant, $admin, $path, $body + ['code' => "T\tab".random_int(1, 99999)])->assertCreated();
+    }
+
+    foreach (['/groups' => ['course' => $tree['course'], 'code' => 'N1'], "/groups/{$tree['group']}/subgroups" => ['code' => 'N2']] as $path => $body) {
+        expect(acadPost($tenant, $admin, $path, $body + ['name' => "A\u{0000}B"])->assertStatus(422)->json('errors.name.0.code'))->toBe('acad.validation.invalid_characters');
+        // El nombre simple admite saltos de línea.
+        acadPost($tenant, $admin, $path, $body + ['name' => "Línea 1\nLínea 2"])->assertCreated();
+    }
+
+    foreach (["/groups/{$tree['group']}" => 'name', "/subgroups/{$tree['subgroup']}" => 'code', "/subjects/{$tree['subject']}" => 'code', "/courses/{$tree['course']}" => 'code', "/education-levels/{$tree['level']}" => 'code'] as $path => $field) {
+        resetSessionState();
+        expect(test()->actingAs($admin)->patchJson(Api::url($tenant, $path), [$field => "A\u{0000}B"])->assertStatus(422)->json("errors.{$field}.0.code"))->toBe('acad.validation.invalid_characters', $path);
+    }
+
+    // Padres, curso del cuerpo, parámetros de consulta y public_id del PUT con NUL: 422/404, nunca 500.
+    expect(acadPost($tenant, $admin, '/courses', ['education_level' => "01\u{0000}X", 'code' => 'Q', 'name_translations' => ['es-ES' => 'Q']])->assertStatus(422)->json('errors.education_level.0.code'))->toBe('acad.validation.parent_not_found');
+    expect(acadPost($tenant, $admin, '/education-levels', ['academic_year' => "01\u{0000}X", 'code' => 'Q', 'name_translations' => ['es-ES' => 'Q'], 'stage' => 'eso', 'regime' => 'publico'])->assertStatus(422)->json('errors.academic_year.0.code'))->toBe('acad.validation.academic_year_not_found');
+
+    foreach (['/education-levels?academic_year=%00', "/courses?academic_year={$year->public_id}&education_level=a%00b", '/groups?course=%00', '/subjects?education_level=%00'] as $url) {
+        resetSessionState();
+        test()->actingAs($admin)->getJson(Api::url($tenant, $url))->assertStatus(422);
+    }
+
+    resetSessionState();
+    test()->actingAs($admin)->putJson(Api::url($tenant, "/groups/{$tree['group']}/subjects"), ['subjects' => ["01\u{0000}"]])->assertStatus(422);
+    resetSessionState();
+    test()->actingAs($admin)->getJson(Api::url($tenant, '/groups/%00/subgroups'))->assertNotFound();
+});
+
+test('S-3 CA-ACAD-007: un academic_year del cuerpo de una etapa en un curso cerrado ilegible es 422 academic_year_not_found, igual que uno inexistente', function (): void {
+    [$tenant, $admin, $year] = Api::setup('acad-s3');
+    CursoTestHelpers::setStatus($tenant, $year, AcademicYearStatus::Cerrado);
+    $writer = Api::userWith($tenant, $admin, 'escritor3', ['estructura_academica.leer', 'estructura_academica.crear']);
+    $historian = Api::userWith($tenant, $admin, 'historiador3', ['estructura_academica.leer', 'estructura_academica.crear', 'curso_historico.leer']);
+    $body = ['code' => 'N', 'name_translations' => ['es-ES' => 'N'], 'stage' => 'eso', 'regime' => 'publico'];
+
+    $denied = acadPost($tenant, $writer, '/education-levels', $body + ['academic_year' => $year->public_id])->assertStatus(422);
+    $missing = acadPost($tenant, $writer, '/education-levels', $body + ['academic_year' => '01JA0000000000000000000099'])->assertStatus(422);
+
+    expect($denied->json('errors'))->toBe($missing->json('errors'))
+        ->and($denied->json('errors.academic_year.0.code'))->toBe('acad.validation.academic_year_not_found');
+    // Con curso_historico.leer lo ve y el disparador lo rechaza.
+    expect(acadPost($tenant, $historian, '/education-levels', $body + ['academic_year' => $year->public_id])->assertStatus(409)->json('type'))->toBe('urn:pge:error:academic-year-closed');
+});

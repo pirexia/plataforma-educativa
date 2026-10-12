@@ -19,10 +19,47 @@ final class StructureFields
 
     public const REGIMES = ['publico', 'privado', 'concertado'];
 
-    /** `RN-ACAD-01`: obligatorio, recortado, no vacío. */
+    /** Controles C0 salvo tabulación, salto de línea y retorno de carro, y DEL (`TranslationsValidator`). */
+    private const CONTROL_CHARACTERS = '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/';
+
+    /**
+     * ¿Es un texto que PostgreSQL puede guardar y comparar? UTF-8 válido y sin
+     * NUL ni controles (`S-2`): un NUL interior en un parámetro es un error de
+     * motor (`22021`), es decir, un `500`.
+     */
+    public static function isSafeText(string $value): bool
+    {
+        return mb_check_encoding($value, 'UTF-8') && preg_match(self::CONTROL_CHARACTERS, $value) !== 1;
+    }
+
+    /**
+     * Texto simple de una línea o varias, antes de recortar: devuelve `null` y
+     * añade `acad.validation.invalid_characters` si lleva caracteres no
+     * guardables (o, con `$singleLine`, saltos de línea).
+     */
+    private static function plainText(mixed $value, string $field, bool $singleLine, ValidationErrorBag $errors): ?string
+    {
+        if (! is_string($value)) {
+            return '';
+        }
+
+        if (! self::isSafeText($value) || ($singleLine && preg_match('/[\r\n]/', $value) === 1)) {
+            $errors->add($field, 'acad.validation.invalid_characters', 'acad.validation.invalid_characters');
+
+            return null;
+        }
+
+        return trim($value);
+    }
+
+    /** `RN-ACAD-01`: obligatorio, recortado, no vacío, una sola línea y sin caracteres de control. */
     public static function code(mixed $value, ValidationErrorBag $errors): ?string
     {
-        $code = is_string($value) ? trim($value) : '';
+        $code = self::plainText($value, 'code', true, $errors);
+
+        if ($code === null) {
+            return null;
+        }
 
         if ($code === '') {
             $errors->add('code', 'acad.validation.code_required', 'acad.validation.code_required');
@@ -33,10 +70,14 @@ final class StructureFields
         return $code;
     }
 
-    /** `RN-ACAD-03`: nombre simple de grupo y subgrupo, obligatorio. */
+    /** `RN-ACAD-03`: nombre simple de grupo y subgrupo, obligatorio y sin caracteres de control. */
     public static function name(mixed $value, ValidationErrorBag $errors): ?string
     {
-        $name = is_string($value) ? trim($value) : '';
+        $name = self::plainText($value, 'name', false, $errors);
+
+        if ($name === null) {
+            return null;
+        }
 
         if ($name === '') {
             $errors->add('name', 'acad.validation.name_required', 'acad.validation.name_required');
@@ -113,7 +154,7 @@ final class StructureFields
     /** `parent_not_found` para un padre del cuerpo ausente o que no es una cadena. */
     public static function parentReference(mixed $value, string $field, ValidationErrorBag $errors): ?string
     {
-        if (! is_string($value) || trim($value) === '') {
+        if (! is_string($value) || trim($value) === '' || ! self::isSafeText($value)) {
             $errors->add($field, 'acad.validation.parent_not_found', 'acad.validation.parent_not_found');
 
             return null;

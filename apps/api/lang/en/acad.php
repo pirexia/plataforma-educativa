@@ -29,6 +29,7 @@ return [
 
     'validation' => [
         'code_required' => 'The code is required.',
+        'invalid_characters' => 'The text contains control characters that are not allowed, or line breaks where they are not permitted.',
         'code_taken' => 'An item with that code already exists among its siblings.',
         'name_required' => 'The name is required.',
         'stage_invalid' => 'The stage type is not valid.',

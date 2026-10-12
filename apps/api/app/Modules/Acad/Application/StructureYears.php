@@ -68,9 +68,9 @@ final class StructureYears
     }
 
     /**
-     * Curso que llega en el cuerpo del alta de una etapa. Inexistente o de
-     * otro centro ⇒ `null` (el llamador responde `422 academic_year_not_found`);
-     * de solo lectura sin `curso_historico.leer` ⇒ `404`.
+     * Curso que llega en el cuerpo del alta de una etapa. Inexistente, de otro
+     * centro o de solo lectura sin `curso_historico.leer` ⇒ `null` (el
+     * llamador responde `422 academic_year_not_found`, indistinguible, `S-3`).
      */
     public function fromBody(string $publicId, User $actor): ?AcademicYearSummary
     {
@@ -80,7 +80,11 @@ final class StructureYears
             return null;
         }
 
-        $this->readAccess->assertCanRead($year, $actor);
+        try {
+            $this->readAccess->assertCanRead($year, $actor);
+        } catch (AcademicYearReadDeniedException) {
+            return null;
+        }
 
         return $year;
     }

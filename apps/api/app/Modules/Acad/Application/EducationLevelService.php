@@ -36,7 +36,7 @@ final class EducationLevelService
      */
     public function create(array $input, User $actor): EducationLevel
     {
-        $year = $this->years->fromBody($input['academic_year'], $actor);
+        $year = StructureFields::isSafeText($input['academic_year']) ? $this->years->fromBody($input['academic_year'], $actor) : null;
 
         if ($year === null) {
             throw StructureErrors::invalid('academic_year', 'acad.validation.academic_year_not_found');

@@ -28,6 +28,7 @@ return [
 
     'validation' => [
         'code_required' => 'El código es obligatorio.',
+        'invalid_characters' => 'El texto contiene caracteres de control no permitidos o saltos de línea donde no se admiten.',
         'code_taken' => 'Ya existe un elemento con ese código entre sus hermanos.',
         'name_required' => 'El nombre es obligatorio.',
         'stage_invalid' => 'El tipo de etapa no es válido.',

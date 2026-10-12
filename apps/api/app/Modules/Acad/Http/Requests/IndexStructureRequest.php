@@ -3,6 +3,7 @@
 namespace App\Modules\Acad\Http\Requests;
 
 use App\Http\Requests\ApiFormRequest;
+use App\Modules\Acad\Http\Requests\Rules\PlainText;
 use Illuminate\Validation\Rule;
 
 /**
@@ -26,7 +27,7 @@ abstract class IndexStructureRequest extends ApiFormRequest
     public function rules(): array
     {
         return [
-            'academic_year' => ['sometimes', 'string'],
+            'academic_year' => ['sometimes', 'string', new PlainText],
             'sort' => ['sometimes', Rule::in(self::SORTS)],
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
