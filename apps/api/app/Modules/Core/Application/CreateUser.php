@@ -177,7 +177,7 @@ final class CreateUser
                 continue;
             }
 
-            if (! $this->permissions->ownsScope($actor, $grant->permission_code, $scope)) {
+            if (! $this->permissions->canGrant($actor, $grant->permission_code, $scope)) {
                 return ['code' => $grant->permission_code, 'scope' => $scope->value];
             }
         }

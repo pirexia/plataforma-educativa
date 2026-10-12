@@ -1,0 +1,175 @@
+{
+  "acad": {
+    "nav": {
+      "structure": "Estructura académica",
+      "backToStructure": "Volver a la estructura académica",
+      "backToLevel": "Volver a la etapa {code}",
+      "backToLevelGeneric": "Volver a la etapa",
+      "backToCourse": "Volver al curso {code}",
+      "backToCourseGeneric": "Volver al curso"
+    },
+    "readOnly": "Este curso académico es de solo lectura: no se puede crear, modificar ni borrar su estructura.",
+    "fields": {
+      "code": "Código",
+      "name": "Nombre",
+      "stage": "Tipo de etapa",
+      "regime": "Régimen",
+      "position": "Posición",
+      "actions": "Acciones"
+    },
+    "stage": {
+      "infantil": "Educación Infantil",
+      "primaria": "Educación Primaria",
+      "eso": "Educación Secundaria Obligatoria",
+      "bachillerato": "Bachillerato",
+      "fp": "Formación Profesional",
+      "universidad": "Universidad"
+    },
+    "regime": {
+      "publico": "Público",
+      "privado": "Privado",
+      "concertado": "Concertado"
+    },
+    "dependents": {
+      "courses": "Cursos de etapa",
+      "groups": "Grupos",
+      "subjects": "Asignaturas",
+      "subgroups": "Subgrupos",
+      "group_subjects": "Asignaturas asignadas a grupos"
+    },
+    "structure": {
+      "title": "Estructura académica",
+      "intro": "Etapas, cursos, grupos, subgrupos y asignaturas del curso académico seleccionado.",
+      "caption": "Etapas del curso académico",
+      "new": "Nueva etapa",
+      "filters": {
+        "stage": "Tipo de etapa",
+        "regime": "Régimen"
+      },
+      "empty": {
+        "title": "Este curso académico no tiene etapas",
+        "text": "Crea la primera etapa para empezar a definir la estructura."
+      },
+      "noActive": {
+        "title": "No hay un curso académico activo",
+        "text": "Elige un curso académico en el selector de la barra superior para consultar su estructura."
+      }
+    },
+    "level": {
+      "title": "Etapa",
+      "courses": "Cursos de la etapa",
+      "coursesCaption": "Cursos de la etapa",
+      "newCourse": "Nuevo curso",
+      "noCourses": "Esta etapa no tiene cursos"
+    },
+    "course": {
+      "title": "Curso",
+      "groups": "Grupos",
+      "groupsCaption": "Grupos del curso",
+      "newGroup": "Nuevo grupo",
+      "noGroups": "Este curso no tiene grupos",
+      "subjects": "Asignaturas",
+      "subjectsCaption": "Asignaturas del curso",
+      "newSubject": "Nueva asignatura",
+      "noSubjects": "Este curso no tiene asignaturas"
+    },
+    "group": {
+      "title": "Grupo",
+      "subjects": "Asignaturas que cursa",
+      "editSubjects": "Editar asignaturas",
+      "chooseSubjects": "Asignaturas del curso que cursa este grupo",
+      "noAvailable": "El curso no tiene asignaturas que asignar.",
+      "noSubjects": "Este grupo no cursa ninguna asignatura.",
+      "subgroups": "Subgrupos",
+      "subgroupsCaption": "Subgrupos del grupo",
+      "newSubgroup": "Nuevo subgrupo",
+      "noSubgroups": "Este grupo no tiene subgrupos"
+    },
+    "subject": {
+      "title": "Asignatura",
+      "groups": "Grupos que la cursan",
+      "noGroups": "Ningún grupo cursa esta asignatura."
+    },
+    "detail": {
+      "actions": "Acciones",
+      "data": "Datos",
+      "edit": "Editar",
+      "delete": "Borrar"
+    },
+    "form": {
+      "close": "Cerrar",
+      "cancel": "Cancelar",
+      "create": "Crear",
+      "save": "Guardar",
+      "choose": "Elige una opción",
+      "description": "Los campos obligatorios están marcados. El curso académico y el elemento superior no se pueden cambiar después.",
+      "positionHint": "Opcional. Si se deja vacío, queda al final.",
+      "title": {
+        "create": {
+          "level": "Nueva etapa",
+          "course": "Nuevo curso",
+          "subject": "Nueva asignatura",
+          "group": "Nuevo grupo",
+          "subgroup": "Nuevo subgrupo"
+        },
+        "edit": {
+          "level": "Editar etapa",
+          "course": "Editar curso",
+          "subject": "Editar asignatura",
+          "group": "Editar grupo",
+          "subgroup": "Editar subgrupo"
+        }
+      },
+      "errors": {
+        "defaultLocaleRequired": "Falta el nombre en el idioma por defecto del centro."
+      }
+    },
+    "confirm": {
+      "delete": {
+        "confirm": "Borrar {code}",
+        "level": {
+          "title": "Borrar la etapa {code}",
+          "description": "La etapa se borra del curso académico. No se puede borrar si tiene cursos."
+        },
+        "course": {
+          "title": "Borrar el curso {code}",
+          "description": "El curso se borra del curso académico. No se puede borrar si tiene grupos o asignaturas."
+        },
+        "group": {
+          "title": "Borrar el grupo {code}",
+          "description": "El grupo se borra. No se puede borrar si tiene subgrupos o asignaturas asignadas."
+        },
+        "subgroup": {
+          "title": "Borrar el subgrupo {code}",
+          "description": "El subgrupo se borra del grupo."
+        },
+        "subject": {
+          "title": "Borrar la asignatura {code}",
+          "description": "La asignatura se borra. No se puede borrar si está asignada a algún grupo."
+        }
+      }
+    },
+    "flash": {
+      "levelCreated": "Etapa creada.",
+      "levelUpdated": "Etapa actualizada.",
+      "levelDeleted": "Etapa borrada.",
+      "courseCreated": "Curso creado.",
+      "courseUpdated": "Curso actualizado.",
+      "courseDeleted": "Curso borrado.",
+      "groupCreated": "Grupo creado.",
+      "groupUpdated": "Grupo actualizado.",
+      "groupDeleted": "Grupo borrado.",
+      "subgroupCreated": "Subgrupo creado.",
+      "subgroupUpdated": "Subgrupo actualizado.",
+      "subgroupDeleted": "Subgrupo borrado.",
+      "subjectCreated": "Asignatura creada.",
+      "subjectUpdated": "Asignatura actualizada.",
+      "subjectDeleted": "Asignatura borrada.",
+      "subjectsAssigned": "Asignaturas del grupo actualizadas."
+    },
+    "errors": {
+      "unexpected": "No se pudo completar la acción. Inténtalo de nuevo.",
+      "dependentsTitle": "Elementos que lo impiden:"
+    }
+  }
+}

@@ -15,6 +15,7 @@ import router from '@/router'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { useT } from '@/i18n'
+import { AcademicYearSelector } from '@/academic-year'
 import { useTenantBranding } from '@/tenant/useTenantBranding'
 import { reloadSession, useSession } from '@/session/useSession'
 import { hasAnyPermission, visibleNavigationEntries } from '@/navigation/registry'
@@ -115,6 +116,17 @@ function onLogoError(url: string): void {
         <AppUserMenu />
       </div>
     </header>
+
+    <!--
+      REQ-ACAD §10.2: el selector de curso académico es una franja propia bajo la
+      barra superior (solo en rutas con `meta.academicYearScoped`): a 320 px no
+      cabe junto al menú, el logo y la cuenta sin desplazamiento horizontal
+      (WCAG 1.4.10).
+    -->
+    <AcademicYearSelector
+      v-if="status !== 'loading' && !forbidden && moduleUnavailableDetail === null"
+      class="border-border bg-background border-b px-4 py-2 lg:px-6"
+    />
 
     <!--
       RN-CORE-30: ≥1024 el contenido usa el ancho disponible (crece con

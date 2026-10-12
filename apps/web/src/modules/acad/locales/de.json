@@ -1,0 +1,175 @@
+{
+  "acad": {
+    "nav": {
+      "structure": "Akademische Struktur",
+      "backToStructure": "Zurück zur akademischen Struktur",
+      "backToLevel": "Zurück zur Stufe {code}",
+      "backToLevelGeneric": "Zurück zur Stufe",
+      "backToCourse": "Zurück zum Jahrgang {code}",
+      "backToCourseGeneric": "Zurück zum Jahrgang"
+    },
+    "readOnly": "Dieses Schuljahr ist schreibgeschützt: Seine Struktur kann nicht angelegt, geändert oder gelöscht werden.",
+    "fields": {
+      "code": "Kürzel",
+      "name": "Name",
+      "stage": "Stufenart",
+      "regime": "Trägerschaft",
+      "position": "Position",
+      "actions": "Aktionen"
+    },
+    "stage": {
+      "infantil": "Frühkindliche Bildung",
+      "primaria": "Primarstufe",
+      "eso": "Pflichtsekundarstufe (ESO)",
+      "bachillerato": "Oberstufe (Bachillerato)",
+      "fp": "Berufsbildung",
+      "universidad": "Universität"
+    },
+    "regime": {
+      "publico": "Öffentlich",
+      "privado": "Privat",
+      "concertado": "Staatlich gefördert"
+    },
+    "dependents": {
+      "courses": "Jahrgänge",
+      "groups": "Gruppen",
+      "subjects": "Fächer",
+      "subgroups": "Untergruppen",
+      "group_subjects": "Gruppen zugeordnete Fächer"
+    },
+    "structure": {
+      "title": "Akademische Struktur",
+      "intro": "Stufen, Jahrgänge, Gruppen, Untergruppen und Fächer des gewählten Schuljahres.",
+      "caption": "Stufen des Schuljahres",
+      "new": "Neue Stufe",
+      "filters": {
+        "stage": "Stufenart",
+        "regime": "Trägerschaft"
+      },
+      "empty": {
+        "title": "Dieses Schuljahr hat keine Stufen",
+        "text": "Legen Sie die erste Stufe an, um die Struktur zu definieren."
+      },
+      "noActive": {
+        "title": "Es gibt kein aktives Schuljahr",
+        "text": "Wählen Sie in der Auswahl der oberen Leiste ein Schuljahr, um seine Struktur anzuzeigen."
+      }
+    },
+    "level": {
+      "title": "Stufe",
+      "courses": "Jahrgänge der Stufe",
+      "coursesCaption": "Jahrgänge der Stufe",
+      "newCourse": "Neuer Jahrgang",
+      "noCourses": "Diese Stufe hat keine Jahrgänge"
+    },
+    "course": {
+      "title": "Jahrgang",
+      "groups": "Gruppen",
+      "groupsCaption": "Gruppen des Jahrgangs",
+      "newGroup": "Neue Gruppe",
+      "noGroups": "Dieser Jahrgang hat keine Gruppen",
+      "subjects": "Fächer",
+      "subjectsCaption": "Fächer des Jahrgangs",
+      "newSubject": "Neues Fach",
+      "noSubjects": "Dieser Jahrgang hat keine Fächer"
+    },
+    "group": {
+      "title": "Gruppe",
+      "subjects": "Belegte Fächer",
+      "editSubjects": "Fächer bearbeiten",
+      "chooseSubjects": "Fächer des Jahrgangs, die diese Gruppe belegt",
+      "noAvailable": "Der Jahrgang hat keine zuzuordnenden Fächer.",
+      "noSubjects": "Diese Gruppe belegt keine Fächer.",
+      "subgroups": "Untergruppen",
+      "subgroupsCaption": "Untergruppen der Gruppe",
+      "newSubgroup": "Neue Untergruppe",
+      "noSubgroups": "Diese Gruppe hat keine Untergruppen"
+    },
+    "subject": {
+      "title": "Fach",
+      "groups": "Gruppen, die es belegen",
+      "noGroups": "Keine Gruppe belegt dieses Fach."
+    },
+    "detail": {
+      "actions": "Aktionen",
+      "data": "Angaben",
+      "edit": "Bearbeiten",
+      "delete": "Löschen"
+    },
+    "form": {
+      "close": "Schließen",
+      "cancel": "Abbrechen",
+      "create": "Anlegen",
+      "save": "Speichern",
+      "choose": "Option auswählen",
+      "description": "Pflichtfelder sind gekennzeichnet. Schuljahr und übergeordnetes Element können später nicht geändert werden.",
+      "positionHint": "Optional. Wenn leer, wird es ans Ende gesetzt.",
+      "title": {
+        "create": {
+          "level": "Neue Stufe",
+          "course": "Neuer Jahrgang",
+          "subject": "Neues Fach",
+          "group": "Neue Gruppe",
+          "subgroup": "Neue Untergruppe"
+        },
+        "edit": {
+          "level": "Stufe bearbeiten",
+          "course": "Jahrgang bearbeiten",
+          "subject": "Fach bearbeiten",
+          "group": "Gruppe bearbeiten",
+          "subgroup": "Untergruppe bearbeiten"
+        }
+      },
+      "errors": {
+        "defaultLocaleRequired": "Der Name in der Standardsprache der Schule fehlt."
+      }
+    },
+    "confirm": {
+      "delete": {
+        "confirm": "{code} löschen",
+        "level": {
+          "title": "Stufe {code} löschen",
+          "description": "Die Stufe wird aus dem Schuljahr gelöscht. Sie kann nicht gelöscht werden, wenn sie Jahrgänge hat."
+        },
+        "course": {
+          "title": "Jahrgang {code} löschen",
+          "description": "Der Jahrgang wird aus dem Schuljahr gelöscht. Er kann nicht gelöscht werden, wenn er Gruppen oder Fächer hat."
+        },
+        "group": {
+          "title": "Gruppe {code} löschen",
+          "description": "Die Gruppe wird gelöscht. Sie kann nicht gelöscht werden, wenn sie Untergruppen oder zugeordnete Fächer hat."
+        },
+        "subgroup": {
+          "title": "Untergruppe {code} löschen",
+          "description": "Die Untergruppe wird aus der Gruppe gelöscht."
+        },
+        "subject": {
+          "title": "Fach {code} löschen",
+          "description": "Das Fach wird gelöscht. Es kann nicht gelöscht werden, wenn es einer Gruppe zugeordnet ist."
+        }
+      }
+    },
+    "flash": {
+      "levelCreated": "Stufe angelegt.",
+      "levelUpdated": "Stufe aktualisiert.",
+      "levelDeleted": "Stufe gelöscht.",
+      "courseCreated": "Jahrgang angelegt.",
+      "courseUpdated": "Jahrgang aktualisiert.",
+      "courseDeleted": "Jahrgang gelöscht.",
+      "groupCreated": "Gruppe angelegt.",
+      "groupUpdated": "Gruppe aktualisiert.",
+      "groupDeleted": "Gruppe gelöscht.",
+      "subgroupCreated": "Untergruppe angelegt.",
+      "subgroupUpdated": "Untergruppe aktualisiert.",
+      "subgroupDeleted": "Untergruppe gelöscht.",
+      "subjectCreated": "Fach angelegt.",
+      "subjectUpdated": "Fach aktualisiert.",
+      "subjectDeleted": "Fach gelöscht.",
+      "subjectsAssigned": "Fächer der Gruppe aktualisiert."
+    },
+    "errors": {
+      "unexpected": "Die Aktion konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
+      "dependentsTitle": "Elemente, die dies verhindern:"
+    }
+  }
+}

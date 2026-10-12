@@ -1,0 +1,175 @@
+{
+  "acad": {
+    "nav": {
+      "structure": "Academic structure",
+      "backToStructure": "Back to the academic structure",
+      "backToLevel": "Back to stage {code}",
+      "backToLevelGeneric": "Back to the stage",
+      "backToCourse": "Back to course {code}",
+      "backToCourseGeneric": "Back to the course"
+    },
+    "readOnly": "This academic year is read-only: its structure cannot be created, changed or deleted.",
+    "fields": {
+      "code": "Code",
+      "name": "Name",
+      "stage": "Stage type",
+      "regime": "Regime",
+      "position": "Position",
+      "actions": "Actions"
+    },
+    "stage": {
+      "infantil": "Early Childhood Education",
+      "primaria": "Primary Education",
+      "eso": "Compulsory Secondary Education",
+      "bachillerato": "Upper Secondary (Bachillerato)",
+      "fp": "Vocational Training",
+      "universidad": "University"
+    },
+    "regime": {
+      "publico": "Public",
+      "privado": "Private",
+      "concertado": "Publicly subsidised"
+    },
+    "dependents": {
+      "courses": "Courses",
+      "groups": "Groups",
+      "subjects": "Subjects",
+      "subgroups": "Subgroups",
+      "group_subjects": "Subjects assigned to groups"
+    },
+    "structure": {
+      "title": "Academic structure",
+      "intro": "Stages, courses, groups, subgroups and subjects of the selected academic year.",
+      "caption": "Stages of the academic year",
+      "new": "New stage",
+      "filters": {
+        "stage": "Stage type",
+        "regime": "Regime"
+      },
+      "empty": {
+        "title": "This academic year has no stages",
+        "text": "Create the first stage to start defining the structure."
+      },
+      "noActive": {
+        "title": "There is no active academic year",
+        "text": "Choose an academic year in the selector in the top bar to see its structure."
+      }
+    },
+    "level": {
+      "title": "Stage",
+      "courses": "Courses of the stage",
+      "coursesCaption": "Courses of the stage",
+      "newCourse": "New course",
+      "noCourses": "This stage has no courses"
+    },
+    "course": {
+      "title": "Course",
+      "groups": "Groups",
+      "groupsCaption": "Groups of the course",
+      "newGroup": "New group",
+      "noGroups": "This course has no groups",
+      "subjects": "Subjects",
+      "subjectsCaption": "Subjects of the course",
+      "newSubject": "New subject",
+      "noSubjects": "This course has no subjects"
+    },
+    "group": {
+      "title": "Group",
+      "subjects": "Subjects taken",
+      "editSubjects": "Edit subjects",
+      "chooseSubjects": "Subjects of the course that this group takes",
+      "noAvailable": "The course has no subjects to assign.",
+      "noSubjects": "This group takes no subjects.",
+      "subgroups": "Subgroups",
+      "subgroupsCaption": "Subgroups of the group",
+      "newSubgroup": "New subgroup",
+      "noSubgroups": "This group has no subgroups"
+    },
+    "subject": {
+      "title": "Subject",
+      "groups": "Groups that take it",
+      "noGroups": "No group takes this subject."
+    },
+    "detail": {
+      "actions": "Actions",
+      "data": "Details",
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "form": {
+      "close": "Close",
+      "cancel": "Cancel",
+      "create": "Create",
+      "save": "Save",
+      "choose": "Choose an option",
+      "description": "Required fields are marked. The academic year and the parent item cannot be changed afterwards.",
+      "positionHint": "Optional. If left empty, it goes last.",
+      "title": {
+        "create": {
+          "level": "New stage",
+          "course": "New course",
+          "subject": "New subject",
+          "group": "New group",
+          "subgroup": "New subgroup"
+        },
+        "edit": {
+          "level": "Edit stage",
+          "course": "Edit course",
+          "subject": "Edit subject",
+          "group": "Edit group",
+          "subgroup": "Edit subgroup"
+        }
+      },
+      "errors": {
+        "defaultLocaleRequired": "The name in the school's default language is missing."
+      }
+    },
+    "confirm": {
+      "delete": {
+        "confirm": "Delete {code}",
+        "level": {
+          "title": "Delete stage {code}",
+          "description": "The stage is deleted from the academic year. It cannot be deleted if it has courses."
+        },
+        "course": {
+          "title": "Delete course {code}",
+          "description": "The course is deleted from the academic year. It cannot be deleted if it has groups or subjects."
+        },
+        "group": {
+          "title": "Delete group {code}",
+          "description": "The group is deleted. It cannot be deleted if it has subgroups or assigned subjects."
+        },
+        "subgroup": {
+          "title": "Delete subgroup {code}",
+          "description": "The subgroup is deleted from the group."
+        },
+        "subject": {
+          "title": "Delete subject {code}",
+          "description": "The subject is deleted. It cannot be deleted if it is assigned to any group."
+        }
+      }
+    },
+    "flash": {
+      "levelCreated": "Stage created.",
+      "levelUpdated": "Stage updated.",
+      "levelDeleted": "Stage deleted.",
+      "courseCreated": "Course created.",
+      "courseUpdated": "Course updated.",
+      "courseDeleted": "Course deleted.",
+      "groupCreated": "Group created.",
+      "groupUpdated": "Group updated.",
+      "groupDeleted": "Group deleted.",
+      "subgroupCreated": "Subgroup created.",
+      "subgroupUpdated": "Subgroup updated.",
+      "subgroupDeleted": "Subgroup deleted.",
+      "subjectCreated": "Subject created.",
+      "subjectUpdated": "Subject updated.",
+      "subjectDeleted": "Subject deleted.",
+      "subjectsAssigned": "Group subjects updated."
+    },
+    "errors": {
+      "unexpected": "The action could not be completed. Please try again.",
+      "dependentsTitle": "Items that prevent it:"
+    }
+  }
+}

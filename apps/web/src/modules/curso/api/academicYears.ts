@@ -54,6 +54,16 @@ export function getCurrentAcademicYear(): Promise<AcademicYear> {
   return apiFetch<AcademicYear>('/academic-years/current')
 }
 
+/**
+ * `OPEN-ACAD-11`, #409, `CA-ACAD-043`: autoservicio, sin permiso, sin paginar.
+ * Devuelve los cursos `activo` y `planificacion` del centro y, con
+ * `curso_historico.leer`, también `cerrado`/`archivado` (orden `-starts_on`).
+ * Es la fuente del selector de curso académico (`RN-ACAD-41`).
+ */
+export function listSelectableAcademicYears(): Promise<{ data: AcademicYear[] }> {
+  return apiFetch<{ data: AcademicYear[] }>('/academic-years/selectable')
+}
+
 export interface AcademicYearPayload {
   code: string
   starts_on: string

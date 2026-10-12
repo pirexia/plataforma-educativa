@@ -28,6 +28,7 @@ if (PHP_SAPI !== 'cli') {
     exit(1);
 }
 
+use App\Models\ModuleSubscription;
 use App\Models\Person;
 use App\Models\User;
 use App\Models\UserStatus;
@@ -125,6 +126,14 @@ app(TenantContext::class)->runFor($tenant->id, function () use ($password): void
         'expires_at' => now()->addDays(7),
         'granted_by' => $admin->id,
     ]);
+
+    // REQ-ACAD (1.11-b), CA-ACAD-053: `acad` es un módulo no esencial; el centro de pruebas lo
+    // contrata (la suscripción solo la escribe la plataforma). El administrador ya trae sus
+    // permisos de `estructura_academica` de `tenant:provision-defaults`.
+    ModuleSubscription::on('pgsql_platform')->create([
+        'module_code' => 'acad', 'enabled' => true, 'enabled_at' => now(), 'reason' => 'Test e2e CA-ACAD-053 con datos sintéticos.',
+    ]);
+    Cache::forget('modules:acad:enabled');
 
     // Usuario al que el test asigna el rol «Revisión propia».
     User::factory()->for(Person::factory()->create(['given_name' => 'Daniel', 'family_name_1' => 'Docente']))->create([

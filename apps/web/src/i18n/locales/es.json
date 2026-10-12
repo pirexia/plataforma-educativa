@@ -189,5 +189,34 @@
       "requestError": "No se ha podido solicitar la exportación.",
       "statusError": "No se ha podido comprobar el estado de la exportación."
     }
+  },
+  "academicYear": {
+    "status": {
+      "planificacion": "En planificación",
+      "activo": "Activo",
+      "cerrado": "Cerrado",
+      "archivado": "Archivado"
+    },
+    "selector": {
+      "label": "Curso académico",
+      "placeholder": "Elige un curso académico",
+      "option": "{code} · {status}",
+      "optionReadOnly": "{code} · {status} (solo lectura)",
+      "changed": "Curso académico cambiado a {code}",
+      "loadError": "No se pudieron cargar los cursos académicos."
+    }
+  },
+  "translatable": {
+    "required": "obligatorio",
+    "defaultLocale": "idioma por defecto del centro",
+    "entryLabel": "{label} ({language})",
+    "hint": "Escribe el texto en cada idioma activo del centro. El idioma por defecto es obligatorio.",
+    "groupLabel": "{label}: una entrada por idioma",
+    "locales": {
+      "es-ES": "Español",
+      "en": "Inglés",
+      "de": "Alemán",
+      "fr": "Francés"
+    }
   }
 }

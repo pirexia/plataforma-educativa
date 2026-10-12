@@ -10,7 +10,7 @@ vi.mock('@/api/client', () => ({
   apiFetch: (...args: unknown[]) => apiFetch(...args),
 }))
 
-const { getAcademicYear, transitionAcademicYear, updateAcademicYear } =
+const { getAcademicYear, listSelectableAcademicYears, transitionAcademicYear, updateAcademicYear } =
   await import('./academicYears')
 
 const HOSTILE = '01ABC/../x?y=1#z'
@@ -43,5 +43,15 @@ describe('REQ-CURSO-001 #385: academicYears codifica el identificador de la ruta
     await getAcademicYear('01JD7XXXXXXXXXXXXXXXXXXXXX')
 
     expect(apiFetch.mock.calls[0]![0]).toBe('/academic-years/01JD7XXXXXXXXXXXXXXXXXXXXX')
+  })
+})
+
+describe('CA-ACAD-043 (REQ-ACAD-001, #409): GET /academic-years/selectable', () => {
+  it('listSelectableAcademicYears pide la ruta de autoservicio, sin parámetros', async () => {
+    apiFetch.mockResolvedValue({ data: [] })
+
+    await expect(listSelectableAcademicYears()).resolves.toEqual({ data: [] })
+    expect(apiFetch.mock.calls[0]![0]).toBe('/academic-years/selectable')
+    expect(apiFetch.mock.calls[0]![1]).toBeUndefined()
   })
 })

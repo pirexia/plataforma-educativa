@@ -189,5 +189,34 @@
       "requestError": "L'export n'a pas pu être demandé.",
       "statusError": "L'état de l'export n'a pas pu être vérifié."
     }
+  },
+  "academicYear": {
+    "status": {
+      "planificacion": "En planification",
+      "activo": "Actif",
+      "cerrado": "Clôturé",
+      "archivado": "Archivé"
+    },
+    "selector": {
+      "label": "Année scolaire",
+      "placeholder": "Choisir une année scolaire",
+      "option": "{code} · {status}",
+      "optionReadOnly": "{code} · {status} (lecture seule)",
+      "changed": "Année scolaire changée en {code}",
+      "loadError": "Les années scolaires n'ont pas pu être chargées."
+    }
+  },
+  "translatable": {
+    "required": "obligatoire",
+    "defaultLocale": "langue par défaut de l'établissement",
+    "entryLabel": "{label} ({language})",
+    "hint": "Saisissez le texte dans chaque langue active de l'établissement. La langue par défaut est obligatoire.",
+    "groupLabel": "{label} : une saisie par langue",
+    "locales": {
+      "es-ES": "Espagnol",
+      "en": "Anglais",
+      "de": "Allemand",
+      "fr": "Français"
+    }
   }
 }

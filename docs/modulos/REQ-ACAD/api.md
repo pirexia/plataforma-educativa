@@ -1,6 +1,6 @@
 # REQ-ACAD · API
 
-> **Estado**: **APROBADA** (2026-10-10), paso **1.11** (`REQ-ACAD-001`, estructura académica), con las recomendaciones de `funcional.md §15` aprobadas y los contratos de `ADR-062` (contenido traducible) y `ADR-063` (ámbitos), ambos ACEPTADOS. La API de períodos lectivos y escalas se especificará al abrir `1.11d` (`OPEN-ACAD-01` = A).
+> **Estado**: **APROBADA** (2026-10-10), paso **1.11** (`REQ-ACAD-001`, estructura académica), con las recomendaciones de `funcional.md §15` aprobadas y los contratos de `ADR-062` (contenido traducible) y `ADR-063` (ámbitos), ambos ACEPTADOS. La API de períodos lectivos y escalas se especificará al abrir `1.11d` (`OPEN-ACAD-01` = A). **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 
 Prefijo: `/api/v1`. Tenant por *host* (`ADR-033 §2`). Todo según `ADR-038`: recurso individual desnudo, colección en `{data, meta}` (§3), paginación por página (§4.2-§4.3: catálogo de entidades nacidas de acción administrativa, decenas a cientos de filas por centro y curso académico), filtros planos y valores múltiples separados por comas (§5.2), orden por lista blanca con desempate por `id` (§5.3), errores `application/problem+json` con `type` URN y `errors` como **objeto indexado por campo** cuyos valores son arrays de `{code, message, params}` (p. ej. `errors.code[0].code`; §6), `404` frente a `403` (§6.4).
 
@@ -175,14 +175,15 @@ No hay. No se declara `estructura_academica.exportar` (`permisos.md §2.1`).
 | `urn:pge:error:validation` | 422 | `translations.empty_value` | Código común: valor vacío tras recortar |
 | `urn:pge:error:validation` | 422 | `translations.invalid_characters` | Código común (añadido en `1.11-a`): el valor contiene NUL, controles C0 (salvo tabulación y saltos de línea), DEL o UTF-8 inválido; PostgreSQL no puede guardarlo en `jsonb` |
 | `urn:pge:error:validation` | 422 | `translations.too_long` | Código común (añadido en `1.11-a`, #413): el valor supera la longitud máxima (en caracteres, tras recortar) que declara el módulo; cada módulo pasa `maxLength` al validador |
+| `urn:pge:error:validation` | 422 | `acad.validation.invalid_characters` | `code` o `name` (texto simple) con NUL, controles C0 (salvo tabulación y saltos de línea), DEL o UTF-8 inválido, antes de recortar; además, `code` con saltos de línea. Añadido en la ronda de revisión de `1.11-b` (S-2): el código común `translations.invalid_characters` es por idioma y no encaja con un texto simple. Los parámetros de consulta y `public_id` con esos caracteres son `422` (`core.validation.plain_text`) o se tratan como inexistentes |
 | `urn:pge:error:validation` | 422 | `acad.validation.name_required` | Nombre vacío (grupo, subgrupo; no traducible) |
 | `urn:pge:error:validation` | 422 | `acad.validation.stage_invalid` | `RN-ACAD-10` |
 | `urn:pge:error:validation` | 422 | `acad.validation.regime_invalid` | `RN-ACAD-11` |
 | `urn:pge:error:validation` | 422 | `acad.validation.position_invalid` | `position < 1` |
 | `urn:pge:error:validation` | 422 | `acad.validation.academic_year_required` | Alta de etapa sin `academic_year` |
-| `urn:pge:error:validation` | 422 | `acad.validation.academic_year_not_found` | `academic_year` del cuerpo inexistente o de otro centro |
+| `urn:pge:error:validation` | 422 | `acad.validation.academic_year_not_found` | `academic_year` del cuerpo inexistente, de otro centro o de un curso de solo lectura que el usuario no puede leer (sin `curso_historico.leer`; indistinguible de uno inexistente) |
 | `urn:pge:error:validation` | 422 | `acad.validation.academic_year_not_allowed` | `academic_year` en el alta de un hijo (`RN-ACAD-05`) |
-| `urn:pge:error:validation` | 422 | `acad.validation.parent_not_found` | Padre **del cuerpo** (`education_level`, `course`) ausente, inexistente, borrado o de otro centro. Un padre **de la ruta** (`/groups/{public_id}/…`) en esa situación es `404`, no este código |
+| `urn:pge:error:validation` | 422 | `acad.validation.parent_not_found` | Padre **del cuerpo** (`education_level`, `course`) ausente, inexistente, borrado o de otro centro, o de un curso de solo lectura que el usuario no puede leer (sin `curso_historico.leer`; indistinguible de uno inexistente). Un padre **de la ruta** (`/groups/{public_id}/…`) en esa situación es `404`, no este código |
 | `urn:pge:error:validation` | 422 | `acad.validation.parent_immutable` | `PATCH` con padre o curso académico (`RN-ACAD-06`) |
 | `urn:pge:error:validation` | 422 | `acad.validation.subject_not_in_course` | `PUT /groups/{id}/subjects` con una asignatura ajena al curso de etapa (`RN-ACAD-30`) |
 | `urn:pge:error:conflict` | 409 | `acad.conflict.has_dependents` | `RN-ACAD-20`; `params.dependents` |

@@ -233,7 +233,7 @@ El orden importa: las comprobaciones de forma van antes que la de autorización,
 
 > **Redacción corregida el 2026-10-05** (issue [#170](https://github.com/pirexia/plataforma-educativa/issues/170), decisión del usuario: se mantiene el comportamiento actual y estricto de `ReplaceRolePermissions`). La versión anterior decía «Restringir siempre se permite», y era **falso** respecto del código implementado y aprobado: estrechar una entrada a un ámbito que el solicitante no posee responde `403`. Regla vigente: `RN-PERM-24` (`funcional.md §20.2`); test que la fija: `CA-PERM-045`.
 
-Se comparan **pares (código, ámbito)** con `todos` como **única** absorción (`ADR-044 §4.8`, `funcional.md §8`: orden parcial, no retícula). «Estrechar» o «ampliar» **no son categorías** de esta comprobación: el núcleo no sabe si `grupo` está contenido en `departamento`, y por tanto no puede saber qué es «más estrecho».
+Se comparan **pares (código, ámbito)** con `todos` como **única** absorción (`ADR-044 §4.8`, `funcional.md §8`: orden parcial, no retícula). *Desde 1.11-b, acotada*: al introducir un permiso de un módulo no contratado en un rol, aquí **sí** se exige poseerlo; la tolerancia de los permisos inertes que un rol ya contiene solo rige al asignar o clonar (`funcional.md §8`). «Estrechar» o «ampliar» **no son categorías** de esta comprobación: el núcleo no sabe si `grupo` está contenido en `departamento`, y por tanto no puede saber qué es «más estrecho».
 
 | Entrada del cuerpo frente a lo guardado | ¿Se comprueba? | Pasa si… |
 |------------------------------------------|----------------|----------|
@@ -408,6 +408,8 @@ Es un enumerado de respuesta y por tanto **extensible** (`ADR-038 §7.3`): el cl
 Ruta, verbo y cuerpo **sin cambios** desde 1.1. Cambian dos cosas dentro.
 
 ### 8.1 `RPERM-013` pasa a comparar pares
+
+*(Desde 1.11-b, acotada: al asignar o clonar un rol que ya contiene permisos de un módulo no contratado, estos se ignoran salvo `deny` explícito del asignador, código desconocido o retirado; ver `funcional.md §8`.)*
 
 Hoy `UserRolesController::assertActorCanGrant()` compara **códigos**: reúne los `permission_code` con `effect = 'allow'` de los roles que se añaden y comprueba que estén todos en los permisos efectivos del solicitante.
 

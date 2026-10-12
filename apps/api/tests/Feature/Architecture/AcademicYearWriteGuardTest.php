@@ -103,6 +103,18 @@ test('AR-13 CA-CURSO-043 CA-057-06 RN-CURSO-23 ADR-057 §5.3: toda tabla con aca
     expect($missing)->toBe([], "tablas con academic_year_id sin el disparador academic_year_write_guard (RN-CURSO-23, ADR-057 §5.3): usa TenantMigration::tenantTable()/tenantTableAppendOnly() o guardAcademicYearWrites():\n".implode("\n", $missing));
 });
 
+test('AR-13 CA-ACAD-021 CA-057-06 ADR-057 §5.3: no vacuidad sobre el esquema real solo (sin sondas): hay tablas reales con academic_year_id y todas llevan el disparador', function (): void {
+    // Sin AcademicYearProbe::ensureTable(): lo que se mira es el esquema migrado.
+    // Desde 1.11-b las seis tablas de `acad` son las primeras tablas reales.
+    $real = array_values(array_filter(
+        tablesWithAcademicYearColumn('public'),
+        static fn (string $t): bool => $t !== AcademicYearProbe::TABLE && ! str_starts_with($t, 'arch_control_'),
+    ));
+
+    expect($real)->toContain('education_levels', 'courses', 'groups', 'subgroups', 'subjects', 'group_subjects')
+        ->and(array_values(array_intersect(tablesMissingAcademicYearGuard('public'), $real)))->toBe([]);
+});
+
 test('AR-13 CA-057-06 ADR-057 §5.3: la lista de excepciones está vacía y solo puede reducirse', function (): void {
     // Ampliarla exige especificación aprobada expresamente por el usuario.
     expect(academicYearGuardExceptions())->toBe([]);

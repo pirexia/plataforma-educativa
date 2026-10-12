@@ -454,6 +454,282 @@ namespace App\Models{
 	class IdeHelperUser {}
 }
 
+namespace App\Modules\Acad\Domain\Models{
+/**
+ * REQ-ACAD/datos.md §1.2 (1.11-b, `REQ-ACAD-001`). Curso de etapa, colgado de una etapa del mismo curso académico.
+ *
+ * ADR-035 §8: Full — sin datos personales (RN-ACAD-09). Escrituras por
+ * instancia, nunca masivas (AR-15). Los demás módulos no usan este modelo
+ * (AR-01): el acceso es por las interfaces de `Acad\Domain`.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $academic_year_id
+ * @property int $education_level_id
+ * @property string $code
+ * @property array<array-key, mixed> $name_translations
+ * @property int $position
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Course newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Course newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Course onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Course query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Course whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Course whereCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Course whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Course whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Course whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Course whereEducationLevelId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Course whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Course whereNameTranslations($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Course wherePosition($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Course wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Course whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Course whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Course whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Course withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Course withoutTrashed()
+* @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperCourse {}
+}
+
+namespace App\Modules\Acad\Domain\Models{
+/**
+ * REQ-ACAD/datos.md §1.1 (1.11-b, `REQ-ACAD-001`). Etapa educativa de un curso académico.
+ *
+ * ADR-035 §8: Full — sin datos personales (RN-ACAD-09). Escrituras por
+ * instancia, nunca masivas (AR-15). Los demás módulos no usan este modelo
+ * (AR-01): el acceso es por las interfaces de `Acad\Domain`.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $academic_year_id
+ * @property string $code
+ * @property array<array-key, mixed> $name_translations
+ * @property string $stage
+ * @property string $regime
+ * @property int $position
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel whereCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel whereNameTranslations($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel wherePosition($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel whereRegime($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel whereStage($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|EducationLevel withoutTrashed()
+* @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperEducationLevel {}
+}
+
+namespace App\Modules\Acad\Domain\Models{
+/**
+ * REQ-ACAD/datos.md §1.3 (1.11-b, `REQ-ACAD-001`). Grupo de un curso de etapa. `name` es texto simple, no traducible.
+ *
+ * ADR-035 §8: Full — sin datos personales (RN-ACAD-09). Escrituras por
+ * instancia, nunca masivas (AR-15). Los demás módulos no usan este modelo
+ * (AR-01): el acceso es por las interfaces de `Acad\Domain`.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $academic_year_id
+ * @property int $course_id
+ * @property string $code
+ * @property string $name
+ * @property int $position
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Group newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Group newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Group onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Group query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Group whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Group whereCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Group whereCourseId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Group whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Group whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Group whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Group whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Group whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Group wherePosition($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Group wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Group whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Group whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Group whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Group withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Group withoutTrashed()
+* @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperGroup {}
+}
+
+namespace App\Modules\Acad\Domain\Models{
+/**
+ * REQ-ACAD/datos.md §1.6 (1.11-b, `REQ-ACAD-001`). Asignatura que cursa un grupo; el par es la «clase» de ADR-063 §5.3. `course_id` lo fija el servicio a partir del grupo.
+ *
+ * ADR-035 §8: Full — sin datos personales (RN-ACAD-09). Escrituras por
+ * instancia, nunca masivas (AR-15). Los demás módulos no usan este modelo
+ * (AR-01): el acceso es por las interfaces de `Acad\Domain`.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $academic_year_id
+ * @property int $course_id
+ * @property int $group_id
+ * @property int $subject_id
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupSubject newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupSubject newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupSubject onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupSubject query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupSubject whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupSubject whereCourseId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupSubject whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupSubject whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupSubject whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupSubject whereGroupId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupSubject whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupSubject wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupSubject whereSubjectId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupSubject whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupSubject whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupSubject whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupSubject withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupSubject withoutTrashed()
+* @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperGroupSubject {}
+}
+
+namespace App\Modules\Acad\Domain\Models{
+/**
+ * REQ-ACAD/datos.md §1.4 (1.11-b, `REQ-ACAD-001`). Subgrupo de un único grupo (RN-ACAD-16).
+ *
+ * ADR-035 §8: Full — sin datos personales (RN-ACAD-09). Escrituras por
+ * instancia, nunca masivas (AR-15). Los demás módulos no usan este modelo
+ * (AR-01): el acceso es por las interfaces de `Acad\Domain`.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $academic_year_id
+ * @property int $group_id
+ * @property string $code
+ * @property string $name
+ * @property int $position
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subgroup newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subgroup newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subgroup onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subgroup query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subgroup whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subgroup whereCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subgroup whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subgroup whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subgroup whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subgroup whereGroupId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subgroup whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subgroup whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subgroup wherePosition($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subgroup wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subgroup whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subgroup whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subgroup whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subgroup withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subgroup withoutTrashed()
+* @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperSubgroup {}
+}
+
+namespace App\Modules\Acad\Domain\Models{
+/**
+ * REQ-ACAD/datos.md §1.5 (1.11-b, `REQ-ACAD-001`). Asignatura de un curso de etapa.
+ *
+ * ADR-035 §8: Full — sin datos personales (RN-ACAD-09). Escrituras por
+ * instancia, nunca masivas (AR-15). Los demás módulos no usan este modelo
+ * (AR-01): el acceso es por las interfaces de `Acad\Domain`.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $academic_year_id
+ * @property int $course_id
+ * @property string $code
+ * @property array<array-key, mixed> $name_translations
+ * @property int $position
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subject newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subject newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subject onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subject query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subject whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subject whereCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subject whereCourseId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subject whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subject whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subject whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subject whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subject whereNameTranslations($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subject wherePosition($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subject wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subject whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subject whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subject whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subject withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Subject withoutTrashed()
+* @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperSubject {}
+}
+
 namespace App\Modules\Auth\Domain\Models{
 /**
  * datos.md §A.2. Selective: `email` se redacta como `identifier` (dato

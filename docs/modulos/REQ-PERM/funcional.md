@@ -432,6 +432,8 @@ El permiso que lo protege es **`permiso_efectivo.leer`**, concedido sólo a `adm
 
 Es una relación de orden parcial con una sola excepción, no una retícula: se explica en una frase y se puede probar. Cualquier otra contención (¿`departamento` incluye `grupo`?) exigiría saber qué es un departamento, que es precisamente lo que el núcleo no debe saber (§3.1).
 
+Desde 1.11-b (`REQ-ACAD-001`, `PermissionResolver::canGrant()`), **acotada**: al **asignar un rol existente** a un usuario (`POST /users`, `PUT /users/{id}/roles`) o **clonar** un rol, la comprobación ignora los permisos de **cualquier módulo no contratado** por el centro (y no retirado) que el rol **ya contiene**: son inertes también para el destinatario (`inerte_modulo`), y exigir poseerlos impedía asignar o clonar cualquier rol sembrado con permisos de un módulo no esencial sin contratar. **No se ignora**: (a) si quien asigna tiene un `deny` explícito sobre ese código (`RPERM-007`); (b) un código desconocido o retirado; (c) al **introducir un permiso inerte NUEVO** en un rol (`POST /roles` con lista explícita, `PUT /roles/{id}/permissions`), donde se exige poseerlo (`ownsScope()`) como siempre; un permiso ya presente e idéntico se mantiene sin comprobación. Motivo de (c): al contratar el módulo ese permiso se activaría con una escalada latente que nadie autorizó. Con el módulo contratado se exige todo igual.
+
 **Dónde se aplica**, sin excepciones:
 
 | Operación | Qué se compara |
