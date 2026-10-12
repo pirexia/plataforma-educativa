@@ -1,6 +1,6 @@
 # REQ-ACAD · Permisos
 
-> **Estado**: **APROBADA** (2026-10-10), paso **1.11**. Recurso y siembra aprobados (`OPEN-ACAD-09` = A + X); ámbitos según `ADR-063` (ACEPTADA; `OPEN-ACAD-08` = A). La fuente de verdad será `AcadServiceProvider::declaredPermissions()` (`INV-007`, `ADR-034 §2`); esta tabla es su reflejo. **Implementado en `1.11-b`** (2026-10-12/13): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
+> **Estado**: **APROBADA** (2026-10-10), paso **1.11**. Recurso y siembra aprobados (`OPEN-ACAD-09` = A + X); ámbitos según `ADR-063` (ACEPTADA; `OPEN-ACAD-08` = A). La fuente de verdad será `AcadServiceProvider::declaredPermissions()` (`INV-007`, `ADR-034 §2`); esta tabla es su reflejo. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 
 ---
 
@@ -79,7 +79,7 @@ Se descartó la alternativa Y (`direccion` con los cuatro); el centro puede hace
 | Curso académico de solo lectura | Disparador `academic_year_write_guard` | `409 academic-year-closed`, no `403` |
 | Lectura de curso cerrado | `AcademicYearReadAccess` en cada lectura | `404` sin `curso_historico.leer` (`RN-CURSO-25`, `RN-ACAD-08`) |
 | Aislamiento de tenant | RLS + `TenantModel` | `404` para `public_id` ajeno |
-| `RPERM-013` | Concesión de los permisos de `acad` | **Cambia en `Core` (1.11-b, decisión del usuario), acotado**: al asignar o clonar un rol que **ya contiene** permisos de `acad` sin que el centro haya contratado el módulo, esos permisos (inertes también para el destinatario) no se exigen al asignador, salvo `deny` explícito suyo (`RPERM-007`). `acad` es no esencial y se siembra en roles predefinidos: sin esto, un centro sin `acad` no podía asignar ni clonar `administrador_centro`, `direccion`, `secretaria`, `docente`, `tutor_grupo` ni `orientador`. **Introducir un permiso de `acad` nuevo en un rol** (lista explícita, `PUT` de concesiones) exige poseerlo como siempre: evita una escalada latente al contratar. Con `acad` contratado se exige todo igual (todos `todos`) |
+| `RPERM-013` | Concesión de los permisos de `acad` | **Acotada en `Core` (1.11-b, decisión del usuario)**; fuente: `REQ-PERM/funcional.md §8`. Al asignar o clonar un rol que **ya contiene** permisos de `acad` sin que el centro haya contratado el módulo (o de cualquier otro módulo no contratado, no retirado), esos permisos —inertes también para el destinatario— no se exigen al asignador. Se exigen igual con un `deny` explícito suyo (`RPERM-007`), con un código desconocido o retirado, y al **introducir un permiso inerte nuevo en un rol** (lista explícita, `PUT` de concesiones), que exige poseerlo: evita una escalada latente al contratar. Motivo: `acad` es no esencial y se siembra en `administrador_centro`, `direccion`, `secretaria`, `docente`, `tutor_grupo` y `orientador`; sin esto no se podían asignar ni clonar sin contratarlo. Con `acad` contratado se exige todo igual (todos `todos`) |
 
 ## 6. Datos de categoría especial
 

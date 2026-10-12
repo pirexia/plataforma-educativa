@@ -6,7 +6,7 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
-## 2026-10-12/13 · `REQ-ACAD-001` entrega `1.11-b`: módulo `acad`, estructura académica (rama `feature/REQ-ACAD-1-11b-modulo-acad`)
+## 2026-10-12 · `REQ-ACAD-001` entrega `1.11-b`: módulo `acad`, estructura académica (rama `feature/REQ-ACAD-1-11b-modulo-acad`)
 
 - **Módulo `acad`** (no esencial, `depends_on ['curso']`): seis tablas de tenant (`education_levels`, `courses`, `groups`, `subgroups`, `subjects`, `group_subjects`) con RLS, `public_id`, borrado lógico, claves foráneas de tres columnas hacia el padre del mismo curso académico y las **primeras tablas reales con el disparador `academic_year_write_guard`** (`AR-13` gana la aserción de no vacuidad sobre el esquema real, `CA-ACAD-021`). Nombres traducibles con `translatableColumn()` y **`AR-16`** (toda columna `*_translations` es `jsonb NOT NULL` con su `CHECK`). Permisos `estructura_academica.{leer,crear,actualizar,eliminar}` (ámbito `todos`), siembra en `ProvisionTenantDefaults` y comando **`acad:grant-structure-permissions`** (comprueba `retired_at`, #387 B-5).
 - **API**: 27 *endpoints* (`docs/modulos/REQ-ACAD/api.md`), cadena autenticación → `module-enabled:acad` → `permission:`, `PATCH` de nombres por fusión de idiomas, curso cerrado: `404` en lectura sin `curso_historico.leer` y `409 academic-year-closed` en escritura (`RN-CURSO-33`). OpenAPI en `openapi/paths/acad.yaml`. `AR-07a` sigue en **35** excepciones (las 27 rutas llevan `permission:`).

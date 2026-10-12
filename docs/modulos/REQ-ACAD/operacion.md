@@ -1,6 +1,6 @@
 # REQ-ACAD · Operación
 
-> **Estado**: **APROBADA** (2026-10-10), paso **1.11**, con las recomendaciones de `funcional.md §15` aprobadas y `ADR-062`/`ADR-063` ACEPTADOS. **Implementado en `1.11-b`** (2026-10-12/13): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
+> **Estado**: **APROBADA** (2026-10-10), paso **1.11**, con las recomendaciones de `funcional.md §15` aprobadas y `ADR-062`/`ADR-063` ACEPTADOS. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 
 ## 1. Variables de entorno
 
@@ -78,7 +78,7 @@ Desplegar la imagen anterior (`RUNBOOK.md`). **Las migraciones no se revierten**
 ## 10. Documentación a actualizar en el cierre
 
 - `docs/manual-usuario/admin.md`: actualizar (estructura académica, selector, nombres en varios idiomas).
-- `docs/manual-usuario/direccion.md`, `secretaria.md` y `docente.md`: **ficheros nuevos** (no existen todavía), con la consulta de la estructura que les da la siembra aprobada (`CLAUDE.md §6.4`).
+- `docs/manual-usuario/direccion.md`, `secretaria.md` y `docente.md`: **ficheros nuevos, creados en `1.11-b`**, con la consulta de la estructura que les da la siembra aprobada (`CLAUDE.md §6.4`).
 - `SYSADMIN.md`: módulo nuevo en `sync-registry`, contratación, comando de siembra y su comprobación de `retired_at`.
 - `ARCHITECTURE.md §3.4`, en una sola pasada:
   - referencias de patrón: primer módulo de negocio con tablas por curso (migración con FK de tres columnas, lectura con `AcademicYearReadAccess`) y ayudante de columna traducible; revisión de la tabla de referencias que `PLAN 1.11b` pide al cerrar `1.11`;
@@ -88,7 +88,7 @@ Desplegar la imagen anterior (`RUNBOOK.md`). **Las migraciones no se revierten**
   - filas nuevas: **`AR-16`** (`ADR-062 §5.8`) y la regla `arch()` «solo migraciones y *fixtures* usan `TenantMigration`».
 - `apps/api/app/Modules/README.md` («hoy hay cuatro») y `apps/web/src/modules/README.md` (dice «hoy hay dos», sin `curso`: issue #408, `CA-ACAD-052`).
 - `docs/i18n.md`: contenido del centro traducible según `ADR-062` (columna, validación, resolutor, códigos `translations.*`, componente de la SPA); retirar la línea de «Qué falta».
-- `CHANGELOG.md`, con la cifra de `CA-ACAD-023`.
+- `CHANGELOG.md`, con la cifra de `CA-ACAD-023` (hecho en `1.11-b`).
 - `docs/modulos/REQ-CURSO/` (`GET /academic-years/selectable`, ampliación de `AcademicYearDirectory`, comprobación de `retired_at`; lo hace la sesión principal).
 - `PLAN-IMPLEMENTACION.md` (sub-paso `1.11d`, orden `1.13`/`1.15` de `OPEN-ACAD-22`, y la obligación y el plazo de `ADR-063 §5.4` en `1.12`, `1.13` y `1.16`; lo hace la sesión principal).
 

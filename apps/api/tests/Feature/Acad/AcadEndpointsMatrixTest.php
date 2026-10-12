@@ -11,7 +11,8 @@ use Tests\Support\CursoTestHelpers;
 // tabla. CA-ACAD-032 (401/403 por permiso), CA-ACAD-034 (módulo no
 // contratado), CA-ACAD-033 (aislamiento de tenant, 404 nunca 403),
 // CA-ACAD-020 (curso cerrado: 409 en toda escritura) y CA-ACAD-024 a -031
-// (lectura de curso cerrado sin `curso_historico.leer`: 404). INV-001,
+// (lectura de curso cerrado sin `curso_historico.leer`: 404; por recurso:
+// CA-ACAD-025 cursos de etapa, -026 grupos, -027 subgrupos, -028 asignaturas). INV-001,
 // INV-002, INV-015.
 
 afterEach(function (): void {

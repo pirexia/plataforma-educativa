@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.5** · 2026-10-10
+> **Versión 0.3.6** · 2026-10-12
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -214,6 +214,8 @@ Mismo mecanismo que el despliegue: bajar el *tag* a la versión anterior y reini
 ./infra/install.sh <tag-anterior> --user
 systemctl --user restart api@1.service web.service
 ```
+
+**Módulo `acad` (`1.11-b`)**: se revierte con la imagen anterior; sus migraciones **no** se revierten (aditivas; la versión anterior no usa las tablas y su `down()` borraría datos de estructura). El siguiente `platform:sync-registry` de la versión anterior marca `acad` y sus permisos con `retired_at` (concesiones inertes). Detalle en `SYSADMIN.md §2g` y `docs/modulos/REQ-ACAD/operacion.md §9`.
 
 Es una operación de segundos porque cada versión es una imagen inmutable en GHCR referenciada por *tag* exacto (`ADR-037 §5.2`) — no hay migración de imagen que deshacer, solo qué proceso arranca. Las migraciones de base de datos son *expand/contract* (`RARQ-DEP-003`): el esquema de la versión anterior sigue siendo compatible, así que revertir el código no exige revertir el esquema.
 

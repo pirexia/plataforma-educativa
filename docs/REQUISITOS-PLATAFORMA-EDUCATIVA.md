@@ -2863,7 +2863,7 @@ Para el centro concertado, además: cuotas del primer ciclo de Infantil, becas d
 | `RPERM-010` | Auditoría de todos los cambios en roles y permisos. |
 | `RPERM-011` | Denegación por defecto: todo permiso no concedido explícitamente está denegado (`INV-002`). |
 | `RPERM-012` | Permisos sobre **datos de categoría especial** (salud, NEAE, convivencia) separados del resto y no incluidos en ningún rol por defecto. |
-| `RPERM-013` | Un usuario nunca puede conceder un permiso que él mismo no posee. |
+| `RPERM-013` | Un usuario nunca puede conceder un permiso que él mismo no posee. *(1.11-b, acotada: al asignar o clonar un rol que ya contiene permisos de un módulo no contratado, estos se ignoran —inertes también para el destinatario—, salvo `deny` explícito del asignador, código desconocido o retirado, o permiso inerte nuevo en un rol, que se exige poseer; fuente: `docs/modulos/REQ-PERM/funcional.md §8`.)* |
 | `RPERM-014` | Todo rol, predefinido o personalizado, incluye el atributo `mfa_obligatorio` (`REQ-AUTH-003`). |
 | `RPERM-015` | Todo rol incluye el atributo `acceso_datos_especiales`, que condiciona la visibilidad de salud, NEAE y convivencia y activa auditoría reforzada de lectura. |
 
