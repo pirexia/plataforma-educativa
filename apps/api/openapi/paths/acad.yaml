@@ -1,0 +1,804 @@
+# REQ-ACAD (paso 1.11-b). Convenciones transversales en
+# docs/adr/ADR-038-convenciones-api-rest.md y ADR-062 (contenido traducible); este
+# fichero solo las aplica. Contrato completo en docs/modulos/REQ-ACAD/api.md.
+# Módulo NO esencial (OPEN-ACAD-10): toda ruta responde `403 module-disabled` si el centro
+# no lo ha contratado (antes de comprobar el permiso) y exige `estructura_academica.<acción>`
+# (leer, crear, actualizar, eliminar; ámbito `todos`). Comunes a todas: lectura de un curso
+# `cerrado`/`archivado` sin `curso_historico.leer` ⇒ `404` (mismo cuerpo que un recurso
+# inexistente); escritura sobre un curso de solo lectura ⇒ `409 urn:pge:error:academic-year-closed`.
+
+paths:
+  /api/v1/education-levels:
+    get:
+      operationId: listEducationLevels
+      summary: Lista las etapas de un curso académico
+      description: >
+        Permiso `estructura_academica.leer`. Paginación por página (defecto 25, máximo 100). Orden por defecto `position`, luego `code`, luego `id`.
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/AcademicYearFilterParam' }
+        - name: stage
+          in: query
+          description: Uno o varios tipos de etapa separados por coma (`422` si alguno no es del vocabulario).
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { type: string, enum: [infantil, primaria, eso, bachillerato, fp, universidad] }
+        - name: regime
+          in: query
+          description: Uno o varios regímenes separados por coma.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { type: string, enum: [publico, privado, concertado] }
+        - { $ref: '../components.yaml#/components/parameters/AcadSortParam' }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/EducationLevel' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createEducationLevel
+      summary: Crea una etapa
+      description: >
+        Permiso `estructura_academica.crear`. `academic_year` obligatorio. `name_translations` debe llevar el idioma por defecto del centro y solo idiomas activos. `code` único entre las etapas vivas del curso (`422 acad.validation.code_taken`, también por carrera). `position` opcional (la última + 1).
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [[academic_year, code, name_translations, stage, regime]]
+              properties:
+                academic_year: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                code: { type: string, maxLength: 255 }
+                name_translations: { $ref: '../components.yaml#/components/schemas/TranslationsMap' }
+                stage: { $ref: '../components.yaml#/components/schemas/EducationLevelStage' }
+                regime: { $ref: '../components.yaml#/components/schemas/EducationLevelRegime' }
+                position: { type: integer, minimum: 1 }
+      responses:
+        '201':
+          description: Creado
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/EducationLevel' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/education-levels/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getEducationLevel
+      summary: Detalle de una etapa
+      description: >
+        Permiso `estructura_academica.leer`. Un `public_id` de otro centro es `404` (INV-001).
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: El recurso
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/EducationLevel' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: updateEducationLevel
+      summary: Edita una etapa
+      description: >
+        Permiso `estructura_academica.actualizar`. Editables `code`, `position`, `stage`, `regime` y `name_translations` (fusión por idioma). Claves de padre o curso académico ⇒ `422 acad.validation.parent_immutable`. Sin cambios en un curso cerrado: `200` sin escritura.
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              
+              properties:
+                code: { type: string, maxLength: 255 }
+                name_translations: { $ref: '../components.yaml#/components/schemas/TranslationsPatchMap' }
+                stage: { $ref: '../components.yaml#/components/schemas/EducationLevelStage' }
+                regime: { $ref: '../components.yaml#/components/schemas/EducationLevelRegime' }
+                position: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Actualizado
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/EducationLevel' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    delete:
+      operationId: deleteEducationLevel
+      summary: Borra (lógico) una etapa
+      description: >
+        Permiso `estructura_academica.eliminar`. Solo sin cursos de etapa vivos (`409 acad.conflict.has_dependents`).
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204':
+          description: Borrado lógico
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: '`acad.conflict.has_dependents` (`errors.dependents[0].params.dependents`) o `urn:pge:error:academic-year-closed` (curso de solo lectura).'
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/courses:
+    get:
+      operationId: listCourses
+      summary: Lista los cursos de etapa de un curso académico
+      description: >
+        Permiso `estructura_academica.leer`. Paginación por página. Orden por defecto `position`, `code`, `id`.
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/AcademicYearFilterParam' }
+        - name: education_level
+          in: query
+          description: Uno o varios `public_id` de etapa separados por coma; un padre inexistente o de otro curso académico da colección vacía.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - { $ref: '../components.yaml#/components/parameters/AcadSortParam' }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/Course' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createCourse
+      summary: Crea un curso de etapa
+      description: >
+        Permiso `estructura_academica.crear`. El curso académico es el de la etapa; `academic_year` en el cuerpo es `422 acad.validation.academic_year_not_allowed`. Etapa ausente, borrada o de otro centro: `422 acad.validation.parent_not_found`.
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [[education_level, code, name_translations]]
+              properties:
+                education_level: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                code: { type: string, maxLength: 255 }
+                name_translations: { $ref: '../components.yaml#/components/schemas/TranslationsMap' }
+                position: { type: integer, minimum: 1 }
+      responses:
+        '201':
+          description: Creado
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Course' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/courses/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getCourse
+      summary: Detalle de un curso de etapa
+      description: >
+        Permiso `estructura_academica.leer`.
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: El recurso
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Course' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: updateCourse
+      summary: Edita un curso de etapa
+      description: >
+        Permiso `estructura_academica.actualizar`. Editables `code`, `position` y `name_translations` (fusión).
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              
+              properties:
+                code: { type: string, maxLength: 255 }
+                name_translations: { $ref: '../components.yaml#/components/schemas/TranslationsPatchMap' }
+                position: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Actualizado
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Course' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    delete:
+      operationId: deleteCourse
+      summary: Borra (lógico) un curso de etapa
+      description: >
+        Permiso `estructura_academica.eliminar`. Solo sin grupos ni asignaturas vivos (`409 has_dependents`, `params.dependents` ⊂ `groups`, `subjects`).
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204':
+          description: Borrado lógico
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: '`acad.conflict.has_dependents` (`errors.dependents[0].params.dependents`) o `urn:pge:error:academic-year-closed` (curso de solo lectura).'
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/groups:
+    get:
+      operationId: listGroups
+      summary: Lista los grupos de un curso académico
+      description: >
+        Permiso `estructura_academica.leer`. Paginación por página. Orden por defecto `position`, `code`, `id`.
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/AcademicYearFilterParam' }
+        - name: course
+          in: query
+          description: Uno o varios `public_id` de curso de etapa separados por coma.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: education_level
+          in: query
+          description: Uno o varios `public_id` de etapa separados por coma.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - { $ref: '../components.yaml#/components/parameters/AcadSortParam' }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/Group' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createGroup
+      summary: Crea un grupo
+      description: >
+        Permiso `estructura_academica.crear`. `name` es texto simple obligatorio (`422 acad.validation.name_required`).
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [[course, code, name]]
+              properties:
+                course: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                code: { type: string, maxLength: 255 }
+                name: { type: string, maxLength: 255 }
+                position: { type: integer, minimum: 1 }
+      responses:
+        '201':
+          description: Creado
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Group' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/groups/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getGroup
+      summary: Detalle de un grupo
+      description: >
+        Permiso `estructura_academica.leer`.
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: El recurso
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Group' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: updateGroup
+      summary: Edita un grupo
+      description: >
+        Permiso `estructura_academica.actualizar`. Editables `code`, `name` y `position`.
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              
+              properties:
+                code: { type: string, maxLength: 255 }
+                name: { type: string, maxLength: 255 }
+                position: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Actualizado
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Group' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    delete:
+      operationId: deleteGroup
+      summary: Borra (lógico) un grupo
+      description: >
+        Permiso `estructura_academica.eliminar`. Solo sin subgrupos ni asignaturas asignadas vivos (`409 has_dependents`).
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204':
+          description: Borrado lógico
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: '`acad.conflict.has_dependents` (`errors.dependents[0].params.dependents`) o `urn:pge:error:academic-year-closed` (curso de solo lectura).'
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/groups/{groupPublicId}/subgroups:
+    parameters:
+      - name: groupPublicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: listGroupSubgroups
+      summary: Lista los subgrupos de un grupo
+      description: >
+        Permiso `estructura_academica.leer`. El curso académico es el del grupo (no admite
+        `academic_year`). Sin paginar (decenas de filas). Orden `position`, luego `code`. Grupo
+        inexistente, borrado o de otro centro: `404`.
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Subgrupos del grupo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/Subgroup' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    post:
+      operationId: createSubgroup
+      summary: Crea un subgrupo en un grupo
+      description: >
+        Permiso `estructura_academica.crear`. El grupo es de la ruta: ausente, borrado o de otro centro ⇒ `404` (nunca `422`). Un subgrupo no se relaciona con asignaturas (RN-ACAD-16).
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [[code, name]]
+              properties:
+                code: { type: string, maxLength: 255 }
+                name: { type: string, maxLength: 255 }
+                position: { type: integer, minimum: 1 }
+      responses:
+        '201':
+          description: Creado
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Subgroup' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/subgroups/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getSubgroup
+      summary: Detalle de un subgrupo
+      description: >
+        Permiso `estructura_academica.leer`.
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: El recurso
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Subgroup' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: updateSubgroup
+      summary: Edita un subgrupo
+      description: >
+        Permiso `estructura_academica.actualizar`. Editables `code`, `name` y `position`.
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              
+              properties:
+                code: { type: string, maxLength: 255 }
+                name: { type: string, maxLength: 255 }
+                position: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Actualizado
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Subgroup' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    delete:
+      operationId: deleteSubgroup
+      summary: Borra (lógico) un subgrupo
+      description: >
+        Permiso `estructura_academica.eliminar`.
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204':
+          description: Borrado lógico
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+
+  /api/v1/subjects:
+    get:
+      operationId: listSubjects
+      summary: Lista las asignaturas de un curso académico
+      description: >
+        Permiso `estructura_academica.leer`. Paginación por página. Orden por defecto `position`, `code`, `id`.
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/AcademicYearFilterParam' }
+        - name: course
+          in: query
+          description: Uno o varios `public_id` de curso de etapa separados por coma.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: education_level
+          in: query
+          description: Uno o varios `public_id` de etapa separados por coma.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - { $ref: '../components.yaml#/components/parameters/AcadSortParam' }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/Subject' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createSubject
+      summary: Crea una asignatura
+      description: >
+        Permiso `estructura_academica.crear`. Curso de etapa ausente, borrado o de otro centro: `422 acad.validation.parent_not_found`.
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [[course, code, name_translations]]
+              properties:
+                course: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                code: { type: string, maxLength: 255 }
+                name_translations: { $ref: '../components.yaml#/components/schemas/TranslationsMap' }
+                position: { type: integer, minimum: 1 }
+      responses:
+        '201':
+          description: Creado
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Subject' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/subjects/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getSubject
+      summary: Detalle de una asignatura
+      description: >
+        Permiso `estructura_academica.leer`.
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: El recurso
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Subject' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: updateSubject
+      summary: Edita una asignatura
+      description: >
+        Permiso `estructura_academica.actualizar`. Editables `code`, `position` y `name_translations` (fusión).
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              
+              properties:
+                code: { type: string, maxLength: 255 }
+                name_translations: { $ref: '../components.yaml#/components/schemas/TranslationsPatchMap' }
+                position: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Actualizado
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Subject' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    delete:
+      operationId: deleteSubject
+      summary: Borra (lógico) una asignatura
+      description: >
+        Permiso `estructura_academica.eliminar`. Solo si no está asignada a ningún grupo vivo (`409 has_dependents`, `params.dependents = [groups]`).
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204':
+          description: Borrado lógico
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: '`acad.conflict.has_dependents` (`errors.dependents[0].params.dependents`) o `urn:pge:error:academic-year-closed` (curso de solo lectura).'
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/groups/{groupPublicId}/subjects:
+    parameters:
+      - name: groupPublicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: listGroupSubjects
+      summary: Asignaturas que cursa un grupo
+      description: >
+        Permiso `estructura_academica.leer`. `{"data": [Subject…]}` sin paginar; la fila de
+        `group_subjects` no se expone. Orden `position`, `code`. Grupo inexistente o de otro centro: `404`.
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Asignaturas asignadas
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/Subject' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    put:
+      operationId: replaceGroupSubjects
+      summary: Sustituye el conjunto de asignaturas de un grupo
+      description: >
+        Permiso `estructura_academica.actualizar`. Sustituye el conjunto completo; lista vacía = quitar
+        todas; idempotente (un `PUT` sin cambios no escribe). Solo asignaturas vivas del mismo curso de
+        etapa que el grupo: si no, `422 acad.validation.subject_not_in_course`. Altas y bajas por
+        instancia en una transacción, cada una con su entrada en la auditoría. `public_id` repetidos
+        cuentan una vez.
+      tags: ['Acad / Estructura académica']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subjects]
+              properties:
+                subjects:
+                  type: array
+                  items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+      responses:
+        '200':
+          description: El conjunto resultante
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/Subject' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
