@@ -147,7 +147,7 @@ final class TenantMigration
      * `$withIndex = false` (#412): omite ese índice cuando la propia migración
      * declara a mano, **en la misma migración**, un índice **completo** (no
      * parcial) que empiece por `(tenant_id, $column)` y ya cubre la FK; si no,
-     * el del ayudante sería redundante. Solo se usa en las cinco migraciones
+     * el del ayudante sería redundante. Solo se usa en las cuatro migraciones
      * antiguas que ya lo tenían a mano (excepción deliberada a «las migraciones
      * mezcladas no cambian»: no altera el esquema de ninguna base ya migrada,
      * no existe producción, y es la única forma de que una instalación nueva

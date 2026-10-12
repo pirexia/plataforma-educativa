@@ -154,14 +154,20 @@ Las migraciones de test corren una vez por proceso vía la conexión `pgsql_owne
 
 PostgreSQL concede `TEMPORARY` sobre la base de datos a `PUBLIC` por defecto, así que `plataforma_app` podía crear tablas temporales. Son locales a la sesión, pero una tabla temporal se busca **antes** que `public` si `pg_temp` no figura en el `search_path`, y ningún código de la aplicación las usa. Desde `1.11-a`: `01-tenancy.sql.tpl` hace `REVOKE TEMPORARY ON DATABASE … FROM PUBLIC` y `GRANT TEMPORARY … TO plataforma_owner`; `bases-test-paralelo.sh` lo reaplica a cada clon (un `CREATE DATABASE … TEMPLATE` no copia los privilegios de base); `config/database.php` pone `pg_temp` **al final** del `search_path` de las tres conexiones (`public,pg_temp`). `DatabaseCapabilitiesTest` exige que `plataforma_app` no pueda crear tablas temporales.
 
-**Bases ya existentes** (desarrollo `plataforma`, `plataforma_test`, `plataforma_test_N`; en producción, la base de la aplicación), una vez, con el superusuario del clúster:
+**Bases ya existentes**, una vez, con el superusuario del clúster (`$POSTGRES_USER`).
+
+*Producción o *staging* (una sola base, la de la aplicación):*
 
 ```bash
-for DB in "$POSTGRES_DB" plataforma_test plataforma_test_1 plataforma_test_2 plataforma_test_3 plataforma_test_4 plataforma_test_5 plataforma_test_6; do
-  podman exec -i plataforma-postgres psql --username "$POSTGRES_USER" --dbname postgres \
-    -c "REVOKE TEMPORARY ON DATABASE \"$DB\" FROM PUBLIC" \
-    -c "GRANT TEMPORARY ON DATABASE \"$DB\" TO plataforma_owner"
-done
+podman exec -i plataforma-postgres psql --username "$POSTGRES_USER" --dbname postgres \
+  -c "REVOKE TEMPORARY ON DATABASE \"$POSTGRES_DB\" FROM PUBLIC" \
+  -c "GRANT TEMPORARY ON DATABASE \"$POSTGRES_DB\" TO plataforma_owner"
+```
+
+*Desarrollo* (la base `$POSTGRES_DB` con el bloque anterior, y las de test con el script idempotente, que ya reaplica el `REVOKE`/`GRANT` a cada clon):
+
+```bash
+podman exec -i plataforma-postgres sh -s -- 6 --recrear < infra/containers/postgres/bases-test-paralelo.sh
 ```
 
 Equivale a volver a aplicar `01-tenancy.sql.tpl` (§2b) o a `bases-test-paralelo.sh N` (idempotente). Comprobación: `SELECT has_database_privilege('plataforma_app', current_database(), 'TEMP')` debe dar `f`. Un volumen nuevo y el CI ya lo reciben del script de aprovisionamiento.

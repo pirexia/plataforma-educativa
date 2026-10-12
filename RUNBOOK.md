@@ -204,6 +204,8 @@ No hay salida por la aplicación: es intervención directa sobre la base de dato
 
 **Escrito, no ejecutado de extremo a extremo en este host** (`SYSADMIN.md §6.2`): `install.sh --user` requiere escribir en `~/.config/containers/systemd/`, bloqueado por el propietario incorrecto del directorio. La lógica que sí se ha ejercido — sustitución de `__TAG__`, generación de unidades systemd válidas a partir de estos ficheros — está verificada por separado (`SYSADMIN.md §6.1`); lo que falta es la instalación automática en este directorio concreto, no el contenido de las unidades.
 
+**Paso 0b, una sola vez por base de datos (`1.11-a`, endurecimiento de `TEMP`)**: `REVOKE TEMPORARY ON DATABASE … FROM PUBLIC` y `GRANT TEMPORARY … TO plataforma_owner` sobre la base de la aplicación, procedimiento y comprobación en `SYSADMIN.md §2` («Endurecimiento de `TEMP`»). El orden respecto al despliegue no es crítico: el código nuevo funciona con y sin el `REVOKE`, y el código anterior funciona con él. Un volumen nuevo ya lo recibe de `01-tenancy.sql.tpl`.
+
 ### 3b.3 Reversión
 
 Mismo mecanismo que el despliegue: bajar el *tag* a la versión anterior y reiniciar la unidad.
@@ -216,6 +218,8 @@ systemctl --user restart api@1.service web.service
 Es una operación de segundos porque cada versión es una imagen inmutable en GHCR referenciada por *tag* exacto (`ADR-037 §5.2`) — no hay migración de imagen que deshacer, solo qué proceso arranca. Las migraciones de base de datos son *expand/contract* (`RARQ-DEP-003`): el esquema de la versión anterior sigue siendo compatible, así que revertir el código no exige revertir el esquema.
 
 **No probado de extremo a extremo por el mismo bloqueo de permisos que 3b.2.** Lo que sí se probó de verdad y ejercita el mismo mecanismo de fondo (sustituir la imagen que corre un contenedor sin romper el enrutado): la prueba C de `SYSADMIN.md §6.3` recreó el contenedor de la API con una nueva instancia y Traefik enrutó a la IP nueva sin intervención manual — es la misma propiedad que hace segura una reversión, aplicada a una recreación en vez de a un cambio de *tag*.
+
+**Reversión del endurecimiento de `TEMP` (`1.11-a`)**: no hace falta para volver a la versión anterior (funciona con el `REVOKE` aplicado). Solo si se quisiera restaurar el privilegio por defecto de PostgreSQL: `GRANT TEMPORARY ON DATABASE "<base>" TO PUBLIC`; hacerlo reabre el riesgo documentado en `SYSADMIN.md` y requiere decisión explícita. La migración de índices de claves foráneas (`2026_10_12_100000_add_tenant_foreign_key_indexes`) se revierte con su `down()` (`DROP INDEX CONCURRENTLY IF EXISTS`, solo los índices que su `up()` puede crear), sin pérdida de datos; las FK siguen funcionando, solo se ralentiza el borrado físico del padre.
 
 **Reversión de `REQ-AUTH-003` (1.3)** (`docs/modulos/REQ-AUTH/operacion.md §C.11.2`):
 
