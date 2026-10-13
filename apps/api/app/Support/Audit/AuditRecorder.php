@@ -8,6 +8,7 @@ use App\Support\Tenancy\PlatformAccessPurpose;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use InvalidArgumentException;
 use RuntimeException;
 
 /**
@@ -24,9 +25,12 @@ final class AuditRecorder
 
     /**
      * @param  array<string, array{0: mixed, 1: mixed}>  $rawChanges
+     * @param  array<string, mixed>  $context  ADR-035 §5: solo identificadores y códigos (escalares o listas/mapas de escalares), nunca valores de atributos; mismo tope que `changes` (config audit.max_value_length). Vacío ⇒ `context` NULL.
      */
-    public function record(Model&Auditable $model, string $event, array $rawChanges = []): void
+    public function record(Model&Auditable $model, string $event, array $rawChanges = [], array $context = []): void
     {
+        $this->assertContextIsAllowed($context);
+
         $tenantContext = app(TenantContext::class);
 
         if ($tenantContext->isPlatformMode()) {
@@ -85,6 +89,48 @@ final class AuditRecorder
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
             'request_id' => app(RequestId::class)->current(),
+            'context' => $context === [] ? null : $context,
         ]);
+    }
+
+    /**
+     * ADR-035 §5: `context` transporta identificadores y códigos, nunca
+     * valores de atributos. No se puede decidir por semántica qué es un
+     * valor de atributo, pero sí imponer lo comprobable: solo escalares
+     * (string/int/bool/null) anidados en arrays, y el mismo tope de tamaño
+     * que `changes`. Se lanza en vez de truncar o redactar: un `context`
+     * que no cumple es un error del llamador, y truncar dejaría un rastro
+     * de auditoría engañoso (ADR-035 §5: «o entero o nada»). Se valida antes
+     * de cualquier otra comprobación para que el fallo no dependa del
+     * modo de tenant.
+     *
+     * @param  array<array-key, mixed>  $context
+     */
+    private function assertContextIsAllowed(array $context): void
+    {
+        if ($context === []) {
+            return;
+        }
+
+        $check = function (mixed $value) use (&$check): void {
+            if (is_array($value)) {
+                array_walk($value, $check);
+
+                return;
+            }
+
+            if ($value !== null && ! is_string($value) && ! is_int($value) && ! is_bool($value)) {
+                throw new InvalidArgumentException(
+                    'El context de auditoría solo admite escalares (string, int, bool, null) anidados en arrays (ADR-035 §5).'
+                );
+            }
+        };
+        $check($context);
+
+        if (mb_strlen((string) json_encode($context, JSON_UNESCAPED_UNICODE)) > (int) config('audit.max_value_length')) {
+            throw new InvalidArgumentException(
+                'El context de auditoría supera el tope audit.max_value_length (ADR-035 §5): transporta identificadores y códigos, no texto.'
+            );
+        }
     }
 }
