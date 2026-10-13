@@ -7,6 +7,7 @@ use App\Modules\Auth\Domain\Models\MfaChallenge;
 use App\Modules\Auth\Domain\Models\SamlAuthRequest;
 use App\Modules\Auth\Domain\Models\SamlConsumedAssertion;
 use App\Support\Audit\Auditable;
+use App\Support\Audit\RecordsAuditTrail;
 use App\Support\Tenancy\AppendOnlyModel;
 use App\Support\Tenancy\TenantModel;
 use Illuminate\Database\Eloquent\Model;
@@ -86,6 +87,15 @@ test('AR-06 CA-056-07 INV-003: todo TenantModel/AppendOnlyModel concreto impleme
     ));
 
     expect($without)->toBe([], 'modelos sin Auditable (INV-003, ADR-035): '.implode(', ', $without));
+
+    // Implementar la interfaz sin el trait no emite ningún rastro (INV-003).
+    $withoutTrait = array_values(array_filter(
+        $models,
+        static fn (string $class): bool => ! in_array($class, $exceptions, true)
+            && ! in_array(RecordsAuditTrail::class, class_uses_recursive($class), true),
+    ));
+
+    expect($withoutTrait)->toBe([], 'modelos Auditable sin RecordsAuditTrail (INV-003, ADR-035): '.implode(', ', $withoutTrait));
 });
 
 test('AR-06 CA-056-15: cada excepción de Auditable sigue siendo un modelo de tenant que no implementa Auditable', function (): void {

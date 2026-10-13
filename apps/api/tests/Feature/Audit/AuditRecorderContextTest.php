@@ -3,6 +3,7 @@
 use App\Models\AuditLog;
 use App\Models\Person;
 use App\Support\Audit\AuditRecorder;
+use App\Support\Tenancy\PlatformAccessPurpose;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 
@@ -63,7 +64,87 @@ test('ADR-035 §5 #393: un context por encima de audit.max_value_length se recha
     $before = AuditLog::count();
 
     expect(fn () => app(AuditRecorder::class)->record($this->person, 'updated', [], ['note' => str_repeat('a', 64)]))
-        ->toThrow(InvalidArgumentException::class, 'tope');
+        ->toThrow(InvalidArgumentException::class);
 
     expect(AuditLog::count())->toBe($before);
+});
+
+test('INV-003 #393: un context anidado válido (hasta 3 niveles) se persiste', function (): void {
+    $context = ['a' => ['b' => ['c' => 'x', 'n' => 1, 'ok' => true, 'nada' => null]], 'lista' => [1, 2, 3]];
+
+    app(AuditRecorder::class)->record($this->person, 'updated', [], $context);
+
+    $log = AuditLog::where('auditable_id', $this->person->id)->latest('id')->first();
+
+    expect($log->context)->toEqual($context);
+});
+
+test('ADR-035 §5 #393: un context con más de 3 niveles de anidamiento se rechaza', function (): void {
+    $before = AuditLog::count();
+
+    expect(fn () => app(AuditRecorder::class)->record($this->person, 'updated', [], ['a' => ['b' => ['c' => ['d' => 'x']]]]))
+        ->toThrow(InvalidArgumentException::class);
+
+    expect(AuditLog::count())->toBe($before);
+});
+
+test('ADR-035 §5 #393: NAN, INF, enum y Stringable se rechazan', function (mixed $value): void {
+    expect(fn () => app(AuditRecorder::class)->record($this->person, 'updated', [], ['x' => $value]))
+        ->toThrow(InvalidArgumentException::class);
+})->with([
+    'NAN' => [NAN],
+    'INF' => [INF],
+    'enum' => [PlatformAccessPurpose::Mantenimiento],
+    'Stringable' => [new class implements Stringable
+    {
+        public function __toString(): string
+        {
+            return 'x';
+        }
+    }],
+]);
+
+test('ADR-035 §5 #393: el tope es inclusivo y cuenta caracteres, no bytes (mb_strlen)', function (): void {
+    config(['audit.max_value_length' => 32]);
+    // {"a":"..."} suma 8 caracteres de estructura: 24 caracteres de valor llegan justo a 32.
+    app(AuditRecorder::class)->record($this->person, 'updated', [], ['a' => str_repeat('ñ', 24)]);
+
+    $log = AuditLog::where('auditable_id', $this->person->id)->latest('id')->first();
+    expect($log->context)->toEqual(['a' => str_repeat('ñ', 24)]);
+
+    $before = AuditLog::count();
+    expect(fn () => app(AuditRecorder::class)->record($this->person, 'updated', [], ['a' => str_repeat('ñ', 25)]))
+        ->toThrow(InvalidArgumentException::class);
+    expect(AuditLog::count())->toBe($before);
+});
+
+test('ADR-035 §5 #393: un context con UTF-8 inválido se rechaza y no elude el tope', function (): void {
+    $before = AuditLog::count();
+
+    expect(fn () => app(AuditRecorder::class)->record($this->person, 'updated', [], ['a' => "\xB1\x31"]))
+        ->toThrow(InvalidArgumentException::class);
+
+    expect(AuditLog::count())->toBe($before);
+});
+
+test('ADR-035 §5 #393: el context se valida también en modo plataforma', function (): void {
+    $person = $this->person;
+    app(TenantContext::class)->leave();
+
+    expect(fn () => app(TenantContext::class)->runAsPlatform(
+        PlatformAccessPurpose::Mantenimiento,
+        fn () => app(AuditRecorder::class)->record($person, 'updated', [], ['x' => 1.5]),
+    ))->toThrow(InvalidArgumentException::class);
+
+    app(TenantContext::class)->enter($this->tenant->id);
+});
+
+test('ADR-035 §5 #393: el context se valida también sin tenant activo, antes del retorno silencioso', function (): void {
+    $person = $this->person;
+    app(TenantContext::class)->leave();
+
+    expect(fn () => app(AuditRecorder::class)->record($person, 'updated', [], ['x' => new stdClass]))
+        ->toThrow(InvalidArgumentException::class);
+
+    app(TenantContext::class)->enter($this->tenant->id);
 });

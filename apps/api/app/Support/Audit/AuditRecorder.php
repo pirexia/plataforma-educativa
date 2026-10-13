@@ -9,6 +9,7 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use InvalidArgumentException;
+use JsonException;
 use RuntimeException;
 
 /**
@@ -19,6 +20,9 @@ use RuntimeException;
  */
 final class AuditRecorder
 {
+    /** Niveles máximos de arrays en `context` (el propio `context` cuenta como el primero). */
+    private const MAX_CONTEXT_DEPTH = 3;
+
     public function __construct(
         private readonly AuditChangeBuilder $changeBuilder,
     ) {}
@@ -26,6 +30,8 @@ final class AuditRecorder
     /**
      * @param  array<string, array{0: mixed, 1: mixed}>  $rawChanges
      * @param  array<string, mixed>  $context  ADR-035 §5: solo identificadores y códigos (escalares o listas/mapas de escalares), nunca valores de atributos; mismo tope que `changes` (config audit.max_value_length). Vacío ⇒ `context` NULL.
+     *
+     * @throws InvalidArgumentException si `context` no cumple ADR-035 §5. Se lanza dentro de la transacción de negocio en curso (el registro se invoca desde los eventos del ORM) y la revierte: un `context` inválido aborta la operación de negocio completa, no solo el rastro.
      */
     public function record(Model&Auditable $model, string $event, array $rawChanges = [], array $context = []): void
     {
@@ -112,9 +118,17 @@ final class AuditRecorder
             return;
         }
 
-        $check = function (mixed $value) use (&$check): void {
+        $check = function (mixed $value, int $depth) use (&$check): void {
             if (is_array($value)) {
-                array_walk($value, $check);
+                if ($depth > self::MAX_CONTEXT_DEPTH) {
+                    throw new InvalidArgumentException(
+                        'El context de auditoría admite como máximo '.self::MAX_CONTEXT_DEPTH.' niveles de anidamiento (ADR-035 §5).'
+                    );
+                }
+
+                foreach ($value as $item) {
+                    $check($item, $depth + 1);
+                }
 
                 return;
             }
@@ -125,9 +139,19 @@ final class AuditRecorder
                 );
             }
         };
-        $check($context);
+        $check($context, 1);
 
-        if (mb_strlen((string) json_encode($context, JSON_UNESCAPED_UNICODE)) > (int) config('audit.max_value_length')) {
+        try {
+            $encoded = json_encode($context, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        } catch (JsonException $e) {
+            throw new InvalidArgumentException(
+                'El context de auditoría no es serializable a JSON (p. ej. UTF-8 inválido) (ADR-035 §5).',
+                0,
+                $e,
+            );
+        }
+
+        if (mb_strlen($encoded) > (int) config('audit.max_value_length')) {
             throw new InvalidArgumentException(
                 'El context de auditoría supera el tope audit.max_value_length (ADR-035 §5): transporta identificadores y códigos, no texto.'
             );
