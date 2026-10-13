@@ -3,7 +3,7 @@
 | Campo | Valor |
 |-------|-------|
 | Versión | 2.5.1 |
-| Fecha | 2026-10-12 |
+| Fecha | 2026-10-13 |
 | Estado | Propuesta cerrada, pendiente de ratificación |
 | Documento de requisitos | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` |
 

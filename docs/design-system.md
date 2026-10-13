@@ -848,6 +848,6 @@ Reglas de composición para quien escribe pantallas y componentes de `apps/web`.
 
 - Los colores salen **solo de los tokens semánticos** (`ADR-052`); sin colores literales.
 - Sin estilos *inline*, y CSS propio **solo en la hoja de tokens** (`ADR-052` exige tokens, temas por centro y modo oscuro ahí; «nunca CSS personalizado» no es la regla).
-- `shadcn-vue` se **vendoriza** en `src/components/ui/` (no se instala con `npx shadcn-vue add` por su cuenta y no se mezcla con otra librería de componentes).
+- `shadcn-vue` se **vendoriza** en `src/components/ui/`: tras `add` (§12.2), el componente queda vendorizado y revisado según §12.2 (tests de §10, texto propio convertido en *prop* o *slot*, tokens y tabla de §12.1), y no se mezcla con otra librería de componentes.
 - Todo literal visible va traducido en los cuatro idiomas (`INV-009`).
 - WCAG 2.2 AA (`RNF-UX-002`).
