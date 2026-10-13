@@ -24,9 +24,13 @@ pest()->group('arch');
 //    dos códigos de rol sin homónimo de dominio; ADR-056 §3.3 explica por
 //    qué no se vigilan los dieciséis) solo en la lista de ficheros.
 //
-// Límite declarado: el escáner no ve cadenas con variables interpoladas ni
-// heredocs (ver `Tests\Support\PhpScanner`), ni un código de rol obtenido
-// de la base de datos.
+// Alcance del escáner de literales (#378 B5): `PhpScanner::stringValues()`
+// ve cadenas constantes, concatenaciones estáticas de literales, heredoc,
+// nowdoc y los fragmentos de cadenas interpoladas, y la regla busca el código
+// como SUBCADENA de cualquiera de ellos (un código dentro de un SQL en un
+// heredoc cuenta). Límite declarado, regla de buena fe: nada que dependa de
+// una variable en tiempo de ejecución (`'administrador_'.$x`), ni un código
+// de rol obtenido de la base de datos.
 
 /**
  * Clases de Auth que usan `Role` hoy: `roles.mfa_required` es atributo del
@@ -68,6 +72,23 @@ function roleLiteralExceptions(): array
 const ROLE_CODE_LITERALS = ['administrador_centro', 'soporte_plataforma'];
 
 /**
+ * ¿Menciona el código fuente alguno de los códigos de rol en algún texto
+ * constante que forma con literales? (#378 B5)
+ */
+function sourceMentionsRoleCode(string $source): bool
+{
+    foreach (PhpScanner::stringValues($source) as $value) {
+        foreach (ROLE_CODE_LITERALS as $literal) {
+            if (str_contains($value, $literal)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+/**
  * @return list<string> los espacios de nombres y clases que pueden usar `Role` (AR-08)
  */
 function roleAllowedUsers(): array
@@ -101,10 +122,8 @@ test('AR-08 CA-056-09: los literales de código de rol administrador_centro / so
     foreach ($files as $file) {
         $source = file_get_contents($file);
 
-        foreach (ROLE_CODE_LITERALS as $literal) {
-            if (PhpScanner::hasStringLiteral($source, $literal)) {
-                $found[substr($file, strlen($appPath) + 1)] = true;
-            }
+        if (sourceMentionsRoleCode($source)) {
+            $found[substr($file, strlen($appPath) + 1)] = true;
         }
     }
 
@@ -116,6 +135,28 @@ test('AR-08 CA-056-09: los literales de código de rol administrador_centro / so
     $stale = array_values(array_diff(array_keys(roleLiteralExceptions()), array_keys($found)));
     expect($stale)->toBe([], 'excepciones de AR-08 que ya no hacen falta, retirarlas de la lista: '.implode(', ', $stale));
 });
+
+// #378 B5: control negativo PERMANENTE del escáner de literales de AR-08, con
+// las formas que antes escapaban, y control positivo (sin falsos positivos).
+test('AR-08 CA-056-09 #378 B5: el escáner ve el código de rol en concatenación, heredoc, nowdoc, cadena interpolada y SQL', function (string $body): void {
+    expect(sourceMentionsRoleCode("<?php\n{$body}\n"))->toBeTrue();
+})->with([
+    'concatenación' => ["\$r = 'administrador_'.'centro';"],
+    'heredoc' => ["\$r = <<<TXT\nadministrador_centro\nTXT;"],
+    'nowdoc' => ["\$r = <<<'TXT'\nsoporte_plataforma\nTXT;"],
+    'interpolada' => ['$x = 1; $r = "soporte_plataforma $x";'],
+    'SQL en heredoc' => ["\$r = <<<SQL\nSELECT 1 WHERE code = 'administrador_centro'\nSQL;"],
+    'comillas simples' => ["\$r = 'administrador_centro';"],
+]);
+
+test('AR-08 CA-056-09 #378 B5: el escáner no da falsos positivos (comentarios, otros códigos, variables)', function (string $body): void {
+    expect(sourceMentionsRoleCode("<?php\n{$body}\n"))->toBeFalse();
+})->with([
+    'comentario' => ["// administrador_centro\n\$r = 1;"],
+    'docblock' => ["/** soporte_plataforma */\n\$r = 1;"],
+    'otro código' => ["\$r = 'direccion'; \$s = <<<TXT\ntutor_legal\nTXT;"],
+    'dependiente de variable' => ["\$x = 'centro'; \$r = 'administrador_'.\$x;"],
+]);
 
 test('AR-08 CA-056-09: las listas de excepciones son las de ADR-056 §3.3 (5 clases y 6 ficheros)', function (): void {
     expect(roleUsageExceptions())->toHaveCount(5)
