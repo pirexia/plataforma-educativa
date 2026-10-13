@@ -2,9 +2,20 @@
  * `docs/modulos/REQ-CORE/funcional.md §12.11`, `CA-CORE-102`, `RN-CORE-23`.
  * Cubre también `CA-PERM-131` (`RN-PERM-46`): ningún fichero nuevo de 1.5b
  * contiene un literal de código de rol.
- * Ningún fichero de `src/` decide por `roles[].code` ni contiene los 16
- * códigos de rol predefinidos como literal — la visibilidad se deriva
- * siempre de `permissions` (`GET /me`), nunca del rol.
+ * Ningún fichero de `src/` decide por `roles[].code` ni contiene como
+ * literal los códigos de rol predefinidos SIN homónimo de dominio — la
+ * visibilidad se deriva siempre de `permissions` (`GET /me`), nunca del rol.
+ *
+ * Criterio de la lista de literales (#376, mismo que `AR-08` en el backend,
+ * `ADR-056 §3.3`): se excluyen los cuatro códigos que son también
+ * vocabulario del dominio y darían falsos positivos seguros — `direccion`
+ * (dirección postal), `tutor_legal` (tipo de parentesco en `REQ-FAM-UNIT`),
+ * `docente` y `estudiante` (tipos de persona). La exclusión es SOLO del
+ * literal: la decisión por `.code` de un rol (`ROLE_CODE_DECISION_RE`) sigue
+ * prohibida para los dieciséis, de modo que comparar el código de un rol,
+ * sea cual sea, sigue fallando. La lista de literales solo puede reducirse
+ * por una decisión nueva; ampliarla de nuevo (volver a vigilar uno de los
+ * cuatro) exige que ese código deje de tener homónimo.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
@@ -33,6 +44,15 @@ const PREDEFINED_ROLE_CODES = [
   'soporte_plataforma',
 ]
 
+// Códigos con homónimo de dominio (`ADR-056 §3.3`, #376): no se vigilan como
+// literal. Cada uno tiene su motivo; esta lista no admite ampliaciones sin
+// decisión nueva.
+const AMBIGUOUS_ROLE_CODES = ['direccion', 'tutor_legal', 'docente', 'estudiante']
+
+const ROLE_CODE_LITERALS = PREDEFINED_ROLE_CODES.filter(
+  (code) => !AMBIGUOUS_ROLE_CODES.includes(code),
+)
+
 function listFiles(dir: string): string[] {
   const files: string[] = []
 
@@ -56,7 +76,7 @@ function stripComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
 }
 
-const ROLE_CODE_LITERAL_RE = new RegExp(`['"\`](${PREDEFINED_ROLE_CODES.join('|')})['"\`]`)
+const ROLE_CODE_LITERAL_RE = new RegExp(`['"\`](${ROLE_CODE_LITERALS.join('|')})['"\`]`)
 
 // `roles[0].code`, `role.code`, `r.code` comparado o usado para decidir:
 // `.code` de acceso, seguido (con lo que haya entre medias) de una
@@ -100,6 +120,26 @@ describe('CA-CORE-102 CA-PERM-131 (RN-CORE-23, RN-PERM-46): ningún fichero de s
     const fixture = "if (user.roles.some((r) => r.code === 'administrador_centro')) { ... }"
 
     expect(findOffenses(fixture)).toContain('literal de código de rol predefinido')
+  })
+
+  it('(caso fijo) detecta un literal sin homónimo y NO los cuatro con homónimo de dominio (#376)', () => {
+    for (const code of ROLE_CODE_LITERALS) {
+      expect(findOffenses(`const c = '${code}'`)).toContain('literal de código de rol predefinido')
+    }
+
+    for (const code of AMBIGUOUS_ROLE_CODES) {
+      expect(findOffenses(`const kind = '${code}'`)).toEqual([])
+    }
+
+    expect(ROLE_CODE_LITERALS).toHaveLength(12)
+    expect(ROLE_CODE_LITERALS).toContain('administrador_centro')
+    expect(ROLE_CODE_LITERALS).toContain('soporte_plataforma')
+  })
+
+  it('(caso fijo) la decisión por .code sigue prohibida aunque el código sea ambiguo (#376)', () => {
+    expect(findOffenses("if (role.code === 'direccion') {}")).toContain(
+      'decisión por .code de un rol',
+    )
   })
 
   it('(caso fijo) detecta roles.some(r => r.code === variable) sin literal', () => {
