@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| Versión | 2.5.0 |
+| Versión | 2.5.1 |
 | Fecha | 2026-10-12 |
 | Estado | Propuesta cerrada, pendiente de ratificación |
 | Documento de requisitos | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` |
@@ -151,10 +151,10 @@ Detalle completo, reglas de negocio y criterios de aceptación: `docs/modulos/RE
 | `AR-03` | `ServiceProvider` por convención, descubierto, con catálogo y migraciones cargadas; excepción: `Backoffice` | `ModuleConventionsTest.php` |
 | `AR-04` (`ADR-029`) | en el esquema real (`pg_catalog`): ni `varchar`, ni `timestamp` sin zona, ni `ENUM`, ni `character(n≠26)`; 13 columnas de 7 tablas de Laravel como excepción | `SchemaConventionsTest.php` |
 | `AR-05` | toda `public_id` es `character(26) NOT NULL` con índice único propio; **sin excepciones** | `SchemaConventionsTest.php` |
-| `AR-06` (`INV-003`) | todo `TenantModel`/`AppendOnlyModel` concreto implementa `Auditable`; 6 excepciones | `AuditableModelsTest.php` |
+| `AR-06` (`INV-003`) | todo `TenantModel`/`AppendOnlyModel` concreto implementa `Auditable`; 6 excepciones. Desde #378 B4 además **ningún modelo concreto de `app/` sobre una tabla con columna `tenant_id` (esquema real, `pg_catalog`) extiende `Model` directamente**, con control negativo permanente sobre un esquema de control | `AuditableModelsTest.php` |
 | `AR-07a` (`INV-002`) | toda ruta de `api/v1` lleva `permission:`; 35 rutas de autoservicio o públicas como excepción por nombre (las 33 de `1.7b`, más `GET /academic-years/current`, ampliación aprobada de `1.10`, más `GET /academic-years/selectable`, ampliación aprobada de `1.11`). Desde `1.11-a` (#378 B3, `CA-ACAD-039`) además **el código de cada `permission:` debe estar declarado por algún módulo** (`declaredPermissions()`), de modo que una errata falla en CI y no con un `403` permanente | `RouteAuthorizationTest.php` |
 | `AR-07b` (`RMOD-009`) | toda ruta de un módulo no esencial lleva `module-enabled:<código>` antes de `permission:` | `RouteAuthorizationTest.php` |
-| `AR-08` | `App\Models\Role` confinado a `Core`/núcleo y los literales `'administrador_centro'`/`'soporte_plataforma'` a una lista; 5 clases y 6 ficheros de excepción | `RoleConfinementTest.php` |
+| `AR-08` | `App\Models\Role` confinado a `Core`/núcleo y los literales `'administrador_centro'`/`'soporte_plataforma'` a una lista; 5 clases y 6 ficheros de excepción. Desde #378 B5 el escáner ve también concatenación estática, heredoc/nowdoc, cadenas interpoladas y SQL (busca el código como subcadena); límite declarado: lo que depende de una variable. En el frontend, `roleLiterals.spec.ts` aplica el mismo criterio (#376): 12 de los 16 códigos como literal, sin `direccion`, `tutor_legal`, `docente` ni `estudiante`; la decisión por `.code` sigue prohibida para todos | `RoleConfinementTest.php` |
 | `AR-09` | cable trampa: ningún permiso declarado es de categoría especial hasta que se diseñe la auditoría de lectura (`ADR-044 §4.4`) | `SpecialCategoryTripwireTest.php` |
 | `AR-10` | todo recurso con ámbito restringido está en un mapa cerrado y solo `ScopedQuery` lo consulta; límite: no ve relaciones ni `DB::table` | `ScopedQueryConfinementTest.php` |
 | `AR-11` | web: `shell.ts`, `locales/{es,en,de,fr}.json`, registro en `navigation/modules.ts` e `i18n/index.ts`, solo superficie pública de otro módulo (`api/`, `types/`, `shell`) | `apps/web/src/modules/architecture.spec.ts` |

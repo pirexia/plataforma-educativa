@@ -85,7 +85,7 @@ Antes: cierre de sesión del 2026-10-10 con `develop` limpio. Notas anteriores a
 - Dependencias: Laravel 13.30 por CVE (#272), Actions checkout/setup-node v7 y cache v6 (#402), lockfile web (#403), Pest 5 / PHPUnit 13 (#404).
 - `ADR-061` PostgreSQL 18 (PR #405): volumen nuevo `postgres-cluster`; desarrollo migrado y verificado (inventario idéntico, 1105/1105, reversión probada). **Decisión del usuario pendiente**: borrar el volumen `plataforma-educativa_postgres-data` (17) y `~/plataforma-respaldos/pg17-a-pg18-20261010-1655/`, conservados al menos hasta el 2026-10-17.
 
-**Issues abiertos por decisión**: #378 B3-B5 (esperan módulo de negocio), #376 y #387 (primer caso en `1.11`), #371 (purga física de tenant, decisión de diseño pendiente, obligatoria antes de datos reales), #366 (sin parche), #393, `OPEN-059-05`/`-06`.
+**Issues abiertos por decisión**: #378 (solo queda de B3 lo no cubierto por `1.11-a`: rutas `platform/v1` y rutas fuera de `App\Modules`; B1, B2, B4 y B5 resueltos en `chore/issues-baja-1-11`), #371 (purga física de tenant: paso `1.23b` del plan, obligatorio antes de datos reales), #366 (sin parche), `OPEN-059-05`/`-06`. Resueltos en `chore/issues-baja-1-11` (pendiente de PR): #393, #376, #424.
 
 ---
 ## Bloqueantes
@@ -157,10 +157,10 @@ Antes: cierre de sesión del 2026-10-10 con `develop` limpio. Notas anteriores a
 
 ## Siguiente paso concreto
 
-1. Mezclar `1.11-b` si CI está en verde (PR de `feature/REQ-ACAD-1-11b-modulo-acad`), borrar ramas y cerrar #407, #408, #409, #420, #387 y #104 con el enlace al PR.
-2. Rama `chore/issues-baja-1-11` (decidido por el usuario): #393 (`AuditRecorder::record()` debe persistir `context`; bloquea `1.11c`), #378 B4/B5 (comprobar B1/B2) y #376 (acotar `roleLiterals` a códigos sin homónimo).
-3. Paso propio en Opus antes de datos reales: purga física de tenant (#371, ADR + `architect`); añadirlo al plan.
-4. Después, por el orden del plan: `1.11d` (períodos y escalas, especificación en Opus), `1.11b` (generador `make:module`), `1.11c` (reapertura, `ADR-059`; requiere #393), `1.12` (horarios; decide la asignación docente de `ADR-063 §5.4`).
+1. Mezclar `1.11-b` si CI está en verde (PR de `feature/REQ-ACAD-1-11b-modulo-acad`), borrar ramas y cerrar #407, #408, #409, #420 y #104 con el enlace al PR (#387 ya está cerrado).
+2. Abrir el PR de `chore/issues-baja-1-11` (#393, #378 B4/B5, #376, #424; `CLAUDE.md` 2.7.1) y, al mezclar, cerrar #393, #376 y #424; #378 queda abierto solo por lo que resta de B3.
+3. Paso `1.23b` del plan, en Opus (`architect` + ADR propio), obligatorio antes de datos reales y antes del importador `1.24`: purga física de tenant (#371).
+4. Después, por el orden del plan: `1.11d` (períodos y escalas, especificación en Opus), `1.11b` (generador `make:module`), `1.11c` (reapertura, `ADR-059`; #393 ya resuelto), `1.12` (horarios; decide la asignación docente de `ADR-063 §5.4`).
 5. Abiertos sin acción ahora: #418 y #419 (índices MFA; medir uso real con datos), #421, #422, #366 (sin parche).
 
 **Prueba de Codex cerrada y resuelta: `ADR-050` (2026-09-21).** Detalle completo en `docs/historial/adr-050-cierre-prueba-codex.md`. Dos puntos todavía sin resolver, no bloqueantes: (1) política de datos de la capa gratuita de ChatGPT tras terminar la fase de prueba, decisión pendiente del usuario; (2) `SECURITY.md`/`PRIVACY.md` sin actualizar para reflejar la salida permanente de código hacia Codex — corresponde a `doc-reviewer` en el siguiente cierre de fase.

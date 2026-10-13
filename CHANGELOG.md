@@ -6,6 +6,17 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-13 · Issues Baja de `1.11` (rama `chore/issues-baja-1-11`): #393, #378 B4/B5, #376, #424
+
+- **#393** (`INV-003`, `ADR-035 §5`, `ADR-057 §5.7` punto 3): confirmado contra el código que `AuditRecorder::record()` no escribía `audit_logs.context` (la columna existía y el modelo la tenía en `$fillable`). Ahora acepta `array $context = []` y lo persiste (`NULL` si vacío). Criterio de `ADR-035 §5` (identificadores y códigos, nunca valores de atributos): solo se admiten escalares (`string`, `int`, `bool`, `null`) anidados en *arrays* y el mismo tope de tamaño que `changes` (`audit.max_value_length`); un `context` que no cumple lanza `InvalidArgumentException` en vez de truncarse. Test de regresión `AuditRecorderContextTest`. Desbloquea `1.11c`.
+- **#378 B4** (`AR-06`): nuevo comprobador contra el esquema real: ningún modelo concreto de `app/` sobre una tabla con `tenant_id` extiende `Model` directamente. No exige que toda tabla con `tenant_id` tenga modelo (pivotes y tablas de sondeo de tests, falsos positivos). Control negativo permanente con un esquema de control y dos *fixtures*.
+- **#378 B5** (`AR-08`): viable sin falsos positivos (mismos seis ficheros que antes); el escáner pasa de `hasStringLiteral()` a `stringValues()` y busca el código como subcadena. Límite que queda declarado: lo que depende de una variable. Controles negativos y positivos permanentes. **#378 sigue abierto** solo por lo que resta de B3 (rutas `platform/v1` y rutas fuera de `App\Modules`); B1 y B2 se resolvieron en #395-#398, la comprobación del código `permission:` en `1.11-a`.
+- **#376**: `roleLiterals.spec.ts` vigila como literal 12 de los 16 códigos de rol; se excluyen `direccion`, `tutor_legal`, `docente` y `estudiante` (los cuatro con homónimo de dominio que cita `ADR-056 §3.3`). La decisión por `.code` sigue prohibida para los dieciséis. `REQ-CORE/funcional.md` (`RN-CORE-23`, `CA-CORE-102`) actualizado.
+- **#424**: `docs/design-system.md §22` «Guías de composición visual» y remisión desde `CLAUDE.md §1`. `CLAUDE.md` 2.7.1, `ARCHITECTURE.md` 2.5.1 (`§3.4`, `AR-06` y `AR-08`).
+- **Plan**: nuevo paso `1.23b · Purga física de tenant (#371)` en el Bloque G (obligatorio antes de datos reales e importador), que adelanta el candidato `2.x`.
+
+---
+
 ## 2026-10-12 · `REQ-ACAD-001` entrega `1.11-b`: módulo `acad`, estructura académica (rama `feature/REQ-ACAD-1-11b-modulo-acad`)
 
 - **Módulo `acad`** (no esencial, `depends_on ['curso']`): seis tablas de tenant (`education_levels`, `courses`, `groups`, `subgroups`, `subjects`, `group_subjects`) con RLS, `public_id`, borrado lógico, claves foráneas de tres columnas hacia el padre del mismo curso académico y las **primeras tablas reales con el disparador `academic_year_write_guard`** (`AR-13` gana la aserción de no vacuidad sobre el esquema real, `CA-ACAD-021`). Nombres traducibles con `translatableColumn()` y **`AR-16`** (toda columna `*_translations` es `jsonb NOT NULL` con su `CHECK`). Permisos `estructura_academica.{leer,crear,actualizar,eliminar}` (ámbito `todos`), siembra en `ProvisionTenantDefaults` y comando **`acad:grant-structure-permissions`** (comprueba `retired_at`, #387 B-5).
