@@ -104,16 +104,16 @@ test('ADR-035 §5 #393: NAN, INF, enum y Stringable se rechazan', function (mixe
     }],
 ]);
 
-test('ADR-035 §5 #393: el tope es inclusivo y cuenta caracteres, no bytes (mb_strlen)', function (): void {
+test('ADR-035 §5 #393: el tope es inclusivo (cuenta caracteres con mb_strlen)', function (): void {
     config(['audit.max_value_length' => 32]);
     // {"a":"..."} suma 8 caracteres de estructura: 24 caracteres de valor llegan justo a 32.
-    app(AuditRecorder::class)->record($this->person, 'updated', [], ['a' => str_repeat('ñ', 24)]);
+    app(AuditRecorder::class)->record($this->person, 'updated', [], ['a' => str_repeat('n', 24)]);
 
     $log = AuditLog::where('auditable_id', $this->person->id)->latest('id')->first();
-    expect($log->context)->toEqual(['a' => str_repeat('ñ', 24)]);
+    expect($log->context)->toEqual(['a' => str_repeat('n', 24)]);
 
     $before = AuditLog::count();
-    expect(fn () => app(AuditRecorder::class)->record($this->person, 'updated', [], ['a' => str_repeat('ñ', 25)]))
+    expect(fn () => app(AuditRecorder::class)->record($this->person, 'updated', [], ['a' => str_repeat('n', 25)]))
         ->toThrow(InvalidArgumentException::class);
     expect(AuditLog::count())->toBe($before);
 });
@@ -145,6 +145,69 @@ test('ADR-035 §5 #393: el context se valida también sin tenant activo, antes d
 
     expect(fn () => app(AuditRecorder::class)->record($person, 'updated', [], ['x' => new stdClass]))
         ->toThrow(InvalidArgumentException::class);
+
+    app(TenantContext::class)->enter($this->tenant->id);
+});
+
+test('ADR-035 §5 #393: valores string que no son código ni ULID se rechazan y no escriben fila', function (mixed $value): void {
+    $before = AuditLog::count();
+
+    expect(fn () => app(AuditRecorder::class)->record($this->person, 'updated', [], ['nota' => $value]))
+        ->toThrow(InvalidArgumentException::class);
+
+    expect(AuditLog::count())->toBe($before);
+})->with([
+    'texto libre' => ['hablé con María López'],
+    'nombre propio' => ['María López'],
+    'email' => ['maria.lopez@example.com'],
+    'mayúsculas' => ['Error_Material'],
+    'vacío' => [''],
+]);
+
+test('ADR-035 §5 #393: claves de mapa que no cumplen el patrón se rechazan', function (string $key): void {
+    $before = AuditLog::count();
+
+    expect(fn () => app(AuditRecorder::class)->record($this->person, 'updated', [], [$key => 'ok']))
+        ->toThrow(InvalidArgumentException::class);
+    expect(fn () => app(AuditRecorder::class)->record($this->person, 'updated', [], ['a' => [$key => 'ok']]))
+        ->toThrow(InvalidArgumentException::class);
+
+    expect(AuditLog::count())->toBe($before);
+})->with([
+    'nombre propio' => ['María López'],
+    'email' => ['maria@example.com'],
+    'mayúscula inicial' => ['Maria'],
+    'empieza por dígito' => ['1a'],
+    'guion' => ['a-b'],
+    'vacía' => [''],
+]);
+
+test('INV-003 #393: códigos, ULID y listas de ULID se persisten', function (): void {
+    $context = [
+        'exception_code' => 'rectificacion.calificacion-2',
+        'user_public_id' => '01JABCDEFGHJKMNPQRSTVWXYZ0',
+        'group_public_ids' => ['01JABCDEFGHJKMNPQRSTVWXYZ0', '01JZZZZZZZZZZZZZZZZZZZZZZZ'],
+        'count' => 3,
+        'flag' => false,
+        'nada' => null,
+    ];
+
+    app(AuditRecorder::class)->record($this->person, 'updated', [], $context);
+
+    $log = AuditLog::where('auditable_id', $this->person->id)->latest('id')->first();
+    expect($log->context)->toEqual($context);
+});
+
+test('ADR-035 §5 #393: el patrón se valida también en modo plataforma y sin tenant', function (): void {
+    $person = $this->person;
+    app(TenantContext::class)->leave();
+
+    expect(fn () => app(AuditRecorder::class)->record($person, 'updated', [], ['x' => 'hablé con María López']))
+        ->toThrow(InvalidArgumentException::class);
+    expect(fn () => app(TenantContext::class)->runAsPlatform(
+        PlatformAccessPurpose::Mantenimiento,
+        fn () => app(AuditRecorder::class)->record($person, 'updated', [], ['María' => 'x']),
+    ))->toThrow(InvalidArgumentException::class);
 
     app(TenantContext::class)->enter($this->tenant->id);
 });

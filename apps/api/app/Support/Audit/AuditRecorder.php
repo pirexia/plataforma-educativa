@@ -23,13 +23,22 @@ final class AuditRecorder
     /** Niveles máximos de arrays en `context` (el propio `context` cuenta como el primero). */
     private const MAX_CONTEXT_DEPTH = 3;
 
+    /** Claves de mapa del `context` (ADR-035 §5): identificadores técnicos, nunca texto ni nombres propios. */
+    private const CONTEXT_KEY_PATTERN = '/^[a-z][a-z0-9_]*$/';
+
+    /** Valores string del `context`: un código (`rectificacion_calificacion`, `a.b-c`)... */
+    private const CONTEXT_CODE_PATTERN = '/^[a-z0-9_.-]+$/';
+
+    /** ... o un ULID (`public_id`, ADR-029). */
+    private const CONTEXT_ULID_PATTERN = '/^[0-9A-HJKMNP-TV-Z]{26}$/';
+
     public function __construct(
         private readonly AuditChangeBuilder $changeBuilder,
     ) {}
 
     /**
      * @param  array<string, array{0: mixed, 1: mixed}>  $rawChanges
-     * @param  array<string, mixed>  $context  ADR-035 §5: solo identificadores y códigos (escalares o listas/mapas de escalares), nunca valores de atributos; mismo tope que `changes` (config audit.max_value_length). Vacío ⇒ `context` NULL.
+     * @param  array<string, mixed>  $context  ADR-035 §5: solo identificadores y códigos, nunca valores de atributos ni texto libre. Las claves de los mapas cumplen `^[a-z][a-z0-9_]*$` (las listas indexadas se admiten); los valores string son un código `^[a-z0-9_.-]+$` o un ULID `^[0-9A-HJKMNP-TV-Z]{26}$`; int, bool y null se admiten. Hasta 3 niveles y mismo tope que `changes` (config audit.max_value_length). Vacío ⇒ `context` NULL.
      *
      * @throws InvalidArgumentException si `context` no cumple ADR-035 §5. Se lanza dentro de la transacción de negocio en curso (el registro se invoca desde los eventos del ORM) y la revierte: un `context` inválido aborta la operación de negocio completa, no solo el rastro.
      */
@@ -102,9 +111,12 @@ final class AuditRecorder
     /**
      * ADR-035 §5: `context` transporta identificadores y códigos, nunca
      * valores de atributos. No se puede decidir por semántica qué es un
-     * valor de atributo, pero sí imponer lo comprobable: solo escalares
-     * (string/int/bool/null) anidados en arrays, y el mismo tope de tamaño
-     * que `changes`. Se lanza en vez de truncar o redactar: un `context`
+     * valor de atributo, pero sí imponer su forma: claves de mapa
+     * `^[a-z][a-z0-9_]*$` (las de listas indexadas, enteras, se admiten),
+     * valores string que sean un código `^[a-z0-9_.-]+$` o un ULID, int,
+     * bool y null, hasta 3 niveles y el mismo tope de tamaño que
+     * `changes`. Texto libre, nombres propios y correos no pasan ese
+     * patrón. Se lanza en vez de truncar o redactar: un `context`
      * que no cumple es un error del llamador, y truncar dejaría un rastro
      * de auditoría engañoso (ADR-035 §5: «o entero o nada»). Se valida antes
      * de cualquier otra comprobación para que el fallo no dependa del
@@ -126,11 +138,25 @@ final class AuditRecorder
                     );
                 }
 
-                foreach ($value as $item) {
+                foreach ($value as $key => $item) {
+                    if (is_string($key) && preg_match(self::CONTEXT_KEY_PATTERN, $key) !== 1) {
+                        throw new InvalidArgumentException(
+                            'Las claves del context de auditoría deben cumplir '.self::CONTEXT_KEY_PATTERN.' (ADR-035 §5).'
+                        );
+                    }
+
                     $check($item, $depth + 1);
                 }
 
                 return;
+            }
+
+            if (is_string($value)
+                && preg_match(self::CONTEXT_CODE_PATTERN, $value) !== 1
+                && preg_match(self::CONTEXT_ULID_PATTERN, $value) !== 1) {
+                throw new InvalidArgumentException(
+                    'Los valores string del context de auditoría deben ser un código ('.self::CONTEXT_CODE_PATTERN.') o un ULID, nunca texto libre (ADR-035 §5).'
+                );
             }
 
             if ($value !== null && ! is_string($value) && ! is_int($value) && ! is_bool($value)) {

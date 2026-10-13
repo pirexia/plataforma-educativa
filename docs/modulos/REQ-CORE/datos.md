@@ -29,7 +29,7 @@
 | `ip_address` | `inet` | Sí | Del actor, no del sujeto |
 | `user_agent` | `text` | Sí | |
 | `request_id` | `text` | Sí | `INV-013` |
-| `context` | `jsonb` | Sí | Extensión por módulo sin migrar; solo identificadores y códigos, nunca valores de atributos |
+| `context` | `jsonb` | Sí | Extensión por módulo sin migrar; solo identificadores y códigos, nunca valores de atributos (`ADR-035 §5`). `AuditRecorder::record()` lo valida: claves de mapa `^[a-z][a-z0-9_]*$` (listas indexadas admitidas), valores string código `^[a-z0-9_.-]+$` o ULID `^[0-9A-HJKMNP-TV-Z]{26}$`, `int`/`bool`/`null`, 3 niveles y tope `audit.max_value_length`; si no, `InvalidArgumentException` sin escribir fila |
 
 ## Relaciones
 
