@@ -2,8 +2,8 @@
 
 use App\Models\AuditLog;
 use App\Models\Person;
-use App\Support\Tenancy\Tenant;
 use App\Support\Audit\AuditRecorder;
+use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 
 /**
