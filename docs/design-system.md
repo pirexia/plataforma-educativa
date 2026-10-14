@@ -829,3 +829,25 @@ No se corrigen aquí; se reportan para quien corresponda:
 1. ~~`REQ-CORE/api.md`, ejemplo de `GET /api/v1/tenant/branding` con el par `#1D4ED8`/`#475569`~~ — **resuelto**: issue [#248](https://github.com/pirexia/plataforma-educativa/issues/248), corregido y mezclado a `develop` (PR #249) antes de escribir este documento. Los tres ejemplos de `api.md` usan `#FFFFFF`.
 2. **`CLAUDE.md §6`** no incluye `docs/i18n.md` ni `docs/design-system.md` en la estructura obligatoria (`ADR-052 §Hallazgos 3`, sigue vigente).
 3. **`docs/i18n.md`** sitúa el selector de idioma en «1.7/1.8»; se corrige al cerrar 1.7 (§14), no aquí.
+
+---
+
+## 22. Guías de composición visual
+
+Reglas de composición para quien escribe pantallas y componentes de `apps/web`. Origen: issue [#424](https://github.com/pirexia/plataforma-educativa/issues/424) (propuesta del usuario del 2026-10-12, contrastada con el proyecto). Desarrollan `ADR-052` y `§4`-`§12` de este documento sin reabrirlos; en caso de duda manda `ADR-052`.
+
+1. **Espacio en blanco antes que adornos**, sin sacrificar el *reflow* a 320 px (`RUX-RESP`, WCAG 1.4.10) ni los objetivos táctiles de 44 px. El espaciado generoso no es una cifra fija (`p-6`/`p-8`): es el que cabe sin desbordar a 320 px y sin deteriorar la densidad de las tablas.
+2. **Separar con espacio o con `border border-border`**, no con fondos de colores distintos.
+3. **Diseño plano**: sin neumorfismo ni *glassmorphism*. La sombra se reserva a capas flotantes: `shadow-sm`/`shadow-md` para menús y popovers, `shadow-lg` solo para modales; el velo detrás de una capa es `--overlay` (§4.9), nunca un `bg-black/…` literal.
+4. **Jerarquía tipográfica por peso y tono**, no por color: `font-semibold` para destacar, `text-muted-foreground` para lo secundario.
+5. **Radios coherentes con el tema**: los que derivan de `--radius` (`rounded-md`, `rounded-lg`…), sin valores arbitrarios.
+6. **Iconos solo de `@lucide/vue`** (la dependencia instalada; **no** `lucide-vue-next`, que sería una dependencia duplicada). Un icono decorativo lleva `aria-hidden="true"`; uno que transmite significado, `aria-label` con texto traducido (`INV-009`).
+7. **Estados de carga y de vacío siempre presentes en los listados**: un listado sin ellos se ve «roto» mientras carga o cuando no hay datos.
+
+### Lo que estas guías no cambian
+
+- Los colores salen **solo de los tokens semánticos** (`ADR-052`); sin colores literales.
+- Sin estilos *inline*, y CSS propio **solo en la hoja de tokens** (`ADR-052` exige tokens, temas por centro y modo oscuro ahí; «nunca CSS personalizado» no es la regla).
+- `shadcn-vue` se **vendoriza** en `src/components/ui/`: tras `add` (§12.2), el componente queda vendorizado y revisado según §12.2 (tests de §10, texto propio convertido en *prop* o *slot*, tokens y tabla de §12.1), y no se mezcla con otra librería de componentes.
+- Todo literal visible va traducido en los cuatro idiomas (`INV-009`).
+- WCAG 2.2 AA (`RNF-UX-002`).

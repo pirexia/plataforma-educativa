@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.7.0** · 2026-10-10 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.7.1** · 2026-10-13 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -43,6 +43,8 @@ Frases prohibidas: "¡Excelente idea!", "Tienes toda la razón" como apertura re
 **Prohibido** introducir una dependencia nueva sin justificarla y sin comprobar mantenimiento activo, licencia y frecuencia de releases. Toda dependencia externa se envuelve tras una interfaz propia (`RNF-MANT-007`).
 
 **Prohibido mezclar librerías de componentes UI.** shadcn-vue es el design system único.
+
+Reglas de composición visual del frontend: `docs/design-system.md §22`.
 
 ---
 
