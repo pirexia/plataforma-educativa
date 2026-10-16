@@ -233,7 +233,7 @@ El nombre del parámetro, `academic_year`, sigue `snake_case` y el criterio de `
 
 Todos los mensajes, en `lang/{es,en,de,fr}/curso.php` (`INV-009`, `AR-12`).
 
-Clave nueva de `1.11d-a` (propuesta; las traducciones `en`/`de`/`fr` las revisa el agente `traductor`, no son textos legales):
+Clave nueva de `1.11d-a` (las traducciones `en`/`de`/`fr` son textos de partida y se revisan al implementar con el agente `traductor`; no son textos legales):
 
 | Clave | es | en | de | fr |
 |-------|----|----|----|----|

@@ -28,6 +28,14 @@ Acciones solo de `RPERM-003`; ninguna inventada.
 
 `PUT /groups/{id}/subjects` exige `actualizar` y no `crear`+`eliminar` **[DERIVADA]**: es la configuración del grupo, no el alta de una entidad con identidad propia (precedente: `PUT` de roles de un usuario en `REQ-CORE`).
 
+### 2.1 Permisos que no se declaran
+
+| No se declara | Motivo |
+|---------------|--------|
+| `estructura_academica.exportar` | Ningún requisito lo pide; sin *endpoint*, un permiso invita a concederlo creyendo que hace algo (precedente `REQ-PERM/permisos.md §9.4`) |
+| `estructura_academica.importar` | La importación es de `REQ-ONB` (`1.24`), que declarará lo suyo |
+| Permiso para escribir en cursos cerrados | No existe ni existirá uno genérico (`ADR-057 §5.7` punto 4) |
+
 ### 2.2 Catálogo de `1.11d` (APROBADA)
 
 Mismas propiedades: `module_code = 'acad'`, `is_special_category = false`, `applicable_scopes = ['todos']` explícito, `resource_label_key = acad.permissions.resources.configuracion_academica` en los cuatro idiomas (`funcional.md §10.5.5`). Tras `1.11d`, `acad` declara **ocho** códigos (`CA-ACAD-096`).
@@ -42,14 +50,6 @@ Mismas propiedades: `module_code = 'acad'`, `is_special_category = false`, `appl
 Que `PATCH` con `values` cree y borre valores con solo `actualizar` es **[DERIVADA]**, mismo razonamiento que `PUT /groups/{id}/subjects`: los valores son parte de la escala (`RN-ACAD-80`). Ni `exportar` ni `importar` (§2.1, mismo motivo). Ningún permiso para escribir en cursos cerrados.
 
 Independencia de los dos recursos (`RN-ACAD-50`): `estructura_academica.*` no da acceso a períodos ni escalas, y `configuracion_academica.*` no da acceso a la estructura. La sección de períodos de la interfaz vive en la ficha de etapa, que exige `estructura_academica.leer`; la API de períodos no lo exige (`OPEN-ACAD-29`).
-
-### 2.1 Permisos que no se declaran
-
-| No se declara | Motivo |
-|---------------|--------|
-| `estructura_academica.exportar` | Ningún requisito lo pide; sin *endpoint*, un permiso invita a concederlo creyendo que hace algo (precedente `REQ-PERM/permisos.md §9.4`) |
-| `estructura_academica.importar` | La importación es de `REQ-ONB` (`1.24`), que declarará lo suyo |
-| Permiso para escribir en cursos cerrados | No existe ni existirá uno genérico (`ADR-057 §5.7` punto 4) |
 
 ## 3. Matriz recurso × acción × ámbito
 
@@ -94,23 +94,23 @@ Se descartó la alternativa Y (`direccion` con los cuatro); el centro puede hace
 
 El usuario decidió **X + 1** en `OPEN-ACAD-28` el 2026-10-16 (`funcional.md §15.2`).
 
-| Rol (`code`) | Permisos (X, decidida) | Ámbito | Motivo |
-|--------------|----------------------|--------|--------|
-| `administrador_centro` | Los cuatro | `todos` | Lo que afecta al centro entero, al administrador (`OPEN-CURSO-14`, `OPEN-ACAD-09`) |
-| `direccion` | `leer` (los cuatro con la alternativa Y) | `todos` | «Informes académicos»; Y reflejaría que la jefatura de estudios suele fijar el calendario de evaluación |
+| Rol (`code`) | Permisos | Ámbito | Motivo |
+|--------------|----------|--------|--------|
+| `administrador_centro` | Los cuatro (`leer`, `crear`, `actualizar`, `eliminar`) | `todos` | Lo que afecta al centro entero, al administrador (`OPEN-CURSO-14`, `OPEN-ACAD-09`) |
+| `direccion` | `leer` | `todos` | «Informes académicos» |
 | `secretaria` | `leer` | `todos` | Documentos que citarán períodos y escalas |
 | `docente` | `leer` | `todos` | Calificar en `1.16` con la escala y el período; ver la configuración no es ver alumnos |
 | `tutor_grupo` | `leer` | `todos` | Ídem |
 | `orientador` | `leer` | `todos` | Ídem |
 | Los 10 restantes | — | — | Sin base en `§11.1` |
 
-**Dónde se siembra**: en `ProvisionTenantDefaults` (centros nuevos) y, para los existentes, con la opción **1** de `OPEN-ACAD-28`: el comando `acad:grant-structure-permissions` (en `Core`, `INV-007`) pasa a sembrar los **ocho** códigos de `acad`, con las mismas garantías (idempotente, solo roles predefinidos, no toca roles personalizados, solo centros `Activo`, y **no concede nada** si alguno de los ocho falta en `permissions` o tiene `retired_at` informado, issue #387). Con la opción **2**, un comando nuevo `acad:grant-config-permissions` con esas mismas garantías para los cuatro nuevos. En ambos casos, `RN-PERM-46`: ninguna regla de código compara códigos de rol.
+**Dónde se siembra**: en `ProvisionTenantDefaults` (centros nuevos) y, para los existentes, con el comando `acad:grant-structure-permissions` (en `Core`, `INV-007`), que se amplía para sembrar los **ocho** códigos de `acad`, con las mismas garantías (idempotente, solo roles predefinidos, no toca roles personalizados, solo centros `Activo`, y **no concede nada** si alguno de los ocho falta en `permissions` o tiene `retired_at` informado, issue #387). `RN-PERM-46`: ninguna regla de código compara códigos de rol.
 
 **`RPERM-013`** (nadie concede lo que no tiene): sin cambios; la acotación de `1.11-b` (§5) cubre igual los permisos de `configuracion_academica` de un rol que ya los contiene en un centro sin `acad` contratado.
 
 **Categoría especial**: no aplica. Períodos y escalas no contienen datos personales; `is_special_category = false` y `AR-09` no se activa. Las **calificaciones** que usarán estas escalas sí serán datos personales de menores y llevarán su propio permiso con ámbito en `CALIF` (`1.16`), no este.
 
-**MFA**: sin cambios (§7): las capacidades de escritura solo las tiene, en la siembra decidida, `administrador_centro`. Con la alternativa Y, `direccion` ganaría escritura; si su rol no exige MFA hoy, lo dice la especificación de `REQ-AUTH-003`, no esta.
+**MFA**: sin cambios (§7): las capacidades de escritura solo las tiene, en la siembra, `administrador_centro`.
 
 ## 5. Reglas de autorización que no son un permiso
 
@@ -137,4 +137,4 @@ Ningún cambio. Las capacidades de escritura solo las tiene, en la siembra decid
 
 ## 9. Verificación
 
-`funcional.md §13.6` (`CA-ACAD-032` a `-037`) y `§13.5` (lectura de curso cerrado, `CA-ACAD-024` a `-031`). `1.11d`: `§13.14` (`CA-ACAD-090` a `-092`) y `§13.15` (`CA-ACAD-093` a `-097`); `PermissionCatalogTest` debe conocer los ocho códigos. `PermissionCatalogTest` debe conocer los cuatro códigos con `module_code = 'acad'`. El *endpoint* `GET /academic-years/selectable` (módulo `curso`, #409) no lleva permiso: amplía la lista cerrada de `AR-07a` con esa única ruta (aprobado, `CA-ACAD-043`).
+`funcional.md §13.6` (`CA-ACAD-032` a `-037`) y `§13.5` (lectura de curso cerrado, `CA-ACAD-024` a `-031`). `1.11d`: `§13.14` (`CA-ACAD-090` a `-092`) y `§13.15` (`CA-ACAD-093` a `-097`); `PermissionCatalogTest` debe conocer los ocho códigos con `module_code = 'acad'` (los cuatro de `estructura_academica` y los cuatro de `configuracion_academica`). El *endpoint* `GET /academic-years/selectable` (módulo `curso`, #409) no lleva permiso: amplía la lista cerrada de `AR-07a` con esa única ruta (aprobado, `CA-ACAD-043`).
