@@ -838,9 +838,9 @@ Reglas de composición para quien escribe pantallas y componentes de `apps/web`.
 
 1. **Espacio en blanco antes que adornos**, sin sacrificar el *reflow* a 320 px (`RUX-RESP`, WCAG 1.4.10) ni los objetivos táctiles de 44 px. El espaciado generoso no es una cifra fija (`p-6`/`p-8`): es el que cabe sin desbordar a 320 px y sin deteriorar la densidad de las tablas.
 2. **Separar con espacio o con `border border-border`**, no con fondos de colores distintos.
-3. **Diseño plano**: sin neumorfismo ni *glassmorphism*. La sombra se reserva a capas flotantes: `shadow-sm`/`shadow-md` para menús y popovers, `shadow-lg` solo para modales; el velo detrás de una capa es `--overlay` (§4.9), nunca un `bg-black/…` literal.
+3. **Diseño plano**: sin neumorfismo ni *glassmorphism*. La sombra se reserva a capas flotantes: `shadow-sm`/`shadow-md` para menús y popovers, `shadow-lg` solo para modales; el velo detrás de una capa es `--overlay` (§4.9), nunca un `bg-black/…` literal. *(Enmendada por `ADR-064`: ver «Reglas aprobadas por `ADR-064`» al final de esta sección.)*
 4. **Jerarquía tipográfica por peso y tono**, no por color: `font-semibold` para destacar, `text-muted-foreground` para lo secundario.
-5. **Radios coherentes con el tema**: los que derivan de `--radius` (`rounded-md`, `rounded-lg`…), sin valores arbitrarios.
+5. **Radios coherentes con el tema**: los que derivan de `--radius` (`rounded-md`, `rounded-lg`…), sin valores arbitrarios. *(Enmendada por `ADR-064`: ver «Reglas aprobadas por `ADR-064`» al final de esta sección.)*
 6. **Iconos solo de `@lucide/vue`** (la dependencia instalada; **no** `lucide-vue-next`, que sería una dependencia duplicada). Un icono decorativo lleva `aria-hidden="true"`; uno que transmite significado, `aria-label` con texto traducido (`INV-009`).
 7. **Estados de carga y de vacío siempre presentes en los listados**: un listado sin ellos se ve «roto» mientras carga o cuando no hay datos.
 

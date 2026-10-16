@@ -35,7 +35,7 @@ La pantalla de acceso es **por centro**: cada centro entra por su subdominio (`A
 ## 4 · Decisión: radio de 2 px
 
 1. **`--radius` pasa de `0.625rem` a `2px`.** Afecta a botones, cajas de texto, tarjetas, menús y diálogos, porque todos los radios derivan de él (`--radius-sm/md/lg/xl`).
-2. **Enmienda de `§22` regla 5**: «radios coherentes con el tema» se mantiene; cambia el valor base. Las derivadas que con `2px` queden en cero o negativas (`--radius-sm = calc(var(--radius) - 4px)`) se corrigen en la especificación para que ninguna sea negativa.
+2. **Enmienda de `§22` regla 5**: «radios coherentes con el tema» se mantiene; cambia el valor base. Las derivadas que con `2px` queden en cero o negativas (`--radius-sm = calc(var(--radius) - 4px)`, en `apps/web/src/style.css`) se corrigen en la especificación para que ninguna sea negativa.
 3. Se descartó el radio 0: con 0 los anillos de foco y los menús desplegables pierden legibilidad visual; 2 px conserva el aspecto recto que se busca.
 
 ## 5 · Alternativas descartadas
@@ -61,5 +61,6 @@ La pantalla de acceso es **por centro**: cada centro entra por su subdominio (`A
 
 - `PublicAuthShell.vue` cambia de tarjeta centrada a disposición en dos columnas; las pantallas públicas que lo usan (acceso, recuperación y activación) heredan la disposición.
 - El cambio de `--radius` es global y visible en toda la aplicación: se revisa con capturas antes y después.
-- `docs/design-system.md §22` recoge las reglas `RN-DS-25` a `RN-DS-29` como **aprobadas y pendientes de implementar** hasta que cierre `1.15a`.
+- `docs/design-system.md §22` recoge las reglas `RN-DS-25` a `RN-DS-29` como **aprobadas y pendientes de implementar** hasta que cierre `1.15a`. Al cerrar el paso se actualizan también `§4` (tabla de tokens, valor de `--radius`) y `§13` (`PublicAuthShell`, hoy descrito como tarjeta, y `CA-DS-045`).
+- Las derivadas del radio viven en `apps/web/src/style.css` (`@theme inline`, `--radius-sm/md/lg/xl`), no en `tokens.css`: con `2px`, `--radius-sm` saldría `-2px` y `--radius-md` `0px`.
 - Referencia visual: maqueta navegable (privada) https://claude.ai/artifact/U5nBzt5e1jWHwRtqUWmwZH, versión 5.

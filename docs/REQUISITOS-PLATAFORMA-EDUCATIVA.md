@@ -2,8 +2,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Versión** | 3.2.19 |
-| **Fecha** | 2026-10-16 |
+| **Versión** | **Fecha** | 2026-10-16 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
 | **Documento sustituye a** | v1.2.0 (mismo contenido, reorganizado y ampliado) |
@@ -3360,8 +3359,8 @@ Se mantendrá una matriz de trazabilidad (generada automáticamente desde las re
 |---------|-------|-------|-------------|
 | 3.2.16 | 2026-10-10 | Product Owner | `ADR-061` (actualización de PostgreSQL 17 a 18) aceptado y aplicado en la rama `chore/postgres-18`: imágenes `postgres:18` en desarrollo, prodlike, Quadlet y CI, volumen nuevo `postgres-cluster` montado en `/var/lib/postgresql`, `CA-058-02` actualizado a la lista de clases de PostgreSQL 18. Sustituye solo la fila de `ADR-037` que nombra `postgres-data.volume`; `ADR-001` («PostgreSQL 17+») intacto. Sin cambios en los requisitos de las secciones 1-17. |
 | 3.2.17 | 2026-10-10 | Product Owner | `ADR-062` (contenido del centro traducible, columna `jsonb` `<campo>_translations`) y `ADR-063` (ámbitos `grupo`, `clase` y `departamento`: `1.11` no registra ninguno; enmienda `ADR-044 §3`) propuestos con la especificación de `REQ-ACAD-001` (paso `1.11`). Sin cambios en los requisitos de las secciones 1-17. |
-| 3.2.19 | 2026-10-16 | Product Owner | `ADR-064` (capa visual de la interfaz: login en disposición «Panel», radio de 2 px y sombra del panel de acceso) añadido al índice de la sección 18, **`ACEPTADA`**. Paso nuevo `1.15a` en el plan. Sin cambios en los requisitos de las secciones 1-17. |
 | 3.2.18 | 2026-10-12 | Product Owner | `ADR-062` y `ADR-063` aceptados; `REQ-ACAD-001` (estructura académica) implementado en `1.11-b`. Desviaciones aprobadas respecto a la especificación, en `docs/modulos/REQ-ACAD/funcional.md §16`: `RPERM-013` acotada (ignora los permisos inertes de un módulo no contratado solo al asignar o clonar un rol que ya los contiene), un padre del cuerpo o `academic_year` de un curso cerrado ilegible es indistinguible de uno inexistente, y el código `acad.validation.invalid_characters`. Sin cambios en los requisitos de las secciones 1-17. |
+| 3.2.19 | 2026-10-16 | Product Owner | `ADR-064` (capa visual de la interfaz: login en disposición «Panel», radio de 2 px y sombra del panel de acceso) añadido al índice de la sección 18, **`ACEPTADA`**. Paso nuevo `1.15a` en el plan. Sin cambios en los requisitos de las secciones 1-17. |
 | 3.2.15 | 2026-10-10 | Product Owner | `ADR-060` (suite de tests en paralelo y norma de ejecución) añadido al índice de la sección 18, **`ACEPTADA`** (plan aprobado por el usuario el 2026-10-10). No sustituye ningún ADR ni cambia ningún requisito de las secciones 1-17; `RN-AUTH-03` sin cambios |
 | 3.2.14 | 2026-10-08 | Product Owner | `ADR-059` (reapertura de un curso académico cerrado) añadido al índice de la sección 18 y **`ACEPTADA`** (el usuario aceptó la opción B y las respuestas a `OPEN-059-02` a `-04`); resuelve `OPEN-CURSO-08`. `OPEN-059-05` y `-06` siguen abiertas. No sustituye ningún ADR |
 | 3.2.13 | 2026-10-07 | Product Owner | `ADR-058` (SQLSTATE `YC001` en lugar de `CY001`, 2026-10-08) también añadido al índice. `ADR-057` (bloqueo de escritura de cursos cerrados por disparador de PostgreSQL) añadido al índice de la sección 18, **`ACEPTADA`**; resuelve `OPEN-CURSO-04`. Errata en `REQ-CURSO-005`: el archivado en frío cita `RDB-012` y no `RDB-010` (`OPEN-CURSO-22`). Ningún otro requisito de las secciones 1-17 se reescribe. |
