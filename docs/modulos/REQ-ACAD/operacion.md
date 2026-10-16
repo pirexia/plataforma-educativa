@@ -1,6 +1,8 @@
 # REQ-ACAD · Operación
 
 > **Estado**: **APROBADA** (2026-10-10), paso **1.11**, con las recomendaciones de `funcional.md §15` aprobadas y `ADR-062`/`ADR-063` ACEPTADOS. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
+>
+> **`1.11d`** (PROPUESTA, 2026-10-16): operación de períodos lectivos y escalas en **§11**, tras §10 (el §6.2 de `1.11-a`, que ya estaba fuera de orden al final del fichero, sigue detrás).
 
 ## 1. Variables de entorno
 
@@ -91,6 +93,52 @@ Desplegar la imagen anterior (`RUNBOOK.md`). **Las migraciones no se revierten**
 - `CHANGELOG.md`, con la cifra de `CA-ACAD-023` (hecho en `1.11-b`).
 - `docs/modulos/REQ-CURSO/` (`GET /academic-years/selectable`, ampliación de `AcademicYearDirectory`, comprobación de `retired_at`; lo hace la sesión principal).
 - `PLAN-IMPLEMENTACION.md` (sub-paso `1.11d`, orden `1.13`/`1.15` de `OPEN-ACAD-22`, y la obligación y el plazo de `ADR-063 §5.4` en `1.12`, `1.13` y `1.16`; lo hace la sesión principal).
+
+## 11. `1.11d` · Períodos lectivos y escalas (PROPUESTA, 2026-10-16)
+
+### 11.1 Variables de entorno, servicios, colas y tareas
+
+Ninguna variable nueva, ningún servicio externo, **ninguna cola ni tarea programada**: toda operación es síncrona sobre decenas de filas (una etapa tiene unos pocos períodos; una escala, como mucho 100 valores, `RN-ACAD-89`); `INV-012` no aplica. Sin caché entre peticiones (las fechas del curso salen de `AcademicYearDirectory`, memoizado por petición).
+
+### 11.2 Despliegue
+
+1. Migraciones del módulo (*expand*, aditivas), por el rol propietario: `…_create_academic_periods_table`, `…_create_grading_scales_table`, `…_create_grading_scale_values_table`, en ese orden (la tercera depende de la segunda), en `apps/api/app/Modules/Acad/Database/migrations/`, con `TenantMigration::tenantTable()`, `tenantForeignId()` y `translatableColumn()`; FK de tres y cuatro columnas a mano con nombre explícito, **sin** acción referencial (`AR-13`); `CHECK` e índices parciales por sentencia del propietario, como `2026_10_13_100200_create_courses_table.php`. Tablas nuevas y vacías: sin `CONCURRENTLY` y `ADD CONSTRAINT` sin `NOT VALID`. Ninguna altera una tabla existente: no hay fase *contract*.
+2. `php artisan platform:sync-registry`: materializa los cuatro códigos de `configuracion_academica` (`module_code = 'acad'`, `applicable_scopes = ['todos']`). El descriptor del módulo no cambia (`depends_on: ['curso']`, `essential: false`).
+3. Siembra en centros existentes (pendiente de `OPEN-ACAD-28`; recomendado: `php artisan acad:grant-structure-permissions` ampliado a los ocho códigos, con su comprobación de `retired_at`). Centros nuevos: `ProvisionTenantDefaults`.
+4. Abrir tráfico. Sin cambios de contratación: el módulo es el mismo `acad`.
+5. **`db-reviewer` obligatorio** (tres migraciones, FK de cuatro columnas, `CHECK` entre columnas con `round()`); `security-reviewer` (permisos nuevos, sincronización de valores por `public_id` ajeno).
+
+Si se aprueba `OPEN-ACAD-24` = B, el punto de extensión de `curso` se despliega en la misma imagen y no tiene migración.
+
+### 11.3 Rendimiento esperado
+
+Del orden de 2-12 períodos y 1-10 escalas por centro y curso académico, con decenas de valores en total. El listado de escalas carga sus valores con una consulta (*eager loading*, nunca N+1) acotada por `per_page`. La validación de solape y tipo lee los períodos vivos de una etapa por el índice de la FK (`datos.md §3.1`). El bloqueo `FOR UPDATE` de la etapa serializa solo las escrituras de períodos **de esa etapa**, raras y humanas. Coste del disparador por fila (`CA-ACAD-023`): irrelevante con este volumen.
+
+### 11.4 Métricas y diagnóstico
+
+Sin métricas nuevas. Problemas conocidos:
+
+| Síntoma | Causa probable | Qué hacer |
+|---------|----------------|-----------|
+| `403` en «Escalas de calificación» con `estructura_academica.*` concedido | Son recursos distintos (`RN-ACAD-50`) | Conceder `configuracion_academica.*` o ejecutar la siembra |
+| No aparece la sección de períodos en la ficha de etapa | Falta `configuracion_academica.leer` | Ídem |
+| `409 has_dependents` con «períodos lectivos» al borrar una etapa | `RN-ACAD-61` | Borrar antes sus períodos |
+| `422 period_type_mismatch` al cambiar de trimestres a semestres | Un solo tipo por etapa (`RN-ACAD-59`) | Borrar los períodos de la etapa y crear los nuevos |
+| `422 bands_not_contiguous` tras cambiar el máximo de una mixta | Los tramos ya no cubren la escala (`RN-ACAD-85`) | Enviar los tramos ajustados en el mismo `PATCH` |
+| `500` con `23514`/`23503` en una escritura de escala o valor | El servicio dejó pasar algo que el motor rechaza | *Bug*: debe ser `422`; abrir issue |
+| Períodos fuera de las fechas del curso tras editar el curso | `OPEN-ACAD-24` sin punto de extensión en `curso` | Corregir los períodos; ver la decisión de `OPEN-ACAD-24` |
+
+### 11.5 Copias y restauración
+
+Tablas de tenant ordinarias (PITR, exportación por tenant). Orden: `academic_years` → `education_levels` → `academic_periods`; `academic_years` → `grading_scales` → `grading_scale_values` (`datos.md §6`). Como propietario (exento del disparador).
+
+### 11.6 Reversión
+
+Desplegar la imagen anterior. **Las migraciones no se revierten**: aditivas, la versión anterior no usa las tablas, y `down()` (`DROP TABLE IF EXISTS`) borraría configuración del centro. El `sync-registry` de la versión anterior marca los cuatro códigos de `configuracion_academica` con `retired_at` (concesiones inertes). Si el comando de siembra se amplió (opción 1), la versión anterior vuelve a sembrar solo los cuatro de `estructura_academica`. Las filas de `audit_logs` con `academic_period`/`grading_scale`/`grading_scale_value` quedan (inmutables) y la versión anterior las muestra con un alias desconocido, sin fallar **[DERIVADA; comprobar al probar la reversión]**. Con `RN-ACAD-61`, la versión anterior permitiría borrar una etapa con períodos vivos (lógicamente): sin daño de integridad (borrado lógico, FK `NO ACTION`), pero el período quedaría huérfano lógico; se acepta durante la reversión y se documenta en `RUNBOOK.md`. Procedimiento a probar antes de mezclar (`CLAUDE.md §9`).
+
+### 11.7 Documentación a actualizar en el cierre de `1.11d`
+
+`docs/manual-usuario/admin.md` (períodos y escalas) y `direccion.md`, `secretaria.md`, `docente.md` según la siembra; `SYSADMIN.md` (permisos nuevos y comando de siembra); `ARCHITECTURE.md §3.4` (referencia de patrón: FK de cuatro columnas que arrastra un discriminador, sincronización de un conjunto hijo por `public_id`); `CHANGELOG.md`; `PLAN-IMPLEMENTACION.md` (entregas de `OPEN-ACAD-31`); `apps/api/openapi/paths/acad.yaml` (cabecera); y, si `OPEN-ACAD-24` = B, `docs/modulos/REQ-CURSO/`.
 
 ### 6.2 Convergencia de índices de clave foránea ya mezclada (`1.11-a`, issue #412)
 
