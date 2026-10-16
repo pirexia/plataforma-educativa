@@ -209,6 +209,49 @@ describe('edición (funcional.md §4.2, RN-CURSO-06)', () => {
     expect(pushed).toEqual(['/administracion/cursos/Y1'])
   })
 
+  it('CA-CURSO-116 RN-CURSO-53: un 409 date_change_checks_failed muestra el detail y el message de cada entrada, conserva lo escrito y no navega', async () => {
+    updateAcademicYear.mockRejectedValue(
+      problem(409, {
+        type: 'urn:pge:error:conflict',
+        status: 409,
+        detail: 'Las nuevas fechas del curso académico dejan fuera datos que dependen de ellas.',
+        errors: {
+          date_change: [
+            {
+              code: 'acad.conflict.periods_outside_academic_year',
+              message: 'Hay períodos lectivos que quedarían fuera del curso académico.',
+              params: { count: 1 },
+            },
+            {
+              code: 'test.second',
+              message: 'Otra validación rechaza el cambio.',
+              params: {},
+            },
+          ],
+        },
+      }),
+    )
+    const { wrapper, pushed } = await mountView('/administracion/cursos/Y1/editar')
+
+    await fill(wrapper, { starts_on: '2026-09-10' })
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    const alert = wrapper.find('[role="alert"]')
+
+    expect(alert.text()).toContain('Las nuevas fechas del curso académico dejan fuera datos')
+    expect(alert.findAll('li').map((li) => li.text())).toEqual(
+      expect.arrayContaining([
+        'Hay períodos lectivos que quedarían fuera del curso académico.',
+        'Otra validación rechaza el cambio.',
+      ]),
+    )
+    expect((wrapper.find('#curso-form-starts_on').element as HTMLInputElement).value).toBe(
+      '2026-09-10',
+    )
+    expect(pushed).toEqual([])
+  })
+
   it('sin cambios no envía ninguna petición', async () => {
     const { wrapper, pushed } = await mountView('/administracion/cursos/Y1/editar')
 

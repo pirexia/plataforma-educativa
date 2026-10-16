@@ -12,6 +12,9 @@
  * - **`PATCH` solo con lo modificado** (`ADR-038 §9.2`).
  * - **`409 planning_exists`** (`RN-CURSO-04`): el mensaje del servidor con un
  *   enlace al curso que ya está en planificación.
+ * - **`409 date_change_checks_failed`** (`RN-CURSO-53`, `1.11d-a`): el `detail`
+ *   y el `message` de cada entrada de `errors.date_change[]` sobre el formulario,
+ *   que conserva lo escrito; la ficha no cambia hasta guardar con éxito.
  * - **Curso no editable** (`RN-CURSO-06`): si el curso no está en
  *   `planificacion`, estado propio sin formulario (la API daría `409`).
  * - Campos de fecha con etiqueta y formato anunciado (`type="date"`, WCAG 2.2).
@@ -35,6 +38,7 @@ import { setFlash } from '../composables/useFlash'
 import {
   problemDetail,
   conflictYear,
+  problemErrorEntries,
   problemErrorEntryWithCode,
   problemFieldErrors,
   problemStatus,
@@ -63,6 +67,8 @@ const fieldErrors = ref<Partial<Record<FieldName, string[]>>>({})
 const generalError = ref<string | null>(null)
 /** `409 planning_exists`: el curso que ya está en planificación. */
 const planning = ref<{ public_id: string; code: string } | null>(null)
+/** `409 date_change_checks_failed`: una entrada por validación que falla (`errors.date_change[]`). */
+const dateChangeFailures = ref<string[]>([])
 
 const errorSummary = computed(() => {
   const lines: string[] = []
@@ -148,6 +154,7 @@ async function submit(): Promise<void> {
   fieldErrors.value = {}
   generalError.value = null
   planning.value = null
+  dateChangeFailures.value = []
 
   submitting.value = true
 
@@ -212,6 +219,8 @@ async function showError(err: unknown): Promise<void> {
   }
 
   if (status === 409) {
+    dateChangeFailures.value = problemErrorEntries(err, 'date_change').map((entry) => entry.message)
+
     planning.value = conflictYear(
       problemErrorEntryWithCode(err, 'academic_year', 'curso.conflict.planning_exists'),
     )
@@ -265,6 +274,9 @@ async function showError(err: unknown): Promise<void> {
         <p class="font-medium">{{ t('curso.form.errorSummary') }}</p>
         <ul class="list-disc pl-5">
           <li v-for="line in errorSummary" :key="line">{{ line }}</li>
+        </ul>
+        <ul v-if="dateChangeFailures.length > 0" class="list-disc pl-5">
+          <li v-for="failure in dateChangeFailures" :key="failure">{{ failure }}</li>
         </ul>
         <p v-if="planning" class="mt-2">
           <RouterLink
