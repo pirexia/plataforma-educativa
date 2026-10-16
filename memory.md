@@ -72,9 +72,9 @@
 ---
 ## Trabajo en curso
 
-**`fix/REQ-AUTH-login-sesion-anonima` (nota viva, 2026-10-16)**: #427 (Alta). Login en la SPA no entraba tras un `GET /me` 401 previo (entrada por `/`) o tras logout: `ensureSessionLoaded()` no repite con `anonymous` en caché. Corregido con `reloadSession()` antes de navegar en los cinco caminos que crean sesión (`a65881e`), tests de integración con sesión, router y *guard* reales que se ponen en rojo sin la corrección y spec del muro de MFA (`e196c8e`), `REQ-CORE/funcional.md §12.3` y `CHANGELOG.md`. Verificado: 1471/1471 Vitest (suite completa de `apps/web`), lint, `vue-tsc` y `lint:i18n`; comprobado en Chromium contra la API real entrando por `/`. Sin cambios de backend. Revisado por `security-reviewer` (sin Crítico/Alto; Media de cobertura resuelta en `e196c8e`; tres Bajas en #428) y `doc-reviewer` (dos Bajas aplicadas en `88ee828`). Queda: PR y mezcla con confirmación del usuario. **`chore/issues-baja-1-11` mezclada** (PR #425, `e43171f`).
+**`chore/capa-visual-plan-adr` (nota viva, 2026-10-16)**: `ADR-064` (ACEPTADA; login en disposición «Panel», imagen a la izquierda y panel estrecho a la derecha con sombra marcada direccional, `--radius` 2 px), reglas `RN-DS-25` a `-29` en `docs/design-system.md §22` como **pendientes de implementar**, paso nuevo `1.15a` en el plan (antes de `1.15b`), índice de la sección 18 (requisitos 3.2.19). Solo documentación. Queda: `doc-reviewer`, PR y mezcla con confirmación del usuario. Decisiones del usuario en #431 (cuerpo y dos comentarios: el último manda). **Mezclado antes**: #429 (`d9681ff`, corrección de #427: login con sesión anónima en caché).
 
-**Centro de demostración (2026-10-15)**: `demo` creado en la base de desarrollo con `tests/Support/e2e-real-tenant.php setup demo` (administrador `e2e-admin@example.com`, contraseña en la conversación del 2026-10-15, exención de MFA hasta el 2026-10-22, `acad` contratado, sin cursos académicos). **`npm run test:e2e:real` lo retira y lo recrea con otra contraseña.** Un centro de demostración persistente es `REQ-SEED` (`1.15b`).
+**Centro de demostración (2026-10-15/16)**: `demo` creado en la base de desarrollo con `tests/Support/e2e-real-tenant.php setup demo` (administrador `e2e-admin@example.com`, contraseña en la conversación del 2026-10-15, exención de MFA hasta el 2026-10-22, `acad` contratado, sin cursos académicos; marca configurada el 2026-10-16: primario `#0E6E73` e imagen de acceso original, cuyo SVG fuente solo vive en el *scratchpad* de la sesión). **`npm run test:e2e:real` lo retira y lo recrea con otra contraseña.** Un centro de demostración persistente es `REQ-SEED` (`1.15b`).
 
 **`1.11-b` · CERRADA Y MEZCLADA** (PR #423, `af26b73`). Lo que sigue es el detalle de esa entrega:
 
@@ -163,11 +163,11 @@ Antes: cierre de sesión del 2026-10-10 con `develop` limpio. Notas anteriores a
 
 ## Siguiente paso concreto
 
-1. Mezclar `fix/REQ-AUTH-login-sesion-anonima` (#427) tras confirmación del usuario y cerrar #427 con el enlace al PR.
-2. `1.11d` (períodos y escalas): especificación en Opus con `spec-writer`, en sesión nueva (`CLAUDE.md §3`).
+1. Mezclar `chore/capa-visual-plan-adr` (`ADR-064`, paso `1.15a`) tras confirmación del usuario.
+2. **`1.11d`** (períodos lectivos y escalas, `REQ-ACAD`): el usuario pidió continuar con él tras mezclar. Especificación en Opus con `spec-writer`: numera `RN-ACAD-50` en adelante y `CA-ACAD-063` en adelante (`funcional.md §4.8-4.9`, `§0.2` y la obligación de la nota previa a `§4.8`).
 3. Paso `1.23b` del plan, en Opus (`architect` + ADR propio), obligatorio antes de datos reales y antes del importador `1.24`: purga física de tenant (#371).
 4. Después, por el orden del plan: `1.11b` (generador `make:module`), `1.11c` (reapertura, `ADR-059`; #393 ya resuelto), `1.12` (horarios; decide la asignación docente de `ADR-063 §5.4`).
-5. Abiertos sin acción ahora: #428 (Bajas de #427), #418 y #419 (índices MFA; medir uso real con datos), #421, #422, #366 (sin parche).
+5. Abiertos sin acción ahora: #431 (decisiones de `1.15a`), #430 (seguimiento de Dependabot nº 1), #428 (Bajas de #427), #418 y #419 (índices MFA; medir uso real con datos), #421, #422, #366 (sin parche).
 
 **Prueba de Codex cerrada y resuelta: `ADR-050` (2026-09-21).** Detalle completo en `docs/historial/adr-050-cierre-prueba-codex.md`. Dos puntos todavía sin resolver, no bloqueantes: (1) política de datos de la capa gratuita de ChatGPT tras terminar la fase de prueba, decisión pendiente del usuario; (2) `SECURITY.md`/`PRIVACY.md` sin actualizar para reflejar la salida permanente de código hacia Codex — corresponde a `doc-reviewer` en el siguiente cierre de fase.
 

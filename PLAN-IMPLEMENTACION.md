@@ -1,6 +1,6 @@
 # PLAN-IMPLEMENTACION.md
 
-> **Versión 2.3.10** · 2026-10-13
+> **Versión 2.3.11** · 2026-10-16
 
 > Plan de ejecución dimensionado a **sesiones de ~5 horas** (límite del plan Pro). Cada paso cabe en una o dos sesiones y termina con el repositorio en estado compilable, tests en verde y `memory.md` actualizado.
 >
@@ -220,6 +220,9 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 - [ ] **1.13 · `REQ-ACAD`: asistencia** [SONNET] · *movido tras `1.15` el 2026-10-10 (`OPEN-ACAD-22`): necesita alumnado y matrícula*
   El paso de lista es la operación más frecuente del sistema: optimizar para pocos toques y funcionamiento offline.
   ⚠️ **Plazo de `ADR-063 §5.4`**: no se aprueba su especificación sin la asignación docente ya especificada; ningún módulo de alumnado da `todos` a `docente` como sustituto.
+
+- [ ] **1.15a · Capa visual de la interfaz** [OPUS + SONNET] · *añadido el 2026-10-16 (issue [#431](https://github.com/pirexia/plataforma-educativa/issues/431))*
+  Implementa `ADR-064` (aceptado): pantalla de acceso en disposición «Panel» (imagen del centro a la izquierda, panel de acceso estrecho a la derecha con sombra marcada), radio de 2 px y reglas `RN-DS-25` a `-29` de `docs/design-system.md §22`. Su especificación decide lo que `ADR-064 §6` deja abierto: texto de bienvenida personalizable (`RUX-BRAND-005`, posible campo nuevo traducible en `GET /tenant/branding`), ilustración por defecto y su encuadre, valores finales de los tokens, y si entran el color de marca en el interior de la aplicación, los estados vacíos ilustrados y la página de inicio (lo que toque `RN-DS-02` exige su propio ADR). Al cerrar, actualiza también `docs/design-system.md §4` (tokens) y `§13` (`PublicAuthShell`, `CA-DS-045`), y las derivadas del radio en `apps/web/src/style.css`. Va antes de `1.15b` para que los centros de demostración nazcan con este aspecto. Referencia visual: maqueta de la versión 5 enlazada en `ADR-064`.
 
 - [ ] **1.15b · `REQ-SEED`: generador de datos de demostración** [SONNET] ⚠️ *habilitante*
   Tres centros ficticios (concertado con 0-3 privado, público y privado), entre 300 y 1.200 alumnos cada uno, plantilla completa de personal y datos operativos. Semilla reproducible y **bloqueo en producción sin excepción**. Sin esto no hay forma legítima de probar con volumen, porque usar datos reales está prohibido (`ADR-030`). Se amplía en cada bloque posterior conforme existan más módulos.
