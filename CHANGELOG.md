@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-16 · Corrección: login de la SPA con sesión anónima en caché (#427, rama `fix/REQ-AUTH-login-sesion-anonima`)
+
+- **#427** (Alta, `RN-AUTH-21`, `RN-CORE-28`, `CA-CORE-090`): tras un `POST /auth/session` con `200`, la SPA se quedaba en `/entrar` si antes un `GET /me` había dado `401` (entrada por `/` sin sesión) o tras cerrar sesión sin recargar: `ensureSessionLoaded()` no repite `GET /me` con el estado ya resuelto en `anonymous` y el *guard* devolvía al login. Ahora cada camino que crea una sesión llama a `reloadSession()` antes de navegar: login (`LoginView`), desafío MFA superado (`MfaChallengeStep`), resultado `alta_mfa_requerida` de los *callbacks* de Google y SSO, y salida del muro de alta de MFA (`MfaEnrollmentWallView`). Ni el *guard* ni `useSession` cambian. Los E2E no lo veían porque empiezan en `/entrar`. Tests de regresión en Vitest (`LoginView`, `GoogleCallbackResultView`, `SsoCallbackResultView`) y comprobación en Chromium contra la API real entrando por `/`.
+
+---
+
 ## 2026-10-13 · Issues Baja de `1.11` (rama `chore/issues-baja-1-11`): #393, #378 B4/B5, #376, #424
 
 - **#393** (`INV-003`, `ADR-035 §5`, `ADR-057 §5.7` punto 3): confirmado contra el código que `AuditRecorder::record()` no escribía `audit_logs.context` (la columna existía y el modelo la tenía en `$fillable`). Ahora acepta `array $context = []` y lo persiste (`NULL` si vacío). Criterio de `ADR-035 §5` (identificadores y códigos, nunca valores de atributos): solo se admiten escalares (`string`, `int`, `bool`, `null`) anidados en *arrays* y el mismo tope de tamaño que `changes` (`audit.max_value_length`); un `context` que no cumple lanza `InvalidArgumentException` en vez de truncarse. Test de regresión `AuditRecorderContextTest`. Desbloquea `1.11c`.
