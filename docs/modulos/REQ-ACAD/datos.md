@@ -4,7 +4,7 @@
 >
 > **Resumen**: seis tablas de tenant nuevas, **todas con `academic_year_id`** (`OPEN-ACAD-03` = B): `education_levels`, `courses`, `groups`, `subgroups`, `subjects`, `group_subjects`. Son las **primeras tablas reales con el disparador `academic_year_write_guard`** (`ADR-057`) y las primeras con contenido traducible (`ADR-062`). §1.7-§1.9 describen las tablas de `1.11d`. Ninguna migración altera tablas existentes. Fuera de `acad`, `1.11` cambia dos ayudantes de `TenantMigration` (§7).
 >
-> **`1.11d`** (especificación **PROPUESTA** el 2026-10-16, pendiente de aprobación; `funcional.md §17`): tres tablas de tenant nuevas con `academic_year_id` —`academic_periods`, `grading_scales`, `grading_scale_values`—, §1.7-§1.9, §3.1, §4, §8. Ninguna altera una tabla existente ni toca `TenantMigration`.
+> **`1.11d`** (especificación **APROBADA** el 2026-10-16; `funcional.md §17`): tres tablas de tenant nuevas con `academic_year_id` —`academic_periods`, `grading_scales`, `grading_scale_values`—, §1.7-§1.9, §3.1, §4, §8. Ninguna altera una tabla existente ni toca `TenantMigration`.
 
 ---
 
@@ -92,7 +92,7 @@ Restricción: `UNIQUE (tenant_id, course_id, id)` (destino de `group_subjects`).
 
 Borrado lógico; una baja es `deleted_at` por instancia (`AR-15`).
 
-*§1.7-§1.9: especificación ejecutable de `1.11d` (PROPUESTA). La forma aprobada en `1.11` se cita al principio de cada tabla; las diferencias están en `funcional.md §17.3`. Las tres se crean con `TenantMigration::tenantTable()` (RLS, autoría, `timestamptz`, borrado lógico, `UNIQUE (tenant_id, id)`, disparador `academic_year_write_guard` por tener `academic_year_id`), en `apps/api/app/Modules/Acad/Database/migrations/`, con el patrón real de `2026_10_13_100200_create_courses_table.php`: FK de más de dos columnas con nombre explícito declaradas a mano, `CHECK` e índices parciales por `DB::connection('pgsql_owner')->statement()`, `down()` con `DROP TABLE IF EXISTS`.*
+*§1.7-§1.9: especificación ejecutable de `1.11d` (APROBADA). La forma aprobada en `1.11` se cita al principio de cada tabla; las diferencias están en `funcional.md §17.3`. Las tres se crean con `TenantMigration::tenantTable()` (RLS, autoría, `timestamptz`, borrado lógico, `UNIQUE (tenant_id, id)`, disparador `academic_year_write_guard` por tener `academic_year_id`), en `apps/api/app/Modules/Acad/Database/migrations/`, con el patrón real de `2026_10_13_100200_create_courses_table.php`: FK de más de dos columnas con nombre explícito declaradas a mano, `CHECK` e índices parciales por `DB::connection('pgsql_owner')->statement()`, `down()` con `DROP TABLE IF EXISTS`.*
 
 ### 1.7 `academic_periods` — período lectivo (`1.11d`, `OPEN-ACAD-17` = A + Y)
 

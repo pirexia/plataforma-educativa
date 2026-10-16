@@ -6,7 +6,7 @@ Prefijo: `/api/v1`. Tenant por *host* (`ADR-033 §2`). Todo según `ADR-038`: re
 
 **Identificadores**: solo `public_id` ULID en rutas y cuerpos (`ADR-029`). Ningún `code` es identificador de ruta (`ADR-051`).
 
-> **`1.11d`** (especificación **PROPUESTA** el 2026-10-16, pendiente de aprobación): diez *endpoints* nuevos de períodos lectivos y escalas en **§11**; los 27 de arriba no cambian salvo `DELETE /education-levels/{public_id}`, que gana `academic_periods` en `params.dependents` (`RN-ACAD-61`).
+> **`1.11d`** (especificación **APROBADA** el 2026-10-16): diez *endpoints* nuevos de períodos lectivos y escalas en **§11**; los 27 de arriba no cambian salvo `DELETE /education-levels/{public_id}`, que gana `academic_periods` en `params.dependents` (`RN-ACAD-61`).
 
 **Cadena de *middleware*** de toda ruta (`OPEN-ACAD-10` = no esencial, aprobada): autenticación → `module-enabled:acad` → `permission:<código>` (`AR-07a`, `AR-07b`). La autenticación es `App\Http\Middleware\RequireAuthenticatedUser`, **no** el alias `auth` (desviación de `1.11-b`, `funcional.md §16`; el alias se ordena antes de `resolve-tenant` y da `500` con una cookie real); las rutas de `1.11d` se añaden dentro del mismo grupo `Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:acad'])` de `Http/routes.php`.
 
@@ -220,7 +220,7 @@ Los 27 *endpoints* (37 con `1.11d`, §11.8) en `apps/api/openapi.yaml` antes del
 
 ---
 
-## 11. `1.11d` · Períodos lectivos y escalas de calificación (PROPUESTA)
+## 11. `1.11d` · Períodos lectivos y escalas de calificación (APROBADA)
 
 Todo lo de la cabecera de este documento aplica igual: `ADR-038`, solo `public_id`, cadena de *middleware*, curso académico de referencia, `404` de lectura de curso cerrado (`RN-ACAD-52`) y `409 academic-year-closed` en escritura. Permisos sobre el recurso **`configuracion_academica`** (`permisos.md §2`), ámbito `todos`.
 
@@ -267,7 +267,7 @@ Todo lo de la cabecera de este documento aplica igual: `ADR-038`, solo `public_i
 }
 ```
 
-- `min_value`, `max_value`, `passing_min_value`, `range_min`, `range_max`: **cadena** con exactamente `decimals` cifras decimales (`RN-ACAD-75`, asumida `OPEN-ACAD-26` = A); `null` en la cualitativa (escala) y en la cualitativa (`range_*` de los valores).
+- `min_value`, `max_value`, `passing_min_value`, `range_min`, `range_max`: **cadena** con exactamente `decimals` cifras decimales (`RN-ACAD-75`, `OPEN-ACAD-26` = A, decidida); `null` en la cualitativa (escala) y en la cualitativa (`range_*` de los valores).
 - `decimals`: entero, `null` en la cualitativa.
 - `values`: siempre presente, en orden de `position`; vacío en la numérica. Solo valores vivos. En la **mixta**, `is_passing` es **derivado** (`range_min ≥ passing_min_value`, `RN-ACAD-87`) y `readOnly`; en la cualitativa es el guardado.
 - Un valor no tiene *endpoint* ni `Location` propios: su `public_id` sirve para la sincronización (`RN-ACAD-88`) y para las futuras FK de `CALIF`.

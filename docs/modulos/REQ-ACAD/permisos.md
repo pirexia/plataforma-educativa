@@ -1,6 +1,6 @@
 # REQ-ACAD · Permisos
 
-> **`1.11d`** (PROPUESTA, 2026-10-16): recurso `configuracion_academica` en §1, §2.2, §3 y §4.1.
+> **`1.11d`** (APROBADA, 2026-10-16): recurso `configuracion_academica` en §1, §2.2, §3 y §4.1.
 >
 > **Estado**: **APROBADA** (2026-10-10), paso **1.11**. Recurso y siembra aprobados (`OPEN-ACAD-09` = A + X); ámbitos según `ADR-063` (ACEPTADA; `OPEN-ACAD-08` = A). La fuente de verdad será `AcadServiceProvider::declaredPermissions()` (`INV-007`, `ADR-034 §2`); esta tabla es su reflejo. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 
@@ -11,7 +11,7 @@
 | Recurso | Qué representa | Por qué así |
 |---------|----------------|-------------|
 | `estructura_academica` | Etapas, cursos de etapa, grupos, subgrupos, asignaturas y la asignación de asignaturas a grupos | Un solo recurso (`OPEN-ACAD-09` = A, aprobada): las seis entidades tienen el mismo perfil de riesgo (datos del centro, sin datos personales) y nadie ha pedido repartirlas. Un recurso llamado `grupo` se confundiría con el **ámbito** `grupo`, y uno llamado `curso` con el módulo `curso` (`funcional.md §0.1`) |
-| `configuracion_academica` (`1.11d`, PROPUESTA) | Períodos lectivos, escalas de calificación y sus valores o tramos | Sub-paso `1.11d` (`OPEN-ACAD-01` = A); es «configurar parámetros académicos» de `REQ-CORE-002`. Se declara con sus *endpoints* en `1.11d` (§2.2). **Comprobado el 2026-10-16**: no existe todavía en el catálogo (`AcadServiceProvider::declaredPermissions()` solo declara los cuatro de `estructura_academica`). Recurso separado y no ampliación de `estructura_academica`: la forma aprobada de §4.8/§4.9 ya lo nombra, y separa «ver la estructura» (que la siembra da a seis roles) de «configurar cómo se evalúa» |
+| `configuracion_academica` (`1.11d`, APROBADA) | Períodos lectivos, escalas de calificación y sus valores o tramos | Sub-paso `1.11d` (`OPEN-ACAD-01` = A); es «configurar parámetros académicos» de `REQ-CORE-002`. Se declara con sus *endpoints* en `1.11d` (§2.2). **Comprobado el 2026-10-16**: no existe todavía en el catálogo (`AcadServiceProvider::declaredPermissions()` solo declara los cuatro de `estructura_academica`). Recurso separado y no ampliación de `estructura_academica`: la forma aprobada de §4.8/§4.9 ya lo nombra, y separa «ver la estructura» (que la siembra da a seis roles) de «configurar cómo se evalúa» |
 
 Acciones solo de `RPERM-003`; ninguna inventada.
 
@@ -28,7 +28,7 @@ Acciones solo de `RPERM-003`; ninguna inventada.
 
 `PUT /groups/{id}/subjects` exige `actualizar` y no `crear`+`eliminar` **[DERIVADA]**: es la configuración del grupo, no el alta de una entidad con identidad propia (precedente: `PUT` de roles de un usuario en `REQ-CORE`).
 
-### 2.2 Catálogo de `1.11d` (PROPUESTA)
+### 2.2 Catálogo de `1.11d` (APROBADA)
 
 Mismas propiedades: `module_code = 'acad'`, `is_special_category = false`, `applicable_scopes = ['todos']` explícito, `resource_label_key = acad.permissions.resources.configuracion_academica` en los cuatro idiomas (`funcional.md §10.5.5`). Tras `1.11d`, `acad` declara **ocho** códigos (`CA-ACAD-096`).
 
@@ -90,11 +90,11 @@ Se descartó la alternativa Y (`direccion` con los cuatro); el centro puede hace
 
 `soporte_plataforma`: nada (`REQ-PERM/permisos.md §5.4`). Super Administrador: no es fila de `roles`.
 
-### 4.1 Siembra de `configuracion_academica` (`1.11d`, **pendiente de `OPEN-ACAD-28`**)
+### 4.1 Siembra de `configuracion_academica` (`1.11d`, `OPEN-ACAD-28` = X + 1, decidida)
 
-La especificación asume la recomendación **X + 1** de `OPEN-ACAD-28` (`funcional.md §15.2`); no está decidida.
+El usuario decidió **X + 1** en `OPEN-ACAD-28` el 2026-10-16 (`funcional.md §15.2`).
 
-| Rol (`code`) | Permisos (asumida X) | Ámbito | Motivo |
+| Rol (`code`) | Permisos (X, decidida) | Ámbito | Motivo |
 |--------------|----------------------|--------|--------|
 | `administrador_centro` | Los cuatro | `todos` | Lo que afecta al centro entero, al administrador (`OPEN-CURSO-14`, `OPEN-ACAD-09`) |
 | `direccion` | `leer` (los cuatro con la alternativa Y) | `todos` | «Informes académicos»; Y reflejaría que la jefatura de estudios suele fijar el calendario de evaluación |
@@ -110,7 +110,7 @@ La especificación asume la recomendación **X + 1** de `OPEN-ACAD-28` (`funcion
 
 **Categoría especial**: no aplica. Períodos y escalas no contienen datos personales; `is_special_category = false` y `AR-09` no se activa. Las **calificaciones** que usarán estas escalas sí serán datos personales de menores y llevarán su propio permiso con ámbito en `CALIF` (`1.16`), no este.
 
-**MFA**: sin cambios (§7): las capacidades de escritura solo las tiene, en la siembra asumida, `administrador_centro`. Con la alternativa Y, `direccion` ganaría escritura; si su rol no exige MFA hoy, lo dice la especificación de `REQ-AUTH-003`, no esta.
+**MFA**: sin cambios (§7): las capacidades de escritura solo las tiene, en la siembra decidida, `administrador_centro`. Con la alternativa Y, `direccion` ganaría escritura; si su rol no exige MFA hoy, lo dice la especificación de `REQ-AUTH-003`, no esta.
 
 ## 5. Reglas de autorización que no son un permiso
 
@@ -129,7 +129,7 @@ Ninguno. `AR-09` no se activa.
 
 ## 7. MFA
 
-Ningún cambio. Las capacidades de escritura solo las tiene, en la siembra propuesta, `administrador_centro`, que ya lleva `mfa_required = true`.
+Ningún cambio. Las capacidades de escritura solo las tiene, en la siembra decidida, `administrador_centro`, que ya lleva `mfa_required = true`.
 
 ## 8. Traducciones
 

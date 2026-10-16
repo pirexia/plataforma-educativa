@@ -2,7 +2,7 @@
 
 > **Estado**: **APROBADA** (2026-10-10), paso **1.11**, con las recomendaciones de `funcional.md §15` aprobadas y `ADR-062`/`ADR-063` ACEPTADOS. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 >
-> **`1.11d`** (PROPUESTA, 2026-10-16): operación de períodos lectivos y escalas en **§11**, tras §10 (el §6.2 de `1.11-a`, que ya estaba fuera de orden al final del fichero, sigue detrás).
+> **`1.11d`** (APROBADA, 2026-10-16): operación de períodos lectivos y escalas en **§11**, tras §10 (el §6.2 de `1.11-a`, que ya estaba fuera de orden al final del fichero, sigue detrás).
 
 ## 1. Variables de entorno
 
@@ -94,7 +94,7 @@ Desplegar la imagen anterior (`RUNBOOK.md`). **Las migraciones no se revierten**
 - `docs/modulos/REQ-CURSO/` (`GET /academic-years/selectable`, ampliación de `AcademicYearDirectory`, comprobación de `retired_at`; lo hace la sesión principal).
 - `PLAN-IMPLEMENTACION.md` (sub-paso `1.11d`, orden `1.13`/`1.15` de `OPEN-ACAD-22`, y la obligación y el plazo de `ADR-063 §5.4` en `1.12`, `1.13` y `1.16`; lo hace la sesión principal).
 
-## 11. `1.11d` · Períodos lectivos y escalas (PROPUESTA, 2026-10-16)
+## 11. `1.11d` · Períodos lectivos y escalas (APROBADA, 2026-10-16)
 
 ### 11.1 Variables de entorno, servicios, colas y tareas
 
@@ -104,11 +104,11 @@ Ninguna variable nueva, ningún servicio externo, **ninguna cola ni tarea progra
 
 1. Migraciones del módulo (*expand*, aditivas), por el rol propietario: `…_create_academic_periods_table`, `…_create_grading_scales_table`, `…_create_grading_scale_values_table`, en ese orden (la tercera depende de la segunda), en `apps/api/app/Modules/Acad/Database/migrations/`, con `TenantMigration::tenantTable()`, `tenantForeignId()` y `translatableColumn()`; FK de tres y cuatro columnas a mano con nombre explícito, **sin** acción referencial (`AR-13`); `CHECK` e índices parciales por sentencia del propietario, como `2026_10_13_100200_create_courses_table.php`. Tablas nuevas y vacías: sin `CONCURRENTLY` y `ADD CONSTRAINT` sin `NOT VALID`. Ninguna altera una tabla existente: no hay fase *contract*.
 2. `php artisan platform:sync-registry`: materializa los cuatro códigos de `configuracion_academica` (`module_code = 'acad'`, `applicable_scopes = ['todos']`). El descriptor del módulo no cambia (`depends_on: ['curso']`, `essential: false`).
-3. Siembra en centros existentes (pendiente de `OPEN-ACAD-28`; recomendado: `php artisan acad:grant-structure-permissions` ampliado a los ocho códigos, con su comprobación de `retired_at`). Centros nuevos: `ProvisionTenantDefaults`.
+3. Siembra en centros existentes (`OPEN-ACAD-28` decidida: `php artisan acad:grant-structure-permissions` ampliado a los ocho códigos, con su comprobación de `retired_at`). Centros nuevos: `ProvisionTenantDefaults`.
 4. Abrir tráfico. Sin cambios de contratación: el módulo es el mismo `acad`.
 5. **`db-reviewer` obligatorio** (tres migraciones, FK de cuatro columnas, `CHECK` entre columnas con `round()`); `security-reviewer` (permisos nuevos, sincronización de valores por `public_id` ajeno).
 
-Si se aprueba `OPEN-ACAD-24` = B, el punto de extensión de `curso` se despliega en la misma imagen y no tiene migración.
+Por `OPEN-ACAD-24` = B (decidida), el punto de extensión de `curso` se despliega en la misma imagen y no tiene migración.
 
 ### 11.3 Rendimiento esperado
 
