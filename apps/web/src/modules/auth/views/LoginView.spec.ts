@@ -15,6 +15,7 @@ const getCsrfCookie = vi.fn().mockResolvedValue(undefined)
 
 vi.mock('../api', () => ({
   login: (...args: unknown[]) => login(...args),
+  verifyMfaChallenge: (...args: unknown[]) => verifyMfaChallenge(...args),
   getCsrfCookie: (...args: unknown[]) => getCsrfCookie(...args),
 }))
 
@@ -32,6 +33,15 @@ const getTenantBranding = vi.fn().mockResolvedValue({
 vi.mock('@/modules/core/api', () => ({
   getTenantBranding: (...args: unknown[]) => getTenantBranding(...args),
 }))
+
+// #427: `reloadSession` se mockea para comprobar que se invoca antes de navegar.
+const reloadSession = vi.fn()
+
+vi.mock('@/session/useSession', () => ({
+  reloadSession: (...args: unknown[]) => reloadSession(...args),
+}))
+
+const verifyMfaChallenge = vi.fn()
 
 const { default: LoginView } = await import('./LoginView.vue')
 
@@ -84,6 +94,9 @@ beforeEach(() => {
   login.mockReset()
   getCsrfCookie.mockClear()
   getTenantBranding.mockClear()
+  reloadSession.mockReset()
+  reloadSession.mockResolvedValue(undefined)
+  verifyMfaChallenge.mockReset()
   setLocale('es')
 })
 
@@ -127,6 +140,72 @@ describe('LoginView — redirect tras el login (CA-CORE-090/091)', () => {
     await wrapper.get('form').trigger('submit.prevent')
     await flushPromises()
 
+    expect(router.currentRoute.value.name).toBe('home')
+  })
+})
+
+describe('LoginView — recarga de la sesión antes de navegar (#427)', () => {
+  it('#427, RN-AUTH-21, RN-CORE-28, CA-CORE-090: login 200 recarga GET /me y solo entonces navega al destino', async () => {
+    login.mockResolvedValue({ kind: 'authenticated', user: {} })
+    const { wrapper, router } = await mountAt('/entrar?redirect=%2Fcuenta%2Fsesiones')
+    let routeWhenReloading: string | undefined
+    reloadSession.mockImplementation(async () => {
+      routeWhenReloading = String(router.currentRoute.value.name)
+    })
+
+    await wrapper.get('#login-email').setValue('ana@example.com')
+    await wrapper.get('#login-password').setValue('correcta')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(reloadSession).toHaveBeenCalledTimes(1)
+    expect(routeWhenReloading).toBe('login')
+    expect(router.currentRoute.value.name).toBe('sessions')
+  })
+
+  it('#427, RN-AUTH-21: un login 401 no recarga la sesión ni navega', async () => {
+    login.mockRejectedValue(Object.assign(new Error('x'), { status: 401 }))
+    const { wrapper, router } = await mountAt('/entrar')
+
+    await wrapper.get('#login-email').setValue('ana@example.com')
+    await wrapper.get('#login-password').setValue('mala')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(reloadSession).not.toHaveBeenCalled()
+    expect(router.currentRoute.value.name).toBe('login')
+  })
+
+  it('#427, RN-AUTH-21, RN-CORE-28: el desafío MFA superado recarga la sesión y solo entonces navega a home', async () => {
+    login.mockResolvedValue({
+      kind: 'mfa-challenge',
+      challenge: {
+        public_id: '01J-CHALLENGE',
+        method: 'totp',
+        available_methods: ['totp'],
+        expires_at: new Date(Date.now() + 300_000).toISOString(),
+        has_unused_recovery_codes: false,
+      },
+    })
+    verifyMfaChallenge.mockResolvedValue(undefined)
+    const { wrapper, router } = await mountAt('/entrar?redirect=%2Fcuenta%2Fsesiones')
+    let routeWhenReloading: string | undefined
+    reloadSession.mockImplementation(async () => {
+      routeWhenReloading = String(router.currentRoute.value.name)
+    })
+
+    await wrapper.get('#login-email').setValue('ana@example.com')
+    await wrapper.get('#login-password').setValue('correcta')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    await wrapper.get('#mfa-challenge-code').setValue('123456')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(verifyMfaChallenge).toHaveBeenCalledTimes(1)
+    expect(reloadSession).toHaveBeenCalledTimes(1)
+    expect(routeWhenReloading).toBe('login')
     expect(router.currentRoute.value.name).toBe('home')
   })
 })

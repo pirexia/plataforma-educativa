@@ -20,6 +20,13 @@ vi.mock('../api', () => ({
   verifyMfaChallenge: (...args: unknown[]) => verifyMfaChallenge(...args),
 }))
 
+// #427: `reloadSession` se mockea para comprobar que se invoca antes de navegar.
+const reloadSession = vi.fn().mockResolvedValue(undefined)
+
+vi.mock('@/session/useSession', () => ({
+  reloadSession: (...args: unknown[]) => reloadSession(...args),
+}))
+
 const getTenantBranding = vi.fn().mockResolvedValue({
   name: 'Centro de ejemplo',
   color_primary: null,
@@ -68,6 +75,7 @@ async function mountAt(pathWithQuery: string) {
 describe('GoogleCallbackResultView', () => {
   beforeEach(() => {
     getCsrfCookie.mockClear()
+    reloadSession.mockClear()
     getCurrentMfaChallenge.mockReset()
     switchMfaChallenge.mockReset()
     verifyMfaChallenge.mockReset()
@@ -86,6 +94,13 @@ describe('GoogleCallbackResultView', () => {
       value: ['es-ES'],
       configurable: true,
     })
+  })
+
+  it('#427, RN-AUTH-21: resultado=alta_mfa_requerida recarga la sesión antes de ir al muro de MFA', async () => {
+    const { router } = await mountAt('/entrar/google?resultado=alta_mfa_requerida')
+
+    expect(reloadSession).toHaveBeenCalledTimes(1)
+    expect(router.currentRoute.value.name).toBe('mfa-enrollment-wall')
   })
 
   it('CA-AUTH-216, api.md §E.5b: resultado=segundo_factor recupera y pinta el desafío con GET /auth/mfa-challenges', async () => {

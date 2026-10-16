@@ -23,6 +23,7 @@
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { reloadSession } from '@/session/useSession'
 import { useT } from '@/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -141,6 +142,9 @@ async function submitChallenge() {
 
     await verifyMfaChallenge(payload)
     stopTicking()
+    // #427: la sesión se acaba de crear; el estado previo (`anonymous`) no se
+    // repite solo en el *guard*, así que se recarga `GET /me` antes de navegar.
+    await reloadSession()
     await router.push({ name: 'home' })
   } catch (err) {
     const status = apiErrorStatus(err)

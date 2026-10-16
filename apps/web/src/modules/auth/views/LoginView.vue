@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { sanitizeRedirect } from '@/router/redirect'
+import { reloadSession } from '@/session/useSession'
 import { login } from '../api'
 import { usePublicAuthScreen } from '../composables/usePublicAuthScreen'
 import { apiErrorStatus, fieldErrors, retryAfterSeconds } from '../composables/formErrors'
@@ -57,6 +58,12 @@ async function submitCredentials() {
       step.value = 'challenge'
       return
     }
+
+    // #427: el estado de sesión puede seguir en `anonymous` (un `GET /me`
+    // previo dio 401, o `clearSession()` tras un logout) y
+    // `ensureSessionLoaded()` no lo repite: sin recargar, el *guard* devuelve
+    // a `/entrar`. La sesión la define `GET /me` (`RN-CORE-26`).
+    await reloadSession()
 
     // RN-CORE-28, CA-CORE-090/091: solo se acepta un `redirect` que
     // resuelva a una ruta `app` registrada; en cualquier otro caso, `/`.
