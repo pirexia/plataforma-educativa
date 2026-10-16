@@ -72,7 +72,9 @@
 ---
 ## Trabajo en curso
 
-**`chore/issues-baja-1-11` (nota viva, 2026-10-13)**: #393, #378 B4/B5, #376, #424 más correcciones de revisión (`AuditRecorder`: `context` con `JSON_THROW_ON_ERROR` y tope de 3 niveles; tests de `context`; `AR-06` exige también `RecordsAuditTrail`; reformulación de `design-system.md §22`). Verificado hasta `edcbae4` (código): suite completa 1392/1392 Pest + 10/10 Concurrency en verde, Pint y Larastan limpios; los commits posteriores solo tocan documentación. Queda: abrir el PR y mezclar. **Pendiente de decisión del usuario (M1)**: restringir claves y patrones de strings del `context`. **Hallazgo**: `AcadEducationLevelsApiTest` (`CA-ACAD-013`, PATCH de traducciones) falla de forma intermitente en la suite completa en paralelo (`updated_at` aparece en `changes`; 2 de 4 corridas); pasa aislado y sin causa en esta rama.
+**`fix/REQ-AUTH-login-sesion-anonima` (nota viva, 2026-10-16)**: #427 (Alta). Login en la SPA no entraba tras un `GET /me` 401 previo (entrada por `/`) o tras logout: `ensureSessionLoaded()` no repite con `anonymous` en caché. Corregido con `reloadSession()` antes de navegar en los cinco caminos que crean sesión (`a65881e`), tests de integración con sesión, router y *guard* reales que se ponen en rojo sin la corrección y spec del muro de MFA (`e196c8e`), `REQ-CORE/funcional.md §12.3` y `CHANGELOG.md`. Verificado: 1471/1471 Vitest (suite completa de `apps/web`), lint, `vue-tsc` y `lint:i18n`; comprobado en Chromium contra la API real entrando por `/`. Sin cambios de backend. Revisado por `security-reviewer` (sin Crítico/Alto; Media de cobertura resuelta en `e196c8e`; tres Bajas en #428) y `doc-reviewer` (dos Bajas aplicadas en `88ee828`). Queda: PR y mezcla con confirmación del usuario. **`chore/issues-baja-1-11` mezclada** (PR #425, `e43171f`).
+
+**Centro de demostración (2026-10-15)**: `demo` creado en la base de desarrollo con `tests/Support/e2e-real-tenant.php setup demo` (administrador `e2e-admin@example.com`, contraseña en la conversación del 2026-10-15, exención de MFA hasta el 2026-10-22, `acad` contratado, sin cursos académicos). **`npm run test:e2e:real` lo retira y lo recrea con otra contraseña.** Un centro de demostración persistente es `REQ-SEED` (`1.15b`).
 
 **`1.11-b` · CERRADA Y MEZCLADA** (PR #423, `af26b73`). Lo que sigue es el detalle de esa entrega:
 
@@ -89,7 +91,7 @@ Antes: cierre de sesión del 2026-10-10 con `develop` limpio. Notas anteriores a
 - Dependencias: Laravel 13.30 por CVE (#272), Actions checkout/setup-node v7 y cache v6 (#402), lockfile web (#403), Pest 5 / PHPUnit 13 (#404).
 - `ADR-061` PostgreSQL 18 (PR #405): volumen nuevo `postgres-cluster`; desarrollo migrado y verificado (inventario idéntico, 1105/1105, reversión probada). **Decisión del usuario pendiente**: borrar el volumen `plataforma-educativa_postgres-data` (17) y `~/plataforma-respaldos/pg17-a-pg18-20261010-1655/`, conservados al menos hasta el 2026-10-17.
 
-**Issues abiertos por decisión**: #378 (solo queda de B3 lo no cubierto por `1.11-a`: rutas `platform/v1` y rutas fuera de `App\Modules`; B1, B2, B4 y B5 resueltos en `chore/issues-baja-1-11`), #371 (purga física de tenant: paso `1.23b` del plan, obligatorio antes de datos reales), #366 (sin parche), `OPEN-059-05`/`-06`. Resueltos en `chore/issues-baja-1-11` (pendiente de PR): #393, #376, #424.
+**Issues abiertos por decisión**: #378 (solo queda de B3 lo no cubierto por `1.11-a`: rutas `platform/v1` y rutas fuera de `App\Modules`; B1, B2, B4 y B5 resueltos en `chore/issues-baja-1-11`), #371 (purga física de tenant: paso `1.23b` del plan, obligatorio antes de datos reales), #366 (sin parche), `OPEN-059-05`/`-06`. #428 (Bajas de la revisión de #427). Cerrados al mezclar #425: #393, #376, #424.
 
 ---
 ## Bloqueantes
@@ -161,11 +163,11 @@ Antes: cierre de sesión del 2026-10-10 con `develop` limpio. Notas anteriores a
 
 ## Siguiente paso concreto
 
-1. Comprobar que #407, #408, #409, #420 y #104 están cerrados con el enlace al PR #423 (`1.11-b` ya mezclada).
-2. Abrir el PR de `chore/issues-baja-1-11` (#393, #378 B4/B5, #376, #424; `CLAUDE.md` 2.7.1) y, al mezclar, cerrar #393, #376 y #424; #378 queda abierto solo por lo que resta de B3.
+1. Mezclar `fix/REQ-AUTH-login-sesion-anonima` (#427) tras confirmación del usuario y cerrar #427 con el enlace al PR.
+2. `1.11d` (períodos y escalas): especificación en Opus con `spec-writer`, en sesión nueva (`CLAUDE.md §3`).
 3. Paso `1.23b` del plan, en Opus (`architect` + ADR propio), obligatorio antes de datos reales y antes del importador `1.24`: purga física de tenant (#371).
-4. Después, por el orden del plan: `1.11d` (períodos y escalas, especificación en Opus), `1.11b` (generador `make:module`), `1.11c` (reapertura, `ADR-059`; #393 ya resuelto), `1.12` (horarios; decide la asignación docente de `ADR-063 §5.4`).
-5. Abiertos sin acción ahora: #418 y #419 (índices MFA; medir uso real con datos), #421, #422, #366 (sin parche).
+4. Después, por el orden del plan: `1.11b` (generador `make:module`), `1.11c` (reapertura, `ADR-059`; #393 ya resuelto), `1.12` (horarios; decide la asignación docente de `ADR-063 §5.4`).
+5. Abiertos sin acción ahora: #428 (Bajas de #427), #418 y #419 (índices MFA; medir uso real con datos), #421, #422, #366 (sin parche).
 
 **Prueba de Codex cerrada y resuelta: `ADR-050` (2026-09-21).** Detalle completo en `docs/historial/adr-050-cierre-prueba-codex.md`. Dos puntos todavía sin resolver, no bloqueantes: (1) política de datos de la capa gratuita de ChatGPT tras terminar la fase de prueba, decisión pendiente del usuario; (2) `SECURITY.md`/`PRIVACY.md` sin actualizar para reflejar la salida permanente de código hacia Codex — corresponde a `doc-reviewer` en el siguiente cierre de fase.
 

@@ -643,13 +643,13 @@ Se conserva íntegro el orden de `docs/design-system.md §8` (modo de color, pal
 
 1. `/entrar?redirect=/cuenta/sesiones`.
 2. Tras el *login* correcto (incluido el segundo factor), la SPA navega al destino **solo si** pasa el saneado de `RN-CORE-28`; si no, a `/`.
-3. `LoginView` recibe este cambio (única modificación funcional a una pantalla de `REQ-AUTH`; su flujo, sus errores y sus tests no cambian).
+3. `LoginView` recibe este cambio (única modificación funcional a una pantalla de `REQ-AUTH`; su flujo, sus errores y sus tests no cambian) *Nota posterior (#427, 2026-10-16)*: la corrección de la recarga de sesión tocó además `MfaChallengeStep`, los dos *callbacks* (Google y SSO) y el muro de alta de MFA; ver «Se recarga» en §12.3.4.
 
 #### 12.3.4 Estado de sesión y su frescura
 
 - **Única fuente**: `GET /me` (el recurso que ya comparte `POST /auth/session`, `UserProfilePresenter`). No hay endpoint nuevo.
 - **Singleton en memoria**, mismo patrón que `useTenantBranding` de 1.7 (`shallowRef` de ámbito de módulo, sin Pinia — `ADR-052`, alternativas descartadas). **Nunca** en `localStorage`/`sessionStorage` (`RN-AUTH-28`).
-- **Se recarga** (`RN-CORE-26`): tras el *login*; en el arranque; tras un `PATCH /me` correcto (con la respuesta del propio `PATCH`, sin segunda petición); y cuando cualquier petición de la API devuelve un `403` que **no** sea `mfa-enrollment-required` — señal de que los permisos pueden haber cambiado desde la carga (un administrador retiró un rol, o un módulo se descontrató: `403 module-disabled` **también** recarga, `ADR-053 §6`). Deduplicada: varias peticiones concurrentes que fallan provocan una sola recarga. **Restricción** (`ADR-053 §6`): si la recarga la disparó un `module-disabled` y la ruta actual deja de estar permitida tras ella, la vista conserva el estado «módulo no disponible» (§12.6) hasta la siguiente navegación, en vez de pasar a «sin acceso».
+- **Se recarga** (`RN-CORE-26`): tras el *login* y tras cualquier otro camino que cree una sesión antes de navegar (desafío MFA superado, resultado `alta_mfa_requerida` de los *callbacks* de Google y SSO, salida del muro de alta de MFA; #427); en el arranque; tras un `PATCH /me` correcto (con la respuesta del propio `PATCH`, sin segunda petición); y cuando cualquier petición de la API devuelve un `403` que **no** sea `mfa-enrollment-required` — señal de que los permisos pueden haber cambiado desde la carga (un administrador retiró un rol, o un módulo se descontrató: `403 module-disabled` **también** recarga, `ADR-053 §6`). Deduplicada: varias peticiones concurrentes que fallan provocan una sola recarga. **Restricción** (`ADR-053 §6`): si la recarga la disparó un `module-disabled` y la ruta actual deja de estar permitida tras ella, la vista conserva el estado «módulo no disponible» (§12.6) hasta la siguiente navegación, en vez de pasar a «sin acceso».
 - **Se vacía** al cerrar sesión y ante cualquier `401`.
 
 #### 12.3.5 Muro de MFA

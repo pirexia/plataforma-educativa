@@ -19,6 +19,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { reloadSession } from '@/session/useSession'
 import { useT } from '@/i18n'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -52,6 +53,7 @@ onMounted(async () => {
 
     // Cumple de sobra (o nunca estuvo obligado): el muro no es para él.
     if (!status.mfa.enforced) {
+      await reloadSession()
       await router.push({ name: status.mfa.obligated ? 'mfa-security' : 'home' })
       return
     }
@@ -76,6 +78,9 @@ function onEnrolled(): void {
 }
 
 async function continueToApp(): Promise<void> {
+  // #427: el estado sigue en `mfa-required` tras el alta; sin recargar, el
+  // *guard* devolvería al muro.
+  await reloadSession()
   await router.push({ name: 'home' })
 }
 
