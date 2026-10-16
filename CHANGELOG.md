@@ -6,6 +6,15 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-16 · `ADR-064` y paso `1.15a` (capa visual de la interfaz) en el plan (rama `chore/capa-visual-plan-adr`)
+
+- **`ADR-064`** (ACEPTADA, issue #431): pantalla de acceso por centro en disposición «Panel» (imagen del centro a la izquierda, panel de acceso estrecho a toda altura a la derecha, con logo y nombre del centro arriba y la plataforma solo en el pie), sombra marcada direccional del panel sobre la imagen como única excepción a la regla de sombras de `§22`, `--radius` a 2 px y velo de contraste para el texto sobre imagen. Decidido por el usuario sobre una maqueta navegable tras cinco iteraciones; complementa `ADR-052` sin cambiar sus decisiones.
+- **`docs/design-system.md §22`**: reglas `RN-DS-25` a `-29`, **aprobadas y pendientes de implementar** en `1.15a`.
+- **Plan** 2.3.11: paso nuevo `1.15a · Capa visual de la interfaz` [OPUS + SONNET], antes de `1.15b`. `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` 3.2.19 (índice de la sección 18).
+- **Contexto** (sin código): el centro `demo` de desarrollo recibió color de marca e imagen de acceso original; la alerta Dependabot nº 1 (`decode-uri-component`, solo desarrollo vía la CLI de `shadcn-vue`) se descartó como riesgo tolerable con seguimiento en #430; Bajas de la revisión de #427 en #428.
+
+---
+
 ## 2026-10-16 · Corrección: login de la SPA con sesión anónima en caché (#427, rama `fix/REQ-AUTH-login-sesion-anonima`)
 
 - **#427** (Alta, `RN-AUTH-21`, `RN-CORE-28`, `CA-CORE-090`): tras un `POST /auth/session` con `200`, la SPA se quedaba en `/entrar` si antes un `GET /me` había dado `401` (entrada por `/` sin sesión) o tras cerrar sesión sin recargar: `ensureSessionLoaded()` no repite `GET /me` con el estado ya resuelto en `anonymous` y el *guard* devolvía al login. Ahora cada camino que crea una sesión llama a `reloadSession()` antes de navegar: login (`LoginView`), desafío MFA superado (`MfaChallengeStep`), resultado `alta_mfa_requerida` de los *callbacks* de Google y SSO, y salida del muro de alta de MFA (`MfaEnrollmentWallView`). Ni el *guard* ni `useSession` cambian. Los E2E no lo veían porque empiezan en `/entrar`. Tests de regresión en Vitest (`LoginView`, `GoogleCallbackResultView`, `SsoCallbackResultView`) y comprobación en Chromium contra la API real entrando por `/`.

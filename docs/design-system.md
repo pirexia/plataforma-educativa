@@ -4,7 +4,7 @@
 |-------|-------|
 | Paso | **1.7 · Design system** (`PLAN-IMPLEMENTACION.md`, Bloque B) |
 | Estado | **APROBADA** (2026-09-22, ratificada por el usuario: las tres preguntas de §20 resueltas con la opción recomendada — A, Sí, 1.8) |
-| Decisión de arquitectura | `ADR-052` (ACEPTADA 2026-09-22). Este documento la **desarrolla**, no la reabre |
+| Decisión de arquitectura | `ADR-052` (ACEPTADA 2026-09-22). Este documento la **desarrolla**, no la reabre. `ADR-064` (ACEPTADA 2026-10-16) enmienda las reglas 3 y 5 de `§22` y añade `RN-DS-25` a `-29` |
 | Se apoya en | `ADR-023` (Tailwind + shadcn-vue + TanStack), `ADR-025`, `ADR-046`, `RNF-MANT-007`, `RNF-COMP-001` |
 | Requisitos cubiertos | `RUX-002`, `RUX-004`, `RUX-005`, `RNF-UX-002`, `RNF-UX-004`, y en cliente `RUX-BRAND-002`, `RUX-BRAND-003`, `RUX-BRAND-006` (en servidor ya los cubre `REQ-CORE`, paso 1.1) |
 | Código afectado | Solo `apps/web`. **Ni una línea de `apps/api`**: sin tabla, sin endpoint, sin permiso, sin campo nuevo en `GET /tenant/branding` |
@@ -851,3 +851,13 @@ Reglas de composición para quien escribe pantallas y componentes de `apps/web`.
 - `shadcn-vue` se **vendoriza** en `src/components/ui/`: tras `add` (§12.2), el componente queda vendorizado y revisado según §12.2 (tests de §10, texto propio convertido en *prop* o *slot*, tokens y tabla de §12.1), y no se mezcla con otra librería de componentes.
 - Todo literal visible va traducido en los cuatro idiomas (`INV-009`).
 - WCAG 2.2 AA (`RNF-UX-002`).
+
+### Reglas aprobadas por `ADR-064`, pendientes de implementar en `1.15a`
+
+Decididas por el usuario el 2026-10-16 sobre la maqueta del acceso (issue [#431](https://github.com/pirexia/plataforma-educativa/issues/431)). **Hasta que cierre `1.15a` el código no las cumple todavía**: el radio sigue en `0.625rem` y el acceso es una tarjeta centrada. Al cerrar el paso se quita esta advertencia.
+
+- **`RN-DS-25`** · `--radius` vale **`2px`**; ninguna derivada (`--radius-sm/md/lg/xl`) puede quedar negativa. Enmienda la regla 5 (cambia el valor, no la regla).
+- **`RN-DS-26`** · La pantalla de acceso usa la disposición **«Panel»**: imagen del centro a la izquierda y panel de acceso a toda altura a la derecha, **estrecho** (entre 360 y 460 px). En móvil, franja de imagen arriba y formulario debajo.
+- **`RN-DS-27`** · El panel de acceso lleva el logo y el nombre del centro arriba; el nombre de la plataforma va **solo en el pie**, fuera del formulario.
+- **`RN-DS-28`** · El panel de acceso proyecta una **sombra marcada direccional** sobre la imagen, desde un token propio. Es la **única excepción** a la regla 3: ninguna otra superficie que no sea capa flotante lleva sombra sin otro ADR. En móvil, sin sombra.
+- **`RN-DS-29`** · El texto sobre la imagen va siempre sobre un velo que garantiza 4,5:1, sea cual sea la imagen. Sin imagen del centro se usa la ilustración por defecto de la plataforma: original, abstracta y sin personas.
