@@ -6,6 +6,15 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-17 · Especificación de `1.11d` (períodos lectivos y escalas) y ampliación de `REQ-CURSO` (rama `feature/REQ-ACAD-1-11d-periodos-escalas`)
+
+- **`REQ-ACAD`** (`docs/modulos/REQ-ACAD/`, **APROBADA** por el usuario el 2026-10-16): reglas `RN-ACAD-50` a `-89` y criterios `CA-ACAD-063` a `-106` (los `-103` a `-106` añadidos en la revisión, solo cobertura de reglas ya aprobadas); tres tablas nuevas (`academic_periods`, `grading_scales`, `grading_scale_values`, valores como filas hijas con clave foránea de cuatro columnas), diez *endpoints* (37 en el módulo), recurso de permiso `configuracion_academica` (administrador con las cuatro acciones, los otros cinco roles con `leer`). «Sin solape» y «un solo tipo por etapa» los valida el servicio bajo bloqueo de la etapa (el motor no los impone; se descartó `EXCLUDE` con `btree_gist`, coherente con `ADR-034 §4`). `OPEN-ACAD-24` a `-31` resueltas con las recomendaciones; implementación en dos entregas, `1.11d-a` (períodos y lo común) y `1.11d-b` (escalas). Nada implementado.
+- **`REQ-CURSO`** (ampliado, aprobado como parte de `OPEN-ACAD-24` = B): punto de extensión de validaciones del cambio de fechas de un curso (`AcademicYearDateChangeCheck`, `RN-CURSO-49` a `-54`, `409 curso.conflict.date_change_checks_failed`), lectura con bloqueo compartido `AcademicYearSharedLock::lockForShareById` (`RN-CURSO-55` a `-59`, `OPEN-CURSO-25` = B: cambia `RN-ACAD-54` y `-57`) y filtro por módulo contratado en los tres registros (`RN-CURSO-52` y `-60`, `OPEN-CURSO-26` y `-27` = A). Criterios `CA-CURSO-108` a `-122`. Corrige `§7.1` (`AcademicYearSummary` ya incluía `startsOn` y `endsOn`).
+- **Verificación**: la propiedad de PostgreSQL de la que depende la ausencia de interbloqueo (un `FOR SHARE` nuevo no espera tras un `FOR UPDATE` ya en cola) se comprobó a mano en PostgreSQL 18 con tres sesiones reales; `CA-CURSO-122` la fija como test de concurrencia con tres procesos. Revisión `doc-reviewer`: sin Crítico/Alto; 5 Medios y 8 Bajos resueltos (residuos de estado, parámetro de mensaje, ficha de etapa que envía siempre `academic_year`, criterios de concurrencia y de cobertura).
+- **Plan** 2.3.11: `1.11d` en curso. **Sin cambios de código.**
+
+---
+
 ## 2026-10-16 · `ADR-064` y paso `1.15a` (capa visual de la interfaz) en el plan (rama `chore/capa-visual-plan-adr`)
 
 - **`ADR-064`** (ACEPTADA, issue #431): pantalla de acceso por centro en disposición «Panel» (imagen del centro a la izquierda, panel de acceso estrecho a toda altura a la derecha, con logo y nombre del centro arriba y la plataforma solo en el pie), sombra marcada direccional del panel sobre la imagen como única excepción a la regla de sombras de `§22`, `--radius` a 2 px y velo de contraste para el texto sobre imagen. Decidido por el usuario sobre una maqueta navegable tras cinco iteraciones; complementa `ADR-052` sin cambiar sus decisiones.
