@@ -6,7 +6,7 @@ Prefijo: `/api/v1`. Tenant por *host* (`ADR-033 §2`). Todo según `ADR-038`: re
 
 **Identificadores**: solo `public_id` ULID en rutas y cuerpos (`ADR-029`). Ningún `code` es identificador de ruta (`ADR-051`).
 
-> **`1.11d`** (especificación **APROBADA** el 2026-10-16): diez *endpoints* nuevos de períodos lectivos y escalas en **§11**; los 27 de arriba no cambian salvo `DELETE /education-levels/{public_id}`, que gana `academic_periods` en `params.dependents` (`RN-ACAD-61`).
+> **`1.11d`** (especificación **APROBADA** el 2026-10-16): diez *endpoints* nuevos de períodos lectivos y escalas en **§11**; los 27 de arriba no cambian salvo `DELETE /education-levels/{public_id}`, que gana `academic_periods` en `params.dependents` (`RN-ACAD-61`). `acad` aporta además una entrada al `409` de `PATCH /academic-years/{public_id}` de `curso` (`RN-ACAD-62`, §11.7).
 
 **Cadena de *middleware*** de toda ruta (`OPEN-ACAD-10` = no esencial, aprobada): autenticación → `module-enabled:acad` → `permission:<código>` (`AR-07a`, `AR-07b`). La autenticación es `App\Http\Middleware\RequireAuthenticatedUser`, **no** el alias `auth` (desviación de `1.11-b`, `funcional.md §16`; el alias se ordena antes de `resolve-tenant` y da `500` con una cookie real); las rutas de `1.11d` se añaden dentro del mismo grupo `Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:acad'])` de `Http/routes.php`.
 
@@ -383,6 +383,14 @@ Además de los de §6, que se reutilizan con el mismo significado (`code_require
 | `urn:pge:error:validation` | 422 | `acad.validation.band_range_invalid` | `range_min > range_max` o tramo fuera del rango de la escala | `RN-ACAD-84` |
 | `urn:pge:error:validation` | 422 | `acad.validation.bands_not_contiguous` | Tramos con huecos, solapes, fuera de orden o sin cubrir la escala | `RN-ACAD-85` |
 | `urn:pge:error:validation` | 422 | `acad.validation.passing_threshold_inside_band` | El umbral no coincide con el inicio de un tramo | `RN-ACAD-86` |
+
+**Código de `acad` que no sale de un *endpoint* de `acad`** (`RN-ACAD-62`, desde `1.11d-a`): `acad.conflict.periods_outside_academic_year` es el `code` de la entrada que la validación de `acad` aporta a `errors.date_change[]` del `409 urn:pge:error:conflict` / `curso.conflict.date_change_checks_failed` de **`PATCH /academic-years/{public_id}`** (`REQ-CURSO/api.md`). `message` traducido al idioma resuelto; `params` exactamente `count` (entero, períodos vivos que quedarían fuera), `periods_starts_on` y `periods_ends_on` (`AAAA-MM-DD`: menor inicio y mayor fin de todos los períodos vivos del curso académico). Sin `public_id`, nombre ni etapa de ningún período (`REQ-CURSO RN-CURSO-53`, `ADR-035 §5`):
+
+```json
+{ "code": "acad.conflict.periods_outside_academic_year", "message": "Hay períodos lectivos que quedarían fuera del curso académico: sus fechas deben incluir del 2026-09-08 al 2027-06-20.", "params": { "count": 1, "periods_starts_on": "2026-09-08", "periods_ends_on": "2027-06-20" } }
+```
+
+Los *endpoints* de períodos no ganan ningún código por `OPEN-CURSO-25` = B: un alta o edición que espera a un `PATCH` de fechas y queda fuera de las fechas nuevas responde el `422 acad.validation.period_outside_academic_year` de siempre (`RN-ACAD-57`).
 
 Mensajes en `lang/{es,en,de,fr}/acad.php` (`funcional.md §10.5.5`). La violación de `grading_scales_tenant_year_code_unique` o `grading_scale_values_tenant_scale_code_unique` por carrera se traduce a `422 code_taken` (`WritesStructure::inTransaction`, `23505`), nunca `500`; una violación de `CHECK` (`23514`) o FK (`23503`) que llegue al motor es un *bug* del servicio (`operacion.md §8`).
 

@@ -98,7 +98,7 @@ Desplegar la imagen anterior (`RUNBOOK.md`). **Las migraciones no se revierten**
 
 ### 11.1 Variables de entorno, servicios, colas y tareas
 
-Ninguna variable nueva, ningún servicio externo, **ninguna cola ni tarea programada**: toda operación es síncrona sobre decenas de filas (una etapa tiene unos pocos períodos; una escala, como mucho 100 valores, `RN-ACAD-89`); `INV-012` no aplica. Sin caché entre peticiones (las fechas del curso salen de `AcademicYearDirectory`, memoizado por petición).
+Ninguna variable nueva, ningún servicio externo, **ninguna cola ni tarea programada**: toda operación es síncrona sobre decenas de filas (una etapa tiene unos pocos períodos; una escala, como mucho 100 valores, `RN-ACAD-89`); `INV-012` no aplica. Sin caché entre peticiones: las fechas del curso con que se valida un período salen de la lectura con bloqueo compartido de `curso` (`AcademicYearSharedLock`, sin memoización, `RN-ACAD-57`); `AcademicYearDirectory` (memoizado por petición) sigue sirviendo para resolver y autorizar la lectura.
 
 ### 11.2 Despliegue
 
@@ -108,11 +108,11 @@ Ninguna variable nueva, ningún servicio externo, **ninguna cola ni tarea progra
 4. Abrir tráfico. Sin cambios de contratación: el módulo es el mismo `acad`.
 5. **`db-reviewer` obligatorio** (tres migraciones, FK de cuatro columnas, `CHECK` entre columnas con `round()`); `security-reviewer` (permisos nuevos, sincronización de valores por `public_id` ajeno).
 
-Por `OPEN-ACAD-24` = B (decidida), el punto de extensión de `curso` se despliega en la misma imagen y no tiene migración.
+Por `OPEN-ACAD-24` = B y `OPEN-CURSO-25` a `-27` (decididas), el punto de extensión del cambio de fechas, la lectura con bloqueo compartido y el filtro por módulo contratado de `curso` se despliegan en la misma imagen, sin migración ni configuración (`REQ-CURSO/operacion.md §3.2`). La validación de `acad` se registra al arrancar (`AcadServiceProvider::boot()`).
 
 ### 11.3 Rendimiento esperado
 
-Del orden de 2-12 períodos y 1-10 escalas por centro y curso académico, con decenas de valores en total. El listado de escalas carga sus valores con una consulta (*eager loading*, nunca N+1) acotada por `per_page`. La validación de solape y tipo lee los períodos vivos de una etapa por el índice de la FK (`datos.md §3.1`). El bloqueo `FOR UPDATE` de la etapa serializa solo las escrituras de períodos **de esa etapa**, raras y humanas. Coste del disparador por fila (`CA-ACAD-023`): irrelevante con este volumen.
+Del orden de 2-12 períodos y 1-10 escalas por centro y curso académico, con decenas de valores en total. El listado de escalas carga sus valores con una consulta (*eager loading*, nunca N+1) acotada por `per_page`. La validación de solape y tipo lee los períodos vivos de una etapa por el índice de la FK (`datos.md §3.1`). El bloqueo `FOR UPDATE` de la etapa serializa solo las escrituras de períodos **de esa etapa**, raras y humanas. El `FOR SHARE` sobre la fila del curso que toman el alta y la edición de un período (`RN-ACAD-54`) no hace esperar a ninguna escritura ordinaria; solo a un `PATCH` de fechas, un cierre o una reapertura de ese curso, mientras dura la transacción del período. La validación de `acad` en un `PATCH` de fechas es una consulta agregada sobre los períodos vivos del curso (decenas de filas) por el índice `(tenant_id, academic_year_id)`. Coste del disparador por fila (`CA-ACAD-023`): irrelevante con este volumen.
 
 ### 11.4 Métricas y diagnóstico
 
@@ -126,7 +126,9 @@ Sin métricas nuevas. Problemas conocidos:
 | `422 period_type_mismatch` al cambiar de trimestres a semestres | Un solo tipo por etapa (`RN-ACAD-59`) | Borrar los períodos de la etapa y crear los nuevos |
 | `422 bands_not_contiguous` tras cambiar el máximo de una mixta | Los tramos ya no cubren la escala (`RN-ACAD-85`) | Enviar los tramos ajustados en el mismo `PATCH` |
 | `500` con `23514`/`23503` en una escritura de escala o valor | El servicio dejó pasar algo que el motor rechaza | *Bug*: debe ser `422`; abrir issue |
-| Períodos fuera de las fechas del curso tras editar el curso | `OPEN-ACAD-24` sin punto de extensión en `curso` | Corregir los períodos; ver la decisión de `OPEN-ACAD-24` |
+| `409 curso.conflict.date_change_checks_failed` con `acad.conflict.periods_outside_academic_year` al cambiar las fechas de un curso en planificación | Las fechas nuevas dejan fuera períodos lectivos vivos (`RN-ACAD-62`); `params` dice qué intervalo deben incluir | Comportamiento correcto: ajustar o borrar antes esos períodos en la ficha de cada etapa, o elegir fechas que incluyan el intervalo |
+| Períodos fuera de las fechas del curso | Solo posible si las fechas se cambiaron con `acad` descontratado (`REQ-CURSO RN-CURSO-52`, decisión del usuario) o con una versión anterior a `1.11d-a` | Editar o borrar esos períodos; la siguiente edición de cada uno exige `RN-ACAD-57`. Si aparece con `acad` contratado, es un *bug*: abrir issue |
+| `422 period_outside_academic_year` en un alta de período que antes de enviarla cabía en el curso | Un `PATCH` de fechas del curso confirmó mientras el alta esperaba su bloqueo (`RN-ACAD-54`, `-57`) | Comportamiento correcto: recargar la ficha para ver las fechas nuevas del curso |
 
 ### 11.5 Copias y restauración
 
@@ -138,7 +140,7 @@ Desplegar la imagen anterior. **Las migraciones no se revierten**: aditivas, la 
 
 ### 11.7 Documentación a actualizar en el cierre de `1.11d`
 
-`docs/manual-usuario/admin.md` (períodos y escalas) y `direccion.md`, `secretaria.md`, `docente.md` según la siembra; `SYSADMIN.md` (permisos nuevos y comando de siembra); `ARCHITECTURE.md §3.4` (referencia de patrón: FK de cuatro columnas que arrastra un discriminador, sincronización de un conjunto hijo por `public_id`); `CHANGELOG.md`; `PLAN-IMPLEMENTACION.md` (entregas de `OPEN-ACAD-31`); `apps/api/openapi/paths/acad.yaml` (cabecera); y, si `OPEN-ACAD-24` = B, `docs/modulos/REQ-CURSO/`.
+`docs/manual-usuario/admin.md` (períodos y escalas) y `direccion.md`, `secretaria.md`, `docente.md` según la siembra; `SYSADMIN.md` (permisos nuevos y comando de siembra); `ARCHITECTURE.md §3.4` (referencia de patrón: FK de cuatro columnas que arrastra un discriminador, sincronización de un conjunto hijo por `public_id`); `CHANGELOG.md`; `PLAN-IMPLEMENTACION.md` (entregas de `OPEN-ACAD-31`); `apps/api/openapi/paths/acad.yaml` (cabecera); y `docs/modulos/REQ-CURSO/` (ya especificado el 2026-10-16: `OPEN-ACAD-24` = B y `OPEN-CURSO-25` a `-27`; en el cierre, contrastarlo con lo implementado).
 
 ### 6.2 Convergencia de índices de clave foránea ya mezclada (`1.11-a`, issue #412)
 
