@@ -182,6 +182,11 @@ test('RN-CURSO-30 CA-CURSO-026: el registro de validaciones de cierre estÃ¡ vacÃ
 
     $registry->register(new class implements AcademicYearClosureCheck
     {
+        public function moduleCode(): string
+        {
+            return 'curso';
+        }
+
         public function check(AcademicYearSummary $year): ?AcademicYearClosureFailure
         {
             return null;

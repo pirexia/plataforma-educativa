@@ -35,6 +35,7 @@ return [
         'invalid_transition' => 'Ein Schuljahr kann nicht von „:from“ zu „:to“ wechseln.',
         'not_editable' => 'Nur ein Schuljahr in Planung kann bearbeitet werden.',
         'closure_checks_failed' => 'Das Schuljahr kann nicht abgeschlossen werden: Einige Abschlussprüfungen sind nicht erfüllt.',
+        'date_change_checks_failed' => 'Die neuen Daten des Schuljahres schließen davon abhängige Daten aus.',
     ],
 
     'no_active_year' => 'Die Schule hat kein aktives Schuljahr.',

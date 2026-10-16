@@ -35,6 +35,7 @@ return [
         'invalid_transition' => 'Une année scolaire ne peut pas passer de « :from » à « :to ».',
         'not_editable' => 'Seule une année scolaire en planification peut être modifiée.',
         'closure_checks_failed' => 'L\'année scolaire ne peut pas être clôturée : certaines vérifications de clôture ne sont pas remplies.',
+        'date_change_checks_failed' => 'Les nouvelles dates de l’année scolaire excluent des données qui en dépendent.',
     ],
 
     'no_active_year' => 'L\'établissement n\'a aucune année scolaire active.',

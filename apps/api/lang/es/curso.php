@@ -35,6 +35,7 @@ return [
         'invalid_transition' => 'No se puede pasar un curso de «:from» a «:to».',
         'not_editable' => 'Solo se puede editar un curso en planificación.',
         'closure_checks_failed' => 'El curso no se puede cerrar: hay validaciones de cierre que no se cumplen.',
+        'date_change_checks_failed' => 'Las nuevas fechas del curso académico dejan fuera datos que dependen de ellas.',
     ],
 
     'no_active_year' => 'El centro no tiene ningún curso activo.',

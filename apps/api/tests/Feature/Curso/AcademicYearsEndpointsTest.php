@@ -340,6 +340,11 @@ test('CA-CURSO-026 RN-CURSO-30: una validación de cierre que falla da 409 con u
 
     app(AcademicYearClosureRegistry::class)->register(new class implements AcademicYearClosureCheck
     {
+        public function moduleCode(): string
+        {
+            return 'curso';
+        }
+
         public function check(AcademicYearSummary $year): ?AcademicYearClosureFailure
         {
             return new AcademicYearClosureFailure('calif.closure.unpublished_grades', 'Hay calificaciones sin publicar.', ['count' => 3]);
