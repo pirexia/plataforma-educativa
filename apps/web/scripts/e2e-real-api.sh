@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ejecuta los tests e2e que necesitan la API real (CA-PERM-133, CA-CURSO-086 y CA-ACAD-053, E2E_REAL_API=1):
+# Ejecuta los tests e2e que necesitan la API real (CA-PERM-133, CA-CURSO-086, CA-ACAD-053 y CA-ACAD-101, E2E_REAL_API=1):
 # prepara un centro de pruebas sintético en el contenedor de la API, lanza
 # Playwright con sus credenciales y lo retira por completo al terminar, también
 # si falla.
@@ -99,3 +99,8 @@ npx playwright test e2e/core-roles.spec.ts e2e/curso-academic-years.spec.ts -g "
 # REQ-ACAD (1.11-b), CA-ACAD-053: centro propio, con `acad` contratado por el setup.
 prepare_tenant
 npx playwright test e2e/acad-structure.spec.ts -g "CA-ACAD-053" --workers=1 "$@"
+
+# REQ-ACAD (1.11d-a), CA-ACAD-101: períodos lectivos de la ficha de etapa. El test crea su propio curso y su etapa
+# y necesita `acad` contratado, que el setup ya deja hecho.
+prepare_tenant
+npx playwright test e2e/acad-periods.spec.ts -g "CA-ACAD-101" --workers=1 "$@"

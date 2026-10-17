@@ -930,7 +930,7 @@ Bug de otro módulo destapado y corregido en el paso: **#420**, `ModuleSubscript
 
 ## 17. Estado de implementación de `1.11d` (períodos lectivos y escalas)
 
-**Estado**: especificación **APROBADA** (2026-10-16): el usuario aceptó las recomendaciones de `OPEN-ACAD-24` a `-31` (§15.2). **Nada implementado**: ni tablas, ni *endpoints*, ni pantallas. Rama de trabajo: `feature/REQ-ACAD-1-11d-periodos-escalas`.
+**Estado**: especificación **APROBADA** (2026-10-16): el usuario aceptó las recomendaciones de `OPEN-ACAD-24` a `-31` (§15.2). **`1.11d-a` implementada** (rama `feature/REQ-ACAD-1-11d-a-periodos`, 2026-10-17; PR pendiente de mezcla): permisos `configuracion_academica.*` y su siembra, tabla `academic_periods`, servicio y 5 *endpoints* de períodos con OpenAPI, ampliación del borrado de etapa (`RN-ACAD-61`), validación del cambio de fechas registrada en `curso`, y en `curso` el punto de extensión de fechas, `AcademicYearSharedLock` y el filtro por módulo contratado; web: sección «Períodos lectivos» de la ficha de etapa. Cubiertos por test `CA-ACAD-063` a `-074`, `-088` a `-090`, `-092` a `-097`, `-102`, `-103` y, en lo que toca a períodos, `-098` a `-100`; `CA-CURSO-108` a `-120` y `-122`; `CA-CURSO-121` solo en su mitad de cierre (la de reapertura es de `1.11c`). `CA-ACAD-101` (E2E de períodos contra la API real, `apps/web/e2e/acad-periods.spec.ts`) está escrito y enlazado en `e2e-real-api.sh`, **pendiente de ejecutar**. **`1.11d-b` (escalas: tablas `grading_scales` y `grading_scale_values`, 5 *endpoints*, cuatro pantallas; `CA-ACAD-075` a `-087` y `-104` a `-106`) sigue sin implementar.** Las Bajas de las revisiones están en el issue #434.
 
 ### 17.1 Qué se entregará (con la partición recomendada de `OPEN-ACAD-31`)
 

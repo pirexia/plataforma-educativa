@@ -6,6 +6,17 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-17 · `1.11d-a`: períodos lectivos y trabajo asociado en `curso` (rama `feature/REQ-ACAD-1-11d-a-periodos`)
+
+- **`acad`**: permiso `configuracion_academica.*` (8 códigos de `acad` en total; administrador con las cuatro acciones, los otros cinco roles con `leer`; `acad:grant-structure-permissions` ampliado), tabla `academic_periods` (disparador de curso, FK de tres columnas, `CHECK`s, índices cubrientes; sin `EXCLUDE`), `AcademicPeriodService` con la secuencia de bloqueos curso (`FOR SHARE`) → etapa (`FOR UPDATE`) de `RN-ACAD-54`, 5 *endpoints* `/academic-periods` y OpenAPI, `409 has_dependents` al borrar una etapa con períodos (`RN-ACAD-61`) y la validación `acad.conflict.periods_outside_academic_year` registrada en `curso`.
+- **`curso`**: punto de extensión de validaciones del cambio de fechas (`AcademicYearDateChange{Check,Failure,Registry}`; el `PATCH /academic-years/{id}` pasa a transacción con `FOR UPDATE`; `409 curso.conflict.date_change_checks_failed`), `AcademicYearSharedLock::lockForShareById` y filtro por módulo contratado (`ModuleScopedChecks`, `moduleCode()` en `AcademicYearClosureCheck`); la edición del curso en la web muestra el `409`.
+- **Web**: sección «Períodos lectivos» en la ficha de etapa (tabla, alta, edición y borrado con confirmación, errores junto al campo, curso de solo lectura), cliente de la API y textos en los cuatro idiomas.
+- **Verificación**: suites completas en verde (cifras en el último commit de cada fase y en `memory.md`); concurrencia con procesos reales (`CA-CURSO-115`, `-120`, `-122`, sin `40P01`); un test comprobado por mutación (sin el `FOR SHARE` del curso fallan 4 de 9 tests de concurrencia). **`CA-ACAD-101` (E2E real de períodos) escrito y enlazado en `e2e-real-api.sh`, sin ejecutar.** `CA-CURSO-121` solo en su mitad de cierre.
+- **Revisiones**: `db-reviewer` y `security-reviewer` (backend) sin Crítico/Alto/Medio; Bajas en el issue #434.
+- **Pendiente**: `1.11d-b` (escalas de calificación).
+
+---
+
 ## 2026-10-17 · Especificación de `1.11d` (períodos lectivos y escalas) y ampliación de `REQ-CURSO` (rama `feature/REQ-ACAD-1-11d-periodos-escalas`)
 
 - **`REQ-ACAD`** (`docs/modulos/REQ-ACAD/`, **APROBADA** por el usuario el 2026-10-16): reglas `RN-ACAD-50` a `-89` y criterios `CA-ACAD-063` a `-106` (los `-103` a `-106` añadidos en la revisión, solo cobertura de reglas ya aprobadas); tres tablas nuevas (`academic_periods`, `grading_scales`, `grading_scale_values`, valores como filas hijas con clave foránea de cuatro columnas), diez *endpoints* (37 en el módulo), recurso de permiso `configuracion_academica` (administrador con las cuatro acciones, los otros cinco roles con `leer`). «Sin solape» y «un solo tipo por etapa» los valida el servicio bajo bloqueo de la etapa (el motor no los impone; se descartó `EXCLUDE` con `btree_gist`, coherente con `ADR-034 §4`). `OPEN-ACAD-24` a `-31` resueltas con las recomendaciones; implementación en dos entregas, `1.11d-a` (períodos y lo común) y `1.11d-b` (escalas). Nada implementado.
