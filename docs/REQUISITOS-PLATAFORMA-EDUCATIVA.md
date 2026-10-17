@@ -3,7 +3,7 @@
 | Campo | Valor |
 |-------|-------|
 | **Versión** | 3.2.20 |
-| **Fecha** | 2026-10-16 |
+| **Fecha** | 2026-10-17 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
 | **Documento sustituye a** | v1.2.0 (mismo contenido, reorganizado y ampliado) |
