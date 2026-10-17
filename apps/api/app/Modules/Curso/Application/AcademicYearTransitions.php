@@ -32,6 +32,7 @@ final class AcademicYearTransitions
 
     public function __construct(
         private readonly AcademicYearClosureRegistry $closureChecks,
+        private readonly ModuleScopedChecks $scopedChecks,
         private readonly EloquentAcademicYearContext $context,
     ) {}
 
@@ -105,7 +106,8 @@ final class AcademicYearTransitions
     }
 
     /**
-     * RN-CURSO-30: el registro está vacío en 1.10. Si alguna validación
+     * RN-CURSO-30: el registro está vacío en 1.10. Desde `1.11d-a` solo se
+     * ejecutan las de módulos utilizables en el centro (RN-CURSO-60). Si alguna validación
      * falla, no cambia nada: una entrada por validación en `errors.closure[]`.
      */
     private function runClosureChecks(AcademicYear $year): void
@@ -113,7 +115,7 @@ final class AcademicYearTransitions
         $summary = $year->toSummary();
         $failures = [];
 
-        foreach ($this->closureChecks->all() as $check) {
+        foreach ($this->scopedChecks->enabled($this->closureChecks->all()) as $check) {
             $failure = $check->check($summary);
 
             if ($failure !== null) {

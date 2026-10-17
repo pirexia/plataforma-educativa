@@ -242,6 +242,29 @@ En **Administración → Estructura académica** (`/academico/estructura`) defin
 
 **Si algo no cuadra.** «El código ya existe» = hay otro elemento vivo con ese código entre los hermanos (un elemento borrado libera su código). «Falta el nombre en el idioma por defecto» = rellena esa entrada. El código y el nombre simple no admiten caracteres de control; el código tampoco saltos de línea.
 
+### Períodos lectivos de una etapa
+
+Dentro de la ficha de una etapa, la sección **«Períodos lectivos»** lista los trimestres, cuatrimestres o semestres de esa etapa en el curso académico que estás viendo, ordenados por fecha de inicio (columnas: nombre, tipo de período, inicio, fin y posición). Es un recurso **distinto** de la estructura: la sección solo aparece si tienes el permiso de leer la **configuración académica**, además del de leer la estructura que necesitas para abrir la ficha. Por defecto, el Administrador de Centro tiene las cuatro acciones (leer, crear, actualizar y borrar) y la Dirección, la Secretaría, el profesorado, las tutorías y la orientación solo pueden consultarla. Si ves la estructura pero no esta sección, o la API responde «sin permiso», te falta el permiso de configuración académica, no el de estructura: pídeselo a quien administra el centro.
+
+**Crear.** **«Nuevo período»** abre un diálogo con **tipo de período** (Trimestre, Cuatrimestre o Semestre), **nombre** (una entrada por idioma activo del centro; el idioma por defecto es obligatorio, como en el resto de la estructura), **inicio**, **fin** y **posición** (opcional; si se deja vacía, queda al final). Bajo los campos de fecha, el diálogo te recuerda el rango del curso: «Entre el … y el …». La etapa es la de la ficha y el curso académico es el de la etapa; ninguno se cambia después.
+
+**Editar y borrar.** **«Editar»** abre el mismo diálogo con los datos actuales; solo se envía lo que cambias. **«Borrar»** pide confirmación («Borrar el período …») y es un borrado lógico. Tras guardar o borrar, la tabla se recarga y un aviso lo confirma («Período creado», «Período actualizado», «Período borrado»).
+
+**Reglas que valida el servidor** (cada mensaje aparece junto al campo afectado):
+
+- **Las fechas van en orden:** el fin debe ser posterior al inicio (aparece bajo «Fin»).
+- **Dentro del curso académico:** el período no puede empezar antes ni acabar después de las fechas del curso (bajo «Inicio» y/o «Fin»).
+- **Un solo tipo por etapa:** todos los períodos de una etapa son del mismo tipo. Si ya hay trimestres, un cuatrimestre se rechaza bajo «Tipo de período».
+- **Sin solapes:** dos períodos de la misma etapa no pueden compartir ni un solo día (el fin de uno no puede coincidir con el inicio del siguiente). El mensaje nombra el período con el que solapa: «El período se solapa con «…», de la misma etapa» (bajo «Inicio»).
+
+**Pasar de trimestres a semestres (o a cuatrimestres).** No se puede cambiar el tipo de un período mientras la etapa tenga otros de otro tipo. Borra los períodos actuales y crea los nuevos con el tipo y las fechas que quieras; el tipo de un período solo se puede cambiar si es el único de su etapa.
+
+**Si cambias las fechas de un curso en planificación.** En **Cursos académicos**, un curso en planificación admite editar sus fechas. Si las nuevas dejaran algún período lectivo fuera del curso, el guardado se rechaza con el aviso, sobre el formulario, de que hay períodos lectivos que quedarían fuera y entre qué fechas debe estar el curso para incluirlos todos (error `409`). No se guarda nada: amplía las fechas del curso o, antes, ajusta o borra esos períodos (los de la etapa, en su ficha). Los períodos ya borrados no cuentan.
+
+**Con un curso de solo lectura** (cerrado o archivado) la sección muestra los períodos pero con un aviso permanente («Este curso académico es de solo lectura: no se pueden crear, modificar ni borrar sus períodos ni sus escalas») y sin «Nuevo período», «Editar» ni «Borrar». También desaparecen las acciones si no tienes el permiso correspondiente.
+
+**Borrar una etapa con períodos.** Una etapa que aún tiene períodos lectivos no se puede borrar: el aviso la lista bajo «Elementos que lo impiden» como «Períodos lectivos». Borra antes los períodos.
+
 ## Mi perfil
 
 En el menú de usuario, **Mi cuenta → Perfil** (`/cuenta/perfil`) está disponible para **cualquier persona con sesión**, sin ningún permiso especial. Muestra tu nombre completo y tu **correo de acceso** (que no se cambia desde aquí; si necesitas cambiarlo, contacta con el centro) y te deja modificar tu **correo de contacto** y tu **teléfono de contacto**. Dejar un campo vacío lo borra. Tu idioma no se cambia aquí sino con el selector de idioma del menú de usuario. Si el servidor rechaza un dato, el mensaje aparece bajo el campo.

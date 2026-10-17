@@ -4,10 +4,12 @@ namespace App\Modules\Curso\Infrastructure;
 
 use App\Modules\Curso\Domain\AcademicYearClosureRegistry;
 use App\Modules\Curso\Domain\AcademicYearContext;
+use App\Modules\Curso\Domain\AcademicYearDateChangeRegistry;
 use App\Modules\Curso\Domain\AcademicYearDirectory;
 use App\Modules\Curso\Domain\AcademicYearReadAccess;
 use App\Modules\Curso\Domain\AcademicYearReadDeniedException;
 use App\Modules\Curso\Domain\AcademicYearReadOnlyException;
+use App\Modules\Curso\Domain\AcademicYearSharedLock;
 use App\Modules\Curso\Domain\AcademicYearWriteGuard;
 use App\Modules\Curso\Domain\Models\AcademicYear;
 use App\Support\Modules\DeclaresModuleRegistry;
@@ -45,6 +47,12 @@ class CursoServiceProvider extends ServiceProvider implements DeclaresModuleRegi
 
         // RN-CURSO-30: vacío en 1.10; cada módulo registra la suya.
         $this->app->singleton(AcademicYearClosureRegistry::class, InMemoryAcademicYearClosureRegistry::class);
+
+        // RN-CURSO-49 (1.11d-a): cada módulo registra la suya desde su `boot()`.
+        $this->app->singleton(AcademicYearDateChangeRegistry::class, InMemoryAcademicYearDateChangeRegistry::class);
+
+        // RN-CURSO-55 (1.11d-a): sin estado por petición, a diferencia del directorio.
+        $this->app->bind(AcademicYearSharedLock::class, EloquentAcademicYearSharedLock::class);
     }
 
     public function boot(): void

@@ -15,6 +15,9 @@ namespace App\Modules\Curso\Domain;
  */
 interface AcademicYearClosureCheck
 {
+    /** Código de módulo del descriptor (`ADR-045`) del módulo dueño (RN-CURSO-60). */
+    public function moduleCode(): string;
+
     /** @return AcademicYearClosureFailure|null `null` si el curso puede cerrarse */
     public function check(AcademicYearSummary $year): ?AcademicYearClosureFailure;
 }

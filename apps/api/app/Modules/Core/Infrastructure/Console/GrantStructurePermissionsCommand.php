@@ -12,11 +12,12 @@ use App\Support\Tenancy\Tenant;
 use Illuminate\Console\Command;
 
 /**
- * REQ-ACAD/operacion.md §3 punto 4, permisos.md §4 (1.11-b, `OPEN-ACAD-09` = X,
- * `CA-ACAD-036`): mismo tipo que `curso:grant-year-permissions`.
+ * REQ-ACAD/operacion.md §3 punto 4, permisos.md §4 y §4.1 (1.11-b y 1.11d-a,
+ * `OPEN-ACAD-09` = X, `OPEN-ACAD-28` = X + 1, `CA-ACAD-036`, `CA-ACAD-097`): mismo
+ * tipo que `curso:grant-year-permissions`.
  * `tenant:provision-defaults` solo corre en el alta de un centro nuevo; los
  * centros que ya existían no reciben las concesiones de `estructura_academica`
- * por desplegar, y su síntoma es un `403` indistinguible de «no tengo permiso».
+ * ni de `configuracion_academica` por desplegar, y su síntoma es un `403` indistinguible de «no tengo permiso».
  *
  * Concede, en cada centro vivo, exactamente las concesiones de
  * `ProvisionTenantDefaults::STRUCTURE_PERMISSION_GRANTS` (una sola lista por
@@ -24,7 +25,7 @@ use Illuminate\Console\Command;
  * roles personalizados**. Idempotente. Escritura por el modelo (`RN-PERM-19`),
  * nunca por `attach()`/`sync()`, para que quede auditada (issue #165).
  *
- * **Comprueba antes** que los cuatro permisos existen en `permissions` y que
+ * **Comprueba antes** que los ocho permisos existen en `permissions` y que
  * ninguno está retirado (`retired_at IS NULL`, issue #387 B-5): si falta o
  * está retirado alguno, falla diciendo cuál y qué hacer, y **no concede nada**.
  * **Solo recorre los centros en estado `Activo`** (`RunsPerTenant`): un centro

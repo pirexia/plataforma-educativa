@@ -209,6 +209,35 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
+    AcademicPeriodType:
+      type: string
+      description: >
+        Tipo de período lectivo (REQ-ACAD funcional.md RN-ACAD-55). Enumerado **extensible**
+        (ADR-038 §7.3): los clientes tratan un valor desconocido mostrando el código en crudo.
+        Todos los períodos vivos de una etapa son del mismo tipo (RN-ACAD-59).
+      enum: [trimestre, cuatrimestre, semestre]
+      x-extensible-enum: true
+
+    AcademicPeriod:
+      type: object
+      description: >
+        REQ-ACAD/api.md §11.1 (1.11d-a). Período lectivo de una etapa. `name` es la cadena resuelta
+        en el servidor (ADR-062 §5.3) y de solo lectura; `name_translations` el objeto almacenado
+        completo. Sin `code`: los períodos no lo tienen (RN-ACAD-53). Fechas civiles `AAAA-MM-DD`.
+      required: [public_id, academic_year, education_level, period_type, position, name, name_translations, starts_on, ends_on, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        education_level: { $ref: '#/components/schemas/PublicId' }
+        period_type: { $ref: '#/components/schemas/AcademicPeriodType' }
+        position: { type: integer, minimum: 1 }
+        name: { type: string, readOnly: true }
+        name_translations: { $ref: '#/components/schemas/TranslationsMap' }
+        starts_on: { type: string, format: date, example: "2026-09-08" }
+        ends_on: { type: string, format: date, example: "2026-12-22" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
     CursorMeta:
       type: object
       description: Metadatos de paginación por cursor (ADR-038 §4.4). Flujos de eventos append-only.
@@ -1484,6 +1513,16 @@ components:
         type: string
         enum: [position, -position, code, -code]
         default: position
+    AcademicPeriodSortParam:
+      name: sort
+      in: query
+      description: >
+        Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada. Por defecto `starts_on`
+        (desempate por `position` e `id`); `position` desempata por `starts_on` e `id` (RN-ACAD-60).
+      schema:
+        type: string
+        enum: [starts_on, -starts_on, position, -position]
+        default: starts_on
     PageParam:
       name: page
       in: query

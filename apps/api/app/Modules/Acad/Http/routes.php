@@ -1,7 +1,7 @@
 <?php
 
-// Rutas de REQ-ACAD (paso 1.11-b), documentadas en
-// apps/api/openapi/paths/acad.yaml (docs/modulos/REQ-ACAD/api.md §2).
+// Rutas de REQ-ACAD (pasos 1.11-b y 1.11d-a), documentadas en
+// apps/api/openapi/paths/acad.yaml (docs/modulos/REQ-ACAD/api.md §2 y §11).
 // Requerido desde routes/api-v1.php, ya dentro del grupo
 // prefix('v1')->middleware(['resolve-tenant', 'resolve-locale', ...]).
 //
@@ -9,10 +9,12 @@
 // autenticación -> module-enabled:acad -> permission:<código> (AR-07a,
 // AR-07b, RMOD-009). `RequireAuthenticatedUser` va primero para que una
 // petición anónima sea 401 aunque el módulo no esté contratado; no se usa el
-// alias `auth` porque Laravel lo ordena antes de `resolve-tenant` (500 real). Los permisos son del recurso
-// `estructura_academica`, ámbito `todos` (permisos.md §2).
+// alias `auth` porque Laravel lo ordena antes de `resolve-tenant` (500 real). Los permisos son
+// del recurso `estructura_academica` (las 27 rutas de la estructura) o de `configuracion_academica`
+// (períodos lectivos y, en 1.11d-b, escalas), ámbito `todos` (permisos.md §2 y §2.2).
 
 use App\Http\Middleware\RequireAuthenticatedUser;
+use App\Modules\Acad\Http\Controllers\AcademicPeriodsController;
 use App\Modules\Acad\Http\Controllers\CoursesController;
 use App\Modules\Acad\Http\Controllers\EducationLevelsController;
 use App\Modules\Acad\Http\Controllers\GroupsController;
@@ -49,4 +51,10 @@ Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:acad'])->gro
     Route::delete('/subgroups/{publicId}', [SubgroupsController::class, 'destroy'])->middleware('permission:estructura_academica.eliminar')->name('acad.subgroups.destroy');
     Route::get('/groups/{groupPublicId}/subjects', [GroupSubjectsController::class, 'index'])->middleware('permission:estructura_academica.leer')->name('acad.groups.subjects.index');
     Route::put('/groups/{groupPublicId}/subjects', [GroupSubjectsController::class, 'update'])->middleware('permission:estructura_academica.actualizar')->name('acad.groups.subjects.update');
+    // 1.11d-a (api.md §11): períodos lectivos, recurso `configuracion_academica` (RN-ACAD-50).
+    Route::get('/academic-periods', [AcademicPeriodsController::class, 'index'])->middleware('permission:configuracion_academica.leer')->name('acad.academic-periods.index');
+    Route::post('/academic-periods', [AcademicPeriodsController::class, 'store'])->middleware('permission:configuracion_academica.crear')->name('acad.academic-periods.store');
+    Route::get('/academic-periods/{publicId}', [AcademicPeriodsController::class, 'show'])->middleware('permission:configuracion_academica.leer')->name('acad.academic-periods.show');
+    Route::patch('/academic-periods/{publicId}', [AcademicPeriodsController::class, 'update'])->middleware('permission:configuracion_academica.actualizar')->name('acad.academic-periods.update');
+    Route::delete('/academic-periods/{publicId}', [AcademicPeriodsController::class, 'destroy'])->middleware('permission:configuracion_academica.eliminar')->name('acad.academic-periods.destroy');
 });

@@ -9,6 +9,7 @@ return [
     'permissions' => [
         'resources' => [
             'estructura_academica' => 'Academic structure',
+            'configuracion_academica' => 'Academic settings',
         ],
     ],
 
@@ -27,6 +28,12 @@ return [
         'concertado' => 'Publicly subsidised',
     ],
 
+    'period_type' => [
+        'trimestre' => 'Term (three months)',
+        'cuatrimestre' => 'Four-month term',
+        'semestre' => 'Semester',
+    ],
+
     'validation' => [
         'code_required' => 'The code is required.',
         'invalid_characters' => 'The text contains control characters that are not allowed, or line breaks where they are not permitted.',
@@ -41,10 +48,17 @@ return [
         'parent_not_found' => 'The parent item does not exist.',
         'parent_immutable' => 'The parent item and the academic year cannot be changed.',
         'subject_not_in_course' => 'A subject does not exist or does not belong to the group\'s course.',
+        'period_type_invalid' => 'The period type is not valid.',
+        'date_invalid' => 'The date is not valid (format YYYY-MM-DD).',
+        'period_ends_before_start' => 'The end date must be after the start date.',
+        'period_outside_academic_year' => 'The period must fall within the academic year (:academic_year_starts_on – :academic_year_ends_on).',
+        'period_overlap' => 'The period overlaps another one in the same stage.',
+        'period_type_mismatch' => 'All periods of a stage must be of the same type (:period_type).',
     ],
 
     'conflict' => [
         'has_dependents' => 'Cannot delete ":code" (:entity): it has dependent items (:dependents). Delete them first.',
+        'periods_outside_academic_year' => 'Some academic periods would fall outside the academic year: its dates must include :periods_starts_on to :periods_ends_on.',
     ],
 
     'entities' => [
@@ -59,5 +73,6 @@ return [
         'groups' => 'groups',
         'subgroups' => 'subgroups',
         'subjects' => 'subjects',
+        'academic_periods' => 'academic periods',
     ],
 ];

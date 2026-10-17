@@ -38,7 +38,9 @@ use Illuminate\Support\Facades\DB;
 // no parciales a propósito (`ADR-034 §6`, «las de destino de FK no son
 // parciales»), porque una clave foránea solo puede apuntar a una restricción
 // única completa y la FK debe seguir resolviendo un padre ya borrado
-// lógicamente en filas históricas.
+// lógicamente en filas históricas. Y, desde 1.11d-a (REQ-ACAD/datos.md §1.7),
+// el destino `(tenant_id, academic_year_id, id)` de las futuras claves
+// foráneas de `CALIF` a `academic_periods`, por el mismo motivo.
 test('toda restricción única sobre tabla con borrado lógico es parcial, salvo las excepciones nominales (ADR-034 §6 y los destinos de FK)', function (): void {
     $namedExceptions = [
         'user_invitations_tenant_token_unique',
@@ -52,6 +54,7 @@ test('toda restricción única sobre tabla con borrado lógico es parcial, salvo
         'groups_tenant_year_id_unique',
         'groups_tenant_course_id_unique',
         'subjects_tenant_course_id_unique',
+        'academic_periods_tenant_year_id_unique',
     ];
 
     $tablesWithDeletedAt = collect(DB::select(<<<'SQL'

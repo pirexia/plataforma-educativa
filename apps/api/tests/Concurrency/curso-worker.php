@@ -16,6 +16,18 @@
  *   write   <academicYearId> <name> [claveAdvisory]  (inserta en la sonda;
  *                                         con clave, espera el bloqueo
  *                                         consultivo antes de confirmar)
+ *   patch   <publicId> <starts_on|-> <ends_on|-> <claveAdvisory|-> <ok|fail>
+ *                                         (1.11d-a, PATCH de fechas: la
+ *                                         validación de prueba espera el
+ *                                         bloqueo consultivo con el FOR UPDATE
+ *                                         del curso retenido y luego admite
+ *                                         o rechaza el cambio)
+ *   sharelock <academicYearId> [claveAdvisory]  (1.11d-a, RN-CURSO-55:
+ *                                         lockForShareById en una
+ *                                         transacción; con clave, espera el
+ *                                         bloqueo consultivo con el FOR
+ *                                         SHARE retenido; devuelve las
+ *                                         fechas leídas bajo el bloqueo)
  */
 
 use App\Modules\Curso\Application\AcademicYearAdministration;
@@ -23,8 +35,14 @@ use App\Modules\Curso\Application\AcademicYearTransitions;
 use App\Modules\Curso\Domain\AcademicYearClosureCheck;
 use App\Modules\Curso\Domain\AcademicYearClosureFailure;
 use App\Modules\Curso\Domain\AcademicYearClosureRegistry;
+use App\Modules\Curso\Domain\AcademicYearDateChange;
+use App\Modules\Curso\Domain\AcademicYearDateChangeCheck;
+use App\Modules\Curso\Domain\AcademicYearDateChangeFailure;
+use App\Modules\Curso\Domain\AcademicYearDateChangeRegistry;
+use App\Modules\Curso\Domain\AcademicYearSharedLock;
 use App\Modules\Curso\Domain\AcademicYearStatus;
 use App\Modules\Curso\Domain\AcademicYearSummary;
+use App\Modules\Curso\Domain\Models\AcademicYear;
 use App\Support\Api\ApiException;
 use App\Support\Audit\AuditActor;
 use App\Support\Tenancy\TenantContext;
@@ -73,6 +91,11 @@ $result = app(TenantContext::class)->runFor((int) $tenantId, function () use ($o
                     {
                         public function __construct(private readonly int $key) {}
 
+                        public function moduleCode(): string
+                        {
+                            return 'curso';
+                        }
+
                         public function check(AcademicYearSummary $year): ?AcademicYearClosureFailure
                         {
                             // Con el FOR UPDATE del curso retenido: espera a que el test lo libere.
@@ -85,6 +108,50 @@ $result = app(TenantContext::class)->runFor((int) $tenantId, function () use ($o
                     app(AcademicYearTransitions::class)->transition($args[0], AcademicYearStatus::Cerrado);
 
                     return ['outcome' => 'ok'];
+
+                case 'patch':
+                    $key = $args[3] === '-' ? null : (int) $args[3];
+                    $reject = $args[4] === 'fail';
+                    app(AcademicYearDateChangeRegistry::class)->register(new class($key, $reject) implements AcademicYearDateChangeCheck
+                    {
+                        public function __construct(private readonly ?int $key, private readonly bool $reject) {}
+
+                        public function moduleCode(): string
+                        {
+                            return 'curso';
+                        }
+
+                        public function check(AcademicYearDateChange $change): ?AcademicYearDateChangeFailure
+                        {
+                            if ($this->key !== null) {
+                                // Con el FOR UPDATE del curso retenido: espera a que el test lo libere.
+                                DB::select('select pg_advisory_lock(?)', [$this->key]);
+                                DB::select('select pg_advisory_unlock(?)', [$this->key]);
+                            }
+
+                            return $this->reject ? new AcademicYearDateChangeFailure('test.date_change_rejected', 'Rechazado por la prueba.') : null;
+                        }
+                    });
+
+                    $input = array_filter(['starts_on' => $args[1], 'ends_on' => $args[2]], fn (string $v): bool => $v !== '-');
+                    $year = AcademicYear::query()->where('public_id', $args[0])->firstOrFail();
+                    app(AcademicYearAdministration::class)->update($year, $input);
+
+                    return ['outcome' => 'ok'];
+
+                case 'sharelock':
+                    $summary = DB::transaction(function () use ($args): ?AcademicYearSummary {
+                        $summary = app(AcademicYearSharedLock::class)->lockForShareById((int) $args[0]);
+
+                        if (isset($args[1])) {
+                            DB::select('select pg_advisory_lock(?)', [(int) $args[1]]);
+                            DB::select('select pg_advisory_unlock(?)', [(int) $args[1]]);
+                        }
+
+                        return $summary;
+                    });
+
+                    return ['outcome' => 'ok', 'starts_on' => $summary?->startsOn->toDateString(), 'ends_on' => $summary?->endsOn->toDateString(), 'found' => $summary !== null];
 
                 case 'write':
                     DB::transaction(function () use ($args): void {

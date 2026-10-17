@@ -4,3 +4,4 @@
  * a mano.
  */
 export * from './structure'
+export * from './periods'

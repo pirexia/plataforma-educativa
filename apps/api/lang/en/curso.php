@@ -35,6 +35,7 @@ return [
         'invalid_transition' => 'An academic year cannot go from ":from" to ":to".',
         'not_editable' => 'Only an academic year in planning can be edited.',
         'closure_checks_failed' => 'The academic year cannot be closed: some closing checks are not met.',
+        'date_change_checks_failed' => 'The new dates of the academic year leave out data that depends on them.',
     ],
 
     'no_active_year' => 'The school has no active academic year.',

@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Curso\Domain\AcademicYearSharedLock;
 use App\Modules\Curso\Domain\AcademicYearStatus;
 use App\Modules\Curso\Domain\Models\AcademicYear;
 use App\Modules\Curso\Infrastructure\AcademicYearClosedTranslator;
@@ -300,4 +301,229 @@ test('RN-CURSO-23 #385 B-2: guardAcademicYearWrites() aborta con 55P03 (lock_tim
         }
         $holder->exec("DROP TABLE IF EXISTS {$table}");
     }
+});
+
+// ───────────────────────── 1.11d-a: cambio de fechas y lectura con FOR SHARE ─────────────────────────
+
+/** @param  array{process: resource, output: string}  $child */
+function cursoIsRunning(array $child): bool
+{
+    return proc_get_status($child['process'])['running'];
+}
+
+/** Bloqueo consultivo de sesión que el test retiene para detener a un hijo en un punto exacto. */
+function cursoGate(int $key): PDO
+{
+    $gate = cursoPdo();
+    $gate->prepare('select pg_advisory_lock(?)')->execute([$key]);
+
+    return $gate;
+}
+
+function cursoRelease(PDO $gate, int $key): void
+{
+    $gate->prepare('select pg_advisory_unlock(?)')->execute([$key]);
+}
+
+/** @return array{string, string, string} */
+function cursoYearDates(object $tenant, int $id): array
+{
+    return app(TenantContext::class)->runFor($tenant->id, function () use ($id): array {
+        $year = AcademicYear::query()->findOrFail($id);
+
+        return [$year->starts_on->toDateString(), $year->ends_on->toDateString(), $year->status->value];
+    });
+}
+
+test('CA-CURSO-111 RN-CURSO-51: el FOR UPDATE del curso se toma antes de invocar la validación: una escritura de la tabla sonda espera al PATCH', function (): void {
+    AcademicYearProbe::ensureTable();
+    [$tenant] = provisionCoreTenant('cur-111a');
+    $year = CursoTestHelpers::year($tenant, '2026-2027', AcademicYearStatus::Planificacion, '2026-09-01', '2027-08-31');
+    $key = random_int(1_000, 2_000_000_000);
+    $gate = cursoGate($key);
+
+    $patch = cursoSpawn($tenant->id, 'patch', $year->public_id, '2026-09-07', '-', (string) $key, 'ok');
+    cursoWaitBlocked('advisory', 1, [$patch]);
+
+    $writer = cursoSpawn($tenant->id, 'write', (string) $year->id, 'espera al patch');
+    cursoWaitBlocked('transactionid', 1, [$patch, $writer]);
+
+    expect(cursoIsRunning($writer))->toBeTrue();
+
+    cursoRelease($gate, $key);
+
+    expect(cursoCollect($patch))->toMatchArray(['outcome' => 'ok'])
+        ->and(cursoCollect($writer))->toMatchArray(['outcome' => 'ok'])
+        ->and(cursoYearDates($tenant, $year->id)[0])->toBe('2026-09-07');
+});
+
+test('CA-CURSO-111 RN-CURSO-51: un PATCH de fechas y la activación simultáneos: o el PATCH gana y se activa con las fechas nuevas, o responde 409 not_editable; nunca 500', function (): void {
+    [$tenant] = provisionCoreTenant('cur-111b');
+    $year = CursoTestHelpers::year($tenant, '2026-2027', AcademicYearStatus::Planificacion, '2026-09-01', '2027-08-31');
+
+    $holder = cursoPdo();
+    $holder->beginTransaction();
+    $holder->exec("select set_config('app.tenant_id', '{$tenant->id}', false)");
+    $holder->prepare('select id from academic_years where id = ? for update')->execute([$year->id]);
+
+    $patch = cursoSpawn($tenant->id, 'patch', $year->public_id, '2026-09-07', '-', '-', 'ok');
+    $activate = cursoSpawn($tenant->id, 'activate', $year->public_id);
+
+    try {
+        cursoWaitBlocked(null, 2, [$patch, $activate]);
+    } finally {
+        $holder->rollBack();
+    }
+
+    $patchResult = cursoCollect($patch);
+    $activateResult = cursoCollect($activate);
+    [$startsOn, , $status] = cursoYearDates($tenant, $year->id);
+
+    expect($activateResult)->toMatchArray(['outcome' => 'ok'])
+        ->and($status)->toBe('activo');
+
+    if ($patchResult['outcome'] === 'ok') {
+        expect($startsOn)->toBe('2026-09-07');
+    } else {
+        expect($patchResult)->toMatchArray(['outcome' => 'api_error', 'status' => 409, 'code' => 'curso.conflict.not_editable'])
+            ->and($startsOn)->toBe('2026-09-01');
+    }
+});
+
+test('CA-CURSO-117 RN-CURSO-55 RN-CURSO-56: lockForShareById retiene FOR SHARE hasta el final de la transacción (un FOR UPDATE ajeno no lo obtiene) y fuera de transacción lanza LogicException sin consultar', function (): void {
+    [$tenant] = provisionCoreTenant('cur-117');
+    $year = CursoTestHelpers::year($tenant, '2026-2027', AcademicYearStatus::Planificacion, '2026-09-01', '2027-08-31');
+    $key = random_int(1_000, 2_000_000_000);
+    $gate = cursoGate($key);
+
+    $reader = cursoSpawn($tenant->id, 'sharelock', (string) $year->id, (string) $key);
+    cursoWaitBlocked('advisory', 1, [$reader]);
+
+    $other = cursoPdo();
+    $other->beginTransaction();
+    $other->exec("select set_config('app.tenant_id', '{$tenant->id}', false)");
+
+    $sqlstate = null;
+
+    try {
+        $other->prepare('select id from academic_years where id = ? for update nowait')->execute([$year->id]);
+    } catch (PDOException $e) {
+        $sqlstate = $e->errorInfo[0] ?? null;
+    } finally {
+        $other->rollBack();
+    }
+
+    expect($sqlstate)->toBe('55P03');
+
+    cursoRelease($gate, $key);
+    expect(cursoCollect($reader))->toMatchArray(['outcome' => 'ok', 'found' => true, 'starts_on' => '2026-09-01', 'ends_on' => '2027-08-31']);
+
+    // Sin transacción abierta (esta clase no envuelve el test en una): excepción de lógica y ninguna consulta.
+    app(TenantContext::class)->runFor($tenant->id, function () use ($year): void {
+        expect(DB::transactionLevel())->toBe(0);
+
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = $query->sql;
+        });
+
+        expect(fn () => app(AcademicYearSharedLock::class)->lockForShareById($year->id))->toThrow(LogicException::class)
+            ->and($queries)->toBe([]);
+    });
+});
+
+test('CA-CURSO-118 RN-CURSO-57 INV-001: el FOR SHARE sobre un curso de otro centro devuelve null y no bloquea nada: el PATCH del otro centro no espera', function (): void {
+    [$tenantA] = provisionCoreTenant('cur-118a');
+    [$tenantB] = provisionCoreTenant('cur-118b');
+    $yearB = CursoTestHelpers::year($tenantB, '2026-2027', AcademicYearStatus::Planificacion, '2026-09-01', '2027-08-31');
+    $key = random_int(1_000, 2_000_000_000);
+    $gate = cursoGate($key);
+
+    $reader = cursoSpawn($tenantA->id, 'sharelock', (string) $yearB->id, (string) $key);
+    cursoWaitBlocked('advisory', 1, [$reader]);
+
+    // Con la transacción de A abierta, B cambia las fechas de su curso sin esperar.
+    $patch = cursoSpawn($tenantB->id, 'patch', $yearB->public_id, '2026-09-07', '-', '-', 'ok');
+    expect(cursoCollect($patch))->toMatchArray(['outcome' => 'ok']);
+
+    cursoRelease($gate, $key);
+
+    expect(cursoCollect($reader))->toMatchArray(['outcome' => 'ok', 'found' => false])
+        ->and(cursoYearDates($tenantB, $yearB->id)[0])->toBe('2026-09-07');
+});
+
+test('CA-CURSO-119 RN-CURSO-58: un PATCH de fechas espera a quien retiene lockForShareById y no termina hasta que confirma', function (): void {
+    [$tenant] = provisionCoreTenant('cur-119a');
+    $year = CursoTestHelpers::year($tenant, '2026-2027', AcademicYearStatus::Planificacion, '2026-09-01', '2027-08-31');
+    $key = random_int(1_000, 2_000_000_000);
+    $gate = cursoGate($key);
+
+    $reader = cursoSpawn($tenant->id, 'sharelock', (string) $year->id, (string) $key);
+    cursoWaitBlocked('advisory', 1, [$reader]);
+
+    $patch = cursoSpawn($tenant->id, 'patch', $year->public_id, '2026-09-07', '-', '-', 'ok');
+    cursoWaitBlocked('transactionid', 1, [$reader, $patch]);
+
+    expect(cursoIsRunning($patch))->toBeTrue()
+        ->and(cursoYearDates($tenant, $year->id)[0])->toBe('2026-09-01');
+
+    cursoRelease($gate, $key);
+
+    expect(cursoCollect($reader))->toMatchArray(['outcome' => 'ok', 'starts_on' => '2026-09-01'])
+        ->and(cursoCollect($patch))->toMatchArray(['outcome' => 'ok'])
+        ->and(cursoYearDates($tenant, $year->id)[0])->toBe('2026-09-07');
+});
+
+test('CA-CURSO-119 RN-CURSO-58: con un PATCH ya dentro de su validación, lockForShareById espera y lee las fechas nuevas si confirma o las anteriores si revierte', function (string $mode, string $expectedStartsOn, string $expectedPatchOutcome): void {
+    [$tenant] = provisionCoreTenant('cur-119b-'.$mode);
+    $year = CursoTestHelpers::year($tenant, '2026-2027', AcademicYearStatus::Planificacion, '2026-09-01', '2027-08-31');
+    $key = random_int(1_000, 2_000_000_000);
+    $gate = cursoGate($key);
+
+    $patch = cursoSpawn($tenant->id, 'patch', $year->public_id, '2026-09-07', '-', (string) $key, $mode);
+    cursoWaitBlocked('advisory', 1, [$patch]);
+
+    $reader = cursoSpawn($tenant->id, 'sharelock', (string) $year->id);
+    cursoWaitBlocked('transactionid', 1, [$patch, $reader]);
+
+    expect(cursoIsRunning($reader))->toBeTrue();
+
+    cursoRelease($gate, $key);
+
+    $patchResult = cursoCollect($patch);
+    $readerResult = cursoCollect($reader);
+
+    expect($patchResult['outcome'])->toBe($expectedPatchOutcome)
+        ->and($readerResult)->toMatchArray(['outcome' => 'ok', 'starts_on' => $expectedStartsOn]);
+})->with([
+    'el PATCH confirma' => ['ok', '2026-09-07', 'ok'],
+    'el PATCH revierte (validación que falla)' => ['fail', '2026-09-01', 'api_error'],
+]);
+
+test('CA-CURSO-119 RN-CURSO-58: la escritura de la tabla sonda (FOR SHARE del disparador) y lockForShareById no se esperan entre sí', function (): void {
+    AcademicYearProbe::ensureTable();
+    [$tenant] = provisionCoreTenant('cur-119c');
+    $year = CursoTestHelpers::year($tenant, '2026-2027', AcademicYearStatus::Planificacion, '2026-09-01', '2027-08-31');
+
+    // 1) Quien retiene lockForShareById no hace esperar a una escritura ordinaria.
+    $key = random_int(1_000, 2_000_000_000);
+    $gate = cursoGate($key);
+    $reader = cursoSpawn($tenant->id, 'sharelock', (string) $year->id, (string) $key);
+    cursoWaitBlocked('advisory', 1, [$reader]);
+
+    expect(cursoCollect(cursoSpawn($tenant->id, 'write', (string) $year->id, 'con lectura retenida')))->toMatchArray(['outcome' => 'ok']);
+
+    cursoRelease($gate, $key);
+    expect(cursoCollect($reader))->toMatchArray(['outcome' => 'ok']);
+
+    // 2) Una escritura que retiene el FOR SHARE del disparador no hace esperar a lockForShareById.
+    $writeKey = random_int(1_000, 2_000_000_000);
+    $writeGate = cursoGate($writeKey);
+    $writer = cursoSpawn($tenant->id, 'write', (string) $year->id, 'con escritura retenida', (string) $writeKey);
+    cursoWaitBlocked('advisory', 1, [$writer]);
+
+    expect(cursoCollect(cursoSpawn($tenant->id, 'sharelock', (string) $year->id)))->toMatchArray(['outcome' => 'ok', 'starts_on' => '2026-09-01']);
+
+    cursoRelease($writeGate, $writeKey);
+    expect(cursoCollect($writer))->toMatchArray(['outcome' => 'ok']);
 });

@@ -183,3 +183,19 @@ export function buttonByText(text: string): HTMLButtonElement | undefined {
     button.textContent?.includes(text),
   )
 }
+
+export function period(over: Record<string, unknown> = {}) {
+  return {
+    public_id: 'P1',
+    academic_year: 'Y2',
+    education_level: 'L1',
+    period_type: 'trimestre',
+    position: 1,
+    name: 'Primer trimestre',
+    name_translations: { 'es-ES': 'Primer trimestre', en: 'First term' },
+    starts_on: '2025-09-08',
+    ends_on: '2025-12-22',
+    ...AUDIT,
+    ...over,
+  }
+}

@@ -58,6 +58,30 @@ export function problemErrorEntry(err: unknown, key: string): ProblemErrorEntry 
   return first && typeof first === 'object' ? first : null
 }
 
+/** `errors.<campo>[]` completo (con `code` y `params`), para los `422` que la SPA enriquece (`period_overlap`). */
+export function problemFieldEntries(err: unknown): Record<string, ProblemErrorEntry[]> {
+  const errors = problemBody(err)?.errors
+
+  if (!errors || typeof errors !== 'object') {
+    return {}
+  }
+
+  const result: Record<string, ProblemErrorEntry[]> = {}
+
+  for (const [field, entries] of Object.entries(errors)) {
+    const valid = (Array.isArray(entries) ? entries : []).filter(
+      (entry): entry is ProblemErrorEntry =>
+        typeof entry === 'object' && entry !== null && typeof entry.message === 'string',
+    )
+
+    if (valid.length > 0) {
+      result[field] = valid
+    }
+  }
+
+  return result
+}
+
 /** El `code` de un error de la API es un código de **error**, no de rol (`RN-CORE-23`). */
 export function problemErrorCode(err: unknown, key: string): string | null {
   const entry = problemErrorEntry(err, key)
@@ -82,3 +106,8 @@ export function problemType(err: unknown): string | null {
 }
 
 export const ACADEMIC_YEAR_CLOSED_TYPE = 'urn:pge:error:academic-year-closed'
+
+/** ¿Alguna de las entradas lleva el código de error dado? (sin comparar `.code` de un rol, `RN-CORE-23`). */
+export function entriesHaveCode(entries: ProblemErrorEntry[], wanted: string): boolean {
+  return entries.some(({ code: found }) => found === wanted)
+}

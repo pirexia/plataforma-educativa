@@ -143,12 +143,14 @@ final class ProvisionTenantDefaults implements TenantProvisioner
     ];
 
     /**
-     * REQ-ACAD/permisos.md §4 (1.11-b, `OPEN-ACAD-09` = X): la siembra de los
-     * cuatro permisos de `estructura_academica`. `administrador_centro` los
-     * cuatro; `direccion`, `secretaria`, `docente`, `tutor_grupo` y
-     * `orientador` solo `leer`; el resto, nada (`RPERM-011`). Todos de ámbito
-     * `todos`: la estructura es del centro entero y no contiene datos
-     * personales (`RN-ACAD-09`). Una sola lista por los dos caminos: la lee
+     * REQ-ACAD/permisos.md §4 y §4.1 (1.11-b y 1.11d-a, `OPEN-ACAD-09` = X,
+     * `OPEN-ACAD-28` = X + 1): la siembra de los ocho permisos de `acad`, los
+     * cuatro de `estructura_academica` y los cuatro de `configuracion_academica`.
+     * `administrador_centro` los ocho; `direccion`, `secretaria`, `docente`,
+     * `tutor_grupo` y `orientador` solo `leer` de cada recurso; el resto,
+     * nada (`RPERM-011`). Todos de ámbito `todos`: estructura, períodos y
+     * escalas son del centro entero y no contienen datos personales
+     * (`RN-ACAD-09`, `RN-ACAD-50`). Una sola lista por los dos caminos: la lee
      * también `GrantStructurePermissionsCommand` (centros ya existentes).
      * Ninguna regla de código compara estos códigos de rol (`RN-PERM-46`).
      *
@@ -158,12 +160,14 @@ final class ProvisionTenantDefaults implements TenantProvisioner
         'administrador_centro' => [
             'estructura_academica.leer', 'estructura_academica.crear',
             'estructura_academica.actualizar', 'estructura_academica.eliminar',
+            'configuracion_academica.leer', 'configuracion_academica.crear',
+            'configuracion_academica.actualizar', 'configuracion_academica.eliminar',
         ],
-        'direccion' => ['estructura_academica.leer'],
-        'secretaria' => ['estructura_academica.leer'],
-        'docente' => ['estructura_academica.leer'],
-        'tutor_grupo' => ['estructura_academica.leer'],
-        'orientador' => ['estructura_academica.leer'],
+        'direccion' => ['estructura_academica.leer', 'configuracion_academica.leer'],
+        'secretaria' => ['estructura_academica.leer', 'configuracion_academica.leer'],
+        'docente' => ['estructura_academica.leer', 'configuracion_academica.leer'],
+        'tutor_grupo' => ['estructura_academica.leer', 'configuracion_academica.leer'],
+        'orientador' => ['estructura_academica.leer', 'configuracion_academica.leer'],
     ];
 
     /**

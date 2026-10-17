@@ -3,6 +3,7 @@
 namespace App\Modules\Acad\Application;
 
 use App\Models\User;
+use App\Modules\Acad\Domain\Models\AcademicPeriod;
 use App\Modules\Acad\Domain\Models\Course;
 use App\Modules\Acad\Domain\Models\EducationLevel;
 use App\Support\Api\ValidationErrorBag;
@@ -92,15 +93,30 @@ final class EducationLevelService
         });
     }
 
-    /** `RN-ACAD-20`: no se borra una etapa con cursos de etapa vivos. */
+    /**
+     * `RN-ACAD-20`, ampliada por `RN-ACAD-61` (1.11d-a): no se borra una etapa
+     * con cursos de etapa ni con períodos lectivos vivos. Toma `FOR UPDATE`
+     * sobre la etapa, el mismo bloqueo que el alta de un período (`RN-ACAD-54`):
+     * o el borrado ve el período (`409`) o el alta ve la etapa borrada (`422`).
+     */
     public function delete(string $publicId, User $actor): void
     {
         DB::transaction(function () use ($publicId, $actor): void {
             $level = EducationLevel::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
             $this->years->forRow($level->academic_year_id, $actor);
 
+            $dependents = [];
+
             if (Course::query()->where('education_level_id', $level->id)->exists()) {
-                throw StructureErrors::hasDependents('education_level', $level->code, ['courses']);
+                $dependents[] = 'courses';
+            }
+
+            if (AcademicPeriod::query()->where('education_level_id', $level->id)->exists()) {
+                $dependents[] = 'academic_periods';
+            }
+
+            if ($dependents !== []) {
+                throw StructureErrors::hasDependents('education_level', $level->code, $dependents);
             }
 
             $level->delete();

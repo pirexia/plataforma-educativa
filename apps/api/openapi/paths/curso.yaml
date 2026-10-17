@@ -192,7 +192,12 @@ paths:
         cualquier otro estado `409 curso.conflict.not_editable`. `status` en el cuerpo es
         `422 curso.validation.status_not_editable` (una clave conocida del recurso enviada donde
         no se admite: no se ignora en silencio). Mismas validaciones que el alta, excluyendo el
-        propio curso de la unicidad y del solape.
+        propio curso de la unicidad y del solape. Desde `1.11d-a` la precondición se evalúa dentro
+        de una transacción, bajo `FOR UPDATE` sobre la fila del curso (RN-CURSO-51). Si alguna
+        fecha resultante difiere de la actual, y solo tras pasar las validaciones propias
+        (`422`), se ejecutan **todas** las validaciones del cambio de fechas registradas por los
+        módulos contratados en el centro (RN-CURSO-50 a -52); un módulo no contratado no valida.
+        Un `PATCH` rechazado no escribe nada ni deja entrada de auditoría (RN-CURSO-54).
       tags: [Curso / Cursos académicos]
       security: [{ SessionCookie: [] }]
       requestBody:
@@ -216,10 +221,26 @@ paths:
         '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409':
-          description: '`curso.conflict.not_editable` — el curso no está en planificación.'
+          description: >
+            `curso.conflict.not_editable` — el curso no está en planificación — o
+            `curso.conflict.date_change_checks_failed` — alguna validación del cambio de fechas
+            falla: una entrada por validación en `errors.date_change[]`, cada una con la forma
+            genérica `{code, message, params}` del módulo dueño (RN-CURSO-53). Nada cambia.
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+              example:
+                type: urn:pge:error:conflict
+                title: Conflicto
+                status: 409
+                detail: Las nuevas fechas del curso académico dejan fuera datos que dependen de ellas.
+                instance: /api/v1/academic-years/01JA0000000000000000000000
+                request_id: 01J8000000000000000000000A
+                errors:
+                  date_change:
+                    - code: acad.conflict.periods_outside_academic_year
+                      message: 'Hay períodos lectivos que quedarían fuera del curso académico: sus fechas deben incluir del 2026-09-08 al 2027-06-20.'
+                      params: { count: 1, periods_starts_on: '2026-09-08', periods_ends_on: '2027-06-20' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
 
   /api/v1/academic-years/{publicId}/status:
@@ -267,7 +288,8 @@ paths:
             `curso.conflict.active_exists` (activar con otro activo; `params`: `public_id` y
             `code` del activo), `curso.conflict.invalid_transition` (`params`: `from`, `to`) o
             `curso.conflict.closure_checks_failed` (una entrada por validación fallida en
-            `errors.closure[]`, con el `code`/`message`/`params` del módulo dueño; vacío en 1.10).
+            `errors.closure[]`, con el `code`/`message`/`params` del módulo dueño; vacío en 1.10). Desde `1.11d-a` solo
+            cuentan las validaciones de módulos contratados en el centro (RN-CURSO-60).
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }

@@ -19,16 +19,32 @@ final class AcadApiHelpers
 {
     /**
      * Centro aprovisionado con `acad` contratado, su administrador y un curso
-     * en el estado pedido.
+     * en el estado pedido (por defecto, del 2026-09-01 al 2027-06-30; los
+     * tests de períodos lectivos pasan el 2027-08-31 de «curso académico de
+     * prueba», `funcional.md §13.11`).
      *
      * @return array{0: Tenant, 1: User, 2: AcademicYear}
      */
-    public static function setup(string $slug, AcademicYearStatus $status = AcademicYearStatus::Activo): array
+    public static function setup(string $slug, AcademicYearStatus $status = AcademicYearStatus::Activo, string $endsOn = '2027-06-30'): array
     {
         [$tenant, $admin] = provisionCoreTenant($slug);
         contractModule($tenant, 'acad');
 
-        return [$tenant, $admin, CursoTestHelpers::year($tenant, '2026-2027', $status)];
+        return [$tenant, $admin, CursoTestHelpers::year($tenant, '2026-2027', $status, '2026-09-01', $endsOn)];
+    }
+
+    /** Etapa por la API; devuelve su `public_id`. */
+    public static function level(object $tenant, User $admin, AcademicYear $year, string $code = 'ESO'): string
+    {
+        resetSessionState();
+
+        return test()->actingAs($admin)->postJson(coreApiUrl($tenant->slug, '/education-levels'), [
+            'academic_year' => $year->public_id,
+            'code' => $code,
+            'name_translations' => ['es-ES' => "Etapa {$code}"],
+            'stage' => 'eso',
+            'regime' => 'concertado',
+        ])->assertCreated()->json('public_id');
     }
 
     public static function url(object $tenant, string $path): string

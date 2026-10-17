@@ -28,7 +28,7 @@ abstract class IndexStructureRequest extends ApiFormRequest
     {
         return [
             'academic_year' => ['sometimes', 'string', new PlainText],
-            'sort' => ['sometimes', Rule::in(self::SORTS)],
+            'sort' => ['sometimes', Rule::in(static::SORTS)],
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ] + $this->filterRules();

@@ -52,9 +52,11 @@ describe('CA-ACAD-051 (INV-009): las cuatro lenguas de acad tienen las mismas cl
     const spanish = flatten(LOCALES.es!)
     const other = flatten(LOCALES[locale]!)
     // «Código» no; sí: «Activo» / «Actif» difieren. Solo se admite un puñado de coincidencias.
+    // 1.11d-a: tres cognados exactos en francés, con el texto de partida de la especificación
+    // (`funcional.md §10.5.5`): «Fin», «Trimestre» y «Semestre».
     const identical = Object.keys(spanish).filter((key) => spanish[key] === other[key])
 
-    expect(identical.length).toBeLessThanOrEqual(2)
+    expect(identical.length).toBeLessThanOrEqual(3)
   })
 
   it('los mismos marcadores {…} en cada idioma', () => {
