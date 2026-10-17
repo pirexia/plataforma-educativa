@@ -15,9 +15,6 @@ networks:
 volumes:
   # PostgreSQL 18 (ADR-061): montaje en /var/lib/postgresql (PGDATA = 18/docker).
   postgres-cluster:
-  # Volumen de PostgreSQL 17, sin montar: camino de vuelta (ADR-061 §8.1).
-  # No se borra salvo decisión expresa del usuario.
-  postgres-data:
   redis-data:
   minio-data:
 

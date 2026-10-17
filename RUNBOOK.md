@@ -131,7 +131,7 @@ podman stop plataforma-pg17-reversion
 
 **Reversión en desarrollo** (`ADR-061 §8.1`): `podman stop` y `podman rm` de `plataforma-web`, `plataforma-api` y `plataforma-postgres` (sin `-v`), volver a la rama con la definición de 17 y `podman compose up -d`: arranca 17 sobre `postgres-data`, intacto. Lo escrito sobre 18 se pierde (datos sintéticos). Después de mezclar, mediante un PR que restaure imagen, montaje y volumen, con un ADR que sustituya a `ADR-061`. En CI: volver a `postgres:17` en los tres servicios y revertir `CA-058-02`.
 
-**Conservación**: `plataforma-educativa_postgres-data` y `$DIR` se conservan al menos hasta que la rama esté mezclada y se haya trabajado una semana sobre 18. Borrarlos es decisión del usuario. El volumen antiguo de prodlike (`plataforma-prodlike_prodlike-postgres-data`) es desechable; su borrado también se deja al usuario.
+**Conservación**: el volumen `plataforma-educativa_postgres-data` y el respaldo `$DIR` de la migración de desarrollo se borraron el 2026-10-17 por decisión del usuario, tras una semana trabajando sobre 18; la reversión en desarrollo descrita arriba ya no es posible en ese entorno (el procedimiento sigue valiendo para un entorno que conserve su volumen de 17). El volumen antiguo de prodlike (`plataforma-prodlike_prodlike-postgres-data`) es desechable; su borrado también se deja al usuario.
 
 **Producción (Quadlet)**: hoy no aplica (sin producción ni datos reales, `§4`); la primera instalación nacerá en 18 con `postgres-cluster` vacío. Para un host con un clúster 17 con datos, **condición previa**: ensayar entero, reversión incluida, en `compose.prodlike.yaml` con datos sintéticos (`ADR-030`) y anotar el resultado en `SYSADMIN.md`.
 
