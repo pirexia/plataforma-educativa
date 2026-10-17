@@ -34,6 +34,12 @@ return [
         'semestre' => 'Semester',
     ],
 
+    'scale_type' => [
+        'numerica' => 'Numerisch',
+        'cualitativa' => 'Qualitativ',
+        'mixta' => 'Gemischt',
+    ],
+
     'validation' => [
         'code_required' => 'Der Code ist erforderlich.',
         'invalid_characters' => 'Der Text enthält unzulässige Steuerzeichen oder Zeilenumbrüche an unzulässiger Stelle.',
@@ -54,6 +60,23 @@ return [
         'period_outside_academic_year' => 'Der Zeitraum muss innerhalb des Schuljahres liegen (:academic_year_starts_on – :academic_year_ends_on).',
         'period_overlap' => 'Der Zeitraum überschneidet sich mit einem anderen derselben Stufe.',
         'period_type_mismatch' => 'Alle Zeiträume einer Stufe müssen von derselben Art sein (:period_type).',
+        'scale_type_invalid' => 'Die Art der Skala ist ungültig.',
+        'scale_type_immutable' => 'Die Art einer Skala kann nicht geändert werden.',
+        'scale_field_required' => 'Dieses Feld ist für diese Skalenart erforderlich.',
+        'not_applicable_to_scale_type' => 'Dieses Feld ist für diese Skalenart nicht zulässig.',
+        'decimal_invalid' => 'Gib eine Zahl mit Dezimalpunkt zwischen −999.99 und 999.99 ein.',
+        'decimals_invalid' => 'Die Nachkommastellen müssen 0, 1 oder 2 sein.',
+        'decimal_precision_exceeded' => 'Der Wert hat mehr Nachkommastellen, als die Skala zulässt (:decimals).',
+        'range_invalid' => 'Das Minimum muss kleiner als das Maximum sein.',
+        'passing_out_of_range' => 'Die Mindestnote zum Bestehen muss zwischen Minimum und Maximum liegen.',
+        'values_required' => 'Die Skala braucht mindestens einen Wert.',
+        'values_too_many' => 'Eine Skala erlaubt höchstens :max Werte.',
+        'is_passing_required' => 'Gib an, ob dieser Wert bestanden bedeutet.',
+        'passing_value_required' => 'Mindestens ein Wert muss bestanden bedeuten.',
+        'value_not_in_scale' => 'Der Wert gehört nicht zu dieser Skala.',
+        'band_range_invalid' => 'Der Bereich muss innerhalb der Skala liegen und sein Anfang darf sein Ende nicht übersteigen.',
+        'bands_not_contiguous' => 'Die Bereiche müssen die ganze Skala lückenlos, geordnet und ohne Überschneidung abdecken.',
+        'passing_threshold_inside_band' => 'Die Mindestnote zum Bestehen muss mit dem Anfang eines Bereichs übereinstimmen.',
     ],
 
     'conflict' => [

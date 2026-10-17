@@ -34,6 +34,12 @@ return [
         'semestre' => 'Semester',
     ],
 
+    'scale_type' => [
+        'numerica' => 'Numeric',
+        'cualitativa' => 'Qualitative',
+        'mixta' => 'Mixed',
+    ],
+
     'validation' => [
         'code_required' => 'The code is required.',
         'invalid_characters' => 'The text contains control characters that are not allowed, or line breaks where they are not permitted.',
@@ -54,6 +60,23 @@ return [
         'period_outside_academic_year' => 'The period must fall within the academic year (:academic_year_starts_on – :academic_year_ends_on).',
         'period_overlap' => 'The period overlaps another one in the same stage.',
         'period_type_mismatch' => 'All periods of a stage must be of the same type (:period_type).',
+        'scale_type_invalid' => 'The scale type is not valid.',
+        'scale_type_immutable' => 'The type of a scale cannot be changed.',
+        'scale_field_required' => 'This field is required for this scale type.',
+        'not_applicable_to_scale_type' => 'This field is not allowed for this scale type.',
+        'decimal_invalid' => 'Enter a number with a decimal point, from −999.99 to 999.99.',
+        'decimals_invalid' => 'Decimals must be 0, 1 or 2.',
+        'decimal_precision_exceeded' => 'The value has more decimals than the scale allows (:decimals).',
+        'range_invalid' => 'The minimum must be lower than the maximum.',
+        'passing_out_of_range' => 'The minimum passing grade must be between the minimum and the maximum.',
+        'values_required' => 'The scale needs at least one value.',
+        'values_too_many' => 'A scale allows at most :max values.',
+        'is_passing_required' => 'Indicate whether this value is a pass.',
+        'passing_value_required' => 'At least one value must be a pass.',
+        'value_not_in_scale' => 'The value does not belong to this scale.',
+        'band_range_invalid' => 'The band must lie within the scale and its start cannot exceed its end.',
+        'bands_not_contiguous' => 'Bands must cover the whole scale, in order, with no gaps or overlaps.',
+        'passing_threshold_inside_band' => 'The minimum passing grade must match the start of a band.',
     ],
 
     'conflict' => [
