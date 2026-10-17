@@ -42,3 +42,10 @@ Route::patch('/academic-years/{publicId}', [AcademicYearsController::class, 'upd
 Route::post('/academic-years/{publicId}/status', [AcademicYearsController::class, 'updateStatus'])
     ->middleware('permission:estado_curso_academico.actualizar')
     ->name('curso.academic-years.status');
+
+// REQ-CURSO 1.11c, ADR-059, RN-CURSO-40: reapertura de un curso cerrado. Permiso
+// propio (`estado_curso_academico.actualizar` no basta) y endpoint propio:
+// autorizar según el cuerpo de `…/status` no lo ve AR-07.
+Route::post('/academic-years/{publicId}/reopen', [AcademicYearsController::class, 'reopen'])
+    ->middleware('permission:reapertura_curso_academico.actualizar')
+    ->name('curso.academic-years.reopen');

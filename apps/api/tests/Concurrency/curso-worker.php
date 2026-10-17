@@ -16,6 +16,13 @@
  *   write   <academicYearId> <name> [claveAdvisory]  (inserta en la sonda;
  *                                         con clave, espera el bloqueo
  *                                         consultivo antes de confirmar)
+ *   reopen  <publicId> <userId> <claveAdvisory|->  (1.11c, RN-CURSO-41/-46:
+ *                                         la validación de reapertura de prueba
+ *                                         espera el bloqueo consultivo con el
+ *                                         FOR UPDATE del curso retenido; el
+ *                                         actor es un usuario real, porque
+ *                                         `academic_year_reopenings.created_by`
+ *                                         es NOT NULL)
  *   patch   <publicId> <starts_on|-> <ends_on|-> <claveAdvisory|-> <ok|fail>
  *                                         (1.11d-a, PATCH de fechas: la
  *                                         validación de prueba espera el
@@ -30,6 +37,7 @@
  *                                         fechas leídas bajo el bloqueo)
  */
 
+use App\Models\User;
 use App\Modules\Curso\Application\AcademicYearAdministration;
 use App\Modules\Curso\Application\AcademicYearTransitions;
 use App\Modules\Curso\Domain\AcademicYearClosureCheck;
@@ -39,6 +47,9 @@ use App\Modules\Curso\Domain\AcademicYearDateChange;
 use App\Modules\Curso\Domain\AcademicYearDateChangeCheck;
 use App\Modules\Curso\Domain\AcademicYearDateChangeFailure;
 use App\Modules\Curso\Domain\AcademicYearDateChangeRegistry;
+use App\Modules\Curso\Domain\AcademicYearReopenCheck;
+use App\Modules\Curso\Domain\AcademicYearReopenFailure;
+use App\Modules\Curso\Domain\AcademicYearReopenRegistry;
 use App\Modules\Curso\Domain\AcademicYearSharedLock;
 use App\Modules\Curso\Domain\AcademicYearStatus;
 use App\Modules\Curso\Domain\AcademicYearSummary;
@@ -48,6 +59,7 @@ use App\Support\Audit\AuditActor;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\AcademicYearProbe;
 
@@ -108,6 +120,38 @@ $result = app(TenantContext::class)->runFor((int) $tenantId, function () use ($o
                     app(AcademicYearTransitions::class)->transition($args[0], AcademicYearStatus::Cerrado);
 
                     return ['outcome' => 'ok'];
+
+                case 'reopen':
+                    $key = $args[2] === '-' ? null : (int) $args[2];
+                    app(AcademicYearReopenRegistry::class)->register(new class($key) implements AcademicYearReopenCheck
+                    {
+                        public function __construct(private readonly ?int $key) {}
+
+                        public function moduleCode(): string
+                        {
+                            return 'curso';
+                        }
+
+                        public function check(AcademicYearSummary $year): ?AcademicYearReopenFailure
+                        {
+                            if ($this->key !== null) {
+                                // Con el FOR UPDATE del curso retenido: espera a que el test lo libere.
+                                DB::select('select pg_advisory_lock(?)', [$this->key]);
+                                DB::select('select pg_advisory_unlock(?)', [$this->key]);
+                            }
+
+                            return null;
+                        }
+                    });
+
+                    // Actor real (como `ExecuteUserImport`): `created_by` no admite null.
+                    Auth::setUser(User::query()->findOrFail((int) $args[1]));
+
+                    return AuditActor::actingAs('import', function () use ($args): array {
+                        app(AcademicYearTransitions::class)->reopen($args[0], 'Cierre por error.');
+
+                        return ['outcome' => 'ok'];
+                    });
 
                 case 'patch':
                     $key = $args[3] === '-' ? null : (int) $args[3];

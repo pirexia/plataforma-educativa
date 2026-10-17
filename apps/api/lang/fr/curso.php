@@ -18,6 +18,7 @@ return [
             'curso_academico' => 'Années scolaires',
             'estado_curso_academico' => 'Statut des années scolaires',
             'curso_historico' => 'Historique des années scolaires clôturées',
+            'reapertura_curso_academico' => 'Réouverture des années scolaires',
         ],
     ],
 
@@ -27,6 +28,7 @@ return [
         'ends_before_start' => 'La date de fin doit être postérieure à la date de début.',
         'dates_overlap' => 'Les dates chevauchent celles de l\'année scolaire « :code ».',
         'status_not_editable' => 'Le statut d\'une année scolaire ne peut pas être indiqué ici : utilisez les actions Activer et Clôturer.',
+        'reason_required' => 'Le motif de la réouverture est obligatoire.',
     ],
 
     'conflict' => [
@@ -36,6 +38,8 @@ return [
         'not_editable' => 'Seule une année scolaire en planification peut être modifiée.',
         'closure_checks_failed' => 'L\'année scolaire ne peut pas être clôturée : certaines vérifications de clôture ne sont pas remplies.',
         'date_change_checks_failed' => 'Les nouvelles dates de l’année scolaire excluent des données qui en dépendent.',
+        'reopen_not_latest' => 'Seule l\'année scolaire clôturée la plus récente peut être rouverte : l\'année scolaire « :code » est postérieure.',
+        'reopen_checks_failed' => 'L\'année scolaire ne peut pas être rouverte : certaines vérifications de réouverture ne sont pas remplies.',
     ],
 
     'no_active_year' => 'L\'établissement n\'a aucune année scolaire active.',

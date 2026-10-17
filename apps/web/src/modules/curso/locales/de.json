@@ -67,7 +67,9 @@
       "readOnly": "Schuljahr {status}: Seine Daten sind schreibgeschützt.",
       "openActive": "Aktives Schuljahr öffnen ({code})",
       "closureTitle": "Das Schuljahr kann noch nicht abgeschlossen werden:",
-      "noActions": "Dieses Schuljahr lässt keine weiteren Aktionen zu."
+      "noActions": "Dieses Schuljahr lässt keine weiteren Aktionen zu.",
+      "reopen": "Schuljahr wiedereröffnen",
+      "reopenTitle": "Das Schuljahr kann noch nicht wiedereröffnet werden:"
     },
     "confirm": {
       "activate": {
@@ -78,7 +80,7 @@
       },
       "close": {
         "title": "Schuljahr {code} abschließen",
-        "description": "Der Abschluss kann in der Anwendung nicht rückgängig gemacht werden: Ab jetzt sind die Daten dieses Schuljahres in allen Modulen der Schule schreibgeschützt.",
+        "description": "Der Abschluss sperrt Schreibzugriffe: Ab jetzt sind die Daten dieses Schuljahres in allen Modulen der Schule schreibgeschützt. Rückgängig machen lässt sich das nur, solange kein anderes Schuljahr aktiviert wurde, durch jemanden mit der Berechtigung zur Wiedereröffnung und unter Angabe des Grundes. Sobald das nächste Schuljahr aktiviert ist, kann es nicht mehr wiedereröffnet werden.",
         "confirm": "Schuljahr {code} abschließen"
       }
     },
@@ -86,10 +88,21 @@
       "created": "Schuljahr „{code}“ in Planung angelegt.",
       "updated": "Schuljahr aktualisiert.",
       "activated": "Schuljahr „{code}“ aktiviert.",
-      "closed": "Schuljahr „{code}“ abgeschlossen."
+      "closed": "Schuljahr „{code}“ abgeschlossen.",
+      "reopened": "Schuljahr „{code}“ wiedereröffnet."
     },
     "errors": {
       "unexpected": "Der Vorgang konnte nicht abgeschlossen werden. Bitte versuche es erneut."
+    },
+    "reopen": {
+      "title": "Schuljahr {code} wiedereröffnen",
+      "description": "Ein irrtümlich abgeschlossenes Schuljahr wiedereröffnen. Es wird wieder das aktive Schuljahr der Schule.",
+      "warningWritable": "Alle Daten des Schuljahres können in allen Modulen wieder bearbeitet werden.",
+      "warningNotCorrection": "Die Wiedereröffnung dient nicht dazu, ein einzelnes Datum zu korrigieren: Sie öffnet das gesamte Schuljahr.",
+      "warningReason": "Der Grund wird gespeichert. Gib im Grund keine personenbezogenen Daten an.",
+      "reasonLabel": "Grund der Wiedereröffnung (Pflichtfeld)",
+      "reasonRequired": "Gib den Grund der Wiedereröffnung an.",
+      "confirm": "Schuljahr {code} wiedereröffnen"
     }
   }
 }

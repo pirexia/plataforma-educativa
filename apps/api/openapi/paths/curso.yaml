@@ -259,8 +259,9 @@ paths:
         toma `FOR UPDATE` sobre la fila del curso antes que ningún otro bloqueo y ejecuta las
         validaciones de cierre registradas por los módulos (vacías en 1.10, RN-CURSO-30); una
         vez cerrado, toda escritura sobre datos del curso responde
-        `409 urn:pge:error:academic-year-closed` (RN-CURSO-21). El cierre **no se puede deshacer
-        desde la aplicación** (OPEN-CURSO-08). No es idempotente: repetir una transición ya hecha
+        `409 urn:pge:error:academic-year-closed` (RN-CURSO-21). Este *endpoint* **no reabre**
+        un curso cerrado (`cerrado → activo` es `409 invalid_transition` aquí): la reapertura
+        es `POST /api/v1/academic-years/{publicId}/reopen` (ADR-059). No es idempotente: repetir una transición ya hecha
         da `409 curso.conflict.invalid_transition`. Auditoría: `updated` con
         `changes.status = {from, to}` (RN-CURSO-13).
       tags: [Curso / Cursos académicos]
@@ -294,3 +295,86 @@ paths:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/academic-years/{publicId}/reopen:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: reopenAcademicYear
+      summary: Reabre un curso cerrado
+      description: >
+        Reapertura de un curso `cerrado` por un cierre por error (`cerrado → activo`,
+        ADR-059, RN-CURSO-40 a -48). Permiso `reapertura_curso_academico.actualizar` (recurso
+        propio; `estado_curso_academico.actualizar` no basta). Cuerpo: `reason`, obligatorio,
+        recortado y no vacío (RN-CURSO-43). Dentro de una transacción y tras el `FOR UPDATE`
+        sobre la fila del curso, en este orden: curso en `cerrado`; ningún otro curso
+        `activo`; es el cerrado más reciente del centro (ningún `cerrado`/`archivado` con
+        `starts_on` posterior); ninguna validación de reapertura registrada por un módulo
+        contratado falla (RN-CURSO-45, -60). Sin plazo de fecha (RN-CURSO-42). En éxito cambia
+        `status` y después inserta la fila de `academic_year_reopenings` con el motivo, que
+        **no se expone** por API. Auditoría sin evento nuevo: `updated` del curso con
+        `changes.status = {from: cerrado, to: activo}` y `created` de la reapertura
+        (RN-CURSO-44). No cambia el bloqueo de escritura de ADR-057 (RN-CURSO-46). No es una
+        rectificación de datos (RN-CURSO-47): abre el curso entero a todos los módulos. No es
+        idempotente: repetir una reapertura ya hecha da `409 curso.conflict.invalid_transition`
+        (`activo → activo`).
+      tags: [Curso / Cursos académicos]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  maxLength: 1000
+                  description: >
+                    Motivo de la reapertura. Contenido del centro: no debe contener datos
+                    personales. Se recorta de espacios y no puede quedar vacío.
+      responses:
+        '200':
+          description: El curso, ya en `activo`
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/AcademicYear' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: >
+            `curso.conflict.invalid_transition` (el curso no está en `cerrado`; `params`: `from`,
+            `to`), `curso.conflict.active_exists` (hay otro curso activo, incluida la carrera con
+            una activación simultánea; `params`: `public_id` y `code` del activo),
+            `curso.conflict.reopen_not_latest` (hay un curso cerrado o archivado posterior;
+            `params`: `public_id` y `code` de ese curso) o `curso.conflict.reopen_checks_failed`
+            (una entrada por validación fallida en `errors.reopen[]`, con el
+            `code`/`message`/`params` del módulo dueño; vacío hoy, solo módulos contratados,
+            RN-CURSO-60). Nada cambia.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+              example:
+                type: urn:pge:error:conflict
+                title: Conflicto
+                status: 409
+                detail: 'Solo se puede reabrir el curso cerrado más reciente: el curso «2026-2027» es posterior.'
+                instance: /api/v1/academic-years/01JA0000000000000000000000/reopen
+                request_id: 01J8000000000000000000000A
+                errors:
+                  academic_year:
+                    - code: curso.conflict.reopen_not_latest
+                      message: 'Solo se puede reabrir el curso cerrado más reciente: el curso «2026-2027» es posterior.'
+                      params: { public_id: 01JA0000000000000000000001, code: 2026-2027 }
+        '422':
+          description: >
+            `curso.validation.reason_required` (`reason` ausente, no textual o vacío tras
+            recortar) o error de forma (`reason` de más de 1000 caracteres).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }

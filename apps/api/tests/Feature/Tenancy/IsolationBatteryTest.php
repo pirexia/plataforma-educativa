@@ -16,6 +16,7 @@ use App\Modules\Backoffice\Domain\Models\PlatformIpAllowlistEntry;
 use App\Modules\Backoffice\Domain\Models\TenantLifecycleEvent;
 use App\Modules\Core\Domain\Models\FeatureFlag;
 use App\Modules\Core\Domain\Models\FeatureFlagRule;
+use App\Modules\Curso\Domain\Models\AcademicYearReopening;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use App\Support\Tenancy\TenantMigration;
@@ -167,6 +168,11 @@ test('los modelos Eloquent de app/Modules extienden TenantModel', function (): v
         // REQ-AUTH/datos.md §C.6.1 (paso 1.3): mismo motivo — traza
         // append-only del restablecimiento de MFA por el administrador.
         MfaReset::class,
+        // REQ-CURSO/datos.md §1.5 (paso 1.11c, ADR-059 §5.4): mismo motivo —
+        // registro append-only de la reapertura de un curso (sin updated_by ni
+        // deleted_at, que TenantModel escribe). Usa BelongsToTenant: RLS y el scope
+        // de tenant aplican igual.
+        AcademicYearReopening::class,
         // REQ-BO (1.6), RN-BO-01, datos.md §1: las nueve tablas de
         // plataforma de REQ-BO con modelo Eloquent no son de tenant en
         // absoluto — a diferencia de LoginAttempt/MfaReset (que SÍ son

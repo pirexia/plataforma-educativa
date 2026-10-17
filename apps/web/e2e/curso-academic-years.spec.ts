@@ -71,10 +71,10 @@ test.describe('CA-CURSO-086 (REQ-CURSO-001): ciclo de vida del curso contra la A
     // Nada cambia en pantalla hasta recargar.
     await expect(page.getByRole('button', { name: 'Activar curso' })).toBeVisible()
 
-    // 5. Cerrar el primero: advierte de que no se puede deshacer.
+    // 5. Cerrar el primero: advierte de que solo se puede deshacer mientras no se active otro curso (ADR-059).
     await page.goto(firstUrl)
     await page.getByRole('button', { name: 'Cerrar curso' }).click()
-    await expect(page.getByRole('alertdialog')).toContainText('no se puede deshacer')
+    await expect(page.getByRole('alertdialog')).toContainText('mientras no se active otro curso')
     await page.getByRole('button', { name: 'Cerrar el curso 2026-2027' }).click()
     await expect(page.getByRole('status')).toContainText('cerrado')
     await expect(page.getByRole('note')).toContainText('solo lectura')

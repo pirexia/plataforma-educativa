@@ -91,11 +91,12 @@ test('administrador_centro recibe los 32 permisos previos más los cuatro de REQ
         // permiso_efectivo.leer, más los cinco de REQ-CURSO/permisos.md §4
         // (1.10, OPEN-CURSO-14, CA-CURSO-064), más los cuatro de
         // REQ-ACAD/permisos.md §4 (1.11-b, OPEN-ACAD-09 = X, CA-ACAD-036), más los cuatro de
-        // REQ-ACAD/permisos.md §4.1 (1.11d-a, OPEN-ACAD-28 = X + 1, CA-ACAD-097).
+        // REQ-ACAD/permisos.md §4.1 (1.11d-a, OPEN-ACAD-28 = X + 1, CA-ACAD-097), más
+        // reapertura_curso_academico.actualizar de REQ-CURSO/permisos.md §4 (1.11c, ADR-059 §5.2).
         expect(Role::where('code', 'administrador_centro')->first()
             ->getConnection()->table('permission_role')
             ->join('roles', 'roles.id', '=', 'permission_role.role_id')
-            ->where('roles.code', 'administrador_centro')->count())->toBe(49);
+            ->where('roles.code', 'administrador_centro')->count())->toBe(50);
 
         foreach (['rol.crear', 'rol.eliminar', 'rol_datos_especiales.actualizar', 'permiso_efectivo.leer'] as $code) {
             expect($codesFor('administrador_centro'))->toContain($code);

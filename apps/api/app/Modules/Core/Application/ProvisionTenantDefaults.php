@@ -143,6 +143,20 @@ final class ProvisionTenantDefaults implements TenantProvisioner
     ];
 
     /**
+     * REQ-CURSO/permisos.md §4 (1.11c, `ADR-059 §5.2`, `OPEN-059-02` a): el permiso
+     * de reapertura, solo en `administrador_centro`. **Lista aparte** de
+     * `ACADEMIC_YEAR_PERMISSION_GRANTS` a propósito (`OPEN-CURSO-24` = b): la
+     * siembra de los centros existentes (`curso:grant-reopen-permission`) concede
+     * **solo** este permiso y no re-concede los cinco de 1.10, que un centro pudo
+     * retirar a propósito. Los centros nuevos la reciben por aquí.
+     *
+     * @var array<string, list<string>>
+     */
+    public const ACADEMIC_YEAR_REOPEN_PERMISSION_GRANTS = [
+        'administrador_centro' => ['reapertura_curso_academico.actualizar'],
+    ];
+
+    /**
      * REQ-ACAD/permisos.md §4 y §4.1 (1.11-b y 1.11d-a, `OPEN-ACAD-09` = X,
      * `OPEN-ACAD-28` = X + 1): la siembra de los ocho permisos de `acad`, los
      * cuatro de `estructura_academica` y los cuatro de `configuracion_academica`.
@@ -397,11 +411,12 @@ final class ProvisionTenantDefaults implements TenantProvisioner
      */
     private function seedPermissionGrants(int $tenantId, array $roleIds): void
     {
-        // REQ-CURSO (1.10) y REQ-ACAD (1.11-b): las concesiones de `curso` y de
+        // REQ-CURSO (1.10, 1.11c) y REQ-ACAD (1.11-b): las concesiones de `curso` y de
         // `estructura_academica` se suman a las de cada rol.
         $grants = array_merge_recursive(
             [...self::CORE_PERMISSION_GRANTS, 'administrador_centro' => self::ADMIN_CENTRO_PERMISSIONS],
             self::ACADEMIC_YEAR_PERMISSION_GRANTS,
+            self::ACADEMIC_YEAR_REOPEN_PERMISSION_GRANTS,
             self::STRUCTURE_PERMISSION_GRANTS,
         );
 

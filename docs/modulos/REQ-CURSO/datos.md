@@ -1,6 +1,6 @@
 # REQ-CURSO · Modelo de datos
 
-> **Estado**: **APROBADA** (2026-10-07), paso **1.10**, con los ajustes de `ADR-057` (aceptado). Ver `funcional.md` para alcance y preguntas abiertas.
+> **Estado**: **APROBADA** (2026-10-07), paso **1.10**, con los ajustes de `ADR-057` (aceptado). **`academic_year_reopenings` (§1.5) implementada el 2026-10-17 en `1.11c`.** Ver `funcional.md` para alcance y preguntas abiertas.
 >
 > **Resumen**: 1.10 **no crea ninguna tabla ni altera ninguna columna**. `academic_years` existe desde 0.8.2 (`ADR-034 §4`) con la forma que `REQ-CURSO-001` necesita, y las entidades de `REQ-CURSO-002` a `-005` (`YearRollover`, `PromotionDecision`, `RenewalCampaign`, `YearArchive`) quedan fuera de alcance (`funcional.md §1.2`). **Sí trae una migración**: la que crea la función `app.assert_academic_year_writable()` del bloqueo de escritura (`ADR-057 §5.2`, §1.4). Lo que además añade este documento es el contrato de datos que deben cumplir **las tablas de los demás módulos** que dependen del curso, y el traslado del modelo al módulo (que no es esquema, `OPEN-CURSO-03`).
 >
@@ -74,7 +74,7 @@ Una **segunda sonda, creada a propósito sin el ayudante** (`Schema::create` con
 
 Registro *append-only* de cada reapertura de un curso cerrado (`funcional.md §4.6`, `RN-CURSO-43`). Responde «quién reabrió, cuándo y por qué» sin leer `audit_logs` y sin depender de que `AuditRecorder` escriba `audit_logs.context` (no lo hace hoy). Precedente: `mfa_resets`.
 
-Migración del módulo (`apps/api/app/Modules/Curso/Database/migrations/`) con **`TenantMigration::tenantTableAppendOnly()`** y `TenantMigration::tenantForeignId($table, 'academic_year_id', 'academic_years')`: RLS `ENABLE`+`FORCE`, `UNIQUE (tenant_id, id)`, y **el disparador `academic_year_write_guard`**, sin excepción en `AR-13` (es dato del curso).
+Migración del módulo (`apps/api/app/Modules/Curso/Database/migrations/2026_10_17_100400_create_academic_year_reopenings_table.php`, cargada con `loadMigrationsFrom`) con **`TenantMigration::tenantTableAppendOnly()`** y `TenantMigration::tenantForeignId($table, 'academic_year_id', 'academic_years')`: RLS `ENABLE`+`FORCE`, `UNIQUE (tenant_id, id)`, y **el disparador `academic_year_write_guard`**, sin excepción en `AR-13` (es dato del curso).
 
 | Columna | Tipo | Nulo | Por defecto | Descripción |
 |---------|------|------|-------------|-------------|
@@ -83,16 +83,16 @@ Migración del módulo (`apps/api/app/Modules/Curso/Database/migrations/`) con *
 | `public_id` | `character(26)` | No | — | ULID, único (`AR-05`) |
 | `academic_year_id` | `bigint` | No | — | Curso reabierto. FK compuesta `(tenant_id, academic_year_id) → academic_years (tenant_id, id)`, **`NO ACTION`** (prohibidas las acciones referenciales en tablas con `academic_year_id`, `AR-13`) |
 | `reason` | `text` | No | — | Motivo de la reapertura, recortado y no vacío (validado en servidor, `INV-010`). Contenido del centro; el manual advierte de no escribir datos personales |
-| `created_by` | `bigint` | **[DERIVADA]** ver nota | — | Usuario que reabrió. FK compuesta a `users`, también **`NO ACTION`**: en una tabla con `academic_year_id` está prohibido `nullOnDelete`/`cascadeOnDelete` (`AR-13`) |
+| `created_by` | `bigint` | No | — | Usuario que reabrió. FK compuesta a `users`, también **`NO ACTION`**: en una tabla con `academic_year_id` está prohibido `nullOnDelete`/`cascadeOnDelete` (`AR-13`) |
 | `created_at` | `timestamptz` | No | — | Momento de la reapertura |
 
 Sin `updated_at`, `updated_by` ni `deleted_at`: es *append-only* (lo que dé `tenantTableAppendOnly()`, igual que `mfa_resets`). No se añade columna de motivo a `academic_years`: se sobrescribiría en la segunda reapertura y mezclaría histórico con estado (`ADR-059 §8`).
 
-**Nota sobre `created_by`**: el único camino de alta es el *endpoint* autenticado, así que en la práctica siempre lleva valor; si se declara `NOT NULL` o anulable lo fija la implementación con el mismo criterio que `mfa_resets`. No se propone `CHECK` de motivo no vacío en el motor: hay un único escritor y la validación de servidor basta (mismo criterio que `code` en §1.1).
+**Nota sobre `created_by`**: el único camino de alta es el *endpoint* autenticado, así que en la práctica siempre lleva valor; si se declara `NOT NULL` o anulable lo fija la implementación con el mismo criterio que `mfa_resets`. **Implementado `NOT NULL`** (1.11c), como `mfa_resets.performed_by`. No se propone `CHECK` de motivo no vacío en el motor: hay un único escritor y la validación de servidor basta (mismo criterio que `code` en §1.1).
 
 **Orden de escritura** (`ADR-059 §5.3`): la fila se inserta **después** de cambiar `academic_years.status` a `activo`, en la misma transacción; el disparador lee el estado ya actualizado por la propia transacción y la admite. Si el curso se vuelve a cerrar, sus filas quedan inmutables, que es lo deseado.
 
-**Modelo**: `Curso\Domain\Models\AcademicYearReopening` **[DERIVADA: nombre]**, `extends TenantModel`, `implements Auditable` con `AuditValuePolicy::Full` (`ADR-035 §8`, criterio de `user_mfa_exemptions.reason`), alias de *morph map* `academic_year_reopening` registrado en `CursoServiceProvider::boot()` (`AR-06`). Su alta queda como `created` en `audit_logs`; sin evento nuevo (`ADR-039 §5.3`).
+**Modelo**: `Curso\Domain\Models\AcademicYearReopening` **[DERIVADA: nombre]**, `extends AppendOnlyModel` (**no `TenantModel`**, como se escribió al especificar: `TenantModel` escribe `updated_by` y usa `deleted_at`, que esta tabla *append-only* no tiene; el precedente `MfaReset` también es `AppendOnlyModel`; corregido en `1.11c`), `implements Auditable` con `AuditValuePolicy::Full` (`ADR-035 §8`, criterio de `user_mfa_exemptions.reason`), alias de *morph map* `academic_year_reopening` registrado en `CursoServiceProvider::boot()` (`AR-06`). Su alta queda como `created` en `audit_logs`; sin evento nuevo (`ADR-039 §5.3`).
 
 ---
 
@@ -164,11 +164,11 @@ El listado (`ORDER BY starts_on DESC, id DESC`) no lleva índice propio: un cent
 - [ ] `NULLS NOT DISTINCT` — no aplica (ninguna columna anulable en las claves únicas)
 
 ### `academic_year_reopenings` (`ADR-059`, §1.5)
-- [ ] `tenant_id` + RLS por `tenantTableAppendOnly()`; `academic_year_id NOT NULL` con `tenantForeignId()` y disparador `academic_year_write_guard` (*`AR-13`*, sin excepción)
-- [ ] Sin acciones referenciales (`NO ACTION`) en ninguna FK, incluida la de `created_by` (*`AR-13`*)
-- [ ] `public_id` ULID único (*`AR-05`*), `text`, `timestamptz` (*`AR-04`*)
-- [ ] `Auditable`, política `Full`, alias `academic_year_reopening` (*`AR-06`*)
-- [ ] *Append-only*: sin `updated_at`/`deleted_at`; ningún *endpoint* de modificación ni de borrado
+- [x] `tenant_id` + RLS por `tenantTableAppendOnly()`; `academic_year_id NOT NULL` con `tenantForeignId()` y disparador `academic_year_write_guard` (*`AR-13`*, sin excepción)
+- [x] Sin acciones referenciales (`NO ACTION`) en ninguna FK, incluida la de `created_by` (*`AR-13`*)
+- [x] `public_id` ULID único (*`AR-05`*), `text`, `timestamptz` (*`AR-04`*)
+- [x] `Auditable`, política `Full`, alias `academic_year_reopening` (*`AR-06`*)
+- [x] *Append-only*: sin `updated_at`/`deleted_at`; ningún *endpoint* de modificación ni de borrado
 
 ### Resto
 - [ ] Datos de categoría especial — **no aplica**

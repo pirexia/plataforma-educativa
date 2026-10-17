@@ -65,7 +65,7 @@ Tablas de tenant ordinarias: PITR y exportación lógica por tenant (`ADR-022`).
 | `403 module-disabled` en todas las pantallas de estructura | `acad` no contratado para el centro | Contratarlo desde el *backoffice* |
 | `404 curso.no_active_year` al abrir «Estructura académica» | Sin curso activo | Elegir curso en el selector o activar el de planificación |
 | `404` en una ficha que existe | Curso cerrado y el usuario sin `curso_historico.leer` | Comportamiento correcto (`RN-ACAD-08`) |
-| `409 academic-year-closed` al editar | Curso cerrado | Correcto; si es un error de cierre, reapertura en ventana T1 (`REQ-CURSO`, `1.11c`) |
+| `409 academic-year-closed` al editar | Curso cerrado | Correcto; si es un error de cierre, reapertura en ventana T1 (`REQ-CURSO`, implementada en `1.11c`) |
 | `409 has_dependents` al borrar | Hijos vivos | Borrar antes los hijos (`RN-ACAD-20`) |
 | `500` con `23503` en un alta | Padre de otro curso académico colado por un fallo de servicio: la FK compuesta lo para | Bug: el servicio debe responder `422 parent_not_found` |
 | Un usuario no puede conceder un permiso de otro módulo con ámbito `grupo` o `clase` | No hay resolutor (`ADR-063 §5.1`) | Correcto: falla en cerrado hasta que exista la asignación docente (`ADR-063 §5.4`). No se resuelve dando `todos` |

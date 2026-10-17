@@ -303,7 +303,7 @@ test('CA-CURSO-023 RN-CURSO-12: toda transición no admitida es 409 invalid_tran
     expect($status)->toBe($from);
 })->with([
     'planificacion → cerrado' => ['planificacion', 'cerrado'],
-    'cerrado → activo (sin reapertura, OPEN-CURSO-08)' => ['cerrado', 'activo'],
+    'cerrado → activo (por /status no se reabre; la reapertura es /reopen, ADR-059)' => ['cerrado', 'activo'],
     'activo → activo' => ['activo', 'activo'],
     'archivado → activo' => ['archivado', 'activo'],
     'archivado → cerrado' => ['archivado', 'cerrado'],
@@ -463,9 +463,9 @@ test('CA-CURSO-061 INV-001: con dos centros ningún endpoint devuelve, modifica 
 });
 
 test('CA-CURSO-062 OPEN-CURSO-13: todos los permisos de curso son de ámbito todos, no hay resolutor y curso no entra en el mapa de AR-10', function (): void {
-    $curso = array_values(array_filter(ArchitectureModules::declaredPermissions(), static fn (array $p): bool => in_array($p['resource'], ['curso_academico', 'estado_curso_academico', 'curso_historico'], true)));
+    $curso = array_values(array_filter(ArchitectureModules::declaredPermissions(), static fn (array $p): bool => in_array($p['resource'], ['curso_academico', 'estado_curso_academico', 'curso_historico', 'reapertura_curso_academico'], true)));
 
-    expect($curso)->toHaveCount(5);
+    expect($curso)->toHaveCount(6);
 
     foreach ($curso as $permission) {
         expect($permission['applicable_scopes'])->toBe(['todos'], $permission['code'])
@@ -473,14 +473,14 @@ test('CA-CURSO-062 OPEN-CURSO-13: todos los permisos de curso son de ámbito tod
     }
 });
 
-test('CA-CURSO-063 OPEN-CURSO-01: tras platform:sync-registry, permissions contiene exactamente los cinco códigos de curso y modules el módulo curso esencial sin dependencias', function (): void {
+test('CA-CURSO-063 OPEN-CURSO-01: tras platform:sync-registry, permissions contiene exactamente los seis códigos de curso (los cinco de 1.10 y el de reapertura, 1.11c) y modules el módulo curso esencial sin dependencias', function (): void {
     test()->artisan('platform:sync-registry')->run();
 
     $permissions = Permission::query()->where('module_code', 'curso')->whereNull('retired_at')->orderBy('code')->get();
 
     expect($permissions->pluck('code')->all())->toBe([
         'curso_academico.actualizar', 'curso_academico.crear', 'curso_academico.leer',
-        'curso_historico.leer', 'estado_curso_academico.actualizar',
+        'curso_historico.leer', 'estado_curso_academico.actualizar', 'reapertura_curso_academico.actualizar',
     ])->and($permissions->every(fn ($p) => $p->applicable_scopes === ['todos'] && $p->is_special_category === false))->toBeTrue();
 
     $module = DB::table('modules')->where('code', 'curso')->first();
@@ -572,9 +572,9 @@ test('CA-CURSO-064 #385: el comando curso:grant-year-permissions se niega con un
     expect($count)->toBe(0);
 });
 
-test('CA-CURSO-065 CA-PERM-134: las etiquetas de los tres recursos de curso existen en los cuatro idiomas', function (): void {
+test('CA-CURSO-065 CA-PERM-134: las etiquetas de los cuatro recursos de curso existen en los cuatro idiomas', function (): void {
     foreach (['es', 'en', 'de', 'fr'] as $locale) {
-        foreach (['curso_academico', 'estado_curso_academico', 'curso_historico'] as $resource) {
+        foreach (['curso_academico', 'estado_curso_academico', 'curso_historico', 'reapertura_curso_academico'] as $resource) {
             $key = "curso.permissions.resources.{$resource}";
             $label = trans($key, [], $locale);
 

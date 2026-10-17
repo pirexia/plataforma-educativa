@@ -527,3 +527,69 @@ test('CA-CURSO-119 RN-CURSO-58: la escritura de la tabla sonda (FOR SHARE del di
     cursoRelease($writeGate, $writeKey);
     expect(cursoCollect($writer))->toMatchArray(['outcome' => 'ok']);
 });
+
+// CA-CURSO-103, RN-CURSO-41, RN-CURSO-46, ADR-059 §5.1 (1.11c)
+test('CA-CURSO-103 RN-CURSO-41: una reapertura de X y la activación simultánea de Y: exactamente una gana y la otra recibe 409 active_exists, nunca un 500', function (): void {
+    [$tenant, $admin] = provisionCoreTenant('cur-103c');
+    $closed = CursoTestHelpers::year($tenant, '2025-2026', AcademicYearStatus::Cerrado, '2025-09-01', '2026-06-30');
+    $next = CursoTestHelpers::year($tenant, '2026-2027', AcademicYearStatus::Planificacion, '2026-09-01', '2027-06-30');
+    $key = random_int(1_000, 2_000_000_000);
+
+    $gate = cursoPdo();
+    $gate->prepare('select pg_advisory_lock(?)')->execute([$key]);
+
+    // La reapertura ya pasó «no hay otro activo» y «es el más reciente»; espera dentro
+    // de su validación con el FOR UPDATE de X retenido.
+    $reopener = cursoSpawn($tenant->id, 'reopen', $closed->public_id, (string) $admin->id, (string) $key);
+    cursoWaitBlocked('advisory', 1, [$reopener]);
+
+    // La activación de Y (otra fila, otro bloqueo) no espera: confirma antes.
+    $activator = cursoSpawn($tenant->id, 'activate', $next->public_id);
+    expect(cursoCollect($activator))->toMatchArray(['outcome' => 'ok']);
+
+    // Se libera la reapertura: su UPDATE choca con el índice único parcial del motor
+    // y se traduce al 409 de siempre.
+    $gate->prepare('select pg_advisory_unlock(?)')->execute([$key]);
+
+    expect(cursoCollect($reopener))->toMatchArray(['outcome' => 'api_error', 'status' => 409, 'code' => 'curso.conflict.active_exists']);
+
+    $state = app(TenantContext::class)->runFor($tenant->id, fn () => [
+        AcademicYear::query()->whereKey($closed->id)->firstOrFail()->status,
+        AcademicYear::query()->whereKey($next->id)->firstOrFail()->status,
+        DB::table('academic_year_reopenings')->count(),
+    ]);
+
+    expect($state[0])->toBe(AcademicYearStatus::Cerrado)
+        ->and($state[1])->toBe(AcademicYearStatus::Activo)
+        ->and($state[2])->toBe(0);
+});
+
+test('CA-CURSO-103 RN-CURSO-46 CA-057-08: una escritura que llega con la reapertura ya en curso espera y, al confirmarse, se admite (el curso ya es activo); nunca se confirma con el curso cerrado', function (): void {
+    AcademicYearProbe::ensureTable();
+    [$tenant, $admin] = provisionCoreTenant('cur-103d');
+    $year = CursoTestHelpers::year($tenant, '2025-2026', AcademicYearStatus::Cerrado, '2025-09-01', '2026-06-30');
+    $key = random_int(1_000, 2_000_000_000);
+
+    $gate = cursoPdo();
+    $gate->prepare('select pg_advisory_lock(?)')->execute([$key]);
+
+    $reopener = cursoSpawn($tenant->id, 'reopen', $year->public_id, (string) $admin->id, (string) $key);
+    cursoWaitBlocked('advisory', 1, [$reopener]);
+
+    // La escritura toma FOR SHARE en el disparador: espera al FOR UPDATE de la reapertura.
+    $writer = cursoSpawn($tenant->id, 'write', (string) $year->id, 'durante la reapertura');
+    cursoWaitBlocked('transactionid', 1, [$reopener, $writer]);
+
+    $gate->prepare('select pg_advisory_unlock(?)')->execute([$key]);
+
+    expect(cursoCollect($reopener))->toMatchArray(['outcome' => 'ok'])
+        ->and(cursoCollect($writer))->toMatchArray(['outcome' => 'ok']);
+
+    $state = app(TenantContext::class)->runFor($tenant->id, fn () => [
+        AcademicYear::query()->firstOrFail()->status,
+        DB::table(AcademicYearProbe::TABLE)->where('name', 'durante la reapertura')->count(),
+        DB::table('academic_year_reopenings')->count(),
+    ]);
+
+    expect($state[0])->toBe(AcademicYearStatus::Activo)->and($state[1])->toBe(1)->and($state[2])->toBe(1);
+});

@@ -67,7 +67,9 @@
       "readOnly": "Année scolaire {status} : ses données sont en lecture seule.",
       "openActive": "Ouvrir l'année scolaire active ({code})",
       "closureTitle": "L'année scolaire ne peut pas encore être clôturée :",
-      "noActions": "Cette année scolaire n'admet plus d'autres actions."
+      "noActions": "Cette année scolaire n'admet plus d'autres actions.",
+      "reopen": "Rouvrir l'année scolaire",
+      "reopenTitle": "L'année scolaire ne peut pas encore être rouverte :"
     },
     "confirm": {
       "activate": {
@@ -78,7 +80,7 @@
       },
       "close": {
         "title": "Clôturer l'année scolaire {code}",
-        "description": "La clôture ne peut pas être annulée depuis l'application : à partir de maintenant, les données de cette année scolaire sont en lecture seule dans tous les modules de l'établissement.",
+        "description": "La clôture bloque l'écriture : à partir de maintenant, les données de cette année scolaire sont en lecture seule dans tous les modules de l'établissement. Elle ne peut être annulée que tant qu'aucune autre année scolaire n'a été activée, par une personne disposant de la permission de réouverture et en consignant le motif ; une fois l'année scolaire suivante activée, elle ne pourra plus être rouverte.",
         "confirm": "Clôturer l'année scolaire {code}"
       }
     },
@@ -86,10 +88,21 @@
       "created": "Année scolaire « {code} » créée en planification.",
       "updated": "Année scolaire mise à jour.",
       "activated": "Année scolaire « {code} » activée.",
-      "closed": "Année scolaire « {code} » clôturée."
+      "closed": "Année scolaire « {code} » clôturée.",
+      "reopened": "Année scolaire « {code} » rouverte."
     },
     "errors": {
       "unexpected": "L'opération n'a pas pu être menée à bien. Veuillez réessayer."
+    },
+    "reopen": {
+      "title": "Rouvrir l'année scolaire {code}",
+      "description": "Rouvrir une année scolaire clôturée par erreur. Elle redeviendra l'année scolaire active de l'établissement.",
+      "warningWritable": "Toutes les données de l'année scolaire redeviendront modifiables dans tous les modules.",
+      "warningNotCorrection": "La réouverture ne sert pas à corriger une donnée précise : elle rouvre l'année scolaire entière.",
+      "warningReason": "Le motif est enregistré. N'indiquez pas de données personnelles dans le motif.",
+      "reasonLabel": "Motif de la réouverture (obligatoire)",
+      "reasonRequired": "Indiquez le motif de la réouverture.",
+      "confirm": "Rouvrir l'année scolaire {code}"
     }
   }
 }
