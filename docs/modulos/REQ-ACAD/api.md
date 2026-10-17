@@ -6,7 +6,7 @@ Prefijo: `/api/v1`. Tenant por *host* (`ADR-033 §2`). Todo según `ADR-038`: re
 
 **Identificadores**: solo `public_id` ULID en rutas y cuerpos (`ADR-029`). Ningún `code` es identificador de ruta (`ADR-051`).
 
-> **`1.12`** (**PROPUESTA**, pendiente de aprobación): horarios y asignación docente en **§12** (21 *endpoints* en `1.12-a`, 4 en `1.12-b`).
+> **`1.12`** (**APROBADA 2026-10-17**, con las recomendaciones de `OPEN-ACAD-32` a `-44`): horarios y asignación docente en **§12** (21 *endpoints* en `1.12-a`, 4 en `1.12-b`).
 >
 > **`1.11d`** (especificación **APROBADA** el 2026-10-16): diez *endpoints* nuevos de períodos lectivos y escalas en **§11**; los 27 de arriba no cambian salvo `DELETE /education-levels/{public_id}`, que gana `academic_periods` en `params.dependents` (`RN-ACAD-61`). `acad` aporta además una entrada al `409` de `PATCH /academic-years/{public_id}` de `curso` (`RN-ACAD-62`, §11.7).
 
@@ -444,9 +444,9 @@ Ninguno (`funcional.md §7.3`).
 
 ---
 
-## 12. `1.12` · Horarios y asignación docente (**PROPUESTA**)
+## 12. `1.12` · Horarios y asignación docente (**APROBADA**)
 
-Pendiente de aprobación (`funcional.md §18`). Aplica todo lo de la cabecera: `ADR-038`, solo `public_id`, cadena `RequireAuthenticatedUser` → `module-enabled:acad` → `permission:`, curso académico de referencia (salvo `facilities`, que no lo tiene), `404` de lectura de curso cerrado y `409 academic-year-closed`. Recursos de permiso en `permisos.md §10`. Horas `HH:MM` (24 h, hora civil del centro); fechas `AAAA-MM-DD`.
+Aprobada el 2026-10-17 (`funcional.md §18`). Aplica todo lo de la cabecera: `ADR-038`, solo `public_id`, cadena `RequireAuthenticatedUser` → `module-enabled:acad` → `permission:`, curso académico de referencia (salvo `facilities`, que no lo tiene), `404` de lectura de curso cerrado y `409 academic-year-closed`. Recursos de permiso en `permisos.md §10`. Horas `HH:MM` (24 h, hora civil del centro); fechas `AAAA-MM-DD`.
 
 ### 12.1 Representaciones
 

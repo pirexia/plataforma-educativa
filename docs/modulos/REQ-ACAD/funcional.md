@@ -1008,9 +1008,9 @@ Ninguna contradice una regla aprobada; son huecos que cerró la implementación 
 
 ---
 
-## 18. `1.12` · Horarios y asignación docente (`REQ-ACAD-002`) — **PROPUESTA**
+## 18. `1.12` · Horarios y asignación docente (`REQ-ACAD-002`) — **APROBADA (2026-10-17)**
 
-> **Estado**: PROPUESTA (2026-10-17), pendiente de aprobación del usuario. Nada de §18 está aprobado. Las decisiones abiertas son `OPEN-ACAD-32` a `-44` (§18.11); donde una regla depende de una de ellas, el texto aplica **la recomendación** y la cita, y cambia si el usuario decide otra cosa. Reglas `RN-ACAD-90` a `-143`, criterios `CA-ACAD-107` a `-140`. El resto de esta especificación (§0-§17, aprobado) no cambia salvo las ampliaciones de `RN-ACAD-20`/`-32` que fija `RN-ACAD-96`.
+> **Estado**: APROBADA el 2026-10-17 por el usuario, con las recomendaciones de todas las `OPEN-ACAD-32` a `-44` (incluida la ampliación del mapa cerrado de `AR-10` y la escritura de `direccion` en `OPEN-ACAD-42`). Las decisiones abiertas son `OPEN-ACAD-32` a `-44` (§18.11); donde una regla depende de una de ellas, el texto aplica **la recomendación** y la cita, y cambia si el usuario decide otra cosa. Reglas `RN-ACAD-90` a `-143`, criterios `CA-ACAD-107` a `-140`. El resto de esta especificación (§0-§17, aprobado) no cambia salvo las ampliaciones de `RN-ACAD-20`/`-32` que fija `RN-ACAD-96`.
 
 **Requisito** (`§5.4`, `REQ-ACAD-002`, literal): generador de horarios con detección de conflictos (aulas, profesores, grupos); vista semanal por profesor, aula, grupo y asignatura; exportación de horarios a PDF e importación desde formatos estándar; gestión de horarios especiales (jornada intensiva, festivos, exámenes); reserva de aulas y recursos.
 

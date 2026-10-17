@@ -2,7 +2,7 @@
 
 > **Estado**: **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11**, con las recomendaciones de `funcional.md §15` aprobadas y `ADR-062`/`ADR-063` ACEPTADOS. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 >
-> **`1.12`** (**PROPUESTA**, pendiente de aprobación): operación de horarios y asignación docente en **§12**, al final del fichero.
+> **`1.12`** (**APROBADA 2026-10-17**, con las recomendaciones de `OPEN-ACAD-32` a `-44`): operación de horarios y asignación docente en **§12**, al final del fichero.
 >
 > **`1.11d`** (APROBADA, 2026-10-16): operación de períodos lectivos y escalas en **§11**, tras §10 (el §6.2 de `1.11-a`, que ya estaba fuera de orden al final del fichero, sigue detrás).
 
@@ -161,9 +161,9 @@ Implementada. Sin variables, servicios, colas ni tareas programadas nuevos (§11
 - **No se retira ningún índice existente** (fase *contract*, decisión del usuario). Candidatos a retirar, con evidencia de catálogo (sin estadísticas de uso en desarrollo): `user_mfa_recovery_codes_tenant_user_unused_idx` y `user_mfa_factors_tenant_user_confirmed_idx`, prefijo estricto, con el mismo predicado, de otro índice.
 - Tests: `tests/Feature/Core/TenantForeignKeyIndexesMigrationTest.php`.
 
-## 12. `1.12` · Horarios y asignación docente (**PROPUESTA**)
+## 12. `1.12` · Horarios y asignación docente (**APROBADA**)
 
-Pendiente de aprobación (`funcional.md §18`).
+Aprobada el 2026-10-17 (`funcional.md §18`).
 
 ### 12.1 Variables, servicios, colas y tareas
 

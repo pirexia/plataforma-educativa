@@ -6,7 +6,7 @@
 >
 > **`1.11d`** (especificación **APROBADA** el 2026-10-16; `funcional.md §17`): tres tablas de tenant nuevas con `academic_year_id` —`academic_periods`, `grading_scales`, `grading_scale_values`—, §1.7-§1.9, §3.1, §4, §8. Ninguna altera una tabla existente ni toca `TenantMigration`.
 >
-> **`1.12`** (**PROPUESTA**, pendiente de aprobación; `funcional.md §18`): ocho tablas nuevas (siete con `academic_year_id`; `facilities` sin él) y dos restricciones únicas añadidas a tablas existentes (`group_subjects`, `subgroups`), §9.
+> **`1.12`** (**APROBADA 2026-10-17**, con las recomendaciones de `OPEN-ACAD-32` a `-44`; `funcional.md §18`): ocho tablas nuevas (siete con `academic_year_id`; `facilities` sin él) y dos restricciones únicas añadidas a tablas existentes (`group_subjects`, `subgroups`), §9.
 
 ---
 
@@ -363,9 +363,9 @@ Al pasar a `cerrado`, el disparador `academic_year_write_guard` congela las tres
 
 ---
 
-## 9. `1.12` · Horarios y asignación docente (**PROPUESTA**)
+## 9. `1.12` · Horarios y asignación docente (**APROBADA**)
 
-> Pendiente de aprobación (`funcional.md §18`). Donde una columna depende de una pregunta abierta, se aplica su recomendación y se cita.
+> Aprobada el 2026-10-17 (`funcional.md §18`). Donde una columna depende de una pregunta abierta, se aplica su recomendación y se cita.
 
 Convenciones de §1 (`tenantTable()`, autoría, `timestamptz`, borrado lógico, `UNIQUE (tenant_id, id)`, disparador por tener `academic_year_id`, FK de más de dos columnas a mano con nombre explícito, `CHECK` e índices parciales por sentencia del propietario, todas las FK `NO ACTION`). Hora civil en `time` sin zona (**`OPEN-ACAD-40`**, pendiente; alternativa `smallint` de minutos). `public_id` ULID en todas, también en `timetables` (no se expone; coherencia con `AR-05`/`HasPublicId`, precedente `group_subjects`).
 
