@@ -9,6 +9,7 @@ return [
     'permissions' => [
         'resources' => [
             'estructura_academica' => 'Structure académique',
+            'configuracion_academica' => 'Paramètres académiques',
         ],
     ],
 
@@ -27,6 +28,12 @@ return [
         'concertado' => 'Sous contrat',
     ],
 
+    'period_type' => [
+        'trimestre' => 'Trimestre',
+        'cuatrimestre' => 'Quadrimestre',
+        'semestre' => 'Semestre',
+    ],
+
     'validation' => [
         'code_required' => 'Le code est obligatoire.',
         'invalid_characters' => 'Le texte contient des caractères de contrôle non autorisés, ou des sauts de ligne là où ils ne sont pas admis.',
@@ -41,10 +48,17 @@ return [
         'parent_not_found' => 'L\'élément parent indiqué n\'existe pas.',
         'parent_immutable' => 'L\'élément parent et l\'année scolaire ne peuvent pas être modifiés.',
         'subject_not_in_course' => 'Une matière n\'existe pas ou n\'appartient pas au niveau du groupe.',
+        'period_type_invalid' => 'Le type de période n’est pas valide.',
+        'date_invalid' => 'La date n’est pas valide (format AAAA-MM-JJ).',
+        'period_ends_before_start' => 'La date de fin doit être postérieure à la date de début.',
+        'period_outside_academic_year' => 'La période doit se situer dans l’année scolaire (:academic_year_starts_on – :academic_year_ends_on).',
+        'period_overlap' => 'La période chevauche une autre période de la même étape.',
+        'period_type_mismatch' => 'Toutes les périodes d’une étape doivent être du même type (:period_type).',
     ],
 
     'conflict' => [
         'has_dependents' => 'Impossible de supprimer « :code » (:entity) : il a des éléments dépendants (:dependents). Supprimez-les d\'abord.',
+        'periods_outside_academic_year' => 'Des périodes scolaires se trouveraient en dehors de l’année scolaire : ses dates doivent inclure la période du :periods_starts_on au :periods_ends_on.',
     ],
 
     'entities' => [
@@ -59,5 +73,6 @@ return [
         'groups' => 'groupes',
         'subgroups' => 'sous-groupes',
         'subjects' => 'matières',
+        'academic_periods' => 'périodes scolaires',
     ],
 ];

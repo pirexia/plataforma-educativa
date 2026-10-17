@@ -59,14 +59,16 @@ function acadEndpoints(array $t, string $yearPublicId): array
     ];
 }
 
-test('api.md §2: son exactamente 27 endpoints y las 27 rutas están registradas con autenticación, module-enabled:acad y permission: en ese orden', function (): void {
+test('api.md §2 y §11.3: son exactamente 32 endpoints (27 de la estructura con estructura_academica y 5 de períodos con configuracion_academica) con autenticación, module-enabled:acad y permission: en ese orden', function (): void {
     $routes = collect(Route::getRoutes()->getRoutes())->filter(fn ($r) => str_starts_with((string) $r->getName(), 'acad.'));
+    $periods = $routes->filter(fn ($r) => str_starts_with((string) $r->getName(), 'acad.academic-periods.'));
 
-    expect($routes)->toHaveCount(27);
+    expect($routes)->toHaveCount(32)->and($periods)->toHaveCount(5);
 
     foreach ($routes as $route) {
+        $resource = $periods->contains($route) ? 'configuracion_academica' : 'estructura_academica';
         $middleware = array_values(array_filter($route->gatherMiddleware(), 'is_string'));
-        $permission = collect($middleware)->first(fn (string $m) => str_starts_with($m, 'permission:estructura_academica.'));
+        $permission = collect($middleware)->first(fn (string $m) => str_starts_with($m, "permission:{$resource}."));
 
         expect($permission)->not->toBeNull($route->getName());
         expect(array_search(RequireAuthenticatedUser::class, $middleware, true))->toBeLessThan(array_search('module-enabled:acad', $middleware, true))

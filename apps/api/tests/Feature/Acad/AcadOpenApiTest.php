@@ -6,7 +6,7 @@ use Symfony\Component\Yaml\Yaml;
 use Tests\Support\AcadApiHelpers as Api;
 
 // CLAUDE.md §10 («el endpoint está documentado en OpenAPI»), REQ-ACAD/api.md
-// §10, INV-006, INV-015. Los 27 endpoints de api.md §2 documentados, y solo
+// §10, INV-006, INV-015. Los 32 endpoints de api.md §2 y §11.3 (períodos) documentados, y solo
 // ellos; sus referencias resuelven; los esquemas describen lo que la API
 // devuelve de verdad.
 
@@ -31,7 +31,7 @@ function acadDocumentedOperations(): array
     return $documented;
 }
 
-test('REQ-ACAD-001 api.md §10: los 27 endpoints están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
+test('REQ-ACAD-001 api.md §10, §11.8: los 32 endpoints (27 de la estructura y 5 de períodos lectivos) están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
     $root = Yaml::parseFile(base_path('openapi.yaml'));
     $paths = Yaml::parseFile(base_path('openapi/paths/acad.yaml'))['paths'];
 
@@ -48,7 +48,7 @@ test('REQ-ACAD-001 api.md §10: los 27 endpoints están documentados en OpenAPI,
     }
 
     sort($registered);
-    expect(acadDocumentedOperations())->toHaveCount(27)->and($registered)->toBe(acadDocumentedOperations());
+    expect(acadDocumentedOperations())->toHaveCount(32)->and($registered)->toBe(acadDocumentedOperations());
 });
 
 test('REQ-ACAD-001 api.md §10: toda referencia $ref de acad.yaml resuelve en components.yaml', function (): void {

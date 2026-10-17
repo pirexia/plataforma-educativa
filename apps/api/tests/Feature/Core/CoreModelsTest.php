@@ -6,6 +6,7 @@ use App\Models\PermissionRole;
 use App\Models\Person;
 use App\Models\Role;
 use App\Models\User;
+use App\Modules\Acad\Domain\Models\AcademicPeriod;
 use App\Modules\Acad\Domain\Models\Course;
 use App\Modules\Acad\Domain\Models\EducationLevel;
 use App\Modules\Acad\Domain\Models\Group;
@@ -85,6 +86,7 @@ test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR
         MfaReset::class, UserMfaObligation::class, UserMfaExemption::class, IdentityProvider::class,
         SamlIdentityProviderSettings::class, PermissionRole::class,
         EducationLevel::class, Course::class, Group::class, Subgroup::class, Subject::class, GroupSubject::class,
+        AcademicPeriod::class,
     ]);
 });
 

@@ -456,6 +456,59 @@ namespace App\Models{
 
 namespace App\Modules\Acad\Domain\Models{
 /**
+ * REQ-ACAD/datos.md §1.7, §4 (1.11d-a, `REQ-ACAD-001`). Período lectivo de una
+ * etapa del mismo curso académico (FK compuesta).
+ *
+ * ADR-035 §8: Full — sin datos personales (RN-ACAD-50). Escrituras por
+ * instancia, nunca masivas (AR-15). Los demás módulos no usan este modelo
+ * (AR-01): el acceso será por las interfaces de `Acad\Domain` cuando haya
+ * consumidor (`ADR-048`).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $academic_year_id
+ * @property int $education_level_id
+ * @property string $period_type
+ * @property array<array-key, mixed> $name_translations
+ * @property \Illuminate\Support\Carbon $starts_on
+ * @property \Illuminate\Support\Carbon $ends_on
+ * @property int $position
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\Acad\Domain\Models\EducationLevel|null $educationLevel
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod whereEducationLevelId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod whereEndsOn($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod whereNameTranslations($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod wherePeriodType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod wherePosition($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod whereStartsOn($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicPeriod withoutTrashed()
+* @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperAcademicPeriod {}
+}
+
+namespace App\Modules\Acad\Domain\Models{
+/**
  * REQ-ACAD/datos.md §1.2 (1.11-b, `REQ-ACAD-001`). Curso de etapa, colgado de una etapa del mismo curso académico.
  *
  * ADR-035 §8: Full — sin datos personales (RN-ACAD-09). Escrituras por

@@ -26,6 +26,7 @@ tags:
   - name: Core / Autoservicio
   - name: Curso / Cursos académicos
   - name: Acad / Estructura académica
+  - name: Acad / Configuración académica
   - name: Auth / Sesión
   - name: Auth / Canje
   - name: Auth / Recuperación
@@ -339,6 +340,12 @@ paths:
     $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1subjects~1{publicId}"
   /api/v1/groups/{groupPublicId}/subjects:
     $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1groups~1{groupPublicId}~1subjects"
+
+  # REQ-ACAD (paso 1.11d-a), períodos lectivos. apps/api/openapi/paths/acad.yaml
+  /api/v1/academic-periods:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1academic-periods"
+  /api/v1/academic-periods/{publicId}:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1academic-periods~1{publicId}"
 
   # Los endpoints de los módulos siguientes se añaden aquí conforme se
   # implementan, cada uno con su propio apps/api/openapi/paths/<modulo>.yaml.

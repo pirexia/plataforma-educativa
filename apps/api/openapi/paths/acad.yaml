@@ -1,9 +1,12 @@
-# REQ-ACAD (paso 1.11-b). Convenciones transversales en
+# REQ-ACAD (pasos 1.11-b y 1.11d-a). Convenciones transversales en
 # docs/adr/ADR-038-convenciones-api-rest.md y ADR-062 (contenido traducible); este
 # fichero solo las aplica. Contrato completo en docs/modulos/REQ-ACAD/api.md.
 # Módulo NO esencial (OPEN-ACAD-10): toda ruta responde `403 module-disabled` si el centro
-# no lo ha contratado (antes de comprobar el permiso) y exige `estructura_academica.<acción>`
-# (leer, crear, actualizar, eliminar; ámbito `todos`). Comunes a todas: lectura de un curso
+# no lo ha contratado (antes de comprobar el permiso). Las rutas de la estructura académica
+# (education-levels, courses, groups, subgroups, subjects) exigen `estructura_academica.<acción>`;
+# las de períodos lectivos (academic-periods, 1.11d-a) exigen `configuracion_academica.<acción>`,
+# recurso distinto (RN-ACAD-50). Acciones: leer, crear, actualizar, eliminar; ámbito `todos`.
+# Comunes a todas: lectura de un curso
 # `cerrado`/`archivado` sin `curso_historico.leer` ⇒ `404` (mismo cuerpo que un recurso
 # inexistente); escritura sobre un curso de solo lectura ⇒ `409 urn:pge:error:academic-year-closed`.
 
@@ -802,3 +805,168 @@ paths:
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/academic-periods:
+    get:
+      operationId: listAcademicPeriods
+      summary: Lista los períodos lectivos de un curso académico
+      description: >
+        Permiso `configuracion_academica.leer`. Paginación por página (defecto 25, máximo 100).
+        Orden por defecto `starts_on`, luego `position`, luego `id`. Filtros combinados con `AND`:
+        un `education_level` de otro curso académico distinto del filtrado (o inexistente) da una
+        colección vacía. Un `period_type` fuera del vocabulario es `422`.
+      tags: ['Acad / Configuración académica']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/AcademicYearFilterParam' }
+        - name: education_level
+          in: query
+          description: Uno o varios `public_id` de etapa separados por coma.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: period_type
+          in: query
+          description: Uno o varios tipos de período separados por coma (`422` si alguno no es del vocabulario).
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '../components.yaml#/components/schemas/AcademicPeriodType' }
+        - { $ref: '../components.yaml#/components/parameters/AcademicPeriodSortParam' }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/AcademicPeriod' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createAcademicPeriod
+      summary: Crea un período lectivo
+      description: >
+        Permiso `configuracion_academica.crear`. La etapa llega en el cuerpo (`education_level`) y el
+        curso académico es el de ella: `academic_year` en el cuerpo es `422 acad.validation.academic_year_not_allowed`.
+        Etapa ausente, inexistente, borrada, de otro centro o de un curso ilegible: `422 acad.validation.parent_not_found`.
+        Reglas de negocio sobre el estado resultante, bajo el bloqueo de RN-ACAD-54: fechas ordenadas
+        (`period_ends_before_start`), dentro del curso (`period_outside_academic_year`), un solo tipo por
+        etapa (`period_type_mismatch`) y sin solape con otro período vivo de la etapa (`period_overlap`).
+        `position` opcional (la última + 1). `name_translations` debe llevar el idioma por defecto del centro.
+      tags: ['Acad / Configuración académica']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [education_level, period_type, name_translations, starts_on, ends_on]
+              properties:
+                education_level: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                period_type: { $ref: '../components.yaml#/components/schemas/AcademicPeriodType' }
+                name_translations: { $ref: '../components.yaml#/components/schemas/TranslationsMap' }
+                starts_on: { type: string, format: date }
+                ends_on: { type: string, format: date }
+                position: { type: integer, minimum: 1 }
+      responses:
+        '201':
+          description: Creado
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/AcademicPeriod' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/academic-periods/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getAcademicPeriod
+      summary: Detalle de un período lectivo
+      description: >
+        Permiso `configuracion_academica.leer`. Un `public_id` de otro centro, o de un curso
+        `cerrado`/`archivado` sin `curso_historico.leer`, es `404` (INV-001, RN-ACAD-52).
+      tags: ['Acad / Configuración académica']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: El recurso
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/AcademicPeriod' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: updateAcademicPeriod
+      summary: Edita un período lectivo
+      description: >
+        Permiso `configuracion_academica.actualizar`. Editables `period_type`, `name_translations`
+        (fusión por idioma), `starts_on`, `ends_on` y `position`. Las reglas de fechas, tipo y solape se
+        evalúan sobre el estado resultante, excluyendo el propio período, con los mismos bloqueos que el
+        alta; un `period_type` distinto solo prospera si el período es el único vivo de su etapa
+        (`422 acad.validation.period_type_mismatch`). `education_level` o `academic_year` ⇒
+        `422 acad.validation.parent_immutable`. Sin cambios: `200` sin escritura ni auditoría.
+      tags: ['Acad / Configuración académica']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                period_type: { $ref: '../components.yaml#/components/schemas/AcademicPeriodType' }
+                name_translations: { $ref: '../components.yaml#/components/schemas/TranslationsPatchMap' }
+                starts_on: { type: string, format: date }
+                ends_on: { type: string, format: date }
+                position: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Actualizado
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/AcademicPeriod' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    delete:
+      operationId: deleteAcademicPeriod
+      summary: Borra (lógico) un período lectivo
+      description: >
+        Permiso `configuracion_academica.eliminar`. Sin dependientes en `acad` (RN-ACAD-61). Un segundo
+        `DELETE` responde `404`.
+      tags: ['Acad / Configuración académica']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204':
+          description: Borrado lógico
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }

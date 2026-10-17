@@ -14,8 +14,8 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 
-// REQ-ACAD-001 (1.11-b), permisos.md §2-§4, CA-ACAD-035, CA-ACAD-036,
-// CA-ACAD-037, INV-002, INV-015. Catálogo de permisos y descriptor del
+// REQ-ACAD-001 (1.11-b y 1.11d-a), permisos.md §2-§4.1, CA-ACAD-035, CA-ACAD-036,
+// CA-ACAD-037, CA-ACAD-096, CA-ACAD-097, INV-002, INV-015. Catálogo de permisos y descriptor del
 // módulo materializados por `platform:sync-registry`; siembra por
 // `tenant:provision-defaults` y por `acad:grant-structure-permissions`.
 
@@ -28,6 +28,11 @@ const ACAD_PERMISSION_CODES = [
     'estructura_academica.actualizar', 'estructura_academica.eliminar',
 ];
 
+const ACAD_CONFIG_PERMISSION_CODES = [
+    'configuracion_academica.leer', 'configuracion_academica.crear',
+    'configuracion_academica.actualizar', 'configuracion_academica.eliminar',
+];
+
 /** @return list<string> */
 function acadGrantsOf(string $roleCode): array
 {
@@ -38,12 +43,24 @@ function acadGrantsOf(string $roleCode): array
         ->pluck('permission_code')->sort()->values()->all();
 }
 
-test('CA-ACAD-035 ADR-034 §5: tras platform:sync-registry, permissions contiene exactamente los cuatro códigos de estructura_academica con module_code acad y ámbito todos', function (): void {
+/** @return list<string> */
+function acadConfigGrantsOf(string $roleCode): array
+{
+    $role = Role::where('code', $roleCode)->firstOrFail();
+
+    return PermissionRole::where('role_id', $role->id)
+        ->where('permission_code', 'like', 'configuracion_academica.%')
+        ->pluck('permission_code')->sort()->values()->all();
+}
+
+test('CA-ACAD-035 CA-ACAD-096 ADR-034 §5: tras platform:sync-registry, permissions contiene exactamente los ocho códigos de acad (cuatro de estructura_academica y cuatro de configuracion_academica) con ámbito todos', function (): void {
     test()->artisan('platform:sync-registry')->assertSuccessful();
 
     $rows = Permission::query()->where('module_code', 'acad')->orderBy('code')->get();
 
     expect($rows->pluck('code')->all())->toBe([
+        'configuracion_academica.actualizar', 'configuracion_academica.crear',
+        'configuracion_academica.eliminar', 'configuracion_academica.leer',
         'estructura_academica.actualizar', 'estructura_academica.crear',
         'estructura_academica.eliminar', 'estructura_academica.leer',
     ]);
@@ -52,11 +69,14 @@ test('CA-ACAD-035 ADR-034 §5: tras platform:sync-registry, permissions contiene
         expect($permission->applicable_scopes)->toBe(['todos'])
             ->and($permission->is_special_category)->toBeFalse()
             ->and($permission->retired_at)->toBeNull()
-            ->and($permission->resource)->toBe('estructura_academica');
+            ->and($permission->resource)->toBe(str_starts_with($permission->code, 'configuracion_academica.') ? 'configuracion_academica' : 'estructura_academica');
     }
 
-    // exportar/importar no se declaran (permisos.md §2.1).
-    expect(Permission::query()->whereIn('code', ['estructura_academica.exportar', 'estructura_academica.importar'])->count())->toBe(0);
+    // exportar/importar no se declaran (permisos.md §2.1, §2.2).
+    expect(Permission::query()->whereIn('code', [
+        'estructura_academica.exportar', 'estructura_academica.importar',
+        'configuracion_academica.exportar', 'configuracion_academica.importar',
+    ])->count())->toBe(0);
 });
 
 test('CA-ACAD-035 ADR-045: el descriptor del módulo es acad, depende de curso y no es esencial', function (): void {
@@ -78,9 +98,9 @@ test('CA-ACAD-035 ADR-045: el descriptor del módulo es acad, depende de curso y
         ->and(app(ModuleCatalog::class)->dependenciesOf('acad'))->toBe([]);
 });
 
-test('CA-ACAD-035 CA-PERM-134: la etiqueta del recurso y las del módulo, stage y regime existen en los cuatro idiomas', function (): void {
+test('CA-ACAD-035 CA-ACAD-096 CA-PERM-134: la etiqueta de cada recurso y las del módulo, stage y regime existen en los cuatro idiomas', function (): void {
     $keys = [
-        'acad.permissions.resources.estructura_academica', 'modules.acad',
+        'acad.permissions.resources.estructura_academica', 'acad.permissions.resources.configuracion_academica', 'modules.acad',
         ...array_map(static fn (string $s): string => "acad.stage.{$s}", ['infantil', 'primaria', 'eso', 'bachillerato', 'fp', 'universidad']),
         ...array_map(static fn (string $r): string => "acad.regime.{$r}", ['publico', 'privado', 'concertado']),
     ];
@@ -92,8 +112,12 @@ test('CA-ACAD-035 CA-PERM-134: la etiqueta del recurso y las del módulo, stage 
     }
 
     // El catálogo declara esa etiqueta en cada entrada.
-    foreach ((new AcadServiceProvider(app()))->declaredPermissions() as $declared) {
-        expect($declared['resource_label_key'])->toBe('acad.permissions.resources.estructura_academica')
+    $declaredPermissions = (new AcadServiceProvider(app()))->declaredPermissions();
+
+    expect($declaredPermissions)->toHaveCount(8);
+
+    foreach ($declaredPermissions as $declared) {
+        expect($declared['resource_label_key'])->toBe("acad.permissions.resources.{$declared['resource']}")
             ->and($declared['applicable_scopes'])->toBe(['todos'])
             ->and($declared['is_special_category'])->toBeFalse();
     }
@@ -103,7 +127,8 @@ test('CA-ACAD-037 ADR-063 §5.1 permisos.md §3.1: acad no registra resolutores 
     $registry = app(ScopeResolverRegistry::class);
 
     foreach ([Scope::Grupo, Scope::Clase, Scope::Departamento] as $scope) {
-        expect($registry->has('estructura_academica', $scope))->toBeFalse($scope->value);
+        expect($registry->has('estructura_academica', $scope))->toBeFalse($scope->value)
+            ->and($registry->has('configuracion_academica', $scope))->toBeFalse($scope->value);
     }
 
     // Ni una referencia a ScopeResolverRegistry en el módulo.
@@ -131,20 +156,34 @@ test('CA-ACAD-037 CA-PERM-004: conceder un permiso de acad con ámbito grupo o c
             ])
             ->assertStatus(422);
 
+        // CA-ACAD-097: lo mismo con configuracion_academica.leer (ADR-063 §5.1).
+        resetSessionState();
+
+        test()->actingAs($admin)
+            ->postJson(coreApiUrl($tenant->slug, '/roles'), [
+                'code' => "rol_acad_097_{$i}",
+                'name' => "Rol cfg {$i}",
+                'permissions' => [['code' => 'configuracion_academica.leer', 'effect' => 'allow', 'scope' => $scope]],
+            ])
+            ->assertStatus(422);
+
         app(TenantContext::class)->runFor($tenant->id, function () use ($i): void {
-            expect(Role::where('code', "rol_acad_037_{$i}")->exists())->toBeFalse();
+            expect(Role::where('code', "rol_acad_037_{$i}")->exists())->toBeFalse()
+                ->and(Role::where('code', "rol_acad_097_{$i}")->exists())->toBeFalse();
         });
     }
 });
 
-test('CA-ACAD-036 permisos.md §4 OPEN-ACAD-09 = X: tenant:provision-defaults siembra los cuatro al administrador y solo leer a direccion, secretaria, docente, tutor_grupo y orientador', function (): void {
+test('CA-ACAD-036 CA-ACAD-097 permisos.md §4 y §4.1 OPEN-ACAD-09 = X, OPEN-ACAD-28 = X + 1: tenant:provision-defaults siembra los ocho al administrador y solo leer de cada recurso a direccion, secretaria, docente, tutor_grupo y orientador', function (): void {
     [$tenant] = provisionCoreTenant('acad-036a');
 
     app(TenantContext::class)->runFor($tenant->id, function (): void {
-        expect(acadGrantsOf('administrador_centro'))->toBe(ACAD_PERMISSION_CODES_SORTED());
+        expect(acadGrantsOf('administrador_centro'))->toBe(ACAD_PERMISSION_CODES_SORTED())
+            ->and(acadConfigGrantsOf('administrador_centro'))->toBe(ACAD_CONFIG_PERMISSION_CODES_SORTED());
 
         foreach (['direccion', 'secretaria', 'docente', 'tutor_grupo', 'orientador'] as $code) {
-            expect(acadGrantsOf($code))->toBe(['estructura_academica.leer'], $code);
+            expect(acadGrantsOf($code))->toBe(['estructura_academica.leer'], $code)
+                ->and(acadConfigGrantsOf($code))->toBe(['configuracion_academica.leer'], $code);
         }
 
         // Los demás roles predefinidos, nada (RPERM-011).
@@ -155,11 +194,12 @@ test('CA-ACAD-036 permisos.md §4 OPEN-ACAD-09 = X: tenant:provision-defaults si
         expect($others)->not->toBeEmpty();
 
         foreach ($others as $code) {
-            expect(acadGrantsOf($code))->toBe([], $code);
+            expect(acadGrantsOf($code))->toBe([], $code)
+                ->and(acadConfigGrantsOf($code))->toBe([], $code);
         }
 
         // Todas con ámbito `todos`.
-        expect(PermissionRole::where('permission_code', 'like', 'estructura_academica.%')->where('scope', '<>', 'todos')->count())->toBe(0);
+        expect(PermissionRole::where(fn ($q) => $q->where('permission_code', 'like', 'estructura_academica.%')->orWhere('permission_code', 'like', 'configuracion_academica.%'))->where('scope', '<>', 'todos')->count())->toBe(0);
     });
 
     // La lista del aprovisionamiento es la única fuente del comando (una sola lista por los dos caminos).
@@ -174,17 +214,25 @@ function ACAD_PERMISSION_CODES_SORTED(): array
     return $codes;
 }
 
-/** Retira las concesiones de estructura académica de un centro (simula un centro anterior al despliegue). */
+function ACAD_CONFIG_PERMISSION_CODES_SORTED(): array
+{
+    $codes = ACAD_CONFIG_PERMISSION_CODES;
+    sort($codes);
+
+    return $codes;
+}
+
+/** Retira las concesiones de `acad` de un centro (simula un centro anterior al despliegue). */
 function acadRevokeAll(object $tenant): void
 {
     app(TenantContext::class)->runFor($tenant->id, function (): void {
-        PermissionRole::query()->where('permission_code', 'like', 'estructura_academica.%')->get()->each->delete();
+        PermissionRole::query()->where(fn ($q) => $q->where('permission_code', 'like', 'estructura_academica.%')->orWhere('permission_code', 'like', 'configuracion_academica.%'))->get()->each->delete();
     });
 }
 
 function acadGrantCount(object $tenant): int
 {
-    return app(TenantContext::class)->runFor($tenant->id, fn () => PermissionRole::query()->where('permission_code', 'like', 'estructura_academica.%')->count());
+    return app(TenantContext::class)->runFor($tenant->id, fn () => PermissionRole::query()->where(fn ($q) => $q->where('permission_code', 'like', 'estructura_academica.%')->orWhere('permission_code', 'like', 'configuracion_academica.%'))->count());
 }
 
 test('CA-ACAD-036 operacion.md §3: acad:grant-structure-permissions concede lo que falta a un centro existente, es idempotente y no toca roles personalizados', function (): void {
@@ -199,19 +247,21 @@ test('CA-ACAD-036 operacion.md §3: acad:grant-structure-permissions concede lo 
     acadRevokeAll($tenant);
     expect(acadGrantCount($tenant))->toBe(0);
 
-    // 4 (administrador_centro) + 5 roles con leer.
+    // 8 (administrador_centro) + 5 roles con dos `leer` cada uno.
     test()->artisan('acad:grant-structure-permissions')->assertSuccessful();
-    expect(acadGrantCount($tenant))->toBe(9);
+    expect(acadGrantCount($tenant))->toBe(18);
 
     test()->artisan('acad:grant-structure-permissions')->assertSuccessful();
-    expect(acadGrantCount($tenant))->toBe(9);
+    expect(acadGrantCount($tenant))->toBe(18);
 
     app(TenantContext::class)->runFor($tenant->id, function (): void {
         $custom = Role::where('code', 'rol_custom_036')->firstOrFail();
 
         expect(PermissionRole::where('role_id', $custom->id)->pluck('permission_code')->all())->toBe(['usuario.leer'])
             ->and(acadGrantsOf('administrador_centro'))->toBe(ACAD_PERMISSION_CODES_SORTED())
-            ->and(acadGrantsOf('docente'))->toBe(['estructura_academica.leer']);
+            ->and(acadConfigGrantsOf('administrador_centro'))->toBe(ACAD_CONFIG_PERMISSION_CODES_SORTED())
+            ->and(acadGrantsOf('docente'))->toBe(['estructura_academica.leer'])
+            ->and(acadConfigGrantsOf('docente'))->toBe(['configuracion_academica.leer']);
     });
 });
 
@@ -235,7 +285,25 @@ test('CA-ACAD-036 issue #387 B-5: el comando no concede nada y lo dice si algún
 
     // Caso normal sin cambios: con el permiso vigente concede.
     test()->artisan('acad:grant-structure-permissions')->assertSuccessful();
-    expect(acadGrantCount($tenant))->toBe(9);
+    expect(acadGrantCount($tenant))->toBe(18);
+});
+
+test('CA-ACAD-097 issue #387 B-5: el comando tampoco concede nada si está retirado un permiso de configuracion_academica', function (): void {
+    [$tenant] = provisionCoreTenant('acad-097c');
+    acadRevokeAll($tenant);
+
+    $owner = DB::connection('pgsql_owner');
+    $owner->table('permissions')->where('code', 'configuracion_academica.crear')->update(['retired_at' => now()]);
+
+    try {
+        test()->artisan('acad:grant-structure-permissions')
+            ->expectsOutputToContain('permisos retirados en el registro (retired_at informado): configuracion_academica.crear')
+            ->assertFailed();
+
+        expect(acadGrantCount($tenant))->toBe(0);
+    } finally {
+        $owner->table('permissions')->where('code', 'configuracion_academica.crear')->update(['retired_at' => null]);
+    }
 });
 
 test('CA-ACAD-036 #385: el comando se niega con un mensaje claro si el registro de permisos no está sincronizado, y no concede nada', function (): void {

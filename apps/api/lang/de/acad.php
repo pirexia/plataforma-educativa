@@ -9,6 +9,7 @@ return [
     'permissions' => [
         'resources' => [
             'estructura_academica' => 'Akademische Struktur',
+            'configuracion_academica' => 'Akademische Einstellungen',
         ],
     ],
 
@@ -27,6 +28,12 @@ return [
         'concertado' => 'Staatlich gefördert',
     ],
 
+    'period_type' => [
+        'trimestre' => 'Trimester',
+        'cuatrimestre' => 'Tertial',
+        'semestre' => 'Semester',
+    ],
+
     'validation' => [
         'code_required' => 'Der Code ist erforderlich.',
         'invalid_characters' => 'Der Text enthält unzulässige Steuerzeichen oder Zeilenumbrüche an unzulässiger Stelle.',
@@ -41,10 +48,17 @@ return [
         'parent_not_found' => 'Das angegebene übergeordnete Element existiert nicht.',
         'parent_immutable' => 'Das übergeordnete Element und das Schuljahr können nicht geändert werden.',
         'subject_not_in_course' => 'Ein Fach existiert nicht oder gehört nicht zum Jahrgang der Gruppe.',
+        'period_type_invalid' => 'Die Art des Zeitraums ist ungültig.',
+        'date_invalid' => 'Das Datum ist ungültig (Format JJJJ-MM-TT).',
+        'period_ends_before_start' => 'Das Enddatum muss nach dem Startdatum liegen.',
+        'period_outside_academic_year' => 'Der Zeitraum muss innerhalb des Schuljahres liegen (:academic_year_starts_on – :academic_year_ends_on).',
+        'period_overlap' => 'Der Zeitraum überschneidet sich mit einem anderen derselben Stufe.',
+        'period_type_mismatch' => 'Alle Zeiträume einer Stufe müssen von derselben Art sein (:period_type).',
     ],
 
     'conflict' => [
         'has_dependents' => 'Das Element „:code“ (:entity) kann nicht gelöscht werden: Es hat abhängige Elemente (:dependents). Löschen Sie diese zuerst.',
+        'periods_outside_academic_year' => 'Einige Unterrichtszeiträume lägen außerhalb des Schuljahres: Seine Daten müssen den Zeitraum vom :periods_starts_on bis zum :periods_ends_on einschließen.',
     ],
 
     'entities' => [
@@ -59,5 +73,6 @@ return [
         'groups' => 'Gruppen',
         'subgroups' => 'Untergruppen',
         'subjects' => 'Fächer',
+        'academic_periods' => 'Unterrichtszeiträume',
     ],
 ];
