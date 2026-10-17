@@ -86,3 +86,22 @@ export interface Subject {
   created_at: string
   updated_at: string
 }
+
+/** `RN-ACAD-55`: vocabulario cerrado; enumerado extensible en la lectura (`ADR-038 §7.3`). */
+export type PeriodType = 'trimestre' | 'cuatrimestre' | 'semestre'
+
+/** `docs/modulos/REQ-ACAD/api.md §11.1`. Fechas civiles `AAAA-MM-DD`; los períodos no tienen `code`. */
+export interface AcademicPeriod {
+  public_id: PublicId
+  academic_year: PublicId
+  education_level: PublicId
+  period_type: PeriodType | (string & {})
+  position: number
+  /** Resuelto en servidor (`ADR-062 §5.3`); solo lectura. */
+  name: string
+  name_translations: Translations
+  starts_on: string
+  ends_on: string
+  created_at: string
+  updated_at: string
+}
