@@ -57,7 +57,7 @@ Se señalan aquí, antes del alcance, porque condicionan todo lo demás. Ninguna
 | ~~**Reapertura de un curso cerrado**~~ | — | **Resuelta por `ADR-059`** (`OPEN-CURSO-08`): entra en esta especificación, acotada a la ventana T1 (§4.6). Siguen fuera: reabrir con otro curso `activo`, reabrir un curso que no es el cerrado más reciente, y reabrir un curso `archivado` (`ADR-059 §2`, `§3`) | Paso de implementación: lo fija `PLAN-IMPLEMENTACION.md` |
 | **Rectificación de datos de un curso cerrado** (p. ej. reclamación de una nota tras el cierre) | — | No está en ningún requisito; es de `CALIF` (`OPEN-CURSO-19`) | `1.16` |
 | **`RPERM-008`** (permisos condicionales «solo durante el período de evaluación») | `RPERM-008` | Diferido a `REQ-CALIF` 1.16 por `ADR-044 §4.5`; depende de períodos de evaluación, no del ciclo del curso | `1.16` |
-| **Eventos de dominio emitidos** | `INV-007`, `RARQ-ARC-006` | Se **especifican** aquí; aprobado emitirlos con su primer consumidor (`OPEN-CURSO-18`, precedente `ADR-048`) | `1.11` o el primer consumidor |
+| **Eventos de dominio emitidos** | `INV-007`, `RARQ-ARC-006` | Se **especifican** aquí; aprobado emitirlos con su primer consumidor (`OPEN-CURSO-18`, precedente `ADR-048`), salvo `AcademicYearReopened`, emitido desde `1.11c` (ver §4.6) | `1.11` o el primer consumidor |
 
 ### 1.3 Dependencias no implementadas y cómo se tratan
 
@@ -330,13 +330,13 @@ Descripción funcional; la firma exacta es trabajo de implementación dentro de 
 | `AcademicYearSharedLock` (`1.11d-a`, `OPEN-CURSO-25` = B) | `lockForShareById(int $id): ?AcademicYearSummary`: lee el curso con `FOR SHARE` sobre su fila, dentro de la transacción del consumidor y antes de que este bloquee filas propias, y devuelve el resumen leído bajo el bloqueo; `null` si no existe o es de otro centro; excepción si no hay transacción abierta; sin memoización (`RN-CURSO-55` a `-59`) | `acad` (`1.11d-a`: alta y edición de períodos lectivos, `RN-ACAD-54`, `-57`); todo módulo que valide datos contra las fechas del curso al escribirlos |
 | `AcademicYearStatus` (enumerado) | Vocabulario de estados, hoy `App\Models\AcademicYearStatus`; pasa a `Curso\Domain` (aprobado, `OPEN-CURSO-03`). Declara qué estados son de solo lectura; un test de paridad lo contrasta con el conjunto que bloquea la función del disparador (`ADR-057 §5.2`, `CA-057-07`) | Cualquiera que necesite comparar estados |
 
-### 7.2 Eventos de dominio (especificados; emisión según `OPEN-CURSO-18`)
+### 7.2 Eventos de dominio (especificados; emisión según `OPEN-CURSO-18`, salvo `AcademicYearReopened`, emitido desde `1.11c`, ver §4.6)
 
 | Evento | Cuándo | Carga | Consumidores previstos |
 |--------|--------|-------|------------------------|
 | `AcademicYearActivated` | Tras confirmar `planificacion → activo` | `tenant_id`, `academic_year_public_id`, `code`, `occurred_at` | `REQ-COM` (1.19, aviso al centro), módulos con trabajos programados por curso activo |
 | `AcademicYearClosed` | Tras confirmar `activo → cerrado` | Ídem | `ACAD`/`CALIF` (dejar de programar trabajos sobre el curso), `REQ-COM` |
-| `AcademicYearReopened` | Tras confirmar `cerrado → activo` (`ADR-059 §5.4`) | Ídem, sin el motivo | Los mismos que `AcademicYearClosed`: todo proceso que trate el cierre como hecho consumado debe tolerar que el curso vuelva a `activo` (`ADR-059 §7`). El aviso a otras personas (dirección, otros administradores) **no se decide aquí**: es `OPEN-059-05`, en `REQ-COM` (`1.19`) |
+| `AcademicYearReopened` (**emitido desde `1.11c`**, §4.6) | Tras confirmar `cerrado → activo` (`ADR-059 §5.4`) | Ídem, sin el motivo | Los mismos que `AcademicYearClosed`: todo proceso que trate el cierre como hecho consumado debe tolerar que el curso vuelva a `activo` (`ADR-059 §7`). El aviso a otras personas (dirección, otros administradores) **no se decide aquí**: es `OPEN-059-05`, en `REQ-COM` (`1.19`) |
 | `AcademicYearCreated` | **No se propone.** Ningún consumidor previsto; sería la «tercera fuente de verdad» que `ADR-048` rechaza | — | — |
 
 Reglas, si se emiten: tras el *commit* (nunca dentro de la transacción, issue #189), con identificadores públicos y sin datos personales; un consumidor que falla no revierte la transición (es notificación de un hecho consumado, `ADR-048 §4.9`).
@@ -421,7 +421,7 @@ WCAG 2.2 AA (`RNF-UX-002`): campos de fecha con etiqueta y formato anunciado, es
 | Datos de otros módulos que dependen de las fechas del curso | Registro de validaciones del cambio de fechas (`RN-CURSO-49`, `1.11d-a`), con `acad` como primer consumidor | Una clase por validación, en su módulo |
 | Fechas de transición en pantalla | Auditoría (`RN-CURSO-13`) | Columnas anulables (expand) si se piden |
 | Particionado por curso de tablas de alto crecimiento (`RDB-001`) | La regla `academic_year_id NOT NULL` de `ADR-034 §4` es la que hace posible particionar por él. **Aviso para `ACAD`/`CALIF`**: en PostgreSQL la clave primaria y los índices únicos de una tabla particionada deben incluir la clave de partición, y las FK compuestas que apunten a ella también; diseñarlo desde la primera migración de la tabla, no después | Decisión de cada módulo |
-| Eventos (`OPEN-CURSO-18`) | Contrato en §7.2 | Código en `curso` cuando llegue el primer consumidor |
+| Eventos (`OPEN-CURSO-18`) | Contrato en §7.2 | Código en `curso` cuando llegue el primer consumidor, salvo `AcademicYearReopened`, emitido desde `1.11c` (§4.6) |
 
 ---
 
@@ -585,7 +585,7 @@ El usuario aprobó el 2026-10-07 **las 23 recomendaciones** de la tabla de §15.
 | `OPEN-CURSO-15` | **APROBADA** | A: `GET /academic-years/current` por autoservicio; **ampliación expresamente aprobada** de la lista cerrada de excepciones de `AR-07a` con esa única ruta |
 | `OPEN-CURSO-16` | **APROBADA** | A: `cerrado`/`archivado` exigen `curso_historico.leer` |
 | `OPEN-CURSO-17` | **APROBADA** | A + X: selector en `1.11`, estado en `src/academic-year/` |
-| `OPEN-CURSO-18` | **APROBADA** | A: eventos especificados, emitidos con su primer consumidor |
+| `OPEN-CURSO-18` | **APROBADA** | A: eventos especificados, emitidos con su primer consumidor (salvo `AcademicYearReopened`, emitido desde `1.11c`, ver §4.6) |
 | `OPEN-CURSO-19` | **APROBADA** | Rectificación de `REQ-CALIF`; `ADR-057 §5.7` le deja sitio como excepción declarada, auditada y por módulo |
 | `OPEN-CURSO-20` | **APROBADA** | A: bloqueo universal; excepciones por módulo con la forma de `ADR-057 §5.7` |
 | `OPEN-CURSO-21` | **APROBADA** | Reparto de §1.2; lo anota en el plan la sesión principal |

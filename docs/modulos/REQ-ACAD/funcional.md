@@ -119,10 +119,10 @@ Reglas de nombre:
 
 ### 1.4 Dependencias
 
-- **`REQ-CURSO` está implementado** (1.10) salvo la reapertura (`1.11c`), que no afecta: la reapertura cambia `academic_years.status` y el disparador deja de bloquear (`RN-CURSO-46`).
+- **`REQ-CURSO` está implementado** (1.10) y la reapertura está implementada en `1.11c`, que no afecta: la reapertura cambia `academic_years.status` y el disparador deja de bloquear (`RN-CURSO-46`).
 - **Cambios en el módulo `curso`** aprobados para este paso: §1.2 (búsqueda por identificador interno, `GET /academic-years/selectable`, comprobación de `retired_at` en su comando de siembra). La sesión principal actualiza `docs/modulos/REQ-CURSO/` (no es carpeta de esta especificación).
 - **`ADR-062` y `ADR-063` ACEPTADOS** el 2026-10-10 (ratificados por el usuario, `OPEN-062-02` y `OPEN-063-02` = sí). La implementación se divide en dos entregas: `1.11-a` (infraestructura compartida de `§1.2`) y `1.11-b` (módulo `acad`).
-- **Primera tabla real con `academic_year_id`** del producto (si `1.11c` no se adelanta).
+- **Primera tabla real con `academic_year_id`** del producto: `academic_year_reopenings` (`1.11c`, implementada).
 
 ---
 

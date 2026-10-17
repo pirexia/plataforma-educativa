@@ -141,7 +141,9 @@ class AcademicYearsController extends Controller
      */
     public function reopen(ReopenAcademicYearRequest $request, string $publicId, AcademicYearTransitions $transitions): AcademicYearResource
     {
-        // 404 antes que cualquier regla de transición (`INV-001`).
+        // 404 antes que cualquier regla de transición (`INV-001`). La validación
+        // de `reason` (422) precede al 404 por el FormRequest; sin fuga: no
+        // depende de si el curso existe ni de su tenant.
         $this->findOrFail($publicId);
 
         return new AcademicYearResource($transitions->reopen($publicId, $request->reason()));
