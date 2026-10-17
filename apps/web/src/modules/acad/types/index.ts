@@ -105,3 +105,40 @@ export interface AcademicPeriod {
   created_at: string
   updated_at: string
 }
+
+/** `RN-ACAD-70`: vocabulario cerrado; enumerado extensible en la lectura (`ADR-038 §7.3`). */
+export type ScaleType = 'numerica' | 'cualitativa' | 'mixta'
+
+/**
+ * `docs/modulos/REQ-ACAD/api.md §11.2`. Valor de una cualitativa o tramo de una mixta.
+ * `range_min`/`range_max` son **cadenas** con `decimals` cifras (`RN-ACAD-75`): nunca `number`.
+ * `is_passing` es el guardado en la cualitativa y derivado, de solo lectura, en la mixta.
+ */
+export interface GradingScaleValue {
+  public_id: PublicId
+  code: string
+  position: number
+  /** Resuelto en servidor (`ADR-062 §5.3`); solo lectura. */
+  label: string
+  label_translations: Translations
+  is_passing: boolean | null
+  range_min: string | null
+  range_max: string | null
+}
+
+/** `docs/modulos/REQ-ACAD/api.md §11.2`. Los campos numéricos son `null` en la cualitativa. */
+export interface GradingScale {
+  public_id: PublicId
+  academic_year: PublicId
+  code: string
+  name: string
+  name_translations: Translations
+  scale_type: ScaleType | (string & {})
+  min_value: string | null
+  max_value: string | null
+  decimals: number | null
+  passing_min_value: string | null
+  values: GradingScaleValue[]
+  created_at: string
+  updated_at: string
+}

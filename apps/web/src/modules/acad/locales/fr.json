@@ -6,7 +6,9 @@
       "backToLevel": "Retour à l'étape {code}",
       "backToLevelGeneric": "Retour à l'étape",
       "backToCourse": "Retour au niveau {code}",
-      "backToCourseGeneric": "Retour au niveau"
+      "backToCourseGeneric": "Retour au niveau",
+      "gradingScales": "Échelles de notation",
+      "backToScales": "Retour aux échelles de notation"
     },
     "readOnly": "Cette année scolaire est en lecture seule : sa structure ne peut être ni créée, ni modifiée, ni supprimée.",
     "fields": {
@@ -18,7 +20,17 @@
       "actions": "Actions",
       "periodType": "Type de période",
       "startsOn": "Début",
-      "endsOn": "Fin"
+      "endsOn": "Fin",
+      "scaleType": "Type d’échelle",
+      "minValue": "Minimum",
+      "maxValue": "Maximum",
+      "decimals": "Décimales",
+      "passingMinValue": "Note minimale de réussite",
+      "label": "Libellé",
+      "isPassing": "Réussite",
+      "rangeMin": "De",
+      "rangeMax": "À",
+      "range": "Plage"
     },
     "stage": {
       "infantil": "Éducation de la petite enfance",
@@ -115,7 +127,8 @@
           "subject": "Nouvelle matière",
           "group": "Nouveau groupe",
           "subgroup": "Nouveau sous-groupe",
-          "period": "Nouvelle période"
+          "period": "Nouvelle période",
+          "scale": "Nouvelle échelle"
         },
         "edit": {
           "level": "Modifier l'étape",
@@ -123,7 +136,8 @@
           "subject": "Modifier la matière",
           "group": "Modifier le groupe",
           "subgroup": "Modifier le sous-groupe",
-          "period": "Modifier la période"
+          "period": "Modifier la période",
+          "scale": "Modifier l’échelle"
         }
       },
       "errors": {
@@ -156,6 +170,10 @@
         "period": {
           "title": "Supprimer la période {name}",
           "description": "La période est supprimée de l’étape."
+        },
+        "scale": {
+          "title": "Supprimer l’échelle {code}",
+          "description": "L’échelle et toutes ses valeurs sont supprimées."
         }
       }
     },
@@ -178,7 +196,10 @@
       "subjectsAssigned": "Matières du groupe mises à jour.",
       "periodCreated": "Période créée.",
       "periodUpdated": "Période mise à jour.",
-      "periodDeleted": "Période supprimée."
+      "periodDeleted": "Période supprimée.",
+      "scaleCreated": "Échelle créée.",
+      "scaleUpdated": "Échelle mise à jour.",
+      "scaleDeleted": "Échelle supprimée."
     },
     "errors": {
       "unexpected": "L'action n'a pas pu être menée à bien. Veuillez réessayer.",
@@ -200,6 +221,34 @@
       "deleteFor": "Supprimer la période {name}",
       "typePlaceholder": "Choisir un type de période"
     },
-    "readOnlyConfig": "Cette année scolaire est en lecture seule : ses périodes et ses échelles ne peuvent être ni créées, ni modifiées, ni supprimées."
+    "readOnlyConfig": "Cette année scolaire est en lecture seule : ses périodes et ses échelles ne peuvent être ni créées, ni modifiées, ni supprimées.",
+    "scaleType": {
+      "numerica": "Numérique",
+      "cualitativa": "Qualitative",
+      "mixta": "Mixte"
+    },
+    "scales": {
+      "title": "Échelles de notation",
+      "intro": "Échelles utilisées pour noter pendant l’année scolaire sélectionnée.",
+      "caption": "Échelles de l’année scolaire",
+      "new": "Nouvelle échelle",
+      "empty": "Cette année scolaire n’a pas d’échelles",
+      "values": "Valeurs",
+      "bands": "Tranches",
+      "addValue": "Ajouter une valeur",
+      "addBand": "Ajouter une tranche",
+      "remove": "Retirer",
+      "moveUp": "Monter",
+      "moveDown": "Descendre",
+      "itemLegend": "Valeur {n}",
+      "moved": "{label} désormais en position {n}",
+      "passing": "Réussite",
+      "failing": "Échec",
+      "typeLocked": "Le type ne peut pas être modifié : créez une nouvelle échelle pour un autre type.",
+      "detailTitle": "Échelle",
+      "rangeValue": "De {min} à {max}",
+      "valuesCount": "Aucune valeur | {count} valeur | {count} valeurs",
+      "passingFrom": "À partir de {value}"
+    }
   }
 }

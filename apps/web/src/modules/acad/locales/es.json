@@ -6,7 +6,9 @@
       "backToLevel": "Volver a la etapa {code}",
       "backToLevelGeneric": "Volver a la etapa",
       "backToCourse": "Volver al curso {code}",
-      "backToCourseGeneric": "Volver al curso"
+      "backToCourseGeneric": "Volver al curso",
+      "gradingScales": "Escalas de calificación",
+      "backToScales": "Volver a las escalas de calificación"
     },
     "readOnly": "Este curso académico es de solo lectura: no se puede crear, modificar ni borrar su estructura.",
     "fields": {
@@ -18,7 +20,17 @@
       "actions": "Acciones",
       "periodType": "Tipo de período",
       "startsOn": "Inicio",
-      "endsOn": "Fin"
+      "endsOn": "Fin",
+      "scaleType": "Tipo de escala",
+      "minValue": "Mínimo",
+      "maxValue": "Máximo",
+      "decimals": "Decimales",
+      "passingMinValue": "Nota mínima de aprobado",
+      "label": "Etiqueta",
+      "isPassing": "Es aprobado",
+      "rangeMin": "Desde",
+      "rangeMax": "Hasta",
+      "range": "Rango"
     },
     "stage": {
       "infantil": "Educación Infantil",
@@ -115,7 +127,8 @@
           "subject": "Nueva asignatura",
           "group": "Nuevo grupo",
           "subgroup": "Nuevo subgrupo",
-          "period": "Nuevo período"
+          "period": "Nuevo período",
+          "scale": "Nueva escala"
         },
         "edit": {
           "level": "Editar etapa",
@@ -123,7 +136,8 @@
           "subject": "Editar asignatura",
           "group": "Editar grupo",
           "subgroup": "Editar subgrupo",
-          "period": "Editar período"
+          "period": "Editar período",
+          "scale": "Editar escala"
         }
       },
       "errors": {
@@ -156,6 +170,10 @@
         "period": {
           "title": "Borrar el período {name}",
           "description": "El período se borra de la etapa."
+        },
+        "scale": {
+          "title": "Borrar la escala {code}",
+          "description": "La escala y todos sus valores se borran."
         }
       }
     },
@@ -178,7 +196,10 @@
       "subjectsAssigned": "Asignaturas del grupo actualizadas.",
       "periodCreated": "Período creado.",
       "periodUpdated": "Período actualizado.",
-      "periodDeleted": "Período borrado."
+      "periodDeleted": "Período borrado.",
+      "scaleCreated": "Escala creada.",
+      "scaleUpdated": "Escala actualizada.",
+      "scaleDeleted": "Escala borrada."
     },
     "errors": {
       "unexpected": "No se pudo completar la acción. Inténtalo de nuevo.",
@@ -200,6 +221,34 @@
       "deleteFor": "Borrar el período {name}",
       "typePlaceholder": "Elige un tipo de período"
     },
-    "readOnlyConfig": "Este curso académico es de solo lectura: no se pueden crear, modificar ni borrar sus períodos ni sus escalas."
+    "readOnlyConfig": "Este curso académico es de solo lectura: no se pueden crear, modificar ni borrar sus períodos ni sus escalas.",
+    "scaleType": {
+      "numerica": "Numérica",
+      "cualitativa": "Cualitativa",
+      "mixta": "Mixta"
+    },
+    "scales": {
+      "title": "Escalas de calificación",
+      "intro": "Escalas con las que se califica en el curso académico seleccionado.",
+      "caption": "Escalas del curso académico",
+      "new": "Nueva escala",
+      "empty": "Este curso académico no tiene escalas",
+      "values": "Valores",
+      "bands": "Tramos",
+      "addValue": "Añadir valor",
+      "addBand": "Añadir tramo",
+      "remove": "Quitar",
+      "moveUp": "Subir",
+      "moveDown": "Bajar",
+      "itemLegend": "Valor {n}",
+      "moved": "{label} ahora en la posición {n}",
+      "passing": "Aprobado",
+      "failing": "Suspenso",
+      "typeLocked": "El tipo no se puede cambiar: para otro tipo, crea una escala nueva.",
+      "detailTitle": "Escala",
+      "rangeValue": "De {min} a {max}",
+      "valuesCount": "Sin valores | {count} valor | {count} valores",
+      "passingFrom": "Desde {value}"
+    }
   }
 }
