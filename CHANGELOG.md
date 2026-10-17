@@ -6,6 +6,12 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-17 · Retirada del volumen de PostgreSQL 17 (rama `chore/retirar-volumen-pg17`)
+
+- Decisión del usuario (`ADR-061`, volumen conservado una semana): se borran el volumen `plataforma-educativa_postgres-data` y el respaldo de la migración de desarrollo; `compose.yaml` deja de declarar `postgres-data`; `SYSADMIN.md` y `RUNBOOK.md` lo reflejan. `ADR-061` no se modifica. **Sin cambios de código.**
+
+---
+
 ## 2026-10-17 · `1.11d-a`: períodos lectivos y trabajo asociado en `curso` (rama `feature/REQ-ACAD-1-11d-a-periodos`)
 
 - **`acad`**: permiso `configuracion_academica.*` (8 códigos de `acad` en total; administrador con las cuatro acciones, los otros cinco roles con `leer`; `acad:grant-structure-permissions` ampliado), tabla `academic_periods` (disparador de curso, FK de tres columnas, `CHECK`s, índices cubrientes; sin `EXCLUDE`), `AcademicPeriodService` con la secuencia de bloqueos curso (`FOR SHARE`) → etapa (`FOR UPDATE`) de `RN-ACAD-54`, 5 *endpoints* `/academic-periods` y OpenAPI, `409 has_dependents` al borrar una etapa con períodos (`RN-ACAD-61`) y la validación `acad.conflict.periods_outside_academic_year` registrada en `curso`.
