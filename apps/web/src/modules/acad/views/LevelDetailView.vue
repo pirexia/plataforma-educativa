@@ -4,7 +4,8 @@
  * `§4.2`-`§4.5`). Ficha de una etapa y sus cursos de etapa. El selector de curso
  * académico queda fijo en el de la entidad (**[DERIVADA]**). «Editar», «Borrar»
  * y «Nuevo curso» solo con su permiso **y** si el curso académico admite
- * escritura (`CA-ACAD-046`); sin hijos vivos para borrar (`RN-ACAD-20`, el
+ * escritura (`CA-ACAD-046`); la sección «Períodos lectivos» (`1.11d-a`,
+ * `PeriodsSection`, `§10.5.1`) cuelga de esta ficha; sin hijos vivos para borrar (`RN-ACAD-20`, el
  * servidor responde `409 has_dependents` y se muestra junto a la acción).
  */
 import { computed, onMounted, ref } from 'vue'
@@ -18,6 +19,7 @@ import { DataTable, type DataTableColumn, type DataTableFetcher } from '@/data-t
 import ErrorState from '@/layouts/components/ErrorState.vue'
 import LoadingState from '@/layouts/components/LoadingState.vue'
 import EntityFormDialog from '../components/EntityFormDialog.vue'
+import PeriodsSection from '../components/PeriodsSection.vue'
 import StructureNotices from '../components/StructureNotices.vue'
 import {
   createCourse,
@@ -233,6 +235,8 @@ async function remove(): Promise<void> {
           </template>
         </DataTable>
       </section>
+
+      <PeriodsSection :level="level" />
 
       <EntityFormDialog
         v-model:open="editing"
