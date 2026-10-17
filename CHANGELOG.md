@@ -6,6 +6,16 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-17 · `1.11d-b`: escalas de calificación (rama `feature/REQ-ACAD-1-11d-b-escalas`)
+
+- **`acad`**: tablas `grading_scales` y `grading_scale_values` (disparador de curso, FK de cuatro columnas que arrastra el tipo de escala, `CHECK`s de coherencia por tipo, unicidad de código parcial; migraciones `2026_10_17_100200` y `100300`), modelos `GradingScale` y `GradingScaleValue` auditables, `GradingScaleService` (alta, `PATCH` con `values` como conjunto completo sincronizado por instancia y en una transacción, borrado lógico de la escala con sus valores) y `GradingScaleValidator` (reglas `RN-ACAD-70` a `-89` sobre el estado resultante, decimales en centésimas enteras), 5 *endpoints* (`/grading-scales`) con OpenAPI y claves en los cuatro idiomas. Contrato nuevo documentado: campo `errors.<campo>` de cada error de escala (`REQ-ACAD/api.md §11.7`).
+- **Web**: entrada de menú «Escalas de calificación», lista con filtro por tipo, alta y edición en página propia con editor de valores o tramos (Subir/Bajar por teclado con región viva, «Aprobado/Suspenso» con texto), ficha con borrado confirmado, cliente de la API y textos (seis claves nuevas fuera de la tabla de la especificación, ahora recogidas en `funcional.md §10.5.5`).
+- **Documentación**: `REQ-ACAD` (`funcional.md §17`/`§17.4` con las decisiones de implementación que la especificación no fijaba, `api.md §11.7`, `datos.md`, `operacion.md`, `permisos.md`), manuales de administración, dirección, secretaría y profesorado, `SYSADMIN.md §2g`, `README.md`, `PLAN-IMPLEMENTACION.md` y `CONTRIBUTING.md §3.1` (el formato de `ide-helper:models --nowrite` ya no coincide con el fichero commiteado).
+- **Verificación** (cifras de la nota viva de `memory.md`, no reejecutadas al documentar): Pest de Acad, Architecture, I18n, Audit, Tenancy, Perm, `SchemaInvariantsTest` y `AcadConcurrencyTest` en verde (564 tests, no suite completa) y Vitest del módulo web; los números exactos están en el último commit de cada fase y en `memory.md`. `CA-ACAD-075` a `-100`, `-104` a `-106` con test; `CA-ACAD-101` (E2E de escalas) escrito y **pendiente de ejecutar**. Sin revisiones `db-`/`security-`/`doc-reviewer` todavía.
+- **Pendiente**: revisiones, ejecución del E2E, suite completa y PR; `GradingScaleDirectory` sigue «escrita, no construida» (`ADR-048`).
+
+---
+
 ## 2026-10-17 · `1.11d-a`: períodos lectivos y trabajo asociado en `curso` (rama `feature/REQ-ACAD-1-11d-a-periodos`)
 
 - **`acad`**: permiso `configuracion_academica.*` (8 códigos de `acad` en total; administrador con las cuatro acciones, los otros cinco roles con `leer`; `acad:grant-structure-permissions` ampliado), tabla `academic_periods` (disparador de curso, FK de tres columnas, `CHECK`s, índices cubrientes; sin `EXCLUDE`), `AcademicPeriodService` con la secuencia de bloqueos curso (`FOR SHARE`) → etapa (`FOR UPDATE`) de `RN-ACAD-54`, 5 *endpoints* `/academic-periods` y OpenAPI, `409 has_dependents` al borrar una etapa con períodos (`RN-ACAD-61`) y la validación `acad.conflict.periods_outside_academic_year` registrada en `curso`.
@@ -13,7 +23,7 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 - **Web**: sección «Períodos lectivos» en la ficha de etapa (tabla, alta, edición y borrado con confirmación, errores junto al campo, curso de solo lectura), cliente de la API y textos en los cuatro idiomas.
 - **Verificación**: suites completas en verde (cifras en el último commit de cada fase y en `memory.md`); concurrencia con procesos reales (`CA-CURSO-115`, `-120`, `-122`, sin `40P01`); un test comprobado por mutación (sin el `FOR SHARE` del curso fallan 4 de 9 tests de concurrencia). **`CA-ACAD-101` (E2E real de períodos) escrito y enlazado en `e2e-real-api.sh`, sin ejecutar.** `CA-CURSO-121` solo en su mitad de cierre.
 - **Revisiones**: `db-reviewer` y `security-reviewer` (backend) sin Crítico/Alto/Medio; Bajas en el issue #434.
-- **Pendiente**: `1.11d-b` (escalas de calificación).
+- **Pendiente**: `1.11d-b` (escalas de calificación) — implementada después, ver la entrada anterior.
 
 ---
 

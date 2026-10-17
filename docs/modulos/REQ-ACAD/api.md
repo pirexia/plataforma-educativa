@@ -1,6 +1,6 @@
 # REQ-ACAD · API
 
-> **Estado**: **APROBADA** (2026-10-10), paso **1.11** (`REQ-ACAD-001`, estructura académica), con las recomendaciones de `funcional.md §15` aprobadas y los contratos de `ADR-062` (contenido traducible) y `ADR-063` (ámbitos), ambos ACEPTADOS. La API de períodos lectivos y escalas está especificada en §11 (`1.11d`, APROBADA el 2026-10-16; `OPEN-ACAD-01` = A). **`1.11d-a` implementada (2026-10-17, rama `feature/REQ-ACAD-1-11d-a-periodos`); `1.11d-b` pendiente.** **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
+> **Estado**: **APROBADA** (2026-10-10), paso **1.11** (`REQ-ACAD-001`, estructura académica), con las recomendaciones de `funcional.md §15` aprobadas y los contratos de `ADR-062` (contenido traducible) y `ADR-063` (ámbitos), ambos ACEPTADOS. La API de períodos lectivos y escalas está especificada en §11 (`1.11d`, APROBADA el 2026-10-16; `OPEN-ACAD-01` = A). **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 
 Prefijo: `/api/v1`. Tenant por *host* (`ADR-033 §2`). Todo según `ADR-038`: recurso individual desnudo, colección en `{data, meta}` (§3), paginación por página (§4.2-§4.3: catálogo de entidades nacidas de acción administrativa, decenas a cientos de filas por centro y curso académico), filtros planos y valores múltiples separados por comas (§5.2), orden por lista blanca con desempate por `id` (§5.3), errores `application/problem+json` con `type` URN y `errors` como **objeto indexado por campo** cuyos valores son arrays de `{code, message, params}` (p. ej. `errors.code[0].code`; §6), `404` frente a `403` (§6.4).
 
@@ -396,6 +396,28 @@ Además de los de §6, que se reutilizan con el mismo significado (`code_require
 | `acad.validation.period_overlap` | `starts_on` |
 | `acad.validation.parent_not_found` | `education_level` |
 
+**Campo (`errors.<campo>`) de cada error de escala** (`1.11d-b`). Tampoco lo fijó la especificación aprobada; lo fijó la implementación (`GradingScaleValidator`, docblock de la clase; `GradingScaleService`) y la interfaz (`scaleForm.ts`, `distributeErrors`) lo usa para pintar cada error junto a su campo. Es contrato desde `1.11d-b`. `<n>` es el índice (base 0) de la lista **resultante** de `values`; si el `PATCH` no envía `values`, el orden guardado. Un solo `422` acumula todos los errores independientes.
+
+| `code` (`acad.validation.…`) | Campo |
+|---|---|
+| `code_required`, `invalid_characters` (escala) | `code` |
+| `code_taken` (escala: código usado por otra escala viva del curso, o carrera con otra alta, o intercambio de códigos entre valores guardados en un `PATCH`) | `code` |
+| `code_required`, `invalid_characters`, `code_taken` (valor; este último solo si el código se repite **dentro de la lista enviada**) | `values.<n>.code` |
+| Traducciones (`translations.default_locale_required`, etc.) | `name_translations`; en un valor, `values.<n>.label_translations` |
+| `scale_field_required`, `decimal_invalid`, `decimal_precision_exceeded`, `not_applicable_to_scale_type` (escala) | el campo afectado: `min_value`, `max_value`, `passing_min_value` o `decimals` |
+| `scale_field_required`, `decimal_invalid`, `decimal_precision_exceeded`, `not_applicable_to_scale_type` (tramo o valor) | `values.<n>.range_min`, `values.<n>.range_max` o `values.<n>.is_passing` |
+| `decimals_invalid` | `decimals` |
+| `range_invalid` | `max_value` |
+| `passing_out_of_range` | `passing_min_value` |
+| `band_range_invalid` | `values.<n>.range_min` si el tramo empieza antes de la escala; `values.<n>.range_max` si acaba después o si `range_min > range_max` |
+| `values_required`, `values_too_many`, `passing_value_required`, `bands_not_contiguous`, `passing_threshold_inside_band` | `values` |
+| `not_applicable_to_scale_type` por `values` en una numérica | `values` |
+| `value_not_in_scale` | `values.<n>.public_id` |
+| `is_passing_required` | `values.<n>.is_passing` |
+| `academic_year_required`, `academic_year_not_found`, `parent_immutable`, `scale_type_invalid`, `scale_type_immutable` | `academic_year` / `scale_type` (alta y `PATCH` rechazan los campos inmutables sin escribir nada) |
+
+Reglas de forma que la implementación fijó y la especificación no (`funcional.md §17.4`): un campo inaplicable al tipo enviado como `null` (o `values: []` en una numérica) se trata como **ausente**; `values` presente pero no lista o `[]` en una cualitativa o mixta ⇒ `values_required` (para conservar los valores guardados, no se envía `values`); el orden de las comprobaciones de lista es: forma (`values_required`), tamaño (`values_too_many`), cada elemento, y solo si todos los elementos son válidos las reglas entre valores (`passing_value_required`, `bands_not_contiguous`, `passing_threshold_inside_band`). Los decimales se comparan como enteros en centésimas, nunca como `float`.
+
 Las comprobaciones de estado de `assertValidState` se detienen en la primera que falla, por este orden: fechas ordenadas, dentro del curso, un solo tipo por etapa, sin solape.
 
 **Código de `acad` que no sale de un *endpoint* de `acad`** (`RN-ACAD-62`, desde `1.11d-a`): `acad.conflict.periods_outside_academic_year` es el `code` de la entrada que la validación de `acad` aporta a `errors.date_change[]` del `409 urn:pge:error:conflict` / `curso.conflict.date_change_checks_failed` de **`PATCH /academic-years/{public_id}`** (`REQ-CURSO/api.md`). `message` traducido al idioma resuelto; `params` exactamente `count` (entero, períodos vivos que quedarían fuera), `periods_starts_on` y `periods_ends_on` (`AAAA-MM-DD`: menor inicio y mayor fin de todos los períodos vivos del curso académico). Sin `public_id`, nombre ni etapa de ningún período (`REQ-CURSO RN-CURSO-53`, `ADR-035 §5`):
@@ -409,6 +431,8 @@ Los *endpoints* de períodos no ganan ningún código por `OPEN-CURSO-25` = B: u
 Mensajes en `lang/{es,en,de,fr}/acad.php` (`funcional.md §10.5.5`). La violación de `grading_scales_tenant_year_code_unique` o `grading_scale_values_tenant_scale_code_unique` por carrera se traduce a `422 code_taken` (`WritesStructure::inTransaction`, `23505`), nunca `500`; una violación de `CHECK` (`23514`) o FK (`23503`) que llegue al motor es un *bug* del servicio (`operacion.md §8`).
 
 ### 11.8 OpenAPI
+
+**Estado (`1.11d-a` y `1.11d-b`)**: implementado en `apps/api/openapi/paths/acad.yaml` y `components.yaml` (verificado por `AcadOpenApiTest`); lo que sigue es la especificación de partida.
 
 En `apps/api/openapi/paths/acad.yaml` (fichero existente, enlazado desde `openapi.yaml`): los diez *endpoints* con `operationId` `listAcademicPeriods`, `createAcademicPeriod`, `getAcademicPeriod`, `updateAcademicPeriod`, `deleteAcademicPeriod`, `listGradingScales`, `createGradingScale`, `getGradingScale`, `updateGradingScale`, `deleteGradingScale`, etiqueta `Acad / Configuración académica`, y en `components.yaml` los esquemas `AcademicPeriod`, `GradingScale`, `GradingScaleValue`, sus variantes de alta y `PATCH` (traducciones anulables solo en `PATCH`; `public_id` opcional solo en el elemento de `values` del `PATCH`), un esquema `DecimalString` (`type: string`, `pattern: '^-?\d{1,3}(\.\d{1,2})?$'`, entrada también `number` con `oneOf`), los enumerados extensibles `period_type` y `scale_type`, y las listas blancas de `sort`. **El comentario de cabecera de `acad.yaml` debe corregirse**: hoy dice que toda ruta exige `estructura_academica.<acción>`, y las diez nuevas exigen `configuracion_academica.<acción>`.
 
