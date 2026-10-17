@@ -629,7 +629,7 @@ WCAG 2.2 AA: cada campo con `<label>`; los grupos de campos de un valor en `fiel
 | `scales.moved` | {label} ahora en la posición {n} | {label} now in position {n} | {label} jetzt an Position {n} | {label} désormais en position {n} |
 | `scales.passing` | Aprobado | Pass | Bestanden | Réussite |
 | `scales.failing` | Suspenso | Fail | Nicht bestanden | Échec |
-| `scales.typeLocked` | El tipo no se puede cambiar: para otro tipo, crea una escala nueva. | The type cannot be changed: create a new scale for another type. | Die Art kann nicht geändert werden: Lege für eine andere Art eine neue Skala an. | Le type ne peut pas être modifié : créez une nouvelle échelle pour un autre type. |
+| `scales.typeLocked` | El tipo no se puede cambiar: para otro tipo, crea una escala nueva. | The type cannot be changed: create a new scale for another type. | Die Art kann nicht geändert werden: Legen Sie für eine andere Art eine neue Skala an. | Le type ne peut pas être modifié : créez une nouvelle échelle pour un autre type. |
 | `form.title.create.period` / `.scale` | Nuevo período / Nueva escala | New period / New scale | Neuer Zeitraum / Neue Skala | Nouvelle période / Nouvelle échelle |
 | `form.title.edit.period` / `.scale` | Editar período / Editar escala | Edit period / Edit scale | Zeitraum bearbeiten / Skala bearbeiten | Modifier la période / Modifier l’échelle |
 | `confirm.delete.period.title` | Borrar el período {name} | Delete period {name} | Zeitraum {name} löschen | Supprimer la période {name} |
@@ -640,7 +640,7 @@ WCAG 2.2 AA: cada campo con `<label>`; los grupos de campos de un valor en `fiel
 | `flash.scaleCreated` / `Updated` / `Deleted` | Escala creada. / actualizada. / borrada. | Scale created. / updated. / deleted. | Skala angelegt. / aktualisiert. / gelöscht. | Échelle créée. / mise à jour. / supprimée. |
 | `readOnlyConfig` | Este curso académico es de solo lectura: no se pueden crear, modificar ni borrar sus períodos ni sus escalas. | This academic year is read-only: its periods and scales cannot be created, changed or deleted. | Dieses Schuljahr ist schreibgeschützt: Seine Zeiträume und Skalen können nicht angelegt, geändert oder gelöscht werden. | Cette année scolaire est en lecture seule : ses périodes et ses échelles ne peuvent être ni créées, ni modifiées, ni supprimées. |
 
-**Seis claves de web no estaban en esta tabla y las añadió la implementación de `1.11d-b`** (`nav.backToScales`, `fields.range`, `scales.detailTitle`, `scales.rangeValue`, `scales.valuesCount`, `scales.passingFrom`; filas marcadas arriba): son los textos de la columna «Rango»/«Aprobado» del listado, el título de la ficha y el enlace «Volver». Los textos en/de/fr de toda la tabla son los de partida de la especificación (sin pasar aún por `traductor`).
+**Seis claves de web no estaban en esta tabla y las añadió la implementación de `1.11d-b`** (`nav.backToScales`, `fields.range`, `scales.detailTitle`, `scales.rangeValue`, `scales.valuesCount`, `scales.passingFrom`; filas marcadas arriba): son los textos de la columna «Rango»/«Aprobado» del listado, el título de la ficha y el enlace «Volver». Los textos en/de/fr de toda la tabla son los de partida de la especificación (revisados por `traductor` el 2026-10-17: tratamiento de cortesía «Sie» en alemán).
 
 Las traducciones `en`/`de`/`fr` son textos de partida y se revisan al implementar (agente `traductor`; no son textos legales). Las filas con «/» son claves distintas, una por acción. Los períodos se muestran por su `name` (no tienen `code`).
 

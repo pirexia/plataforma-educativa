@@ -244,7 +244,7 @@
       "moved": "{label} jetzt an Position {n}",
       "passing": "Bestanden",
       "failing": "Nicht bestanden",
-      "typeLocked": "Die Art kann nicht geändert werden: Lege für eine andere Art eine neue Skala an.",
+      "typeLocked": "Die Art kann nicht geändert werden: Legen Sie für eine andere Art eine neue Skala an.",
       "detailTitle": "Skala",
       "rangeValue": "Von {min} bis {max}",
       "valuesCount": "Keine Werte | {count} Wert | {count} Werte",
