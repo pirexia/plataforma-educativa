@@ -5,7 +5,24 @@ description: Estructura y pasos para crear un módulo (bounded context) nuevo en
 
 # Crear un módulo nuevo
 
-Esta skill describe la forma **real** de los módulos que existen (`Auth`, `Backoffice`, `Core` —`ADR-056 §1.2`— y `Curso` desde `1.10`) y qué regla de CI vigila cada pieza. Ninguno es todavía un módulo de negocio con tablas por curso propias: `Curso` es el dueño del contrato transversal del curso (`ADR-057`) y la forma de uno de negocio se fijará con `REQ-ACAD` (`1.11`). El generador `make:module` está diferido al paso `1.11b`: **hoy el módulo se crea a mano**, y las reglas `AR-*` fallan si se omite algo.
+Esta skill describe la forma **real** de los módulos que existen (`Auth`, `Backoffice`, `Core` —`ADR-056 §1.2`—, `Curso` desde `1.10` y `Acad` desde `1.11-b`, el primer módulo de negocio con tablas por curso) y qué regla de CI vigila cada pieza. Desde el paso `1.11b` el esqueleto **se genera**: `php artisan make:module` (sección siguiente). Lo que el generador no escribe —HTTP, permisos, columnas de negocio, la parte web, la documentación— sigue siendo del implementador, y las reglas `AR-*` fallan si se omite algo.
+
+## Generar el esqueleto: `php artisan make:module` (`ADR-056 §3.5`)
+
+Se ejecuta dentro del contenedor de la API (`podman exec plataforma-api php artisan make:module …`), en `apps/api`:
+
+```
+php artisan make:module <Nombre> --code=<codigo> --name-es=… --name-en=… --name-de=… --name-fr=… \
+    [--entity=<Entidad> --audit-policy=<full|selective|redacted>]
+```
+
+- **Valida antes de escribir nada** y, si algo falla, no toca ningún fichero (`CA-056-30`): `<Nombre>` en `StudlyCase`, `--code` con `[a-z][a-z0-9_]*` y no declarado por otro módulo, los cuatro nombres (`--name-*`) presentes, módulo y fichero `lang/es/<código>.php` inexistentes. Los nombres son obligatorios para que un nombre sin traducir no pase la paridad de `AR-12` en silencio.
+- **Sin `--entity`** genera: `Infrastructure/<Nombre>ServiceProvider.php` (descriptor no esencial con `phase` `1`, `declaredPermissions()` vacío), `Http/routes.php` (grupo `RequireAuthenticatedUser` + `module-enabled:<código>`, sin rutas), `Database/migrations/.gitkeep`, `lang/{es,en,de,fr}/<código>.php` vacíos y `tests/Feature/<Nombre>/ModuleRegistrationTest.php`; y edita, de forma idempotente, `routes/api-v1.php` y `lang/*/modules.php`. Nada más: ninguna capa vacía.
+- **Con `--entity`** añade una migración `TenantMigration::tenantTable()` con `public_id` (sin columnas de negocio), `Domain/Models/<Entidad>.php` (`TenantModel`, `Auditable`, política de `ADR-035` elegida), su alias en `Relation::enforceMorphMap`, `database/factories/<Nombre>/<Entidad>Factory.php` y `tests/Feature/<Nombre>/<Entidad>TenantIsolationTest.php` (aislamiento **a nivel de modelo**: no sustituye al test HTTP de listado y detalle, que escribes con el *endpoint*). `--audit-policy` es obligatoria con `--entity` y no tiene valor por defecto: `ADR-035` falla en cerrado y el generador no decide por ti.
+- **No genera** controladores, *requests*, *resources* ni rutas, ni permisos, ni la parte web, ni `docs/modulos/REQ-XXX/` (de `spec-writer`). Tras generar: crea la parte web (sección «Estructura en el frontend»), rellena los permisos y `depends_on`, añade `@mixin IdeHelper<Entidad>` al modelo y su bloque a `_ide_helper_models.php` a mano (`CONTRIBUTING.md §3.1`), y ejecuta `./vendor/bin/pest --group=arch`.
+- **Prueba de que lo generado cumple** (`CA-056-34`/`-35`): el *job* `make-module` de `ci-api.yml` ejecuta `apps/api/scripts/verify-make-module.sh minimal` y `entity`: genera, `php -l`, migra y revierte, grupo `arch`, tests generados y Larastan, y lo descarta. Lo puedes ejecutar en local con la misma orden (`podman exec -w /var/www/html plataforma-api sh scripts/verify-make-module.sh entity`); descarta siempre lo generado. Si cambias una plantilla de `apps/api/stubs/module/`, ese script es la prueba; el comando solo tiene tests de comportamiento (`tests/Feature/Modules/MakeModuleCommandTest.php`), nunca de texto de plantilla.
+
+Si el módulo ya existe de forma parcial o necesita otra forma, créalo a mano con las tablas de abajo: son las mismas reglas.
 
 ## Estructura en la API
 
@@ -49,7 +66,7 @@ apps/web/src/modules/<modulo>/
 └── views/ components/ composables/   internos
 ```
 
-Dos registros que se editan a mano: la línea del `shell` en `src/navigation/modules.ts` y los cuatro imports de `locales` en `src/i18n/index.ts`. `AR-11` (`src/modules/architecture.spec.ts`) falla si falta cualquiera de las siete piezas o los dos registros, o si el módulo importa de otro algo que no sea `api/`, `types/` o `shell`. El generador no escribirá la parte web: el contenedor de la API no ve `apps/web`.
+Dos registros que se editan a mano: la línea del `shell` en `src/navigation/modules.ts` y los cuatro imports de `locales` en `src/i18n/index.ts`. `AR-11` (`src/modules/architecture.spec.ts`) falla si falta cualquiera de las siete piezas o los dos registros, o si el módulo importa de otro algo que no sea `api/`, `types/` o `shell`. El generador no escribe la parte web (`OPEN-056-07`): el contenedor de la API no ve `apps/web`, y `make:module` imprime los pasos al terminar.
 
 ## Reglas de frontera (`INV-007`, `AR-01`, `AR-02`)
 

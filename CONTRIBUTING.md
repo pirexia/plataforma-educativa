@@ -1,6 +1,6 @@
 # CONTRIBUTING.md
 
-> **Versión 0.3.1** · 2026-10-17
+> **Versión 0.3.2** · 2026-10-17
 > Estilo de código, flujo de trabajo Git y revisión de código. Extraído de `CLAUDE.md`, que es la fuente de verdad si algo difiere.
 
 ---
@@ -104,6 +104,18 @@ En `moduleDescriptor()` del `ServiceProvider` de tu módulo (implementa `App\Sup
 3. Un módulo `essential: true` declara `depends_on` de un módulo no esencial — ningún esencial tiene fila de suscripción que una escritura pueda proteger, así que la única defensa posible es el despliegue (`RN-BO-64`).
 
 Ninguna de las dos claves se materializa en la tabla `modules`: se leen del descriptor, resuelto una sola vez por proceso desde los `ServiceProvider` ya registrados por el contenedor — nunca por escaneo de ficheros ni por consulta a base de datos en el camino de petición (`RN-BO-63`).
+
+### 4.2 Generar el esqueleto (`ADR-056 §3.5`, paso `1.11b`)
+
+Tras la especificación aprobada, el esqueleto del módulo se genera, no se copia a mano:
+
+```bash
+podman exec plataforma-api php artisan make:module <Nombre> --code=<codigo> \
+    --name-es=… --name-en=… --name-de=… --name-fr=… \
+    [--entity=<Entidad> --audit-policy=<full|selective|redacted>]
+```
+
+Los cuatro nombres son obligatorios; con `--entity`, `--audit-policy` también (`ADR-035`). El comando valida antes de escribir y no toca nada si falla. Genera solo el esqueleto común; las rutas, los permisos, las columnas de negocio, la parte web y la documentación siguen siendo tuyas (detalle en la skill `modulo-nuevo` y en `apps/api/app/Modules/README.md`). Si cambias una plantilla de `apps/api/stubs/module/`, ejecuta `podman exec -w /var/www/html plataforma-api sh scripts/verify-make-module.sh minimal` y `… entity`: es la misma prueba que el *job* `make-module` de CI (genera, `php -l`, migra y revierte, grupo `arch`, tests generados, Larastan, y lo descarta).
 
 ## 5. Gestión de incidencias
 

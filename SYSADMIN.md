@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.8.11** · 2026-10-17
+> **Versión 0.8.12** · 2026-10-17
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`); el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
@@ -386,7 +386,7 @@ Tres workflows en `.github/workflows/`, disparados por `push`/`pull_request` sob
 
 | Workflow | Jobs (nombre mostrado en GitHub) | Qué cubre |
 |----------|------|-----------|
-| `ci-api.yml` | `Tests (Pest)`, `Lint (Pint)`, `Análisis estático (Larastan)` | Pest (`composer test`: `Unit` + `Feature` en paralelo con 4 procesos, y `Concurrency` en serie; el paso «Crear las bases de la suite en paralelo» va antes de arrancar `artisan serve`, `ADR-060`), Pint (`composer lint`), Larastan nivel 6 (`composer analyse`). PHP 8.4, sin contenedor: runner nativo con `shivammathur/setup-php`. Los tests corren contra **PostgreSQL 18 real** como *service* del job, aprovisionado con el mismo script de roles/RLS que desarrollo (`infra/containers/postgres/init/01-tenancy.sql.tpl`) — no SQLite: `ADR-033` §10 exige que la batería de aislamiento se ejecute contra RLS de verdad, que SQLite no tiene. |
+| `ci-api.yml` | `Tests (Pest)`, `Lint (Pint)`, `Análisis estático (Larastan)`, `Generador de módulos (make:module)` | Pest (`composer test`: `Unit` + `Feature` en paralelo con 4 procesos, y `Concurrency` en serie; el paso «Crear las bases de la suite en paralelo» va antes de arrancar `artisan serve`, `ADR-060`), Pint (`composer lint`), Larastan nivel 6 (`composer analyse`); y, desde `1.11b`, el job `make-module` (`ADR-056 §3.5`, `CA-056-35`), que con el mismo PostgreSQL 18 y los mismos roles ejecuta `apps/api/scripts/verify-make-module.sh minimal` y `entity`: genera un módulo de prueba (`CiProbe`), `php -l`, `migrate`/`migrate:rollback`, grupo `arch`, tests generados y Larastan, y lo descarta (si algo queda en el árbol, el job falla). PHP 8.4, sin contenedor: runner nativo con `shivammathur/setup-php`. Los tests corren contra **PostgreSQL 18 real** como *service* del job, aprovisionado con el mismo script de roles/RLS que desarrollo (`infra/containers/postgres/init/01-tenancy.sql.tpl`) — no SQLite: `ADR-033` §10 exige que la batería de aislamiento se ejecute contra RLS de verdad, que SQLite no tiene. |
 | `ci-web.yml` | `Lint (ESLint)`, `Typecheck y build (vue-tsc + Vite)`, `Tests unitarios (Vitest)`, `Tests e2e (Playwright)` | ESLint + comprobación de literales sin traducir (`INV-009`, `npm run lint:i18n`, mismo job a propósito — ver comentario en `ci-web.yml`), `vue-tsc -b` + build de Vite, Vitest, Playwright (Chromium, instalado con `--with-deps` en el propio job). El test e2e no depende de la API real: `HomeView` degrada a un mensaje de error visible si la petición falla, que es lo que el test comprueba. |
 | `dependency-scan.yml` | `Trivy (composer.lock, package-lock.json)` | `aquasecurity/trivy-action` escanea `composer.lock` y `package-lock.json` en modo filesystem. Falla en severidad `HIGH`/`CRITICAL` con corrección disponible (`ignore-unfixed: true`). |
 
@@ -394,7 +394,7 @@ Tres workflows en `.github/workflows/`, disparados por `push`/`pull_request` sob
 
 **Pendiente de configurar manualmente** (no automatizable desde una sesión de Claude Code, requiere al propietario del repositorio):
 
-1. **Branch protection** en `develop` y `main`: marcar como *required status checks* los ocho jobs de la tabla anterior (tres de `ci-api.yml`, cuatro de `ci-web.yml`, uno de `dependency-scan.yml`). Sin esto los workflows se ejecutan pero no bloquean el merge.
+1. **Branch protection** en `develop` y `main`: marcar como *required status checks* los nueve jobs de la tabla anterior (cuatro de `ci-api.yml`, cuatro de `ci-web.yml`, uno de `dependency-scan.yml`). Sin esto los workflows se ejecutan pero no bloquean el merge.
 2. **Dependabot alerts**: activar en Settings → Security → *Dependabot alerts* para ver vulnerabilidades en dependencias ya mezcladas (Trivy en CI solo escanea lo que hay en cada PR en el momento de ejecutarse, no vigila el repo de forma continua).
 3. **Renovate**: instalar la GitHub App desde `github.com/apps/renovate` sobre este repositorio. La configuración ya está en `renovate.json` (raíz): agrupa por `apps/api`/`apps/web`, ejecución semanal los lunes, sin automerge, alertas de vulnerabilidad con prioridad inmediata.
 4. **Permiso de lectura de checks para el conector MCP de GitHub**: el PAT de grano fino usado por el `github` MCP de Claude Code (`claude mcp get github`) no tiene permiso de "Checks"/"Commit statuses", así que Claude Code no puede leer el resultado de estos workflows por API (`403`). Añadir esos dos permisos de solo lectura al token en https://github.com/settings/personal-access-tokens.
