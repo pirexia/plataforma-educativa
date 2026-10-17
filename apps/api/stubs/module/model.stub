@@ -1,0 +1,50 @@
+<?php
+
+namespace App\Modules\{{ name }}\Domain\Models;
+
+use App\Support\Audit\Auditable;
+use App\Support\Audit\AuditValuePolicy;
+use App\Support\Audit\HasAuditableAttributes;
+use App\Support\Audit\RecordsAuditTrail;
+use App\Support\Database\HasPublicId;
+use App\Support\Tenancy\TenantModel;
+use Database\Factories\{{ name }}\{{ entity }}Factory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+/**
+ * ADR-056 §3.5 (generado por `php artisan make:module --entity={{ entity }}`).
+ *
+ * ADR-035: política de auditoría `{{ policy }}`, elegida al generar y revisable
+ * en la especificación del módulo. Escrituras por instancia, nunca masivas
+ * (AR-15). Los demás módulos no usan este modelo (AR-01).
+ */
+class {{ entity }} extends TenantModel implements Auditable
+{
+    use HasAuditableAttributes;
+
+    /** @use HasFactory<{{ entity }}Factory> */
+    use HasFactory;
+    use HasPublicId;
+    use RecordsAuditTrail;
+
+    protected $table = '{{ table }}';
+
+    /** @var array<int, string> */
+    protected array $auditRecordedAttributes = [];
+
+    /** @var array<int, string> */
+    protected array $auditSecretAttributes = [];
+
+    public function auditValuePolicy(): AuditValuePolicy
+    {
+        return AuditValuePolicy::{{ policy_case }};
+    }
+
+    /** @var list<string> */
+    protected $fillable = [];
+
+    protected static function newFactory(): {{ entity }}Factory
+    {
+        return {{ entity }}Factory::new();
+    }
+}

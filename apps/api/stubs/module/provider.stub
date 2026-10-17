@@ -1,0 +1,40 @@
+<?php
+
+namespace App\Modules\{{ name }}\Infrastructure;
+
+{{ imports }}
+
+/**
+ * ADR-056 §3.5 (generado por `php artisan make:module`): descubierto por
+ * ModuleServiceProviderDiscovery, sin registro a mano. Declara el descriptor
+ * (no esencial, sin dependencias) y el catálogo de permisos, vacío hasta que
+ * la especificación del módulo lo defina (`AR-03`, `ADR-034 §5`).
+ */
+class {{ name }}ServiceProvider extends ServiceProvider implements DeclaresModuleRegistry
+{
+    public function register(): void
+    {
+        //
+    }
+
+    public function boot(): void
+    {
+        $this->loadMigrationsFrom(app_path('Modules/{{ name }}/Database/migrations'));
+{{ morph_map }}    }
+
+    public function moduleDescriptor(): array
+    {
+        return [
+            'code' => '{{ code }}',
+            'name_key' => 'modules.{{ code }}',
+            'phase' => '1',
+            'depends_on' => [],
+            'essential' => false,
+        ];
+    }
+
+    public function declaredPermissions(): array
+    {
+        return [];
+    }
+}
