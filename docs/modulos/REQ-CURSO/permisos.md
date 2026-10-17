@@ -1,6 +1,6 @@
 # REQ-CURSO · Permisos
 
-> **Estado**: **APROBADA** (2026-10-07), paso **1.10**, con los ajustes de `ADR-057` (aceptado). Nombres de recurso y siembra aprobados (`OPEN-CURSO-13`, `OPEN-CURSO-14`). **La fuente de verdad será `CursoServiceProvider::declaredPermissions()`** (`INV-007`, `ADR-034 §2`); esta tabla es su reflejo documental. **Ampliada el 2026-10-08 por `ADR-059`** (aceptado): recurso `reapertura_curso_academico` (`OPEN-059-02`, resuelta: recurso propio, sin doble confirmación). **Ampliada el 2026-10-12 por `1.11-a`** (`REQ-ACAD-001`, `OPEN-ACAD-11`/`-12`, #409, #387 B-5): `GET /academic-years/selectable`, `AcademicYearDirectory` por identificador interno y comprobación de `retired_at` en `curso:grant-year-permissions`. **Ampliada el 2026-10-16 por `1.11d-a`** (`OPEN-ACAD-24` = B, aprobada por el usuario): validaciones del cambio de fechas (`funcional.md §5.6`). **Sin permisos nuevos** ni cambios de siembra; solo una regla más en §5.
+> **Estado**: **APROBADA** (2026-10-07), paso **1.10**, con los ajustes de `ADR-057` (aceptado). Nombres de recurso y siembra aprobados (`OPEN-CURSO-13`, `OPEN-CURSO-14`). **La fuente de verdad será `CursoServiceProvider::declaredPermissions()`** (`INV-007`, `ADR-034 §2`); esta tabla es su reflejo documental. **Ampliada el 2026-10-08 por `ADR-059`** (aceptado): recurso `reapertura_curso_academico` (`OPEN-059-02`, resuelta: recurso propio, sin doble confirmación); **declarado y sembrado el 2026-10-17 en `1.11c`**. **Ampliada el 2026-10-12 por `1.11-a`** (`REQ-ACAD-001`, `OPEN-ACAD-11`/`-12`, #409, #387 B-5): `GET /academic-years/selectable`, `AcademicYearDirectory` por identificador interno y comprobación de `retired_at` en `curso:grant-year-permissions`. **Ampliada el 2026-10-16 por `1.11d-a`** (`OPEN-ACAD-24` = B, aprobada por el usuario): validaciones del cambio de fechas (`funcional.md §5.6`). **Sin permisos nuevos** ni cambios de siembra; solo una regla más en §5.
 
 ---
 
@@ -82,7 +82,7 @@ Denegación por defecto (`RPERM-011`): lo que no aparece no se concede. Se siemb
 
 `soporte_plataforma`: sin permisos de este módulo (`REQ-PERM/permisos.md §5.4`). `super_administrador`: no es fila de `roles` (`ADR-034 §2`). La reapertura **no** tiene vía de plataforma (*backoffice*): la opción C de `ADR-059` se descartó y queda solo como ampliación aditiva futura.
 
-**Centros ya existentes**: cómo reciben `reapertura_curso_academico.actualizar` está pendiente de `OPEN-CURSO-24` (`funcional.md §15.2`); los centros nuevos lo reciben de `ProvisionTenantDefaults`.
+**Centros ya existentes**: reciben `reapertura_curso_academico.actualizar` con `php artisan curso:grant-reopen-permission` (`OPEN-CURSO-24` = b, implementado en `1.11c`; `operacion.md §3.1`), que concede **solo** ese permiso y no reejecuta `curso:grant-year-permissions`; los centros nuevos lo reciben de `ProvisionTenantDefaults::ACADEMIC_YEAR_REOPEN_PERMISSION_GRANTS`.
 
 ---
 
