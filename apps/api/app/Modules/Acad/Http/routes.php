@@ -1,6 +1,6 @@
 <?php
 
-// Rutas de REQ-ACAD (pasos 1.11-b, 1.11d-a y 1.11d-b), documentadas en
+// Rutas de REQ-ACAD (pasos 1.11-b, 1.11d-a, 1.11d-b y 1.12-a), documentadas en
 // apps/api/openapi/paths/acad.yaml (docs/modulos/REQ-ACAD/api.md §2 y §11).
 // Requerido desde routes/api-v1.php, ya dentro del grupo
 // prefix('v1')->middleware(['resolve-tenant', 'resolve-locale', ...]).
@@ -17,11 +17,13 @@ use App\Http\Middleware\RequireAuthenticatedUser;
 use App\Modules\Acad\Http\Controllers\AcademicPeriodsController;
 use App\Modules\Acad\Http\Controllers\CoursesController;
 use App\Modules\Acad\Http\Controllers\EducationLevelsController;
+use App\Modules\Acad\Http\Controllers\FacilitiesController;
 use App\Modules\Acad\Http\Controllers\GradingScalesController;
 use App\Modules\Acad\Http\Controllers\GroupsController;
 use App\Modules\Acad\Http\Controllers\GroupSubjectsController;
 use App\Modules\Acad\Http\Controllers\SubgroupsController;
 use App\Modules\Acad\Http\Controllers\SubjectsController;
+use App\Modules\Acad\Http\Controllers\TimetableFramesController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:acad'])->group(function (): void {
@@ -64,4 +66,16 @@ Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:acad'])->gro
     Route::get('/grading-scales/{publicId}', [GradingScalesController::class, 'show'])->middleware('permission:configuracion_academica.leer')->name('acad.grading-scales.show');
     Route::patch('/grading-scales/{publicId}', [GradingScalesController::class, 'update'])->middleware('permission:configuracion_academica.actualizar')->name('acad.grading-scales.update');
     Route::delete('/grading-scales/{publicId}', [GradingScalesController::class, 'destroy'])->middleware('permission:configuracion_academica.eliminar')->name('acad.grading-scales.destroy');
+    // 1.12-a (api.md §12): espacios, recurso `espacios` (RN-ACAD-101); del centro, sin curso académico.
+    Route::get('/facilities', [FacilitiesController::class, 'index'])->middleware('permission:espacios.leer')->name('acad.facilities.index');
+    Route::post('/facilities', [FacilitiesController::class, 'store'])->middleware('permission:espacios.crear')->name('acad.facilities.store');
+    Route::get('/facilities/{publicId}', [FacilitiesController::class, 'show'])->middleware('permission:espacios.leer')->name('acad.facilities.show');
+    Route::patch('/facilities/{publicId}', [FacilitiesController::class, 'update'])->middleware('permission:espacios.actualizar')->name('acad.facilities.update');
+    Route::delete('/facilities/{publicId}', [FacilitiesController::class, 'destroy'])->middleware('permission:espacios.eliminar')->name('acad.facilities.destroy');
+    // 1.12-a (api.md §12): marcos horarios con sus franjas dentro (RN-ACAD-113), recurso `horarios`.
+    Route::get('/timetable-frames', [TimetableFramesController::class, 'index'])->middleware('permission:horarios.leer')->name('acad.timetable-frames.index');
+    Route::post('/timetable-frames', [TimetableFramesController::class, 'store'])->middleware('permission:horarios.crear')->name('acad.timetable-frames.store');
+    Route::get('/timetable-frames/{publicId}', [TimetableFramesController::class, 'show'])->middleware('permission:horarios.leer')->name('acad.timetable-frames.show');
+    Route::patch('/timetable-frames/{publicId}', [TimetableFramesController::class, 'update'])->middleware('permission:horarios.actualizar')->name('acad.timetable-frames.update');
+    Route::delete('/timetable-frames/{publicId}', [TimetableFramesController::class, 'destroy'])->middleware('permission:horarios.eliminar')->name('acad.timetable-frames.destroy');
 });

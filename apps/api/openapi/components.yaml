@@ -238,6 +238,105 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
+    CivilTime:
+      type: string
+      description: >
+        REQ-ACAD/api.md §12, ADR-065. Hora civil del centro `HH:MM` (24 h), sin zona ni sufijo `Z`:
+        «08:30» sigue siendo 08:30 local antes y después del cambio de hora. Intervalos semiabiertos
+        `[inicio, fin)`. Excepción acotada a «nunca una hora local sin zona» de ADR-038 §3.2.
+      pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+      example: "08:30"
+
+    FacilityType:
+      type: string
+      description: >
+        Tipo de espacio (REQ-ACAD RN-ACAD-100). Enumerado **extensible** (ADR-038 §7.3): los clientes
+        tratan un valor desconocido mostrando el código en crudo. `aula` es ocupable por sesiones y
+        reservable; `recurso` solo reservable. Inmutable tras el alta.
+      enum: [aula, recurso]
+      x-extensible-enum: true
+
+    TimetableFrameType:
+      type: string
+      description: >
+        Tipo de marco horario (REQ-ACAD RN-ACAD-110). Enumerado **extensible** (ADR-038 §7.3).
+        `ordinaria` (todo el curso) es la única admitida en `1.12-a`; `especial` (vigencia por fechas)
+        llega con `1.12-b`. Inmutable tras el alta.
+      enum: [ordinaria, especial]
+      x-extensible-enum: true
+
+    Facility:
+      type: object
+      description: >
+        REQ-ACAD/api.md §12.1 (1.12-a). Espacio del centro (aula o recurso). Sin `academic_year`: los
+        espacios no pertenecen a un curso académico (OPEN-ACAD-33), así que editar `code` o `name` se
+        refleja también al leer horarios de cursos cerrados (RN-ACAD-103). `name` es texto simple.
+      required: [public_id, facility_type, code, name, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        facility_type: { $ref: '#/components/schemas/FacilityType' }
+        code: { type: string }
+        name: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    TimeSlot:
+      type: object
+      description: >
+        REQ-ACAD/api.md §12.1. Franja de un marco: día ISO de la semana (1 = lunes … 7 = domingo) y hora
+        civil del centro. Solo se escribe dentro del marco (RN-ACAD-113); no tiene *endpoint* propio.
+      required: [public_id, weekday, starts_at, ends_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        weekday: { type: integer, minimum: 1, maximum: 7 }
+        starts_at: { $ref: '#/components/schemas/CivilTime' }
+        ends_at: { $ref: '#/components/schemas/CivilTime' }
+
+    TimeSlotCreate:
+      type: object
+      description: 'Franja nueva dentro del conjunto `slots` de un marco (sin `public_id`, RN-ACAD-113).'
+      required: [weekday, starts_at, ends_at]
+      properties:
+        weekday: { type: integer, minimum: 1, maximum: 7 }
+        starts_at: { $ref: '#/components/schemas/CivilTime' }
+        ends_at: { $ref: '#/components/schemas/CivilTime' }
+
+    TimeSlotPatch:
+      type: object
+      description: >
+        Elemento del conjunto `slots` de un `PATCH`: con `public_id` actualiza esa franja del marco; sin él,
+        la da de alta. Una franja ausente del conjunto se borra (lógicamente). Un `public_id` ajeno o repetido
+        es `422 acad.validation.slot_not_in_frame` en `slots.<n>.public_id` (RN-ACAD-113).
+      required: [weekday, starts_at, ends_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        weekday: { type: integer, minimum: 1, maximum: 7 }
+        starts_at: { $ref: '#/components/schemas/CivilTime' }
+        ends_at: { $ref: '#/components/schemas/CivilTime' }
+
+    TimetableFrame:
+      type: object
+      description: >
+        REQ-ACAD/api.md §12.1 (1.12-a). Marco horario de una etapa con sus franjas. `name` es la cadena
+        resuelta en el servidor (ADR-062 §5.3) y de solo lectura; `name_translations` el objeto almacenado.
+        `valid_from`/`valid_to` son `null` en un marco `ordinaria`. `slots` siempre presente, ordenada por
+        `weekday`, `starts_at`.
+      required: [public_id, academic_year, education_level, frame_type, name, name_translations, valid_from, valid_to, slots, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        education_level: { $ref: '#/components/schemas/PublicId' }
+        frame_type: { $ref: '#/components/schemas/TimetableFrameType' }
+        name: { type: string, readOnly: true }
+        name_translations: { $ref: '#/components/schemas/TranslationsMap' }
+        valid_from: { type: string, format: date, nullable: true }
+        valid_to: { type: string, format: date, nullable: true }
+        slots:
+          type: array
+          items: { $ref: '#/components/schemas/TimeSlot' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
     DecimalString:
       type: string
       description: >
@@ -1675,6 +1774,24 @@ components:
         type: string
         enum: [starts_on, -starts_on, position, -position]
         default: starts_on
+    FacilitySortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada; desempate por `id`.
+      schema:
+        type: string
+        enum: [code, -code]
+        default: code
+    TimetableFrameSortParam:
+      name: sort
+      in: query
+      description: >
+        Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada: orden por etapa (su posición),
+        luego `frame_type` e `id` (REQ-ACAD/api.md §12.4).
+      schema:
+        type: string
+        enum: [education_level, -education_level]
+        default: education_level
     GradingScaleSortParam:
       name: sort
       in: query

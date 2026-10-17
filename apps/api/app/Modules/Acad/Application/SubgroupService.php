@@ -5,6 +5,7 @@ namespace App\Modules\Acad\Application;
 use App\Models\User;
 use App\Modules\Acad\Domain\Models\Group;
 use App\Modules\Acad\Domain\Models\Subgroup;
+use App\Modules\Acad\Domain\Models\TeachingAssignment;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -77,12 +78,16 @@ final class SubgroupService
         });
     }
 
-    /** Un subgrupo no tiene hijos en 1.11 (`RN-ACAD-16`). */
+    /** `RN-ACAD-96` (1.12-a): no se borra un subgrupo con asignaciones docentes vivas (`RN-ACAD-16`: no tiene más hijos). */
     public function delete(string $publicId, User $actor): void
     {
         DB::transaction(function () use ($publicId, $actor): void {
             $subgroup = Subgroup::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
             $this->years->forRow($subgroup->academic_year_id, $actor);
+
+            if (TeachingAssignment::query()->where('subgroup_id', $subgroup->id)->exists()) {
+                throw StructureErrors::hasDependents('subgroup', $subgroup->code, ['teaching_assignments']);
+            }
 
             $subgroup->delete();
         });

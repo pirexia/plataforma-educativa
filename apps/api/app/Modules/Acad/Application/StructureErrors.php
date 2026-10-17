@@ -11,13 +11,13 @@ use App\Support\Api\ApiException;
 final class StructureErrors
 {
     /** Orden de los nombres de dependientes en el mensaje de `has_dependents`. */
-    private const DEPENDENT_KEYS = ['courses', 'academic_periods', 'groups', 'subgroups', 'subjects'];
+    private const DEPENDENT_KEYS = ['courses', 'academic_periods', 'groups', 'subgroups', 'subjects', 'group_tutors', 'teaching_assignments', 'timetable_frames', 'timetable_sessions', 'facility_bookings'];
 
     /**
      * `RN-ACAD-20`, api.md §5: `409 acad.conflict.has_dependents`, con
      * `params.dependents` (nombres técnicos) en `errors.dependents[0]`.
      *
-     * @param  list<string>  $dependents  de `courses`, `academic_periods`, `groups`, `subgroups`, `subjects`
+     * @param  list<string>  $dependents  de `courses`, `academic_periods`, `groups`, `subgroups`, `subjects`, `group_tutors`, `teaching_assignments`, `timetable_frames`, `timetable_sessions`, `facility_bookings`
      */
     public static function hasDependents(string $entity, string $code, array $dependents): ApiException
     {

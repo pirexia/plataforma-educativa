@@ -6,7 +6,9 @@ use App\Models\User;
 use App\Modules\Acad\Domain\Models\Course;
 use App\Modules\Acad\Domain\Models\Group;
 use App\Modules\Acad\Domain\Models\GroupSubject;
+use App\Modules\Acad\Domain\Models\GroupTutor;
 use App\Modules\Acad\Domain\Models\Subgroup;
+use App\Modules\Acad\Domain\Models\TeachingAssignment;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -74,7 +76,7 @@ final class GroupService
         });
     }
 
-    /** `RN-ACAD-20`: no se borra un grupo con subgrupos o asignaturas asignadas vivos. */
+    /** `RN-ACAD-20`, ampliada por `RN-ACAD-96`: no se borra un grupo con subgrupos, asignaturas asignadas, tutores o asignaciones docentes vivos. */
     public function delete(string $publicId, User $actor): void
     {
         DB::transaction(function () use ($publicId, $actor): void {
@@ -89,6 +91,15 @@ final class GroupService
 
             if (GroupSubject::query()->where('group_id', $group->id)->exists()) {
                 $dependents[] = 'subjects';
+            }
+
+            // RN-ACAD-96 (1.12-a): tutores y asignaciones docentes vivos.
+            if (GroupTutor::query()->where('group_id', $group->id)->exists()) {
+                $dependents[] = 'group_tutors';
+            }
+
+            if (TeachingAssignment::query()->where('group_id', $group->id)->exists()) {
+                $dependents[] = 'teaching_assignments';
             }
 
             if ($dependents !== []) {

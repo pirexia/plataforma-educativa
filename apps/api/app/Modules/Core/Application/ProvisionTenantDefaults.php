@@ -157,14 +157,17 @@ final class ProvisionTenantDefaults implements TenantProvisioner
     ];
 
     /**
-     * REQ-ACAD/permisos.md §4 y §4.1 (1.11-b y 1.11d-a, `OPEN-ACAD-09` = X,
-     * `OPEN-ACAD-28` = X + 1): la siembra de los ocho permisos de `acad`, los
-     * cuatro de `estructura_academica` y los cuatro de `configuracion_academica`.
-     * `administrador_centro` los ocho; `direccion`, `secretaria`, `docente`,
-     * `tutor_grupo` y `orientador` solo `leer` de cada recurso; el resto,
-     * nada (`RPERM-011`). Todos de ámbito `todos`: estructura, períodos y
-     * escalas son del centro entero y no contienen datos personales
-     * (`RN-ACAD-09`, `RN-ACAD-50`). Una sola lista por los dos caminos: la lee
+     * REQ-ACAD/permisos.md §4, §4.1 y §10.3 (1.11-b, 1.11d-a y 1.12-a,
+     * `OPEN-ACAD-09` = X, `OPEN-ACAD-28` = X + 1, `OPEN-ACAD-42` = X): la siembra
+     * de los veinte permisos de `acad` (`estructura_academica`,
+     * `configuracion_academica`, `asignacion_docente`, `espacios` y `horarios`,
+     * cuatro acciones cada uno). `administrador_centro` los veinte; `direccion`
+     * escribe `asignacion_docente` y `horarios` y lee el resto; `secretaria`,
+     * `docente`, `tutor_grupo` y `orientador` solo `leer` de cada recurso; el
+     * resto, nada (`RPERM-011`). Todos de ámbito `todos`: estructura, períodos,
+     * escalas, espacios y horarios no contienen datos de alumnado
+     * (`RN-ACAD-09`, `RN-ACAD-50`, `ADR-063 §5.4`). Los de `reservas` llegan con
+     * `1.12-b`. Una sola lista por los dos caminos: la lee
      * también `GrantStructurePermissionsCommand` (centros ya existentes).
      * Ninguna regla de código compara estos códigos de rol (`RN-PERM-46`).
      *
@@ -176,12 +179,24 @@ final class ProvisionTenantDefaults implements TenantProvisioner
             'estructura_academica.actualizar', 'estructura_academica.eliminar',
             'configuracion_academica.leer', 'configuracion_academica.crear',
             'configuracion_academica.actualizar', 'configuracion_academica.eliminar',
+            'asignacion_docente.leer', 'asignacion_docente.crear',
+            'asignacion_docente.actualizar', 'asignacion_docente.eliminar',
+            'espacios.leer', 'espacios.crear', 'espacios.actualizar', 'espacios.eliminar',
+            'horarios.leer', 'horarios.crear', 'horarios.actualizar', 'horarios.eliminar',
         ],
-        'direccion' => ['estructura_academica.leer', 'configuracion_academica.leer'],
-        'secretaria' => ['estructura_academica.leer', 'configuracion_academica.leer'],
-        'docente' => ['estructura_academica.leer', 'configuracion_academica.leer'],
-        'tutor_grupo' => ['estructura_academica.leer', 'configuracion_academica.leer'],
-        'orientador' => ['estructura_academica.leer', 'configuracion_academica.leer'],
+        // OPEN-ACAD-42 = X: `direccion` escribe horarios y asignación docente (`§11.1`:
+        // «Dirección / Jefatura de Estudios: … horarios»), pero solo lee espacios.
+        'direccion' => [
+            'estructura_academica.leer', 'configuracion_academica.leer',
+            'asignacion_docente.leer', 'asignacion_docente.crear',
+            'asignacion_docente.actualizar', 'asignacion_docente.eliminar',
+            'espacios.leer',
+            'horarios.leer', 'horarios.crear', 'horarios.actualizar', 'horarios.eliminar',
+        ],
+        'secretaria' => ['estructura_academica.leer', 'configuracion_academica.leer', 'asignacion_docente.leer', 'espacios.leer', 'horarios.leer'],
+        'docente' => ['estructura_academica.leer', 'configuracion_academica.leer', 'asignacion_docente.leer', 'espacios.leer', 'horarios.leer'],
+        'tutor_grupo' => ['estructura_academica.leer', 'configuracion_academica.leer', 'asignacion_docente.leer', 'espacios.leer', 'horarios.leer'],
+        'orientador' => ['estructura_academica.leer', 'configuracion_academica.leer', 'asignacion_docente.leer', 'espacios.leer', 'horarios.leer'],
     ];
 
     /**
