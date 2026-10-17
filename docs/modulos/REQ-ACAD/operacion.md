@@ -1,6 +1,6 @@
 # REQ-ACAD · Operación
 
-> **Estado**: **APROBADA** (2026-10-10), paso **1.11**, con las recomendaciones de `funcional.md §15` aprobadas y `ADR-062`/`ADR-063` ACEPTADOS. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
+> **Estado**: **`1.11d-a` implementada (2026-10-17, rama `feature/REQ-ACAD-1-11d-a-periodos`); `1.11d-b` pendiente.** **APROBADA** (2026-10-10), paso **1.11**, con las recomendaciones de `funcional.md §15` aprobadas y `ADR-062`/`ADR-063` ACEPTADOS. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 >
 > **`1.11d`** (APROBADA, 2026-10-16): operación de períodos lectivos y escalas en **§11**, tras §10 (el §6.2 de `1.11-a`, que ya estaba fuera de orden al final del fichero, sigue detrás).
 
