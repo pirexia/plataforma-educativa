@@ -11,9 +11,15 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 - **`acad`**: tablas `grading_scales` y `grading_scale_values` (disparador de curso, FK de cuatro columnas que arrastra el tipo de escala, `CHECK`s de coherencia por tipo, unicidad de código parcial; migraciones `2026_10_17_100200` y `100300`), modelos `GradingScale` y `GradingScaleValue` auditables, `GradingScaleService` (alta, `PATCH` con `values` como conjunto completo sincronizado por instancia y en una transacción, borrado lógico de la escala con sus valores) y `GradingScaleValidator` (reglas `RN-ACAD-70` a `-89` sobre el estado resultante, decimales en centésimas enteras), 5 *endpoints* (`/grading-scales`) con OpenAPI y claves en los cuatro idiomas. Contrato nuevo documentado: campo `errors.<campo>` de cada error de escala (`REQ-ACAD/api.md §11.7`).
 - **Web**: entrada de menú «Escalas de calificación», lista con filtro por tipo, alta y edición en página propia con editor de valores o tramos (Subir/Bajar por teclado con región viva, «Aprobado/Suspenso» con texto), ficha con borrado confirmado, cliente de la API y textos (seis claves nuevas fuera de la tabla de la especificación, ahora recogidas en `funcional.md §10.5.5`).
 - **Documentación**: `REQ-ACAD` (`funcional.md §17`/`§17.4` con las decisiones de implementación que la especificación no fijaba, `api.md §11.7`, `datos.md`, `operacion.md`, `permisos.md`), manuales de administración, dirección, secretaría y profesorado, `SYSADMIN.md §2g`, `README.md`, `PLAN-IMPLEMENTACION.md` y `CONTRIBUTING.md §3.1` (el formato de `ide-helper:models --nowrite` ya no coincide con el fichero commiteado).
-- **Verificación** (cifras de la nota viva de `memory.md`, no reejecutadas al documentar): Pest de Acad, Architecture, I18n, Audit, Tenancy, Perm, `SchemaInvariantsTest` y `AcadConcurrencyTest` en verde (564 tests, no suite completa) y Vitest del módulo web; los números exactos están en el último commit de cada fase y en `memory.md`. `CA-ACAD-075` a `-100`, `-104` a `-106` con test; `CA-ACAD-101` (E2E de escalas) escrito y **pendiente de ejecutar**. `traductor` ejecutado y aplicado el 2026-10-17 (trato de cortesía «Sie» en alemán, `50b1635`); `db-`, `security-` y `doc-reviewer` hechos, sin Crítico ni Alto (1 Medio funcional de `security-reviewer`: intercambio de códigos en `PATCH` da un `422 code_taken` falso, sin test; el resto, Bajas).
+- **Verificación** (suite completa sobre `47865f1`): 1527/1527 Pest (1500 Unit+Feature y 27 Concurrency), 1584 Vitest (3 omitidos), Pint, Larastan, ESLint, `lint:i18n` y `vue-tsc` en verde.
 - **Versiones de cabecera**: `CONTRIBUTING.md` 0.3.1 y `SYSADMIN.md` 0.8.11 (parche, 2026-10-17; coherencia tras la revisión de documentación).
-- **Pendiente**: ejecución del E2E, suite completa y PR; `GradingScaleDirectory` sigue «escrita, no construida» (`ADR-048`).
+- **Pendiente**: ejecución del E2E `CA-ACAD-101` (requiere permiso expreso); `GradingScaleDirectory` sigue «escrita, no construida». Bajas y Medio diferido en #438.
+
+---
+
+## 2026-10-17 · Retirada del volumen de PostgreSQL 17 (rama `chore/retirar-volumen-pg17`)
+
+- Decisión del usuario (`ADR-061`, volumen conservado una semana): se borran el volumen `plataforma-educativa_postgres-data` y el respaldo de la migración de desarrollo; `compose.yaml` deja de declarar `postgres-data`; `SYSADMIN.md` y `RUNBOOK.md` lo reflejan. `ADR-061` no se modifica. **Sin cambios de código.**
 
 ---
 
