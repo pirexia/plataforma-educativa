@@ -1,6 +1,6 @@
 # REQ-ACAD · API
 
-> **Estado**: **APROBADA** (2026-10-10), paso **1.11** (`REQ-ACAD-001`, estructura académica), con las recomendaciones de `funcional.md §15` aprobadas y los contratos de `ADR-062` (contenido traducible) y `ADR-063` (ámbitos), ambos ACEPTADOS. La API de períodos lectivos y escalas está especificada en §11 (`1.11d`, APROBADA el 2026-10-16; `OPEN-ACAD-01` = A). **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
+> **Estado**: **APROBADA** (2026-10-10), paso **1.11** (`REQ-ACAD-001`, estructura académica), con las recomendaciones de `funcional.md §15` aprobadas y los contratos de `ADR-062` (contenido traducible) y `ADR-063` (ámbitos), ambos ACEPTADOS. La API de períodos lectivos y escalas está especificada en §11 (`1.11d`, APROBADA el 2026-10-16; `OPEN-ACAD-01` = A). **`1.11d-a` implementada (2026-10-17, rama `feature/REQ-ACAD-1-11d-a-periodos`); `1.11d-b` pendiente.** **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 
 Prefijo: `/api/v1`. Tenant por *host* (`ADR-033 §2`). Todo según `ADR-038`: recurso individual desnudo, colección en `{data, meta}` (§3), paginación por página (§4.2-§4.3: catálogo de entidades nacidas de acción administrativa, decenas a cientos de filas por centro y curso académico), filtros planos y valores múltiples separados por comas (§5.2), orden por lista blanca con desempate por `id` (§5.3), errores `application/problem+json` con `type` URN y `errors` como **objeto indexado por campo** cuyos valores son arrays de `{code, message, params}` (p. ej. `errors.code[0].code`; §6), `404` frente a `403` (§6.4).
 
@@ -69,7 +69,7 @@ Permisos: todos sobre el recurso `estructura_academica` con ámbito `todos` (`pe
 | `POST /education-levels` | C | 201 + `Location` | 422 |
 | `GET /education-levels/{public_id}` | L | 200 | 404 |
 | `PATCH /education-levels/{public_id}` | A | 200 | 404, 422 |
-| `DELETE /education-levels/{public_id}` | E | 204 | 404, 409 `has_dependents` |
+| `DELETE /education-levels/{public_id}` | E | 204 | 404, 409 `has_dependents` (con cursos o, desde `1.11d-a`, con períodos lectivos vivos: `academic_periods` en `params.dependents`, `RN-ACAD-61`) |
 | `GET /courses` | L | 200 colección | 422 |
 | `POST /courses` | C | 201 | 422 |
 | `GET /courses/{public_id}` | L | 200 | 404 |
@@ -188,7 +188,7 @@ No hay. No se declara `estructura_academica.exportar` (`permisos.md §2.1`).
 | `urn:pge:error:validation` | 422 | `acad.validation.parent_not_found` | Padre **del cuerpo** (`education_level`, `course`) ausente, inexistente, borrado o de otro centro, o de un curso de solo lectura que el usuario no puede leer (sin `curso_historico.leer`; indistinguible de uno inexistente). Un padre **de la ruta** (`/groups/{public_id}/…`) en esa situación es `404`, no este código |
 | `urn:pge:error:validation` | 422 | `acad.validation.parent_immutable` | `PATCH` con padre o curso académico (`RN-ACAD-06`) |
 | `urn:pge:error:validation` | 422 | `acad.validation.subject_not_in_course` | `PUT /groups/{id}/subjects` con una asignatura ajena al curso de etapa (`RN-ACAD-30`) |
-| `urn:pge:error:conflict` | 409 | `acad.conflict.has_dependents` | `RN-ACAD-20`; `params.dependents` |
+| `urn:pge:error:conflict` | 409 | `acad.conflict.has_dependents` | `RN-ACAD-20`; `params.dependents`. Desde `1.11d-a`, el borrado de una etapa con períodos lectivos vivos incluye `academic_periods` en `params.dependents` (`RN-ACAD-61`) |
 | `urn:pge:error:not-found` | 404 | — | Recurso inexistente, de otro centro, o de curso cerrado sin `curso_historico.leer` (mismo cuerpo en los tres casos) |
 | `urn:pge:error:academic-year-closed` | 409 | `curso.academic_year_closed` | Lo produce y traduce `curso` (`REQ-CURSO/api.md §4`) |
 | `urn:pge:error:not-found` | 404 | `curso.no_active_year` | Lo produce `curso` |
@@ -297,7 +297,7 @@ Todo lo de la cabecera de este documento aplica igual: `ADR-038`, solo `public_i
 { "education_level": "01JA…01", "period_type": "trimestre", "name_translations": { "es-ES": "Primer trimestre" }, "starts_on": "2026-09-08", "ends_on": "2026-12-22", "position": 1 }
 ```
 
-Obligatorios: `education_level`, `period_type`, `name_translations` (con el idioma por defecto del centro), `starts_on`, `ends_on`. `position` opcional. `academic_year` ⇒ `422 acad.validation.academic_year_not_allowed`.
+Obligatorios: `education_level`, `period_type`, `name_translations` (con el idioma por defecto del centro), `starts_on`, `ends_on`. `position` opcional. `academic_year` ⇒ `422 acad.validation.academic_year_not_allowed`. El campo que lleva cada error de validación de un período es el de la tabla de §11.7 (columna «Campo»).
 
 **`PATCH /academic-periods/{id}`**: editables `period_type`, `name_translations` (fusión por idioma), `starts_on`, `ends_on`, `position`. `education_level`/`academic_year` ⇒ `422 acad.validation.parent_immutable`.
 
@@ -345,7 +345,7 @@ Paginación por página en los dos listados (catálogo de nacimiento administrat
 
 | Listado | Filtros | `sort` (defecto primero) |
 |---|---|---|
-| `GET /academic-periods` | `academic_year` (omitido ⇒ activo), `education_level` (múltiple), `period_type` (múltiple) | `starts_on`, `-starts_on`, `position`, `-position` (desempate: `starts_on`, luego `id`) |
+| `GET /academic-periods` | `academic_year` (omitido ⇒ activo), `education_level` (múltiple), `period_type` (múltiple) | `starts_on`, `-starts_on`, `position`, `-position` (desempate: con `sort=starts_on`/`-starts_on`, `position` y luego `id`; con `sort=position`/`-position`, `starts_on` y luego `id`; los desempates van siempre en orden ascendente, `RN-ACAD-60`) |
 | `GET /grading-scales` | `academic_year` (omitido ⇒ activo), `scale_type` (múltiple) | `code`, `-code` (desempate `id`) |
 
 Filtros combinados con `AND`; un `education_level` de otro curso académico o inexistente ⇒ colección vacía (`ADR-038 §5.2`, como `api.md §3`). Un valor de `period_type`/`scale_type` fuera de vocabulario ⇒ `422`. Sin `q` (ningún requisito pide búsqueda) y sin orden por nombre (`ADR-062 §5.4`).
@@ -383,6 +383,20 @@ Además de los de §6, que se reutilizan con el mismo significado (`code_require
 | `urn:pge:error:validation` | 422 | `acad.validation.band_range_invalid` | `range_min > range_max` o tramo fuera del rango de la escala | `RN-ACAD-84` |
 | `urn:pge:error:validation` | 422 | `acad.validation.bands_not_contiguous` | Tramos con huecos, solapes, fuera de orden o sin cubrir la escala | `RN-ACAD-85` |
 | `urn:pge:error:validation` | 422 | `acad.validation.passing_threshold_inside_band` | El umbral no coincide con el inicio de un tramo | `RN-ACAD-86` |
+
+**Campo (`errors.<campo>`) de cada error de período.** La especificación aprobada no fijó en qué clave de `errors` va cada código; lo fijó la implementación (`AcademicPeriodService::assertValidState`, `PeriodFields`) y la interfaz (`funcional.md §10.5`) lo usa para pintar el error junto a su campo. Es contrato desde `1.11d-a`:
+
+| `code` | Campo |
+|---|---|
+| `acad.validation.period_type_invalid` | `period_type` |
+| `acad.validation.date_invalid` | el de la fecha inválida: `starts_on` o `ends_on` |
+| `acad.validation.period_ends_before_start` | `ends_on` |
+| `acad.validation.period_outside_academic_year` | `starts_on` si empieza antes del curso, `ends_on` si acaba después; **ambos** si se dan las dos (mismo `code` y mismos `params` en cada uno) |
+| `acad.validation.period_type_mismatch` | `period_type` |
+| `acad.validation.period_overlap` | `starts_on` |
+| `acad.validation.parent_not_found` | `education_level` |
+
+Las comprobaciones de estado de `assertValidState` se detienen en la primera que falla, por este orden: fechas ordenadas, dentro del curso, un solo tipo por etapa, sin solape.
 
 **Código de `acad` que no sale de un *endpoint* de `acad`** (`RN-ACAD-62`, desde `1.11d-a`): `acad.conflict.periods_outside_academic_year` es el `code` de la entrada que la validación de `acad` aporta a `errors.date_change[]` del `409 urn:pge:error:conflict` / `curso.conflict.date_change_checks_failed` de **`PATCH /academic-years/{public_id}`** (`REQ-CURSO/api.md`). `message` traducido al idioma resuelto; `params` exactamente `count` (entero, períodos vivos que quedarían fuera), `periods_starts_on` y `periods_ends_on` (`AAAA-MM-DD`: menor inicio y mayor fin de todos los períodos vivos del curso académico). Sin `public_id`, nombre ni etapa de ningún período (`REQ-CURSO RN-CURSO-53`, `ADR-035 §5`):
 
