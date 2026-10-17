@@ -168,7 +168,9 @@ test('CA-ACAD-013 ADR-062 §5.5: un PATCH que cambia es-ES y añade fr deja exac
 
     $changes = app(TenantContext::class)->runFor($tenant->id, fn () => AuditLog::query()->where('auditable_type', 'education_level')->where('event', 'updated')->firstOrFail()->changes);
 
-    expect(array_keys($changes))->toEqualCanonicalizing(['name_translations.es-ES', 'name_translations.fr']);
+    // `updated_at` solo consta si su valor cambia, y su precisión es de segundos: depende de si el PATCH cae
+    // en el mismo segundo que el alta. No es un cambio de negocio, así que no forma parte de la comprobación.
+    expect(array_values(array_diff(array_keys($changes), ['updated_at', 'updated_by'])))->toEqualCanonicalizing(['name_translations.es-ES', 'name_translations.fr']);
 });
 
 test('CA-ACAD-006 RN-ACAD-06: PATCH con academic_year, education_level, course o group es 422 parent_immutable y la fila no cambia', function (): void {

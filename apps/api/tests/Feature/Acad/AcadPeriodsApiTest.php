@@ -202,7 +202,7 @@ test('CA-ACAD-070 RN-ACAD-51: PATCH de fechas válidas deja updated con starts_o
         $updated = AuditLog::query()->where('auditable_type', 'academic_period')->where('event', 'updated')->get();
 
         expect($updated)->toHaveCount(1)
-            ->and(array_keys($updated[0]->changes))->toEqualCanonicalizing(['starts_on', 'ends_on'])
+            ->and(array_values(array_diff(array_keys($updated[0]->changes), ['updated_at', 'updated_by'])))->toEqualCanonicalizing(['starts_on', 'ends_on'])
             ->and($updated[0]->changes['ends_on']['from'])->toContain('2026-12-22')
             ->and($updated[0]->changes['ends_on']['to'])->toContain('2026-12-20');
     });
@@ -247,7 +247,7 @@ test('CA-ACAD-070 RN-ACAD-53 ADR-062: el PATCH de name_translations se fusiona p
     app(TenantContext::class)->runFor($tenant->id, function (): void {
         $updated = AuditLog::query()->where('auditable_type', 'academic_period')->where('event', 'updated')->firstOrFail();
 
-        expect(array_keys($updated->changes))->toEqualCanonicalizing(['name_translations.es-ES', 'name_translations.fr']);
+        expect(array_values(array_diff(array_keys($updated->changes), ['updated_at', 'updated_by'])))->toEqualCanonicalizing(['name_translations.es-ES', 'name_translations.fr']);
     });
 
     Periods::patch($tenant, $admin, $publicId, ['name_translations' => ['es-ES' => null]])->assertStatus(422)->assertJsonPath('errors.name_translations.0.code', 'translations.default_locale_required');

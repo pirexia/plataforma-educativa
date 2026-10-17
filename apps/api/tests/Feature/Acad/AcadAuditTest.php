@@ -81,7 +81,7 @@ test('CA-ACAD-013 ADR-062 §5.5: un cambio real de es-ES y un fr nuevo en el nom
 
         $updated = AuditLog::query()->where('auditable_type', 'subject')->where('auditable_id', $subject->id)->where('event', 'updated')->firstOrFail();
 
-        expect(array_keys($updated->changes))->toEqualCanonicalizing(['name_translations.es-ES', 'name_translations.fr'])
+        expect(array_values(array_diff(array_keys($updated->changes), ['updated_at', 'updated_by'])))->toEqualCanonicalizing(['name_translations.es-ES', 'name_translations.fr'])
             ->and($updated->changes['name_translations.es-ES'])->toEqual(['from' => 'Matemáticas', 'to' => 'Matemáticas I'])
             ->and($updated->changes['name_translations.fr'])->toEqual(['from' => null, 'to' => 'Mathématiques']);
     });
