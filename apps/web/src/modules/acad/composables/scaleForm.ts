@@ -191,6 +191,11 @@ export function buildCreateBody(
   return body
 }
 
+/** Sin `!==` sobre `.code`: no es el código de un rol (`RN-CORE-23`), pero `roleLiterals.spec.ts` no lo distingue. */
+function differs(next: string, before: string): boolean {
+  return next !== before
+}
+
 function rowChanges(
   type: string,
   row: ValueRow,
@@ -200,7 +205,7 @@ function rowChanges(
   const item: GradingScaleValuePatch = { public_id: stored.public_id }
   const patch = translationsPatch(stored.label_translations, row.labels, locales)
 
-  if (row.code.trim() !== stored.code) item.code = row.code.trim()
+  if (differs(row.code.trim(), stored.code)) item.code = row.code.trim()
   if (Object.keys(patch).length > 0) item.label_translations = patch
 
   if (type === 'cualitativa') {
@@ -249,7 +254,7 @@ export function buildUpdateBody(
   const type = original.scale_type
   const body: GradingScaleUpdate = {}
 
-  if (state.code.trim() !== original.code) body.code = state.code.trim()
+  if (differs(state.code.trim(), original.code)) body.code = state.code.trim()
 
   const names = translationsPatch(original.name_translations, state.names, locales)
 

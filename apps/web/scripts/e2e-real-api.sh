@@ -104,3 +104,8 @@ npx playwright test e2e/acad-structure.spec.ts -g "CA-ACAD-053" --workers=1 "$@"
 # y necesita `acad` contratado, que el setup ya deja hecho.
 prepare_tenant
 npx playwright test e2e/acad-periods.spec.ts -g "CA-ACAD-101" --workers=1 "$@"
+
+# REQ-ACAD (1.11d-b), CA-ACAD-101 (parte de escalas): escala cualitativa reordenada, mixta 0-10 y 320 px. Crea su propio
+# curso, igual que el de períodos.
+prepare_tenant
+npx playwright test e2e/acad-scales.spec.ts -g "CA-ACAD-101" --workers=1 "$@"

@@ -99,7 +99,7 @@ export function page<T>(rows: T[]) {
   return { data: rows, meta: { current_page: 1, per_page: 25, total: rows.length, last_page: 1 } }
 }
 
-/** Router de memoria con las cinco rutas de `acad` (las de la vista bajo prueba usan su componente). */
+/** Router de memoria con las rutas de `acad` (las de la vista bajo prueba usan su componente). */
 export function makeRouter(name: string, component: Component) {
   const routes = [
     ['acad-structure', '/academico/estructura'],
@@ -107,6 +107,10 @@ export function makeRouter(name: string, component: Component) {
     ['acad-course-detail', '/academico/cursos/:publicId'],
     ['acad-group-detail', '/academico/grupos/:publicId'],
     ['acad-subject-detail', '/academico/asignaturas/:publicId'],
+    ['acad-grading-scales', '/academico/escalas'],
+    ['acad-grading-scale-new', '/academico/escalas/nueva'],
+    ['acad-grading-scale-detail', '/academico/escalas/:publicId'],
+    ['acad-grading-scale-edit', '/academico/escalas/:publicId/editar'],
   ].map(([routeName, routePath]) => ({
     path: routePath!,
     name: routeName!,
@@ -198,4 +202,76 @@ export function period(over: Record<string, unknown> = {}) {
     ...AUDIT,
     ...over,
   }
+}
+
+export function scaleValue(over: Record<string, unknown> = {}) {
+  return {
+    public_id: 'V1',
+    code: 'IN',
+    position: 1,
+    label: 'Insuficiente',
+    label_translations: { 'es-ES': 'Insuficiente' },
+    is_passing: false,
+    range_min: null,
+    range_max: null,
+    ...over,
+  }
+}
+
+/** Escala cualitativa de dos valores por defecto. */
+export function scale(over: Record<string, unknown> = {}) {
+  return {
+    public_id: 'E1',
+    academic_year: 'Y2',
+    code: 'CUAL',
+    name: 'Insuficiente a Sobresaliente',
+    name_translations: { 'es-ES': 'Insuficiente a Sobresaliente' },
+    scale_type: 'cualitativa',
+    min_value: null,
+    max_value: null,
+    decimals: null,
+    passing_min_value: null,
+    values: [
+      scaleValue(),
+      scaleValue({
+        public_id: 'V2',
+        code: 'SU',
+        position: 2,
+        label: 'Suficiente',
+        label_translations: { 'es-ES': 'Suficiente' },
+        is_passing: true,
+      }),
+    ],
+    ...AUDIT,
+    ...over,
+  }
+}
+
+/** Escala mixta 0-10 con un decimal y dos tramos contiguos. */
+export function bandScale(over: Record<string, unknown> = {}) {
+  return scale({
+    public_id: 'E2',
+    code: 'MIX10',
+    name: 'De 0 a 10 con calificación',
+    name_translations: { 'es-ES': 'De 0 a 10 con calificación' },
+    scale_type: 'mixta',
+    min_value: '0.0',
+    max_value: '10.0',
+    decimals: 1,
+    passing_min_value: '5.0',
+    values: [
+      scaleValue({ range_min: '0.0', range_max: '4.9' }),
+      scaleValue({
+        public_id: 'V2',
+        code: 'SU',
+        position: 2,
+        label: 'Suficiente',
+        label_translations: { 'es-ES': 'Suficiente' },
+        is_passing: true,
+        range_min: '5.0',
+        range_max: '10.0',
+      }),
+    ],
+    ...over,
+  })
 }
