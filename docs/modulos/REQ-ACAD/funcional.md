@@ -1249,7 +1249,7 @@ Pest en `apps/api/tests/Feature/Acad/` (concurrencia en `tests/Concurrency/`), V
 | Plazo de `ADR-063 §5.4`: si §18 no se aprueba, `1.13` y `1.16` siguen bloqueados | Alta | Aprobar la parte de asignación (§18.4.2, §18.7) aunque se aplace el resto; se puede partir la aprobación |
 | Asignación por **usuario** y no por `Employee`: el personal sin cuenta no puede impartir en el horario, y llegar a `Employee` (`REQ-RRHH`) obligará a vincular | Media | `OPEN-ACAD-34`; la FK a `users` es aditiva respecto a una futura a `employees` |
 | Espacios del centro sin copia por curso: un horario cerrado muestra el nombre actual del aula | Baja | `RN-ACAD-103`, `OPEN-ACAD-33` |
-| `time` sin zona podría chocar con `AR-04` o con la convención de `ADR-029` | Media | `OPEN-ACAD-40`; comprobar `AR-04` antes de escribir la migración; si la rechaza, la ampliación se aprueba antes |
+| `time` sin zona podría chocar con `AR-04` o con la convención de `ADR-029` | Media | Cerrado por `ADR-065`: `AR-04` admite `time` sin cambios |
 | Exponer nombres de profesorado a quien lea horarios | Baja | Es el uso normal de un horario; solo nombre visible, sin datos de contacto; `security-reviewer` |
 
 ### 18.11 Preguntas abiertas de `1.12` (las decide el usuario)
