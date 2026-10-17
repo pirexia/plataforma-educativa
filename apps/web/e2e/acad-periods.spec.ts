@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test'
  * `CA-ACAD-101` (parte de períodos lectivos): flujo contra la **API real**, solo
  * con `E2E_REAL_API=1` (patrón de `e2e/acad-structure.spec.ts`): el script
  * `scripts/e2e-real-api.sh` prepara el centro de pruebas sintético y lo retira
- * al terminar. La parte de escalas de `CA-ACAD-101` es de `1.11d-b`.
+ * al terminar. La parte de escalas de `CA-ACAD-101` (`1.11d-b`) está en `e2e/acad-scales.spec.ts`.
  *
  * Recorrido: en una etapa, crear tres trimestres; intentar un cuarto solapado
  * (el `422` junto a la fecha, con el nombre del período con el que solapa);

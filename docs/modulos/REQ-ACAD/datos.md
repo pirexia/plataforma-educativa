@@ -1,6 +1,6 @@
 # REQ-ACAD · Modelo de datos
 
-> **Estado**: **`1.11d-a` implementada (2026-10-17, rama `feature/REQ-ACAD-1-11d-a-periodos`); `1.11d-b` pendiente.** **APROBADA** (2026-10-10), paso **1.11** (`REQ-ACAD-001`), con las recomendaciones de `funcional.md §15` aprobadas por el usuario y los contratos de `ADR-062`/`ADR-063` (ACEPTADA). **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
+> **Estado**: **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11** (`REQ-ACAD-001`), con las recomendaciones de `funcional.md §15` aprobadas por el usuario y los contratos de `ADR-062`/`ADR-063` (ACEPTADA). **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 >
 > **Resumen**: seis tablas de tenant nuevas, **todas con `academic_year_id`** (`OPEN-ACAD-03` = B): `education_levels`, `courses`, `groups`, `subgroups`, `subjects`, `group_subjects`. Son las **primeras tablas reales con el disparador `academic_year_write_guard`** (`ADR-057`) y las primeras con contenido traducible (`ADR-062`). §1.7-§1.9 describen las tablas de `1.11d`. Ninguna migración altera tablas existentes. Fuera de `acad`, `1.11` cambia dos ayudantes de `TenantMigration` (§7).
 >
@@ -157,7 +157,7 @@ Restricciones: `UNIQUE (tenant_id, academic_year_id, id, scale_type)` (`grading_
 
 ### 1.9 `grading_scale_values` — valores cualitativos o tramos (`1.11d`)
 
-*Forma aprobada*: `academic_year_id`, `grading_scale_id` (FK de tres columnas), `public_id`, `code`, `label_translations`, `position`, `is_passing boolean`, y para `mixta` `range_min`/`range_max numeric(5,2)` sin solape (validación de servidor).
+*Forma aprobada*: `academic_year_id`, `grading_scale_id` (FK de cuatro columnas `(tenant_id, academic_year_id, grading_scale_id, scale_type)`, que arrastra el discriminador), `public_id`, `code`, `label_translations`, `position`, `is_passing boolean`, y para `mixta` `range_min`/`range_max numeric(5,2)` sin solape (validación de servidor).
 
 **Filas hijas y no `jsonb` en la escala** (decisión de esta especificación, razonada):
 
@@ -322,6 +322,8 @@ Datos del centro sin datos personales. Se conservan mientras exista el tenant; b
 |--------|-------|----------------------|
 | `tenantForeignId()` crea el índice `(tenant_id, <columna>)` (#407) | `App\Support\Tenancy\TenantMigration` | Solo en migraciones nuevas. **No retroactivo**: las tablas ya migradas que usaron el ayudante no lo ganan. Se inventarían en el cierre; si alguna lo necesita por una consulta real, issue aparte con su migración (`db-reviewer`) |
 | Ayudante de columna traducible (`ADR-062 §5.1`) | `App\Support\Tenancy\TenantMigration` | Ninguno hasta que lo use una migración; las primeras, las de `acad` |
+
+**`1.11d-b` implementada**: las migraciones `2026_10_17_100200_create_grading_scales_table.php` y `2026_10_17_100300_create_grading_scale_values_table.php` (en `apps/api/app/Modules/Acad/Database/migrations/`) crean las tablas tal como se especifican en §1.8, §1.9 y §3.1 (mismos nombres de restricciones e índices; sin diferencias de esquema respecto a la especificación). Modelos `GradingScale` y `GradingScaleValue` (`Domain/Models`, `Auditable`, alias `grading_scale` y `grading_scale_value`). Verificado por `AcadGradingScalesSchemaTest` (`CA-ACAD-086`, `-089`) y `SchemaInvariantsTest`.
 
 `1.11d` no cambia nada fuera de `acad` en el esquema. Los cambios de `1.11d-a` en `curso` (punto de extensión del cambio de fechas, lectura con bloqueo compartido, filtro por módulo contratado) son código, sin migración (`REQ-CURSO/datos.md`, cabecera).
 

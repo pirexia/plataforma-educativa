@@ -12,11 +12,16 @@
  *
  * Todas llevan `meta.academicYearScoped: true`: el *shell* muestra el selector de
  * curso académico (`§10.2`); en las fichas queda fijo en el curso de la entidad.
+ * `1.11d-b` (`funcional.md §10.5.1`) añade las cuatro rutas de escalas de
+ * calificación con `configuracion_academica.<acción>` (recurso distinto de
+ * `estructura_academica`, `RN-ACAD-50`): lista, alta, ficha y edición; solo la
+ * lista tiene entrada de menú. El alta y la lista muestran el selector de curso
+ * académico; la ficha y la edición lo dejan fijo en el curso de la escala.
  * Con `acad` descontratado, `/me.permissions` deja de incluir sus permisos
  * (inertes, `REQ-PERM §9`): la entrada de menú y las rutas desaparecen
  * (`RMOD-008`). Sin `dashboardBlocks` (`§10.3`).
  */
-import { GraduationCap } from '@lucide/vue'
+import { GraduationCap, ListOrdered } from '@lucide/vue'
 import type { ModuleShell } from '@/navigation/types'
 
 export const shell: ModuleShell = {
@@ -85,6 +90,57 @@ export const shell: ModuleShell = {
         academicYearScoped: true,
       },
     },
+    {
+      path: '/academico/escalas',
+      name: 'acad-grading-scales',
+      component: () => import('./views/GradingScalesView.vue'),
+      meta: {
+        layout: 'app',
+        permissions: ['configuracion_academica.leer'],
+        titleKey: 'acad.scales.title',
+        academicYearScoped: true,
+      },
+    },
+    // `/nueva` antes que `/:publicId`: el segmento fijo gana al paramétrico.
+    {
+      path: '/academico/escalas/nueva',
+      name: 'acad-grading-scale-new',
+      component: () => import('./views/GradingScaleFormView.vue'),
+      meta: {
+        layout: 'app',
+        permissions: ['configuracion_academica.crear'],
+        titleKey: 'acad.form.title.create.scale',
+        breadcrumbKey: 'acad.form.title.create.scale',
+        breadcrumbParent: 'acad-grading-scales',
+        academicYearScoped: true,
+      },
+    },
+    {
+      path: '/academico/escalas/:publicId',
+      name: 'acad-grading-scale-detail',
+      component: () => import('./views/GradingScaleDetailView.vue'),
+      meta: {
+        layout: 'app',
+        permissions: ['configuracion_academica.leer'],
+        titleKey: 'acad.scales.detailTitle',
+        breadcrumbKey: 'acad.scales.detailTitle',
+        breadcrumbParent: 'acad-grading-scales',
+        academicYearScoped: true,
+      },
+    },
+    {
+      path: '/academico/escalas/:publicId/editar',
+      name: 'acad-grading-scale-edit',
+      component: () => import('./views/GradingScaleFormView.vue'),
+      meta: {
+        layout: 'app',
+        permissions: ['configuracion_academica.actualizar'],
+        titleKey: 'acad.form.title.edit.scale',
+        breadcrumbKey: 'acad.form.title.edit.scale',
+        breadcrumbParent: 'acad-grading-scales',
+        academicYearScoped: true,
+      },
+    },
   ],
   navigation: [
     {
@@ -92,6 +148,14 @@ export const shell: ModuleShell = {
       route: 'acad-structure',
       labelKey: 'acad.nav.structure',
       icon: GraduationCap,
+      section: 'administracion',
+      shortcut: false,
+    },
+    {
+      id: 'acad.scales',
+      route: 'acad-grading-scales',
+      labelKey: 'acad.nav.gradingScales',
+      icon: ListOrdered,
       section: 'administracion',
       shortcut: false,
     },

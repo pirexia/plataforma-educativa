@@ -40,7 +40,11 @@ use Illuminate\Support\Facades\DB;
 // única completa y la FK debe seguir resolviendo un padre ya borrado
 // lógicamente en filas históricas. Y, desde 1.11d-a (REQ-ACAD/datos.md §1.7),
 // el destino `(tenant_id, academic_year_id, id)` de las futuras claves
-// foráneas de `CALIF` a `academic_periods`, por el mismo motivo.
+// foráneas de `CALIF` a `academic_periods`, por el mismo motivo. Y, desde 1.11d-b
+// (REQ-ACAD/datos.md §1.8-§1.9), el destino de cuatro columnas
+// `(tenant_id, academic_year_id, id, scale_type)` de la FK de
+// `grading_scale_values` a `grading_scales`, y el `(tenant_id, academic_year_id,
+// id)` de las futuras FK de `CALIF` a `grading_scale_values`.
 test('toda restricción única sobre tabla con borrado lógico es parcial, salvo las excepciones nominales (ADR-034 §6 y los destinos de FK)', function (): void {
     $namedExceptions = [
         'user_invitations_tenant_token_unique',
@@ -55,6 +59,8 @@ test('toda restricción única sobre tabla con borrado lógico es parcial, salvo
         'groups_tenant_course_id_unique',
         'subjects_tenant_course_id_unique',
         'academic_periods_tenant_year_id_unique',
+        'grading_scales_tenant_year_id_type_unique',
+        'grading_scale_values_tenant_year_id_unique',
     ];
 
     $tablesWithDeletedAt = collect(DB::select(<<<'SQL'

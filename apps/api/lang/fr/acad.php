@@ -34,6 +34,12 @@ return [
         'semestre' => 'Semestre',
     ],
 
+    'scale_type' => [
+        'numerica' => 'Numérique',
+        'cualitativa' => 'Qualitative',
+        'mixta' => 'Mixte',
+    ],
+
     'validation' => [
         'code_required' => 'Le code est obligatoire.',
         'invalid_characters' => 'Le texte contient des caractères de contrôle non autorisés, ou des sauts de ligne là où ils ne sont pas admis.',
@@ -54,6 +60,23 @@ return [
         'period_outside_academic_year' => 'La période doit se situer dans l’année scolaire (:academic_year_starts_on – :academic_year_ends_on).',
         'period_overlap' => 'La période chevauche une autre période de la même étape.',
         'period_type_mismatch' => 'Toutes les périodes d’une étape doivent être du même type (:period_type).',
+        'scale_type_invalid' => 'Le type d’échelle n’est pas valide.',
+        'scale_type_immutable' => 'Le type d’une échelle ne peut pas être modifié.',
+        'scale_field_required' => 'Ce champ est obligatoire pour ce type d’échelle.',
+        'not_applicable_to_scale_type' => 'Ce champ n’est pas admis pour ce type d’échelle.',
+        'decimal_invalid' => 'Saisissez un nombre avec un point décimal, de −999.99 à 999.99.',
+        'decimals_invalid' => 'Les décimales doivent être 0, 1 ou 2.',
+        'decimal_precision_exceeded' => 'La valeur a plus de décimales que l’échelle n’en admet (:decimals).',
+        'range_invalid' => 'Le minimum doit être inférieur au maximum.',
+        'passing_out_of_range' => 'La note minimale de réussite doit être comprise entre le minimum et le maximum.',
+        'values_required' => 'L’échelle doit comporter au moins une valeur.',
+        'values_too_many' => 'Une échelle admet au maximum :max valeurs.',
+        'is_passing_required' => 'Indiquez si cette valeur correspond à une réussite.',
+        'passing_value_required' => 'Au moins une valeur doit correspondre à une réussite.',
+        'value_not_in_scale' => 'La valeur n’appartient pas à cette échelle.',
+        'band_range_invalid' => 'La tranche doit se situer dans l’échelle et son début ne peut pas dépasser sa fin.',
+        'bands_not_contiguous' => 'Les tranches doivent couvrir toute l’échelle, dans l’ordre, sans trou ni chevauchement.',
+        'passing_threshold_inside_band' => 'La note minimale de réussite doit coïncider avec le début d’une tranche.',
     ],
 
     'conflict' => [

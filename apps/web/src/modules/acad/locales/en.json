@@ -6,7 +6,9 @@
       "backToLevel": "Back to stage {code}",
       "backToLevelGeneric": "Back to the stage",
       "backToCourse": "Back to course {code}",
-      "backToCourseGeneric": "Back to the course"
+      "backToCourseGeneric": "Back to the course",
+      "gradingScales": "Grading scales",
+      "backToScales": "Back to grading scales"
     },
     "readOnly": "This academic year is read-only: its structure cannot be created, changed or deleted.",
     "fields": {
@@ -18,7 +20,17 @@
       "actions": "Actions",
       "periodType": "Period type",
       "startsOn": "Start",
-      "endsOn": "End"
+      "endsOn": "End",
+      "scaleType": "Scale type",
+      "minValue": "Minimum",
+      "maxValue": "Maximum",
+      "decimals": "Decimals",
+      "passingMinValue": "Minimum passing grade",
+      "label": "Label",
+      "isPassing": "Is a pass",
+      "rangeMin": "From",
+      "rangeMax": "To",
+      "range": "Range"
     },
     "stage": {
       "infantil": "Early Childhood Education",
@@ -115,7 +127,8 @@
           "subject": "New subject",
           "group": "New group",
           "subgroup": "New subgroup",
-          "period": "New period"
+          "period": "New period",
+          "scale": "New scale"
         },
         "edit": {
           "level": "Edit stage",
@@ -123,7 +136,8 @@
           "subject": "Edit subject",
           "group": "Edit group",
           "subgroup": "Edit subgroup",
-          "period": "Edit period"
+          "period": "Edit period",
+          "scale": "Edit scale"
         }
       },
       "errors": {
@@ -156,6 +170,10 @@
         "period": {
           "title": "Delete period {name}",
           "description": "The period is deleted from the stage."
+        },
+        "scale": {
+          "title": "Delete scale {code}",
+          "description": "The scale and all its values are deleted."
         }
       }
     },
@@ -178,7 +196,10 @@
       "subjectsAssigned": "Group subjects updated.",
       "periodCreated": "Period created.",
       "periodUpdated": "Period updated.",
-      "periodDeleted": "Period deleted."
+      "periodDeleted": "Period deleted.",
+      "scaleCreated": "Scale created.",
+      "scaleUpdated": "Scale updated.",
+      "scaleDeleted": "Scale deleted."
     },
     "errors": {
       "unexpected": "The action could not be completed. Please try again.",
@@ -200,6 +221,34 @@
       "deleteFor": "Delete period {name}",
       "typePlaceholder": "Choose a period type"
     },
-    "readOnlyConfig": "This academic year is read-only: its periods and scales cannot be created, changed or deleted."
+    "readOnlyConfig": "This academic year is read-only: its periods and scales cannot be created, changed or deleted.",
+    "scaleType": {
+      "numerica": "Numeric",
+      "cualitativa": "Qualitative",
+      "mixta": "Mixed"
+    },
+    "scales": {
+      "title": "Grading scales",
+      "intro": "Scales used for grading in the selected academic year.",
+      "caption": "Scales of the academic year",
+      "new": "New scale",
+      "empty": "This academic year has no scales",
+      "values": "Values",
+      "bands": "Bands",
+      "addValue": "Add value",
+      "addBand": "Add band",
+      "remove": "Remove",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "itemLegend": "Value {n}",
+      "moved": "{label} now in position {n}",
+      "passing": "Pass",
+      "failing": "Fail",
+      "typeLocked": "The type cannot be changed: create a new scale for another type.",
+      "detailTitle": "Scale",
+      "rangeValue": "From {min} to {max}",
+      "valuesCount": "No values | {count} value | {count} values",
+      "passingFrom": "From {value}"
+    }
   }
 }

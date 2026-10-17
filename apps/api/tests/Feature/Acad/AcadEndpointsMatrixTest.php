@@ -59,14 +59,15 @@ function acadEndpoints(array $t, string $yearPublicId): array
     ];
 }
 
-test('api.md §2 y §11.3: son exactamente 32 endpoints (27 de la estructura con estructura_academica y 5 de períodos con configuracion_academica) con autenticación, module-enabled:acad y permission: en ese orden', function (): void {
+test('api.md §2 y §11.3: son exactamente 37 endpoints (27 de la estructura con estructura_academica, 5 de períodos y 5 de escalas con configuracion_academica) con autenticación, module-enabled:acad y permission: en ese orden', function (): void {
     $routes = collect(Route::getRoutes()->getRoutes())->filter(fn ($r) => str_starts_with((string) $r->getName(), 'acad.'));
     $periods = $routes->filter(fn ($r) => str_starts_with((string) $r->getName(), 'acad.academic-periods.'));
+    $scales = $routes->filter(fn ($r) => str_starts_with((string) $r->getName(), 'acad.grading-scales.'));
 
-    expect($routes)->toHaveCount(32)->and($periods)->toHaveCount(5);
+    expect($routes)->toHaveCount(37)->and($periods)->toHaveCount(5)->and($scales)->toHaveCount(5);
 
     foreach ($routes as $route) {
-        $resource = $periods->contains($route) ? 'configuracion_academica' : 'estructura_academica';
+        $resource = $periods->contains($route) || $scales->contains($route) ? 'configuracion_academica' : 'estructura_academica';
         $middleware = array_values(array_filter($route->gatherMiddleware(), 'is_string'));
         $permission = collect($middleware)->first(fn (string $m) => str_starts_with($m, "permission:{$resource}."));
 

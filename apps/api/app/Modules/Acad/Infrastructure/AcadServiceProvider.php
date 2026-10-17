@@ -5,6 +5,8 @@ namespace App\Modules\Acad\Infrastructure;
 use App\Modules\Acad\Domain\Models\AcademicPeriod;
 use App\Modules\Acad\Domain\Models\Course;
 use App\Modules\Acad\Domain\Models\EducationLevel;
+use App\Modules\Acad\Domain\Models\GradingScale;
+use App\Modules\Acad\Domain\Models\GradingScaleValue;
 use App\Modules\Acad\Domain\Models\Group;
 use App\Modules\Acad\Domain\Models\GroupSubject;
 use App\Modules\Acad\Domain\Models\Subgroup;
@@ -15,11 +17,11 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * ADR-034 §2, §5, §7 y REQ-ACAD/funcional.md §8 (pasos 1.11-b y 1.11d-a):
+ * ADR-034 §2, §5, §7 y REQ-ACAD/funcional.md §8 (pasos 1.11-b, 1.11d-a y 1.11d-b):
  * descubierto por ModuleServiceProviderDiscovery, sin registro a mano. Declara
  * el descriptor (no esencial, depende de `curso`: OPEN-ACAD-10), el catálogo de
  * permisos de `permisos.md §2` y `§2.2` —la fuente de verdad, INV-007— y el
- * *morph map* de sus siete modelos auditables (`AR-06`, `datos.md §4`); carga
+ * *morph map* de sus nueve modelos auditables (`AR-06`, `datos.md §4`); carga
  * las migraciones del módulo (`AR-03`) y registra en `curso` la validación del
  * cambio de fechas del curso (`RN-ACAD-62`, `OPEN-ACAD-24` = B).
  *
@@ -46,6 +48,8 @@ class AcadServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             'subject' => Subject::class,
             'group_subject' => GroupSubject::class,
             'academic_period' => AcademicPeriod::class,
+            'grading_scale' => GradingScale::class,
+            'grading_scale_value' => GradingScaleValue::class,
         ]);
 
         // RN-ACAD-62: «el cambio de fechas no deja fuera ningún período lectivo

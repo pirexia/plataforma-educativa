@@ -1,6 +1,6 @@
 # SYSADMIN.md
 
-> **Versión 0.8.10** · 2026-10-12
+> **Versión 0.8.11** · 2026-10-17
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` sección 6), no solo al final. Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`); el alojamiento del piloto y de producción se documentará aquí cuando `OPEN-11` se resuelva.
 
 ---
@@ -342,12 +342,12 @@ La entrega `1.9c` incluye una migración **de datos** (`2026_10_02_100200_normal
 
 Al desplegar `1.11-a` sobre una base ya migrada, `php artisan migrate` crea hasta 18 índices `(tenant_id, columna)` con `CREATE INDEX CONCURRENTLY` (no bloquea escrituras; no se ejecuta en transacción). Es idempotente y, si se interrumpe, basta repetir el comando; lanzar con `php artisan migrate --isolated` (nunca dos `migrate` a la vez). Una instalación nueva no necesita nada. Detalle y candidatos a retirar en `docs/modulos/REQ-ACAD/operacion.md §6.2`. Las bases de test por proceso (`ADR-060`) se recrean con el script de §2b para recibirla.
 
-## 2g. Módulo `acad`: estructura académica y períodos lectivos (`REQ-ACAD-001`, `1.11-b` y `1.11d-a`)
+## 2g. Módulo `acad`: estructura académica, períodos lectivos y escalas de calificación (`REQ-ACAD-001`, `1.11-b`, `1.11d-a` y `1.11d-b`)
 
-Módulo **no esencial** (`depends_on ['curso']`): ningún centro lo tiene hasta que el Super Administrador lo contrata. Siete tablas nuevas, aditivas (las seis de `1.11-b` más `academic_periods`, de `1.11d-a`, con su migración `2026_10_17_100100_create_academic_periods_table.php`); detalle en `docs/modulos/REQ-ACAD/operacion.md`.
+Módulo **no esencial** (`depends_on ['curso']`): ningún centro lo tiene hasta que el Super Administrador lo contrata. Nueve tablas nuevas, aditivas (las seis de `1.11-b`, `academic_periods` de `1.11d-a`, con su migración `2026_10_17_100100_create_academic_periods_table.php`, y `grading_scales` y `grading_scale_values` de `1.11d-b`, con `2026_10_17_100200_create_grading_scales_table.php` y `2026_10_17_100300_create_grading_scale_values_table.php`); detalle en `docs/modulos/REQ-ACAD/operacion.md`.
 
 ```bash
-# 1. Migraciones del módulo (siete tablas, con el disparador academic_year_write_guard y la RLS).
+# 1. Migraciones del módulo (nueve tablas, con el disparador academic_year_write_guard y la RLS).
 php artisan migrate --database=pgsql_owner
 # 2. Registra el módulo y sus ocho permisos (estructura_academica y configuracion_academica,
 #    cada uno con leer|crear|actualizar|eliminar).
@@ -362,7 +362,7 @@ php artisan acad:grant-structure-permissions
 
 Los centros **nuevos** reciben las concesiones de `tenant:provision-defaults` (`administrador_centro` las cuatro acciones de `estructura_academica` y las cuatro de `configuracion_academica`; `direccion`, `secretaria`, `docente`, `tutor_grupo` y `orientador`, solo `leer` de cada uno de los dos recursos). Sin `acad` contratado esos permisos son inertes: las pantallas y las rutas responden `403 module-disabled`. **Orden**: migrar → `sync-registry` → contratar → siembra. En un centro con `acad` sin contratar **sí se pueden** asignar y clonar los roles predefinidos (`RPERM-013` acotada, `docs/modulos/REQ-PERM/funcional.md §8`).
 
-Síntomas: `403` en todas las pantallas de estructura = módulo sin contratar (o siembra pendiente en un centro antiguo); `404 curso.no_active_year` al abrir «Estructura académica» = sin curso activo (elegir curso en el selector); `409 academic-year-closed` al editar = curso cerrado; `403` en la sección «Períodos lectivos» (o en `/academic-periods`) teniendo `estructura_academica` = falta `configuracion_academica.leer`: son recursos independientes y no se heredan (`RN-ACAD-50`), basta con ejecutar `acad:grant-structure-permissions` en un centro anterior a `1.11d-a`.
+Síntomas: `403` en todas las pantallas de estructura = módulo sin contratar (o siembra pendiente en un centro antiguo); `404 curso.no_active_year` al abrir «Estructura académica» = sin curso activo (elegir curso en el selector); `409 academic-year-closed` al editar = curso cerrado; `403` en la sección «Períodos lectivos» (o en `/academic-periods`) teniendo `estructura_academica` = falta `configuracion_academica.leer` (lo mismo en «Escalas de calificación» y en `/grading-scales`): son recursos independientes y no se heredan (`RN-ACAD-50`), basta con ejecutar `acad:grant-structure-permissions` en un centro anterior a `1.11d-a`.
 
 **Reversión**: desplegar la imagen anterior. Las migraciones **no se revierten** (aditivas, la versión anterior no usa las tablas y su `down()` borraría datos de estructura); el siguiente `sync-registry` de la versión anterior marca `acad` y sus permisos con `retired_at` (concesiones inertes). Procedimiento a probar antes de producción (`CLAUDE.md §9`): `RUNBOOK.md`.
 

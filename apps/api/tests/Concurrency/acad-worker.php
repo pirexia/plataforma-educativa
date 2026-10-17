@@ -20,6 +20,7 @@
  *   delete-period <periodPublicId> <gate|->
  *   delete-level  <levelPublicId> <gate|->
  *   create-course <levelPublicId> <code> <gate|->
+ *   create-scale  <yearPublicId> <code>    (1.11d-b, CA-ACAD-084: escala numérica 0-10)
  *   patch-year    <yearPublicId> <startsOn|-> <endsOn|-> <gate|->   (PATCH de fechas con la
  *                 validación REAL de acad; con gate, una validación de prueba posterior a la
  *                 de acad espera el bloqueo con el FOR UPDATE del curso retenido)
@@ -29,6 +30,7 @@ use App\Models\User;
 use App\Modules\Acad\Application\AcademicPeriodService;
 use App\Modules\Acad\Application\CourseService;
 use App\Modules\Acad\Application\EducationLevelService;
+use App\Modules\Acad\Application\GradingScaleService;
 use App\Modules\Acad\Application\GroupService;
 use App\Modules\Acad\Domain\Models\AcademicPeriod;
 use App\Modules\Acad\Domain\Models\Course;
@@ -131,6 +133,19 @@ $result = app(TenantContext::class)->runFor((int) $tenantId, function () use ($o
                     $course = app(CourseService::class)->create(['education_level' => $level, 'code' => $code, 'name_translations' => ['es-ES' => "Curso {$code}"], 'position' => null], $actor());
 
                     return ['outcome' => 'ok', 'public_id' => $course->public_id];
+
+                case 'create-scale':
+                    [$year, $code] = $args;
+                    $scale = app(GradingScaleService::class)->create($year, 'numerica', [
+                        'code' => $code,
+                        'name_translations' => ['es-ES' => "Escala {$code}"],
+                        'min_value' => '0',
+                        'max_value' => '10',
+                        'decimals' => 2,
+                        'passing_min_value' => '5',
+                    ], $actor());
+
+                    return ['outcome' => 'ok', 'public_id' => $scale->public_id];
 
                 case 'patch-year':
                     [$publicId, $startsOn, $endsOn, $gate] = $args;

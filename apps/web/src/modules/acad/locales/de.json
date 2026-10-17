@@ -6,7 +6,9 @@
       "backToLevel": "Zurück zur Stufe {code}",
       "backToLevelGeneric": "Zurück zur Stufe",
       "backToCourse": "Zurück zum Jahrgang {code}",
-      "backToCourseGeneric": "Zurück zum Jahrgang"
+      "backToCourseGeneric": "Zurück zum Jahrgang",
+      "gradingScales": "Bewertungsskalen",
+      "backToScales": "Zurück zu den Bewertungsskalen"
     },
     "readOnly": "Dieses Schuljahr ist schreibgeschützt: Seine Struktur kann nicht angelegt, geändert oder gelöscht werden.",
     "fields": {
@@ -18,7 +20,17 @@
       "actions": "Aktionen",
       "periodType": "Art des Zeitraums",
       "startsOn": "Beginn",
-      "endsOn": "Ende"
+      "endsOn": "Ende",
+      "scaleType": "Skalenart",
+      "minValue": "Minimum",
+      "maxValue": "Maximum",
+      "decimals": "Nachkommastellen",
+      "passingMinValue": "Mindestnote zum Bestehen",
+      "label": "Bezeichnung",
+      "isPassing": "Bestanden",
+      "rangeMin": "Von",
+      "rangeMax": "Bis",
+      "range": "Bereich"
     },
     "stage": {
       "infantil": "Frühkindliche Bildung",
@@ -115,7 +127,8 @@
           "subject": "Neues Fach",
           "group": "Neue Gruppe",
           "subgroup": "Neue Untergruppe",
-          "period": "Neuer Zeitraum"
+          "period": "Neuer Zeitraum",
+          "scale": "Neue Skala"
         },
         "edit": {
           "level": "Stufe bearbeiten",
@@ -123,7 +136,8 @@
           "subject": "Fach bearbeiten",
           "group": "Gruppe bearbeiten",
           "subgroup": "Untergruppe bearbeiten",
-          "period": "Zeitraum bearbeiten"
+          "period": "Zeitraum bearbeiten",
+          "scale": "Skala bearbeiten"
         }
       },
       "errors": {
@@ -156,6 +170,10 @@
         "period": {
           "title": "Zeitraum {name} löschen",
           "description": "Der Zeitraum wird aus der Stufe gelöscht."
+        },
+        "scale": {
+          "title": "Skala {code} löschen",
+          "description": "Die Skala und alle ihre Werte werden gelöscht."
         }
       }
     },
@@ -178,7 +196,10 @@
       "subjectsAssigned": "Fächer der Gruppe aktualisiert.",
       "periodCreated": "Zeitraum angelegt.",
       "periodUpdated": "Zeitraum aktualisiert.",
-      "periodDeleted": "Zeitraum gelöscht."
+      "periodDeleted": "Zeitraum gelöscht.",
+      "scaleCreated": "Skala angelegt.",
+      "scaleUpdated": "Skala aktualisiert.",
+      "scaleDeleted": "Skala gelöscht."
     },
     "errors": {
       "unexpected": "Die Aktion konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
@@ -200,6 +221,34 @@
       "deleteFor": "Zeitraum {name} löschen",
       "typePlaceholder": "Art des Zeitraums wählen"
     },
-    "readOnlyConfig": "Dieses Schuljahr ist schreibgeschützt: Seine Zeiträume und Skalen können nicht angelegt, geändert oder gelöscht werden."
+    "readOnlyConfig": "Dieses Schuljahr ist schreibgeschützt: Seine Zeiträume und Skalen können nicht angelegt, geändert oder gelöscht werden.",
+    "scaleType": {
+      "numerica": "Numerisch",
+      "cualitativa": "Qualitativ",
+      "mixta": "Gemischt"
+    },
+    "scales": {
+      "title": "Bewertungsskalen",
+      "intro": "Skalen, mit denen im ausgewählten Schuljahr bewertet wird.",
+      "caption": "Skalen des Schuljahres",
+      "new": "Neue Skala",
+      "empty": "Dieses Schuljahr hat keine Skalen",
+      "values": "Werte",
+      "bands": "Bereiche",
+      "addValue": "Wert hinzufügen",
+      "addBand": "Bereich hinzufügen",
+      "remove": "Entfernen",
+      "moveUp": "Nach oben",
+      "moveDown": "Nach unten",
+      "itemLegend": "Wert {n}",
+      "moved": "{label} jetzt an Position {n}",
+      "passing": "Bestanden",
+      "failing": "Nicht bestanden",
+      "typeLocked": "Die Art kann nicht geändert werden: Legen Sie für eine andere Art eine neue Skala an.",
+      "detailTitle": "Skala",
+      "rangeValue": "Von {min} bis {max}",
+      "valuesCount": "Keine Werte | {count} Wert | {count} Werte",
+      "passingFrom": "Ab {value}"
+    }
   }
 }

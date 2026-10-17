@@ -18,5 +18,8 @@ export function useLabels() {
   return {
     stageLabel: (code: string) => label('acad.stage', code),
     regimeLabel: (code: string) => label('acad.regime', code),
+    /** `CA-ACAD-100`: `period_type` y `scale_type` viajan sin traducir; sin clave, el código en crudo. */
+    periodTypeLabel: (code: string) => label('acad.periodType', code),
+    scaleTypeLabel: (code: string) => label('acad.scaleType', code),
   }
 }

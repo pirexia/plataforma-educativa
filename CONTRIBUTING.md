@@ -1,6 +1,6 @@
 # CONTRIBUTING.md
 
-> **Versión 0.3.0** · 2026-10-10
+> **Versión 0.3.1** · 2026-10-17
 > Estilo de código, flujo de trabajo Git y revisión de código. Extraído de `CLAUDE.md`, que es la fuente de verdad si algo difiere.
 
 ---
@@ -58,6 +58,7 @@ Larastan infiere las propiedades mágicas de un modelo Eloquent escaneando `Sche
    php artisan ide-helper:models --nowrite
    ```
 2. **Nunca uses `--write` ni `--write-mixin`**: `--write` duplica el docblock completo en cada modelo (diverge del esquema real en cuanto alguien lo edita a mano); `--write-mixin` reescribe el docblock *entero* del modelo con su propio serializador y puede corromper texto existente (ocurrió en la práctica: partió "0..1" en "0." / ".1" en un comentario de `Person.php`). El fichero generado (`_ide_helper_models.php`, en la raíz de `apps/api`) se **commitea tal cual** — es la única forma de que Larastan lo use sin depender de una base de datos en CI (el job `static-analysis` de `ci-api.yml` no tiene servicio de PostgreSQL). Riesgo aceptado: si alguien migra sin regenerar, el fichero queda desincronizado hasta el siguiente `phpstan analyse` local que lo note — no hay comprobación automática de esa divergencia todavía.
+   **Aviso (verificado el 2026-10-17, `1.11d-b`)**: con los modelos ya anotados con `@mixin IdeHelperX`, `ide-helper:models --nowrite` **ya no reproduce** el formato del `_ide_helper_models.php` commiteado. Contrastado generando a un fichero aparte con `--filename`: el generador emite ahora `@mixin IdeHelperX` en el docblock y `class X extends \Eloquent {}` (documenta la clase real), mientras que el commiteado trae `@mixin \Eloquent` y `#[\AllowDynamicProperties] class IdeHelperX {}`; la diferencia es de unas 600 líneas, en buena parte formato, y también arrastra propiedades y relaciones de modelos que el fichero commiteado no tiene. Por eso **no sobrescribas** el fichero con la salida directa: añade a mano el bloque de los modelos nuevos con el formato del commiteado, o regenera a un fichero temporal (`--filename=<ruta fuera del repositorio>`) y copia solo lo que corresponda. Queda por decidir si se regenera entero en un cambio aparte o se ajusta el procedimiento.
 3. Cada modelo real lleva una línea `@mixin IdeHelperNombreDelModelo` en su propio docblock (footprint mínimo, escrito a mano una vez por modelo — no lo genera `--write-mixin`, ver punto 2). Es lo único que hace que PHPStan conecte las propiedades del fichero generado con la clase real: sin ese `@mixin`, `scanFiles: [_ide_helper_models.php]` en `phpstan.neon` no tiene ningún efecto (los `class IdeHelperX {}` quedan sueltos, sin relación con `App\Models\X`). Un modelo nuevo necesita esa línea añadida a mano una vez; el contenido de sus propiedades se regenera solo.
 
 ### 3.2. Ejecutar la suite de tests (`ADR-060`)

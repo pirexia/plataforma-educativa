@@ -1,6 +1,6 @@
 <?php
 
-// Rutas de REQ-ACAD (pasos 1.11-b y 1.11d-a), documentadas en
+// Rutas de REQ-ACAD (pasos 1.11-b, 1.11d-a y 1.11d-b), documentadas en
 // apps/api/openapi/paths/acad.yaml (docs/modulos/REQ-ACAD/api.md §2 y §11).
 // Requerido desde routes/api-v1.php, ya dentro del grupo
 // prefix('v1')->middleware(['resolve-tenant', 'resolve-locale', ...]).
@@ -11,12 +11,13 @@
 // petición anónima sea 401 aunque el módulo no esté contratado; no se usa el
 // alias `auth` porque Laravel lo ordena antes de `resolve-tenant` (500 real). Los permisos son
 // del recurso `estructura_academica` (las 27 rutas de la estructura) o de `configuracion_academica`
-// (períodos lectivos y, en 1.11d-b, escalas), ámbito `todos` (permisos.md §2 y §2.2).
+// (períodos lectivos y escalas), ámbito `todos` (permisos.md §2 y §2.2).
 
 use App\Http\Middleware\RequireAuthenticatedUser;
 use App\Modules\Acad\Http\Controllers\AcademicPeriodsController;
 use App\Modules\Acad\Http\Controllers\CoursesController;
 use App\Modules\Acad\Http\Controllers\EducationLevelsController;
+use App\Modules\Acad\Http\Controllers\GradingScalesController;
 use App\Modules\Acad\Http\Controllers\GroupsController;
 use App\Modules\Acad\Http\Controllers\GroupSubjectsController;
 use App\Modules\Acad\Http\Controllers\SubgroupsController;
@@ -57,4 +58,10 @@ Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:acad'])->gro
     Route::get('/academic-periods/{publicId}', [AcademicPeriodsController::class, 'show'])->middleware('permission:configuracion_academica.leer')->name('acad.academic-periods.show');
     Route::patch('/academic-periods/{publicId}', [AcademicPeriodsController::class, 'update'])->middleware('permission:configuracion_academica.actualizar')->name('acad.academic-periods.update');
     Route::delete('/academic-periods/{publicId}', [AcademicPeriodsController::class, 'destroy'])->middleware('permission:configuracion_academica.eliminar')->name('acad.academic-periods.destroy');
+    // 1.11d-b (api.md §11): escalas de calificación con sus valores dentro (RN-ACAD-80), recurso `configuracion_academica`.
+    Route::get('/grading-scales', [GradingScalesController::class, 'index'])->middleware('permission:configuracion_academica.leer')->name('acad.grading-scales.index');
+    Route::post('/grading-scales', [GradingScalesController::class, 'store'])->middleware('permission:configuracion_academica.crear')->name('acad.grading-scales.store');
+    Route::get('/grading-scales/{publicId}', [GradingScalesController::class, 'show'])->middleware('permission:configuracion_academica.leer')->name('acad.grading-scales.show');
+    Route::patch('/grading-scales/{publicId}', [GradingScalesController::class, 'update'])->middleware('permission:configuracion_academica.actualizar')->name('acad.grading-scales.update');
+    Route::delete('/grading-scales/{publicId}', [GradingScalesController::class, 'destroy'])->middleware('permission:configuracion_academica.eliminar')->name('acad.grading-scales.destroy');
 });
