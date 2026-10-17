@@ -4,9 +4,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Symfony\Component\Yaml\Yaml;
 use Tests\Support\AcadApiHelpers as Api;
+use Tests\Support\AcadScaleHelpers as Scales;
 
 // CLAUDE.md §10 («el endpoint está documentado en OpenAPI»), REQ-ACAD/api.md
-// §10, INV-006, INV-015. Los 32 endpoints de api.md §2 y §11.3 (períodos) documentados, y solo
+// §10, INV-006, INV-015. Los 37 endpoints de api.md §2 y §11.3 (períodos y escalas) documentados, y solo
 // ellos; sus referencias resuelven; los esquemas describen lo que la API
 // devuelve de verdad.
 
@@ -31,7 +32,7 @@ function acadDocumentedOperations(): array
     return $documented;
 }
 
-test('REQ-ACAD-001 api.md §10, §11.8: los 32 endpoints (27 de la estructura y 5 de períodos lectivos) están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
+test('REQ-ACAD-001 api.md §10, §11.8: los 37 endpoints (27 de la estructura, 5 de períodos lectivos y 5 de escalas de calificación) están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
     $root = Yaml::parseFile(base_path('openapi.yaml'));
     $paths = Yaml::parseFile(base_path('openapi/paths/acad.yaml'))['paths'];
 
@@ -48,7 +49,7 @@ test('REQ-ACAD-001 api.md §10, §11.8: los 32 endpoints (27 de la estructura y 
     }
 
     sort($registered);
-    expect(acadDocumentedOperations())->toHaveCount(32)->and($registered)->toBe(acadDocumentedOperations());
+    expect(acadDocumentedOperations())->toHaveCount(37)->and($registered)->toBe(acadDocumentedOperations());
 });
 
 test('REQ-ACAD-001 api.md §10: toda referencia $ref de acad.yaml resuelve en components.yaml', function (): void {
@@ -126,4 +127,52 @@ test('REQ-ACAD-001 api.md §1: los esquemas de OpenAPI describen exactamente las
             ->and($schemas[$schema]['required'])->toEqualCanonicalizing(array_keys($body), $schema)
             ->and(array_keys($body))->not->toContain('id', 'tenant_id', 'created_by', 'updated_by', 'deleted_at');
     }
+});
+
+test('REQ-ACAD-001 api.md §11.8 (1.11d-b): GradingScale y GradingScaleValue describen exactamente lo que devuelve la API; enumerado extensible, DecimalString, lista blanca de sort y cuerpos de alta y PATCH', function (): void {
+    [$tenant, $admin, $year] = Api::setup('acad-openapi-scales', endsOn: '2027-08-31');
+    $components = Yaml::parseFile(base_path('openapi/components.yaml'))['components'];
+    $schemas = $components['schemas'];
+    $paths = Yaml::parseFile(base_path('openapi/paths/acad.yaml'))['paths'];
+
+    foreach ([Scales::qualitative($year->public_id), Scales::mixed($year->public_id), Scales::numeric($year->public_id)] as $body) {
+        $scale = Scales::create($tenant, $admin, $body);
+
+        expect(array_keys($scale))->toEqualCanonicalizing(array_keys($schemas['GradingScale']['properties']), $body['scale_type'])
+            ->and($schemas['GradingScale']['required'])->toEqualCanonicalizing(array_keys($scale))
+            ->and(array_keys($scale))->not->toContain('id', 'tenant_id', 'academic_year_id', 'created_by', 'updated_by', 'deleted_at');
+
+        foreach ($scale['values'] as $value) {
+            expect(array_keys($value))->toEqualCanonicalizing(array_keys($schemas['GradingScaleValue']['properties']))
+                ->and($schemas['GradingScaleValue']['required'])->toEqualCanonicalizing(array_keys($value))
+                ->and(array_keys($value))->not->toContain('id', 'scale_type', 'grading_scale_id', 'academic_year_id');
+        }
+    }
+
+    expect($schemas['GradingScaleType']['x-extensible-enum'])->toBeTrue()
+        ->and($schemas['GradingScaleType']['enum'])->toBe(['numerica', 'cualitativa', 'mixta'])
+        ->and($schemas['DecimalString']['pattern'])->toBe('^-?\d{1,3}(\.\d{1,2})?$')
+        ->and(array_column($schemas['DecimalInput']['oneOf'], 'type'))->toContain('number')
+        ->and($schemas['GradingScale']['properties']['name']['readOnly'])->toBeTrue()
+        ->and($schemas['GradingScaleValue']['properties']['label']['readOnly'])->toBeTrue()
+        ->and($schemas['GradingScaleValue']['properties']['is_passing']['readOnly'])->toBeTrue()
+        ->and($schemas['GradingScaleCreate']['properties']['values']['maxItems'])->toBe(100)
+        ->and($schemas['GradingScaleUpdate']['properties']['values']['maxItems'])->toBe(100)
+        ->and($schemas['GradingScaleValuePatch']['properties'])->toHaveKey('public_id')
+        ->and($schemas['GradingScaleValueCreate']['properties'])->not->toHaveKey('public_id')
+        ->and($schemas['GradingScaleValueCreate']['properties'])->not->toHaveKey('position')
+        ->and($schemas['GradingScaleValuePatch']['properties']['label_translations']['$ref'])->toBe('#/components/schemas/TranslationsPatchMap')
+        ->and($schemas['GradingScaleValueCreate']['properties']['label_translations']['$ref'])->toBe('#/components/schemas/TranslationsMap')
+        ->and($components['parameters']['GradingScaleSortParam']['schema']['enum'])->toBe(['code', '-code']);
+
+    $operations = ['listGradingScales' => ['/api/v1/grading-scales', 'get'], 'createGradingScale' => ['/api/v1/grading-scales', 'post'], 'getGradingScale' => ['/api/v1/grading-scales/{publicId}', 'get'], 'updateGradingScale' => ['/api/v1/grading-scales/{publicId}', 'patch'], 'deleteGradingScale' => ['/api/v1/grading-scales/{publicId}', 'delete']];
+
+    foreach ($operations as $id => [$uri, $method]) {
+        expect($paths[$uri][$method]['operationId'])->toBe($id)
+            ->and($paths[$uri][$method]['tags'])->toBe(['Acad / Configuración académica']);
+    }
+
+    $filter = collect($paths['/api/v1/grading-scales']['get']['parameters'])->firstWhere('name', 'scale_type');
+
+    expect($filter['style'])->toBe('form')->and($filter['explode'])->toBeFalse();
 });

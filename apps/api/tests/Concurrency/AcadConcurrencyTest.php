@@ -25,7 +25,7 @@ afterEach(function (): void {
     foreach (DB::connection('pgsql_platform')->table('tenants')->pluck('id') as $tenantId) {
         $owner->statement("select set_config('app.tenant_id', ?, false)", [(string) $tenantId]);
         // El propietario está exento del bloqueo de cursos cerrados (ADR-057 §5.2).
-        foreach (['academic_periods', 'group_subjects', 'subgroups', 'groups', 'subjects', 'courses', 'education_levels'] as $table) {
+        foreach (['grading_scale_values', 'grading_scales', 'academic_periods', 'group_subjects', 'subgroups', 'groups', 'subjects', 'courses', 'education_levels'] as $table) {
             $owner->table($table)->delete();
         }
     }
@@ -151,6 +151,37 @@ test('CA-ACAD-004 RN-ACAD-01: dos altas simultáneas de un grupo con el mismo c�
         ->and($conflicts[0]['code'])->toBe('acad.validation.code_taken');
 
     $count = app(TenantContext::class)->runFor($tenant->id, fn () => DB::table('groups')->where('code', 'CARRERA')->whereNull('deleted_at')->count());
+
+    expect($count)->toBe(1);
+});
+
+test('CA-ACAD-084 RN-ACAD-71: dos altas simultáneas de una escala con el mismo código en el mismo curso académico: exactamente una 201 y la otra 422 code_taken, nunca un 500', function (): void {
+    [$tenant, $admin, $year] = Api::setup('acad-084c');
+
+    $holder = acadPdo();
+    $holder->beginTransaction();
+    // Como CA-ACAD-004: ambos hijos pasan la comprobación previa y esperan para INSERTAR.
+    $holder->exec('lock table grading_scales in share row exclusive mode');
+
+    $a = acadSpawn($tenant->id, 'create-scale', $year->public_id, 'CARRERA');
+    $b = acadSpawn($tenant->id, 'create-scale', $year->public_id, 'CARRERA');
+
+    try {
+        acadWaitBlocked(2, [$a, $b]);
+    } finally {
+        $holder->rollBack();
+    }
+
+    $results = [acadCollect($a), acadCollect($b)];
+    $ok = array_values(array_filter($results, fn (array $r): bool => $r['outcome'] === 'ok'));
+    $conflicts = array_values(array_filter($results, fn (array $r): bool => $r['outcome'] === 'api_error'));
+
+    expect($ok)->toHaveCount(1)
+        ->and($conflicts)->toHaveCount(1)
+        ->and($conflicts[0]['status'])->toBe(422)
+        ->and($conflicts[0]['code'])->toBe('acad.validation.code_taken');
+
+    $count = app(TenantContext::class)->runFor($tenant->id, fn () => DB::table('grading_scales')->where('code', 'CARRERA')->whereNull('deleted_at')->count());
 
     expect($count)->toBe(1);
 });

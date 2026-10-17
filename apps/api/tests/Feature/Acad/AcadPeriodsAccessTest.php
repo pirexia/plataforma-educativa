@@ -91,7 +91,7 @@ test('CA-ACAD-093 RN-ACAD-50: estructura_academica no da acceso a los períodos,
 
     // Los 27 endpoints de la estructura: el permiso se comprueba antes que nada, así que basta cualquier identificador.
     $routes = collect(Route::getRoutes()->getRoutes())
-        ->filter(fn ($r) => str_starts_with((string) $r->getName(), 'acad.') && ! str_starts_with((string) $r->getName(), 'acad.academic-periods.'));
+        ->filter(fn ($r) => str_starts_with((string) $r->getName(), 'acad.') && ! str_starts_with((string) $r->getName(), 'acad.academic-periods.') && ! str_starts_with((string) $r->getName(), 'acad.grading-scales.'));
 
     expect($routes)->toHaveCount(27);
 

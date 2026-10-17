@@ -238,6 +238,158 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
+    DecimalString:
+      type: string
+      description: >
+        REQ-ACAD/api.md §11.2, RN-ACAD-75 (`OPEN-ACAD-26` = A). Decimal exacto con punto, de −999.99 a
+        999.99 (`numeric(5,2)`), nunca coma flotante. En la **respuesta** lleva exactamente `decimals`
+        cifras decimales de su escala (`"5.00"`, `"5.0"`, `"5"`); en la **entrada** se admite también como
+        número JSON (`DecimalInput`) con a lo sumo dos decimales y no más de los que declara la escala.
+      pattern: '^-?\d{1,3}(\.\d{1,2})?$'
+      example: "5.0"
+
+    DecimalInput:
+      description: 'Entrada de un decimal de escala (RN-ACAD-75): cadena (`DecimalString`) o número JSON.'
+      oneOf:
+        - { $ref: '#/components/schemas/DecimalString' }
+        - { type: number }
+
+    GradingScaleType:
+      type: string
+      description: >
+        Tipo de escala de calificación (REQ-ACAD funcional.md RN-ACAD-70). Enumerado **extensible**
+        (ADR-038 §7.3): los clientes tratan un valor desconocido mostrando el código en crudo. Inmutable
+        tras el alta.
+      enum: [numerica, cualitativa, mixta]
+      x-extensible-enum: true
+
+    GradingScaleValue:
+      type: object
+      description: >
+        REQ-ACAD/api.md §11.2. Valor de una escala cualitativa o tramo de una mixta; sin *endpoint* ni
+        `Location` propios (RN-ACAD-80): su `public_id` sirve para la sincronización del `PATCH`
+        (RN-ACAD-88) y para las futuras FK de `CALIF`. `label` es la cadena resuelta en el servidor
+        (ADR-062 §5.3) y de solo lectura. `is_passing` es el guardado en la cualitativa y **derivado** en
+        la mixta (`range_min ≥ passing_min_value`, RN-ACAD-87). `range_min`/`range_max` solo en la mixta.
+      required: [public_id, code, position, label, label_translations, is_passing, range_min, range_max]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string, maxLength: 255, example: "SU" }
+        position: { type: integer, minimum: 1, description: 'Orden de la lista; lo fija el servidor (RN-ACAD-83).' }
+        label: { type: string, readOnly: true }
+        label_translations: { $ref: '#/components/schemas/TranslationsMap' }
+        is_passing: { type: boolean, nullable: true, readOnly: true }
+        range_min:
+          allOf: [{ $ref: '#/components/schemas/DecimalString' }]
+          nullable: true
+        range_max:
+          allOf: [{ $ref: '#/components/schemas/DecimalString' }]
+          nullable: true
+
+    GradingScale:
+      type: object
+      description: >
+        REQ-ACAD/api.md §11.2 (1.11d-b). Escala de calificación de un curso académico, con sus valores o
+        tramos dentro (`values`, siempre presente, solo vivos, en orden de `position`; vacío en la
+        numérica). Los campos numéricos son `null` en la cualitativa. `name` es la cadena resuelta en el
+        servidor y de solo lectura.
+      required: [public_id, academic_year, code, name, name_translations, scale_type, min_value, max_value, decimals, passing_min_value, values, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string, maxLength: 255, example: "MIX10" }
+        name: { type: string, readOnly: true }
+        name_translations: { $ref: '#/components/schemas/TranslationsMap' }
+        scale_type: { $ref: '#/components/schemas/GradingScaleType' }
+        min_value:
+          allOf: [{ $ref: '#/components/schemas/DecimalString' }]
+          nullable: true
+        max_value:
+          allOf: [{ $ref: '#/components/schemas/DecimalString' }]
+          nullable: true
+        decimals: { type: integer, minimum: 0, maximum: 2, nullable: true }
+        passing_min_value:
+          allOf: [{ $ref: '#/components/schemas/DecimalString' }]
+          nullable: true
+        values:
+          type: array
+          items: { $ref: '#/components/schemas/GradingScaleValue' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    GradingScaleValueCreate:
+      type: object
+      description: >
+        Elemento de `values` en el alta (y alta dentro de un `PATCH`, RN-ACAD-88). Cualitativa:
+        `code`, `label_translations`, `is_passing` obligatorios y `range_*` prohibidos. Mixta: `code`,
+        `label_translations`, `range_min` y `range_max` obligatorios e `is_passing` prohibido
+        (`422 acad.validation.not_applicable_to_scale_type`). `position` no se envía: es el orden de la lista.
+      required: [code, label_translations]
+      properties:
+        code: { type: string, minLength: 1, maxLength: 255 }
+        label_translations: { $ref: '#/components/schemas/TranslationsMap' }
+        is_passing: { type: boolean }
+        range_min: { $ref: '#/components/schemas/DecimalInput' }
+        range_max: { $ref: '#/components/schemas/DecimalInput' }
+
+    GradingScaleValuePatch:
+      type: object
+      description: >
+        Elemento de `values` en un `PATCH` (RN-ACAD-88). Con `public_id` de un valor vivo **de esa
+        escala**: actualiza ese valor con las claves presentes (subconjunto; `label_translations` se
+        fusiona por idioma). Sin `public_id`: alta, con todas las claves obligatorias de su tipo.
+        Un `public_id` de otra escala, de otro centro, borrado, inexistente o repetido es
+        `422 acad.validation.value_not_in_scale`. El orden de la lista es el nuevo `position`.
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string, minLength: 1, maxLength: 255 }
+        label_translations: { $ref: '#/components/schemas/TranslationsPatchMap' }
+        is_passing: { type: boolean }
+        range_min: { $ref: '#/components/schemas/DecimalInput' }
+        range_max: { $ref: '#/components/schemas/DecimalInput' }
+
+    GradingScaleCreate:
+      type: object
+      description: >
+        Cuerpo de `POST /grading-scales` (api.md §11.4). `academic_year` explícito y obligatorio
+        (RN-ACAD-51). `numerica`: `min_value`, `max_value`, `decimals` (0, 1 o 2) y `passing_min_value`
+        obligatorios, `values` prohibido. `cualitativa`: `values` obligatorio y los cuatro campos
+        numéricos prohibidos. `mixta`: los cuatro campos numéricos y `values` (tramos) obligatorios.
+        Hasta 100 valores (RN-ACAD-89). Todo se aplica en una transacción (RN-ACAD-80).
+      required: [academic_year, code, name_translations, scale_type]
+      properties:
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string, minLength: 1, maxLength: 255 }
+        name_translations: { $ref: '#/components/schemas/TranslationsMap' }
+        scale_type: { $ref: '#/components/schemas/GradingScaleType' }
+        min_value: { $ref: '#/components/schemas/DecimalInput' }
+        max_value: { $ref: '#/components/schemas/DecimalInput' }
+        decimals: { type: integer, minimum: 0, maximum: 2 }
+        passing_min_value: { $ref: '#/components/schemas/DecimalInput' }
+        values:
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/GradingScaleValueCreate' }
+
+    GradingScaleUpdate:
+      type: object
+      description: >
+        Cuerpo de `PATCH /grading-scales/{publicId}` (api.md §11.4). Editables `code`, `name_translations`
+        (fusión por idioma), los campos numéricos (solo numérica y mixta) y `values`, que si llega es el
+        **conjunto completo** resultante (RN-ACAD-88). `scale_type` ⇒ `422 scale_type_immutable`;
+        `academic_year` ⇒ `422 parent_immutable`. Todas las reglas se evalúan sobre el estado resultante.
+      properties:
+        code: { type: string, minLength: 1, maxLength: 255 }
+        name_translations: { $ref: '#/components/schemas/TranslationsPatchMap' }
+        min_value: { $ref: '#/components/schemas/DecimalInput' }
+        max_value: { $ref: '#/components/schemas/DecimalInput' }
+        decimals: { type: integer, minimum: 0, maximum: 2 }
+        passing_min_value: { $ref: '#/components/schemas/DecimalInput' }
+        values:
+          type: array
+          maxItems: 100
+          items: { $ref: '#/components/schemas/GradingScaleValuePatch' }
+
     CursorMeta:
       type: object
       description: Metadatos de paginación por cursor (ADR-038 §4.4). Flujos de eventos append-only.
@@ -1523,6 +1675,14 @@ components:
         type: string
         enum: [starts_on, -starts_on, position, -position]
         default: starts_on
+    GradingScaleSortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada. Por defecto `code` (desempate por `id`).
+      schema:
+        type: string
+        enum: [code, -code]
+        default: code
     PageParam:
       name: page
       in: query

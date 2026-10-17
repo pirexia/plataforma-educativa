@@ -347,5 +347,11 @@ paths:
   /api/v1/academic-periods/{publicId}:
     $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1academic-periods~1{publicId}"
 
+  # REQ-ACAD (paso 1.11d-b), escalas de calificación. apps/api/openapi/paths/acad.yaml
+  /api/v1/grading-scales:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1grading-scales"
+  /api/v1/grading-scales/{publicId}:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1grading-scales~1{publicId}"
+
   # Los endpoints de los módulos siguientes se añaden aquí conforme se
   # implementan, cada uno con su propio apps/api/openapi/paths/<modulo>.yaml.
