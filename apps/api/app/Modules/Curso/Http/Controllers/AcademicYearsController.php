@@ -10,6 +10,7 @@ use App\Modules\Curso\Domain\AcademicYearContext;
 use App\Modules\Curso\Domain\AcademicYearStatus;
 use App\Modules\Curso\Domain\Models\AcademicYear;
 use App\Modules\Curso\Http\Requests\IndexAcademicYearsRequest;
+use App\Modules\Curso\Http\Requests\ReopenAcademicYearRequest;
 use App\Modules\Curso\Http\Requests\StoreAcademicYearRequest;
 use App\Modules\Curso\Http\Requests\TransitionAcademicYearRequest;
 use App\Modules\Curso\Http\Requests\UpdateAcademicYearRequest;
@@ -23,9 +24,9 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
 /**
- * REQ-CURSO/api.md §2 (paso 1.10, `REQ-CURSO-001`). Seis endpoints; sin
- * `DELETE`, sin transición a `archivado`, sin reapertura (api.md §2, tabla
- * «no existen»). Todos los accesos pasan por `TenantScope` (`INV-001`): un
+ * REQ-CURSO/api.md §2 (paso 1.10, `REQ-CURSO-001`). Siete endpoints, con el de
+ * reapertura de 1.11c (`ADR-059`); sin `DELETE` ni transición a `archivado`
+ * (api.md §2, tabla «no existen»). Todos los accesos pasan por `TenantScope` (`INV-001`): un
  * `public_id` de otro centro es un `404`, nunca un `403`.
  */
 class AcademicYearsController extends Controller
@@ -133,6 +134,17 @@ class AcademicYearsController extends Controller
         $target = AcademicYearStatus::from($request->string('status')->value());
 
         return new AcademicYearResource($transitions->transition($publicId, $target));
+    }
+
+    /**
+     * `ADR-059`, `RN-CURSO-40` a `-48`: reapertura de un curso `cerrado`.
+     */
+    public function reopen(ReopenAcademicYearRequest $request, string $publicId, AcademicYearTransitions $transitions): AcademicYearResource
+    {
+        // 404 antes que cualquier regla de transición (`INV-001`).
+        $this->findOrFail($publicId);
+
+        return new AcademicYearResource($transitions->reopen($publicId, $request->reason()));
     }
 
     private function findOrFail(string $publicId): AcademicYear

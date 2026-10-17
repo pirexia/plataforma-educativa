@@ -3,12 +3,17 @@
 namespace App\Modules\Curso\Application;
 
 use App\Modules\Curso\Domain\AcademicYearClosureRegistry;
+use App\Modules\Curso\Domain\AcademicYearReopenRegistry;
 use App\Modules\Curso\Domain\AcademicYearStatus;
+use App\Modules\Curso\Domain\Events\AcademicYearReopened;
 use App\Modules\Curso\Domain\Models\AcademicYear;
+use App\Modules\Curso\Domain\Models\AcademicYearReopening;
 use App\Modules\Curso\Infrastructure\EloquentAcademicYearContext;
 use App\Support\Api\ApiException;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * RN-CURSO-10: único servicio que escribe `academic_years.status`.
@@ -25,6 +30,10 @@ use Illuminate\Support\Facades\DB;
  *
  * RN-CURSO-13: la auditoría la registra el observer (`updated`,
  * `changes.status = {from, to}`).
+ *
+ * 1.11c (`ADR-059`, RN-CURSO-40 a -48): `reopen()` es la transición
+ * `cerrado → activo`, por un *endpoint* propio con permiso propio. No es una
+ * cuarta transición de `transition()` (`POST …/status` no la admite, `CA-CURSO-023`).
  */
 final class AcademicYearTransitions
 {
@@ -32,6 +41,7 @@ final class AcademicYearTransitions
 
     public function __construct(
         private readonly AcademicYearClosureRegistry $closureChecks,
+        private readonly AcademicYearReopenRegistry $reopenChecks,
         private readonly ModuleScopedChecks $scopedChecks,
         private readonly EloquentAcademicYearContext $context,
     ) {}
@@ -72,6 +82,76 @@ final class AcademicYearTransitions
         return $year->refresh();
     }
 
+    /**
+     * RN-CURSO-40 a -48 (`ADR-059`), `funcional.md §4.6` paso 3. Dentro de una
+     * transacción y tras el `FOR UPDATE` sobre la fila del curso (antes que
+     * ningún otro bloqueo, RN-CURSO-46), en este orden [DERIVADA]: curso en
+     * `cerrado`; ningún otro `activo`; es el cerrado más reciente; ninguna
+     * validación de reapertura falla. Si algo falla, nada cambia. En éxito
+     * cambia `status` y **después**, en la misma transacción, inserta la fila
+     * de `academic_year_reopenings` con el motivo (RN-CURSO-43): el disparador
+     * de ADR-057 lee el estado ya actualizado por la propia transacción y la
+     * admite. `$reason` llega ya recortado y no vacío (validado por la petición).
+     *
+     * El evento `AcademicYearReopened` se emite tras el *commit*.
+     */
+    public function reopen(string $publicId, string $reason): AcademicYear
+    {
+        try {
+            $year = DB::transaction(function () use ($publicId, $reason): AcademicYear {
+                $year = AcademicYear::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
+
+                if ($year->status !== AcademicYearStatus::Cerrado) {
+                    throw CursoErrors::conflict('curso.conflict.invalid_transition', [
+                        'from' => $year->status->value,
+                        'to' => AcademicYearStatus::Activo->value,
+                    ]);
+                }
+
+                $this->assertNoOtherActiveYear($year);
+                $this->assertLatestClosedYear($year);
+                $this->runReopenChecks($year);
+
+                $year->status = AcademicYearStatus::Activo;
+                $year->save();
+
+                AcademicYearReopening::create([
+                    'academic_year_id' => $year->getKey(),
+                    'reason' => $reason,
+                ]);
+
+                return $year;
+            });
+        } catch (UniqueConstraintViolationException $e) {
+            // Carrera con una activación simultánea (RN-CURSO-41 (1)): el índice
+            // único parcial del motor es la garantía última.
+            if (str_contains($e->getMessage(), self::STATUS_INDEX)) {
+                throw $this->activeExists(null);
+            }
+
+            throw $e;
+        } finally {
+            $this->context->forget();
+        }
+
+        $year->refresh();
+
+        // Tras el commit: un consumidor que falla no revierte un hecho
+        // consumado (ADR-048 §4.9, `funcional.md §7.2`).
+        try {
+            event(new AcademicYearReopened(
+                tenantId: $year->tenant_id,
+                academicYearPublicId: $year->public_id,
+                code: $year->code,
+                occurredAt: Carbon::now()->toImmutable(),
+            ));
+        } catch (Throwable $e) {
+            report($e);
+        }
+
+        return $year;
+    }
+
     private function assertValidTransition(AcademicYearStatus $from, AcademicYearStatus $to): void
     {
         $allowed = ($from === AcademicYearStatus::Planificacion && $to === AcademicYearStatus::Activo)
@@ -92,6 +172,28 @@ final class AcademicYearTransitions
 
         if ($active !== null) {
             throw $this->activeExists($active);
+        }
+    }
+
+    /**
+     * RN-CURSO-41 (2): no existe otro curso `cerrado` o `archivado` con
+     * `starts_on` posterior (bien definido porque las fechas no se solapan,
+     * RN-CURSO-05). Impide convertir un curso antiguo en el de referencia.
+     */
+    private function assertLatestClosedYear(AcademicYear $year): void
+    {
+        $later = AcademicYear::query()
+            ->whereIn('status', [AcademicYearStatus::Cerrado, AcademicYearStatus::Archivado])
+            ->where('starts_on', '>', $year->starts_on)
+            ->whereKeyNot($year->getKey())
+            ->orderBy('starts_on')
+            ->first();
+
+        if ($later !== null) {
+            throw CursoErrors::conflict('curso.conflict.reopen_not_latest', [
+                'public_id' => $later->public_id,
+                'code' => $later->code,
+            ]);
         }
     }
 
@@ -125,6 +227,29 @@ final class AcademicYearTransitions
 
         if ($failures !== []) {
             throw ApiException::conflict('curso.conflict.closure_checks_failed', [], ['closure' => $failures]);
+        }
+    }
+
+    /**
+     * RN-CURSO-45, RN-CURSO-60: igual que `runClosureChecks()`, con el registro
+     * de reapertura (vacío al entregarse). Una entrada por validación fallida en
+     * `errors.reopen[]`; si alguna falla, no cambia nada.
+     */
+    private function runReopenChecks(AcademicYear $year): void
+    {
+        $summary = $year->toSummary();
+        $failures = [];
+
+        foreach ($this->scopedChecks->enabled($this->reopenChecks->all()) as $check) {
+            $failure = $check->check($summary);
+
+            if ($failure !== null) {
+                $failures[] = ['code' => $failure->code, 'message' => $failure->message, 'params' => $failure->params];
+            }
+        }
+
+        if ($failures !== []) {
+            throw ApiException::conflict('curso.conflict.reopen_checks_failed', [], ['reopen' => $failures]);
         }
     }
 }

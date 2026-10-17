@@ -4,6 +4,7 @@ namespace App\Modules\Curso\Application;
 
 use App\Modules\Curso\Domain\AcademicYearClosureCheck;
 use App\Modules\Curso\Domain\AcademicYearDateChangeCheck;
+use App\Modules\Curso\Domain\AcademicYearReopenCheck;
 use App\Support\Modules\ModuleAvailability;
 
 /**
@@ -11,14 +12,14 @@ use App\Support\Modules\ModuleAvailability;
  * validaciones registradas se ejecutan. Solo las de módulos utilizables en el
  * centro según `ModuleAvailability::isEnabled()` (la misma definición que el
  * middleware `module-enabled:` y el resolutor de permisos). Lo usan el
- * `PATCH` de fechas y el cierre; el registro de reapertura, cuando exista.
+ * `PATCH` de fechas, el cierre y la reapertura (1.11c, RN-CURSO-45).
  */
 final class ModuleScopedChecks
 {
     public function __construct(private readonly ModuleAvailability $modules) {}
 
     /**
-     * @template T of AcademicYearClosureCheck|AcademicYearDateChangeCheck
+     * @template T of AcademicYearClosureCheck|AcademicYearDateChangeCheck|AcademicYearReopenCheck
      *
      * @param  list<T>  $checks
      * @return list<T>
@@ -27,7 +28,7 @@ final class ModuleScopedChecks
     {
         return array_values(array_filter(
             $checks,
-            fn (AcademicYearClosureCheck|AcademicYearDateChangeCheck $check): bool => $this->modules->isEnabled($check->moduleCode()),
+            fn (AcademicYearClosureCheck|AcademicYearDateChangeCheck|AcademicYearReopenCheck $check): bool => $this->modules->isEnabled($check->moduleCode()),
         ));
     }
 }

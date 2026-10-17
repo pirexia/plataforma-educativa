@@ -2621,6 +2621,33 @@ namespace App\Modules\Curso\Domain\Models{
  */
 	#[\AllowDynamicProperties]
 	class IdeHelperAcademicYear {}
+
+/**
+ * REQ-CURSO/datos.md §1.5 (1.11c, `ADR-059 §5.4`, `RN-CURSO-43`/`-44`). Registro
+ * *append-only* de una reapertura: curso, motivo, actor y momento. Sin
+ * `updated_at`, `updated_by` ni `deleted_at`.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $academic_year_id
+ * @property string $reason
+ * @property int $created_by
+ * @property \Illuminate\Support\Carbon $created_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYearReopening newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYearReopening newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYearReopening query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYearReopening whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYearReopening whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYearReopening whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYearReopening whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYearReopening wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYearReopening whereReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AcademicYearReopening whereTenantId($value)
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperAcademicYearReopening {}
 }
 
 namespace App\Support\Tenancy{

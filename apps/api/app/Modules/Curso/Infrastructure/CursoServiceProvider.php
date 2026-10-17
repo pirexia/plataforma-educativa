@@ -9,9 +9,11 @@ use App\Modules\Curso\Domain\AcademicYearDirectory;
 use App\Modules\Curso\Domain\AcademicYearReadAccess;
 use App\Modules\Curso\Domain\AcademicYearReadDeniedException;
 use App\Modules\Curso\Domain\AcademicYearReadOnlyException;
+use App\Modules\Curso\Domain\AcademicYearReopenRegistry;
 use App\Modules\Curso\Domain\AcademicYearSharedLock;
 use App\Modules\Curso\Domain\AcademicYearWriteGuard;
 use App\Modules\Curso\Domain\Models\AcademicYear;
+use App\Modules\Curso\Domain\Models\AcademicYearReopening;
 use App\Support\Modules\DeclaresModuleRegistry;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -26,9 +28,11 @@ use Throwable;
  * catálogo de permisos de `permisos.md §2`, que `platform:sync-registry`
  * materializa.
  *
- * Sin `loadMigrationsFrom`: la única migración de 1.10 (la función del
- * bloqueo de escritura) y la de `academic_years` viven en
- * `apps/api/database/migrations/` (esquema del núcleo, `datos.md §1.4`).
+ * Las migraciones de 1.10 (la función del bloqueo de escritura y la de
+ * `academic_years`) viven en `apps/api/database/migrations/` (esquema del
+ * núcleo, `datos.md §1.4`). Desde 1.11c el módulo tiene la suya propia,
+ * `academic_year_reopenings` (`datos.md §1.5`), en
+ * `Modules/Curso/Database/migrations/`, cargada con `loadMigrationsFrom`.
  */
 class CursoServiceProvider extends ServiceProvider implements DeclaresModuleRegistry
 {
@@ -48,6 +52,9 @@ class CursoServiceProvider extends ServiceProvider implements DeclaresModuleRegi
         // RN-CURSO-30: vacío en 1.10; cada módulo registra la suya.
         $this->app->singleton(AcademicYearClosureRegistry::class, InMemoryAcademicYearClosureRegistry::class);
 
+        // RN-CURSO-45 (1.11c): vacío al entregarse, simétrico al de cierre.
+        $this->app->singleton(AcademicYearReopenRegistry::class, InMemoryAcademicYearReopenRegistry::class);
+
         // RN-CURSO-49 (1.11d-a): cada módulo registra la suya desde su `boot()`.
         $this->app->singleton(AcademicYearDateChangeRegistry::class, InMemoryAcademicYearDateChangeRegistry::class);
 
@@ -57,11 +64,14 @@ class CursoServiceProvider extends ServiceProvider implements DeclaresModuleRegi
 
     public function boot(): void
     {
+        $this->loadMigrationsFrom(app_path('Modules/Curso/Database/migrations'));
+
         // OPEN-CURSO-03: el MISMO alias `academic_year` que tenía
         // AppServiceProvider — `audit_logs` guarda el alias, nunca el FQCN
         // (ADR-034 §3): ninguna fila de auditoría cambia de significado.
         Relation::enforceMorphMap([
             'academic_year' => AcademicYear::class,
+            'academic_year_reopening' => AcademicYearReopening::class,
         ]);
 
         $this->registerErrorTranslation();
@@ -117,6 +127,7 @@ class CursoServiceProvider extends ServiceProvider implements DeclaresModuleRegi
             'curso_academico' => ['leer', 'crear', 'actualizar'],
             'estado_curso_academico' => ['actualizar'],
             'curso_historico' => ['leer'],
+            'reapertura_curso_academico' => ['actualizar'],
         ] as $resource => $actions) {
             foreach ($actions as $action) {
                 $permissions[] = [

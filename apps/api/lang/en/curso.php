@@ -18,6 +18,7 @@ return [
             'curso_academico' => 'Academic years',
             'estado_curso_academico' => 'Academic year status',
             'curso_historico' => 'Closed academic year history',
+            'reapertura_curso_academico' => 'Reapertura de cursos académicos',
         ],
     ],
 
@@ -27,6 +28,7 @@ return [
         'ends_before_start' => 'The end date must be after the start date.',
         'dates_overlap' => 'The dates overlap with those of academic year ":code".',
         'status_not_editable' => 'The status of an academic year cannot be set here: use the activate and close actions.',
+        'reason_required' => 'El motivo de la reapertura es obligatorio.',
     ],
 
     'conflict' => [
@@ -36,6 +38,8 @@ return [
         'not_editable' => 'Only an academic year in planning can be edited.',
         'closure_checks_failed' => 'The academic year cannot be closed: some closing checks are not met.',
         'date_change_checks_failed' => 'The new dates of the academic year leave out data that depends on them.',
+        'reopen_not_latest' => 'Solo se puede reabrir el curso cerrado más reciente: el curso «:code» es posterior.',
+        'reopen_checks_failed' => 'El curso no se puede reabrir: hay validaciones de reapertura que no se cumplen.',
     ],
 
     'no_active_year' => 'The school has no active academic year.',

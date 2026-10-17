@@ -21,6 +21,7 @@ use App\Modules\Core\Domain\TenantProvisioner;
 use App\Modules\Core\Domain\TenantSettingsReader;
 use App\Modules\Core\Domain\UserDirectory;
 use App\Modules\Core\Infrastructure\Console\GrantAcademicYearPermissionsCommand;
+use App\Modules\Core\Infrastructure\Console\GrantReopenPermissionCommand;
 use App\Modules\Core\Infrastructure\Console\GrantRoleAdministrationCommand;
 use App\Modules\Core\Infrastructure\Console\GrantStructurePermissionsCommand;
 use App\Modules\Core\Infrastructure\Console\ProvisionTenantDefaultsCommand;
@@ -115,6 +116,7 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
                 PurgeCoreMaintenanceCommand::class,
                 GrantRoleAdministrationCommand::class,
                 GrantAcademicYearPermissionsCommand::class,
+                GrantReopenPermissionCommand::class,
                 GrantStructurePermissionsCommand::class,
             ]);
         }

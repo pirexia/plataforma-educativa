@@ -18,6 +18,7 @@ return [
             'curso_academico' => 'Cursos académicos',
             'estado_curso_academico' => 'Estado de los cursos académicos',
             'curso_historico' => 'Histórico de cursos cerrados',
+            'reapertura_curso_academico' => 'Reapertura de cursos académicos',
         ],
     ],
 
@@ -27,6 +28,7 @@ return [
         'ends_before_start' => 'La fecha de fin debe ser posterior a la de inicio.',
         'dates_overlap' => 'Las fechas se solapan con las del curso «:code».',
         'status_not_editable' => 'El estado de un curso no se puede indicar aquí: usa las acciones de activar y cerrar.',
+        'reason_required' => 'El motivo de la reapertura es obligatorio.',
     ],
 
     'conflict' => [
@@ -36,6 +38,8 @@ return [
         'not_editable' => 'Solo se puede editar un curso en planificación.',
         'closure_checks_failed' => 'El curso no se puede cerrar: hay validaciones de cierre que no se cumplen.',
         'date_change_checks_failed' => 'Las nuevas fechas del curso académico dejan fuera datos que dependen de ellas.',
+        'reopen_not_latest' => 'Solo se puede reabrir el curso cerrado más reciente: el curso «:code» es posterior.',
+        'reopen_checks_failed' => 'El curso no se puede reabrir: hay validaciones de reapertura que no se cumplen.',
     ],
 
     'no_active_year' => 'El centro no tiene ningún curso activo.',

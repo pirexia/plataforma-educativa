@@ -316,6 +316,8 @@ paths:
     $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-years~1{publicId}"
   /api/v1/academic-years/{publicId}/status:
     $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-years~1{publicId}~1status"
+  /api/v1/academic-years/{publicId}/reopen:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-years~1{publicId}~1reopen"
 
   # REQ-ACAD (paso 1.11-b). apps/api/openapi/paths/acad.yaml
   /api/v1/education-levels:
