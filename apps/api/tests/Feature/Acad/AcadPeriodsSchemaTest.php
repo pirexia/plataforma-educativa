@@ -48,7 +48,7 @@ test('CA-ACAD-089 REQ-ACAD-001 datos.md §1.7: academic_periods tiene RLS forzad
         "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'academic_periods'"
     ), 'column_name');
     $types = DB::connection('pgsql_owner')->select(
-        "SELECT attname, format_type(atttypid, atttypmod) AS t FROM pg_attribute WHERE attrelid = 'academic_periods'::regclass AND attname IN ('public_id', 'starts_on', 'ends_on', 'period_type', 'position')"
+        "SELECT attname, format_type(atttypid, atttypmod) AS t FROM pg_attribute WHERE attrelid = 'academic_periods'::regclass AND attname IN ('public_id', 'starts_on', 'ends_on', 'period_type', 'position') ORDER BY attnum"
     );
     $trigger = DB::connection('pgsql_owner')->selectOne(<<<'SQL'
         SELECT count(*) AS n FROM pg_trigger t
