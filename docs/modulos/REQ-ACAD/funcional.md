@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |-------|-------|
-| Código | `REQ-ACAD` (sección 5.4 del documento de requisitos). Esta especificación cubre **solo `REQ-ACAD-001`** (estructura académica). `REQ-ACAD-002` (horarios, paso `1.12`), `-003` (asistencia, `1.13`), `-004` (tutorías) y `-005` (exámenes) quedan fuera |
+| Código | `REQ-ACAD` (sección 5.4 del documento de requisitos). §0-§17 cubren **`REQ-ACAD-001`** (estructura académica). **§18 cubre `REQ-ACAD-002`** (horarios y asignación docente, paso `1.12`; **PROPUESTA, pendiente de aprobación**). `-003` (asistencia, `1.13`), `-004` (tutorías) y `-005` (exámenes) quedan fuera |
 | Prioridad | MUST |
 | Fase | 1 · paso **1.11** del plan y sub-paso nuevo **`1.11d`** (períodos lectivos y escalas, `OPEN-ACAD-01` = A, aprobada) |
 | Depende de | Documento: `CORE`. Real: `CORE` (esencial) y `CURSO` (esencial; toda tabla de este módulo lleva `academic_year_id`). Aprobado: `depends_on: ['curso']` (`OPEN-ACAD-10`) |
@@ -1005,3 +1005,267 @@ Ninguna contradice una regla aprobada; son huecos que cerró la implementación 
 6. **No traducibles en `acad`**: `code` (todas las entidades) y `name` de grupo y subgrupo (texto simple).
 7. **Orden y búsqueda**: ningún listado de `1.11` ordena por nombre ni tiene `q`; si se añadiera, `ADR-062 §5.4` puntos 3-4.
 8. **SPA**: componente común de edición; presentación con `lang` cuando hay caída (WCAG 3.1.2).
+
+---
+
+## 18. `1.12` · Horarios y asignación docente (`REQ-ACAD-002`) — **PROPUESTA**
+
+> **Estado**: PROPUESTA (2026-10-17), pendiente de aprobación del usuario. Nada de §18 está aprobado. Las decisiones abiertas son `OPEN-ACAD-32` a `-44` (§18.11); donde una regla depende de una de ellas, el texto aplica **la recomendación** y la cita, y cambia si el usuario decide otra cosa. Reglas `RN-ACAD-90` a `-143`, criterios `CA-ACAD-107` a `-140`. El resto de esta especificación (§0-§17, aprobado) no cambia salvo las ampliaciones de `RN-ACAD-20`/`-32` que fija `RN-ACAD-96`.
+
+**Requisito** (`§5.4`, `REQ-ACAD-002`, literal): generador de horarios con detección de conflictos (aulas, profesores, grupos); vista semanal por profesor, aula, grupo y asignatura; exportación de horarios a PDF e importación desde formatos estándar; gestión de horarios especiales (jornada intensiva, festivos, exámenes); reserva de aulas y recursos.
+
+**Obligación de `ADR-063 §5.4`**: esta especificación **confirma expresamente** a `1.12` como el paso donde nace la asignación docente (entidad propia de `acad`, por curso académico, no derivada del horario; las sesiones la referencian) y especifica la interfaz de pertenencia de `§5.2` punto 1 (§18.7). Con su aprobación queda cumplido el plazo que bloquea las especificaciones de `1.13` y `1.16`.
+
+### 18.0 Hallazgos antes de especificar
+
+Ninguno es una contradicción que obligue a detenerse; todos son huecos o dependencias, cada uno con su pregunta.
+
+| # | Hallazgo | Fuentes | Pregunta |
+|---|----------|---------|----------|
+| H1 | **«Generador» es ambiguo**: puede ser un resolutor automático (motor de restricciones) o un editor con detección de conflictos. El plan dice «rejilla a medida con CSS Grid, detección de conflictos», que describe lo segundo | `REQ-ACAD-002`, `PLAN 1.12` | `OPEN-ACAD-32` |
+| H2 | **Aulas y recursos sin entidad** en ningún requisito ni en `§16.1`; tampoco se dice si dependen del curso académico | `REQ-ACAD-002`, `§16.1`, `ADR-034 §4` | `OPEN-ACAD-33` |
+| H3 | **¿Quién es «profesor»?** `§16.1` fija `Employee` (personal, vinculado a `Person`) como entidad núcleo, pero no existe (`REQ-RRHH`, fase 2). `ADR-063 §5.2` y el contrato `ScopeResolver` hablan de **usuario** (`constrain(Builder, User)`) | `§16.1`, `ADR-063 §5.2` | `OPEN-ACAD-34` |
+| H4 | **Exportación a PDF depende de una pieza no implementada**: el servicio de PDF no tiene motor decidido (`PLAN 0.3`: «motor sin decidir, ver 1.17»). Además `INV-012` exige cola para PDF en lote, y hoy no hay *worker* (`CLAUDE.md §1`, issue #128) | `REQ-ACAD-002`, `PLAN 0.3`, `INV-012` | `OPEN-ACAD-38` |
+| H5 | **«Formatos estándar» de importación sin nombrar**: ningún requisito dice cuáles | `REQ-ACAD-002` | `OPEN-ACAD-39` |
+| H6 | **«Horarios especiales» mezcla tres cosas de dueños distintos**: festivos (calendario escolar, `1.20 · REQ-AGENDA` en el plan), exámenes (calendario de exámenes, `REQ-ACAD-005`) y jornada intensiva (horario propiamente dicho) | `REQ-ACAD-002`, `REQ-ACAD-005`, `PLAN 1.20` | `OPEN-ACAD-37` |
+| H7 | **Hora civil sin fecha** (una franja «lunes 08:30-09:25» se repite cada semana) frente a la convención «`TIMESTAMPTZ` siempre» de `ADR-029`, que no prevé horas sin fecha | `ADR-029`, `ADR-038 §3.2` (precedente `date`) | `OPEN-ACAD-40` |
+| H8 | **Copia al curso siguiente**: `REQ-CURSO-002` copia «plantillas de horario»; es `1.12b` (rollover), no `1.12` | `REQ-CURSO-002`, `REQ-CURSO/funcional.md §1.2` | — (hueco en §18.7) |
+
+### 18.1 Alcance y entregas propuestas (`OPEN-ACAD-44`)
+
+| Entrega | Contenido | Requisito |
+|---------|-----------|-----------|
+| **`1.12-a`** | Asignación docente (profesor × asignatura de grupo, subgrupo opcional) y tutoría de grupo; espacios (aulas y recursos); ancla de horario por curso académico; marcos horarios **ordinarios** por etapa con sus franjas; sesiones; detección de conflictos de profesor, aula y grupo; vistas semanales por profesor, aula, grupo y asignatura; ampliación de `RN-ACAD-20`/`-32`; interfaz de pertenencia **especificada** (§18.7) | `REQ-ACAD-002` puntos 1-2; `ADR-063 §5.4` |
+| **`1.12-b`** | Marcos **especiales** con vigencia por fechas (jornada intensiva) y su efecto en los conflictos; reservas de aulas y recursos con detección de conflictos contra sesiones y otras reservas | Puntos 4 (jornada intensiva) y 5 |
+
+**Fuera de `1.12`** (con su pregunta): generación automática (`OPEN-ACAD-32`); exportación PDF (`-38`); importación (`-39`); festivos y exámenes (`-37`); sustituciones, guardias, histórico con fechas de la asignación, co-docencia en la misma sesión (`-35`, `-36`); departamentos (`ADR-063 §5.5`); vistas en los portales de familias y alumnado (`1.22`, `1.23`); copia al curso siguiente (`1.12b`); eventos de dominio (sin consumidor, `ADR-048`).
+
+**Dependencias**: `curso` (implementado), estructura de `1.11` (implementada; `1.11d-b` sin mezclar, no afecta), `Core` para resolver usuarios (§18.7). **No implementadas y fuera por ello**: servicio PDF, `REQ-AGENDA`, `REQ-ACAD-005`, `Employee`.
+
+### 18.2 Conceptos
+
+| Término | Tabla | Qué es |
+|---------|-------|--------|
+| **Asignación docente** | `teaching_assignments` | Un usuario imparte una asignatura a un grupo (un par de `group_subjects`, la «clase» de `ADR-063 §5.3`), opcionalmente a un **subgrupo** de ese grupo (desdoble). Por curso académico |
+| **Tutoría de grupo** | `group_tutors` | Un usuario es tutor de un grupo. Por curso académico. No está en la rejilla |
+| **Espacio** | `facilities` | Un aula (`aula`, ocupable por sesiones y reservable) o un recurso (`recurso`, solo reservable: carro de portátiles, proyector). Del centro, sin curso académico (`OPEN-ACAD-33`) |
+| **Horario** (ancla) | `timetables` | Una fila por centro y curso académico. Es la entidad `Timetable` de `§5.4` y la fila que serializa toda escritura del horario (`RN-ACAD-125`) |
+| **Marco horario** | `timetable_frames` | Conjunto de franjas de una etapa en un curso académico. `ordinaria` (todo el curso) o `especial` (vigencia por fechas: jornada intensiva, `1.12-b`) |
+| **Franja** | `time_slots` | Día de la semana ISO (1 = lunes … 7 = domingo) + hora de inicio y fin, hora civil del centro (zona `timezone` del centro) |
+| **Sesión** | `timetable_sessions` | Una asignación docente en una franja, con aula opcional. Es la celda de la rejilla |
+| **Reserva** (`1.12-b`) | `facility_bookings` | Un espacio en una fecha y un intervalo horario, por quien la crea |
+
+### 18.3 Flujos
+
+1. **Preparar** (administración): alta de espacios (`/academico/espacios`); en la ficha de cada etapa, alta de su marco ordinario y edición de sus franjas como lista (conjunto completo, `RN-ACAD-113`); en la ficha de cada grupo, profesorado por asignatura (y subgrupo) y tutores.
+2. **Componer** (`/academico/horarios`): se elige vista (grupo, profesor, aula o asignatura) y entidad; la rejilla muestra las franjas del marco y las sesiones. Al activar una celda vacía, diálogo con las asignaciones del grupo y aula opcional ⇒ `POST /timetable-sessions`. Mover = `PATCH` de franja o aula; quitar = `DELETE`. Un conflicto se rechaza con `422 timetable_conflict`, que nombra la sesión con la que choca (§18.5).
+3. **Consultar**: misma pantalla en solo lectura para quien solo tiene `horarios.leer`; curso de solo lectura ⇒ aviso persistente (`RN-ACAD-42`).
+4. **Jornada especial** (`1.12-b`): marco `especial` de la etapa con `valid_from`/`valid_to`; se compone igual.
+5. **Reservar** (`1.12-b`): `/academico/reservas`: espacio, fecha, inicio y fin ⇒ `POST /facility-bookings`; conflicto con sesión o reserva ⇒ `422 booking_conflict`.
+
+### 18.4 Reglas de negocio
+
+#### 18.4.1 Comunes
+
+| ID | Regla |
+|----|-------|
+| `RN-ACAD-90` | Toda tabla de `1.12` **salvo `facilities`** lleva `academic_year_id` y el disparador de `ADR-057`: `RN-ACAD-07` (escritura ⇒ `409 academic-year-closed`) y `RN-ACAD-08` (toda lectura invoca `AcademicYearReadAccess` ⇒ `404`) se aplican tal cual. Padres del cuerpo de un curso ilegible ⇒ `422 *_not_found`, como S-3 de §16 |
+| `RN-ACAD-91` | El curso académico de cada fila es el de su padre (asignación y tutoría: el del grupo; franja: el del marco; sesión: el de la franja y el de la asignación, iguales por FK) y no se admite `academic_year` en el cuerpo (`422 academic_year_not_allowed`) salvo en el alta de una reserva, que no tiene padre con curso (`RN-ACAD-140`). Padres inmutables (`422 parent_immutable`, `RN-ACAD-06`) |
+| `RN-ACAD-92` | **Usuario asignable** (`OPEN-ACAD-34`): un usuario del centro **activo**, resuelto por `public_id` por una interfaz de `Core\Domain`; inexistente, de otro centro o inactivo ⇒ `422 acad.validation.user_not_found`. **No se comprueba ningún rol** (`RN-PERM-46`). Asignar no concede permisos ni roles |
+
+#### 18.4.2 Asignación docente y tutoría
+
+| ID | Regla |
+|----|-------|
+| `RN-ACAD-93` | Una asignación docente es (usuario, asignatura que cursa un grupo, subgrupo opcional). El cuerpo lleva `teacher`, `group`, `subject` y opcional `subgroup` (`public_id`). La asignatura debe estar asignada **y viva** en ese grupo (`group_subjects`) ⇒ si no, `422 acad.validation.subject_not_in_group`; el subgrupo, vivo y del mismo grupo ⇒ si no, `422 acad.validation.subgroup_not_in_group`. El motor lo refuerza con FK compuestas (`datos.md §9`) |
+| `RN-ACAD-94` | Única entre las vivas por (usuario, asignatura del grupo, subgrupo —`NULL` cuenta como valor—) ⇒ `422 acad.validation.assignment_exists`. Varios usuarios pueden tener la misma asignatura del mismo grupo (desdobles por subgrupo, o dos profesores de la misma clase); el choque en la rejilla lo decide `RN-ACAD-123` |
+| `RN-ACAD-95` | **Inmutable**: sin `PATCH`. Cambiar de profesor es borrar y crear **[DERIVADA]**: así una sesión nunca cambia de profesor por la espalda y no hay que revalidar conflictos al editar una asignación. Borrar con sesiones vivas ⇒ `409 acad.conflict.has_dependents` con `timetable_sessions` |
+| `RN-ACAD-96` | **Amplía `RN-ACAD-20` y `RN-ACAD-32`**: no se borra un grupo con tutores o asignaciones vivas, un subgrupo con asignaciones vivas, una asignatura con asignaciones vivas, ni una etapa con marcos vivos (`409 has_dependents`, `params.dependents` con `group_tutors`, `teaching_assignments` o `timetable_frames`). Un `PUT /groups/{id}/subjects` que quite una asignatura con asignaciones vivas en ese grupo ⇒ el mismo `409` y no cambia nada |
+| `RN-ACAD-97` | **Tutoría**: `PUT /groups/{id}/tutors` con la lista completa de usuarios (precedente `RN-ACAD-32`: idempotente, por instancia, sin cambios no escribe). Varios tutores por grupo (cotutoría) y un usuario tutor de varios grupos (`OPEN-ACAD-35`) |
+| `RN-ACAD-98` | **Proyección para ámbitos** (`ADR-063 §5.3`), que la interfaz de pertenencia devuelve (§18.7): `grupo(u, curso)` = grupos de sus tutorías vivas ∪ grupos de sus asignaciones vivas; `clase(u, curso)` = pares (grupo, asignatura) de sus asignaciones vivas. Una asignación a un subgrupo **se proyecta sobre su grupo** en los dos ámbitos **[DERIVADA]**: es la decisión que `ADR-063 §5.3` deja a esta especificación; el profesor de un desdoble califica la asignatura de alumnos del grupo |
+| `RN-ACAD-99` | Sin fechas de vigencia, sin sustituciones y sin papel principal/secundario en `1.12` (`OPEN-ACAD-35`): la asignación es el estado vigente; el histórico, `audit_logs` |
+
+#### 18.4.3 Espacios
+
+| ID | Regla |
+|----|-------|
+| `RN-ACAD-100` | `facility_type` ∈ {`aula`, `recurso`}, obligatorio e **inmutable** (`422 acad.validation.facility_type_invalid`/`facility_type_immutable`): las sesiones lo arrastran en su FK (`datos.md §9`) |
+| `RN-ACAD-101` | Del centro, **sin curso académico** (`OPEN-ACAD-33`): no los congela el cierre. `code` único entre los espacios vivos del centro (`RN-ACAD-01`/`-02`, `422 code_taken`); `name` texto simple obligatorio, no traducible **[DERIVADA]**: `ADR-021` enumera asignaturas y actividades, no espacios (como el nombre de grupo) |
+| `RN-ACAD-102` | Borrado lógico. Bloqueado (`409 has_dependents` con `timetable_sessions` o `facility_bookings`) solo si lo referencian sesiones o reservas vivas de cursos académicos `planificacion` o `activo`; las de cursos `cerrado`/`archivado` conservan la referencia (FK `NO ACTION`, el borrado es lógico) y la representación marca el espacio como dado de baja (`facility.deleted: true`) **[DERIVADA]**: sin esto, un aula usada en un curso cerrado no podría darse de baja nunca |
+| `RN-ACAD-103` | Editar `code` o `name` de un espacio se refleja también al leer horarios de cursos cerrados (no hay copia por curso). Consecuencia aceptada de `OPEN-ACAD-33` |
+
+#### 18.4.4 Marcos y franjas
+
+| ID | Regla |
+|----|-------|
+| `RN-ACAD-110` | Marco por curso académico y etapa. Alta con `education_level` en el cuerpo (el curso es el de la etapa, sin `academic_year`, `RN-ACAD-51`); `frame_type` ∈ {`ordinaria`, `especial`} obligatorio e inmutable (`422 frame_type_invalid`/`frame_type_immutable`); `name_translations` (`ADR-062`, `RN-ACAD-53`). **Como mucho un marco `ordinaria` vivo por etapa** (`422 acad.validation.frame_ordinary_exists`; índice único parcial). En `1.12-a` solo se admite `ordinaria`; `especial` ⇒ `422 frame_type_invalid` hasta `1.12-b` |
+| `RN-ACAD-111` | (`1.12-b`) Un marco `especial` lleva `valid_from` y `valid_to` (`date`, `valid_to ≥ valid_from`, `422 acad.validation.frame_dates_invalid`), **dentro** del curso académico (`422 frame_outside_academic_year`, fechas leídas con `AcademicYearSharedLock` en la transacción, orden curso → ancla, como `RN-ACAD-54`), y no se solapa con otro especial vivo de la misma etapa (`422 frame_overlap`). Un `ordinaria` no lleva fechas (`CHECK`) |
+| `RN-ACAD-112` | Franja: `weekday` entero 1-7 (`422 weekday_invalid`), `starts_at` y `ends_at` hora `HH:MM` (`422 time_invalid`), `ends_at > starts_at` (`422 slot_ends_before_start`). Intervalo **semiabierto** `[inicio, fin)`: 09:25-10:20 sigue a 08:30-09:25 sin solapar. Sin solape entre franjas del mismo marco y día (`422 slot_overlap`, `params.slot`) **[DERIVADA]** |
+| `RN-ACAD-113` | Las franjas **solo se escriben dentro del marco** (`slots` en `POST`/`PATCH` del marco), como conjunto completo sincronizado por `public_id` con las reglas de `RN-ACAD-88` (con `public_id` ⇒ actualiza; sin él ⇒ alta; ausente ⇒ borrado lógico; ajeno o repetido ⇒ `422 acad.validation.slot_not_in_frame`). Tope 100 (`422 slots_too_many`) **[DERIVADA]**, precedente `RN-ACAD-89` |
+| `RN-ACAD-114` | Una franja con sesiones vivas no se borra ni cambia `weekday`, `starts_at` o `ends_at` ⇒ `409 has_dependents` con `timetable_sessions` **[DERIVADA]**: así una sesión existente nunca entra en conflicto por un cambio de franja, y la detección solo vive en la escritura de sesiones. Un marco con sesiones vivas no se borra (mismo `409`) |
+| `RN-ACAD-115` | El alta del primer marco de un curso académico crea su fila de ancla `timetables` si no existe (crear-o-leer bajo el índice único; la carrera se resuelve releyendo, nunca `500`) |
+
+#### 18.4.5 Sesiones y conflictos
+
+| ID | Regla |
+|----|-------|
+| `RN-ACAD-120` | Sesión = (franja, asignación docente, aula opcional). La etapa del grupo de la asignación debe ser la del marco de la franja ⇒ si no, `422 acad.validation.slot_not_for_group`. Franja o asignación inexistente, borrada, de otro centro o de otro curso ⇒ `422 parent_not_found` en su campo |
+| `RN-ACAD-121` | Aula opcional (`facility`): viva y de tipo `aula` ⇒ si no, `422 acad.validation.facility_not_found` / `facility_not_room` |
+| `RN-ACAD-122` | `PATCH` admite `time_slot` y `facility` (`null` quita el aula); `teaching_assignment` es inmutable (`422 parent_immutable`) |
+| `RN-ACAD-123` | **Conflicto** (`OPEN-ACAD-36` = rechazar): un alta o `PATCH` que deje dos sesiones vivas **coincidentes** con alguno de estos choques se rechaza con `422 acad.validation.timetable_conflict` en `time_slot` y no escribe nada. `params.conflicts` = lista de `{kind, session}` con `kind` ∈ {`teacher`, `facility`, `group`} y `session` el `public_id` de la otra sesión. Choques: **profesor**: mismo usuario de asignación; **aula**: misma aula no nula; **grupo**: mismo grupo, **salvo** que las dos sesiones sean de subgrupos distintos de ese grupo (desdoble). Dos sesiones del grupo entero a la vez (co-docencia) son conflicto (`OPEN-ACAD-36`) |
+| `RN-ACAD-124` | **Coincidentes** = mismo `weekday`, intervalos `[inicio, fin)` que se cortan, y marcos que **coexisten**: dos `ordinaria` coexisten siempre, también de etapas distintas (un profesor de ESO y Bachillerato choca aunque las franjas sean distintas: se compara por hora, no por franja). En `1.12-b`: un `especial` no coexiste con el `ordinaria` de su misma etapa (lo sustituye); coexiste con el `ordinaria` de otra etapa siempre y con un `especial` de otra etapa si sus fechas se cortan |
+| `RN-ACAD-125` | **Serialización** **[DERIVADA]**: toda escritura de sesiones (y, en `1.12-b`, de reservas y del alta o cambio de fechas de un marco especial) toma `FOR UPDATE` sobre la fila de `timetables` de su curso académico **antes** de leer las sesiones con que compara. El motor no garantiza los conflictos (sin `btree_gist`, como `datos.md §8.3`); un solo servicio escribe sesiones. Nunca se toma `FOR UPDATE` sobre la fila del curso (condición de `datos.md §8.3`) |
+| `RN-ACAD-126` | No se exige que una asignación tenga sesiones, ni que un grupo complete su rejilla, ni número de horas por asignatura (ningún requisito lo dice) |
+| `RN-ACAD-127` | **Vistas semanales**: `GET /timetable-sessions` exige uno de los filtros `teacher`, `facility`, `group`, `subject` (`422 acad.validation.view_filter_required`). La vista de grupo incluye las sesiones de sus subgrupos; la de asignatura, las de esa asignatura en todos los grupos. Orden: `weekday`, `starts_at`, `id`. Sin paginar, con tope de 500 filas (`422 acad.validation.view_too_large`) **[DERIVADA]**: una vista semanal tiene decenas de sesiones; el tope evita respuestas desmesuradas (precedente `RN-ACAD-89`) |
+| `RN-ACAD-128` | La sesión de un aula dada de baja (de un curso cerrado, `RN-ACAD-102`) se sigue leyendo; no se puede **crear** ni **mover** una sesión a un aula borrada |
+
+#### 18.4.6 Reservas (`1.12-b`)
+
+| ID | Regla |
+|----|-------|
+| `RN-ACAD-140` | Reserva = (espacio de cualquier tipo, `booked_on` fecha, `starts_at`, `ends_at` hora civil, `[inicio, fin)`), sin repetición y sin aprobación (`OPEN-ACAD-41`). Su curso académico es el que contiene la fecha, que llega como `academic_year` en el cuerpo; la fecha debe caer dentro de él (`422 booking_outside_academic_year`, fechas leídas con `AcademicYearSharedLock`). Reservante = quien la crea (`created_by`) |
+| `RN-ACAD-141` | **Conflicto** ⇒ `422 acad.validation.booking_conflict` con `params.conflicts` (`{kind: "booking"|"session", ...}`): otra reserva viva del mismo espacio, misma fecha, intervalos que se cortan; y, si es un aula, una sesión viva en ella con el `weekday` de la fecha, intervalo que se corta y marco **vigente ese día** (el `especial` de la etapa si la fecha cae en su vigencia, si no el `ordinaria`). Bajo el bloqueo de `RN-ACAD-125` |
+| `RN-ACAD-142` | Las reservas no se editan (borrar y crear) **[DERIVADA]**. Cancelar: `reservas.eliminar`; con ámbito `propios`, solo las creadas por uno mismo (`OPEN-ACAD-42`) |
+| `RN-ACAD-143` | Una sesión creada o movida después de una reserva **no** se valida contra reservas (la rejilla es la planificación base; la reserva es puntual) **[DERIVADA]**; la vista de un aula en una semana concreta queda para cuando exista calendario (`OPEN-ACAD-37`) |
+
+### 18.5 Ejemplos de conflicto
+
+| Caso | Resultado |
+|------|-----------|
+| Profesora P con 2º ESO A el lunes 08:30-09:25 y se le asigna 3º ESO B el lunes 09:00-09:55 (otra etapa u otro marco) | `422 timetable_conflict`, `kind: teacher` |
+| Lunes 08:30-09:25 y 09:25-10:20, mismo profesor | `201` (semiabierto) |
+| Desdoble: subgrupo D1 en Laboratorio y D2 en Aula 1, mismo grupo y franja | `201` |
+| Sesión del grupo entero y de su subgrupo D1 a la vez | `422`, `kind: group` |
+| Dos sesiones en Aula 1 a la misma hora con grupos y profesores distintos | `422`, `kind: facility` |
+| Sesión sin aula a la misma hora que otra sin aula | Sin choque de aula |
+
+### 18.6 Casos límite
+
+| Caso | Comportamiento |
+|------|----------------|
+| Dos altas simultáneas que chocan (dos procesos reales) | Una `201`, otra `422 timetable_conflict`, nunca dos `201` (`CA-ACAD-126`) |
+| Primer marco de un curso creado a la vez por dos peticiones | Una fila de ancla; ambos marcos válidos si son de etapas distintas (`RN-ACAD-115`) |
+| Borrar la asignación de un profesor con sesiones | `409 has_dependents`; se borran antes sus sesiones |
+| Quitar del grupo una asignatura con profesorado asignado | `409 has_dependents` (`RN-ACAD-96`) |
+| Usuario desactivado con asignaciones | Se conservan (histórico del curso); no se puede crear una nueva para él. Sin reacción a `UserDeactivated` en `1.12` **[DERIVADA]** |
+| Curso `cerrado` con horario | Todo de solo lectura (`409`); lectura con `curso_historico.leer` |
+| Espacio editado tras cerrar un curso | El horario cerrado muestra el nombre nuevo (`RN-ACAD-103`) |
+
+### 18.7 Interacción con otros módulos e interfaz de pertenencia
+
+**Consume**: `Curso\Domain` como en §7.1 (y `AcademicYearSharedLock` en `1.12-b`); de `Core\Domain`, la resolución de un usuario por `public_id` a (id interno, activo, nombre visible). **Comprobar en implementación** qué interfaz de `Core\Domain` existe para ello; si no existe, ampliarla es un cambio en `Core` que debe aprobarse antes de escribirlo (no se consulta `users` desde `acad`, `AR-01`). La FK en base de datos a `users` sí está permitida.
+
+**Interfaz de pertenencia** (`ADR-063 §5.2` punto 1), en `Acad\Domain` (nombre propuesto `TeachingMembership`):
+
+| Operación | Devuelve |
+|-----------|----------|
+| `groupIdsFor(int $userId, int $academicYearId): list<int>` | Ids internos de los grupos de `grupo(u, curso)` (`RN-ACAD-98`), listos para un `whereIn` |
+| `classPairsFor(int $userId, int $academicYearId): list<array{group_id: int, subject_id: int}>` | Pares de `clase(u, curso)` |
+
+Solo filas vivas; memoizada por petición; sin bloqueos. **Construcción** (`OPEN-ACAD-43`): recomendada con su primer consumidor (`1.13` o `1.16`), como las de §7.2 (`ADR-048`); el plazo de `ADR-063 §5.4` exige especificarla y aprobarla, no construirla.
+
+**Huecos que deja**: copia de marcos, franjas y (si `1.12b` lo decide) asignaciones al curso siguiente (`REQ-CURSO-002` «plantillas de horario»); `GroupDirectory`/`SubjectDirectory` siguen sin consumidor externo; exportación PDF y portales leerán las sesiones por una interfaz de `Acad\Domain` cuando lleguen.
+
+**Eventos**: ninguno.
+
+### 18.8 Interfaz (*shell* de `acad`)
+
+| Nombre | Ruta | `meta.permissions` | Menú | Contenido |
+|--------|------|--------------------|------|-----------|
+| `acad-timetable` | `/academico/horarios` | `['horarios.leer']` | Sí, `administracion` | Rejilla semanal (§18.3); selector de vista y entidad en la URL (`?view=group&id=…`); `meta.academicYearScoped: true` |
+| `acad-facilities` | `/academico/espacios` | `['espacios.leer']` | Sí, `administracion` | Tabla de espacios (`src/data-table`), alta/edición en diálogo |
+| *(sección)* `acad-level-detail` | — | sin cambio | — | Sección «Marcos horarios» con `horarios.leer` |
+| `acad-timetable-frame` | `/academico/marcos/:publicId` | `['horarios.leer']` | No | Ficha del marco; editor de franjas en lista (como el de valores de escala, §10.5.2) con `horarios.actualizar` |
+| *(sección)* `acad-group-detail` | — | sin cambio | — | Sección «Profesorado» (asignaciones por asignatura y subgrupo, tutores) con `asignacion_docente.leer` |
+| `acad-bookings` (`1.12-b`) | `/academico/reservas` | `['reservas.leer']` | Sí, `administracion` | Reservas por espacio y fecha |
+
+**Rejilla a medida** (sin dependencia nueva, `CLAUDE.md §1`): CSS Grid con días en columnas y tiempo en filas, filas calculadas desde las franjas del marco (proporcionales a la duración); semántica de tabla (`role="table"`, `row`, `columnheader`, `rowheader`, `cell`) y navegación por teclado entre celdas; cada sesión muestra asignatura, grupo/subgrupo, profesor y aula **como texto**; el conflicto se pinta con texto junto a la acción, no solo con color. Sin arrastrar como única vía (WCAG 2.5.7): mover es «Editar» con selector de franja. A 320 px, lista por día (`ADR-054`), sin desplazamiento horizontal. Componentes de shadcn-vue; reglas de `docs/design-system.md §22`. Literales en `locales/{es,en,de,fr}.json` y `lang/*/acad.php` (`INV-009`); las traducciones `en`/`de`/`fr` las completa `traductor`.
+
+### 18.9 Criterios de aceptación
+
+Pest en `apps/api/tests/Feature/Acad/` (concurrencia en `tests/Concurrency/`), Vitest y Playwright. Cada test referencia su `CA-ACAD-NNN`, `REQ-ACAD-002` y el `RN-ACAD-*` que cita (`INV-015`). Base real (`ADR-033 §10`).
+
+**Asignación docente y tutoría (`1.12-a`)**
+
+- **`CA-ACAD-107`** (`RN-ACAD-93`) — *Dado* un grupo con la asignatura MAT asignada y un usuario activo, *cuando* `POST /teaching-assignments` con `teacher`, `group`, `subject`, *entonces* `201` con `public_id`, `academic_year` del grupo, `teacher.public_id`/`teacher.name`, `subgroup: null`, y entrada `created` con `auditable_type = 'teaching_assignment'`.
+- **`CA-ACAD-108`** (`RN-ACAD-93`) — Asignatura no asignada al grupo, o asignada y borrada ⇒ `422 subject_not_in_group`; subgrupo de otro grupo ⇒ `422 subgroup_not_in_group`; inserción directa con subgrupo de otro grupo o `group_subject` de otro grupo ⇒ `23503`.
+- **`CA-ACAD-109`** (`RN-ACAD-92`) — Usuario inexistente, de otro centro o inactivo ⇒ `422 user_not_found`; un usuario sin ningún rol docente ⇒ `201` (no se comprueba rol); la asignación no añade permisos al usuario.
+- **`CA-ACAD-110`** (`RN-ACAD-94`) — Repetir (usuario, asignatura del grupo, sin subgrupo) ⇒ `422 assignment_exists`; con subgrupo distinto ⇒ `201`; otro usuario en la misma asignatura del grupo ⇒ `201`; dos altas iguales simultáneas (dos procesos) ⇒ una `201` y otra `422`, nunca `500`.
+- **`CA-ACAD-111`** (`RN-ACAD-95`) — `PATCH /teaching-assignments/{id}` ⇒ `405`; `DELETE` sin sesiones ⇒ `204`; con sesiones vivas ⇒ `409 has_dependents` con `timetable_sessions`.
+- **`CA-ACAD-112`** (`RN-ACAD-96`) — Con una asignación viva: `DELETE` del grupo, del subgrupo de la asignación o de la asignatura ⇒ `409 has_dependents` con `teaching_assignments`; `PUT /groups/{id}/subjects` sin esa asignatura ⇒ `409` y el conjunto no cambia; con un tutor vivo, `DELETE` del grupo ⇒ `409` con `group_tutors`; con un marco vivo, `DELETE` de la etapa ⇒ `409` con `timetable_frames`.
+- **`CA-ACAD-113`** (`RN-ACAD-97`) — `PUT /groups/{id}/tutors` con dos usuarios ⇒ `200` y dos `created`; repetir ⇒ sin entradas nuevas; con uno ⇒ un `deleted`; lista vacía ⇒ sin tutores; un usuario inactivo ⇒ `422 user_not_found` y nada cambia.
+- **`CA-ACAD-114`** (`RN-ACAD-98`; test unitario de la consulta que respaldará la interfaz) — Usuario tutor de A y con asignaciones de MAT en B y de LEN en el subgrupo D1 de C: `grupo` = {A, B, C}; `clase` = {(B, MAT), (C, LEN)}; filas borradas y de otro curso académico no cuentan.
+
+**Espacios (`1.12-a`)**
+
+- **`CA-ACAD-115`** (`RN-ACAD-100`, `-101`) — Alta de un `aula` y de un `recurso` ⇒ `201`; `facility_type` fuera de vocabulario ⇒ `422 facility_type_invalid`; en `PATCH` ⇒ `422 facility_type_immutable`; código repetido entre vivos del centro ⇒ `422 code_taken`; `academic_year` en el cuerpo se ignora (no existe en el recurso) **[a confirmar con `OPEN-ACAD-33`]**.
+- **`CA-ACAD-116`** (`RN-ACAD-102`) — Un aula con una sesión viva en un curso `activo` ⇒ `DELETE` `409 has_dependents`; con sesiones solo en un curso `cerrado` ⇒ `204`, y la sesión cerrada se sigue leyendo con `facility.deleted: true`.
+
+**Marcos y franjas (`1.12-a`)**
+
+- **`CA-ACAD-117`** (`RN-ACAD-110`, `-115`) — `POST /timetable-frames` con `education_level`, `frame_type: "ordinaria"`, nombre y cinco franjas ⇒ `201` con las franjas ordenadas por `weekday`, `starts_at`; se crea la fila de `timetables` del curso si no existía; un segundo `ordinaria` vivo en la etapa ⇒ `422 frame_ordinary_exists`; `especial` ⇒ `422 frame_type_invalid` (en `1.12-a`); `academic_year` en el cuerpo ⇒ `422 academic_year_not_allowed`.
+- **`CA-ACAD-118`** (`RN-ACAD-112`) — `weekday: 8` ⇒ `422 weekday_invalid`; `"8:5"` ⇒ `422 time_invalid`; fin ≤ inicio ⇒ `422 slot_ends_before_start`; dos franjas del mismo día 08:30-09:25 y 09:00-09:55 ⇒ `422 slot_overlap`; 08:30-09:25 y 09:25-10:20 ⇒ válido.
+- **`CA-ACAD-119`** (`RN-ACAD-113`) — `PATCH` con `slots` que reordena, actualiza una por `public_id`, añade una y omite otra ⇒ `200`, una `updated`, una `created` y una `deleted`; `public_id` de franja de otro marco o repetido ⇒ `422 slot_not_in_frame` y nada cambia; 101 franjas ⇒ `422 slots_too_many`.
+- **`CA-ACAD-120`** (`RN-ACAD-114`) — Franja con una sesión viva: omitirla o cambiar su hora en `PATCH` ⇒ `409 has_dependents` con `timetable_sessions`; `DELETE` del marco ⇒ el mismo `409`.
+- **`CA-ACAD-121`** (`datos.md §9`) — Inserciones directas: franja con `weekday = 0`, `ends_at <= starts_at`; marco `ordinaria` con `valid_from`; marco `especial` sin fechas ⇒ `23514`; franja con `timetable_frame_id` de otro curso académico ⇒ `23503`.
+
+**Sesiones y conflictos (`1.12-a`)**
+
+- **`CA-ACAD-122`** (`RN-ACAD-120`, `-121`) — `POST /timetable-sessions` con `time_slot`, `teaching_assignment` y `facility` (aula) ⇒ `201` con los resúmenes de franja, profesor, grupo, asignatura y aula; franja de un marco de otra etapa ⇒ `422 slot_not_for_group`; un `recurso` como aula ⇒ `422 facility_not_room`; aula borrada ⇒ `422 facility_not_found`; inserción directa con un espacio `recurso` ⇒ `23503`.
+- **`CA-ACAD-123`** (`RN-ACAD-123`, `-124`) — Los seis casos de §18.5 dan exactamente el resultado indicado, con `params.conflicts` que contiene el `kind` y el `public_id` de la sesión con la que choca; ninguna fila nueva en los rechazos.
+- **`CA-ACAD-124`** (`RN-ACAD-124`) — Profesor con sesión en el marco ordinario de ESO (lunes 09:00-09:55) y nueva sesión en el de Bachillerato (lunes 09:30-10:25, franjas distintas) ⇒ `422 timetable_conflict`, `kind: teacher`.
+- **`CA-ACAD-125`** (`RN-ACAD-122`) — `PATCH` de `time_slot` a una franja libre ⇒ `200` y `updated`; a una que choca ⇒ `422` y la sesión no se mueve; `facility: null` ⇒ `200`; `teaching_assignment` ⇒ `422 parent_immutable`.
+- **`CA-ACAD-126`** (`RN-ACAD-125`) — Dos procesos reales crean a la vez dos sesiones que chocan por profesor (en grupos distintos), *y en otra corrida* por aula: exactamente una `201` y otra `422 timetable_conflict`, nunca dos `201` ni `500`.
+- **`CA-ACAD-127`** (`RN-ACAD-127`) — `GET /timetable-sessions` sin ninguno de los cuatro filtros ⇒ `422 view_filter_required`; `?group=` incluye las sesiones de sus subgrupos; `?subject=` las de todos los grupos; `?teacher=` y `?facility=` las suyas; orden por día y hora.
+
+**Curso académico, permisos y aislamiento (`1.12-a`)**
+
+- **`CA-ACAD-128`** (`RN-ACAD-90`) — Con un curso `cerrado`, crear, modificar o borrar asignaciones, tutorías, marcos (con y sin `slots`) y sesiones ⇒ `409 academic-year-closed` y nada cambia; los espacios siguen editables.
+- **`CA-ACAD-129`** (`RN-ACAD-90`, `RN-CURSO-33`) — Forma de §13.5 para asignaciones, tutorías de un grupo, marcos y sesiones: listado y detalle de un curso cerrado sin `curso_historico.leer` ⇒ `404`; con él, los datos.
+- **`CA-ACAD-130`** (`ADR-057`, `AR-13`) — Las tablas con `academic_year_id` de §18 tienen el disparador; `facilities` no tiene la columna ni el disparador; ninguna FK con acción referencial distinta de `NO ACTION`; `AR-13` en verde sin excepciones.
+- **`CA-ACAD-131`** (`permisos.md §10`) — Cada *endpoint* nuevo responde `401` sin sesión y `403` sin su permiso; con `acad` descontratado, `403 module-disabled` antes del permiso; `AR-07a`/`AR-07b` en verde y la lista de excepciones de `AR-07a` sin cambios.
+- **`CA-ACAD-132`** (`INV-001`) — Con dos centros equivalentes, ningún *endpoint* lee, cuenta, modifica ni borra datos del otro; `public_id` ajeno en ruta ⇒ `404`; en cuerpo (usuario, grupo, asignatura, subgrupo, franja, asignación, aula) ⇒ `422` de su campo; un usuario de otro centro nunca aparece en `teacher`.
+- **`CA-ACAD-133`** (`permisos.md §10.3`) — Tras `platform:sync-registry` y la siembra, los roles predefinidos tienen exactamente las concesiones de `permisos.md §10.3`; conceder cualquier permiso nuevo con ámbito `grupo`/`clase` ⇒ `422`.
+
+**Interfaz (`1.12-a`)**
+
+- **`CA-ACAD-134`** (§18.8; Vitest) — La rejilla tiene semántica de tabla con cabeceras de día y de hora, se recorre con teclado, muestra cada sesión con texto (asignatura, grupo, profesor, aula), y a 320 px pasa a lista por día sin desplazamiento horizontal; acciones de escritura solo con su permiso y curso escribible; `422 timetable_conflict` se muestra junto a la acción nombrando la sesión con la que choca; `lint:i18n` limpio y `AR-11` en verde.
+- **`CA-ACAD-135`** (Playwright contra la API real) — Crear un aula, un marco ordinario con franjas, asignar dos profesores a dos asignaturas de un grupo, componer dos sesiones, provocar un conflicto de profesor y ver el mensaje, y cambiar de vista a la del profesor.
+
+**Jornada especial y reservas (`1.12-b`)**
+
+- **`CA-ACAD-136`** (`RN-ACAD-111`) — Marco `especial` con fechas dentro del curso ⇒ `201`; fechas fuera ⇒ `422 frame_outside_academic_year`; `valid_to < valid_from` ⇒ `422 frame_dates_invalid`; otro especial solapado de la misma etapa ⇒ `422 frame_overlap`.
+- **`CA-ACAD-137`** (`RN-ACAD-124`) — Mismo profesor a la misma hora en el ordinario y en el especial de su misma etapa ⇒ `201`; en el especial de Primaria y en el ordinario de ESO ⇒ `422 timetable_conflict`.
+- **`CA-ACAD-138`** (`RN-ACAD-140`, `-141`) — Reserva de un recurso ⇒ `201`; otra del mismo recurso, misma fecha y hora solapada ⇒ `422 booking_conflict`, `kind: booking`; reserva de un aula a la hora de una sesión del marco vigente ese día ⇒ `422`, `kind: session`; fuera del curso ⇒ `422 booking_outside_academic_year`; dos reservas simultáneas que chocan (dos procesos) ⇒ una `201`.
+- **`CA-ACAD-139`** (`RN-ACAD-142`, `OPEN-ACAD-42`) — Con `reservas.eliminar` ámbito `propios`, cancelar una reserva propia ⇒ `204` y una ajena ⇒ `404`; con ámbito `todos`, ambas `204`.
+- **`CA-ACAD-140`** (`RN-ACAD-90`) — Lectura de reservas y escritura en curso cerrado: forma de `CA-ACAD-128`/`-129`.
+
+### 18.10 Riesgos
+
+| Riesgo | Severidad | Mitigación |
+|--------|-----------|------------|
+| Conflictos no garantizados por el motor; una escritura que no tome el ancla los rompería | Media | Un solo servicio escribe sesiones y reservas, `FOR UPDATE` del ancla (`RN-ACAD-125`); `CA-ACAD-126`, `-138` con dos procesos; `db-reviewer` |
+| La rejilla a medida es el componente de interfaz más complejo hasta ahora (accesibilidad, *reflow*) | Media | Semántica de tabla y vista de lista a 320 px desde el principio; `CA-ACAD-134`; sin librería nueva |
+| Plazo de `ADR-063 §5.4`: si §18 no se aprueba, `1.13` y `1.16` siguen bloqueados | Alta | Aprobar la parte de asignación (§18.4.2, §18.7) aunque se aplace el resto; se puede partir la aprobación |
+| Asignación por **usuario** y no por `Employee`: el personal sin cuenta no puede impartir en el horario, y llegar a `Employee` (`REQ-RRHH`) obligará a vincular | Media | `OPEN-ACAD-34`; la FK a `users` es aditiva respecto a una futura a `employees` |
+| Espacios del centro sin copia por curso: un horario cerrado muestra el nombre actual del aula | Baja | `RN-ACAD-103`, `OPEN-ACAD-33` |
+| `time` sin zona podría chocar con `AR-04` o con la convención de `ADR-029` | Media | `OPEN-ACAD-40`; comprobar `AR-04` antes de escribir la migración; si la rechaza, la ampliación se aprueba antes |
+| Exponer nombres de profesorado a quien lea horarios | Baja | Es el uso normal de un horario; solo nombre visible, sin datos de contacto; `security-reviewer` |
+
+### 18.11 Preguntas abiertas de `1.12` (las decide el usuario)
+
+| ID | Pregunta | Opciones | Recomendación |
+|----|----------|----------|---------------|
+| `OPEN-ACAD-32` | **¿«Generador» es un resolutor automático o un editor con detección?** | **A** · Editor manual con detección de conflictos (rejilla a medida). **B** · Además, generación automática (motor de restricciones, en cola, `INV-012`) | **A** en `1.12`: es lo que el plan describe y lo que hace útil el horario. B es un proyecto propio (dependencia o algoritmo nuevo, ADR, *worker* que hoy no existe); si se quiere, paso aparte posterior |
+| `OPEN-ACAD-33` | **Espacios: ¿del centro o por curso académico? ¿Una tabla para aulas y recursos?** | **A** · Del centro (sin `academic_year_id`), una tabla con `facility_type`. **B** · Por curso académico (copia en el *rollover*, congelados al cerrar). **C** · Dos tablas | **A**: un aula es física y no cambia de curso; sin copia anual ni disparador. Coste aceptado: `RN-ACAD-102`/`-103` |
+| `OPEN-ACAD-34` | **¿A quién se asigna la docencia: `User` o `Employee`?** (`§16.1` fija `Employee`, que no existe) | **A** · `User` del centro, activo, sin comprobar rol. **B** · Esperar a `Employee` (fase 2) | **A**: `ADR-063 §5.2` y `ScopeResolver` resuelven por usuario; B bloquea `1.13`/`1.16`. Consecuencia escrita en §18.10 |
+| `OPEN-ACAD-35` | **Granularidad de la asignación** | **A** · Subgrupo opcional, varios tutores por grupo, sin fechas de vigencia ni sustituciones. **B** · Añadir vigencia por fechas y sustituciones | **A**: nada en los requisitos pide B; las sustituciones no deben cambiar quién califica (`ADR-063 §5.4`) y encajan en guardias (`REQ-GUAR`, fase 2) |
+| `OPEN-ACAD-36` | **¿Un conflicto se rechaza o se avisa? ¿Co-docencia?** | **A** · Se rechaza siempre (`422`); co-docencia del grupo entero no soportada. **B** · Se guarda y se marca (lista de conflictos). **C** · A con co-docencia permitida si la asignatura es la misma | **A**: el horario nunca queda inconsistente y no hace falta un informe de conflictos. Si el centro piloto usa co-docencia, C es aditiva |
+| `OPEN-ACAD-37` | **Horarios especiales** | **A** · Jornada intensiva = marcos `especial` con vigencia (`1.12-b`); festivos al calendario escolar (`1.20 · REQ-AGENDA`); exámenes a `REQ-ACAD-005`. **B** · Todo en `1.12` | **A**: festivos y exámenes son calendarios con su propio dueño; meterlos aquí crea dos fuentes de verdad |
+| `OPEN-ACAD-38` | **Exportación a PDF** (servicio PDF sin motor, `PLAN 0.3`/`1.17`; sin *worker*, #128) | **A** · Diferir a un paso posterior a `1.17`, con permiso `horarios.exportar`, en cola. **B** · Hoja de impresión del navegador en `1.12` | **A**: B no es «exportación a PDF» y crearía un segundo formato que mantener. No se declara `horarios.exportar` hasta entonces (precedente `permisos.md §2.1`) |
+| `OPEN-ACAD-39` | **Importación «desde formatos estándar»: ¿cuáles?** | **A** · Fuera de `1.12`; el usuario indica los formatos (p. ej. el de la herramienta del centro piloto) y se especifica con el importador (`1.24`/`1.25`). **B** · Elegir ahora un formato | **A**: elegir sin saber qué usa el piloto es inventar requisito |
+| `OPEN-ACAD-40` | **Tipo de la hora civil de franjas y reservas** | **A** · `time` (sin zona), como `date` en fechas civiles; interpretada en la zona del centro. **B** · `smallint` de minutos desde medianoche | **A**, con una nota de convención: la decide un **ADR corto** de `architect` (lo reutilizarán asistencia y agenda), no esta especificación; si `AR-04` la rechaza, su ampliación se aprueba antes de la migración |
+| `OPEN-ACAD-41` | **Reservas** | **A** · Fecha + intervalo libre, sin repetición ni aprobación. **B** · Por franja del marco. **C** · Con repetición semanal o aprobación | **A**: los recursos no siguen el marco de ninguna etapa; repetición y aprobación no las pide ningún requisito |
+| `OPEN-ACAD-42` | **Permisos y siembra** (`permisos.md §10`) | **X** · Recursos `asignacion_docente`, `horarios`, `espacios`, `reservas`; `direccion` con los cuatro de `horarios` y `asignacion_docente` (`§11.1`: «horarios»); lectura para `secretaria`, `docente`, `tutor_grupo`, `orientador`; reservas: `docente` y `tutor_grupo` `crear` y `eliminar` con **`propios`**. **Y** · Escritura solo para `administrador_centro` (criterio de `OPEN-CURSO-14`) | **X**: `§11.1` nombra los horarios en Dirección/Jefatura. `propios` en reservas exige que `acad` registre su resolutor (`propios`, `reservas`) y **ampliar el mapa cerrado de `AR-10`**, que solo se amplía con aprobación expresa: esta fila la pide. Ningún permiso de horarios contiene datos de alumnado, así que `ADR-063 §5.4` no impide `todos` a `docente` |
+| `OPEN-ACAD-43` | **¿Se construye ya la interfaz de pertenencia?** | **A** · Especificada aquí, construida con su primer consumidor (`1.13`/`1.16`). **B** · Construida en `1.12-a` | **A** (`ADR-048`, precedente §7.2); el plazo de `ADR-063 §5.4` pide especificación aprobada. `CA-ACAD-114` deja probada la consulta que la respaldará |
+| `OPEN-ACAD-44` | **Partición** | **1** · Una entrega. **2** · `1.12-a` (asignación, espacios, marcos ordinarios, sesiones, conflictos, vistas) y `1.12-b` (jornada especial y reservas) | **2**: `1.12-a` ya es del tamaño de `1.11-b` (seis tablas más dos restricciones en tablas existentes, ~21 *endpoints*, la rejilla); `1.12-b` es independiente y de menor riesgo |

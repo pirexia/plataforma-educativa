@@ -5,6 +5,8 @@
 > **Resumen**: seis tablas de tenant nuevas, **todas con `academic_year_id`** (`OPEN-ACAD-03` = B): `education_levels`, `courses`, `groups`, `subgroups`, `subjects`, `group_subjects`. Son las **primeras tablas reales con el disparador `academic_year_write_guard`** (`ADR-057`) y las primeras con contenido traducible (`ADR-062`). §1.7-§1.9 describen las tablas de `1.11d`. Ninguna migración altera tablas existentes. Fuera de `acad`, `1.11` cambia dos ayudantes de `TenantMigration` (§7).
 >
 > **`1.11d`** (especificación **APROBADA** el 2026-10-16; `funcional.md §17`): tres tablas de tenant nuevas con `academic_year_id` —`academic_periods`, `grading_scales`, `grading_scale_values`—, §1.7-§1.9, §3.1, §4, §8. Ninguna altera una tabla existente ni toca `TenantMigration`.
+>
+> **`1.12`** (**PROPUESTA**, pendiente de aprobación; `funcional.md §18`): ocho tablas nuevas (siete con `academic_year_id`; `facilities` sin él) y dos restricciones únicas añadidas a tablas existentes (`group_subjects`, `subgroups`), §9.
 
 ---
 
@@ -357,4 +359,161 @@ Al pasar a `cerrado`, el disparador `academic_year_write_guard` congela las tres
 
 **Mecanismo de bloqueo** (`RN-ACAD-54`, reescrita el 2026-10-16 por `OPEN-CURSO-25` = B). En el **alta y la edición** de un período, dentro de la misma transacción y en este orden: (1) `AcademicYearSharedLock::lockForShareById($academicYearId)` de `Curso\Domain` (`FOR SHARE` sobre la fila de `academic_years`; `acad` no consulta esa tabla, `AR-01`); (2) `EducationLevel::query()->whereKey($id)->lockForUpdate()` (hoy el alta de un curso de etapa usa `sharedLock()` sobre su etapa: dos altas de período con `FOR SHARE` no se excluirían entre sí, por eso aquí es `FOR UPDATE`); (3) lectura de los períodos hermanos y escritura. El **borrado** de un período toma solo el paso (2). El borrado de una etapa ya toma `lockForUpdate()` (`EducationLevelService::delete`), así que alta de período y borrado de etapa se serializan. **Bloqueos sobre la fila del curso**: el paso (1) y el `FOR SHARE` que pide el disparador al escribir son compatibles entre sí y con los de otras escrituras; los dos esperan a un cierre, una reapertura o un `PATCH` de fechas en curso (`FOR UPDATE`, `REQ-CURSO RN-CURSO-32`, `-46`, `-51`), y estos esperan a que el período confirme. Sin interbloqueo: esas transacciones de `curso` toman el `FOR UPDATE` del curso antes que nada y no bloquean filas de `acad` mientras lo retienen (`REQ-CURSO RN-CURSO-58`).
 
-**Condición de seguridad del orden de bloqueos** (observación de `db-reviewer`, `1.11d-a`). El orden curso → etapa del alta y la edición de un período frente al orden etapa → curso del borrado de etapa y del disparador es una inversión formal que no produce `40P01` porque el segundo bloqueo del curso es siempre `FOR SHARE`, compatible con el `FOR SHARE` ya retenido, y en PostgreSQL 18 un `FOR SHARE` nuevo no se encola tras un `FOR UPDATE` en espera (`RN-CURSO-58`, `CA-CURSO-122`). La garantía cae si en el futuro una escritura de `acad` toma `FOR UPDATE` sobre la fila del curso, o si una transacción de `curso` bloquea filas de `acad` mientras retiene su `FOR UPDATE` del curso: ambas cosas exigen revisar este apartado y `RN-CURSO-58`.
+**Condición de seguridad del orden de bloqueos** (observación de `db-reviewer`, `1.11d-a`; vale igual para `1.12`, §9.5). El orden curso → etapa del alta y la edición de un período frente al orden etapa → curso del borrado de etapa y del disparador es una inversión formal que no produce `40P01` porque el segundo bloqueo del curso es siempre `FOR SHARE`, compatible con el `FOR SHARE` ya retenido, y en PostgreSQL 18 un `FOR SHARE` nuevo no se encola tras un `FOR UPDATE` en espera (`RN-CURSO-58`, `CA-CURSO-122`). La garantía cae si en el futuro una escritura de `acad` toma `FOR UPDATE` sobre la fila del curso, o si una transacción de `curso` bloquea filas de `acad` mientras retiene su `FOR UPDATE` del curso: ambas cosas exigen revisar este apartado y `RN-CURSO-58`.
+
+---
+
+## 9. `1.12` · Horarios y asignación docente (**PROPUESTA**)
+
+> Pendiente de aprobación (`funcional.md §18`). Donde una columna depende de una pregunta abierta, se aplica su recomendación y se cita.
+
+Convenciones de §1 (`tenantTable()`, autoría, `timestamptz`, borrado lógico, `UNIQUE (tenant_id, id)`, disparador por tener `academic_year_id`, FK de más de dos columnas a mano con nombre explícito, `CHECK` e índices parciales por sentencia del propietario, todas las FK `NO ACTION`). Hora civil en `time` sin zona (**`OPEN-ACAD-40`**, pendiente; alternativa `smallint` de minutos). `public_id` ULID en todas, también en `timetables` (no se expone; coherencia con `AR-05`/`HasPublicId`, precedente `group_subjects`).
+
+### 9.1 Tablas de `1.12-a`
+
+**`facilities`** — espacio (aula o recurso). **Sin `academic_year_id`** (`OPEN-ACAD-33`): sin disparador; `AR-13` no la mira.
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `public_id` | `character(26)` | No | ULID, único |
+| `facility_type` | `text` | No | `CHECK (facility_type IN ('aula','recurso'))`; inmutable (`RN-ACAD-100`) |
+| `code` | `text` | No | Único entre vivos del centro |
+| `name` | `text` | No | Texto simple (`RN-ACAD-101`) |
+
+Restricciones: `UNIQUE (tenant_id, id, facility_type)` (destino de la FK con discriminador de las sesiones); `UNIQUE (tenant_id, code) WHERE deleted_at IS NULL`.
+
+**`timetables`** — ancla de serialización por curso académico (`RN-ACAD-115`, `-125`).
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `public_id` | `character(26)` | No | ULID |
+| `academic_year_id` | `bigint` | No | `tenantForeignId` (FK + índice) |
+
+Restricción: `UNIQUE (tenant_id, academic_year_id)` **no parcial**: el ancla no se borra nunca.
+
+**`teaching_assignments`** — asignación docente (`RN-ACAD-93` a `-95`).
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `public_id` | `character(26)` | No | ULID |
+| `academic_year_id` | `bigint` | No | `tenantForeignId` |
+| `user_id` | `bigint` | No | `tenantForeignId($t, 'user_id', 'users')`: `(tenant_id, user_id) → users (tenant_id, id)`, como las FK de autoría (`OPEN-ACAD-34`) |
+| `group_id` | `bigint` | No | FK `(tenant_id, academic_year_id, group_id) → groups (tenant_id, academic_year_id, id)` (destino existente) |
+| `group_subject_id` | `bigint` | No | FK `(tenant_id, group_id, group_subject_id) → group_subjects (tenant_id, group_id, id)` (**destino nuevo**, §9.3): la asignatura es del grupo |
+| `subgroup_id` | `bigint` | Sí | FK `(tenant_id, group_id, subgroup_id) → subgroups (tenant_id, group_id, id)` (**destino nuevo**, §9.3), `MATCH SIMPLE`: con `NULL` no se comprueba; con valor, el subgrupo es del grupo |
+
+Restricciones: `UNIQUE (tenant_id, academic_year_id, id)` (destino de las sesiones); `UNIQUE NULLS NOT DISTINCT (tenant_id, user_id, group_subject_id, subgroup_id) WHERE deleted_at IS NULL` (`RN-ACAD-94`; PostgreSQL 18, `ADR-061`).
+
+**`group_tutors`** — tutoría (`RN-ACAD-97`).
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `public_id` | `character(26)` | No | ULID |
+| `academic_year_id` | `bigint` | No | `tenantForeignId` |
+| `group_id` | `bigint` | No | FK `(tenant_id, academic_year_id, group_id) → groups (tenant_id, academic_year_id, id)` |
+| `user_id` | `bigint` | No | `tenantForeignId` a `users` |
+
+Restricción: `UNIQUE (tenant_id, group_id, user_id) WHERE deleted_at IS NULL`.
+
+**`timetable_frames`** — marco horario (`RN-ACAD-110`, `-111`).
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `public_id` | `character(26)` | No | ULID |
+| `academic_year_id` | `bigint` | No | `tenantForeignId` |
+| `education_level_id` | `bigint` | No | FK `(tenant_id, academic_year_id, education_level_id) → education_levels (tenant_id, academic_year_id, id)` |
+| `frame_type` | `text` | No | `CHECK (frame_type IN ('ordinaria','especial'))`; inmutable |
+| `name_translations` | `jsonb` | No | `translatableColumn($t, 'name')` (`AR-16`) |
+| `valid_from` | `date` | Sí | Solo `especial` |
+| `valid_to` | `date` | Sí | Solo `especial` |
+
+`CHECK ((frame_type = 'ordinaria' AND valid_from IS NULL AND valid_to IS NULL) OR (frame_type = 'especial' AND valid_from IS NOT NULL AND valid_to IS NOT NULL AND valid_to >= valid_from))`. Se crea ya con las columnas de `1.12-b` para no alterar la tabla después; en `1.12-a` el servicio solo admite `ordinaria`. Restricciones: `UNIQUE (tenant_id, academic_year_id, id)`; `UNIQUE (tenant_id, education_level_id) WHERE frame_type = 'ordinaria' AND deleted_at IS NULL` (`RN-ACAD-110`).
+
+**`time_slots`** — franja (`RN-ACAD-112` a `-114`).
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `public_id` | `character(26)` | No | ULID |
+| `academic_year_id` | `bigint` | No | `tenantForeignId` |
+| `timetable_frame_id` | `bigint` | No | FK `(tenant_id, academic_year_id, timetable_frame_id) → timetable_frames (tenant_id, academic_year_id, id)` |
+| `weekday` | `smallint` | No | `CHECK (weekday BETWEEN 1 AND 7)` (ISO) |
+| `starts_at` | `time` | No | Hora civil del centro |
+| `ends_at` | `time` | No | `CHECK (ends_at > starts_at)` |
+
+Restricción: `UNIQUE (tenant_id, academic_year_id, id)`. Sin solape dentro del marco: servicio (§9.5).
+
+**`timetable_sessions`** — sesión (`RN-ACAD-120` a `-128`).
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `public_id` | `character(26)` | No | ULID |
+| `academic_year_id` | `bigint` | No | `tenantForeignId` |
+| `time_slot_id` | `bigint` | No | FK `(tenant_id, academic_year_id, time_slot_id) → time_slots (tenant_id, academic_year_id, id)` |
+| `teaching_assignment_id` | `bigint` | No | FK `(tenant_id, academic_year_id, teaching_assignment_id) → teaching_assignments (tenant_id, academic_year_id, id)`: mismo curso que la franja, por el motor |
+| `facility_id` | `bigint` | Sí | Con `facility_type`, FK `(tenant_id, facility_id, facility_type) → facilities (tenant_id, id, facility_type)`, `MATCH SIMPLE` |
+| `facility_type` | `text` | Sí | Copia fijada por el servicio. `CHECK ((facility_id IS NULL AND facility_type IS NULL) OR (facility_id IS NOT NULL AND facility_type = 'aula'))`: el motor impide un `recurso` en una sesión |
+
+Lo que el motor **no** garantiza: etapa del grupo = etapa del marco (`RN-ACAD-120`) y los conflictos (`RN-ACAD-123`): servicio (§9.5).
+
+### 9.2 Tabla de `1.12-b`
+
+**`facility_bookings`** — reserva (`RN-ACAD-140` a `-143`).
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|------|-------------|
+| `public_id` | `character(26)` | No | ULID |
+| `academic_year_id` | `bigint` | No | `tenantForeignId` |
+| `facility_id` | `bigint` | No | `tenantForeignId` a `facilities` (cualquier tipo) |
+| `booked_on` | `date` | No | Fecha civil |
+| `starts_at` | `time` | No | |
+| `ends_at` | `time` | No | `CHECK (ends_at > starts_at)` |
+
+El reservante es `created_by` (`RN-ACAD-140`), base del resolutor `propios` de `OPEN-ACAD-42`.
+
+### 9.3 Cambios en tablas existentes (*expand*)
+
+| Tabla | Cambio | Para qué |
+|-------|--------|----------|
+| `group_subjects` | `UNIQUE (tenant_id, group_id, id)` | Destino de la FK de `teaching_assignments` que garantiza que la asignatura es del grupo |
+| `subgroups` | `UNIQUE (tenant_id, group_id, id)` | Destino de la FK que garantiza que el subgrupo es del grupo |
+
+Aditivos y compatibles con la versión anterior. Tablas pequeñas, pero ya en `develop`: índice con `CREATE UNIQUE INDEX CONCURRENTLY` (fuera de transacción) y `ADD CONSTRAINT … UNIQUE USING INDEX` en una migración aparte; lo decide `db-reviewer`.
+
+### 9.4 Índices
+
+Criterio de §3.1: índice no parcial con exactamente las columnas de cada FK compuesta que el ayudante no cubre.
+
+| Índice | Tabla | Consulta |
+|--------|-------|----------|
+| `UNIQUE (public_id)` | las ocho | Detalle y sincronización por `public_id` |
+| `(tenant_id, academic_year_id)` | las siete con curso | Del ayudante; listados por curso |
+| `(tenant_id, user_id)` | `teaching_assignments`, `group_tutors` | Del ayudante; vista por profesor, conflictos de profesor, pertenencia (`RN-ACAD-98`) |
+| `(tenant_id, academic_year_id, group_id)`, `(tenant_id, group_id, group_subject_id)`, `(tenant_id, group_id, subgroup_id)` | `teaching_assignments` | Cubren sus FK; asignaciones de un grupo; `has_dependents` de grupo, asignatura y subgrupo (`RN-ACAD-96`) |
+| `(tenant_id, academic_year_id, group_id)` | `group_tutors` | Cubre la FK; tutores de un grupo |
+| `(tenant_id, academic_year_id, education_level_id)` | `timetable_frames` | Cubre la FK; marcos de una etapa |
+| `(tenant_id, academic_year_id, timetable_frame_id)` | `time_slots` | Cubre la FK; franjas de un marco |
+| `(tenant_id, academic_year_id, time_slot_id)`, `(tenant_id, academic_year_id, teaching_assignment_id)` | `timetable_sessions` | Cubren las FK; conflictos y `has_dependents` de franja y asignación |
+| `(tenant_id, facility_id, facility_type)` | `timetable_sessions` | Cubre la FK; vista y conflictos por aula; `has_dependents` de un espacio |
+| `(tenant_id, facility_id, booked_on)` | `facility_bookings` | Conflictos de reservas de un espacio en una fecha |
+
+Volumen (§9.6) pequeño: sin índices por `weekday`/hora; los conflictos se calculan en el servicio sobre las sesiones del profesor, del aula o del grupo, ya acotadas por estos índices.
+
+### 9.5 Garantías entre filas
+
+| Regla | Motor | Servicio |
+|-------|-------|----------|
+| Asignatura y subgrupo del grupo de la asignación (`RN-ACAD-93`) | **Sí** (FK §9.1, §9.3) | También, para dar `422` |
+| Mismo curso académico en toda la cadena (`RN-CURSO-27`) | **Sí** (FK con `academic_year_id`) | — |
+| Solo aulas en sesiones (`RN-ACAD-121`) | **Sí** (FK con discriminador y `CHECK`) | También |
+| Un `ordinaria` vivo por etapa | **Sí** (único parcial) | Carrera ⇒ `422 frame_ordinary_exists` |
+| Franjas sin solape en el marco (`RN-ACAD-112`) | No | Bajo `FOR UPDATE` de la fila del marco |
+| Conflictos de profesor, aula y grupo (`RN-ACAD-123`, `-124`) y de reservas (`RN-ACAD-141`) | No (sin `btree_gist`, §8.3) | Bajo `FOR UPDATE` de la fila de `timetables` del curso (`RN-ACAD-125`) |
+| Etapa del grupo = etapa del marco (`RN-ACAD-120`) | No | Sí (cadena de cuatro tablas; desnormalizar la etapa en dos tablas para una FK no compensa) |
+
+**Orden de bloqueos**: (1) en `1.12-b`, si la operación valida fechas del curso (marco especial, reserva), `AcademicYearSharedLock` (`FOR SHARE` del curso); (2) `FOR UPDATE` del ancla `timetables`; (3) lecturas y escritura. Nunca `FOR UPDATE` sobre la fila del curso: la condición de §8.3 se mantiene.
+
+### 9.6 Modelos, auditoría, retención
+
+Modelos `Facility`, `Timetable`, `TeachingAssignment`, `GroupTutor`, `TimetableFrame`, `TimeSlot`, `TimetableSession`, `FacilityBooking` (`TenantModel`, `Auditable`, `HasPublicId`; alias `facility`, `timetable`, `teaching_assignment`, `group_tutor`, `timetable_frame`, `time_slot`, `timetable_session`, `facility_booking` en el *morph map*; `AR-06`). Política `Full` **[DERIVADA]**: `user_id` es un identificador interno, no un identificador personal de `ADR-035`; lo confirma `security-reviewer`. Escrituras por instancia (`AR-15`), incluida la sincronización de franjas y tutores.
+
+Volumen: un centro de 40 grupos con 30 sesiones semanales ≈ 1.200 sesiones por curso; decenas de espacios; cientos de reservas. Sin particionado. Retención: datos del centro, mientras exista el tenant; contienen el vínculo usuario ↔ docencia (dato personal del personal, no de categoría especial). Orden de restauración: `facilities`, `academic_years` → `timetables`; `groups`/`group_subjects`/`subgroups` → `teaching_assignments`, `group_tutors`; `education_levels` → `timetable_frames` → `time_slots` → `timetable_sessions`; `facilities` → `facility_bookings`.

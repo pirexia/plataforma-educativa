@@ -6,6 +6,8 @@ Prefijo: `/api/v1`. Tenant por *host* (`ADR-033 §2`). Todo según `ADR-038`: re
 
 **Identificadores**: solo `public_id` ULID en rutas y cuerpos (`ADR-029`). Ningún `code` es identificador de ruta (`ADR-051`).
 
+> **`1.12`** (**PROPUESTA**, pendiente de aprobación): horarios y asignación docente en **§12** (21 *endpoints* en `1.12-a`, 4 en `1.12-b`).
+>
 > **`1.11d`** (especificación **APROBADA** el 2026-10-16): diez *endpoints* nuevos de períodos lectivos y escalas en **§11**; los 27 de arriba no cambian salvo `DELETE /education-levels/{public_id}`, que gana `academic_periods` en `params.dependents` (`RN-ACAD-61`). `acad` aporta además una entrada al `409` de `PATCH /academic-years/{public_id}` de `curso` (`RN-ACAD-62`, §11.7).
 
 **Cadena de *middleware*** de toda ruta (`OPEN-ACAD-10` = no esencial, aprobada): autenticación → `module-enabled:acad` → `permission:<código>` (`AR-07a`, `AR-07b`). La autenticación es `App\Http\Middleware\RequireAuthenticatedUser`, **no** el alias `auth` (desviación de `1.11-b`, `funcional.md §16`; el alias se ordena antes de `resolve-tenant` y da `500` con una cookie real); las rutas de `1.11d` se añaden dentro del mismo grupo `Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:acad'])` de `Http/routes.php`.
@@ -439,3 +441,130 @@ En `apps/api/openapi/paths/acad.yaml` (fichero existente, enlazado desde `openap
 ### 11.9 Eventos y webhooks
 
 Ninguno (`funcional.md §7.3`).
+
+---
+
+## 12. `1.12` · Horarios y asignación docente (**PROPUESTA**)
+
+Pendiente de aprobación (`funcional.md §18`). Aplica todo lo de la cabecera: `ADR-038`, solo `public_id`, cadena `RequireAuthenticatedUser` → `module-enabled:acad` → `permission:`, curso académico de referencia (salvo `facilities`, que no lo tiene), `404` de lectura de curso cerrado y `409 academic-year-closed`. Recursos de permiso en `permisos.md §10`. Horas `HH:MM` (24 h, hora civil del centro); fechas `AAAA-MM-DD`.
+
+### 12.1 Representaciones
+
+**`Facility`**: `public_id`, `facility_type` (`aula`|`recurso`, enumerado extensible), `code`, `name`, `created_at`, `updated_at`.
+
+**`TeachingAssignment`**:
+
+```json
+{
+  "public_id": "01JC…01", "academic_year": "01JA…00",
+  "teacher": { "public_id": "01J9…77", "name": "Ana Ejemplo" },
+  "group": "01JA…10", "subject": "01JA…20", "subgroup": null,
+  "created_at": "…", "updated_at": "…"
+}
+```
+
+`teacher.name` es el nombre visible que devuelve `Core` (sin correo ni otros datos). `group`/`subject`/`subgroup` son `public_id`; la fila de `group_subjects` no se expone.
+
+**Tutores de un grupo**: `{"data": [{"public_id": "<usuario>", "name": "…"}]}`, sin paginar.
+
+**`TimetableFrame`**: `public_id`, `academic_year`, `education_level`, `frame_type`, `name`, `name_translations`, `valid_from`, `valid_to` (`null` en `ordinaria`), `slots` (lista de `{public_id, weekday, starts_at, ends_at}` ordenada por `weekday`, `starts_at`), `created_at`, `updated_at`.
+
+**`TimetableSession`** (con resúmenes para pintar la rejilla en una sola llamada **[DERIVADA]**):
+
+```json
+{
+  "public_id": "01JC…40", "academic_year": "01JA…00",
+  "frame": "01JC…30",
+  "slot": { "public_id": "01JC…31", "weekday": 1, "starts_at": "08:30", "ends_at": "09:25" },
+  "teaching_assignment": "01JC…01",
+  "teacher": { "public_id": "01J9…77", "name": "Ana Ejemplo" },
+  "group": { "public_id": "01JA…10", "code": "A", "name": "2º ESO A" },
+  "subgroup": null,
+  "subject": { "public_id": "01JA…20", "code": "MAT", "name": "Matemáticas" },
+  "facility": { "public_id": "01JC…50", "code": "A21", "name": "Aula 2.1", "deleted": false },
+  "created_at": "…", "updated_at": "…"
+}
+```
+
+**`FacilityBooking`** (`1.12-b`): `public_id`, `academic_year`, `facility` (resumen), `booked_on`, `starts_at`, `ends_at`, `booked_by` (`{public_id, name}`), `created_at`.
+
+### 12.2 *Endpoints*
+
+| Verbo y ruta | Permiso | Respuesta | Errores propios |
+|---|---|---|---|
+| `GET /facilities` | `espacios.leer` | 200 colección | 422 parámetro |
+| `POST /facilities` | `espacios.crear` | 201 + `Location` | 422 |
+| `GET /facilities/{public_id}` | `espacios.leer` | 200 | 404 |
+| `PATCH /facilities/{public_id}` | `espacios.actualizar` | 200 | 404, 422 |
+| `DELETE /facilities/{public_id}` | `espacios.eliminar` | 204 | 404, 409 `has_dependents` |
+| `GET /teaching-assignments` | `asignacion_docente.leer` | 200 colección | 422 parámetro |
+| `POST /teaching-assignments` | `asignacion_docente.crear` | 201 + `Location` | 422 |
+| `GET /teaching-assignments/{public_id}` | `asignacion_docente.leer` | 200 | 404 |
+| `DELETE /teaching-assignments/{public_id}` | `asignacion_docente.eliminar` | 204 | 404, 409 `has_dependents` |
+| `GET /groups/{public_id}/tutors` | `asignacion_docente.leer` | 200 | 404 |
+| `PUT /groups/{public_id}/tutors` | `asignacion_docente.actualizar` | 200 | 404, 422 |
+| `GET /timetable-frames` | `horarios.leer` | 200 colección | 422 parámetro |
+| `POST /timetable-frames` | `horarios.crear` | 201 + `Location` | 422 |
+| `GET /timetable-frames/{public_id}` | `horarios.leer` | 200 | 404 |
+| `PATCH /timetable-frames/{public_id}` | `horarios.actualizar` | 200 | 404, 409 `has_dependents` (franja con sesiones), 422 |
+| `DELETE /timetable-frames/{public_id}` | `horarios.eliminar` | 204 | 404, 409 |
+| `GET /timetable-sessions` | `horarios.leer` | 200 (`{data}`, sin paginar) | 422 `view_filter_required` |
+| `POST /timetable-sessions` | `horarios.crear` | 201 + `Location` | 422 (incl. `timetable_conflict`) |
+| `GET /timetable-sessions/{public_id}` | `horarios.leer` | 200 | 404 |
+| `PATCH /timetable-sessions/{public_id}` | `horarios.actualizar` | 200 | 404, 422 |
+| `DELETE /timetable-sessions/{public_id}` | `horarios.eliminar` | 204 | 404 |
+| `GET /facility-bookings` (`1.12-b`) | `reservas.leer` | 200 colección | 422 parámetro |
+| `POST /facility-bookings` (`1.12-b`) | `reservas.crear` | 201 + `Location` | 422 (incl. `booking_conflict`) |
+| `GET /facility-bookings/{public_id}` (`1.12-b`) | `reservas.leer` | 200 | 404 |
+| `DELETE /facility-bookings/{public_id}` (`1.12-b`) | `reservas.eliminar` (`todos` o `propios`, `OPEN-ACAD-42`) | 204 | 404 (también ajena con `propios`) |
+
+**21** *endpoints* en `1.12-a` y **4** en `1.12-b`. Sin `PATCH` de asignaciones (`RN-ACAD-95`) ni de reservas (`RN-ACAD-142`): la ruta no existe (`405`). Controladores con el patrón de `CoursesController`/`GradingScalesController`.
+
+### 12.3 Cuerpos
+
+- **`POST /facilities`**: `{ "facility_type": "aula", "code": "A21", "name": "Aula 2.1" }`. `PATCH`: `code`, `name`.
+- **`POST /teaching-assignments`**: `{ "teacher": "<usuario>", "group": "…", "subject": "…", "subgroup": null }`; sin `academic_year` (`RN-ACAD-91`).
+- **`PUT /groups/{id}/tutors`**: `{ "tutors": ["<usuario>", …] }`; lista vacía = sin tutores; repetidos = conjunto.
+- **`POST /timetable-frames`**: `{ "education_level": "…", "frame_type": "ordinaria", "name_translations": {"es-ES": "Horario general"}, "slots": [{ "weekday": 1, "starts_at": "08:30", "ends_at": "09:25" }, …] }`; en `1.12-b`, `valid_from`/`valid_to` para `especial`. `PATCH`: `name_translations` (fusión), `valid_from`/`valid_to` (`especial`), `slots` como conjunto completo por `public_id` (`RN-ACAD-113`; errores en `slots.<n>.<campo>`).
+- **`POST /timetable-sessions`**: `{ "time_slot": "…", "teaching_assignment": "…", "facility": "…" }` (`facility` opcional). `PATCH`: `time_slot`, `facility` (`null` quita).
+- **`POST /facility-bookings`** (`1.12-b`): `{ "academic_year": "…", "facility": "…", "booked_on": "2026-11-12", "starts_at": "10:00", "ends_at": "11:00" }`.
+
+### 12.4 Filtros, orden y paginación
+
+| Listado | Paginación | Filtros | `sort` |
+|---|---|---|---|
+| `GET /facilities` | página (25/100) | `facility_type` (múltiple) | `code`, `-code` |
+| `GET /teaching-assignments` | página | `academic_year`, `group`, `subject`, `teacher` (múltiples) | `id` (orden de alta) **[DERIVADA]** |
+| `GET /timetable-frames` | página | `academic_year`, `education_level` (múltiple), `frame_type` | `education_level`, luego `frame_type`, `id` |
+| `GET /timetable-sessions` | **sin paginar**, tope 500 filas (`422 acad.validation.view_too_large` por encima) **[DERIVADA]** | `academic_year`, y **al menos uno** de `teacher`, `facility`, `group`, `subject` (`RN-ACAD-127`); opcional `frame` | Fijo: `weekday`, `starts_at`, `id` |
+| `GET /facility-bookings` (`1.12-b`) | página | `academic_year`, `facility` (múltiple), `booked_from`, `booked_to` | `booked_on`, `starts_at`, `id` |
+
+Filtros por `public_id` inexistente o de otro curso ⇒ colección vacía (como §3).
+
+### 12.5 Catálogo de errores nuevos
+
+Además de los reutilizados (`code_required`, `code_taken`, `invalid_characters`, `name_required`, `academic_year_*`, `parent_not_found`, `parent_immutable`, `translations.*`, `has_dependents` con los dependientes nuevos `teaching_assignments`, `group_tutors`, `timetable_frames`, `timetable_sessions`, `facility_bookings`):
+
+| `code` (`acad.validation.…` salvo indicación) | Campo | Regla |
+|---|---|---|
+| `user_not_found` | `teacher` / `tutors.<n>` | `RN-ACAD-92` |
+| `subject_not_in_group` | `subject` | `RN-ACAD-93` |
+| `subgroup_not_in_group` | `subgroup` | `RN-ACAD-93` |
+| `assignment_exists` | `teacher` | `RN-ACAD-94` |
+| `facility_type_invalid`, `facility_type_immutable` | `facility_type` | `RN-ACAD-100` |
+| `frame_type_invalid`, `frame_type_immutable` | `frame_type` | `RN-ACAD-110` |
+| `frame_ordinary_exists` | `frame_type` | `RN-ACAD-110` |
+| `frame_dates_invalid`, `frame_outside_academic_year`, `frame_overlap` (`1.12-b`) | `valid_from`/`valid_to` | `RN-ACAD-111` |
+| `weekday_invalid`, `time_invalid`, `slot_ends_before_start`, `slot_overlap` | `slots.<n>.<campo>` | `RN-ACAD-112` |
+| `slot_not_in_frame`, `slots_too_many` | `slots.<n>.public_id` / `slots` | `RN-ACAD-113` |
+| `slot_not_for_group` | `time_slot` | `RN-ACAD-120` |
+| `facility_not_found`, `facility_not_room` | `facility` | `RN-ACAD-121`, `-128` |
+| `timetable_conflict` (`params.conflicts: [{kind, session}]`) | `time_slot` | `RN-ACAD-123` |
+| `view_filter_required`, `view_too_large` | `teacher` | `RN-ACAD-127` |
+| `booking_outside_academic_year`, `booking_conflict` (`1.12-b`) | `booked_on` | `RN-ACAD-140`, `-141` |
+
+Mensajes en `lang/{es,en,de,fr}/acad.php` (`AR-12`). La violación de un único por carrera (`frame_ordinary_exists`, `assignment_exists`, tutor repetido, ancla) se traduce a su `422` o se relee, nunca `500`.
+
+### 12.6 Idempotencia, eventos, OpenAPI
+
+Sin `Idempotency-Key` (no es pago, matrícula ni envío masivo); un reintento de alta de sesión da `422 timetable_conflict` consigo misma. Sin eventos ni *webhooks*. OpenAPI en `apps/api/openapi/paths/acad.yaml` y `components.yaml` antes del merge, con un esquema `CivilTime` (`pattern: '^([01]\d|2[0-3]):[0-5]\d$'`) y los enumerados extensibles `facility_type`, `frame_type`. Sin exportación PDF ni importación (`OPEN-ACAD-38`, `-39`).
