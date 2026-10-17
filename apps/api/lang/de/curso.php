@@ -18,7 +18,7 @@ return [
             'curso_academico' => 'Schuljahre',
             'estado_curso_academico' => 'Status der Schuljahre',
             'curso_historico' => 'Verlauf abgeschlossener Schuljahre',
-            'reapertura_curso_academico' => 'Reapertura de cursos académicos',
+            'reapertura_curso_academico' => 'Wiedereröffnung von Schuljahren',
         ],
     ],
 
@@ -28,7 +28,7 @@ return [
         'ends_before_start' => 'Das Enddatum muss nach dem Startdatum liegen.',
         'dates_overlap' => 'Die Daten überschneiden sich mit denen des Schuljahres „:code“.',
         'status_not_editable' => 'Der Status eines Schuljahres kann hier nicht angegeben werden: Verwende die Aktionen Aktivieren und Abschließen.',
-        'reason_required' => 'El motivo de la reapertura es obligatorio.',
+        'reason_required' => 'Der Grund für die Wiedereröffnung ist erforderlich.',
     ],
 
     'conflict' => [
@@ -38,8 +38,8 @@ return [
         'not_editable' => 'Nur ein Schuljahr in Planung kann bearbeitet werden.',
         'closure_checks_failed' => 'Das Schuljahr kann nicht abgeschlossen werden: Einige Abschlussprüfungen sind nicht erfüllt.',
         'date_change_checks_failed' => 'Die neuen Daten des Schuljahres schließen davon abhängige Daten aus.',
-        'reopen_not_latest' => 'Solo se puede reabrir el curso cerrado más reciente: el curso «:code» es posterior.',
-        'reopen_checks_failed' => 'El curso no se puede reabrir: hay validaciones de reapertura que no se cumplen.',
+        'reopen_not_latest' => 'Nur das zuletzt abgeschlossene Schuljahr kann wiedereröffnet werden: das Schuljahr „:code“ liegt später.',
+        'reopen_checks_failed' => 'Das Schuljahr kann nicht wiedereröffnet werden: Einige Prüfungen für die Wiedereröffnung sind nicht erfüllt.',
     ],
 
     'no_active_year' => 'Die Schule hat kein aktives Schuljahr.',

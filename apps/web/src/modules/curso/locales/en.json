@@ -68,8 +68,8 @@
       "openActive": "Open the active academic year ({code})",
       "closureTitle": "The academic year cannot be closed yet:",
       "noActions": "This academic year admits no further actions.",
-      "reopen": "Reabrir curso",
-      "reopenTitle": "El curso no se puede reabrir todavía:"
+      "reopen": "Reopen academic year",
+      "reopenTitle": "The academic year cannot be reopened yet:"
     },
     "confirm": {
       "activate": {
@@ -80,7 +80,7 @@
       },
       "close": {
         "title": "Close academic year {code}",
-        "description": "El cierre bloquea la escritura: a partir de ahora los datos de este curso quedan en solo lectura en todos los módulos del centro. Solo se puede deshacer mientras no se active otro curso, por quien tenga el permiso de reapertura y dejando constancia del motivo; una vez activado el siguiente curso, ya no se podrá reabrir.",
+        "description": "Closing blocks writing: from now on the data of this academic year is read-only in all modules of the school. It can only be undone while no other academic year has been activated, by someone with the reopening permission and recording the reason; once the next academic year is activated, it can no longer be reopened.",
         "confirm": "Close academic year {code}"
       }
     },
@@ -89,20 +89,20 @@
       "updated": "Academic year updated.",
       "activated": "Academic year \"{code}\" activated.",
       "closed": "Academic year \"{code}\" closed.",
-      "reopened": "Curso «{code}» reabierto."
+      "reopened": "Academic year \"{code}\" reopened."
     },
     "errors": {
       "unexpected": "The operation could not be completed. Please try again."
     },
     "reopen": {
-      "title": "Reabrir el curso {code}",
-      "description": "Reabrir un curso cerrado por error. El curso volverá a ser el curso activo del centro.",
-      "warningWritable": "Todos los datos del curso volverán a admitir escritura en todos los módulos.",
-      "warningNotCorrection": "La reapertura no sirve para corregir un dato concreto: abre el curso entero.",
-      "warningReason": "El motivo queda registrado. No incluyas datos personales en el motivo.",
-      "reasonLabel": "Motivo de la reapertura (obligatorio)",
-      "reasonRequired": "Indica el motivo de la reapertura.",
-      "confirm": "Reabrir el curso {code}"
+      "title": "Reopen academic year {code}",
+      "description": "Reopen an academic year that was closed by mistake. It will become the school's active academic year again.",
+      "warningWritable": "All the data of the academic year will accept writing again in all modules.",
+      "warningNotCorrection": "Reopening is not meant to correct a specific piece of data: it reopens the whole academic year.",
+      "warningReason": "The reason is recorded. Do not include personal data in the reason.",
+      "reasonLabel": "Reason for reopening (required)",
+      "reasonRequired": "Enter the reason for reopening.",
+      "confirm": "Reopen academic year {code}"
     }
   }
 }

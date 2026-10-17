@@ -68,8 +68,8 @@
       "openActive": "Aktives Schuljahr öffnen ({code})",
       "closureTitle": "Das Schuljahr kann noch nicht abgeschlossen werden:",
       "noActions": "Dieses Schuljahr lässt keine weiteren Aktionen zu.",
-      "reopen": "Reabrir curso",
-      "reopenTitle": "El curso no se puede reabrir todavía:"
+      "reopen": "Schuljahr wiedereröffnen",
+      "reopenTitle": "Das Schuljahr kann noch nicht wiedereröffnet werden:"
     },
     "confirm": {
       "activate": {
@@ -80,7 +80,7 @@
       },
       "close": {
         "title": "Schuljahr {code} abschließen",
-        "description": "El cierre bloquea la escritura: a partir de ahora los datos de este curso quedan en solo lectura en todos los módulos del centro. Solo se puede deshacer mientras no se active otro curso, por quien tenga el permiso de reapertura y dejando constancia del motivo; una vez activado el siguiente curso, ya no se podrá reabrir.",
+        "description": "Der Abschluss sperrt Schreibzugriffe: Ab jetzt sind die Daten dieses Schuljahres in allen Modulen der Schule schreibgeschützt. Rückgängig machen lässt sich das nur, solange kein anderes Schuljahr aktiviert wurde, durch jemanden mit der Berechtigung zur Wiedereröffnung und unter Angabe des Grundes. Sobald das nächste Schuljahr aktiviert ist, kann es nicht mehr wiedereröffnet werden.",
         "confirm": "Schuljahr {code} abschließen"
       }
     },
@@ -89,20 +89,20 @@
       "updated": "Schuljahr aktualisiert.",
       "activated": "Schuljahr „{code}“ aktiviert.",
       "closed": "Schuljahr „{code}“ abgeschlossen.",
-      "reopened": "Curso «{code}» reabierto."
+      "reopened": "Schuljahr „{code}“ wiedereröffnet."
     },
     "errors": {
       "unexpected": "Der Vorgang konnte nicht abgeschlossen werden. Bitte versuche es erneut."
     },
     "reopen": {
-      "title": "Reabrir el curso {code}",
-      "description": "Reabrir un curso cerrado por error. El curso volverá a ser el curso activo del centro.",
-      "warningWritable": "Todos los datos del curso volverán a admitir escritura en todos los módulos.",
-      "warningNotCorrection": "La reapertura no sirve para corregir un dato concreto: abre el curso entero.",
-      "warningReason": "El motivo queda registrado. No incluyas datos personales en el motivo.",
-      "reasonLabel": "Motivo de la reapertura (obligatorio)",
-      "reasonRequired": "Indica el motivo de la reapertura.",
-      "confirm": "Reabrir el curso {code}"
+      "title": "Schuljahr {code} wiedereröffnen",
+      "description": "Ein irrtümlich abgeschlossenes Schuljahr wiedereröffnen. Es wird wieder das aktive Schuljahr der Schule.",
+      "warningWritable": "Alle Daten des Schuljahres können in allen Modulen wieder bearbeitet werden.",
+      "warningNotCorrection": "Die Wiedereröffnung dient nicht dazu, ein einzelnes Datum zu korrigieren: Sie öffnet das gesamte Schuljahr.",
+      "warningReason": "Der Grund wird gespeichert. Gib im Grund keine personenbezogenen Daten an.",
+      "reasonLabel": "Grund der Wiedereröffnung (Pflichtfeld)",
+      "reasonRequired": "Gib den Grund der Wiedereröffnung an.",
+      "confirm": "Schuljahr {code} wiedereröffnen"
     }
   }
 }
