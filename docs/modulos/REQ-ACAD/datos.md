@@ -157,7 +157,7 @@ Restricciones: `UNIQUE (tenant_id, academic_year_id, id, scale_type)` (`grading_
 
 ### 1.9 `grading_scale_values` — valores cualitativos o tramos (`1.11d`)
 
-*Forma aprobada*: `academic_year_id`, `grading_scale_id` (FK de tres columnas), `public_id`, `code`, `label_translations`, `position`, `is_passing boolean`, y para `mixta` `range_min`/`range_max numeric(5,2)` sin solape (validación de servidor).
+*Forma aprobada*: `academic_year_id`, `grading_scale_id` (FK de cuatro columnas `(tenant_id, academic_year_id, grading_scale_id, scale_type)`, que arrastra el discriminador), `public_id`, `code`, `label_translations`, `position`, `is_passing boolean`, y para `mixta` `range_min`/`range_max numeric(5,2)` sin solape (validación de servidor).
 
 **Filas hijas y no `jsonb` en la escala** (decisión de esta especificación, razonada):
 

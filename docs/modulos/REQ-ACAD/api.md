@@ -432,7 +432,7 @@ Mensajes en `lang/{es,en,de,fr}/acad.php` (`funcional.md §10.5.5`). La violaci�
 
 ### 11.8 OpenAPI
 
-**Estado (`1.11d-a` y `1.11d-b`)**: implementado en `apps/api/openapi/paths/acad.yaml` y `components.yaml` (verificado por `AcadOpenApiTest`); lo que sigue es la especificación de partida.
+**Estado (`1.11d-a` y `1.11d-b`)**: implementado en `apps/api/openapi/paths/acad.yaml` y `components.yaml` (verificado por `AcadOpenApiTest`); la cabecera de `acad.yaml` ya está actualizada. Lo que sigue es la especificación de partida, conservada como referencia.
 
 En `apps/api/openapi/paths/acad.yaml` (fichero existente, enlazado desde `openapi.yaml`): los diez *endpoints* con `operationId` `listAcademicPeriods`, `createAcademicPeriod`, `getAcademicPeriod`, `updateAcademicPeriod`, `deleteAcademicPeriod`, `listGradingScales`, `createGradingScale`, `getGradingScale`, `updateGradingScale`, `deleteGradingScale`, etiqueta `Acad / Configuración académica`, y en `components.yaml` los esquemas `AcademicPeriod`, `GradingScale`, `GradingScaleValue`, sus variantes de alta y `PATCH` (traducciones anulables solo en `PATCH`; `public_id` opcional solo en el elemento de `values` del `PATCH`), un esquema `DecimalString` (`type: string`, `pattern: '^-?\d{1,3}(\.\d{1,2})?$'`, entrada también `number` con `oneOf`), los enumerados extensibles `period_type` y `scale_type`, y las listas blancas de `sort`. **El comentario de cabecera de `acad.yaml` debe corregirse**: hoy dice que toda ruta exige `estructura_academica.<acción>`, y las diez nuevas exigen `configuracion_academica.<acción>`.
 
