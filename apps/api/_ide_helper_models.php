@@ -603,6 +603,121 @@ namespace App\Modules\Acad\Domain\Models{
 
 namespace App\Modules\Acad\Domain\Models{
 /**
+ * REQ-ACAD/datos.md §1.8, §4 (1.11d-b, `REQ-ACAD-001`). Escala de calificación
+ * de un curso académico: numérica, cualitativa o mixta.
+ *
+ * ADR-035 §8: Full — sin datos personales (RN-ACAD-50). Escrituras por
+ * instancia, nunca masivas (AR-15). Los campos `numeric(5,2)` no tienen cast:
+ * llegan como cadena exacta (`"5.00"`), nunca como `float` (RN-ACAD-75). Los
+ * demás módulos no usan este modelo (AR-01): el acceso será por las
+ * interfaces de `Acad\Domain` cuando haya consumidor (`ADR-048`).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $academic_year_id
+ * @property string $code
+ * @property array<array-key, mixed> $name_translations
+ * @property string $scale_type
+ * @property numeric|null $min_value
+ * @property numeric|null $max_value
+ * @property int|null $decimals
+ * @property numeric|null $passing_min_value
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\Acad\Domain\Models\GradingScaleValue> $values
+ * @property-read int|null $values_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale whereCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale whereDecimals($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale whereMaxValue($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale whereMinValue($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale whereNameTranslations($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale wherePassingMinValue($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale whereScaleType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScale withoutTrashed()
+* @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperGradingScale {}
+}
+
+namespace App\Modules\Acad\Domain\Models{
+/**
+ * REQ-ACAD/datos.md §1.9, §4 (1.11d-b, `REQ-ACAD-001`). Valor de una escala
+ * cualitativa o tramo de una mixta. Solo se escribe dentro de su escala
+ * (`RN-ACAD-80`).
+ *
+ * ADR-035 §8: Full — sin datos personales (RN-ACAD-50). Escrituras por
+ * instancia, nunca masivas (AR-15): la sincronización de `RN-ACAD-88` y el
+ * borrado en cascada lógica de `RN-ACAD-76` recorren las instancias.
+ * `range_min`/`range_max` sin cast (cadena exacta, RN-ACAD-75).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $academic_year_id
+ * @property int $grading_scale_id
+ * @property string $scale_type
+ * @property string $code
+ * @property array<array-key, mixed> $label_translations
+ * @property int $position
+ * @property bool|null $is_passing
+ * @property numeric|null $range_min
+ * @property numeric|null $range_max
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\Acad\Domain\Models\GradingScale|null $gradingScale
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue whereCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue whereGradingScaleId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue whereIsPassing($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue whereLabelTranslations($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue wherePosition($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue whereRangeMax($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue whereRangeMin($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue whereScaleType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GradingScaleValue withoutTrashed()
+* @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperGradingScaleValue {}
+}
+
+namespace App\Modules\Acad\Domain\Models{
+/**
  * REQ-ACAD/datos.md §1.3 (1.11-b, `REQ-ACAD-001`). Grupo de un curso de etapa. `name` es texto simple, no traducible.
  *
  * ADR-035 §8: Full — sin datos personales (RN-ACAD-09). Escrituras por
