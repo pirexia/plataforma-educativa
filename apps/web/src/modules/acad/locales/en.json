@@ -15,7 +15,10 @@
       "stage": "Stage type",
       "regime": "Regime",
       "position": "Position",
-      "actions": "Actions"
+      "actions": "Actions",
+      "periodType": "Period type",
+      "startsOn": "Start",
+      "endsOn": "End"
     },
     "stage": {
       "infantil": "Early Childhood Education",
@@ -35,7 +38,8 @@
       "groups": "Groups",
       "subjects": "Subjects",
       "subgroups": "Subgroups",
-      "group_subjects": "Subjects assigned to groups"
+      "group_subjects": "Subjects assigned to groups",
+      "academic_periods": "Academic periods"
     },
     "structure": {
       "title": "Academic structure",
@@ -110,14 +114,16 @@
           "course": "New course",
           "subject": "New subject",
           "group": "New group",
-          "subgroup": "New subgroup"
+          "subgroup": "New subgroup",
+          "period": "New period"
         },
         "edit": {
           "level": "Edit stage",
           "course": "Edit course",
           "subject": "Edit subject",
           "group": "Edit group",
-          "subgroup": "Edit subgroup"
+          "subgroup": "Edit subgroup",
+          "period": "Edit period"
         }
       },
       "errors": {
@@ -146,6 +152,10 @@
         "subject": {
           "title": "Delete subject {code}",
           "description": "The subject is deleted. It cannot be deleted if it is assigned to any group."
+        },
+        "period": {
+          "title": "Delete period {name}",
+          "description": "The period is deleted from the stage."
         }
       }
     },
@@ -165,11 +175,31 @@
       "subjectCreated": "Subject created.",
       "subjectUpdated": "Subject updated.",
       "subjectDeleted": "Subject deleted.",
-      "subjectsAssigned": "Group subjects updated."
+      "subjectsAssigned": "Group subjects updated.",
+      "periodCreated": "Period created.",
+      "periodUpdated": "Period updated.",
+      "periodDeleted": "Period deleted."
     },
     "errors": {
       "unexpected": "The action could not be completed. Please try again.",
       "dependentsTitle": "Items that prevent it:"
-    }
+    },
+    "periodType": {
+      "trimestre": "Term (three months)",
+      "cuatrimestre": "Four-month term",
+      "semestre": "Semester"
+    },
+    "periods": {
+      "title": "Academic periods",
+      "caption": "Academic periods of the stage",
+      "new": "New period",
+      "empty": "This stage has no academic periods",
+      "yearRange": "Between {start} and {end}",
+      "overlapWith": "The period overlaps “{name}” in the same stage.",
+      "editFor": "Edit period {name}",
+      "deleteFor": "Delete period {name}",
+      "typePlaceholder": "Choose a period type"
+    },
+    "readOnlyConfig": "This academic year is read-only: its periods and scales cannot be created, changed or deleted."
   }
 }

@@ -15,7 +15,10 @@
       "stage": "Stufenart",
       "regime": "Trägerschaft",
       "position": "Position",
-      "actions": "Aktionen"
+      "actions": "Aktionen",
+      "periodType": "Art des Zeitraums",
+      "startsOn": "Beginn",
+      "endsOn": "Ende"
     },
     "stage": {
       "infantil": "Frühkindliche Bildung",
@@ -35,7 +38,8 @@
       "groups": "Gruppen",
       "subjects": "Fächer",
       "subgroups": "Untergruppen",
-      "group_subjects": "Gruppen zugeordnete Fächer"
+      "group_subjects": "Gruppen zugeordnete Fächer",
+      "academic_periods": "Unterrichtszeiträume"
     },
     "structure": {
       "title": "Akademische Struktur",
@@ -110,14 +114,16 @@
           "course": "Neuer Jahrgang",
           "subject": "Neues Fach",
           "group": "Neue Gruppe",
-          "subgroup": "Neue Untergruppe"
+          "subgroup": "Neue Untergruppe",
+          "period": "Neuer Zeitraum"
         },
         "edit": {
           "level": "Stufe bearbeiten",
           "course": "Jahrgang bearbeiten",
           "subject": "Fach bearbeiten",
           "group": "Gruppe bearbeiten",
-          "subgroup": "Untergruppe bearbeiten"
+          "subgroup": "Untergruppe bearbeiten",
+          "period": "Zeitraum bearbeiten"
         }
       },
       "errors": {
@@ -146,6 +152,10 @@
         "subject": {
           "title": "Fach {code} löschen",
           "description": "Das Fach wird gelöscht. Es kann nicht gelöscht werden, wenn es einer Gruppe zugeordnet ist."
+        },
+        "period": {
+          "title": "Zeitraum {name} löschen",
+          "description": "Der Zeitraum wird aus der Stufe gelöscht."
         }
       }
     },
@@ -165,11 +175,31 @@
       "subjectCreated": "Fach angelegt.",
       "subjectUpdated": "Fach aktualisiert.",
       "subjectDeleted": "Fach gelöscht.",
-      "subjectsAssigned": "Fächer der Gruppe aktualisiert."
+      "subjectsAssigned": "Fächer der Gruppe aktualisiert.",
+      "periodCreated": "Zeitraum angelegt.",
+      "periodUpdated": "Zeitraum aktualisiert.",
+      "periodDeleted": "Zeitraum gelöscht."
     },
     "errors": {
       "unexpected": "Die Aktion konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
       "dependentsTitle": "Elemente, die dies verhindern:"
-    }
+    },
+    "periodType": {
+      "trimestre": "Trimester",
+      "cuatrimestre": "Tertial",
+      "semestre": "Semester"
+    },
+    "periods": {
+      "title": "Unterrichtszeiträume",
+      "caption": "Unterrichtszeiträume der Stufe",
+      "new": "Neuer Zeitraum",
+      "empty": "Diese Stufe hat keine Unterrichtszeiträume",
+      "yearRange": "Zwischen {start} und {end}",
+      "overlapWith": "Der Zeitraum überschneidet sich mit „{name}“ derselben Stufe.",
+      "editFor": "Zeitraum {name} bearbeiten",
+      "deleteFor": "Zeitraum {name} löschen",
+      "typePlaceholder": "Art des Zeitraums wählen"
+    },
+    "readOnlyConfig": "Dieses Schuljahr ist schreibgeschützt: Seine Zeiträume und Skalen können nicht angelegt, geändert oder gelöscht werden."
   }
 }

@@ -15,7 +15,10 @@
       "stage": "Tipo de etapa",
       "regime": "Régimen",
       "position": "Posición",
-      "actions": "Acciones"
+      "actions": "Acciones",
+      "periodType": "Tipo de período",
+      "startsOn": "Inicio",
+      "endsOn": "Fin"
     },
     "stage": {
       "infantil": "Educación Infantil",
@@ -35,7 +38,8 @@
       "groups": "Grupos",
       "subjects": "Asignaturas",
       "subgroups": "Subgrupos",
-      "group_subjects": "Asignaturas asignadas a grupos"
+      "group_subjects": "Asignaturas asignadas a grupos",
+      "academic_periods": "Períodos lectivos"
     },
     "structure": {
       "title": "Estructura académica",
@@ -110,14 +114,16 @@
           "course": "Nuevo curso",
           "subject": "Nueva asignatura",
           "group": "Nuevo grupo",
-          "subgroup": "Nuevo subgrupo"
+          "subgroup": "Nuevo subgrupo",
+          "period": "Nuevo período"
         },
         "edit": {
           "level": "Editar etapa",
           "course": "Editar curso",
           "subject": "Editar asignatura",
           "group": "Editar grupo",
-          "subgroup": "Editar subgrupo"
+          "subgroup": "Editar subgrupo",
+          "period": "Editar período"
         }
       },
       "errors": {
@@ -146,6 +152,10 @@
         "subject": {
           "title": "Borrar la asignatura {code}",
           "description": "La asignatura se borra. No se puede borrar si está asignada a algún grupo."
+        },
+        "period": {
+          "title": "Borrar el período {name}",
+          "description": "El período se borra de la etapa."
         }
       }
     },
@@ -165,11 +175,31 @@
       "subjectCreated": "Asignatura creada.",
       "subjectUpdated": "Asignatura actualizada.",
       "subjectDeleted": "Asignatura borrada.",
-      "subjectsAssigned": "Asignaturas del grupo actualizadas."
+      "subjectsAssigned": "Asignaturas del grupo actualizadas.",
+      "periodCreated": "Período creado.",
+      "periodUpdated": "Período actualizado.",
+      "periodDeleted": "Período borrado."
     },
     "errors": {
       "unexpected": "No se pudo completar la acción. Inténtalo de nuevo.",
       "dependentsTitle": "Elementos que lo impiden:"
-    }
+    },
+    "periodType": {
+      "trimestre": "Trimestre",
+      "cuatrimestre": "Cuatrimestre",
+      "semestre": "Semestre"
+    },
+    "periods": {
+      "title": "Períodos lectivos",
+      "caption": "Períodos lectivos de la etapa",
+      "new": "Nuevo período",
+      "empty": "Esta etapa no tiene períodos lectivos",
+      "yearRange": "Entre el {start} y el {end}",
+      "overlapWith": "El período se solapa con «{name}», de la misma etapa.",
+      "editFor": "Editar el período {name}",
+      "deleteFor": "Borrar el período {name}",
+      "typePlaceholder": "Elige un tipo de período"
+    },
+    "readOnlyConfig": "Este curso académico es de solo lectura: no se pueden crear, modificar ni borrar sus períodos ni sus escalas."
   }
 }
