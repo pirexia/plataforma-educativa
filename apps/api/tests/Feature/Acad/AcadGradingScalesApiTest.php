@@ -305,6 +305,28 @@ test('CA-ACAD-081 RN-ACAD-88 INV-001: un public_id de valor de otra escala, de o
     expect(Scales::errorCode($response, 'values.0.public_id'))->toBe('acad.validation.value_not_in_scale');
 });
 
+test('RN-ACAD-88 INV-010: un PATCH que intercambia los code de dos valores supervivientes es 422 code_taken en el campo code de la escala y no deja la escala modificada', function (): void {
+    [$tenant, $admin, $year] = Scales::setup('esc-088x');
+
+    $created = Scales::create($tenant, $admin, Scales::qualitative($year->public_id, ['values' => [
+        Scales::value('A', 'A', true),
+        Scales::value('B', 'B', true),
+    ]]));
+    [$a, $b] = array_column($created['values'], 'public_id');
+    $before = Scales::snapshot($tenant);
+    $auditBefore = Scales::auditCount($tenant);
+
+    $response = Scales::patch($tenant, $admin, $created['public_id'], ['values' => [
+        ['public_id' => $a, 'code' => 'B'],
+        ['public_id' => $b, 'code' => 'A'],
+    ]])->assertStatus(422);
+
+    expect(Scales::errorCode($response, 'code'))->toBe('acad.validation.code_taken')
+        ->and(Scales::snapshot($tenant))->toBe($before)
+        ->and(Scales::auditCount($tenant))->toBe($auditBefore)
+        ->and(array_column(Scales::get($tenant, $admin, '/grading-scales/'.$created['public_id'])->json('values'), 'code'))->toBe(['A', 'B']);
+});
+
 test('CA-ACAD-082 RN-ACAD-70 RN-ACAD-51: un PATCH con scale_type es 422 scale_type_immutable y con academic_year, parent_immutable, aunque sean el mismo valor; la fila no cambia', function (): void {
     [$tenant, $admin, $year] = Scales::setup('esc-082');
     $scale = Scales::create($tenant, $admin, Scales::numeric($year->public_id));

@@ -155,7 +155,7 @@ async function focusFirstError(): Promise<void> {
 
   form.value
     ?.querySelector<HTMLElement>(
-      '[aria-invalid="true"], #acad-scale-values-errors, #acad-scale-general-errors',
+      '[aria-invalid="true"], [id="acad-scale-values-errors"], [id="acad-scale-general-errors"]',
     )
     ?.focus()
 }
