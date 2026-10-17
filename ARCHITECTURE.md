@@ -137,7 +137,7 @@ Detalle completo, reglas de negocio y criterios de aceptación: `docs/modulos/RE
 **Forma real** (contada sobre `Auth`, `Backoffice` y `Core`, `ADR-056 §1.2`; desde `1.11-b`, `Acad` es el primer módulo de **negocio** con tablas por curso y la referencia de los patrones de más abajo). El esqueleto común es pequeño; todo lo demás es contenido:
 
 - `Infrastructure/<Modulo>ServiceProvider.php`, descubierto por `ModuleServiceProviderDiscovery` (sin registro a mano), que carga `Database/migrations` con `loadMigrationsFrom` e implementa `DeclaresModuleRegistry` (`moduleDescriptor()` + `declaredPermissions()`; `Backoffice` es el único que no, porque es de plataforma).
-- `Http/routes.php`, **requerido a mano** desde `routes/api-v1.php` (o `routes/api.php` en `Backoffice`).
+- `Http/routes.php`, **requerido** desde `routes/api-v1.php` (o `routes/api.php` en `Backoffice`): el `require` lo añade `make:module` en `routes/api-v1.php`; en `routes/api.php` (plataforma) se escribe a mano.
 - `Database/migrations/`. Los modelos Eloquent viven en `Domain/Models/`; las factorías, cuando existen, en `apps/api/database/factories/`, y los tests en `apps/api/tests/Feature/<Modulo>/` (ni `Tests/` ni `Database/factories` dentro del módulo).
 - `lang/{es,en,de,fr}/<código>.php` y la entrada `name_key` del módulo en `lang/*/modules.php`.
 - Ninguna capa vacía por adelantado: `Domain/`, `Application/` y `Http/{Controllers,Requests,Resources}` aparecen cuando hay contenido.

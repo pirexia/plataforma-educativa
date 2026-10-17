@@ -20,6 +20,9 @@ return [
         'audit_policy_required' => '--entity erfordert --audit-policy=full|selective|redacted: ADR-035 klassifiziert jedes Modell und schlägt geschlossen fehl, daher wählt der Generator nicht für dich.',
         'audit_policy_invalid' => 'Die Audit-Richtlinie ":policy" ist ungültig (ADR-035): verwende :allowed.',
         'audit_policy_without_entity' => '--audit-policy ist nur mit --entity sinnvoll.',
+        'table_taken' => 'Die Tabelle „:table“, die die Entität „:entity“ ableiten würde, existiert bereits in einer Migration oder gehört zum Framework: Wähle einen anderen Entitätsnamen.',
+        'table_too_long' => 'Der Tabellenname „:table“ überschreitet die von PostgreSQL erlaubten :max Zeichen: Kürze den Entitätsnamen.',
+        'path_exists' => 'Der Pfad :path existiert bereits: Der Generator überschreibt keine Dateien.',
         'shared_file_unexpected' => 'Die gemeinsame Datei :file kann nicht bearbeitet werden: Sie fehlt oder hat nicht die erwartete Form.',
     ],
 ];

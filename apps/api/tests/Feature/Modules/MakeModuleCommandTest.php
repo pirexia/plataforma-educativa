@@ -99,6 +99,7 @@ dataset('make-module invalid inputs', [
     'entidad sin política de auditoría' => [['entity' => 'Cosa'], 'audit_policy_required'],
     'política de auditoría desconocida' => [['entity' => 'Cosa', 'auditPolicy' => 'todo'], 'audit_policy_invalid'],
     'política de auditoría sin entidad' => [['auditPolicy' => 'full'], 'audit_policy_without_entity'],
+    'código con salto de línea final' => [['code' => "matricula\n"], 'code_invalid'],
     'alias de morph map ya usado' => [['entity' => 'Course', 'auditPolicy' => 'full'], 'morph_alias_taken'],
 ]);
 
@@ -138,6 +139,84 @@ test('CA-056-30 ADR-056: si el módulo ya existe, o su fichero de idioma, falla 
         ->and($keysFor(makeModuleSpec(['name' => 'Otro', 'code' => 'ajeno'])))->toContain('lang_file_exists')
         ->and(makeModuleSnapshot($this->base))->toBe($before);
 });
+
+/** Copia las migraciones reales al árbol temporal: de ellas deriva el generador las tablas ocupadas. */
+function makeModuleCopyMigrations(string $base): void
+{
+    mkdir("{$base}/database/migrations", 0775, true);
+
+    foreach (glob(database_path('migrations/*.php')) ?: [] as $file) {
+        copy($file, "{$base}/database/migrations/".basename($file));
+    }
+
+    foreach (glob(app_path('Modules/*/Database/migrations/*.php')) ?: [] as $file) {
+        $dir = "{$base}/app/Modules/".basename(dirname($file, 3)).'/Database/migrations';
+        is_dir($dir) || mkdir($dir, 0775, true);
+        copy($file, "{$dir}/".basename($file));
+    }
+}
+
+test('CA-056-30 ADR-056: --entity cuya tabla derivada ya existe, o es de framework, o es demasiado larga, falla sin escribir', function (string $entity, string $expectedKey): void {
+    makeModuleCopyMigrations($this->base);
+    $before = makeModuleSnapshot($this->base);
+
+    try {
+        makeModuleScaffolder($this->base)->plan(makeModuleSpec(['name' => 'Otro', 'code' => 'otro', 'entity' => $entity, 'auditPolicy' => 'full']));
+        $thrown = null;
+    } catch (ModuleScaffoldException $e) {
+        $thrown = $e;
+    }
+
+    expect($thrown)->toBeInstanceOf(ModuleScaffoldException::class)
+        ->and(array_column($thrown->errors, 0))->toContain($expectedKey)
+        ->and(makeModuleSnapshot($this->base))->toBe($before);
+})->with([
+    'Group (alias de morph map y tabla groups)' => ['Group', 'morph_alias_taken'],
+    'Job (tabla jobs de Laravel)' => ['Job', 'table_taken'],
+    'Notification (tabla de framework sin migración)' => ['Notification', 'table_taken'],
+    'AuditLog (esquema base)' => ['AuditLog', 'table_taken'],
+    'nombre de tabla de más de 63 caracteres' => [str_repeat('A', 64), 'table_too_long'],
+]);
+
+test('CA-056-30 ADR-056: una entidad con tabla libre pasa la validación aunque haya migraciones', function (): void {
+    makeModuleCopyMigrations($this->base);
+
+    expect(makeModuleScaffolder($this->base)->validate(makeModuleSpec(['entity' => 'Aula', 'auditPolicy' => 'full'])))->toBe([]);
+});
+
+test('CA-056-30 ADR-056: cualquier ruta que se vaya a crear y ya exista hace fallar validate() y apply() sin escribir', function (string $existing): void {
+    $scaffolder = makeModuleScaffolder($this->base);
+    $spec = makeModuleSpec(['entity' => 'Aula', 'auditPolicy' => 'full']);
+    $plan = $scaffolder->plan($spec);
+
+    is_dir(dirname("{$this->base}/{$existing}")) || mkdir(dirname("{$this->base}/{$existing}"), 0775, true);
+    file_put_contents("{$this->base}/{$existing}", 'ajeno');
+    $before = makeModuleSnapshot($this->base);
+
+    // Dentro de app/Modules/<Módulo> ya salta module_exists; fuera, path_exists.
+    $validate = $scaffolder->validate($spec);
+
+    try {
+        $scaffolder->apply($plan);
+        $thrown = null;
+    } catch (ModuleScaffoldException $e) {
+        $thrown = $e;
+    }
+
+    expect($validate)->not->toBeEmpty()
+        ->and($thrown)->toBeInstanceOf(ModuleScaffoldException::class)
+        ->and(array_column($thrown->errors, 0))->toContain('path_exists')
+        ->and(makeModuleSnapshot($this->base))->toBe($before)
+        ->and(file_get_contents("{$this->base}/{$existing}"))->toBe('ajeno');
+})->with([
+    'lang en' => ['lang/en/matricula.php'],
+    'lang de' => ['lang/de/matricula.php'],
+    'lang fr' => ['lang/fr/matricula.php'],
+    'test de registro' => ['tests/Feature/Matricula/ModuleRegistrationTest.php'],
+    'test de aislamiento' => ['tests/Feature/Matricula/AulaTenantIsolationTest.php'],
+    'factoría' => ['database/factories/Matricula/AulaFactory.php'],
+    'migración' => ['app/Modules/Matricula/Database/migrations/2026_10_17_100100_create_aulas_table.php'],
+]);
 
 test('CA-056-33 ADR-035: --entity sin --audit-policy falla y el mensaje cita ADR-035', function (): void {
     $this->artisan('make:module', [
@@ -216,6 +295,7 @@ test('CA-056-32 ADR-056: las dos ediciones compartidas son idempotentes: repetir
 
     // Se descarta el módulo pero quedan las dos ediciones compartidas.
     makeModuleDelete("{$this->base}/app/Modules/Matricula");
+    makeModuleDelete("{$this->base}/tests/Feature/Matricula");
     foreach (ModuleSpec::LOCALES as $locale) {
         unlink("{$this->base}/lang/{$locale}/matricula.php");
     }

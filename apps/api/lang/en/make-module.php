@@ -20,6 +20,9 @@ return [
         'audit_policy_required' => '--entity requires --audit-policy=full|selective|redacted: ADR-035 classifies every model and fails closed, so the generator does not choose for you.',
         'audit_policy_invalid' => 'The audit policy ":policy" is not valid (ADR-035): use :allowed.',
         'audit_policy_without_entity' => '--audit-policy only makes sense with --entity.',
+        'table_taken' => 'The table “:table” that entity “:entity” would derive already exists in a migration or belongs to the framework: choose another entity name.',
+        'table_too_long' => 'The table name “:table” exceeds the :max characters PostgreSQL allows: shorten the entity name.',
+        'path_exists' => 'The path :path already exists: the generator does not overwrite files.',
         'shared_file_unexpected' => 'The shared file :file cannot be edited: it is missing or does not have the expected shape.',
     ],
 ];

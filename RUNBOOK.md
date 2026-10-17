@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.6** · 2026-10-12
+> **Versión 0.3.7** · 2026-10-17
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -44,7 +44,7 @@ podman compose logs -f <servicio>
 ### 2.3 Si CI falla en un PR
 
 - Revisar el check concreto (`ci-api.yml`, `ci-web.yml`, `dependency-scan.yml`) antes de reintentar sin más.
-- Los ocho checks son *required status checks* en `develop` desde el cierre de 0.7 — un PR no se puede mezclar sin ellos en verde, y no se puede saltar con `--no-verify` ni equivalente.
+- Los ocho checks originales son *required status checks* en `develop` desde el cierre de 0.7; el noveno (`make-module`, `1.11b`) está pendiente de marcar como *required* — un PR no se puede mezclar sin ellos en verde, y no se puede saltar con `--no-verify` ni equivalente.
 
 ### 2.4 Si `db-reviewer` o `security-reviewer` encuentran un hallazgo Crítico o Alto
 

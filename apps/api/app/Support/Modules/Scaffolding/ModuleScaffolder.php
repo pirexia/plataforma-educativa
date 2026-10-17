@@ -17,6 +17,12 @@ use RuntimeException;
  */
 final class ModuleScaffolder
 {
+    /** Límite de identificador de PostgreSQL (NAMEDATALEN - 1). */
+    private const MAX_IDENTIFIER_LENGTH = 63;
+
+    /** Tablas del framework que ninguna migración del repositorio crea. */
+    private const FRAMEWORK_TABLES = ['migrations', 'notifications', 'personal_access_tokens'];
+
     /**
      * @param  string  $basePath  raíz de la aplicación (`apps/api`)
      * @param  string  $stubsPath  directorio de las plantillas
@@ -38,7 +44,7 @@ final class ModuleScaffolder
     {
         $errors = [];
 
-        if (preg_match('/^[A-Z][A-Za-z0-9]*$/', $spec->name) !== 1 || Str::studly($spec->name) !== $spec->name) {
+        if (preg_match('/^[A-Z][A-Za-z0-9]*\z/', $spec->name) !== 1 || Str::studly($spec->name) !== $spec->name) {
             $errors[] = ['name_invalid', ['name' => $spec->name]];
         } elseif (is_dir("{$this->basePath}/app/Modules/{$spec->name}")) {
             $errors[] = ['module_exists', ['name' => $spec->name]];
@@ -46,7 +52,7 @@ final class ModuleScaffolder
 
         if ($spec->code === null || $spec->code === '') {
             $errors[] = ['option_missing', ['option' => '--code']];
-        } elseif (preg_match('/^[a-z][a-z0-9_]*$/', $spec->code) !== 1) {
+        } elseif (preg_match('/^[a-z][a-z0-9_]*\z/', $spec->code) !== 1) {
             $errors[] = ['code_invalid', ['code' => $spec->code]];
         } elseif (in_array($spec->code, $this->declaredCodes, true)) {
             $errors[] = ['code_taken', ['code' => $spec->code]];
@@ -66,13 +72,21 @@ final class ModuleScaffolder
                 $errors[] = ['audit_policy_without_entity', []];
             }
 
-            return $errors;
+            return $this->withPathConflicts($spec, $errors);
         }
 
-        if (preg_match('/^[A-Z][A-Za-z0-9]*$/', $spec->entity) !== 1 || Str::studly($spec->entity) !== $spec->entity) {
+        if (preg_match('/^[A-Z][A-Za-z0-9]*\z/', $spec->entity) !== 1 || Str::studly($spec->entity) !== $spec->entity) {
             $errors[] = ['entity_invalid', ['entity' => $spec->entity]];
         } elseif (in_array(Str::snake($spec->entity), $this->morphAliases, true)) {
             $errors[] = ['morph_alias_taken', ['alias' => Str::snake($spec->entity)]];
+        } else {
+            $table = Str::snake(Str::plural($spec->entity));
+
+            if (strlen($table) > self::MAX_IDENTIFIER_LENGTH) {
+                $errors[] = ['table_too_long', ['table' => $table, 'max' => (string) self::MAX_IDENTIFIER_LENGTH]];
+            } elseif (in_array($table, $this->existingTables(), true)) {
+                $errors[] = ['table_taken', ['table' => $table, 'entity' => $spec->entity]];
+            }
         }
 
         if ($spec->auditPolicy === null) {
@@ -81,7 +95,61 @@ final class ModuleScaffolder
             $errors[] = ['audit_policy_invalid', ['policy' => $spec->auditPolicy, 'allowed' => implode('|', ModuleSpec::AUDIT_POLICIES)]];
         }
 
+        return $this->withPathConflicts($spec, $errors);
+    }
+
+    /**
+     * Si la entrada es válida, calcula las rutas que se crearían y rechaza las
+     * que ya existen: el generador nunca sobrescribe nada (CA-056-30).
+     *
+     * @param  list<array{0: string, 1: array<string, string>}>  $errors
+     * @return list<array{0: string, 1: array<string, string>}>
+     */
+    private function withPathConflicts(ModuleSpec $spec, array $errors): array
+    {
+        if ($errors !== []) {
+            return $errors;
+        }
+
+        foreach (array_keys($this->buildCreates($spec)) as $relative) {
+            if (file_exists("{$this->basePath}/{$relative}")) {
+                $errors[] = ['path_exists', ['path' => $relative]];
+            }
+        }
+
         return $errors;
+    }
+
+    /**
+     * Tablas que ya crea alguna migración (módulos y raíz) más las del
+     * framework que no pasan por una migración del repositorio.
+     *
+     * @return list<string>
+     */
+    private function existingTables(): array
+    {
+        $tables = self::FRAMEWORK_TABLES;
+        $files = array_merge(
+            glob("{$this->basePath}/app/Modules/*/Database/migrations/*.php") ?: [],
+            glob("{$this->basePath}/database/migrations/*.php") ?: [],
+        );
+
+        foreach ($files as $file) {
+            $content = file_get_contents($file);
+
+            if ($content === false) {
+                continue;
+            }
+
+            preg_match_all('/(?:tenantTable\w*|Schema::create|->create)\(\s*[\'"]([a-z0-9_]+)[\'"]/', $content, $calls);
+            preg_match_all('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?"?([a-z0-9_]+)/i', $content, $sql);
+
+            foreach ([...$calls[1], ...array_map('strtolower', $sql[1])] as $table) {
+                $tables[] = $table;
+            }
+        }
+
+        return array_values(array_unique($tables));
     }
 
     /**
@@ -95,6 +163,14 @@ final class ModuleScaffolder
             throw new ModuleScaffoldException($errors);
         }
 
+        return new ScaffoldPlan($this->buildCreates($spec), $this->sharedEdits($spec));
+    }
+
+    /**
+     * @return array<string, string> ruta relativa => contenido
+     */
+    private function buildCreates(ModuleSpec $spec): array
+    {
         /** @var string $code */
         $code = $spec->code;
         $name = $spec->name;
@@ -153,7 +229,7 @@ final class ModuleScaffolder
 
         ksort($creates);
 
-        return new ScaffoldPlan($creates, $this->sharedEdits($spec));
+        return $creates;
     }
 
     /**
@@ -161,6 +237,18 @@ final class ModuleScaffolder
      */
     public function apply(ScaffoldPlan $plan): void
     {
+        $conflicts = [];
+
+        foreach (array_keys($plan->creates) as $relative) {
+            if (file_exists("{$this->basePath}/{$relative}")) {
+                $conflicts[] = ['path_exists', ['path' => $relative]];
+            }
+        }
+
+        if ($conflicts !== []) {
+            throw new ModuleScaffoldException($conflicts);
+        }
+
         foreach ($plan->creates + $plan->edits as $relative => $content) {
             $path = "{$this->basePath}/{$relative}";
             $dir = dirname($path);

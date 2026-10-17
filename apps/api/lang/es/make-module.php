@@ -20,6 +20,9 @@ return [
         'audit_policy_required' => '--entity exige --audit-policy=full|selective|redacted: ADR-035 clasifica cada modelo y falla en cerrado, así que el generador no elige por ti.',
         'audit_policy_invalid' => 'La política de auditoría «:policy» no es válida (ADR-035): usa :allowed.',
         'audit_policy_without_entity' => '--audit-policy solo tiene sentido con --entity.',
+        'table_taken' => 'La tabla «:table» que derivaría la entidad «:entity» ya existe en una migración o es del framework: elige otro nombre de entidad.',
+        'table_too_long' => 'El nombre de tabla «:table» supera los :max caracteres que admite PostgreSQL: acorta el nombre de la entidad.',
+        'path_exists' => 'Ya existe la ruta :path: el generador no sobrescribe ficheros.',
         'shared_file_unexpected' => 'No se puede editar el fichero compartido :file: falta o no tiene la forma esperada.',
     ],
 ];

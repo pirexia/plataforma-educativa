@@ -17,6 +17,12 @@ NAME="CiProbe"
 CODE="ci_probe"
 export DB_DATABASE="${DB_DATABASE:-plataforma_test}"
 
+# El script migra y hace rollback con la conexión propietaria: solo sobre una base de test.
+case "$DB_DATABASE" in
+    *_test) ;;
+    *) echo "::error::DB_DATABASE='$DB_DATABASE' no termina en _test: el script migra y hace rollback, y se niega a tocar una base que no sea de test" >&2; exit 2 ;;
+esac
+
 case "$VARIANT" in
     minimal) ENTITY_ARGS="" ;;
     entity) ENTITY_ARGS="--entity=Aula --audit-policy=full" ;;

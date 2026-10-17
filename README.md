@@ -83,7 +83,7 @@ Lista completa: sección 0.5 del documento de requisitos (`INV-001` a `INV-015`)
 | `SYSADMIN.md` | 0.8.12 |
 | `SECURITY.md` | 0.3.11 |
 | `PRIVACY.md` | 0.3.6 |
-| `RUNBOOK.md` | 0.3.6 |
+| `RUNBOOK.md` | 0.3.7 |
 | `CONTRIBUTING.md` | 0.3.2 |
 
 Historial completo en `CHANGELOG.md`.

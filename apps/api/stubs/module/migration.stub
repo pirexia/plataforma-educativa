@@ -10,6 +10,12 @@ use Illuminate\Support\Facades\DB;
  * tabla de tenant sin columnas de negocio. `tenantTable()` aporta tenant_id con
  * RLS, autoría, marcas de tiempo y borrado lógico (ADR-033 §5, ADR-034 §6); la
  * especificación del módulo añade las columnas propias de la entidad.
+ *
+ * Al añadir columnas: si la entidad depende del curso, usa
+ * `TenantMigration::tenantForeignId($table, 'academic_year_id', 'academic_years')`
+ * (ADR-057: clave compuesta con tenant y disparador `academic_year_write_guard`);
+ * para campos de contenido multi-idioma, `translatableColumn`; y si es de alto
+ * crecimiento, decide el particionado por curso (ADR-029).
  */
 return new class extends Migration
 {
