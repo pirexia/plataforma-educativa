@@ -67,7 +67,9 @@
       "readOnly": "Schuljahr {status}: Seine Daten sind schreibgeschützt.",
       "openActive": "Aktives Schuljahr öffnen ({code})",
       "closureTitle": "Das Schuljahr kann noch nicht abgeschlossen werden:",
-      "noActions": "Dieses Schuljahr lässt keine weiteren Aktionen zu."
+      "noActions": "Dieses Schuljahr lässt keine weiteren Aktionen zu.",
+      "reopen": "Reabrir curso",
+      "reopenTitle": "El curso no se puede reabrir todavía:"
     },
     "confirm": {
       "activate": {
@@ -78,7 +80,7 @@
       },
       "close": {
         "title": "Schuljahr {code} abschließen",
-        "description": "Der Abschluss kann in der Anwendung nicht rückgängig gemacht werden: Ab jetzt sind die Daten dieses Schuljahres in allen Modulen der Schule schreibgeschützt.",
+        "description": "El cierre bloquea la escritura: a partir de ahora los datos de este curso quedan en solo lectura en todos los módulos del centro. Solo se puede deshacer mientras no se active otro curso, por quien tenga el permiso de reapertura y dejando constancia del motivo; una vez activado el siguiente curso, ya no se podrá reabrir.",
         "confirm": "Schuljahr {code} abschließen"
       }
     },
@@ -86,10 +88,21 @@
       "created": "Schuljahr „{code}“ in Planung angelegt.",
       "updated": "Schuljahr aktualisiert.",
       "activated": "Schuljahr „{code}“ aktiviert.",
-      "closed": "Schuljahr „{code}“ abgeschlossen."
+      "closed": "Schuljahr „{code}“ abgeschlossen.",
+      "reopened": "Curso «{code}» reabierto."
     },
     "errors": {
       "unexpected": "Der Vorgang konnte nicht abgeschlossen werden. Bitte versuche es erneut."
+    },
+    "reopen": {
+      "title": "Reabrir el curso {code}",
+      "description": "Reabrir un curso cerrado por error. El curso volverá a ser el curso activo del centro.",
+      "warningWritable": "Todos los datos del curso volverán a admitir escritura en todos los módulos.",
+      "warningNotCorrection": "La reapertura no sirve para corregir un dato concreto: abre el curso entero.",
+      "warningReason": "El motivo queda registrado. No incluyas datos personales en el motivo.",
+      "reasonLabel": "Motivo de la reapertura (obligatorio)",
+      "reasonRequired": "Indica el motivo de la reapertura.",
+      "confirm": "Reabrir el curso {code}"
     }
   }
 }

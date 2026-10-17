@@ -67,7 +67,9 @@
       "readOnly": "Curso {status}: sus datos son de solo lectura.",
       "openActive": "Abrir el curso activo ({code})",
       "closureTitle": "El curso no se puede cerrar todavía:",
-      "noActions": "Este curso no admite más acciones."
+      "noActions": "Este curso no admite más acciones.",
+      "reopen": "Reabrir curso",
+      "reopenTitle": "El curso no se puede reabrir todavía:"
     },
     "confirm": {
       "activate": {
@@ -78,7 +80,7 @@
       },
       "close": {
         "title": "Cerrar el curso {code}",
-        "description": "El cierre no se puede deshacer desde la aplicación: a partir de ahora los datos de este curso quedan en solo lectura en todos los módulos del centro.",
+        "description": "El cierre bloquea la escritura: a partir de ahora los datos de este curso quedan en solo lectura en todos los módulos del centro. Solo se puede deshacer mientras no se active otro curso, por quien tenga el permiso de reapertura y dejando constancia del motivo; una vez activado el siguiente curso, ya no se podrá reabrir.",
         "confirm": "Cerrar el curso {code}"
       }
     },
@@ -86,10 +88,21 @@
       "created": "Curso «{code}» creado en planificación.",
       "updated": "Curso actualizado.",
       "activated": "Curso «{code}» activado.",
-      "closed": "Curso «{code}» cerrado."
+      "closed": "Curso «{code}» cerrado.",
+      "reopened": "Curso «{code}» reabierto."
     },
     "errors": {
       "unexpected": "No se ha podido completar la operación. Inténtalo de nuevo."
+    },
+    "reopen": {
+      "title": "Reabrir el curso {code}",
+      "description": "Reabrir un curso cerrado por error. El curso volverá a ser el curso activo del centro.",
+      "warningWritable": "Todos los datos del curso volverán a admitir escritura en todos los módulos.",
+      "warningNotCorrection": "La reapertura no sirve para corregir un dato concreto: abre el curso entero.",
+      "warningReason": "El motivo queda registrado. No incluyas datos personales en el motivo.",
+      "reasonLabel": "Motivo de la reapertura (obligatorio)",
+      "reasonRequired": "Indica el motivo de la reapertura.",
+      "confirm": "Reabrir el curso {code}"
     }
   }
 }

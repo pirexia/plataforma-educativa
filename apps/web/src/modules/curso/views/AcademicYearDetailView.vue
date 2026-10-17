@@ -7,21 +7,27 @@
  * - «Editar» (`curso_academico.actualizar`), solo en `planificacion`.
  * - «Activar» (`estado_curso_academico.actualizar`), solo en `planificacion`.
  * - «Cerrar» (`estado_curso_academico.actualizar`), solo en `activo`.
- * - En `cerrado`/`archivado`, ninguna acción y un aviso persistente de solo
- *   lectura (`RN-CURSO-20`). **La interfaz oculta; el servidor decide**
- *   (`INV-002`, `RN-CURSO-21`).
+ * - «Reabrir curso» (`reapertura_curso_academico.actualizar`, 1.11c, `ADR-059`),
+ *   solo en `cerrado`. `estado_curso_academico.actualizar` no basta
+ *   (`CA-CURSO-082`). La elegibilidad (ventana T1) la decide el servidor: la
+ *   interfaz no la anticipa (`funcional.md §10.1`).
+ * - En `archivado`, ninguna acción; en `cerrado` sin el permiso de reapertura,
+ *   tampoco; ambos con un aviso persistente de solo lectura (`RN-CURSO-20`).
+ *   **La interfaz oculta; el servidor decide** (`INV-002`, `RN-CURSO-21`).
  *
  * Las transiciones piden confirmación con `ConfirmDialog` (`RN-CORE-64`). El
- * diálogo de cierre advierte de que **no se puede deshacer** desde la
- * aplicación (`OPEN-CURSO-08`) y de que bloquea la escritura de todos los datos
- * del curso (`OPEN-CURSO-20`); cancelar no envía ninguna petición. El de
- * activación advierte, sin impedirlo, de que la fecha de fin ya pasó
- * (`RN-CURSO-14`).
+ * diálogo de cierre advierte de que bloquea la escritura de todos los datos del
+ * curso (`OPEN-CURSO-20`) y de que **solo puede deshacerse mientras no se active
+ * otro curso** (`CA-CURSO-084`, `ADR-059`); cancelar no envía ninguna petición.
+ * El de activación advierte, sin impedirlo, de que la fecha de fin ya pasó
+ * (`RN-CURSO-14`). El de reapertura (`ReopenAcademicYearDialog`) pide el motivo
+ * y no envía nada con el motivo vacío ni al cancelar (`CA-CURSO-087`).
  *
  * Un `409` muestra su motivo (`detail` del servidor, ya traducido) y **nada
- * cambia en pantalla hasta recargar** (`CA-CURSO-083`); en `active_exists`, con
- * un enlace al curso activo; en `closure_checks_failed`, la lista de
- * validaciones que fallan (`errors.closure[]`).
+ * cambia en pantalla hasta recargar** (`CA-CURSO-083`, `CA-CURSO-087`); en
+ * `active_exists`, con un enlace al curso activo; en `closure_checks_failed` y
+ * `reopen_checks_failed`, la lista de validaciones que fallan
+ * (`errors.closure[]`, `errors.reopen[]`).
  */
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
@@ -33,7 +39,7 @@ import { useDataTableFormatters } from '@/data-table'
 import ErrorState from '@/layouts/components/ErrorState.vue'
 import LoadingState from '@/layouts/components/LoadingState.vue'
 import { resolveErrorState, type ShellErrorState } from '@/layouts/errorState'
-import { getAcademicYear, transitionAcademicYear } from '../api'
+import { getAcademicYear, reopenAcademicYear, transitionAcademicYear } from '../api'
 import { formatCivilDate, hasEnded, isReadOnlyStatus } from '../civilDate'
 import {
   problemDetail,
@@ -44,6 +50,7 @@ import {
 } from '../composables/problem'
 import { takeFlash } from '../composables/useFlash'
 import { usePermissions } from '../composables/usePermissions'
+import ReopenAcademicYearDialog from '../components/ReopenAcademicYearDialog.vue'
 import type { AcademicYear } from '../types'
 
 const t = useT()
@@ -63,8 +70,16 @@ const message = ref<string | null>(null)
 const actionError = ref<string | null>(null)
 /** `409 active_exists`: el curso activo, para enlazarlo. */
 const activeYear = ref<{ public_id: string; code: string } | null>(null)
-/** `409 closure_checks_failed`: una entrada por validación que falla. */
+/**
+ * `409 closure_checks_failed` / `reopen_checks_failed`: una entrada por
+ * validación que falla, y a qué operación corresponde.
+ */
 const closureFailures = ref<string[]>([])
+const failureTitleKey = ref<'curso.detail.closureTitle' | 'curso.detail.reopenTitle'>(
+  'curso.detail.closureTitle',
+)
+/** Diálogo de reapertura abierto (`CA-CURSO-087`). */
+const reopenOpen = ref(false)
 
 const canEdit = computed(
   () => year.value?.status === 'planificacion' && can('curso_academico.actualizar'),
@@ -75,7 +90,12 @@ const canActivate = computed(
 const canClose = computed(
   () => year.value?.status === 'activo' && can('estado_curso_academico.actualizar'),
 )
-const hasActions = computed(() => canEdit.value || canActivate.value || canClose.value)
+const canReopen = computed(
+  () => year.value?.status === 'cerrado' && can('reapertura_curso_academico.actualizar'),
+)
+const hasActions = computed(
+  () => canEdit.value || canActivate.value || canClose.value || canReopen.value,
+)
 const readOnly = computed(() => year.value !== null && isReadOnlyStatus(year.value.status))
 
 /** `ADR-038 §7.3`: un valor no anticipado muestra su código, no rompe. */
@@ -122,7 +142,12 @@ function fail(err: unknown): void {
       problemErrorEntryWithCode(err, 'academic_year', 'curso.conflict.active_exists'),
     )
 
-    closureFailures.value = problemErrorEntries(err, 'closure').map((item) => item.message)
+    const closure = problemErrorEntries(err, 'closure')
+    const reopen = problemErrorEntries(err, 'reopen')
+
+    failureTitleKey.value =
+      reopen.length > 0 ? 'curso.detail.reopenTitle' : 'curso.detail.closureTitle'
+    closureFailures.value = (reopen.length > 0 ? reopen : closure).map((item) => item.message)
   }
 
   actionError.value = problemDetail(err) ?? t('curso.errors.unexpected')
@@ -166,6 +191,25 @@ async function activate(): Promise<void> {
   await run(async () => {
     year.value = await transitionAcademicYear(current.public_id, 'activo')
     message.value = t('curso.flash.activated', { code: current.code })
+  })
+}
+
+function reopen(): void {
+  reopenOpen.value = true
+}
+
+async function confirmReopen(reason: string): Promise<void> {
+  const current = year.value
+
+  reopenOpen.value = false
+
+  if (!current) {
+    return
+  }
+
+  await run(async () => {
+    year.value = await reopenAcademicYear(current.public_id, reason)
+    message.value = t('curso.flash.reopened', { code: current.code })
   })
 }
 
@@ -237,7 +281,7 @@ async function close(): Promise<void> {
           </RouterLink>
         </p>
         <template v-if="closureFailures.length > 0">
-          <p class="font-medium">{{ t('curso.detail.closureTitle') }}</p>
+          <p class="font-medium">{{ t(failureTitleKey) }}</p>
           <ul class="list-disc pl-5">
             <li v-for="failure in closureFailures" :key="failure">{{ failure }}</li>
           </ul>
@@ -269,6 +313,10 @@ async function close(): Promise<void> {
 
           <Button v-if="canClose" type="button" variant="outline" :disabled="busy" @click="close">
             {{ t('curso.detail.close') }}
+          </Button>
+
+          <Button v-if="canReopen" type="button" variant="outline" :disabled="busy" @click="reopen">
+            {{ t('curso.detail.reopen') }}
           </Button>
         </div>
         <p v-else class="text-muted-foreground text-sm">{{ t('curso.detail.noActions') }}</p>
@@ -306,6 +354,13 @@ async function close(): Promise<void> {
         </dl>
       </section>
     </template>
+
+    <ReopenAcademicYearDialog
+      :open="reopenOpen"
+      :code="year?.code ?? ''"
+      @confirm="confirmReopen"
+      @cancel="reopenOpen = false"
+    />
 
     <ConfirmDialog
       :open="confirmation.open.value"

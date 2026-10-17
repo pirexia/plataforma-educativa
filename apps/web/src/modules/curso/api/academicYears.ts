@@ -1,6 +1,6 @@
 /**
- * REQ-CURSO/api.md §2 (paso 1.10): los seis endpoints de cursos. Sin
- * `DELETE`, sin transición a `archivado` y sin reapertura (no existen en 1.10).
+ * REQ-CURSO/api.md §2 (paso 1.10): los seis endpoints de cursos y, desde 1.11c,
+ * el de reapertura (`ADR-059`). Sin `DELETE` ni transición a `archivado`.
  *
  * `#385`: todo identificador que entra en una ruta se codifica con
  * `encodeURIComponent`. Un `public_id` es un ULID (alfabeto cerrado), pero el
@@ -97,5 +97,18 @@ export function transitionAcademicYear(
   return apiFetch<AcademicYear>(`/academic-years/${encodeURIComponent(publicId)}/status`, {
     method: 'POST',
     body: JSON.stringify({ status }),
+  })
+}
+
+/**
+ * `cerrado → activo` (`ADR-059`, `RN-CURSO-40` a `-48`). Endpoint propio con
+ * permiso propio (`reapertura_curso_academico.actualizar`); `reason` es
+ * obligatorio y el servidor lo recorta (`RN-CURSO-43`). La elegibilidad (ventana
+ * T1) la decide el servidor: un `409` trae su motivo.
+ */
+export function reopenAcademicYear(publicId: PublicId, reason: string): Promise<AcademicYear> {
+  return apiFetch<AcademicYear>(`/academic-years/${encodeURIComponent(publicId)}/reopen`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
   })
 }

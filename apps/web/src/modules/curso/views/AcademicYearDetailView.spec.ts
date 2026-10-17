@@ -1,10 +1,11 @@
 /**
- * `docs/modulos/REQ-CURSO/funcional.md §13.5` (1.10): `CA-CURSO-082` (acciones
- * por estado y permiso), `CA-CURSO-083` (`409 active_exists` con enlace al
- * curso activo, sin cambios en pantalla hasta recargar) y `CA-CURSO-084`
- * (diálogo de cierre: advierte de la irreversibilidad, exige confirmación y
- * cancelar no envía ninguna petición). `RN-CURSO-14`: el aviso de fecha de fin
- * pasada no impide activar.
+ * `docs/modulos/REQ-CURSO/funcional.md §13.5` (1.10, 1.11c): `CA-CURSO-082`
+ * (acciones por estado y permiso, también «Reabrir»), `CA-CURSO-083` (`409
+ * active_exists` con enlace al curso activo, sin cambios en pantalla hasta
+ * recargar), `CA-CURSO-084` (diálogo de cierre: advierte de que solo puede
+ * deshacerse mientras no se active otro curso, exige confirmación y cancelar no
+ * envía ninguna petición) y `CA-CURSO-087` (diálogo de reapertura con motivo,
+ * `ADR-059`). `RN-CURSO-14`: el aviso de fecha de fin pasada no impide activar.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
@@ -14,10 +15,12 @@ import { ApiError } from '@/api/client'
 
 const getAcademicYear = vi.fn()
 const transitionAcademicYear = vi.fn()
+const reopenAcademicYear = vi.fn()
 
 vi.mock('../api', () => ({
   getAcademicYear: (...args: unknown[]) => getAcademicYear(...args),
   transitionAcademicYear: (...args: unknown[]) => transitionAcademicYear(...args),
+  reopenAcademicYear: (...args: unknown[]) => reopenAcademicYear(...args),
 }))
 
 vi.mock('@/session/useSession', async () => {
@@ -129,6 +132,9 @@ beforeEach(() => {
   transitionAcademicYear
     .mockReset()
     .mockImplementation((_id: string, status: string) => Promise.resolve(year(status)))
+  reopenAcademicYear
+    .mockReset()
+    .mockImplementation((id: string) => Promise.resolve({ ...year('activo'), public_id: id }))
   window.localStorage.clear()
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
@@ -164,7 +170,7 @@ describe('CA-CURSO-082 (funcional.md §10.1, RN-CORE-61): acciones por estado y 
     expect(actionLabels()).toEqual(['Cerrar curso'])
   })
 
-  it('en cerrado y en archivado: ninguna acción y un aviso de solo lectura', async () => {
+  it('en cerrado y en archivado, sin el permiso de reapertura: ninguna acción y un aviso de solo lectura', async () => {
     for (const status of ['cerrado', 'archivado']) {
       getAcademicYear.mockResolvedValue(year(status))
       const wrapper = await mountView()
@@ -176,6 +182,30 @@ describe('CA-CURSO-082 (funcional.md §10.1, RN-CORE-61): acciones por estado y 
       wrappers.pop()
       document.body.innerHTML = ''
     }
+  })
+
+  it('en cerrado: solo «Reabrir curso», y solo con reapertura_curso_academico.actualizar (ADR-059)', async () => {
+    getAcademicYear.mockResolvedValue(year('cerrado'))
+    session.__setPermissions([...ALL, 'reapertura_curso_academico.actualizar'])
+    await mountView()
+
+    expect(actionLabels()).toEqual(['Reabrir curso'])
+  })
+
+  it('en cerrado, con estado_curso_academico.actualizar pero sin el permiso de reapertura: ninguna acción', async () => {
+    getAcademicYear.mockResolvedValue(year('cerrado'))
+    session.__setPermissions(['curso_academico.leer', 'estado_curso_academico.actualizar'])
+    await mountView()
+
+    expect(actionLabels()).toEqual([])
+  })
+
+  it('en archivado, aun con el permiso de reapertura: ninguna acción', async () => {
+    getAcademicYear.mockResolvedValue(year('archivado'))
+    session.__setPermissions([...ALL, 'reapertura_curso_academico.actualizar'])
+    await mountView()
+
+    expect(actionLabels()).toEqual([])
   })
 
   it('un estado no anticipado se trata como solo lectura y muestra su código (ADR-038 §7.3)', async () => {
@@ -286,19 +316,21 @@ describe('CA-CURSO-083 (OPEN-CURSO-06): 409 active_exists', () => {
   })
 })
 
-describe('CA-CURSO-084 (OPEN-CURSO-08, OPEN-CURSO-20): cerrar', () => {
+describe('CA-CURSO-084 (ADR-059, OPEN-CURSO-20): cerrar', () => {
   beforeEach(() => {
     getAcademicYear.mockResolvedValue(year('activo'))
   })
 
-  it('el diálogo advierte de que no se puede deshacer y de que bloquea la escritura, y requiere confirmación explícita', async () => {
+  it('el diálogo advierte de que bloquea la escritura y de que solo puede deshacerse mientras no se active otro curso, y requiere confirmación explícita', async () => {
     const wrapper = await mountView()
 
     await click(buttonByText('Cerrar curso'))
 
     const dialog = document.body.querySelector('[role="alertdialog"]')!
 
-    expect(dialog.textContent).toContain('no se puede deshacer')
+    expect(dialog.textContent).toContain('mientras no se active otro curso')
+    expect(dialog.textContent).toContain('permiso de reapertura')
+    expect(dialog.textContent).not.toContain('no se puede deshacer')
     expect(dialog.textContent).toContain('solo lectura')
     expect(transitionAcademicYear).not.toHaveBeenCalled()
 
@@ -343,6 +375,190 @@ describe('CA-CURSO-084 (OPEN-CURSO-08, OPEN-CURSO-20): cerrar', () => {
 
     expect(items).toEqual(['Hay calificaciones sin publicar.', 'Hay asistencia sin cerrar.'])
     expect(actionLabels()).toEqual(['Cerrar curso'])
+  })
+})
+
+describe('CA-CURSO-087 (funcional.md §4.6 paso 1, ADR-059): reabrir', () => {
+  beforeEach(() => {
+    getAcademicYear.mockResolvedValue(year('cerrado'))
+    session.__setPermissions([...ALL, 'reapertura_curso_academico.actualizar'])
+  })
+
+  function reasonField(): HTMLTextAreaElement {
+    return document.body.querySelector('[role="alertdialog"] textarea') as HTMLTextAreaElement
+  }
+
+  async function typeReason(value: string): Promise<void> {
+    reasonField().value = value
+    reasonField().dispatchEvent(new Event('input', { bubbles: true }))
+    await flushPromises()
+  }
+
+  it('el diálogo pide el motivo y advierte de los tres efectos', async () => {
+    await mountView()
+
+    await click(buttonByText('Reabrir curso'))
+
+    const dialog = document.body.querySelector('[role="alertdialog"]')!
+
+    expect(reasonField()).not.toBeNull()
+    expect(document.body.querySelector('label[for="' + reasonField().id + '"]')).not.toBeNull()
+    expect(dialog.textContent).toContain('volverán a admitir escritura en todos los módulos')
+    expect(dialog.textContent).toContain('no sirve para corregir un dato concreto')
+    expect(dialog.textContent).toContain('No incluyas datos personales')
+    expect(reopenAcademicYear).not.toHaveBeenCalled()
+  })
+
+  it('con el motivo vacío o en blanco no envía la petición y avisa en el campo', async () => {
+    await mountView()
+
+    await click(buttonByText('Reabrir curso'))
+    await click(dialogButton('Reabrir el curso 2026-2027'))
+
+    expect(reopenAcademicYear).not.toHaveBeenCalled()
+    expect(
+      document.body.querySelector('[role="alertdialog"] [role="alert"]')!.textContent,
+    ).toContain('Indica el motivo')
+    expect(reasonField().getAttribute('aria-invalid')).toBe('true')
+
+    await typeReason('   ')
+    await click(dialogButton('Reabrir el curso 2026-2027'))
+
+    expect(reopenAcademicYear).not.toHaveBeenCalled()
+  })
+
+  it('con motivo, envía POST …/reopen con el motivo recortado y deja el curso activo', async () => {
+    const wrapper = await mountView()
+
+    await click(buttonByText('Reabrir curso'))
+    await typeReason('  Cierre lanzado por error.  ')
+    await click(dialogButton('Reabrir el curso 2026-2027'))
+
+    expect(reopenAcademicYear).toHaveBeenCalledWith('Y1', 'Cierre lanzado por error.')
+    expect(wrapper.find('[role="status"]').text()).toContain('reabierto')
+    expect(document.body.querySelector('[role="alertdialog"]')).toBeNull()
+    // Reabierto: ya es activo, y quien solo tiene el permiso de reapertura no ve «Cerrar».
+    expect(actionLabels()).toEqual(['Cerrar curso'])
+  })
+
+  it('cancelar no envía ninguna petición', async () => {
+    await mountView()
+
+    await click(buttonByText('Reabrir curso'))
+    await typeReason('algo escrito')
+    await click(dialogButton('Cancelar'))
+
+    expect(reopenAcademicYear).not.toHaveBeenCalled()
+    expect(document.body.querySelector('[role="alertdialog"]')).toBeNull()
+  })
+
+  it('al volver a abrir el diálogo, el motivo y el error empiezan limpios', async () => {
+    await mountView()
+
+    await click(buttonByText('Reabrir curso'))
+    await click(dialogButton('Reabrir el curso 2026-2027'))
+    await typeReason('borrador')
+    await click(dialogButton('Cancelar'))
+    await click(buttonByText('Reabrir curso'))
+
+    expect(reasonField().value).toBe('')
+    expect(document.body.querySelector('[role="alertdialog"] [role="alert"]')).toBeNull()
+  })
+
+  it.each([
+    ['active_exists', 'Ya hay un curso activo («2026-2027»). Ciérralo antes de activar otro.'],
+    [
+      'reopen_not_latest',
+      'Solo se puede reabrir el curso cerrado más reciente: el curso «2026-2027» es posterior.',
+    ],
+    ['invalid_transition', 'No se puede pasar un curso de «activo» a «activo».'],
+  ])(
+    '409 %s: muestra el motivo del servidor y el curso sigue cerrado en pantalla',
+    async (code, detail) => {
+      reopenAcademicYear.mockRejectedValue(
+        problem(409, {
+          type: 'urn:pge:error:conflict',
+          title: 'Conflicto',
+          status: 409,
+          detail,
+          errors: {
+            academic_year: [
+              {
+                code: 'curso.conflict.' + code,
+                message: detail,
+                params: { public_id: 'OTHER1', code: '2026-2027' },
+              },
+            ],
+          },
+        }),
+      )
+      const wrapper = await mountView()
+
+      await click(buttonByText('Reabrir curso'))
+      await typeReason('Cierre por error')
+      await click(dialogButton('Reabrir el curso 2026-2027'))
+
+      expect(wrapper.find('[role="alert"]').text()).toContain(detail)
+      expect(wrapper.find('h1 + p').text()).toContain('Cerrado')
+      expect(actionLabels()).toEqual(['Reabrir curso'])
+      expect(wrapper.find('[role="status"]').exists()).toBe(false)
+    },
+  )
+
+  it('409 active_exists lleva un enlace al curso activo', async () => {
+    reopenAcademicYear.mockRejectedValue(
+      problem(409, {
+        status: 409,
+        detail: 'Ya hay un curso activo («2026-2027»).',
+        errors: {
+          academic_year: [
+            {
+              code: 'curso.conflict.active_exists',
+              message: 'Ya hay un curso activo',
+              params: { public_id: 'ACTIVE1', code: '2026-2027' },
+            },
+          ],
+        },
+      }),
+    )
+    const wrapper = await mountView()
+
+    await click(buttonByText('Reabrir curso'))
+    await typeReason('x')
+    await click(dialogButton('Reabrir el curso 2026-2027'))
+
+    expect(wrapper.find('[role="alert"] a').attributes('href')).toBe(
+      '/administracion/cursos/ACTIVE1',
+    )
+  })
+
+  it('409 reopen_checks_failed: lista las validaciones que fallan y el curso sigue cerrado', async () => {
+    reopenAcademicYear.mockRejectedValue(
+      problem(409, {
+        status: 409,
+        detail: 'El curso no se puede reabrir: hay validaciones de reapertura que no se cumplen.',
+        errors: {
+          reopen: [
+            { code: 'prom.reopen.applied', message: 'La promoción ya está aplicada.' },
+            { code: 'doc.reopen.signed', message: 'Hay actas firmadas.' },
+          ],
+        },
+      }),
+    )
+    const wrapper = await mountView()
+
+    await click(buttonByText('Reabrir curso'))
+    await typeReason('x')
+    await click(dialogButton('Reabrir el curso 2026-2027'))
+
+    const alert = wrapper.find('[role="alert"]')
+
+    expect(alert.text()).toContain('El curso no se puede reabrir todavía')
+    expect(alert.findAll('li').map((li) => li.text())).toEqual([
+      'La promoción ya está aplicada.',
+      'Hay actas firmadas.',
+    ])
+    expect(actionLabels()).toEqual(['Reabrir curso'])
   })
 })
 
