@@ -276,3 +276,101 @@ jobs:
       - run: composer install --no-interaction --prefer-dist --no-progress
 
       - run: composer analyse
+
+  # ADR-056 §3.5, CA-056-34 y CA-056-35: prueba de extremo a extremo del
+  # generador `php artisan make:module`. Genera un módulo de prueba con y sin
+  # `--entity`, ejecuta `php -l` sobre lo generado, migra y revierte, corre el
+  # grupo `arch`, los tests generados y Larastan, y descarta lo generado
+  # (scripts/verify-make-module.sh, que descarta aunque falle). Es la única
+  # prueba de que lo generado cumple las reglas: el comando solo tiene tests de
+  # comportamiento, no de texto de plantilla.
+  make-module:
+    name: Generador de módulos (make:module)
+    runs-on: ubuntu-latest
+    # Mismos servicios que "test": hay que migrar y correr tests de tenant.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: plataforma_test
+          POSTGRES_USER: plataforma
+          POSTGRES_PASSWORD: ci-postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U plataforma"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: plataforma_test
+      DB_USERNAME: plataforma_app
+      DB_PASSWORD: ci-tenancy-app
+      DB_OWNER_USERNAME: plataforma_owner
+      DB_OWNER_PASSWORD: ci-tenancy-owner
+      DB_PLATFORM_USERNAME: plataforma_platform
+      DB_PLATFORM_PASSWORD: ci-tenancy-platform
+      REDIS_HOST: 127.0.0.1
+      SESSION_LIFETIME: "480"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_pgsql, pgsql, zip, intl, mbstring, redis
+          coverage: none
+
+      - uses: actions/cache@v6
+        with:
+          path: apps/api/vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('apps/api/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      # Ver comentario del job "test": .env antes de composer install (issue #132).
+      - run: cp .env.example .env
+      - run: composer install --no-interaction --prefer-dist --no-progress
+
+      - run: php artisan key:generate
+
+      # Mismo aprovisionamiento de roles y esquema que el job "test" (ADR-033).
+      - name: Provisionar esquema y roles de tenancy (ADR-033)
+        working-directory: .
+        env:
+          PGPASSWORD: ci-postgres
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          psql -h 127.0.0.1 -U plataforma -d plataforma_test \
+            -v owner_password=ci-tenancy-owner \
+            -v app_password=ci-tenancy-app \
+            -v platform_password=ci-tenancy-platform \
+            -v dbname=plataforma_test \
+            -f infra/containers/postgres/init/01-tenancy.sql.tpl
+
+      - name: Genera, comprueba y descarta un módulo sin --entity
+        run: sh scripts/verify-make-module.sh minimal
+
+      - name: Genera, comprueba y descarta un módulo con --entity
+        run: sh scripts/verify-make-module.sh entity
+
+      # Defensa extra: el script descarta con `trap`, pero si algo quedara en el
+      # árbol de trabajo el job falla en vez de dar verde con residuos.
+      - name: Comprueba que no queda nada generado
+        working-directory: .
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --porcelain
+            echo "::error::make:module dejó ficheros sin descartar"
+            exit 1
+          fi

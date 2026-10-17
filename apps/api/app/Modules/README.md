@@ -1,6 +1,6 @@
 # app/Modules/
 
-Un directorio por bounded context (`ARCHITECTURE.md` §3, y §3.4 para las reglas comprobadas y las referencias). Hoy hay cinco: `Acad`, `Auth`, `Backoffice`, `Core` y `Curso`. Solo `Acad` (desde `1.11-b`, `REQ-ACAD`) es un módulo de negocio con tablas por curso; los otros no: `Core` es el cimiento (y sus entidades principales —`User`, `Role`, `Person`, `AuditLog`, `ModuleSubscription`, `Permission`, `PermissionRole`, `IdempotencyKey`— viven en `App\Models`, fuera del módulo), `Auth` es el más cargado de seguridad, `Backoffice` es de plataforma (sin tenant ni catálogo de permisos) y `Curso` (esencial, `depends_on []`, desde `1.10`) es el dueño de `AcademicYear` y del contrato transversal del curso (`ADR-057`). La forma de un módulo **de negocio** se fijará al construir los primeros (`REQ-CURSO`, `REQ-ACAD`); lo de abajo es lo que de verdad se repite.
+Un directorio por bounded context (`ARCHITECTURE.md` §3, y §3.4 para las reglas comprobadas y las referencias). Hoy hay cinco: `Acad`, `Auth`, `Backoffice`, `Core` y `Curso`. Solo `Acad` (desde `1.11-b`, `REQ-ACAD`) es un módulo de negocio con tablas por curso; los otros no: `Core` es el cimiento (y sus entidades principales —`User`, `Role`, `Person`, `AuditLog`, `ModuleSubscription`, `Permission`, `PermissionRole`, `IdempotencyKey`— viven en `App\Models`, fuera del módulo), `Auth` es el más cargado de seguridad, `Backoffice` es de plataforma (sin tenant ni catálogo de permisos) y `Curso` (esencial, `depends_on []`, desde `1.10`) es el dueño de `AcademicYear` y del contrato transversal del curso (`ADR-057`). Lo de abajo es lo que de verdad se repite, y desde el paso `1.11b` lo escribe un generador (sección siguiente).
 
 ```
 <Modulo>/
@@ -14,13 +14,23 @@ Un directorio por bounded context (`ARCHITECTURE.md` §3, y §3.4 para las regla
 
 Una capa no existe hasta que tiene contenido: no se crean carpetas vacías por adelantado.
 
+## Crear un módulo: `php artisan make:module` (`ADR-056 §3.5`)
+
+```
+podman exec plataforma-api php artisan make:module <Nombre> --code=<codigo> \
+    --name-es=… --name-en=… --name-de=… --name-fr=… \
+    [--entity=<Entidad> --audit-policy=<full|selective|redacted>]
+```
+
+Genera el esqueleto de abajo (`ServiceProvider`, `Http/routes.php`, `Database/migrations/`, los cuatro ficheros de idioma y un test de registro) y edita de forma idempotente `routes/api-v1.php` y `lang/*/modules.php`. Con `--entity` añade una migración de tabla de tenant, el modelo `Auditable` con su alias de *morph map*, su factoría (`database/factories/<Nombre>/`) y un test de aislamiento entre tenants a nivel de modelo; `--audit-policy` es obligatoria con `--entity` (`ADR-035`). Valida todo antes de escribir y no toca ningún fichero si algo falla. **No genera** capas vacías, HTTP, permisos, la parte web ni la documentación del módulo. Las plantillas están en `apps/api/stubs/module/`; el *job* `make-module` de CI (`apps/api/scripts/verify-make-module.sh`) genera un módulo con y sin `--entity`, lo pasa por `php -l`, migrate/rollback, el grupo `arch`, sus tests y Larastan, y lo descarta.
+
 ## El esqueleto común
 
 - **`Infrastructure/<Modulo>ServiceProvider.php`** (namespace `App\Modules\<Modulo>\Infrastructure`): se autodescubre con `App\Support\Modules\ModuleServiceProviderDiscovery`; no se registra a mano en `bootstrap/providers.php`. Extiende `ServiceProvider`, carga `Database/migrations` en `boot()` e implementa `DeclaresModuleRegistry` (`moduleDescriptor()` y `declaredPermissions()`, `ADR-034 §5`, `ADR-045`); `platform:sync-registry` lo materializa en `modules` y `permissions`. Excepción: `Backoffice` no la implementa (`REQ-BO/funcional.md §10`).
-- **`Http/routes.php`**: se **requiere a mano** desde `routes/api-v1.php` (`Core`, `Auth`, `Curso`, `Acad`) o `routes/api.php` (`Backoffice`, bajo `platform/v1`). Un fichero compartido que se edita al crear el módulo.
+- **`Http/routes.php`**: se **requiere** desde `routes/api-v1.php` (el `require` de un módulo nuevo lo añade `make:module`; el de `routes/api.php` se escribe a mano) (`Core`, `Auth`, `Curso`, `Acad`) o `routes/api.php` (`Backoffice`, bajo `platform/v1`). Un fichero compartido que se edita al crear el módulo.
 - **Traducciones**: `lang/{es,en,de,fr}/<código>.php` (el nombre del fichero no siempre es el del módulo: `auth`, `bo`, `core`) y la entrada con el nombre del módulo en `lang/{es,en,de,fr}/modules.php` (`name_key`).
 - **Modelos auditables**: si hay modelos `Auditable`, se registran en `Relation::enforceMorphMap([...])` en el `boot()` de su `ServiceProvider`, que se suma al mapa existente (`ADR-034 §3`). Matices: las cuatro entidades de `Core` que viven en `App\Models` (`person`, `user`, `role`, `module_subscription`) se registran en `app/Providers/AppServiceProvider.php`, no en el módulo; `Acad`, `Auth`, `Core` y `Curso` (`academic_year`) registran las suyas en su `ServiceProvider`; `Backoffice` no registra ninguna.
-- **Tests**: en `apps/api/tests/Feature/<Modulo>/`, no dentro del módulo. **Factorías**: en `apps/api/database/factories/` (hoy solo `Tenant`, `Person` y `User`); los demás modelos se crean en los tests con `::create()`.
+- **Tests**: en `apps/api/tests/Feature/<Modulo>/`, no dentro del módulo. **Factorías**: en `apps/api/database/factories/` (`Tenant`, `Person` y `User`, y `database/factories/<Nombre>/<Entidad>Factory.php` para las que genera `make:module --entity`; el modelo declara `newFactory()` porque la factoría no está en el espacio de nombres que Laravel supone); los demás modelos se crean en los tests con `::create()`.
 - **Documentación**: `docs/modulos/REQ-XXX/{funcional,datos,api,permisos,operacion}.md` (plantilla en `docs/modulos/_PLANTILLA/`).
 - **Parte web**: `apps/web/src/modules/<modulo>/` (ver su `README.md`).
 

@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |-------|-------|
-| Versión | 2.5.1 |
-| Fecha | 2026-10-13 |
+| Versión | 2.5.2 |
+| Fecha | 2026-10-17 |
 | Estado | Propuesta cerrada, pendiente de ratificación |
 | Documento de requisitos | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` |
 
@@ -137,7 +137,7 @@ Detalle completo, reglas de negocio y criterios de aceptación: `docs/modulos/RE
 **Forma real** (contada sobre `Auth`, `Backoffice` y `Core`, `ADR-056 §1.2`; desde `1.11-b`, `Acad` es el primer módulo de **negocio** con tablas por curso y la referencia de los patrones de más abajo). El esqueleto común es pequeño; todo lo demás es contenido:
 
 - `Infrastructure/<Modulo>ServiceProvider.php`, descubierto por `ModuleServiceProviderDiscovery` (sin registro a mano), que carga `Database/migrations` con `loadMigrationsFrom` e implementa `DeclaresModuleRegistry` (`moduleDescriptor()` + `declaredPermissions()`; `Backoffice` es el único que no, porque es de plataforma).
-- `Http/routes.php`, **requerido a mano** desde `routes/api-v1.php` (o `routes/api.php` en `Backoffice`).
+- `Http/routes.php`, **requerido** desde `routes/api-v1.php` (o `routes/api.php` en `Backoffice`): el `require` lo añade `make:module` en `routes/api-v1.php`; en `routes/api.php` (plataforma) se escribe a mano.
 - `Database/migrations/`. Los modelos Eloquent viven en `Domain/Models/`; las factorías, cuando existen, en `apps/api/database/factories/`, y los tests en `apps/api/tests/Feature/<Modulo>/` (ni `Tests/` ni `Database/factories` dentro del módulo).
 - `lang/{es,en,de,fr}/<código>.php` y la entrada `name_key` del módulo en `lang/*/modules.php`.
 - Ninguna capa vacía por adelantado: `Domain/`, `Application/` y `Http/{Controllers,Requests,Resources}` aparecen cuando hay contenido.
@@ -185,11 +185,12 @@ Los detectores de llamadas y literales comparten **un único escáner de tokens*
 | Módulo de negocio con tablas por curso: migración con claves foráneas de tres columnas hacia el padre del mismo curso, disparador puesto por el ayudante y lectura con `AcademicYearReadAccess` (`1.11-b`) | `apps/api/app/Modules/Acad/Database/migrations/2026_10_13_100200_create_courses_table.php` y `2026_10_13_100600_create_group_subjects_table.php`; `Acad/Application/StructureYears.php` (curso por las interfaces de `Curso\Domain`) | `AcadSchemaTest.php`, `AcadClosedYearGuardTest.php`, `AcadEndpointsMatrixTest.php` (`apps/api/tests/Feature/Acad/`), `AR-13`, `AR-16` |
 | Contenido del centro traducible (`ADR-062`): columna, validación, resolución en servidor, desglose en auditoría y campo de la SPA | `TenantMigration::translatableColumn()`, `App\Support\I18n\TranslationsValidator` y `TranslationResolver`, `AuditChangeBuilder`; `Acad/Http/Resources/ResolvesStructure.php`; `apps/web/src/components/TranslatableField.vue` | `TranslationsValidatorTest.php`, `TranslationsAuditTest.php`, `AcadEducationLevelsApiTest.php`, `AR-16` |
 | Ruta de un módulo **no esencial**: autenticación → `module-enabled` → `permission:` | `apps/api/app/Modules/Acad/Http/routes.php` con `App\Http\Middleware\RequireAuthenticatedUser` (**no** el alias `auth`: Laravel lo ordena antes de `resolve-tenant` y da `500` con una cookie real, hallazgo del E2E de `1.11-b`) | `AcadEndpointsMatrixTest.php` (pila ordenada del router), `AR-07a`, `AR-07b` |
+| Generador del esqueleto de un módulo de la API (`1.11b`, `ADR-056 §3.5`) | `apps/api/app/Console/Commands/MakeModuleCommand.php`, `apps/api/app/Support/Modules/Scaffolding/ModuleScaffolder.php` y las plantillas de `apps/api/stubs/module/`; mensajes en `apps/api/lang/*/make-module.php` | `apps/api/tests/Feature/Modules/MakeModuleCommandTest.php` (comportamiento: validaciones sin escribir, idempotencia, sin capas vacías) y el *job* `make-module` de `.github/workflows/ci-api.yml` con `apps/api/scripts/verify-make-module.sh` (extremo a extremo: `CA-056-34`/`-35`) |
 | **Antirreferencia** para módulos de tenant | `Backoffice`: de plataforma, sin tenant, sin catálogo | — |
 
 **Regla de especificación (`RN-CURSO-33`, `OPEN-057-03` resuelta 2026-10-08)**: toda especificación de módulo con datos por curso (`academic_year_id`) incluye un criterio de aceptación de **lectura denegada de curso cerrado** (usuario sin `curso_historico.leer` recibe `404` en el listado y en el detalle de un curso `cerrado`/`archivado`): la escritura la cubre el disparador (`AR-13`), pero la lectura depende de que cada *endpoint* invoque `AcademicYearReadAccess` y ningún test estático lo ve. Está en `docs/modulos/_PLANTILLA/funcional.md` y en la skill `modulo-nuevo`; `1.11` es el primero que debe cumplirlo, con su primera entidad real.
 
-**Disparador de revisión** *(ejecutado al cerrar `1.11-b`: `Acad` entra en tres filas nuevas; el generador `make:module` del paso `1.11b` —distinto de este paso `1.11-b`— volverá a revisarla)*: al cerrar `1.11` (`REQ-ACAD`, el segundo módulo de negocio tras `REQ-CURSO`) esta tabla se revisa y el primer módulo de negocio sustituye a `Core` en las filas donde sea más representativo. Con `1.10` entra `Curso`, que **no** es todavía un módulo de negocio representativo (no tiene tablas por curso propias): es el dueño del contrato transversal que las tablas de `ACAD`, `ALUM`, `CALIF`… heredarán, y `1.11` debe repetir `CA-CURSO-040` con su primera entidad real y añadir a `AR-13` la aserción de no vacuidad sobre el esquema real solo (`ADR-057 §5.3`). El generador `make:module`, que codifica un patrón que aún no existe, se difiere al paso `1.11b`.
+**Disparador de revisión** *(ejecutado al cerrar `1.11-b`: `Acad` entra en tres filas nuevas; el generador `make:module` del paso `1.11b` —distinto de este paso `1.11-b`— la volvió a revisar al cerrarse: entra la fila del generador y sus plantillas se revisaron contra la forma real de `Curso` y `Acad`)*: al cerrar `1.11` (`REQ-ACAD`, el segundo módulo de negocio tras `REQ-CURSO`) esta tabla se revisa y el primer módulo de negocio sustituye a `Core` en las filas donde sea más representativo. Con `1.10` entra `Curso`, que **no** es todavía un módulo de negocio representativo (no tiene tablas por curso propias): es el dueño del contrato transversal que las tablas de `ACAD`, `ALUM`, `CALIF`… heredarán, y `1.11` debe repetir `CA-CURSO-040` con su primera entidad real y añadir a `AR-13` la aserción de no vacuidad sobre el esquema real solo (`ADR-057 §5.3`). El generador `make:module` se difirió a `1.11b` precisamente para codificar el patrón ya observado en `Curso` y `Acad`; está construido (`ADR-056 §3.5`).
 
 ---
 

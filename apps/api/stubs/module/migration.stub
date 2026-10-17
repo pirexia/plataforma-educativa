@@ -1,0 +1,33 @@
+<?php
+
+use App\Support\Tenancy\TenantMigration;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * ADR-056 §3.5 (generado por `php artisan make:module --entity={{ entity }}`):
+ * tabla de tenant sin columnas de negocio. `tenantTable()` aporta tenant_id con
+ * RLS, autoría, marcas de tiempo y borrado lógico (ADR-033 §5, ADR-034 §6); la
+ * especificación del módulo añade las columnas propias de la entidad.
+ *
+ * Al añadir columnas: si la entidad depende del curso, usa
+ * `TenantMigration::tenantForeignId($table, 'academic_year_id', 'academic_years')`
+ * (ADR-057: clave compuesta con tenant y disparador `academic_year_write_guard`);
+ * para campos de contenido multi-idioma, `translatableColumn`; y si es de alto
+ * crecimiento, decide el particionado por curso (ADR-029).
+ */
+return new class extends Migration
+{
+    public function up(): void
+    {
+        TenantMigration::tenantTable('{{ table }}', function (Blueprint $table): void {
+            $table->ulid('public_id')->unique();
+        });
+    }
+
+    public function down(): void
+    {
+        DB::connection('pgsql_owner')->statement('DROP TABLE IF EXISTS {{ table }}');
+    }
+};
