@@ -62,7 +62,7 @@ describe('CA-ACAD-044 (AR-11, ADR-053 §2): registro del módulo', () => {
     )
 
     expect(empty).toEqual([])
-    expect(shell.routes).toHaveLength(11)
+    expect(shell.routes).toHaveLength(12)
   })
 
   it('las fichas cuelgan de la estructura en la miga de pan y sus títulos están en acad.*', () => {
@@ -74,15 +74,16 @@ describe('CA-ACAD-044 (AR-11, ADR-053 §2): registro del módulo', () => {
       } else if (
         route.name !== 'acad-structure' &&
         route.name !== 'acad-grading-scales' &&
-        route.name !== 'acad-facilities'
+        route.name !== 'acad-facilities' &&
+        route.name !== 'acad-timetable'
       ) {
         expect(route.meta!.breadcrumbParent, String(route.name)).toBe('acad-structure')
       }
     }
   })
 
-  it('tres entradas de menú, en administración, con icono y sin acceso directo (OPEN-ACAD-23)', () => {
-    expect(shell.navigation).toHaveLength(3)
+  it('cuatro entradas de menú, en administración, con icono y sin acceso directo (OPEN-ACAD-23)', () => {
+    expect(shell.navigation).toHaveLength(4)
     expect(shell.navigation[0]).toMatchObject({
       id: 'acad.structure',
       route: 'acad-structure',
@@ -98,8 +99,16 @@ describe('CA-ACAD-044 (AR-11, ADR-053 §2): registro del módulo', () => {
       section: 'administracion',
       shortcut: false,
     })
-    // `§18.8` (1.12-a): «Espacios», tras «Escalas de calificación».
+    // `§18.8` (1.12-a): «Horarios», tras «Escalas de calificación».
     expect(shell.navigation[2]).toMatchObject({
+      id: 'acad.timetable',
+      route: 'acad-timetable',
+      labelKey: 'acad.nav.timetable',
+      section: 'administracion',
+      shortcut: false,
+    })
+    // `§18.8` (1.12-a): «Espacios», tras «Horarios».
+    expect(shell.navigation[3]).toMatchObject({
       id: 'acad.facilities',
       route: 'acad-facilities',
       labelKey: 'acad.nav.facilities',
@@ -109,6 +118,7 @@ describe('CA-ACAD-044 (AR-11, ADR-053 §2): registro del módulo', () => {
     expect(shell.navigation[0]!.icon).toBeTruthy()
     expect(shell.navigation[1]!.icon).toBeTruthy()
     expect(shell.navigation[2]!.icon).toBeTruthy()
+    expect(shell.navigation[3]!.icon).toBeTruthy()
     expect(shell.dashboardBlocks).toEqual([])
   })
 })

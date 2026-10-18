@@ -9,7 +9,8 @@
       "backToCourseGeneric": "Zurück zum Jahrgang",
       "gradingScales": "Bewertungsskalen",
       "backToScales": "Zurück zu den Bewertungsskalen",
-      "facilities": "Räume"
+      "facilities": "Räume",
+      "timetable": "Stundenpläne"
     },
     "readOnly": "Dieses Schuljahr ist schreibgeschützt: Seine Struktur kann nicht angelegt, geändert oder gelöscht werden.",
     "fields": {
@@ -220,7 +221,13 @@
       "facilityUpdated": "Raum aktualisiert.",
       "facilityDeleted": "Raum gelöscht.",
       "frameUpdated": "Stundenplanrahmen aktualisiert.",
-      "frameDeleted": "Stundenplanrahmen gelöscht."
+      "frameDeleted": "Stundenplanrahmen gelöscht.",
+      "assignmentCreated": "Lehrkraft zugewiesen.",
+      "assignmentDeleted": "Lehrauftrag entfernt.",
+      "tutorsUpdated": "Klassenleitung der Gruppe aktualisiert.",
+      "sessionCreated": "Stunde angelegt.",
+      "sessionUpdated": "Stunde aktualisiert.",
+      "sessionDeleted": "Stunde gelöscht."
     },
     "errors": {
       "unexpected": "Die Aktion konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
@@ -332,6 +339,100 @@
         "removeFor": "Zeitfenster {number} entfernen",
         "add": "Zeitfenster hinzufügen",
         "caption": "Zeitfenster des Stundenplanrahmens"
+      },
+      "title": "Stundenpläne",
+      "description": "Wochenraster der Stunden nach Gruppe, Lehrkraft, Raum oder Fach.",
+      "selection": "Auswahl der Ansicht",
+      "viewLabel": "Ansicht nach",
+      "views": {
+        "group": "Gruppe",
+        "teacher": "Lehrkraft",
+        "facility": "Raum",
+        "subject": "Fach"
+      },
+      "entity": {
+        "group": "Gruppe",
+        "teacher": "Lehrkraft",
+        "facility": "Raum",
+        "subject": "Fach"
+      },
+      "chooseEntity": "Wähle eine Option, um ihren Stundenplan zu sehen.",
+      "noFrame": "Die Stufe dieser Gruppe hat keinen Zeitrahmen. Lege den Rahmen und seine Zeitfenster auf der Seite der Stufe an.",
+      "grid": {
+        "caption": "Wochenstundenplan nach {view}",
+        "noSlots": "Es gibt keine Zeitfenster oder Stunden anzuzeigen.",
+        "time": "Uhrzeit",
+        "range": "{start}–{end}",
+        "edit": "Bearbeiten",
+        "add": "Stunde hinzufügen",
+        "free": "Frei",
+        "noSlot": "Kein Zeitfenster",
+        "facilityDeleted": "Raum außer Betrieb"
+      },
+      "form": {
+        "title": {
+          "create": "Neue Stunde",
+          "edit": "Stunde bearbeiten"
+        },
+        "assignment": "Lehrauftrag",
+        "slot": "Zeitfenster",
+        "facility": "Raum",
+        "noFacility": "Kein Raum",
+        "noAssignments": "Der Gruppe sind keine Lehrkräfte zugewiesen. Weise sie auf der Seite der Gruppe zu.",
+        "assignmentRequired": "Wähle einen Lehrauftrag.",
+        "remove": "Stunde entfernen"
+      },
+      "conflict": {
+        "title": "Die Stunde kollidiert mit einer anderen:",
+        "kind": {
+          "teacher": "Lehrkraft",
+          "facility": "Raum",
+          "group": "Gruppe"
+        },
+        "with": "{kind}: {subject} · {group} · {teacher} · {slot}",
+        "withUnknown": "{kind}: Stunde {session}"
+      },
+      "confirmDelete": {
+        "title": "Die Stunde {subject} entfernen?",
+        "description": "Die Stunde wird aus dem Raster gelöscht; der Lehrauftrag bleibt unverändert.",
+        "confirm": "Stunde entfernen"
+      }
+    },
+    "staff": {
+      "search": "Benutzer nach Name oder E-Mail suchen",
+      "loading": "Benutzer werden geladen …",
+      "empty": "Keine passenden aktiven Benutzer.",
+      "loadError": "Die Benutzer konnten nicht geladen werden."
+    },
+    "teaching": {
+      "title": "Lehrkräfte",
+      "tutors": "Klassenleitung",
+      "editTutors": "Klassenleitung bearbeiten",
+      "chooseTutors": "Klassenleitung der Gruppe auswählen",
+      "noTutors": "Diese Gruppe hat keine Klassenleitung.",
+      "assignments": "Unterricht nach Fach",
+      "assign": "Lehrkräfte zuweisen",
+      "caption": "Lehraufträge der Gruppe",
+      "empty": "Dieser Gruppe sind keine Lehrkräfte zugewiesen.",
+      "remove": "Entfernen",
+      "subject": "Fach",
+      "subgroup": "Untergruppe",
+      "teacher": "Lehrkraft",
+      "wholeGroup": "Ganze Gruppe",
+      "unknownTeacher": "Benutzer nicht verfügbar",
+      "confirmDelete": {
+        "title": "{teacher} aus {subject} entfernen?",
+        "description": "Der Lehrauftrag wird entfernt. Hat er Stunden im Stundenplan, müssen diese zuerst gelöscht werden.",
+        "confirm": "Lehrauftrag entfernen"
+      },
+      "form": {
+        "title": "Lehrkräfte zuweisen",
+        "description": "Wähle das Fach der Gruppe, die Untergruppe bei geteiltem Unterricht und die Lehrkraft. Die Zuweisung erteilt keine Berechtigungen.",
+        "submit": "Zuweisen"
+      },
+      "errors": {
+        "subjectRequired": "Wähle ein Fach.",
+        "teacherRequired": "Wähle eine Lehrkraft."
       }
     }
   }

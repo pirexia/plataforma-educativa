@@ -9,7 +9,8 @@
       "backToCourseGeneric": "Retour au niveau",
       "gradingScales": "Échelles de notation",
       "backToScales": "Retour aux échelles de notation",
-      "facilities": "Espaces"
+      "facilities": "Espaces",
+      "timetable": "Emplois du temps"
     },
     "readOnly": "Cette année scolaire est en lecture seule : sa structure ne peut être ni créée, ni modifiée, ni supprimée.",
     "fields": {
@@ -220,7 +221,13 @@
       "facilityUpdated": "Espace mis à jour.",
       "facilityDeleted": "Espace supprimé.",
       "frameUpdated": "Cadre d'emploi du temps mis à jour.",
-      "frameDeleted": "Cadre d'emploi du temps supprimé."
+      "frameDeleted": "Cadre d'emploi du temps supprimé.",
+      "assignmentCreated": "Enseignant affecté.",
+      "assignmentDeleted": "Affectation retirée.",
+      "tutorsUpdated": "Professeurs principaux du groupe mis à jour.",
+      "sessionCreated": "Séance créée.",
+      "sessionUpdated": "Séance mise à jour.",
+      "sessionDeleted": "Séance supprimée."
     },
     "errors": {
       "unexpected": "L'action n'a pas pu être menée à bien. Veuillez réessayer.",
@@ -332,6 +339,100 @@
         "removeFor": "Retirer le créneau {number}",
         "add": "Ajouter un créneau",
         "caption": "Créneaux du cadre d'emploi du temps"
+      },
+      "title": "Emplois du temps",
+      "description": "Grille hebdomadaire des séances par groupe, enseignant, salle ou matière.",
+      "selection": "Sélection de la vue",
+      "viewLabel": "Voir par",
+      "views": {
+        "group": "Groupe",
+        "teacher": "Enseignant",
+        "facility": "Salle",
+        "subject": "Matière"
+      },
+      "entity": {
+        "group": "Groupe",
+        "teacher": "Enseignant",
+        "facility": "Salle",
+        "subject": "Matière"
+      },
+      "chooseEntity": "Choisissez une option pour voir son emploi du temps.",
+      "noFrame": "Le cycle de ce groupe n’a pas de cadre horaire. Créez le cadre et ses créneaux sur la page du cycle.",
+      "grid": {
+        "caption": "Emploi du temps hebdomadaire par {view}",
+        "noSlots": "Il n’y a ni créneau ni séance à afficher.",
+        "time": "Heure",
+        "range": "de {start} à {end}",
+        "edit": "Modifier",
+        "add": "Ajouter une séance",
+        "free": "Disponible",
+        "noSlot": "Pas de créneau",
+        "facilityDeleted": "salle désaffectée"
+      },
+      "form": {
+        "title": {
+          "create": "Nouvelle séance",
+          "edit": "Modifier la séance"
+        },
+        "assignment": "Affectation d’enseignement",
+        "slot": "Créneau",
+        "facility": "Salle",
+        "noFacility": "Sans salle",
+        "noAssignments": "Aucun enseignant n’est affecté au groupe. Affectez-les sur la page du groupe.",
+        "assignmentRequired": "Choisissez une affectation d’enseignement.",
+        "remove": "Retirer la séance"
+      },
+      "conflict": {
+        "title": "La séance entre en conflit avec une autre :",
+        "kind": {
+          "teacher": "Enseignant",
+          "facility": "Salle",
+          "group": "Groupe"
+        },
+        "with": "{kind} : {subject} · {group} · {teacher} · {slot}",
+        "withUnknown": "{kind} : séance {session}"
+      },
+      "confirmDelete": {
+        "title": "Retirer la séance de {subject} ?",
+        "description": "La séance est supprimée de la grille ; l’affectation d’enseignement ne change pas.",
+        "confirm": "Retirer la séance"
+      }
+    },
+    "staff": {
+      "search": "Rechercher un utilisateur par nom ou e-mail",
+      "loading": "Chargement des utilisateurs…",
+      "empty": "Aucun utilisateur actif ne correspond.",
+      "loadError": "Impossible de charger les utilisateurs."
+    },
+    "teaching": {
+      "title": "Équipe pédagogique",
+      "tutors": "Professeurs principaux",
+      "editTutors": "Modifier les professeurs principaux",
+      "chooseTutors": "Choisissez les professeurs principaux du groupe",
+      "noTutors": "Ce groupe n’a pas de professeur principal.",
+      "assignments": "Enseignement par matière",
+      "assign": "Affecter des enseignants",
+      "caption": "Affectations d’enseignement du groupe",
+      "empty": "Aucun enseignant n’est affecté à ce groupe.",
+      "remove": "Retirer",
+      "subject": "Matière",
+      "subgroup": "Sous-groupe",
+      "teacher": "Enseignant",
+      "wholeGroup": "Groupe entier",
+      "unknownTeacher": "Utilisateur indisponible",
+      "confirmDelete": {
+        "title": "Retirer {teacher} de {subject} ?",
+        "description": "L’affectation est retirée. Si elle a des séances dans l’emploi du temps, il faut d’abord les supprimer.",
+        "confirm": "Retirer l’affectation"
+      },
+      "form": {
+        "title": "Affecter des enseignants",
+        "description": "Choisissez la matière du groupe, le sous-groupe s’il s’agit d’un dédoublement et l’enseignant. Affecter un enseignement n’accorde aucune permission.",
+        "submit": "Affecter"
+      },
+      "errors": {
+        "subjectRequired": "Choisissez une matière.",
+        "teacherRequired": "Choisissez un enseignant."
       }
     }
   }

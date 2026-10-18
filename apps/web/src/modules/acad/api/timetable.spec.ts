@@ -124,3 +124,73 @@ describe('REQ-ACAD-002 (api.md §12.2, §12.3): marcos horarios', () => {
     })
   })
 })
+
+describe('REQ-ACAD-002 (api.md §12.2, §12.3): asignación docente, tutores y sesiones', () => {
+  it('CA-ACAD-107: GET /teaching-assignments lleva los filtros múltiples; POST no envía academic_year (RN-ACAD-91)', async () => {
+    await api.listTeachingAssignments({
+      academic_year: 'Y1',
+      group: ['G1'],
+      teacher: ['U1', 'U2'],
+      sort: '-id',
+    })
+    expect(last()[0]).toBe(
+      '/teaching-assignments?academic_year=Y1&group=G1&teacher=U1%2CU2&sort=-id',
+    )
+
+    await api.createTeachingAssignment({
+      teacher: 'U1',
+      group: 'G1',
+      subject: 'M1',
+      subgroup: null,
+    })
+    expect(last()[0]).toBe('/teaching-assignments')
+    expect(last()[1]?.method).toBe('POST')
+    expect(JSON.parse(last()[1]!.body!)).toEqual({
+      teacher: 'U1',
+      group: 'G1',
+      subject: 'M1',
+      subgroup: null,
+    })
+  })
+
+  it('CA-ACAD-111: no hay PATCH de asignaciones (RN-ACAD-95); DELETE codifica el identificador', async () => {
+    expect('updateTeachingAssignment' in api).toBe(false)
+
+    await api.deleteTeachingAssignment(HOSTILE)
+    expect(last()[0]).toBe(`/teaching-assignments/${ENCODED}`)
+    expect(last()[1]?.method).toBe('DELETE')
+  })
+
+  it('CA-ACAD-113: tutores de un grupo, PUT con el conjunto completo (RN-ACAD-97)', async () => {
+    await api.listGroupTutors(HOSTILE)
+    expect(last()[0]).toBe(`/groups/${ENCODED}/tutors`)
+
+    await api.replaceGroupTutors('G1', ['U1', 'U2'])
+    expect(last()[0]).toBe('/groups/G1/tutors')
+    expect(last()[1]?.method).toBe('PUT')
+    expect(JSON.parse(last()[1]!.body!)).toEqual({ tutors: ['U1', 'U2'] })
+
+    await api.replaceGroupTutors('G1', [])
+    expect(JSON.parse(last()[1]!.body!)).toEqual({ tutors: [] })
+  })
+
+  it('CA-ACAD-127: la vista semanal lleva un filtro de vista (RN-ACAD-127); la sesión se crea, mueve y borra', async () => {
+    await api.listTimetableSessions({ academic_year: 'Y1', teacher: 'U1' })
+    expect(last()[0]).toBe('/timetable-sessions?academic_year=Y1&teacher=U1')
+
+    await api.getTimetableSession(HOSTILE)
+    expect(last()[0]).toBe(`/timetable-sessions/${ENCODED}`)
+
+    await api.createTimetableSession({ time_slot: 'T1', teaching_assignment: 'A1' })
+    expect(last()[1]?.method).toBe('POST')
+    expect(JSON.parse(last()[1]!.body!)).toEqual({ time_slot: 'T1', teaching_assignment: 'A1' })
+
+    await api.updateTimetableSession('S1', { facility: null })
+    expect(last()[0]).toBe('/timetable-sessions/S1')
+    expect(last()[1]?.method).toBe('PATCH')
+    expect(JSON.parse(last()[1]!.body!)).toEqual({ facility: null })
+
+    await api.deleteTimetableSession('S1')
+    expect(last()[1]?.method).toBe('DELETE')
+  })
+})

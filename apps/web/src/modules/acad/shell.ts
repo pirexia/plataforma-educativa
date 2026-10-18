@@ -19,12 +19,13 @@
  * académico; la ficha y la edición lo dejan fijo en el curso de la escala.
  * `1.12-a` (`funcional.md §18.8`) añade `acad-facilities` (`espacios.leer`, con entrada de
  * menú, sin curso académico) y `acad-timetable-frame` (`horarios.leer`, sin entrada de menú);
- * la rejilla `acad-timetable` llega con las asignaciones y sesiones.
+ * la rejilla `acad-timetable` (`horarios.leer`, con entrada de menú, selector de curso
+ * académico) muestra las sesiones por grupo, profesor, aula o asignatura.
  * Con `acad` descontratado, `/me.permissions` deja de incluir sus permisos
  * (inertes, `REQ-PERM §9`): la entrada de menú y las rutas desaparecen
  * (`RMOD-008`). Sin `dashboardBlocks` (`§10.3`).
  */
-import { DoorOpen, GraduationCap, ListOrdered } from '@lucide/vue'
+import { CalendarDays, DoorOpen, GraduationCap, ListOrdered } from '@lucide/vue'
 import type { ModuleShell } from '@/navigation/types'
 
 export const shell: ModuleShell = {
@@ -155,6 +156,18 @@ export const shell: ModuleShell = {
         titleKey: 'acad.facilities.title',
       },
     },
+    // 1.12-a: rejilla semanal de sesiones; vista y entidad en la URL (`?view=group&id=…`).
+    {
+      path: '/academico/horarios',
+      name: 'acad-timetable',
+      component: () => import('./views/TimetableView.vue'),
+      meta: {
+        layout: 'app',
+        permissions: ['horarios.leer'],
+        titleKey: 'acad.timetable.title',
+        academicYearScoped: true,
+      },
+    },
     // 1.12-a: ficha de un marco horario y editor de franjas; sin entrada de menú (destino de un enlace de la ficha de etapa).
     {
       path: '/academico/marcos/:publicId',
@@ -184,6 +197,14 @@ export const shell: ModuleShell = {
       route: 'acad-grading-scales',
       labelKey: 'acad.nav.gradingScales',
       icon: ListOrdered,
+      section: 'administracion',
+      shortcut: false,
+    },
+    {
+      id: 'acad.timetable',
+      route: 'acad-timetable',
+      labelKey: 'acad.nav.timetable',
+      icon: CalendarDays,
       section: 'administracion',
       shortcut: false,
     },

@@ -107,7 +107,9 @@ function buildBody(): Record<string, unknown> {
     return body
   }
 
-  if (code.value.trim() !== facility.code) body.code = code.value.trim()
+  const currentCode = facility.code
+
+  if (code.value.trim() !== currentCode) body.code = code.value.trim()
   if (name.value.trim() !== facility.name) body.name = name.value.trim()
 
   return body

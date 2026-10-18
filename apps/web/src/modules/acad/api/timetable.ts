@@ -12,7 +12,10 @@ import type {
   FrameType,
   Paginated,
   PublicId,
+  StaffSummary,
+  TeachingAssignment,
   TimetableFrame,
+  TimetableSession,
   Translations,
 } from '../types'
 
@@ -145,4 +148,131 @@ export function updateTimetableFrame(
 
 export function deleteTimetableFrame(publicId: PublicId): Promise<void> {
   return apiFetch<void>(framePath(publicId), { method: 'DELETE' })
+}
+
+// --- Asignación docente y tutorías (`RN-ACAD-92` a `-99`) ------------------------
+
+/** `api.md §12.4`: filtros múltiples (`public_id` separados por coma) y orden `id`/`-id`. */
+export interface ListTeachingAssignmentsParams {
+  academic_year?: PublicId
+  group?: PublicId[]
+  subject?: PublicId[]
+  teacher?: PublicId[]
+  sort?: string
+  page?: number
+  per_page?: number
+}
+
+function assignmentPath(publicId?: PublicId): string {
+  return publicId === undefined
+    ? '/teaching-assignments'
+    : `/teaching-assignments/${encodeURIComponent(publicId)}`
+}
+
+export function listTeachingAssignments(
+  params: ListTeachingAssignmentsParams = {},
+): Promise<Paginated<TeachingAssignment>> {
+  return apiFetch<Paginated<TeachingAssignment>>(`${assignmentPath()}${query(params)}`)
+}
+
+/** `RN-ACAD-93`: sin `academic_year` (es el del grupo, `RN-ACAD-91`). */
+export interface TeachingAssignmentCreate {
+  teacher: PublicId
+  group: PublicId
+  subject: PublicId
+  subgroup?: PublicId | null
+}
+
+export function createTeachingAssignment(
+  payload: TeachingAssignmentCreate,
+): Promise<TeachingAssignment> {
+  return apiFetch<TeachingAssignment>(assignmentPath(), {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+/** `RN-ACAD-95`: sin `PATCH`; cambiar de profesor es borrar y crear. */
+export function deleteTeachingAssignment(publicId: PublicId): Promise<void> {
+  return apiFetch<void>(assignmentPath(publicId), { method: 'DELETE' })
+}
+
+function tutorsPath(groupPublicId: PublicId): string {
+  return `/groups/${encodeURIComponent(groupPublicId)}/tutors`
+}
+
+export function listGroupTutors(groupPublicId: PublicId): Promise<{ data: StaffSummary[] }> {
+  return apiFetch<{ data: StaffSummary[] }>(tutorsPath(groupPublicId))
+}
+
+/** `RN-ACAD-97`: sustituye el conjunto completo; lista vacía = sin tutores. */
+export function replaceGroupTutors(
+  groupPublicId: PublicId,
+  tutors: PublicId[],
+): Promise<{ data: StaffSummary[] }> {
+  return apiFetch<{ data: StaffSummary[] }>(tutorsPath(groupPublicId), {
+    method: 'PUT',
+    body: JSON.stringify({ tutors }),
+  })
+}
+
+// --- Sesiones y vistas semanales (`RN-ACAD-120` a `-128`) -------------------------
+
+/** `RN-ACAD-127`: al menos uno de `teacher`, `facility`, `group`, `subject`. */
+export interface ListTimetableSessionsParams {
+  academic_year?: PublicId
+  teacher?: PublicId
+  facility?: PublicId
+  group?: PublicId
+  subject?: PublicId
+  frame?: PublicId
+}
+
+function sessionPath(publicId?: PublicId): string {
+  return publicId === undefined
+    ? '/timetable-sessions'
+    : `/timetable-sessions/${encodeURIComponent(publicId)}`
+}
+
+export function listTimetableSessions(
+  params: ListTimetableSessionsParams,
+): Promise<{ data: TimetableSession[] }> {
+  return apiFetch<{ data: TimetableSession[] }>(`${sessionPath()}${query(params)}`)
+}
+
+export function getTimetableSession(publicId: PublicId): Promise<TimetableSession> {
+  return apiFetch<TimetableSession>(sessionPath(publicId))
+}
+
+export interface TimetableSessionCreate {
+  time_slot: PublicId
+  teaching_assignment: PublicId
+  facility?: PublicId | null
+}
+
+export function createTimetableSession(payload: TimetableSessionCreate): Promise<TimetableSession> {
+  return apiFetch<TimetableSession>(sessionPath(), {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+/** `RN-ACAD-122`: `time_slot` y `facility` (`null` quita el aula). */
+export interface TimetableSessionUpdate {
+  time_slot?: PublicId
+  facility?: PublicId | null
+}
+
+export function updateTimetableSession(
+  publicId: PublicId,
+  payload: TimetableSessionUpdate,
+): Promise<TimetableSession> {
+  return apiFetch<TimetableSession>(sessionPath(publicId), {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteTimetableSession(publicId: PublicId): Promise<void> {
+  return apiFetch<void>(sessionPath(publicId), { method: 'DELETE' })
 }

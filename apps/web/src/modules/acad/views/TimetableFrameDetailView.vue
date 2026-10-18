@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import TranslatableField from '@/components/TranslatableField.vue'
 import TranslatedText from '@/components/TranslatedText.vue'
+import { DataTable, type DataTableColumn, type DataTableLocalFetcher } from '@/data-table'
 import ErrorState from '@/layouts/components/ErrorState.vue'
 import LoadingState from '@/layouts/components/LoadingState.vue'
 import { translationsPatch, type TranslationValues } from '@/lib/translatable'
@@ -31,7 +32,7 @@ import { problemFieldErrors } from '../composables/problem'
 import { useLoad } from '../composables/useLoad'
 import { usePermissions } from '../composables/usePermissions'
 import { useStructureActions } from '../composables/useStructureActions'
-import type { TimetableFrame } from '../types'
+import type { TimeSlot, TimetableFrame } from '../types'
 
 const MAX_TEXT_LENGTH = 255
 
@@ -173,6 +174,24 @@ async function remove(): Promise<void> {
 function weekdayLabel(day: number): string {
   return t(`acad.weekday.${day}`)
 }
+
+/** Franjas en solo lectura (sin `horarios.actualizar` o con el curso cerrado). */
+const slotColumns: DataTableColumn<TimeSlot>[] = [
+  {
+    id: 'weekday',
+    headerKey: 'acad.timetable.slots.weekday',
+    value: (row) => weekdayLabel(row.weekday),
+    rowHeader: true,
+    hideable: false,
+    card: 'title',
+  },
+  { id: 'starts_at', headerKey: 'acad.timetable.slots.startsAt', card: 'field' },
+  { id: 'ends_at', headerKey: 'acad.timetable.slots.endsAt', card: 'field' },
+]
+
+const fetchSlots: DataTableLocalFetcher<TimeSlot> = async () => ({
+  data: frame.value?.slots ?? [],
+})
 </script>
 
 <template>
@@ -250,33 +269,17 @@ function weekdayLabel(day: number): string {
         <p v-if="frame.slots.length === 0" class="text-muted-foreground text-sm" role="note">
           {{ t('acad.timetable.slots.empty') }}
         </p>
-        <table v-else class="w-full text-sm">
-          <caption class="sr-only">
-            {{
-              t('acad.timetable.slots.caption')
-            }}
-          </caption>
-          <thead>
-            <tr class="text-muted-foreground text-left">
-              <th scope="col" class="py-1 pr-4 font-medium">
-                {{ t('acad.timetable.slots.weekday') }}
-              </th>
-              <th scope="col" class="py-1 pr-4 font-medium">
-                {{ t('acad.timetable.slots.startsAt') }}
-              </th>
-              <th scope="col" class="py-1 font-medium">{{ t('acad.timetable.slots.endsAt') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="slot in frame.slots" :key="slot.public_id" class="border-border border-t">
-              <th scope="row" class="py-1 pr-4 text-left font-normal">
-                {{ weekdayLabel(slot.weekday) }}
-              </th>
-              <td class="py-1 pr-4">{{ slot.starts_at }}</td>
-              <td class="py-1">{{ slot.ends_at }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <DataTable
+          v-else
+          table-id="acad.frame_slots"
+          :caption="t('acad.timetable.slots.caption')"
+          :columns="slotColumns"
+          mode="local"
+          :fetcher="fetchSlots"
+          :empty-title="t('acad.timetable.slots.empty')"
+          :card-heading-level="3"
+          hide-single-page-footer
+        />
 
         <div v-if="canDelete">
           <Button type="button" variant="outline" :disabled="actions.busy.value" @click="remove">

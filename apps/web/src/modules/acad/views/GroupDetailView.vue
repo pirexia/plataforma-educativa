@@ -23,6 +23,7 @@ import ErrorState from '@/layouts/components/ErrorState.vue'
 import LoadingState from '@/layouts/components/LoadingState.vue'
 import EntityFormDialog from '../components/EntityFormDialog.vue'
 import StructureNotices from '../components/StructureNotices.vue'
+import TeachingSection from '../components/TeachingSection.vue'
 import {
   createSubgroup,
   deleteGroup,
@@ -366,6 +367,8 @@ async function remove(): Promise<void> {
           </ul>
         </template>
       </section>
+
+      <TeachingSection :group="group" />
 
       <section class="flex flex-col gap-3" aria-labelledby="acad-group-subgroups">
         <div class="flex flex-wrap items-center justify-between gap-2">

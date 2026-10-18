@@ -9,7 +9,8 @@
       "backToCourseGeneric": "Volver al curso",
       "gradingScales": "Escalas de calificación",
       "backToScales": "Volver a las escalas de calificación",
-      "facilities": "Espacios"
+      "facilities": "Espacios",
+      "timetable": "Horarios"
     },
     "readOnly": "Este curso académico es de solo lectura: no se puede crear, modificar ni borrar su estructura.",
     "fields": {
@@ -220,7 +221,13 @@
       "facilityUpdated": "Espacio actualizado.",
       "facilityDeleted": "Espacio borrado.",
       "frameUpdated": "Marco horario actualizado.",
-      "frameDeleted": "Marco horario borrado."
+      "frameDeleted": "Marco horario borrado.",
+      "assignmentCreated": "Profesorado asignado.",
+      "assignmentDeleted": "Asignación docente quitada.",
+      "tutorsUpdated": "Tutores del grupo actualizados.",
+      "sessionCreated": "Sesión creada.",
+      "sessionUpdated": "Sesión actualizada.",
+      "sessionDeleted": "Sesión borrada."
     },
     "errors": {
       "unexpected": "No se pudo completar la acción. Inténtalo de nuevo.",
@@ -332,6 +339,100 @@
         "removeFor": "Quitar la franja {number}",
         "add": "Añadir franja",
         "caption": "Franjas del marco horario"
+      },
+      "title": "Horarios",
+      "description": "Rejilla semanal de sesiones por grupo, profesor, aula o asignatura.",
+      "selection": "Selección de la vista",
+      "viewLabel": "Ver por",
+      "views": {
+        "group": "Grupo",
+        "teacher": "Profesor",
+        "facility": "Aula",
+        "subject": "Asignatura"
+      },
+      "entity": {
+        "group": "Grupo",
+        "teacher": "Profesor",
+        "facility": "Aula",
+        "subject": "Asignatura"
+      },
+      "chooseEntity": "Elige una opción para ver su horario.",
+      "noFrame": "La etapa de este grupo no tiene marco horario. Crea el marco y sus franjas en la ficha de la etapa.",
+      "grid": {
+        "caption": "Horario semanal por {view}",
+        "noSlots": "No hay franjas ni sesiones que mostrar.",
+        "time": "Hora",
+        "range": "{start}–{end}",
+        "edit": "Editar",
+        "add": "Añadir sesión",
+        "free": "Libre",
+        "noSlot": "Sin franja",
+        "facilityDeleted": "aula dada de baja"
+      },
+      "form": {
+        "title": {
+          "create": "Nueva sesión",
+          "edit": "Editar sesión"
+        },
+        "assignment": "Asignación docente",
+        "slot": "Franja",
+        "facility": "Aula",
+        "noFacility": "Sin aula",
+        "noAssignments": "El grupo no tiene profesorado asignado. Asígnalo en la ficha del grupo.",
+        "assignmentRequired": "Elige una asignación docente.",
+        "remove": "Quitar sesión"
+      },
+      "conflict": {
+        "title": "La sesión choca con otra:",
+        "kind": {
+          "teacher": "Profesor",
+          "facility": "Aula",
+          "group": "Grupo"
+        },
+        "with": "{kind}: {subject} · {group} · {teacher} · {slot}",
+        "withUnknown": "{kind}: sesión {session}"
+      },
+      "confirmDelete": {
+        "title": "¿Quitar la sesión de {subject}?",
+        "description": "Se borra la sesión de la rejilla; la asignación docente no cambia.",
+        "confirm": "Quitar sesión"
+      }
+    },
+    "staff": {
+      "search": "Buscar usuario por nombre o correo",
+      "loading": "Cargando usuarios…",
+      "empty": "No hay usuarios activos que coincidan.",
+      "loadError": "No se pudieron cargar los usuarios."
+    },
+    "teaching": {
+      "title": "Profesorado",
+      "tutors": "Tutores",
+      "editTutors": "Editar tutores",
+      "chooseTutors": "Elige los tutores del grupo",
+      "noTutors": "Este grupo no tiene tutores.",
+      "assignments": "Docencia por asignatura",
+      "assign": "Asignar profesorado",
+      "caption": "Asignaciones docentes del grupo",
+      "empty": "Este grupo no tiene profesorado asignado.",
+      "remove": "Quitar",
+      "subject": "Asignatura",
+      "subgroup": "Subgrupo",
+      "teacher": "Profesor",
+      "wholeGroup": "Todo el grupo",
+      "unknownTeacher": "Usuario no disponible",
+      "confirmDelete": {
+        "title": "¿Quitar a {teacher} de {subject}?",
+        "description": "Se quita la asignación docente. Si tiene sesiones en el horario, primero hay que borrarlas.",
+        "confirm": "Quitar asignación"
+      },
+      "form": {
+        "title": "Asignar profesorado",
+        "description": "Elige la asignatura del grupo, el subgrupo si es un desdoble y el profesor. Asignar docencia no concede permisos.",
+        "submit": "Asignar"
+      },
+      "errors": {
+        "subjectRequired": "Elige una asignatura.",
+        "teacherRequired": "Elige un profesor."
       }
     }
   }

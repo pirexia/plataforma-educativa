@@ -9,7 +9,8 @@
       "backToCourseGeneric": "Back to the course",
       "gradingScales": "Grading scales",
       "backToScales": "Back to grading scales",
-      "facilities": "Facilities"
+      "facilities": "Facilities",
+      "timetable": "Timetables"
     },
     "readOnly": "This academic year is read-only: its structure cannot be created, changed or deleted.",
     "fields": {
@@ -220,7 +221,13 @@
       "facilityUpdated": "Facility updated.",
       "facilityDeleted": "Facility deleted.",
       "frameUpdated": "Timetable frame updated.",
-      "frameDeleted": "Timetable frame deleted."
+      "frameDeleted": "Timetable frame deleted.",
+      "assignmentCreated": "Teaching staff assigned.",
+      "assignmentDeleted": "Teaching assignment removed.",
+      "tutorsUpdated": "Group tutors updated.",
+      "sessionCreated": "Session created.",
+      "sessionUpdated": "Session updated.",
+      "sessionDeleted": "Session deleted."
     },
     "errors": {
       "unexpected": "The action could not be completed. Please try again.",
@@ -332,6 +339,100 @@
         "removeFor": "Remove time slot {number}",
         "add": "Add time slot",
         "caption": "Time slots of the timetable frame"
+      },
+      "title": "Timetables",
+      "description": "Weekly grid of sessions by group, teacher, room or subject.",
+      "selection": "View selection",
+      "viewLabel": "View by",
+      "views": {
+        "group": "Group",
+        "teacher": "Teacher",
+        "facility": "Room",
+        "subject": "Subject"
+      },
+      "entity": {
+        "group": "Group",
+        "teacher": "Teacher",
+        "facility": "Room",
+        "subject": "Subject"
+      },
+      "chooseEntity": "Choose an option to see its timetable.",
+      "noFrame": "This group's stage has no timetable frame. Create the frame and its time slots on the stage page.",
+      "grid": {
+        "caption": "Weekly timetable by {view}",
+        "noSlots": "There are no time slots or sessions to show.",
+        "time": "Time",
+        "range": "{start}–{end}",
+        "edit": "Edit",
+        "add": "Add session",
+        "free": "Free",
+        "noSlot": "No time slot",
+        "facilityDeleted": "room retired"
+      },
+      "form": {
+        "title": {
+          "create": "New session",
+          "edit": "Edit session"
+        },
+        "assignment": "Teaching assignment",
+        "slot": "Time slot",
+        "facility": "Room",
+        "noFacility": "No room",
+        "noAssignments": "The group has no teaching staff assigned. Assign them on the group page.",
+        "assignmentRequired": "Choose a teaching assignment.",
+        "remove": "Remove session"
+      },
+      "conflict": {
+        "title": "The session clashes with another one:",
+        "kind": {
+          "teacher": "Teacher",
+          "facility": "Room",
+          "group": "Group"
+        },
+        "with": "{kind}: {subject} · {group} · {teacher} · {slot}",
+        "withUnknown": "{kind}: session {session}"
+      },
+      "confirmDelete": {
+        "title": "Remove the {subject} session?",
+        "description": "The session is deleted from the grid; the teaching assignment does not change.",
+        "confirm": "Remove session"
+      }
+    },
+    "staff": {
+      "search": "Search users by name or email",
+      "loading": "Loading users…",
+      "empty": "No active users match.",
+      "loadError": "Users could not be loaded."
+    },
+    "teaching": {
+      "title": "Teaching staff",
+      "tutors": "Tutors",
+      "editTutors": "Edit tutors",
+      "chooseTutors": "Choose the group's tutors",
+      "noTutors": "This group has no tutors.",
+      "assignments": "Teaching by subject",
+      "assign": "Assign teaching staff",
+      "caption": "Teaching assignments of the group",
+      "empty": "This group has no teaching staff assigned.",
+      "remove": "Remove",
+      "subject": "Subject",
+      "subgroup": "Subgroup",
+      "teacher": "Teacher",
+      "wholeGroup": "Whole group",
+      "unknownTeacher": "User unavailable",
+      "confirmDelete": {
+        "title": "Remove {teacher} from {subject}?",
+        "description": "The teaching assignment is removed. If it has sessions in the timetable, they must be deleted first.",
+        "confirm": "Remove assignment"
+      },
+      "form": {
+        "title": "Assign teaching staff",
+        "description": "Choose the group's subject, the subgroup if it is a split class, and the teacher. Assigning teaching does not grant permissions.",
+        "submit": "Assign"
+      },
+      "errors": {
+        "subjectRequired": "Choose a subject.",
+        "teacherRequired": "Choose a teacher."
       }
     }
   }

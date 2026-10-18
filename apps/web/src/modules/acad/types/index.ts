@@ -188,3 +188,55 @@ export interface TimetableFrame {
   created_at: string
   updated_at: string
 }
+
+/** `docs/modulos/REQ-ACAD/api.md §12.1`. Usuario del centro a quien se asigna docencia: solo `public_id` y nombre visible. */
+export interface StaffSummary {
+  public_id: PublicId
+  name: string
+}
+
+/** `api.md §12.1` (`RN-ACAD-93`, `-95`). Asignación docente, inmutable: se crea y se borra. */
+export interface TeachingAssignment {
+  public_id: PublicId
+  academic_year: PublicId
+  teacher: StaffSummary | null
+  group: PublicId
+  subject: PublicId
+  subgroup: PublicId | null
+  created_at: string
+  updated_at: string
+}
+
+/** `api.md §12.1`. Resumen de grupo, subgrupo, asignatura y aula dentro de una sesión. */
+export interface SessionRef {
+  public_id: PublicId
+  code: string
+  name: string
+}
+
+/** `api.md §12.1`, `RN-ACAD-102`: `deleted` marca un aula dada de baja de un curso cerrado. */
+export interface SessionFacility extends SessionRef {
+  deleted: boolean
+}
+
+/** `api.md §12.1`. Sesión con los resúmenes que pintan la rejilla en una sola llamada. */
+export interface TimetableSession {
+  public_id: PublicId
+  academic_year: PublicId
+  frame: PublicId
+  slot: TimeSlot
+  teaching_assignment: PublicId
+  teacher: StaffSummary | null
+  group: SessionRef
+  subgroup: SessionRef | null
+  subject: SessionRef
+  facility: SessionFacility | null
+  created_at: string
+  updated_at: string
+}
+
+/** `RN-ACAD-123`: `params.conflicts` de `422 timetable_conflict`. */
+export interface TimetableConflict {
+  kind: 'teacher' | 'facility' | 'group' | (string & {})
+  session: PublicId
+}
