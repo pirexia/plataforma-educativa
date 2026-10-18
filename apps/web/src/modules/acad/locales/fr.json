@@ -8,7 +8,8 @@
       "backToCourse": "Retour au niveau {code}",
       "backToCourseGeneric": "Retour au niveau",
       "gradingScales": "Échelles de notation",
-      "backToScales": "Retour aux échelles de notation"
+      "backToScales": "Retour aux échelles de notation",
+      "facilities": "Espaces"
     },
     "readOnly": "Cette année scolaire est en lecture seule : sa structure ne peut être ni créée, ni modifiée, ni supprimée.",
     "fields": {
@@ -30,7 +31,9 @@
       "isPassing": "Réussite",
       "rangeMin": "De",
       "rangeMax": "À",
-      "range": "Plage"
+      "range": "Plage",
+      "facilityType": "Type d'espace",
+      "frameType": "Type de cadre d'emploi du temps"
     },
     "stage": {
       "infantil": "Éducation de la petite enfance",
@@ -51,7 +54,12 @@
       "subjects": "Matières",
       "subgroups": "Sous-groupes",
       "group_subjects": "Matières affectées à des groupes",
-      "academic_periods": "Périodes scolaires"
+      "academic_periods": "Périodes scolaires",
+      "group_tutors": "Tuteurs de groupe",
+      "teaching_assignments": "Affectations d'enseignement",
+      "timetable_frames": "Cadres d'emploi du temps",
+      "timetable_sessions": "Séances d'emploi du temps",
+      "facility_bookings": "Réservations d'espaces"
     },
     "structure": {
       "title": "Structure académique",
@@ -174,6 +182,14 @@
         "scale": {
           "title": "Supprimer l’échelle {code}",
           "description": "L’échelle et toutes ses valeurs sont supprimées."
+        },
+        "facility": {
+          "title": "Supprimer l'espace {code}",
+          "description": "L'espace est supprimé de l'établissement. Il ne peut pas être supprimé si des séances d'une année en préparation ou active l'utilisent."
+        },
+        "frame": {
+          "title": "Supprimer le cadre d'emploi du temps {name}",
+          "description": "Le cadre et tous ses créneaux sont supprimés. Il ne peut pas être supprimé si un créneau a des séances."
         }
       }
     },
@@ -199,7 +215,12 @@
       "periodDeleted": "Période supprimée.",
       "scaleCreated": "Échelle créée.",
       "scaleUpdated": "Échelle mise à jour.",
-      "scaleDeleted": "Échelle supprimée."
+      "scaleDeleted": "Échelle supprimée.",
+      "facilityCreated": "Espace créé.",
+      "facilityUpdated": "Espace mis à jour.",
+      "facilityDeleted": "Espace supprimé.",
+      "frameUpdated": "Cadre d'emploi du temps mis à jour.",
+      "frameDeleted": "Cadre d'emploi du temps supprimé."
     },
     "errors": {
       "unexpected": "L'action n'a pas pu être menée à bien. Veuillez réessayer.",
@@ -249,6 +270,69 @@
       "rangeValue": "De {min} à {max}",
       "valuesCount": "Aucune valeur | {count} valeur | {count} valeurs",
       "passingFrom": "À partir de {value}"
+    },
+    "facilityType": {
+      "aula": "Salle de classe",
+      "recurso": "Ressource"
+    },
+    "frameType": {
+      "ordinaria": "Ordinaire",
+      "especial": "Spécial"
+    },
+    "weekday": {
+      "1": "Lundi",
+      "2": "Mardi",
+      "3": "Mercredi",
+      "4": "Jeudi",
+      "5": "Vendredi",
+      "6": "Samedi",
+      "7": "Dimanche"
+    },
+    "readOnlyTimetable": "Cette année scolaire est en lecture seule : ses cadres d'emploi du temps, affectations et séances ne peuvent être ni créés, ni modifiés, ni supprimés.",
+    "facilities": {
+      "title": "Espaces",
+      "intro": "Salles de classe et ressources de l'établissement. Elles ne dépendent pas de l'année scolaire.",
+      "new": "Nouvel espace",
+      "caption": "Espaces de l'établissement",
+      "empty": "L'établissement n'a aucun espace",
+      "editFor": "Modifier l'espace {code}",
+      "deleteFor": "Supprimer l'espace {code}",
+      "form": {
+        "title": {
+          "create": "Nouvel espace",
+          "edit": "Modifier l'espace"
+        },
+        "typeImmutable": "Le type d'un espace ne peut plus être modifié après sa création."
+      }
+    },
+    "timetable": {
+      "frames": {
+        "title": "Cadres d'emploi du temps",
+        "new": "Nouveau cadre d'emploi du temps",
+        "caption": "Cadres d'emploi du temps de l'étape",
+        "empty": "Cette étape n'a pas de cadre d'emploi du temps",
+        "form": {
+          "title": "Nouveau cadre d'emploi du temps",
+          "description": "Le cadre ordinaire de l'étape est créé. Les créneaux sont ajoutés ensuite, sur sa fiche."
+        }
+      },
+      "frame": {
+        "title": "Cadre d'emploi du temps",
+        "slotsCount": "Créneaux"
+      },
+      "slots": {
+        "title": "Créneaux",
+        "hint": "Chaque créneau est un jour de la semaine et un intervalle d'heures de l'établissement. L'heure de fin n'est pas incluse : un créneau qui finit à 09:25 et un autre qui commence à 09:25 ne se chevauchent pas.",
+        "empty": "Ce cadre n'a pas de créneaux.",
+        "rowLegend": "Créneau {number}",
+        "weekday": "Jour",
+        "startsAt": "Heure de début",
+        "endsAt": "Heure de fin",
+        "remove": "Retirer",
+        "removeFor": "Retirer le créneau {number}",
+        "add": "Ajouter un créneau",
+        "caption": "Créneaux du cadre d'emploi du temps"
+      }
     }
   }
 }

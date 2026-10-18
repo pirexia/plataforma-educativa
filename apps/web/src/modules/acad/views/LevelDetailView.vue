@@ -5,7 +5,7 @@
  * académico queda fijo en el de la entidad (**[DERIVADA]**). «Editar», «Borrar»
  * y «Nuevo curso» solo con su permiso **y** si el curso académico admite
  * escritura (`CA-ACAD-046`); la sección «Períodos lectivos» (`1.11d-a`,
- * `PeriodsSection`, `§10.5.1`) cuelga de esta ficha; sin hijos vivos para borrar (`RN-ACAD-20`, el
+ * `PeriodsSection`, `§10.5.1`) y la de «Marcos horarios» (`1.12-a`, `FramesSection`, `§18.8`) cuelgan de esta ficha; sin hijos vivos para borrar (`RN-ACAD-20`, el
  * servidor responde `409 has_dependents` y se muestra junto a la acción).
  */
 import { computed, onMounted, ref } from 'vue'
@@ -19,6 +19,7 @@ import { DataTable, type DataTableColumn, type DataTableFetcher } from '@/data-t
 import ErrorState from '@/layouts/components/ErrorState.vue'
 import LoadingState from '@/layouts/components/LoadingState.vue'
 import EntityFormDialog from '../components/EntityFormDialog.vue'
+import FramesSection from '../components/FramesSection.vue'
 import PeriodsSection from '../components/PeriodsSection.vue'
 import StructureNotices from '../components/StructureNotices.vue'
 import {
@@ -237,6 +238,8 @@ async function remove(): Promise<void> {
       </section>
 
       <PeriodsSection :level="level" />
+
+      <FramesSection :level="level" />
 
       <EntityFormDialog
         v-model:open="editing"

@@ -17,11 +17,14 @@
  * `estructura_academica`, `RN-ACAD-50`): lista, alta, ficha y edición; solo la
  * lista tiene entrada de menú. El alta y la lista muestran el selector de curso
  * académico; la ficha y la edición lo dejan fijo en el curso de la escala.
+ * `1.12-a` (`funcional.md §18.8`) añade `acad-facilities` (`espacios.leer`, con entrada de
+ * menú, sin curso académico) y `acad-timetable-frame` (`horarios.leer`, sin entrada de menú);
+ * la rejilla `acad-timetable` llega con las asignaciones y sesiones.
  * Con `acad` descontratado, `/me.permissions` deja de incluir sus permisos
  * (inertes, `REQ-PERM §9`): la entrada de menú y las rutas desaparecen
  * (`RMOD-008`). Sin `dashboardBlocks` (`§10.3`).
  */
-import { GraduationCap, ListOrdered } from '@lucide/vue'
+import { DoorOpen, GraduationCap, ListOrdered } from '@lucide/vue'
 import type { ModuleShell } from '@/navigation/types'
 
 export const shell: ModuleShell = {
@@ -141,6 +144,31 @@ export const shell: ModuleShell = {
         academicYearScoped: true,
       },
     },
+    // 1.12-a (`funcional.md §18.8`): espacios, del centro (sin curso académico, `OPEN-ACAD-33`).
+    {
+      path: '/academico/espacios',
+      name: 'acad-facilities',
+      component: () => import('./views/FacilitiesView.vue'),
+      meta: {
+        layout: 'app',
+        permissions: ['espacios.leer'],
+        titleKey: 'acad.facilities.title',
+      },
+    },
+    // 1.12-a: ficha de un marco horario y editor de franjas; sin entrada de menú (destino de un enlace de la ficha de etapa).
+    {
+      path: '/academico/marcos/:publicId',
+      name: 'acad-timetable-frame',
+      component: () => import('./views/TimetableFrameDetailView.vue'),
+      meta: {
+        layout: 'app',
+        permissions: ['horarios.leer'],
+        titleKey: 'acad.timetable.frame.title',
+        breadcrumbKey: 'acad.timetable.frame.title',
+        breadcrumbParent: 'acad-structure',
+        academicYearScoped: true,
+      },
+    },
   ],
   navigation: [
     {
@@ -156,6 +184,14 @@ export const shell: ModuleShell = {
       route: 'acad-grading-scales',
       labelKey: 'acad.nav.gradingScales',
       icon: ListOrdered,
+      section: 'administracion',
+      shortcut: false,
+    },
+    {
+      id: 'acad.facilities',
+      route: 'acad-facilities',
+      labelKey: 'acad.nav.facilities',
+      icon: DoorOpen,
       section: 'administracion',
       shortcut: false,
     },

@@ -62,7 +62,7 @@ describe('CA-ACAD-044 (AR-11, ADR-053 §2): registro del módulo', () => {
     )
 
     expect(empty).toEqual([])
-    expect(shell.routes).toHaveLength(9)
+    expect(shell.routes).toHaveLength(11)
   })
 
   it('las fichas cuelgan de la estructura en la miga de pan y sus títulos están en acad.*', () => {
@@ -71,14 +71,18 @@ describe('CA-ACAD-044 (AR-11, ADR-053 §2): registro del módulo', () => {
 
       if (String(route.name).startsWith('acad-grading-scale-')) {
         expect(route.meta!.breadcrumbParent, String(route.name)).toBe('acad-grading-scales')
-      } else if (route.name !== 'acad-structure' && route.name !== 'acad-grading-scales') {
+      } else if (
+        route.name !== 'acad-structure' &&
+        route.name !== 'acad-grading-scales' &&
+        route.name !== 'acad-facilities'
+      ) {
         expect(route.meta!.breadcrumbParent, String(route.name)).toBe('acad-structure')
       }
     }
   })
 
-  it('dos entradas de menú, en administración, con icono y sin acceso directo (OPEN-ACAD-23)', () => {
-    expect(shell.navigation).toHaveLength(2)
+  it('tres entradas de menú, en administración, con icono y sin acceso directo (OPEN-ACAD-23)', () => {
+    expect(shell.navigation).toHaveLength(3)
     expect(shell.navigation[0]).toMatchObject({
       id: 'acad.structure',
       route: 'acad-structure',
@@ -94,8 +98,17 @@ describe('CA-ACAD-044 (AR-11, ADR-053 §2): registro del módulo', () => {
       section: 'administracion',
       shortcut: false,
     })
+    // `§18.8` (1.12-a): «Espacios», tras «Escalas de calificación».
+    expect(shell.navigation[2]).toMatchObject({
+      id: 'acad.facilities',
+      route: 'acad-facilities',
+      labelKey: 'acad.nav.facilities',
+      section: 'administracion',
+      shortcut: false,
+    })
     expect(shell.navigation[0]!.icon).toBeTruthy()
     expect(shell.navigation[1]!.icon).toBeTruthy()
+    expect(shell.navigation[2]!.icon).toBeTruthy()
     expect(shell.dashboardBlocks).toEqual([])
   })
 })

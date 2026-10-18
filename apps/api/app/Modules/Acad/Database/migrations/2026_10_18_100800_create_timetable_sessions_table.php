@@ -16,7 +16,12 @@ use Illuminate\Support\Facades\DB;
  *   mismo curso académico.
  * - `(tenant_id, facility_id, facility_type)` → `facilities`, `MATCH SIMPLE`, con
  *   el `CHECK` de abajo: el motor impide un `recurso` en una sesión
- *   (`RN-ACAD-121`). `facility_type` es copia fijada por el servicio.
+ *   (`RN-ACAD-121`). `facility_type` es copia fijada por el servicio. El `CHECK`
+ *   exige `facility_type IS NOT NULL` de forma explícita: con `facility_id` y
+ *   `facility_type` nulo, la rama `facility_type = 'aula'` valdría `NULL` (el
+ *   `CHECK` lo daría por bueno) y la FK `MATCH SIMPLE` no se comprobaría,
+ *   dejando pasar un `recurso` (`datos.md §9.1` lo escribe sin esa cláusula;
+ *   endurecimiento, no cambio de intención).
  *
  * Lo que el motor NO garantiza —etapa del grupo = etapa del marco
  * (`RN-ACAD-120`) y conflictos de profesor, aula y grupo (`RN-ACAD-123`)— lo
@@ -61,7 +66,7 @@ return new class extends Migration
                 CHECK (
                     (facility_id IS NULL AND facility_type IS NULL)
                     OR
-                    (facility_id IS NOT NULL AND facility_type = 'aula')
+                    (facility_id IS NOT NULL AND facility_type IS NOT NULL AND facility_type = 'aula')
                 )
             SQL);
     }

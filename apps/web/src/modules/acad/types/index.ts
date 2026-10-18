@@ -142,3 +142,49 @@ export interface GradingScale {
   created_at: string
   updated_at: string
 }
+
+/** `RN-ACAD-100`: vocabulario cerrado; enumerado extensible en la lectura (`ADR-038 §7.3`). */
+export type FacilityType = 'aula' | 'recurso'
+
+/**
+ * `docs/modulos/REQ-ACAD/api.md §12.1` (1.12-a). Espacio del centro: **sin**
+ * `academic_year` (`OPEN-ACAD-33`); `name` es texto simple, no traducible.
+ */
+export interface Facility {
+  public_id: PublicId
+  facility_type: FacilityType | (string & {})
+  code: string
+  name: string
+  created_at: string
+  updated_at: string
+}
+
+/** `RN-ACAD-110`: `ordinaria` en `1.12-a`; `especial` llega con `1.12-b`. */
+export type FrameType = 'ordinaria' | 'especial'
+
+/**
+ * `docs/modulos/REQ-ACAD/api.md §12.1`. Franja de un marco: día ISO (1 = lunes … 7 = domingo)
+ * y hora civil del centro `HH:MM` (24 h, sin zona, `ADR-065`).
+ */
+export interface TimeSlot {
+  public_id: PublicId
+  weekday: number
+  starts_at: string
+  ends_at: string
+}
+
+/** `docs/modulos/REQ-ACAD/api.md §12.1`. `slots` ordenadas por día y hora; `valid_*` son `null` en `ordinaria`. */
+export interface TimetableFrame {
+  public_id: PublicId
+  academic_year: PublicId
+  education_level: PublicId
+  frame_type: FrameType | (string & {})
+  /** Resuelto en servidor (`ADR-062 §5.3`); solo lectura. */
+  name: string
+  name_translations: Translations
+  valid_from: string | null
+  valid_to: string | null
+  slots: TimeSlot[]
+  created_at: string
+  updated_at: string
+}

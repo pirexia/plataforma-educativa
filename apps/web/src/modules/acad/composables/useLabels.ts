@@ -21,5 +21,7 @@ export function useLabels() {
     /** `CA-ACAD-100`: `period_type` y `scale_type` viajan sin traducir; sin clave, el código en crudo. */
     periodTypeLabel: (code: string) => label('acad.periodType', code),
     scaleTypeLabel: (code: string) => label('acad.scaleType', code),
+    /** `RN-ACAD-100`: `facility_type` viaja como código; sin clave, el código en crudo. */
+    facilityTypeLabel: (code: string) => label('acad.facilityType', code),
   }
 }

@@ -92,7 +92,11 @@ final class TimeSlotsValidator
         return $failed || ! $errors->isEmpty() ? null : array_values($resolved);
     }
 
-    /** `RN-ACAD-112`: sin solape entre franjas del mismo día; `[inicio, fin)`, así que 08:30-09:25 y 09:25-10:20 no se solapan. */
+    /**
+     * `RN-ACAD-112`: sin solape entre franjas del mismo día; `[inicio, fin)`, así que 08:30-09:25 y 09:25-10:20 no se solapan.
+     *
+     * @param  array<int, array{public_id: ?string, weekday: int, starts_at: string, ends_at: string}>  $resolved  por posición en la lista
+     */
     private function assertNoOverlap(array $resolved, ValidationErrorBag $errors): void
     {
         $byDay = [];

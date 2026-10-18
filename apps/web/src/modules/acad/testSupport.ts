@@ -111,6 +111,8 @@ export function makeRouter(name: string, component: Component) {
     ['acad-grading-scale-new', '/academico/escalas/nueva'],
     ['acad-grading-scale-detail', '/academico/escalas/:publicId'],
     ['acad-grading-scale-edit', '/academico/escalas/:publicId/editar'],
+    ['acad-facilities', '/academico/espacios'],
+    ['acad-timetable-frame', '/academico/marcos/:publicId'],
   ].map(([routeName, routePath]) => ({
     path: routePath!,
     name: routeName!,
@@ -274,4 +276,36 @@ export function bandScale(over: Record<string, unknown> = {}) {
     ],
     ...over,
   })
+}
+
+export function facility(over: Record<string, unknown> = {}) {
+  return {
+    public_id: 'F1',
+    facility_type: 'aula',
+    code: 'A21',
+    name: 'Aula 2.1',
+    ...AUDIT,
+    ...over,
+  }
+}
+
+export function slot(over: Record<string, unknown> = {}) {
+  return { public_id: 'T1', weekday: 1, starts_at: '08:30', ends_at: '09:25', ...over }
+}
+
+/** Marco ordinario de la etapa `L1` con dos franjas el lunes. */
+export function frame(over: Record<string, unknown> = {}) {
+  return {
+    public_id: 'M1',
+    academic_year: 'Y2',
+    education_level: 'L1',
+    frame_type: 'ordinaria',
+    name: 'Horario general',
+    name_translations: { 'es-ES': 'Horario general' },
+    valid_from: null,
+    valid_to: null,
+    slots: [slot(), slot({ public_id: 'T2', starts_at: '09:25', ends_at: '10:20' })],
+    ...AUDIT,
+    ...over,
+  }
 }

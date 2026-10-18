@@ -8,7 +8,8 @@
       "backToCourse": "Zurück zum Jahrgang {code}",
       "backToCourseGeneric": "Zurück zum Jahrgang",
       "gradingScales": "Bewertungsskalen",
-      "backToScales": "Zurück zu den Bewertungsskalen"
+      "backToScales": "Zurück zu den Bewertungsskalen",
+      "facilities": "Räume"
     },
     "readOnly": "Dieses Schuljahr ist schreibgeschützt: Seine Struktur kann nicht angelegt, geändert oder gelöscht werden.",
     "fields": {
@@ -30,7 +31,9 @@
       "isPassing": "Bestanden",
       "rangeMin": "Von",
       "rangeMax": "Bis",
-      "range": "Bereich"
+      "range": "Bereich",
+      "facilityType": "Raumtyp",
+      "frameType": "Typ des Stundenplanrahmens"
     },
     "stage": {
       "infantil": "Frühkindliche Bildung",
@@ -51,7 +54,12 @@
       "subjects": "Fächer",
       "subgroups": "Untergruppen",
       "group_subjects": "Gruppen zugeordnete Fächer",
-      "academic_periods": "Unterrichtszeiträume"
+      "academic_periods": "Unterrichtszeiträume",
+      "group_tutors": "Gruppentutoren",
+      "teaching_assignments": "Lehrzuweisungen",
+      "timetable_frames": "Stundenplanrahmen",
+      "timetable_sessions": "Unterrichtsstunden",
+      "facility_bookings": "Raumreservierungen"
     },
     "structure": {
       "title": "Akademische Struktur",
@@ -174,6 +182,14 @@
         "scale": {
           "title": "Skala {code} löschen",
           "description": "Die Skala und alle ihre Werte werden gelöscht."
+        },
+        "facility": {
+          "title": "Raum {code} löschen",
+          "description": "Der Raum wird aus der Schule gelöscht. Er kann nicht gelöscht werden, wenn Unterrichtsstunden eines Schuljahrs in Planung oder aktiv ihn verwenden."
+        },
+        "frame": {
+          "title": "Stundenplanrahmen {name} löschen",
+          "description": "Der Rahmen und alle seine Zeitfenster werden gelöscht. Er kann nicht gelöscht werden, wenn ein Zeitfenster Unterrichtsstunden hat."
         }
       }
     },
@@ -199,7 +215,12 @@
       "periodDeleted": "Zeitraum gelöscht.",
       "scaleCreated": "Skala angelegt.",
       "scaleUpdated": "Skala aktualisiert.",
-      "scaleDeleted": "Skala gelöscht."
+      "scaleDeleted": "Skala gelöscht.",
+      "facilityCreated": "Raum angelegt.",
+      "facilityUpdated": "Raum aktualisiert.",
+      "facilityDeleted": "Raum gelöscht.",
+      "frameUpdated": "Stundenplanrahmen aktualisiert.",
+      "frameDeleted": "Stundenplanrahmen gelöscht."
     },
     "errors": {
       "unexpected": "Die Aktion konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
@@ -249,6 +270,69 @@
       "rangeValue": "Von {min} bis {max}",
       "valuesCount": "Keine Werte | {count} Wert | {count} Werte",
       "passingFrom": "Ab {value}"
+    },
+    "facilityType": {
+      "aula": "Klassenzimmer",
+      "recurso": "Ressource"
+    },
+    "frameType": {
+      "ordinaria": "Regulär",
+      "especial": "Sonderrahmen"
+    },
+    "weekday": {
+      "1": "Montag",
+      "2": "Dienstag",
+      "3": "Mittwoch",
+      "4": "Donnerstag",
+      "5": "Freitag",
+      "6": "Samstag",
+      "7": "Sonntag"
+    },
+    "readOnlyTimetable": "Dieses Schuljahr ist schreibgeschützt: Stundenplanrahmen, Zuweisungen und Unterrichtsstunden können nicht angelegt, geändert oder gelöscht werden.",
+    "facilities": {
+      "title": "Räume",
+      "intro": "Klassenzimmer und Ressourcen der Schule. Sie hängen nicht vom Schuljahr ab.",
+      "new": "Neuer Raum",
+      "caption": "Räume der Schule",
+      "empty": "Die Schule hat keine Räume",
+      "editFor": "Raum {code} bearbeiten",
+      "deleteFor": "Raum {code} löschen",
+      "form": {
+        "title": {
+          "create": "Neuer Raum",
+          "edit": "Raum bearbeiten"
+        },
+        "typeImmutable": "Der Typ eines Raums kann nach dem Anlegen nicht mehr geändert werden."
+      }
+    },
+    "timetable": {
+      "frames": {
+        "title": "Stundenplanrahmen",
+        "new": "Neuer Stundenplanrahmen",
+        "caption": "Stundenplanrahmen der Stufe",
+        "empty": "Diese Stufe hat keinen Stundenplanrahmen",
+        "form": {
+          "title": "Neuer Stundenplanrahmen",
+          "description": "Der reguläre Rahmen der Stufe wird angelegt. Die Zeitfenster werden anschließend auf seiner Seite hinzugefügt."
+        }
+      },
+      "frame": {
+        "title": "Stundenplanrahmen",
+        "slotsCount": "Zeitfenster"
+      },
+      "slots": {
+        "title": "Zeitfenster",
+        "hint": "Jedes Zeitfenster ist ein Wochentag und ein Zeitraum der Schulstunden. Die Endzeit ist nicht eingeschlossen: Ein Zeitfenster bis 09:25 und eines ab 09:25 überschneiden sich nicht.",
+        "empty": "Dieser Rahmen hat keine Zeitfenster.",
+        "rowLegend": "Zeitfenster {number}",
+        "weekday": "Tag",
+        "startsAt": "Beginn",
+        "endsAt": "Ende",
+        "remove": "Entfernen",
+        "removeFor": "Zeitfenster {number} entfernen",
+        "add": "Zeitfenster hinzufügen",
+        "caption": "Zeitfenster des Stundenplanrahmens"
+      }
     }
   }
 }

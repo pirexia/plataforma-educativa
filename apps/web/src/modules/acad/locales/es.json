@@ -8,7 +8,8 @@
       "backToCourse": "Volver al curso {code}",
       "backToCourseGeneric": "Volver al curso",
       "gradingScales": "Escalas de calificación",
-      "backToScales": "Volver a las escalas de calificación"
+      "backToScales": "Volver a las escalas de calificación",
+      "facilities": "Espacios"
     },
     "readOnly": "Este curso académico es de solo lectura: no se puede crear, modificar ni borrar su estructura.",
     "fields": {
@@ -30,7 +31,9 @@
       "isPassing": "Es aprobado",
       "rangeMin": "Desde",
       "rangeMax": "Hasta",
-      "range": "Rango"
+      "range": "Rango",
+      "facilityType": "Tipo de espacio",
+      "frameType": "Tipo de marco horario"
     },
     "stage": {
       "infantil": "Educación Infantil",
@@ -51,7 +54,12 @@
       "subjects": "Asignaturas",
       "subgroups": "Subgrupos",
       "group_subjects": "Asignaturas asignadas a grupos",
-      "academic_periods": "Períodos lectivos"
+      "academic_periods": "Períodos lectivos",
+      "group_tutors": "Tutores de grupo",
+      "teaching_assignments": "Asignaciones docentes",
+      "timetable_frames": "Marcos horarios",
+      "timetable_sessions": "Sesiones de horario",
+      "facility_bookings": "Reservas de espacios"
     },
     "structure": {
       "title": "Estructura académica",
@@ -174,6 +182,14 @@
         "scale": {
           "title": "Borrar la escala {code}",
           "description": "La escala y todos sus valores se borran."
+        },
+        "facility": {
+          "title": "Borrar el espacio {code}",
+          "description": "El espacio se borra del centro. No se puede borrar si lo usan sesiones de un curso en planificación o activo."
+        },
+        "frame": {
+          "title": "Borrar el marco horario {name}",
+          "description": "El marco y todas sus franjas se borran. No se puede borrar si alguna franja tiene sesiones."
         }
       }
     },
@@ -199,7 +215,12 @@
       "periodDeleted": "Período borrado.",
       "scaleCreated": "Escala creada.",
       "scaleUpdated": "Escala actualizada.",
-      "scaleDeleted": "Escala borrada."
+      "scaleDeleted": "Escala borrada.",
+      "facilityCreated": "Espacio creado.",
+      "facilityUpdated": "Espacio actualizado.",
+      "facilityDeleted": "Espacio borrado.",
+      "frameUpdated": "Marco horario actualizado.",
+      "frameDeleted": "Marco horario borrado."
     },
     "errors": {
       "unexpected": "No se pudo completar la acción. Inténtalo de nuevo.",
@@ -249,6 +270,69 @@
       "rangeValue": "De {min} a {max}",
       "valuesCount": "Sin valores | {count} valor | {count} valores",
       "passingFrom": "Desde {value}"
+    },
+    "facilityType": {
+      "aula": "Aula",
+      "recurso": "Recurso"
+    },
+    "frameType": {
+      "ordinaria": "Ordinario",
+      "especial": "Especial"
+    },
+    "weekday": {
+      "1": "Lunes",
+      "2": "Martes",
+      "3": "Miércoles",
+      "4": "Jueves",
+      "5": "Viernes",
+      "6": "Sábado",
+      "7": "Domingo"
+    },
+    "readOnlyTimetable": "Este curso académico es de solo lectura: no se pueden crear, modificar ni borrar sus marcos horarios, asignaciones ni sesiones.",
+    "facilities": {
+      "title": "Espacios",
+      "intro": "Aulas y recursos del centro. No dependen del curso académico.",
+      "new": "Nuevo espacio",
+      "caption": "Espacios del centro",
+      "empty": "El centro no tiene espacios",
+      "editFor": "Editar el espacio {code}",
+      "deleteFor": "Borrar el espacio {code}",
+      "form": {
+        "title": {
+          "create": "Nuevo espacio",
+          "edit": "Editar espacio"
+        },
+        "typeImmutable": "El tipo de un espacio no se puede cambiar después del alta."
+      }
+    },
+    "timetable": {
+      "frames": {
+        "title": "Marcos horarios",
+        "new": "Nuevo marco horario",
+        "caption": "Marcos horarios de la etapa",
+        "empty": "Esta etapa no tiene marco horario",
+        "form": {
+          "title": "Nuevo marco horario",
+          "description": "Se crea el marco ordinario de la etapa. Las franjas se añaden después, en su ficha."
+        }
+      },
+      "frame": {
+        "title": "Marco horario",
+        "slotsCount": "Franjas"
+      },
+      "slots": {
+        "title": "Franjas",
+        "hint": "Cada franja es un día de la semana y un intervalo de horas del centro. La hora de fin no se incluye: una franja que acaba a las 09:25 y otra que empieza a las 09:25 no se solapan.",
+        "empty": "Este marco no tiene franjas.",
+        "rowLegend": "Franja {number}",
+        "weekday": "Día",
+        "startsAt": "Inicio",
+        "endsAt": "Fin",
+        "remove": "Quitar",
+        "removeFor": "Quitar la franja {number}",
+        "add": "Añadir franja",
+        "caption": "Franjas del marco horario"
+      }
     }
   }
 }
