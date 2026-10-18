@@ -6,6 +6,17 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-18 · `1.12-a`: horarios y asignación docente (rama `feature/REQ-ACAD-1-12-horarios-spec`)
+
+- **`acad`** (`REQ-ACAD-002`, `RN-ACAD-90` a `-128`, `CA-ACAD-107` a `-134`): los 21 *endpoints* de `1.12-a` — espacios (5), marcos horarios ordinarios con franjas (5), asignación docente (4; sin `PATCH`, `405`), tutores de un grupo (2) y sesiones de horario con vistas semanales por grupo, profesor, aula o asignatura (5). Detección de conflictos de profesor, aula y grupo (`timetable_conflict` con `params.conflicts`) bajo `FOR UPDATE` del ancla `timetables` del curso (`RN-ACAD-125`, `TimetableAnchor`); `409 has_dependents` ampliado a tutores, asignaciones, marcos y sesiones (`RN-ACAD-96`).
+- **`core`**: `UserDirectory` ampliada con `findActiveByPublicId()`, `displayNamesByIds()` (aprobadas) y `refsByIds()` (añadida al implementar, a confirmar).
+- **Web**: sección «Profesorado» en la ficha de grupo, `/academico/horarios` con rejilla CSS Grid (semántica de tabla, teclado, lista por día a 320 px), diálogo de sesión con el conflicto nombrado, `/academico/espacios` y editor de franjas; textos en es/en/de/fr.
+- **No incluido**: marcos especiales y reservas (`1.12-b`); interfaz de pertenencia `TeachingMembership` (`OPEN-ACAD-43` = A, con su primer consumidor); PDF e importación (`OPEN-ACAD-38`, `-39`).
+- **Documentación**: `REQ-ACAD/funcional.md §19` (decisiones I-1 a I-7), `api.md §12.7`, manuales de administración, dirección, secretaría y profesorado, `SYSADMIN.md` 0.8.14, `RUNBOOK.md` 0.3.8 (reversión), `ARCHITECTURE.md` 2.5.3 (dos patrones).
+- **Pendiente**: Playwright `CA-ACAD-135`; revisiones `db-reviewer`, `security-reviewer` y `doc-reviewer`; `PLAN-IMPLEMENTACION.md` y `memory.md` (los actualiza la sesión orquestadora).
+
+---
+
 ## 2026-10-17 · `1.11c`: reapertura de un curso cerrado (rama `feature/REQ-CURSO-1-11c-reapertura`)
 
 - **`curso`** (`ADR-059`, opción B; `RN-CURSO-40` a `-48`, `CA-CURSO-087`, `-100` a `-107` y la mitad de reapertura de `CA-CURSO-121`): `POST /academic-years/{public_id}/reopen` con permiso propio `reapertura_curso_academico.actualizar` (`estado_curso_academico.actualizar` no basta) y motivo obligatorio; `AcademicYearTransitions::reopen()` toma `FOR UPDATE` sobre la fila del curso y comprueba, en orden, curso `cerrado`, ningún otro `activo`, es el cerrado más reciente y ninguna validación de reapertura falla (`409` `invalid_transition`, `active_exists`, `reopen_not_latest`, `reopen_checks_failed`); cambia `status` y después inserta la fila de `academic_year_reopenings` en la misma transacción. Sin cambios en `app.assert_academic_year_writable()`, el disparador ni `YC001` (probado con el *hash* de la función). Auditoría sin evento nuevo: `updated` del curso y `created` de la reapertura.

@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |-------|-------|
-| Versión | 2.5.2 |
-| Fecha | 2026-10-17 |
+| Versión | 2.5.3 |
+| Fecha | 2026-10-18 |
 | Estado | Propuesta cerrada, pendiente de ratificación |
 | Documento de requisitos | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` |
 
@@ -186,6 +186,8 @@ Los detectores de llamadas y literales comparten **un único escáner de tokens*
 | Contenido del centro traducible (`ADR-062`): columna, validación, resolución en servidor, desglose en auditoría y campo de la SPA | `TenantMigration::translatableColumn()`, `App\Support\I18n\TranslationsValidator` y `TranslationResolver`, `AuditChangeBuilder`; `Acad/Http/Resources/ResolvesStructure.php`; `apps/web/src/components/TranslatableField.vue` | `TranslationsValidatorTest.php`, `TranslationsAuditTest.php`, `AcadEducationLevelsApiTest.php`, `AR-16` |
 | Ruta de un módulo **no esencial**: autenticación → `module-enabled` → `permission:` | `apps/api/app/Modules/Acad/Http/routes.php` con `App\Http\Middleware\RequireAuthenticatedUser` (**no** el alias `auth`: Laravel lo ordena antes de `resolve-tenant` y da `500` con una cookie real, hallazgo del E2E de `1.11-b`) | `AcadEndpointsMatrixTest.php` (pila ordenada del router), `AR-07a`, `AR-07b` |
 | Generador del esqueleto de un módulo de la API (`1.11b`, `ADR-056 §3.5`) | `apps/api/app/Console/Commands/MakeModuleCommand.php`, `apps/api/app/Support/Modules/Scaffolding/ModuleScaffolder.php` y las plantillas de `apps/api/stubs/module/`; mensajes en `apps/api/lang/*/make-module.php` | `apps/api/tests/Feature/Modules/MakeModuleCommandTest.php` (comportamiento: validaciones sin escribir, idempotencia, sin capas vacías) y el *job* `make-module` de `.github/workflows/ci-api.yml` con `apps/api/scripts/verify-make-module.sh` (extremo a extremo: `CA-056-34`/`-35`) |
+| Regla entre filas que el motor no garantiza (`btree_gist` ausente): **ancla de serialización por curso** (`1.12-a`, `RN-ACAD-125`) | `apps/api/app/Modules/Acad/Application/TimetableAnchor.php` (`FOR UPDATE` de la fila `timetables` del curso antes de leer con qué se compara) y `TimetableSessionService` (único servicio que escribe sesiones; `FOR SHARE` de los padres → `FOR UPDATE` del ancla → lecturas y escritura; nunca `FOR UPDATE` sobre la fila del curso, `datos.md §8.3`) | `apps/api/tests/Concurrency/AcadConcurrencyTest.php` (`CA-ACAD-126`, dos procesos reales; la prueba falla si se quita el ancla) |
+| Rejilla semanal a medida, sin librería de calendario (`1.12-a`, `funcional.md §18.8`) | `apps/web/src/modules/acad/components/TimetableGrid.vue`: CSS Grid con semántica de tabla, *roving tabindex* y lista por día por debajo de 768 px (`composables/useNarrowGrid.ts`) | `apps/web/src/modules/acad/components/TimetableGrid.spec.ts` (`CA-ACAD-134`) |
 | **Antirreferencia** para módulos de tenant | `Backoffice`: de plataforma, sin tenant, sin catálogo | — |
 
 **Regla de especificación (`RN-CURSO-33`, `OPEN-057-03` resuelta 2026-10-08)**: toda especificación de módulo con datos por curso (`academic_year_id`) incluye un criterio de aceptación de **lectura denegada de curso cerrado** (usuario sin `curso_historico.leer` recibe `404` en el listado y en el detalle de un curso `cerrado`/`archivado`): la escritura la cubre el disparador (`AR-13`), pero la lectura depende de que cada *endpoint* invoque `AcademicYearReadAccess` y ningún test estático lo ve. Está en `docs/modulos/_PLANTILLA/funcional.md` y en la skill `modulo-nuevo`; `1.11` es el primero que debe cumplirlo, con su primera entidad real.

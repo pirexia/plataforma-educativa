@@ -18,3 +18,9 @@
 
 **Qué no puedes hacer.** Crear, editar o borrar elementos de la estructura (no hay botones) ni asignar asignaturas a un grupo: lo hace la administración del centro. Si crees que te falta algún permiso, díselo a quien administra el centro.
 
+## Horarios y profesorado
+
+**Qué puedes hacer.** Por defecto, la Dirección compone el horario y gestiona el profesorado: en **Administración → Horarios** (`/academico/horarios`) ves y editas la rejilla semanal por grupo, profesor, aula o asignatura, y en la ficha de cada grupo, **«Profesorado»**, asignas tutores y docencia por asignatura. Los **espacios** (aulas y recursos) solo los consultas. Es un permiso del rol: si tu centro lo ha cambiado, las acciones que no tengas no aparecen.
+
+**Cómo funciona.** Una sesión es una asignación docente en una franja del marco horario de la etapa, con un aula opcional. No puede coincidir con otra del mismo profesor, aula o grupo (los desdobles por subgrupo sí conviven); si choca, el aviso nombra la sesión con la que choca y no se guarda. Asignar profesorado no concede permisos. El horario de un curso cerrado es de solo lectura. El detalle paso a paso está en el manual del Administrador de Centro («Horarios y profesorado»).
+

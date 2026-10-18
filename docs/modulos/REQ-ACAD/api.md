@@ -568,3 +568,11 @@ Mensajes en `lang/{es,en,de,fr}/acad.php` (`AR-12`). La violación de un único 
 ### 12.6 Idempotencia, eventos, OpenAPI
 
 Sin `Idempotency-Key` (no es pago, matrícula ni envío masivo); un reintento de alta de sesión da `422 timetable_conflict` consigo misma. Sin eventos ni *webhooks*. OpenAPI en `apps/api/openapi/paths/acad.yaml` y `components.yaml` antes del merge, con un esquema `CivilTime` (`pattern: '^([01]\d|2[0-3]):[0-5]\d$'`) y los enumerados extensibles `facility_type`, `frame_type`. Sin exportación PDF ni importación (`OPEN-ACAD-38`, `-39`).
+
+### 12.7 Notas de implementación de `1.12-a`
+
+- `teacher` es `{public_id, name}` (nombre visible de `Core`); es `null` solo si el usuario ya no existe. Los filtros `teacher` resuelven solo usuarios **activos** (`funcional.md §19.1`, I-2).
+- `GET /groups/{id}/tutors` y `PUT /groups/{id}/tutors` devuelven `{"data": [{public_id, name}]}` por orden de alta; un elemento inválido de `tutors` da `422 user_not_found` en `tutors.<n>` y no cambia nada.
+- `timetable_conflict` lleva `params.conflicts` ordenado por sesión y, dentro de cada una, `teacher`, `facility`, `group`.
+- `view_too_large` se informa en el campo `teacher` con `params.max = 500`.
+

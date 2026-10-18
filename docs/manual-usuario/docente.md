@@ -19,3 +19,8 @@
 **Qué no puedes hacer.** Crear, editar o borrar elementos de la estructura (no hay botones) ni asignar asignaturas a un grupo: lo hace la administración del centro. Si crees que te falta algún permiso, díselo a quien administra el centro.
 
 **Tus propios grupos y clases.** Esta pantalla muestra la estructura **de todo el centro**. Las pantallas que muestren solo *tus* grupos o clases dependerán de la asignación de profesorado, que llegará con los horarios.
+
+## Consultar el horario
+
+En **Administración → Horarios** (`/academico/horarios`) consultas la rejilla semanal. Elige **«Ver por» Profesor** y tu nombre para ver tu horario, o **Grupo**, **Aula** o **Asignatura** para ver el de otros. Cada sesión muestra como texto la asignatura, el grupo (y el subgrupo si es un desdoble), el profesor y el aula; en pantallas estrechas la rejilla pasa a una lista por día. En la ficha de cada grupo, **«Profesorado»** dice quiénes son sus tutores y quién imparte cada asignatura. Por defecto el profesorado solo puede **consultar**: no hay botones para cambiar el horario. Ser tutor o profesor de un grupo no cambia tus permisos. Para buscar a otra persona por nombre necesitas el permiso de ver usuarios; si no lo tienes, elige la vista por grupo, aula o asignatura.
+

@@ -1269,3 +1269,26 @@ Pest en `apps/api/tests/Feature/Acad/` (concurrencia en `tests/Concurrency/`), V
 | `OPEN-ACAD-42` | **Permisos y siembra** (`permisos.md §10`) | **X** · Recursos `asignacion_docente`, `horarios`, `espacios`, `reservas`; `direccion` con los cuatro de `horarios` y `asignacion_docente` (`§11.1`: «horarios»); lectura para `secretaria`, `docente`, `tutor_grupo`, `orientador`; reservas: `docente` y `tutor_grupo` `crear` y `eliminar` con **`propios`**. **Y** · Escritura solo para `administrador_centro` (criterio de `OPEN-CURSO-14`) | **X**: `§11.1` nombra los horarios en Dirección/Jefatura. `propios` en reservas exige que `acad` registre su resolutor (`propios`, `reservas`) y **ampliar el mapa cerrado de `AR-10`**, que solo se amplía con aprobación expresa: esta fila la pide. Ningún permiso de horarios contiene datos de alumnado, así que `ADR-063 §5.4` no impide `todos` a `docente` |
 | `OPEN-ACAD-43` | **¿Se construye ya la interfaz de pertenencia?** | **A** · Especificada aquí, construida con su primer consumidor (`1.13`/`1.16`). **B** · Construida en `1.12-a` | **A** (`ADR-048`, precedente §7.2); el plazo de `ADR-063 §5.4` pide especificación aprobada. `CA-ACAD-114` deja probada la consulta que la respaldará |
 | `OPEN-ACAD-44` | **Partición** | **1** · Una entrega. **2** · `1.12-a` (asignación, espacios, marcos ordinarios, sesiones, conflictos, vistas) y `1.12-b` (jornada especial y reservas) | **2**: `1.12-a` ya es del tamaño de `1.11-b` (seis tablas más dos restricciones en tablas existentes, ~21 *endpoints*, la rejilla); `1.12-b` es independiente y de menor riesgo |
+
+---
+
+## 19. Estado de implementación de `1.12-a` (asignación docente, espacios, marcos ordinarios, sesiones y vistas)
+
+Implementado el 2026-10-18 sobre la especificación aprobada de §18 (`CA-ACAD-107` a `-134`; `CA-ACAD-135` Playwright queda pendiente de la ejecución E2E contra la API real). Los **21** *endpoints* de `api.md §12.2` de `1.12-a` están hechos: 5 de `facilities`, 5 de `timetable-frames`, 4 de `teaching-assignments` (sin `PATCH`: `405`, `RN-ACAD-95`), 2 de `groups/{id}/tutors` y 5 de `timetable-sessions`. `1.12-b` (marcos especiales, reservas) no se ha tocado.
+
+### 19.1 Decisiones de implementación que la especificación no fijaba
+
+| # | Decisión | Motivo |
+|---|----------|--------|
+| I-1 | **`Core\Domain\UserDirectory` ampliada** (aprobada por el usuario antes de escribirla, `§18.7`): `findActiveByPublicId()` (`ActiveUserRef{id, publicId, displayName}`; `null` si no existe, es de otro centro, está inactivo, pendiente o borrado) y `displayNamesByIds()`. Además, **`refsByIds()`** (id interno → `ActiveUserRef`, de usuarios vivos o no), añadida al implementar | Sin el `public_id` del profesor al leer no se puede representar `teacher.public_id` (`api.md §12.1`) sin consultar `users` desde `acad` (`AR-01`); `refsByIds()` es aditiva y `displayNamesByIds()` la usa. **Desviación a confirmar**: no figuraba en la aprobación literal |
+| I-2 | El filtro `teacher` de `GET /teaching-assignments` y de `GET /timetable-sessions` resuelve el usuario con `findActiveByPublicId()`: **un profesor dado de baja devuelve una colección vacía** (no sus asignaciones históricas) | `Core` no ofrece resolver un usuario inactivo por `public_id`; ampliar más `Core` está fuera de lo aprobado. Las lecturas por id (`teacher` de cada fila) sí incluyen inactivos |
+| I-3 | La interfaz de pertenencia `TeachingMembership` **no se construye** (`OPEN-ACAD-43` = A); `CA-ACAD-114` prueba la consulta que la respaldará (`AcadGroupTutorsApiTest`) | Construcción con su primer consumidor (`1.13`/`1.16`, `ADR-048`) |
+| I-4 | Franja y asignación de cursos distintos en el alta de una sesión: `422 parent_not_found` en `teaching_assignment` (la franja fija el curso) | `RN-ACAD-120` dice «de otro curso» sin elegir campo |
+| I-5 | El orden de comprobación de un `DELETE` con dependientes en un curso cerrado es dependientes primero (`409 has_dependents`) y curso cerrado después (`409 academic-year-closed`) | Mismo comportamiento que el resto de `acad` (`GroupService::delete`) |
+| I-6 | El selector de profesor de la interfaz usa el listado de usuarios activos de `Core` (`GET /users`, `usuario.leer`), con búsqueda; sin ese permiso no se puede elegir profesor | La especificación no fija el selector; se reutiliza la API pública de `core` (`AR-11`) |
+| I-7 | La rejilla permite **crear** sesiones solo en la vista de grupo (hay un grupo cuyas asignaciones elegir); las vistas de profesor, aula y asignatura permiten editar y quitar | Una sesión se crea para una asignación de un grupo (§18.3) |
+
+### 19.2 Dónde está
+
+Servicios en `apps/api/app/Modules/Acad/Application/` (`TeachingAssignmentService`, `GroupTutorsService`, `TimetableSessionService`, `TimetableAnchor`, `StaffDirectory`); controladores, *requests* y *resources* en `Http/`; *tests* en `apps/api/tests/Feature/Acad/` (`AcadTeachingAssignmentsApiTest`, `AcadGroupTutorsApiTest`, `AcadTimetableSessionsApiTest`, `AcadTimetableYearAndTenantTest`, `AcadTimetableAccessTest`) y `tests/Concurrency/AcadConcurrencyTest.php` (`CA-ACAD-110`, `-126`). Interfaz en `apps/web/src/modules/acad/` (`components/TeachingSection.vue`, `StaffPicker.vue`, `TimetableGrid.vue`, `SessionFormDialog.vue`, `views/TimetableView.vue`).
+
