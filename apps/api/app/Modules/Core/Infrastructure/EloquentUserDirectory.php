@@ -47,17 +47,22 @@ final class EloquentUserDirectory implements UserDirectory
 
     public function displayNamesByIds(array $ids): array
     {
+        return array_map(static fn (ActiveUserRef $ref): string => $ref->displayName, $this->refsByIds($ids));
+    }
+
+    public function refsByIds(array $ids): array
+    {
         if ($ids === []) {
             return [];
         }
 
-        $names = [];
+        $refs = [];
 
         foreach (User::query()->withTrashed()->with('person')->whereIn('id', array_values(array_unique($ids)))->get() as $user) {
-            $names[(int) $user->id] = self::displayName($user);
+            $refs[(int) $user->id] = new ActiveUserRef((int) $user->id, (string) $user->public_id, self::displayName($user));
         }
 
-        return $names;
+        return $refs;
     }
 
     private static function displayName(User $user): string

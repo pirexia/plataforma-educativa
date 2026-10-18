@@ -356,7 +356,7 @@ paths:
   /api/v1/grading-scales/{publicId}:
     $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1grading-scales~1{publicId}"
 
-  # REQ-ACAD (paso 1.12-a), espacios y marcos horarios. apps/api/openapi/paths/acad.yaml
+  # REQ-ACAD (paso 1.12-a), espacios, marcos horarios, asignación docente, tutores y sesiones. apps/api/openapi/paths/acad.yaml
   /api/v1/facilities:
     $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1facilities"
   /api/v1/facilities/{publicId}:
@@ -365,6 +365,16 @@ paths:
     $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1timetable-frames"
   /api/v1/timetable-frames/{publicId}:
     $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1timetable-frames~1{publicId}"
+  /api/v1/teaching-assignments:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1teaching-assignments"
+  /api/v1/teaching-assignments/{publicId}:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1teaching-assignments~1{publicId}"
+  /api/v1/groups/{groupPublicId}/tutors:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1groups~1{groupPublicId}~1tutors"
+  /api/v1/timetable-sessions:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1timetable-sessions"
+  /api/v1/timetable-sessions/{publicId}:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1timetable-sessions~1{publicId}"
 
   # Los endpoints de los módulos siguientes se añaden aquí conforme se
   # implementan, cada uno con su propio apps/api/openapi/paths/<modulo>.yaml.

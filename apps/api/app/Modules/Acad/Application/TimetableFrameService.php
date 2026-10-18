@@ -5,7 +5,6 @@ namespace App\Modules\Acad\Application;
 use App\Models\User;
 use App\Modules\Acad\Domain\Models\EducationLevel;
 use App\Modules\Acad\Domain\Models\TimeSlot;
-use App\Modules\Acad\Domain\Models\Timetable;
 use App\Modules\Acad\Domain\Models\TimetableFrame;
 use App\Modules\Acad\Domain\Models\TimetableSession;
 use App\Support\Api\ValidationErrorBag;
@@ -41,6 +40,7 @@ final class TimetableFrameService
         private readonly StructureYears $years,
         private readonly TranslationsValidator $translations,
         private readonly TimeSlotsValidator $slotsValidator,
+        private readonly TimetableAnchor $anchor,
     ) {}
 
     /** Detalle: `404` si no existe o es de otro centro; `404` también si su curso es de solo lectura sin `curso_historico.leer` (`RN-ACAD-90`). */
@@ -80,7 +80,7 @@ final class TimetableFrameService
             $slots = $this->slotsValidator->resolve($input['slots'], [], $errors);
             $errors->throwIfAny();
 
-            $this->ensureAnchor($level->academic_year_id);
+            $this->anchor->ensure($level->academic_year_id);
 
             try {
                 $frame = DB::transaction(fn (): TimetableFrame => TimetableFrame::create([
@@ -240,27 +240,6 @@ final class TimetableFrameService
     {
         if ($slotIds !== [] && TimetableSession::query()->whereIn('time_slot_id', $slotIds)->exists()) {
             throw StructureErrors::hasDependents('timetable_frame', (string) $frame->public_id, ['timetable_sessions']);
-        }
-    }
-
-    /**
-     * `RN-ACAD-115`: el alta del primer marco de un curso académico crea su fila
-     * de ancla `timetables` si no existe (crear-o-leer bajo el único). La carrera
-     * se resuelve releyendo, nunca `500`: el alta va en su propio punto de
-     * guardado, de modo que la violación (`23505`) no aborta la transacción.
-     */
-    private function ensureAnchor(int $academicYearId): void
-    {
-        if (Timetable::query()->where('academic_year_id', $academicYearId)->exists()) {
-            return;
-        }
-
-        try {
-            DB::transaction(fn (): Timetable => Timetable::create(['academic_year_id' => $academicYearId]));
-        } catch (QueryException $e) {
-            if (($e->errorInfo[0] ?? null) !== '23505') {
-                throw $e;
-            }
         }
     }
 

@@ -59,19 +59,20 @@ function acadEndpoints(array $t, string $yearPublicId): array
     ];
 }
 
-test('api.md §2, §11.3 y §12.2: son exactamente 47 endpoints (27 de la estructura con estructura_academica, 5 de períodos y 5 de escalas con configuracion_academica, 5 de espacios con espacios y 5 de marcos horarios con horarios; los de asignación docente y sesiones, con la entrega de 1.12-a que falta) con autenticación, module-enabled:acad y permission: en ese orden', function (): void {
+test('api.md §2, §11.3 y §12.2: son exactamente 58 endpoints (27 de la estructura con estructura_academica, 5 de períodos y 5 de escalas con configuracion_academica, 5 de espacios con espacios, 5 de marcos horarios y 5 de sesiones con horarios, y 4 de asignación docente y 2 de tutores con asignacion_docente) con autenticación, module-enabled:acad y permission: en ese orden', function (): void {
     $routes = collect(Route::getRoutes()->getRoutes())->filter(fn ($r) => str_starts_with((string) $r->getName(), 'acad.'));
     $periods = $routes->filter(fn ($r) => str_starts_with((string) $r->getName(), 'acad.academic-periods.'));
     $scales = $routes->filter(fn ($r) => str_starts_with((string) $r->getName(), 'acad.grading-scales.'));
 
-    expect($routes)->toHaveCount(47)->and($periods)->toHaveCount(5)->and($scales)->toHaveCount(5);
+    expect($routes)->toHaveCount(58)->and($periods)->toHaveCount(5)->and($scales)->toHaveCount(5);
 
     foreach ($routes as $route) {
         $name = (string) $route->getName();
         $resource = match (true) {
             $periods->contains($route), $scales->contains($route) => 'configuracion_academica',
             str_starts_with($name, 'acad.facilities.') => 'espacios',
-            str_starts_with($name, 'acad.timetable-frames.') => 'horarios',
+            str_starts_with($name, 'acad.timetable-frames.'), str_starts_with($name, 'acad.timetable-sessions.') => 'horarios',
+            str_starts_with($name, 'acad.teaching-assignments.'), str_starts_with($name, 'acad.groups.tutors.') => 'asignacion_docente',
             default => 'estructura_academica',
         };
         $middleware = array_values(array_filter($route->gatherMiddleware(), 'is_string'));

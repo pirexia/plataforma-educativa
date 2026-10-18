@@ -121,4 +121,58 @@ final class AcadTimetableHelpers
     {
         return app(TenantContext::class)->runFor($tenant->id, fn (): int => DB::table($table)->when($alive, fn ($q) => $q->whereNull('deleted_at'))->count());
     }
+
+    /**
+     * Escenario completo por la API: centro con `acad`, administrador, curso,
+     * árbol (etapa, curso de etapa, grupo con subgrupo y asignatura asignada),
+     * marco ordinario con la semana de `week()` y un aula; y dos profesores
+     * activos.
+     *
+     * @return array{tenant: object, admin: User, year: AcademicYear, api: array<string, string>, frame: array<string, mixed>, slots: list<string>, facility: string, t1: User, t2: User}
+     */
+    public static function scenario(string $slug): array
+    {
+        resetSessionState();
+
+        [$tenant, $admin, $year] = AcadApiHelpers::setup($slug);
+        $api = AcadApiHelpers::tree($tenant, $admin, $year);
+
+        resetSessionState();
+        test()->actingAs($admin)->putJson(AcadApiHelpers::url($tenant, "/groups/{$api['group']}/subjects"), ['subjects' => [$api['subject']]])->assertOk();
+
+        $frame = self::postFrame($tenant, $admin, self::frameBody($api['level']))->assertCreated()->json();
+        $facility = self::postFacility($tenant, $admin)->assertCreated()->json('public_id');
+
+        return [
+            'tenant' => $tenant, 'admin' => $admin, 'year' => $year, 'api' => $api, 'frame' => $frame,
+            'slots' => array_column($frame['slots'], 'public_id'), 'facility' => $facility,
+            't1' => AcadApiHelpers::userWith($tenant, $admin, 'prof1', ['horarios.leer']),
+            't2' => AcadApiHelpers::userWith($tenant, $admin, 'prof2', ['horarios.leer']),
+        ];
+    }
+
+    /** @param  array<string, mixed>  $body */
+    public static function send(object $tenant, User $user, string $method, string $path, array $body = []): TestResponse
+    {
+        resetSessionState();
+
+        return test()->actingAs($user)->json($method, AcadApiHelpers::url($tenant, $path), $body);
+    }
+
+    /** Alta de asignación por la API. */
+    public static function postAssignment(object $tenant, User $admin, User|string $teacher, string $group, string $subject, ?string $subgroup = null): TestResponse
+    {
+        return self::send($tenant, $admin, 'POST', '/teaching-assignments', [
+            'teacher' => $teacher instanceof User ? $teacher->public_id : $teacher,
+            'group' => $group, 'subject' => $subject, 'subgroup' => $subgroup,
+        ]);
+    }
+
+    /** Alta de sesión por la API. */
+    public static function postSession(object $tenant, User $admin, string $slot, string $assignment, ?string $facility = null): TestResponse
+    {
+        return self::send($tenant, $admin, 'POST', '/timetable-sessions', array_filter([
+            'time_slot' => $slot, 'teaching_assignment' => $assignment, 'facility' => $facility,
+        ], static fn ($v): bool => $v !== null));
+    }
 }

@@ -64,6 +64,8 @@ test('RN-ACAD-92: displayNamesByIds devuelve el nombre visible por id, también 
         $directory = app(UserDirectory::class);
 
         expect($directory->displayNamesByIds([]))->toBe([])
-            ->and($directory->displayNamesByIds([$a->id, 999999999]))->toBe([$a->id => 'Ana Ejemplo']);
+            ->and($directory->displayNamesByIds([$a->id, 999999999]))->toBe([$a->id => 'Ana Ejemplo'])
+            ->and($directory->refsByIds([$a->id, 999999999]))->toHaveCount(1)
+            ->and($directory->refsByIds([$a->id])[$a->id]->publicId)->toBe($a->public_id);
     });
 });

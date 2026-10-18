@@ -2,6 +2,7 @@
 
 namespace App\Modules\Acad\Infrastructure;
 
+use App\Modules\Acad\Application\StaffDirectory;
 use App\Modules\Acad\Domain\Models\AcademicPeriod;
 use App\Modules\Acad\Domain\Models\Course;
 use App\Modules\Acad\Domain\Models\EducationLevel;
@@ -39,7 +40,8 @@ class AcadServiceProvider extends ServiceProvider implements DeclaresModuleRegis
 {
     public function register(): void
     {
-        //
+        // Memoiza por petición los usuarios resueltos (RN-ACAD-92).
+        $this->app->scoped(StaffDirectory::class);
     }
 
     public function boot(): void

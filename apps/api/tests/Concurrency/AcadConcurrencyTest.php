@@ -7,6 +7,7 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\AcadApiHelpers as Api;
 use Tests\Support\AcadPeriodHelpers as Periods;
+use Tests\Support\AcadTimetableHelpers as Tt;
 
 /**
  * Concurrencia REAL de REQ-ACAD (1.11-b): `CA-ACAD-004` (RN-ACAD-01); y de
@@ -25,7 +26,7 @@ afterEach(function (): void {
     foreach (DB::connection('pgsql_platform')->table('tenants')->pluck('id') as $tenantId) {
         $owner->statement("select set_config('app.tenant_id', ?, false)", [(string) $tenantId]);
         // El propietario está exento del bloqueo de cursos cerrados (ADR-057 §5.2).
-        foreach (['grading_scale_values', 'grading_scales', 'academic_periods', 'group_subjects', 'subgroups', 'groups', 'subjects', 'courses', 'education_levels'] as $table) {
+        foreach (['timetable_sessions', 'teaching_assignments', 'group_tutors', 'time_slots', 'timetable_frames', 'timetables', 'facilities', 'grading_scale_values', 'grading_scales', 'academic_periods', 'group_subjects', 'subgroups', 'groups', 'subjects', 'courses', 'education_levels'] as $table) {
             $owner->table($table)->delete();
         }
     }
@@ -478,4 +479,95 @@ test('CA-CURSO-122 RN-CURSO-58 RN-ACAD-54 RN-ACAD-57 (tres procesos, el alta de 
         ->and($results['patch'])->toMatchArray(['outcome' => 'api_error', 'status' => 409, 'code' => 'acad.conflict.periods_outside_academic_year'])
         ->and(acadLivePeriods($tenant))->toBe([['2026-09-08', '2026-12-22']])
         ->and(acadYearState($tenant, $year->id)[0])->toBe('2026-09-01');
+});
+
+// ───────────────────────── 1.12-a: asignación docente y sesiones de horario ─────────────────────────
+
+test('CA-ACAD-110 RN-ACAD-94: dos altas simultáneas de la misma asignación docente: exactamente una 201 y la otra 422 assignment_exists, nunca un 500', function (): void {
+    $s = Tt::scenario('acad-110c');
+
+    $holder = acadPdo();
+    $holder->beginTransaction();
+    // Ambos hijos pasan la comprobación previa y esperan para INSERTAR: carrera real sobre el índice único.
+    $holder->exec('lock table teaching_assignments in share row exclusive mode');
+
+    $a = acadSpawn($s['tenant']->id, 'create-assignment', $s['t1']->public_id, $s['api']['group'], $s['api']['subject']);
+    $b = acadSpawn($s['tenant']->id, 'create-assignment', $s['t1']->public_id, $s['api']['group'], $s['api']['subject']);
+
+    try {
+        acadWaitBlocked(2, [$a, $b]);
+    } finally {
+        $holder->rollBack();
+    }
+
+    $results = [acadCollect($a), acadCollect($b)];
+    $ok = array_values(array_filter($results, fn (array $r): bool => $r['outcome'] === 'ok'));
+    $conflicts = array_values(array_filter($results, fn (array $r): bool => $r['outcome'] === 'api_error'));
+
+    expect($ok)->toHaveCount(1)
+        ->and($conflicts)->toHaveCount(1)
+        ->and($conflicts[0]['status'])->toBe(422)
+        ->and($conflicts[0]['code'])->toBe('acad.validation.assignment_exists')
+        ->and(Tt::count($s['tenant'], 'teaching_assignments'))->toBe(1);
+});
+
+/**
+ * Dos hijos crean a la vez una sesión en la misma franja. El test retiene un
+ * bloqueo de tabla sobre `timetable_sessions` que solo detiene el INSERT: el
+ * primer hijo toma el ancla (`FOR UPDATE`), lee y se queda esperando para
+ * insertar; el segundo espera el ancla. Sin la serialización de `RN-ACAD-125`
+ * ambos leerían antes de que el otro escribiera y los dos darían 201.
+ */
+function acadSessionRace(array $s, string $assignmentA, ?string $facilityA, string $assignmentB, ?string $facilityB): array
+{
+    $holder = acadPdo();
+    $holder->beginTransaction();
+    $holder->exec('lock table timetable_sessions in share row exclusive mode');
+
+    $a = acadSpawn($s['tenant']->id, 'create-session', $s['slots'][0], $assignmentA, $facilityA ?? '-');
+    $b = acadSpawn($s['tenant']->id, 'create-session', $s['slots'][0], $assignmentB, $facilityB ?? '-');
+
+    try {
+        acadWaitBlockedAny(2, [$a, $b]);
+    } finally {
+        $holder->rollBack();
+    }
+
+    return [acadCollect($a), acadCollect($b)];
+}
+
+test('CA-ACAD-126 RN-ACAD-125 RN-ACAD-123: dos procesos reales crean a la vez dos sesiones que chocan por profesor (grupos distintos): exactamente una 201 y la otra 422 timetable_conflict, nunca dos 201 ni un 500', function (): void {
+    $s = Tt::scenario('acad-126a');
+    $groupB = Tt::send($s['tenant'], $s['admin'], 'POST', '/groups', ['course' => $s['api']['course'], 'code' => 'B', 'name' => 'Grupo B'])->assertCreated()->json('public_id');
+    Tt::send($s['tenant'], $s['admin'], 'PUT', "/groups/{$groupB}/subjects", ['subjects' => [$s['api']['subject']]])->assertOk();
+    $one = Tt::postAssignment($s['tenant'], $s['admin'], $s['t1'], $s['api']['group'], $s['api']['subject'])->json('public_id');
+    $two = Tt::postAssignment($s['tenant'], $s['admin'], $s['t1'], $groupB, $s['api']['subject'])->json('public_id');
+
+    $results = acadSessionRace($s, $one, null, $two, null);
+    $ok = array_values(array_filter($results, fn (array $r): bool => $r['outcome'] === 'ok'));
+    $conflicts = array_values(array_filter($results, fn (array $r): bool => $r['outcome'] === 'api_error'));
+
+    expect($ok)->toHaveCount(1)
+        ->and($conflicts)->toHaveCount(1)
+        ->and($conflicts[0]['status'])->toBe(422)
+        ->and($conflicts[0]['code'])->toBe('acad.validation.timetable_conflict')
+        ->and(Tt::count($s['tenant'], 'timetable_sessions'))->toBe(1);
+});
+
+test('CA-ACAD-126 RN-ACAD-125 RN-ACAD-123: dos procesos reales crean a la vez dos sesiones que chocan por aula (profesores y grupos distintos): exactamente una 201 y la otra 422 timetable_conflict', function (): void {
+    $s = Tt::scenario('acad-126b');
+    $groupB = Tt::send($s['tenant'], $s['admin'], 'POST', '/groups', ['course' => $s['api']['course'], 'code' => 'B', 'name' => 'Grupo B'])->assertCreated()->json('public_id');
+    Tt::send($s['tenant'], $s['admin'], 'PUT', "/groups/{$groupB}/subjects", ['subjects' => [$s['api']['subject']]])->assertOk();
+    $one = Tt::postAssignment($s['tenant'], $s['admin'], $s['t1'], $s['api']['group'], $s['api']['subject'])->json('public_id');
+    $two = Tt::postAssignment($s['tenant'], $s['admin'], $s['t2'], $groupB, $s['api']['subject'])->json('public_id');
+
+    $results = acadSessionRace($s, $one, $s['facility'], $two, $s['facility']);
+    $ok = array_values(array_filter($results, fn (array $r): bool => $r['outcome'] === 'ok'));
+    $conflicts = array_values(array_filter($results, fn (array $r): bool => $r['outcome'] === 'api_error'));
+
+    expect($ok)->toHaveCount(1)
+        ->and($conflicts)->toHaveCount(1)
+        ->and($conflicts[0]['status'])->toBe(422)
+        ->and($conflicts[0]['code'])->toBe('acad.validation.timetable_conflict')
+        ->and(Tt::count($s['tenant'], 'timetable_sessions'))->toBe(1);
 });

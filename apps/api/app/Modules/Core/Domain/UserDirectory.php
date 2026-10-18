@@ -44,4 +44,15 @@ interface UserDirectory
      * @return array<int, string>
      */
     public function displayNamesByIds(array $ids): array;
+
+    /**
+     * Igual que `displayNamesByIds()` pero con el `public_id` además del nombre
+     * (`ActiveUserRef`, sin garantía de que el usuario siga activo): los
+     * consumidores que guardan el id interno necesitan el `public_id` para
+     * representar al usuario (`REQ-ACAD-002`, `teacher.public_id`).
+     *
+     * @param  list<int>  $ids
+     * @return array<int, ActiveUserRef>
+     */
+    public function refsByIds(array $ids): array;
 }

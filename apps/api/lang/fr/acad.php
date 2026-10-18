@@ -118,6 +118,7 @@ return [
         'subgroup' => 'subgrupo',
         'facility' => 'espacio',
         'timetable_frame' => 'marco horario',
+        'teaching_assignment' => 'asignación docente',
     ],
 
     'dependents' => [

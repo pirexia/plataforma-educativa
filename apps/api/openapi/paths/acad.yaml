@@ -1441,3 +1441,366 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/teaching-assignments:
+    get:
+      operationId: listTeachingAssignments
+      summary: Lista las asignaciones docentes de un curso académico
+      description: >
+        Permiso `asignacion_docente.leer`. Paginación por página (defecto 25, máximo 100). Orden `id`
+        (orden de alta) o `-id`. Filtros `group`, `subject` y `teacher` (varios `public_id` separados por
+        coma, combinados con `AND`): un `public_id` inexistente o de otro curso da una colección vacía. El
+        filtro `teacher` solo resuelve usuarios activos del centro: un profesor dado de baja no devuelve filas.
+      tags: ['Acad / Horarios']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/AcademicYearFilterParam' }
+        - name: group
+          in: query
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: subject
+          in: query
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: teacher
+          in: query
+          description: '`public_id` de usuario.'
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - { $ref: '../components.yaml#/components/parameters/TeachingAssignmentSortParam' }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/TeachingAssignment' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createTeachingAssignment
+      summary: Crea una asignación docente
+      description: >
+        Permiso `asignacion_docente.crear`. Un usuario imparte una asignatura que cursa un grupo, con
+        subgrupo opcional (RN-ACAD-93). El curso académico es el del grupo: `academic_year` en el cuerpo es
+        `422 academic_year_not_allowed`. Errores por campo: `teacher` ⇒ `user_not_found` (inexistente, de otro
+        centro o inactivo; no se comprueba ningún rol, RN-ACAD-92) o `assignment_exists` (RN-ACAD-94);
+        `group` ⇒ `parent_not_found`; `subject` ⇒ `subject_not_in_group`; `subgroup` ⇒ `subgroup_not_in_group`.
+      tags: ['Acad / Horarios']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [teacher, group, subject]
+              properties:
+                teacher: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                group: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                subject: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                subgroup:
+                  nullable: true
+                  allOf: [{ $ref: '../components.yaml#/components/schemas/PublicId' }]
+      responses:
+        '201':
+          description: Creado
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/TeachingAssignment' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/teaching-assignments/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getTeachingAssignment
+      summary: Detalle de una asignación docente
+      description: >
+        Permiso `asignacion_docente.leer`. Un `public_id` de otro centro, o de un curso `cerrado`/`archivado`
+        sin `curso_historico.leer`, es `404` (INV-001, RN-ACAD-90). No existe `PATCH`: una asignación es
+        inmutable (RN-ACAD-95, `405`).
+      tags: ['Acad / Horarios']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: El recurso
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/TeachingAssignment' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    delete:
+      operationId: deleteTeachingAssignment
+      summary: Borra (lógico) una asignación docente
+      description: >
+        Permiso `asignacion_docente.eliminar`. Con sesiones vivas ⇒ `409 acad.conflict.has_dependents` con
+        `timetable_sessions` (RN-ACAD-95).
+      tags: ['Acad / Horarios']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204':
+          description: Borrado lógico
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: '`acad.conflict.has_dependents` (`errors.dependents[0].params.dependents`) o `urn:pge:error:academic-year-closed` (curso de solo lectura).'
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/groups/{groupPublicId}/tutors:
+    parameters:
+      - name: groupPublicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: listGroupTutors
+      summary: Tutores de un grupo
+      description: >
+        Permiso `asignacion_docente.leer`. `{"data": [{public_id, name}]}` sin paginar, por orden de alta.
+        Grupo inexistente o de otro centro: `404`.
+      tags: ['Acad / Horarios']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Tutores
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/GroupTutor' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    put:
+      operationId: replaceGroupTutors
+      summary: Sustituye el conjunto de tutores de un grupo
+      description: >
+        Permiso `asignacion_docente.actualizar`. Sustituye el conjunto completo; lista vacía = sin tutores;
+        repetidos cuentan una vez; idempotente (un `PUT` sin cambios no escribe, RN-ACAD-97). Un usuario
+        inexistente, de otro centro o inactivo es `422 acad.validation.user_not_found` en `tutors.<n>` y no
+        cambia nada.
+      tags: ['Acad / Horarios']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tutors]
+              properties:
+                tutors:
+                  type: array
+                  items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+      responses:
+        '200':
+          description: El conjunto resultante
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/GroupTutor' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/timetable-sessions:
+    get:
+      operationId: listTimetableSessions
+      summary: Vista semanal de sesiones por profesor, aula, grupo o asignatura
+      description: >
+        Permiso `horarios.leer`. Exige al menos uno de `teacher`, `facility`, `group`, `subject`
+        (`422 acad.validation.view_filter_required`, RN-ACAD-127); `frame` es opcional. La vista de grupo
+        incluye las sesiones de sus subgrupos; la de asignatura, las de esa asignatura en todos los grupos.
+        Sin paginar, orden fijo `weekday`, `starts_at`, `id`, tope de 500 filas
+        (`422 acad.validation.view_too_large`). Un `public_id` inexistente o de otro curso da una colección
+        vacía; `teacher` solo resuelve usuarios activos.
+      tags: ['Acad / Horarios']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/AcademicYearFilterParam' }
+        - name: teacher
+          in: query
+          description: '`public_id` de usuario.'
+          schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: facility
+          in: query
+          schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: group
+          in: query
+          schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: subject
+          in: query
+          schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: frame
+          in: query
+          schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+      responses:
+        '200':
+          description: Sesiones de la vista
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/TimetableSession' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createTimetableSession
+      summary: Crea una sesión de horario
+      description: >
+        Permiso `horarios.crear`. Sesión = franja + asignación docente + aula opcional (RN-ACAD-120). El
+        curso es el de la franja. Errores: `time_slot` ⇒ `parent_not_found` o `slot_not_for_group` (la etapa
+        del grupo no es la del marco); `teaching_assignment` ⇒ `parent_not_found`; `facility` ⇒
+        `facility_not_found` o `facility_not_room`; y `time_slot` ⇒ `timetable_conflict` con
+        `params.conflicts: [{kind, session}]` (`kind` ∈ `teacher`, `facility`, `group`, RN-ACAD-123), sin
+        escribir nada. Toda escritura de sesiones se serializa por curso (RN-ACAD-125).
+      tags: ['Acad / Horarios']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [time_slot, teaching_assignment]
+              properties:
+                time_slot: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                teaching_assignment: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                facility:
+                  nullable: true
+                  allOf: [{ $ref: '../components.yaml#/components/schemas/PublicId' }]
+      responses:
+        '201':
+          description: Creado
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/TimetableSession' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/timetable-sessions/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getTimetableSession
+      summary: Detalle de una sesión de horario
+      description: >
+        Permiso `horarios.leer`. Un `public_id` de otro centro, o de un curso `cerrado`/`archivado` sin
+        `curso_historico.leer`, es `404`. Un aula dada de baja de un curso cerrado se lee con
+        `facility.deleted: true` (RN-ACAD-102).
+      tags: ['Acad / Horarios']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: El recurso
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/TimetableSession' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: updateTimetableSession
+      summary: Mueve una sesión de franja o cambia su aula
+      description: >
+        Permiso `horarios.actualizar`. Editables `time_slot` y `facility` (`null` quita el aula, RN-ACAD-122).
+        `teaching_assignment` y `academic_year` ⇒ `422 parent_immutable`. Las mismas validaciones y el mismo
+        `422 timetable_conflict` que el alta; si choca, la sesión no se mueve.
+      tags: ['Acad / Horarios']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                time_slot: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                facility:
+                  nullable: true
+                  allOf: [{ $ref: '../components.yaml#/components/schemas/PublicId' }]
+      responses:
+        '200':
+          description: Actualizado
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/TimetableSession' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    delete:
+      operationId: deleteTimetableSession
+      summary: Borra (lógico) una sesión de horario
+      description: Permiso `horarios.eliminar`.
+      tags: ['Acad / Horarios']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204':
+          description: Borrado lógico
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }

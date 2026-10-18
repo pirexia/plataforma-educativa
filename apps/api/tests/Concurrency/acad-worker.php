@@ -21,6 +21,8 @@
  *   delete-level  <levelPublicId> <gate|->
  *   create-course <levelPublicId> <code> <gate|->
  *   create-scale  <yearPublicId> <code>    (1.11d-b, CA-ACAD-084: escala numérica 0-10)
+ *   create-assignment <teacherPublicId> <groupPublicId> <subjectPublicId>   (1.12-a, CA-ACAD-110)
+ *   create-session <slotPublicId> <assignmentPublicId> <facilityPublicId|->   (1.12-a, CA-ACAD-126)
  *   patch-year    <yearPublicId> <startsOn|-> <endsOn|-> <gate|->   (PATCH de fechas con la
  *                 validación REAL de acad; con gate, una validación de prueba posterior a la
  *                 de acad espera el bloqueo con el FOR UPDATE del curso retenido)
@@ -32,6 +34,8 @@ use App\Modules\Acad\Application\CourseService;
 use App\Modules\Acad\Application\EducationLevelService;
 use App\Modules\Acad\Application\GradingScaleService;
 use App\Modules\Acad\Application\GroupService;
+use App\Modules\Acad\Application\TeachingAssignmentService;
+use App\Modules\Acad\Application\TimetableSessionService;
 use App\Modules\Acad\Domain\Models\AcademicPeriod;
 use App\Modules\Acad\Domain\Models\Course;
 use App\Modules\Acad\Domain\Models\EducationLevel;
@@ -146,6 +150,18 @@ $result = app(TenantContext::class)->runFor((int) $tenantId, function () use ($o
                     ], $actor());
 
                     return ['outcome' => 'ok', 'public_id' => $scale->public_id];
+
+                case 'create-assignment':
+                    [$teacher, $group, $subject] = $args;
+                    $assignment = app(TeachingAssignmentService::class)->create(['teacher' => $teacher, 'group' => $group, 'subject' => $subject, 'subgroup' => null], $actor());
+
+                    return ['outcome' => 'ok', 'public_id' => $assignment->public_id];
+
+                case 'create-session':
+                    [$slot, $assignment, $facility] = $args;
+                    $session = app(TimetableSessionService::class)->create(['time_slot' => $slot, 'teaching_assignment' => $assignment, 'facility' => $facility === '-' ? null : $facility], $actor());
+
+                    return ['outcome' => 'ok', 'public_id' => $session->public_id];
 
                 case 'patch-year':
                     [$publicId, $startsOn, $endsOn, $gate] = $args;

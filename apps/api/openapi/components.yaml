@@ -337,6 +337,90 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
+    TeachingAssignment:
+      type: object
+      description: >
+        REQ-ACAD/api.md §12.1 (1.12-a). Asignación docente: un usuario imparte una asignatura que cursa un
+        grupo, con subgrupo opcional. Inmutable (RN-ACAD-95). `teacher.name` es el nombre visible que
+        devuelve `Core`, sin correo ni otros datos. La fila de `group_subjects` no se expone.
+      required: [public_id, academic_year, teacher, group, subject, subgroup, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        teacher: { $ref: '#/components/schemas/StaffSummary' }
+        group: { $ref: '#/components/schemas/PublicId' }
+        subject: { $ref: '#/components/schemas/PublicId' }
+        subgroup:
+          nullable: true
+          allOf: [{ $ref: '#/components/schemas/PublicId' }]
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    StaffSummary:
+      type: object
+      description: 'Usuario del centro a quien se asigna docencia: `public_id` y nombre visible (sin correo ni otros datos). Es `null` solo si el usuario ya no existe.'
+      nullable: true
+      required: [public_id, name]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        name: { type: string }
+
+    GroupTutor:
+      type: object
+      description: 'REQ-ACAD/api.md §12.1. Tutor de un grupo (RN-ACAD-97): el usuario, con su nombre visible.'
+      required: [public_id, name]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        name: { type: string }
+
+    TimetableSession:
+      type: object
+      description: >
+        REQ-ACAD/api.md §12.1 (1.12-a). Sesión de horario con los resúmenes que pintan la rejilla en una
+        sola llamada. `facility.deleted` es `true` para un aula dada de baja de un curso cerrado
+        (RN-ACAD-102). `subgroup` es `null` si la sesión es del grupo entero.
+      required: [public_id, academic_year, frame, slot, teaching_assignment, teacher, group, subgroup, subject, facility, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        frame: { $ref: '#/components/schemas/PublicId' }
+        slot: { $ref: '#/components/schemas/TimeSlot' }
+        teaching_assignment: { $ref: '#/components/schemas/PublicId' }
+        teacher: { $ref: '#/components/schemas/StaffSummary' }
+        group:
+          type: object
+          required: [public_id, code, name]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            code: { type: string }
+            name: { type: string }
+        subgroup:
+          type: object
+          nullable: true
+          required: [public_id, code, name]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            code: { type: string }
+            name: { type: string }
+        subject:
+          type: object
+          required: [public_id, code, name]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            code: { type: string }
+            name: { type: string, description: 'Nombre resuelto en servidor (ADR-062 §5.3).' }
+        facility:
+          type: object
+          nullable: true
+          required: [public_id, code, name, deleted]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            code: { type: string }
+            name: { type: string }
+            deleted: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
     DecimalString:
       type: string
       description: >
@@ -1792,6 +1876,14 @@ components:
         type: string
         enum: [education_level, -education_level]
         default: education_level
+    TeachingAssignmentSortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada; `id` es el orden de alta.
+      schema:
+        type: string
+        enum: [id, -id]
+        default: id
     GradingScaleSortParam:
       name: sort
       in: query
