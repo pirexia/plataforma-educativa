@@ -26,4 +26,22 @@ interface UserDirectory
      * (RN-AUTH-23).
      */
     public function findActiveByEmail(string $email): ?User;
+
+    /**
+     * REQ-ACAD-002 `RN-ACAD-92` (ampliación aprobada de `1.12-a`): usuario del
+     * centro **activo** (`status = activo`, sin `deleted_at`) por `public_id`,
+     * con su id interno para las FK de los módulos consumidores. `null` si no
+     * existe, es de otro centro, está inactivo, pendiente o borrado. No se
+     * comprueba ningún rol.
+     */
+    public function findActiveByPublicId(string $publicId): ?ActiveUserRef;
+
+    /**
+     * Nombre visible (el de `findByPublicId`) de usuarios por id interno,
+     * vivos o no, del centro activo. Los ids que no existen no aparecen.
+     *
+     * @param  list<int>  $ids
+     * @return array<int, string>
+     */
+    public function displayNamesByIds(array $ids): array;
 }

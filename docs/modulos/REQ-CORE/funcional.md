@@ -364,7 +364,7 @@ Se autoriza por identidad (el sujeto es el propio usuario autenticado), **no por
 Interfaces públicas que `REQ-CORE` expone en su `Domain` para que otros módulos las consuman sin acoplarse:
 
 - `TenantSettingsReader` — idioma por defecto, idiomas activos, zona horaria y moneda del centro. Lo necesitarán todos los módulos que generen documentos o importes.
-- `UserDirectory` — resolución de un usuario por `public_id` y consulta de su idioma preferido, para las comunicaciones de `REQ-COM`.
+- `UserDirectory` — resolución de un usuario por `public_id` y consulta de su idioma preferido, para las comunicaciones de `REQ-COM`. Ampliada en `1.12-a` (`REQ-ACAD-002`, `RN-ACAD-92`, aprobada por el usuario) con `findActiveByPublicId()` (usuario activo del centro, `ActiveUserRef{id, publicId, displayName}`, `null` si no existe, es de otro centro, está inactivo, pendiente o borrado) y `displayNamesByIds()` (nombre visible por id interno); sin comprobar roles.
 - `BulkUserImporter` — destino de importación de personal para `REQ-ONB-002` (§1.10).
 - `AuditQuery` — consulta filtrada del registro, para que ningún módulo consulte `audit_logs` directamente.
 - `ExportRequestService` — solicitud de una exportación asíncrona (§4.6), reutilizable por `REQ-PRIV` y demás.
