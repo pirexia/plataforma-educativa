@@ -34,6 +34,11 @@ const props = defineProps<{
   canCreate: boolean
   canEdit: boolean
   caption: string
+  /**
+   * `public_id` de un marco `especial` → su vigencia en texto (`RN-ACAD-124`): una sesión de una
+   * jornada especial convive en la misma celda con la del ordinario y debe distinguirse (no solo por color).
+   */
+  frameNotes?: Record<string, string>
 }>()
 
 const emit = defineEmits<{ create: [slot: TimeSlot]; edit: [session: TimetableSession] }>()
@@ -247,6 +252,9 @@ const days = computed(() =>
                     >({{ t('acad.timetable.grid.facilityDeleted') }})</template
                   >
                 </span>
+                <span v-if="frameNotes?.[session.frame]" class="text-muted-foreground text-xs">{{
+                  frameNotes[session.frame]
+                }}</span>
                 <Button
                   v-if="canEdit"
                   type="button"
@@ -341,6 +349,9 @@ const days = computed(() =>
                 >({{ t('acad.timetable.grid.facilityDeleted') }})</template
               >
             </span>
+            <span v-if="frameNotes?.[session.frame]" class="text-muted-foreground text-xs">{{
+              frameNotes[session.frame]
+            }}</span>
             <Button
               v-if="canEdit"
               type="button"

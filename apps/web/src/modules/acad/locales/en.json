@@ -10,7 +10,8 @@
       "gradingScales": "Grading scales",
       "backToScales": "Back to grading scales",
       "facilities": "Facilities",
-      "timetable": "Timetables"
+      "timetable": "Timetables",
+      "bookings": "Bookings"
     },
     "readOnly": "This academic year is read-only: its structure cannot be created, changed or deleted.",
     "fields": {
@@ -34,7 +35,9 @@
       "rangeMax": "To",
       "range": "Range",
       "facilityType": "Facility type",
-      "frameType": "Timetable frame type"
+      "frameType": "Timetable frame type",
+      "validFrom": "Valid from",
+      "validTo": "Valid until"
     },
     "stage": {
       "infantil": "Early Childhood Education",
@@ -227,7 +230,9 @@
       "tutorsUpdated": "Group tutors updated.",
       "sessionCreated": "Session created.",
       "sessionUpdated": "Session updated.",
-      "sessionDeleted": "Session deleted."
+      "sessionDeleted": "Session deleted.",
+      "bookingCreated": "Booking created.",
+      "bookingCancelled": "Booking cancelled."
     },
     "errors": {
       "unexpected": "The action could not be completed. Please try again.",
@@ -320,8 +325,12 @@
         "empty": "This stage has no timetable frame",
         "form": {
           "title": "New timetable frame",
-          "description": "The regular frame of the stage is created. Time slots are added afterwards, on its page."
-        }
+          "description": "An ordinary frame applies to the whole year; a special one (short school day) only between two dates. Time slots are added afterwards, on its page.",
+          "validityHint": "The dates are inclusive, must fall within the academic year and cannot overlap another special schedule of the stage."
+        },
+        "validity": "Validity",
+        "validityRange": "From {from} to {to}",
+        "allYear": "Whole year"
       },
       "frame": {
         "title": "Timetable frame",
@@ -396,7 +405,8 @@
         "title": "Remove the {subject} session?",
         "description": "The session is deleted from the grid; the teaching assignment does not change.",
         "confirm": "Remove session"
-      }
+      },
+      "frameLabel": "Timetable frame"
     },
     "staff": {
       "search": "Search users by name or email",
@@ -433,6 +443,43 @@
       "errors": {
         "subjectRequired": "Choose a subject.",
         "teacherRequired": "Choose a teacher."
+      }
+    },
+    "readOnlyBookings": "This academic year is read-only: bookings cannot be created or cancelled.",
+    "bookings": {
+      "title": "Bookings",
+      "intro": "Bookings of classrooms and resources for the academic year, by date and time. They cannot be edited: cancel them and book again.",
+      "new": "New booking",
+      "caption": "Space bookings",
+      "empty": "There are no bookings",
+      "cancel": "Cancel",
+      "cancelFor": "Cancel the booking of {facility} on {date} at {start}",
+      "fields": {
+        "facility": "Space",
+        "date": "Date",
+        "startsAt": "Start",
+        "endsAt": "End",
+        "interval": "Time",
+        "bookedBy": "Booked by"
+      },
+      "form": {
+        "title": "New booking",
+        "description": "Choose the space, the date and the time. The booking cannot coincide with another booking or, for a classroom, with a timetable session.",
+        "intervalHint": "The end time is not included: a booking that ends at 11:00 and another that starts at 11:00 do not overlap.",
+        "noFacilities": "There are no spaces to book, or you do not have permission to see them.",
+        "submit": "Book"
+      },
+      "conflict": {
+        "title": "The booking clashes with:",
+        "booking": "Booking of {facility} on {date}, {start}–{end}, by {by}",
+        "session": "Timetable session: {subject} · {group} · {teacher} · {slot}",
+        "bookingUnknown": "Another booking of the same space at that time",
+        "sessionUnknown": "A timetable session in that classroom at that time"
+      },
+      "confirmCancel": {
+        "title": "Cancel the booking of {facility}?",
+        "description": "The booking of {when} is cancelled. The slot becomes free.",
+        "confirm": "Cancel booking"
       }
     }
   }

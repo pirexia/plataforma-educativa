@@ -123,6 +123,7 @@ describe('CA-ACAD-127 / CA-ACAD-134: la vista y su filtro viven en la URL', () =
     expect(acadApi.listTimetableFrames).toHaveBeenCalledWith({
       academic_year: 'Y2',
       education_level: ['L1'],
+      per_page: 100,
     })
     expect(wrapper.get('[role="table"]').text()).toContain('Matemáticas')
     expect(wrapper.get('[role="table"]').text()).toContain('Ana Ejemplo')
@@ -139,7 +140,13 @@ describe('CA-ACAD-127 / CA-ACAD-134: la vista y su filtro viven en la URL', () =
     const wrapper = await open(`/academico/horarios?view=${view}&id=${id}`)
 
     expect(acadApi.listTimetableSessions).toHaveBeenCalledWith({ academic_year: 'Y2', ...filter })
-    expect(acadApi.listTimetableFrames).not.toHaveBeenCalled()
+    // No hay marco que componer; solo se piden las jornadas especiales para rotular sus sesiones (RN-ACAD-124).
+    expect(acadApi.listTimetableFrames).toHaveBeenCalledTimes(1)
+    expect(acadApi.listTimetableFrames).toHaveBeenCalledWith({
+      academic_year: 'Y2',
+      frame_type: ['especial'],
+      per_page: 100,
+    })
     expect(wrapper.get('[role="table"]').text()).toContain('Matemáticas')
     expect(buttonByText('Añadir sesión')).toBeUndefined()
     // Editar sí: la sesión existe y hay horarios.actualizar.
@@ -309,5 +316,79 @@ describe('CA-ACAD-134: acciones por permiso y por curso', () => {
     expect(wrapper.get('[data-slot="acad-read-only"]').text()).toContain('solo lectura')
     expect(buttonByText('Añadir sesión')).toBeUndefined()
     expect(buttonByText('Editar')).toBeUndefined()
+  })
+})
+
+/** `RN-ACAD-111` (1.12-b): jornada intensiva de la etapa del 7 al 11 de diciembre, con su propia franja. */
+const SPECIAL = {
+  ...FRAME,
+  public_id: 'FR2',
+  frame_type: 'especial',
+  name: 'Jornada intensiva',
+  name_translations: { 'es-ES': 'Jornada intensiva' },
+  valid_from: '2026-12-07',
+  valid_to: '2026-12-11',
+  slots: [slot({ public_id: 'T9', starts_at: '10:00', ends_at: '10:55' })],
+}
+
+describe('CA-ACAD-136: jornadas especiales en la rejilla', () => {
+  beforeEach(() => {
+    vi.mocked(acadApi.listTimetableFrames).mockResolvedValue(page([FRAME, SPECIAL]) as never)
+    vi.mocked(acadApi.listTimetableSessions).mockResolvedValue({
+      data: [
+        timetableSession(),
+        timetableSession({
+          public_id: 'SE2',
+          frame: 'FR2',
+          slot: slot({ public_id: 'T9', starts_at: '10:00', ends_at: '10:55' }),
+          subject: { public_id: 'M2', code: 'LEN', name: 'Lengua' },
+        }),
+      ],
+    } as never)
+  })
+
+  it('con más de un marco aparece el selector «Marco horario» (marco, vigencia en texto); por defecto, el ordinario y solo sus sesiones', async () => {
+    const wrapper = await open()
+
+    expect(wrapper.get('[data-slot="acad-timetable-frame-select"]').text()).toContain(
+      'Marco horario',
+    )
+    expect(wrapper.get('[role="table"]').text()).toContain('Matemáticas')
+    expect(wrapper.get('[role="table"]').text()).not.toContain('Lengua')
+    expect(wrapper.findAll('[role="rowheader"]').map((node) => node.text())).toEqual([
+      '08:30–09:25',
+    ])
+  })
+
+  it('?frame= elige la jornada especial: sus franjas y solo sus sesiones, y se puede crear en ella', async () => {
+    const wrapper = await open(`${URL}&frame=FR2`)
+
+    expect(wrapper.get('[role="table"]').text()).toContain('Lengua')
+    expect(wrapper.get('[role="table"]').text()).not.toContain('Matemáticas')
+    expect(wrapper.findAll('[role="rowheader"]').map((node) => node.text())).toEqual([
+      '10:00–10:55',
+    ])
+    expect(wrapper.get('[role="table"]').text()).toContain('Jornada intensiva ·')
+  })
+
+  it('con un solo marco no hay selector', async () => {
+    vi.mocked(acadApi.listTimetableFrames).mockResolvedValue(page([FRAME]) as never)
+
+    const wrapper = await open()
+
+    expect(wrapper.find('[data-slot="acad-timetable-frame-select"]').exists()).toBe(false)
+  })
+
+  it('en la vista de profesor, la sesión de una jornada especial lleva su vigencia en texto junto a la del ordinario', async () => {
+    vi.mocked(acadApi.listTimetableFrames).mockResolvedValue(page([SPECIAL]) as never)
+    vi.mocked(acadApi.listSubjects).mockResolvedValue(page([]) as never)
+
+    const wrapper = await open('/academico/horarios?view=subject&id=M1')
+    const text = wrapper.get('[role="table"]').text()
+
+    expect(text).toContain('Matemáticas')
+    expect(text).toContain('Lengua')
+    expect(text).toContain('Jornada intensiva · Del')
+    expect(text.match(/Jornada intensiva/g)).toHaveLength(1)
   })
 })

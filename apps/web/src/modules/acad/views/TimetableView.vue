@@ -8,12 +8,16 @@
  * `GET /timetable-sessions` con `academic_year` y el filtro de la vista
  * (`RN-ACAD-127`).
  *
- * - **Vista de grupo**: las franjas son las del marco ordinario de la etapa del
- *   grupo y se pueden **crear** sesiones activando una celda vacía (con
- *   `horarios.crear`).
+ * - **Vista de grupo**: las franjas son las del marco horario elegido de la etapa
+ *   del grupo —por defecto el ordinario; las jornadas especiales (`1.12-b`,
+ *   `RN-ACAD-111`) se eligen en el selector «Marco horario» (`?frame=…` en la URL)—
+ *   y se pueden **crear** sesiones activando una celda vacía (con `horarios.crear`).
+ *   Solo se muestran las sesiones del marco elegido.
  * - **Vistas de profesor, aula y asignatura**: la rejilla se forma con las franjas
- *   de las sesiones que muestran; permiten editar y quitar (con `horarios.actualizar`
- *   / `eliminar`), no crear (una sesión se crea para una asignación de un grupo).
+ *   de las sesiones que muestran (de todos los marcos; las de una jornada especial
+ *   llevan su vigencia en texto, `RN-ACAD-124`); permiten editar y quitar (con
+ *   `horarios.actualizar` / `eliminar`), no crear (una sesión se crea para una
+ *   asignación de un grupo).
  *
  * Solo lectura para quien solo tiene `horarios.leer`; con un curso de solo lectura,
  * aviso persistente de texto (`RN-ACAD-42`). El servidor decide igualmente (`INV-002`).
@@ -58,7 +62,8 @@ import TimetableGrid from '../components/TimetableGrid.vue'
 import { problemDetail } from '../composables/problem'
 import { usePermissions } from '../composables/usePermissions'
 import { useStructureActions } from '../composables/useStructureActions'
-import type { Facility, Group, Subject, TimeSlot, TimetableSession } from '../types'
+import { formatCivilDate } from '../composables/civilDate'
+import type { Facility, Group, Subject, TimeSlot, TimetableFrame, TimetableSession } from '../types'
 
 const VIEWS = ['group', 'teacher', 'facility', 'subject'] as const
 type View = (typeof VIEWS)[number]
@@ -88,7 +93,13 @@ const canCreate = computed(() => can('horarios.crear') && writable.value && view
 const canEdit = computed(() => can('horarios.actualizar') && writable.value)
 const canRemove = computed(() => can('horarios.eliminar') && writable.value)
 
-function setQuery(next: { view?: View; id?: string | null }): void {
+const frameParam = computed<string | null>(() => {
+  const raw = route.query.frame
+
+  return typeof raw === 'string' && raw !== '' ? raw : null
+})
+
+function setQuery(next: { view?: View; id?: string | null; frame?: string | null }): void {
   const query = { ...route.query }
   const nextView = next.view ?? view.value
 
@@ -99,6 +110,12 @@ function setQuery(next: { view?: View; id?: string | null }): void {
   if (id === null) delete query.id
   else query.id = id
 
+  // El marco es de la etapa del grupo: cambiar de vista o de entidad lo descarta.
+  const frame = next.frame === undefined ? null : next.frame
+
+  if (frame === null) delete query.frame
+  else query.frame = frame
+
   void router.replace({ path: route.path, query })
 }
 
@@ -108,6 +125,10 @@ function chooseView(value: unknown): void {
 
 function chooseEntity(value: unknown): void {
   setQuery({ id: String(value) })
+}
+
+function chooseFrame(value: unknown): void {
+  setQuery({ frame: String(value) })
 }
 
 // --- Opciones de la entidad ---------------------------------------------------------------
@@ -126,6 +147,11 @@ const loading = ref(false)
 const error = ref<ShellErrorState | null>(null)
 const sessions = ref<TimetableSession[]>([])
 const frameSlots = ref<TimeSlot[]>([])
+/** Vista de grupo: los marcos de su etapa (el ordinario y las jornadas especiales). */
+const levelFrames = ref<TimetableFrame[]>([])
+const activeFrame = ref<string | null>(null)
+/** Jornadas especiales del curso: vigencia en texto de las sesiones que las usan (`RN-ACAD-124`). */
+const specialFrames = ref<TimetableFrame[]>([])
 /** Vista de grupo sin marco horario en su etapa: se avisa con texto. */
 const noFrame = ref(false)
 const groupAssignments = ref<AssignmentOption[]>([])
@@ -163,10 +189,37 @@ async function loadOptions(): Promise<void> {
   }
 }
 
+/** `Jornada intensiva: 7 dic 2026 – 11 dic 2026` (texto, no solo color; `RN-ACAD-124`). */
+function frameLabel(frame: TimetableFrame): string {
+  const dates = t('acad.timetable.frames.validityRange', {
+    from: formatCivilDate(frame.valid_from),
+    to: formatCivilDate(frame.valid_to),
+  })
+
+  return frame.frame_type === 'especial' ? `${frame.name} · ${dates}` : frame.name
+}
+
+const frameNotes = computed<Record<string, string>>(() => {
+  const notes: Record<string, string> = {}
+
+  for (const frame of [...levelFrames.value, ...specialFrames.value]) {
+    if (frame.frame_type === 'especial') notes[frame.public_id] = frameLabel(frame)
+  }
+
+  return notes
+})
+
+const frameOptions = computed(() =>
+  levelFrames.value.map((frame) => ({ value: frame.public_id, label: frameLabel(frame) })),
+)
+
 async function loadGrid(): Promise<void> {
   sessionsError.value = null
   noFrame.value = false
   frameSlots.value = []
+  levelFrames.value = []
+  specialFrames.value = []
+  activeFrame.value = null
   groupAssignments.value = []
   sessions.value = []
 
@@ -189,14 +242,37 @@ async function loadGrid(): Promise<void> {
       const frames = await listTimetableFrames({
         academic_year: year,
         education_level: [course.education_level],
+        per_page: OPTIONS_PER_PAGE,
       })
-      const ordinary = frames.data.find((frame) => frame.frame_type === 'ordinaria')
 
-      noFrame.value = ordinary === undefined
-      frameSlots.value = ordinary?.slots ?? []
+      // Por defecto el ordinario; si no hay, el primero. `?frame=` elige una jornada especial.
+      const chosen =
+        frames.data.find((frame) => frame.public_id === frameParam.value) ??
+        frames.data.find((frame) => frame.frame_type === 'ordinaria') ??
+        frames.data[0]
+
+      levelFrames.value = frames.data
+      noFrame.value = chosen === undefined
+      activeFrame.value = chosen?.public_id ?? null
+      frameSlots.value = chosen?.slots ?? []
+      // Solo las sesiones del marco elegido: las de otro marco no comparten esta rejilla.
+      sessions.value = sessions.value.filter((session) => session.frame === chosen?.public_id)
 
       if (canCreate.value) {
         await loadGroupAssignments(group.public_id, year)
+      }
+    } else {
+      // Las sesiones de una jornada especial llevan su vigencia en texto.
+      try {
+        specialFrames.value = (
+          await listTimetableFrames({
+            academic_year: year,
+            frame_type: ['especial'],
+            per_page: OPTIONS_PER_PAGE,
+          })
+        ).data
+      } catch {
+        specialFrames.value = []
       }
     }
   } catch (err) {
@@ -242,7 +318,7 @@ watch(
   { immediate: true },
 )
 watch(
-  () => [view.value, entityId.value, selectedId.value],
+  () => [view.value, entityId.value, selectedId.value, frameParam.value],
   () => void loadGrid(),
   { immediate: true },
 )
@@ -401,6 +477,24 @@ const caption = computed(() => t('acad.timetable.grid.caption', { view: viewLabe
         </div>
       </section>
 
+      <div
+        v-if="view === 'group' && entityId !== null && frameOptions.length > 1"
+        class="flex min-w-64 max-w-md flex-col gap-1.5"
+        data-slot="acad-timetable-frame-select"
+      >
+        <Label for="acad-timetable-frame">{{ t('acad.timetable.frameLabel') }}</Label>
+        <Select :model-value="activeFrame ?? undefined" @update:model-value="chooseFrame">
+          <SelectTrigger id="acad-timetable-frame">
+            <SelectValue :placeholder="t('acad.form.choose')" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem v-for="option in frameOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <p v-if="entityId === null" role="status" class="text-muted-foreground text-sm">
         {{ t('acad.timetable.chooseEntity') }}
       </p>
@@ -425,6 +519,7 @@ const caption = computed(() => t('acad.timetable.grid.caption', { view: viewLabe
           :can-create="canCreate"
           :can-edit="canEdit"
           :caption="caption"
+          :frame-notes="frameNotes"
           @create="startCreate"
           @edit="startEdit"
         />

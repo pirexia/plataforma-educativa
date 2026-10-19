@@ -20,7 +20,12 @@ const SLOTS = [
 ] as TimeSlot[]
 
 function mountGrid(
-  props: Partial<{ sessions: TimetableSession[]; canCreate: boolean; canEdit: boolean }> = {},
+  props: Partial<{
+    sessions: TimetableSession[]
+    canCreate: boolean
+    canEdit: boolean
+    frameNotes: Record<string, string>
+  }> = {},
 ) {
   const wrapper = mount(TimetableGrid, {
     props: {
@@ -219,5 +224,41 @@ describe('CA-ACAD-134: a 320 px, lista por día sin desplazamiento horizontal', 
     expect(monday.text()).toContain('09:25–10:20')
     expect(monday.text()).toContain('Libre')
     expect(wrapper.html()).not.toContain('overflow-x')
+  })
+})
+
+describe('CA-ACAD-137 (RN-ACAD-124, 1.12-b): la sesión de una jornada especial lleva su vigencia en texto', () => {
+  const NOTES = { FR2: 'Jornada intensiva · Del 7 dic 2026 al 11 dic 2026' }
+  const SESSIONS = [
+    timetableSession(),
+    timetableSession({ public_id: 'SE2', frame: 'FR2' }),
+  ] as TimetableSession[]
+
+  it('en la rejilla, solo las sesiones de un marco especial llevan la nota; las del ordinario, no', () => {
+    const wrapper = mountGrid({ sessions: SESSIONS, frameNotes: NOTES })
+    const cell = wrapper.get('[data-cell="0-0"]')
+
+    expect(cell.text().match(/Jornada intensiva/g)).toHaveLength(1)
+    expect(cell.text()).toContain('Del 7 dic 2026 al 11 dic 2026')
+    expect(cell.findAll('span').filter((node) => node.text().startsWith('Jornada'))).toHaveLength(1)
+  })
+
+  it('en la lista por día (320 px) también', () => {
+    matchMedia(true)
+
+    const wrapper = mountGrid({ sessions: SESSIONS, frameNotes: NOTES })
+
+    expect(
+      wrapper
+        .get('[data-slot="acad-timetable-days"]')
+        .text()
+        .match(/Jornada intensiva/g),
+    ).toHaveLength(1)
+  })
+
+  it('sin notas no se pinta ninguna', () => {
+    const wrapper = mountGrid({ sessions: SESSIONS })
+
+    expect(wrapper.text()).not.toContain('Jornada')
   })
 })

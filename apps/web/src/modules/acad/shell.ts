@@ -21,11 +21,14 @@
  * menú, sin curso académico) y `acad-timetable-frame` (`horarios.leer`, sin entrada de menú);
  * la rejilla `acad-timetable` (`horarios.leer`, con entrada de menú, selector de curso
  * académico) muestra las sesiones por grupo, profesor, aula o asignatura.
+ * `1.12-b` añade `acad-bookings` (`reservas.leer`, con entrada de menú y selector de curso
+ * académico): reservas de aulas y recursos; las jornadas especiales (marcos `especial`) se
+ * gestionan en las fichas de etapa y de marco ya existentes, sin ruta nueva.
  * Con `acad` descontratado, `/me.permissions` deja de incluir sus permisos
  * (inertes, `REQ-PERM §9`): la entrada de menú y las rutas desaparecen
  * (`RMOD-008`). Sin `dashboardBlocks` (`§10.3`).
  */
-import { CalendarDays, DoorOpen, GraduationCap, ListOrdered } from '@lucide/vue'
+import { CalendarCheck, CalendarDays, DoorOpen, GraduationCap, ListOrdered } from '@lucide/vue'
 import type { ModuleShell } from '@/navigation/types'
 
 export const shell: ModuleShell = {
@@ -182,6 +185,18 @@ export const shell: ModuleShell = {
         academicYearScoped: true,
       },
     },
+    // 1.12-b (`funcional.md §18.8`): reservas de aulas y recursos del curso académico.
+    {
+      path: '/academico/reservas',
+      name: 'acad-bookings',
+      component: () => import('./views/BookingsView.vue'),
+      meta: {
+        layout: 'app',
+        permissions: ['reservas.leer'],
+        titleKey: 'acad.bookings.title',
+        academicYearScoped: true,
+      },
+    },
   ],
   navigation: [
     {
@@ -213,6 +228,14 @@ export const shell: ModuleShell = {
       route: 'acad-facilities',
       labelKey: 'acad.nav.facilities',
       icon: DoorOpen,
+      section: 'administracion',
+      shortcut: false,
+    },
+    {
+      id: 'acad.bookings',
+      route: 'acad-bookings',
+      labelKey: 'acad.nav.bookings',
+      icon: CalendarCheck,
       section: 'administracion',
       shortcut: false,
     },

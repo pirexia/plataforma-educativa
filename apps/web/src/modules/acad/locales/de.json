@@ -10,7 +10,8 @@
       "gradingScales": "Bewertungsskalen",
       "backToScales": "Zurück zu den Bewertungsskalen",
       "facilities": "Räume",
-      "timetable": "Stundenpläne"
+      "timetable": "Stundenpläne",
+      "bookings": "Reservierungen"
     },
     "readOnly": "Dieses Schuljahr ist schreibgeschützt: Seine Struktur kann nicht angelegt, geändert oder gelöscht werden.",
     "fields": {
@@ -34,7 +35,9 @@
       "rangeMax": "Bis",
       "range": "Bereich",
       "facilityType": "Raumtyp",
-      "frameType": "Typ des Stundenplanrahmens"
+      "frameType": "Typ des Stundenplanrahmens",
+      "validFrom": "Gültig ab",
+      "validTo": "Gültig bis"
     },
     "stage": {
       "infantil": "Frühkindliche Bildung",
@@ -227,7 +230,9 @@
       "tutorsUpdated": "Klassenleitung der Gruppe aktualisiert.",
       "sessionCreated": "Stunde angelegt.",
       "sessionUpdated": "Stunde aktualisiert.",
-      "sessionDeleted": "Stunde gelöscht."
+      "sessionDeleted": "Stunde gelöscht.",
+      "bookingCreated": "Reservierung erstellt.",
+      "bookingCancelled": "Reservierung storniert."
     },
     "errors": {
       "unexpected": "Die Aktion konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
@@ -320,8 +325,12 @@
         "empty": "Diese Stufe hat keinen Stundenplanrahmen",
         "form": {
           "title": "Neuer Stundenplanrahmen",
-          "description": "Der reguläre Rahmen der Stufe wird angelegt. Die Zeitfenster werden anschließend auf seiner Seite hinzugefügt."
-        }
+          "description": "Ein ordentlicher Rahmen gilt für das ganze Schuljahr, ein besonderer (Kurztag) nur zwischen zwei Daten. Die Zeitfenster werden anschließend auf seiner Seite hinzugefügt.",
+          "validityHint": "Die Daten sind einschließlich, müssen innerhalb des Schuljahres liegen und dürfen sich nicht mit einem anderen Sonderplan der Stufe überschneiden."
+        },
+        "validity": "Gültigkeit",
+        "validityRange": "Vom {from} bis {to}",
+        "allYear": "Ganzes Schuljahr"
       },
       "frame": {
         "title": "Stundenplanrahmen",
@@ -396,7 +405,8 @@
         "title": "Die Stunde {subject} entfernen?",
         "description": "Die Stunde wird aus dem Raster gelöscht; der Lehrauftrag bleibt unverändert.",
         "confirm": "Stunde entfernen"
-      }
+      },
+      "frameLabel": "Stundenplanrahmen"
     },
     "staff": {
       "search": "Benutzer nach Name oder E-Mail suchen",
@@ -433,6 +443,43 @@
       "errors": {
         "subjectRequired": "Wählen Sie ein Fach.",
         "teacherRequired": "Wählen Sie eine Lehrkraft."
+      }
+    },
+    "readOnlyBookings": "Dieses Schuljahr ist schreibgeschützt: Reservierungen können weder erstellt noch storniert werden.",
+    "bookings": {
+      "title": "Reservierungen",
+      "intro": "Reservierungen von Klassenräumen und Ressourcen des Schuljahres nach Datum und Uhrzeit. Sie werden nicht bearbeitet: stornieren und neu reservieren.",
+      "new": "Neue Reservierung",
+      "caption": "Reservierungen von Räumen",
+      "empty": "Es gibt keine Reservierungen",
+      "cancel": "Stornieren",
+      "cancelFor": "Die Reservierung von {facility} am {date} um {start} stornieren",
+      "fields": {
+        "facility": "Raum",
+        "date": "Datum",
+        "startsAt": "Beginn",
+        "endsAt": "Ende",
+        "interval": "Uhrzeit",
+        "bookedBy": "Reserviert von"
+      },
+      "form": {
+        "title": "Neue Reservierung",
+        "description": "Wähle den Raum, das Datum und die Uhrzeit. Die Reservierung darf sich nicht mit einer anderen Reservierung und bei einem Klassenraum nicht mit einer Unterrichtsstunde überschneiden.",
+        "intervalHint": "Die Endzeit ist nicht eingeschlossen: Eine Reservierung, die um 11:00 endet, und eine, die um 11:00 beginnt, überschneiden sich nicht.",
+        "noFacilities": "Es gibt keine Räume zum Reservieren, oder du hast keine Berechtigung, sie zu sehen.",
+        "submit": "Reservieren"
+      },
+      "conflict": {
+        "title": "Die Reservierung kollidiert mit:",
+        "booking": "Reservierung von {facility} am {date}, {start}–{end}, von {by}",
+        "session": "Unterrichtsstunde: {subject} · {group} · {teacher} · {slot}",
+        "bookingUnknown": "Eine andere Reservierung desselben Raums zu dieser Zeit",
+        "sessionUnknown": "Eine Unterrichtsstunde in diesem Klassenraum zu dieser Zeit"
+      },
+      "confirmCancel": {
+        "title": "Die Reservierung von {facility} stornieren?",
+        "description": "Die Reservierung vom {when} wird storniert. Der Termin wird frei.",
+        "confirm": "Reservierung stornieren"
       }
     }
   }

@@ -4,8 +4,10 @@
  * `§18.4.4`, `CA-ACAD-117` a `-120`). Ficha de un marco horario y editor de sus
  * franjas como lista (`TimeSlotsEditor`). El selector de curso académico queda
  * fijo en el de la etapa del marco. Guardar envía **una** petición `PATCH` con
- * el conjunto completo de franjas (`RN-ACAD-113`) y, si cambia, el nombre
- * (fusión por idioma). «Guardar» y «Borrar» solo con `horarios.actualizar` /
+ * el conjunto completo de franjas (`RN-ACAD-113`) y, si cambian, el nombre
+ * (fusión por idioma) y, en un marco `especial`, su vigencia (`valid_from`,
+ * `valid_to`, `RN-ACAD-111`, `CA-ACAD-136`; un ordinario vale todo el curso y no
+ * tiene fechas). «Guardar» y «Borrar» solo con `horarios.actualizar` /
  * `eliminar` **y** si el curso admite escritura (`RN-ACAD-42`); sin ellos, las
  * franjas se muestran como texto. Un `409` (franja con sesiones, `RN-ACAD-114`;
  * curso cerrado) o un `422` se muestran con el mensaje del servidor junto a la
@@ -20,6 +22,8 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import TranslatableField from '@/components/TranslatableField.vue'
 import TranslatedText from '@/components/TranslatedText.vue'
 import { DataTable, type DataTableColumn, type DataTableLocalFetcher } from '@/data-table'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import ErrorState from '@/layouts/components/ErrorState.vue'
 import LoadingState from '@/layouts/components/LoadingState.vue'
 import { translationsPatch, type TranslationValues } from '@/lib/translatable'
@@ -28,6 +32,7 @@ import { useTenantLocales } from '@/tenant/useTenantLocales'
 import { deleteTimetableFrame, getTimetableFrame, updateTimetableFrame } from '../api'
 import StructureNotices from '../components/StructureNotices.vue'
 import TimeSlotsEditor, { type SlotRow } from '../components/TimeSlotsEditor.vue'
+import { formatCivilDate } from '../composables/civilDate'
 import { problemFieldErrors } from '../composables/problem'
 import { useLoad } from '../composables/useLoad'
 import { usePermissions } from '../composables/usePermissions'
@@ -59,6 +64,10 @@ const canDelete = computed(() => can('horarios.eliminar') && writable.value)
 
 const rows = ref<SlotRow[]>([])
 const translations = ref<TranslationValues>({})
+const validFrom = ref('')
+const validTo = ref('')
+/** `RN-ACAD-111`: solo un marco `especial` tiene vigencia por fechas. */
+const isSpecial = computed(() => frame.value?.frame_type === 'especial')
 const fieldErrors = ref<Record<string, string[]>>({})
 
 function toRows(current: TimetableFrame): SlotRow[] {
@@ -76,6 +85,8 @@ watch(
   (current) => {
     rows.value = current ? toRows(current) : []
     translations.value = current ? { ...current.name_translations } : {}
+    validFrom.value = current?.valid_from ?? ''
+    validTo.value = current?.valid_to ?? ''
     fieldErrors.value = {}
   },
   { immediate: true },
@@ -105,7 +116,8 @@ const otherErrors = computed(() =>
         field !== 'name_translations' &&
         !field.startsWith('name_translations.') &&
         field !== 'slots' &&
-        !field.startsWith('slots.'),
+        !field.startsWith('slots.') &&
+        !(isSpecial.value && ['valid_from', 'valid_to'].includes(field)),
     )
     .flatMap(([, messages]) => messages),
 )
@@ -130,6 +142,12 @@ async function save(): Promise<void> {
 
   if (Object.keys(patch).length > 0) {
     body.name_translations = patch
+  }
+
+  // Solo las fechas que cambian (`ADR-038 §9.2`); el servidor decide igualmente (`RN-ACAD-111`).
+  if (isSpecial.value) {
+    if (validFrom.value !== (current.valid_from ?? '')) body.valid_from = validFrom.value
+    if (validTo.value !== (current.valid_to ?? '')) body.valid_to = validTo.value
   }
 
   actions.busy.value = true
@@ -169,6 +187,14 @@ async function remove(): Promise<void> {
       query: { academic_year: current.academic_year },
     })
   }
+}
+
+/** `ADR-038 §7.3`: un tipo sin clave se muestra en crudo. */
+function frameTypeLabel(code: string): string {
+  const key = `acad.frameType.${code}`
+  const text = t(key)
+
+  return text === key ? code : text
 }
 
 function weekdayLabel(day: number): string {
@@ -216,6 +242,19 @@ const fetchSlots: DataTableLocalFetcher<TimeSlot> = async () => ({
         <h1 class="text-lg font-semibold">
           <TranslatedText :text="frame.name" :translations="frame.name_translations" />
         </h1>
+        <p class="text-muted-foreground text-sm" data-slot="acad-frame-validity-text">
+          {{ frameTypeLabel(frame.frame_type) }}
+          ·
+          <template v-if="isSpecial">
+            {{
+              t('acad.timetable.frames.validityRange', {
+                from: formatCivilDate(frame.valid_from),
+                to: formatCivilDate(frame.valid_to),
+              })
+            }}
+          </template>
+          <template v-else>{{ t('acad.timetable.frames.allYear') }}</template>
+        </p>
       </header>
 
       <StructureNotices
@@ -236,6 +275,65 @@ const fetchSlots: DataTableLocalFetcher<TimeSlot> = async () => ({
           :field-errors="fieldErrors['name_translations'] ?? []"
           :max-length="MAX_TEXT_LENGTH"
         />
+
+        <fieldset
+          v-if="isSpecial"
+          class="grid grid-cols-1 gap-4 sm:grid-cols-2"
+          data-slot="acad-frame-validity"
+        >
+          <legend class="mb-1 text-sm font-semibold">
+            {{ t('acad.timetable.frames.validity') }}
+          </legend>
+          <p id="acad-frame-validity-hint" class="text-muted-foreground text-xs sm:col-span-2">
+            {{ t('acad.timetable.frames.form.validityHint') }}
+          </p>
+          <div class="flex flex-col gap-1.5">
+            <Label for="acad-frame-detail-valid-from">{{ t('acad.fields.validFrom') }}</Label>
+            <Input
+              id="acad-frame-detail-valid-from"
+              v-model="validFrom"
+              type="date"
+              required
+              :aria-invalid="fieldErrors.valid_from ? 'true' : undefined"
+              :aria-describedby="
+                fieldErrors.valid_from
+                  ? 'acad-frame-detail-valid-from-errors'
+                  : 'acad-frame-validity-hint'
+              "
+            />
+            <ul
+              v-if="fieldErrors.valid_from"
+              id="acad-frame-detail-valid-from-errors"
+              role="alert"
+              class="text-destructive text-xs"
+            >
+              <li v-for="message in fieldErrors.valid_from" :key="message">{{ message }}</li>
+            </ul>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <Label for="acad-frame-detail-valid-to">{{ t('acad.fields.validTo') }}</Label>
+            <Input
+              id="acad-frame-detail-valid-to"
+              v-model="validTo"
+              type="date"
+              required
+              :aria-invalid="fieldErrors.valid_to ? 'true' : undefined"
+              :aria-describedby="
+                fieldErrors.valid_to
+                  ? 'acad-frame-detail-valid-to-errors'
+                  : 'acad-frame-validity-hint'
+              "
+            />
+            <ul
+              v-if="fieldErrors.valid_to"
+              id="acad-frame-detail-valid-to-errors"
+              role="alert"
+              class="text-destructive text-xs"
+            >
+              <li v-for="message in fieldErrors.valid_to" :key="message">{{ message }}</li>
+            </ul>
+          </div>
+        </fieldset>
 
         <section class="flex flex-col gap-3" aria-labelledby="acad-frame-slots">
           <h2 id="acad-frame-slots" class="text-sm font-semibold">
