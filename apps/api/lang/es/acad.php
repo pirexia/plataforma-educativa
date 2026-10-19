@@ -12,9 +12,6 @@ return [
             'asignacion_docente' => 'Asignación docente',
             'espacios' => 'Espacios',
             'horarios' => 'Horarios',
-            'asignacion_docente' => 'Asignación docente',
-            'espacios' => 'Espacios',
-            'horarios' => 'Horarios',
         ],
     ],
 
@@ -105,6 +102,10 @@ return [
         'timetable_conflict' => 'La sesión coincide en el horario con otra del mismo profesor, aula o grupo.',
         'view_filter_required' => 'Indica al menos uno de los filtros teacher, facility, group o subject.',
         'view_too_large' => 'La vista tiene demasiadas sesiones (máximo :max).',
+    ],
+
+    'staff' => [
+        'unnamed' => 'Usuario sin nombre',
     ],
 
     'conflict' => [

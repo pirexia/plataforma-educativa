@@ -9,7 +9,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * REQ-ACAD/api.md §12.1. `teacher.name` es el nombre visible que devuelve
- * `Core` (sin correo ni otros datos). La fila de `group_subjects` no se expone:
+ * `Core` (sin correo ni otros datos; «Usuario sin nombre» traducido si la persona no tiene). La fila de `group_subjects` no se expone:
  * `subject` es el `public_id` de la asignatura.
  *
  * @mixin TeachingAssignment

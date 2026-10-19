@@ -65,11 +65,16 @@ final class EloquentUserDirectory implements UserDirectory
         return $refs;
     }
 
+    /**
+     * Nombre visible de las referencias `ActiveUserRef` (`REQ-ACAD-002`, `RN-ACAD-92`):
+     * nombre y primer apellido de la persona, o cadena vacía si no tiene. **Nunca el
+     * correo**: lo muestran módulos cuyos lectores no tienen `usuario.leer`; el
+     * consumidor pone su propio texto neutro traducido.
+     */
     private static function displayName(User $user): string
     {
         $person = $user->person;
-        $name = trim(($person->given_name ?? '').' '.($person->family_name_1 ?? ''));
 
-        return $name !== '' ? $name : $user->email;
+        return trim(($person->given_name ?? '').' '.($person->family_name_1 ?? ''));
     }
 }

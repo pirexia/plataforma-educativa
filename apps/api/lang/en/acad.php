@@ -105,6 +105,10 @@ return [
         'view_too_large' => 'The view has too many sessions (maximum :max).',
     ],
 
+    'staff' => [
+        'unnamed' => 'Unnamed user',
+    ],
+
     'conflict' => [
         'has_dependents' => 'Cannot delete ":code" (:entity): it has dependent items (:dependents). Delete them first.',
         'periods_outside_academic_year' => 'Some academic periods would fall outside the academic year: its dates must include :periods_starts_on to :periods_ends_on.',

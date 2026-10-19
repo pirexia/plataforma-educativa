@@ -54,7 +54,7 @@ final class StaffDirectory
         $this->preload([$id]);
 
         return isset($this->refs[$id])
-            ? ['public_id' => $this->refs[$id]->publicId, 'name' => $this->refs[$id]->displayName]
+            ? ['public_id' => $this->refs[$id]->publicId, 'name' => $this->refs[$id]->displayName !== '' ? $this->refs[$id]->displayName : __('acad.staff.unnamed')]
             : null;
     }
 }

@@ -106,3 +106,34 @@ test('CA-ACAD-114 RN-ACAD-98: grupo(u, curso) = tutorías ∪ asignaciones (tamb
         ->and($result['pairs'])->toBe(['B:MAT', 'C:LEN'])
         ->and($result['otherYear'])->toBe(0);
 });
+
+test('RN-ACAD-92 seguridad M-1: ninguna respuesta de acad contiene el correo del profesor aunque la persona no tenga nombre; se muestra un texto neutro traducido', function (): void {
+    $s = Tt::scenario('tu-m1');
+    $tenant = $s['tenant'];
+    $admin = $s['admin'];
+    $teacher = $s['t1'];
+
+    app(TenantContext::class)->runFor($tenant->id, function () use ($teacher): void {
+        $person = $teacher->person;
+        $person->given_name = '';
+        $person->family_name_1 = '';
+        $person->save();
+    });
+
+    $assignment = Tt::postAssignment($tenant, $admin, $teacher, $s['api']['group'], $s['api']['subject'])->assertCreated();
+    $session = Tt::postSession($tenant, $admin, $s['slots'][0], $assignment->json('public_id'))->assertCreated();
+    $tutors = Tt::send($tenant, $admin, 'PUT', "/groups/{$s['api']['group']}/tutors", ['tutors' => [$teacher->public_id]])->assertOk();
+
+    $responses = [
+        $assignment,
+        $session,
+        $tutors,
+        Tt::send($tenant, $admin, 'GET', '/teaching-assignments'),
+        Tt::send($tenant, $admin, 'GET', '/timetable-sessions?group='.$s['api']['group']),
+        Tt::send($tenant, $admin, 'GET', "/groups/{$s['api']['group']}/tutors"),
+    ];
+
+    foreach ($responses as $response) {
+        expect($response->getContent())->not->toContain($teacher->email)->and($response->getContent())->toContain('Usuario sin nombre');
+    }
+});

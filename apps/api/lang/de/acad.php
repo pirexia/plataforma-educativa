@@ -105,6 +105,10 @@ return [
         'view_too_large' => 'Die Ansicht enthält zu viele Stunden (höchstens :max).',
     ],
 
+    'staff' => [
+        'unnamed' => 'Benutzer ohne Namen',
+    ],
+
     'conflict' => [
         'has_dependents' => 'Das Element „:code“ (:entity) kann nicht gelöscht werden: Es hat abhängige Elemente (:dependents). Löschen Sie diese zuerst.',
         'periods_outside_academic_year' => 'Einige Unterrichtszeiträume lägen außerhalb des Schuljahres: Seine Daten müssen den Zeitraum vom :periods_starts_on bis zum :periods_ends_on einschließen.',

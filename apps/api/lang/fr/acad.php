@@ -105,6 +105,10 @@ return [
         'view_too_large' => 'La vue comporte trop de séances (maximum :max).',
     ],
 
+    'staff' => [
+        'unnamed' => 'Utilisateur sans nom',
+    ],
+
     'conflict' => [
         'has_dependents' => 'Impossible de supprimer « :code » (:entity) : il a des éléments dépendants (:dependents). Supprimez-les d\'abord.',
         'periods_outside_academic_year' => 'Des périodes scolaires se trouveraient en dehors de l’année scolaire : ses dates doivent inclure la période du :periods_starts_on au :periods_ends_on.',
