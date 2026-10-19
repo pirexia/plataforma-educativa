@@ -2,7 +2,9 @@
 
 namespace App\Modules\Acad\Infrastructure;
 
+use App\Modules\Acad\Application\FacilityBookingService;
 use App\Modules\Acad\Domain\Models\AcademicPeriod;
+use App\Modules\Acad\Domain\Models\TimetableFrame;
 use App\Modules\Curso\Domain\AcademicYearDateChange;
 use App\Modules\Curso\Domain\AcademicYearDateChangeCheck;
 use App\Modules\Curso\Domain\AcademicYearDateChangeFailure;
@@ -13,6 +15,12 @@ use App\Modules\Curso\Domain\AcademicYearDateChangeFailure;
  * Rechaza un `PATCH` de fechas que dejaría fuera de ellas algún período
  * lectivo vivo del curso (cualquiera de sus etapas), bordes incluidos, como
  * `RN-ACAD-57`. Un período borrado no cuenta.
+ *
+ * **`1.12-b`, `RN-ACAD-144`**: si ningún período queda fuera, comprueba además los
+ * marcos horarios `especial` y las reservas vivos del curso con las mismas
+ * fechas (`valid_from`/`valid_to`, `booked_on`), también con una consulta agregada
+ * de solo lectura por cada tabla. Un solo fallo por intento: los períodos
+ * primero. Es la misma validación (no se registra una segunda, `CA-ACAD-102`).
  *
  * `curso` la ejecuta con el `FOR UPDATE` del curso retenido (`RN-CURSO-51`):
  * una única consulta agregada de solo lectura, sin ningún bloqueo de fila
@@ -28,6 +36,8 @@ use App\Modules\Curso\Domain\AcademicYearDateChangeFailure;
  */
 final class PeriodsOutsideAcademicYearCheck implements AcademicYearDateChangeCheck
 {
+    public function __construct(private readonly FacilityBookingService $bookings) {}
+
     public function moduleCode(): string
     {
         return 'acad';
@@ -46,7 +56,7 @@ final class PeriodsOutsideAcademicYearCheck implements AcademicYearDateChangeChe
         $count = (int) ($row?->getAttribute('outside') ?? 0);
 
         if ($row === null || $count === 0) {
-            return null;
+            return $this->scheduleFailure($change);
         }
 
         $params = [
@@ -58,6 +68,48 @@ final class PeriodsOutsideAcademicYearCheck implements AcademicYearDateChangeChe
         return new AcademicYearDateChangeFailure(
             'acad.conflict.periods_outside_academic_year',
             __('acad.conflict.periods_outside_academic_year', $params),
+            $params,
+        );
+    }
+
+    /**
+     * `RN-ACAD-144`: marcos especiales y reservas vivos fuera de las fechas
+     * resultantes (bordes incluidos). `params` sin identificadores: cuántos y el
+     * rango que el curso debe incluir.
+     */
+    private function scheduleFailure(AcademicYearDateChange $change): ?AcademicYearDateChangeFailure
+    {
+        $newStart = $change->startsOn->toDateString();
+        $newEnd = $change->endsOn->toDateString();
+
+        $frames = TimetableFrame::query()
+            ->where('academic_year_id', $change->year->id)
+            ->where('frame_type', 'especial')
+            ->selectRaw('count(*) filter (where valid_from < ? or valid_to > ?) as outside, min(valid_from) as first_start, max(valid_to) as last_end', [$newStart, $newEnd])
+            ->first();
+
+        $bookings = $this->bookings->rangeOutside($change->year->id, $newStart, $newEnd);
+
+        $outsideFrames = (int) ($frames?->getAttribute('outside') ?? 0);
+        $outsideBookings = $bookings['outside'];
+
+        if ($outsideFrames === 0 && $outsideBookings === 0) {
+            return null;
+        }
+
+        $starts = array_filter([$frames?->getAttribute('first_start'), $bookings['first']]);
+        $ends = array_filter([$frames?->getAttribute('last_end'), $bookings['last']]);
+
+        $params = [
+            'special_frames' => $outsideFrames,
+            'bookings' => $outsideBookings,
+            'schedule_starts_on' => (string) min(array_map('strval', $starts)),
+            'schedule_ends_on' => (string) max(array_map('strval', $ends)),
+        ];
+
+        return new AcademicYearDateChangeFailure(
+            'acad.conflict.schedule_outside_academic_year',
+            __('acad.conflict.schedule_outside_academic_year', $params),
             $params,
         );
     }

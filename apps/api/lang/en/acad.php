@@ -117,6 +117,7 @@ return [
     'conflict' => [
         'has_dependents' => 'Cannot delete ":code" (:entity): it has dependent items (:dependents). Delete them first.',
         'periods_outside_academic_year' => 'Some academic periods would fall outside the academic year: its dates must include :periods_starts_on to :periods_ends_on.',
+        'schedule_outside_academic_year' => 'Some special timetable frames or bookings would fall outside the academic year: its dates must include :schedule_starts_on to :schedule_ends_on.',
     ],
 
     'entities' => [

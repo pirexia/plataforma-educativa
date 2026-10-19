@@ -11,9 +11,11 @@ use App\Support\Api\ApiException;
 use App\Support\Authorization\PermissionDecision;
 use App\Support\Authorization\PermissionResolver;
 use App\Support\Authorization\ScopedQuery;
+use App\Support\Http\RequestId;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * REQ-ACAD/funcional.md §18.4.6 (`RN-ACAD-140` a `-143`), 1.12-b: reservas de
@@ -86,6 +88,27 @@ final class FacilityBookingService
     }
 
     /**
+     * `RN-ACAD-144`: cuántas reservas vivas del curso quedarían fuera de las fechas
+     * dadas (bordes incluidos) y el menor y mayor `booked_on` de todas las vivas.
+     * Consulta agregada de solo lectura, sin bloqueo de fila.
+     *
+     * @return array{outside: int, first: ?string, last: ?string}
+     */
+    public function rangeOutside(int $academicYearId, string $startsOn, string $endsOn): array
+    {
+        $row = FacilityBooking::query()
+            ->where('academic_year_id', $academicYearId)
+            ->selectRaw('count(*) filter (where booked_on < ? or booked_on > ?) as outside, min(booked_on) as first_day, max(booked_on) as last_day', [$startsOn, $endsOn])
+            ->first();
+
+        return [
+            'outside' => (int) ($row?->getAttribute('outside') ?? 0),
+            'first' => $row?->getAttribute('first_day') === null ? null : (string) $row->getAttribute('first_day'),
+            'last' => $row?->getAttribute('last_day') === null ? null : (string) $row->getAttribute('last_day'),
+        ];
+    }
+
+    /**
      * @param  array{academic_year: string, facility: string, booked_on: string, starts_at: string, ends_at: string}  $input
      */
     public function create(array $input, User $actor): FacilityBooking
@@ -143,6 +166,15 @@ final class FacilityBookingService
 
         // Falla en cerrado: la decisión es obligatoria (la deja `RequirePermission`).
         if (! $this->scopedQuery->satisfies($found, 'reservas', $decision, $actor)) {
+            // Rastro de seguridad del intento (sin precedente de auditoría de denegaciones por ámbito: se usa el
+            // registro de aplicación, como los avisos de `auth.*`); la respuesta es idéntica a la de una inexistente.
+            Log::channel(config('logging.default'))->warning('acad.booking.cancel.out_of_scope', [
+                'booking' => (string) $found->public_id,
+                'actor' => (string) $actor->public_id,
+                'tenant_id' => $actor->tenant_id,
+                'request_id' => app(RequestId::class)->current(),
+            ]);
+
             throw ApiException::notFound();
         }
 

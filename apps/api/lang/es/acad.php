@@ -116,6 +116,7 @@ return [
     'conflict' => [
         'has_dependents' => 'No se puede borrar «:code» (:entity): tiene elementos dependientes (:dependents). Bórralos antes.',
         'periods_outside_academic_year' => 'Hay períodos lectivos que quedarían fuera del curso académico: sus fechas deben incluir del :periods_starts_on al :periods_ends_on.',
+        'schedule_outside_academic_year' => 'Hay marcos horarios especiales o reservas que quedarían fuera del curso académico: sus fechas deben incluir del :schedule_starts_on al :schedule_ends_on.',
     ],
 
     'entities' => [

@@ -470,7 +470,7 @@ Lo que el motor **no** garantiza: etapa del grupo = etapa del marco (`RN-ACAD-12
 
 El reservante es `created_by` (`RN-ACAD-140`), base del resolutor `propios` de `OPEN-ACAD-42`.
 
-**Implementada así**: `facility_id` con la FK de dos columnas `(tenant_id, facility_id) → facilities (tenant_id, id)` de `tenantForeignId()`, sin discriminador (cualquier tipo de espacio) y sin acción referencial (`AR-13`); `booked_on` es `date`; `starts_at` y `ends_at` son `time(0)` sin zona (`ADR-065`); `CHECK (ends_at > starts_at)` (`facility_bookings_times_check`); el disparador `academic_year_write_guard` lo crea `tenantTable()` (`RN-ACAD-90`). Índices: `(tenant_id, academic_year_id)` y `(tenant_id, facility_id)` de `tenantForeignId()` más `(tenant_id, facility_id, booked_on)` para los conflictos. **El motor no garantiza** que la fecha caiga dentro del curso (necesita sus fechas: `booking_outside_academic_year` lo valida el servicio bajo `AcademicYearSharedLock`) **ni los conflictos** (sin `btree_gist`): el servicio, bajo `FOR UPDATE` del ancla `timetables` (`RN-ACAD-125`); dos filas solapadas insertadas a mano son aceptadas (`CA-ACAD-138`, `AcadTimetableSchemaTest`).
+**Implementada así**: `facility_id` con la FK de dos columnas `(tenant_id, facility_id) → facilities (tenant_id, id)` de `tenantForeignId()`, sin discriminador (cualquier tipo de espacio) y sin acción referencial (`AR-13`); `booked_on` es `date`; `starts_at` y `ends_at` son `time(0)` sin zona (`ADR-065`); `CHECK (ends_at > starts_at)` (`facility_bookings_times_check`); el disparador `academic_year_write_guard` lo crea `tenantTable()` (`RN-ACAD-90`). Índices: `(tenant_id, academic_year_id)` de `tenantForeignId()` y `(tenant_id, facility_id, booked_on)`, que además cubre la FK a `facilities` por su prefijo `(tenant_id, facility_id)` (`facility_id` se declara con `withIndex: false`, sin índice redundante). **El motor no garantiza** que la fecha caiga dentro del curso (necesita sus fechas: `booking_outside_academic_year` lo valida el servicio bajo `AcademicYearSharedLock`) **ni los conflictos** (sin `btree_gist`): el servicio, bajo `FOR UPDATE` del ancla `timetables` (`RN-ACAD-125`); dos filas solapadas insertadas a mano son aceptadas (`CA-ACAD-138`, `AcadTimetableSchemaTest`).
 
 ### 9.3 Cambios en tablas existentes (*expand*)
 
@@ -496,7 +496,7 @@ Criterio de §3.1: índice no parcial con exactamente las columnas de cada FK co
 | `(tenant_id, academic_year_id, timetable_frame_id)` | `time_slots` | Cubre la FK; franjas de un marco |
 | `(tenant_id, academic_year_id, time_slot_id)`, `(tenant_id, academic_year_id, teaching_assignment_id)` | `timetable_sessions` | Cubren las FK; conflictos y `has_dependents` de franja y asignación |
 | `(tenant_id, facility_id, facility_type)` | `timetable_sessions` | Cubre la FK; vista y conflictos por aula; `has_dependents` de un espacio |
-| `(tenant_id, facility_id, booked_on)` | `facility_bookings` | Conflictos de reservas de un espacio en una fecha |
+| `(tenant_id, facility_id, booked_on)` | `facility_bookings` | Cubre la FK a `facilities` (prefijo); conflictos de reservas de un espacio en una fecha; `has_dependents` del espacio |
 
 Volumen (§9.6) pequeño: sin índices por `weekday`/hora; los conflictos se calculan en el servicio sobre las sesiones del profesor, del aula o del grupo, ya acotadas por estos índices.
 

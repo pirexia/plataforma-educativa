@@ -117,6 +117,7 @@ return [
     'conflict' => [
         'has_dependents' => 'Impossible de supprimer « :code » (:entity) : il a des éléments dépendants (:dependents). Supprimez-les d\'abord.',
         'periods_outside_academic_year' => 'Des périodes scolaires se trouveraient en dehors de l’année scolaire : ses dates doivent inclure la période du :periods_starts_on au :periods_ends_on.',
+        'schedule_outside_academic_year' => 'Des cadres d’emploi du temps spéciaux ou des réservations se trouveraient en dehors de l’année scolaire : ses dates doivent inclure la période du :schedule_starts_on au :schedule_ends_on.',
     ],
 
     'entities' => [

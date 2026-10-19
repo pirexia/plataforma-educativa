@@ -7,6 +7,8 @@ use App\Modules\Core\Application\ProvisionTenantDefaults;
 use App\Modules\Curso\Domain\AcademicYearStatus;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Monolog\Handler\TestHandler;
 use Symfony\Component\Yaml\Yaml;
 use Tests\Support\AcadApiHelpers as Api;
 use Tests\Support\AcadTimetableHelpers as Tt;
@@ -498,4 +500,33 @@ test('CA-ACAD-138 RN-ACAD-141 (M1): quien tiene reservas.crear sin reservas.leer
     expect($conflicts($blind))->toBe([['kind' => 'booking'], ['kind' => 'session']])
         ->and($conflicts($partial))->toBe([['kind' => 'booking', 'booking' => $booking], ['kind' => 'session']])
         ->and($conflicts($a))->toBe([['kind' => 'booking', 'booking' => $booking], ['kind' => 'session', 'session' => $session]]);
+});
+
+test('CA-ACAD-139 RN-ACAD-142 (B2): cancelar una reserva ajena con ámbito propios deja un aviso de seguridad con la reserva y el actor y responde 404 idéntico a una inexistente; una propia no avisa', function (): void {
+    $s = bkScenario('bk-b2');
+    $t = $s['tenant'];
+    $a = $s['admin'];
+    $grants = ['reservas.leer' => 'todos', 'reservas.crear' => 'todos', 'reservas.eliminar' => 'propios'];
+    $ana = Api::userWithScopes($t, $a, 'ana_b2', $grants);
+    $his = Tt::postBooking($t, $a, $s['yearId'], $s['resource'])->assertCreated()->json('public_id');
+    $mine = Tt::postBooking($t, $ana, $s['yearId'], $s['resource'], ['starts_at' => '12:00', 'ends_at' => '13:00'])->assertCreated()->json('public_id');
+
+    // Canal de registro de prueba (el servicio escribe en `logging.default`, como los avisos de `auth.*`).
+    config(['logging.channels.b2' => ['driver' => 'monolog', 'handler' => TestHandler::class], 'logging.default' => 'b2']);
+    $handler = Log::channel('b2')->getLogger()->getHandlers()[0];
+
+    $foreign = Tt::send($t, $ana, 'DELETE', "/facility-bookings/{$his}")->assertNotFound();
+    $missing = Tt::send($t, $ana, 'DELETE', '/facility-bookings/01JZZZZZZZZZZZZZZZZZZZZZZZ')->assertNotFound();
+
+    expect($foreign->json('detail'))->toBe($missing->json('detail'));
+
+    $records = array_values(array_filter($handler->getRecords(), fn ($r): bool => $r['message'] === 'acad.booking.cancel.out_of_scope'));
+
+    expect($records)->toHaveCount(1)
+        ->and($records[0]['context']['booking'])->toBe($his)
+        ->and($records[0]['context']['actor'])->toBe($ana->public_id)
+        ->and($records[0]['level_name'])->toBe('WARNING');
+
+    Tt::send($t, $ana, 'DELETE', "/facility-bookings/{$mine}")->assertNoContent();
+    expect(array_filter($handler->getRecords(), fn ($r): bool => $r['message'] === 'acad.booking.cancel.out_of_scope'))->toHaveCount(1);
 });

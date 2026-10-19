@@ -151,16 +151,16 @@ test.describe('CA-ACAD-135 (REQ-ACAD-002): horarios contra la API real', () => {
 
     // 4. Profesorado: Daniel imparte Matemáticas y Lengua; Marta, Lengua.
     const assignments: [string, string][] = [
-      ['MAT', 'Daniel Docente'],
-      ['LEN', 'Marta Docente'],
-      ['LEN', 'Daniel Docente'],
+      ['Matemáticas', 'Daniel Docente'],
+      ['Lengua', 'Marta Docente'],
+      ['Lengua', 'Daniel Docente'],
     ]
 
     for (const [subject, teacher] of assignments) {
       await page.getByRole('button', { name: 'Asignar profesorado' }).click()
       const dialog = page.getByRole('dialog')
       await dialog.getByLabel(/^Asignatura/).click()
-      await page.getByRole('option', { name: new RegExp(subject) }).click()
+      await page.getByRole('option', { name: subject, exact: true }).click()
       await dialog.getByLabel(teacher).check()
       await dialog.getByRole('button', { name: 'Asignar' }).click()
       await expect(dialog).toBeHidden()

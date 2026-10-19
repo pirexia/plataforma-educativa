@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\AcadApiHelpers as Api;
 use Tests\Support\AcadPeriodHelpers as Periods;
+use Tests\Support\AcadTimetableHelpers as Tt;
 use Tests\Support\CursoTestHelpers;
 
 // REQ-ACAD-001 (1.11d-a), `RN-ACAD-62`, `OPEN-ACAD-24` = B: la validación real
@@ -188,4 +189,54 @@ test('CA-CURSO-114 INV-001 RN-ACAD-62: la validación real de acad solo ve los p
     // Y el propio centro B sí queda protegido por su período.
     resetSessionState();
     test()->actingAs($adminB)->patchJson(dateChangePatchUrl($b, $yearB), ['starts_on' => '2026-10-01'])->assertStatus(409);
+});
+
+test('CA-ACAD-141 RN-ACAD-144 REQ-CURSO RN-CURSO-53: un PATCH de fechas que deja fuera marcos especiales o reservas vivos da 409 con una entrada de acad sin identificadores; borrados no cuentan; con las fechas que los incluyen es 200; los períodos fuera tienen prioridad', function (): void {
+    [$tenant, $admin, $year] = Api::setup('acd-141', AcademicYearStatus::Planificacion, '2027-06-30');
+    $level = Api::level($tenant, $admin, $year);
+    $frame = Tt::postFrame($tenant, $admin, Tt::frameBody($level, [
+        'frame_type' => 'especial', 'valid_from' => '2026-12-01', 'valid_to' => '2026-12-11',
+    ]))->assertCreated()->json('public_id');
+    $resource = Tt::postFacility($tenant, $admin, ['facility_type' => 'recurso', 'code' => 'CARRO', 'name' => 'Carro'])->json('public_id');
+    $booking = Tt::postBooking($tenant, $admin, $year->public_id, $resource, ['booked_on' => '2027-06-15'])->assertCreated()->json('public_id');
+    $user = Api::userWith($tenant, $admin, 'solo_curso141', ['curso_academico.actualizar']);
+    $auditBefore = app(TenantContext::class)->runFor($tenant->id, fn () => AuditLog::query()->count());
+    $patch = fn (array $body) => test()->actingAs($user)->patchJson(dateChangePatchUrl($tenant, $year), $body);
+
+    resetSessionState();
+    $response = $patch(['ends_on' => '2027-06-10'])->assertStatus(409);
+
+    expect($response->json('errors.date_change'))->toHaveCount(1)
+        ->and($response->json('errors.date_change.0.code'))->toBe('acad.conflict.schedule_outside_academic_year')
+        ->and($response->json('errors.date_change.0.params'))->toBe(['special_frames' => 0, 'bookings' => 1, 'schedule_starts_on' => '2026-12-01', 'schedule_ends_on' => '2027-06-15'])
+        ->and($response->json('errors.date_change.0.message'))->toContain('2026-12-01')->toContain('2027-06-15')
+        ->and(json_encode($response->json()))->not->toContain($frame)->not->toContain($booking)
+        ->and(acadYearDates($tenant, $year))->toBe(['2026-09-01', '2027-06-30'])
+        ->and(app(TenantContext::class)->runFor($tenant->id, fn () => AuditLog::query()->count()))->toBe($auditBefore);
+
+    resetSessionState();
+    expect($patch(['starts_on' => '2026-12-05'])->assertStatus(409)->json('errors.date_change.0.params.special_frames'))->toBe(1);
+
+    // Los bordes incluidos son válidos; borrados no cuentan.
+    resetSessionState();
+    $patch(['starts_on' => '2026-12-01', 'ends_on' => '2027-06-15'])->assertOk();
+    Tt::deleteFrame($tenant, $admin, $frame)->assertNoContent();
+    Tt::send($tenant, $admin, 'DELETE', "/facility-bookings/{$booking}")->assertNoContent();
+    resetSessionState();
+    $patch(['starts_on' => '2026-12-20', 'ends_on' => '2027-01-20'])->assertOk();
+
+    // Con un período fuera, manda RN-ACAD-62.
+    $second = Periods::level($tenant, $year, 'BACH');
+    Periods::period($tenant, $year, $second, '2026-12-22', '2027-01-10');
+    Tt::postBooking($tenant, $admin, $year->public_id, $resource, ['booked_on' => '2027-01-15'])->assertCreated();
+    resetSessionState();
+    expect($patch(['ends_on' => '2027-01-05'])->assertStatus(409)->json('errors.date_change.0.code'))->toBe('acad.conflict.periods_outside_academic_year');
+});
+
+test('CA-ACAD-141 AR-12: la clave conflict.schedule_outside_academic_year existe en los cuatro idiomas con sus parámetros', function (): void {
+    foreach (['es', 'en', 'de', 'fr'] as $locale) {
+        $text = trans('acad.conflict.schedule_outside_academic_year', ['schedule_starts_on' => 'A1', 'schedule_ends_on' => 'B2'], $locale);
+
+        expect($text)->not->toBe('acad.conflict.schedule_outside_academic_year')->toContain('A1')->toContain('B2');
+    }
 });

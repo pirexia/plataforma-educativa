@@ -33,7 +33,7 @@ return new class extends Migration
         TenantMigration::tenantTable('facility_bookings', function (Blueprint $table): void {
             $table->ulid('public_id')->unique();
             TenantMigration::tenantForeignId($table, 'academic_year_id', 'academic_years');
-            TenantMigration::tenantForeignId($table, 'facility_id', 'facilities');
+            TenantMigration::tenantForeignId($table, 'facility_id', 'facilities', withIndex: false);
             $table->date('booked_on');
             $table->time('starts_at', 0);
             $table->time('ends_at', 0);
@@ -41,7 +41,8 @@ return new class extends Migration
 
         $owner = DB::connection('pgsql_owner');
 
-        // Conflictos de reservas de un espacio en una fecha y `has_dependents` del espacio.
+        // Cubre la FK (prefijo `(tenant_id, facility_id)`, por eso `withIndex: false` arriba), los conflictos de
+        // reservas de un espacio en una fecha y `has_dependents` del espacio.
         $owner->statement('CREATE INDEX facility_bookings_tenant_facility_booked_idx ON facility_bookings (tenant_id, facility_id, booked_on)');
 
         $owner->statement(<<<'SQL'
