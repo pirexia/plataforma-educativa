@@ -10,7 +10,7 @@ use Tests\Support\AcadTimetableHelpers as Tt;
 use Tests\Support\CursoTestHelpers;
 
 // REQ-ACAD-002 (1.12-a), docs/modulos/REQ-ACAD/api.md §12, funcional.md §18.4.4,
-// §18.9: marcos horarios ordinarios y sus franjas. CA-ACAD-117 a -120,
+// §18.9: marcos horarios ordinarios y sus franjas (los especiales, de 1.12-b, en AcadSpecialFramesApiTest). CA-ACAD-117 a -120,
 // CA-ACAD-128 y -129 (curso cerrado), INV-003, INV-010, INV-015.
 
 afterEach(function (): void {
@@ -51,7 +51,7 @@ test('CA-ACAD-117 RN-ACAD-110 RN-ACAD-115 INV-003: el alta de un marco ordinario
     });
 });
 
-test('CA-ACAD-117 RN-ACAD-110 RN-ACAD-91: un segundo ordinaria vivo en la etapa es 422 frame_ordinary_exists (y uno borrado no cuenta); especial es 422 frame_type_invalid en 1.12-a; academic_year en el cuerpo es academic_year_not_allowed; el ancla es una sola', function (): void {
+test('CA-ACAD-117 RN-ACAD-110 RN-ACAD-91: un segundo ordinaria vivo en la etapa es 422 frame_ordinary_exists (y uno borrado no cuenta); un especial sin fechas es 422 frame_dates_invalid (1.12-b: ya no frame_type_invalid); academic_year en el cuerpo es academic_year_not_allowed; el ancla es una sola', function (): void {
     [$tenant, $admin, $year] = Api::setup('frm-117b');
     $level = Api::level($tenant, $admin, $year);
     $otherLevel = Api::level($tenant, $admin, $year, 'BACH');
@@ -69,7 +69,7 @@ test('CA-ACAD-117 RN-ACAD-110 RN-ACAD-91: un segundo ordinaria vivo en la etapa 
     Tt::postFrame($tenant, $admin, Tt::frameBody($level))->assertCreated();
 
     $level3 = Api::level($tenant, $admin, $year, 'FP');
-    expect(Tt::errorCode(Tt::postFrame($tenant, $admin, Tt::frameBody($level3, ['frame_type' => 'especial']))->assertStatus(422), 'frame_type'))->toBe('acad.validation.frame_type_invalid')
+    expect(Tt::errorCode(Tt::postFrame($tenant, $admin, Tt::frameBody($level3, ['frame_type' => 'especial']))->assertStatus(422), 'valid_from'))->toBe('acad.validation.frame_dates_invalid')
         ->and(Tt::errorCode(Tt::postFrame($tenant, $admin, Tt::frameBody($level3, ['frame_type' => 'otra']))->assertStatus(422), 'frame_type'))->toBe('acad.validation.frame_type_invalid')
         ->and(Tt::errorCode(Tt::postFrame($tenant, $admin, array_diff_key(Tt::frameBody($level3), ['frame_type' => 1]))->assertStatus(422), 'frame_type'))->toBe('acad.validation.frame_type_invalid')
         ->and(Tt::errorCode(Tt::postFrame($tenant, $admin, Tt::frameBody($level3, ['academic_year' => $year->public_id]))->assertStatus(422), 'academic_year'))->toBe('acad.validation.academic_year_not_allowed')

@@ -13,6 +13,7 @@ return [
             'asignacion_docente' => 'Lehrauftrag',
             'espacios' => 'Räume',
             'horarios' => 'Stundenpläne',
+            'reservas' => 'Reservas',
         ],
     ],
 
@@ -90,6 +91,10 @@ return [
         'frame_type_immutable' => 'Der Typ eines Stundenplanrahmens kann nicht geändert werden.',
         'frame_ordinary_exists' => 'Diese Stufe hat bereits einen regulären Stundenplanrahmen.',
         'frame_dates_invalid' => 'Die Gültigkeitsdaten sind für diesen Typ des Stundenplanrahmens nicht gültig.',
+        'frame_outside_academic_year' => 'La vigencia del marco debe estar dentro del curso académico (:academic_year_starts_on – :academic_year_ends_on).',
+        'frame_overlap' => 'La vigencia se solapa con la de otro marco especial de la misma etapa.',
+        'booking_outside_academic_year' => 'La fecha de la reserva debe estar dentro del curso académico (:academic_year_starts_on – :academic_year_ends_on).',
+        'booking_conflict' => 'El espacio ya está reservado u ocupado por una sesión de horario en esa fecha y hora.',
         'weekday_invalid' => 'Der Wochentag muss eine Zahl von 1 (Montag) bis 7 (Sonntag) sein.',
         'time_invalid' => 'Die Uhrzeit muss im Format HH:MM (24-Stunden-Format) angegeben werden.',
         'slot_ends_before_start' => 'Die Endzeit muss nach der Anfangszeit liegen.',

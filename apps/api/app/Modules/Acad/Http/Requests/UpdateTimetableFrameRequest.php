@@ -2,6 +2,7 @@
 
 namespace App\Modules\Acad\Http\Requests;
 
+use App\Modules\Acad\Application\PeriodFields;
 use App\Modules\Acad\Application\StructureFields;
 use App\Support\Api\ValidationErrorBag;
 
@@ -9,8 +10,11 @@ use App\Support\Api\ValidationErrorBag;
  * REQ-ACAD/api.md §12.3, `PATCH /timetable-frames/{public_id}`: editables
  * `name_translations` (fusión) y `slots` (conjunto completo por `public_id`,
  * `RN-ACAD-113`). Padre y curso inmutables (`RN-ACAD-91`, `parent_immutable`);
- * `frame_type` inmutable (`RN-ACAD-110`). Las fechas de vigencia son del marco
- * `especial` (`1.12-b`): en un `ordinaria` es `422 frame_dates_invalid`.
+ * `frame_type` inmutable (`RN-ACAD-110`). Las fechas de vigencia
+ * (`valid_from`, `valid_to`) son del marco `especial` (`RN-ACAD-111`): aquí solo
+ * se valida su formato (`422 date_invalid`); si el marco es `ordinaria`, si
+ * `valid_to < valid_from` o si caen fuera del curso lo decide el servicio, que
+ * conoce el marco.
  */
 class UpdateTimetableFrameRequest extends StructureRequest
 {
@@ -41,13 +45,13 @@ class UpdateTimetableFrameRequest extends StructureRequest
 
         foreach (['valid_from', 'valid_to'] as $field) {
             if (($body[$field] ?? null) !== null) {
-                $errors->add($field, 'acad.validation.frame_dates_invalid', 'acad.validation.frame_dates_invalid');
+                PeriodFields::date($body[$field], $field, $errors);
             }
         }
 
         $errors->throwIfAny();
 
-        foreach (['name_translations', 'slots'] as $key) {
+        foreach (['name_translations', 'slots', 'valid_from', 'valid_to'] as $key) {
             if (array_key_exists($key, $body)) {
                 $input[$key] = $body[$key];
             }

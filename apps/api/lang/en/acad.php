@@ -13,6 +13,7 @@ return [
             'asignacion_docente' => 'Teaching assignments',
             'espacios' => 'Facilities',
             'horarios' => 'Timetables',
+            'reservas' => 'Reservas',
         ],
     ],
 
@@ -90,6 +91,10 @@ return [
         'frame_type_immutable' => 'The type of a timetable frame cannot be changed.',
         'frame_ordinary_exists' => 'This stage already has a regular timetable frame.',
         'frame_dates_invalid' => 'The validity dates are not valid for this type of timetable frame.',
+        'frame_outside_academic_year' => 'La vigencia del marco debe estar dentro del curso académico (:academic_year_starts_on – :academic_year_ends_on).',
+        'frame_overlap' => 'La vigencia se solapa con la de otro marco especial de la misma etapa.',
+        'booking_outside_academic_year' => 'La fecha de la reserva debe estar dentro del curso académico (:academic_year_starts_on – :academic_year_ends_on).',
+        'booking_conflict' => 'El espacio ya está reservado u ocupado por una sesión de horario en esa fecha y hora.',
         'weekday_invalid' => 'The day of the week must be a number from 1 (Monday) to 7 (Sunday).',
         'time_invalid' => 'The time must be in HH:MM format (24-hour clock).',
         'slot_ends_before_start' => 'The end time must be later than the start time.',

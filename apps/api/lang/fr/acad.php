@@ -13,6 +13,7 @@ return [
             'asignacion_docente' => 'Affectations d’enseignement',
             'espacios' => 'Espaces',
             'horarios' => 'Emplois du temps',
+            'reservas' => 'Reservas',
         ],
     ],
 
@@ -90,6 +91,10 @@ return [
         'frame_type_immutable' => 'Le type d’un cadre d’emploi du temps ne peut pas être modifié.',
         'frame_ordinary_exists' => 'Cette étape a déjà un cadre d’emploi du temps ordinaire.',
         'frame_dates_invalid' => 'Les dates de validité ne sont pas valides pour ce type de cadre d’emploi du temps.',
+        'frame_outside_academic_year' => 'La vigencia del marco debe estar dentro del curso académico (:academic_year_starts_on – :academic_year_ends_on).',
+        'frame_overlap' => 'La vigencia se solapa con la de otro marco especial de la misma etapa.',
+        'booking_outside_academic_year' => 'La fecha de la reserva debe estar dentro del curso académico (:academic_year_starts_on – :academic_year_ends_on).',
+        'booking_conflict' => 'El espacio ya está reservado u ocupado por una sesión de horario en esa fecha y hora.',
         'weekday_invalid' => 'Le jour de la semaine doit être un nombre de 1 (lundi) à 7 (dimanche).',
         'time_invalid' => 'L’heure doit être au format HH:MM (24 heures).',
         'slot_ends_before_start' => 'L’heure de fin doit être postérieure à l’heure de début.',

@@ -12,6 +12,7 @@ return [
             'asignacion_docente' => 'Asignación docente',
             'espacios' => 'Espacios',
             'horarios' => 'Horarios',
+            'reservas' => 'Reservas',
         ],
     ],
 
@@ -89,6 +90,10 @@ return [
         'frame_type_immutable' => 'El tipo de un marco horario no se puede cambiar.',
         'frame_ordinary_exists' => 'Esta etapa ya tiene un marco horario ordinario.',
         'frame_dates_invalid' => 'Las fechas de vigencia no son válidas para este tipo de marco horario.',
+        'frame_outside_academic_year' => 'La vigencia del marco debe estar dentro del curso académico (:academic_year_starts_on – :academic_year_ends_on).',
+        'frame_overlap' => 'La vigencia se solapa con la de otro marco especial de la misma etapa.',
+        'booking_outside_academic_year' => 'La fecha de la reserva debe estar dentro del curso académico (:academic_year_starts_on – :academic_year_ends_on).',
+        'booking_conflict' => 'El espacio ya está reservado u ocupado por una sesión de horario en esa fecha y hora.',
         'weekday_invalid' => 'El día de la semana debe ser un número del 1 (lunes) al 7 (domingo).',
         'time_invalid' => 'La hora debe tener el formato HH:MM (24 horas).',
         'slot_ends_before_start' => 'La hora de fin debe ser posterior a la de inicio.',
