@@ -92,11 +92,11 @@ test('administrador_centro recibe los 32 permisos previos más los cuatro de REQ
         // (1.10, OPEN-CURSO-14, CA-CURSO-064), más los cuatro de
         // REQ-ACAD/permisos.md §4 (1.11-b, OPEN-ACAD-09 = X, CA-ACAD-036), más los cuatro de
         // REQ-ACAD/permisos.md §4.1 (1.11d-a, OPEN-ACAD-28 = X + 1, CA-ACAD-097), más
-        // reapertura_curso_academico.actualizar de REQ-CURSO/permisos.md §4 (1.11c, ADR-059 §5.2).
+        // reapertura_curso_academico.actualizar de REQ-CURSO/permisos.md §4 (1.11c, ADR-059 §5.2), más los doce de REQ-ACAD/permisos.md §10 (1.12-a: asignacion_docente, espacios y horarios × cuatro acciones).
         expect(Role::where('code', 'administrador_centro')->first()
             ->getConnection()->table('permission_role')
             ->join('roles', 'roles.id', '=', 'permission_role.role_id')
-            ->where('roles.code', 'administrador_centro')->count())->toBe(50);
+            ->where('roles.code', 'administrador_centro')->count())->toBe(62);
 
         foreach (['rol.crear', 'rol.eliminar', 'rol_datos_especiales.actualizar', 'permiso_efectivo.leer'] as $code) {
             expect($codesFor('administrador_centro'))->toContain($code);
@@ -104,12 +104,12 @@ test('administrador_centro recibe los 32 permisos previos más los cuatro de REQ
 
         $direccionRole = Role::where('code', 'direccion')->firstOrFail();
         $direccionPermissions = PermissionRole::where('role_id', $direccionRole->id)->pluck('permission_code')->sort()->values()->all();
-        expect($direccionPermissions)->toBe(['asignacion_rol.leer', 'configuracion.leer', 'configuracion_academica.leer', 'curso_academico.leer', 'curso_historico.leer', 'estructura_academica.leer', 'modulo.leer', 'rol.leer', 'usuario.leer']);
+        expect($direccionPermissions)->toBe(['asignacion_docente.actualizar', 'asignacion_docente.crear', 'asignacion_docente.eliminar', 'asignacion_docente.leer', 'asignacion_rol.leer', 'configuracion.leer', 'configuracion_academica.leer', 'curso_academico.leer', 'curso_historico.leer', 'espacios.leer', 'estructura_academica.leer', 'horarios.actualizar', 'horarios.crear', 'horarios.eliminar', 'horarios.leer', 'modulo.leer', 'rol.leer', 'usuario.leer']);
 
         // REQ-ACAD/permisos.md §4 y §4.1: docente, tutor_grupo y orientador solo leen la estructura y la configuración académica.
         foreach (['docente', 'tutor_grupo', 'orientador'] as $code) {
             $role = Role::where('code', $code)->firstOrFail();
-            expect(PermissionRole::where('role_id', $role->id)->pluck('permission_code')->sort()->values()->all())->toBe(['configuracion_academica.leer', 'estructura_academica.leer'], $code);
+            expect(PermissionRole::where('role_id', $role->id)->pluck('permission_code')->sort()->values()->all())->toBe(['asignacion_docente.leer', 'configuracion_academica.leer', 'espacios.leer', 'estructura_academica.leer', 'horarios.leer'], $code);
         }
     });
 });

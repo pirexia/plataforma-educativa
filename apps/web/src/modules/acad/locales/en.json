@@ -8,7 +8,9 @@
       "backToCourse": "Back to course {code}",
       "backToCourseGeneric": "Back to the course",
       "gradingScales": "Grading scales",
-      "backToScales": "Back to grading scales"
+      "backToScales": "Back to grading scales",
+      "facilities": "Facilities",
+      "timetable": "Timetables"
     },
     "readOnly": "This academic year is read-only: its structure cannot be created, changed or deleted.",
     "fields": {
@@ -30,7 +32,9 @@
       "isPassing": "Is a pass",
       "rangeMin": "From",
       "rangeMax": "To",
-      "range": "Range"
+      "range": "Range",
+      "facilityType": "Facility type",
+      "frameType": "Timetable frame type"
     },
     "stage": {
       "infantil": "Early Childhood Education",
@@ -51,7 +55,12 @@
       "subjects": "Subjects",
       "subgroups": "Subgroups",
       "group_subjects": "Subjects assigned to groups",
-      "academic_periods": "Academic periods"
+      "academic_periods": "Academic periods",
+      "group_tutors": "Group tutors",
+      "teaching_assignments": "Teaching assignments",
+      "timetable_frames": "Timetable frames",
+      "timetable_sessions": "Timetable sessions",
+      "facility_bookings": "Facility bookings"
     },
     "structure": {
       "title": "Academic structure",
@@ -174,6 +183,14 @@
         "scale": {
           "title": "Delete scale {code}",
           "description": "The scale and all its values are deleted."
+        },
+        "facility": {
+          "title": "Delete facility {code}",
+          "description": "The facility is deleted from the school. It cannot be deleted if sessions of a year in planning or active use it."
+        },
+        "frame": {
+          "title": "Delete timetable frame {name}",
+          "description": "The frame and all its time slots are deleted. It cannot be deleted if any time slot has sessions."
         }
       }
     },
@@ -199,7 +216,18 @@
       "periodDeleted": "Period deleted.",
       "scaleCreated": "Scale created.",
       "scaleUpdated": "Scale updated.",
-      "scaleDeleted": "Scale deleted."
+      "scaleDeleted": "Scale deleted.",
+      "facilityCreated": "Facility created.",
+      "facilityUpdated": "Facility updated.",
+      "facilityDeleted": "Facility deleted.",
+      "frameUpdated": "Timetable frame updated.",
+      "frameDeleted": "Timetable frame deleted.",
+      "assignmentCreated": "Teaching staff assigned.",
+      "assignmentDeleted": "Teaching assignment removed.",
+      "tutorsUpdated": "Group tutors updated.",
+      "sessionCreated": "Session created.",
+      "sessionUpdated": "Session updated.",
+      "sessionDeleted": "Session deleted."
     },
     "errors": {
       "unexpected": "The action could not be completed. Please try again.",
@@ -249,6 +277,163 @@
       "rangeValue": "From {min} to {max}",
       "valuesCount": "No values | {count} value | {count} values",
       "passingFrom": "From {value}"
+    },
+    "facilityType": {
+      "aula": "Classroom",
+      "recurso": "Resource"
+    },
+    "frameType": {
+      "ordinaria": "Regular",
+      "especial": "Special"
+    },
+    "weekday": {
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday",
+      "7": "Sunday"
+    },
+    "readOnlyTimetable": "This academic year is read-only: its timetable frames, assignments and sessions cannot be created, changed or deleted.",
+    "facilities": {
+      "title": "Facilities",
+      "intro": "Classrooms and resources of the school. They do not depend on the academic year.",
+      "new": "New facility",
+      "caption": "School facilities",
+      "empty": "The school has no facilities",
+      "editFor": "Edit facility {code}",
+      "deleteFor": "Delete facility {code}",
+      "form": {
+        "title": {
+          "create": "New facility",
+          "edit": "Edit facility"
+        },
+        "typeImmutable": "The type of a facility cannot be changed after it is created."
+      }
+    },
+    "timetable": {
+      "frames": {
+        "title": "Timetable frames",
+        "new": "New timetable frame",
+        "caption": "Timetable frames of the stage",
+        "empty": "This stage has no timetable frame",
+        "form": {
+          "title": "New timetable frame",
+          "description": "The regular frame of the stage is created. Time slots are added afterwards, on its page."
+        }
+      },
+      "frame": {
+        "title": "Timetable frame",
+        "slotsCount": "Time slots"
+      },
+      "slots": {
+        "title": "Time slots",
+        "hint": "Each time slot is a day of the week and an interval of school hours. The end time is not included: a slot ending at 09:25 and another starting at 09:25 do not overlap.",
+        "empty": "This frame has no time slots.",
+        "rowLegend": "Time slot {number}",
+        "weekday": "Day",
+        "startsAt": "Start",
+        "endsAt": "End",
+        "remove": "Remove",
+        "removeFor": "Remove time slot {number}",
+        "add": "Add time slot",
+        "caption": "Time slots of the timetable frame"
+      },
+      "title": "Timetables",
+      "description": "Weekly grid of sessions by group, teacher, room or subject.",
+      "selection": "View selection",
+      "viewLabel": "View by",
+      "views": {
+        "group": "Group",
+        "teacher": "Teacher",
+        "facility": "Room",
+        "subject": "Subject"
+      },
+      "entity": {
+        "group": "Group",
+        "teacher": "Teacher",
+        "facility": "Room",
+        "subject": "Subject"
+      },
+      "chooseEntity": "Choose an option to see its timetable.",
+      "noFrame": "This group's stage has no timetable frame. Create the frame and its time slots on the stage page.",
+      "grid": {
+        "caption": "Weekly timetable by {view}",
+        "noSlots": "There are no time slots or sessions to show.",
+        "time": "Time",
+        "range": "{start}–{end}",
+        "edit": "Edit",
+        "add": "Add session",
+        "free": "Free",
+        "noSlot": "No time slot",
+        "facilityDeleted": "room retired"
+      },
+      "form": {
+        "title": {
+          "create": "New session",
+          "edit": "Edit session"
+        },
+        "assignment": "Teaching assignment",
+        "slot": "Time slot",
+        "facility": "Room",
+        "noFacility": "No room",
+        "noAssignments": "The group has no teaching staff assigned. Assign them on the group page.",
+        "assignmentRequired": "Choose a teaching assignment.",
+        "remove": "Remove session"
+      },
+      "conflict": {
+        "title": "The session clashes with another one:",
+        "kind": {
+          "teacher": "Teacher",
+          "facility": "Room",
+          "group": "Group"
+        },
+        "with": "{kind}: {subject} · {group} · {teacher} · {slot}",
+        "withUnknown": "{kind}: session {session}"
+      },
+      "confirmDelete": {
+        "title": "Remove the {subject} session?",
+        "description": "The session is deleted from the grid; the teaching assignment does not change.",
+        "confirm": "Remove session"
+      }
+    },
+    "staff": {
+      "search": "Search users by name or email",
+      "loading": "Loading users…",
+      "empty": "No active users match.",
+      "loadError": "Users could not be loaded."
+    },
+    "teaching": {
+      "title": "Teaching staff",
+      "tutors": "Tutors",
+      "editTutors": "Edit tutors",
+      "chooseTutors": "Choose the group's tutors",
+      "noTutors": "This group has no tutors.",
+      "assignments": "Teaching by subject",
+      "assign": "Assign teaching staff",
+      "caption": "Teaching assignments of the group",
+      "empty": "This group has no teaching staff assigned.",
+      "remove": "Remove",
+      "subject": "Subject",
+      "subgroup": "Subgroup",
+      "teacher": "Teacher",
+      "wholeGroup": "Whole group",
+      "unknownTeacher": "User unavailable",
+      "confirmDelete": {
+        "title": "Remove {teacher} from {subject}?",
+        "description": "The teaching assignment is removed. If it has sessions in the timetable, they must be deleted first.",
+        "confirm": "Remove assignment"
+      },
+      "form": {
+        "title": "Assign teaching staff",
+        "description": "Choose the group's subject, the subgroup if it is a split class, and the teacher. Assigning teaching does not grant permissions.",
+        "submit": "Assign"
+      },
+      "errors": {
+        "subjectRequired": "Choose a subject.",
+        "teacherRequired": "Choose a teacher."
+      }
     }
   }
 }

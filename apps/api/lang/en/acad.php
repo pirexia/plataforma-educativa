@@ -10,6 +10,9 @@ return [
         'resources' => [
             'estructura_academica' => 'Academic structure',
             'configuracion_academica' => 'Academic settings',
+            'asignacion_docente' => 'Teaching assignments',
+            'espacios' => 'Facilities',
+            'horarios' => 'Timetables',
         ],
     ],
 
@@ -77,6 +80,33 @@ return [
         'band_range_invalid' => 'The band must lie within the scale and its start cannot exceed its end.',
         'bands_not_contiguous' => 'Bands must cover the whole scale, in order, with no gaps or overlaps.',
         'passing_threshold_inside_band' => 'The minimum passing grade must match the start of a band.',
+        'user_not_found' => 'The specified user does not exist or is not active.',
+        'subject_not_in_group' => 'The subject is not assigned to this group.',
+        'subgroup_not_in_group' => 'The subgroup does not exist or does not belong to this group.',
+        'assignment_exists' => 'This teaching assignment already exists.',
+        'facility_type_invalid' => 'The facility type is not valid.',
+        'facility_type_immutable' => 'The type of a facility cannot be changed.',
+        'frame_type_invalid' => 'The timetable frame type is not valid.',
+        'frame_type_immutable' => 'The type of a timetable frame cannot be changed.',
+        'frame_ordinary_exists' => 'This stage already has a regular timetable frame.',
+        'frame_dates_invalid' => 'The validity dates are not valid for this type of timetable frame.',
+        'weekday_invalid' => 'The day of the week must be a number from 1 (Monday) to 7 (Sunday).',
+        'time_invalid' => 'The time must be in HH:MM format (24-hour clock).',
+        'slot_ends_before_start' => 'The end time must be later than the start time.',
+        'slot_overlap' => 'The time slot overlaps another one on the same day.',
+        'slot_not_in_frame' => 'The time slot does not belong to this frame or is repeated.',
+        'slots_too_many' => 'A frame allows at most :max time slots.',
+        'slots_invalid' => 'The time slots must be given as a list of objects.',
+        'slot_not_for_group' => 'The time slot belongs to a frame of a different stage than the group.',
+        'facility_not_found' => 'The specified facility does not exist.',
+        'facility_not_room' => 'The specified facility is not a classroom.',
+        'timetable_conflict' => 'The session clashes in the timetable with another session for the same teacher, room or group.',
+        'view_filter_required' => 'Specify at least one of the filters: teacher, facility, group or subject.',
+        'view_too_large' => 'The view has too many sessions (maximum :max).',
+    ],
+
+    'staff' => [
+        'unnamed' => 'Unnamed user',
     ],
 
     'conflict' => [
@@ -89,6 +119,10 @@ return [
         'course' => 'course',
         'group' => 'group',
         'subject' => 'subject',
+        'subgroup' => 'subgroup',
+        'facility' => 'facility',
+        'timetable_frame' => 'timetable frame',
+        'teaching_assignment' => 'teaching assignment',
     ],
 
     'dependents' => [
@@ -97,5 +131,10 @@ return [
         'subgroups' => 'subgroups',
         'subjects' => 'subjects',
         'academic_periods' => 'academic periods',
+        'group_tutors' => 'group tutors',
+        'teaching_assignments' => 'teaching assignments',
+        'timetable_frames' => 'timetable frames',
+        'timetable_sessions' => 'timetable sessions',
+        'facility_bookings' => 'facility bookings',
     ],
 ];

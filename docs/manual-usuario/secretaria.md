@@ -18,3 +18,7 @@
 
 **Qué no puedes hacer.** Crear, editar o borrar elementos de la estructura (no hay botones) ni asignar asignaturas a un grupo: lo hace la administración del centro. Si crees que te falta algún permiso, díselo a quien administra el centro.
 
+## Horarios del centro
+
+En **Administración → Horarios** (`/academico/horarios`) consultas la rejilla semanal por grupo, profesor, aula o asignatura, y en la ficha de cada grupo, **«Profesorado»**, quién imparte cada asignatura y quiénes son los tutores. Por defecto la Secretaría solo puede consultar (leer horarios, espacios y asignación docente): no hay botones para añadir, editar ni quitar. Cada sesión muestra como texto la asignatura, el grupo, el profesor y el aula. Un curso cerrado se ve solo con el permiso de leer el histórico.
+

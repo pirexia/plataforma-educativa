@@ -28,6 +28,12 @@ const ACAD_PERMISSION_CODES = [
     'estructura_academica.actualizar', 'estructura_academica.eliminar',
 ];
 
+const ACAD_SCHEDULE_PERMISSION_CODES = [
+    'asignacion_docente.leer', 'asignacion_docente.crear', 'asignacion_docente.actualizar', 'asignacion_docente.eliminar',
+    'espacios.leer', 'espacios.crear', 'espacios.actualizar', 'espacios.eliminar',
+    'horarios.leer', 'horarios.crear', 'horarios.actualizar', 'horarios.eliminar',
+];
+
 const ACAD_CONFIG_PERMISSION_CODES = [
     'configuracion_academica.leer', 'configuracion_academica.crear',
     'configuracion_academica.actualizar', 'configuracion_academica.eliminar',
@@ -53,29 +59,34 @@ function acadConfigGrantsOf(string $roleCode): array
         ->pluck('permission_code')->sort()->values()->all();
 }
 
-test('CA-ACAD-035 CA-ACAD-096 ADR-034 §5: tras platform:sync-registry, permissions contiene exactamente los ocho códigos de acad (cuatro de estructura_academica y cuatro de configuracion_academica) con ámbito todos', function (): void {
+test('CA-ACAD-035 CA-ACAD-096 CA-ACAD-133 ADR-034 §5: tras platform:sync-registry, permissions contiene exactamente los veinte códigos de acad (cuatro de cada uno de los cinco recursos de 1.11 y 1.12-a) con ámbito todos', function (): void {
     test()->artisan('platform:sync-registry')->assertSuccessful();
 
     $rows = Permission::query()->where('module_code', 'acad')->orderBy('code')->get();
 
     expect($rows->pluck('code')->all())->toBe([
+        'asignacion_docente.actualizar', 'asignacion_docente.crear',
+        'asignacion_docente.eliminar', 'asignacion_docente.leer',
         'configuracion_academica.actualizar', 'configuracion_academica.crear',
         'configuracion_academica.eliminar', 'configuracion_academica.leer',
+        'espacios.actualizar', 'espacios.crear', 'espacios.eliminar', 'espacios.leer',
         'estructura_academica.actualizar', 'estructura_academica.crear',
         'estructura_academica.eliminar', 'estructura_academica.leer',
+        'horarios.actualizar', 'horarios.crear', 'horarios.eliminar', 'horarios.leer',
     ]);
 
     foreach ($rows as $permission) {
         expect($permission->applicable_scopes)->toBe(['todos'])
             ->and($permission->is_special_category)->toBeFalse()
             ->and($permission->retired_at)->toBeNull()
-            ->and($permission->resource)->toBe(str_starts_with($permission->code, 'configuracion_academica.') ? 'configuracion_academica' : 'estructura_academica');
+            ->and($permission->resource)->toBe(explode('.', $permission->code)[0]);
     }
 
     // exportar/importar no se declaran (permisos.md §2.1, §2.2).
     expect(Permission::query()->whereIn('code', [
         'estructura_academica.exportar', 'estructura_academica.importar',
         'configuracion_academica.exportar', 'configuracion_academica.importar',
+        'horarios.exportar', 'horarios.importar', 'asignacion_docente.exportar', 'espacios.exportar',
     ])->count())->toBe(0);
 });
 
@@ -100,7 +111,7 @@ test('CA-ACAD-035 ADR-045: el descriptor del módulo es acad, depende de curso y
 
 test('CA-ACAD-035 CA-ACAD-096 CA-PERM-134: la etiqueta de cada recurso y las del módulo, stage y regime existen en los cuatro idiomas', function (): void {
     $keys = [
-        'acad.permissions.resources.estructura_academica', 'acad.permissions.resources.configuracion_academica', 'modules.acad',
+        'acad.permissions.resources.estructura_academica', 'acad.permissions.resources.configuracion_academica', 'acad.permissions.resources.asignacion_docente', 'acad.permissions.resources.espacios', 'acad.permissions.resources.horarios', 'modules.acad',
         ...array_map(static fn (string $s): string => "acad.stage.{$s}", ['infantil', 'primaria', 'eso', 'bachillerato', 'fp', 'universidad']),
         ...array_map(static fn (string $r): string => "acad.regime.{$r}", ['publico', 'privado', 'concertado']),
     ];
@@ -114,7 +125,7 @@ test('CA-ACAD-035 CA-ACAD-096 CA-PERM-134: la etiqueta de cada recurso y las del
     // El catálogo declara esa etiqueta en cada entrada.
     $declaredPermissions = (new AcadServiceProvider(app()))->declaredPermissions();
 
-    expect($declaredPermissions)->toHaveCount(8);
+    expect($declaredPermissions)->toHaveCount(20);
 
     foreach ($declaredPermissions as $declared) {
         expect($declared['resource_label_key'])->toBe("acad.permissions.resources.{$declared['resource']}")

@@ -898,6 +898,325 @@ namespace App\Modules\Acad\Domain\Models{
 	class IdeHelperSubject {}
 }
 
+namespace App\Modules\Acad\Domain\Models{
+/**
+ * REQ-ACAD/datos.md §9.1, §9.6 (1.12-a, `REQ-ACAD-002`). Espacio: aula o recurso. Del centro, sin curso académico (`OPEN-ACAD-33`).
+ *
+ * ADR-035 §8: Full — sin datos personales (RN-ACAD-101). Escrituras por instancia, nunca masivas (AR-15). Los
+ * demás módulos no usan este modelo (AR-01): el acceso será por las interfaces
+ * de `Acad\Domain` cuando haya consumidor (`ADR-048`).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property string $facility_type
+ * @property string $code
+ * @property string $name
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Facility newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Facility newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Facility onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Facility query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Facility whereCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Facility whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Facility whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Facility whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Facility whereFacilityType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Facility whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Facility whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Facility wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Facility whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Facility whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Facility whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Facility withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Facility withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperFacility {}
+}
+
+namespace App\Modules\Acad\Domain\Models{
+/**
+ * REQ-ACAD/datos.md §9.1, §9.6 (1.12-a, `REQ-ACAD-002`). Tutoría de un grupo (`RN-ACAD-97`).
+ *
+ * ADR-035 §8: Full — `user_id` es un identificador interno, no un identificador personal de `ADR-035` (a confirmar por `security-reviewer`). Escrituras por instancia, nunca masivas (AR-15). Los
+ * demás módulos no usan este modelo (AR-01): el acceso será por las interfaces
+ * de `Acad\Domain` cuando haya consumidor (`ADR-048`).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $academic_year_id
+ * @property int $group_id
+ * @property int $user_id
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\Acad\Domain\Models\Group|null $group
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupTutor newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupTutor newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupTutor onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupTutor query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupTutor whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupTutor whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupTutor whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupTutor whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupTutor whereGroupId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupTutor whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupTutor wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupTutor whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupTutor whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupTutor whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupTutor whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupTutor withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GroupTutor withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperGroupTutor {}
+}
+
+namespace App\Modules\Acad\Domain\Models{
+/**
+ * REQ-ACAD/datos.md §9.1, §9.6 (1.12-a, `REQ-ACAD-002`). Asignación docente: un usuario imparte una asignatura de un grupo, opcionalmente a un subgrupo (`RN-ACAD-93`).
+ *
+ * ADR-035 §8: Full — `user_id` es un identificador interno, no un identificador personal de `ADR-035` (a confirmar por `security-reviewer`). Escrituras por instancia, nunca masivas (AR-15). Los
+ * demás módulos no usan este modelo (AR-01): el acceso será por las interfaces
+ * de `Acad\Domain` cuando haya consumidor (`ADR-048`).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $academic_year_id
+ * @property int $user_id
+ * @property int $group_id
+ * @property int $group_subject_id
+ * @property int|null $subgroup_id
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\Acad\Domain\Models\Group|null $group
+ * @property-read \App\Modules\Acad\Domain\Models\GroupSubject|null $groupSubject
+ * @property-read \App\Modules\Acad\Domain\Models\Subgroup|null $subgroup
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TeachingAssignment newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TeachingAssignment newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TeachingAssignment onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TeachingAssignment query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TeachingAssignment whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TeachingAssignment whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TeachingAssignment whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TeachingAssignment whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TeachingAssignment whereGroupId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TeachingAssignment whereGroupSubjectId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TeachingAssignment whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TeachingAssignment wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TeachingAssignment whereSubgroupId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TeachingAssignment whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TeachingAssignment whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TeachingAssignment whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TeachingAssignment whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TeachingAssignment withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TeachingAssignment withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperTeachingAssignment {}
+}
+
+namespace App\Modules\Acad\Domain\Models{
+/**
+ * REQ-ACAD/datos.md §9.1, §9.6 (1.12-a, `REQ-ACAD-002`), `ADR-065`. Franja de un marco: día ISO y hora civil del centro (`time` sin zona).
+ *
+ * ADR-035 §8: Full — sin datos personales. Escrituras por instancia, nunca masivas (AR-15). Los
+ * demás módulos no usan este modelo (AR-01): el acceso será por las interfaces
+ * de `Acad\Domain` cuando haya consumidor (`ADR-048`).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $academic_year_id
+ * @property int $timetable_frame_id
+ * @property int $weekday
+ * @property string $starts_at
+ * @property string $ends_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\Acad\Domain\Models\TimetableFrame|null $frame
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimeSlot newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimeSlot newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimeSlot onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimeSlot query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimeSlot whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimeSlot whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimeSlot whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimeSlot whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimeSlot whereEndsAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimeSlot whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimeSlot wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimeSlot whereStartsAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimeSlot whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimeSlot whereTimetableFrameId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimeSlot whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimeSlot whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimeSlot whereWeekday($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimeSlot withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimeSlot withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperTimeSlot {}
+}
+
+namespace App\Modules\Acad\Domain\Models{
+/**
+ * REQ-ACAD/datos.md §9.1, §9.6 (1.12-a, `REQ-ACAD-002`). Ancla de serialización del horario de un curso académico (`RN-ACAD-115`, `RN-ACAD-125`).
+ *
+ * ADR-035 §8: Full — sin datos personales. Escrituras por instancia, nunca masivas (AR-15). Los
+ * demás módulos no usan este modelo (AR-01): el acceso será por las interfaces
+ * de `Acad\Domain` cuando haya consumidor (`ADR-048`).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $academic_year_id
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Timetable newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Timetable newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Timetable onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Timetable query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Timetable whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Timetable whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Timetable whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Timetable whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Timetable whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Timetable wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Timetable whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Timetable whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Timetable whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Timetable withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Timetable withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperTimetable {}
+}
+
+namespace App\Modules\Acad\Domain\Models{
+/**
+ * REQ-ACAD/datos.md §9.1, §9.6 (1.12-a, `REQ-ACAD-002`). Marco horario de una etapa (`RN-ACAD-110`).
+ *
+ * ADR-035 §8: Full — sin datos personales. Escrituras por instancia, nunca masivas (AR-15). Los
+ * demás módulos no usan este modelo (AR-01): el acceso será por las interfaces
+ * de `Acad\Domain` cuando haya consumidor (`ADR-048`).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $academic_year_id
+ * @property int $education_level_id
+ * @property string $frame_type
+ * @property array<array-key, mixed> $name_translations
+ * @property \Illuminate\Support\Carbon|null $valid_from
+ * @property \Illuminate\Support\Carbon|null $valid_to
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\Acad\Domain\Models\EducationLevel|null $educationLevel
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Modules\Acad\Domain\Models\TimeSlot> $slots
+ * @property-read int|null $slots_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame whereEducationLevelId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame whereFrameType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame whereNameTranslations($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame whereValidFrom($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame whereValidTo($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableFrame withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperTimetableFrame {}
+}
+
+namespace App\Modules\Acad\Domain\Models{
+/**
+ * REQ-ACAD/datos.md §9.1, §9.6 (1.12-a, `REQ-ACAD-002`). Sesión: una asignación docente en una franja, con aula opcional (`RN-ACAD-120`).
+ *
+ * ADR-035 §8: Full — sin datos personales. Escrituras por instancia, nunca masivas (AR-15). Los
+ * demás módulos no usan este modelo (AR-01): el acceso será por las interfaces
+ * de `Acad\Domain` cuando haya consumidor (`ADR-048`).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $academic_year_id
+ * @property int $time_slot_id
+ * @property int $teaching_assignment_id
+ * @property int|null $facility_id
+ * @property string|null $facility_type
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\Acad\Domain\Models\Facility|null $facility
+ * @property-read \App\Modules\Acad\Domain\Models\TeachingAssignment|null $teachingAssignment
+ * @property-read \App\Modules\Acad\Domain\Models\TimeSlot|null $timeSlot
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableSession newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableSession newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableSession onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableSession query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableSession whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableSession whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableSession whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableSession whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableSession whereFacilityId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableSession whereFacilityType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableSession whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableSession wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableSession whereTeachingAssignmentId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableSession whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableSession whereTimeSlotId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableSession whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableSession whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableSession withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TimetableSession withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperTimetableSession {}
+}
+
 namespace App\Modules\Auth\Domain\Models{
 /**
  * datos.md §A.2. Selective: `email` se redacta como `identifier` (dato

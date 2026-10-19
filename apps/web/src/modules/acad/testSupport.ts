@@ -111,6 +111,9 @@ export function makeRouter(name: string, component: Component) {
     ['acad-grading-scale-new', '/academico/escalas/nueva'],
     ['acad-grading-scale-detail', '/academico/escalas/:publicId'],
     ['acad-grading-scale-edit', '/academico/escalas/:publicId/editar'],
+    ['acad-facilities', '/academico/espacios'],
+    ['acad-timetable', '/academico/horarios'],
+    ['acad-timetable-frame', '/academico/marcos/:publicId'],
   ].map(([routeName, routePath]) => ({
     path: routePath!,
     name: routeName!,
@@ -274,4 +277,96 @@ export function bandScale(over: Record<string, unknown> = {}) {
     ],
     ...over,
   })
+}
+
+export function facility(over: Record<string, unknown> = {}) {
+  return {
+    public_id: 'F1',
+    facility_type: 'aula',
+    code: 'A21',
+    name: 'Aula 2.1',
+    ...AUDIT,
+    ...over,
+  }
+}
+
+export function slot(over: Record<string, unknown> = {}) {
+  return { public_id: 'T1', weekday: 1, starts_at: '08:30', ends_at: '09:25', ...over }
+}
+
+/** Marco ordinario de la etapa `L1` con dos franjas el lunes. */
+export function frame(over: Record<string, unknown> = {}) {
+  return {
+    public_id: 'M1',
+    academic_year: 'Y2',
+    education_level: 'L1',
+    frame_type: 'ordinaria',
+    name: 'Horario general',
+    name_translations: { 'es-ES': 'Horario general' },
+    valid_from: null,
+    valid_to: null,
+    slots: [slot(), slot({ public_id: 'T2', starts_at: '09:25', ends_at: '10:20' })],
+    ...AUDIT,
+    ...over,
+  }
+}
+
+/** `api.md §12.1`: sesión con los resúmenes de la rejilla. */
+export function timetableSession(over: Record<string, unknown> = {}) {
+  return {
+    public_id: 'SE1',
+    academic_year: 'Y2',
+    frame: 'FR1',
+    slot: slot(),
+    teaching_assignment: 'TA1',
+    teacher: { public_id: 'U1', name: 'Ana Ejemplo' },
+    group: { public_id: 'G1', code: 'A', name: '2.º ESO A' },
+    subgroup: null,
+    subject: { public_id: 'M1', code: 'MAT', name: 'Matemáticas' },
+    facility: { public_id: 'F1', code: 'A21', name: 'Aula 2.1', deleted: false },
+    ...AUDIT,
+    ...over,
+  }
+}
+
+/** `api.md §12.1`: asignación docente. */
+export function teachingAssignment(over: Record<string, unknown> = {}) {
+  return {
+    public_id: 'TA1',
+    academic_year: 'Y2',
+    teacher: { public_id: 'U1', name: 'Ana Ejemplo' },
+    group: 'G1',
+    subject: 'M1',
+    subgroup: null,
+    ...AUDIT,
+    ...over,
+  }
+}
+
+/**
+ * Elige una opción de un `Select` de Reka UI (se abre con teclado, `role="option"`)
+ * por su texto exacto; el contenido se renderiza en `document.body` por el portal.
+ */
+export async function chooseOption(triggerSelector: string, optionText: string): Promise<void> {
+  const trigger = document.body.querySelector<HTMLElement>(triggerSelector)
+
+  if (!trigger) {
+    throw new Error(`No existe ${triggerSelector}`)
+  }
+
+  trigger.focus()
+  trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+  await flushPromises()
+
+  const option = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')].find((item) =>
+    item.textContent?.trim().includes(optionText),
+  )
+
+  if (!option) {
+    throw new Error(`No existe la opción «${optionText}»`)
+  }
+
+  option.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerType: 'mouse' }))
+  option.click()
+  await flushPromises()
 }

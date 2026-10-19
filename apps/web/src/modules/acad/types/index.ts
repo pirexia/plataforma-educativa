@@ -142,3 +142,101 @@ export interface GradingScale {
   created_at: string
   updated_at: string
 }
+
+/** `RN-ACAD-100`: vocabulario cerrado; enumerado extensible en la lectura (`ADR-038 §7.3`). */
+export type FacilityType = 'aula' | 'recurso'
+
+/**
+ * `docs/modulos/REQ-ACAD/api.md §12.1` (1.12-a). Espacio del centro: **sin**
+ * `academic_year` (`OPEN-ACAD-33`); `name` es texto simple, no traducible.
+ */
+export interface Facility {
+  public_id: PublicId
+  facility_type: FacilityType | (string & {})
+  code: string
+  name: string
+  created_at: string
+  updated_at: string
+}
+
+/** `RN-ACAD-110`: `ordinaria` en `1.12-a`; `especial` llega con `1.12-b`. */
+export type FrameType = 'ordinaria' | 'especial'
+
+/**
+ * `docs/modulos/REQ-ACAD/api.md §12.1`. Franja de un marco: día ISO (1 = lunes … 7 = domingo)
+ * y hora civil del centro `HH:MM` (24 h, sin zona, `ADR-065`).
+ */
+export interface TimeSlot {
+  public_id: PublicId
+  weekday: number
+  starts_at: string
+  ends_at: string
+}
+
+/** `docs/modulos/REQ-ACAD/api.md §12.1`. `slots` ordenadas por día y hora; `valid_*` son `null` en `ordinaria`. */
+export interface TimetableFrame {
+  public_id: PublicId
+  academic_year: PublicId
+  education_level: PublicId
+  frame_type: FrameType | (string & {})
+  /** Resuelto en servidor (`ADR-062 §5.3`); solo lectura. */
+  name: string
+  name_translations: Translations
+  valid_from: string | null
+  valid_to: string | null
+  slots: TimeSlot[]
+  created_at: string
+  updated_at: string
+}
+
+/** `docs/modulos/REQ-ACAD/api.md §12.1`. Usuario del centro a quien se asigna docencia: solo `public_id` y nombre visible. */
+export interface StaffSummary {
+  public_id: PublicId
+  name: string
+}
+
+/** `api.md §12.1` (`RN-ACAD-93`, `-95`). Asignación docente, inmutable: se crea y se borra. */
+export interface TeachingAssignment {
+  public_id: PublicId
+  academic_year: PublicId
+  teacher: StaffSummary | null
+  group: PublicId
+  subject: PublicId
+  subgroup: PublicId | null
+  created_at: string
+  updated_at: string
+}
+
+/** `api.md §12.1`. Resumen de grupo, subgrupo, asignatura y aula dentro de una sesión. */
+export interface SessionRef {
+  public_id: PublicId
+  code: string
+  name: string
+}
+
+/** `api.md §12.1`, `RN-ACAD-102`: `deleted` marca un aula dada de baja de un curso cerrado. */
+export interface SessionFacility extends SessionRef {
+  deleted: boolean
+}
+
+/** `api.md §12.1`. Sesión con los resúmenes que pintan la rejilla en una sola llamada. */
+export interface TimetableSession {
+  public_id: PublicId
+  academic_year: PublicId
+  frame: PublicId
+  slot: TimeSlot
+  teaching_assignment: PublicId
+  teacher: StaffSummary | null
+  group: SessionRef
+  subgroup: SessionRef | null
+  subject: SessionRef
+  facility: SessionFacility | null
+  created_at: string
+  updated_at: string
+}
+
+/** `RN-ACAD-123`: `params.conflicts` de `422 timetable_conflict`. */
+export interface TimetableConflict {
+  kind: 'teacher' | 'facility' | 'group' | (string & {})
+  session: PublicId
+}

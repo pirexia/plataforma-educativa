@@ -6,3 +6,4 @@
 export * from './structure'
 export * from './periods'
 export * from './scales'
+export * from './timetable'

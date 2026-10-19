@@ -1,6 +1,6 @@
 <?php
 
-// Rutas de REQ-ACAD (pasos 1.11-b, 1.11d-a y 1.11d-b), documentadas en
+// Rutas de REQ-ACAD (pasos 1.11-b, 1.11d-a, 1.11d-b y 1.12-a), documentadas en
 // apps/api/openapi/paths/acad.yaml (docs/modulos/REQ-ACAD/api.md §2 y §11).
 // Requerido desde routes/api-v1.php, ya dentro del grupo
 // prefix('v1')->middleware(['resolve-tenant', 'resolve-locale', ...]).
@@ -17,11 +17,16 @@ use App\Http\Middleware\RequireAuthenticatedUser;
 use App\Modules\Acad\Http\Controllers\AcademicPeriodsController;
 use App\Modules\Acad\Http\Controllers\CoursesController;
 use App\Modules\Acad\Http\Controllers\EducationLevelsController;
+use App\Modules\Acad\Http\Controllers\FacilitiesController;
 use App\Modules\Acad\Http\Controllers\GradingScalesController;
 use App\Modules\Acad\Http\Controllers\GroupsController;
 use App\Modules\Acad\Http\Controllers\GroupSubjectsController;
+use App\Modules\Acad\Http\Controllers\GroupTutorsController;
 use App\Modules\Acad\Http\Controllers\SubgroupsController;
 use App\Modules\Acad\Http\Controllers\SubjectsController;
+use App\Modules\Acad\Http\Controllers\TeachingAssignmentsController;
+use App\Modules\Acad\Http\Controllers\TimetableFramesController;
+use App\Modules\Acad\Http\Controllers\TimetableSessionsController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:acad'])->group(function (): void {
@@ -64,4 +69,30 @@ Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:acad'])->gro
     Route::get('/grading-scales/{publicId}', [GradingScalesController::class, 'show'])->middleware('permission:configuracion_academica.leer')->name('acad.grading-scales.show');
     Route::patch('/grading-scales/{publicId}', [GradingScalesController::class, 'update'])->middleware('permission:configuracion_academica.actualizar')->name('acad.grading-scales.update');
     Route::delete('/grading-scales/{publicId}', [GradingScalesController::class, 'destroy'])->middleware('permission:configuracion_academica.eliminar')->name('acad.grading-scales.destroy');
+    // 1.12-a (api.md §12): espacios, recurso `espacios` (RN-ACAD-101); del centro, sin curso académico.
+    Route::get('/facilities', [FacilitiesController::class, 'index'])->middleware('permission:espacios.leer')->name('acad.facilities.index');
+    Route::post('/facilities', [FacilitiesController::class, 'store'])->middleware('permission:espacios.crear')->name('acad.facilities.store');
+    Route::get('/facilities/{publicId}', [FacilitiesController::class, 'show'])->middleware('permission:espacios.leer')->name('acad.facilities.show');
+    Route::patch('/facilities/{publicId}', [FacilitiesController::class, 'update'])->middleware('permission:espacios.actualizar')->name('acad.facilities.update');
+    Route::delete('/facilities/{publicId}', [FacilitiesController::class, 'destroy'])->middleware('permission:espacios.eliminar')->name('acad.facilities.destroy');
+    // 1.12-a (api.md §12): marcos horarios con sus franjas dentro (RN-ACAD-113), recurso `horarios`.
+    Route::get('/timetable-frames', [TimetableFramesController::class, 'index'])->middleware('permission:horarios.leer')->name('acad.timetable-frames.index');
+    Route::post('/timetable-frames', [TimetableFramesController::class, 'store'])->middleware('permission:horarios.crear')->name('acad.timetable-frames.store');
+    Route::get('/timetable-frames/{publicId}', [TimetableFramesController::class, 'show'])->middleware('permission:horarios.leer')->name('acad.timetable-frames.show');
+    Route::patch('/timetable-frames/{publicId}', [TimetableFramesController::class, 'update'])->middleware('permission:horarios.actualizar')->name('acad.timetable-frames.update');
+    Route::delete('/timetable-frames/{publicId}', [TimetableFramesController::class, 'destroy'])->middleware('permission:horarios.eliminar')->name('acad.timetable-frames.destroy');
+    // 1.12-a (api.md §12): asignación docente (inmutable, sin PATCH: RN-ACAD-95), recurso `asignacion_docente`.
+    Route::get('/teaching-assignments', [TeachingAssignmentsController::class, 'index'])->middleware('permission:asignacion_docente.leer')->name('acad.teaching-assignments.index');
+    Route::post('/teaching-assignments', [TeachingAssignmentsController::class, 'store'])->middleware('permission:asignacion_docente.crear')->name('acad.teaching-assignments.store');
+    Route::get('/teaching-assignments/{publicId}', [TeachingAssignmentsController::class, 'show'])->middleware('permission:asignacion_docente.leer')->name('acad.teaching-assignments.show');
+    Route::delete('/teaching-assignments/{publicId}', [TeachingAssignmentsController::class, 'destroy'])->middleware('permission:asignacion_docente.eliminar')->name('acad.teaching-assignments.destroy');
+    // 1.12-a (api.md §12): tutores de un grupo (RN-ACAD-97), mismo recurso.
+    Route::get('/groups/{groupPublicId}/tutors', [GroupTutorsController::class, 'index'])->middleware('permission:asignacion_docente.leer')->name('acad.groups.tutors.index');
+    Route::put('/groups/{groupPublicId}/tutors', [GroupTutorsController::class, 'update'])->middleware('permission:asignacion_docente.actualizar')->name('acad.groups.tutors.update');
+    // 1.12-a (api.md §12): sesiones de horario y vistas semanales (RN-ACAD-120 a -128), recurso `horarios`.
+    Route::get('/timetable-sessions', [TimetableSessionsController::class, 'index'])->middleware('permission:horarios.leer')->name('acad.timetable-sessions.index');
+    Route::post('/timetable-sessions', [TimetableSessionsController::class, 'store'])->middleware('permission:horarios.crear')->name('acad.timetable-sessions.store');
+    Route::get('/timetable-sessions/{publicId}', [TimetableSessionsController::class, 'show'])->middleware('permission:horarios.leer')->name('acad.timetable-sessions.show');
+    Route::patch('/timetable-sessions/{publicId}', [TimetableSessionsController::class, 'update'])->middleware('permission:horarios.actualizar')->name('acad.timetable-sessions.update');
+    Route::delete('/timetable-sessions/{publicId}', [TimetableSessionsController::class, 'destroy'])->middleware('permission:horarios.eliminar')->name('acad.timetable-sessions.destroy');
 });

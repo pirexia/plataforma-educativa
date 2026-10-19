@@ -10,6 +10,9 @@ return [
         'resources' => [
             'estructura_academica' => 'Akademische Struktur',
             'configuracion_academica' => 'Akademische Einstellungen',
+            'asignacion_docente' => 'Lehrauftrag',
+            'espacios' => 'Räume',
+            'horarios' => 'Stundenpläne',
         ],
     ],
 
@@ -77,6 +80,33 @@ return [
         'band_range_invalid' => 'Der Bereich muss innerhalb der Skala liegen und sein Anfang darf sein Ende nicht übersteigen.',
         'bands_not_contiguous' => 'Die Bereiche müssen die ganze Skala lückenlos, geordnet und ohne Überschneidung abdecken.',
         'passing_threshold_inside_band' => 'Die Mindestnote zum Bestehen muss mit dem Anfang eines Bereichs übereinstimmen.',
+        'user_not_found' => 'Der angegebene Benutzer existiert nicht oder ist nicht aktiv.',
+        'subject_not_in_group' => 'Das Fach ist dieser Gruppe nicht zugeordnet.',
+        'subgroup_not_in_group' => 'Die Untergruppe existiert nicht oder gehört nicht zu dieser Gruppe.',
+        'assignment_exists' => 'Dieser Lehrauftrag existiert bereits.',
+        'facility_type_invalid' => 'Der Raumtyp ist ungültig.',
+        'facility_type_immutable' => 'Der Typ eines Raums kann nicht geändert werden.',
+        'frame_type_invalid' => 'Der Typ des Stundenplanrahmens ist ungültig.',
+        'frame_type_immutable' => 'Der Typ eines Stundenplanrahmens kann nicht geändert werden.',
+        'frame_ordinary_exists' => 'Diese Stufe hat bereits einen regulären Stundenplanrahmen.',
+        'frame_dates_invalid' => 'Die Gültigkeitsdaten sind für diesen Typ des Stundenplanrahmens nicht gültig.',
+        'weekday_invalid' => 'Der Wochentag muss eine Zahl von 1 (Montag) bis 7 (Sonntag) sein.',
+        'time_invalid' => 'Die Uhrzeit muss im Format HH:MM (24-Stunden-Format) angegeben werden.',
+        'slot_ends_before_start' => 'Die Endzeit muss nach der Anfangszeit liegen.',
+        'slot_overlap' => 'Das Zeitfenster überschneidet sich mit einem anderen am selben Tag.',
+        'slot_not_in_frame' => 'Das Zeitfenster gehört nicht zu diesem Rahmen oder ist doppelt angegeben.',
+        'slots_too_many' => 'Ein Rahmen umfasst höchstens :max Zeitfenster.',
+        'slots_invalid' => 'Die Zeitfenster müssen als Liste von Objekten angegeben werden.',
+        'slot_not_for_group' => 'Das Zeitfenster gehört zu einem Rahmen einer anderen Stufe als der der Gruppe.',
+        'facility_not_found' => 'Der angegebene Raum existiert nicht.',
+        'facility_not_room' => 'Der angegebene Raum ist kein Klassenzimmer.',
+        'timetable_conflict' => 'Die Stunde überschneidet sich im Stundenplan mit einer anderen derselben Lehrkraft, desselben Raums oder derselben Gruppe.',
+        'view_filter_required' => 'Geben Sie mindestens einen der Filter an: teacher, facility, group oder subject.',
+        'view_too_large' => 'Die Ansicht enthält zu viele Stunden (höchstens :max).',
+    ],
+
+    'staff' => [
+        'unnamed' => 'Benutzer ohne Namen',
     ],
 
     'conflict' => [
@@ -89,6 +119,10 @@ return [
         'course' => 'Jahrgang',
         'group' => 'Gruppe',
         'subject' => 'Fach',
+        'subgroup' => 'Untergruppe',
+        'facility' => 'Raum',
+        'timetable_frame' => 'Stundenplanrahmen',
+        'teaching_assignment' => 'Lehrauftrag',
     ],
 
     'dependents' => [
@@ -97,5 +131,10 @@ return [
         'subgroups' => 'Untergruppen',
         'subjects' => 'Fächer',
         'academic_periods' => 'Unterrichtszeiträume',
+        'group_tutors' => 'Klassenleitungen',
+        'teaching_assignments' => 'Lehraufträge',
+        'timetable_frames' => 'Stundenplanrahmen',
+        'timetable_sessions' => 'Unterrichtsstunden',
+        'facility_bookings' => 'Raumreservierungen',
     ],
 ];

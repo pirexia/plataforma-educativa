@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Acad\Domain\Models\Course;
 use App\Modules\Acad\Domain\Models\GroupSubject;
 use App\Modules\Acad\Domain\Models\Subject;
+use App\Modules\Acad\Domain\Models\TeachingAssignment;
 use App\Support\Api\ValidationErrorBag;
 use App\Support\I18n\TranslationsValidator;
 use Illuminate\Support\Facades\DB;
@@ -86,15 +87,26 @@ final class SubjectService
         });
     }
 
-    /** `RN-ACAD-20`: no se borra una asignatura asignada a algún grupo vivo. */
+    /** `RN-ACAD-20`, ampliada por `RN-ACAD-96`: no se borra una asignatura asignada a algún grupo vivo ni con asignaciones docentes vivas. */
     public function delete(string $publicId, User $actor): void
     {
         DB::transaction(function () use ($publicId, $actor): void {
             $subject = Subject::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
             $this->years->forRow($subject->academic_year_id, $actor);
 
+            $dependents = [];
+
             if (GroupSubject::query()->where('subject_id', $subject->id)->exists()) {
-                throw StructureErrors::hasDependents('subject', $subject->code, ['groups']);
+                $dependents[] = 'groups';
+            }
+
+            // RN-ACAD-96 (1.12-a): asignaciones docentes vivas de la asignatura en algún grupo.
+            if (TeachingAssignment::query()->whereIn('group_subject_id', GroupSubject::query()->where('subject_id', $subject->id)->select('id'))->exists()) {
+                $dependents[] = 'teaching_assignments';
+            }
+
+            if ($dependents !== []) {
+                throw StructureErrors::hasDependents('subject', $subject->code, $dependents);
             }
 
             $subject->delete();

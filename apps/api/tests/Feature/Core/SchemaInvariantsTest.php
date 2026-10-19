@@ -61,6 +61,19 @@ test('toda restricción única sobre tabla con borrado lógico es parcial, salvo
         'academic_periods_tenant_year_id_unique',
         'grading_scales_tenant_year_id_type_unique',
         'grading_scale_values_tenant_year_id_unique',
+        // 1.12-a (REQ-ACAD/datos.md §9.1): destino de la FK con discriminador de las sesiones
+        // (tenant_id, facility_id, facility_type); los espacios borrados lógicamente conservan
+        // su id y su tipo, que no se reutilizan.
+        'facilities_tenant_id_type_unique',
+        // 1.12-a (datos.md §9.3): destinos de las FK de teaching_assignments hacia group_subjects y subgroups.
+        'group_subjects_tenant_group_id_unique',
+        'subgroups_tenant_group_id_unique',
+        // 1.12-a (datos.md §9.1): destinos de las FK por curso de las sesiones y las franjas.
+        'teaching_assignments_tenant_year_id_unique',
+        'timetable_frames_tenant_year_id_unique',
+        'time_slots_tenant_year_id_unique',
+        // 1.12-a (datos.md §9.1): el ancla de serialización no se borra nunca (RN-ACAD-115), único no parcial a propósito.
+        'timetables_tenant_year_unique',
     ];
 
     $tablesWithDeletedAt = collect(DB::select(<<<'SQL'

@@ -2,7 +2,9 @@
 
 > **`1.11d`** (APROBADA, 2026-10-16): recurso `configuracion_academica` en §1, §2.2, §3 y §4.1.
 >
-> **Estado**: **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11**. Recurso y siembra aprobados (`OPEN-ACAD-09` = A + X); ámbitos según `ADR-063` (ACEPTADA; `OPEN-ACAD-08` = A). La fuente de verdad será `AcadServiceProvider::declaredPermissions()` (`INV-007`, `ADR-034 §2`); esta tabla es su reflejo. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
+> **`1.12`** (**APROBADA 2026-10-17**, con las recomendaciones de `OPEN-ACAD-32` a `-44`): recursos `asignacion_docente`, `espacios`, `horarios` y `reservas` en **§10**.
+>
+> **Estado**: **`1.12-a` (horarios y asignación docente) implementada (2026-10-18, rama `feature/REQ-ACAD-1-12-horarios-spec`).** **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11**. Recurso y siembra aprobados (`OPEN-ACAD-09` = A + X); ámbitos según `ADR-063` (ACEPTADA; `OPEN-ACAD-08` = A). La fuente de verdad será `AcadServiceProvider::declaredPermissions()` (`INV-007`, `ADR-034 §2`); esta tabla es su reflejo. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 
 ---
 
@@ -104,7 +106,7 @@ El usuario decidió **X + 1** en `OPEN-ACAD-28` el 2026-10-16 (`funcional.md §1
 | `orientador` | `leer` | `todos` | Ídem |
 | Los 10 restantes | — | — | Sin base en `§11.1` |
 
-**Dónde se siembra**: en `ProvisionTenantDefaults` (centros nuevos) y, para los existentes, con el comando `acad:grant-structure-permissions` (en `Core`, `INV-007`), que se amplía para sembrar los **ocho** códigos de `acad`, con las mismas garantías (idempotente, solo roles predefinidos, no toca roles personalizados, solo centros `Activo`, y **no concede nada** si alguno de los ocho falta en `permissions` o tiene `retired_at` informado, issue #387). `RN-PERM-46`: ninguna regla de código compara códigos de rol.
+**Dónde se siembra**: en `ProvisionTenantDefaults` (centros nuevos) y, para los existentes, con el comando `acad:grant-structure-permissions` (en `Core`, `INV-007`), que se amplía para sembrar los **veinte** códigos de `acad` (ocho de `1.11` y doce de `1.12-a`: `asignacion_docente`, `espacios` y `horarios` × cuatro acciones), con las mismas garantías (idempotente, solo roles predefinidos, no toca roles personalizados, solo centros `Activo`, y **no concede nada** si alguno de los ocho falta en `permissions` o tiene `retired_at` informado, issue #387). `RN-PERM-46`: ninguna regla de código compara códigos de rol.
 
 **`RPERM-013`** (nadie concede lo que no tiene): sin cambios; la acotación de `1.11-b` (§5) cubre igual los permisos de `configuracion_academica` de un rol que ya los contiene en un centro sin `acad` contratado.
 
@@ -137,4 +139,60 @@ Ningún cambio. Las capacidades de escritura solo las tiene, en la siembra decid
 
 ## 9. Verificación
 
-`funcional.md §13.6` (`CA-ACAD-032` a `-037`) y `§13.5` (lectura de curso cerrado, `CA-ACAD-024` a `-031`). `1.11d`: `§13.14` (`CA-ACAD-090` a `-092`) y `§13.15` (`CA-ACAD-093` a `-097`); `PermissionCatalogTest` debe conocer los ocho códigos con `module_code = 'acad'` (los cuatro de `estructura_academica` y los cuatro de `configuracion_academica`). El *endpoint* `GET /academic-years/selectable` (módulo `curso`, #409) no lleva permiso: amplía la lista cerrada de `AR-07a` con esa única ruta (aprobado, `CA-ACAD-043`).
+`funcional.md §13.6` (`CA-ACAD-032` a `-037`) y `§13.5` (lectura de curso cerrado, `CA-ACAD-024` a `-031`). `1.12-a` (implementada el 2026-10-18): `funcional.md §18.9` (`CA-ACAD-128`, `-129`, `-131` a `-133`), cubiertos por `AcadTimetableAccessTest` y `AcadTimetableYearAndTenantTest`; `CA-ACAD-139` (`reservas.eliminar` con ámbito `propios`) es de `1.12-b`, pendiente. `1.11d`: `§13.14` (`CA-ACAD-090` a `-092`) y `§13.15` (`CA-ACAD-093` a `-097`); `PermissionCatalogTest` debe conocer los ocho códigos con `module_code = 'acad'` (los cuatro de `estructura_academica` y los cuatro de `configuracion_academica`). El *endpoint* `GET /academic-years/selectable` (módulo `curso`, #409) no lleva permiso: amplía la lista cerrada de `AR-07a` con esa única ruta (aprobado, `CA-ACAD-043`).
+
+---
+
+## 10. `1.12` · Horarios y asignación docente (**APROBADA**)
+
+Aprobada el 2026-10-17; la siembra y el ámbito `propios` dependen de `OPEN-ACAD-42` (`funcional.md §18.11`), cuya recomendación se aplica aquí.
+
+### 10.1 Recursos y catálogo
+
+`module_code = 'acad'`, `is_special_category = false`, etiqueta `acad.permissions.resources.<recurso>` en los cuatro idiomas. Acciones solo de `RPERM-003`.
+
+| Recurso | Qué representa | Acciones | `applicable_scopes` |
+|---------|----------------|----------|---------------------|
+| `asignacion_docente` | Asignaciones docentes y tutorías de grupo | `leer`, `crear`, `actualizar` (solo `PUT /groups/{id}/tutors`), `eliminar` | `['todos']` |
+| `espacios` | Aulas y recursos | `leer`, `crear`, `actualizar`, `eliminar` | `['todos']` |
+| `horarios` (nombrado en `RPERM-002`) | Marcos, franjas y sesiones | `leer`, `crear`, `actualizar`, `eliminar` | `['todos']` |
+| `reservas` (`1.12-b`) | Reservas de espacios | `leer`, `crear`, `eliminar` | `leer`, `crear`: `['todos']`; `eliminar`: **`['todos', 'propios']`** |
+
+Escribir franjas (`slots` dentro del marco) exige el permiso de la operación sobre el marco (precedente `RN-ACAD-50`). **No se declaran** `horarios.exportar` ni `horarios.importar` hasta que exista la exportación PDF o la importación (`OPEN-ACAD-38`, `-39`; precedente §2.1), ni `reservas.actualizar` (las reservas no se editan, `RN-ACAD-142`).
+
+**Por qué cuatro recursos**: perfiles distintos. La asignación docente relaciona personas con grupos y determinará ámbitos de otros módulos (`ADR-063`); los espacios son un catálogo de administración; los horarios se consultan por casi todos; las reservas las hace el profesorado. Un solo recurso obligaría a dar escritura de horarios a quien solo debe reservar.
+
+### 10.2 Matriz recurso × acción × ámbito
+
+| Recurso | crear | leer | actualizar | eliminar | exportar | importar | aprobar | firmar | publicar |
+|---------|-------|------|------------|----------|----------|----------|---------|--------|----------|
+| `asignacion_docente` | `todos` | `todos` | `todos` | `todos` | — | — | — | — | — |
+| `espacios` | `todos` | `todos` | `todos` | `todos` | — | — | — | — | — |
+| `horarios` | `todos` | `todos` | `todos` | `todos` | — (`OPEN-ACAD-38`) | — (`OPEN-ACAD-39`) | — | — | — |
+| `reservas` (`1.12-b`) | `todos` | `todos` | — | `todos`, `propios` | — | — | — | — | — |
+
+**Ámbito `propios` en `reservas.eliminar`** (`1.12-b`): `acad` registra el resolutor (`propios`, `reservas`) en `ScopeResolverRegistry`, que restringe a `created_by = usuario` con `ScopedQuery`. `ADR-063 §5.2` punto 3 lo permite (recurso propio de `acad`), pero **amplía el mapa cerrado de `AR-10`**, que solo se amplía con aprobación expresa del usuario: la pide `OPEN-ACAD-42`. Con ámbito `propios`, una reserva ajena responde `404` en `DELETE` (y en `GET` de detalle si el `leer` también fuera `propios`, que no se propone).
+
+**`grupo` y `clase`**: ningún recurso de `1.12` los admite. `acad` aporta la pertenencia (`funcional.md §18.7`) y los registra cada módulo dueño de recurso. **Ningún recurso de `1.12` contiene datos de alumnado**, así que dar `todos` a `docente` en `horarios.leer` no es la sustitución prohibida por `ADR-063 §5.4`.
+
+### 10.3 Siembra en roles predefinidos (`OPEN-ACAD-42` = X, recomendada)
+
+| Rol | `asignacion_docente` | `espacios` | `horarios` | `reservas` (`1.12-b`) |
+|-----|----------------------|------------|------------|-----------------------|
+| `administrador_centro` | los cuatro | los cuatro | los cuatro | los tres, `todos` |
+| `direccion` | los cuatro | `leer` | los cuatro | los tres, `todos` |
+| `secretaria` | `leer` | `leer` | `leer` | `leer` |
+| `docente` | `leer` | `leer` | `leer` | `leer`, `crear`; `eliminar` con `propios` |
+| `tutor_grupo` | `leer` | `leer` | `leer` | ídem `docente` |
+| `orientador` | `leer` | `leer` | `leer` | `leer` |
+| Los 10 restantes | — | — | — | — |
+
+Motivo de `direccion` con escritura: `§11.1` («Dirección / Jefatura de Estudios: … horarios»); difiere del criterio «solo el administrador» de `OPEN-CURSO-14`/`OPEN-ACAD-28` porque aquí el requisito nombra el rol. Estudiante y familia verán horarios desde sus portales (`1.22`, `1.23`) con su propio ámbito; nada en `1.12`. Centros nuevos: `ProvisionTenantDefaults`; existentes: `acad:grant-structure-permissions` ampliado a los códigos nuevos, con sus garantías (idempotente, solo roles predefinidos, solo centros `Activo`, nada si algún código falta o está retirado; precedente `OPEN-ACAD-28` = 1).
+
+**MFA** (`§7`): `direccion` gana capacidades de escritura; si `direccion` no lleva ya `mfa_required`, **no** se cambia aquí (es atributo del rol, `REQ-AUTH-003`): se señala para que el usuario lo valore.
+
+**`RPERM-013`**: sin cambios; la acotación de §5 cubre los permisos nuevos en centros sin `acad`.
+
+### 10.4 Reglas de autorización que no son un permiso
+
+Las de §5 (módulo contratado, código existente, curso de solo lectura, lectura de curso cerrado, aislamiento). Además: asignarse docencia o tutoría **no concede permisos ni roles** (`RN-ACAD-92`); que un usuario sea tutor no le da el rol `tutor_grupo`.

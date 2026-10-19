@@ -17,7 +17,7 @@ use Illuminate\Console\Command;
  * tipo que `curso:grant-year-permissions`.
  * `tenant:provision-defaults` solo corre en el alta de un centro nuevo; los
  * centros que ya existían no reciben las concesiones de `estructura_academica`
- * ni de `configuracion_academica` por desplegar, y su síntoma es un `403` indistinguible de «no tengo permiso».
+ * ni de `configuracion_academica`, `asignacion_docente`, `espacios` o `horarios` por desplegar, y su síntoma es un `403` indistinguible de «no tengo permiso».
  *
  * Concede, en cada centro vivo, exactamente las concesiones de
  * `ProvisionTenantDefaults::STRUCTURE_PERMISSION_GRANTS` (una sola lista por
@@ -25,7 +25,7 @@ use Illuminate\Console\Command;
  * roles personalizados**. Idempotente. Escritura por el modelo (`RN-PERM-19`),
  * nunca por `attach()`/`sync()`, para que quede auditada (issue #165).
  *
- * **Comprueba antes** que los ocho permisos existen en `permissions` y que
+ * **Comprueba antes** que todos los permisos de la lista existen en `permissions` y que
  * ninguno está retirado (`retired_at IS NULL`, issue #387 B-5): si falta o
  * está retirado alguno, falla diciendo cuál y qué hacer, y **no concede nada**.
  * **Solo recorre los centros en estado `Activo`** (`RunsPerTenant`): un centro

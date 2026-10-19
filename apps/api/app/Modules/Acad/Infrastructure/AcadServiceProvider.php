@@ -2,15 +2,23 @@
 
 namespace App\Modules\Acad\Infrastructure;
 
+use App\Modules\Acad\Application\StaffDirectory;
 use App\Modules\Acad\Domain\Models\AcademicPeriod;
 use App\Modules\Acad\Domain\Models\Course;
 use App\Modules\Acad\Domain\Models\EducationLevel;
+use App\Modules\Acad\Domain\Models\Facility;
 use App\Modules\Acad\Domain\Models\GradingScale;
 use App\Modules\Acad\Domain\Models\GradingScaleValue;
 use App\Modules\Acad\Domain\Models\Group;
 use App\Modules\Acad\Domain\Models\GroupSubject;
+use App\Modules\Acad\Domain\Models\GroupTutor;
 use App\Modules\Acad\Domain\Models\Subgroup;
 use App\Modules\Acad\Domain\Models\Subject;
+use App\Modules\Acad\Domain\Models\TeachingAssignment;
+use App\Modules\Acad\Domain\Models\TimeSlot;
+use App\Modules\Acad\Domain\Models\Timetable;
+use App\Modules\Acad\Domain\Models\TimetableFrame;
+use App\Modules\Acad\Domain\Models\TimetableSession;
 use App\Modules\Curso\Domain\AcademicYearDateChangeRegistry;
 use App\Support\Modules\DeclaresModuleRegistry;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -32,7 +40,8 @@ class AcadServiceProvider extends ServiceProvider implements DeclaresModuleRegis
 {
     public function register(): void
     {
-        //
+        // Memoiza por petición los usuarios resueltos (RN-ACAD-92).
+        $this->app->scoped(StaffDirectory::class);
     }
 
     public function boot(): void
@@ -50,6 +59,14 @@ class AcadServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             'academic_period' => AcademicPeriod::class,
             'grading_scale' => GradingScale::class,
             'grading_scale_value' => GradingScaleValue::class,
+            // 1.12-a (datos.md §9.6).
+            'facility' => Facility::class,
+            'timetable' => Timetable::class,
+            'teaching_assignment' => TeachingAssignment::class,
+            'group_tutor' => GroupTutor::class,
+            'timetable_frame' => TimetableFrame::class,
+            'time_slot' => TimeSlot::class,
+            'timetable_session' => TimetableSession::class,
         ]);
 
         // RN-ACAD-62: «el cambio de fechas no deja fuera ningún período lectivo
@@ -78,6 +95,23 @@ class AcadServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         // Ni `exportar` ni `importar` (§2.1): sin endpoint, un permiso invita a
         // concederlo creyendo que hace algo.
         foreach (['estructura_academica', 'configuracion_academica'] as $resource) {
+            foreach (['leer', 'crear', 'actualizar', 'eliminar'] as $action) {
+                $permissions[] = [
+                    'code' => "{$resource}.{$action}",
+                    'resource' => $resource,
+                    'action' => $action,
+                    'is_special_category' => false,
+                    'resource_label_key' => "acad.permissions.resources.{$resource}",
+                    'applicable_scopes' => ['todos'],
+                ];
+            }
+        }
+
+        // permisos.md §10.1 (1.12-a, `REQ-ACAD-002`): tres recursos de ámbito `todos`.
+        // Ni `exportar` ni `importar` de `horarios` (`OPEN-ACAD-38`, `-39`; sin
+        // endpoint, un permiso invita a concederlo creyendo que hace algo). El recurso
+        // `reservas` se declara con `1.12-b`, con sus endpoints.
+        foreach (['asignacion_docente', 'espacios', 'horarios'] as $resource) {
             foreach (['leer', 'crear', 'actualizar', 'eliminar'] as $action) {
                 $permissions[] = [
                     'code' => "{$resource}.{$action}",

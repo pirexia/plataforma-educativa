@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Acad\Domain\Models\AcademicPeriod;
 use App\Modules\Acad\Domain\Models\Course;
 use App\Modules\Acad\Domain\Models\EducationLevel;
+use App\Modules\Acad\Domain\Models\TimetableFrame;
 use App\Support\Api\ValidationErrorBag;
 use App\Support\I18n\TranslationsValidator;
 use Illuminate\Support\Facades\DB;
@@ -94,8 +95,8 @@ final class EducationLevelService
     }
 
     /**
-     * `RN-ACAD-20`, ampliada por `RN-ACAD-61` (1.11d-a): no se borra una etapa
-     * con cursos de etapa ni con períodos lectivos vivos. Toma `FOR UPDATE`
+     * `RN-ACAD-20`, ampliada por `RN-ACAD-61` (1.11d-a) y `RN-ACAD-96` (1.12-a): no se borra una etapa
+     * con cursos de etapa, períodos lectivos ni marcos horarios vivos. Toma `FOR UPDATE`
      * sobre la etapa, el mismo bloqueo que el alta de un período (`RN-ACAD-54`):
      * o el borrado ve el período (`409`) o el alta ve la etapa borrada (`422`).
      */
@@ -113,6 +114,11 @@ final class EducationLevelService
 
             if (AcademicPeriod::query()->where('education_level_id', $level->id)->exists()) {
                 $dependents[] = 'academic_periods';
+            }
+
+            // RN-ACAD-96 (1.12-a): marcos horarios vivos de la etapa.
+            if (TimetableFrame::query()->where('education_level_id', $level->id)->exists()) {
+                $dependents[] = 'timetable_frames';
             }
 
             if ($dependents !== []) {

@@ -1,6 +1,8 @@
 # REQ-ACAD · Operación
 
-> **Estado**: **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11**, con las recomendaciones de `funcional.md §15` aprobadas y `ADR-062`/`ADR-063` ACEPTADOS. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
+> **Estado**: **`1.12-a` (horarios y asignación docente) implementada (2026-10-18, rama `feature/REQ-ACAD-1-12-horarios-spec`).** **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11**, con las recomendaciones de `funcional.md §15` aprobadas y `ADR-062`/`ADR-063` ACEPTADOS. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
+>
+> **`1.12`** (**APROBADA 2026-10-17**, con las recomendaciones de `OPEN-ACAD-32` a `-44`): operación de horarios y asignación docente en **§12**, al final del fichero.
 >
 > **`1.11d`** (APROBADA, 2026-10-16): operación de períodos lectivos y escalas en **§11**, tras §10 (el §6.2 de `1.11-a`, que ya estaba fuera de orden al final del fichero, sigue detrás).
 
@@ -158,3 +160,43 @@ Implementada. Sin variables, servicios, colas ni tareas programadas nuevos (§11
 - Sin dos `migrate` a la vez: `php artisan migrate --isolated`. `CREATE INDEX CONCURRENTLY` espera a transacciones largas sobre la tabla; ejecutarla en una ventana sin ellas (o con `lock_timeout` de sesión).
 - **No se retira ningún índice existente** (fase *contract*, decisión del usuario). Candidatos a retirar, con evidencia de catálogo (sin estadísticas de uso en desarrollo): `user_mfa_recovery_codes_tenant_user_unused_idx` y `user_mfa_factors_tenant_user_confirmed_idx`, prefijo estricto, con el mismo predicado, de otro índice.
 - Tests: `tests/Feature/Core/TenantForeignKeyIndexesMigrationTest.php`.
+
+## 12. `1.12` · Horarios y asignación docente (**APROBADA; `1.12-a` implementada el 2026-10-18**)
+
+Aprobada el 2026-10-17 (`funcional.md §18`).
+
+### 12.1 Variables, servicios, colas y tareas
+
+Ninguna variable de entorno, ningún servicio externo, **ninguna cola ni tarea programada**: toda escritura es síncrona sobre decenas de filas (la detección de conflictos lee las sesiones de un profesor, un aula o un grupo en un curso). `INV-012` no aplica en `1.12`; aplicará a la exportación PDF cuando se especifique (`OPEN-ACAD-38`), que necesitará el servicio de PDF y un *worker* que hoy no existen (issue #128). Sin caché entre peticiones.
+
+### 12.2 Despliegue
+
+1. Migraciones (*expand*), por el rol propietario, en `apps/api/app/Modules/Acad/Database/migrations/`, en este orden: (a) únicos nuevos en `group_subjects` y `subgroups` (`datos.md §9.3`: índice `CONCURRENTLY` fuera de transacción y `ADD CONSTRAINT … USING INDEX`; tablas ya en `develop`); (b) `facilities`; (c) `timetables`; (d) `teaching_assignments`, `group_tutors`; (e) `timetable_frames`, `time_slots`, `timetable_sessions`; en `1.12-b`, `facility_bookings`. Con `TenantMigration::tenantTable()`, `tenantForeignId()` y `translatableColumn()`; FK de tres columnas a mano, **sin** acción referencial (`AR-13`). `AR-04` admite `time` sin cambios (`OPEN-ACAD-40` resuelta por `ADR-065`, ACEPTADA el 2026-10-17).
+2. `php artisan platform:sync-registry`: materializa los códigos nuevos de `permisos.md §10.1`. Descriptor sin cambios.
+3. Siembra en centros existentes: `php artisan acad:grant-structure-permissions` ampliado (`permisos.md §10.3`). Centros nuevos: `ProvisionTenantDefaults`.
+4. Abrir tráfico.
+5. Revisiones: **`db-reviewer`** (ocho tablas, FK con discriminador y `NULLS NOT DISTINCT`, cambios en dos tablas existentes, ancla de serialización); **`security-reviewer`** (asignación docente, nombres de profesorado en respuestas, resolutor `propios` y ampliación de `AR-10` en `1.12-b`); `doc-reviewer`.
+
+### 12.3 Rendimiento
+
+≈ 1.200 sesiones por curso en un centro de 40 grupos. La escritura de una sesión toma `FOR UPDATE` del ancla del curso: serializa todas las escrituras de horario de ese curso en el centro, que son humanas y raras; una transacción dura milisegundos (tres lecturas indexadas y una inserción). Las lecturas no bloquean. `GET /timetable-sessions` carga resúmenes con *eager loading*, sin N+1, con tope de 500 filas.
+
+### 12.4 Diagnóstico
+
+| Síntoma | Causa probable | Qué hacer |
+|---------|----------------|-----------|
+| `422 timetable_conflict` | Profesor, aula o grupo ya ocupados a esa hora (`RN-ACAD-123`) | Comportamiento correcto; `params.conflicts` nombra la sesión |
+| `409 has_dependents` al cambiar la hora de una franja o borrar una asignación | Tiene sesiones (`RN-ACAD-114`, `-95`) | Mover o borrar antes las sesiones |
+| `409 has_dependents` al quitar una asignatura a un grupo | Tiene profesorado asignado (`RN-ACAD-96`) | Borrar antes las asignaciones |
+| `422 user_not_found` con un usuario que existe | Inactivo o de otro centro | Reactivarlo en `Core` |
+| No se puede borrar un aula | Sesiones o reservas en un curso en planificación o activo (`RN-ACAD-102`) | Moverlas o borrarlas |
+| Dos sesiones en conflicto confirmadas | Escritura que no pasó por el servicio o no tomó el ancla | *Bug*: abrir issue (`RN-ACAD-125`) |
+| `500` con `23503`/`23514` en una escritura | El servicio dejó pasar algo que el motor rechaza | *Bug*: debe ser `422` |
+
+### 12.5 Copias y reversión
+
+Tablas de tenant ordinarias (PITR, exportación por tenant); orden de restauración en `datos.md §9.6`; como propietario (exento del disparador). **Reversión**: imagen anterior; las migraciones no se revierten (aditivas; `down()` borraría el horario del centro). Los únicos de §9.3 se quedan: la versión anterior no los usa y no estorban. `sync-registry` de la versión anterior retira los códigos nuevos (concesiones inertes). Con la versión anterior, `RN-ACAD-96` deja de aplicarse: se podría borrar lógicamente un grupo o una asignatura con asignaciones vivas (huérfanos lógicos, sin daño de integridad: FK `NO ACTION`, borrado lógico); se documenta en `RUNBOOK.md`. Procedimiento a probar antes de mezclar (`CLAUDE.md §9`).
+
+### 12.6 Documentación a actualizar en el cierre
+
+`docs/manual-usuario/admin.md` (espacios, marcos, asignación docente, horario, conflictos; reservas en `1.12-b`), `direccion.md` (composición del horario, según la siembra), `secretaria.md`, `docente.md` (consulta del horario; reservas en `1.12-b`); `SYSADMIN.md` (permisos nuevos y siembra); `ARCHITECTURE.md §3.4` (patrón: ancla de serialización por curso para reglas entre filas sin `btree_gist`; rejilla a medida); `RUNBOOK.md` (reversión); `CHANGELOG.md`; `PLAN-IMPLEMENTACION.md` (entregas de `OPEN-ACAD-44`, y en `1.13`/`1.16` que el plazo de `ADR-063 §5.4` queda cumplido al aprobarse §18). Si `OPEN-ACAD-40` se resuelve con ADR, lo redacta `architect` en `docs/adr/`.

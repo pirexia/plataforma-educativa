@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Acad\Domain\Models\Group;
 use App\Modules\Acad\Domain\Models\GroupSubject;
 use App\Modules\Acad\Domain\Models\Subject;
+use App\Modules\Acad\Domain\Models\TeachingAssignment;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -56,6 +57,14 @@ final class GroupSubjectsService
 
             $current = GroupSubject::query()->where('group_id', $group->id)->get()->keyBy('subject_id');
             $wantedIds = $subjects->pluck('id')->all();
+
+            // RN-ACAD-96 (1.12-a): quitar una asignatura con asignaciones docentes vivas en este grupo
+            // es `409 has_dependents` y no cambia nada (se comprueba antes de escribir).
+            foreach ($current as $subjectId => $assignment) {
+                if (! in_array($subjectId, $wantedIds, true) && TeachingAssignment::query()->where('group_subject_id', $assignment->id)->exists()) {
+                    throw StructureErrors::hasDependents('subject', Subject::query()->whereKey($subjectId)->value('code') ?? '', ['teaching_assignments']);
+                }
+            }
 
             foreach ($subjects as $subject) {
                 if (! $current->has($subject->id)) {
