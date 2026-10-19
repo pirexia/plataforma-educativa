@@ -60,11 +60,22 @@ final class AcadApiHelpers
      */
     public static function userWith(object $tenant, User $admin, string $local, array $codes): User
     {
+        return self::userWithScopes($tenant, $admin, $local, array_fill_keys($codes, 'todos'));
+    }
+
+    /**
+     * Como `userWith`, pero con el ámbito de cada permiso (`código => ámbito`):
+     * p. ej. `reservas.eliminar` con `propios` (1.12-b, `OPEN-ACAD-42`).
+     *
+     * @param  array<string, string>  $grants
+     */
+    public static function userWithScopes(object $tenant, User $admin, string $local, array $grants): User
+    {
         resetSessionState();
         $roleId = test()->actingAs($admin)->postJson(coreApiUrl($tenant->slug, '/roles'), [
             'code' => "rol_{$local}",
             'name' => "Rol {$local}",
-            'permissions' => array_map(static fn (string $c): array => ['code' => $c, 'effect' => 'allow', 'scope' => 'todos'], $codes),
+            'permissions' => array_map(static fn (string $c, string $scope): array => ['code' => $c, 'effect' => 'allow', 'scope' => $scope], array_keys($grants), array_values($grants)),
         ])->assertCreated()->json('public_id');
 
         resetSessionState();

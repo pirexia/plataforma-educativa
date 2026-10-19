@@ -7,6 +7,7 @@ use App\Modules\Acad\Domain\Models\AcademicPeriod;
 use App\Modules\Acad\Domain\Models\Course;
 use App\Modules\Acad\Domain\Models\EducationLevel;
 use App\Modules\Acad\Domain\Models\Facility;
+use App\Modules\Acad\Domain\Models\FacilityBooking;
 use App\Modules\Acad\Domain\Models\GradingScale;
 use App\Modules\Acad\Domain\Models\GradingScaleValue;
 use App\Modules\Acad\Domain\Models\Group;
@@ -19,21 +20,26 @@ use App\Modules\Acad\Domain\Models\TimeSlot;
 use App\Modules\Acad\Domain\Models\Timetable;
 use App\Modules\Acad\Domain\Models\TimetableFrame;
 use App\Modules\Acad\Domain\Models\TimetableSession;
+use App\Modules\Acad\Domain\ReservasPropiosScopeResolver;
 use App\Modules\Curso\Domain\AcademicYearDateChangeRegistry;
+use App\Support\Authorization\ScopeResolverRegistry;
 use App\Support\Modules\DeclaresModuleRegistry;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
 
 /**
- * ADR-034 §2, §5, §7 y REQ-ACAD/funcional.md §8 (pasos 1.11-b, 1.11d-a y 1.11d-b):
+ * ADR-034 §2, §5, §7 y REQ-ACAD/funcional.md §8 (pasos 1.11-b, 1.11d-a, 1.11d-b,
+ * 1.12-a y 1.12-b):
  * descubierto por ModuleServiceProviderDiscovery, sin registro a mano. Declara
  * el descriptor (no esencial, depende de `curso`: OPEN-ACAD-10), el catálogo de
- * permisos de `permisos.md §2` y `§2.2` —la fuente de verdad, INV-007— y el
- * *morph map* de sus nueve modelos auditables (`AR-06`, `datos.md §4`); carga
+ * permisos de `permisos.md §2`, `§2.2` y `§10` —la fuente de verdad, INV-007— y el
+ * *morph map* de sus modelos auditables (`AR-06`, `datos.md §4`, `§9.6`); carga
  * las migraciones del módulo (`AR-03`) y registra en `curso` la validación del
  * cambio de fechas del curso (`RN-ACAD-62`, `OPEN-ACAD-24` = B).
  *
- * Sin resolutores de ámbito: `acad` no registra nada en `ScopeResolverRegistry`
+ * Único resolutor de ámbito de `acad` (`1.12-b`, `OPEN-ACAD-42`): (`propios`,
+ * `reservas`) en `ScopeResolverRegistry`. Los recursos de estructura, períodos,
+ * escalas, espacios, asignación docente y horarios no registran ninguno
  * (`permisos.md §3.1`, `ADR-063 §5.1`, `CA-ACAD-037`).
  */
 class AcadServiceProvider extends ServiceProvider implements DeclaresModuleRegistry
@@ -67,7 +73,12 @@ class AcadServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             'timetable_frame' => TimetableFrame::class,
             'time_slot' => TimeSlot::class,
             'timetable_session' => TimetableSession::class,
+            // 1.12-b (datos.md §9.6).
+            'facility_booking' => FacilityBooking::class,
         ]);
+
+        // permisos.md §10.2 (`OPEN-ACAD-42`): `reservas.eliminar` admite `propios`.
+        $this->app->make(ScopeResolverRegistry::class)->register(new ReservasPropiosScopeResolver);
 
         // RN-ACAD-62: «el cambio de fechas no deja fuera ningún período lectivo
         // vivo». `curso` la ejecuta (con su FOR UPDATE retenido, RN-CURSO-51)
@@ -109,8 +120,7 @@ class AcadServiceProvider extends ServiceProvider implements DeclaresModuleRegis
 
         // permisos.md §10.1 (1.12-a, `REQ-ACAD-002`): tres recursos de ámbito `todos`.
         // Ni `exportar` ni `importar` de `horarios` (`OPEN-ACAD-38`, `-39`; sin
-        // endpoint, un permiso invita a concederlo creyendo que hace algo). El recurso
-        // `reservas` se declara con `1.12-b`, con sus endpoints.
+        // endpoint, un permiso invita a concederlo creyendo que hace algo).
         foreach (['asignacion_docente', 'espacios', 'horarios'] as $resource) {
             foreach (['leer', 'crear', 'actualizar', 'eliminar'] as $action) {
                 $permissions[] = [
@@ -122,6 +132,19 @@ class AcadServiceProvider extends ServiceProvider implements DeclaresModuleRegis
                     'applicable_scopes' => ['todos'],
                 ];
             }
+        }
+
+        // permisos.md §10.1 (1.12-b): `reservas`, sin `actualizar` (las reservas no se editan,
+        // `RN-ACAD-142`). `eliminar` admite `todos` y `propios` (`OPEN-ACAD-42`).
+        foreach (['leer', 'crear', 'eliminar'] as $action) {
+            $permissions[] = [
+                'code' => "reservas.{$action}",
+                'resource' => 'reservas',
+                'action' => $action,
+                'is_special_category' => false,
+                'resource_label_key' => 'acad.permissions.resources.reservas',
+                'applicable_scopes' => $action === 'eliminar' ? ['todos', 'propios'] : ['todos'],
+            ];
         }
 
         return $permissions;

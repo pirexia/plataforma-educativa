@@ -22,7 +22,7 @@ use Tests\Support\CursoTestHelpers;
 // INV-015. Lo que el motor NO garantiza lo prueban `AcadTimetableFramesApiTest`
 // y los de sesiones y conflictos.
 
-const TIMETABLE_TABLES = ['facilities', 'timetables', 'teaching_assignments', 'group_tutors', 'timetable_frames', 'time_slots', 'timetable_sessions'];
+const TIMETABLE_TABLES = ['facilities', 'timetables', 'teaching_assignments', 'group_tutors', 'timetable_frames', 'time_slots', 'timetable_sessions', 'facility_bookings'];
 
 beforeEach(function (): void {
     [$this->tenant, $this->admin, $this->year] = Api::setup('tt-schema');
@@ -79,7 +79,7 @@ function ttAssignment(object $test, array $overrides = []): array
     ];
 }
 
-test('CA-ACAD-130 CA-ACAD-001 datos.md §9: las siete tablas tienen RLS forzada, public_id char(26) y autoría; las seis con curso tienen el disparador academic_year_write_guard y facilities ni la columna ni el disparador', function (): void {
+test('CA-ACAD-130 CA-ACAD-001 datos.md §9: las ocho tablas (siete de 1.12-a y facility_bookings de 1.12-b) tienen RLS forzada, public_id char(26) y autoría; las siete con curso tienen el disparador academic_year_write_guard y facilities ni la columna ni el disparador', function (): void {
     $owner = DB::connection('pgsql_owner');
 
     foreach (TIMETABLE_TABLES as $table) {
@@ -104,7 +104,7 @@ test('CA-ACAD-130 CA-ACAD-001 datos.md §9: las siete tablas tienen RLS forzada,
     }
 });
 
-test('CA-ACAD-130 ADR-057 §5.2 AR-13: ninguna FK de las siete tablas (incluidas created_by y updated_by) tiene acción referencial distinta de NO ACTION, y las tres de teaching_assignments y de timetable_sessions existen', function (): void {
+test('CA-ACAD-130 ADR-057 §5.2 AR-13: ninguna FK de las ocho tablas (incluidas created_by y updated_by) tiene acción referencial distinta de NO ACTION, y las tres de teaching_assignments y de timetable_sessions existen', function (): void {
     $owner = DB::connection('pgsql_owner');
     $tables = "'".implode("','", TIMETABLE_TABLES)."'";
 
@@ -115,6 +115,7 @@ test('CA-ACAD-130 ADR-057 §5.2 AR-13: ninguna FK de las siete tablas (incluidas
         'teaching_assignments_tenant_year_group_foreign', 'teaching_assignments_tenant_group_gsubject_foreign', 'teaching_assignments_tenant_group_subgroup_foreign',
         'timetable_sessions_tenant_year_slot_foreign', 'timetable_sessions_tenant_year_assignment_foreign', 'timetable_sessions_tenant_facility_type_foreign',
         'time_slots_tenant_year_frame_foreign', 'timetable_frames_tenant_year_level_foreign', 'group_tutors_tenant_year_group_foreign',
+        'facility_bookings_tenant_id_facility_id_foreign',
     );
 });
 
@@ -277,4 +278,21 @@ test('INV-001 CA-ACAD-132: las filas de otro centro no se ven por el modelo ni p
     }
 
     expect(EducationLevel::query()->count())->toBe(0)->and(Course::query()->count())->toBe(0);
+});
+
+test('ADR-065 CA-ACAD-138 datos.md §9.2: facility_bookings guarda la fecha como date y las horas como time sin zona; el motor rechaza ends_at <= starts_at (23514), un espacio inexistente (23503) y un curso inexistente (23503) y admite una fila correcta', function (): void {
+    $types = DB::connection('pgsql_owner')->select("SELECT attname, format_type(atttypid, atttypmod) AS t FROM pg_attribute WHERE attrelid = 'facility_bookings'::regclass AND attname IN ('booked_on', 'starts_at', 'ends_at') ORDER BY attname");
+
+    expect(collect($types)->pluck('t', 'attname')->all())->toBe(['booked_on' => 'date', 'ends_at' => 'time(0) without time zone', 'starts_at' => 'time(0) without time zone']);
+
+    $facility = ttInsertId('facilities', ['facility_type' => 'recurso', 'code' => 'CARRO', 'name' => 'Carro']);
+    $row = ['academic_year_id' => $this->year->id, 'facility_id' => $facility, 'booked_on' => '2026-11-12', 'starts_at' => '10:00', 'ends_at' => '11:00'];
+
+    expect(ttInsert('facility_bookings', ['ends_at' => '10:00'] + $row))->toBe('23514')
+        ->and(ttInsert('facility_bookings', ['ends_at' => '09:00'] + $row))->toBe('23514')
+        ->and(ttInsert('facility_bookings', ['facility_id' => 999999999] + $row))->toBe('23503')
+        ->and(ttInsert('facility_bookings', ['academic_year_id' => 999999999] + $row))->toBe('23503')
+        ->and(ttInsert('facility_bookings', $row))->toBeNull()
+        // El motor no impide dos reservas solapadas (sin btree_gist): lo hace el servicio bajo el ancla (RN-ACAD-125).
+        ->and(ttInsert('facility_bookings', ['starts_at' => '10:30', 'ends_at' => '11:30'] + $row))->toBeNull();
 });

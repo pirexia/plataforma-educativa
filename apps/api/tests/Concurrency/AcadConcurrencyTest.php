@@ -26,7 +26,7 @@ afterEach(function (): void {
     foreach (DB::connection('pgsql_platform')->table('tenants')->pluck('id') as $tenantId) {
         $owner->statement("select set_config('app.tenant_id', ?, false)", [(string) $tenantId]);
         // El propietario está exento del bloqueo de cursos cerrados (ADR-057 §5.2).
-        foreach (['timetable_sessions', 'teaching_assignments', 'group_tutors', 'time_slots', 'timetable_frames', 'timetables', 'facilities', 'grading_scale_values', 'grading_scales', 'academic_periods', 'group_subjects', 'subgroups', 'groups', 'subjects', 'courses', 'education_levels'] as $table) {
+        foreach (['facility_bookings', 'timetable_sessions', 'teaching_assignments', 'group_tutors', 'time_slots', 'timetable_frames', 'timetables', 'facilities', 'grading_scale_values', 'grading_scales', 'academic_periods', 'group_subjects', 'subgroups', 'groups', 'subjects', 'courses', 'education_levels'] as $table) {
             $owner->table($table)->delete();
         }
     }
@@ -570,4 +570,64 @@ test('CA-ACAD-126 RN-ACAD-125 RN-ACAD-123: dos procesos reales crean a la vez do
         ->and($conflicts[0]['status'])->toBe(422)
         ->and($conflicts[0]['code'])->toBe('acad.validation.timetable_conflict')
         ->and(Tt::count($s['tenant'], 'timetable_sessions'))->toBe(1);
+});
+
+// ───────────────────────── 1.12-b: reservas y marcos especiales ─────────────────────────
+
+test('CA-ACAD-138 RN-ACAD-125 RN-ACAD-141: dos procesos reales reservan a la vez el mismo recurso, fecha e intervalo solapado: exactamente una 201 y la otra 422 booking_conflict, nunca dos 201 ni un 500', function (): void {
+    $s = Tt::scenario('acad-138a');
+    $resource = Tt::postFacility($s['tenant'], $s['admin'], ['facility_type' => 'recurso', 'code' => 'CARRO', 'name' => 'Carro de portátiles'])->assertCreated()->json('public_id');
+
+    // Bloqueo de tabla que solo detiene el INSERT: el primer hijo toma el ancla (FOR UPDATE), lee y espera
+    // para insertar; el segundo espera el ancla. Sin la serialización de RN-ACAD-125 ambos darían 201.
+    $holder = acadPdo();
+    $holder->beginTransaction();
+    $holder->exec('lock table facility_bookings in share row exclusive mode');
+
+    $a = acadSpawn($s['tenant']->id, 'create-booking', $s['year']->public_id, $resource, '2026-11-12', '10:00', '11:00');
+    $b = acadSpawn($s['tenant']->id, 'create-booking', $s['year']->public_id, $resource, '2026-11-12', '10:30', '11:30');
+
+    try {
+        acadWaitBlockedAny(2, [$a, $b]);
+    } finally {
+        $holder->rollBack();
+    }
+
+    $results = [acadCollect($a), acadCollect($b)];
+    $ok = array_values(array_filter($results, fn (array $r): bool => $r['outcome'] === 'ok'));
+    $conflicts = array_values(array_filter($results, fn (array $r): bool => $r['outcome'] === 'api_error'));
+
+    expect($ok)->toHaveCount(1)
+        ->and($conflicts)->toHaveCount(1)
+        ->and($conflicts[0]['status'])->toBe(422)
+        ->and($conflicts[0]['code'])->toBe('acad.validation.booking_conflict')
+        ->and(Tt::count($s['tenant'], 'facility_bookings'))->toBe(1);
+});
+
+test('CA-ACAD-136 RN-ACAD-111 RN-ACAD-125: dos procesos reales crean a la vez dos marcos especiales de fechas solapadas en la misma etapa: exactamente uno 201 y el otro 422 frame_overlap, nunca dos 201 ni un 500', function (): void {
+    [$tenant, $admin, $year] = Api::setup('acad-136a');
+    $level = Api::level($tenant, $admin, $year);
+
+    $holder = acadPdo();
+    $holder->beginTransaction();
+    $holder->exec('lock table timetable_frames in share row exclusive mode');
+
+    $a = acadSpawn($tenant->id, 'create-special-frame', $level, '2027-06-01', '2027-06-20');
+    $b = acadSpawn($tenant->id, 'create-special-frame', $level, '2027-06-10', '2027-06-25');
+
+    try {
+        acadWaitBlockedAny(2, [$a, $b]);
+    } finally {
+        $holder->rollBack();
+    }
+
+    $results = [acadCollect($a), acadCollect($b)];
+    $ok = array_values(array_filter($results, fn (array $r): bool => $r['outcome'] === 'ok'));
+    $conflicts = array_values(array_filter($results, fn (array $r): bool => $r['outcome'] === 'api_error'));
+
+    expect($ok)->toHaveCount(1)
+        ->and($conflicts)->toHaveCount(1)
+        ->and($conflicts[0]['status'])->toBe(422)
+        ->and($conflicts[0]['code'])->toBe('acad.validation.frame_overlap')
+        ->and(Tt::count($tenant, 'timetable_frames'))->toBe(1);
 });

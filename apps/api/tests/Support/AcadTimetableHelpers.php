@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 
 /**
- * REQ-ACAD (1.12-a): ayudantes de los tests HTTP de espacios y marcos horarios.
+ * REQ-ACAD (1.12-a y 1.12-b): ayudantes de los tests HTTP de espacios, marcos horarios y reservas.
  * Métodos estáticos de una clase para no repetir nombres entre ficheros
  * (CA-060-08). Las asignaciones y sesiones se crean por los modelos (sin API)
  * dentro del contexto del centro.
@@ -166,6 +166,23 @@ final class AcadTimetableHelpers
             'teacher' => $teacher instanceof User ? $teacher->public_id : $teacher,
             'group' => $group, 'subject' => $subject, 'subgroup' => $subgroup,
         ]);
+    }
+
+    /**
+     * Cuerpo de una reserva (1.12-b); por defecto, el jueves 2026-11-12 de 10:00 a 11:00.
+     *
+     * @param  array<string, mixed>  $overrides
+     * @return array<string, mixed>
+     */
+    public static function bookingBody(string $year, string $facility, array $overrides = []): array
+    {
+        return $overrides + ['academic_year' => $year, 'facility' => $facility, 'booked_on' => '2026-11-12', 'starts_at' => '10:00', 'ends_at' => '11:00'];
+    }
+
+    /** Alta de reserva por la API (1.12-b). */
+    public static function postBooking(object $tenant, User $user, string $year, string $facility, array $overrides = []): TestResponse
+    {
+        return self::send($tenant, $user, 'POST', '/facility-bookings', self::bookingBody($year, $facility, $overrides));
     }
 
     /** Alta de sesión por la API. */

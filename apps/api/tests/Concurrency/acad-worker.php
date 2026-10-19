@@ -23,6 +23,8 @@
  *   create-scale  <yearPublicId> <code>    (1.11d-b, CA-ACAD-084: escala numérica 0-10)
  *   create-assignment <teacherPublicId> <groupPublicId> <subjectPublicId>   (1.12-a, CA-ACAD-110)
  *   create-session <slotPublicId> <assignmentPublicId> <facilityPublicId|->   (1.12-a, CA-ACAD-126)
+ *   create-booking <yearPublicId> <facilityPublicId> <date> <startsAt> <endsAt>   (1.12-b, CA-ACAD-138)
+ *   create-special-frame <levelPublicId> <validFrom> <validTo>   (1.12-b, CA-ACAD-136)
  *   patch-year    <yearPublicId> <startsOn|-> <endsOn|-> <gate|->   (PATCH de fechas con la
  *                 validación REAL de acad; con gate, una validación de prueba posterior a la
  *                 de acad espera el bloqueo con el FOR UPDATE del curso retenido)
@@ -32,9 +34,11 @@ use App\Models\User;
 use App\Modules\Acad\Application\AcademicPeriodService;
 use App\Modules\Acad\Application\CourseService;
 use App\Modules\Acad\Application\EducationLevelService;
+use App\Modules\Acad\Application\FacilityBookingService;
 use App\Modules\Acad\Application\GradingScaleService;
 use App\Modules\Acad\Application\GroupService;
 use App\Modules\Acad\Application\TeachingAssignmentService;
+use App\Modules\Acad\Application\TimetableFrameService;
 use App\Modules\Acad\Application\TimetableSessionService;
 use App\Modules\Acad\Domain\Models\AcademicPeriod;
 use App\Modules\Acad\Domain\Models\Course;
@@ -162,6 +166,25 @@ $result = app(TenantContext::class)->runFor((int) $tenantId, function () use ($o
                     $session = app(TimetableSessionService::class)->create(['time_slot' => $slot, 'teaching_assignment' => $assignment, 'facility' => $facility === '-' ? null : $facility], $actor());
 
                     return ['outcome' => 'ok', 'public_id' => $session->public_id];
+
+                case 'create-booking':
+                    [$year, $facility, $date, $startsAt, $endsAt] = $args;
+                    $booking = app(FacilityBookingService::class)->create(['academic_year' => $year, 'facility' => $facility, 'booked_on' => $date, 'starts_at' => $startsAt, 'ends_at' => $endsAt], $actor());
+
+                    return ['outcome' => 'ok', 'public_id' => $booking->public_id];
+
+                case 'create-special-frame':
+                    [$level, $validFrom, $validTo] = $args;
+                    $frame = app(TimetableFrameService::class)->create([
+                        'education_level' => $level,
+                        'frame_type' => 'especial',
+                        'name_translations' => ['es-ES' => "Jornada {$validFrom}"],
+                        'slots' => [['weekday' => 1, 'starts_at' => '08:30', 'ends_at' => '09:25']],
+                        'valid_from' => $validFrom,
+                        'valid_to' => $validTo,
+                    ], $actor());
+
+                    return ['outcome' => 'ok', 'public_id' => $frame->public_id];
 
                 case 'patch-year':
                     [$publicId, $startsOn, $endsOn, $gate] = $args;

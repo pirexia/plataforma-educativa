@@ -32,7 +32,7 @@ function acadDocumentedOperations(): array
     return $documented;
 }
 
-test('REQ-ACAD-001 api.md §10, §11.8: los 58 endpoints (27 de la estructura, 5 de períodos lectivos, 5 de escalas de calificación, 5 de espacios, 5 de marcos horarios, 4 de asignación docente, 2 de tutores y 5 de sesiones) están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
+test('REQ-ACAD-001 api.md §10, §11.8: los 62 endpoints (27 de la estructura, 5 de períodos lectivos, 5 de escalas de calificación, 5 de espacios, 5 de marcos horarios, 4 de asignación docente, 2 de tutores, 5 de sesiones y 4 de reservas) están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
     $root = Yaml::parseFile(base_path('openapi.yaml'));
     $paths = Yaml::parseFile(base_path('openapi/paths/acad.yaml'))['paths'];
 
@@ -49,7 +49,7 @@ test('REQ-ACAD-001 api.md §10, §11.8: los 58 endpoints (27 de la estructura, 5
     }
 
     sort($registered);
-    expect(acadDocumentedOperations())->toHaveCount(58)->and($registered)->toBe(acadDocumentedOperations());
+    expect(acadDocumentedOperations())->toHaveCount(62)->and($registered)->toBe(acadDocumentedOperations());
 });
 
 test('REQ-ACAD-001 api.md §10: toda referencia $ref de acad.yaml resuelve en components.yaml', function (): void {

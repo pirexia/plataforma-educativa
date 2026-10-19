@@ -60,13 +60,14 @@ test('CA-CORE-040: un tenant recién aprovisionado tiene 16 roles predefinidos c
 });
 
 // CA-CORE-042
-test('CA-CORE-042: ninguna fila de permission_role tiene scope distinto de todos', function (): void {
+test('CA-CORE-042: ninguna fila de permission_role tiene scope distinto de todos, salvo reservas.eliminar de docente y tutor_grupo (propios, REQ-ACAD/permisos.md §10.3, OPEN-ACAD-42)', function (): void {
     provisionSmokeTenant($this->tenant);
 
     app(TenantContext::class)->runFor($this->tenant->id, function (): void {
-        $offending = PermissionRole::query()->where('scope', '!=', 'todos')->orWhereNull('scope')->count();
+        $offending = PermissionRole::query()->where(fn ($q) => $q->where('scope', '!=', 'todos')->orWhereNull('scope'))
+            ->get()->map(fn (PermissionRole $g): string => $g->role->code.':'.$g->permission_code.':'.$g->scope)->sort()->values()->all();
 
-        expect($offending)->toBe(0)
+        expect($offending)->toBe(['docente:reservas.eliminar:propios', 'tutor_grupo:reservas.eliminar:propios'])
             ->and(PermissionRole::query()->count())->toBeGreaterThan(0);
     });
 });
@@ -92,11 +93,11 @@ test('administrador_centro recibe los 32 permisos previos más los cuatro de REQ
         // (1.10, OPEN-CURSO-14, CA-CURSO-064), más los cuatro de
         // REQ-ACAD/permisos.md §4 (1.11-b, OPEN-ACAD-09 = X, CA-ACAD-036), más los cuatro de
         // REQ-ACAD/permisos.md §4.1 (1.11d-a, OPEN-ACAD-28 = X + 1, CA-ACAD-097), más
-        // reapertura_curso_academico.actualizar de REQ-CURSO/permisos.md §4 (1.11c, ADR-059 §5.2), más los doce de REQ-ACAD/permisos.md §10 (1.12-a: asignacion_docente, espacios y horarios × cuatro acciones).
+        // reapertura_curso_academico.actualizar de REQ-CURSO/permisos.md §4 (1.11c, ADR-059 §5.2), más los doce de REQ-ACAD/permisos.md §10 (1.12-a: asignacion_docente, espacios y horarios × cuatro acciones), más los tres de reservas (1.12-b: leer, crear, eliminar).
         expect(Role::where('code', 'administrador_centro')->first()
             ->getConnection()->table('permission_role')
             ->join('roles', 'roles.id', '=', 'permission_role.role_id')
-            ->where('roles.code', 'administrador_centro')->count())->toBe(62);
+            ->where('roles.code', 'administrador_centro')->count())->toBe(65);
 
         foreach (['rol.crear', 'rol.eliminar', 'rol_datos_especiales.actualizar', 'permiso_efectivo.leer'] as $code) {
             expect($codesFor('administrador_centro'))->toContain($code);
@@ -104,12 +105,16 @@ test('administrador_centro recibe los 32 permisos previos más los cuatro de REQ
 
         $direccionRole = Role::where('code', 'direccion')->firstOrFail();
         $direccionPermissions = PermissionRole::where('role_id', $direccionRole->id)->pluck('permission_code')->sort()->values()->all();
-        expect($direccionPermissions)->toBe(['asignacion_docente.actualizar', 'asignacion_docente.crear', 'asignacion_docente.eliminar', 'asignacion_docente.leer', 'asignacion_rol.leer', 'configuracion.leer', 'configuracion_academica.leer', 'curso_academico.leer', 'curso_historico.leer', 'espacios.leer', 'estructura_academica.leer', 'horarios.actualizar', 'horarios.crear', 'horarios.eliminar', 'horarios.leer', 'modulo.leer', 'rol.leer', 'usuario.leer']);
+        expect($direccionPermissions)->toBe(['asignacion_docente.actualizar', 'asignacion_docente.crear', 'asignacion_docente.eliminar', 'asignacion_docente.leer', 'asignacion_rol.leer', 'configuracion.leer', 'configuracion_academica.leer', 'curso_academico.leer', 'curso_historico.leer', 'espacios.leer', 'estructura_academica.leer', 'horarios.actualizar', 'horarios.crear', 'horarios.eliminar', 'horarios.leer', 'modulo.leer', 'reservas.crear', 'reservas.eliminar', 'reservas.leer', 'rol.leer', 'usuario.leer']);
 
-        // REQ-ACAD/permisos.md §4 y §4.1: docente, tutor_grupo y orientador solo leen la estructura y la configuración académica.
-        foreach (['docente', 'tutor_grupo', 'orientador'] as $code) {
+        // REQ-ACAD/permisos.md §4, §4.1 y §10.3: docente, tutor_grupo y orientador solo leen la estructura, la configuración académica y los horarios; docente y tutor_grupo además reservan (leer, crear y eliminar las propias), orientador solo lee las reservas.
+        $reads = ['asignacion_docente.leer', 'configuracion_academica.leer', 'espacios.leer', 'estructura_academica.leer', 'horarios.leer'];
+
+        foreach (['docente' => ['reservas.crear', 'reservas.eliminar', 'reservas.leer'], 'tutor_grupo' => ['reservas.crear', 'reservas.eliminar', 'reservas.leer'], 'orientador' => ['reservas.leer']] as $code => $bookings) {
             $role = Role::where('code', $code)->firstOrFail();
-            expect(PermissionRole::where('role_id', $role->id)->pluck('permission_code')->sort()->values()->all())->toBe(['asignacion_docente.leer', 'configuracion_academica.leer', 'espacios.leer', 'estructura_academica.leer', 'horarios.leer'], $code);
+            $expected = [...$reads, ...$bookings];
+            sort($expected);
+            expect(PermissionRole::where('role_id', $role->id)->pluck('permission_code')->sort()->values()->all())->toBe($expected, $code);
         }
     });
 });
