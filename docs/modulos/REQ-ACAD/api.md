@@ -1,6 +1,6 @@
 # REQ-ACAD · API
 
-> **Estado**: **APROBADA** (2026-10-10), paso **1.11** (`REQ-ACAD-001`, estructura académica), con las recomendaciones de `funcional.md §15` aprobadas y los contratos de `ADR-062` (contenido traducible) y `ADR-063` (ámbitos), ambos ACEPTADOS. La API de períodos lectivos y escalas está especificada en §11 (`1.11d`, APROBADA el 2026-10-16; `OPEN-ACAD-01` = A). **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
+> **Estado**: **`1.12-a` (horarios y asignación docente) implementada (2026-10-18, rama `feature/REQ-ACAD-1-12-horarios-spec`).** **APROBADA** (2026-10-10), paso **1.11** (`REQ-ACAD-001`, estructura académica), con las recomendaciones de `funcional.md §15` aprobadas y los contratos de `ADR-062` (contenido traducible) y `ADR-063` (ámbitos), ambos ACEPTADOS. La API de períodos lectivos y escalas está especificada en §11 (`1.11d`, APROBADA el 2026-10-16; `OPEN-ACAD-01` = A). **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 
 Prefijo: `/api/v1`. Tenant por *host* (`ADR-033 §2`). Todo según `ADR-038`: recurso individual desnudo, colección en `{data, meta}` (§3), paginación por página (§4.2-§4.3: catálogo de entidades nacidas de acción administrativa, decenas a cientos de filas por centro y curso académico), filtros planos y valores múltiples separados por comas (§5.2), orden por lista blanca con desempate por `id` (§5.3), errores `application/problem+json` con `type` URN y `errors` como **objeto indexado por campo** cuyos valores son arrays de `{code, message, params}` (p. ej. `errors.code[0].code`; §6), `404` frente a `403` (§6.4).
 
@@ -444,9 +444,9 @@ Ninguno (`funcional.md §7.3`).
 
 ---
 
-## 12. `1.12` · Horarios y asignación docente (**APROBADA**)
+## 12. `1.12` · Horarios y asignación docente (**APROBADA; `1.12-a` implementada el 2026-10-18**)
 
-Aprobada el 2026-10-17 (`funcional.md §18`). Aplica todo lo de la cabecera: `ADR-038`, solo `public_id`, cadena `RequireAuthenticatedUser` → `module-enabled:acad` → `permission:`, curso académico de referencia (salvo `facilities`, que no lo tiene), `404` de lectura de curso cerrado y `409 academic-year-closed`. Recursos de permiso en `permisos.md §10`. Horas `HH:MM` (24 h, hora civil del centro); fechas `AAAA-MM-DD`.
+Aprobada el 2026-10-17 (`funcional.md §18`); notas de implementación en §12.7. Aplica todo lo de la cabecera: `ADR-038`, solo `public_id`, cadena `RequireAuthenticatedUser` → `module-enabled:acad` → `permission:`, curso académico de referencia (salvo `facilities`, que no lo tiene), `404` de lectura de curso cerrado y `409 academic-year-closed`. Recursos de permiso en `permisos.md §10`. Horas `HH:MM` (24 h, hora civil del centro); fechas `AAAA-MM-DD`.
 
 ### 12.1 Representaciones
 
@@ -517,6 +517,8 @@ Aprobada el 2026-10-17 (`funcional.md §18`). Aplica todo lo de la cabecera: `AD
 | `POST /facility-bookings` (`1.12-b`) | `reservas.crear` | 201 + `Location` | 422 (incl. `booking_conflict`) |
 | `GET /facility-bookings/{public_id}` (`1.12-b`) | `reservas.leer` | 200 | 404 |
 | `DELETE /facility-bookings/{public_id}` (`1.12-b`) | `reservas.eliminar` (`todos` o `propios`, `OPEN-ACAD-42`) | 204 | 404 (también ajena con `propios`) |
+
+**Errores comunes** (los reflejan OpenAPI y `§12.5`): todo listado y detalle con curso responde `404` (curso `cerrado`/`archivado` sin `curso_historico.leer`; en listados sin `academic_year` y sin curso activo, `404 curso.no_active_year`) y toda escritura sobre un curso de solo lectura, `409 urn:pge:error:academic-year-closed` (no los espacios, que no tienen curso).
 
 **21** *endpoints* en `1.12-a` y **4** en `1.12-b`. Sin `PATCH` de asignaciones (`RN-ACAD-95`) ni de reservas (`RN-ACAD-142`): la ruta no existe (`405`). Controladores con el patrón de `CoursesController`/`GradingScalesController`.
 

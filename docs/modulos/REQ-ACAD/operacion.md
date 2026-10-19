@@ -1,6 +1,6 @@
 # REQ-ACAD · Operación
 
-> **Estado**: **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11**, con las recomendaciones de `funcional.md §15` aprobadas y `ADR-062`/`ADR-063` ACEPTADOS. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
+> **Estado**: **`1.12-a` (horarios y asignación docente) implementada (2026-10-18, rama `feature/REQ-ACAD-1-12-horarios-spec`).** **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11**, con las recomendaciones de `funcional.md §15` aprobadas y `ADR-062`/`ADR-063` ACEPTADOS. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 >
 > **`1.12`** (**APROBADA 2026-10-17**, con las recomendaciones de `OPEN-ACAD-32` a `-44`): operación de horarios y asignación docente en **§12**, al final del fichero.
 >
@@ -161,7 +161,7 @@ Implementada. Sin variables, servicios, colas ni tareas programadas nuevos (§11
 - **No se retira ningún índice existente** (fase *contract*, decisión del usuario). Candidatos a retirar, con evidencia de catálogo (sin estadísticas de uso en desarrollo): `user_mfa_recovery_codes_tenant_user_unused_idx` y `user_mfa_factors_tenant_user_confirmed_idx`, prefijo estricto, con el mismo predicado, de otro índice.
 - Tests: `tests/Feature/Core/TenantForeignKeyIndexesMigrationTest.php`.
 
-## 12. `1.12` · Horarios y asignación docente (**APROBADA**)
+## 12. `1.12` · Horarios y asignación docente (**APROBADA; `1.12-a` implementada el 2026-10-18**)
 
 Aprobada el 2026-10-17 (`funcional.md §18`).
 
@@ -171,7 +171,7 @@ Ninguna variable de entorno, ningún servicio externo, **ninguna cola ni tarea p
 
 ### 12.2 Despliegue
 
-1. Migraciones (*expand*), por el rol propietario, en `apps/api/app/Modules/Acad/Database/migrations/`, en este orden: (a) únicos nuevos en `group_subjects` y `subgroups` (`datos.md §9.3`: índice `CONCURRENTLY` fuera de transacción y `ADD CONSTRAINT … USING INDEX`; tablas ya en `develop`); (b) `facilities`; (c) `timetables`; (d) `teaching_assignments`, `group_tutors`; (e) `timetable_frames`, `time_slots`, `timetable_sessions`; en `1.12-b`, `facility_bookings`. Con `TenantMigration::tenantTable()`, `tenantForeignId()` y `translatableColumn()`; FK de tres columnas a mano, **sin** acción referencial (`AR-13`). Antes de escribirlas, comprobar que `AR-04` admite `time` (`OPEN-ACAD-40`).
+1. Migraciones (*expand*), por el rol propietario, en `apps/api/app/Modules/Acad/Database/migrations/`, en este orden: (a) únicos nuevos en `group_subjects` y `subgroups` (`datos.md §9.3`: índice `CONCURRENTLY` fuera de transacción y `ADD CONSTRAINT … USING INDEX`; tablas ya en `develop`); (b) `facilities`; (c) `timetables`; (d) `teaching_assignments`, `group_tutors`; (e) `timetable_frames`, `time_slots`, `timetable_sessions`; en `1.12-b`, `facility_bookings`. Con `TenantMigration::tenantTable()`, `tenantForeignId()` y `translatableColumn()`; FK de tres columnas a mano, **sin** acción referencial (`AR-13`). `AR-04` admite `time` sin cambios (`OPEN-ACAD-40` resuelta por `ADR-065`, ACEPTADA el 2026-10-17).
 2. `php artisan platform:sync-registry`: materializa los códigos nuevos de `permisos.md §10.1`. Descriptor sin cambios.
 3. Siembra en centros existentes: `php artisan acad:grant-structure-permissions` ampliado (`permisos.md §10.3`). Centros nuevos: `ProvisionTenantDefaults`.
 4. Abrir tráfico.

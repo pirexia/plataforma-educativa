@@ -227,7 +227,7 @@ systemctl --user restart api@1.service web.service
 **Horarios y asignación docente (`1.12-a`, `acad`)**: también «imagen anterior, migraciones sin revertir» (`REQ-ACAD/operacion.md §12.5`).
 
 1. `./infra/install.sh <tag-anterior> --user` y reiniciar `api@1.service web.service`.
-2. **No se ejecuta `migrate:rollback`**: las ocho tablas nuevas (`facilities`, `timetables`, `teaching_assignments`, `group_tutors`, `timetable_frames`, `time_slots`, `timetable_sessions`) y los dos únicos de `group_subjects` y `subgroups` son aditivos; la versión anterior no los usa y su `down()` borraría el horario de los centros.
+2. **No se ejecuta `migrate:rollback`**: las siete tablas nuevas (`facilities`, `timetables`, `teaching_assignments`, `group_tutors`, `timetable_frames`, `time_slots`, `timetable_sessions`) y los dos únicos de `group_subjects` y `subgroups` son aditivos; la versión anterior no los usa y su `down()` borraría el horario de los centros.
 3. Efectos de volver atrás: `sync-registry` de la versión anterior marca los permisos de `asignacion_docente`, `espacios` y `horarios` con `retired_at` (concesiones inertes); `RN-ACAD-96` deja de aplicarse, así que se podría borrar (lógicamente) un grupo, un subgrupo, una asignatura o una etapa con tutores, asignaciones o marcos vivos: huérfanos lógicos sin daño de integridad (FK `NO ACTION`, borrado lógico), que la versión nueva lee igualmente (las relaciones usan `withTrashed()`).
 4. Al **volver a la versión nueva**: `php artisan migrate --database=pgsql_owner --force`, `php artisan platform:sync-registry` y `php artisan acad:grant-structure-permissions` para recuperar las concesiones.
 

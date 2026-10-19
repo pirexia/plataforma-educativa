@@ -27,7 +27,7 @@ Excepción: en el **primer ciclo de Infantil (0-3) en régimen privado** sí som
 | **`PLAN-IMPLEMENTACION.md`** | Pasos de ejecución, dimensionados a sesiones de 5 h | Al arrancar cada sesión |
 | **`ARCHITECTURE.md`** | Stack, estructura, despliegue, dimensionado de hardware | Antes de tocar arquitectura |
 | **`SYSADMIN.md`** | Entorno de desarrollo, `compose.yaml`, operación | Antes de tocar infraestructura |
-| **`docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`** | Fuente de verdad funcional. 53 módulos, 43 ADR | Al empezar un módulo |
+| **`docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`** | Fuente de verdad funcional. 53 módulos, 65 ADR en el índice | Al empezar un módulo |
 | **`docs/i18n.md`** | Convención de internacionalización, backend y frontend (`ADR-021`/`INV-009`) | Antes de escribir cualquier texto visible |
 | **`docs/SETUP-ENTORNO.md`** | **Puesta en marcha completa**: WSL2, Podman, Claude Code, repositorio | Antes que nada |
 | **`docs/SETUP-CLAUDE-CODE.md`** | Plugins, MCP, subagentes y skills | Al configurar el entorno |
@@ -77,7 +77,7 @@ Lista completa: sección 0.5 del documento de requisitos (`INV-001` a `INV-015`)
 | `CLAUDE.md` | 2.7.1 |
 | `ARCHITECTURE.md` | 2.5.3 |
 | `PLAN-IMPLEMENTACION.md` | 2.3.11 |
-| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | 3.2.19 |
+| `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | 3.2.20 |
 | `docs/SETUP-CLAUDE-CODE.md` | 1.3.0 |
 | `docs/SETUP-ENTORNO.md` | 1.3.0 |
 | `SYSADMIN.md` | 0.8.14 |

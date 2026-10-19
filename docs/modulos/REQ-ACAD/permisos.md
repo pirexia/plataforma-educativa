@@ -4,7 +4,7 @@
 >
 > **`1.12`** (**APROBADA 2026-10-17**, con las recomendaciones de `OPEN-ACAD-32` a `-44`): recursos `asignacion_docente`, `espacios`, `horarios` y `reservas` en **§10**.
 >
-> **Estado**: **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11**. Recurso y siembra aprobados (`OPEN-ACAD-09` = A + X); ámbitos según `ADR-063` (ACEPTADA; `OPEN-ACAD-08` = A). La fuente de verdad será `AcadServiceProvider::declaredPermissions()` (`INV-007`, `ADR-034 §2`); esta tabla es su reflejo. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
+> **Estado**: **`1.12-a` (horarios y asignación docente) implementada (2026-10-18, rama `feature/REQ-ACAD-1-12-horarios-spec`).** **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11**. Recurso y siembra aprobados (`OPEN-ACAD-09` = A + X); ámbitos según `ADR-063` (ACEPTADA; `OPEN-ACAD-08` = A). La fuente de verdad será `AcadServiceProvider::declaredPermissions()` (`INV-007`, `ADR-034 §2`); esta tabla es su reflejo. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 
 ---
 
@@ -106,7 +106,7 @@ El usuario decidió **X + 1** en `OPEN-ACAD-28` el 2026-10-16 (`funcional.md §1
 | `orientador` | `leer` | `todos` | Ídem |
 | Los 10 restantes | — | — | Sin base en `§11.1` |
 
-**Dónde se siembra**: en `ProvisionTenantDefaults` (centros nuevos) y, para los existentes, con el comando `acad:grant-structure-permissions` (en `Core`, `INV-007`), que se amplía para sembrar los **ocho** códigos de `acad`, con las mismas garantías (idempotente, solo roles predefinidos, no toca roles personalizados, solo centros `Activo`, y **no concede nada** si alguno de los ocho falta en `permissions` o tiene `retired_at` informado, issue #387). `RN-PERM-46`: ninguna regla de código compara códigos de rol.
+**Dónde se siembra**: en `ProvisionTenantDefaults` (centros nuevos) y, para los existentes, con el comando `acad:grant-structure-permissions` (en `Core`, `INV-007`), que se amplía para sembrar los **veinte** códigos de `acad` (ocho de `1.11` y doce de `1.12-a`: `asignacion_docente`, `espacios` y `horarios` × cuatro acciones), con las mismas garantías (idempotente, solo roles predefinidos, no toca roles personalizados, solo centros `Activo`, y **no concede nada** si alguno de los ocho falta en `permissions` o tiene `retired_at` informado, issue #387). `RN-PERM-46`: ninguna regla de código compara códigos de rol.
 
 **`RPERM-013`** (nadie concede lo que no tiene): sin cambios; la acotación de `1.11-b` (§5) cubre igual los permisos de `configuracion_academica` de un rol que ya los contiene en un centro sin `acad` contratado.
 
@@ -139,7 +139,7 @@ Ningún cambio. Las capacidades de escritura solo las tiene, en la siembra decid
 
 ## 9. Verificación
 
-`funcional.md §13.6` (`CA-ACAD-032` a `-037`) y `§13.5` (lectura de curso cerrado, `CA-ACAD-024` a `-031`). `1.12` (PROPUESTA): `funcional.md §18.9` (`CA-ACAD-129`, `-131` a `-133`, `-139`). `1.11d`: `§13.14` (`CA-ACAD-090` a `-092`) y `§13.15` (`CA-ACAD-093` a `-097`); `PermissionCatalogTest` debe conocer los ocho códigos con `module_code = 'acad'` (los cuatro de `estructura_academica` y los cuatro de `configuracion_academica`). El *endpoint* `GET /academic-years/selectable` (módulo `curso`, #409) no lleva permiso: amplía la lista cerrada de `AR-07a` con esa única ruta (aprobado, `CA-ACAD-043`).
+`funcional.md §13.6` (`CA-ACAD-032` a `-037`) y `§13.5` (lectura de curso cerrado, `CA-ACAD-024` a `-031`). `1.12-a` (implementada el 2026-10-18): `funcional.md §18.9` (`CA-ACAD-128`, `-129`, `-131` a `-133`), cubiertos por `AcadTimetableAccessTest` y `AcadTimetableYearAndTenantTest`; `CA-ACAD-139` (`reservas.eliminar` con ámbito `propios`) es de `1.12-b`, pendiente. `1.11d`: `§13.14` (`CA-ACAD-090` a `-092`) y `§13.15` (`CA-ACAD-093` a `-097`); `PermissionCatalogTest` debe conocer los ocho códigos con `module_code = 'acad'` (los cuatro de `estructura_academica` y los cuatro de `configuracion_academica`). El *endpoint* `GET /academic-years/selectable` (módulo `curso`, #409) no lleva permiso: amplía la lista cerrada de `AR-07a` con esa única ruta (aprobado, `CA-ACAD-043`).
 
 ---
 

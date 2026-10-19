@@ -1,6 +1,6 @@
 # REQ-ACAD · Modelo de datos
 
-> **Estado**: **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11** (`REQ-ACAD-001`), con las recomendaciones de `funcional.md §15` aprobadas por el usuario y los contratos de `ADR-062`/`ADR-063` (ACEPTADA). **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
+> **Estado**: **`1.12-a` (horarios y asignación docente) implementada (2026-10-18, rama `feature/REQ-ACAD-1-12-horarios-spec`).** **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11** (`REQ-ACAD-001`), con las recomendaciones de `funcional.md §15` aprobadas por el usuario y los contratos de `ADR-062`/`ADR-063` (ACEPTADA). **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 >
 > **Resumen**: seis tablas de tenant nuevas, **todas con `academic_year_id`** (`OPEN-ACAD-03` = B): `education_levels`, `courses`, `groups`, `subgroups`, `subjects`, `group_subjects`. Son las **primeras tablas reales con el disparador `academic_year_write_guard`** (`ADR-057`) y las primeras con contenido traducible (`ADR-062`). §1.7-§1.9 describen las tablas de `1.11d`. Ninguna migración altera tablas existentes. Fuera de `acad`, `1.11` cambia dos ayudantes de `TenantMigration` (§7).
 >
@@ -367,7 +367,7 @@ Al pasar a `cerrado`, el disparador `academic_year_write_guard` congela las tres
 
 > Aprobada el 2026-10-17 (`funcional.md §18`). Donde una columna depende de una pregunta abierta, se aplica su recomendación y se cita.
 
-Convenciones de §1 (`tenantTable()`, autoría, `timestamptz`, borrado lógico, `UNIQUE (tenant_id, id)`, disparador por tener `academic_year_id`, FK de más de dos columnas a mano con nombre explícito, `CHECK` e índices parciales por sentencia del propietario, todas las FK `NO ACTION`). Hora civil en `time` sin zona (**`OPEN-ACAD-40`**, pendiente; alternativa `smallint` de minutos). `public_id` ULID en todas, también en `timetables` (no se expone; coherencia con `AR-05`/`HasPublicId`, precedente `group_subjects`).
+Convenciones de §1 (`tenantTable()`, autoría, `timestamptz`, borrado lógico, `UNIQUE (tenant_id, id)`, disparador por tener `academic_year_id`, FK de más de dos columnas a mano con nombre explícito, `CHECK` e índices parciales por sentencia del propietario, todas las FK `NO ACTION`). Hora civil en `time` sin zona (**`OPEN-ACAD-40`** resuelta por `ADR-065`, ACEPTADA el 2026-10-17: `AR-04` ya admite `time`). `public_id` ULID en todas, también en `timetables` (no se expone; coherencia con `AR-05`/`HasPublicId`, precedente `group_subjects`).
 
 ### 9.1 Tablas de `1.12-a`
 
@@ -451,7 +451,7 @@ Restricción: `UNIQUE (tenant_id, academic_year_id, id)`. Sin solape dentro del 
 | `time_slot_id` | `bigint` | No | FK `(tenant_id, academic_year_id, time_slot_id) → time_slots (tenant_id, academic_year_id, id)` |
 | `teaching_assignment_id` | `bigint` | No | FK `(tenant_id, academic_year_id, teaching_assignment_id) → teaching_assignments (tenant_id, academic_year_id, id)`: mismo curso que la franja, por el motor |
 | `facility_id` | `bigint` | Sí | Con `facility_type`, FK `(tenant_id, facility_id, facility_type) → facilities (tenant_id, id, facility_type)`, `MATCH SIMPLE` |
-| `facility_type` | `text` | Sí | Copia fijada por el servicio. `CHECK ((facility_id IS NULL AND facility_type IS NULL) OR (facility_id IS NOT NULL AND facility_type = 'aula'))`: el motor impide un `recurso` en una sesión |
+| `facility_type` | `text` | Sí | Copia fijada por el servicio. `CHECK ((facility_id IS NULL AND facility_type IS NULL) OR (facility_id IS NOT NULL AND facility_type IS NOT NULL AND facility_type = 'aula'))`: el motor impide un `recurso` en una sesión; el `IS NOT NULL` explícito evita que un `facility_type` nulo (que el `CHECK` daría por bueno) deje sin comprobar la FK `MATCH SIMPLE` |
 
 Lo que el motor **no** garantiza: etapa del grupo = etapa del marco (`RN-ACAD-120`) y los conflictos (`RN-ACAD-123`): servicio (§9.5).
 
@@ -477,7 +477,7 @@ El reservante es `created_by` (`RN-ACAD-140`), base del resolutor `propios` de `
 | `group_subjects` | `UNIQUE (tenant_id, group_id, id)` | Destino de la FK de `teaching_assignments` que garantiza que la asignatura es del grupo |
 | `subgroups` | `UNIQUE (tenant_id, group_id, id)` | Destino de la FK que garantiza que el subgrupo es del grupo |
 
-Aditivos y compatibles con la versión anterior. Tablas pequeñas, pero ya en `develop`: índice con `CREATE UNIQUE INDEX CONCURRENTLY` (fuera de transacción) y `ADD CONSTRAINT … UNIQUE USING INDEX` en una migración aparte; lo decide `db-reviewer`.
+Aditivos y compatibles con la versión anterior. Tablas pequeñas, pero ya en `develop`: índice con `CREATE UNIQUE INDEX CONCURRENTLY` (fuera de transacción) y `ADD CONSTRAINT … UNIQUE USING INDEX` en una migración aparte; **implementado así** (`2026_10_18_100100_add_group_uniques_for_teaching_assignments.php`, `$withinTransaction = false`).
 
 ### 9.4 Índices
 
