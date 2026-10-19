@@ -6,6 +6,18 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-19 · `1.12-b`: marcos especiales y reservas (rama `feature/REQ-ACAD-1-12b-marcos-especiales-reservas`)
+
+- **`acad`** (`REQ-ACAD-002`, `RN-ACAD-110` a `-111`, `-124`, `-125`, `-140` a `-143`, `CA-ACAD-136` a `-140`): marcos horarios **especiales** (jornada intensiva) con `valid_from`/`valid_to` dentro del curso (`AcademicYearSharedLock`), sin solape con otro especial de la etapa (`frame_outside_academic_year`, `frame_overlap`, `frame_dates_invalid`) y su efecto en la detección de conflictos (`FrameCoexistence`: el especial sustituye al ordinario de su etapa y coexiste con las demás); el cambio de fechas con sesiones se rechaza con `timetable_conflict` si hace coexistir sesiones en conflicto. Desaparece el `422 frame_type_invalid` para `especial` de `1.12-a`. **Reservas** de aulas y recursos: tabla `facility_bookings`, 4 *endpoints* (sin `PATCH`), `booking_conflict` contra otras reservas y contra las sesiones del marco vigente ese día, `booking_outside_academic_year`, todo bajo el ancla `FOR UPDATE` de `timetables`; un espacio con reservas vivas en un curso en planificación o activo no se borra.
+- **Permisos** (`OPEN-ACAD-42`): recurso `reservas` (`leer`, `crear`, `eliminar`), con `eliminar` de ámbito `todos` o `propios`; resolutor (`propios`, `reservas`) registrado por `acad` y **ampliación aprobada del mapa cerrado de `AR-10`** (`reservas`); siembra `docente`/`tutor_grupo` con `propios` (`ProvisionTenantDefaults::STRUCTURE_PERMISSION_PROPIOS_GRANTS`, `acad:grant-structure-permissions`).
+- **Web**: `/academico/reservas` (listado con filtros, alta con el conflicto nombrado como texto, cancelación con confirmación), tipo y vigencia de marcos especiales en la ficha de etapa y de marco, selector «Marco horario» en la vista de grupo y vigencia en texto de las sesiones de una jornada especial.
+- **`core`**: `UserDirectory::refsByIds()` confirmada por el usuario el 2026-10-19 (`REQ-CORE/funcional.md`, `REQ-ACAD/funcional.md §19.1` I-1).
+- **No incluido**: `TeachingMembership` (`OPEN-ACAD-43` = A); PDF, importación, festivos y exámenes (`OPEN-ACAD-37` a `-39`).
+- **Documentación**: `REQ-ACAD/funcional.md §20` (decisiones I-8 a I-15), `api.md §12.8`, `datos.md §9.2`, `permisos.md §10`, `operacion.md §12.5 bis`, manuales de administración, dirección, secretaría y profesorado, `SYSADMIN.md`, `RUNBOOK.md`, `ARCHITECTURE.md` (sin cambio de versión: lo decide la revisión de cierre).
+- **Pendiente**: Playwright `CA-ACAD-135`; revisiones `db-reviewer`, `security-reviewer` y `doc-reviewer`; completar en/de/fr con `traductor` (las claves nuevas ya llevan traducción de partida); `PLAN-IMPLEMENTACION.md` y `memory.md` (los actualiza la sesión orquestadora).
+
+---
+
 ## 2026-10-18 · `1.12-a`: horarios y asignación docente (rama `feature/REQ-ACAD-1-12-horarios-spec`)
 
 - **`acad`** (`REQ-ACAD-002`, `RN-ACAD-90` a `-128`, `CA-ACAD-107` a `-134`): los 21 *endpoints* de `1.12-a` — espacios (5), marcos horarios ordinarios con franjas (5), asignación docente (4; sin `PATCH`, `405`), tutores de un grupo (2) y sesiones de horario con vistas semanales por grupo, profesor, aula o asignatura (5). Detección de conflictos de profesor, aula y grupo (`timetable_conflict` con `params.conflicts`) bajo `FOR UPDATE` del ancla `timetables` del curso (`RN-ACAD-125`, `TimetableAnchor`); `409 has_dependents` ampliado a tutores, asignaciones, marcos y sesiones (`RN-ACAD-96`).

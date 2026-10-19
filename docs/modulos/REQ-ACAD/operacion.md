@@ -1,6 +1,6 @@
 # REQ-ACAD · Operación
 
-> **Estado**: **`1.12-a` (horarios y asignación docente) implementada (2026-10-18, rama `feature/REQ-ACAD-1-12-horarios-spec`).** **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11**, con las recomendaciones de `funcional.md §15` aprobadas y `ADR-062`/`ADR-063` ACEPTADOS. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
+> **Estado**: **`1.12-b` (marcos especiales y reservas) implementada (2026-10-19, rama `feature/REQ-ACAD-1-12b-marcos-especiales-reservas`).** **`1.12-a` (horarios y asignación docente) implementada (2026-10-18) y mezclada (PR #447).** **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11**, con las recomendaciones de `funcional.md §15` aprobadas y `ADR-062`/`ADR-063` ACEPTADOS. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 >
 > **`1.12`** (**APROBADA 2026-10-17**, con las recomendaciones de `OPEN-ACAD-32` a `-44`): operación de horarios y asignación docente en **§12**, al final del fichero.
 >
@@ -161,7 +161,7 @@ Implementada. Sin variables, servicios, colas ni tareas programadas nuevos (§11
 - **No se retira ningún índice existente** (fase *contract*, decisión del usuario). Candidatos a retirar, con evidencia de catálogo (sin estadísticas de uso en desarrollo): `user_mfa_recovery_codes_tenant_user_unused_idx` y `user_mfa_factors_tenant_user_confirmed_idx`, prefijo estricto, con el mismo predicado, de otro índice.
 - Tests: `tests/Feature/Core/TenantForeignKeyIndexesMigrationTest.php`.
 
-## 12. `1.12` · Horarios y asignación docente (**APROBADA; `1.12-a` implementada el 2026-10-18**)
+## 12. `1.12` · Horarios y asignación docente (**APROBADA; `1.12-a` implementada el 2026-10-18 y `1.12-b` el 2026-10-19**)
 
 Aprobada el 2026-10-17 (`funcional.md §18`).
 
@@ -196,6 +196,10 @@ Ninguna variable de entorno, ningún servicio externo, **ninguna cola ni tarea p
 ### 12.5 Copias y reversión
 
 Tablas de tenant ordinarias (PITR, exportación por tenant); orden de restauración en `datos.md §9.6`; como propietario (exento del disparador). **Reversión**: imagen anterior; las migraciones no se revierten (aditivas; `down()` borraría el horario del centro). Los únicos de §9.3 se quedan: la versión anterior no los usa y no estorban. `sync-registry` de la versión anterior retira los códigos nuevos (concesiones inertes). Con la versión anterior, `RN-ACAD-96` deja de aplicarse: se podría borrar lógicamente un grupo o una asignatura con asignaciones vivas (huérfanos lógicos, sin daño de integridad: FK `NO ACTION`, borrado lógico); se documenta en `RUNBOOK.md`. Procedimiento a probar antes de mezclar (`CLAUDE.md §9`).
+
+### 12.5 bis Estado de `1.12-b` (2026-10-19)
+
+Una migración aditiva más: `2026_10_19_100100_create_facility_bookings_table.php` (`facility_bookings`, con el disparador de curso). Tres permisos nuevos (`reservas.leer|crear|eliminar`; `platform:sync-registry` los materializa) y siembra con `acad:grant-structure-permissions` (ahora también ámbito `propios`; falla sin conceder nada si falta o está retirado algún código de cualquiera de las dos listas). Sin variables, servicios, colas ni tareas nuevas. Diagnóstico adicional: `422 booking_conflict` = espacio ya reservado o sesión en el aula en el marco vigente ese día (correcto); `404` al cancelar una reserva que existe = el rol solo cancela las propias (`propios`); `422 frame_overlap`/`frame_outside_academic_year` = fechas de la jornada especial; `422 timetable_conflict` en `valid_from` al editar las fechas = sesiones que pasarían a coexistir en conflicto. **Reversión**: imagen anterior; la migración no se revierte (aditiva); con la versión anterior los permisos de `reservas` quedan inertes y las rutas desaparecen, y una jornada especial creada se ignora en la detección de conflictos de la versión anterior (que trata todos los marcos como ordinarios y, por tanto, solo rechaza de más, nunca de menos).
 
 ### 12.6 Documentación a actualizar en el cierre
 

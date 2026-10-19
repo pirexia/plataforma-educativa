@@ -1,6 +1,6 @@
 # REQ-ACAD · Modelo de datos
 
-> **Estado**: **`1.12-a` (horarios y asignación docente) implementada (2026-10-18, rama `feature/REQ-ACAD-1-12-horarios-spec`).** **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11** (`REQ-ACAD-001`), con las recomendaciones de `funcional.md §15` aprobadas por el usuario y los contratos de `ADR-062`/`ADR-063` (ACEPTADA). **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
+> **Estado**: **`1.12-b` (marcos especiales y reservas) implementada (2026-10-19, rama `feature/REQ-ACAD-1-12b-marcos-especiales-reservas`).** **`1.12-a` (horarios y asignación docente) implementada (2026-10-18) y mezclada (PR #447).** **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11** (`REQ-ACAD-001`), con las recomendaciones de `funcional.md §15` aprobadas por el usuario y los contratos de `ADR-062`/`ADR-063` (ACEPTADA). **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 >
 > **Resumen**: seis tablas de tenant nuevas, **todas con `academic_year_id`** (`OPEN-ACAD-03` = B): `education_levels`, `courses`, `groups`, `subgroups`, `subjects`, `group_subjects`. Son las **primeras tablas reales con el disparador `academic_year_write_guard`** (`ADR-057`) y las primeras con contenido traducible (`ADR-062`). §1.7-§1.9 describen las tablas de `1.11d`. Ninguna migración altera tablas existentes. Fuera de `acad`, `1.11` cambia dos ayudantes de `TenantMigration` (§7).
 >
@@ -455,7 +455,7 @@ Restricción: `UNIQUE (tenant_id, academic_year_id, id)`. Sin solape dentro del 
 
 Lo que el motor **no** garantiza: etapa del grupo = etapa del marco (`RN-ACAD-120`) y los conflictos (`RN-ACAD-123`): servicio (§9.5).
 
-### 9.2 Tabla de `1.12-b`
+### 9.2 Tabla de `1.12-b` (implementada, `2026_10_19_100100_create_facility_bookings_table.php`)
 
 **`facility_bookings`** — reserva (`RN-ACAD-140` a `-143`).
 
@@ -469,6 +469,8 @@ Lo que el motor **no** garantiza: etapa del grupo = etapa del marco (`RN-ACAD-12
 | `ends_at` | `time` | No | `CHECK (ends_at > starts_at)` |
 
 El reservante es `created_by` (`RN-ACAD-140`), base del resolutor `propios` de `OPEN-ACAD-42`.
+
+**Implementada así**: `facility_id` con la FK de dos columnas `(tenant_id, facility_id) → facilities (tenant_id, id)` de `tenantForeignId()`, sin discriminador (cualquier tipo de espacio) y sin acción referencial (`AR-13`); `booked_on` es `date`; `starts_at` y `ends_at` son `time(0)` sin zona (`ADR-065`); `CHECK (ends_at > starts_at)` (`facility_bookings_times_check`); el disparador `academic_year_write_guard` lo crea `tenantTable()` (`RN-ACAD-90`). Índices: `(tenant_id, academic_year_id)` y `(tenant_id, facility_id)` de `tenantForeignId()` más `(tenant_id, facility_id, booked_on)` para los conflictos. **El motor no garantiza** que la fecha caiga dentro del curso (necesita sus fechas: `booking_outside_academic_year` lo valida el servicio bajo `AcademicYearSharedLock`) **ni los conflictos** (sin `btree_gist`): el servicio, bajo `FOR UPDATE` del ancla `timetables` (`RN-ACAD-125`); dos filas solapadas insertadas a mano son aceptadas (`CA-ACAD-138`, `AcadTimetableSchemaTest`).
 
 ### 9.3 Cambios en tablas existentes (*expand*)
 

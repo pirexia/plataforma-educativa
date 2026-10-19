@@ -4,7 +4,7 @@
 >
 > **`1.12`** (**APROBADA 2026-10-17**, con las recomendaciones de `OPEN-ACAD-32` a `-44`): recursos `asignacion_docente`, `espacios`, `horarios` y `reservas` en **§10**.
 >
-> **Estado**: **`1.12-a` (horarios y asignación docente) implementada (2026-10-18, rama `feature/REQ-ACAD-1-12-horarios-spec`).** **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11**. Recurso y siembra aprobados (`OPEN-ACAD-09` = A + X); ámbitos según `ADR-063` (ACEPTADA; `OPEN-ACAD-08` = A). La fuente de verdad será `AcadServiceProvider::declaredPermissions()` (`INV-007`, `ADR-034 §2`); esta tabla es su reflejo. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
+> **Estado**: **`1.12-b` (marcos especiales y reservas) implementada (2026-10-19, rama `feature/REQ-ACAD-1-12b-marcos-especiales-reservas`).** **`1.12-a` (horarios y asignación docente) implementada (2026-10-18) y mezclada (PR #447).** **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11**. Recurso y siembra aprobados (`OPEN-ACAD-09` = A + X); ámbitos según `ADR-063` (ACEPTADA; `OPEN-ACAD-08` = A). La fuente de verdad será `AcadServiceProvider::declaredPermissions()` (`INV-007`, `ADR-034 §2`); esta tabla es su reflejo. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 
 ---
 
@@ -72,7 +72,7 @@ Independencia de los dos recursos (`RN-ACAD-50`): `estructura_academica.*` no da
 
 Mientras tanto, la garantía de `ADR-044 §3` sigue en pie: un permiso de cualquier módulo con ámbito `grupo`, `clase` o `departamento` **no se puede conceder** (`422`) y, si existiera, **deniega**. Y está prohibido sustituir la falta de resolutor concediendo `todos` a `docente` en la siembra de un módulo con datos de alumnado (`ADR-063 §5.4`).
 
-`acad` no entra en el mapa cerrado de `AR-10` ni registra nada en `ScopeResolverRegistry` (`CA-ACAD-037`).
+`acad` no registra resolutores de ámbito para los recursos de §1, §2.2 ni de `1.12-a`. **Desde `1.12-b`** registra uno solo, (`propios`, `reservas`) (§10.2), y su recurso `reservas` entra en el mapa cerrado de `AR-10` (ampliación aprobada con `OPEN-ACAD-42`) con un único fichero sancionado, `FacilityBookingService.php` (`CA-ACAD-037`, `CA-ACAD-139`).
 
 ## 4. Asignación en roles predefinidos (aprobada, `OPEN-ACAD-09` = X)
 
@@ -175,6 +175,8 @@ Escribir franjas (`slots` dentro del marco) exige el permiso de la operación so
 
 **`grupo` y `clase`**: ningún recurso de `1.12` los admite. `acad` aporta la pertenencia (`funcional.md §18.7`) y los registra cada módulo dueño de recurso. **Ningún recurso de `1.12` contiene datos de alumnado**, así que dar `todos` a `docente` en `horarios.leer` no es la sustitución prohibida por `ADR-063 §5.4`.
 
+**Implementado en `1.12-b`**: `AcadServiceProvider::declaredPermissions()` declara `reservas.leer`, `reservas.crear` (`['todos']`) y `reservas.eliminar` (`['todos', 'propios']`), sin `reservas.actualizar`; `ReservasPropiosScopeResolver` (`Acad\Domain`) restringe a `created_by = usuario` y se registra en `boot()`; `FacilityBookingService::delete()` aplica `ScopedQuery::satisfies()` y responde `404` a la ajena. El mapa de `AR-10` (`ScopedQueryConfinementTest`) pasa a `['auditoria', 'reservas']`. Conceder `propios` a `reservas.leer`/`crear`, o `grupo`/`clase`/`departamento` a cualquiera, es `422` (`CA-ACAD-139`, `-133`).
+
 ### 10.3 Siembra en roles predefinidos (`OPEN-ACAD-42` = X, recomendada)
 
 | Rol | `asignacion_docente` | `espacios` | `horarios` | `reservas` (`1.12-b`) |
@@ -188,6 +190,8 @@ Escribir franjas (`slots` dentro del marco) exige el permiso de la operación so
 | Los 10 restantes | — | — | — | — |
 
 Motivo de `direccion` con escritura: `§11.1` («Dirección / Jefatura de Estudios: … horarios»); difiere del criterio «solo el administrador» de `OPEN-CURSO-14`/`OPEN-ACAD-28` porque aquí el requisito nombra el rol. Estudiante y familia verán horarios desde sus portales (`1.22`, `1.23`) con su propio ámbito; nada en `1.12`. Centros nuevos: `ProvisionTenantDefaults`; existentes: `acad:grant-structure-permissions` ampliado a los códigos nuevos, con sus garantías (idempotente, solo roles predefinidos, solo centros `Activo`, nada si algún código falta o está retirado; precedente `OPEN-ACAD-28` = 1).
+
+**Implementado en `1.12-b`**: `ProvisionTenantDefaults::STRUCTURE_PERMISSION_GRANTS` incluye los tres de `reservas` para `administrador_centro` y `direccion`, `leer` para `secretaria` y `orientador`, y `leer` + `crear` (ámbito `todos`) para `docente` y `tutor_grupo`; `STRUCTURE_PERMISSION_PROPIOS_GRANTS` añade `reservas.eliminar` con ámbito `propios` a `docente` y `tutor_grupo`. `acad:grant-structure-permissions` recorre las dos listas, concede por (rol, código) lo que falte y no toca una concesión previa con otro ámbito (`CA-ACAD-133`). Los permisos de `acad` son ya **23**.
 
 **MFA** (`§7`): `direccion` gana capacidades de escritura; si `direccion` no lleva ya `mfa_required`, **no** se cambia aquí (es atributo del rol, `REQ-AUTH-003`): se señala para que el usuario lo valore.
 
