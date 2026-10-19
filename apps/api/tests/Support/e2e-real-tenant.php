@@ -140,6 +140,12 @@ app(TenantContext::class)->runFor($tenant->id, function () use ($password): void
         'email' => E2E_TARGET_EMAIL,
         'status' => UserStatus::Activo,
     ]);
+
+    // REQ-ACAD (1.12-c), CA-ACAD-135: segundo profesor sintético para el e2e de horarios.
+    User::factory()->for(Person::factory()->create(['given_name' => 'Marta', 'family_name_1' => 'Docente']))->create([
+        'email' => 'e2e-docente2@example.com',
+        'status' => UserStatus::Activo,
+    ]);
 });
 
 echo json_encode([
