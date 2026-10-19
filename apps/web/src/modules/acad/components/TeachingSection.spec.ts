@@ -269,10 +269,10 @@ describe('CA-ACAD-111: quitar una asignación', () => {
 
     const wrapper = await open()
     const remove = () =>
-      wrapper
-        .findAll('tbody button')
-        .find((button) => button.text().startsWith('Quitar'))!
-        .element.click()
+      (
+        wrapper.findAll('tbody button').find((button) => button.text().startsWith('Quitar'))!
+          .element as HTMLElement
+      ).click()
 
     remove()
     await flushPromises()
@@ -304,7 +304,7 @@ describe('CA-ACAD-113: tutores', () => {
     await flushPromises()
 
     const boxes = [
-      ...wrapper.element.querySelectorAll<HTMLInputElement>(
+      ...document.body.querySelectorAll<HTMLInputElement>(
         '[data-slot="acad-tutors"] input[type="checkbox"]',
       ),
     ]

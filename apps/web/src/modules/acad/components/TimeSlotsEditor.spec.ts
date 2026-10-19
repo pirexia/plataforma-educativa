@@ -17,14 +17,30 @@ const ROWS: SlotRow[] = [
   { key: 2, weekday: '2', starts_at: '09:25', ends_at: '10:20' },
 ]
 
-function mountEditor(props: {
-  modelValue: SlotRow[]
-  errors?: Record<string, string[]>
-  disabled?: boolean
-}) {
+function mountEditor(
+  props: {
+    modelValue: SlotRow[]
+    errors?: Record<string, string[]>
+    disabled?: boolean
+  },
+  stubSelects = false,
+) {
   const wrapper = mount(TimeSlotsEditor, {
     props,
-    global: { plugins: [i18n] },
+    // Con muchas filas, los Select de Reka UI dominan el coste del montaje: se sustituyen
+    // solo en la prueba que cuenta filas (no comprueba el desplegable).
+    global: {
+      plugins: [i18n],
+      stubs: stubSelects
+        ? {
+            Select: true,
+            SelectTrigger: true,
+            SelectValue: true,
+            SelectContent: true,
+            SelectItem: true,
+          }
+        : {},
+    },
     attachTo: document.body,
   })
 
@@ -115,7 +131,7 @@ describe('CA-ACAD-118 CA-ACAD-119: edición del conjunto', () => {
       starts_at: '08:00',
       ends_at: '08:50',
     }))
-    const wrapper = mountEditor({ modelValue: many })
+    const wrapper = mountEditor({ modelValue: many }, true)
 
     expect(
       wrapper

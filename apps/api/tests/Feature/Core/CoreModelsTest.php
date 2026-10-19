@@ -9,12 +9,19 @@ use App\Models\User;
 use App\Modules\Acad\Domain\Models\AcademicPeriod;
 use App\Modules\Acad\Domain\Models\Course;
 use App\Modules\Acad\Domain\Models\EducationLevel;
+use App\Modules\Acad\Domain\Models\Facility;
 use App\Modules\Acad\Domain\Models\GradingScale;
 use App\Modules\Acad\Domain\Models\GradingScaleValue;
 use App\Modules\Acad\Domain\Models\Group;
 use App\Modules\Acad\Domain\Models\GroupSubject;
+use App\Modules\Acad\Domain\Models\GroupTutor;
 use App\Modules\Acad\Domain\Models\Subgroup;
 use App\Modules\Acad\Domain\Models\Subject;
+use App\Modules\Acad\Domain\Models\TeachingAssignment;
+use App\Modules\Acad\Domain\Models\TimeSlot;
+use App\Modules\Acad\Domain\Models\Timetable;
+use App\Modules\Acad\Domain\Models\TimetableFrame;
+use App\Modules\Acad\Domain\Models\TimetableSession;
 use App\Modules\Auth\Domain\Models\IdentityProvider;
 use App\Modules\Auth\Domain\Models\MfaReset;
 use App\Modules\Auth\Domain\Models\SamlIdentityProviderSettings;
@@ -95,6 +102,8 @@ test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR
         EducationLevel::class, Course::class, Group::class, Subgroup::class, Subject::class, GroupSubject::class,
         AcademicPeriod::class, GradingScale::class, GradingScaleValue::class,
         AcademicYearReopening::class,
+        Facility::class, Timetable::class, TeachingAssignment::class, GroupTutor::class,
+        TimetableFrame::class, TimeSlot::class, TimetableSession::class,
     ]);
 });
 
