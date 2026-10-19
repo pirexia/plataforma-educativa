@@ -56,7 +56,7 @@
       "subgroups": "Sous-groupes",
       "group_subjects": "Matières affectées à des groupes",
       "academic_periods": "Périodes scolaires",
-      "group_tutors": "Tuteurs de groupe",
+      "group_tutors": "Professeurs principaux",
       "teaching_assignments": "Affectations d'enseignement",
       "timetable_frames": "Cadres d'emploi du temps",
       "timetable_sessions": "Séances d'emploi du temps",
@@ -357,7 +357,7 @@
         "subject": "Matière"
       },
       "chooseEntity": "Choisissez une option pour voir son emploi du temps.",
-      "noFrame": "Le cycle de ce groupe n’a pas de cadre horaire. Créez le cadre et ses créneaux sur la page du cycle.",
+      "noFrame": "L’étape de ce groupe n’a pas de cadre d’emploi du temps. Créez le cadre et ses créneaux sur la page de l’étape.",
       "grid": {
         "caption": "Emploi du temps hebdomadaire par {view}",
         "noSlots": "Il n’y a ni créneau ni séance à afficher.",

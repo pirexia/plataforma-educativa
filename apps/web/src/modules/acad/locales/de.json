@@ -56,8 +56,8 @@
       "subgroups": "Untergruppen",
       "group_subjects": "Gruppen zugeordnete Fächer",
       "academic_periods": "Unterrichtszeiträume",
-      "group_tutors": "Gruppentutoren",
-      "teaching_assignments": "Lehrzuweisungen",
+      "group_tutors": "Klassenleitungen",
+      "teaching_assignments": "Lehraufträge",
       "timetable_frames": "Stundenplanrahmen",
       "timetable_sessions": "Unterrichtsstunden",
       "facility_bookings": "Raumreservierungen"
@@ -356,8 +356,8 @@
         "facility": "Raum",
         "subject": "Fach"
       },
-      "chooseEntity": "Wähle eine Option, um ihren Stundenplan zu sehen.",
-      "noFrame": "Die Stufe dieser Gruppe hat keinen Zeitrahmen. Lege den Rahmen und seine Zeitfenster auf der Seite der Stufe an.",
+      "chooseEntity": "Wählen Sie eine Option, um ihren Stundenplan zu sehen.",
+      "noFrame": "Die Stufe dieser Gruppe hat keinen Stundenplanrahmen. Legen Sie den Rahmen und seine Zeitfenster auf der Seite der Stufe an.",
       "grid": {
         "caption": "Wochenstundenplan nach {view}",
         "noSlots": "Es gibt keine Zeitfenster oder Stunden anzuzeigen.",
@@ -378,8 +378,8 @@
         "slot": "Zeitfenster",
         "facility": "Raum",
         "noFacility": "Kein Raum",
-        "noAssignments": "Der Gruppe sind keine Lehrkräfte zugewiesen. Weise sie auf der Seite der Gruppe zu.",
-        "assignmentRequired": "Wähle einen Lehrauftrag.",
+        "noAssignments": "Der Gruppe sind keine Lehrkräfte zugewiesen. Weisen Sie sie auf der Seite der Gruppe zu.",
+        "assignmentRequired": "Wählen Sie einen Lehrauftrag.",
         "remove": "Stunde entfernen"
       },
       "conflict": {
@@ -427,12 +427,12 @@
       },
       "form": {
         "title": "Lehrkräfte zuweisen",
-        "description": "Wähle das Fach der Gruppe, die Untergruppe bei geteiltem Unterricht und die Lehrkraft. Die Zuweisung erteilt keine Berechtigungen.",
+        "description": "Wählen Sie das Fach der Gruppe, die Untergruppe bei geteiltem Unterricht und die Lehrkraft. Die Zuweisung erteilt keine Berechtigungen.",
         "submit": "Zuweisen"
       },
       "errors": {
-        "subjectRequired": "Wähle ein Fach.",
-        "teacherRequired": "Wähle eine Lehrkraft."
+        "subjectRequired": "Wählen Sie ein Fach.",
+        "teacherRequired": "Wählen Sie eine Lehrkraft."
       }
     }
   }
