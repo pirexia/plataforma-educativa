@@ -86,7 +86,7 @@ $table->text('scope')->nullable();
 
 **Nullable y sin `CHECK`.** El resolutor provisional la ignora, y esa combinación es exactamente la trampa que `docs/modulos/REQ-CORE/permisos.md §5` tuvo que contener con una regla de seguridad y un test: un ámbito que nadie evalúa convierte una concesión restringida en acceso total.
 
-Todas las filas existentes valen `'todos'`: `ProvisionTenantDefaults::seedPermissionGrants()` escribe literalmente `'scope' => 'todos'` en cada `PermissionRole::create()`, y `CA-CORE-042` lo verifica. **No hay ningún otro escritor de esta tabla en el producto.**
+Todas las filas existentes valen `'todos'`: `ProvisionTenantDefaults::seedPermissionGrants()` escribe literalmente `'scope' => 'todos'` en cada `PermissionRole::create()`, y `CA-CORE-042` lo verifica. **Hasta `1.11`, no había ningún otro escritor de esta tabla en el producto; desde `1.12-b`** hay una excepción acotada: `reservas.eliminar` de `docente` y `tutor_grupo` se siembra con `'scope' => 'propios'` desde `ProvisionTenantDefaults::STRUCTURE_PERMISSION_PROPIOS_GRANTS`, y el comando `acad:grant-structure-permissions` (centros existentes) escribe esas dos filas y las de ámbito `todos`; `CA-CORE-042` verifica ahora que esas dos son las únicas fuera de `todos`.
 
 ### 2.2 Estado objetivo
 

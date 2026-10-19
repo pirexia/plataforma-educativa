@@ -13,7 +13,7 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 - **Web**: `/academico/reservas` (listado con filtros, alta con el conflicto nombrado como texto, cancelación con confirmación), tipo y vigencia de marcos especiales en la ficha de etapa y de marco, selector «Marco horario» en la vista de grupo y vigencia en texto de las sesiones de una jornada especial.
 - **`core`**: `UserDirectory::refsByIds()` confirmada por el usuario el 2026-10-19 (`REQ-CORE/funcional.md`, `REQ-ACAD/funcional.md §19.1` I-1).
 - **No incluido**: `TeachingMembership` (`OPEN-ACAD-43` = A); PDF, importación, festivos y exámenes (`OPEN-ACAD-37` a `-39`).
-- **Documentación**: `REQ-ACAD/funcional.md §20` (decisiones I-8 a I-15), `api.md §12.8`, `datos.md §9.2`, `permisos.md §10`, `operacion.md §12.5 bis`, manuales de administración, dirección, secretaría y profesorado, `SYSADMIN.md`, `RUNBOOK.md`, `ARCHITECTURE.md` (sin cambio de versión: lo decide la revisión de cierre).
+- **Documentación**: `REQ-ACAD/funcional.md §20` (decisiones I-8 a I-15), `api.md §12.8`, `datos.md §9.2`, `permisos.md §10`, `operacion.md §12.5 bis`, manuales de administración, dirección, secretaría y profesorado, `SYSADMIN.md`, `RUNBOOK.md`, `ARCHITECTURE.md` 2.5.4, `SYSADMIN.md` 0.8.15, `RUNBOOK.md` 0.3.9, `README.md` 2.6.26.
 - **Pendiente**: Playwright `CA-ACAD-135`; revisiones `db-reviewer`, `security-reviewer` y `doc-reviewer`; completar en/de/fr con `traductor` (las claves nuevas ya llevan traducción de partida); `PLAN-IMPLEMENTACION.md` y `memory.md` (los actualiza la sesión orquestadora).
 
 ---

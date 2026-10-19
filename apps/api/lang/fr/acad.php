@@ -92,7 +92,7 @@ return [
         'frame_ordinary_exists' => 'Cette étape a déjà un cadre d’emploi du temps ordinaire.',
         'frame_dates_invalid' => 'Les dates de validité ne sont pas valides pour ce type de cadre d’emploi du temps.',
         'frame_outside_academic_year' => 'La validité du cadre doit être comprise dans l’année scolaire (:academic_year_starts_on – :academic_year_ends_on).',
-        'frame_overlap' => 'La validité chevauche celle d’un autre cadre spécial du même cycle.',
+        'frame_overlap' => 'La validité chevauche celle d’un autre cadre spécial de la même étape.',
         'booking_outside_academic_year' => 'La date de la réservation doit être comprise dans l’année scolaire (:academic_year_starts_on – :academic_year_ends_on).',
         'booking_conflict' => 'L’espace est déjà réservé ou occupé par une séance de l’emploi du temps à cette date et à cette heure.',
         'weekday_invalid' => 'Le jour de la semaine doit être un nombre de 1 (lundi) à 7 (dimanche).',

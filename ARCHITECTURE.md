@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |-------|-------|
-| Versión | 2.5.3 |
-| Fecha | 2026-10-18 |
+| Versión | 2.5.4 |
+| Fecha | 2026-10-19 |
 | Estado | Propuesta cerrada, pendiente de ratificación |
 | Documento de requisitos | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` |
 
@@ -174,7 +174,7 @@ Los detectores de llamadas y literales comparten **un único escáner de tokens*
 | Patrón | Referencia | Lo fija |
 |--------|-----------|---------|
 | Declaración de módulo y permisos con `applicable_scopes` explícito por entrada | `CoreServiceProvider::declaredPermissions()` (`apps/api/app/Modules/Core/Infrastructure/CoreServiceProvider.php`); `AuthServiceProvider` (`apps/api/app/Modules/Auth/Infrastructure/AuthServiceProvider.php`) declara el suyo, con todo `['todos']` explícito | Para `CoreServiceProvider`: `apps/api/tests/Feature/Core/PermissionCatalogTest.php` y `apps/api/tests/Feature/Core/SyncModuleRegistryTest.php`; `AR-07a`, `AR-09` y `AR-10` leen el catálogo de todos los módulos |
-| Listado + detalle + exportación de un recurso con ámbito restringido | Auditoría de `Core`: `AuditLogsController`, `EloquentAuditQuery`, `AuditoriaPropiosScopeResolver`, `GenerateAuditLogExport` (`apps/api/app/Modules/Core/`) | `apps/api/tests/Feature/Core/AuditoriaScopeTest.php`, `AR-10` |
+| Listado + detalle + exportación de un recurso con ámbito restringido | Auditoría de `Core`: `AuditLogsController`, `EloquentAuditQuery`, `AuditoriaPropiosScopeResolver`, `GenerateAuditLogExport` (`apps/api/app/Modules/Core/`); segundo ejemplo desde `1.12-b`: reservas de `acad` (`FacilityBookingService`, `ReservasPropiosScopeResolver`, `apps/api/app/Modules/Acad/`) | `apps/api/tests/Feature/Core/AuditoriaScopeTest.php`, `apps/api/tests/Feature/Acad/AcadFacilityBookingsApiTest.php` (`CA-ACAD-139`), `AR-10` |
 | Recurso de tenant con `public_id`, `Auditable` y 404 entre tenants | Invitaciones de `Core`: `Domain/Models/UserInvitation.php`, `Http/Controllers/InvitationsController.php` | `apps/api/tests/Feature/Core/InvitationsEndpointsTest.php` (y `apps/api/tests/Feature/Auth/InvitationRedemptionTest.php` para el canje) |
 | Tarea en cola por tenant (`INV-012`) | `apps/api/app/Modules/Core/Infrastructure/Jobs/GenerateUserExport.php` | `apps/api/tests/Feature/Core/UserExportEndpointsTest.php` |
 | Interfaz pública consumida por otro módulo | `apps/api/app/Modules/Core/Domain/TenantSettingsReader.php` (la consume `Auth`) | `AR-01` |

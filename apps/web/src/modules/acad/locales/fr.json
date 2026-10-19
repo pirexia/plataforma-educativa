@@ -326,7 +326,7 @@
         "form": {
           "title": "Nouveau cadre d'emploi du temps",
           "description": "Un cadre ordinaire vaut pour toute l’année ; un cadre spécial (journée continue) seulement entre deux dates. Les créneaux s’ajoutent ensuite, sur sa fiche.",
-          "validityHint": "Les dates sont incluses, doivent être comprises dans l’année scolaire et ne peuvent pas chevaucher une autre journée spéciale du cycle."
+          "validityHint": "Les dates sont incluses, doivent être comprises dans l’année scolaire et ne peuvent pas chevaucher une autre journée spéciale de la même étape."
         },
         "validity": "Validité",
         "validityRange": "Du {from} au {to}",
@@ -457,7 +457,7 @@
       "fields": {
         "facility": "Espace",
         "date": "Date",
-        "startsAt": "Début",
+        "startsAt": "Heure de début",
         "endsAt": "Heure de fin",
         "interval": "Horaire",
         "bookedBy": "Réservée par"

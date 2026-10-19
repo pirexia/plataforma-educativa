@@ -325,8 +325,8 @@
         "empty": "Diese Stufe hat keinen Stundenplanrahmen",
         "form": {
           "title": "Neuer Stundenplanrahmen",
-          "description": "Ein ordentlicher Rahmen gilt für das ganze Schuljahr, ein besonderer (Kurztag) nur zwischen zwei Daten. Die Zeitfenster werden anschließend auf seiner Seite hinzugefügt.",
-          "validityHint": "Die Daten sind einschließlich, müssen innerhalb des Schuljahres liegen und dürfen sich nicht mit einem anderen Sonderplan der Stufe überschneiden."
+          "description": "Ein regulärer Rahmen gilt für das ganze Schuljahr, ein besonderer (Kurztag) nur zwischen zwei Daten. Die Zeitfenster werden anschließend auf seiner Seite hinzugefügt.",
+          "validityHint": "Die Daten sind einschließlich, müssen innerhalb des Schuljahres liegen und dürfen sich nicht mit einem anderen Sonderrahmen der Stufe überschneiden."
         },
         "validity": "Gültigkeit",
         "validityRange": "Vom {from} bis {to}",
@@ -448,7 +448,7 @@
     "readOnlyBookings": "Dieses Schuljahr ist schreibgeschützt: Reservierungen können weder erstellt noch storniert werden.",
     "bookings": {
       "title": "Reservierungen",
-      "intro": "Reservierungen von Klassenräumen und Ressourcen des Schuljahres nach Datum und Uhrzeit. Sie werden nicht bearbeitet: stornieren und neu reservieren.",
+      "intro": "Reservierungen von Klassenräumen und Ressourcen des Schuljahres nach Datum und Uhrzeit. Sie werden nicht bearbeitet, sondern storniert und neu angelegt.",
       "new": "Neue Reservierung",
       "caption": "Reservierungen von Räumen",
       "empty": "Es gibt keine Reservierungen",
@@ -464,9 +464,9 @@
       },
       "form": {
         "title": "Neue Reservierung",
-        "description": "Wähle den Raum, das Datum und die Uhrzeit. Die Reservierung darf sich nicht mit einer anderen Reservierung und bei einem Klassenraum nicht mit einer Unterrichtsstunde überschneiden.",
+        "description": "Wählen Sie den Raum, das Datum und die Uhrzeit. Die Reservierung darf sich nicht mit einer anderen Reservierung und bei einem Klassenraum nicht mit einer Unterrichtsstunde überschneiden.",
         "intervalHint": "Die Endzeit ist nicht eingeschlossen: Eine Reservierung, die um 11:00 endet, und eine, die um 11:00 beginnt, überschneiden sich nicht.",
-        "noFacilities": "Es gibt keine Räume zum Reservieren, oder du hast keine Berechtigung, sie zu sehen.",
+        "noFacilities": "Es gibt keine Räume zum Reservieren, oder Sie haben keine Berechtigung, sie zu sehen.",
         "submit": "Reservieren"
       },
       "conflict": {
