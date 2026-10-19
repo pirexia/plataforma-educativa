@@ -260,8 +260,8 @@ components:
       type: string
       description: >
         Tipo de marco horario (REQ-ACAD RN-ACAD-110). Enumerado **extensible** (ADR-038 §7.3).
-        `ordinaria` (todo el curso) es la única admitida en `1.12-a`; `especial` (vigencia por fechas)
-        llega con `1.12-b`. Inmutable tras el alta.
+        `ordinaria` (todo el curso) o `especial` (vigencia por fechas, jornada intensiva, `1.12-b`).
+        Inmutable tras el alta.
       enum: [ordinaria, especial]
       x-extensible-enum: true
 
@@ -317,9 +317,9 @@ components:
     TimetableFrame:
       type: object
       description: >
-        REQ-ACAD/api.md §12.1 (1.12-a). Marco horario de una etapa con sus franjas. `name` es la cadena
+        REQ-ACAD/api.md §12.1 (1.12-a y 1.12-b). Marco horario de una etapa con sus franjas. `name` es la cadena
         resuelta en el servidor (ADR-062 §5.3) y de solo lectura; `name_translations` el objeto almacenado.
-        `valid_from`/`valid_to` son `null` en un marco `ordinaria`. `slots` siempre presente, ordenada por
+        `valid_from`/`valid_to` son `null` en un marco `ordinaria` y fechas (inclusivas) en un `especial`. `slots` siempre presente, ordenada por
         `weekday`, `starts_at`.
       required: [public_id, academic_year, education_level, frame_type, name, name_translations, valid_from, valid_to, slots, created_at, updated_at]
       properties:
@@ -355,6 +355,32 @@ components:
           allOf: [{ $ref: '#/components/schemas/PublicId' }]
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+
+    FacilityBooking:
+      type: object
+      description: >
+        REQ-ACAD/api.md §12.1 (1.12-b). Reserva de un espacio (aula o recurso) en una fecha y un intervalo
+        horario `[inicio, fin)` (RN-ACAD-140). `facility.deleted` es `true` para un espacio dado de baja de un
+        curso cerrado. `booked_by` es el usuario que la creó (nombre visible de `Core`), o `null` si ya no
+        existe o la creó una tarea de consola.
+      required: [public_id, academic_year, facility, booked_on, starts_at, ends_at, booked_by, created_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        facility:
+          type: object
+          required: [public_id, facility_type, code, name, deleted]
+          properties:
+            public_id: { $ref: '#/components/schemas/PublicId' }
+            facility_type: { $ref: '#/components/schemas/FacilityType' }
+            code: { type: string }
+            name: { type: string }
+            deleted: { type: boolean }
+        booked_on: { type: string, format: date, example: "2026-11-12" }
+        starts_at: { $ref: '#/components/schemas/CivilTime' }
+        ends_at: { $ref: '#/components/schemas/CivilTime' }
+        booked_by: { $ref: '#/components/schemas/StaffSummary' }
+        created_at: { type: string, format: date-time }
 
     StaffSummary:
       type: object

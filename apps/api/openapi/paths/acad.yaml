@@ -1,4 +1,4 @@
-# REQ-ACAD (pasos 1.11-b, 1.11d-a y 1.11d-b). Convenciones transversales en
+# REQ-ACAD (pasos 1.11-b, 1.11d-a, 1.11d-b, 1.12-a y 1.12-b). Convenciones transversales en
 # docs/adr/ADR-038-convenciones-api-rest.md y ADR-062 (contenido traducible); este
 # fichero solo las aplica. Contrato completo en docs/modulos/REQ-ACAD/api.md.
 # Módulo NO esencial (OPEN-ACAD-10): toda ruta responde `403 module-disabled` si el centro
@@ -6,6 +6,7 @@
 # (education-levels, courses, groups, subgroups, subjects) exigen `estructura_academica.<acción>`;
 # las de períodos lectivos (academic-periods, 1.11d-a) y las de escalas de calificación (grading-scales,
 # 1.11d-b) exigen `configuracion_academica.<acción>`, recurso distinto (RN-ACAD-50). Acciones: leer, crear, actualizar, eliminar; ámbito `todos`.
+# Las reservas de espacios (facility-bookings, 1.12-b) exigen `reservas.<leer|crear|eliminar>`; `eliminar` admite el ámbito `propios` (OPEN-ACAD-42).
 # Comunes a todas: lectura de un curso
 # `cerrado`/`archivado` sin `curso_historico.leer` ⇒ `404` (mismo cuerpo que un recurso
 # inexistente); escritura sobre un curso de solo lectura ⇒ `409 urn:pge:error:academic-year-closed`.
@@ -1319,13 +1320,18 @@ paths:
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
     post:
       operationId: createTimetableFrame
-      summary: Crea un marco horario ordinario con sus franjas
+      summary: Crea un marco horario (ordinario o especial) con sus franjas
       description: >
         Permiso `horarios.crear`. La etapa llega en el cuerpo (`education_level`) y el curso académico es el
         de ella: `academic_year` en el cuerpo es `422 acad.validation.academic_year_not_allowed`. Etapa
         inexistente, borrada, de otro centro o de un curso ilegible: `422 acad.validation.parent_not_found`.
-        `frame_type` obligatorio; en `1.12-a` solo `ordinaria` (`especial` y fechas de vigencia: `422`).
-        Como mucho un `ordinaria` vivo por etapa (`422 acad.validation.frame_ordinary_exists`). `slots`
+        `frame_type` obligatorio, `ordinaria` o `especial` (otro valor: `422 frame_type_invalid`). Un `ordinaria`
+        no lleva fechas (`422 frame_dates_invalid`) y como mucho hay uno vivo por etapa
+        (`422 acad.validation.frame_ordinary_exists`). Un `especial` (jornada intensiva, RN-ACAD-111) lleva
+        `valid_from` y `valid_to` (`AAAA-MM-DD`, `valid_to ≥ valid_from`): ausentes o `valid_to < valid_from` ⇒
+        `422 frame_dates_invalid`, formato ⇒ `422 date_invalid`, fuera del curso ⇒
+        `422 frame_outside_academic_year` (`params.academic_year_starts_on/ends_on`), solapado con otro especial
+        vivo de la misma etapa ⇒ `422 frame_overlap` (`params.frame`). `slots`
         opcional (conjunto completo, máximo 100): errores en `slots.<n>.<campo>` (`weekday_invalid`,
         `time_invalid`, `slot_ends_before_start`, `slot_overlap`) y `slots_too_many` en `slots`. El alta
         del primer marco de un curso crea su ancla de horario (RN-ACAD-115).
@@ -1342,6 +1348,8 @@ paths:
                 education_level: { $ref: '../components.yaml#/components/schemas/PublicId' }
                 frame_type: { $ref: '../components.yaml#/components/schemas/TimetableFrameType' }
                 name_translations: { $ref: '../components.yaml#/components/schemas/TranslationsMap' }
+                valid_from: { type: string, format: date, description: 'Solo `especial` (obligatoria en él).' }
+                valid_to: { type: string, format: date, description: 'Solo `especial` (obligatoria en él).' }
                 slots:
                   type: array
                   maxItems: 100
@@ -1392,7 +1400,12 @@ paths:
         conjunto completo sincronizado por `public_id` (RN-ACAD-113: con `public_id` actualiza, sin él da de
         alta, ausente se borra). Una franja con sesiones vivas no se borra ni cambia de día u hora
         (`409 acad.conflict.has_dependents` con `timetable_sessions`, RN-ACAD-114). `education_level` o
-        `academic_year` ⇒ `422 parent_immutable`; `frame_type` ⇒ `422 frame_type_immutable`.
+        `academic_year` ⇒ `422 parent_immutable`; `frame_type` ⇒ `422 frame_type_immutable`. En un marco
+        `especial`, `valid_from` y `valid_to` (RN-ACAD-111): las mismas validaciones que el alta
+        (`frame_dates_invalid` también si se envía `null`, `frame_outside_academic_year`, `frame_overlap`) y, si
+        el marco tiene sesiones, `422 timetable_conflict` en `valid_from` con `params.conflicts` cuando las
+        fechas nuevas hacen coexistir sesiones en conflicto (RN-ACAD-124, `-125`). En un `ordinaria`, una fecha
+        no nula ⇒ `422 frame_dates_invalid`.
       tags: ['Acad / Horarios']
       security: [{ SessionCookie: [] }]
       requestBody:
@@ -1403,6 +1416,8 @@ paths:
               type: object
               properties:
                 name_translations: { $ref: '../components.yaml#/components/schemas/TranslationsPatchMap' }
+                valid_from: { type: string, format: date, description: 'Solo en un marco `especial`.' }
+                valid_to: { type: string, format: date, description: 'Solo en un marco `especial`.' }
                 slots:
                   type: array
                   maxItems: 100
@@ -1796,6 +1811,136 @@ paths:
       summary: Borra (lógico) una sesión de horario
       description: Permiso `horarios.eliminar`.
       tags: ['Acad / Horarios']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204':
+          description: Borrado lógico
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+
+  /api/v1/facility-bookings:
+    get:
+      operationId: listFacilityBookings
+      summary: Lista las reservas de espacios de un curso académico
+      description: >
+        Permiso `reservas.leer` (ámbito `todos`). Paginación por página (defecto 25, máximo 100). Orden fijo
+        `booked_on`, `starts_at`, `id`. Filtros combinados con `AND`: `facility` (varios `public_id` separados
+        por coma; uno inexistente o de otro centro no coincide con nada), `booked_from` y `booked_to`
+        (`AAAA-MM-DD`, inclusivas; formato inválido ⇒ `422`).
+      tags: ['Acad / Reservas']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { $ref: '../components.yaml#/components/parameters/AcademicYearFilterParam' }
+        - name: facility
+          in: query
+          description: Uno o varios `public_id` de espacio separados por coma.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: booked_from
+          in: query
+          schema: { type: string, format: date }
+        - name: booked_to
+          in: query
+          schema: { type: string, format: date }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/FacilityBooking' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createFacilityBooking
+      summary: Reserva un espacio en una fecha y un intervalo horario
+      description: >
+        Permiso `reservas.crear`. Es el único alta de `1.12` con `academic_year` en el cuerpo (una reserva no
+        tiene padre con curso, RN-ACAD-140): inexistente o ilegible ⇒ `422 academic_year_not_found`. La fecha
+        `booked_on` debe caer dentro del curso (`422 booking_outside_academic_year`, con
+        `params.academic_year_starts_on/ends_on`). `facility` (aula o recurso, vivo) inexistente ⇒
+        `422 facility_not_found`. Horas `HH:MM` (`422 time_invalid`), `ends_at > starts_at`
+        (`422 slot_ends_before_start`). Conflicto ⇒ `422 booking_conflict` en `booked_on` con
+        `params.conflicts: [{kind: "booking", booking} | {kind: "session", session}]` (otra reserva del mismo
+        espacio que se corta; si es un aula, una sesión del marco vigente ese día que se corta, RN-ACAD-141),
+        sin escribir nada. El reservante es quien la crea. Sin repetición ni aprobación (OPEN-ACAD-41).
+        Toda escritura se serializa por curso (RN-ACAD-125).
+      tags: ['Acad / Reservas']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [academic_year, facility, booked_on, starts_at, ends_at]
+              properties:
+                academic_year: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                facility: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                booked_on: { type: string, format: date, example: "2026-11-12" }
+                starts_at: { $ref: '../components.yaml#/components/schemas/CivilTime' }
+                ends_at: { $ref: '../components.yaml#/components/schemas/CivilTime' }
+      responses:
+        '201':
+          description: Creado
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/FacilityBooking' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '409': { $ref: '../components.yaml#/components/responses/AcademicYearClosed' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/facility-bookings/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getFacilityBooking
+      summary: Detalle de una reserva de espacio
+      description: >
+        Permiso `reservas.leer`. Un `public_id` de otro centro, o de un curso `cerrado`/`archivado` sin
+        `curso_historico.leer`, es `404`.
+      tags: ['Acad / Reservas']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: El recurso
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/FacilityBooking' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `acad` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    delete:
+      operationId: deleteFacilityBooking
+      summary: Cancela (borrado lógico) una reserva de espacio
+      description: >
+        Permiso `reservas.eliminar`, ámbito `todos` o `propios` (OPEN-ACAD-42). Con `propios` solo las reservas
+        creadas por el propio usuario: una ajena responde `404`, igual que una inexistente (RN-ACAD-142). Las
+        reservas no se editan: no hay `PATCH` (`405`).
+      tags: ['Acad / Reservas']
       security: [{ SessionCookie: [] }]
       responses:
         '204':
