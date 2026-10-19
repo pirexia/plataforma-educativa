@@ -9,6 +9,7 @@ use App\Modules\Acad\Domain\Models\TimetableSession;
 use App\Modules\Curso\Domain\AcademicYearSharedLock;
 use App\Support\Api\ApiException;
 use App\Support\Authorization\PermissionDecision;
+use App\Support\Authorization\PermissionResolver;
 use App\Support\Authorization\ScopedQuery;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -42,6 +43,7 @@ final class FacilityBookingService
         private readonly TimetableAnchor $anchor,
         private readonly AcademicYearSharedLock $sharedLock,
         private readonly ScopedQuery $scopedQuery,
+        private readonly PermissionResolver $permissions,
     ) {}
 
     /** Detalle: `404` si no existe o es de otro centro; `404` también si su curso es de solo lectura sin `curso_historico.leer` (`RN-ACAD-90`). */
@@ -94,7 +96,7 @@ final class FacilityBookingService
             throw StructureErrors::invalid('academic_year', 'acad.validation.academic_year_not_found');
         }
 
-        return DB::transaction(function () use ($input, $year): FacilityBooking {
+        return DB::transaction(function () use ($input, $year, $actor): FacilityBooking {
             // (1) El curso, con FOR SHARE, antes de bloquear ninguna fila propia.
             $locked = $this->sharedLock->lockForShareById($year->id)
                 ?? throw StructureErrors::invalid('academic_year', 'acad.validation.academic_year_not_found');
@@ -118,7 +120,7 @@ final class FacilityBookingService
 
             // (3) El ancla del horario y (4) los conflictos.
             $this->anchor->lock($locked->id);
-            $this->assertNoConflict($locked->id, $facility, $input['booked_on'], $input['starts_at'], $input['ends_at']);
+            $this->assertNoConflict($locked->id, $facility, $input['booked_on'], $input['starts_at'], $input['ends_at'], $actor);
 
             return FacilityBooking::create([
                 'academic_year_id' => $locked->id,
@@ -135,11 +137,12 @@ final class FacilityBookingService
      * reservas que el resolutor acepta; una ajena es `404`, igual que una
      * inexistente (`RN-PERM-14`). Una reserva se borra y se vuelve a crear, no se edita.
      */
-    public function delete(string $publicId, User $actor, ?PermissionDecision $decision): void
+    public function delete(string $publicId, User $actor, PermissionDecision $decision): void
     {
         $found = $this->find($publicId, $actor);
 
-        if ($decision !== null && ! $this->scopedQuery->satisfies($found, 'reservas', $decision, $actor)) {
+        // Falla en cerrado: la decisión es obligatoria (la deja `RequirePermission`).
+        if (! $this->scopedQuery->satisfies($found, 'reservas', $decision, $actor)) {
             throw ApiException::notFound();
         }
 
@@ -151,9 +154,11 @@ final class FacilityBookingService
     /**
      * `RN-ACAD-141`: otra reserva del espacio que se corta y, si es un aula,
      * sesiones del marco vigente ese día que se cortan. Lista ordenada: primero
-     * las reservas (por hora e id), luego las sesiones (por hora e id).
+     * las reservas (por hora e id), luego las sesiones (por hora e id). Cada
+     * conflicto lleva su identificador solo si el solicitante puede leer ese
+     * recurso (`reservas.leer` / `horarios.leer`); si no, solo `kind`.
      */
-    private function assertNoConflict(int $academicYearId, Facility $facility, string $date, string $startsAt, string $endsAt): void
+    private function assertNoConflict(int $academicYearId, Facility $facility, string $date, string $startsAt, string $endsAt, User $actor): void
     {
         $conflicts = [];
 
@@ -175,6 +180,10 @@ final class FacilityBookingService
                 ->select('timetable_sessions.public_id')
                 ->join('time_slots as ts', 'ts.id', '=', 'timetable_sessions.time_slot_id')
                 ->join('timetable_frames as f', 'f.id', '=', 'ts.timetable_frame_id')
+                ->whereColumn('ts.tenant_id', 'timetable_sessions.tenant_id')
+                ->whereNull('ts.deleted_at')
+                ->whereColumn('f.tenant_id', 'timetable_sessions.tenant_id')
+                ->whereNull('f.deleted_at')
                 ->where('timetable_sessions.academic_year_id', $academicYearId)
                 ->where('timetable_sessions.facility_id', $facility->id)
                 ->where('ts.weekday', CarbonImmutable::parse($date)->dayOfWeekIso)
@@ -189,6 +198,15 @@ final class FacilityBookingService
         }
 
         if ($conflicts !== []) {
+            // Sin el permiso de lectura del otro recurso no se revelan sus identificadores: solo el tipo.
+            $canReadBookings = $this->permissions->decide($actor, 'reservas.leer')->permitted;
+            $canReadSessions = $this->permissions->decide($actor, 'horarios.leer')->permitted;
+            $conflicts = array_map(static function (array $conflict) use ($canReadBookings, $canReadSessions): array {
+                $allowed = $conflict['kind'] === 'booking' ? $canReadBookings : $canReadSessions;
+
+                return $allowed ? $conflict : ['kind' => $conflict['kind']];
+            }, $conflicts);
+
             $code = 'acad.validation.booking_conflict';
 
             throw ApiException::validation(['booked_on' => [[

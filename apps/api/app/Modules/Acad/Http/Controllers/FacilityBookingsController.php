@@ -67,7 +67,12 @@ class FacilityBookingsController extends StructureController
     {
         $decision = $request->attributes->get('permission_decision');
 
-        $service->delete($publicId, $this->actor($request), $decision instanceof PermissionDecision ? $decision : null);
+        // Obligatoria: la deja `RequirePermission`; si falta, fallo (nunca se cancela sin acotar por ámbito).
+        if (! $decision instanceof PermissionDecision) {
+            throw new \LogicException('Falta la decisión de permiso de reservas.eliminar.');
+        }
+
+        $service->delete($publicId, $this->actor($request), $decision);
 
         return response()->noContent();
     }

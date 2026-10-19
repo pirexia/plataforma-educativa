@@ -175,6 +175,8 @@ Escribir franjas (`slots` dentro del marco) exige el permiso de la operación so
 
 **`grupo` y `clase`**: ningún recurso de `1.12` los admite. `acad` aporta la pertenencia (`funcional.md §18.7`) y los registra cada módulo dueño de recurso. **Ningún recurso de `1.12` contiene datos de alumnado**, así que dar `todos` a `docente` en `horarios.leer` no es la sustitución prohibida por `ADR-063 §5.4`.
 
+**Revelación en conflictos (`1.12-b`, revisión de seguridad M1)**: `params.conflicts` de `422 booking_conflict` incluye el `public_id` de cada reserva o sesión con que choca solo si el solicitante tiene `reservas.leer` (`kind: booking`) o `horarios.leer` (`kind: session`); si no, devuelve solo `{kind}` (`funcional.md §20.1`, I-16). `FacilityBookingService::delete()` exige la `PermissionDecision` y falla en cerrado sin ella.
+
 **Implementado en `1.12-b`**: `AcadServiceProvider::declaredPermissions()` declara `reservas.leer`, `reservas.crear` (`['todos']`) y `reservas.eliminar` (`['todos', 'propios']`), sin `reservas.actualizar`; `ReservasPropiosScopeResolver` (`Acad\Domain`) restringe a `created_by = usuario` y se registra en `boot()`; `FacilityBookingService::delete()` aplica `ScopedQuery::satisfies()` y responde `404` a la ajena. El mapa de `AR-10` (`ScopedQueryConfinementTest`) pasa a `['auditoria', 'reservas']`. Conceder `propios` a `reservas.leer`/`crear`, o `grupo`/`clase`/`departamento` a cualquiera, es `422` (`CA-ACAD-139`, `-133`).
 
 ### 10.3 Siembra en roles predefinidos (`OPEN-ACAD-42` = X, recomendada)

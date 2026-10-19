@@ -483,3 +483,19 @@ test('REQ-ACAD-002 api.md §1: el esquema FacilityBooking de OpenAPI describe ex
         ->and($schemas['FacilityBooking']['required'])->toEqualCanonicalizing(array_keys($body))
         ->and(array_keys($body['facility']))->toEqualCanonicalizing(array_keys($schemas['FacilityBooking']['properties']['facility']['properties']));
 });
+
+test('CA-ACAD-138 RN-ACAD-141 (M1): quien tiene reservas.crear sin reservas.leer ni horarios.leer recibe booking_conflict solo con el tipo de cada conflicto, sin identificadores; con los permisos de lectura, con ellos', function (): void {
+    $s = bkScenario('bk-m1');
+    $t = $s['tenant'];
+    $a = $s['admin'];
+    $session = Tt::postSession($t, $a, $s['slots'][0], Tt::postAssignment($t, $a, $s['t1'], $s['api']['group'], $s['api']['subject'])->json('public_id'), $s['facility'])->assertCreated()->json('public_id');
+    $booking = Tt::postBooking($t, $a, $s['yearId'], $s['facility'], ['booked_on' => '2026-11-16', 'starts_at' => '10:00', 'ends_at' => '11:00'])->assertCreated()->json('public_id');
+    $blind = Api::userWith($t, $a, 'ciego_m1', ['reservas.crear']);
+    $partial = Api::userWith($t, $a, 'parcial_m1', ['reservas.crear', 'reservas.leer']);
+    $body = ['booked_on' => '2026-11-16', 'starts_at' => '08:30', 'ends_at' => '10:30'];
+    $conflicts = fn ($user) => Tt::postBooking($t, $user, $s['yearId'], $s['facility'], $body)->assertStatus(422)->json('errors.booked_on.0.params.conflicts');
+
+    expect($conflicts($blind))->toBe([['kind' => 'booking'], ['kind' => 'session']])
+        ->and($conflicts($partial))->toBe([['kind' => 'booking', 'booking' => $booking], ['kind' => 'session']])
+        ->and($conflicts($a))->toBe([['kind' => 'booking', 'booking' => $booking], ['kind' => 'session', 'session' => $session]]);
+});
