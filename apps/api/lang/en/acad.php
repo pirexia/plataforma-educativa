@@ -91,7 +91,7 @@ return [
         'frame_type_immutable' => 'The type of a timetable frame cannot be changed.',
         'frame_ordinary_exists' => 'This stage already has a regular timetable frame.',
         'frame_dates_invalid' => 'The validity dates are not valid for this type of timetable frame.',
-        'frame_outside_academic_year' => 'The frame's validity must fall within the academic year (:academic_year_starts_on – :academic_year_ends_on).',
+        'frame_outside_academic_year' => 'The validity of the frame must fall within the academic year (:academic_year_starts_on – :academic_year_ends_on).',
         'frame_overlap' => 'The validity overlaps that of another special frame of the same stage.',
         'booking_outside_academic_year' => 'The booking date must fall within the academic year (:academic_year_starts_on – :academic_year_ends_on).',
         'booking_conflict' => 'The space is already booked or occupied by a timetable session on that date and time.',
