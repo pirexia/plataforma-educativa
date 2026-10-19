@@ -110,7 +110,7 @@ npx playwright test e2e/acad-periods.spec.ts -g "CA-ACAD-101" --workers=1 "$@"
 prepare_tenant
 npx playwright test e2e/acad-scales.spec.ts -g "CA-ACAD-101" --workers=1 "$@"
 
-# REQ-ACAD (1.12-c), CA-ACAD-135: aula, marco ordinario con franjas, asignaciones docentes, sesiones, conflicto de
+# REQ-ACAD (1.12-b), CA-ACAD-135: aula, marco ordinario con franjas, asignaciones docentes, sesiones, conflicto de
 # profesor y vista del profesor. Crea su propio curso, etapa, grupo y asignaturas; usa los dos profesores sintéticos
 # (Daniel y Marta Docente) que deja el setup.
 prepare_tenant
