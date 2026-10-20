@@ -1,6 +1,6 @@
 # REQ-ACAD · Operación
 
-> **Estado**: **`1.12-b` (marcos especiales y reservas) implementada (2026-10-19, rama `feature/REQ-ACAD-1-12b-marcos-especiales-reservas`).** **`1.12-a` (horarios y asignación docente) implementada (2026-10-18) y mezclada (PR #447).** **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11**, con las recomendaciones de `funcional.md §15` aprobadas y `ADR-062`/`ADR-063` ACEPTADOS. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
+> **Estado**: **`1.12-b` (marcos especiales y reservas) implementada (2026-10-19) y mezclada (PR #449, 2026-10-20).** **`1.12-a` (horarios y asignación docente) implementada (2026-10-18) y mezclada (PR #447).** **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17, ramas `feature/REQ-ACAD-1-11d-a-periodos` y `feature/REQ-ACAD-1-11d-b-escalas`; la segunda sin PR todavía).** **APROBADA** (2026-10-10), paso **1.11**, con las recomendaciones de `funcional.md §15` aprobadas y `ADR-062`/`ADR-063` ACEPTADOS. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 >
 > **`1.12`** (**APROBADA 2026-10-17**, con las recomendaciones de `OPEN-ACAD-32` a `-44`): operación de horarios y asignación docente en **§12**, al final del fichero.
 >
