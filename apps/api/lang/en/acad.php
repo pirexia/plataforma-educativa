@@ -112,6 +112,7 @@ return [
 
     'staff' => [
         'unnamed' => 'Unnamed user',
+        'removed' => 'Removed user',
     ],
 
     'conflict' => [

@@ -573,7 +573,7 @@ Sin `Idempotency-Key` (no es pago, matrícula ni envío masivo); un reintento de
 
 ### 12.7 Notas de implementación de `1.12-a`
 
-- `teacher` es `{public_id, name}` (nombre visible de `Core`); es `null` solo si el usuario ya no existe. Los filtros `teacher` resuelven solo usuarios **activos** (`funcional.md §19.1`, I-2).
+- `teacher` es `{public_id, name}` (nombre visible de `Core`); es `null` solo si el usuario ya no existe. Si el usuario está **borrado**, `name` es el marcador traducido `acad.staff.removed` («Usuario eliminado») y nunca su nombre; el `public_id` se conserva (`funcional.md §20.1`, I-19). Lo mismo vale para los `name` de tutores y para `booked_by`. Los filtros `teacher` resuelven solo usuarios **activos** (`funcional.md §19.1`, I-2).
 - `GET /groups/{id}/tutors` y `PUT /groups/{id}/tutors` devuelven `{"data": [{public_id, name}]}` por orden de alta; un elemento inválido de `tutors` da `422 user_not_found` en `tutors.<n>` y no cambia nada.
 - `timetable_conflict` lleva `params.conflicts` ordenado por sesión y, dentro de cada una, `teacher`, `facility`, `group`.
 - `view_too_large` se informa en el campo `teacher` con `params.max = 500`.

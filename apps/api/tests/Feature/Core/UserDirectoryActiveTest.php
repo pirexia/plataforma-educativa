@@ -69,3 +69,22 @@ test('RN-ACAD-92: displayNamesByIds devuelve el nombre visible por id, también 
             ->and($directory->refsByIds([$a->id])[$a->id]->publicId)->toBe($a->public_id);
     });
 });
+
+test('RN-ACAD-92 REQ-PRIV-006 ADR-004 (#446 B-3): un usuario borrado conserva la referencia pero nunca su nombre, en displayNamesByIds y en refsByIds', function (): void {
+    [$tenant] = provisionCoreTenant('dir-removed');
+    $alive = directoryUser($tenant, 'viva@example.com', UserStatus::Activo);
+    $gone = directoryUser($tenant, 'baja@example.com', UserStatus::Activo);
+    app(TenantContext::class)->runFor($tenant->id, fn () => $gone->delete());
+
+    app(TenantContext::class)->runFor($tenant->id, function () use ($alive, $gone): void {
+        $directory = app(UserDirectory::class);
+        $refs = $directory->refsByIds([$alive->id, $gone->id]);
+
+        expect($refs[$gone->id]->removed)->toBeTrue()
+            ->and($refs[$gone->id]->displayName)->toBe('')
+            ->and($refs[$gone->id]->publicId)->toBe($gone->public_id)
+            ->and($refs[$alive->id]->removed)->toBeFalse()
+            ->and($refs[$alive->id]->displayName)->toBe('Ana Ejemplo')
+            ->and($directory->displayNamesByIds([$alive->id, $gone->id]))->toBe([$alive->id => 'Ana Ejemplo', $gone->id => '']);
+    });
+});

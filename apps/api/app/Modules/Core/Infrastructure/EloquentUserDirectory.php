@@ -59,7 +59,15 @@ final class EloquentUserDirectory implements UserDirectory
         $refs = [];
 
         foreach (User::query()->withTrashed()->with('person')->whereIn('id', array_values(array_unique($ids)))->get() as $user) {
-            $refs[(int) $user->id] = new ActiveUserRef((int) $user->id, (string) $user->public_id, self::displayName($user));
+            // Un usuario borrado conserva la referencia (id, public_id) pero nunca el nombre (#446, B-3).
+            $removed = $user->trashed();
+
+            $refs[(int) $user->id] = new ActiveUserRef(
+                (int) $user->id,
+                (string) $user->public_id,
+                $removed ? '' : self::displayName($user),
+                $removed,
+            );
         }
 
         return $refs;

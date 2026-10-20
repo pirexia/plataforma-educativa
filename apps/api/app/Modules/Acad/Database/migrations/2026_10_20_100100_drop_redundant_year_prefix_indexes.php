@@ -87,7 +87,7 @@ return new class extends Migration
     }
 
     /** Reintenta el paso, hasta `$maxAttempts` veces, si `lock_timeout` vence por un bloqueo ajeno. */
-    private function withLockTimeout(Connection $owner, \Closure $step): void
+    private function withLockTimeout(Connection $owner, Closure $step): void
     {
         for ($attempt = 1; ; $attempt++) {
             $owner->statement("SET lock_timeout = '{$this->lockTimeout}'");

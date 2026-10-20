@@ -78,7 +78,7 @@ return new class extends Migration
      * porque los pasos son idempotentes (el `DROP … IF EXISTS` descarta el índice a medias). `lock_timeout` se
      * restablece siempre al salir: la sesión de migraciones no debe arrastrarlo a las migraciones siguientes.
      */
-    private function withLockTimeout(Connection $owner, \Closure $step): void
+    private function withLockTimeout(Connection $owner, Closure $step): void
     {
         for ($attempt = 1; ; $attempt++) {
             $owner->statement("SET lock_timeout = '{$this->lockTimeout}'");

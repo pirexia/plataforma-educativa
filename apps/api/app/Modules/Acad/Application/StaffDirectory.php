@@ -45,16 +45,26 @@ final class StaffDirectory
         }
     }
 
-    /** `{public_id, name}` del usuario con ese id interno, o `null` si ya no existe. */
     /**
+     * `{public_id, name}` del usuario con ese id interno, o `null` si ya no existe. Un usuario **borrado** muestra el
+     * marcador neutro traducido `acad.staff.removed` y nunca su nombre (#446, B-3: decisión de seguridad y de
+     * retención, `REQ-PRIV-006`, `ADR-004`); uno sin nombre, `acad.staff.unnamed`.
+     *
      * @return array{public_id: string, name: string}|null
      */
     public function summary(int $id): ?array
     {
         $this->preload([$id]);
 
-        return isset($this->refs[$id])
-            ? ['public_id' => $this->refs[$id]->publicId, 'name' => $this->refs[$id]->displayName !== '' ? $this->refs[$id]->displayName : __('acad.staff.unnamed')]
-            : null;
+        if (! isset($this->refs[$id])) {
+            return null;
+        }
+
+        $ref = $this->refs[$id];
+
+        return [
+            'public_id' => $ref->publicId,
+            'name' => $ref->removed ? __('acad.staff.removed') : ($ref->displayName !== '' ? $ref->displayName : __('acad.staff.unnamed')),
+        ];
     }
 }

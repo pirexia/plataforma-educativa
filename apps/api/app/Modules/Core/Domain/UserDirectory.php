@@ -37,8 +37,11 @@ interface UserDirectory
     public function findActiveByPublicId(string $publicId): ?ActiveUserRef;
 
     /**
-     * Nombre visible (el de `findByPublicId`) de usuarios por id interno,
-     * vivos o no, del centro activo. Los ids que no existen no aparecen.
+     * Nombre visible (el de `findByPublicId`) de usuarios por id interno del
+     * centro activo, activos o dados de baja (`status`). Los ids que no existen
+     * no aparecen. De un usuario **borrado** (`deleted_at`) devuelve cadena
+     * vacía, nunca su nombre (#446, B-3, `REQ-PRIV-006`, `ADR-004`): quien lo
+     * muestre pone su propio marcador neutro traducido.
      *
      * @param  list<int>  $ids
      * @return array<int, string>
@@ -49,7 +52,8 @@ interface UserDirectory
      * Igual que `displayNamesByIds()` pero con el `public_id` además del nombre
      * (`ActiveUserRef`, sin garantía de que el usuario siga activo): los
      * consumidores que guardan el id interno necesitan el `public_id` para
-     * representar al usuario (`REQ-ACAD-002`, `teacher.public_id`).
+     * representar al usuario (`REQ-ACAD-002`, `teacher.public_id`). Un usuario
+     * borrado aparece con `removed = true` y `displayName` vacío (#446, B-3).
      *
      * @param  list<int>  $ids
      * @return array<int, ActiveUserRef>
