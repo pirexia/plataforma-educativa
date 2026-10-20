@@ -225,7 +225,11 @@ paths:
             `curso.conflict.not_editable` — el curso no está en planificación — o
             `curso.conflict.date_change_checks_failed` — alguna validación del cambio de fechas
             falla: una entrada por validación en `errors.date_change[]`, cada una con la forma
-            genérica `{code, message, params}` del módulo dueño (RN-CURSO-53). Nada cambia.
+            genérica `{code, message, params}` del módulo dueño (RN-CURSO-53). Con `acad` contratado,
+            los códigos son `acad.conflict.periods_outside_academic_year` (períodos lectivos fuera,
+            RN-ACAD-62) y `acad.conflict.schedule_outside_academic_year` (marcos horarios especiales o
+            reservas vivos fuera, RN-ACAD-144, `params` `{special_frames, bookings, schedule_starts_on,
+            schedule_ends_on}`, sin identificadores); los períodos tienen prioridad. Nada cambia.
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
