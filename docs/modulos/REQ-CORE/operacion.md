@@ -79,7 +79,7 @@ Reglas transversales de los trabajos:
 - **Todo trabajo registra su actividad con `actor_type` adecuado**: `import` para los de importación, `system` para los de mantenimiento, `user` cuando el actor original es identificable (invitación).
 - **Los trabajos programados de purga se ejecutan por tenant**, no en una pasada global sin contexto.
 - **`SendInvitationEmail` implementa `ShouldBeEncrypted`** (issue [#75](https://github.com/pirexia/plataforma-educativa/issues/75), mismo hallazgo que [#73](https://github.com/pirexia/plataforma-educativa/issues/73) de `REQ-AUTH`): el token de activación en claro que lleva en su *payload* viaja y se almacena cifrado con `APP_KEY`, también si el trabajo agota sus 5 reintentos y cae en `failed_jobs`. `bo:purge-failed-jobs` (`REQ-BO`, `routes/console.php`) es la segunda capa, y cubre esta cola también — no es específica de `auth-mail`. Sustituye desde `1.6d` (2026-09-21) al comando del framework `queue:prune-failed`, que llevaba desde `0.7` sin poder borrar nada por apuntar a la conexión sin privilegio de `DELETE` (`docs/modulos/REQ-BO/operacion.md §6.2`).
-- El *scheduler* corre en su propio contenedor, no en el de la API (`ADR-037`).
+- El *scheduler* debe correr en su propio contenedor, no en el de la API (`ADR-037`), pero **no hay servicio de planificador todavía, [#453](https://github.com/pirexia/plataforma-educativa/issues/453)**: las tareas de `routes/console.php` no se ejecutan hasta que exista.
 
 ### Trabajos de purga: qué borran
 
