@@ -36,8 +36,6 @@ use App\Modules\Curso\Domain\AcademicYearDateChangeFailure;
  */
 final class PeriodsOutsideAcademicYearCheck implements AcademicYearDateChangeCheck
 {
-    public function __construct(private readonly FacilityBookingService $bookings) {}
-
     public function moduleCode(): string
     {
         return 'acad';
@@ -88,7 +86,9 @@ final class PeriodsOutsideAcademicYearCheck implements AcademicYearDateChangeChe
             ->selectRaw('count(*) filter (where valid_from < ? or valid_to > ?) as outside, min(valid_from) as first_start, max(valid_to) as last_end', [$newStart, $newEnd])
             ->first();
 
-        $bookings = $this->bookings->rangeOutside($change->year->id, $newStart, $newEnd);
+        // Se resuelve aquí y no en el constructor: la comprobación se registra en el arranque y construir el servicio
+        // arrastraría `PermissionResolver` antes de tiempo (fija sus dependencias antes de que un test o un centro las cambie).
+        $bookings = app(FacilityBookingService::class)->rangeOutside($change->year->id, $newStart, $newEnd);
 
         $outsideFrames = (int) ($frames?->getAttribute('outside') ?? 0);
         $outsideBookings = $bookings['outside'];
