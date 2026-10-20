@@ -8,7 +8,7 @@
 >
 > **Ampliación por `1.11d-a`** (2026-10-16, `OPEN-ACAD-24` = B, aprobada por el usuario; `funcional.md §5.6`): el punto de extensión de validaciones del cambio de fechas **no cambia el esquema**: ni tabla, ni columna, ni índice, ni migración en `curso`. Las validaciones leen las tablas de su propio módulo (`acad`: `academic_periods`, `REQ-ACAD/datos.md`). El único efecto sobre datos de `curso` es que el `PATCH` toma `FOR UPDATE` sobre la fila de `academic_years` del curso antes de validar (`RN-CURSO-51`), el mismo bloqueo que ya toman las transiciones. **La lectura con bloqueo compartido** (`OPEN-CURSO-25` = B, `funcional.md §5.6.1`) tampoco cambia el esquema: es un `SELECT … FOR SHARE` sobre la misma fila, el mismo modo de bloqueo que ya toma el disparador (§1.4), sobre el índice `UNIQUE (tenant_id, id)` existente y con el privilegio `UPDATE` sobre `academic_years` que los roles de aplicación ya tienen por el disparador (PostgreSQL exige `UPDATE` para `FOR SHARE`). Lo único nuevo es que un módulo lo pide **desde la aplicación**, antes de bloquear sus propias filas (orden curso → filas del módulo, `RN-CURSO-58`).
 >
-> **Ampliación por `1.12b`** (2026-10-20, `REQ-CURSO-002`, apertura del curso siguiente; **PROPUESTA, pendiente de aprobación**; `funcional.md §1.4`, `§5.7`): **dos tablas nuevas** del módulo, `year_rollovers` (§1.6) y `year_rollover_items` (§1.7), ambas con `academic_year_id` = curso **destino** y, por tanto, con el disparador `academic_year_write_guard`. **No altera** `academic_years`, la función del bloqueo ni ningún disparador, ni ninguna tabla de otro módulo: lo copiado lo escribe cada módulo en sus propias tablas.
+> **Ampliación por `1.12b`** (2026-10-20, `REQ-CURSO-002`, apertura del curso siguiente; **APROBADA 2026-10-20 por el usuario**, no implementada; `funcional.md §1.4`, `§5.7`): **dos tablas nuevas** del módulo, `year_rollovers` (§1.6) y `year_rollover_items` (§1.7), ambas con `academic_year_id` = curso **destino** y, por tanto, con el disparador `academic_year_write_guard`. **No altera** `academic_years`, la función del bloqueo ni ningún disparador, ni ninguna tabla de otro módulo: lo copiado lo escribe cada módulo en sus propias tablas.
 
 ---
 
@@ -96,7 +96,7 @@ Sin `updated_at`, `updated_by` ni `deleted_at`: es *append-only* (lo que dé `te
 
 **Modelo**: `Curso\Domain\Models\AcademicYearReopening` **[DERIVADA: nombre]**, `extends AppendOnlyModel` (**no `TenantModel`**, como se escribió al especificar: `TenantModel` escribe `updated_by` y usa `deleted_at`, que esta tabla *append-only* no tiene; el precedente `MfaReset` también es `AppendOnlyModel`; corregido en `1.11c`), `implements Auditable` con `AuditValuePolicy::Full` (`ADR-035 §8`, criterio de `user_mfa_exemptions.reason`), alias de *morph map* `academic_year_reopening` registrado en `CursoServiceProvider::boot()` (`AR-06`). Su alta queda como `created` en `audit_logs`; sin evento nuevo (`ADR-039 §5.3`).
 
-### 1.6 `year_rollovers` (nueva, `1.12b`, PROPUESTA)
+### 1.6 `year_rollovers` (nueva, `1.12b`, APROBADA 2026-10-20)
 
 Una fila por **copia** (ejecución del *rollover*): selección, estado, resultado y fallo (`funcional.md RN-CURSO-67`, `-69`, `-73` a `-75`). Es el «log de resultados» de `REQ-CURSO-002`. Migración del módulo en `apps/api/app/Modules/Curso/Database/migrations/` con **`TenantMigration::tenantTable()`** y `TenantMigration::tenantForeignId($t, 'academic_year_id', 'academic_years')`: RLS `ENABLE`+`FORCE`, autoría, `timestamptz`, borrado lógico (sin *endpoint* de borrado), `UNIQUE (tenant_id, id)` y el disparador `academic_year_write_guard`, sin excepción en `AR-13`. Precedente de forma: `data_exports` (estado de un trabajo en cola consultado por la interfaz).
 
@@ -106,9 +106,10 @@ Una fila por **copia** (ejecución del *rollover*): selección, estado, resultad
 | `academic_year_id` | `bigint` | No | — | Curso **destino**. `tenantForeignId`: FK compuesta `(tenant_id, academic_year_id) → academic_years (tenant_id, id)`, **`NO ACTION`**, e índice. Al ser `academic_year_id`, la fila queda congelada si el destino llega a cerrarse, lo deseado: una copia de un curso cerrado ya no cambia |
 | `source_academic_year_id` | `bigint` | No | — | Curso **origen**. `tenantForeignId($t, 'source_academic_year_id', 'academic_years')`: FK compuesta `NO ACTION` e índice `(tenant_id, source_academic_year_id)`. **No** es `academic_year_id`: el disparador no la mira, de modo que cerrar el origen no congela la copia (sí la del destino) **[DERIVADA]** |
 | `status` | `text` | No | `'pendiente'` | `CHECK (status IN ('pendiente','en_curso','completado','fallido','revirtiendo','revertido'))` (`year_rollovers_status_check`). Lo escriben solo el servicio y los dos trabajos de `curso` |
-| `elements` | `jsonb` | No | — | Lista de códigos de elemento seleccionados (`RN-CURSO-64`). `CHECK (jsonb_typeof(elements) = 'array' AND jsonb_array_length(elements) >= 1)` (`year_rollovers_elements_check`). Códigos declarados en código, sin datos personales |
+| `elements` | `jsonb` | No | — | Lista de códigos de la **selección efectiva**: los elegidos más, si `copy_teaching_assignments`, los del paquete (`RN-CURSO-64`, `-82`). `CHECK (jsonb_typeof(elements) = 'array' AND jsonb_array_length(elements) >= 1)` (`year_rollovers_elements_check`). Códigos declarados en código, sin datos personales |
+| `copy_teaching_assignments` | `boolean` | No | `false` | La casilla «copiar la asignación docente» (`RN-CURSO-82`, decisión del usuario sobre `OPEN-CURSO-29`). Se guarda aparte de `elements` para no depender de qué participantes estén registrados al leer la copia |
 | `date_offset_days` | `integer` | Sí | — | Desplazamiento aplicado (`RN-CURSO-72`); lo fija la ejecución. `NULL` hasta entonces |
-| `result` | `jsonb` | Sí | — | Por elemento `{code, copied, skipped: [{reason, count}]}` al terminar en `completado` (`RN-CURSO-73`) |
+| `result` | `jsonb` | Sí | — | Por elemento `{code, copied, skipped: [{reason, count}], adjusted: [{reason, count}]}` al terminar en `completado` (`RN-CURSO-73`). Solo códigos y cuentas: las omisiones de profesorado inactivo no guardan quién (`REQ-ACAD RN-ACAD-154`) |
 | `failure` | `jsonb` | Sí | — | `{code, errors: [{code, message, params, element}]}` si `fallido` |
 | `revert_failure` | `jsonb` | Sí | — | Último fallo de una reversión (la copia vuelve a `completado`, `RN-CURSO-75`); misma forma |
 | `started_at`, `finished_at` | `timestamptz` | Sí | — | Inicio y fin de la ejecución |
@@ -127,7 +128,7 @@ Lo que el motor **no** garantiza (servicio, bajo los bloqueos de `funcional.md R
 
 **Modelo**: `Curso\Domain\Models\YearRollover` **[DERIVADA: nombre]**, `extends TenantModel`, `implements Auditable` con `AuditValuePolicy::Full` (sin datos personales: códigos y cuentas; los `jsonb` grandes los redacta el tope de `ADR-035 §5`), `HasPublicId`, alias `year_rollover` en `CursoServiceProvider::boot()` (`AR-06`). Escrituras por instancia (`AR-15`).
 
-### 1.7 `year_rollover_items` (nueva, `1.12b`, PROPUESTA)
+### 1.7 `year_rollover_items` (nueva, `1.12b`, APROBADA 2026-10-20)
 
 Qué filas creó cada copia, para poder revertirla (`funcional.md RN-CURSO-73`, `-75`). *Append-only*. Polimórfica **sin FK** hacia las tablas copiadas, con el patrón de `audit_logs` (`auditable_type` + `auditable_id`): `curso` guarda lo que le devuelve cada participante y se lo devuelve al revertir; **nunca** lee ni escribe las tablas a las que apuntan (`INV-007`). Migración del módulo con **`TenantMigration::tenantTableAppendOnly()`** y `tenantForeignId($t, 'academic_year_id', 'academic_years')` (disparador incluido, sin excepción en `AR-13`).
 
@@ -145,9 +146,9 @@ Qué filas creó cada copia, para poder revertirla (`funcional.md RN-CURSO-73`, 
 
 Sin `updated_at` ni `deleted_at`: la reversión **no** borra *items* (quedan como rastro de qué se copió y se revirtió). Restricciones: `UNIQUE (tenant_id, year_rollover_id, entity_type, target_id)` (`year_rollover_items_target_unique`). Ningún `CHECK` sobre `entity_type`: el vocabulario es de los módulos y cambia con ellos (como `audit_logs`).
 
-**Modelo**: `Curso\Domain\Models\YearRolloverItem` **[DERIVADA: nombre]**, `extends AppendOnlyModel` (precedente `AcademicYearReopening`), `implements Auditable` (`Full`) con **`auditExcludedEvents(['created'])`** si se aprueba `OPEN-CURSO-37` = A (mecanismo de `ADR-040`), `HasPublicId`, alias `year_rollover_item` (`AR-06`). Se inserta a través del modelo dentro de la transacción de la copia; una inserción masiva por constructor de consultas queda descartada **[DERIVADA]**: saltaría el modelo y, con ello, la decisión de `OPEN-CURSO-37`.
+**Modelo**: `Curso\Domain\Models\YearRolloverItem` **[DERIVADA: nombre]**, `extends AppendOnlyModel` (precedente `AcademicYearReopening`), `implements Auditable` (`Full`) con **`auditExcludedEvents(['created'])`** (`OPEN-CURSO-37` = A, aprobada por el usuario el 2026-10-20; mecanismo de `ADR-040`), `HasPublicId`, alias `year_rollover_item` (`AR-06`). Se inserta a través del modelo dentro de la transacción de la copia; una inserción masiva por constructor de consultas queda descartada **[DERIVADA]**: saltaría el modelo y, con ello, la decisión de `OPEN-CURSO-37`.
 
-**Volumen**: una fila por fila copiada: con la selección completa de `acad`, de cientos a pocos miles por copia y una copia viva por destino. Sin particionado.
+**Volumen**: una fila por fila copiada: con la selección completa de `acad`, de cientos a pocos miles por copia (con la casilla de asignación docente, ≈ 1.200 sesiones más en un centro de 40 grupos) y una copia viva por destino. Sin particionado.
 
 ---
 
@@ -203,7 +204,7 @@ El listado (`ORDER BY starts_on DESC, id DESC`) no lleva índice propio: un cent
 
 **Reapertura (`ADR-059`)**: la condición «es el cerrado más reciente» (`RN-CURSO-41`) es una consulta sobre `academic_years` del centro filtrada por estado y `starts_on`; con decenas de filas por centro no justifica índice. `academic_year_reopenings` lleva el índice `(tenant_id, academic_year_id)` que crea `tenantForeignId()` y el único de `public_id`; ninguno más (pocas filas por curso).
 
-**Apertura del curso siguiente (`1.12b`, PROPUESTA)**:
+**Apertura del curso siguiente (`1.12b`, APROBADA 2026-10-20)**:
 
 | Índice | Tabla | Consulta |
 |--------|-------|----------|
@@ -244,11 +245,11 @@ Sin índice por `status` más allá del parcial: decenas de copias por centro en
 - [x] `Auditable`, política `Full`, alias `academic_year_reopening` (*`AR-06`*)
 - [x] *Append-only*: sin `updated_at`/`deleted_at`; ningún *endpoint* de modificación ni de borrado
 
-### `year_rollovers` y `year_rollover_items` (`1.12b`, PROPUESTA; §1.6, §1.7)
+### `year_rollovers` y `year_rollover_items` (`1.12b`, APROBADA 2026-10-20; §1.6, §1.7)
 - [ ] `tenant_id` + RLS (`tenantTable()` / `tenantTableAppendOnly()`); `academic_year_id NOT NULL` (destino) con `tenantForeignId()` y disparador (*`AR-13`*, sin excepción); `source_academic_year_id` con FK compuesta y **sin** disparador
 - [ ] Ninguna acción referencial (`NO ACTION`) en ninguna FK, incluidas `reverted_by` y la de tres columnas de los *items* (*`AR-13`*)
-- [ ] `public_id` ULID único en las dos (*`AR-05`*); `text`, `jsonb`, `integer`, `timestamptz` (*`AR-04`*); enumerado `status` como `text` + `CHECK`
-- [ ] `Auditable` y alias `year_rollover`, `year_rollover_item` (*`AR-06`*); exclusión de `created` en los *items* solo si `OPEN-CURSO-37` = A
+- [ ] `public_id` ULID único en las dos (*`AR-05`*); `text`, `jsonb`, `integer`, `boolean`, `timestamptz` (*`AR-04`*); enumerado `status` como `text` + `CHECK`
+- [ ] `Auditable` y alias `year_rollover`, `year_rollover_item` (*`AR-06`*); exclusión de `created` en los *items* (`OPEN-CURSO-37` = A, aprobada)
 - [ ] Ninguna FK hacia tablas de otros módulos (polimórfica, `INV-007`); ningún dato personal salvo la autoría (`created_by`, `reverted_by`)
 - [ ] Revisión de `db-reviewer` obligatoria (dos migraciones nuevas)
 
@@ -266,6 +267,6 @@ Las filas de `academic_years` entran en la purga física de un tenant (issue #37
 
 **`academic_year_reopenings`** (`ADR-059`): dato del curso; se conserva con el curso y entra en la purga física de un tenant antes que `academic_years` (FK). `reason` es texto libre del centro: aunque el manual advierte de no escribir datos personales, si los contuviera quedaría sujeto a lo mismo que el resto de datos de un curso cerrado (siguiente párrafo).
 
-**`year_rollovers` y `year_rollover_items`** (`1.12b`): datos del curso destino sin datos personales salvo la autoría (`created_by`, `reverted_by`: vínculo de un usuario del personal con una operación del centro, como en `academic_year_reopenings`). Se conservan con el curso; borrado lógico de `year_rollovers` sin *endpoint* (una copia no se borra: se revierte); los *items* son *append-only*. En la purga física de un tenant: `year_rollover_items` → `year_rollovers` → `academic_years` (FK), como propietario. **Orden de restauración**: `academic_years` → `year_rollovers` → `year_rollover_items`. Los *items* apuntan sin FK a filas de otros módulos: tras una restauración granular que no incluya esas filas, un *item* puede apuntar a una fila inexistente; la reversión del participante trata «fila no encontrada» como «ya borrada» **[DERIVADA]**.
+**`year_rollovers` y `year_rollover_items`** (`1.12b`): datos del curso destino sin datos personales salvo la autoría (`created_by`, `reverted_by`: vínculo de un usuario del personal con una operación del centro, como en `academic_year_reopenings`). Con la casilla de asignación docente, los *items* apuntan también a asignaciones y tutorías copiadas (que sí contienen el vínculo persona ↔ docencia, `REQ-ACAD/datos.md §9.6`), pero solo por identificador interno: el dato personal vive en la tabla de `acad`, con su retención. Se conservan con el curso; borrado lógico de `year_rollovers` sin *endpoint* (una copia no se borra: se revierte); los *items* son *append-only*. En la purga física de un tenant: `year_rollover_items` → `year_rollovers` → `academic_years` (FK), como propietario. **Orden de restauración**: `academic_years` → `year_rollovers` → `year_rollover_items`. Los *items* apuntan sin FK a filas de otros módulos: tras una restauración granular que no incluya esas filas, un *item* puede apuntar a una fila inexistente; la reversión del participante trata «fila no encontrada» como «ya borrada» **[DERIVADA]**.
 
 **Pendiente (`OPEN-057-04`)**: suprimir o anonimizar datos personales en tablas de un curso cerrado choca con el bloqueo de escritura. Lo decide `REQ-PRIV-006` (como tarea del propietario o con excepción declarada de `ADR-057 §5.7`) antes de admitir datos reales.

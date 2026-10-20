@@ -4,6 +4,8 @@
 >
 > **`1.12`** (**APROBADA 2026-10-17**, con las recomendaciones de `OPEN-ACAD-32` a `-44`): operación de horarios y asignación docente en **§12**, al final del fichero.
 >
+> **`1.12b`** (**APROBADA 2026-10-20**, `funcional.md §21`): sin variables, colas, tareas ni migraciones propias de `acad`. El participante se registra en `AcadServiceProvider::boot()` y lo ejecutan los trabajos en cola de `curso` (`REQ-CURSO/operacion.md §4.1`), que necesitan un *worker* (issue #128, a resolver antes de implementar `1.12b`). Con `acad` descontratado su participante no se ejecuta y una copia con elementos de `acad` no puede revertirse (`REQ-CURSO RN-CURSO-74`). La casilla «copiar la asignación docente» depende de la ampliación de `Core\Domain\UserDirectory` (`funcional.md RN-ACAD-157`, `OPEN-CURSO-29-d`).
+>
 > **`1.11d`** (APROBADA, 2026-10-16): operación de períodos lectivos y escalas en **§11**, tras §10 (el §6.2 de `1.11-a`, que ya estaba fuera de orden al final del fichero, sigue detrás).
 
 ## 1. Variables de entorno

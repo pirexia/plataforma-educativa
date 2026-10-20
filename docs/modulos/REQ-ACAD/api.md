@@ -8,6 +8,8 @@ Prefijo: `/api/v1`. Tenant por *host* (`ADR-033 §2`). Todo según `ADR-038`: re
 
 > **`1.12`** (**APROBADA 2026-10-17**, con las recomendaciones de `OPEN-ACAD-32` a `-44`): horarios y asignación docente en **§12** (21 *endpoints* en `1.12-a`, 4 en `1.12-b`).
 >
+> **`1.12b`** (**APROBADA 2026-10-20**, `funcional.md §21`): **ningún *endpoint* nuevo en `acad`**. La copia se pide por los *endpoints* de `curso` (`REQ-CURSO/api.md §2.1`); `acad` aporta, como participante, los elementos del catálogo, las entradas de `blocking[]`/`errors.rollover[]`/`errors.rollover_revert[]` y los motivos de `skipped`/`adjusted`, con las claves de `funcional.md §21.6` en `lang/{es,en,de,fr}/acad.php`.
+>
 > **`1.11d`** (especificación **APROBADA** el 2026-10-16): diez *endpoints* nuevos de períodos lectivos y escalas en **§11**; los 27 de arriba no cambian salvo `DELETE /education-levels/{public_id}`, que gana `academic_periods` en `params.dependents` (`RN-ACAD-61`). `acad` aporta además una entrada al `409` de `PATCH /academic-years/{public_id}` de `curso` (`RN-ACAD-62`, §11.7).
 
 **Cadena de *middleware*** de toda ruta (`OPEN-ACAD-10` = no esencial, aprobada): autenticación → `module-enabled:acad` → `permission:<código>` (`AR-07a`, `AR-07b`). La autenticación es `App\Http\Middleware\RequireAuthenticatedUser`, **no** el alias `auth` (desviación de `1.11-b`, `funcional.md §16`; el alias se ordena antes de `resolve-tenant` y da `500` con una cookie real); las rutas de `1.11d` se añaden dentro del mismo grupo `Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:acad'])` de `Http/routes.php`.
