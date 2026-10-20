@@ -32,7 +32,8 @@ La invalidación en escritura no es un detalle: el [issue #7](https://github.com
 | `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME` | Remitente transaccional | Ficticios (`@example.com`) |
 | `FILESYSTEM_DISK` | Disco de los activos de marca, ficheros de importación y exportaciones | `s3` (MinIO en desarrollo) |
 | `AWS_BUCKET`, `AWS_ENDPOINT`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_USE_PATH_STYLE_ENDPOINT` | Almacenamiento compatible S3 | MinIO local (perfil `full` de `compose.yaml`) |
-| `QUEUE_CONNECTION` | Colas | `database` (hoy, sin *worker* desplegado, issue #128; `redis` + Horizon es lo elegido, no instalado) |
+| `QUEUE_CONNECTION` | Colas | `database`, consumida por `php artisan queue:work` (servicio `worker`, issue #128; `redis` + Horizon es lo elegido, no instalado) |
+| `CORE_QUEUE_HEALTH_MAX_AGE_MINUTES` | Umbral de `core:queue-health` (issue #128): minutos que puede esperar un trabajo disponible antes de dar la cola por sin consumidor | `5` |
 | `CORE_INVITATION_TTL_DAYS` | Caducidad de la invitación (`RN-CORE-10`) | `7` |
 | `CORE_IMPORT_MAX_ROWS` | Límite de filas por importación | `20000` |
 | `CORE_IMPORT_RETENTION_DAYS` | Purga de ficheros de importación e informes (`RN-CORE-21`) | `30` |
@@ -49,7 +50,7 @@ Ninguna es un secreto salvo las credenciales de S3 y de correo, que van por gest
 | Servicio | Uso | Si no responde |
 |----------|-----|----------------|
 | **PostgreSQL** | Todo | La API no sirve. Sin degradación posible ni deseable |
-| **Redis** | Caché (prefijo por tenant, `ADR-033 §9`). **Colas: no hoy.** El *driver* vigente es `database` (`QUEUE_CONNECTION=database`, tablas `jobs`/`failed_jobs`, sin *worker* desplegado, issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128)); Redis como cola con Laravel Horizon está **elegido y no instalado** (Horizon no está en `composer.json`, no hay `config/horizon.php`; `CLAUDE.md §1`, `OPEN-BO-23`) | La caché degrada a consulta directa (más lenta, correcta). **Con el *driver* `database` las colas dependen de PostgreSQL, no de Redis**: sin PostgreSQL la API no sirve (fila anterior). Cuando las colas pasen a Redis, dejarán de degradar: sin Redis no se enviarían invitaciones, no se validarían ni ejecutarían importaciones y no se generarían exportaciones, y la petición deberá fallar con `503`, nunca aceptar en silencio algo que no va a ocurrir |
+| **Redis** | Caché (prefijo por tenant, `ADR-033 §9`). **Colas: no hoy.** El *driver* vigente es `database` (`QUEUE_CONNECTION=database`, tablas `jobs`/`failed_jobs`, consumidas por el *worker* `queue:work` desde el issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128)); Redis como cola con Laravel Horizon está **elegido y no instalado** (Horizon no está en `composer.json`, no hay `config/horizon.php`; `CLAUDE.md §1`, `OPEN-BO-23`) | La caché degrada a consulta directa (más lenta, correcta). **Con el *driver* `database` las colas dependen de PostgreSQL, no de Redis**: sin PostgreSQL la API no sirve (fila anterior). Cuando las colas pasen a Redis, dejarán de degradar: sin Redis no se enviarían invitaciones, no se validarían ni ejecutarían importaciones y no se generarían exportaciones, y la petición deberá fallar con `503`, nunca aceptar en silencio algo que no va a ocurrir |
 | **S3 / MinIO** | Activos de marca, ficheros de importación, artefactos de exportación | Subida y descarga fallan con `503`. El resto del módulo (usuarios, roles, configuración no gráfica, auditoría) sigue funcionando. La configuración se devuelve con las URLs de branding a `null`, no con un error |
 | **Correo transaccional** | Invitación | Depende de `0.10c`, **sin decidir** (`OPEN-CORE-04`). El trabajo reintenta; agotados los reintentos, la invitación queda emitida y visible en `GET /invitations`, y el administrador puede reenviarla. **La invitación no se invalida por un fallo de entrega** |
 
@@ -152,7 +153,7 @@ El sobrecoste de RLS medido en 0.8.12 (media ~1,24 %) es la línea base: una reg
 | El logo desaparece tras cambiarlo | El activo anterior se purgó antes de confirmar el nuevo. La purga es diferida (24 h) precisamente para esto |
 | Enlace de invitación devuelve `404` | El host del enlace no resuelve tenant: `TENANCY_BASE_DOMAIN` mal configurado, o DNS con comodín ausente (`OPEN-08`, paso 0.10b) |
 | Enlace de invitación «no hace nada» | **Esperado en 1.1**: el canje lo implementa 1.2 (`funcional.md` §1.4, `OPEN-CORE-01`) |
-| Importación queda en `subido` para siempre | *Worker* de `core-imports` ausente o caído. **Hoy no hay ninguno desplegado** (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128)): con el *driver* `database` no hay Redis implicado en la cola. Cuando las colas pasen a Redis, añadir «o Redis no disponible» |
+| Importación queda en `subido` para siempre | *Worker* de `core-imports` ausente o caído (`php artisan core:queue-health`, `RUNBOOK.md §2.8`; en desarrollo vive en el perfil `worker`, no arranca con `podman compose up -d` a secas): con el *driver* `database` no hay Redis implicado en la cola. Cuando las colas pasen a Redis, añadir «o Redis no disponible» |
 | `403` en un endpoint de otro módulo recién desplegado | `platform:sync-registry` no ejecutado tras el despliegue: el permiso no existe y se deniega por defecto. Es el comportamiento correcto y está documentado como paso obligatorio de entrega (`ADR-034`, consecuencias) |
 | `409` `last_school_administrator` en una baja/desactivación que «parecía» permitida | `RN-CORE-07` se relee bajo el bloqueo por tenant (issue #349): otra baja o desactivación del otro administrador se confirmó un instante antes. Es correcto; las escrituras de usuarios y roles de un mismo centro se serializan con `RN-PERM-47` (mismo coste, operaciones poco frecuentes) |
 | Un usuario no puede iniciar sesión | **Esperado en 1.1**: no hay login hasta 1.2 |
@@ -256,7 +257,7 @@ Ninguna nueva en servidor. Lo que sí conviene mirar tras desplegar, con las mé
 
 ### 12.2 Dependencia operativa: *worker* de colas
 
-La exportación **solo termina si hay un *worker* procesando `core-exports`**. Hoy no hay ninguno desplegado, ni en `compose.yaml` ni en `infra/quadlet/*` (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128), Alta). Sin él, toda exportación se queda en `pendiente` y la interfaz, tras la duración máxima de `RN-CORE-49`, deja de consultar y ofrece «Comprobar de nuevo». **No es un fallo de 1.9**, y no debe diagnosticarse como tal.
+La exportación **solo termina si hay un *worker* procesando `core-exports`**. Desde el issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128) lo hay (servicio `worker` de `compose.yaml`, perfil `worker`, y `infra/quadlet/worker.container`; cola `core-exports` incluida). Sin él, toda exportación se queda en `pendiente` y la interfaz, tras la duración máxima de `RN-CORE-49`, deja de consultar y ofrece «Comprobar de nuevo». **No es un fallo de 1.9**, y no debe diagnosticarse como tal.
 
 **Discrepancia documental** (`funcional.md §13.20`, punto 1; issue [#273](https://github.com/pirexia/plataforma-educativa/issues/273)): §2 decía `QUEUE_CONNECTION = redis`; `apps/api/config/queue.php` y `CLAUDE.md §1` dicen `database`. **Corregidas §2, §3 (fila «Redis») y §8 (síntoma «Importación queda en `subido`»)**; ninguna otra sección de `docs/modulos/REQ-CORE` describe Redis/Horizon como cola vigente (comprobado con `grep`, 2026-09-30).
 
@@ -279,7 +280,7 @@ La exportación **solo termina si hay un *worker* procesando `core-exports`**. H
 
 | Síntoma | Causa probable |
 |---------|----------------|
-| La exportación se queda en «Preparando…» y acaba en «Comprobar de nuevo» | Ningún *worker* procesa `core-exports` (#128), o el trabajo falló sin llegar a `failed()` |
+| La exportación se queda en «Preparando…» y acaba en «Comprobar de nuevo» | Ningún *worker* procesa `core-exports` (`core:queue-health`, `RUNBOOK.md §2.8`), o el trabajo falló sin llegar a `failed()` |
 | Una columna ordenable devuelve `422` al ordenar | La columna se declaró `sortable` sin que su `id` esté en el `enum` de `sort` del *endpoint* en OpenAPI: error del consumidor |
 | Un filtro «no filtra» | El `id` de la columna no coincide con el nombre del parámetro de consulta (`ADR-038 §13.3`): el servidor lo ignora como parámetro desconocido (`ADR-038 §5.2`) |
 | Las columnas ocultas «vuelven» | Navegación privada, almacenamiento bloqueado u otro navegador: la configuración es solo local (`RN-CORE-43`). Esperado |
@@ -327,7 +328,7 @@ Los sub-pasos sin cambios de servidor (1.9e, 1.9f) siguen `§11.5`/`§12.4`: sol
 
 ### 13.4 Dependencia operativa: *worker* de colas (#128)
 
-Sin *worker* de `core-imports` y `core-exports` (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128), Alta), **la importación se queda en `subido` y la exportación de usuarios en `pendiente`**, igual que la de auditoría (§12.2). La interfaz lo acota (`RN-CORE-49`, `RN-CORE-72`: deja de consultar a los 10 min y ofrece «Comprobar de nuevo»). En desarrollo, `queue:work --queue=core-imports,core-exports` a mano. **Cerrar 1.9b o 1.9c sin #128 resuelto entrega funcionalidad que no opera en un entorno real** (`funcional.md §14.15`).
+El *worker* de colas existe desde el issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128) (`worker` en `compose.yaml`, perfil `worker`; `worker.container` en Quadlet). Sin él (parado, o no arrancado en desarrollo), **la importación se queda en `subido` y la exportación de usuarios en `pendiente`**, igual que la de auditoría (§12.2). La interfaz lo acota (`RN-CORE-49`, `RN-CORE-72`: deja de consultar a los 10 min y ofrece «Comprobar de nuevo»). En desarrollo: `podman compose --profile worker up -d worker`. (Histórico: cerrar 1.9b o 1.9c sin #128 resuelto entregaba funcionalidad que no operaba en un entorno real, `funcional.md §14.15`; resuelto.)
 
 ### 13.5 Carga sobre la API
 
@@ -346,8 +347,8 @@ Ninguna nueva. Conviene mirar, con las de §7: profundidad de `core-exports` (ah
 
 | Síntoma | Causa probable |
 |---------|----------------|
-| La importación se queda en «Subido» y acaba en «Comprobar de nuevo» | Ningún *worker* de `core-imports` (#128). Esperado sin él |
-| La exportación de usuarios no termina | Ningún *worker* de `core-exports` (#128) |
+| La importación se queda en «Subido» y acaba en «Comprobar de nuevo» | Ningún *worker* de `core-imports` (`RUNBOOK.md §2.8`). Esperado sin él |
+| La exportación de usuarios no termina | Ningún *worker* de `core-exports` (`RUNBOOK.md §2.8`) |
 | Una exportación (usuarios o auditoría) queda `fallida` con `core.export.generation_failed` y sin fichero | Entre la solicitud y la ejecución del trabajo el solicitante dejó de existir (borrado lógico): el trabajo no exporta nada sin ámbito (`INV-002`, `CA-CORE-296`/`-297`). Se solicita de nuevo con un usuario vigente |
 | Una exportación fallida espera 10 min sin mensaje | API sin S4 desplegado (`409` para `fallida`, `funcional.md §14.16`) |
 | `403` al consultar el estado de una exportación de usuarios | API sin S3 desplegado (ruta con `auditoria.exportar` fijo), o el solicitante perdió `usuario.exportar` |
@@ -373,7 +374,7 @@ Ninguna nueva. Conviene mirar, con las de §7: profundidad de `core-exports` (ah
 
 **Reversión.** `apps/web` y `apps/api` a la imagen anterior sin más. La migración **no se revierte** (su `down()` está vacío): los datos normalizados siguen siendo válidos para la versión anterior.
 
-**Dependencia operativa (#128).** Sin *worker* de `core-imports` la importación se queda en `subido`; la interfaz deja de consultar a los 10 min y ofrece «Comprobar de nuevo» (`RN-CORE-72`). **Cerrar 1.9c sin #128 resuelto entrega una pantalla que no opera en producción** (`funcional.md §14.15`). En desarrollo: `php artisan queue:work --queue=core-imports,core-exports`.
+**Dependencia operativa (#128, resuelta: servicio `worker`).** Sin *worker* de `core-imports` la importación se queda en `subido`; la interfaz deja de consultar a los 10 min y ofrece «Comprobar de nuevo» (`RN-CORE-72`). En desarrollo: `podman compose --profile worker up -d worker`.
 
 **Datos pendientes de purga en la base de pruebas.** Las tablas `people` de las suites de desarrollo conservan filas huérfanas de pruebas que no limpian lo que siembran (`tenants` se borra, `people` no cae con él). La migración de datos las vería: si en un entorno de desarrollo aborta por «tipos sin correspondencia», revisa primero esas filas antes de buscar un fallo en el catálogo.
 

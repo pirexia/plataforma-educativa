@@ -4,8 +4,8 @@ SaaS para la gestión integral de centros educativos. Segmento inicial: **centro
 
 | Campo | Valor |
 |-------|-------|
-| **Versión del documento** | 2.6.25 |
-| **Fecha** | 2026-10-18 |
+| **Versión del documento** | 2.6.27 |
+| **Fecha** | 2026-10-20 |
 | **Estado del proyecto** | Fase 1 · MVP operativo. Bloque A (identidad y acceso) **completo y mezclado**: tenants/usuarios, autenticación local, sesiones activas, MFA (TOTP + correo), login con Google (fusión de cuentas), SSO institucional OIDC + SAML 2.0 con aprovisionamiento por emparejamiento, núcleo de autorización granular (`REQ-PERM`) y los cinco sub-pasos del backoffice de plataforma (`REQ-BO`, `1.6`-`1.6e`, incluido el motor de *feature flags*) — `1.1` a `1.6e` íntegros. Bloque B (*design system* y navegación): `1.7` · *Design system* (tokens, tema por tenant, modo oscuro) **completo y mezclado**. `1.8` · Layout, navegación y panel de inicio (`REQ-CORE-008`) implementado y mezclado (PR #264). `1.9` (Tablas de datos): especificación y `ADR-054` (aceptada) aprobados el 2026-09-30; **implementado** (componente `apps/web/src/data-table/` y migración de `MfaComplianceArea.vue`), revisión independiente hecha (sin Crítico/Alto) y mezclado. `1.9b` (usuarios e invitaciones; la especificación de las pantallas de gestión de `REQ-CORE`, aprobada el 2026-10-01, divide el trabajo en 1.9b a 1.9f) **implementado** el 2026-10-02 (pantallas de usuarios e invitaciones, exportación de usuarios, `alert-dialog`), revisión independiente hecha y mezclado. `1.9c` (importación de usuarios y catálogo cerrado de tipos de documento de identidad, `RN-CORE-90` a `-93`) **implementado** el 2026-10-02/03 (pantallas de importación, migración de datos que normaliza `people`, idioma de los mensajes de importación), revisión independiente hecha (`db-`, `security-` y `doc-reviewer`, sin Crítico/Alto) y mezclado. `1.9d` (auditoría y roles de solo lectura) **implementado** el 2026-10-03 (pantallas `core-audit` y `core-roles`, `GET /audit-logs/facets`, filtro `entity` del componente de tablas, «Ver su actividad»), revisión independiente hecha (`security-` y `doc-reviewer`, sin Crítico/Alto) y mezclado (PR #320). `1.9e` (configuración del centro, activos de marca, módulos contratados en solo lectura y perfil propio; `OPEN-CORE-37` = B, `-45` = A) **implementado** el 2026-10-03, revisión independiente hecha (sin Crítico/Alto) y mezclado (PR #325). `1.9f` (migración de las tres tablas de `REQ-AUTH` —`MfaExemptionsArea`, `AdminSsoView`, `SessionsView`— al componente de tablas, con el diálogo de confirmación común y el filtro `enum` de selección única; `OPEN-CORE-54`/`-55`/`-56` = A) **implementado** el 2026-10-04, revisión independiente hecha (`security-` sin Crítico/Alto/Medio; `doc-reviewer`, 3 Media corregidas), mezclado. **Cierra la serie 1.9b-1.9f: la interfaz de `REQ-CORE` está completa** y la lista de excepciones de `RN-CORE-53` queda vacía. Tras `1.9f`, una tanda de correcciones (2026-10-04/05) cerró las Baja #280 (una exportación sin solicitante falla en vez de exportar todo el centro), #323 y #324 (configuración de seguridad), #331, #253, #322, #239, #276 y #326. `1.5b` (`REQ-PERM`, editor de roles, matriz de concesión y permisos efectivos, más S-PERM-1, S-PERM-2 y la regla `RN-PERM-47`) **cerrado y mezclado** el 2026-10-05 (PR #354). `1.7b` (estandarización de módulos, `ADR-056`, aceptada el 2026-10-07: reglas de arquitectura `AR-*` comprobadas por test, `ARCHITECTURE.md §3.4` y plantilla de módulo actualizadas; el generador `make:module` queda diferido a `1.11b`) **cerrado y mezclado el 2026-10-07** (PR #379). `1.10` (`REQ-CURSO`, ciclo de vida del curso y bloqueo de escritura por disparador) **cerrado y mezclado** el 2026-10-08 (PR #386). `1.11` (`REQ-ACAD`, estructura académica: etapas, cursos de etapa, grupos, subgrupos, asignaturas y su asignación): `1.11-a` (infraestructura compartida, `ADR-062`/`ADR-063`) mezclada el 2026-10-12 (PR #417); `1.11-b` (módulo `acad`: seis tablas con el disparador de curso, 27 *endpoints*, cinco pantallas, selector de curso y campo traducible) **mezclada el 2026-10-12** (PR #423). `1.11d` (períodos lectivos y escalas): especificación mezclada el 2026-10-17 (PR #433) y entrega `1.11d-a` (períodos lectivos y, en `curso`, validación del cambio de fechas, bloqueo compartido y filtro por módulo contratado) implementada, en revisión de cierre. `1.11d-b` (escalas de calificación: tablas, 5 *endpoints* y cuatro pantallas) implementada en su rama, pendiente de revisiones y PR. `1.11c` (`REQ-CURSO`: reapertura de un curso cerrado, `ADR-059`) implementada el 2026-10-17 en su rama, pendiente de revisiones y PR. `1.12-a` (`REQ-ACAD-002`: asignación docente, tutorías, espacios, marcos horarios ordinarios, sesiones con detección de conflictos y vistas semanales; 21 *endpoints*) **mezclada el 2026-10-18/19** (PR #447). `1.12-b` (`REQ-ACAD-002`: marcos horarios especiales —jornada intensiva— con su efecto en los conflictos, y reservas de aulas y recursos con el ámbito `propios` en `reservas.eliminar`; 4 *endpoints* nuevos) implementada el 2026-10-19 en su rama, pendiente de revisiones y PR. Paso nuevo `1.15a` (capa visual de la interfaz, `ADR-064`) antes de `1.15b` |
 
 ---
@@ -48,7 +48,7 @@ Excepción: en el **primer ciclo de Infantil (0-3) en régimen privado** sí som
 | Frontend | Vue 3 + TypeScript + Vite (SPA) |
 | UI | Tailwind CSS + shadcn-vue + TanStack Table |
 | Base de datos | PostgreSQL 18 |
-| Caché y colas | Redis (caché); colas: `database` hoy sin worker (#128), Redis + Horizon elegido, no instalado |
+| Caché y colas | Redis (caché); colas: `database` con worker `queue:work` (#128), Redis + Horizon elegido, no instalado |
 | Contenedores | Podman |
 | Desarrollo | WSL2 en equipo personal · solo datos sintéticos |
 | Identificadores | `bigint` interno + `public_id` ULID en API y URLs |
@@ -73,17 +73,17 @@ Lista completa: sección 0.5 del documento de requisitos (`INV-001` a `INV-015`)
 
 | Documento | Versión |
 |-----------|---------|
-| `README.md` | 2.6.26 |
+| `README.md` | 2.6.27 |
 | `CLAUDE.md` | 2.7.1 |
-| `ARCHITECTURE.md` | 2.5.4 |
+| `ARCHITECTURE.md` | 2.5.5 |
 | `PLAN-IMPLEMENTACION.md` | 2.3.11 |
 | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | 3.2.20 |
 | `docs/SETUP-CLAUDE-CODE.md` | 1.3.0 |
 | `docs/SETUP-ENTORNO.md` | 1.3.0 |
-| `SYSADMIN.md` | 0.8.15 |
+| `SYSADMIN.md` | 0.8.16 |
 | `SECURITY.md` | 0.3.11 |
 | `PRIVACY.md` | 0.3.6 |
-| `RUNBOOK.md` | 0.3.9 |
+| `RUNBOOK.md` | 0.3.10 |
 | `CONTRIBUTING.md` | 0.3.2 |
 
 Historial completo en `CHANGELOG.md`.

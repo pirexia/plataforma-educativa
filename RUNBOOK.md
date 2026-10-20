@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.9** · 2026-10-19
+> **Versión 0.3.10** · 2026-10-20
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -24,7 +24,8 @@ Referencia completa de arranque, `compose.yaml` y red: `SYSADMIN.md`.
 
 ```bash
 podman compose up -d          # perfil reducido: postgres, redis, api, web
-podman compose --profile full up -d   # añade minio
+podman compose --profile full up -d   # añade minio y el worker de colas
+podman compose --profile worker up -d worker   # solo el worker de colas (§2.8)
 podman compose ps
 podman compose logs -f <servicio>
 ```
@@ -143,6 +144,20 @@ podman stop plataforma-pg17-reversion
 
 ---
 
+### 2.8 Si los correos o los trabajos en cola no se procesan (issue #128)
+
+La cola es el driver `database` de Laravel y la consume el *worker* (`queue:work`, **no** Horizon: `OPEN-BO-23`, `CLAUDE.md §1`). Síntoma: filas que se acumulan en `jobs` (correos de MFA, invitaciones, restablecimiento de contraseña sin llegar).
+
+```bash
+podman exec plataforma-worker php artisan core:queue-health   # salida 1 y líneas STALE = hay trabajos sin tomar
+podman ps --filter name=plataforma-worker                     # ¿existe y está (healthy)?
+podman logs --tail 50 plataforma-worker
+podman compose --profile worker up -d worker                  # desarrollo: arrancarlo
+systemctl --user status worker.service                        # servidor
+```
+
+`core:queue-health` falla si hay un trabajo disponible sin tomar desde hace 5 minutos o más (`CORE_QUEUE_HEALTH_MAX_AGE_MINUTES`); es también el `HealthCmd` del contenedor y vale como comprobación de monitorización. Causas habituales: el contenedor del *worker* no está levantado (en desarrollo vive en el perfil `worker`, no arranca con `podman compose up -d` a secas); la base de datos estuvo caída y el proceso sigue en espera; un trabajo de más de 120 s (`--timeout`) que se mata y se reintenta (`retry_after` 180 s). El *worker* termina solo cada hora (`--max-time=3600`) y `Restart=always` lo relanza con el código vigente; tras una migración que cambie el tipo de una columna, reiniciarlo (`SYSADMIN.md` §0 «Pendiente»). Los trabajos fallidos van a `failed_jobs` (§2.5) y los reintenta `REQ-BO`, no `queue:retry`.
+
 ## 3. Guardias (on-call)
 
 **No aplica todavía.** No hay entorno de producción, no hay usuarios reales, no hay SLA que cumplir. Esta sección se escribe cuando exista alojamiento del piloto (`OPEN-11`) y el primer centro real.
@@ -243,7 +258,7 @@ Es una operación de segundos porque cada versión es una imagen inmutable en GH
 
 **Reversión de `REQ-AUTH-003` (1.3)** (`docs/modulos/REQ-AUTH/operacion.md §C.11.2`):
 
-- **Drenar la cola `auth-mail` antes de revertir** — procedimiento documentado para cuando exista un *worker* real consumiéndola. **A día de hoy no hay ningún *worker* de colas desplegado** (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128), `SYSADMIN.md`): los trabajos despachados a `auth-mail` quedan en la tabla `jobs` sin procesar, así que este procedimiento de drenado no se ha podido probar de extremo a extremo todavía. Los cinco trabajos de correo nuevos de 1.3 (código de segundo factor, código de alta, activación/desactivación, código de respaldo usado) no existen en la versión anterior: si queda alguno pendiente en la cola al revertir, un *worker* de la versión anterior fallaría por clase inexistente en cuanto se despliegue uno. `bo:purge-failed-jobs` (`REQ-BO`) limita el daño, pero drenar antes evita generarlo. Sustituye desde `1.6d` (2026-09-21) al comando del framework `queue:prune-failed`, que llevaba desde `0.7` sin poder borrar nada de verdad (apuntaba a la conexión sin privilegio de `DELETE` sobre `failed_jobs`) — si `failed_jobs` sigue creciendo sin límite pese a que el planificador diga que la purga corre a diario, comprobar que es `bo:purge-failed-jobs` el comando programado y no el antiguo (`docs/modulos/REQ-BO/operacion.md §6.2`, y §2.5 de este documento).
+- **Drenar la cola `auth-mail` antes de revertir** — con el *worker* real (`worker.container`, `queue:work` sobre el driver `database`; issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128), §2.8) consumiendo la cola. Los cinco trabajos de correo nuevos de 1.3 (código de segundo factor, código de alta, activación/desactivación, código de respaldo usado) no existen en la versión anterior: si queda alguno pendiente al revertir, el *worker* de la versión anterior fallaría por clase inexistente. Procedimiento: (1) con el *worker* nuevo aún en marcha, esperar a que no quede ni un trabajo de esa cola: `podman exec plataforma-api php artisan tinker --execute='echo DB::table("jobs")->where("queue","auth-mail")->count();'` debe dar `0` (cuenta también los reservados y los retrasados por reintento); (2) comprobar `php artisan core:queue-health` (código de salida 0); (3) solo entonces cambiar el *tag* de `api@1` **y** de `worker` a la versión anterior. Si hay que revertir con la cola sin vaciar (el *worker* está caído o el correo falla), purgar a mano lo pendiente de `auth-mail` por `pgsql_owner` antes de arrancar la versión anterior — esos correos (códigos de un solo uso, ya caducados) no se pueden reenviar. `bo:purge-failed-jobs` (`REQ-BO`) limita el daño de lo que ya haya fallado, pero drenar antes evita generarlo. Sustituye desde `1.6d` (2026-09-21) al comando del framework `queue:prune-failed`, que llevaba desde `0.7` sin poder borrar nada de verdad (apuntaba a la conexión sin privilegio de `DELETE` sobre `failed_jobs`) — si `failed_jobs` sigue creciendo sin límite pese a que el planificador diga que la purga corre a diario, comprobar que es `bo:purge-failed-jobs` el comando programado y no el antiguo (`docs/modulos/REQ-BO/operacion.md §6.2`, y §2.5 de este documento). **Probado** (2026-10-20, entorno de desarrollo): encolar un trabajo real, comprobar que `core:queue-health` pasa a fallar al envejecerlo y que el *worker* lo consume y deja la tabla `jobs` en `0` (resultado literal en `CHANGELOG.md`); **no probado** el cambio de *tag* de la unidad Quadlet del *worker* en un servidor, por el mismo motivo que 3b.2.
 - **Revertir con factores MFA ya dados de alta es una degradación silenciosa de seguridad, no una pérdida de datos.** La versión anterior ignora `user_mfa_factors` y hace login de un solo paso: los usuarios que activaron MFA dejan de tener segundo factor **sin que nadie se lo diga**. No se pierde nada — las filas siguen ahí y vuelven a valer al desplegar 1.3 de nuevo — pero mientras dura la reversión, cuentas que un momento antes exigían dos factores solo exigen uno. Hay que saberlo antes de decidir revertir, no descubrirlo después.
 - La migración del `CHECK` ampliado de `login_attempts` es de un solo sentido en la práctica (tabla *append-only*, sin `DELETE`): revertir la aplicación **no** exige revertir esa migración.
 
@@ -251,6 +266,7 @@ Es una operación de segundos porque cada versión es una imagen inmutable en GH
 
 ### 3b.4 Notas operativas de las unidades Quadlet
 
+- **`worker.container`** (issue #128): una sola instancia del *worker* de colas, misma imagen que la API. `systemctl --user restart worker.service` para reiniciarlo; al pararlo espera hasta 130 s a que acabe el trabajo en curso (`StopTimeout`). Al cambiar de versión (despliegue o reversión) se cambia el *tag* de `worker` junto con el de `api@N`. Diagnóstico: §2.8.
 - **Nunca `systemctl stop plataforma.network`** salvo desmantelamiento completo: es la misma regla que `podman compose down` en desarrollo (`ADR-028 §2`), aplicada a la unidad de red de Quadlet.
 - La segunda réplica de la API (`api@2`) existe como plantilla ya escrita pero **no se activa** hasta que haya tráfico real (`ADR-037 §6.4`): `systemctl --user enable --now api@2.service` cuando corresponda, sin cambios de fichero.
 - El proxy de socket delante de Traefik (`ADR-037 §6.3`) es una tarea de `0.10e`, no de hoy: mientras tanto el socket de Podman está montado de solo lectura y el entorno no tiene datos reales.
