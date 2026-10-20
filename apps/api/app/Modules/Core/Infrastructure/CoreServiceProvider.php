@@ -26,6 +26,7 @@ use App\Modules\Core\Infrastructure\Console\GrantRoleAdministrationCommand;
 use App\Modules\Core\Infrastructure\Console\GrantStructurePermissionsCommand;
 use App\Modules\Core\Infrastructure\Console\ProvisionTenantDefaultsCommand;
 use App\Modules\Core\Infrastructure\Console\PurgeCoreMaintenanceCommand;
+use App\Modules\Core\Infrastructure\Console\QueueHealthCommand;
 use App\Support\Authorization\ScopeResolverRegistry;
 use App\Support\FeatureFlags\FeatureFlagCatalogInvalidator;
 use App\Support\FeatureFlags\FeatureFlagEvaluator;
@@ -114,6 +115,7 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             $this->commands([
                 ProvisionTenantDefaultsCommand::class,
                 PurgeCoreMaintenanceCommand::class,
+                QueueHealthCommand::class,
                 GrantRoleAdministrationCommand::class,
                 GrantAcademicYearPermissionsCommand::class,
                 GrantReopenPermissionCommand::class,
