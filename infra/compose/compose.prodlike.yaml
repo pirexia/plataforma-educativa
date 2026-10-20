@@ -75,6 +75,11 @@ services:
       CACHE_STORE: redis
       LOG_CHANNEL: stderr
       TENANCY_BASE_DOMAIN: plataforma.test
+      # Issue #128 (A-1): MailEnvironmentGuard aborta con log/array fuera de
+      # local/testing. Transporte SMTP ficticio: este banco no envía correo.
+      MAIL_MAILER: smtp
+      MAIL_HOST: localhost
+      QUEUE_CONNECTION: database
     depends_on:
       - postgres
       - redis

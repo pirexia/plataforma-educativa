@@ -129,7 +129,7 @@ services:
   # Orden de --queue = prioridad: correo de usuario primero, `default`,
   # mantenimiento, y exportaciones/importaciones (las más lentas) al final.
   # Toda cola con ->onQueue() en el código debe estar aquí (lo comprueba
-  # QueueWorkerDeploymentTest). --max-time hace que el proceso termine solo
+  # tests/Feature/Core/QueueWorkerTest.php). --max-time hace que el proceso termine solo
   # cada hora y `restart` lo relance con el código vigente; los trabajos
   # encolados por la versión anterior se procesan igual (payload serializado
   # por nombre de clase, CLAUDE.md §9). --timeout (120) < retry_after (180).
@@ -139,7 +139,16 @@ services:
       target: dev
     container_name: plataforma-worker
     restart: unless-stopped
+    # Revisión B-2: el worker no escucha puertos ni cambia de usuario.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     stop_grace_period: 130s
+    # Discrepancia declarada con producción (revisión M-1): en desarrollo el
+    # worker comparte apps/api/.env con la API (un único fichero de desarrollo,
+    # sin secretos reales), así que ve DB_OWNER_*; en producción usa
+    # plataforma-worker.env, que no lleva BACKOFFICE_*/MINIO_*.
     env_file: apps/api/.env
     environment:
       DB_HOST: postgres

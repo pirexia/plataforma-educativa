@@ -167,7 +167,10 @@ test('#128 la unidad Quadlet del worker cumple ADR-028 (Wants+After, nunca Requi
     expect($code)->toContain('Wants=')->toContain('After=')
         ->not->toMatch('/^(Requires|BindsTo)=/m')
         ->not->toMatch('/^PublishPort=/m')
-        ->toMatch('/--max-time=\d+/');
+        ->toMatch('/--max-time=\d+/')
+        ->toMatch('#^EnvironmentFile=/etc/plataforma/plataforma-worker\.env$#m')
+        ->toMatch('/^NoNewPrivileges=true$/m')
+        ->toMatch('/^DropCapability=ALL$/m');
 
     preg_match('/--timeout=(\d+)/', $code, $timeout);
     preg_match('/DB_QUEUE_RETRY_AFTER=(\d+)/', $code, $retryAfter);

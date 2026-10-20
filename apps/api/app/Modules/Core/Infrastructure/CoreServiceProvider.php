@@ -31,6 +31,7 @@ use App\Support\Authorization\ScopeResolverRegistry;
 use App\Support\FeatureFlags\FeatureFlagCatalogInvalidator;
 use App\Support\FeatureFlags\FeatureFlagEvaluator;
 use App\Support\FeatureFlags\FeatureFlagExplainer;
+use App\Support\Mail\MailEnvironmentGuard;
 use App\Support\Modules\DeclaresModuleRegistry;
 use App\Support\Modules\ModuleAvailability;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -110,6 +111,10 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         $this->app->make(ScopeResolverRegistry::class)->register(new AuditoriaPropiosScopeResolver);
 
         $this->forceDocumentValidationInProduction();
+
+        // Issue #128, revisión de seguridad A-1: con worker real, el mailer
+        // `log`/`array` fuera de local/testing filtraría códigos MFA.
+        $this->app->make(MailEnvironmentGuard::class)->verify();
 
         if ($this->app->runningInConsole()) {
             $this->commands([

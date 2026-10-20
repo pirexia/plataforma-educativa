@@ -15,13 +15,19 @@
 # procesa trabajos encolados por la versión anterior).
 #
 # Orden de --queue = prioridad. Toda cola con ->onQueue() en el código
-# debe estar aquí (lo comprueba QueueWorkerDeploymentTest).
+# debe estar aquí (lo comprueba tests/Feature/Core/QueueWorkerTest.php).
 # --max-time=3600: el proceso termina solo cada hora y Restart=always lo
 # relanza con el código vigente. --timeout=120 < DB_QUEUE_RETRY_AFTER=180.
 # StopTimeout=130 deja acabar el trabajo en curso al parar (SIGTERM).
 #
 # Sin Notify=healthy: el worker no tiene puerto que esperar; el HealthCmd
-# (core:queue-health) solo informa en `podman ps`/`systemctl status`.
+# (core:queue-health) solo informa en `podman ps`/`systemctl status`. Ojo: la
+# comprobación mira trabajos DISPONIBLES sin tomar e ignora los reservados
+# (en curso); un trabajo colgado dentro de un worker vivo no la dispara.
+#
+# Entorno propio (plataforma-worker.env, revisión M-1), no el de la API.
+# Endurecimiento (revisión B-2): sin nuevos privilegios y sin capacidades;
+# el worker no escucha puertos ni cambia de usuario.
 
 [Unit]
 Description=Worker de colas (queue:work)
@@ -32,7 +38,9 @@ Wants=plataforma-network.service postgres.service redis.service plataforma-migra
 Image=ghcr.io/pirexia/plataforma-api:__TAG__
 ContainerName=plataforma-worker
 Network=plataforma.network
-EnvironmentFile=/etc/plataforma/plataforma.env
+EnvironmentFile=/etc/plataforma/plataforma-worker.env
+NoNewPrivileges=true
+DropCapability=ALL
 Environment=DB_QUEUE_RETRY_AFTER=180
 Exec=php artisan queue:work database --queue=auth-mail,core-mail,bo-mail,default,auth-maintenance,core-maintenance,backoffice-maintenance,core-exports,core-imports --tries=3 --backoff=30 --timeout=120 --sleep=3 --max-time=3600 --max-jobs=1000
 StopTimeout=130
