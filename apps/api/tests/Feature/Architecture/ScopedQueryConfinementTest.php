@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\AuditLog;
+use App\Modules\Acad\Application\FacilityBookingService;
+use App\Modules\Acad\Domain\Models\FacilityBooking;
 use App\Modules\Core\Infrastructure\EloquentAuditQuery;
 use App\Modules\Core\Infrastructure\EloquentExportRequestService;
 use App\Modules\Core\Infrastructure\Jobs\GenerateAuditLogExport;
@@ -54,6 +56,14 @@ function scopedResourceMap(): array
                 'Modules/Core/Infrastructure/EloquentAuditQuery.php',
                 'Modules/Core/Infrastructure/Jobs/GenerateAuditLogExport.php',
                 'Modules/Core/Infrastructure/EloquentExportRequestService.php',
+            ],
+        ],
+        // 1.12-b (OPEN-ACAD-42, aprobada la ampliación del mapa): `reservas.eliminar` admite
+        // `propios`. Toda consulta de `FacilityBooking` vive en un solo servicio.
+        'reservas' => [
+            'model' => FacilityBooking::class,
+            'files' => [
+                'Modules/Acad/Application/FacilityBookingService.php',
             ],
         ],
     ];
@@ -127,7 +137,7 @@ test('AR-10 CA-056-11 CA-056-15: cada recurso del mapa sigue teniendo un permiso
     $stale = array_values(array_diff(array_keys(scopedResourceMap()), array_keys($scoped)));
 
     expect($stale)->toBe([], 'entradas del mapa de AR-10 que ya no hacen falta, retirarlas: '.implode(', ', $stale))
-        ->and(array_keys(scopedResourceMap()))->toBe(['auditoria']);
+        ->and(array_keys(scopedResourceMap()))->toBe(['auditoria', 'reservas']);
 });
 
 test('AR-10 CA-056-11: ningún fichero de app/ fuera de los sancionados hace una consulta estática sobre el modelo de un recurso con ámbito', function (): void {
@@ -162,13 +172,15 @@ foreach ([EloquentAuditQuery::class, GenerateAuditLogExport::class, EloquentExpo
         ->toUse(ScopedQuery::class);
 }
 
-test('AR-10 CA-056-11: las clases sancionadas de los arch() coinciden con los ficheros del mapa', function (): void {
-    $fromClasses = array_map(
-        static fn (string $c): string => str_replace('\\', '/', substr($c, strlen('App\\'))).'.php',
-        [EloquentAuditQuery::class, GenerateAuditLogExport::class, EloquentExportRequestService::class],
-    );
+arch('AR-10 CA-056-11 CA-ACAD-139: el fichero sancionado de reservas usa ScopedQuery')
+    ->expect(FacilityBookingService::class)
+    ->toUse(ScopedQuery::class);
 
-    expect($fromClasses)->toBe(scopedResourceMap()['auditoria']['files']);
+test('AR-10 CA-056-11: las clases sancionadas de los arch() coinciden con los ficheros del mapa', function (): void {
+    $toPath = static fn (string $c): string => str_replace('\\', '/', substr($c, strlen('App\\'))).'.php';
+
+    expect(array_map($toPath, [EloquentAuditQuery::class, GenerateAuditLogExport::class, EloquentExportRequestService::class]))->toBe(scopedResourceMap()['auditoria']['files'])
+        ->and(array_map($toPath, [FacilityBookingService::class]))->toBe(scopedResourceMap()['reservas']['files']);
 });
 
 test('AR-10 CA-056-14 control negativo: la función detecta consulta no sancionada y no detecta ::class, escrituras ni comentarios', function (): void {

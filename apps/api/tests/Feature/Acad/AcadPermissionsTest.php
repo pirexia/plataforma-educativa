@@ -59,7 +59,7 @@ function acadConfigGrantsOf(string $roleCode): array
         ->pluck('permission_code')->sort()->values()->all();
 }
 
-test('CA-ACAD-035 CA-ACAD-096 CA-ACAD-133 ADR-034 §5: tras platform:sync-registry, permissions contiene exactamente los veinte códigos de acad (cuatro de cada uno de los cinco recursos de 1.11 y 1.12-a) con ámbito todos', function (): void {
+test('CA-ACAD-035 CA-ACAD-096 CA-ACAD-133 ADR-034 §5: tras platform:sync-registry, permissions contiene exactamente los veintitrés códigos de acad (cuatro de cada uno de los cinco recursos de 1.11 y 1.12-a y tres de reservas, 1.12-b) con ámbito todos salvo reservas.eliminar (todos y propios)', function (): void {
     test()->artisan('platform:sync-registry')->assertSuccessful();
 
     $rows = Permission::query()->where('module_code', 'acad')->orderBy('code')->get();
@@ -73,10 +73,11 @@ test('CA-ACAD-035 CA-ACAD-096 CA-ACAD-133 ADR-034 §5: tras platform:sync-regist
         'estructura_academica.actualizar', 'estructura_academica.crear',
         'estructura_academica.eliminar', 'estructura_academica.leer',
         'horarios.actualizar', 'horarios.crear', 'horarios.eliminar', 'horarios.leer',
+        'reservas.crear', 'reservas.eliminar', 'reservas.leer',
     ]);
 
     foreach ($rows as $permission) {
-        expect($permission->applicable_scopes)->toBe(['todos'])
+        expect($permission->applicable_scopes)->toBe($permission->code === 'reservas.eliminar' ? ['todos', 'propios'] : ['todos'])
             ->and($permission->is_special_category)->toBeFalse()
             ->and($permission->retired_at)->toBeNull()
             ->and($permission->resource)->toBe(explode('.', $permission->code)[0]);
@@ -86,7 +87,7 @@ test('CA-ACAD-035 CA-ACAD-096 CA-ACAD-133 ADR-034 §5: tras platform:sync-regist
     expect(Permission::query()->whereIn('code', [
         'estructura_academica.exportar', 'estructura_academica.importar',
         'configuracion_academica.exportar', 'configuracion_academica.importar',
-        'horarios.exportar', 'horarios.importar', 'asignacion_docente.exportar', 'espacios.exportar',
+        'horarios.exportar', 'horarios.importar', 'asignacion_docente.exportar', 'espacios.exportar', 'reservas.actualizar',
     ])->count())->toBe(0);
 });
 
@@ -111,7 +112,7 @@ test('CA-ACAD-035 ADR-045: el descriptor del módulo es acad, depende de curso y
 
 test('CA-ACAD-035 CA-ACAD-096 CA-PERM-134: la etiqueta de cada recurso y las del módulo, stage y regime existen en los cuatro idiomas', function (): void {
     $keys = [
-        'acad.permissions.resources.estructura_academica', 'acad.permissions.resources.configuracion_academica', 'acad.permissions.resources.asignacion_docente', 'acad.permissions.resources.espacios', 'acad.permissions.resources.horarios', 'modules.acad',
+        'acad.permissions.resources.estructura_academica', 'acad.permissions.resources.configuracion_academica', 'acad.permissions.resources.asignacion_docente', 'acad.permissions.resources.espacios', 'acad.permissions.resources.horarios', 'acad.permissions.resources.reservas', 'modules.acad',
         ...array_map(static fn (string $s): string => "acad.stage.{$s}", ['infantil', 'primaria', 'eso', 'bachillerato', 'fp', 'universidad']),
         ...array_map(static fn (string $r): string => "acad.regime.{$r}", ['publico', 'privado', 'concertado']),
     ];
@@ -125,28 +126,34 @@ test('CA-ACAD-035 CA-ACAD-096 CA-PERM-134: la etiqueta de cada recurso y las del
     // El catálogo declara esa etiqueta en cada entrada.
     $declaredPermissions = (new AcadServiceProvider(app()))->declaredPermissions();
 
-    expect($declaredPermissions)->toHaveCount(20);
+    expect($declaredPermissions)->toHaveCount(23);
 
     foreach ($declaredPermissions as $declared) {
         expect($declared['resource_label_key'])->toBe("acad.permissions.resources.{$declared['resource']}")
-            ->and($declared['applicable_scopes'])->toBe(['todos'])
+            ->and($declared['applicable_scopes'])->toBe($declared['code'] === 'reservas.eliminar' ? ['todos', 'propios'] : ['todos'])
             ->and($declared['is_special_category'])->toBeFalse();
     }
 });
 
-test('CA-ACAD-037 ADR-063 §5.1 permisos.md §3.1: acad no registra resolutores de ámbito y no admite grupo, clase ni departamento', function (): void {
+test('CA-ACAD-037 ADR-063 §5.1 permisos.md §3.1 §10.2: acad solo registra el resolutor (propios, reservas) y no admite grupo, clase ni departamento en ningún recurso', function (): void {
     $registry = app(ScopeResolverRegistry::class);
 
-    foreach ([Scope::Grupo, Scope::Clase, Scope::Departamento] as $scope) {
-        expect($registry->has('estructura_academica', $scope))->toBeFalse($scope->value)
-            ->and($registry->has('configuracion_academica', $scope))->toBeFalse($scope->value);
+    foreach (['estructura_academica', 'configuracion_academica', 'asignacion_docente', 'espacios', 'horarios', 'reservas'] as $resource) {
+        foreach ([Scope::Grupo, Scope::Clase, Scope::Departamento] as $scope) {
+            expect($registry->has($resource, $scope))->toBeFalse("{$resource} {$scope->value}");
+        }
     }
 
-    // Ni una referencia a ScopeResolverRegistry en el módulo.
+    // El único resolutor de acad (1.12-b, OPEN-ACAD-42): propios sobre reservas.
+    expect($registry->has('reservas', Scope::Propios))->toBeTrue()
+        ->and($registry->has('estructura_academica', Scope::Propios))->toBeFalse()
+        ->and($registry->has('horarios', Scope::Propios))->toBeFalse();
+
+    // Solo el proveedor de servicios del módulo toca el registro de resolutores.
     $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(app_path('Modules/Acad')));
 
     foreach ($files as $file) {
-        if ($file->isFile() && $file->getExtension() === 'php') {
+        if ($file->isFile() && $file->getExtension() === 'php' && ! str_ends_with($file->getPathname(), 'Infrastructure/AcadServiceProvider.php')) {
             expect(file_get_contents($file->getPathname()))->not->toContain('ScopeResolverRegistry', $file->getPathname());
         }
     }

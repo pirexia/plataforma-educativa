@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.8** · 2026-10-18
+> **Versión 0.3.9** · 2026-10-19
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -230,6 +230,8 @@ systemctl --user restart api@1.service web.service
 2. **No se ejecuta `migrate:rollback`**: las siete tablas nuevas (`facilities`, `timetables`, `teaching_assignments`, `group_tutors`, `timetable_frames`, `time_slots`, `timetable_sessions`) y los dos únicos de `group_subjects` y `subgroups` son aditivos; la versión anterior no los usa y su `down()` borraría el horario de los centros.
 3. Efectos de volver atrás: `sync-registry` de la versión anterior marca los permisos de `asignacion_docente`, `espacios` y `horarios` con `retired_at` (concesiones inertes); `RN-ACAD-96` deja de aplicarse, así que se podría borrar (lógicamente) un grupo, un subgrupo, una asignatura o una etapa con tutores, asignaciones o marcos vivos: huérfanos lógicos sin daño de integridad (FK `NO ACTION`, borrado lógico), que la versión nueva lee igualmente (las relaciones usan `withTrashed()`).
 4. Al **volver a la versión nueva**: `php artisan migrate --database=pgsql_owner --force`, `php artisan platform:sync-registry` y `php artisan acad:grant-structure-permissions` para recuperar las concesiones.
+
+**Marcos especiales y reservas (`1.12-b`, `acad`)**: igual, imagen anterior sin `migrate:rollback` (la tabla `facility_bookings` es aditiva y su `down()` borraría las reservas del centro; `REQ-ACAD/operacion.md §12.5 bis`). Con la versión anterior las rutas y los permisos de `reservas` desaparecen o quedan inertes, y un marco especial ya creado se trata como ordinario en la detección de conflictos (solo rechaza de más). Al volver a la versión nueva: `migrate --database=pgsql_owner --force`, `platform:sync-registry` y `acad:grant-structure-permissions`. **No probado** contra una imagen anterior real en esta entrega (solo razonado: la tabla es aditiva y la versión anterior no la lee).
 
 **Qué se probó y qué no (2026-10-17)**: *probado* sobre la base de desarrollo, con la tabla vacía, `down()` y `up()` de `2026_10_17_100100_create_academic_periods_table.php` (tabla, disparador `academic_year_write_guard`, política y RLS con `FORCE`, 4 `CHECK`, 6 índices y clave foránea de tres columnas idénticos antes y después; 0 migraciones pendientes), y por lectura del código que la auditoría muestra `auditable_type` como cadena, así que un alias desconocido no falla. *No probado*: el despliegue real de la imagen anterior con datos de períodos ya creados (mismo bloqueo que en pasos anteriores: no hay entorno de despliegue en desarrollo); queda para el primer *staging* (`0.10e`).
 

@@ -1,6 +1,6 @@
 <?php
 
-// Rutas de REQ-ACAD (pasos 1.11-b, 1.11d-a, 1.11d-b y 1.12-a), documentadas en
+// Rutas de REQ-ACAD (pasos 1.11-b, 1.11d-a, 1.11d-b, 1.12-a y 1.12-b), documentadas en
 // apps/api/openapi/paths/acad.yaml (docs/modulos/REQ-ACAD/api.md §2 y §11).
 // Requerido desde routes/api-v1.php, ya dentro del grupo
 // prefix('v1')->middleware(['resolve-tenant', 'resolve-locale', ...]).
@@ -18,6 +18,7 @@ use App\Modules\Acad\Http\Controllers\AcademicPeriodsController;
 use App\Modules\Acad\Http\Controllers\CoursesController;
 use App\Modules\Acad\Http\Controllers\EducationLevelsController;
 use App\Modules\Acad\Http\Controllers\FacilitiesController;
+use App\Modules\Acad\Http\Controllers\FacilityBookingsController;
 use App\Modules\Acad\Http\Controllers\GradingScalesController;
 use App\Modules\Acad\Http\Controllers\GroupsController;
 use App\Modules\Acad\Http\Controllers\GroupSubjectsController;
@@ -95,4 +96,9 @@ Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:acad'])->gro
     Route::get('/timetable-sessions/{publicId}', [TimetableSessionsController::class, 'show'])->middleware('permission:horarios.leer')->name('acad.timetable-sessions.show');
     Route::patch('/timetable-sessions/{publicId}', [TimetableSessionsController::class, 'update'])->middleware('permission:horarios.actualizar')->name('acad.timetable-sessions.update');
     Route::delete('/timetable-sessions/{publicId}', [TimetableSessionsController::class, 'destroy'])->middleware('permission:horarios.eliminar')->name('acad.timetable-sessions.destroy');
+    // 1.12-b (api.md §12): reservas de espacios (RN-ACAD-140 a -143), recurso `reservas`. Sin PATCH: no se editan (RN-ACAD-142).
+    Route::get('/facility-bookings', [FacilityBookingsController::class, 'index'])->middleware('permission:reservas.leer')->name('acad.facility-bookings.index');
+    Route::post('/facility-bookings', [FacilityBookingsController::class, 'store'])->middleware('permission:reservas.crear')->name('acad.facility-bookings.store');
+    Route::get('/facility-bookings/{publicId}', [FacilityBookingsController::class, 'show'])->middleware('permission:reservas.leer')->name('acad.facility-bookings.show');
+    Route::delete('/facility-bookings/{publicId}', [FacilityBookingsController::class, 'destroy'])->middleware('permission:reservas.eliminar')->name('acad.facility-bookings.destroy');
 });

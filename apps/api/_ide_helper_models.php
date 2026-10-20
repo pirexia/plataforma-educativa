@@ -942,6 +942,53 @@ namespace App\Modules\Acad\Domain\Models{
 
 namespace App\Modules\Acad\Domain\Models{
 /**
+ * REQ-ACAD/datos.md §9.2, §9.6 (1.12-b, `REQ-ACAD-002`), `ADR-065`. Reserva de un espacio en una fecha y un intervalo horario (`RN-ACAD-140`). El reservante es `created_by`.
+ *
+ * ADR-035 §8: Full — sin datos personales (`created_by` es un identificador interno). Escrituras por instancia, nunca masivas (AR-15). Los
+ * demás módulos no usan este modelo (AR-01): el acceso será por las interfaces
+ * de `Acad\Domain` cuando haya consumidor (`ADR-048`).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $academic_year_id
+ * @property int $facility_id
+ * @property \Illuminate\Support\Carbon $booked_on
+ * @property string $starts_at
+ * @property string $ends_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property-read \App\Modules\Acad\Domain\Models\Facility|null $facility
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FacilityBooking newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FacilityBooking newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FacilityBooking onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FacilityBooking query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FacilityBooking whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FacilityBooking whereBookedOn($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FacilityBooking whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FacilityBooking whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FacilityBooking whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FacilityBooking whereEndsAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FacilityBooking whereFacilityId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FacilityBooking whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FacilityBooking wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FacilityBooking whereStartsAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FacilityBooking whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FacilityBooking whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FacilityBooking whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FacilityBooking withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FacilityBooking withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperFacilityBooking {}
+}
+
+namespace App\Modules\Acad\Domain\Models{
+/**
  * REQ-ACAD/datos.md §9.1, §9.6 (1.12-a, `REQ-ACAD-002`). Tutoría de un grupo (`RN-ACAD-97`).
  *
  * ADR-035 §8: Full — `user_id` es un identificador interno, no un identificador personal de `ADR-035` (a confirmar por `security-reviewer`). Escrituras por instancia, nunca masivas (AR-15). Los

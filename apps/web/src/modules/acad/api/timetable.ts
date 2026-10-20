@@ -1,5 +1,5 @@
 /**
- * REQ-ACAD/api.md §12 (paso 1.12-a): los diez endpoints de `/facilities` (permisos
+ * REQ-ACAD/api.md §12 (paso 1.12-a; las reservas, de 1.12-b, en `bookings.ts`): los diez endpoints de `/facilities` (permisos
  * `espacios.*`) y `/timetable-frames` (permisos `horarios.*`). Las franjas solo
  * viajan dentro del marco (`RN-ACAD-113`): no hay *endpoint* de franjas. `name`
  * del marco es de solo lectura (`RN-ACAD-13`): se escribe `name_translations`;
@@ -124,16 +124,24 @@ export interface TimetableFrameCreate {
   frame_type: FrameType
   name_translations: Translations
   slots?: TimeSlotInput[]
+  /** Solo en un marco `especial` (`RN-ACAD-111`): fechas civiles inclusivas `AAAA-MM-DD`. */
+  valid_from?: string
+  valid_to?: string
 }
 
 export function createTimetableFrame(payload: TimetableFrameCreate): Promise<TimetableFrame> {
   return apiFetch<TimetableFrame>(framePath(), { method: 'POST', body: JSON.stringify(payload) })
 }
 
-/** `name_translations` se fusiona por idioma; `slots` es el conjunto completo (`RN-ACAD-113`). */
+/**
+ * `name_translations` se fusiona por idioma; `slots` es el conjunto completo
+ * (`RN-ACAD-113`); `valid_from`/`valid_to` solo en un marco `especial` (`RN-ACAD-111`).
+ */
 export interface TimetableFrameUpdate {
   name_translations?: Record<string, string | null>
   slots?: TimeSlotInput[]
+  valid_from?: string
+  valid_to?: string
 }
 
 export function updateTimetableFrame(

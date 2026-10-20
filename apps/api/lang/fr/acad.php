@@ -13,6 +13,7 @@ return [
             'asignacion_docente' => 'Affectations d’enseignement',
             'espacios' => 'Espaces',
             'horarios' => 'Emplois du temps',
+            'reservas' => 'Réservations',
         ],
     ],
 
@@ -90,6 +91,10 @@ return [
         'frame_type_immutable' => 'Le type d’un cadre d’emploi du temps ne peut pas être modifié.',
         'frame_ordinary_exists' => 'Cette étape a déjà un cadre d’emploi du temps ordinaire.',
         'frame_dates_invalid' => 'Les dates de validité ne sont pas valides pour ce type de cadre d’emploi du temps.',
+        'frame_outside_academic_year' => 'La validité du cadre doit être comprise dans l’année scolaire (:academic_year_starts_on – :academic_year_ends_on).',
+        'frame_overlap' => 'La validité chevauche celle d’un autre cadre spécial de la même étape.',
+        'booking_outside_academic_year' => 'La date de la réservation doit être comprise dans l’année scolaire (:academic_year_starts_on – :academic_year_ends_on).',
+        'booking_conflict' => 'L’espace est déjà réservé ou occupé par une séance de l’emploi du temps à cette date et à cette heure.',
         'weekday_invalid' => 'Le jour de la semaine doit être un nombre de 1 (lundi) à 7 (dimanche).',
         'time_invalid' => 'L’heure doit être au format HH:MM (24 heures).',
         'slot_ends_before_start' => 'L’heure de fin doit être postérieure à l’heure de début.',
@@ -112,6 +117,7 @@ return [
     'conflict' => [
         'has_dependents' => 'Impossible de supprimer « :code » (:entity) : il a des éléments dépendants (:dependents). Supprimez-les d\'abord.',
         'periods_outside_academic_year' => 'Des périodes scolaires se trouveraient en dehors de l’année scolaire : ses dates doivent inclure la période du :periods_starts_on au :periods_ends_on.',
+        'schedule_outside_academic_year' => 'Des cadres d’emploi du temps spéciaux ou des réservations se trouveraient en dehors de l’année scolaire : ses dates doivent inclure la période du :schedule_starts_on au :schedule_ends_on.',
     ],
 
     'entities' => [

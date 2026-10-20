@@ -120,14 +120,20 @@ final class TimeSlotsValidator
         }
     }
 
+    /** `RN-ACAD-112`: hora civil `HH:MM` (24 h). También la usan las reservas (`RN-ACAD-140`). */
+    public static function isCivilTime(mixed $value): bool
+    {
+        return is_string($value) && preg_match(self::TIME_PATTERN, $value) === 1;
+    }
+
     private function time(mixed $value, string $field, ValidationErrorBag $errors): ?string
     {
-        if (! is_string($value) || preg_match(self::TIME_PATTERN, $value) !== 1) {
+        if (! self::isCivilTime($value)) {
             $errors->add($field, 'acad.validation.time_invalid', 'acad.validation.time_invalid');
 
             return null;
         }
 
-        return $value;
+        return (string) $value;
     }
 }

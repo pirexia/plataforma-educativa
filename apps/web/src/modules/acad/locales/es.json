@@ -10,7 +10,8 @@
       "gradingScales": "Escalas de calificación",
       "backToScales": "Volver a las escalas de calificación",
       "facilities": "Espacios",
-      "timetable": "Horarios"
+      "timetable": "Horarios",
+      "bookings": "Reservas"
     },
     "readOnly": "Este curso académico es de solo lectura: no se puede crear, modificar ni borrar su estructura.",
     "fields": {
@@ -34,7 +35,9 @@
       "rangeMax": "Hasta",
       "range": "Rango",
       "facilityType": "Tipo de espacio",
-      "frameType": "Tipo de marco horario"
+      "frameType": "Tipo de marco horario",
+      "validFrom": "Vigencia desde",
+      "validTo": "Vigencia hasta"
     },
     "stage": {
       "infantil": "Educación Infantil",
@@ -227,7 +230,9 @@
       "tutorsUpdated": "Tutores del grupo actualizados.",
       "sessionCreated": "Sesión creada.",
       "sessionUpdated": "Sesión actualizada.",
-      "sessionDeleted": "Sesión borrada."
+      "sessionDeleted": "Sesión borrada.",
+      "bookingCreated": "Reserva creada.",
+      "bookingCancelled": "Reserva cancelada."
     },
     "errors": {
       "unexpected": "No se pudo completar la acción. Inténtalo de nuevo.",
@@ -320,8 +325,12 @@
         "empty": "Esta etapa no tiene marco horario",
         "form": {
           "title": "Nuevo marco horario",
-          "description": "Se crea el marco ordinario de la etapa. Las franjas se añaden después, en su ficha."
-        }
+          "description": "Un marco ordinario vale todo el curso; uno especial (jornada intensiva) solo entre dos fechas. Las franjas se añaden después, en su ficha.",
+          "validityHint": "Las fechas son inclusivas, deben estar dentro del curso académico y no pueden solaparse con otra jornada especial de la etapa."
+        },
+        "validity": "Vigencia",
+        "validityRange": "Del {from} al {to}",
+        "allYear": "Todo el curso"
       },
       "frame": {
         "title": "Marco horario",
@@ -396,7 +405,8 @@
         "title": "¿Quitar la sesión de {subject}?",
         "description": "Se borra la sesión de la rejilla; la asignación docente no cambia.",
         "confirm": "Quitar sesión"
-      }
+      },
+      "frameLabel": "Marco horario"
     },
     "staff": {
       "search": "Buscar usuario por nombre o correo",
@@ -433,6 +443,43 @@
       "errors": {
         "subjectRequired": "Elige una asignatura.",
         "teacherRequired": "Elige un profesor."
+      }
+    },
+    "readOnlyBookings": "Este curso académico es de solo lectura: no se pueden crear ni cancelar reservas.",
+    "bookings": {
+      "title": "Reservas",
+      "intro": "Reservas de aulas y recursos del curso académico, por fecha y hora. No se editan: se cancelan y se vuelven a hacer.",
+      "new": "Nueva reserva",
+      "caption": "Reservas de espacios",
+      "empty": "No hay reservas",
+      "cancel": "Cancelar",
+      "cancelFor": "Cancelar la reserva de {facility} del {date} a las {start}",
+      "fields": {
+        "facility": "Espacio",
+        "date": "Fecha",
+        "startsAt": "Inicio",
+        "endsAt": "Fin",
+        "interval": "Horario",
+        "bookedBy": "Reservada por"
+      },
+      "form": {
+        "title": "Nueva reserva",
+        "description": "Elige el espacio, la fecha y la hora. La reserva no puede coincidir con otra reserva ni, en un aula, con una sesión del horario.",
+        "intervalHint": "La hora de fin no se incluye: una reserva que acaba a las 11:00 y otra que empieza a las 11:00 no se solapan.",
+        "noFacilities": "No hay espacios que reservar, o no tienes permiso para verlos.",
+        "submit": "Reservar"
+      },
+      "conflict": {
+        "title": "La reserva choca con:",
+        "booking": "Reserva de {facility} el {date}, {start}–{end}, de {by}",
+        "session": "Sesión del horario: {subject} · {group} · {teacher} · {slot}",
+        "bookingUnknown": "Otra reserva del mismo espacio a esa hora",
+        "sessionUnknown": "Una sesión del horario en ese aula a esa hora"
+      },
+      "confirmCancel": {
+        "title": "¿Cancelar la reserva de {facility}?",
+        "description": "Se cancela la reserva del {when}. El hueco queda libre.",
+        "confirm": "Cancelar reserva"
       }
     }
   }

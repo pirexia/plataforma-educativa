@@ -62,7 +62,7 @@ describe('CA-ACAD-044 (AR-11, ADR-053 §2): registro del módulo', () => {
     )
 
     expect(empty).toEqual([])
-    expect(shell.routes).toHaveLength(12)
+    expect(shell.routes).toHaveLength(13)
   })
 
   it('las fichas cuelgan de la estructura en la miga de pan y sus títulos están en acad.*', () => {
@@ -75,15 +75,16 @@ describe('CA-ACAD-044 (AR-11, ADR-053 §2): registro del módulo', () => {
         route.name !== 'acad-structure' &&
         route.name !== 'acad-grading-scales' &&
         route.name !== 'acad-facilities' &&
-        route.name !== 'acad-timetable'
+        route.name !== 'acad-timetable' &&
+        route.name !== 'acad-bookings'
       ) {
         expect(route.meta!.breadcrumbParent, String(route.name)).toBe('acad-structure')
       }
     }
   })
 
-  it('cuatro entradas de menú, en administración, con icono y sin acceso directo (OPEN-ACAD-23)', () => {
-    expect(shell.navigation).toHaveLength(4)
+  it('cinco entradas de menú, en administración, con icono y sin acceso directo (OPEN-ACAD-23)', () => {
+    expect(shell.navigation).toHaveLength(5)
     expect(shell.navigation[0]).toMatchObject({
       id: 'acad.structure',
       route: 'acad-structure',
@@ -115,6 +116,15 @@ describe('CA-ACAD-044 (AR-11, ADR-053 §2): registro del módulo', () => {
       section: 'administracion',
       shortcut: false,
     })
+    // `§18.8` (1.12-b): «Reservas», tras «Espacios».
+    expect(shell.navigation[4]).toMatchObject({
+      id: 'acad.bookings',
+      route: 'acad-bookings',
+      labelKey: 'acad.nav.bookings',
+      section: 'administracion',
+      shortcut: false,
+    })
+    expect(shell.navigation[4]!.icon).toBeTruthy()
     expect(shell.navigation[0]!.icon).toBeTruthy()
     expect(shell.navigation[1]!.icon).toBeTruthy()
     expect(shell.navigation[2]!.icon).toBeTruthy()
@@ -187,5 +197,29 @@ describe('CA-ACAD-045 (ADR-053 §3, RMOD-008): la entrada aparece solo con estru
   it('con acad descontratado /me no trae sus permisos (inertes): la entrada desaparece', () => {
     // RMOD-008: los permisos de un módulo no contratado no llegan a `/me.permissions`.
     expect(ids(['curso_academico.leer'])).not.toContain('acad.structure')
+  })
+})
+
+describe('CA-ACAD-138 (§18.8, 1.12-b, AR-11): la ruta de reservas', () => {
+  it('acad-bookings existe con layout app, reservas.leer y selector de curso', () => {
+    const route = router.getRoutes().find((candidate) => candidate.name === 'acad-bookings')
+
+    expect(route).toBeDefined()
+    expect(route!.path).toBe('/academico/reservas')
+    expect(route!.meta.layout).toBe('app')
+    expect(route!.meta.permissions).toEqual(['reservas.leer'])
+    expect(route!.meta.academicYearScoped).toBe(true)
+  })
+
+  it('«Reservas» aparece solo con reservas.leer; otro permiso de acad no la da', () => {
+    const ids = (permissions: string[]): string[] =>
+      visibleNavigationEntries(router, permissions)
+        .filter((entry) => entry.section === 'administracion')
+        .map((entry) => entry.id)
+
+    expect(ids([])).not.toContain('acad.bookings')
+    expect(ids(['reservas.crear', 'reservas.eliminar'])).not.toContain('acad.bookings')
+    expect(ids(['horarios.leer', 'espacios.leer'])).not.toContain('acad.bookings')
+    expect(ids(['reservas.leer'])).toContain('acad.bookings')
   })
 })

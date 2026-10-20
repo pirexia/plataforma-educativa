@@ -159,16 +159,21 @@ final class ProvisionTenantDefaults implements TenantProvisioner
     /**
      * REQ-ACAD/permisos.md §4, §4.1 y §10.3 (1.11-b, 1.11d-a y 1.12-a,
      * `OPEN-ACAD-09` = X, `OPEN-ACAD-28` = X + 1, `OPEN-ACAD-42` = X): la siembra
-     * de los veinte permisos de `acad` (`estructura_academica`,
+     * de los veintitrés permisos de `acad` (`estructura_academica`,
      * `configuracion_academica`, `asignacion_docente`, `espacios` y `horarios`,
-     * cuatro acciones cada uno). `administrador_centro` los veinte; `direccion`
-     * escribe `asignacion_docente` y `horarios` y lee el resto; `secretaria`,
-     * `docente`, `tutor_grupo` y `orientador` solo `leer` de cada recurso; el
-     * resto, nada (`RPERM-011`). Todos de ámbito `todos`: estructura, períodos,
+     * cuatro acciones cada uno, y `reservas`, tres). `administrador_centro` los
+     * veintitrés; `direccion` escribe `asignacion_docente`, `horarios` y `reservas`
+     * y lee el resto; `secretaria`, `docente`, `tutor_grupo` y `orientador` solo
+     * `leer` de cada recurso (más las reservas de `docente` y `tutor_grupo`, abajo);
+     * el resto, nada (`RPERM-011`). Todos de ámbito `todos`: estructura, períodos,
      * escalas, espacios y horarios no contienen datos de alumnado
-     * (`RN-ACAD-09`, `RN-ACAD-50`, `ADR-063 §5.4`). Los de `reservas` llegan con
-     * `1.12-b`. Una sola lista por los dos caminos: la lee
-     * también `GrantStructurePermissionsCommand` (centros ya existentes).
+     * (`RN-ACAD-09`, `RN-ACAD-50`, `ADR-063 §5.4`). Los de `reservas` (`1.12-b`,
+     * `OPEN-ACAD-42` = X, `permisos.md §10.3`): `administrador_centro` y `direccion`
+     * los tres con `todos`; `secretaria` y `orientador` solo `leer`; `docente` y
+     * `tutor_grupo` `leer` y `crear` con `todos` y `eliminar` con `propios` (lista
+     * aparte, `STRUCTURE_PERMISSION_PROPIOS_GRANTS`). Una sola lista por los dos
+     * caminos: la lee también `GrantStructurePermissionsCommand` (centros ya
+     * existentes).
      * Ninguna regla de código compara estos códigos de rol (`RN-PERM-46`).
      *
      * @var array<string, list<string>>
@@ -183,6 +188,7 @@ final class ProvisionTenantDefaults implements TenantProvisioner
             'asignacion_docente.actualizar', 'asignacion_docente.eliminar',
             'espacios.leer', 'espacios.crear', 'espacios.actualizar', 'espacios.eliminar',
             'horarios.leer', 'horarios.crear', 'horarios.actualizar', 'horarios.eliminar',
+            'reservas.leer', 'reservas.crear', 'reservas.eliminar',
         ],
         // OPEN-ACAD-42 = X: `direccion` escribe horarios y asignación docente (`§11.1`:
         // «Dirección / Jefatura de Estudios: … horarios»), pero solo lee espacios.
@@ -192,11 +198,26 @@ final class ProvisionTenantDefaults implements TenantProvisioner
             'asignacion_docente.actualizar', 'asignacion_docente.eliminar',
             'espacios.leer',
             'horarios.leer', 'horarios.crear', 'horarios.actualizar', 'horarios.eliminar',
+            'reservas.leer', 'reservas.crear', 'reservas.eliminar',
         ],
-        'secretaria' => ['estructura_academica.leer', 'configuracion_academica.leer', 'asignacion_docente.leer', 'espacios.leer', 'horarios.leer'],
-        'docente' => ['estructura_academica.leer', 'configuracion_academica.leer', 'asignacion_docente.leer', 'espacios.leer', 'horarios.leer'],
-        'tutor_grupo' => ['estructura_academica.leer', 'configuracion_academica.leer', 'asignacion_docente.leer', 'espacios.leer', 'horarios.leer'],
-        'orientador' => ['estructura_academica.leer', 'configuracion_academica.leer', 'asignacion_docente.leer', 'espacios.leer', 'horarios.leer'],
+        'secretaria' => ['estructura_academica.leer', 'configuracion_academica.leer', 'asignacion_docente.leer', 'espacios.leer', 'horarios.leer', 'reservas.leer'],
+        'docente' => ['estructura_academica.leer', 'configuracion_academica.leer', 'asignacion_docente.leer', 'espacios.leer', 'horarios.leer', 'reservas.leer', 'reservas.crear'],
+        'tutor_grupo' => ['estructura_academica.leer', 'configuracion_academica.leer', 'asignacion_docente.leer', 'espacios.leer', 'horarios.leer', 'reservas.leer', 'reservas.crear'],
+        'orientador' => ['estructura_academica.leer', 'configuracion_academica.leer', 'asignacion_docente.leer', 'espacios.leer', 'horarios.leer', 'reservas.leer'],
+    ];
+
+    /**
+     * REQ-ACAD/permisos.md §10.3 (1.12-b, `OPEN-ACAD-42` = X): las concesiones de
+     * `acad` de ámbito `propios` —`reservas.eliminar` para `docente` y
+     * `tutor_grupo`: cancelan solo las reservas que crearon—. Lista aparte de
+     * `STRUCTURE_PERMISSION_GRANTS` (todas de ámbito `todos`); la lee también
+     * `GrantStructurePermissionsCommand`.
+     *
+     * @var array<string, list<string>>
+     */
+    public const STRUCTURE_PERMISSION_PROPIOS_GRANTS = [
+        'docente' => ['reservas.eliminar'],
+        'tutor_grupo' => ['reservas.eliminar'],
     ];
 
     /**
@@ -443,6 +464,18 @@ final class ProvisionTenantDefaults implements TenantProvisioner
                     'permission_code' => $permissionCode,
                     'effect' => 'allow',
                     'scope' => 'todos',
+                ]);
+            }
+        }
+
+        foreach (self::STRUCTURE_PERMISSION_PROPIOS_GRANTS as $roleCode => $permissionCodes) {
+            foreach ($permissionCodes as $permissionCode) {
+                PermissionRole::forceCreate([
+                    'tenant_id' => $tenantId,
+                    'role_id' => $roleIds[$roleCode],
+                    'permission_code' => $permissionCode,
+                    'effect' => 'allow',
+                    'scope' => 'propios',
                 ]);
             }
         }

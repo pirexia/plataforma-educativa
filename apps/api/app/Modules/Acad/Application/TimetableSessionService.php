@@ -29,9 +29,10 @@ use Illuminate\Support\Facades\DB;
  * (`RN-ACAD-102`, `-128`) toma `FOR UPDATE` del padre y mira si hay sesiones.
  *
  * Coincidencia (`RN-ACAD-124`): mismo `weekday` e intervalos `[inicio, fin)` que
- * se cortan, comparados **por hora y no por franja**. En `1.12-a` todos los
- * marcos son `ordinaria` y coexisten siempre, también de etapas distintas; la
- * coexistencia con marcos `especial` llega con `1.12-b`.
+ * se cortan, comparados **por hora y no por franja**, entre marcos que
+ * **coexisten** (`FrameCoexistence`, `1.12-b`): dos `ordinaria` siempre; un
+ * `especial` sustituye al `ordinaria` de su etapa y coexiste con los demás
+ * `ordinaria` y con los `especial` de fechas que se cortan.
  */
 final class TimetableSessionService
 {
@@ -218,13 +219,69 @@ final class TimetableSessionService
     /**
      * `RN-ACAD-123`/`-124`: rechaza el alta o el movimiento que dejaría dos
      * sesiones vivas coincidentes con choque de profesor, aula o grupo. Las
-     * lee ya acotadas por curso, día e intervalo (índices de `datos.md §9.4`).
+     * lee ya acotadas por curso, día e intervalo (índices de `datos.md §9.4`)
+     * y por coexistencia de marcos (`FrameCoexistence`).
      */
     private function assertNoConflict(TimeSlot $slot, TeachingAssignment $assignment, ?Facility $facility, ?int $exceptSessionId): void
     {
-        $others = TimetableSession::query()
+        $frame = TimetableFrame::query()->withTrashed()->whereKey($slot->timetable_frame_id)->firstOrFail();
+
+        $conflicts = $this->conflicts(
+            $slot,
+            $frame->frame_type,
+            $frame->education_level_id,
+            $frame->valid_from?->toDateString(),
+            $frame->valid_to?->toDateString(),
+            $assignment,
+            $facility,
+            $exceptSessionId,
+        );
+
+        $this->throwIfConflicts('time_slot', $conflicts);
+    }
+
+    /**
+     * `RN-ACAD-125`, `1.12-b`: el cambio de fechas de un marco `especial` puede
+     * hacer que sus sesiones coincidan con las de otro marco que antes no
+     * coexistía. Se comprueba cada sesión del marco contra las demás con las
+     * fechas **nuevas**; el primer choque se rechaza con `422 timetable_conflict`
+     * en `valid_from`. Quien llama ya tiene el ancla del horario (`FOR UPDATE`).
+     */
+    public function assertFrameDatesFree(TimetableFrame $frame, string $validFrom, string $validTo): void
+    {
+        $sessions = TimetableSession::query()
+            ->select('timetable_sessions.*')
+            ->join('time_slots as ts', 'ts.id', '=', 'timetable_sessions.time_slot_id')
+            ->where('ts.timetable_frame_id', $frame->id)
+            ->orderBy('timetable_sessions.id')
+            ->with(['timeSlot', 'teachingAssignment', 'facility'])
+            ->get();
+
+        foreach ($sessions as $session) {
+            $conflicts = $this->conflicts(
+                $session->timeSlot,
+                'especial',
+                $frame->education_level_id,
+                $validFrom,
+                $validTo,
+                $session->teachingAssignment,
+                $session->facility,
+                $session->id,
+            );
+
+            $this->throwIfConflicts('valid_from', $conflicts);
+        }
+    }
+
+    /**
+     * @return list<array{kind: string, session: string}>
+     */
+    private function conflicts(TimeSlot $slot, string $frameType, int $levelId, ?string $validFrom, ?string $validTo, TeachingAssignment $assignment, ?Facility $facility, ?int $exceptSessionId): array
+    {
+        $query = TimetableSession::query()
             ->select('timetable_sessions.public_id', 'timetable_sessions.facility_id', 'ta.user_id', 'ta.group_id', 'ta.subgroup_id')
             ->join('time_slots as ts', 'ts.id', '=', 'timetable_sessions.time_slot_id')
+            ->join('timetable_frames as f', 'f.id', '=', 'ts.timetable_frame_id')
             ->join('teaching_assignments as ta', 'ta.id', '=', 'timetable_sessions.teaching_assignment_id')
             ->where('timetable_sessions.academic_year_id', $slot->academic_year_id)
             ->where('ts.weekday', $slot->weekday)
@@ -237,7 +294,11 @@ final class TimetableSessionService
                 if ($facility !== null) {
                     $q->orWhere('timetable_sessions.facility_id', $facility->id);
                 }
-            })
+            });
+
+        FrameCoexistence::constrain($query, $frameType, $levelId, $validFrom, $validTo);
+
+        $others = $query
             ->orderBy('ts.starts_at')
             ->orderBy('timetable_sessions.id')
             ->get();
@@ -258,10 +319,18 @@ final class TimetableSessionService
             }
         }
 
+        return $conflicts;
+    }
+
+    /**
+     * @param  list<array{kind: string, session: string}>  $conflicts
+     */
+    private function throwIfConflicts(string $field, array $conflicts): void
+    {
         if ($conflicts !== []) {
             $code = 'acad.validation.timetable_conflict';
 
-            throw ApiException::validation(['time_slot' => [[
+            throw ApiException::validation([$field => [[
                 'code' => $code,
                 'message' => __($code),
                 'params' => ['conflicts' => $conflicts],

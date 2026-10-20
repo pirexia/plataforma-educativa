@@ -114,6 +114,7 @@ export function makeRouter(name: string, component: Component) {
     ['acad-facilities', '/academico/espacios'],
     ['acad-timetable', '/academico/horarios'],
     ['acad-timetable-frame', '/academico/marcos/:publicId'],
+    ['acad-bookings', '/academico/reservas'],
   ].map(([routeName, routePath]) => ({
     path: routePath!,
     name: routeName!,
@@ -339,6 +340,27 @@ export function teachingAssignment(over: Record<string, unknown> = {}) {
     subject: 'M1',
     subgroup: null,
     ...AUDIT,
+    ...over,
+  }
+}
+
+/** `api.md §12.1` (1.12-b): reserva del recurso `CARRO1` el 12 nov 2026 de 10:00 a 11:00. */
+export function facilityBooking(over: Record<string, unknown> = {}) {
+  return {
+    public_id: 'B1',
+    academic_year: 'Y2',
+    facility: {
+      public_id: 'F2',
+      facility_type: 'recurso',
+      code: 'CARRO1',
+      name: 'Carro de portátiles',
+      deleted: false,
+    },
+    booked_on: '2026-11-12',
+    starts_at: '10:00',
+    ends_at: '11:00',
+    booked_by: { public_id: 'ME', name: 'Ana Ejemplo' },
+    created_at: '2026-06-01T10:00:00Z',
     ...over,
   }
 }

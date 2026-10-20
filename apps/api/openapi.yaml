@@ -28,6 +28,7 @@ tags:
   - name: Acad / Estructura académica
   - name: Acad / Configuración académica
   - name: Acad / Horarios
+  - name: Acad / Reservas
   - name: Auth / Sesión
   - name: Auth / Canje
   - name: Auth / Recuperación
@@ -375,6 +376,10 @@ paths:
     $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1timetable-sessions"
   /api/v1/timetable-sessions/{publicId}:
     $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1timetable-sessions~1{publicId}"
+  /api/v1/facility-bookings:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1facility-bookings"
+  /api/v1/facility-bookings/{publicId}:
+    $ref: "openapi/paths/acad.yaml#/paths/~1api~1v1~1facility-bookings~1{publicId}"
 
   # Los endpoints de los módulos siguientes se añaden aquí conforme se
   # implementan, cada uno con su propio apps/api/openapi/paths/<modulo>.yaml.

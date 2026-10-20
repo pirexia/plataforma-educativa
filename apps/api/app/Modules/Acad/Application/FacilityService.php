@@ -20,7 +20,10 @@ final class FacilityService
     /** `RN-ACAD-100`: vocabulario cerrado de `facility_type`. */
     public const TYPES = ['aula', 'recurso'];
 
-    public function __construct(private readonly AcademicYearDirectory $years) {}
+    public function __construct(
+        private readonly AcademicYearDirectory $years,
+        private readonly FacilityBookingService $bookings,
+    ) {}
 
     /** Detalle: `404` si no existe o es de otro centro (RLS + *scope* de tenant). */
     public function find(string $publicId): Facility
@@ -64,31 +67,50 @@ final class FacilityService
 
     /**
      * `RN-ACAD-102`: borrado lógico. Bloqueado (`409 has_dependents` con
-     * `timetable_sessions` —y `facility_bookings` en `1.12-b`—) solo si lo
-     * referencian sesiones vivas de cursos `planificacion` o `activo`; las de
+     * `timetable_sessions` y/o `facility_bookings`) solo si lo referencian
+     * sesiones o reservas vivas de cursos `planificacion` o `activo`; las de
      * cursos `cerrado`/`archivado` conservan la referencia (borrado lógico, FK
      * `NO ACTION`) y se representan con `facility.deleted: true`.
      *
-     * `FOR UPDATE` sobre el espacio: una sesión concurrente toma `FOR SHARE`
-     * sobre él (`RN-ACAD-128`), así que o la ve el borrado o ella ve el espacio
-     * borrado.
+     * `FOR UPDATE` sobre el espacio: una sesión o reserva concurrente toma
+     * `FOR SHARE` sobre él (`RN-ACAD-128`), así que o la ve el borrado o ella ve
+     * el espacio borrado.
      */
     public function delete(string $publicId): void
     {
         DB::transaction(function () use ($publicId): void {
             $facility = Facility::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
 
-            $yearIds = TimetableSession::query()->where('facility_id', $facility->id)->distinct()->pluck('academic_year_id')->all();
-            $writable = array_filter(
-                $this->years->findManyById(array_map('intval', $yearIds)),
-                static fn ($year): bool => ! $year->isReadOnly(),
-            );
+            $sessionYears = TimetableSession::query()->where('facility_id', $facility->id)->distinct()->pluck('academic_year_id')->all();
 
-            if ($writable !== []) {
-                throw StructureErrors::hasDependents('facility', $facility->code, ['timetable_sessions']);
+            $dependents = [];
+
+            if ($this->anyWritable(array_map('intval', $sessionYears))) {
+                $dependents[] = 'timetable_sessions';
+            }
+
+            if ($this->anyWritable($this->bookings->yearIdsFor($facility->id))) {
+                $dependents[] = 'facility_bookings';
+            }
+
+            if ($dependents !== []) {
+                throw StructureErrors::hasDependents('facility', $facility->code, $dependents);
             }
 
             $facility->delete();
         });
+    }
+
+    /**
+     * ¿Alguno de esos cursos admite escrituras (`planificacion` o `activo`)?
+     *
+     * @param  list<int>  $yearIds
+     */
+    private function anyWritable(array $yearIds): bool
+    {
+        return array_filter(
+            $this->years->findManyById($yearIds),
+            static fn ($year): bool => ! $year->isReadOnly(),
+        ) !== [];
     }
 }

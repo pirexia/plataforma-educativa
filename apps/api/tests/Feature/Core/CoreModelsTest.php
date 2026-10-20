@@ -10,6 +10,7 @@ use App\Modules\Acad\Domain\Models\AcademicPeriod;
 use App\Modules\Acad\Domain\Models\Course;
 use App\Modules\Acad\Domain\Models\EducationLevel;
 use App\Modules\Acad\Domain\Models\Facility;
+use App\Modules\Acad\Domain\Models\FacilityBooking;
 use App\Modules\Acad\Domain\Models\GradingScale;
 use App\Modules\Acad\Domain\Models\GradingScaleValue;
 use App\Modules\Acad\Domain\Models\Group;
@@ -78,6 +79,7 @@ test('todo modelo de tenant núcleo está en el morph map', function (): void {
 // Los seis modelos de `acad` (REQ-ACAD/datos.md §4, 1.11-b), AcademicPeriod y
 // GradingScale/GradingScaleValue (1.11d-b) se suman en Full:
 // estructura académica del centro, sin datos personales (RN-ACAD-09).
+// FacilityBooking (1.12-b) también en Full: un espacio, una fecha y una hora; `created_by` es un identificador interno (datos.md §9.6).
 // AcademicYearReopening (REQ-CURSO/datos.md §1.5, 1.11c, ADR-059 §5.4) se suma en
 // Full: el motivo de la reapertura es contenido del centro (criterio de
 // `user_mfa_exemptions.reason`, ADR-035 §8).
@@ -103,7 +105,7 @@ test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR
         AcademicPeriod::class, GradingScale::class, GradingScaleValue::class,
         AcademicYearReopening::class,
         Facility::class, Timetable::class, TeachingAssignment::class, GroupTutor::class,
-        TimetableFrame::class, TimeSlot::class, TimetableSession::class,
+        TimetableFrame::class, TimeSlot::class, TimetableSession::class, FacilityBooking::class,
     ]);
 });
 

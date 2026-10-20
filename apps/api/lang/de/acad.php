@@ -13,6 +13,7 @@ return [
             'asignacion_docente' => 'Lehrauftrag',
             'espacios' => 'Räume',
             'horarios' => 'Stundenpläne',
+            'reservas' => 'Reservierungen',
         ],
     ],
 
@@ -90,6 +91,10 @@ return [
         'frame_type_immutable' => 'Der Typ eines Stundenplanrahmens kann nicht geändert werden.',
         'frame_ordinary_exists' => 'Diese Stufe hat bereits einen regulären Stundenplanrahmen.',
         'frame_dates_invalid' => 'Die Gültigkeitsdaten sind für diesen Typ des Stundenplanrahmens nicht gültig.',
+        'frame_outside_academic_year' => 'Die Gültigkeit des Rahmens muss innerhalb des Schuljahres liegen (:academic_year_starts_on – :academic_year_ends_on).',
+        'frame_overlap' => 'Die Gültigkeit überschneidet sich mit der eines anderen Sonderrahmens derselben Stufe.',
+        'booking_outside_academic_year' => 'Das Datum der Reservierung muss innerhalb des Schuljahres liegen (:academic_year_starts_on – :academic_year_ends_on).',
+        'booking_conflict' => 'Der Raum ist zu diesem Datum und dieser Uhrzeit bereits reserviert oder durch eine Unterrichtsstunde belegt.',
         'weekday_invalid' => 'Der Wochentag muss eine Zahl von 1 (Montag) bis 7 (Sonntag) sein.',
         'time_invalid' => 'Die Uhrzeit muss im Format HH:MM (24-Stunden-Format) angegeben werden.',
         'slot_ends_before_start' => 'Die Endzeit muss nach der Anfangszeit liegen.',
@@ -112,6 +117,7 @@ return [
     'conflict' => [
         'has_dependents' => 'Das Element „:code“ (:entity) kann nicht gelöscht werden: Es hat abhängige Elemente (:dependents). Löschen Sie diese zuerst.',
         'periods_outside_academic_year' => 'Einige Unterrichtszeiträume lägen außerhalb des Schuljahres: Seine Daten müssen den Zeitraum vom :periods_starts_on bis zum :periods_ends_on einschließen.',
+        'schedule_outside_academic_year' => 'Einige besondere Stundenplanrahmen oder Reservierungen lägen außerhalb des Schuljahres: Seine Daten müssen den Zeitraum vom :schedule_starts_on bis zum :schedule_ends_on einschließen.',
     ],
 
     'entities' => [

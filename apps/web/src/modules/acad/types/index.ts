@@ -159,7 +159,7 @@ export interface Facility {
   updated_at: string
 }
 
-/** `RN-ACAD-110`: `ordinaria` en `1.12-a`; `especial` llega con `1.12-b`. */
+/** `RN-ACAD-110`: `ordinaria` (todo el curso) o `especial` (vigencia por fechas, jornada intensiva, `1.12-b`). */
 export type FrameType = 'ordinaria' | 'especial'
 
 /**
@@ -173,7 +173,7 @@ export interface TimeSlot {
   ends_at: string
 }
 
-/** `docs/modulos/REQ-ACAD/api.md §12.1`. `slots` ordenadas por día y hora; `valid_*` son `null` en `ordinaria`. */
+/** `docs/modulos/REQ-ACAD/api.md §12.1`. `slots` ordenadas por día y hora; `valid_*` son `null` en `ordinaria` y fechas civiles inclusivas en `especial`. */
 export interface TimetableFrame {
   public_id: PublicId
   academic_year: PublicId
@@ -239,4 +239,32 @@ export interface TimetableSession {
 export interface TimetableConflict {
   kind: 'teacher' | 'facility' | 'group' | (string & {})
   session: PublicId
+}
+
+/** `RN-ACAD-123`, `-141`: `params.conflicts` de `422 booking_conflict`; una reserva (`booking`) o una sesión (`session`). */
+export interface BookingConflict {
+  kind: 'booking' | 'session' | (string & {})
+  booking?: PublicId
+  session?: PublicId
+}
+
+/** `docs/modulos/REQ-ACAD/api.md §12.1` (1.12-b, `RN-ACAD-140`). Reserva de un espacio en una fecha y un intervalo `[inicio, fin)`. */
+export interface FacilityBooking {
+  public_id: PublicId
+  academic_year: PublicId
+  facility: {
+    public_id: PublicId
+    facility_type: FacilityType | (string & {})
+    code: string
+    name: string
+    /** `RN-ACAD-102`: el espacio se dio de baja en un curso cerrado. */
+    deleted: boolean
+  }
+  /** Fecha civil `AAAA-MM-DD`. */
+  booked_on: string
+  starts_at: string
+  ends_at: string
+  /** Quien la creó; `null` si ya no existe o la creó una tarea de consola. */
+  booked_by: StaffSummary | null
+  created_at: string
 }

@@ -13,6 +13,7 @@ return [
             'asignacion_docente' => 'Teaching assignments',
             'espacios' => 'Facilities',
             'horarios' => 'Timetables',
+            'reservas' => 'Bookings',
         ],
     ],
 
@@ -90,6 +91,10 @@ return [
         'frame_type_immutable' => 'The type of a timetable frame cannot be changed.',
         'frame_ordinary_exists' => 'This stage already has a regular timetable frame.',
         'frame_dates_invalid' => 'The validity dates are not valid for this type of timetable frame.',
+        'frame_outside_academic_year' => 'The validity of the frame must fall within the academic year (:academic_year_starts_on – :academic_year_ends_on).',
+        'frame_overlap' => 'The validity overlaps that of another special frame of the same stage.',
+        'booking_outside_academic_year' => 'The booking date must fall within the academic year (:academic_year_starts_on – :academic_year_ends_on).',
+        'booking_conflict' => 'The space is already booked or occupied by a timetable session on that date and time.',
         'weekday_invalid' => 'The day of the week must be a number from 1 (Monday) to 7 (Sunday).',
         'time_invalid' => 'The time must be in HH:MM format (24-hour clock).',
         'slot_ends_before_start' => 'The end time must be later than the start time.',
@@ -112,6 +117,7 @@ return [
     'conflict' => [
         'has_dependents' => 'Cannot delete ":code" (:entity): it has dependent items (:dependents). Delete them first.',
         'periods_outside_academic_year' => 'Some academic periods would fall outside the academic year: its dates must include :periods_starts_on to :periods_ends_on.',
+        'schedule_outside_academic_year' => 'Some special timetable frames or bookings would fall outside the academic year: its dates must include :schedule_starts_on to :schedule_ends_on.',
     ],
 
     'entities' => [

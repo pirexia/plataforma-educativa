@@ -10,7 +10,8 @@
       "gradingScales": "Échelles de notation",
       "backToScales": "Retour aux échelles de notation",
       "facilities": "Espaces",
-      "timetable": "Emplois du temps"
+      "timetable": "Emplois du temps",
+      "bookings": "Réservations"
     },
     "readOnly": "Cette année scolaire est en lecture seule : sa structure ne peut être ni créée, ni modifiée, ni supprimée.",
     "fields": {
@@ -34,7 +35,9 @@
       "rangeMax": "À",
       "range": "Plage",
       "facilityType": "Type d'espace",
-      "frameType": "Type de cadre d'emploi du temps"
+      "frameType": "Type de cadre d'emploi du temps",
+      "validFrom": "Valide à partir du",
+      "validTo": "Valide jusqu’au"
     },
     "stage": {
       "infantil": "Éducation de la petite enfance",
@@ -227,7 +230,9 @@
       "tutorsUpdated": "Professeurs principaux du groupe mis à jour.",
       "sessionCreated": "Séance créée.",
       "sessionUpdated": "Séance mise à jour.",
-      "sessionDeleted": "Séance supprimée."
+      "sessionDeleted": "Séance supprimée.",
+      "bookingCreated": "Réservation créée.",
+      "bookingCancelled": "Réservation annulée."
     },
     "errors": {
       "unexpected": "L'action n'a pas pu être menée à bien. Veuillez réessayer.",
@@ -320,8 +325,12 @@
         "empty": "Cette étape n'a pas de cadre d'emploi du temps",
         "form": {
           "title": "Nouveau cadre d'emploi du temps",
-          "description": "Le cadre ordinaire de l'étape est créé. Les créneaux sont ajoutés ensuite, sur sa fiche."
-        }
+          "description": "Un cadre ordinaire vaut pour toute l’année ; un cadre spécial (journée continue) seulement entre deux dates. Les créneaux s’ajoutent ensuite, sur sa fiche.",
+          "validityHint": "Les dates sont incluses, doivent être comprises dans l’année scolaire et ne peuvent pas chevaucher une autre journée spéciale de la même étape."
+        },
+        "validity": "Validité",
+        "validityRange": "Du {from} au {to}",
+        "allYear": "Toute l’année"
       },
       "frame": {
         "title": "Cadre d'emploi du temps",
@@ -396,7 +405,8 @@
         "title": "Retirer la séance de {subject} ?",
         "description": "La séance est supprimée de la grille ; l’affectation d’enseignement ne change pas.",
         "confirm": "Retirer la séance"
-      }
+      },
+      "frameLabel": "Cadre d’emploi du temps"
     },
     "staff": {
       "search": "Rechercher un utilisateur par nom ou e-mail",
@@ -433,6 +443,43 @@
       "errors": {
         "subjectRequired": "Choisissez une matière.",
         "teacherRequired": "Choisissez un enseignant."
+      }
+    },
+    "readOnlyBookings": "Cette année scolaire est en lecture seule : les réservations ne peuvent être ni créées ni annulées.",
+    "bookings": {
+      "title": "Réservations",
+      "intro": "Réservations de salles et de ressources de l’année scolaire, par date et par heure. Elles ne se modifient pas : annulez-les et réservez à nouveau.",
+      "new": "Nouvelle réservation",
+      "caption": "Réservations d’espaces",
+      "empty": "Il n’y a aucune réservation",
+      "cancel": "Annuler",
+      "cancelFor": "Annuler la réservation de {facility} du {date} à {start}",
+      "fields": {
+        "facility": "Espace",
+        "date": "Date",
+        "startsAt": "Heure de début",
+        "endsAt": "Heure de fin",
+        "interval": "Horaire",
+        "bookedBy": "Réservée par"
+      },
+      "form": {
+        "title": "Nouvelle réservation",
+        "description": "Choisissez l’espace, la date et l’heure. La réservation ne peut pas coïncider avec une autre réservation ni, pour une salle, avec une séance de l’emploi du temps.",
+        "intervalHint": "L’heure de fin n’est pas incluse : une réservation qui se termine à 11:00 et une autre qui commence à 11:00 ne se chevauchent pas.",
+        "noFacilities": "Il n’y a aucun espace à réserver, ou vous n’avez pas l’autorisation de les voir.",
+        "submit": "Réserver"
+      },
+      "conflict": {
+        "title": "La réservation entre en conflit avec :",
+        "booking": "Réservation de {facility} le {date}, {start}–{end}, par {by}",
+        "session": "Séance de l’emploi du temps : {subject} · {group} · {teacher} · {slot}",
+        "bookingUnknown": "Une autre réservation du même espace à cette heure",
+        "sessionUnknown": "Une séance de l’emploi du temps dans cette salle à cette heure"
+      },
+      "confirmCancel": {
+        "title": "Annuler la réservation de {facility} ?",
+        "description": "La réservation du {when} est annulée. Le créneau redevient libre.",
+        "confirm": "Annuler la réservation"
       }
     }
   }

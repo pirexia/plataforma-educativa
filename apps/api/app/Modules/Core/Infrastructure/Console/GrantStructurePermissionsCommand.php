@@ -12,16 +12,19 @@ use App\Support\Tenancy\Tenant;
 use Illuminate\Console\Command;
 
 /**
- * REQ-ACAD/operacion.md §3 punto 4, permisos.md §4 y §4.1 (1.11-b y 1.11d-a,
+ * REQ-ACAD/operacion.md §3 punto 4, permisos.md §4, §4.1 y §10.3 (1.11-b, 1.11d-a y 1.12-b,
  * `OPEN-ACAD-09` = X, `OPEN-ACAD-28` = X + 1, `CA-ACAD-036`, `CA-ACAD-097`): mismo
  * tipo que `curso:grant-year-permissions`.
  * `tenant:provision-defaults` solo corre en el alta de un centro nuevo; los
  * centros que ya existían no reciben las concesiones de `estructura_academica`
- * ni de `configuracion_academica`, `asignacion_docente`, `espacios` o `horarios` por desplegar, y su síntoma es un `403` indistinguible de «no tengo permiso».
+ * ni de `configuracion_academica`, `asignacion_docente`, `espacios`, `horarios` o `reservas` por desplegar, y su síntoma es un `403` indistinguible de «no tengo permiso».
  *
  * Concede, en cada centro vivo, exactamente las concesiones de
- * `ProvisionTenantDefaults::STRUCTURE_PERMISSION_GRANTS` (una sola lista por
- * los dos caminos) a los roles predefinidos que no las tengan, y **no toca
+ * `ProvisionTenantDefaults::STRUCTURE_PERMISSION_GRANTS` (ámbito `todos`) y
+ * `STRUCTURE_PERMISSION_PROPIOS_GRANTS` (ámbito `propios`, `reservas.eliminar` de
+ * `docente` y `tutor_grupo`, `1.12-b`) —una sola lista por los dos caminos— a los
+ * roles predefinidos que no tengan **esa concesión** (por código; una concesión
+ * previa con otro ámbito no se toca), y **no toca
  * roles personalizados**. Idempotente. Escritura por el modelo (`RN-PERM-19`),
  * nunca por `attach()`/`sync()`, para que quede auditada (issue #165).
  *
@@ -45,7 +48,7 @@ class GrantStructurePermissionsCommand extends Command
 
     public function handle(): int
     {
-        $required = collect(ProvisionTenantDefaults::STRUCTURE_PERMISSION_GRANTS)->flatten()->unique()->values()->all();
+        $required = collect([...ProvisionTenantDefaults::STRUCTURE_PERMISSION_GRANTS, ...ProvisionTenantDefaults::STRUCTURE_PERMISSION_PROPIOS_GRANTS])->flatten()->unique()->values()->all();
         $retired = $this->retiredPermissionCodes($required);
         $missing = array_values(array_diff($required, $this->registeredPermissionCodes($required), $retired));
 
@@ -68,28 +71,31 @@ class GrantStructurePermissionsCommand extends Command
 
         $this->eachTenant(function (Tenant $tenant): void {
             AuditActor::actingAs('console', function () use ($tenant): void {
-                foreach (ProvisionTenantDefaults::STRUCTURE_PERMISSION_GRANTS as $roleCode => $permissionCodes) {
-                    $role = Role::query()->where('code', $roleCode)->first();
+                // Ámbito `todos` y, aparte, `propios` (`reservas.eliminar` de `docente` y `tutor_grupo`, `OPEN-ACAD-42`).
+                foreach (['todos' => ProvisionTenantDefaults::STRUCTURE_PERMISSION_GRANTS, 'propios' => ProvisionTenantDefaults::STRUCTURE_PERMISSION_PROPIOS_GRANTS] as $scope => $grants) {
+                    foreach ($grants as $roleCode => $permissionCodes) {
+                        $role = Role::query()->where('code', $roleCode)->first();
 
-                    if ($role === null) {
-                        continue;
-                    }
+                        if ($role === null) {
+                            continue;
+                        }
 
-                    foreach ($permissionCodes as $permissionCode) {
-                        $exists = PermissionRole::query()
-                            ->where('role_id', $role->id)
-                            ->where('permission_code', $permissionCode)
-                            ->exists();
+                        foreach ($permissionCodes as $permissionCode) {
+                            $exists = PermissionRole::query()
+                                ->where('role_id', $role->id)
+                                ->where('permission_code', $permissionCode)
+                                ->exists();
 
-                        if (! $exists) {
-                            PermissionRole::create([
-                                'role_id' => $role->id,
-                                'permission_code' => $permissionCode,
-                                'effect' => 'allow',
-                                'scope' => 'todos',
-                            ]);
+                            if (! $exists) {
+                                PermissionRole::create([
+                                    'role_id' => $role->id,
+                                    'permission_code' => $permissionCode,
+                                    'effect' => 'allow',
+                                    'scope' => $scope,
+                                ]);
 
-                            $this->line("  {$tenant->slug}: {$roleCode} ← {$permissionCode}");
+                                $this->line("  {$tenant->slug}: {$roleCode} ← {$permissionCode} ({$scope})");
+                            }
                         }
                     }
                 }
