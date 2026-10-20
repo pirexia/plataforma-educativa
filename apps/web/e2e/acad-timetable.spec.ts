@@ -63,7 +63,9 @@ test.describe('CA-ACAD-135 (REQ-ACAD-002): horarios contra la API real', () => {
     await levelDialog.getByLabel(/^Código/).fill('ESO')
     await levelDialog.getByLabel(/^Nombre \(Español\)/).fill('Educación Secundaria Obligatoria')
     await levelDialog.getByLabel(/^Tipo de etapa/).click()
-    await page.getByRole('option', { name: 'Educación Secundaria Obligatoria', exact: true }).click()
+    await page
+      .getByRole('option', { name: 'Educación Secundaria Obligatoria', exact: true })
+      .click()
     await levelDialog.getByLabel(/^Régimen/).click()
     await page.getByRole('option', { name: 'Concertado', exact: true }).click()
     await levelDialog.getByRole('button', { name: 'Crear' }).click()
