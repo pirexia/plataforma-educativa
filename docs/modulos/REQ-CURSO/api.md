@@ -1,6 +1,6 @@
 # REQ-CURSO · API
 
-> **Estado**: **Implementada el 2026-10-17 en `1.11d-a`** (punto de extensión del cambio de fechas, `RN-CURSO-49` a `-60`, `CA-CURSO-108` a `-122`), **y la reapertura de un curso cerrado** (`ADR-059`, `RN-CURSO-40` a `-48`, `CA-CURSO-087` y `-100` a `-107`, y la mitad de reapertura de `CA-CURSO-121`) **implementada el 2026-10-17 en `1.11c`**. **APROBADA** (2026-10-07), paso **1.10**, con los ajustes de `ADR-057` (aceptado). **Ampliada el 2026-10-08 por `ADR-059`** (aceptado): *endpoint* de reapertura `POST /academic-years/{public_id}/reopen` y sus códigos de error. **Ampliada el 2026-10-12 por `1.11-a`** (`REQ-ACAD-001`): `GET /academic-years/selectable`. **Ampliada el 2026-10-16 por `1.11d-a`** (`REQ-ACAD-001`, `OPEN-ACAD-24` = B, aprobada por el usuario el 2026-10-16): error `409 curso.conflict.date_change_checks_failed` en `PATCH /academic-years/{public_id}` (`funcional.md §5.6`). Sin *endpoints* nuevos. **Completada el 2026-10-16** (`OPEN-CURSO-25` a `-27`, decisiones del usuario): la lectura del curso con bloqueo compartido (`funcional.md §5.6.1`) es una interfaz interna de `Curso\Domain`, **sin efecto HTTP**; el filtro por módulo contratado alcanza también a `closure_checks_failed` y `reopen_checks_failed` (`RN-CURSO-60`), sin cambiar su forma.
+> **Estado**: **Implementada el 2026-10-17 en `1.11d-a`** (punto de extensión del cambio de fechas, `RN-CURSO-49` a `-60`, `CA-CURSO-108` a `-122`), **y la reapertura de un curso cerrado** (`ADR-059`, `RN-CURSO-40` a `-48`, `CA-CURSO-087` y `-100` a `-107`, y la mitad de reapertura de `CA-CURSO-121`) **implementada el 2026-10-17 en `1.11c`**. **APROBADA** (2026-10-07), paso **1.10**, con los ajustes de `ADR-057` (aceptado). **Ampliada el 2026-10-08 por `ADR-059`** (aceptado): *endpoint* de reapertura `POST /academic-years/{public_id}/reopen` y sus códigos de error. **Ampliada el 2026-10-12 por `1.11-a`** (`REQ-ACAD-001`): `GET /academic-years/selectable`. **Ampliada el 2026-10-16 por `1.11d-a`** (`REQ-ACAD-001`, `OPEN-ACAD-24` = B, aprobada por el usuario el 2026-10-16): error `409 curso.conflict.date_change_checks_failed` en `PATCH /academic-years/{public_id}` (`funcional.md §5.6`). Sin *endpoints* nuevos. **Completada el 2026-10-16** (`OPEN-CURSO-25` a `-27`, decisiones del usuario): la lectura del curso con bloqueo compartido (`funcional.md §5.6.1`) es una interfaz interna de `Curso\Domain`, **sin efecto HTTP**; el filtro por módulo contratado alcanza también a `closure_checks_failed` y `reopen_checks_failed` (`RN-CURSO-60`), sin cambiar su forma. **Ampliada el 2026-10-20 por `1.12b`** (`REQ-CURSO-002`, apertura del curso siguiente; **PROPUESTA, pendiente de aprobación**): recurso `AcademicYearRollover` y seis *endpoints* bajo `/academic-year-rollovers` (§2.1), un `409` nuevo en `POST /academic-years/{public_id}/status` (`rollover_in_progress`, si se aprueba `OPEN-CURSO-36` = A) y los códigos de §5.1.
 
 Prefijo: `/api/v1`. Resolución de tenant por *host* antes de cualquier consulta (`ADR-033 §2`). Todo lo que sigue se ajusta a `ADR-038`: recurso individual desnudo, colección en `{data, meta}` (§3), paginación por página (§4.3), filtros planos con valores múltiples separados por comas (§5.2), orden por lista blanca (§5.3), errores `application/problem+json` con `type` URN y `errors[].{code,message,params}` (§6), `403` frente a `404` (§6.4).
 
@@ -128,6 +128,7 @@ Transición de estado. Forma del precedente `POST /users/{public_id}/status` de 
   - 409 `curso.conflict.active_exists` — activar con otro activo; `params`: `public_id`, `code` del activo
   - 409 `curso.conflict.invalid_transition` — `params`: `from`, `to`. Incluye `cerrado → activo`: la reapertura no se ejecuta por este *endpoint* sino por `…/reopen` (`funcional.md RN-CURSO-12`, `RN-CURSO-40`)
   - 409 `curso.conflict.closure_checks_failed` — alguna validación de cierre registrada falla; una entrada por validación en `errors.closure[]`, cada una con el `code`/`message`/`params` que aporte el módulo dueño de la validación (`RN-CURSO-30`; vacío en 1.10). Desde `1.11d-a`, solo cuentan las validaciones de módulos contratados en el centro (`RN-CURSO-60`)
+  - 409 `curso.conflict.rollover_in_progress` — (`1.12b`, PROPUESTA, `OPEN-CURSO-36` = A) activar un curso que es destino de una copia en `pendiente`, `en_curso` o `revirtiendo`; `params`: `public_id`, `status` de la copia (`funcional.md RN-CURSO-71`)
   - 422 — `status` ausente o fuera de {`activo`, `cerrado`}
 - **Idempotencia**: no. Repetir una transición ya hecha da `409 invalid_transition` (`activo → activo`), que es lo correcto: el cliente sabe que no ha cambiado nada.
 
@@ -154,6 +155,152 @@ Reapertura de un curso cerrado (`cerrado → activo`), `ADR-059`; flujo en `func
   - 422 `curso.validation.reason_required` — `reason` ausente o vacío tras recortar
 - **Idempotencia**: no. Repetir una reapertura ya hecha da `409 invalid_transition` (`activo → activo`): el cliente sabe que no ha cambiado nada y no se crea una segunda fila de reapertura.
 
+## 2.1 Apertura del curso siguiente (*rollover*, `1.12b`, PROPUESTA)
+
+Flujo en `funcional.md §4.7`; reglas `RN-CURSO-61` a `-81`. Recurso plano `/academic-year-rollovers` **[DERIVADA]**: la copia tiene identidad propia (estado consultable, reversión), como `data_exports`. **Orden de rutas**: `elements` y `preview` se registran **antes** que `/{public_id}` (o con restricción de formato ULID en el parámetro), como `current`/`selectable`. Módulo esencial: sin `module-enabled:`.
+
+### Representaciones
+
+**`AcademicYearRolloverElement`** (catálogo):
+
+```json
+{
+  "code": "acad.groups",
+  "module": "acad",
+  "label": "Grupos",
+  "requires": ["acad.courses"],
+  "allowed": true
+}
+```
+
+`label` lo resuelve el módulo dueño en el idioma de la petición; `allowed` = el usuario tiene el `createPermission` del elemento (`RN-CURSO-78`). El permiso en sí no se expone.
+
+**`AcademicYearRolloverPreview`** (simulación):
+
+```json
+{
+  "academic_year": { "public_id": "01JB…", "code": "2027-2028", "status": "planificacion", "starts_on": "2027-09-01", "ends_on": "2028-08-31" },
+  "source": { "public_id": "01JA…", "code": "2026-2027", "status": "activo", "starts_on": "2026-09-01", "ends_on": "2027-08-31" },
+  "date_offset_days": 365,
+  "elements": [
+    { "code": "acad.education_levels", "label": "Etapas", "to_copy": 2, "skipped": [], "date_range": null, "blocking": [] },
+    { "code": "acad.academic_periods", "label": "Períodos lectivos", "to_copy": 3, "skipped": [], "date_range": { "starts_on": "2027-09-08", "ends_on": "2028-06-19" }, "blocking": [] }
+  ],
+  "blocking": [],
+  "executable": true
+}
+```
+
+- Los resúmenes de curso son la forma pública de `AcademicYear` reducida a esos campos (sin fechas de auditoría).
+- `skipped`: `[{ "reason": "<código del módulo>", "count": n }]` (vacío con `OPEN-CURSO-29` = A).
+- `date_range`: menor inicio y mayor fin resultantes, solo en elementos con fechas; `null` en el resto.
+- `blocking` de un elemento y `blocking` general (incidencias de `curso`, `RN-CURSO-66`): `[{ "code", "message", "params", "element" }]`, mensajes traducidos; sin datos personales.
+
+**`AcademicYearRollover`** (copia):
+
+```json
+{
+  "public_id": "01JC…",
+  "academic_year": "01JB…",
+  "source_academic_year": "01JA…",
+  "status": "completado",
+  "elements": ["acad.education_levels", "acad.courses"],
+  "date_offset_days": 365,
+  "result": { "elements": [ { "code": "acad.education_levels", "copied": 2, "skipped": [] }, { "code": "acad.courses", "copied": 3, "skipped": [] } ] },
+  "failure": null,
+  "revert_failure": null,
+  "revertible": true,
+  "started_at": "2027-05-10T08:00:01Z",
+  "finished_at": "2027-05-10T08:00:04Z",
+  "reverted_at": null,
+  "created_at": "2027-05-10T08:00:00Z",
+  "updated_at": "2027-05-10T08:00:04Z"
+}
+```
+
+- `status` sin traducir (`ADR-038 §3.2`), enumerado declarado extensible (`§7.3`): `pendiente`, `en_curso`, `completado`, `fallido`, `revirtiendo`, `revertido`.
+- `academic_year` y `source_academic_year`: `public_id` de destino y origen (convención de §3).
+- `failure`/`revert_failure`: `{ "code": "rollover_blocked" | "target_not_planning" | "target_changed" | "internal_error", "errors": [{ "code", "message", "params", "element" }] }` o `null`. Los `message` se guardan traducidos al idioma de quien pidió la operación **[DERIVADA]**; la SPA traduce `code` con su catálogo y usa `message` solo para las entradas de módulos.
+- `revertible`: calculado (`status = completado` y destino en `planificacion`); orientativo: el servidor decide al revertir (`INV-002`).
+- **No** se exponen `id`, `tenant_id`, `created_by`, `reverted_by`, `deleted_at` ni los *items* **[DERIVADA]**: quién hizo la operación está en `audit_logs`; los *items* son internos.
+
+### `GET /api/v1/academic-year-rollovers/elements`
+
+- **Permiso**: `apertura_curso_academico` · `crear` · `todos`.
+- **Respuesta 200**: `{"data": [AcademicYearRolloverElement…]}` sin `meta` (catálogo cerrado declarado en código, decenas como mucho; no se pagina). Orden: el de `RN-CURSO-62` (módulos en orden de dependencia; dentro de cada módulo, el que declare). Solo módulos utilizables en el centro.
+- **Errores**: 401, 403.
+
+### `GET /api/v1/academic-year-rollovers/preview`
+
+Simulación (*dry-run*), `RN-CURSO-65`. Sin efectos: ni escribe ni bloquea filas.
+
+- **Permiso**: `apertura_curso_academico` · `crear` · `todos`, y el `createPermission` de cada elemento pedido (`RN-CURSO-78`).
+- **Parámetros**: `academic_year` (destino, `public_id`, **obligatorio**: no rige aquí el «omitido ⇒ activo» de §3, porque el destino nunca es el activo), `source` (`public_id`, obligatorio), `elements` (códigos separados por comas, `ADR-038 §5.2`).
+- **Respuesta 200**: `AcademicYearRolloverPreview`, también cuando `executable` es `false` (las incidencias son el contenido del informe, no un error).
+- **Errores**: 401; 403 (sin el permiso propio; o sin el de algún elemento, con `errors.elements[]` de entradas `curso.rollover.element_forbidden`, `params.element`); 409 `curso.conflict.rollover_target_not_planning`; 422 (`curso.validation.rollover_target_not_found`, `rollover_source_required`, `rollover_source_not_found`, `rollover_source_invalid`, `rollover_elements_required`, `rollover_element_unknown`, `rollover_element_requires`).
+- **Idempotencia**: lectura.
+
+### `POST /api/v1/academic-year-rollovers`
+
+Solicitud de ejecución, `RN-CURSO-68`.
+
+- **Permiso**: el de la simulación.
+- **Cuerpo**:
+
+```json
+{ "academic_year": "01JB…", "source": "01JA…", "elements": ["acad.education_levels", "acad.courses", "acad.groups"] }
+```
+
+- **Respuesta 202**: `AcademicYearRollover` en `pendiente`, cabecera `Location: /api/v1/academic-year-rollovers/{public_id}`. El trabajo se encola tras confirmar.
+- **Errores**: 401; 403 (como la simulación); 409 `rollover_target_not_planning`, `rollover_exists` (`params.public_id`, `params.status`), `rollover_blocked` (una entrada por incidencia en `errors.rollover[]`, con `element`); 422 (los de la simulación).
+- **Idempotencia**: sin `Idempotency-Key` (`INV-011` no la exige aquí); repetir con una copia viva da `409 rollover_exists` (`RN-CURSO-81`).
+
+Ejemplo de `409 rollover_blocked`:
+
+```json
+{
+  "type": "urn:pge:error:conflict",
+  "title": "…",
+  "status": 409,
+  "detail": "La copia no se puede ejecutar: revisa los motivos.",
+  "instance": "/api/v1/academic-year-rollovers",
+  "request_id": "01J8…",
+  "errors": {
+    "rollover": [
+      {
+        "code": "acad.rollover.target_not_empty",
+        "message": "El curso de destino ya tiene datos de «Etapas» (1). Quítalos de la selección o bórralos antes.",
+        "params": { "element": "acad.education_levels", "count": 1 }
+      }
+    ]
+  }
+}
+```
+
+### `GET /api/v1/academic-year-rollovers`
+
+- **Permiso**: `apertura_curso_academico` · `leer` · `todos`.
+- **Paginación**: por página (`ADR-038 §4.2`), `page`, `per_page` (defecto 25, máximo 100).
+- **Filtros**: `academic_year` (destino; omitido ⇒ curso activo, convención de §3; sin activo ⇒ `404 curso.no_active_year`), `source` (`public_id`), `status` (enumerado, múltiple). Destino `cerrado`/`archivado` sin `curso_historico.leer` ⇒ `404` (`RN-CURSO-80`, `-33`); `academic_year` o `source` de otro centro o inexistentes ⇒ `404`.
+- **Orden**: `sort` ∈ {`created_at`, `-created_at`}; defecto `-created_at`, desempate `id DESC`.
+- **Respuesta 200**: `{"data": [AcademicYearRollover…], "meta": {…}}`.
+- **Errores**: 401, 403, 404, 422.
+
+### `GET /api/v1/academic-year-rollovers/{public_id}`
+
+- **Permiso**: `apertura_curso_academico` · `leer` · `todos`; además `AcademicYearReadAccess` sobre el destino (`RN-CURSO-80`).
+- **Respuesta 200**: `AcademicYearRollover`.
+- **Errores**: 401, 403, 404 (inexistente, de otro centro, o destino cerrado sin `curso_historico.leer`).
+
+### `POST /api/v1/academic-year-rollovers/{public_id}/revert`
+
+Solicitud de reversión, `RN-CURSO-74`.
+
+- **Permiso**: `apertura_curso_academico` · `eliminar` · `todos`. **Sin cuerpo.**
+- **Respuesta 202**: `AcademicYearRollover` en `revirtiendo`. El trabajo se encola tras confirmar.
+- **Errores**: 401, 403, 404; 409 `rollover_not_revertible` (`params.status`), `rollover_target_not_planning`, `rollover_revert_module_unavailable` (`params.module`), `rollover_revert_blocked` (una entrada por incidencia en `errors.rollover_revert[]`).
+- **Idempotencia**: no; repetir da `409 rollover_not_revertible` (`revirtiendo`/`revertido`).
+
 ### Endpoints que **no** existen
 
 | No existe | Motivo |
@@ -163,7 +310,10 @@ Reapertura de un curso cerrado (`cerrado → activo`), `ADR-059`; flujo en `func
 | Reapertura fuera de la ventana T1, o de un curso `archivado` | `ADR-059 §3`, `RN-CURSO-47` |
 | Lectura o modificación de `academic_year_reopenings` | *Append-only*; ningún requisito pide su lectura por API |
 | `POST /academic-years/exports` | Sin `curso_academico.exportar` (`permisos.md §2.1`) |
-| Rollover, promoción, renovación, paquete de cierre | `funcional.md §1.2` |
+| Promoción, renovación, paquete de cierre | `funcional.md §1.2` |
+| Borrado o modificación de una copia (`DELETE`/`PATCH /academic-year-rollovers/{id}`) | Una copia no se borra ni se edita: se revierte (`RN-CURSO-74`) **[DERIVADA]** |
+| Lectura de `year_rollover_items` | Internos de la reversión; ningún requisito pide verlos (`funcional.md §1.4`) |
+| Creación del curso destino dentro de la copia | Lo crea `POST /academic-years` (`RN-CURSO-63`, `OPEN-CURSO-31` = A) |
 
 ---
 
@@ -239,6 +389,56 @@ Clave nueva de `1.11d-a` (las traducciones `en`/`de`/`fr` son textos de partida 
 |-------|----|----|----|----|
 | `curso.conflict.date_change_checks_failed` | Las nuevas fechas del curso académico dejan fuera datos que dependen de ellas. | The new dates of the academic year leave out data that depends on them. | Die neuen Daten des Schuljahres schließen davon abhängige Daten aus. | Les nouvelles dates de l’année scolaire excluent des données qui en dépendent. |
 
+### 5.1 Códigos de `1.12b` (apertura del curso siguiente, PROPUESTA)
+
+| `type` | Estado | `code` | Cuándo |
+|--------|--------|--------|--------|
+| `urn:pge:error:validation` | 422 | `curso.validation.rollover_target_not_found` | Destino inexistente o de otro centro (`RN-CURSO-63`) |
+| `urn:pge:error:validation` | 422 | `curso.validation.rollover_source_required` | Falta `source` |
+| `urn:pge:error:validation` | 422 | `curso.validation.rollover_source_not_found` | Origen inexistente, de otro centro, o `cerrado` sin `curso_historico.leer` |
+| `urn:pge:error:validation` | 422 | `curso.validation.rollover_source_invalid` | Origen en `planificacion`, igual al destino o no anterior a él |
+| `urn:pge:error:validation` | 422 | `curso.validation.rollover_elements_required` | `elements` vacía |
+| `urn:pge:error:validation` | 422 | `curso.validation.rollover_element_unknown` | Elemento desconocido o de un módulo no utilizable; `params.element` |
+| `urn:pge:error:validation` | 422 | `curso.validation.rollover_element_requires` | Falta un elemento requerido; `params.element`, `params.requires` |
+| `urn:pge:error:forbidden` | 403 | `curso.rollover.element_forbidden` (entrada de `errors.elements[]`) | Sin el `createPermission` de un elemento (`RN-CURSO-78`); `params.element` |
+| `urn:pge:error:conflict` | 409 | `curso.conflict.rollover_target_not_planning` | Destino fuera de `planificacion` (copiar o revertir) |
+| `urn:pge:error:conflict` | 409 | `curso.conflict.rollover_exists` | Ya hay una copia viva hacia ese destino; `params.public_id`, `params.status` |
+| `urn:pge:error:conflict` | 409 | `curso.conflict.rollover_blocked` | Alguna incidencia impide ejecutar; entradas en `errors.rollover[]` |
+| `urn:pge:error:conflict` | 409 | `curso.conflict.rollover_in_progress` | Activar un destino con copia o reversión en vuelo (`OPEN-CURSO-36` = A) |
+| `urn:pge:error:conflict` | 409 | `curso.conflict.rollover_not_revertible` | Revertir una copia que no está en `completado`; `params.status` |
+| `urn:pge:error:conflict` | 409 | `curso.conflict.rollover_revert_module_unavailable` | Revertir con un módulo participante no utilizable; `params.module` |
+| `urn:pge:error:conflict` | 409 | `curso.conflict.rollover_revert_blocked` | Datos añadidos después dependen de lo copiado; entradas en `errors.rollover_revert[]` |
+
+Incidencias propias de `curso` (entradas de `blocking[]`, `errors.rollover[]` o `failure.errors[]`): `curso.rollover.exists`, `curso.rollover.empty`, `curso.rollover.element_unavailable` (módulo descontratado entre la solicitud y la ejecución). Las de cada módulo las fija su especificación (`acad`: `funcional.md §7.4`, A-3 y A-5). Etiquetas de estado de la copia: `curso.rollover.status.<estado>`; motivos de fallo: `curso.rollover.failure.<code>`. Etiqueta del recurso de permiso: `curso.permissions.resources.apertura_curso_academico`.
+
+Textos de partida (no legales; los revisa `traductor` al implementar):
+
+| Clave | es | en | de | fr |
+|-------|----|----|----|----|
+| `curso.validation.rollover_target_not_found` | El curso académico de destino no existe. | The target academic year does not exist. | Das Zielschuljahr existiert nicht. | L’année scolaire de destination n’existe pas. |
+| `curso.validation.rollover_source_required` | Indica el curso académico de origen. | Specify the source academic year. | Gib das Ausgangsschuljahr an. | Indiquez l’année scolaire d’origine. |
+| `curso.validation.rollover_source_not_found` | El curso académico de origen no existe. | The source academic year does not exist. | Das Ausgangsschuljahr existiert nicht. | L’année scolaire d’origine n’existe pas. |
+| `curso.validation.rollover_source_invalid` | El curso de origen debe estar activo o cerrado y empezar antes que el de destino. | The source year must be active or closed and start before the target year. | Das Ausgangsschuljahr muss aktiv oder abgeschlossen sein und vor dem Zielschuljahr beginnen. | L’année d’origine doit être active ou clôturée et commencer avant l’année de destination. |
+| `curso.validation.rollover_elements_required` | Selecciona al menos un elemento que copiar. | Select at least one item to copy. | Wähle mindestens ein Element zum Kopieren aus. | Sélectionnez au moins un élément à copier. |
+| `curso.validation.rollover_element_unknown` | No se puede copiar «:element». | “:element” cannot be copied. | „:element“ kann nicht kopiert werden. | « :element » ne peut pas être copié. |
+| `curso.validation.rollover_element_requires` | Para copiar «:element» hay que copiar también «:requires». | To copy “:element” you must also copy “:requires”. | Um „:element“ zu kopieren, muss auch „:requires“ kopiert werden. | Pour copier « :element », il faut aussi copier « :requires ». |
+| `curso.rollover.element_forbidden` | No tienes permiso para crear «:element». | You do not have permission to create “:element”. | Du hast keine Berechtigung, „:element“ anzulegen. | Vous n’avez pas l’autorisation de créer « :element ». |
+| `curso.conflict.rollover_target_not_planning` | Solo se puede copiar en un curso académico en planificación, ni revertir una copia de otro. | You can only copy into, or revert a copy of, an academic year in planning. | Nur in ein Schuljahr in Planung kann kopiert oder eine Kopie zurückgesetzt werden. | On ne peut copier vers une année en planification, ni annuler une copie, que si elle est en planification. |
+| `curso.conflict.rollover_exists` | Este curso académico ya tiene una copia en curso o completada. Para repetirla, reviértela antes. | This academic year already has a copy in progress or completed. Revert it before repeating it. | Für dieses Schuljahr gibt es bereits eine laufende oder abgeschlossene Kopie. Setze sie zurück, bevor du sie wiederholst. | Cette année scolaire a déjà une copie en cours ou terminée. Annulez-la avant de la recommencer. |
+| `curso.conflict.rollover_blocked` | La copia no se puede ejecutar: revisa los motivos. | The copy cannot be run: check the reasons. | Die Kopie kann nicht ausgeführt werden: Prüfe die Gründe. | La copie ne peut pas être exécutée : vérifiez les motifs. |
+| `curso.conflict.rollover_in_progress` | Hay una copia o una reversión en curso sobre este curso académico. Espera a que termine. | A copy or a revert is in progress for this academic year. Wait until it finishes. | Für dieses Schuljahr läuft eine Kopie oder eine Rücksetzung. Warte, bis sie abgeschlossen ist. | Une copie ou une annulation est en cours pour cette année scolaire. Attendez qu’elle se termine. |
+| `curso.conflict.rollover_not_revertible` | Esta copia no se puede revertir en su estado actual. | This copy cannot be reverted in its current status. | Diese Kopie kann in ihrem aktuellen Status nicht zurückgesetzt werden. | Cette copie ne peut pas être annulée dans son état actuel. |
+| `curso.conflict.rollover_revert_module_unavailable` | No se puede revertir: el módulo «:module» no está contratado. | It cannot be reverted: the “:module” module is not subscribed. | Rücksetzung nicht möglich: Das Modul „:module“ ist nicht gebucht. | Annulation impossible : le module « :module » n’est pas souscrit. |
+| `curso.conflict.rollover_revert_blocked` | No se puede revertir: hay datos añadidos después que dependen de lo copiado. | It cannot be reverted: data added afterwards depends on what was copied. | Rücksetzung nicht möglich: Später hinzugefügte Daten hängen vom Kopierten ab. | Annulation impossible : des données ajoutées ensuite dépendent de ce qui a été copié. |
+| `curso.rollover.empty` | Con esta selección no hay nada que copiar. | There is nothing to copy with this selection. | Mit dieser Auswahl gibt es nichts zu kopieren. | Il n’y a rien à copier avec cette sélection. |
+| `curso.rollover.exists` | Este curso académico ya tiene una copia en curso o completada. | This academic year already has a copy in progress or completed. | Für dieses Schuljahr gibt es bereits eine laufende oder abgeschlossene Kopie. | Cette année scolaire a déjà une copie en cours ou terminée. |
+| `curso.rollover.element_unavailable` | El módulo de «:element» ya no está contratado. | The module of “:element” is no longer subscribed. | Das Modul von „:element“ ist nicht mehr gebucht. | Le module de « :element » n’est plus souscrit. |
+| `curso.rollover.status.pendiente` / `en_curso` / `completado` / `fallido` / `revirtiendo` / `revertido` | En cola / En curso / Completada / Fallida / Revirtiendo / Revertida | Queued / In progress / Completed / Failed / Reverting / Reverted | In der Warteschlange / Läuft / Abgeschlossen / Fehlgeschlagen / Wird zurückgesetzt / Zurückgesetzt | En file d’attente / En cours / Terminée / Échouée / Annulation en cours / Annulée |
+| `curso.rollover.failure.rollover_blocked` / `target_not_planning` / `target_changed` / `internal_error` | Algo impedía copiar / El curso de destino ya no está en planificación / Los datos cambiaron mientras se copiaba; vuelve a intentarlo / Error interno; no se ha copiado nada | Something prevented the copy / The target year is no longer in planning / Data changed during the copy; try again / Internal error; nothing was copied | Etwas hat das Kopieren verhindert / Das Zielschuljahr ist nicht mehr in Planung / Die Daten haben sich beim Kopieren geändert; versuche es erneut / Interner Fehler; nichts wurde kopiert | Un obstacle a empêché la copie / L’année de destination n’est plus en planification / Les données ont changé pendant la copie ; réessayez / Erreur interne ; rien n’a été copié |
+| `curso.permissions.resources.apertura_curso_academico` | Apertura del curso siguiente | Opening of the next academic year | Eröffnung des nächsten Schuljahres | Ouverture de l’année scolaire suivante |
+
+Entradas de `acad` (`funcional.md §7.4`; las incorpora `REQ-ACAD`, textos de partida en español): `acad.rollover.target_not_empty` «El curso de destino ya tiene datos de «:element» (:count). Quítalos de la selección o bórralos antes.»; `acad.rollover.dates_outside_target` «:count fechas de «:element» quedarían fuera del curso de destino (del :starts_on al :ends_on tras desplazarlas).»; `acad.rollover.revert_has_dependents` «Hay datos añadidos después de la copia que dependen de lo copiado (:count).».
+
 ---
 
 ## 6. Eventos de dominio emitidos
@@ -252,3 +452,5 @@ Ninguno (`REQ-API-002` es de fase 2).
 ## 8. OpenAPI
 
 Los siete *endpoints* de §2 implementados (los seis de `1.10` más `GET /academic-years/selectable` de `1.11-a`), más `POST /academic-years/{public_id}/reopen` de `ADR-059`, implementado en `1.11c`, y el `409 curso.conflict.date_change_checks_failed` del `PATCH` con su `errors.date_change[]`, implementado en `1.11d-a` (el elemento de `errors.date_change[]` se documenta con la forma genérica `{code, message, params}`; el `code` de `acad` aparece en el ejemplo, no como enumerado cerrado), documentados en `apps/api/openapi/paths/curso.yaml` (`CLAUDE.md §10`), con el esquema `AcademicYear`, el enumerado extensible de `status`, la lista blanca de `sort`, el filtro `status` en estilo `form, explode: false`, y el `type` nuevo de §5 añadido al catálogo de errores documentado. Comprobar al tocarlo el problema de validación YAML preexistente del issue #97.
+
+**`1.12b`** (en la entrega que lo implemente): los seis *endpoints* de §2.1 en `apps/api/openapi/paths/curso.yaml`, con los esquemas `AcademicYearRolloverElement`, `AcademicYearRolloverPreview` y `AcademicYearRollover`, el enumerado extensible de `status`, la respuesta `202` con `Location`, las entradas genéricas `{code, message, params, element}` de `errors.rollover[]`, `errors.rollover_revert[]` y `errors.elements[]` (los códigos de módulos, en ejemplos, no como enumerado cerrado) y el `409 rollover_in_progress` de `POST /academic-years/{public_id}/status`.

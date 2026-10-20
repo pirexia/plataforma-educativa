@@ -1,14 +1,18 @@
 # REQ-CURSO · Operación
 
-> **Estado**: **Implementada el 2026-10-17 en `1.11d-a`** (punto de extensión del cambio de fechas, `RN-CURSO-49` a `-60`, `CA-CURSO-108` a `-122`), **y la reapertura de un curso cerrado** (`ADR-059`, `RN-CURSO-40` a `-48`, `CA-CURSO-087` y `-100` a `-107`, y la mitad de reapertura de `CA-CURSO-121`) **implementada el 2026-10-17 en `1.11c`**. **APROBADA** (2026-10-07), paso **1.10**, con los ajustes de `ADR-057` (aceptado). **Ampliada el 2026-10-08 por `ADR-059`** (aceptado, reapertura de un curso cerrado): ver §3.1, §6.1, §7 y §9.1. **Ampliada el 2026-10-12 por `1.11-a`** (`REQ-ACAD-001`, `OPEN-ACAD-11`/`-12`, #409, #387 B-5): `GET /academic-years/selectable`, `AcademicYearDirectory` por identificador interno y comprobación de `retired_at` en `curso:grant-year-permissions`. **Ampliada el 2026-10-16 por `1.11d-a`** (`OPEN-ACAD-24` = B, aprobada por el usuario): validaciones del cambio de fechas (`funcional.md §5.6`); ver §3.2, §4 y §7. **Completada el 2026-10-16** con `OPEN-CURSO-25` a `-27` (decisiones del usuario): lectura del curso con bloqueo compartido (`funcional.md §5.6.1`) y filtro por módulo contratado en los registros de cierre y reapertura (`RN-CURSO-60`); ver §3.2, §4, §7 y §9.2.
+> **Estado**: **Implementada el 2026-10-17 en `1.11d-a`** (punto de extensión del cambio de fechas, `RN-CURSO-49` a `-60`, `CA-CURSO-108` a `-122`), **y la reapertura de un curso cerrado** (`ADR-059`, `RN-CURSO-40` a `-48`, `CA-CURSO-087` y `-100` a `-107`, y la mitad de reapertura de `CA-CURSO-121`) **implementada el 2026-10-17 en `1.11c`**. **APROBADA** (2026-10-07), paso **1.10**, con los ajustes de `ADR-057` (aceptado). **Ampliada el 2026-10-08 por `ADR-059`** (aceptado, reapertura de un curso cerrado): ver §3.1, §6.1, §7 y §9.1. **Ampliada el 2026-10-12 por `1.11-a`** (`REQ-ACAD-001`, `OPEN-ACAD-11`/`-12`, #409, #387 B-5): `GET /academic-years/selectable`, `AcademicYearDirectory` por identificador interno y comprobación de `retired_at` en `curso:grant-year-permissions`. **Ampliada el 2026-10-16 por `1.11d-a`** (`OPEN-ACAD-24` = B, aprobada por el usuario): validaciones del cambio de fechas (`funcional.md §5.6`); ver §3.2, §4 y §7. **Completada el 2026-10-16** con `OPEN-CURSO-25` a `-27` (decisiones del usuario): lectura del curso con bloqueo compartido (`funcional.md §5.6.1`) y filtro por módulo contratado en los registros de cierre y reapertura (`RN-CURSO-60`); ver §3.2, §4, §7 y §9.2. **Ampliada el 2026-10-20 por `1.12b`** (`REQ-CURSO-002`, apertura del curso siguiente; **PROPUESTA, pendiente de aprobación**): **primeros trabajos en cola del módulo** (copia y reversión), dos migraciones, comando de siembra; ver §1, §2, §3.3, §4.1, §6.2, §7 y §9.3. **Depende de un *worker* de colas que hoy no está desplegado (issue #128, `OPEN-CURSO-28`).**
 
 ## 1. Variables de entorno
 
 **Ninguna.** El módulo no tiene configuración por entorno: no hay plazos, ni límites, ni proveedores externos. No toca `infra/quadlet/plataforma.env.example` (issue #89 sigue abierto por otras variables).
 
+**`1.12b`**: tampoco añade variables propias. Usa la conexión de cola por defecto (`QUEUE_CONNECTION`, hoy `database`) y su `retry_after`, que **debe ser mayor** que el tiempo máximo del trabajo (§4.1): si no, la cola reentregaría una copia aún en curso (la reentrega es segura, `RN-CURSO-81`, pero duplicaría la espera). El valor del tiempo máximo y el ajuste de `retry_after` se fijan con la medición de `CA-CURSO-149`.
+
 ## 2. Servicios externos de los que depende
 
 **Ninguno.** Solo PostgreSQL, como todo el producto. No usa Redis (`RN-CURSO-24`: el curso activo se memoiza por petición, sin caché compartida), ni almacenamiento de objetos, ni cola, ni el servicio de PDF.
+
+**Desde `1.12b`** usa la **cola** (driver `database` hoy; Redis + Horizon elegido y no instalado, `CLAUDE.md §1`) para la copia y la reversión (`INV-012`). **Necesita un proceso que consuma la cola**, que no existe en ningún entorno desplegado (issue #128, `OPEN-CURSO-28`): sin él, las copias se quedan en `pendiente`.
 
 ## 3. Despliegue: registro de módulos y permisos (`ADR-034 §5`)
 
@@ -39,6 +43,18 @@ Sin variables de entorno, colas ni tareas programadas nuevas: la reapertura es u
 
 Llega en la misma entrega que su primer consumidor (`acad`, `1.11d-a`). **Sin migración en `curso`, sin permisos nuevos, sin `platform:sync-registry` distinto del habitual y sin comando de siembra**: el registro es código, y cada módulo registra su validación al arrancar (`boot()` de su `ServiceProvider`). Sin variables de entorno, colas ni tareas programadas. Compatible con la versión anterior: hasta desplegarse, un `PATCH` de fechas no ejecuta ninguna validación, que es exactamente el comportamiento de antes. En la misma entrega llegan, también sin migración ni configuración: la interfaz `AcademicYearSharedLock` (`funcional.md §5.6.1`), que `acad` usa en el alta y la edición de períodos, y el filtro por módulo contratado en el registro de cierre (`RN-CURSO-60`; el de reapertura nace con él cuando se implemente la reapertura). Con los registros de cierre y reapertura vacíos en producción, el filtro no cambia ningún comportamiento observable.
 
+### 3.3 Despliegue de la apertura del curso siguiente (`1.12b`, PROPUESTA)
+
+Mismo orden que §3:
+
+1. Migraciones del módulo (`apps/api/app/Modules/Curso/Database/migrations/`): crean `year_rollovers` y `year_rollover_items` (§6.2). Aditivas.
+2. `platform:sync-registry`: materializa `apertura_curso_academico.leer`, `.crear` y `.eliminar` (`module_code = 'curso'`, `applicable_scopes = ['todos']`).
+3. Concesión a `administrador_centro` en los **centros ya existentes**: **`php artisan curso:grant-rollover-permissions`**, en `Core` (`AR-08`), con el patrón de `curso:grant-reopen-permission` (§3.1): concede **solo** esos tres, idempotente, no toca roles personalizados, escribe por el modelo (auditado), solo centros `Activo`, y comprueba antes que `sync-registry` se ejecutó y que ninguno está retirado; si no, falla con el remedio y no concede nada. Centros nuevos: constante aparte de `ProvisionTenantDefaults`.
+4. **Proceso de cola en marcha** que consuma la cola por defecto con el código de la versión nueva. **Hoy no existe** (#128): el despliegue de `1.12b` puede hacerse igualmente (la función queda en `pendiente`, sin romper nada más), pero **no** debe anunciarse a un centro hasta que exista.
+5. Abrir tráfico.
+
+Compatible con la versión anterior: la versión anterior no conoce las tablas ni las rutas. El participante de `acad` llega en la misma entrega (registro en `AcadServiceProvider::boot()`).
+
 **Si `sync-registry` aborta**: las causas posibles con este módulo son un ciclo en `depends_on` (si se declarara `['acad','alum']`, `OPEN-CURSO-01`), un esencial que dependa de un no esencial, o un ámbito fuera del vocabulario. Ninguna se corrige en el servidor: se corrige el descriptor y se vuelve a desplegar.
 
 ## 4. Tareas programadas y jobs
@@ -49,7 +65,21 @@ Llega en la misma entrega que su primer consumidor (`acad`, `1.11d-a`). **Sin mi
 
 **Trabajos en cola y comandos de otros módulos** que escriban en tablas de curso: el bloqueo les llega como `QueryException` con `SQLSTATE` `YC001`, que deja abortada la transacción en curso. Deben comprobar antes con `AcademicYearWriteGuard` o usar un punto de guardado por unidad de trabajo (`ADR-057 §5.5`). No hay activación automática por fecha (`RN-CURSO-14`), así que no hay tarea programada.
 
-`RMOD-005` (módulos no contratados sin jobs ni *listeners*): no aplica, el módulo no tiene ninguno.
+`RMOD-005` (módulos no contratados sin jobs ni *listeners*): no aplica, el módulo no tiene ninguno. **Desde `1.12b`** tiene dos trabajos (§4.1); `curso` es esencial, así que siempre está contratado, y los participantes de módulos no contratados no se ejecutan (`RN-CURSO-62`).
+
+### 4.1 Trabajos de la apertura del curso siguiente (`1.12b`, PROPUESTA)
+
+| Trabajo **[DERIVADA: nombres]** | Lo encola | Hace | Carga útil |
+|---------------------------------|-----------|------|------------|
+| `RunAcademicYearRollover` (`Curso\Infrastructure`) | `POST /academic-year-rollovers`, tras confirmar | La copia, `RN-CURSO-69` | Identificador interno de la copia; el centro lo pone el mecanismo de colas consciente del centro (`0.7`) |
+| `RevertAcademicYearRollover` (`Curso\Infrastructure`) | `POST /academic-year-rollovers/{id}/revert`, tras confirmar | La reversión, `RN-CURSO-75` | Ídem |
+
+- **Cola**: la por defecto. **Intentos**: uno por trabajo (`tries = 1`); el reintento de un `40001` se hace **dentro** del trabajo, repitiendo la transacción completa un número acotado de veces (`RN-CURSO-69`). Al fallar del todo, el manejador de fallo deja la copia en `fallido` (copia) o de vuelta en `completado` con `revert_failure` (reversión), en una transacción propia, y el trabajo queda en `failed_jobs`.
+- **Tiempo máximo**: se fija con la medición de `CA-CURSO-149` (volumen de un centro de 40 grupos), con margen amplio sobre la mediana medida; `retry_after` de la conexión, mayor que él (§1). No se inventa una cifra antes de medir.
+- **Bloqueos que retiene**: `FOR SHARE` sobre la fila del curso destino durante toda la transacción (`RN-CURSO-70`): mientras dura, la activación, el cierre, la reapertura y el `PATCH` de fechas de **ese** curso esperan; ninguna escritura ordinaria espera. Por eso la transacción debe ser acotada (la medición lo comprueba).
+- **Reentrega** (`retry_after`, caída del proceso): segura (`RN-CURSO-81`).
+- **Compatibilidad entre versiones** (`CLAUDE.md §9`): la carga útil es solo un identificador; un *worker* de una versión posterior procesa trabajos de la anterior. Un *worker* de una versión **anterior** a `1.12b` no conoce la clase: el trabajo acaba en `failed_jobs` y la copia queda en `pendiente` (§9.3).
+- **Sin tareas programadas.** Una copia atascada en `pendiente` o `en_curso` no se repara sola (§7).
 
 ## 5. Métricas y alertas
 
@@ -72,6 +102,10 @@ Cambios asociados que **no** son migración: `TenantMigration::tenantTable()`/`t
 
 El modelo `AcademicYear` y su enumerado se mueven al módulo (`OPEN-CURSO-03`, aprobada) y el alias del *morph map* pasa de `AppServiceProvider` a `CursoServiceProvider` **con el mismo valor** (`academic_year`): ninguna fila de `audit_logs` cambia de significado. La migración de 0.8.2 se queda donde está.
 
+### 6.2 Migraciones de la apertura del curso siguiente (`1.12b`, PROPUESTA)
+
+Dos migraciones del módulo (`apps/api/app/Modules/Curso/Database/migrations/`), en este orden: `year_rollovers` con `TenantMigration::tenantTable()` y `year_rollover_items` con `TenantMigration::tenantTableAppendOnly()`, ambas con `tenantForeignId(…, 'academic_year_id', 'academic_years')` (disparador incluido, sin excepción en `AR-13`); `source_academic_year_id` y `reverted_by` con `tenantForeignId` (el ayudante solo engancha el disparador por la columna `academic_year_id`); la FK de tres columnas de los *items* declarada a mano con nombre explícito; `CHECK` e índice único parcial por sentencia del propietario (`datos.md §1.6`, `§1.7`). Ninguna acción referencial. **No** alteran `academic_years`, la función del bloqueo, ningún disparador existente ni tablas de otros módulos. Aditivas (*expand*): la versión anterior no las usa. Revisión de `db-reviewer` obligatoria.
+
 ## 7. Problemas conocidos y diagnóstico
 
 | Síntoma | Causa probable | Qué hacer |
@@ -91,6 +125,13 @@ El modelo `AcademicYear` y su enumerado se mueven al módulo (`OPEN-CURSO-03`, a
 | Un `PATCH` de fechas, un cierre o una reapertura tarda más de lo normal (`1.11d-a`) | Un alta o edición de período lectivo del mismo curso retiene `FOR SHARE` sobre su fila (`RN-CURSO-58`) | Esperar a que termine (transacciones cortas). Si es habitual, una transacción que usa `AcademicYearSharedLock` hace trabajo largo después de bloquear: bug del consumidor |
 | `LogicException` (`500`) en una escritura de período lectivo: lectura con bloqueo compartido sin transacción | Un consumidor llama a `AcademicYearSharedLock::lockForShareById()` fuera de `DB::transaction()` (`RN-CURSO-56`) | Bug del módulo consumidor: la llamada debe ir dentro de la transacción de la escritura. No se «arregla» quitando la comprobación |
 | `SQLSTATE 40P01` (`deadlock_detected`) en el log, o un `500` aislado y no reproducible, en una escritura de datos de un curso o en el cierre de un curso | Interbloqueo entre el cierre (`FOR UPDATE` sobre la fila del curso, `ADR-057 §5.4`) y escrituras que toman `FOR SHARE` sobre esa misma fila desde el disparador, agravado si una validación de cierre toma bloqueos de otros módulos **antes** que el del curso (lo prohíbe `ADR-057 §5.4`). **En 1.10 no hay reintento automático**: `AcademicYearTransitions` y el resto de transacciones de `curso` usan `DB::transaction()` sin `attempts`, y no se prevé un cierre con validaciones registradas hasta `1.11`. PostgreSQL aborta una de las dos transacciones y no se confirma nada de ella | Es seguro **repetir la operación** (PostgreSQL la ha revertido entera; si el cierre sí llegó a confirmarse, repetirlo responde `409 invalid_transition`, sin efecto). Si se repite con frecuencia, buscar la validación de cierre que bloquea en orden distinto al del curso. Un módulo consumidor que quiera reintento automático lo pide con `DB::transaction($callback, $attempts)`, que Laravel reintenta precisamente ante `40P01` y `40001` (#385) |
+| Una copia (`1.12b`) se queda en `pendiente` («En cola») indefinidamente | No hay proceso consumiendo la cola (issue #128), o el *worker* es de una versión anterior a `1.12b` (el trabajo acaba en `failed_jobs`) | Comprobar que hay un *worker* en marcha con la versión desplegada y si el trabajo está en `jobs` o en `failed_jobs`. Con un *worker* correcto, el trabajo pendiente se procesa solo. Si está en `failed_jobs` por versión antigua, reencolarlo desde allí tras desplegar el *worker* nuevo (la reentrega es segura, `RN-CURSO-81`). **No** se cambia el estado de la copia a mano por SQL |
+| Una copia se queda en `en_curso` o `revirtiendo` mucho más que el tiempo medido | El proceso murió a mitad: su transacción se revirtió (nada copiado o nada revertido), pero la marca de estado previa se confirmó; la cola la reentregará al vencer `retry_after` | Esperar a `retry_after`; la reentrega retoma desde el principio (`RN-CURSO-69`, `-81`). Si el trabajo agotó intentos y está en `failed_jobs`, reencolarlo. Si `retry_after` es menor que la duración real, ajustar (§1) |
+| Copia en `fallido` con `target_changed` | Escrituras concurrentes en el destino o en el origen durante la copia: error de serialización (`40001`) tras agotar reintentos, o choque de unicidad (`23505`) con algo creado a mano en el destino | Comportamiento correcto: no se copió nada. Repetir la copia cuando no se esté editando el destino; si choca con datos creados a mano, la simulación lo dirá |
+| Copia en `fallido` con `internal_error` | Excepción no prevista en un participante | Bug: ver el log por `request_id`/identificador de la copia y `failed_jobs`. No se copió nada; el destino está como antes |
+| `409 curso.conflict.rollover_in_progress` al activar el curso siguiente | Hay una copia o una reversión en vuelo hacia él (`RN-CURSO-71`) | Esperar a que termine (y, si está atascada, ver las filas anteriores) |
+| `409 curso.conflict.rollover_revert_blocked` al revertir | Se añadieron datos a mano que dependen de lo copiado (`OPEN-CURSO-33` = A) | Borrar antes esos datos (cada entrada dice de qué tipo son) o no revertir |
+| Activación, cierre o `PATCH` de fechas del curso siguiente que tardan | Una copia o reversión retiene `FOR SHARE` sobre su fila (`RN-CURSO-70`) | Esperar a que termine; si es habitual, la copia no está acotada (revisar la medición de `CA-CURSO-149`) |
 
 ## 8. Impacto en copias de seguridad y restauración
 
@@ -117,8 +158,14 @@ Reversible: desplegar la imagen anterior quita la rama de transición y el *endp
 
 Desplegar la imagen anterior quita el registro y la validación de `acad`, la lectura con bloqueo compartido y el filtro por módulo contratado del cierre: el `PATCH` de fechas vuelve a no validar nada, como antes de `1.11d-a`, y el cierre vuelve a ejecutar todas las validaciones registradas (ninguna en producción). No hay migración ni dato que revertir. Los cambios de fechas hechos después con la versión anterior pueden dejar períodos fuera (`REQ-ACAD/funcional.md §14`); la versión anterior no tiene períodos lectivos (llegan en la misma entrega), así que la reversión de `1.11d-a` es conjunta. Procedimiento a probar con el resto de la reversión de `1.11d-a`.
 
+### 9.3 Reversión de la apertura del curso siguiente (`1.12b`, PROPUESTA)
+
+**Antes de revertir la entrega, esperar a que no haya copias ni reversiones en vuelo** (`pendiente`, `en_curso`, `revirtiendo`): un *worker* de la versión anterior no conoce sus trabajos y los mandaría a `failed_jobs`, dejando la copia atascada. Desplegar la imagen anterior quita rutas, trabajos y el participante de `acad`; el siguiente `sync-registry` de esa versión marca los tres permisos de `apertura_curso_academico` con `retired_at` (concesiones inertes). Las tablas `year_rollovers` y `year_rollover_items` **se quedan** (no se revierten sus migraciones: perderían el registro de qué se copió); lo ya copiado son datos ordinarios de `acad` y siguen ahí. Sin la versión nueva, una copia `completado` ya no se puede revertir por la aplicación: si hiciera falta, se vuelve a desplegar la versión nueva. Procedimiento a probar antes de mezclar (`CLAUDE.md §9`).
+
 ## 10. Documentación a actualizar en el cierre
 
 `docs/manual-usuario/admin.md` (sección «Cursos académicos»), y `direccion.md`/`secretaria.md`, a los que la siembra aprobada da permisos (`CLAUDE.md §6.4`); `SYSADMIN.md` (el módulo nuevo en la lista de `sync-registry`, el comando de siembra para centros existentes, y la función/disparador del bloqueo con el diagnóstico de §7); `ARCHITECTURE.md §3.4` (el contrato transversal del curso como referencia de patrón, la fila de la regla **`AR-13`** con su test `tests/Feature/Architecture/AcademicYearWriteGuardTest.php`, y el disparador de revisión al cerrar `1.11`); `docs/modulos/_PLANTILLA/datos.md` (la casilla de `academic_year_id` dice «lo comprueba `AR-13`»); la *skill* `modulo-nuevo` (las tablas de curso se crean con el ayudante de `TenantMigration`); `CHANGELOG.md` (con la sobrecarga medida en `CA-057-09`); y en el documento de requisitos, la fila de `ADR-057` en la sección 18, su entrada de historial y la errata `RDB-010` → `RDB-012` de `REQ-CURSO-005` (`OPEN-CURSO-22`) (`ADR-057 §9` punto 12).
 
 **Por `ADR-059`** (reapertura): `docs/manual-usuario/admin.md` («Cursos académicos»: reapertura, ventana, motivo y advertencia de no usarla como rectificación) y `SYSADMIN.md` (procedimiento ante un cierre por error), ya actualizados con la especificación; en la entrega que la implemente, además `CHANGELOG.md`, `apps/api/openapi.yaml`, y la nota de despliegue de `SYSADMIN.md` con el paso de concesión (`curso:grant-reopen-permission`, `OPEN-CURSO-24` = b); los cuatro ya actualizados en `1.11c`.
+
+**Por `1.12b`** (en la entrega que lo implemente): `docs/manual-usuario/admin.md` («Abrir el curso siguiente», `funcional.md §11`); `SYSADMIN.md` (comando `curso:grant-rollover-permissions`, dependencia del *worker* de colas y diagnóstico de copias atascadas de §7); `RUNBOOK.md` (orden de despliegue de §3.3 y reversión de §9.3); `ARCHITECTURE.md §3.4` (el registro de participantes del *rollover* como referencia de patrón de «contrato síncrono por módulo + trabajo en cola del llamador», `ADR-048 §4.9`); `apps/api/openapi/paths/curso.yaml` (`api.md §8`); `CHANGELOG.md` (con la medición de `CA-CURSO-149`); y **`docs/modulos/REQ-ACAD/`** (participante de `acad`, `funcional.md §7.4`), que esta especificación no escribe.
