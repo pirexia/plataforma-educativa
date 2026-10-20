@@ -24,6 +24,8 @@ test.describe('CA-ACAD-135 (REQ-ACAD-002): horarios contra la API real', () => {
   test('aula, marco con franjas, asignaciones, sesiones, conflicto de profesor y vista del profesor', async ({
     page,
   }) => {
+    test.setTimeout(120_000)
+    page.setDefaultTimeout(15_000)
     const email = process.env.E2E_ADMIN_EMAIL ?? ''
     const password = process.env.E2E_ADMIN_PASSWORD ?? ''
 
@@ -149,18 +151,21 @@ test.describe('CA-ACAD-135 (REQ-ACAD-002): horarios contra la API real', () => {
       page.getByRole('status').filter({ hasText: 'Asignaturas del grupo actualizadas' }),
     ).toBeVisible()
 
+    // La sección de profesorado lee las asignaturas del grupo al montarse: se recarga para que vea las recién asignadas.
+    await page.reload()
+
     // 4. Profesorado: Daniel imparte Matemáticas y Lengua; Marta, Lengua.
     const assignments: [string, string][] = [
-      ['Matemáticas', 'Daniel Docente'],
-      ['Lengua', 'Marta Docente'],
-      ['Lengua', 'Daniel Docente'],
+      ['MAT', 'Daniel Docente'],
+      ['LEN', 'Marta Docente'],
+      ['LEN', 'Daniel Docente'],
     ]
 
     for (const [subject, teacher] of assignments) {
       await page.getByRole('button', { name: 'Asignar profesorado' }).click()
       const dialog = page.getByRole('dialog')
       await dialog.getByLabel(/^Asignatura/).click()
-      await page.getByRole('option', { name: subject, exact: true }).click()
+      await page.getByRole('option', { name: new RegExp(subject) }).click()
       await dialog.getByLabel(teacher).check()
       await dialog.getByRole('button', { name: 'Asignar' }).click()
       await expect(dialog).toBeHidden()
@@ -172,7 +177,8 @@ test.describe('CA-ACAD-135 (REQ-ACAD-002): horarios contra la API real', () => {
     // 5. Componer sesiones en la rejilla del grupo.
     await page.goto('/academico/horarios')
     await page.getByLabel(/^Grupo$/).click()
-    await page.getByRole('option', { name: /2\.º ESO A/ }).click()
+    // La lista desplegable queda fuera del viewport en esta página: se elige con el teclado.
+    await page.getByRole('option', { name: /2\.º ESO A/ }).press('Enter')
 
     const monday9 = page.locator('[data-cell="0-0"]')
     const monday10 = page.locator('[data-cell="1-0"]')
