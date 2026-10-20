@@ -216,7 +216,26 @@ test('CA-ACAD-122 RN-ACAD-121 datos.md §9.1: el motor rechaza un recurso como e
         ->and(ttInsert('timetable_sessions', $base + ['facility_id' => $room]))->toBe('23514')
         ->and(ttInsert('timetable_sessions', $base + ['facility_type' => 'aula']))->toBe('23514')
         ->and(ttInsert('timetable_sessions', $base + ['facility_id' => $room, 'facility_type' => 'aula']))->toBeNull()
-        ->and(ttInsert('timetable_sessions', $base))->toBeNull();
+        // Otra asignación en la misma franja: el único (franja, asignación) de #446-d no lo impide.
+        ->and(ttInsert('timetable_sessions', ['teaching_assignment_id' => ttInsertId('teaching_assignments', ttAssignment($this, ['subgroup_id' => $this->tree['subgroup']->id]))] + $base))->toBeNull();
+});
+
+test('CA-ACAD-110 RN-ACAD-123 #446-d: el motor impide dos sesiones vivas con la misma franja y la misma asignación (23505) como cinturón; no entre una borrada, ni con otra franja u otra asignación', function (): void {
+    $slot = ttSlot($this, ttFrame($this));
+    $otherSlot = ttSlot($this, (int) DB::table('time_slots')->where('id', $slot)->value('timetable_frame_id'), ['weekday' => 2]);
+    $assignment = ttInsertId('teaching_assignments', ttAssignment($this));
+    $otherAssignment = ttInsertId('teaching_assignments', ttAssignment($this, ['subgroup_id' => $this->tree['subgroup']->id]));
+    $base = ['academic_year_id' => $this->year->id, 'time_slot_id' => $slot, 'teaching_assignment_id' => $assignment];
+
+    expect(ttInsert('timetable_sessions', $base))->toBeNull()
+        ->and(ttInsert('timetable_sessions', $base))->toBe('23505')
+        ->and(ttInsert('timetable_sessions', ['time_slot_id' => $otherSlot] + $base))->toBeNull()
+        ->and(ttInsert('timetable_sessions', ['teaching_assignment_id' => $otherAssignment] + $base))->toBeNull();
+
+    // Borrada la primera, la pareja queda libre.
+    DB::table('timetable_sessions')->where('time_slot_id', $slot)->where('teaching_assignment_id', $assignment)->update(['deleted_at' => now()]);
+
+    expect(ttInsert('timetable_sessions', $base))->toBeNull();
 });
 
 test('CA-ACAD-115 RN-ACAD-100 RN-ACAD-101: el motor rechaza un facility_type fuera de vocabulario (23514) y un código repetido entre vivos (23505), no entre uno borrado', function (): void {
