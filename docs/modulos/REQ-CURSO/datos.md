@@ -96,7 +96,7 @@ Sin `updated_at`, `updated_by` ni `deleted_at`: es *append-only* (lo que dé `te
 
 **Modelo**: `Curso\Domain\Models\AcademicYearReopening` **[DERIVADA: nombre]**, `extends AppendOnlyModel` (**no `TenantModel`**, como se escribió al especificar: `TenantModel` escribe `updated_by` y usa `deleted_at`, que esta tabla *append-only* no tiene; el precedente `MfaReset` también es `AppendOnlyModel`; corregido en `1.11c`), `implements Auditable` con `AuditValuePolicy::Full` (`ADR-035 §8`, criterio de `user_mfa_exemptions.reason`), alias de *morph map* `academic_year_reopening` registrado en `CursoServiceProvider::boot()` (`AR-06`). Su alta queda como `created` en `audit_logs`; sin evento nuevo (`ADR-039 §5.3`).
 
-### 1.6 `year_rollovers` (nueva, `1.12b`, APROBADA 2026-10-20)
+### 1.6 `year_rollovers` (nueva, `1.12b`, APROBADA 2026-10-20, IMPLEMENTADA 2026-10-21)
 
 Una fila por **copia** (ejecución del *rollover*): selección, estado, resultado y fallo (`funcional.md RN-CURSO-67`, `-69`, `-73` a `-75`). Es el «log de resultados» de `REQ-CURSO-002`. Migración del módulo en `apps/api/app/Modules/Curso/Database/migrations/` con **`TenantMigration::tenantTable()`** y `TenantMigration::tenantForeignId($t, 'academic_year_id', 'academic_years', withIndex: false)` (el único no parcial `(tenant_id, academic_year_id, id)` ya cubre el prefijo, #446-c): RLS `ENABLE`+`FORCE`, autoría, `timestamptz`, borrado lógico (sin *endpoint* de borrado), `UNIQUE (tenant_id, id)` y el disparador `academic_year_write_guard`, sin excepción en `AR-13`. Precedente de forma: `data_exports` (estado de un trabajo en cola consultado por la interfaz).
 
@@ -130,7 +130,7 @@ Lo que el motor **no** garantiza (servicio, bajo los bloqueos de `funcional.md R
 
 **Modelo**: `Curso\Domain\Models\YearRollover` **[DERIVADA: nombre]**, `extends TenantModel`, `implements Auditable` con `AuditValuePolicy::Full` (sin datos personales: códigos y cuentas; los `jsonb` grandes los redacta el tope de `ADR-035 §5`), `HasPublicId`, alias `year_rollover` en `CursoServiceProvider::boot()` (`AR-06`). Escrituras por instancia (`AR-15`).
 
-### 1.7 `year_rollover_items` (nueva, `1.12b`, APROBADA 2026-10-20)
+### 1.7 `year_rollover_items` (nueva, `1.12b`, APROBADA 2026-10-20, IMPLEMENTADA 2026-10-21)
 
 Qué filas creó cada copia, para poder revertirla (`funcional.md RN-CURSO-73`, `-75`). *Append-only*. Polimórfica **sin FK** hacia las tablas copiadas, con el patrón de `audit_logs` (`auditable_type` + `auditable_id`): `curso` guarda lo que le devuelve cada participante y se lo devuelve al revertir; **nunca** lee ni escribe las tablas a las que apuntan (`INV-007`). Migración del módulo con **`TenantMigration::tenantTableAppendOnly()`** y `tenantForeignId($t, 'academic_year_id', 'academic_years', withIndex: false)` (disparador incluido, sin excepción en `AR-13`; el índice de tres columnas de abajo cubre el prefijo).
 
@@ -187,7 +187,7 @@ erDiagram
     YEAR_ROLLOVER_ITEMS }o..|| "FILAS COPIADAS DE OTROS MÓDULOS" : "entity_type + target_id (polimórfica, sin FK)"
 ```
 
-Futuras (fuera de 1.10, todas con `academic_year_id NOT NULL`): `year_rollovers` (`REQ-CURSO-002`; **especificada en §1.6-§1.7 para `1.12b`, con `year_rollover_items`**), `promotion_decisions` (`-003`), `renewal_campaigns` (`-004`), y lo que decida el ADR de archivado para `YearArchive` (`-005`).
+`year_rollovers` (`REQ-CURSO-002`; **implementada en `1.12b`**, §1.6-§1.7, con `year_rollover_items`) ya existe. Futuras (fuera de 1.10, todas con `academic_year_id NOT NULL`): `promotion_decisions` (`-003`), `renewal_campaigns` (`-004`), y lo que decida el ADR de archivado para `YearArchive` (`-005`).
 
 ---
 

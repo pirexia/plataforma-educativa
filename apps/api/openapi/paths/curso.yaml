@@ -610,6 +610,13 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '429':
+          description: >
+            Límite por centro de solicitudes de copia (6 por hora por defecto, `curso.rollover.rate_limit`):
+            `Retry-After` en segundos y `detail` traducido (`curso.errors.rollover_rate_limited`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
 
   /api/v1/academic-year-rollovers/{publicId}:
     parameters:
@@ -667,6 +674,13 @@ paths:
             `curso.conflict.rollover_not_revertible` (`params.status`), `rollover_target_not_planning`,
             `rollover_revert_module_unavailable` (`params.module`) o `rollover_revert_blocked` (una entrada por
             incidencia en `errors.rollover_revert[]`). Nada cambia.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '429':
+          description: >
+            Límite por centro de solicitudes de reversión (6 por hora por defecto, `curso.rollover.rate_limit`):
+            `Retry-After` en segundos y `detail` traducido (`curso.errors.rollover_rate_limited`).
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }

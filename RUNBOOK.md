@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.11** · 2026-10-21
+> **Versión 0.3.12** · 2026-10-21
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
