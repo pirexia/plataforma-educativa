@@ -15,6 +15,11 @@ test('REQ-CURSO-001 api.md §8: los ocho endpoints de cursos están documentados
     $documented = [];
 
     foreach ($paths as $uri => $item) {
+        // Los de la apertura del curso siguiente (1.12b) los cubre `RolloverOpenApiTest`.
+        if (str_starts_with($uri, '/api/v1/academic-year-rollovers')) {
+            continue;
+        }
+
         foreach (array_intersect(['get', 'post', 'patch', 'delete', 'put'], array_keys($item)) as $method) {
             $documented[] = strtoupper($method).' '.$uri;
         }

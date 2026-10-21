@@ -86,6 +86,177 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
+    AcademicYearRolloverElement:
+      type: object
+      description: >
+        REQ-CURSO/api.md §2.1 (1.12b, RN-CURSO-62). Un elemento del catálogo de la apertura del curso
+        siguiente: lo que un módulo contratado en el centro ofrece copiar. `label` lo traduce el módulo dueño
+        en el idioma de la petición. `allowed` = el usuario tiene el permiso de alta del elemento (RN-CURSO-78;
+        el permiso en sí no se expone). `bundle` es `null` o `teaching_assignments`: los elementos de un paquete
+        no se eligen uno a uno, se copian con `copy_teaching_assignments: true` (RN-CURSO-82).
+      required: [code, module, label, requires, allowed, bundle]
+      properties:
+        code: { type: string, description: 'Con la forma `<módulo>.<nombre>`.', example: acad.groups }
+        module: { type: string, example: acad }
+        label: { type: string, example: Grupos }
+        requires:
+          type: array
+          items: { type: string }
+          description: Códigos de elementos que deben copiarse con este, también de otros módulos.
+          example: [acad.courses]
+        allowed: { type: boolean }
+        bundle:
+          type: string
+          nullable: true
+          enum: [teaching_assignments]
+          x-extensible-enum: true
+
+    AcademicYearRolloverIssueEntry:
+      type: object
+      description: >
+        Una incidencia de la apertura del curso siguiente (entrada de `blocking[]`, `errors.rollover[]`,
+        `errors.rollover_revert[]` o `failure.errors[]`). Los códigos de cada módulo son de su especificación
+        (`acad.rollover.*`, `curso.rollover.*`): se documentan en ejemplos, no como enumerado cerrado. Sin
+        datos personales ni identificadores de filas (RN-CURSO-73).
+      required: [code, message, params]
+      properties:
+        code: { type: string, example: acad.rollover.target_not_empty }
+        message: { type: string, description: Ya traducido al idioma de la petición. }
+        params: { type: object, additionalProperties: true, example: { element: acad.education_levels, count: 1 } }
+        element: { type: string, nullable: true, description: 'Código del elemento afectado, si procede.' }
+
+    AcademicYearRolloverSummary:
+      type: object
+      description: Resumen de un curso en la simulación (la forma pública de `AcademicYear` reducida a estos campos).
+      required: [public_id, code, status, starts_on, ends_on]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string }
+        status: { type: string, enum: [planificacion, activo, cerrado, archivado], x-extensible-enum: true }
+        starts_on: { type: string, format: date }
+        ends_on: { type: string, format: date }
+
+    AcademicYearRolloverReason:
+      type: object
+      description: >
+        Una omisión (`skipped`: filas del origen que no se copian) o un ajuste (`adjusted`: filas que se copian con
+        algún cambio) agrupados por motivo. `label` lo traduce el módulo dueño (RN-CURSO-73). Sin nombres ni
+        identificadores de personas.
+      required: [reason, label, count]
+      properties:
+        reason: { type: string, example: teacher_inactive }
+        label: { type: string, example: Profesorado que ya no está activo }
+        count: { type: integer, minimum: 0 }
+
+    AcademicYearRolloverPreview:
+      type: object
+      description: >
+        REQ-CURSO/api.md §2.1 (1.12b, RN-CURSO-65, -66). La simulación: por elemento, las filas que se crearían, las
+        omisiones y ajustes con su motivo, el rango de fechas resultante (solo elementos con fechas) y las
+        incidencias que impiden ejecutar; más las propias de `curso` en `blocking`. `executable` es `true` si no
+        hay ninguna. No es una garantía: la ejecución lo vuelve a evaluar todo.
+      required: [academic_year, source, date_offset_days, copy_teaching_assignments, elements, blocking, executable]
+      properties:
+        academic_year: { $ref: '#/components/schemas/AcademicYearRolloverSummary' }
+        source: { $ref: '#/components/schemas/AcademicYearRolloverSummary' }
+        date_offset_days: { type: integer, example: 365, description: 'Destino.starts_on − origen.starts_on, en días (RN-CURSO-72).' }
+        copy_teaching_assignments: { type: boolean }
+        elements:
+          type: array
+          items:
+            type: object
+            required: [code, label, to_copy, skipped, adjusted, date_range, blocking]
+            properties:
+              code: { type: string }
+              label: { type: string }
+              to_copy: { type: integer, minimum: 0, description: Solo las filas principales del elemento. }
+              skipped:
+                type: array
+                items: { $ref: '#/components/schemas/AcademicYearRolloverReason' }
+              adjusted:
+                type: array
+                items: { $ref: '#/components/schemas/AcademicYearRolloverReason' }
+              date_range:
+                type: object
+                nullable: true
+                properties:
+                  starts_on: { type: string, format: date }
+                  ends_on: { type: string, format: date }
+              blocking:
+                type: array
+                items: { $ref: '#/components/schemas/AcademicYearRolloverIssueEntry' }
+        blocking:
+          type: array
+          items: { $ref: '#/components/schemas/AcademicYearRolloverIssueEntry' }
+        executable: { type: boolean }
+
+    AcademicYearRolloverFailure:
+      type: object
+      nullable: true
+      description: >
+        El fallo de una copia (`failure`) o de la última reversión (`revert_failure`). Se guardan solo `code` y
+        `params`; el `message` lo traduce la API al leer, en el idioma de la petición (RN-CURSO-73).
+      required: [code, errors]
+      properties:
+        code:
+          type: string
+          enum: [rollover_blocked, target_not_planning, target_changed, actor_unavailable, cancelled, internal_error]
+          x-extensible-enum: true
+        errors:
+          type: array
+          items: { $ref: '#/components/schemas/AcademicYearRolloverIssueEntry' }
+
+    AcademicYearRollover:
+      type: object
+      description: >
+        REQ-CURSO/api.md §2.1 (1.12b). Una copia (ejecución del *rollover*) hacia un curso destino en
+        `planificacion`. `status` viaja sin traducir (ADR-038 §3.2). `elements` es la selección efectiva (con la
+        casilla, incluye los del paquete). `revertible` y `cancellable_at` son orientativos: el servidor decide
+        al ejecutar (INV-002). No se exponen `id`, `tenant_id`, `created_by`, `reverted_by`, `deleted_at` ni los
+        *items*.
+      required: [public_id, academic_year, source_academic_year, status, elements, copy_teaching_assignments, date_offset_days, result, failure, revert_failure, revertible, cancellable_at, started_at, finished_at, reverted_at, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        academic_year: { $ref: '#/components/schemas/PublicId' }
+        source_academic_year: { $ref: '#/components/schemas/PublicId' }
+        status:
+          type: string
+          enum: [pendiente, en_curso, completado, fallido, revirtiendo, revertido]
+          x-extensible-enum: true
+        elements: { type: array, items: { type: string } }
+        copy_teaching_assignments: { type: boolean }
+        date_offset_days: { type: integer, nullable: true }
+        result:
+          type: object
+          nullable: true
+          properties:
+            elements:
+              type: array
+              items:
+                type: object
+                properties:
+                  code: { type: string }
+                  copied: { type: integer, minimum: 0 }
+                  skipped:
+                    type: array
+                    items: { $ref: '#/components/schemas/AcademicYearRolloverReason' }
+                  adjusted:
+                    type: array
+                    items: { $ref: '#/components/schemas/AcademicYearRolloverReason' }
+        failure: { $ref: '#/components/schemas/AcademicYearRolloverFailure' }
+        revert_failure: { $ref: '#/components/schemas/AcademicYearRolloverFailure' }
+        revertible: { type: boolean, description: '`status = completado` y destino en `planificacion`.' }
+        cancellable_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: '`updated_at` + 30 minutos si la copia está en `pendiente`, `en_curso` o `revirtiendo` (RN-CURSO-85); `null` en otro estado.'
+        started_at: { type: string, format: date-time, nullable: true }
+        finished_at: { type: string, format: date-time, nullable: true }
+        reverted_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
     TranslationsMap:
       type: object
       description: >
