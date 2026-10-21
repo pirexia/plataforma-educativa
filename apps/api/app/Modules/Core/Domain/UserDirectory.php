@@ -59,4 +59,21 @@ interface UserDirectory
      * @return array<int, ActiveUserRef>
      */
     public function refsByIds(array $ids): array;
+
+    /**
+     * REQ-ACAD/funcional.md §21.8, I-19 (`OPEN-CURSO-29-d`, ampliación aprobada
+     * el 2026-10-20), `RN-ACAD-157`, `RN-CURSO-83`: el subconjunto de `$ids`
+     * que son usuarios **del centro en curso** en estado **activo** (no
+     * inactivos, ni pendientes, ni borrados: el criterio de
+     * `findActiveByPublicId()`), sin repetidos y en orden ascendente. Los
+     * identificadores de otro centro o inexistentes no se devuelven ni dan
+     * error (RLS y `TenantScope`, `INV-001`). Lista vacía ⇒ lista vacía sin
+     * consultar la base de datos; si no, una sola consulta, sin bloqueos de fila
+     * ni memoización entre llamadas (el estado cuenta en el momento de la
+     * llamada).
+     *
+     * @param  list<int>  $ids
+     * @return list<int>
+     */
+    public function activeIdsAmong(array $ids): array;
 }
