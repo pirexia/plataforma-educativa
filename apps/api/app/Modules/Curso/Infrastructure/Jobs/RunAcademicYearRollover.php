@@ -30,8 +30,6 @@ class RunAcademicYearRollover implements ShouldQueue
 
     public const CONNECTION = 'database_long';
 
-    public const QUEUE = 'long';
-
     public int $tries = 1;
 
     /** Provisional (`operacion.md §1`), a confirmar con la medición de `CA-CURSO-149`. */
@@ -40,7 +38,7 @@ class RunAcademicYearRollover implements ShouldQueue
     public function __construct(public readonly int $rolloverId)
     {
         $this->onConnection(self::CONNECTION);
-        $this->onQueue(self::QUEUE);
+        $this->onQueue('long');
     }
 
     public function handle(RolloverExecutor $executor): void

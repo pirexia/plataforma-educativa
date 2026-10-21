@@ -181,6 +181,54 @@ services:
       start_period: 30s
     profiles: ["worker", "full"]
 
+  # Worker de la cola `long` (REQ-CURSO 1.12b, operacion.md §1 y §4.1): copia y reversión del rollover del
+  # curso. Un proceso `queue:work` lee UNA conexión y su `retry_after` es el de esa conexión; la cola `long` va
+  # por `database_long` (config/queue.php, retry_after 900) y por eso no la consume el servicio `worker` de
+  # arriba (retry_after 180, que reentregaría el trabajo a los 3 minutos mientras sigue en marcha). Mismo
+  # perfil, imagen y entorno que `worker`. Un solo intento sin reentrega (`--tries=1`, RN-CURSO-84):
+  # --timeout (600) < retry_after (900). Toda cola con ->onQueue() debe estar en uno de los dos workers (lo
+  # comprueba tests/Feature/Core/QueueWorkerTest.php). stop_grace_period deja acabar la copia en curso.
+  worker-long:
+    build:
+      context: infra/containers/api
+      target: dev
+    container_name: plataforma-worker-long
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 620s
+    env_file: apps/api/.env
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      CACHE_STORE: redis
+      TENANCY_BASE_DOMAIN: plataforma.test
+    command:
+      - php
+      - artisan
+      - queue:work
+      - database_long
+      - --queue=long
+      - --tries=1
+      - --timeout=600
+      - --sleep=3
+      - --max-time=3600
+      - --max-jobs=100
+    volumes:
+      - ./apps/api:/var/www/html:Z
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "php", "artisan", "core:queue-health"]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
+    profiles: ["worker", "full"]
+
   web:
     build:
       context: infra/containers/web

@@ -132,31 +132,89 @@ function queuesUsedByCode(): array
     return array_values(array_unique($queues));
 }
 
-/** @return list<string> */
-function queuesOfWorkerCommand(string $path): array
+/**
+ * Las colas de cada proceso `queue:work` de un fichero: conexión => colas. compose.yaml lista el comando en
+ * elementos aparte ("- queue:work", "- database", "- --queue=a,b,c"); Quadlet, en una línea `Exec=`.
+ *
+ * @return array<string, list<string>>
+ */
+function workerCommands(string $path): array
 {
     expect($path)->toBeFile();
 
-    preg_match('/queue:work database[^\n]*?--queue=([a-z0-9,-]+)/', (string) file_get_contents($path), $m);
-    // compose.yaml lista el comando en elementos aparte: "- --queue=a,b,c".
-    if ($m === []) {
-        preg_match('/--queue=([a-z0-9,-]+)/', (string) file_get_contents($path), $m);
+    $content = (string) file_get_contents($path);
+    $commands = [];
+
+    // Quadlet: `queue:work <conexión> … --queue=…` en una línea.
+    preg_match_all('/queue:work\s+([a-z_]+)[^\n]*?--queue=([a-z0-9,-]+)/', $content, $inline, PREG_SET_ORDER);
+
+    foreach ($inline as $m) {
+        $commands[$m[1]] = array_merge($commands[$m[1]] ?? [], explode(',', $m[2]));
     }
 
-    return explode(',', $m[1] ?? '');
+    // compose.yaml: elementos de lista consecutivos.
+    preg_match_all('/-\s+queue:work\s*\n\s*-\s+([a-z_]+)\s*\n\s*-\s+--queue=([a-z0-9,-]+)/', $content, $listed, PREG_SET_ORDER);
+
+    foreach ($listed as $m) {
+        $commands[$m[1]] = array_merge($commands[$m[1]] ?? [], explode(',', $m[2]));
+    }
+
+    return $commands;
 }
 
-test('#128 compose.yaml y la unidad Quadlet del worker cubren todas las colas que usa el código', function (): void {
+/** @return list<string> */
+function queuesOfWorkers(array $paths): array
+{
+    $queues = [];
+
+    foreach ($paths as $path) {
+        foreach (workerCommands($path) as $list) {
+            array_push($queues, ...$list);
+        }
+    }
+
+    return array_values(array_unique($queues));
+}
+
+test('#128 compose.yaml y las unidades Quadlet de los workers cubren todas las colas que usa el código', function (): void {
     $used = queuesUsedByCode();
     $root = base_path('../..');
 
     expect($used)->not->toBeEmpty();
 
-    foreach (['compose.yaml', 'infra/quadlet/worker.container'] as $file) {
-        $worker = queuesOfWorkerCommand($root.'/'.$file);
+    foreach ([['compose.yaml'], ['infra/quadlet/worker.container', 'infra/quadlet/worker-long.container']] as $files) {
+        $worker = queuesOfWorkers(array_map(fn (string $f): string => $root.'/'.$f, $files));
 
-        expect(array_values(array_diff($used, $worker)))->toBe([], "$file no consume estas colas")
+        expect(array_values(array_diff($used, $worker)))->toBe([], implode(', ', $files).' no consumen estas colas')
             ->and($worker)->toContain('default');
+    }
+})->skip(fn () => ! is_file(base_path('../../compose.yaml')), 'La raíz del repositorio no está montada (contenedor de desarrollo solo con apps/api); CI sí la tiene.');
+
+test('CA-CURSO-155 RN-CURSO-84 operacion.md §1: la cola long se consume por la conexión database_long, con su propio proceso, y no por el worker de la conexión database (cuyo retry_after es menor que el timeout de los trabajos)', function (): void {
+    $root = base_path('../..');
+
+    foreach (['compose.yaml', 'infra/quadlet/worker.container', 'infra/quadlet/worker-long.container'] as $file) {
+        $commands = workerCommands($root.'/'.$file);
+
+        expect($commands['database'] ?? [])->not->toContain('long', "{$file}: el worker de la conexión database no debe consumir la cola long");
+
+        if ($file !== 'infra/quadlet/worker.container') {
+            expect($commands['database_long'] ?? [])->toBe(['long'], "{$file}: falta el proceso de la cola long");
+        }
+    }
+
+    // Un solo intento, sin reentrega; --timeout del worker menor que el retry_after de la conexión.
+    $retryAfter = (int) config('queue.connections.database_long.retry_after');
+
+    expect($retryAfter)->toBe(900);
+
+    foreach (['compose.yaml', 'infra/quadlet/worker-long.container'] as $file) {
+        $content = (string) file_get_contents($root.'/'.$file);
+        $long = substr($content, (int) strpos($content, 'database_long'));
+
+        expect($long)->toContain('--tries=1');
+        preg_match('/--timeout=(\d+)/', $long, $timeout);
+        expect((int) $timeout[1])->toBeLessThan($retryAfter);
     }
 })->skip(fn () => ! is_file(base_path('../../compose.yaml')), 'La raíz del repositorio no está montada (contenedor de desarrollo solo con apps/api); CI sí la tiene.');
 
@@ -176,4 +234,23 @@ test('#128 la unidad Quadlet del worker cumple ADR-028 (Wants+After, nunca Requi
     preg_match('/DB_QUEUE_RETRY_AFTER=(\d+)/', $code, $retryAfter);
 
     expect((int) $timeout[1])->toBeLessThan((int) $retryAfter[1]);
+})->skip(fn () => ! is_file(base_path('../../compose.yaml')), 'La raíz del repositorio no está montada (contenedor de desarrollo solo con apps/api); CI sí la tiene.');
+
+test('CA-CURSO-155 ADR-028: la unidad Quadlet del worker long cumple ADR-028 (Wants+After, nunca Requires/BindsTo, sin puertos) y deja acabar la copia en curso al parar', function (): void {
+    $unit = (string) file_get_contents(base_path('../../infra/quadlet/worker-long.container'));
+    $code = preg_replace('/^#.*$/m', '', $unit);
+
+    expect($code)->toContain('Wants=')->toContain('After=')
+        ->not->toMatch('/^(Requires|BindsTo)=/m')
+        ->not->toMatch('/^PublishPort=/m')
+        ->toMatch('/--max-time=\d+/')
+        ->toMatch('#^EnvironmentFile=/etc/plataforma/plataforma-worker\.env$#m')
+        ->toMatch('/^NoNewPrivileges=true$/m')
+        ->toMatch('/^DropCapability=ALL$/m');
+
+    preg_match('/--timeout=(\d+)/', $code, $timeout);
+    preg_match('/^StopTimeout=(\d+)$/m', $code, $stop);
+
+    // La parada espera más que el timeout del trabajo: SIGTERM deja terminar la copia en curso.
+    expect((int) $stop[1])->toBeGreaterThan((int) $timeout[1]);
 })->skip(fn () => ! is_file(base_path('../../compose.yaml')), 'La raíz del repositorio no está montada (contenedor de desarrollo solo con apps/api); CI sí la tiene.');

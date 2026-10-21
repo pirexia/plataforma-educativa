@@ -17,6 +17,7 @@ use App\Modules\Curso\Domain\Models\AcademicYear;
 use App\Modules\Curso\Domain\Models\AcademicYearReopening;
 use App\Modules\Curso\Domain\Models\YearRollover;
 use App\Modules\Curso\Domain\Models\YearRolloverItem;
+use App\Modules\Curso\Infrastructure\Console\RolloverResetCommand;
 use App\Support\Modules\DeclaresModuleRegistry;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -84,6 +85,11 @@ class CursoServiceProvider extends ServiceProvider implements DeclaresModuleRegi
         ]);
 
         $this->registerErrorTranslation();
+
+        if ($this->app->runningInConsole()) {
+            // operacion.md §4.1, §7 (1.12b): salida del operador para una copia huérfana.
+            $this->commands([RolloverResetCommand::class]);
+        }
     }
 
     /**

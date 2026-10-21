@@ -475,3 +475,21 @@ test('CA-CURSO-141 RN-CURSO-62: con acad descontratado un elemento de acad es de
     R::post($s['tenant'], $s['admin'], '/academic-year-rollovers', R::body($s, ['elements' => ['acad.education_levels']]))
         ->assertStatus(422)->assertJsonPath('errors.elements.0.code', 'curso.validation.rollover_element_unknown');
 });
+
+test('CA-CURSO-131 RN-CURSO-67 RN-CURSO-68: con una copia completada, una nueva solicitud es 409 rollover_exists con su estado aunque la selección tuviera además otra incidencia (la copia viva se comprueba antes que la simulación); en la simulación sale como curso.rollover.exists', function (): void {
+    $s = R::scenario('rol-live');
+    $publicId = R::request($s);
+    R::run($s, $publicId);
+
+    // El destino ya tiene las etapas copiadas (otra incidencia: target_not_empty), pero gana la copia viva.
+    $response = R::post($s['tenant'], $s['admin'], '/academic-year-rollovers', R::body($s))->assertStatus(409);
+
+    expect($response->json('errors.rollover.0.code'))->toBe('curso.conflict.rollover_exists')
+        ->and($response->json('errors.rollover.0.params'))->toBe(['public_id' => $publicId, 'status' => 'completado']);
+
+    $preview = R::get($s['tenant'], $s['admin'], '/academic-year-rollovers/preview', ['academic_year' => $s['target']->public_id, 'source' => $s['source']->public_id, 'elements' => implode(',', R::NINE)])->assertOk();
+
+    expect($preview->json('executable'))->toBeFalse()
+        ->and(collect($preview->json('blocking'))->pluck('code')->all())->toContain('curso.rollover.exists')
+        ->and(collect($preview->json('blocking'))->firstWhere('code', 'curso.rollover.exists')['params'])->toBe(['public_id' => $publicId, 'status' => 'completado']);
+});

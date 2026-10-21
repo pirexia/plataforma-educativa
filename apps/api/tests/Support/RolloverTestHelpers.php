@@ -72,6 +72,24 @@ final class RolloverTestHelpers
     }
 
     /**
+     * Centro sin `acad` (solo participantes de prueba), administrador activo y dos cursos vacíos: el origen `activo`
+     * y el destino `planificacion`. Para los criterios del contrato (`tests/Feature/Curso/`).
+     *
+     * @return array{tenant: Tenant, admin: User, source: AcademicYear, target: AcademicYear, elements: list<string>}
+     */
+    public static function bare(string $slug): array
+    {
+        [$tenant, $admin] = provisionCoreTenant($slug);
+        self::setUserStatus($tenant, $admin, UserStatus::Activo);
+        $source = CursoTestHelpers::year($tenant, '2026-2027', AcademicYearStatus::Activo, '2026-09-01', '2027-08-31');
+        $target = CursoTestHelpers::year($tenant, '2027-2028', AcademicYearStatus::Planificacion, '2027-09-01', '2028-08-31');
+
+        $elements = ['curso.alpha', 'curso.beta'];
+
+        return compact('tenant', 'admin', 'source', 'target', 'elements');
+    }
+
+    /**
      * Dos etapas, tres cursos de etapa, cuatro grupos, dos subgrupos, cinco asignaturas, ocho asignaturas de grupo,
      * tres períodos, una escala numérica y una cualitativa con tres valores, un marco ordinaria con diez franjas y un
      * marco especial del 2027-06-01 al 2027-06-30; y una fila borrada de cada tabla.
@@ -301,7 +319,7 @@ final class RolloverTestHelpers
         return $overrides + [
             'academic_year' => $scenario['target']->public_id,
             'source' => $scenario['source']->public_id,
-            'elements' => self::NINE,
+            'elements' => $scenario['elements'] ?? self::NINE,
         ];
     }
 
