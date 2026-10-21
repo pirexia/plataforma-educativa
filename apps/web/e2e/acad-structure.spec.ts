@@ -60,9 +60,11 @@ test.describe('CA-ACAD-053 (REQ-ACAD-001): estructura académica contra la API r
       await english.fill('Compulsory Secondary Education')
     }
     await dialog.getByLabel(/^Tipo de etapa/).click()
-    await page.getByRole('option', { name: 'Educación Secundaria Obligatoria' }).click()
+    await page
+      .getByRole('option', { name: 'Educación Secundaria Obligatoria', exact: true })
+      .click()
     await dialog.getByLabel(/^Régimen/).click()
-    await page.getByRole('option', { name: 'Concertado' }).click()
+    await page.getByRole('option', { name: 'Concertado', exact: true }).click()
     await dialog.getByRole('button', { name: 'Crear' }).click()
     await expect(page.getByRole('status').filter({ hasText: 'Etapa creada' })).toBeVisible()
     await page.getByRole('link', { name: 'ESO' }).click()

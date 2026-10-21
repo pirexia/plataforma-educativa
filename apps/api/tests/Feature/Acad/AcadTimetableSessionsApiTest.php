@@ -264,10 +264,13 @@ test('CA-ACAD-127 RN-ACAD-127: una vista con más de 500 sesiones es 422 view_to
     app(TenantContext::class)->runFor($s['tenant']->id, function () use ($s, $assignment): void {
         $slotId = DB::table('time_slots')->where('public_id', $s['slots'][0])->value('id');
         $assignmentId = DB::table('teaching_assignments')->where('public_id', $assignment)->value('id');
+        $frameId = DB::table('time_slots')->where('id', $slotId)->value('timetable_frame_id');
         $rows = [];
 
+        // Una franja por sesión: el único (franja, asignación) de #446-d no admite repetir la pareja.
         for ($i = 0; $i < 501; $i++) {
-            $rows[] = ['tenant_id' => $s['tenant']->id, 'public_id' => (string) Str::ulid(), 'academic_year_id' => $s['year']->id, 'time_slot_id' => $slotId, 'teaching_assignment_id' => $assignmentId, 'created_at' => now(), 'updated_at' => now()];
+            $newSlot = DB::table('time_slots')->insertGetId(['tenant_id' => $s['tenant']->id, 'public_id' => (string) Str::ulid(), 'academic_year_id' => $s['year']->id, 'timetable_frame_id' => $frameId, 'weekday' => 1, 'starts_at' => '08:00', 'ends_at' => '08:30', 'created_at' => now(), 'updated_at' => now()]);
+            $rows[] = ['tenant_id' => $s['tenant']->id, 'public_id' => (string) Str::ulid(), 'academic_year_id' => $s['year']->id, 'time_slot_id' => $newSlot, 'teaching_assignment_id' => $assignmentId, 'created_at' => now(), 'updated_at' => now()];
         }
 
         DB::table('timetable_sessions')->insert($rows);

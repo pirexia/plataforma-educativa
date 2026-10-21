@@ -520,17 +520,20 @@ describe('CA-CORE-247 (RN-CORE-78, RN-CORE-52): exportación', () => {
   })
 
   it('al alcanzar 1.000 filas el aviso de tope ofrece exportar', async () => {
-    const rows = (from: number) => Array.from({ length: 50 }, (_, i) => log(`R${from + i}`))
-
+    // El aviso depende solo de cuántas filas hay acumuladas, no de cuántas peticiones hicieron falta para
+    // llegar: una única página de MAX_CURSOR_ROWS filas con «más resultados» lo cubre. Cargar 20 páginas de
+    // 50 volvía a renderizar la tabla con filas crecientes y costaba ~15 s (#451); la acumulación entre
+    // páginas la cubren los tests de «Cargar más» de DataTable.
     listAuditLogs.mockImplementation(async () =>
-      cursorPage(rows(listAuditLogs.mock.calls.length * 50), 'NEXT'),
+      cursorPage(
+        Array.from({ length: MAX_CURSOR_ROWS }, (_, i) => log(`R${i}`)),
+        'NEXT',
+      ),
     )
 
     await mountView()
 
-    for (let load = 1; load < MAX_CURSOR_ROWS / 50; load += 1) {
-      await click(buttonByText('Cargar más'))
-    }
+    expect(document.querySelectorAll('tbody tr')).toHaveLength(MAX_CURSOR_ROWS)
 
     const cap = document.querySelector('[data-slot="data-table-cursor-footer"]')!
 
@@ -538,7 +541,9 @@ describe('CA-CORE-247 (RN-CORE-78, RN-CORE-52): exportación', () => {
     expect([...cap.querySelectorAll('button')].map((b) => b.textContent?.trim())).toEqual([
       'Exportar',
     ])
-  }, 60_000)
+    // Renderizar MAX_CURSOR_ROWS filas en jsdom es el suelo irreducible del escenario: ~2,5 s aislado y ~4,3 s con la
+    // suite completa en paralelo, frente a los 5 s por defecto. 15 s deja margen sin volver a los 60 s de antes.
+  }, 15_000)
 })
 
 describe('CA-CORE-262 (RN-CORE-50): almacenamiento', () => {

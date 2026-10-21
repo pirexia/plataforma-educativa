@@ -22,6 +22,16 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-20 · Bajas de `1.12-a` y de `1.12-b` (#446, #450, #451; rama `fix/REQ-ACAD-446-450-451-bajas`)
+
+- **#446 db** (`REQ-ACAD-002`): (a) y (b) `2026_10_18_100100` con `lock_timeout` y reintento acotado e idempotencia por tabla (editada en su sitio: solo afecta a instalaciones nuevas); (c) migración `2026_10_20_100100` que retira cinco índices `(tenant_id, academic_year_id)` redundantes (medido con `EXPLAIN`; se conservan los de `facility_bookings` y `timetables`); (d) migración `2026_10_20_100200` con el único parcial `(tenant_id, time_slot_id, teaching_assignment_id) WHERE deleted_at IS NULL` en `timetable_sessions`.
+- **#446 seguridad**: B-1 decisión consciente documentada (`datos.md §9.6`, `permisos.md §10.5`) y test de que `acad` no expone ids internos; B-2 riesgo aceptado por escrito; B-3 un usuario borrado se muestra como `acad.staff.removed` y nunca con su nombre (`UserDirectory`/`StaffDirectory`, `ActiveUserRef::removed`); B-4 nota en `permisos.md`. Hallazgo nuevo: #455 (`GET /audit-logs` expone claves foráneas internas, sistémico).
+- **#446 documentación y textos**: `SECURITY.md` 0.3.12, `PRIVACY.md` 0.3.7 (§2.7), `README.md` 2.6.27 (cifra «53 módulos» verificada: 53 secciones 5.1-5.53 del documento de requisitos; 5 contextos implementados); término alemán unificado «Unterrichtsstunde».
+- **Revisión de #446**: migraciones en dos fases con reutilización del índice válido y comprobación de parejas repetidas antes del único; tests HTTP con usuario borrado (tutores, sesiones, reservas), aislamiento de `UserDirectory` y no exposición de ids internos ampliada; criterios propios `CA-ACAD-154` a `-159`; cabeceras de estado de `REQ-ACAD`, manuales de usuario y `SYSADMIN.md` al día.
+- **#450**: `exact: true` en las opciones de Select de los E2E de `acad` (`Trimestre` coincidía con `Cuatrimestre`). **#451**: `CA-CORE-247` con una única página simulada de 1.000 filas (≈15 s → ≈2,5 s) y timeout explícito de 15 s.
+
+---
+
 ## 2026-10-19 · `1.12-b`: marcos especiales y reservas (rama `feature/REQ-ACAD-1-12b-marcos-especiales-reservas`)
 
 - **`acad`** (`REQ-ACAD-002`, `RN-ACAD-110` a `-111`, `-124`, `-125`, `-140` a `-144`, `CA-ACAD-136` a `-141`): marcos horarios **especiales** (jornada intensiva) con `valid_from`/`valid_to` dentro del curso (`AcademicYearSharedLock`), sin solape con otro especial de la etapa (`frame_outside_academic_year`, `frame_overlap`, `frame_dates_invalid`) y su efecto en la detección de conflictos (`FrameCoexistence`: el especial sustituye al ordinario de su etapa y coexiste con las demás); el cambio de fechas con sesiones se rechaza con `timetable_conflict` si hace coexistir sesiones en conflicto. Desaparece el `422 frame_type_invalid` para `especial` de `1.12-a`. **Reservas** de aulas y recursos: tabla `facility_bookings`, 4 *endpoints* (sin `PATCH`), `booking_conflict` contra otras reservas y contra las sesiones del marco vigente ese día, `booking_outside_academic_year`, todo bajo el ancla `FOR UPDATE` de `timetables`; un espacio con reservas vivas en un curso en planificación o activo no se borra.

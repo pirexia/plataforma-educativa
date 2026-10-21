@@ -1,6 +1,6 @@
 # PRIVACY.md
 
-> **Versión 0.3.6** · 2026-10-07
+> **Versión 0.3.7** · 2026-10-20
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Base del Registro de Actividades de Tratamiento (RAT) exigido por el RGPD — hoy es un **esqueleto**, no un RAT completo: varias secciones dependen de decisiones que todavía no se han tomado (`OPEN-07`, entidad jurídica y contrato de encargado de tratamiento). No se rellenan con suposiciones (`CLAUDE.md` §0/§11).
 
 ---
@@ -119,6 +119,19 @@ Mismo mecanismo que §2.3, protocolo distinto: cada centro cataloga su propio pr
 | Rastro | Cada `Person` y `User` creados se auditan como cualquier alta (`created`), con los identificadores redactados (`ADR-035`); el fichero no se copia a `audit_logs` |
 | Minimización y exactitud | El documento se guarda **normalizado** (`RN-CORE-92`) y de un catálogo cerrado (`RN-CORE-90`), para que no haya duplicados de la misma persona por escribirse distinto |
 | Base legal y consentimiento de menores (`INV-008`) | **Pendiente de `OPEN-07`** (entidad responsable y base legal); no se rellena con suposiciones |
+
+### 2.7 Vínculo usuario ↔ docencia, tutorías, espacios y reservas (`REQ-ACAD-002`, pasos 1.12-a y 1.12-b)
+
+`acad` registra qué miembro del personal imparte qué asignatura a qué grupo (`teaching_assignments`), quién tutoriza un grupo (`group_tutors`), quién creó una reserva de aula (`facility_bookings.created_by`) y, por derivación, su horario (`timetable_sessions`). Es un tratamiento de **datos personales ordinarios del personal** (no de categoría especial, `INV-008` no aplica: no hay datos de menores en estas tablas).
+
+| Aspecto | Decisión |
+|---------|----------|
+| Dato personal | El **vínculo** entre una persona del personal y su docencia/tutoría/reserva; el nombre no se guarda en estas tablas, se resuelve por `UserDirectory` al leer |
+| Qué ve cada pantalla | `{public_id, name}` del profesor: nombre y primer apellido, **nunca el correo**; sin nombre, el texto neutro `acad.staff.unnamed`. Ninguna respuesta incluye el id interno |
+| Usuario borrado | La referencia se conserva (histórico) pero el nombre **no**: se muestra el marcador neutro traducido `acad.staff.removed` («Usuario eliminado»), decisión #446 B-3 (`REQ-PRIV-006`, `ADR-004`). Un usuario inactivo (no borrado) conserva su nombre |
+| Auditoría | Política `Full`: `changes` registra la clave interna `user_id` (pseudónima), no nombre ni documento. Decisión consciente #446 B-1. Hallazgo abierto: `GET /audit-logs` devuelve esas claves internas ([#455](https://github.com/pirexia/plataforma-educativa/issues/455)) |
+| Base legal y plazo | **Pendiente de `OPEN-07`** y de `REQ-PRIV-006`; mientras el centro exista, las filas viven con el tenant. Orden de restauración en `docs/modulos/REQ-ACAD/datos.md §9.6` |
+| Supresión y anonimización | Hoy: borrado lógico de la asignación/tutoría, y un usuario **borrado** deja de mostrar su nombre (marcador `acad.staff.removed`). **La anonimización de `ADR-004` nivel 2 (identificadores irreversibles) es diseño pendiente de `REQ-PRIV-006` y de `OPEN-07`**: no está implementada y este documento no la da por hecha |
 
 ## 3. Registro de Actividades de Tratamiento (RAT) — plantilla
 

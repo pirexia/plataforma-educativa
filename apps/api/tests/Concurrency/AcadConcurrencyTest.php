@@ -631,3 +631,48 @@ test('CA-ACAD-136 RN-ACAD-111 RN-ACAD-125: dos procesos reales crean a la vez do
         ->and($conflicts[0]['code'])->toBe('acad.validation.frame_overlap')
         ->and(Tt::count($tenant, 'timetable_frames'))->toBe(1);
 });
+
+test('CA-ACAD-154 RN-ACAD-123 (#446-d, db-reviewer B3): la migración del único (franja, asignación) se niega con un mensaje claro si ya hay una pareja repetida, y construye el índice cuando se corrige', function (): void {
+    $s = Tt::scenario('acad-154');
+    $one = Tt::postAssignment($s['tenant'], $s['admin'], $s['t1'], $s['api']['group'], $s['api']['subject'])->assertCreated()->json('public_id');
+    $groupB = Tt::send($s['tenant'], $s['admin'], 'POST', '/groups', ['course' => $s['api']['course'], 'code' => 'B', 'name' => 'Grupo B'])->assertCreated()->json('public_id');
+    Tt::send($s['tenant'], $s['admin'], 'PUT', "/groups/{$groupB}/subjects", ['subjects' => [$s['api']['subject']]])->assertOk();
+    $two = Tt::postAssignment($s['tenant'], $s['admin'], $s['t2'], $groupB, $s['api']['subject'])->assertCreated()->json('public_id');
+    Tt::postSession($s['tenant'], $s['admin'], $s['slots'][0], $one)->assertCreated();
+    Tt::postSession($s['tenant'], $s['admin'], $s['slots'][1], $two)->assertCreated();
+
+    $owner = DB::connection('pgsql_owner');
+    $migration = require base_path('app/Modules/Acad/Database/migrations/2026_10_20_100200_add_session_slot_assignment_unique.php');
+    $owner->statement("select set_config('app.tenant_id', ?, false)", [(string) $s['tenant']->id]);
+    $owner->statement('DROP INDEX IF EXISTS timetable_sessions_tenant_slot_assignment_unique');
+
+    try {
+        // Fuerza la pareja repetida por SQL a mano: la segunda sesión pasa a la franja y asignación de la primera.
+        $first = $owner->selectOne('select time_slot_id, teaching_assignment_id from timetable_sessions order by id limit 1');
+        $owner->update('update timetable_sessions set time_slot_id = ?, teaching_assignment_id = ? where id = (select max(id) from timetable_sessions)', [$first->time_slot_id, $first->teaching_assignment_id]);
+        $owner->statement("select set_config('app.tenant_id', '', false)");
+
+        $message = null;
+
+        try {
+            $migration->up();
+        } catch (RuntimeException $e) {
+            $message = $e->getMessage();
+        }
+
+        expect($message)->toContain('misma franja y la misma asignación')->and($message)->toContain("tenant {$s['tenant']->id}");
+
+        // Corregida la pareja, la migración construye el índice válido.
+        $owner->statement("select set_config('app.tenant_id', ?, false)", [(string) $s['tenant']->id]);
+        $owner->delete('delete from timetable_sessions where id = (select max(id) from timetable_sessions)');
+        $owner->statement("select set_config('app.tenant_id', '', false)");
+        $migration->up();
+
+        $valid = $owner->selectOne("select i.indisvalid from pg_index i join pg_class c on c.oid = i.indexrelid where c.relname = 'timetable_sessions_tenant_slot_assignment_unique'");
+
+        expect($valid->indisvalid)->toBeTrue();
+    } finally {
+        $owner->statement("select set_config('app.tenant_id', '', false)");
+        $migration->up();
+    }
+});

@@ -318,7 +318,7 @@ Estas pantallas (`REQ-ACAD-002`, pasos `1.12-a` y `1.12-b`) preparan y componen 
 
 **Con un curso de solo lectura** (cerrado o archivado) las pantallas muestran un aviso permanente y no hay botones de escritura (los espacios siguen siendo editables). Los cursos cerrados solo se ven con el permiso de leer el histórico.
 
-**Si algo no cuadra.** «Sin permiso» al abrir una pantalla = falta el permiso de ese recurso (espacios, horarios, asignación docente o reservas), que no se heredan de la estructura. Un profesor que existe pero «no existe o no está activo» está dado de baja o es de otro centro.
+**Si algo no cuadra.** «Sin permiso» al abrir una pantalla = falta el permiso de ese recurso (espacios, horarios, asignación docente o reservas), que no se heredan de la estructura. Un profesor que existe pero «no existe o no está activo» está dado de baja o es de otro centro. Si una persona del profesorado ya no existe en el centro (se ha dado de baja), en las asignaciones, tutorías, sesiones y reservas aparece como **«Usuario eliminado»**: el historial se conserva, pero su nombre ya no se muestra. En la interfaz en alemán, cada sesión del horario se llama «Unterrichtsstunde» (plural «Unterrichtsstunden»); «Zeitfenster» es la franja y «Stundenplanrahmen» el marco horario.
 
 ## Mi perfil
 

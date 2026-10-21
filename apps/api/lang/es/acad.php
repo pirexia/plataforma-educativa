@@ -111,6 +111,7 @@ return [
 
     'staff' => [
         'unnamed' => 'Usuario sin nombre',
+        'removed' => 'Usuario eliminado',
     ],
 
     'conflict' => [

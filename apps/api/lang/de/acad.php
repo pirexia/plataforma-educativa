@@ -105,13 +105,14 @@ return [
         'slot_not_for_group' => 'Das Zeitfenster gehört zu einem Rahmen einer anderen Stufe als der der Gruppe.',
         'facility_not_found' => 'Der angegebene Raum existiert nicht.',
         'facility_not_room' => 'Der angegebene Raum ist kein Klassenzimmer.',
-        'timetable_conflict' => 'Die Stunde überschneidet sich im Stundenplan mit einer anderen derselben Lehrkraft, desselben Raums oder derselben Gruppe.',
+        'timetable_conflict' => 'Die Unterrichtsstunde überschneidet sich im Stundenplan mit einer anderen derselben Lehrkraft, desselben Raums oder derselben Gruppe.',
         'view_filter_required' => 'Geben Sie mindestens einen der Filter an: teacher, facility, group oder subject.',
-        'view_too_large' => 'Die Ansicht enthält zu viele Stunden (höchstens :max).',
+        'view_too_large' => 'Die Ansicht enthält zu viele Unterrichtsstunden (höchstens :max).',
     ],
 
     'staff' => [
         'unnamed' => 'Benutzer ohne Namen',
+        'removed' => 'Gelöschter Benutzer',
     ],
 
     'conflict' => [

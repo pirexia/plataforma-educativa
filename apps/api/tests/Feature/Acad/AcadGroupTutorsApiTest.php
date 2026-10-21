@@ -137,3 +137,37 @@ test('RN-ACAD-92 seguridad M-1: ninguna respuesta de acad contiene el correo del
         expect($response->getContent())->not->toContain($teacher->email)->and($response->getContent())->toContain('Usuario sin nombre');
     }
 });
+
+/** @return list<string> claves `id` o `*_id` de cualquier nivel (con su ruta): la forma en que se filtraría un id interno. */
+function internalIdKeys(mixed $node, string $path = ''): array
+{
+    $found = [];
+
+    foreach (is_array($node) ? $node : [] as $key => $value) {
+        if (is_string($key) && $key !== 'public_id' && ($key === 'id' || str_ends_with($key, '_id'))) {
+            $found[] = $path.'.'.$key;
+        }
+
+        $found = [...$found, ...internalIdKeys($value, $path.'.'.$key)];
+    }
+
+    return $found;
+}
+
+test('CA-ACAD-159 ADR-029 (#446 B-1): ninguna salida de tutores ni de asignaciones docentes expone el id interno del profesorado, solo su public_id', function (): void {
+    $s = Tt::scenario('tu-113-ids');
+    $tenant = $s['tenant'];
+    $admin = $s['admin'];
+
+    $tutors = Tt::send($tenant, $admin, 'PUT', "/groups/{$s['api']['group']}/tutors", ['tutors' => [$s['t1']->public_id]])->assertOk();
+    $assignment = Tt::postAssignment($tenant, $admin, $s['t1'], $s['api']['group'], $s['api']['subject'])->assertCreated();
+    $list = Tt::send($tenant, $admin, 'GET', '/teaching-assignments')->assertOk();
+    $detail = Tt::send($tenant, $admin, 'GET', '/teaching-assignments/'.$assignment->json('public_id'))->assertOk();
+
+    foreach ([$tutors, $assignment, $list, $detail] as $response) {
+        expect(internalIdKeys($response->json()))->toBe([])
+            // Ni como valor: el id interno del profesor no aparece como número en la respuesta.
+            ->and($response->getContent())->not->toMatch('/":'.$s['t1']->id.'[,}\]]/')
+            ->and($response->getContent())->toContain($s['t1']->public_id);
+    }
+});

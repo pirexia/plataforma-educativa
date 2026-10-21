@@ -228,9 +228,9 @@
       "assignmentCreated": "Lehrkraft zugewiesen.",
       "assignmentDeleted": "Lehrauftrag entfernt.",
       "tutorsUpdated": "Klassenleitung der Gruppe aktualisiert.",
-      "sessionCreated": "Stunde angelegt.",
-      "sessionUpdated": "Stunde aktualisiert.",
-      "sessionDeleted": "Stunde gelöscht.",
+      "sessionCreated": "Unterrichtsstunde angelegt.",
+      "sessionUpdated": "Unterrichtsstunde aktualisiert.",
+      "sessionDeleted": "Unterrichtsstunde gelöscht.",
       "bookingCreated": "Reservierung erstellt.",
       "bookingCancelled": "Reservierung storniert."
     },
@@ -350,7 +350,7 @@
         "caption": "Zeitfenster des Stundenplanrahmens"
       },
       "title": "Stundenpläne",
-      "description": "Wochenraster der Stunden nach Gruppe, Lehrkraft, Raum oder Fach.",
+      "description": "Wochenraster der Unterrichtsstunden nach Gruppe, Lehrkraft, Raum oder Fach.",
       "selection": "Auswahl der Ansicht",
       "viewLabel": "Ansicht nach",
       "views": {
@@ -369,19 +369,19 @@
       "noFrame": "Die Stufe dieser Gruppe hat keinen Stundenplanrahmen. Legen Sie den Rahmen und seine Zeitfenster auf der Seite der Stufe an.",
       "grid": {
         "caption": "Wochenstundenplan nach {view}",
-        "noSlots": "Es gibt keine Zeitfenster oder Stunden anzuzeigen.",
+        "noSlots": "Es gibt keine Zeitfenster oder Unterrichtsstunden anzuzeigen.",
         "time": "Uhrzeit",
         "range": "{start}–{end}",
         "edit": "Bearbeiten",
-        "add": "Stunde hinzufügen",
+        "add": "Unterrichtsstunde hinzufügen",
         "free": "Frei",
         "noSlot": "Kein Zeitfenster",
         "facilityDeleted": "Raum außer Betrieb"
       },
       "form": {
         "title": {
-          "create": "Neue Stunde",
-          "edit": "Stunde bearbeiten"
+          "create": "Neue Unterrichtsstunde",
+          "edit": "Unterrichtsstunde bearbeiten"
         },
         "assignment": "Lehrauftrag",
         "slot": "Zeitfenster",
@@ -389,22 +389,22 @@
         "noFacility": "Kein Raum",
         "noAssignments": "Der Gruppe sind keine Lehrkräfte zugewiesen. Weisen Sie sie auf der Seite der Gruppe zu.",
         "assignmentRequired": "Wählen Sie einen Lehrauftrag.",
-        "remove": "Stunde entfernen"
+        "remove": "Unterrichtsstunde entfernen"
       },
       "conflict": {
-        "title": "Die Stunde kollidiert mit einer anderen:",
+        "title": "Die Unterrichtsstunde kollidiert mit einer anderen:",
         "kind": {
           "teacher": "Lehrkraft",
           "facility": "Raum",
           "group": "Gruppe"
         },
         "with": "{kind}: {subject} · {group} · {teacher} · {slot}",
-        "withUnknown": "{kind}: Stunde {session}"
+        "withUnknown": "{kind}: Unterrichtsstunde {session}"
       },
       "confirmDelete": {
-        "title": "Die Stunde {subject} entfernen?",
-        "description": "Die Stunde wird aus dem Raster gelöscht; der Lehrauftrag bleibt unverändert.",
-        "confirm": "Stunde entfernen"
+        "title": "Die Unterrichtsstunde {subject} entfernen?",
+        "description": "Die Unterrichtsstunde wird aus dem Raster gelöscht; der Lehrauftrag bleibt unverändert.",
+        "confirm": "Unterrichtsstunde entfernen"
       },
       "frameLabel": "Stundenplanrahmen"
     },
@@ -432,7 +432,7 @@
       "unknownTeacher": "Benutzer nicht verfügbar",
       "confirmDelete": {
         "title": "{teacher} aus {subject} entfernen?",
-        "description": "Der Lehrauftrag wird entfernt. Hat er Stunden im Stundenplan, müssen diese zuerst gelöscht werden.",
+        "description": "Der Lehrauftrag wird entfernt. Hat er Unterrichtsstunden im Stundenplan, müssen diese zuerst gelöscht werden.",
         "confirm": "Lehrauftrag entfernen"
       },
       "form": {

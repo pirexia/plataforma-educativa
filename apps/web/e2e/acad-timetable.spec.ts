@@ -50,7 +50,7 @@ test.describe('CA-ACAD-135 (REQ-ACAD-002): horarios contra la API real', () => {
     await page.getByRole('button', { name: 'Nuevo espacio' }).click()
     const facilityDialog = page.getByRole('dialog')
     await facilityDialog.getByLabel(/^Tipo de espacio/).click()
-    await page.getByRole('option', { name: 'Aula' }).click()
+    await page.getByRole('option', { name: 'Aula', exact: true }).click()
     await facilityDialog.getByLabel(/^Código/).fill('A101')
     await facilityDialog.getByLabel(/^Nombre/).fill('Aula 101')
     await facilityDialog.getByRole('button', { name: 'Guardar' }).click()
@@ -63,9 +63,11 @@ test.describe('CA-ACAD-135 (REQ-ACAD-002): horarios contra la API real', () => {
     await levelDialog.getByLabel(/^Código/).fill('ESO')
     await levelDialog.getByLabel(/^Nombre \(Español\)/).fill('Educación Secundaria Obligatoria')
     await levelDialog.getByLabel(/^Tipo de etapa/).click()
-    await page.getByRole('option', { name: 'Educación Secundaria Obligatoria' }).click()
+    await page
+      .getByRole('option', { name: 'Educación Secundaria Obligatoria', exact: true })
+      .click()
     await levelDialog.getByLabel(/^Régimen/).click()
-    await page.getByRole('option', { name: 'Concertado' }).click()
+    await page.getByRole('option', { name: 'Concertado', exact: true }).click()
     await levelDialog.getByRole('button', { name: 'Crear' }).click()
     await expect(page.getByRole('status').filter({ hasText: 'Etapa creada' })).toBeVisible()
     await page.getByRole('link', { name: 'ESO' }).click()
@@ -73,7 +75,7 @@ test.describe('CA-ACAD-135 (REQ-ACAD-002): horarios contra la API real', () => {
     await page.getByRole('button', { name: 'Nuevo marco horario' }).click()
     const frameDialog = page.getByRole('dialog')
     await frameDialog.getByLabel(/^Tipo de marco horario/).click()
-    await page.getByRole('option', { name: 'Ordinario' }).click()
+    await page.getByRole('option', { name: 'Ordinario', exact: true }).click()
     await frameDialog.getByLabel(/^Nombre \(Español\)/).fill('Jornada ordinaria')
     await frameDialog.getByRole('button', { name: 'Crear' }).click()
     await expect(page).toHaveURL(/\/academico\/marcos\/[^/]+/)
@@ -88,7 +90,7 @@ test.describe('CA-ACAD-135 (REQ-ACAD-002): horarios contra la API real', () => {
       await page.getByRole('button', { name: 'Añadir franja' }).click()
       const row = page.getByRole('group', { name: `Franja ${index + 1}`, exact: true })
       await row.getByLabel('Día').click()
-      await page.getByRole('option', { name: day }).click()
+      await page.getByRole('option', { name: day, exact: true }).click()
       await row.getByLabel('Inicio').fill(start)
       await row.getByLabel('Fin').fill(end)
     }
@@ -232,7 +234,7 @@ test.describe('CA-ACAD-135 (REQ-ACAD-002): horarios contra la API real', () => {
 
     // 7. Vista del profesor: Marta solo da Lengua el martes.
     await page.getByLabel('Ver por').click()
-    await page.getByRole('option', { name: 'Profesor' }).click()
+    await page.getByRole('option', { name: 'Profesor', exact: true }).click()
     await page.getByLabel('Marta Docente').check()
 
     const grid = page.locator('[data-slot="acad-timetable-grid"]')

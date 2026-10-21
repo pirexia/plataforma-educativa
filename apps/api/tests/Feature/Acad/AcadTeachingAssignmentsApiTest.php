@@ -192,3 +192,29 @@ test('RN-ACAD-95 listado: filtros por grupo, asignatura y profesor (múltiples),
         ->and($ids(Tt::send($tenant, $admin, 'GET', '/teaching-assignments?group=01JZZZZZZZZZZZZZZZZZZZZZZZ')))->toBe([])
         ->and($ids(Tt::send($tenant, $admin, 'GET', '/teaching-assignments?teacher=01JZZZZZZZZZZZZZZZZZZZZZZZ')))->toBe([]);
 });
+
+test('CA-ACAD-158 RN-ACAD-92 REQ-PRIV-006 ADR-004 (#446 B-3): con el profesor borrado, el detalle y el listado muestran el marcador neutro traducido y nunca su nombre, conservando su public_id', function (): void {
+    $s = Tt::scenario('ta-107-removed');
+    $created = Tt::postAssignment($s['tenant'], $s['admin'], $s['t1'], $s['api']['group'], $s['api']['subject'])->assertCreated();
+
+    app(TenantContext::class)->runFor($s['tenant']->id, fn () => $s['t1']->delete());
+
+    $detail = Tt::send($s['tenant'], $s['admin'], 'GET', '/teaching-assignments/'.$created->json('public_id'))->assertOk();
+
+    expect($detail->json('teacher.name'))->toBe('Usuario eliminado')
+        ->and($detail->json('teacher.public_id'))->toBe($s['t1']->public_id)
+        ->and($detail->getContent())->not->toContain('Persona Prueba');
+
+    $list = Tt::send($s['tenant'], $s['admin'], 'GET', '/teaching-assignments')->assertOk();
+
+    expect($list->json('data.0.teacher.name'))->toBe('Usuario eliminado')
+        ->and($list->getContent())->not->toContain('Persona Prueba');
+});
+
+test('CA-ACAD-158 INV-009 (#446 B-3): acad.staff.removed existe en es, en, de y fr y es distinto del texto de usuario sin nombre', function (): void {
+    foreach (['es', 'en', 'de', 'fr'] as $locale) {
+        $removed = __('acad.staff.removed', [], $locale);
+
+        expect($removed)->not->toBe('acad.staff.removed')->and($removed)->not->toBe(__('acad.staff.unnamed', [], $locale));
+    }
+});
