@@ -16,6 +16,35 @@ return [
         ],
     ],
 
+    // REQ-ACAD/funcional.md §21.6 (1.12b): participante de `acad` en la apertura del curso siguiente.
+    'rollover' => [
+        'elements' => [
+            'education_levels' => 'Etapas',
+            'courses' => 'Cursos de etapa',
+            'groups' => 'Grupos',
+            'subgroups' => 'Subgrupos',
+            'subjects' => 'Asignaturas',
+            'group_subjects' => 'Asignaturas de cada grupo',
+            'academic_periods' => 'Períodos lectivos',
+            'grading_scales' => 'Escalas de calificación',
+            'timetable_frames' => 'Marcos horarios y franjas',
+            'teaching_assignments' => 'Asignaciones docentes',
+            'group_tutors' => 'Tutores de grupo',
+            'timetable_sessions' => 'Sesiones de horario',
+        ],
+        'target_not_empty' => 'El curso de destino ya tiene datos de «:element» (:count). Quítalos de la selección o bórralos antes.',
+        'dates_outside_target' => ':count fechas de «:element» quedarían fuera del curso de destino (del :starts_on al :ends_on tras desplazarlas).',
+        'revert_has_dependents' => 'Hay datos añadidos después de la copia que dependen de lo copiado (:count).',
+        'skipped' => [
+            'teacher_inactive' => 'Profesorado que ya no está activo',
+            'tutor_inactive' => 'Tutores de grupo que ya no están activos',
+            'frames_not_copied' => 'No se copian los marcos horarios',
+        ],
+        'adjusted' => [
+            'facility_removed' => 'Se copian sin aula (aula dada de baja)',
+        ],
+    ],
+
     'stage' => [
         'infantil' => 'Infantil',
         'primaria' => 'Primaria',

@@ -44,7 +44,7 @@ DropCapability=ALL
 Environment=DB_QUEUE_RETRY_AFTER=180
 Exec=php artisan queue:work database --queue=auth-mail,core-mail,bo-mail,default,auth-maintenance,core-maintenance,backoffice-maintenance,core-exports,core-imports --tries=3 --backoff=30 --timeout=120 --sleep=3 --max-time=3600 --max-jobs=1000
 StopTimeout=130
-HealthCmd=php artisan core:queue-health
+HealthCmd=php artisan core:queue-health --queues=auth-mail,core-mail,bo-mail,default,auth-maintenance,core-maintenance,backoffice-maintenance,core-exports,core-imports
 HealthInterval=60s
 HealthTimeout=20s
 HealthRetries=3

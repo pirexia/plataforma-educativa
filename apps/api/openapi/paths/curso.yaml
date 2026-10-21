@@ -3,7 +3,8 @@
 # solo las aplica. Todos los endpoints bajo /api/v1, referenciados desde
 # apps/api/openapi.yaml. Contrato completo en docs/modulos/REQ-CURSO/api.md.
 # Módulo esencial (OPEN-CURSO-01): sus rutas no llevan `module-enabled:`.
-# `DELETE`, la transición a `archivado` y la reapertura NO existen en 1.10.
+# `DELETE` y la transición a `archivado` NO existen. Reapertura: 1.11c. Apertura del curso siguiente
+# (`/api/v1/academic-year-rollovers`): 1.12b, REQ-CURSO-002, docs/modulos/REQ-CURSO/api.md §2.1.
 
 paths:
   /api/v1/academic-years:
@@ -294,7 +295,10 @@ paths:
             `code` del activo), `curso.conflict.invalid_transition` (`params`: `from`, `to`) o
             `curso.conflict.closure_checks_failed` (una entrada por validación fallida en
             `errors.closure[]`, con el `code`/`message`/`params` del módulo dueño; vacío en 1.10). Desde `1.11d-a` solo
-            cuentan las validaciones de módulos contratados en el centro (RN-CURSO-60).
+            cuentan las validaciones de módulos contratados en el centro (RN-CURSO-60), o
+            `curso.conflict.rollover_in_progress` (1.12b, `OPEN-CURSO-36`, RN-CURSO-71: activar un curso que es destino
+            de una copia en `pendiente`, `en_curso` o `revirtiendo`; `params`: `public_id` y `status` de la copia; se
+            comprueba antes que `active_exists`).
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }
@@ -379,6 +383,338 @@ paths:
           description: >
             `curso.validation.reason_required` (`reason` ausente, no textual o vacío tras
             recortar) o error de forma (`reason` de más de 1000 caracteres).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  # ───────────── Apertura del curso siguiente (1.12b, REQ-CURSO-002, api.md §2.1) ─────────────
+
+  /api/v1/academic-year-rollovers/elements:
+    get:
+      operationId: listAcademicYearRolloverElements
+      summary: Catálogo de elementos que se pueden copiar al curso siguiente
+      description: >
+        Permiso `apertura_curso_academico.crear`. Los elementos que ofrecen los participantes registrados, solo de
+        módulos utilizables en el centro (RN-CURSO-62), en orden de copia. Sin paginar (catálogo cerrado declarado
+        en código). `allowed` indica si el usuario tiene el permiso de alta del elemento (RN-CURSO-78).
+      tags: [Curso / Apertura del curso siguiente]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Catálogo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/AcademicYearRolloverElement' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+
+  /api/v1/academic-year-rollovers/preview:
+    get:
+      operationId: previewAcademicYearRollover
+      summary: Simula la copia a un curso en planificación (dry-run)
+      description: >
+        Permiso `apertura_curso_academico.crear` y, por cada elemento pedido, su permiso de alta (RN-CURSO-78).
+        Síncrona, de solo lectura y sin bloqueos de fila: no escribe nada, ni en `year_rollovers` ni en `audit_logs`
+        (RN-CURSO-65). Devuelve `200` también cuando `executable` es `false` (las incidencias son el contenido del
+        informe). No es una garantía: la ejecución vuelve a evaluarlo todo.
+      tags: [Curso / Apertura del curso siguiente]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: academic_year
+          in: query
+          description: '`public_id` del curso destino (en `planificacion`). Obligatorio: aquí no rige «omitido ⇒ activo».'
+          schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: source
+          in: query
+          description: '`public_id` del curso origen (`activo` o `cerrado` anterior al destino; el cerrado exige `curso_historico.leer`).'
+          schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: elements
+          in: query
+          description: >
+            Códigos de elementos separados por coma (ADR-038 §5.2). Sin los de paquete: se piden con
+            `copy_teaching_assignments`.
+          style: form
+          explode: false
+          schema: { type: array, items: { type: string } }
+          example: "acad.education_levels,acad.courses,acad.groups"
+        - name: copy_teaching_assignments
+          in: query
+          description: '`true` o `false` (RN-CURSO-82); omitido ⇒ `false`; otro valor ⇒ `422`.'
+          schema: { type: string, enum: ['true', 'false'], default: 'false' }
+      responses:
+        '200':
+          description: Informe de la simulación
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/AcademicYearRolloverPreview' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403':
+          description: >
+            Sin `apertura_curso_academico.crear`, o sin el permiso de alta de algún elemento: una entrada
+            `curso.rollover.element_forbidden` (`params.element`) por elemento en `errors.elements[]`.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '409':
+          description: '`curso.conflict.rollover_target_not_planning`: el destino no está en `planificacion`.'
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '422':
+          description: >
+            `curso.validation.rollover_target_required`, `rollover_target_not_found`, `rollover_source_required`,
+            `rollover_source_not_found`, `rollover_source_invalid`, `rollover_elements_required`,
+            `rollover_element_unknown`, `rollover_element_not_selectable`, `rollover_element_requires` (`params.element`,
+            `params.requires`), `rollover_teaching_assignments_unavailable`, o un error de forma.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/academic-year-rollovers:
+    get:
+      operationId: listAcademicYearRollovers
+      summary: Lista las copias hacia un curso destino
+      description: >
+        Permiso `apertura_curso_academico.leer`; además `AcademicYearReadAccess` sobre el destino: un destino
+        `cerrado`/`archivado` sin `curso_historico.leer` es `404` (RN-CURSO-80, -33). `academic_year` omitido ⇒ curso
+        activo (convención de api.md §3; sin activo, `404 curso.no_active_year`). Paginación por página
+        (ADR-038 §4.2). Orden por defecto `-created_at`, desempate por `id DESC`.
+      tags: [Curso / Apertura del curso siguiente]
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: academic_year
+          in: query
+          description: '`public_id` del curso destino.'
+          schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: source
+          in: query
+          description: '`public_id` del curso origen (el aviso del diálogo de reapertura, RN-CURSO-77).'
+          schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: status
+          in: query
+          description: >
+            Uno o varios estados separados por coma (ADR-038 §5.2, `form`, `explode: false`).
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { type: string, enum: [pendiente, en_curso, completado, fallido, revirtiendo, revertido] }
+          example: "completado"
+        - name: sort
+          in: query
+          description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada.
+          schema: { type: string, enum: [created_at, -created_at], default: -created_at }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de copias
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/AcademicYearRollover' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: requestAcademicYearRollover
+      summary: Solicita la copia de elementos de un curso a otro en planificación
+      description: >
+        Permiso `apertura_curso_academico.crear` y, por cada elemento de la selección efectiva, su permiso de alta
+        (RN-CURSO-78). En una transacción y en este orden (RN-CURSO-68): `FOR SHARE` sobre el curso destino y
+        comprobación de que sigue en `planificacion`; destino, origen, selección y permisos; ¿hay una copia viva hacia
+        el destino? (`409 rollover_exists`, antes de simular); simulación de los participantes (si hay incidencias,
+        `409 rollover_blocked`); alta en `pendiente`; y, **después de confirmar**, envío del trabajo a la cola
+        (`database_long`, cola `long`). Responde `202`: la copia se ejecuta en segundo plano en **una** transacción
+        (todo o nada, RN-CURSO-69). El *endpoint* nunca crea el curso destino (RN-CURSO-63). Sin `Idempotency-Key`
+        (RN-CURSO-81).
+      tags: [Curso / Apertura del curso siguiente]
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                academic_year: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                source: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                elements:
+                  type: array
+                  items: { type: string }
+                  description: Lista no vacía de códigos del catálogo, sin los de paquete.
+                copy_teaching_assignments:
+                  type: boolean
+                  default: false
+                  description: >
+                    La casilla «copiar la asignación docente» (RN-CURSO-82): añade a la selección efectiva los
+                    elementos del paquete `teaching_assignments`.
+            example:
+              academic_year: 01JB0000000000000000000000
+              source: 01JA0000000000000000000000
+              elements: [acad.education_levels, acad.courses, acad.groups]
+              copy_teaching_assignments: false
+      responses:
+        '202':
+          description: Copia registrada en `pendiente`; el trabajo se encola tras confirmar
+          headers:
+            Location:
+              description: URL de la copia.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/AcademicYearRollover' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403':
+          description: >
+            Sin `apertura_curso_academico.crear`, o sin el permiso de alta de algún elemento: una entrada
+            `curso.rollover.element_forbidden` (`params.element`) por elemento en `errors.elements[]`.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '409':
+          description: >
+            `curso.conflict.rollover_target_not_planning`; `curso.conflict.rollover_exists` (ya hay una copia viva
+            hacia el destino; `params.public_id`, `params.status`; gana sobre `rollover_blocked`);
+            `curso.conflict.rollover_blocked` (una entrada por incidencia en `errors.rollover[]`, con `element`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+              example:
+                type: urn:pge:error:conflict
+                title: Conflicto
+                status: 409
+                detail: 'La copia no se puede ejecutar: revisa los motivos.'
+                instance: /api/v1/academic-year-rollovers
+                request_id: 01J8000000000000000000000A
+                errors:
+                  rollover:
+                    - code: acad.rollover.target_not_empty
+                      message: 'El curso de destino ya tiene datos de «Etapas» (1). Quítalos de la selección o bórralos antes.'
+                      params: { element: acad.education_levels, count: 1 }
+        '422':
+          description: Los de la simulación (`curso.validation.rollover_*`) o un error de forma (p. ej. `copy_teaching_assignments` no booleano).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '429':
+          description: >
+            Límite por centro de solicitudes de copia (6 por hora por defecto, `curso.rollover.rate_limit`):
+            `Retry-After` en segundos y `detail` traducido (`curso.errors.rollover_rate_limited`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/academic-year-rollovers/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getAcademicYearRollover
+      summary: Detalle de una copia (estado, resultado y fallo)
+      description: >
+        Permiso `apertura_curso_academico.leer`; además `AcademicYearReadAccess` sobre el destino (RN-CURSO-80).
+        Los mensajes de `failure`/`revert_failure` y las etiquetas de `skipped`/`adjusted` se traducen al leer, en el
+        idioma de la petición (RN-CURSO-73). La interfaz lo consulta con espera creciente mientras está en vuelo.
+      tags: [Curso / Apertura del curso siguiente]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: La copia
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/AcademicYearRollover' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+
+  /api/v1/academic-year-rollovers/{publicId}/revert:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: revertAcademicYearRollover
+      summary: Solicita revertir una copia completada
+      description: >
+        Permiso `apertura_curso_academico.eliminar`. Sin cuerpo. Solo mientras el destino siga en `planificacion`
+        (RN-CURSO-74): `FOR SHARE` del destino, `FOR UPDATE` de la copia, la copia en `completado`, módulos con items
+        utilizables y `checkRevert()` de cada participante (datos añadidos a mano que dependen de lo copiado ⇒
+        `409 rollover_revert_blocked`). La copia pasa a `revirtiendo` y, tras confirmar, se encola el trabajo, que
+        borra lógicamente lo que creó la copia **aunque se haya editado después** (RN-CURSO-75). No es idempotente.
+      tags: [Curso / Apertura del curso siguiente]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '202':
+          description: La copia en `revirtiendo`
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/AcademicYearRollover' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: >
+            `curso.conflict.rollover_not_revertible` (`params.status`), `rollover_target_not_planning`,
+            `rollover_revert_module_unavailable` (`params.module`) o `rollover_revert_blocked` (una entrada por
+            incidencia en `errors.rollover_revert[]`). Nada cambia.
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+        '429':
+          description: >
+            Límite por centro de solicitudes de reversión (6 por hora por defecto, `curso.rollover.rate_limit`):
+            `Retry-After` en segundos y `detail` traducido (`curso.errors.rollover_rate_limited`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../components.yaml#/components/schemas/Problem' }
+
+  /api/v1/academic-year-rollovers/{publicId}/cancel:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: cancelAcademicYearRollover
+      summary: Cancela una copia huérfana
+      description: >
+        Permiso `apertura_curso_academico.eliminar`. Sin cuerpo. Salida de una copia en `pendiente`, `en_curso` o
+        `revirtiendo` sin trabajo vivo (envío fallido tras confirmar, `failed_jobs`, *worker* caído), que bloquea el
+        destino (RN-CURSO-85). Solo si su `updated_at` tiene más de 30 minutos. `pendiente`/`en_curso` ⇒ `fallido` con
+        `failure.code = cancelled`; `revirtiendo` ⇒ `completado` con `revert_failure.code = cancelled`. No encola nada ni
+        toca datos de ningún módulo. Auditada como `updated` con el actor que cancela.
+      tags: [Curso / Apertura del curso siguiente]
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: La copia ya cancelada
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/AcademicYearRollover' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: '../components.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409':
+          description: >
+            `curso.conflict.rollover_not_cancellable` (`params.status`) o `curso.conflict.rollover_cancel_too_early`
+            (`params.available_at`, fecha y hora ISO 8601).
           content:
             application/problem+json:
               schema: { $ref: '../components.yaml#/components/schemas/Problem' }

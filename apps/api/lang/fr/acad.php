@@ -17,6 +17,35 @@ return [
         ],
     ],
 
+    // REQ-ACAD/funcional.md §21.6 (1.12b): participante de `acad` en la apertura del curso siguiente.
+    'rollover' => [
+        'elements' => [
+            'education_levels' => 'Étapes',
+            'courses' => 'Niveaux',
+            'groups' => 'Groupes',
+            'subgroups' => 'Sous-groupes',
+            'subjects' => 'Matières',
+            'group_subjects' => 'Matières de chaque groupe',
+            'academic_periods' => 'Périodes scolaires',
+            'grading_scales' => 'Barèmes de notation',
+            'timetable_frames' => 'Cadres d’emploi du temps et créneaux',
+            'teaching_assignments' => 'Affectations d’enseignement',
+            'group_tutors' => 'Professeurs principaux',
+            'timetable_sessions' => 'Séances d’emploi du temps',
+        ],
+        'target_not_empty' => 'L’année de destination contient déjà des données « :element » (:count). Retirez-le de la sélection ou supprimez-les d’abord.',
+        'dates_outside_target' => ':count dates de « :element » tomberaient hors de l’année de destination (du :starts_on au :ends_on après décalage).',
+        'revert_has_dependents' => 'Des données ajoutées après la copie dépendent de ce qui a été copié (:count).',
+        'skipped' => [
+            'teacher_inactive' => 'Enseignants qui ne sont plus actifs',
+            'tutor_inactive' => 'Professeurs principaux qui ne sont plus actifs',
+            'frames_not_copied' => 'Les cadres d’emploi du temps ne sont pas copiés',
+        ],
+        'adjusted' => [
+            'facility_removed' => 'Copiées sans salle (salle retirée)',
+        ],
+    ],
+
     'stage' => [
         'infantil' => 'Petite enfance',
         'primaria' => 'Primaire',

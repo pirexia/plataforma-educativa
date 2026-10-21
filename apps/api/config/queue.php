@@ -44,6 +44,20 @@ return [
             'after_commit' => false,
         ],
 
+        // REQ-CURSO/operacion.md §1 (1.12b): mismo driver y tabla `jobs` que `database`, cola `long`, con un
+        // `retry_after` mayor que el `timeout` de los trabajos de copia y reversión (600 s) en al menos 300 s
+        // (`RN-CURSO-84`: el worker mata el proceso antes de que la cola pueda volver a entregarlo). Lo consume
+        // un proceso `queue:work database_long --queue=long` aparte: el `retry_after` es de la conexión con la
+        // que el worker lee la cola. Valores confirmados por la medición de `CA-CURSO-149` (2026-10-21).
+        'database_long' => [
+            'driver' => 'database',
+            'connection' => env('DB_QUEUE_CONNECTION'),
+            'table' => env('DB_QUEUE_TABLE', 'jobs'),
+            'queue' => 'long',
+            'retry_after' => 900,
+            'after_commit' => false,
+        ],
+
         'beanstalkd' => [
             'driver' => 'beanstalkd',
             'host' => env('BEANSTALKD_QUEUE_HOST', 'localhost'),

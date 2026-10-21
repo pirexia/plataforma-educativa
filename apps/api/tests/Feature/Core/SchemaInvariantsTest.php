@@ -74,6 +74,9 @@ test('toda restricción única sobre tabla con borrado lógico es parcial, salvo
         'time_slots_tenant_year_id_unique',
         // 1.12-a (datos.md §9.1): el ancla de serialización no se borra nunca (RN-ACAD-115), único no parcial a propósito.
         'timetables_tenant_year_unique',
+        // 1.12b (REQ-CURSO/datos.md §1.6): destino de la FK de tres columnas de `year_rollover_items`
+        // (`(tenant_id, academic_year_id, id)`, RN-CURSO-27); no parcial a propósito, como los demás destinos de FK.
+        'year_rollovers_tenant_year_id_unique',
     ];
 
     $tablesWithDeletedAt = collect(DB::select(<<<'SQL'
@@ -133,7 +136,10 @@ test('toda columna *_id de una tabla de tenant tiene FK compuesta con tenant_id'
     // audit_logs.auditable_id, polimórfica a propósito (ADR-034 §3, "No
     // hay FK: es polimórfica" — no puede apuntar a una sola tabla).
     $excluded = ['id', 'tenant_id'];
-    $polymorphicExceptions = ['audit_logs.auditable_id'];
+    // 1.12b (REQ-CURSO/datos.md §1.7): `year_rollover_items` es polimórfica sin FK a propósito
+    // (`entity_type` + `target_id`, patrón de `audit_logs`; `curso` nunca lee ni escribe las tablas de otros
+    // módulos, INV-007): `source_id` y `target_id` apuntan a filas de cualquier tabla de un módulo participante.
+    $polymorphicExceptions = ['audit_logs.auditable_id', 'year_rollover_items.source_id', 'year_rollover_items.target_id'];
 
     $candidates = collect(DB::select(<<<'SQL'
         SELECT c.table_name, c.column_name

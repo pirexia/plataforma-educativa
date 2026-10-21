@@ -6,6 +6,7 @@
 // Módulo ESENCIAL (OPEN-CURSO-01): sus rutas no llevan `module-enabled:`
 // (AR-07b solo lo exige a los no esenciales).
 
+use App\Modules\Curso\Http\Controllers\AcademicYearRolloversController;
 use App\Modules\Curso\Http\Controllers\AcademicYearsController;
 use Illuminate\Support\Facades\Route;
 
@@ -49,3 +50,34 @@ Route::post('/academic-years/{publicId}/status', [AcademicYearsController::class
 Route::post('/academic-years/{publicId}/reopen', [AcademicYearsController::class, 'reopen'])
     ->middleware('permission:reapertura_curso_academico.actualizar')
     ->name('curso.academic-years.reopen');
+
+// REQ-CURSO 1.12b (`REQ-CURSO-002`), api.md §2.1, RN-CURSO-78: apertura del curso siguiente. `elements` y
+// `preview` se registran ANTES que `/{publicId}` para que no se interpreten como un public_id. Permiso propio
+// (`apertura_curso_academico`); la autorización por elemento la aplica el servicio (RN-CURSO-78).
+Route::get('/academic-year-rollovers/elements', [AcademicYearRolloversController::class, 'elements'])
+    ->middleware('permission:apertura_curso_academico.crear')
+    ->name('curso.academic-year-rollovers.elements');
+
+Route::get('/academic-year-rollovers/preview', [AcademicYearRolloversController::class, 'preview'])
+    ->middleware('permission:apertura_curso_academico.crear')
+    ->name('curso.academic-year-rollovers.preview');
+
+Route::post('/academic-year-rollovers', [AcademicYearRolloversController::class, 'store'])
+    ->middleware('permission:apertura_curso_academico.crear')
+    ->name('curso.academic-year-rollovers.store');
+
+Route::get('/academic-year-rollovers', [AcademicYearRolloversController::class, 'index'])
+    ->middleware('permission:apertura_curso_academico.leer')
+    ->name('curso.academic-year-rollovers.index');
+
+Route::get('/academic-year-rollovers/{publicId}', [AcademicYearRolloversController::class, 'show'])
+    ->middleware('permission:apertura_curso_academico.leer')
+    ->name('curso.academic-year-rollovers.show');
+
+Route::post('/academic-year-rollovers/{publicId}/revert', [AcademicYearRolloversController::class, 'revert'])
+    ->middleware('permission:apertura_curso_academico.eliminar')
+    ->name('curso.academic-year-rollovers.revert');
+
+Route::post('/academic-year-rollovers/{publicId}/cancel', [AcademicYearRolloversController::class, 'cancel'])
+    ->middleware('permission:apertura_curso_academico.eliminar')
+    ->name('curso.academic-year-rollovers.cancel');

@@ -3,7 +3,7 @@
  * `docs/modulos/REQ-CURSO/funcional.md §10` (paso 1.10). Superficie pública de
  * `curso`, junto a `api/index.ts` y `types/index.ts`.
  *
- * Cuatro rutas, todas con `meta.permissions` **exactamente** el permiso del
+ * Cuatro rutas (seis desde 1.12b: asistente y detalle de la apertura del curso siguiente), todas con `meta.permissions` **exactamente** el permiso del
  * *endpoint* que la vista necesita para pintar su contenido principal (anyOf,
  * `ADR-053 §3`), nunca un rol. Las acciones de la ficha (activar, cerrar)
  * se gobiernan dentro de la vista por `RN-CORE-61`. **Ninguna ruta usa
@@ -62,6 +62,32 @@ export const shell: ModuleShell = {
         permissions: ['curso_academico.actualizar'],
         titleKey: 'curso.form.titleEdit',
         breadcrumbKey: 'curso.form.titleEdit',
+        breadcrumbParent: 'curso-academic-year-detail',
+      },
+    },
+    // 1.12b (REQ-CURSO-002, funcional.md §10.6): asistente de apertura del curso siguiente y detalle de la copia.
+    // Sin entrada de menú (ADR-053 §4.4): destinos de «Abrir curso siguiente» / «Copiar estructura de otro curso».
+    {
+      path: '/administracion/cursos/:publicId/copiar-estructura',
+      name: 'curso-rollover-wizard',
+      component: () => import('./views/RolloverWizardView.vue'),
+      meta: {
+        layout: 'app',
+        permissions: ['apertura_curso_academico.crear'],
+        titleKey: 'curso.rollover.wizard.routeTitle',
+        breadcrumbKey: 'curso.rollover.wizard.routeTitle',
+        breadcrumbParent: 'curso-academic-year-detail',
+      },
+    },
+    {
+      path: '/administracion/cursos/:publicId/copias/:rolloverId',
+      name: 'curso-rollover-detail',
+      component: () => import('./views/RolloverDetailView.vue'),
+      meta: {
+        layout: 'app',
+        permissions: ['apertura_curso_academico.leer'],
+        titleKey: 'curso.rollover.detail.title',
+        breadcrumbKey: 'curso.rollover.detail.title',
         breadcrumbParent: 'curso-academic-year-detail',
       },
     },

@@ -112,3 +112,52 @@ test('INV-001 RN-ACAD-92 (#446 B1 de seguridad): refsByIds y displayNamesByIds n
         expect(array_keys($directory->refsByIds([$own->id, $foreign->id])))->toBe([$foreign->id]);
     });
 });
+
+test('I-19 RN-ACAD-157 REQ-CURSO-002: activeIdsAmong devuelve solo los usuarios activos del centro, sin repetidos, en orden ascendente, y omite inactivos, pendientes, borrados, inexistentes y de otro centro', function (): void {
+    [$tenantA] = provisionCoreTenant('dir-aids-a');
+    [$tenantB] = provisionCoreTenant('dir-aids-b');
+    $first = directoryUser($tenantA, 'a1@example.com', UserStatus::Activo);
+    $second = directoryUser($tenantA, 'a2@example.com', UserStatus::Activo);
+    $inactive = directoryUser($tenantA, 'a3@example.com', UserStatus::Inactivo);
+    $pending = directoryUser($tenantA, 'a4@example.com', UserStatus::Pendiente);
+    $deleted = directoryUser($tenantA, 'a5@example.com', UserStatus::Activo);
+    app(TenantContext::class)->runFor($tenantA->id, fn () => $deleted->delete());
+    $foreign = directoryUser($tenantB, 'b1@example.com', UserStatus::Activo);
+
+    app(TenantContext::class)->runFor($tenantA->id, function () use ($first, $second, $inactive, $pending, $deleted, $foreign): void {
+        $directory = app(UserDirectory::class);
+        $ids = [$second->id, $inactive->id, $first->id, $pending->id, $deleted->id, $foreign->id, 999999999, $first->id];
+
+        expect($directory->activeIdsAmong($ids))->toBe([$first->id, $second->id])
+            ->and($directory->activeIdsAmong([$foreign->id]))->toBe([]);
+    });
+
+    // INV-001: desde el otro centro, el usuario de A tampoco aparece.
+    app(TenantContext::class)->runFor($tenantB->id, function () use ($first, $foreign): void {
+        expect(app(UserDirectory::class)->activeIdsAmong([$first->id, $foreign->id]))->toBe([$foreign->id]);
+    });
+});
+
+test('I-19 RN-ACAD-157: activeIdsAmong con lista vacía no consulta la base de datos y con ids hace una sola consulta; no memoiza entre llamadas', function (): void {
+    [$tenant] = provisionCoreTenant('dir-aids-q');
+    $user = directoryUser($tenant, 'q1@example.com', UserStatus::Activo);
+
+    app(TenantContext::class)->runFor($tenant->id, function () use ($user): void {
+        $directory = app(UserDirectory::class);
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        expect($directory->activeIdsAmong([]))->toBe([]);
+        expect(DB::getQueryLog())->toBe([]);
+
+        DB::flushQueryLog();
+        expect($directory->activeIdsAmong([$user->id, $user->id]))->toBe([$user->id]);
+        expect(DB::getQueryLog())->toHaveCount(1);
+
+        // Sin memoización: el estado cuenta en el momento de la llamada.
+        $user->status = UserStatus::Inactivo;
+        $user->save();
+        expect($directory->activeIdsAmong([$user->id]))->toBe([]);
+        DB::disableQueryLog();
+    });
+});

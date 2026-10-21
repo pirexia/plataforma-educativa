@@ -1,6 +1,6 @@
 # CLAUDE.md — Normas de trabajo del proyecto
 
-> **Versión 2.7.2** · 2026-10-20 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
+> **Versión 2.7.3** · 2026-10-21 · Fichero de contexto permanente. Se carga en **todas** las sesiones. Contiene solo reglas estables.
 > Proyecto: **Plataforma de Gestión Educativa Multi-tenant**. Fuente de verdad funcional: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`.
 
 ---
@@ -31,7 +31,7 @@ Frases prohibidas: "¡Excelente idea!", "Tienes toda la razón" como apertura re
 | UI | Tailwind CSS + **shadcn-vue** (Reka UI) + **TanStack Table** |
 | Base de datos | **PostgreSQL** (particionado, RLS, full-text, PITR). Tipos y identificadores según `ADR-029` |
 | Caché | **Redis**, instalado y en uso (prefijo por tenant, `ADR-033 §9`) |
-| Colas | **Hoy**: *driver* `database` de Laravel — `QUEUE_CONNECTION=database`, tablas `jobs` y `failed_jobs`, consumidas por `php artisan queue:work` (servicio `worker` de `compose.yaml`, perfil `worker`, y `infra/quadlet/worker.container`; issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128), resuelto). **Elegido y no instalado**: Redis como cola + **Laravel Horizon**. Horizon **no está en `composer.json`** y no hay `config/horizon.php`; adoptarlo es una dependencia nueva sujeta a la regla de abajo y a `OPEN-BO-23` (`docs/modulos/REQ-BO/funcional.md §14`) |
+| Colas | **Hoy**: *driver* `database` de Laravel — `QUEUE_CONNECTION=database`, tablas `jobs` y `failed_jobs`, consumidas por `php artisan queue:work` en **dos procesos** (perfil `worker` de `compose.yaml`): `worker` (conexión `database`, `infra/quadlet/worker.container`; issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128), resuelto) y `worker-long` (cola `long` por la conexión `database_long`, `retry_after` 900 s, `infra/quadlet/worker-long.container`; `1.12b`, ratificado por el usuario el 2026-10-21 porque el `retry_after` es de la conexión con la que se lee la cola). **Elegido y no instalado**: Redis como cola + **Laravel Horizon**. Horizon **no está en `composer.json`** y no hay `config/horizon.php`; adoptarlo es una dependencia nueva sujeta a la regla de abajo y a `OPEN-BO-23` (`docs/modulos/REQ-BO/funcional.md §14`) |
 | Almacenamiento | Compatible S3 (MinIO en desarrollo) |
 | PDF | Servicio contenerizado de renderizado HTML→PDF |
 | Tests | Pest (backend), Vitest + Playwright (frontend) |

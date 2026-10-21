@@ -74,6 +74,29 @@ final class EloquentUserDirectory implements UserDirectory
     }
 
     /**
+     * I-19 (`REQ-ACAD/funcional.md §21.8`): una sola consulta, sin bloqueos y sin
+     * memoización. `User::query()` aplica `TenantScope` y excluye los borrados
+     * (`SoftDeletes`); RLS lo refuerza en la base de datos (`INV-001`).
+     */
+    public function activeIdsAmong(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        /** @var list<int> $active */
+        $active = User::query()
+            ->whereIn('id', array_values(array_unique($ids)))
+            ->where('status', UserStatus::Activo)
+            ->orderBy('id')
+            ->pluck('id')
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->all();
+
+        return $active;
+    }
+
+    /**
      * Nombre visible de las referencias `ActiveUserRef` (`REQ-ACAD-002`, `RN-ACAD-92`):
      * nombre y primer apellido de la persona, o cadena vacía si no tiene. **Nunca el
      * correo**: lo muestran módulos cuyos lectores no tienen `usuario.leer`; el

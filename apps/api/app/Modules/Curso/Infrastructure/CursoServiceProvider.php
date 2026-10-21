@@ -10,10 +10,14 @@ use App\Modules\Curso\Domain\AcademicYearReadAccess;
 use App\Modules\Curso\Domain\AcademicYearReadDeniedException;
 use App\Modules\Curso\Domain\AcademicYearReadOnlyException;
 use App\Modules\Curso\Domain\AcademicYearReopenRegistry;
+use App\Modules\Curso\Domain\AcademicYearRolloverRegistry;
 use App\Modules\Curso\Domain\AcademicYearSharedLock;
 use App\Modules\Curso\Domain\AcademicYearWriteGuard;
 use App\Modules\Curso\Domain\Models\AcademicYear;
 use App\Modules\Curso\Domain\Models\AcademicYearReopening;
+use App\Modules\Curso\Domain\Models\YearRollover;
+use App\Modules\Curso\Domain\Models\YearRolloverItem;
+use App\Modules\Curso\Infrastructure\Console\RolloverResetCommand;
 use App\Support\Modules\DeclaresModuleRegistry;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -58,6 +62,9 @@ class CursoServiceProvider extends ServiceProvider implements DeclaresModuleRegi
         // RN-CURSO-49 (1.11d-a): cada módulo registra la suya desde su `boot()`.
         $this->app->singleton(AcademicYearDateChangeRegistry::class, InMemoryAcademicYearDateChangeRegistry::class);
 
+        // RN-CURSO-61 (1.12b): cada módulo registra su participante desde su `boot()`.
+        $this->app->singleton(AcademicYearRolloverRegistry::class, InMemoryAcademicYearRolloverRegistry::class);
+
         // RN-CURSO-55 (1.11d-a): sin estado por petición, a diferencia del directorio.
         $this->app->bind(AcademicYearSharedLock::class, EloquentAcademicYearSharedLock::class);
     }
@@ -72,9 +79,17 @@ class CursoServiceProvider extends ServiceProvider implements DeclaresModuleRegi
         Relation::enforceMorphMap([
             'academic_year' => AcademicYear::class,
             'academic_year_reopening' => AcademicYearReopening::class,
+            // 1.12b (datos.md §1.6, §1.7).
+            'year_rollover' => YearRollover::class,
+            'year_rollover_item' => YearRolloverItem::class,
         ]);
 
         $this->registerErrorTranslation();
+
+        if ($this->app->runningInConsole()) {
+            // operacion.md §4.1, §7 (1.12b): salida del operador para una copia huérfana.
+            $this->commands([RolloverResetCommand::class]);
+        }
     }
 
     /**
@@ -128,6 +143,9 @@ class CursoServiceProvider extends ServiceProvider implements DeclaresModuleRegi
             'estado_curso_academico' => ['actualizar'],
             'curso_historico' => ['leer'],
             'reapertura_curso_academico' => ['actualizar'],
+            // 1.12b (permisos.md §2): la apertura del curso siguiente. `eliminar`
+            // revierte y cancela; no existe `actualizar` ni `exportar`.
+            'apertura_curso_academico' => ['leer', 'crear', 'eliminar'],
         ] as $resource => $actions) {
             foreach ($actions as $action) {
                 $permissions[] = [

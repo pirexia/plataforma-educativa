@@ -320,6 +320,19 @@ paths:
     $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-years~1{publicId}~1status"
   /api/v1/academic-years/{publicId}/reopen:
     $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-years~1{publicId}~1reopen"
+  # REQ-CURSO (paso 1.12b, REQ-CURSO-002), apertura del curso siguiente.
+  /api/v1/academic-year-rollovers/elements:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-year-rollovers~1elements"
+  /api/v1/academic-year-rollovers/preview:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-year-rollovers~1preview"
+  /api/v1/academic-year-rollovers:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-year-rollovers"
+  /api/v1/academic-year-rollovers/{publicId}:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-year-rollovers~1{publicId}"
+  /api/v1/academic-year-rollovers/{publicId}/revert:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-year-rollovers~1{publicId}~1revert"
+  /api/v1/academic-year-rollovers/{publicId}/cancel:
+    $ref: "openapi/paths/curso.yaml#/paths/~1api~1v1~1academic-year-rollovers~1{publicId}~1cancel"
 
   # REQ-ACAD (paso 1.11-b). apps/api/openapi/paths/acad.yaml
   /api/v1/education-levels:

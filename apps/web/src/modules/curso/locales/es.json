@@ -103,6 +103,128 @@
       "reasonLabel": "Motivo de la reapertura (obligatorio)",
       "reasonRequired": "Indica el motivo de la reapertura.",
       "confirm": "Reabrir el curso {code}"
+    },
+    "rollover": {
+      "openNext": "Abrir curso siguiente",
+      "reopenWarning": "Este curso es el origen de una copia de estructura completada hacia el curso «{target}», que sigue en planificación. Reabrirlo no afecta a esa copia, pero lo copiado puede quedar desfasado respecto a los cambios que se hagan ahora.",
+      "section": {
+        "title": "Copia de estructura",
+        "loadFailed": "No se ha podido consultar la copia de estructura.",
+        "copied": "{count} elementos copiados",
+        "open": "Ver el detalle de la copia",
+        "none": "Este curso aún no tiene ninguna copia de estructura.",
+        "copy": "Copiar estructura de otro curso"
+      },
+      "status": {
+        "pendiente": "En cola",
+        "en_curso": "En curso",
+        "completado": "Completada",
+        "fallido": "Fallida",
+        "revirtiendo": "Revirtiendo",
+        "revertido": "Revertida"
+      },
+      "failure": {
+        "rollover_blocked": "Algo impedía copiar",
+        "target_not_planning": "El curso de destino ya no está en planificación",
+        "target_changed": "Los datos cambiaron mientras se copiaba; vuelve a intentarlo",
+        "internal_error": "Error interno; no se ha copiado nada",
+        "actor_unavailable": "Quien pidió la operación ya no tiene una cuenta activa; no se ha hecho nada",
+        "cancelled": "Cancelada; no se ha copiado nada"
+      },
+      "wizard": {
+        "routeTitle": "Copiar estructura",
+        "title": "Copiar la estructura de otro curso al curso {target}",
+        "intro": "Elige de qué curso copiar y qué copiar. Antes de ejecutar verás una simulación. Lo copiado se puede revisar y corregir con las pantallas de cada módulo.",
+        "steps": "Pasos del asistente",
+        "stepOf": "Paso {n} de {total}",
+        "step": {
+          "origin": "Origen",
+          "elements": "Elementos",
+          "simulation": "Simulación",
+          "confirm": "Confirmar"
+        },
+        "modules": {
+          "acad": "Gestión académica"
+        },
+        "noSources": "No hay ningún curso activo o cerrado anterior a este desde el que copiar.",
+        "originLegend": "Curso del que se copia",
+        "next": "Siguiente",
+        "back": "Atrás",
+        "elementsHelp": "Marca lo que quieres copiar. Lo que no marques se creará desde cero a mano. Al marcar un elemento se marcan también los que necesita.",
+        "noElements": "Ningún módulo contratado ofrece elementos que copiar.",
+        "blocked": {
+          "forbidden": "No tienes permiso para crear este elemento.",
+          "requiresForbidden": "No tienes permiso para crear alguno de los elementos que necesita."
+        },
+        "alsoSelected": "Se han marcado también: {elements}.",
+        "alsoDeselected": "Se han desmarcado también: {elements}.",
+        "teachingAssignments": {
+          "label": "Copiar la asignación docente",
+          "help": "Copia el profesorado de cada asignatura y grupo y los tutores de grupo; si copias también los marcos horarios, también las sesiones de horario. Se omiten las personas que ya no están activas en el centro. Revisa después lo copiado.",
+          "forbidden": "No tienes permiso para crear asignaciones docentes, tutores de grupo o sesiones de horario.",
+          "requiresMarked": "Se han marcado también: {elements}."
+        },
+        "summary": "Se copiará de {source} a {target}.",
+        "offset": "Las fechas se desplazan {days} días.",
+        "offsetValue": "{days} días",
+        "simulationCaption": "Simulación de la copia por elemento",
+        "columns": {
+          "element": "Elemento",
+          "toCopy": "Se crearán",
+          "notes": "Omisiones y ajustes",
+          "dates": "Fechas resultantes"
+        },
+        "blockingTitle": "La copia no se puede ejecutar todavía:",
+        "openExisting": "Abrir la copia existente",
+        "confirm": "Confirmar",
+        "notExecutable": "No se puede confirmar mientras haya incidencias.",
+        "submitting": "Enviando la copia…",
+        "confirmDialog": {
+          "title": "Copiar la estructura de {source} a {target}",
+          "description": "Se copiarán los elementos elegidos al curso {target}. El curso de origen no se modifica.",
+          "background": "La copia se ejecuta en segundo plano; puede tardar unos minutos.",
+          "revertible": "Se puede revertir mientras el curso {target} siga en planificación.",
+          "revertLoses": "Al revertir se pierden también los cambios que se hayan hecho sobre lo copiado.",
+          "confirm": "Copiar a {target}"
+        },
+        "notPlanning": {
+          "title": "Este curso no admite copia",
+          "text": "Solo se puede copiar la estructura en un curso que está en planificación."
+        },
+        "backToYear": "Volver a la ficha del curso",
+        "simulationEmpty": "La selección no crea ninguna fila."
+      },
+      "detail": {
+        "title": "Copia de estructura",
+        "backToYear": "Volver al curso {code}",
+        "status": "Estado",
+        "inProgress": "La copia se está procesando en segundo plano.",
+        "stalled": "La copia sigue en cola; vuelve a consultar más tarde.",
+        "checkAgain": "Comprobar de nuevo",
+        "statusChanged": "La copia ha pasado a: {status}.",
+        "failureTitle": "Motivo del fallo",
+        "revertFailureTitle": "La última reversión no se pudo completar",
+        "resultTitle": "Resultado por elemento",
+        "resultCaption": "Filas copiadas por elemento",
+        "copied": "Copiadas",
+        "revert": "Revertir copia",
+        "cancel": "Cancelar copia",
+        "revertConfirm": {
+          "title": "Revertir la copia en {target}",
+          "description": "Se borrará lo que creó esta copia, aunque se haya editado después: se pierden los cambios hechos sobre lo copiado. El curso de origen no se modifica.",
+          "confirm": "Revertir la copia en {target}"
+        },
+        "cancelConfirm": {
+          "title": "Cancelar la copia",
+          "description": "La copia se marcará como fallida; no se ha copiado nada.",
+          "confirm": "Cancelar la copia"
+        },
+        "createdAt": "Solicitada",
+        "finishedAt": "Terminada",
+        "offset": "Desplazamiento de fechas",
+        "openInProgress": "Abrir la copia en curso",
+        "resultEmpty": "La copia no ha creado ninguna fila."
+      }
     }
   }
 }

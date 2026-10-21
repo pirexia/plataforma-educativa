@@ -2,6 +2,7 @@
 
 namespace App\Modules\Curso\Application;
 
+use App\Modules\Curso\Domain\AcademicYearRolloverIssue;
 use App\Support\Api\ApiException;
 
 /**
@@ -51,5 +52,37 @@ final class CursoErrors
         return ApiException::notFound('curso.no_active_year', [], [
             'academic_year' => [self::item('curso.no_active_year')],
         ]);
+    }
+
+    /**
+     * 1.12b (`api.md §2.1`, §5.1): 409 de la apertura del curso siguiente. Sin `$issues`, un único elemento en
+     * `errors.rollover[]`; con ellos, una entrada por incidencia en `errors.<$errorsKey>[]`
+     * (`rollover` o `rollover_revert`).
+     *
+     * @param  array<string, string|int|float>  $params
+     * @param  list<AcademicYearRolloverIssue>|null  $issues
+     */
+    public static function rolloverConflict(string $code, array $params = [], ?array $issues = null, string $errorsKey = 'rollover'): ApiException
+    {
+        $entries = $issues === null
+            ? [self::item($code, $params)]
+            : array_map(self::issueEntry(...), $issues);
+
+        return ApiException::conflict($code, $params, [$errorsKey => $entries]);
+    }
+
+    /**
+     * La entrada de una incidencia: `{code, message, params, element}` (`api.md §2.1`).
+     *
+     * @return array{code: string, message: string, params: array<string, mixed>, element: string|null}
+     */
+    public static function issueEntry(AcademicYearRolloverIssue $issue): array
+    {
+        return [
+            'code' => $issue->code,
+            'message' => $issue->message,
+            'params' => $issue->params,
+            'element' => $issue->element ?? (is_string($issue->params['element'] ?? null) ? $issue->params['element'] : null),
+        ];
     }
 }

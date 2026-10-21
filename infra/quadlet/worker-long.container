@@ -1,0 +1,46 @@
+# Worker de la cola `long` (REQ-CURSO 1.12b, operacion.md §1 y §4.1): copia y reversión del rollover del curso
+# académico. `queue:work` sobre la conexión `database_long` (mismo driver y tabla `jobs`, cola `long`,
+# `retry_after` 900 en config/queue.php). Es una unidad aparte de worker.container porque un proceso
+# `queue:work` lee UNA conexión y el `retry_after` es el de esa conexión: con el de `database` (180), el
+# trabajo se reentregaría a los 3 minutos mientras sigue en marcha, y la copia exige un solo intento sin
+# reentrega (RN-CURSO-84).
+#
+# Una sola instancia: dos procesos no se pisan (el driver `database` reserva con `FOR UPDATE SKIP LOCKED`),
+# pero una copia retiene `FOR SHARE` sobre el curso destino durante toda su transacción.
+#
+# --tries=1 (sin reentrega), --timeout=600 < retry_after=900 (config/queue.php; sin variable de entorno
+# a propósito: el valor lo fija el código junto al `timeout` de los dos trabajos). --max-time=3600: el
+# proceso termina solo cada hora y Restart=always lo relanza con el código vigente. StopTimeout=620 deja
+# acabar la copia en curso al parar (SIGTERM).
+#
+# Wants=+After= hacia postgres y redis, nunca Requires=/BindsTo= (ADR-028). Entorno propio
+# (plataforma-worker-long.env, revisión de seguridad M2): SIN DB_OWNER_* ni DB_PLATFORM_*, a diferencia de
+# plataforma-worker.env: ningún trabajo de la cola `long` los usa. Endurecimiento como el de aquél: sin nuevos
+# privilegios y sin capacidades.
+
+[Unit]
+Description=Worker de la cola long (queue:work database_long)
+After=plataforma-network.service postgres.service redis.service plataforma-migrate.service
+Wants=plataforma-network.service postgres.service redis.service plataforma-migrate.service
+
+[Container]
+Image=ghcr.io/pirexia/plataforma-api:__TAG__
+ContainerName=plataforma-worker-long
+Network=plataforma.network
+EnvironmentFile=/etc/plataforma/plataforma-worker-long.env
+NoNewPrivileges=true
+DropCapability=ALL
+Exec=php artisan queue:work database_long --queue=long --tries=1 --timeout=600 --sleep=3 --max-time=3600 --max-jobs=100
+StopTimeout=620
+HealthCmd=php artisan core:queue-health --queues=long
+HealthInterval=60s
+HealthTimeout=20s
+HealthRetries=3
+HealthStartPeriod=30s
+
+[Service]
+Restart=always
+TimeoutStopSec=630
+
+[Install]
+WantedBy=default.target

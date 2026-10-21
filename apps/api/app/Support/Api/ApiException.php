@@ -199,9 +199,12 @@ final class ApiException extends RuntimeException
         return new self(409, 'academic-year-closed', $detailKey, $detailParams, $errors, [], $titleKey);
     }
 
-    public static function tooManyRequests(int $retryAfterSeconds): self
+    /**
+     * @param  array<string, string|int|float>  $detailParams
+     */
+    public static function tooManyRequests(int $retryAfterSeconds, ?string $detailKey = null, array $detailParams = []): self
     {
-        return new self(429, 'too-many-requests', null, [], [], ['Retry-After' => (string) $retryAfterSeconds]);
+        return new self(429, 'too-many-requests', $detailKey, $detailParams, [], ['Retry-After' => (string) $retryAfterSeconds]);
     }
 
     public static function unavailable(int $retryAfterSeconds = 30): self

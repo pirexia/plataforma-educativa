@@ -92,7 +92,7 @@
       "reopened": "Schuljahr „{code}“ wiedereröffnet."
     },
     "errors": {
-      "unexpected": "Der Vorgang konnte nicht abgeschlossen werden. Bitte versuche es erneut."
+      "unexpected": "Der Vorgang konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut."
     },
     "reopen": {
       "title": "Schuljahr {code} wiedereröffnen",
@@ -103,6 +103,128 @@
       "reasonLabel": "Grund der Wiedereröffnung (Pflichtfeld)",
       "reasonRequired": "Gib den Grund der Wiedereröffnung an.",
       "confirm": "Schuljahr {code} wiedereröffnen"
+    },
+    "rollover": {
+      "openNext": "Nächstes Schuljahr eröffnen",
+      "reopenWarning": "Dieses Schuljahr ist die Quelle einer abgeschlossenen Strukturkopie in das Schuljahr „{target}“, das noch in Planung ist. Das Wiedereröffnen berührt diese Kopie nicht, doch das Kopierte kann gegenüber den jetzt vorgenommenen Änderungen veralten.",
+      "section": {
+        "title": "Strukturkopie",
+        "loadFailed": "Die Strukturkopie konnte nicht abgerufen werden.",
+        "copied": "{count} Elemente kopiert",
+        "open": "Details der Kopie anzeigen",
+        "none": "Dieses Schuljahr hat noch keine Strukturkopie.",
+        "copy": "Struktur aus einem anderen Schuljahr kopieren"
+      },
+      "status": {
+        "pendiente": "In der Warteschlange",
+        "en_curso": "Läuft",
+        "completado": "Abgeschlossen",
+        "fallido": "Fehlgeschlagen",
+        "revirtiendo": "Wird zurückgesetzt",
+        "revertido": "Zurückgesetzt"
+      },
+      "failure": {
+        "rollover_blocked": "Etwas hat das Kopieren verhindert",
+        "target_not_planning": "Das Zielschuljahr ist nicht mehr in Planung",
+        "target_changed": "Die Daten haben sich beim Kopieren geändert; versuchen Sie es erneut",
+        "internal_error": "Interner Fehler; nichts wurde kopiert",
+        "actor_unavailable": "Die anfordernde Person hat kein aktives Konto mehr; es wurde nichts ausgeführt",
+        "cancelled": "Abgebrochen; nichts wurde kopiert"
+      },
+      "wizard": {
+        "routeTitle": "Struktur kopieren",
+        "title": "Die Struktur eines anderen Schuljahres in {target} kopieren",
+        "intro": "Wählen Sie, aus welchem Schuljahr und was kopiert wird. Vor der Ausführung sehen Sie eine Simulation. Das Kopierte kann in den Ansichten der jeweiligen Module geprüft und korrigiert werden.",
+        "steps": "Schritte des Assistenten",
+        "stepOf": "Schritt {n} von {total}",
+        "step": {
+          "origin": "Quelle",
+          "elements": "Elemente",
+          "simulation": "Simulation",
+          "confirm": "Bestätigen"
+        },
+        "modules": {
+          "acad": "Schulverwaltung"
+        },
+        "noSources": "Es gibt kein aktives oder abgeschlossenes Schuljahr vor diesem, aus dem kopiert werden könnte.",
+        "originLegend": "Schuljahr, aus dem kopiert wird",
+        "next": "Weiter",
+        "back": "Zurück",
+        "elementsHelp": "Markieren Sie, was kopiert werden soll. Was Sie nicht markieren, legen Sie von Hand neu an. Beim Markieren eines Elements werden auch die benötigten markiert.",
+        "noElements": "Kein gebuchtes Modul bietet Elemente zum Kopieren an.",
+        "blocked": {
+          "forbidden": "Sie haben keine Berechtigung, dieses Element anzulegen.",
+          "requiresForbidden": "Sie haben keine Berechtigung, eines der benötigten Elemente anzulegen."
+        },
+        "alsoSelected": "Ebenfalls ausgewählt: {elements}.",
+        "alsoDeselected": "Ebenfalls abgewählt: {elements}.",
+        "teachingAssignments": {
+          "label": "Lehraufträge kopieren",
+          "help": "Kopiert die Lehraufträge je Fach und Gruppe sowie die Klassenleitungen; wenn Sie auch die Stundenplanrahmen kopieren, auch die Unterrichtsstunden. Nicht mehr aktive Personen werden ausgelassen. Prüfen Sie das Kopierte anschließend.",
+          "forbidden": "Sie haben keine Berechtigung, Lehraufträge, Klassenleitungen oder Unterrichtsstunden anzulegen.",
+          "requiresMarked": "Ebenfalls ausgewählt: {elements}."
+        },
+        "summary": "Es wird von {source} nach {target} kopiert.",
+        "offset": "Die Daten werden um {days} Tage verschoben.",
+        "offsetValue": "{days} Tage",
+        "simulationCaption": "Simulation der Kopie je Element",
+        "columns": {
+          "element": "Element",
+          "toCopy": "Werden angelegt",
+          "notes": "Ausgelassen und angepasst",
+          "dates": "Resultierende Daten"
+        },
+        "blockingTitle": "Die Kopie kann noch nicht ausgeführt werden:",
+        "openExisting": "Vorhandene Kopie öffnen",
+        "confirm": "Bestätigen",
+        "notExecutable": "Solange Probleme bestehen, kann nicht bestätigt werden.",
+        "submitting": "Kopie wird gesendet…",
+        "confirmDialog": {
+          "title": "Die Struktur von {source} nach {target} kopieren",
+          "description": "Die gewählten Elemente werden in das Schuljahr {target} kopiert. Das Ausgangsschuljahr wird nicht verändert.",
+          "background": "Die Kopie läuft im Hintergrund und kann einige Minuten dauern.",
+          "revertible": "Sie kann zurückgesetzt werden, solange das Schuljahr {target} in Planung ist.",
+          "revertLoses": "Beim Zurücksetzen gehen auch alle Änderungen am Kopierten verloren.",
+          "confirm": "Nach {target} kopieren"
+        },
+        "notPlanning": {
+          "title": "In dieses Schuljahr kann nicht kopiert werden",
+          "text": "Die Struktur kann nur in ein Schuljahr in Planung kopiert werden."
+        },
+        "backToYear": "Zurück zum Schuljahr",
+        "simulationEmpty": "Die Auswahl legt keine Zeilen an."
+      },
+      "detail": {
+        "title": "Strukturkopie",
+        "backToYear": "Zurück zum Schuljahr {code}",
+        "status": "Status",
+        "inProgress": "Die Kopie wird im Hintergrund verarbeitet.",
+        "stalled": "Die Kopie ist noch in der Warteschlange; prüfen Sie später erneut.",
+        "checkAgain": "Erneut prüfen",
+        "statusChanged": "Die Kopie ist jetzt: {status}.",
+        "failureTitle": "Grund des Fehlschlags",
+        "revertFailureTitle": "Das letzte Zurücksetzen konnte nicht abgeschlossen werden",
+        "resultTitle": "Ergebnis je Element",
+        "resultCaption": "Kopierte Zeilen je Element",
+        "copied": "Kopiert",
+        "revert": "Kopie zurücksetzen",
+        "cancel": "Kopie abbrechen",
+        "revertConfirm": {
+          "title": "Die Kopie in {target} zurücksetzen",
+          "description": "Was diese Kopie angelegt hat, wird gelöscht, auch wenn es danach bearbeitet wurde: Änderungen am Kopierten gehen verloren. Das Ausgangsschuljahr wird nicht verändert.",
+          "confirm": "Die Kopie in {target} zurücksetzen"
+        },
+        "cancelConfirm": {
+          "title": "Die Kopie abbrechen",
+          "description": "Die Kopie wird als fehlgeschlagen markiert; es wurde nichts kopiert.",
+          "confirm": "Die Kopie abbrechen"
+        },
+        "createdAt": "Angefordert",
+        "finishedAt": "Beendet",
+        "offset": "Datumsverschiebung",
+        "openInProgress": "Laufende Kopie öffnen",
+        "resultEmpty": "Die Kopie hat keine Zeilen angelegt."
+      }
     }
   }
 }

@@ -17,6 +17,35 @@ return [
         ],
     ],
 
+    // REQ-ACAD/funcional.md §21.6 (1.12b): participante de `acad` en la apertura del curso siguiente.
+    'rollover' => [
+        'elements' => [
+            'education_levels' => 'Stages',
+            'courses' => 'Courses',
+            'groups' => 'Groups',
+            'subgroups' => 'Subgroups',
+            'subjects' => 'Subjects',
+            'group_subjects' => 'Subjects of each group',
+            'academic_periods' => 'Academic periods',
+            'grading_scales' => 'Grading scales',
+            'timetable_frames' => 'Timetable frames and time slots',
+            'teaching_assignments' => 'Teaching assignments',
+            'group_tutors' => 'Group tutors',
+            'timetable_sessions' => 'Timetable sessions',
+        ],
+        'target_not_empty' => 'The target year already has “:element” data (:count). Remove it from the selection or delete that data first.',
+        'dates_outside_target' => ':count dates of “:element” would fall outside the target year (:starts_on to :ends_on after shifting).',
+        'revert_has_dependents' => 'Data added after the copy depends on what was copied (:count).',
+        'skipped' => [
+            'teacher_inactive' => 'Teachers who are no longer active',
+            'tutor_inactive' => 'Group tutors who are no longer active',
+            'frames_not_copied' => 'Timetable frames are not being copied',
+        ],
+        'adjusted' => [
+            'facility_removed' => 'Copied without a room (room withdrawn)',
+        ],
+    ],
+
     'stage' => [
         'infantil' => 'Early childhood',
         'primaria' => 'Primary',

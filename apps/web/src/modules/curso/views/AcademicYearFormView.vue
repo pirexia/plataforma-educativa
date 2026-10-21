@@ -35,6 +35,7 @@ import {
   type AcademicYearPayload,
 } from '../api'
 import { setFlash } from '../composables/useFlash'
+import { usePermissions } from '../composables/usePermissions'
 import {
   problemDetail,
   conflictYear,
@@ -48,6 +49,7 @@ import type { AcademicYear } from '../types'
 const t = useT()
 const route = useRoute()
 const router = useRouter()
+const { can } = usePermissions()
 
 const editingId = computed(() => (route.params.publicId ? String(route.params.publicId) : null))
 const isEdit = computed(() => editingId.value !== null)
@@ -182,6 +184,14 @@ async function submit(): Promise<void> {
     })
 
     setFlash({ key: 'curso.flash.created', params: { code: created.code } })
+
+    // `funcional.md §10.6` entrada (a), 1.12b: «Abrir curso siguiente» continúa con el curso recién creado como destino.
+    if (route.query.next === 'rollover' && can('apertura_curso_academico.crear')) {
+      await router.push({ name: 'curso-rollover-wizard', params: { publicId: created.public_id } })
+
+      return
+    }
+
     await router.push({
       name: 'curso-academic-year-detail',
       params: { publicId: created.public_id },

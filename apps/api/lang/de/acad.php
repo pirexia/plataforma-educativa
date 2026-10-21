@@ -17,6 +17,35 @@ return [
         ],
     ],
 
+    // REQ-ACAD/funcional.md §21.6 (1.12b): participante de `acad` en la apertura del curso siguiente.
+    'rollover' => [
+        'elements' => [
+            'education_levels' => 'Stufen',
+            'courses' => 'Jahrgänge',
+            'groups' => 'Gruppen',
+            'subgroups' => 'Untergruppen',
+            'subjects' => 'Fächer',
+            'group_subjects' => 'Fächer je Gruppe',
+            'academic_periods' => 'Unterrichtszeiträume',
+            'grading_scales' => 'Bewertungsskalen',
+            'timetable_frames' => 'Stundenplanrahmen und Zeitfenster',
+            'teaching_assignments' => 'Lehraufträge',
+            'group_tutors' => 'Klassenleitungen',
+            'timetable_sessions' => 'Unterrichtsstunden',
+        ],
+        'target_not_empty' => 'Das Zielschuljahr enthält bereits Daten von „:element“ (:count). Entfernen Sie es aus der Auswahl oder löschen Sie die Daten vorher.',
+        'dates_outside_target' => ':count Daten von „:element“ lägen außerhalb des Zielschuljahres (:starts_on bis :ends_on nach der Verschiebung).',
+        'revert_has_dependents' => 'Nach der Kopie hinzugefügte Daten hängen vom Kopierten ab (:count).',
+        'skipped' => [
+            'teacher_inactive' => 'Nicht mehr aktive Lehrkräfte',
+            'tutor_inactive' => 'Nicht mehr aktive Klassenleitungen',
+            'frames_not_copied' => 'Stundenplanrahmen werden nicht kopiert',
+        ],
+        'adjusted' => [
+            'facility_removed' => 'Ohne Raum kopiert (Raum außer Betrieb)',
+        ],
+    ],
+
     'stage' => [
         'infantil' => 'Frühkindliche Bildung',
         'primaria' => 'Grundschule',

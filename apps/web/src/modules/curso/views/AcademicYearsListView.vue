@@ -11,6 +11,7 @@
  * «Nuevo curso» solo con `curso_academico.crear`. El estado se muestra con
  * texto traducido, no solo con color (WCAG 1.4.1).
  */
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useT } from '@/i18n'
 import { Button } from '@/components/ui/button'
@@ -90,6 +91,26 @@ const fetchYears: DataTableFetcher<AcademicYear> = (query) =>
     per_page: query.per_page,
   })
 
+/**
+ * `funcional.md §10.6` entrada (a), 1.12b: «Abrir curso siguiente», con `curso_academico.crear` **y**
+ * `apertura_curso_academico.crear` y solo si el centro no tiene ningún curso en `planificacion`: abre el alta de curso
+ * y, al crear, lleva al asistente de copia del curso recién creado (`?next=rollover`). `null` mientras se averigua.
+ */
+const noPlanningYear = ref<boolean | null>(null)
+
+onMounted(async () => {
+  if (!can('curso_academico.crear') || !can('apertura_curso_academico.crear')) {
+    return
+  }
+
+  try {
+    noPlanningYear.value =
+      (await listAcademicYears({ status: ['planificacion'], per_page: 1 })).data.length === 0
+  } catch {
+    noPlanningYear.value = null
+  }
+})
+
 function goToNew(): void {
   void router.push({ name: 'curso-academic-year-new' })
 }
@@ -102,11 +123,18 @@ function goToNew(): void {
         <h1 class="text-lg font-semibold">{{ t('curso.academicYears.title') }}</h1>
         <p class="text-muted-foreground text-sm">{{ t('curso.academicYears.intro') }}</p>
       </div>
-      <Button v-if="can('curso_academico.crear')" as-child>
-        <RouterLink :to="{ name: 'curso-academic-year-new' }">
-          {{ t('curso.academicYears.new') }}
-        </RouterLink>
-      </Button>
+      <div class="flex flex-wrap gap-2">
+        <Button v-if="noPlanningYear === true" variant="outline" as-child>
+          <RouterLink :to="{ name: 'curso-academic-year-new', query: { next: 'rollover' } }">
+            {{ t('curso.rollover.openNext') }}
+          </RouterLink>
+        </Button>
+        <Button v-if="can('curso_academico.crear')" as-child>
+          <RouterLink :to="{ name: 'curso-academic-year-new' }">
+            {{ t('curso.academicYears.new') }}
+          </RouterLink>
+        </Button>
+      </div>
     </div>
 
     <DataTable
