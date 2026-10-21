@@ -8,7 +8,7 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ## 2026-10-21 · `1.12b`: especificación del rollover del curso (`REQ-CURSO-002`, rama `chore/REQ-CURSO-1-12b-spec`)
 
-- **Especificación aprobada por el usuario** (solo documentación): `REQ-CURSO` `RN-CURSO-61..86`, `CA-CURSO-123..158`, `OPEN-CURSO-28..37`; participante de `acad` en `REQ-ACAD §21` (`RN-ACAD-145..157`, `CA-ACAD-142..153`). `OPEN-CURSO-37` reabierta (premisa de `ADR-040 §4.5`). Precondición de implementación: #128 mezclado.
+- **Especificación aprobada por el usuario** (solo documentación): `REQ-CURSO` `RN-CURSO-61..86`, `CA-CURSO-123..158`, `OPEN-CURSO-28..37`; participante de `acad` en `REQ-ACAD §21` (`RN-ACAD-145..157`, `CA-ACAD-142..153`). `OPEN-CURSO-37` resuelta con la opción b (auditar cada ítem; premisa de `ADR-040 §4.5` corregida). Precondición de implementación: #128 mezclado.
 
 ## 2026-10-19 · `1.12-b`: marcos especiales y reservas (rama `feature/REQ-ACAD-1-12b-marcos-especiales-reservas`)
 
