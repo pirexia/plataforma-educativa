@@ -13,6 +13,15 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Salud de la cola (issue #128)
+    |--------------------------------------------------------------------------
+    | `core:queue-health` falla si hay un trabajo disponible sin tomar desde
+    | hace este número de minutos. Es la señal de «sin worker».
+    */
+    'queue_health_max_age_minutes' => (int) env('CORE_QUEUE_HEALTH_MAX_AGE_MINUTES', 5),
+
+    /*
+    |--------------------------------------------------------------------------
     | Importación masiva de usuarios
     |--------------------------------------------------------------------------
     */

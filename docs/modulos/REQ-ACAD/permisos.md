@@ -4,6 +4,8 @@
 >
 > **`1.12`** (**APROBADA 2026-10-17**, con las recomendaciones de `OPEN-ACAD-32` a `-44`): recursos `asignacion_docente`, `espacios`, `horarios` y `reservas` en **§10**.
 >
+> **`1.12b`** (**APROBADA 2026-10-20**, participante de `acad` en la apertura del curso siguiente): **ningún permiso nuevo ni cambio de siembra** en `acad`. Cada elemento que `acad` ofrece copiar declara como `createPermission` un permiso ya existente, que `curso` exige además de `apertura_curso_academico.crear` (`funcional.md §21.2`, `RN-ACAD-156`, `REQ-CURSO/permisos.md §5`): `estructura_academica.crear` y `.actualizar`, `configuracion_academica.crear`, `horarios.crear` y, con la casilla «copiar la asignación docente», `asignacion_docente.crear`, `asignacion_docente.actualizar` y `horarios.crear`. Copiar asignaciones o tutorías no concede permisos ni roles (§10.4).
+>
 > **Estado**: **`1.12-b` (marcos especiales y reservas) implementada (2026-10-19) y mezclada (PR #449, 2026-10-20).** **`1.12-a` (horarios y asignación docente) implementada (2026-10-18) y mezclada (PR #447).** **`1.11d-a` (períodos) y `1.11d-b` (escalas) implementadas (2026-10-17) y mezcladas (PR #435 y #439).** **Endurecimiento de `1.12` (Bajas #446, 2026-10-20): esquema, usuario borrado y notas de seguridad; ver `funcional.md §20.1` (I-19 a I-21).** **APROBADA** (2026-10-10), paso **1.11**. Recurso y siembra aprobados (`OPEN-ACAD-09` = A + X); ámbitos según `ADR-063` (ACEPTADA; `OPEN-ACAD-08` = A). La fuente de verdad será `AcadServiceProvider::declaredPermissions()` (`INV-007`, `ADR-034 §2`); esta tabla es su reflejo. **Implementado en `1.11-b`** (2026-10-12): ver `funcional.md §16` para las desviaciones aprobadas respecto a este documento.
 
 ---

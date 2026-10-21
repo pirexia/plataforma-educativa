@@ -31,6 +31,9 @@ class SendMfaEnrollmentCodeEmail implements ShouldBeEncrypted, ShouldQueue
 
     public int $tries = 3;
 
+    /** Marca temporal (UNIX) a partir de la cual el código ya no vale. Nulo en trabajos encolados por la versión anterior (CLAUDE.md §9). */
+    public ?int $expiresAt = null;
+
     public function __construct(
         public readonly string $recipientEmail,
         public readonly string $recipientGivenName,
@@ -40,6 +43,18 @@ class SendMfaEnrollmentCodeEmail implements ShouldBeEncrypted, ShouldQueue
         public readonly int $ttlMinutes,
     ) {
         $this->onQueue('auth-mail');
+        $this->expiresAt = now()->addMinutes($ttlMinutes)->getTimestamp();
+    }
+
+    /**
+     * Issue #128 (revisión B-1): con worker real, un trabajo retenido por
+     * una cola atrasada o un reintento tardío no debe entregar un código ya
+     * caducado. `retryUntil()` corta los reintentos; `handle()` descarta
+     * sin enviar el que llega tarde en el primer intento.
+     */
+    public function retryUntil(): ?\DateTimeInterface
+    {
+        return $this->expiresAt === null ? null : now()->setTimestamp($this->expiresAt);
     }
 
     /**
@@ -52,6 +67,10 @@ class SendMfaEnrollmentCodeEmail implements ShouldBeEncrypted, ShouldQueue
 
     public function handle(): void
     {
+        if ($this->expiresAt !== null && now()->getTimestamp() >= $this->expiresAt) {
+            return;
+        }
+
         Mail::to($this->recipientEmail)->locale($this->recipientLocale)->send(new MfaEnrollmentCodeMail(
             tenantName: $this->tenantName,
             givenName: $this->recipientGivenName,
