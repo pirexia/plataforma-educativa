@@ -92,7 +92,7 @@
       "reopened": "Schuljahr „{code}“ wiedereröffnet."
     },
     "errors": {
-      "unexpected": "Der Vorgang konnte nicht abgeschlossen werden. Bitte versuche es erneut."
+      "unexpected": "Der Vorgang konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut."
     },
     "reopen": {
       "title": "Schuljahr {code} wiedereröffnen",
@@ -126,7 +126,7 @@
       "failure": {
         "rollover_blocked": "Etwas hat das Kopieren verhindert",
         "target_not_planning": "Das Zielschuljahr ist nicht mehr in Planung",
-        "target_changed": "Die Daten haben sich beim Kopieren geändert; versuche es erneut",
+        "target_changed": "Die Daten haben sich beim Kopieren geändert; versuchen Sie es erneut",
         "internal_error": "Interner Fehler; nichts wurde kopiert",
         "actor_unavailable": "Die anfordernde Person hat kein aktives Konto mehr; es wurde nichts ausgeführt",
         "cancelled": "Abgebrochen; nichts wurde kopiert"
@@ -134,7 +134,7 @@
       "wizard": {
         "routeTitle": "Struktur kopieren",
         "title": "Die Struktur eines anderen Schuljahres in {target} kopieren",
-        "intro": "Wähle, aus welchem Schuljahr und was kopiert wird. Vor der Ausführung siehst du eine Simulation. Das Kopierte kann in den Ansichten der jeweiligen Module geprüft und korrigiert werden.",
+        "intro": "Wählen Sie, aus welchem Schuljahr und was kopiert wird. Vor der Ausführung sehen Sie eine Simulation. Das Kopierte kann in den Ansichten der jeweiligen Module geprüft und korrigiert werden.",
         "steps": "Schritte des Assistenten",
         "stepOf": "Schritt {n} von {total}",
         "step": {
@@ -144,24 +144,24 @@
           "confirm": "Bestätigen"
         },
         "modules": {
-          "acad": "Akademisch"
+          "acad": "Schulverwaltung"
         },
         "noSources": "Es gibt kein aktives oder abgeschlossenes Schuljahr vor diesem, aus dem kopiert werden könnte.",
         "originLegend": "Schuljahr, aus dem kopiert wird",
         "next": "Weiter",
         "back": "Zurück",
-        "elementsHelp": "Markiere, was kopiert werden soll. Was du nicht markierst, legst du von Hand neu an. Beim Markieren eines Elements werden auch die benötigten markiert.",
+        "elementsHelp": "Markieren Sie, was kopiert werden soll. Was Sie nicht markieren, legen Sie von Hand neu an. Beim Markieren eines Elements werden auch die benötigten markiert.",
         "noElements": "Kein gebuchtes Modul bietet Elemente zum Kopieren an.",
         "blocked": {
-          "forbidden": "Du hast keine Berechtigung, dieses Element anzulegen.",
-          "requiresForbidden": "Du hast keine Berechtigung, eines der benötigten Elemente anzulegen."
+          "forbidden": "Sie haben keine Berechtigung, dieses Element anzulegen.",
+          "requiresForbidden": "Sie haben keine Berechtigung, eines der benötigten Elemente anzulegen."
         },
         "alsoSelected": "Ebenfalls ausgewählt: {elements}.",
         "alsoDeselected": "Ebenfalls abgewählt: {elements}.",
         "teachingAssignments": {
           "label": "Lehraufträge kopieren",
-          "help": "Kopiert die Lehraufträge je Fach und Gruppe sowie die Klassenleitungen; wenn du auch die Stundenplanrahmen kopierst, auch die Unterrichtsstunden. Nicht mehr aktive Personen werden ausgelassen. Prüfe das Kopierte anschließend.",
-          "forbidden": "Du hast keine Berechtigung, Lehraufträge, Klassenleitungen oder Unterrichtsstunden anzulegen.",
+          "help": "Kopiert die Lehraufträge je Fach und Gruppe sowie die Klassenleitungen; wenn Sie auch die Stundenplanrahmen kopieren, auch die Unterrichtsstunden. Nicht mehr aktive Personen werden ausgelassen. Prüfen Sie das Kopierte anschließend.",
+          "forbidden": "Sie haben keine Berechtigung, Lehraufträge, Klassenleitungen oder Unterrichtsstunden anzulegen.",
           "requiresMarked": "Ebenfalls ausgewählt: {elements}."
         },
         "summary": "Es wird von {source} nach {target} kopiert.",
@@ -199,7 +199,7 @@
         "backToYear": "Zurück zum Schuljahr {code}",
         "status": "Status",
         "inProgress": "Die Kopie wird im Hintergrund verarbeitet.",
-        "stalled": "Die Kopie ist noch in der Warteschlange; prüfe später erneut.",
+        "stalled": "Die Kopie ist noch in der Warteschlange; prüfen Sie später erneut.",
         "checkAgain": "Erneut prüfen",
         "statusChanged": "Die Kopie ist jetzt: {status}.",
         "failureTitle": "Grund des Fehlschlags",

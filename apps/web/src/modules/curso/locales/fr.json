@@ -129,7 +129,7 @@
         "target_changed": "Les données ont changé pendant la copie ; réessayez",
         "internal_error": "Erreur interne ; rien n’a été copié",
         "actor_unavailable": "La personne à l’origine de la demande n’a plus de compte actif ; rien n’a été fait",
-        "cancelled": "Annulée ; rien n’a été copié"
+        "cancelled": "Interrompue ; rien n’a été copié"
       },
       "wizard": {
         "routeTitle": "Copier la structure",

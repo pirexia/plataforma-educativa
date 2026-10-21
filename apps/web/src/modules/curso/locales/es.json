@@ -144,7 +144,7 @@
           "confirm": "Confirmar"
         },
         "modules": {
-          "acad": "Académico"
+          "acad": "Gestión académica"
         },
         "noSources": "No hay ningún curso activo o cerrado anterior a este desde el que copiar.",
         "originLegend": "Curso del que se copia",

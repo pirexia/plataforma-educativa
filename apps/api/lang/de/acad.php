@@ -33,7 +33,7 @@ return [
             'group_tutors' => 'Klassenleitungen',
             'timetable_sessions' => 'Unterrichtsstunden',
         ],
-        'target_not_empty' => 'Das Zielschuljahr enthält bereits Daten von „:element“ (:count). Entferne es aus der Auswahl oder lösche die Daten vorher.',
+        'target_not_empty' => 'Das Zielschuljahr enthält bereits Daten von „:element“ (:count). Entfernen Sie es aus der Auswahl oder löschen Sie die Daten vorher.',
         'dates_outside_target' => ':count Daten von „:element“ lägen außerhalb des Zielschuljahres (:starts_on bis :ends_on nach der Verschiebung).',
         'revert_has_dependents' => 'Nach der Kopie hinzugefügte Daten hängen vom Kopierten ab (:count).',
         'skipped' => [

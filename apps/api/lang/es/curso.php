@@ -51,7 +51,7 @@ return [
         'date_change_checks_failed' => 'Las nuevas fechas del curso académico dejan fuera datos que dependen de ellas.',
         'reopen_not_latest' => 'Solo se puede reabrir el curso cerrado más reciente: el curso «:code» es posterior.',
         'reopen_checks_failed' => 'El curso no se puede reabrir: hay validaciones de reapertura que no se cumplen.',
-        'rollover_target_not_planning' => 'Solo se puede copiar en un curso académico en planificación, ni revertir una copia de otro.',
+        'rollover_target_not_planning' => 'Solo se puede copiar o revertir una copia en un curso académico en planificación.',
         'rollover_exists' => 'Este curso académico ya tiene una copia en curso o completada. Para repetirla, reviértela antes.',
         'rollover_blocked' => 'La copia no se puede ejecutar: revisa los motivos.',
         'rollover_in_progress' => 'Hay una copia o una reversión en curso sobre este curso académico. Espera a que termine.',

@@ -144,7 +144,7 @@
           "confirm": "Confirm"
         },
         "modules": {
-          "acad": "Academic"
+          "acad": "Academic management"
         },
         "noSources": "There is no active or closed academic year before this one to copy from.",
         "originLegend": "Academic year to copy from",
