@@ -493,3 +493,30 @@ test('CA-CURSO-131 RN-CURSO-67 RN-CURSO-68: con una copia completada, una nueva 
         ->and(collect($preview->json('blocking'))->pluck('code')->all())->toContain('curso.rollover.exists')
         ->and(collect($preview->json('blocking'))->firstWhere('code', 'curso.rollover.exists')['params'])->toBe(['public_id' => $publicId, 'status' => 'completado']);
 });
+
+test('CA-CURSO-144 RN-CURSO-73: el resultado de la copia lleva la etiqueta traducida de cada elemento, en el idioma del usuario y la misma que el catálogo, no solo el código', function (): void {
+    $s = R::scenario('rot-label');
+    $publicId = R::request($s);
+    R::run($s, $publicId);
+    AcadApiHelpers::setLocales($s['tenant'], $s['admin'], 'es-ES', ['es-ES', 'en', 'de', 'fr']);
+
+    foreach (['es-ES', 'en', 'de', 'fr'] as $locale) {
+        R::inTenant($s, function () use ($s, $locale): void {
+            $person = Person::query()->findOrFail($s['admin']->person_id);
+            $person->locale = $locale;
+            $person->save();
+        });
+        $s['admin']->unsetRelation('person');
+
+        $expected = collect(R::get($s['tenant'], $s['admin'], '/academic-year-rollovers/elements', [], $locale)->assertOk()->json('data'))->pluck('label', 'code')->all();
+        $result = R::get($s['tenant'], $s['admin'], "/academic-year-rollovers/{$publicId}", [], $locale)->assertOk()->json('result.elements');
+
+        expect($result)->not->toBeEmpty();
+
+        foreach ($result as $element) {
+            expect($element['label'])->toBe($expected[$element['code']])->not->toBe($element['code']);
+        }
+    }
+
+    expect($expected['acad.education_levels'])->toBe('Étapes');
+});

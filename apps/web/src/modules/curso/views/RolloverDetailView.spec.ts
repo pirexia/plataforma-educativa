@@ -399,6 +399,7 @@ describe('CA-CURSO-144 RN-CURSO-74, RN-CURSO-85: Revertir y Cancelar copia', () 
           elements: [
             {
               code: 'acad.timetable_sessions',
+              label: 'Sesiones del horario',
               copied: 4,
               skipped: [
                 {
@@ -415,7 +416,9 @@ describe('CA-CURSO-144 RN-CURSO-74, RN-CURSO-85: Revertir y Cancelar copia', () 
     )
     await mountView()
 
-    expect(document.body.textContent).toContain('acad.timetable_sessions')
+    // La columna «Elemento» muestra la etiqueta traducida, nunca el código crudo.
+    expect(document.body.textContent).toContain('Sesiones del horario')
+    expect(document.body.textContent).not.toContain('acad.timetable_sessions')
     expect(document.body.textContent).toContain('Profesorado que ya no está activo: 2')
   })
 })

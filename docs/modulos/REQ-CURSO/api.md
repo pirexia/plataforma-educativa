@@ -215,7 +215,7 @@ Flujo en `funcional.md §4.7`; reglas `RN-CURSO-61` a `-82`; participante de `ac
   "elements": ["acad.education_levels", "acad.courses"],
   "copy_teaching_assignments": false,
   "date_offset_days": 365,
-  "result": { "elements": [ { "code": "acad.education_levels", "copied": 2, "skipped": [], "adjusted": [] }, { "code": "acad.courses", "copied": 3, "skipped": [], "adjusted": [] } ] },
+  "result": { "elements": [ { "code": "acad.education_levels", "label": "Etapas", "copied": 2, "skipped": [], "adjusted": [] }, { "code": "acad.courses", "label": "Cursos de etapa", "copied": 3, "skipped": [], "adjusted": [] } ] },
   "failure": null,
   "revert_failure": null,
   "revertible": true,

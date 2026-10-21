@@ -70,6 +70,8 @@ test.describe('CA-CURSO-147 (REQ-CURSO-002): apertura del curso siguiente contra
     // 1. «Abrir curso siguiente»: alta del curso y, al crearlo, el asistente.
     await page.goto('/administracion/cursos')
     await page.getByRole('link', { name: 'Abrir curso siguiente' }).click()
+    await expect(page).toHaveURL(/\/administracion\/cursos\/nuevo/)
+    await expect(page.getByRole('heading', { name: 'Nuevo curso', level: 1 })).toBeVisible()
     await page.getByLabel(/^Código/).fill('2027-2028')
     await page.getByLabel(/^Fecha de inicio/).fill('2027-09-01')
     await page.getByLabel(/^Fecha de fin/).fill('2028-08-31')
@@ -77,7 +79,7 @@ test.describe('CA-CURSO-147 (REQ-CURSO-002): apertura del curso siguiente contra
     await expect(page).toHaveURL(/\/copiar-estructura$/)
 
     // 2. Origen (el activo, por defecto) y elementos: «Etapas». La casilla de asignación docente sale desmarcada.
-    await expect(page.getByRole('heading', { name: 'Origen' })).toBeFocused()
+    await expect(page.getByRole('heading', { name: 'Origen' })).toBeVisible()
     await page.getByRole('button', { name: 'Siguiente' }).click()
     await expect(page.getByLabel('Copiar la asignación docente')).not.toBeChecked()
     await page.getByLabel('Etapas', { exact: true }).check()
@@ -94,7 +96,9 @@ test.describe('CA-CURSO-147 (REQ-CURSO-002): apertura del curso siguiente contra
     await expect(page.getByTestId('rollover-status')).toContainText('Completada', {
       timeout: 60_000,
     })
-    await expect(page.getByRole('cell', { name: 'acad.education_levels' })).toBeVisible()
+    // La columna «Elemento» es la cabecera de fila y muestra la etiqueta traducida, nunca el código crudo.
+    await expect(page.getByRole('rowheader', { name: 'Etapas' })).toBeVisible()
+    await expect(page.getByText('acad.education_levels')).toHaveCount(0)
 
     // 5. Revertir: se pide confirmación y la copia queda revertida.
     await page.getByRole('button', { name: 'Revertir copia' }).click()

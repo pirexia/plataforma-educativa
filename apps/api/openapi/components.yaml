@@ -236,6 +236,7 @@ components:
                 type: object
                 properties:
                   code: { type: string }
+                  label: { type: string, description: 'Etiqueta traducida del elemento en el idioma de la petición (la misma que la simulación); sin clave de traducción, el propio código.' }
                   copied: { type: integer, minimum: 0 }
                   skipped:
                     type: array

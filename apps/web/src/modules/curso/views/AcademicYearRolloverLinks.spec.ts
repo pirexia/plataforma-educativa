@@ -66,7 +66,11 @@ function copy(status: string, overrides: Record<string, unknown> = {}) {
     elements: ['acad.education_levels'],
     copy_teaching_assignments: false,
     date_offset_days: 365,
-    result: { elements: [{ code: 'acad.education_levels', copied: 2, skipped: [], adjusted: [] }] },
+    result: {
+      elements: [
+        { code: 'acad.education_levels', label: 'Etapas', copied: 2, skipped: [], adjusted: [] },
+      ],
+    },
     failure: null,
     revert_failure: null,
     revertible: true,

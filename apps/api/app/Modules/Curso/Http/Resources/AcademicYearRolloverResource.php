@@ -4,6 +4,7 @@ namespace App\Modules\Curso\Http\Resources;
 
 use App\Modules\Curso\Application\Rollover\RolloverCancellation;
 use App\Modules\Curso\Application\Rollover\RolloverPlanner;
+use App\Modules\Curso\Domain\AcademicYearRolloverRegistry;
 use App\Modules\Curso\Domain\AcademicYearStatus;
 use App\Modules\Curso\Domain\Models\YearRollover;
 use App\Modules\Curso\Domain\YearRolloverStatus;
@@ -61,10 +62,29 @@ class AcademicYearRolloverResource extends JsonResource
 
         return [
             'code' => $element['code'] ?? null,
+            'label' => self::elementLabel((string) ($element['code'] ?? '')),
             'copied' => $element['copied'] ?? 0,
             'skipped' => RolloverPlanner::labelled($module, 'skipped', $element['skipped'] ?? []),
             'adjusted' => RolloverPlanner::labelled($module, 'adjusted', $element['adjusted'] ?? []),
         ];
+    }
+
+    /**
+     * Etiqueta traducida del elemento, con el idioma de la petición y la misma clave que la simulación
+     * (`RolloverPlanner::elementRow`). Se busca en el registro entero y no en el catálogo de módulos utilizables:
+     * una copia ya hecha de un módulo después descontratado conserva su etiqueta. Sin clave, el propio código.
+     */
+    private static function elementLabel(string $code): string
+    {
+        foreach (app(AcademicYearRolloverRegistry::class)->all() as $participant) {
+            foreach ($participant->elements() as $element) {
+                if ($element->code === $code) {
+                    return (string) __($element->labelKey);
+                }
+            }
+        }
+
+        return $code;
     }
 
     /**

@@ -106,6 +106,8 @@ export interface Rollover {
   result: {
     elements: {
       code: string
+      /** Etiqueta traducida del elemento (idioma de la petición); es lo que se muestra, nunca `code`. */
+      label: string
       copied: number
       skipped: RolloverReason[]
       adjusted: RolloverReason[]

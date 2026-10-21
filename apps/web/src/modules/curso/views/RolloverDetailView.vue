@@ -95,7 +95,7 @@ type ResultRow = NonNullable<Rollover['result']>['elements'][number]
 /** `RN-CORE-53`: toda tabla es el componente común; aquí en modo `local`. */
 const resultColumns: DataTableColumn<ResultRow>[] = [
   {
-    id: 'code',
+    id: 'label',
     headerKey: 'curso.rollover.wizard.columns.element',
     rowHeader: true,
     hideable: false,
