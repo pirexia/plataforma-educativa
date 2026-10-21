@@ -48,7 +48,7 @@ return [
         // `retry_after` mayor que el `timeout` de los trabajos de copia y reversión (600 s) en al menos 300 s
         // (`RN-CURSO-84`: el worker mata el proceso antes de que la cola pueda volver a entregarlo). Lo consume
         // un proceso `queue:work database_long --queue=long` aparte: el `retry_after` es de la conexión con la
-        // que el worker lee la cola. Valores provisionales hasta la medición de `CA-CURSO-149`.
+        // que el worker lee la cola. Valores confirmados por la medición de `CA-CURSO-149` (2026-10-21).
         'database_long' => [
             'driver' => 'database',
             'connection' => env('DB_QUEUE_CONNECTION'),

@@ -32,7 +32,7 @@ class RunAcademicYearRollover implements ShouldQueue
 
     public int $tries = 1;
 
-    /** Provisional (`operacion.md §1`), a confirmar con la medición de `CA-CURSO-149`. */
+    /** Confirmado por la medición de `CA-CURSO-149` (`operacion.md §1`, 2026-10-21): 13,6 s la copia más pesada. */
     public int $timeout = 600;
 
     public function __construct(public readonly int $rolloverId)

@@ -8,7 +8,7 @@
 >
 > **Ampliación por `1.11d-a`** (2026-10-16, `OPEN-ACAD-24` = B, aprobada por el usuario; `funcional.md §5.6`): el punto de extensión de validaciones del cambio de fechas **no cambia el esquema**: ni tabla, ni columna, ni índice, ni migración en `curso`. Las validaciones leen las tablas de su propio módulo (`acad`: `academic_periods`, `REQ-ACAD/datos.md`). El único efecto sobre datos de `curso` es que el `PATCH` toma `FOR UPDATE` sobre la fila de `academic_years` del curso antes de validar (`RN-CURSO-51`), el mismo bloqueo que ya toman las transiciones. **La lectura con bloqueo compartido** (`OPEN-CURSO-25` = B, `funcional.md §5.6.1`) tampoco cambia el esquema: es un `SELECT … FOR SHARE` sobre la misma fila, el mismo modo de bloqueo que ya toma el disparador (§1.4), sobre el índice `UNIQUE (tenant_id, id)` existente y con el privilegio `UPDATE` sobre `academic_years` que los roles de aplicación ya tienen por el disparador (PostgreSQL exige `UPDATE` para `FOR SHARE`). Lo único nuevo es que un módulo lo pide **desde la aplicación**, antes de bloquear sus propias filas (orden curso → filas del módulo, `RN-CURSO-58`).
 >
-> **Ampliación por `1.12b`** (2026-10-20, `REQ-CURSO-002`, apertura del curso siguiente; **APROBADA 2026-10-20 por el usuario**, no implementada; `funcional.md §1.4`, `§5.7`): **dos tablas nuevas** del módulo, `year_rollovers` (§1.6) y `year_rollover_items` (§1.7), ambas con `academic_year_id` = curso **destino** y, por tanto, con el disparador `academic_year_write_guard`. **Corregida el 2026-10-21** con la revisión de documentación: columnas que los ayudantes no crean y se declaran a mano (M-4), mensajes no persistidos (M-3) y auditoría de cada *item* (`OPEN-CURSO-37` = b, decisión del usuario del 2026-10-21). **APROBADA 2026-10-21 por el usuario, sin preguntas abiertas.** **No altera** `academic_years`, la función del bloqueo ni ningún disparador, ni ninguna tabla de otro módulo: lo copiado lo escribe cada módulo en sus propias tablas.
+> **Ampliación por `1.12b`** (2026-10-20, `REQ-CURSO-002`, apertura del curso siguiente; **APROBADA 2026-10-20 por el usuario; implementada el 2026-10-21 en `1.12b`**; `funcional.md §1.4`, `§5.7`): **dos tablas nuevas** del módulo, `year_rollovers` (§1.6) y `year_rollover_items` (§1.7), ambas con `academic_year_id` = curso **destino** y, por tanto, con el disparador `academic_year_write_guard`. **Corregida el 2026-10-21** con la revisión de documentación: columnas que los ayudantes no crean y se declaran a mano (M-4), mensajes no persistidos (M-3) y auditoría de cada *item* (`OPEN-CURSO-37` = b, decisión del usuario del 2026-10-21). **APROBADA 2026-10-21 por el usuario, sin preguntas abiertas.** **No altera** `academic_years`, la función del bloqueo ni ningún disparador, ni ninguna tabla de otro módulo: lo copiado lo escribe cada módulo en sus propias tablas.
 
 ---
 
@@ -249,12 +249,12 @@ Sin índice por `status` más allá del parcial: decenas de copias por centro en
 - [x] *Append-only*: sin `updated_at`/`deleted_at`; ningún *endpoint* de modificación ni de borrado
 
 ### `year_rollovers` y `year_rollover_items` (`1.12b`, APROBADA 2026-10-20; §1.6, §1.7)
-- [ ] `tenant_id` + RLS (`tenantTable()` / `tenantTableAppendOnly()`); `academic_year_id NOT NULL` (destino) con `tenantForeignId()` y disparador (*`AR-13`*, sin excepción); `source_academic_year_id` con FK compuesta y **sin** disparador
-- [ ] Ninguna acción referencial (`NO ACTION`) en ninguna FK, incluidas `reverted_by` y la de tres columnas de los *items* (*`AR-13`*)
-- [ ] `public_id` ULID único en las dos (*`AR-05`*); `text`, `jsonb`, `integer`, `boolean`, `timestamptz` (*`AR-04`*); enumerado `status` como `text` + `CHECK`
-- [ ] `Auditable` y alias `year_rollover`, `year_rollover_item` (*`AR-06`*); *items* auditados sin exclusión (`OPEN-CURSO-37` = b, decisión del usuario del 2026-10-21)
-- [ ] Columnas declaradas a mano: `public_id` en las dos; `created_at`/`created_by` en los *items*; `reverted_by` anulable con su FK compuesta e índice (M-4)
-- [ ] Ninguna FK hacia tablas de otros módulos (polimórfica, `INV-007`); ningún dato personal salvo la autoría (`created_by`, `reverted_by`)
+- [x] `tenant_id` + RLS (`tenantTable()` / `tenantTableAppendOnly()`); `academic_year_id NOT NULL` (destino) con `tenantForeignId()` y disparador (*`AR-13`*, sin excepción); `source_academic_year_id` con FK compuesta y **sin** disparador
+- [x] Ninguna acción referencial (`NO ACTION`) en ninguna FK, incluidas `reverted_by` y la de tres columnas de los *items* (*`AR-13`*)
+- [x] `public_id` ULID único en las dos (*`AR-05`*); `text`, `jsonb`, `integer`, `boolean`, `timestamptz` (*`AR-04`*); enumerado `status` como `text` + `CHECK`
+- [x] `Auditable` y alias `year_rollover`, `year_rollover_item` (*`AR-06`*); *items* auditados sin exclusión (`OPEN-CURSO-37` = b, decisión del usuario del 2026-10-21)
+- [x] Columnas declaradas a mano: `public_id` en las dos; `created_at`/`created_by` en los *items* (este con `tenantForeignId`, mismo DDL: `funcional.md §16.1`, D-4); `reverted_by` anulable con su FK compuesta e índice (M-4)
+- [x] Ninguna FK hacia tablas de otros módulos (polimórfica, `INV-007`); ningún dato personal salvo la autoría (`created_by`, `reverted_by`)
 - [ ] Revisión de `db-reviewer` obligatoria (dos migraciones nuevas)
 
 ### Resto
