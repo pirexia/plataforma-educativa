@@ -98,12 +98,12 @@ Sin `updated_at`, `updated_by` ni `deleted_at`: es *append-only* (lo que dé `te
 
 ### 1.6 `year_rollovers` (nueva, `1.12b`, APROBADA 2026-10-20)
 
-Una fila por **copia** (ejecución del *rollover*): selección, estado, resultado y fallo (`funcional.md RN-CURSO-67`, `-69`, `-73` a `-75`). Es el «log de resultados» de `REQ-CURSO-002`. Migración del módulo en `apps/api/app/Modules/Curso/Database/migrations/` con **`TenantMigration::tenantTable()`** y `TenantMigration::tenantForeignId($t, 'academic_year_id', 'academic_years')`: RLS `ENABLE`+`FORCE`, autoría, `timestamptz`, borrado lógico (sin *endpoint* de borrado), `UNIQUE (tenant_id, id)` y el disparador `academic_year_write_guard`, sin excepción en `AR-13`. Precedente de forma: `data_exports` (estado de un trabajo en cola consultado por la interfaz).
+Una fila por **copia** (ejecución del *rollover*): selección, estado, resultado y fallo (`funcional.md RN-CURSO-67`, `-69`, `-73` a `-75`). Es el «log de resultados» de `REQ-CURSO-002`. Migración del módulo en `apps/api/app/Modules/Curso/Database/migrations/` con **`TenantMigration::tenantTable()`** y `TenantMigration::tenantForeignId($t, 'academic_year_id', 'academic_years', withIndex: false)` (el único no parcial `(tenant_id, academic_year_id, id)` ya cubre el prefijo, #446-c): RLS `ENABLE`+`FORCE`, autoría, `timestamptz`, borrado lógico (sin *endpoint* de borrado), `UNIQUE (tenant_id, id)` y el disparador `academic_year_write_guard`, sin excepción en `AR-13`. Precedente de forma: `data_exports` (estado de un trabajo en cola consultado por la interfaz).
 
 | Columna | Tipo | Nulo | Por defecto | Descripción |
 |---------|------|------|-------------|-------------|
 | `public_id` | `character(26)` | No | — | ULID, único (`AR-05`). Identificador de las rutas `/academic-year-rollovers/{public_id}` |
-| `academic_year_id` | `bigint` | No | — | Curso **destino**. `tenantForeignId`: FK compuesta `(tenant_id, academic_year_id) → academic_years (tenant_id, id)`, **`NO ACTION`**, e índice. Al ser `academic_year_id`, la fila queda congelada si el destino llega a cerrarse, lo deseado: una copia de un curso cerrado ya no cambia |
+| `academic_year_id` | `bigint` | No | — | Curso **destino**. `tenantForeignId`: FK compuesta `(tenant_id, academic_year_id) → academic_years (tenant_id, id)`, **`NO ACTION`**; sin el índice del ayudante (`withIndex: false`): lo cubre el único `year_rollovers_tenant_year_id_unique`. Al ser `academic_year_id`, la fila queda congelada si el destino llega a cerrarse, lo deseado: una copia de un curso cerrado ya no cambia |
 | `source_academic_year_id` | `bigint` | No | — | Curso **origen**. `tenantForeignId($t, 'source_academic_year_id', 'academic_years')`: FK compuesta `NO ACTION` e índice `(tenant_id, source_academic_year_id)`. **No** es `academic_year_id`: el disparador no la mira, de modo que cerrar el origen no congela la copia (sí la del destino) **[DERIVADA]** |
 | `status` | `text` | No | `'pendiente'` | `CHECK (status IN ('pendiente','en_curso','completado','fallido','revirtiendo','revertido'))` (`year_rollovers_status_check`). Lo escriben solo el servicio y los dos trabajos de `curso` |
 | `elements` | `jsonb` | No | — | Lista de códigos de la **selección efectiva**: los elegidos más, si `copy_teaching_assignments`, los del paquete (`RN-CURSO-64`, `-82`). `CHECK (jsonb_typeof(elements) = 'array' AND jsonb_array_length(elements) >= 1)` (`year_rollovers_elements_check`). Códigos declarados en código, sin datos personales |
@@ -132,12 +132,12 @@ Lo que el motor **no** garantiza (servicio, bajo los bloqueos de `funcional.md R
 
 ### 1.7 `year_rollover_items` (nueva, `1.12b`, APROBADA 2026-10-20)
 
-Qué filas creó cada copia, para poder revertirla (`funcional.md RN-CURSO-73`, `-75`). *Append-only*. Polimórfica **sin FK** hacia las tablas copiadas, con el patrón de `audit_logs` (`auditable_type` + `auditable_id`): `curso` guarda lo que le devuelve cada participante y se lo devuelve al revertir; **nunca** lee ni escribe las tablas a las que apuntan (`INV-007`). Migración del módulo con **`TenantMigration::tenantTableAppendOnly()`** y `tenantForeignId($t, 'academic_year_id', 'academic_years')` (disparador incluido, sin excepción en `AR-13`).
+Qué filas creó cada copia, para poder revertirla (`funcional.md RN-CURSO-73`, `-75`). *Append-only*. Polimórfica **sin FK** hacia las tablas copiadas, con el patrón de `audit_logs` (`auditable_type` + `auditable_id`): `curso` guarda lo que le devuelve cada participante y se lo devuelve al revertir; **nunca** lee ni escribe las tablas a las que apuntan (`INV-007`). Migración del módulo con **`TenantMigration::tenantTableAppendOnly()`** y `tenantForeignId($t, 'academic_year_id', 'academic_years', withIndex: false)` (disparador incluido, sin excepción en `AR-13`; el índice de tres columnas de abajo cubre el prefijo).
 
 | Columna | Tipo | Nulo | Descripción |
 |---------|------|------|-------------|
 | `public_id` | `character(26)` | No | ULID, único, **declarado a mano** en la migración (M-4). No sale en ninguna ruta; por coherencia con `AR-05`/`HasPublicId` (precedente `group_subjects`, `timetables`) |
-| `academic_year_id` | `bigint` | No | Curso destino. `tenantForeignId` (FK compuesta `NO ACTION` + índice) |
+| `academic_year_id` | `bigint` | No | Curso destino. `tenantForeignId` con `withIndex: false` (FK compuesta `NO ACTION`; el índice de tres columnas cubre el prefijo) |
 | `year_rollover_id` | `bigint` | No | FK de tres columnas, declarada a mano con nombre explícito `year_rollover_items_tenant_year_rollover_foreign`: `(tenant_id, academic_year_id, year_rollover_id) → year_rollovers (tenant_id, academic_year_id, id)`, `NO ACTION` (`RN-CURSO-27`) |
 | `module_code` | `text` | No | Código del módulo participante (`ADR-045`) |
 | `entity_type` | `text` | No | Alias del *morph map* de la tabla copiada (p. ej. `education_level`); el mismo vocabulario que `audit_logs.auditable_type` |
@@ -150,7 +150,7 @@ Sin `updated_at` ni `deleted_at`: la reversión **no** borra *items* (quedan com
 
 **Modelo**: `Curso\Domain\Models\YearRolloverItem` **[DERIVADA: nombre]**, `extends AppendOnlyModel` (precedente `AcademicYearReopening`), `implements Auditable` (`Full`), **sin exclusión de eventos**: cada *item* deja su `created` (`OPEN-CURSO-37` = b, decisión del usuario del 2026-10-21; sin ADR; `funcional.md §15.4.1`), `HasPublicId`, alias `year_rollover_item` (`AR-06`). Se inserta a través del modelo dentro de la transacción de la copia; una inserción masiva por constructor de consultas queda descartada **[DERIVADA]**: saltaría el modelo y la auditoría (`AR-15`).
 
-**Volumen**: una fila por fila copiada: con la selección completa de `acad`, de cientos a pocos miles por copia (con la casilla de asignación docente, ≈ 1.200 sesiones más en un centro de 40 grupos) y una copia viva por destino. Sin particionado. Con `OPEN-CURSO-37` = b, el mismo número de entradas `created` adicionales en `audit_logs` por copia.
+**Volumen**: una fila por fila copiada: con la selección completa de `acad`, de cientos a pocos miles por copia (con la casilla de asignación docente, ≈ 1.200 sesiones más en un centro de 40 grupos) y una copia viva por destino. Sin particionado. **Deuda aceptada**: `year_rollover_items.public_id` (ULID único, `AR-05`) no sale en ninguna ruta y se rellena por coherencia con `HasPublicId`; cuesta una columna y un índice por fila copiada sin consumidor (revisión de `db-reviewer`, observación). Con `OPEN-CURSO-37` = b, el mismo número de entradas `created` adicionales en `audit_logs` por copia.
 
 ---
 
@@ -211,13 +211,13 @@ El listado (`ORDER BY starts_on DESC, id DESC`) no lleva índice propio: un cent
 | Índice | Tabla | Consulta |
 |--------|-------|----------|
 | `UNIQUE (public_id)` | las dos | Detalle y reversión por `public_id` (`year_rollovers`); `AR-05` (`year_rollover_items`) |
-| `(tenant_id, academic_year_id)` | las dos | Del ayudante: listado `?academic_year=` y FK a `academic_years` |
+| `(tenant_id, academic_year_id)` | las dos | **No se crea el del ayudante** (`withIndex: false`): lo cubre por prefijo `year_rollovers_tenant_year_id_unique` (`year_rollovers`) y el de tres columnas (`year_rollover_items`); sirve al listado `?academic_year=` y a la FK a `academic_years` |
 | `(tenant_id, source_academic_year_id)` | `year_rollovers` | Del ayudante: filtro `source` (aviso de reapertura, `RN-CURSO-77`) y FK |
 | `(tenant_id, reverted_by)` | `year_rollovers` | Declarado a mano (la columna es anulable, M-4): cubre la FK a `users` |
 | `(tenant_id, created_by)` | `year_rollover_items` | Declarado a mano: cubre la FK a `users` |
 | `year_rollovers_tenant_year_live_unique` (único parcial) | `year_rollovers` | Una copia viva por destino (`RN-CURSO-67`) y la lectura «¿hay copia en vuelo?» de la activación (`RN-CURSO-71`) |
 | `year_rollovers_tenant_year_id_unique` | `year_rollovers` | Destino de la FK de los *items* |
-| `(tenant_id, academic_year_id, year_rollover_id)` (no parcial) | `year_rollover_items` | Cubre la FK de tres columnas y la lectura de los *items* de una copia al revertir (criterio de #407/#412: índice propio con exactamente las columnas de la FK) |
+| `(tenant_id, academic_year_id, year_rollover_id)` (no parcial) | `year_rollover_items` | Existe por la FK de tres columnas: `AR-16` (#407/#412) exige un índice no parcial con exactamente sus columnas. Aprovecha también la lectura de los *items* de una copia al revertir, pero no es su motivo |
 | `year_rollover_items_target_unique` | `year_rollover_items` | Una fila creada no se anota dos veces en la misma copia |
 
 Sin índice por `status` más allá del parcial: decenas de copias por centro en toda su vida. Sin índice por `entity_type`/`source_id`: nadie busca hoy «qué se creó a partir de esta fila» (la interfaz pública de mapa está fuera de alcance, `funcional.md §1.4`; si `1.17b` la pide, añade su índice).

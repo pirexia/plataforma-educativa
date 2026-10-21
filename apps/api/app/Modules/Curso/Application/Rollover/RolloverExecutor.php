@@ -15,9 +15,11 @@ use App\Modules\Curso\Domain\AcademicYearSummary;
 use App\Modules\Curso\Domain\Models\AcademicYear;
 use App\Modules\Curso\Domain\Models\YearRollover;
 use App\Modules\Curso\Domain\Models\YearRolloverItem;
+use App\Modules\Curso\Domain\RolloverBlockedException;
 use App\Modules\Curso\Domain\YearRolloverStatus;
 use App\Modules\Curso\Infrastructure\RepeatableReadTransaction;
 use Closure;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -82,6 +84,14 @@ final class RolloverExecutor
             $this->repeatableRead->run(fn () => $this->copyInTransaction($rolloverId, $targetYearId));
         } catch (RolloverFailure $e) {
             $this->failCopy($rolloverId, $e->failureCode, $e->issues, [YearRolloverStatus::EnCurso]);
+        } catch (ModelNotFoundException) {
+            // Una fila que otra transacción confirmó después de la foto (p. ej. el ancla `timetables` del destino, que
+            // se lee tras un `23505` que su alta no pudo ver bajo REPEATABLE READ): es una escritura concurrente en el
+            // destino, igual que un `40001`; nada copiado, se puede repetir.
+            $this->failCopy($rolloverId, 'target_changed', [], [YearRolloverStatus::EnCurso]);
+        } catch (RolloverBlockedException $e) {
+            // Un participante detectó, ya con sus bloqueos, una incidencia que `checkRevert()` no vio (RN-CURSO-70).
+            $this->failCopy($rolloverId, 'rollover_blocked', $e->issues, [YearRolloverStatus::EnCurso]);
         } catch (QueryException $e) {
             // Serialización agotados los reintentos (40001) o choque de unicidad con algo creado
             // en el destino a la vez (23505): nada copiado, se puede repetir (RN-CURSO-69).
@@ -255,6 +265,9 @@ final class RolloverExecutor
         $this->actingAs($actor, function () use ($rolloverId, $rollover): void {
             try {
                 DB::transaction(fn () => $this->revertInTransaction($rolloverId, $rollover->academic_year_id));
+            } catch (RolloverBlockedException $e) {
+                // Incidencia vista por el participante tras tomar sus bloqueos (RN-CURSO-70): la copia sigue completada.
+                $this->failRevert($rolloverId, 'rollover_blocked', $e->issues);
             } catch (RolloverFailure $e) {
                 // «módulo no utilizable» es un 409 propio en la solicitud; como fallo persistido es un bloqueo.
                 $code = $e->failureCode === 'revert_module_unavailable' ? 'rollover_blocked' : $e->failureCode;

@@ -144,6 +144,10 @@ final class TenantMigration
      * `$constraintName` no cambió el DDL de las migraciones mezcladas (las
      * converge `2026_10_12_100000_add_tenant_foreign_key_indexes`, #412).
      *
+     * Uso en 1.12b: `year_rollovers` y `year_rollover_items` lo piden para `academic_year_id` porque su único
+     * no parcial `(tenant_id, academic_year_id, id)` / su índice de tres columnas ya empiezan por esas dos
+     * columnas (#446-c); `source_academic_year_id` conserva el del ayudante.
+     *
      * `$withIndex = false` (#412): omite ese índice cuando la propia migración
      * declara a mano, **en la misma migración**, un índice **completo** (no
      * parcial) que empiece por `(tenant_id, $column)` y ya cubre la FK; si no,

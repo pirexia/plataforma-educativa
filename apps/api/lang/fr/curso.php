@@ -93,6 +93,7 @@ return [
     'academic_year_closed_anonymous' => 'L\'année scolaire est clôturée et ses données sont en lecture seule.',
 
     'errors' => [
+        'rollover_rate_limited' => 'Cet établissement a atteint la limite de demandes de copie ou d’annulation. Réessayez dans environ :minutes minutes.',
         'academic_year_closed' => [
             'title' => 'L\'année scolaire est en lecture seule',
             'detail' => 'L\'année scolaire « :code » est :status_label et ses données sont en lecture seule. Les données d\'une année scolaire clôturée ne peuvent être ni créées, ni modifiées, ni supprimées.',

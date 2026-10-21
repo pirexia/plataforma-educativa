@@ -26,7 +26,9 @@ return new class extends Migration
     {
         TenantMigration::tenantTable('year_rollovers', function (Blueprint $table): void {
             $table->ulid('public_id')->unique();
-            TenantMigration::tenantForeignId($table, 'academic_year_id', 'academic_years');
+            // `withIndex: false`: el único no parcial `(tenant_id, academic_year_id, id)` de abajo ya cubre el prefijo
+            // `(tenant_id, academic_year_id)` (FK y listado por destino); el índice del ayudante sería redundante (#446-c).
+            TenantMigration::tenantForeignId($table, 'academic_year_id', 'academic_years', withIndex: false);
             TenantMigration::tenantForeignId($table, 'source_academic_year_id', 'academic_years');
             $table->text('status')->default('pendiente');
             $table->jsonb('elements');

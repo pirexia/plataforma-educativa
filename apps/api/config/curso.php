@@ -21,6 +21,15 @@ return [
         // cancelar (aceptado por el usuario el 2026-10-21). Mayor que `retry_after`
         // (900 s) y que el `timeout` (600 s) de los trabajos.
         'cancel_after_minutes' => 30,
+
+        // Límite por centro de `POST /academic-year-rollovers` y de `POST …/revert` (cubo propio cada uno): cada solicitud
+        // toma `FOR SHARE` sobre el curso destino y encola un trabajo de minutos, así que un bucle de solicitudes
+        // ocuparía el único `worker-long`. Cuenta todos los intentos, también los rechazados. Con más workers de la cola
+        // `long`, se sube aquí (el límite protege la cola, no la base de datos).
+        'rate_limit' => [
+            'attempts' => 6,
+            'decay_seconds' => 3600,
+        ],
     ],
 
 ];

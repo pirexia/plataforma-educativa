@@ -3,6 +3,7 @@
 use App\Models\AuditLog;
 use App\Models\Person;
 use App\Models\UserStatus;
+use App\Modules\Acad\Domain\Models\Course;
 use App\Modules\Acad\Domain\Models\Group;
 use App\Modules\Acad\Domain\Models\GroupSubject;
 use App\Modules\Acad\Domain\Models\GroupTutor;
@@ -10,10 +11,13 @@ use App\Modules\Acad\Domain\Models\TeachingAssignment;
 use App\Modules\Acad\Domain\Models\TimeSlot;
 use App\Modules\Acad\Domain\Models\TimetableSession;
 use App\Modules\Acad\Infrastructure\AcadRolloverParticipant;
+use App\Modules\Curso\Domain\AcademicYearRolloverItem;
 use App\Modules\Curso\Domain\AcademicYearRolloverPlan;
+use App\Modules\Curso\Domain\AcademicYearRolloverReversal;
 use App\Modules\Curso\Domain\Models\AcademicYear;
 use App\Modules\Curso\Domain\Models\YearRollover;
 use App\Modules\Curso\Domain\Models\YearRolloverItem;
+use App\Modules\Curso\Domain\RolloverBlockedException;
 use App\Modules\Curso\Domain\YearRolloverStatus;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
@@ -29,7 +33,7 @@ use Tests\Support\RolloverTestHelpers as R;
 // Las funciones auxiliares (`rolloverGet`, `requestRollover`, `runRollover`…) viven en AcadRolloverTest.php.
 
 beforeEach(function (): void {
-    config(['curso.rollover.allow_nested_transaction' => true]);
+    config(['curso.rollover.allow_nested_transaction' => true, 'curso.rollover.rate_limit.attempts' => 1000]);
     Queue::fake();
 });
 
@@ -408,4 +412,39 @@ test('CA-ACAD-152 INV-009 AR-12: las claves de acad.rollover existen con texto e
             expect(Arr::get($lang['rollover'], $key))->toBeString()->not->toBeEmpty("{$locale}: acad.rollover.{$key}");
         }
     }
+});
+
+test('CA-ACAD-149 RN-CURSO-70 RN-ACAD-151 (revisión de db-reviewer B4): revert() toma el ancla y bloquea los padres copiados y repite la comprobación: un dependiente creado tras checkRevert() hace fallar toda la reversión sin borrar nada', function (): void {
+    $s = R::scenario('rot-b4', teaching: true);
+    $publicId = R::request($s, ['copy_teaching_assignments' => true]);
+    R::run($s, $publicId);
+
+    R::inTenant($s, function () use ($s, $publicId): void {
+        $rollover = YearRollover::query()->where('public_id', $publicId)->firstOrFail();
+        $items = YearRolloverItem::query()->where('year_rollover_id', $rollover->id)->where('module_code', 'acad')->orderBy('id')->get()
+            ->map(fn ($i) => new AcademicYearRolloverItem($i->entity_type, $i->source_id, $i->target_id))->all();
+        $target = AcademicYear::query()->findOrFail($s['target']->id)->toSummary();
+        $reversal = new AcademicYearRolloverReversal($target, $items);
+        $participant = app(AcadRolloverParticipant::class);
+
+        // Sin dependientes, checkRevert() no ve nada…
+        expect($participant->checkRevert($reversal))->toBe([]);
+
+        // …y un grupo creado a mano después (bajo un curso de etapa copiado) lo ve revert() con sus bloqueos tomados.
+        $courseId = Course::query()->where('academic_year_id', $s['target']->id)->where('code', '1ESO')->value('id');
+        Group::create(['academic_year_id' => $s['target']->id, 'course_id' => $courseId, 'code' => 'ZZ', 'name' => 'Tarde', 'position' => 9]);
+        $before = array_sum(R::targetCounts($s));
+
+        $thrown = null;
+
+        try {
+            DB::transaction(fn () => $participant->revert($reversal));
+        } catch (RolloverBlockedException $e) {
+            $thrown = $e;
+        }
+
+        expect($thrown)->not->toBeNull()
+            ->and($thrown->issues[0]->code)->toBe('acad.rollover.revert_has_dependents')
+            ->and(array_sum(R::targetCounts($s)))->toBe($before);
+    });
 });

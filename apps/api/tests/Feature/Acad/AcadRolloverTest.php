@@ -28,7 +28,7 @@ use Tests\Support\RolloverTestHelpers as R;
 // no la semántica de REPEATABLE READ (esa: tests/Concurrency/RolloverConcurrencyTest.php).
 
 beforeEach(function (): void {
-    config(['curso.rollover.allow_nested_transaction' => true]);
+    config(['curso.rollover.allow_nested_transaction' => true, 'curso.rollover.rate_limit.attempts' => 1000]);
     Queue::fake();
 });
 

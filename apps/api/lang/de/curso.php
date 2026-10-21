@@ -93,6 +93,7 @@ return [
     'academic_year_closed_anonymous' => 'Das Schuljahr ist abgeschlossen und seine Daten sind schreibgeschützt.',
 
     'errors' => [
+        'rollover_rate_limited' => 'Für dieses Zentrum wurde das Limit für Kopier- oder Rücksetzanfragen erreicht. Versuche es in etwa :minutes Minuten erneut.',
         'academic_year_closed' => [
             'title' => 'Das Schuljahr ist schreibgeschützt',
             'detail' => 'Das Schuljahr „:code“ ist :status_label und seine Daten sind schreibgeschützt. Daten eines abgeschlossenen Schuljahres können nicht angelegt, geändert oder gelöscht werden.',

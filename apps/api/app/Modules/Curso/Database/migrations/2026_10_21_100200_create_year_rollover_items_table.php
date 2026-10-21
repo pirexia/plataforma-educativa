@@ -26,7 +26,8 @@ return new class extends Migration
     {
         TenantMigration::tenantTableAppendOnly('year_rollover_items', function (Blueprint $table): void {
             $table->ulid('public_id')->unique();
-            TenantMigration::tenantForeignId($table, 'academic_year_id', 'academic_years');
+            // `withIndex: false`: el índice de tres columnas de abajo ya cubre el prefijo `(tenant_id, academic_year_id)`.
+            TenantMigration::tenantForeignId($table, 'academic_year_id', 'academic_years', withIndex: false);
             $table->foreignId('year_rollover_id');
             $table->text('module_code');
             $table->text('entity_type');
@@ -39,8 +40,9 @@ return new class extends Migration
                 ->references(['tenant_id', 'academic_year_id', 'id'])
                 ->on('year_rollovers');
 
-            // Cubre la FK de tres columnas y la lectura de los items de una copia al revertir
-            // (índice propio con exactamente las columnas de la FK, #407/#412). No parcial.
+            // Existe por la FK de tres columnas: `AR-16` (cobertura de toda FK compuesta, #407/#412) exige un índice
+            // no parcial con exactamente sus columnas. No es por la lectura al revertir (`WHERE year_rollover_id`),
+            // que también lo aprovecha pero no lo motiva. No parcial.
             $table->index(['tenant_id', 'academic_year_id', 'year_rollover_id'], 'year_rollover_items_tenant_year_rollover_idx');
 
             // Una fila creada no se anota dos veces en la misma copia.

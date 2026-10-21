@@ -37,7 +37,7 @@ use Tests\Support\RolloverTestHelpers as R;
 // Los trabajos se ejecutan de forma directa, dentro de la transacción del test (`RN-CURSO-86`).
 
 beforeEach(function (): void {
-    config(['curso.rollover.allow_nested_transaction' => true]);
+    config(['curso.rollover.allow_nested_transaction' => true, 'curso.rollover.rate_limit.attempts' => 1000]);
     Queue::fake();
 });
 
@@ -604,4 +604,35 @@ test('RN-CURSO-71 RN-CURSO-85: una copia o reversión huérfana no bloquea la ac
     R::post($s['tenant'], $s['admin'], "/academic-year-rollovers/{$publicId}/cancel")->assertOk();
 
     expect(R::byId($s, $publicId)->status)->toBe(YearRolloverStatus::Fallido);
+});
+
+test('RN-CURSO-68 RN-CURSO-74 (revisión de seguridad M1): POST de solicitud y de reversión tienen un límite por centro, con cubos propios, 429 con Retry-After y texto traducido en los cuatro idiomas', function (): void {
+    config(['curso.rollover.rate_limit.attempts' => 2]);
+    $s = R::bare('rc-rate');
+    $other = R::bare('rc-rate-b');
+    probe();
+    $publicId = R::request($s);
+    R::run($s, $publicId);
+
+    // Revertir: dos intentos permitidos (el primero pasa; el segundo es un 409 de estado), el tercero es 429.
+    R::post($s['tenant'], $s['admin'], "/academic-year-rollovers/{$publicId}/revert")->assertStatus(202);
+    R::post($s['tenant'], $s['admin'], "/academic-year-rollovers/{$publicId}/revert")->assertStatus(409);
+    $limited = R::post($s['tenant'], $s['admin'], "/academic-year-rollovers/{$publicId}/revert")->assertStatus(429);
+
+    expect($limited->headers->get('Retry-After'))->toBeNumeric()
+        ->and($limited->json('type'))->toBe('urn:pge:error:too-many-requests')
+        ->and($limited->json('detail'))->toContain('límite de solicitudes');
+
+    // El cubo de la solicitud es otro: tiene sus dos intentos (uno ya gastado en R::request()).
+    R::post($s['tenant'], $s['admin'], '/academic-year-rollovers', R::body($s))->assertStatus(409);
+    R::post($s['tenant'], $s['admin'], '/academic-year-rollovers', R::body($s))->assertStatus(429);
+
+    // Por centro: el otro centro no se ve afectado.
+    expect(R::post($other['tenant'], $other['admin'], '/academic-year-rollovers', R::body($other))->status())->toBe(202);
+
+    foreach (['en' => 'limit', 'de' => 'Limit', 'fr' => 'limite'] as $locale => $word) {
+        $lang = require base_path("lang/{$locale}/curso.php");
+
+        expect($lang['errors']['rollover_rate_limited'])->toContain($word)->toContain(':minutes');
+    }
 });

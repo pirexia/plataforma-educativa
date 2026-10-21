@@ -30,6 +30,7 @@ use Throwable;
 final class RolloverService
 {
     public function __construct(
+        private readonly RolloverRateLimit $rateLimit,
         private readonly RolloverResolver $resolver,
         private readonly RolloverPlanner $planner,
         private readonly RolloverExecutor $executor,
@@ -44,6 +45,8 @@ final class RolloverService
      */
     public function request(User $actor, RolloverRequest $request): YearRollover
     {
+        $this->rateLimit->hit('request');
+
         $rollover = DB::transaction(function () use ($actor, $request): YearRollover {
             $resolved = $this->resolver->resolve($actor, $request, lockTarget: true);
 
@@ -89,6 +92,8 @@ final class RolloverService
      */
     public function requestRevert(User $actor, string $publicId): YearRollover
     {
+        $this->rateLimit->hit('revert');
+
         $rollover = $this->findReadable($publicId, $actor);
 
         $rollover = DB::transaction(function () use ($actor, $rollover): YearRollover {

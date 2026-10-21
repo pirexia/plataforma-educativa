@@ -6,11 +6,13 @@ use App\Modules\Acad\Domain\Models\EducationLevel;
 use App\Modules\Curso\Domain\AcademicYearStatus;
 use App\Modules\Curso\Domain\Models\AcademicYear;
 use App\Modules\Curso\Domain\Models\YearRollover;
+use App\Modules\Curso\Domain\Models\YearRolloverItem;
 use App\Modules\Curso\Domain\YearRolloverStatus;
 use App\Modules\Curso\Infrastructure\RepeatableReadTransaction;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\Support\CursoTestHelpers;
 use Tests\Support\RolloverTestHelpers as R;
 
@@ -315,4 +317,35 @@ test('CA-CURSO-158 RN-CURSO-86: el ayudante exige no tener transacción abierta,
         });
     })->toThrow(QueryException::class)
         ->and($calls)->toBe(1);
+});
+
+test('CA-CURSO-132 RN-CURSO-69 (revisión de db-reviewer B3): un ancla timetables del destino confirmada por otro proceso tras la foto no produce un 500: la copia termina fallida con target_changed y no copia nada', function (): void {
+    $s = R::scenario('rcc-132d');
+    R::setUserStatus($s['tenant'], $s['admin'], UserStatus::Activo);
+    CursoTestHelpers::setStatus($s['tenant'], $s['source'], AcademicYearStatus::Cerrado);
+    $rollover = R::rollover($s['tenant'], $s['target'], $s['source'], YearRolloverStatus::Pendiente, $s['admin'], ['acad.education_levels', 'acad.timetable_frames', 'curso.alpha']);
+    $key = 7_132_004;
+    $gate = rolloverHoldGate($key);
+
+    // El de prueba antes que `acad`: `acad` toma el ancla del destino después de la espera, con la foto ya fijada.
+    $copy = rolloverSpawn('rollover-worker.php', $s['tenant']->id, 'run', (string) $rollover->id, (string) $key, '1');
+    rolloverWaitBlocked('advisory', 1, [$copy]);
+
+    // Otro proceso crea y confirma el ancla del destino (no existía al empezar la copia).
+    $owner = DB::connection('pgsql_owner');
+    $owner->statement("select set_config('app.tenant_id', ?, false)", [(string) $s['tenant']->id]);
+    $owner->table('timetables')->insert(['tenant_id' => $s['tenant']->id, 'public_id' => (string) Str::ulid(), 'academic_year_id' => $s['target']->id, 'created_at' => now(), 'updated_at' => now()]);
+    $owner->statement("select set_config('app.tenant_id', '', false)");
+
+    rolloverReleaseGate($gate, $key);
+
+    expect(rolloverCollect($copy))->toMatchArray(['outcome' => 'ok', 'status' => 'fallido']);
+
+    app(TenantContext::class)->runFor($s['tenant']->id, function () use ($s, $rollover): void {
+        $row = YearRollover::query()->findOrFail($rollover->id);
+
+        expect($row->failure['code'])->toBe('target_changed')
+            ->and(EducationLevel::query()->where('academic_year_id', $s['target']->id)->count())->toBe(0)
+            ->and(YearRolloverItem::query()->where('year_rollover_id', $rollover->id)->count())->toBe(0);
+    });
 });

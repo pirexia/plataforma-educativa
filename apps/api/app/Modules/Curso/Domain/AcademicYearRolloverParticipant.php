@@ -49,7 +49,10 @@ interface AcademicYearRolloverParticipant extends ModuleScopedContribution
     /**
      * Borra lógicamente, por instancia y de hijos a padres, las filas de sus
      * *items* que sigan vivas, aunque se hayan editado (`RN-CURSO-75`). Una
-     * fila que ya no existe se trata como ya borrada.
+     * fila que ya no existe se trata como ya borrada. Con sus bloqueos tomados repite `checkRevert()` y, si hay
+     * incidencias nuevas, lanza `RolloverBlockedException` (`RN-CURSO-70`).
+     *
+     * @throws RolloverBlockedException
      */
     public function revert(AcademicYearRolloverReversal $reversal): void;
 }

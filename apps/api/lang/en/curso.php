@@ -93,6 +93,7 @@ return [
     'academic_year_closed_anonymous' => 'The academic year is closed and its data is read-only.',
 
     'errors' => [
+        'rollover_rate_limited' => 'This school has reached the limit of copy or revert requests. Try again in about :minutes minutes.',
         'academic_year_closed' => [
             'title' => 'The academic year is read-only',
             'detail' => 'Academic year ":code" is :status_label and its data is read-only. Data of a closed academic year cannot be created, changed or deleted.',

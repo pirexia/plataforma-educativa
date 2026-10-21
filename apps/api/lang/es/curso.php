@@ -93,6 +93,7 @@ return [
     'academic_year_closed_anonymous' => 'El curso está cerrado y sus datos son de solo lectura.',
 
     'errors' => [
+        'rollover_rate_limited' => 'Has alcanzado el límite de solicitudes de copia o de reversión de este centro. Inténtalo de nuevo en unos :minutes minutos.',
         'academic_year_closed' => [
             'title' => 'El curso académico es de solo lectura',
             'detail' => 'El curso «:code» está :status_label y sus datos son de solo lectura. No se pueden crear, modificar ni eliminar datos de un curso cerrado.',

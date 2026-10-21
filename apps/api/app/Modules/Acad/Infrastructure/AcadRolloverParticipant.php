@@ -29,6 +29,7 @@ use App\Modules\Curso\Domain\AcademicYearRolloverPlan;
 use App\Modules\Curso\Domain\AcademicYearRolloverReport;
 use App\Modules\Curso\Domain\AcademicYearRolloverResult;
 use App\Modules\Curso\Domain\AcademicYearRolloverReversal;
+use App\Modules\Curso\Domain\RolloverBlockedException;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Closure;
@@ -631,6 +632,26 @@ final class AcadRolloverParticipant implements AcademicYearRolloverParticipant
             'course' => Course::class,
             'education_level' => EducationLevel::class,
         ];
+
+        // RN-CURSO-70 (revisión de `db-reviewer`, B4): `checkRevert()` es de solo lectura y corre antes de estos bloqueos, así
+        // que un hijo creado entre medias se le escaparía. Con el ancla y los padres copiados bloqueados `FOR UPDATE` (un
+        // alta concurrente de un hijo espera a su `FOR KEY SHARE` sobre el padre), la comprobación se repite y, si ya hay
+        // dependientes, toda la reversión se revierte y la copia vuelve a `completado` con su `revert_failure`.
+        $parents = array_unique(array_map(static fn (array $rule): string => $rule[0], $this->dependencyRules()));
+
+        foreach (array_reverse(array_keys($order)) as $alias) {
+            $ids = $copied[$alias] ?? [];
+
+            if ($ids !== [] && in_array($alias, $parents, true)) {
+                $order[$alias]::query()->where('academic_year_id', $reversal->target->id)->whereIn('id', $ids)->orderBy('id')->lockForUpdate()->pluck('id');
+            }
+        }
+
+        $issues = $this->checkRevert($reversal);
+
+        if ($issues !== []) {
+            throw new RolloverBlockedException($issues);
+        }
 
         foreach ($order as $alias => $model) {
             $ids = $copied[$alias] ?? [];
