@@ -23,6 +23,7 @@ use App\Modules\Core\Domain\UserDirectory;
 use App\Modules\Core\Infrastructure\Console\GrantAcademicYearPermissionsCommand;
 use App\Modules\Core\Infrastructure\Console\GrantReopenPermissionCommand;
 use App\Modules\Core\Infrastructure\Console\GrantRoleAdministrationCommand;
+use App\Modules\Core\Infrastructure\Console\GrantRolloverPermissionsCommand;
 use App\Modules\Core\Infrastructure\Console\GrantStructurePermissionsCommand;
 use App\Modules\Core\Infrastructure\Console\ProvisionTenantDefaultsCommand;
 use App\Modules\Core\Infrastructure\Console\PurgeCoreMaintenanceCommand;
@@ -124,6 +125,7 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
                 GrantRoleAdministrationCommand::class,
                 GrantAcademicYearPermissionsCommand::class,
                 GrantReopenPermissionCommand::class,
+                GrantRolloverPermissionsCommand::class,
                 GrantStructurePermissionsCommand::class,
             ]);
         }

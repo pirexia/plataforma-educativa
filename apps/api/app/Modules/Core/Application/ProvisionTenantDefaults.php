@@ -157,6 +157,24 @@ final class ProvisionTenantDefaults implements TenantProvisioner
     ];
 
     /**
+     * REQ-CURSO/permisos.md §4 (1.12b, `OPEN-CURSO-32` = A): los tres permisos del
+     * recurso `apertura_curso_academico` (la copia del curso a otro en planificación),
+     * **solo** `administrador_centro`. Constante aparte, como la de reapertura: la
+     * siembra de los centros existentes (`curso:grant-rollover-permissions`) concede
+     * **solo** estos tres y no re-concede los de 1.10 ni el de reapertura, que un centro
+     * pudo retirar a propósito. Los centros nuevos la reciben por aquí.
+     *
+     * @var array<string, list<string>>
+     */
+    public const ACADEMIC_YEAR_ROLLOVER_PERMISSION_GRANTS = [
+        'administrador_centro' => [
+            'apertura_curso_academico.leer',
+            'apertura_curso_academico.crear',
+            'apertura_curso_academico.eliminar',
+        ],
+    ];
+
+    /**
      * REQ-ACAD/permisos.md §4, §4.1 y §10.3 (1.11-b, 1.11d-a y 1.12-a,
      * `OPEN-ACAD-09` = X, `OPEN-ACAD-28` = X + 1, `OPEN-ACAD-42` = X): la siembra
      * de los veintitrés permisos de `acad` (`estructura_academica`,
@@ -453,6 +471,7 @@ final class ProvisionTenantDefaults implements TenantProvisioner
             [...self::CORE_PERMISSION_GRANTS, 'administrador_centro' => self::ADMIN_CENTRO_PERMISSIONS],
             self::ACADEMIC_YEAR_PERMISSION_GRANTS,
             self::ACADEMIC_YEAR_REOPEN_PERMISSION_GRANTS,
+            self::ACADEMIC_YEAR_ROLLOVER_PERMISSION_GRANTS,
             self::STRUCTURE_PERMISSION_GRANTS,
         );
 

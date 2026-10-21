@@ -8,6 +8,8 @@ use App\Modules\Curso\Domain\AcademicYearStatus;
 use App\Modules\Curso\Domain\Events\AcademicYearReopened;
 use App\Modules\Curso\Domain\Models\AcademicYear;
 use App\Modules\Curso\Domain\Models\AcademicYearReopening;
+use App\Modules\Curso\Domain\Models\YearRollover;
+use App\Modules\Curso\Domain\YearRolloverStatus;
 use App\Modules\Curso\Infrastructure\EloquentAcademicYearContext;
 use App\Support\Api\ApiException;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -55,6 +57,8 @@ final class AcademicYearTransitions
                 $this->assertValidTransition($year->status, $to);
 
                 if ($to === AcademicYearStatus::Activo) {
+                    // RN-CURSO-71 (1.12b): antes que `active_exists`, porque el origen de una copia suele ser el curso activo.
+                    $this->assertNoRolloverInFlight($year);
                     $this->assertNoOtherActiveYear($year);
                 }
 
@@ -159,6 +163,27 @@ final class AcademicYearTransitions
 
         if (! $allowed) {
             throw CursoErrors::conflict('curso.conflict.invalid_transition', ['from' => $from->value, 'to' => $to->value]);
+        }
+    }
+
+    /**
+     * RN-CURSO-71 (1.12b, `OPEN-CURSO-36` = A): activar un curso que es destino de una copia o una reversión en vuelo
+     * (`pendiente`, `en_curso` o `revirtiendo`) responde `409 rollover_in_progress` y no cambia nada. Se lee bajo el
+     * `FOR UPDATE` de la transición, sin bloquear `year_rollovers`: como la solicitud y el trabajo retienen `FOR SHARE`
+     * sobre el curso destino, o se ve la copia registrada o la copia ve el curso ya activo (nunca se copia en un activo).
+     */
+    private function assertNoRolloverInFlight(AcademicYear $year): void
+    {
+        $inFlight = YearRollover::query()
+            ->where('academic_year_id', $year->getKey())
+            ->whereIn('status', array_map(static fn (YearRolloverStatus $s): string => $s->value, YearRolloverStatus::inFlight()))
+            ->first();
+
+        if ($inFlight !== null) {
+            throw CursoErrors::rolloverConflict('curso.conflict.rollover_in_progress', [
+                'public_id' => $inFlight->public_id,
+                'status' => $inFlight->status->value,
+            ]);
         }
     }
 

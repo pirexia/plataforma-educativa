@@ -473,12 +473,13 @@ test('CA-CURSO-062 OPEN-CURSO-13: todos los permisos de curso son de ámbito tod
     }
 });
 
-test('CA-CURSO-063 OPEN-CURSO-01: tras platform:sync-registry, permissions contiene exactamente los seis códigos de curso (los cinco de 1.10 y el de reapertura, 1.11c) y modules el módulo curso esencial sin dependencias', function (): void {
+test('CA-CURSO-063 OPEN-CURSO-01: tras platform:sync-registry, permissions contiene exactamente los nueve códigos de curso (los cinco de 1.10, el de reapertura de 1.11c y los tres de apertura del curso siguiente de 1.12b, CA-CURSO-148) y modules el módulo curso esencial sin dependencias', function (): void {
     test()->artisan('platform:sync-registry')->run();
 
     $permissions = Permission::query()->where('module_code', 'curso')->whereNull('retired_at')->orderBy('code')->get();
 
     expect($permissions->pluck('code')->all())->toBe([
+        'apertura_curso_academico.crear', 'apertura_curso_academico.eliminar', 'apertura_curso_academico.leer',
         'curso_academico.actualizar', 'curso_academico.crear', 'curso_academico.leer',
         'curso_historico.leer', 'estado_curso_academico.actualizar', 'reapertura_curso_academico.actualizar',
     ])->and($permissions->every(fn ($p) => $p->applicable_scopes === ['todos'] && $p->is_special_category === false))->toBeTrue();

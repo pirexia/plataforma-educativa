@@ -22,6 +22,7 @@ use App\Modules\Acad\Domain\Models\TimetableFrame;
 use App\Modules\Acad\Domain\Models\TimetableSession;
 use App\Modules\Acad\Domain\ReservasPropiosScopeResolver;
 use App\Modules\Curso\Domain\AcademicYearDateChangeRegistry;
+use App\Modules\Curso\Domain\AcademicYearRolloverRegistry;
 use App\Support\Authorization\ScopeResolverRegistry;
 use App\Support\Modules\DeclaresModuleRegistry;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -84,6 +85,10 @@ class AcadServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         // vivo». `curso` la ejecuta (con su FOR UPDATE retenido, RN-CURSO-51)
         // solo si `acad` está contratado en el centro (RN-CURSO-52).
         $this->app->make(AcademicYearDateChangeRegistry::class)->register($this->app->make(PeriodsOutsideAcademicYearCheck::class));
+
+        // RN-ACAD-145 (1.12b, `REQ-CURSO-002`): el participante de `acad` en la apertura del curso siguiente. `curso`
+        // lo invoca solo si `acad` está contratado en el centro (RN-CURSO-62).
+        $this->app->make(AcademicYearRolloverRegistry::class)->register($this->app->make(AcadRolloverParticipant::class));
     }
 
     public function moduleDescriptor(): array
