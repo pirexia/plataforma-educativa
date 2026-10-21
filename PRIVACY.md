@@ -131,7 +131,7 @@ Mismo mecanismo que §2.3, protocolo distinto: cada centro cataloga su propio pr
 | Usuario borrado | La referencia se conserva (histórico) pero el nombre **no**: se muestra el marcador neutro traducido `acad.staff.removed` («Usuario eliminado»), decisión #446 B-3 (`REQ-PRIV-006`, `ADR-004`). Un usuario inactivo (no borrado) conserva su nombre |
 | Auditoría | Política `Full`: `changes` registra la clave interna `user_id` (pseudónima), no nombre ni documento. Decisión consciente #446 B-1. Hallazgo abierto: `GET /audit-logs` devuelve esas claves internas ([#455](https://github.com/pirexia/plataforma-educativa/issues/455)) |
 | Base legal y plazo | **Pendiente de `OPEN-07`** y de `REQ-PRIV-006`; mientras el centro exista, las filas viven con el tenant. Orden de restauración en `docs/modulos/REQ-ACAD/datos.md §9.6` |
-| Supresión | Borrado lógico de la asignación/tutoría; al anonimizar a la persona (`ADR-004` nivel 2) el vínculo queda sin nombre recuperable |
+| Supresión y anonimización | Hoy: borrado lógico de la asignación/tutoría, y un usuario **borrado** deja de mostrar su nombre (marcador `acad.staff.removed`). **La anonimización de `ADR-004` nivel 2 (identificadores irreversibles) es diseño pendiente de `REQ-PRIV-006` y de `OPEN-07`**: no está implementada y este documento no la da por hecha |
 
 ## 3. Registro de Actividades de Tratamiento (RAT) — plantilla
 
