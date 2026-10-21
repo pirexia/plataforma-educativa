@@ -6,6 +6,8 @@
 >
 > **`1.11d`** (especificación **APROBADA** el 2026-10-16; `funcional.md §17`): tres tablas de tenant nuevas con `academic_year_id` —`academic_periods`, `grading_scales`, `grading_scale_values`—, §1.7-§1.9, §3.1, §4, §8. Ninguna altera una tabla existente ni toca `TenantMigration`.
 >
+> **`1.12b`** (**APROBADA 2026-10-20**, participante de `acad` en la apertura del curso siguiente, `funcional.md §21`): **ningún cambio de esquema en `acad`**. El participante escribe filas ordinarias en las tablas existentes (§1, §9) por sus modelos; qué filas creó cada copia lo guarda `curso` en `year_rollover_items` (`REQ-CURSO/datos.md §1.7`), sin FK hacia estas tablas. Una sesión copiada desde un aula dada de baja se inserta con `facility_id` y `facility_type` nulos, que el `CHECK` de `timetable_sessions` ya admite (§9.1).
+>
 > **`1.12`** (**APROBADA 2026-10-17**, con las recomendaciones de `OPEN-ACAD-32` a `-44`; `funcional.md §18`): ocho tablas nuevas (siete con `academic_year_id`; `facilities` sin él) y dos restricciones únicas añadidas a tablas existentes (`group_subjects`, `subgroups`), §9.
 
 ---

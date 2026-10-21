@@ -6,6 +6,10 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-21 · `1.12b`: especificación del rollover del curso (`REQ-CURSO-002`, rama `chore/REQ-CURSO-1-12b-spec`)
+
+- **Especificación aprobada por el usuario** (solo documentación): `REQ-CURSO` `RN-CURSO-61..86`, `CA-CURSO-123..158`, `OPEN-CURSO-28..37`; participante de `acad` en `REQ-ACAD §21` (`RN-ACAD-145..157`, `CA-ACAD-142..153`). `OPEN-CURSO-37` resuelta con la opción b (auditar cada ítem; premisa de `ADR-040 §4.5` corregida). Precondición de implementación: #128 mezclado.
+
 ## 2026-10-20 · Worker de colas desplegable (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128), rama `fix/REQ-CORE-128-worker-colas`)
 
 - **Infraestructura**: servicio `worker` en `compose.yaml` (perfil `worker`/`full`, misma imagen que `api`, sin puerto, `HealthCmd` = `core:queue-health`) y `infra/quadlet/worker.container` (`Wants=`+`After=`, sin `Requires=`/`BindsTo=`, `StopTimeout=130`). Comando: `php artisan queue:work database --queue=auth-mail,core-mail,bo-mail,default,auth-maintenance,core-maintenance,backoffice-maintenance,core-exports,core-imports --tries=3 --backoff=30 --timeout=120 --sleep=3 --max-time=3600 --max-jobs=1000` con `DB_QUEUE_RETRY_AFTER=180`. **Horizon no se adopta** (`OPEN-BO-23`, `CLAUDE.md §1`): sin dependencias nuevas.
