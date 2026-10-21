@@ -220,7 +220,7 @@ test('CA-ACAD-122 RN-ACAD-121 datos.md §9.1: el motor rechaza un recurso como e
         ->and(ttInsert('timetable_sessions', ['teaching_assignment_id' => ttInsertId('teaching_assignments', ttAssignment($this, ['subgroup_id' => $this->tree['subgroup']->id]))] + $base))->toBeNull();
 });
 
-test('CA-ACAD-110 RN-ACAD-123 #446-d: el motor impide dos sesiones vivas con la misma franja y la misma asignación (23505) como cinturón; no entre una borrada, ni con otra franja u otra asignación', function (): void {
+test('CA-ACAD-154 RN-ACAD-123 #446-d: el motor impide dos sesiones vivas con la misma franja y la misma asignación (23505) como cinturón; no entre una borrada, ni con otra franja u otra asignación', function (): void {
     $slot = ttSlot($this, ttFrame($this));
     $otherSlot = ttSlot($this, (int) DB::table('time_slots')->where('id', $slot)->value('timetable_frame_id'), ['weekday' => 2]);
     $assignment = ttInsertId('teaching_assignments', ttAssignment($this));

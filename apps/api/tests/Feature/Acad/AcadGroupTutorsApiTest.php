@@ -154,7 +154,7 @@ function internalIdKeys(mixed $node, string $path = ''): array
     return $found;
 }
 
-test('CA-ACAD-113 ADR-029 (#446 B-1): ninguna salida de tutores ni de asignaciones docentes expone el id interno del profesorado, solo su public_id', function (): void {
+test('CA-ACAD-159 ADR-029 (#446 B-1): ninguna salida de tutores ni de asignaciones docentes expone el id interno del profesorado, solo su public_id', function (): void {
     $s = Tt::scenario('tu-113-ids');
     $tenant = $s['tenant'];
     $admin = $s['admin'];

@@ -54,10 +54,25 @@ return new class extends Migration
                 continue;
             }
 
+            // Fase 1: el índice. Si ya hay uno **válido** (de un intento anterior cuyo ADD CONSTRAINT venció por
+            // `lock_timeout`) se reutiliza: descartarlo y recrearlo repetiría el trabajo caro para nada.
             $this->withLockTimeout($owner, function () use ($owner, $table, $name): void {
+                $state = $owner->selectOne(
+                    'SELECT i.indisvalid FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid WHERE c.relname = ? AND i.indrelid = ?::regclass',
+                    [$name, $table],
+                );
+
+                if ($state !== null && $state->indisvalid) {
+                    return;
+                }
+
                 // Un índice inválido de un intento anterior interrumpido se descarta antes de recrearlo.
                 $owner->statement("DROP INDEX CONCURRENTLY IF EXISTS {$name}");
                 $owner->statement("CREATE UNIQUE INDEX CONCURRENTLY {$name} ON {$table} (tenant_id, group_id, id)");
+            });
+
+            // Fase 2: promoverlo a restricción (bloqueo breve). Su reintento no toca el índice.
+            $this->withLockTimeout($owner, function () use ($owner, $table, $name): void {
                 $owner->statement("ALTER TABLE {$table} ADD CONSTRAINT {$name} UNIQUE USING INDEX {$name}");
             });
         }

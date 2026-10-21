@@ -193,7 +193,7 @@ test('RN-ACAD-95 listado: filtros por grupo, asignatura y profesor (múltiples),
         ->and($ids(Tt::send($tenant, $admin, 'GET', '/teaching-assignments?teacher=01JZZZZZZZZZZZZZZZZZZZZZZZ')))->toBe([]);
 });
 
-test('CA-ACAD-107 RN-ACAD-92 REQ-PRIV-006 ADR-004 (#446 B-3): con el profesor borrado, el detalle y el listado muestran el marcador neutro traducido y nunca su nombre, conservando su public_id', function (): void {
+test('CA-ACAD-158 RN-ACAD-92 REQ-PRIV-006 ADR-004 (#446 B-3): con el profesor borrado, el detalle y el listado muestran el marcador neutro traducido y nunca su nombre, conservando su public_id', function (): void {
     $s = Tt::scenario('ta-107-removed');
     $created = Tt::postAssignment($s['tenant'], $s['admin'], $s['t1'], $s['api']['group'], $s['api']['subject'])->assertCreated();
 
@@ -211,7 +211,7 @@ test('CA-ACAD-107 RN-ACAD-92 REQ-PRIV-006 ADR-004 (#446 B-3): con el profesor bo
         ->and($list->getContent())->not->toContain('Persona Prueba');
 });
 
-test('CA-ACAD-107 INV-009 (#446 B-3): acad.staff.removed existe en es, en, de y fr y es distinto del texto de usuario sin nombre', function (): void {
+test('CA-ACAD-158 INV-009 (#446 B-3): acad.staff.removed existe en es, en, de y fr y es distinto del texto de usuario sin nombre', function (): void {
     foreach (['es', 'en', 'de', 'fr'] as $locale) {
         $removed = __('acad.staff.removed', [], $locale);
 

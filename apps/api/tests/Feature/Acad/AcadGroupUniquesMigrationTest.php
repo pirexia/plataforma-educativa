@@ -4,7 +4,7 @@ use Illuminate\Database\Connection;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
-// REQ-ACAD-002 (1.12-a), issue #446 (db-reviewer a y b): la migración
+// REQ-ACAD-002 (1.12-a), CA-ACAD-155 y CA-ACAD-156, issue #446 (db-reviewer a y b): la migración
 // `2026_10_18_100100_add_group_uniques_for_teaching_assignments` busca su
 // restricción por nombre Y por tabla, y hace el DDL con `lock_timeout` y un
 // reintento acotado. Se prueba con base de datos real y una segunda sesión que
@@ -34,7 +34,7 @@ function ownerConnection(): Connection
     return DB::connection('pgsql_owner');
 }
 
-it('CA-ACAD-108 (#446-b): la idempotencia busca la restricción por tabla, no solo por nombre', function (): void {
+it('CA-ACAD-156 (#446-b): la idempotencia busca la restricción por tabla, no solo por nombre', function (): void {
     $owner = ownerConnection();
     $migration = groupUniquesMigration();
 
@@ -51,7 +51,7 @@ it('CA-ACAD-108 (#446-b): la idempotencia busca la restricción por tabla, no so
     expect(callPrivate($migration, 'constraintExists', $owner, 'subgroups', 'subgroups_tenant_group_id_unique'))->toBeTrue();
 });
 
-it('CA-ACAD-108 (#446-a): reintenta con lock_timeout hasta que el bloqueo ajeno se libera y restablece lock_timeout', function (): void {
+it('CA-ACAD-155 (#446-a): reintenta con lock_timeout hasta que el bloqueo ajeno se libera y restablece lock_timeout', function (): void {
     $owner = ownerConnection();
     $migration = groupUniquesMigration();
     tune($migration, ['lockTimeout' => '300ms', 'retryPauseMs' => 100, 'maxAttempts' => 20]);
@@ -74,7 +74,7 @@ it('CA-ACAD-108 (#446-a): reintenta con lock_timeout hasta que el bloqueo ajeno 
         ->and($owner->selectOne('SHOW lock_timeout')->lock_timeout)->toBe('0');
 });
 
-it('CA-ACAD-108 (#446-a): agotados los intentos propaga el error de bloqueo, y lock_timeout queda restablecido', function (): void {
+it('CA-ACAD-155 (#446-a): agotados los intentos propaga el error de bloqueo, y lock_timeout queda restablecido', function (): void {
     $owner = ownerConnection();
     $migration = groupUniquesMigration();
     tune($migration, ['lockTimeout' => '200ms', 'retryPauseMs' => 10, 'maxAttempts' => 2]);
@@ -99,7 +99,7 @@ it('CA-ACAD-108 (#446-a): agotados los intentos propaga el error de bloqueo, y l
         ->and($owner->selectOne('SHOW lock_timeout')->lock_timeout)->toBe('0');
 });
 
-it('CA-ACAD-108 (#446-a): un error que no es de bloqueo no se reintenta', function (): void {
+it('CA-ACAD-155 (#446-a): un error que no es de bloqueo no se reintenta', function (): void {
     $owner = ownerConnection();
     $migration = groupUniquesMigration();
     tune($migration, ['retryPauseMs' => 10]);

@@ -40,6 +40,40 @@ return new class extends Migration
     {
         $owner = DB::connection('pgsql_owner');
 
+        // Antes de construir nada: una pareja repetida haría fallar el índice y dejaría uno inválido. Se avisa con un
+        // mensaje claro y las primeras filas a revisar (el servicio las rechaza; solo SQL a mano o un bug las crea).
+        // La tabla tiene RLS forzada, también para el propietario: se mira centro a centro (los ids, por la conexión de plataforma).
+        $duplicates = [];
+
+        foreach (DB::connection('pgsql_platform')->table('tenants')->orderBy('id')->pluck('id') as $tenantId) {
+            $owner->statement("select set_config('app.tenant_id', ?, false)", [(string) $tenantId]);
+
+            foreach ($owner->select(
+                'SELECT tenant_id, time_slot_id, teaching_assignment_id, count(*) AS n FROM timetable_sessions'
+                .' WHERE deleted_at IS NULL GROUP BY tenant_id, time_slot_id, teaching_assignment_id HAVING count(*) > 1 LIMIT 5'
+            ) as $row) {
+                $duplicates[] = $row;
+            }
+
+            if (count($duplicates) >= 5) {
+                break;
+            }
+        }
+
+        $owner->statement("select set_config('app.tenant_id', '', false)");
+
+        if ($duplicates !== []) {
+            $sample = implode('; ', array_map(
+                fn (object $d): string => "tenant {$d->tenant_id}, franja {$d->time_slot_id}, asignación {$d->teaching_assignment_id} ({$d->n} sesiones)",
+                array_slice($duplicates, 0, 5),
+            ));
+
+            throw new RuntimeException(
+                'No se puede crear '.self::INDEX.': hay sesiones vivas con la misma franja y la misma asignación docente (RN-ACAD-123). '
+                ."Bórralas o corrígelas y relanza la migración. Primeras: {$sample}."
+            );
+        }
+
         $this->withLockTimeout($owner, function () use ($owner): void {
             // Un índice inválido de un intento anterior interrumpido se descarta antes de recrearlo.
             $valid = $owner->selectOne(

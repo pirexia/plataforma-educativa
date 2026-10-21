@@ -88,3 +88,27 @@ test('RN-ACAD-92 REQ-PRIV-006 ADR-004 (#446 B-3): un usuario borrado conserva la
             ->and($directory->displayNamesByIds([$alive->id, $gone->id]))->toBe([$alive->id => 'Ana Ejemplo', $gone->id => '']);
     });
 });
+
+test('INV-001 RN-ACAD-92 (#446 B1 de seguridad): refsByIds y displayNamesByIds no devuelven usuarios de otro centro, vivos ni borrados, aunque se pida su id interno', function (): void {
+    [$tenantA] = provisionCoreTenant('dir-iso-a');
+    [$tenantB] = provisionCoreTenant('dir-iso-b');
+    $own = directoryUser($tenantA, 'propio@example.com', UserStatus::Activo);
+    $foreign = directoryUser($tenantB, 'ajeno-vivo@example.com', UserStatus::Activo);
+    $foreignGone = directoryUser($tenantB, 'ajeno-baja@example.com', UserStatus::Activo);
+    app(TenantContext::class)->runFor($tenantB->id, fn () => $foreignGone->delete());
+
+    app(TenantContext::class)->runFor($tenantA->id, function () use ($own, $foreign, $foreignGone): void {
+        $directory = app(UserDirectory::class);
+        $ids = [$own->id, $foreign->id, $foreignGone->id];
+
+        expect(array_keys($directory->refsByIds($ids)))->toBe([$own->id])
+            ->and(array_keys($directory->displayNamesByIds($ids)))->toBe([$own->id]);
+    });
+
+    // Y a la inversa: desde el centro B no se ve el usuario de A.
+    app(TenantContext::class)->runFor($tenantB->id, function () use ($own, $foreign): void {
+        $directory = app(UserDirectory::class);
+
+        expect(array_keys($directory->refsByIds([$own->id, $foreign->id])))->toBe([$foreign->id]);
+    });
+});
