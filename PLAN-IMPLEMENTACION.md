@@ -208,6 +208,7 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
   ⚠️ **Obligación de `ADR-063 §5.4`**: su especificación decide la asignación docente (entidad propia de `acad`, por curso académico, no derivada del horario) y la interfaz de pertenencia en `Acad\Domain`. Plazo vinculante: especificada antes de aprobar la especificación de `1.13` o `1.16`, la que llegue antes.
 - [ ] **1.12b · `REQ-CURSO-002`: apertura del curso siguiente (rollover)** [OPUS + SONNET] · *diferido desde `1.10`*
   Contrato síncrono por módulo siguiendo el precedente de `ADR-048`; simulación previa y reversión mientras el curso siga en planificación.
+  **Actualización 2026-10-21: especificación APROBADA por el usuario** (`REQ-CURSO` `RN-CURSO-61..86`, `CA-CURSO-123..158`; `REQ-ACAD` `RN-ACAD-145..157`, `CA-ACAD-142..153`; `OPEN-CURSO-28..37` resueltas salvo `-37`, reabierta con recomendación b). **Precondición: issue #128 (worker de colas) mezclado antes de implementar.** Incluye casilla opcional de asignación docente y ampliación aprobada de `Core\Domain\UserDirectory` (`activeIdsAmong`).
 
 ### Bloque D · Personas
 

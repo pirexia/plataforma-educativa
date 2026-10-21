@@ -8,7 +8,7 @@
 >
 > **Ampliación por `1.11d-a`** (2026-10-16, `OPEN-ACAD-24` = B, aprobada por el usuario; `funcional.md §5.6`): el punto de extensión de validaciones del cambio de fechas **no cambia el esquema**: ni tabla, ni columna, ni índice, ni migración en `curso`. Las validaciones leen las tablas de su propio módulo (`acad`: `academic_periods`, `REQ-ACAD/datos.md`). El único efecto sobre datos de `curso` es que el `PATCH` toma `FOR UPDATE` sobre la fila de `academic_years` del curso antes de validar (`RN-CURSO-51`), el mismo bloqueo que ya toman las transiciones. **La lectura con bloqueo compartido** (`OPEN-CURSO-25` = B, `funcional.md §5.6.1`) tampoco cambia el esquema: es un `SELECT … FOR SHARE` sobre la misma fila, el mismo modo de bloqueo que ya toma el disparador (§1.4), sobre el índice `UNIQUE (tenant_id, id)` existente y con el privilegio `UPDATE` sobre `academic_years` que los roles de aplicación ya tienen por el disparador (PostgreSQL exige `UPDATE` para `FOR SHARE`). Lo único nuevo es que un módulo lo pide **desde la aplicación**, antes de bloquear sus propias filas (orden curso → filas del módulo, `RN-CURSO-58`).
 >
-> **Ampliación por `1.12b`** (2026-10-20, `REQ-CURSO-002`, apertura del curso siguiente; **APROBADA 2026-10-20 por el usuario**, no implementada; `funcional.md §1.4`, `§5.7`): **dos tablas nuevas** del módulo, `year_rollovers` (§1.6) y `year_rollover_items` (§1.7), ambas con `academic_year_id` = curso **destino** y, por tanto, con el disparador `academic_year_write_guard`. **No altera** `academic_years`, la función del bloqueo ni ningún disparador, ni ninguna tabla de otro módulo: lo copiado lo escribe cada módulo en sus propias tablas.
+> **Ampliación por `1.12b`** (2026-10-20, `REQ-CURSO-002`, apertura del curso siguiente; **APROBADA 2026-10-20 por el usuario**, no implementada; `funcional.md §1.4`, `§5.7`): **dos tablas nuevas** del módulo, `year_rollovers` (§1.6) y `year_rollover_items` (§1.7), ambas con `academic_year_id` = curso **destino** y, por tanto, con el disparador `academic_year_write_guard`. **Corregida el 2026-10-21** con la revisión de documentación: columnas que los ayudantes no crean y se declaran a mano (M-4), mensajes no persistidos (M-3) y auditoría de los *items* según la opción b provisional de `OPEN-CURSO-37` (reabierta). **No altera** `academic_years`, la función del bloqueo ni ningún disparador, ni ninguna tabla de otro módulo: lo copiado lo escribe cada módulo en sus propias tablas.
 
 ---
 
@@ -110,12 +110,14 @@ Una fila por **copia** (ejecución del *rollover*): selección, estado, resultad
 | `copy_teaching_assignments` | `boolean` | No | `false` | La casilla «copiar la asignación docente» (`RN-CURSO-82`, decisión del usuario sobre `OPEN-CURSO-29`). Se guarda aparte de `elements` para no depender de qué participantes estén registrados al leer la copia |
 | `date_offset_days` | `integer` | Sí | — | Desplazamiento aplicado (`RN-CURSO-72`); lo fija la ejecución. `NULL` hasta entonces |
 | `result` | `jsonb` | Sí | — | Por elemento `{code, copied, skipped: [{reason, count}], adjusted: [{reason, count}]}` al terminar en `completado` (`RN-CURSO-73`). Solo códigos y cuentas: las omisiones de profesorado inactivo no guardan quién (`REQ-ACAD RN-ACAD-154`) |
-| `failure` | `jsonb` | Sí | — | `{code, errors: [{code, message, params, element}]}` si `fallido` |
-| `revert_failure` | `jsonb` | Sí | — | Último fallo de una reversión (la copia vuelve a `completado`, `RN-CURSO-75`); misma forma |
+| `failure` | `jsonb` | Sí | — | `{code, errors: [{code, params, element}]}` si `fallido`. **Sin mensajes traducidos**: se traducen al leer (`RN-CURSO-73`) |
+| `revert_failure` | `jsonb` | Sí | — | Último fallo de una reversión (la copia vuelve a `completado`, `RN-CURSO-75`); misma forma. Se pone a `NULL` al pedir una nueva reversión (`RN-CURSO-74`) |
 | `started_at`, `finished_at` | `timestamptz` | Sí | — | Inicio y fin de la ejecución |
-| `reverted_by` | `bigint` | Sí | — | Usuario que pidió revertir. `tenantForeignId($t, 'reverted_by', 'users')`, **`NO ACTION`** (prohibido `nullOnDelete` en tabla con `academic_year_id`, `AR-13`) |
+| `reverted_by` | `bigint` | **Sí** | — | Usuario que pidió revertir. **Declarada a mano** (corrección de la revisión de documentación, M-4): `tenantForeignId()` crea una columna `NOT NULL`, y esta es anulable. Columna `bigint NULL`, FK compuesta `(tenant_id, reverted_by) → users (tenant_id, id)` con nombre explícito (`year_rollovers_tenant_reverted_by_foreign`), `MATCH SIMPLE` (con `NULL` no se comprueba), **`NO ACTION`** (prohibido `nullOnDelete` en tabla con `academic_year_id`, `AR-13`), e índice `(tenant_id, reverted_by)` declarado también a mano |
 | `reverted_at` | `timestamptz` | Sí | — | Fin de la reversión |
-| `created_at`, `updated_at`, `deleted_at`, `created_by`, `updated_by` | — | — | — | De `tenantTable()` (`INV-005`). `created_by` es quien pidió la copia; siempre informado (único camino de alta, el *endpoint* autenticado) |
+| `created_at`, `updated_at`, `deleted_at`, `created_by`, `updated_by` | — | — | — | De `tenantTable()` (`INV-005`). `created_by` es quien pidió la copia; siempre informado (único camino de alta, el *endpoint* autenticado) y es el actor del trabajo de copia (`RN-CURSO-83`) |
+
+`public_id` lo declara la migración (`$table->ulid('public_id')->unique()`), como en todas las tablas de tenant: `tenantTable()` no lo crea (revisión de documentación M-4; skill `modulo-nuevo`). **Comprobar en implementación** qué columnas crea exactamente `tenantTable()` y declarar a mano las que falten de esta tabla.
 
 **Restricciones** (`CHECK` por sentencia del propietario, como en `acad`; nombres exactos en implementación, los revisa `db-reviewer`):
 
@@ -134,21 +136,21 @@ Qué filas creó cada copia, para poder revertirla (`funcional.md RN-CURSO-73`, 
 
 | Columna | Tipo | Nulo | Descripción |
 |---------|------|------|-------------|
-| `public_id` | `character(26)` | No | ULID, único. No sale en ninguna ruta; por coherencia con `AR-05`/`HasPublicId` (precedente `group_subjects`, `timetables`) |
+| `public_id` | `character(26)` | No | ULID, único, **declarado a mano** en la migración (M-4). No sale en ninguna ruta; por coherencia con `AR-05`/`HasPublicId` (precedente `group_subjects`, `timetables`) |
 | `academic_year_id` | `bigint` | No | Curso destino. `tenantForeignId` (FK compuesta `NO ACTION` + índice) |
 | `year_rollover_id` | `bigint` | No | FK de tres columnas, declarada a mano con nombre explícito `year_rollover_items_tenant_year_rollover_foreign`: `(tenant_id, academic_year_id, year_rollover_id) → year_rollovers (tenant_id, academic_year_id, id)`, `NO ACTION` (`RN-CURSO-27`) |
 | `module_code` | `text` | No | Código del módulo participante (`ADR-045`) |
 | `entity_type` | `text` | No | Alias del *morph map* de la tabla copiada (p. ej. `education_level`); el mismo vocabulario que `audit_logs.auditable_type` |
 | `source_id` | `bigint` | No | Id interno de la fila de origen |
 | `target_id` | `bigint` | No | Id interno de la fila creada en el destino |
-| `created_at` | `timestamptz` | No | De `tenantTableAppendOnly()` |
-| `created_by` | `bigint` | Lo que dé `tenantTableAppendOnly()` | Si el ayudante la crea, FK compuesta a `users` **`NO ACTION`** |
+| `created_at` | `timestamptz` | No | **Declarada a mano** (M-4): `tenantTableAppendOnly()` no crea marcas de tiempo ni autoría (precedente `academic_year_reopenings`, `mfa_resets`); la rellena el modelo al crear |
+| `created_by` | `bigint` | No | **Declarada a mano**: FK compuesta `(tenant_id, created_by) → users (tenant_id, id)` con nombre explícito, **`NO ACTION`** (`AR-13`), e índice `(tenant_id, created_by)`. Es el solicitante de la copia (el actor fijado por `RN-CURSO-83`) |
 
 Sin `updated_at` ni `deleted_at`: la reversión **no** borra *items* (quedan como rastro de qué se copió y se revirtió). Restricciones: `UNIQUE (tenant_id, year_rollover_id, entity_type, target_id)` (`year_rollover_items_target_unique`). Ningún `CHECK` sobre `entity_type`: el vocabulario es de los módulos y cambia con ellos (como `audit_logs`).
 
-**Modelo**: `Curso\Domain\Models\YearRolloverItem` **[DERIVADA: nombre]**, `extends AppendOnlyModel` (precedente `AcademicYearReopening`), `implements Auditable` (`Full`) con **`auditExcludedEvents(['created'])`** (`OPEN-CURSO-37` = A, aprobada por el usuario el 2026-10-20; mecanismo de `ADR-040`), `HasPublicId`, alias `year_rollover_item` (`AR-06`). Se inserta a través del modelo dentro de la transacción de la copia; una inserción masiva por constructor de consultas queda descartada **[DERIVADA]**: saltaría el modelo y, con ello, la decisión de `OPEN-CURSO-37`.
+**Modelo**: `Curso\Domain\Models\YearRolloverItem` **[DERIVADA: nombre]**, `extends AppendOnlyModel` (precedente `AcademicYearReopening`), `implements Auditable` (`Full`), **sin exclusión de eventos**: cada *item* deja su `created` (aplicación **provisional** de la opción b de `OPEN-CURSO-37`, **reabierta** el 2026-10-20 porque la exclusión aprobada se apoyaba en `ADR-040 §4.5`, que exige ADR; `funcional.md §15.4.1`), `HasPublicId`, alias `year_rollover_item` (`AR-06`). Se inserta a través del modelo dentro de la transacción de la copia; una inserción masiva por constructor de consultas queda descartada **[DERIVADA]**: saltaría el modelo y la auditoría (`AR-15`).
 
-**Volumen**: una fila por fila copiada: con la selección completa de `acad`, de cientos a pocos miles por copia (con la casilla de asignación docente, ≈ 1.200 sesiones más en un centro de 40 grupos) y una copia viva por destino. Sin particionado.
+**Volumen**: una fila por fila copiada: con la selección completa de `acad`, de cientos a pocos miles por copia (con la casilla de asignación docente, ≈ 1.200 sesiones más en un centro de 40 grupos) y una copia viva por destino. Sin particionado. Con la opción b provisional de `OPEN-CURSO-37`, el mismo número de entradas `created` adicionales en `audit_logs` por copia.
 
 ---
 
@@ -211,7 +213,8 @@ El listado (`ORDER BY starts_on DESC, id DESC`) no lleva índice propio: un cent
 | `UNIQUE (public_id)` | las dos | Detalle y reversión por `public_id` (`year_rollovers`); `AR-05` (`year_rollover_items`) |
 | `(tenant_id, academic_year_id)` | las dos | Del ayudante: listado `?academic_year=` y FK a `academic_years` |
 | `(tenant_id, source_academic_year_id)` | `year_rollovers` | Del ayudante: filtro `source` (aviso de reapertura, `RN-CURSO-77`) y FK |
-| `(tenant_id, reverted_by)` | `year_rollovers` | Del ayudante: FK a `users` |
+| `(tenant_id, reverted_by)` | `year_rollovers` | Declarado a mano (la columna es anulable, M-4): cubre la FK a `users` |
+| `(tenant_id, created_by)` | `year_rollover_items` | Declarado a mano: cubre la FK a `users` |
 | `year_rollovers_tenant_year_live_unique` (único parcial) | `year_rollovers` | Una copia viva por destino (`RN-CURSO-67`) y la lectura «¿hay copia en vuelo?» de la activación (`RN-CURSO-71`) |
 | `year_rollovers_tenant_year_id_unique` | `year_rollovers` | Destino de la FK de los *items* |
 | `(tenant_id, academic_year_id, year_rollover_id)` (no parcial) | `year_rollover_items` | Cubre la FK de tres columnas y la lectura de los *items* de una copia al revertir (criterio de #407/#412: índice propio con exactamente las columnas de la FK) |
@@ -249,7 +252,8 @@ Sin índice por `status` más allá del parcial: decenas de copias por centro en
 - [ ] `tenant_id` + RLS (`tenantTable()` / `tenantTableAppendOnly()`); `academic_year_id NOT NULL` (destino) con `tenantForeignId()` y disparador (*`AR-13`*, sin excepción); `source_academic_year_id` con FK compuesta y **sin** disparador
 - [ ] Ninguna acción referencial (`NO ACTION`) en ninguna FK, incluidas `reverted_by` y la de tres columnas de los *items* (*`AR-13`*)
 - [ ] `public_id` ULID único en las dos (*`AR-05`*); `text`, `jsonb`, `integer`, `boolean`, `timestamptz` (*`AR-04`*); enumerado `status` como `text` + `CHECK`
-- [ ] `Auditable` y alias `year_rollover`, `year_rollover_item` (*`AR-06`*); exclusión de `created` en los *items* (`OPEN-CURSO-37` = A, aprobada)
+- [ ] `Auditable` y alias `year_rollover`, `year_rollover_item` (*`AR-06`*); *items* auditados sin exclusión (`OPEN-CURSO-37` reabierta, opción b provisional)
+- [ ] Columnas declaradas a mano: `public_id` en las dos; `created_at`/`created_by` en los *items*; `reverted_by` anulable con su FK compuesta e índice (M-4)
 - [ ] Ninguna FK hacia tablas de otros módulos (polimórfica, `INV-007`); ningún dato personal salvo la autoría (`created_by`, `reverted_by`)
 - [ ] Revisión de `db-reviewer` obligatoria (dos migraciones nuevas)
 

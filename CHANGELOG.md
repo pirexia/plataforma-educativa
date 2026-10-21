@@ -6,6 +6,10 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-21 · `1.12b`: especificación del rollover del curso (`REQ-CURSO-002`, rama `chore/REQ-CURSO-1-12b-spec`)
+
+- **Especificación aprobada por el usuario** (solo documentación): `REQ-CURSO` `RN-CURSO-61..86`, `CA-CURSO-123..158`, `OPEN-CURSO-28..37`; participante de `acad` en `REQ-ACAD §21` (`RN-ACAD-145..157`, `CA-ACAD-142..153`). `OPEN-CURSO-37` reabierta (premisa de `ADR-040 §4.5`). Precondición de implementación: #128 mezclado.
+
 ## 2026-10-19 · `1.12-b`: marcos especiales y reservas (rama `feature/REQ-ACAD-1-12b-marcos-especiales-reservas`)
 
 - **`acad`** (`REQ-ACAD-002`, `RN-ACAD-110` a `-111`, `-124`, `-125`, `-140` a `-144`, `CA-ACAD-136` a `-141`): marcos horarios **especiales** (jornada intensiva) con `valid_from`/`valid_to` dentro del curso (`AcademicYearSharedLock`), sin solape con otro especial de la etapa (`frame_outside_academic_year`, `frame_overlap`, `frame_dates_invalid`) y su efecto en la detección de conflictos (`FrameCoexistence`: el especial sustituye al ordinario de su etapa y coexiste con las demás); el cambio de fechas con sesiones se rechaza con `timetable_conflict` si hace coexistir sesiones en conflicto. Desaparece el `422 frame_type_invalid` para `especial` de `1.12-a`. **Reservas** de aulas y recursos: tabla `facility_bookings`, 4 *endpoints* (sin `PATCH`), `booking_conflict` contra otras reservas y contra las sesiones del marco vigente ese día, `booking_outside_academic_year`, todo bajo el ancla `FOR UPDATE` de `timetables`; un espacio con reservas vivas en un curso en planificación o activo no se borra.
