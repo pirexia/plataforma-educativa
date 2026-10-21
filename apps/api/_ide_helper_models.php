@@ -3014,6 +3014,106 @@ namespace App\Modules\Curso\Domain\Models{
  */
 	#[\AllowDynamicProperties]
 	class IdeHelperAcademicYearReopening {}
+
+/**
+ * REQ-CURSO/datos.md §1.6 (1.12b, `REQ-CURSO-002`): una copia (ejecución del
+ * *rollover*) hacia el curso destino. Estado, selección efectiva, resultado y
+ * fallo (`RN-CURSO-67`, `-69`, `-73` a `-75`). Sin datos personales: solo
+ * códigos y cuentas (`ADR-035 §8`, política `Full`); los `jsonb` grandes los
+ * acota el tope de `ADR-035 §5`.
+ *
+ * `status` lo escriben solo el servicio y los dos trabajos de `curso`, con
+ * transiciones condicionales bajo `FOR UPDATE` (`RN-CURSO-84`). Sin
+ * *endpoint* de borrado: una copia no se borra, se revierte (borrado lógico
+ * heredado de `TenantModel`).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $academic_year_id
+ * @property int $source_academic_year_id
+ * @property \App\Modules\Curso\Domain\YearRolloverStatus $status
+ * @property array<array-key, mixed> $elements
+ * @property bool $copy_teaching_assignments
+ * @property int|null $date_offset_days
+ * @property array<array-key, mixed>|null $result
+ * @property array<array-key, mixed>|null $failure
+ * @property array<array-key, mixed>|null $revert_failure
+ * @property \Illuminate\Support\Carbon|null $started_at
+ * @property \Illuminate\Support\Carbon|null $finished_at
+ * @property int|null $reverted_by
+ * @property \Illuminate\Support\Carbon|null $reverted_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereCopyTeachingAssignments($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereDateOffsetDays($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereElements($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereFailure($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereFinishedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereResult($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereRevertFailure($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereRevertedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereRevertedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereSourceAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereStartedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRollover withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperYearRollover {}
+
+/**
+ * REQ-CURSO/datos.md §1.7 (1.12b, `RN-CURSO-73`, `-75`, `-79`): qué fila creó
+ * cada copia. *Append-only*, polimórfica sin FK (`entity_type` + `target_id`).
+ * Extiende `AppendOnlyModel` (precedente `AcademicYearReopening`).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $academic_year_id
+ * @property int $year_rollover_id
+ * @property string $module_code
+ * @property string $entity_type
+ * @property int $source_id
+ * @property int $target_id
+ * @property \Illuminate\Support\Carbon $created_at
+ * @property int $created_by
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRolloverItem newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRolloverItem newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRolloverItem query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRolloverItem whereAcademicYearId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRolloverItem whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRolloverItem whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRolloverItem whereEntityType($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRolloverItem whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRolloverItem whereModuleCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRolloverItem wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRolloverItem whereSourceId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRolloverItem whereTargetId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRolloverItem whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|YearRolloverItem whereYearRolloverId($value)
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperYearRolloverItem {}
 }
 
 namespace App\Support\Tenancy{

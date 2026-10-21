@@ -13,7 +13,7 @@ namespace App\Modules\Curso\Domain;
  * acotada, de solo lectura y no tomar ningún bloqueo de fila** (ni
  * `FOR SHARE` ni `FOR UPDATE`; riesgo de interbloqueo, RN-CURSO-58).
  */
-interface AcademicYearDateChangeCheck
+interface AcademicYearDateChangeCheck extends ModuleScopedContribution
 {
     /** Código de módulo del descriptor (`ADR-045`) del módulo dueño (RN-CURSO-52). */
     public function moduleCode(): string;

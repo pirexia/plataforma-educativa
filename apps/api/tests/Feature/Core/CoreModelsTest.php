@@ -31,6 +31,8 @@ use App\Modules\Auth\Domain\Models\UserMfaObligation;
 use App\Modules\Core\Domain\Models\DataExport;
 use App\Modules\Curso\Domain\Models\AcademicYear;
 use App\Modules\Curso\Domain\Models\AcademicYearReopening;
+use App\Modules\Curso\Domain\Models\YearRollover;
+use App\Modules\Curso\Domain\Models\YearRolloverItem;
 use App\Support\Audit\Auditable;
 use App\Support\Audit\AuditValuePolicy;
 use App\Support\Tenancy\Tenant;
@@ -83,6 +85,8 @@ test('todo modelo de tenant núcleo está en el morph map', function (): void {
 // AcademicYearReopening (REQ-CURSO/datos.md §1.5, 1.11c, ADR-059 §5.4) se suma en
 // Full: el motivo de la reapertura es contenido del centro (criterio de
 // `user_mfa_exemptions.reason`, ADR-035 §8).
+// YearRollover y YearRolloverItem (REQ-CURSO/datos.md §1.6/§1.7, 1.12b) también en Full:
+// códigos y cuentas, sin datos personales salvo la autoría (ADR-035 §8).
 test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR-035 §8', function (): void {
     $map = Relation::morphMap();
 
@@ -103,7 +107,7 @@ test('todo modelo del morph map es Auditable y el conjunto Full coincide con ADR
         SamlIdentityProviderSettings::class, PermissionRole::class,
         EducationLevel::class, Course::class, Group::class, Subgroup::class, Subject::class, GroupSubject::class,
         AcademicPeriod::class, GradingScale::class, GradingScaleValue::class,
-        AcademicYearReopening::class,
+        AcademicYearReopening::class, YearRollover::class, YearRolloverItem::class,
         Facility::class, Timetable::class, TeachingAssignment::class, GroupTutor::class,
         TimetableFrame::class, TimeSlot::class, TimetableSession::class, FacilityBooking::class,
     ]);

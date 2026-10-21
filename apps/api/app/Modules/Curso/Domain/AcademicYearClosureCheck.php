@@ -13,7 +13,7 @@ namespace App\Modules\Curso\Domain;
  * ser acotada** y **no puede tomar bloqueos de filas de otros módulos** (riesgo de
  * interbloqueo, ADR-057 §5.4).
  */
-interface AcademicYearClosureCheck
+interface AcademicYearClosureCheck extends ModuleScopedContribution
 {
     /** Código de módulo del descriptor (`ADR-045`) del módulo dueño (RN-CURSO-60). */
     public function moduleCode(): string;

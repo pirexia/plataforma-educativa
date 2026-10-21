@@ -142,7 +142,7 @@ test('I-19 RN-ACAD-157: activeIdsAmong con lista vacía no consulta la base de d
     [$tenant] = provisionCoreTenant('dir-aids-q');
     $user = directoryUser($tenant, 'q1@example.com', UserStatus::Activo);
 
-    app(TenantContext::class)->runFor($tenant->id, function () use ($user, $tenant): void {
+    app(TenantContext::class)->runFor($tenant->id, function () use ($user): void {
         $directory = app(UserDirectory::class);
 
         DB::flushQueryLog();
