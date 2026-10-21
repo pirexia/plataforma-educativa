@@ -103,6 +103,128 @@
       "reasonLabel": "Reason for reopening (required)",
       "reasonRequired": "Enter the reason for reopening.",
       "confirm": "Reopen academic year {code}"
+    },
+    "rollover": {
+      "openNext": "Open next academic year",
+      "reopenWarning": "This academic year is the source of a completed structure copy into academic year “{target}”, which is still in planning. Reopening it does not affect that copy, but what was copied may fall out of date with the changes you make now.",
+      "section": {
+        "title": "Structure copy",
+        "loadFailed": "The structure copy could not be loaded.",
+        "copied": "{count} items copied",
+        "open": "View the copy details",
+        "none": "This academic year has no structure copy yet.",
+        "copy": "Copy structure from another academic year"
+      },
+      "status": {
+        "pendiente": "Queued",
+        "en_curso": "In progress",
+        "completado": "Completed",
+        "fallido": "Failed",
+        "revirtiendo": "Reverting",
+        "revertido": "Reverted"
+      },
+      "failure": {
+        "rollover_blocked": "Something prevented the copy",
+        "target_not_planning": "The target year is no longer in planning",
+        "target_changed": "Data changed during the copy; try again",
+        "internal_error": "Internal error; nothing was copied",
+        "actor_unavailable": "The person who requested it no longer has an active account; nothing was done",
+        "cancelled": "Cancelled; nothing was copied"
+      },
+      "wizard": {
+        "routeTitle": "Copy structure",
+        "title": "Copy the structure of another academic year into {target}",
+        "intro": "Choose which academic year to copy from and what to copy. You will see a simulation before anything runs. What is copied can be reviewed and corrected in each module’s screens.",
+        "steps": "Wizard steps",
+        "stepOf": "Step {n} of {total}",
+        "step": {
+          "origin": "Source",
+          "elements": "Items",
+          "simulation": "Simulation",
+          "confirm": "Confirm"
+        },
+        "modules": {
+          "acad": "Academic"
+        },
+        "noSources": "There is no active or closed academic year before this one to copy from.",
+        "originLegend": "Academic year to copy from",
+        "next": "Next",
+        "back": "Back",
+        "elementsHelp": "Tick what you want to copy. What you leave unticked will be created from scratch by hand. Ticking an item also ticks the ones it needs.",
+        "noElements": "No subscribed module offers items to copy.",
+        "blocked": {
+          "forbidden": "You do not have permission to create this item.",
+          "requiresForbidden": "You do not have permission to create one of the items it needs."
+        },
+        "alsoSelected": "Also selected: {elements}.",
+        "alsoDeselected": "Also deselected: {elements}.",
+        "teachingAssignments": {
+          "label": "Copy teaching assignments",
+          "help": "Copies the teachers of each subject and group and the group tutors; if you also copy the timetable frames, the timetable sessions too. People who are no longer active at the school are left out. Review what was copied afterwards.",
+          "forbidden": "You do not have permission to create teaching assignments, group tutors or timetable sessions.",
+          "requiresMarked": "Also selected: {elements}."
+        },
+        "summary": "Copying from {source} to {target}.",
+        "offset": "Dates are shifted by {days} days.",
+        "offsetValue": "{days} days",
+        "simulationCaption": "Copy simulation by item",
+        "columns": {
+          "element": "Item",
+          "toCopy": "Will be created",
+          "notes": "Skipped and adjusted",
+          "dates": "Resulting dates"
+        },
+        "blockingTitle": "The copy cannot be run yet:",
+        "openExisting": "Open the existing copy",
+        "confirm": "Confirm",
+        "notExecutable": "It cannot be confirmed while there are issues.",
+        "submitting": "Sending the copy…",
+        "confirmDialog": {
+          "title": "Copy the structure from {source} to {target}",
+          "description": "The chosen items will be copied into academic year {target}. The source academic year is not modified.",
+          "background": "The copy runs in the background; it may take a few minutes.",
+          "revertible": "It can be reverted while academic year {target} is still in planning.",
+          "revertLoses": "Reverting also discards any changes made to what was copied.",
+          "confirm": "Copy to {target}"
+        },
+        "notPlanning": {
+          "title": "This academic year cannot receive a copy",
+          "text": "The structure can only be copied into an academic year that is in planning."
+        },
+        "backToYear": "Back to the academic year",
+        "simulationEmpty": "The selection creates no rows."
+      },
+      "detail": {
+        "title": "Structure copy",
+        "backToYear": "Back to academic year {code}",
+        "status": "Status",
+        "inProgress": "The copy is being processed in the background.",
+        "stalled": "The copy is still queued; check again later.",
+        "checkAgain": "Check again",
+        "statusChanged": "The copy is now: {status}.",
+        "failureTitle": "Reason for the failure",
+        "revertFailureTitle": "The last revert could not be completed",
+        "resultTitle": "Result by item",
+        "resultCaption": "Rows copied by item",
+        "copied": "Copied",
+        "revert": "Revert copy",
+        "cancel": "Cancel copy",
+        "revertConfirm": {
+          "title": "Revert the copy in {target}",
+          "description": "What this copy created will be deleted, even if it was edited afterwards: changes made to what was copied are lost. The source academic year is not modified.",
+          "confirm": "Revert the copy in {target}"
+        },
+        "cancelConfirm": {
+          "title": "Cancel the copy",
+          "description": "The copy will be marked as failed; nothing was copied.",
+          "confirm": "Cancel the copy"
+        },
+        "createdAt": "Requested",
+        "finishedAt": "Finished",
+        "offset": "Date shift",
+        "openInProgress": "Open the copy in progress",
+        "resultEmpty": "The copy created no rows."
+      }
     }
   }
 }

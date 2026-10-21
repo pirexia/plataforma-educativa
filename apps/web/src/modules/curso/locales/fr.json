@@ -103,6 +103,128 @@
       "reasonLabel": "Motif de la réouverture (obligatoire)",
       "reasonRequired": "Indiquez le motif de la réouverture.",
       "confirm": "Rouvrir l'année scolaire {code}"
+    },
+    "rollover": {
+      "openNext": "Ouvrir l’année scolaire suivante",
+      "reopenWarning": "Cette année scolaire est la source d’une copie de structure terminée vers l’année scolaire « {target} », qui est encore en planification. La rouvrir n’affecte pas cette copie, mais ce qui a été copié peut devenir obsolète par rapport aux modifications faites maintenant.",
+      "section": {
+        "title": "Copie de structure",
+        "loadFailed": "Impossible de consulter la copie de structure.",
+        "copied": "{count} éléments copiés",
+        "open": "Voir le détail de la copie",
+        "none": "Cette année scolaire n’a encore aucune copie de structure.",
+        "copy": "Copier la structure d’une autre année scolaire"
+      },
+      "status": {
+        "pendiente": "En file d’attente",
+        "en_curso": "En cours",
+        "completado": "Terminée",
+        "fallido": "Échouée",
+        "revirtiendo": "Annulation en cours",
+        "revertido": "Annulée"
+      },
+      "failure": {
+        "rollover_blocked": "Un obstacle a empêché la copie",
+        "target_not_planning": "L’année de destination n’est plus en planification",
+        "target_changed": "Les données ont changé pendant la copie ; réessayez",
+        "internal_error": "Erreur interne ; rien n’a été copié",
+        "actor_unavailable": "La personne à l’origine de la demande n’a plus de compte actif ; rien n’a été fait",
+        "cancelled": "Annulée ; rien n’a été copié"
+      },
+      "wizard": {
+        "routeTitle": "Copier la structure",
+        "title": "Copier la structure d’une autre année scolaire vers {target}",
+        "intro": "Choisissez l’année scolaire source et ce qu’il faut copier. Vous verrez une simulation avant toute exécution. Ce qui est copié peut être revu et corrigé dans les écrans de chaque module.",
+        "steps": "Étapes de l’assistant",
+        "stepOf": "Étape {n} sur {total}",
+        "step": {
+          "origin": "Source",
+          "elements": "Éléments",
+          "simulation": "Simulation",
+          "confirm": "Confirmer"
+        },
+        "modules": {
+          "acad": "Académique"
+        },
+        "noSources": "Aucune année scolaire active ou clôturée antérieure à celle-ci ne peut servir de source.",
+        "originLegend": "Année scolaire à copier",
+        "next": "Suivant",
+        "back": "Retour",
+        "elementsHelp": "Cochez ce que vous voulez copier. Ce que vous ne cochez pas sera créé à la main, de zéro. Cocher un élément coche aussi ceux dont il a besoin.",
+        "noElements": "Aucun module souscrit ne propose d’éléments à copier.",
+        "blocked": {
+          "forbidden": "Vous n’avez pas l’autorisation de créer cet élément.",
+          "requiresForbidden": "Vous n’avez pas l’autorisation de créer l’un des éléments dont il a besoin."
+        },
+        "alsoSelected": "Également sélectionnés : {elements}.",
+        "alsoDeselected": "Également désélectionnés : {elements}.",
+        "teachingAssignments": {
+          "label": "Copier les affectations d’enseignement",
+          "help": "Copie les enseignants de chaque matière et groupe et les professeurs principaux ; si vous copiez aussi les cadres d’emploi du temps, les séances d’emploi du temps également. Les personnes qui ne sont plus actives dans l’établissement sont omises. Vérifiez ensuite ce qui a été copié.",
+          "forbidden": "Vous n’avez pas l’autorisation de créer des affectations d’enseignement, des professeurs principaux ou des séances d’emploi du temps.",
+          "requiresMarked": "Également sélectionnés : {elements}."
+        },
+        "summary": "Copie de {source} vers {target}.",
+        "offset": "Les dates sont décalées de {days} jours.",
+        "offsetValue": "{days} jours",
+        "simulationCaption": "Simulation de la copie par élément",
+        "columns": {
+          "element": "Élément",
+          "toCopy": "Seront créés",
+          "notes": "Omissions et ajustements",
+          "dates": "Dates résultantes"
+        },
+        "blockingTitle": "La copie ne peut pas encore être exécutée :",
+        "openExisting": "Ouvrir la copie existante",
+        "confirm": "Confirmer",
+        "notExecutable": "Impossible de confirmer tant qu’il y a des incidents.",
+        "submitting": "Envoi de la copie…",
+        "confirmDialog": {
+          "title": "Copier la structure de {source} vers {target}",
+          "description": "Les éléments choisis seront copiés vers l’année scolaire {target}. L’année scolaire source n’est pas modifiée.",
+          "background": "La copie s’exécute en arrière-plan ; elle peut prendre quelques minutes.",
+          "revertible": "Elle peut être annulée tant que l’année scolaire {target} est en planification.",
+          "revertLoses": "L’annulation supprime aussi les modifications faites sur ce qui a été copié.",
+          "confirm": "Copier vers {target}"
+        },
+        "notPlanning": {
+          "title": "Cette année scolaire ne peut pas recevoir de copie",
+          "text": "La structure ne peut être copiée que vers une année scolaire en planification."
+        },
+        "backToYear": "Retour à l’année scolaire",
+        "simulationEmpty": "La sélection ne crée aucune ligne."
+      },
+      "detail": {
+        "title": "Copie de structure",
+        "backToYear": "Retour à l’année scolaire {code}",
+        "status": "État",
+        "inProgress": "La copie est en cours de traitement en arrière-plan.",
+        "stalled": "La copie est toujours en file d’attente ; revenez consulter plus tard.",
+        "checkAgain": "Vérifier à nouveau",
+        "statusChanged": "La copie est maintenant : {status}.",
+        "failureTitle": "Motif de l’échec",
+        "revertFailureTitle": "La dernière annulation n’a pas pu être terminée",
+        "resultTitle": "Résultat par élément",
+        "resultCaption": "Lignes copiées par élément",
+        "copied": "Copiées",
+        "revert": "Annuler la copie",
+        "cancel": "Interrompre la copie",
+        "revertConfirm": {
+          "title": "Annuler la copie dans {target}",
+          "description": "Ce que cette copie a créé sera supprimé, même modifié ensuite : les modifications faites sur ce qui a été copié sont perdues. L’année scolaire source n’est pas modifiée.",
+          "confirm": "Annuler la copie dans {target}"
+        },
+        "cancelConfirm": {
+          "title": "Interrompre la copie",
+          "description": "La copie sera marquée comme échouée ; rien n’a été copié.",
+          "confirm": "Interrompre la copie"
+        },
+        "createdAt": "Demandée",
+        "finishedAt": "Terminée",
+        "offset": "Décalage des dates",
+        "openInProgress": "Ouvrir la copie en cours",
+        "resultEmpty": "La copie n’a créé aucune ligne."
+      }
     }
   }
 }

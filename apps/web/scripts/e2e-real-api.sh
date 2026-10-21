@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ejecuta los tests e2e que necesitan la API real (CA-PERM-133, CA-CURSO-086, CA-ACAD-053, CA-ACAD-101 y CA-ACAD-135, E2E_REAL_API=1):
+# Ejecuta los tests e2e que necesitan la API real (CA-PERM-133, CA-CURSO-086, CA-CURSO-147, CA-ACAD-053, CA-ACAD-101 y CA-ACAD-135, E2E_REAL_API=1):
 # prepara un centro de pruebas sintético en el contenedor de la API, lanza
 # Playwright con sus credenciales y lo retira por completo al terminar, también
 # si falla.
@@ -115,3 +115,8 @@ npx playwright test e2e/acad-scales.spec.ts -g "CA-ACAD-101" --workers=1 "$@"
 # (Daniel y Marta Docente) que deja el setup.
 prepare_tenant
 npx playwright test e2e/acad-timetable.spec.ts -g "CA-ACAD-135" --workers=1 "$@"
+
+# REQ-CURSO (1.12b), CA-CURSO-147: apertura del curso siguiente. Crea sus propios cursos y su etapa, y ejecuta la cola `long`
+# dentro del contenedor de la API (`queue:work database_long --queue=long --stop-when-empty`); `acad` lo contrata el setup.
+prepare_tenant
+npx playwright test e2e/curso-rollover.spec.ts -g "CA-CURSO-147" --workers=1 "$@"

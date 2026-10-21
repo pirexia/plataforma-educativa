@@ -11,6 +11,9 @@
  * `cancel` y no envían ninguna petición. Sobre `alert-dialog` de shadcn-vue
  * (Reka UI), como `ConfirmDialog`: modal, foco atrapado y devuelto al control de
  * origen (WCAG 2.4.3). La validación definitiva es del servidor (`INV-010`).
+ *
+ * `warning` (1.12b, `RN-CURSO-77`): aviso opcional, sin bloquear, de que este curso es el origen de una copia completada
+ * hacia el curso en planificación.
  */
 import { nextTick, ref, useId, watch } from 'vue'
 import { useT } from '@/i18n'
@@ -27,7 +30,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 
-const props = defineProps<{ open: boolean; code: string }>()
+const props = defineProps<{ open: boolean; code: string; warning?: string | null }>()
 const emit = defineEmits<{ confirm: [reason: string]; cancel: [] }>()
 
 const t = useT()
@@ -84,6 +87,15 @@ async function submit(): Promise<void> {
         <li>{{ t('curso.reopen.warningNotCorrection') }}</li>
         <li>{{ t('curso.reopen.warningReason') }}</li>
       </ul>
+
+      <!-- RN-CURSO-77: aviso, sin bloquear, de una copia completada desde este curso. -->
+      <p
+        v-if="props.warning"
+        role="note"
+        class="border-border bg-muted rounded-lg border px-3 py-2 text-sm"
+      >
+        {{ props.warning }}
+      </p>
 
       <div class="flex flex-col gap-1.5">
         <Label :for="reasonId">{{ t('curso.reopen.reasonLabel') }}</Label>

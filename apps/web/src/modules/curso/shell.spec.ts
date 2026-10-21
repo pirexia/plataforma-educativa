@@ -25,6 +25,15 @@ const EXPECTED: Record<string, { path: string; permissions: string[] }> = {
     path: '/administracion/cursos/:publicId/editar',
     permissions: ['curso_academico.actualizar'],
   },
+  // 1.12b (REQ-CURSO-002, funcional.md §10.6): asistente de apertura del curso siguiente y detalle de la copia.
+  'curso-rollover-wizard': {
+    path: '/administracion/cursos/:publicId/copiar-estructura',
+    permissions: ['apertura_curso_academico.crear'],
+  },
+  'curso-rollover-detail': {
+    path: '/administracion/cursos/:publicId/copias/:rolloverId',
+    permissions: ['apertura_curso_academico.leer'],
+  },
 }
 
 describe('CA-CURSO-080 (AR-11, ADR-053 §2): registro del módulo', () => {
@@ -50,7 +59,7 @@ describe('CA-CURSO-080 (AR-11, ADR-053 §2): registro del módulo', () => {
     )
 
     expect(empty).toEqual([])
-    expect(shell.routes).toHaveLength(4)
+    expect(shell.routes).toHaveLength(6)
   })
 
   it('las pantallas secundarias cuelgan del listado o de la ficha en la miga de pan y sus títulos están en curso.*', () => {
@@ -58,6 +67,8 @@ describe('CA-CURSO-080 (AR-11, ADR-053 §2): registro del módulo', () => {
       'curso-academic-year-new': 'curso-academic-years',
       'curso-academic-year-detail': 'curso-academic-years',
       'curso-academic-year-edit': 'curso-academic-year-detail',
+      'curso-rollover-wizard': 'curso-academic-year-detail',
+      'curso-rollover-detail': 'curso-academic-year-detail',
     }
 
     for (const [name, parent] of Object.entries(parents)) {

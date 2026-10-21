@@ -39,7 +39,13 @@ import { useDataTableFormatters } from '@/data-table'
 import ErrorState from '@/layouts/components/ErrorState.vue'
 import LoadingState from '@/layouts/components/LoadingState.vue'
 import { resolveErrorState, type ShellErrorState } from '@/layouts/errorState'
-import { getAcademicYear, reopenAcademicYear, transitionAcademicYear } from '../api'
+import {
+  getAcademicYear,
+  listRollovers,
+  listSelectableAcademicYears,
+  reopenAcademicYear,
+  transitionAcademicYear,
+} from '../api'
 import { formatCivilDate, hasEnded, isReadOnlyStatus } from '../civilDate'
 import {
   problemDetail,
@@ -51,6 +57,7 @@ import {
 import { takeFlash } from '../composables/useFlash'
 import { usePermissions } from '../composables/usePermissions'
 import ReopenAcademicYearDialog from '../components/ReopenAcademicYearDialog.vue'
+import RolloverSection from '../components/RolloverSection.vue'
 import type { AcademicYear } from '../types'
 
 const t = useT()
@@ -80,6 +87,10 @@ const failureTitleKey = ref<'curso.detail.closureTitle' | 'curso.detail.reopenTi
 )
 /** Diálogo de reapertura abierto (`CA-CURSO-087`). */
 const reopenOpen = ref(false)
+/** Aviso, sin bloquear, de una copia `completado` desde este curso hacia el que está en planificación (`RN-CURSO-77`). */
+const reopenWarning = ref<string | null>(null)
+/** `409 rollover_in_progress` (`RN-CURSO-71`): la copia en vuelo hacia este curso, para enlazarla. */
+const rolloverInProgress = ref<string | null>(null)
 
 const canEdit = computed(
   () => year.value?.status === 'planificacion' && can('curso_academico.actualizar'),
@@ -111,6 +122,7 @@ async function load(): Promise<void> {
   loadError.value = null
   actionError.value = null
   activeYear.value = null
+  rolloverInProgress.value = null
   closureFailures.value = []
 
   try {
@@ -136,11 +148,22 @@ onMounted(() => {
 function fail(err: unknown): void {
   closureFailures.value = []
   activeYear.value = null
+  rolloverInProgress.value = null
 
   if (problemStatus(err) === 409) {
     activeYear.value = conflictYear(
       problemErrorEntryWithCode(err, 'academic_year', 'curso.conflict.active_exists'),
     )
+
+    // RN-CURSO-71: activar un curso con una copia o reversión en vuelo hacia él. Enlace a la copia.
+    const inProgress = problemErrorEntryWithCode(
+      err,
+      'rollover',
+      'curso.conflict.rollover_in_progress',
+    )
+    const rolloverId = inProgress?.params?.public_id
+
+    rolloverInProgress.value = typeof rolloverId === 'string' ? rolloverId : null
 
     const closure = problemErrorEntries(err, 'closure')
     const reopen = problemErrorEntries(err, 'reopen')
@@ -158,6 +181,7 @@ async function run(action: () => Promise<void>): Promise<void> {
   message.value = null
   actionError.value = null
   activeYear.value = null
+  rolloverInProgress.value = null
   closureFailures.value = []
 
   try {
@@ -194,7 +218,44 @@ async function activate(): Promise<void> {
   })
 }
 
-function reopen(): void {
+/**
+ * `RN-CURSO-77`, `funcional.md §10.6`: reabrir el origen de una copia ya completada hacia el curso en planificación
+ * se admite, pero el diálogo lo **advierte sin bloquear**. Solo con `apertura_curso_academico.leer`; sin él no hay
+ * aviso. Cualquier fallo de la consulta se ignora: el aviso es informativo.
+ */
+async function loadReopenWarning(current: AcademicYear): Promise<string | null> {
+  if (!can('apertura_curso_academico.leer')) {
+    return null
+  }
+
+  try {
+    const planning = (await listSelectableAcademicYears()).data.find(
+      (candidate) => candidate.status === 'planificacion',
+    )
+
+    if (!planning) {
+      return null
+    }
+
+    const copies = await listRollovers({
+      academic_year: planning.public_id,
+      source: current.public_id,
+      status: ['completado'],
+    })
+
+    return copies.data.length > 0
+      ? t('curso.rollover.reopenWarning', { target: planning.code })
+      : null
+  } catch {
+    return null
+  }
+}
+
+async function reopen(): Promise<void> {
+  if (year.value) {
+    reopenWarning.value = await loadReopenWarning(year.value)
+  }
+
   reopenOpen.value = true
 }
 
@@ -280,6 +341,17 @@ async function close(): Promise<void> {
             {{ t('curso.detail.openActive', { code: activeYear.code }) }}
           </RouterLink>
         </p>
+        <p v-if="rolloverInProgress">
+          <RouterLink
+            :to="{
+              name: 'curso-rollover-detail',
+              params: { publicId: year.public_id, rolloverId: rolloverInProgress },
+            }"
+            class="underline underline-offset-4"
+          >
+            {{ t('curso.rollover.detail.openInProgress') }}
+          </RouterLink>
+        </p>
         <template v-if="closureFailures.length > 0">
           <p class="font-medium">{{ t(failureTitleKey) }}</p>
           <ul class="list-disc pl-5">
@@ -322,6 +394,8 @@ async function close(): Promise<void> {
         <p v-else class="text-muted-foreground text-sm">{{ t('curso.detail.noActions') }}</p>
       </section>
 
+      <RolloverSection :year="year" />
+
       <section aria-labelledby="curso-data-title">
         <h2 id="curso-data-title" class="mb-2 text-sm font-semibold">
           {{ t('curso.detail.title') }}
@@ -358,6 +432,7 @@ async function close(): Promise<void> {
     <ReopenAcademicYearDialog
       :open="reopenOpen"
       :code="year?.code ?? ''"
+      :warning="reopenWarning"
       @confirm="confirmReopen"
       @cancel="reopenOpen = false"
     />
