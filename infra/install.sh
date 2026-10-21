@@ -96,3 +96,11 @@ echo "  $SYSTEMCTL enable --now postgres.service redis.service"
 # sería semánticamente incorrecto: no debe correr en cada reinicio).
 echo "  $SYSTEMCTL start plataforma-migrate.service"
 echo "  $SYSTEMCTL enable --now api@1.service web.service traefik.service"
+# Worker de colas (issue #128): sin él, los trabajos de cola (correos de
+# MFA, invitaciones, restablecimiento de contraseña, exportaciones) quedan
+# en la tabla `jobs` sin procesar. Lee su propio fichero de entorno,
+# plataforma-worker.env (plantilla: plataforma-worker.env.example).
+echo "  $SYSTEMCTL enable --now worker.service"
+if [[ ! -f "$(dirname "$ENV_FILE")/plataforma-worker.env" ]]; then
+    echo "AVISO: falta $(dirname "$ENV_FILE")/plataforma-worker.env (plantilla: infra/quadlet/plataforma-worker.env.example); worker.service no arrancará sin él." >&2
+fi

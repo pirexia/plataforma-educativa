@@ -121,6 +121,66 @@ services:
       retries: 10
       start_period: 10s
 
+  # Worker de colas (issue #128). `queue:work` sobre el driver `database`;
+  # Horizon NO se adopta (OPEN-BO-23, CLAUDE.md §1). Misma imagen y mismo
+  # código que `api`, sin puerto. Perfil reducido (ADR-030): no arranca con
+  # `podman compose up -d`; se activa con
+  #   podman compose --profile worker up -d worker
+  # Orden de --queue = prioridad: correo de usuario primero, `default`,
+  # mantenimiento, y exportaciones/importaciones (las más lentas) al final.
+  # Toda cola con ->onQueue() en el código debe estar aquí (lo comprueba
+  # tests/Feature/Core/QueueWorkerTest.php). --max-time hace que el proceso termine solo
+  # cada hora y `restart` lo relance con el código vigente; los trabajos
+  # encolados por la versión anterior se procesan igual (payload serializado
+  # por nombre de clase, CLAUDE.md §9). --timeout (120) < retry_after (180).
+  worker:
+    build:
+      context: infra/containers/api
+      target: dev
+    container_name: plataforma-worker
+    restart: unless-stopped
+    # Revisión B-2: el worker no escucha puertos ni cambia de usuario.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 130s
+    # Discrepancia declarada con producción (revisión M-1): en desarrollo el
+    # worker comparte apps/api/.env con la API (un único fichero de desarrollo,
+    # sin secretos reales), así que ve DB_OWNER_*; en producción usa
+    # plataforma-worker.env, que no lleva BACKOFFICE_*/MINIO_*.
+    env_file: apps/api/.env
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      CACHE_STORE: redis
+      TENANCY_BASE_DOMAIN: plataforma.test
+      DB_QUEUE_RETRY_AFTER: "180"
+    command:
+      - php
+      - artisan
+      - queue:work
+      - database
+      - --queue=auth-mail,core-mail,bo-mail,default,auth-maintenance,core-maintenance,backoffice-maintenance,core-exports,core-imports
+      - --tries=3
+      - --backoff=30
+      - --timeout=120
+      - --sleep=3
+      - --max-time=3600
+      - --max-jobs=1000
+    volumes:
+      - ./apps/api:/var/www/html:Z
+    depends_on:
+      - postgres
+      - redis
+    healthcheck:
+      test: ["CMD", "php", "artisan", "core:queue-health"]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
+    profiles: ["worker", "full"]
+
   web:
     build:
       context: infra/containers/web

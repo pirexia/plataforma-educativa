@@ -1268,7 +1268,7 @@ El `public_id` de la exportación vive solo en la memoria de la vista. Si el usu
 
 #### 13.14.6 Dependencia operativa
 
-Sin *worker* de colas desplegado (issue #128, Alta), **ninguna exportación termina** fuera de un entorno donde alguien arranque `queue:work` a mano. 1.9 no lo arregla (es infraestructura, `ADR-028`/`ADR-037`), pero su interfaz tiene que comportarse bien en ese caso: `RN-CORE-49`. Un paso que cierre una pantalla con exportación sin #128 resuelto entrega una funcionalidad que, en producción, no funciona.
+Con el *worker* de colas parado o sin arrancar, **ninguna exportación termina**. Cuando se escribió esto no había *worker* desplegado (issue #128, Alta) (**resuelto por [#128](https://github.com/pirexia/plataforma-educativa/issues/128), 2026-10-20**: servicio `worker` en `compose.yaml` y `infra/quadlet/worker.container`): hoy basta con que el servicio esté levantado (`RUNBOOK.md §2.8`). 1.9 no arreglaba el despliegue (es infraestructura, `ADR-028`/`ADR-037`), pero su interfaz tiene que comportarse bien con el *worker* caído: `RN-CORE-49`.
 
 ### 13.15 Consumidores y migración
 
@@ -2415,7 +2415,7 @@ No se corrigen aquí (`CLAUDE.md §5`); para que la sesión orquestadora abra el
 
 | Riesgo | Efecto | Mitigación |
 |--------|--------|------------|
-| **#128: sin *worker* de colas** (Alta) | La importación se queda en `subido` y toda exportación en `pendiente`; en un entorno real **las dos pantallas no funcionan** | `RN-CORE-72`/`RN-CORE-49` acotan la consulta y lo comunican. Cerrar un sub-paso con importación o exportación sin #128 resuelto entrega funcionalidad que no opera en producción: el usuario debe saberlo al aprobar |
+| **#128: sin *worker* de colas** (Alta) (**resuelto por [#128](https://github.com/pirexia/plataforma-educativa/issues/128), 2026-10-20**: servicio `worker` en `compose.yaml` y `infra/quadlet/worker.container`) | Con el *worker* caído, la importación se queda en `subido` y toda exportación en `pendiente` | `RN-CORE-72`/`RN-CORE-49` acotan la consulta y lo comunican. Histórico: al aprobar estos sub-pasos no había *worker* y las dos pantallas no operaban en un entorno real |
 | Tamaño del paso | Corte de cuota a mitad, revisión inabarcable | División de §14.2 (`OPEN-CORE-30`) |
 | Contrato de `fallida` (S4) | Hoy una exportación de auditoría fallida espera 10 min sin decir nada | Corregir en el primer sub-paso; issue propio (§14.16) |
 | Catálogos duplicados en el cliente (comunidades autónomas, tipos de documento, alias de auditoría) | Divergencia silenciosa con el servidor | Test cruzado (`RN-CORE-82`) o *endpoint* de facetas (`OPEN-CORE-34`); para los tipos de documento, lectura de `CreateUser` antes de implementar |
@@ -2577,7 +2577,7 @@ Tres necesidades que el componente de 1.9 no cubre: (1) filtro de **selección �
 - **A** · Seguir sin él en 1.9b.
 - **B** · Añadir `GET /data-exports` (por identidad: solo las propias, y de cada `kind` solo si se tiene su permiso de exportar) y una pantalla en «Mi cuenta».
 
-**Recomendación: A.** Mientras #128 siga abierto ninguna exportación termina en un entorno real, y B añade un *endpoint*, una regla de autorización mixta y una pantalla a un paso ya demasiado grande. Reconsiderar al cerrar #128.
+**Recomendación: A.** Mientras #128 seguía abierto (hoy resuelto, `RUNBOOK.md §2.8`) ninguna exportación terminaba en un entorno real, y B añade un *endpoint*, una regla de autorización mixta y una pantalla a un paso ya demasiado grande. Reconsiderar al cerrar #128 (cerrado el 2026-10-20).
 
 #### `OPEN-CORE-42` · Mecanismo de confirmación (`RN-CORE-64`) — **RESUELTA** (2026-10-01, decisión del usuario): opción A
 
@@ -2749,7 +2749,7 @@ Cada sub-paso ejecuta la suite completa del lado que toca (Pest con `php -d memo
 
 1. Las preguntas abiertas, antes del sub-paso al que bloquean: `-37` y `-45` (1.9e), `-33` a `-36` (1.9d) y `-38` (1.9c) **ya resueltas** (2026-10-03); `-41` y `-44` no bloquean.
 2. Los issues de los hallazgos 1 a 6 y 9 de §14.16 están abiertos: #287, #288 y #289.
-3. Tener presente que, sin #128, la importación y las exportaciones de este paso no funcionan en un entorno real (§14.15).
+3. Tener presente que, con el *worker* parado, la importación y las exportaciones de este paso no terminan (§14.15; #128 ya resuelto, `RUNBOOK.md §2.8`).
 
 ### 14.22 Notas de implementación de `1.9b` (2026-10-02)
 

@@ -226,7 +226,7 @@ Trabajo de cierre del paso, no opcional (`CLAUDE.md §6`):
 | Aspecto | 1.5b |
 |---------|------|
 | Variables de entorno | **Ninguna nueva**, ni en `apps/web` ni en `apps/api` |
-| Colas y tareas programadas | **Ninguna.** Ninguna pantalla de 1.5b encola nada: no hay exportación (`permisos.md §2.1`), y el cálculo de permisos efectivos es síncrono y acotado al catálogo (`api.md §7.3`). No depende del *worker* ausente del issue #128 |
+| Colas y tareas programadas | **Ninguna.** Ninguna pantalla de 1.5b encola nada: no hay exportación (`permisos.md §2.1`), y el cálculo de permisos efectivos es síncrono y acotado al catálogo (`api.md §7.3`). No depende del *worker* de colas (ausente cuando se escribió, issue #128, resuelto el 2026-10-20) |
 | Servicios externos | Ninguno nuevo. Sin Redis en la autorización (§3) |
 | Migraciones | **Ninguna** (`datos.md §9`) |
 | Despliegue | Imágenes de `api` (S-PERM-1, S-PERM-2, `RN-PERM-47`) y `web`, sin pasos de datos: las claves de traducción de `resource_label` viajan en la imagen. **No hace falta** volver a ejecutar `platform:sync-registry` ni `perm:grant-role-administration`: no hay permisos nuevos. Si en el futuro la declaración de la clave de `resource_label` se materializara en `permissions` (no lo prevé esta especificación), `platform:sync-registry` pasaría a ser obligatorio y se diría aquí |

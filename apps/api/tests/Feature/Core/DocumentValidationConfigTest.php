@@ -9,6 +9,8 @@ use App\Modules\Core\Infrastructure\CoreServiceProvider;
 
 test('en producción, CoreServiceProvider fuerza validate_check_digit a true aunque la configuración lo desactive', function (): void {
     config(['core.documents.validate_check_digit' => false]);
+    // Issue #128: MailEnvironmentGuard (mismo boot()) rechaza log/array en producción.
+    config(['mail.default' => 'smtp']);
 
     app()->detectEnvironment(fn () => 'production');
 
