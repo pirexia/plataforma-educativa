@@ -174,7 +174,7 @@ services:
       - postgres
       - redis
     healthcheck:
-      test: ["CMD", "php", "artisan", "core:queue-health"]
+      test: ["CMD", "php", "artisan", "core:queue-health", "--queues=auth-mail,core-mail,bo-mail,default,auth-maintenance,core-maintenance,backoffice-maintenance,core-exports,core-imports"]
       interval: 60s
       timeout: 20s
       retries: 3
@@ -201,6 +201,12 @@ services:
     stop_grace_period: 620s
     env_file: apps/api/.env
     environment:
+      # Equivalente en desarrollo de plataforma-worker-long.env (revisión de seguridad M2): ningún trabajo de la
+      # cola `long` usa `pgsql_owner` ni `pgsql_platform`; vaciadas aquí, si alguno lo intentara fallaría visible.
+      DB_OWNER_USERNAME: ""
+      DB_OWNER_PASSWORD: ""
+      DB_PLATFORM_USERNAME: ""
+      DB_PLATFORM_PASSWORD: ""
       DB_HOST: postgres
       REDIS_HOST: redis
       CACHE_STORE: redis
@@ -222,7 +228,7 @@ services:
       - postgres
       - redis
     healthcheck:
-      test: ["CMD", "php", "artisan", "core:queue-health"]
+      test: ["CMD", "php", "artisan", "core:queue-health", "--queues=long"]
       interval: 60s
       timeout: 20s
       retries: 3

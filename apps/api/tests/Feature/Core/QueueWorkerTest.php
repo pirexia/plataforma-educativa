@@ -244,7 +244,7 @@ test('CA-CURSO-155 ADR-028: la unidad Quadlet del worker long cumple ADR-028 (Wa
         ->not->toMatch('/^(Requires|BindsTo)=/m')
         ->not->toMatch('/^PublishPort=/m')
         ->toMatch('/--max-time=\d+/')
-        ->toMatch('#^EnvironmentFile=/etc/plataforma/plataforma-worker\.env$#m')
+        ->toMatch('#^EnvironmentFile=/etc/plataforma/plataforma-worker-long\.env$#m')
         ->toMatch('/^NoNewPrivileges=true$/m')
         ->toMatch('/^DropCapability=ALL$/m');
 
@@ -253,4 +253,59 @@ test('CA-CURSO-155 ADR-028: la unidad Quadlet del worker long cumple ADR-028 (Wa
 
     // La parada espera más que el timeout del trabajo: SIGTERM deja terminar la copia en curso.
     expect((int) $stop[1])->toBeGreaterThan((int) $timeout[1]);
+})->skip(fn () => ! is_file(base_path('../../compose.yaml')), 'La raíz del repositorio no está montada (contenedor de desarrollo solo con apps/api); CI sí la tiene.');
+
+test('CA-CURSO-155 revisión de seguridad M2: worker-long tiene su propio entorno sin DB_OWNER_* ni DB_PLATFORM_*, en Quadlet y en compose, y su plantilla tampoco los lleva', function (): void {
+    $root = base_path('../../');
+    $template = (string) file_get_contents($root.'infra/quadlet/plataforma-worker-long.env.example');
+    $values = preg_replace('/^#.*$/m', '', $template);
+
+    expect($values)->not->toContain('DB_OWNER_')->not->toContain('DB_PLATFORM_')->toContain('DB_USERNAME=plataforma_app');
+
+    // La plantilla del worker general sí los lleva (desviación declarada de #128): el contraste fija la diferencia.
+    expect((string) file_get_contents($root.'infra/quadlet/plataforma-worker.env.example'))->toContain('DB_OWNER_USERNAME=');
+
+    $compose = (string) file_get_contents($root.'compose.yaml');
+    $block = substr($compose, (int) strpos($compose, "  worker-long:\n"));
+
+    foreach (['DB_OWNER_USERNAME', 'DB_OWNER_PASSWORD', 'DB_PLATFORM_USERNAME', 'DB_PLATFORM_PASSWORD'] as $var) {
+        expect($block)->toContain("{$var}: \"\"");
+    }
+})->skip(fn () => ! is_file(base_path('../../compose.yaml')), 'La raíz del repositorio no está montada (contenedor de desarrollo solo con apps/api); CI sí la tiene.');
+
+test('#128 core:queue-health --queues solo mira las colas indicadas: una cola atascada de otro worker no marca como no sano a este', function (): void {
+    insertQueuedJob('long', 30);
+    insertQueuedJob('auth-mail', 0);
+
+    $this->artisan('core:queue-health --queues=auth-mail,core-mail')
+        ->expectsOutputToContain('ok queue=auth-mail')
+        ->assertExitCode(0);
+    $this->artisan('core:queue-health --queues=long')->assertExitCode(1);
+    // Sin la opción sigue mirando todas (compatibilidad).
+    $this->artisan('core:queue-health')->assertExitCode(1);
+
+    DB::table('jobs')->delete();
+    insertQueuedJob('auth-mail', 30);
+
+    $this->artisan('core:queue-health --queues=long')->expectsOutputToContain('no pending jobs')->assertExitCode(0);
+});
+
+test('CA-CURSO-155 revisión de seguridad B3: cada HEALTHCHECK de worker pasa --queues con exactamente las colas de su propio proceso (compose y Quadlet)', function (): void {
+    $root = base_path('../..');
+
+    foreach (['infra/quadlet/worker.container' => 'database', 'infra/quadlet/worker-long.container' => 'database_long'] as $file => $connection) {
+        $content = (string) file_get_contents($root.'/'.$file);
+        $queues = workerCommands($root.'/'.$file)[$connection];
+
+        preg_match('/^HealthCmd=php artisan core:queue-health --queues=([a-z0-9,-]+)$/m', $content, $m);
+
+        expect($m)->not->toBeEmpty("{$file}: el HealthCmd debe llevar --queues")
+            ->and(explode(',', $m[1]))->toBe($queues);
+    }
+
+    $compose = (string) file_get_contents($root.'/compose.yaml');
+    preg_match_all('/"core:queue-health", "--queues=([a-z0-9,-]+)"/', $compose, $health);
+    $fromCompose = workerCommands($root.'/compose.yaml');
+
+    expect(array_map(fn (string $l): array => explode(',', $l), $health[1]))->toBe([$fromCompose['database'], $fromCompose['database_long']]);
 })->skip(fn () => ! is_file(base_path('../../compose.yaml')), 'La raíz del repositorio no está montada (contenedor de desarrollo solo con apps/api); CI sí la tiene.');

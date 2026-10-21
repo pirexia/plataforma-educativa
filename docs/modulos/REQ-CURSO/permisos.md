@@ -131,6 +131,12 @@ Ningún rol nuevo y ningún cambio de `mfa_required`. `estado_curso_academico.ac
 
 Con `copy_teaching_assignments: true` se copia el vínculo **persona del personal ↔ docencia** (asignaciones y tutorías, `REQ-ACAD/datos.md §9.6`): dato personal, no de categoría especial. No amplía quién lo ve (lo leen los mismos permisos de `acad` en el curso destino) ni lo expone `curso`: el informe y el resultado de la copia solo llevan cuentas (`RN-CURSO-73`). Se omiten los usuarios no activos (`REQ-ACAD RN-ACAD-154`).
 
+
+### 7.2 Limitaciones aceptadas de la autorización de la copia (`1.12b`; revisión de seguridad B1 y B2)
+
+- **El permiso del solicitante no se revalida al ejecutar (aceptada).** Los permisos se comprueban al aceptar `POST /academic-year-rollovers` (y `…/revert`); el trabajo en cola corre minutos después como ese usuario, y al ejecutar solo se comprueba que **sigue activo** (`status = activo`). Si entre la solicitud y la ejecución le retiran `apertura_curso_academico.crear` (o un permiso de alta de un elemento), la copia ya encolada se ejecuta igual. La ventana es de segundos a pocos minutos, la copia se puede revertir y todo queda auditado con su nombre; revalidar al ejecutar exigiría reconstruir en el *worker* el contexto de permisos del usuario y se deja fuera de `1.12b`.
+- **Decisión pendiente del usuario: ¿la apertura debe exigir el ámbito `todos`?** Hoy los tres permisos de `apertura_curso_academico` se declaran con ámbito `['todos']` (§2) y los *endpoints* de `acad` que la copia usa por dentro se comportan igual, así que es coherente con ellos. No se cambia sin decisión: la alternativa (exigir `todos` explícito en `request()` además del permiso) endurece el caso de un rol con un ámbito más estrecho en el futuro.
+
 ---
 
 ## 8. Traducciones (`INV-009`, `ADR-021`)

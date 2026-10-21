@@ -419,3 +419,31 @@ describe('CA-CURSO-144 RN-CURSO-74, RN-CURSO-85: Revertir y Cancelar copia', () 
     expect(document.body.textContent).toContain('Profesorado que ya no está activo: 2')
   })
 })
+
+describe('revisión de seguridad B4 (1.12b): lo que viene del servidor se muestra como texto, nunca como HTML', () => {
+  it('un mensaje de incidencia y un código de fallo con marcado HTML se pintan literales, sin crear elementos', async () => {
+    getRollover.mockResolvedValue(
+      rollover('fallido', {
+        failure: {
+          code: '<img src=x onerror="window.__xss=1">',
+          errors: [{ code: 'x', message: '<script>window.__xss=1</script><b>negrita</b>' }],
+        },
+        revert_failure: {
+          code: 'rollover_revert_blocked',
+          errors: [{ code: 'y', message: '<img src=x onerror="window.__xss=1">' }],
+        },
+      }),
+    )
+
+    await mountView()
+
+    const text = document.body.textContent ?? ''
+
+    expect(text).toContain('<script>window.__xss=1</script><b>negrita</b>')
+    expect(text).toContain('<img src=x onerror="window.__xss=1">')
+    expect(document.body.querySelector('script')).toBeNull()
+    expect(document.body.querySelector('img')).toBeNull()
+    expect(document.body.querySelector('b')).toBeNull()
+    expect((window as unknown as { __xss?: number }).__xss).toBeUndefined()
+  })
+})

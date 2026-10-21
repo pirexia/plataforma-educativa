@@ -99,9 +99,13 @@ echo "  $SYSTEMCTL enable --now api@1.service web.service traefik.service"
 # Worker de colas (issue #128): sin él, los trabajos de cola (correos de
 # MFA, invitaciones, restablecimiento de contraseña, exportaciones) quedan
 # en la tabla `jobs` sin procesar. Lee su propio fichero de entorno,
-# plataforma-worker.env (plantilla: plataforma-worker.env.example). worker-long.service consume la
+# plataforma-worker.env (plantilla: plataforma-worker.env.example). worker-long.service (plataforma-worker-long.env) consume la
 # cola `long` (copia y reversión del rollover del curso, REQ-CURSO 1.12b) con su propio retry_after.
 echo "  $SYSTEMCTL enable --now worker.service worker-long.service"
 if [[ ! -f "$(dirname "$ENV_FILE")/plataforma-worker.env" ]]; then
-    echo "AVISO: falta $(dirname "$ENV_FILE")/plataforma-worker.env (plantilla: infra/quadlet/plataforma-worker.env.example); worker.service y worker-long.service no arrancarán sin él." >&2
+    echo "AVISO: falta $(dirname "$ENV_FILE")/plataforma-worker.env (plantilla: infra/quadlet/plataforma-worker.env.example); worker.service no arrancará sin él." >&2
+fi
+# worker-long.service lee su propio fichero, sin DB_OWNER_* ni DB_PLATFORM_* (REQ-CURSO 1.12b, revisión M2).
+if [[ ! -f "$(dirname "$ENV_FILE")/plataforma-worker-long.env" ]]; then
+    echo "AVISO: falta $(dirname "$ENV_FILE")/plataforma-worker-long.env (plantilla: infra/quadlet/plataforma-worker-long.env.example); worker-long.service no arrancará sin él." >&2
 fi
