@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.9** · 2026-10-19
+> **Versión 0.3.10** · 2026-10-20
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -24,7 +24,8 @@ Referencia completa de arranque, `compose.yaml` y red: `SYSADMIN.md`.
 
 ```bash
 podman compose up -d          # perfil reducido: postgres, redis, api, web
-podman compose --profile full up -d   # añade minio
+podman compose --profile full up -d   # añade minio y el worker de colas
+podman compose --profile worker up -d worker   # solo el worker de colas (§2.8)
 podman compose ps
 podman compose logs -f <servicio>
 ```
@@ -135,13 +136,27 @@ podman stop plataforma-pg17-reversion
 
 **Producción (Quadlet)**: hoy no aplica (sin producción ni datos reales, `§4`); la primera instalación nacerá en 18 con `postgres-cluster` vacío. Para un host con un clúster 17 con datos, **condición previa**: ensayar entero, reversión incluida, en `compose.prodlike.yaml` con datos sintéticos (`ADR-030`) y anotar el resultado en `SYSADMIN.md`.
 
-1. Ventana de mantenimiento: `systemctl stop api@1.service web.service` (y cualquier *worker* que exista).
+1. Ventana de mantenimiento: `systemctl stop api@1.service web.service worker.service`.
 2. Inventario y volcados con el cliente de 18, como en los pasos 0 y 2 de arriba. El volcado contiene datos personales reales: se trata como copia de seguridad (cifrado, fuera del host de aplicación cuando `REQ-BKP`/`OPEN-10` lo permitan, borrado al cerrar la ventana de reversión) y nunca se lleva a desarrollo (`ADR-030`).
 3. `systemctl stop postgres.service`; `./infra/install.sh <tag con 18>`; `systemctl daemon-reload`; `systemctl start postgres.service` (inicialización sobre `postgres-cluster` con los *scripts* de `/opt/plataforma/postgres-init`).
 4. `dropdb` + `pg_restore --create --exit-on-error` + inventario + `diff` + comprobaciones, como en los pasos 5 y 6.
-5. Decidir continuar o volver **antes** de reabrir el tráfico. Continuar: `systemctl start api@1.service web.service` y prueba de humo. Volver: `systemctl stop postgres.service`, `./infra/install.sh <tag anterior>`, `systemctl daemon-reload`, `systemctl start postgres.service` (17 sobre el volumen antiguo, intacto), `systemctl start api@1.service web.service`. **Después de reabrir el tráfico**, volver a 17 pierde lo escrito en 18.
+5. Decidir continuar o volver **antes** de reabrir el tráfico. Continuar: `systemctl start api@1.service web.service worker.service` y prueba de humo. Volver: `systemctl stop postgres.service`, `./infra/install.sh <tag anterior>`, `systemctl daemon-reload`, `systemctl start postgres.service` (17 sobre el volumen antiguo, intacto), `systemctl start api@1.service web.service worker.service`. **Después de reabrir el tráfico**, volver a 17 pierde lo escrito en 18.
 
 ---
+
+### 2.8 Si los correos o los trabajos en cola no se procesan (issue #128)
+
+La cola es el driver `database` de Laravel y la consume el *worker* (`queue:work`, **no** Horizon: `OPEN-BO-23`, `CLAUDE.md §1`). Síntoma: filas que se acumulan en `jobs` (correos de MFA, invitaciones, restablecimiento de contraseña sin llegar).
+
+```bash
+podman exec plataforma-worker php artisan core:queue-health   # salida 1 y líneas STALE = hay trabajos sin tomar
+podman ps --filter name=plataforma-worker                     # ¿existe y está (healthy)?
+podman logs --tail 50 plataforma-worker
+podman compose --profile worker up -d worker                  # desarrollo: arrancarlo
+systemctl --user status worker.service                        # servidor
+```
+
+`core:queue-health` falla si hay un trabajo disponible sin tomar desde hace 5 minutos o más (`CORE_QUEUE_HEALTH_MAX_AGE_MINUTES`, tabla de variables en `SYSADMIN.md §2c`; el servicio y su perfil en `SYSADMIN.md §2`); **ignora los trabajos reservados (en curso)**, así que un trabajo colgado dentro de un *worker* vivo no la dispara (se acota con `--timeout`/`retry_after`); es también el `HealthCmd` del contenedor y vale como comprobación de monitorización. Causas habituales: el contenedor del *worker* no está levantado (en desarrollo vive en el perfil `worker`, no arranca con `podman compose up -d` a secas); la base de datos estuvo caída y el proceso sigue en espera; un trabajo de más de 120 s (`--timeout`) que se mata y se reintenta (`retry_after` 180 s). El *worker* termina solo cada hora (`--max-time=3600`) y `Restart=always` lo relanza con el código vigente; tras una migración que cambie el tipo de una columna, reiniciarlo (`SYSADMIN.md` §0 «Pendiente»). Los trabajos fallidos van a `failed_jobs` (§2.5) y los reintenta `REQ-BO`, no `queue:retry`.
 
 ## 3. Guardias (on-call)
 
@@ -212,21 +227,21 @@ Mismo mecanismo que el despliegue: bajar el *tag* a la versión anterior y reini
 
 ```bash
 ./infra/install.sh <tag-anterior> --user
-systemctl --user restart api@1.service web.service
+systemctl --user restart api@1.service web.service worker.service
 ```
 
 **Módulo `acad` (`1.11-b`)**: se revierte con la imagen anterior; sus migraciones **no** se revierten (aditivas; la versión anterior no usa las tablas y su `down()` borraría datos de estructura). El siguiente `platform:sync-registry` de la versión anterior marca `acad` y sus permisos con `retired_at` (concesiones inertes). Detalle en `SYSADMIN.md §2g` y `docs/modulos/REQ-ACAD/operacion.md §9`.
 
 **Períodos lectivos y validación del cambio de fechas (`1.11d-a`, `acad` + `curso`)**: la reversión es **conjunta** (un solo cambio de imagen) y también es «imagen anterior, migraciones sin revertir» (`REQ-ACAD/operacion.md §11.6`, `REQ-CURSO/operacion.md §9.2`):
 
-1. `./infra/install.sh <tag-anterior> --user` y reiniciar `api@1.service web.service`, como en el resto de pasos.
+1. `./infra/install.sh <tag-anterior> --user` y reiniciar `api@1.service web.service worker.service`, como en el resto de pasos.
 2. **No se ejecuta `migrate:rollback`**: la tabla `academic_periods` es aditiva y la versión anterior no la usa; su `down()` (`DROP TABLE`) borraría períodos configurados por los centros.
 3. Efectos de volver atrás: el `PATCH` de fechas de un curso deja de validar los períodos (los cambios hechos así pueden dejar períodos fuera de las fechas del curso, hay que revisarlos al volver a la versión nueva), `acad` deja de exigir `configuracion_academica` y `sync-registry` de la versión anterior marca sus cuatro códigos con `retired_at` (concesiones inertes); `acad:grant-structure-permissions` vuelve a sembrar solo los cuatro de `estructura_academica`. Una etapa con períodos podría borrarse (lógicamente) sin la regla `RN-ACAD-61`: sin daño de integridad, los períodos quedan huérfanos y la versión nueva los lee igualmente (la relación con la etapa usa `withTrashed()`).
 4. Al **volver a la versión nueva**: ejecutar `php artisan migrate --database=pgsql_owner --force` (las migraciones de este proyecto se aplican con la conexión propietaria; sin ella `TenantMigration` aborta con «debe ejecutarse dentro de una transacción de pgsql_owner» y la tabla puede quedar a medias: en ese caso, si está vacía, `DROP TABLE academic_periods` y repetir) y `php artisan acad:grant-structure-permissions` para recuperar las ocho concesiones.
 
 **Horarios y asignación docente (`1.12-a`, `acad`)**: también «imagen anterior, migraciones sin revertir» (`REQ-ACAD/operacion.md §12.5`).
 
-1. `./infra/install.sh <tag-anterior> --user` y reiniciar `api@1.service web.service`.
+1. `./infra/install.sh <tag-anterior> --user` y reiniciar `api@1.service web.service worker.service`.
 2. **No se ejecuta `migrate:rollback`**: las siete tablas nuevas (`facilities`, `timetables`, `teaching_assignments`, `group_tutors`, `timetable_frames`, `time_slots`, `timetable_sessions`) y los dos únicos de `group_subjects` y `subgroups` son aditivos; la versión anterior no los usa y su `down()` borraría el horario de los centros.
 3. Efectos de volver atrás: `sync-registry` de la versión anterior marca los permisos de `asignacion_docente`, `espacios` y `horarios` con `retired_at` (concesiones inertes); `RN-ACAD-96` deja de aplicarse, así que se podría borrar (lógicamente) un grupo, un subgrupo, una asignatura o una etapa con tutores, asignaciones o marcos vivos: huérfanos lógicos sin daño de integridad (FK `NO ACTION`, borrado lógico), que la versión nueva lee igualmente (las relaciones usan `withTrashed()`).
 4. Al **volver a la versión nueva**: `php artisan migrate --database=pgsql_owner --force`, `php artisan platform:sync-registry` y `php artisan acad:grant-structure-permissions` para recuperar las concesiones.
@@ -243,7 +258,7 @@ Es una operación de segundos porque cada versión es una imagen inmutable en GH
 
 **Reversión de `REQ-AUTH-003` (1.3)** (`docs/modulos/REQ-AUTH/operacion.md §C.11.2`):
 
-- **Drenar la cola `auth-mail` antes de revertir** — procedimiento documentado para cuando exista un *worker* real consumiéndola. **A día de hoy no hay ningún *worker* de colas desplegado** (issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128), `SYSADMIN.md`): los trabajos despachados a `auth-mail` quedan en la tabla `jobs` sin procesar, así que este procedimiento de drenado no se ha podido probar de extremo a extremo todavía. Los cinco trabajos de correo nuevos de 1.3 (código de segundo factor, código de alta, activación/desactivación, código de respaldo usado) no existen en la versión anterior: si queda alguno pendiente en la cola al revertir, un *worker* de la versión anterior fallaría por clase inexistente en cuanto se despliegue uno. `bo:purge-failed-jobs` (`REQ-BO`) limita el daño, pero drenar antes evita generarlo. Sustituye desde `1.6d` (2026-09-21) al comando del framework `queue:prune-failed`, que llevaba desde `0.7` sin poder borrar nada de verdad (apuntaba a la conexión sin privilegio de `DELETE` sobre `failed_jobs`) — si `failed_jobs` sigue creciendo sin límite pese a que el planificador diga que la purga corre a diario, comprobar que es `bo:purge-failed-jobs` el comando programado y no el antiguo (`docs/modulos/REQ-BO/operacion.md §6.2`, y §2.5 de este documento).
+- **Drenar la cola `auth-mail` antes de revertir** — con el *worker* real (`worker.container`, `queue:work` sobre el driver `database`; issue [#128](https://github.com/pirexia/plataforma-educativa/issues/128), §2.8) consumiendo la cola. Los cinco trabajos de correo nuevos de 1.3 (código de segundo factor, código de alta, activación/desactivación, código de respaldo usado) no existen en la versión anterior: si queda alguno pendiente al revertir, el *worker* de la versión anterior fallaría por clase inexistente. Procedimiento: (1) con el *worker* nuevo aún en marcha, esperar a que no quede ni un trabajo de esa cola: `podman exec plataforma-api php artisan tinker --execute='echo DB::table("jobs")->where("queue","auth-mail")->count();'` debe dar `0` (cuenta también los reservados y los retrasados por reintento); (2) comprobar `php artisan core:queue-health` (código de salida 0); (3) solo entonces cambiar el *tag* de `api@1` **y** de `worker` a la versión anterior. Si hay que revertir con la cola sin vaciar (el *worker* está caído o el correo falla), purgar a mano lo pendiente de `auth-mail` por `pgsql_owner` antes de arrancar la versión anterior — esos correos (códigos de un solo uso, ya caducados) no se pueden reenviar. `bo:purge-failed-jobs` (`REQ-BO`) limita el daño de lo que ya haya fallado, pero drenar antes evita generarlo. Sustituye desde `1.6d` (2026-09-21) al comando del framework `queue:prune-failed`, que llevaba desde `0.7` sin poder borrar nada de verdad (apuntaba a la conexión sin privilegio de `DELETE` sobre `failed_jobs`) — si `failed_jobs` sigue creciendo sin límite pese a que el planificador diga que la purga corre a diario, comprobar que es `bo:purge-failed-jobs` el comando programado y no el antiguo (`docs/modulos/REQ-BO/operacion.md §6.2`, y §2.5 de este documento). **Probado** (2026-10-20, entorno de desarrollo): encolar un trabajo real, comprobar que `core:queue-health` pasa a fallar al envejecerlo y que el *worker* lo consume y deja la tabla `jobs` en `0` (resultado literal en `CHANGELOG.md`); **no probado** el cambio de *tag* de la unidad Quadlet del *worker* en un servidor, por el mismo motivo que 3b.2.
 - **Revertir con factores MFA ya dados de alta es una degradación silenciosa de seguridad, no una pérdida de datos.** La versión anterior ignora `user_mfa_factors` y hace login de un solo paso: los usuarios que activaron MFA dejan de tener segundo factor **sin que nadie se lo diga**. No se pierde nada — las filas siguen ahí y vuelven a valer al desplegar 1.3 de nuevo — pero mientras dura la reversión, cuentas que un momento antes exigían dos factores solo exigen uno. Hay que saberlo antes de decidir revertir, no descubrirlo después.
 - La migración del `CHECK` ampliado de `login_attempts` es de un solo sentido en la práctica (tabla *append-only*, sin `DELETE`): revertir la aplicación **no** exige revertir esa migración.
 
@@ -251,6 +266,7 @@ Es una operación de segundos porque cada versión es una imagen inmutable en GH
 
 ### 3b.4 Notas operativas de las unidades Quadlet
 
+- **`worker.container`** (issue #128): una sola instancia del *worker* de colas, misma imagen que la API, con su propio fichero de entorno `plataforma-worker.env` (plantilla `infra/quadlet/plataforma-worker.env.example`) y `NoNewPrivileges`/`DropCapability=ALL`. `systemctl --user restart worker.service` para reiniciarlo; al pararlo espera hasta 130 s a que acabe el trabajo en curso (`StopTimeout`). Al cambiar de versión (despliegue o reversión) se cambia el *tag* de `worker` junto con el de `api@N`. Diagnóstico: §2.8.
 - **Nunca `systemctl stop plataforma.network`** salvo desmantelamiento completo: es la misma regla que `podman compose down` en desarrollo (`ADR-028 §2`), aplicada a la unidad de red de Quadlet.
 - La segunda réplica de la API (`api@2`) existe como plantilla ya escrita pero **no se activa** hasta que haya tráfico real (`ADR-037 §6.4`): `systemctl --user enable --now api@2.service` cuando corresponda, sin cambios de fichero.
 - El proxy de socket delante de Traefik (`ADR-037 §6.3`) es una tarea de `0.10e`, no de hoy: mientras tanto el socket de Podman está montado de solo lectura y el entorno no tiene datos reales.

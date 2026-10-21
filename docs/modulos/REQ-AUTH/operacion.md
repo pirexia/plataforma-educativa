@@ -87,7 +87,7 @@ Reglas de los trabajos, heredadas de `ADR-033 §8` y de lo aprendido en 1.1:
 - `SendPasswordChangedEmail` **no** lleva token: es un aviso, sin enlace accionable. Es la única defensa que tiene un usuario contra un cambio de contraseña que no hizo él.
 - Los tres trabajos de purga se ejecutan **por tenant** con `RunsPerTenant`, no en una pasada global sin contexto.
 - `PurgeLoginAttempts` **se ejecuta con el rol propietario**: `tenantTableAppendOnly()` revoca `DELETE` a `plataforma_app` y a `plataforma_platform` (`datos.md §A.9`). Es la misma mecánica que la purga de `audit_logs` de `REQ-PRIV-006`, y si se implementa con el rol de aplicación **fallará en silencio con cero filas borradas**, que es exactamente el síntoma de §9.
-- El *scheduler* corre en su propio contenedor, no en el de la API (`ADR-037`).
+- El *scheduler* debe correr en su propio contenedor, no en el de la API (`ADR-037`), pero **no hay servicio de planificador todavía, [#453](https://github.com/pirexia/plataforma-educativa/issues/453)**: las tareas de `routes/console.php` no se ejecutan hasta que exista.
 
 ### 4.1 Qué borra cada purga
 
@@ -284,7 +284,7 @@ Reglas de estos cuatro, además de las de §4 que siguen aplicando:
 - **Si la fila de la sesión ya no existe cuando el trabajo se ejecuta** —el usuario la revocó en los segundos siguientes—, el correo **se envía igualmente** con la información que quede del dispositivo. Avisar de un acceso que ya se cerró sigue siendo información útil; no avisar porque el propio usuario reaccionó rápido sería perder el aviso justo en el caso en que hubo reacción.
 - Los tres trabajos de mantenimiento se ejecutan **por tenant** con `RunsPerTenant`, como los de §4.
 - **Ninguno necesita el rol propietario.** `user_sessions` y `user_known_devices` son tablas de tenant ordinarias, sin el `REVOKE DELETE` de `tenantTableAppendOnly()`. Es la diferencia con `PurgeLoginAttempts`, cuyo modo de fallo característico —«corre sin errores y no borra nada»— **no puede darse aquí** (§9).
-- El *scheduler* corre en su propio contenedor, no en el de la API (`ADR-037`).
+- El *scheduler* debe correr en su propio contenedor, no en el de la API (`ADR-037`), pero **no hay servicio de planificador todavía, [#453](https://github.com/pirexia/plataforma-educativa/issues/453)**: las tareas de `routes/console.php` no se ejecutan hasta que exista.
 
 ### B.3.1 Qué hace cada tarea de mantenimiento
 
@@ -494,7 +494,7 @@ Las ocho guardas de §2.2 siguen en vigor sin modificación. Una de ellas gana p
 
 **Los tres avisos (`Enabled`, `Disabled`, `RecoveryCodeUsed`) no llevan token, código ni enlace accionable** (`RN-AUTH-50`). Son la única defensa del titular ante un cambio que no hizo él.
 
-Reglas heredadas que siguen aplicando sin excepción: contexto de tenant por el mecanismo de framework (`ADR-033 §8`), purgas **por tenant** con `RunsPerTenant`, *scheduler* en su propio contenedor (`ADR-037`).
+Reglas heredadas que siguen aplicando sin excepción: contexto de tenant por el mecanismo de framework (`ADR-033 §8`), purgas **por tenant** con `RunsPerTenant`, *scheduler* en su propio contenedor (`ADR-037`; no hay servicio de planificador todavía, #453).
 
 ### C.4.1 Qué hace cada tarea de mantenimiento
 
@@ -1003,7 +1003,7 @@ Lo que sí hay que custodiar como secreto nuevo es `AUTH_GOOGLE_CLIENT_SECRET`, 
 
 **Ninguna tarea de mantenimiento nueva**, y es una diferencia real con 1.3 y 1.3b. Este paso **no crea ningún artefacto transitorio en base de datos que purgar**: el `state` y el verificador PKCE viven en el *payload* de la sesión y mueren con ella, que ya tiene su propio ciclo. `user_identities` no tiene filas provisionales.
 
-Reglas heredadas que siguen aplicando sin excepción: contexto de tenant entrado y salido por el mecanismo de framework, ejecución por tenant con `RunsPerTenant` donde proceda, y el *scheduler* en su propio contenedor (`ADR-037`).
+Reglas heredadas que siguen aplicando sin excepción: contexto de tenant entrado y salido por el mecanismo de framework, ejecución por tenant con `RunsPerTenant` donde proceda, y el *scheduler* en su propio contenedor (`ADR-037`; no hay servicio de planificador todavía, #453).
 
 **Los dos correos nuevos no llevan token ni enlace accionable** (`RN-AUTH-97`), así que —a diferencia de `SendPasswordResetEmail` y `SendAccountLockedEmail`— **no necesitan `ShouldBeEncrypted`** (issue [#73](https://github.com/pirexia/plataforma-educativa/issues/73)): su *payload* no contiene material de credencial. Sí contiene el correo del destinatario, como todos los del módulo.
 
