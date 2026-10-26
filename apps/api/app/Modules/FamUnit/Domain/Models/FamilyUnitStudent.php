@@ -18,6 +18,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * ADR-035: `Full`. Solo ids internos. Escrituras por instancia, nunca masivas (AR-15). Los demás módulos no usan este
  * modelo (AR-01): la escritura de otros módulos (`REQ-ALUM`, 1.15) es por `FamilyUnitStudents` (`funcional.md §7.4`).
+ *
+ * @mixin IdeHelperFamilyUnitStudent
  */
 class FamilyUnitStudent extends TenantModel implements Auditable
 {

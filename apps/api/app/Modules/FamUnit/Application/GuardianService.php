@@ -50,22 +50,22 @@ final class GuardianService
     }
 
     /**
-     * @param  array{family_unit?: list<string>, user?: list<string>, sort?: string}  $filters
+     * @param  array{family_unit: list<string>, user: list<string>, sort: string}  $filters
      * @return Builder<Guardian>
      */
     public function listing(PermissionDecision $decision, User $subject, array $filters): Builder
     {
         $query = $this->scopedQuery->constrain(Guardian::query()->with('familyUnit'), 'familia', $decision, $subject);
 
-        if (($filters['family_unit'] ?? []) !== []) {
-            $query->whereHas('familyUnit', fn (Builder $q) => $q->whereIn('public_id', $filters['family_unit'] ?? []));
+        if ($filters['family_unit'] !== []) {
+            $query->whereHas('familyUnit', fn (Builder $q) => $q->whereIn('public_id', $filters['family_unit']));
         }
 
-        if (($filters['user'] ?? []) !== []) {
+        if ($filters['user'] !== []) {
             // Un `public_id` de usuario inexistente o de otro centro no coincide con nada (`api.md §3`).
             $personIds = [];
 
-            foreach ($filters['user'] ?? [] as $userPublicId) {
+            foreach ($filters['user'] as $userPublicId) {
                 $ref = $this->people->findUserByPublicId($userPublicId);
 
                 if ($ref !== null) {
@@ -76,7 +76,7 @@ final class GuardianService
             $query->whereIn('person_id', $personIds);
         }
 
-        $direction = str_starts_with($filters['sort'] ?? 'created_at', '-') ? 'desc' : 'asc';
+        $direction = str_starts_with($filters['sort'], '-') ? 'desc' : 'asc';
 
         return $query->orderBy('created_at', $direction)->orderBy('id');
     }

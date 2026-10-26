@@ -132,7 +132,12 @@ abstract class FamUnitRequest extends ApiFormRequest
         return array_values(array_unique($value));
     }
 
-    /** Lanza `422 not_editable` si el cuerpo trae alguno de esos campos. */
+    /**
+     * Acumula un error `$code` por cada uno de esos campos que el cuerpo traiga (`not_editable`).
+     *
+     * @param  array<string, mixed>  $body
+     * @param  list<string>  $fields
+     */
     protected function rejectFields(array $body, array $fields, string $code, ValidationErrorBag $errors): void
     {
         foreach ($fields as $field) {

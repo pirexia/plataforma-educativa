@@ -2007,6 +2007,155 @@ components:
           items: { type: string }
           example: [comedor.reserva_v2, acad.horario_beta]
 
+    # REQ-FAM-UNIT (paso 1.14-a), docs/modulos/REQ-FAM-UNIT/api.md §1. Enumerados extensibles (ADR-038 §7.3).
+    GuardianRelationship:
+      type: string
+      description: >
+        Tipo de relación del tutor con el alumno (REQ-FAM-UNIT `OPEN-FAM-UNIT-07`). Enumerado **extensible**
+        (ADR-038 §7.3): los clientes tratan un valor desconocido mostrando el código en crudo.
+      enum: [padre, madre, tutor_legal, abuelo, apoderado, otro]
+      x-extensible-enum: true
+
+    GuardianAccessLevel:
+      type: string
+      description: >
+        Nivel de acceso del tutor (REQ-FAM-UNIT-001). Enumerado **extensible**. En `1.14-a` no tiene efecto sobre
+        los recursos del módulo (`OPEN-FAM-UNIT-04`): lo aplican los módulos que tengan algo que escribir.
+      enum: [lectura, lectura_escritura]
+      x-extensible-enum: true
+
+    GuardianRestrictedCategory:
+      type: string
+      description: >
+        Categoría de información que se restringe a un tutor (REQ-FAM-UNIT-002, `OPEN-FAM-UNIT-07`). Hoy solo
+        `salud`. Enumerado **extensible**.
+      enum: [salud]
+      x-extensible-enum: true
+
+    GuardianLinkStatus:
+      type: string
+      description: >
+        Estado del vínculo. `revocado`: el tutor pierde el acceso a ese alumno por resolución judicial sin
+        afectar al resto (REQ-FAM-UNIT-002). Enumerado **extensible**.
+      enum: [activo, revocado]
+      x-extensible-enum: true
+
+    GuardianRevocationReason:
+      type: string
+      description: Motivo de revocación (`OPEN-FAM-UNIT-07`). Hoy solo `resolucion_judicial`. Enumerado **extensible**.
+      enum: [resolucion_judicial]
+      x-extensible-enum: true
+
+    FamilyUnit:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §1.1. Para un sujeto con ámbito `unidad_familiar`, `students_count` cuenta solo los
+        alumnos que alcanza y `guardians_count` solo los tutores con vínculo activo con ellos (RN-FAM-UNIT-36).
+        `deleted_at` solo aparece en una unidad dada de baja (listado con `include_deleted`).
+      required: [public_id, code, principal_guardian, guardians_count, students_count, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        code: { type: string, minLength: 1, maxLength: 40, example: 'UF-000123' }
+        principal_guardian:
+          description: '`public_id` del tutor principal, o `null` (RN-FAM-UNIT-02, RN-FAM-UNIT-12, RN-FAM-UNIT-38).'
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        guardians_count: { type: integer, minimum: 0 }
+        students_count: { type: integer, minimum: 0 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time }
+
+    Guardian:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §1.2. Faceta de tutor de una persona (ADR-034 §1). **Nunca** correo, teléfono ni
+        documento: son de `Core` y se consultan allí con su permiso (OPEN-FAM-UNIT-20). `display_name` va vacío si
+        el usuario está dado de baja (OPEN-FAM-UNIT-16).
+      required: [public_id, family_unit, user, display_name, is_principal, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        family_unit: { $ref: '#/components/schemas/PublicId' }
+        user:
+          description: '`public_id` del usuario del tutor.'
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        display_name: { type: string }
+        is_principal: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    FamilyUnitStudent:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §1.3. Pertenencia de un alumno a una unidad. El alumno se nombra por el `public_id`
+        de su **persona** (OPEN-FAM-UNIT-01).
+      required: [public_id, family_unit, student_person, display_name, created_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        family_unit: { $ref: '#/components/schemas/PublicId' }
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        display_name: { type: string }
+        created_at: { type: string, format: date-time }
+
+    GuardianLinkRevocation:
+      type: object
+      description: >
+        Detalle de la revocación (REQ-FAM-UNIT/api.md §1.4). Solo se incluye si el sujeto tiene
+        `revocacion_tutor.leer`; un sujeto con ámbito `unidad_familiar` nunca recibe vínculos revocados (RN-FAM-UNIT-36).
+        Sin texto libre a propósito: el detalle de la resolución no vive aquí.
+      required: [reason, revoked_at, revoked_by]
+      properties:
+        reason: { $ref: '#/components/schemas/GuardianRevocationReason' }
+        revoked_at: { type: string, format: date-time }
+        revoked_by:
+          description: '`public_id` del usuario que revocó.'
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+
+    GuardianStudentLink:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §1.4. Vínculo tutor ↔ alumno. Puede cruzar unidades (C2). `revocation` solo se incluye
+        con `revocacion_tutor.leer` (`null` si el vínculo está activo); sin el permiso, el campo se omite.
+      required: [public_id, guardian, student_person, relationship, is_legal_guardian, legal_guardian_verified_at, access_level, restricted_categories, is_emergency_contact, status, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        guardian: { $ref: '#/components/schemas/PublicId' }
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        relationship: { $ref: '#/components/schemas/GuardianRelationship' }
+        is_legal_guardian: { type: boolean, description: 'Representación legal verificada por el centro (patria potestad o tutela). Marcarla rellena la verificación.' }
+        legal_guardian_verified_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        access_level: { $ref: '#/components/schemas/GuardianAccessLevel' }
+        restricted_categories:
+          type: array
+          items: { $ref: '#/components/schemas/GuardianRestrictedCategory' }
+        is_emergency_contact: { type: boolean, description: 'Como mucho uno por alumno entre los vínculos activos (RN-FAM-UNIT-31).' }
+        status: { $ref: '#/components/schemas/GuardianLinkStatus' }
+        revocation:
+          oneOf:
+            - { $ref: '#/components/schemas/GuardianLinkRevocation' }
+            - { type: 'null' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    GuardianLinkRevoked:
+      description: 'Respuesta de `POST /guardian-links/{publicId}/revocation`: el vínculo con `revocation` y `principal_cleared` (RN-FAM-UNIT-38).'
+      allOf:
+        - { $ref: '#/components/schemas/GuardianStudentLink' }
+        - type: object
+          required: [principal_cleared]
+          properties:
+            principal_cleared:
+              type: boolean
+              description: '`true` si era el último vínculo activo del tutor principal con alumnos de su unidad y la unidad queda sin principal.'
+
     PublicId:
       type: string
       format: ulid
@@ -2090,6 +2239,22 @@ components:
         type: string
         enum: [code, -code]
         default: code
+    FamilyUnitSortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada; desempate por `id`.
+      schema:
+        type: string
+        enum: [code, -code, created_at, -created_at]
+        default: code
+    FamUnitCreatedAtSortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada; desempate por `id`.
+      schema:
+        type: string
+        enum: [created_at, -created_at]
+        default: created_at
     PageParam:
       name: page
       in: query

@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\UserStatus;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 
@@ -26,6 +27,9 @@ final class FamUnitTestHelpers
      */
     public static function setup(string $slug): array
     {
+        // Sin sesión del centro anterior: `created_by` se toma del usuario autenticado (FK compuesta con el tenant).
+        resetSessionState();
+
         [$tenant, $admin] = provisionCoreTenant($slug);
         contractModule($tenant, 'fam_unit');
 
@@ -35,6 +39,15 @@ final class FamUnitTestHelpers
     public static function url(object $tenant, string $path): string
     {
         return coreApiUrl($tenant->slug, $path);
+    }
+
+    /** Descontrata `fam_unit` del centro (`module_subscriptions` solo la escribe la plataforma) y olvida la caché. */
+    public static function disableModule(object $tenant): void
+    {
+        app(TenantContext::class)->runFor($tenant->id, function (): void {
+            DB::connection('pgsql_platform')->table('module_subscriptions')->where('module_code', 'fam_unit')->update(['enabled' => false]);
+            Cache::forget('modules:fam_unit:enabled');
+        });
     }
 
     /** Persona sintética (el alumno de prueba) creada por el modelo en el contexto del centro. */

@@ -63,24 +63,24 @@ final class GuardianLinkService
     {
         $query = $this->scopedQuery->constrain(GuardianStudentLink::query()->with('guardian'), 'vinculo_tutor', $decision, $subject);
 
-        if (($filters['guardian'] ?? []) !== []) {
-            $query->whereHas('guardian', fn (Builder $q) => $q->whereIn('public_id', $filters['guardian'] ?? []));
+        if ($filters['guardian'] !== []) {
+            $query->whereHas('guardian', fn (Builder $q) => $q->whereIn('public_id', $filters['guardian']));
         }
 
-        if (($filters['family_unit'] ?? []) !== []) {
-            $query->whereHas('guardian.familyUnit', fn (Builder $q) => $q->whereIn('public_id', $filters['family_unit'] ?? []));
+        if ($filters['family_unit'] !== []) {
+            $query->whereHas('guardian.familyUnit', fn (Builder $q) => $q->whereIn('public_id', $filters['family_unit']));
         }
 
         if (array_key_exists('student_person', $filters)) {
             $query->whereIn('student_person_id', $filters['student_person']);
         }
 
-        if (($filters['status'] ?? []) !== []) {
-            $query->whereIn('status', $filters['status'] ?? []);
+        if ($filters['status'] !== []) {
+            $query->whereIn('status', $filters['status']);
         }
 
         foreach (['is_emergency_contact', 'is_legal_guardian'] as $flag) {
-            if (($filters[$flag] ?? null) !== null) {
+            if ($filters[$flag] !== null) {
                 $query->where($flag, $filters[$flag]);
             }
         }
@@ -121,7 +121,7 @@ final class GuardianLinkService
                 'relationship' => $input['relationship'],
                 'is_legal_guardian' => $input['is_legal_guardian'],
                 'access_level' => $input['access_level'],
-                'restricted_categories' => array_values($input['restricted_categories']),
+                'restricted_categories' => $input['restricted_categories'],
                 'is_emergency_contact' => $input['is_emergency_contact'],
                 'status' => 'activo',
             ]);
@@ -155,7 +155,7 @@ final class GuardianLinkService
             }
 
             if (array_key_exists('restricted_categories', $input)) {
-                $link->restricted_categories = array_values($input['restricted_categories']);
+                $link->restricted_categories = $input['restricted_categories'];
             }
 
             if (array_key_exists('is_legal_guardian', $input) && $input['is_legal_guardian'] !== (bool) $link->is_legal_guardian) {

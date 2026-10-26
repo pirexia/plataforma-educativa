@@ -27,7 +27,7 @@ class GuardianResource extends JsonResource
             'public_id' => $this->public_id,
             'family_unit' => $this->familyUnit?->public_id,
             'user' => $user?->userPublicId,
-            'display_name' => $user?->displayName ?? '',
+            'display_name' => $user === null ? '' : $user->displayName,
             'is_principal' => $this->familyUnit !== null && (int) $this->familyUnit->principal_guardian_id === (int) $this->id,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

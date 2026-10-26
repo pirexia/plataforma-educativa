@@ -19,6 +19,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *
  * ADR-035: `Full`. Solo ids internos y la unidad, ningún dato personal. Escrituras por instancia, nunca masivas
  * (AR-15). Los demás módulos no usan este modelo (AR-01).
+ *
+ * @mixin IdeHelperGuardian
  */
 class Guardian extends TenantModel implements Auditable
 {

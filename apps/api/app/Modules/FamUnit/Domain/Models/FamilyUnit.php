@@ -19,6 +19,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * autoría; `code` se redacta como `identifier` (un código de familia identifica indirectamente a una familia
  * concreta, `datos.md §4`). Escrituras por instancia, nunca masivas (AR-15). Los demás módulos no usan este modelo
  * (AR-01): el acceso es por las interfaces de `FamUnit\Domain` (`FamilyMembership`, `funcional.md §7`).
+ *
+ * @mixin IdeHelperFamilyUnit
  */
 class FamilyUnit extends TenantModel implements Auditable
 {

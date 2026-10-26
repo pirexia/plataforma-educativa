@@ -25,7 +25,7 @@ class FamilyUnitStudentResource extends JsonResource
             'public_id' => $this->public_id,
             'family_unit' => $this->familyUnit?->public_id,
             'student_person' => $person?->publicId,
-            'display_name' => $person?->displayName ?? '',
+            'display_name' => $person === null ? '' : $person->displayName,
             'created_at' => $this->created_at,
         ];
     }
