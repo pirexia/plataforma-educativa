@@ -387,3 +387,40 @@ test('CA-FAM-UNIT-048 RN-FAM-UNIT-40: quien tiene vinculo_tutor.leer con ámbito
     $asAdmin = Fam::call($f['tenant'], $f['admin'], 'get', "/family-units/{$f['unit']}")->assertOk()->json();
     expect($asPlain['students_count'])->toBe(2)->and($asPlain['guardians_count'])->toBe(2)->and($asPlain)->toEqual($asAdmin);
 });
+
+test('CA-FAM-UNIT-049 RN-FAM-UNIT-40 (#472): sin revocacion_tutor.leer, PATCH, DELETE y revocación de un vínculo revocado son 404 indistinguibles de uno inexistente; con el permiso siguen el flujo normal; el levantamiento no se oculta a quien puede levantar', function (): void {
+    $f = custodyFamily('rv-049');
+    revoke($f, $f['links']['p1'])->assertOk();
+    $link = $f['links']['p1'];
+    $missing = '01JZZZZZZZZZZZZZZZZZZZZZZZ';
+
+    $writer = Fam::userWith($f['tenant'], $f['admin'], 'escritor', ['vinculo_tutor.leer' => 'todos', 'vinculo_tutor.actualizar' => 'todos', 'vinculo_tutor.eliminar' => 'todos', 'revocacion_tutor.crear' => 'todos']);
+    $reader = Fam::userWith($f['tenant'], $f['admin'], 'lector', ['vinculo_tutor.leer' => 'todos', 'vinculo_tutor.actualizar' => 'todos', 'vinculo_tutor.eliminar' => 'todos', 'revocacion_tutor.crear' => 'todos', 'revocacion_tutor.leer' => 'todos']);
+    $lifter = Fam::userWith($f['tenant'], $f['admin'], 'levantador', ['revocacion_tutor.eliminar' => 'todos']);
+
+    $strip = fn ($r) => Arr::except($r->json(), ['instance', 'request_id']);
+    $calls = [
+        ['patch', fn ($id) => "/guardian-links/{$id}", ['access_level' => 'lectura_escritura']],
+        ['delete', fn ($id) => "/guardian-links/{$id}", []],
+        ['post', fn ($id) => "/guardian-links/{$id}/revocation", ['reason' => 'resolucion_judicial']],
+    ];
+
+    foreach ($calls as [$method, $path, $body]) {
+        $real = Fam::call($f['tenant'], $writer, $method, $path($link), $body)->assertNotFound();
+        $none = Fam::call($f['tenant'], $writer, $method, $path($missing), $body)->assertNotFound();
+        expect($strip($real))->toBe($strip($none), "{$method} sin revocacion_tutor.leer");
+    }
+
+    expect(Fam::row($f['tenant'], 'guardian_student_links', $link)->access_level)->toBe('lectura');
+
+    // Con el permiso, el flujo de siempre: PATCH 200, DELETE 409 revoked_not_deletable, revocar de nuevo 409 invalid_transition.
+    Fam::call($f['tenant'], $reader, 'patch', "/guardian-links/{$link}", ['access_level' => 'lectura_escritura'])->assertOk();
+    expect(Fam::call($f['tenant'], $reader, 'delete', "/guardian-links/{$link}")->assertStatus(409)->json('errors.status.0.code'))->toBe('fam_unit.link.revoked_not_deletable')
+        ->and(Fam::call($f['tenant'], $reader, 'post', "/guardian-links/{$link}/revocation", ['reason' => 'resolucion_judicial'])->assertStatus(409)->json('errors.status.0.code'))->toBe('fam_unit.link.invalid_transition');
+
+    // Un vínculo activo no se oculta a nadie.
+    Fam::call($f['tenant'], $writer, 'patch', "/guardian-links/{$f['links']['p2']}", ['access_level' => 'lectura_escritura'])->assertOk();
+
+    // Levantar es justo sobre un revocado: quien tiene revocacion_tutor.eliminar puede, aunque no pueda leerlo.
+    Fam::call($f['tenant'], $lifter, 'delete', "/guardian-links/{$link}/revocation")->assertOk()->assertJsonPath('status', 'activo');
+});

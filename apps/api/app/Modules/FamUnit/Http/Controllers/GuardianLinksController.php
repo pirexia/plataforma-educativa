@@ -85,16 +85,16 @@ class GuardianLinksController extends FamUnitController
     public function update(UpdateGuardianLinkRequest $request, string $publicId, GuardianLinkService $service, FamilyRefs $refs, PermissionResolver $permissions): GuardianStudentLinkResource
     {
         $actor = $this->actor($request);
-        $service->find($publicId);
+        $service->find($publicId, $actor);
         $link = $service->update($publicId, $request->payload(), $actor);
         $refs->showRevocation($permissions->decide($actor, 'revocacion_tutor.leer')->permitted);
 
         return new GuardianStudentLinkResource($link);
     }
 
-    public function destroy(string $publicId, GuardianLinkService $service): Response
+    public function destroy(Request $request, string $publicId, GuardianLinkService $service): Response
     {
-        $service->find($publicId);
+        $service->find($publicId, $this->actor($request));
         $service->delete($publicId);
 
         return response()->noContent();

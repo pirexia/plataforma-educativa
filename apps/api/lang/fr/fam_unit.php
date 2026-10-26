@@ -40,6 +40,10 @@ return [
         'revoked_not_deletable' => 'Un lien révoqué ne peut pas être supprimé : levez d\'abord la révocation.',
     ],
 
+    'errors' => [
+        'revocation_rate_limited' => 'Vous avez atteint la limite de révocations ou de levées de révocation. Réessayez dans environ :minutes minutes.',
+    ],
+
     'validation' => [
         'user_not_found' => 'L\'utilisateur indiqué n\'existe pas.',
         'student_not_found' => 'L\'élève indiqué n\'existe pas.',

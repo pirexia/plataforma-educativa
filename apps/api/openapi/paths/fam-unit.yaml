@@ -591,7 +591,8 @@ paths:
       description: >
         Permiso `vinculo_tutor.eliminar`. Baja **no judicial** del vínculo (RN-FAM-UNIT-04); una retirada por resolución judicial es una
         revocación. Un vínculo `revocado` no se da de baja: `409 fam_unit.link.revoked_not_deletable` (RN-FAM-UNIT-39); la revocación se levanta
-        antes por su recurso.
+        antes por su recurso. Un vínculo `revocado` sin `revocacion_tutor.leer` es `404` (RN-FAM-UNIT-40), también en `PATCH`, `DELETE` y en
+        la revocación.
       tags: ['FamUnit / Vínculos']
       security: [{ SessionCookie: [] }]
       responses:
@@ -617,6 +618,7 @@ paths:
         Quita la marca de contacto de emergencia en la misma transacción. `principal_cleared` indica que era el último
         vínculo activo del tutor principal con alumnos de su unidad y la unidad queda sin principal (RN-FAM-UNIT-38).
         `409 fam_unit.link.invalid_transition` si ya estaba revocado (sin `Idempotency-Key`: se interpreta como «ya estaba»).
+        Límite de 30 intentos por hora por centro y usuario (`429`, RN-FAM-UNIT-66).
       tags: ['FamUnit / Vínculos']
       security: [{ SessionCookie: [] }]
       requestBody:
@@ -638,6 +640,7 @@ paths:
         '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
     delete:
       operationId: liftGuardianLinkRevocation
@@ -645,7 +648,8 @@ paths:
       description: >
         Permiso `revocacion_tutor.eliminar`. Devuelve el vínculo `revocado` a `activo` (nueva resolución) y vacía motivo,
         fecha y autor de la revocación; el histórico de las dos transiciones queda en `audit_logs`. No devuelve la marca de
-        contacto de emergencia. `409 fam_unit.link.invalid_transition` si no estaba revocado.
+        contacto de emergencia. `409 fam_unit.link.invalid_transition` si no estaba revocado. Límite de 30 intentos por hora por centro y
+        usuario, con un cubo propio (`429`, RN-FAM-UNIT-66).
       tags: ['FamUnit / Vínculos']
       security: [{ SessionCookie: [] }]
       responses:
@@ -658,3 +662,4 @@ paths:
         '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }

@@ -42,10 +42,17 @@ final class GuardianLinkService
         private readonly PermissionResolver $permissions,
     ) {}
 
-    /** Detalle sin acotar por ámbito (escrituras): `404` si no existe o es de otro centro. */
-    public function find(string $publicId): GuardianStudentLink
+    /**
+     * Detalle sin acotar por ámbito (escrituras): `404` si no existe o es de otro centro. Misma regla que el listado y el
+     * detalle (`RN-FAM-UNIT-40`, #472): sin `revocacion_tutor.leer`, un vínculo `revocado` es `404`, indistinguible de uno
+     * inexistente. `$forLift` (solo el levantamiento, que se autoriza con `revocacion_tutor.eliminar` en la ruta): el
+     * revocado es justo su objetivo, así que no se oculta.
+     */
+    public function find(string $publicId, User $actor, bool $forLift = false): GuardianStudentLink
     {
-        return GuardianStudentLink::query()->with('guardian')->where('public_id', $publicId)->firstOrFail();
+        $query = GuardianStudentLink::query()->with('guardian')->where('public_id', $publicId);
+
+        return ($forLift ? $query : $this->hideRevokedWithoutPermission($query, $actor))->firstOrFail();
     }
 
     /** `404` si no existe, es de otro centro o el sujeto no lo alcanza (un vínculo revocado nunca, `RN-FAM-UNIT-36`). */

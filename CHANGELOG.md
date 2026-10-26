@@ -6,6 +6,15 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-27 · Bajas de `1.14-a` (issues #472 y #469; rama `fix/REQ-FAM-UNIT-bajas-1-14a`)
+
+- **#472**: `GuardianLinkService::find()` (PATCH, DELETE y revocación) aplica la misma regla que el listado y el detalle (`RN-FAM-UNIT-40`): sin `revocacion_tutor.leer`, un vínculo revocado es `404` indistinguible de uno inexistente; el levantamiento queda exento. `CA-FAM-UNIT-049`.
+- **#469**: migración aditiva `2026_10_27_100100_add_principal_guardian_same_unit_foreign_key` (único `(tenant_id, family_unit_id, id)` en `guardians`, FK compuesta de `family_units` y su índice; `CONCURRENTLY`, `NOT VALID` + `VALIDATE`, `MATCH SIMPLE` para que el principal `NULL` siga permitido): el motor garantiza `RN-FAM-UNIT-02`. Requiere `db-reviewer`. `datos.md §1.1`.
+- **#470 resuelta parcialmente** (decisión del usuario, 2026-10-27): contador al estilo `RolloverRateLimit` (`RevocationRateLimit`, `config/fam_unit.php`, 30 intentos por hora por centro y usuario, un cubo por acción, `429` con `Retry-After` y texto en los cuatro idiomas) **solo** en revocar y levantar la revocación (`RN-FAM-UNIT-66`, `CA-FAM-UNIT-050`). Lecturas y demás escrituras, sin límite; `api.md` ya no promete un `429` general. El limitador global de la API es un paso transversal aparte.
+- **Revisión de `db-reviewer` de la migración #469**: `up()` reintentable y no destructivo, `lock_timeout` de 5 s con restablecimiento, tests de recuperación (`VALIDATE` fallido sobre fila infractora, índice `INVALID` residual). Seguimiento propuesto: matizar `AR-16` (el índice `family_units (tenant_id, id, principal_guardian_id)` existe solo para cumplirla, `datos.md §7`). Deuda de *contract*: la FK antigua del principal y su índice se retiran dos versiones después.
+
+---
+
 ## 2026-10-26 · `1.14-a`: implementación de unidades familiares, tutores, vínculos y revocación (`REQ-FAM-UNIT-001`/`-002`, rama `feature/REQ-FAM-UNIT-1-14a-unidades-tutores`)
 
 - **Implementación** de la entrega `1.14-a` de la especificación aprobada, sin recortar ni ampliar alcance: módulo `fam_unit` (`apps/api/app/Modules/FamUnit/`), cuatro tablas con RLS y claves foráneas compuestas (`family_units`, `guardians`, `family_unit_students`, `guardian_student_links`), 21 *endpoints* (`api.md §2.1` a `§2.5`), revocación por custodia con efecto inmediato y sin caché, resolutor del ámbito `unidad_familiar` por vínculos activos (`familia` y `vinculo_tutor`, entran en el mapa cerrado de `AR-10`), interfaces públicas `FamilyMembership`, `GuardianRecipients` y `FamilyUnitStudents`, once permisos con su siembra (`FAMILY_PERMISSION_*`, comando `fam_unit:grant-permissions`) y `PersonDirectory` en `Core\Domain` (`OPEN-FAM-UNIT-03`). Fuera de esta entrega: consentimiento de imagen (`1.14-b`), condiciones de uso y muro (`1.14-c`), detalle de custodia (espera ADR) y **todas las pantallas** (`funcional.md §15`, D-9).

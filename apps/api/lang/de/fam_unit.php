@@ -40,6 +40,10 @@ return [
         'revoked_not_deletable' => 'Eine entzogene Verknüpfung kann nicht gelöscht werden: Heben Sie zuerst den Entzug auf.',
     ],
 
+    'errors' => [
+        'revocation_rate_limited' => 'Das Limit für Entzüge oder Aufhebungen von Entzügen wurde erreicht. Versuche es in etwa :minutes Minuten erneut.',
+    ],
+
     'validation' => [
         'user_not_found' => 'Der angegebene Benutzer existiert nicht.',
         'student_not_found' => 'Der angegebene Schüler existiert nicht.',

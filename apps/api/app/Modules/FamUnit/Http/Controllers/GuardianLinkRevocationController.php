@@ -4,6 +4,7 @@ namespace App\Modules\FamUnit\Http\Controllers;
 
 use App\Modules\FamUnit\Application\FamilyRefs;
 use App\Modules\FamUnit\Application\GuardianLinkService;
+use App\Modules\FamUnit\Application\RevocationRateLimit;
 use App\Modules\FamUnit\Http\Requests\RevokeGuardianLinkRequest;
 use App\Modules\FamUnit\Http\Resources\GuardianStudentLinkResource;
 use Illuminate\Http\JsonResponse;
@@ -17,10 +18,12 @@ use Illuminate\Http\Request;
  */
 class GuardianLinkRevocationController extends FamUnitController
 {
-    public function store(RevokeGuardianLinkRequest $request, string $publicId, GuardianLinkService $service, FamilyRefs $refs): JsonResponse
+    public function store(RevokeGuardianLinkRequest $request, string $publicId, GuardianLinkService $service, FamilyRefs $refs, RevocationRateLimit $rateLimit): JsonResponse
     {
-        $service->find($publicId);
-        $result = $service->revoke($publicId, $request->reason(), $this->actor($request));
+        $actor = $this->actor($request);
+        $rateLimit->hit('revoke', $actor);
+        $service->find($publicId, $actor);
+        $result = $service->revoke($publicId, $request->reason(), $actor);
         $refs->showRevocation(true);
 
         return response()->json(
@@ -28,9 +31,11 @@ class GuardianLinkRevocationController extends FamUnitController
         );
     }
 
-    public function destroy(Request $request, string $publicId, GuardianLinkService $service, FamilyRefs $refs): GuardianStudentLinkResource
+    public function destroy(Request $request, string $publicId, GuardianLinkService $service, FamilyRefs $refs, RevocationRateLimit $rateLimit): GuardianStudentLinkResource
     {
-        $service->find($publicId);
+        $rateLimit->hit('lift', $this->actor($request));
+        // El levantamiento actúa justo sobre un vínculo revocado: no se oculta (#472, autoriza `revocacion_tutor.eliminar`).
+        $service->find($publicId, $this->actor($request), forLift: true);
         $link = $service->lift($publicId);
         $refs->showRevocation(true);
 

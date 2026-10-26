@@ -14,7 +14,7 @@ Todas las tablas son **de tenant**, creadas con `TenantMigration::tenantTable()`
 |---------|------|------|---------|-------------|
 | `public_id` | `character(26)` ULID | No | — | `ADR-029` |
 | `code` | `text` | No | — | Código único de la unidad en el centro (`REQ-FAM-UNIT-001`). Generación: `OPEN-FAM-UNIT-06`. `CHECK (length(code) BETWEEN 1 AND 40)` [DERIVADA] |
-| `principal_guardian_id` | `bigint` | Sí | `NULL` | FK compuesta → `guardians`. Que sea tutor vivo **de esta unidad** se valida en servicio (`RN-FAM-UNIT-02`): una FK no puede expresar «de la misma unidad» sin una columna redundante |
+| `principal_guardian_id` | `bigint` | Sí | `NULL` | FK compuesta → `guardians`. Que sea tutor **de esta unidad** lo garantiza además el motor (`RN-FAM-UNIT-02`, issue #469): FK compuesta `(tenant_id, id, principal_guardian_id)` → `guardians (tenant_id, family_unit_id, id)` (con `UNIQUE (tenant_id, family_unit_id, id)` en `guardians`; la `id` de la unidad hace de `family_unit_id`), `MATCH SIMPLE`, así que `NULL` sigue permitido; migración `2026_10_27_100100`. Que el tutor esté **vivo** sigue validándose en servicio (una baja lógica conserva la fila) |
 
 Restricciones: `UNIQUE (tenant_id, code) WHERE deleted_at IS NULL` (`RN-FAM-UNIT-01`).
 
@@ -244,3 +244,11 @@ El catálogo de retención por entidad es trabajo de `1.23b`/`REQ-PRIV-006`, **s
 | `custody_restrictions` | El plazo más corto compatible con la protección del menor | Categoría especial; minimización |
 
 La purga física de un tenant completo debe incluir estas nueve tablas en el orden de dependencias de §2 (issue #371, `1.23b`).
+
+---
+
+## 7. Notas de la migración del principal en la misma unidad (issue #469, `db-reviewer`)
+
+- **Excepción consciente de D-12**: el índice `family_units (tenant_id, id, principal_guardian_id)` sobra para el motor (la comprobación de la FK busca en `guardians`, no en `family_units`) y existe solo para satisfacer `AR-16` (toda FK compuesta tiene su índice con ese prefijo). Se mantiene: no se relaja una regla de arquitectura sin aprobación del usuario. Seguimiento propuesto: matizar `AR-16` para FK cuya columna referenciada ya está cubierta por un único (`CHANGELOG.md`).
+- **Deuda de *contract*** (`CLAUDE.md §9`): la FK antigua `family_units_tenant_principal_guardian_foreign` y su índice `(tenant_id, principal_guardian_id)` quedan **redundantes** con la nueva. No se retiran en esta entrega: se retiran **dos versiones después**, cuando ninguna versión viva dependa de ellas.
+- La migración es reintentable y no destructiva (la FK ya validada no se toca; una `NOT VALID` solo reintenta `VALIDATE`; un índice `INVALID` residual se descarta y recrea) y toma `lock_timeout` de 5 s con restablecimiento. Pruebas: `FamUnitSchemaTest.php` y `tests/Concurrency/FamUnitMigrationRecoveryTest.php`.
