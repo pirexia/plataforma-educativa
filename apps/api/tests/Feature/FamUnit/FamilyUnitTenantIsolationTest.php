@@ -1,0 +1,63 @@
+<?php
+
+use App\Modules\FamUnit\Domain\Models\FamilyUnit;
+use App\Support\Tenancy\Tenant;
+use App\Support\Tenancy\TenantContext;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+
+// ADR-056 §3.5 (generado por `php artisan make:module --entity=FamilyUnit`),
+// INV-001, ADR-033 §4/§5. A NIVEL DE MODELO: dos centros con una fila cada
+// uno; en contexto del primero, la del segundo no se ve ni por el modelo
+// (scope global) ni por SQL directo (RLS). NO sustituye al test HTTP de
+// aislamiento en listado y detalle (ADR-044 §4.2), que se escribe con el
+// endpoint.
+
+beforeEach(function (): void {
+    $this->a = Tenant::factory()->create();
+    $this->b = Tenant::factory()->create();
+
+    $this->rowA = app(TenantContext::class)->runFor($this->a->id, fn () => FamilyUnit::factory()->create());
+    $this->rowB = app(TenantContext::class)->runFor($this->b->id, fn () => FamilyUnit::factory()->create());
+});
+
+afterEach(function (): void {
+    DB::connection('pgsql_platform')->table('tenants')->delete();
+});
+
+test('INV-001 ADR-033 §4: por el modelo, FamilyUnit solo ve las filas de su tenant; la del otro centro no se encuentra por id ni por public_id', function (): void {
+    app(TenantContext::class)->enter($this->a->id);
+
+    expect(FamilyUnit::query()->count())->toBe(1)
+        ->and(FamilyUnit::query()->pluck('id')->all())->toBe([$this->rowA->id])
+        ->and(FamilyUnit::query()->find($this->rowB->id))->toBeNull()
+        ->and(FamilyUnit::query()->where('public_id', $this->rowB->public_id)->first())->toBeNull()
+        ->and(FamilyUnit::withTrashed()->where('public_id', $this->rowB->public_id)->first())->toBeNull();
+});
+
+test('INV-001 ADR-033 §5: por SQL directo (sin scope de modelo), RLS devuelve solo las filas del tenant en contexto', function (): void {
+    app(TenantContext::class)->enter($this->a->id);
+
+    expect(DB::table('family_units')->pluck('tenant_id')->unique()->values()->all())->toBe([$this->a->id])
+        ->and(DB::table('family_units')->where('tenant_id', $this->b->id)->count())->toBe(0);
+});
+
+test('INV-001 ADR-033 §5: una escritura con tenant_id ajeno la rechaza RLS (WITH CHECK)', function (): void {
+    app(TenantContext::class)->enter($this->a->id);
+
+    $state = null;
+
+    try {
+        // Punto de guardado: un error de PostgreSQL no aborta la transacción del test.
+        DB::transaction(fn () => DB::table('family_units')->insert([
+            'tenant_id' => $this->b->id,
+            'public_id' => (string) Str::ulid(),
+        ]));
+    } catch (QueryException $e) {
+        $state = $e->errorInfo[0] ?? null;
+    }
+
+    // 42501: nueva fila viola la política de seguridad a nivel de fila.
+    expect($state)->toBe('42501');
+});

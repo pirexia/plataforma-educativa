@@ -7,4 +7,5 @@ return [
     'auth' => 'Autenticación y sesiones',
     'curso' => 'Curso académico',
     'acad' => 'Gestión académica',
+    'fam_unit' => 'Unidad familiar',
 ];
