@@ -5,4 +5,5 @@ return [
     'auth' => 'Authentication and sessions',
     'curso' => 'Academic year',
     'acad' => 'Academic management',
+    'fam_unit' => 'Family unit',
 ];

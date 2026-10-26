@@ -1,0 +1,660 @@
+# REQ-FAM-UNIT (paso 1.14-a), docs/modulos/REQ-FAM-UNIT/api.md §2.1 a §2.5. Convenciones de ADR-038. Solo los
+# *endpoints* de `1.14-a`: unidades familiares, tutores, alumnado de la unidad, vínculos y revocación. Los de
+# consentimiento de imagen (`1.14-b`) y condiciones de uso (`1.14-c`) se documentan con su entrega.
+paths:
+  /api/v1/family-units:
+    get:
+      operationId: listFamilyUnits
+      summary: Lista las unidades familiares
+      description: >
+        Permiso `familia.leer`, ámbito `todos` o `unidad_familiar`. Con `unidad_familiar` el listado devuelve solo
+        las unidades con algún alumno que el sujeto alcanza por un vínculo activo (funcional.md §3.6, ADR-044 §4.2).
+        Paginación por página (defecto 25, máximo 100). Orden por `code` (defecto) o `created_at`, desempate por `id`.
+        `include_deleted=true` exige `familia.eliminar` (si no, `403`).
+      tags: ['FamUnit / Unidades familiares']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: q
+          in: query
+          description: Prefijo del código (los comodines de `LIKE` se tratan como texto).
+          schema: { type: string, maxLength: 40 }
+        - name: has_principal
+          in: query
+          schema: { type: boolean }
+        - name: include_deleted
+          in: query
+          description: Incluye las unidades dadas de baja (con `deleted_at`). Solo con `familia.eliminar`.
+          schema: { type: boolean }
+        - { $ref: '../components.yaml#/components/parameters/FamilyUnitSortParam' }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/FamilyUnit' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createFamilyUnit
+      summary: Crea una unidad familiar
+      description: >
+        Permiso `familia.crear`. `code` es opcional: sin él lo genera el sistema (`UF-` más seis cifras,
+        secuencial por centro, funcional.md §15 D-1); con él se valida (1 a 40 caracteres sin caracteres de
+        control, `422 fam_unit.family_unit.code_invalid`) y es único entre las unidades vivas
+        (`422 fam_unit.family_unit.code_taken`, RN-FAM-UNIT-01).
+      tags: ['FamUnit / Unidades familiares']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code: { type: string, minLength: 1, maxLength: 40 }
+      responses:
+        '201':
+          description: Creada
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/FamilyUnit' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/family-units/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getFamilyUnit
+      summary: Detalle de una unidad familiar
+      description: >
+        Permiso `familia.leer`. Una unidad de otro centro, o que el sujeto con ámbito `unidad_familiar` no alcanza,
+        es `404` (INV-001, ADR-044 §4.2): el mismo cuerpo que un `public_id` inexistente.
+      tags: ['FamUnit / Unidades familiares']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: El recurso
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/FamilyUnit' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: updateFamilyUnit
+      summary: Edita una unidad familiar
+      description: >
+        Permiso `familia.actualizar`. Editables `code` (`422 code_taken` / `code_invalid`) y `principal_guardian`
+        (`public_id` de un tutor vivo **de esta unidad**, o `null` para quitarlo: `422
+        fam_unit.family_unit.principal_not_member` si es de otra unidad, `422
+        fam_unit.validation.principal_guardian_not_found` si no existe, RN-FAM-UNIT-02).
+      tags: ['FamUnit / Unidades familiares']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code: { type: string, minLength: 1, maxLength: 40 }
+                principal_guardian:
+                  oneOf:
+                    - { $ref: '../components.yaml#/components/schemas/PublicId' }
+                    - { type: 'null' }
+      responses:
+        '200':
+          description: Actualizada
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/FamilyUnit' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    delete:
+      operationId: deleteFamilyUnit
+      summary: Da de baja (lógica) una unidad familiar
+      description: >
+        Permiso `familia.eliminar`. `409 fam_unit.family_unit.has_members` (en `errors.family_unit[0].code`) si tiene
+        tutores o alumnado vivos (RN-FAM-UNIT-03).
+      tags: ['FamUnit / Unidades familiares']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204':
+          description: Baja lógica
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+
+  /api/v1/family-units/{publicId}/restore:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: restoreFamilyUnit
+      summary: Restaura una unidad familiar dada de baja
+      description: >
+        Permiso `familia.eliminar`. Reaplica la unicidad del código del alta (`422 fam_unit.family_unit.code_taken`,
+        RN-FAM-UNIT-04).
+      tags: ['FamUnit / Unidades familiares']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Restaurada
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/FamilyUnit' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/family-units/{publicId}/students:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: listFamilyUnitStudents
+      summary: Alumnado de una unidad familiar
+      description: >
+        Permiso `familia.leer`. Sin paginar (decenas como mucho por unidad), ordenado por nombre. Con ámbito
+        `unidad_familiar` solo los alumnos que el sujeto alcanza; la unidad que no alcanza es `404`.
+      tags: ['FamUnit / Unidades familiares']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Colección sin paginar
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/FamilyUnitStudent' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    post:
+      operationId: addFamilyUnitStudent
+      summary: Añade la persona de un alumno a la unidad
+      description: >
+        Permiso `familia.actualizar` (configurar la unidad, no `crear`). `student_person` es el `public_id` de la
+        **persona** (OPEN-FAM-UNIT-01). `422 fam_unit.validation.student_not_found` (inexistente o de otro centro, mismo
+        cuerpo) y `422 fam_unit.student.already_in_unit` (RN-FAM-UNIT-20).
+      tags: ['FamUnit / Unidades familiares']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [student_person]
+              properties:
+                student_person: { $ref: '../components.yaml#/components/schemas/PublicId' }
+      responses:
+        '201':
+          description: Creada
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/FamilyUnitStudent' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/family-units/{publicId}/students/{membershipPublicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+      - name: membershipPublicId
+        in: path
+        required: true
+        description: '`public_id` de la pertenencia (`FamilyUnitStudent`), no de la persona.'
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    delete:
+      operationId: removeFamilyUnitStudent
+      summary: Quita a un alumno de la unidad
+      description: >
+        Permiso `familia.actualizar`. Baja lógica de la pertenencia. **No** borra los vínculos del alumno (pueden cruzar
+        unidades): `remaining_links` es el número de vínculos vivos que conserva (RN-FAM-UNIT-22).
+      tags: ['FamUnit / Unidades familiares']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Quitado
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [remaining_links]
+                properties:
+                  remaining_links: { type: integer, minimum: 0 }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+
+  /api/v1/guardians:
+    get:
+      operationId: listGuardians
+      summary: Lista los tutores
+      description: >
+        Permiso `familia.leer`. Con ámbito `unidad_familiar`, los tutores con vínculo activo con alguno de los alumnos
+        del sujeto. Filtros `family_unit` y `user` (varios `public_id` separados por coma; uno mal formado es `422`).
+        Orden `created_at`.
+      tags: ['FamUnit / Tutores']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: family_unit
+          in: query
+          description: Uno o varios `public_id` de unidad separados por coma.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: user
+          in: query
+          description: Uno o varios `public_id` de usuario separados por coma.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - { $ref: '../components.yaml#/components/parameters/FamUnitCreatedAtSortParam' }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/Guardian' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createGuardian
+      summary: Da de alta a un tutor a partir de un usuario del centro
+      description: >
+        Permiso `familia.crear`. Parte de un usuario que ya existe en `Core` (RN-FAM-UNIT-10): no crea personas,
+        cuentas, invitaciones ni asignaciones de rol. Errores: `422 fam_unit.validation.user_not_found` (inexistente,
+        borrado o de otro centro, mismo cuerpo), `422 fam_unit.guardian.user_not_eligible` (estado distinto de
+        `pendiente` o `activo`), `422 fam_unit.validation.family_unit_not_found` y `422
+        fam_unit.guardian.already_exists` (RN-FAM-UNIT-11).
+      tags: ['FamUnit / Tutores']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user, family_unit]
+              properties:
+                user: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                family_unit: { $ref: '../components.yaml#/components/schemas/PublicId' }
+      responses:
+        '201':
+          description: Creado
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Guardian' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/guardians/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getGuardian
+      summary: Detalle de un tutor
+      description: Permiso `familia.leer`. Un tutor de otro centro, o que el sujeto con ámbito `unidad_familiar` no alcanza, es `404`.
+      tags: ['FamUnit / Tutores']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: El recurso
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Guardian' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: updateGuardian
+      summary: Edita un tutor (sin campos editables en 1.14-a)
+      description: >
+        Permiso `familia.actualizar`. Un tutor **no cambia de unidad** (RN-FAM-UNIT-14, decisión del usuario del
+        2026-10-26): el cuerpo con `family_unit`, aunque sea la misma, es `422 fam_unit.guardian.not_editable`; se da de
+        baja y se crea de nuevo. Sin `family_unit` responde `200` con el tutor sin cambios.
+      tags: ['FamUnit / Tutores']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: El tutor, sin cambios
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/Guardian' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    delete:
+      operationId: deleteGuardian
+      summary: Da de baja (lógica) a un tutor y a sus vínculos
+      description: >
+        Permiso `familia.eliminar`. Da de baja, en la misma transacción, los vínculos vivos del tutor; si era el principal de
+        su unidad, la unidad queda sin principal (RN-FAM-UNIT-12). Si alguno de sus vínculos está `revocado`, la baja se bloquea entera con
+        `409 fam_unit.link.revoked_not_deletable` (RN-FAM-UNIT-39): la revocación se levanta antes.
+      tags: ['FamUnit / Tutores']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Baja lógica
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [removed_links, principal_cleared]
+                properties:
+                  removed_links: { type: integer, minimum: 0 }
+                  principal_cleared: { type: boolean }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+
+  /api/v1/guardian-links:
+    get:
+      operationId: listGuardianLinks
+      summary: Lista los vínculos tutor-alumno
+      description: >
+        Permiso `vinculo_tutor.leer`. Con ámbito `unidad_familiar`, solo los vínculos **activos** de los alumnos del
+        sujeto: nunca un vínculo revocado (RN-FAM-UNIT-36). Filtrar por un alumno o unidad que el sujeto no alcanza no
+        es error: devuelve vacío. `status=revocado` exige `revocacion_tutor.leer` (si no, `403`); el campo `revocation`
+        solo se incluye con ese permiso.
+      tags: ['FamUnit / Vínculos']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: family_unit
+          in: query
+          description: Uno o varios `public_id` de unidad separados por coma.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: guardian
+          in: query
+          description: Uno o varios `public_id` de tutor separados por coma.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: student_person
+          in: query
+          description: Uno o varios `public_id` de persona de alumno separados por coma.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: status
+          in: query
+          description: Uno o varios estados separados por coma (`422` si alguno no es del vocabulario).
+          style: form
+          explode: false
+          schema:
+            type: array
+            items: { $ref: '../components.yaml#/components/schemas/GuardianLinkStatus' }
+        - name: is_emergency_contact
+          in: query
+          schema: { type: boolean }
+        - name: is_legal_guardian
+          in: query
+          schema: { type: boolean }
+        - { $ref: '../components.yaml#/components/parameters/FamUnitCreatedAtSortParam' }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/GuardianStudentLink' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createGuardianLink
+      summary: Crea un vínculo tutor-alumno
+      description: >
+        Permiso `vinculo_tutor.crear`. Nace `activo`. Errores 422: `fam_unit.link.already_exists` (RN-FAM-UNIT-30),
+        `fam_unit.link.self_link` (RN-FAM-UNIT-21), `fam_unit.link.emergency_contact_taken` (RN-FAM-UNIT-31),
+        `fam_unit.validation.guardian_not_found`, `fam_unit.validation.student_not_found`, y los enumerados fuera de
+        vocabulario (RN-FAM-UNIT-32). Marcar `is_legal_guardian` rellena la verificación con el instante y el usuario
+        de la petición.
+      tags: ['FamUnit / Vínculos']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [guardian, student_person, relationship]
+              properties:
+                guardian: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                student_person: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                relationship: { $ref: '../components.yaml#/components/schemas/GuardianRelationship' }
+                is_legal_guardian: { type: boolean, default: false }
+                access_level: { allOf: [{ $ref: '../components.yaml#/components/schemas/GuardianAccessLevel' }], default: lectura }
+                restricted_categories:
+                  type: array
+                  default: []
+                  items: { $ref: '../components.yaml#/components/schemas/GuardianRestrictedCategory' }
+                is_emergency_contact: { type: boolean, default: false }
+      responses:
+        '201':
+          description: Creado
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/GuardianStudentLink' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/guardian-links/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getGuardianLink
+      summary: Detalle de un vínculo
+      description: >
+        Permiso `vinculo_tutor.leer`. Un vínculo de otro centro, o que el sujeto con ámbito `unidad_familiar` no alcanza
+        (o está revocado), es `404`.
+      tags: ['FamUnit / Vínculos']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: El recurso
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/GuardianStudentLink' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: updateGuardianLink
+      summary: Edita los atributos de un vínculo
+      description: >
+        Permiso `vinculo_tutor.actualizar`. Editables `relationship`, `is_legal_guardian`, `access_level`,
+        `restricted_categories` e `is_emergency_contact`. `status`, `revocation`, `guardian` y `student_person` no se
+        editan: `422 fam_unit.link.not_editable` (revocar solo se hace por su recurso). Marcar como contacto de
+        emergencia un vínculo revocado es `422 fam_unit.link.emergency_contact_revoked` (RN-FAM-UNIT-35).
+      tags: ['FamUnit / Vínculos']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                relationship: { $ref: '../components.yaml#/components/schemas/GuardianRelationship' }
+                is_legal_guardian: { type: boolean }
+                access_level: { $ref: '../components.yaml#/components/schemas/GuardianAccessLevel' }
+                restricted_categories:
+                  type: array
+                  items: { $ref: '../components.yaml#/components/schemas/GuardianRestrictedCategory' }
+                is_emergency_contact: { type: boolean }
+      responses:
+        '200':
+          description: Actualizado
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/GuardianStudentLink' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    delete:
+      operationId: deleteGuardianLink
+      summary: Da de baja (lógica) un vínculo
+      description: >
+        Permiso `vinculo_tutor.eliminar`. Baja **no judicial** del vínculo (RN-FAM-UNIT-04); una retirada por resolución judicial es una
+        revocación. Un vínculo `revocado` no se da de baja: `409 fam_unit.link.revoked_not_deletable` (RN-FAM-UNIT-39); la revocación se levanta
+        antes por su recurso.
+      tags: ['FamUnit / Vínculos']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204':
+          description: Baja lógica
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+
+  /api/v1/guardian-links/{publicId}/revocation:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: revokeGuardianLink
+      summary: Revoca el acceso de un tutor a un alumno
+      description: >
+        Permiso `revocacion_tutor.crear`. Pasa el vínculo `activo` a `revocado` con motivo `resolucion_judicial`, fecha y
+        autor. Efecto inmediato en todo el producto (RN-FAM-UNIT-34); no afecta al resto de la unidad ni borra el vínculo.
+        Quita la marca de contacto de emergencia en la misma transacción. `principal_cleared` indica que era el último
+        vínculo activo del tutor principal con alumnos de su unidad y la unidad queda sin principal (RN-FAM-UNIT-38).
+        `409 fam_unit.link.invalid_transition` si ya estaba revocado (sin `Idempotency-Key`: se interpreta como «ya estaba»).
+      tags: ['FamUnit / Vínculos']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { $ref: '../components.yaml#/components/schemas/GuardianRevocationReason' }
+      responses:
+        '200':
+          description: Revocado
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/GuardianLinkRevoked' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    delete:
+      operationId: liftGuardianLinkRevocation
+      summary: Levanta la revocación de un vínculo
+      description: >
+        Permiso `revocacion_tutor.eliminar`. Devuelve el vínculo `revocado` a `activo` (nueva resolución) y vacía motivo,
+        fecha y autor de la revocación; el histórico de las dos transiciones queda en `audit_logs`. No devuelve la marca de
+        contacto de emergencia. `409 fam_unit.link.invalid_transition` si no estaba revocado.
+      tags: ['FamUnit / Vínculos']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Revocación levantada
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/GuardianStudentLink' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }

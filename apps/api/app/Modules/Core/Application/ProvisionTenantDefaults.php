@@ -239,6 +239,45 @@ final class ProvisionTenantDefaults implements TenantProvisioner
     ];
 
     /**
+     * REQ-FAM-UNIT/permisos.md §4 (1.14-a, `OPEN-FAM-UNIT-10`): la siembra de los permisos de unidades familiares,
+     * tutores, alumnado, vínculos y revocación (`familia`, `vinculo_tutor` y `revocacion_tutor`). Todos de ámbito
+     * `todos`: `administrador_centro` todos; `secretaria` la gestión diaria (`familia.*`, `vinculo_tutor.*`) y solo
+     * leer revocaciones; `direccion` solo lectura; `administrativo` lee familias y vínculos; el resto, nada
+     * (`RPERM-011`). **Revocar y levantar** (`revocacion_tutor.crear`/`.eliminar`) solo `administrador_centro`: es la
+     * acción con consecuencias legales del módulo. Constante propia, como `ACADEMIC_YEAR_ROLLOVER_PERMISSION_GRANTS`:
+     * la lee también `GrantFamUnitPermissionsCommand` (centros ya existentes), una sola lista por los dos caminos.
+     * Los de `consentimiento_imagen` y `condiciones_uso` entran con `1.14-b` y `1.14-c`. Ninguna regla de código
+     * compara estos códigos de rol (`RN-PERM-46`).
+     *
+     * @var array<string, list<string>>
+     */
+    public const FAMILY_PERMISSION_GRANTS = [
+        'administrador_centro' => [
+            'familia.leer', 'familia.crear', 'familia.actualizar', 'familia.eliminar',
+            'vinculo_tutor.leer', 'vinculo_tutor.crear', 'vinculo_tutor.actualizar', 'vinculo_tutor.eliminar',
+            'revocacion_tutor.leer', 'revocacion_tutor.crear', 'revocacion_tutor.eliminar',
+        ],
+        'secretaria' => [
+            'familia.leer', 'familia.crear', 'familia.actualizar', 'familia.eliminar',
+            'vinculo_tutor.leer', 'vinculo_tutor.crear', 'vinculo_tutor.actualizar', 'vinculo_tutor.eliminar',
+            'revocacion_tutor.leer',
+        ],
+        'direccion' => ['familia.leer', 'vinculo_tutor.leer', 'revocacion_tutor.leer'],
+        'administrativo' => ['familia.leer', 'vinculo_tutor.leer'],
+    ];
+
+    /**
+     * REQ-FAM-UNIT/permisos.md §4 (1.14-a): las concesiones de ámbito `unidad_familiar` —`tutor_legal` lee su familia
+     * y los vínculos de sus alumnos—. Lista aparte de `FAMILY_PERMISSION_GRANTS` (ámbito `todos`); la lee también
+     * `GrantFamUnitPermissionsCommand`. El resolutor del ámbito lo registra `fam_unit` (`ADR-044 §3.4`).
+     *
+     * @var array<string, list<string>>
+     */
+    public const FAMILY_PERMISSION_UNIDAD_FAMILIAR_GRANTS = [
+        'tutor_legal' => ['familia.leer', 'vinculo_tutor.leer'],
+    ];
+
+    /**
      * ADR-048 §4.5: columnas "operativas" de `tenant_settings` que
      * `provisionFromTemplate()` copia del origen. Nunca identidad fiscal
      * ni marca (funcional.md §5.6.2): esta lista vive aquí porque
@@ -473,6 +512,7 @@ final class ProvisionTenantDefaults implements TenantProvisioner
             self::ACADEMIC_YEAR_REOPEN_PERMISSION_GRANTS,
             self::ACADEMIC_YEAR_ROLLOVER_PERMISSION_GRANTS,
             self::STRUCTURE_PERMISSION_GRANTS,
+            self::FAMILY_PERMISSION_GRANTS,
         );
 
         foreach ($grants as $roleCode => $permissionCodes) {
@@ -487,15 +527,17 @@ final class ProvisionTenantDefaults implements TenantProvisioner
             }
         }
 
-        foreach (self::STRUCTURE_PERMISSION_PROPIOS_GRANTS as $roleCode => $permissionCodes) {
-            foreach ($permissionCodes as $permissionCode) {
-                PermissionRole::forceCreate([
-                    'tenant_id' => $tenantId,
-                    'role_id' => $roleIds[$roleCode],
-                    'permission_code' => $permissionCode,
-                    'effect' => 'allow',
-                    'scope' => 'propios',
-                ]);
+        foreach (['propios' => self::STRUCTURE_PERMISSION_PROPIOS_GRANTS, 'unidad_familiar' => self::FAMILY_PERMISSION_UNIDAD_FAMILIAR_GRANTS] as $scope => $scopedGrants) {
+            foreach ($scopedGrants as $roleCode => $permissionCodes) {
+                foreach ($permissionCodes as $permissionCode) {
+                    PermissionRole::forceCreate([
+                        'tenant_id' => $tenantId,
+                        'role_id' => $roleIds[$roleCode],
+                        'permission_code' => $permissionCode,
+                        'effect' => 'allow',
+                        'scope' => $scope,
+                    ]);
+                }
             }
         }
     }

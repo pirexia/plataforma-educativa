@@ -29,6 +29,9 @@ tags:
   - name: Acad / Configuración académica
   - name: Acad / Horarios
   - name: Acad / Reservas
+  - name: FamUnit / Unidades familiares
+  - name: FamUnit / Tutores
+  - name: FamUnit / Vínculos
   - name: Auth / Sesión
   - name: Auth / Canje
   - name: Auth / Recuperación
@@ -396,3 +399,25 @@ paths:
 
   # Los endpoints de los módulos siguientes se añaden aquí conforme se
   # implementan, cada uno con su propio apps/api/openapi/paths/<modulo>.yaml.
+
+  # REQ-FAM-UNIT (paso 1.14-a), unidades familiares, tutores, alumnado, vínculos y revocación. apps/api/openapi/paths/fam-unit.yaml
+  /api/v1/family-units:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1family-units"
+  /api/v1/family-units/{publicId}:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1family-units~1{publicId}"
+  /api/v1/family-units/{publicId}/restore:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1family-units~1{publicId}~1restore"
+  /api/v1/family-units/{publicId}/students:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1family-units~1{publicId}~1students"
+  /api/v1/family-units/{publicId}/students/{membershipPublicId}:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1family-units~1{publicId}~1students~1{membershipPublicId}"
+  /api/v1/guardians:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1guardians"
+  /api/v1/guardians/{publicId}:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1guardians~1{publicId}"
+  /api/v1/guardian-links:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1guardian-links"
+  /api/v1/guardian-links/{publicId}:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1guardian-links~1{publicId}"
+  /api/v1/guardian-links/{publicId}/revocation:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1guardian-links~1{publicId}~1revocation"

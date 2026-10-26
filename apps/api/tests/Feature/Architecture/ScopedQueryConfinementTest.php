@@ -6,6 +6,14 @@ use App\Modules\Acad\Domain\Models\FacilityBooking;
 use App\Modules\Core\Infrastructure\EloquentAuditQuery;
 use App\Modules\Core\Infrastructure\EloquentExportRequestService;
 use App\Modules\Core\Infrastructure\Jobs\GenerateAuditLogExport;
+use App\Modules\FamUnit\Application\FamilyUnitService;
+use App\Modules\FamUnit\Application\FamilyUnitStudentService;
+use App\Modules\FamUnit\Application\GuardianLinkService;
+use App\Modules\FamUnit\Application\GuardianService;
+use App\Modules\FamUnit\Domain\Models\FamilyUnit;
+use App\Modules\FamUnit\Domain\Models\FamilyUnitStudent;
+use App\Modules\FamUnit\Domain\Models\Guardian;
+use App\Modules\FamUnit\Domain\Models\GuardianStudentLink;
 use App\Support\Authorization\ScopedQuery;
 use Tests\Support\ArchitectureModules;
 use Tests\Support\PhpScanner;
@@ -45,13 +53,16 @@ const SCOPED_MODEL_QUERY_METHODS = [
  * especificación aprobada por el usuario (OPEN-056-02), y un recurso nuevo
  * con ámbito restringido tiene que entrar aquí con su especificación.
  *
- * @return array<string, array{model: class-string, files: list<string>}>
+ * `models`: los modelos del recurso (uno solo salvo `familia`, que cubre tres, `permisos.md §3.1`). `files`: los
+ * ficheros sancionados para consultar CUALQUIERA de ellos.
+ *
+ * @return array<string, array{models: list<class-string>, files: list<string>}>
  */
 function scopedResourceMap(): array
 {
     return [
         'auditoria' => [
-            'model' => AuditLog::class,
+            'models' => [AuditLog::class],
             'files' => [
                 'Modules/Core/Infrastructure/EloquentAuditQuery.php',
                 'Modules/Core/Infrastructure/Jobs/GenerateAuditLogExport.php',
@@ -61,9 +72,27 @@ function scopedResourceMap(): array
         // 1.12-b (OPEN-ACAD-42, aprobada la ampliación del mapa): `reservas.eliminar` admite
         // `propios`. Toda consulta de `FacilityBooking` vive en un solo servicio.
         'reservas' => [
-            'model' => FacilityBooking::class,
+            'models' => [FacilityBooking::class],
             'files' => [
                 'Modules/Acad/Application/FacilityBookingService.php',
+            ],
+        ],
+        // 1.14-a (REQ-FAM-UNIT/permisos.md §3.1, aprobada la ampliación del mapa con la especificación): `familia.leer`
+        // admite `unidad_familiar`. Tres modelos, un servicio sancionado por modelo (los tres del recurso, que se
+        // piden entre sí unidad, tutores y alumnado dentro de la misma regla de dependencias de `Application`).
+        'familia' => [
+            'models' => [FamilyUnit::class, Guardian::class, FamilyUnitStudent::class],
+            'files' => [
+                'Modules/FamUnit/Application/FamilyUnitService.php',
+                'Modules/FamUnit/Application/GuardianService.php',
+                'Modules/FamUnit/Application/FamilyUnitStudentService.php',
+            ],
+        ],
+        // `vinculo_tutor.leer` admite `unidad_familiar`: toda consulta de `GuardianStudentLink` vive en un solo servicio.
+        'vinculo_tutor' => [
+            'models' => [GuardianStudentLink::class],
+            'files' => [
+                'Modules/FamUnit/Application/GuardianLinkService.php',
             ],
         ],
     ];
@@ -137,7 +166,7 @@ test('AR-10 CA-056-11 CA-056-15: cada recurso del mapa sigue teniendo un permiso
     $stale = array_values(array_diff(array_keys(scopedResourceMap()), array_keys($scoped)));
 
     expect($stale)->toBe([], 'entradas del mapa de AR-10 que ya no hacen falta, retirarlas: '.implode(', ', $stale))
-        ->and(array_keys(scopedResourceMap()))->toBe(['auditoria', 'reservas']);
+        ->and(array_keys(scopedResourceMap()))->toBe(['auditoria', 'reservas', 'familia', 'vinculo_tutor']);
 });
 
 test('AR-10 CA-056-11: ningún fichero de app/ fuera de los sancionados hace una consulta estática sobre el modelo de un recurso con ámbito', function (): void {
@@ -146,9 +175,11 @@ test('AR-10 CA-056-11: ningún fichero de app/ fuera de los sancionados hace una
     expect(count($sources))->toBeGreaterThan(100);
 
     foreach (scopedResourceMap() as $resource => $entry) {
-        $violations = unsanctionedModelQueries($sources, $entry['model'], $entry['files']);
+        foreach ($entry['models'] as $model) {
+            $violations = unsanctionedModelQueries($sources, $model, $entry['files']);
 
-        expect($violations)->toBe([], "consulta directa sobre {$entry['model']} (recurso {$resource}) sin pasar por ScopedQuery: ".implode('; ', $violations));
+            expect($violations)->toBe([], "consulta directa sobre {$model} (recurso {$resource}) sin pasar por ScopedQuery: ".implode('; ', $violations));
+        }
     }
 });
 
@@ -159,9 +190,14 @@ test('AR-10 CA-056-11 CA-056-15: cada fichero sancionado existe y sigue consulta
         foreach ($entry['files'] as $file) {
             expect(isset($sources[$file]))->toBeTrue("{$file}: el fichero sancionado ya no existe, retirarlo del mapa");
 
-            $queries = array_intersect(PhpScanner::staticCallsOn($sources[$file], $entry['model']), SCOPED_MODEL_QUERY_METHODS);
+            // Basta con que consulte alguno de los modelos del recurso.
+            $queries = [];
 
-            expect($queries)->not->toBe([], "{$file} ya no consulta {$entry['model']}: retirarlo del mapa de AR-10");
+            foreach ($entry['models'] as $model) {
+                $queries = [...$queries, ...array_intersect(PhpScanner::staticCallsOn($sources[$file], $model), SCOPED_MODEL_QUERY_METHODS)];
+            }
+
+            expect($queries)->not->toBe([], "{$file} ya no consulta ningún modelo de su recurso: retirarlo del mapa de AR-10");
         }
     }
 });
@@ -176,11 +212,19 @@ arch('AR-10 CA-056-11 CA-ACAD-139: el fichero sancionado de reservas usa ScopedQ
     ->expect(FacilityBookingService::class)
     ->toUse(ScopedQuery::class);
 
+foreach ([FamilyUnitService::class, GuardianService::class, FamilyUnitStudentService::class, GuardianLinkService::class] as $sanctionedClass) {
+    arch("AR-10 CA-056-11 CA-FAM-UNIT-046: el fichero sancionado {$sanctionedClass} usa ScopedQuery")
+        ->expect($sanctionedClass)
+        ->toUse(ScopedQuery::class);
+}
+
 test('AR-10 CA-056-11: las clases sancionadas de los arch() coinciden con los ficheros del mapa', function (): void {
     $toPath = static fn (string $c): string => str_replace('\\', '/', substr($c, strlen('App\\'))).'.php';
 
     expect(array_map($toPath, [EloquentAuditQuery::class, GenerateAuditLogExport::class, EloquentExportRequestService::class]))->toBe(scopedResourceMap()['auditoria']['files'])
-        ->and(array_map($toPath, [FacilityBookingService::class]))->toBe(scopedResourceMap()['reservas']['files']);
+        ->and(array_map($toPath, [FacilityBookingService::class]))->toBe(scopedResourceMap()['reservas']['files'])
+        ->and(array_map($toPath, [FamilyUnitService::class, GuardianService::class, FamilyUnitStudentService::class]))->toBe(scopedResourceMap()['familia']['files'])
+        ->and(array_map($toPath, [GuardianLinkService::class]))->toBe(scopedResourceMap()['vinculo_tutor']['files']);
 });
 
 test('AR-10 CA-056-14 control negativo: la función detecta consulta no sancionada y no detecta ::class, escrituras ni comentarios', function (): void {

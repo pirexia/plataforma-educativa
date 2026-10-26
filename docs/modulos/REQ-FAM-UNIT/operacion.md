@@ -1,10 +1,10 @@
 # REQ-FAM-UNIT · Operación
 
-> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`).
+> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). **`1.14-a` implementada (2026-10-26)**: cinco migraciones aditivas, once permisos y el comando `fam_unit:grant-permissions`; ninguna variable de entorno, servicio, cola ni tarea programada nuevos (`§8`).
 
 ## 1. Variables de entorno
 
-**Ninguna nueva** en `1.14-a`/`-b`/`-c`.
+**Ninguna nueva** en `1.14-a`/`-b`/`-c`/`-d`.
 
 El detalle de custodia (condicionado a `OPEN-FAM-UNIT-05`) necesitará, según lo que decida su ADR, una o más claves de cifrado a nivel de campo. Irán en el gestor de secretos por `EnvironmentFile=` (`ADR-037`, `CLAUDE.md §8`), nunca en el repositorio, y su procedimiento de rotación en `SYSADMIN.md`. No se nombran aquí para no adelantar el diseño.
 
@@ -23,7 +23,7 @@ El detalle de custodia (condicionado a `OPEN-FAM-UNIT-05`) necesitará, según l
 
 Aborta el despliegue si un ámbito declarado no pertenece al vocabulario cerrado: `unidad_familiar` sí pertenece desde `1.5`. Si aborta, no hay que tocar datos: corregir el descriptor y volver a desplegar.
 
-**Siembra para centros existentes**: un comando en `Core` (como `acad:grant-structure-permissions`, `INV-007`), propuesto `fam_unit:grant-permissions`, idempotente, solo roles predefinidos y centros `Activo`, que **no concede nada** si alguno de los permisos falta en `permissions` o tiene `retired_at` (issue #387). Se ejecuta una vez tras el primer despliegue de cada entrega que añada permisos. Centros nuevos: `ProvisionTenantDefaults`.
+**Siembra para centros existentes**: un comando en `Core` (como `acad:grant-structure-permissions`, `INV-007`), `fam_unit:grant-permissions` (implementado en `Core`: `GrantFamUnitPermissionsCommand`), idempotente, solo roles predefinidos y centros `Activo`, que **no concede nada** si alguno de los permisos falta en `permissions` o tiene `retired_at` (issue #387). Se ejecuta una vez tras el primer despliegue de cada entrega que añada permisos. Centros nuevos: `ProvisionTenantDefaults`.
 
 **Contratación**: el módulo es no esencial; queda inactivo en cada centro hasta que el Super Administrador lo contrate (`ADR-045`). Para el centro `demo` de desarrollo hay que contratarlo a mano antes de probar.
 
@@ -58,6 +58,8 @@ Sin métricas propias en `1.14` (no hay pila de observabilidad desplegada todav�
 | Todos los tutores reciben `403 terms-acceptance-required` | Se publicó una versión con re-aceptación | Comportamiento esperado; confirmar con `GET /terms-versions` |
 | Una imagen se publicó con consentimiento `pendiente` | El módulo publicador no consulta `ImageConsentPolicy` al servir (`funcional.md §7.3`) | **Incidente crítico** (`INV-014`); issue en el módulo publicador |
 | `422 user_not_found` al dar de alta un tutor con un usuario que existe | El usuario es de otro centro o está borrado | Comprobar en `Core` |
+| `409 fam_unit.link.revoked_not_deletable` al dar de baja un vínculo o un tutor | Hay un vínculo `revocado` (`RN-FAM-UNIT-39`, `funcional.md §15` D-10): una revocación no se pierde por una baja | Levantar antes la revocación (`DELETE /guardian-links/{id}/revocation`, permiso `revocacion_tutor.eliminar`) si de verdad procede |
+| `422 fam_unit.guardian.user_not_eligible` | El usuario está `inactivo` (`RN-FAM-UNIT-10`: solo `pendiente` o `activo`) | Reactivar la cuenta en `Core` o usar otra |
 
 ## 7. Impacto en copias de seguridad y restauración
 
@@ -65,3 +67,29 @@ Sin métricas propias en `1.14` (no hay pila de observabilidad desplegada todav�
 - **Restauración y revocaciones**: restaurar un centro a un punto anterior a una revocación **devolvería el acceso** al tutor revocado. Es un riesgo directo para un menor. El procedimiento de restauración (`REQ-BKP-003`) debe incluir, para este módulo, la reaplicación de las revocaciones posteriores al punto restaurado, igual que `REQ-BKP-005` exige reaplicar las supresiones. Se anota para `1.26`; **no se resuelve aquí**.
 - **Restauración y consentimientos**: lo mismo con un `no_autorizo` posterior al punto restaurado. Mismo tratamiento.
 - El documento de custodia (condicionado) vive en el *bucket*; su copia sigue la de almacenamiento de objetos con versionado (`REQ-BKP-001`).
+
+---
+
+## 8. Despliegue de `1.14-a`: orden, siembra y reversión
+
+Orden: **migrar → `sync-registry` → contratar → siembra** (mismo orden que `acad`):
+
+```bash
+# 1. Cinco migraciones aditivas (family_units, guardians, FK de principal_guardian_id, family_unit_students, guardian_student_links).
+php artisan migrate --database=pgsql_owner
+# 2. Registra el módulo fam_unit y sus once permisos.
+php artisan platform:sync-registry
+# 3. Contratar fam_unit en cada centro (backoffice, REQ-BO-002).
+# 4. Centros que YA existían: siembra idempotente de los permisos en los roles predefinidos (por (rol, código):
+#    no pisa un ámbito ya concedido; no toca roles personalizados; solo centros Activo; NO concede nada si falta
+#    algún permiso o está retirado (retired_at), e imprime cuál).
+php artisan fam_unit:grant-permissions
+```
+
+El comando `fam_unit:grant-permissions` **vive en `Core`** (`apps/api/app/Modules/Core/Infrastructure/Console/GrantFamUnitPermissionsCommand.php`), no en `FamUnit`: la escritura en `roles`/`permission_role` es de `Core` (`INV-007`, `AR-08`). La propuesta inicial de `§3` lo ubicaba igual (`Core`).
+
+Los centros **nuevos** la reciben de `tenant:provision-defaults`. Con `fam_unit` sin contratar los permisos son inertes y toda ruta responde `403 module-disabled`.
+
+**Reversión** (`RARQ-DEP-013`): desplegar la imagen anterior; **no** se ejecuta `migrate:rollback` (las tablas son aditivas, la versión anterior no las usa, y su `down()` borraría las familias y las revocaciones del centro: una revocación judicial perdida devolvería el acceso a un tutor). El siguiente `sync-registry` de la versión anterior marca el módulo y sus permisos con `retired_at` (concesiones inertes). Efecto de volver atrás: **ninguna interfaz de `§7` existe**, así que ningún módulo puede excluir a un tutor revocado; mientras dure, no se debe entregar ningún menor por una lista que dependa de ellas (`1.14b` no existe todavía). Al volver a la versión nueva: `migrate --database=pgsql_owner --force`, `sync-registry` y `fam_unit:grant-permissions`.
+
+**Qué se probó y qué no (2026-10-26)**: *probado* con la base de test real: las migraciones (`FamUnitSchemaTest`), el comportamiento de las interfaces y de los resolutores, y las carreras reales de dos procesos (`FamUnitConcurrencyTest`). *No probado*: el procedimiento de reversión sobre un servidor (no hay servidor; `OPEN-11`), ni `migrate:rollback` sobre las tablas con datos.

@@ -1,6 +1,6 @@
 # REQ-FAM-UNIT · Permisos
 
-> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). La fuente de verdad será `FamUnitServiceProvider::declaredPermissions()` (`INV-007`, `ADR-034 §2`); esta tabla será su reflejo. La siembra de §4 es la recomendación de `OPEN-FAM-UNIT-10`. El recurso `restriccion_custodia` está **condicionado** a `OPEN-FAM-UNIT-05`.
+> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). **`1.14-a` implementada (2026-10-26)**: `FamUnitServiceProvider::declaredPermissions()` declara los **once** permisos de `familia`, `vinculo_tutor` y `revocacion_tutor`; los de `consentimiento_imagen`, `condiciones_uso` y `aceptacion_condiciones` se declaran con `1.14-b`/`-c`. Siembra: `ProvisionTenantDefaults::FAMILY_PERMISSION_GRANTS` y `FAMILY_PERMISSION_UNIDAD_FAMILIAR_GRANTS`, y el comando `fam_unit:grant-permissions` para los centros existentes. La fuente de verdad será `FamUnitServiceProvider::declaredPermissions()` (`INV-007`, `ADR-034 §2`); esta tabla será su reflejo. La siembra de §4 es la recomendación de `OPEN-FAM-UNIT-10`. El recurso `restriccion_custodia` está **condicionado** a `OPEN-FAM-UNIT-05`.
 
 ---
 
@@ -17,6 +17,8 @@
 | `aceptacion_condiciones` | Consulta administrativa de las aceptaciones | Saber quién aceptó qué es un listado del personal sobre todos los tutores; quien redacta las condiciones no tiene por qué verlo |
 
 Acciones solo de `RPERM-003`; ninguna inventada.
+
+> **Entregas (`funcional.md §15`, D-6)**: en `1.14-a` solo se declaran `familia`, `vinculo_tutor` y `revocacion_tutor`. `consentimiento_imagen` entra con **`1.14-b`**; `condiciones_uso` y `aceptacion_condiciones`, con **`1.14-c`**; `restriccion_custodia`, tras su ADR.
 
 ---
 
@@ -88,7 +90,7 @@ Sujeto: la persona del usuario autenticado y, si la tiene, su faceta de tutor vi
 |-----------------------|-------------------------|-------------------------|
 | (`unidad_familiar`, `familia`) | Resolutor del módulo, en `Infrastructure` | Unidades con al menos un alumno con vínculo **activo** con el tutor del sujeto; tutores con vínculo activo con alguno de esos alumnos; pertenencias de esos alumnos |
 | (`unidad_familiar`, `vinculo_tutor`) | Ídem | Vínculos **activos** cuyo alumno tiene vínculo activo con el tutor del sujeto (`RN-FAM-UNIT-36`: nunca revocados) |
-| (`unidad_familiar`, `consentimiento_imagen`) | Ídem | Estados y decisiones de alumnos con vínculo activo con el tutor del sujeto |
+| (`unidad_familiar`, `consentimiento_imagen`) — **`1.14-b`** | Ídem | Estados y decisiones de alumnos con vínculo activo con el tutor del sujeto |
 
 Reglas que **no** son permiso y se comprueban además (`permisos-y-roles`: visibilidad y reglas de negocio aparte):
 
@@ -96,7 +98,7 @@ Reglas que **no** son permiso y se comprueban además (`permisos-y-roles`: visib
 2. La categoría restringida no afecta a los recursos de este módulo (ninguno es de `salud`); la aplican los módulos consumidores con `FamilyMembership` pidiendo la categoría.
 3. Nivel de acceso `lectura`/`lectura_escritura`: sin efecto sobre los recursos de este módulo en `1.14` (`OPEN-FAM-UNIT-04`).
 
-**Mapa cerrado de `AR-10`** (ampliación que requiere aprobación expresa, como `OPEN-ACAD-42`): `familia` → `FamilyUnit`, `Guardian`, `FamilyUnitStudent`; `vinculo_tutor` → `GuardianStudentLink`; `consentimiento_imagen` → `ImageConsent`, `ImageConsentDecision`. Cada uno con su único servicio sancionado de consulta. El test no ve accesos por relación ni `DB::table()`: lo cubren `CA-FAM-UNIT-040`/`-041` (listado **y** detalle).
+**Mapa cerrado de `AR-10`** (ampliación que requiere aprobación expresa, como `OPEN-ACAD-42`): `familia` → `FamilyUnit`, `Guardian`, `FamilyUnitStudent`; `vinculo_tutor` → `GuardianStudentLink`; `consentimiento_imagen` → `ImageConsent`, `ImageConsentDecision` (**`1.14-b`**, `funcional.md §15` D-6: en `1.14-a` solo entran los dos primeros recursos). `familia` con sus **tres** servicios sancionados (`FamilyUnitService`, `GuardianService`, `FamilyUnitStudentService`, `funcional.md §15` D-8) y `vinculo_tutor` con uno (`GuardianLinkService`). El test no ve accesos por relación ni `DB::table()`: lo cubren `CA-FAM-UNIT-040`/`-041` (listado **y** detalle).
 
 ### 3.2 Contrato para los resolutores de otros módulos
 
@@ -116,10 +118,10 @@ Denegación por defecto (`RPERM-011`). Se siembra en `ProvisionTenantDefaults` p
 | Rol (`code`) | Permisos | Ámbito | Motivo (`§11.1`) |
 |--------------|----------|--------|------------------|
 | `administrador_centro` | Todos los de §2 **salvo** `restriccion_custodia.*` | `todos` | «Gestión completa de su tenant». Las condiciones de uso las «personaliza el Administrador de Centro» (`REQ-FAM-UNIT-003`) |
-| `secretaria` | `familia.*`, `vinculo_tutor.*`, `revocacion_tutor.leer`, `consentimiento_imagen.leer`, `.actualizar`, `.exportar`, `aceptacion_condiciones.leer` | `todos` | «Matrícula, registro»: es quien da de alta familias y recoge las autorizaciones en papel |
-| `direccion` | `familia.leer`, `vinculo_tutor.leer`, `revocacion_tutor.leer`, `consentimiento_imagen.leer` | `todos` | Consulta |
+| `secretaria` | `familia.*`, `vinculo_tutor.*`, `revocacion_tutor.leer`, `aceptacion_condiciones.leer` (**`1.14-c`**) y, con **`1.14-b`**, `consentimiento_imagen.leer`, `.actualizar`, `.exportar` | `todos` | «Matrícula, registro»: es quien da de alta familias y recoge las autorizaciones en papel |
+| `direccion` | `familia.leer`, `vinculo_tutor.leer`, `revocacion_tutor.leer` y, con **`1.14-b`**, `consentimiento_imagen.leer` | `todos` | Consulta |
 | `administrativo` | `familia.leer`, `vinculo_tutor.leer` | `todos` | «Matrículas, documentación» |
-| `tutor_legal` | `familia.leer`, `vinculo_tutor.leer`, `consentimiento_imagen.leer`, `consentimiento_imagen.actualizar` | **`unidad_familiar`** | «Información de los estudiantes vinculados, autorizaciones» |
+| `tutor_legal` | `familia.leer`, `vinculo_tutor.leer`; y, con **`1.14-b`**, `consentimiento_imagen.leer`, `consentimiento_imagen.actualizar` | **`unidad_familiar`** | «Información de los estudiantes vinculados, autorizaciones» |
 | Los 11 restantes | — | — | Sin base en `§11.1` en este paso. Docentes y tutores de grupo verán a los tutores de sus alumnos cuando exista el ámbito `grupo` sobre alumnado (`1.15`) |
 
 **Revocar y levantar** (`revocacion_tutor.crear`/`.eliminar`) solo `administrador_centro` en la siembra: es la acción con consecuencias legales del módulo. El centro puede delegarla con un rol propio.
@@ -141,3 +143,9 @@ Denegación por defecto (`RPERM-011`). Se siembra en `ProvisionTenantDefaults` p
 ## 6. MFA
 
 Ningún cambio de `mfa_required` en roles. Recomendación que no se aplica aquí: si un centro crea un rol con `revocacion_tutor.*` o `restriccion_custodia.*`, debería llevar `mfa_obligatorio` (`REQ-AUTH-003`: «roles con acceso a datos de categoría especial»). `administrador_centro` ya lo lleva.
+
+---
+
+## 7. Visibilidad de los vínculos revocados (hallazgo `M1` de `security-reviewer`, 1.14-a)
+
+`revocacion_tutor.leer` gobierna ver los vínculos `revocado` **y su campo `revocation`** (`RN-FAM-UNIT-40`): sin él, `GET /guardian-links` los omite y el detalle de uno revocado es `404`; el filtro `status=revocado` es `403`. El ámbito `unidad_familiar` nunca los ve (`RN-FAM-UNIT-36`). Con el permiso, `vinculo_tutor.leer` los devuelve junto a los activos.

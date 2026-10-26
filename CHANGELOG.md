@@ -6,6 +6,16 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-26 · `1.14-a`: implementación de unidades familiares, tutores, vínculos y revocación (`REQ-FAM-UNIT-001`/`-002`, rama `feature/REQ-FAM-UNIT-1-14a-unidades-tutores`)
+
+- **Implementación** de la entrega `1.14-a` de la especificación aprobada, sin recortar ni ampliar alcance: módulo `fam_unit` (`apps/api/app/Modules/FamUnit/`), cuatro tablas con RLS y claves foráneas compuestas (`family_units`, `guardians`, `family_unit_students`, `guardian_student_links`), 21 *endpoints* (`api.md §2.1` a `§2.5`), revocación por custodia con efecto inmediato y sin caché, resolutor del ámbito `unidad_familiar` por vínculos activos (`familia` y `vinculo_tutor`, entran en el mapa cerrado de `AR-10`), interfaces públicas `FamilyMembership`, `GuardianRecipients` y `FamilyUnitStudents`, once permisos con su siembra (`FAMILY_PERMISSION_*`, comando `fam_unit:grant-permissions`) y `PersonDirectory` en `Core\Domain` (`OPEN-FAM-UNIT-03`). Fuera de esta entrega: consentimiento de imagen (`1.14-b`), condiciones de uso y muro (`1.14-c`), detalle de custodia (espera ADR) y **todas las pantallas** (`funcional.md §15`, D-9).
+- **Decisión nueva del usuario (2026-10-26)**: `PATCH /guardians/{id}` no cambia de unidad (`RN-FAM-UNIT-14`, `CA-FAM-UNIT-009`). Cerrados los huecos de `funcional.md §14` salvo `RN-FAM-UNIT-63` (es de `1.14-c`): `CA-FAM-UNIT-038` (`RN-FAM-UNIT-35`), `-039` (`RN-FAM-UNIT-37`) y `-029` (`RN-FAM-UNIT-38`).
+- **Decisiones de detalle** (`funcional.md §15`, D-1 a D-13), a revisar: código de unidad opcional y generado `UF-000001`; filtros `status=revocado` e `include_deleted` con `403`; `isAccessRevoked()` independiente de la contratación y solo sobre vínculos vivos (**riesgo para `1.14b`**, D-10); tres servicios sancionados para `familia` en `AR-10`.
+- **Decisiones del usuario sobre el informe (2026-10-26)**: D-10 resuelta con `RN-FAM-UNIT-39` y `CA-FAM-UNIT-027` (un vínculo revocado no se da de baja, ni directo ni por la baja del tutor: `409 fam_unit.link.revoked_not_deletable`); D-9 resuelta: pantallas de personal y `CA-FAM-UNIT-084` pasan a la entrega `1.14-d`.
+- **Documentación**: `REQ-FAM-UNIT/{funcional (§14 y §15),datos,api,permisos,operacion (§6 y §8)}.md`, `REQ-CORE/funcional.md` (`PersonDirectory`), `SYSADMIN.md` 0.8.20, `RUNBOOK.md` 0.3.13, `ARCHITECTURE.md` 2.5.7 (patrón de ámbito por relaciones activas, `AR-10`), `README.md` 2.6.33, OpenAPI (`fam-unit.yaml`, `components.yaml`).
+
+---
+
 ## 2026-10-26 · `1.14`: especificación de `REQ-FAM-UNIT` (rama `feature/REQ-FAM-UNIT-1-14-unidad-familiar`)
 
 - **Especificación aprobada por el usuario** (solo documentación; nada implementado): `docs/modulos/REQ-FAM-UNIT/` con `RN-FAM-UNIT-01..65`, `CA-FAM-UNIT-001..085` y `OPEN-FAM-UNIT-01..21`, todas aceptadas con su recomendación. Nueve tablas, resolutor de ámbito `unidad_familiar` por vínculos activos, interfaces en `FamUnit\Domain` (`FamilyMembership`, `GuardianRecipients`, `ImageConsentPolicy`, `FamilyUnitStudents`). Partición en `1.14-a` (unidades, tutores, vínculos, revocación), `1.14-b` (consentimiento de imagen) y `1.14-c` (condiciones de uso).

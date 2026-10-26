@@ -3116,6 +3116,172 @@ namespace App\Modules\Curso\Domain\Models{
 	class IdeHelperYearRolloverItem {}
 }
 
+namespace App\Modules\FamUnit\Domain\Models{
+/**
+ * REQ-FAM-UNIT/datos.md §1.1, §4 (1.14-a, `REQ-FAM-UNIT-001`). Unidad familiar: agrupa tutores y alumnado.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property string $code
+ * @property int|null $principal_guardian_id
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnit newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnit newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnit onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnit query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnit whereCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnit whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnit whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnit whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnit whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnit wherePrincipalGuardianId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnit wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnit whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnit whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnit whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnit withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnit withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperFamilyUnit {}
+}
+
+namespace App\Modules\FamUnit\Domain\Models{
+/**
+ * REQ-FAM-UNIT/datos.md §1.3, §4 (1.14-a, `REQ-FAM-UNIT-001`). Pertenencia de la persona de un alumno a una unidad.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $family_unit_id
+ * @property int $student_person_id
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnitStudent newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnitStudent newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnitStudent onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnitStudent query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnitStudent whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnitStudent whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnitStudent whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnitStudent whereFamilyUnitId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnitStudent whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnitStudent wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnitStudent whereStudentPersonId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnitStudent whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnitStudent whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnitStudent whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnitStudent withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|FamilyUnitStudent withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperFamilyUnitStudent {}
+}
+
+namespace App\Modules\FamUnit\Domain\Models{
+/**
+ * REQ-FAM-UNIT/datos.md §1.2, §4 (1.14-a, `REQ-FAM-UNIT-001`). Tutor: faceta de `people` que pertenece a una sola unidad.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $person_id
+ * @property int $family_unit_id
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guardian newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guardian newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guardian onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guardian query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guardian whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guardian whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guardian whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guardian whereFamilyUnitId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guardian whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guardian wherePersonId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guardian wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guardian whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guardian whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guardian whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guardian withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Guardian withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperGuardian {}
+}
+
+namespace App\Modules\FamUnit\Domain\Models{
+/**
+ * REQ-FAM-UNIT/datos.md §1.4, §4 (1.14-a, `REQ-FAM-UNIT-002`). Vínculo tutor ↔ alumno.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $guardian_id
+ * @property int $student_person_id
+ * @property string $relationship
+ * @property bool $is_legal_guardian
+ * @property \Illuminate\Support\Carbon|null $legal_guardian_verified_at
+ * @property int|null $legal_guardian_verified_by
+ * @property string $access_level
+ * @property array<array-key, mixed> $restricted_categories
+ * @property bool $is_emergency_contact
+ * @property string $status
+ * @property string|null $revocation_reason
+ * @property \Illuminate\Support\Carbon|null $revoked_at
+ * @property int|null $revoked_by
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereAccessLevel($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereGuardianId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereIsEmergencyContact($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereIsLegalGuardian($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereLegalGuardianVerifiedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereLegalGuardianVerifiedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereRelationship($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereRestrictedCategories($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereRevocationReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereRevokedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereRevokedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereStudentPersonId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|GuardianStudentLink withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperGuardianStudentLink {}
+}
+
 namespace App\Support\Tenancy{
 /**
  * Raíz del aislamiento (ADR-033 §7): no lleva tenant_id, se identifica a sí

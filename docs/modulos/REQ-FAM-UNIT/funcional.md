@@ -7,7 +7,7 @@
 | Fase | 1 · paso **1.14** del plan (bloque D, Personas) |
 | Depende de | Documento: `CORE`, `AUTH`. Real: `CORE` y `AUTH` (esenciales, ya implementados). Ninguna tabla de este módulo depende del curso académico (`ADR-034 §4`: «unidad familiar» está en la lista expresa de entidades **sin** `academic_year_id`). Propuesta: `depends_on: []` (`OPEN-FAM-UNIT-14`) |
 | Esencial | Propuesta: `essential: false` (`OPEN-FAM-UNIT-14`) |
-| Estado | **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). Los cinco bloqueantes de §13.1 están resueltos con su recomendación; persisten las condiciones listadas al inicio de §13. |
+| Estado | **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). Los cinco bloqueantes de §13.1 están resueltos con su recomendación; persisten las condiciones listadas al inicio de §13. **`1.14-a` IMPLEMENTADA (2026-10-26)**: unidades, tutores, alumnado, vínculos, revocación, resolutor `unidad_familiar`, interfaces de §7.1 a §7.4 y ampliación de `Core\Domain`; decisiones de detalle en §15. **Pendiente**: `1.14-b`, `1.14-c`, `1.14-d` (pantallas de personal de §10 y `CA-FAM-UNIT-084`, §15 D-9) y el detalle de custodia (ADR). |
 | Decisiones vinculantes de partida | `ADR-020`, `ADR-021`, `ADR-029`, `ADR-032` (solo para lo que `1.14` debe dejar preparado, §1.4), `ADR-033`, `ADR-034 §1`/`§4`/`§6`/`§7`, `ADR-035`, `ADR-038`, `ADR-043 §8.1`, `ADR-044` (enmendado por `ADR-063 §5.2`), `ADR-045`, `ADR-048`, `ADR-053`, `ADR-054`, `ADR-055`, `ADR-056`, `ADR-062` (contenido del centro traducible) |
 
 > Donde esta especificación añade algo que ni los requisitos ni un ADR fijan, se marca **[DERIVADA]** y se argumenta. Donde falta información que no corresponde inventar, hay una pregunta abierta en §13 con una recomendación, y **no** una decisión.
@@ -61,7 +61,7 @@ Reglas de nombre **[DERIVADA]**: el **ámbito** de permiso se llama `unidad_fami
 | Resolutor `unidad_familiar` | Para los recursos propios del módulo (§6 de `permisos.md`) y la **interfaz de pertenencia** para que otros módulos registren el suyo (`ADR-063 §5.2`) | `RPERM-004`, `ADR-044 §3` |
 | Consentimiento de imagen | Decisiones por alumno y nivel, histórico inmutable, estado vigente, informe por unidad familiar e interfaz de comprobación para `INV-014` | `REQ-FAM-UNIT-004`, `INV-014`, `RSEC-GDPR-011` |
 | Condiciones de uso | Versiones traducibles, publicación, re-aceptación, histórico de aceptaciones y muro de aceptación | `REQ-FAM-UNIT-003` |
-| Pantallas de personal del centro | Listado y ficha de unidad familiar, gestión de vínculos y consentimientos, versiones de condiciones y muro de aceptación (§10) | `INV-006` |
+| Pantallas de personal del centro (**`1.14-d`**, §1.2) | Listado y ficha de unidad familiar, gestión de vínculos y consentimientos, versiones de condiciones y muro de aceptación (§10) | `INV-006` |
 
 ### 1.2 Entregas propuestas [DERIVADA]
 
@@ -72,6 +72,7 @@ El paso es grande y mezcla tres riesgos distintos. Precedente: `1.11-a`/`1.11-b`
 | **`1.14-a`** | Módulo, unidades, tutores, alumnado de la unidad, vínculos, revocación, resolutor e interfaces de §7.1-§7.4 | Es la base de todo lo demás y de `1.14b` |
 | **`1.14-b`** | Consentimiento de imagen (§4.6-§4.8) e interfaz `INV-014` | Riesgo propio (dato de menores con efecto de publicación) y no lo necesita `1.14-a` |
 | **`1.14-c`** | Condiciones de uso y muro de aceptación (§4.9-§4.10) | Toca la sesión (C6) y depende de `OPEN-FAM-UNIT-12` |
+| **`1.14-d`** | Pantallas de personal de §10 (`/familias`, `/familias/:id`, y con `1.14-b`/`-c` las de consentimientos y condiciones) y E2E `CA-FAM-UNIT-084` | Frontend de las entregas anteriores; decisión del usuario del 2026-10-26 (§15, D-9) |
 | Condicionada | Detalle de la restricción de custodia (§4.5) | Solo si se aprueba antes el ADR de `OPEN-FAM-UNIT-05`; si no, se difiere sin bloquear las demás |
 
 > Nota de nombres: `1.14-a`/`-b`/`-c` (con guion) son entregas de este paso; **`1.14b`** (sin guion) es el paso siguiente del plan (autorizados y entrega de menores). Es la misma convención que `1.12-b` frente a `1.12b`.
@@ -285,6 +286,7 @@ Todos son **API** (`INV-006`); rutas y cuerpos en `api.md`.
 | `RN-FAM-UNIT-11` | Una persona tiene como mucho **una** faceta de tutor viva (`ADR-034 §1`), y esa faceta pertenece a **una** unidad (`§16.2`). |
 | `RN-FAM-UNIT-12` | Dar de baja un tutor da de baja, en la misma transacción, sus vínculos vivos; si era tutor principal, la unidad queda sin principal (`principal_guardian = null`) y la respuesta lo indica. [DERIVADA] |
 | `RN-FAM-UNIT-13` | Si el usuario de un tutor se da de baja en `Core`, la faceta **no** se borra sola en `1.14` (no hay consumidor del evento `UserDeactivated` en este módulo; `ADR-048`). El tutor deja de poder actuar porque no tiene sesión. Ver `OPEN-FAM-UNIT-16`. |
+| `RN-FAM-UNIT-14` | Un tutor **no cambia de unidad**: el cuerpo de `PATCH /guardians/{id}` rechaza `family_unit` con `422 fam_unit.guardian.not_editable` (incluso si es la misma unidad). Cambiar la unidad de un tutor es darlo de baja (`RN-FAM-UNIT-12`, que limpia el principal y sus vínculos) y crearlo de nuevo en la otra. [DERIVADA, decisión del usuario del 2026-10-26] Evita decidir qué pasa con el principal de la unidad de origen y con vínculos que pueden cruzar unidades. |
 
 ### 5.2 Alumnado de la unidad
 
@@ -303,9 +305,11 @@ Todos son **API** (`INV-006`); rutas y cuerpos en `api.md`.
 | `RN-FAM-UNIT-32` | Las categorías restringidas son un subconjunto del vocabulario cerrado (`CHECK` en base de datos); un valor fuera de él ⇒ `422`. |
 | `RN-FAM-UNIT-33` | Solo se puede revocar un vínculo `activo` y solo levantar uno `revocado`; lo contrario ⇒ `409 fam_unit.link.invalid_transition`. |
 | `RN-FAM-UNIT-34` | La revocación tiene **efecto inmediato**: ninguna interfaz de §7 cachea pertenencias ni revocaciones entre peticiones; se memoiza como mucho dentro de una petición (`ADR-044 §4.7`). |
-| `RN-FAM-UNIT-35` | Un vínculo `revocado` no cuenta para ningún ámbito `unidad_familiar`, ni como destinatario (§7.2), ni como contacto de emergencia, ni puede registrar decisiones de imagen. |
+| `RN-FAM-UNIT-35` | Un vínculo `revocado` no cuenta para ningún ámbito `unidad_familiar`, ni como destinatario (§7.2), ni como contacto de emergencia, ni puede registrar decisiones de imagen. Marcar como contacto de emergencia un vínculo `revocado` ⇒ `422 fam_unit.link.emergency_contact_revoked` (la base de datos lo impide además con un `CHECK`). |
 | `RN-FAM-UNIT-36` | Un sujeto que solo tiene ámbito `unidad_familiar` **nunca** ve vínculos revocados, ni motivo, ni fechas de revocación, ni la existencia de una restricción de custodia, aunque sean de su propia unidad. [DERIVADA] Evita que un tutor revocado o un tercero infiera una resolución judicial. |
 | `RN-FAM-UNIT-37` | Revocar no cambia la representación legal del vínculo. Perder el acceso no es perder la patria potestad; qué efecto tiene sobre el consentimiento de imagen: `OPEN-FAM-UNIT-08`. |
+| `RN-FAM-UNIT-40` | Sin `revocacion_tutor.leer`, los vínculos `revocado` no se ven: `GET /guardian-links` los omite y el detalle de uno es `404` (indistinguible de un id inexistente). El filtro `status=revocado` sigue siendo `403`. Con el permiso se ven con su `revocation`. [DERIVADA, hallazgo de `security-reviewer`, 2026-10-26] El estado revela una resolución judicial: es el motivo del permiso separado (`permisos.md §1`, `§5`). |
+| `RN-FAM-UNIT-39` | Un vínculo `revocado` **no se da de baja**: ni directamente (`DELETE /guardian-links/{id}`) ni arrastrado por la baja del tutor (`RN-FAM-UNIT-12`), que se bloquea entera si alguno de sus vínculos está revocado. Ambos responden `409 fam_unit.link.revoked_not_deletable`. La revocación solo se levanta de forma explícita (`DELETE …/revocation`). [DERIVADA, decisión del usuario del 2026-10-26] Así `isAccessRevoked()` no pierde una revocación por una baja. |
 | `RN-FAM-UNIT-38` | El tutor principal de una unidad no puede tener **todos** sus vínculos con alumnos de esa unidad revocados: revocar el último ⇒ la unidad queda sin principal en la misma transacción y la respuesta lo indica. [DERIVADA] |
 
 ### 5.4 Consentimiento de imagen
@@ -422,7 +426,7 @@ Este módulo aporta una comprobación «¿tiene el usuario U una aceptación pen
 
 ## 10. Interfaz: *shell* del frontend (`ADR-053`)
 
-`apps/web/src/modules/fam-unit/` con `shell.ts`, `api/`, `types/`, `locales/{es,en,de,fr}.json` (`AR-11`). Pantallas de **personal del centro** (las del tutor son `1.22`, `OPEN-FAM-UNIT-13`):
+`apps/web/src/modules/fam-unit/` con `shell.ts`, `api/`, `types/`, `locales/{es,en,de,fr}.json` (`AR-11`). Pantallas de **personal del centro**, entrega **`1.14-d`** (las del tutor son `1.22`, `OPEN-FAM-UNIT-13`):
 
 | Ruta | `meta.layout` | `meta.permissions` (anyOf) | Contenido |
 |------|---------------|----------------------------|-----------|
@@ -460,6 +464,7 @@ Formato Dado/Cuando/Entonces. Cada uno es un test que referencia su ID (`INV-015
 - **CA-FAM-UNIT-006** — *Dado* una unidad con un alumno vivo, *cuando* se pide su baja, *entonces* `409 fam_unit.family_unit.has_members` (`RN-FAM-UNIT-03`).
 - **CA-FAM-UNIT-007** — *Dado* un tutor principal con dos vínculos vivos, *cuando* se da de baja el tutor, *entonces* sus dos vínculos quedan dados de baja en la misma transacción y la unidad queda sin principal (`RN-FAM-UNIT-12`).
 - **CA-FAM-UNIT-008** — *Dado* un usuario de otro centro, *cuando* se usa su `public_id` para crear un tutor, *entonces* `422 fam_unit.validation.user_not_found` con el mismo cuerpo que para un `public_id` inexistente.
+- **CA-FAM-UNIT-009** — *Dado* un tutor de la unidad A, *cuando* se envía `PATCH /guardians/{id}` con `family_unit` (la misma o cualquier otra), *entonces* `422 fam_unit.guardian.not_editable`, el tutor y el principal de la unidad no cambian, y no se escribe ninguna fila de auditoría (`RN-FAM-UNIT-14`); *y* un `PATCH` sin `family_unit` responde `200` sin cambios.
 
 ### 12.2 Alumnado de la unidad (`1.14-a`)
 
@@ -475,6 +480,9 @@ Formato Dado/Cuando/Entonces. Cada uno es un test que referencia su ID (`INV-015
 - **CA-FAM-UNIT-023** — *Dado* un vínculo, *cuando* se envía una categoría restringida fuera del vocabulario, *entonces* `422`, y una escritura directa en base de datos con ese valor la rechaza el `CHECK` (`RN-FAM-UNIT-32`).
 - **CA-FAM-UNIT-024** — *Dado* un vínculo de un tutor con un alumno de otra unidad, *cuando* se crea, *entonces* se acepta (C2) y el ámbito `unidad_familiar` del tutor alcanza a ese alumno.
 - **CA-FAM-UNIT-025** — *Dado* la persona P, *cuando* se intenta vincular P como tutor de sí misma, *entonces* `422 fam_unit.link.self_link` (`RN-FAM-UNIT-21`).
+- **CA-FAM-UNIT-048** — *Dado* un vínculo revocado, *cuando* lo pide quien tiene `vinculo_tutor.leer` (ámbito `todos`) sin `revocacion_tutor.leer`, *entonces* el listado no lo incluye, el detalle es `404` como un id inexistente, `status=revocado` es `403`, y los recuentos de la unidad no cambian; *y* con el permiso lo ve (`RN-FAM-UNIT-40`).
+- **CA-FAM-UNIT-027** — *Dado* un vínculo `revocado`, *cuando* se pide su baja o la baja de su tutor, *entonces* `409 fam_unit.link.revoked_not_deletable`, no se escribe nada y el vínculo sigue `revocado`; *y cuando* se levanta la revocación, *entonces* la baja procede (`RN-FAM-UNIT-39`).
+- **CA-FAM-UNIT-029** — *Dado* el tutor principal P de la unidad U con un único vínculo activo con un alumno de U, *cuando* se revoca ese vínculo, *entonces* en la misma transacción `principal_guardian` de U pasa a `null` y la respuesta trae `principal_cleared = true`; *y* si P conserva otro vínculo activo con un alumno de U, *entonces* sigue siendo principal y `principal_cleared = false` (`RN-FAM-UNIT-38`).
 
 ### 12.4 Revocación por custodia (`1.14-a`)
 
@@ -486,6 +494,8 @@ Formato Dado/Cuando/Entonces. Cada uno es un test que referencia su ID (`INV-015
 - **CA-FAM-UNIT-035** — *Dado* un vínculo revocado, *cuando* se levanta la revocación, *entonces* vuelve a `activo`, P vuelve a alcanzar a A1, y `audit_logs` conserva las dos transiciones con autor y fecha.
 - **CA-FAM-UNIT-036** — *Dado* el vínculo (P, A1) que era contacto de emergencia, *cuando* se revoca, *entonces* deja de serlo en la misma transacción (`RN-FAM-UNIT-31`).
 - **CA-FAM-UNIT-037** — *Dado* un usuario con `vinculo_tutor.actualizar` pero sin `revocacion_tutor.crear`, *cuando* intenta revocar, *entonces* `403`; *y* ni `PATCH /guardian-links/{id}` acepta `status` (`422`): revocar solo se hace por su *endpoint*.
+- **CA-FAM-UNIT-038** — *Dado* el vínculo (P, A1) revocado, *cuando* se evalúan los consumidores de un vínculo, *entonces* no cuenta para el ámbito `unidad_familiar` de P (`FamilyMembership` no devuelve a A1), no es destinatario (`GuardianRecipients`), no es contacto de emergencia, y `PATCH` con `is_emergency_contact = true` sobre él responde `422 fam_unit.link.emergency_contact_revoked` (`RN-FAM-UNIT-35`; la parte de decisiones de imagen se prueba en `CA-FAM-UNIT-053`, `1.14-b`).
+- **CA-FAM-UNIT-039** — *Dado* un vínculo con `is_legal_guardian = true` verificado, *cuando* se revoca y después se levanta la revocación, *entonces* `is_legal_guardian`, `legal_guardian_verified_at` y `legal_guardian_verified_by` no cambian en ningún momento (`RN-FAM-UNIT-37`).
 
 ### 12.5 Ámbito `unidad_familiar` y aislamiento (`1.14-a`)
 
@@ -530,7 +540,7 @@ Formato Dado/Cuando/Entonces. Cada uno es un test que referencia su ID (`INV-015
 - **CA-FAM-UNIT-081** — *Dado* el módulo descontratado, *cuando* se llama a cualquier ruta, *entonces* `403 urn:pge:error:module-disabled`, y la navegación no muestra ninguna entrada del módulo (`RMOD-008`, `RMOD-009`).
 - **CA-FAM-UNIT-082** — *Dado* las claves de `fam_unit` en `es`, *entonces* existen en `en`, `de` y `fr` (`AR-12`, `lint:i18n`), y cada recurso declara `resource_label_key` en los cuatro idiomas (`CA-PERM-134`).
 - **CA-FAM-UNIT-083** — *Dado* el código del módulo, *entonces* ninguna regla compara códigos de rol (`AR-08`) y ningún fichero fuera del módulo importa sus clases internas (`AR-01`, `AR-02`).
-- **CA-FAM-UNIT-084** *(E2E)* — *Dado* secretaría en navegador real, *cuando* crea una unidad, añade un tutor, vincula un alumno de prueba y revoca el vínculo, *entonces* la ficha refleja cada paso y el estado revocado se distingue sin depender del color (WCAG 2.2 AA).
+- **CA-FAM-UNIT-084** *(E2E, `1.14-d`)* — *Dado* secretaría en navegador real, *cuando* crea una unidad, añade un tutor, vincula un alumno de prueba y revoca el vínculo, *entonces* la ficha refleja cada paso y el estado revocado se distingue sin depender del color (WCAG 2.2 AA).
 - **CA-FAM-UNIT-085** (condicionado a `OPEN-FAM-UNIT-05`) — *Dado* un usuario con `restriccion_custodia.leer` concedido desde un rol con `special_data_access = true`, *cuando* lee el detalle, *entonces* recibe los datos descifrados y se escribe un evento `read` en `audit_logs` sin valores; *y* desde un rol sin el atributo, la concesión es inerte y responde `403`.
 
 ---
@@ -568,7 +578,7 @@ Texto original de la propuesta (cada pregunta lleva su recomendación): **Bloque
 | `OPEN-FAM-UNIT-11` | Informe «periódico» de consentimientos | Bajo demanda en `1.14` (exportación en cola). Si «periódico» significa envío programado, que lo especifique `COM` (`1.19`), que es quien envía. Requiere ampliar el catálogo de tipos de `data_exports` de `Core` (precedente `1.9b`) |
 | `OPEN-FAM-UNIT-13` | Pantallas del tutor (ver su unidad, decidir sobre imagen) en `1.14` o en `1.22` | API en `1.14`, pantallas en `1.22` (`REQ-FAM-PORTAL-004` las nombra). Hasta entonces el centro registra las decisiones en papel (`RN-FAM-UNIT-43`). Excepción: el muro de condiciones sí va en `1.14-c` porque bloquea el acceso |
 | `OPEN-FAM-UNIT-14` | `essential` y `depends_on` | `essential: false`, `depends_on: []` (§8). Consecuencia en §9 |
-| `OPEN-FAM-UNIT-15` | Partición en `1.14-a`/`-b`/`-c` | Aprobarla (§1.2) |
+| `OPEN-FAM-UNIT-15` | Partición en `1.14-a`/`-b`/`-c` | Aprobarla (§1.2). **Ampliada con `1.14-d` (pantallas de personal y `CA-FAM-UNIT-084`) por decisión del usuario del 2026-10-26** |
 | `OPEN-FAM-UNIT-16` | ¿Qué pasa con la faceta de tutor cuando su usuario se da de baja en `Core`? | Nada automático en `1.14` (`ADR-048`); la ficha muestra al tutor como «usuario dado de baja» como usuario eliminado (`removed = true` y nombre vacío en `displayNamesByIds`, #446). Si se quiere baja en cascada, consumir `UserDeactivated` en una entrega posterior |
 | `OPEN-FAM-UNIT-17` | ¿Una revocación judicial debe bloquear también el acceso del tutor revocado si además es **personal** del centro con ámbito sobre ese alumno? | Cuestión jurídica: no se decide. Mientras tanto, §7.1 expone `isAccessRevoked()` para que el módulo que lo necesite pueda aplicarlo. Recomendación: preguntar a la asesoría del centro piloto |
 | `OPEN-FAM-UNIT-18` | Mayoría de edad (18) y edad de consentimiento propio (14, `LOPDGDD` art. 7) | No inventar reglas. Recomendación: avisar en la ficha cuando el alumno cumple 18 y dejar la decisión de retirar vínculos al centro; sobre los 14 años, decidir con la asesoría si el consentimiento de imagen pasa al alumno. Requiere la fecha de nacimiento de `OPEN-FAM-UNIT-03` |
@@ -596,8 +606,30 @@ Texto original de la propuesta (cada pregunta lleva su recomendación): **Bloque
 
 ## 14. Huecos detectados en la revisión de documentación (2026-10-26)
 
-No cambian el alcance aprobado; `1.14-a` los cierra al empezar, antes de escribir código, y si alguno exige decidir se pregunta al usuario:
+No cambian el alcance aprobado; `1.14-a` los cierra al empezar, antes de escribir código, y si alguno exige decidir se pregunta al usuario. **Estado tras `1.14-a`:**
 
-1. `RN-FAM-UNIT-35`, `-37`, `-38` (unidad sin principal al revocar el último vínculo, `principal_cleared`) y `-63` (sin versión publicada no hay muro) no tienen `CA` que las cite: añadirlos (`INV-015`).
-2. `PATCH /guardians/{id}` con cambio de unidad (`api.md`): falta fijar qué pasa con `principal_guardian_id` de la unidad de origen y con los vínculos; es una decisión de diseño pendiente (entre `RN-FAM-UNIT-02`, `-11` y `-12`).
-3. Los `CA` que exigen la persona de un alumno (`CA-FAM-UNIT-010`, `-012`, `-084` y los de consentimiento) se prueban con fábricas y con `REQ-SEED` (`CLAUDE.md §11`): no hay alta de alumno por API hasta `1.15`.
+1. **Cerrado salvo `RN-FAM-UNIT-63`.** `RN-FAM-UNIT-35`, `-37` y `-38` (unidad sin principal al revocar el último vínculo, `principal_cleared`) tienen ya su `CA` (`CA-FAM-UNIT-038`, `-039` y `-029`). `RN-FAM-UNIT-63` (sin versión publicada no hay muro) es de `1.14-c`: su `CA` se añade con esa entrega.
+2. **Cerrado.** `PATCH /guardians/{id}` no cambia de unidad (decisión del usuario del 2026-10-26): `RN-FAM-UNIT-14` y `CA-FAM-UNIT-009`.
+3. **Sigue vigente (informativo).** Los `CA` que exigen la persona de un alumno (`CA-FAM-UNIT-010`, `-012`, `-084` y los de consentimiento) se prueban con fábricas y con `REQ-SEED` (`CLAUDE.md §11`): no hay alta de alumno por API hasta `1.15`.
+
+---
+
+## 15. Decisiones de implementación de `1.14-a`
+
+Donde la especificación aprobada deja una elección de detalle, `1.14-a` fija lo siguiente. Ninguna cambia el alcance; todas son revisables por el usuario.
+
+| # | Decisión | Motivo |
+|---|----------|--------|
+| D-1 | `POST /family-units`: `code` es **opcional**. Sin él, el sistema genera `UF-` + número de seis cifras, secuencial por centro (máximo existente, vivas y borradas, + 1, bajo bloqueo consultivo del centro). Con él, se valida (1 a 40 caracteres, sin caracteres de control) y es único entre las vivas. `PATCH` admite cambiar `code` | `OPEN-FAM-UNIT-06` (generado) y `api.md §2.1`/`CA-FAM-UNIT-002` (el cliente escribe el código, `PATCH` lo cambia) se contradicen si se leen como excluyentes; esta lectura cumple las dos |
+| D-2 | `GET /guardian-links?status=revocado` sin `revocacion_tutor.leer` ⇒ `403 forbidden`, e `include_deleted` sin `familia.eliminar` ⇒ `403`. **Corregido tras la revisión de seguridad (M1, 2026-10-26)**: sin `revocacion_tutor.leer`, el listado omite los vínculos revocados y el detalle de uno es `404` (`RN-FAM-UNIT-40`, `CA-FAM-UNIT-048`); con el permiso se ven con `revocation` | `api.md §3` dice «exige» el permiso sin fijar el código; el estado `revocado` revela una resolución judicial |
+| D-3 | `isAccessRevoked()` **no** depende de que el módulo esté contratado; los conjuntos de `FamilyMembership` y `GuardianRecipients` sí (vacíos si no lo está, `§9`) | `§9` solo nombra los conjuntos. Una revocación judicial no debe «deshacerse» al descontratar el módulo |
+| D-4 | La ampliación de `Core\Domain` (`OPEN-FAM-UNIT-03`) se entrega como `PersonDirectory` (sin fecha de nacimiento: la única regla que la usaría, `OPEN-FAM-UNIT-18`, no existe todavía y `ADR-048` pide no construir sin consumidor) | `ADR-048` |
+| D-5 | `PATCH /guardians/{id}` no tiene ningún campo editable en `1.14-a`: sin `family_unit`, responde `200` con el tutor sin cambios | `RN-FAM-UNIT-14` |
+| D-6 | `ImageConsentPolicy` y los permisos de `consentimiento_imagen`, `condiciones_uso` y `aceptacion_condiciones` **no** se declaran en `1.14-a`; entran con `1.14-b` y `1.14-c` | `§1.2`: un permiso sin *endpoint* invita a concederlo creyendo que hace algo |
+| D-7 | Códigos de error añadidos a los de `api.md §7` por necesidad de las reglas aprobadas: `fam_unit.guardian.user_not_eligible` (`RN-FAM-UNIT-10`: usuario `inactivo`), `fam_unit.link.emergency_contact_revoked` (`RN-FAM-UNIT-35`), `fam_unit.guardian.not_editable` (`RN-FAM-UNIT-14`) y `fam_unit.validation.{principal_guardian_not_found, relationship_invalid, access_level_invalid, restricted_category_invalid, reason_invalid, required, boolean_invalid, reference_invalid, filter_forbidden}` para los vocabularios cerrados (`RN-FAM-UNIT-32`), los `public_id` mal formados y los campos obligatorios | La especificación exige un `422` en esos casos sin nombrar el código |
+| D-8 | Mapa cerrado de `AR-10` (`permisos.md §3.1`): `familia` es un recurso de **tres** modelos (`FamilyUnit`, `Guardian`, `FamilyUnitStudent`) con tres servicios sancionados (`FamilyUnitService`, `GuardianService`, `FamilyUnitStudentService`) y `vinculo_tutor` de uno (`GuardianLinkService`). El test pasa de `model` a `models` por recurso. Los vínculos se leen desde `familia` por la relación `Guardian::links()`, nunca por consulta estática | Los tres modelos se piden entre sí dentro de las mismas reglas de dependencia; un único servicio por modelo habría exigido dependencias circulares |
+| D-9 | **Resuelta (decisión del usuario, 2026-10-26)**: las pantallas de personal de §10 (`/familias`, `/familias/:id`) y el E2E `CA-FAM-UNIT-084` pasan a una entrega propia, **`1.14-d`** (§1.2). `1.14-a` no lleva frontend; la API está completa y documentada (`INV-006`) | «No inventes pantallas» |
+| D-10 | **Resuelta (decisión del usuario, 2026-10-26)**: un vínculo `revocado` no se puede dar de baja, ni directamente ni arrastrado por la baja del tutor: `409 fam_unit.link.revoked_not_deletable` (`RN-FAM-UNIT-39`, `CA-FAM-UNIT-027`). `isAccessRevoked()` sigue contando solo vínculos vivos, y ya no puede perder una revocación por una baja; solo el levantamiento explícito la retira | `ADR-032`: la exclusión del tutor revocado de la lista de autorizados de `1.14b` depende de que la revocación se conserve |
+| D-11 | `FamilyUnit` añade `deleted_at` a su representación **solo** cuando la unidad está dada de baja (listado con `include_deleted`); sin él, ese listado no distinguiría las bajas | `api.md §1.1` no lo prevé |
+| D-12 | Índices de `datos.md §3` **no creados** por redundantes: `guardians (tenant_id, family_unit_id)`, `family_unit_students (tenant_id, family_unit_id)` y `guardian_student_links (tenant_id, student_person_id)`, parciales sobre las vivas, ya cubiertos por el índice completo `(tenant_id, <columna>)` que `tenantForeignId()` crea en cada clave foránea. Sí están el caliente de vínculos activos por tutor y el de prefijo de código | Un índice sin consulta que lo necesite es deuda (`datos.md §3`) |
+| D-13 | `student_person` en los filtros y cuerpos es el `public_id` de la **persona**; `family_unit_students` no comprueba que la persona tenga o vaya a tener faceta `student` (no existe hasta `1.15`) | `OPEN-FAM-UNIT-01` |
