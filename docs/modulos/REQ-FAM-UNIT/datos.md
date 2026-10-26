@@ -18,7 +18,7 @@ Todas las tablas son **de tenant**, creadas con `TenantMigration::tenantTable()`
 
 Restricciones: `UNIQUE (tenant_id, code) WHERE deleted_at IS NULL` (`RN-FAM-UNIT-01`).
 
-**Dependencia circular de FK** (`family_units.principal_guardian_id` → `guardians`, `guardians.family_unit_id` → `family_units`): se crean las dos tablas y después se añade la FK de `principal_guardian_id`, en la misma migración. No hace falta que sea `DEFERRABLE`: el principal siempre se designa después de crear el tutor, nunca en la misma sentencia.
+**Dependencia circular de FK** (`family_units.principal_guardian_id` → `guardians`, `guardians.family_unit_id` → `family_units`): se crean las dos tablas y después se añade la FK de `principal_guardian_id` **en una migración aparte**, la tercera (`2026_10_26_100300_add_family_units_principal_guardian_foreign_key`), con su índice `(tenant_id, principal_guardian_id)`. No hace falta que sea `DEFERRABLE`: el principal siempre se designa después de crear el tutor, nunca en la misma sentencia.
 
 ### 1.2 `guardians` (`1.14-a`) — faceta de `people` (`ADR-034 §1`)
 
@@ -185,9 +185,9 @@ Además de los únicos de §1 (que ya sirven a sus consultas) y del índice `(te
 | Índice | Consulta que lo necesita |
 |--------|---------------------------|
 | `guardian_student_links (tenant_id, guardian_id) WHERE status = 'activo' AND deleted_at IS NULL` | El **resolutor `unidad_familiar`** y `FamilyMembership`: alumnos alcanzados por el tutor del sujeto. Se ejecuta en cada petición de un tutor; es la consulta más caliente del módulo |
-| `guardian_student_links (tenant_id, student_person_id) WHERE deleted_at IS NULL` | Tutores de un alumno (`FamilyMembership`, `GuardianRecipients`, ficha); `isAccessRevoked()` |
-| `family_unit_students (tenant_id, family_unit_id) WHERE deleted_at IS NULL` | Alumnos de una unidad (ficha, regla `RN-FAM-UNIT-03`) |
-| `guardians (tenant_id, family_unit_id) WHERE deleted_at IS NULL` | Tutores de una unidad |
+| `guardian_student_links (tenant_id, student_person_id) WHERE deleted_at IS NULL` | Tutores de un alumno (`FamilyMembership`, `GuardianRecipients`, ficha); `isAccessRevoked()`  **Omitido en `1.14-a`: cubierto por `tenantForeignId()` (`funcional.md §15`, D-12).** |
+| `family_unit_students (tenant_id, family_unit_id) WHERE deleted_at IS NULL` | Alumnos de una unidad (ficha, regla `RN-FAM-UNIT-03`)  **Omitido en `1.14-a`: cubierto por `tenantForeignId()` (`funcional.md §15`, D-12).** |
+| `guardians (tenant_id, family_unit_id) WHERE deleted_at IS NULL` | Tutores de una unidad  **Omitido en `1.14-a`: cubierto por `tenantForeignId()` (`funcional.md §15`, D-12).** |
 | `image_consent_decisions (tenant_id, student_person_id, level, occurred_at DESC, id DESC)` | Recálculo del estado vigente y histórico paginado por cursor |
 | `image_consents (tenant_id, level, state)` | Listado y exportación filtrados por nivel y estado («quién no ha decidido») |
 | `terms_acceptances (tenant_id, user_id, accepted_at DESC)` | Comprobación del muro en cada petición de un tutor obligado (`RN-FAM-UNIT-62`) |

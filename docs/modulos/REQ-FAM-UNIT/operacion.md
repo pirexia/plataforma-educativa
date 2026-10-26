@@ -4,7 +4,7 @@
 
 ## 1. Variables de entorno
 
-**Ninguna nueva** en `1.14-a`/`-b`/`-c`.
+**Ninguna nueva** en `1.14-a`/`-b`/`-c`/`-d`.
 
 El detalle de custodia (condicionado a `OPEN-FAM-UNIT-05`) necesitará, según lo que decida su ADR, una o más claves de cifrado a nivel de campo. Irán en el gestor de secretos por `EnvironmentFile=` (`ADR-037`, `CLAUDE.md §8`), nunca en el repositorio, y su procedimiento de rotación en `SYSADMIN.md`. No se nombran aquí para no adelantar el diseño.
 
@@ -23,7 +23,7 @@ El detalle de custodia (condicionado a `OPEN-FAM-UNIT-05`) necesitará, según l
 
 Aborta el despliegue si un ámbito declarado no pertenece al vocabulario cerrado: `unidad_familiar` sí pertenece desde `1.5`. Si aborta, no hay que tocar datos: corregir el descriptor y volver a desplegar.
 
-**Siembra para centros existentes**: un comando en `Core` (como `acad:grant-structure-permissions`, `INV-007`), propuesto `fam_unit:grant-permissions`, idempotente, solo roles predefinidos y centros `Activo`, que **no concede nada** si alguno de los permisos falta en `permissions` o tiene `retired_at` (issue #387). Se ejecuta una vez tras el primer despliegue de cada entrega que añada permisos. Centros nuevos: `ProvisionTenantDefaults`.
+**Siembra para centros existentes**: un comando en `Core` (como `acad:grant-structure-permissions`, `INV-007`), `fam_unit:grant-permissions` (implementado en `Core`: `GrantFamUnitPermissionsCommand`), idempotente, solo roles predefinidos y centros `Activo`, que **no concede nada** si alguno de los permisos falta en `permissions` o tiene `retired_at` (issue #387). Se ejecuta una vez tras el primer despliegue de cada entrega que añada permisos. Centros nuevos: `ProvisionTenantDefaults`.
 
 **Contratación**: el módulo es no esencial; queda inactivo en cada centro hasta que el Super Administrador lo contrate (`ADR-045`). Para el centro `demo` de desarrollo hay que contratarlo a mano antes de probar.
 
@@ -85,6 +85,8 @@ php artisan platform:sync-registry
 #    algún permiso o está retirado (retired_at), e imprime cuál).
 php artisan fam_unit:grant-permissions
 ```
+
+El comando `fam_unit:grant-permissions` **vive en `Core`** (`apps/api/app/Modules/Core/Infrastructure/Console/GrantFamUnitPermissionsCommand.php`), no en `FamUnit`: la escritura en `roles`/`permission_role` es de `Core` (`INV-007`, `AR-08`). La propuesta inicial de `§3` lo ubicaba igual (`Core`).
 
 Los centros **nuevos** la reciben de `tenant:provision-defaults`. Con `fam_unit` sin contratar los permisos son inertes y toda ruta responde `403 module-disabled`.
 

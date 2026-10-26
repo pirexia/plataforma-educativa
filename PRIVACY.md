@@ -1,6 +1,6 @@
 # PRIVACY.md
 
-> **Versión 0.3.7** · 2026-10-20
+> **Versión 0.3.8** · 2026-10-26
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Base del Registro de Actividades de Tratamiento (RAT) exigido por el RGPD — hoy es un **esqueleto**, no un RAT completo: varias secciones dependen de decisiones que todavía no se han tomado (`OPEN-07`, entidad jurídica y contrato de encargado de tratamiento). No se rellenan con suposiciones (`CLAUDE.md` §0/§11).
 
 ---
@@ -132,6 +132,19 @@ Mismo mecanismo que §2.3, protocolo distinto: cada centro cataloga su propio pr
 | Auditoría | Política `Full`: `changes` registra la clave interna `user_id` (pseudónima), no nombre ni documento. Decisión consciente #446 B-1. Hallazgo abierto: `GET /audit-logs` devuelve esas claves internas ([#455](https://github.com/pirexia/plataforma-educativa/issues/455)) |
 | Base legal y plazo | **Pendiente de `OPEN-07`** y de `REQ-PRIV-006`; mientras el centro exista, las filas viven con el tenant. Orden de restauración en `docs/modulos/REQ-ACAD/datos.md §9.6` |
 | Supresión y anonimización | Hoy: borrado lógico de la asignación/tutoría, y un usuario **borrado** deja de mostrar su nombre (marcador `acad.staff.removed`). **La anonimización de `ADR-004` nivel 2 (identificadores irreversibles) es diseño pendiente de `REQ-PRIV-006` y de `OPEN-07`**: no está implementada y este documento no la da por hecha |
+
+### 2.8 Relación tutor ↔ alumno, representación legal, contacto de emergencia y revocación (`REQ-FAM-UNIT-001`/`-002`, paso 1.14-a)
+
+`fam_unit` registra a qué unidad familiar pertenece la persona de un alumno (menor), qué tutores tiene (`guardians`), y para cada par tutor-alumno el tipo de relación, si ostenta **representación legal** (verificada por el centro, con fecha y usuario), el nivel de acceso, las categorías de información restringidas (hoy `salud`), si es **contacto de emergencia** y su estado `activo` o `revocado` por **resolución judicial** (fecha y usuario). Es un tratamiento de **datos personales de menores** (`INV-008`) cuyo efecto es decidir quién accede a los datos del menor: no contiene datos de salud ni de custodia (el detalle de la resolución, categoría especial, no se guarda: espera un ADR, `OPEN-FAM-UNIT-05`).
+
+| Aspecto | Decisión |
+|---------|----------|
+| Dato personal | El **vínculo** entre dos personas (tutor y alumno) y sus atributos; nombre, correo y teléfono no se guardan aquí, se resuelven por `PersonDirectory` al leer y la API nunca devuelve correo, teléfono ni documento |
+| Revocación | Es un código (`resolucion_judicial`) con fecha y autor, **sin texto libre**. Quien no tiene `revocacion_tutor.leer` no ve los vínculos revocados (ni en listados ni en el detalle) y un tutor con ámbito `unidad_familiar` nunca los ve: el estado revela una resolución judicial (`RN-FAM-UNIT-36`, `-40`) |
+| Auditoría | `GuardianStudentLink` y `FamilyUnit` con política `Selective` (códigos y marcas; el código de unidad, el tutor y el alumno se redactan como identificador); `Guardian` y `FamilyUnitStudent` con `Full` (solo ids internos). La revocación y su levantamiento quedan con autor e instante |
+| Base legal y consentimiento de menores (`INV-008`) | **Cubierto parcialmente**: este módulo aporta quién es representante legal de cada menor, verificado por el centro; la base legal por campo sigue pendiente de `OPEN-07` y `OPEN-13`. No se rellena con suposiciones |
+| Plazo de conservación | Borrado lógico mientras el alumno esté en el centro; el vínculo y su revocación son la prueba ante un incidente con un menor, así que **un vínculo revocado no se da de baja** (`RN-FAM-UNIT-39`). Plazos y anonimización: `REQ-PRIV-006`, sin especificar (`docs/modulos/REQ-FAM-UNIT/datos.md §6`) |
+| Copias de seguridad | Restaurar una copia anterior a una revocación devolvería el acceso a un tutor: se anota para `REQ-BKP` (`1.26`, `OPEN-FAM-UNIT-21`) |
 
 ## 3. Registro de Actividades de Tratamiento (RAT) — plantilla
 

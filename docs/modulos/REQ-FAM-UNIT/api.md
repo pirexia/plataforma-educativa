@@ -88,7 +88,7 @@ Permisos completos en `permisos.md`. Errores comunes a todos (no se repiten): `4
 
 | Verbo y ruta | Permiso | Ámbito | Respuesta | Errores propios |
 |---|---|---|---|---|
-| `GET /family-units` | `familia.leer` | sí | 200 colección | 422 parámetro |
+| `GET /family-units` | `familia.leer` | sí | 200 colección | 403 (`include_deleted` sin `familia.eliminar`, D-2), 422 parámetro |
 | `POST /family-units` | `familia.crear` | — | 201 + `Location` | 422 `code_taken`, `code_invalid` |
 | `GET /family-units/{public_id}` | `familia.leer` | sí | 200 | 404 |
 | `PATCH /family-units/{public_id}` | `familia.actualizar` | — | 200 | 404, 422 `code_taken`, `principal_not_member` |
@@ -102,12 +102,12 @@ Permisos completos en `permisos.md`. Errores comunes a todos (no se repiten): `4
 | Verbo y ruta | Permiso | Ámbito | Respuesta | Errores propios |
 |---|---|---|---|---|
 | `GET /guardians` | `familia.leer` | sí | 200 colección | 422 |
-| `POST /guardians` | `familia.crear` | — | 201 | 422 `user_not_found`, `already_exists`, `family_unit_not_found` |
+| `POST /guardians` | `familia.crear` | — | 201 | 422 `user_not_found`, `user_not_eligible`, `already_exists`, `family_unit_not_found` |
 | `GET /guardians/{public_id}` | `familia.leer` | sí | 200 | 404 |
 | `PATCH /guardians/{public_id}` | `familia.actualizar` | — | 200 | 404, 422 `not_editable` (el cuerpo no admite `family_unit`: un tutor no cambia de unidad; se da de baja y se crea de nuevo, `RN-FAM-UNIT-12`/`-14`; decidido por el usuario el 2026-10-26) |
-| `DELETE /guardians/{public_id}` | `familia.eliminar` | — | 200 con `{ "removed_links": n, "principal_cleared": bool }` (`RN-FAM-UNIT-12`) | 404 |
+| `DELETE /guardians/{public_id}` | `familia.eliminar` | — | 200 con `{ "removed_links": n, "principal_cleared": bool }` (`RN-FAM-UNIT-12`) | 404, 409 `link.revoked_not_deletable` (algún vínculo `revocado` bloquea la baja entera, `RN-FAM-UNIT-39`) |
 
-`POST` cuerpo: `{ "user": "<public_id>", "family_unit": "<public_id>" }`. Con ámbito `unidad_familiar`, el sujeto alcanza los tutores con vínculo activo con alguno de sus alumnos.
+`POST` cuerpo: `{ "user": "<public_id>", "family_unit": "<public_id>" }`. `user_not_eligible`: el usuario no está `pendiente` ni `activo` (`RN-FAM-UNIT-10`). Con ámbito `unidad_familiar`, el sujeto alcanza los tutores con vínculo activo con alguno de sus alumnos.
 
 ### 2.3 Alumnado de la unidad (`1.14-a`)
 
@@ -123,11 +123,11 @@ Permisos completos en `permisos.md`. Errores comunes a todos (no se repiten): `4
 
 | Verbo y ruta | Permiso | Ámbito | Respuesta | Errores propios |
 |---|---|---|---|---|
-| `GET /guardian-links` | `vinculo_tutor.leer` | sí | 200 colección | 422 |
+| `GET /guardian-links` | `vinculo_tutor.leer` | sí | 200 colección (sin vínculos `revocado` si falta `revocacion_tutor.leer`, `RN-FAM-UNIT-40`) | 403 (`status=revocado` sin `revocacion_tutor.leer`, D-2), 422 |
 | `POST /guardian-links` | `vinculo_tutor.crear` | — | 201 | 422 `already_exists`, `self_link`, `emergency_contact_taken`, `guardian_not_found`, `student_not_found` |
-| `GET /guardian-links/{public_id}` | `vinculo_tutor.leer` | sí | 200 | 404 |
-| `PATCH /guardian-links/{public_id}` | `vinculo_tutor.actualizar` | — | 200 | 404, 422 (incluido `status`/`revocation` en el cuerpo: `not_editable`) |
-| `DELETE /guardian-links/{public_id}` | `vinculo_tutor.eliminar` | — | 204 | 404 |
+| `GET /guardian-links/{public_id}` | `vinculo_tutor.leer` | sí | 200 | 404 (también un vínculo `revocado` sin `revocacion_tutor.leer`, `RN-FAM-UNIT-40`) |
+| `PATCH /guardian-links/{public_id}` | `vinculo_tutor.actualizar` | — | 200 | 404, 422 (`status`, `revocation`, `guardian` o `student_person` en el cuerpo: `link.not_editable`; `link.emergency_contact_revoked` si el vínculo está revocado) |
+| `DELETE /guardian-links/{public_id}` | `vinculo_tutor.eliminar` | — | 204 | 404, 409 `link.revoked_not_deletable` (`RN-FAM-UNIT-39`) |
 
 `POST` cuerpo:
 
@@ -213,7 +213,7 @@ Marcar `is_legal_guardian = true` rellena `legal_guardian_verified_at`/`_by` con
 | `GET /family-units` | Página | Entidades de alta administrativa: cientos a pocos miles por centro | `q` (prefijo de código), `has_principal`, `include_deleted` (solo con `familia.eliminar`) | `code` (defecto), `created_at` |
 | `GET /guardians` | Página | Ídem | `family_unit`, `user` | `created_at` |
 | `GET /family-units/{id}/students` | Sin paginar | Decenas como mucho por unidad [DERIVADA] | — | `display_name` |
-| `GET /guardian-links` | Página | Ídem | `family_unit`, `guardian`, `student_person`, `status` (`revocado` exige `revocacion_tutor.leer`), `is_emergency_contact`, `is_legal_guardian` | `created_at` |
+| `GET /guardian-links` | Página | Ídem | `family_unit`, `guardian`, `student_person`, `status` (`revocado` exige `revocacion_tutor.leer`, si no `403`; sin ese permiso el listado tampoco incluye revocados, `RN-FAM-UNIT-40`), `is_emergency_contact`, `is_legal_guardian` | `created_at` |
 | `GET /image-consents` | Página | Una fila por alumno y nivel | `family_unit`, `student_person`, `level`, `state` | `last_decision_at`, `state` |
 | `GET /image-consent-decisions` | Cursor sobre `(occurred_at DESC, id DESC)` | Histórico de solo anexar que crece sin límite natural | `student_person` (obligatorio), `level` | Fijo |
 | `GET /terms-versions` | Página | Decenas | `status` | `version_number` (defecto desc) |
