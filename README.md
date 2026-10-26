@@ -84,7 +84,7 @@ Lista completa: sección 0.5 del documento de requisitos (`INV-001` a `INV-015`)
 | `SECURITY.md` | 0.3.13 |
 | `PRIVACY.md` | 0.3.8 |
 | `RUNBOOK.md` | 0.3.13 |
-| `CONTRIBUTING.md` | 0.3.2 |
+| `CONTRIBUTING.md` | 0.3.3 |
 
 Historial completo en `CHANGELOG.md`.
 

@@ -501,6 +501,34 @@ function completeFakeGoogleFlow(string $authorizationUrl, string $sessionCookie,
 }
 
 /**
+ * Los tests de SSO (`tests/Feature/Auth`) descargan de verdad el emisor
+ * simulado que sirve la propia API en `localhost:8000` (`operacion.md
+ * §F.10`). Si ese servidor no está en marcha (contenedor `plataforma-api`
+ * parado), el alta del proveedor falla con un 422 que no dice la causa.
+ * Se comprueba una vez por proceso y se falla con el motivo y el remedio.
+ */
+function requireSsoSimulator(): void
+{
+    static $checked = false;
+
+    if ($checked) {
+        return;
+    }
+
+    $handle = @fsockopen('127.0.0.1', 8000, $errno, $error, 2);
+
+    if ($handle === false) {
+        throw new RuntimeException(
+            'El simulador SSO no responde en localhost:8000: los tests de OIDC y SAML lo necesitan. '
+            .'Arranca la API (`podman start plataforma-api`) y repite.'
+        );
+    }
+
+    fclose($handle);
+    $checked = true;
+}
+
+/**
  * REQ-AUTH-004 (1.4b). La URL de descubrimiento del emisor OIDC
  * simulado (`operacion.md §F.10`), alcanzable desde dentro del propio
  * contenedor de la API. Constante global de test: la usan varios
@@ -522,6 +550,8 @@ const OIDC_DISCOVERY_URL = 'http://localhost:8000/api/_sso-simulator/.well-known
  */
 function createActiveOidcProvider(string $slug, User $admin, array $overrides = []): array
 {
+    requireSsoSimulator();
+
     resetSessionState();
 
     $body = array_merge([
@@ -729,6 +759,8 @@ const SAML_FAKE_IDP_SSO_URL = 'http://localhost:8000/api/_sso-simulator/saml/sso
  */
 function createActiveSamlProvider(string $slug, User $admin, array $overrides = []): array
 {
+    requireSsoSimulator();
+
     resetSessionState();
 
     $body = array_merge([
