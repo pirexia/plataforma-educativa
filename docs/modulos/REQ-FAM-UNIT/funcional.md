@@ -7,7 +7,7 @@
 | Fase | 1 · paso **1.14** del plan (bloque D, Personas) |
 | Depende de | Documento: `CORE`, `AUTH`. Real: `CORE` y `AUTH` (esenciales, ya implementados). Ninguna tabla de este módulo depende del curso académico (`ADR-034 §4`: «unidad familiar» está en la lista expresa de entidades **sin** `academic_year_id`). Propuesta: `depends_on: []` (`OPEN-FAM-UNIT-14`) |
 | Esencial | Propuesta: `essential: false` (`OPEN-FAM-UNIT-14`) |
-| Estado | **PROPUESTA — pendiente de aprobación del usuario** (2026-10-26). No se implementa nada hasta que el usuario resuelva las preguntas abiertas de §13 y apruebe el documento. Hay **cuatro preguntas que bloquean** partes concretas del alcance (§13.1) |
+| Estado | **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). No se implementa nada hasta que el usuario resuelva las preguntas abiertas de §13 y apruebe el documento. Hay **cuatro preguntas que bloquean** partes concretas del alcance (§13.1) |
 | Decisiones vinculantes de partida | `ADR-020`, `ADR-021`, `ADR-029`, `ADR-032` (solo para lo que `1.14` debe dejar preparado, §1.4), `ADR-033`, `ADR-034 §1`/`§4`/`§6`/`§7`, `ADR-035`, `ADR-038`, `ADR-043 §8.1`, `ADR-044` (enmendado por `ADR-063 §5.2`), `ADR-045`, `ADR-048`, `ADR-053`, `ADR-054`, `ADR-055`, `ADR-056`, `ADR-062` (contenido del centro traducible) |
 
 > Donde esta especificación añade algo que ni los requisitos ni un ADR fijan, se marca **[DERIVADA]** y se argumenta. Donde falta información que no corresponde inventar, hay una pregunta abierta en §13 con una recomendación, y **no** una decisión.
@@ -537,7 +537,13 @@ Formato Dado/Cuando/Entonces. Cada uno es un test que referencia su ID (`INV-015
 
 ## 13. Preguntas abiertas
 
-Ninguna se resuelve en este documento. Cada una lleva recomendación. **Bloqueantes** (§13.1): sin respuesta no se puede implementar la parte que indican.
+**Resolución (2026-10-26): el usuario aprueba todas las recomendaciones de esta sección, tal cual, y la partición en `1.14-a`/`-b`/`-c`.** Quedan estas condiciones, que la aprobación no elimina:
+- `OPEN-FAM-UNIT-05`: solo entra la revocación como permiso ordinario; el detalle documental de la custodia espera a un ADR de `architect` (cifrado por campo y auditoría de lectura). No se implementa antes.
+- `OPEN-FAM-UNIT-12`: el registro de «muros de sesión» y la ampliación de las listas cerradas de `AR-07a` y de rutas `[]` quedan aprobados; el diseño pasa por `architect` antes de `1.14-c`.
+- `OPEN-FAM-UNIT-08`: unanimidad para `autorizo`; conviene validarla con asesoría jurídica antes de datos reales.
+- `OPEN-FAM-UNIT-17`, `-18` y `-20`: la recomendación es no inventar reglas jurídicas; permanecen sin regla hasta que haya criterio legal, y no bloquean `1.14-a`.
+
+Texto original de la propuesta (cada pregunta lleva su recomendación): **Bloqueantes** (§13.1): sin respuesta no se puede implementar la parte que indican.
 
 ### 13.1 Bloqueantes
 

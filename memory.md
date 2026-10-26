@@ -161,7 +161,7 @@ Detalle de `1.11-a` (PR #417), `1.11-b` (PR #423) y de la sesión del 2026-10-08
 
 ## Siguiente paso concreto
 
-1. **`1.14` · `REQ-FAM-UNIT`: unidad familiar y tutores** [OPUS + SONNET], bloque D. Rama `feature/REQ-FAM-UNIT-1-14-unidad-familiar`. Se abre con la especificación (`spec-writer`, Opus): custodia, restricciones de acceso por tutor, consentimiento de imagen granular, base legal de menores (`INV-008`). Sin implementar hasta que el usuario apruebe la especificación.
+1. **`1.14` · `REQ-FAM-UNIT`: unidad familiar y tutores** [OPUS + SONNET], bloque D. Rama `feature/REQ-FAM-UNIT-1-14-unidad-familiar`. **Especificación APROBADA el 2026-10-26** (todas las `OPEN-FAM-UNIT` con su recomendación; PR de la especificación por mezclar tras `doc-reviewer`). Siguiente: `1.14-a` (unidades, tutores, vínculos, revocación, resolutor, interfaces y ampliación de `Core\Domain`) con `implementer`; antes de `1.14-c`, `architect` diseña el registro de «muros de sesión»; el detalle de custodia espera a un ADR.
 2. Orden del plan después: `1.14b` (autorizados y entrega de menores, paso crítico), `1.15` (alumnado y matrícula), `1.13` (asistencia, tras `1.15`), `1.15a` (capa visual, `ADR-064`) antes de `1.15b`.
 3. `1.23b` (purga física de tenant, #371, [OPUS + SONNET]): obligatorio antes de datos reales y del importador `1.24`.
 4. Pendiente con permiso del usuario: decidir el Medio de #438 (intercambio de códigos en `PATCH`) y si se exige el ámbito `todos` del rollover (#461). El E2E real `CA-ACAD-101` ya pasa.

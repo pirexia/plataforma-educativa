@@ -76,7 +76,7 @@ Lista completa: sección 0.5 del documento de requisitos (`INV-001` a `INV-015`)
 | `README.md` | 2.6.31 |
 | `CLAUDE.md` | 2.7.3 |
 | `ARCHITECTURE.md` | 2.5.6 |
-| `PLAN-IMPLEMENTACION.md` | 2.3.14 |
+| `PLAN-IMPLEMENTACION.md` | 2.3.15 |
 | `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` | 3.2.20 |
 | `docs/SETUP-CLAUDE-CODE.md` | 1.3.0 |
 | `docs/SETUP-ENTORNO.md` | 1.3.0 |

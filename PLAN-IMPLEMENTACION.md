@@ -1,6 +1,6 @@
 # PLAN-IMPLEMENTACION.md
 
-> **Versión 2.3.14** · 2026-10-26
+> **Versión 2.3.15** · 2026-10-26
 
 > Plan de ejecución dimensionado a **sesiones de ~5 horas** (límite del plan Pro). Cada paso cabe en una o dos sesiones y termina con el repositorio en estado compilable, tests en verde y `memory.md` actualizado.
 >
@@ -214,7 +214,8 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 
 ### Bloque D · Personas
 
-- [~] **1.14 · `REQ-FAM-UNIT`: unidad familiar y tutores** [OPUS + SONNET] · *especificación en curso desde 2026-10-26*
+- [~] **1.14 · `REQ-FAM-UNIT`: unidad familiar y tutores** [OPUS + SONNET] · *especificación APROBADA el 2026-10-26; implementación en tres entregas `1.14-a`/`-b`/`-c`*
+  **Actualización 2026-10-26: especificación APROBADA** (`docs/modulos/REQ-FAM-UNIT/`, `RN-FAM-UNIT-01..65`, `CA-FAM-UNIT-001..085`, `OPEN-FAM-UNIT-01..21` aceptadas con su recomendación). Entregas: `1.14-a` (unidades, tutores, vínculos, revocación, resolutor e interfaces; incluye la ampliación de `Core\Domain`), `1.14-b` (consentimiento de imagen), `1.14-c` (condiciones de uso y muro de sesión; antes, `architect` diseña el registro de «muros de sesión»). El detalle documental de custodia como categoría especial espera a un ADR. El alumno se identifica por su persona hasta `1.15`.
   Incluye custodia, restricciones de acceso por tutor y consentimiento de imagen granular.
 
 - [ ] **1.14b · `REQ-FAM-UNIT-005` + `REQ-PRL-004`: autorizados y entrega de menores** [OPUS + SONNET] ⚠️ *paso crítico*

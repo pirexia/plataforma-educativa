@@ -1,6 +1,6 @@
 # REQ-FAM-UNIT · Operación
 
-> **Estado**: **PROPUESTA — pendiente de aprobación del usuario** (2026-10-26).
+> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`).
 
 ## 1. Variables de entorno
 

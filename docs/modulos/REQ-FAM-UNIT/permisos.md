@@ -1,6 +1,6 @@
 # REQ-FAM-UNIT · Permisos
 
-> **Estado**: **PROPUESTA — pendiente de aprobación del usuario** (2026-10-26). La fuente de verdad será `FamUnitServiceProvider::declaredPermissions()` (`INV-007`, `ADR-034 §2`); esta tabla será su reflejo. La siembra de §4 es la recomendación de `OPEN-FAM-UNIT-10`. El recurso `restriccion_custodia` está **condicionado** a `OPEN-FAM-UNIT-05`.
+> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). La fuente de verdad será `FamUnitServiceProvider::declaredPermissions()` (`INV-007`, `ADR-034 §2`); esta tabla será su reflejo. La siembra de §4 es la recomendación de `OPEN-FAM-UNIT-10`. El recurso `restriccion_custodia` está **condicionado** a `OPEN-FAM-UNIT-05`.
 
 ---
 

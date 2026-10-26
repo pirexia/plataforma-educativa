@@ -1,6 +1,6 @@
 # REQ-FAM-UNIT · API
 
-> **Estado**: **PROPUESTA — pendiente de aprobación del usuario** (2026-10-26). Los *endpoints* de §2.6 dependen de `OPEN-FAM-UNIT-05`; los de §2.7 y §2.8, de la partición de `funcional.md §1.2`; el muro (§2.8) de `OPEN-FAM-UNIT-12`.
+> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). Los *endpoints* de §2.6 dependen de `OPEN-FAM-UNIT-05`; los de §2.7 y §2.8, de la partición de `funcional.md §1.2`; el muro (§2.8) de `OPEN-FAM-UNIT-12`.
 
 Prefijo: `/api/v1`. Tenant por *host* (`ADR-033 §2`). Todo según `ADR-038`: recurso individual desnudo, colección en `{data, meta}` (§3), filtros planos y valores múltiples separados por comas (§5.2), orden por lista blanca con desempate por `id` (§5.3), errores `application/problem+json` con `type` URN y `errors` como objeto indexado por campo con arrays de `{code, message, params}` (§6), `404` frente a `403` (§6.4).
 
