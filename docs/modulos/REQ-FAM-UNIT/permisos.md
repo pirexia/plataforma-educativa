@@ -1,6 +1,6 @@
 # REQ-FAM-UNIT · Permisos
 
-> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). La fuente de verdad será `FamUnitServiceProvider::declaredPermissions()` (`INV-007`, `ADR-034 §2`); esta tabla será su reflejo. La siembra de §4 es la recomendación de `OPEN-FAM-UNIT-10`. El recurso `restriccion_custodia` está **condicionado** a `OPEN-FAM-UNIT-05`.
+> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). **`1.14-a` implementada (2026-10-26)**: `FamUnitServiceProvider::declaredPermissions()` declara los **once** permisos de `familia`, `vinculo_tutor` y `revocacion_tutor`; los de `consentimiento_imagen`, `condiciones_uso` y `aceptacion_condiciones` se declaran con `1.14-b`/`-c`. Siembra: `ProvisionTenantDefaults::FAMILY_PERMISSION_GRANTS` y `FAMILY_PERMISSION_UNIDAD_FAMILIAR_GRANTS`, y el comando `fam_unit:grant-permissions` para los centros existentes. La fuente de verdad será `FamUnitServiceProvider::declaredPermissions()` (`INV-007`, `ADR-034 §2`); esta tabla será su reflejo. La siembra de §4 es la recomendación de `OPEN-FAM-UNIT-10`. El recurso `restriccion_custodia` está **condicionado** a `OPEN-FAM-UNIT-05`.
 
 ---
 

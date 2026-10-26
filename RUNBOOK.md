@@ -1,6 +1,6 @@
 # RUNBOOK.md
 
-> **Versión 0.3.12** · 2026-10-21
+> **Versión 0.3.13** · 2026-10-26
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Cubre por ahora únicamente el entorno de **desarrollo** en WSL2 (`ADR-030`) — no hay producción, piloto ni usuarios reales todavía. Los procedimientos de guardia, alertas y recuperación ante desastre de un entorno real se documentarán aquí cuando `OPEN-11` (alojamiento del piloto) se resuelva.
 
 ---
@@ -249,6 +249,8 @@ systemctl --user restart api@1.service web.service worker.service
 4. Al **volver a la versión nueva**: `php artisan migrate --database=pgsql_owner --force`, `php artisan platform:sync-registry` y `php artisan acad:grant-structure-permissions` para recuperar las concesiones.
 
 **Marcos especiales y reservas (`1.12-b`, `acad`)**: igual, imagen anterior sin `migrate:rollback` (la tabla `facility_bookings` es aditiva y su `down()` borraría las reservas del centro; `REQ-ACAD/operacion.md §12.5 bis`). Con la versión anterior las rutas y los permisos de `reservas` desaparecen o quedan inertes, y un marco especial ya creado se trata como ordinario en la detección de conflictos (solo rechaza de más). Al volver a la versión nueva: `migrate --database=pgsql_owner --force`, `platform:sync-registry` y `acad:grant-structure-permissions`. **No probado** contra una imagen anterior real en esta entrega (solo razonado: la tabla es aditiva y la versión anterior no la lee).
+
+**Unidades familiares, vínculos y revocación (`1.14-a`, `fam_unit`)**: imagen anterior **sin** `migrate:rollback` (las cuatro tablas son aditivas y su `down()` borraría las familias y las revocaciones del centro; `REQ-FAM-UNIT/operacion.md §8`). Efectos de volver atrás: las rutas y los permisos de `fam_unit` desaparecen o quedan inertes (`sync-registry` de la versión anterior los marca con `retired_at`) y **ninguna interfaz de pertenencia familiar existe**, así que ningún módulo puede excluir a un tutor revocado; no hay todavía ningún módulo que entregue menores (`1.14b`), pero no se debe reutilizar la imagen anterior si ese paso ya está desplegado. Al volver a la versión nueva: `php artisan migrate --database=pgsql_owner --force`, `php artisan platform:sync-registry` y `php artisan fam_unit:grant-permissions`. **No probado** sobre un servidor (`OPEN-11`).
 
 **Qué se probó y qué no (2026-10-17)**: *probado* sobre la base de desarrollo, con la tabla vacía, `down()` y `up()` de `2026_10_17_100100_create_academic_periods_table.php` (tabla, disparador `academic_year_write_guard`, política y RLS con `FORCE`, 4 `CHECK`, 6 índices y clave foránea de tres columnas idénticos antes y después; 0 migraciones pendientes), y por lectura del código que la auditoría muestra `auditable_type` como cadena, así que un alias desconocido no falla. *No probado*: el despliegue real de la imagen anterior con datos de períodos ya creados (mismo bloqueo que en pasos anteriores: no hay entorno de despliegue en desarrollo); queda para el primer *staging* (`0.10e`).
 
