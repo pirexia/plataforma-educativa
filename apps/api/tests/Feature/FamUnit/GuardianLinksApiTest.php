@@ -235,12 +235,13 @@ test('api.md §3: GET /guardian-links filtra por family_unit, guardian, student_
     Fam::call($tenant, $admin, 'get', '/guardian-links?status=otro')->assertStatus(422);
     Fam::call($tenant, $admin, 'get', '/guardian-links?guardian=mal')->assertStatus(422);
 
-    // Sin revocacion_tutor.leer: el filtro status=revocado es 403 y el campo revocation no aparece (api.md §1.4, D-2).
+    // Sin revocacion_tutor.leer: el filtro status=revocado es 403 y el campo revocation no aparece (api.md §1.4, D-2) y no aparecen los revocados (RN-FAM-UNIT-40).
     $reader = Fam::userWith($tenant, $admin, 'lector', ['vinculo_tutor.leer' => 'todos']);
     Fam::call($tenant, $reader, 'get', '/guardian-links?status=revocado')->assertForbidden();
 
+    // RN-FAM-UNIT-40: sin ese permiso tampoco se ve el vínculo revocado en el listado general.
     $rows = Fam::call($tenant, $reader, 'get', '/guardian-links')->assertOk()->json('data');
-    expect($rows)->toHaveCount(3);
+    expect($rows)->toHaveCount(2);
 
     foreach ($rows as $row) {
         expect($row)->not->toHaveKey('revocation');

@@ -152,6 +152,7 @@ test('REQ-FAM-UNIT-001 api.md §1: los esquemas de OpenAPI describen exactamente
 
     $plain = Fam::userWith($tenant, $admin, 'plano', ['vinculo_tutor.leer' => 'todos']);
     expect(array_keys(Fam::call($tenant, $plain, 'get', "/guardian-links/{$link['public_id']}")->assertOk()->json()))->toEqualCanonicalizing($withoutRevocation);
+    // Sin revocacion_tutor.leer, `revocation` no aparece; el vínculo revocado ni se ve (RN-FAM-UNIT-40).
 
     // La revocación añade `principal_cleared`, y `revocation` trae el detalle documentado.
     $revoked = Fam::call($tenant, $admin, 'post', "/guardian-links/{$link['public_id']}/revocation", ['reason' => 'resolucion_judicial'])->assertOk()->json();

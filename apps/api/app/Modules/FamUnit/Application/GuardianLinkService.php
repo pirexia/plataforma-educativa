@@ -7,6 +7,7 @@ use App\Modules\Core\Domain\PersonDirectory;
 use App\Modules\FamUnit\Domain\Models\Guardian;
 use App\Modules\FamUnit\Domain\Models\GuardianStudentLink;
 use App\Support\Authorization\PermissionDecision;
+use App\Support\Authorization\PermissionResolver;
 use App\Support\Authorization\ScopedQuery;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
@@ -38,6 +39,7 @@ final class GuardianLinkService
         private readonly GuardianService $guardians,
         private readonly FamilyUnitService $units,
         private readonly PersonDirectory $people,
+        private readonly PermissionResolver $permissions,
     ) {}
 
     /** Detalle sin acotar por ámbito (escrituras): `404` si no existe o es de otro centro. */
@@ -49,9 +51,10 @@ final class GuardianLinkService
     /** `404` si no existe, es de otro centro o el sujeto no lo alcanza (un vínculo revocado nunca, `RN-FAM-UNIT-36`). */
     public function findScoped(string $publicId, PermissionDecision $decision, User $subject): GuardianStudentLink
     {
-        return $this->scopedQuery->constrain(GuardianStudentLink::query()->with('guardian'), 'vinculo_tutor', $decision, $subject)
-            ->where('public_id', $publicId)
-            ->firstOrFail();
+        return $this->hideRevokedWithoutPermission(
+            $this->scopedQuery->constrain(GuardianStudentLink::query()->with('guardian'), 'vinculo_tutor', $decision, $subject),
+            $subject,
+        )->where('public_id', $publicId)->firstOrFail();
     }
 
     /**
@@ -61,7 +64,10 @@ final class GuardianLinkService
      */
     public function listing(PermissionDecision $decision, User $subject, array $filters): Builder
     {
-        $query = $this->scopedQuery->constrain(GuardianStudentLink::query()->with('guardian'), 'vinculo_tutor', $decision, $subject);
+        $query = $this->hideRevokedWithoutPermission(
+            $this->scopedQuery->constrain(GuardianStudentLink::query()->with('guardian'), 'vinculo_tutor', $decision, $subject),
+            $subject,
+        );
 
         if ($filters['guardian'] !== []) {
             $query->whereHas('guardian', fn (Builder $q) => $q->whereIn('public_id', $filters['guardian']));
@@ -86,6 +92,20 @@ final class GuardianLinkService
         }
 
         return $query;
+    }
+
+    /**
+     * `RN-FAM-UNIT-40`: quien no tiene `revocacion_tutor.leer` no ve los vínculos `revocado` —ni en el listado ni en el
+     * detalle (`404`, sin distinguirlos de un id inexistente)—: el estado `revocado` revela una resolución judicial.
+     *
+     * @param  Builder<GuardianStudentLink>  $query
+     * @return Builder<GuardianStudentLink>
+     */
+    private function hideRevokedWithoutPermission(Builder $query, User $subject): Builder
+    {
+        return $this->permissions->decide($subject, 'revocacion_tutor.leer')->permitted
+            ? $query
+            : $query->where('status', 'activo');
     }
 
     /**
@@ -115,16 +135,17 @@ final class GuardianLinkService
                 $this->assertNoOtherEmergencyContact($student->id, null);
             }
 
+            // Tutor, alumno y estado no son asignables en masa (B2): se asignan por instancia.
             $link = new GuardianStudentLink([
-                'guardian_id' => $guardian->id,
-                'student_person_id' => $student->id,
                 'relationship' => $input['relationship'],
                 'is_legal_guardian' => $input['is_legal_guardian'],
                 'access_level' => $input['access_level'],
                 'restricted_categories' => $input['restricted_categories'],
                 'is_emergency_contact' => $input['is_emergency_contact'],
-                'status' => 'activo',
             ]);
+            $link->guardian_id = $guardian->id;
+            $link->student_person_id = $student->id;
+            $link->status = 'activo';
 
             if ($input['is_legal_guardian']) {
                 $link->legal_guardian_verified_at = now();

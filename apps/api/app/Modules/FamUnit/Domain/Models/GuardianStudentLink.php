@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * ADR-035: `Selective`. Se registra el valor de todos los códigos y marcas (ninguno es texto libre ni dato
  * personal: `RN-FAM-UNIT-36`, el detalle judicial nunca vive aquí) y de las ids de quien verificó y revocó; las
- * claves foráneas a tutor y alumno se redactan como `identifier`. Escrituras por instancia, nunca masivas (AR-15).
+ * claves foráneas a tutor y alumno se redactan como `identifier`. Escrituras por instancia, nunca masivas (AR-15): tutor, alumno, estado y verificación no son asignables en masa.
  * Los demás módulos no usan este modelo (AR-01): el acceso es por `FamilyMembership` (`funcional.md §7.1`).
  *
  * @mixin IdeHelperGuardianStudentLink
@@ -52,19 +52,11 @@ class GuardianStudentLink extends TenantModel implements Auditable
 
     /** @var list<string> */
     protected $fillable = [
-        'guardian_id',
-        'student_person_id',
         'relationship',
         'is_legal_guardian',
-        'legal_guardian_verified_at',
-        'legal_guardian_verified_by',
         'access_level',
         'restricted_categories',
         'is_emergency_contact',
-        'status',
-        'revocation_reason',
-        'revoked_at',
-        'revoked_by',
     ];
 
     protected function casts(): array

@@ -318,7 +318,7 @@ test('CA-FAM-UNIT-039 RN-FAM-UNIT-37: revocar y levantar no cambian la represent
     }
 });
 
-test('RN-FAM-UNIT-36 api.md §1.4: quien tiene revocacion_tutor.leer ve el vínculo revocado con su motivo, fecha y autor; quien no, no ve el campo revocation (D-2)', function (): void {
+test('RN-FAM-UNIT-36 RN-FAM-UNIT-40 CA-FAM-UNIT-048 api.md §1.4: quien tiene revocacion_tutor.leer ve el vínculo revocado con su motivo, fecha y autor; quien no, ni el listado ni el detalle lo muestran (404)', function (): void {
     $f = custodyFamily('rv-036b');
     revoke($f, $f['links']['p1'])->assertOk();
 
@@ -326,12 +326,14 @@ test('RN-FAM-UNIT-36 api.md §1.4: quien tiene revocacion_tutor.leer ve el vínc
     $plain = Fam::userWith($f['tenant'], $f['admin'], 'plano', ['vinculo_tutor.leer' => 'todos']);
 
     $withDetail = Fam::call($f['tenant'], $reviewer, 'get', "/guardian-links/{$f['links']['p1']}")->assertOk();
-    $without = Fam::call($f['tenant'], $plain, 'get', "/guardian-links/{$f['links']['p1']}")->assertOk();
+    // RN-FAM-UNIT-40: sin revocacion_tutor.leer, el revocado es 404 en el detalle (igual que un id inexistente).
+    $without = Fam::call($f['tenant'], $plain, 'get', "/guardian-links/{$f['links']['p1']}")->assertNotFound();
 
     expect($withDetail->json('revocation.reason'))->toBe('resolucion_judicial')
         ->and($withDetail->json('revocation.revoked_by'))->toBe($f['admin']->public_id)
-        ->and($without->json())->not->toHaveKey('revocation')
-        ->and($without->json('status'))->toBe('revocado');
+        ->and($without->json('errors'))->toBe(Fam::call($f['tenant'], $plain, 'get', '/guardian-links/01JZZZZZZZZZZZZZZZZZZZZZZZ')->json('errors'))
+        ->and(array_column(Fam::call($f['tenant'], $plain, 'get', '/guardian-links')->assertOk()->json('data'), 'public_id'))->not->toContain($f['links']['p1'])
+        ->and(Fam::call($f['tenant'], $plain, 'get', '/guardian-links')->json('meta.total'))->toBe(3);
 
     $listed = Fam::call($f['tenant'], $reviewer, 'get', '/guardian-links?status=revocado')->assertOk();
     expect($listed->json('meta.total'))->toBe(1)->and($listed->json('data.0.revocation.reason'))->toBe('resolucion_judicial');
@@ -360,4 +362,28 @@ test('CA-FAM-UNIT-027 RN-FAM-UNIT-39: un vínculo revocado no se da de baja (409
     Fam::call($f['tenant'], $f['admin'], 'delete', "/guardian-links/{$f['links']['m1']}")->assertNoContent();
     Fam::call($f['tenant'], $f['admin'], 'delete', "/guardian-links/{$f['links']['p1']}/revocation")->assertOk();
     Fam::call($f['tenant'], $f['admin'], 'delete', "/guardians/{$padre}")->assertOk()->assertJsonPath('removed_links', 2);
+});
+
+test('CA-FAM-UNIT-048 RN-FAM-UNIT-40: quien tiene vinculo_tutor.leer con ámbito todos pero no revocacion_tutor.leer ve la lista sin revocados y el detalle de uno revocado es 404; con el permiso los ve; los recuentos de la unidad no cambian', function (): void {
+    $f = custodyFamily('rv-048');
+    revoke($f, $f['links']['p1'])->assertOk();
+
+    $plain = Fam::userWith($f['tenant'], $f['admin'], 'administrativo', ['vinculo_tutor.leer' => 'todos', 'familia.leer' => 'todos']);
+    $reviewer = Fam::userWith($f['tenant'], $f['admin'], 'revisor', ['vinculo_tutor.leer' => 'todos', 'revocacion_tutor.leer' => 'todos']);
+
+    $plainIds = array_column(Fam::call($f['tenant'], $plain, 'get', '/guardian-links')->assertOk()->json('data'), 'public_id');
+    $reviewerIds = array_column(Fam::call($f['tenant'], $reviewer, 'get', '/guardian-links')->assertOk()->json('data'), 'public_id');
+
+    expect($plainIds)->toHaveCount(3)->and($plainIds)->not->toContain($f['links']['p1'])
+        ->and($reviewerIds)->toHaveCount(4)->and($reviewerIds)->toContain($f['links']['p1']);
+
+    Fam::call($f['tenant'], $plain, 'get', "/guardian-links/{$f['links']['p1']}")->assertNotFound();
+    Fam::call($f['tenant'], $reviewer, 'get', "/guardian-links/{$f['links']['p1']}")->assertOk()->assertJsonPath('status', 'revocado');
+    // El filtro sigue siendo 403 (D-2), no un vacío que lo delate.
+    Fam::call($f['tenant'], $plain, 'get', '/guardian-links?status=revocado')->assertForbidden();
+
+    // Los recuentos de la unidad y de sus tutores no dependen del estado de los vínculos.
+    $asPlain = Fam::call($f['tenant'], $plain, 'get', "/family-units/{$f['unit']}")->assertOk()->json();
+    $asAdmin = Fam::call($f['tenant'], $f['admin'], 'get', "/family-units/{$f['unit']}")->assertOk()->json();
+    expect($asPlain['students_count'])->toBe(2)->and($asPlain['guardians_count'])->toBe(2)->and($asPlain)->toEqual($asAdmin);
 });
