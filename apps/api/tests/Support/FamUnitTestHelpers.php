@@ -2,8 +2,10 @@
 
 namespace Tests\Support;
 
+use App\Models\AuditLog;
 use App\Models\Person;
 use App\Models\User;
+use App\Models\UserStatus;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +40,9 @@ final class FamUnitTestHelpers
     /** Persona sintética (el alumno de prueba) creada por el modelo en el contexto del centro. */
     public static function person(object $tenant, string $given = 'Alumno', string $family = 'Prueba'): Person
     {
+        // Sin sesión: `created_by` se toma del usuario autenticado, que puede ser de otro centro (FK compuesta).
+        resetSessionState();
+
         return app(TenantContext::class)->runFor($tenant->id, fn (): Person => Person::factory()->create([
             'given_name' => $given,
             'family_name_1' => $family,
@@ -67,6 +72,46 @@ final class FamUnitTestHelpers
     public static function userWith(object $tenant, User $admin, string $local, array $grants): User
     {
         return AcadApiHelpers::userWithScopes($tenant, $admin, $local, $grants);
+    }
+
+    /**
+     * Usuario activo con varios roles propios (`rol => [permiso => [efecto, ámbito]]`): para probar la combinación
+     * multi-rol (`RPERM-007`, `deny` sobrescribe).
+     *
+     * @param  array<string, array<string, array{0: string, 1: string}>>  $roles
+     */
+    public static function userWithRoles(object $tenant, User $admin, string $local, array $roles): User
+    {
+        $roleIds = [];
+
+        foreach ($roles as $code => $permissions) {
+            resetSessionState();
+            $roleIds[] = test()->actingAs($admin)->postJson(coreApiUrl($tenant->slug, '/roles'), [
+                'code' => "rol_{$local}_{$code}",
+                'name' => "Rol {$local} {$code}",
+                'permissions' => array_map(static fn (string $c, array $grant): array => ['code' => $c, 'effect' => $grant[0], 'scope' => $grant[1]], array_keys($permissions), array_values($permissions)),
+            ])->assertCreated()->json('public_id');
+        }
+
+        resetSessionState();
+        test()->actingAs($admin)->postJson(coreApiUrl($tenant->slug, '/users'), [
+            'email' => "{$local}@example.com",
+            'person' => ['given_name' => 'Persona', 'family_name_1' => 'Prueba'],
+            'send_invitation' => false,
+            'role_ids' => $roleIds,
+        ])->assertCreated();
+
+        $user = app(TenantContext::class)->runFor($tenant->id, function () use ($local): User {
+            $user = User::query()->where('email', "{$local}@example.com")->firstOrFail();
+            $user->status = UserStatus::Activo;
+            $user->save();
+
+            return $user;
+        });
+
+        resetSessionState();
+
+        return $user;
     }
 
     /** Tutor de la unidad a partir de un usuario ya creado. */
@@ -118,7 +163,7 @@ final class FamUnitTestHelpers
     /** Entradas de `audit_logs` de un tipo auditable, en el contexto del centro. */
     public static function audit(object $tenant, string $type, ?string $event = null): array
     {
-        return app(TenantContext::class)->runFor($tenant->id, fn (): array => \App\Models\AuditLog::query()
+        return app(TenantContext::class)->runFor($tenant->id, fn (): array => AuditLog::query()
             ->where('auditable_type', $type)
             ->when($event !== null, fn ($q) => $q->where('event', $event))
             ->orderBy('id')

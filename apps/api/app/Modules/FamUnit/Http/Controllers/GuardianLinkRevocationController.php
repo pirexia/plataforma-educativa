@@ -2,6 +2,7 @@
 
 namespace App\Modules\FamUnit\Http\Controllers;
 
+use App\Modules\FamUnit\Application\FamilyRefs;
 use App\Modules\FamUnit\Application\GuardianLinkService;
 use App\Modules\FamUnit\Http\Requests\RevokeGuardianLinkRequest;
 use App\Modules\FamUnit\Http\Resources\GuardianStudentLinkResource;
@@ -16,22 +17,22 @@ use Illuminate\Http\Request;
  */
 class GuardianLinkRevocationController extends FamUnitController
 {
-    public function store(RevokeGuardianLinkRequest $request, string $publicId, GuardianLinkService $service): JsonResponse
+    public function store(RevokeGuardianLinkRequest $request, string $publicId, GuardianLinkService $service, FamilyRefs $refs): JsonResponse
     {
         $service->find($publicId);
         $result = $service->revoke($publicId, $request->reason(), $this->actor($request));
-        $request->attributes->set('fam_unit.with_revocation', true);
+        $refs->showRevocation(true);
 
         return response()->json(
             (new GuardianStudentLinkResource($result['link']))->resolve($request) + ['principal_cleared' => $result['principal_cleared']],
         );
     }
 
-    public function destroy(Request $request, string $publicId, GuardianLinkService $service): GuardianStudentLinkResource
+    public function destroy(Request $request, string $publicId, GuardianLinkService $service, FamilyRefs $refs): GuardianStudentLinkResource
     {
         $service->find($publicId);
         $link = $service->lift($publicId);
-        $request->attributes->set('fam_unit.with_revocation', true);
+        $refs->showRevocation(true);
 
         return new GuardianStudentLinkResource($link);
     }

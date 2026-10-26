@@ -9,7 +9,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * REQ-FAM-UNIT/api.md §1.4. `revocation` solo se incluye si el sujeto tiene `revocacion_tutor.leer` (el controlador
- * deja el indicador en `fam_unit.with_revocation` de la petición); si no, el campo se omite. Un sujeto con ámbito
+ * deja el indicador en `FamilyRefs::showRevocation()`, memoizado por petición); si no, el campo se omite. Un sujeto con ámbito
  * `unidad_familiar` nunca recibe vínculos revocados (`RN-FAM-UNIT-36`, lo garantiza el resolutor). Enumerados sin
  * traducir (`ADR-038 §3.2`).
  *
@@ -22,8 +22,9 @@ class GuardianStudentLinkResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $withRevocation = $request->attributes->get('fam_unit.with_revocation') === true;
-        $student = app(FamilyRefs::class)->person((int) $this->student_person_id);
+        $refs = app(FamilyRefs::class);
+        $withRevocation = $refs->showsRevocation();
+        $student = $refs->person((int) $this->student_person_id);
 
         $data = [
             'public_id' => $this->public_id,
@@ -42,7 +43,7 @@ class GuardianStudentLinkResource extends JsonResource
             $data['revocation'] = $this->status === 'revocado' ? [
                 'reason' => $this->revocation_reason,
                 'revoked_at' => $this->revoked_at,
-                'revoked_by' => $this->revoked_by === null ? null : app(FamilyRefs::class)->actorPublicId((int) $this->revoked_by),
+                'revoked_by' => $this->revoked_by === null ? null : $refs->actorPublicId((int) $this->revoked_by),
             ] : null;
         }
 

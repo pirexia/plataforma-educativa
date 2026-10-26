@@ -55,7 +55,7 @@ class GuardianLinksController extends FamUnitController
 
         $page = $query->paginate($request->integer('per_page', 25))->withQueryString();
         $this->preload($refs, $page->items());
-        $request->attributes->set('fam_unit.with_revocation', $canReadRevocation);
+        $refs->showRevocation($canReadRevocation);
 
         return PagePaginatedResponse::make($page, GuardianStudentLinkResource::class);
     }
@@ -64,7 +64,7 @@ class GuardianLinksController extends FamUnitController
     {
         $actor = $this->actor($request);
         $link = $service->create($request->payload(), $actor);
-        $request->attributes->set('fam_unit.with_revocation', $permissions->decide($actor, 'revocacion_tutor.leer')->permitted);
+        $refs->showRevocation($permissions->decide($actor, 'revocacion_tutor.leer')->permitted);
 
         return (new GuardianStudentLinkResource($link))
             ->response()
@@ -77,7 +77,7 @@ class GuardianLinksController extends FamUnitController
         $actor = $this->actor($request);
         $link = $service->findScoped($publicId, $this->decision($request), $actor);
         $this->preload($refs, [$link]);
-        $request->attributes->set('fam_unit.with_revocation', $permissions->decide($actor, 'revocacion_tutor.leer')->permitted);
+        $refs->showRevocation($permissions->decide($actor, 'revocacion_tutor.leer')->permitted);
 
         return new GuardianStudentLinkResource($link);
     }
@@ -87,7 +87,7 @@ class GuardianLinksController extends FamUnitController
         $actor = $this->actor($request);
         $service->find($publicId);
         $link = $service->update($publicId, $request->payload(), $actor);
-        $request->attributes->set('fam_unit.with_revocation', $permissions->decide($actor, 'revocacion_tutor.leer')->permitted);
+        $refs->showRevocation($permissions->decide($actor, 'revocacion_tutor.leer')->permitted);
 
         return new GuardianStudentLinkResource($link);
     }

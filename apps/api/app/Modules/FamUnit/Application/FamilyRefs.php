@@ -23,6 +23,9 @@ final class FamilyRefs
     /** @var array<int, string> id interno de usuario => `public_id` */
     private array $actors = [];
 
+    /** `revocacion_tutor.leer` del sujeto de la petición: si ve el campo `revocation` de los vínculos (`api.md §1.4`). */
+    private bool $withRevocation = false;
+
     public function __construct(
         private readonly PersonDirectory $people,
         private readonly UserDirectory $userDirectory,
@@ -71,6 +74,16 @@ final class FamilyRefs
         $this->preloadActors([$userId]);
 
         return $this->actors[$userId] ?? null;
+    }
+
+    public function showRevocation(bool $show): void
+    {
+        $this->withRevocation = $show;
+    }
+
+    public function showsRevocation(): bool
+    {
+        return $this->withRevocation;
     }
 
     public function person(int $personId): ?PersonRef

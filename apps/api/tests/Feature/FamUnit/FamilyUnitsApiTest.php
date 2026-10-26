@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\AuditLog;
+use App\Models\User;
+use App\Models\UserStatus;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\FamUnitTestHelpers as Fam;
@@ -142,7 +144,7 @@ test('CA-FAM-UNIT-003 RN-FAM-UNIT-10: crear el tutor de un usuario pendiente res
         'send_invitation' => false,
     ])->assertCreated();
 
-    $user = app(TenantContext::class)->runFor($tenant->id, fn () => \App\Models\User::query()->where('email', 'madre@example.com')->firstOrFail());
+    $user = app(TenantContext::class)->runFor($tenant->id, fn () => User::query()->where('email', 'madre@example.com')->firstOrFail());
     expect($user->status->value)->toBe('pendiente');
 
     $count = fn (string $table): int => app(TenantContext::class)->runFor($tenant->id, fn (): int => DB::table($table)->count());
@@ -161,7 +163,7 @@ test('RN-FAM-UNIT-10: un usuario inactivo, borrado o inexistente no puede ser tu
 
     $inactive = Fam::userWith($tenant, $admin, 'inactivo', ['familia.leer' => 'todos']);
     app(TenantContext::class)->runFor($tenant->id, function () use ($inactive): void {
-        $inactive->status = \App\Models\UserStatus::Inactivo;
+        $inactive->status = UserStatus::Inactivo;
         $inactive->save();
     });
     expect(Fam::errorCode(Fam::guardian($tenant, $admin, $inactive, $unit)->assertStatus(422), 'user'))->toBe('fam_unit.guardian.user_not_eligible');
