@@ -40,6 +40,10 @@ return [
         'revoked_not_deletable' => 'A revoked link cannot be deleted: lift the revocation first.',
     ],
 
+    'errors' => [
+        'revocation_rate_limited' => 'You have reached the limit of revocations or revocation lifts. Try again in about :minutes minutes.',
+    ],
+
     'validation' => [
         'user_not_found' => 'The specified user does not exist.',
         'student_not_found' => 'The specified student does not exist.',

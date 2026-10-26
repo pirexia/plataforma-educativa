@@ -82,7 +82,7 @@ Para un sujeto con ámbito `unidad_familiar`, `students_count` cuenta solo los a
 
 ## 2. Endpoints
 
-Permisos completos en `permisos.md`. Errores comunes a todos (no se repiten): `401`, `403 urn:pge:error:forbidden`, `403 urn:pge:error:module-disabled`, `403 urn:pge:error:terms-acceptance-required` (§2.8), `429`.
+Permisos completos en `permisos.md`. Errores comunes a todos (no se repiten): `401`, `403 urn:pge:error:forbidden`, `403 urn:pge:error:module-disabled`, `403 urn:pge:error:terms-acceptance-required` (§2.8). **No hay `429` general**: la API autenticada no tiene limitador global (paso transversal aparte); el `429` existe solo en revocar y levantar (§2.5).
 
 ### 2.1 Unidades familiares (`1.14-a`)
 
@@ -149,10 +149,12 @@ Marcar `is_legal_guardian = true` rellena `legal_guardian_verified_at`/`_by` con
 
 | Verbo y ruta | Permiso | Respuesta | Errores propios |
 |---|---|---|---|
-| `POST /guardian-links/{public_id}/revocation` | `revocacion_tutor.crear` | 200 `GuardianStudentLink` con `revocation` y `{ "principal_cleared": bool }` (`RN-FAM-UNIT-38`) | 404, 409 `invalid_transition` |
-| `DELETE /guardian-links/{public_id}/revocation` | `revocacion_tutor.eliminar` | 200 `GuardianStudentLink` | 404, 409 `invalid_transition` |
+| `POST /guardian-links/{public_id}/revocation` | `revocacion_tutor.crear` | 200 `GuardianStudentLink` con `revocation` y `{ "principal_cleared": bool }` (`RN-FAM-UNIT-38`) | 404, 409 `invalid_transition`, 429 |
+| `DELETE /guardian-links/{public_id}/revocation` | `revocacion_tutor.eliminar` | 200 `GuardianStudentLink` | 404, 409 `invalid_transition`, 429 (`RN-FAM-UNIT-66`) |
 
 `POST` cuerpo: `{ "reason": "resolucion_judicial" }`. Sin campo de texto libre a propósito (`RN-FAM-UNIT-36`): el detalle va a §2.6. Para leer vínculos revocados con su `revocation` hace falta además `revocacion_tutor.leer` (filtro `status=revocado` de `GET /guardian-links`).
+
+**Límite** (`RN-FAM-UNIT-66`, issue #470): `POST` y `DELETE …/revocation` tienen un cubo propio cada uno, por centro **y** usuario, de 30 intentos por hora (`config/fam_unit.php`, `revocation.rate_limit`); cuenta todos los intentos, también los que acaban en `404` o `409`. Superado: `429 urn:pge:error:too-many-requests` con `Retry-After` y el texto `fam_unit.errors.revocation_rate_limited` en el idioma de la petición. Las lecturas y las demás escrituras no tienen límite.
 
 **Idempotencia** (`INV-011`): no se exige `Idempotency-Key`; repetir una revocación ya hecha responde `409 invalid_transition`, que el cliente interpreta como «ya estaba».
 
@@ -251,6 +253,6 @@ Ninguno.
 
 ## 7. Códigos de error propios
 
-Todos con prefijo `fam_unit.` y traducidos en los cuatro idiomas: `family_unit.code_taken`, `family_unit.code_invalid`, `family_unit.principal_not_member`, `family_unit.has_members`, `guardian.already_exists`, `guardian.user_not_eligible`, `student.already_in_unit`, `link.already_exists`, `link.self_link`, `link.emergency_contact_taken`, `link.invalid_transition`, `link.not_editable`, `link.emergency_contact_revoked`, `link.revoked_not_deletable` (`409`, `RN-FAM-UNIT-39`: en `DELETE /guardian-links/{id}` y `DELETE /guardians/{id}`), `guardian.not_editable`, `custody.link_not_revoked` (condicionado), `image_consent.not_legal_guardian`, `image_consent.guardian_required`, `image_consent.guardian_not_linked`, `terms.not_draft`, `terms.default_locale_missing`, `terms.version_not_current`, `export.q_not_allowed`, `validation.user_not_found`, `validation.student_not_found`, `validation.guardian_not_found`, `validation.family_unit_not_found`, y, de `1.14-a` (`funcional.md §15`, D-7), `validation.principal_guardian_not_found`, `validation.relationship_invalid`, `validation.access_level_invalid`, `validation.restricted_category_invalid`, `validation.reason_invalid`, `validation.required`, `validation.boolean_invalid`, `validation.reference_invalid` y `validation.filter_forbidden` (este último con `403`: `include_deleted` sin `familia.eliminar` o `status=revocado` sin `revocacion_tutor.leer`). Error transversal nuevo: `urn:pge:error:terms-acceptance-required` (`OPEN-FAM-UNIT-12`).
+Todos con prefijo `fam_unit.` y traducidos en los cuatro idiomas: `family_unit.code_taken`, `family_unit.code_invalid`, `family_unit.principal_not_member`, `family_unit.has_members`, `guardian.already_exists`, `guardian.user_not_eligible`, `student.already_in_unit`, `link.already_exists`, `link.self_link`, `link.emergency_contact_taken`, `link.invalid_transition`, `link.not_editable`, `link.emergency_contact_revoked`, `link.revoked_not_deletable` (`409`, `RN-FAM-UNIT-39`: en `DELETE /guardian-links/{id}` y `DELETE /guardians/{id}`), `guardian.not_editable`, `custody.link_not_revoked` (condicionado), `image_consent.not_legal_guardian`, `image_consent.guardian_required`, `image_consent.guardian_not_linked`, `terms.not_draft`, `terms.default_locale_missing`, `terms.version_not_current`, `export.q_not_allowed`, `errors.revocation_rate_limited` (`429`), `validation.user_not_found`, `validation.student_not_found`, `validation.guardian_not_found`, `validation.family_unit_not_found`, y, de `1.14-a` (`funcional.md §15`, D-7), `validation.principal_guardian_not_found`, `validation.relationship_invalid`, `validation.access_level_invalid`, `validation.restricted_category_invalid`, `validation.reason_invalid`, `validation.required`, `validation.boolean_invalid`, `validation.reference_invalid` y `validation.filter_forbidden` (este último con `403`: `include_deleted` sin `familia.eliminar` o `status=revocado` sin `revocacion_tutor.leer`). Error transversal nuevo: `urn:pge:error:terms-acceptance-required` (`OPEN-FAM-UNIT-12`).
 
 Nota: el issue #60 (`ValidationErrorFormatter` antepone `core.` al `code` de cualquier módulo) sigue abierto; estos códigos heredarán su resolución.

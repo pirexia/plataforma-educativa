@@ -103,7 +103,7 @@ test('CA-FAM-UNIT-082 CA-PERM-134 AR-12: el nombre del módulo, la etiqueta de c
         'fam_unit.family_unit.code_taken', 'fam_unit.family_unit.code_invalid', 'fam_unit.family_unit.principal_not_member', 'fam_unit.family_unit.has_members',
         'fam_unit.guardian.already_exists', 'fam_unit.guardian.not_editable', 'fam_unit.guardian.user_not_eligible', 'fam_unit.student.already_in_unit',
         'fam_unit.link.already_exists', 'fam_unit.link.self_link', 'fam_unit.link.emergency_contact_taken', 'fam_unit.link.invalid_transition',
-        'fam_unit.link.not_editable', 'fam_unit.link.emergency_contact_revoked', 'fam_unit.link.revoked_not_deletable',
+        'fam_unit.link.not_editable', 'fam_unit.link.emergency_contact_revoked', 'fam_unit.link.revoked_not_deletable', 'fam_unit.errors.revocation_rate_limited',
         ...array_map(static fn (string $k): string => "fam_unit.validation.{$k}", [
             'user_not_found', 'student_not_found', 'guardian_not_found', 'family_unit_not_found', 'principal_guardian_not_found',
             'relationship_invalid', 'access_level_invalid', 'restricted_category_invalid', 'reason_invalid', 'required', 'boolean_invalid',

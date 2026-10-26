@@ -40,6 +40,10 @@ return [
         'revoked_not_deletable' => 'Un vínculo revocado no se da de baja: levanta antes la revocación.',
     ],
 
+    'errors' => [
+        'revocation_rate_limited' => 'Has alcanzado el límite de revocaciones o levantamientos de revocación. Inténtalo de nuevo en unos :minutes minutos.',
+    ],
+
     'validation' => [
         'user_not_found' => 'El usuario indicado no existe.',
         'student_not_found' => 'El alumno indicado no existe.',

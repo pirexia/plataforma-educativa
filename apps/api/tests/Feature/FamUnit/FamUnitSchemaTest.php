@@ -233,12 +233,18 @@ test('RN-FAM-UNIT-02 (#469): la migración añade el único, el índice y la FK 
 
     $migration = require app_path('Modules/FamUnit/Database/migrations/2026_10_27_100100_add_principal_guardian_same_unit_foreign_key.php');
 
-    $migration->down();
-    $down = $state();
-    expect($down['fk'])->toBeNull()->and($down['old'])->toBe(1)->and($down['indexes'])->toBe([]);
+    try {
+        $migration->down();
+        $down = $state();
+        expect($down['fk'])->toBeNull()->and($down['old'])->toBe(1)->and($down['indexes'])->toBe([]);
+    } finally {
+        // Pase lo que pase, el esquema de test queda con la migración aplicada.
+        $migration->up();
+    }
 
-    // up() es reintentable: dos veces seguidas dejan lo mismo.
+    // up() es reintentable y no destructivo: relanzarlo con la FK validada no la toca.
+    $oid = $owner->selectOne('SELECT oid FROM pg_constraint WHERE conname = ?', [FAM_UNIT_PRINCIPAL_FK])->oid;
     $migration->up();
-    $migration->up();
-    expect($state())->toEqual($before);
+    expect($state())->toEqual($before)
+        ->and($owner->selectOne('SELECT oid FROM pg_constraint WHERE conname = ?', [FAM_UNIT_PRINCIPAL_FK])->oid)->toBe($oid);
 });

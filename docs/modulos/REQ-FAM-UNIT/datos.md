@@ -244,3 +244,11 @@ El catálogo de retención por entidad es trabajo de `1.23b`/`REQ-PRIV-006`, **s
 | `custody_restrictions` | El plazo más corto compatible con la protección del menor | Categoría especial; minimización |
 
 La purga física de un tenant completo debe incluir estas nueve tablas en el orden de dependencias de §2 (issue #371, `1.23b`).
+
+---
+
+## 7. Notas de la migración del principal en la misma unidad (issue #469, `db-reviewer`)
+
+- **Excepción consciente de D-12**: el índice `family_units (tenant_id, id, principal_guardian_id)` sobra para el motor (la comprobación de la FK busca en `guardians`, no en `family_units`) y existe solo para satisfacer `AR-16` (toda FK compuesta tiene su índice con ese prefijo). Se mantiene: no se relaja una regla de arquitectura sin aprobación del usuario. Seguimiento propuesto: matizar `AR-16` para FK cuya columna referenciada ya está cubierta por un único (`CHANGELOG.md`).
+- **Deuda de *contract*** (`CLAUDE.md §9`): la FK antigua `family_units_tenant_principal_guardian_foreign` y su índice `(tenant_id, principal_guardian_id)` quedan **redundantes** con la nueva. No se retiran en esta entrega: se retiran **dos versiones después**, cuando ninguna versión viva dependa de ellas.
+- La migración es reintentable y no destructiva (la FK ya validada no se toca; una `NOT VALID` solo reintenta `VALIDATE`; un índice `INVALID` residual se descarta y recrea) y toma `lock_timeout` de 5 s con restablecimiento. Pruebas: `FamUnitSchemaTest.php` y `tests/Concurrency/FamUnitMigrationRecoveryTest.php`.
