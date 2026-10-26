@@ -1,6 +1,6 @@
 # CONTRIBUTING.md
 
-> **Versión 0.3.2** · 2026-10-17
+> **Versión 0.3.3** · 2026-10-26
 > Estilo de código, flujo de trabajo Git y revisión de código. Extraído de `CLAUDE.md`, que es la fuente de verdad si algo difiere.
 
 ---
@@ -71,6 +71,8 @@ Todos los comandos, dentro del contenedor `api` (`podman exec plataforma-api …
 | `composer test` | **Una vez, en local, antes de abrir el PR**: `Unit` + `Feature` en paralelo (`PEST_PROCESOS`, 6 por defecto) y después `Concurrency` en serie |
 | `composer test:paralelo` / `composer test:concurrencia` | Cada mitad por separado |
 | `composer test:serie` | Diagnosticar un fallo que suena a paralelo, o volver a serie (`ADR-060 §10`) |
+
+**Requisito de la suite con el PHP del anfitrión**: los tests de SSO (`tests/Feature/Auth`: OIDC y SAML) descargan el emisor simulado que sirve la API en `localhost:8000`, así que el contenedor `plataforma-api` debe estar en marcha (`podman start plataforma-api`) junto con `plataforma-postgres` y `plataforma-redis`. Sin él, ~74 tests fallan con 422 y «Signature validation failed» (issues #291 y similares); desde 2026-10-26 el *helper* falla con ese motivo. Si una ejecución anterior falló a medias, pueden quedar centros `oidc-*`/`saml-*` en `plataforma_test` que rompen la siguiente (`tenants_slug_unique`): `truncate tenants cascade` en esa base de pruebas.
 
 Reglas:
 
