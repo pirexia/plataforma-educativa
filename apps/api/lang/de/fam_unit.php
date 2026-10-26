@@ -23,7 +23,7 @@ return [
     'guardian' => [
         'already_exists' => 'Diese Person ist bereits Erziehungsberechtigte einer Familieneinheit.',
         'not_editable' => 'Ein Erziehungsberechtigter wechselt nicht die Einheit: Löschen Sie ihn und legen Sie ihn in der anderen Einheit neu an.',
-        'user_not_eligible' => 'Der Benutzer muss ausstehend oder aktiv sein, um Erziehungsberechtigter zu werden.',
+        'user_not_eligible' => 'Der Benutzer muss den Status „ausstehend" oder „aktiv" haben, um Erziehungsberechtigter zu werden.',
     ],
 
     'student' => [

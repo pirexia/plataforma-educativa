@@ -52,6 +52,6 @@ return [
         'required' => 'Ce champ est obligatoire.',
         'boolean_invalid' => 'La valeur doit être vrai ou faux.',
         'reference_invalid' => 'L\'identifiant indiqué n\'est pas valide.',
-        'filter_forbidden' => 'Vous n\'avez pas la permission d\'utiliser ce filtre.',
+        'filter_forbidden' => 'Vous n\'êtes pas autorisé à utiliser ce filtre.',
     ],
 ];
