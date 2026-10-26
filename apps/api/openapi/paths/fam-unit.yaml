@@ -230,13 +230,13 @@ paths:
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
 
-  /api/v1/family-units/{publicId}/students/{membership}:
+  /api/v1/family-units/{publicId}/students/{membershipPublicId}:
     parameters:
       - name: publicId
         in: path
         required: true
         schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
-      - name: membership
+      - name: membershipPublicId
         in: path
         required: true
         description: '`public_id` de la pertenencia (`FamilyUnitStudent`), no de la persona.'

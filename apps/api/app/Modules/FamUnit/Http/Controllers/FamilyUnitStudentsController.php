@@ -48,9 +48,9 @@ class FamilyUnitStudentsController extends FamUnitController
             ->setStatusCode(201);
     }
 
-    public function destroy(string $publicId, string $membership, FamilyUnitStudentService $service): JsonResponse
+    public function destroy(string $publicId, string $membershipPublicId, FamilyUnitStudentService $service): JsonResponse
     {
-        $found = $service->findInUnit($publicId, $membership);
+        $found = $service->findInUnit($publicId, $membershipPublicId);
 
         return response()->json(['remaining_links' => $service->remove((string) $found->public_id)]);
     }

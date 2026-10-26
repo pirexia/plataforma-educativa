@@ -254,7 +254,7 @@ test('CA-FAM-UNIT-081 RMOD-008 RMOD-009: con el módulo no contratado, toda ruta
     expect($routes)->toHaveCount(21);
 
     foreach ($routes as $route) {
-        $uri = '/'.str_replace(['api/v1', '{publicId}', '{membership}'], ['', '01JZZZZZZZZZZZZZZZZZZZZZZZ', '01JZZZZZZZZZZZZZZZZZZZZZZY'], $route->uri());
+        $uri = '/'.str_replace(['api/v1', '{publicId}', '{membershipPublicId}'], ['', '01JZZZZZZZZZZZZZZZZZZZZZZZ', '01JZZZZZZZZZZZZZZZZZZZZZZY'], $route->uri());
         $uri = preg_replace('#//+#', '/', $uri);
         $method = $route->methods()[0];
 

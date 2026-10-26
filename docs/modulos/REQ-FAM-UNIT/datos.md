@@ -36,7 +36,7 @@ No guarda nombre, correo ni teléfono: son de `people`/`users` (`§16.3`, regla 
 
 | Columna | Tipo | Nulo | Descripción |
 |---------|------|------|-------------|
-| `public_id` | ULID | No | Expuesto como identificador de la pertenencia en `DELETE /family-units/{id}/students/{membership}` |
+| `public_id` | ULID | No | Expuesto como identificador de la pertenencia en `DELETE /family-units/{id}/students/{membershipPublicId}` |
 | `family_unit_id` | `bigint` | No | FK compuesta → `family_units` |
 | `student_person_id` | `bigint` | No | FK compuesta → `people`. La persona del alumno (`funcional.md §7.4`, `OPEN-FAM-UNIT-01`) |
 

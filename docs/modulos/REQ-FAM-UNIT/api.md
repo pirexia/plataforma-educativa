@@ -115,7 +115,7 @@ Permisos completos en `permisos.md`. Errores comunes a todos (no se repiten): `4
 |---|---|---|---|---|
 | `GET /family-units/{public_id}/students` | `familia.leer` | sí | 200 colección | 404 |
 | `POST /family-units/{public_id}/students` | `familia.actualizar` | — | 201 | 404 (unidad), 422 `student_not_found`, `already_in_unit` |
-| `DELETE /family-units/{public_id}/students/{membership}` | `familia.actualizar` | — | 200 `{ "remaining_links": n }` (`RN-FAM-UNIT-22`) | 404 |
+| `DELETE /family-units/{public_id}/students/{membershipPublicId}` | `familia.actualizar` | — | 200 `{ "remaining_links": n }` (`RN-FAM-UNIT-22`) | 404 |
 
 `POST` cuerpo: `{ "student_person": "<public_id>" }`. Añadir o quitar alumnos de una unidad es **configurarla** y exige `actualizar`, no `crear`/`eliminar` [DERIVADA, precedente `PUT /groups/{id}/subjects`].
 

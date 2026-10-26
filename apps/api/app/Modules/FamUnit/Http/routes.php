@@ -32,7 +32,7 @@ Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:fam_unit'])-
     // api.md §2.3: alumnado de la unidad (configurar la unidad exige `actualizar`).
     Route::get('/family-units/{publicId}/students', [FamilyUnitStudentsController::class, 'index'])->middleware('permission:familia.leer')->name('fam-unit.family-units.students.index');
     Route::post('/family-units/{publicId}/students', [FamilyUnitStudentsController::class, 'store'])->middleware('permission:familia.actualizar')->name('fam-unit.family-units.students.store');
-    Route::delete('/family-units/{publicId}/students/{membership}', [FamilyUnitStudentsController::class, 'destroy'])->middleware('permission:familia.actualizar')->name('fam-unit.family-units.students.destroy');
+    Route::delete('/family-units/{publicId}/students/{membershipPublicId}', [FamilyUnitStudentsController::class, 'destroy'])->middleware('permission:familia.actualizar')->name('fam-unit.family-units.students.destroy');
     // api.md §2.2: tutores.
     Route::get('/guardians', [GuardiansController::class, 'index'])->middleware('permission:familia.leer')->name('fam-unit.guardians.index');
     Route::post('/guardians', [GuardiansController::class, 'store'])->middleware('permission:familia.crear')->name('fam-unit.guardians.store');

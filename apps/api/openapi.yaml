@@ -409,8 +409,8 @@ paths:
     $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1family-units~1{publicId}~1restore"
   /api/v1/family-units/{publicId}/students:
     $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1family-units~1{publicId}~1students"
-  /api/v1/family-units/{publicId}/students/{membership}:
-    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1family-units~1{publicId}~1students~1{membership}"
+  /api/v1/family-units/{publicId}/students/{membershipPublicId}:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1family-units~1{publicId}~1students~1{membershipPublicId}"
   /api/v1/guardians:
     $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1guardians"
   /api/v1/guardians/{publicId}:

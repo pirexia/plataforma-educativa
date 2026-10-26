@@ -48,7 +48,7 @@ test('REQ-FAM-UNIT-001 api.md §2: los 21 endpoints de 1.14-a están documentado
     }
 
     sort($registered);
-    // `{membership}` es el nombre de ruta del segundo parámetro, igual en el contrato.
+    // `{membershipPublicId}` es el nombre de ruta del segundo parámetro, igual en el contrato.
     expect(famDocumentedOperations())->toHaveCount(21)->and($registered)->toBe(famDocumentedOperations());
 });
 
