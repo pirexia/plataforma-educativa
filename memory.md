@@ -159,6 +159,8 @@ Detalle de `1.11-a` (PR #417), `1.11-b` (PR #423) y de la sesión del 2026-10-08
 | [#333](https://github.com/pirexia/plataforma-educativa/issues/333) | (1.9f) `SessionsView`: `revokingId` único y `totalSessions` desfasado con revocaciones concurrentes. | Baja |
 | [#334](https://github.com/pirexia/plataforma-educativa/issues/334) | (1.9f) Doble navegación a `login` en `401` en `SessionsView` y `AdminSsoView`. | Baja |
 
+**`1.14` · ESPECIFICACIÓN APROBADA (2026-10-26), por mezclar** · rama `feature/REQ-FAM-UNIT-1-14-unidad-familiar`, solo documentación (sin suite que ejecutar). `doc-reviewer`: 0 Críticos/Altos, 4 Medios y 6 Bajos, corregidos; los huecos de `CA` y `PATCH /guardians` quedan en `funcional.md §14` para cerrar al empezar `1.14-a`. Prerrequisitos de entregas: ADR de fuente única de consentimiento de imagen antes de `1.14-b`; `architect` para los muros de sesión antes de `1.14-c`; ADR de custodia; restauración vs. revocaciones anotada en `1.26`.
+
 ## Siguiente paso concreto
 
 1. **`1.14` · `REQ-FAM-UNIT`: unidad familiar y tutores** [OPUS + SONNET], bloque D. Rama `feature/REQ-FAM-UNIT-1-14-unidad-familiar`. **Especificación APROBADA el 2026-10-26** (todas las `OPEN-FAM-UNIT` con su recomendación; PR de la especificación por mezclar tras `doc-reviewer`). Siguiente: `1.14-a` (unidades, tutores, vínculos, revocación, resolutor, interfaces y ampliación de `Core\Domain`) con `implementer`; antes de `1.14-c`, `architect` diseña el registro de «muros de sesión»; el detalle de custodia espera a un ADR.

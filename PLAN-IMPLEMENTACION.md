@@ -215,8 +215,8 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 ### Bloque D · Personas
 
 - [~] **1.14 · `REQ-FAM-UNIT`: unidad familiar y tutores** [OPUS + SONNET] · *especificación APROBADA el 2026-10-26; implementación en tres entregas `1.14-a`/`-b`/`-c`*
-  **Actualización 2026-10-26: especificación APROBADA** (`docs/modulos/REQ-FAM-UNIT/`, `RN-FAM-UNIT-01..65`, `CA-FAM-UNIT-001..085`, `OPEN-FAM-UNIT-01..21` aceptadas con su recomendación). Entregas: `1.14-a` (unidades, tutores, vínculos, revocación, resolutor e interfaces; incluye la ampliación de `Core\Domain`), `1.14-b` (consentimiento de imagen), `1.14-c` (condiciones de uso y muro de sesión; antes, `architect` diseña el registro de «muros de sesión»). El detalle documental de custodia como categoría especial espera a un ADR. El alumno se identifica por su persona hasta `1.15`.
   Incluye custodia, restricciones de acceso por tutor y consentimiento de imagen granular.
+  **Actualización 2026-10-26: especificación APROBADA** (`docs/modulos/REQ-FAM-UNIT/`, `RN-FAM-UNIT-01..65`, `CA-FAM-UNIT-001..085`, `OPEN-FAM-UNIT-01..21` aceptadas con su recomendación). Entregas: `1.14-a` (unidades, tutores, vínculos, revocación, resolutor e interfaces; incluye la ampliación de `Core\Domain`), `1.14-b` (consentimiento de imagen), `1.14-c` (condiciones de uso y muro de sesión; antes, `architect` diseña el registro de «muros de sesión»). El detalle documental de custodia como categoría especial espera a un ADR. El alumno se identifica por su persona hasta `1.15`. Prerrequisitos que la aprobación deja: ADR corto de fuente única del consentimiento de imagen (`OPEN-09`, análogo a `ADR-032`) antes de `1.14-b`; validación jurídica de la unanimidad de representantes (`OPEN-08`) antes de datos reales.
 
 - [ ] **1.14b · `REQ-FAM-UNIT-005` + `REQ-PRL-004`: autorizados y entrega de menores** [OPUS + SONNET] ⚠️ *paso crítico*
   **Lista maestra única** de personas autorizadas a recoger, con foto y documento, más el proceso de entrega en conserjería (`ADR-032`). La exclusión por restricción judicial debe propagarse a todos los servicios de forma automática. Adelantado de fase 3 porque es una operación diaria de todo el alumnado. Transporte, comedor y extraescolares consumirán esta lista; **ninguno mantiene la suya**.
@@ -262,6 +262,7 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
   Requiere los ficheros del paso 0.11.
 - [ ] **1.26 · `REQ-BKP`: copias y restauración** [SONNET]
   PITR, copia por tenant, restauración granular, prueba de restauración automatizada.
+  ⚠️ **Obligación de `REQ-FAM-UNIT` (`OPEN-FAM-UNIT-21`)**: restaurar una copia anterior a una revocación judicial de tutor (o a un `no_autorizo` de imagen) devolvería el acceso al tutor revocado; el procedimiento de restauración debe reaplicarlas igual que las supresiones.
 - [ ] **1.27 · Endurecimiento y revisión OWASP** [OPUS]
   Repaso completo del Top 10 sobre lo construido, cabeceras, CSP, validación de ficheros.
 - [ ] **1.28 · Revisión de documentación de fase** [SONNET, subagente `doc-reviewer`]

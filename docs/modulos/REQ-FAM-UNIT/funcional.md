@@ -7,7 +7,7 @@
 | Fase | 1 · paso **1.14** del plan (bloque D, Personas) |
 | Depende de | Documento: `CORE`, `AUTH`. Real: `CORE` y `AUTH` (esenciales, ya implementados). Ninguna tabla de este módulo depende del curso académico (`ADR-034 §4`: «unidad familiar» está en la lista expresa de entidades **sin** `academic_year_id`). Propuesta: `depends_on: []` (`OPEN-FAM-UNIT-14`) |
 | Esencial | Propuesta: `essential: false` (`OPEN-FAM-UNIT-14`) |
-| Estado | **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). No se implementa nada hasta que el usuario resuelva las preguntas abiertas de §13 y apruebe el documento. Hay **cuatro preguntas que bloquean** partes concretas del alcance (§13.1) |
+| Estado | **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). Los cinco bloqueantes de §13.1 están resueltos con su recomendación; persisten las condiciones listadas al inicio de §13. |
 | Decisiones vinculantes de partida | `ADR-020`, `ADR-021`, `ADR-029`, `ADR-032` (solo para lo que `1.14` debe dejar preparado, §1.4), `ADR-033`, `ADR-034 §1`/`§4`/`§6`/`§7`, `ADR-035`, `ADR-038`, `ADR-043 §8.1`, `ADR-044` (enmendado por `ADR-063 §5.2`), `ADR-045`, `ADR-048`, `ADR-053`, `ADR-054`, `ADR-055`, `ADR-056`, `ADR-062` (contenido del centro traducible) |
 
 > Donde esta especificación añade algo que ni los requisitos ni un ADR fijan, se marca **[DERIVADA]** y se argumenta. Donde falta información que no corresponde inventar, hay una pregunta abierta en §13 con una recomendación, y **no** una decisión.
@@ -543,7 +543,7 @@ Formato Dado/Cuando/Entonces. Cada uno es un test que referencia su ID (`INV-015
 - `OPEN-FAM-UNIT-08`: unanimidad para `autorizo`; conviene validarla con asesoría jurídica antes de datos reales.
 - `OPEN-FAM-UNIT-17`, `-18` y `-20`: la recomendación es no inventar reglas jurídicas; permanecen sin regla hasta que haya criterio legal, y no bloquean `1.14-a`.
 
-Texto original de la propuesta (cada pregunta lleva su recomendación): **Bloqueantes** (§13.1): sin respuesta no se puede implementar la parte que indican.
+Texto original de la propuesta (cada pregunta lleva su recomendación): **Bloqueantes** (§13.1): resueltos el 2026-10-26 con la recomendación; la columna «Bloquea» indica la parte afectada por las condiciones que persisten.
 
 ### 13.1 Bloqueantes
 
@@ -569,7 +569,7 @@ Texto original de la propuesta (cada pregunta lleva su recomendación): **Bloque
 | `OPEN-FAM-UNIT-13` | Pantallas del tutor (ver su unidad, decidir sobre imagen) en `1.14` o en `1.22` | API en `1.14`, pantallas en `1.22` (`REQ-FAM-PORTAL-004` las nombra). Hasta entonces el centro registra las decisiones en papel (`RN-FAM-UNIT-43`). Excepción: el muro de condiciones sí va en `1.14-c` porque bloquea el acceso |
 | `OPEN-FAM-UNIT-14` | `essential` y `depends_on` | `essential: false`, `depends_on: []` (§8). Consecuencia en §9 |
 | `OPEN-FAM-UNIT-15` | Partición en `1.14-a`/`-b`/`-c` | Aprobarla (§1.2) |
-| `OPEN-FAM-UNIT-16` | ¿Qué pasa con la faceta de tutor cuando su usuario se da de baja en `Core`? | Nada automático en `1.14` (`ADR-048`); la ficha muestra al tutor como «usuario dado de baja» con el marcador neutro de `displayNamesByIds` (#446). Si se quiere baja en cascada, consumir `UserDeactivated` en una entrega posterior |
+| `OPEN-FAM-UNIT-16` | ¿Qué pasa con la faceta de tutor cuando su usuario se da de baja en `Core`? | Nada automático en `1.14` (`ADR-048`); la ficha muestra al tutor como «usuario dado de baja» como usuario eliminado (`removed = true` y nombre vacío en `displayNamesByIds`, #446). Si se quiere baja en cascada, consumir `UserDeactivated` en una entrega posterior |
 | `OPEN-FAM-UNIT-17` | ¿Una revocación judicial debe bloquear también el acceso del tutor revocado si además es **personal** del centro con ámbito sobre ese alumno? | Cuestión jurídica: no se decide. Mientras tanto, §7.1 expone `isAccessRevoked()` para que el módulo que lo necesite pueda aplicarlo. Recomendación: preguntar a la asesoría del centro piloto |
 | `OPEN-FAM-UNIT-18` | Mayoría de edad (18) y edad de consentimiento propio (14, `LOPDGDD` art. 7) | No inventar reglas. Recomendación: avisar en la ficha cuando el alumno cumple 18 y dejar la decisión de retirar vínculos al centro; sobre los 14 años, decidir con la asesoría si el consentimiento de imagen pasa al alumno. Requiere la fecha de nacimiento de `OPEN-FAM-UNIT-03` |
 | `OPEN-FAM-UNIT-19` | ¿El consentimiento de imagen se renueva cada curso académico? | El requisito no lo pide y `ADR-034 §4` excluye la unidad familiar del curso. No renovar en `1.14`; si el centro lo pide, una acción masiva «volver a pendiente» con su propia especificación |
@@ -591,3 +591,13 @@ Texto original de la propuesta (cada pregunta lleva su recomendación): **Bloque
 | Registro centralizado de consentimientos | `REQ-PRIV` (fase 2), consumiendo §7.3 |
 | Detalle de la restricción de custodia | Tras el ADR de `OPEN-FAM-UNIT-05` |
 | Marcado `FUTURO` en el documento | Ninguno |
+
+---
+
+## 14. Huecos detectados en la revisión de documentación (2026-10-26)
+
+No cambian el alcance aprobado; `1.14-a` los cierra al empezar, antes de escribir código, y si alguno exige decidir se pregunta al usuario:
+
+1. `RN-FAM-UNIT-35`, `-37`, `-38` (unidad sin principal al revocar el último vínculo, `principal_cleared`) y `-63` (sin versión publicada no hay muro) no tienen `CA` que las cite: añadirlos (`INV-015`).
+2. `PATCH /guardians/{id}` con cambio de unidad (`api.md`): falta fijar qué pasa con `principal_guardian_id` de la unidad de origen y con los vínculos; es una decisión de diseño pendiente (entre `RN-FAM-UNIT-02`, `-11` y `-12`).
+3. Los `CA` que exigen la persona de un alumno (`CA-FAM-UNIT-010`, `-012`, `-084` y los de consentimiento) se prueban con fábricas y con `REQ-SEED` (`CLAUDE.md §11`): no hay alta de alumno por API hasta `1.15`.

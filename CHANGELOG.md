@@ -6,6 +6,14 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-26 · `1.14`: especificación de `REQ-FAM-UNIT` (rama `feature/REQ-FAM-UNIT-1-14-unidad-familiar`)
+
+- **Especificación aprobada por el usuario** (solo documentación; nada implementado): `docs/modulos/REQ-FAM-UNIT/` con `RN-FAM-UNIT-01..65`, `CA-FAM-UNIT-001..085` y `OPEN-FAM-UNIT-01..21`, todas aceptadas con su recomendación. Nueve tablas, resolutor de ámbito `unidad_familiar` por vínculos activos, interfaces en `FamUnit\Domain` (`FamilyMembership`, `GuardianRecipients`, `ImageConsentPolicy`, `FamilyUnitStudents`). Partición en `1.14-a` (unidades, tutores, vínculos, revocación), `1.14-b` (consentimiento de imagen) y `1.14-c` (condiciones de uso).
+- **Condiciones que quedan**: ADR de custodia como categoría especial (`OPEN-05`); `architect` diseña el registro de «muros de sesión» antes de `1.14-c` (`OPEN-12`); ADR corto de fuente única del consentimiento de imagen antes de `1.14-b` (`OPEN-09`); validación jurídica de la unanimidad (`OPEN-08`) antes de datos reales; restauración de copias vs. revocaciones, a `1.26` (`OPEN-21`).
+- **Plan**: versión 2.3.15. `README.md` 2.6.32 (corrige además el estado de `1.12b` y de las Bajas de `1.12`, que figuraban por mezclar).
+
+---
+
 ## 2026-10-21 · `1.12b`: implementación del rollover del curso (`REQ-CURSO-002`, rama `feature/REQ-CURSO-1-12b-rollover`)
 
 - **Implementación** de la especificación aprobada, sin recortar ni ampliar alcance: ampliación de `Core\Domain\UserDirectory::activeIdsAmong()` (I-19); contrato `AcademicYearRolloverParticipant` + registro + objetos de valor en `Curso\Domain` y generalización del filtro por módulo (`ModuleScopedContribution`); tablas `year_rollovers` y `year_rollover_items` (disparador de `ADR-057`, auditoría de cada ítem, `OPEN-CURSO-37` = b); servicios de solicitud, ejecución, reversión y cancelación (transiciones condicionales, actor del solicitante, transacción `REPEATABLE READ` con reintento de `40001`); dos trabajos en la conexión `database_long`/cola `long` (`tries = 1`, `timeout = 600`, `retry_after = 900`); 7 *endpoints* bajo `/academic-year-rollovers`, recurso de permisos `apertura_curso_academico` (`leer`, `crear`, `eliminar`; siembra solo en `administrador_centro`) y comandos `curso:grant-rollover-permissions` y `curso:rollover-reset`; el `409 rollover_in_progress` de la activación; participante `AcadRolloverParticipant` (12 elementos, casilla `copy_teaching_assignments`).
