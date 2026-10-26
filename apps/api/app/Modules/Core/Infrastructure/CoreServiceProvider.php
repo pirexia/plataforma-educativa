@@ -17,10 +17,12 @@ use App\Modules\Core\Domain\Models\UserImport;
 use App\Modules\Core\Domain\Models\UserInvitation;
 use App\Modules\Core\Domain\ModuleCatalog;
 use App\Modules\Core\Domain\ModuleContracting;
+use App\Modules\Core\Domain\PersonDirectory;
 use App\Modules\Core\Domain\TenantProvisioner;
 use App\Modules\Core\Domain\TenantSettingsReader;
 use App\Modules\Core\Domain\UserDirectory;
 use App\Modules\Core\Infrastructure\Console\GrantAcademicYearPermissionsCommand;
+use App\Modules\Core\Infrastructure\Console\GrantFamUnitPermissionsCommand;
 use App\Modules\Core\Infrastructure\Console\GrantReopenPermissionCommand;
 use App\Modules\Core\Infrastructure\Console\GrantRoleAdministrationCommand;
 use App\Modules\Core\Infrastructure\Console\GrantRolloverPermissionsCommand;
@@ -56,6 +58,8 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         $this->app->bind(ExportRequestService::class, EloquentExportRequestService::class);
         $this->app->bind(BulkUserImporter::class, EloquentBulkUserImporter::class);
         $this->app->bind(UserDirectory::class, EloquentUserDirectory::class);
+        // REQ-FAM-UNIT `OPEN-FAM-UNIT-03` (1.14-a): lectura de personas y resolución usuario ⇄ persona.
+        $this->app->bind(PersonDirectory::class, EloquentPersonDirectory::class);
         $this->app->bind(InvitationRedeemer::class, EloquentInvitationRedeemer::class);
 
         // ADR-048 §4.4: ProvisionTenantDefaults NO sigue la convención
@@ -127,6 +131,7 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
                 GrantReopenPermissionCommand::class,
                 GrantRolloverPermissionsCommand::class,
                 GrantStructurePermissionsCommand::class,
+                GrantFamUnitPermissionsCommand::class,
             ]);
         }
     }
