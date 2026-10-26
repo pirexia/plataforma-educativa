@@ -1,0 +1,67 @@
+# REQ-FAM-UNIT · Operación
+
+> **Estado**: **PROPUESTA — pendiente de aprobación del usuario** (2026-10-26).
+
+## 1. Variables de entorno
+
+**Ninguna nueva** en `1.14-a`/`-b`/`-c`.
+
+El detalle de custodia (condicionado a `OPEN-FAM-UNIT-05`) necesitará, según lo que decida su ADR, una o más claves de cifrado a nivel de campo. Irán en el gestor de secretos por `EnvironmentFile=` (`ADR-037`, `CLAUDE.md §8`), nunca en el repositorio, y su procedimiento de rotación en `SYSADMIN.md`. No se nombran aquí para no adelantar el diseño.
+
+## 2. Servicios externos de los que depende
+
+- **PostgreSQL** (RLS, bloqueos de fila de `RN-FAM-UNIT-44`).
+- **Almacenamiento compatible S3** solo para el informe de consentimientos (vía `data_exports` de `Core`) y, condicionado, para el documento de custodia. Si no responde, la exportación queda `fallida` con su motivo y se puede repetir; ninguna operación de vínculo, revocación o consentimiento depende del almacenamiento.
+- **Ninguno externo** (correo, SMS, firma): este módulo no envía nada (`funcional.md §1.3`).
+
+## 3. Despliegue: registro de módulos y permisos (`ADR-034 §5`)
+
+`php artisan platform:sync-registry` materializa:
+
+- el módulo `fam_unit` en `modules` (`phase 1`, `essential false`, `depends_on []`, `OPEN-FAM-UNIT-14`);
+- los permisos de `permisos.md §2` en `permissions` (sin `restriccion_custodia.*` hasta que se apruebe su ADR).
+
+Aborta el despliegue si un ámbito declarado no pertenece al vocabulario cerrado: `unidad_familiar` sí pertenece desde `1.5`. Si aborta, no hay que tocar datos: corregir el descriptor y volver a desplegar.
+
+**Siembra para centros existentes**: un comando en `Core` (como `acad:grant-structure-permissions`, `INV-007`), propuesto `fam_unit:grant-permissions`, idempotente, solo roles predefinidos y centros `Activo`, que **no concede nada** si alguno de los permisos falta en `permissions` o tiene `retired_at` (issue #387). Se ejecuta una vez tras el primer despliegue de cada entrega que añada permisos. Centros nuevos: `ProvisionTenantDefaults`.
+
+**Contratación**: el módulo es no esencial; queda inactivo en cada centro hasta que el Super Administrador lo contrate (`ADR-045`). Para el centro `demo` de desarrollo hay que contratarlo a mano antes de probar.
+
+**Orden de migraciones**: `family_units` → `guardians` → FK de `principal_guardian_id` → `family_unit_students` → `guardian_student_links` → (`1.14-b`) `image_consents`, `image_consent_decisions` → (`1.14-c`) `terms_versions`, `terms_acceptances` (y la FK de `consent_text_version_id` si se aprueba `OPEN-FAM-UNIT-09`). Todas aditivas: *expand* puro, compatibles con la versión anterior del código (`RARQ-DEP-005`). Se aplican con `php artisan migrate --database=pgsql_owner` (lección de `1.11d-a`). `db-reviewer` obligatorio.
+
+**Reversión** (`RARQ-DEP-013`): las migraciones son reversibles mientras las tablas estén vacías en producción. Con datos reales, revertir el código es seguro (las tablas nuevas quedan sin uso) y **no** se ejecuta `migrate:rollback` sobre `image_consent_decisions` ni `terms_acceptances`: son evidencia de consentimiento. El procedimiento probado se escribe en `RUNBOOK.md` al cerrar cada entrega.
+
+## 4. Tareas programadas y trabajos en cola
+
+| Trabajo | Cola | Cuándo | Notas |
+|---------|------|--------|-------|
+| Generación del informe de consentimientos | `default` (conexión `database`, *worker* `worker`) | Bajo demanda (`POST /image-consents/exports`) | Reutiliza el trabajo genérico de `data_exports` con el `kind` `image_consents`. Por lotes. Volumen esperado: dos filas por alumno, miles como mucho: no necesita la cola `long` |
+
+**Ninguna tarea programada** en `1.14`. Si `OPEN-FAM-UNIT-11` decide un informe periódico programado, lo añade `COM` con su planificador (issue #453: el planificador todavía no tiene servicio desplegado).
+
+Compatibilidad de *workers* (`RARQ-DEP-006`): el trabajo de exportación es el de `Core`; el `kind` nuevo no cambia su contrato.
+
+## 5. Métricas y alertas
+
+Sin métricas propias en `1.14` (no hay pila de observabilidad desplegada todavía). Señales a vigilar cuando exista:
+
+- Latencia del resolutor `unidad_familiar` (se ejecuta en cada petición de un tutor; objetivo dentro de `RNF-PERF-001`).
+- Tutores obligados con aceptación pendiente tras publicar una versión con re-aceptación (pico previsible de peticiones `403 terms-acceptance-required`).
+- Revocaciones por día: un pico anómalo merece revisión manual (registro en `audit_logs`, `event = updated` sobre `guardian_student_link`).
+
+## 6. Problemas conocidos y diagnóstico
+
+| Síntoma | Causa probable | Qué hacer |
+|---------|----------------|-----------|
+| Un tutor «no ve a su hijo» | Vínculo revocado, dado de baja o inexistente; o el rol del usuario no tiene `familia.leer` con `unidad_familiar` | Ficha de la unidad con `revocacion_tutor.leer`; permisos efectivos del usuario (`GET /users/{id}/effective-permissions`) |
+| Un tutor revocado sigue viendo al alumno | **Incidente crítico** (`CLAUDE.md §5`: exposición de datos de un menor). Un resolutor de otro módulo cachea la pertenencia o no usa `FamilyMembership` | Detener, abrir issue crítico, comprobar el resolutor del módulo afectado contra `permisos.md §3.2` |
+| Todos los tutores reciben `403 terms-acceptance-required` | Se publicó una versión con re-aceptación | Comportamiento esperado; confirmar con `GET /terms-versions` |
+| Una imagen se publicó con consentimiento `pendiente` | El módulo publicador no consulta `ImageConsentPolicy` al servir (`funcional.md §7.3`) | **Incidente crítico** (`INV-014`); issue en el módulo publicador |
+| `422 user_not_found` al dar de alta un tutor con un usuario que existe | El usuario es de otro centro o está borrado | Comprobar en `Core` |
+
+## 7. Impacto en copias de seguridad y restauración
+
+- Todas las tablas son de tenant y entran en la copia por centro (`REQ-BKP-002`).
+- **Restauración y revocaciones**: restaurar un centro a un punto anterior a una revocación **devolvería el acceso** al tutor revocado. Es un riesgo directo para un menor. El procedimiento de restauración (`REQ-BKP-003`) debe incluir, para este módulo, la reaplicación de las revocaciones posteriores al punto restaurado, igual que `REQ-BKP-005` exige reaplicar las supresiones. Se anota para `1.26`; **no se resuelve aquí**.
+- **Restauración y consentimientos**: lo mismo con un `no_autorizo` posterior al punto restaurado. Mismo tratamiento.
+- El documento de custodia (condicionado) vive en el *bucket*; su copia sigue la de almacenamiento de objetos con versionado (`REQ-BKP-001`).
