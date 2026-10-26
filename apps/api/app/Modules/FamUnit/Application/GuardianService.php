@@ -157,7 +157,7 @@ final class GuardianService
     }
 
     /**
-     * `RN-FAM-UNIT-12`: la baja del tutor da de baja, en la misma transacción, sus vínculos vivos; si era el principal
+     * `RN-FAM-UNIT-12`, `-39`: la baja del tutor da de baja, en la misma transacción, sus vínculos vivos; si era el principal
      * de su unidad, la unidad queda sin principal.
      *
      * @return array{removed_links: int, principal_cleared: bool}
@@ -170,9 +170,16 @@ final class GuardianService
             // Bloquea la unidad: la designación concurrente de este tutor como principal espera o ve la baja.
             $unit = FamilyUnit::query()->whereKey($guardian->family_unit_id)->lockForUpdate()->first();
 
+            $links = $guardian->links()->lockForUpdate()->get();
+
+            // `RN-FAM-UNIT-39`: un vínculo revocado bloquea la baja del tutor (la revocación se levanta antes).
+            if ($links->contains(static fn ($link): bool => $link->status === 'revocado')) {
+                throw FamUnitErrors::conflict('status', 'fam_unit.link.revoked_not_deletable');
+            }
+
             $removed = 0;
 
-            foreach ($guardian->links()->get() as $link) {
+            foreach ($links as $link) {
                 $link->delete();
                 $removed++;
             }

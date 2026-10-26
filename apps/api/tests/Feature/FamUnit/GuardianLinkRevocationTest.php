@@ -336,3 +336,28 @@ test('RN-FAM-UNIT-36 api.md §1.4: quien tiene revocacion_tutor.leer ve el vínc
     $listed = Fam::call($f['tenant'], $reviewer, 'get', '/guardian-links?status=revocado')->assertOk();
     expect($listed->json('meta.total'))->toBe(1)->and($listed->json('data.0.revocation.reason'))->toBe('resolucion_judicial');
 });
+
+test('CA-FAM-UNIT-027 RN-FAM-UNIT-39: un vínculo revocado no se da de baja (409 revoked_not_deletable), ni directamente ni arrastrado por la baja del tutor; levantada la revocación, sí', function (): void {
+    $f = custodyFamily('rv-027');
+    $padre = $f['p'][1];
+
+    revoke($f, $f['links']['p1'])->assertOk();
+
+    $direct = Fam::call($f['tenant'], $f['admin'], 'delete', "/guardian-links/{$f['links']['p1']}")->assertStatus(409);
+    expect($direct->json('errors.status.0.code'))->toBe('fam_unit.link.revoked_not_deletable');
+
+    // La baja del tutor se bloquea entera: no se da de baja ni su otro vínculo activo ni el tutor.
+    $cascade = Fam::call($f['tenant'], $f['admin'], 'delete', "/guardians/{$padre}")->assertStatus(409);
+    expect($cascade->json('errors.status.0.code'))->toBe('fam_unit.link.revoked_not_deletable');
+
+    Fam::call($f['tenant'], $f['admin'], 'get', "/guardians/{$padre}")->assertOk();
+    Fam::call($f['tenant'], $f['admin'], 'get', "/guardian-links/{$f['links']['p2']}")->assertOk()->assertJsonPath('status', 'activo');
+    expect(Fam::row($f['tenant'], 'guardian_student_links', $f['links']['p1'])->status)->toBe('revocado')
+        ->and(Fam::audit($f['tenant'], 'guardian_student_link', 'deleted'))->toBe([])
+        ->and(Fam::audit($f['tenant'], 'guardian', 'deleted'))->toBe([]);
+
+    // Un vínculo activo sí se da de baja; y levantada la revocación, también el tutor.
+    Fam::call($f['tenant'], $f['admin'], 'delete', "/guardian-links/{$f['links']['m1']}")->assertNoContent();
+    Fam::call($f['tenant'], $f['admin'], 'delete', "/guardian-links/{$f['links']['p1']}/revocation")->assertOk();
+    Fam::call($f['tenant'], $f['admin'], 'delete', "/guardians/{$padre}")->assertOk()->assertJsonPath('removed_links', 2);
+});

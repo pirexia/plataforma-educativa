@@ -37,6 +37,7 @@ return [
         'invalid_transition' => 'El vínculo no está en un estado que admita esta operación.',
         'not_editable' => 'El estado del vínculo y su revocación no se editan: usa el recurso de revocación.',
         'emergency_contact_revoked' => 'Un vínculo revocado no puede ser contacto de emergencia.',
+        'revoked_not_deletable' => 'Un vínculo revocado no se da de baja: levanta antes la revocación.',
     ],
 
     'validation' => [

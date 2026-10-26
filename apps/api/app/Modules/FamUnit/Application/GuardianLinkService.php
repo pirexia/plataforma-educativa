@@ -182,11 +182,18 @@ final class GuardianLinkService
         });
     }
 
-    /** `RN-FAM-UNIT-04`: baja lógica del vínculo (no judicial). */
+    /** `RN-FAM-UNIT-04`: baja lógica del vínculo (no judicial); `409 revoked_not_deletable` si está revocado (`RN-FAM-UNIT-39`). */
     public function delete(string $publicId): void
     {
         DB::transaction(function () use ($publicId): void {
-            GuardianStudentLink::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail()->delete();
+            $link = GuardianStudentLink::query()->where('public_id', $publicId)->lockForUpdate()->firstOrFail();
+
+            // `RN-FAM-UNIT-39`: un vínculo revocado solo se levanta por su recurso, nunca se da de baja.
+            if ($link->status === 'revocado') {
+                throw FamUnitErrors::conflict('status', 'fam_unit.link.revoked_not_deletable');
+            }
+
+            $link->delete();
         });
     }
 

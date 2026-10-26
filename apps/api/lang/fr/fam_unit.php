@@ -37,6 +37,7 @@ return [
         'invalid_transition' => 'Le lien n\'est pas dans un état qui permet cette opération.',
         'not_editable' => 'Le statut du lien et sa révocation ne sont pas modifiables : utilisez la ressource de révocation.',
         'emergency_contact_revoked' => 'Un lien révoqué ne peut pas être un contact d\'urgence.',
+        'revoked_not_deletable' => 'Un lien révoqué ne peut pas être supprimé : levez d\'abord la révocation.',
     ],
 
     'validation' => [

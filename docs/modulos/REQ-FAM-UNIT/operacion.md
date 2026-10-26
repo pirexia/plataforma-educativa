@@ -58,7 +58,7 @@ Sin métricas propias en `1.14` (no hay pila de observabilidad desplegada todav�
 | Todos los tutores reciben `403 terms-acceptance-required` | Se publicó una versión con re-aceptación | Comportamiento esperado; confirmar con `GET /terms-versions` |
 | Una imagen se publicó con consentimiento `pendiente` | El módulo publicador no consulta `ImageConsentPolicy` al servir (`funcional.md §7.3`) | **Incidente crítico** (`INV-014`); issue en el módulo publicador |
 | `422 user_not_found` al dar de alta un tutor con un usuario que existe | El usuario es de otro centro o está borrado | Comprobar en `Core` |
-| Un tutor que se revocó ya no consta como revocado (`isAccessRevoked()` = `false`) | Se dio de baja el vínculo revocado, o al tutor que lo tenía (`RN-FAM-UNIT-12`): `isAccessRevoked()` solo cuenta vínculos vivos (`funcional.md §15`, D-10) | Antes de `1.14b`, no dar de baja vínculos revocados: levantar la revocación es la única operación que debe dejar de excluir al tutor. Decisión pendiente en `D-10` |
+| `409 fam_unit.link.revoked_not_deletable` al dar de baja un vínculo o un tutor | Hay un vínculo `revocado` (`RN-FAM-UNIT-39`, `funcional.md §15` D-10): una revocación no se pierde por una baja | Levantar antes la revocación (`DELETE /guardian-links/{id}/revocation`, permiso `revocacion_tutor.eliminar`) si de verdad procede |
 | `422 fam_unit.guardian.user_not_eligible` | El usuario está `inactivo` (`RN-FAM-UNIT-10`: solo `pendiente` o `activo`) | Reactivar la cuenta en `Core` o usar otra |
 
 ## 7. Impacto en copias de seguridad y restauración

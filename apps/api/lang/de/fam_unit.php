@@ -37,6 +37,7 @@ return [
         'invalid_transition' => 'Die Verknüpfung befindet sich nicht in einem Zustand, der diesen Vorgang zulässt.',
         'not_editable' => 'Der Status der Verknüpfung und ihr Entzug können nicht bearbeitet werden: Verwenden Sie die Entzugsressource.',
         'emergency_contact_revoked' => 'Eine entzogene Verknüpfung kann kein Notfallkontakt sein.',
+        'revoked_not_deletable' => 'Eine entzogene Verknüpfung kann nicht gelöscht werden: Heben Sie zuerst den Entzug auf.',
     ],
 
     'validation' => [

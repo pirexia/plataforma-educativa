@@ -37,6 +37,7 @@ return [
         'invalid_transition' => 'The link is not in a state that allows this operation.',
         'not_editable' => 'The status of the link and its revocation cannot be edited: use the revocation resource.',
         'emergency_contact_revoked' => 'A revoked link cannot be an emergency contact.',
+        'revoked_not_deletable' => 'A revoked link cannot be deleted: lift the revocation first.',
     ],
 
     'validation' => [

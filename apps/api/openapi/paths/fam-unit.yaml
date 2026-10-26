@@ -396,7 +396,8 @@ paths:
       summary: Da de baja (lógica) a un tutor y a sus vínculos
       description: >
         Permiso `familia.eliminar`. Da de baja, en la misma transacción, los vínculos vivos del tutor; si era el principal de
-        su unidad, la unidad queda sin principal (RN-FAM-UNIT-12).
+        su unidad, la unidad queda sin principal (RN-FAM-UNIT-12). Si alguno de sus vínculos está `revocado`, la baja se bloquea entera con
+        `409 fam_unit.link.revoked_not_deletable` (RN-FAM-UNIT-39): la revocación se levanta antes.
       tags: ['FamUnit / Tutores']
       security: [{ SessionCookie: [] }]
       responses:
@@ -413,6 +414,7 @@ paths:
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
         '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
 
   /api/v1/guardian-links:
     get:
@@ -586,7 +588,10 @@ paths:
     delete:
       operationId: deleteGuardianLink
       summary: Da de baja (lógica) un vínculo
-      description: Permiso `vinculo_tutor.eliminar`. Baja **no judicial** del vínculo (RN-FAM-UNIT-04); una retirada por resolución judicial es una revocación.
+      description: >
+        Permiso `vinculo_tutor.eliminar`. Baja **no judicial** del vínculo (RN-FAM-UNIT-04); una retirada por resolución judicial es una
+        revocación. Un vínculo `revocado` no se da de baja: `409 fam_unit.link.revoked_not_deletable` (RN-FAM-UNIT-39); la revocación se levanta
+        antes por su recurso.
       tags: ['FamUnit / Vínculos']
       security: [{ SessionCookie: [] }]
       responses:
@@ -595,6 +600,7 @@ paths:
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
         '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
 
   /api/v1/guardian-links/{publicId}/revocation:
     parameters:
