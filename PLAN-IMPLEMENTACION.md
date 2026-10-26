@@ -214,7 +214,7 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 
 ### Bloque D · Personas
 
-- [~] **1.14 · `REQ-FAM-UNIT`: unidad familiar y tutores** [OPUS + SONNET] · *especificación APROBADA el 2026-10-26; implementación en tres entregas `1.14-a`/`-b`/`-c`*
+- [~] **1.14 · `REQ-FAM-UNIT`: unidad familiar y tutores** [OPUS + SONNET] · *especificación APROBADA el 2026-10-26; implementación en cuatro entregas `1.14-a`/`-b`/`-c`/`-d`*
   Incluye custodia, restricciones de acceso por tutor y consentimiento de imagen granular.
   **Actualización 2026-10-26: especificación APROBADA** (`docs/modulos/REQ-FAM-UNIT/`, `RN-FAM-UNIT-01..65`, `CA-FAM-UNIT-001..085`, `OPEN-FAM-UNIT-01..21` aceptadas con su recomendación). Entregas: `1.14-a` (unidades, tutores, vínculos, revocación, resolutor e interfaces; incluye la ampliación de `Core\Domain`), `1.14-b` (consentimiento de imagen), `1.14-c` (condiciones de uso y muro de sesión; antes, `architect` diseña el registro de «muros de sesión»). El detalle documental de custodia como categoría especial espera a un ADR. El alumno se identifica por su persona hasta `1.15`. **Implementación 2026-10-26: `1.14-a` implementada en la rama `feature/REQ-FAM-UNIT-1-14a-unidades-tutores` (21 *endpoints*, sin pantallas); las pantallas de personal (`/familias`, `/familias/:id`) y el E2E `CA-FAM-UNIT-084` pasan a una entrega propia `1.14-d` (decisión del usuario).** Prerrequisitos que la aprobación deja: ADR corto de fuente única del consentimiento de imagen (`OPEN-09`, análogo a `ADR-032`) antes de `1.14-b`; validación jurídica de la unanimidad de representantes (`OPEN-08`) antes de datos reales.
 
