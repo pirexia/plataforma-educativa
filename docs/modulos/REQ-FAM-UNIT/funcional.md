@@ -285,6 +285,7 @@ Todos son **API** (`INV-006`); rutas y cuerpos en `api.md`.
 | `RN-FAM-UNIT-11` | Una persona tiene como mucho **una** faceta de tutor viva (`ADR-034 §1`), y esa faceta pertenece a **una** unidad (`§16.2`). |
 | `RN-FAM-UNIT-12` | Dar de baja un tutor da de baja, en la misma transacción, sus vínculos vivos; si era tutor principal, la unidad queda sin principal (`principal_guardian = null`) y la respuesta lo indica. [DERIVADA] |
 | `RN-FAM-UNIT-13` | Si el usuario de un tutor se da de baja en `Core`, la faceta **no** se borra sola en `1.14` (no hay consumidor del evento `UserDeactivated` en este módulo; `ADR-048`). El tutor deja de poder actuar porque no tiene sesión. Ver `OPEN-FAM-UNIT-16`. |
+| `RN-FAM-UNIT-14` | Un tutor **no cambia de unidad**: el cuerpo de `PATCH /guardians/{id}` rechaza `family_unit` con `422 fam_unit.guardian.not_editable` (incluso si es la misma unidad). Cambiar la unidad de un tutor es darlo de baja (`RN-FAM-UNIT-12`, que limpia el principal y sus vínculos) y crearlo de nuevo en la otra. [DERIVADA, decisión del usuario del 2026-10-26] Evita decidir qué pasa con el principal de la unidad de origen y con vínculos que pueden cruzar unidades. |
 
 ### 5.2 Alumnado de la unidad
 
@@ -303,7 +304,7 @@ Todos son **API** (`INV-006`); rutas y cuerpos en `api.md`.
 | `RN-FAM-UNIT-32` | Las categorías restringidas son un subconjunto del vocabulario cerrado (`CHECK` en base de datos); un valor fuera de él ⇒ `422`. |
 | `RN-FAM-UNIT-33` | Solo se puede revocar un vínculo `activo` y solo levantar uno `revocado`; lo contrario ⇒ `409 fam_unit.link.invalid_transition`. |
 | `RN-FAM-UNIT-34` | La revocación tiene **efecto inmediato**: ninguna interfaz de §7 cachea pertenencias ni revocaciones entre peticiones; se memoiza como mucho dentro de una petición (`ADR-044 §4.7`). |
-| `RN-FAM-UNIT-35` | Un vínculo `revocado` no cuenta para ningún ámbito `unidad_familiar`, ni como destinatario (§7.2), ni como contacto de emergencia, ni puede registrar decisiones de imagen. |
+| `RN-FAM-UNIT-35` | Un vínculo `revocado` no cuenta para ningún ámbito `unidad_familiar`, ni como destinatario (§7.2), ni como contacto de emergencia, ni puede registrar decisiones de imagen. Marcar como contacto de emergencia un vínculo `revocado` ⇒ `422 fam_unit.link.emergency_contact_revoked` (la base de datos lo impide además con un `CHECK`). |
 | `RN-FAM-UNIT-36` | Un sujeto que solo tiene ámbito `unidad_familiar` **nunca** ve vínculos revocados, ni motivo, ni fechas de revocación, ni la existencia de una restricción de custodia, aunque sean de su propia unidad. [DERIVADA] Evita que un tutor revocado o un tercero infiera una resolución judicial. |
 | `RN-FAM-UNIT-37` | Revocar no cambia la representación legal del vínculo. Perder el acceso no es perder la patria potestad; qué efecto tiene sobre el consentimiento de imagen: `OPEN-FAM-UNIT-08`. |
 | `RN-FAM-UNIT-38` | El tutor principal de una unidad no puede tener **todos** sus vínculos con alumnos de esa unidad revocados: revocar el último ⇒ la unidad queda sin principal en la misma transacción y la respuesta lo indica. [DERIVADA] |
@@ -460,6 +461,7 @@ Formato Dado/Cuando/Entonces. Cada uno es un test que referencia su ID (`INV-015
 - **CA-FAM-UNIT-006** — *Dado* una unidad con un alumno vivo, *cuando* se pide su baja, *entonces* `409 fam_unit.family_unit.has_members` (`RN-FAM-UNIT-03`).
 - **CA-FAM-UNIT-007** — *Dado* un tutor principal con dos vínculos vivos, *cuando* se da de baja el tutor, *entonces* sus dos vínculos quedan dados de baja en la misma transacción y la unidad queda sin principal (`RN-FAM-UNIT-12`).
 - **CA-FAM-UNIT-008** — *Dado* un usuario de otro centro, *cuando* se usa su `public_id` para crear un tutor, *entonces* `422 fam_unit.validation.user_not_found` con el mismo cuerpo que para un `public_id` inexistente.
+- **CA-FAM-UNIT-009** — *Dado* un tutor de la unidad A, *cuando* se envía `PATCH /guardians/{id}` con `family_unit` (la misma o cualquier otra), *entonces* `422 fam_unit.guardian.not_editable`, el tutor y el principal de la unidad no cambian, y no se escribe ninguna fila de auditoría (`RN-FAM-UNIT-14`); *y* un `PATCH` sin `family_unit` responde `200` sin cambios.
 
 ### 12.2 Alumnado de la unidad (`1.14-a`)
 
@@ -475,6 +477,7 @@ Formato Dado/Cuando/Entonces. Cada uno es un test que referencia su ID (`INV-015
 - **CA-FAM-UNIT-023** — *Dado* un vínculo, *cuando* se envía una categoría restringida fuera del vocabulario, *entonces* `422`, y una escritura directa en base de datos con ese valor la rechaza el `CHECK` (`RN-FAM-UNIT-32`).
 - **CA-FAM-UNIT-024** — *Dado* un vínculo de un tutor con un alumno de otra unidad, *cuando* se crea, *entonces* se acepta (C2) y el ámbito `unidad_familiar` del tutor alcanza a ese alumno.
 - **CA-FAM-UNIT-025** — *Dado* la persona P, *cuando* se intenta vincular P como tutor de sí misma, *entonces* `422 fam_unit.link.self_link` (`RN-FAM-UNIT-21`).
+- **CA-FAM-UNIT-029** — *Dado* el tutor principal P de la unidad U con un único vínculo activo con un alumno de U, *cuando* se revoca ese vínculo, *entonces* en la misma transacción `principal_guardian` de U pasa a `null` y la respuesta trae `principal_cleared = true`; *y* si P conserva otro vínculo activo con un alumno de U, *entonces* sigue siendo principal y `principal_cleared = false` (`RN-FAM-UNIT-38`).
 
 ### 12.4 Revocación por custodia (`1.14-a`)
 
@@ -486,6 +489,8 @@ Formato Dado/Cuando/Entonces. Cada uno es un test que referencia su ID (`INV-015
 - **CA-FAM-UNIT-035** — *Dado* un vínculo revocado, *cuando* se levanta la revocación, *entonces* vuelve a `activo`, P vuelve a alcanzar a A1, y `audit_logs` conserva las dos transiciones con autor y fecha.
 - **CA-FAM-UNIT-036** — *Dado* el vínculo (P, A1) que era contacto de emergencia, *cuando* se revoca, *entonces* deja de serlo en la misma transacción (`RN-FAM-UNIT-31`).
 - **CA-FAM-UNIT-037** — *Dado* un usuario con `vinculo_tutor.actualizar` pero sin `revocacion_tutor.crear`, *cuando* intenta revocar, *entonces* `403`; *y* ni `PATCH /guardian-links/{id}` acepta `status` (`422`): revocar solo se hace por su *endpoint*.
+- **CA-FAM-UNIT-038** — *Dado* el vínculo (P, A1) revocado, *cuando* se evalúan los consumidores de un vínculo, *entonces* no cuenta para el ámbito `unidad_familiar` de P (`FamilyMembership` no devuelve a A1), no es destinatario (`GuardianRecipients`), no es contacto de emergencia, y `PATCH` con `is_emergency_contact = true` sobre él responde `422 fam_unit.link.emergency_contact_revoked` (`RN-FAM-UNIT-35`; la parte de decisiones de imagen se prueba en `CA-FAM-UNIT-053`, `1.14-b`).
+- **CA-FAM-UNIT-039** — *Dado* un vínculo con `is_legal_guardian = true` verificado, *cuando* se revoca y después se levanta la revocación, *entonces* `is_legal_guardian`, `legal_guardian_verified_at` y `legal_guardian_verified_by` no cambian en ningún momento (`RN-FAM-UNIT-37`).
 
 ### 12.5 Ámbito `unidad_familiar` y aislamiento (`1.14-a`)
 
@@ -596,8 +601,23 @@ Texto original de la propuesta (cada pregunta lleva su recomendación): **Bloque
 
 ## 14. Huecos detectados en la revisión de documentación (2026-10-26)
 
-No cambian el alcance aprobado; `1.14-a` los cierra al empezar, antes de escribir código, y si alguno exige decidir se pregunta al usuario:
+No cambian el alcance aprobado; `1.14-a` los cierra al empezar, antes de escribir código, y si alguno exige decidir se pregunta al usuario. **Estado tras `1.14-a`:**
 
-1. `RN-FAM-UNIT-35`, `-37`, `-38` (unidad sin principal al revocar el último vínculo, `principal_cleared`) y `-63` (sin versión publicada no hay muro) no tienen `CA` que las cite: añadirlos (`INV-015`).
-2. `PATCH /guardians/{id}` con cambio de unidad (`api.md`): falta fijar qué pasa con `principal_guardian_id` de la unidad de origen y con los vínculos; **resuelto por el usuario el 2026-10-26: el tutor no cambia de unidad por `PATCH`** (se da de baja y se crea de nuevo; `RN-FAM-UNIT-12` ya limpia principal y vínculos). `1.14-a` lo recoge como `RN` nueva y `CA` (el cuerpo rechaza `family_unit`).
-3. Los `CA` que exigen la persona de un alumno (`CA-FAM-UNIT-010`, `-012`, `-084` y los de consentimiento) se prueban con fábricas y con `REQ-SEED` (`CLAUDE.md §11`): no hay alta de alumno por API hasta `1.15`.
+1. **Cerrado salvo `RN-FAM-UNIT-63`.** `RN-FAM-UNIT-35`, `-37` y `-38` (unidad sin principal al revocar el último vínculo, `principal_cleared`) tienen ya su `CA` (`CA-FAM-UNIT-038`, `-039` y `-029`). `RN-FAM-UNIT-63` (sin versión publicada no hay muro) es de `1.14-c`: su `CA` se añade con esa entrega.
+2. **Cerrado.** `PATCH /guardians/{id}` no cambia de unidad (decisión del usuario del 2026-10-26): `RN-FAM-UNIT-14` y `CA-FAM-UNIT-009`.
+3. **Sigue vigente (informativo).** Los `CA` que exigen la persona de un alumno (`CA-FAM-UNIT-010`, `-012`, `-084` y los de consentimiento) se prueban con fábricas y con `REQ-SEED` (`CLAUDE.md §11`): no hay alta de alumno por API hasta `1.15`.
+
+---
+
+## 15. Decisiones de implementación de `1.14-a`
+
+Donde la especificación aprobada deja una elección de detalle, `1.14-a` fija lo siguiente. Ninguna cambia el alcance; todas son revisables por el usuario.
+
+| # | Decisión | Motivo |
+|---|----------|--------|
+| D-1 | `POST /family-units`: `code` es **opcional**. Sin él, el sistema genera `UF-` + número de seis cifras, secuencial por centro (máximo existente, vivas y borradas, + 1, bajo bloqueo consultivo del centro). Con él, se valida (1 a 40 caracteres, sin caracteres de control) y es único entre las vivas. `PATCH` admite cambiar `code` | `OPEN-FAM-UNIT-06` (generado) y `api.md §2.1`/`CA-FAM-UNIT-002` (el cliente escribe el código, `PATCH` lo cambia) se contradicen si se leen como excluyentes; esta lectura cumple las dos |
+| D-2 | `GET /guardian-links?status=revocado` sin `revocacion_tutor.leer` ⇒ `403 forbidden`; sin el filtro, un sujeto con ámbito `todos` ve los vínculos revocados con `status = revocado` y **sin** el campo `revocation` (literal de `api.md §1.4`). `include_deleted` sin `familia.eliminar` ⇒ `403` | `api.md §3` dice «exige» el permiso sin fijar el código de error |
+| D-3 | `isAccessRevoked()` **no** depende de que el módulo esté contratado; los conjuntos de `FamilyMembership` y `GuardianRecipients` sí (vacíos si no lo está, `§9`) | `§9` solo nombra los conjuntos. Una revocación judicial no debe «deshacerse» al descontratar el módulo |
+| D-4 | La ampliación de `Core\Domain` (`OPEN-FAM-UNIT-03`) se entrega como `PersonDirectory` (sin fecha de nacimiento: la única regla que la usaría, `OPEN-FAM-UNIT-18`, no existe todavía y `ADR-048` pide no construir sin consumidor) | `ADR-048` |
+| D-5 | `PATCH /guardians/{id}` no tiene ningún campo editable en `1.14-a`: sin `family_unit`, responde `200` con el tutor sin cambios | `RN-FAM-UNIT-14` |
+| D-6 | `ImageConsentPolicy` y los permisos de `consentimiento_imagen`, `condiciones_uso` y `aceptacion_condiciones` **no** se declaran en `1.14-a`; entran con `1.14-b` y `1.14-c` | `§1.2`: un permiso sin *endpoint* invita a concederlo creyendo que hace algo |

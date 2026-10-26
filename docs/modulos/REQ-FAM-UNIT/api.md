@@ -104,7 +104,7 @@ Permisos completos en `permisos.md`. Errores comunes a todos (no se repiten): `4
 | `GET /guardians` | `familia.leer` | sí | 200 colección | 422 |
 | `POST /guardians` | `familia.crear` | — | 201 | 422 `user_not_found`, `already_exists`, `family_unit_not_found` |
 | `GET /guardians/{public_id}` | `familia.leer` | sí | 200 | 404 |
-| `PATCH /guardians/{public_id}` | `familia.actualizar` | — | 200 | 404 (el cuerpo no admite `family_unit`: un tutor no cambia de unidad; se da de baja y se crea de nuevo, `RN-FAM-UNIT-12`; decidido por el usuario el 2026-10-26) |
+| `PATCH /guardians/{public_id}` | `familia.actualizar` | — | 200 | 404, 422 `not_editable` (el cuerpo no admite `family_unit`: un tutor no cambia de unidad; se da de baja y se crea de nuevo, `RN-FAM-UNIT-12`/`-14`; decidido por el usuario el 2026-10-26) |
 | `DELETE /guardians/{public_id}` | `familia.eliminar` | — | 200 con `{ "removed_links": n, "principal_cleared": bool }` (`RN-FAM-UNIT-12`) | 404 |
 
 `POST` cuerpo: `{ "user": "<public_id>", "family_unit": "<public_id>" }`. Con ámbito `unidad_familiar`, el sujeto alcanza los tutores con vínculo activo con alguno de sus alumnos.
@@ -251,6 +251,6 @@ Ninguno.
 
 ## 7. Códigos de error propios
 
-Todos con prefijo `fam_unit.` y traducidos en los cuatro idiomas: `family_unit.code_taken`, `family_unit.code_invalid`, `family_unit.principal_not_member`, `family_unit.has_members`, `guardian.already_exists`, `student.already_in_unit`, `link.already_exists`, `link.self_link`, `link.emergency_contact_taken`, `link.invalid_transition`, `link.not_editable`, `custody.link_not_revoked` (condicionado), `image_consent.not_legal_guardian`, `image_consent.guardian_required`, `image_consent.guardian_not_linked`, `terms.not_draft`, `terms.default_locale_missing`, `terms.version_not_current`, `export.q_not_allowed`, `validation.user_not_found`, `validation.student_not_found`, `validation.guardian_not_found`, `validation.family_unit_not_found`. Error transversal nuevo: `urn:pge:error:terms-acceptance-required` (`OPEN-FAM-UNIT-12`).
+Todos con prefijo `fam_unit.` y traducidos en los cuatro idiomas: `family_unit.code_taken`, `family_unit.code_invalid`, `family_unit.principal_not_member`, `family_unit.has_members`, `guardian.already_exists`, `student.already_in_unit`, `link.already_exists`, `link.self_link`, `link.emergency_contact_taken`, `link.invalid_transition`, `link.not_editable`, `link.emergency_contact_revoked`, `guardian.not_editable`, `custody.link_not_revoked` (condicionado), `image_consent.not_legal_guardian`, `image_consent.guardian_required`, `image_consent.guardian_not_linked`, `terms.not_draft`, `terms.default_locale_missing`, `terms.version_not_current`, `export.q_not_allowed`, `validation.user_not_found`, `validation.student_not_found`, `validation.guardian_not_found`, `validation.family_unit_not_found`. Error transversal nuevo: `urn:pge:error:terms-acceptance-required` (`OPEN-FAM-UNIT-12`).
 
 Nota: el issue #60 (`ValidationErrorFormatter` antepone `core.` al `code` de cualquier módulo) sigue abierto; estos códigos heredarán su resolución.
