@@ -1,6 +1,6 @@
 # PLAN-IMPLEMENTACION.md
 
-> **Versión 2.3.13** · 2026-10-21
+> **Versión 2.3.14** · 2026-10-26
 
 > Plan de ejecución dimensionado a **sesiones de ~5 horas** (límite del plan Pro). Cada paso cabe en una o dos sesiones y termina con el repositorio en estado compilable, tests en verde y `memory.md` actualizado.
 >
@@ -214,7 +214,7 @@ Este plan recorta la fase 1 a **17 módulos**: el núcleo académico y de comuni
 
 ### Bloque D · Personas
 
-- [ ] **1.14 · `REQ-FAM-UNIT`: unidad familiar y tutores** [OPUS + SONNET]
+- [~] **1.14 · `REQ-FAM-UNIT`: unidad familiar y tutores** [OPUS + SONNET] · *especificación en curso desde 2026-10-26*
   Incluye custodia, restricciones de acceso por tutor y consentimiento de imagen granular.
 
 - [ ] **1.14b · `REQ-FAM-UNIT-005` + `REQ-PRL-004`: autorizados y entrega de menores** [OPUS + SONNET] ⚠️ *paso crítico*
