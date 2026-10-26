@@ -104,7 +104,7 @@ Permisos completos en `permisos.md`. Errores comunes a todos (no se repiten): `4
 | `GET /guardians` | `familia.leer` | sí | 200 colección | 422 |
 | `POST /guardians` | `familia.crear` | — | 201 | 422 `user_not_found`, `already_exists`, `family_unit_not_found` |
 | `GET /guardians/{public_id}` | `familia.leer` | sí | 200 | 404 |
-| `PATCH /guardians/{public_id}` | `familia.actualizar` | — | 200 | 404, 422 (cambio de unidad: `family_unit`) |
+| `PATCH /guardians/{public_id}` | `familia.actualizar` | — | 200 | 404 (el cuerpo no admite `family_unit`: un tutor no cambia de unidad; se da de baja y se crea de nuevo, `RN-FAM-UNIT-12`; decidido por el usuario el 2026-10-26) |
 | `DELETE /guardians/{public_id}` | `familia.eliminar` | — | 200 con `{ "removed_links": n, "principal_cleared": bool }` (`RN-FAM-UNIT-12`) | 404 |
 
 `POST` cuerpo: `{ "user": "<public_id>", "family_unit": "<public_id>" }`. Con ámbito `unidad_familiar`, el sujeto alcanza los tutores con vínculo activo con alguno de sus alumnos.

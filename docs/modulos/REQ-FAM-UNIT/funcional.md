@@ -599,5 +599,5 @@ Texto original de la propuesta (cada pregunta lleva su recomendación): **Bloque
 No cambian el alcance aprobado; `1.14-a` los cierra al empezar, antes de escribir código, y si alguno exige decidir se pregunta al usuario:
 
 1. `RN-FAM-UNIT-35`, `-37`, `-38` (unidad sin principal al revocar el último vínculo, `principal_cleared`) y `-63` (sin versión publicada no hay muro) no tienen `CA` que las cite: añadirlos (`INV-015`).
-2. `PATCH /guardians/{id}` con cambio de unidad (`api.md`): falta fijar qué pasa con `principal_guardian_id` de la unidad de origen y con los vínculos; es una decisión de diseño pendiente (entre `RN-FAM-UNIT-02`, `-11` y `-12`).
+2. `PATCH /guardians/{id}` con cambio de unidad (`api.md`): falta fijar qué pasa con `principal_guardian_id` de la unidad de origen y con los vínculos; **resuelto por el usuario el 2026-10-26: el tutor no cambia de unidad por `PATCH`** (se da de baja y se crea de nuevo; `RN-FAM-UNIT-12` ya limpia principal y vínculos). `1.14-a` lo recoge como `RN` nueva y `CA` (el cuerpo rechaza `family_unit`).
 3. Los `CA` que exigen la persona de un alumno (`CA-FAM-UNIT-010`, `-012`, `-084` y los de consentimiento) se prueban con fábricas y con `REQ-SEED` (`CLAUDE.md §11`): no hay alta de alumno por API hasta `1.15`.
