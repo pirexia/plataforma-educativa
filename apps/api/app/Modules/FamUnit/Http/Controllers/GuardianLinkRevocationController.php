@@ -19,8 +19,9 @@ class GuardianLinkRevocationController extends FamUnitController
 {
     public function store(RevokeGuardianLinkRequest $request, string $publicId, GuardianLinkService $service, FamilyRefs $refs): JsonResponse
     {
-        $service->find($publicId);
-        $result = $service->revoke($publicId, $request->reason(), $this->actor($request));
+        $actor = $this->actor($request);
+        $service->find($publicId, $actor);
+        $result = $service->revoke($publicId, $request->reason(), $actor);
         $refs->showRevocation(true);
 
         return response()->json(
@@ -30,7 +31,8 @@ class GuardianLinkRevocationController extends FamUnitController
 
     public function destroy(Request $request, string $publicId, GuardianLinkService $service, FamilyRefs $refs): GuardianStudentLinkResource
     {
-        $service->find($publicId);
+        // El levantamiento actúa justo sobre un vínculo revocado: no se oculta (#472, autoriza `revocacion_tutor.eliminar`).
+        $service->find($publicId, $this->actor($request), forLift: true);
         $link = $service->lift($publicId);
         $refs->showRevocation(true);
 

@@ -591,7 +591,8 @@ paths:
       description: >
         Permiso `vinculo_tutor.eliminar`. Baja **no judicial** del vínculo (RN-FAM-UNIT-04); una retirada por resolución judicial es una
         revocación. Un vínculo `revocado` no se da de baja: `409 fam_unit.link.revoked_not_deletable` (RN-FAM-UNIT-39); la revocación se levanta
-        antes por su recurso.
+        antes por su recurso. Un vínculo `revocado` sin `revocacion_tutor.leer` es `404` (RN-FAM-UNIT-40), también en `PATCH`, `DELETE` y en
+        la revocación.
       tags: ['FamUnit / Vínculos']
       security: [{ SessionCookie: [] }]
       responses:

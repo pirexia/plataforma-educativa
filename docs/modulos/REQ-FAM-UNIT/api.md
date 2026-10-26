@@ -126,8 +126,8 @@ Permisos completos en `permisos.md`. Errores comunes a todos (no se repiten): `4
 | `GET /guardian-links` | `vinculo_tutor.leer` | sí | 200 colección (sin vínculos `revocado` si falta `revocacion_tutor.leer`, `RN-FAM-UNIT-40`) | 403 (`status=revocado` sin `revocacion_tutor.leer`, D-2), 422 |
 | `POST /guardian-links` | `vinculo_tutor.crear` | — | 201 | 422 `already_exists`, `self_link`, `emergency_contact_taken`, `guardian_not_found`, `student_not_found` |
 | `GET /guardian-links/{public_id}` | `vinculo_tutor.leer` | sí | 200 | 404 (también un vínculo `revocado` sin `revocacion_tutor.leer`, `RN-FAM-UNIT-40`) |
-| `PATCH /guardian-links/{public_id}` | `vinculo_tutor.actualizar` | — | 200 | 404, 422 (`status`, `revocation`, `guardian` o `student_person` en el cuerpo: `link.not_editable`; `link.emergency_contact_revoked` si el vínculo está revocado) |
-| `DELETE /guardian-links/{public_id}` | `vinculo_tutor.eliminar` | — | 204 | 404, 409 `link.revoked_not_deletable` (`RN-FAM-UNIT-39`) |
+| `PATCH /guardian-links/{public_id}` | `vinculo_tutor.actualizar` | — | 200 | 404 (también un vínculo `revocado` sin `revocacion_tutor.leer`), 422 (`status`, `revocation`, `guardian` o `student_person` en el cuerpo: `link.not_editable`; `link.emergency_contact_revoked` si el vínculo está revocado) |
+| `DELETE /guardian-links/{public_id}` | `vinculo_tutor.eliminar` | — | 204 | 404 (también un `revocado` sin `revocacion_tutor.leer`, `RN-FAM-UNIT-40`), 409 `link.revoked_not_deletable` (`RN-FAM-UNIT-39`) |
 
 `POST` cuerpo:
 

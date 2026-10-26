@@ -170,3 +170,75 @@ test('INV-001 ADR-033 §5: la RLS de las cuatro tablas oculta las filas de otro 
 
     expect($state)->toBe('42501');
 });
+
+const FAM_UNIT_PRINCIPAL_FK = 'family_units_principal_same_unit_foreign';
+
+test('RN-FAM-UNIT-02 datos.md §1.1 (#469): el motor impide un tutor principal de otra unidad, permite el propio y el NULL, y las bajas y revocaciones que lo ponen a NULL siguen funcionando', function (): void {
+    [$tenant, $admin] = Fam::setup('fs-principal');
+    $unitA = Fam::unitId($tenant, $admin, 'A');
+    $unitB = Fam::unitId($tenant, $admin, 'B');
+    [, $guardianA] = Fam::familyUser($tenant, $admin, 'a', $unitA);
+    [, $guardianB] = Fam::familyUser($tenant, $admin, 'b', $unitB);
+
+    $ids = app(TenantContext::class)->runFor($tenant->id, fn () => [
+        'a' => DB::table('family_units')->where('public_id', $unitA)->value('id'),
+        'ga' => DB::table('guardians')->where('public_id', $guardianA)->value('id'),
+        'gb' => DB::table('guardians')->where('public_id', $guardianB)->value('id'),
+    ]);
+
+    $set = function (?int $principal) use ($tenant, $ids): ?string {
+        try {
+            app(TenantContext::class)->runFor($tenant->id, fn () => DB::transaction(fn () => DB::table('family_units')->where('id', $ids['a'])->update(['principal_guardian_id' => $principal])));
+        } catch (QueryException $e) {
+            return $e->errorInfo[0] ?? null;
+        }
+
+        return null;
+    };
+
+    // Un tutor de otra unidad: 23503 aunque sea del mismo centro y exista (la FK simple antigua lo aceptaba).
+    expect($set($ids['gb']))->toBe('23503')
+        ->and($set($ids['ga']))->toBeNull()
+        ->and($set(null))->toBeNull()
+        ->and($set($ids['ga']))->toBeNull();
+
+    // Las bajas que ponen el principal a NULL (RN-FAM-UNIT-12 y -38) siguen funcionando con la FK nueva.
+    $student = Fam::person($tenant);
+    Fam::addStudent($tenant, $admin, $unitA, $student)->assertCreated();
+    $link = Fam::link($tenant, $admin, $guardianA, $student)->assertCreated()->json('public_id');
+    Fam::call($tenant, $admin, 'patch', "/family-units/{$unitA}", ['principal_guardian' => $guardianA])->assertOk();
+
+    expect(Fam::call($tenant, $admin, 'post', "/guardian-links/{$link}/revocation", ['reason' => 'resolucion_judicial'])->assertOk()->json('principal_cleared'))->toBeTrue();
+
+    Fam::call($tenant, $admin, 'delete', "/guardian-links/{$link}/revocation")->assertOk();
+    Fam::call($tenant, $admin, 'patch', "/family-units/{$unitA}", ['principal_guardian' => $guardianA])->assertOk();
+    Fam::call($tenant, $admin, 'delete', "/guardians/{$guardianA}")->assertOk()->assertJsonPath('principal_cleared', true);
+    Fam::call($tenant, $admin, 'get', "/family-units/{$unitA}")->assertOk()->assertJsonPath('principal_guardian', null);
+});
+
+test('RN-FAM-UNIT-02 (#469): la migración añade el único, el índice y la FK validada sin tocar la FK antigua, y su down() deja el esquema como estaba y es reversible', function (): void {
+    $owner = DB::connection('pgsql_owner');
+    $state = fn (): array => [
+        'fk' => $owner->selectOne('SELECT convalidated AS v, confmatchtype AS m FROM pg_constraint WHERE conname = ?', [FAM_UNIT_PRINCIPAL_FK]),
+        'old' => (int) $owner->selectOne("SELECT count(*) AS n FROM pg_constraint WHERE conname = 'family_units_tenant_principal_guardian_foreign'")->n,
+        'indexes' => array_column($owner->select("SELECT indexname FROM pg_indexes WHERE indexname IN ('guardians_tenant_unit_id_unique', 'family_units_tenant_id_principal_guardian_idx') ORDER BY 1"), 'indexname'),
+    ];
+
+    $before = $state();
+
+    expect($before['fk']->v)->toBeTrue()
+        ->and($before['fk']->m)->toBe('s')
+        ->and($before['old'])->toBe(1)
+        ->and($before['indexes'])->toBe(['family_units_tenant_id_principal_guardian_idx', 'guardians_tenant_unit_id_unique']);
+
+    $migration = require app_path('Modules/FamUnit/Database/migrations/2026_10_27_100100_add_principal_guardian_same_unit_foreign_key.php');
+
+    $migration->down();
+    $down = $state();
+    expect($down['fk'])->toBeNull()->and($down['old'])->toBe(1)->and($down['indexes'])->toBe([]);
+
+    // up() es reintentable: dos veces seguidas dejan lo mismo.
+    $migration->up();
+    $migration->up();
+    expect($state())->toEqual($before);
+});

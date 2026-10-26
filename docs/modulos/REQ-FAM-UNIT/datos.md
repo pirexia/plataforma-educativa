@@ -14,7 +14,7 @@ Todas las tablas son **de tenant**, creadas con `TenantMigration::tenantTable()`
 |---------|------|------|---------|-------------|
 | `public_id` | `character(26)` ULID | No | — | `ADR-029` |
 | `code` | `text` | No | — | Código único de la unidad en el centro (`REQ-FAM-UNIT-001`). Generación: `OPEN-FAM-UNIT-06`. `CHECK (length(code) BETWEEN 1 AND 40)` [DERIVADA] |
-| `principal_guardian_id` | `bigint` | Sí | `NULL` | FK compuesta → `guardians`. Que sea tutor vivo **de esta unidad** se valida en servicio (`RN-FAM-UNIT-02`): una FK no puede expresar «de la misma unidad» sin una columna redundante |
+| `principal_guardian_id` | `bigint` | Sí | `NULL` | FK compuesta → `guardians`. Que sea tutor **de esta unidad** lo garantiza además el motor (`RN-FAM-UNIT-02`, issue #469): FK compuesta `(tenant_id, id, principal_guardian_id)` → `guardians (tenant_id, family_unit_id, id)` (con `UNIQUE (tenant_id, family_unit_id, id)` en `guardians`; la `id` de la unidad hace de `family_unit_id`), `MATCH SIMPLE`, así que `NULL` sigue permitido; migración `2026_10_27_100100`. Que el tutor esté **vivo** sigue validándose en servicio (una baja lógica conserva la fila) |
 
 Restricciones: `UNIQUE (tenant_id, code) WHERE deleted_at IS NULL` (`RN-FAM-UNIT-01`).
 
