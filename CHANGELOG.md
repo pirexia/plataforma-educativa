@@ -13,6 +13,7 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 - **Hallazgo**: la premisa de `RN-FAM-UNIT-74` no se cumplía en el código (`GuardianLinkService` ya solo verificaba en la transición `false`→`true`); no se cambió el servicio, el test de regresión pasa antes y después (`funcional.md §18`, D-14).
 - **Decisiones de detalle** `funcional.md §18` (D-14 a D-24), a revisar. Textos de error y etiquetas de recurso en los cuatro idiomas.
 - **Documentación**: `REQ-FAM-UNIT/{funcional §18,datos,api,permisos,operacion §9}.md`, `REQ-CORE/{funcional,permisos}.md`, `PRIVACY.md` 0.3.9, `SECURITY.md` 0.3.14, `RUNBOOK.md` 0.3.14, `SYSADMIN.md` 0.8.21, `ARCHITECTURE.md` 2.5.8, `README.md` 2.6.35.
+- **Verificado** (suite completa): 1974/1974 Pest Unit+Feature y 50/51 Concurrency (1 omitido); Pint, Larastan, ESLint, `lint:i18n` y `vue-tsc` en verde.
 - **Condiciones previas a cargar datos reales** (sin cambio): validación jurídica de `OPEN-FAM-UNIT-08`, criterio sobre 14 y 18 años y respuesta a `OPEN-066-02`.
 
 ---
