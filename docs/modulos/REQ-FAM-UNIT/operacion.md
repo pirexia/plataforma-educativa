@@ -1,6 +1,6 @@
 # REQ-FAM-UNIT · Operación
 
-> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). **`1.14-a` implementada (2026-10-26)**: cinco migraciones aditivas, once permisos y el comando `fam_unit:grant-permissions`; ninguna variable de entorno, servicio, cola ni tarea programada nuevos (`§8`).
+> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). **`1.14-a` implementada (2026-10-26)**: cinco migraciones aditivas, once permisos y el comando `fam_unit:grant-permissions`; ninguna variable de entorno, servicio, cola ni tarea programada nuevos (`§8`). **Enmendada por `ADR-066` (ACEPTADA, 2026-10-27; `funcional.md §16`)**: `1.14-b` crea `terms_versions` (con `kind`) y `image_consent_decisions`; ya no se crea `image_consents`. **`1.14-b` lista para implementar.** **Condiciones previas a cargar datos reales del consentimiento de imagen** (no bloquean el despliegue con datos sintéticos): validación jurídica de `OPEN-FAM-UNIT-08`, criterio sobre 14 y 18 años (`OPEN-FAM-UNIT-18`) y respuesta a `OPEN-066-02` (`funcional.md §13`).
 
 ## 1. Variables de entorno
 
@@ -10,7 +10,7 @@ El detalle de custodia (condicionado a `OPEN-FAM-UNIT-05`) necesitará, según l
 
 ## 2. Servicios externos de los que depende
 
-- **PostgreSQL** (RLS, bloqueos de fila de `RN-FAM-UNIT-44`).
+- **PostgreSQL** (RLS). Sin bloqueos de fila en el consentimiento de imagen: `RN-FAM-UNIT-44` queda sustituida por el cálculo en origen (`ADR-066 §5.2`).
 - **Almacenamiento compatible S3** solo para el informe de consentimientos (vía `data_exports` de `Core`) y, condicionado, para el documento de custodia. Si no responde, la exportación queda `fallida` con su motivo y se puede repetir; ninguna operación de vínculo, revocación o consentimiento depende del almacenamiento.
 - **Ninguno externo** (correo, SMS, firma): este módulo no envía nada (`funcional.md §1.3`).
 
@@ -27,9 +27,9 @@ Aborta el despliegue si un ámbito declarado no pertenece al vocabulario cerrado
 
 **Contratación**: el módulo es no esencial; queda inactivo en cada centro hasta que el Super Administrador lo contrate (`ADR-045`). Para el centro `demo` de desarrollo hay que contratarlo a mano antes de probar.
 
-**Orden de migraciones**: `family_units` → `guardians` → FK de `principal_guardian_id` → `family_unit_students` → `guardian_student_links` → (`1.14-b`) `image_consents`, `image_consent_decisions` → (`1.14-c`) `terms_versions`, `terms_acceptances` (y la FK de `consent_text_version_id` si se aprueba `OPEN-FAM-UNIT-09`). Todas aditivas: *expand* puro, compatibles con la versión anterior del código (`RARQ-DEP-005`). Se aplican con `php artisan migrate --database=pgsql_owner` (lección de `1.11d-a`). `db-reviewer` obligatorio.
+**Orden de migraciones** (enmendado por `ADR-066 §9.27`): `family_units` → `guardians` → FK de `principal_guardian_id` → `family_unit_students` → `guardian_student_links` → (`1.14-b`) **`terms_versions` (con `kind`) antes que `image_consent_decisions`** (la FK `RESTRICT` de `consent_text_version_id` apunta a la primera) → (`1.14-c`) `terms_acceptances`. **Ya no se crea `image_consents`.** Todas aditivas: *expand* puro, compatibles con la versión anterior del código (`RARQ-DEP-005`). Se aplican con `php artisan migrate --database=pgsql_owner` (lección de `1.11d-a`). `db-reviewer` obligatorio.
 
-**Reversión** (`RARQ-DEP-013`): las migraciones son reversibles mientras las tablas estén vacías en producción. Con datos reales, revertir el código es seguro (las tablas nuevas quedan sin uso) y **no** se ejecuta `migrate:rollback` sobre `image_consent_decisions` ni `terms_acceptances`: son evidencia de consentimiento. El procedimiento probado se escribe en `RUNBOOK.md` al cerrar cada entrega.
+**Reversión** (`RARQ-DEP-013`): las migraciones son reversibles mientras las tablas estén vacías en producción. Con datos reales, revertir el código es seguro (las tablas nuevas quedan sin uso) y **no** se ejecuta `migrate:rollback` sobre `image_consent_decisions`, `terms_versions` (los textos a los que apuntan las decisiones) ni `terms_acceptances`: son evidencia de consentimiento. Con `1.14-b` desplegada, `sync-registry` registra los permisos de `consentimiento_imagen` y `texto_legal`, y `fam_unit:grant-permissions` siembra los de `permisos.md §4` en los centros existentes. El procedimiento probado se escribe en `RUNBOOK.md` al cerrar cada entrega.
 
 ## 4. Tareas programadas y trabajos en cola
 
@@ -59,6 +59,8 @@ Sin métricas propias en `1.14` (no hay pila de observabilidad desplegada todav�
 | Una imagen se publicó con consentimiento `pendiente` | El módulo publicador no consulta `ImageConsentPolicy` al servir (`funcional.md §7.3`) | **Incidente crítico** (`INV-014`); issue en el módulo publicador |
 | `422 user_not_found` al dar de alta un tutor con un usuario que existe | El usuario es de otro centro o está borrado | Comprobar en `Core` |
 | `409 fam_unit.link.revoked_not_deletable` al dar de baja un vínculo o un tutor | Hay un vínculo `revocado` (`RN-FAM-UNIT-39`, `funcional.md §15` D-10): una revocación no se pierde por una baja | Levantar antes la revocación (`DELETE /guardian-links/{id}/revocation`, permiso `revocacion_tutor.eliminar`) si de verdad procede |
+| `422 fam_unit.image_consent.text_not_published` al registrar `autorizo`; todo el alumnado `pendiente` | El centro no ha publicado el texto de ese nivel (`RN-FAM-UNIT-68`) | Publicar la versión del tipo `consentimiento_imagen_web` o `_redes` (`POST /terms-versions/{id}/publish`, `texto_legal.publicar`) |
+| Un alumno vuelve a `pendiente` sin que nadie haya decidido | Se dio de alta o se reverificó un representante legal (`RN-FAM-UNIT-72`, `funcional.md §6`; ver `OPEN-FAM-UNIT-24`) | Comportamiento esperado: falta la decisión del nuevo representante. Comprobar en `audit_logs` los cambios del vínculo |
 | `422 fam_unit.guardian.user_not_eligible` | El usuario está `inactivo` (`RN-FAM-UNIT-10`: solo `pendiente` o `activo`) | Reactivar la cuenta en `Core` o usar otra |
 
 ## 7. Impacto en copias de seguridad y restauración

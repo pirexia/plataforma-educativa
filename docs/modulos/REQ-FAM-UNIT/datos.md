@@ -1,6 +1,6 @@
 # REQ-FAM-UNIT · Modelo de datos
 
-> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). Las migraciones se escriben en `1.14-a`/`-b`/`-c` con `db-reviewer` obligatorio. **`1.14-a` implementada (2026-10-26)**: las cuatro tablas de §1.1 a §1.4 (migraciones `2026_10_26_100100` a `100500` de `apps/api/app/Modules/FamUnit/Database/migrations/`; la FK de `principal_guardian_id` va en la tercera, tras crear `guardians`). Índices de §3 no creados por redundantes: `funcional.md §15`, D-12. Las tablas marcadas *condicionada* dependen de `OPEN-FAM-UNIT-05`; las marcadas con una entrega (`1.14-a`/`-b`/`-c`) siguen la partición propuesta en `funcional.md §1.2`.
+> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). Las migraciones se escriben en `1.14-a`/`-b`/`-c` con `db-reviewer` obligatorio. **`1.14-a` implementada (2026-10-26)**: las cuatro tablas de §1.1 a §1.4 (migraciones `2026_10_26_100100` a `100500` de `apps/api/app/Modules/FamUnit/Database/migrations/`; la FK de `principal_guardian_id` va en la tercera, tras crear `guardians`). Índices de §3 no creados por redundantes: `funcional.md §15`, D-12. **Enmendada por `ADR-066` (ACEPTADA, 2026-10-27; `funcional.md §16`)**: desaparece `image_consents` (estado calculado en origen), `terms_versions` con `kind` se adelanta a `1.14-b`, y `consent_text_version_id` deja de ser condicional. **`1.14-b` lista para implementar**: §1.6 y §1.8. Las tablas marcadas *condicionada* dependen de `OPEN-FAM-UNIT-05`; las marcadas con una entrega (`1.14-a`/`-b`/`-c`) siguen la partición propuesta en `funcional.md §1.2`.
 
 Todas las tablas son **de tenant**, creadas con `TenantMigration::tenantTable()` (o `tenantTableAppendOnly()` donde se dice), que aporta `id bigint`, `tenant_id`, RLS `ENABLE` + `FORCE` con la política estándar, `UNIQUE (tenant_id, id)` y, en las ordinarias, `created_at`/`updated_at`/`deleted_at` (`TIMESTAMPTZ`) y `created_by`/`updated_by` (`ADR-033`, `ADR-034 §6`/`§7`). Solo se listan las columnas propias. Toda clave foránea a otra tabla de tenant es **compuesta** `(tenant_id, <columna>)` con `TenantMigration::tenantForeignId()` (`ADR-033 §6`). **Ninguna tabla lleva `academic_year_id`** (`ADR-034 §4`: la unidad familiar está expresamente entre las entidades que no dependen del curso), así que no aplica `AR-13` ni el disparador `academic_year_write_guard`. Ninguna usa `ON DELETE CASCADE`/`SET NULL`: las bajas son lógicas y se propagan en servicio, auditadas.
 
@@ -97,44 +97,36 @@ Política de auditoría `Redacted` (`ADR-035`): nunca se registra ningún valor.
 | `public_id` | ULID | No | |
 | `student_person_id` | `bigint` | No | FK compuesta → `people` |
 | `level` | `text` | No | `CHECK IN ('web','redes_sociales')` |
-| `decision` | `text` | No | `CHECK IN ('autorizo','no_autorizo')` (`RN-FAM-UNIT-40`) |
+| `decision` | `text` | No | `CHECK IN ('autorizo','no_autorizo')` (`RN-FAM-UNIT-67`, antes segundo `RN-FAM-UNIT-40`) |
 | `guardian_id` | `bigint` | No | FK compuesta → `guardians`. Quién decide |
 | `recorded_by` | `bigint` | No | FK compuesta → `users`. Quién la registra (el propio tutor o personal del centro) |
 | `channel` | `text` | No | `CHECK IN ('portal','presencial')` |
-| `consent_text_version_id` | `bigint` | Sí | FK compuesta → `terms_versions` si se aprueba `OPEN-FAM-UNIT-09`; si no, la columna no se crea |
+| `consent_text_version_id` | `bigint` | Sí | FK compuesta → `terms_versions`, **`ON DELETE RESTRICT`** (`ADR-066 §5.8`). Siempre presente; **nula solo con `no_autorizo`** sin texto publicado: `CHECK (decision = 'no_autorizo' OR consent_text_version_id IS NOT NULL)` (`RN-FAM-UNIT-68`). Que el `kind` de la versión corresponda al nivel (`consentimiento_imagen_web` ↔ `web`, `consentimiento_imagen_redes` ↔ `redes_sociales`) y su estado (`RN-FAM-UNIT-69`) se validan **en servicio** |
+| `shown_locale` | `text` | Sí | Idioma en que se mostró el texto por el canal `portal`; `CHECK (shown_locale IS NULL OR shown_locale IN ('es-ES','en','de','fr'))`. Nulo por `presencial` (`RN-FAM-UNIT-43`) [DERIVADA, `ADR-066 §9.5`] |
 | `occurred_at` | `TIMESTAMPTZ` | No | Fecha y hora de la decisión |
 | `ip_address` | `inet` | Sí | IP de la petición |
 | `user_agent` | `text` | Sí | |
 
-### 1.7 `image_consents` (`1.14-b`) — estado vigente
+**Cálculo del estado vigente** (`RN-FAM-UNIT-45`, `ADR-066 §5.2`), en una sola consulta por lote de alumnos: quienes deciden son los vínculos vivos con `is_legal_guardian = true` (`guardian_student_links`, `activo` o `revocado`); de cada uno cuenta su última decisión por `(occurred_at DESC, id DESC)` con `occurred_at > legal_guardian_verified_at` de ese vínculo (`DISTINCT ON (student_person_id, level, guardian_id)`, `RN-FAM-UNIT-72`). Sin bloqueo de fila: dos decisiones simultáneas son dos filas (`RN-FAM-UNIT-44`, sustituida).
 
-Proyección mantenida en la **misma transacción** que cada decisión (`RN-FAM-UNIT-44`), para que la comprobación de `INV-014` sea una lectura por clave y no un recálculo.
+### 1.7 `image_consents` — **eliminada** (`ADR-066 §5.2`, `OPEN-066-01` ratificada)
 
-| Columna | Tipo | Nulo | Defecto | Descripción |
-|---------|------|------|---------|-------------|
-| `public_id` | ULID | No | — | |
-| `student_person_id` | `bigint` | No | — | FK compuesta → `people` |
-| `level` | `text` | No | — | `CHECK IN ('web','redes_sociales')` |
-| `state` | `text` | No | `'pendiente'` | `CHECK IN ('autorizo','no_autorizo','pendiente')` |
-| `last_decision_at` | `TIMESTAMPTZ` | Sí | — | |
+La proyección de estado vigente prevista en la especificación aprobada **no se crea**. El estado se calcula en cada consulta (§1.6). Motivo: una proyección se desfasa en cuanto cambia el conjunto de quienes deciden (alta, baja o cambio de `is_legal_guardian` de un vínculo) y no tiene fila para quien nunca decidió. Añadir una proyección más adelante, si una medición lo pide, es aditivo y requiere su propio ADR.
 
-Restricciones: `UNIQUE (tenant_id, student_person_id, level) WHERE deleted_at IS NULL`. La ausencia de fila equivale a `pendiente` (fallo en cerrado); la fila se crea con la primera decisión.
-
-**Bloqueo**: el recálculo toma `SELECT … FOR UPDATE` sobre la fila de `(alumno, nivel)` (creándola si no existe con `INSERT … ON CONFLICT DO NOTHING` y releyéndola bloqueada) antes de leer las decisiones.
-
-### 1.8 `terms_versions` (`1.14-c`)
+### 1.8 `terms_versions` (**`1.14-b`**, adelantada desde `1.14-c` por `ADR-066 §5.5`)
 
 | Columna | Tipo | Nulo | Defecto | Descripción |
 |---------|------|------|---------|-------------|
 | `public_id` | ULID | No | — | |
-| `version_number` | `integer` | No | — | Correlativo por centro, asignado en servicio bajo bloqueo; `UNIQUE (tenant_id, version_number)` (no parcial: un número no se reutiliza nunca) |
+| `kind` | `text` | No | — | **Desde la creación**. `CHECK IN ('condiciones_uso','consentimiento_imagen_web','consentimiento_imagen_redes')` (`RN-FAM-UNIT-73`). En `1.14-b` el servicio rechaza `condiciones_uso`; el `CHECK` ya lo admite para no migrar en `1.14-c` |
+| `version_number` | `integer` | No | — | Correlativo **por centro y tipo**, asignado en servicio bajo bloqueo; `UNIQUE (tenant_id, kind, version_number)` (no parcial: un número no se reutiliza nunca) |
 | `title_translations` | `jsonb` | No | — | Columna traducible con el ayudante de `ADR-062 §5.1` (`AR-16`) |
 | `body_translations` | `jsonb` | No | — | Ídem. Texto legal del centro |
 | `status` | `text` | No | `'borrador'` | `CHECK IN ('borrador','publicada','retirada')` |
-| `requires_reacceptance` | `boolean` | No | `false` | Fijado al publicar (`REQ-FAM-UNIT-003`) |
+| `requires_reacceptance` | `boolean` | No | `false` | Fijado al publicar (`REQ-FAM-UNIT-003`). Solo tiene sentido en `condiciones_uso`: `CHECK (kind = 'condiciones_uso' OR NOT requires_reacceptance)` |
 | `published_at` | `TIMESTAMPTZ` | Sí | — | `CHECK ((status = 'borrador') = (published_at IS NULL))` |
 
-Restricciones: `UNIQUE (tenant_id) WHERE status = 'publicada' AND deleted_at IS NULL` (`RN-FAM-UNIT-60`, por índice y no por comprobación). Si se aprueba `OPEN-FAM-UNIT-09`, se añade `kind text CHECK IN ('condiciones_uso','consentimiento_imagen_web','consentimiento_imagen_redes')` y la unicidad pasa a `(tenant_id, kind)`; la columna se crea desde el principio para no migrar después (decisión a tomar junto con `OPEN-FAM-UNIT-09`).
+Restricciones: `UNIQUE (tenant_id, kind) WHERE status = 'publicada' AND deleted_at IS NULL` (`RN-FAM-UNIT-60`, `-73`, por índice y no por comprobación). Una versión `publicada` o `retirada` no se edita ni se borra (servicio, `409`); solo se borra un `borrador`, y una versión referenciada por una decisión no se puede borrar ni físicamente (`RESTRICT` de §1.6). La FK compuesta de §1.6 exige que la tabla tenga `UNIQUE (tenant_id, id)`, que aporta `tenantTable()`.
 
 ### 1.9 `terms_acceptances` (`1.14-c`) — histórico inmutable
 
@@ -169,7 +161,7 @@ erDiagram
     people ||--o{ image_consent_decisions : "alumno"
     guardians ||--o{ image_consent_decisions : "decide"
     users ||--o{ image_consent_decisions : "registra"
-    people ||--o{ image_consents : "estado vigente por nivel"
+    terms_versions ||--o{ image_consent_decisions : "texto del consentimiento (RESTRICT)"
     terms_versions ||--o{ terms_acceptances : "versión aceptada"
     users ||--o{ terms_acceptances : "acepta"
 ```
@@ -188,8 +180,10 @@ Además de los únicos de §1 (que ya sirven a sus consultas) y del índice `(te
 | `guardian_student_links (tenant_id, student_person_id) WHERE deleted_at IS NULL` | Tutores de un alumno (`FamilyMembership`, `GuardianRecipients`, ficha); `isAccessRevoked()`  **Omitido en `1.14-a`: cubierto por `tenantForeignId()` (`funcional.md §15`, D-12).** |
 | `family_unit_students (tenant_id, family_unit_id) WHERE deleted_at IS NULL` | Alumnos de una unidad (ficha, regla `RN-FAM-UNIT-03`)  **Omitido en `1.14-a`: cubierto por `tenantForeignId()` (`funcional.md §15`, D-12).** |
 | `guardians (tenant_id, family_unit_id) WHERE deleted_at IS NULL` | Tutores de una unidad  **Omitido en `1.14-a`: cubierto por `tenantForeignId()` (`funcional.md §15`, D-12).** |
-| `image_consent_decisions (tenant_id, student_person_id, level, occurred_at DESC, id DESC)` | Recálculo del estado vigente y histórico paginado por cursor |
-| `image_consents (tenant_id, level, state)` | Listado y exportación filtrados por nivel y estado («quién no ha decidido») |
+| `image_consent_decisions (tenant_id, student_person_id, level, guardian_id, occurred_at DESC, id DESC)` | Cálculo del estado vigente: `DISTINCT ON` por tutor (`ADR-066 §9.18`). Sirve también al histórico por alumno y nivel. Si el histórico paginado por cursor `(occurred_at DESC, id DESC)` de un alumno sin filtro de nivel lo necesita, lo decide `db-reviewer` con el plan de ejecución |
+| `image_consent_decisions (tenant_id, consent_text_version_id)` | Lo crea `tenantForeignId()` en la FK: comprueba el `RESTRICT` y responde «qué familias decidieron sobre un texto anterior» (`RN-FAM-UNIT-70`) |
+
+El índice de `image_consents` desaparece con la tabla. **El listado y la exportación de estados parten de `family_unit_students` vivos** (índice único parcial de §1.3) y calculan el estado de cada alumno, de modo que `state=pendiente` incluye a los alumnos sin ninguna decisión.
 | `terms_acceptances (tenant_id, user_id, accepted_at DESC)` | Comprobación del muro en cada petición de un tutor obligado (`RN-FAM-UNIT-62`) |
 | `family_units (tenant_id, code text_pattern_ops) WHERE deleted_at IS NULL` | Búsqueda por prefijo de código en el listado. **Solo si** el listado ofrece búsqueda `q`; si no, se retira (un índice sin consulta es deuda) |
 
@@ -209,8 +203,9 @@ Todo modelo extiende `TenantModel` (o `AppendOnlyModel`), implementa `Auditable`
 | `GuardianStudentLink` | `guardian_student_link` | `Selective` | `relationship`, `is_legal_guardian`, `legal_guardian_verified_at`, `access_level`, `restricted_categories`, `is_emergency_contact`, `status`, `revocation_reason`, `revoked_at`, `deleted_at`, `created_by`, `updated_by`. Todos son códigos o marcas, sin texto libre (`RN-FAM-UNIT-36`: el detalle judicial nunca vive aquí) |
 | `CustodyRestriction` (condicionada) | `custody_restriction` | `Redacted` | Ningún valor. Lectura auditada (`read`) |
 | `ImageConsentDecision` | `image_consent_decision` | `Full` | Append-only; su `created` es el registro. `ip_address`/`user_agent` se registran como `identifier` redactado si la política lo exige (decisión de implementación con `db-reviewer`) |
-| `ImageConsent` | `image_consent` | `Full` | Proyección; registra `state` y `last_decision_at` |
-| `TermsVersion` | `terms_version` | `Full` | Los textos largos se redactan solos como `oversized` (`ADR-035 §4`); el desglose por idioma de `ADR-062 §5.5` |
+| `TermsVersion` | `terms_version` | `Full` | Los textos largos se redactan solos como `oversized` (`ADR-035 §4`); el desglose por idioma de `ADR-062 §5.5`. Se audita al crear, editar en borrador y publicar (`ADR-066 §5.8`). **Entra en `1.14-b`** |
+
+`ImageConsent` **no es un modelo** (no tiene tabla, `ADR-066 §5.2`): no entra en el *morph map* ni en esta tabla. Es una representación calculada (`api.md §1.5`).
 | `TermsAcceptance` | `terms_acceptance` | `Full` | Append-only |
 
 Ninguna exclusión de eventos (`ADR-040`).
@@ -241,9 +236,10 @@ El catálogo de retención por entidad es trabajo de `1.23b`/`REQ-PRIV-006`, **s
 |-------|-----------------------------|---------|
 | `family_units`, `guardians`, `family_unit_students`, `guardian_student_links` | Borrado lógico mientras el alumno esté en el centro; anonimización o purga después, según el catálogo | El vínculo y su revocación son la prueba ante un incidente con un menor (`REQ-FAM-UNIT-005`): no se purgan mientras pueda hacer falta |
 | `image_consent_decisions`, `terms_acceptances` | Conservación como evidencia del consentimiento mientras dure el tratamiento y el plazo de prescripción que fije el catálogo | Una prueba de consentimiento que se borra deja de probar; supresión por retención, nunca por edición (`ADR-035`) |
+| `terms_versions` | Las versiones referenciadas por una decisión o una aceptación son **evidencia**, con la misma retención que la decisión; no se purgan mientras exista una fila que las referencie (`RESTRICT`, `ADR-066 §5.8`) | El consentimiento solo prueba algo junto con el texto que se aceptó |
 | `custody_restrictions` | El plazo más corto compatible con la protección del menor | Categoría especial; minimización |
 
-La purga física de un tenant completo debe incluir estas nueve tablas en el orden de dependencias de §2 (issue #371, `1.23b`).
+La purga física de un tenant completo debe incluir estas **ocho** tablas (nueve en la propuesta original, menos `image_consents`, eliminada por `ADR-066`) en el orden de dependencias de §2: `image_consent_decisions` y `terms_acceptances` antes que `terms_versions` (issue #371, `1.23b`).
 
 ---
 

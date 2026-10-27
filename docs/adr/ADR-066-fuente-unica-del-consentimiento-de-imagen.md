@@ -1,6 +1,6 @@
 # ADR-066 · Fuente única del consentimiento de imagen
 
-**Estado**: **PROPUESTA** (2026-10-27). Pendiente de ratificación por el usuario. Prerrequisito de `1.14-b` fijado por la aprobación de la especificación de `1.14` (`OPEN-FAM-UNIT-09`).
+**Estado**: **ACEPTADA** (2026-10-27, ratificada por el usuario: `OPEN-066-01` calcular en origen, `-02` un texto nuevo no invalida los `autorizo` en `1.14-b`, `-03` recurso `texto_legal`, `-04` solo cuentan las decisiones posteriores a `legal_guardian_verified_at`, `-05` criterio jurídico sobre 14 y 18 años como condición previa a datos reales; el usuario confirma además los **dos niveles** `web` y `redes_sociales`, sin separar por red social). Prerrequisito de `1.14-b` fijado por la aprobación de la especificación de `1.14` (`OPEN-FAM-UNIT-09`).
 **Fecha**: 2026-10-27
 **Paso**: `1.14 · REQ-FAM-UNIT`, entrega `1.14-b` (`docs/modulos/REQ-FAM-UNIT/funcional.md §3.8`, `§4.6`-`§4.8`, `§7.3`).
 **Afecta a**: `REQ-FAM-UNIT-004`, `REQ-AUT-002`, `REQ-AUT-003`, `REQ-PRIV-002`, `INV-014`, `RSEC-GDPR-011`, `REQ-INF-008`, y a todo módulo que publique o sirva imágenes de alumnos (`REQ-COM`, `REQ-INF`, `REQ-WEB`, `REQ-EXTRA`, `REQ-FAM-PORTAL`).
