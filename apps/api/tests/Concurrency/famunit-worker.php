@@ -80,7 +80,7 @@ $result = app(TenantContext::class)->runFor((int) $tenantId, function () use ($o
                     $user = User::query()->where('public_id', $args[0])->firstOrFail();
                     $decision = app(PermissionResolver::class)->decide($user, 'consentimiento_imagen.actualizar');
                     $recorded = app(ImageConsentService::class)->record(
-                        ['student_person' => $args[1], 'level' => $args[2], 'decision' => $args[3], 'on_behalf_of' => null, 'channel' => null, 'consent_text_version' => null],
+                        ['student_person' => $args[1], 'level' => $args[2], 'decision' => $args[3], 'on_behalf_of' => null, 'channel' => null, 'consent_text_version' => app(TermsVersionService::class)->published(ImageConsentService::kindOf($args[2]))?->public_id],
                         $user,
                         $decision,
                         ['ip' => '127.0.0.1', 'user_agent' => 'famunit-worker'],

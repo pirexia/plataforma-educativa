@@ -612,7 +612,7 @@ Descarta un lote no ejecutado y borra su fichero fuente y su informe del bucket.
 
 Estado y descarga de una exportación. Primitiva compartida (`funcional.md` §7).
 
-- **Permiso**: el del recurso exportado según su `kind` (tabla cerrada `DataExportsController::PERMISSION_BY_KIND`; un `kind` ausente de ella se deniega, `INV-002`): `audit_logs` → `auditoria` · `exportar`; `users` → `usuario` · `exportar` (1.9b). Además, **solo el solicitante** puede descargarla. Contrato ampliado en 1.9b (S3/S4): ver `§14.2`.
+- **Permiso**: el del recurso exportado según su `kind` (tabla cerrada `DataExportsController::PERMISSION_BY_KIND`; un `kind` ausente de ella se deniega, `INV-002`): `audit_logs` → `auditoria` · `exportar`; `users` → `usuario` · `exportar` (1.9b); `image_consents` → `consentimiento_imagen` · `exportar` (1.14-b, ampliación de `Core` aprobada por el usuario el 2026-10-27 (`1.14-b`, `REQ-FAM-UNIT/funcional.md §18` D-18 y D-27)). Además, **solo el solicitante** puede descargarla. Contrato ampliado en 1.9b (S3/S4): ver `§14.2`.
 - **Respuesta 200**
 
 ```json
@@ -803,7 +803,7 @@ Sustituye la descripción de §8 en dos puntos; el resto no cambia.
 
 | Aspecto | Antes (código en `495d19c`) | Después |
 |---------|-----------------------------|---------|
-| Permiso | `auditoria.exportar` fijo en la ruta | El del `kind` de la exportación, por correspondencia cerrada en código: `audit_logs` → `auditoria.exportar`; `users` → `usuario.exportar`. `kind` sin correspondencia ⇒ `403`. Sigue exigiendo ser el solicitante |
+| Permiso | `auditoria.exportar` fijo en la ruta | El del `kind` de la exportación, por correspondencia cerrada en código: `audit_logs` → `auditoria.exportar`; `users` → `usuario.exportar`; `image_consents` → `consentimiento_imagen.exportar` (1.14-b, ampliación de `Core` aprobada por el usuario el 2026-10-27 (`1.14-b`, `REQ-FAM-UNIT/funcional.md §18` D-18 y D-27)). `kind` sin correspondencia ⇒ `403`. Sigue exigiendo ser el solicitante |
 | `status = fallida` | `409` con `core.validation.export_failed` | **`200`** con `{ "public_id", "kind", "status": "fallida", "row_count": null, "download_url": null, "expires_at", "error_code": "<clave>" }` (**`OPEN-CORE-39`**) |
 | `pendiente` / `generando` | `409 core.validation.export_not_ready` | Igual (el cliente de 1.9 lo trata como «seguir esperando») |
 | `completada` | `200` con `download_url` firmada | Igual |

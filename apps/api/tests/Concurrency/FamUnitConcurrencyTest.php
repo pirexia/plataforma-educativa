@@ -296,3 +296,17 @@ test('CA-FAM-UNIT-099 RN-FAM-UNIT-60 RN-FAM-UNIT-73: dos publicaciones simultán
 
     expect($failure)->toBe('23505');
 });
+
+test('datos.md §1.6 §1.8 ADR-066 §5.8 (db-reviewer B-3): el down() de image_consent_decisions y de terms_versions se niega a borrar la tabla si tiene filas (evidencia del consentimiento) y deja todo intacto', function (): void {
+    $f = Fam::consentFamily('fam-conc-down', twoGuardians: false);
+    Fam::decideAs($f['tenant'], $f['r1'], $f['student'], 'web', 'no_autorizo')->assertCreated();
+
+    foreach (['2026_10_27_100300_create_image_consent_decisions_table', '2026_10_27_100200_create_terms_versions_table'] as $name) {
+        $migration = require app_path("Modules/FamUnit/Database/migrations/{$name}.php");
+
+        expect(fn () => $migration->down())->toThrow(RuntimeException::class, 'evidencia');
+    }
+
+    $count = fn (string $table) => app(TenantContext::class)->runFor($f['tenant']->id, fn () => DB::table($table)->count());
+    expect($count('image_consent_decisions'))->toBe(1)->and($count('terms_versions'))->toBeGreaterThanOrEqual(2);
+});

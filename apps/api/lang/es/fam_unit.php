@@ -43,6 +43,7 @@ return [
     ],
 
     'image_consent' => [
+        'text_version_outdated' => 'La versión del texto que se mostró ya no es la vigente: vuelve a leer el texto publicado antes de autorizar.',
         'not_legal_guardian' => 'Solo un tutor con representación legal sobre el alumno puede decidir el consentimiento de imagen.',
         'guardian_required' => 'Indica el tutor que decidió (on_behalf_of) al registrar su decisión en nombre de la familia.',
         'guardian_not_linked' => 'El tutor indicado no está vinculado con ese alumno.',
@@ -64,6 +65,7 @@ return [
     ],
 
     'errors' => [
+        'consent_rate_limited' => 'Has alcanzado el límite de decisiones de imagen o de informes de consentimientos. Inténtalo de nuevo en unos :minutes minutos.',
         'revocation_rate_limited' => 'Has alcanzado el límite de revocaciones o levantamientos de revocación. Inténtalo de nuevo en unos :minutes minutos.',
     ],
 

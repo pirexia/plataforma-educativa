@@ -237,7 +237,7 @@ Primitiva compartida: la introduce `REQ-CORE` para la exportación CSV del regis
 | Columna | Tipo | Nulo | Descripción |
 |---------|------|------|-------------|
 | `public_id` | ULID | No | |
-| `kind` | `text` + `CHECK` | No | `audit_logs` en 1.1. Cada módulo añade su valor al `CHECK` por *expand* |
+| `kind` | `text` + `CHECK` | No | `audit_logs` en 1.1; `users` en 1.9b; `image_consents` en 1.14-b (ampliación de `Core` aprobada por el usuario el 2026-10-27 (`1.14-b`, `REQ-FAM-UNIT/funcional.md §18` D-18 y D-27), migración `2026_10_27_100100_widen_data_exports_kind_for_image_consents`). Cada módulo añade su valor al `CHECK` por *expand* |
 | `format` | `text` + `CHECK` | No | `csv` en 1.1. `pdf` diferido a 1.17 |
 | `filters` | `jsonb` | Sí | Filtros con los que se pidió, para poder reproducirla y auditar qué se extrajo |
 | `status` | `text` + `CHECK` | No | `pendiente`, `generando`, `completada`, `fallida` |
@@ -399,6 +399,7 @@ Ninguna de estas purgas toca `audit_logs`: la retención del registro de auditor
 
 | Necesidad del paso | De dónde sale | Esquema nuevo |
 |--------------------|---------------|---------------|
+| **`1.14-b`**: `CHECK (kind IN ('audit_logs', 'users'))` → `CHECK (kind IN ('audit_logs', 'users', 'image_consents'))` (`NOT VALID` + `VALIDATE`, patrón de la skill `migracion-segura`) | *Expand* | ampliación de `Core` aprobada por el usuario el 2026-10-27 (`1.14-b`, `REQ-FAM-UNIT/funcional.md §18` D-18 y D-27): el informe de consentimientos de imagen de `fam_unit`. La versión anterior nunca escribe `image_consents`. Su `down()` falla si hay filas de ese `kind`. Sin *contract* |
 | Exportación de usuarios: estado, solicitante, filtros, artefacto | `data_exports` (A.4), con `kind = 'users'` | Solo el `CHECK` de arriba. `filters` sigue sin `q` (`ADR-054 §9`, `RN-CORE-58`): **no** hace falta la columna aparte de `ADR-054 §9.2` ni pasar `DataExport` de `Full` a `Selective` |
 | Idioma de los mensajes de importación (#285, si `OPEN-CORE-38` = A) | `user_imports.created_by` → `users` → `people.locale`, con la precedencia de `RN-CORE-34` | **Ninguno**: no se guarda el idioma en `user_imports` |
 | `created_at` en el recurso de importación | Columna existente de `tenantTable()` | Ninguno |

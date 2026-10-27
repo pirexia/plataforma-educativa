@@ -43,6 +43,7 @@ return [
     ],
 
     'image_consent' => [
+        'text_version_outdated' => 'The text version that was shown is no longer the current one: read the published text again before authorising.',
         'not_legal_guardian' => 'Only a guardian with legal representation of the student can decide the image consent.',
         'guardian_required' => 'State the guardian who decided (on_behalf_of) when recording their decision on behalf of the family.',
         'guardian_not_linked' => 'The indicated guardian is not linked to that student.',
@@ -64,6 +65,7 @@ return [
     ],
 
     'errors' => [
+        'consent_rate_limited' => 'You have reached the limit of image decisions or consent reports. Try again in about :minutes minutes.',
         'revocation_rate_limited' => 'You have reached the limit of revocations or revocation lifts. Try again in about :minutes minutes.',
     ],
 

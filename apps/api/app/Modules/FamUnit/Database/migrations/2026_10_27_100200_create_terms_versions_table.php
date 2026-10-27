@@ -61,6 +61,11 @@ return new class extends Migration
 
     public function down(): void
     {
+        // Las versiones referenciadas por una decisión son evidencia (ADR-066 §5.8); ninguna se borra con un rollback.
+        if (DB::connection('pgsql_platform')->table('terms_versions')->exists()) {
+            throw new RuntimeException('terms_versions tiene filas: los textos son evidencia del consentimiento y no se revierte. Purga el centro por el procedimiento de retención (REQ-PRIV-006) antes.');
+        }
+
         DB::connection('pgsql_owner')->statement('DROP TABLE IF EXISTS terms_versions');
     }
 };

@@ -2,6 +2,7 @@
 
 namespace App\Modules\FamUnit\Http\Controllers;
 
+use App\Modules\FamUnit\Application\ConsentRateLimit;
 use App\Modules\FamUnit\Application\FamilyRefs;
 use App\Modules\FamUnit\Application\FamilyUnitStudentService;
 use App\Modules\FamUnit\Application\ImageConsentService;
@@ -38,8 +39,10 @@ class ImageConsentDecisionsController extends FamUnitController
         ]);
     }
 
-    public function store(StoreImageConsentDecisionRequest $request, ImageConsentService $service, FamilyUnitStudentService $students, FamilyRefs $refs): JsonResponse
+    public function store(StoreImageConsentDecisionRequest $request, ImageConsentService $service, FamilyUnitStudentService $students, FamilyRefs $refs, ConsentRateLimit $rateLimit): JsonResponse
     {
+        $rateLimit->hit('decision', $this->actor($request));
+
         $result = $service->record(
             $request->payload(),
             $this->actor($request),
@@ -54,7 +57,7 @@ class ImageConsentDecisionsController extends FamUnitController
         return response()->json([
             'decision' => (new ImageConsentDecisionResource($result['decision']))->resolve($request),
             'state' => (new ImageConsentResource($result['state'] + ['family_unit' => $unit['public_id'] ?? null]))->resolve($request),
-        ], 201);
+        ], $result['created'] ? 201 : 200);
     }
 
     /**

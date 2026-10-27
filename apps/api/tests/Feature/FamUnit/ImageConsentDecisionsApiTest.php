@@ -4,7 +4,9 @@ use App\Models\Person;
 use App\Modules\FamUnit\Domain\Models\ImageConsentDecision;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Tests\Support\FamUnitTestHelpers as Fam;
 
 // REQ-FAM-UNIT-004 (1.14-b), docs/modulos/REQ-FAM-UNIT/api.md §2.7, funcional.md §4.6, §5.4 (RN-FAM-UNIT-41 a -43, -67 a
@@ -25,7 +27,7 @@ test('CA-FAM-UNIT-051 RN-FAM-UNIT-47 RN-FAM-UNIT-68: el único representante leg
     $f = Fam::consentFamily('ic-051', twoGuardians: false);
 
     $response = test()->actingAs($f['r1'])->withHeaders(['User-Agent' => 'PruebaNavegador/1.0'])
-        ->postJson(Fam::url($f['tenant'], '/image-consent-decisions'), ['student_person' => $f['student']->public_id, 'level' => 'web', 'decision' => 'autorizo'])
+        ->postJson(Fam::url($f['tenant'], '/image-consent-decisions'), ['student_person' => $f['student']->public_id, 'level' => 'web', 'decision' => 'autorizo', 'consent_text_version' => Fam::publishedTextId($f['tenant'], 'web')])
         ->assertCreated();
 
     expect(array_keys($response->json()))->toBe(['decision', 'state'])
@@ -241,10 +243,30 @@ test('CA-FAM-UNIT-097 RN-FAM-UNIT-69: por presencial el centro indica una versi�
         expect(Fam::errorCode($r, 'consent_text_version'))->toBe('fam_unit.image_consent.text_version_invalid');
     }
 
-    // Por portal el cuerpo no elige versión.
-    $r = Fam::decide($f['tenant'], $f['r1'], ['student_person' => $f['student']->public_id, 'level' => 'web', 'decision' => 'autorizo', 'consent_text_version' => $v2])->assertStatus(422);
-    expect(Fam::errorCode($r, 'consent_text_version'))->toBe('fam_unit.image_consent.text_version_invalid')
+    // Por portal el cliente envía la versión que vio (RN-FAM-UNIT-69, decisión del usuario del 2026-10-27): la vigente, 201;
+    // una retirada o antigua, 409 text_version_outdated; de otro nivel o inexistente, 422 text_version_invalid; ausente con
+    // autorizo, 422 required.
+    $portal = ['student_person' => $f['student']->public_id, 'level' => 'web', 'decision' => 'autorizo'];
+    // Idéntica a la que el centro acaba de registrar para este tutor (RN-FAM-UNIT-77): 200, sin fila nueva.
+    Fam::decide($f['tenant'], $f['r1'], $portal + ['consent_text_version' => $v2])->assertOk();
+
+    $stale = Fam::decide($f['tenant'], $f['r1'], $portal + ['consent_text_version' => $v1])->assertStatus(409);
+    expect(Fam::errorCode($stale, 'consent_text_version'))->toBe('fam_unit.image_consent.text_version_outdated');
+
+    foreach ([$redes, $draft, '01JZZZZZZZZZZZZZZZZZZZZZZZ'] as $invalid) {
+        $r = Fam::decide($f['tenant'], $f['r1'], $portal + ['consent_text_version' => $invalid])->assertStatus(422);
+        expect(Fam::errorCode($r, 'consent_text_version'))->toBe('fam_unit.image_consent.text_version_invalid');
+    }
+
+    $r = Fam::decide($f['tenant'], $f['r1'], $portal)->assertStatus(422);
+    expect(Fam::errorCode($r, 'consent_text_version'))->toBe('fam_unit.validation.required')
         ->and(decisionRows($f['tenant']))->toHaveCount($rows);
+
+    // Negarse no necesita texto ni vigente: sin versión se registra la publicada; con una retirada, esa.
+    $refusal = ['student_person' => $f['student']->public_id, 'level' => 'web', 'decision' => 'no_autorizo'];
+    expect(Fam::decide($f['tenant'], $f['r1'], $refusal)->assertCreated()->json('decision.consent_text_version.public_id'))->toBe($v2);
+    Fam::tick();
+    expect(Fam::decide($f['tenant'], $f['r1'], $refusal + ['consent_text_version' => $v1])->assertCreated()->json('decision.consent_text_version.public_id'))->toBe($v1);
 });
 
 test('CA-FAM-UNIT-101 RN-FAM-UNIT-43 OPEN-FAM-UNIT-25: por portal shown_locale es el idioma realmente mostrado — de si el texto está traducido, el idioma por defecto del centro si no — y por presencial es nulo', function (): void {
@@ -267,12 +289,12 @@ test('CA-FAM-UNIT-101 RN-FAM-UNIT-43 OPEN-FAM-UNIT-25: por portal shown_locale e
     app(TenantContext::class)->runFor($tenant->id, fn () => Person::query()->whereKey($r1->person_id)->update(['locale' => 'de']));
 
     $post = fn (string $level) => test()->actingAs($r1)
-        ->postJson(Fam::url($tenant, '/image-consent-decisions'), ['student_person' => $student->public_id, 'level' => $level, 'decision' => 'no_autorizo']);
+        ->postJson(Fam::url($tenant, '/image-consent-decisions'), ['student_person' => $student->public_id, 'level' => $level, 'decision' => 'no_autorizo', 'consent_text_version' => Fam::publishedTextId($tenant, $level)]);
 
     expect($post('web')->assertCreated()->json('decision.shown_locale'))->toBe('de')
         ->and($post('redes_sociales')->assertCreated()->json('decision.shown_locale'))->toBe('es-ES');
 
-    expect(Fam::decide($tenant, $admin, ['student_person' => $student->public_id, 'level' => 'web', 'decision' => 'no_autorizo', 'on_behalf_of' => $g1])
+    expect(Fam::decide($tenant, $admin, ['student_person' => $student->public_id, 'level' => 'web', 'decision' => 'autorizo', 'on_behalf_of' => $g1])
         ->assertCreated()->json('decision.shown_locale'))->toBeNull();
 
     $stored = app(TenantContext::class)->runFor($tenant->id, fn () => DB::table('image_consent_decisions')->orderBy('id')->pluck('shown_locale')->all());
@@ -316,10 +338,10 @@ test('RN-FAM-UNIT-41 api.md §2.7: el servidor valida las referencias y los role
     expect(decisionRows($f['tenant']))->toBe([]);
 
     // El propio tutor, expresando su propio tutor en on_behalf_of: portal.
-    Fam::decide($f['tenant'], $f['r1'], $base + ['on_behalf_of' => $f['g1'], 'channel' => 'portal'])->assertCreated();
+    Fam::decide($f['tenant'], $f['r1'], $base + ['on_behalf_of' => $f['g1'], 'channel' => 'portal', 'consent_text_version' => Fam::publishedTextId($f['tenant'], 'web')])->assertCreated();
 });
 
-test('INV-010 api.md §2.7: la forma del cuerpo se valida — campos obligatorios, enumerados y referencias', function (): void {
+test('INV-010 RN-FAM-UNIT-67 api.md §2.7: los niveles y decisiones son cerrados (web y redes_sociales; autorizo y no_autorizo) y la forma del cuerpo se valida — campos obligatorios, enumerados y referencias', function (): void {
     $f = Fam::consentFamily('ic-shape', twoGuardians: false);
     $student = $f['student']->public_id;
 
@@ -436,4 +458,103 @@ test('INV-002 RPERM-011: sin el permiso, las decisiones y su histórico son 403;
     resetSessionState();
     test()->postJson(Fam::url($f['tenant'], '/image-consent-decisions'), $body)->assertUnauthorized();
     expect(decisionRows($f['tenant']))->toBe([]);
+});
+
+test('CA-FAM-UNIT-107 RN-FAM-UNIT-69 (decisión del usuario, 2026-10-27, M2): por portal el tutor envía la versión que vio — si publican otra mientras tanto, autorizar con la anterior es 409 text_version_outdated y no se escribe nada; con la nueva, 201', function (): void {
+    $f = Fam::consentFamily('ic-107', twoGuardians: false);
+    $seen = Fam::publishedTextId($f['tenant'], 'web');
+
+    // El centro publica una versión nueva después de que el tutor leyó la anterior.
+    Fam::publishText($f['tenant'], $f['admin'], 'web', ['es-ES' => 'Nuevo título'], ['es-ES' => 'Texto cambiado']);
+    $body = ['student_person' => $f['student']->public_id, 'level' => 'web', 'decision' => 'autorizo'];
+
+    $r = Fam::decide($f['tenant'], $f['r1'], $body + ['consent_text_version' => $seen])->assertStatus(409);
+    expect(Fam::errorCode($r, 'consent_text_version'))->toBe('fam_unit.image_consent.text_version_outdated')
+        ->and(decisionRows($f['tenant']))->toBe([])
+        ->and(Fam::consentState($f['tenant'], $f['admin'], $f['student'], 'web'))->toBe('pendiente');
+
+    Fam::decide($f['tenant'], $f['r1'], $body + ['consent_text_version' => Fam::publishedTextId($f['tenant'], 'web')])->assertCreated();
+    expect(Fam::consentState($f['tenant'], $f['admin'], $f['student'], 'web'))->toBe('autorizo');
+
+    // Con el módulo sin texto publicado en el nivel: autorizar es text_not_published aunque el cliente envíe una versión.
+    Fam::draftText($f['tenant'], $f['admin'], 'redes_sociales');
+    $other = Fam::publishedTextId($f['tenant'], 'redes_sociales');
+    Fam::decide($f['tenant'], $f['r1'], ['student_person' => $f['student']->public_id, 'level' => 'redes_sociales', 'decision' => 'autorizo', 'consent_text_version' => $other])->assertCreated();
+});
+
+test('CA-FAM-UNIT-108 RN-FAM-UNIT-76 (decisión del usuario, 2026-10-27, M1): superado el límite, registrar decisiones es 429 con Retry-After y texto traducido; el cubo es por centro y usuario y no afecta a otro usuario ni a otro centro', function (): void {
+    config(['fam_unit.consent.rate_limit.decision.attempts' => 3]);
+    Cache::flush();
+    $f = Fam::consentFamily('ic-108', twoGuardians: false);
+    $other = Fam::consentFamily('ic-108b', twoGuardians: false);
+
+    // Tres intentos (aunque sean idénticos o rechazados cuentan); el cuarto es 429.
+    Fam::decideAs($f['tenant'], $f['r1'], $f['student'], 'web', 'no_autorizo')->assertCreated();
+    Fam::decideAs($f['tenant'], $f['r1'], $f['student'], 'web', 'no_autorizo')->assertOk();
+    Fam::decideAs($f['tenant'], $f['r1'], $f['student'], 'web', 'autorizo', ['consent_text_version' => '01JZZZZZZZZZZZZZZZZZZZZZZZ'])->assertStatus(422);
+    $limited = Fam::decideAs($f['tenant'], $f['r1'], $f['student'], 'redes_sociales', 'no_autorizo')->assertStatus(429);
+
+    expect($limited->headers->get('Retry-After'))->toBeNumeric()
+        ->and($limited->json('type'))->toBe('urn:pge:error:too-many-requests')
+        ->and($limited->json('detail'))->toContain('límite de decisiones');
+    expect(decisionRows($f['tenant']))->toHaveCount(1);
+
+    // Otro usuario del mismo centro (staff) y otro centro: cubos intactos.
+    Fam::decide($f['tenant'], $f['admin'], ['student_person' => $f['student']->public_id, 'level' => 'redes_sociales', 'decision' => 'no_autorizo', 'on_behalf_of' => $f['g1']])->assertCreated();
+    Fam::decideAs($other['tenant'], $other['r1'], $other['student'], 'web', 'no_autorizo')->assertCreated();
+
+    // Las lecturas no se limitan.
+    for ($i = 0; $i < 5; $i++) {
+        Fam::call($f['tenant'], $f['r1'], 'get', '/image-consents')->assertOk();
+    }
+
+    Cache::flush();
+});
+
+test('CA-FAM-UNIT-109 RN-FAM-UNIT-76: el informe de consentimientos tiene su propio cubo — superado, 429 con Retry-After — independiente del de las decisiones', function (): void {
+    config(['fam_unit.consent.rate_limit.export.attempts' => 2]);
+    Cache::flush();
+    Storage::fake('local');
+    $f = Fam::consentFamily('ic-109', twoGuardians: false);
+
+    Fam::call($f['tenant'], $f['admin'], 'post', '/image-consents/exports')->assertStatus(202);
+    Fam::call($f['tenant'], $f['admin'], 'post', '/image-consents/exports', ['q' => 'x'])->assertStatus(422);
+    $limited = Fam::call($f['tenant'], $f['admin'], 'post', '/image-consents/exports')->assertStatus(429);
+
+    expect($limited->headers->get('Retry-After'))->toBeNumeric()->and($limited->json('detail'))->toContain('informes de consentimientos');
+    Fam::decide($f['tenant'], $f['admin'], ['student_person' => $f['student']->public_id, 'level' => 'web', 'decision' => 'no_autorizo', 'on_behalf_of' => $f['g1']])->assertCreated();
+
+    Cache::flush();
+});
+
+test('CA-FAM-UNIT-110 RN-FAM-UNIT-77 (decisión del usuario, 2026-10-27, M1): una decisión idéntica a la vigente del mismo tutor, alumno, nivel y versión del texto responde 200 con el estado actual y no inserta fila ni audita; una distinta (decisión o versión) sí', function (): void {
+    $f = Fam::consentFamily('ic-110', twoGuardians: false);
+
+    $first = Fam::decideAs($f['tenant'], $f['r1'], $f['student'], 'web', 'autorizo')->assertCreated();
+    Fam::tick();
+    $again = Fam::decideAs($f['tenant'], $f['r1'], $f['student'], 'web', 'autorizo')->assertOk();
+
+    expect($again->json('decision.public_id'))->toBe($first->json('decision.public_id'))
+        ->and($again->json('state.state'))->toBe('autorizo')
+        ->and(decisionRows($f['tenant']))->toHaveCount(1)
+        ->and(Fam::audit($f['tenant'], 'image_consent_decision', 'created'))->toHaveCount(1);
+
+    // Cambiar de decisión inserta; volver a la anterior también (la vigente ya es otra).
+    Fam::tick();
+    Fam::decideAs($f['tenant'], $f['r1'], $f['student'], 'web', 'no_autorizo')->assertCreated();
+    Fam::tick();
+    Fam::decideAs($f['tenant'], $f['r1'], $f['student'], 'web', 'autorizo')->assertCreated();
+    expect(decisionRows($f['tenant']))->toHaveCount(3);
+
+    // Otra versión del texto (aunque la decisión sea la misma) sí es una decisión nueva.
+    Fam::tick();
+    Fam::publishText($f['tenant'], $f['admin'], 'web', ['es-ES' => 'v2'], ['es-ES' => 'Texto v2']);
+    Fam::decideAs($f['tenant'], $f['r1'], $f['student'], 'web', 'autorizo')->assertCreated();
+    expect(decisionRows($f['tenant']))->toHaveCount(4);
+
+    // El nivel y el tutor cuentan: el otro nivel y el centro en nombre del tutor no son la misma decisión... la del centro
+    // es del mismo tutor, así que repetirla tampoco inserta.
+    Fam::decideAs($f['tenant'], $f['r1'], $f['student'], 'redes_sociales', 'autorizo')->assertCreated();
+    Fam::decide($f['tenant'], $f['admin'], ['student_person' => $f['student']->public_id, 'level' => 'redes_sociales', 'decision' => 'autorizo', 'on_behalf_of' => $f['g1']])->assertOk();
+    expect(decisionRows($f['tenant']))->toHaveCount(5);
 });

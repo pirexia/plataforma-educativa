@@ -2,6 +2,7 @@
 
 use App\Modules\FamUnit\Application\GuardianService;
 use App\Support\Tenancy\TenantContext;
+use App\Support\Tenancy\TenantMigration;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\FamUnitTestHelpers as Fam;
@@ -94,6 +95,9 @@ test('datos.md §3 AR-16: existen el índice del cálculo del estado y el único
     expect($indexes['image_consent_decisions_state_idx'])->toContain('(tenant_id, student_person_id, level, guardian_id, occurred_at DESC, id DESC)')
         ->and($indexes['terms_versions_tenant_kind_published_unique'])->toContain('UNIQUE')->toContain("(status = 'publicada'")->toContain('deleted_at IS NULL')
         ->and($indexes['terms_versions_tenant_kind_number_unique'])->toContain('(tenant_id, kind, version_number)');
+
+    // db-reviewer B-1: el índice (tenant_id, student_person_id) de la FK sería redundante con el del estado, que ya empieza por él.
+    expect($indexes->keys()->all())->not->toContain(TenantMigration::indexName('image_consent_decisions', 'student_person_id'));
 
     $uncovered = DB::connection('pgsql_owner')->select(<<<'SQL'
         SELECT c.conrelid::regclass::text AS table_name, c.conname

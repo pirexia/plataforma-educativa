@@ -4,6 +4,7 @@ namespace App\Modules\FamUnit\Http\Controllers;
 
 use App\Modules\Core\Domain\ExportRequestService;
 use App\Modules\Core\Domain\PersonDirectory;
+use App\Modules\FamUnit\Application\ConsentRateLimit;
 use App\Modules\FamUnit\Application\FamilyRefs;
 use App\Modules\FamUnit\Application\ImageConsentFilters;
 use App\Modules\FamUnit\Application\ImageConsentService;
@@ -56,8 +57,10 @@ class ImageConsentsController extends FamUnitController
      * image_consents`, enlace caducable y la solicitud auditada como `exported`. `202` con el recurso de exportación
      * (`GET /data-exports/{public_id}`).
      */
-    public function storeExport(ExportImageConsentsRequest $request, ExportRequestService $exports, TenantContext $tenantContext): JsonResponse
+    public function storeExport(ExportImageConsentsRequest $request, ExportRequestService $exports, TenantContext $tenantContext, ConsentRateLimit $rateLimit): JsonResponse
     {
+        $rateLimit->hit('export', $this->actor($request));
+
         $export = $exports->request('image_consents', 'csv', $request->payload(), $this->actor($request));
 
         $tenant = Tenant::query()->find($tenantContext->tenantId());

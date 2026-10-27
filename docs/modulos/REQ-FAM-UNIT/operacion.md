@@ -29,17 +29,17 @@ Aborta el despliegue si un ámbito declarado no pertenece al vocabulario cerrado
 
 **Orden de migraciones** (enmendado por `ADR-066 §9.27`): `family_units` → `guardians` → FK de `principal_guardian_id` → `family_unit_students` → `guardian_student_links` → (`1.14-b`) **`terms_versions` (con `kind`) antes que `image_consent_decisions`** (la FK `RESTRICT` de `consent_text_version_id` apunta a la primera) → (`1.14-c`) `terms_acceptances`. **Ya no se crea `image_consents`.** Todas aditivas: *expand* puro, compatibles con la versión anterior del código (`RARQ-DEP-005`). Se aplican con `php artisan migrate --database=pgsql_owner` (lección de `1.11d-a`). `db-reviewer` obligatorio.
 
-**Reversión** (`RARQ-DEP-013`): las migraciones son reversibles mientras las tablas estén vacías en producción. Con datos reales, revertir el código es seguro (las tablas nuevas quedan sin uso) y **no** se ejecuta `migrate:rollback` sobre `image_consent_decisions`, `terms_versions` (los textos a los que apuntan las decisiones) ni `terms_acceptances`: son evidencia de consentimiento. Con `1.14-b` desplegada, `sync-registry` registra los permisos de `consentimiento_imagen` y `texto_legal`, y `fam_unit:grant-permissions` siembra los de `permisos.md §4` en los centros existentes (incluido `texto_legal.leer` en `secretaria`, `OPEN-FAM-UNIT-22`). **Reversión del cambio de `RN-FAM-UNIT-74`**: volver a la imagen de `1.14-a` restablece que todo `PATCH` con `is_legal_guardian = true` reverifique; no hay datos que migrar ni que deshacer, pero mientras dure, una edición rutinaria de un vínculo deja sin efecto las decisiones de imagen de ese tutor (falla en cerrado: el alumno pasa a `pendiente`). El procedimiento probado se escribe en `RUNBOOK.md` al cerrar cada entrega.
+**Reversión** (`RARQ-DEP-013`): las migraciones son reversibles mientras las tablas estén vacías en producción; el `down()` de `image_consent_decisions` y de `terms_versions` **lanza una excepción si hay filas** (evidencia legal, `db-reviewer` B-3). Con datos reales, revertir el código es seguro (las tablas nuevas quedan sin uso) y **no** se ejecuta `migrate:rollback` sobre `image_consent_decisions`, `terms_versions` (los textos a los que apuntan las decisiones) ni `terms_acceptances`: son evidencia de consentimiento. Con `1.14-b` desplegada, `sync-registry` registra los permisos de `consentimiento_imagen` y `texto_legal`, y `fam_unit:grant-permissions` siembra los de `permisos.md §4` en los centros existentes (incluido `texto_legal.leer` en `secretaria`, `OPEN-FAM-UNIT-22`). El procedimiento probado se escribe en `RUNBOOK.md` al cerrar cada entrega.
 
 ## 4. Tareas programadas y trabajos en cola
 
 | Trabajo | Cola | Cuándo | Notas |
 |---------|------|--------|-------|
-| Generación del informe de consentimientos | `default` (conexión `database`, *worker* `worker`) | Bajo demanda (`POST /image-consents/exports`) | Reutiliza el trabajo genérico de `data_exports` con el `kind` `image_consents`. Por lotes. Volumen esperado: dos filas por alumno, miles como mucho: no necesita la cola `long` |
+| Generación del informe de consentimientos | `default` (conexión `database`, *worker* `worker`) | Bajo demanda (`POST /image-consents/exports`) | Trabajo propio `FamUnit\Infrastructure\Jobs\GenerateImageConsentsExport`, que recorre la solicitud `data_exports` de `kind = image_consents` por `Core\Domain\ExportJobLifecycle` (no existe un trabajo genérico en `Core`). Por lotes. Volumen esperado: dos filas por alumno, miles como mucho: no necesita la cola `long` |
 
 **Ninguna tarea programada** en `1.14`. Si `OPEN-FAM-UNIT-11` decide un informe periódico programado, lo añade `COM` con su planificador (issue #453: el planificador todavía no tiene servicio desplegado).
 
-Compatibilidad de *workers* (`RARQ-DEP-006`): el trabajo de exportación es el de `Core`; el `kind` nuevo no cambia su contrato.
+Compatibilidad de *workers* (`RARQ-DEP-006`): el trabajo de exportación es `GenerateImageConsentsExport` de `FamUnit`; el `kind` nuevo y `ExportJobLifecycle` no cambian el contrato de los trabajos existentes de `Core`.
 
 ## 5. Métricas y alertas
 
@@ -112,7 +112,7 @@ php artisan platform:sync-registry
 php artisan fam_unit:grant-permissions
 ```
 
-Sin variables de entorno, servicios, colas ni tareas programadas nuevas: el informe usa la cola `default` que ya consume el *worker* (`operacion.md §4`). **Antes de usar el consentimiento de imagen, el centro debe publicar el texto de cada nivel** (`POST /terms-versions` y `…/publish`, `texto_legal.publicar`, solo el administrador): sin él nadie puede registrar `autorizo` y todo el alumnado queda `pendiente` (§6).
+Sin variables de entorno, servicios, colas ni tareas programadas nuevas (los límites de `RN-FAM-UNIT-76` son claves de `config/fam_unit.php` con valor por defecto: `consent.rate_limit.decision` 60/h y `.export` 10/h): el informe usa la cola `default` que ya consume el *worker* (`operacion.md §4`). **Antes de usar el consentimiento de imagen, el centro debe publicar el texto de cada nivel** (`POST /terms-versions` y `…/publish`, `texto_legal.publicar`, solo el administrador): sin él nadie puede registrar `autorizo` y todo el alumnado queda `pendiente` (§6).
 
 **Reversión** (`RARQ-DEP-013`): como en `§3`, desplegar la imagen anterior y **no** ejecutar `migrate:rollback` sobre `image_consent_decisions` ni `terms_versions` (evidencia). La versión anterior no usa las tablas nuevas. Mientras dure, **ningún módulo puede consultar `ImageConsentPolicy`** (no existe en la imagen de `1.14-a`): no hay publicadores todavía (`REQ-COM`/`REQ-INF` son posteriores), así que no hay nada que dejar de bloquear. El `kind image_consents` de `data_exports` queda inerte (su `down()` falla si hay filas de ese tipo: se purgan antes a mano). Al volver a la versión nueva: `migrate --database=pgsql_owner --force`, `sync-registry` y `fam_unit:grant-permissions`.
 

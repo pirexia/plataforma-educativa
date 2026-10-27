@@ -43,6 +43,7 @@ return [
     ],
 
     'image_consent' => [
+        'text_version_outdated' => 'Die angezeigte Textversion ist nicht mehr die aktuelle: Lesen Sie den veröffentlichten Text erneut, bevor Sie einwilligen.',
         'not_legal_guardian' => 'Nur ein Erziehungsberechtigter mit gesetzlicher Vertretung des Schülers kann über die Einwilligung zur Bildnutzung entscheiden.',
         'guardian_required' => 'Geben Sie den Erziehungsberechtigten an, der entschieden hat (on_behalf_of), wenn Sie seine Entscheidung im Namen der Familie erfassen.',
         'guardian_not_linked' => 'Der angegebene Erziehungsberechtigte ist nicht mit diesem Schüler verknüpft.',
@@ -64,6 +65,7 @@ return [
     ],
 
     'errors' => [
+        'consent_rate_limited' => 'Sie haben das Limit für Bildentscheidungen oder Einwilligungsberichte erreicht. Versuchen Sie es in etwa :minutes Minuten erneut.',
         'revocation_rate_limited' => 'Das Limit für Entzüge oder Aufhebungen von Entzügen wurde erreicht. Versuche es in etwa :minutes Minuten erneut.',
     ],
 

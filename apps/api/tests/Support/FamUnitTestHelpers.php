@@ -284,10 +284,26 @@ final class FamUnitTestHelpers
         ]);
     }
 
-    /** `POST` de una decisión del propio tutor (canal `portal`). */
-    public static function decideAs(object $tenant, User $guardianUser, Person $student, string $level, string $decision): TestResponse
+    /** `public_id` de la versión publicada del texto de un nivel, o `null` si no hay (lo que el tutor «ve» antes de decidir). */
+    public static function publishedTextId(object $tenant, string $level): ?string
     {
-        return self::decide($tenant, $guardianUser, ['student_person' => $student->public_id, 'level' => $level, 'decision' => $decision]);
+        return app(TenantContext::class)->runFor($tenant->id, fn () => DB::table('terms_versions')->where('kind', self::kindOf($level))->where('status', 'publicada')->whereNull('deleted_at')->value('public_id'));
+    }
+
+    /**
+     * `POST` de una decisión del propio tutor (canal `portal`), enviando la versión publicada del texto que «vio»
+     * (`RN-FAM-UNIT-69`); `$extra` permite sobrescribir cualquier campo del cuerpo.
+     *
+     * @param  array<string, mixed>  $extra
+     */
+    public static function decideAs(object $tenant, User $guardianUser, Person $student, string $level, string $decision, array $extra = []): TestResponse
+    {
+        return self::decide($tenant, $guardianUser, $extra + [
+            'student_person' => $student->public_id,
+            'level' => $level,
+            'decision' => $decision,
+            'consent_text_version' => self::publishedTextId($tenant, $level),
+        ]);
     }
 
     public static function errorCode(TestResponse $response, string $field): ?string

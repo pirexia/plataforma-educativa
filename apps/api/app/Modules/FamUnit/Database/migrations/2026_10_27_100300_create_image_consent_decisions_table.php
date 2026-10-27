@@ -28,7 +28,8 @@ return new class extends Migration
     {
         TenantMigration::tenantTableAppendOnly('image_consent_decisions', function (Blueprint $table): void {
             $table->ulid('public_id')->unique();
-            TenantMigration::tenantForeignId($table, 'student_person_id', 'people');
+            // Sin índice propio: el del cálculo del estado (abajo) ya empieza por (tenant_id, student_person_id) (db-reviewer B-1).
+            TenantMigration::tenantForeignId($table, 'student_person_id', 'people', withIndex: false);
             $table->text('level');
             $table->text('decision');
             TenantMigration::tenantForeignId($table, 'guardian_id', 'guardians');
@@ -69,6 +70,12 @@ return new class extends Migration
 
     public function down(): void
     {
+        // Evidencia legal del consentimiento (ADR-066 §5.8, operacion.md §3): no se borra con un rollback. La comprobación
+        // va por la conexión de plataforma (BYPASSRLS) para ver las filas de todos los centros.
+        if (DB::connection('pgsql_platform')->table('image_consent_decisions')->exists()) {
+            throw new RuntimeException('image_consent_decisions tiene filas: son evidencia del consentimiento y no se revierte. Purga el centro por el procedimiento de retención (REQ-PRIV-006) antes.');
+        }
+
         DB::connection('pgsql_owner')->statement('DROP TABLE IF EXISTS image_consent_decisions');
     }
 };

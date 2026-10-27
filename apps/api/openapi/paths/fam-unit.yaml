@@ -740,7 +740,7 @@ paths:
         `last_decision_at`), una fila por alumno y nivel, sobre la primitiva `data_exports` con `kind = image_consents`.
         Paridad de filtros con `GET /image-consents` (`family_unit`, `student_person`, `level`, `state`; listas JSON o
         valores separados por comas), sin paginación ni orden. **Sin `q`**: `422 fam_unit.export.q_not_allowed`
-        (ADR-054 §9). La solicitud queda auditada como `exported`. El estado y la descarga, en `GET /data-exports/{publicId}`.
+        (ADR-054 §9). La solicitud queda auditada como `exported`. Límite por centro y usuario (10 por hora por defecto, RN-FAM-UNIT-76): superado, `429` con `Retry-After`. El estado y la descarga, en `GET /data-exports/{publicId}`.
       tags: ['FamUnit / Consentimiento de imagen']
       security: [{ SessionCookie: [] }]
       requestBody:
@@ -768,6 +768,7 @@ paths:
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
         '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
 
   /api/v1/image-consent-decisions:
     get:
@@ -814,17 +815,25 @@ paths:
       description: >
         Permiso `consentimiento_imagen.actualizar`, ámbito `todos` o `unidad_familiar`. Revocar el consentimiento es
         registrar `no_autorizo` (efecto inmediato). Dos modos: **el propio tutor** (vínculo activo propio con
-        representación legal, canal `portal`; `on_behalf_of` se omite o es su propio tutor; la versión es la publicada y
-        `shown_locale` el idioma realmente mostrado; el cuerpo no admite `consent_text_version`) y **el centro en nombre de
+        representación legal, canal `portal`; `on_behalf_of` se omite o es su propio tutor) y **el centro en nombre de
         un tutor** (`on_behalf_of` obligatorio, canal `presencial`, ámbito `todos`; el tutor debe estar entre quienes
         deciden —vínculo vivo `activo` o `revocado` con representación legal—; uno `revocado` solo si el sujeto tiene
-        además `revocacion_tutor.leer`, y si no se responde igual que con un tutor no vinculado; `consent_text_version`
-        opcional: una `publicada` o `retirada` del tipo del nivel). `autorizo` exige texto publicado (`422
-        text_not_published`); `no_autorizo` no. Errores: `404` (alumno no alcanzado; un tutor con el vínculo revocado no
-        alcanza al alumno), `403` (un tutor con ámbito `unidad_familiar` no actúa por otro), `422`
+        además `revocacion_tutor.leer`, y si no se responde igual que con un tutor no vinculado).
+        **Versión del texto (RN-FAM-UNIT-69, decisión del usuario del 2026-10-27)**: por `portal`, con `autorizo`, el
+        cliente **envía** en `consent_text_version` la versión que el tutor vio (la de `GET /image-consent-texts`); si no es
+        ya la `publicada`, `409 fam_unit.image_consent.text_version_outdated` y no se escribe nada; ausente, `422
+        validation.required`; de otro nivel, `borrador` o inexistente, `422 text_version_invalid`. Con `no_autorizo` es
+        opcional (negarse no se bloquea por un texto desfasado): sin ella se registra la publicada, con una `retirada` o
+        `publicada` del nivel, esa. Por `presencial`, opcional: una `publicada` o `retirada` del tipo del nivel; sin ella, la
+        `publicada`. `autorizo` sin texto publicado: `422 text_not_published`.
+        **Idempotencia (RN-FAM-UNIT-77)**: una decisión idéntica a la vigente del mismo tutor, alumno, nivel, decisión y
+        versión del texto responde `200` con la decisión existente y el estado actual, sin insertar fila ni auditar; en
+        cualquier otro caso `201`. **Límite (RN-FAM-UNIT-76)**: por centro y usuario (60 por hora por defecto,
+        `config/fam_unit.php`), contando todos los intentos; superado, `429` con `Retry-After`. Errores: `404`
+        (alumno no alcanzado; un tutor con el vínculo revocado no alcanza al alumno), `403` (un tutor con ámbito
+        `unidad_familiar` no actúa por otro), `409` `text_version_outdated`, `422`
         `fam_unit.image_consent.{not_legal_guardian, guardian_required, guardian_not_linked, text_not_published,
-        text_version_invalid}`. Idempotencia: no se exige clave; registrar dos veces la misma decisión crea dos filas
-        sin cambiar el estado.
+        text_version_invalid}`, `fam_unit.validation.{student_not_found, level_invalid, decision_invalid, channel_invalid}`.
       tags: ['FamUnit / Consentimiento de imagen']
       security: [{ SessionCookie: [] }]
       requestBody:
@@ -849,11 +858,16 @@ paths:
                     - { $ref: '../components.yaml#/components/schemas/ImageConsentChannel' }
                     - { type: 'null' }
                 consent_text_version:
-                  description: '`public_id` de la versión del texto firmada. Solo con canal `presencial`.'
+                  description: 'Por `portal`, la versión que el tutor vio (obligatoria con `autorizo`); por `presencial`, la firmada en papel (opcional).'
                   oneOf:
                     - { $ref: '../components.yaml#/components/schemas/PublicId' }
                     - { type: 'null' }
       responses:
+        '200':
+          description: 'Decisión idéntica a la vigente (RN-FAM-UNIT-77): se devuelve la existente, sin fila nueva ni auditoría'
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/ImageConsentDecisionRecorded' }
         '201':
           description: Decisión registrada, con el estado resultante calculado tras la escritura
           content:
@@ -862,7 +876,9 @@ paths:
         '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
         '403': { description: 'Sin el permiso o actuando por otro con ámbito `unidad_familiar` (`403`), o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
 
   /api/v1/image-consent-texts:
     get:

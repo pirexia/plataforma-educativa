@@ -282,10 +282,12 @@ final class ImageConsentService
      *
      * @param  array{student_person: string, level: string, decision: string, on_behalf_of: ?string, channel: ?string, consent_text_version: ?string}  $input
      * @param  array{ip: ?string, user_agent: ?string}  $client
-     * @return array{decision: ImageConsentDecision, state: array{student_person_id: int, family_unit_id: ?int, level: string, state: string, last_decision_at: ?CarbonImmutable}}
+     * @return array{decision: ImageConsentDecision, state: array{student_person_id: int, family_unit_id: ?int, level: string, state: string, last_decision_at: ?CarbonImmutable}, created: bool}
      */
     public function record(array $input, User $actor, PermissionDecision $decision, array $client): array
     {
+        $created = false;
+
         $student = $this->people->findByPublicId($input['student_person']);
         $unrestricted = $decision->isUnrestricted();
 
@@ -306,6 +308,7 @@ final class ImageConsentService
 
             $channel = 'portal';
             $guardianId = (int) $ownGuardianId;
+            $verifiedAt = $ownLink->legal_guardian_verified_at;
         } elseif (! $unrestricted) {
             // Con ámbito `unidad_familiar`: un alumno que no alcanza no existe (404); alcanzado, no puede actuar por otro.
             throw $ownActive ? ApiException::forbidden() : ApiException::notFound();
@@ -333,6 +336,7 @@ final class ImageConsentService
 
             $channel = 'presencial';
             $guardianId = (int) $guardian->id;
+            $verifiedAt = $link->legal_guardian_verified_at;
         }
 
         if ($input['channel'] !== null && $input['channel'] !== $channel) {
@@ -341,7 +345,21 @@ final class ImageConsentService
 
         [$version, $shownLocale] = $this->textFor($input['level'], $input['decision'], $channel, $input['consent_text_version']);
 
-        $row = DB::transaction(function () use ($student, $input, $guardianId, $actor, $channel, $version, $shownLocale, $client): ImageConsentDecision {
+        $row = DB::transaction(function () use ($student, $input, $guardianId, $actor, $channel, $version, $shownLocale, $client, $verifiedAt, &$created): ImageConsentDecision {
+            // `RN-FAM-UNIT-77`: una decisión idéntica a la vigente de ese tutor (mismo alumno, nivel, decisión y versión
+            // del texto) no se vuelve a insertar ni a auditar; se devuelve la existente.
+            $current = $verifiedAt === null ? null : ImageConsentDecision::query()
+                ->where('student_person_id', $student->id)->where('level', $input['level'])->where('guardian_id', $guardianId)
+                ->where('occurred_at', '>', $verifiedAt)
+                ->orderByDesc('occurred_at')->orderByDesc('id')->first();
+
+            if ($current !== null && $current->decision === $input['decision'] && ($current->consent_text_version_id === null ? null : (int) $current->consent_text_version_id) === $version?->id) {
+                $created = false;
+
+                return $current;
+            }
+
+            $created = true;
             $row = new ImageConsentDecision;
             $row->student_person_id = $student->id;
             $row->level = $input['level'];
@@ -359,11 +377,11 @@ final class ImageConsentService
             return $row;
         });
 
-        $row->setRelation('termsVersion', $version);
+        $row->setRelation('termsVersion', $row->consent_text_version_id === null ? null : ($version?->id === (int) $row->consent_text_version_id ? $version : $row->termsVersion()->first()));
         $state = $this->statesOf([$student->id], ! $unrestricted);
         $mine = array_values(array_filter($state, static fn (array $s): bool => $s['level'] === $input['level']));
 
-        return ['decision' => $row, 'state' => $mine[0]];
+        return ['decision' => $row, 'state' => $mine[0], 'created' => (bool) $created];
     }
 
     /**
@@ -376,12 +394,31 @@ final class ImageConsentService
         $kind = self::kindOf($level);
 
         if ($channel === 'portal') {
-            // Por `portal` el cuerpo no elige versión: la publicada en ese momento.
-            if ($requestedVersion !== null) {
+            // Por `portal` el cliente envía la versión que el tutor vio (`RN-FAM-UNIT-69`, decisión del usuario del
+            // 2026-10-27): el servidor comprueba que sigue siendo la publicada. Negarse no necesita texto ni puede
+            // bloquearse por uno desfasado: con `no_autorizo` la versión es opcional y no se exige vigente.
+            $published = $this->terms->published($kind);
+            $sent = $requestedVersion === null ? null : $this->terms->findOrNull($requestedVersion);
+
+            if ($requestedVersion !== null && ($sent === null || $sent->kind !== $kind || $sent->status === TermsVersion::STATUS_DRAFT)) {
                 throw FamUnitErrors::invalid('consent_text_version', 'fam_unit.image_consent.text_version_invalid');
             }
 
-            $version = $this->terms->published($kind);
+            if ($decision === 'autorizo') {
+                if ($published === null) {
+                    throw FamUnitErrors::invalid('decision', 'fam_unit.image_consent.text_not_published');
+                }
+
+                if ($sent === null) {
+                    throw FamUnitErrors::invalid('consent_text_version', 'fam_unit.validation.required');
+                }
+
+                if ($sent->id !== $published->id) {
+                    throw FamUnitErrors::conflict('consent_text_version', 'fam_unit.image_consent.text_version_outdated');
+                }
+            }
+
+            $version = $sent ?? $published;
         } elseif ($requestedVersion !== null) {
             // Por `presencial`, una `publicada` o `retirada` del tipo del nivel; nunca un `borrador` ni otro tipo.
             $version = $this->terms->findOrNull($requestedVersion);

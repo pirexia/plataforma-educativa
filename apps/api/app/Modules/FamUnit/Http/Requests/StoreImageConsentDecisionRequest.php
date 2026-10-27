@@ -8,7 +8,8 @@ use App\Support\Api\ValidationErrorBag;
 /**
  * REQ-FAM-UNIT/api.md §2.7, `POST /image-consent-decisions`: `student_person`, `level` y `decision` obligatorios;
  * `on_behalf_of` (`public_id` del tutor que decidió, solo el centro), `channel` (si viene, debe corresponder al modo:
- * `portal` para el propio tutor, `presencial` en nombre de un tutor) y `consent_text_version` (solo `presencial`). Solo
+ * `portal` para el propio tutor, `presencial` en nombre de un tutor) y `consent_text_version` (por `portal`, la versión que el tutor
+ * vio, obligatoria con `autorizo`; por `presencial`, opcional). Solo
  * la forma; las reglas de negocio (`RN-FAM-UNIT-41`, `-68`, `-69`) las aplica el servidor en el servicio (`INV-010`).
  */
 class StoreImageConsentDecisionRequest extends FamUnitRequest
