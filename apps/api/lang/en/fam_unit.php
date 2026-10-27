@@ -11,7 +11,7 @@ return [
             'vinculo_tutor' => 'Guardian-student links',
             'revocacion_tutor' => 'Revocation of a guardian\'s access',
             'consentimiento_imagen' => 'Image use consent',
-            'texto_legal' => 'Centre legal texts',
+            'texto_legal' => 'School legal texts',
         ],
     ],
 
@@ -46,7 +46,7 @@ return [
         'not_legal_guardian' => 'Only a guardian with legal representation of the student can decide the image consent.',
         'guardian_required' => 'State the guardian who decided (on_behalf_of) when recording their decision on behalf of the family.',
         'guardian_not_linked' => 'The indicated guardian is not linked to that student.',
-        'text_not_published' => 'The centre has not published the consent text for this level: authorisation is not possible without a text.',
+        'text_not_published' => 'The school has not published the consent text for this level: authorization is not possible without a text.',
         'text_version_invalid' => 'The indicated text version is not valid for this level or channel.',
     ],
 
@@ -56,7 +56,7 @@ return [
         'kind_invalid' => 'The legal text type is not valid.',
         'requires_reacceptance_not_allowed' => 'Re-acceptance can only be required for the terms of use, not for the image consent.',
         'not_draft' => 'Only a draft version can be edited, deleted or published.',
-        'default_locale_missing' => 'The title and the text must be written in the centre\'s default language (:locale) before publishing.',
+        'default_locale_missing' => 'The title and the text must be written in the school\'s default language (:locale) before publishing.',
     ],
 
     'export' => [
