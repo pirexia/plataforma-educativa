@@ -134,6 +134,28 @@ final class FamilyUnitService
     }
 
     /**
+     * `public_id` y código de las unidades con esos ids internos (también las dadas de baja), para las
+     * representaciones que nombran la unidad de un alumno (`ImageConsent`, `api.md §1.5`).
+     *
+     * @param  list<int>  $ids
+     * @return array<int, array{public_id: string, code: string}>
+     */
+    public function refsByIds(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $refs = [];
+
+        foreach (FamilyUnit::withTrashed()->whereIn('id', array_values(array_unique($ids)))->get(['id', 'public_id', 'code']) as $unit) {
+            $refs[(int) $unit->id] = ['public_id' => (string) $unit->public_id, 'code' => (string) $unit->code];
+        }
+
+        return $refs;
+    }
+
+    /**
      * `RN-FAM-UNIT-01`, `-04` y `funcional.md §15` D-1. Sin `$code`, lo genera el sistema.
      */
     public function create(?string $code): FamilyUnit

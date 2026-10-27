@@ -32,6 +32,8 @@ tags:
   - name: FamUnit / Unidades familiares
   - name: FamUnit / Tutores
   - name: FamUnit / Vínculos
+  - name: FamUnit / Consentimiento de imagen
+  - name: FamUnit / Textos legales
   - name: Auth / Sesión
   - name: Auth / Canje
   - name: Auth / Recuperación
@@ -400,7 +402,8 @@ paths:
   # Los endpoints de los módulos siguientes se añaden aquí conforme se
   # implementan, cada uno con su propio apps/api/openapi/paths/<modulo>.yaml.
 
-  # REQ-FAM-UNIT (paso 1.14-a), unidades familiares, tutores, alumnado, vínculos y revocación. apps/api/openapi/paths/fam-unit.yaml
+  # REQ-FAM-UNIT (pasos 1.14-a y 1.14-b), unidades familiares, tutores, alumnado, vínculos, revocación, consentimiento de imagen
+  # y textos legales. apps/api/openapi/paths/fam-unit.yaml
   /api/v1/family-units:
     $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1family-units"
   /api/v1/family-units/{publicId}:
@@ -421,3 +424,17 @@ paths:
     $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1guardian-links~1{publicId}"
   /api/v1/guardian-links/{publicId}/revocation:
     $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1guardian-links~1{publicId}~1revocation"
+  /api/v1/image-consents:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1image-consents"
+  /api/v1/image-consents/exports:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1image-consents~1exports"
+  /api/v1/image-consent-decisions:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1image-consent-decisions"
+  /api/v1/image-consent-texts:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1image-consent-texts"
+  /api/v1/terms-versions:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1terms-versions"
+  /api/v1/terms-versions/{publicId}:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1terms-versions~1{publicId}"
+  /api/v1/terms-versions/{publicId}/publish:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1terms-versions~1{publicId}~1publish"

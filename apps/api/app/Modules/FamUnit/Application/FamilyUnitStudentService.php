@@ -47,6 +47,31 @@ final class FamilyUnitStudentService implements FamilyUnitStudents
             ->all();
     }
 
+    /**
+     * Alumnos **vivos** de las unidades, para el listado y el informe de consentimientos de imagen (`ADR-066 §5.2`,
+     * `api.md §3`): el estado se calcula de cada uno, también del que nunca ha decidido (`pendiente`). Acotado por el
+     * ámbito de `consentimiento_imagen` con `ScopedQuery` (`ADR-044 §4.2`); con `unidad_familiar`, solo los alumnos que
+     * el sujeto alcanza. Devuelve una consulta de columnas `student_person_id` y `family_unit_id`.
+     *
+     * @param  array{family_unit: list<string>, student_person: ?list<int>}  $filters  `student_person` ya resuelto a ids internos
+     * @return Builder<FamilyUnitStudent>
+     */
+    public function consentStudents(PermissionDecision $decision, User $subject, array $filters): Builder
+    {
+        $query = $this->scopedQuery->constrain(FamilyUnitStudent::query(), 'consentimiento_imagen', $decision, $subject)
+            ->select('family_unit_students.student_person_id', 'family_unit_students.family_unit_id');
+
+        if ($filters['family_unit'] !== []) {
+            $query->whereHas('familyUnit', fn (Builder $q) => $q->whereIn('public_id', $filters['family_unit']));
+        }
+
+        if ($filters['student_person'] !== null) {
+            $query->whereIn('family_unit_students.student_person_id', $filters['student_person']);
+        }
+
+        return $query;
+    }
+
     /** Pertenencia de la unidad indicada (sin acotar por ámbito: escrituras); `404` si no existe o es de otra unidad. */
     public function findInUnit(string $familyUnitPublicId, string $membershipPublicId): FamilyUnitStudent
     {

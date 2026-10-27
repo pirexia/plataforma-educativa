@@ -12,15 +12,15 @@ use App\Support\Tenancy\Tenant;
 use Illuminate\Console\Command;
 
 /**
- * REQ-FAM-UNIT/operacion.md §3, permisos.md §4 (1.14-a, `OPEN-FAM-UNIT-10`): siembra de los permisos de `familia`,
- * `vinculo_tutor` y `revocacion_tutor` en los centros que ya existían. `tenant:provision-defaults` solo corre en el
+ * REQ-FAM-UNIT/operacion.md §3, permisos.md §4 (1.14-a, 1.14-b, `OPEN-FAM-UNIT-10`, `-22`): siembra de los permisos de
+ * `familia`, `vinculo_tutor`, `revocacion_tutor`, `consentimiento_imagen` y `texto_legal` en los centros que ya existían. `tenant:provision-defaults` solo corre en el
  * alta de un centro nuevo; sin este comando, el personal de un centro existente ve un `403` al gestionar familias.
  *
  * Concede, en cada centro vivo, exactamente las concesiones de `ProvisionTenantDefaults::FAMILY_PERMISSION_GRANTS`
  * (ámbito `todos`) y `FAMILY_PERMISSION_UNIDAD_FAMILIAR_GRANTS` (ámbito `unidad_familiar`, `tutor_legal`) a los roles
  * predefinidos que no tengan **esa concesión** (por código; una concesión previa con otro ámbito no se toca) y **no
  * toca roles personalizados**. Idempotente. Escritura por el modelo (`RN-PERM-19`), nunca por `attach()`/`sync()`,
- * para que quede auditada (issue #165). No concede `restriccion_custodia.*` (ni se declara, `OPEN-FAM-UNIT-05`).
+ * para que quede auditada (issue #165). No concede `restriccion_custodia.*` (ni se declara, `OPEN-FAM-UNIT-05`). Con `1.14-b`, `texto_legal.leer` llega también a `secretaria`.
  *
  * **Comprueba antes** que todos los permisos de la lista existen en `permissions` y que ninguno está retirado
  * (`retired_at IS NULL`, issue #387 B-5): si falta o está retirado alguno, falla diciendo cuál y qué hacer, y **no

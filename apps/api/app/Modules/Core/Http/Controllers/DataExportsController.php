@@ -29,6 +29,8 @@ class DataExportsController extends Controller
     private const PERMISSION_BY_KIND = [
         'audit_logs' => 'auditoria.exportar',
         'users' => 'usuario.exportar',
+        // REQ-FAM-UNIT/api.md §4 (1.14-b): el informe de consentimientos de imagen lo genera `fam_unit`.
+        'image_consents' => 'consentimiento_imagen.exportar',
     ];
 
     public function __construct(private readonly PermissionResolver $permissions) {}
