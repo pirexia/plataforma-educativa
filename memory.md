@@ -165,7 +165,7 @@ Detalle de `1.11-a` (PR #417), `1.11-b` (PR #423) y de la sesión del 2026-10-08
 
 ## Siguiente paso concreto
 
-1. **`1.14-b`** (consentimiento de imagen) tras mezclar `1.14-a`, en sesión nueva: antes, ADR corto de fuente única del consentimiento de imagen (`OPEN-FAM-UNIT-09`); luego `1.14-c` (muros de sesión, `architect` primero) y `1.14-d` (pantallas de personal + E2E `CA-FAM-UNIT-084`). Decidir antes de `1.14b` (autorizados) cómo `isAccessRevoked()` se combina con `ADR-032`.
+1. **`1.14-b`** (consentimiento de imagen): `ADR-066` ACEPTADA y especificación enmendada y aprobada (2026-10-27; dos niveles `web`/`redes_sociales`; `OPEN-FAM-UNIT-22..25` resueltas), PR de documentación por mezclar. Siguiente: implementar con `implementer` (incluye `terms_versions` adelantada, `GET /image-consent-texts`, `texto_legal`, corrección de `legal_guardian_verified_at` en `GuardianLinkService`, `RN-FAM-UNIT-74`); si `AR-10` salta con `GET /image-consent-texts`, parar y consultar. Después `1.14-c` (muros de sesión, `architect` primero) y `1.14-d` (pantallas + E2E `CA-FAM-UNIT-084`). Decidir antes de `1.14b` (autorizados) cómo `isAccessRevoked()` se combina con `ADR-032` (#473).
 2. Orden del plan después: `1.14b` (autorizados y entrega de menores, paso crítico), `1.15` (alumnado y matrícula), `1.13` (asistencia, tras `1.15`), `1.15a` (capa visual, `ADR-064`) antes de `1.15b`.
 3. `1.23b` (purga física de tenant, #371, [OPUS + SONNET]): obligatorio antes de datos reales y del importador `1.24`.
 4. Pendiente con permiso del usuario: decidir el Medio de #438 (intercambio de códigos en `PATCH`) y si se exige el ámbito `todos` del rollover (#461). El E2E real `CA-ACAD-101` ya pasa.

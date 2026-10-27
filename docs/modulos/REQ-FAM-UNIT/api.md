@@ -1,6 +1,6 @@
 # REQ-FAM-UNIT · API
 
-> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). **`1.14-a` implementada (2026-10-26)**: los 21 *endpoints* de §2.1 a §2.5, documentados en `apps/api/openapi/paths/fam-unit.yaml`; detalles de implementación en `funcional.md §15`. Los *endpoints* de §2.6 dependen de `OPEN-FAM-UNIT-05`; los de §2.7 y §2.8, de la partición de `funcional.md §1.2`; el muro (§2.8) de `OPEN-FAM-UNIT-12`. **Enmendada por `ADR-066` (ACEPTADA, 2026-10-27; `funcional.md §16`)**. **`1.14-b` lista para implementar**: §2.7 completo y, de §2.8, la gestión de `/terms-versions` para los dos tipos de imagen; aceptaciones, `/me/terms*` y el muro siguen en `1.14-c`.
+> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). **`1.14-a` implementada (2026-10-26)**: los 21 *endpoints* de §2.1 a §2.5, documentados en `apps/api/openapi/paths/fam-unit.yaml`; detalles de implementación en `funcional.md §15`. Los *endpoints* de §2.6 dependen de `OPEN-FAM-UNIT-05`; los de §2.7 y §2.8, de la partición de `funcional.md §1.2`; el muro (§2.8) de `OPEN-FAM-UNIT-12`. **Enmendada por `ADR-066` (ACEPTADA, 2026-10-27; `funcional.md §16`)**. **`1.14-b` LISTA PARA IMPLEMENTAR (2026-10-27), aprobada por el usuario** (`funcional.md §17`), con las condiciones previas a datos reales de `funcional.md §13`: §2.7 completo (incluida la lectura del texto publicado, `GET /image-consent-texts`, `OPEN-FAM-UNIT-23`), el cambio de `PATCH /guardian-links/{id}` de §2.4 (`RN-FAM-UNIT-74`, `OPEN-FAM-UNIT-24`) y, de §2.8, la gestión de `/terms-versions` para los dos tipos de imagen; aceptaciones, `/me/terms*` y el muro siguen en `1.14-c`.
 
 Prefijo: `/api/v1`. Tenant por *host* (`ADR-033 §2`). Todo según `ADR-038`: recurso individual desnudo, colección en `{data, meta}` (§3), filtros planos y valores múltiples separados por comas (§5.2), orden por lista blanca con desempate por `id` (§5.3), errores `application/problem+json` con `type` URN y `errors` como objeto indexado por campo con arrays de `{code, message, params}` (§6), `404` frente a `403` (§6.4).
 
@@ -64,7 +64,7 @@ Para un sujeto con ámbito `unidad_familiar`, `students_count` cuenta solo los a
 
 ### 1.5 `ImageConsent` (estado vigente)
 
-`student_person`, `display_name`, `family_unit`, `level` (`web` | `redes_sociales`), `state` (`autorizo` | `no_autorizo` | `pendiente`), `last_decision_at`. **Representación calculada** (`ADR-066 §5.2`): no hay tabla detrás ni `public_id`; se identifica por `(student_person, level)`. Sin cambios para el cliente respecto a la propuesta aprobada. `last_decision_at` es el `occurred_at` más reciente entre las decisiones que **cuentan** para el estado (`RN-FAM-UNIT-45`, `-72`), o `null` si no hay ninguna [DERIVADA: la proyección eliminada lo definía como la última decisión registrada]. Con ámbito `unidad_familiar`, nunca refleja la fecha de una decisión de un tutor revocado (`RN-FAM-UNIT-71`) [DERIVADA].
+`student_person`, `display_name`, `family_unit`, `level` (`web` | `redes_sociales`), `state` (`autorizo` | `no_autorizo` | `pendiente`), `last_decision_at`. **Representación calculada** (`ADR-066 §5.2`): no hay tabla detrás ni `public_id`; se identifica por `(student_person, level)`. Sin cambios para el cliente respecto a la propuesta aprobada. `last_decision_at` es el `occurred_at` más reciente entre las decisiones que **cuentan** para el estado (`RN-FAM-UNIT-45`, `-72`), o `null` si no hay ninguna [DERIVADA: la proyección eliminada lo definía como la última decisión registrada; **aceptada por el usuario el 2026-10-27**]. Con ámbito `unidad_familiar`, nunca refleja la fecha de una decisión de un tutor revocado (`RN-FAM-UNIT-71`) [DERIVADA; **aceptada por el usuario el 2026-10-27**].
 
 ### 1.6 `ImageConsentDecision`
 
@@ -72,11 +72,26 @@ Para un sujeto con ámbito `unidad_familiar`, `students_count` cuenta solo los a
 
 ### 1.7 `TermsVersion`
 
-`public_id`, `kind` (`condiciones_uso` | `consentimiento_imagen_web` | `consentimiento_imagen_redes`), `version_number`, `title`, `title_translations`, `body`, `body_translations`, `status`, `requires_reacceptance`, `published_at`, `created_at`, `updated_at`. `title`/`body` resueltos en el servidor y de solo lectura (`ADR-062 §5.4`). `kind` es inmutable tras la creación [DERIVADA: cambiarlo rompería la numeración correlativa por tipo]; `PATCH` con `kind` ⇒ `422 fam_unit.terms.kind_not_editable`.
+`public_id`, `kind` (`condiciones_uso` | `consentimiento_imagen_web` | `consentimiento_imagen_redes`), `version_number`, `title`, `title_translations`, `body`, `body_translations`, `status`, `requires_reacceptance`, `published_at`, `created_at`, `updated_at`. `title`/`body` resueltos en el servidor y de solo lectura (`ADR-062 §5.4`). `kind` es inmutable tras la creación [DERIVADA: cambiarlo rompería la numeración correlativa por tipo; **aceptada por el usuario el 2026-10-27**]; `PATCH` con `kind` ⇒ `422 fam_unit.terms.kind_not_editable`.
 
 ### 1.8 `TermsAcceptance`
 
 `public_id`, `user` (`public_id`), `terms_version` (`public_id`), `version_number`, `shown_locale`, `accepted_at`.
+
+### 1.9 `ImageConsentText` (texto publicado de un nivel, `1.14-b`, `RN-FAM-UNIT-75`)
+
+```json
+{
+  "level": "web",
+  "terms_version": { "public_id": "01JB0000000000000000000040", "kind": "consentimiento_imagen_web", "version_number": 2 },
+  "title": "…",
+  "body": "…",
+  "locale": "fr",
+  "published_at": "2026-10-27T08:00:00Z"
+}
+```
+
+Representación de solo lectura, sin `public_id` propio: se identifica por `level`. `title` y `body` resueltos en el servidor en el idioma de la petición con la caída de `ADR-062`; `locale` es el idioma en que vienen de verdad (`es-ES` | `en` | `de` | `fr`), el mismo que se registra en `shown_locale` de una decisión `portal` (`RN-FAM-UNIT-43`, `OPEN-FAM-UNIT-25`) [DERIVADA; aceptada por el usuario el 2026-10-27]. Sin versión `publicada` del tipo del nivel, `terms_version`, `title`, `body`, `locale` y `published_at` son `null`. **No** incluye `title_translations` ni `body_translations` (eso es la gestión de `texto_legal`, §1.7). El `public_id` de `terms_version` es el que el servidor registrará en una decisión `portal` si sigue publicada en ese momento (`RN-FAM-UNIT-69`).
 
 ---
 
@@ -143,7 +158,7 @@ Permisos completos en `permisos.md`. Errores comunes a todos (no se repiten): `4
 }
 ```
 
-Marcar `is_legal_guardian = true` rellena `legal_guardian_verified_at`/`_by` con el instante y el usuario de la petición (el centro afirma haberlo verificado). Desmarcarlo los vacía.
+Marcar `is_legal_guardian = true` rellena `legal_guardian_verified_at`/`_by` con el instante y el usuario de la petición (el centro afirma haberlo verificado). Desmarcarlo los vacía. **Desde `1.14-b`** (`RN-FAM-UNIT-74`, `OPEN-FAM-UNIT-24`, aprobado por el usuario el 2026-10-27): solo se rellenan en la **transición** `false → true` del `PATCH` o al crear el vínculo con `true`; un `PATCH` que reenvía `is_legal_guardian = true` sobre un vínculo que ya lo tiene **no** los cambia. Es un cambio de comportamiento de `1.14-a` (hasta entonces se volvían a fijar en todo `PATCH` con `true`), compatible para el cliente (mismo contrato, menos efectos); la descripción del `PATCH` en `apps/api/openapi/paths/fam-unit.yaml` se actualiza con él. Prueba: `CA-FAM-UNIT-102`.
 
 ### 2.5 Revocación (`1.14-a`)
 
@@ -175,6 +190,9 @@ Marcar `is_legal_guardian = true` rellena `legal_guardian_verified_at`/`_by` con
 | `GET /image-consent-decisions` | `consentimiento_imagen.leer` | sí | 200 colección (§1.6); exige `student_person` | 404 (alumno no alcanzado), 422 |
 | `POST /image-consent-decisions` | `consentimiento_imagen.actualizar` | sí | 201 `{ "decision": ImageConsentDecision, "state": ImageConsent }` (estado calculado tras la escritura) | 404 (alumno no alcanzado), 422 `not_legal_guardian`, `guardian_required`, `guardian_not_linked`, `text_not_published`, `text_version_invalid` |
 | `POST /image-consents/exports` | `consentimiento_imagen.exportar` | — | 202 recurso de exportación de `Core` (`GET /data-exports/{id}`) | 422 `q_not_allowed`, filtros inválidos |
+| `GET /image-consent-texts` | `consentimiento_imagen.leer` | **no filtra** (ver abajo) | 200 colección **sin paginar** de `ImageConsentText` (§1.9), una entrada por nivel, en orden `web`, `redes_sociales` | 422 (`level` inválido) |
+
+**`GET /image-consent-texts`** (`RN-FAM-UNIT-75`, `OPEN-FAM-UNIT-23` aprobada el 2026-10-27). Lectura del texto **publicado** del consentimiento de cada nivel, en el idioma de la petición, para que un tutor sepa qué está autorizando antes de `POST /image-consent-decisions` por el canal `portal`. Filtro opcional `level` (`web` | `redes_sociales`). Cadena: `RequireAuthenticatedUser` → `module-enabled:fam_unit` → `permission:consentimiento_imagen.leer`. Admite el permiso con ámbito `todos` o `unidad_familiar` y **no acota la respuesta por ámbito** [DERIVADA; aceptada por el usuario el 2026-10-27: también la lee un tutor sin vínculos activos]: el texto es del centro, igual para todos, sin datos de ningún alumno ni tutor. Nunca devuelve `borrador` ni `retirada`; para eso está `GET /terms-versions` con `texto_legal.leer`. Respuesta en `{ "data": [...] }` sin `meta` de paginación (dos elementos como máximo, `ADR-038 §4`). **OpenAPI previsto**: ruta en `apps/api/openapi/paths/fam-unit.yaml`, esquema `ImageConsentText` con los campos anulables de §1.9 y `level` como enumerado extensible (`ADR-038 §7.3`), respuestas `200`, `401`, `403` (`forbidden` y `module-disabled`) y `422`.
 
 `GET /image-consents` y la exportación recorren los alumnos **vivos** de las unidades (`family_unit_students`) y calculan su estado: `state=pendiente` incluye a los alumnos sin ninguna decisión (`CA-FAM-UNIT-095`). `GET /image-consent-decisions` con ámbito `unidad_familiar` omite las decisiones de tutores cuyo vínculo con ese alumno está revocado (`RN-FAM-UNIT-71`).
 
@@ -184,7 +202,7 @@ Marcar `is_legal_guardian = true` rellena `legal_guardian_verified_at`/`_by` con
 { "student_person": "01JB…30", "level": "redes_sociales", "decision": "no_autorizo", "on_behalf_of": null, "channel": "portal", "consent_text_version": null }
 ```
 
-- Si el sujeto **es** tutor del alumno (vínculo **activo** propio con representación legal), `on_behalf_of` se omite o es su propio tutor, y `channel = portal`. El servidor registra la versión `publicada` del nivel y `shown_locale` = idioma de la petición; el cuerpo **no** admite `consent_text_version` (`422 text_version_invalid`, `RN-FAM-UNIT-69`).
+- Si el sujeto **es** tutor del alumno (vínculo **activo** propio con representación legal), `on_behalf_of` se omite o es su propio tutor, y `channel = portal`. El servidor registra la versión `publicada` del nivel y `shown_locale` = idioma **realmente mostrado** del texto (el de la petición si hay traducción; si no, el idioma por defecto del centro por la caída de `ADR-062`; el mismo que `locale` de `GET /image-consent-texts`, `RN-FAM-UNIT-43`, `OPEN-FAM-UNIT-25`); el cuerpo **no** admite `consent_text_version` (`422 text_version_invalid`, `RN-FAM-UNIT-69`).
 - Si el sujeto es personal del centro (ámbito `todos`), `on_behalf_of` es obligatorio (`guardian_required`) y debe ser uno de **quienes deciden** sobre el alumno: tutor con vínculo **vivo**, `activo` **o `revocado`**, y representación legal (`RN-FAM-UNIT-41`, `ADR-066 §5.4`); `channel = presencial`. Sin vínculo vivo ⇒ `guardian_not_linked`; sin representación legal ⇒ `not_legal_guardian`. **Un tutor revocado solo se admite si el sujeto tiene además `revocacion_tutor.leer`**; sin él, se responde exactamente igual que con un tutor no vinculado (`422 guardian_not_linked`, mismo cuerpo, `RN-FAM-UNIT-40`).
 - `consent_text_version` (`public_id`), **opcional y solo con `channel = presencial`**: una versión `publicada` o `retirada` del tipo del nivel; nunca `borrador` ni otro tipo (`422 text_version_invalid`). Sin él, la `publicada` (`RN-FAM-UNIT-69`).
 - `decision = autorizo` sin versión `publicada` del nivel ⇒ `422 text_not_published` y no se escribe nada; `no_autorizo` se acepta igual, con `consent_text_version = null` si no hay texto (`RN-FAM-UNIT-68`).
@@ -199,14 +217,14 @@ Las rutas `/terms-versions` se conservan (`OPEN-066-03`); el recurso de permisos
 | Verbo y ruta | Permiso | Entrega | Respuesta | Errores propios |
 |---|---|---|---|---|
 | `GET /terms-versions` | `texto_legal.leer` | `1.14-b` | 200 colección; filtro `kind` | 422 |
-| `POST /terms-versions` | `texto_legal.crear` | `1.14-b` | 201 (`borrador`) | 422 traducciones (`ADR-062`), `kind` ausente o inválido, `kind_not_available` |
+| `POST /terms-versions` | `texto_legal.crear` | `1.14-b` | 201 (`borrador`) | 422 traducciones (`ADR-062`), `validation.required` (`kind` ausente), `terms.kind_invalid` (`kind` fuera del vocabulario), `terms.kind_not_available` |
 | `GET /terms-versions/{public_id}` | `texto_legal.leer` | `1.14-b` | 200 | 404 |
 | `PATCH /terms-versions/{public_id}` | `texto_legal.actualizar` | `1.14-b` | 200 | 404, 409 `not_draft`, 422 (`kind_not_editable`) |
 | `DELETE /terms-versions/{public_id}` | `texto_legal.eliminar` | `1.14-b` | 204 (solo `borrador`) | 404, 409 `not_draft` |
-| `POST /terms-versions/{public_id}/publish` | `texto_legal.publicar` | `1.14-b` | 200; retira la `publicada` anterior **del mismo tipo** | 404, 409 `not_draft`, 422 `default_locale_missing`, 422 `requires_reacceptance` en un tipo de imagen (`CHECK` de `datos.md §1.8`) |
-| `GET /terms-acceptances` | `aceptacion_condiciones.leer` | 200 colección | 422 |
-| `GET /me/terms` | identidad | 200 `{ "required": bool, "version": TermsVersion\|null }` | — |
-| `POST /me/terms-acceptances` | identidad | 201 `TermsAcceptance` (200 si ya existía, `RN-FAM-UNIT-64`) | 409 `version_not_current`, 422 |
+| `POST /terms-versions/{public_id}/publish` | `texto_legal.publicar` | `1.14-b` | 200; retira la `publicada` anterior **del mismo tipo** | 404, 409 `not_draft`, 422 `default_locale_missing`, 422 `terms.requires_reacceptance_not_allowed` (`requires_reacceptance = true` en un tipo de imagen; `CHECK` de `datos.md §1.8`) |
+| `GET /terms-acceptances` | `aceptacion_condiciones.leer` | `1.14-c` | 200 colección | 422 |
+| `GET /me/terms` | identidad | `1.14-c` | 200 `{ "required": bool, "version": TermsVersion\|null }` | — |
+| `POST /me/terms-acceptances` | identidad | `1.14-c` | 201 `TermsAcceptance` (200 si ya existía, `RN-FAM-UNIT-64`) | 409 `version_not_current`, 422 |
 
 `POST /terms-versions` cuerpo: `{ "kind": "consentimiento_imagen_web", "title_translations": {…}, "body_translations": {…} }`. `POST /terms-versions/{id}/publish` cuerpo: `{ "requires_reacceptance": true }` (solo `condiciones_uso`; en un tipo de imagen debe omitirse o ser `false`). Publicar un texto de imagen **no altera ningún estado** de consentimiento (`RN-FAM-UNIT-70`). `POST /me/terms-acceptances` cuerpo: `{ "terms_version": "<public_id>" }`; el servidor registra el idioma en que se sirvió (`shown_locale`) a partir del idioma de la petición.
 
@@ -225,6 +243,7 @@ Las rutas `/terms-versions` se conservan (`OPEN-066-03`); el recurso de permisos
 | `GET /image-consents` | Página | Una fila por alumno y nivel | `family_unit`, `student_person`, `level`, `state` | `last_decision_at`, `state` |
 | `GET /image-consent-decisions` | Cursor sobre `(occurred_at DESC, id DESC)` | Histórico de solo anexar que crece sin límite natural | `student_person` (obligatorio), `level` | Fijo |
 | `GET /terms-versions` | Página | Decenas | `kind`, `status` | `version_number` (defecto desc; desempate por `id`) |
+| `GET /image-consent-texts` | Sin paginar | Una entrada por nivel: dos como máximo | `level` | Fijo (`web`, `redes_sociales`) |
 | `GET /terms-acceptances` | Cursor sobre `(accepted_at DESC, id DESC)` | Solo anexar, crece con cada tutor y versión | `terms_version`, `user` | Fijo |
 
 Filtrar por `student_person` o `family_unit` que el sujeto no alcanza no es error: devuelve vacío (el ámbito se aplica antes que el filtro). Un `public_id` mal formado ⇒ `422`.
@@ -259,6 +278,6 @@ Ninguno.
 
 ## 7. Códigos de error propios
 
-Todos con prefijo `fam_unit.` y traducidos en los cuatro idiomas: `family_unit.code_taken`, `family_unit.code_invalid`, `family_unit.principal_not_member`, `family_unit.has_members`, `guardian.already_exists`, `guardian.user_not_eligible`, `student.already_in_unit`, `link.already_exists`, `link.self_link`, `link.emergency_contact_taken`, `link.invalid_transition`, `link.not_editable`, `link.emergency_contact_revoked`, `link.revoked_not_deletable` (`409`, `RN-FAM-UNIT-39`: en `DELETE /guardian-links/{id}` y `DELETE /guardians/{id}`), `guardian.not_editable`, `custody.link_not_revoked` (condicionado), `image_consent.not_legal_guardian`, `image_consent.guardian_required`, `image_consent.guardian_not_linked`, `image_consent.text_not_published` (`RN-FAM-UNIT-68`), `image_consent.text_version_invalid` (`RN-FAM-UNIT-69`), `terms.kind_not_available` (`RN-FAM-UNIT-73`) [DERIVADA], `terms.kind_not_editable` [DERIVADA], `terms.not_draft`, `terms.default_locale_missing`, `terms.version_not_current`, `export.q_not_allowed`, `errors.revocation_rate_limited` (`429`), `validation.user_not_found`, `validation.student_not_found`, `validation.guardian_not_found`, `validation.family_unit_not_found`, y, de `1.14-a` (`funcional.md §15`, D-7), `validation.principal_guardian_not_found`, `validation.relationship_invalid`, `validation.access_level_invalid`, `validation.restricted_category_invalid`, `validation.reason_invalid`, `validation.required`, `validation.boolean_invalid`, `validation.reference_invalid` y `validation.filter_forbidden` (este último con `403`: `include_deleted` sin `familia.eliminar` o `status=revocado` sin `revocacion_tutor.leer`). Error transversal nuevo: `urn:pge:error:terms-acceptance-required` (`OPEN-FAM-UNIT-12`).
+Todos con prefijo `fam_unit.` y traducidos en los cuatro idiomas: `family_unit.code_taken`, `family_unit.code_invalid`, `family_unit.principal_not_member`, `family_unit.has_members`, `guardian.already_exists`, `guardian.user_not_eligible`, `student.already_in_unit`, `link.already_exists`, `link.self_link`, `link.emergency_contact_taken`, `link.invalid_transition`, `link.not_editable`, `link.emergency_contact_revoked`, `link.revoked_not_deletable` (`409`, `RN-FAM-UNIT-39`: en `DELETE /guardian-links/{id}` y `DELETE /guardians/{id}`), `guardian.not_editable`, `custody.link_not_revoked` (condicionado), `image_consent.not_legal_guardian`, `image_consent.guardian_required`, `image_consent.guardian_not_linked`, `image_consent.text_not_published` (`RN-FAM-UNIT-68`), `image_consent.text_version_invalid` (`RN-FAM-UNIT-69`), `terms.kind_not_available` (`RN-FAM-UNIT-73`) [DERIVADA, aceptada el 2026-10-27], `terms.kind_not_editable` [DERIVADA, aceptada el 2026-10-27], `terms.kind_invalid` (`kind` fuera del vocabulario en `POST /terms-versions`; si falta, `validation.required`) [DERIVADA, 2026-10-27], `terms.requires_reacceptance_not_allowed` (`requires_reacceptance = true` al publicar un tipo de imagen) [DERIVADA, 2026-10-27], `terms.not_draft`, `terms.default_locale_missing`, `terms.version_not_current`, `export.q_not_allowed`, `errors.revocation_rate_limited` (`429`), `validation.user_not_found`, `validation.student_not_found`, `validation.guardian_not_found`, `validation.family_unit_not_found`, y, de `1.14-a` (`funcional.md §15`, D-7), `validation.principal_guardian_not_found`, `validation.relationship_invalid`, `validation.access_level_invalid`, `validation.restricted_category_invalid`, `validation.reason_invalid`, `validation.required`, `validation.boolean_invalid`, `validation.reference_invalid` y `validation.filter_forbidden` (este último con `403`: `include_deleted` sin `familia.eliminar` o `status=revocado` sin `revocacion_tutor.leer`). Error transversal nuevo: `urn:pge:error:terms-acceptance-required` (`OPEN-FAM-UNIT-12`).
 
 Nota: el issue #60 (`ValidationErrorFormatter` antepone `core.` al `code` de cualquier módulo) sigue abierto; estos códigos heredarán su resolución.

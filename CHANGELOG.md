@@ -6,6 +6,16 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-27 · `1.14-b`: `ADR-066` y especificación del consentimiento de imagen (`REQ-FAM-UNIT-004`, rama `feature/REQ-FAM-UNIT-1-14b-consentimiento-imagen`)
+
+- **`ADR-066` ACEPTADA** (fuente única del consentimiento de imagen, `fam_unit`; estado calculado en origen sin la tabla `image_consents`; interfaz `ImageConsentPolicy`; unanimidad de representantes legales para `autorizo`, `OPEN-066-01..05` resueltas). Dos niveles de imagen, `web` y `redes_sociales`, confirmados por el usuario (sin separar por red social).
+- **Especificación de `1.14-b` enmendada y aprobada por el usuario** (solo documentación; nada implementado): 27 cambios de `ADR-066 §9`, `RN-FAM-UNIT-67..75`, `CA-FAM-UNIT-086..106`, `OPEN-FAM-UNIT-22..25` resueltas, recurso de permisos `texto_legal` (antes `condiciones_uso`), `terms_versions` adelantada de `1.14-c`, endpoint `GET /image-consent-texts`, corrección de duplicados de numeración (`RN-40`, `CA-050`, dos secciones 14).
+- **Cambia código de `1.14-a`** (`RN-FAM-UNIT-74`): `legal_guardian_verified_at` solo se fija en la transición `false`→`true`; se implementa en `1.14-b` con test de regresión.
+- **Condiciones previas a cargar datos reales**: validación jurídica de `OPEN-FAM-UNIT-08`, criterio sobre 14 y 18 años (`OPEN-FAM-UNIT-18`) y si un texto nuevo invalida los `autorizo` anteriores (`OPEN-066-02`).
+- **Versiones**: `docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md` 3.2.21, `README.md` 2.6.34.
+
+---
+
 ## 2026-10-27 · Bajas de `1.14-a` (issues #472 y #469; rama `fix/REQ-FAM-UNIT-bajas-1-14a`)
 
 - **#472**: `GuardianLinkService::find()` (PATCH, DELETE y revocación) aplica la misma regla que el listado y el detalle (`RN-FAM-UNIT-40`): sin `revocacion_tutor.leer`, un vínculo revocado es `404` indistinguible de uno inexistente; el levantamiento queda exento. `CA-FAM-UNIT-049`.

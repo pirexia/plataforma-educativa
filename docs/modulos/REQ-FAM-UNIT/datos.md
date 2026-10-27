@@ -1,6 +1,6 @@
 # REQ-FAM-UNIT · Modelo de datos
 
-> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). Las migraciones se escriben en `1.14-a`/`-b`/`-c` con `db-reviewer` obligatorio. **`1.14-a` implementada (2026-10-26)**: las cuatro tablas de §1.1 a §1.4 (migraciones `2026_10_26_100100` a `100500` de `apps/api/app/Modules/FamUnit/Database/migrations/`; la FK de `principal_guardian_id` va en la tercera, tras crear `guardians`). Índices de §3 no creados por redundantes: `funcional.md §15`, D-12. **Enmendada por `ADR-066` (ACEPTADA, 2026-10-27; `funcional.md §16`)**: desaparece `image_consents` (estado calculado en origen), `terms_versions` con `kind` se adelanta a `1.14-b`, y `consent_text_version_id` deja de ser condicional. **`1.14-b` lista para implementar**: §1.6 y §1.8. Las tablas marcadas *condicionada* dependen de `OPEN-FAM-UNIT-05`; las marcadas con una entrega (`1.14-a`/`-b`/`-c`) siguen la partición propuesta en `funcional.md §1.2`.
+> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). Las migraciones se escriben en `1.14-a`/`-b`/`-c` con `db-reviewer` obligatorio. **`1.14-a` implementada (2026-10-26)**: las cuatro tablas de §1.1 a §1.4 (migraciones `2026_10_26_100100` a `100500` de `apps/api/app/Modules/FamUnit/Database/migrations/`; la FK de `principal_guardian_id` va en la tercera, tras crear `guardians`). Índices de §3 no creados por redundantes: `funcional.md §15`, D-12. **Enmendada por `ADR-066` (ACEPTADA, 2026-10-27; `funcional.md §16`)**: desaparece `image_consents` (estado calculado en origen), `terms_versions` con `kind` se adelanta a `1.14-b`, y `consent_text_version_id` deja de ser condicional. **`1.14-b` LISTA PARA IMPLEMENTAR (2026-10-27), aprobada por el usuario** (`funcional.md §17`), con las condiciones previas a datos reales de `funcional.md §13`: §1.6 y §1.8, y el cambio de comportamiento sobre `legal_guardian_verified_at` de §1.4 (`RN-FAM-UNIT-74`), que no toca el esquema. La aprobación no añade tablas, columnas ni índices. Las tablas marcadas *condicionada* dependen de `OPEN-FAM-UNIT-05`; las marcadas con una entrega (`1.14-a`/`-b`/`-c`) siguen la partición propuesta en `funcional.md §1.2`.
 
 Todas las tablas son **de tenant**, creadas con `TenantMigration::tenantTable()` (o `tenantTableAppendOnly()` donde se dice), que aporta `id bigint`, `tenant_id`, RLS `ENABLE` + `FORCE` con la política estándar, `UNIQUE (tenant_id, id)` y, en las ordinarias, `created_at`/`updated_at`/`deleted_at` (`TIMESTAMPTZ`) y `created_by`/`updated_by` (`ADR-033`, `ADR-034 §6`/`§7`). Solo se listan las columnas propias. Toda clave foránea a otra tabla de tenant es **compuesta** `(tenant_id, <columna>)` con `TenantMigration::tenantForeignId()` (`ADR-033 §6`). **Ninguna tabla lleva `academic_year_id`** (`ADR-034 §4`: la unidad familiar está expresamente entre las entidades que no dependen del curso), así que no aplica `AR-13` ni el disparador `academic_year_write_guard`. Ninguna usa `ON DELETE CASCADE`/`SET NULL`: las bajas son lógicas y se propagan en servicio, auditadas.
 
@@ -53,7 +53,7 @@ Por qué tabla propia y no `students.family_unit_id`: `students` es de `ALUM` y 
 | `student_person_id` | `bigint` | No | — | FK compuesta → `people` |
 | `relationship` | `text` | No | — | `CHECK IN ('padre','madre','tutor_legal','abuelo','apoderado','otro')` (`OPEN-FAM-UNIT-07`) |
 | `is_legal_guardian` | `boolean` | No | `false` | Representación legal (patria potestad o tutela) [DERIVADA, `funcional.md §3.3`] |
-| `legal_guardian_verified_at` | `TIMESTAMPTZ` | Sí | — | Cuándo verificó el centro la representación |
+| `legal_guardian_verified_at` | `TIMESTAMPTZ` | Sí | — | Cuándo verificó el centro la representación. **Desde `1.14-b`** solo cambia (junto con `_by`) en la transición `false → true` de `is_legal_guardian` o al crear el vínculo con `true`; reenviar `true` no la toca (`RN-FAM-UNIT-74`). Es el umbral de las decisiones de imagen que cuentan (`RN-FAM-UNIT-72`). Regla de servicio, sin cambio de esquema |
 | `legal_guardian_verified_by` | `bigint` | Sí | — | FK compuesta → `users` |
 | `access_level` | `text` | No | `'lectura'` | `CHECK IN ('lectura','lectura_escritura')` (`REQ-FAM-UNIT-001`). Valor por defecto: el más restrictivo [DERIVADA] |
 | `restricted_categories` | `jsonb` | No | `'[]'` | Array de categorías restringidas. `CHECK (jsonb_typeof(restricted_categories) = 'array' AND restricted_categories <@ '["salud"]'::jsonb)` con el vocabulario de `OPEN-FAM-UNIT-07` |
@@ -102,7 +102,7 @@ Política de auditoría `Redacted` (`ADR-035`): nunca se registra ningún valor.
 | `recorded_by` | `bigint` | No | FK compuesta → `users`. Quién la registra (el propio tutor o personal del centro) |
 | `channel` | `text` | No | `CHECK IN ('portal','presencial')` |
 | `consent_text_version_id` | `bigint` | Sí | FK compuesta → `terms_versions`, **`ON DELETE RESTRICT`** (`ADR-066 §5.8`). Siempre presente; **nula solo con `no_autorizo`** sin texto publicado: `CHECK (decision = 'no_autorizo' OR consent_text_version_id IS NOT NULL)` (`RN-FAM-UNIT-68`). Que el `kind` de la versión corresponda al nivel (`consentimiento_imagen_web` ↔ `web`, `consentimiento_imagen_redes` ↔ `redes_sociales`) y su estado (`RN-FAM-UNIT-69`) se validan **en servicio** |
-| `shown_locale` | `text` | Sí | Idioma en que se mostró el texto por el canal `portal`; `CHECK (shown_locale IS NULL OR shown_locale IN ('es-ES','en','de','fr'))`. Nulo por `presencial` (`RN-FAM-UNIT-43`) [DERIVADA, `ADR-066 §9.5`] |
+| `shown_locale` | `text` | Sí | Idioma en que se mostró **realmente** el texto por el canal `portal` (tras la caída de `ADR-062`: el idioma por defecto del centro si no hay traducción al de la petición, `OPEN-FAM-UNIT-25` resuelta el 2026-10-27; no cambia la columna); `CHECK (shown_locale IS NULL OR shown_locale IN ('es-ES','en','de','fr'))`. Nulo por `presencial` (`RN-FAM-UNIT-43`) [DERIVADA, `ADR-066 §9.5`; aceptada por el usuario el 2026-10-27] |
 | `occurred_at` | `TIMESTAMPTZ` | No | Fecha y hora de la decisión |
 | `ip_address` | `inet` | Sí | IP de la petición |
 | `user_agent` | `text` | Sí | |
@@ -182,10 +182,10 @@ Además de los únicos de §1 (que ya sirven a sus consultas) y del índice `(te
 | `guardians (tenant_id, family_unit_id) WHERE deleted_at IS NULL` | Tutores de una unidad  **Omitido en `1.14-a`: cubierto por `tenantForeignId()` (`funcional.md §15`, D-12).** |
 | `image_consent_decisions (tenant_id, student_person_id, level, guardian_id, occurred_at DESC, id DESC)` | Cálculo del estado vigente: `DISTINCT ON` por tutor (`ADR-066 §9.18`). Sirve también al histórico por alumno y nivel. Si el histórico paginado por cursor `(occurred_at DESC, id DESC)` de un alumno sin filtro de nivel lo necesita, lo decide `db-reviewer` con el plan de ejecución |
 | `image_consent_decisions (tenant_id, consent_text_version_id)` | Lo crea `tenantForeignId()` en la FK: comprueba el `RESTRICT` y responde «qué familias decidieron sobre un texto anterior» (`RN-FAM-UNIT-70`) |
-
-El índice de `image_consents` desaparece con la tabla. **El listado y la exportación de estados parten de `family_unit_students` vivos** (índice único parcial de §1.3) y calculan el estado de cada alumno, de modo que `state=pendiente` incluye a los alumnos sin ninguna decisión.
 | `terms_acceptances (tenant_id, user_id, accepted_at DESC)` | Comprobación del muro en cada petición de un tutor obligado (`RN-FAM-UNIT-62`) |
 | `family_units (tenant_id, code text_pattern_ops) WHERE deleted_at IS NULL` | Búsqueda por prefijo de código en el listado. **Solo si** el listado ofrece búsqueda `q`; si no, se retira (un índice sin consulta es deuda) |
+
+El índice de `image_consents` desaparece con la tabla. **El listado y la exportación de estados parten de `family_unit_students` vivos** (índice único parcial de §1.3) y calculan el estado de cada alumno, de modo que `state=pendiente` incluye a los alumnos sin ninguna decisión.
 
 Sin particionado: volumen de cientos a pocos miles de filas por centro; las dos tablas de solo anexar crecen con las decisiones de familias (decenas por alumno a lo largo de su escolaridad). Evaluado y descartado (`ADR-029`).
 
@@ -204,9 +204,9 @@ Todo modelo extiende `TenantModel` (o `AppendOnlyModel`), implementa `Auditable`
 | `CustodyRestriction` (condicionada) | `custody_restriction` | `Redacted` | Ningún valor. Lectura auditada (`read`) |
 | `ImageConsentDecision` | `image_consent_decision` | `Full` | Append-only; su `created` es el registro. `ip_address`/`user_agent` se registran como `identifier` redactado si la política lo exige (decisión de implementación con `db-reviewer`) |
 | `TermsVersion` | `terms_version` | `Full` | Los textos largos se redactan solos como `oversized` (`ADR-035 §4`); el desglose por idioma de `ADR-062 §5.5`. Se audita al crear, editar en borrador y publicar (`ADR-066 §5.8`). **Entra en `1.14-b`** |
+| `TermsAcceptance` | `terms_acceptance` | `Full` | Append-only |
 
 `ImageConsent` **no es un modelo** (no tiene tabla, `ADR-066 §5.2`): no entra en el *morph map* ni en esta tabla. Es una representación calculada (`api.md §1.5`).
-| `TermsAcceptance` | `terms_acceptance` | `Full` | Append-only |
 
 Ninguna exclusión de eventos (`ADR-040`).
 
