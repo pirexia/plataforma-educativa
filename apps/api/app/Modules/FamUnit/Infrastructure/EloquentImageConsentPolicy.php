@@ -33,17 +33,7 @@ final class EloquentImageConsentPolicy implements ImageConsentPolicy
             throw new InvalidArgumentException('ImageConsentPolicy: la lista de alumnos está vacía; una publicación sin alumnos identificables no consulta (RN-FAM-UNIT-46).');
         }
 
-        $ids = [];
-
-        foreach ($studentPersonIds as $id) {
-            if (! is_int($id)) {
-                throw new InvalidArgumentException('ImageConsentPolicy: los alumnos van como ids internos de persona (enteros).');
-            }
-
-            $ids[$id] = $id;
-        }
-
-        $ids = array_values($ids);
+        $ids = array_values(array_unique($studentPersonIds));
         sort($ids);
 
         // Fallo en cerrado: con el módulo descontratado, nadie es publicable.

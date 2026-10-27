@@ -229,3 +229,70 @@ test('CA-FAM-UNIT-004 RN-FAM-UNIT-11: dos altas simultáneas de tutor para la mi
 
     expect(app(TenantContext::class)->runFor($tenant->id, fn () => DB::table('guardians')->whereNull('deleted_at')->count()))->toBe(1);
 });
+
+test('CA-FAM-UNIT-058 RN-FAM-UNIT-44 RN-FAM-UNIT-45: dos representantes legales que registran a la vez decisiones sobre el mismo alumno y nivel dejan las dos filas — sin bloqueo de fila ni recálculo — y el estado es el que dicta la regla de combinación sobre ambas', function (): void {
+    $f = Fam::consentFamily('fam-conc-058', frozen: false);
+    // occurred_at y legal_guardian_verified_at tienen precisión de segundos: las decisiones han de ser posteriores.
+    sleep(2);
+
+    $results = famRace($f['tenant'], 'image_consent_decisions',
+        ['record-decision', [$f['r1']->public_id, $f['student']->public_id, 'web', 'autorizo']],
+        ['record-decision', [$f['r2']->public_id, $f['student']->public_id, 'web', 'no_autorizo']],
+    );
+
+    expect(array_column($results, 'outcome'))->toBe(['ok', 'ok']);
+
+    $rows = app(TenantContext::class)->runFor($f['tenant']->id, fn () => DB::table('image_consent_decisions')->orderBy('id')->get(['guardian_id', 'decision', 'level'])->all());
+    expect($rows)->toHaveCount(2)
+        ->and(collect($rows)->pluck('decision')->sort()->values()->all())->toBe(['autorizo', 'no_autorizo']);
+
+    // Autorizo de R1 y no_autorizo de R2, en el orden que sea: no_autorizo (RN-FAM-UNIT-45, fila f).
+    expect(Fam::consentState($f['tenant'], $f['admin'], $f['student'], 'web'))->toBe('no_autorizo');
+
+    // Cada hijo calculó su propio estado tras escribir; ninguno vio el estado del otro en un bloqueo: son filas independientes.
+    foreach ($results as $result) {
+        expect(['no_autorizo', 'pendiente', 'autorizo'])->toContain($result['state']);
+    }
+});
+
+test('CA-FAM-UNIT-099 RN-FAM-UNIT-60 RN-FAM-UNIT-73: dos publicaciones simultáneas de borradores del mismo tipo se serializan — ninguna 500, al final exactamente una publicada y la otra retirada — y el índice único lo garantiza', function (): void {
+    [$tenant, $admin] = Fam::setup('fam-conc-099');
+    $first = Fam::draftText($tenant, $admin, 'web');
+    $second = Fam::draftText($tenant, $admin, 'web');
+
+    $holder = famPdo();
+    $holder->beginTransaction();
+    $holder->exec('lock table terms_versions in share row exclusive mode');
+
+    $a = famSpawn($tenant->id, 'publish-text', $first);
+    $b = famSpawn($tenant->id, 'publish-text', $second);
+
+    try {
+        // Uno espera para escribir (tabla bloqueada) y el otro espera el bloqueo consultivo del centro y el tipo.
+        famWaitBlocked(1, [$a, $b]);
+        famWaitBlocked(1, [$a, $b], 'advisory');
+    } finally {
+        $holder->rollBack();
+    }
+
+    $results = [famCollect($a), famCollect($b)];
+
+    expect(array_column($results, 'outcome'))->toBe(['ok', 'ok']);
+
+    $statuses = app(TenantContext::class)->runFor($tenant->id, fn () => DB::table('terms_versions')->where('kind', 'consentimiento_imagen_web')->orderBy('version_number')->pluck('status')->all());
+    expect(collect($statuses)->sort()->values()->all())->toBe(['publicada', 'retirada']);
+
+    // Y el índice único es la red de seguridad: una segunda publicada del mismo tipo es imposible aunque el servicio fallara.
+    $owner = famPdo();
+    $owner->exec("select set_config('app.tenant_id', '{$tenant->id}', false)");
+    $draft = Fam::draftText($tenant, $admin, 'web');
+    $failure = null;
+
+    try {
+        $owner->exec("update terms_versions set status = 'publicada', published_at = now() where public_id = '{$draft}'");
+    } catch (PDOException $e) {
+        $failure = $e->getCode();
+    }
+
+    expect($failure)->toBe('23505');
+});

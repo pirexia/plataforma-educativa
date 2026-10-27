@@ -8,6 +8,7 @@ use App\Modules\FamUnit\Domain\Models\TermsVersion;
 use App\Support\I18n\Locales;
 use App\Support\I18n\TranslationResolver;
 use App\Support\Tenancy\TenantContext;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -259,10 +260,10 @@ final class TermsVersionService
      *
      * @template T
      *
-     * @param  callable(): T  $write
+     * @param  Closure(): T  $write
      * @return T
      */
-    private function inTransaction(callable $write): mixed
+    private function inTransaction(Closure $write): mixed
     {
         try {
             return DB::transaction($write);

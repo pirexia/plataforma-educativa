@@ -13,7 +13,6 @@ use App\Support\Authorization\ScopedQuery;
 use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -133,7 +132,7 @@ final class ImageConsentService
      * @param  list<int>  $studentPersonIds
      * @param  bool  $hideRevokedDates  con ámbito `unidad_familiar`, `last_decision_at` nunca refleja la decisión de un
      *                                  tutor revocado (`RN-FAM-UNIT-71`)
-     * @return list<array{student_person_id: int, family_unit_id: null, level: string, state: string, last_decision_at: ?CarbonImmutable}>
+     * @return list<array{student_person_id: int, family_unit_id: ?int, level: string, state: string, last_decision_at: ?CarbonImmutable}>
      */
     public function statesOf(array $studentPersonIds, bool $hideRevokedDates): array
     {
@@ -145,33 +144,32 @@ final class ImageConsentService
 
         [$sql, $bindings] = $this->stateQuery('SELECT DISTINCT unnest(?::bigint[]) AS student_person_id', [self::pgArray($ids)]);
 
-        return array_map(
+        return array_values(array_map(
             fn (object $row): array => $this->stateRow($row, $hideRevokedDates),
             DB::select("SELECT r.* FROM ({$sql}) r ORDER BY r.student_person_id, r.level", $bindings),
-        );
+        ));
     }
 
     /**
-     * Página de estados de los alumnos vivos de las unidades que el sujeto alcanza (`GET /image-consents`). Parte de
-     * `family_unit_students`, así que `state=pendiente` incluye a los alumnos sin ninguna decisión (`ADR-066 §5.2`).
+     * Una página de estados de los alumnos vivos de las unidades que el sujeto alcanza (`GET /image-consents`) y el
+     * total de filas. Parte de `family_unit_students`, así que `state=pendiente` incluye a los alumnos sin ninguna
+     * decisión (`ADR-066 §5.2`).
      *
      * @param  array{family_unit: list<string>, student_person: ?list<int>, level: list<string>, state: list<string>}  $filters
-     * @return LengthAwarePaginator<int, array{student_person_id: int, family_unit_id: ?int, level: string, state: string, last_decision_at: ?CarbonImmutable}>
+     * @return array{rows: list<array{student_person_id: int, family_unit_id: ?int, level: string, state: string, last_decision_at: ?CarbonImmutable}>, total: int}
      */
-    public function page(PermissionDecision $decision, User $subject, array $filters, string $sort, int $page, int $perPage): LengthAwarePaginator
+    public function page(PermissionDecision $decision, User $subject, array $filters, string $sort, int $page, int $perPage): array
     {
         $hide = ! $decision->isUnrestricted();
         [$order, $direction] = self::SORTS[$sort] ?? self::SORTS[self::DEFAULT_SORT];
         // Con ámbito `unidad_familiar`, se ordena por la fecha que el sujeto puede ver (`RN-FAM-UNIT-71`).
         $order = str_replace('{date}', $hide ? 'r.last_visible_at' : 'r.last_at', $order);
-        $rows = $this->stateRows($decision, $subject, $filters, "{$order} {$direction}, r.student_person_id ASC, r.level ASC", $perPage, ($page - 1) * $perPage);
+        $result = $this->stateRows($decision, $subject, $filters, "{$order} {$direction}, r.student_person_id ASC, r.level ASC", $perPage, ($page - 1) * $perPage);
 
-        return new LengthAwarePaginator(
-            array_map(fn (object $row): array => $this->stateRow($row, $hide), $rows['rows']),
-            $rows['total'],
-            $perPage,
-            $page,
-        );
+        return [
+            'rows' => array_map(fn (object $row): array => $this->stateRow($row, $hide), $result['rows']),
+            'total' => $result['total'],
+        ];
     }
 
     /**
@@ -195,12 +193,6 @@ final class ImageConsentService
 
             $offset += $limit;
         } while (count($chunk['rows']) === $limit);
-    }
-
-    /** Recuento de filas del informe, para el tope de `RNF-LIM-004` al solicitarlo. */
-    public function exportCount(PermissionDecision $decision, User $subject, array $filters): int
-    {
-        return $this->stateRows($decision, $subject, $filters, 'r.student_person_id ASC', 1, 0)['total'];
     }
 
     /**

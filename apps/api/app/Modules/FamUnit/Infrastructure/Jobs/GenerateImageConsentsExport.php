@@ -10,6 +10,7 @@ use App\Support\Authorization\PermissionResolver;
 use App\Support\Csv\CsvColumnType;
 use App\Support\Csv\CsvWriter;
 use App\Support\Modules\ModuleAvailability;
+use Carbon\CarbonImmutable;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -38,6 +39,9 @@ class GenerateImageConsentsExport implements ShouldQueue
     use SerializesModels;
 
     public int $tries = 3;
+
+    /** Filas por lote de lectura de nombres y unidades. */
+    private const CHUNK = 500;
 
     public function __construct(
         public readonly int $dataExportId,
@@ -83,45 +87,51 @@ class GenerateImageConsentsExport implements ShouldQueue
         $rowCount = 0;
         $chunk = [];
 
-        $flush = function () use (&$chunk, $csv, $consents, $people, &$rowCount): void {
-            if ($chunk === []) {
-                return;
-            }
-
-            $units = $consents->unitRefs(array_values(array_unique(array_filter(array_column($chunk, 'family_unit_id')))));
-            $persons = $people->refsByIds(array_values(array_unique(array_column($chunk, 'student_person_id'))));
-
-            foreach ($chunk as $row) {
-                $person = $persons[$row['student_person_id']] ?? null;
-
-                $csv->writeRow([
-                    $row['family_unit_id'] === null ? null : ($units[$row['family_unit_id']]['code'] ?? null),
-                    $person?->publicId,
-                    $person === null || $person->removed ? null : $person->displayName,
-                    $row['level'],
-                    $row['state'],
-                    $row['last_decision_at'],
-                ]);
-                $rowCount++;
-            }
-
-            $chunk = [];
-        };
-
         foreach ($consents->exportRows($decision, $context->requester, $filters) as $row) {
             $chunk[] = $row;
 
-            if (count($chunk) >= 500) {
-                $flush();
+            if (count($chunk) >= self::CHUNK) {
+                $rowCount += $this->writeRows($csv, $chunk, $consents, $people);
+                $chunk = [];
             }
         }
 
-        $flush();
+        $rowCount += $this->writeRows($csv, $chunk, $consents, $people);
 
         $objectKey = "tenants/{$this->tenantPublicId}/exports/{$context->publicId}.csv";
         Storage::disk(config('filesystems.default'))->put($objectKey, $csv->finish());
 
         $exports->complete($this->dataExportId, $objectKey, $rowCount);
+    }
+
+    /**
+     * Escribe un lote de filas con el nombre y el código de unidad de cada alumno (dos lecturas por lote, no por fila).
+     *
+     * @param  list<array{student_person_id: int, family_unit_id: ?int, level: string, state: string, last_decision_at: ?CarbonImmutable}>  $rows
+     */
+    private function writeRows(CsvWriter $csv, array $rows, ImageConsentService $consents, PersonDirectory $people): int
+    {
+        if ($rows === []) {
+            return 0;
+        }
+
+        $units = $consents->unitRefs(array_values(array_unique(array_filter(array_column($rows, 'family_unit_id')))));
+        $persons = $people->refsByIds(array_values(array_unique(array_column($rows, 'student_person_id'))));
+
+        foreach ($rows as $row) {
+            $person = $persons[$row['student_person_id']] ?? null;
+
+            $csv->writeRow([
+                $row['family_unit_id'] === null ? null : ($units[$row['family_unit_id']]['code'] ?? null),
+                $person?->publicId,
+                $person === null || $person->removed ? null : $person->displayName,
+                $row['level'],
+                $row['state'],
+                $row['last_decision_at'],
+            ]);
+        }
+
+        return count($rows);
     }
 
     public function failed(\Throwable $exception): void

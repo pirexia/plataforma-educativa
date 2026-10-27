@@ -324,15 +324,14 @@ test('CA-FAM-UNIT-062 INV-014 §7.3: un publicador de prueba que consulta ImageC
         ->and($publish([$f['student']->id, $f['student']->id]))->toBe(['published' => true, 'blocking' => []]);
 });
 
-test('CA-FAM-UNIT-094 RN-FAM-UNIT-46: una lista de alumnos vacía lanza una excepción en isPublishable y en blockingAmong y nunca es «publicable»; los ids deben ser enteros', function (): void {
+test('CA-FAM-UNIT-094 RN-FAM-UNIT-46: una lista de alumnos vacía lanza una excepción en isPublishable y en blockingAmong y nunca es «publicable»', function (): void {
     $f = Fam::consentFamily('is-094', twoGuardians: false);
 
-    app(TenantContext::class)->runFor($f['tenant']->id, function () use ($f): void {
+    app(TenantContext::class)->runFor($f['tenant']->id, function (): void {
         $policy = app(ImageConsentPolicy::class);
 
         expect(fn () => $policy->isPublishable(ImageConsentLevel::Web, []))->toThrow(InvalidArgumentException::class)
-            ->and(fn () => $policy->blockingAmong(ImageConsentLevel::SocialNetworks, []))->toThrow(InvalidArgumentException::class)
-            ->and(fn () => $policy->isPublishable(ImageConsentLevel::Web, [(string) $f['student']->id]))->toThrow(InvalidArgumentException::class);
+            ->and(fn () => $policy->blockingAmong(ImageConsentLevel::SocialNetworks, []))->toThrow(InvalidArgumentException::class);
     });
 });
 

@@ -37,15 +37,15 @@ class ImageConsentsController extends FamUnitController
             $request->integer('per_page', 25),
         );
 
-        $rows = $page->items();
+        $rows = $page['rows'];
         $refs->preloadPersons(array_map(static fn (array $row): int => $row['student_person_id'], $rows));
         $units = $service->unitRefs(array_values(array_unique(array_filter(array_map(static fn (array $row): ?int => $row['family_unit_id'], $rows)))));
 
         $enriched = new LengthAwarePaginator(
             array_map(static fn (array $row): array => $row + ['family_unit' => $row['family_unit_id'] === null ? null : ($units[$row['family_unit_id']]['public_id'] ?? null)], $rows),
-            $page->total(),
-            $page->perPage(),
-            $page->currentPage(),
+            $page['total'],
+            $request->integer('per_page', 25),
+            $request->integer('page', 1),
         );
 
         return PagePaginatedResponse::make($enriched, ImageConsentResource::class);

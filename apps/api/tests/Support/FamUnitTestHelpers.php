@@ -239,15 +239,16 @@ final class FamUnitTestHelpers
 
     /**
      * Familia con un alumno en su unidad y dos representantes legales activos (R1 y R2, cada uno con usuario y permisos
-     * `unidad_familiar` de lectura y decisión de imagen), con los textos publicados de los dos niveles. El reloj queda
-     * congelado y avanzado tras el alta de los vínculos, de modo que las decisiones posteriores cuentan.
+     * `unidad_familiar` de lectura y decisión de imagen), con los textos publicados de los dos niveles. Con `$frozen`, el
+     * reloj queda congelado y avanzado tras el alta de los vínculos, de modo que las decisiones posteriores cuentan; sin él
+     * (pruebas de concurrencia, con procesos hijos en tiempo real) el llamador espera al menos un segundo.
      *
      * @return array{tenant: object, admin: User, unit: string, student: Person, r1: User, g1: string, l1: string, r2: User, g2: string, l2: string}
      */
-    public static function consentFamily(string $slug, bool $twoGuardians = true): array
+    public static function consentFamily(string $slug, bool $twoGuardians = true, bool $frozen = true): array
     {
         [$tenant, $admin] = self::setup($slug);
-        self::freeze();
+        $frozen && self::freeze();
 
         $unit = self::unitId($tenant, $admin);
         $student = self::person($tenant, 'Alumno', 'Imagen');
@@ -267,7 +268,7 @@ final class FamUnitTestHelpers
 
         self::publishText($tenant, $admin, 'web');
         self::publishText($tenant, $admin, 'redes_sociales');
-        self::tick();
+        $frozen && self::tick();
 
         return compact('tenant', 'admin', 'unit', 'student', 'r1', 'g1', 'l1', 'r2', 'g2', 'l2');
     }
