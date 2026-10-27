@@ -1,6 +1,6 @@
 # PRIVACY.md
 
-> **Versión 0.3.8** · 2026-10-26
+> **Versión 0.3.10** · 2026-10-27
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Base del Registro de Actividades de Tratamiento (RAT) exigido por el RGPD — hoy es un **esqueleto**, no un RAT completo: varias secciones dependen de decisiones que todavía no se han tomado (`OPEN-07`, entidad jurídica y contrato de encargado de tratamiento). No se rellenan con suposiciones (`CLAUDE.md` §0/§11).
 
 ---
@@ -145,6 +145,20 @@ Mismo mecanismo que §2.3, protocolo distinto: cada centro cataloga su propio pr
 | Base legal y consentimiento de menores (`INV-008`) | **Cubierto parcialmente**: este módulo aporta quién es representante legal de cada menor, verificado por el centro; la base legal por campo sigue pendiente de `OPEN-07` y `OPEN-13`. No se rellena con suposiciones |
 | Plazo de conservación | Borrado lógico mientras el alumno esté en el centro; el vínculo y su revocación son la prueba ante un incidente con un menor, así que **un vínculo revocado no se da de baja** (`RN-FAM-UNIT-39`). Plazos y anonimización: `REQ-PRIV-006`, sin especificar (`docs/modulos/REQ-FAM-UNIT/datos.md §6`) |
 | Copias de seguridad | Restaurar una copia anterior a una revocación devolvería el acceso a un tutor: se anota para `REQ-BKP` (`1.26`, `OPEN-FAM-UNIT-21`) |
+
+### 2.9 Consentimiento de uso de imagen del alumno (`REQ-FAM-UNIT-004`, paso 1.14-b, `ADR-066`)
+
+`fam_unit` es la **fuente única** del consentimiento de imagen de un menor (ningún otro módulo guarda decisiones, estados ni copias). Cada decisión de un representante legal sobre un alumno y un nivel (`web`, `redes_sociales`) es una fila **inmutable** (tabla de solo anexar, `REVOKE UPDATE, DELETE` en el motor) con la versión del texto al que se refiere, el idioma realmente mostrado, el canal (`portal` o `presencial`), quién la registra, fecha y hora, **IP y agente de usuario**. Es un dato personal de un menor, no de categoría especial.
+
+| Aspecto | Decisión |
+|---------|----------|
+| Quién decide | Los tutores con vínculo vivo y **representación legal** sobre el alumno, también el de acceso `revocado` (revocar quita el acceso, no la patria potestad); un abuelo o apoderado sin representación no decide. Unanimidad para `autorizo`; cualquier `no_autorizo` bloquea. **Pendiente de validación jurídica antes de cargar datos reales** (`OPEN-FAM-UNIT-08`, `OPEN-FAM-UNIT-18` sobre los 14 y 18 años, `OPEN-066-02` sobre si un texto nuevo invalida los `autorizo`) |
+| Fallo en cerrado | `pendiente` (sin decisión que cuente) y `no_autorizo` bloquean la publicación; un alumno sin nadie que decida, inexistente, de otro centro o con el módulo descontratado también (`INV-014`). El estado se **calcula en cada consulta**: alta, baja o cambio de representación de un vínculo lo cambian sin recálculo; solo cuentan las decisiones posteriores a la verificación de la representación legal |
+| Texto informado | `autorizo` exige una versión **publicada** del texto del nivel (`texto_legal`, contenido del centro); el tutor puede leerlo por la API antes de decidir. Negarse no necesita texto |
+| Auditoría | Cada alta en `audit_logs`; la IP, el agente de usuario y las claves a alumno y tutor se **redactan** como identificadores (`ADR-035`); la API no devuelve IP ni agente. Una decisión idéntica a la vigente no se duplica ni se audita, y registrar decisiones y pedir el informe tienen límite por centro y usuario (`RN-FAM-UNIT-76`, `-77`) |
+| Informe de consentimientos (CSV) | `POST /image-consents/exports` (permiso `consentimiento_imagen.exportar`, solo ámbito `todos`, solicitud auditada como `exported`) genera en cola un CSV con, por alumno y nivel, **el nombre del alumno menor**, su `public_id`, el código de la unidad familiar, el estado (`autorizo`/`no_autorizo`/`pendiente`) y la fecha de la última decisión que cuenta: es un **dato personal de un menor**. El fichero se guarda en el almacenamiento de objetos del centro bajo `tenants/<centro>/exports/` y se descarga solo por **enlace firmado de caducidad corta (15 minutos)**, solo por quien lo solicitó y mientras conserve el permiso; la solicitud y el fichero caducan según la retención de `data_exports` de `Core` (`core.export_retention_days`). No contiene IP, agente de usuario ni datos de contacto |
+| Plazo de conservación | Evidencia mientras dure el tratamiento y el plazo que fije `REQ-PRIV-006` (sin especificar); la versión del texto a la que apunta una decisión tampoco se borra (`RESTRICT`) |
+| Copias de seguridad | Restaurar una copia anterior a un `no_autorizo` devolvería la publicabilidad de la imagen: se anota para `REQ-BKP` (`1.26`, `OPEN-FAM-UNIT-21`) |
 
 ## 3. Registro de Actividades de Tratamiento (RAT) — plantilla
 

@@ -3280,6 +3280,88 @@ namespace App\Modules\FamUnit\Domain\Models{
  */
 	#[\AllowDynamicProperties]
 	class IdeHelperGuardianStudentLink {}
+/**
+ * REQ-FAM-UNIT/datos.md §1.6, §4 (1.14-b, `REQ-FAM-UNIT-004`). Decisión de imagen de un tutor (solo anexar).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $student_person_id
+ * @property string $level
+ * @property string $decision
+ * @property int $guardian_id
+ * @property int $recorded_by
+ * @property string $channel
+ * @property int|null $consent_text_version_id
+ * @property string|null $shown_locale
+ * @property \Illuminate\Support\Carbon $occurred_at
+ * @property string|null $ip_address
+ * @property string|null $user_agent
+ * @property-read \App\Modules\FamUnit\Domain\Models\TermsVersion|null $termsVersion
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ImageConsentDecision newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ImageConsentDecision newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ImageConsentDecision query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ImageConsentDecision whereChannel($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ImageConsentDecision whereConsentTextVersionId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ImageConsentDecision whereDecision($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ImageConsentDecision whereGuardianId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ImageConsentDecision whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ImageConsentDecision whereIpAddress($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ImageConsentDecision whereLevel($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ImageConsentDecision whereOccurredAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ImageConsentDecision wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ImageConsentDecision whereRecordedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ImageConsentDecision whereShownLocale($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ImageConsentDecision whereStudentPersonId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ImageConsentDecision whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ImageConsentDecision whereUserAgent($value)
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperImageConsentDecision {}
+/**
+ * REQ-FAM-UNIT/datos.md §1.8, §4 (1.14-b, `REQ-FAM-UNIT-003`/`-004`). Versión de un texto legal del centro.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property string $kind
+ * @property int $version_number
+ * @property array<array-key, mixed> $title_translations
+ * @property array<array-key, mixed> $body_translations
+ * @property string $status
+ * @property bool $requires_reacceptance
+ * @property \Illuminate\Support\Carbon|null $published_at
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion whereBodyTranslations($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion whereKind($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion wherePublishedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion whereRequiresReacceptance($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion whereTitleTranslations($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion whereVersionNumber($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsVersion withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperTermsVersion {}
 }
 
 namespace App\Support\Tenancy{

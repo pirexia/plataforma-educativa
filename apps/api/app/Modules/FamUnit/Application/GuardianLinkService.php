@@ -344,6 +344,15 @@ final class GuardianLinkService
             ->all();
     }
 
+    /**
+     * El vínculo **vivo**, de cualquier estado, entre el tutor y el alumno (`activo` o `revocado`); `null` si no hay.
+     * Lo usa el consentimiento de imagen para saber si un tutor está entre quienes deciden (`RN-FAM-UNIT-41`).
+     */
+    public function liveLink(int $guardianId, int $studentPersonId): ?GuardianStudentLink
+    {
+        return GuardianStudentLink::query()->where('guardian_id', $guardianId)->where('student_person_id', $studentPersonId)->first();
+    }
+
     /** ¿Existe un vínculo vivo `revocado` entre el tutor y el alumno? (`FamilyMembership::isAccessRevoked()`.) */
     public function hasRevokedLink(int $guardianId, int $studentPersonId): bool
     {

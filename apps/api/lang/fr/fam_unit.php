@@ -1,6 +1,6 @@
 <?php
 
-// REQ-FAM-UNIT (paso 1.14-a), docs/modulos/REQ-FAM-UNIT/api.md §7. INV-009: ningún literal visible vive fuera de aquí.
+// REQ-FAM-UNIT (pasos 1.14-a y 1.14-b), docs/modulos/REQ-FAM-UNIT/api.md §7. INV-009: ningún literal visible vive fuera de aquí.
 // El `code` de cada error de api.md §7 es a la vez la clave de su mensaje. Los enumerados (`relationship`,
 // `access_level`, `status`...) viajan como código técnico (`ADR-038 §3.2`) y la SPA traduce su etiqueta.
 
@@ -10,6 +10,8 @@ return [
             'familia' => 'Unités familiales, tuteurs et élèves',
             'vinculo_tutor' => 'Liens tuteur-élève',
             'revocacion_tutor' => 'Révocation de l\'accès d\'un tuteur',
+            'consentimiento_imagen' => 'Consentement à l\'utilisation de l\'image',
+            'texto_legal' => 'Textes juridiques de l\'établissement',
         ],
     ],
 
@@ -40,7 +42,30 @@ return [
         'revoked_not_deletable' => 'Un lien révoqué ne peut pas être supprimé : levez d\'abord la révocation.',
     ],
 
+    'image_consent' => [
+        'text_version_outdated' => 'La version du texte affichée n\'est plus la version en vigueur : relisez le texte publié avant d\'autoriser.',
+        'not_legal_guardian' => 'Seul un tuteur ayant la représentation légale de l\'élève peut décider du consentement à l\'utilisation de l\'image.',
+        'guardian_required' => 'Indiquez le tuteur qui a décidé (on_behalf_of) lorsque vous enregistrez sa décision au nom de la famille.',
+        'guardian_not_linked' => 'Le tuteur indiqué n\'est pas lié à cet élève.',
+        'text_not_published' => 'L\'établissement n\'a pas publié le texte du consentement pour ce niveau : on ne peut pas autoriser sans texte.',
+        'text_version_invalid' => 'La version du texte indiquée n\'est pas valide pour ce niveau ou ce canal.',
+    ],
+
+    'terms' => [
+        'kind_not_available' => 'Ce type de texte juridique n\'est pas encore disponible.',
+        'kind_not_editable' => 'Le type d\'un texte juridique ne peut pas être modifié après sa création.',
+        'kind_invalid' => 'Le type de texte juridique n\'est pas valide.',
+        'requires_reacceptance_not_allowed' => 'La nouvelle acceptation ne peut être exigée que pour les conditions d\'utilisation, pas pour le consentement à l\'image.',
+        'not_draft' => 'Seule une version en brouillon peut être modifiée, supprimée ou publiée.',
+        'default_locale_missing' => 'Le titre et le texte doivent être rédigés dans la langue par défaut de l\'établissement (:locale) avant publication.',
+    ],
+
+    'export' => [
+        'q_not_allowed' => 'Le rapport de consentements n\'accepte pas la recherche libre (q).',
+    ],
+
     'errors' => [
+        'consent_rate_limited' => 'Vous avez atteint la limite de décisions d\'image ou de rapports de consentements. Réessayez dans environ :minutes minutes.',
         'revocation_rate_limited' => 'Vous avez atteint la limite de révocations ou de levées de révocation. Réessayez dans environ :minutes minutes.',
     ],
 
@@ -58,5 +83,10 @@ return [
         'boolean_invalid' => 'La valeur doit être vrai ou faux.',
         'reference_invalid' => 'L\'identifiant indiqué n\'est pas valide.',
         'filter_forbidden' => 'Vous n\'êtes pas autorisé à utiliser ce filtre.',
+        'level_invalid' => 'Le niveau de consentement n\'est pas valide.',
+        'decision_invalid' => 'La décision n\'est pas valide.',
+        'channel_invalid' => 'Le canal n\'est pas valide pour cet enregistrement.',
+        'state_invalid' => 'L\'état n\'est pas valide.',
+        'cursor_invalid' => 'Le curseur n\'est pas valide pour cette requête.',
     ],
 ];

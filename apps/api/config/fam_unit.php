@@ -11,6 +11,15 @@
  */
 return [
 
+    // 1.14-b (RN-FAM-UNIT-76, decisión del usuario del 2026-10-27): mismo patrón para registrar decisiones de imagen y pedir
+    // el informe de consentimientos. Por centro y usuario, un cubo por acción, contando todos los intentos.
+    'consent' => [
+        'rate_limit' => [
+            'decision' => ['attempts' => 60, 'decay_seconds' => 3600],
+            'export' => ['attempts' => 10, 'decay_seconds' => 3600],
+        ],
+    ],
+
     'revocation' => [
         'rate_limit' => [
             'attempts' => 30,

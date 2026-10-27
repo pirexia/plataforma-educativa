@@ -1,7 +1,7 @@
 <?php
 
-// Rutas de REQ-FAM-UNIT (paso 1.14-a), documentadas en apps/api/openapi/paths/fam-unit.yaml
-// (docs/modulos/REQ-FAM-UNIT/api.md §2.1 a §2.5).
+// Rutas de REQ-FAM-UNIT (pasos 1.14-a y 1.14-b), documentadas en apps/api/openapi/paths/fam-unit.yaml
+// (docs/modulos/REQ-FAM-UNIT/api.md §2.1 a §2.5, §2.7 y §2.8).
 // Requerido desde routes/api-v1.php, ya dentro del grupo
 // prefix('v1')->middleware(['resolve-tenant', 'resolve-locale', ...]).
 //
@@ -10,8 +10,8 @@
 // AR-07b, RMOD-009). `RequireAuthenticatedUser` va primero para que una
 // petición anónima sea 401 aunque el módulo no esté contratado; no se usa el
 // alias `auth` porque Laravel lo ordena antes de `resolve-tenant` (500 real).
-// Recursos de permiso: `familia` (unidades, tutores, alumnado), `vinculo_tutor` y `revocacion_tutor`
-// (permisos.md §2).
+// Recursos de permiso: `familia` (unidades, tutores, alumnado), `vinculo_tutor`, `revocacion_tutor`,
+// `consentimiento_imagen` y `texto_legal` (permisos.md §2).
 
 use App\Http\Middleware\RequireAuthenticatedUser;
 use App\Modules\FamUnit\Http\Controllers\FamilyUnitsController;
@@ -19,6 +19,10 @@ use App\Modules\FamUnit\Http\Controllers\FamilyUnitStudentsController;
 use App\Modules\FamUnit\Http\Controllers\GuardianLinkRevocationController;
 use App\Modules\FamUnit\Http\Controllers\GuardianLinksController;
 use App\Modules\FamUnit\Http\Controllers\GuardiansController;
+use App\Modules\FamUnit\Http\Controllers\ImageConsentDecisionsController;
+use App\Modules\FamUnit\Http\Controllers\ImageConsentsController;
+use App\Modules\FamUnit\Http\Controllers\ImageConsentTextsController;
+use App\Modules\FamUnit\Http\Controllers\TermsVersionsController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:fam_unit'])->group(function (): void {
@@ -48,4 +52,19 @@ Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:fam_unit'])-
     // api.md §2.5: revocación por custodia (revocar = crear, levantar = eliminar).
     Route::post('/guardian-links/{publicId}/revocation', [GuardianLinkRevocationController::class, 'store'])->middleware('permission:revocacion_tutor.crear')->name('fam-unit.guardian-links.revocation.store');
     Route::delete('/guardian-links/{publicId}/revocation', [GuardianLinkRevocationController::class, 'destroy'])->middleware('permission:revocacion_tutor.eliminar')->name('fam-unit.guardian-links.revocation.destroy');
+    // api.md §2.7: consentimiento de imagen (1.14-b). El estado vigente se calcula, no se guarda (ADR-066 §5.2).
+    // `/image-consents/exports` va antes que cualquier ruta con parámetro bajo `/image-consents`.
+    Route::post('/image-consents/exports', [ImageConsentsController::class, 'storeExport'])->middleware('permission:consentimiento_imagen.exportar')->name('fam-unit.image-consents.exports');
+    Route::get('/image-consents', [ImageConsentsController::class, 'index'])->middleware('permission:consentimiento_imagen.leer')->name('fam-unit.image-consents.index');
+    Route::get('/image-consent-decisions', [ImageConsentDecisionsController::class, 'index'])->middleware('permission:consentimiento_imagen.leer')->name('fam-unit.image-consent-decisions.index');
+    Route::post('/image-consent-decisions', [ImageConsentDecisionsController::class, 'store'])->middleware('permission:consentimiento_imagen.actualizar')->name('fam-unit.image-consent-decisions.store');
+    // RN-FAM-UNIT-75: el texto publicado de cada nivel; el ámbito no filtra (basta el permiso con cualquiera de sus ámbitos).
+    Route::get('/image-consent-texts', [ImageConsentTextsController::class, 'index'])->middleware('permission:consentimiento_imagen.leer')->name('fam-unit.image-consent-texts.index');
+    // api.md §2.8: versiones de los textos legales (permisos del recurso `texto_legal`); en 1.14-b solo los tipos de imagen.
+    Route::get('/terms-versions', [TermsVersionsController::class, 'index'])->middleware('permission:texto_legal.leer')->name('fam-unit.terms-versions.index');
+    Route::post('/terms-versions', [TermsVersionsController::class, 'store'])->middleware('permission:texto_legal.crear')->name('fam-unit.terms-versions.store');
+    Route::get('/terms-versions/{publicId}', [TermsVersionsController::class, 'show'])->middleware('permission:texto_legal.leer')->name('fam-unit.terms-versions.show');
+    Route::patch('/terms-versions/{publicId}', [TermsVersionsController::class, 'update'])->middleware('permission:texto_legal.actualizar')->name('fam-unit.terms-versions.update');
+    Route::delete('/terms-versions/{publicId}', [TermsVersionsController::class, 'destroy'])->middleware('permission:texto_legal.eliminar')->name('fam-unit.terms-versions.destroy');
+    Route::post('/terms-versions/{publicId}/publish', [TermsVersionsController::class, 'publish'])->middleware('permission:texto_legal.publicar')->name('fam-unit.terms-versions.publish');
 });

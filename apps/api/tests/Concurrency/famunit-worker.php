@@ -1,22 +1,27 @@
 <?php
 
 /**
- * Proceso hijo de `tests/Concurrency/FamUnitConcurrencyTest.php` (REQ-FAM-UNIT, 1.14-a; CA-FAM-UNIT-022, RN-FAM-UNIT-01,
- * RN-FAM-UNIT-11, RN-FAM-UNIT-30). No es un test: arranca la aplicación en su propio proceso y, por tanto, en su propia
+ * Proceso hijo de `tests/Concurrency/FamUnitConcurrencyTest.php` (REQ-FAM-UNIT, 1.14-a y 1.14-b; CA-FAM-UNIT-022,
+ * RN-FAM-UNIT-01, RN-FAM-UNIT-11, RN-FAM-UNIT-30, CA-FAM-UNIT-058, CA-FAM-UNIT-099). No es un test: arranca la aplicación en su propio proceso y, por tanto, en su propia
  * conexión a PostgreSQL, y ejecuta UNA operación llamando al mismo servicio que la API. Imprime una línea JSON.
  *
  * Uso: php famunit-worker.php <tenantId> <operación> [argumentos…]
  *   create-unit <code|->                                  (`-` = código generado por el sistema)
  *   create-guardian <userPublicId> <unitPublicId>
  *   create-link <guardianPublicId> <studentPersonPublicId> <emergency 0|1>
+ *   record-decision <userPublicId> <studentPersonPublicId> <level> <decision>   (1.14-b, CA-FAM-UNIT-058: el propio tutor, canal portal)
+ *   publish-text <termsVersionPublicId>                                          (1.14-b, CA-FAM-UNIT-099: publicar un borrador)
  */
 
 use App\Models\User;
 use App\Modules\FamUnit\Application\FamilyUnitService;
 use App\Modules\FamUnit\Application\GuardianLinkService;
 use App\Modules\FamUnit\Application\GuardianService;
+use App\Modules\FamUnit\Application\ImageConsentService;
+use App\Modules\FamUnit\Application\TermsVersionService;
 use App\Support\Api\ApiException;
 use App\Support\Audit\AuditActor;
+use App\Support\Authorization\PermissionResolver;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\QueryException;
@@ -70,6 +75,23 @@ $result = app(TenantContext::class)->runFor((int) $tenantId, function () use ($o
                     ], $actor());
 
                     return ['outcome' => 'ok', 'public_id' => $link->public_id];
+
+                case 'record-decision':
+                    $user = User::query()->where('public_id', $args[0])->firstOrFail();
+                    $decision = app(PermissionResolver::class)->decide($user, 'consentimiento_imagen.actualizar');
+                    $recorded = app(ImageConsentService::class)->record(
+                        ['student_person' => $args[1], 'level' => $args[2], 'decision' => $args[3], 'on_behalf_of' => null, 'channel' => null, 'consent_text_version' => app(TermsVersionService::class)->published(ImageConsentService::kindOf($args[2]))?->public_id],
+                        $user,
+                        $decision,
+                        ['ip' => '127.0.0.1', 'user_agent' => 'famunit-worker'],
+                    );
+
+                    return ['outcome' => 'ok', 'public_id' => $recorded['decision']->public_id, 'state' => $recorded['state']['state']];
+
+                case 'publish-text':
+                    $version = app(TermsVersionService::class)->publish($args[0], false);
+
+                    return ['outcome' => 'ok', 'public_id' => $version->public_id, 'status' => $version->status];
             }
 
             return ['outcome' => 'unknown_operation'];

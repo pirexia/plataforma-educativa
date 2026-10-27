@@ -1,6 +1,7 @@
-# REQ-FAM-UNIT (paso 1.14-a), docs/modulos/REQ-FAM-UNIT/api.md §2.1 a §2.5. Convenciones de ADR-038. Solo los
-# *endpoints* de `1.14-a`: unidades familiares, tutores, alumnado de la unidad, vínculos y revocación. Los de
-# consentimiento de imagen (`1.14-b`) y condiciones de uso (`1.14-c`) se documentan con su entrega.
+# REQ-FAM-UNIT (pasos 1.14-a y 1.14-b), docs/modulos/REQ-FAM-UNIT/api.md §2.1 a §2.5, §2.7 y §2.8. Convenciones de ADR-038.
+# `1.14-a`: unidades familiares, tutores, alumnado de la unidad, vínculos y revocación. `1.14-b`: consentimiento de
+# imagen (estado calculado, decisiones, informe, texto publicado) y la gestión de versiones de los textos legales de los
+# dos tipos de imagen. Las condiciones de uso, las aceptaciones y el muro (`1.14-c`) se documentan con su entrega.
 paths:
   /api/v1/family-units:
     get:
@@ -558,7 +559,13 @@ paths:
         Permiso `vinculo_tutor.actualizar`. Editables `relationship`, `is_legal_guardian`, `access_level`,
         `restricted_categories` e `is_emergency_contact`. `status`, `revocation`, `guardian` y `student_person` no se
         editan: `422 fam_unit.link.not_editable` (revocar solo se hace por su recurso). Marcar como contacto de
-        emergencia un vínculo revocado es `422 fam_unit.link.emergency_contact_revoked` (RN-FAM-UNIT-35).
+        emergencia un vínculo revocado es `422 fam_unit.link.emergency_contact_revoked` (RN-FAM-UNIT-35). **La
+        representación legal solo se verifica en la transición `false → true`** (RN-FAM-UNIT-74, OPEN-FAM-UNIT-24):
+        `legal_guardian_verified_at` y `legal_guardian_verified_by` se fijan con el instante y el usuario de la petición
+        solo cuando `is_legal_guardian` pasa de `false` a `true` (o el vínculo se crea con `true`); un `PATCH` que reenvía
+        `is_legal_guardian = true` sobre un vínculo que ya lo tiene **no** los cambia, ni deja cambio de esos atributos
+        en `audit_logs`. Pasar a `false` los vacía. Desmarcar y volver a marcar es una reverificación explícita y deja
+        sin efecto las decisiones de imagen anteriores del tutor (RN-FAM-UNIT-72).
       tags: ['FamUnit / Vínculos']
       security: [{ SessionCookie: [] }]
       requestBody:
@@ -663,3 +670,427 @@ paths:
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409': { $ref: '../components.yaml#/components/responses/Conflict' }
         '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+
+  # ─── Consentimiento de imagen y textos legales (paso 1.14-b, api.md §2.7 y §2.8) ───
+
+  /api/v1/image-consents:
+    get:
+      operationId: listImageConsents
+      summary: Estado vigente del consentimiento de imagen de los alumnos
+      description: >
+        Permiso `consentimiento_imagen.leer`, ámbito `todos` o `unidad_familiar`. Una fila por alumno **vivo** de una
+        unidad y nivel, con el estado **calculado** en cada consulta (ADR-066 §5.2, RN-FAM-UNIT-45): no hay tabla de
+        estado. Parte de los alumnos de las unidades, así que `state=pendiente` incluye a los que nunca han decidido
+        (`last_decision_at` nulo; CA-FAM-UNIT-095). Con `unidad_familiar`, solo los alumnos que el sujeto alcanza por un
+        vínculo activo; filtrar por un alumno o una unidad que no alcanza devuelve vacío, no error. Paginación por
+        página (defecto 25, máximo 100); orden por `last_decision_at` (defecto, ascendente con los nulos primero) o
+        `state`, desempate por alumno y nivel.
+      tags: ['FamUnit / Consentimiento de imagen']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: family_unit
+          in: query
+          description: '`public_id` de unidad; varios separados por comas.'
+          style: form
+          explode: false
+          schema: { type: array, items: { $ref: '../components.yaml#/components/schemas/PublicId' } }
+        - name: student_person
+          in: query
+          description: '`public_id` de la persona del alumno; varios separados por comas.'
+          style: form
+          explode: false
+          schema: { type: array, items: { $ref: '../components.yaml#/components/schemas/PublicId' } }
+        - name: level
+          in: query
+          style: form
+          explode: false
+          schema: { type: array, items: { $ref: '../components.yaml#/components/schemas/ImageConsentLevel' } }
+        - name: state
+          in: query
+          style: form
+          explode: false
+          schema: { type: array, items: { $ref: '../components.yaml#/components/schemas/ImageConsentState' } }
+        - { $ref: '../components.yaml#/components/parameters/ImageConsentSortParam' }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de estados
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/ImageConsent' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/image-consents/exports:
+    post:
+      operationId: exportImageConsents
+      summary: Solicita el informe de consentimientos de imagen (CSV en cola)
+      description: >
+        Permiso `consentimiento_imagen.exportar` (solo ámbito `todos`). Genera en cola (INV-012) un CSV con el esquema
+        cerrado de api.md §4 (`family_unit_code`, `student_person_public_id`, `student_display_name`, `level`, `state`,
+        `last_decision_at`), una fila por alumno y nivel, sobre la primitiva `data_exports` con `kind = image_consents`.
+        Paridad de filtros con `GET /image-consents` (`family_unit`, `student_person`, `level`, `state`; listas JSON o
+        valores separados por comas), sin paginación ni orden. **Sin `q`**: `422 fam_unit.export.q_not_allowed`
+        (ADR-054 §9). La solicitud queda auditada como `exported`. Límite por centro y usuario (10 por hora por defecto, RN-FAM-UNIT-76): superado, `429` con `Retry-After`. El estado y la descarga, en `GET /data-exports/{publicId}`.
+      tags: ['FamUnit / Consentimiento de imagen']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                family_unit: { type: array, items: { $ref: '../components.yaml#/components/schemas/PublicId' } }
+                student_person: { type: array, items: { $ref: '../components.yaml#/components/schemas/PublicId' } }
+                level: { type: array, items: { $ref: '../components.yaml#/components/schemas/ImageConsentLevel' } }
+                state: { type: array, items: { $ref: '../components.yaml#/components/schemas/ImageConsentState' } }
+      responses:
+        '202':
+          description: Solicitud aceptada, generación en cola
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [public_id, status]
+                properties:
+                  public_id: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                  status: { type: string, enum: [pendiente, generando, completada, fallida] }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/image-consent-decisions:
+    get:
+      operationId: listImageConsentDecisions
+      summary: Histórico de decisiones de imagen de un alumno
+      description: >
+        Permiso `consentimiento_imagen.leer`, ámbito `todos` o `unidad_familiar`. Exige `student_person`. Un alumno
+        inexistente, de otro centro o que el sujeto con ámbito `unidad_familiar` no alcanza es `404`. Con
+        `unidad_familiar` **no** aparecen las decisiones de tutores cuyo vínculo con ese alumno está revocado, ni la
+        paginación las delata (RN-FAM-UNIT-71). Paginación por cursor opaco y cifrado (ADR-038 §4.4) sobre
+        `(occurred_at DESC, id DESC)`; `limit` de 1 a 200 (defecto 50). El cursor de otra consulta es `422`.
+      tags: ['FamUnit / Consentimiento de imagen']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: student_person
+          in: query
+          required: true
+          schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+        - name: level
+          in: query
+          schema: { $ref: '../components.yaml#/components/schemas/ImageConsentLevel' }
+        - { $ref: '../components.yaml#/components/parameters/CursorParam' }
+        - { $ref: '../components.yaml#/components/parameters/LimitParam' }
+      responses:
+        '200':
+          description: Página del histórico, la más reciente primero
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/ImageConsentDecision' }
+                  meta: { $ref: '../components.yaml#/components/schemas/CursorMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createImageConsentDecision
+      summary: Registra una decisión de imagen (inmutable)
+      description: >
+        Permiso `consentimiento_imagen.actualizar`, ámbito `todos` o `unidad_familiar`. Revocar el consentimiento es
+        registrar `no_autorizo` (efecto inmediato). Dos modos: **el propio tutor** (vínculo activo propio con
+        representación legal, canal `portal`; `on_behalf_of` se omite o es su propio tutor) y **el centro en nombre de
+        un tutor** (`on_behalf_of` obligatorio, canal `presencial`, ámbito `todos`; el tutor debe estar entre quienes
+        deciden —vínculo vivo `activo` o `revocado` con representación legal—; uno `revocado` solo si el sujeto tiene
+        además `revocacion_tutor.leer`, y si no se responde igual que con un tutor no vinculado).
+        **Versión del texto (RN-FAM-UNIT-69, decisión del usuario del 2026-10-27)**: por `portal`, con `autorizo`, el
+        cliente **envía** en `consent_text_version` la versión que el tutor vio (la de `GET /image-consent-texts`); si no es
+        ya la `publicada`, `409 fam_unit.image_consent.text_version_outdated` y no se escribe nada; ausente, `422
+        validation.required`; de otro nivel, `borrador` o inexistente, `422 text_version_invalid`. Con `no_autorizo` es
+        opcional (negarse no se bloquea por un texto desfasado): sin ella se registra la publicada, con una `retirada` o
+        `publicada` del nivel, esa. Por `presencial`, opcional: una `publicada` o `retirada` del tipo del nivel; sin ella, la
+        `publicada`. `autorizo` sin texto publicado: `422 text_not_published`.
+        **Idempotencia (RN-FAM-UNIT-77)**: una decisión idéntica a la vigente del mismo tutor, alumno, nivel, decisión y
+        versión del texto responde `200` con la decisión existente y el estado actual, sin insertar fila ni auditar; en
+        cualquier otro caso `201`. **Límite (RN-FAM-UNIT-76)**: por centro y usuario (60 por hora por defecto,
+        `config/fam_unit.php`), contando todos los intentos; superado, `429` con `Retry-After`. Errores: `404`
+        (alumno no alcanzado; un tutor con el vínculo revocado no alcanza al alumno), `403` (un tutor con ámbito
+        `unidad_familiar` no actúa por otro), `409` `text_version_outdated`, `422`
+        `fam_unit.image_consent.{not_legal_guardian, guardian_required, guardian_not_linked, text_not_published,
+        text_version_invalid}`, `fam_unit.validation.{student_not_found, level_invalid, decision_invalid, channel_invalid}`.
+      tags: ['FamUnit / Consentimiento de imagen']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [student_person, level, decision]
+              properties:
+                student_person: { $ref: '../components.yaml#/components/schemas/PublicId' }
+                level: { $ref: '../components.yaml#/components/schemas/ImageConsentLevel' }
+                decision: { $ref: '../components.yaml#/components/schemas/ImageConsentDecisionValue' }
+                on_behalf_of:
+                  description: '`public_id` del tutor que decidió. Obligatorio para el centro; el propio tutor lo omite.'
+                  oneOf:
+                    - { $ref: '../components.yaml#/components/schemas/PublicId' }
+                    - { type: 'null' }
+                channel:
+                  description: 'Opcional: si viene, debe corresponder al modo (`portal` el propio tutor, `presencial` en nombre de un tutor).'
+                  oneOf:
+                    - { $ref: '../components.yaml#/components/schemas/ImageConsentChannel' }
+                    - { type: 'null' }
+                consent_text_version:
+                  description: 'Por `portal`, la versión que el tutor vio (obligatoria con `autorizo`); por `presencial`, la firmada en papel (opcional).'
+                  oneOf:
+                    - { $ref: '../components.yaml#/components/schemas/PublicId' }
+                    - { type: 'null' }
+      responses:
+        '200':
+          description: 'Decisión idéntica a la vigente (RN-FAM-UNIT-77): se devuelve la existente, sin fila nueva ni auditoría'
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/ImageConsentDecisionRecorded' }
+        '201':
+          description: Decisión registrada, con el estado resultante calculado tras la escritura
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/ImageConsentDecisionRecorded' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso o actuando por otro con ámbito `unidad_familiar` (`403`), o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+        '429': { $ref: '../components.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/image-consent-texts:
+    get:
+      operationId: listImageConsentTexts
+      summary: Texto publicado del consentimiento de cada nivel
+      description: >
+        Permiso `consentimiento_imagen.leer` con **cualquiera** de sus dos ámbitos (RN-FAM-UNIT-75, OPEN-FAM-UNIT-23). El
+        ámbito **no filtra** la respuesta: el texto es del centro, igual para todos y sin datos de ningún alumno ni
+        tutor, así que también lo lee un tutor sin vínculos activos. Devuelve, sin paginar, una entrada por nivel
+        (`web`, `redes_sociales`) con la versión **`publicada`** de su tipo, título y cuerpo resueltos en el idioma de la
+        petición con la caída de ADR-062 y `locale` con el idioma en que vienen de verdad. Un nivel sin versión publicada
+        aparece con todos los campos a `null`. Nunca una `borrador` ni una `retirada` (eso es `GET /terms-versions` con
+        `texto_legal.leer`). Solo lectura, sin auditoría de lectura.
+      tags: ['FamUnit / Consentimiento de imagen']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: level
+          in: query
+          style: form
+          explode: false
+          schema: { type: array, items: { $ref: '../components.yaml#/components/schemas/ImageConsentLevel' } }
+      responses:
+        '200':
+          description: Una entrada por nivel
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/ImageConsentText' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/terms-versions:
+    get:
+      operationId: listTermsVersions
+      summary: Lista las versiones de los textos legales
+      description: >
+        Permiso `texto_legal.leer` (solo ámbito `todos`). Filtros `kind` y `status` (varios valores separados por comas).
+        Orden por `version_number` (defecto descendente), desempate por `id`. En `1.14-b` solo existen versiones de los
+        dos tipos de imagen.
+      tags: ['FamUnit / Textos legales']
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - name: kind
+          in: query
+          style: form
+          explode: false
+          schema: { type: array, items: { $ref: '../components.yaml#/components/schemas/TermsVersionKind' } }
+        - name: status
+          in: query
+          style: form
+          explode: false
+          schema: { type: array, items: { $ref: '../components.yaml#/components/schemas/TermsVersionStatus' } }
+        - { $ref: '../components.yaml#/components/parameters/TermsVersionSortParam' }
+        - { $ref: '../components.yaml#/components/parameters/PageParam' }
+        - { $ref: '../components.yaml#/components/parameters/PerPageParam' }
+      responses:
+        '200':
+          description: Página de resultados
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '../components.yaml#/components/schemas/TermsVersion' }
+                  meta: { $ref: '../components.yaml#/components/schemas/PageMeta' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    post:
+      operationId: createTermsVersion
+      summary: Crea una versión de un texto legal en borrador
+      description: >
+        Permiso `texto_legal.crear`. El número de versión es correlativo por centro y tipo. `title_translations` y
+        `body_translations` son contenido del centro (ADR-062: el idioma por defecto del centro es obligatorio y solo se
+        admiten idiomas activos; errores `translations.*`). `kind` ausente: `422 fam_unit.validation.required`; fuera del
+        vocabulario: `422 fam_unit.terms.kind_invalid`; `condiciones_uso`: `422 fam_unit.terms.kind_not_available` hasta
+        `1.14-c` (RN-FAM-UNIT-73).
+      tags: ['FamUnit / Textos legales']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, title_translations, body_translations]
+              properties:
+                kind: { $ref: '../components.yaml#/components/schemas/TermsVersionKind' }
+                title_translations: { type: object, additionalProperties: { type: string, minLength: 1, maxLength: 200 } }
+                body_translations: { type: object, additionalProperties: { type: string, minLength: 1, maxLength: 20000 } }
+      responses:
+        '201':
+          description: Creada
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/TermsVersion' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+
+  /api/v1/terms-versions/{publicId}:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    get:
+      operationId: getTermsVersion
+      summary: Detalle de una versión de un texto legal
+      description: Permiso `texto_legal.leer`. Una versión de otro centro es `404`.
+      tags: ['FamUnit / Textos legales']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: El recurso
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/TermsVersion' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: updateTermsVersion
+      summary: Edita un borrador
+      description: >
+        Permiso `texto_legal.actualizar`. Solo un `borrador` (`409 fam_unit.terms.not_draft`, RN-FAM-UNIT-73). Las
+        traducciones se fusionan por idioma (ADR-038 §9.2 regla 4): una clave con cadena cambia ese idioma, `null` lo
+        quita. `kind` es inmutable: `422 fam_unit.terms.kind_not_editable` (RN-FAM-UNIT-73), también con el mismo valor.
+      tags: ['FamUnit / Textos legales']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title_translations: { type: object, additionalProperties: { type: string, nullable: true } }
+                body_translations: { type: object, additionalProperties: { type: string, nullable: true } }
+      responses:
+        '200':
+          description: Actualizada
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/TermsVersion' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
+    delete:
+      operationId: deleteTermsVersion
+      summary: Borra (lógicamente) un borrador
+      description: >
+        Permiso `texto_legal.eliminar`. Solo un `borrador`; una `publicada` o `retirada` es evidencia y no se borra
+        (`409 fam_unit.terms.not_draft`). El número de versión no se reutiliza.
+      tags: ['FamUnit / Textos legales']
+      security: [{ SessionCookie: [] }]
+      responses:
+        '204': { description: Borrado }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+
+  /api/v1/terms-versions/{publicId}/publish:
+    parameters:
+      - name: publicId
+        in: path
+        required: true
+        schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
+    post:
+      operationId: publishTermsVersion
+      summary: Publica un borrador
+      description: >
+        Permiso `texto_legal.publicar`. La versión `publicada` anterior **del mismo tipo** pasa a `retirada` en la misma
+        transacción; las de otros tipos no cambian (RN-FAM-UNIT-60, -73). Publicar un texto de imagen **no altera ningún
+        estado** de consentimiento (RN-FAM-UNIT-70). Exige el idioma por defecto del centro en título y cuerpo (`422
+        fam_unit.terms.default_locale_missing`). `requires_reacceptance` solo tiene sentido en `condiciones_uso`: en un
+        tipo de imagen, `true` es `422 fam_unit.terms.requires_reacceptance_not_allowed`. Solo un `borrador`
+        (`409 fam_unit.terms.not_draft`).
+      tags: ['FamUnit / Textos legales']
+      security: [{ SessionCookie: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                requires_reacceptance: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Publicada
+          content:
+            application/json:
+              schema: { $ref: '../components.yaml#/components/schemas/TermsVersion' }
+        '401': { $ref: '../components.yaml#/components/responses/Unauthenticated' }
+        '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
+        '404': { $ref: '../components.yaml#/components/responses/NotFound' }
+        '409': { $ref: '../components.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../components.yaml#/components/responses/ValidationError' }

@@ -8,6 +8,7 @@ use App\Modules\Core\Application\ProvisionTenantDefaults;
 use App\Modules\Core\Domain\AuditoriaPropiosScopeResolver;
 use App\Modules\Core\Domain\AuditQuery;
 use App\Modules\Core\Domain\BulkUserImporter;
+use App\Modules\Core\Domain\ExportJobLifecycle;
 use App\Modules\Core\Domain\ExportRequestService;
 use App\Modules\Core\Domain\FeatureFlagAdministration;
 use App\Modules\Core\Domain\InvitationRedeemer;
@@ -56,6 +57,8 @@ class CoreServiceProvider extends ServiceProvider implements DeclaresModuleRegis
         $this->app->bind(FeatureFlagCatalogInvalidator::class, FeatureFlagCatalogCache::class);
         $this->app->bind(AuditQuery::class, EloquentAuditQuery::class);
         $this->app->bind(ExportRequestService::class, EloquentExportRequestService::class);
+        // REQ-FAM-UNIT/api.md §4 (1.14-b): el trabajo en cola de un módulo con `kind` propio recorre los estados de la solicitud.
+        $this->app->bind(ExportJobLifecycle::class, EloquentExportJobLifecycle::class);
         $this->app->bind(BulkUserImporter::class, EloquentBulkUserImporter::class);
         $this->app->bind(UserDirectory::class, EloquentUserDirectory::class);
         // REQ-FAM-UNIT `OPEN-FAM-UNIT-03` (1.14-a): lectura de personas y resolución usuario ⇄ persona.

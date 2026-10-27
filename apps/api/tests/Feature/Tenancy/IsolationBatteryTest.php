@@ -18,6 +18,7 @@ use App\Modules\Core\Domain\Models\FeatureFlag;
 use App\Modules\Core\Domain\Models\FeatureFlagRule;
 use App\Modules\Curso\Domain\Models\AcademicYearReopening;
 use App\Modules\Curso\Domain\Models\YearRolloverItem;
+use App\Modules\FamUnit\Domain\Models\ImageConsentDecision;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use App\Support\Tenancy\TenantMigration;
@@ -178,6 +179,10 @@ test('los modelos Eloquent de app/Modules extienden TenantModel', function (): v
         // append-only de qué filas creó cada copia (sin updated_by ni deleted_at, que
         // TenantModel escribe). Usa BelongsToTenant: RLS y el scope de tenant aplican igual.
         YearRolloverItem::class,
+        // REQ-FAM-UNIT/datos.md §1.6 (paso 1.14-b, RN-FAM-UNIT-42, ADR-066 §5.8): mismo motivo — histórico
+        // append-only de las decisiones de imagen (sin updated_by ni deleted_at, que TenantModel escribe).
+        // Usa BelongsToTenant: RLS y el scope de tenant aplican igual.
+        ImageConsentDecision::class,
         // REQ-BO (1.6), RN-BO-01, datos.md §1: las nueve tablas de
         // plataforma de REQ-BO con modelo Eloquent no son de tenant en
         // absoluto — a diferencia de LoginAttempt/MfaReset (que SÍ son

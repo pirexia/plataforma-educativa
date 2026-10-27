@@ -246,8 +246,11 @@ final class ProvisionTenantDefaults implements TenantProvisioner
      * (`RPERM-011`). **Revocar y levantar** (`revocacion_tutor.crear`/`.eliminar`) solo `administrador_centro`: es la
      * acción con consecuencias legales del módulo. Constante propia, como `ACADEMIC_YEAR_ROLLOVER_PERMISSION_GRANTS`:
      * la lee también `GrantFamUnitPermissionsCommand` (centros ya existentes), una sola lista por los dos caminos.
-     * Los de `consentimiento_imagen` y `condiciones_uso` entran con `1.14-b` y `1.14-c`. Ninguna regla de código
-     * compara estos códigos de rol (`RN-PERM-46`).
+     * Con `1.14-b` (`OPEN-FAM-UNIT-22`) se suman `consentimiento_imagen` (leer, actualizar y exportar al administrador y a
+     * secretaría; leer a dirección) y `texto_legal` (todo al administrador, que es el único que redacta y publica
+     * textos legales; **solo `leer`** a secretaría, para listar la versión `retirada` que firmó una familia, `RN-FAM-UNIT-69`).
+     * Los de `aceptacion_condiciones` entran con `1.14-c`. Ninguna regla de código compara estos códigos de rol
+     * (`RN-PERM-46`).
      *
      * @var array<string, list<string>>
      */
@@ -256,25 +259,29 @@ final class ProvisionTenantDefaults implements TenantProvisioner
             'familia.leer', 'familia.crear', 'familia.actualizar', 'familia.eliminar',
             'vinculo_tutor.leer', 'vinculo_tutor.crear', 'vinculo_tutor.actualizar', 'vinculo_tutor.eliminar',
             'revocacion_tutor.leer', 'revocacion_tutor.crear', 'revocacion_tutor.eliminar',
+            'consentimiento_imagen.leer', 'consentimiento_imagen.actualizar', 'consentimiento_imagen.exportar',
+            'texto_legal.leer', 'texto_legal.crear', 'texto_legal.actualizar', 'texto_legal.eliminar', 'texto_legal.publicar',
         ],
         'secretaria' => [
             'familia.leer', 'familia.crear', 'familia.actualizar', 'familia.eliminar',
             'vinculo_tutor.leer', 'vinculo_tutor.crear', 'vinculo_tutor.actualizar', 'vinculo_tutor.eliminar',
             'revocacion_tutor.leer',
+            'consentimiento_imagen.leer', 'consentimiento_imagen.actualizar', 'consentimiento_imagen.exportar',
+            'texto_legal.leer',
         ],
-        'direccion' => ['familia.leer', 'vinculo_tutor.leer', 'revocacion_tutor.leer'],
+        'direccion' => ['familia.leer', 'vinculo_tutor.leer', 'revocacion_tutor.leer', 'consentimiento_imagen.leer'],
         'administrativo' => ['familia.leer', 'vinculo_tutor.leer'],
     ];
 
     /**
-     * REQ-FAM-UNIT/permisos.md §4 (1.14-a): las concesiones de ámbito `unidad_familiar` —`tutor_legal` lee su familia
-     * y los vínculos de sus alumnos—. Lista aparte de `FAMILY_PERMISSION_GRANTS` (ámbito `todos`); la lee también
+     * REQ-FAM-UNIT/permisos.md §4 (1.14-a, 1.14-b): las concesiones de ámbito `unidad_familiar` —`tutor_legal` lee su
+     * familia y los vínculos de sus alumnos y, con `1.14-b`, lee y decide el consentimiento de imagen de sus alumnos—. Lista aparte de `FAMILY_PERMISSION_GRANTS` (ámbito `todos`); la lee también
      * `GrantFamUnitPermissionsCommand`. El resolutor del ámbito lo registra `fam_unit` (`ADR-044 §3.4`).
      *
      * @var array<string, list<string>>
      */
     public const FAMILY_PERMISSION_UNIDAD_FAMILIAR_GRANTS = [
-        'tutor_legal' => ['familia.leer', 'vinculo_tutor.leer'],
+        'tutor_legal' => ['familia.leer', 'vinculo_tutor.leer', 'consentimiento_imagen.leer', 'consentimiento_imagen.actualizar'],
     ];
 
     /**

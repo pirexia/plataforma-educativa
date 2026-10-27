@@ -26,9 +26,13 @@ final class FamilyRefs
     /** `revocacion_tutor.leer` del sujeto de la petición: si ve el campo `revocation` de los vínculos (`api.md §1.4`). */
     private bool $withRevocation = false;
 
+    /** @var array<int, string> id interno de tutor => `public_id` */
+    private array $guardians = [];
+
     public function __construct(
         private readonly PersonDirectory $people,
         private readonly UserDirectory $userDirectory,
+        private readonly GuardianService $guardianService,
     ) {}
 
     /**
@@ -67,6 +71,27 @@ final class FamilyRefs
         foreach ($this->userDirectory->refsByIds($missing) as $id => $ref) {
             $this->actors[$id] = $ref->publicId;
         }
+    }
+
+    /**
+     * `public_id` de los tutores que decidieron (también los dados de baja: la decisión se conserva como evidencia).
+     *
+     * @param  list<int>  $guardianIds
+     */
+    public function preloadGuardians(array $guardianIds): void
+    {
+        $missing = array_values(array_diff(array_unique($guardianIds), array_keys($this->guardians)));
+
+        foreach ($this->guardianService->publicIdsByIds($missing) as $id => $publicId) {
+            $this->guardians[$id] = $publicId;
+        }
+    }
+
+    public function guardianPublicId(int $guardianId): ?string
+    {
+        $this->preloadGuardians([$guardianId]);
+
+        return $this->guardians[$guardianId] ?? null;
     }
 
     public function actorPublicId(int $userId): ?string

@@ -1,6 +1,6 @@
 <?php
 
-// REQ-FAM-UNIT (paso 1.14-a), docs/modulos/REQ-FAM-UNIT/api.md §7. INV-009: ningún literal visible vive fuera de aquí.
+// REQ-FAM-UNIT (pasos 1.14-a y 1.14-b), docs/modulos/REQ-FAM-UNIT/api.md §7. INV-009: ningún literal visible vive fuera de aquí.
 // El `code` de cada error de api.md §7 es a la vez la clave de su mensaje. Los enumerados (`relationship`,
 // `access_level`, `status`...) viajan como código técnico (`ADR-038 §3.2`) y la SPA traduce su etiqueta.
 
@@ -10,6 +10,8 @@ return [
             'familia' => 'Family units, guardians and students',
             'vinculo_tutor' => 'Guardian-student links',
             'revocacion_tutor' => 'Revocation of a guardian\'s access',
+            'consentimiento_imagen' => 'Image use consent',
+            'texto_legal' => 'School legal texts',
         ],
     ],
 
@@ -40,7 +42,30 @@ return [
         'revoked_not_deletable' => 'A revoked link cannot be deleted: lift the revocation first.',
     ],
 
+    'image_consent' => [
+        'text_version_outdated' => 'The text version that was shown is no longer the current one: read the published text again before authorising.',
+        'not_legal_guardian' => 'Only a guardian with legal representation of the student can decide the image consent.',
+        'guardian_required' => 'State the guardian who decided (on_behalf_of) when recording their decision on behalf of the family.',
+        'guardian_not_linked' => 'The indicated guardian is not linked to that student.',
+        'text_not_published' => 'The school has not published the consent text for this level: authorization is not possible without a text.',
+        'text_version_invalid' => 'The indicated text version is not valid for this level or channel.',
+    ],
+
+    'terms' => [
+        'kind_not_available' => 'This type of legal text is not available yet.',
+        'kind_not_editable' => 'The type of a legal text cannot be changed once created.',
+        'kind_invalid' => 'The legal text type is not valid.',
+        'requires_reacceptance_not_allowed' => 'Re-acceptance can only be required for the terms of use, not for the image consent.',
+        'not_draft' => 'Only a draft version can be edited, deleted or published.',
+        'default_locale_missing' => 'The title and the text must be written in the school\'s default language (:locale) before publishing.',
+    ],
+
+    'export' => [
+        'q_not_allowed' => 'The consent report does not accept free-text search (q).',
+    ],
+
     'errors' => [
+        'consent_rate_limited' => 'You have reached the limit of image decisions or consent reports. Try again in about :minutes minutes.',
         'revocation_rate_limited' => 'You have reached the limit of revocations or revocation lifts. Try again in about :minutes minutes.',
     ],
 
@@ -58,5 +83,10 @@ return [
         'boolean_invalid' => 'The value must be true or false.',
         'reference_invalid' => 'The specified identifier is not valid.',
         'filter_forbidden' => 'You do not have permission to use this filter.',
+        'level_invalid' => 'The consent level is not valid.',
+        'decision_invalid' => 'The decision is not valid.',
+        'channel_invalid' => 'The channel is not valid for this record.',
+        'state_invalid' => 'The state is not valid.',
+        'cursor_invalid' => 'The cursor is not valid for this query.',
     ],
 ];

@@ -2156,6 +2156,175 @@ components:
               type: boolean
               description: '`true` si era el último vínculo activo del tutor principal con alumnos de su unidad y la unidad queda sin principal.'
 
+    ImageConsentLevel:
+      type: string
+      description: >
+        Nivel del consentimiento de imagen (REQ-FAM-UNIT-004, RN-FAM-UNIT-67): `web` (portal web del centro) y
+        `redes_sociales` (redes, *newsletters* y prensa). Dos niveles por decisión del usuario (2026-10-27): no hay
+        consentimiento por red social. Enumerado **extensible**.
+      enum: [web, redes_sociales]
+      x-extensible-enum: true
+
+    ImageConsentState:
+      type: string
+      description: >
+        Estado vigente **calculado** de un alumno en un nivel (ADR-066 §5.2, RN-FAM-UNIT-45): `no_autorizo` si
+        alguno de quienes deciden lo tiene como decisión vigente; `autorizo` si hay al menos uno y todos `autorizo`;
+        `pendiente` en cualquier otro caso. `pendiente` y `no_autorizo` bloquean la publicación (INV-014). Enumerado
+        **extensible**.
+      enum: [autorizo, no_autorizo, pendiente]
+      x-extensible-enum: true
+
+    ImageConsentDecisionValue:
+      type: string
+      description: >
+        Decisión que se registra. `pendiente` no se registra: es la ausencia de decisión vigente que cuente
+        (RN-FAM-UNIT-67). Enumerado **extensible**.
+      enum: [autorizo, no_autorizo]
+      x-extensible-enum: true
+
+    ImageConsentChannel:
+      type: string
+      description: >
+        Canal de la decisión: `portal` (el propio tutor) o `presencial` (el centro en nombre de un tutor, papel
+        entregado en secretaría). Enumerado **extensible**.
+      enum: [portal, presencial]
+      x-extensible-enum: true
+
+    TermsVersionKind:
+      type: string
+      description: >
+        Tipo de texto legal versionado (ADR-066 §5.5, RN-FAM-UNIT-73). En `1.14-b` solo se gestionan los dos de
+        imagen; `condiciones_uso` es de `1.14-c` y se rechaza con `422 fam_unit.terms.kind_not_available`. Enumerado
+        **extensible**.
+      enum: [condiciones_uso, consentimiento_imagen_web, consentimiento_imagen_redes]
+      x-extensible-enum: true
+
+    TermsVersionStatus:
+      type: string
+      description: 'Ciclo de una versión: `borrador` → `publicada` → `retirada`. Como mucho una `publicada` por centro y tipo (RN-FAM-UNIT-60). Enumerado **extensible**.'
+      enum: [borrador, publicada, retirada]
+      x-extensible-enum: true
+
+    TermsVersionRef:
+      type: object
+      description: Referencia a la versión del texto con la que se tomó una decisión (REQ-FAM-UNIT/api.md §1.6).
+      required: [public_id, kind, version_number]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        kind: { $ref: '#/components/schemas/TermsVersionKind' }
+        version_number: { type: integer, minimum: 1 }
+
+    ImageConsent:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §1.5. Estado vigente de un alumno en un nivel. **Representación calculada** (ADR-066
+        §5.2): no hay tabla ni `public_id`; se identifica por `(student_person, level)`. `last_decision_at` es el
+        `occurred_at` más reciente entre las decisiones que **cuentan** para el estado (RN-FAM-UNIT-45, -72), o `null`;
+        con ámbito `unidad_familiar` nunca refleja la decisión de un tutor revocado (RN-FAM-UNIT-71). `family_unit` es
+        `null` si el alumno no pertenece a ninguna unidad viva.
+      required: [student_person, display_name, family_unit, level, state, last_decision_at]
+      properties:
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        display_name: { type: string }
+        family_unit:
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        level: { $ref: '#/components/schemas/ImageConsentLevel' }
+        state: { $ref: '#/components/schemas/ImageConsentState' }
+        last_decision_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+
+    ImageConsentDecision:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §1.6. Una decisión, **inmutable** (RN-FAM-UNIT-42): no hay `PATCH` ni `DELETE`. No se
+        exponen `ip_address` ni `user_agent` (se conservan como evidencia). `consent_text_version` es `null` solo en un
+        `no_autorizo` sin texto publicado (RN-FAM-UNIT-68). `shown_locale` es el idioma realmente mostrado del texto por
+        el canal `portal` (OPEN-FAM-UNIT-25); `null` por `presencial` (RN-FAM-UNIT-43).
+      required: [public_id, student_person, level, decision, guardian, recorded_by, channel, consent_text_version, shown_locale, occurred_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        student_person: { $ref: '#/components/schemas/PublicId' }
+        level: { $ref: '#/components/schemas/ImageConsentLevel' }
+        decision: { $ref: '#/components/schemas/ImageConsentDecisionValue' }
+        guardian: { allOf: [{ $ref: '#/components/schemas/PublicId' }], description: '`public_id` del tutor que decidió.' }
+        recorded_by:
+          description: '`public_id` del usuario que la registró (el propio tutor o personal del centro).'
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        channel: { $ref: '#/components/schemas/ImageConsentChannel' }
+        consent_text_version:
+          oneOf:
+            - { $ref: '#/components/schemas/TermsVersionRef' }
+            - { type: 'null' }
+        shown_locale:
+          oneOf:
+            - { $ref: '#/components/schemas/Locale' }
+            - { type: 'null' }
+        occurred_at: { type: string, format: date-time }
+
+    ImageConsentDecisionRecorded:
+      type: object
+      description: 'Respuesta de `POST /image-consent-decisions`: la decisión y el estado resultante, calculado tras la escritura.'
+      required: [decision, state]
+      properties:
+        decision: { $ref: '#/components/schemas/ImageConsentDecision' }
+        state: { $ref: '#/components/schemas/ImageConsent' }
+
+    ImageConsentText:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §1.9 (RN-FAM-UNIT-75). Texto **publicado** del consentimiento de un nivel, en el idioma de la
+        petición con la caída de ADR-062. `locale` es el idioma en que vienen de verdad título y cuerpo (el mismo que se
+        registra en `shown_locale`). Sin versión `publicada` del nivel, todos los campos salvo `level` son `null`. Nunca
+        un `borrador` ni una `retirada`, y sin `title_translations`/`body_translations` (eso es la gestión de `texto_legal`).
+      required: [level, terms_version, title, body, locale, published_at]
+      properties:
+        level: { $ref: '#/components/schemas/ImageConsentLevel' }
+        terms_version:
+          oneOf:
+            - { $ref: '#/components/schemas/TermsVersionRef' }
+            - { type: 'null' }
+        title: { type: string, nullable: true }
+        body: { type: string, nullable: true }
+        locale:
+          oneOf:
+            - { $ref: '#/components/schemas/Locale' }
+            - { type: 'null' }
+        published_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+
+    TermsVersion:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §1.7. Versión de un texto legal del centro. `title` y `body` los resuelve el servidor en el
+        idioma de la petición (ADR-062 §5.4, solo lectura); las traducciones completas son las editables. `kind` es
+        inmutable tras la creación. `requires_reacceptance` solo puede ser `true` en `condiciones_uso` (`1.14-c`).
+      required: [public_id, kind, version_number, title, title_translations, body, body_translations, status, requires_reacceptance, published_at, created_at, updated_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        kind: { $ref: '#/components/schemas/TermsVersionKind' }
+        version_number: { type: integer, minimum: 1, description: 'Correlativo por centro y tipo; no se reutiliza.' }
+        title: { type: string }
+        title_translations: { type: object, additionalProperties: { type: string }, description: 'Idiomas `es-ES`, `en`, `de`, `fr`; el idioma por defecto del centro es obligatorio (ADR-062).' }
+        body: { type: string }
+        body_translations: { type: object, additionalProperties: { type: string } }
+        status: { $ref: '#/components/schemas/TermsVersionStatus' }
+        requires_reacceptance: { type: boolean }
+        published_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: 'null' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
     PublicId:
       type: string
       format: ulid
@@ -2255,6 +2424,22 @@ components:
         type: string
         enum: [created_at, -created_at]
         default: created_at
+    ImageConsentSortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada; desempate por alumno y nivel. Defecto `last_decision_at` (los que nunca han decidido, primero).
+      schema:
+        type: string
+        enum: [last_decision_at, -last_decision_at, state, -state]
+        default: last_decision_at
+    TermsVersionSortParam:
+      name: sort
+      in: query
+      description: Prefijo "-" para descendente (ADR-038 §5.3). Lista blanca cerrada; desempate por `id`.
+      schema:
+        type: string
+        enum: [version_number, -version_number]
+        default: -version_number
     PageParam:
       name: page
       in: query

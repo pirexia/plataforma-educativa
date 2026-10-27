@@ -10,10 +10,12 @@ use App\Modules\FamUnit\Application\FamilyUnitService;
 use App\Modules\FamUnit\Application\FamilyUnitStudentService;
 use App\Modules\FamUnit\Application\GuardianLinkService;
 use App\Modules\FamUnit\Application\GuardianService;
+use App\Modules\FamUnit\Application\ImageConsentService;
 use App\Modules\FamUnit\Domain\Models\FamilyUnit;
 use App\Modules\FamUnit\Domain\Models\FamilyUnitStudent;
 use App\Modules\FamUnit\Domain\Models\Guardian;
 use App\Modules\FamUnit\Domain\Models\GuardianStudentLink;
+use App\Modules\FamUnit\Domain\Models\ImageConsentDecision;
 use App\Support\Authorization\ScopedQuery;
 use Tests\Support\ArchitectureModules;
 use Tests\Support\PhpScanner;
@@ -95,6 +97,16 @@ function scopedResourceMap(): array
                 'Modules/FamUnit/Application/GuardianLinkService.php',
             ],
         ],
+        // 1.14-b (REQ-FAM-UNIT/permisos.md §3.1, `ADR-066 §9.25`, aprobada la ampliación del mapa con la especificación):
+        // `consentimiento_imagen.leer` admite `unidad_familiar`. Solo `ImageConsentDecision` (`ImageConsent` no es modelo:
+        // el estado se calcula) y un servicio sancionado, que además lee los vínculos para el cálculo del estado. El
+        // listado de estados parte de `FamilyUnitStudent`, que se consulta en `FamilyUnitStudentService` (recurso `familia`).
+        'consentimiento_imagen' => [
+            'models' => [ImageConsentDecision::class],
+            'files' => [
+                'Modules/FamUnit/Application/ImageConsentService.php',
+            ],
+        ],
     ];
 }
 
@@ -166,7 +178,7 @@ test('AR-10 CA-056-11 CA-056-15: cada recurso del mapa sigue teniendo un permiso
     $stale = array_values(array_diff(array_keys(scopedResourceMap()), array_keys($scoped)));
 
     expect($stale)->toBe([], 'entradas del mapa de AR-10 que ya no hacen falta, retirarlas: '.implode(', ', $stale))
-        ->and(array_keys(scopedResourceMap()))->toBe(['auditoria', 'reservas', 'familia', 'vinculo_tutor']);
+        ->and(array_keys(scopedResourceMap()))->toBe(['auditoria', 'reservas', 'familia', 'vinculo_tutor', 'consentimiento_imagen']);
 });
 
 test('AR-10 CA-056-11: ningún fichero de app/ fuera de los sancionados hace una consulta estática sobre el modelo de un recurso con ámbito', function (): void {
@@ -212,7 +224,7 @@ arch('AR-10 CA-056-11 CA-ACAD-139: el fichero sancionado de reservas usa ScopedQ
     ->expect(FacilityBookingService::class)
     ->toUse(ScopedQuery::class);
 
-foreach ([FamilyUnitService::class, GuardianService::class, FamilyUnitStudentService::class, GuardianLinkService::class] as $sanctionedClass) {
+foreach ([FamilyUnitService::class, GuardianService::class, FamilyUnitStudentService::class, GuardianLinkService::class, ImageConsentService::class] as $sanctionedClass) {
     arch("AR-10 CA-056-11 CA-FAM-UNIT-046: el fichero sancionado {$sanctionedClass} usa ScopedQuery")
         ->expect($sanctionedClass)
         ->toUse(ScopedQuery::class);
@@ -224,7 +236,8 @@ test('AR-10 CA-056-11: las clases sancionadas de los arch() coinciden con los fi
     expect(array_map($toPath, [EloquentAuditQuery::class, GenerateAuditLogExport::class, EloquentExportRequestService::class]))->toBe(scopedResourceMap()['auditoria']['files'])
         ->and(array_map($toPath, [FacilityBookingService::class]))->toBe(scopedResourceMap()['reservas']['files'])
         ->and(array_map($toPath, [FamilyUnitService::class, GuardianService::class, FamilyUnitStudentService::class]))->toBe(scopedResourceMap()['familia']['files'])
-        ->and(array_map($toPath, [GuardianLinkService::class]))->toBe(scopedResourceMap()['vinculo_tutor']['files']);
+        ->and(array_map($toPath, [GuardianLinkService::class]))->toBe(scopedResourceMap()['vinculo_tutor']['files'])
+        ->and(array_map($toPath, [ImageConsentService::class]))->toBe(scopedResourceMap()['consentimiento_imagen']['files']);
 });
 
 test('AR-10 CA-056-14 control negativo: la función detecta consulta no sancionada y no detecta ::class, escrituras ni comentarios', function (): void {

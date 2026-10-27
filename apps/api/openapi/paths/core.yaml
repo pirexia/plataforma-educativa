@@ -1451,7 +1451,9 @@ paths:
       description: |
         Solo el solicitante puede consultarla, además del permiso de exportar del recurso
         exportado, resuelto por `kind` con una correspondencia cerrada en código (`RN-CORE-86`,
-        S3 de 1.9b): `audit_logs` → `auditoria.exportar`, `users` → `usuario.exportar`; un `kind`
+        S3 de 1.9b): `audit_logs` → `auditoria.exportar`, `users` → `usuario.exportar`,
+        `image_consents` → `consentimiento_imagen.exportar` (informe de consentimientos de imagen de `fam_unit`,
+        1.14-b); un `kind`
         sin correspondencia responde `403`. Una exportación `fallida` responde **`200`** con
         `status: "fallida"`, `error_code` y `download_url: null` (S4, `OPEN-CORE-39`; antes `409`).
       tags: [Core / Auditoría]

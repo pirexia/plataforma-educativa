@@ -111,6 +111,28 @@ final class GuardianService
     }
 
     /**
+     * `public_id` de los tutores con esos ids internos, también de los dados de baja (la decisión de imagen que
+     * tomaron se conserva como evidencia, `RN-FAM-UNIT-45`).
+     *
+     * @param  list<int>  $guardianIds
+     * @return array<int, string> id de tutor => `public_id`
+     */
+    public function publicIdsByIds(array $guardianIds): array
+    {
+        if ($guardianIds === []) {
+            return [];
+        }
+
+        $map = [];
+
+        foreach (Guardian::withTrashed()->whereIn('id', array_values(array_unique($guardianIds)))->get(['id', 'public_id']) as $guardian) {
+            $map[(int) $guardian->id] = (string) $guardian->public_id;
+        }
+
+        return $map;
+    }
+
+    /**
      * `RN-FAM-UNIT-10`, `-11`: alta del tutor a partir de un usuario del centro vivo, `pendiente` o `activo`, en una
      * unidad viva. No crea ni modifica la persona ni el usuario.
      */
