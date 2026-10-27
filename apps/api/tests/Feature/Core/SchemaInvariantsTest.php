@@ -80,6 +80,9 @@ test('toda restricción única sobre tabla con borrado lógico es parcial, salvo
         // 1.14-a, issue #469 (REQ-FAM-UNIT/datos.md §1.1): destino de la FK `(tenant_id, id, principal_guardian_id)` de
         // `family_units` (RN-FAM-UNIT-02); no parcial a propósito, como los demás destinos de FK (`id` ya es único).
         'guardians_tenant_unit_id_unique',
+        // 1.14-b (REQ-FAM-UNIT/datos.md §1.8, ADR-066 §5.5): la numeración de versiones de un texto legal es correlativa por
+        // centro y tipo y no se reutiliza nunca, ni tras borrar un borrador: único no parcial a propósito.
+        'terms_versions_tenant_kind_number_unique',
     ];
 
     $tablesWithDeletedAt = collect(DB::select(<<<'SQL'

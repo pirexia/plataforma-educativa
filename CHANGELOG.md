@@ -6,6 +6,17 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-27 · `1.14-b`: implementación del consentimiento de imagen y los textos legales (`REQ-FAM-UNIT-004`, rama `feature/REQ-FAM-UNIT-1-14b-implementacion`)
+
+- **Implementación** de la entrega `1.14-b` de la especificación aprobada: tablas `terms_versions` (con `kind` desde su creación, solo los dos tipos de imagen) e `image_consent_decisions` (solo anexar, FK `RESTRICT` al texto), **sin** tabla de estado: el estado vigente se calcula en origen (`ADR-066 §5.2`, `RN-FAM-UNIT-45`, `-72`). 11 *endpoints* nuevos (32 con los de `1.14-a`): estado, histórico por cursor, registro de decisiones por portal y presencial, informe CSV en cola, `GET /image-consent-texts` (`RN-FAM-UNIT-75`) y gestión de versiones `/terms-versions`. Interfaz pública `ImageConsentPolicy` (`isPublishable`/`blockingAmong`, en cerrado, lista vacía = excepción, sin caché). Permisos `consentimiento_imagen.*` y `texto_legal.*` con siembra (`secretaria` con `texto_legal.leer`) y resolutor `unidad_familiar`; mapa de `AR-10` ampliado.
+- **Cambios en `Core`** (`INV-007`): `kind image_consents` de `data_exports` (migración *expand*), interfaz `ExportJobLifecycle` para el trabajo en cola de otro módulo y su permiso en `GET /data-exports/{id}`.
+- **Hallazgo**: la premisa de `RN-FAM-UNIT-74` no se cumplía en el código (`GuardianLinkService` ya solo verificaba en la transición `false`→`true`); no se cambió el servicio, el test de regresión pasa antes y después (`funcional.md §18`, D-14).
+- **Decisiones de detalle** `funcional.md §18` (D-14 a D-24), a revisar. Textos de error y etiquetas de recurso en los cuatro idiomas.
+- **Documentación**: `REQ-FAM-UNIT/{funcional §18,datos,api,permisos,operacion §9}.md`, `REQ-CORE/{funcional,permisos}.md`, `PRIVACY.md` 0.3.9, `SECURITY.md` 0.3.14, `RUNBOOK.md` 0.3.14, `SYSADMIN.md` 0.8.21, `ARCHITECTURE.md` 2.5.8, `README.md` 2.6.35.
+- **Condiciones previas a cargar datos reales** (sin cambio): validación jurídica de `OPEN-FAM-UNIT-08`, criterio sobre 14 y 18 años y respuesta a `OPEN-066-02`.
+
+---
+
 ## 2026-10-27 · `1.14-b`: `ADR-066` y especificación del consentimiento de imagen (`REQ-FAM-UNIT-004`, rama `feature/REQ-FAM-UNIT-1-14b-consentimiento-imagen`)
 
 - **`ADR-066` ACEPTADA** (fuente única del consentimiento de imagen, `fam_unit`; estado calculado en origen sin la tabla `image_consents`; interfaz `ImageConsentPolicy`; unanimidad de representantes legales para `autorizo`, `OPEN-066-01..05` resueltas). Dos niveles de imagen, `web` y `redes_sociales`, confirmados por el usuario (sin separar por red social).
