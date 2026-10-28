@@ -2,8 +2,8 @@
 
 | Campo | Valor |
 |-------|-------|
-| **Versión** | 3.2.21 |
-| **Fecha** | 2026-10-27 |
+| **Versión** | 3.2.22 |
+| **Fecha** | 2026-10-28 |
 | **Estado** | Borrador consolidado — pendiente de aprobación |
 | **Autor** | Product Owner |
 | **Documento sustituye a** | v1.2.0 (mismo contenido, reorganizado y ampliado) |
@@ -3367,6 +3367,7 @@ Se mantendrá una matriz de trazabilidad (generada automáticamente desde las re
 | 3.2.19 | 2026-10-16 | Product Owner | `ADR-064` (capa visual de la interfaz: login en disposición «Panel», radio de 2 px y sombra del panel de acceso) añadido al índice de la sección 18, **`ACEPTADA`**. Paso nuevo `1.15a` en el plan. Sin cambios en los requisitos de las secciones 1-17. |
 | 3.2.20 | 2026-10-17 | Product Owner | `ADR-065` (hora civil recurrente como `time`) añadido al índice de la sección 18, **`ACEPTADA`**. Sin cambios en los requisitos de las secciones 1-17. |
 | 3.2.21 | 2026-10-27 | Product Owner | `ADR-066` (fuente única del consentimiento de imagen, `REQ-FAM-UNIT-004`) añadido al índice de la sección 18, **`ACEPTADA`**; dos niveles de imagen (`web`, `redes_sociales`) confirmados. Sin cambios en los requisitos de las secciones 1-17. |
+| 3.2.22 | 2026-10-28 | Product Owner | `ADR-067` (registro de muros de sesión, `REQ-FAM-UNIT-003`) añadido al índice de la sección 18, **`ACEPTADA`**; sustituye parcialmente `ADR-053 §6`. Sin cambios en los requisitos de las secciones 1-17. |
 | 3.2.15 | 2026-10-10 | Product Owner | `ADR-060` (suite de tests en paralelo y norma de ejecución) añadido al índice de la sección 18, **`ACEPTADA`** (plan aprobado por el usuario el 2026-10-10). No sustituye ningún ADR ni cambia ningún requisito de las secciones 1-17; `RN-AUTH-03` sin cambios |
 | 3.2.14 | 2026-10-08 | Product Owner | `ADR-059` (reapertura de un curso académico cerrado) añadido al índice de la sección 18 y **`ACEPTADA`** (el usuario aceptó la opción B y las respuestas a `OPEN-059-02` a `-04`); resuelve `OPEN-CURSO-08`. `OPEN-059-05` y `-06` siguen abiertas. No sustituye ningún ADR |
 | 3.2.13 | 2026-10-07 | Product Owner | `ADR-058` (SQLSTATE `YC001` en lugar de `CY001`, 2026-10-08) también añadido al índice. `ADR-057` (bloqueo de escritura de cursos cerrados por disparador de PostgreSQL) añadido al índice de la sección 18, **`ACEPTADA`**; resuelve `OPEN-CURSO-04`. Errata en `REQ-CURSO-005`: el archivado en frío cita `RDB-012` y no `RDB-010` (`OPEN-CURSO-22`). Ningún otro requisito de las secciones 1-17 se reescribe. |

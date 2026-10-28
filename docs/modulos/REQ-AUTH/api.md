@@ -2219,7 +2219,7 @@ Hermano exacto de `POST .../discovery-refreshes` (`§F.5`), y con las mismas pro
 resolve-tenant → encrypt-cookies → add-queued-cookies → start-session → verify-session-tenant
 ```
 
-Es la cadena de `§8` **menos `csrf`, `session-idle-timeout`, `resolve-locale` y `require-mfa-enrollment`**, ninguno de los cuales tiene sentido sobre una petición que **por diseño llega sin sesión**.
+Es la cadena de `§8` **menos `csrf`, `session-idle-timeout`, `resolve-locale` y `require-mfa-enrollment`** (desde `ADR-067`, `require-session-walls`: `auth.saml.acs` es la única ruta de `api/v1` sin él), ninguno de los cuales tiene sentido sobre una petición que **por diseño llega sin sesión**.
 
 | Pieza | Por qué está o por qué no |
 |-------|---------------------------|

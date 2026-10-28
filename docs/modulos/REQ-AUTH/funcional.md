@@ -4076,7 +4076,7 @@ Siete. Las tres primeras vienen decididas de `ADR-043 §10.9` y aquí solo se co
 resolve-tenant → encrypt-cookies → add-queued-cookies → start-session → verify-session-tenant
 ```
 
-Es la cadena de `/api/v1` **menos `csrf`, `session-idle-timeout`, `resolve-locale` y `require-mfa-enrollment`**, ninguno de los cuales tiene sentido sobre una petición que por diseño llega sin sesión. `verify-session-tenant` se mantiene: sobre sesión vacía no hace nada, y si por lo que fuera llegara una sesión, `RN-AUTH-31` debe seguir aplicando.
+Es la cadena de `/api/v1` **menos `csrf`, `session-idle-timeout`, `resolve-locale` y `require-mfa-enrollment`** (desde `ADR-067`, `require-session-walls`), ninguno de los cuales tiene sentido sobre una petición que por diseño llega sin sesión. `verify-session-tenant` se mantiene: sobre sesión vacía no hace nada, y si por lo que fuera llegara una sesión, `RN-AUTH-31` debe seguir aplicando.
 
 **Se prefiere a `validateCsrfTokens(except: […])`** por dos motivos escritos en `ADR-043 §10.5` y que esta especificación hace suyos: una lista global admite comodines y crece sin que nadie la revise, mientras que un grupo nombrado se autodocumenta y su alcance es exactamente las rutas que contiene; y `api.md §8` fija el orden de la cadena advirtiendo que *«un intercambio de dos posiciones aquí es un fallo de seguridad silencioso»* — una pila declarada aparte se lee y se compara.
 

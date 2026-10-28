@@ -353,7 +353,7 @@ Todos son **API** (`INV-006`); rutas y cuerpos en `api.md`.
 | ID | Regla |
 |----|-------|
 | `RN-FAM-UNIT-60` | Como mucho una versión `publicada` **por tipo** (`RN-FAM-UNIT-73`). Publicar retira la anterior del mismo tipo en la misma transacción. Una versión `publicada` o `retirada` no se edita: `409`. Vale para los tres tipos; en `1.14-b`, solo para los de imagen. |
-| `RN-FAM-UNIT-61` | **Usuario obligado** a aceptar: el que tiene una faceta de tutor viva con al menos un vínculo activo. [DERIVADA] `REQ-FAM-UNIT-003` habla del «tutor»; comprobarlo por faceta y no por rol mantiene `AR-08`. Si debe ampliarse a alumnado: `OPEN-FAM-UNIT-12`. |
+| `RN-FAM-UNIT-61` | **Usuario obligado** a aceptar: el que tiene una faceta de tutor viva con al menos un vínculo activo. [DERIVADA] `REQ-FAM-UNIT-003` habla del «tutor»; comprobarlo por faceta y no por rol mantiene `AR-08`. `OPEN-FAM-UNIT-12` (resuelta, `ADR-067`) lo deja solo en tutores; ampliarlo a alumnado exigiría una pregunta nueva. |
 | `RN-FAM-UNIT-62` | **Versión exigible**: la publicada, si exige re-aceptación o si el usuario nunca aceptó ninguna; si la publicada no exige re-aceptación, basta haber aceptado cualquier versión anterior. |
 | `RN-FAM-UNIT-63` | Sin versión publicada, nadie está obligado y no hay muro. |
 | `RN-FAM-UNIT-64` | Las aceptaciones son **inmutables** (tabla de solo anexar, como `RN-FAM-UNIT-42`). Aceptar dos veces la misma versión es idempotente: devuelve la aceptación existente. |

@@ -167,7 +167,7 @@ Detalle de `1.11-a` (PR #417), `1.11-b` (PR #423) y de la sesión del 2026-10-08
 
 ## Siguiente paso concreto
 
-1. **`1.14-c`** (condiciones de uso y muro de aceptación): `architect` diseña antes el registro de «muros de sesión» (`OPEN-FAM-UNIT-12`, amplía las listas cerradas de `AR-07a` y rutas `[]`, requiere tu aprobación). Después `1.14-d` (pantallas de personal `/familias`, E2E `CA-FAM-UNIT-084`). Decidir antes de `1.14b` (autorizados) cómo `isAccessRevoked()` se combina con `ADR-032` (#473). Condiciones previas a datos reales: validación jurídica de `OPEN-08`, criterio de 14 y 18 años, texto nuevo vs. `autorizo` anteriores.
+1. **`1.14-c`** (condiciones de uso y muro de aceptación): `ADR-067` (registro de «muros de sesión», ACEPTADA 2026-10-28, ampliaciones aprobadas) ya diseñado; falta implementarlo. Después `1.14-d` (pantallas de personal `/familias`, E2E `CA-FAM-UNIT-084`). Decidir antes de `1.14b` (autorizados) cómo `isAccessRevoked()` se combina con `ADR-032` (#473). Condiciones previas a datos reales: validación jurídica de `OPEN-08`, criterio de 14 y 18 años, texto nuevo vs. `autorizo` anteriores.
 2. Orden del plan después: `1.14b` (autorizados y entrega de menores, paso crítico), `1.15` (alumnado y matrícula), `1.13` (asistencia, tras `1.15`), `1.15a` (capa visual, `ADR-064`) antes de `1.15b`.
 3. `1.23b` (purga física de tenant, #371, [OPUS + SONNET]): obligatorio antes de datos reales y del importador `1.24`.
 4. Pendiente con permiso del usuario: decidir el Medio de #438 (intercambio de códigos en `PATCH`) y si se exige el ámbito `todos` del rollover (#461). El E2E real `CA-ACAD-101` ya pasa.
