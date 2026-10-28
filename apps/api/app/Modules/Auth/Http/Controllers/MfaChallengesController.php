@@ -14,7 +14,7 @@ use Illuminate\Routing\Controller;
  * api.md §C.1, `POST /auth/mfa-challenges`, `§C.4.4.1`. `GET` añadido en
  * REQ-AUTH-002 (1.4, `api.md §E.5b`). Sin sesión autenticada — el
  * desafío vive en la sesión anónima (`§C.6`), por eso este endpoint
- * tiene que estar en la lista blanca de `RequireMfaEnrollment` y del
+ * tiene que estar en la lista blanca de `MfaEnrollmentWall (RequireSessionWalls, ADR-067)` y del
  * propio grupo de rutas: no hay `Auth::user()` que comprobar aquí,
  * `MfaChallengeService` resuelve el titular a partir del `session_id`.
  */

@@ -51,6 +51,7 @@ use App\Modules\Core\Domain\Events\TenantSettingsUpdated;
 use App\Modules\Core\Domain\Events\UserDeactivated;
 use App\Support\Modules\DeclaresModuleRegistry;
 use App\Support\Sessions\ActiveSessionCloser;
+use App\Support\Sessions\SessionWallRegistry;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -164,6 +165,10 @@ class AuthServiceProvider extends ServiceProvider implements DeclaresModuleRegis
             'saml_identity_provider_settings' => SamlIdentityProviderSettings::class,
             'identity_provider_certificate' => IdentityProviderCertificate::class,
         ]);
+
+        // ADR-067 §5.2, §5.6: el muro de alta de MFA, primero en el orden cerrado L6. Se registra la clase: el
+        // middleware la resuelve en cada petición (MfaPolicy es scoped).
+        $this->app->make(SessionWallRegistry::class)->register(MfaEnrollmentWall::class);
 
         // funcional.md §6.2, issue #8: guarda en todos los entornos, no
         // solo producción — CA-AUTH-001.

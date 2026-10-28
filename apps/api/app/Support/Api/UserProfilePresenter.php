@@ -6,6 +6,10 @@ use App\Models\User;
 use App\Modules\Auth\Domain\MfaObligationState;
 use App\Modules\Auth\Domain\MfaPolicy;
 use App\Support\Authorization\PermissionResolver;
+use App\Support\Modules\ModuleAvailability;
+use App\Support\Sessions\SessionWall;
+use App\Support\Sessions\SessionWallRegistry;
+use Illuminate\Contracts\Container\Container;
 
 /**
  * REQ-CORE/api.md §3 (`GET /me`) y REQ-AUTH/api.md §2 (`POST /auth/session`)
@@ -23,6 +27,9 @@ final class UserProfilePresenter
     public function __construct(
         private readonly PermissionResolver $permissions,
         private readonly MfaPolicy $mfaPolicy,
+        private readonly SessionWallRegistry $walls,
+        private readonly Container $container,
+        private readonly ModuleAvailability $modules,
     ) {}
 
     /**
@@ -52,7 +59,32 @@ final class UserProfilePresenter
             ])->all(),
             'permissions' => $this->permissions->effectivePermissionCodes($user),
             'mfa' => $this->mfaBlock($user),
+            'session_walls' => $this->sessionWalls($user),
         ];
+    }
+
+    /**
+     * ADR-067 §5.10: los códigos de los muros de sesión **activos y bloqueantes**, en el orden del registro (lista
+     * vacía si no hay ninguno). Aquí no hay ruta que eximir: se evalúa `blocks()` de cada muro cuyo módulo está activo.
+     * Es lo que la SPA usa para llevar al usuario al muro sin depender de un `403` casual (`REQ-CORE/funcional.md
+     * §12.3.5`). Ampliación aditiva del recurso (`ADR-038 §7.3`).
+     *
+     * @return list<string>
+     */
+    private function sessionWalls(User $user): array
+    {
+        $codes = [];
+
+        foreach ($this->walls->ordered() as $class) {
+            /** @var SessionWall $wall */
+            $wall = $this->container->make($class);
+
+            if ($this->modules->isEnabled($wall->moduleCode()) && $wall->blocks($user)) {
+                $codes[] = $wall->code();
+            }
+        }
+
+        return $codes;
     }
 
     /**

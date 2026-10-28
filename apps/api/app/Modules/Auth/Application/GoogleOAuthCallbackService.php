@@ -249,7 +249,7 @@ final class GoogleOAuthCallbackService
         // Sin desafío que superar: obligado en gracia o no obligado ⇒
         // sesión plena; obligado y vencido ⇒ sesión restringida — la
         // establece igual, MfaPolicy::resolve() solo decide el código de
-        // resultado (RequireMfaEnrollment ya la restringirá en la
+        // resultado (MfaEnrollmentWall (RequireSessionWalls, ADR-067) ya la restringirá en la
         // petición siguiente, aquí solo evitamos el viaje de más).
         $isEnforced = $this->mfaPolicy->resolve($user)->isEnforced();
 

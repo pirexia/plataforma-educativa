@@ -81,7 +81,7 @@ Route::delete('/auth/sessions', [UserSessionsController::class, 'destroyAll'])
 // REQ-AUTH-003 (1.3), api.md §C.1. Autoservicio del propio factor: sin
 // permiso, por identidad — mismo criterio que /auth/password-changes y
 // /auth/sessions. GET /auth/mfa y los dos de alta están en la lista
-// blanca de RequireMfaEnrollment (§C.4.9); el resto no hace falta:
+// blanca de MfaEnrollmentWall (RequireSessionWalls, ADR-067) (§C.4.9); el resto no hace falta:
 // solo se alcanzan ya autenticado y sin restricción de muro.
 Route::get('/auth/mfa', [MfaStatusController::class, 'show'])
     ->name('auth.mfa.show');

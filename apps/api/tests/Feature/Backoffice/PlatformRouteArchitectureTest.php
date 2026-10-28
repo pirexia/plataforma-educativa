@@ -13,8 +13,8 @@ use Illuminate\Support\Facades\Route;
  */
 
 // CA-BO-011: ninguna ruta de /api/platform/* lleva los tres middleware de tenant.
-test('CA-BO-011: ninguna ruta de /api/platform/* lleva resolve-tenant, verify-session-tenant o require-mfa-enrollment', function (): void {
-    $forbidden = ['resolve-tenant', 'verify-session-tenant', 'require-mfa-enrollment'];
+test('CA-BO-011: ninguna ruta de /api/platform/* lleva resolve-tenant, verify-session-tenant o require-session-walls', function (): void {
+    $forbidden = ['resolve-tenant', 'verify-session-tenant', 'require-session-walls'];
     $checked = 0;
 
     foreach (Route::getRoutes() as $route) {

@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Support\Authorization\PermissionResolver;
 use App\Support\Authorization\ScopeResolverRegistry;
 use App\Support\Modules\PermissionResourceLabels;
+use App\Support\Sessions\SessionWallRegistry;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -32,6 +33,8 @@ class AuthorizationServiceProvider extends ServiceProvider
     {
         $this->app->singleton(ScopeResolverRegistry::class);
         $this->app->singleton(PermissionResourceLabels::class);
+        // ADR-067 §5.2: registro de muros de sesión; cada módulo registra el suyo desde su `boot()`.
+        $this->app->singleton(SessionWallRegistry::class);
 
         $this->app->scoped(PermissionResolver::class);
         $this->app->terminating(fn () => $this->app->forgetScopedInstances());

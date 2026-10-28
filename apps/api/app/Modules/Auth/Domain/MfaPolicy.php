@@ -6,7 +6,7 @@ use App\Models\User;
 
 /**
  * funcional.md §C.4.7, §C.9.2. La única función del sistema que decide si
- * alguien está obligado a MFA (RN-AUTH-62): el muro (`RequireMfaEnrollment`),
+ * alguien está obligado a MFA (RN-AUTH-62): el muro (`MfaEnrollmentWall (RequireSessionWalls, ADR-067)`),
  * el login (`§C.4.4`) y, cuando llegue 1.6, `REQ-BO-007` la consumen sin
  * replicar su lógica (funcional.md §C.12).
  *
