@@ -7,7 +7,7 @@ import { test, expect, type Page, type Route } from '@playwright/test'
  * WCAG 1.4.1 / 2.2 AA). Sin backend real: se intercepta la API con `page.route` y un almacén en memoria, mismo patrón
  * que `e2e/fam-unit-terms-wall.spec.ts` y `e2e/auth-sessions.spec.ts`. No hay variante contra la API real: haría falta
  * ampliar el centro de pruebas de `npm run test:e2e:real` (que recrea el centro de demostración y exige permiso
- * expreso) con una persona de alumno de prueba (`funcional.md §21`, `D-46`).
+ * expreso) con una persona de alumno de prueba (`funcional.md §20`, `D-51`).
  */
 
 const BRANDING = {

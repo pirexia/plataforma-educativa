@@ -1,6 +1,6 @@
 # Manual de secretaría
 
-> Estructura académica (`REQ-ACAD-001`, pasos `1.11-b`, `1.11d-a` y `1.11d-b`). El resto de funciones de este perfil se documentan con cada módulo.
+> Estructura académica (`REQ-ACAD-001`, pasos `1.11-b`, `1.11d-a` y `1.11d-b`) y familias, consentimientos de imagen y condiciones de uso (`REQ-FAM-UNIT`, paso `1.14-d`). El resto de funciones de este perfil se documentan con cada módulo.
 
 ## Estructura académica del centro
 
@@ -22,6 +22,29 @@
 
 En **Administración → Horarios** (`/academico/horarios`) consultas la rejilla semanal por grupo, profesor, aula o asignatura, y en la ficha de cada grupo, **«Profesorado»**, quién imparte cada asignatura y quiénes son los tutores. Por defecto la Secretaría solo puede consultar (leer horarios, espacios y asignación docente): no hay botones para añadir, editar ni quitar. Cada sesión muestra como texto la asignatura, el grupo, el profesor y el aula. Las jornadas especiales (jornada intensiva) aparecen en la ficha de la etapa con su vigencia y, en el horario, las sesiones de una jornada especial llevan en texto su nombre y sus fechas; en **Administración → Reservas** (`/academico/reservas`) consultas las reservas de aulas y recursos por fecha y espacio. Por defecto la Secretaría solo consulta las reservas: no hay botón para reservar ni cancelar. Un curso cerrado se ve solo con el permiso de leer el histórico. Si una persona del profesorado ya no existe en el centro (se ha dado de baja), en las asignaciones, tutorías, sesiones y reservas aparece como **«Usuario eliminado»**: el historial se conserva, pero su nombre ya no se muestra.
 
+## Familias, tutores y vínculos
+
+**Qué ves.** En **Familias** (`/familias`, en el menú lateral) consultas las **unidades familiares** del centro: su código, si tienen **tutor principal**, cuántos tutores y cuántos alumnos tienen. Puedes buscar por el comienzo del código y filtrar las que tienen tutor principal; el orden y la página quedan en la dirección de la página.
+
+**Crear una unidad.** Con el permiso de crear familias, **«Nueva unidad»** abre un diálogo: el código es opcional (si lo dejas vacío, el sistema asigna el siguiente). Al crearla llegas a su **ficha**.
+
+**La ficha de una unidad** reúne, en cuatro secciones:
+
+- **Tutores.** **«Añadir tutor»** (permiso de crear familias) te deja buscar a la persona entre los usuarios del centro por nombre o correo; el usuario tiene que estar `pendiente` o `activo`. El tutor principal aparece con el texto «Principal»; **«Marcar como principal»** cambia quién lo es. **«Quitar»** (permiso de eliminar familias) pide confirmación y da de baja también los vínculos de ese tutor; si alguno está **revocado**, la baja no se hace y la pantalla lo explica.
+- **Alumnos.** **«Añadir alumno»** (permiso de actualizar familias) pide el **identificador público de la persona** del alumno: todavía no existe el buscador de alumnos (llegará con el módulo de alumnado). **«Quitar»** pide confirmación y da de baja los vínculos de los tutores con ese alumno.
+- **Vínculos** (permiso de leer vínculos). Cada fila une un tutor con un alumno: relación, si tiene **representación legal**, nivel de acceso, si es **contacto de emergencia** y su estado, siempre en texto: **«Activo»** o **«Revocado»** (nunca solo un color). **«Nuevo vínculo»** (permiso de crear vínculos) te deja elegir el tutor y el alumno de la propia unidad. Marcar la representación legal significa que el centro afirma haberla verificado.
+- **Consentimientos de imagen** (permiso de leer consentimientos). El estado vigente de cada alumno en cada nivel (web del centro, redes sociales): **«Autorizo»**, **«No autorizo»** o **«Pendiente»**, con la fecha de la última decisión.
+
+**Revocar el acceso de un tutor a un alumno.** Es una acción con consecuencias legales y **por defecto la Secretaría no la tiene**: solo el Administrador de Centro, que puede delegarla en un rol propio. Quien tiene el permiso ve **«Revocar»** en la fila del vínculo: la confirmación nombra al tutor, al alumno y el motivo (**«Resolución judicial»**, el único; la pantalla no guarda el detalle de la resolución). Con el permiso de leer revocaciones, la fila revocada muestra el motivo y la fecha. **«Levantar revocación»** devuelve el acceso con los mismos permisos que tenía. Si se intentan demasiadas revocaciones seguidas, el sistema las limita durante un rato y lo dice con un mensaje junto al botón.
+
+## Consentimientos de imagen
+
+En **Familias → Consentimientos de imagen** (`/familias/consentimientos`; se llega con el botón de la cabecera del listado) ves, por alumno y por nivel, el estado **vigente** del consentimiento de imagen, calculado a partir de las decisiones de los representantes legales. Un alumno sin ninguna decisión aparece como **«Pendiente»**, y también pasa a «Pendiente» cuando se da de alta un segundo representante legal que aún no ha decidido. Puedes filtrar por nivel y por estado.
+
+- **Histórico.** **«Histórico»** en una fila abre las decisiones de ese alumno, de la más reciente a la más antigua: fecha, nivel, decisión, canal (portal de familias o presencial) y versión del texto. Son un registro **que no se puede editar ni borrar**.
+- **Informe.** Con el permiso de exportar, **«Exportar»** genera en segundo plano un informe CSV con los filtros activos; cuando está listo, aparece el enlace de descarga, que caduca.
+- **Registrar una decisión.** Esta pantalla es de consulta: las decisiones las registra el propio tutor en el portal de familias (llegará más adelante) o el centro en nombre de la familia cuando le entregan el papel.
+
 ## Condiciones de uso del centro
 
-Las condiciones de uso las publica la administración del centro (`REQ-FAM-UNIT-003`); por defecto la Secretaría puede **consultar** las versiones de los textos legales (`GET /terms-versions`) pero no crearlas ni publicarlas. Para saber si una familia ha aceptado la versión vigente, la Secretaría dispone de la consulta `GET /terms-acceptances` (lista de aceptaciones, de la más reciente a la más antigua, con filtros por versión y por usuario; no muestra IP ni dispositivo). **Por ahora solo existe por API**: la pantalla de personal llegará con el paso `1.14-d`. Si una familia dice que «no puede entrar» y la aplicación le pide aceptar las condiciones, no es un fallo: debe leer y aceptar el texto (ver el manual de familias).
+Las condiciones de uso las publica la administración del centro (`REQ-FAM-UNIT-003`); por defecto la Secretaría puede **consultar** las versiones de los textos legales (`GET /terms-versions`) pero no crearlas, editarlas ni publicarlas: esos botones no aparecen. En **Condiciones de uso** (`/configuracion/condiciones-de-uso`, en el menú lateral) ves las versiones de las condiciones y del texto de consentimiento de imagen de cada nivel: tipo, versión, título, estado (**«Borrador»**, **«Publicada»** o **«Retirada»**, siempre en texto) y fecha de publicación; filtras por tipo y por estado, y **«Leer»** abre el texto. Para saber si una familia ha aceptado la versión vigente, debajo aparece **«Aceptaciones»** (de la más reciente a la más antigua; muestra la fecha, la versión, el idioma en que se mostró y el identificador del usuario, sin IP ni dispositivo). Si una familia dice que «no puede entrar» y la aplicación le pide aceptar las condiciones, no es un fallo: debe leer y aceptar el texto (ver el manual de familias).

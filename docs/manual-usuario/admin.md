@@ -551,15 +551,19 @@ No está disponible por diseño. Si tu centro tiene una necesidad real de conser
 
 ## Condiciones de uso del centro
 
-Las condiciones de uso son un **texto legal versionado** que las familias (personas con vínculo de tutor legal) deben aceptar para usar la plataforma (`REQ-FAM-UNIT-003`). Hoy se gestionan **por la API**; la pantalla de gestión llega con el paso `1.14-d`.
+Las condiciones de uso son un **texto legal versionado** que las familias (personas con vínculo de tutor legal) deben aceptar para usar la plataforma (`REQ-FAM-UNIT-003`). Se gestionan en **Condiciones de uso** (`/configuracion/condiciones-de-uso`, en el menú lateral) y, para quien prefiera integrarlas, también por la API.
 
 **Publicar unas condiciones.** Con el permiso de gestión de textos legales (por defecto, el Administrador de Centro):
 
-1. Crea una versión (`POST /terms-versions`) con `kind` `condiciones_uso` y el título y el texto en los idiomas del centro; el idioma por defecto es obligatorio. Queda en **borrador** y puedes editarla (`PATCH`) o borrarla (`DELETE`) mientras lo sea.
-2. Publícala (`POST /terms-versions/{id}/publish`). Al publicar, indicas `requires_reacceptance`: con `true`, **todos los tutores que ya habían aceptado una versión anterior** volverán a ver el muro de condiciones en su próximo acceso; con `false`, solo lo verán quienes aún no hayan aceptado ninguna. Publicar retira la versión publicada anterior del mismo tipo.
+1. **«Nueva versión»**: elige el tipo (**«Condiciones de uso»** o el **consentimiento de imagen** de un nivel; el tipo no se puede cambiar después) y escribe el título y el texto en **cada idioma activo del centro**; el idioma por defecto es obligatorio y va primero. Queda en **«Borrador»**: con **«Editar»** cambias solo los idiomas que modificas, y con **«Eliminar»** (pide confirmación) lo borras. Una versión publicada ya no se puede editar ni borrar: solo se lee.
+2. **«Publicar»**: en las condiciones de uso, el diálogo te pregunta si debe **exigir que vuelvan a aceptar** quienes ya habían aceptado una versión anterior. Con la casilla marcada, **todos los tutores que ya habían aceptado una versión anterior** volverán a ver el muro de condiciones en su próximo acceso; sin marcar, solo lo verán quienes aún no hayan aceptado ninguna. Publicar retira la versión publicada anterior del mismo tipo. Si falta el texto en el idioma por defecto, la publicación se rechaza y el diálogo lo explica.
 
-El texto se muestra a las familias como texto plano (sin formato ni enlaces). Un texto de consentimiento de imagen **no** admite `requires_reacceptance`.
+El texto se muestra a las familias como texto plano (sin formato ni enlaces). Un texto de consentimiento de imagen **no** admite exigir una nueva aceptación (el diálogo de publicación no lo ofrece), y publicarlo no cambia ninguna decisión de consentimiento ya registrada.
 
-**Consultar quién ha aceptado.** `GET /terms-acceptances` (permiso de consultar aceptaciones, concedido por defecto al Administrador de Centro y a la Secretaría) lista las aceptaciones, de la más reciente a la más antigua, con filtros por versión y por usuario. No muestra la IP ni el dispositivo. Tampoco hay pantalla todavía: llegará con `1.14-d`.
+**Consultar quién ha aceptado.** Con el permiso de consultar aceptaciones (concedido por defecto al Administrador de Centro y a la Secretaría), debajo de las versiones aparece **«Aceptaciones»**: de la más reciente a la más antigua, con la fecha, la versión, el idioma en que se mostró y el identificador del usuario. No muestra la IP ni el dispositivo. La misma consulta existe por la API (`GET /terms-acceptances`, con filtros por versión y por usuario).
 
 **Qué ve la familia.** Ver el manual de familias (`docs/manual-usuario/familia.md`).
+
+## Familias: revocar y levantar el acceso de un tutor
+
+En la ficha de una unidad familiar (**Familias**, `/familias`), el Administrador de Centro es el único rol que trae por defecto los permisos de **revocar** y **levantar la revocación** de un vínculo tutor ↔ alumno (`REQ-FAM-UNIT-002`), porque tienen consecuencias legales; puede delegarlos en un rol propio. **«Revocar»** pide confirmación, registra el motivo **«Resolución judicial»** (no se guarda el detalle de la resolución) y retira al tutor el acceso a ese alumno de inmediato, sin tocar el resto de la unidad. La fila revocada se distingue por el texto **«Revocado»**, no solo por un color. El resto del trabajo con familias (altas, vínculos, consentimientos de imagen) lo describe el manual de la Secretaría (`docs/manual-usuario/secretaria.md`).
