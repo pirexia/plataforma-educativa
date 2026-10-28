@@ -12,6 +12,7 @@ return [
             'revocacion_tutor' => 'Revocación del acceso de un tutor',
             'consentimiento_imagen' => 'Consentimiento de uso de imagen',
             'texto_legal' => 'Textos legales del centro',
+            'aceptacion_condiciones' => 'Aceptaciones de las condiciones de uso',
         ],
     ],
 
@@ -52,10 +53,10 @@ return [
     ],
 
     'terms' => [
-        'kind_not_available' => 'Este tipo de texto legal todavía no está disponible.',
         'kind_not_editable' => 'El tipo de un texto legal no se puede cambiar una vez creado.',
         'kind_invalid' => 'El tipo de texto legal no es válido.',
         'requires_reacceptance_not_allowed' => 'La re-aceptación solo se puede exigir en las condiciones de uso, no en el consentimiento de imagen.',
+        'version_not_current' => 'La versión de las condiciones que se mostró ya no es la vigente: vuelve a leer el texto publicado antes de aceptar.',
         'not_draft' => 'Solo se puede editar, borrar o publicar una versión en borrador.',
         'default_locale_missing' => 'El título y el texto deben estar escritos en el idioma por defecto del centro (:locale) antes de publicar.',
     ],
@@ -70,6 +71,7 @@ return [
     ],
 
     'validation' => [
+        'terms_version_not_found' => 'La versión de las condiciones de uso indicada no existe.',
         'user_not_found' => 'El usuario indicado no existe.',
         'student_not_found' => 'El alumno indicado no existe.',
         'guardian_not_found' => 'El tutor indicado no existe.',

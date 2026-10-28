@@ -59,7 +59,7 @@ class SessionController extends Controller
      * MFA que superar (`202`, ningún dato de sesión escrito, `§C.6`) o
      * bien se establece la sesión exactamente como en 1.2 — obligado sin
      * factor, en gracia o no, siempre `200`: la restricción del muro la
-     * aplica `RequireMfaEnrollment` en la petición siguiente, no aquí
+     * aplica `MfaEnrollmentWall (RequireSessionWalls, ADR-067)` en la petición siguiente, no aquí
      * (`§C.4.9`).
      */
     public function store(StoreSessionRequest $request): JsonResponse

@@ -27,7 +27,7 @@ Aborta el despliegue si un ámbito declarado no pertenece al vocabulario cerrado
 
 **Contratación**: el módulo es no esencial; queda inactivo en cada centro hasta que el Super Administrador lo contrate (`ADR-045`). Para el centro `demo` de desarrollo hay que contratarlo a mano antes de probar.
 
-**Orden de migraciones** (enmendado por `ADR-066 §9.27`): `family_units` → `guardians` → FK de `principal_guardian_id` → `family_unit_students` → `guardian_student_links` → (`1.14-b`) **`terms_versions` (con `kind`) antes que `image_consent_decisions`** (la FK `RESTRICT` de `consent_text_version_id` apunta a la primera) → (`1.14-c`) `terms_acceptances`. **Ya no se crea `image_consents`.** Todas aditivas: *expand* puro, compatibles con la versión anterior del código (`RARQ-DEP-005`). Se aplican con `php artisan migrate --database=pgsql_owner` (lección de `1.11d-a`). `db-reviewer` obligatorio.
+**Orden de migraciones** (enmendado por `ADR-066 §9.27`): `family_units` → `guardians` → FK de `principal_guardian_id` → `family_unit_students` → `guardian_student_links` → (`1.14-b`) **`terms_versions` (con `kind`) antes que `image_consent_decisions`** (la FK `RESTRICT` de `consent_text_version_id` apunta a la primera) → (`1.14-c`, implementada) `terms_acceptances`. **Ya no se crea `image_consents`.** Todas aditivas: *expand* puro, compatibles con la versión anterior del código (`RARQ-DEP-005`). Se aplican con `php artisan migrate --database=pgsql_owner` (lección de `1.11d-a`). `db-reviewer` obligatorio.
 
 **Reversión** (`RARQ-DEP-013`): las migraciones son reversibles mientras las tablas estén vacías en producción; el `down()` de `image_consent_decisions` y de `terms_versions` **lanza una excepción si hay filas** (evidencia legal, `db-reviewer` B-3). Con datos reales, revertir el código es seguro (las tablas nuevas quedan sin uso) y **no** se ejecuta `migrate:rollback` sobre `image_consent_decisions`, `terms_versions` (los textos a los que apuntan las decisiones) ni `terms_acceptances`: son evidencia de consentimiento. Con `1.14-b` desplegada, `sync-registry` registra los permisos de `consentimiento_imagen` y `texto_legal`, y `fam_unit:grant-permissions` siembra los de `permisos.md §4` en los centros existentes (incluido `texto_legal.leer` en `secretaria`, `OPEN-FAM-UNIT-22`). El procedimiento probado se escribe en `RUNBOOK.md` al cerrar cada entrega.
 
@@ -117,3 +117,24 @@ Sin variables de entorno, servicios, colas ni tareas programadas nuevas (los lí
 **Reversión** (`RARQ-DEP-013`): como en `§3`, desplegar la imagen anterior y **no** ejecutar `migrate:rollback` sobre `image_consent_decisions` ni `terms_versions` (evidencia). La versión anterior no usa las tablas nuevas. Mientras dure, **ningún módulo puede consultar `ImageConsentPolicy`** (no existe en la imagen de `1.14-a`): no hay publicadores todavía (`REQ-COM`/`REQ-INF` son posteriores), así que no hay nada que dejar de bloquear. El `kind image_consents` de `data_exports` queda inerte (su `down()` falla si hay filas de ese tipo: se purgan antes a mano). Al volver a la versión nueva: `migrate --database=pgsql_owner --force`, `sync-registry` y `fam_unit:grant-permissions`.
 
 **Qué se probó y qué no (2026-10-27)**: *probado* con la base de test real: las migraciones y las restricciones del motor (`ImageConsentSchemaTest`), las carreras reales de dos procesos (decisiones simultáneas y publicaciones simultáneas, `FamUnitConcurrencyTest`), la interfaz `ImageConsentPolicy` y el informe con la cola `sync` y `Storage::fake`. *No probado*: el informe contra S3 real, la cola `database` con un *worker* real, el procedimiento de reversión sobre un servidor (no hay servidor, `OPEN-11`) y el rendimiento del cálculo del estado con miles de alumnos (una sentencia con `DISTINCT ON`; sin medición).
+
+---
+
+## 10. Despliegue de `1.14-c`: orden, permiso y reversión
+
+Orden: **migrar → `sync-registry` → siembra** (mismo orden que `§9`):
+
+```bash
+# 1. Una migración aditiva: terms_acceptances (solo anexar, FK RESTRICT a terms_versions).
+php artisan migrate --database=pgsql_owner
+# 2. Registra el permiso nuevo aceptacion_condiciones.leer.
+php artisan platform:sync-registry
+# 3. Centros que YA existían: siembra idempotente (aceptacion_condiciones.leer en administrador_centro y secretaria).
+php artisan fam_unit:grant-permissions
+```
+
+Sin variables de entorno, servicios, colas ni tareas programadas nuevas (el módulo no encola nada). El muro de condiciones solo actúa si el centro tiene `fam_unit` contratado y ha publicado una versión de `condiciones_uso` con `requires_reacceptance`.
+
+**Reversión** (`RARQ-DEP-013`): desplegar la imagen anterior y **no** ejecutar `migrate:rollback` sobre `terms_acceptances`: su `down()` falla mientras haya filas y es **evidencia legal** de qué texto aceptó cada tutor; cualquier reversión de esa tabla requiere aprobación expresa y documentada. La imagen anterior no lee la tabla: el muro de condiciones deja de existir y la imagen anterior vuelve a traer su propio `RequireMfaEnrollment`. El siguiente `sync-registry` de la versión anterior marca el permiso con `retired_at`.
+
+**Qué se probó y qué no (2026-10-28)**: *probado* con la base de test real, las migraciones, el muro y la inmutabilidad en el motor. *No probado*: el procedimiento de reversión sobre un servidor (no hay servidor, `OPEN-11`) ni el E2E contra la API real (`funcional.md §19`, D-39).

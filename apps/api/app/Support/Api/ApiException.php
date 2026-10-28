@@ -93,13 +93,13 @@ final class ApiException extends RuntimeException
     }
 
     /**
-     * REQ-AUTH/funcional.md §C.4.9, `api.md §C.1.1`. El muro de alta:
-     * usuario obligado a MFA, sin factor, gracia vencida —
-     * `RequireMfaEnrollment` es el único emisor.
+     * ADR-067 §5.5: `403` de un muro de sesión (alta de MFA, aceptación de condiciones...). `$type` es el slug del
+     * catálogo de ADR-038 §6.2 que declara el muro (`SessionWall::errorType()`), sin miembros de extensión.
+     * `RequireSessionWalls` es el único emisor. Sustituye a `mfaEnrollmentRequired()` (REQ-AUTH/funcional.md §C.4.9).
      */
-    public static function mfaEnrollmentRequired(): self
+    public static function sessionWall(string $type): self
     {
-        return new self(403, 'mfa-enrollment-required');
+        return new self(403, $type);
     }
 
     /**

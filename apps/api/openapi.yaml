@@ -438,3 +438,9 @@ paths:
     $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1terms-versions~1{publicId}"
   /api/v1/terms-versions/{publicId}/publish:
     $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1terms-versions~1{publicId}~1publish"
+  /api/v1/terms-acceptances:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1terms-acceptances"
+  /api/v1/me/terms:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1me~1terms"
+  /api/v1/me/terms-acceptances:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1me~1terms-acceptances"

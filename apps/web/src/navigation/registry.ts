@@ -6,7 +6,7 @@
  */
 import type { Router } from 'vue-router'
 import { moduleShells } from './modules'
-import type { DashboardBlock, NavigationEntry } from './types'
+import type { DashboardBlock, NavigationEntry, SessionWallEntry } from './types'
 import type { RouteRecordRaw } from 'vue-router'
 
 export function allModuleRoutes(): readonly RouteRecordRaw[] {
@@ -19,6 +19,31 @@ export function allNavigationEntries(): readonly NavigationEntry[] {
 
 export function allDashboardBlocks(): readonly DashboardBlock[] {
   return moduleShells.flatMap((shell) => shell.dashboardBlocks)
+}
+
+/**
+ * `ADR-067 §5.11`: los muros de sesión declarados por los *shells*, en el orden de `moduleShells`.
+ */
+export function allSessionWalls(): readonly SessionWallEntry[] {
+  return moduleShells.flatMap((shell) => shell.sessionWalls ?? [])
+}
+
+export function findSessionWallByCode(code: string): SessionWallEntry | undefined {
+  // Un `Map` y no una comparación de `.code`: un muro no es un rol (`roleLiterals.spec.ts` prohíbe decidir por `.code`).
+  return new Map(allSessionWalls().map((wall) => [wall.code, wall])).get(code)
+}
+
+const ERROR_TYPE_PREFIX = 'urn:pge:error:'
+
+/** El muro cuyo `403` lleva ese `type` (`urn:pge:error:<slug>`), si lo hay. */
+export function findSessionWallByErrorType(type: string): SessionWallEntry | undefined {
+  if (!type.startsWith(ERROR_TYPE_PREFIX)) {
+    return undefined
+  }
+
+  const slug = type.slice(ERROR_TYPE_PREFIX.length)
+
+  return allSessionWalls().find((wall) => wall.errorType === slug)
 }
 
 export function findNavigationEntryForRoute(routeName: string): NavigationEntry | undefined {

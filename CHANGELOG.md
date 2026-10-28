@@ -6,6 +6,16 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-28 · `1.14-c`: condiciones de uso, aceptaciones y muro de condiciones (`REQ-FAM-UNIT-003`, rama `feature/REQ-FAM-UNIT-1-14c-condiciones-muro`)
+
+- **Implementación** de `1.14-c` sobre `ADR-067`: registro de muros de sesión en el núcleo (`SessionWall`, `SessionWallRegistry`) y *middleware* único `RequireSessionWalls`, que sustituye a `RequireMfaEnrollment`; el muro de MFA pasa a ser uno registrado sin cambiar su comportamiento observable; muro de condiciones de `fam_unit` (solo tutores, una consulta por petición, sin caché entre peticiones). Tabla `terms_acceptances` (solo anexar), `condiciones_uso` gestionable en `/terms-versions`, `GET /terms-acceptances`, `GET /me/terms` y `POST /me/terms-acceptances` (35 *endpoints* en el módulo), permiso `aceptacion_condiciones.leer`, `session_walls` en `GET /me` y `POST /auth/session`, y la pantalla `/condiciones-de-uso`.
+- **Decisiones de detalle** `funcional.md §19` (D-29 a D-40), a revisar: auditoría `Selective` de `TermsAcceptance` (D-29), semántica de `GET /me/terms` (D-30), aceptación solo de la versión publicada (D-31), `GET /terms-acceptances` por cursor (D-32), retirada de `fam_unit.terms.kind_not_available` (D-33), registro de muros sin pasar por el contenedor (D-34), `session_walls` en el presentador (D-35), SPA con `wall-required` (D-36), pantalla del muro (D-37), traducciones pendientes de `traductor` (D-38), E2E contra la API simulada (D-39) y ausencia de claves `errors.*.mfa-enrollment-required` (D-40).
+- **Hallazgo**: `errors.title.mfa-enrollment-required` y `errors.detail.mfa-enrollment-required` no existen en `lang/*/errors.php` (los cuatro idiomas); el `403` del muro de MFA responde con la clave sin traducir. No se corrige en `1.14-c` (`ADR-067 §5.6`); seguimiento en el issue #486.
+- **Documentación**: `REQ-FAM-UNIT/{funcional §19,datos,api,permisos,operacion §10}.md`, `REQ-AUTH/funcional.md` y `REQ-BO/api.md` (referencias a `RequireMfaEnrollment`), manual de usuario (`familia.md` nuevo, `admin.md`, `secretaria.md`), `PRIVACY.md` 0.3.11, `SECURITY.md` 0.3.16, `RUNBOOK.md` 0.3.15, `SYSADMIN.md` 0.8.22, `ARCHITECTURE.md` 2.5.10, `README.md` 2.6.38.
+- **No probado**: el E2E contra la API real (`D-39`) y la reversión sobre un servidor (`OPEN-11`).
+
+---
+
 ## 2026-10-28 · `ADR-067`: registro de muros de sesión (`REQ-FAM-UNIT-003`, rama `chore/adr-067-muros-de-sesion`)
 
 - **`ADR-067` ACEPTADA**: registro `SessionWall` en el núcleo y un único *middleware* `RequireSessionWalls` que sustituye a `RequireMfaEnrollment`; el muro de MFA pasa a ser uno más sin cambiar su comportamiento; muro de condiciones de `fam_unit` (solo tutores). Resuelve el diseño de `OPEN-FAM-UNIT-12`. Aprobadas las ampliaciones L1 (`AR-07a` 35→37), L2 (rutas `[]` de la SPA 7→8), L3 (6 rutas exentas), L5 (error en el catálogo de `ADR-038`), L6 (orden de muros) y `OPEN-067-01..06`.

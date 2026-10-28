@@ -15,8 +15,8 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * REQ-FAM-UNIT/funcional.md §3.9, §4.9, `RN-FAM-UNIT-60`, `-73` y `api.md §2.8` (1.14-b, `ADR-066 §5.5`): versiones de
- * los textos legales del centro. `1.14-b` gestiona solo los dos tipos de imagen; `condiciones_uso` se rechaza hasta
- * `1.14-c` (`422 terms.kind_not_available`).
+ * los textos legales del centro: los dos tipos de imagen (`1.14-b`) y `condiciones_uso` (`1.14-c`, que levanta el
+ * `422 terms.kind_not_available` de `1.14-b` porque ya existe el muro, `RN-FAM-UNIT-73`).
  *
  * Una versión pasa de `borrador` a `publicada` y de `publicada` a `retirada`; como mucho una `publicada` por centro y tipo
  * (índice único parcial); la numeración es correlativa por centro y tipo y no se reutiliza. Una versión `publicada` o
@@ -32,9 +32,6 @@ final class TermsVersionService
     public const TITLE_MAX_LENGTH = 200;
 
     public const BODY_MAX_LENGTH = 20000;
-
-    /** Tipos que `1.14-b` gestiona; `condiciones_uso` entra con `1.14-c` (`RN-FAM-UNIT-73`). */
-    public const AVAILABLE_KINDS = [TermsVersion::KIND_IMAGE_WEB, TermsVersion::KIND_IMAGE_SOCIAL];
 
     public function __construct(
         private readonly TenantSettingsReader $settings,
@@ -88,10 +85,6 @@ final class TermsVersionService
     {
         if (! in_array($kind, TermsVersion::KINDS, true)) {
             throw FamUnitErrors::invalid('kind', 'fam_unit.terms.kind_invalid');
-        }
-
-        if (! in_array($kind, self::AVAILABLE_KINDS, true)) {
-            throw FamUnitErrors::invalid('kind', 'fam_unit.terms.kind_not_available');
         }
 
         return DB::transaction(function () use ($kind, $title, $body): TermsVersion {

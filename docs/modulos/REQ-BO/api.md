@@ -12,7 +12,7 @@ Tres precisiones que no son cosméticas:
 2. **El prefijo ya no depende de ninguna pregunta abierta.** `ADR-046 §4.1` decide la **Opción A**: mismo monolito y mismo despliegue de API, con *guard*, grupo de rutas y SPA propios. El segmento `platform` es lo que separa los dos grupos y la señal legible, en cualquier log, de que esa ruta no lleva `ResolveTenant`.
 3. **Declarar un grupo de rutas fuera del tenant no es una excepción nueva**: `/api/health` y `/api/_sso-simulator/*` ya lo son. Es el patrón vigente (`ADR-046 §1.1`).
 
-> **Ninguna ruta de este documento lleva `resolve-tenant`, `verify-session-tenant` ni `require-mfa-enrollment`, y ninguna ruta de tenant lleva el *guard* `platform`.** Son propiedades verificadas por un test de arquitectura que recorre **`Route::getRoutes()`** —la verdad efectiva, no el texto de los ficheros—: `CA-BO-011`, `CA-BO-013`, `CA-BO-014` y `CA-BO-015`. *(Desde `ADR-067`, ACEPTADA 2026-10-28, el alias `require-mfa-enrollment` pasa a `require-session-walls`; la propiedad comprobada es la misma.)*
+> **Ninguna ruta de este documento lleva `resolve-tenant`, `verify-session-tenant` ni `require-session-walls`, y ninguna ruta de tenant lleva el *guard* `platform`.** Son propiedades verificadas por un test de arquitectura que recorre **`Route::getRoutes()`** —la verdad efectiva, no el texto de los ficheros—: `CA-BO-011`, `CA-BO-013`, `CA-BO-014` y `CA-BO-015`. *(Histórico: hasta `1.14-b` el alias se llamaba `require-mfa-enrollment`; `ADR-067`, implementado en `1.14-c`, lo sustituyó por `require-session-walls`. La propiedad comprobada es la misma.)*
 
 ---
 
@@ -26,7 +26,7 @@ Tres precisiones que no son cosméticas:
 | Almacén de sesión | **`platform_sessions`**, tabla de plataforma propia con `REVOKE ALL … FROM plataforma_app` (`ADR-046 §5`, `datos.md §2.6`). **No es `sessions`**, y el motivo no es que aquella tenga una columna de tenant —no la tiene— sino que `plataforma_app` la lee y en el *driver* `database` su clave primaria **es** el identificador de sesión |
 | Selección del almacén | Por **grupo de rutas**, con un *middleware* que fija la configuración de sesión de plataforma **antes** de `start-session`. Mismo patrón que `TenantContext::applyCachePrefix()` |
 | Vida | Corta y configurable, **más corta que la del tenant** (`RN-BO-09`, `BO_SESSION_LIFETIME`) |
-| Segundo factor | **Obligatorio siempre** (`RN-BO-05`). Sin factor confirmado, la sesión sólo alcanza `/mfa/*`. **Es MFA de plataforma, no `require-mfa-enrollment`**, que es el del tenant |
+| Segundo factor | **Obligatorio siempre** (`RN-BO-05`). Sin factor confirmado, la sesión sólo alcanza `/mfa/*`. **Es MFA de plataforma, no el muro de MFA del tenant (`require-session-walls`)** |
 
 ### 1.1 La pila de *middleware* del grupo, completa y en orden
 
@@ -44,7 +44,7 @@ Tres precisiones que no son cosméticas:
 | 8 | **MFA de plataforma** | Sin factor confirmado, sólo `/mfa/*`. **Sin gracia y sin exención** (`RN-BO-05`, `CA-BO-005`, `CA-BO-006`) |
 | 9 | **Capacidad** | La de cada ruta, según `permisos.md §3` y `§4`. Denegar por defecto (`RN-BO-03`) |
 
-**Lo que esta pila deliberadamente no lleva**, y es la aserción 1 del test (`CA-BO-011`): **`resolve-tenant`, `verify-session-tenant` y `require-mfa-enrollment`**. Los tres son del tenant; el backoffice tiene sus equivalentes propios en los puestos 1, 4 y 8, y su MFA es incondicional.
+**Lo que esta pila deliberadamente no lleva**, y es la aserción 1 del test (`CA-BO-011`): **`resolve-tenant`, `verify-session-tenant` y `require-session-walls`**. Los tres son del tenant; el backoffice tiene sus equivalentes propios en los puestos 1, 4 y 8, y su MFA es incondicional.
 
 **Y una barrera más que no está en esta tabla porque no es de la aplicación**: Traefik enruta por `Host()` y aplica su propio *middleware* `ipallowlist` sobre los *routers* del backoffice (`operacion.md §0`). Los puestos 1 y 2 **no la sustituyen** ni al revés: la configuración del proxy no la cubre la suite de tests y la aplicación sí, y por eso las dos capas son obligatorias (`funcional.md §3.4`).
 

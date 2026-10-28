@@ -167,7 +167,7 @@ describe('#427 login tras sesión anónima (RN-CORE-26, RN-CORE-28, CA-CORE-090)
     getMe.mockRejectedValueOnce(problem(ApiError, 403, 'urn:pge:error:mfa-enrollment-required'))
     await submitLogin(wrapper)
 
-    expect(session.useSession().status.value).toBe('mfa-required')
+    expect(session.useSession().status.value).toBe('wall-required')
     expect(router.currentRoute.value.name).toBe('mfa-enrollment-wall')
   })
 })

@@ -78,7 +78,7 @@ function onEnrolled(): void {
 }
 
 async function continueToApp(): Promise<void> {
-  // #427: el estado sigue en `mfa-required` tras el alta; sin recargar, el
+  // #427: el estado sigue en `wall-required` tras el alta; sin recargar, el
   // *guard* devolvería al muro.
   await reloadSession()
   await router.push({ name: 'home' })

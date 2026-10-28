@@ -4,8 +4,8 @@ use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\EnforceSessionIdleTimeout;
 use App\Http\Middleware\EnsureModuleEnabled;
 use App\Http\Middleware\RequireIdempotencyKey;
-use App\Http\Middleware\RequireMfaEnrollment;
 use App\Http\Middleware\RequirePermission;
+use App\Http\Middleware\RequireSessionWalls;
 use App\Http\Middleware\ResolveApiLocale;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\VerifySessionTenant;
@@ -67,8 +67,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'csrf' => ValidateCsrfToken::class,
             'verify-session-tenant' => VerifySessionTenant::class,
             'session-idle-timeout' => EnforceSessionIdleTimeout::class,
-            // REQ-AUTH-003 (1.3), funcional.md §C.4.9: el muro de alta.
-            'require-mfa-enrollment' => RequireMfaEnrollment::class,
+            // ADR-067 §5.3 (sustituye a `require-mfa-enrollment`, REQ-AUTH-003 funcional.md §C.4.9): los muros de sesión.
+            'require-session-walls' => RequireSessionWalls::class,
 
             // REQ-BO (1.6), ADR-046 §4.1, api.md §1.1: pila propia del
             // grupo /api/platform/*, sin ninguno de los tres alias de

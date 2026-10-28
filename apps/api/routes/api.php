@@ -53,9 +53,11 @@ if (app()->environment(['local', 'testing'])) {
 //   7. verify-session-tenant — RN-AUTH-31: tenant_id del payload vs. host
 //   8. session-idle-timeout  — después de la reverificación
 //   9. resolve-locale        — movido: ahora corre con $request->user() ya resuelto
-//  10. require-mfa-enrollment — REQ-AUTH-003 (1.3), funcional.md §C.4.9: el
-//      muro de alta. Después de resolve-locale para que su propio 403 ya
-//      salga traducido; sin efecto sobre peticiones sin sesión.
+//  10. require-session-walls — ADR-067 §5.3 (sustituye a
+//      `require-mfa-enrollment`, REQ-AUTH-003 funcional.md §C.4.9): recorre
+//      los muros de sesión registrados (alta de MFA, condiciones de uso...) en
+//      el orden cerrado L6. Después de resolve-locale para que su propio 403
+//      ya salga traducido; sin efecto sobre peticiones sin sesión.
 Route::prefix('v1')->middleware([
     'resolve-tenant',
     'encrypt-cookies',
@@ -65,7 +67,7 @@ Route::prefix('v1')->middleware([
     'verify-session-tenant',
     'session-idle-timeout',
     'resolve-locale',
-    'require-mfa-enrollment',
+    'require-session-walls',
 ])->group(function (): void {
     require base_path('routes/api-v1.php');
 });
@@ -79,7 +81,7 @@ Route::prefix('v1')->middleware([
 // aplicación — CA-AUTH-346).
 //
 // La pila es la de arriba MENOS `csrf`, `session-idle-timeout`,
-// `resolve-locale` y `require-mfa-enrollment`: ninguno de los cuatro
+// `resolve-locale` y `require-session-walls`: ninguno de los cuatro
 // tiene sentido sobre una petición que por diseño llega sin sesión
 // (`ADR-043 §2.1`). `verify-session-tenant` se mantiene: sobre sesión
 // vacía no hace nada, y si por lo que fuera llegara una sesión,
@@ -100,7 +102,7 @@ Route::prefix('v1')->middleware([
 // REQ-BO (1.6), ADR-046 §4.1, api.md §0/§1.1. Grupo hermano de
 // `/api/v1`, sin `resolve-tenant`: no lleva ninguno de los tres
 // middleware de tenant (`resolve-tenant`, `verify-session-tenant`,
-// `require-mfa-enrollment` — el backoffice tiene los suyos propios en
+// `require-session-walls` — el backoffice tiene los suyos propios en
 // los puestos 1, 6 y 8), verificado por `RunAsPlatformArchitectureTest`
 // (CA-BO-011, CA-BO-013 a CA-BO-015). Pila completa y en orden,
 // api.md §1.1:

@@ -5,8 +5,8 @@ use Illuminate\Support\Facades\Route;
 use Symfony\Component\Yaml\Yaml;
 use Tests\Support\FamUnitTestHelpers as Fam;
 
-// CLAUDE.md §10 («el endpoint está documentado en OpenAPI»), REQ-FAM-UNIT/api.md §2, INV-006, INV-015. Los 32 endpoints de
-// `1.14-a` y `1.14-b` (api.md §2.1 a §2.5, §2.7 y §2.8) documentados, y solo ellos; sus referencias resuelven; los
+// CLAUDE.md §10 («el endpoint está documentado en OpenAPI»), REQ-FAM-UNIT/api.md §2, INV-006, INV-015. Los 35 endpoints de
+// 1.14-a, 1.14-b y 1.14-c (api.md §2.1 a §2.5, §2.7 y §2.8) documentados, y solo ellos; sus referencias resuelven; los
 // esquemas describen lo que la API devuelve de verdad.
 
 afterEach(function (): void {
@@ -30,7 +30,7 @@ function famDocumentedOperations(): array
     return $documented;
 }
 
-test('REQ-FAM-UNIT-001 REQ-FAM-UNIT-004 api.md §2: los 32 endpoints de 1.14-a y 1.14-b están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
+test('REQ-FAM-UNIT-001 REQ-FAM-UNIT-004 api.md §2: los 35 endpoints de 1.14-a, 1.14-b y 1.14-c están documentados en OpenAPI, enlazados desde openapi.yaml, y solo ellos', function (): void {
     $root = Yaml::parseFile(base_path('openapi.yaml'));
     $paths = Yaml::parseFile(base_path('openapi/paths/fam-unit.yaml'))['paths'];
 
@@ -49,7 +49,7 @@ test('REQ-FAM-UNIT-001 REQ-FAM-UNIT-004 api.md §2: los 32 endpoints de 1.14-a y
 
     sort($registered);
     // `{membershipPublicId}` es el nombre de ruta del segundo parámetro, igual en el contrato.
-    expect(famDocumentedOperations())->toHaveCount(32)->and($registered)->toBe(famDocumentedOperations());
+    expect(famDocumentedOperations())->toHaveCount(35)->and($registered)->toBe(famDocumentedOperations());
 });
 
 test('REQ-FAM-UNIT-001 api.md §2: toda referencia $ref de fam-unit.yaml resuelve en components.yaml y cada operación tiene identificador, etiqueta y cookie de sesión', function (): void {
@@ -236,4 +236,39 @@ test('REQ-FAM-UNIT-004 api.md §1.5 a §1.9: los esquemas de 1.14-b describen ex
     foreach ([array_keys($listed), array_keys($history), array_keys($version), array_keys($texts[0])] as $names) {
         expect($names)->not->toContain('id', 'tenant_id', 'created_by', 'updated_by', 'student_person_id', 'guardian_id', 'ip_address', 'user_agent', 'recorded_by_id', 'consent_text_version_id');
     }
+});
+
+test('REQ-FAM-UNIT-003 api.md §1.8, §2.8: los esquemas MyTerms y TermsAcceptance de OpenAPI describen exactamente las claves que la API devuelve, y GET /me documenta session_walls', function (): void {
+    $f = Fam::termsFamily('fam-openapi-c');
+    ['tenant' => $tenant, 'admin' => $admin, 'tutor' => $tutor] = $f;
+    $components = Yaml::parseFile(base_path('openapi/components.yaml'))['components'];
+    $schemas = $components['schemas'];
+    $paths = Yaml::parseFile(base_path('openapi/paths/fam-unit.yaml'))['paths'];
+    $version = Fam::publishTerms($tenant, $admin);
+
+    $pending = Fam::call($tenant, $tutor, 'get', '/me/terms')->assertOk()->json();
+    $accepted = Fam::call($tenant, $tutor, 'post', '/me/terms-acceptances', ['terms_version' => $version])->assertCreated()->json();
+
+    expect(array_keys($pending))->toEqualCanonicalizing($schemas['MyTerms']['required'])
+        ->and(array_keys($pending['version']))->toEqualCanonicalizing($schemas['TermsVersion']['required'])
+        ->and(array_keys($accepted))->toEqualCanonicalizing(array_keys($schemas['TermsAcceptance']['properties']))
+        ->and($schemas['TermsAcceptance']['required'])->toEqualCanonicalizing(array_keys($schemas['TermsAcceptance']['properties']))
+        ->and(array_keys($accepted))->not->toContain('ip_address', 'user_agent', 'id', 'tenant_id');
+
+    // Las tres operaciones nuevas: autoservicio sin permiso (L1) y listado por cursor con filtros de varios valores.
+    expect($paths['/api/v1/me/terms']['get']['operationId'])->toBe('getMyTerms')
+        ->and($paths['/api/v1/me/terms-acceptances']['post']['responses'])->toHaveKeys(['200', '201', '409', '422'])
+        ->and($paths['/api/v1/terms-acceptances']['get']['responses']['200']['content']['application/json']['schema']['properties']['meta']['$ref'])->toEndWith('/CursorMeta');
+
+    foreach (collect($paths['/api/v1/terms-acceptances']['get']['parameters'])->whereIn('name', ['terms_version', 'user']) as $filter) {
+        expect($filter['style'])->toBe('form')->and($filter['explode'])->toBeFalse();
+    }
+
+    // ADR-067 §5.10: GET /me devuelve session_walls y el esquema de usuario lo documenta.
+    $me = Fam::call($tenant, $tutor, 'get', '/me')->assertOk()->json();
+    $documented = collect($schemas)->first(fn (array $schema): bool => isset($schema['properties']['mfa']) && isset($schema['properties']['permissions']));
+
+    expect($me['session_walls'])->toBe([])
+        ->and($documented['properties'])->toHaveKey('session_walls')
+        ->and($documented['properties']['session_walls']['type'])->toBe('array');
 });

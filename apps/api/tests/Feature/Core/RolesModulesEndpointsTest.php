@@ -43,8 +43,8 @@ test('GET /roles devuelve los 16 roles predefinidos y GET /roles/{id} sus permis
     // rol_datos_especiales.actualizar, permiso_efectivo.leer + los cinco de
     // REQ-CURSO/permisos.md §4 (1.10, OPEN-CURSO-14) + los cuatro de REQ-ACAD/permisos.md §4 (1.11-b, OPEN-ACAD-09 = X) + los cuatro de
     // REQ-ACAD/permisos.md §4.1 (1.11d-a, OPEN-ACAD-28 = X + 1) + el de
-    // reapertura de REQ-CURSO/permisos.md §4 (1.11c, ADR-059 §5.2) + los doce de REQ-ACAD/permisos.md §10 (1.12-a) + los tres de reservas (1.12-b) + los tres de apertura_curso_academico (1.12b, REQ-CURSO/permisos.md §4) + los once de REQ-FAM-UNIT/permisos.md §4 (1.14-a) y los ocho de consentimiento_imagen y texto_legal (1.14-b).
-    expect($detail->json('permissions'))->toHaveCount(87);
+    // reapertura de REQ-CURSO/permisos.md §4 (1.11c, ADR-059 §5.2) + los doce de REQ-ACAD/permisos.md §10 (1.12-a) + los tres de reservas (1.12-b) + los tres de apertura_curso_academico (1.12b, REQ-CURSO/permisos.md §4) + los once de REQ-FAM-UNIT/permisos.md §4 (1.14-a) y los ocho de consentimiento_imagen y texto_legal (1.14-b) y aceptacion_condiciones.leer (1.14-c).
+    expect($detail->json('permissions'))->toHaveCount(88);
 });
 
 // CA-CORE-041 (REQ-AUTH-003, 1.3, RN-AUTH-70) / CA-PERM-053, CA-PERM-056

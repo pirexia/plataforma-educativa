@@ -24,6 +24,7 @@ afterEach(function (): void {
 });
 
 const FAM_UNIT_CODES = [
+    'aceptacion_condiciones.leer',
     'consentimiento_imagen.actualizar', 'consentimiento_imagen.exportar', 'consentimiento_imagen.leer',
     'familia.actualizar', 'familia.crear', 'familia.eliminar', 'familia.leer',
     'revocacion_tutor.crear', 'revocacion_tutor.eliminar', 'revocacion_tutor.leer',
@@ -36,7 +37,7 @@ function famCodeFilter(): Closure
 {
     return fn ($q) => $q->where('permission_code', 'like', 'familia.%')->orWhere('permission_code', 'like', 'vinculo_tutor.%')
         ->orWhere('permission_code', 'like', 'revocacion_tutor.%')->orWhere('permission_code', 'like', 'consentimiento_imagen.%')
-        ->orWhere('permission_code', 'like', 'texto_legal.%');
+        ->orWhere('permission_code', 'like', 'texto_legal.%')->orWhere('permission_code', 'like', 'aceptacion_condiciones.%');
 }
 
 /** @return list<string> permisos de familias de un rol, ordenados, con su ámbito (`código:ámbito`) */
@@ -67,7 +68,7 @@ function famRevokeAll(object $tenant): void
     });
 }
 
-test('permisos.md §2 ADR-034 §5: tras platform:sync-registry, permissions contiene exactamente los diecinueve códigos de 1.14-a y 1.14-b con el ámbito de permisos.md, sin los de custodia ni aceptación de condiciones', function (): void {
+test('permisos.md §2 ADR-034 §5: tras platform:sync-registry, permissions contiene exactamente los veinte códigos de 1.14-a, 1.14-b y 1.14-c con el ámbito de permisos.md, sin los de custodia', function (): void {
     test()->artisan('platform:sync-registry')->assertSuccessful();
 
     $rows = Permission::query()->where('module_code', 'fam_unit')->orderBy('code')->get();
@@ -84,10 +85,10 @@ test('permisos.md §2 ADR-034 §5: tras platform:sync-registry, permissions cont
     }
 
     // Sin endpoint, un permiso invita a concederlo creyendo que hace algo (permisos.md §2.1, funcional.md §15 D-6): ni
-    // custodia (condicionada), ni aceptación de condiciones (1.14-c), ni el antiguo recurso `condiciones_uso`
+    // custodia (condicionada), ni el antiguo recurso `condiciones_uso`
     // (renombrado `texto_legal`, OPEN-066-03), ni acciones que no existen.
     expect(Permission::query()->where(fn ($q) => $q
-        ->where('code', 'like', 'restriccion_custodia.%')->orWhere('code', 'like', 'condiciones_uso.%')->orWhere('code', 'like', 'aceptacion_condiciones.%')
+        ->where('code', 'like', 'restriccion_custodia.%')->orWhere('code', 'like', 'condiciones_uso.%')->orWhere('code', 'like', 'aceptacion_condiciones.crear')->orWhere('code', 'like', 'aceptacion_condiciones.actualizar')->orWhere('code', 'like', 'aceptacion_condiciones.eliminar')
         ->orWhereIn('code', ['familia.exportar', 'familia.importar', 'vinculo_tutor.exportar', 'revocacion_tutor.actualizar', 'consentimiento_imagen.crear', 'consentimiento_imagen.eliminar', 'texto_legal.exportar']))->count())->toBe(0);
 });
 
@@ -119,8 +120,10 @@ test('CA-FAM-UNIT-082 CA-PERM-134 AR-12: el nombre del módulo, la etiqueta de c
         // 1.14-b (funcional.md §17 tarea 4): las claves de error nuevas del consentimiento de imagen y los textos legales.
         'fam_unit.image_consent.not_legal_guardian', 'fam_unit.image_consent.guardian_required', 'fam_unit.image_consent.guardian_not_linked',
         'fam_unit.image_consent.text_not_published', 'fam_unit.image_consent.text_version_invalid',
-        'fam_unit.terms.kind_not_available', 'fam_unit.terms.kind_not_editable', 'fam_unit.terms.kind_invalid', 'fam_unit.terms.requires_reacceptance_not_allowed',
+        'fam_unit.terms.kind_not_editable', 'fam_unit.terms.kind_invalid', 'fam_unit.terms.requires_reacceptance_not_allowed',
         'fam_unit.terms.not_draft', 'fam_unit.terms.default_locale_missing', 'fam_unit.export.q_not_allowed',
+        // 1.14-c (ADR-067, api.md §7): aceptación de las condiciones y su etiqueta de recurso.
+        'fam_unit.terms.version_not_current', 'fam_unit.validation.terms_version_not_found', 'fam_unit.permissions.resources.aceptacion_condiciones',
         ...array_map(static fn (string $k): string => "fam_unit.validation.{$k}", ['level_invalid', 'decision_invalid', 'channel_invalid', 'state_invalid', 'cursor_invalid']),
         ...array_map(static fn (string $k): string => "fam_unit.validation.{$k}", [
             'user_not_found', 'student_not_found', 'guardian_not_found', 'family_unit_not_found', 'principal_guardian_not_found',
@@ -137,7 +140,7 @@ test('CA-FAM-UNIT-082 CA-PERM-134 AR-12: el nombre del módulo, la etiqueta de c
 
     $declared = (new FamUnitServiceProvider(app()))->declaredPermissions();
 
-    expect($declared)->toHaveCount(19);
+    expect($declared)->toHaveCount(20);
 
     foreach ($declared as $permission) {
         expect($permission['resource_label_key'])->toBe("fam_unit.permissions.resources.{$permission['resource']}");
@@ -154,11 +157,13 @@ test('permisos.md §4 OPEN-FAM-UNIT-10 OPEN-FAM-UNIT-22: tenant:provision-defaul
         $admin = [
             ...$all('familia', $crud), ...$all('vinculo_tutor', $crud), ...$all('revocacion_tutor', ['crear', 'eliminar', 'leer']),
             ...$all('consentimiento_imagen', ['actualizar', 'exportar', 'leer']), ...$all('texto_legal', [...$crud, 'publicar']),
+            'aceptacion_condiciones.leer:todos',
         ];
         sort($admin);
         $secretaria = [
             ...$all('familia', $crud), ...$all('vinculo_tutor', $crud), 'revocacion_tutor.leer:todos',
             ...$all('consentimiento_imagen', ['actualizar', 'exportar', 'leer']), 'texto_legal.leer:todos',
+            'aceptacion_condiciones.leer:todos',
         ];
         sort($secretaria);
 
@@ -251,12 +256,12 @@ test('operacion.md §3: fam_unit:grant-permissions concede lo que falta a un cen
     famRevokeAll($tenant);
     expect(famGrantCount($tenant))->toBe(0);
 
-    // 19 (administrador) + 13 (secretaria) + 4 (direccion) + 2 (administrativo) + 4 (tutor_legal).
+    // 20 (administrador) + 14 (secretaria) + 4 (direccion) + 2 (administrativo) + 4 (tutor_legal).
     test()->artisan('fam_unit:grant-permissions')->assertSuccessful();
-    expect(famGrantCount($tenant))->toBe(42);
+    expect(famGrantCount($tenant))->toBe(44);
 
     test()->artisan('fam_unit:grant-permissions')->assertSuccessful();
-    expect(famGrantCount($tenant))->toBe(42);
+    expect(famGrantCount($tenant))->toBe(44);
 
     app(TenantContext::class)->runFor($tenant->id, function (): void {
         $custom = Role::where('code', 'rol_custom_fam')->firstOrFail();
@@ -316,7 +321,7 @@ test('CA-FAM-UNIT-081 RMOD-008 RMOD-009: con el módulo no contratado, toda ruta
 
     $routes = array_values(array_filter(iterator_to_array(Route::getRoutes()), static fn ($r): bool => str_starts_with((string) $r->getName(), 'fam-unit.')));
 
-    expect($routes)->toHaveCount(32);
+    expect($routes)->toHaveCount(35);
 
     foreach ($routes as $route) {
         $uri = '/'.str_replace(['api/v1', '{publicId}', '{membershipPublicId}'], ['', '01JZZZZZZZZZZZZZZZZZZZZZZZ', '01JZZZZZZZZZZZZZZZZZZZZZZY'], $route->uri());

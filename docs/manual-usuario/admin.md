@@ -548,3 +548,18 @@ Los campos que no identifican a nadie por sí solos (por ejemplo, el idioma de c
 ### Si necesitas el valor anterior de un dato redactado
 
 No está disponible por diseño. Si tu centro tiene una necesidad real de conservar el histórico de un campo concreto (por ejemplo, el historial de cambios de documento de identidad ante un caso de fraude), es un requisito a plantear para que se modele como un histórico propio de ese dato — con su propia regla de conservación — no como una excepción al registro de auditoría general.
+
+## Condiciones de uso del centro
+
+Las condiciones de uso son un **texto legal versionado** que las familias (personas con vínculo de tutor legal) deben aceptar para usar la plataforma (`REQ-FAM-UNIT-003`). Hoy se gestionan **por la API**; la pantalla de gestión llega con el paso `1.14-d`.
+
+**Publicar unas condiciones.** Con el permiso de gestión de textos legales (por defecto, el Administrador de Centro):
+
+1. Crea una versión (`POST /terms-versions`) con `kind` `condiciones_uso` y el título y el texto en los idiomas del centro; el idioma por defecto es obligatorio. Queda en **borrador** y puedes editarla (`PATCH`) o borrarla (`DELETE`) mientras lo sea.
+2. Publícala (`POST /terms-versions/{id}/publish`). Al publicar, indicas `requires_reacceptance`: con `true`, **todos los tutores que ya habían aceptado una versión anterior** volverán a ver el muro de condiciones en su próximo acceso; con `false`, solo lo verán quienes aún no hayan aceptado ninguna. Publicar retira la versión publicada anterior del mismo tipo.
+
+El texto se muestra a las familias como texto plano (sin formato ni enlaces). Un texto de consentimiento de imagen **no** admite `requires_reacceptance`.
+
+**Consultar quién ha aceptado.** `GET /terms-acceptances` (permiso de consultar aceptaciones, concedido por defecto al Administrador de Centro y a la Secretaría) lista las aceptaciones, de la más reciente a la más antigua, con filtros por versión y por usuario. No muestra la IP ni el dispositivo. Tampoco hay pantalla todavía: llegará con `1.14-d`.
+
+**Qué ve la familia.** Ver el manual de familias (`docs/manual-usuario/familia.md`).

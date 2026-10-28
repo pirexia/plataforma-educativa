@@ -3362,6 +3362,35 @@ namespace App\Modules\FamUnit\Domain\Models{
  */
 	#[\AllowDynamicProperties]
 	class IdeHelperTermsVersion {}
+/**
+ * REQ-FAM-UNIT/datos.md §1.9, §4 (1.14-c, `REQ-FAM-UNIT-003`). Aceptación de las condiciones de uso (solo anexar).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $user_id
+ * @property int $terms_version_id
+ * @property string $shown_locale
+ * @property \Illuminate\Support\Carbon $accepted_at
+ * @property string|null $ip_address
+ * @property string|null $user_agent
+ * @property-read \App\Modules\FamUnit\Domain\Models\TermsVersion|null $termsVersion
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsAcceptance newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsAcceptance newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsAcceptance query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsAcceptance whereAcceptedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsAcceptance whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsAcceptance whereIpAddress($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsAcceptance wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsAcceptance whereShownLocale($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsAcceptance whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsAcceptance whereTermsVersionId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsAcceptance whereUserAgent($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|TermsAcceptance whereUserId($value)
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperTermsAcceptance {}
 }
 
 namespace App\Support\Tenancy{

@@ -1,5 +1,6 @@
 /**
- * `docs/modulos/REQ-CORE/funcional.md §12.3.1`, `§12.3.5`, `RN-CORE-35`.
+ * `docs/modulos/REQ-CORE/funcional.md §12.3.1`, `§12.3.5`, `RN-CORE-35`,
+ * `docs/adr/ADR-067-registro-de-muros-de-sesion.md §5.11`.
  * Un solo *guard* global. La comprobación de `meta.permissions` de la ruta
  * de destino **no** vive aquí (`§12.3.2` punto 3): es experiencia de
  * usuario, no seguridad (`INV-002`), y la resuelve el *layout* al pintar
@@ -9,12 +10,12 @@
 import type { Router } from 'vue-router'
 import { useTenantBranding } from '@/tenant/useTenantBranding'
 import { clearModuleUnavailableDetail, ensureSessionLoaded, useSession } from '@/session/useSession'
+import { findSessionWallByCode } from '@/navigation/registry'
 import { buildRedirectQuery } from './redirect'
 
 const TENANT_NOT_FOUND_ROUTE = 'tenant-not-found'
 const NOT_FOUND_ROUTE = 'not-found'
 const LOGIN_ROUTE = 'login'
-const MFA_ENROLLMENT_WALL_ROUTE = 'mfa-enrollment-wall'
 
 export function installNavigationGuard(router: Router): void {
   router.beforeEach(async (to) => {
@@ -51,10 +52,28 @@ export function installNavigationGuard(router: Router): void {
     // (deduplicada dentro de `ensureSessionLoaded`).
     await ensureSessionLoaded()
 
-    const { status } = useSession()
+    const { status, user, activeWall } = useSession()
 
-    if (status.value === 'mfa-required') {
-      return to.name === MFA_ENROLLMENT_WALL_ROUTE ? true : { name: MFA_ENROLLMENT_WALL_ROUTE }
+    // `ADR-067 §5.11`: `GET /me` respondió el `403` de un muro registrado.
+    if (status.value === 'wall-required') {
+      const wall = activeWall.value === null ? undefined : findSessionWallByCode(activeWall.value)
+
+      if (wall !== undefined) {
+        return to.name === wall.route ? true : { name: wall.route }
+      }
+    }
+
+    // `ADR-067 §5.11`, `REQ-CORE §12.3.5`: con `session_walls` no vacío en `GET /me` (los muros activos y
+    // bloqueantes, en el orden del registro) solo se entra en la ruta del primero, **también para el muro de MFA**.
+    // Sin bucle: no se vuelve a pedir `/me` al entrar en la ruta del muro. Un código que esta SPA no conoce no
+    // bloquea la navegación (la API sigue haciendo cumplir el muro con `403`, `INV-010`).
+    if (status.value === 'ready') {
+      const walls = user.value?.session_walls ?? []
+      const wall = walls.length > 0 ? findSessionWallByCode(walls[0]!) : undefined
+
+      if (wall !== undefined) {
+        return to.name === wall.route ? true : { name: wall.route }
+      }
     }
 
     if (status.value === 'anonymous') {

@@ -1,0 +1,15 @@
+{
+  "famUnit": {
+    "termsWall": {
+      "title": "Nutzungsbedingungen",
+      "reason": "Um die Plattform weiter zu nutzen, müssen Sie die aktuell gültigen Nutzungsbedingungen der Schule lesen und akzeptieren.",
+      "loading": "Die Nutzungsbedingungen werden geladen…",
+      "textLabel": "Text der Nutzungsbedingungen",
+      "accept": "Acepto las condiciones de uso",
+      "logout": "Abmelden",
+      "loadError": "Die Nutzungsbedingungen konnten nicht geladen werden. Bitte versuchen Sie es in einigen Minuten erneut.",
+      "acceptError": "Ihre Zustimmung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+      "outdated": "Die Schule hat während Ihres Lesens eine neue Version veröffentlicht. Bitte prüfen Sie den aktualisierten Text, bevor Sie akzeptieren."
+    }
+  }
+}

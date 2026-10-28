@@ -6,7 +6,7 @@ use Illuminate\Support\Carbon;
 
 /**
  * funcional.md §C.4.7. Resultado de `MfaPolicy::resolve()`. `graceDeadlineAt`
- * viaja también en `Exigible` (ya vencido): es lo que `RequireMfaEnrollment`
+ * viaja también en `Exigible` (ya vencido): es lo que `MfaEnrollmentWall (RequireSessionWalls, ADR-067)`
  * y el cuerpo de `urn:pge:error:mfa-enrollment-required` necesitan sin
  * volver a consultar la fila de `user_mfa_obligations` (api.md §C.1.1).
  */
