@@ -1,5 +1,302 @@
 {
   "famUnit": {
+    "nav": {
+      "units": "Familias",
+      "terms": "Condiciones de uso",
+      "backToUnits": "Volver a las unidades familiares"
+    },
+    "common": {
+      "yes": "Sí",
+      "no": "No",
+      "dash": "—",
+      "remove": "Quitar"
+    },
+    "form": {
+      "cancel": "Cancelar",
+      "close": "Cerrar",
+      "choose": "Elige una opción",
+      "create": "Crear",
+      "save": "Guardar"
+    },
+    "errors": {
+      "unexpected": "No se ha podido completar la operación. Inténtalo de nuevo en unos minutos."
+    },
+    "fields": {
+      "code": "Código",
+      "principalGuardian": "Tutor principal",
+      "guardiansCount": "Tutores",
+      "studentsCount": "Alumnos",
+      "name": "Nombre",
+      "actions": "Acciones",
+      "guardian": "Tutor/a",
+      "student": "Alumno",
+      "relationship": "Relación",
+      "isLegalGuardian": "Representación legal",
+      "accessLevel": "Nivel de acceso",
+      "isEmergencyContact": "Contacto de emergencia",
+      "restrictedCategories": "Categorías restringidas",
+      "status": "Estado",
+      "level": "Nivel",
+      "state": "Estado",
+      "lastDecisionAt": "Dernière décision",
+      "familyUnit": "Unidad familiar",
+      "occurredAt": "Fecha",
+      "decision": "Décision",
+      "channel": "Canal",
+      "textVersion": "Version du texte",
+      "kind": "Tipo",
+      "title": "Título",
+      "body": "Texto",
+      "versionNumber": "Versión",
+      "publishedAt": "Publicada el",
+      "acceptedAt": "Acceptée le",
+      "shownLocale": "Langue affichée",
+      "user": "Usuario"
+    },
+    "enums": {
+      "relationship": {
+        "padre": "Padre",
+        "madre": "Madre",
+        "tutor_legal": "Tutor legal",
+        "abuelo": "Abuelo/a",
+        "apoderado": "Apoderado/a",
+        "otro": "Otro"
+      },
+      "accessLevel": {
+        "lectura": "Solo lectura",
+        "lectura_escritura": "Lectura y escritura"
+      },
+      "linkStatus": {
+        "activo": "Activo",
+        "revocado": "Revocado"
+      },
+      "revocationReason": {
+        "resolucion_judicial": "Resolución judicial"
+      },
+      "restrictedCategory": {
+        "salud": "Salud"
+      },
+      "consentLevel": {
+        "web": "Site web de l'établissement",
+        "redes_sociales": "Réseaux sociaux"
+      },
+      "consentState": {
+        "autorizo": "J'autorise",
+        "no_autorizo": "Je n'autorise pas",
+        "pendiente": "En attente"
+      },
+      "decision": {
+        "autorizo": "J'autorise",
+        "no_autorizo": "Je n'autorise pas"
+      },
+      "channel": {
+        "portal": "Portail des familles",
+        "presencial": "En personne"
+      },
+      "termsKind": {
+        "condiciones_uso": "Conditions d'utilisation",
+        "consentimiento_imagen_web": "Consentement à l'image : site web",
+        "consentimiento_imagen_redes": "Consentement à l'image : réseaux sociaux"
+      },
+      "termsStatus": {
+        "borrador": "Brouillon",
+        "publicada": "Publiée",
+        "retirada": "Retirée"
+      }
+    },
+    "units": {
+      "title": "Familias",
+      "intro": "Unidades familiares del centro, con sus tutores, alumnos y vínculos.",
+      "caption": "Unidades familiares",
+      "new": "Nueva unidad",
+      "consentsLink": "Consentements à l'image",
+      "empty": {
+        "title": "Todavía no hay unidades familiares",
+        "text": "Crea la primera unidad familiar para añadir sus tutores y alumnos."
+      },
+      "filters": {
+        "hasPrincipal": "Con tutor principal"
+      },
+      "principal": {
+        "set": "Definido",
+        "none": "Sin tutor principal"
+      },
+      "form": {
+        "title": "Nueva unidad familiar",
+        "description": "Crea una unidad familiar. Después podrás añadir sus tutores, sus alumnos y los vínculos entre ellos.",
+        "codeHint": "Opcional. Si lo dejas vacío, el sistema asigna el siguiente código."
+      }
+    },
+    "detail": {
+      "pageTitle": "Unidad familiar",
+      "title": "Unidad familiar {code}"
+    },
+    "guardians": {
+      "title": "Tutores",
+      "caption": "Tutores de la unidad familiar",
+      "add": "Añadir tutor",
+      "empty": "La unidad no tiene tutores.",
+      "removedUser": "Usuario dado de baja",
+      "principalYes": "Principal",
+      "makePrincipal": "Marcar como principal",
+      "makePrincipalFor": "Marcar a {name} como tutor principal",
+      "removeFor": "Quitar a {name} de la unidad",
+      "form": {
+        "title": "Añadir tutor",
+        "description": "Elige la persona usuaria del centro que será tutor o tutora de esta unidad.",
+        "user": "Persona usuaria",
+        "userId": "Identificador del usuario",
+        "userIdHint": "No tienes permiso para buscar usuarios: escribe su identificador público.",
+        "chooseUser": "Elige una persona usuaria.",
+        "submit": "Añadir tutor"
+      },
+      "confirmRemove": {
+        "title": "Quitar a {name} de la unidad",
+        "description": "Se darán de baja también sus vínculos con los alumnos de la unidad. Esta acción queda registrada en la auditoría.",
+        "confirm": "Quitar a {name}"
+      }
+    },
+    "students": {
+      "title": "Alumnos",
+      "caption": "Alumnos de la unidad familiar",
+      "add": "Añadir alumno",
+      "empty": "La unidad no tiene alumnos.",
+      "removeFor": "Quitar a {name} de la unidad",
+      "form": {
+        "title": "Añadir alumno",
+        "description": "Añade un alumno a la unidad familiar por su persona.",
+        "person": "Identificador de la persona del alumno",
+        "personHint": "Todavía no existe el buscador de alumnos: escribe el identificador público de su persona.",
+        "submit": "Añadir alumno"
+      },
+      "confirmRemove": {
+        "title": "Quitar a {name} de la unidad",
+        "description": "Se darán de baja también los vínculos de los tutores con este alumno. Esta acción queda registrada en la auditoría.",
+        "confirm": "Quitar a {name}"
+      }
+    },
+    "links": {
+      "title": "Vínculos",
+      "caption": "Vínculos entre tutores y alumnos",
+      "add": "Nuevo vínculo",
+      "addNeeds": "Para crear un vínculo la unidad necesita al menos un tutor y un alumno.",
+      "empty": "La unidad no tiene vínculos.",
+      "revoke": "Revocar",
+      "lift": "Levantar revocación",
+      "revokeFor": "Revocar el acceso de {guardian} a {student}",
+      "liftFor": "Levantar la revocación de {guardian} sobre {student}",
+      "revocation": "Revocado por: {reason} · {date}",
+      "form": {
+        "title": "Nuevo vínculo",
+        "description": "Vincula un tutor de la unidad con un alumno de la unidad.",
+        "guardian": "Tutor/a",
+        "student": "Alumno",
+        "legalHint": "Marcar la representación legal registra que el centro la ha verificado.",
+        "submit": "Crear vínculo"
+      },
+      "confirmRevoke": {
+        "title": "Revocar el acceso de {guardian} a {student}",
+        "description": "El tutor pierde el acceso a este alumno de inmediato. Motivo registrado: {reason}. El detalle de la resolución no se guarda aquí.",
+        "confirm": "Revocar el acceso de {guardian} a {student}"
+      },
+      "confirmLift": {
+        "title": "Levantar la revocación de {guardian} sobre {student}",
+        "description": "El tutor recupera el acceso a este alumno con los mismos permisos que tenía.",
+        "confirm": "Levantar la revocación de {guardian} sobre {student}"
+      }
+    },
+    "flash": {
+      "guardianCreated": "Tutor añadido a la unidad.",
+      "guardianRemoved": "{name} se ha quitado de la unidad.",
+      "principalSet": "{name} es ahora el tutor principal.",
+      "studentAdded": "Alumno añadido a la unidad.",
+      "studentRemoved": "{name} se ha quitado de la unidad.",
+      "linkCreated": "Vínculo creado.",
+      "linkRevoked": "Acceso de {guardian} a {student} revocado.",
+      "linkLifted": "Revocación de {guardian} sobre {student} levantada.",
+      "termsCreated": "Brouillon créé.",
+      "termsUpdated": "Brouillon mis à jour.",
+      "termsPublished": "Version publiée.",
+      "termsDeleted": "Brouillon supprimé."
+    },
+    "consents": {
+      "title": "Consentements à l'image",
+      "intro": "État en vigueur du consentement à l'image de chaque élève, par niveau.",
+      "caption": "Consentements à l'image par élève et par niveau",
+      "unitCaption": "Consentements à l'image des élèves de l'unité",
+      "empty": {
+        "title": "Aucun consentement à afficher",
+        "text": "Aucun élève ne correspond aux filtres choisis, ou il n'y a pas encore d'élèves dans des unités familiales."
+      },
+      "emptyUnit": "Les élèves de cette unité n'ont aucun consentement à afficher.",
+      "openUnit": "Voir l'unité",
+      "openUnitFor": "Voir l'unité familiale de {name}",
+      "historyFor": "Voir l'historique des décisions de {name}",
+      "history": {
+        "open": "Historique",
+        "title": "Historique des décisions de {name}",
+        "description": "Décisions enregistrées, de la plus récente à la plus ancienne. Elles ne peuvent être ni modifiées ni supprimées.",
+        "caption": "Décisions d'image de {name}",
+        "empty": "Cet élève n'a aucune décision enregistrée.",
+        "version": "Version {number}"
+      }
+    },
+    "terms": {
+      "title": "Conditions d'utilisation",
+      "intro": "Versions des conditions d'utilisation et du texte du consentement à l'image de chaque niveau.",
+      "versionsHeading": "Versions",
+      "caption": "Versions des textes juridiques",
+      "versionNumber": "version {number}",
+      "new": "Nouvelle version",
+      "read": "Lire",
+      "edit": "Modifier",
+      "publishAction": "Publier",
+      "delete": "Supprimer",
+      "readFor": "Lire {name}",
+      "editFor": "Modifier {name}",
+      "publishFor": "Publier {name}",
+      "deleteFor": "Supprimer {name}",
+      "empty": {
+        "title": "Il n'y a pas encore de versions",
+        "text": "Créez la première version en brouillon et publiez-la quand elle est prête."
+      },
+      "form": {
+        "title": {
+          "create": "Nouvelle version",
+          "edit": "Modifier le brouillon"
+        },
+        "description": "Le texte est un contenu de l'établissement : rédigez-le dans chaque langue active. La langue par défaut est obligatoire pour pouvoir publier.",
+        "kindImmutable": "Le type ne peut pas être modifié une fois la version créée."
+      },
+      "text": {
+        "description": "Texte de la version, dans votre langue ou, à défaut, dans la langue par défaut de l'établissement.",
+        "label": "Texte de la version"
+      },
+      "publish": {
+        "title": "Publier {kind}, version {number}",
+        "descriptionTerms": "La version actuellement publiée sera retirée. Tant qu'elle n'est pas publiée, les autres utilisateurs ne voient pas cette version.",
+        "descriptionImage": "La version actuellement publiée de ce niveau sera retirée. Publier un texte d'image ne modifie aucune décision de consentement déjà enregistrée.",
+        "requiresReacceptance": "Exiger que ceux qui ont accepté une version précédente acceptent à nouveau",
+        "requiresReacceptanceHint": "Si vous ne cochez pas, seuls ceux qui n'ont jamais accepté voient la page d'acceptation.",
+        "confirm": "Publier"
+      },
+      "confirmDelete": {
+        "title": "Supprimer {name}",
+        "description": "Seuls les brouillons peuvent être supprimés. Cette action est consignée dans le journal d'audit.",
+        "confirm": "Supprimer {name}"
+      },
+      "acceptances": {
+        "heading": "Acceptations",
+        "caption": "Acceptations des conditions d'utilisation",
+        "empty": "Aucune acceptation n'a encore été enregistrée."
+      }
+    },
+    "userPicker": {
+      "search": "Buscar por nombre o correo",
+      "loading": "Buscando…",
+      "empty": "No hay usuarios que coincidan.",
+      "loadError": "No se han podido cargar los usuarios."
+    },
     "termsWall": {
       "title": "Conditions d'utilisation",
       "reason": "Pour continuer à utiliser la plateforme, vous devez lire et accepter les conditions d'utilisation en vigueur de l'établissement.",
