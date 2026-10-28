@@ -12,7 +12,7 @@ return [
             'revocacion_tutor' => 'Entzug des Zugangs eines Erziehungsberechtigten',
             'consentimiento_imagen' => 'Einwilligung zur Bildnutzung',
             'texto_legal' => 'Rechtstexte der Schule',
-            'aceptacion_condiciones' => 'Aceptaciones de las condiciones de uso',
+            'aceptacion_condiciones' => 'Zustimmungen zu den Nutzungsbedingungen',
         ],
     ],
 
@@ -56,7 +56,7 @@ return [
         'kind_not_editable' => 'Die Art eines Rechtstexts kann nach dem Anlegen nicht geändert werden.',
         'kind_invalid' => 'Die Art des Rechtstexts ist nicht gültig.',
         'requires_reacceptance_not_allowed' => 'Eine erneute Zustimmung kann nur für die Nutzungsbedingungen verlangt werden, nicht für die Einwilligung zur Bildnutzung.',
-        'version_not_current' => 'La versión de las condiciones que se mostró ya no es la vigente: vuelve a leer el texto publicado antes de aceptar.',
+        'version_not_current' => 'Die angezeigte Fassung der Bedingungen ist nicht mehr die gültige: Lesen Sie den veröffentlichten Text erneut, bevor Sie akzeptieren.',
         'not_draft' => 'Nur eine Entwurfsversion kann bearbeitet, gelöscht oder veröffentlicht werden.',
         'default_locale_missing' => 'Titel und Text müssen vor der Veröffentlichung in der Standardsprache der Schule (:locale) vorliegen.',
     ],
@@ -71,7 +71,7 @@ return [
     ],
 
     'validation' => [
-        'terms_version_not_found' => 'La versión de las condiciones de uso indicada no existe.',
+        'terms_version_not_found' => 'Die angegebene Fassung der Nutzungsbedingungen existiert nicht.',
         'user_not_found' => 'Der angegebene Benutzer existiert nicht.',
         'student_not_found' => 'Der angegebene Schüler existiert nicht.',
         'guardian_not_found' => 'Der angegebene Erziehungsberechtigte existiert nicht.',

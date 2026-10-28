@@ -12,7 +12,7 @@ return [
             'revocacion_tutor' => 'Révocation de l\'accès d\'un tuteur',
             'consentimiento_imagen' => 'Consentement à l\'utilisation de l\'image',
             'texto_legal' => 'Textes juridiques de l\'établissement',
-            'aceptacion_condiciones' => 'Aceptaciones de las condiciones de uso',
+            'aceptacion_condiciones' => 'Acceptations des conditions d\'utilisation',
         ],
     ],
 
@@ -56,7 +56,7 @@ return [
         'kind_not_editable' => 'Le type d\'un texte juridique ne peut pas être modifié après sa création.',
         'kind_invalid' => 'Le type de texte juridique n\'est pas valide.',
         'requires_reacceptance_not_allowed' => 'La nouvelle acceptation ne peut être exigée que pour les conditions d\'utilisation, pas pour le consentement à l\'image.',
-        'version_not_current' => 'La versión de las condiciones que se mostró ya no es la vigente: vuelve a leer el texto publicado antes de aceptar.',
+        'version_not_current' => 'La version des conditions affichée n\'est plus la version en vigueur : relisez le texte publié avant d\'accepter.',
         'not_draft' => 'Seule une version en brouillon peut être modifiée, supprimée ou publiée.',
         'default_locale_missing' => 'Le titre et le texte doivent être rédigés dans la langue par défaut de l\'établissement (:locale) avant publication.',
     ],
@@ -71,7 +71,7 @@ return [
     ],
 
     'validation' => [
-        'terms_version_not_found' => 'La versión de las condiciones de uso indicada no existe.',
+        'terms_version_not_found' => 'La version indiquée des conditions d\'utilisation n\'existe pas.',
         'user_not_found' => 'L\'utilisateur indiqué n\'existe pas.',
         'student_not_found' => 'L\'élève indiqué n\'existe pas.',
         'guardian_not_found' => 'Le tuteur indiqué n\'existe pas.',

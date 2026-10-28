@@ -1,15 +1,15 @@
 {
   "famUnit": {
     "termsWall": {
-      "title": "Condiciones de uso",
-      "reason": "Para seguir usando la plataforma tienes que leer y aceptar las condiciones de uso vigentes del centro.",
-      "loading": "Cargando las condiciones de uso…",
-      "textLabel": "Texto de las condiciones de uso",
+      "title": "Conditions d'utilisation",
+      "reason": "Pour continuer à utiliser la plateforme, vous devez lire et accepter les conditions d'utilisation en vigueur de l'établissement.",
+      "loading": "Chargement des conditions d'utilisation…",
+      "textLabel": "Texte des conditions d'utilisation",
       "accept": "Acepto las condiciones de uso",
-      "logout": "Cerrar sesión",
-      "loadError": "No se han podido cargar las condiciones de uso. Inténtalo de nuevo en unos minutos.",
-      "acceptError": "No se ha podido registrar la aceptación. Inténtalo de nuevo.",
-      "outdated": "El centro ha publicado una nueva versión mientras leías. Revisa el texto actualizado antes de aceptar."
+      "logout": "Se déconnecter",
+      "loadError": "Les conditions d'utilisation n'ont pas pu être chargées. Réessayez dans quelques minutes.",
+      "acceptError": "Votre acceptation n'a pas pu être enregistrée. Réessayez.",
+      "outdated": "L'établissement a publié une nouvelle version pendant votre lecture. Consultez le texte mis à jour avant d'accepter."
     }
   }
 }

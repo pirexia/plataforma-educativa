@@ -22,7 +22,7 @@ return [
         'reauthentication-required' => 'Bitte melde dich erneut an',
         'ip-not-allowed' => 'Zugriff nicht erlaubt',
         // ADR-067 §5.5 (L5): muro de aceptación de las condiciones de uso.
-        'terms-acceptance-required' => 'Debes aceptar las condiciones de uso',
+        'terms-acceptance-required' => 'Sie müssen die Nutzungsbedingungen akzeptieren',
     ],
 
     'detail' => [
@@ -36,6 +36,6 @@ return [
         'unavailable' => 'Der Dienst ist vorübergehend nicht verfügbar. Bitte versuche es in ein paar Minuten erneut.',
         'account-locked' => 'Dieses Konto ist wegen zu vieler fehlgeschlagener Versuche vorübergehend gesperrt. Prüfe deine E-Mails oder versuche es später erneut.',
         'reauthentication-required' => 'Diese Aktion verlangt, dass du dein Passwort und deinen zweiten Faktor erneut bestätigst.',
-        'terms-acceptance-required' => 'Para continuar, acepta las condiciones de uso vigentes del centro.',
+        'terms-acceptance-required' => 'Um fortzufahren, akzeptieren Sie die aktuell gültigen Nutzungsbedingungen der Schule.',
     ],
 ];

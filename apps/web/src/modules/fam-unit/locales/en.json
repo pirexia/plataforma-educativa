@@ -1,15 +1,15 @@
 {
   "famUnit": {
     "termsWall": {
-      "title": "Condiciones de uso",
-      "reason": "Para seguir usando la plataforma tienes que leer y aceptar las condiciones de uso vigentes del centro.",
-      "loading": "Cargando las condiciones de uso…",
-      "textLabel": "Texto de las condiciones de uso",
+      "title": "Terms of use",
+      "reason": "To keep using the platform you must read and accept the school's current terms of use.",
+      "loading": "Loading the terms of use…",
+      "textLabel": "Text of the terms of use",
       "accept": "Acepto las condiciones de uso",
-      "logout": "Cerrar sesión",
-      "loadError": "No se han podido cargar las condiciones de uso. Inténtalo de nuevo en unos minutos.",
-      "acceptError": "No se ha podido registrar la aceptación. Inténtalo de nuevo.",
-      "outdated": "El centro ha publicado una nueva versión mientras leías. Revisa el texto actualizado antes de aceptar."
+      "logout": "Sign out",
+      "loadError": "The terms of use could not be loaded. Please try again in a few minutes.",
+      "acceptError": "Your acceptance could not be recorded. Please try again.",
+      "outdated": "The school published a new version while you were reading. Review the updated text before accepting."
     }
   }
 }

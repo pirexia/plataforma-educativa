@@ -22,7 +22,7 @@ return [
         'reauthentication-required' => 'Merci de vous identifier à nouveau',
         'ip-not-allowed' => 'Accès non autorisé',
         // ADR-067 §5.5 (L5): muro de aceptación de las condiciones de uso.
-        'terms-acceptance-required' => 'Debes aceptar las condiciones de uso',
+        'terms-acceptance-required' => 'Vous devez accepter les conditions d\'utilisation',
     ],
 
     'detail' => [
@@ -36,6 +36,6 @@ return [
         'unavailable' => 'Le service est temporairement indisponible. Merci de réessayer dans quelques minutes.',
         'account-locked' => 'Ce compte est temporairement verrouillé après trop de tentatives échouées. Consultez votre e-mail ou réessayez plus tard.',
         'reauthentication-required' => 'Cette action exige que vous confirmiez à nouveau votre mot de passe et votre second facteur.',
-        'terms-acceptance-required' => 'Para continuar, acepta las condiciones de uso vigentes del centro.',
+        'terms-acceptance-required' => 'Pour continuer, acceptez les conditions d\'utilisation en vigueur de l\'établissement.',
     ],
 ];
