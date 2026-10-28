@@ -1,80 +1,80 @@
 {
   "famUnit": {
     "nav": {
-      "units": "Familias",
-      "terms": "Condiciones de uso",
-      "backToUnits": "Volver a las unidades familiares"
+      "units": "Familien",
+      "terms": "Nutzungsbedingungen",
+      "backToUnits": "Zurück zu den Familieneinheiten"
     },
     "common": {
-      "yes": "Sí",
-      "no": "No",
+      "yes": "Ja",
+      "no": "Nein",
       "dash": "—",
-      "remove": "Quitar"
+      "remove": "Entfernen"
     },
     "form": {
-      "cancel": "Cancelar",
-      "close": "Cerrar",
-      "choose": "Elige una opción",
-      "create": "Crear",
-      "save": "Guardar"
+      "cancel": "Abbrechen",
+      "close": "Schließen",
+      "choose": "Wählen Sie eine Option",
+      "create": "Erstellen",
+      "save": "Speichern"
     },
     "errors": {
-      "unexpected": "No se ha podido completar la operación. Inténtalo de nuevo en unos minutos."
+      "unexpected": "Der Vorgang konnte nicht abgeschlossen werden. Bitte versuchen Sie es in einigen Minuten erneut."
     },
     "fields": {
-      "code": "Código",
-      "principalGuardian": "Tutor principal",
-      "guardiansCount": "Tutores",
-      "studentsCount": "Alumnos",
-      "name": "Nombre",
-      "actions": "Acciones",
-      "guardian": "Tutor/a",
-      "student": "Alumno",
-      "relationship": "Relación",
-      "isLegalGuardian": "Representación legal",
-      "accessLevel": "Nivel de acceso",
-      "isEmergencyContact": "Contacto de emergencia",
-      "restrictedCategories": "Categorías restringidas",
-      "status": "Estado",
-      "level": "Nivel",
-      "state": "Estado",
+      "code": "Code",
+      "principalGuardian": "Haupterziehungsberechtigte/r",
+      "guardiansCount": "Erziehungsberechtigte",
+      "studentsCount": "Schüler",
+      "name": "Name",
+      "actions": "Aktionen",
+      "guardian": "Erziehungsberechtigte/r",
+      "student": "Schüler/in",
+      "relationship": "Beziehung",
+      "isLegalGuardian": "Gesetzliche Vertretung",
+      "accessLevel": "Zugriffsstufe",
+      "isEmergencyContact": "Notfallkontakt",
+      "restrictedCategories": "Eingeschränkte Kategorien",
+      "status": "Status",
+      "level": "Stufe",
+      "state": "Status",
       "lastDecisionAt": "Letzte Entscheidung",
-      "familyUnit": "Unidad familiar",
-      "occurredAt": "Fecha",
+      "familyUnit": "Familieneinheit",
+      "occurredAt": "Datum",
       "decision": "Entscheidung",
       "channel": "Kanal",
       "textVersion": "Textversion",
-      "kind": "Tipo",
-      "title": "Título",
-      "body": "Texto",
-      "versionNumber": "Versión",
-      "publishedAt": "Publicada el",
+      "kind": "Art",
+      "title": "Titel",
+      "body": "Text",
+      "versionNumber": "Version",
+      "publishedAt": "Veröffentlicht am",
       "acceptedAt": "Akzeptiert am",
       "shownLocale": "Angezeigte Sprache",
-      "user": "Usuario"
+      "user": "Benutzer/in"
     },
     "enums": {
       "relationship": {
-        "padre": "Padre",
-        "madre": "Madre",
-        "tutor_legal": "Tutor legal",
-        "abuelo": "Abuelo/a",
+        "padre": "Vater",
+        "madre": "Mutter",
+        "tutor_legal": "Gesetzlicher Vertreter",
+        "abuelo": "Großelternteil",
         "apoderado": "Apoderado/a",
-        "otro": "Otro"
+        "otro": "Andere"
       },
       "accessLevel": {
-        "lectura": "Solo lectura",
-        "lectura_escritura": "Lectura y escritura"
+        "lectura": "Nur Lesen",
+        "lectura_escritura": "Lesen und Schreiben"
       },
       "linkStatus": {
-        "activo": "Activo",
-        "revocado": "Revocado"
+        "activo": "Aktiv",
+        "revocado": "Widerrufen"
       },
       "revocationReason": {
-        "resolucion_judicial": "Resolución judicial"
+        "resolucion_judicial": "Gerichtsbeschluss"
       },
       "restrictedCategory": {
-        "salud": "Salud"
+        "salud": "Gesundheit"
       },
       "consentLevel": {
         "web": "Website der Einrichtung",
@@ -105,115 +105,115 @@
       }
     },
     "units": {
-      "title": "Familias",
-      "intro": "Unidades familiares del centro, con sus tutores, alumnos y vínculos.",
-      "caption": "Unidades familiares",
-      "new": "Nueva unidad",
+      "title": "Familien",
+      "intro": "Familieneinheiten der Einrichtung mit ihren Erziehungsberechtigten, Schülern und Verknüpfungen.",
+      "caption": "Familieneinheiten",
+      "new": "Neue Einheit",
       "consentsLink": "Bildeinwilligungen",
       "empty": {
-        "title": "Todavía no hay unidades familiares",
-        "text": "Crea la primera unidad familiar para añadir sus tutores y alumnos."
+        "title": "Es gibt noch keine Familieneinheiten",
+        "text": "Erstellen Sie die erste Familieneinheit, um Erziehungsberechtigte und Schüler hinzuzufügen."
       },
       "filters": {
-        "hasPrincipal": "Con tutor principal"
+        "hasPrincipal": "Mit Haupterziehungsberechtigter/m"
       },
       "principal": {
-        "set": "Definido",
-        "none": "Sin tutor principal"
+        "set": "Festgelegt",
+        "none": "Kein Haupterziehungsberechtigter"
       },
       "form": {
-        "title": "Nueva unidad familiar",
-        "description": "Crea una unidad familiar. Después podrás añadir sus tutores, sus alumnos y los vínculos entre ellos.",
-        "codeHint": "Opcional. Si lo dejas vacío, el sistema asigna el siguiente código."
+        "title": "Neue Familieneinheit",
+        "description": "Erstellen Sie eine Familieneinheit. Danach können Sie deren Erziehungsberechtigte, Schüler und die Verknüpfungen zwischen ihnen hinzufügen.",
+        "codeHint": "Optional. Wenn Sie das Feld leer lassen, vergibt das System den nächsten Code."
       }
     },
     "detail": {
-      "pageTitle": "Unidad familiar",
-      "title": "Unidad familiar {code}"
+      "pageTitle": "Familieneinheit",
+      "title": "Familieneinheit {code}"
     },
     "guardians": {
-      "title": "Tutores",
-      "caption": "Tutores de la unidad familiar",
-      "add": "Añadir tutor",
-      "empty": "La unidad no tiene tutores.",
-      "removedUser": "Usuario dado de baja",
-      "principalYes": "Principal",
-      "makePrincipal": "Marcar como principal",
-      "makePrincipalFor": "Marcar a {name} como tutor principal",
-      "removeFor": "Quitar a {name} de la unidad",
+      "title": "Erziehungsberechtigte",
+      "caption": "Erziehungsberechtigte der Familieneinheit",
+      "add": "Erziehungsberechtigte/n hinzufügen",
+      "empty": "Die Einheit hat keine Erziehungsberechtigten.",
+      "removedUser": "Deaktivierte Benutzerperson",
+      "principalYes": "Hauptperson",
+      "makePrincipal": "Als Hauptperson markieren",
+      "makePrincipalFor": "{name} als Haupterziehungsberechtigte/n markieren",
+      "removeFor": "{name} aus der Einheit entfernen",
       "form": {
-        "title": "Añadir tutor",
-        "description": "Elige la persona usuaria del centro que será tutor o tutora de esta unidad.",
-        "user": "Persona usuaria",
-        "userId": "Identificador del usuario",
-        "userIdHint": "No tienes permiso para buscar usuarios: escribe su identificador público.",
-        "chooseUser": "Elige una persona usuaria.",
-        "submit": "Añadir tutor"
+        "title": "Erziehungsberechtigte/n hinzufügen",
+        "description": "Wählen Sie die Benutzerperson der Einrichtung aus, die Erziehungsberechtigte/r dieser Einheit wird.",
+        "user": "Benutzerperson",
+        "userId": "Benutzerkennung",
+        "userIdHint": "Sie haben keine Berechtigung, Benutzer zu suchen: Geben Sie deren öffentliche Kennung ein.",
+        "chooseUser": "Wählen Sie eine Benutzerperson aus.",
+        "submit": "Erziehungsberechtigte/n hinzufügen"
       },
       "confirmRemove": {
-        "title": "Quitar a {name} de la unidad",
-        "description": "Se darán de baja también sus vínculos con los alumnos de la unidad. Esta acción queda registrada en la auditoría.",
-        "confirm": "Quitar a {name}"
+        "title": "{name} aus der Einheit entfernen",
+        "description": "Auch ihre Verknüpfungen mit den Schülern der Einheit werden deaktiviert. Diese Aktion wird im Prüfprotokoll erfasst.",
+        "confirm": "{name} entfernen"
       }
     },
     "students": {
-      "title": "Alumnos",
-      "caption": "Alumnos de la unidad familiar",
-      "add": "Añadir alumno",
-      "empty": "La unidad no tiene alumnos.",
-      "removeFor": "Quitar a {name} de la unidad",
+      "title": "Schüler",
+      "caption": "Schüler der Familieneinheit",
+      "add": "Schüler/in hinzufügen",
+      "empty": "Die Einheit hat keine Schüler.",
+      "removeFor": "{name} aus der Einheit entfernen",
       "form": {
-        "title": "Añadir alumno",
-        "description": "Añade un alumno a la unidad familiar por su persona.",
-        "person": "Identificador de la persona del alumno",
-        "personHint": "Todavía no existe el buscador de alumnos: escribe el identificador público de su persona.",
-        "submit": "Añadir alumno"
+        "title": "Schüler/in hinzufügen",
+        "description": "Fügen Sie einen Schüler anhand seines Personendatensatzes zur Familieneinheit hinzu.",
+        "person": "Kennung des Personendatensatzes des Schülers",
+        "personHint": "Die Schülersuche gibt es noch nicht: Geben Sie die öffentliche Kennung von dessen Personendatensatz ein.",
+        "submit": "Schüler/in hinzufügen"
       },
       "confirmRemove": {
-        "title": "Quitar a {name} de la unidad",
-        "description": "Se darán de baja también los vínculos de los tutores con este alumno. Esta acción queda registrada en la auditoría.",
-        "confirm": "Quitar a {name}"
+        "title": "{name} aus der Einheit entfernen",
+        "description": "Auch die Verknüpfungen der Erziehungsberechtigten mit diesem Schüler werden deaktiviert. Diese Aktion wird im Prüfprotokoll erfasst.",
+        "confirm": "{name} entfernen"
       }
     },
     "links": {
-      "title": "Vínculos",
-      "caption": "Vínculos entre tutores y alumnos",
-      "add": "Nuevo vínculo",
-      "addNeeds": "Para crear un vínculo la unidad necesita al menos un tutor y un alumno.",
-      "empty": "La unidad no tiene vínculos.",
-      "revoke": "Revocar",
-      "lift": "Levantar revocación",
-      "revokeFor": "Revocar el acceso de {guardian} a {student}",
-      "liftFor": "Levantar la revocación de {guardian} sobre {student}",
-      "revocation": "Revocado por: {reason} · {date}",
+      "title": "Verknüpfungen",
+      "caption": "Verknüpfungen zwischen Erziehungsberechtigten und Schülern",
+      "add": "Neue Verknüpfung",
+      "addNeeds": "Um eine Verknüpfung anzulegen, benötigt die Einheit mindestens einen Erziehungsberechtigten und einen Schüler.",
+      "empty": "Die Einheit hat keine Verknüpfungen.",
+      "revoke": "Widerrufen",
+      "lift": "Widerruf aufheben",
+      "revokeFor": "Zugriff von {guardian} auf {student} widerrufen",
+      "liftFor": "Widerruf von {guardian} für {student} aufheben",
+      "revocation": "Widerrufen aufgrund von: {reason} · {date}",
       "form": {
-        "title": "Nuevo vínculo",
-        "description": "Vincula un tutor de la unidad con un alumno de la unidad.",
-        "guardian": "Tutor/a",
-        "student": "Alumno",
+        "title": "Neue Verknüpfung",
+        "description": "Verknüpfen Sie einen Erziehungsberechtigten der Einheit mit einem Schüler der Einheit.",
+        "guardian": "Erziehungsberechtigte/r",
+        "student": "Schüler/in",
         "legalHint": "Marcar la representación legal registra que el centro la ha verificado.",
-        "submit": "Crear vínculo"
+        "submit": "Verknüpfung anlegen"
       },
       "confirmRevoke": {
-        "title": "Revocar el acceso de {guardian} a {student}",
+        "title": "Zugriff von {guardian} auf {student} widerrufen",
         "description": "El tutor pierde el acceso a este alumno de inmediato. Motivo registrado: {reason}. El detalle de la resolución no se guarda aquí.",
-        "confirm": "Revocar el acceso de {guardian} a {student}"
+        "confirm": "Zugriff von {guardian} auf {student} widerrufen"
       },
       "confirmLift": {
-        "title": "Levantar la revocación de {guardian} sobre {student}",
-        "description": "El tutor recupera el acceso a este alumno con los mismos permisos que tenía.",
-        "confirm": "Levantar la revocación de {guardian} sobre {student}"
+        "title": "Widerruf von {guardian} für {student} aufheben",
+        "description": "Der Erziehungsberechtigte erhält den Zugriff auf diesen Schüler mit denselben Berechtigungen zurück, die er zuvor hatte.",
+        "confirm": "Widerruf von {guardian} für {student} aufheben"
       }
     },
     "flash": {
-      "guardianCreated": "Tutor añadido a la unidad.",
-      "guardianRemoved": "{name} se ha quitado de la unidad.",
-      "principalSet": "{name} es ahora el tutor principal.",
-      "studentAdded": "Alumno añadido a la unidad.",
-      "studentRemoved": "{name} se ha quitado de la unidad.",
-      "linkCreated": "Vínculo creado.",
-      "linkRevoked": "Acceso de {guardian} a {student} revocado.",
-      "linkLifted": "Revocación de {guardian} sobre {student} levantada.",
+      "guardianCreated": "Erziehungsberechtigte/r zur Einheit hinzugefügt.",
+      "guardianRemoved": "{name} wurde aus der Einheit entfernt.",
+      "principalSet": "{name} ist jetzt Haupterziehungsberechtigte/r.",
+      "studentAdded": "Schüler/in zur Einheit hinzugefügt.",
+      "studentRemoved": "{name} wurde aus der Einheit entfernt.",
+      "linkCreated": "Verknüpfung angelegt.",
+      "linkRevoked": "Zugriff von {guardian} auf {student} widerrufen.",
+      "linkLifted": "Widerruf von {guardian} für {student} aufgehoben.",
       "termsCreated": "Entwurf erstellt.",
       "termsUpdated": "Entwurf aktualisiert.",
       "termsPublished": "Version veröffentlicht.",
@@ -292,10 +292,10 @@
       }
     },
     "userPicker": {
-      "search": "Buscar por nombre o correo",
-      "loading": "Buscando…",
-      "empty": "No hay usuarios que coincidan.",
-      "loadError": "No se han podido cargar los usuarios."
+      "search": "Nach Name oder E-Mail suchen",
+      "loading": "Suche läuft…",
+      "empty": "Keine passenden Benutzer.",
+      "loadError": "Die Benutzer konnten nicht geladen werden."
     },
     "termsWall": {
       "title": "Nutzungsbedingungen",
