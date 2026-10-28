@@ -144,6 +144,8 @@ Restricciones: `UNIQUE (tenant_id, kind) WHERE status = 'publicada' AND deleted_
 
 Restricciones: `UNIQUE (tenant_id, user_id, terms_version_id)` (`RN-FAM-UNIT-64`, idempotencia).
 
+La tabla **carece de `created_at`, `created_by` y `deleted_at`** (es de solo anexar): `accepted_at` hace de marca de creación y la autoría consta en `audit_logs`.
+
 ---
 
 ## 2. Relaciones

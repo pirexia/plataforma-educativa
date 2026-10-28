@@ -1,6 +1,6 @@
 # PRIVACY.md
 
-> **Versión 0.3.10** · 2026-10-27
+> **Versión 0.3.11** · 2026-10-28
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Base del Registro de Actividades de Tratamiento (RAT) exigido por el RGPD — hoy es un **esqueleto**, no un RAT completo: varias secciones dependen de decisiones que todavía no se han tomado (`OPEN-07`, entidad jurídica y contrato de encargado de tratamiento). No se rellenan con suposiciones (`CLAUDE.md` §0/§11).
 
 ---
@@ -159,6 +159,18 @@ Mismo mecanismo que §2.3, protocolo distinto: cada centro cataloga su propio pr
 | Informe de consentimientos (CSV) | `POST /image-consents/exports` (permiso `consentimiento_imagen.exportar`, solo ámbito `todos`, solicitud auditada como `exported`) genera en cola un CSV con, por alumno y nivel, **el nombre del alumno menor**, su `public_id`, el código de la unidad familiar, el estado (`autorizo`/`no_autorizo`/`pendiente`) y la fecha de la última decisión que cuenta: es un **dato personal de un menor**. El fichero se guarda en el almacenamiento de objetos del centro bajo `tenants/<centro>/exports/` y se descarga solo por **enlace firmado de caducidad corta (15 minutos)**, solo por quien lo solicitó y mientras conserve el permiso; la solicitud y el fichero caducan según la retención de `data_exports` de `Core` (`core.export_retention_days`). No contiene IP, agente de usuario ni datos de contacto |
 | Plazo de conservación | Evidencia mientras dure el tratamiento y el plazo que fije `REQ-PRIV-006` (sin especificar); la versión del texto a la que apunta una decisión tampoco se borra (`RESTRICT`) |
 | Copias de seguridad | Restaurar una copia anterior a un `no_autorizo` devolvería la publicabilidad de la imagen: se anota para `REQ-BKP` (`1.26`, `OPEN-FAM-UNIT-21`) |
+
+### 2.10 Aceptación de las condiciones de uso por el tutor (`REQ-FAM-UNIT-003`, paso 1.14-c, `ADR-067`)
+
+`fam_unit` registra en `terms_acceptances` que un usuario (tutor) aceptó una versión concreta de las condiciones de uso del centro: usuario, versión, **idioma realmente mostrado**, fecha y hora, **IP y agente de usuario**. Es una tabla **de solo anexar** (`REVOKE UPDATE, DELETE` en el motor) y un dato personal del tutor, no de categoría especial.
+
+| Aspecto | Decisión |
+|---------|----------|
+| Dato personal | El vínculo usuario-versión, el idioma mostrado, la IP y el agente de usuario como **evidencia** de la aceptación; la API no devuelve IP ni agente |
+| Base legal | Ejecución de la relación con el centro y prueba de la información dada al tutor. **Pendiente de validación jurídica** antes de cargar datos reales, junto con `OPEN-07` y `OPEN-13`; no se rellena con suposiciones |
+| Auditoría | Cada alta en `audit_logs` con política `Selective`: versión, idioma y fecha; usuario, IP y agente se redactan como identificadores (`ADR-035`) |
+| Plazo de conservación | **Es evidencia: no se purga con el usuario** (`datos.md §6`); se conserva mientras dure el tratamiento y el plazo que fije `REQ-PRIV-006` (sin especificar). La versión del texto a la que apunta tampoco se borra (`RESTRICT`) |
+| Copias de seguridad | Sin particularidad respecto a `§2.9`; se anota para `REQ-BKP` (`1.26`) |
 
 ## 3. Registro de Actividades de Tratamiento (RAT) — plantilla
 

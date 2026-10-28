@@ -171,7 +171,9 @@ test('CA-FAM-UNIT-071 CA-FAM-UNIT-077 RN-FAM-UNIT-64 RN-FAM-UNIT-65: la aceptaci
 
     // INV-003 y ADR-035: auditada, sin IP ni agente de usuario en los valores registrados.
     $changes = json_encode(Fam::audit($tenant, 'terms_acceptance', 'created')[0]->changes);
-    expect($changes)->not->toContain('PruebaNavegador')->and($changes)->toContain('shown_locale');
+    expect($changes)->not->toContain('PruebaNavegador')
+        ->and($changes)->not->toContain((string) $row->ip_address)
+        ->and($changes)->toContain('shown_locale');
 
     // Inmutable en el modelo y en el motor.
     app(TenantContext::class)->runFor($tenant->id, function () use ($row): void {

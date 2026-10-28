@@ -1972,7 +1972,7 @@ Este paso **no empieza de cero**: 1.3 dejó el esquema, los enumerados y los hue
 | `EloquentMfaComplianceDirectory` ya cuenta `users_exempt` y ya emite filas con `state: "exempt"` | `Infrastructure/EloquentMfaComplianceDirectory.php` | El cumplimiento ya sabe de exenciones; hoy siempre da `0` porque nadie las crea |
 | `config('auth-local.mfa')` ya declara `code_ttl_minutes`, `max_deliveries` y `max_exemption_days` | `config/auth-local.php` | **No hay variables de entorno nuevas** salvo la de `§D.2.4` |
 | Los seis límites de tasa de MFA existen y están aplicados en sus controladores | `config/auth-local.php`, `Http/Controllers/Mfa*Controller.php` | Se reutilizan sin añadir ninguno |
-| `RequireMfaEnrollment` permite `auth.mfa-enrollments.store` y `auth.mfa-factors.store` | `app/Http/Middleware/RequireMfaEnrollment.php` | **El muro no cambia**: el alta por correo usa esos dos mismos endpoints |
+| El muro de MFA (`MfaEnrollmentWall`, registrado en `RequireSessionWalls` desde `1.14-c`, `ADR-067`; antes `RequireMfaEnrollment`, ya inexistente) permite `auth.mfa-enrollments.store` y `auth.mfa-factors.store` | `app/Modules/Auth/Infrastructure/MfaEnrollmentWall.php`, `app/Http/Middleware/RequireSessionWalls.php` | **El muro no cambia**: el alta por correo usa esos dos mismos endpoints |
 
 **Conclusión: el modelo de datos de 1.3b es una sola modificación aditiva de tabla** (`§D.2.1`), y todo lo demás es lógica de aplicación, tres endpoints, dos correos, pantallas y tests.
 
