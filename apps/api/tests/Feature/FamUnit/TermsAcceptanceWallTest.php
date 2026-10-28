@@ -404,21 +404,31 @@ test('CA-067-08 ADR-067 §5.8: con fam_unit activo, un docente hace exactamente 
     $onlyMfa->register(MfaEnrollmentWall::class);
 
     $request = fn () => Fam::call($tenant, $docente, 'get', '/auth/sessions')->assertOk();
+    // La caché de módulos (`modules:fam_unit:enabled`, 300 s) es de Redis y compartida entre los procesos de la suite en
+    // paralelo: otro test puede vaciarla entre medias y provocar una lectura de `module_subscriptions` que no es del muro.
+    $withoutModuleCache = static fn (array $sql): array => array_values(array_filter($sql, static fn (string $q): bool => ! str_contains($q, 'module_subscriptions')));
 
     try {
         // Caliente la caché de módulos y todo lo memoizable.
         $request();
 
         app()->instance(SessionWallRegistry::class, $onlyMfa);
-        [$without] = queriesOf($request);
+        [, $withoutWall] = queriesOf($request);
 
         app()->instance(SessionWallRegistry::class, $original);
-        [$with] = queriesOf($request);
+        [, $withWall] = queriesOf($request);
     } finally {
         app()->instance(SessionWallRegistry::class, $original);
     }
 
-    expect($with - $without)->toBe(1);
+    $withoutWall = $withoutModuleCache($withoutWall);
+    $withWall = $withoutModuleCache($withWall);
+
+    // Exactamente una consulta más, y es la del muro (ADR-067 §5.7: una sola consulta, con predicado de tenant).
+    expect(count($withWall) - count($withoutWall))->toBe(1);
+
+    $wallQueries = array_filter($withWall, static fn (string $q): bool => str_contains($q, 'terms_versions') && str_contains($q, 'terms_acceptances'));
+    expect($wallQueries)->toHaveCount(1);
 
     // Módulo descontratado: ninguna consulta a tablas de fam_unit y el tutor pendiente no ve el muro.
     Fam::disableModule($tenant);
