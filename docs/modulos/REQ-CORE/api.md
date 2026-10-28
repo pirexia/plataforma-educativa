@@ -2,7 +2,7 @@
 
 > Alcance: paso **1.1**. La frontera de qué entra y qué no está en `funcional.md` §1. Prefijo `/api/v1`, resolución de tenant por host antes de cualquier consulta (`ADR-033 §2`).
 >
-> **Enmienda por `ADR-067`** (ACEPTADA, 2026-10-28; se implementa en `1.14-c`): campo `session_walls` en `GET /me` (§3).
+> **Enmienda por `ADR-067`** (ACEPTADA, 2026-10-28; **implementada en `1.14-c`**): campo `session_walls` en `GET /me` (§3).
 >
 > **Todo identificador de las rutas y de los cuerpos es el `public_id` ULID** (`ADR-029`). La clave interna `bigint` no sale de la capa de aplicación; exponerla es un fallo de revisión.
 
@@ -300,7 +300,7 @@ Alta y baja administrativa entre `activo` e `inactivo`. Separado de `PATCH` porq
 Autoservicio del perfil propio. **No requiere permiso**: se autoriza por identidad del sujeto, no por ámbito `propios` (`funcional.md` §1.3 — con el resolutor provisional, el ámbito no se evalúa y `propios` se comportaría como `todos`).
 
 - **`GET` respuesta 200**: recurso de usuario del solicitante, con sus roles y sus permisos efectivos resueltos (útil para que la interfaz decida qué mostrar).
-- **Campo `session_walls`** (**`ADR-067 §5.10`**, ACEPTADA el 2026-10-28, `OPEN-067-02`; se implementa en `1.14-c`). Ampliación aditiva y compatible del recurso que comparte `UserProfilePresenter` (`ADR-038 §7`): lista de los códigos de los muros de sesión **activos y bloqueantes** para el solicitante, en el orden cerrado del registro (`mfa-enrollment`, `terms-acceptance`), y lista vacía si no hay ninguno. Ejemplo: `"session_walls": ["terms-acceptance"]`. La calcula el presentador recorriendo `SessionWallRegistry` con la misma regla de módulo activo que `RequireSessionWalls` y sin el atajo de exención de ruta. Coste: una consulta más si `fam_unit` está activo (`ADR-067 §5.8`). `GET /me` (`core.me.show`) está exento de todos los muros, así que responde `200` aunque el usuario tenga muros pendientes; la SPA decide con este campo adónde llevarlo (`funcional.md §12.3.5`). El bloque `mfa` (`REQ-AUTH/api.md §C.6`) sigue existiendo sin cambios.
+- **Campo `session_walls`** (**`ADR-067 §5.10`**, ACEPTADA el 2026-10-28, `OPEN-067-02`; **implementada en `1.14-c`**). Ampliación aditiva y compatible del recurso que comparte `UserProfilePresenter` (`ADR-038 §7`): lista de los códigos de los muros de sesión **activos y bloqueantes** para el solicitante, en el orden cerrado del registro (`mfa-enrollment`, `terms-acceptance`), y lista vacía si no hay ninguno. Ejemplo: `"session_walls": ["terms-acceptance"]`. La calcula el presentador recorriendo `SessionWallRegistry` con la misma regla de módulo activo que `RequireSessionWalls` y sin el atajo de exención de ruta. Coste: una consulta más si `fam_unit` está activo (`ADR-067 §5.8`). `GET /me` (`core.me.show`) está exento de todos los muros, así que responde `200` aunque el usuario tenga muros pendientes; la SPA decide con este campo adónde llevarlo (`funcional.md §12.3.5`). El bloque `mfa` (`REQ-AUTH/api.md §C.6`) sigue existiendo sin cambios.
 - **`PATCH` cuerpo aceptado**: `person.locale`, `person.contact_email`, `person.contact_phone`. Cualquier otro campo se **ignora** silenciosamente y no se modifica (`CA-CORE-018`).
 - **Errores**: 401, 422
 

@@ -17,7 +17,7 @@
 >
 > **Paso 1.9b (pantallas de gestión pendientes de `REQ-CORE-002`/`-003`/`-004`/`-005` y migración de las tres tablas exceptuadas de `RN-CORE-53`): §14, APROBADA** (2026-10-01, decisión del usuario). Dividido en cinco sub-pasos `1.9b`-`1.9f` (`OPEN-CORE-30`, §14.2). Resueltas `OPEN-CORE-30`, `-31`, `-32`, `-39`, `-40`, `-42`, `-43`; `-33` a `-36` **resueltas el 2026-10-03** (C, B, A, A; §14.17); `-37` y `-45` **resueltas el 2026-10-03** (B, A); el estado de las demás, en §14.17 y bloquean solo el sub-paso que indica §14.17. §0-§13 no se reabren: §14 **precisa** dos puntos de §13 (§14.12) y **amplía** la lista cerrada de `RN-CORE-24` de seis a siete rutas como consecuencia de `OPEN-CORE-31` (§14.3.1), y lo dice donde lo hace. **Sub-paso 1.9f implementado el 2026-10-04** (`OPEN-CORE-54`/`-55`/`-56` resueltas = A, A, A): con él se cierra la serie 1.9b-1.9f y la lista de excepciones de `RN-CORE-53` queda vacía.
 >
-> **Enmienda por `ADR-067`** (registro de muros de sesión, **ACEPTADA** el 2026-10-28; se implementa en `1.14-c`): `session_walls` en `GET /me` y *guard* de muros en la SPA (§12.3.4, §12.3.5, `RN-CORE-24`, §12.6; `api.md §3`).
+> **Enmienda por `ADR-067`** (registro de muros de sesión, **ACEPTADA** el 2026-10-28; **implementada en `1.14-c`**): `session_walls` en `GET /me` y *guard* de muros en la SPA (§12.3.4, §12.3.5, `RN-CORE-24`, §12.6; `api.md §3`).
 
 ---
 
@@ -666,7 +666,7 @@ El muro ya existe (`REQ-AUTH` 1.3, `client.ts` redirige ante `mfa-enrollment-req
 
 Si `GET /me` está en la lista blanca del *middleware* del muro (y responde `200` con `mfa.enforced = true`), el efecto debe ser el mismo; el implementador lo comprueba contra `REQ-AUTH/funcional.md §C.4.9` antes de escribir el *guard* y cubre el caso que corresponda.
 
-**Enmienda por `ADR-067`** (registro de muros de sesión, **ACEPTADA** el 2026-10-28; `OPEN-067-02` y `-03` aprobadas; se implementa en `1.14-c`). `GET /me` (`core.me.show`) está exento de todos los muros, así que la SPA no puede depender de un `403` casual para llevar al usuario al muro (el código actual no cumple el párrafo anterior: `ADR-067 §1.1`, hecho 12, y `§11`, hallazgo 1). Desde `1.14-c`:
+**Enmienda por `ADR-067`** (registro de muros de sesión, **ACEPTADA** el 2026-10-28; `OPEN-067-02` y `-03` aprobadas; **implementada en `1.14-c`**). `GET /me` (`core.me.show`) está exento de todos los muros, así que la SPA no puede depender de un `403` casual para llevar al usuario al muro (el código actual no cumple el párrafo anterior: `ADR-067 §1.1`, hecho 12, y `§11`, hallazgo 1). Desde `1.14-c`:
 
 - **Fuente**: el campo `session_walls` de `GET /me` (`api.md §3`): códigos de los muros activos y bloqueantes, en el orden cerrado del registro (`mfa-enrollment`, `terms-acceptance`), o lista vacía.
 - **Registro de muros en los *shells*** (`ADR-053`): un *shell* declara `sessionWalls: [{ code, errorType, route }]`. `auth` declara el de MFA (ruta `mfa-enrollment-wall`) y `fam-unit` el de condiciones (ruta `fam-unit-terms-wall`, `/condiciones-de-uso`, `meta.layout: 'bare'`, `meta.permissions: []`; `REQ-FAM-UNIT/funcional.md §10`).
