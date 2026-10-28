@@ -19,6 +19,10 @@ import authEs from '@/modules/auth/locales/es.json'
 import authEn from '@/modules/auth/locales/en.json'
 import authDe from '@/modules/auth/locales/de.json'
 import authFr from '@/modules/auth/locales/fr.json'
+import famUnitEs from '@/modules/fam-unit/locales/es.json'
+import famUnitEn from '@/modules/fam-unit/locales/en.json'
+import famUnitDe from '@/modules/fam-unit/locales/de.json'
+import famUnitFr from '@/modules/fam-unit/locales/fr.json'
 
 /**
  * ADR-021/INV-009: es (por defecto), en, de, fr. `es` es el único
@@ -92,10 +96,10 @@ export const i18n = createI18n({
   locale: resolveInitialLocale(),
   fallbackLocale: DEFAULT_LOCALE,
   messages: {
-    es: { ...es, ...coreEs, ...cursoEs, ...acadEs, ...authEs },
-    en: { ...en, ...coreEn, ...cursoEn, ...acadEn, ...authEn },
-    de: { ...de, ...coreDe, ...cursoDe, ...acadDe, ...authDe },
-    fr: { ...fr, ...coreFr, ...cursoFr, ...acadFr, ...authFr },
+    es: { ...es, ...coreEs, ...cursoEs, ...acadEs, ...authEs, ...famUnitEs },
+    en: { ...en, ...coreEn, ...cursoEn, ...acadEn, ...authEn, ...famUnitEn },
+    de: { ...de, ...coreDe, ...cursoDe, ...acadDe, ...authDe, ...famUnitDe },
+    fr: { ...fr, ...coreFr, ...cursoFr, ...acadFr, ...authFr, ...famUnitFr },
   },
 })
 

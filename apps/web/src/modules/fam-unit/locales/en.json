@@ -1,0 +1,15 @@
+{
+  "famUnit": {
+    "termsWall": {
+      "title": "Condiciones de uso",
+      "reason": "Para seguir usando la plataforma tienes que leer y aceptar las condiciones de uso vigentes del centro.",
+      "loading": "Cargando las condiciones de uso…",
+      "textLabel": "Texto de las condiciones de uso",
+      "accept": "Acepto las condiciones de uso",
+      "logout": "Cerrar sesión",
+      "loadError": "No se han podido cargar las condiciones de uso. Inténtalo de nuevo en unos minutos.",
+      "acceptError": "No se ha podido registrar la aceptación. Inténtalo de nuevo.",
+      "outdated": "El centro ha publicado una nueva versión mientras leías. Revisa el texto actualizado antes de aceptar."
+    }
+  }
+}

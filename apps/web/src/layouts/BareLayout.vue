@@ -2,7 +2,8 @@
 /**
  * `docs/modulos/REQ-CORE/funcional.md §12.3.5`. Régimen `bare`: con
  * sesión, sin navegación, sin miga de pan, sin más opción de menú de
- * usuario que cerrar sesión — hoy solo lo usa `mfa-enrollment-wall`.
+ * usuario que cerrar sesión — lo usan los muros de sesión registrados
+ * (`ADR-067 §5.11`): `mfa-enrollment-wall` y `fam-unit-terms-wall`.
  */
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'

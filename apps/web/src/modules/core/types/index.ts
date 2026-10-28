@@ -115,6 +115,12 @@ export interface User {
   permissions: string[]
   /** api.md §12.2: bloque «Estado de la cuenta» del panel (`REQ-AUTH-003`). */
   mfa?: MfaBlock
+  /**
+   * `docs/adr/ADR-067-registro-de-muros-de-sesion.md §5.10`: códigos de los muros de sesión activos y bloqueantes
+   * (`mfa-enrollment`, `terms-acceptance`), en el orden del registro; vacío si no hay ninguno. Ampliación aditiva de
+   * `GET /me`: ausente en una respuesta anterior a `1.14-c`.
+   */
+  session_walls?: string[]
   email_verified_at: string | null
   created_at: string
   updated_at: string

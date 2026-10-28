@@ -19,7 +19,7 @@ vi.mock('@/router', () => ({
 
 // `docs/adr/ADR-053 §6`, `CA-CORE-092`: `client.ts` importa
 // `@/session/useSession` de forma dinámica ante cualquier 403 que no sea
-// el muro de MFA, y ante cualquier 401. Se mockea por el mismo motivo que
+// el muro de un módulo (`ADR-067 §5.11`), y ante cualquier 401. Se mockea por el mismo motivo que
 // `@/router` arriba — este fichero prueba `client.ts` en aislamiento, no
 // la recarga real de sesión (que tiene su propia suite en
 // `src/session/useSession.spec.ts`).
@@ -110,9 +110,43 @@ describe('apiFetchWithStatus', () => {
     )
 
     await expect(apiFetch('/some-endpoint')).rejects.toMatchObject({ status: 403 })
-    // La redirección se dispara de forma asíncrona (import dinámico de `@/router`).
-    await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(pushMock).toHaveBeenCalledWith({ name: 'mfa-enrollment-wall' })
+    // La redirección se dispara de forma asíncrona (imports dinámicos de `@/navigation/registry` y `@/router`).
+    await vi.waitFor(() => expect(pushMock).toHaveBeenCalledWith({ name: 'mfa-enrollment-wall' }))
+    expect(reloadSessionAfterForbiddenMock).not.toHaveBeenCalled()
+  })
+
+  it('CA-067-09 ADR-067 §5.11: redirige al muro de condiciones ante un 403 urn:pge:error:terms-acceptance-required, sin recargar /me', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        json: async () => ({ type: 'urn:pge:error:terms-acceptance-required' }),
+        headers: new Headers(),
+      }),
+    )
+
+    await expect(apiFetch('/some-endpoint')).rejects.toMatchObject({ status: 403 })
+    await vi.waitFor(() => expect(pushMock).toHaveBeenCalledWith({ name: 'fam-unit-terms-wall' }))
+    expect(reloadSessionAfterForbiddenMock).not.toHaveBeenCalled()
+  })
+
+  it('CA-067-09: ya en la ruta del muro no vuelve a navegar a ella (sin bucle)', async () => {
+    currentRouteName.value = 'fam-unit-terms-wall'
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        json: async () => ({ type: 'urn:pge:error:terms-acceptance-required' }),
+        headers: new Headers(),
+      }),
+    )
+
+    await expect(apiFetch('/some-endpoint')).rejects.toMatchObject({ status: 403 })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(pushMock).not.toHaveBeenCalled()
+    expect(reloadSessionAfterForbiddenMock).not.toHaveBeenCalled()
   })
 
   it('no redirige ante un 403 de otro tipo, pero pide recargar la sesión (ADR-053 §6)', async () => {
@@ -128,9 +162,8 @@ describe('apiFetchWithStatus', () => {
     )
 
     await expect(apiFetch('/some-endpoint')).rejects.toMatchObject({ status: 403 })
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await vi.waitFor(() => expect(reloadSessionAfterForbiddenMock).toHaveBeenCalledWith(body))
     expect(pushMock).not.toHaveBeenCalled()
-    expect(reloadSessionAfterForbiddenMock).toHaveBeenCalledWith(body)
   })
 
   it('también pide recargar la sesión ante un 403 module-disabled (ADR-053 §6)', async () => {
@@ -146,8 +179,7 @@ describe('apiFetchWithStatus', () => {
     )
 
     await expect(apiFetch('/some-endpoint')).rejects.toMatchObject({ status: 403 })
-    await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(reloadSessionAfterForbiddenMock).toHaveBeenCalledWith(body)
+    await vi.waitFor(() => expect(reloadSessionAfterForbiddenMock).toHaveBeenCalledWith(body))
   })
 
   it('CA-CORE-092: un 401 de un endpoint distinto de /me vacía la sesión y navega a /entrar con redirect', async () => {

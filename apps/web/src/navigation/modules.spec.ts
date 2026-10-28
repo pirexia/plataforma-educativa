@@ -10,7 +10,8 @@
  * declarar sin inventarlo (`INV-002`); motivo documentado también en el
  * comentario de cabecera de `src/modules/auth/shell.ts` y en
  * `src/router/index.ts`. La especificación solo citaba cuatro hasta que
- * el issue #260 (severidad Media) lo corrigió.
+ * el issue #260 (severidad Media) lo corrigió. Desde `1.14-c` son **ocho**: se añade
+ * `fam-unit-terms-wall` (`ADR-067 §6`, ampliación L2, `CA-067-09`).
  */
 import { describe, expect, it } from 'vitest'
 import router from '@/router'
@@ -27,6 +28,8 @@ const EMPTY_PERMISSIONS_CLOSED_LIST = [
   'not-found',
   // Desde 1.9e (`funcional.md §14.3.1`, `CA-CORE-264`): perfil propio, autoservicio por identidad.
   'core-profile',
+  // Desde 1.14-c (ADR-067 L2, aprobada el 2026-10-28): el muro de condiciones de uso, segunda ruta `bare`.
+  'fam-unit-terms-wall',
 ].sort()
 
 describe('registro de navegación ensamblado — CA-CORE-103', () => {
@@ -79,9 +82,10 @@ describe('lista cerrada de rutas con permissions vacío — CA-CORE-264 (RN-CORE
       .sort()
   }
 
-  it('son exactamente siete: las seis de CA-CORE-103 más core-profile', () => {
-    expect(EMPTY_PERMISSIONS_CLOSED_LIST).toHaveLength(7)
+  it('CA-067-09 (L2): son exactamente ocho: las seis de CA-CORE-103 más core-profile y fam-unit-terms-wall', () => {
+    expect(EMPTY_PERMISSIONS_CLOSED_LIST).toHaveLength(8)
     expect(EMPTY_PERMISSIONS_CLOSED_LIST).toContain('core-profile')
+    expect(EMPTY_PERMISSIONS_CLOSED_LIST).toContain('fam-unit-terms-wall')
     expect(emptyPermissionRoutes(router.getRoutes())).toEqual(EMPTY_PERMISSIONS_CLOSED_LIST)
   })
 
@@ -91,14 +95,14 @@ describe('lista cerrada de rutas con permissions vacío — CA-CORE-264 (RN-CORE
     expect(route?.meta.permissions).toEqual(['modulo.leer'])
   })
 
-  it('caso fijo: una octava ruta con [] haría fallar la comprobación', () => {
-    const withEighth = [
+  it('caso fijo: una novena ruta con [] haría fallar la comprobación', () => {
+    const withNinth = [
       ...router.getRoutes(),
-      { name: 'octava-ruta', meta: { layout: 'app', permissions: [] as string[] } },
+      { name: 'novena-ruta', meta: { layout: 'app', permissions: [] as string[] } },
     ]
 
-    expect(emptyPermissionRoutes(withEighth)).not.toEqual(EMPTY_PERMISSIONS_CLOSED_LIST)
-    expect(emptyPermissionRoutes(withEighth)).toContain('octava-ruta')
+    expect(emptyPermissionRoutes(withNinth)).not.toEqual(EMPTY_PERMISSIONS_CLOSED_LIST)
+    expect(emptyPermissionRoutes(withNinth)).toContain('novena-ruta')
   })
 })
 
@@ -165,8 +169,8 @@ describe('CA-PERM-100 (RN-PERM-25, ADR-053 §2): rutas de 1.5b', () => {
     }
   })
 
-  it('la lista cerrada de rutas con [] sigue teniendo siete entradas y ninguna es de 1.5b', () => {
-    expect(EMPTY_PERMISSIONS_CLOSED_LIST).toHaveLength(7)
+  it('la lista cerrada de rutas con [] (ocho desde 1.14-c, L2) no incluye ninguna de 1.5b', () => {
+    expect(EMPTY_PERMISSIONS_CLOSED_LIST).toHaveLength(8)
 
     for (const name of Object.keys(EXPECTED)) {
       expect(EMPTY_PERMISSIONS_CLOSED_LIST).not.toContain(name)

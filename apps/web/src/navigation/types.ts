@@ -81,11 +81,28 @@ export interface DashboardBlock {
 }
 
 /**
+ * `docs/adr/ADR-067-registro-de-muros-de-sesion.md §5.11`. Un muro de sesión que
+ * el *shell* de un módulo declara: la API lo expone por su `code` en
+ * `GET /me` (`session_walls`) y por el `type` de su `403`; la SPA solo decide
+ * adónde llevar al usuario (la API es la que hace cumplir el muro, `INV-010`).
+ */
+export interface SessionWallEntry {
+  /** Código estable del muro (`mfa-enrollment`, `terms-acceptance`), el de `GET /me`. */
+  code: string
+  /** Slug del `type` del `403` del muro, sin el prefijo `urn:pge:error:`. */
+  errorType: string
+  /** Nombre de la ruta `bare` de la pantalla del muro. */
+  route: string
+}
+
+/**
  * `ADR-053 §1`. Cada módulo declara un único `shell.ts` en su superficie
- * pública, con tres listas, cualquiera de ellas vacía.
+ * pública, con tres listas, cualquiera de ellas vacía. `ADR-067 §5.11` añade
+ * una cuarta, **opcional**: los muros de sesión del módulo.
  */
 export interface ModuleShell {
   routes: readonly RouteRecordRaw[]
   navigation: readonly NavigationEntry[]
   dashboardBlocks: readonly DashboardBlock[]
+  sessionWalls?: readonly SessionWallEntry[]
 }

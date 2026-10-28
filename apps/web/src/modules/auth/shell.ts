@@ -206,4 +206,13 @@ export const shell: ModuleShell = {
     },
   ],
   dashboardBlocks: [],
+  // ADR-067 §5.11: el muro de alta de MFA (REQ-AUTH-003). El *guard* lleva aquí al usuario cuando `GET /me` trae
+  // `mfa-enrollment` en `session_walls` y el cliente HTTP ante `403 mfa-enrollment-required`.
+  sessionWalls: [
+    {
+      code: 'mfa-enrollment',
+      errorType: 'mfa-enrollment-required',
+      route: 'mfa-enrollment-wall',
+    },
+  ],
 }

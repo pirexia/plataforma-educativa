@@ -35,45 +35,62 @@ const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1'
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 
 /**
- * REQ-AUTH (1.3), funcional.md §C.4.9, api.md §C.1.1: la sesión restringida
- * del muro de MFA responde este `type` en cualquier endpoint que no esté
- * en la lista blanca. Es el único `403` de todo el catálogo que la SPA
- * trata de forma especial — el resto de errores los interpreta cada
- * pantalla, pero este no puede esperar a que 1.8 construya un
- * interceptor genérico: sin redirigir aquí, cualquier pantalla nueva que
- * no sepa de este `type` deja al usuario mirando un error en vez de la
- * pantalla de la que "no se puede salir sin completar el registro".
+ * `docs/adr/ADR-067-registro-de-muros-de-sesion.md §5.11` (antes, solo el muro de MFA, REQ-AUTH (1.3) funcional.md
+ * §C.4.9): la sesión restringida por un muro (alta de MFA, aceptación de las condiciones...) responde un `403` cuyo
+ * `type` identifica al muro en cualquier endpoint que no esté en su lista exenta. Es el único `403` que la SPA trata
+ * de forma especial: el resto de errores los interpreta cada pantalla, pero este no puede esperar a que una
+ * pantalla nueva sepa de él — sin redirigir aquí, el usuario se queda mirando un error en vez de la pantalla de la que
+ * «no se puede salir sin cumplir la condición». Los muros los declara cada *shell* (`sessionWalls`); este cliente no
+ * conoce ninguno.
  */
-const MFA_ENROLLMENT_REQUIRED_TYPE = 'urn:pge:error:mfa-enrollment-required'
-const MFA_ENROLLMENT_WALL_ROUTE_NAME = 'mfa-enrollment-wall'
+const ERROR_TYPE_PREFIX = 'urn:pge:error:'
 
-function isMfaEnrollmentRequiredBody(body: unknown): boolean {
-  return (
-    typeof body === 'object' &&
-    body !== null &&
-    'type' in body &&
-    (body as { type?: unknown }).type === MFA_ENROLLMENT_REQUIRED_TYPE
-  )
+function bodyErrorType(body: unknown): string | null {
+  if (typeof body === 'object' && body !== null && 'type' in body) {
+    const type = (body as { type?: unknown }).type
+
+    return typeof type === 'string' && type.startsWith(ERROR_TYPE_PREFIX) ? type : null
+  }
+
+  return null
 }
 
 /**
- * Importación dinámica y no estática a propósito: `client.ts` es
- * infraestructura genérica (fuera de `src/modules`) y `src/router` importa
- * en cascada las vistas de todos los módulos — una importación estática
- * aquí crearía un ciclo en tiempo de carga del módulo. La dinámica solo se
- * resuelve cuando de verdad hace falta redirigir.
+ * Lleva al usuario a la pantalla del muro cuyo `403` acaba de llegar y dice si lo era. Importación dinámica y no
+ * estática a propósito: `client.ts` es infraestructura genérica (fuera de `src/modules`) y `src/router` importa en
+ * cascada las vistas de todos los módulos — una importación estática aquí crearía un ciclo en tiempo de carga del
+ * módulo. La dinámica solo se resuelve cuando de verdad hace falta.
+ *
+ * Devuelve `false` si el `type` no es el de un muro registrado (o no hay router, p. ej. en un test unitario de este
+ * cliente), para que el `403` siga el camino de `ADR-053 §6`.
  */
-async function redirectToMfaEnrollmentWall(): Promise<void> {
+async function redirectToSessionWall(body: unknown): Promise<boolean> {
+  const type = bodyErrorType(body)
+
+  if (type === null) {
+    return false
+  }
+
   try {
+    const { findSessionWallByErrorType } = await import('@/navigation/registry')
+    const wall = findSessionWallByErrorType(type)
+
+    if (wall === undefined) {
+      return false
+    }
+
     const { default: router } = await import('@/router')
 
-    if (router.currentRoute.value.name !== MFA_ENROLLMENT_WALL_ROUTE_NAME) {
-      await router.push({ name: MFA_ENROLLMENT_WALL_ROUTE_NAME })
+    if (router.currentRoute.value.name !== wall.route) {
+      await router.push({ name: wall.route })
     }
+
+    return true
   } catch {
     // Entorno sin router (p.ej. un test unitario de este cliente): no hay
     // nada razonable que hacer, y no debe impedir que el ApiError original
     // llegue a quien hizo la llamada.
+    return false
   }
 }
 
@@ -122,8 +139,8 @@ async function doHandleUnauthorized(): Promise<void> {
 /**
  * `docs/modulos/REQ-CORE/funcional.md §12.3.4`,
  * `docs/adr/ADR-053-registro-de-navegacion-y-bloques-del-panel.md §6`:
- * cualquier `403` que no sea `mfa-enrollment-required` recarga `GET /me`
- * (deduplicada) — es la prueba de que los permisos en memoria están
+ * cualquier `403` que no sea el de un muro de sesión registrado
+ * (`ADR-067 §5.11`) recarga `GET /me` (deduplicada) — es la prueba de que los permisos en memoria están
  * desfasados. Importación dinámica por el mismo motivo que la anterior:
  * `src/session` importa `core/api`, que importa este fichero.
  */
@@ -198,11 +215,11 @@ export async function apiFetchWithStatus<T>(
 
   if (!response.ok) {
     if (response.status === 403) {
-      if (isMfaEnrollmentRequiredBody(body)) {
-        void redirectToMfaEnrollmentWall()
-      } else {
-        void notifySessionOfForbidden(body)
-      }
+      void redirectToSessionWall(body).then((wasWall) => {
+        if (!wasWall) {
+          void notifySessionOfForbidden(body)
+        }
+      })
     } else if (response.status === 401 && path !== '/me') {
       void handleUnauthorized()
     }

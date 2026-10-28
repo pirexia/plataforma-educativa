@@ -9,16 +9,22 @@
  * Única fuente: `GET /me` (`core/api`). `apiFetch` es genérico y no sabe
  * de sesión: es este módulo el que decide, a partir de cada `ApiError`,
  * si toca vaciar el estado (`401`), marcar el muro de MFA
- * (`403 mfa-enrollment-required`) o recargar `/me` (cualquier otro `403`,
- * `ADR-053 §6`) — `src/api/client.ts` solo avisa mediante una importación
- * dinámica (evita el ciclo `client → session → core/api → client`).
+ * (`403` de un muro de sesión registrado, `ADR-067 §5.11`) o recargar `/me`
+ * (cualquier otro `403`, `ADR-053 §6`) — `src/api/client.ts` solo avisa
+ * mediante una importación dinámica (evita el ciclo
+ * `client → session → core/api → client`).
  */
 import { shallowRef, triggerRef } from 'vue'
 import { ApiError, handleUnauthorized } from '@/api/client'
 import { getMe, updateMe } from '@/modules/core/api'
 import type { User } from '@/modules/core/types'
+import { findSessionWallByErrorType } from '@/navigation/registry'
 
-export type SessionStatus = 'idle' | 'loading' | 'ready' | 'anonymous' | 'mfa-required' | 'error'
+/**
+ * `wall-required` (antes `mfa-required`, `ADR-067 §5.11`): `GET /me` respondió el `403` de un muro de sesión
+ * registrado; `activeWall` lleva su código.
+ */
+export type SessionStatus = 'idle' | 'loading' | 'ready' | 'anonymous' | 'wall-required' | 'error'
 
 export interface SessionErrorInfo {
   status: number
@@ -26,12 +32,13 @@ export interface SessionErrorInfo {
   retryAfterSeconds?: number
 }
 
-const MFA_ENROLLMENT_REQUIRED_TYPE = 'urn:pge:error:mfa-enrollment-required'
 const MODULE_DISABLED_TYPE = 'urn:pge:error:module-disabled'
 
 const user = shallowRef<User | null>(null)
 const status = shallowRef<SessionStatus>('idle')
 const error = shallowRef<SessionErrorInfo | null>(null)
+/** Código del muro de sesión que detuvo a `GET /me` (`status === 'wall-required'`), `ADR-067 §5.11`. */
+const activeWall = shallowRef<string | null>(null)
 /**
  * `ADR-053 §6`, restricción: si la recarga la disparó un
  * `module-disabled` y la ruta actual deja de estar permitida tras ella, la
@@ -96,6 +103,7 @@ async function fetchMe(): Promise<void> {
     user.value = me
     status.value = 'ready'
     error.value = null
+    activeWall.value = null
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {
       user.value = null
@@ -112,13 +120,15 @@ async function fetchMe(): Promise<void> {
       return
     }
 
-    if (
-      err instanceof ApiError &&
-      err.status === 403 &&
-      bodyType(err.body) === MFA_ENROLLMENT_REQUIRED_TYPE
-    ) {
+    const wall =
+      err instanceof ApiError && err.status === 403
+        ? findSessionWallByErrorType(bodyType(err.body) ?? '')
+        : undefined
+
+    if (wall !== undefined) {
       user.value = null
-      status.value = 'mfa-required'
+      status.value = 'wall-required'
+      activeWall.value = wall.code
       error.value = null
       return
     }
@@ -131,7 +141,7 @@ async function fetchMe(): Promise<void> {
 /**
  * Llamada por el *guard* al entrar por primera vez en una ruta `app`/`bare`
  * (`funcional.md §12.3.1`). Si ya hay un estado resuelto (`ready`,
- * `anonymous`, `mfa-required`, `error`), no repite la petición: solo
+ * `anonymous`, `wall-required`, `error`), no repite la petición: solo
  * `reloadSession()` fuerza una nueva.
  */
 export function ensureSessionLoaded(): Promise<void> {
@@ -163,8 +173,8 @@ export function reloadSession(): Promise<void> {
 }
 
 /**
- * Invocado por `src/api/client.ts` ante cualquier `403` que no sea
- * `mfa-enrollment-required` (`ADR-053 §6`). Dispara la recarga
+ * Invocado por `src/api/client.ts` ante cualquier `403` que no sea el de un
+ * muro de sesión registrado (`ADR-053 §6`, `ADR-067 §5.11`). Dispara la recarga
  * deduplicada y, si el cuerpo es `module-disabled`, aplica la restricción
  * de §6: si tras recargar la ruta actual ya no está permitida, deja el
  * mensaje del servidor en `moduleUnavailableDetail` hasta la siguiente
@@ -217,6 +227,7 @@ export function clearSession(): void {
   user.value = null
   status.value = 'anonymous'
   error.value = null
+  activeWall.value = null
   moduleUnavailableDetail.value = null
 }
 
@@ -225,6 +236,7 @@ export function useSession() {
     user,
     status,
     error,
+    activeWall,
     moduleUnavailableDetail,
     ensureSessionLoaded,
     reloadSession,

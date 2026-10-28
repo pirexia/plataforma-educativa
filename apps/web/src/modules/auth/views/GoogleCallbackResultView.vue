@@ -67,7 +67,7 @@ onMounted(async () => {
   if (outcome.value === 'alta_mfa_requerida') {
     redirecting.value = true
     // #427: el *callback* acaba de crear la sesión restringida; se recarga
-    // `GET /me` para que el estado refleje `mfa-required` y no el previo.
+    // `GET /me` para que el estado refleje `wall-required` y no el previo.
     await reloadSession()
     await router.replace({ name: 'mfa-enrollment-wall' })
   }

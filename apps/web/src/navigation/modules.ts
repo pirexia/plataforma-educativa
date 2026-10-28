@@ -11,6 +11,13 @@ import { shell as authShell } from '@/modules/auth/shell'
 import { shell as coreShell } from '@/modules/core/shell'
 import { shell as cursoShell } from '@/modules/curso/shell'
 import { shell as acadShell } from '@/modules/acad/shell'
+import { shell as famUnitShell } from '@/modules/fam-unit/shell'
 import type { ModuleShell } from './types'
 
-export const moduleShells: readonly ModuleShell[] = [coreShell, cursoShell, acadShell, authShell]
+export const moduleShells: readonly ModuleShell[] = [
+  coreShell,
+  cursoShell,
+  acadShell,
+  authShell,
+  famUnitShell,
+]

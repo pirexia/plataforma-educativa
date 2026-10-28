@@ -111,7 +111,7 @@ describe('ensureSessionLoaded — CA-CORE-092/093/094', () => {
     expect(user.value).toBeNull()
   })
 
-  it('403 mfa-enrollment-required deja status mfa-required', async () => {
+  it('403 mfa-enrollment-required deja status wall-required con el código del muro de MFA', async () => {
     const { ensureSessionLoaded, useSession, ApiError } = await freshModule()
     getMe.mockRejectedValue(
       new ApiError('403', 403, { type: 'urn:pge:error:mfa-enrollment-required' }),
@@ -119,7 +119,20 @@ describe('ensureSessionLoaded — CA-CORE-092/093/094', () => {
 
     await ensureSessionLoaded()
 
-    expect(useSession().status.value).toBe('mfa-required')
+    expect(useSession().status.value).toBe('wall-required')
+    expect(useSession().activeWall.value).toBe('mfa-enrollment')
+  })
+
+  it('CA-067-09: 403 terms-acceptance-required deja status wall-required con el código del muro de condiciones', async () => {
+    const { ensureSessionLoaded, useSession, ApiError } = await freshModule()
+    getMe.mockRejectedValue(
+      new ApiError('403', 403, { type: 'urn:pge:error:terms-acceptance-required' }),
+    )
+
+    await ensureSessionLoaded()
+
+    expect(useSession().status.value).toBe('wall-required')
+    expect(useSession().activeWall.value).toBe('terms-acceptance')
   })
 
   it('error de red/5xx deja status error con la información de la respuesta', async () => {

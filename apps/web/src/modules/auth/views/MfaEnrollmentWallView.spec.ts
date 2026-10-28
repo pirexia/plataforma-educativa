@@ -1,7 +1,7 @@
 /**
  * #427, `RN-CORE-26`, `RN-CORE-28`, `CA-CORE-090` (INV-015): el muro de MFA
  * recarga la sesión (`GET /me`) antes de navegar fuera de él; si no, el
- * estado sigue en `mfa-required` y el guard devolvería al muro.
+ * estado sigue en `wall-required` y el guard devolvería al muro.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
