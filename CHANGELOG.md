@@ -6,6 +6,13 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-28 · `ADR-067`: registro de muros de sesión (`REQ-FAM-UNIT-003`, rama `chore/adr-067-muros-de-sesion`)
+
+- **`ADR-067` ACEPTADA**: registro `SessionWall` en el núcleo y un único *middleware* `RequireSessionWalls` que sustituye a `RequireMfaEnrollment`; el muro de MFA pasa a ser uno más sin cambiar su comportamiento; muro de condiciones de `fam_unit` (solo tutores). Resuelve el diseño de `OPEN-FAM-UNIT-12`. Aprobadas las ampliaciones L1 (`AR-07a` 35→37), L2 (rutas `[]` de la SPA 7→8), L3 (6 rutas exentas), L5 (error en el catálogo de `ADR-038`), L6 (orden de muros) y `OPEN-067-01..06`.
+- **Documentación enmendada**: `REQ-FAM-UNIT`, `REQ-AUTH`, `REQ-CORE` (`session_walls` en `GET /me`), `REQ-BO` (`CA-BO-011`), `ARCHITECTURE.md` 2.5.10, `REQUISITOS` 3.2.22. Sin código: lo implementa `1.14-c`.
+
+---
+
 ## 2026-10-27 · `1.14-b`: implementación del consentimiento de imagen y los textos legales (`REQ-FAM-UNIT-004`, rama `feature/REQ-FAM-UNIT-1-14b-implementacion`)
 
 - **Implementación** de la entrega `1.14-b` de la especificación aprobada: tablas `terms_versions` (con `kind` desde su creación, solo los dos tipos de imagen) e `image_consent_decisions` (solo anexar, FK `RESTRICT` al texto), **sin** tabla de estado: el estado vigente se calcula en origen (`ADR-066 §5.2`, `RN-FAM-UNIT-45`, `-72`). 11 *endpoints* nuevos (32 con los de `1.14-a`): estado, histórico por cursor, registro de decisiones por portal y presencial, informe CSV en cola, `GET /image-consent-texts` (`RN-FAM-UNIT-75`) y gestión de versiones `/terms-versions`. Interfaz pública `ImageConsentPolicy` (`isPublishable`/`blockingAmong`, en cerrado, lista vacía = excepción, sin caché). Permisos `consentimiento_imagen.*` y `texto_legal.*` con siembra (`secretaria` con `texto_legal.leer`) y resolutor `unidad_familiar`; mapa de `AR-10` ampliado.

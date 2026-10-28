@@ -357,6 +357,7 @@ Cambia con 1.2 y hay que fijar el orden, porque un intercambio de dos posiciones
 | 7 | `VerifySessionTenant` | **Nuevo en 1.2.** `RN-AUTH-31`: el `tenant_id` del *payload* frente al resuelto por host. Discrepancia ⇒ sesión invalidada, `401` y auditoría (cierre de la fila por `ActiveSessionCloser`, #375) |
 | 8 | `EnforceSessionIdleTimeout` | **Nuevo en 1.2.** `REQ-AUTH-005` punto 1. Después de la reverificación: no tiene sentido refrescar la actividad de una sesión que se va a invalidar (cierre por `ActiveSessionCloser`, #375) |
 | 9 | `ResolveApiLocale` | **Se mueve en 1.2.** Hoy corre en la posición 3 y por tanto `$request->user()` siempre le devuelve `null`: el paso 1 de `ADR-038 §11` no se aplica nunca fuera de los tests con `actingAs()`. Ver `funcional.md §1.4` punto 4 y `CA-AUTH-075` |
+| 10 | `RequireSessionWalls` (alias `require-session-walls`) | **Desde `ADR-067`** (ACEPTADA, 2026-10-28; se implementa en `1.14-c`). Sustituye en la misma posición a `RequireMfaEnrollment` (alias `require-mfa-enrollment`, de 1.3, que desaparece). Registro de muros de sesión del núcleo: recorre en el orden cerrado L6 (`mfa-enrollment`, `terms-acceptance`) los muros registrados por los módulos; el de MFA es `Auth\Infrastructure\MfaEnrollmentWall`, con **el mismo comportamiento observable** que tenía `RequireMfaEnrollment` (mismo `403 urn:pge:error:mfa-enrollment-required`, misma lista blanca de 7 rutas, sin llamar a `MfaPolicy::resolve()` en una ruta exenta; `ADR-067 §5.6`, `funcional.md §C.4.9`). Después de `resolve-locale`, para que el `403` salga traducido. Toda ruta de `api/v1` lo lleva salvo `auth.saml.acs` (lista L7, `CA-067-01`) |
 
 `/api/health` (fuera de `v1`) **no** entra en esta cadena: el *healthcheck* del contenedor no tiene subdominio de tenant y debe responder sin sesión. Es el comportamiento actual y no cambia.
 
@@ -2218,7 +2219,7 @@ Hermano exacto de `POST .../discovery-refreshes` (`§F.5`), y con las mismas pro
 resolve-tenant → encrypt-cookies → add-queued-cookies → start-session → verify-session-tenant
 ```
 
-Es la cadena de `§8` **menos `csrf`, `session-idle-timeout`, `resolve-locale` y `require-mfa-enrollment`**, ninguno de los cuales tiene sentido sobre una petición que **por diseño llega sin sesión**.
+Es la cadena de `§8` **menos `csrf`, `session-idle-timeout`, `resolve-locale` y `require-mfa-enrollment`** (desde `ADR-067`, `require-session-walls`: `auth.saml.acs` es la única ruta de `api/v1` sin él), ninguno de los cuales tiene sentido sobre una petición que **por diseño llega sin sesión**.
 
 | Pieza | Por qué está o por qué no |
 |-------|---------------------------|

@@ -12,7 +12,7 @@ Tres precisiones que no son cosméticas:
 2. **El prefijo ya no depende de ninguna pregunta abierta.** `ADR-046 §4.1` decide la **Opción A**: mismo monolito y mismo despliegue de API, con *guard*, grupo de rutas y SPA propios. El segmento `platform` es lo que separa los dos grupos y la señal legible, en cualquier log, de que esa ruta no lleva `ResolveTenant`.
 3. **Declarar un grupo de rutas fuera del tenant no es una excepción nueva**: `/api/health` y `/api/_sso-simulator/*` ya lo son. Es el patrón vigente (`ADR-046 §1.1`).
 
-> **Ninguna ruta de este documento lleva `resolve-tenant`, `verify-session-tenant` ni `require-mfa-enrollment`, y ninguna ruta de tenant lleva el *guard* `platform`.** Son propiedades verificadas por un test de arquitectura que recorre **`Route::getRoutes()`** —la verdad efectiva, no el texto de los ficheros—: `CA-BO-011`, `CA-BO-013`, `CA-BO-014` y `CA-BO-015`.
+> **Ninguna ruta de este documento lleva `resolve-tenant`, `verify-session-tenant` ni `require-mfa-enrollment`, y ninguna ruta de tenant lleva el *guard* `platform`.** Son propiedades verificadas por un test de arquitectura que recorre **`Route::getRoutes()`** —la verdad efectiva, no el texto de los ficheros—: `CA-BO-011`, `CA-BO-013`, `CA-BO-014` y `CA-BO-015`. *(Desde `ADR-067`, ACEPTADA 2026-10-28, el alias `require-mfa-enrollment` pasa a `require-session-walls`; la propiedad comprobada es la misma.)*
 
 ---
 
