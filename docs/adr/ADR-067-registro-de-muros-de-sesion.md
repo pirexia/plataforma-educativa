@@ -1,6 +1,6 @@
 # ADR-067 · Registro de muros de sesión
 
-**Estado**: **PROPUESTA** (2026-10-28). Pendiente de aprobación del usuario, incluidas una a una las ampliaciones de listas cerradas de `§6` y las preguntas `OPEN-067-01` a `-06` de `§10`.
+**Estado**: **ACEPTADA** (2026-10-28). El usuario aprueba las cinco ampliaciones de listas cerradas de `§6` (L1, L2, L3, L5 y L6) y las preguntas `OPEN-067-01` a `-06` de `§10` con la recomendación de cada una (`OPEN-067-03` incluida: cambia lo que ve el usuario en el muro de MFA de la SPA).
 **Fecha**: 2026-10-28
 **Paso**: `1.14 · REQ-FAM-UNIT`, entrada de la entrega `1.14-c` (`docs/modulos/REQ-FAM-UNIT/funcional.md §4.10`, `§7.5`, `§10`, `§12.7`; `api.md §2.8`).
 **Afecta a**: `REQ-FAM-UNIT-003`, `REQ-AUTH-003` (muro de alta de MFA), `REQ-CORE` (`GET /me`, *guard* de la SPA, `funcional.md §12.3.5`), `INV-001`, `INV-002`, `INV-007`, `INV-010`, `INV-015`.
