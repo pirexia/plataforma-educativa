@@ -13,9 +13,11 @@ use App\Modules\FamUnit\Domain\Models\FamilyUnitStudent;
 use App\Modules\FamUnit\Domain\Models\Guardian;
 use App\Modules\FamUnit\Domain\Models\GuardianStudentLink;
 use App\Modules\FamUnit\Domain\Models\ImageConsentDecision;
+use App\Modules\FamUnit\Domain\Models\TermsAcceptance;
 use App\Modules\FamUnit\Domain\Models\TermsVersion;
 use App\Support\Authorization\ScopeResolverRegistry;
 use App\Support\Modules\DeclaresModuleRegistry;
+use App\Support\Sessions\SessionWallRegistry;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
 
@@ -28,8 +30,8 @@ use Illuminate\Support\ServiceProvider;
  *
  * Solo declara los permisos de los *endpoints* que existen: sin *endpoint*, un permiso invita a concederlo creyendo que
  * hace algo. `1.14-a`: `familia`, `vinculo_tutor`, `revocacion_tutor`. `1.14-b`: `consentimiento_imagen` y `texto_legal`
- * (`ADR-066`, `OPEN-066-03`: el recurso de las versiones de texto legal se llama `texto_legal`). `aceptacion_condiciones`
- * entra con `1.14-c` (`funcional.md §15`, D-6).
+ * (`ADR-066`, `OPEN-066-03`: el recurso de las versiones de texto legal se llama `texto_legal`). `1.14-c`:
+ * `aceptacion_condiciones` (`funcional.md §15`, D-6) y el muro de condiciones de uso (`ADR-067`).
  */
 class FamUnitServiceProvider extends ServiceProvider implements DeclaresModuleRegistry
 {
@@ -57,6 +59,7 @@ class FamUnitServiceProvider extends ServiceProvider implements DeclaresModuleRe
             'family_unit_student' => FamilyUnitStudent::class,
             'guardian_student_link' => GuardianStudentLink::class,
             'terms_version' => TermsVersion::class,
+            'terms_acceptance' => TermsAcceptance::class,
             'image_consent_decision' => ImageConsentDecision::class,
         ]);
 
@@ -65,6 +68,10 @@ class FamUnitServiceProvider extends ServiceProvider implements DeclaresModuleRe
         $registry->register(new FamiliaUnidadFamiliarScopeResolver);
         $registry->register(new VinculoTutorUnidadFamiliarScopeResolver);
         $registry->register(new ConsentimientoImagenUnidadFamiliarScopeResolver);
+
+        // ADR-067 §5.7: el muro de condiciones de uso, segundo en el orden cerrado L6. Se registra la clase (el
+        // middleware la resuelve en cada petición) y siempre: si el módulo está activo lo decide `RequireSessionWalls`.
+        $this->app->make(SessionWallRegistry::class)->register(TermsAcceptanceWall::class);
     }
 
     public function moduleDescriptor(): array
@@ -136,6 +143,17 @@ class FamUnitServiceProvider extends ServiceProvider implements DeclaresModuleRe
                 'applicable_scopes' => ['todos'],
             ];
         }
+
+        // `aceptacion_condiciones` (1.14-c, permisos.md §2): consulta administrativa de las aceptaciones; solo lectura y
+        // solo `todos`. Quien redacta las condiciones no tiene por qué verlas: recurso aparte de `texto_legal`.
+        $permissions[] = [
+            'code' => 'aceptacion_condiciones.leer',
+            'resource' => 'aceptacion_condiciones',
+            'action' => 'leer',
+            'is_special_category' => false,
+            'resource_label_key' => 'fam_unit.permissions.resources.aceptacion_condiciones',
+            'applicable_scopes' => ['todos'],
+        ];
 
         return $permissions;
     }

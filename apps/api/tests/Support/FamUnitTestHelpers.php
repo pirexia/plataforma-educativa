@@ -306,6 +306,53 @@ final class FamUnitTestHelpers
         ]);
     }
 
+    // ─── Condiciones de uso y muro de sesión (1.14-c, ADR-067) ───
+
+    /**
+     * Crea y publica una versión de las condiciones de uso; devuelve su `public_id`. Publicar otra la retira.
+     *
+     * @param  array<string, string>|null  $title
+     * @param  array<string, string>|null  $body
+     */
+    public static function publishTerms(object $tenant, User $admin, bool $requiresReacceptance = false, ?array $title = null, ?array $body = null): string
+    {
+        $id = self::call($tenant, $admin, 'post', '/terms-versions', [
+            'kind' => 'condiciones_uso',
+            'title_translations' => $title ?? ['es-ES' => 'Condiciones de uso'],
+            'body_translations' => $body ?? ['es-ES' => 'Texto de las condiciones de uso del centro.'],
+        ])->assertCreated()->json('public_id');
+
+        self::call($tenant, $admin, 'post', "/terms-versions/{$id}/publish", ['requires_reacceptance' => $requiresReacceptance])->assertOk();
+
+        return $id;
+    }
+
+    /**
+     * Un centro con un alumno, una unidad y un tutor con **vínculo activo** (`RN-FAM-UNIT-61`), sin versión de
+     * condiciones publicada todavía (`RN-FAM-UNIT-63`). El tutor lee su familia con ámbito `unidad_familiar`.
+     *
+     * @return array{tenant: Tenant, admin: User, unit: string, student: Person, tutor: User, guardian: string, link: string}
+     */
+    public static function termsFamily(string $slug, string $local = 'tutor'): array
+    {
+        [$tenant, $admin] = self::setup($slug);
+        $unit = self::unitId($tenant, $admin);
+        $student = self::person($tenant, 'Alumno', 'Muro');
+        self::addStudent($tenant, $admin, $unit, $student)->assertCreated();
+        [$tutor, $guardian] = self::familyUser($tenant, $admin, $local, $unit);
+        $link = self::link($tenant, $admin, $guardian, $student)->assertCreated()->json('public_id');
+
+        return compact('tenant', 'admin', 'unit', 'student', 'tutor', 'guardian', 'link');
+    }
+
+    /** `type` de un `403` de muro (`urn:pge:error:...`), o `null` si la respuesta no es de un muro. */
+    public static function wallType(TestResponse $response): ?string
+    {
+        $type = $response->json('type');
+
+        return is_string($type) && in_array($type, ['urn:pge:error:terms-acceptance-required', 'urn:pge:error:mfa-enrollment-required'], true) ? $type : null;
+    }
+
     public static function errorCode(TestResponse $response, string $field): ?string
     {
         return $response->json('errors')[$field][0]['code'] ?? null;

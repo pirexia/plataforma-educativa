@@ -1,7 +1,12 @@
 <?php
 
+use App\Models\User;
+use App\Modules\Auth\Infrastructure\MfaEnrollmentWall;
+use App\Modules\FamUnit\Infrastructure\TermsAcceptanceWall;
 use App\Support\Modules\DeclaresModuleRegistry;
 use App\Support\Modules\ModuleServiceProviderDiscovery;
+use App\Support\Sessions\SessionWall;
+use App\Support\Sessions\SessionWallRegistry;
 use Illuminate\Support\Facades\Route;
 
 pest()->group('arch');
@@ -34,6 +39,10 @@ function routesWithoutPermissionExceptions(): array
         'curso.academic-years.current' => 'REQ-CURSO: curso activo del centro, dato del centro y no de una persona; autoservicio por identidad como GET /me (OPEN-CURSO-15, ampliación aprobada por el usuario el 2026-10-07, ADR-056 §3.2)',
         'curso.academic-years.selectable' => 'REQ-CURSO: opciones del selector de curso académico, dato del centro y no de una persona; autoservicio por identidad (OPEN-ACAD-11, issue #409, CA-ACAD-043, ampliación aprobada por el usuario el 2026-10-10, ADR-056 §3.2)',
         'core.data-exports.show' => 'REQ-CORE: autoriza por `kind` en el controlador (el permiso depende del tipo de exportación)',
+        // L1 (ADR-067 §6, aprobada por el usuario el 2026-10-28): autoservicio por identidad como GET /me
+        // (REQ-FAM-UNIT/permisos.md §2); llevan module-enabled:fam_unit (AR-07b).
+        'fam-unit.me-terms.show' => 'REQ-FAM-UNIT: autoservicio por identidad, como GET /me; texto de condiciones pendiente del propio usuario (ADR-067 L1)',
+        'fam-unit.me-terms-acceptances.store' => 'REQ-FAM-UNIT: autoservicio por identidad, como GET /me; el usuario acepta por sí mismo (ADR-067 L1)',
         'auth.csrf-cookie' => $auth,
         'auth.session.store' => $auth,
         'auth.session.destroy' => $auth,
@@ -224,7 +233,7 @@ test('AR-07a CA-056-15: cada excepción nominal existe como ruta de api/v1 y sig
     }
 
     expect($stale)->toBe([], "excepciones de AR-07a que ya no hacen falta, retirarlas de la lista:\n".implode("\n", $stale))
-        ->and(routesWithoutPermissionExceptions())->toHaveCount(35);
+        ->and(routesWithoutPermissionExceptions())->toHaveCount(37);
 });
 
 /**
@@ -341,4 +350,173 @@ test('AR-07a AR-07b control negativo: las funciones detectan ruta sin permission
             'x.sin-modulo api/v1/x/b: falta module-enabled:x',
             'x.orden api/v1/x/c: permission: va antes que module-enabled:x',
         ]);
+});
+
+// ─── ADR-067 §7: ningún endpoint escapa a los muros de sesión (INV-015, INV-010) ───
+
+/**
+ * L7 (ADR-067 §6): rutas de `api/v1` sin `require-session-walls`. El ACS de SAML llega sin sesión por diseño
+ * (`ADR-043 §2.1`); es la única.
+ *
+ * @return list<string>
+ */
+function routesWithoutSessionWallsExceptions(): array
+{
+    return ['auth.saml.acs'];
+}
+
+/**
+ * @param  list<array{name: ?string, uri: string, middleware: list<string>, module: ?string}>  $routes
+ * @param  list<string>  $exceptions  nombres de ruta exentos
+ * @return list<string> rutas de `api/v1` sin `require-session-walls` y fuera de la lista
+ */
+function routesMissingSessionWalls(array $routes, array $exceptions): array
+{
+    $missing = [];
+
+    foreach ($routes as $route) {
+        if (! str_starts_with($route['uri'], 'api/v1') || in_array($route['name'], $exceptions, true)) {
+            continue;
+        }
+
+        if (! in_array('require-session-walls', $route['middleware'], true)) {
+            $missing[] = ($route['name'] ?? '(sin nombre)').' '.$route['uri'];
+        }
+    }
+
+    return $missing;
+}
+
+test('CA-067-01 ADR-067 §7: toda ruta de api/v1 lleva require-session-walls salvo L7, y ninguna de api/platform/* lo lleva', function (): void {
+    $table = registeredRouteTable();
+    $apiV1 = array_filter($table, static fn (array $r): bool => str_starts_with($r['uri'], 'api/v1'));
+
+    expect(count($apiV1))->toBeGreaterThan(50);
+
+    $missing = routesMissingSessionWalls($table, routesWithoutSessionWallsExceptions());
+
+    expect($missing)->toBe([], "rutas de api/v1 fuera del muro de sesión (INV-010):\n".implode("\n", $missing));
+
+    // L7: la excepción existe, sigue sin el muro y es la única.
+    $names = array_column($table, 'name');
+    expect(routesWithoutSessionWallsExceptions())->each->toBeIn($names);
+
+    $without = array_filter($apiV1, static fn (array $r): bool => ! in_array('require-session-walls', $r['middleware'], true));
+    expect(array_column($without, 'name'))->toBe(routesWithoutSessionWallsExceptions());
+
+    $platform = array_filter($table, static fn (array $r): bool => str_starts_with($r['uri'], 'api/platform'));
+    expect(count($platform))->toBeGreaterThan(0);
+
+    foreach ($platform as $route) {
+        expect($route['middleware'])->not->toContain('require-session-walls');
+    }
+});
+
+test('CA-067-01 control negativo: detecta una ruta de api/v1 sin el muro y respeta L7 y las rutas fuera de api/v1', function (): void {
+    $routes = [
+        ['name' => 'x.ok', 'uri' => 'api/v1/x', 'middleware' => ['require-session-walls'], 'module' => null],
+        ['name' => 'x.sin-muro', 'uri' => 'api/v1/y', 'middleware' => ['module-enabled:x'], 'module' => null],
+        ['name' => 'auth.saml.acs', 'uri' => 'api/v1/auth/saml/{publicId}/acs', 'middleware' => [], 'module' => null],
+        ['name' => 'fuera', 'uri' => 'api/platform/z', 'middleware' => [], 'module' => null],
+    ];
+
+    expect(routesMissingSessionWalls($routes, routesWithoutSessionWallsExceptions()))->toBe(['x.sin-muro api/v1/y']);
+});
+
+test('CA-067-02 ADR-067 §7: cada ruta exenta de un muro existe en api/v1, está en AR-07a y la lista coincide exactamente con la aprobada (L3, L4)', function (): void {
+    $approved = [
+        'mfa-enrollment' => [
+            'core.me.show', 'auth.mfa.show', 'auth.mfa-enrollments.store', 'auth.mfa-factors.store',
+            'auth.session.destroy', 'auth.csrf-cookie', 'core.tenant.branding',
+        ],
+        'terms-acceptance' => [
+            'core.me.show', 'fam-unit.me-terms.show', 'fam-unit.me-terms-acceptances.store',
+            'auth.session.destroy', 'auth.csrf-cookie', 'core.tenant.branding',
+        ],
+    ];
+
+    $byName = [];
+
+    foreach (registeredRouteTable() as $route) {
+        if ($route['name'] !== null && str_starts_with($route['uri'], 'api/v1')) {
+            $byName[$route['name']] = $route;
+        }
+    }
+
+    $selfService = array_keys(routesWithoutPermissionExceptions());
+    $walls = array_map(static fn (string $class) => app($class), app(SessionWallRegistry::class)->ordered());
+
+    expect(array_map(static fn ($wall): string => $wall->code(), $walls))->toBe(array_keys($approved));
+
+    foreach ($walls as $wall) {
+        $exempt = $wall->exemptRouteNames();
+        $expected = $approved[$wall->code()];
+        sort($exempt);
+        sort($expected);
+
+        expect($exempt)->toBe($expected, "lista exenta de {$wall->code()}");
+
+        $problems = [];
+
+        foreach ($exempt as $name) {
+            if (! isset($byName[$name])) {
+                $problems[] = "{$wall->code()}: la ruta exenta {$name} ya no existe en api/v1";
+            }
+
+            if (! in_array($name, $selfService, true)) {
+                $problems[] = "{$wall->code()}: la ruta exenta {$name} debe estar en AR-07a (autoservicio)";
+            }
+        }
+
+        expect($problems)->toBe([]);
+    }
+});
+
+test('CA-067-03 ADR-067 §5.2, L6: el orden del registro es exactamente mfa-enrollment, terms-acceptance, y un código fuera de L6 o duplicado falla', function (): void {
+    $registry = app(SessionWallRegistry::class);
+
+    expect(SessionWallRegistry::ORDER)->toBe(['mfa-enrollment', 'terms-acceptance'])
+        ->and($registry->ordered())->toBe([
+            MfaEnrollmentWall::class,
+            TermsAcceptanceWall::class,
+        ]);
+
+    $fresh = new SessionWallRegistry;
+    $fresh->register(TermsAcceptanceWall::class);
+    $fresh->register(MfaEnrollmentWall::class);
+
+    // El orden lo fija la constante, no el orden de registro.
+    expect($fresh->ordered())->toBe($registry->ordered());
+
+    expect(fn () => $fresh->register(MfaEnrollmentWall::class))->toThrow(LogicException::class, 'ya está registrado');
+
+    $other = new class implements SessionWall
+    {
+        public function code(): string
+        {
+            return 'otro-muro';
+        }
+
+        public function errorType(): string
+        {
+            return 'forbidden';
+        }
+
+        public function moduleCode(): string
+        {
+            return 'core';
+        }
+
+        public function exemptRouteNames(): array
+        {
+            return [];
+        }
+
+        public function blocks(User $user): bool
+        {
+            return false;
+        }
+    };
+
+    expect(fn () => (new SessionWallRegistry)->register($other::class))->toThrow(LogicException::class, 'no está en el orden cerrado');
 });

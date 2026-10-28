@@ -845,6 +845,14 @@ components:
             enforced: { type: boolean, description: Obligado y gracia vencida (el muro se aplicará). }
             grace_deadline_at: { type: string, format: date-time, nullable: true }
             days_remaining: { type: integer, nullable: true }
+        session_walls:
+          type: array
+          description: >
+            ADR-067 §5.10 (REQ-FAM-UNIT 1.14-c, OPEN-067-02). Códigos de los **muros de sesión activos y bloqueantes**
+            del usuario, en el orden del registro (`mfa-enrollment`, `terms-acceptance`); lista vacía si no hay ninguno.
+            Permite a la SPA llevar al usuario al muro sin depender de un `403` casual. Un muro de un módulo no activo
+            no aparece. Ampliación aditiva (ADR-038 §7.3): ausente en respuestas anteriores a `1.14-c`.
+          items: { type: string, example: terms-acceptance }
 
     Invitation:
       type: object
@@ -2194,9 +2202,8 @@ components:
     TermsVersionKind:
       type: string
       description: >
-        Tipo de texto legal versionado (ADR-066 §5.5, RN-FAM-UNIT-73). En `1.14-b` solo se gestionan los dos de
-        imagen; `condiciones_uso` es de `1.14-c` y se rechaza con `422 fam_unit.terms.kind_not_available`. Enumerado
-        **extensible**.
+        Tipo de texto legal versionado (ADR-066 §5.5, RN-FAM-UNIT-73). Los dos de imagen se gestionan desde `1.14-b`;
+        `condiciones_uso` desde `1.14-c` (publicarlo activa el muro de condiciones, ADR-067). Enumerado **extensible**.
       enum: [condiciones_uso, consentimiento_imagen_web, consentimiento_imagen_redes]
       x-extensible-enum: true
 
@@ -2306,7 +2313,7 @@ components:
       description: >
         REQ-FAM-UNIT/api.md §1.7. Versión de un texto legal del centro. `title` y `body` los resuelve el servidor en el
         idioma de la petición (ADR-062 §5.4, solo lectura); las traducciones completas son las editables. `kind` es
-        inmutable tras la creación. `requires_reacceptance` solo puede ser `true` en `condiciones_uso` (`1.14-c`).
+        inmutable tras la creación. `requires_reacceptance` solo puede ser `true` en `condiciones_uso` (RN-FAM-UNIT-62).
       required: [public_id, kind, version_number, title, title_translations, body, body_translations, status, requires_reacceptance, published_at, created_at, updated_at]
       properties:
         public_id: { $ref: '#/components/schemas/PublicId' }
@@ -2324,6 +2331,44 @@ components:
             - { type: 'null' }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+
+    MyTerms:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §2.8 (1.14-c), `GET /me/terms`. La versión de las condiciones de uso **pendiente** del usuario
+        autenticado: `required = true` con la versión publicada si el usuario está obligado (RN-FAM-UNIT-61) y no tiene
+        aceptación exigible (RN-FAM-UNIT-62); `required = false` y `version = null` en cualquier otro caso (sin versión
+        publicada, no obligado o ya aceptada). Sin caché (ADR-067 §5.8).
+      required: [required, version]
+      properties:
+        required: { type: boolean }
+        version:
+          oneOf:
+            - { $ref: '#/components/schemas/TermsVersion' }
+            - { type: 'null' }
+
+    TermsAcceptance:
+      type: object
+      description: >
+        REQ-FAM-UNIT/api.md §1.8, datos.md §1.9. Aceptación inmutable de una versión de las condiciones de uso
+        (RN-FAM-UNIT-64): no hay `PATCH` ni `DELETE`. No se exponen `ip_address` ni `user_agent` (se conservan como
+        evidencia). `shown_locale` es el idioma **realmente mostrado** del texto tras la caída de ADR-062 (RN-FAM-UNIT-65).
+      required: [public_id, user, terms_version, version_number, shown_locale, accepted_at]
+      properties:
+        public_id: { $ref: '#/components/schemas/PublicId' }
+        user:
+          description: '`public_id` del usuario que aceptó.'
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        terms_version:
+          description: '`public_id` de la versión aceptada.'
+          oneOf:
+            - { $ref: '#/components/schemas/PublicId' }
+            - { type: 'null' }
+        version_number: { type: integer, minimum: 1, nullable: true }
+        shown_locale: { type: string, enum: [es-ES, en, de, fr], x-extensible-enum: true }
+        accepted_at: { type: string, format: date-time }
 
     PublicId:
       type: string

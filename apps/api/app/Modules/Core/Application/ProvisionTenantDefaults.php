@@ -261,6 +261,7 @@ final class ProvisionTenantDefaults implements TenantProvisioner
             'revocacion_tutor.leer', 'revocacion_tutor.crear', 'revocacion_tutor.eliminar',
             'consentimiento_imagen.leer', 'consentimiento_imagen.actualizar', 'consentimiento_imagen.exportar',
             'texto_legal.leer', 'texto_legal.crear', 'texto_legal.actualizar', 'texto_legal.eliminar', 'texto_legal.publicar',
+            'aceptacion_condiciones.leer',
         ],
         'secretaria' => [
             'familia.leer', 'familia.crear', 'familia.actualizar', 'familia.eliminar',
@@ -268,6 +269,7 @@ final class ProvisionTenantDefaults implements TenantProvisioner
             'revocacion_tutor.leer',
             'consentimiento_imagen.leer', 'consentimiento_imagen.actualizar', 'consentimiento_imagen.exportar',
             'texto_legal.leer',
+            'aceptacion_condiciones.leer',
         ],
         'direccion' => ['familia.leer', 'vinculo_tutor.leer', 'revocacion_tutor.leer', 'consentimiento_imagen.leer'],
         'administrativo' => ['familia.leer', 'vinculo_tutor.leer'],

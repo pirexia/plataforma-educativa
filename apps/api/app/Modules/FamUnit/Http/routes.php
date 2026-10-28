@@ -1,7 +1,8 @@
 <?php
 
-// Rutas de REQ-FAM-UNIT (pasos 1.14-a y 1.14-b), documentadas en apps/api/openapi/paths/fam-unit.yaml
-// (docs/modulos/REQ-FAM-UNIT/api.md §2.1 a §2.5, §2.7 y §2.8).
+// Rutas de REQ-FAM-UNIT (pasos 1.14-a, 1.14-b y 1.14-c), documentadas en apps/api/openapi/paths/fam-unit.yaml
+// (docs/modulos/REQ-FAM-UNIT/api.md §2.1 a §2.5, §2.7 y §2.8). Todas pasan antes por el registro de muros de sesión
+// (`require-session-walls`, ADR-067) del grupo `v1`.
 // Requerido desde routes/api-v1.php, ya dentro del grupo
 // prefix('v1')->middleware(['resolve-tenant', 'resolve-locale', ...]).
 //
@@ -11,7 +12,7 @@
 // petición anónima sea 401 aunque el módulo no esté contratado; no se usa el
 // alias `auth` porque Laravel lo ordena antes de `resolve-tenant` (500 real).
 // Recursos de permiso: `familia` (unidades, tutores, alumnado), `vinculo_tutor`, `revocacion_tutor`,
-// `consentimiento_imagen` y `texto_legal` (permisos.md §2).
+// `consentimiento_imagen`, `texto_legal` y `aceptacion_condiciones` (permisos.md §2); `/me/terms*` van por identidad (L1).
 
 use App\Http\Middleware\RequireAuthenticatedUser;
 use App\Modules\FamUnit\Http\Controllers\FamilyUnitsController;
@@ -22,6 +23,8 @@ use App\Modules\FamUnit\Http\Controllers\GuardiansController;
 use App\Modules\FamUnit\Http\Controllers\ImageConsentDecisionsController;
 use App\Modules\FamUnit\Http\Controllers\ImageConsentsController;
 use App\Modules\FamUnit\Http\Controllers\ImageConsentTextsController;
+use App\Modules\FamUnit\Http\Controllers\MeTermsController;
+use App\Modules\FamUnit\Http\Controllers\TermsAcceptancesController;
 use App\Modules\FamUnit\Http\Controllers\TermsVersionsController;
 use Illuminate\Support\Facades\Route;
 
@@ -67,4 +70,10 @@ Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:fam_unit'])-
     Route::patch('/terms-versions/{publicId}', [TermsVersionsController::class, 'update'])->middleware('permission:texto_legal.actualizar')->name('fam-unit.terms-versions.update');
     Route::delete('/terms-versions/{publicId}', [TermsVersionsController::class, 'destroy'])->middleware('permission:texto_legal.eliminar')->name('fam-unit.terms-versions.destroy');
     Route::post('/terms-versions/{publicId}/publish', [TermsVersionsController::class, 'publish'])->middleware('permission:texto_legal.publicar')->name('fam-unit.terms-versions.publish');
+    // api.md §2.8 (1.14-c): consulta administrativa de las aceptaciones de las condiciones de uso.
+    Route::get('/terms-acceptances', [TermsAcceptancesController::class, 'index'])->middleware('permission:aceptacion_condiciones.leer')->name('fam-unit.terms-acceptances.index');
+    // api.md §2.8 (1.14-c, ADR-067): autoservicio por identidad, sin `permission:` (ampliación L1 de AR-07a) y exento del
+    // muro de condiciones (L3). `module-enabled:fam_unit` (AR-07b) va en el grupo.
+    Route::get('/me/terms', [MeTermsController::class, 'show'])->name('fam-unit.me-terms.show');
+    Route::post('/me/terms-acceptances', [MeTermsController::class, 'store'])->name('fam-unit.me-terms-acceptances.store');
 });

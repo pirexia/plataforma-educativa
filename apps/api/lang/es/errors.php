@@ -25,6 +25,8 @@ return [
         // REQ-BO/api.md §5 (1.6): dos códigos propios del backoffice.
         'reauthentication-required' => 'Vuelve a identificarte',
         'ip-not-allowed' => 'Acceso no permitido',
+        // ADR-067 §5.5 (L5): muro de aceptación de las condiciones de uso.
+        'terms-acceptance-required' => 'Debes aceptar las condiciones de uso',
     ],
 
     'detail' => [
@@ -38,5 +40,6 @@ return [
         'unavailable' => 'El servicio no está disponible temporalmente. Inténtalo de nuevo en unos minutos.',
         'account-locked' => 'Esta cuenta está bloqueada temporalmente por demasiados intentos fallidos. Revisa tu correo o inténtalo de nuevo más tarde.',
         'reauthentication-required' => 'Esta operación exige que confirmes tu contraseña y tu segundo factor de nuevo.',
+        'terms-acceptance-required' => 'Para continuar, acepta las condiciones de uso vigentes del centro.',
     ],
 ];

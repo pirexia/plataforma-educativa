@@ -12,6 +12,7 @@ return [
             'revocacion_tutor' => 'Revocation of a guardian\'s access',
             'consentimiento_imagen' => 'Image use consent',
             'texto_legal' => 'School legal texts',
+            'aceptacion_condiciones' => 'Aceptaciones de las condiciones de uso',
         ],
     ],
 
@@ -52,10 +53,10 @@ return [
     ],
 
     'terms' => [
-        'kind_not_available' => 'This type of legal text is not available yet.',
         'kind_not_editable' => 'The type of a legal text cannot be changed once created.',
         'kind_invalid' => 'The legal text type is not valid.',
         'requires_reacceptance_not_allowed' => 'Re-acceptance can only be required for the terms of use, not for the image consent.',
+        'version_not_current' => 'La versión de las condiciones que se mostró ya no es la vigente: vuelve a leer el texto publicado antes de aceptar.',
         'not_draft' => 'Only a draft version can be edited, deleted or published.',
         'default_locale_missing' => 'The title and the text must be written in the school\'s default language (:locale) before publishing.',
     ],
@@ -70,6 +71,7 @@ return [
     ],
 
     'validation' => [
+        'terms_version_not_found' => 'La versión de las condiciones de uso indicada no existe.',
         'user_not_found' => 'The specified user does not exist.',
         'student_not_found' => 'The specified student does not exist.',
         'guardian_not_found' => 'The specified guardian does not exist.',

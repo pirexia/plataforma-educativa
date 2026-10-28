@@ -9,7 +9,7 @@ use Tests\Support\FamUnitTestHelpers as Fam;
 
 // REQ-FAM-UNIT-003/-004 (1.14-b), docs/modulos/REQ-FAM-UNIT/api.md §1.7, §2.8, funcional.md §3.9, §4.9 y RN-FAM-UNIT-60,
 // -65, -70, -73, CA-FAM-UNIT-098 a -100, ADR-066 §5.5, ADR-062, INV-003, INV-010, INV-015: versiones de los textos legales
-// del centro (los dos tipos de imagen; `condiciones_uso` es de 1.14-c).
+// del centro (los dos tipos de imagen y, desde 1.14-c, `condiciones_uso`).
 
 afterEach(function (): void {
     DB::connection('pgsql_platform')->table('tenants')->delete();
@@ -21,12 +21,13 @@ function termsScenario(string $slug): array
     return Fam::setup($slug);
 }
 
-test('CA-FAM-UNIT-099 RN-FAM-UNIT-73: en 1.14-b condiciones_uso es 422 kind_not_available, un tipo desconocido 422 kind_invalid y la ausencia de kind 422 required', function (): void {
+test('CA-FAM-UNIT-099 RN-FAM-UNIT-73: condiciones_uso ya se gestiona (1.14-c levanta el 422 kind_not_available), un tipo desconocido es 422 kind_invalid y la ausencia de kind 422 required', function (): void {
     [$tenant, $admin] = termsScenario('tv-099a');
     $texts = ['title_translations' => ['es-ES' => 'T'], 'body_translations' => ['es-ES' => 'Cuerpo']];
 
-    $r = Fam::call($tenant, $admin, 'post', '/terms-versions', ['kind' => 'condiciones_uso'] + $texts)->assertStatus(422);
-    expect(Fam::errorCode($r, 'kind'))->toBe('fam_unit.terms.kind_not_available');
+    // 1.14-c: el tipo condiciones_uso se crea como borrador, con su propia numeración.
+    $created = Fam::call($tenant, $admin, 'post', '/terms-versions', ['kind' => 'condiciones_uso'] + $texts)->assertCreated();
+    expect($created->json())->toMatchArray(['kind' => 'condiciones_uso', 'version_number' => 1, 'status' => 'borrador', 'requires_reacceptance' => false]);
 
     $r = Fam::call($tenant, $admin, 'post', '/terms-versions', ['kind' => 'otro'] + $texts)->assertStatus(422);
     expect(Fam::errorCode($r, 'kind'))->toBe('fam_unit.terms.kind_invalid');
@@ -37,7 +38,7 @@ test('CA-FAM-UNIT-099 RN-FAM-UNIT-73: en 1.14-b condiciones_uso es 422 kind_not_
     $r = Fam::call($tenant, $admin, 'post', '/terms-versions', ['kind' => 5] + $texts)->assertStatus(422);
     expect(Fam::errorCode($r, 'kind'))->toBe('fam_unit.terms.kind_invalid');
 
-    expect(Fam::call($tenant, $admin, 'get', '/terms-versions')->assertOk()->json('data'))->toBe([]);
+    expect(Fam::call($tenant, $admin, 'get', '/terms-versions')->assertOk()->json('data'))->toHaveCount(1);
 });
 
 test('RN-FAM-UNIT-73 api.md §1.7: el alta crea un borrador numerado por centro y tipo (1, 2... sin reutilizar, aunque se borre un borrador) y la forma coincide con api.md §1.7', function (): void {
