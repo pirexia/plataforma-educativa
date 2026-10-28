@@ -81,13 +81,13 @@
         "redes_sociales": "Réseaux sociaux"
       },
       "consentState": {
-        "autorizo": "J'autorise",
-        "no_autorizo": "Je n'autorise pas",
+        "autorizo": "Autorisé",
+        "no_autorizo": "Non autorisé",
         "pendiente": "En attente"
       },
       "decision": {
-        "autorizo": "J'autorise",
-        "no_autorizo": "Je n'autorise pas"
+        "autorizo": "Autorisé",
+        "no_autorizo": "Non autorisé"
       },
       "channel": {
         "portal": "Portail des familles",

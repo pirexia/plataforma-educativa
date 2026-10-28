@@ -81,13 +81,13 @@
         "redes_sociales": "Social media"
       },
       "consentState": {
-        "autorizo": "I authorise",
-        "no_autorizo": "I do not authorise",
+        "autorizo": "Authorised",
+        "no_autorizo": "Not authorised",
         "pendiente": "Pending"
       },
       "decision": {
-        "autorizo": "I authorise",
-        "no_autorizo": "I do not authorise"
+        "autorizo": "Authorised",
+        "no_autorizo": "Not authorised"
       },
       "channel": {
         "portal": "Family portal",
