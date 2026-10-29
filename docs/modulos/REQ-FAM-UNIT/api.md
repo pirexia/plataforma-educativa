@@ -1,6 +1,6 @@
 # REQ-FAM-UNIT · API
 
-> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). **`1.14-a` implementada (2026-10-26)**: los 21 *endpoints* de §2.1 a §2.5, documentados en `apps/api/openapi/paths/fam-unit.yaml`; detalles de implementación en `funcional.md §15`. Los *endpoints* de §2.6 dependen de `OPEN-FAM-UNIT-05`; los de §2.7 y §2.8, de la partición de `funcional.md §1.2`; el muro (§2.8) de `OPEN-FAM-UNIT-12`, **resuelta por `ADR-067` (ACEPTADA, 2026-10-28)**: exentas = L3 y `403` sin `params.version`. **Enmendada por `ADR-066` (ACEPTADA, 2026-10-27; `funcional.md §16`)**. **`1.14-b` IMPLEMENTADA (2026-10-27; `funcional.md §18`)**, aprobada por el usuario (`funcional.md §17`): los 11 *endpoints* de §2.7 y §2.8 documentados en `apps/api/openapi/paths/fam-unit.yaml` (32 en total con los de `1.14-a`), con las condiciones previas a datos reales de `funcional.md §13`: §2.7 completo (incluida la lectura del texto publicado, `GET /image-consent-texts`, `OPEN-FAM-UNIT-23`), el cambio de `PATCH /guardian-links/{id}` de §2.4 (`RN-FAM-UNIT-74`, `OPEN-FAM-UNIT-24`) y, de §2.8, la gestión de `/terms-versions` para los dos tipos de imagen; **`1.14-c` IMPLEMENTADA (2026-10-28; `funcional.md §19`)** sobre `ADR-067`: los tres *endpoints* de aceptación (`GET /terms-acceptances`, `GET /me/terms`, `POST /me/terms-acceptances`, 35 en total con los anteriores) en `apps/api/openapi/paths/fam-unit.yaml`, `condiciones_uso` gestionable en `/terms-versions` y el muro. **`1.14-d` IMPLEMENTADA (2026-10-28; `funcional.md §20`)**: las pantallas de personal de `funcional.md §10` consumen estos *endpoints* sin cambios de API.
+> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). **`1.14-a` implementada (2026-10-26)**: los 21 *endpoints* de §2.1 a §2.5, documentados en `apps/api/openapi/paths/fam-unit.yaml`; detalles de implementación en `funcional.md §15`. Los *endpoints* de §2.6 dependen de `OPEN-FAM-UNIT-05`; los de §2.7 y §2.8, de la partición de `funcional.md §1.2`; el muro (§2.8) de `OPEN-FAM-UNIT-12`, **resuelta por `ADR-067` (ACEPTADA, 2026-10-28)**: exentas = L3 y `403` sin `params.version`. **Enmendada por `ADR-066` (ACEPTADA, 2026-10-27; `funcional.md §16`)**. **`1.14-b` IMPLEMENTADA (2026-10-27; `funcional.md §18`)**, aprobada por el usuario (`funcional.md §17`): los 11 *endpoints* de §2.7 y §2.8 documentados en `apps/api/openapi/paths/fam-unit.yaml` (32 en total con los de `1.14-a`), con las condiciones previas a datos reales de `funcional.md §13`: §2.7 completo (incluida la lectura del texto publicado, `GET /image-consent-texts`, `OPEN-FAM-UNIT-23`), el cambio de `PATCH /guardian-links/{id}` de §2.4 (`RN-FAM-UNIT-74`, `OPEN-FAM-UNIT-24`) y, de §2.8, la gestión de `/terms-versions` para los dos tipos de imagen; **`1.14-c` IMPLEMENTADA (2026-10-28; `funcional.md §19`)** sobre `ADR-067`: los tres *endpoints* de aceptación (`GET /terms-acceptances`, `GET /me/terms`, `POST /me/terms-acceptances`, 35 en total con los anteriores) en `apps/api/openapi/paths/fam-unit.yaml`, `condiciones_uso` gestionable en `/terms-versions` y el muro. **`1.14-d` IMPLEMENTADA (2026-10-28; `funcional.md §20`)**: las pantallas de personal de `funcional.md §10` consumen estos *endpoints* sin cambios de API. **Paso `1.14b`**: *endpoints* PROPUESTOS en §8 (2026-10-29), no aprobados.
 
 Prefijo: `/api/v1`. Tenant por *host* (`ADR-033 §2`). Todo según `ADR-038`: recurso individual desnudo, colección en `{data, meta}` (§3), filtros planos y valores múltiples separados por comas (§5.2), orden por lista blanca con desempate por `id` (§5.3), errores `application/problem+json` con `type` URN y `errors` como objeto indexado por campo con arrays de `{code, message, params}` (§6), `404` frente a `403` (§6.4).
 
@@ -294,3 +294,130 @@ Ninguno.
 Todos con prefijo `fam_unit.` y traducidos en los cuatro idiomas: `family_unit.code_taken`, `family_unit.code_invalid`, `family_unit.principal_not_member`, `family_unit.has_members`, `guardian.already_exists`, `guardian.user_not_eligible`, `student.already_in_unit`, `link.already_exists`, `link.self_link`, `link.emergency_contact_taken`, `link.invalid_transition`, `link.not_editable`, `link.emergency_contact_revoked`, `link.revoked_not_deletable` (`409`, `RN-FAM-UNIT-39`: en `DELETE /guardian-links/{id}` y `DELETE /guardians/{id}`), `guardian.not_editable`, `custody.link_not_revoked` (condicionado), `image_consent.not_legal_guardian`, `image_consent.guardian_required`, `image_consent.guardian_not_linked`, `image_consent.text_not_published` (`RN-FAM-UNIT-68`), `image_consent.text_version_invalid` (`RN-FAM-UNIT-69`), `terms.kind_not_available` (`RN-FAM-UNIT-73`; **retirado en `1.14-c`**, `funcional.md §19` D-33) [DERIVADA, aceptada el 2026-10-27], `terms.kind_not_editable` [DERIVADA, aceptada el 2026-10-27], `terms.kind_invalid` (`kind` fuera del vocabulario en `POST /terms-versions`; si falta, `validation.required`) [DERIVADA, 2026-10-27], `terms.requires_reacceptance_not_allowed` (`requires_reacceptance = true` al publicar un tipo de imagen) [DERIVADA, 2026-10-27], `terms.not_draft`, `terms.default_locale_missing`, `terms.version_not_current` (`409`, `1.14-c`), `validation.terms_version_not_found` (`422`, `1.14-c`, `D-31`), `export.q_not_allowed`, `errors.revocation_rate_limited` (`429`), `errors.consent_rate_limited` (`429`, `RN-FAM-UNIT-76`), `image_consent.text_version_outdated` (`409`, `RN-FAM-UNIT-69`), y, de `1.14-b` (`funcional.md §18`, D-19), `validation.level_invalid`, `validation.decision_invalid`, `validation.channel_invalid`, `validation.state_invalid` y `validation.cursor_invalid`, `validation.user_not_found`, `validation.student_not_found`, `validation.guardian_not_found`, `validation.family_unit_not_found`, y, de `1.14-a` (`funcional.md §15`, D-7), `validation.principal_guardian_not_found`, `validation.relationship_invalid`, `validation.access_level_invalid`, `validation.restricted_category_invalid`, `validation.reason_invalid`, `validation.required`, `validation.boolean_invalid`, `validation.reference_invalid` y `validation.filter_forbidden` (este último con `403`: `include_deleted` sin `familia.eliminar` o `status=revocado` sin `revocacion_tutor.leer`). Error transversal nuevo: `urn:pge:error:terms-acceptance-required` (`403`, ampliación L5 del catálogo de `ADR-038 §6.2` por `ADR-067 §5.5`; sin miembros de extensión).
 
 Nota: el issue #60 (`ValidationErrorFormatter` antepone `core.` al `code` de cualquier módulo) sigue abierto; estos códigos heredarán su resolución.
+
+---
+
+## 8. Paso `1.14b` (autorizados y entrega de menores) — PROPUESTA
+
+> **Estado**: PROPUESTA (2026-10-29), no aprobada; condicionada a `ADR-068` (`funcional.md §21.2`). Mismas convenciones de §0 (`ADR-038`, cadena `RequireAuthenticatedUser` → `module-enabled:<módulo>` → `permission:<código>`, `404` frente a `403`, `public_id` ULID; el alumno y las personas se nombran por el `public_id` de su **persona**). Ningún recurso es por curso académico. Las rutas de §8.4 son del módulo `prl` si se aprueba `OPEN-068-01` (B), con `module-enabled:prl`.
+
+### 8.1 Representaciones
+
+**`PickupListEntry`** (una persona en la lista de un alumno, calculada; sin `public_id` propio):
+
+```json
+{
+  "person": "01JB…50",
+  "display_name": "…",
+  "bases": [{ "basis": "tercero", "authorization": "01JB…60", "relationship": "abuelo", "valid_until": null }],
+  "has_photo": true,
+  "photo_url": "https://…firmada…",
+  "photo_url_expires_at": "2026-10-29T10:05:00Z",
+  "contact_phone": "…",
+  "document": { "type": "dni", "masked": "•••••123X" }
+}
+```
+
+`bases[].basis` ∈ `tutor` (con `guardian_link` y `relationship` del vínculo), `tercero`, `puntual` (con `valid_from`/`valid_until` y sin `reason`). `photo_url` solo en las lecturas auditadas (§8.3); `null` si `has_photo = false`. `document` enmascarado siempre (`RN-FAM-UNIT-90`); con ámbito `unidad_familiar`, `document` se omite en los terceros (`RN-FAM-UNIT-91`). Nunca se incluye la existencia de un vínculo revocado ni de una persona excluida.
+
+**`PickupAuthorization`**: `public_id`, `student_person`, `person` (`public_id` + `display_name`), `relationship`, `kind`, `valid_from`, `valid_until`, `reason` (solo con `autorizado_recogida.leer` de ámbito `todos`), `authorized_by` (`public_id` del tutor), `terms_version` (`{ public_id, kind, version_number }`), `channel`, `authorized_at`, `recorded_by`, `is_effective` (vigente ahora, calculado), `ineffective_reason` (`sin_foto`, `fuera_de_vigencia`, `retirada`, `persona_excluida` — este último **solo** con `revocacion_tutor.leer`; sin él se muestra `no_vigente`), `withdrawn_at`, `created_at`. Nunca `ip_address` ni `user_agent`.
+
+**`PickupPerson`** (gestión de un tercero o tutor como persona de recogida): `person`, `display_name`, `document` (completo solo aquí y con `autorizado_recogida.actualizar`, `RN-FAM-UNIT-90`), `contact_phone`, `has_photo`, `photo_updated_at`.
+
+### 8.2 Personas y fotografías (`fam_unit`, `1.14b-a`)
+
+| Verbo y ruta | Permiso | Ámbito | Respuesta | Errores propios |
+|---|---|---|---|---|
+| `GET /pickup-persons?document_type=&document_number=` | `autorizado_recogida.actualizar` | — | 200 colección (0 o 1) | 422 |
+| `POST /pickup-persons` | `autorizado_recogida.crear` | — | 201 `PickupPerson`; **200** con `reused = true` y `data_mismatch = bool` si ya existía una persona viva con ese documento (`RN-FAM-UNIT-89`) | 422 `validation.*` |
+| `GET /pickup-persons/{person}` | `autorizado_recogida.actualizar` | — | 200 | 404 |
+| `PUT /pickup-persons/{person}/photo` | `autorizado_recogida.actualizar` | — | 200 `PickupPerson` (multipart, campo `file`) | 404, 413, 415, 422 `fam_unit.photo.type_mismatch`, `fam_unit.photo.dimensions` |
+| `GET /pickup-persons/{person}/photo` | `autorizado_recogida.leer` | sí | 200 `{ url, expires_at }`; **auditada** (`read`) y con límite | 404, 429 |
+| `DELETE /pickup-persons/{person}/photo` | `autorizado_recogida.actualizar` | — | 204 | 404 |
+
+`POST /pickup-persons` cuerpo: `{ "given_name", "family_name_1", "family_name_2", "document_type", "document_number", "contact_phone" }`. Crea la persona por `PersonRegistrar` (D2); **nunca** modifica una existente. Una persona de recogida es alcanzable por estos *endpoints* si es tutor del centro o figura en alguna autorización viva; cualquier otra persona de `Core` es `404` (no se convierten en un directorio de personas del centro).
+
+### 8.3 Autorizaciones y lista (`fam_unit`, `1.14b-a`)
+
+| Verbo y ruta | Permiso | Ámbito | Respuesta | Errores propios |
+|---|---|---|---|---|
+| `GET /pickup-authorizations` | `autorizado_recogida.leer` | sí | 200 colección (página); filtros `student_person`, `person`, `kind`, `effective` | 422 |
+| `POST /pickup-authorizations` | `autorizado_recogida.crear` | — | 201 `PickupAuthorization` | 422 `pickup.principal_required`, `pickup.text_not_published`, `pickup.text_version_invalid`, `pickup.person_not_eligible`, `pickup.already_exists`, `validation.*`; 409 `pickup.text_version_outdated` |
+| `GET /pickup-authorizations/{id}` | `autorizado_recogida.leer` | sí | 200 | 404 |
+| `PATCH /pickup-authorizations/{id}` | `autorizado_recogida.actualizar` | — | 200 (solo `valid_until` de una `permanente`; adelantarla es fallo en cerrado y siempre se admite) | 404, 409 `pickup.withdrawn`, 422 (`kind`, `person`, `student_person`, `authorized_by` no editables) |
+| `POST /pickup-authorizations/{id}/withdrawal` | `autorizado_recogida.eliminar` | — | 200 | 404, 409 `pickup.invalid_transition` |
+| `GET /pickup-lists/{student_person}` | `autorizado_recogida.leer` | sí | 200 `{ "data": [PickupListEntry], "meta": { "as_of": "…" } }`, sin paginar (decenas como mucho); **auditada** (`read`, finalidad `gestion`) y con límite (`RN-FAM-UNIT-93`) | 404 (alumno no alcanzado), 429 |
+
+`POST /pickup-authorizations` cuerpo:
+
+```json
+{
+  "student_person": "01JB…30",
+  "person": "01JB…50",
+  "relationship": "abuelo",
+  "kind": "permanente",
+  "valid_from": "2026-11-02",
+  "valid_until": null,
+  "reason": null,
+  "authorized_by": "01JB…10",
+  "terms_version": "01JB…70",
+  "channel": "presencial",
+  "authorized_at": "2026-10-29T09:10:00Z"
+}
+```
+
+`authorized_at` es la fecha de la firma en papel (no futura; por defecto, el instante de la petición). `terms_version` por `presencial`: `publicada` o `retirada` de `autorizacion_recogida`; nunca `borrador` ni otro tipo (`422 pickup.text_version_invalid`, patrón `RN-FAM-UNIT-69`). En `puntual`, `valid_from` = la fecha, `valid_until` se omite o es igual, y `reason` es obligatorio. **Idempotencia**: una autorización idéntica a una viva responde `422 pickup.already_exists` (`RN-FAM-UNIT-88`).
+
+**Ámbito `unidad_familiar`** en `1.14b`: solo lectura (`GET /pickup-authorizations`, `GET /pickup-lists/{…}` y la foto de un tercero solo si `OPEN-FAM-UNIT-43` se aprueba). La escritura por la familia llega con `1.22` (`OPEN-FAM-UNIT-29`).
+
+### 8.4 Puerta (`prl`, `1.14b-b`)
+
+| Verbo y ruta | Permiso | Respuesta | Errores propios |
+|---|---|---|---|
+| `GET /door/students?q=` | `entrega_menor.leer` | 200 colección (máx. 20, sin paginar): `student_person`, `display_name`, `family_unit_code`. `q` de 2 a 100 caracteres | 422 |
+| `GET /door/students/{student_person}/pickup-list` | `entrega_menor.leer` | 200 `{ data: [PickupListEntry], meta: { as_of, protocol_available } }`; lectura auditada con finalidad `puerta` y límite | 404, 429 |
+| `POST /student-movements` | `entrega_menor.crear` | 201 `StudentMovement`; con `Idempotency-Key` repetida, la respuesta original | 422 `prl.movement.person_not_authorized`, `prl.movement.verification_requires_document`, `prl.movement.reason_required`, `validation.*`; 409 `idempotency_mismatch` |
+| `GET /student-movements` | `entrega_menor.leer` | 200 colección, cursor `(occurred_at DESC, id DESC)`; filtros `student_person`, `date`, `direction`, `off_schedule` | 422 |
+| `GET /student-movements/{id}` | `entrega_menor.leer` | 200 | 404 |
+| `POST /pickup-alerts` | `alerta_entrega.crear` | 201 `PickupAlert` con `protocol` (texto del centro o mínimo del producto, `OPEN-FAM-UNIT-40`) y los teléfonos del principal y del contacto de emergencia | 404 (alumno), 422 |
+| `GET /pickup-alerts` | `alerta_entrega.leer` | 200 colección (página); filtros `status`, `date`, `student_person` | 422 |
+| `GET /pickup-alerts/{id}` | `alerta_entrega.leer` | 200 | 404 |
+| `PATCH /pickup-alerts/{id}` | `alerta_entrega.actualizar` | 200: `principal_contacted_at`, y cierre con `resolution` (+ `resolution_notes`) | 404, 409 `prl.alert.closed` |
+
+`POST /student-movements` cuerpo:
+
+```json
+{
+  "student_person": "01JB…30",
+  "direction": "salida",
+  "picked_up_by": "01JB…50",
+  "verification_method": "foto",
+  "delivered_by": null,
+  "off_schedule": false,
+  "off_schedule_reason": null,
+  "notes": null,
+  "corrects": null,
+  "correction_reason": null
+}
+```
+
+El servidor resuelve `basis` y la referencia (vínculo o autorización) con `AuthorizedPickupList` **en la transacción** (`RN-PRL-02`); el cliente no los envía. `delivered_by` nulo = quien registra; si se indica, debe ser un usuario vivo y activo del centro.
+
+**Representaciones**: `StudentMovement` = `public_id`, `student_person`, `direction`, `off_schedule`, `off_schedule_reason`, `notes`, `picked_up_by` (`person` + `display_name`), `basis`, `verification_method`, `delivered_by`, `recorded_by`, `corrects`, `occurred_at`. `PickupAlert` = `public_id`, `student_person`, `kind`, `presenter_description`, `status`, `raised_by`, `raised_at`, `principal_contacted_at`, `resolution`, `resolution_notes`, `resolved_by`, `resolved_at`.
+
+### 8.5 Paginación y orden
+
+| Listado | Paginación | Orden |
+|---------|-----------|-------|
+| `GET /pickup-authorizations` | Página | `valid_from` desc (defecto), `created_at` |
+| `GET /pickup-lists/{…}`, `GET /door/…/pickup-list` | Sin paginar | Tutores primero, después terceros y puntuales, por `display_name` |
+| `GET /door/students` | Máx. 20, sin paginar | Coincidencia de prefijo, después `display_name` |
+| `GET /student-movements` | Cursor | Fijo |
+| `GET /pickup-alerts` | Página | `raised_at` desc |
+
+### 8.6 Eventos, exportaciones y errores
+
+- **Eventos**: ninguno (`ADR-048`); `prl` emitirá uno para `COM` cuando exista (`OPEN-FAM-UNIT-33`).
+- **Exportaciones**: ninguna (ningún requisito la pide; un listado de terceros con fotos es la vía de fuga más grave). No se declara `exportar`.
+- **Errores nuevos** (`fam_unit.` y `prl.`, en los cuatro idiomas): `pickup.principal_required`, `pickup.text_not_published`, `pickup.text_version_invalid`, `pickup.text_version_outdated`, `pickup.person_not_eligible`, `pickup.already_exists`, `pickup.withdrawn`, `pickup.invalid_transition`, `photo.type_mismatch`, `photo.dimensions`, `errors.pickup_read_rate_limited` (`429`); `prl.movement.person_not_authorized`, `prl.movement.verification_requires_document`, `prl.movement.reason_required`, `prl.alert.closed`, `prl.idempotency_mismatch`. `413`/`415` usan los tipos transversales existentes del *branding* (`ApiException::payloadTooLarge`/`unsupportedMediaType`).
+- **OpenAPI**: todas las rutas en `apps/api/openapi/paths/fam-unit.yaml` y, con `prl`, en un fichero `prl.yaml`, con enumerados extensibles (`ADR-038 §7.3`).
