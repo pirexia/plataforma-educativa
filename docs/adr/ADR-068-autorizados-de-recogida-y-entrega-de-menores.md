@@ -1,6 +1,6 @@
 # ADR-068 · Autorizados de recogida y entrega de menores
 
-**Estado**: **ACEPTADA** (2026-10-29). El usuario aprueba el 2026-10-29 las cuatro decisiones estructurales de `REQ-FAM-UNIT/funcional.md §21.2` con la recomendación de cada una (`OPEN-068-01` = B, `-02` = A, `-03` = A, `-04` = A), las preguntas `OPEN-FAM-UNIT-27`, `-28`, `-29` y `-36` con su recomendación, los criterios propuestos de `OPEN-FAM-UNIT-34` y `-35` y la partición `1.14b-a` a `1.14b-d` de `§21.12`. Lo que este ADR añade sin que esa aprobación lo cubra va como `OPEN-068-05` a `-08` (`§10`) y como ampliaciones de listas cerradas pendientes (`§6`, marcadas «pendiente»): **no se implementa hasta que el usuario las apruebe**.
+**Estado**: **ACEPTADA** (2026-10-29), **con todas las ampliaciones aprobadas**. El usuario aprueba el 2026-10-29 las cuatro decisiones estructurales de `REQ-FAM-UNIT/funcional.md §21.2` con la recomendación de cada una (`OPEN-068-01` = B, `-02` = A, `-03` = A, `-04` = A), las preguntas `OPEN-FAM-UNIT-27`, `-28`, `-29` y `-36` con su recomendación, los criterios propuestos de `OPEN-FAM-UNIT-34` y `-35` y la partición `1.14b-a` a `1.14b-d` de `§21.12`. Ese mismo día aprueba también, con la recomendación del `architect`, las ampliaciones de listas cerradas `L1`, `L2`, `L5`, `L7`, `L8`, `L9` y `L10` (`§6`), `OPEN-068-05` a `-08` (`§10`) y `OPEN-FAM-UNIT-26` y `-30`. Queda abierta, para transporte, `OPEN-FAM-UNIT-45`.
 **Fecha**: 2026-10-29
 **Paso**: `1.14b · REQ-FAM-UNIT-005 + REQ-PRL-004` (`docs/modulos/REQ-FAM-UNIT/funcional.md §21`; `datos.md §8`, `api.md §8`, `permisos.md §8`, `operacion.md §12`).
 **Afecta a**: `REQ-FAM-UNIT-005`, `REQ-PRL-004`, `REQ-CORE` (`Core\Domain`: personas), `REQ-TRAN-005`, `REQ-COMED`, `REQ-EXTRA`, `REQ-ACOG`, `REQ-INF` (consumidores futuros), `INV-001`, `INV-002`, `INV-003`, `INV-007`, `INV-008`, `INV-010`, `INV-011`, `INV-012`.
@@ -123,7 +123,7 @@ interface PersonRegistrar
 
 - `searchByNameAmong(string $term, list<int> $personIds, int $limit): list<PersonRef>`: personas **vivas** del centro cuyo nombre o apellidos empiezan por `$term`, sin distinguir mayúsculas (`ilike` con comodines escapados), **acotada** a `$personIds`, en una consulta y ordenada por nombre visible. Sin plegado de acentos en `1.14b` (hecho 17; `§8`).
 
-**Lectura: dos métodos más que la especificación necesita y no propuso. Pendientes de aprobación (`OPEN-068-05`):**
+**Lectura: dos métodos más que la especificación necesita y no propuso. Aprobados el 2026-10-29 (`OPEN-068-05`):**
 
 - `findByDocument(string $documentType, string $documentNumber): ?PersonRef`, para `GET /pickup-persons?document_type=&document_number=` (`api.md §8`).
 - `contactDetailsByIds(list<int> $personIds): array<int, PersonContact>`, con `PersonContact {contactPhone?, documentType?, documentNumber?}`, para `entriesFor` (`§21.8`) y los teléfonos de la alerta (`RN-PRL-08`). Devuelve el documento completo; **el enmascarado es de `fam_unit`** (`RN-FAM-UNIT-90`) y ningún consumidor de `AuthorizedPickupList` recibe el número completo.
@@ -158,8 +158,8 @@ Núcleo, sin dependencia de ningún módulo (`AR-02`). Tres piezas:
 
 Es el de `§21.8`, con estas precisiones:
 
-- **Consultas**: `isAuthorized`, `entriesFor` y `authorizedAmong`, como en `§21.8`. Una más, que `GET /door/students` necesita y `§21.8` no recoge: `studentsMatching(string $term, int $limit)`, que devuelve `{student_person_id, student_public_id, display_name, family_unit_code}`. `fam_unit` acota el universo de alumnos y llama a `PersonDirectory::searchByNameAmong()`. **Qué alumnos forman ese universo no está decidido** (`OPEN-068-06`).
-- **El instante**: `§21.8` pone `instante` como parámetro. Propongo que no lo sea y que siempre sea el del servidor. Así ningún consumidor «planifica» consultando una fecha futura, que es lo que prohíbe el punto 2 del contrato. Cambia la firma aprobada: `OPEN-068-08`.
+- **Consultas**: `isAuthorized`, `entriesFor` y `authorizedAmong`, como en `§21.8`. Una más, que `GET /door/students` necesita y `§21.8` no recoge: `studentsMatching(string $term, int $limit)`, que devuelve `{student_person_id, student_public_id, display_name, family_unit_code}`. `fam_unit` acota el universo de alumnos y llama a `PersonDirectory::searchByNameAmong()`. **Qué alumnos forman ese universo lo fija `OPEN-068-06`, aprobada el 2026-10-29**.
+- **El instante**: `§21.8` pone `instante` como parámetro. Propongo que no lo sea y que siempre sea el del servidor. Así ningún consumidor «planifica» consultando una fecha futura, que es lo que prohíbe el punto 2 del contrato. Cambia la firma de `§21.8`: aprobado el 2026-10-29 (`OPEN-068-08`).
 - El resto del contrato, sin cambios: id interno de persona; el centro siempre del contexto; consulta en el momento de entregar; prohibido guardar la lista o su estado; fallo en cerrado con alumno o persona desconocidos, de otro centro o con `fam_unit` descontratado; sin eventos (`ADR-048`); ningún módulo, tampoco `REQ-AUT`, ofrece «autorización de recogida» (`H8`). La exclusión por revocación va en la misma consulta que compone la lista (`RN-FAM-UNIT-80`), con el mismo predicado que `FamilyMembership::isAccessRevoked()`.
 - El límite de lecturas con foto (`RN-FAM-UNIT-93`) se aplica dentro de `entriesFor`, con `RateLimiter` y clave por tenant y usuario (patrón del hecho 15).
 
@@ -174,20 +174,20 @@ Es el de `§21.8`, con estas precisiones:
 
 ---
 
-## 6 · Ampliaciones de listas cerradas (cada una requiere aprobación expresa)
+## 6 · Ampliaciones de listas cerradas (cada una requirió aprobación expresa; todas aprobadas el 2026-10-29)
 
 | ID | Lista | Cambio | De → a | Estado |
 |---|---|---|---|---|
-| **L1** | Mapa de `AR-10` (`scopedResourceMap()`) | + `autorizado_recogida`: modelos `PickupAuthorization` y `PickupPhoto`, con el servicio de la lista como único fichero sancionado (patrón `consentimiento_imagen`) | 5 → **6** | Pendiente (`permisos.md §8.3`, propuesta) |
-| **L2** | `CHECK` de `terms_versions.kind` y el vocabulario de `TermsVersionService` | + `autorizacion_recogida` | 3 → **4** | Pendiente |
+| **L1** | Mapa de `AR-10` (`scopedResourceMap()`) | + `autorizado_recogida`: modelos `PickupAuthorization` y `PickupPhoto`, con el servicio de la lista como único fichero sancionado (patrón `consentimiento_imagen`) | 5 → **6** | **Aprobada 2026-10-29** (`permisos.md §8.3`) |
+| **L2** | `CHECK` de `terms_versions.kind` y el vocabulario de `TermsVersionService` | + `autorizacion_recogida` | 3 → **4** | **Aprobada 2026-10-29** |
 | **L3** | Catálogo de módulos (`ADR-045`) | + `prl` (`phase 1`, `depends_on ['fam_unit']`, no esencial) | — | **Aprobada** (`OPEN-068-01`) |
 | **L4** | Superficie de `Core\Domain` | + `PersonRegistrar`; + `PersonDirectory::searchByNameAmong()` | — | **Aprobada** (`OPEN-068-02`) |
-| **L5** | Superficie de `Core\Domain` | + `PersonDirectory::findByDocument()`; + `PersonDirectory::contactDetailsByIds()` | — | Pendiente (`OPEN-068-05`) |
+| **L5** | Superficie de `Core\Domain` | + `PersonDirectory::findByDocument()`; + `PersonDirectory::contactDetailsByIds()` | — | **Aprobada 2026-10-29** (`OPEN-068-05`) |
 | **L6** | Núcleo `App\Support` | + espacio `Files` (`§5.3`); + `AuditRecorder::recordRead()` (`§5.4`) | — | **Aprobada** como concepto (`OPEN-068-03`, `-04`); la firma es la de este ADR |
-| **L7** | Catálogo de permisos | `fam_unit` + `autorizado_recogida.{leer,crear,actualizar,eliminar}` (4); `prl` + `entrega_menor.{leer,crear}`, `alerta_entrega.{leer,crear,actualizar}` (5). Ninguno de categoría especial | +9 | Pendiente (`permisos.md §8.2`) |
-| **L8** | Extensiones de PHP en `infra/containers/api/Containerfile` (etapa `base`) y en `ci-api.yml` (las dos listas) | + `gd`, + `exif` | 7 → **9** y 6 → **8** | Pendiente (`CLAUDE.md §1`) |
-| **L9** | Siembra de roles predefinidos (`ProvisionTenantDefaults` y comando de concesión para centros existentes) | Matriz de `permisos.md §8.4` sobre `administrador_centro`, `secretaria`, `direccion`, `conserjeria_pas` y `tutor_legal` | — | Pendiente (`OPEN-FAM-UNIT-42`) |
-| **L10** | *Morph map* | `fam_unit` + `pickup_photo`, `pickup_authorization` (7 → 9); `prl` nuevo con `student_movement`, `pickup_alert` (2) | — | Pendiente (alias estables, `ADR-034 §3`) |
+| **L7** | Catálogo de permisos | `fam_unit` + `autorizado_recogida.{leer,crear,actualizar,eliminar}` (4); `prl` + `entrega_menor.{leer,crear}`, `alerta_entrega.{leer,crear,actualizar}` (5). Ninguno de categoría especial | +9 | **Aprobada 2026-10-29** (`permisos.md §8.2`) |
+| **L8** | Extensiones de PHP en `infra/containers/api/Containerfile` (etapa `base`) y en `ci-api.yml` (las dos listas) | + `gd`, + `exif` | 7 → **9** y 6 → **8** | **Aprobada 2026-10-29** (`CLAUDE.md §1`) |
+| **L9** | Siembra de roles predefinidos (`ProvisionTenantDefaults` y comando de concesión para centros existentes) | Matriz de `permisos.md §8.4` sobre `administrador_centro`, `secretaria`, `direccion`, `conserjeria_pas` y `tutor_legal` | — | **Aprobada 2026-10-29** (`OPEN-FAM-UNIT-42`) |
+| **L10** | *Morph map* | `fam_unit` + `pickup_photo`, `pickup_authorization` (7 → 9); `prl` nuevo con `student_movement`, `pickup_alert` (2) | — | **Aprobada 2026-10-29** (alias estables, `ADR-034 §3`) |
 
 **Sin cambios** (comprobado): `AR-07a` (37: todas las rutas nuevas llevan `permission:`), `AR-06` (6: todos los modelos nuevos son `Auditable`), rutas de la SPA con `meta.permissions: []` (8), `CHECK` de `audit_logs.event` (ya admite `read`), catálogo de `type` de `ADR-038 §6.2` (los errores nuevos son códigos de `422`; `413`, `415`, `429` y `module-disabled` ya existen), `AR-09` y `data_exports.kind` (sin exportación). El registro del *shell* `prl` en `apps/web/src/navigation/modules.ts` es una línea más, no una lista vigilada por test.
 
@@ -245,16 +245,16 @@ Se suman a `CA-FAM-UNIT-111` a `-129` y `CA-PRL-001` a `-013`:
 
 ## 10 · Preguntas abiertas
 
-**Nuevas de este ADR** (no las cubre la aprobación del 2026-10-29):
+**Nuevas de este ADR**, todas **resueltas el 2026-10-29 con la recomendación del `architect`**:
 
 | ID | Pregunta | Recomendación | Bloquea |
 |---|---|---|---|
-| **`OPEN-068-05`** | ¿Se amplía `PersonDirectory` con `findByDocument()` y `contactDetailsByIds()` (`§5.2`, `L5`)? | **Sí.** Sin ellos no hay búsqueda por documento, teléfono ni documento enmascarado en la lista, y la única alternativa es que `fam_unit` lea `people`, contra `INV-007` | `1.14b-a` |
-| **`OPEN-068-06`** | ¿Qué alumnos busca la puerta (`studentsMatching`, `§5.5`) antes de `1.15`? | Toda persona con pertenencia viva a una unidad familiar **o** con algún vínculo vivo (activo o revocado) como alumno: es el universo para el que `fam_unit` puede calcular lista. Con `1.15`, alumnado matriculado (`OPEN-FAM-UNIT-44`) | `1.14b-b` |
-| **`OPEN-068-07`** | ¿Cómo se corrigen y suprimen los datos de una persona sin cuenta (hecho 3)? | Un método más de `PersonRegistrar`, `correctUnaccounted(personId, datos)`, que solo actúa sobre personas **sin usuario**, lo audita `Core` y lo invoca `fam_unit` con `autorizado_recogida.actualizar`. Las personas con usuario se siguen corrigiendo por `/users`. La supresión se resuelve con la retención de `1.23b` | Condición previa a datos reales; recomendable dentro de `1.14b-a` |
-| **`OPEN-068-08`** | ¿`AuthorizedPickupList` recibe el instante como parámetro (`§21.8`) o usa siempre el del servidor (`§5.5`)? | **El del servidor.** Impide consultar fechas futuras para planificar. Los tests fijan el reloj | `1.14b-a` |
+| **`OPEN-068-05`** (resuelta 2026-10-29) | ¿Se amplía `PersonDirectory` con `findByDocument()` y `contactDetailsByIds()` (`§5.2`, `L5`)? | **Sí.** Sin ellos no hay búsqueda por documento, teléfono ni documento enmascarado en la lista, y la única alternativa es que `fam_unit` lea `people`, contra `INV-007` | `1.14b-a` |
+| **`OPEN-068-06`** (resuelta 2026-10-29) | ¿Qué alumnos busca la puerta (`studentsMatching`, `§5.5`) antes de `1.15`? | Toda persona con pertenencia viva a una unidad familiar **o** con algún vínculo vivo (activo o revocado) como alumno: es el universo para el que `fam_unit` puede calcular lista. Con `1.15`, alumnado matriculado (`OPEN-FAM-UNIT-44`) | `1.14b-b` |
+| **`OPEN-068-07`** (resuelta 2026-10-29) | ¿Cómo se corrigen y suprimen los datos de una persona sin cuenta (hecho 3)? | Un método más de `PersonRegistrar`, `correctUnaccounted(personId, datos)`, que solo actúa sobre personas **sin usuario**, lo audita `Core` y lo invoca `fam_unit` con `autorizado_recogida.actualizar`. Las personas con usuario se siguen corrigiendo por `/users`. La supresión se resuelve con la retención de `1.23b` | Condición previa a datos reales; recomendable dentro de `1.14b-a` |
+| **`OPEN-068-08`** (resuelta 2026-10-29) | ¿`AuthorizedPickupList` recibe el instante como parámetro (`§21.8`) o usa siempre el del servidor (`§5.5`)? | **El del servidor.** Impide consultar fechas futuras para planificar. Los tests fijan el reloj | `1.14b-a` |
 
-**Heredadas que siguen abiertas**: las de `funcional.md §21.13.2` que no figuran en la aprobación del encabezado (`OPEN-FAM-UNIT-26`, `-30` a `-33`, `-37` a `-43`, `-46`, `-47`). `OPEN-FAM-UNIT-44` queda aprobada en la partición y abierta en «acotar a alumnado matriculado en `1.15`».
+**Heredadas**: `OPEN-FAM-UNIT-26` y `-30` quedan resueltas el 2026-10-29. Siguen abiertas las de `funcional.md §21.13.2` que no figuran en ninguna aprobación (`-31` a `-33`, `-37` a `-43`, `-46`, `-47`). `OPEN-FAM-UNIT-44` queda aprobada en la partición y abierta en «acotar a alumnado matriculado en `1.15`».
 
 **`OPEN-FAM-UNIT-45` (pendiente para transporte).** Se decide antes de especificar `REQ-TRAN`. Hay un matiz que la especificación no recoge: **el propio `ADR-032`** pone «si el alumno tiene autorización para bajar solo» entre las restricciones que aporta transporte. Si se aprueba la recomendación (la salida o bajada autónoma es dato de la lista maestra y transporte solo la restringe), hará falta un ADR nuevo que sustituya ese punto de `ADR-032`. No afecta a `1.14b`.
 
@@ -276,4 +276,4 @@ Se suman a `CA-FAM-UNIT-111` a `-129` y `CA-PRL-001` a `-013`:
 - **`REQ-CORE`** (`funcional.md`/`api.md` de interfaces de `Core\Domain`): `PersonRegistrar` y los métodos nuevos de `PersonDirectory`.
 - **`ARCHITECTURE.md`**: `App\Support\Files` y `AuditRecorder::recordRead` como piezas del núcleo; `prl` en el mapa de módulos.
 - **`docs/REQUISITOS-PLATAFORMA-EDUCATIVA.md`**: cabecera (versión y fecha) y fila del historial §20.2 por la entrada de este ADR en el índice de la sección 18.
-- **Código** (lo hace `implementer` en `1.14b-a`/`-b`, tras aprobar lo pendiente): las piezas de `§5`, los tests de `§7`, las ampliaciones aprobadas de `§6`; las extensiones de `L8` en `Containerfile` y `ci-api.yml`.
+- **Código** (lo hace `implementer` en `1.14b-a`/`-b`, con todo aprobado el 2026-10-29): las piezas de `§5`, los tests de `§7`, las ampliaciones aprobadas de `§6`; las extensiones de `L8` en `Containerfile` y `ci-api.yml`.

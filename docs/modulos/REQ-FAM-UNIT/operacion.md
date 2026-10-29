@@ -1,6 +1,6 @@
 # REQ-FAM-UNIT · Operación
 
-> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). **`1.14-a` implementada (2026-10-26)**: cinco migraciones aditivas, once permisos y el comando `fam_unit:grant-permissions`; ninguna variable de entorno, servicio, cola ni tarea programada nuevos (`§8`). **Enmendada por `ADR-066` (ACEPTADA, 2026-10-27; `funcional.md §16`)**: `1.14-b` crea `terms_versions` (con `kind`) y `image_consent_decisions`; ya no se crea `image_consents`. **`1.14-b` IMPLEMENTADA (2026-10-27; `funcional.md §18`)**, aprobada por el usuario (`funcional.md §17`); sin variables, colas ni tareas programadas nuevas por la aprobación. **Condiciones previas a cargar datos reales del consentimiento de imagen** (no bloquean el despliegue con datos sintéticos): validación jurídica de `OPEN-FAM-UNIT-08`, criterio sobre 14 y 18 años (`OPEN-FAM-UNIT-18`) y respuesta a `OPEN-066-02` (`funcional.md §13`). **Paso `1.14b`**: operación PROPUESTA en §12 (2026-10-29), no aprobada.
+> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). **`1.14-a` implementada (2026-10-26)**: cinco migraciones aditivas, once permisos y el comando `fam_unit:grant-permissions`; ninguna variable de entorno, servicio, cola ni tarea programada nuevos (`§8`). **Enmendada por `ADR-066` (ACEPTADA, 2026-10-27; `funcional.md §16`)**: `1.14-b` crea `terms_versions` (con `kind`) y `image_consent_decisions`; ya no se crea `image_consents`. **`1.14-b` IMPLEMENTADA (2026-10-27; `funcional.md §18`)**, aprobada por el usuario (`funcional.md §17`); sin variables, colas ni tareas programadas nuevas por la aprobación. **Condiciones previas a cargar datos reales del consentimiento de imagen** (no bloquean el despliegue con datos sintéticos): validación jurídica de `OPEN-FAM-UNIT-08`, criterio sobre 14 y 18 años (`OPEN-FAM-UNIT-18`) y respuesta a `OPEN-066-02` (`funcional.md §13`). **Paso `1.14b`**: operación de §12 **APROBADA** (2026-10-29, con `ADR-068` ACEPTADA); sin implementar.
 
 ## 1. Variables de entorno
 
@@ -145,9 +145,9 @@ Solo SPA (pantallas de personal de `funcional.md §10`): ninguna migración, var
 
 ---
 
-## 12. Paso `1.14b` (autorizados y entrega de menores) — PROPUESTA
+## 12. Paso `1.14b` (autorizados y entrega de menores) — APROBADA (2026-10-29)
 
-> **Estado**: PROPUESTA (2026-10-29), no aprobada; condicionada a `ADR-068` (`funcional.md §21.2`). Nada de esto se ha probado: no hay implementación.
+> **Estado**: **APROBADA** (2026-10-29), con `ADR-068` ACEPTADA (`funcional.md §21.2`). Nada de esto se ha probado: no hay implementación.
 
 ### 12.1 Variables de entorno y configuración
 
@@ -166,7 +166,7 @@ El texto del protocolo ante persona no autorizada es **configuración del centro
 ### 12.2 Servicios externos
 
 - **Almacenamiento S3** (MinIO en desarrollo): pasa a ser **necesario para la operación diaria** (fotografías en la puerta), no solo para informes. Si no responde, la lista se sirve con `photo_url = null` y el aviso de verificar por documento; **no** se bloquea la entrega a quien figura, porque la verificación por documento sigue siendo posible [DERIVADA, a ratificar]. El alta y sustitución de fotos sí falla (`503`) sin escribir nada.
-- **Extensión de imagen de PHP** para reprocesar fotografías (D3): verificar que está en la imagen del contenedor (`infra/containers/api/Containerfile`) antes de implementar; si exigiera dependencia nueva de Composer, justificarla según `CLAUDE.md §1`.
+- **Extensiones de PHP `gd` y `exif`** para reprocesar fotografías (D3): `ADR-068` (hecho 7) verificó que la imagen no tiene ninguna; `L8` (aprobada 2026-10-29) las añade en `infra/containers/api/Containerfile` (etapa `base`, 7 a 9 extensiones) y en las dos listas de `.github/workflows/ci-api.yml` (6 a 8). Sin dependencia de Composer nueva.
 - Ningún servicio de correo, SMS ni notificaciones (diferido a `1.19`).
 
 ### 12.3 Colas y tareas programadas

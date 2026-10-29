@@ -6,6 +6,15 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-29 · `1.14b`: especificación aprobada y `ADR-068` con ampliaciones aprobadas (`REQ-FAM-UNIT-005`, `REQ-PRL-004`, rama `chore/spec-1-14b-autorizados-entrega`)
+
+- **Especificación `REQ-FAM-UNIT/funcional.md §21` APROBADA** por el usuario (2026-10-29) con la recomendación de cada pregunta: `OPEN-FAM-UNIT-26`, `-27`, `-28`, `-29`, `-30`, `-36` (esta, condición previa a datos reales) y `OPEN-068-01` a `-08`. Sigue abierta `OPEN-FAM-UNIT-45` (transporte).
+- **`ADR-068` ACEPTADA, con todas las ampliaciones aprobadas**: `L1` (`AR-10` 5 a 6), `L2` (`terms_versions.kind` 3 a 4), `L5` (`PersonDirectory::findByDocument`/`contactDetailsByIds`), `L7` (9 permisos nuevos), `L8` (extensiones `gd` y `exif`), `L9` (siembra de roles) y `L10` (*morph map*).
+- **Correcciones de la especificación** por las discrepancias del ADR: la imagen del contenedor no tiene extensión de imagen; `Core` no tiene camino para crear, corregir ni suprimir personas sin usuario (`PersonRegistrar::correctUnaccounted`, `RN-FAM-UNIT-89`, caso límite de `§21.9`); `AuditRecorder::recordRead`; `PersonDirectory` sin teléfono ni documento; `AuthorizedPickupList` sin parámetro de instante y consulta `studentsMatching` (`§21.8`).
+- **Documentación**: `REQ-FAM-UNIT/{funcional §21,datos §8,api §8,permisos §8,operacion §12}.md`, `ADR-068`, `REQUISITOS` 3.2.23, `README.md` 2.6.40. Sin código: lo implementa `1.14b-a`.
+
+---
+
 ## 2026-10-28 · `1.14-d`: pantallas de personal de `fam_unit` (`REQ-FAM-UNIT-001`, rama `feature/REQ-FAM-UNIT-1-14d-pantallas-personal`)
 
 - **Implementación** solo en la SPA (sin cambios de API): rutas `/familias`, `/familias/:publicId`, `/familias/consentimientos` y `/configuracion/condiciones-de-uso`, y entradas de menú «Familias» y «Condiciones de uso» en la sección `administracion`.
