@@ -179,7 +179,7 @@ Ningún cambio de `mfa_required` en roles. Recomendación que no se aplica aquí
 |--------|---------------------|---------------------------|
 | `autorizado_recogida.leer` | `['todos','unidad_familiar']` | `GET /pickup-authorizations`, `GET /pickup-authorizations/{id}`, `GET /pickup-lists/{…}`, `GET /pickup-persons/{…}/photo` |
 | `autorizado_recogida.crear` | `['todos']` | `POST /pickup-persons`, `POST /pickup-authorizations` |
-| `autorizado_recogida.actualizar` | `['todos']` | `GET /pickup-persons` (por documento), `GET /pickup-persons/{…}`, `PUT`/`DELETE …/photo`, `PATCH /pickup-authorizations/{id}` |
+| `autorizado_recogida.actualizar` | `['todos']` | `GET /pickup-persons` (por documento), `GET /pickup-persons/{…}`, `PATCH /pickup-persons/{…}`, `PUT`/`DELETE …/photo`, `PATCH /pickup-authorizations/{id}` |
 | `autorizado_recogida.eliminar` | `['todos']` | `POST /pickup-authorizations/{id}/withdrawal` |
 | `entrega_menor.leer` (`prl`) | `['todos']` | `GET /door/students`, `GET /door/students/{…}/pickup-list`, `GET /student-movements*` |
 | `entrega_menor.crear` (`prl`) | `['todos']` | `POST /student-movements` |
