@@ -1,5 +1,302 @@
 {
   "famUnit": {
+    "nav": {
+      "units": "Families",
+      "terms": "Terms of use",
+      "backToUnits": "Back to family units"
+    },
+    "common": {
+      "yes": "Yes",
+      "no": "No",
+      "dash": "—",
+      "remove": "Remove"
+    },
+    "form": {
+      "cancel": "Cancel",
+      "close": "Close",
+      "choose": "Choose an option",
+      "create": "Create",
+      "save": "Save"
+    },
+    "errors": {
+      "unexpected": "The operation could not be completed. Please try again in a few minutes."
+    },
+    "fields": {
+      "code": "Code",
+      "principalGuardian": "Main guardian",
+      "guardiansCount": "Guardians",
+      "studentsCount": "Students",
+      "name": "Name",
+      "actions": "Actions",
+      "guardian": "Guardian",
+      "student": "Student",
+      "relationship": "Relationship",
+      "isLegalGuardian": "Legal representation",
+      "accessLevel": "Access level",
+      "isEmergencyContact": "Emergency contact",
+      "restrictedCategories": "Restricted categories",
+      "status": "Status",
+      "level": "Level",
+      "state": "State",
+      "lastDecisionAt": "Last decision",
+      "familyUnit": "Family unit",
+      "occurredAt": "Date",
+      "decision": "Decision",
+      "channel": "Channel",
+      "textVersion": "Text version",
+      "kind": "Type",
+      "title": "Title",
+      "body": "Text",
+      "versionNumber": "Version",
+      "publishedAt": "Published on",
+      "acceptedAt": "Accepted on",
+      "shownLocale": "Language shown",
+      "user": "User"
+    },
+    "enums": {
+      "relationship": {
+        "padre": "Father",
+        "madre": "Mother",
+        "tutor_legal": "Legal guardian",
+        "abuelo": "Grandparent",
+        "apoderado": "Apoderado/a",
+        "otro": "Other"
+      },
+      "accessLevel": {
+        "lectura": "Read only",
+        "lectura_escritura": "Read and write"
+      },
+      "linkStatus": {
+        "activo": "Active",
+        "revocado": "Revoked"
+      },
+      "revocationReason": {
+        "resolucion_judicial": "Court order"
+      },
+      "restrictedCategory": {
+        "salud": "Health"
+      },
+      "consentLevel": {
+        "web": "Centre website",
+        "redes_sociales": "Social media"
+      },
+      "consentState": {
+        "autorizo": "Authorised",
+        "no_autorizo": "Not authorised",
+        "pendiente": "Pending"
+      },
+      "decision": {
+        "autorizo": "Authorised",
+        "no_autorizo": "Not authorised"
+      },
+      "channel": {
+        "portal": "Family portal",
+        "presencial": "In person"
+      },
+      "termsKind": {
+        "condiciones_uso": "Terms of use",
+        "consentimiento_imagen_web": "Image consent: website",
+        "consentimiento_imagen_redes": "Image consent: social media"
+      },
+      "termsStatus": {
+        "borrador": "Draft",
+        "publicada": "Published",
+        "retirada": "Withdrawn"
+      }
+    },
+    "units": {
+      "title": "Families",
+      "intro": "Family units of the school, with their guardians, students and links.",
+      "caption": "Family units",
+      "new": "New unit",
+      "consentsLink": "Image consents",
+      "empty": {
+        "title": "There are no family units yet",
+        "text": "Create the first family unit to add its guardians and students."
+      },
+      "filters": {
+        "hasPrincipal": "With main guardian"
+      },
+      "principal": {
+        "set": "Set",
+        "none": "No main guardian"
+      },
+      "form": {
+        "title": "New family unit",
+        "description": "Create a family unit. You can then add its guardians, its students and the links between them.",
+        "codeHint": "Optional. If you leave it empty, the system assigns the next code."
+      }
+    },
+    "detail": {
+      "pageTitle": "Family unit",
+      "title": "Family unit {code}"
+    },
+    "guardians": {
+      "title": "Guardians",
+      "caption": "Guardians of the family unit",
+      "add": "Add guardian",
+      "empty": "The unit has no guardians.",
+      "removedUser": "Deactivated user",
+      "principalYes": "Main",
+      "makePrincipal": "Mark as main",
+      "makePrincipalFor": "Mark {name} as main guardian",
+      "removeFor": "Remove {name} from the unit",
+      "form": {
+        "title": "Add guardian",
+        "description": "Choose the user of the school who will be the guardian of this unit.",
+        "user": "User",
+        "userId": "User identifier",
+        "userIdHint": "You do not have permission to search users: type their public identifier.",
+        "chooseUser": "Choose a user.",
+        "submit": "Add guardian"
+      },
+      "confirmRemove": {
+        "title": "Remove {name} from the unit",
+        "description": "Their links with the students of the unit will also be deactivated. This action is recorded in the audit log.",
+        "confirm": "Remove {name}"
+      }
+    },
+    "students": {
+      "title": "Students",
+      "caption": "Students of the family unit",
+      "add": "Add student",
+      "empty": "The unit has no students.",
+      "removeFor": "Remove {name} from the unit",
+      "form": {
+        "title": "Add student",
+        "description": "Add a student to the family unit by their person record.",
+        "person": "Identifier of the student's person record",
+        "personHint": "The student search does not exist yet: type the public identifier of their person record.",
+        "submit": "Add student"
+      },
+      "confirmRemove": {
+        "title": "Remove {name} from the unit",
+        "description": "The guardians' links with this student will also be deactivated. This action is recorded in the audit log.",
+        "confirm": "Remove {name}"
+      }
+    },
+    "links": {
+      "title": "Links",
+      "caption": "Links between guardians and students",
+      "add": "New link",
+      "addNeeds": "To create a link, the unit needs at least one guardian and one student.",
+      "empty": "The unit has no links.",
+      "revoke": "Revoke",
+      "lift": "Lift revocation",
+      "revokeFor": "Revoke {guardian}'s access to {student}",
+      "liftFor": "Lift the revocation of {guardian} over {student}",
+      "revocation": "Revoked due to: {reason} · {date}",
+      "form": {
+        "title": "New link",
+        "description": "Link a guardian of the unit with a student of the unit.",
+        "guardian": "Guardian",
+        "student": "Student",
+        "legalHint": "Marcar la representación legal registra que el centro la ha verificado.",
+        "submit": "Create link"
+      },
+      "confirmRevoke": {
+        "title": "Revoke {guardian}'s access to {student}",
+        "description": "El tutor pierde el acceso a este alumno de inmediato. Motivo registrado: {reason}. El detalle de la resolución no se guarda aquí.",
+        "confirm": "Revoke {guardian}'s access to {student}"
+      },
+      "confirmLift": {
+        "title": "Lift the revocation of {guardian} over {student}",
+        "description": "The guardian regains access to this student with the same permissions as before.",
+        "confirm": "Lift the revocation of {guardian} over {student}"
+      }
+    },
+    "flash": {
+      "guardianCreated": "Guardian added to the unit.",
+      "guardianRemoved": "{name} has been removed from the unit.",
+      "principalSet": "{name} is now the main guardian.",
+      "studentAdded": "Student added to the unit.",
+      "studentRemoved": "{name} has been removed from the unit.",
+      "linkCreated": "Link created.",
+      "linkRevoked": "Access of {guardian} to {student} revoked.",
+      "linkLifted": "Revocation of {guardian} over {student} lifted.",
+      "termsCreated": "Draft created.",
+      "termsUpdated": "Draft updated.",
+      "termsPublished": "Version published.",
+      "termsDeleted": "Draft deleted."
+    },
+    "consents": {
+      "title": "Image consents",
+      "intro": "Current image-consent status of each student, by level.",
+      "caption": "Image consents by student and level",
+      "unitCaption": "Image consents of the students in the unit",
+      "empty": {
+        "title": "No consents to show",
+        "text": "No student matches the chosen filters, or there are no students in family units yet."
+      },
+      "emptyUnit": "The students in this unit have no consents to show.",
+      "openUnit": "View unit",
+      "openUnitFor": "View the family unit of {name}",
+      "historyFor": "View the decision history of {name}",
+      "history": {
+        "open": "History",
+        "title": "Decision history of {name}",
+        "description": "Recorded decisions, from most recent to oldest. They cannot be edited or deleted.",
+        "caption": "Image decisions of {name}",
+        "empty": "This student has no recorded decisions.",
+        "version": "Version {number}"
+      }
+    },
+    "terms": {
+      "title": "Terms of use",
+      "intro": "Versions of the terms of use and of the image-consent text of each level.",
+      "versionsHeading": "Versions",
+      "caption": "Versions of the legal texts",
+      "versionNumber": "version {number}",
+      "new": "New version",
+      "read": "Read",
+      "edit": "Edit",
+      "publishAction": "Publish",
+      "delete": "Delete",
+      "readFor": "Read {name}",
+      "editFor": "Edit {name}",
+      "publishFor": "Publish {name}",
+      "deleteFor": "Delete {name}",
+      "empty": {
+        "title": "There are no versions yet",
+        "text": "Create the first version as a draft and publish it when it is ready."
+      },
+      "form": {
+        "title": {
+          "create": "New version",
+          "edit": "Edit the draft"
+        },
+        "description": "The text is the centre's own content: write it in each active language. The default language is required before publishing.",
+        "kindImmutable": "The type cannot be changed once the version is created."
+      },
+      "text": {
+        "description": "Text of the version, in your language or, if missing, in the centre's default language.",
+        "label": "Text of the version"
+      },
+      "publish": {
+        "title": "Publish {kind}, version {number}",
+        "descriptionTerms": "The currently published version will be withdrawn. Until it is published, other users do not see this version.",
+        "descriptionImage": "The currently published version of this level will be withdrawn. Publishing an image text does not change any consent decision already recorded.",
+        "requiresReacceptance": "Require those who accepted a previous version to accept again",
+        "requiresReacceptanceHint": "If you leave it unchecked, only those who have never accepted will see the acceptance wall.",
+        "confirm": "Publish"
+      },
+      "confirmDelete": {
+        "title": "Delete {name}",
+        "description": "Only drafts can be deleted. This action is recorded in the audit log.",
+        "confirm": "Delete {name}"
+      },
+      "acceptances": {
+        "heading": "Acceptances",
+        "caption": "Acceptances of the terms of use",
+        "empty": "No acceptances have been recorded yet."
+      }
+    },
+    "userPicker": {
+      "search": "Search by name or email",
+      "loading": "Searching…",
+      "empty": "No users match.",
+      "loadError": "The users could not be loaded."
+    },
     "termsWall": {
       "title": "Terms of use",
       "reason": "To keep using the platform you must read and accept the school's current terms of use.",

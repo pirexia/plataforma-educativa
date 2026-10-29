@@ -138,3 +138,7 @@ Sin variables de entorno, servicios, colas ni tareas programadas nuevas (el mód
 **Reversión** (`RARQ-DEP-013`): desplegar la imagen anterior y **no** ejecutar `migrate:rollback` sobre `terms_acceptances`: su `down()` falla mientras haya filas y es **evidencia legal** de qué texto aceptó cada tutor; cualquier reversión de esa tabla requiere aprobación expresa y documentada. La imagen anterior no lee la tabla: el muro de condiciones deja de existir y la imagen anterior vuelve a traer su propio `RequireMfaEnrollment`. El siguiente `sync-registry` de la versión anterior marca el permiso con `retired_at`.
 
 **Qué se probó y qué no (2026-10-28)**: *probado* con la base de test real, las migraciones, el muro y la inmutabilidad en el motor. *No probado*: el procedimiento de reversión sobre un servidor (no hay servidor, `OPEN-11`) ni el E2E contra la API real (`funcional.md §19`, D-39).
+
+## 11. Despliegue de `1.14-d`: sin cambios de despliegue
+
+Solo SPA (pantallas de personal de `funcional.md §10`): ninguna migración, variable de entorno, servicio, cola, tarea programada ni permiso nuevos, y no hay nada que sembrar ni sincronizar. **Reversión**: desplegar la versión anterior de la web; no hay nada que deshacer en la API ni en la base de datos. No probado sobre un servidor (`OPEN-11`).

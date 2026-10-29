@@ -6,6 +6,16 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ---
 
+## 2026-10-28 · `1.14-d`: pantallas de personal de `fam_unit` (`REQ-FAM-UNIT-001`, rama `feature/REQ-FAM-UNIT-1-14d-pantallas-personal`)
+
+- **Implementación** solo en la SPA (sin cambios de API): rutas `/familias`, `/familias/:publicId`, `/familias/consentimientos` y `/configuracion/condiciones-de-uso`, y entradas de menú «Familias» y «Condiciones de uso» en la sección `administracion`.
+- **Decisiones de detalle** `funcional.md §20` (D-41 a D-51), a revisar. Traducciones en/de/fr hechas (`faf8d92`); quedan en es-ES `famUnit.termsWall.accept` (decisión del usuario, #488), `famUnit.links.form.legalHint` y `famUnit.links.confirmRevoke.description` (revisión humana, #488).
+- **E2E `CA-FAM-UNIT-084` con API simulada, no contra la API real.**
+- **Duda abierta, pendiente de decisión del usuario**: la secretaría no tiene `revocacion_tutor.crear` por defecto, lo que contradice el redactado de `CA-FAM-UNIT-084` (la secretaría revoca el vínculo).
+- **Documentación**: `REQ-FAM-UNIT/{funcional §20,operacion §11}.md`, `manual-usuario/{secretaria,admin}.md`, `SYSADMIN.md`, `RUNBOOK.md`, `README.md`. Despliegue: sin cambios, reversión = versión anterior de la web.
+
+---
+
 ## 2026-10-28 · `1.14-c`: condiciones de uso, aceptaciones y muro de condiciones (`REQ-FAM-UNIT-003`, rama `feature/REQ-FAM-UNIT-1-14c-condiciones-muro`)
 
 - **Implementación** de `1.14-c` sobre `ADR-067`: registro de muros de sesión en el núcleo (`SessionWall`, `SessionWallRegistry`) y *middleware* único `RequireSessionWalls`, que sustituye a `RequireMfaEnrollment`; el muro de MFA pasa a ser uno registrado sin cambiar su comportamiento observable; muro de condiciones de `fam_unit` (solo tutores, una consulta por petición, sin caché entre peticiones). Tabla `terms_acceptances` (solo anexar), `condiciones_uso` gestionable en `/terms-versions`, `GET /terms-acceptances`, `GET /me/terms` y `POST /me/terms-acceptances` (35 *endpoints* en el módulo), permiso `aceptacion_condiciones.leer`, `session_walls` en `GET /me` y `POST /auth/session`, y la pantalla `/condiciones-de-uso`.

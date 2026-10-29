@@ -113,7 +113,7 @@ describe('registro de navegación ensamblado — CA-CORE-106', () => {
     expect(new Set(ids).size, 'hay ids duplicados en el registro').toBe(ids.length)
 
     for (const id of ids) {
-      expect(id, `${id} no lleva prefijo <módulo>.`).toMatch(/^[a-z]+\.[a-zA-Z0-9]+$/)
+      expect(id, `${id} no lleva prefijo <módulo>.`).toMatch(/^[a-z]+(-[a-z]+)*\.[a-zA-Z0-9]+$/)
     }
   })
 

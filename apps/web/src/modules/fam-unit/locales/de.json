@@ -1,5 +1,302 @@
 {
   "famUnit": {
+    "nav": {
+      "units": "Familien",
+      "terms": "Nutzungsbedingungen",
+      "backToUnits": "Zurück zu den Familieneinheiten"
+    },
+    "common": {
+      "yes": "Ja",
+      "no": "Nein",
+      "dash": "—",
+      "remove": "Entfernen"
+    },
+    "form": {
+      "cancel": "Abbrechen",
+      "close": "Schließen",
+      "choose": "Wählen Sie eine Option",
+      "create": "Erstellen",
+      "save": "Speichern"
+    },
+    "errors": {
+      "unexpected": "Der Vorgang konnte nicht abgeschlossen werden. Bitte versuchen Sie es in einigen Minuten erneut."
+    },
+    "fields": {
+      "code": "Code",
+      "principalGuardian": "Haupterziehungsberechtigte/r",
+      "guardiansCount": "Erziehungsberechtigte",
+      "studentsCount": "Schüler",
+      "name": "Name",
+      "actions": "Aktionen",
+      "guardian": "Erziehungsberechtigte/r",
+      "student": "Schüler/in",
+      "relationship": "Beziehung",
+      "isLegalGuardian": "Gesetzliche Vertretung",
+      "accessLevel": "Zugriffsstufe",
+      "isEmergencyContact": "Notfallkontakt",
+      "restrictedCategories": "Eingeschränkte Kategorien",
+      "status": "Status",
+      "level": "Stufe",
+      "state": "Status",
+      "lastDecisionAt": "Letzte Entscheidung",
+      "familyUnit": "Familieneinheit",
+      "occurredAt": "Datum",
+      "decision": "Entscheidung",
+      "channel": "Kanal",
+      "textVersion": "Textversion",
+      "kind": "Art",
+      "title": "Titel",
+      "body": "Text",
+      "versionNumber": "Version",
+      "publishedAt": "Veröffentlicht am",
+      "acceptedAt": "Akzeptiert am",
+      "shownLocale": "Angezeigte Sprache",
+      "user": "Benutzer/in"
+    },
+    "enums": {
+      "relationship": {
+        "padre": "Vater",
+        "madre": "Mutter",
+        "tutor_legal": "Gesetzlicher Vertreter",
+        "abuelo": "Großelternteil",
+        "apoderado": "Apoderado/a",
+        "otro": "Andere"
+      },
+      "accessLevel": {
+        "lectura": "Nur Lesen",
+        "lectura_escritura": "Lesen und Schreiben"
+      },
+      "linkStatus": {
+        "activo": "Aktiv",
+        "revocado": "Widerrufen"
+      },
+      "revocationReason": {
+        "resolucion_judicial": "Gerichtsbeschluss"
+      },
+      "restrictedCategory": {
+        "salud": "Gesundheit"
+      },
+      "consentLevel": {
+        "web": "Website der Einrichtung",
+        "redes_sociales": "Soziale Netzwerke"
+      },
+      "consentState": {
+        "autorizo": "Erlaubt",
+        "no_autorizo": "Nicht erlaubt",
+        "pendiente": "Ausstehend"
+      },
+      "decision": {
+        "autorizo": "Erlaubt",
+        "no_autorizo": "Nicht erlaubt"
+      },
+      "channel": {
+        "portal": "Familienportal",
+        "presencial": "Persönlich"
+      },
+      "termsKind": {
+        "condiciones_uso": "Nutzungsbedingungen",
+        "consentimiento_imagen_web": "Bildeinwilligung: Website",
+        "consentimiento_imagen_redes": "Bildeinwilligung: soziale Netzwerke"
+      },
+      "termsStatus": {
+        "borrador": "Entwurf",
+        "publicada": "Veröffentlicht",
+        "retirada": "Zurückgezogen"
+      }
+    },
+    "units": {
+      "title": "Familien",
+      "intro": "Familieneinheiten der Einrichtung mit ihren Erziehungsberechtigten, Schülern und Verknüpfungen.",
+      "caption": "Familieneinheiten",
+      "new": "Neue Einheit",
+      "consentsLink": "Bildeinwilligungen",
+      "empty": {
+        "title": "Es gibt noch keine Familieneinheiten",
+        "text": "Erstellen Sie die erste Familieneinheit, um Erziehungsberechtigte und Schüler hinzuzufügen."
+      },
+      "filters": {
+        "hasPrincipal": "Mit Haupterziehungsberechtigter/m"
+      },
+      "principal": {
+        "set": "Festgelegt",
+        "none": "Kein Haupterziehungsberechtigter"
+      },
+      "form": {
+        "title": "Neue Familieneinheit",
+        "description": "Erstellen Sie eine Familieneinheit. Danach können Sie deren Erziehungsberechtigte, Schüler und die Verknüpfungen zwischen ihnen hinzufügen.",
+        "codeHint": "Optional. Wenn Sie das Feld leer lassen, vergibt das System den nächsten Code."
+      }
+    },
+    "detail": {
+      "pageTitle": "Familieneinheit",
+      "title": "Familieneinheit {code}"
+    },
+    "guardians": {
+      "title": "Erziehungsberechtigte",
+      "caption": "Erziehungsberechtigte der Familieneinheit",
+      "add": "Erziehungsberechtigte/n hinzufügen",
+      "empty": "Die Einheit hat keine Erziehungsberechtigten.",
+      "removedUser": "Deaktivierte Benutzerperson",
+      "principalYes": "Hauptperson",
+      "makePrincipal": "Als Hauptperson markieren",
+      "makePrincipalFor": "{name} als Haupterziehungsberechtigte/n markieren",
+      "removeFor": "{name} aus der Einheit entfernen",
+      "form": {
+        "title": "Erziehungsberechtigte/n hinzufügen",
+        "description": "Wählen Sie die Benutzerperson der Einrichtung aus, die Erziehungsberechtigte/r dieser Einheit wird.",
+        "user": "Benutzerperson",
+        "userId": "Benutzerkennung",
+        "userIdHint": "Sie haben keine Berechtigung, Benutzer zu suchen: Geben Sie deren öffentliche Kennung ein.",
+        "chooseUser": "Wählen Sie eine Benutzerperson aus.",
+        "submit": "Erziehungsberechtigte/n hinzufügen"
+      },
+      "confirmRemove": {
+        "title": "{name} aus der Einheit entfernen",
+        "description": "Auch ihre Verknüpfungen mit den Schülern der Einheit werden deaktiviert. Diese Aktion wird im Prüfprotokoll erfasst.",
+        "confirm": "{name} entfernen"
+      }
+    },
+    "students": {
+      "title": "Schüler",
+      "caption": "Schüler der Familieneinheit",
+      "add": "Schüler/in hinzufügen",
+      "empty": "Die Einheit hat keine Schüler.",
+      "removeFor": "{name} aus der Einheit entfernen",
+      "form": {
+        "title": "Schüler/in hinzufügen",
+        "description": "Fügen Sie einen Schüler anhand seines Personendatensatzes zur Familieneinheit hinzu.",
+        "person": "Kennung des Personendatensatzes des Schülers",
+        "personHint": "Die Schülersuche gibt es noch nicht: Geben Sie die öffentliche Kennung von dessen Personendatensatz ein.",
+        "submit": "Schüler/in hinzufügen"
+      },
+      "confirmRemove": {
+        "title": "{name} aus der Einheit entfernen",
+        "description": "Auch die Verknüpfungen der Erziehungsberechtigten mit diesem Schüler werden deaktiviert. Diese Aktion wird im Prüfprotokoll erfasst.",
+        "confirm": "{name} entfernen"
+      }
+    },
+    "links": {
+      "title": "Verknüpfungen",
+      "caption": "Verknüpfungen zwischen Erziehungsberechtigten und Schülern",
+      "add": "Neue Verknüpfung",
+      "addNeeds": "Um eine Verknüpfung anzulegen, benötigt die Einheit mindestens einen Erziehungsberechtigten und einen Schüler.",
+      "empty": "Die Einheit hat keine Verknüpfungen.",
+      "revoke": "Widerrufen",
+      "lift": "Widerruf aufheben",
+      "revokeFor": "Zugriff von {guardian} auf {student} widerrufen",
+      "liftFor": "Widerruf von {guardian} für {student} aufheben",
+      "revocation": "Widerrufen aufgrund von: {reason} · {date}",
+      "form": {
+        "title": "Neue Verknüpfung",
+        "description": "Verknüpfen Sie einen Erziehungsberechtigten der Einheit mit einem Schüler der Einheit.",
+        "guardian": "Erziehungsberechtigte/r",
+        "student": "Schüler/in",
+        "legalHint": "Marcar la representación legal registra que el centro la ha verificado.",
+        "submit": "Verknüpfung anlegen"
+      },
+      "confirmRevoke": {
+        "title": "Zugriff von {guardian} auf {student} widerrufen",
+        "description": "El tutor pierde el acceso a este alumno de inmediato. Motivo registrado: {reason}. El detalle de la resolución no se guarda aquí.",
+        "confirm": "Zugriff von {guardian} auf {student} widerrufen"
+      },
+      "confirmLift": {
+        "title": "Widerruf von {guardian} für {student} aufheben",
+        "description": "Der Erziehungsberechtigte erhält den Zugriff auf diesen Schüler mit denselben Berechtigungen zurück, die er zuvor hatte.",
+        "confirm": "Widerruf von {guardian} für {student} aufheben"
+      }
+    },
+    "flash": {
+      "guardianCreated": "Erziehungsberechtigte/r zur Einheit hinzugefügt.",
+      "guardianRemoved": "{name} wurde aus der Einheit entfernt.",
+      "principalSet": "{name} ist jetzt Haupterziehungsberechtigte/r.",
+      "studentAdded": "Schüler/in zur Einheit hinzugefügt.",
+      "studentRemoved": "{name} wurde aus der Einheit entfernt.",
+      "linkCreated": "Verknüpfung angelegt.",
+      "linkRevoked": "Zugriff von {guardian} auf {student} widerrufen.",
+      "linkLifted": "Widerruf von {guardian} für {student} aufgehoben.",
+      "termsCreated": "Entwurf erstellt.",
+      "termsUpdated": "Entwurf aktualisiert.",
+      "termsPublished": "Version veröffentlicht.",
+      "termsDeleted": "Entwurf gelöscht."
+    },
+    "consents": {
+      "title": "Bildeinwilligungen",
+      "intro": "Aktueller Stand der Bildeinwilligung jedes Schülers, nach Stufe.",
+      "caption": "Bildeinwilligungen nach Schüler und Stufe",
+      "unitCaption": "Bildeinwilligungen der Schüler der Einheit",
+      "empty": {
+        "title": "Keine Einwilligungen vorhanden",
+        "text": "Kein Schüler entspricht den gewählten Filtern, oder es gibt noch keine Schüler in Familieneinheiten."
+      },
+      "emptyUnit": "Für die Schüler dieser Einheit gibt es keine Einwilligungen.",
+      "openUnit": "Einheit ansehen",
+      "openUnitFor": "Familieneinheit von {name} ansehen",
+      "historyFor": "Entscheidungsverlauf von {name} ansehen",
+      "history": {
+        "open": "Verlauf",
+        "title": "Entscheidungsverlauf von {name}",
+        "description": "Erfasste Entscheidungen, von der neuesten zur ältesten. Sie können nicht bearbeitet oder gelöscht werden.",
+        "caption": "Bildentscheidungen von {name}",
+        "empty": "Für diesen Schüler sind keine Entscheidungen erfasst.",
+        "version": "Version {number}"
+      }
+    },
+    "terms": {
+      "title": "Nutzungsbedingungen",
+      "intro": "Versionen der Nutzungsbedingungen und des Textes der Bildeinwilligung jeder Stufe.",
+      "versionsHeading": "Versionen",
+      "caption": "Versionen der Rechtstexte",
+      "versionNumber": "Version {number}",
+      "new": "Neue Version",
+      "read": "Lesen",
+      "edit": "Bearbeiten",
+      "publishAction": "Veröffentlichen",
+      "delete": "Löschen",
+      "readFor": "{name} lesen",
+      "editFor": "{name} bearbeiten",
+      "publishFor": "{name} veröffentlichen",
+      "deleteFor": "{name} löschen",
+      "empty": {
+        "title": "Es gibt noch keine Versionen",
+        "text": "Erstellen Sie die erste Version als Entwurf und veröffentlichen Sie sie, wenn sie fertig ist."
+      },
+      "form": {
+        "title": {
+          "create": "Neue Version",
+          "edit": "Entwurf bearbeiten"
+        },
+        "description": "Der Text ist Inhalt der Einrichtung: Schreiben Sie ihn in jeder aktiven Sprache. Die Standardsprache ist für die Veröffentlichung erforderlich.",
+        "kindImmutable": "Der Typ kann nach dem Erstellen der Version nicht mehr geändert werden."
+      },
+      "text": {
+        "description": "Text der Version, in Ihrer Sprache oder, falls nicht vorhanden, in der Standardsprache der Einrichtung.",
+        "label": "Text der Version"
+      },
+      "publish": {
+        "title": "{kind}, Version {number} veröffentlichen",
+        "descriptionTerms": "Die aktuell veröffentlichte Version wird zurückgezogen. Bis zur Veröffentlichung sehen andere Nutzer diese Version nicht.",
+        "descriptionImage": "Die aktuell veröffentlichte Version dieser Stufe wird zurückgezogen. Das Veröffentlichen eines Bildtextes ändert keine bereits erfasste Einwilligungsentscheidung.",
+        "requiresReacceptance": "Erneute Zustimmung von allen verlangen, die eine frühere Version akzeptiert haben",
+        "requiresReacceptanceHint": "Ohne Häkchen sehen nur diejenigen die Zustimmungsseite, die noch nie zugestimmt haben.",
+        "confirm": "Veröffentlichen"
+      },
+      "confirmDelete": {
+        "title": "{name} löschen",
+        "description": "Nur Entwürfe können gelöscht werden. Diese Aktion wird im Prüfprotokoll erfasst.",
+        "confirm": "{name} löschen"
+      },
+      "acceptances": {
+        "heading": "Zustimmungen",
+        "caption": "Zustimmungen zu den Nutzungsbedingungen",
+        "empty": "Es sind noch keine Zustimmungen erfasst."
+      }
+    },
+    "userPicker": {
+      "search": "Nach Name oder E-Mail suchen",
+      "loading": "Suche läuft…",
+      "empty": "Keine passenden Benutzer.",
+      "loadError": "Die Benutzer konnten nicht geladen werden."
+    },
     "termsWall": {
       "title": "Nutzungsbedingungen",
       "reason": "Um die Plattform weiter zu nutzen, müssen Sie die aktuell gültigen Nutzungsbedingungen der Schule lesen und akzeptieren.",

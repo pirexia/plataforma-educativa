@@ -64,6 +64,19 @@ describe('CA-ACAD-016: componente de campo traducible', () => {
     ])
   })
 
+  it('REQ-FAM-UNIT-003: con multiline cada entrada es un textarea con lang y la primera obligatoria', async () => {
+    const wrapper = mountField({ multiline: true })
+    const areas = wrapper.findAll('textarea')
+
+    expect(wrapper.findAll('input')).toHaveLength(0)
+    expect(areas.map((area) => area.attributes('lang'))).toEqual(['es-ES', 'en', 'fr'])
+    expect(areas[0]!.attributes('required')).toBeDefined()
+
+    await wrapper.find('#name-en').setValue('Body')
+
+    expect(wrapper.emitted('update:modelValue')![0]).toEqual([{ en: 'Body' }])
+  })
+
   it('muestra el error de un idioma junto a su entrada, enlazado y como alerta', () => {
     const wrapper = mountField({ localeErrors: { en: ['El valor no puede estar vacío.'] } })
     const input = wrapper.find('#name-en')

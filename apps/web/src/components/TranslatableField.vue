@@ -21,6 +21,7 @@ import type { Locale } from '@/modules/core/types'
 import type { TranslationValues } from '@/lib/translatable'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 
 const props = withDefaults(
   defineProps<{
@@ -38,8 +39,16 @@ const props = withDefaults(
     fieldErrors?: string[]
     maxLength?: number
     disabled?: boolean
+    /** Texto largo (p. ej. el cuerpo de un texto legal): cada entrada es un `textarea`. Aditivo, por defecto `false`. */
+    multiline?: boolean
   }>(),
-  { localeErrors: () => ({}), fieldErrors: () => [], maxLength: undefined, disabled: false },
+  {
+    localeErrors: () => ({}),
+    fieldErrors: () => [],
+    maxLength: undefined,
+    disabled: false,
+    multiline: false,
+  },
 )
 
 const emit = defineEmits<{ 'update:modelValue': [value: TranslationValues] }>()
@@ -87,7 +96,8 @@ function describedBy(locale: Locale): string | undefined {
           ({{ t('translatable.required') }}, {{ t('translatable.defaultLocale') }})
         </span>
       </Label>
-      <Input
+      <component
+        :is="multiline ? Textarea : Input"
         :id="`${idBase}-${locale}`"
         :model-value="modelValue[locale] ?? ''"
         :lang="locale"
