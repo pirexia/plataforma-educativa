@@ -283,7 +283,7 @@ Restricciones: `UNIQUE (tenant_id, person_id) WHERE deleted_at IS NULL` (una fot
 | `reason` | `text` | Sí | — | Motivo; obligatorio en `puntual`: `CHECK (kind <> 'puntual' OR reason IS NOT NULL)`; `CHECK (length(reason) <= 500)` [DERIVADA] |
 | `authorized_by_guardian_id` | `bigint` | No | — | FK compuesta → `guardians`: el tutor principal que autoriza (`RN-FAM-UNIT-85`) |
 | `terms_version_id` | `bigint` | No | — | FK compuesta → `terms_versions`, **`ON DELETE RESTRICT`** (evidencia, como `image_consent_decisions`); `kind` de la versión = `autorizacion_recogida` validado en servicio |
-| `channel` | `text` | No | — | `CHECK IN ('presencial')` en `1.14b`; `portal` (`1.22`) y `telefono` (`OPEN-FAM-UNIT-35`) amplían el `CHECK` con su especificación |
+| `channel` | `text` | No | — | `CHECK IN ('presencial','telefono')` en `1.14b` (`telefono` entra ya, `OPEN-FAM-UNIT-35` aprobada por el usuario el 2026-10-30); `portal` (`1.22`) amplía el `CHECK` con su especificación. `CHECK (channel <> 'telefono' OR kind = 'puntual')`: el canal `telefono` solo admite autorizaciones puntuales (criterio aprobado de `OPEN-FAM-UNIT-35`) |
 | `authorized_at` | `TIMESTAMPTZ` | No | — | Fecha y hora de la autorización del principal |
 | `recorded_by` | `bigint` | No | — | FK compuesta → `users` |
 | `ip_address` | `inet` | Sí | — | |

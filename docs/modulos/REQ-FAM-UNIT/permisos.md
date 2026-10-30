@@ -197,7 +197,7 @@ Ningún cambio de `mfa_required` en roles. Recomendación que no se aplica aquí
 | `entrega_menor` | `todos` | `todos` | — | — | — |
 | `alerta_entrega` | `todos` | `todos` | `todos` | — | — |
 
-**Resolutor `(unidad_familiar, autorizado_recogida)`**: autorizaciones y listas de los alumnos con vínculo **activo** con el tutor del sujeto (`§3.6`), sin documento de terceros (`RN-FAM-UNIT-91`). Entra en el mapa cerrado de `AR-10` con el modelo `PickupAuthorization` y un servicio sancionado (ampliación que requiere aprobación expresa). La lista calculada lee vínculos, autorizaciones y fotos dentro de ese servicio sancionado, como `ImageConsentService` (`funcional.md §18` D-16).
+**Resolutor `(unidad_familiar, autorizado_recogida)`**: autorizaciones y listas de los alumnos con vínculo **activo** con el tutor del sujeto (`§3.6`), sin documento de terceros (`RN-FAM-UNIT-91`). Entra en el mapa cerrado de `AR-10` con los modelos `PickupAuthorization` y `PickupPhoto` y un servicio sancionado (ampliación `L1` de `ADR-068`, **aprobada por el usuario el 2026-10-29**). La lista calculada lee vínculos, autorizaciones y fotos dentro de ese servicio sancionado, como `ImageConsentService` (`funcional.md §18` D-16).
 
 **Reglas que no son permiso** (se comprueban además): autorización del tutor principal y texto publicado (`RN-FAM-UNIT-85`), exclusión por revocación (`RN-FAM-UNIT-80`), recomprobación al registrar la salida (`RN-PRL-02`), método de verificación (`RN-PRL-06`). Ver el `reason` de una autorización exige ámbito `todos`; ver `ineffective_reason = persona_excluida`, `revocacion_tutor.leer`.
 
@@ -210,8 +210,8 @@ Ningún cambio de `mfa_required` en roles. Recomendación que no se aplica aquí
 | `administrador_centro` | Todos los de §8.2 | `todos` |
 | `secretaria` | `autorizado_recogida.*`, `entrega_menor.leer`, `alerta_entrega.leer` | `todos` |
 | `direccion` | `autorizado_recogida.leer`, `entrega_menor.leer`, `alerta_entrega.*` | `todos` |
-| Conserjería / PAS (código del rol predefinido según `ProvisionTenantDefaults`) | `entrega_menor.leer`, `entrega_menor.crear`, `alerta_entrega.leer`, `alerta_entrega.crear` | `todos` |
+| `conserjeria_pas` (rol predefinido de `ProvisionTenantDefaults`, `ADR-068` hecho 16) | `entrega_menor.leer`, `entrega_menor.crear`, `alerta_entrega.leer`, `alerta_entrega.crear` | `todos` |
 | `tutor_legal` | `autorizado_recogida.leer` | `unidad_familiar` |
 | Docentes, tutor de grupo, resto | — (`OPEN-FAM-UNIT-42`) | — |
 
-Conserjería **no** recibe `autorizado_recogida.crear`: una recogida no prevista pasa por secretaría o dirección (`OPEN-FAM-UNIT-35`). Siembra por `ProvisionTenantDefaults` y por un comando de `Core` para centros existentes (patrón `fam_unit:grant-permissions`; uno por módulo o ampliar el existente: decisión de implementación), idempotente y sin conceder nada si falta un permiso (#387). **MFA** (recomendación, no se aplica): un rol con `autorizado_recogida.crear` debería llevar `mfa_obligatorio`, porque puede añadir a un extraño a la lista de un menor.
+Conserjería **no** recibe `autorizado_recogida.crear`: una recogida no prevista pasa por secretaría o dirección, que la registran como autorización puntual por el canal `telefono` tras devolver la llamada al principal (`OPEN-FAM-UNIT-35`, aprobada; `RN-FAM-UNIT-85`). Siembra por `ProvisionTenantDefaults` y por un comando de `Core` para centros existentes (patrón `fam_unit:grant-permissions`; uno por módulo o ampliar el existente: decisión de implementación), idempotente y sin conceder nada si falta un permiso (#387). **MFA** (recomendación, no se aplica): un rol con `autorizado_recogida.crear` debería llevar `mfa_obligatorio`, porque puede añadir a un extraño a la lista de un menor.

@@ -151,10 +151,11 @@ Solo SPA (pantallas de personal de `funcional.md §10`): ninguna migración, var
 
 ### 12.1 Variables de entorno y configuración
 
-**Ninguna variable de entorno nueva.** Claves de configuración con valor por defecto (en `config/fam_unit.php` y, con `prl`, `config/prl.php`), revisables:
+**Ninguna variable de entorno nueva** (`files.disk` toma por defecto `filesystems.default`). Claves de configuración con valor por defecto (en `config/fam_unit.php` y, con `prl`, `config/prl.php`), revisables:
 
 | Clave | Defecto [DERIVADA] | Regla |
 |-------|--------------------|-------|
+| `files.disk` (núcleo, `config/files.php`, `App\Support\Files`) | `filesystems.default` (disco privado S3; MinIO en desarrollo) | Disco donde `PrivateObjectStore` escribe y firma las fotografías, bajo `tenants/<tenant public_id>/<área>/` (`ADR-068 §5.3`, `INV-001`). Clave compartida con cualquier fichero privado futuro, no propia de `fam_unit` |
 | `fam_unit.pickup.photo.max_bytes` | 5 MB | `RN-FAM-UNIT-83` |
 | `fam_unit.pickup.photo.max_dimension` | 1024 px (lado mayor tras reprocesar) | `RN-FAM-UNIT-83` |
 | `fam_unit.pickup.photo.signed_url_ttl_minutes` | 5 | `RN-FAM-UNIT-83` |
@@ -185,7 +186,7 @@ Orden: **migrar → `sync-registry` → contratar `prl` → siembra → publicar
 1. Migraciones aditivas (*expand*): `pickup_photos`, ampliación del `CHECK` de `terms_versions.kind`, `pickup_authorizations` (FK `RESTRICT` a `terms_versions`), y con `prl`: `student_movements` (solo anexar) y `pickup_alerts`. `php artisan migrate --database=pgsql_owner`. `db-reviewer` obligatorio.
 2. `platform:sync-registry`: registra `autorizado_recogida.*` en `fam_unit` y el módulo `prl` (`phase 1`, `depends_on ['fam_unit']`) con `entrega_menor.*` y `alerta_entrega.*`; aborta si la dependencia no existe.
 3. Contratar `prl` en cada centro (Super Administrador, `ADR-045`; el *backoffice* exige `fam_unit`, `RMOD-006`).
-4. Siembra para centros existentes (comando de `Core`, §8.4 de `permisos.md`).
+4. Siembra para centros existentes (comando de `Core`, §8.4 de `permisos.md`: `administrador_centro`, `secretaria`, `direccion`, `conserjeria_pas` y `tutor_legal`).
 5. **Antes de dar de alta terceros**, el centro publica el texto `autorizacion_recogida` (sin él, `422 text_not_published`, `RN-FAM-UNIT-85`). Los tutores figuran en la lista sin necesidad de ese texto.
 
 **Reversión** (`RARQ-DEP-013`): desplegar la imagen anterior; **no** ejecutar `migrate:rollback` sobre `pickup_authorizations`, `student_movements` ni `pickup_alerts` (evidencia ante un incidente con un menor); sus `down()` deben fallar si hay filas (patrón `db-reviewer` B-3 de `1.14-b`). **Efecto de volver atrás**: desaparecen la lista y la puerta; **mientras dure, el centro no puede apoyarse en el sistema para entregar menores** y debe usar su procedimiento de contingencia (`OPEN-FAM-UNIT-41`). El procedimiento probado se escribe en `RUNBOOK.md` al cerrar cada entrega.

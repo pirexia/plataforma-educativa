@@ -1,6 +1,6 @@
 # ADR-068 · Autorizados de recogida y entrega de menores
 
-**Estado**: **ACEPTADA** (2026-10-29), **con todas las ampliaciones aprobadas**. El usuario aprueba el 2026-10-29 las cuatro decisiones estructurales de `REQ-FAM-UNIT/funcional.md §21.2` con la recomendación de cada una (`OPEN-068-01` = B, `-02` = A, `-03` = A, `-04` = A), las preguntas `OPEN-FAM-UNIT-27`, `-28`, `-29` y `-36` con su recomendación, los criterios propuestos de `OPEN-FAM-UNIT-34` y `-35` (**aprobados por el usuario el 2026-10-29 (confirmación explícita posterior)**: la puerta responde igual ante «no figura» y «excluido»; la recogida no prevista solo con autorización puntual registrada por secretaría o dirección) y la partición `1.14b-a` a `1.14b-d` de `§21.12`. Ese mismo día aprueba también, con la recomendación del `architect`, las ampliaciones de listas cerradas `L1`, `L2`, `L5`, `L7`, `L8`, `L9` y `L10` (`§6`), `OPEN-068-05` a `-08` (`§10`) y `OPEN-FAM-UNIT-26` y `-30`. Queda abierta, para transporte, `OPEN-FAM-UNIT-45`.
+**Estado**: **ACEPTADA** (2026-10-29), **con todas las ampliaciones aprobadas**. El usuario aprueba el 2026-10-29 las cuatro decisiones estructurales de `REQ-FAM-UNIT/funcional.md §21.2` con la recomendación de cada una (`OPEN-068-01` = B, `-02` = A, `-03` = A, `-04` = A), las preguntas `OPEN-FAM-UNIT-27`, `-28`, `-29` y `-36` con su recomendación, los criterios propuestos de `OPEN-FAM-UNIT-34` y `-35` (**aprobados por el usuario el 2026-10-29 (confirmación explícita posterior)**: la puerta responde igual ante «no figura» y «excluido»; la recogida no prevista solo con autorización puntual registrada por secretaría o dirección) y la partición `1.14b-a` a `1.14b-d` de `§21.12`. Ese mismo día aprueba también, con la recomendación del `architect`, las ampliaciones de listas cerradas `L1`, `L2`, `L5`, `L7`, `L8`, `L9` y `L10` (`§6`), `OPEN-068-05` a `-08` (`§10`) y `OPEN-FAM-UNIT-26` y `-30`. El 2026-10-30 aprueba además que el canal `telefono` de `OPEN-FAM-UNIT-35` entre ya en `1.14b-a` (el `CHECK` de `pickup_authorizations.channel` es `('presencial','telefono')`, `telefono` solo con autorizaciones puntuales; `datos.md §8.2`), que `document_type`/`document_number` no sean editables en `PATCH /pickup-persons/{person}` y las tres precisiones de ese *endpoint* (`api.md §8.2`). Queda abierta, para transporte, `OPEN-FAM-UNIT-45`.
 **Fecha**: 2026-10-29
 **Paso**: `1.14b · REQ-FAM-UNIT-005 + REQ-PRL-004` (`docs/modulos/REQ-FAM-UNIT/funcional.md §21`; `datos.md §8`, `api.md §8`, `permisos.md §8`, `operacion.md §12`).
 **Afecta a**: `REQ-FAM-UNIT-005`, `REQ-PRL-004`, `REQ-CORE` (`Core\Domain`: personas), `REQ-TRAN-005`, `REQ-COMED`, `REQ-EXTRA`, `REQ-ACOG`, `REQ-INF` (consumidores futuros), `INV-001`, `INV-002`, `INV-003`, `INV-007`, `INV-008`, `INV-010`, `INV-011`, `INV-012`.
@@ -109,6 +109,12 @@ interface PersonRegistrar
      * Nunca modifica una persona existente. Valida el documento con las reglas de Core (RN-CORE-90 a -93).
      */
     public function registerOrReuse(PersonRegistration $data): PersonRegistrationOutcome;
+
+    /**
+     * Corrige nombre, apellidos y teléfono de una persona SIN usuario. No toca documento ni otro campo.
+     * Lanza si la persona tiene usuario o no existe en el centro. Lo audita Core (Auditable, update).
+     */
+    public function correctUnaccounted(int $personId, PersonCorrection $data): void;
 }
 ```
 
@@ -116,7 +122,9 @@ interface PersonRegistrar
 - `PersonRegistrationOutcome`: `personId`, `publicId`, `reused` (bool) y `dataMismatch` (bool: algún dato aportado difiere del registrado). **No devuelve qué campo difiere ni el valor registrado**: el personal lo ve en la ficha de la persona, con su permiso.
 - Con documento, la búsqueda de la persona viva y la inserción se hacen en la misma transacción. Si dos altas simultáneas con el mismo documento chocan con `people_tenant_document_unique`, la que pierde relee y reutiliza (punto de guardado, sin error para el usuario). **Sin documento, siempre crea** (no hay clave con la que reutilizar; consecuencia aceptada en `§8`).
 - La persona del propio alumno y la de un tutor revocado **sí** se pueden reutilizar en `PersonRegistrar`: la regla de elegibilidad es de `fam_unit` (`RN-FAM-UNIT-86`), no de `Core`.
-- La creación la audita `Core` por el ciclo de vida de `Person` (`Auditable`), como hoy.
+- `PersonCorrection` (`OPEN-068-07`): `givenName?`, `familyName1?`, `familyName2?`, `contactPhone?`, al menos uno; **sin** `documentType` ni `documentNumber` (son la clave de reutilización). Una persona con usuario no es corregible por aquí (se corrige por `/users`); `fam_unit` lo invoca desde `PATCH /pickup-persons/{person}` (`api.md §8.2`).
+- **Canal de la autorización** (`OPEN-FAM-UNIT-35`, aprobada): `fam_unit` registra `presencial` y `telefono`; `portal` llega con `1.22`. `telefono` solo con autorización puntual y con `autorizado_recogida.crear`. No cambia la interfaz de `Core`.
+- La creación y la corrección las audita `Core` por el ciclo de vida de `Person` (`Auditable`: `create` y `update`), como hoy. Tipo de entrada de corrección: `update`, con la política de auditoría de `Person`.
 - **Autorización**: la interfaz no comprueba permisos, igual que `FamilyUnitStudents`. La comprobación es la del *endpoint* de `fam_unit` (`autorizado_recogida.crear`, `INV-002`).
 
 **Lectura: `PersonDirectory`**, ampliación aprobada:
@@ -140,7 +148,7 @@ Núcleo, sin dependencia de ningún módulo (`AR-02`). Tres piezas:
 
 - **Nunca se escribe el original** en el *bucket*: solo el resultado recodificado.
 - **Síncrono, en la petición.** `INV-012` pide colas para lo pesado, pero aquí el trabajo está acotado por la política (una imagen, píxeles máximos) y una cola obligaría a guardar el original con sus metadatos mientras espera, que es justo lo que se quiere evitar. Si la medida de `1.14b-a` supera los 2 s con la imagen máxima, se revisa.
-- **Extensiones de PHP: `gd` (con JPEG, PNG y WebP) y `exif`** (solo para leer la orientación antes de descartarla). Son extensiones incluidas en la distribución de PHP, con su licencia y su calendario de versiones, sin paquete de Composer nuevo. `GdImageSanitizer` las envuelve tras `ImageSanitizer` (`RNF-MANT-007`). Se descarta `imagick` (`§9`). Requiere aprobación como dependencia (`CLAUDE.md §1`; `L8`).
+- **Extensiones de PHP: `gd` (con JPEG, PNG y WebP) y `exif`** (solo para leer la orientación antes de descartarla). Son extensiones incluidas en la distribución de PHP, con su licencia y su calendario de versiones, sin paquete de Composer nuevo. `GdImageSanitizer` las envuelve tras `ImageSanitizer` (`RNF-MANT-007`). Se descarta `imagick` (`§9`). Aprobadas como dependencia el 2026-10-29 (`CLAUDE.md §1`; `L8`).
 - `fam_unit` la usa para las fotografías de recogida (`RN-FAM-UNIT-83`, área `fam-unit/pickup-photos`). TTL de firma propio [DERIVADA de la especificación: 5 minutos], no `core.signed_url_ttl_minutes`. El barrido de huérfanos sigue el patrón de `PurgeOrphanBrandingAssets`.
 - El *branding* **no** migra en este paso. Su falta de reprocesado (hecho 6) va como hallazgo (`§11`).
 
@@ -195,7 +203,7 @@ Es el de `§21.8`, con estas precisiones:
 
 ## 7 · Comprobaciones (`INV-015`)
 
-Se suman a `CA-FAM-UNIT-111` a `-129` y `CA-PRL-001` a `-013`:
+Se suman a `CA-FAM-UNIT-111` a `-131` y `CA-PRL-001` a `-013`:
 
 - **CA-068-01** — `GdImageSanitizer`: un JPEG con EXIF de geolocalización y orientación 6 sale girado y sin ningún bloque de metadatos (leyendo el objeto guardado); una imagen que declara más píxeles que el máximo se rechaza **sin decodificar**; un SVG, un HEIC y un PNG con extensión `.jpg` se rechazan sin escribir nada.
 - **CA-068-02** — `PrivateObjectStore`: con el tenant A, firmar o borrar una clave con el prefijo de B lanza; la clave nunca contiene datos de la persona.
@@ -223,7 +231,7 @@ Se suman a `CA-FAM-UNIT-111` a `-129` y `CA-PRL-001` a `-013`:
 - **Búsqueda sin acentos**: «Munoz» no encuentra «Muñoz» en `1.14b` (hecho 17). Plegar acentos exige una extensión de PostgreSQL y su propia decisión.
 - **Dos extensiones de PHP más** en la imagen y en CI.
 - **Sin HEIC**: las fotos de algunos móviles hay que convertirlas antes de subirlas. Es una restricción deliberada (sin decodificador fiable en `gd`).
-- **Sin canal para corregir o suprimir los datos de un tercero sin cuenta** mientras no se resuelva `OPEN-068-07`. Afecta a `RN-FAM-UNIT-89` («se corrige en `Core`»), al caso límite «persona de tercero borrada en `Core`» y a la supresión de `§21.10`.
+- **Corregir los datos de un tercero sin cuenta** pasa por `PersonRegistrar::correctUnaccounted` y `PATCH /pickup-persons/{person}` (`OPEN-068-07`, resuelta); el documento no es editable. **La supresión** de esos datos no tiene canal propio en `1.14b`: depende de la retención de `1.23b` (`RN-FAM-UNIT-89`, caso límite «persona de tercero borrada en `Core`», `§21.10`).
 
 ---
 

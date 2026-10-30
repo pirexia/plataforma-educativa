@@ -8,10 +8,13 @@ Formato: versionado semántico por documento. Mayor = cambio que invalida decisi
 
 ## 2026-10-29 · `1.14b`: especificación aprobada y `ADR-068` con ampliaciones aprobadas (`REQ-FAM-UNIT-005`, `REQ-PRL-004`, rama `chore/spec-1-14b-autorizados-entrega`)
 
-- **Especificación `REQ-FAM-UNIT/funcional.md §21` APROBADA** por el usuario (2026-10-29) con la recomendación de cada pregunta: `OPEN-FAM-UNIT-26`, `-27`, `-28`, `-29`, `-30`, `-36` (esta, condición previa a datos reales) y `OPEN-068-01` a `-08`. Sigue abierta `OPEN-FAM-UNIT-45` (transporte).
+- **Especificación `REQ-FAM-UNIT/funcional.md §21` APROBADA** por el usuario (2026-10-29, con ajustes finales el 2026-10-30). **Solo están aprobadas** las preguntas `OPEN-FAM-UNIT-26`, `-27`, `-28`, `-29`, `-30`, `-34`, `-35`, `-36` (esta, condición previa a datos reales), `-44` y `OPEN-068-01` a `-08`. **Siguen abiertas**, con su recomendación, `-31` a `-33`, `-37` a `-43`, `-46` y `-47`; `-45` queda pendiente para transporte.
+- **Confirmación explícita** (2026-10-29) de `OPEN-FAM-UNIT-34` (la puerta responde igual ante «no figura» y «excluido») y `-35` (recogida no prevista solo con autorización puntual registrada por personal con `autorizado_recogida.crear`), y *endpoint* `PATCH /pickup-persons/{person}` para `PersonRegistrar::correctUnaccounted` (`OPEN-068-07`, `CA-FAM-UNIT-130`).
+- **Aprobaciones del 2026-10-30**: el canal `telefono` entra ya en `1.14b-a` (`CHECK` de canal `('presencial','telefono')`, solo con autorizaciones puntuales; `RN-FAM-UNIT-85`, `CA-FAM-UNIT-131`); `document_type`/`document_number` no son editables en el `PATCH` (`422`); y las tres precisiones del `PATCH` (`404` si la persona tiene usuario, sin límite de frecuencia propio, «al menos un campo»).
+- **Correcciones de revisión** (`doc-reviewer`): pregunta de aprobación obsoleta de `§21.14`; `ADR-068` (`§5.2`, `§5.3`, `§7`, `§8`); `permisos.md §8.3`; `operacion.md §12.1` (clave `files.disk`) y `§12.4` (`conserjeria_pas`).
 - **`ADR-068` ACEPTADA, con todas las ampliaciones aprobadas**: `L1` (`AR-10` 5 a 6), `L2` (`terms_versions.kind` 3 a 4), `L5` (`PersonDirectory::findByDocument`/`contactDetailsByIds`), `L7` (9 permisos nuevos), `L8` (extensiones `gd` y `exif`), `L9` (siembra de roles) y `L10` (*morph map*).
 - **Correcciones de la especificación** por las discrepancias del ADR: la imagen del contenedor no tiene extensión de imagen; `Core` no tiene camino para crear, corregir ni suprimir personas sin usuario (`PersonRegistrar::correctUnaccounted`, `RN-FAM-UNIT-89`, caso límite de `§21.9`); `AuditRecorder::recordRead`; `PersonDirectory` sin teléfono ni documento; `AuthorizedPickupList` sin parámetro de instante y consulta `studentsMatching` (`§21.8`).
-- **Documentación**: `REQ-FAM-UNIT/{funcional §21,datos §8,api §8,permisos §8,operacion §12}.md`, `ADR-068`, `REQUISITOS` 3.2.23, `README.md` 2.6.40. Sin código: lo implementa `1.14b-a`.
+- **Documentación**: `REQ-FAM-UNIT/{funcional §21,datos §8,api §8,permisos §8,operacion §12}.md`, `ADR-068`, `REQUISITOS` 3.2.23, `README.md` 2.6.41. Sin código: lo implementa `1.14b-a`.
 
 ---
 
