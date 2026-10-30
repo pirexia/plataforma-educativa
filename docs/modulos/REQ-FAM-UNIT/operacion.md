@@ -1,6 +1,6 @@
 # REQ-FAM-UNIT · Operación
 
-> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). **`1.14-a` implementada (2026-10-26)**: cinco migraciones aditivas, once permisos y el comando `fam_unit:grant-permissions`; ninguna variable de entorno, servicio, cola ni tarea programada nuevos (`§8`). **Enmendada por `ADR-066` (ACEPTADA, 2026-10-27; `funcional.md §16`)**: `1.14-b` crea `terms_versions` (con `kind`) y `image_consent_decisions`; ya no se crea `image_consents`. **`1.14-b` IMPLEMENTADA (2026-10-27; `funcional.md §18`)**, aprobada por el usuario (`funcional.md §17`); sin variables, colas ni tareas programadas nuevas por la aprobación. **Condiciones previas a cargar datos reales del consentimiento de imagen** (no bloquean el despliegue con datos sintéticos): validación jurídica de `OPEN-FAM-UNIT-08`, criterio sobre 14 y 18 años (`OPEN-FAM-UNIT-18`) y respuesta a `OPEN-066-02` (`funcional.md §13`).
+> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). **`1.14-a` implementada (2026-10-26)**: cinco migraciones aditivas, once permisos y el comando `fam_unit:grant-permissions`; ninguna variable de entorno, servicio, cola ni tarea programada nuevos (`§8`). **Enmendada por `ADR-066` (ACEPTADA, 2026-10-27; `funcional.md §16`)**: `1.14-b` crea `terms_versions` (con `kind`) y `image_consent_decisions`; ya no se crea `image_consents`. **`1.14-b` IMPLEMENTADA (2026-10-27; `funcional.md §18`)**, aprobada por el usuario (`funcional.md §17`); sin variables, colas ni tareas programadas nuevas por la aprobación. **Condiciones previas a cargar datos reales del consentimiento de imagen** (no bloquean el despliegue con datos sintéticos): validación jurídica de `OPEN-FAM-UNIT-08`, criterio sobre 14 y 18 años (`OPEN-FAM-UNIT-18`) y respuesta a `OPEN-066-02` (`funcional.md §13`). **Paso `1.14b`**: operación de §12 **APROBADA** (2026-10-29, con `ADR-068` ACEPTADA); sin implementar.
 
 ## 1. Variables de entorno
 
@@ -142,3 +142,66 @@ Sin variables de entorno, servicios, colas ni tareas programadas nuevas (el mód
 ## 11. Despliegue de `1.14-d`: sin cambios de despliegue
 
 Solo SPA (pantallas de personal de `funcional.md §10`): ninguna migración, variable de entorno, servicio, cola, tarea programada ni permiso nuevos, y no hay nada que sembrar ni sincronizar. **Reversión**: desplegar la versión anterior de la web; no hay nada que deshacer en la API ni en la base de datos. No probado sobre un servidor (`OPEN-11`).
+
+---
+
+## 12. Paso `1.14b` (autorizados y entrega de menores) — APROBADA (2026-10-29)
+
+> **Estado**: **APROBADA** (2026-10-29), con `ADR-068` ACEPTADA (`funcional.md §21.2`). Nada de esto se ha probado: no hay implementación.
+
+### 12.1 Variables de entorno y configuración
+
+**Ninguna variable de entorno nueva** (`files.disk` toma por defecto `filesystems.default`). Claves de configuración con valor por defecto (en `config/fam_unit.php` y, con `prl`, `config/prl.php`), revisables:
+
+| Clave | Defecto [DERIVADA] | Regla |
+|-------|--------------------|-------|
+| `files.disk` (núcleo, `config/files.php`, `App\Support\Files`) | `filesystems.default` (disco privado S3; MinIO en desarrollo) | Disco donde `PrivateObjectStore` escribe y firma las fotografías, bajo `tenants/<tenant public_id>/<área>/` (`ADR-068 §5.3`, `INV-001`). Clave compartida con cualquier fichero privado futuro, no propia de `fam_unit` |
+| `fam_unit.pickup.photo.max_bytes` | 5 MB | `RN-FAM-UNIT-83` |
+| `fam_unit.pickup.photo.max_dimension` | 1024 px (lado mayor tras reprocesar) | `RN-FAM-UNIT-83` |
+| `fam_unit.pickup.photo.signed_url_ttl_minutes` | 5 | `RN-FAM-UNIT-83` |
+| `fam_unit.pickup.photo.orphan_grace_days` | 30 (`OPEN-FAM-UNIT-37`) | §8.8 de `datos.md` |
+| `fam_unit.pickup.read_rate_limit` | 300 por hora, por centro y usuario | `RN-FAM-UNIT-93` |
+
+El texto del protocolo ante persona no autorizada es **configuración del centro** (`settings` del módulo `prl`, `modulo.actualizar`, `ADR-045`), no del despliegue (`OPEN-FAM-UNIT-40`).
+
+### 12.2 Servicios externos
+
+- **Almacenamiento S3** (MinIO en desarrollo): pasa a ser **necesario para la operación diaria** (fotografías en la puerta), no solo para informes. Si no responde, la lista se sirve con `photo_url = null` y el aviso de verificar por documento; **no** se bloquea la entrega a quien figura, porque la verificación por documento sigue siendo posible [DERIVADA, a ratificar]. El alta y sustitución de fotos sí falla (`503`) sin escribir nada.
+- **Extensiones de PHP `gd` y `exif`** para reprocesar fotografías (D3): `ADR-068` (hecho 7) verificó que la imagen no tiene ninguna; `L8` (aprobada 2026-10-29) las añade en `infra/containers/api/Containerfile` (etapa `base`, 7 a 9 extensiones) y en las dos listas de `.github/workflows/ci-api.yml` (6 a 8). Sin dependencia de Composer nueva.
+- Ningún servicio de correo, SMS ni notificaciones (diferido a `1.19`).
+
+### 12.3 Colas y tareas programadas
+
+| Trabajo | Cola | Cuándo | Notas |
+|---------|------|--------|-------|
+| Reprocesado de la fotografía | — (síncrono) | En la subida | Una imagen de 5 MB como máximo; la respuesta debe llevar la foto ya limpia y la autorización depende de ella (`RN-FAM-UNIT-84`). Si la medición en `1.14b-a` supera el objetivo de `RNF-PERF-001`, pasa a la cola `default` con estado «procesando» (decisión de implementación con `db-reviewer`) |
+| Barrido de fotografías huérfanas | `default` | Diario | Patrón `PurgeOrphanBrandingAssets`. **Depende del planificador**, que no tiene servicio desplegado (issue #453); mientras no lo tenga, comando manual documentado en `RUNBOOK.md` |
+
+La caducidad de las autorizaciones puntuales **no** necesita tarea: es una condición de fecha en la consulta (`RN-FAM-UNIT-82`).
+
+### 12.4 Despliegue: orden, siembra y reversión
+
+Orden: **migrar → `sync-registry` → contratar `prl` → siembra → publicar el texto `autorizacion_recogida`**:
+
+1. Migraciones aditivas (*expand*): `pickup_photos`, ampliación del `CHECK` de `terms_versions.kind`, `pickup_authorizations` (FK `RESTRICT` a `terms_versions`), y con `prl`: `student_movements` (solo anexar) y `pickup_alerts`. `php artisan migrate --database=pgsql_owner`. `db-reviewer` obligatorio.
+2. `platform:sync-registry`: registra `autorizado_recogida.*` en `fam_unit` y el módulo `prl` (`phase 1`, `depends_on ['fam_unit']`) con `entrega_menor.*` y `alerta_entrega.*`; aborta si la dependencia no existe.
+3. Contratar `prl` en cada centro (Super Administrador, `ADR-045`; el *backoffice* exige `fam_unit`, `RMOD-006`).
+4. Siembra para centros existentes (comando de `Core`, §8.4 de `permisos.md`: `administrador_centro`, `secretaria`, `direccion`, `conserjeria_pas` y `tutor_legal`).
+5. **Antes de dar de alta terceros**, el centro publica el texto `autorizacion_recogida` (sin él, `422 text_not_published`, `RN-FAM-UNIT-85`). Los tutores figuran en la lista sin necesidad de ese texto.
+
+**Reversión** (`RARQ-DEP-013`): desplegar la imagen anterior; **no** ejecutar `migrate:rollback` sobre `pickup_authorizations`, `student_movements` ni `pickup_alerts` (evidencia ante un incidente con un menor); sus `down()` deben fallar si hay filas (patrón `db-reviewer` B-3 de `1.14-b`). **Efecto de volver atrás**: desaparecen la lista y la puerta; **mientras dure, el centro no puede apoyarse en el sistema para entregar menores** y debe usar su procedimiento de contingencia (`OPEN-FAM-UNIT-41`). El procedimiento probado se escribe en `RUNBOOK.md` al cerrar cada entrega.
+
+### 12.5 Métricas, alertas y diagnóstico
+
+Señales a vigilar cuando haya observabilidad: lecturas de lista por usuario y hora (un conserje que abre cientos de listas fuera de la hora de salida es anómalo; el límite de `RN-FAM-UNIT-93` lo frena), alertas `persona_no_autorizada` por día, errores `422 person_not_authorized` (posible intento de recogida indebida o lista desactualizada).
+
+| Síntoma | Causa probable | Qué hacer |
+|---------|----------------|-----------|
+| Un abuelo dado de alta no aparece en la puerta | Sin foto, fuera de vigencia, retirada, o persona excluida por revocación (`ineffective_reason`) | Ficha de la autorización; si es `no_vigente` y no hay otra causa, la ve dirección con `revocacion_tutor.leer` |
+| Una persona revocada aparece en la lista | **Incidente crítico** (`CLAUDE.md §5`): la composición no aplica `RN-FAM-UNIT-80` o un consumidor guarda copia | Detener, issue crítico, comprobar `CA-FAM-UNIT-112` |
+| Fotos sin cargar en la puerta | Almacenamiento caído o URL caducada (cliente que la cachea) | Verificar por documento; la SPA nunca reutiliza una URL caducada |
+| `422 text_not_published` al dar de alta un tercero | El centro no ha publicado `autorizacion_recogida` | Publicarlo (`texto_legal.publicar`) |
+
+### 12.6 Copias de seguridad
+
+Las tablas nuevas entran en la copia por centro; los objetos de fotografía, en la copia del almacenamiento con versionado (`REQ-BKP-001`). **Restaurar a un punto anterior a una retirada o a una revocación devolvería a alguien a la lista de un menor**: se suma a `OPEN-FAM-UNIT-21` para `1.26` (reaplicación tras restaurar). No se resuelve aquí.

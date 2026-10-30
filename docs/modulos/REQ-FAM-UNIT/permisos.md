@@ -1,6 +1,6 @@
 # REQ-FAM-UNIT · Permisos
 
-> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). **`1.14-a` implementada (2026-10-26)**: `FamUnitServiceProvider::declaredPermissions()` declara los **once** permisos de `familia`, `vinculo_tutor` y `revocacion_tutor`; los **ocho** de `consentimiento_imagen` (tres) y `texto_legal` (cinco) se declaran en `1.14-b` y `aceptacion_condiciones`, en `1.14-c`. **Enmendada por `ADR-066` (ACEPTADA, 2026-10-27; `funcional.md §16`)**: el recurso `condiciones_uso` pasa a llamarse **`texto_legal`** (`OPEN-066-03`) y se declara en **`1.14-b`** junto con `consentimiento_imagen`; `aceptacion_condiciones` sigue en `1.14-c`. Ningún permiso de estos estaba declarado ni sembrado, así que el cambio no migra concesiones. **`1.14-b` IMPLEMENTADA (2026-10-27; `funcional.md §18`)**, aprobada por el usuario (`funcional.md §17`): `declaredPermissions()` declara ya los **diecinueve** permisos, el mapa cerrado de `AR-10` incluye `consentimiento_imagen` (modelo `ImageConsentDecision`, servicio `ImageConsentService`) y la siembra está en `ProvisionTenantDefaults` y `fam_unit:grant-permissions`, con las condiciones previas a datos reales de `funcional.md §13`: `secretaria` recibe `texto_legal.leer` (`OPEN-FAM-UNIT-22`) y `consentimiento_imagen.leer` cubre además `GET /image-consent-texts` (`OPEN-FAM-UNIT-23`). Siembra: `ProvisionTenantDefaults::FAMILY_PERMISSION_GRANTS` y `FAMILY_PERMISSION_UNIDAD_FAMILIAR_GRANTS`, y el comando `fam_unit:grant-permissions` para los centros existentes. La fuente de verdad es `FamUnitServiceProvider::declaredPermissions()` (`INV-007`, `ADR-034 §2`); esta tabla es su reflejo. La siembra de §4 es la recomendación de `OPEN-FAM-UNIT-10`. El recurso `restriccion_custodia` está **condicionado** a `OPEN-FAM-UNIT-05`. **`ADR-067` ACEPTADA (2026-10-28)**: fija la ampliación L1 de `AR-07a` con los nombres de ruta de `/me/terms*` (§2). **`1.14-c` IMPLEMENTADA (2026-10-28; `funcional.md §19`)**: `aceptacion_condiciones.leer` declarado y sembrado en `administrador_centro` y `secretaria` (veinte permisos en total), `/me/terms*` en `AR-07a` (35 → 37) con `module-enabled:fam_unit`, y las listas cerradas L3 (exentas del muro) y L6 (orden) comprobadas por `CA-067-02` y `CA-067-03`. **`1.14-d` IMPLEMENTADA (2026-10-28; `funcional.md §20`)**: las pantallas de personal de `funcional.md §10` consumen estos *endpoints* sin cambios de API. Con los permisos por defecto de la siembra, `secretaria` no tiene `revocacion_tutor.crear`/`.eliminar` (solo `administrador_centro`, §4): en pantalla, las acciones de revocar y levantar no se le ofrecen (D-51).
+> **Estado**: **APROBADA por el usuario** (2026-10-26, todas las recomendaciones de `OPEN-FAM-UNIT-01..21` aceptadas tal cual; ver `funcional.md §13`). **`1.14-a` implementada (2026-10-26)**: `FamUnitServiceProvider::declaredPermissions()` declara los **once** permisos de `familia`, `vinculo_tutor` y `revocacion_tutor`; los **ocho** de `consentimiento_imagen` (tres) y `texto_legal` (cinco) se declaran en `1.14-b` y `aceptacion_condiciones`, en `1.14-c`. **Enmendada por `ADR-066` (ACEPTADA, 2026-10-27; `funcional.md §16`)**: el recurso `condiciones_uso` pasa a llamarse **`texto_legal`** (`OPEN-066-03`) y se declara en **`1.14-b`** junto con `consentimiento_imagen`; `aceptacion_condiciones` sigue en `1.14-c`. Ningún permiso de estos estaba declarado ni sembrado, así que el cambio no migra concesiones. **`1.14-b` IMPLEMENTADA (2026-10-27; `funcional.md §18`)**, aprobada por el usuario (`funcional.md §17`): `declaredPermissions()` declara ya los **diecinueve** permisos, el mapa cerrado de `AR-10` incluye `consentimiento_imagen` (modelo `ImageConsentDecision`, servicio `ImageConsentService`) y la siembra está en `ProvisionTenantDefaults` y `fam_unit:grant-permissions`, con las condiciones previas a datos reales de `funcional.md §13`: `secretaria` recibe `texto_legal.leer` (`OPEN-FAM-UNIT-22`) y `consentimiento_imagen.leer` cubre además `GET /image-consent-texts` (`OPEN-FAM-UNIT-23`). Siembra: `ProvisionTenantDefaults::FAMILY_PERMISSION_GRANTS` y `FAMILY_PERMISSION_UNIDAD_FAMILIAR_GRANTS`, y el comando `fam_unit:grant-permissions` para los centros existentes. La fuente de verdad es `FamUnitServiceProvider::declaredPermissions()` (`INV-007`, `ADR-034 §2`); esta tabla es su reflejo. La siembra de §4 es la recomendación de `OPEN-FAM-UNIT-10`. El recurso `restriccion_custodia` está **condicionado** a `OPEN-FAM-UNIT-05`. **`ADR-067` ACEPTADA (2026-10-28)**: fija la ampliación L1 de `AR-07a` con los nombres de ruta de `/me/terms*` (§2). **`1.14-c` IMPLEMENTADA (2026-10-28; `funcional.md §19`)**: `aceptacion_condiciones.leer` declarado y sembrado en `administrador_centro` y `secretaria` (veinte permisos en total), `/me/terms*` en `AR-07a` (35 → 37) con `module-enabled:fam_unit`, y las listas cerradas L3 (exentas del muro) y L6 (orden) comprobadas por `CA-067-02` y `CA-067-03`. **`1.14-d` IMPLEMENTADA (2026-10-28; `funcional.md §20`)**: las pantallas de personal de `funcional.md §10` consumen estos *endpoints* sin cambios de API. Con los permisos por defecto de la siembra, `secretaria` no tiene `revocacion_tutor.crear`/`.eliminar` (solo `administrador_centro`, §4): en pantalla, las acciones de revocar y levantar no se le ofrecen (D-51). **Paso `1.14b`**: recursos `autorizado_recogida` (`fam_unit`), `entrega_menor` y `alerta_entrega` (`prl`) **APROBADOS** en §8 (2026-10-29, con `ADR-068` ACEPTADA; `L7` y `L9`); sin implementar.
 
 ---
 
@@ -158,3 +158,60 @@ Ningún cambio de `mfa_required` en roles. Recomendación que no se aplica aquí
 ## 7. Visibilidad de los vínculos revocados (hallazgo `M1` de `security-reviewer`, 1.14-a)
 
 `revocacion_tutor.leer` gobierna ver los vínculos `revocado` **y su campo `revocation`** (`RN-FAM-UNIT-40`): sin él, `GET /guardian-links` los omite y el detalle de uno revocado es `404`; el filtro `status=revocado` es `403`. El ámbito `unidad_familiar` nunca los ve (`RN-FAM-UNIT-36`). Con el permiso, `vinculo_tutor.leer` los devuelve junto a los activos.
+
+---
+
+## 8. Paso `1.14b` (autorizados y entrega de menores) — APROBADA (2026-10-29)
+
+> **Estado**: **APROBADA** (2026-10-29), con `ADR-068` ACEPTADA (`funcional.md §21.2`). Aprobados el catálogo de nueve permisos (`L7`), la siembra de §8.4 (`L9`, `OPEN-FAM-UNIT-42`) y la entrada de `autorizado_recogida` en el mapa de `AR-10` (`L1`, 5 a 6). Acciones solo de `RPERM-003`; ninguna inventada. Ningún permiso es de categoría especial (`funcional.md §21.10`): no dispara `AR-09`.
+
+### 8.1 Recursos nuevos
+
+| Recurso | Módulo | Qué representa | Por qué así |
+|---------|--------|----------------|-------------|
+| `autorizado_recogida` | `fam_unit` | Personas de recogida (alta de terceros, fotografía), autorizaciones de tercero y puntuales, y lectura de la lista maestra | Es el dato maestro de `ADR-032`; separarlo de `familia`/`vinculo_tutor` evita que quien gestiona vínculos dé de alta a un extraño que se lleve a un menor |
+| `entrega_menor` | `prl` | Consulta de la lista en la puerta y registro de movimientos (salidas, entradas, fuera de horario) | El proceso operativo de `REQ-PRL-004`: conserjería lo necesita **sin** poder dar de alta autorizados |
+| `alerta_entrega` | `prl` | Alertas por persona no autorizada y su resolución | Abrir una alerta (conserjería) y cerrarla (dirección) pueden repartirse entre roles |
+
+### 8.2 Catálogo
+
+| `code` | `applicable_scopes` | *Endpoints* (`api.md §8`) |
+|--------|---------------------|---------------------------|
+| `autorizado_recogida.leer` | `['todos','unidad_familiar']` | `GET /pickup-authorizations`, `GET /pickup-authorizations/{id}`, `GET /pickup-lists/{…}`, `GET /pickup-persons/{…}/photo` |
+| `autorizado_recogida.crear` | `['todos']` | `POST /pickup-persons`, `POST /pickup-authorizations` |
+| `autorizado_recogida.actualizar` | `['todos']` | `GET /pickup-persons` (por documento), `GET /pickup-persons/{…}`, `PATCH /pickup-persons/{…}`, `PUT`/`DELETE …/photo`, `PATCH /pickup-authorizations/{id}` |
+| `autorizado_recogida.eliminar` | `['todos']` | `POST /pickup-authorizations/{id}/withdrawal` |
+| `entrega_menor.leer` (`prl`) | `['todos']` | `GET /door/students`, `GET /door/students/{…}/pickup-list`, `GET /student-movements*` |
+| `entrega_menor.crear` (`prl`) | `['todos']` | `POST /student-movements` |
+| `alerta_entrega.leer` (`prl`) | `['todos']` | `GET /pickup-alerts*` |
+| `alerta_entrega.crear` (`prl`) | `['todos']` | `POST /pickup-alerts` |
+| `alerta_entrega.actualizar` (`prl`) | `['todos']` | `PATCH /pickup-alerts/{id}` |
+
+**No se declaran**: `*.exportar` (ningún requisito; vía de fuga de fotos de terceros), `*.importar` (`1.24`), `unidad_familiar` en escrituras de `autorizado_recogida` (llega con `1.22`, `OPEN-FAM-UNIT-29`) ni en `entrega_menor`/`alerta_entrega` (que una familia vea las salidas de su hijo no lo pide `REQ-PRL-004`; se valora en `1.22`).
+
+### 8.3 Matriz
+
+| Recurso | crear | leer | actualizar | eliminar | exportar |
+|---------|-------|------|------------|----------|----------|
+| `autorizado_recogida` | `todos` | `todos`, `unidad_familiar` | `todos` | `todos` | — |
+| `entrega_menor` | `todos` | `todos` | — | — | — |
+| `alerta_entrega` | `todos` | `todos` | `todos` | — | — |
+
+**Resolutor `(unidad_familiar, autorizado_recogida)`**: autorizaciones y listas de los alumnos con vínculo **activo** con el tutor del sujeto (`§3.6`), sin documento de terceros (`RN-FAM-UNIT-91`). Entra en el mapa cerrado de `AR-10` con los modelos `PickupAuthorization` y `PickupPhoto` y un servicio sancionado (ampliación `L1` de `ADR-068`, **aprobada por el usuario el 2026-10-29**). La lista calculada lee vínculos, autorizaciones y fotos dentro de ese servicio sancionado, como `ImageConsentService` (`funcional.md §18` D-16).
+
+**Reglas que no son permiso** (se comprueban además): autorización del tutor principal y texto publicado (`RN-FAM-UNIT-85`), exclusión por revocación (`RN-FAM-UNIT-80`), recomprobación al registrar la salida (`RN-PRL-02`), método de verificación (`RN-PRL-06`). Ver el `reason` de una autorización exige ámbito `todos`; ver `ineffective_reason = persona_excluida`, `revocacion_tutor.leer`.
+
+**`prl` no necesita permisos de `fam_unit`**: lee la lista por `AuthorizedPickupList` con su propio permiso (`entrega_menor.leer`), y la interfaz audita la lectura. Así conserjería consulta sin poder gestionar autorizados.
+
+### 8.4 Siembra en roles predefinidos (`L9`, aprobada 2026-10-29)
+
+| Rol | Permisos | Ámbito |
+|-----|----------|--------|
+| `administrador_centro` | Todos los de §8.2 | `todos` |
+| `secretaria` | `autorizado_recogida.*`, `entrega_menor.leer`, `alerta_entrega.leer` | `todos` |
+| `direccion` | `autorizado_recogida.leer`, `entrega_menor.leer`, `alerta_entrega.*` | `todos` |
+| `conserjeria_pas` (rol predefinido de `ProvisionTenantDefaults`, `ADR-068` hecho 16) | `entrega_menor.leer`, `entrega_menor.crear`, `alerta_entrega.leer`, `alerta_entrega.crear` | `todos` |
+| `tutor_legal` | `autorizado_recogida.leer` | `unidad_familiar` |
+| Docentes, tutor de grupo, resto | — (`OPEN-FAM-UNIT-42`) | — |
+
+Conserjería **no** recibe `autorizado_recogida.crear`: una recogida no prevista pasa por secretaría o dirección, que la registran como autorización puntual por el canal `telefono` tras devolver la llamada al principal (`OPEN-FAM-UNIT-35`, aprobada; `RN-FAM-UNIT-85`). Siembra por `ProvisionTenantDefaults` y por un comando de `Core` para centros existentes (patrón `fam_unit:grant-permissions`; uno por módulo o ampliar el existente: decisión de implementación), idempotente y sin conceder nada si falta un permiso (#387). **MFA** (recomendación, no se aplica): un rol con `autorizado_recogida.crear` debería llevar `mfa_obligatorio`, porque puede añadir a un extraño a la lista de un menor.
