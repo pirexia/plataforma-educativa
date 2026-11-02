@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
  * ULID, nunca el nombre de la persona. Sustituir la foto es baja lógica de la anterior más alta de la nueva; el objeto
  * anterior lo purga el barrido de huérfanos (`datos.md §8.8`). El único parcial `(tenant_id, person_id) WHERE deleted_at IS
  * NULL` hace cumplir «una viva por persona» por índice y no por comprobación (dos subidas simultáneas romperían una
- * comprobación) y hace cumplir «una viva por persona» por índice; la clave foránea a `people` tiene además su índice completo (`AR-16`).
+ * comprobación); la clave foránea a `people` tiene además su índice completo (`AR-16`).
  *
  * Tabla nueva y vacía: `ADD CONSTRAINT` sin `NOT VALID` e índices sin `CONCURRENTLY` son inocuos. Sin `academic_year_id`
  * (`OPEN-FAM-UNIT-39`: hechos fechados), así que no aplica `AR-13`.

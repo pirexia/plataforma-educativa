@@ -47,7 +47,11 @@ final class PickupPersonService
             return new PickupPersonView($person, null, null, true, $outcome->dataMismatch, false);
         }
 
-        return $this->view($person, $outcome->reused, $outcome->dataMismatch);
+        // Una persona reutilizada devuelve su documento completo: es una lectura y se audita antes de devolverla. Una recién creada
+        // devuelve lo que el propio solicitante acaba de enviar, sin lectura de datos ajenos.
+        return $outcome->reused
+            ? $this->auditedView($person, true, $outcome->dataMismatch)
+            : $this->view($person, false, $outcome->dataMismatch);
     }
 
     /** `404` si la persona no existe en el centro o no es alcanzable por estos *endpoints*. */
@@ -93,15 +97,15 @@ final class PickupPersonService
     }
 
     /**
-     * La ficha de una persona con su documento **completo** (`GET /pickup-persons` con coincidencia y `GET /pickup-persons/{p}`):
+     * La ficha de una persona con su documento **completo** (`GET /pickup-persons` con coincidencia, `GET /pickup-persons/{p}`, la respuesta de `POST` con reutilización y las de `PATCH` y `PUT …/photo`, que también devuelven el documento completo):
      * es una lectura de datos de un tercero, así que escribe **antes** una fila `read` sobre la persona, sin valores
      * (`RN-FAM-UNIT-92` enmendada, `ADR-035`, `ADR-068 §5.4`); si la fila falla, no se devuelve nada.
      */
-    public function auditedView(PersonRef $person): PickupPersonView
+    public function auditedView(PersonRef $person, ?bool $reused = null, ?bool $dataMismatch = null): PickupPersonView
     {
         $this->audit->recordRead('person', $person->id, $person->publicId, ['purpose' => 'gestion', 'entries' => 1, 'photos' => 0]);
 
-        return $this->view($person);
+        return $this->view($person, $reused, $dataMismatch);
     }
 
     /** Teléfono, documento completo y fotografía de una persona, para `PickupPerson` (`api.md §8.1`). */

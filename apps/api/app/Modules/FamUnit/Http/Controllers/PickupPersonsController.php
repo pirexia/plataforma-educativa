@@ -50,7 +50,7 @@ class PickupPersonsController extends FamUnitController
     {
         $persons->find($personPublicId);
 
-        return new PickupPersonResource($persons->view($persons->correct($personPublicId, $request->payload())));
+        return new PickupPersonResource($persons->auditedView($persons->correct($personPublicId, $request->payload())));
     }
 
     public function putPhoto(UploadPickupPhotoRequest $request, string $personPublicId, PickupPersonService $persons, PickupPhotoService $photos): PickupPersonResource
@@ -58,7 +58,7 @@ class PickupPersonsController extends FamUnitController
         $ref = $persons->find($personPublicId);
         $photos->upload($ref, $request->photo());
 
-        return new PickupPersonResource($persons->view($ref));
+        return new PickupPersonResource($persons->auditedView($ref));
     }
 
     /** `GET …/photo`: URL firmada de caducidad corta, **auditada** (`read`) y con límite. */

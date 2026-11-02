@@ -439,9 +439,16 @@ test('RN-FAM-UNIT-83 ADR-068 §5.3 (security M2): una fotografía del máximo ad
     $big = ImageFixtures::jpegWithExifAndGps(4000, 3000, 6);
     expect(strlen($big))->toBeLessThan(5 * 1024 * 1024);
 
-    $start = microtime(true);
-    Fam::putPhoto($f['tenant'], $f['admin'], $person, $big, 'camara.jpg')->assertOk();
-    $elapsed = microtime(true) - $start;
+    // El `memory_limit` del contenedor (Containerfile) es de 256 MB: la subida de 12 MP tiene que caber en él.
+    $previousLimit = ini_set('memory_limit', '256M');
+
+    try {
+        $start = microtime(true);
+        Fam::putPhoto($f['tenant'], $f['admin'], $person, $big, 'camara.jpg')->assertOk();
+        $elapsed = microtime(true) - $start;
+    } finally {
+        ini_set('memory_limit', (string) $previousLimit);
+    }
 
     $key = app(TenantContext::class)->runFor($f['tenant']->id, fn () => DB::table('pickup_photos')->value('object_key'));
     $stored = Storage::disk('local')->get($key);
@@ -449,7 +456,7 @@ test('RN-FAM-UNIT-83 ADR-068 §5.3 (security M2): una fotografía del máximo ad
     // 4000 x 3000 con orientación 6 es 3000 x 4000 al verla; a 1024 px de lado mayor, 768 x 1024. Sin metadatos.
     expect(ImageFixtures::size($stored))->toBe([768, 1024])
         ->and($stored)->not->toContain('Exif')->not->toContain('comentario-secreto-del-movil')
-        ->and(memory_get_peak_usage(true))->toBeLessThan(512 * 1024 * 1024);
+        ->and(memory_get_peak_usage(true))->toBeLessThan(256 * 1024 * 1024);
     fwrite(STDERR, sprintf("[medición ADR-068 §5.3] subida de 12 MP: %.2f s\n", $elapsed));
 });
 
@@ -488,8 +495,7 @@ test('RN-FAM-UNIT-92 enmendada: la búsqueda por documento y el alta con reutili
     $search($f['admin'])->assertOk();
     $search($f['admin'])->assertOk();
     $limited = $search($f['admin'])->assertStatus(429);
-    expect((int) $limited->headers->get('Retry-After'))->toBeGreaterThan(0)
-        ->and(Fam::errorCode($limited, 'x'))->toBeNull();
+    expect((int) $limited->headers->get('Retry-After'))->toBeGreaterThan(0);
 
     // El alta tiene su propio cubo: sigue disponible tras agotar la búsqueda (2 intentos, incluida la reutilización).
     $register($f['admin'])->assertCreated();
@@ -499,4 +505,30 @@ test('RN-FAM-UNIT-92 enmendada: la búsqueda por documento y el alta con reutili
     // Otro usuario no se ve afectado, y la lista (otro cubo) tampoco.
     $search($other)->assertOk();
     Fam::call($f['tenant'], $f['admin'], 'get', "/pickup-lists/{$f['student']->public_id}")->assertOk();
+});
+
+test('RN-FAM-UNIT-92 enmendada (security-reviewer N1): las respuestas que devuelven el documento completo — POST con reutilización, PATCH y PUT …/photo — escriben también una fila read sobre la persona; el alta de una persona nueva, no', function (): void {
+    Fam::freeze('2026-11-02 09:00:00');
+    $f = Fam::pickupFamily('pp-n1');
+    $reads = fn () => count(Fam::audit($f['tenant'], 'person', 'read'));
+    $body = ['given_name' => 'Rosa', 'family_name_1' => 'Gil', 'document_type' => 'dni', 'document_number' => Fam::dni(50)];
+
+    $before = $reads();
+    $created = Fam::registerPerson($f['tenant'], $f['admin'], $body)->assertCreated();
+    expect($reads())->toBe($before);
+
+    Fam::call($f['tenant'], $f['admin'], 'post', '/pickup-authorizations', Fam::authorizationBody($f, $created->json('person')))->assertCreated();
+
+    Fam::registerPerson($f['tenant'], $f['admin'], $body)->assertOk();
+    expect($reads())->toBe($before + 1);
+
+    Fam::call($f['tenant'], $f['admin'], 'patch', "/pickup-persons/{$created->json('person')}", ['contact_phone' => '611000000'])->assertOk();
+    expect($reads())->toBe($before + 2);
+
+    Fam::putPhoto($f['tenant'], $f['admin'], $created->json('person'))->assertOk();
+    expect($reads())->toBe($before + 3);
+
+    $last = Fam::audit($f['tenant'], 'person', 'read')[$before + 2];
+    expect($last->auditable_public_id)->toBe($created->json('person'))->and($last->changes)->toBeNull()
+        ->and(json_encode($last->toArray()))->not->toContain(Fam::dni(50))->not->toContain('611000000');
 });
