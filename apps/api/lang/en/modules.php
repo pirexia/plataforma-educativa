@@ -6,4 +6,5 @@ return [
     'curso' => 'Academic year',
     'acad' => 'Academic management',
     'fam_unit' => 'Family unit',
+    'prl' => 'Door and release of minors',
 ];

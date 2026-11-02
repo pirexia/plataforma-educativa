@@ -6,4 +6,5 @@ return [
     'curso' => 'Schuljahr',
     'acad' => 'Schulverwaltung',
     'fam_unit' => 'Familieneinheit',
+    'prl' => 'Tür und Übergabe Minderjähriger',
 ];

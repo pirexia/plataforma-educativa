@@ -1,0 +1,88 @@
+<?php
+
+namespace App\Modules\Prl\Http\Controllers;
+
+use App\Modules\Prl\Application\AlertGuidance;
+use App\Modules\Prl\Application\PickupAlertService;
+use App\Modules\Prl\Application\PrlRefs;
+use App\Modules\Prl\Domain\Models\PickupAlert;
+use App\Modules\Prl\Http\Requests\IndexPickupAlertsRequest;
+use App\Modules\Prl\Http\Requests\StorePickupAlertRequest;
+use App\Modules\Prl\Http\Requests\UpdatePickupAlertRequest;
+use App\Modules\Prl\Http\Resources\PickupAlertResource;
+use App\Support\Api\PagePaginatedResponse;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+/**
+ * REQ-PRL/api.md §8.4 (1.14b-b, `REQ-PRL-004`, `RN-PRL-08`): alertas por persona no autorizada. Abrir: `alerta_entrega.crear`;
+ * consultar: `alerta_entrega.leer`; registrar la llamada al principal y cerrar: `alerta_entrega.actualizar`. Una alerta cerrada
+ * no se reabre (`409 prl.alert.closed`) ni se borra (no hay `DELETE`: es evidencia). El alta y el detalle llevan el protocolo
+ * y los teléfonos (calculados al leer, nunca guardados); el listado, no. **No envía nada** (`OPEN-FAM-UNIT-33`, hasta `1.19`).
+ */
+class PickupAlertsController extends PrlController
+{
+    public function store(StorePickupAlertRequest $request, PickupAlertService $service, AlertGuidance $guidance, PrlRefs $refs): JsonResponse
+    {
+        $result = $service->raise($request->payload(), $this->actor($request), $request->idempotencyKey());
+        $alert = $result['alert'];
+        $this->prepare([$alert], $refs);
+
+        $response = $this->detail($alert, $guidance)
+            ->response()
+            ->setStatusCode(201)
+            ->header('Location', url("/api/v1/pickup-alerts/{$alert->public_id}"));
+
+        return $result['replayed'] ? $response->header('Idempotency-Replayed', 'true') : $response;
+    }
+
+    public function index(IndexPickupAlertsRequest $request, PickupAlertService $service, PrlRefs $refs): JsonResponse
+    {
+        $page = $service->listing($request->filters(), $request->integer('per_page', 25))->withQueryString();
+        $this->prepare($page->items(), $refs);
+
+        return PagePaginatedResponse::make($page, PickupAlertResource::class);
+    }
+
+    public function show(Request $request, string $publicId, PickupAlertService $service, AlertGuidance $guidance, PrlRefs $refs): PickupAlertResource
+    {
+        $alert = $service->find($publicId);
+        $this->prepare([$alert], $refs);
+
+        return $this->detail($alert, $guidance);
+    }
+
+    public function update(UpdatePickupAlertRequest $request, string $publicId, PickupAlertService $service, AlertGuidance $guidance, PrlRefs $refs): PickupAlertResource
+    {
+        $service->find($publicId);
+        $alert = $service->update($publicId, $request->payload(), $this->actor($request));
+        $this->prepare([$alert], $refs);
+
+        return $this->detail($alert, $guidance);
+    }
+
+    /** La alerta con el protocolo y los teléfonos de la llamada manual (solo mientras está abierta). */
+    private function detail(PickupAlert $alert, AlertGuidance $guidance): PickupAlertResource
+    {
+        $open = $alert->status === PickupAlert::STATUS_OPEN;
+
+        return (new PickupAlertResource($alert))->withGuidance($open ? [
+            'protocol' => $guidance->protocol(),
+            'contacts' => $guidance->contactsFor((int) $alert->student_person_id),
+        ] : null);
+    }
+
+    /**
+     * @param  iterable<PickupAlert>  $rows
+     */
+    private function prepare(iterable $rows, PrlRefs $refs): void
+    {
+        $rows = is_array($rows) ? $rows : iterator_to_array($rows, false);
+
+        $refs->preloadPersons(array_map(static fn (PickupAlert $a): int => (int) $a->student_person_id, $rows));
+        $refs->preloadUsers(array_values(array_filter(array_merge(
+            array_map(static fn (PickupAlert $a): int => (int) $a->raised_by, $rows),
+            array_map(static fn (PickupAlert $a): ?int => $a->resolved_by === null ? null : (int) $a->resolved_by, $rows),
+        ), static fn (?int $id): bool => $id !== null)));
+    }
+}
