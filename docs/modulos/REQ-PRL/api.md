@@ -45,3 +45,18 @@ El servidor resuelve `basis` y la referencia (vínculo o autorización) con `Aut
 | `GET /door/students` | Máx. 20, sin paginar | Coincidencia de prefijo, después `display_name` |
 | `GET /student-movements` | Cursor | Fijo |
 | `GET /pickup-alerts` | Página | `raised_at` desc |
+
+### 8.6 Errores (filas de `prl`)
+
+`prl.movement.person_not_authorized` (`422`, campo `picked_up_by`; el mismo cuerpo para «no figura», «excluida por revocación» y «la persona no existe»), `prl.movement.verification_requires_document` (`422`, campo `verification_method`), `prl.movement.reason_required` (`422`, campo `off_schedule_reason` o `notes`), `prl.alert.closed` (`409`, campo `status`), `prl.idempotency_mismatch` (`409`, campo `idempotency_key`). Códigos de forma (`422`, `prl.validation.*`): `required`, `reference_invalid`, `enum_invalid`, `text_invalid`, `boolean_invalid`, `datetime_invalid`, `student_not_found`, `user_not_found`, `reference_not_found`, `entry_without_pickup`, `off_schedule_reason_unexpected`, `cursor_invalid`, `idempotency_key_invalid`, `field_not_editable`, `notes_without_resolution`, `empty_body`, `contact_time_out_of_range`. Los mensajes son las claves `lang/*/prl.php`.
+
+### 8.7 Implementación de `1.14b-b`
+
+> **Estado**: **IMPLEMENTADA** (2026-11-02). OpenAPI en `apps/api/openapi/paths/prl.yaml` (y los esquemas `StudentMovement`, `PickupAlert`, `DoorStudent`, `DoorPickupList`... de `openapi/components.yaml`); decisiones de detalle en `funcional.md` (`DP-1` a `DP-10`). Rutas con la cadena `RequireAuthenticatedUser` → `module-enabled:prl` → `permission:<código>`; ningún permiso de `prl` admite ámbito distinto de `todos`.
+
+- **`Idempotency-Key`** (`POST /student-movements`, `POST /pickup-alerts`): opcional, de 1 a 128 caracteres ASCII visibles, por usuario que registra (`funcional.md DP-4`). Repetición con el mismo cuerpo: `201` con el recurso original y `Idempotency-Replayed: true`.
+- **`StudentMovement`** añade `correction_reason` (`DP-7`). **`PickupAlert`** añade, en el alta y en el detalle **mientras está abierta**, `protocol` y `contacts` (`{ principal_phone, emergency_phone }`, calculados al leer, `DP-5`); el listado y la alerta cerrada no los llevan.
+- **`GET /door/students/{student_person}/pickup-list`**: lectura auditada de `fam_unit` con finalidad `puerta` (una fila `read` por consulta, `CA-PRL-010`) y el cubo de lectura compartido de `RN-FAM-UNIT-93` (`429` con `Retry-After`); `Cache-Control: no-store`; `404` si el alumno no existe o es de otro centro.
+- **`GET /door/students?q=`**: de 2 a 100 caracteres (`422` fuera de rango), máximo 20 resultados, por comienzo de nombre o apellidos sin distinguir mayúsculas.
+- **`GET /student-movements`**: cursor opaco y cifrado ligado a los filtros y al centro (`422` si no corresponde); `limit` de 1 a 200 (por defecto 50). **`GET /pickup-alerts`**: página de 25 por defecto (máximo 100).
+- **No existen** `PATCH`/`DELETE` de movimientos (`405`) ni `DELETE` de alertas (`405`): son evidencia.

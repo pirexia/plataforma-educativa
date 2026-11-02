@@ -57,3 +57,13 @@ Tabla ordinaria (con `deleted_at` por `INV-005`, pero sin *endpoint* de borrado:
 |--------|-------|----------|-------|
 | `StudentMovement` (`prl`) | `student_movement` | `Selective` | Códigos y fechas registrados; personas, usuarios, `notes` y `correction_reason` redactados |
 | `PickupAlert` (`prl`) | `pickup_alert` | `Selective` | `presenter_description` y `resolution_notes` redactados |
+
+### 8.8 Implementación de `1.14b-b`
+
+> **Estado**: **IMPLEMENTADA** (2026-11-02): migraciones `apps/api/app/Modules/Prl/Database/migrations/2026_11_02_100100_create_student_movements_table.php` y `..._100200_create_pickup_alerts_table.php` (aditivas, tablas nuevas y vacías: `ADD CONSTRAINT` sin `NOT VALID` e índices sin `CONCURRENTLY` son inocuos). `db-reviewer` obligatorio.
+
+- **`student_movements`**: `tenantTableAppendOnly()` (sin `deleted_at`, `updated_at` ni `created_by`/`updated_by`; `recorded_by` es el autor), `REVOKE UPDATE, DELETE` de `plataforma_app` **y** de `plataforma_platform`. Las claves foráneas a `guardian_student_links` y `pickup_authorizations` son `NO ACTION` (la acción por defecto; una autorización que respalda una salida no se borra) y están en base de datos como **evidencia**: ninguna columna guarda personas autorizadas ni el estado de una autorización (`CA-068-07`, comprobado por test). La FK de corrección (`corrects_movement_id`) se añade tras crear la tabla porque necesita el `UNIQUE (tenant_id, id)`.
+- **`CHECK`s** hechos cumplir por el motor (todos con test en `PrlSchemaTest`): `direction`, `off_schedule_reason`, fuera de horario con motivo, motivo `otro` con nota, `notes` ≤ 500, salida con persona que recoge, `basis`, `verification_method`, persona/base/método juntos o ninguno, base coherente con la referencia presente, corrección con motivo, idempotencia con *hash*.
+- **`pickup_alerts`**: `tenantTable()` (con `deleted_at` por `INV-005`, sin *endpoint* de borrado). Además del `CHECK` de cierre de `§8.5` se añade `pickup_alerts_open_without_resolution_check` (una abierta no lleva resolución, instante, autor ni notas de resolución; `funcional.md DP-6`).
+- **Índices**: los de `§8.6`, el único parcial de idempotencia de cada tabla (`(tenant_id, recorded_by | raised_by, idempotency_key) WHERE idempotency_key IS NOT NULL`) y, por `AR-16`, un índice **completo** (`indpred IS NULL`) con prefijo `(tenant_id, columna)` para cada clave foránea compuesta (comprobado en `PrlSchemaTest`).
+- **`down()`**: se niega (`RuntimeException`) si hay filas en cualquier centro (evidencia ante un incidente con un menor; `tests/Concurrency/PrlConcurrencyTest.php`).

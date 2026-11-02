@@ -147,7 +147,7 @@ Solo SPA (pantallas de personal de `funcional.md §10`): ninguna migración, var
 
 ## 12. Paso `1.14b` (autorizados y entrega de menores) — APROBADA (2026-10-29)
 
-> **Estado**: **APROBADA** (2026-10-29), con `ADR-068` ACEPTADA (`funcional.md §21.2`). **`1.14b-a` implementada (2026-11-02)**: lo de `fam_unit` y del núcleo (§12.1 a §12.4, salvo `prl`). **Verificado** (`funcional.md §22.1`): la subida `PUT` multipart en FrankenPHP, `gd` y `exif` en el contenedor reconstruido, el reprocesado de 12 MP en 0,38 s y la suite completa dentro del contenedor. **Sin probar**: un MinIO/S3 real (la imagen de MinIO no se puede descargar), la reversión en servidor y el planificador (issue #453). Lo de `prl` (protocolo, `student_movements`, `pickup_alerts`) sigue sin implementar.
+> **Estado**: **APROBADA** (2026-10-29), con `ADR-068` ACEPTADA (`funcional.md §21.2`). **`1.14b-a` implementada (2026-11-02)**: lo de `fam_unit` y del núcleo (§12.1 a §12.4, salvo `prl`); lo de `prl` (despliegue, verificación contra la API real) se **implementó en `1.14b-b` (2026-11-02)**: `docs/modulos/REQ-PRL/operacion.md`. **Verificado** (`funcional.md §22.1`): la subida `PUT` multipart en FrankenPHP, `gd` y `exif` en el contenedor reconstruido, el reprocesado de 12 MP en 0,38 s y la suite completa dentro del contenedor. **Sin probar**: un MinIO/S3 real (la imagen de MinIO no se puede descargar), la reversión en servidor y el planificador (issue #453). Lo de `prl` (protocolo, `student_movements`, `pickup_alerts`) sigue sin implementar.
 
 > **Referencia cruzada**: lo operativo del módulo `prl` (protocolo ante persona no autorizada, métricas de alertas) está también en `docs/modulos/REQ-PRL/operacion.md` (traslado de `1.14b-b`, `ADR-068 §5.1`).
 
