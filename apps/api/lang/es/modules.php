@@ -8,4 +8,5 @@ return [
     'curso' => 'Curso académico',
     'acad' => 'Gestión académica',
     'fam_unit' => 'Unidad familiar',
+    'prl' => 'Puerta y entrega de menores',
 ];

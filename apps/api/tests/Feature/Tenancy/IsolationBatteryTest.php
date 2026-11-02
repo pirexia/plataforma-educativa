@@ -20,6 +20,7 @@ use App\Modules\Curso\Domain\Models\AcademicYearReopening;
 use App\Modules\Curso\Domain\Models\YearRolloverItem;
 use App\Modules\FamUnit\Domain\Models\ImageConsentDecision;
 use App\Modules\FamUnit\Domain\Models\TermsAcceptance;
+use App\Modules\Prl\Domain\Models\StudentMovement;
 use App\Support\Tenancy\Tenant;
 use App\Support\Tenancy\TenantContext;
 use App\Support\Tenancy\TenantMigration;
@@ -188,6 +189,10 @@ test('los modelos Eloquent de app/Modules extienden TenantModel', function (): v
         // aceptaciones de las condiciones de uso (sin updated_by ni deleted_at, que TenantModel escribe).
         // Usa BelongsToTenant: RLS y el scope de tenant aplican igual.
         TermsAcceptance::class,
+        // REQ-PRL/datos.md §8.4 (paso 1.14b-b, RN-PRL-04, ADR-068 §5.1): mismo motivo — hechos append-only de los movimientos de
+        // alumnado en la puerta (sin updated_by ni deleted_at, que TenantModel escribe; `datos.md §8.4` manda `tenantTableAppendOnly()`
+        // y `AppendOnlyModel`). Usa BelongsToTenant: RLS y el scope de tenant aplican igual.
+        StudentMovement::class,
         // REQ-BO (1.6), RN-BO-01, datos.md §1: las nueve tablas de
         // plataforma de REQ-BO con modelo Eloquent no son de tenant en
         // absoluto — a diferencia de LoginAttempt/MfaReset (que SÍ son

@@ -108,10 +108,11 @@ services:
       # permisos). TODO: mover cuando sea editable.
       AUTH_SAML_ALLOW_INSECURE_METADATA: "true"
       # 1.14b-a (ADR-068 §5.3, ADR-013): almacenamiento privado S3 compatible (MinIO, perfil `full`). `PrivateObjectStore`
-      # rechaza un disco `local` fuera de los tests. Requiere `podman compose --profile full up -d minio` y crear el
-      # *bucket* `plataforma` una vez (SYSADMIN.md). Pertenece a apps/api/.env, no editable desde esta sesión (bloqueo
+      # rechaza un disco `local` en `production` y `staging` (ajuste del 2026-11-02): el perfil reducido de desarrollo
+      # (APP_ENV=local, sin MinIO) usa el disco local por defecto; con el perfil `full` se arranca con
+      # `FILESYSTEM_DISK=s3 podman compose --profile full up -d` y hay que crear el *bucket* `plataforma` una vez (SYSADMIN.md). Pertenece a apps/api/.env, no editable desde esta sesión (bloqueo
       # de permisos): mismo patrón de parche temporal que las variables de arriba. TODO: mover cuando sea editable.
-      FILESYSTEM_DISK: s3
+      FILESYSTEM_DISK: ${FILESYSTEM_DISK:-local}
       AWS_ENDPOINT: "http://minio:9000"
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -168,10 +169,11 @@ services:
       TENANCY_BASE_DOMAIN: plataforma.test
       DB_QUEUE_RETRY_AFTER: "180"
       # 1.14b-a (ADR-068 §5.3, ADR-013): almacenamiento privado S3 compatible (MinIO, perfil `full`). `PrivateObjectStore`
-      # rechaza un disco `local` fuera de los tests. Requiere `podman compose --profile full up -d minio` y crear el
-      # *bucket* `plataforma` una vez (SYSADMIN.md). Pertenece a apps/api/.env, no editable desde esta sesión (bloqueo
+      # rechaza un disco `local` en `production` y `staging` (ajuste del 2026-11-02): el perfil reducido de desarrollo
+      # (APP_ENV=local, sin MinIO) usa el disco local por defecto; con el perfil `full` se arranca con
+      # `FILESYSTEM_DISK=s3 podman compose --profile full up -d` y hay que crear el *bucket* `plataforma` una vez (SYSADMIN.md). Pertenece a apps/api/.env, no editable desde esta sesión (bloqueo
       # de permisos): mismo patrón de parche temporal que las variables de arriba. TODO: mover cuando sea editable.
-      FILESYSTEM_DISK: s3
+      FILESYSTEM_DISK: ${FILESYSTEM_DISK:-local}
       AWS_ENDPOINT: "http://minio:9000"
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}

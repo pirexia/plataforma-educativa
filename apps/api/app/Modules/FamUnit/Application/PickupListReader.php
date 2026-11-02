@@ -69,7 +69,7 @@ final class PickupListReader
         $grouped = [];
 
         foreach ($composed as $row) {
-            $grouped[$row['person_id']][] = new PickupBasis($row['basis'], $row['reference'], $row['relationship'], $row['valid_from'], $row['valid_until']);
+            $grouped[$row['person_id']][] = new PickupBasis($row['basis'], $row['reference'], $row['relationship'], $row['valid_from'], $row['valid_until'], $row['reference_id']);
         }
 
         $entries = [];

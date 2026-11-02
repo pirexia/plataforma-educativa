@@ -385,6 +385,16 @@ final class ModuleSubscriptionsService
         $inconsistencies = [];
 
         foreach ($this->catalog->all() as $descriptor) {
+            // Una incoherencia es un módulo **contratado** al que le falta una dependencia: uno que el centro no contrata no es
+            // incoherente por depender de otro que tampoco contrata (1.14b-b: `prl` depende de `fam_unit`, el primer par de
+            // módulos no esenciales del catálogo, y sin esta condición todo centro sin `prl` lo habría mostrado como incoherente).
+            /** @var ModuleSubscription|null $own */
+            $own = $subscriptions->get($descriptor->code);
+
+            if ($own === null || ! $own->enabled) {
+                continue;
+            }
+
             $missing = $this->missingDependenciesOf($descriptor, $subscriptions);
 
             if ($missing !== []) {

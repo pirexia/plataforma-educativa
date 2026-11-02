@@ -251,9 +251,10 @@ final class ProvisionTenantDefaults implements TenantProvisioner
      * textos legales; **solo `leer`** a secretaría, para listar la versión `retirada` que firmó una familia, `RN-FAM-UNIT-69`).
      * Los de `aceptacion_condiciones` entran con `1.14-c`. Con `1.14b-a` (`ADR-068 §6` `L9`, `permisos.md §8.4`) entra
      * `autorizado_recogida`: los cuatro al administrador y a secretaría, `leer` a dirección. **Conserjería no recibe
-     * `autorizado_recogida.crear`** (una recogida no prevista pasa por secretaría o dirección, `OPEN-FAM-UNIT-35`); sus
-     * permisos de la puerta (`entrega_menor.*`, `alerta_entrega.*`) llegan con el módulo `prl` (`1.14b-b`), porque un
-     * permiso sin *endpoint* invita a concederlo creyendo que hace algo. Ninguna regla de código compara estos códigos de
+     * `autorizado_recogida.crear`** (una recogida no prevista pasa por secretaría o dirección, `OPEN-FAM-UNIT-35`); los
+     * de la puerta (`entrega_menor.*`, `alerta_entrega.*`, módulo `prl`) llegan con `1.14b-b` (`REQ-PRL/permisos.md §8.4`):
+     * administrador todos, secretaría y dirección sus lecturas y dirección las alertas completas, y **conserjería** su
+     * consulta, registro de salidas y alertas (`conserjeria_pas`, rol predefinido). Ninguna regla de código compara estos códigos de
      * rol (`RN-PERM-46`).
      *
      * @var array<string, list<string>>
@@ -267,6 +268,8 @@ final class ProvisionTenantDefaults implements TenantProvisioner
             'texto_legal.leer', 'texto_legal.crear', 'texto_legal.actualizar', 'texto_legal.eliminar', 'texto_legal.publicar',
             'aceptacion_condiciones.leer',
             'autorizado_recogida.leer', 'autorizado_recogida.crear', 'autorizado_recogida.actualizar', 'autorizado_recogida.eliminar',
+            'entrega_menor.leer', 'entrega_menor.crear',
+            'alerta_entrega.leer', 'alerta_entrega.crear', 'alerta_entrega.actualizar',
         ],
         'secretaria' => [
             'familia.leer', 'familia.crear', 'familia.actualizar', 'familia.eliminar',
@@ -276,9 +279,17 @@ final class ProvisionTenantDefaults implements TenantProvisioner
             'texto_legal.leer',
             'aceptacion_condiciones.leer',
             'autorizado_recogida.leer', 'autorizado_recogida.crear', 'autorizado_recogida.actualizar', 'autorizado_recogida.eliminar',
+            'entrega_menor.leer', 'alerta_entrega.leer',
         ],
-        'direccion' => ['familia.leer', 'vinculo_tutor.leer', 'revocacion_tutor.leer', 'consentimiento_imagen.leer', 'autorizado_recogida.leer'],
+        'direccion' => [
+            'familia.leer', 'vinculo_tutor.leer', 'revocacion_tutor.leer', 'consentimiento_imagen.leer', 'autorizado_recogida.leer',
+            'entrega_menor.leer', 'alerta_entrega.leer', 'alerta_entrega.crear', 'alerta_entrega.actualizar',
+        ],
         'administrativo' => ['familia.leer', 'vinculo_tutor.leer'],
+        // `1.14b-b` (`REQ-PRL/permisos.md §8.4`): conserjería consulta la lista en la puerta, registra salidas y abre alertas, y
+        // lee las alertas; **sin** `autorizado_recogida.*` (no da de alta autorizados) ni `alerta_entrega.actualizar` (cerrar una
+        // alerta es de dirección).
+        'conserjeria_pas' => ['entrega_menor.leer', 'entrega_menor.crear', 'alerta_entrega.leer', 'alerta_entrega.crear'],
     ];
 
     /**

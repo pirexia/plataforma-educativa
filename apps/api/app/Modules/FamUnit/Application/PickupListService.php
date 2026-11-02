@@ -74,7 +74,7 @@ final class PickupListService
      * alumno estén vivos en `Core` (eso lo hace el llamador con `PersonDirectory`).
      *
      * @param  list<int>|null  $onlyPersonIds  restringe a esas personas (`authorizedAmong`, `isAuthorized`); `[]` ⇒ ninguna
-     * @return list<array{person_id: int, basis: string, reference: string, relationship: string, valid_from: ?string, valid_until: ?string}>
+     * @return list<array{person_id: int, basis: string, reference: string, reference_id: int, relationship: string, valid_from: ?string, valid_until: ?string}>
      */
     public function compose(int $studentPersonId, ?array $onlyPersonIds = null): array
     {
@@ -103,13 +103,13 @@ final class PickupListService
 
         $rows = DB::select(<<<SQL
             WITH bases AS (
-                SELECT g.person_id, 'tutor' AS basis, l.public_id AS reference, l.relationship AS relationship,
+                SELECT g.person_id, 'tutor' AS basis, l.public_id AS reference, l.id AS reference_id, l.relationship AS relationship,
                        NULL::date AS valid_from, NULL::date AS valid_until
                 FROM guardian_student_links l
                 JOIN guardians g ON g.tenant_id = l.tenant_id AND g.id = l.guardian_id AND g.deleted_at IS NULL
                 WHERE l.tenant_id = ? AND l.student_person_id = ? AND l.status = 'activo' AND l.deleted_at IS NULL
                 UNION ALL
-                SELECT a.person_id, CASE a.kind WHEN 'permanente' THEN 'tercero' ELSE 'puntual' END, a.public_id, a.relationship,
+                SELECT a.person_id, CASE a.kind WHEN 'permanente' THEN 'tercero' ELSE 'puntual' END, a.public_id, a.id, a.relationship,
                        a.valid_from, a.valid_until
                 FROM pickup_authorizations a
                 WHERE a.tenant_id = ? AND a.student_person_id = ? AND a.withdrawn_at IS NULL AND a.deleted_at IS NULL
@@ -117,7 +117,7 @@ final class PickupListService
                     OR (a.kind = 'puntual' AND a.valid_from = CAST(? AS date)))
                   AND {$photo}
             )
-            SELECT b.person_id, b.basis, b.reference, b.relationship, b.valid_from, b.valid_until
+            SELECT b.person_id, b.basis, b.reference, b.reference_id, b.relationship, b.valid_from, b.valid_until
             FROM bases b
             WHERE NOT {$revoked}{$only}
             ORDER BY CASE b.basis WHEN 'tutor' THEN 0 WHEN 'tercero' THEN 1 ELSE 2 END, b.person_id, b.reference
@@ -127,6 +127,7 @@ final class PickupListService
             'person_id' => (int) $row->person_id,
             'basis' => (string) $row->basis,
             'reference' => (string) $row->reference,
+            'reference_id' => (int) $row->reference_id,
             'relationship' => (string) $row->relationship,
             'valid_from' => $row->valid_from === null ? null : (string) $row->valid_from,
             'valid_until' => $row->valid_until === null ? null : (string) $row->valid_until,

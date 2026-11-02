@@ -41,6 +41,15 @@ interface AuthorizedPickupList
     public function isAuthorized(int $personId, int $studentPersonId): bool;
 
     /**
+     * Cómo figura la persona en la lista del alumno **ahora** —sus bases con la referencia de evidencia y si tiene
+     * fotografía—, o `null` si no figura (desconocida, borrada, de otro centro, excluida por revocación, `fam_unit` no
+     * contratado): el mismo predicado que `isAuthorized()` (`isAuthorized = grantFor !== null`). Una consulta; **sin
+     * auditoría de lectura** (no devuelve datos personales). Añadida en `1.14b-b` para que `prl` registre la base de una
+     * salida (`RN-PRL-05`) y exija el documento al tutor sin fotografía (`RN-PRL-06`) sin leer tablas de `fam_unit`.
+     */
+    public function grantFor(int $personId, int $studentPersonId): ?PickupGrant;
+
+    /**
      * Las entradas de la lista del alumno, tutores primero y después terceros y puntuales, por nombre. **Auditada**
      * (`read`, `ADR-068 §5.4`) y con límite (`RN-FAM-UNIT-93`; `429`): la fila de auditoría se escribe **antes** de
      * devolver nada, y si falla no sale ninguna URL firmada. La URL de la fotografía la firma `fam_unit`: el consumidor no

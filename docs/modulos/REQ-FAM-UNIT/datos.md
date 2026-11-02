@@ -249,13 +249,13 @@ La purga física de un tenant completo debe incluir estas **ocho** tablas (nueve
 
 - **Excepción consciente de D-12**: el índice `family_units (tenant_id, id, principal_guardian_id)` sobra para el motor (la comprobación de la FK busca en `guardians`, no en `family_units`) y existe solo para satisfacer `AR-16` (toda FK compuesta tiene su índice con ese prefijo). Se mantiene: no se relaja una regla de arquitectura sin aprobación del usuario. Seguimiento propuesto: matizar `AR-16` para FK cuya columna referenciada ya está cubierta por un único (`CHANGELOG.md`).
 - **Deuda de *contract*** (`CLAUDE.md §9`): la FK antigua `family_units_tenant_principal_guardian_foreign` y su índice `(tenant_id, principal_guardian_id)` quedan **redundantes** con la nueva. No se retiran en esta entrega: se retiran **dos versiones después**, cuando ninguna versión viva dependa de ellas.
-- La migración es reintentable y no destructiva (la FK ya validada no se toca; una `NOT VALID` solo reintenta `VALIDATE`; un índice `INVALID` residual se descarta y recrea) y toma `lock_timeout` de 5 s con restablecimiento. Pruebas: `FamUnitSchemaTest.php` y `tests/Concurrency/FamUnitMigrationRecoveryTest.php`.
+- La migración es reintentable y no destructiva (la FK ya validada no se toca; una `NOT VALID` solo reintenta `VALIDATE`; un índice `INVALID` residual se descarta y recrea) y toma `lock_timeout` de 5 s con restablecimiento. Pruebas: `FamUnitSchemaTest.php` y `apps/api/tests/Concurrency/FamUnitMigrationRecoveryTest.php`.
 
 ---
 
 ## 8. Paso `1.14b` (autorizados y entrega de menores) — APROBADA (2026-10-29)
 
-> **Estado**: **APROBADA** (2026-10-29), con `ADR-068` ACEPTADA (`funcional.md §21.2`; `OPEN-068-01` a `-08` y `OPEN-FAM-UNIT-27`, `-28`, `-29`, `-36` resueltas; ampliaciones `L1`, `L2`, `L10` de interés para este modelo). **`1.14b-a` IMPLEMENTADA (2026-11-02)**: `pickup_photos`, `pickup_authorizations` y la ampliación del `CHECK` de `terms_versions.kind` (migraciones `2026_10_30_100100` a `_100300`; las tablas de `prl` de §8.4 y §8.5 siguen sin implementar, `1.14b-b`). `db-reviewer` obligatorio en cada migración. Mismas convenciones que el resto del fichero: `tenantTable()`/`tenantTableAppendOnly()`, FK compuestas `(tenant_id, …)`, `TIMESTAMPTZ`, `text`, sin `ENUM`, `public_id` ULID en todo lo expuesto, sin `ON DELETE CASCADE`/`SET NULL`. **Ninguna tabla lleva `academic_year_id`** (`OPEN-FAM-UNIT-39`: hechos fechados; un curso cerrado no puede bloquear la puerta), así que no aplica `AR-13`. Sin importes.
+> **Estado**: **APROBADA** (2026-10-29), con `ADR-068` ACEPTADA (`funcional.md §21.2`; `OPEN-068-01` a `-08` y `OPEN-FAM-UNIT-27`, `-28`, `-29`, `-36` resueltas; ampliaciones `L1`, `L2`, `L10` de interés para este modelo). **`1.14b-a` IMPLEMENTADA (2026-11-02)**: `pickup_photos`, `pickup_authorizations` y la ampliación del `CHECK` de `terms_versions.kind` (migraciones `2026_10_30_100100` a `_100300`; las tablas de `prl` de §8.4 y §8.5 se **implementaron en `1.14b-b` (2026-11-02)**: `docs/modulos/REQ-PRL/datos.md`). `db-reviewer` obligatorio en cada migración. Mismas convenciones que el resto del fichero: `tenantTable()`/`tenantTableAppendOnly()`, FK compuestas `(tenant_id, …)`, `TIMESTAMPTZ`, `text`, sin `ENUM`, `public_id` ULID en todo lo expuesto, sin `ON DELETE CASCADE`/`SET NULL`. **Ninguna tabla lleva `academic_year_id`** (`OPEN-FAM-UNIT-39`: hechos fechados; un curso cerrado no puede bloquear la puerta), así que no aplica `AR-13`. Sin importes.
 
 ### 8.1 `fam_unit` · `pickup_photos` (`1.14b-a`)
 
@@ -297,46 +297,9 @@ Restricciones: `UNIQUE (tenant_id, student_person_id, person_id) WHERE kind = 'p
 
 *Expand* (implementado: `DROP` + `ADD … NOT VALID` en una transacción con `lock_timeout` de 5 s, `VALIDATE` aparte, reintentable; su `down()` se niega con versiones del tipo nuevo, que son evidencia): el `CHECK` de `kind` (`§1.8`) pasa de tres a cuatro valores con `autorizacion_recogida`, con el patrón `DROP CONSTRAINT` + `ADD CONSTRAINT … NOT VALID` + `VALIDATE` de `ADR-039 §4.6`. Sigue sin `requires_reacceptance` (el `CHECK` existente ya lo impide fuera de `condiciones_uso`). Numeración correlativa propia del tipo (`RN-FAM-UNIT-73`).
 
-### 8.4 `prl` · `student_movements` (`1.14b-b`) — solo anexar
+### 8.4 y 8.5 `prl` · `student_movements` y `pickup_alerts` (`1.14b-b`)
 
-`tenantTableAppendOnly()`, `AppendOnlyModel`, `REVOKE UPDATE, DELETE` para `plataforma_app` (`RN-PRL-04`).
-
-| Columna | Tipo | Nulo | Descripción |
-|---------|------|------|-------------|
-| `public_id` | ULID | No | |
-| `student_person_id` | `bigint` | No | FK compuesta → `people` |
-| `direction` | `text` | No | `CHECK IN ('entrada','salida')` |
-| `off_schedule` | `boolean` | No | Fuera de horario (`RN-PRL-07`) |
-| `off_schedule_reason` | `text` | Sí | `CHECK IN ('medico','familiar','actividad','retraso','otro')`; `CHECK (NOT off_schedule OR off_schedule_reason IS NOT NULL)` |
-| `notes` | `text` | Sí | `CHECK (length(notes) <= 500)`; obligatoria si `off_schedule_reason = 'otro'` |
-| `picked_up_by_person_id` | `bigint` | Sí | FK compuesta → `people`. Obligatoria en toda `salida` de `1.14b`: `CHECK (direction = 'entrada' OR picked_up_by_person_id IS NOT NULL)` (la salida autónoma de `1.14b-d` relajará el `CHECK` con su especificación) |
-| `basis` | `text` | Sí | `CHECK IN ('tutor','tercero','puntual')`; presente si y solo si hay persona que recoge |
-| `guardian_student_link_id` | `bigint` | Sí | FK compuesta → `guardian_student_links` (base `tutor`). La FK entre módulos está permitida en base de datos; la lectura va por interfaz (`INV-007`) |
-| `pickup_authorization_id` | `bigint` | Sí | FK compuesta → `pickup_authorizations` (base `tercero`/`puntual`). `CHECK` de coherencia entre `basis` y la referencia presente |
-| `verification_method` | `text` | Sí | `CHECK IN ('foto','documento','foto_y_documento')`; presente si hay persona que recoge |
-| `delivered_by` | `bigint` | No | FK compuesta → `users`: quién entrega |
-| `recorded_by` | `bigint` | No | FK compuesta → `users` |
-| `corrects_movement_id` | `bigint` | Sí | FK compuesta → `student_movements` (corrección, `RN-PRL-04`); `correction_reason` `text` obligatorio con ella |
-| `idempotency_key` | `text` | Sí | `UNIQUE (tenant_id, recorded_by, idempotency_key) WHERE idempotency_key IS NOT NULL` (`RN-PRL-09`), junto con el *hash* del cuerpo en `idempotency_body_hash` `text` |
-| `occurred_at` | `TIMESTAMPTZ` | No | Instante del servidor |
-
-### 8.5 `prl` · `pickup_alerts` (`1.14b-b`)
-
-| Columna | Tipo | Nulo | Descripción |
-|---------|------|------|-------------|
-| `public_id` | ULID | No | |
-| `student_person_id` | `bigint` | No | FK compuesta → `people` |
-| `kind` | `text` | No | `CHECK IN ('persona_no_autorizada')` en `1.14b`; `alumno_no_recogido` lo añade `1.14b-d` |
-| `presenter_description` | `text` | No | Nombre declarado y documento exhibido por quien se presenta; `CHECK (length(...) <= 500)` |
-| `status` | `text` | No | `CHECK IN ('abierta','cerrada')` |
-| `raised_by` / `raised_at` | `bigint` / `TIMESTAMPTZ` | No | FK → `users` |
-| `principal_contacted_at` | `TIMESTAMPTZ` | Sí | Llamada manual al tutor principal (`OPEN-FAM-UNIT-33`) |
-| `resolution` | `text` | Sí | `CHECK IN ('no_entregado','recogido_por_autorizado','autorizacion_puntual_registrada','otro')` |
-| `resolution_notes` | `text` | Sí | `CHECK (length(...) <= 1000)` |
-| `resolved_by` / `resolved_at` | `bigint` / `TIMESTAMPTZ` | Sí | `CHECK ((status = 'cerrada') = (resolution IS NOT NULL AND resolved_at IS NOT NULL AND resolved_by IS NOT NULL))` |
-| `idempotency_key`, `idempotency_body_hash` | `text` | Sí | Como §8.4 |
-
-Tabla ordinaria (con `deleted_at` por `INV-005`, pero sin *endpoint* de borrado: la alerta es evidencia).
+> **Trasladado a `docs/modulos/REQ-PRL/datos.md §8.4 y §8.5`** (módulo `prl`, `ADR-068 §5.1`), sin cambios de contenido. Esta referencia sustituye al texto original.
 
 ### 8.6 Índices
 

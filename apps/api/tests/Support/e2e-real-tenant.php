@@ -7,8 +7,11 @@
  * `tests/Concurrency/worker.php`.
  *
  * Uso (dentro del contenedor de la API, que es quien tiene la base):
- *   php tests/Support/e2e-real-tenant.php setup  [slug]   # imprime una línea JSON
+ *   php tests/Support/e2e-real-tenant.php setup  [slug] [door]   # imprime una línea JSON
  *   php tests/Support/e2e-real-tenant.php teardown [slug]
+ *
+ * Con `door` (1.14b-b, `REQ-PRL-004`, `apps/web/scripts/e2e-real-prl.sh`) el centro contrata además `fam_unit` y `prl` y deja dos
+ * usuarios sintéticos activos con los roles predefinidos `conserjeria_pas` y `secretaria` (sin MFA) y una contraseña común.
  *
  * El slug por defecto es `demo`, el centro para el que está configurado el
  * entorno de desarrollo (`VITE_API_URL=http://demo.plataforma.test:8000`).
@@ -30,6 +33,7 @@ if (PHP_SAPI !== 'cli') {
 
 use App\Models\ModuleSubscription;
 use App\Models\Person;
+use App\Models\Role;
 use App\Models\User;
 use App\Models\UserStatus;
 use App\Modules\Auth\Domain\Models\UserMfaExemption;
@@ -48,9 +52,12 @@ use Illuminate\Support\Str;
 const E2E_TENANT_MARK = 'Centro ficticio e2e (CA-PERM-133)';
 const E2E_ADMIN_EMAIL = 'e2e-admin@example.com';
 const E2E_TARGET_EMAIL = 'e2e-docente@example.com';
+const E2E_CONSERJE_EMAIL = 'e2e-conserje@example.com';
+const E2E_SECRETARIA_EMAIL = 'e2e-secretaria@example.com';
 
 $mode = $argv[1] ?? '';
 $slug = $argv[2] ?? 'demo';
+$door = ($argv[3] ?? '') === 'door';
 
 if (! in_array($mode, ['setup', 'teardown'], true) || preg_match('/^[a-z0-9][a-z0-9-]{0,39}$/', $slug) !== 1) {
     fwrite(STDERR, "Uso: php tests/Support/e2e-real-tenant.php setup|teardown [slug] (slug: minúsculas, dígitos y guiones, hasta 40)\n");
@@ -112,8 +119,11 @@ app(TenantProvisioner::class)->provision(
 );
 
 $password = 'E2e-'.Str::random(20);
+$staffPassword = 'E2e-'.Str::random(20);
 
-app(TenantContext::class)->runFor($tenant->id, function () use ($password): void {
+$students = [];
+
+app(TenantContext::class)->runFor($tenant->id, function () use ($password, $door, $staffPassword, &$students): void {
     // El administrador aprovisionado queda invitado (sin contraseña) y su rol
     // obliga a MFA: se activa con contraseña conocida y una excepción de MFA
     // viva (REQ-AUTH-003) para que el login real no pida inscribir un factor.
@@ -146,6 +156,34 @@ app(TenantContext::class)->runFor($tenant->id, function () use ($password): void
         'email' => 'e2e-docente2@example.com',
         'status' => UserStatus::Activo,
     ]);
+
+    if (! $door) {
+        return;
+    }
+
+    // REQ-PRL (1.14b-b): la puerta necesita `fam_unit` y `prl` contratados y personal con los roles predefinidos.
+    foreach (['fam_unit', 'prl'] as $module) {
+        ModuleSubscription::on('pgsql_platform')->create([
+            'module_code' => $module, 'enabled' => true, 'enabled_at' => now(), 'reason' => 'Test e2e de la puerta con datos sintéticos.',
+        ]);
+        Cache::forget("modules:{$module}:enabled");
+    }
+
+    foreach ([[E2E_CONSERJE_EMAIL, 'Carmen', 'Conserje', 'conserjeria_pas'], [E2E_SECRETARIA_EMAIL, 'Sara', 'Secretaria', 'secretaria']] as [$email, $given, $family, $roleCode]) {
+        $user = User::factory()->for(Person::factory()->create(['given_name' => $given, 'family_name_1' => $family]))->create([
+            'email' => $email,
+            'password' => $staffPassword,
+            'status' => UserStatus::Activo,
+            'email_verified_at' => now(),
+        ]);
+        $user->roles()->attach(Role::where('code', $roleCode)->firstOrFail()->id);
+    }
+
+    // No hay alta de alumno por API hasta `1.15` (`CLAUDE.md §11`): dos alumnos sintéticos, de nombre explícitamente ficticio
+    // (`REQ-SEED-005`), que el test añade a una unidad familiar por la API.
+    foreach ([['Lucía', 'Ficticia'], ['Mateo', 'Ficticio']] as [$given, $family]) {
+        $students[] = Person::factory()->create(['given_name' => $given, 'family_name_1' => $family, 'family_name_2' => 'Alumno'])->public_id;
+    }
 });
 
 echo json_encode([
@@ -156,4 +194,5 @@ echo json_encode([
     'admin_password' => $password,
     'target_email' => E2E_TARGET_EMAIL,
     'target_name' => 'Daniel Docente',
+    ...($door ? ['staff_password' => $staffPassword, 'conserje_email' => E2E_CONSERJE_EMAIL, 'secretaria_email' => E2E_SECRETARIA_EMAIL, 'student_1' => $students[0], 'student_2' => $students[1]] : []),
 ]), "\n";

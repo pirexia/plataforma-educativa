@@ -163,7 +163,9 @@ Ningún cambio de `mfa_required` en roles. Recomendación que no se aplica aquí
 
 ## 8. Paso `1.14b` (autorizados y entrega de menores) — APROBADA (2026-10-29)
 
-> **Estado**: **APROBADA** (2026-10-29), con `ADR-068` ACEPTADA (`funcional.md §21.2`). **`1.14b-a` implementada (2026-11-02)**: los cuatro permisos `autorizado_recogida.*`, su siembra (`administrador_centro`, `secretaria`, `direccion` y `tutor_legal`) y su resolutor `unidad_familiar`; los cinco de `prl` y la siembra de conserjería llegan con `1.14b-b` (`funcional.md §22` D-59). Aprobados el catálogo de nueve permisos (`L7`), la siembra de §8.4 (`L9`, `OPEN-FAM-UNIT-42`) y la entrada de `autorizado_recogida` en el mapa de `AR-10` (`L1`, 5 a 6). Acciones solo de `RPERM-003`; ninguna inventada. Ningún permiso es de categoría especial (`funcional.md §21.10`): no dispara `AR-09`.
+> **Estado**: **APROBADA** (2026-10-29), con `ADR-068` ACEPTADA (`funcional.md §21.2`). **`1.14b-a` implementada (2026-11-02)**: los cuatro permisos `autorizado_recogida.*`, su siembra (`administrador_centro`, `secretaria`, `direccion` y `tutor_legal`) y su resolutor `unidad_familiar`; los cinco de `prl` y la siembra de conserjería se **implementaron en `1.14b-b` (2026-11-02)**: `docs/modulos/REQ-PRL/permisos.md` (`funcional.md §22` D-59). Aprobados el catálogo de nueve permisos (`L7`), la siembra de §8.4 (`L9`, `OPEN-FAM-UNIT-42`) y la entrada de `autorizado_recogida` en el mapa de `AR-10` (`L1`, 5 a 6). Acciones solo de `RPERM-003`; ninguna inventada. Ningún permiso es de categoría especial (`funcional.md §21.10`): no dispara `AR-09`.
+
+> **Referencia cruzada**: la fuente de verdad de los recursos, permisos y siembra del módulo `prl` (`entrega_menor`, `alerta_entrega`) es `docs/modulos/REQ-PRL/permisos.md` (traslado de `1.14b-b`, `ADR-068 §5.1`); las filas de `prl` de las tablas de abajo se conservan solo como contexto.
 
 ### 8.1 Recursos nuevos
 
@@ -205,7 +207,7 @@ Ningún cambio de `mfa_required` en roles. Recomendación que no se aplica aquí
 
 ### 8.4 Siembra en roles predefinidos (`L9`, aprobada 2026-10-29)
 
-> **`1.14b-a` siembra solo los cuatro permisos `autorizado_recogida.*`** (administrador y secretaría, los cuatro; dirección y `tutor_legal`, `leer`). Las filas de `entrega_menor.*` y `alerta_entrega.*` de la tabla (`direccion`, `secretaria`, `conserjeria_pas`, `administrador_centro`) **no se siembran todavía**: esos permisos no existen sin el módulo `prl` y se declaran y siembran en `1.14b-b` (`funcional.md §22` D-59). Conserjería no recibe nada hasta entonces.
+> **`1.14b-a` siembra solo los cuatro permisos `autorizado_recogida.*`** (administrador y secretaría, los cuatro; dirección y `tutor_legal`, `leer`). Las filas de `entrega_menor.*` y `alerta_entrega.*` de la tabla (`direccion`, `secretaria`, `conserjeria_pas`, `administrador_centro`) **no se siembran todavía**: esos permisos no existen sin el módulo `prl` y se declaran y siembran en `1.14b-b` (`funcional.md §22` D-59). Conserjería no recibe nada hasta entonces. **(Cumplido en `1.14b-b`: `docs/modulos/REQ-PRL/permisos.md §8.5`.)**
 
 | Rol | Permisos | Ámbito |
 |-----|----------|--------|

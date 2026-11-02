@@ -6,4 +6,5 @@ return [
     'curso' => 'Année scolaire',
     'acad' => 'Gestion académique',
     'fam_unit' => 'Unité familiale',
+    'prl' => 'Porte et remise des mineurs',
 ];

@@ -190,6 +190,20 @@ Mismo mecanismo que §2.3, protocolo distinto: cada centro cataloga su propio pr
 
 La revisión de código se apoya en Codex, servicio de **OpenAI**, que recibe el código del proyecto (y puede leer el árbol de trabajo). Es un tercero que actúa en el entorno de desarrollo, **no** un encargado de tratamiento de datos de alumnos, familias o personal, porque en desarrollo no hay datos reales (`ADR-030`, `REQ-SEED-005`: `@example.com`, documentos con dígito de control inválido, sin fotografías de personas reales). Si apareciera un dato personal real en la máquina o el repositorio, Codex se retira en el acto (`ADR-050 §5.3` punto 2). Condiciones previas: **`OPEN-069-01` confirmada por el usuario el 2026-11-02** (entrenamiento con los datos de la cuenta desactivado; declaración del usuario) y, antes de H0, decisión propia sobre su continuidad (`OPEN-069-06`). Si en el futuro se tratara como encargado, entraría en el RAT de la sección 3 y en el contrato de encargo (`OPEN-07`).
 
+### 2.13 Puerta y entrega de menores: movimientos y alertas (`REQ-PRL-004`, paso 1.14b-b)
+
+`prl` guarda **hechos** sobre menores y sobre las personas que los recogen: `student_movements` (entrada o salida de un alumno, quién lo recogió, con qué base figuraba —tutor, tercero o puntual—, cómo se verificó su identidad —foto, documento—, quién entregó y quién registró, y el instante) y `pickup_alerts` (incidente cuando se presenta alguien que no figura: descripción de quien se presenta, nombre y documento declarados, llamada al tutor principal y resolución). No guardan copia de la lista de autorizados, de teléfonos ni de documentos: solo referencias de evidencia.
+
+| Aspecto | Decisión |
+|---------|----------|
+| Datos | **De menores** (el alumno) y **de terceros** (la persona que recoge; el presentado en una alerta, en texto libre de hasta 500 caracteres que puede contener un documento). No son de categoría especial |
+| Finalidad | Trazabilidad ante un incidente con un menor (`REQ-PRL-004`); no se usa para ningún otro fin ni se exporta (no hay exportación) |
+| Auditoría | Alta y resolución con política `Selective` (sin nombres, notas ni descripciones). Las **lecturas** con datos de personas dejan una fila `read` sin valores (`puerta`, `puerta_alerta`, `puerta_historial`) y están limitadas a 300 por hora y usuario |
+| Retención | **Evidencia: no se borran** (`student_movements` y `pickup_alerts` no tienen *endpoint* de borrado, el rol de la aplicación no puede actualizar ni borrar los movimientos y sus `down()` se niegan con filas). El plazo lo fijará el catálogo de `1.23b` (`OPEN-FAM-UNIT-37`) |
+| Tensión con la supresión | Un tercero que ejerza el derecho de supresión pide borrar datos que aquí son evidencia inmutable: hay que razonarlo en `1.23b` (conservar bloqueado mientras dure la obligación de conservar los registros y **anonimizar** la identidad en `people` al vencer; `ADR-004`). Hoy no hay canal propio |
+| Base legal e información al tercero (art. 6 y 14) | **Sin resolver** (`OPEN-FAM-UNIT-36`): condición previa a datos reales. Con datos de `REQ-SEED` no bloquea |
+| Copias de seguridad | Restaurar a un punto anterior a una retirada o revocación devolvería a alguien a la lista de un menor (`OPEN-FAM-UNIT-21`, `1.26`) |
+
 ## 3. Registro de Actividades de Tratamiento (RAT) — plantilla
 
 Se completa cuando exista entidad jurídica responsable del tratamiento (`OPEN-07`). Estructura prevista:

@@ -72,29 +72,38 @@ test('INV-001: sin centro en curso no se escribe', function (): void {
     expect(fn () => app(PrivateObjectStore::class)->put('fam-unit/pickup-photos', 'x', 'jpg'))->toThrow(TenantContextMissing::class);
 });
 
-test('ADR-068 §5.3 ADR-013: fuera de los tests, un disco local es un error (fallo en cerrado) en escribir, firmar, leer, borrar y listar', function (): void {
+test('ADR-068 §5.3 ADR-013 (ajuste del 2026-11-02): un disco local es un error (fallo en cerrado) en production y staging en escribir, firmar, leer, borrar y listar; en local y testing es válido; un disco S3 vale siempre', function (): void {
     app(TenantContext::class)->enter($this->a->id);
     $store = app(PrivateObjectStore::class);
     $key = $store->put('fam-unit/pickup-photos', 'x', 'jpg');
     $original = app()->environment();
-    app()['env'] = 'local';
 
     try {
-        expect(fn () => $store->put('fam-unit/pickup-photos', 'x', 'jpg'))->toThrow(RuntimeException::class, 'disco local')
-            ->and(fn () => $store->temporaryUrl($key, now()->addMinutes(5)))->toThrow(RuntimeException::class, 'disco local')
-            ->and(fn () => $store->get($key))->toThrow(RuntimeException::class, 'disco local')
-            ->and(fn () => $store->delete($key))->toThrow(RuntimeException::class, 'disco local')
-            ->and(fn () => $store->keysIn('fam-unit/pickup-photos'))->toThrow(RuntimeException::class, 'disco local');
-    } finally {
-        app()['env'] = $original;
-    }
+        foreach (['production', 'staging'] as $environment) {
+            app()['env'] = $environment;
 
-    // Un disco S3 no se rechaza (la comprobación es por controlador, no por entorno): se configura uno cualquiera de ese tipo.
-    config(['filesystems.disks.s3_probe' => ['driver' => 's3', 'key' => 'k', 'secret' => 's', 'region' => 'us-east-1', 'bucket' => 'b', 'endpoint' => 'http://127.0.0.1:1', 'use_path_style_endpoint' => true], 'files.disk' => 's3_probe']);
-    app()['env'] = 'local';
+            expect(fn () => $store->put('fam-unit/pickup-photos', 'x', 'jpg'))->toThrow(RuntimeException::class, 'disco local')
+                ->and(fn () => $store->temporaryUrl($key, now()->addMinutes(5)))->toThrow(RuntimeException::class, 'disco local')
+                ->and(fn () => $store->get($key))->toThrow(RuntimeException::class, 'disco local')
+                ->and(fn () => $store->delete($key))->toThrow(RuntimeException::class, 'disco local')
+                ->and(fn () => $store->keysIn('fam-unit/pickup-photos'))->toThrow(RuntimeException::class, 'disco local');
+        }
 
-    try {
-        expect($store->temporaryUrl($key, now()->addMinutes(5)))->toStartWith('http://127.0.0.1:1/b/tenants/');
+        foreach (['local', 'testing'] as $environment) {
+            app()['env'] = $environment;
+
+            expect($store->get($key))->toBe('x')
+                ->and($store->keysIn('fam-unit/pickup-photos'))->toContain($key);
+        }
+
+        // Un disco S3 no se rechaza en ningún entorno (la comprobación es por controlador): se configura uno cualquiera de ese tipo.
+        config(['filesystems.disks.s3_probe' => ['driver' => 's3', 'key' => 'k', 'secret' => 's', 'region' => 'us-east-1', 'bucket' => 'b', 'endpoint' => 'http://127.0.0.1:1', 'use_path_style_endpoint' => true], 'files.disk' => 's3_probe']);
+
+        foreach (['production', 'staging', 'local', 'testing'] as $environment) {
+            app()['env'] = $environment;
+
+            expect($store->temporaryUrl($key, now()->addMinutes(5)))->toStartWith('http://127.0.0.1:1/b/tenants/');
+        }
     } finally {
         app()['env'] = $original;
     }

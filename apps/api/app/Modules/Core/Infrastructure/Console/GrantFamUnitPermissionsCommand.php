@@ -14,7 +14,7 @@ use Illuminate\Console\Command;
 /**
  * REQ-FAM-UNIT/operacion.md §3, permisos.md §4 (1.14-a, 1.14-b, `OPEN-FAM-UNIT-10`, `-22`): siembra de los permisos de
  * `familia`, `vinculo_tutor`, `revocacion_tutor`, `consentimiento_imagen`, `texto_legal`, `aceptacion_condiciones` y (1.14b-a)
- * `autorizado_recogida` en los centros que ya existían. `tenant:provision-defaults` solo corre en el
+ * `autorizado_recogida` y (1.14b-b, módulo `prl`) `entrega_menor` y `alerta_entrega` —incluida la clave `conserjeria_pas`— en los centros que ya existían. `tenant:provision-defaults` solo corre en el
  * alta de un centro nuevo; sin este comando, el personal de un centro existente ve un `403` al gestionar familias.
  *
  * Concede, en cada centro vivo, exactamente las concesiones de `ProvisionTenantDefaults::FAMILY_PERMISSION_GRANTS`

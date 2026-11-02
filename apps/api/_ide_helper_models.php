@@ -3492,6 +3492,117 @@ namespace App\Modules\FamUnit\Domain\Models{
 	class IdeHelperPickupAuthorization {}
 }
 
+namespace App\Modules\Prl\Domain\Models{
+/**
+ * REQ-PRL/datos.md §8.4 (1.14b-b, `REQ-PRL-004`). Un movimiento de un alumno en la puerta (solo anexar).
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $student_person_id
+ * @property string $direction
+ * @property bool $off_schedule
+ * @property string|null $off_schedule_reason
+ * @property string|null $notes
+ * @property int|null $picked_up_by_person_id
+ * @property int|null $guardian_student_link_id
+ * @property int|null $pickup_authorization_id
+ * @property string|null $basis
+ * @property string|null $verification_method
+ * @property int $delivered_by
+ * @property int $recorded_by
+ * @property int|null $corrects_movement_id
+ * @property string|null $correction_reason
+ * @property string|null $idempotency_key
+ * @property string|null $idempotency_body_hash
+ * @property \Illuminate\Support\Carbon $occurred_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement whereStudentPersonId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement whereDirection($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement whereOffSchedule($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement whereOffScheduleReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement whereNotes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement wherePickedUpByPersonId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement whereGuardianStudentLinkId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement wherePickupAuthorizationId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement whereBasis($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement whereVerificationMethod($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement whereDeliveredBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement whereRecordedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement whereCorrectsMovementId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement whereCorrectionReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement whereIdempotencyKey($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement whereIdempotencyBodyHash($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|StudentMovement whereOccurredAt($value)
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperStudentMovement {}
+}
+
+namespace App\Modules\Prl\Domain\Models{
+/**
+ * REQ-PRL/datos.md §8.5 (1.14b-b, `REQ-PRL-004`). Alerta por persona no autorizada en la entrega.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property string $public_id
+ * @property int $student_person_id
+ * @property string $kind
+ * @property string $presenter_description
+ * @property string $status
+ * @property int $raised_by
+ * @property \Illuminate\Support\Carbon $raised_at
+ * @property \Illuminate\Support\Carbon|null $principal_contacted_at
+ * @property string|null $resolution
+ * @property string|null $resolution_notes
+ * @property int|null $resolved_by
+ * @property \Illuminate\Support\Carbon|null $resolved_at
+ * @property string|null $idempotency_key
+ * @property string|null $idempotency_body_hash
+ * @property int|null $created_by
+ * @property int|null $updated_by
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert onlyTrashed()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert whereTenantId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert wherePublicId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert whereStudentPersonId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert whereKind($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert wherePresenterDescription($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert whereStatus($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert whereRaisedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert whereRaisedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert wherePrincipalContactedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert whereResolution($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert whereResolutionNotes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert whereResolvedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert whereResolvedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert whereIdempotencyKey($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert whereIdempotencyBodyHash($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert whereCreatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert whereUpdatedBy($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert whereDeletedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert withTrashed(bool $withTrashed = true)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|PickupAlert withoutTrashed()
+ * @mixin \Eloquent
+ */
+	#[\AllowDynamicProperties]
+	class IdeHelperPickupAlert {}
+}
+
 namespace App\Support\Tenancy{
 /**
  * Raíz del aislamiento (ADR-033 §7): no lleva tenant_id, se identifica a sí

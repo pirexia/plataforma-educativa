@@ -34,6 +34,10 @@ tags:
   - name: FamUnit / Vínculos
   - name: FamUnit / Consentimiento de imagen
   - name: FamUnit / Textos legales
+  - name: FamUnit / Autorizaciones de recogida
+  - name: Prl / Puerta
+  - name: Prl / Movimientos
+  - name: Prl / Alertas
   - name: Auth / Sesión
   - name: Auth / Canje
   - name: Auth / Recuperación
@@ -458,3 +462,15 @@ paths:
     $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1pickup-authorizations~1{publicId}~1withdrawal"
   /api/v1/pickup-lists/{studentPersonPublicId}:
     $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1pickup-lists~1{studentPersonPublicId}"
+  /api/v1/door/students:
+    $ref: "openapi/paths/prl.yaml#/paths/~1api~1v1~1door~1students"
+  /api/v1/door/students/{studentPersonPublicId}/pickup-list:
+    $ref: "openapi/paths/prl.yaml#/paths/~1api~1v1~1door~1students~1{studentPersonPublicId}~1pickup-list"
+  /api/v1/student-movements:
+    $ref: "openapi/paths/prl.yaml#/paths/~1api~1v1~1student-movements"
+  /api/v1/student-movements/{publicId}:
+    $ref: "openapi/paths/prl.yaml#/paths/~1api~1v1~1student-movements~1{publicId}"
+  /api/v1/pickup-alerts:
+    $ref: "openapi/paths/prl.yaml#/paths/~1api~1v1~1pickup-alerts"
+  /api/v1/pickup-alerts/{publicId}:
+    $ref: "openapi/paths/prl.yaml#/paths/~1api~1v1~1pickup-alerts~1{publicId}"
