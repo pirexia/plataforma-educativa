@@ -1,6 +1,6 @@
 # SECURITY.md
 
-> **Versión 0.3.16** · 2026-10-28
+> **Versión 0.3.17** · 2026-11-02
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6), no solo al final. Sin datos reales todavía (`ADR-030`, entorno de desarrollo en WSL2).
 
 ---
@@ -67,6 +67,10 @@ Un contacto de seguridad dedicado (email, política de divulgación responsable 
 **Por qué es segura sin CSRF**: la mitigación no es una excepción "confiada", es una sustitución equivalente. El ACS solo acepta una aserción cuyo `InResponseTo` case con una fila de `saml_auth_requests` que la propia aplicación emitió, que sigue viva (no caducada) y que no ha sido consumida — el consumo es atómico a nivel de SQL (`UPDATE ... WHERE consumed_at IS NULL` comprobando la fila afectada dentro de la misma transacción que valida la aserción, nunca lectura-luego-escritura), así que dos peticiones concurrentes con la misma aserción no pueden ganar las dos. Sin esa fila previa, la aserción se rechaza — es lo que excluye el SSO iniciado por el propio IdP (`ADR-043 §10.9` decisión 4): aceptarlo habría significado aceptar un `POST` sin CSRF y sin nada contra qué correlacionar, es decir, *login CSRF* real y sin mitigación.
 
 **A esto se suma**: la firma de la aserción se verifica siempre (§2, fila "SSO institucional SAML 2.0"), y el proveedor —y por tanto el certificado admisible— se resuelve desde la propia ruta del ACS, nunca desde el contenido del mensaje.
+
+### 2.2 · Revisión externa con Codex (OpenAI): sale código, nunca datos reales
+
+La revisión de código usa Codex (`openai/codex-plugin-cc`, `ADR-049`, `ADR-050`, `ADR-069`), un servicio de **OpenAI**: el código del diff y lo que Codex lea del árbol de trabajo salen de la máquina de desarrollo hacia un tercero. Garantías: solo lectura (sin `rescue`, `transfer` ni puerta `Stop`), lista `deny` de `.claude/settings.json` como filtro de lo que sale (`ADR-049 §5.3`), **ningún dato real** en el árbol (`ADR-030`, `REQ-SEED-005`; los fixtures no llevan imágenes de personas reales) y retirada inmediata si aparece un dato personal real (hito H0, `ADR-050 §5.3`). **Condición `OPEN-069-01` confirmada por el usuario el 2026-11-02** (entrenamiento con sus datos desactivado en su cuenta de ChatGPT/OpenAI; declaración del usuario, no verificable desde el proyecto). Si deja de cumplirse, se retira Codex (`ADR-050 §5.3`). Sus hallazgos son candidatos sin autoridad de bloqueo; la revisión de convenciones de seguridad del proyecto sigue en `security-reviewer`.
 
 ## 3. Qué falta todavía (no es una omisión, es el orden del plan)
 

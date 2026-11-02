@@ -1,6 +1,6 @@
 # PRIVACY.md
 
-> **Versión 0.3.11** · 2026-10-28
+> **Versión 0.3.12** · 2026-11-02
 > Documento vivo: se actualiza en cada fase (`CLAUDE.md` §6). Base del Registro de Actividades de Tratamiento (RAT) exigido por el RGPD — hoy es un **esqueleto**, no un RAT completo: varias secciones dependen de decisiones que todavía no se han tomado (`OPEN-07`, entidad jurídica y contrato de encargado de tratamiento). No se rellenan con suposiciones (`CLAUDE.md` §0/§11).
 
 ---
@@ -185,6 +185,10 @@ Mismo mecanismo que §2.3, protocolo distinto: cada centro cataloga su propio pr
 | Derechos del tercero | Corregir sus datos: `PATCH /pickup-persons/{person}` (solo personas sin cuenta). **Supresión**: no tiene canal propio en `1.14b`; depende de la retención de `1.23b` (retira la autorización y la foto y anonimiza `people` cuando venza la obligación de conservar los registros que la referencian) |
 | Base legal e información (art. 6 y 14) | **Sin resolver**: quién informa al tercero, con qué texto y si hace falta su consentimiento para la fotografía es una cuestión jurídica (`OPEN-FAM-UNIT-36`). El texto `autorizacion_recogida` recoge la declaración del tutor. **Condición previa a cargar datos reales** (no a la implementación con datos de `REQ-SEED`) |
 | Copias de seguridad | Restaurar a un punto anterior a una retirada o a una revocación devolvería a alguien a la lista de un menor (`OPEN-FAM-UNIT-21`, para `1.26`) |
+
+### 2.12 Herramienta de desarrollo con tercero: Codex (OpenAI) recibe código, nunca datos personales (`ADR-049`, `ADR-050`, `ADR-069`)
+
+La revisión de código se apoya en Codex, servicio de **OpenAI**, que recibe el código del proyecto (y puede leer el árbol de trabajo). Es un tercero que actúa en el entorno de desarrollo, **no** un encargado de tratamiento de datos de alumnos, familias o personal, porque en desarrollo no hay datos reales (`ADR-030`, `REQ-SEED-005`: `@example.com`, documentos con dígito de control inválido, sin fotografías de personas reales). Si apareciera un dato personal real en la máquina o el repositorio, Codex se retira en el acto (`ADR-050 §5.3` punto 2). Condiciones previas: **`OPEN-069-01` confirmada por el usuario el 2026-11-02** (entrenamiento con los datos de la cuenta desactivado; declaración del usuario) y, antes de H0, decisión propia sobre su continuidad (`OPEN-069-06`). Si en el futuro se tratara como encargado, entraría en el RAT de la sección 3 y en el contrato de encargo (`OPEN-07`).
 
 ## 3. Registro de Actividades de Tratamiento (RAT) — plantilla
 
