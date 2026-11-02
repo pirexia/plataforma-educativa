@@ -467,7 +467,7 @@ test('CA-ACAD-087 RN-ACAD-53 ADR-062: una etiqueta sin el idioma por defecto es 
     $updated = Scales::audit($tenant, 'grading_scale_value', 'updated');
 
     expect($updated)->toHaveCount(1)
-        ->and(array_keys($updated[0]->changes))->toEqualCanonicalizing(['label_translations.es-ES', 'label_translations.fr'])
+        ->and(array_values(array_diff(array_keys($updated[0]->changes), ['updated_at', 'updated_by'])))->toEqualCanonicalizing(['label_translations.es-ES', 'label_translations.fr'])
         ->and($updated[0]->changes['label_translations.fr'])->toEqual(['from' => null, 'to' => 'Insuffisant']);
 
     // El idioma de la persona (fr) manda: la etiqueta con traducción sale en fr y la que no la tiene cae al idioma por defecto del centro (ADR-062 §5.3).
