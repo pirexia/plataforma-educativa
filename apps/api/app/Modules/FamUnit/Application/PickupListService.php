@@ -10,8 +10,8 @@ use App\Support\Api\ApiException;
 use App\Support\Authorization\PermissionDecision;
 use App\Support\Authorization\ScopedQuery;
 use App\Support\Tenancy\TenantContext;
-use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -236,11 +236,11 @@ final class PickupListService
         $result = [];
 
         foreach ($rows as $a) {
-            $from = $a->valid_from?->toDateString();
+            $from = $a->valid_from->toDateString();
             $until = $a->valid_until?->toDateString();
             $inWindow = $a->kind === PickupAuthorization::KIND_PUNCTUAL
                 ? $from === $today
-                : $from !== null && $from <= $today && ($until === null || $until >= $today);
+                : $from <= $today && ($until === null || $until >= $today);
 
             $reason = match (true) {
                 $a->withdrawn_at !== null => 'retirada',
@@ -260,7 +260,7 @@ final class PickupListService
      * Alta de la autorización ya validada por `PickupAuthorizationService` (`RN-FAM-UNIT-85`, `-86`, `-88`). Se rellena por
      * instancia (AR-15). Las violaciones de los dos únicos parciales las traduce quien llama.
      *
-     * @param  array{student_person_id: int, person_id: int, relationship: string, kind: string, valid_from: string, valid_until: ?string, reason: ?string, authorized_by_guardian_id: int, terms_version_id: int, channel: string, authorized_at: CarbonImmutable}  $values
+     * @param  array{student_person_id: int, person_id: int, relationship: string, kind: string, valid_from: string, valid_until: ?string, reason: ?string, authorized_by_guardian_id: int, terms_version_id: int, channel: string, authorized_at: Carbon}  $values
      * @param  array{ip: ?string, user_agent: ?string}  $client
      */
     public function create(array $values, User $actor, array $client): PickupAuthorization
@@ -270,8 +270,8 @@ final class PickupListService
         $authorization->person_id = $values['person_id'];
         $authorization->relationship = $values['relationship'];
         $authorization->kind = $values['kind'];
-        $authorization->valid_from = $values['valid_from'];
-        $authorization->valid_until = $values['valid_until'];
+        $authorization->valid_from = Carbon::parse($values['valid_from']);
+        $authorization->valid_until = $values['valid_until'] === null ? null : Carbon::parse($values['valid_until']);
         $authorization->reason = $values['reason'];
         $authorization->authorized_by_guardian_id = $values['authorized_by_guardian_id'];
         $authorization->terms_version_id = $values['terms_version_id'];

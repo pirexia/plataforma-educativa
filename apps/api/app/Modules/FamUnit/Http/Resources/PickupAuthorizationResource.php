@@ -34,10 +34,10 @@ class PickupAuthorizationResource extends JsonResource
         $data = [
             'public_id' => $this->public_id,
             'student_person' => $refs->person((int) $this->student_person_id)?->publicId,
-            'person' => ['public_id' => $person?->publicId, 'display_name' => $person?->displayName ?? ''],
+            'person' => ['public_id' => $person?->publicId, 'display_name' => $person->displayName ?? ''],
             'relationship' => $this->relationship,
             'kind' => $this->kind,
-            'valid_from' => $this->valid_from?->toDateString(),
+            'valid_from' => $this->valid_from->toDateString(),
             'valid_until' => $this->valid_until?->toDateString(),
         ];
 

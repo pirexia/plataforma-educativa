@@ -65,7 +65,7 @@ final class GdImageSanitizer implements ImageSanitizer
             throw new ImageRejectedException(ImageRejection::Dimensions);
         }
 
-        if (($info['mime'] ?? null) !== $mime) {
+        if ($info['mime'] !== $mime) {
             throw new ImageRejectedException(ImageRejection::TypeMismatch);
         }
 

@@ -37,38 +37,38 @@ class PickupPersonsController extends FamUnitController
         return (new PickupPersonResource($view))->response()->setStatusCode($view->reused === true ? 200 : 201);
     }
 
-    public function show(Request $request, string $person, PickupPersonService $persons): PickupPersonResource
+    public function show(Request $request, string $personPublicId, PickupPersonService $persons): PickupPersonResource
     {
-        return new PickupPersonResource($persons->view($persons->find($person)));
+        return new PickupPersonResource($persons->view($persons->find($personPublicId)));
     }
 
     /** `PATCH`: corrige datos de una persona **sin usuario** (`OPEN-068-07`); con usuario o no alcanzable, `404`. */
-    public function update(UpdatePickupPersonRequest $request, string $person, PickupPersonService $persons): PickupPersonResource
+    public function update(UpdatePickupPersonRequest $request, string $personPublicId, PickupPersonService $persons): PickupPersonResource
     {
-        $persons->find($person);
+        $persons->find($personPublicId);
 
-        return new PickupPersonResource($persons->view($persons->correct($person, $request->payload())));
+        return new PickupPersonResource($persons->view($persons->correct($personPublicId, $request->payload())));
     }
 
-    public function putPhoto(UploadPickupPhotoRequest $request, string $person, PickupPersonService $persons, PickupPhotoService $photos): PickupPersonResource
+    public function putPhoto(UploadPickupPhotoRequest $request, string $personPublicId, PickupPersonService $persons, PickupPhotoService $photos): PickupPersonResource
     {
-        $ref = $persons->find($person);
+        $ref = $persons->find($personPublicId);
         $photos->upload($ref, $request->photo());
 
         return new PickupPersonResource($persons->view($ref));
     }
 
     /** `GET …/photo`: URL firmada de caducidad corta, **auditada** (`read`) y con límite. */
-    public function showPhoto(Request $request, string $person, PickupPersonService $persons, PickupPhotoService $photos): JsonResponse
+    public function showPhoto(Request $request, string $personPublicId, PickupPersonService $persons, PickupPhotoService $photos): JsonResponse
     {
-        $ref = $persons->find($person);
+        $ref = $persons->find($personPublicId);
 
         return response()->json($photos->signedUrl($ref, $this->decision($request), $this->actor($request)));
     }
 
-    public function destroyPhoto(Request $request, string $person, PickupPersonService $persons, PickupPhotoService $photos): Response
+    public function destroyPhoto(Request $request, string $personPublicId, PickupPersonService $persons, PickupPhotoService $photos): Response
     {
-        $photos->remove($persons->find($person));
+        $photos->remove($persons->find($personPublicId));
 
         return response()->noContent();
     }

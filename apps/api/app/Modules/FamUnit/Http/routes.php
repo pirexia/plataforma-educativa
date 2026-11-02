@@ -84,16 +84,16 @@ Route::middleware([RequireAuthenticatedUser::class, 'module-enabled:fam_unit'])-
     // documento y toda escritura exigen `.actualizar` (o `.crear` al dar de alta); la lectura de la fotografía, `.leer` con ámbito.
     Route::get('/pickup-persons', [PickupPersonsController::class, 'index'])->middleware('permission:autorizado_recogida.actualizar')->name('fam-unit.pickup-persons.index');
     Route::post('/pickup-persons', [PickupPersonsController::class, 'store'])->middleware('permission:autorizado_recogida.crear')->name('fam-unit.pickup-persons.store');
-    Route::get('/pickup-persons/{person}', [PickupPersonsController::class, 'show'])->middleware('permission:autorizado_recogida.actualizar')->name('fam-unit.pickup-persons.show');
-    Route::patch('/pickup-persons/{person}', [PickupPersonsController::class, 'update'])->middleware('permission:autorizado_recogida.actualizar')->name('fam-unit.pickup-persons.update');
-    Route::put('/pickup-persons/{person}/photo', [PickupPersonsController::class, 'putPhoto'])->middleware('permission:autorizado_recogida.actualizar')->name('fam-unit.pickup-persons.photo.put');
-    Route::get('/pickup-persons/{person}/photo', [PickupPersonsController::class, 'showPhoto'])->middleware('permission:autorizado_recogida.leer')->name('fam-unit.pickup-persons.photo.show');
-    Route::delete('/pickup-persons/{person}/photo', [PickupPersonsController::class, 'destroyPhoto'])->middleware('permission:autorizado_recogida.actualizar')->name('fam-unit.pickup-persons.photo.destroy');
+    Route::get('/pickup-persons/{personPublicId}', [PickupPersonsController::class, 'show'])->middleware('permission:autorizado_recogida.actualizar')->name('fam-unit.pickup-persons.show');
+    Route::patch('/pickup-persons/{personPublicId}', [PickupPersonsController::class, 'update'])->middleware('permission:autorizado_recogida.actualizar')->name('fam-unit.pickup-persons.update');
+    Route::put('/pickup-persons/{personPublicId}/photo', [PickupPersonsController::class, 'putPhoto'])->middleware('permission:autorizado_recogida.actualizar')->name('fam-unit.pickup-persons.photo.put');
+    Route::get('/pickup-persons/{personPublicId}/photo', [PickupPersonsController::class, 'showPhoto'])->middleware('permission:autorizado_recogida.leer')->name('fam-unit.pickup-persons.photo.show');
+    Route::delete('/pickup-persons/{personPublicId}/photo', [PickupPersonsController::class, 'destroyPhoto'])->middleware('permission:autorizado_recogida.actualizar')->name('fam-unit.pickup-persons.photo.destroy');
     // api.md §8.3: autorizaciones de tercero y puntuales, y la lista calculada de un alumno (sin tabla de lista, `RN-FAM-UNIT-79`).
     Route::get('/pickup-authorizations', [PickupAuthorizationsController::class, 'index'])->middleware('permission:autorizado_recogida.leer')->name('fam-unit.pickup-authorizations.index');
     Route::post('/pickup-authorizations', [PickupAuthorizationsController::class, 'store'])->middleware('permission:autorizado_recogida.crear')->name('fam-unit.pickup-authorizations.store');
     Route::get('/pickup-authorizations/{publicId}', [PickupAuthorizationsController::class, 'show'])->middleware('permission:autorizado_recogida.leer')->name('fam-unit.pickup-authorizations.show');
     Route::patch('/pickup-authorizations/{publicId}', [PickupAuthorizationsController::class, 'update'])->middleware('permission:autorizado_recogida.actualizar')->name('fam-unit.pickup-authorizations.update');
     Route::post('/pickup-authorizations/{publicId}/withdrawal', [PickupAuthorizationsController::class, 'withdraw'])->middleware('permission:autorizado_recogida.eliminar')->name('fam-unit.pickup-authorizations.withdrawal');
-    Route::get('/pickup-lists/{studentPerson}', [PickupListsController::class, 'show'])->middleware('permission:autorizado_recogida.leer')->name('fam-unit.pickup-lists.show');
+    Route::get('/pickup-lists/{studentPersonPublicId}', [PickupListsController::class, 'show'])->middleware('permission:autorizado_recogida.leer')->name('fam-unit.pickup-lists.show');
 });

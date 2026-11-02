@@ -493,6 +493,21 @@ final class FamUnitTestHelpers
     }
 
     /**
+     * Una persona de recogida con su autorización permanente ya registrada y **sin** fotografía: la persona figura en una
+     * autorización viva, así que los *endpoints* de `/pickup-persons` la alcanzan (`api.md §8.2`) y se le puede subir la
+     * fotografía. Devuelve el `public_id` de la persona.
+     *
+     * @param  array{tenant: Tenant, admin: User, student: Person, gp: string, text: ?string}  $family
+     */
+    public static function authorizedPerson(array $family, array $person = [], array $authorization = []): string
+    {
+        $id = self::registerPerson($family['tenant'], $family['admin'], $person)->assertCreated()->json('person');
+        self::call($family['tenant'], $family['admin'], 'post', '/pickup-authorizations', self::authorizationBody($family, $id, $authorization))->assertCreated();
+
+        return $id;
+    }
+
+    /**
      * La lista calculada de un alumno como `public_id` de persona (`GET /pickup-lists/{student}`).
      *
      * @return list<string>

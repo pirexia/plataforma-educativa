@@ -446,15 +446,15 @@ paths:
     $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1me~1terms-acceptances"
   /api/v1/pickup-persons:
     $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1pickup-persons"
-  /api/v1/pickup-persons/{person}:
-    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1pickup-persons~1{person}"
-  /api/v1/pickup-persons/{person}/photo:
-    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1pickup-persons~1{person}~1photo"
+  /api/v1/pickup-persons/{personPublicId}:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1pickup-persons~1{personPublicId}"
+  /api/v1/pickup-persons/{personPublicId}/photo:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1pickup-persons~1{personPublicId}~1photo"
   /api/v1/pickup-authorizations:
     $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1pickup-authorizations"
   /api/v1/pickup-authorizations/{publicId}:
     $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1pickup-authorizations~1{publicId}"
   /api/v1/pickup-authorizations/{publicId}/withdrawal:
     $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1pickup-authorizations~1{publicId}~1withdrawal"
-  /api/v1/pickup-lists/{studentPerson}:
-    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1pickup-lists~1{studentPerson}"
+  /api/v1/pickup-lists/{studentPersonPublicId}:
+    $ref: "openapi/paths/fam-unit.yaml#/paths/~1api~1v1~1pickup-lists~1{studentPersonPublicId}"

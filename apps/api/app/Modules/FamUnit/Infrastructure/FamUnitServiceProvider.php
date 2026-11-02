@@ -19,6 +19,7 @@ use App\Modules\FamUnit\Domain\Models\PickupAuthorization;
 use App\Modules\FamUnit\Domain\Models\PickupPhoto;
 use App\Modules\FamUnit\Domain\Models\TermsAcceptance;
 use App\Modules\FamUnit\Domain\Models\TermsVersion;
+use App\Modules\FamUnit\Infrastructure\Console\PurgeOrphanPickupPhotosCommand;
 use App\Support\Authorization\ScopeResolverRegistry;
 use App\Support\Modules\DeclaresModuleRegistry;
 use App\Support\Sessions\SessionWallRegistry;
@@ -60,6 +61,11 @@ class FamUnitServiceProvider extends ServiceProvider implements DeclaresModuleRe
     public function boot(): void
     {
         $this->loadMigrationsFrom(app_path('Modules/FamUnit/Database/migrations'));
+
+        // 1.14b-a (operacion.md §12.3): barrido de fotografías de recogida huérfanas.
+        if ($this->app->runningInConsole()) {
+            $this->commands([PurgeOrphanPickupPhotosCommand::class]);
+        }
 
         // ADR-034 §3: `audit_logs` guarda el alias, nunca el FQCN.
         Relation::enforceMorphMap([

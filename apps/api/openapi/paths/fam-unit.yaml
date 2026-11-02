@@ -1247,7 +1247,7 @@ paths:
         OPEN-FAM-UNIT-27). **Nunca modifica una persona existente** (RN-FAM-UNIT-89): si ya hay una persona viva del
         centro con ese documento, responde `200` con `reused = true` y `data_mismatch = true` si algún dato aportado
         difiere del registrado, sin decir cuál; el personal lo corrige en la ficha de la persona (por
-        `PATCH /pickup-persons/{person}` si no tiene usuario, o por `/users` si lo tiene). Si esa persona no es
+        `PATCH /pickup-persons/{personPublicId}` si no tiene usuario, o por `/users` si lo tiene). Si esa persona no es
         alcanzable por estos *endpoints*, la respuesta solo lleva su identificador y los dos indicadores. Sin documento
         siempre crea (no hay clave con la que reutilizar). El tipo, el formato y el dígito de control del documento los
         valida `Core` (RN-CORE-90 a -93).
@@ -1282,9 +1282,9 @@ paths:
         '403': { description: 'Sin el permiso (`403`) o módulo `fam_unit` no contratado (`403 urn:pge:error:module-disabled`).', content: { application/problem+json: { schema: { $ref: '../components.yaml#/components/schemas/Problem' } } } }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
 
-  /api/v1/pickup-persons/{person}:
+  /api/v1/pickup-persons/{personPublicId}:
     parameters:
-      - name: person
+      - name: personPublicId
         in: path
         required: true
         schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
@@ -1339,9 +1339,9 @@ paths:
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '422': { $ref: '../components.yaml#/components/responses/ValidationError' }
 
-  /api/v1/pickup-persons/{person}/photo:
+  /api/v1/pickup-persons/{personPublicId}/photo:
     parameters:
-      - name: person
+      - name: personPublicId
         in: path
         required: true
         schema: { $ref: '../components.yaml#/components/schemas/PublicId' }
@@ -1617,9 +1617,9 @@ paths:
         '404': { $ref: '../components.yaml#/components/responses/NotFound' }
         '409': { $ref: '../components.yaml#/components/responses/Conflict' }
 
-  /api/v1/pickup-lists/{studentPerson}:
+  /api/v1/pickup-lists/{studentPersonPublicId}:
     parameters:
-      - name: studentPerson
+      - name: studentPersonPublicId
         in: path
         required: true
         description: '`public_id` de la persona del alumno.'

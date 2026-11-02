@@ -38,7 +38,7 @@ final class PickupListReader
     ) {}
 
     /**
-     * @param  AuthorizedPickupList::PURPOSE_*  $purpose
+     * @param  string  $purpose  `AuthorizedPickupList::PURPOSE_MANAGEMENT` o `PURPOSE_DOOR`; otra cosa es un error de programación
      * @return list<PickupEntry>
      */
     public function read(int $studentPersonId, string $purpose, bool $restricted = false): array

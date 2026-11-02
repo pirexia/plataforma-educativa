@@ -28,12 +28,13 @@ class PickupPersonResource extends JsonResource
         $data = ['person' => $view->person->publicId];
 
         if ($view->identified) {
+            $contact = $view->contact;
             $data += [
                 'display_name' => $view->person->displayName,
-                'document' => $view->contact?->documentType !== null && $view->contact?->documentNumber !== null
-                    ? ['type' => $view->contact->documentType, 'number' => $view->contact->documentNumber]
+                'document' => $contact !== null && $contact->documentType !== null && $contact->documentNumber !== null
+                    ? ['type' => $contact->documentType, 'number' => $contact->documentNumber]
                     : null,
-                'contact_phone' => $view->contact?->contactPhone,
+                'contact_phone' => $contact?->contactPhone,
                 'has_photo' => $view->photo !== null,
                 'photo_updated_at' => $view->photo?->created_at,
             ];

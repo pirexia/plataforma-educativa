@@ -27,7 +27,7 @@ function registrarTenants(string $a, string $b): array
     return [$tenantA, $tenantB];
 }
 
-function inTenant(object $tenant, Closure $callback): mixed
+function registrarIn(object $tenant, Closure $callback): mixed
 {
     return app(TenantContext::class)->runFor($tenant->id, $callback);
 }
@@ -35,13 +35,13 @@ function inTenant(object $tenant, Closure $callback): mixed
 test('ADR-068 §5.2: registerOrReuse crea una persona sin cuenta con el documento canónico y el idioma del centro, y la audita Core', function (): void {
     [$tenant] = registrarTenants('reg-crea', 'reg-crea-b');
 
-    $outcome = inTenant($tenant, fn () => app(PersonRegistrar::class)->registerOrReuse(
+    $outcome = registrarIn($tenant, fn () => app(PersonRegistrar::class)->registerOrReuse(
         new PersonRegistration(' Ana ', 'Pérez', 'Ruiz', 'dni', ' 12345678-z ', ' 600 000 000 '),
     ));
 
     expect($outcome->reused)->toBeFalse()->and($outcome->dataMismatch)->toBeFalse();
 
-    $person = inTenant($tenant, fn () => Person::query()->findOrFail($outcome->personId));
+    $person = registrarIn($tenant, fn () => Person::query()->findOrFail($outcome->personId));
 
     expect($person->given_name)->toBe('Ana')
         ->and($person->family_name_1)->toBe('Pérez')
@@ -52,10 +52,10 @@ test('ADR-068 §5.2: registerOrReuse crea una persona sin cuenta con el document
         ->and($person->contact_email)->toBeNull()
         ->and($person->birth_date)->toBeNull()
         ->and($person->public_id)->toBe($outcome->publicId)
-        ->and(inTenant($tenant, fn () => DB::table('users')->where('person_id', $outcome->personId)->exists()))->toBeFalse();
+        ->and(registrarIn($tenant, fn () => DB::table('users')->where('person_id', $outcome->personId)->exists()))->toBeFalse();
 
     // INV-003: el alta de la persona la audita Core por su ciclo de vida.
-    $log = inTenant($tenant, fn () => AuditLog::query()->where('auditable_type', 'person')->where('auditable_id', $outcome->personId)->where('event', 'created')->first());
+    $log = registrarIn($tenant, fn () => AuditLog::query()->where('auditable_type', 'person')->where('auditable_id', $outcome->personId)->where('event', 'created')->first());
     expect($log)->not->toBeNull();
 });
 
@@ -63,7 +63,7 @@ test('ADR-068 §5.2: sin documento siempre crea (no hay clave con la que reutili
     [$tenant] = registrarTenants('reg-sindoc', 'reg-sindoc-b');
     $registrar = app(PersonRegistrar::class);
 
-    [$one, $two] = inTenant($tenant, fn () => [
+    [$one, $two] = registrarIn($tenant, fn () => [
         $registrar->registerOrReuse(new PersonRegistration('Luis', 'Gómez')),
         $registrar->registerOrReuse(new PersonRegistration('Luis', 'Gómez')),
     ]);
@@ -74,41 +74,41 @@ test('ADR-068 §5.2: sin documento siempre crea (no hay clave con la que reutili
 test('CA-068-06 CA-FAM-UNIT-126 RN-FAM-UNIT-89: reutilizar una persona existente con otro nombre y teléfono no cambia ninguna columna de people y devuelve reused y dataMismatch', function (): void {
     [$tenant] = registrarTenants('reg-reuse', 'reg-reuse-b');
 
-    $existing = inTenant($tenant, fn () => Person::factory()->create([
+    $existing = registrarIn($tenant, fn () => Person::factory()->create([
         'given_name' => 'María', 'family_name_1' => 'Soler', 'family_name_2' => null,
         'document_type' => 'dni', 'document_number' => '12345678Z', 'contact_phone' => '611111111', 'contact_email' => null,
     ]));
-    $before = inTenant($tenant, fn () => (array) DB::table('people')->where('id', $existing->id)->first());
-    $auditBefore = inTenant($tenant, fn () => AuditLog::query()->where('auditable_type', 'person')->where('auditable_id', $existing->id)->count());
-    $peopleBefore = inTenant($tenant, fn () => DB::table('people')->count());
+    $before = registrarIn($tenant, fn () => (array) DB::table('people')->where('id', $existing->id)->first());
+    $auditBefore = registrarIn($tenant, fn () => AuditLog::query()->where('auditable_type', 'person')->where('auditable_id', $existing->id)->count());
+    $peopleBefore = registrarIn($tenant, fn () => DB::table('people')->count());
 
-    $outcome = inTenant($tenant, fn () => app(PersonRegistrar::class)->registerOrReuse(
+    $outcome = registrarIn($tenant, fn () => app(PersonRegistrar::class)->registerOrReuse(
         new PersonRegistration('Marta', 'Solé', 'Vidal', 'dni', '12345678z', '622222222'),
     ));
 
-    $after = inTenant($tenant, fn () => (array) DB::table('people')->where('id', $existing->id)->first());
+    $after = registrarIn($tenant, fn () => (array) DB::table('people')->where('id', $existing->id)->first());
 
     expect($outcome->reused)->toBeTrue()
         ->and($outcome->dataMismatch)->toBeTrue()
         ->and($outcome->personId)->toBe((int) $existing->id)
         ->and($outcome->publicId)->toBe($existing->public_id)
         ->and($after)->toBe($before)
-        ->and(inTenant($tenant, fn () => DB::table('people')->count()))->toBe($peopleBefore)
-        ->and(inTenant($tenant, fn () => AuditLog::query()->where('auditable_type', 'person')->where('auditable_id', $existing->id)->count()))->toBe($auditBefore);
+        ->and(registrarIn($tenant, fn () => DB::table('people')->count()))->toBe($peopleBefore)
+        ->and(registrarIn($tenant, fn () => AuditLog::query()->where('auditable_type', 'person')->where('auditable_id', $existing->id)->count()))->toBe($auditBefore);
 });
 
 test('ADR-068 §5.2: reutilizar con los mismos datos aportados no marca discrepancia; los datos que no se dan no cuentan', function (): void {
     [$tenant] = registrarTenants('reg-same', 'reg-same-b');
 
-    inTenant($tenant, fn () => Person::factory()->create([
+    registrarIn($tenant, fn () => Person::factory()->create([
         'given_name' => 'María', 'family_name_1' => 'Soler', 'family_name_2' => 'Pons',
         'document_type' => 'dni', 'document_number' => '12345678Z', 'contact_phone' => '611111111',
     ]));
     $registrar = app(PersonRegistrar::class);
 
-    $same = inTenant($tenant, fn () => $registrar->registerOrReuse(new PersonRegistration('María', 'Soler', null, 'dni', '12345678Z', null)));
-    $other = inTenant($tenant, fn () => $registrar->registerOrReuse(new PersonRegistration('María', 'Soler', 'Pons', 'dni', '12345678Z', '611111111')));
-    $differs = inTenant($tenant, fn () => $registrar->registerOrReuse(new PersonRegistration('María', 'Soler', 'Pons', 'dni', '12345678Z', '699999999')));
+    $same = registrarIn($tenant, fn () => $registrar->registerOrReuse(new PersonRegistration('María', 'Soler', null, 'dni', '12345678Z', null)));
+    $other = registrarIn($tenant, fn () => $registrar->registerOrReuse(new PersonRegistration('María', 'Soler', 'Pons', 'dni', '12345678Z', '611111111')));
+    $differs = registrarIn($tenant, fn () => $registrar->registerOrReuse(new PersonRegistration('María', 'Soler', 'Pons', 'dni', '12345678Z', '699999999')));
 
     expect($same->reused)->toBeTrue()->and($same->dataMismatch)->toBeFalse()
         ->and($other->dataMismatch)->toBeFalse()
@@ -119,26 +119,26 @@ test('ADR-068 §5.2: reutiliza también a la persona de un usuario (la elegibili
     [$tenantA, $tenantB] = registrarTenants('reg-user', 'reg-user-b');
     $registrar = app(PersonRegistrar::class);
 
-    $adminPerson = inTenant($tenantA, fn () => Person::query()->whereHas('user')->firstOrFail());
-    inTenant($tenantA, fn () => Person::query()->whereKey($adminPerson->id)->update(['document_type' => 'dni', 'document_number' => '87654321X']));
+    $adminPerson = registrarIn($tenantA, fn () => Person::query()->whereHas('user')->firstOrFail());
+    registrarIn($tenantA, fn () => Person::query()->whereKey($adminPerson->id)->update(['document_type' => 'dni', 'document_number' => '87654321X']));
 
-    $reused = inTenant($tenantA, fn () => $registrar->registerOrReuse(new PersonRegistration('Otra', 'Cosa', null, 'dni', '87654321X')));
+    $reused = registrarIn($tenantA, fn () => $registrar->registerOrReuse(new PersonRegistration('Otra', 'Cosa', null, 'dni', '87654321X')));
     expect($reused->reused)->toBeTrue()->and($reused->personId)->toBe((int) $adminPerson->id);
 
     // Un centro no ve el documento del otro: crea una persona propia con el mismo documento.
-    $other = inTenant($tenantB, fn () => $registrar->registerOrReuse(new PersonRegistration('Otra', 'Cosa', null, 'dni', '87654321X')));
+    $other = registrarIn($tenantB, fn () => $registrar->registerOrReuse(new PersonRegistration('Otra', 'Cosa', null, 'dni', '87654321X')));
     expect($other->reused)->toBeFalse()->and($other->personId)->not->toBe((int) $adminPerson->id);
 
     // Una persona borrada no se reutiliza: el índice único es parcial (`deleted_at IS NULL`).
-    inTenant($tenantB, fn () => Person::query()->whereKey($other->personId)->firstOrFail()->delete());
-    $again = inTenant($tenantB, fn () => $registrar->registerOrReuse(new PersonRegistration('Otra', 'Cosa', null, 'dni', '87654321X')));
+    registrarIn($tenantB, fn () => Person::query()->whereKey($other->personId)->firstOrFail()->delete());
+    $again = registrarIn($tenantB, fn () => $registrar->registerOrReuse(new PersonRegistration('Otra', 'Cosa', null, 'dni', '87654321X')));
     expect($again->reused)->toBeFalse()->and($again->personId)->not->toBe($other->personId);
 });
 
 test('RN-CORE-90 a -92: tipo fuera del catálogo, par incompleto y número inválido son 422 y no escriben nada', function (): void {
     [$tenant] = registrarTenants('reg-422', 'reg-422-b');
     $registrar = app(PersonRegistrar::class);
-    $count = fn () => inTenant($tenant, fn () => DB::table('people')->count());
+    $count = fn () => registrarIn($tenant, fn () => DB::table('people')->count());
     $before = $count();
 
     foreach ([
@@ -148,7 +148,7 @@ test('RN-CORE-90 a -92: tipo fuera del catálogo, par incompleto y número invá
         ['dni', '12345678A', 'document_number'],
     ] as [$type, $number, $field]) {
         try {
-            inTenant($tenant, fn () => $registrar->registerOrReuse(new PersonRegistration('Ana', 'Pérez', null, $type, $number)));
+            registrarIn($tenant, fn () => $registrar->registerOrReuse(new PersonRegistration('Ana', 'Pérez', null, $type, $number)));
             $thrown = null;
         } catch (ApiException $e) {
             $thrown = $e;
@@ -158,21 +158,21 @@ test('RN-CORE-90 a -92: tipo fuera del catálogo, par incompleto y número invá
     }
 
     expect($count())->toBe($before)
-        ->and(fn () => inTenant($tenant, fn () => $registrar->registerOrReuse(new PersonRegistration('  ', 'Pérez'))))->toThrow(InvalidArgumentException::class);
+        ->and(fn () => registrarIn($tenant, fn () => $registrar->registerOrReuse(new PersonRegistration('  ', 'Pérez'))))->toThrow(InvalidArgumentException::class);
 });
 
 test('OPEN-068-07 CA-FAM-UNIT-130: correctUnaccounted corrige nombre, apellidos y teléfono de una persona sin usuario, no toca el documento y lo audita Core', function (): void {
     [$tenant] = registrarTenants('reg-fix', 'reg-fix-b');
     $registrar = app(PersonRegistrar::class);
 
-    $created = inTenant($tenant, fn () => $registrar->registerOrReuse(new PersonRegistration('Ana', 'Perez', 'Ruiz', 'dni', '12345678Z', '600000000')));
-    $before = inTenant($tenant, fn () => (array) DB::table('people')->where('id', $created->personId)->first());
+    $created = registrarIn($tenant, fn () => $registrar->registerOrReuse(new PersonRegistration('Ana', 'Perez', 'Ruiz', 'dni', '12345678Z', '600000000')));
+    $before = registrarIn($tenant, fn () => (array) DB::table('people')->where('id', $created->personId)->first());
 
-    inTenant($tenant, fn () => $registrar->correctUnaccounted($created->personId, new PersonCorrection([
+    registrarIn($tenant, fn () => $registrar->correctUnaccounted($created->personId, new PersonCorrection([
         'family_name_1' => ' Pérez ', 'contact_phone' => '611111111', 'family_name_2' => null,
     ])));
 
-    $after = inTenant($tenant, fn () => (array) DB::table('people')->where('id', $created->personId)->first());
+    $after = registrarIn($tenant, fn () => (array) DB::table('people')->where('id', $created->personId)->first());
 
     expect($after['family_name_1'])->toBe('Pérez')
         ->and($after['contact_phone'])->toBe('611111111')
@@ -180,7 +180,7 @@ test('OPEN-068-07 CA-FAM-UNIT-130: correctUnaccounted corrige nombre, apellidos 
         ->and($after['given_name'])->toBe('Ana')
         ->and($after['document_type'])->toBe($before['document_type'])
         ->and($after['document_number'])->toBe($before['document_number'])
-        ->and(inTenant($tenant, fn () => AuditLog::query()->where('auditable_type', 'person')->where('auditable_id', $created->personId)->where('event', 'updated')->count()))->toBe(1);
+        ->and(registrarIn($tenant, fn () => AuditLog::query()->where('auditable_type', 'person')->where('auditable_id', $created->personId)->where('event', 'updated')->count()))->toBe(1);
 });
 
 test('OPEN-068-07: correctUnaccounted lanza sobre una persona con usuario, inexistente, borrada o de otro centro, sin modificar nada', function (): void {
@@ -188,19 +188,19 @@ test('OPEN-068-07: correctUnaccounted lanza sobre una persona con usuario, inexi
     $registrar = app(PersonRegistrar::class);
     $correction = new PersonCorrection(['contact_phone' => '699999999']);
 
-    $withUser = inTenant($tenantA, fn () => Person::query()->whereHas('user')->firstOrFail());
+    $withUser = registrarIn($tenantA, fn () => Person::query()->whereHas('user')->firstOrFail());
     $phoneBefore = $withUser->contact_phone;
 
-    $foreign = inTenant($tenantB, fn () => $registrar->registerOrReuse(new PersonRegistration('Ana', 'Perez')));
-    $deleted = inTenant($tenantA, fn () => $registrar->registerOrReuse(new PersonRegistration('Borrada', 'Perez')));
-    inTenant($tenantA, fn () => Person::query()->whereKey($deleted->personId)->firstOrFail()->delete());
+    $foreign = registrarIn($tenantB, fn () => $registrar->registerOrReuse(new PersonRegistration('Ana', 'Perez')));
+    $deleted = registrarIn($tenantA, fn () => $registrar->registerOrReuse(new PersonRegistration('Borrada', 'Perez')));
+    registrarIn($tenantA, fn () => Person::query()->whereKey($deleted->personId)->firstOrFail()->delete());
 
     foreach ([(int) $withUser->id, $foreign->personId, $deleted->personId, 987654321] as $personId) {
-        expect(fn () => inTenant($tenantA, fn () => $registrar->correctUnaccounted($personId, $correction)))->toThrow(PersonNotCorrectableException::class);
+        expect(fn () => registrarIn($tenantA, fn () => $registrar->correctUnaccounted($personId, $correction)))->toThrow(PersonNotCorrectableException::class);
     }
 
-    expect(inTenant($tenantA, fn () => Person::query()->findOrFail($withUser->id)->contact_phone))->toBe($phoneBefore)
-        ->and(inTenant($tenantB, fn () => Person::query()->findOrFail($foreign->personId)->contact_phone))->toBeNull();
+    expect(registrarIn($tenantA, fn () => Person::query()->findOrFail($withUser->id)->contact_phone))->toBe($phoneBefore)
+        ->and(registrarIn($tenantB, fn () => Person::query()->findOrFail($foreign->personId)->contact_phone))->toBeNull();
 });
 
 test('ADR-068 §5.2: PersonCorrection exige al menos un campo, solo los permitidos (nunca el documento) y no deja vacíos nombre ni primer apellido', function (): void {
@@ -216,20 +216,20 @@ test('OPEN-068-02 H9: searchByNameAmong busca por prefijo de nombre o apellidos,
     [$tenant, $other] = registrarTenants('dir-search', 'dir-search-b');
     $directory = app(PersonDirectory::class);
 
-    $make = fn (string $given, string $family1, ?string $family2 = null) => inTenant($tenant, fn () => Person::factory()->create(['given_name' => $given, 'family_name_1' => $family1, 'family_name_2' => $family2]));
+    $make = fn (string $given, string $family1, ?string $family2 = null) => registrarIn($tenant, fn () => Person::factory()->create(['given_name' => $given, 'family_name_1' => $family1, 'family_name_2' => $family2]));
     $ana = $make('Ana', 'Pérez', 'Soler');
     $anabel = $make('Anabel', 'Gil');
     $luis = $make('Luis', 'Anaya');
     $paco = $make('Paco', 'Díaz', 'Ana');
     $porcentaje = $make('100%', 'Real');
     $borrada = $make('Anastasia', 'Muerta');
-    inTenant($tenant, fn () => $borrada->delete());
-    $foreign = inTenant($other, fn () => Person::factory()->create(['given_name' => 'Ana', 'family_name_1' => 'Ajena']));
+    registrarIn($tenant, fn () => $borrada->delete());
+    $foreign = registrarIn($other, fn () => Person::factory()->create(['given_name' => 'Ana', 'family_name_1' => 'Ajena']));
 
     $ids = [(int) $ana->id, (int) $anabel->id, (int) $luis->id, (int) $paco->id, (int) $porcentaje->id, (int) $borrada->id, (int) $foreign->id];
     $names = fn (string $term, ?array $among = null, int $limit = 10) => array_map(
         static fn ($ref) => $ref->displayName,
-        inTenant($tenant, fn () => $directory->searchByNameAmong($term, $among ?? $ids, $limit)),
+        registrarIn($tenant, fn () => $directory->searchByNameAmong($term, $among ?? $ids, $limit)),
     );
 
     // Prefijo de nombre, primer apellido, segundo apellido; sin distinguir mayúsculas; ordenado por nombre visible; sin borrados ni ajenos.
@@ -254,32 +254,32 @@ test('OPEN-068-05: findByDocument encuentra a la persona viva del centro por su 
     [$tenant, $other] = registrarTenants('dir-doc', 'dir-doc-b');
     $directory = app(PersonDirectory::class);
 
-    $person = inTenant($tenant, fn () => Person::factory()->create(['document_type' => 'dni', 'document_number' => '12345678Z']));
-    inTenant($other, fn () => Person::factory()->create(['document_type' => 'dni', 'document_number' => '87654321X']));
+    $person = registrarIn($tenant, fn () => Person::factory()->create(['document_type' => 'dni', 'document_number' => '12345678Z']));
+    registrarIn($other, fn () => Person::factory()->create(['document_type' => 'dni', 'document_number' => '87654321X']));
 
-    $found = inTenant($tenant, fn () => $directory->findByDocument('dni', ' 12345678-z '));
+    $found = registrarIn($tenant, fn () => $directory->findByDocument('dni', ' 12345678-z '));
     expect($found?->id)->toBe((int) $person->id)->and($found?->publicId)->toBe($person->public_id);
 
-    expect(inTenant($tenant, fn () => $directory->findByDocument('dni', '87654321X')))->toBeNull()
-        ->and(inTenant($tenant, fn () => $directory->findByDocument('carnet', '12345678Z')))->toBeNull()
-        ->and(inTenant($tenant, fn () => $directory->findByDocument('dni', '  ')))->toBeNull();
+    expect(registrarIn($tenant, fn () => $directory->findByDocument('dni', '87654321X')))->toBeNull()
+        ->and(registrarIn($tenant, fn () => $directory->findByDocument('carnet', '12345678Z')))->toBeNull()
+        ->and(registrarIn($tenant, fn () => $directory->findByDocument('dni', '  ')))->toBeNull();
 
-    inTenant($tenant, fn () => $person->delete());
-    expect(inTenant($tenant, fn () => $directory->findByDocument('dni', '12345678Z')))->toBeNull();
+    registrarIn($tenant, fn () => $person->delete());
+    expect(registrarIn($tenant, fn () => $directory->findByDocument('dni', '12345678Z')))->toBeNull();
 });
 
 test('OPEN-068-05: contactDetailsByIds devuelve teléfono y documento completos de las vivas del centro, en una consulta, sin las borradas ni ajenas', function (): void {
     [$tenant, $other] = registrarTenants('dir-contact', 'dir-contact-b');
     $directory = app(PersonDirectory::class);
 
-    $with = inTenant($tenant, fn () => Person::factory()->create(['document_type' => 'dni', 'document_number' => '12345678Z', 'contact_phone' => '600000000']));
-    $without = inTenant($tenant, fn () => Person::factory()->create(['contact_phone' => null]));
-    $deleted = inTenant($tenant, fn () => Person::factory()->create(['contact_phone' => '633333333']));
-    inTenant($tenant, fn () => $deleted->delete());
-    $foreign = inTenant($other, fn () => Person::factory()->create(['contact_phone' => '644444444']));
+    $with = registrarIn($tenant, fn () => Person::factory()->create(['document_type' => 'dni', 'document_number' => '12345678Z', 'contact_phone' => '600000000']));
+    $without = registrarIn($tenant, fn () => Person::factory()->create(['contact_phone' => null]));
+    $deleted = registrarIn($tenant, fn () => Person::factory()->create(['contact_phone' => '633333333']));
+    registrarIn($tenant, fn () => $deleted->delete());
+    $foreign = registrarIn($other, fn () => Person::factory()->create(['contact_phone' => '644444444']));
 
     DB::connection()->enableQueryLog();
-    $contacts = inTenant($tenant, fn () => $directory->contactDetailsByIds([(int) $with->id, (int) $without->id, (int) $deleted->id, (int) $foreign->id]));
+    $contacts = registrarIn($tenant, fn () => $directory->contactDetailsByIds([(int) $with->id, (int) $without->id, (int) $deleted->id, (int) $foreign->id]));
     $selects = collect(DB::connection()->getQueryLog())->filter(fn (array $q): bool => str_contains($q['query'], 'from "people"'))->count();
     DB::connection()->disableQueryLog();
 
@@ -290,5 +290,5 @@ test('OPEN-068-05: contactDetailsByIds devuelve teléfono y documento completos 
         ->and($contacts[(int) $without->id]->contactPhone)->toBeNull()
         ->and($contacts[(int) $without->id]->documentNumber)->toBeNull()
         ->and($selects)->toBe(1)
-        ->and(inTenant($tenant, fn () => $directory->contactDetailsByIds([])))->toBe([]);
+        ->and(registrarIn($tenant, fn () => $directory->contactDetailsByIds([])))->toBe([]);
 });

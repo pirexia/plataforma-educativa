@@ -8,6 +8,7 @@ use App\Modules\FamUnit\Domain\Models\PickupAuthorization;
 use App\Modules\FamUnit\Domain\Models\TermsVersion;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -87,7 +88,7 @@ final class PickupAuthorizationService
                     'authorized_by_guardian_id' => $authorizedBy,
                     'terms_version_id' => (int) $version->id,
                     'channel' => $input['channel'],
-                    'authorized_at' => $authorizedAt,
+                    'authorized_at' => Carbon::instance($authorizedAt),
                 ], $actor, $client);
             });
         } catch (QueryException $e) {
@@ -121,7 +122,7 @@ final class PickupAuthorizationService
                 throw FamUnitErrors::invalid('valid_until', 'fam_unit.validation.date_range_invalid');
             }
 
-            $authorization->valid_until = $validUntil;
+            $authorization->valid_until = $validUntil === null ? null : Carbon::parse($validUntil);
             $authorization->save();
 
             return $authorization;

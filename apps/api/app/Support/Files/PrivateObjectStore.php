@@ -71,6 +71,14 @@ final class PrivateObjectStore
         return is_string($contents) ? $contents : null;
     }
 
+    /** Instante (marca de tiempo Unix) de la última modificación de un objeto del centro en curso. */
+    public function lastModified(string $key): int
+    {
+        $this->assertOwn($key);
+
+        return $this->disk()->lastModified($key);
+    }
+
     public function delete(string $key): void
     {
         $this->assertOwn($key);

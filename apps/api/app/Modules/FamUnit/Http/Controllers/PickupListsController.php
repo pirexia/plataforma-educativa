@@ -20,9 +20,9 @@ use Illuminate\Http\Request;
  */
 class PickupListsController extends FamUnitController
 {
-    public function show(Request $request, string $studentPerson, PersonDirectory $people, PickupListService $list, PickupListReader $reader): JsonResponse
+    public function show(Request $request, string $studentPersonPublicId, PersonDirectory $people, PickupListService $list, PickupListReader $reader): JsonResponse
     {
-        $student = $people->findByPublicId($studentPerson) ?? throw ApiException::notFound();
+        $student = $people->findByPublicId($studentPersonPublicId) ?? throw ApiException::notFound();
         $decision = $this->decision($request);
         $list->assertStudentReachable($decision, $this->actor($request), $student->id);
 
