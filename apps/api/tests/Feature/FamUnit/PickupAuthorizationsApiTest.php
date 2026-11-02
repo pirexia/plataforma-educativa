@@ -439,8 +439,8 @@ test('INV-001 CA-FAM-UNIT-124: dos centros con familias, terceros, fotos y autor
             ->and($personB)->toBeGreaterThan(0);
     });
 
-    // El audit_log de lectura es del centro que lee: las lecturas hechas desde A no añaden filas `read` a B.
-    expect(app(TenantContext::class)->runFor($b['tenant']->id, fn () => AuditLog::query()->where('event', 'read')->count()))->toBe($readsB);
+    // El audit_log de lectura es del centro que lee: las lecturas hechas desde A no añaden filas `read` a B; solo la lista que el propio B leyó arriba.
+    expect(app(TenantContext::class)->runFor($b['tenant']->id, fn () => AuditLog::query()->where('event', 'read')->count()))->toBe($readsB + 1);
 });
 
 test('RN-FAM-UNIT-36 (decisión del usuario del 2026-11-02): sin revocacion_tutor.leer, TODA causa de no vigencia — sin foto, fuera de vigencia, retirada y persona excluida — sale como no_vigente; con él, la causa concreta', function (): void {
