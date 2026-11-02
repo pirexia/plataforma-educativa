@@ -35,6 +35,12 @@ Registro del gasto de cada subagente, para calibrar el tamaño de los tramos de 
 | 1.14b-b | security-reviewer | ronda única | 145515 | 18 | 3.1 | 8084 | 2 Medios |
 | 1.14b-b | doc-reviewer | ronda única | 103117 | 18 | 2.2 | 5729 | 3 Medios |
 | 1.14b-b | verificador | suite completa + E2E real | 37742 | 17 | 11.7 | 2220 | |
+| 1.14b-c (spec) | spec-writer (Opus) | P1 especificación UI §23 | 197804 | 37 | 7.9 | 5346 | clasificación crítico; partición c1/c2 |
+| 1.14b-c (spec) | spec-writer (Opus) | P2 enmiendas tras doc-reviewer | 75177 | 31 | 4.2 | 2425 | reanudación; tokens = delta (273k acumulado) |
+| 1.14b-c (proceso) | general-purpose (Sonnet) | 3 skills nuevas | 91759 | 14 | 1.5 | 6554 | frontend-spa, auditoria, colas-y-workers |
+| 1.14b-c (spec) | doc-precheck | pasada 1 | 86340 | 11 | 0.9 | 7849 | 4 hallazgos |
+| 1.14b-c (spec) | doc-reviewer | ronda única | 194526 | 41 | 4.0 | 4744 | 0 C/A, 7 Medios, 12 Bajos |
+| 1.14b-c (spec) | doc-precheck | pasada 2 (sobre enmiendas) | 110265 | 15 | 1.6 | 7351 | 2 menores |
 | proceso | implementer | aplicar ADR-069 (skill, docs) | 106801 | 16 | 2.4 | 6675 | |
 
 ## Resumen (se recalcula al cerrar cada paso)
